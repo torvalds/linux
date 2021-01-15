@@ -582,7 +582,7 @@ static int pcf8563_probe(struct i2c_client *client,
 		}
 	}
 
-	err = rtc_register_device(pcf8563->rtc);
+	err = devm_rtc_register_device(pcf8563->rtc);
 	if (err)
 		return err;
 

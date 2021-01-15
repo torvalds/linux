@@ -78,57 +78,57 @@ properties:
       Maximum PHY supported speed in Mbits / seconds.
 
   broken-turn-around:
-    $ref: /schemas/types.yaml#definitions/flag
+    $ref: /schemas/types.yaml#/definitions/flag
     description:
       If set, indicates the PHY device does not correctly release
       the turn around line low at end of the control phase of the
       MDIO transaction.
 
   enet-phy-lane-swap:
-    $ref: /schemas/types.yaml#definitions/flag
+    $ref: /schemas/types.yaml#/definitions/flag
     description:
       If set, indicates the PHY will swap the TX/RX lanes to
       compensate for the board being designed with the lanes
       swapped.
 
   eee-broken-100tx:
-    $ref: /schemas/types.yaml#definitions/flag
+    $ref: /schemas/types.yaml#/definitions/flag
     description:
       Mark the corresponding energy efficient ethernet mode as
       broken and request the ethernet to stop advertising it.
 
   eee-broken-1000t:
-    $ref: /schemas/types.yaml#definitions/flag
+    $ref: /schemas/types.yaml#/definitions/flag
     description:
       Mark the corresponding energy efficient ethernet mode as
       broken and request the ethernet to stop advertising it.
 
   eee-broken-10gt:
-    $ref: /schemas/types.yaml#definitions/flag
+    $ref: /schemas/types.yaml#/definitions/flag
     description:
       Mark the corresponding energy efficient ethernet mode as
       broken and request the ethernet to stop advertising it.
 
   eee-broken-1000kx:
-    $ref: /schemas/types.yaml#definitions/flag
+    $ref: /schemas/types.yaml#/definitions/flag
     description:
       Mark the corresponding energy efficient ethernet mode as
       broken and request the ethernet to stop advertising it.
 
   eee-broken-10gkx4:
-    $ref: /schemas/types.yaml#definitions/flag
+    $ref: /schemas/types.yaml#/definitions/flag
     description:
       Mark the corresponding energy efficient ethernet mode as
       broken and request the ethernet to stop advertising it.
 
   eee-broken-10gkr:
-    $ref: /schemas/types.yaml#definitions/flag
+    $ref: /schemas/types.yaml#/definitions/flag
     description:
       Mark the corresponding energy efficient ethernet mode as
       broken and request the ethernet to stop advertising it.
 
   phy-is-integrated:
-    $ref: /schemas/types.yaml#definitions/flag
+    $ref: /schemas/types.yaml#/definitions/flag
     description:
       If set, indicates that the PHY is integrated into the same
       physical package as the Ethernet MAC. If needed, muxers
@@ -158,7 +158,7 @@ properties:
       this property is missing the delay will be skipped.
 
   sfp:
-    $ref: /schemas/types.yaml#definitions/phandle
+    $ref: /schemas/types.yaml#/definitions/phandle
     description:
       Specifies a reference to a node representing a SFP cage.
 

@@ -263,28 +263,6 @@ static int lpass_cpu_daiops_hw_params(struct snd_pcm_substream *substream,
 	return 0;
 }
 
-static int lpass_cpu_daiops_prepare(struct snd_pcm_substream *substream,
-		struct snd_soc_dai *dai)
-{
-	struct lpass_data *drvdata = snd_soc_dai_get_drvdata(dai);
-	struct lpaif_i2sctl *i2sctl = drvdata->i2sctl;
-	unsigned int id = dai->driver->id;
-	int ret;
-
-	if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK) {
-		ret = regmap_fields_write(i2sctl->spken, id,
-					 LPAIF_I2SCTL_SPKEN_ENABLE);
-	} else {
-		ret = regmap_fields_write(i2sctl->micen, id,
-					 LPAIF_I2SCTL_MICEN_ENABLE);
-	}
-
-	if (ret)
-		dev_err(dai->dev, "error writing to i2sctl enable: %d\n", ret);
-
-	return ret;
-}
-
 static int lpass_cpu_daiops_trigger(struct snd_pcm_substream *substream,
 		int cmd, struct snd_soc_dai *dai)
 {
@@ -292,6 +270,18 @@ static int lpass_cpu_daiops_trigger(struct snd_pcm_substream *substream,
 	struct lpaif_i2sctl *i2sctl = drvdata->i2sctl;
 	unsigned int id = dai->driver->id;
 	int ret = -EINVAL;
+	unsigned int val = 0;
+
+	ret = regmap_read(drvdata->lpaif_map,
+				LPAIF_I2SCTL_REG(drvdata->variant, dai->driver->id), &val);
+	if (ret) {
+		dev_err(dai->dev, "error reading from i2sctl reg: %d\n", ret);
+		return ret;
+	}
+	if (val == LPAIF_I2SCTL_RESET_STATE) {
+		dev_err(dai->dev, "error in i2sctl register state\n");
+		return -ENOTRECOVERABLE;
+	}
 
 	switch (cmd) {
 	case SNDRV_PCM_TRIGGER_START:
@@ -308,11 +298,14 @@ static int lpass_cpu_daiops_trigger(struct snd_pcm_substream *substream,
 			dev_err(dai->dev, "error writing to i2sctl reg: %d\n",
 				ret);
 
-		ret = clk_enable(drvdata->mi2s_bit_clk[id]);
-		if (ret) {
-			dev_err(dai->dev, "error in enabling mi2s bit clk: %d\n", ret);
-			clk_disable(drvdata->mi2s_osr_clk[id]);
-			return ret;
+		if (drvdata->bit_clk_state[id] == LPAIF_BIT_CLK_DISABLE) {
+			ret = clk_enable(drvdata->mi2s_bit_clk[id]);
+			if (ret) {
+				dev_err(dai->dev, "error in enabling mi2s bit clk: %d\n", ret);
+				clk_disable(drvdata->mi2s_osr_clk[id]);
+				return ret;
+			}
+			drvdata->bit_clk_state[id] = LPAIF_BIT_CLK_ENABLE;
 		}
 
 		break;
@@ -329,7 +322,10 @@ static int lpass_cpu_daiops_trigger(struct snd_pcm_substream *substream,
 		if (ret)
 			dev_err(dai->dev, "error writing to i2sctl reg: %d\n",
 				ret);
-		clk_disable(drvdata->mi2s_bit_clk[dai->driver->id]);
+		if (drvdata->bit_clk_state[id] == LPAIF_BIT_CLK_ENABLE) {
+			clk_disable(drvdata->mi2s_bit_clk[dai->driver->id]);
+			drvdata->bit_clk_state[id] = LPAIF_BIT_CLK_DISABLE;
+		}
 		break;
 	}
 
@@ -341,7 +337,6 @@ const struct snd_soc_dai_ops asoc_qcom_lpass_cpu_dai_ops = {
 	.startup	= lpass_cpu_daiops_startup,
 	.shutdown	= lpass_cpu_daiops_shutdown,
 	.hw_params	= lpass_cpu_daiops_hw_params,
-	.prepare	= lpass_cpu_daiops_prepare,
 	.trigger	= lpass_cpu_daiops_trigger,
 };
 EXPORT_SYMBOL_GPL(asoc_qcom_lpass_cpu_dai_ops);
@@ -459,16 +454,20 @@ static bool lpass_cpu_regmap_volatile(struct device *dev, unsigned int reg)
 	struct lpass_variant *v = drvdata->variant;
 	int i;
 
+	for (i = 0; i < v->i2s_ports; ++i)
+		if (reg == LPAIF_I2SCTL_REG(v, i))
+			return true;
 	for (i = 0; i < v->irq_ports; ++i)
 		if (reg == LPAIF_IRQSTAT_REG(v, i))
 			return true;
 
 	for (i = 0; i < v->rdma_channels; ++i)
-		if (reg == LPAIF_RDMACURR_REG(v, i))
+		if (reg == LPAIF_RDMACURR_REG(v, i) || reg == LPAIF_RDMACTL_REG(v, i))
 			return true;
 
 	for (i = 0; i < v->wrdma_channels; ++i)
-		if (reg == LPAIF_WRDMACURR_REG(v, i + v->wrdma_channel_start))
+		if (reg == LPAIF_WRDMACURR_REG(v, i + v->wrdma_channel_start) ||
+			reg == LPAIF_WRDMACTL_REG(v, i + v->wrdma_channel_start))
 			return true;
 
 	return false;
@@ -674,7 +673,7 @@ static bool lpass_hdmi_regmap_volatile(struct device *dev, unsigned int reg)
 	return false;
 }
 
-struct regmap_config lpass_hdmi_regmap_config = {
+static struct regmap_config lpass_hdmi_regmap_config = {
 	.reg_bits = 32,
 	.reg_stride = 4,
 	.val_bits = 32,
@@ -861,6 +860,7 @@ int asoc_qcom_lpass_cpu_platform_probe(struct platform_device *pdev)
 				PTR_ERR(drvdata->mi2s_bit_clk[dai_id]));
 			return PTR_ERR(drvdata->mi2s_bit_clk[dai_id]);
 		}
+		drvdata->bit_clk_state[dai_id] = LPAIF_BIT_CLK_DISABLE;
 	}
 
 	/* Allocation for i2sctl regmap fields */
@@ -913,6 +913,16 @@ int asoc_qcom_lpass_cpu_platform_remove(struct platform_device *pdev)
 	return 0;
 }
 EXPORT_SYMBOL_GPL(asoc_qcom_lpass_cpu_platform_remove);
+
+void asoc_qcom_lpass_cpu_platform_shutdown(struct platform_device *pdev)
+{
+	struct lpass_data *drvdata = platform_get_drvdata(pdev);
+
+	if (drvdata->variant->exit)
+		drvdata->variant->exit(pdev);
+
+}
+EXPORT_SYMBOL_GPL(asoc_qcom_lpass_cpu_platform_shutdown);
 
 MODULE_DESCRIPTION("QTi LPASS CPU Driver");
 MODULE_LICENSE("GPL v2");

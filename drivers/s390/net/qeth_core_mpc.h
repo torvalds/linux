@@ -489,9 +489,45 @@ struct qeth_set_access_ctrl {
 	__u8 reserved[8];
 } __attribute__((packed));
 
+#define QETH_QOAT_PHYS_SPEED_UNKNOWN		0x00
+#define QETH_QOAT_PHYS_SPEED_10M_HALF		0x01
+#define QETH_QOAT_PHYS_SPEED_10M_FULL		0x02
+#define QETH_QOAT_PHYS_SPEED_100M_HALF		0x03
+#define QETH_QOAT_PHYS_SPEED_100M_FULL		0x04
+#define QETH_QOAT_PHYS_SPEED_1000M_HALF		0x05
+#define QETH_QOAT_PHYS_SPEED_1000M_FULL		0x06
+// n/a						0x07
+#define QETH_QOAT_PHYS_SPEED_10G_FULL		0x08
+// n/a						0x09
+#define QETH_QOAT_PHYS_SPEED_25G_FULL		0x0A
+
+#define QETH_QOAT_PHYS_MEDIA_COPPER		0x01
+#define QETH_QOAT_PHYS_MEDIA_FIBRE_SHORT	0x02
+#define QETH_QOAT_PHYS_MEDIA_FIBRE_LONG		0x04
+
+struct qeth_query_oat_physical_if {
+	u8 res_head[33];
+	u8 speed_duplex;
+	u8 media_type;
+	u8 res_tail[29];
+};
+
+#define QETH_QOAT_REPLY_TYPE_PHYS_IF		0x0004
+
+struct qeth_query_oat_reply {
+	u16 type;
+	u16 length;
+	u16 version;
+	u8 res[10];
+	struct qeth_query_oat_physical_if phys_if;
+};
+
+#define QETH_QOAT_SCOPE_INTERFACE		0x00000001
+
 struct qeth_query_oat {
-	__u32 subcmd_code;
-	__u8 reserved[12];
+	u32 subcmd_code;
+	u8 reserved[12];
+	struct qeth_query_oat_reply reply[];
 } __packed;
 
 struct qeth_qoat_priv {

@@ -866,12 +866,18 @@ struct drm_connector_helper_funcs {
 	 * The usual way to implement this is to cache the EDID retrieved in the
 	 * probe callback somewhere in the driver-private connector structure.
 	 * In this function drivers then parse the modes in the EDID and add
-	 * them by calling drm_add_edid_modes(). But connectors that driver a
+	 * them by calling drm_add_edid_modes(). But connectors that drive a
 	 * fixed panel can also manually add specific modes using
 	 * drm_mode_probed_add(). Drivers which manually add modes should also
 	 * make sure that the &drm_connector.display_info,
 	 * &drm_connector.width_mm and &drm_connector.height_mm fields are
 	 * filled in.
+	 *
+	 * Note that the caller function will automatically add standard VESA
+	 * DMT modes up to 1024x768 if the .get_modes() helper operation returns
+	 * no mode and if the connector status is connector_status_connected or
+	 * connector_status_unknown. There is no need to call
+	 * drm_add_modes_noedid() manually in that case.
 	 *
 	 * Virtual drivers that just want some standard VESA mode with a given
 	 * resolution can call drm_add_modes_noedid(), and mark the preferred
@@ -1044,9 +1050,8 @@ struct drm_connector_helper_funcs {
 	 * NOTE:
 	 *
 	 * This function is called in the check phase of an atomic update. The
-	 * driver is not allowed to change anything outside of the free-standing
-	 * state objects passed-in or assembled in the overall &drm_atomic_state
-	 * update tracking structure.
+	 * driver is not allowed to change anything outside of the
+	 * &drm_atomic_state update tracking structure passed in.
 	 *
 	 * RETURNS:
 	 *
@@ -1056,7 +1061,7 @@ struct drm_connector_helper_funcs {
 	 * for this.
 	 */
 	struct drm_encoder *(*atomic_best_encoder)(struct drm_connector *connector,
-						   struct drm_connector_state *connector_state);
+						   struct drm_atomic_state *state);
 
 	/**
 	 * @atomic_check:
@@ -1097,15 +1102,15 @@ struct drm_connector_helper_funcs {
 	 *
 	 * This hook is to be used by drivers implementing writeback connectors
 	 * that need a point when to commit the writeback job to the hardware.
-	 * The writeback_job to commit is available in
-	 * &drm_connector_state.writeback_job.
+	 * The writeback_job to commit is available in the new connector state,
+	 * in &drm_connector_state.writeback_job.
 	 *
 	 * This hook is optional.
 	 *
 	 * This callback is used by the atomic modeset helpers.
 	 */
 	void (*atomic_commit)(struct drm_connector *connector,
-			      struct drm_connector_state *state);
+			      struct drm_atomic_state *state);
 
 	/**
 	 * @prepare_writeback_job:
@@ -1396,6 +1401,27 @@ struct drm_mode_config_helper_funcs {
 	 * drm_atomic_helper_commit_tail().
 	 */
 	void (*atomic_commit_tail)(struct drm_atomic_state *state);
+
+	/**
+	 * @atomic_commit_setup:
+	 *
+	 * This hook is used by the default atomic_commit() hook implemented in
+	 * drm_atomic_helper_commit() together with the nonblocking helpers (see
+	 * drm_atomic_helper_setup_commit()) to extend the DRM commit setup. It
+	 * is not used by the atomic helpers.
+	 *
+	 * This function is called at the end of
+	 * drm_atomic_helper_setup_commit(), so once the commit has been
+	 * properly setup across the generic DRM object states. It allows
+	 * drivers to do some additional commit tracking that isn't related to a
+	 * CRTC, plane or connector, tracked in a &drm_private_obj structure.
+	 *
+	 * Note that the documentation of &drm_private_obj has more details on
+	 * how one should implement this.
+	 *
+	 * This hook is optional.
+	 */
+	int (*atomic_commit_setup)(struct drm_atomic_state *state);
 };
 
 #endif

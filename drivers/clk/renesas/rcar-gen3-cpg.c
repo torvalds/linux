@@ -224,10 +224,9 @@ static struct clk * __init cpg_z_clk_register(const char *name,
 #define CPG_SD_STP_MASK		(CPG_SD_STP_HCK | CPG_SD_STP_CK)
 #define CPG_SD_FC_MASK		(0x7 << 2 | 0x3 << 0)
 
-#define CPG_SD_DIV_TABLE_DATA(stp_hck, stp_ck, sd_srcfc, sd_fc, sd_div) \
+#define CPG_SD_DIV_TABLE_DATA(stp_hck, sd_srcfc, sd_fc, sd_div) \
 { \
 	.val = ((stp_hck) ? CPG_SD_STP_HCK : 0) | \
-	       ((stp_ck) ? CPG_SD_STP_CK : 0) | \
 	       ((sd_srcfc) << 2) | \
 	       ((sd_fc) << 0), \
 	.div = (sd_div), \
@@ -247,36 +246,36 @@ struct sd_clock {
 };
 
 /* SDn divider
- *                     sd_srcfc   sd_fc   div
- * stp_hck   stp_ck    (div)      (div)     = sd_srcfc x sd_fc
- *-------------------------------------------------------------------
- *  0         0         0 (1)      1 (4)      4 : SDR104 / HS200 / HS400 (8 TAP)
- *  0         0         1 (2)      1 (4)      8 : SDR50
- *  1         0         2 (4)      1 (4)     16 : HS / SDR25
- *  1         0         3 (8)      1 (4)     32 : NS / SDR12
- *  1         0         4 (16)     1 (4)     64
- *  0         0         0 (1)      0 (2)      2
- *  0         0         1 (2)      0 (2)      4 : SDR104 / HS200 / HS400 (4 TAP)
- *  1         0         2 (4)      0 (2)      8
- *  1         0         3 (8)      0 (2)     16
- *  1         0         4 (16)     0 (2)     32
+ *           sd_srcfc   sd_fc   div
+ * stp_hck   (div)      (div)     = sd_srcfc x sd_fc
+ *---------------------------------------------------------
+ *  0         0 (1)      1 (4)      4 : SDR104 / HS200 / HS400 (8 TAP)
+ *  0         1 (2)      1 (4)      8 : SDR50
+ *  1         2 (4)      1 (4)     16 : HS / SDR25
+ *  1         3 (8)      1 (4)     32 : NS / SDR12
+ *  1         4 (16)     1 (4)     64
+ *  0         0 (1)      0 (2)      2
+ *  0         1 (2)      0 (2)      4 : SDR104 / HS200 / HS400 (4 TAP)
+ *  1         2 (4)      0 (2)      8
+ *  1         3 (8)      0 (2)     16
+ *  1         4 (16)     0 (2)     32
  *
  *  NOTE: There is a quirk option to ignore the first row of the dividers
  *  table when searching for suitable settings. This is because HS400 on
  *  early ES versions of H3 and M3-W requires a specific setting to work.
  */
 static const struct sd_div_table cpg_sd_div_table[] = {
-/*	CPG_SD_DIV_TABLE_DATA(stp_hck,  stp_ck,   sd_srcfc,   sd_fc,  sd_div) */
-	CPG_SD_DIV_TABLE_DATA(0,        0,        0,          1,        4),
-	CPG_SD_DIV_TABLE_DATA(0,        0,        1,          1,        8),
-	CPG_SD_DIV_TABLE_DATA(1,        0,        2,          1,       16),
-	CPG_SD_DIV_TABLE_DATA(1,        0,        3,          1,       32),
-	CPG_SD_DIV_TABLE_DATA(1,        0,        4,          1,       64),
-	CPG_SD_DIV_TABLE_DATA(0,        0,        0,          0,        2),
-	CPG_SD_DIV_TABLE_DATA(0,        0,        1,          0,        4),
-	CPG_SD_DIV_TABLE_DATA(1,        0,        2,          0,        8),
-	CPG_SD_DIV_TABLE_DATA(1,        0,        3,          0,       16),
-	CPG_SD_DIV_TABLE_DATA(1,        0,        4,          0,       32),
+/*	CPG_SD_DIV_TABLE_DATA(stp_hck,  sd_srcfc,   sd_fc,  sd_div) */
+	CPG_SD_DIV_TABLE_DATA(0,        0,          1,        4),
+	CPG_SD_DIV_TABLE_DATA(0,        1,          1,        8),
+	CPG_SD_DIV_TABLE_DATA(1,        2,          1,       16),
+	CPG_SD_DIV_TABLE_DATA(1,        3,          1,       32),
+	CPG_SD_DIV_TABLE_DATA(1,        4,          1,       64),
+	CPG_SD_DIV_TABLE_DATA(0,        0,          0,        2),
+	CPG_SD_DIV_TABLE_DATA(0,        1,          0,        4),
+	CPG_SD_DIV_TABLE_DATA(1,        2,          0,        8),
+	CPG_SD_DIV_TABLE_DATA(1,        3,          0,       16),
+	CPG_SD_DIV_TABLE_DATA(1,        4,          0,       32),
 };
 
 #define to_sd_clock(_hw) container_of(_hw, struct sd_clock, hw)
@@ -695,6 +694,34 @@ struct clk * __init rcar_gen3_cpg_clk_register(struct device *dev,
 						  base + CPG_RPCCKCR, 3, 2, 0,
 						  cpg_rpcsrc_div_table,
 						  &cpg_lock);
+
+	case CLK_TYPE_GEN3_E3_RPCSRC:
+		/*
+		 * Register RPCSRC as fixed factor clock based on the
+		 * MD[4:1] pins and CPG_RPCCKCR[4:3] register value for
+		 * which has been set prior to booting the kernel.
+		 */
+		value = (readl(base + CPG_RPCCKCR) & GENMASK(4, 3)) >> 3;
+
+		switch (value) {
+		case 0:
+			div = 5;
+			break;
+		case 1:
+			div = 3;
+			break;
+		case 2:
+			parent = clks[core->parent >> 16];
+			if (IS_ERR(parent))
+				return ERR_CAST(parent);
+			div = core->div;
+			break;
+		case 3:
+		default:
+			div = 2;
+			break;
+		}
+		break;
 
 	case CLK_TYPE_GEN3_RPC:
 		return cpg_rpc_clk_register(core->name, base,

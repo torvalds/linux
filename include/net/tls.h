@@ -199,6 +199,12 @@ enum tls_context_flags {
 	 * to be atomic.
 	 */
 	TLS_TX_SYNC_SCHED = 1,
+	/* tls_dev_del was called for the RX side, device state was released,
+	 * but tls_ctx->netdev might still be kept, because TX-side driver
+	 * resources might not be released yet. Used to prevent the second
+	 * tls_dev_del call in tls_device_down if it happens simultaneously.
+	 */
+	TLS_RX_DEV_CLOSED = 2,
 };
 
 struct cipher_context {
@@ -211,6 +217,7 @@ union tls_crypto_context {
 	union {
 		struct tls12_crypto_info_aes_gcm_128 aes_gcm_128;
 		struct tls12_crypto_info_aes_gcm_256 aes_gcm_256;
+		struct tls12_crypto_info_chacha20_poly1305 chacha20_poly1305;
 	};
 };
 
@@ -300,7 +307,8 @@ enum tls_offload_sync_type {
 #define TLS_DEVICE_RESYNC_ASYNC_LOGMAX		13
 struct tls_offload_resync_async {
 	atomic64_t req;
-	u32 loglen;
+	u16 loglen;
+	u16 rcd_delta;
 	u32 log[TLS_DEVICE_RESYNC_ASYNC_LOGMAX];
 };
 
@@ -471,6 +479,18 @@ static inline bool tls_bigint_increment(unsigned char *seq, int len)
 	return (i == -1);
 }
 
+static inline void tls_bigint_subtract(unsigned char *seq, int  n)
+{
+	u64 rcd_sn;
+	__be64 *p;
+
+	BUILD_BUG_ON(TLS_MAX_REC_SEQ_SIZE != 8);
+
+	p = (__be64 *)seq;
+	rcd_sn = be64_to_cpu(*p);
+	*p = cpu_to_be64(rcd_sn - n);
+}
+
 static inline struct tls_context *tls_get_ctx(const struct sock *sk)
 {
 	struct inet_connection_sock *icsk = inet_csk(sk);
@@ -488,32 +508,33 @@ static inline void tls_advance_record_sn(struct sock *sk,
 	if (tls_bigint_increment(ctx->rec_seq, prot->rec_seq_size))
 		tls_err_abort(sk, EBADMSG);
 
-	if (prot->version != TLS_1_3_VERSION)
-		tls_bigint_increment(ctx->iv + TLS_CIPHER_AES_GCM_128_SALT_SIZE,
+	if (prot->version != TLS_1_3_VERSION &&
+	    prot->cipher_type != TLS_CIPHER_CHACHA20_POLY1305)
+		tls_bigint_increment(ctx->iv + prot->salt_size,
 				     prot->iv_size);
 }
 
 static inline void tls_fill_prepend(struct tls_context *ctx,
 			     char *buf,
 			     size_t plaintext_len,
-			     unsigned char record_type,
-			     int version)
+			     unsigned char record_type)
 {
 	struct tls_prot_info *prot = &ctx->prot_info;
 	size_t pkt_len, iv_size = prot->iv_size;
 
 	pkt_len = plaintext_len + prot->tag_size;
-	if (version != TLS_1_3_VERSION) {
+	if (prot->version != TLS_1_3_VERSION &&
+	    prot->cipher_type != TLS_CIPHER_CHACHA20_POLY1305) {
 		pkt_len += iv_size;
 
 		memcpy(buf + TLS_NONCE_OFFSET,
-		       ctx->tx.iv + TLS_CIPHER_AES_GCM_128_SALT_SIZE, iv_size);
+		       ctx->tx.iv + prot->salt_size, iv_size);
 	}
 
 	/* we cover nonce explicit here as well, so buf should be of
 	 * size KTLS_DTLS_HEADER_SIZE + KTLS_DTLS_NONCE_EXPLICIT_SIZE
 	 */
-	buf[0] = version == TLS_1_3_VERSION ?
+	buf[0] = prot->version == TLS_1_3_VERSION ?
 		   TLS_RECORD_TYPE_DATA : record_type;
 	/* Note that VERSION must be TLS_1_2 for both TLS1.2 and TLS1.3 */
 	buf[1] = TLS_1_2_VERSION_MINOR;
@@ -526,18 +547,17 @@ static inline void tls_fill_prepend(struct tls_context *ctx,
 static inline void tls_make_aad(char *buf,
 				size_t size,
 				char *record_sequence,
-				int record_sequence_size,
 				unsigned char record_type,
-				int version)
+				struct tls_prot_info *prot)
 {
-	if (version != TLS_1_3_VERSION) {
-		memcpy(buf, record_sequence, record_sequence_size);
+	if (prot->version != TLS_1_3_VERSION) {
+		memcpy(buf, record_sequence, prot->rec_seq_size);
 		buf += 8;
 	} else {
-		size += TLS_CIPHER_AES_GCM_128_TAG_SIZE;
+		size += prot->tag_size;
 	}
 
-	buf[0] = version == TLS_1_3_VERSION ?
+	buf[0] = prot->version == TLS_1_3_VERSION ?
 		  TLS_RECORD_TYPE_DATA : record_type;
 	buf[1] = TLS_1_2_VERSION_MAJOR;
 	buf[2] = TLS_1_2_VERSION_MINOR;
@@ -545,11 +565,12 @@ static inline void tls_make_aad(char *buf,
 	buf[4] = size & 0xFF;
 }
 
-static inline void xor_iv_with_seq(int version, char *iv, char *seq)
+static inline void xor_iv_with_seq(struct tls_prot_info *prot, char *iv, char *seq)
 {
 	int i;
 
-	if (version == TLS_1_3_VERSION) {
+	if (prot->version == TLS_1_3_VERSION ||
+	    prot->cipher_type == TLS_CIPHER_CHACHA20_POLY1305) {
 		for (i = 0; i < 8; i++)
 			iv[i + 4] ^= seq[i];
 	}
@@ -639,6 +660,7 @@ tls_offload_rx_resync_async_request_start(struct sock *sk, __be32 seq, u16 len)
 	atomic64_set(&rx_ctx->resync_async->req, ((u64)ntohl(seq) << 32) |
 		     ((u64)len << 16) | RESYNC_REQ | RESYNC_REQ_ASYNC);
 	rx_ctx->resync_async->loglen = 0;
+	rx_ctx->resync_async->rcd_delta = 0;
 }
 
 static inline void

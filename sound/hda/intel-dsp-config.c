@@ -29,6 +29,7 @@ MODULE_PARM_DESC(dsp_driver, "Force the DSP driver for Intel DSP (0=auto, 1=lega
 struct config_entry {
 	u32 flags;
 	u16 device;
+	u8 acpi_hid[ACPI_ID_LEN];
 	const struct dmi_system_id *dmi_table;
 };
 
@@ -378,6 +379,20 @@ int snd_intel_dsp_driver_probe(struct pci_dev *pci)
 	if (pci->vendor != 0x8086)
 		return SND_INTEL_DSP_DRIVER_ANY;
 
+	/*
+	 * Legacy devices don't have a PCI-based DSP and use HDaudio
+	 * for HDMI/DP support, ignore kernel parameter
+	 */
+	switch (pci->device) {
+	case 0x160c: /* Broadwell */
+	case 0x0a0c: /* Haswell */
+	case 0x0c0c:
+	case 0x0d0c:
+	case 0x0f04: /* Baytrail */
+	case 0x2284: /* Braswell */
+		return SND_INTEL_DSP_DRIVER_ANY;
+	}
+
 	if (dsp_driver > 0 && dsp_driver <= SND_INTEL_DSP_DRIVER_LAST)
 		return dsp_driver;
 
@@ -432,6 +447,102 @@ int snd_intel_dsp_driver_probe(struct pci_dev *pci)
 	return SND_INTEL_DSP_DRIVER_LEGACY;
 }
 EXPORT_SYMBOL_GPL(snd_intel_dsp_driver_probe);
+
+/*
+ * configuration table
+ * - the order of similar ACPI ID entries is important!
+ * - the first successful match will win
+ */
+static const struct config_entry acpi_config_table[] = {
+/* BayTrail */
+#if IS_ENABLED(CONFIG_SND_SST_ATOM_HIFI2_PLATFORM_ACPI)
+	{
+		.flags = FLAG_SST,
+		.acpi_hid = "80860F28",
+	},
+#endif
+#if IS_ENABLED(CONFIG_SND_SOC_SOF_BAYTRAIL)
+	{
+		.flags = FLAG_SOF,
+		.acpi_hid = "80860F28",
+	},
+#endif
+/* CherryTrail */
+#if IS_ENABLED(CONFIG_SND_SST_ATOM_HIFI2_PLATFORM_ACPI)
+	{
+		.flags = FLAG_SST,
+		.acpi_hid = "808622A8",
+	},
+#endif
+#if IS_ENABLED(CONFIG_SND_SOC_SOF_BAYTRAIL)
+	{
+		.flags = FLAG_SOF,
+		.acpi_hid = "808622A8",
+	},
+#endif
+/* Broadwell */
+#if IS_ENABLED(CONFIG_SND_SOC_INTEL_CATPT)
+	{
+		.flags = FLAG_SST,
+		.acpi_hid = "INT3438"
+	},
+#endif
+#if IS_ENABLED(CONFIG_SND_SOC_SOF_BROADWELL)
+	{
+		.flags = FLAG_SOF,
+		.acpi_hid = "INT3438"
+	},
+#endif
+/* Haswell - not supported by SOF but added for consistency */
+#if IS_ENABLED(CONFIG_SND_SOC_INTEL_CATPT)
+	{
+		.flags = FLAG_SST,
+		.acpi_hid = "INT33C8"
+	},
+#endif
+};
+
+static const struct config_entry *snd_intel_acpi_dsp_find_config(const u8 acpi_hid[ACPI_ID_LEN],
+								 const struct config_entry *table,
+								 u32 len)
+{
+	for (; len > 0; len--, table++) {
+		if (memcmp(table->acpi_hid, acpi_hid, ACPI_ID_LEN))
+			continue;
+		if (table->dmi_table && !dmi_check_system(table->dmi_table))
+			continue;
+		return table;
+	}
+	return NULL;
+}
+
+int snd_intel_acpi_dsp_driver_probe(struct device *dev, const u8 acpi_hid[ACPI_ID_LEN])
+{
+	const struct config_entry *cfg;
+
+	if (dsp_driver > SND_INTEL_DSP_DRIVER_LEGACY && dsp_driver <= SND_INTEL_DSP_DRIVER_LAST)
+		return dsp_driver;
+
+	if (dsp_driver == SND_INTEL_DSP_DRIVER_LEGACY) {
+		dev_warn(dev, "dsp_driver parameter %d not supported, using automatic detection\n",
+			 SND_INTEL_DSP_DRIVER_LEGACY);
+	}
+
+	/* find the configuration for the specific device */
+	cfg = snd_intel_acpi_dsp_find_config(acpi_hid,  acpi_config_table,
+					     ARRAY_SIZE(acpi_config_table));
+	if (!cfg)
+		return SND_INTEL_DSP_DRIVER_ANY;
+
+	if (cfg->flags & FLAG_SST)
+		return SND_INTEL_DSP_DRIVER_SST;
+
+	if (cfg->flags & FLAG_SOF)
+		return SND_INTEL_DSP_DRIVER_SOF;
+
+	return SND_INTEL_DSP_DRIVER_SST;
+}
+EXPORT_SYMBOL_GPL(snd_intel_acpi_dsp_driver_probe);
 
 MODULE_LICENSE("GPL v2");
 MODULE_DESCRIPTION("Intel DSP config driver");

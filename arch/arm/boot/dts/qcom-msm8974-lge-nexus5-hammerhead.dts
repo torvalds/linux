@@ -566,6 +566,22 @@
 
 			usb_otg_vbus: usb-otg-vbus { };
 		};
+
+		fuelgauge: max17048@36 {
+			compatible = "maxim,max17048";
+			reg = <0x36>;
+
+			maxim,double-soc;
+			maxim,rcomp = /bits/ 8 <0x4d>;
+
+			interrupt-parent = <&msmgpio>;
+			interrupts = <9 IRQ_TYPE_EDGE_FALLING>;
+
+			pinctrl-names = "default";
+			pinctrl-0 = <&fuelgauge_pin>;
+
+			maxim,alert-low-soc-level = <2>;
+		};
 	};
 
 	i2c@f9924000 {
@@ -703,6 +719,15 @@
 				function = "normal";
 
 				bias-pull-up;
+				power-source = <PM8941_GPIO_S3>;
+			};
+
+			fuelgauge_pin: fuelgauge-int {
+				pins = "gpio9";
+				function = "normal";
+
+				bias-disable;
+				input-enable;
 				power-source = <PM8941_GPIO_S3>;
 			};
 

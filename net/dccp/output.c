@@ -143,6 +143,8 @@ static int dccp_transmit_skb(struct sock *sk, struct sk_buff *skb)
 
 /**
  * dccp_determine_ccmps  -  Find out about CCID-specific packet-size limits
+ * @dp: socket to find packet size limits of
+ *
  * We only consider the HC-sender CCID for setting the CCMPS (RFC 4340, 14.),
  * since the RX CCID is restricted to feedback packets (Acks), which are small
  * in comparison with the data traffic. A value of 0 means "no current CCMPS".
@@ -236,6 +238,8 @@ static int dccp_wait_for_ccid(struct sock *sk, unsigned long delay)
 
 /**
  * dccp_xmit_packet  -  Send data packet under control of CCID
+ * @sk: socket to send data packet on
+ *
  * Transmits next-queued payload and informs CCID to account for the packet.
  */
 static void dccp_xmit_packet(struct sock *sk)
@@ -296,6 +300,9 @@ static void dccp_xmit_packet(struct sock *sk)
 
 /**
  * dccp_flush_write_queue  -  Drain queue at end of connection
+ * @sk: socket to be drained
+ * @time_budget: time allowed to drain the queue
+ *
  * Since dccp_sendmsg queues packets without waiting for them to be sent, it may
  * happen that the TX queue is not empty at the end of a connection. We give the
  * HC-sender CCID a grace period of up to @time_budget jiffies. If this function
@@ -367,6 +374,8 @@ void dccp_write_xmit(struct sock *sk)
 
 /**
  * dccp_retransmit_skb  -  Retransmit Request, Close, or CloseReq packets
+ * @sk: socket to perform retransmit on
+ *
  * There are only four retransmittable packet types in DCCP:
  * - Request  in client-REQUEST  state (sec. 8.1.1),
  * - CloseReq in server-CLOSEREQ state (sec. 8.3),

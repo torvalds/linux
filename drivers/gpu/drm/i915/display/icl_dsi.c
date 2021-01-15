@@ -1492,11 +1492,10 @@ static void gen11_dsi_get_config(struct intel_encoder *encoder,
 	struct intel_crtc *crtc = to_intel_crtc(pipe_config->uapi.crtc);
 	struct intel_dsi *intel_dsi = enc_to_intel_dsi(encoder);
 
-	intel_dsc_get_config(encoder, pipe_config);
-
 	/* FIXME: adapt icl_ddi_clock_get() for DSI and use that? */
 	pipe_config->port_clock = intel_dpll_get_freq(i915,
-						      pipe_config->shared_dpll);
+						      pipe_config->shared_dpll,
+						      &pipe_config->dpll_hw_state);
 
 	pipe_config->hw.adjusted_mode.crtc_clock = intel_dsi->pclk;
 	if (intel_dsi->dual_link)
@@ -1535,6 +1534,9 @@ static int gen11_dsi_dsc_compute_config(struct intel_encoder *encoder,
 		crtc_state->dsc.dsc_split = true;
 
 	vdsc_cfg->convert_rgb = true;
+
+	/* FIXME: initialize from VBT */
+	vdsc_cfg->rc_model_size = DSC_RC_MODEL_SIZE_CONST;
 
 	ret = intel_dsc_compute_params(encoder, crtc_state);
 	if (ret)
@@ -1617,10 +1619,6 @@ static void gen11_dsi_get_power_domains(struct intel_encoder *encoder,
 
 	get_dsi_io_power_domains(i915,
 				 enc_to_intel_dsi(encoder));
-
-	if (crtc_state->dsc.compression_enable)
-		intel_display_power_get(i915,
-					intel_dsc_power_domain(crtc_state));
 }
 
 static bool gen11_dsi_get_hw_state(struct intel_encoder *encoder,

@@ -349,14 +349,14 @@ static inline struct jffs2_node_frag *frag_last(struct rb_root *root)
 #define frag_parent(frag) rb_entry(rb_parent(&(frag)->rb), struct jffs2_node_frag, rb)
 #define frag_left(frag) rb_entry((frag)->rb.rb_left, struct jffs2_node_frag, rb)
 #define frag_right(frag) rb_entry((frag)->rb.rb_right, struct jffs2_node_frag, rb)
-#define frag_erase(frag, list) rb_erase(&frag->rb, list);
+#define frag_erase(frag, list) rb_erase(&frag->rb, list)
 
 #define tn_next(tn) rb_entry(rb_next(&(tn)->rb), struct jffs2_tmp_dnode_info, rb)
 #define tn_prev(tn) rb_entry(rb_prev(&(tn)->rb), struct jffs2_tmp_dnode_info, rb)
 #define tn_parent(tn) rb_entry(rb_parent(&(tn)->rb), struct jffs2_tmp_dnode_info, rb)
 #define tn_left(tn) rb_entry((tn)->rb.rb_left, struct jffs2_tmp_dnode_info, rb)
 #define tn_right(tn) rb_entry((tn)->rb.rb_right, struct jffs2_tmp_dnode_info, rb)
-#define tn_erase(tn, list) rb_erase(&tn->rb, list);
+#define tn_erase(tn, list) rb_erase(&tn->rb, list)
 #define tn_last(list) rb_entry(rb_last(list), struct jffs2_tmp_dnode_info, rb)
 #define tn_first(list) rb_entry(rb_first(list), struct jffs2_tmp_dnode_info, rb)
 

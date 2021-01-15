@@ -69,7 +69,7 @@ struct {
 	__uint(type, BPF_MAP_TYPE_ARRAY);
 	__uint(max_entries, 1);
 	__type(key, u32);
-	__type(value, struct hvm_queue_stats);
+	__type(value, struct hbm_queue_stats);
 } queue_stats SEC(".maps");
 
 struct hbm_pkt_info {

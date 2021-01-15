@@ -242,18 +242,10 @@ struct arm_smmu_device *nvidia_smmu_impl_init(struct arm_smmu_device *smmu)
 	struct nvidia_smmu *nvidia_smmu;
 	struct platform_device *pdev = to_platform_device(dev);
 
-	nvidia_smmu = devm_kzalloc(dev, sizeof(*nvidia_smmu), GFP_KERNEL);
+	nvidia_smmu = devm_krealloc(dev, smmu, sizeof(*nvidia_smmu), GFP_KERNEL);
 	if (!nvidia_smmu)
 		return ERR_PTR(-ENOMEM);
 
-	/*
-	 * Copy the data from struct arm_smmu_device *smmu allocated in
-	 * arm-smmu.c. The smmu from struct nvidia_smmu replaces the smmu
-	 * pointer used in arm-smmu.c once this function returns.
-	 * This is necessary to derive nvidia_smmu from smmu pointer passed
-	 * through arm_smmu_impl function calls subsequently.
-	 */
-	nvidia_smmu->smmu = *smmu;
 	/* Instance 0 is ioremapped by arm-smmu.c. */
 	nvidia_smmu->bases[0] = smmu->base;
 
@@ -266,13 +258,6 @@ struct arm_smmu_device *nvidia_smmu_impl_init(struct arm_smmu_device *smmu)
 		return ERR_CAST(nvidia_smmu->bases[1]);
 
 	nvidia_smmu->smmu.impl = &nvidia_smmu_impl;
-
-	/*
-	 * Free the struct arm_smmu_device *smmu allocated in arm-smmu.c.
-	 * Once this function returns, arm-smmu.c would use arm_smmu_device
-	 * allocated as part of struct nvidia_smmu.
-	 */
-	devm_kfree(dev, smmu);
 
 	return &nvidia_smmu->smmu;
 }

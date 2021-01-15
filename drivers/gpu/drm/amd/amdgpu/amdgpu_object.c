@@ -787,7 +787,7 @@ int amdgpu_bo_kmap(struct amdgpu_bo *bo, void **ptr)
 	if (r < 0)
 		return r;
 
-	r = ttm_bo_kmap(&bo->tbo, 0, bo->tbo.num_pages, &bo->kmap);
+	r = ttm_bo_kmap(&bo->tbo, 0, bo->tbo.mem.num_pages, &bo->kmap);
 	if (r)
 		return r;
 
@@ -1072,23 +1072,6 @@ int amdgpu_bo_init(struct amdgpu_device *adev)
 	DRM_INFO("RAM width %dbits %s\n",
 		 adev->gmc.vram_width, amdgpu_vram_names[adev->gmc.vram_type]);
 	return amdgpu_ttm_init(adev);
-}
-
-/**
- * amdgpu_bo_late_init - late init
- * @adev: amdgpu device object
- *
- * Calls amdgpu_ttm_late_init() to free resources used earlier during
- * initialization.
- *
- * Returns:
- * 0 for success or a negative error code on failure.
- */
-int amdgpu_bo_late_init(struct amdgpu_device *adev)
-{
-	amdgpu_ttm_late_init(adev);
-
-	return 0;
 }
 
 /**
@@ -1518,7 +1501,7 @@ uint32_t amdgpu_bo_get_preferred_pin_domain(struct amdgpu_device *adev,
 	} while (0)
 
 /**
- * amdgpu_debugfs_print_bo_info - print BO info in debugfs file
+ * amdgpu_bo_print_info - print BO info in debugfs file
  *
  * @id: Index or Id of the BO
  * @bo: Requested BO for printing info

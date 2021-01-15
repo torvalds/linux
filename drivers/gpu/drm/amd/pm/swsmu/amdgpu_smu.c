@@ -402,9 +402,15 @@ static int smu_set_funcs(struct amdgpu_device *adev)
 		break;
 	case CHIP_RENOIR:
 		renoir_set_ppt_funcs(smu);
+		/* enable the fine grain tuning function by default */
+		smu->fine_grain_enabled = true;
+		/* close the fine grain tuning function by default */
+		smu->fine_grain_started = false;
 		break;
 	case CHIP_VANGOGH:
 		vangogh_set_ppt_funcs(smu);
+		/* enable the OD by default to allow the fine grain tuning function */
+		smu->od_enabled = true;
 		break;
 	default:
 		return -EINVAL;
@@ -474,8 +480,7 @@ static int smu_late_init(void *handle)
 	struct smu_context *smu = &adev->smu;
 	int ret = 0;
 
-	if (adev->asic_type == CHIP_VANGOGH)
-		return 0;
+	smu_set_fine_grain_gfx_freq_parameters(smu);
 
 	if (!smu->pm_enabled)
 		return 0;
@@ -485,6 +490,9 @@ static int smu_late_init(void *handle)
 		dev_err(adev->dev, "Failed to post smu init!\n");
 		return ret;
 	}
+
+	if (adev->asic_type == CHIP_VANGOGH)
+		return 0;
 
 	ret = smu_set_default_od_settings(smu);
 	if (ret) {
@@ -843,12 +851,10 @@ static int smu_sw_init(void *handle)
 	smu->smu_dpm.dpm_level = AMD_DPM_FORCED_LEVEL_AUTO;
 	smu->smu_dpm.requested_dpm_level = AMD_DPM_FORCED_LEVEL_AUTO;
 
-	if (!amdgpu_sriov_vf(adev)) {
-		ret = smu_init_microcode(smu);
-		if (ret) {
-			dev_err(adev->dev, "Failed to load smu firmware!\n");
-			return ret;
-		}
+	ret = smu_init_microcode(smu);
+	if (ret) {
+		dev_err(adev->dev, "Failed to load smu firmware!\n");
+		return ret;
 	}
 
 	ret = smu_smc_table_sw_init(smu);
@@ -914,11 +920,15 @@ static int smu_smc_hw_setup(struct smu_context *smu)
 {
 	struct amdgpu_device *adev = smu->adev;
 	uint32_t pcie_gen = 0, pcie_width = 0;
-	int ret;
+	int ret = 0;
 
 	if (adev->in_suspend && smu_is_dpm_running(smu)) {
 		dev_info(adev->dev, "dpm has been enabled\n");
-		return 0;
+		/* this is needed specifically */
+		if ((adev->asic_type >= CHIP_SIENNA_CICHLID) &&
+		    (adev->asic_type <= CHIP_DIMGREY_CAVEFISH))
+			ret = smu_system_features_control(smu, true);
+		return ret;
 	}
 
 	ret = smu_init_display_count(smu, 0);
@@ -1179,7 +1189,7 @@ static int smu_disable_dpms(struct smu_context *smu)
 	 */
 	if (smu->uploading_custom_pp_table &&
 	    (adev->asic_type >= CHIP_NAVI10) &&
-	    (adev->asic_type <= CHIP_NAVY_FLOUNDER))
+	    (adev->asic_type <= CHIP_DIMGREY_CAVEFISH))
 		return 0;
 
 	/*
@@ -2525,6 +2535,18 @@ int smu_enable_mgpu_fan_boost(struct smu_context *smu)
 	if (smu->ppt_funcs->enable_mgpu_fan_boost)
 		ret = smu->ppt_funcs->enable_mgpu_fan_boost(smu);
 
+	mutex_unlock(&smu->mutex);
+
+	return ret;
+}
+
+int smu_gfx_state_change_set(struct smu_context *smu, uint32_t state)
+{
+	int ret = 0;
+
+	mutex_lock(&smu->mutex);
+	if (smu->ppt_funcs->gfx_state_change_set)
+		ret = smu->ppt_funcs->gfx_state_change_set(smu, state);
 	mutex_unlock(&smu->mutex);
 
 	return ret;

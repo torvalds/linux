@@ -13,20 +13,20 @@ struct mlx5e_dump_wqe {
 	(DIV_ROUND_UP(sizeof(struct mlx5e_dump_wqe), MLX5_SEND_WQE_BB))
 
 static u8
-mlx5e_ktls_dumps_num_wqes(struct mlx5e_txqsq *sq, unsigned int nfrags,
+mlx5e_ktls_dumps_num_wqes(struct mlx5e_params *params, unsigned int nfrags,
 			  unsigned int sync_len)
 {
 	/* Given the MTU and sync_len, calculates an upper bound for the
 	 * number of DUMP WQEs needed for the TX resync of a record.
 	 */
-	return nfrags + DIV_ROUND_UP(sync_len, sq->hw_mtu);
+	return nfrags + DIV_ROUND_UP(sync_len, MLX5E_SW2HW_MTU(params, params->sw_mtu));
 }
 
-u16 mlx5e_ktls_get_stop_room(struct mlx5e_txqsq *sq)
+u16 mlx5e_ktls_get_stop_room(struct mlx5e_params *params)
 {
 	u16 num_dumps, stop_room = 0;
 
-	num_dumps = mlx5e_ktls_dumps_num_wqes(sq, MAX_SKB_FRAGS, TLS_MAX_PAYLOAD_SIZE);
+	num_dumps = mlx5e_ktls_dumps_num_wqes(params, MAX_SKB_FRAGS, TLS_MAX_PAYLOAD_SIZE);
 
 	stop_room += mlx5e_stop_room_for_wqe(MLX5E_TLS_SET_STATIC_PARAMS_WQEBBS);
 	stop_room += mlx5e_stop_room_for_wqe(MLX5E_TLS_SET_PROGRESS_PARAMS_WQEBBS);

@@ -20,14 +20,17 @@ properties:
           - fsl,imx8qm-flexcan
           - fsl,imx8mp-flexcan
           - fsl,imx6q-flexcan
-          - fsl,imx53-flexcan
-          - fsl,imx35-flexcan
           - fsl,imx28-flexcan
           - fsl,imx25-flexcan
           - fsl,p1010-flexcan
           - fsl,vf610-flexcan
           - fsl,ls1021ar2-flexcan
           - fsl,lx2160ar1-flexcan
+      - items:
+          - enum:
+              - fsl,imx53-flexcan
+              - fsl,imx35-flexcan
+          - const: fsl,imx25-flexcan
       - items:
           - enum:
               - fsl,imx7d-flexcan
@@ -54,6 +57,7 @@ properties:
       - const: per
 
   clock-frequency:
+    $ref: /schemas/types.yaml#/definitions/uint32
     description: |
       The oscillator frequency driving the flexcan device, filled in by the
       boot loader. This property should only be used the used operating system
@@ -81,11 +85,12 @@ properties:
       req_bit is the bit offset of CAN stop request.
     $ref: /schemas/types.yaml#/definitions/phandle-array
     items:
-      - description: The 'gpr' is the phandle to general purpose register node.
-      - description: The 'req_gpr' is the gpr register offset of CAN stop request.
-        maximum: 0xff
-      - description: The 'req_bit' is the bit offset of CAN stop request.
-        maximum: 0x1f
+      items:
+        - description: The 'gpr' is the phandle to general purpose register node.
+        - description: The 'req_gpr' is the gpr register offset of CAN stop request.
+          maximum: 0xff
+        - description: The 'req_bit' is the bit offset of CAN stop request.
+          maximum: 0x1f
 
   fsl,clk-source:
     description: |
@@ -95,7 +100,7 @@ properties:
       by default.
       0: clock source 0 (oscillator clock)
       1: clock source 1 (peripheral clock)
-    $ref: /schemas/types.yaml#/definitions/uint32
+    $ref: /schemas/types.yaml#/definitions/uint8
     default: 1
     minimum: 0
     maximum: 1
@@ -120,7 +125,7 @@ examples:
         interrupts = <48 0x2>;
         interrupt-parent = <&mpic>;
         clock-frequency = <200000000>;
-        fsl,clk-source = <0>;
+        fsl,clk-source = /bits/ 8 <0>;
     };
   - |
     #include <dt-bindings/interrupt-controller/irq.h>

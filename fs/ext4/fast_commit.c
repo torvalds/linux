@@ -83,7 +83,7 @@
  *
  * Atomicity of commits
  * --------------------
- * In order to gaurantee atomicity during the commit operation, fast commit
+ * In order to guarantee atomicity during the commit operation, fast commit
  * uses "EXT4_FC_TAG_TAIL" tag that marks a fast commit as complete. Tail
  * tag contains CRC of the contents and TID of the transaction after which
  * this fast commit should be applied. Recovery code replays fast commit
@@ -103,8 +103,69 @@
  *
  * Replay code should thus check for all the valid tails in the FC area.
  *
+ * Fast Commit Replay Idempotence
+ * ------------------------------
+ *
+ * Fast commits tags are idempotent in nature provided the recovery code follows
+ * certain rules. The guiding principle that the commit path follows while
+ * committing is that it stores the result of a particular operation instead of
+ * storing the procedure.
+ *
+ * Let's consider this rename operation: 'mv /a /b'. Let's assume dirent '/a'
+ * was associated with inode 10. During fast commit, instead of storing this
+ * operation as a procedure "rename a to b", we store the resulting file system
+ * state as a "series" of outcomes:
+ *
+ * - Link dirent b to inode 10
+ * - Unlink dirent a
+ * - Inode <10> with valid refcount
+ *
+ * Now when recovery code runs, it needs "enforce" this state on the file
+ * system. This is what guarantees idempotence of fast commit replay.
+ *
+ * Let's take an example of a procedure that is not idempotent and see how fast
+ * commits make it idempotent. Consider following sequence of operations:
+ *
+ *     rm A;    mv B A;    read A
+ *  (x)     (y)        (z)
+ *
+ * (x), (y) and (z) are the points at which we can crash. If we store this
+ * sequence of operations as is then the replay is not idempotent. Let's say
+ * while in replay, we crash at (z). During the second replay, file A (which was
+ * actually created as a result of "mv B A" operation) would get deleted. Thus,
+ * file named A would be absent when we try to read A. So, this sequence of
+ * operations is not idempotent. However, as mentioned above, instead of storing
+ * the procedure fast commits store the outcome of each procedure. Thus the fast
+ * commit log for above procedure would be as follows:
+ *
+ * (Let's assume dirent A was linked to inode 10 and dirent B was linked to
+ * inode 11 before the replay)
+ *
+ *    [Unlink A]   [Link A to inode 11]   [Unlink B]   [Inode 11]
+ * (w)          (x)                    (y)          (z)
+ *
+ * If we crash at (z), we will have file A linked to inode 11. During the second
+ * replay, we will remove file A (inode 11). But we will create it back and make
+ * it point to inode 11. We won't find B, so we'll just skip that step. At this
+ * point, the refcount for inode 11 is not reliable, but that gets fixed by the
+ * replay of last inode 11 tag. Crashes at points (w), (x) and (y) get handled
+ * similarly. Thus, by converting a non-idempotent procedure into a series of
+ * idempotent outcomes, fast commits ensured idempotence during the replay.
+ *
  * TODOs
  * -----
+ *
+ * 0) Fast commit replay path hardening: Fast commit replay code should use
+ *    journal handles to make sure all the updates it does during the replay
+ *    path are atomic. With that if we crash during fast commit replay, after
+ *    trying to do recovery again, we will find a file system where fast commit
+ *    area is invalid (because new full commit would be found). In order to deal
+ *    with that, fast commit replay code should ensure that the "FC_REPLAY"
+ *    superblock state is persisted before starting the replay, so that after
+ *    the crash, fast commit recovery code can look at that flag and perform
+ *    fast commit recovery even if that area is invalidated by later full
+ *    commits.
+ *
  * 1) Make fast commit atomic updates more fine grained. Today, a fast commit
  *    eligible update must be protected within ext4_fc_start_update() and
  *    ext4_fc_stop_update(). These routines are called at much higher
@@ -152,7 +213,31 @@ void ext4_fc_init_inode(struct inode *inode)
 	INIT_LIST_HEAD(&ei->i_fc_list);
 	init_waitqueue_head(&ei->i_fc_wait);
 	atomic_set(&ei->i_fc_updates, 0);
-	ei->i_fc_committed_subtid = 0;
+}
+
+/* This function must be called with sbi->s_fc_lock held. */
+static void ext4_fc_wait_committing_inode(struct inode *inode)
+__releases(&EXT4_SB(inode->i_sb)->s_fc_lock)
+{
+	wait_queue_head_t *wq;
+	struct ext4_inode_info *ei = EXT4_I(inode);
+
+#if (BITS_PER_LONG < 64)
+	DEFINE_WAIT_BIT(wait, &ei->i_state_flags,
+			EXT4_STATE_FC_COMMITTING);
+	wq = bit_waitqueue(&ei->i_state_flags,
+				EXT4_STATE_FC_COMMITTING);
+#else
+	DEFINE_WAIT_BIT(wait, &ei->i_flags,
+			EXT4_STATE_FC_COMMITTING);
+	wq = bit_waitqueue(&ei->i_flags,
+				EXT4_STATE_FC_COMMITTING);
+#endif
+	lockdep_assert_held(&EXT4_SB(inode->i_sb)->s_fc_lock);
+	prepare_to_wait(wq, &wait.wq_entry, TASK_UNINTERRUPTIBLE);
+	spin_unlock(&EXT4_SB(inode->i_sb)->s_fc_lock);
+	schedule();
+	finish_wait(wq, &wait.wq_entry);
 }
 
 /*
@@ -176,22 +261,7 @@ restart:
 		goto out;
 
 	if (ext4_test_inode_state(inode, EXT4_STATE_FC_COMMITTING)) {
-		wait_queue_head_t *wq;
-#if (BITS_PER_LONG < 64)
-		DEFINE_WAIT_BIT(wait, &ei->i_state_flags,
-				EXT4_STATE_FC_COMMITTING);
-		wq = bit_waitqueue(&ei->i_state_flags,
-				   EXT4_STATE_FC_COMMITTING);
-#else
-		DEFINE_WAIT_BIT(wait, &ei->i_flags,
-				EXT4_STATE_FC_COMMITTING);
-		wq = bit_waitqueue(&ei->i_flags,
-				   EXT4_STATE_FC_COMMITTING);
-#endif
-		prepare_to_wait(wq, &wait.wq_entry, TASK_UNINTERRUPTIBLE);
-		spin_unlock(&EXT4_SB(inode->i_sb)->s_fc_lock);
-		schedule();
-		finish_wait(wq, &wait.wq_entry);
+		ext4_fc_wait_committing_inode(inode);
 		goto restart;
 	}
 out:
@@ -234,26 +304,10 @@ restart:
 	}
 
 	if (ext4_test_inode_state(inode, EXT4_STATE_FC_COMMITTING)) {
-		wait_queue_head_t *wq;
-#if (BITS_PER_LONG < 64)
-		DEFINE_WAIT_BIT(wait, &ei->i_state_flags,
-				EXT4_STATE_FC_COMMITTING);
-		wq = bit_waitqueue(&ei->i_state_flags,
-				   EXT4_STATE_FC_COMMITTING);
-#else
-		DEFINE_WAIT_BIT(wait, &ei->i_flags,
-				EXT4_STATE_FC_COMMITTING);
-		wq = bit_waitqueue(&ei->i_flags,
-				   EXT4_STATE_FC_COMMITTING);
-#endif
-		prepare_to_wait(wq, &wait.wq_entry, TASK_UNINTERRUPTIBLE);
-		spin_unlock(&EXT4_SB(inode->i_sb)->s_fc_lock);
-		schedule();
-		finish_wait(wq, &wait.wq_entry);
+		ext4_fc_wait_committing_inode(inode);
 		goto restart;
 	}
-	if (!list_empty(&ei->i_fc_list))
-		list_del_init(&ei->i_fc_list);
+	list_del_init(&ei->i_fc_list);
 	spin_unlock(&EXT4_SB(inode->i_sb)->s_fc_lock);
 }
 
@@ -269,7 +323,7 @@ void ext4_fc_mark_ineligible(struct super_block *sb, int reason)
 	    (EXT4_SB(sb)->s_mount_state & EXT4_FC_REPLAY))
 		return;
 
-	sbi->s_mount_flags |= EXT4_MF_FC_INELIGIBLE;
+	ext4_set_mount_flag(sb, EXT4_MF_FC_INELIGIBLE);
 	WARN_ON(reason >= EXT4_FC_REASON_MAX);
 	sbi->s_fc_stats.fc_ineligible_reason_count[reason]++;
 }
@@ -302,14 +356,14 @@ void ext4_fc_stop_ineligible(struct super_block *sb)
 	    (EXT4_SB(sb)->s_mount_state & EXT4_FC_REPLAY))
 		return;
 
-	EXT4_SB(sb)->s_mount_flags |= EXT4_MF_FC_INELIGIBLE;
+	ext4_set_mount_flag(sb, EXT4_MF_FC_INELIGIBLE);
 	atomic_dec(&EXT4_SB(sb)->s_fc_ineligible_updates);
 }
 
 static inline int ext4_fc_is_ineligible(struct super_block *sb)
 {
-	return (EXT4_SB(sb)->s_mount_flags & EXT4_MF_FC_INELIGIBLE) ||
-		atomic_read(&EXT4_SB(sb)->s_fc_ineligible_updates);
+	return (ext4_test_mount_flag(sb, EXT4_MF_FC_INELIGIBLE) ||
+		atomic_read(&EXT4_SB(sb)->s_fc_ineligible_updates));
 }
 
 /*
@@ -323,13 +377,14 @@ static inline int ext4_fc_is_ineligible(struct super_block *sb)
  * If enqueue is set, this function enqueues the inode in fast commit list.
  */
 static int ext4_fc_track_template(
-	struct inode *inode, int (*__fc_track_fn)(struct inode *, void *, bool),
+	handle_t *handle, struct inode *inode,
+	int (*__fc_track_fn)(struct inode *, void *, bool),
 	void *args, int enqueue)
 {
-	tid_t running_txn_tid;
 	bool update = false;
 	struct ext4_inode_info *ei = EXT4_I(inode);
 	struct ext4_sb_info *sbi = EXT4_SB(inode->i_sb);
+	tid_t tid = 0;
 	int ret;
 
 	if (!test_opt2(inode->i_sb, JOURNAL_FAST_COMMIT) ||
@@ -339,15 +394,13 @@ static int ext4_fc_track_template(
 	if (ext4_fc_is_ineligible(inode->i_sb))
 		return -EINVAL;
 
-	running_txn_tid = sbi->s_journal ?
-		sbi->s_journal->j_commit_sequence + 1 : 0;
-
+	tid = handle->h_transaction->t_tid;
 	mutex_lock(&ei->i_fc_lock);
-	if (running_txn_tid == ei->i_sync_tid) {
+	if (tid == ei->i_sync_tid) {
 		update = true;
 	} else {
 		ext4_fc_reset_inode(inode);
-		ei->i_sync_tid = running_txn_tid;
+		ei->i_sync_tid = tid;
 	}
 	ret = __fc_track_fn(inode, args, update);
 	mutex_unlock(&ei->i_fc_lock);
@@ -358,7 +411,7 @@ static int ext4_fc_track_template(
 	spin_lock(&sbi->s_fc_lock);
 	if (list_empty(&EXT4_I(inode)->i_fc_list))
 		list_add_tail(&EXT4_I(inode)->i_fc_list,
-				(sbi->s_mount_flags & EXT4_MF_FC_COMMITTING) ?
+				(ext4_test_mount_flag(inode->i_sb, EXT4_MF_FC_COMMITTING)) ?
 				&sbi->s_fc_q[FC_Q_STAGING] :
 				&sbi->s_fc_q[FC_Q_MAIN]);
 	spin_unlock(&sbi->s_fc_lock);
@@ -384,7 +437,7 @@ static int __track_dentry_update(struct inode *inode, void *arg, bool update)
 	mutex_unlock(&ei->i_fc_lock);
 	node = kmem_cache_alloc(ext4_fc_dentry_cachep, GFP_NOFS);
 	if (!node) {
-		ext4_fc_mark_ineligible(inode->i_sb, EXT4_FC_REASON_MEM);
+		ext4_fc_mark_ineligible(inode->i_sb, EXT4_FC_REASON_NOMEM);
 		mutex_lock(&ei->i_fc_lock);
 		return -ENOMEM;
 	}
@@ -397,7 +450,7 @@ static int __track_dentry_update(struct inode *inode, void *arg, bool update)
 		if (!node->fcd_name.name) {
 			kmem_cache_free(ext4_fc_dentry_cachep, node);
 			ext4_fc_mark_ineligible(inode->i_sb,
-				EXT4_FC_REASON_MEM);
+				EXT4_FC_REASON_NOMEM);
 			mutex_lock(&ei->i_fc_lock);
 			return -ENOMEM;
 		}
@@ -411,7 +464,7 @@ static int __track_dentry_update(struct inode *inode, void *arg, bool update)
 	node->fcd_name.len = dentry->d_name.len;
 
 	spin_lock(&sbi->s_fc_lock);
-	if (sbi->s_mount_flags & EXT4_MF_FC_COMMITTING)
+	if (ext4_test_mount_flag(inode->i_sb, EXT4_MF_FC_COMMITTING))
 		list_add_tail(&node->fcd_list,
 				&sbi->s_fc_dentry_q[FC_Q_STAGING]);
 	else
@@ -422,7 +475,8 @@ static int __track_dentry_update(struct inode *inode, void *arg, bool update)
 	return 0;
 }
 
-void ext4_fc_track_unlink(struct inode *inode, struct dentry *dentry)
+void __ext4_fc_track_unlink(handle_t *handle,
+		struct inode *inode, struct dentry *dentry)
 {
 	struct __track_dentry_update_args args;
 	int ret;
@@ -430,12 +484,18 @@ void ext4_fc_track_unlink(struct inode *inode, struct dentry *dentry)
 	args.dentry = dentry;
 	args.op = EXT4_FC_TAG_UNLINK;
 
-	ret = ext4_fc_track_template(inode, __track_dentry_update,
+	ret = ext4_fc_track_template(handle, inode, __track_dentry_update,
 					(void *)&args, 0);
 	trace_ext4_fc_track_unlink(inode, dentry, ret);
 }
 
-void ext4_fc_track_link(struct inode *inode, struct dentry *dentry)
+void ext4_fc_track_unlink(handle_t *handle, struct dentry *dentry)
+{
+	__ext4_fc_track_unlink(handle, d_inode(dentry), dentry);
+}
+
+void __ext4_fc_track_link(handle_t *handle,
+	struct inode *inode, struct dentry *dentry)
 {
 	struct __track_dentry_update_args args;
 	int ret;
@@ -443,20 +503,26 @@ void ext4_fc_track_link(struct inode *inode, struct dentry *dentry)
 	args.dentry = dentry;
 	args.op = EXT4_FC_TAG_LINK;
 
-	ret = ext4_fc_track_template(inode, __track_dentry_update,
+	ret = ext4_fc_track_template(handle, inode, __track_dentry_update,
 					(void *)&args, 0);
 	trace_ext4_fc_track_link(inode, dentry, ret);
 }
 
-void ext4_fc_track_create(struct inode *inode, struct dentry *dentry)
+void ext4_fc_track_link(handle_t *handle, struct dentry *dentry)
+{
+	__ext4_fc_track_link(handle, d_inode(dentry), dentry);
+}
+
+void ext4_fc_track_create(handle_t *handle, struct dentry *dentry)
 {
 	struct __track_dentry_update_args args;
+	struct inode *inode = d_inode(dentry);
 	int ret;
 
 	args.dentry = dentry;
 	args.op = EXT4_FC_TAG_CREAT;
 
-	ret = ext4_fc_track_template(inode, __track_dentry_update,
+	ret = ext4_fc_track_template(handle, inode, __track_dentry_update,
 					(void *)&args, 0);
 	trace_ext4_fc_track_create(inode, dentry, ret);
 }
@@ -472,14 +538,20 @@ static int __track_inode(struct inode *inode, void *arg, bool update)
 	return 0;
 }
 
-void ext4_fc_track_inode(struct inode *inode)
+void ext4_fc_track_inode(handle_t *handle, struct inode *inode)
 {
 	int ret;
 
 	if (S_ISDIR(inode->i_mode))
 		return;
 
-	ret = ext4_fc_track_template(inode, __track_inode, NULL, 1);
+	if (ext4_should_journal_data(inode)) {
+		ext4_fc_mark_ineligible(inode->i_sb,
+					EXT4_FC_REASON_INODE_JOURNAL_DATA);
+		return;
+	}
+
+	ret = ext4_fc_track_template(handle, inode, __track_inode, NULL, 1);
 	trace_ext4_fc_track_inode(inode, ret);
 }
 
@@ -515,7 +587,7 @@ static int __track_range(struct inode *inode, void *arg, bool update)
 	return 0;
 }
 
-void ext4_fc_track_range(struct inode *inode, ext4_lblk_t start,
+void ext4_fc_track_range(handle_t *handle, struct inode *inode, ext4_lblk_t start,
 			 ext4_lblk_t end)
 {
 	struct __track_range_args args;
@@ -527,7 +599,7 @@ void ext4_fc_track_range(struct inode *inode, ext4_lblk_t start,
 	args.start = start;
 	args.end = end;
 
-	ret = ext4_fc_track_template(inode,  __track_range, &args, 1);
+	ret = ext4_fc_track_template(handle, inode,  __track_range, &args, 1);
 
 	trace_ext4_fc_track_range(inode, start, end, ret);
 }
@@ -537,10 +609,11 @@ static void ext4_fc_submit_bh(struct super_block *sb)
 	int write_flags = REQ_SYNC;
 	struct buffer_head *bh = EXT4_SB(sb)->s_fc_bh;
 
+	/* TODO: REQ_FUA | REQ_PREFLUSH is unnecessarily expensive. */
 	if (test_opt(sb, BARRIER))
 		write_flags |= REQ_FUA | REQ_PREFLUSH;
 	lock_buffer(bh);
-	clear_buffer_dirty(bh);
+	set_buffer_dirty(bh);
 	set_buffer_uptodate(bh);
 	bh->b_end_io = ext4_end_buffer_io_sync;
 	submit_bh(REQ_OP_WRITE, write_flags, bh);
@@ -846,7 +919,7 @@ static int ext4_fc_submit_inode_data_all(journal_t *journal)
 	int ret = 0;
 
 	spin_lock(&sbi->s_fc_lock);
-	sbi->s_mount_flags |= EXT4_MF_FC_COMMITTING;
+	ext4_set_mount_flag(sb, EXT4_MF_FC_COMMITTING);
 	list_for_each(pos, &sbi->s_fc_q[FC_Q_MAIN]) {
 		ei = list_entry(pos, struct ext4_inode_info, i_fc_list);
 		ext4_set_inode_state(&ei->vfs_inode, EXT4_STATE_FC_COMMITTING);
@@ -900,6 +973,8 @@ static int ext4_fc_wait_inode_data_all(journal_t *journal)
 
 /* Commit all the directory entry updates */
 static int ext4_fc_commit_dentry_updates(journal_t *journal, u32 *crc)
+__acquires(&sbi->s_fc_lock)
+__releases(&sbi->s_fc_lock)
 {
 	struct super_block *sb = (struct super_block *)(journal->j_private);
 	struct ext4_sb_info *sbi = EXT4_SB(sb);
@@ -996,6 +1071,13 @@ static int ext4_fc_perform_commit(journal_t *journal)
 	if (ret)
 		return ret;
 
+	/*
+	 * If file system device is different from journal device, issue a cache
+	 * flush before we start writing fast commit blocks.
+	 */
+	if (journal->j_fs_dev != journal->j_dev)
+		blkdev_issue_flush(journal->j_fs_dev, GFP_NOFS);
+
 	blk_start_plug(&plug);
 	if (sbi->s_fc_bytes == 0) {
 		/*
@@ -1031,8 +1113,6 @@ static int ext4_fc_perform_commit(journal_t *journal)
 		if (ret)
 			goto out;
 		spin_lock(&sbi->s_fc_lock);
-		EXT4_I(inode)->i_fc_committed_subtid =
-			atomic_read(&sbi->s_fc_subtid);
 	}
 	spin_unlock(&sbi->s_fc_lock);
 
@@ -1131,7 +1211,7 @@ out:
 		"Fast commit ended with blks = %d, reason = %d, subtid - %d",
 		nblks, reason, subtid);
 	if (reason == EXT4_FC_REASON_FC_FAILED)
-		return jbd2_fc_end_commit_fallback(journal, commit_tid);
+		return jbd2_fc_end_commit_fallback(journal);
 	if (reason == EXT4_FC_REASON_FC_START_FAILED ||
 		reason == EXT4_FC_REASON_INELIGIBLE)
 		return jbd2_complete_transaction(journal, commit_tid);
@@ -1190,8 +1270,8 @@ static void ext4_fc_cleanup(journal_t *journal, int full)
 	list_splice_init(&sbi->s_fc_q[FC_Q_STAGING],
 				&sbi->s_fc_q[FC_Q_STAGING]);
 
-	sbi->s_mount_flags &= ~EXT4_MF_FC_COMMITTING;
-	sbi->s_mount_flags &= ~EXT4_MF_FC_INELIGIBLE;
+	ext4_clear_mount_flag(sb, EXT4_MF_FC_COMMITTING);
+	ext4_clear_mount_flag(sb, EXT4_MF_FC_INELIGIBLE);
 
 	if (full)
 		sbi->s_fc_bytes = 0;
@@ -1200,18 +1280,6 @@ static void ext4_fc_cleanup(journal_t *journal, int full)
 }
 
 /* Ext4 Replay Path Routines */
-
-/* Get length of a particular tlv */
-static inline int ext4_fc_tag_len(struct ext4_fc_tl *tl)
-{
-	return le16_to_cpu(tl->fc_len);
-}
-
-/* Get a pointer to "value" of a tlv */
-static inline u8 *ext4_fc_tag_val(struct ext4_fc_tl *tl)
-{
-	return (u8 *)tl + sizeof(*tl);
-}
 
 /* Helper struct for dentry replay routines */
 struct dentry_info_args {
@@ -1263,7 +1331,7 @@ static int ext4_fc_replay_unlink(struct super_block *sb, struct ext4_fc_tl *tl)
 		return 0;
 	}
 
-	ret = __ext4_unlink(old_parent, &entry, inode);
+	ret = __ext4_unlink(NULL, old_parent, &entry, inode);
 	/* -ENOENT ok coz it might not exist anymore. */
 	if (ret == -ENOENT)
 		ret = 0;
@@ -1751,32 +1819,6 @@ ext4_fc_replay_del_range(struct super_block *sb, struct ext4_fc_tl *tl)
 	return 0;
 }
 
-static inline const char *tag2str(u16 tag)
-{
-	switch (tag) {
-	case EXT4_FC_TAG_LINK:
-		return "TAG_ADD_ENTRY";
-	case EXT4_FC_TAG_UNLINK:
-		return "TAG_DEL_ENTRY";
-	case EXT4_FC_TAG_ADD_RANGE:
-		return "TAG_ADD_RANGE";
-	case EXT4_FC_TAG_CREAT:
-		return "TAG_CREAT_DENTRY";
-	case EXT4_FC_TAG_DEL_RANGE:
-		return "TAG_DEL_RANGE";
-	case EXT4_FC_TAG_INODE:
-		return "TAG_INODE";
-	case EXT4_FC_TAG_PAD:
-		return "TAG_PAD";
-	case EXT4_FC_TAG_TAIL:
-		return "TAG_TAIL";
-	case EXT4_FC_TAG_HEAD:
-		return "TAG_HEAD";
-	default:
-		return "TAG_ERROR";
-	}
-}
-
 static void ext4_fc_set_bitmaps_and_counters(struct super_block *sb)
 {
 	struct ext4_fc_replay_state *state;
@@ -2079,8 +2121,6 @@ static int ext4_fc_replay(journal_t *journal, struct buffer_head *bh,
 
 void ext4_fc_init(struct super_block *sb, journal_t *journal)
 {
-	int num_fc_blocks;
-
 	/*
 	 * We set replay callback even if fast commit disabled because we may
 	 * could still have fast commit blocks that need to be replayed even if
@@ -2090,21 +2130,9 @@ void ext4_fc_init(struct super_block *sb, journal_t *journal)
 	if (!test_opt2(sb, JOURNAL_FAST_COMMIT))
 		return;
 	journal->j_fc_cleanup_callback = ext4_fc_cleanup;
-	if (!buffer_uptodate(journal->j_sb_buffer)
-		&& ext4_read_bh_lock(journal->j_sb_buffer, REQ_META | REQ_PRIO,
-					true)) {
-		ext4_msg(sb, KERN_ERR, "I/O error on journal");
-		return;
-	}
-	num_fc_blocks = be32_to_cpu(journal->j_superblock->s_num_fc_blks);
-	if (jbd2_fc_init(journal, num_fc_blocks ? num_fc_blocks :
-					EXT4_NUM_FC_BLKS)) {
-		pr_warn("Error while enabling fast commits, turning off.");
-		ext4_clear_feature_fast_commit(sb);
-	}
 }
 
-const char *fc_ineligible_reasons[] = {
+static const char *fc_ineligible_reasons[] = {
 	"Extended attributes changed",
 	"Cross rename",
 	"Journal flag changed",
@@ -2113,6 +2141,7 @@ const char *fc_ineligible_reasons[] = {
 	"Resize",
 	"Dir renamed",
 	"Falloc range op",
+	"Data journalling",
 	"FC Commit Failed"
 };
 

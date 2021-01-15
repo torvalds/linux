@@ -35,6 +35,7 @@
 #include <drm/radeon_drm.h>
 
 #include "radeon.h"
+#include "radeon_prime.h"
 
 struct dma_buf *radeon_gem_prime_export(struct drm_gem_object *gobj,
 					int flags);

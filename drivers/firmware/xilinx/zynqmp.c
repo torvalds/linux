@@ -20,12 +20,28 @@
 #include <linux/of_platform.h>
 #include <linux/slab.h>
 #include <linux/uaccess.h>
+#include <linux/hashtable.h>
 
 #include <linux/firmware/xlnx-zynqmp.h>
 #include "zynqmp-debug.h"
 
+/* Max HashMap Order for PM API feature check (1<<7 = 128) */
+#define PM_API_FEATURE_CHECK_MAX_ORDER  7
+
 static bool feature_check_enabled;
-static u32 zynqmp_pm_features[PM_API_MAX];
+static DEFINE_HASHTABLE(pm_api_features_map, PM_API_FEATURE_CHECK_MAX_ORDER);
+
+/**
+ * struct pm_api_feature_data - PM API Feature data
+ * @pm_api_id:		PM API Id, used as key to index into hashmap
+ * @feature_status:	status of PM API feature: valid, invalid
+ * @hentry:		hlist_node that hooks this entry into hashtable
+ */
+struct pm_api_feature_data {
+	u32 pm_api_id;
+	int feature_status;
+	struct hlist_node hentry;
+};
 
 static const struct mfd_cell firmware_devs[] = {
 	{
@@ -142,26 +158,37 @@ static int zynqmp_pm_feature(u32 api_id)
 	int ret;
 	u32 ret_payload[PAYLOAD_ARG_CNT];
 	u64 smc_arg[2];
+	struct pm_api_feature_data *feature_data;
 
 	if (!feature_check_enabled)
 		return 0;
 
-	/* Return value if feature is already checked */
-	if (zynqmp_pm_features[api_id] != PM_FEATURE_UNCHECKED)
-		return zynqmp_pm_features[api_id];
+	/* Check for existing entry in hash table for given api */
+	hash_for_each_possible(pm_api_features_map, feature_data, hentry,
+			       api_id) {
+		if (feature_data->pm_api_id == api_id)
+			return feature_data->feature_status;
+	}
 
+	/* Add new entry if not present */
+	feature_data = kmalloc(sizeof(*feature_data), GFP_KERNEL);
+	if (!feature_data)
+		return -ENOMEM;
+
+	feature_data->pm_api_id = api_id;
 	smc_arg[0] = PM_SIP_SVC | PM_FEATURE_CHECK;
 	smc_arg[1] = api_id;
 
 	ret = do_fw_call(smc_arg[0], smc_arg[1], 0, ret_payload);
-	if (ret) {
-		zynqmp_pm_features[api_id] = PM_FEATURE_INVALID;
-		return PM_FEATURE_INVALID;
-	}
+	if (ret)
+		ret = -EOPNOTSUPP;
+	else
+		ret = ret_payload[1];
 
-	zynqmp_pm_features[api_id] = ret_payload[1];
+	feature_data->feature_status = ret;
+	hash_add(pm_api_features_map, &feature_data->hentry, api_id);
 
-	return zynqmp_pm_features[api_id];
+	return ret;
 }
 
 /**
@@ -197,9 +224,12 @@ int zynqmp_pm_invoke_fn(u32 pm_api_id, u32 arg0, u32 arg1,
 	 * Make sure to stay in x0 register
 	 */
 	u64 smc_arg[4];
+	int ret;
 
-	if (zynqmp_pm_feature(pm_api_id) == PM_FEATURE_INVALID)
-		return -ENOTSUPP;
+	/* Check if feature is supported or not */
+	ret = zynqmp_pm_feature(pm_api_id);
+	if (ret < 0)
+		return ret;
 
 	smc_arg[0] = PM_SIP_SVC | pm_api_id;
 	smc_arg[1] = ((u64)arg1 << 32) | arg0;
@@ -585,13 +615,13 @@ EXPORT_SYMBOL_GPL(zynqmp_pm_get_pll_frac_data);
 /**
  * zynqmp_pm_set_sd_tapdelay() -  Set tap delay for the SD device
  *
- * @node_id	Node ID of the device
- * @type	Type of tap delay to set (input/output)
- * @value	Value to set fot the tap delay
+ * @node_id:	Node ID of the device
+ * @type:	Type of tap delay to set (input/output)
+ * @value:	Value to set fot the tap delay
  *
  * This function sets input/output tap delay for the SD device.
  *
- * @return	Returns status, either success or error+reason
+ * Return:	Returns status, either success or error+reason
  */
 int zynqmp_pm_set_sd_tapdelay(u32 node_id, u32 type, u32 value)
 {
@@ -603,28 +633,28 @@ EXPORT_SYMBOL_GPL(zynqmp_pm_set_sd_tapdelay);
 /**
  * zynqmp_pm_sd_dll_reset() - Reset DLL logic
  *
- * @node_id	Node ID of the device
- * @type	Reset type
+ * @node_id:	Node ID of the device
+ * @type:	Reset type
  *
  * This function resets DLL logic for the SD device.
  *
- * @return	Returns status, either success or error+reason
+ * Return:	Returns status, either success or error+reason
  */
 int zynqmp_pm_sd_dll_reset(u32 node_id, u32 type)
 {
-	return zynqmp_pm_invoke_fn(PM_IOCTL, node_id, IOCTL_SET_SD_TAPDELAY,
+	return zynqmp_pm_invoke_fn(PM_IOCTL, node_id, IOCTL_SD_DLL_RESET,
 				   type, 0, NULL);
 }
 EXPORT_SYMBOL_GPL(zynqmp_pm_sd_dll_reset);
 
 /**
  * zynqmp_pm_write_ggs() - PM API for writing global general storage (ggs)
- * @index	GGS register index
- * @value	Register value to be written
+ * @index:	GGS register index
+ * @value:	Register value to be written
  *
  * This function writes value to GGS register.
  *
- * @return      Returns status, either success or error+reason
+ * Return:      Returns status, either success or error+reason
  */
 int zynqmp_pm_write_ggs(u32 index, u32 value)
 {
@@ -635,12 +665,12 @@ EXPORT_SYMBOL_GPL(zynqmp_pm_write_ggs);
 
 /**
  * zynqmp_pm_write_ggs() - PM API for reading global general storage (ggs)
- * @index	GGS register index
- * @value	Register value to be written
+ * @index:	GGS register index
+ * @value:	Register value to be written
  *
  * This function returns GGS register value.
  *
- * @return      Returns status, either success or error+reason
+ * Return:	Returns status, either success or error+reason
  */
 int zynqmp_pm_read_ggs(u32 index, u32 *value)
 {
@@ -652,12 +682,12 @@ EXPORT_SYMBOL_GPL(zynqmp_pm_read_ggs);
 /**
  * zynqmp_pm_write_pggs() - PM API for writing persistent global general
  *			     storage (pggs)
- * @index	PGGS register index
- * @value	Register value to be written
+ * @index:	PGGS register index
+ * @value:	Register value to be written
  *
  * This function writes value to PGGS register.
  *
- * @return      Returns status, either success or error+reason
+ * Return:	Returns status, either success or error+reason
  */
 int zynqmp_pm_write_pggs(u32 index, u32 value)
 {
@@ -669,12 +699,12 @@ EXPORT_SYMBOL_GPL(zynqmp_pm_write_pggs);
 /**
  * zynqmp_pm_write_pggs() - PM API for reading persistent global general
  *			     storage (pggs)
- * @index	PGGS register index
- * @value	Register value to be written
+ * @index:	PGGS register index
+ * @value:	Register value to be written
  *
  * This function returns PGGS register value.
  *
- * @return      Returns status, either success or error+reason
+ * Return:	Returns status, either success or error+reason
  */
 int zynqmp_pm_read_pggs(u32 index, u32 *value)
 {
@@ -685,12 +715,12 @@ EXPORT_SYMBOL_GPL(zynqmp_pm_read_pggs);
 
 /**
  * zynqmp_pm_set_boot_health_status() - PM API for setting healthy boot status
- * @value	Status value to be written
+ * @value:	Status value to be written
  *
  * This function sets healthy bit value to indicate boot health status
  * to firmware.
  *
- * @return      Returns status, either success or error+reason
+ * Return:	Returns status, either success or error+reason
  */
 int zynqmp_pm_set_boot_health_status(u32 value)
 {
@@ -785,10 +815,10 @@ EXPORT_SYMBOL_GPL(zynqmp_pm_fpga_get_status);
  * zynqmp_pm_init_finalize() - PM call to inform firmware that the caller
  *			       master has initialized its own power management
  *
+ * Return: Returns status, either success or error+reason
+ *
  * This API function is to be used for notify the power management controller
  * about the completed power management initialization.
- *
- * Return: Returns status, either success or error+reason
  */
 int zynqmp_pm_init_finalize(void)
 {
@@ -1249,8 +1279,16 @@ static int zynqmp_firmware_probe(struct platform_device *pdev)
 
 static int zynqmp_firmware_remove(struct platform_device *pdev)
 {
+	struct pm_api_feature_data *feature_data;
+	int i;
+
 	mfd_remove_devices(&pdev->dev);
 	zynqmp_pm_api_debugfs_exit();
+
+	hash_for_each(pm_api_features_map, i, feature_data, hentry) {
+		hash_del(&feature_data->hentry);
+		kfree(feature_data);
+	}
 
 	return 0;
 }

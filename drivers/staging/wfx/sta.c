@@ -63,7 +63,7 @@ void wfx_suspend_hot_dev(struct wfx_dev *wdev, enum sta_notify_cmd cmd)
 
 static void wfx_filter_beacon(struct wfx_vif *wvif, bool filter_beacon)
 {
-	const struct hif_ie_table_entry filter_ies[] = {
+	static const struct hif_ie_table_entry filter_ies[] = {
 		{
 			.ie_id        = WLAN_EID_VENDOR_SPECIFIC,
 			.has_changed  = 1,

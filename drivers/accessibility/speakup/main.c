@@ -90,19 +90,18 @@ const u_char spk_key_defaults[] = {
 #include "speakupmap.h"
 };
 
-/* Speakup Cursor Track Variables */
-static int cursor_track = 1, prev_cursor_track = 1;
-
-/* cursor track modes, must be ordered same as cursor_msgs */
-enum {
+/* cursor track modes, must be ordered same as cursor_msgs in enum msg_index_t */
+enum cursor_track {
 	CT_Off = 0,
 	CT_On,
 	CT_Highlight,
 	CT_Window,
-	CT_Max
+	CT_Max,
+	read_all_mode = CT_Max,
 };
 
-#define read_all_mode CT_Max
+/* Speakup Cursor Track Variables */
+static enum cursor_track cursor_track = 1, prev_cursor_track = 1;
 
 static struct tty_struct *tty;
 
@@ -357,7 +356,6 @@ static void speakup_cut(struct vc_data *vc)
 	mark_cut_flag = 0;
 	synth_printf("%s\n", spk_msg_get(MSG_CUT));
 
-	speakup_clear_selection();
 	ret = speakup_set_selection(tty);
 
 	switch (ret) {
@@ -405,15 +403,17 @@ static void say_attributes(struct vc_data *vc)
 	synth_printf("%s\n", spk_msg_get(MSG_COLORS_START + bg));
 }
 
-enum {
-	edge_top = 1,
+/* must be ordered same as edge_msgs in enum msg_index_t */
+enum edge {
+	edge_none = 0,
+	edge_top,
 	edge_bottom,
 	edge_left,
 	edge_right,
 	edge_quiet
 };
 
-static void announce_edge(struct vc_data *vc, int msg_id)
+static void announce_edge(struct vc_data *vc, enum edge msg_id)
 {
 	if (spk_bleeps & 1)
 		bleep(spk_y);
@@ -608,7 +608,8 @@ static void say_prev_word(struct vc_data *vc)
 {
 	u_char temp;
 	u16 ch;
-	u_short edge_said = 0, last_state = 0, state = 0;
+	enum edge edge_said = edge_none;
+	u_short last_state = 0, state = 0;
 
 	spk_parked |= 0x01;
 
@@ -653,7 +654,7 @@ static void say_prev_word(struct vc_data *vc)
 	}
 	if (spk_x == 0 && edge_said == edge_quiet)
 		edge_said = edge_left;
-	if (edge_said > 0 && edge_said < edge_quiet)
+	if (edge_said > edge_none && edge_said < edge_quiet)
 		announce_edge(vc, edge_said);
 	say_word(vc);
 }
@@ -662,7 +663,8 @@ static void say_next_word(struct vc_data *vc)
 {
 	u_char temp;
 	u16 ch;
-	u_short edge_said = 0, last_state = 2, state = 0;
+	enum edge edge_said = edge_none;
+	u_short last_state = 2, state = 0;
 
 	spk_parked |= 0x01;
 	if (spk_x == vc->vc_cols - 1 && spk_y == vc->vc_rows - 1) {
@@ -694,7 +696,7 @@ static void say_next_word(struct vc_data *vc)
 		spk_pos += 2;
 		last_state = state;
 	}
-	if (edge_said > 0)
+	if (edge_said > edge_none)
 		announce_edge(vc, edge_said);
 	say_word(vc);
 }
@@ -1366,31 +1368,30 @@ static void speakup_deallocate(struct vc_data *vc)
 	speakup_console[vc_num] = NULL;
 }
 
-static u_char is_cursor;
-static u_long old_cursor_pos, old_cursor_x, old_cursor_y;
-static int cursor_con;
-
-static void reset_highlight_buffers(struct vc_data *);
-
-static int read_all_key;
-
-static int in_keyboard_notifier;
-
-static void start_read_all_timer(struct vc_data *vc, int command);
-
-enum {
-	RA_NOTHING,
-	RA_NEXT_SENT,
-	RA_PREV_LINE,
-	RA_NEXT_LINE,
-	RA_PREV_SENT,
+enum read_all_command {
+	RA_NEXT_SENT = KVAL(K_DOWN)+1,
+	RA_PREV_LINE = KVAL(K_LEFT)+1,
+	RA_NEXT_LINE = KVAL(K_RIGHT)+1,
+	RA_PREV_SENT = KVAL(K_UP)+1,
 	RA_DOWN_ARROW,
 	RA_TIMER,
 	RA_FIND_NEXT_SENT,
 	RA_FIND_PREV_SENT,
 };
 
-static void kbd_fakekey2(struct vc_data *vc, int command)
+static u_char is_cursor;
+static u_long old_cursor_pos, old_cursor_x, old_cursor_y;
+static int cursor_con;
+
+static void reset_highlight_buffers(struct vc_data *);
+
+static enum read_all_command read_all_key;
+
+static int in_keyboard_notifier;
+
+static void start_read_all_timer(struct vc_data *vc, enum read_all_command command);
+
+static void kbd_fakekey2(struct vc_data *vc, enum read_all_command command)
 {
 	del_timer(&cursor_timer);
 	speakup_fake_down_arrow();
@@ -1427,7 +1428,7 @@ static void stop_read_all(struct vc_data *vc)
 	spk_do_flush();
 }
 
-static void start_read_all_timer(struct vc_data *vc, int command)
+static void start_read_all_timer(struct vc_data *vc, enum read_all_command command)
 {
 	struct var_t *cursor_timeout;
 
@@ -1438,7 +1439,7 @@ static void start_read_all_timer(struct vc_data *vc, int command)
 		  jiffies + msecs_to_jiffies(cursor_timeout->u.n.value));
 }
 
-static void handle_cursor_read_all(struct vc_data *vc, int command)
+static void handle_cursor_read_all(struct vc_data *vc, enum read_all_command command)
 {
 	int indcount, sentcount, rv, sn;
 

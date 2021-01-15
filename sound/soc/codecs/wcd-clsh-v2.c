@@ -480,7 +480,6 @@ static int _wcd_clsh_ctrl_set_state(struct wcd_clsh_ctrl *ctrl, int req_state,
 	case WCD_CLSH_STATE_HPHR:
 		wcd_clsh_state_hph_r(ctrl, req_state, is_enable, mode);
 		break;
-		break;
 	case WCD_CLSH_STATE_LO:
 		wcd_clsh_state_lo(ctrl, req_state, is_enable, mode);
 		break;

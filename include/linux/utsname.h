@@ -4,7 +4,6 @@
 
 
 #include <linux/sched.h>
-#include <linux/kref.h>
 #include <linux/nsproxy.h>
 #include <linux/ns_common.h>
 #include <linux/err.h>
@@ -22,7 +21,6 @@ struct user_namespace;
 extern struct user_namespace init_user_ns;
 
 struct uts_namespace {
-	struct kref kref;
 	struct new_utsname name;
 	struct user_namespace *user_ns;
 	struct ucounts *ucounts;
@@ -33,16 +31,17 @@ extern struct uts_namespace init_uts_ns;
 #ifdef CONFIG_UTS_NS
 static inline void get_uts_ns(struct uts_namespace *ns)
 {
-	kref_get(&ns->kref);
+	refcount_inc(&ns->ns.count);
 }
 
 extern struct uts_namespace *copy_utsname(unsigned long flags,
 	struct user_namespace *user_ns, struct uts_namespace *old_ns);
-extern void free_uts_ns(struct kref *kref);
+extern void free_uts_ns(struct uts_namespace *ns);
 
 static inline void put_uts_ns(struct uts_namespace *ns)
 {
-	kref_put(&ns->kref, free_uts_ns);
+	if (refcount_dec_and_test(&ns->ns.count))
+		free_uts_ns(ns);
 }
 
 void uts_ns_init(void);

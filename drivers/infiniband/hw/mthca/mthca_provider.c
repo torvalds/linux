@@ -470,7 +470,7 @@ static struct ib_qp *mthca_create_qp(struct ib_pd *pd,
 	int err;
 
 	if (init_attr->create_flags)
-		return ERR_PTR(-EINVAL);
+		return ERR_PTR(-EOPNOTSUPP);
 
 	switch (init_attr->qp_type) {
 	case IB_QPT_RC:
@@ -612,7 +612,7 @@ static int mthca_create_cq(struct ib_cq *ibcq,
 		udata, struct mthca_ucontext, ibucontext);
 
 	if (attr->flags)
-		return -EINVAL;
+		return -EOPNOTSUPP;
 
 	if (entries < 1 || entries > to_mdev(ibdev)->limits.max_cqes)
 		return -EINVAL;
@@ -961,9 +961,26 @@ static ssize_t hw_rev_show(struct device *device,
 	struct mthca_dev *dev =
 		rdma_device_to_drv_device(device, struct mthca_dev, ib_dev);
 
-	return sprintf(buf, "%x\n", dev->rev_id);
+	return sysfs_emit(buf, "%x\n", dev->rev_id);
 }
 static DEVICE_ATTR_RO(hw_rev);
+
+static const char *hca_type_string(int hca_type)
+{
+	switch (hca_type) {
+	case PCI_DEVICE_ID_MELLANOX_TAVOR:
+		return "MT23108";
+	case PCI_DEVICE_ID_MELLANOX_ARBEL_COMPAT:
+		return "MT25208 (MT23108 compat mode)";
+	case PCI_DEVICE_ID_MELLANOX_ARBEL:
+		return "MT25208";
+	case PCI_DEVICE_ID_MELLANOX_SINAI:
+	case PCI_DEVICE_ID_MELLANOX_SINAI_OLD:
+		return "MT25204";
+	}
+
+	return "unknown";
+}
 
 static ssize_t hca_type_show(struct device *device,
 			     struct device_attribute *attr, char *buf)
@@ -971,19 +988,7 @@ static ssize_t hca_type_show(struct device *device,
 	struct mthca_dev *dev =
 		rdma_device_to_drv_device(device, struct mthca_dev, ib_dev);
 
-	switch (dev->pdev->device) {
-	case PCI_DEVICE_ID_MELLANOX_TAVOR:
-		return sprintf(buf, "MT23108\n");
-	case PCI_DEVICE_ID_MELLANOX_ARBEL_COMPAT:
-		return sprintf(buf, "MT25208 (MT23108 compat mode)\n");
-	case PCI_DEVICE_ID_MELLANOX_ARBEL:
-		return sprintf(buf, "MT25208\n");
-	case PCI_DEVICE_ID_MELLANOX_SINAI:
-	case PCI_DEVICE_ID_MELLANOX_SINAI_OLD:
-		return sprintf(buf, "MT25204\n");
-	default:
-		return sprintf(buf, "unknown\n");
-	}
+	return sysfs_emit(buf, "%s\n", hca_type_string(dev->pdev->device));
 }
 static DEVICE_ATTR_RO(hca_type);
 
@@ -993,7 +998,7 @@ static ssize_t board_id_show(struct device *device,
 	struct mthca_dev *dev =
 		rdma_device_to_drv_device(device, struct mthca_dev, ib_dev);
 
-	return sprintf(buf, "%.*s\n", MTHCA_BOARD_ID_LEN, dev->board_id);
+	return sysfs_emit(buf, "%.*s\n", MTHCA_BOARD_ID_LEN, dev->board_id);
 }
 static DEVICE_ATTR_RO(board_id);
 
@@ -1158,36 +1163,12 @@ int mthca_register_device(struct mthca_dev *dev)
 	if (ret)
 		return ret;
 
-	dev->ib_dev.uverbs_cmd_mask	 =
-		(1ull << IB_USER_VERBS_CMD_GET_CONTEXT)		|
-		(1ull << IB_USER_VERBS_CMD_QUERY_DEVICE)	|
-		(1ull << IB_USER_VERBS_CMD_QUERY_PORT)		|
-		(1ull << IB_USER_VERBS_CMD_ALLOC_PD)		|
-		(1ull << IB_USER_VERBS_CMD_DEALLOC_PD)		|
-		(1ull << IB_USER_VERBS_CMD_REG_MR)		|
-		(1ull << IB_USER_VERBS_CMD_DEREG_MR)		|
-		(1ull << IB_USER_VERBS_CMD_CREATE_COMP_CHANNEL)	|
-		(1ull << IB_USER_VERBS_CMD_CREATE_CQ)		|
-		(1ull << IB_USER_VERBS_CMD_RESIZE_CQ)		|
-		(1ull << IB_USER_VERBS_CMD_DESTROY_CQ)		|
-		(1ull << IB_USER_VERBS_CMD_CREATE_QP)		|
-		(1ull << IB_USER_VERBS_CMD_QUERY_QP)		|
-		(1ull << IB_USER_VERBS_CMD_MODIFY_QP)		|
-		(1ull << IB_USER_VERBS_CMD_DESTROY_QP)		|
-		(1ull << IB_USER_VERBS_CMD_ATTACH_MCAST)	|
-		(1ull << IB_USER_VERBS_CMD_DETACH_MCAST);
 	dev->ib_dev.node_type            = RDMA_NODE_IB_CA;
 	dev->ib_dev.phys_port_cnt        = dev->limits.num_ports;
 	dev->ib_dev.num_comp_vectors     = 1;
 	dev->ib_dev.dev.parent           = &dev->pdev->dev;
 
 	if (dev->mthca_flags & MTHCA_FLAG_SRQ) {
-		dev->ib_dev.uverbs_cmd_mask	|=
-			(1ull << IB_USER_VERBS_CMD_CREATE_SRQ)		|
-			(1ull << IB_USER_VERBS_CMD_MODIFY_SRQ)		|
-			(1ull << IB_USER_VERBS_CMD_QUERY_SRQ)		|
-			(1ull << IB_USER_VERBS_CMD_DESTROY_SRQ);
-
 		if (mthca_is_memfree(dev))
 			ib_set_device_ops(&dev->ib_dev,
 					  &mthca_dev_arbel_srq_ops);

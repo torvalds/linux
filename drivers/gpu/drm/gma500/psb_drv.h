@@ -576,9 +576,6 @@ struct drm_psb_private {
 
 	struct drm_fb_helper *fb_helper;
 
-	/* 2D acceleration */
-	spinlock_t lock_2d;
-
 	/* Panel brightness */
 	int brightness;
 	int brightness_adjusted;
@@ -615,7 +612,6 @@ struct drm_psb_private {
 /* Operations for each board type */
 struct psb_ops {
 	const char *name;
-	unsigned int accel_2d:1;
 	int pipes;		/* Number of output pipes */
 	int crtcs;		/* Number of CRTCs */
 	int sgx_offset;		/* Base offset of SGX device */
@@ -696,9 +692,6 @@ extern int psbfb_probed(struct drm_device *dev);
 extern int psbfb_remove(struct drm_device *dev,
 			struct drm_framebuffer *fb);
 /* accel_2d.c */
-extern void psbfb_copyarea(struct fb_info *info,
-					const struct fb_copyarea *region);
-extern int psbfb_sync(struct fb_info *info);
 extern void psb_spank(struct drm_psb_private *dev_priv);
 
 /* psb_reset.c */

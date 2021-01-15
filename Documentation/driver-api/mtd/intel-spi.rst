@@ -52,7 +52,7 @@ Linux.
 	16384+0 records out
 	8388608 bytes (8.4 MB) copied, 10.0269 s, 837 kB/s
 
- 6) Verify the backup:
+ 6) Verify the backup::
 
 	# sha1sum /dev/mtd0ro bios.bak
 	fdbb011920572ca6c991377c4b418a0502668b73  /dev/mtd0ro
@@ -66,7 +66,7 @@ Linux.
 	# flash_erase /dev/mtd0 0 0
 	Erasing 4 Kibyte @ 7ff000 -- 100 % complete
 
- 8) Once completed without errors you can write the new BIOS image:
+ 8) Once completed without errors you can write the new BIOS image::
 
     # dd if=MNW2MAX1.X64.0092.R01.1605221712.bin of=/dev/mtd0
 

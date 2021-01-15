@@ -335,7 +335,7 @@ pcxl_free_range(unsigned long vaddr, size_t size)
 	dump_resmap();
 }
 
-static int proc_pcxl_dma_show(struct seq_file *m, void *v)
+static int __maybe_unused proc_pcxl_dma_show(struct seq_file *m, void *v)
 {
 #if 0
 	u_long i = 0;

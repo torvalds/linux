@@ -21,7 +21,7 @@
  *
  */
 
-#if !defined(_AMDGPU_TRACE_H) || defined(TRACE_HEADER_MULTI_READ)
+#if !defined(_AMDGPU_TRACE_H_) || defined(TRACE_HEADER_MULTI_READ)
 #define _AMDGPU_TRACE_H_
 
 #include <linux/stringify.h>
@@ -127,7 +127,7 @@ TRACE_EVENT(amdgpu_bo_create,
 
 	    TP_fast_assign(
 			   __entry->bo = bo;
-			   __entry->pages = bo->tbo.num_pages;
+			   __entry->pages = bo->tbo.mem.num_pages;
 			   __entry->type = bo->tbo.mem.mem_type;
 			   __entry->prefer = bo->preferred_domains;
 			   __entry->allow = bo->allowed_domains;
@@ -358,23 +358,24 @@ TRACE_EVENT(amdgpu_vm_update_ptes,
 			}
 	),
 	TP_printk("pid:%u vm_ctx:0x%llx start:0x%010llx end:0x%010llx,"
-		  " flags:0x%llx, incr:%llu, dst:\n%s", __entry->pid,
+		  " flags:0x%llx, incr:%llu, dst:\n%s%s", __entry->pid,
 		  __entry->vm_ctx, __entry->start, __entry->end,
 		  __entry->flags, __entry->incr,  __print_array(
-		  __get_dynamic_array(dst), __entry->nptes, 8))
+		  __get_dynamic_array(dst), min(__entry->nptes, 32u), 8),
+		  __entry->nptes > 32 ? "..." : "")
 );
 
 TRACE_EVENT(amdgpu_vm_set_ptes,
 	    TP_PROTO(uint64_t pe, uint64_t addr, unsigned count,
-		     uint32_t incr, uint64_t flags, bool direct),
-	    TP_ARGS(pe, addr, count, incr, flags, direct),
+		     uint32_t incr, uint64_t flags, bool immediate),
+	    TP_ARGS(pe, addr, count, incr, flags, immediate),
 	    TP_STRUCT__entry(
 			     __field(u64, pe)
 			     __field(u64, addr)
 			     __field(u32, count)
 			     __field(u32, incr)
 			     __field(u64, flags)
-			     __field(bool, direct)
+			     __field(bool, immediate)
 			     ),
 
 	    TP_fast_assign(
@@ -383,32 +384,32 @@ TRACE_EVENT(amdgpu_vm_set_ptes,
 			   __entry->count = count;
 			   __entry->incr = incr;
 			   __entry->flags = flags;
-			   __entry->direct = direct;
+			   __entry->immediate = immediate;
 			   ),
 	    TP_printk("pe=%010Lx, addr=%010Lx, incr=%u, flags=%llx, count=%u, "
-		      "direct=%d", __entry->pe, __entry->addr, __entry->incr,
-		      __entry->flags, __entry->count, __entry->direct)
+		      "immediate=%d", __entry->pe, __entry->addr, __entry->incr,
+		      __entry->flags, __entry->count, __entry->immediate)
 );
 
 TRACE_EVENT(amdgpu_vm_copy_ptes,
-	    TP_PROTO(uint64_t pe, uint64_t src, unsigned count, bool direct),
-	    TP_ARGS(pe, src, count, direct),
+	    TP_PROTO(uint64_t pe, uint64_t src, unsigned count, bool immediate),
+	    TP_ARGS(pe, src, count, immediate),
 	    TP_STRUCT__entry(
 			     __field(u64, pe)
 			     __field(u64, src)
 			     __field(u32, count)
-			     __field(bool, direct)
+			     __field(bool, immediate)
 			     ),
 
 	    TP_fast_assign(
 			   __entry->pe = pe;
 			   __entry->src = src;
 			   __entry->count = count;
-			   __entry->direct = direct;
+			   __entry->immediate = immediate;
 			   ),
-	    TP_printk("pe=%010Lx, src=%010Lx, count=%u, direct=%d",
+	    TP_printk("pe=%010Lx, src=%010Lx, count=%u, immediate=%d",
 		      __entry->pe, __entry->src, __entry->count,
-		      __entry->direct)
+		      __entry->immediate)
 );
 
 TRACE_EVENT(amdgpu_vm_flush,

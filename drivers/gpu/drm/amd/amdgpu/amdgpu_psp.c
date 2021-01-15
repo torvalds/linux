@@ -249,7 +249,7 @@ psp_cmd_submit_buf(struct psp_context *psp,
 {
 	int ret;
 	int index;
-	int timeout = 2000;
+	int timeout = 20000;
 	bool ras_intr = false;
 	bool skip_unsupport = false;
 
@@ -282,7 +282,7 @@ psp_cmd_submit_buf(struct psp_context *psp,
 		ras_intr = amdgpu_ras_intr_triggered();
 		if (ras_intr)
 			break;
-		msleep(1);
+		usleep_range(10, 100);
 		amdgpu_asic_invalidate_hdp(psp->adev, NULL);
 	}
 
@@ -563,7 +563,7 @@ static int psp_asd_load(struct psp_context *psp)
 	 * add workaround to bypass it for sriov now.
 	 * TODO: add version check to make it common
 	 */
-	if (amdgpu_sriov_vf(psp->adev) || !psp->asd_fw)
+	if (amdgpu_sriov_vf(psp->adev) || !psp->asd_ucode_size)
 		return 0;
 
 	cmd = kzalloc(sizeof(struct psp_gfx_cmd_resp), GFP_KERNEL);
@@ -1315,8 +1315,12 @@ static int psp_hdcp_terminate(struct psp_context *psp)
 	if (amdgpu_sriov_vf(psp->adev))
 		return 0;
 
-	if (!psp->hdcp_context.hdcp_initialized)
-		return 0;
+	if (!psp->hdcp_context.hdcp_initialized) {
+		if (psp->hdcp_context.hdcp_shared_buf)
+			goto out;
+		else
+			return 0;
+	}
 
 	ret = psp_hdcp_unload(psp);
 	if (ret)
@@ -1324,6 +1328,7 @@ static int psp_hdcp_terminate(struct psp_context *psp)
 
 	psp->hdcp_context.hdcp_initialized = false;
 
+out:
 	/* free hdcp shared memory */
 	amdgpu_bo_free_kernel(&psp->hdcp_context.hdcp_shared_bo,
 			      &psp->hdcp_context.hdcp_shared_mc_addr,
@@ -1462,8 +1467,12 @@ static int psp_dtm_terminate(struct psp_context *psp)
 	if (amdgpu_sriov_vf(psp->adev))
 		return 0;
 
-	if (!psp->dtm_context.dtm_initialized)
-		return 0;
+	if (!psp->dtm_context.dtm_initialized) {
+		if (psp->dtm_context.dtm_shared_buf)
+			goto out;
+		else
+			return 0;
+	}
 
 	ret = psp_dtm_unload(psp);
 	if (ret)
@@ -1471,6 +1480,7 @@ static int psp_dtm_terminate(struct psp_context *psp)
 
 	psp->dtm_context.dtm_initialized = false;
 
+out:
 	/* free hdcp shared memory */
 	amdgpu_bo_free_kernel(&psp->dtm_context.dtm_shared_bo,
 			      &psp->dtm_context.dtm_shared_mc_addr,
@@ -1925,7 +1935,8 @@ static int psp_load_smu_fw(struct psp_context *psp)
 		return 0;
 
 
-	if (amdgpu_in_reset(adev) && ras && ras->supported) {
+	if (amdgpu_in_reset(adev) && ras && ras->supported &&
+		adev->asic_type == CHIP_ARCTURUS) {
 		ret = amdgpu_dpm_set_mp1_state(adev, PP_MP1_STATE_UNLOAD);
 		if (ret) {
 			DRM_WARN("Failed to set MP1 state prepare for reload\n");
@@ -2573,9 +2584,9 @@ out:
 	return err;
 }
 
-int parse_ta_bin_descriptor(struct psp_context *psp,
-			    const struct ta_fw_bin_desc *desc,
-			    const struct ta_firmware_header_v2_0 *ta_hdr)
+static int parse_ta_bin_descriptor(struct psp_context *psp,
+				   const struct ta_fw_bin_desc *desc,
+				   const struct ta_firmware_header_v2_0 *ta_hdr)
 {
 	uint8_t *ucode_start_addr  = NULL;
 
@@ -2588,11 +2599,10 @@ int parse_ta_bin_descriptor(struct psp_context *psp,
 
 	switch (desc->fw_type) {
 	case TA_FW_TYPE_PSP_ASD:
-		psp->asd_fw_version	   = le32_to_cpu(desc->fw_version);
+		psp->asd_fw_version        = le32_to_cpu(desc->fw_version);
 		psp->asd_feature_version   = le32_to_cpu(desc->fw_version);
-		psp->asd_ucode_size	   = le32_to_cpu(desc->size_bytes);
+		psp->asd_ucode_size        = le32_to_cpu(desc->size_bytes);
 		psp->asd_start_addr 	   = ucode_start_addr;
-		psp->asd_fw                = psp->ta_fw;
 		break;
 	case TA_FW_TYPE_PSP_XGMI:
 		psp->ta_xgmi_ucode_version = le32_to_cpu(desc->fw_version);
@@ -2631,7 +2641,7 @@ int psp_init_ta_microcode(struct psp_context *psp,
 			  const char *chip_name)
 {
 	struct amdgpu_device *adev = psp->adev;
-	char fw_name[30];
+	char fw_name[PSP_FW_NAME_LEN];
 	const struct ta_firmware_header_v2_0 *ta_hdr;
 	int err = 0;
 	int ta_index = 0;

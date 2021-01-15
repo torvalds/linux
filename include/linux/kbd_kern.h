@@ -9,9 +9,6 @@
 extern struct tasklet_struct keyboard_tasklet;
 
 extern char *func_table[MAX_NR_FUNC];
-extern char func_buf[];
-extern char *funcbufptr;
-extern int funcbufsize, funcbufleft;
 
 /*
  * kbd->xxx contains the VC-local things (flag settings etc..)

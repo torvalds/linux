@@ -76,27 +76,6 @@ static int psbfb_setcolreg(unsigned regno, unsigned red, unsigned green,
 	return 0;
 }
 
-static int psbfb_pan(struct fb_var_screeninfo *var, struct fb_info *info)
-{
-	struct drm_fb_helper *fb_helper = info->par;
-	struct drm_framebuffer *fb = fb_helper->fb;
-	struct drm_device *dev = fb->dev;
-	struct gtt_range *gtt = to_gtt_range(fb->obj[0]);
-
-	/*
-	 *	We have to poke our nose in here. The core fb code assumes
-	 *	panning is part of the hardware that can be invoked before
-	 *	the actual fb is mapped. In our case that isn't quite true.
-	 */
-	if (gtt->npage) {
-		/* GTT roll shifts in 4K pages, we need to shift the right
-		   number of pages */
-		int pages = info->fix.line_length >> 12;
-		psb_gtt_roll(dev, gtt, var->yoffset * pages);
-	}
-        return 0;
-}
-
 static vm_fault_t psbfb_vm_fault(struct vm_fault *vmf)
 {
 	struct vm_area_struct *vma = vmf->vma;
@@ -164,28 +143,6 @@ static int psbfb_mmap(struct fb_info *info, struct vm_area_struct *vma)
 	vma->vm_flags |= VM_IO | VM_MIXEDMAP | VM_DONTEXPAND | VM_DONTDUMP;
 	return 0;
 }
-
-static const struct fb_ops psbfb_ops = {
-	.owner = THIS_MODULE,
-	DRM_FB_HELPER_DEFAULT_OPS,
-	.fb_setcolreg = psbfb_setcolreg,
-	.fb_fillrect = drm_fb_helper_cfb_fillrect,
-	.fb_copyarea = psbfb_copyarea,
-	.fb_imageblit = drm_fb_helper_cfb_imageblit,
-	.fb_mmap = psbfb_mmap,
-	.fb_sync = psbfb_sync,
-};
-
-static const struct fb_ops psbfb_roll_ops = {
-	.owner = THIS_MODULE,
-	DRM_FB_HELPER_DEFAULT_OPS,
-	.fb_setcolreg = psbfb_setcolreg,
-	.fb_fillrect = drm_fb_helper_cfb_fillrect,
-	.fb_copyarea = drm_fb_helper_cfb_copyarea,
-	.fb_imageblit = drm_fb_helper_cfb_imageblit,
-	.fb_pan_display = psbfb_pan,
-	.fb_mmap = psbfb_mmap,
-};
 
 static const struct fb_ops psbfb_unaccel_ops = {
 	.owner = THIS_MODULE,
@@ -312,8 +269,6 @@ static int psbfb_create(struct drm_fb_helper *fb_helper,
 	int ret;
 	struct gtt_range *backing;
 	u32 bpp, depth;
-	int gtt_roll = 0;
-	int pitch_lines = 0;
 
 	mode_cmd.width = sizes->surface_width;
 	mode_cmd.height = sizes->surface_height;
@@ -324,50 +279,15 @@ static int psbfb_create(struct drm_fb_helper *fb_helper,
 	if (bpp == 24)
 		bpp = 32;
 
-	do {
-		/*
-		 * Acceleration via the GTT requires pitch to be
-		 * power of two aligned. Preferably page but less
-		 * is ok with some fonts
-		 */
-        	mode_cmd.pitches[0] =  ALIGN(mode_cmd.width * ((bpp + 7) / 8), 4096 >> pitch_lines);
+	mode_cmd.pitches[0] = ALIGN(mode_cmd.width * DIV_ROUND_UP(bpp, 8), 64);
 
-        	size = mode_cmd.pitches[0] * mode_cmd.height;
-        	size = ALIGN(size, PAGE_SIZE);
+	size = mode_cmd.pitches[0] * mode_cmd.height;
+	size = ALIGN(size, PAGE_SIZE);
 
-		/* Allocate the fb in the GTT with stolen page backing */
-		backing = psbfb_alloc(dev, size);
-
-		if (pitch_lines)
-			pitch_lines *= 2;
-		else
-			pitch_lines = 1;
-		gtt_roll++;
-	} while (backing == NULL && pitch_lines <= 16);
-
-	/* The final pitch we accepted if we succeeded */
-	pitch_lines /= 2;
-
-	if (backing == NULL) {
-		/*
-		 *	We couldn't get the space we wanted, fall back to the
-		 *	display engine requirement instead.  The HW requires
-		 *	the pitch to be 64 byte aligned
-		 */
-
-		gtt_roll = 0;	/* Don't use GTT accelerated scrolling */
-		pitch_lines = 64;
-
-		mode_cmd.pitches[0] =  ALIGN(mode_cmd.width * ((bpp + 7) / 8), 64);
-
-		size = mode_cmd.pitches[0] * mode_cmd.height;
-		size = ALIGN(size, PAGE_SIZE);
-
-		/* Allocate the framebuffer in the GTT with stolen page backing */
-		backing = psbfb_alloc(dev, size);
-		if (backing == NULL)
-			return -ENOMEM;
-	}
+	/* Allocate the framebuffer in the GTT with stolen page backing */
+	backing = psbfb_alloc(dev, size);
+	if (backing == NULL)
+		return -ENOMEM;
 
 	memset(dev_priv->vram_addr + backing->offset, 0, size);
 
@@ -387,17 +307,11 @@ static int psbfb_create(struct drm_fb_helper *fb_helper,
 
 	fb_helper->fb = fb;
 
-	if (dev_priv->ops->accel_2d && pitch_lines > 8)	/* 2D engine */
-		info->fbops = &psbfb_ops;
-	else if (gtt_roll) {	/* GTT rolling seems best */
-		info->fbops = &psbfb_roll_ops;
-		info->flags |= FBINFO_HWACCEL_YPAN;
-	} else	/* Software */
-		info->fbops = &psbfb_unaccel_ops;
+	info->fbops = &psbfb_unaccel_ops;
 
 	info->fix.smem_start = dev->mode_config.fb_base;
 	info->fix.smem_len = size;
-	info->fix.ywrapstep = gtt_roll;
+	info->fix.ywrapstep = 0;
 	info->fix.ypanstep = 0;
 
 	/* Accessed stolen memory directly */

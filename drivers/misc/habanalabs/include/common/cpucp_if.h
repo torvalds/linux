@@ -9,6 +9,38 @@
 #define CPUCP_IF_H
 
 #include <linux/types.h>
+#include <linux/if_ether.h>
+
+#define NUM_HBM_PSEUDO_CH				2
+#define NUM_HBM_CH_PER_DEV				8
+#define CPUCP_PKT_HBM_ECC_INFO_WR_PAR_SHIFT		0
+#define CPUCP_PKT_HBM_ECC_INFO_WR_PAR_MASK		0x00000001
+#define CPUCP_PKT_HBM_ECC_INFO_RD_PAR_SHIFT		1
+#define CPUCP_PKT_HBM_ECC_INFO_RD_PAR_MASK		0x00000002
+#define CPUCP_PKT_HBM_ECC_INFO_CA_PAR_SHIFT		2
+#define CPUCP_PKT_HBM_ECC_INFO_CA_PAR_MASK		0x00000004
+#define CPUCP_PKT_HBM_ECC_INFO_DERR_SHIFT		3
+#define CPUCP_PKT_HBM_ECC_INFO_DERR_MASK		0x00000008
+#define CPUCP_PKT_HBM_ECC_INFO_SERR_SHIFT		4
+#define CPUCP_PKT_HBM_ECC_INFO_SERR_MASK		0x00000010
+#define CPUCP_PKT_HBM_ECC_INFO_TYPE_SHIFT		5
+#define CPUCP_PKT_HBM_ECC_INFO_TYPE_MASK		0x00000020
+#define CPUCP_PKT_HBM_ECC_INFO_HBM_CH_SHIFT		6
+#define CPUCP_PKT_HBM_ECC_INFO_HBM_CH_MASK		0x000007C0
+
+struct hl_eq_hbm_ecc_data {
+	/* SERR counter */
+	__le32 sec_cnt;
+	/* DERR counter */
+	__le32 dec_cnt;
+	/* Supplemental Information according to the mask bits */
+	__le32 hbm_ecc_info;
+	/* Address in hbm where the ecc happened */
+	__le32 first_addr;
+	/* SERR continuous address counter */
+	__le32 sec_cont_cnt;
+	__le32 pad;
+};
 
 /*
  * EVENT QUEUE
@@ -30,6 +62,7 @@ struct hl_eq_entry {
 	struct hl_eq_header hdr;
 	union {
 		struct hl_eq_ecc_data ecc_data;
+		struct hl_eq_hbm_ecc_data hbm_ecc_data;
 		__le64 data[7];
 	};
 };
@@ -199,6 +232,11 @@ enum pq_init_status {
  *       CpuCP to write to the structure, to prevent data corruption in case of
  *       mismatched driver/FW versions.
  *
+ * CPUCP_PACKET_NIC_INFO_GET -
+ *       Fetch information from the device regarding the NIC. the host's driver
+ *       passes the max size it allows the CpuCP to write to the structure, to
+ *       prevent data corruption in case of mismatched driver/FW versions.
+ *
  * CPUCP_PACKET_TEMPERATURE_SET -
  *       Set the value of the offset property of a specified thermal sensor.
  *       The packet's arguments specify the desired sensor and the field to
@@ -214,10 +252,26 @@ enum pq_init_status {
  *       The packet's arguments specify the desired sensor and the field to
  *       set.
  *
- * CPUCP_PACKET_PLL_REG_GET
- *       Fetch register of PLL from the required PLL IP.
- *       The packet's arguments specify the PLL IP and the register to get.
- *       Each register is 32-bit value which is returned in result field.
+ * CPUCP_PACKET_PCIE_THROUGHPUT_GET
+ *       Get throughput of PCIe.
+ *       The packet's arguments specify the transaction direction (TX/RX).
+ *       The window measurement is 10[msec], and the return value is in KB/sec.
+ *
+ * CPUCP_PACKET_PCIE_REPLAY_CNT_GET
+ *       Replay count measures number of "replay" events, which is basicly
+ *       number of retries done by PCIe.
+ *
+ * CPUCP_PACKET_TOTAL_ENERGY_GET
+ *       Total Energy is measurement of energy from the time FW Linux
+ *       is loaded. It is calculated by multiplying the average power
+ *       by time (passed from armcp start). The units are in MilliJouls.
+ *
+ * CPUCP_PACKET_PLL_INFO_GET
+ *       Fetch frequencies of PLL from the required PLL IP.
+ *       The packet's arguments specify the device PLL type
+ *       Pll type is the PLL from device pll_index enum.
+ *       The result is composed of 4 outputs, each is 16-bit
+ *       frequency in MHz.
  *
  */
 
@@ -244,14 +298,14 @@ enum cpucp_packet_id {
 	CPUCP_PACKET_MAX_POWER_GET,		/* sysfs */
 	CPUCP_PACKET_MAX_POWER_SET,		/* sysfs */
 	CPUCP_PACKET_EEPROM_DATA_GET,		/* sysfs */
-	CPUCP_RESERVED,
+	CPUCP_PACKET_NIC_INFO_GET,		/* internal */
 	CPUCP_PACKET_TEMPERATURE_SET,		/* sysfs */
 	CPUCP_PACKET_VOLTAGE_SET,		/* sysfs */
 	CPUCP_PACKET_CURRENT_SET,		/* sysfs */
-	CPUCP_PACKET_PCIE_THROUGHPUT_GET,		/* internal */
-	CPUCP_PACKET_PCIE_REPLAY_CNT_GET,		/* internal */
+	CPUCP_PACKET_PCIE_THROUGHPUT_GET,	/* internal */
+	CPUCP_PACKET_PCIE_REPLAY_CNT_GET,	/* internal */
 	CPUCP_PACKET_TOTAL_ENERGY_GET,		/* internal */
-	CPUCP_PACKET_PLL_REG_GET,		/* internal */
+	CPUCP_PACKET_PLL_INFO_GET,		/* internal */
 };
 
 #define CPUCP_PACKET_FENCE_VAL	0xFE8CE7A5
@@ -261,6 +315,15 @@ enum cpucp_packet_id {
 
 #define CPUCP_PKT_CTL_OPCODE_SHIFT	16
 #define CPUCP_PKT_CTL_OPCODE_MASK	0x1FFF0000
+
+#define CPUCP_PKT_RES_PLL_OUT0_SHIFT	0
+#define CPUCP_PKT_RES_PLL_OUT0_MASK	0x000000000000FFFFull
+#define CPUCP_PKT_RES_PLL_OUT1_SHIFT	16
+#define CPUCP_PKT_RES_PLL_OUT1_MASK	0x00000000FFFF0000ull
+#define CPUCP_PKT_RES_PLL_OUT2_SHIFT	32
+#define CPUCP_PKT_RES_PLL_OUT2_MASK	0x0000FFFF00000000ull
+#define CPUCP_PKT_RES_PLL_OUT3_SHIFT	48
+#define CPUCP_PKT_RES_PLL_OUT3_MASK	0xFFFF000000000000ull
 
 struct cpucp_packet {
 	union {
@@ -286,8 +349,9 @@ struct cpucp_packet {
 			__u8 pad; /* unused */
 		};
 
-		struct {/* For PLL register fetch */
+		struct {/* For PLL info fetch */
 			__le16 pll_type;
+			/* TODO pll_reg is kept temporary before removal */
 			__le16 pll_reg;
 		};
 
@@ -300,7 +364,7 @@ struct cpucp_packet {
 		/* For led set */
 		__le32 led_index;
 
-		/* For get CpuCP info/EEPROM data */
+		/* For get CpuCP info/EEPROM data/NIC info */
 		__le32 data_max_size;
 	};
 
@@ -366,6 +430,7 @@ enum cpucp_pcie_throughput_attributes {
 	cpucp_pcie_throughput_rx
 };
 
+/* TODO temporary kept before removal */
 enum cpucp_pll_reg_attributes {
 	cpucp_pll_nr_reg,
 	cpucp_pll_nf_reg,
@@ -374,6 +439,7 @@ enum cpucp_pll_reg_attributes {
 	cpucp_pll_div_sel_reg
 };
 
+/* TODO temporary kept before removal */
 enum cpucp_pll_type_attributes {
 	cpucp_pll_cpu,
 	cpucp_pll_pci,
@@ -392,6 +458,12 @@ struct eq_generic_event {
 #define CARD_NAME_MAX_LEN		16
 #define VERSION_MAX_LEN			128
 #define CPUCP_MAX_SENSORS		128
+#define CPUCP_MAX_NICS			128
+#define CPUCP_LANES_PER_NIC		4
+#define CPUCP_NIC_QSFP_EEPROM_MAX_LEN	1024
+#define CPUCP_MAX_NIC_LANES		(CPUCP_MAX_NICS * CPUCP_LANES_PER_NIC)
+#define CPUCP_NIC_MASK_ARR_LEN		((CPUCP_MAX_NICS + 63) / 64)
+#define CPUCP_NIC_POLARITY_ARR_LEN	((CPUCP_MAX_NIC_LANES + 63) / 64)
 
 struct cpucp_sensor {
 	__le32 type;
@@ -406,6 +478,29 @@ struct cpucp_sensor {
 enum cpucp_card_types {
 	cpucp_card_type_pci,
 	cpucp_card_type_pmc
+};
+
+#define CPUCP_SEC_CONF_ENABLED_SHIFT	0
+#define CPUCP_SEC_CONF_ENABLED_MASK	0x00000001
+
+#define CPUCP_SEC_CONF_FLASH_WP_SHIFT	1
+#define CPUCP_SEC_CONF_FLASH_WP_MASK	0x00000002
+
+#define CPUCP_SEC_CONF_EEPROM_WP_SHIFT	2
+#define CPUCP_SEC_CONF_EEPROM_WP_MASK	0x00000004
+
+/**
+ * struct cpucp_security_info - Security information.
+ * @config: configuration bit field
+ * @keys_num: number of stored keys
+ * @revoked_keys: revoked keys bit field
+ * @min_svn: minimal security version
+ */
+struct cpucp_security_info {
+	__u8 config;
+	__u8 keys_num;
+	__u8 revoked_keys;
+	__u8 min_svn;
 };
 
 /**
@@ -423,6 +518,7 @@ enum cpucp_card_types {
  * @cpucp_version: CpuCP S/W version.
  * @dram_size: available DRAM size.
  * @card_name: card name that will be displayed in HWMON subsystem on the host
+ * @sec_info: security information
  */
 struct cpucp_info {
 	struct cpucp_sensor sensors[CPUCP_MAX_SENSORS];
@@ -438,6 +534,26 @@ struct cpucp_info {
 	__le32 reserved2;
 	__le64 dram_size;
 	char card_name[CARD_NAME_MAX_LEN];
+	__le64 reserved3;
+	__le64 reserved4;
+	__u8 reserved5;
+	__u8 pad[7];
+	struct cpucp_security_info sec_info;
+	__le32 reserved6;
+};
+
+struct cpucp_mac_addr {
+	__u8 mac_addr[ETH_ALEN];
+};
+
+struct cpucp_nic_info {
+	struct cpucp_mac_addr mac_addrs[CPUCP_MAX_NICS];
+	__le64 link_mask[CPUCP_NIC_MASK_ARR_LEN];
+	__le64 pol_tx_mask[CPUCP_NIC_POLARITY_ARR_LEN];
+	__le64 pol_rx_mask[CPUCP_NIC_POLARITY_ARR_LEN];
+	__le64 link_ext_mask[CPUCP_NIC_MASK_ARR_LEN];
+	__u8 qsfp_eeprom[CPUCP_NIC_QSFP_EEPROM_MAX_LEN];
+	__le64 auto_neg_mask[CPUCP_NIC_MASK_ARR_LEN];
 };
 
 #endif /* CPUCP_IF_H */

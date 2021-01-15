@@ -2333,11 +2333,11 @@ static int psr_get(void *data, u64 *val)
 {
 	struct amdgpu_dm_connector *connector = data;
 	struct dc_link *link = connector->dc_link;
-	uint32_t psr_state = 0;
+	enum dc_psr_state state = PSR_STATE0;
 
-	dc_link_get_psr_state(link, &psr_state);
+	dc_link_get_psr_state(link, &state);
 
-	*val = psr_state;
+	*val = state;
 
 	return 0;
 }

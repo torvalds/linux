@@ -11,31 +11,9 @@
 #include <asm/asm-offsets.h>
 #include <asm/nospec-insn.h>
 #include <asm/ptrace.h>
-#include <asm/sigp.h>
 
 	GEN_BR_THUNK %r9
 	GEN_BR_THUNK %r14
-
-ENTRY(s390_base_ext_handler)
-	stmg	%r0,%r15,__LC_SAVE_AREA_ASYNC
-	basr	%r13,0
-0:	aghi	%r15,-STACK_FRAME_OVERHEAD
-	larl	%r1,s390_base_ext_handler_fn
-	lg	%r9,0(%r1)
-	ltgr	%r9,%r9
-	jz	1f
-	BASR_EX	%r14,%r9
-1:	lmg	%r0,%r15,__LC_SAVE_AREA_ASYNC
-	ni	__LC_EXT_OLD_PSW+1,0xfd	# clear wait state bit
-	lpswe	__LC_EXT_OLD_PSW
-ENDPROC(s390_base_ext_handler)
-
-	.section .bss
-	.align 8
-	.globl s390_base_ext_handler_fn
-s390_base_ext_handler_fn:
-	.quad	0
-	.previous
 
 ENTRY(s390_base_pgm_handler)
 	stmg	%r0,%r15,__LC_SAVE_AREA_SYNC

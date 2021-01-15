@@ -46,11 +46,11 @@
 #include <drm/radeon_drm.h>
 #include <drm/ttm/ttm_bo_api.h>
 #include <drm/ttm/ttm_bo_driver.h>
-#include <drm/ttm/ttm_module.h>
 #include <drm/ttm/ttm_placement.h>
 
 #include "radeon_reg.h"
 #include "radeon.h"
+#include "radeon_ttm.h"
 
 static int radeon_ttm_debugfs_init(struct radeon_device *rdev);
 static void radeon_ttm_debugfs_fini(struct radeon_device *rdev);
@@ -216,27 +216,15 @@ static int radeon_bo_move(struct ttm_buffer_object *bo, bool evict,
 	struct ttm_resource *old_mem = &bo->mem;
 	int r;
 
-	if ((old_mem->mem_type == TTM_PL_SYSTEM &&
-	     new_mem->mem_type == TTM_PL_VRAM) ||
-	    (old_mem->mem_type == TTM_PL_VRAM &&
-	     new_mem->mem_type == TTM_PL_SYSTEM)) {
-		hop->fpfn = 0;
-		hop->lpfn = 0;
-		hop->mem_type = TTM_PL_TT;
-		hop->flags = 0;
-		return -EMULTIHOP;
-	}
-
 	if (new_mem->mem_type == TTM_PL_TT) {
 		r = radeon_ttm_tt_bind(bo->bdev, bo->ttm, new_mem);
 		if (r)
 			return r;
 	}
-	radeon_bo_move_notify(bo, evict, new_mem);
 
 	r = ttm_bo_wait_ctx(bo, ctx);
 	if (r)
-		goto fail;
+		return r;
 
 	/* Can't move a pinned BO */
 	rbo = container_of(bo, struct radeon_bo, tbo);
@@ -246,12 +234,12 @@ static int radeon_bo_move(struct ttm_buffer_object *bo, bool evict,
 	rdev = radeon_get_rdev(bo->bdev);
 	if (old_mem->mem_type == TTM_PL_SYSTEM && bo->ttm == NULL) {
 		ttm_bo_move_null(bo, new_mem);
-		return 0;
+		goto out;
 	}
 	if (old_mem->mem_type == TTM_PL_SYSTEM &&
 	    new_mem->mem_type == TTM_PL_TT) {
 		ttm_bo_move_null(bo, new_mem);
-		return 0;
+		goto out;
 	}
 
 	if (old_mem->mem_type == TTM_PL_TT &&
@@ -259,31 +247,37 @@ static int radeon_bo_move(struct ttm_buffer_object *bo, bool evict,
 		radeon_ttm_tt_unbind(bo->bdev, bo->ttm);
 		ttm_resource_free(bo, &bo->mem);
 		ttm_bo_assign_mem(bo, new_mem);
-		return 0;
+		goto out;
 	}
-	if (!rdev->ring[radeon_copy_ring_index(rdev)].ready ||
-	    rdev->asic->copy.copy == NULL) {
-		/* use memcpy */
-		goto memcpy;
-	}
-
-	r = radeon_move_blit(bo, evict, new_mem, old_mem);
-	if (r) {
-memcpy:
-		r = ttm_bo_move_memcpy(bo, ctx, new_mem);
-		if (r) {
-			goto fail;
+	if (rdev->ring[radeon_copy_ring_index(rdev)].ready &&
+	    rdev->asic->copy.copy != NULL) {
+		if ((old_mem->mem_type == TTM_PL_SYSTEM &&
+		     new_mem->mem_type == TTM_PL_VRAM) ||
+		    (old_mem->mem_type == TTM_PL_VRAM &&
+		     new_mem->mem_type == TTM_PL_SYSTEM)) {
+			hop->fpfn = 0;
+			hop->lpfn = 0;
+			hop->mem_type = TTM_PL_TT;
+			hop->flags = 0;
+			return -EMULTIHOP;
 		}
+
+		r = radeon_move_blit(bo, evict, new_mem, old_mem);
+	} else {
+		r = -ENODEV;
 	}
 
+	if (r) {
+		r = ttm_bo_move_memcpy(bo, ctx, new_mem);
+		if (r)
+			return r;
+	}
+
+out:
 	/* update statistics */
-	atomic64_add((u64)bo->num_pages << PAGE_SHIFT, &rdev->num_bytes_moved);
+	atomic64_add(bo->base.size, &rdev->num_bytes_moved);
+	radeon_bo_move_notify(bo, evict, new_mem);
 	return 0;
-fail:
-	swap(*new_mem, bo->mem);
-	radeon_bo_move_notify(bo, false, new_mem);
-	swap(*new_mem, bo->mem);
-	return r;
 }
 
 static int radeon_ttm_io_mem_reserve(struct ttm_bo_device *bdev, struct ttm_resource *mem)
@@ -401,8 +395,8 @@ static int radeon_ttm_tt_pin_userptr(struct ttm_bo_device *bdev, struct ttm_tt *
 	if (r)
 		goto release_sg;
 
-	drm_prime_sg_to_page_addr_arrays(ttm->sg, ttm->pages,
-					 gtt->ttm.dma_address, ttm->num_pages);
+	drm_prime_sg_to_dma_addr_array(ttm->sg, gtt->ttm.dma_address,
+				       ttm->num_pages);
 
 	return 0;
 
@@ -515,20 +509,18 @@ static void radeon_ttm_backend_destroy(struct ttm_bo_device *bdev, struct ttm_tt
 static struct ttm_tt *radeon_ttm_tt_create(struct ttm_buffer_object *bo,
 					   uint32_t page_flags)
 {
-	struct radeon_device *rdev;
 	struct radeon_ttm_tt *gtt;
 	enum ttm_caching caching;
 	struct radeon_bo *rbo;
-
-	rbo = container_of(bo, struct radeon_bo, tbo);
-
-	rdev = radeon_get_rdev(bo->bdev);
 #if IS_ENABLED(CONFIG_AGP)
+	struct radeon_device *rdev = radeon_get_rdev(bo->bdev);
+
 	if (rdev->flags & RADEON_IS_AGP) {
 		return ttm_agp_tt_create(bo, rdev->ddev->agp->bridge,
 					 page_flags);
 	}
 #endif
+	rbo = container_of(bo, struct radeon_bo, tbo);
 
 	gtt = kzalloc(sizeof(struct radeon_ttm_tt), GFP_KERNEL);
 	if (gtt == NULL) {
@@ -542,7 +534,7 @@ static struct ttm_tt *radeon_ttm_tt_create(struct ttm_buffer_object *bo,
 	else
 		caching = ttm_cached;
 
-	if (ttm_dma_tt_init(&gtt->ttm, bo, page_flags, caching)) {
+	if (ttm_sg_tt_init(&gtt->ttm, bo, page_flags, caching)) {
 		kfree(gtt);
 		return NULL;
 	}
@@ -580,8 +572,8 @@ static int radeon_ttm_tt_populate(struct ttm_bo_device *bdev,
 	}
 
 	if (slave && ttm->sg) {
-		drm_prime_sg_to_page_addr_arrays(ttm->sg, ttm->pages,
-						 gtt->ttm.dma_address, ttm->num_pages);
+		drm_prime_sg_to_dma_addr_array(ttm->sg, gtt->ttm.dma_address,
+					       ttm->num_pages);
 		return 0;
 	}
 

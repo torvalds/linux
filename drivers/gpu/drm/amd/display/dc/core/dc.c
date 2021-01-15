@@ -149,6 +149,20 @@ static void destroy_links(struct dc *dc)
 	}
 }
 
+static uint32_t get_num_of_internal_disp(struct dc_link **links, uint32_t num_links)
+{
+	int i;
+	uint32_t count = 0;
+
+	for (i = 0; i < num_links; i++) {
+		if (links[i]->connector_signal == SIGNAL_TYPE_EDP ||
+				links[i]->is_internal_display)
+			count++;
+	}
+
+	return count;
+}
+
 static bool create_links(
 		struct dc *dc,
 		uint32_t num_virtual_links)
@@ -249,6 +263,8 @@ static bool create_links(
 		enc_init.encoder.enum_id = ENUM_ID_1;
 		virtual_link_encoder_construct(link->link_enc, &enc_init);
 	}
+
+	dc->caps.num_of_internal_disp = get_num_of_internal_disp(dc->links, dc->link_count);
 
 	return true;
 
@@ -948,19 +964,15 @@ struct dc *dc_create(const struct dc_init_data *init_params)
 	struct dc *dc = kzalloc(sizeof(*dc), GFP_KERNEL);
 	unsigned int full_pipe_count;
 
-	if (NULL == dc)
-		goto alloc_fail;
+	if (!dc)
+		return NULL;
 
 	if (init_params->dce_environment == DCE_ENV_VIRTUAL_HW) {
-		if (false == dc_construct_ctx(dc, init_params)) {
-			dc_destruct(dc);
-			goto construct_fail;
-		}
+		if (!dc_construct_ctx(dc, init_params))
+			goto destruct_dc;
 	} else {
-		if (false == dc_construct(dc, init_params)) {
-			dc_destruct(dc);
-			goto construct_fail;
-		}
+		if (!dc_construct(dc, init_params))
+			goto destruct_dc;
 
 		full_pipe_count = dc->res_pool->pipe_count;
 		if (dc->res_pool->underlay_pipe_index != NO_UNDERLAY_PIPE)
@@ -991,10 +1003,9 @@ struct dc *dc_create(const struct dc_init_data *init_params)
 
 	return dc;
 
-construct_fail:
+destruct_dc:
+	dc_destruct(dc);
 	kfree(dc);
-
-alloc_fail:
 	return NULL;
 }
 
@@ -1477,7 +1488,7 @@ bool dc_commit_state(struct dc *dc, struct dc_state *context)
 	enum dc_status result = DC_ERROR_UNEXPECTED;
 	int i;
 
-	if (false == context_changed(dc, context))
+	if (!context_changed(dc, context))
 		return DC_OK;
 
 	DC_LOG_DC("%s: %d streams\n",
@@ -1524,7 +1535,7 @@ bool dc_acquire_release_mpc_3dlut(
 		if (found_pipe_idx) {
 			if (acquire && pool->funcs->acquire_post_bldn_3dlut)
 				ret = pool->funcs->acquire_post_bldn_3dlut(res_ctx, pool, mpcc_id, lut, shaper);
-			else if (acquire == false && pool->funcs->release_post_bldn_3dlut)
+			else if (!acquire && pool->funcs->release_post_bldn_3dlut)
 				ret = pool->funcs->release_post_bldn_3dlut(res_ctx, pool, lut, shaper);
 		}
 	}
@@ -2782,6 +2793,19 @@ struct dc_stream_state *dc_get_stream_at_index(struct dc *dc, uint8_t i)
 	return NULL;
 }
 
+struct dc_stream_state *dc_stream_find_from_link(const struct dc_link *link)
+{
+	uint8_t i;
+	struct dc_context *ctx = link->ctx;
+
+	for (i = 0; i < ctx->dc->current_state->stream_count; i++) {
+		if (ctx->dc->current_state->streams[i]->link == link)
+			return ctx->dc->current_state->streams[i];
+	}
+
+	return NULL;
+}
+
 enum dc_irq_source dc_interrupt_to_irq_source(
 		struct dc *dc,
 		uint32_t src_id,
@@ -3058,9 +3082,9 @@ bool dc_set_psr_allow_active(struct dc *dc, bool enable)
 
 		if (link->psr_settings.psr_feature_enabled) {
 			if (enable && !link->psr_settings.psr_allow_active)
-				return dc_link_set_psr_allow_active(link, true, false);
+				return dc_link_set_psr_allow_active(link, true, false, false);
 			else if (!enable && link->psr_settings.psr_allow_active)
-				return dc_link_set_psr_allow_active(link, false, true);
+				return dc_link_set_psr_allow_active(link, false, true, false);
 		}
 	}
 
@@ -3114,9 +3138,11 @@ void dc_lock_memory_clock_frequency(struct dc *dc)
 			core_link_enable_stream(dc->current_state, &dc->current_state->res_ctx.pipe_ctx[i]);
 }
 
-bool dc_is_plane_eligible_for_idle_optimizaitons(struct dc *dc,
-						 struct dc_plane_state *plane)
+bool dc_is_plane_eligible_for_idle_optimizaitons(struct dc *dc, struct dc_plane_state *plane)
 {
+	if (dc->hwss.does_plane_fit_in_mall && dc->hwss.does_plane_fit_in_mall(dc, plane))
+		return true;
+
 	return false;
 }
 

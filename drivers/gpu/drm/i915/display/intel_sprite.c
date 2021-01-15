@@ -49,6 +49,7 @@
 #include "intel_psr.h"
 #include "intel_dsi.h"
 #include "intel_sprite.h"
+#include "i9xx_plane.h"
 
 int intel_usecs_to_scanlines(const struct drm_display_mode *adjusted_mode,
 			     int usecs)
@@ -60,14 +61,6 @@ int intel_usecs_to_scanlines(const struct drm_display_mode *adjusted_mode,
 	return DIV_ROUND_UP(usecs * adjusted_mode->crtc_clock,
 			    1000 * adjusted_mode->crtc_htotal);
 }
-
-/* FIXME: We should instead only take spinlocks once for the entire update
- * instead of once per mmio. */
-#if IS_ENABLED(CONFIG_PROVE_LOCKING)
-#define VBLANK_EVASION_TIME_US 250
-#else
-#define VBLANK_EVASION_TIME_US 100
-#endif
 
 /**
  * intel_pipe_update_start() - start update of a set of display registers
@@ -187,6 +180,36 @@ irq_disable:
 	local_irq_disable();
 }
 
+#if IS_ENABLED(CONFIG_DRM_I915_DEBUG_VBLANK_EVADE)
+static void dbg_vblank_evade(struct intel_crtc *crtc, ktime_t end)
+{
+	u64 delta = ktime_to_ns(ktime_sub(end, crtc->debug.start_vbl_time));
+	unsigned int h;
+
+	h = ilog2(delta >> 9);
+	if (h >= ARRAY_SIZE(crtc->debug.vbl.times))
+		h = ARRAY_SIZE(crtc->debug.vbl.times) - 1;
+	crtc->debug.vbl.times[h]++;
+
+	crtc->debug.vbl.sum += delta;
+	if (!crtc->debug.vbl.min || delta < crtc->debug.vbl.min)
+		crtc->debug.vbl.min = delta;
+	if (delta > crtc->debug.vbl.max)
+		crtc->debug.vbl.max = delta;
+
+	if (delta > 1000 * VBLANK_EVASION_TIME_US) {
+		drm_dbg_kms(crtc->base.dev,
+			    "Atomic update on pipe (%c) took %lld us, max time under evasion is %u us\n",
+			    pipe_name(crtc->pipe),
+			    div_u64(delta, 1000),
+			    VBLANK_EVASION_TIME_US);
+		crtc->debug.vbl.over++;
+	}
+}
+#else
+static void dbg_vblank_evade(struct intel_crtc *crtc, ktime_t end) {}
+#endif
+
 /**
  * intel_pipe_update_end() - end update of a set of display registers
  * @new_crtc_state: the new crtc state
@@ -249,15 +272,8 @@ void intel_pipe_update_end(struct intel_crtc_state *new_crtc_state)
 			crtc->debug.min_vbl, crtc->debug.max_vbl,
 			crtc->debug.scanline_start, scanline_end);
 	}
-#ifdef CONFIG_DRM_I915_DEBUG_VBLANK_EVADE
-	else if (ktime_us_delta(end_vbl_time, crtc->debug.start_vbl_time) >
-		 VBLANK_EVASION_TIME_US)
-		drm_warn(&dev_priv->drm,
-			 "Atomic update on pipe (%c) took %lld us, max time under evasion is %u us\n",
-			 pipe_name(pipe),
-			 ktime_us_delta(end_vbl_time, crtc->debug.start_vbl_time),
-			 VBLANK_EVASION_TIME_US);
-#endif
+
+	dbg_vblank_evade(crtc, end_vbl_time);
 }
 
 int intel_plane_check_stride(const struct intel_plane_state *plane_state)
@@ -406,6 +422,134 @@ static int skl_plane_min_cdclk(const struct intel_crtc_state *crtc_state,
 		den *= 2;
 
 	return DIV_ROUND_UP(pixel_rate * num, den);
+}
+
+static int skl_plane_max_width(const struct drm_framebuffer *fb,
+			       int color_plane,
+			       unsigned int rotation)
+{
+	int cpp = fb->format->cpp[color_plane];
+
+	switch (fb->modifier) {
+	case DRM_FORMAT_MOD_LINEAR:
+	case I915_FORMAT_MOD_X_TILED:
+		/*
+		 * Validated limit is 4k, but has 5k should
+		 * work apart from the following features:
+		 * - Ytile (already limited to 4k)
+		 * - FP16 (already limited to 4k)
+		 * - render compression (already limited to 4k)
+		 * - KVMR sprite and cursor (don't care)
+		 * - horizontal panning (TODO verify this)
+		 * - pipe and plane scaling (TODO verify this)
+		 */
+		if (cpp == 8)
+			return 4096;
+		else
+			return 5120;
+	case I915_FORMAT_MOD_Y_TILED_CCS:
+	case I915_FORMAT_MOD_Yf_TILED_CCS:
+	case I915_FORMAT_MOD_Y_TILED_GEN12_MC_CCS:
+		/* FIXME AUX plane? */
+	case I915_FORMAT_MOD_Y_TILED:
+	case I915_FORMAT_MOD_Yf_TILED:
+		if (cpp == 8)
+			return 2048;
+		else
+			return 4096;
+	default:
+		MISSING_CASE(fb->modifier);
+		return 2048;
+	}
+}
+
+static int glk_plane_max_width(const struct drm_framebuffer *fb,
+			       int color_plane,
+			       unsigned int rotation)
+{
+	int cpp = fb->format->cpp[color_plane];
+
+	switch (fb->modifier) {
+	case DRM_FORMAT_MOD_LINEAR:
+	case I915_FORMAT_MOD_X_TILED:
+		if (cpp == 8)
+			return 4096;
+		else
+			return 5120;
+	case I915_FORMAT_MOD_Y_TILED_CCS:
+	case I915_FORMAT_MOD_Yf_TILED_CCS:
+		/* FIXME AUX plane? */
+	case I915_FORMAT_MOD_Y_TILED:
+	case I915_FORMAT_MOD_Yf_TILED:
+		if (cpp == 8)
+			return 2048;
+		else
+			return 5120;
+	default:
+		MISSING_CASE(fb->modifier);
+		return 2048;
+	}
+}
+
+static int icl_plane_min_width(const struct drm_framebuffer *fb,
+			       int color_plane,
+			       unsigned int rotation)
+{
+	/* Wa_14011264657, Wa_14011050563: gen11+ */
+	switch (fb->format->format) {
+	case DRM_FORMAT_C8:
+		return 18;
+	case DRM_FORMAT_RGB565:
+		return 10;
+	case DRM_FORMAT_XRGB8888:
+	case DRM_FORMAT_XBGR8888:
+	case DRM_FORMAT_ARGB8888:
+	case DRM_FORMAT_ABGR8888:
+	case DRM_FORMAT_XRGB2101010:
+	case DRM_FORMAT_XBGR2101010:
+	case DRM_FORMAT_ARGB2101010:
+	case DRM_FORMAT_ABGR2101010:
+	case DRM_FORMAT_XVYU2101010:
+	case DRM_FORMAT_Y212:
+	case DRM_FORMAT_Y216:
+		return 6;
+	case DRM_FORMAT_NV12:
+		return 20;
+	case DRM_FORMAT_P010:
+	case DRM_FORMAT_P012:
+	case DRM_FORMAT_P016:
+		return 12;
+	case DRM_FORMAT_XRGB16161616F:
+	case DRM_FORMAT_XBGR16161616F:
+	case DRM_FORMAT_ARGB16161616F:
+	case DRM_FORMAT_ABGR16161616F:
+	case DRM_FORMAT_XVYU12_16161616:
+	case DRM_FORMAT_XVYU16161616:
+		return 4;
+	default:
+		return 1;
+	}
+}
+
+static int icl_plane_max_width(const struct drm_framebuffer *fb,
+			       int color_plane,
+			       unsigned int rotation)
+{
+	return 5120;
+}
+
+static int skl_plane_max_height(const struct drm_framebuffer *fb,
+				int color_plane,
+				unsigned int rotation)
+{
+	return 4096;
+}
+
+static int icl_plane_max_height(const struct drm_framebuffer *fb,
+				int color_plane,
+				unsigned int rotation)
+{
+	return 4320;
 }
 
 static unsigned int
@@ -2059,10 +2203,8 @@ g4x_sprite_check(struct intel_crtc_state *crtc_state,
 		}
 	}
 
-	ret = drm_atomic_helper_check_plane_state(&plane_state->uapi,
-						  &crtc_state->uapi,
-						  min_scale, max_scale,
-						  true, true);
+	ret = intel_atomic_plane_check_clipping(plane_state, crtc_state,
+						min_scale, max_scale, true);
 	if (ret)
 		return ret;
 
@@ -2117,11 +2259,10 @@ vlv_sprite_check(struct intel_crtc_state *crtc_state,
 	if (ret)
 		return ret;
 
-	ret = drm_atomic_helper_check_plane_state(&plane_state->uapi,
-						  &crtc_state->uapi,
-						  DRM_PLANE_HELPER_NO_SCALING,
-						  DRM_PLANE_HELPER_NO_SCALING,
-						  true, true);
+	ret = intel_atomic_plane_check_clipping(plane_state, crtc_state,
+						DRM_PLANE_HELPER_NO_SCALING,
+						DRM_PLANE_HELPER_NO_SCALING,
+						true);
 	if (ret)
 		return ret;
 
@@ -2328,10 +2469,8 @@ static int skl_plane_check(struct intel_crtc_state *crtc_state,
 		max_scale = skl_plane_max_scale(dev_priv, fb);
 	}
 
-	ret = drm_atomic_helper_check_plane_state(&plane_state->uapi,
-						  &crtc_state->uapi,
-						  min_scale, max_scale,
-						  true, true);
+	ret = intel_atomic_plane_check_clipping(plane_state, crtc_state,
+						min_scale, max_scale, true);
 	if (ret)
 		return ret;
 
@@ -3131,6 +3270,18 @@ skl_universal_plane_create(struct drm_i915_private *dev_priv,
 		struct intel_fbc *fbc = &dev_priv->fbc;
 
 		fbc->possible_framebuffer_bits |= plane->frontbuffer_bit;
+	}
+
+	if (INTEL_GEN(dev_priv) >= 11) {
+		plane->min_width = icl_plane_min_width;
+		plane->max_width = icl_plane_max_width;
+		plane->max_height = icl_plane_max_height;
+	} else if (INTEL_GEN(dev_priv) >= 10 || IS_GEMINILAKE(dev_priv)) {
+		plane->max_width = glk_plane_max_width;
+		plane->max_height = skl_plane_max_height;
+	} else {
+		plane->max_width = skl_plane_max_width;
+		plane->max_height = skl_plane_max_height;
 	}
 
 	plane->max_stride = skl_plane_max_stride;

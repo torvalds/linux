@@ -262,14 +262,12 @@ static struct snd_soc_dai_link bdw_rt5650_dais[] = {
 	},
 };
 
-#if IS_ENABLED(CONFIG_SND_SOC_SOF_BROADWELL)
 /* use space before codec name to simplify card ID, and simplify driver name */
-#define CARD_NAME "bdw rt5650" /* card name will be 'sof-bdw rt5650' */
-#define DRIVER_NAME "SOF"
-#else
+#define SOF_CARD_NAME "bdw rt5650" /* card name will be 'sof-bdw rt5650' */
+#define SOF_DRIVER_NAME "SOF"
+
 #define CARD_NAME "bdw-rt5650"
 #define DRIVER_NAME NULL /* card name will be used for driver name */
-#endif
 
 /* ASoC machine driver for Broadwell DSP + RT5650 */
 static struct snd_soc_card bdw_rt5650_card = {
@@ -308,6 +306,15 @@ static int bdw_rt5650_probe(struct platform_device *pdev)
 
 	if (ret)
 		return ret;
+
+	/* set card and driver name */
+	if (snd_soc_acpi_sof_parent(&pdev->dev)) {
+		bdw_rt5650_card.name = SOF_CARD_NAME;
+		bdw_rt5650_card.driver_name = SOF_DRIVER_NAME;
+	} else {
+		bdw_rt5650_card.name = CARD_NAME;
+		bdw_rt5650_card.driver_name = DRIVER_NAME;
+	}
 
 	snd_soc_card_set_drvdata(&bdw_rt5650_card, bdw_rt5650);
 

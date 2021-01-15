@@ -223,6 +223,11 @@ static int dr_domain_caps_init(struct mlx5_core_dev *mdev,
 	if (ret)
 		return ret;
 
+	if (dmn->info.caps.sw_format_ver != MLX5_STEERING_FORMAT_CONNECTX_5) {
+		mlx5dr_err(dmn, "SW steering is not supported on this device\n");
+		return -EOPNOTSUPP;
+	}
+
 	ret = dr_domain_query_fdb_caps(mdev, dmn);
 	if (ret)
 		return ret;

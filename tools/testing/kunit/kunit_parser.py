@@ -12,7 +12,7 @@ from collections import namedtuple
 from datetime import datetime
 from enum import Enum, auto
 from functools import reduce
-from typing import List
+from typing import List, Optional, Tuple
 
 TestResult = namedtuple('TestResult', ['status','suites','log'])
 
@@ -54,6 +54,7 @@ kunit_end_re = re.compile('(List of all partitions:|'
 def isolate_kunit_output(kernel_output):
 	started = False
 	for line in kernel_output:
+		line = line.rstrip()  # line always has a trailing \n
 		if kunit_start_re.search(line):
 			prefix_len = len(line.split('TAP version')[0])
 			started = True
@@ -65,7 +66,7 @@ def isolate_kunit_output(kernel_output):
 
 def raw_output(kernel_output):
 	for line in kernel_output:
-		print(line)
+		print(line.rstrip())
 
 DIVIDER = '=' * 60
 
@@ -134,8 +135,8 @@ def parse_ok_not_ok_test_case(lines: List[str], test_case: TestCase) -> bool:
 	else:
 		return False
 
-SUBTEST_DIAGNOSTIC = re.compile(r'^[\s]+# .*?: (.*)$')
-DIAGNOSTIC_CRASH_MESSAGE = 'kunit test case crashed!'
+SUBTEST_DIAGNOSTIC = re.compile(r'^[\s]+# (.*)$')
+DIAGNOSTIC_CRASH_MESSAGE = re.compile(r'^[\s]+# .*?: kunit test case crashed!$')
 
 def parse_diagnostic(lines: List[str], test_case: TestCase) -> bool:
 	save_non_diagnositic(lines, test_case)
@@ -145,13 +146,14 @@ def parse_diagnostic(lines: List[str], test_case: TestCase) -> bool:
 	match = SUBTEST_DIAGNOSTIC.match(line)
 	if match:
 		test_case.log.append(lines.pop(0))
-		if match.group(1) == DIAGNOSTIC_CRASH_MESSAGE:
+		crash_match = DIAGNOSTIC_CRASH_MESSAGE.match(line)
+		if crash_match:
 			test_case.status = TestStatus.TEST_CRASHED
 		return True
 	else:
 		return False
 
-def parse_test_case(lines: List[str]) -> TestCase:
+def parse_test_case(lines: List[str]) -> Optional[TestCase]:
 	test_case = TestCase()
 	save_non_diagnositic(lines, test_case)
 	while parse_diagnostic(lines, test_case):
@@ -163,7 +165,7 @@ def parse_test_case(lines: List[str]) -> TestCase:
 
 SUBTEST_HEADER = re.compile(r'^[\s]+# Subtest: (.*)$')
 
-def parse_subtest_header(lines: List[str]) -> str:
+def parse_subtest_header(lines: List[str]) -> Optional[str]:
 	consume_non_diagnositic(lines)
 	if not lines:
 		return None
@@ -176,7 +178,7 @@ def parse_subtest_header(lines: List[str]) -> str:
 
 SUBTEST_PLAN = re.compile(r'[\s]+[0-9]+\.\.([0-9]+)')
 
-def parse_subtest_plan(lines: List[str]) -> int:
+def parse_subtest_plan(lines: List[str]) -> Optional[int]:
 	consume_non_diagnositic(lines)
 	match = SUBTEST_PLAN.match(lines[0])
 	if match:
@@ -230,7 +232,7 @@ def bubble_up_test_case_errors(test_suite: TestSuite) -> TestStatus:
 	max_test_case_status = bubble_up_errors(lambda x: x.status, test_suite.cases)
 	return max_status(max_test_case_status, test_suite.status)
 
-def parse_test_suite(lines: List[str], expected_suite_index: int) -> TestSuite:
+def parse_test_suite(lines: List[str], expected_suite_index: int) -> Optional[TestSuite]:
 	if not lines:
 		return None
 	consume_non_diagnositic(lines)
@@ -271,7 +273,7 @@ def parse_tap_header(lines: List[str]) -> bool:
 
 TEST_PLAN = re.compile(r'[0-9]+\.\.([0-9]+)')
 
-def parse_test_plan(lines: List[str]) -> int:
+def parse_test_plan(lines: List[str]) -> Optional[int]:
 	consume_non_diagnositic(lines)
 	match = TEST_PLAN.match(lines[0])
 	if match:
@@ -310,7 +312,7 @@ def parse_test_result(lines: List[str]) -> TestResult:
 	else:
 		return TestResult(TestStatus.NO_TESTS, [], lines)
 
-def print_and_count_results(test_result: TestResult) -> None:
+def print_and_count_results(test_result: TestResult) -> Tuple[int, int, int]:
 	total_tests = 0
 	failed_tests = 0
 	crashed_tests = 0

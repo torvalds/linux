@@ -175,6 +175,7 @@ void ext4_evict_inode(struct inode *inode)
 	 */
 	int extra_credits = 6;
 	struct ext4_xattr_inode_array *ea_inode_array = NULL;
+	bool freeze_protected = false;
 
 	trace_ext4_evict_inode(inode);
 
@@ -232,9 +233,14 @@ void ext4_evict_inode(struct inode *inode)
 
 	/*
 	 * Protect us against freezing - iput() caller didn't have to have any
-	 * protection against it
+	 * protection against it. When we are in a running transaction though,
+	 * we are already protected against freezing and we cannot grab further
+	 * protection due to lock ordering constraints.
 	 */
-	sb_start_intwrite(inode->i_sb);
+	if (!ext4_journal_current_handle()) {
+		sb_start_intwrite(inode->i_sb);
+		freeze_protected = true;
+	}
 
 	if (!IS_NOQUOTA(inode))
 		extra_credits += EXT4_MAXQUOTAS_DEL_BLOCKS(inode->i_sb);
@@ -253,7 +259,8 @@ void ext4_evict_inode(struct inode *inode)
 		 * cleaned up.
 		 */
 		ext4_orphan_del(NULL, inode);
-		sb_end_intwrite(inode->i_sb);
+		if (freeze_protected)
+			sb_end_intwrite(inode->i_sb);
 		goto no_delete;
 	}
 
@@ -294,7 +301,8 @@ void ext4_evict_inode(struct inode *inode)
 stop_handle:
 		ext4_journal_stop(handle);
 		ext4_orphan_del(NULL, inode);
-		sb_end_intwrite(inode->i_sb);
+		if (freeze_protected)
+			sb_end_intwrite(inode->i_sb);
 		ext4_xattr_inode_array_free(ea_inode_array);
 		goto no_delete;
 	}
@@ -323,10 +331,13 @@ stop_handle:
 	else
 		ext4_free_inode(handle, inode);
 	ext4_journal_stop(handle);
-	sb_end_intwrite(inode->i_sb);
+	if (freeze_protected)
+		sb_end_intwrite(inode->i_sb);
 	ext4_xattr_inode_array_free(ea_inode_array);
 	return;
 no_delete:
+	if (!list_empty(&EXT4_I(inode)->i_fc_list))
+		ext4_fc_mark_ineligible(inode->i_sb, EXT4_FC_REASON_NOMEM);
 	ext4_clear_inode(inode);	/* We must guarantee clearing of inode... */
 }
 
@@ -730,7 +741,7 @@ out_sem:
 			if (ret)
 				return ret;
 		}
-		ext4_fc_track_range(inode, map->m_lblk,
+		ext4_fc_track_range(handle, inode, map->m_lblk,
 			    map->m_lblk + map->m_len - 1);
 	}
 
@@ -828,8 +839,8 @@ struct buffer_head *ext4_getblk(handle_t *handle, struct inode *inode,
 	int create = map_flags & EXT4_GET_BLOCKS_CREATE;
 	int err;
 
-	J_ASSERT((EXT4_SB(inode->i_sb)->s_mount_state & EXT4_FC_REPLAY)
-		 || handle != NULL || create == 0);
+	ASSERT((EXT4_SB(inode->i_sb)->s_mount_state & EXT4_FC_REPLAY)
+		    || handle != NULL || create == 0);
 
 	map.m_lblk = block;
 	map.m_len = 1;
@@ -844,9 +855,9 @@ struct buffer_head *ext4_getblk(handle_t *handle, struct inode *inode,
 	if (unlikely(!bh))
 		return ERR_PTR(-ENOMEM);
 	if (map.m_flags & EXT4_MAP_NEW) {
-		J_ASSERT(create != 0);
-		J_ASSERT((EXT4_SB(inode->i_sb)->s_mount_state & EXT4_FC_REPLAY)
-			 || (handle != NULL));
+		ASSERT(create != 0);
+		ASSERT((EXT4_SB(inode->i_sb)->s_mount_state & EXT4_FC_REPLAY)
+			    || (handle != NULL));
 
 		/*
 		 * Now that we do not always journal data, we should
@@ -2053,7 +2064,7 @@ static int ext4_writepage(struct page *page,
 		unlock_page(page);
 		return -ENOMEM;
 	}
-	ret = ext4_bio_write_page(&io_submit, page, len, wbc, keep_towrite);
+	ret = ext4_bio_write_page(&io_submit, page, len, keep_towrite);
 	ext4_io_submit(&io_submit);
 	/* Drop io_end reference we got from init */
 	ext4_put_io_end_defer(io_submit.io_end);
@@ -2087,7 +2098,7 @@ static int mpage_submit_page(struct mpage_da_data *mpd, struct page *page)
 		len = size & ~PAGE_MASK;
 	else
 		len = PAGE_SIZE;
-	err = ext4_bio_write_page(&mpd->io_submit, page, len, mpd->wbc, false);
+	err = ext4_bio_write_page(&mpd->io_submit, page, len, false);
 	if (!err)
 		mpd->wbc->nr_to_write--;
 	mpd->first_page++;
@@ -2440,7 +2451,7 @@ static int mpage_map_and_submit_extent(handle_t *handle,
 			struct super_block *sb = inode->i_sb;
 
 			if (ext4_forced_shutdown(EXT4_SB(sb)) ||
-			    EXT4_SB(sb)->s_mount_flags & EXT4_MF_FS_ABORTED)
+			    ext4_test_mount_flag(sb, EXT4_MF_FS_ABORTED))
 				goto invalidate_dirty_pages;
 			/*
 			 * Let the uper layers retry transient errors.
@@ -2674,7 +2685,7 @@ static int ext4_writepages(struct address_space *mapping,
 	 * the stack trace.
 	 */
 	if (unlikely(ext4_forced_shutdown(EXT4_SB(mapping->host->i_sb)) ||
-		     sbi->s_mount_flags & EXT4_MF_FS_ABORTED)) {
+		     ext4_test_mount_flag(inode->i_sb, EXT4_MF_FS_ABORTED))) {
 		ret = -EROFS;
 		goto out_writepages;
 	}
@@ -3310,8 +3321,7 @@ static bool ext4_inode_datasync_dirty(struct inode *inode)
 			EXT4_I(inode)->i_datasync_tid))
 			return false;
 		if (test_opt2(inode->i_sb, JOURNAL_FAST_COMMIT))
-			return atomic_read(&EXT4_SB(inode->i_sb)->s_fc_subtid) <
-				EXT4_I(inode)->i_fc_committed_subtid;
+			return !list_empty(&EXT4_I(inode)->i_fc_list);
 		return true;
 	}
 
@@ -4109,7 +4119,7 @@ int ext4_punch_hole(struct inode *inode, loff_t offset, loff_t length)
 
 		up_write(&EXT4_I(inode)->i_data_sem);
 	}
-	ext4_fc_track_range(inode, first_block, stop_block);
+	ext4_fc_track_range(handle, inode, first_block, stop_block);
 	if (IS_SYNC(inode))
 		ext4_handle_sync(handle);
 
@@ -4609,7 +4619,7 @@ struct inode *__ext4_iget(struct super_block *sb, unsigned long ino,
 	    (ino > le32_to_cpu(EXT4_SB(sb)->s_es->s_inodes_count))) {
 		if (flags & EXT4_IGET_HANDLE)
 			return ERR_PTR(-ESTALE);
-		__ext4_error(sb, function, line, EFSCORRUPTED, 0,
+		__ext4_error(sb, function, line, false, EFSCORRUPTED, 0,
 			     "inode #%lu: comm %s: iget: illegal inode #",
 			     ino, current->comm);
 		return ERR_PTR(-EFSCORRUPTED);
@@ -5442,14 +5452,14 @@ int ext4_setattr(struct dentry *dentry, struct iattr *attr)
 			}
 
 			if (shrink)
-				ext4_fc_track_range(inode,
+				ext4_fc_track_range(handle, inode,
 					(attr->ia_size > 0 ? attr->ia_size - 1 : 0) >>
 					inode->i_sb->s_blocksize_bits,
 					(oldsize > 0 ? oldsize - 1 : 0) >>
 					inode->i_sb->s_blocksize_bits);
 			else
 				ext4_fc_track_range(
-					inode,
+					handle, inode,
 					(oldsize > 0 ? oldsize - 1 : oldsize) >>
 					inode->i_sb->s_blocksize_bits,
 					(attr->ia_size > 0 ? attr->ia_size - 1 : 0) >>
@@ -5699,7 +5709,7 @@ int ext4_mark_iloc_dirty(handle_t *handle,
 		put_bh(iloc->bh);
 		return -EIO;
 	}
-	ext4_fc_track_inode(inode);
+	ext4_fc_track_inode(handle, inode);
 
 	if (IS_I_VERSION(inode))
 		inode_inc_iversion(inode);

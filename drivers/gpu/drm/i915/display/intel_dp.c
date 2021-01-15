@@ -254,6 +254,17 @@ intel_dp_max_data_rate(int max_link_clock, int max_lanes)
 	return max_link_clock * max_lanes;
 }
 
+bool intel_dp_can_bigjoiner(struct intel_dp *intel_dp)
+{
+	struct intel_digital_port *intel_dig_port = dp_to_dig_port(intel_dp);
+	struct intel_encoder *encoder = &intel_dig_port->base;
+	struct drm_i915_private *dev_priv = to_i915(encoder->base.dev);
+
+	return INTEL_GEN(dev_priv) >= 12 ||
+		(INTEL_GEN(dev_priv) == 11 &&
+		 encoder->port != PORT_A);
+}
+
 static int cnl_max_source_rate(struct intel_dp *intel_dp)
 {
 	struct intel_digital_port *dig_port = dp_to_dig_port(intel_dp);
@@ -469,6 +480,13 @@ int intel_dp_get_link_train_fallback_values(struct intel_dp *intel_dp,
 		return -1;
 	}
 
+	if (intel_dp_is_edp(intel_dp) && !intel_dp->use_max_params) {
+		drm_dbg_kms(&i915->drm,
+			    "Retrying Link training for eDP with max parameters\n");
+		intel_dp->use_max_params = true;
+		return 0;
+	}
+
 	index = intel_dp_rate_index(intel_dp->common_rates,
 				    intel_dp->num_common_rates,
 				    link_rate);
@@ -519,7 +537,8 @@ small_joiner_ram_size_bits(struct drm_i915_private *i915)
 
 static u16 intel_dp_dsc_get_output_bpp(struct drm_i915_private *i915,
 				       u32 link_clock, u32 lane_count,
-				       u32 mode_clock, u32 mode_hdisplay)
+				       u32 mode_clock, u32 mode_hdisplay,
+				       bool bigjoiner)
 {
 	u32 bits_per_pixel, max_bpp_small_joiner_ram;
 	int i;
@@ -537,6 +556,10 @@ static u16 intel_dp_dsc_get_output_bpp(struct drm_i915_private *i915,
 	/* Small Joiner Check: output bpp <= joiner RAM (bits) / Horiz. width */
 	max_bpp_small_joiner_ram = small_joiner_ram_size_bits(i915) /
 		mode_hdisplay;
+
+	if (bigjoiner)
+		max_bpp_small_joiner_ram *= 2;
+
 	drm_dbg_kms(&i915->drm, "Max small joiner bpp: %u\n",
 		    max_bpp_small_joiner_ram);
 
@@ -545,6 +568,15 @@ static u16 intel_dp_dsc_get_output_bpp(struct drm_i915_private *i915,
 	 * check, output bpp from small joiner RAM check)
 	 */
 	bits_per_pixel = min(bits_per_pixel, max_bpp_small_joiner_ram);
+
+	if (bigjoiner) {
+		u32 max_bpp_bigjoiner =
+			i915->max_cdclk_freq * 48 /
+			intel_dp_mode_to_fec_clock(mode_clock);
+
+		DRM_DEBUG_KMS("Max big joiner bpp: %u\n", max_bpp_bigjoiner);
+		bits_per_pixel = min(bits_per_pixel, max_bpp_bigjoiner);
+	}
 
 	/* Error out if the max bpp is less than smallest allowed valid bpp */
 	if (bits_per_pixel < valid_dsc_bpp[0]) {
@@ -568,7 +600,8 @@ static u16 intel_dp_dsc_get_output_bpp(struct drm_i915_private *i915,
 }
 
 static u8 intel_dp_dsc_get_slice_count(struct intel_dp *intel_dp,
-				       int mode_clock, int mode_hdisplay)
+				       int mode_clock, int mode_hdisplay,
+				       bool bigjoiner)
 {
 	struct drm_i915_private *i915 = dp_to_i915(intel_dp);
 	u8 min_slice_count, i;
@@ -589,18 +622,24 @@ static u8 intel_dp_dsc_get_slice_count(struct intel_dp *intel_dp,
 		return 0;
 	}
 	/* Also take into account max slice width */
-	min_slice_count = min_t(u8, min_slice_count,
+	min_slice_count = max_t(u8, min_slice_count,
 				DIV_ROUND_UP(mode_hdisplay,
 					     max_slice_width));
 
 	/* Find the closest match to the valid slice count values */
 	for (i = 0; i < ARRAY_SIZE(valid_dsc_slicecount); i++) {
-		if (valid_dsc_slicecount[i] >
-		    drm_dp_dsc_sink_max_slice_count(intel_dp->dsc_dpcd,
-						    false))
+		u8 test_slice_count = valid_dsc_slicecount[i] << bigjoiner;
+
+		if (test_slice_count >
+		    drm_dp_dsc_sink_max_slice_count(intel_dp->dsc_dpcd, false))
 			break;
-		if (min_slice_count  <= valid_dsc_slicecount[i])
-			return valid_dsc_slicecount[i];
+
+		/* big joiner needs small joiner to be enabled */
+		if (bigjoiner && test_slice_count < 4)
+			continue;
+
+		if (min_slice_count <= test_slice_count)
+			return test_slice_count;
 	}
 
 	drm_dbg_kms(&i915->drm, "Unsupported Slice Count %d\n",
@@ -617,6 +656,10 @@ intel_dp_output_format(struct drm_connector *connector,
 
 	if (!connector->ycbcr_420_allowed ||
 	    !drm_mode_is_420_only(info, mode))
+		return INTEL_OUTPUT_FORMAT_RGB;
+
+	if (intel_dp->dfp.rgb_to_ycbcr &&
+	    intel_dp->dfp.ycbcr_444_to_420)
 		return INTEL_OUTPUT_FORMAT_RGB;
 
 	if (intel_dp->dfp.ycbcr_444_to_420)
@@ -684,6 +727,25 @@ intel_dp_mode_valid_downstream(struct intel_connector *connector,
 	const struct drm_display_info *info = &connector->base.display_info;
 	int tmds_clock;
 
+	/* If PCON supports FRL MODE, check FRL bandwidth constraints */
+	if (intel_dp->dfp.pcon_max_frl_bw) {
+		int target_bw;
+		int max_frl_bw;
+		int bpp = intel_dp_mode_min_output_bpp(&connector->base, mode);
+
+		target_bw = bpp * target_clock;
+
+		max_frl_bw = intel_dp->dfp.pcon_max_frl_bw;
+
+		/* converting bw from Gbps to Kbps*/
+		max_frl_bw = max_frl_bw * 1000000;
+
+		if (target_bw > max_frl_bw)
+			return MODE_CLOCK_HIGH;
+
+		return MODE_OK;
+	}
+
 	if (intel_dp->dfp.max_dotclock &&
 	    target_clock > intel_dp->dfp.max_dotclock)
 		return MODE_CLOCK_HIGH;
@@ -717,9 +779,13 @@ intel_dp_mode_valid(struct drm_connector *connector,
 	u16 dsc_max_output_bpp = 0;
 	u8 dsc_slice_count = 0;
 	enum drm_mode_status status;
+	bool dsc = false, bigjoiner = false;
 
 	if (mode->flags & DRM_MODE_FLAG_DBLSCAN)
 		return MODE_NO_DBLESCAN;
+
+	if (mode->flags & DRM_MODE_FLAG_DBLCLK)
+		return MODE_H_ILLEGAL;
 
 	if (intel_dp_is_edp(intel_dp) && fixed_mode) {
 		if (mode->hdisplay > fixed_mode->hdisplay)
@@ -730,6 +796,17 @@ intel_dp_mode_valid(struct drm_connector *connector,
 
 		target_clock = fixed_mode->clock;
 	}
+
+	if (mode->clock < 10000)
+		return MODE_CLOCK_LOW;
+
+	if ((target_clock > max_dotclk || mode->hdisplay > 5120) &&
+	    intel_dp_can_bigjoiner(intel_dp)) {
+		bigjoiner = true;
+		max_dotclk *= 2;
+	}
+	if (target_clock > max_dotclk)
+		return MODE_CLOCK_HIGH;
 
 	max_link_clock = intel_dp_max_link_rate(intel_dp);
 	max_lanes = intel_dp_max_lane_count(intel_dp);
@@ -759,30 +836,31 @@ intel_dp_mode_valid(struct drm_connector *connector,
 							    max_link_clock,
 							    max_lanes,
 							    target_clock,
-							    mode->hdisplay) >> 4;
+							    mode->hdisplay,
+							    bigjoiner) >> 4;
 			dsc_slice_count =
 				intel_dp_dsc_get_slice_count(intel_dp,
 							     target_clock,
-							     mode->hdisplay);
+							     mode->hdisplay,
+							     bigjoiner);
 		}
+
+		dsc = dsc_max_output_bpp && dsc_slice_count;
 	}
 
-	if ((mode_rate > max_rate && !(dsc_max_output_bpp && dsc_slice_count)) ||
-	    target_clock > max_dotclk)
+	/* big joiner configuration needs DSC */
+	if (bigjoiner && !dsc)
 		return MODE_CLOCK_HIGH;
 
-	if (mode->clock < 10000)
-		return MODE_CLOCK_LOW;
-
-	if (mode->flags & DRM_MODE_FLAG_DBLCLK)
-		return MODE_H_ILLEGAL;
+	if (mode_rate > max_rate && !dsc)
+		return MODE_CLOCK_HIGH;
 
 	status = intel_dp_mode_valid_downstream(intel_connector,
 						mode, target_clock);
 	if (status != MODE_OK)
 		return status;
 
-	return intel_mode_valid_max_plane_size(dev_priv, mode);
+	return intel_mode_valid_max_plane_size(dev_priv, mode, bigjoiner);
 }
 
 u32 intel_dp_pack_aux(const u8 *src, int src_bytes)
@@ -824,9 +902,7 @@ pps_lock(struct intel_dp *intel_dp)
 	 * See intel_power_sequencer_reset() why we need
 	 * a power domain reference here.
 	 */
-	wakeref = intel_display_power_get(dev_priv,
-					  intel_aux_power_domain(dp_to_dig_port(intel_dp)));
-
+	wakeref = intel_display_power_get(dev_priv, POWER_DOMAIN_DISPLAY_CORE);
 	mutex_lock(&dev_priv->pps_mutex);
 
 	return wakeref;
@@ -838,9 +914,7 @@ pps_unlock(struct intel_dp *intel_dp, intel_wakeref_t wakeref)
 	struct drm_i915_private *dev_priv = dp_to_i915(intel_dp);
 
 	mutex_unlock(&dev_priv->pps_mutex);
-	intel_display_power_put(dev_priv,
-				intel_aux_power_domain(dp_to_dig_port(intel_dp)),
-				wakeref);
+	intel_display_power_put(dev_priv, POWER_DOMAIN_DISPLAY_CORE, wakeref);
 	return 0;
 }
 
@@ -1441,7 +1515,7 @@ intel_dp_aux_xfer(struct intel_dp *intel_dp,
 	 * lowest possible wakeup latency and so prevent the cpu from going into
 	 * deep sleep states.
 	 */
-	cpu_latency_qos_update_request(&i915->pm_qos, 0);
+	cpu_latency_qos_update_request(&intel_dp->pm_qos, 0);
 
 	intel_dp_check_edp(intel_dp);
 
@@ -1574,7 +1648,7 @@ done:
 
 	ret = recv_bytes;
 out:
-	cpu_latency_qos_update_request(&i915->pm_qos, PM_QOS_DEFAULT_VALUE);
+	cpu_latency_qos_update_request(&intel_dp->pm_qos, PM_QOS_DEFAULT_VALUE);
 
 	if (vdd)
 		edp_panel_vdd_off(intel_dp, false);
@@ -1850,6 +1924,9 @@ static i915_reg_t tgl_aux_data_reg(struct intel_dp *intel_dp, int index)
 static void
 intel_dp_aux_fini(struct intel_dp *intel_dp)
 {
+	if (cpu_latency_qos_request_active(&intel_dp->pm_qos))
+		cpu_latency_qos_remove_request(&intel_dp->pm_qos);
+
 	kfree(intel_dp->aux.name);
 }
 
@@ -1902,6 +1979,7 @@ intel_dp_aux_init(struct intel_dp *intel_dp)
 					       encoder->base.name);
 
 	intel_dp->aux.transfer = intel_dp_aux_transfer;
+	cpu_latency_qos_add_request(&intel_dp->pm_qos, PM_QOS_DEFAULT_VALUE);
 }
 
 bool intel_dp_source_supports_hbr2(struct intel_dp *intel_dp)
@@ -2052,12 +2130,10 @@ static bool intel_dp_supports_fec(struct intel_dp *intel_dp,
 static bool intel_dp_supports_dsc(struct intel_dp *intel_dp,
 				  const struct intel_crtc_state *crtc_state)
 {
-	struct intel_encoder *encoder = &dp_to_dig_port(intel_dp)->base;
-
-	if (!intel_dp_is_edp(intel_dp) && !crtc_state->fec_enable)
+	if (intel_crtc_has_type(crtc_state, INTEL_OUTPUT_DP) && !crtc_state->fec_enable)
 		return false;
 
-	return intel_dsc_source_support(encoder, crtc_state) &&
+	return intel_dsc_source_support(crtc_state) &&
 		drm_dp_sink_supports_dsc(intel_dp->dsc_dpcd);
 }
 
@@ -2217,6 +2293,44 @@ intel_dp_compute_link_config_wide(struct intel_dp *intel_dp,
 	return -EINVAL;
 }
 
+/* Optimize link config in order: max bpp, min lanes, min clock */
+static int
+intel_dp_compute_link_config_fast(struct intel_dp *intel_dp,
+				  struct intel_crtc_state *pipe_config,
+				  const struct link_config_limits *limits)
+{
+	const struct drm_display_mode *adjusted_mode = &pipe_config->hw.adjusted_mode;
+	int bpp, clock, lane_count;
+	int mode_rate, link_clock, link_avail;
+
+	for (bpp = limits->max_bpp; bpp >= limits->min_bpp; bpp -= 2 * 3) {
+		int output_bpp = intel_dp_output_bpp(pipe_config->output_format, bpp);
+
+		mode_rate = intel_dp_link_required(adjusted_mode->crtc_clock,
+						   output_bpp);
+
+		for (lane_count = limits->min_lane_count;
+		     lane_count <= limits->max_lane_count;
+		     lane_count <<= 1) {
+			for (clock = limits->min_clock; clock <= limits->max_clock; clock++) {
+				link_clock = intel_dp->common_rates[clock];
+				link_avail = intel_dp_max_data_rate(link_clock,
+								    lane_count);
+
+				if (mode_rate <= link_avail) {
+					pipe_config->lane_count = lane_count;
+					pipe_config->pipe_bpp = bpp;
+					pipe_config->port_clock = link_clock;
+
+					return 0;
+				}
+			}
+		}
+	}
+
+	return -EINVAL;
+}
+
 static int intel_dp_dsc_compute_bpp(struct intel_dp *intel_dp, u8 dsc_max_bpc)
 {
 	int i, num_bpc;
@@ -2242,6 +2356,14 @@ static int intel_dp_dsc_compute_params(struct intel_encoder *encoder,
 	struct drm_dsc_config *vdsc_cfg = &crtc_state->dsc.config;
 	u8 line_buf_depth;
 	int ret;
+
+	/*
+	 * RC_MODEL_SIZE is currently a constant across all configurations.
+	 *
+	 * FIXME: Look into using sink defined DPCD DP_DSC_RC_BUF_BLK_SIZE and
+	 * DP_DSC_RC_BUF_SIZE for this.
+	 */
+	vdsc_cfg->rc_model_size = DSC_RC_MODEL_SIZE_CONST;
 
 	ret = intel_dsc_compute_params(encoder, crtc_state);
 	if (ret)
@@ -2351,11 +2473,13 @@ static int intel_dp_dsc_compute_config(struct intel_dp *intel_dp,
 						    pipe_config->port_clock,
 						    pipe_config->lane_count,
 						    adjusted_mode->crtc_clock,
-						    adjusted_mode->crtc_hdisplay);
+						    adjusted_mode->crtc_hdisplay,
+						    pipe_config->bigjoiner);
 		dsc_dp_slice_count =
 			intel_dp_dsc_get_slice_count(intel_dp,
 						     adjusted_mode->crtc_clock,
-						     adjusted_mode->crtc_hdisplay);
+						     adjusted_mode->crtc_hdisplay,
+						     pipe_config->bigjoiner);
 		if (!dsc_max_output_bpp || !dsc_dp_slice_count) {
 			drm_dbg_kms(&dev_priv->drm,
 				    "Compressed BPP/Slice Count not supported\n");
@@ -2371,14 +2495,15 @@ static int intel_dp_dsc_compute_config(struct intel_dp *intel_dp,
 	 * is greater than the maximum Cdclock and if slice count is even
 	 * then we need to use 2 VDSC instances.
 	 */
-	if (adjusted_mode->crtc_clock > dev_priv->max_cdclk_freq) {
-		if (pipe_config->dsc.slice_count > 1) {
-			pipe_config->dsc.dsc_split = true;
-		} else {
+	if (adjusted_mode->crtc_clock > dev_priv->max_cdclk_freq ||
+	    pipe_config->bigjoiner) {
+		if (pipe_config->dsc.slice_count < 2) {
 			drm_dbg_kms(&dev_priv->drm,
 				    "Cannot split stream to use 2 VDSC instances\n");
 			return -EINVAL;
 		}
+
+		pipe_config->dsc.dsc_split = true;
 	}
 
 	ret = intel_dp_dsc_compute_params(&dig_port->base, pipe_config);
@@ -2429,13 +2554,14 @@ intel_dp_compute_link_config(struct intel_encoder *encoder,
 	limits.min_bpp = intel_dp_min_bpp(pipe_config->output_format);
 	limits.max_bpp = intel_dp_max_bpp(intel_dp, pipe_config);
 
-	if (intel_dp_is_edp(intel_dp)) {
+	if (intel_dp->use_max_params) {
 		/*
 		 * Use the maximum clock and number of lanes the eDP panel
-		 * advertizes being capable of. The panels are generally
+		 * advertizes being capable of in case the initial fast
+		 * optimal params failed us. The panels are generally
 		 * designed to support only a single clock and lane
-		 * configuration, and typically these values correspond to the
-		 * native resolution of the panel.
+		 * configuration, and typically on older panels these
+		 * values correspond to the native resolution of the panel.
 		 */
 		limits.min_lane_count = limits.max_lane_count;
 		limits.min_clock = limits.max_clock;
@@ -2449,15 +2575,31 @@ intel_dp_compute_link_config(struct intel_encoder *encoder,
 		    intel_dp->common_rates[limits.max_clock],
 		    limits.max_bpp, adjusted_mode->crtc_clock);
 
-	/*
-	 * Optimize for slow and wide. This is the place to add alternative
-	 * optimization policy.
-	 */
-	ret = intel_dp_compute_link_config_wide(intel_dp, pipe_config, &limits);
+	if ((adjusted_mode->crtc_clock > i915->max_dotclk_freq ||
+	     adjusted_mode->crtc_hdisplay > 5120) &&
+	    intel_dp_can_bigjoiner(intel_dp))
+		pipe_config->bigjoiner = true;
+
+	if (intel_dp_is_edp(intel_dp))
+		/*
+		 * Optimize for fast and narrow. eDP 1.3 section 3.3 and eDP 1.4
+		 * section A.1: "It is recommended that the minimum number of
+		 * lanes be used, using the minimum link rate allowed for that
+		 * lane configuration."
+		 *
+		 * Note that we fall back to the max clock and lane count for eDP
+		 * panels that fail with the fast optimal settings (see
+		 * intel_dp->use_max_params), in which case the fast vs. wide
+		 * choice doesn't matter.
+		 */
+		ret = intel_dp_compute_link_config_fast(intel_dp, pipe_config, &limits);
+	else
+		/* Optimize for slow and wide. */
+		ret = intel_dp_compute_link_config_wide(intel_dp, pipe_config, &limits);
 
 	/* enable compression if the mode doesn't fit available BW */
 	drm_dbg_kms(&i915->drm, "Force DSC en = %d\n", intel_dp->force_dsc_en);
-	if (ret || intel_dp->force_dsc_en) {
+	if (ret || intel_dp->force_dsc_en || pipe_config->bigjoiner) {
 		ret = intel_dp_dsc_compute_config(intel_dp, pipe_config,
 						  conn_state, &limits);
 		if (ret < 0)
@@ -3040,8 +3182,9 @@ static bool edp_panel_vdd_on(struct intel_dp *intel_dp)
 	if (edp_have_panel_vdd(intel_dp))
 		return need_to_disable;
 
-	intel_display_power_get(dev_priv,
-				intel_aux_power_domain(dig_port));
+	drm_WARN_ON(&dev_priv->drm, intel_dp->vdd_wakeref);
+	intel_dp->vdd_wakeref = intel_display_power_get(dev_priv,
+							intel_aux_power_domain(dig_port));
 
 	drm_dbg_kms(&dev_priv->drm, "Turning [ENCODER:%d:%s] VDD on\n",
 		    dig_port->base.base.base.id,
@@ -3134,8 +3277,9 @@ static void edp_panel_vdd_off_sync(struct intel_dp *intel_dp)
 	if ((pp & PANEL_POWER_ON) == 0)
 		intel_dp->panel_power_off_time = ktime_get_boottime();
 
-	intel_display_power_put_unchecked(dev_priv,
-					  intel_aux_power_domain(dig_port));
+	intel_display_power_put(dev_priv,
+				intel_aux_power_domain(dig_port),
+				fetch_and_zero(&intel_dp->vdd_wakeref));
 }
 
 static void edp_panel_vdd_work(struct work_struct *__work)
@@ -3287,7 +3431,9 @@ static void edp_panel_off(struct intel_dp *intel_dp)
 	intel_dp->panel_power_off_time = ktime_get_boottime();
 
 	/* We got a reference when we enabled the VDD. */
-	intel_display_power_put_unchecked(dev_priv, intel_aux_power_domain(dig_port));
+	intel_display_power_put(dev_priv,
+				intel_aux_power_domain(dig_port),
+				fetch_and_zero(&intel_dp->vdd_wakeref));
 }
 
 void intel_edp_panel_off(struct intel_dp *intel_dp)
@@ -3525,6 +3671,29 @@ void intel_dp_sink_set_decompression_state(struct intel_dp *intel_dp,
 			    enable ? "enable" : "disable");
 }
 
+static void
+intel_edp_init_source_oui(struct intel_dp *intel_dp, bool careful)
+{
+	struct drm_i915_private *i915 = dp_to_i915(intel_dp);
+	u8 oui[] = { 0x00, 0xaa, 0x01 };
+	u8 buf[3] = { 0 };
+
+	/*
+	 * During driver init, we want to be careful and avoid changing the source OUI if it's
+	 * already set to what we want, so as to avoid clearing any state by accident
+	 */
+	if (careful) {
+		if (drm_dp_dpcd_read(&intel_dp->aux, DP_SOURCE_OUI, buf, sizeof(buf)) < 0)
+			drm_err(&i915->drm, "Failed to read source OUI\n");
+
+		if (memcmp(oui, buf, sizeof(oui)) == 0)
+			return;
+	}
+
+	if (drm_dp_dpcd_write(&intel_dp->aux, DP_SOURCE_OUI, oui, sizeof(oui)) < 0)
+		drm_err(&i915->drm, "Failed to write source OUI\n");
+}
+
 /* If the device supports it, try to set the power state appropriately */
 void intel_dp_set_power(struct intel_dp *intel_dp, u8 mode)
 {
@@ -3545,6 +3714,10 @@ void intel_dp_set_power(struct intel_dp *intel_dp, u8 mode)
 		struct intel_lspcon *lspcon = dp_to_lspcon(intel_dp);
 
 		lspcon_resume(dp_to_dig_port(intel_dp));
+
+		/* Write the source OUI as early as possible */
+		if (intel_dp_is_edp(intel_dp))
+			intel_edp_init_source_oui(intel_dp, false);
 
 		/*
 		 * When turning on, we need to retry for 1ms to give the sink
@@ -3778,6 +3951,12 @@ bool intel_dp_initial_fastset_check(struct intel_encoder *encoder,
 		return false;
 	}
 
+	if (CAN_PSR(i915) && intel_dp_is_edp(intel_dp)) {
+		drm_dbg_kms(&i915->drm, "Forcing full modeset to compute PSR state\n");
+		crtc_state->uapi.mode_changed = true;
+		return false;
+	}
+
 	return true;
 }
 
@@ -3800,6 +3979,8 @@ static void intel_disable_dp(struct intel_atomic_state *state,
 	intel_edp_backlight_off(old_conn_state);
 	intel_dp_set_power(intel_dp, DP_SET_POWER_D3);
 	intel_edp_panel_off(intel_dp);
+	intel_dp->frl.is_trained = false;
+	intel_dp->frl.trained_rate_gbps = 0;
 }
 
 static void g4x_disable_dp(struct intel_atomic_state *state,
@@ -3895,6 +4076,280 @@ cpt_set_link_train(struct intel_dp *intel_dp,
 	intel_de_posting_read(dev_priv, intel_dp->output_reg);
 }
 
+static void intel_dp_get_pcon_dsc_cap(struct intel_dp *intel_dp)
+{
+	struct drm_i915_private *i915 = dp_to_i915(intel_dp);
+
+	/* Clear the cached register set to avoid using stale values */
+
+	memset(intel_dp->pcon_dsc_dpcd, 0, sizeof(intel_dp->pcon_dsc_dpcd));
+
+	if (drm_dp_dpcd_read(&intel_dp->aux, DP_PCON_DSC_ENCODER,
+			     intel_dp->pcon_dsc_dpcd,
+			     sizeof(intel_dp->pcon_dsc_dpcd)) < 0)
+		drm_err(&i915->drm, "Failed to read DPCD register 0x%x\n",
+			DP_PCON_DSC_ENCODER);
+
+	drm_dbg_kms(&i915->drm, "PCON ENCODER DSC DPCD: %*ph\n",
+		    (int)sizeof(intel_dp->pcon_dsc_dpcd), intel_dp->pcon_dsc_dpcd);
+}
+
+static int intel_dp_pcon_get_frl_mask(u8 frl_bw_mask)
+{
+	int bw_gbps[] = {9, 18, 24, 32, 40, 48};
+	int i;
+
+	for (i = ARRAY_SIZE(bw_gbps) - 1; i >= 0; i--) {
+		if (frl_bw_mask & (1 << i))
+			return bw_gbps[i];
+	}
+	return 0;
+}
+
+static int intel_dp_pcon_set_frl_mask(int max_frl)
+{
+	switch (max_frl) {
+	case 48:
+		return DP_PCON_FRL_BW_MASK_48GBPS;
+	case 40:
+		return DP_PCON_FRL_BW_MASK_40GBPS;
+	case 32:
+		return DP_PCON_FRL_BW_MASK_32GBPS;
+	case 24:
+		return DP_PCON_FRL_BW_MASK_24GBPS;
+	case 18:
+		return DP_PCON_FRL_BW_MASK_18GBPS;
+	case 9:
+		return DP_PCON_FRL_BW_MASK_9GBPS;
+	}
+
+	return 0;
+}
+
+static int intel_dp_hdmi_sink_max_frl(struct intel_dp *intel_dp)
+{
+	struct intel_connector *intel_connector = intel_dp->attached_connector;
+	struct drm_connector *connector = &intel_connector->base;
+	int max_frl_rate;
+	int max_lanes, rate_per_lane;
+	int max_dsc_lanes, dsc_rate_per_lane;
+
+	max_lanes = connector->display_info.hdmi.max_lanes;
+	rate_per_lane = connector->display_info.hdmi.max_frl_rate_per_lane;
+	max_frl_rate = max_lanes * rate_per_lane;
+
+	if (connector->display_info.hdmi.dsc_cap.v_1p2) {
+		max_dsc_lanes = connector->display_info.hdmi.dsc_cap.max_lanes;
+		dsc_rate_per_lane = connector->display_info.hdmi.dsc_cap.max_frl_rate_per_lane;
+		if (max_dsc_lanes && dsc_rate_per_lane)
+			max_frl_rate = min(max_frl_rate, max_dsc_lanes * dsc_rate_per_lane);
+	}
+
+	return max_frl_rate;
+}
+
+static int intel_dp_pcon_start_frl_training(struct intel_dp *intel_dp)
+{
+#define PCON_EXTENDED_TRAIN_MODE (1 > 0)
+#define PCON_CONCURRENT_MODE (1 > 0)
+#define PCON_SEQUENTIAL_MODE !PCON_CONCURRENT_MODE
+#define PCON_NORMAL_TRAIN_MODE !PCON_EXTENDED_TRAIN_MODE
+#define TIMEOUT_FRL_READY_MS 500
+#define TIMEOUT_HDMI_LINK_ACTIVE_MS 1000
+
+	struct drm_i915_private *i915 = dp_to_i915(intel_dp);
+	int max_frl_bw, max_pcon_frl_bw, max_edid_frl_bw, ret;
+	u8 max_frl_bw_mask = 0, frl_trained_mask;
+	bool is_active;
+
+	ret = drm_dp_pcon_reset_frl_config(&intel_dp->aux);
+	if (ret < 0)
+		return ret;
+
+	max_pcon_frl_bw = intel_dp->dfp.pcon_max_frl_bw;
+	drm_dbg(&i915->drm, "PCON max rate = %d Gbps\n", max_pcon_frl_bw);
+
+	max_edid_frl_bw = intel_dp_hdmi_sink_max_frl(intel_dp);
+	drm_dbg(&i915->drm, "Sink max rate from EDID = %d Gbps\n", max_edid_frl_bw);
+
+	max_frl_bw = min(max_edid_frl_bw, max_pcon_frl_bw);
+
+	if (max_frl_bw <= 0)
+		return -EINVAL;
+
+	ret = drm_dp_pcon_frl_prepare(&intel_dp->aux, false);
+	if (ret < 0)
+		return ret;
+	/* Wait for PCON to be FRL Ready */
+	wait_for(is_active = drm_dp_pcon_is_frl_ready(&intel_dp->aux) == true, TIMEOUT_FRL_READY_MS);
+
+	if (!is_active)
+		return -ETIMEDOUT;
+
+	max_frl_bw_mask = intel_dp_pcon_set_frl_mask(max_frl_bw);
+	ret = drm_dp_pcon_frl_configure_1(&intel_dp->aux, max_frl_bw, PCON_SEQUENTIAL_MODE);
+	if (ret < 0)
+		return ret;
+	ret = drm_dp_pcon_frl_configure_2(&intel_dp->aux, max_frl_bw_mask, PCON_NORMAL_TRAIN_MODE);
+	if (ret < 0)
+		return ret;
+	ret = drm_dp_pcon_frl_enable(&intel_dp->aux);
+	if (ret < 0)
+		return ret;
+	/*
+	 * Wait for FRL to be completed
+	 * Check if the HDMI Link is up and active.
+	 */
+	wait_for(is_active = drm_dp_pcon_hdmi_link_active(&intel_dp->aux) == true, TIMEOUT_HDMI_LINK_ACTIVE_MS);
+
+	if (!is_active)
+		return -ETIMEDOUT;
+
+	/* Verify HDMI Link configuration shows FRL Mode */
+	if (drm_dp_pcon_hdmi_link_mode(&intel_dp->aux, &frl_trained_mask) !=
+	    DP_PCON_HDMI_MODE_FRL) {
+		drm_dbg(&i915->drm, "HDMI couldn't be trained in FRL Mode\n");
+		return -EINVAL;
+	}
+	drm_dbg(&i915->drm, "MAX_FRL_MASK = %u, FRL_TRAINED_MASK = %u\n", max_frl_bw_mask, frl_trained_mask);
+
+	intel_dp->frl.trained_rate_gbps = intel_dp_pcon_get_frl_mask(frl_trained_mask);
+	intel_dp->frl.is_trained = true;
+	drm_dbg(&i915->drm, "FRL trained with : %d Gbps\n", intel_dp->frl.trained_rate_gbps);
+
+	return 0;
+}
+
+static bool intel_dp_is_hdmi_2_1_sink(struct intel_dp *intel_dp)
+{
+	if (drm_dp_is_branch(intel_dp->dpcd) &&
+	    intel_dp->has_hdmi_sink &&
+	    intel_dp_hdmi_sink_max_frl(intel_dp) > 0)
+		return true;
+
+	return false;
+}
+
+void intel_dp_check_frl_training(struct intel_dp *intel_dp)
+{
+	struct drm_i915_private *dev_priv = dp_to_i915(intel_dp);
+
+	/* Always go for FRL training if supported */
+	if (!intel_dp_is_hdmi_2_1_sink(intel_dp) ||
+	    intel_dp->frl.is_trained)
+		return;
+
+	if (intel_dp_pcon_start_frl_training(intel_dp) < 0) {
+		int ret, mode;
+
+		drm_dbg(&dev_priv->drm, "Couldnt set FRL mode, continuing with TMDS mode\n");
+		ret = drm_dp_pcon_reset_frl_config(&intel_dp->aux);
+		mode = drm_dp_pcon_hdmi_link_mode(&intel_dp->aux, NULL);
+
+		if (ret < 0 || mode != DP_PCON_HDMI_MODE_TMDS)
+			drm_dbg(&dev_priv->drm, "Issue with PCON, cannot set TMDS mode\n");
+	} else {
+		drm_dbg(&dev_priv->drm, "FRL training Completed\n");
+	}
+}
+
+static int
+intel_dp_pcon_dsc_enc_slice_height(const struct intel_crtc_state *crtc_state)
+{
+	int vactive = crtc_state->hw.adjusted_mode.vdisplay;
+
+	return intel_hdmi_dsc_get_slice_height(vactive);
+}
+
+static int
+intel_dp_pcon_dsc_enc_slices(struct intel_dp *intel_dp,
+			     const struct intel_crtc_state *crtc_state)
+{
+	struct intel_connector *intel_connector = intel_dp->attached_connector;
+	struct drm_connector *connector = &intel_connector->base;
+	int hdmi_throughput = connector->display_info.hdmi.dsc_cap.clk_per_slice;
+	int hdmi_max_slices = connector->display_info.hdmi.dsc_cap.max_slices;
+	int pcon_max_slices = drm_dp_pcon_dsc_max_slices(intel_dp->pcon_dsc_dpcd);
+	int pcon_max_slice_width = drm_dp_pcon_dsc_max_slice_width(intel_dp->pcon_dsc_dpcd);
+
+	return intel_hdmi_dsc_get_num_slices(crtc_state, pcon_max_slices,
+					     pcon_max_slice_width,
+					     hdmi_max_slices, hdmi_throughput);
+}
+
+static int
+intel_dp_pcon_dsc_enc_bpp(struct intel_dp *intel_dp,
+			  const struct intel_crtc_state *crtc_state,
+			  int num_slices, int slice_width)
+{
+	struct intel_connector *intel_connector = intel_dp->attached_connector;
+	struct drm_connector *connector = &intel_connector->base;
+	int output_format = crtc_state->output_format;
+	bool hdmi_all_bpp = connector->display_info.hdmi.dsc_cap.all_bpp;
+	int pcon_fractional_bpp = drm_dp_pcon_dsc_bpp_incr(intel_dp->pcon_dsc_dpcd);
+	int hdmi_max_chunk_bytes =
+		connector->display_info.hdmi.dsc_cap.total_chunk_kbytes * 1024;
+
+	return intel_hdmi_dsc_get_bpp(pcon_fractional_bpp, slice_width,
+				      num_slices, output_format, hdmi_all_bpp,
+				      hdmi_max_chunk_bytes);
+}
+
+void
+intel_dp_pcon_dsc_configure(struct intel_dp *intel_dp,
+			    const struct intel_crtc_state *crtc_state)
+{
+	u8 pps_param[6];
+	int slice_height;
+	int slice_width;
+	int num_slices;
+	int bits_per_pixel;
+	int ret;
+	struct intel_connector *intel_connector = intel_dp->attached_connector;
+	struct drm_i915_private *i915 = dp_to_i915(intel_dp);
+	struct drm_connector *connector;
+	bool hdmi_is_dsc_1_2;
+
+	if (!intel_dp_is_hdmi_2_1_sink(intel_dp))
+		return;
+
+	if (!intel_connector)
+		return;
+	connector = &intel_connector->base;
+	hdmi_is_dsc_1_2 = connector->display_info.hdmi.dsc_cap.v_1p2;
+
+	if (!drm_dp_pcon_enc_is_dsc_1_2(intel_dp->pcon_dsc_dpcd) ||
+	    !hdmi_is_dsc_1_2)
+		return;
+
+	slice_height = intel_dp_pcon_dsc_enc_slice_height(crtc_state);
+	if (!slice_height)
+		return;
+
+	num_slices = intel_dp_pcon_dsc_enc_slices(intel_dp, crtc_state);
+	if (!num_slices)
+		return;
+
+	slice_width = DIV_ROUND_UP(crtc_state->hw.adjusted_mode.hdisplay,
+				   num_slices);
+
+	bits_per_pixel = intel_dp_pcon_dsc_enc_bpp(intel_dp, crtc_state,
+						   num_slices, slice_width);
+	if (!bits_per_pixel)
+		return;
+
+	pps_param[0] = slice_height & 0xFF;
+	pps_param[1] = slice_height >> 8;
+	pps_param[2] = slice_width & 0xFF;
+	pps_param[3] = slice_width >> 8;
+	pps_param[4] = bits_per_pixel & 0xFF;
+	pps_param[5] = (bits_per_pixel >> 8) & 0x3;
+
+	ret = drm_dp_pcon_pps_override_param(&intel_dp->aux, pps_param);
+	if (ret < 0)
+		drm_dbg_kms(&i915->drm, "Failed to set pcon DSC\n");
+}
+
 static void
 g4x_set_link_train(struct intel_dp *intel_dp,
 		   const struct intel_crtc_state *crtc_state,
@@ -3950,7 +4405,8 @@ static void intel_dp_enable_port(struct intel_dp *intel_dp,
 	intel_de_posting_read(dev_priv, intel_dp->output_reg);
 }
 
-void intel_dp_configure_protocol_converter(struct intel_dp *intel_dp)
+void intel_dp_configure_protocol_converter(struct intel_dp *intel_dp,
+					   const struct intel_crtc_state *crtc_state)
 {
 	struct drm_i915_private *i915 = dp_to_i915(intel_dp);
 	u8 tmp;
@@ -3979,12 +4435,42 @@ void intel_dp_configure_protocol_converter(struct intel_dp *intel_dp)
 			    enableddisabled(intel_dp->dfp.ycbcr_444_to_420));
 
 	tmp = 0;
+	if (intel_dp->dfp.rgb_to_ycbcr) {
+		bool bt2020, bt709;
 
-	if (drm_dp_dpcd_writeb(&intel_dp->aux,
-			       DP_PROTOCOL_CONVERTER_CONTROL_2, tmp) <= 0)
+		/*
+		 * FIXME: Currently if userspace selects BT2020 or BT709, but PCON supports only
+		 * RGB->YCbCr for BT601 colorspace, we go ahead with BT601, as default.
+		 *
+		 */
+		tmp = DP_CONVERSION_BT601_RGB_YCBCR_ENABLE;
+
+		bt2020 = drm_dp_downstream_rgb_to_ycbcr_conversion(intel_dp->dpcd,
+								   intel_dp->downstream_ports,
+								   DP_DS_HDMI_BT2020_RGB_YCBCR_CONV);
+		bt709 = drm_dp_downstream_rgb_to_ycbcr_conversion(intel_dp->dpcd,
+								  intel_dp->downstream_ports,
+								  DP_DS_HDMI_BT709_RGB_YCBCR_CONV);
+		switch (crtc_state->infoframes.vsc.colorimetry) {
+		case DP_COLORIMETRY_BT2020_RGB:
+		case DP_COLORIMETRY_BT2020_YCC:
+			if (bt2020)
+				tmp = DP_CONVERSION_BT2020_RGB_YCBCR_ENABLE;
+			break;
+		case DP_COLORIMETRY_BT709_YCC:
+		case DP_COLORIMETRY_XVYCC_709:
+			if (bt709)
+				tmp = DP_CONVERSION_BT709_RGB_YCBCR_ENABLE;
+			break;
+		default:
+			break;
+		}
+	}
+
+	if (drm_dp_pcon_convert_rgb_to_ycbcr(&intel_dp->aux, tmp) < 0)
 		drm_dbg_kms(&i915->drm,
-			    "Failed to set protocol converter YCbCr 4:2:2 conversion mode to %s\n",
-			    enableddisabled(false));
+			   "Failed to set protocol converter RGB->YCbCr conversion mode to %s\n",
+			   enableddisabled(tmp ? true : false));
 }
 
 static void intel_enable_dp(struct intel_atomic_state *state,
@@ -4024,7 +4510,9 @@ static void intel_enable_dp(struct intel_atomic_state *state,
 	}
 
 	intel_dp_set_power(intel_dp, DP_SET_POWER_D0);
-	intel_dp_configure_protocol_converter(intel_dp);
+	intel_dp_configure_protocol_converter(intel_dp, pipe_config);
+	intel_dp_check_frl_training(intel_dp);
+	intel_dp_pcon_dsc_configure(intel_dp, pipe_config);
 	intel_dp_start_link_train(intel_dp, pipe_config);
 	intel_dp_stop_link_train(intel_dp, pipe_config);
 
@@ -4804,6 +5292,12 @@ intel_edp_init_dpcd(struct intel_dp *intel_dp)
 	/* Read the eDP DSC DPCD registers */
 	if (INTEL_GEN(dev_priv) >= 10 || IS_GEMINILAKE(dev_priv))
 		intel_dp_get_dsc_sink_cap(intel_dp);
+
+	/*
+	 * If needed, program our source OUI so we can make various Intel-specific AUX services
+	 * available (such as HDR backlight controls)
+	 */
+	intel_edp_init_source_oui(intel_dp, true);
 
 	return true;
 }
@@ -5773,6 +6267,28 @@ intel_dp_check_mst_status(struct intel_dp *intel_dp)
 	return link_ok;
 }
 
+static void
+intel_dp_handle_hdmi_link_status_change(struct intel_dp *intel_dp)
+{
+	bool is_active;
+	u8 buf = 0;
+
+	is_active = drm_dp_pcon_hdmi_link_active(&intel_dp->aux);
+	if (intel_dp->frl.is_trained && !is_active) {
+		if (drm_dp_dpcd_readb(&intel_dp->aux, DP_PCON_HDMI_LINK_CONFIG_1, &buf) < 0)
+			return;
+
+		buf &=  ~DP_PCON_ENABLE_HDMI_LINK;
+		if (drm_dp_dpcd_writeb(&intel_dp->aux, DP_PCON_HDMI_LINK_CONFIG_1, buf) < 0)
+			return;
+
+		drm_dp_pcon_hdmi_frl_link_error_count(&intel_dp->aux, &intel_dp->attached_connector->base);
+
+		/* Restart FRL training or fall back to TMDS mode */
+		intel_dp_check_frl_training(intel_dp);
+	}
+}
+
 static bool
 intel_dp_needs_link_retrain(struct intel_dp *intel_dp)
 {
@@ -5946,6 +6462,8 @@ int intel_dp_retrain_link(struct intel_encoder *encoder,
 		    !intel_dp_mst_is_master_trans(crtc_state))
 			continue;
 
+		intel_dp_check_frl_training(intel_dp);
+		intel_dp_pcon_dsc_configure(intel_dp, crtc_state);
 		intel_dp_start_link_train(intel_dp, crtc_state);
 		intel_dp_stop_link_train(intel_dp, crtc_state);
 		break;
@@ -6137,7 +6655,7 @@ intel_dp_hotplug(struct intel_encoder *encoder,
 	return state;
 }
 
-static void intel_dp_check_service_irq(struct intel_dp *intel_dp)
+static void intel_dp_check_device_service_irq(struct intel_dp *intel_dp)
 {
 	struct drm_i915_private *i915 = dp_to_i915(intel_dp);
 	u8 val;
@@ -6159,6 +6677,30 @@ static void intel_dp_check_service_irq(struct intel_dp *intel_dp)
 
 	if (val & DP_SINK_SPECIFIC_IRQ)
 		drm_dbg_kms(&i915->drm, "Sink specific irq unhandled\n");
+}
+
+static void intel_dp_check_link_service_irq(struct intel_dp *intel_dp)
+{
+	struct drm_i915_private *i915 = dp_to_i915(intel_dp);
+	u8 val;
+
+	if (intel_dp->dpcd[DP_DPCD_REV] < 0x11)
+		return;
+
+	if (drm_dp_dpcd_readb(&intel_dp->aux,
+			      DP_LINK_SERVICE_IRQ_VECTOR_ESI0, &val) != 1 || !val) {
+		drm_dbg_kms(&i915->drm, "Error in reading link service irq vector\n");
+		return;
+	}
+
+	if (drm_dp_dpcd_writeb(&intel_dp->aux,
+			       DP_LINK_SERVICE_IRQ_VECTOR_ESI0, val) != 1) {
+		drm_dbg_kms(&i915->drm, "Error in writing link service irq vector\n");
+		return;
+	}
+
+	if (val & HDMI_LINK_STATUS_CHANGED)
+		intel_dp_handle_hdmi_link_status_change(intel_dp);
 }
 
 /*
@@ -6200,7 +6742,8 @@ intel_dp_short_pulse(struct intel_dp *intel_dp)
 		return false;
 	}
 
-	intel_dp_check_service_irq(intel_dp);
+	intel_dp_check_device_service_irq(intel_dp);
+	intel_dp_check_link_service_irq(intel_dp);
 
 	/* Handle CEC interrupts, if any */
 	drm_dp_cec_irq(&intel_dp->aux);
@@ -6420,13 +6963,20 @@ intel_dp_update_dfp(struct intel_dp *intel_dp,
 						 intel_dp->downstream_ports,
 						 edid);
 
+	intel_dp->dfp.pcon_max_frl_bw =
+		drm_dp_get_pcon_max_frl_bw(intel_dp->dpcd,
+					   intel_dp->downstream_ports);
+
 	drm_dbg_kms(&i915->drm,
-		    "[CONNECTOR:%d:%s] DFP max bpc %d, max dotclock %d, TMDS clock %d-%d\n",
+		    "[CONNECTOR:%d:%s] DFP max bpc %d, max dotclock %d, TMDS clock %d-%d, PCON Max FRL BW %dGbps\n",
 		    connector->base.base.id, connector->base.name,
 		    intel_dp->dfp.max_bpc,
 		    intel_dp->dfp.max_dotclock,
 		    intel_dp->dfp.min_tmds_clock,
-		    intel_dp->dfp.max_tmds_clock);
+		    intel_dp->dfp.max_tmds_clock,
+		    intel_dp->dfp.pcon_max_frl_bw);
+
+	intel_dp_get_pcon_dsc_cap(intel_dp);
 }
 
 static void
@@ -6434,7 +6984,7 @@ intel_dp_update_420(struct intel_dp *intel_dp)
 {
 	struct drm_i915_private *i915 = dp_to_i915(intel_dp);
 	struct intel_connector *connector = intel_dp->attached_connector;
-	bool is_branch, ycbcr_420_passthrough, ycbcr_444_to_420;
+	bool is_branch, ycbcr_420_passthrough, ycbcr_444_to_420, rgb_to_ycbcr;
 
 	/* No YCbCr output support on gmch platforms */
 	if (HAS_GMCH(i915))
@@ -6456,14 +7006,26 @@ intel_dp_update_420(struct intel_dp *intel_dp)
 		dp_to_dig_port(intel_dp)->lspcon.active ||
 		drm_dp_downstream_444_to_420_conversion(intel_dp->dpcd,
 							intel_dp->downstream_ports);
+	rgb_to_ycbcr = drm_dp_downstream_rgb_to_ycbcr_conversion(intel_dp->dpcd,
+								 intel_dp->downstream_ports,
+								 DP_DS_HDMI_BT601_RGB_YCBCR_CONV ||
+								 DP_DS_HDMI_BT709_RGB_YCBCR_CONV ||
+								 DP_DS_HDMI_BT2020_RGB_YCBCR_CONV);
 
 	if (INTEL_GEN(i915) >= 11) {
+		/* Let PCON convert from RGB->YCbCr if possible */
+		if (is_branch && rgb_to_ycbcr && ycbcr_444_to_420) {
+			intel_dp->dfp.rgb_to_ycbcr = true;
+			intel_dp->dfp.ycbcr_444_to_420 = true;
+			connector->base.ycbcr_420_allowed = true;
+		} else {
 		/* Prefer 4:2:0 passthrough over 4:4:4->4:2:0 conversion */
-		intel_dp->dfp.ycbcr_444_to_420 =
-			ycbcr_444_to_420 && !ycbcr_420_passthrough;
+			intel_dp->dfp.ycbcr_444_to_420 =
+				ycbcr_444_to_420 && !ycbcr_420_passthrough;
 
-		connector->base.ycbcr_420_allowed =
-			!is_branch || ycbcr_444_to_420 || ycbcr_420_passthrough;
+			connector->base.ycbcr_420_allowed =
+				!is_branch || ycbcr_444_to_420 || ycbcr_420_passthrough;
+		}
 	} else {
 		/* 4:4:4->4:2:0 conversion is the only way */
 		intel_dp->dfp.ycbcr_444_to_420 = ycbcr_444_to_420;
@@ -6472,8 +7034,9 @@ intel_dp_update_420(struct intel_dp *intel_dp)
 	}
 
 	drm_dbg_kms(&i915->drm,
-		    "[CONNECTOR:%d:%s] YCbCr 4:2:0 allowed? %s, YCbCr 4:4:4->4:2:0 conversion? %s\n",
+		    "[CONNECTOR:%d:%s] RGB->YcbCr conversion? %s, YCbCr 4:2:0 allowed? %s, YCbCr 4:4:4->4:2:0 conversion? %s\n",
 		    connector->base.base.id, connector->base.name,
+		    yesno(intel_dp->dfp.rgb_to_ycbcr),
 		    yesno(connector->base.ycbcr_420_allowed),
 		    yesno(intel_dp->dfp.ycbcr_444_to_420));
 }
@@ -6517,6 +7080,8 @@ intel_dp_unset_edid(struct intel_dp *intel_dp)
 	intel_dp->dfp.max_dotclock = 0;
 	intel_dp->dfp.min_tmds_clock = 0;
 	intel_dp->dfp.max_tmds_clock = 0;
+
+	intel_dp->dfp.pcon_max_frl_bw = 0;
 
 	intel_dp->dfp.ycbcr_444_to_420 = false;
 	connector->base.ycbcr_420_allowed = false;
@@ -6623,7 +7188,7 @@ intel_dp_detect(struct drm_connector *connector,
 	    to_intel_connector(connector)->detect_edid)
 		status = connector_status_connected;
 
-	intel_dp_check_service_irq(intel_dp);
+	intel_dp_check_device_service_irq(intel_dp);
 
 out:
 	if (status != connector_status_connected && !intel_dp->is_mst)
@@ -6714,6 +7279,8 @@ intel_dp_connector_register(struct drm_connector *connector)
 {
 	struct drm_i915_private *i915 = to_i915(connector->dev);
 	struct intel_dp *intel_dp = intel_attached_dp(to_intel_connector(connector));
+	struct intel_digital_port *dig_port = dp_to_dig_port(intel_dp);
+	struct intel_lspcon *lspcon = &dig_port->lspcon;
 	int ret;
 
 	ret = intel_connector_register(connector);
@@ -6727,6 +7294,22 @@ intel_dp_connector_register(struct drm_connector *connector)
 	ret = drm_dp_aux_register(&intel_dp->aux);
 	if (!ret)
 		drm_dp_cec_register_connector(&intel_dp->aux, connector);
+
+	if (!intel_bios_is_lspcon_present(i915, dig_port->base.port))
+		return ret;
+
+	/*
+	 * ToDo: Clean this up to handle lspcon init and resume more
+	 * efficiently and streamlined.
+	 */
+	if (lspcon_init(dig_port)) {
+		lspcon_detect_hdr_capability(lspcon);
+		if (lspcon->hdr_supported)
+			drm_object_attach_property(&connector->base,
+						   connector->dev->mode_config.hdr_output_metadata_property,
+						   0);
+	}
+
 	return ret;
 }
 
@@ -6816,7 +7399,9 @@ static void intel_edp_panel_vdd_sanitize(struct intel_dp *intel_dp)
 	 */
 	drm_dbg_kms(&dev_priv->drm,
 		    "VDD left on by BIOS, adjusting state tracking\n");
-	intel_display_power_get(dev_priv, intel_aux_power_domain(dig_port));
+	drm_WARN_ON(&dev_priv->drm, intel_dp->vdd_wakeref);
+	intel_dp->vdd_wakeref = intel_display_power_get(dev_priv,
+							intel_aux_power_domain(dig_port));
 
 	edp_panel_vdd_schedule_off(intel_dp);
 }
@@ -7115,7 +7700,13 @@ intel_dp_add_properties(struct intel_dp *intel_dp, struct drm_connector *connect
 	else if (INTEL_GEN(dev_priv) >= 5)
 		drm_connector_attach_max_bpc_property(connector, 6, 12);
 
-	intel_attach_colorspace_property(connector);
+	/* Register HDMI colorspace for case of lspcon */
+	if (intel_bios_is_lspcon_present(dev_priv, port)) {
+		drm_connector_attach_content_type_property(connector);
+		intel_attach_hdmi_colorspace_property(connector);
+	} else {
+		intel_attach_dp_colorspace_property(connector);
+	}
 
 	if (IS_GEMINILAKE(dev_priv) || INTEL_GEN(dev_priv) >= 11)
 		drm_object_attach_property(&connector->base,
@@ -8085,6 +8676,9 @@ intel_dp_init_connector(struct intel_digital_port *dig_port,
 		intel_de_write(dev_priv, PEG_BAND_GAP_DATA,
 			       (temp & ~0xf) | 0xd);
 	}
+
+	intel_dp->frl.is_trained = false;
+	intel_dp->frl.trained_rate_gbps = 0;
 
 	return true;
 

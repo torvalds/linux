@@ -46,6 +46,33 @@ static u32 perf_reg_read(struct etnaviv_gpu *gpu,
 	return gpu_read(gpu, domain->profile_read);
 }
 
+static inline void pipe_select(struct etnaviv_gpu *gpu, u32 clock, unsigned pipe)
+{
+	clock &= ~(VIVS_HI_CLOCK_CONTROL_DEBUG_PIXEL_PIPE__MASK);
+	clock |= VIVS_HI_CLOCK_CONTROL_DEBUG_PIXEL_PIPE(pipe);
+
+	gpu_write(gpu, VIVS_HI_CLOCK_CONTROL, clock);
+}
+
+static u32 pipe_perf_reg_read(struct etnaviv_gpu *gpu,
+	const struct etnaviv_pm_domain *domain,
+	const struct etnaviv_pm_signal *signal)
+{
+	u32 clock = gpu_read(gpu, VIVS_HI_CLOCK_CONTROL);
+	u32 value = 0;
+	unsigned i;
+
+	for (i = 0; i < gpu->identity.pixel_pipes; i++) {
+		pipe_select(gpu, clock, i);
+		value += perf_reg_read(gpu, domain, signal);
+	}
+
+	/* switch back to pixel pipe 0 to prevent GPU hang */
+	pipe_select(gpu, clock, 0);
+
+	return value;
+}
+
 static u32 pipe_reg_read(struct etnaviv_gpu *gpu,
 	const struct etnaviv_pm_domain *domain,
 	const struct etnaviv_pm_signal *signal)
@@ -55,17 +82,12 @@ static u32 pipe_reg_read(struct etnaviv_gpu *gpu,
 	unsigned i;
 
 	for (i = 0; i < gpu->identity.pixel_pipes; i++) {
-		clock &= ~(VIVS_HI_CLOCK_CONTROL_DEBUG_PIXEL_PIPE__MASK);
-		clock |= VIVS_HI_CLOCK_CONTROL_DEBUG_PIXEL_PIPE(i);
-		gpu_write(gpu, VIVS_HI_CLOCK_CONTROL, clock);
-		gpu_write(gpu, domain->profile_config, signal->data);
-		value += gpu_read(gpu, domain->profile_read);
+		pipe_select(gpu, clock, i);
+		value += gpu_read(gpu, signal->data);
 	}
 
 	/* switch back to pixel pipe 0 to prevent GPU hang */
-	clock &= ~(VIVS_HI_CLOCK_CONTROL_DEBUG_PIXEL_PIPE__MASK);
-	clock |= VIVS_HI_CLOCK_CONTROL_DEBUG_PIXEL_PIPE(0);
-	gpu_write(gpu, VIVS_HI_CLOCK_CONTROL, clock);
+	pipe_select(gpu, clock, 0);
 
 	return value;
 }
@@ -103,8 +125,18 @@ static const struct etnaviv_pm_domain doms_3d[] = {
 		.name = "HI",
 		.profile_read = VIVS_MC_PROFILE_HI_READ,
 		.profile_config = VIVS_MC_PROFILE_CONFIG2,
-		.nr_signals = 5,
+		.nr_signals = 7,
 		.signal = (const struct etnaviv_pm_signal[]) {
+			{
+				"TOTAL_READ_BYTES8",
+				VIVS_HI_PROFILE_READ_BYTES8,
+				&pipe_reg_read,
+			},
+			{
+				"TOTAL_WRITE_BYTES8",
+				VIVS_HI_PROFILE_WRITE_BYTES8,
+				&pipe_reg_read,
+			},
 			{
 				"TOTAL_CYCLES",
 				0,
@@ -141,22 +173,22 @@ static const struct etnaviv_pm_domain doms_3d[] = {
 			{
 				"PIXEL_COUNT_KILLED_BY_COLOR_PIPE",
 				VIVS_MC_PROFILE_CONFIG0_PE_PIXEL_COUNT_KILLED_BY_COLOR_PIPE,
-				&pipe_reg_read
+				&pipe_perf_reg_read
 			},
 			{
 				"PIXEL_COUNT_KILLED_BY_DEPTH_PIPE",
 				VIVS_MC_PROFILE_CONFIG0_PE_PIXEL_COUNT_KILLED_BY_DEPTH_PIPE,
-				&pipe_reg_read
+				&pipe_perf_reg_read
 			},
 			{
 				"PIXEL_COUNT_DRAWN_BY_COLOR_PIPE",
 				VIVS_MC_PROFILE_CONFIG0_PE_PIXEL_COUNT_DRAWN_BY_COLOR_PIPE,
-				&pipe_reg_read
+				&pipe_perf_reg_read
 			},
 			{
 				"PIXEL_COUNT_DRAWN_BY_DEPTH_PIPE",
 				VIVS_MC_PROFILE_CONFIG0_PE_PIXEL_COUNT_DRAWN_BY_DEPTH_PIPE,
-				&pipe_reg_read
+				&pipe_perf_reg_read
 			}
 		}
 	},
@@ -184,32 +216,32 @@ static const struct etnaviv_pm_domain doms_3d[] = {
 			{
 				"VS_INST_COUNTER",
 				VIVS_MC_PROFILE_CONFIG0_SH_VS_INST_COUNTER,
-				&pipe_reg_read
+				&pipe_perf_reg_read
 			},
 			{
 				"RENDERED_VERTICE_COUNTER",
 				VIVS_MC_PROFILE_CONFIG0_SH_RENDERED_VERTICE_COUNTER,
-				&pipe_reg_read
+				&pipe_perf_reg_read
 			},
 			{
 				"VTX_BRANCH_INST_COUNTER",
 				VIVS_MC_PROFILE_CONFIG0_SH_VTX_BRANCH_INST_COUNTER,
-				&pipe_reg_read
+				&pipe_perf_reg_read
 			},
 			{
 				"VTX_TEXLD_INST_COUNTER",
 				VIVS_MC_PROFILE_CONFIG0_SH_VTX_TEXLD_INST_COUNTER,
-				&pipe_reg_read
+				&pipe_perf_reg_read
 			},
 			{
 				"PXL_BRANCH_INST_COUNTER",
 				VIVS_MC_PROFILE_CONFIG0_SH_PXL_BRANCH_INST_COUNTER,
-				&pipe_reg_read
+				&pipe_perf_reg_read
 			},
 			{
 				"PXL_TEXLD_INST_COUNTER",
 				VIVS_MC_PROFILE_CONFIG0_SH_PXL_TEXLD_INST_COUNTER,
-				&pipe_reg_read
+				&pipe_perf_reg_read
 			}
 		}
 	},
@@ -237,17 +269,17 @@ static const struct etnaviv_pm_domain doms_3d[] = {
 			{
 				"DEPTH_CLIPPED_COUNTER",
 				VIVS_MC_PROFILE_CONFIG1_PA_DEPTH_CLIPPED_COUNTER,
-				&pipe_reg_read
+				&pipe_perf_reg_read
 			},
 			{
 				"TRIVIAL_REJECTED_COUNTER",
 				VIVS_MC_PROFILE_CONFIG1_PA_TRIVIAL_REJECTED_COUNTER,
-				&pipe_reg_read
+				&pipe_perf_reg_read
 			},
 			{
 				"CULLED_COUNTER",
 				VIVS_MC_PROFILE_CONFIG1_PA_CULLED_COUNTER,
-				&pipe_reg_read
+				&pipe_perf_reg_read
 			}
 		}
 	},
@@ -400,7 +432,7 @@ static const struct etnaviv_pm_domain doms_2d[] = {
 			{
 				"PIXELS_RENDERED_2D",
 				VIVS_MC_PROFILE_CONFIG0_PE_PIXELS_RENDERED_2D,
-				&pipe_reg_read
+				&pipe_perf_reg_read
 			}
 		}
 	}

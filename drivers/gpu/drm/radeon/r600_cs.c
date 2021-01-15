@@ -29,6 +29,7 @@
 
 #include "radeon.h"
 #include "radeon_asic.h"
+#include "r600.h"
 #include "r600d.h"
 #include "r600_reg_safe.h"
 
@@ -219,7 +220,7 @@ int r600_fmt_get_nblocksx(u32 format, u32 w)
 	if (bw == 0)
 		return 0;
 
-	return (w + bw - 1) / bw;
+	return DIV_ROUND_UP(w, bw);
 }
 
 int r600_fmt_get_nblocksy(u32 format, u32 h)
@@ -233,7 +234,7 @@ int r600_fmt_get_nblocksy(u32 format, u32 h)
 	if (bh == 0)
 		return 0;
 
-	return (h + bh - 1) / bh;
+	return DIV_ROUND_UP(h, bh);
 }
 
 struct array_mode_checker {
@@ -782,7 +783,7 @@ static int r600_cs_track_check(struct radeon_cs_parser *p)
 
 /**
  * r600_cs_packet_parse_vline() - parse userspace VLINE packet
- * @parser:		parser structure holding parsing context.
+ * @p:		parser structure holding parsing context.
  *
  * This is an R600-specific function for parsing VLINE packets.
  * Real work is done by r600_cs_common_vline_parse function.
@@ -801,7 +802,7 @@ static int r600_cs_packet_parse_vline(struct radeon_cs_parser *p)
 
 /**
  * r600_cs_common_vline_parse() - common vline parser
- * @parser:		parser structure holding parsing context.
+ * @p:			parser structure holding parsing context.
  * @vline_start_end:    table of vline_start_end registers
  * @vline_status:       table of vline_status registers
  *
@@ -956,7 +957,7 @@ static int r600_cs_parse_packet0(struct radeon_cs_parser *p,
 
 /**
  * r600_cs_check_reg() - check if register is authorized or not
- * @parser: parser structure holding parsing context
+ * @p: parser structure holding parsing context
  * @reg: register we are testing
  * @idx: index into the cs buffer
  *
@@ -1460,6 +1461,9 @@ static void r600_texture_size(unsigned nfaces, unsigned blevel, unsigned llevel,
  * @idx: index into the cs buffer
  * @texture: texture's bo structure
  * @mipmap: mipmap's bo structure
+ * @base_offset: base offset (used for error checking)
+ * @mip_offset: mip offset (used for error checking)
+ * @tiling_flags: tiling flags
  *
  * This function will check that the resource has valid field and that
  * the texture and mipmap bo object are big enough to cover this resource.

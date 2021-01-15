@@ -225,6 +225,17 @@ struct intel_encoder {
 	const struct drm_connector *audio_connector;
 };
 
+struct intel_panel_bl_funcs {
+	/* Connector and platform specific backlight functions */
+	int (*setup)(struct intel_connector *connector, enum pipe pipe);
+	u32 (*get)(struct intel_connector *connector);
+	void (*set)(const struct drm_connector_state *conn_state, u32 level);
+	void (*disable)(const struct drm_connector_state *conn_state, u32 level);
+	void (*enable)(const struct intel_crtc_state *crtc_state,
+		       const struct drm_connector_state *conn_state, u32 level);
+	u32 (*hz_to_pwm)(struct intel_connector *connector, u32 hz);
+};
+
 struct intel_panel {
 	struct drm_display_mode *fixed_mode;
 	struct drm_display_mode *downclock_mode;
@@ -251,14 +262,7 @@ struct intel_panel {
 
 		struct backlight_device *device;
 
-		/* Connector and platform specific backlight functions */
-		int (*setup)(struct intel_connector *connector, enum pipe pipe);
-		u32 (*get)(struct intel_connector *connector);
-		void (*set)(const struct drm_connector_state *conn_state, u32 level);
-		void (*disable)(const struct drm_connector_state *conn_state);
-		void (*enable)(const struct intel_crtc_state *crtc_state,
-			       const struct drm_connector_state *conn_state);
-		u32 (*hz_to_pwm)(struct intel_connector *connector, u32 hz);
+		const struct intel_panel_bl_funcs *funcs;
 		void (*power)(struct intel_connector *, bool enable);
 	} backlight;
 };
@@ -604,6 +608,8 @@ struct intel_plane_state {
 	u32 planar_slave;
 
 	struct drm_intel_sprite_colorkey ckey;
+
+	struct drm_rect psr2_sel_fetch_area;
 };
 
 struct intel_initial_plane_config {
@@ -686,6 +692,7 @@ struct skl_wm_level {
 	u8 plane_res_l;
 	bool plane_en;
 	bool ignore_lines;
+	bool can_sagv;
 };
 
 struct skl_plane_wm {
@@ -737,24 +744,35 @@ struct g4x_wm_state {
 
 struct intel_crtc_wm_state {
 	union {
+		/*
+		 * raw:
+		 * The "raw" watermark values produced by the formula
+		 * given the plane's current state. They do not consider
+		 * how much FIFO is actually allocated for each plane.
+		 *
+		 * optimal:
+		 * The "optimal" watermark values given the current
+		 * state of the planes and the amount of FIFO
+		 * allocated to each, ignoring any previous state
+		 * of the planes.
+		 *
+		 * intermediate:
+		 * The "intermediate" watermark values when transitioning
+		 * between the old and new "optimal" values. Used when
+		 * the watermark registers are single buffered and hence
+		 * their state changes asynchronously with regards to the
+		 * actual plane registers. These are essentially the
+		 * worst case combination of the old and new "optimal"
+		 * watermarks, which are therefore safe to use when the
+		 * plane is in either its old or new state.
+		 */
 		struct {
-			/*
-			 * Intermediate watermarks; these can be
-			 * programmed immediately since they satisfy
-			 * both the current configuration we're
-			 * switching away from and the new
-			 * configuration we're switching to.
-			 */
 			struct intel_pipe_wm intermediate;
-
-			/*
-			 * Optimal watermarks, programmed post-vblank
-			 * when this state is committed.
-			 */
 			struct intel_pipe_wm optimal;
 		} ilk;
 
 		struct {
+			struct skl_pipe_wm raw;
 			/* gen9+ only needs 1-step wm programming */
 			struct skl_pipe_wm optimal;
 			struct skl_ddb_entry ddb;
@@ -763,22 +781,15 @@ struct intel_crtc_wm_state {
 		} skl;
 
 		struct {
-			/* "raw" watermarks (not inverted) */
-			struct g4x_pipe_wm raw[NUM_VLV_WM_LEVELS];
-			/* intermediate watermarks (inverted) */
-			struct vlv_wm_state intermediate;
-			/* optimal watermarks (inverted) */
-			struct vlv_wm_state optimal;
-			/* display FIFO split */
+			struct g4x_pipe_wm raw[NUM_VLV_WM_LEVELS]; /* not inverted */
+			struct vlv_wm_state intermediate; /* inverted */
+			struct vlv_wm_state optimal; /* inverted */
 			struct vlv_fifo_state fifo_state;
 		} vlv;
 
 		struct {
-			/* "raw" watermarks */
 			struct g4x_pipe_wm raw[NUM_G4X_WM_LEVELS];
-			/* intermediate watermarks */
 			struct g4x_wm_state intermediate;
-			/* optimal watermarks */
 			struct g4x_wm_state optimal;
 		} g4x;
 	};
@@ -817,15 +828,22 @@ struct intel_crtc_state {
 	 * The following members are used to verify the hardware state:
 	 * - enable
 	 * - active
-	 * - mode / adjusted_mode
+	 * - mode / pipe_mode / adjusted_mode
 	 * - color property blobs.
 	 *
 	 * During initial hw readout, they need to be copied to uapi.
+	 *
+	 * Bigjoiner will allow a transcoder mode that spans 2 pipes;
+	 * Use the pipe_mode for calculations like watermarks, pipe
+	 * scaler, and bandwidth.
+	 *
+	 * Use adjusted_mode for things that need to know the full
+	 * mode on the transcoder, which spans all pipes.
 	 */
 	struct {
 		bool active, enable;
 		struct drm_property_blob *degamma_lut, *gamma_lut, *ctm;
-		struct drm_display_mode mode, adjusted_mode;
+		struct drm_display_mode mode, pipe_mode, adjusted_mode;
 		enum drm_scaling_filter scaling_filter;
 	} hw;
 
@@ -838,6 +856,7 @@ struct intel_crtc_state {
 	 * accordingly.
 	 */
 #define PIPE_CONFIG_QUIRK_MODE_SYNC_FLAGS	(1<<0) /* unreliable sync mode.flags */
+#define PIPE_CONFIG_QUIRK_BIGJOINER_SLAVE      (1<<1) /* bigjoiner slave, partial readout */
 	unsigned long quirks;
 
 	unsigned fb_bits; /* framebuffers to flip */
@@ -1019,6 +1038,10 @@ struct intel_crtc_state {
 
 	u32 data_rate[I915_MAX_PLANES];
 
+	/* FIXME unify with data_rate[] */
+	u64 plane_data_rate[I915_MAX_PLANES];
+	u64 uv_plane_data_rate[I915_MAX_PLANES];
+
 	/* Gamma mode programmed on the pipe */
 	u32 gamma_mode;
 
@@ -1030,7 +1053,10 @@ struct intel_crtc_state {
 		u32 cgm_mode;
 	};
 
-	/* bitmask of visible planes (enum plane_id) */
+	/* bitmask of logically enabled planes (enum plane_id) */
+	u8 enabled_planes;
+
+	/* bitmask of actually visible planes (enum plane_id) */
 	u8 active_planes;
 	u8 nv12_planes;
 	u8 c8_planes;
@@ -1062,6 +1088,15 @@ struct intel_crtc_state {
 
 	/* enable pipe csc? */
 	bool csc_enable;
+
+	/* enable pipe big joiner? */
+	bool bigjoiner;
+
+	/* big joiner slave crtc? */
+	bool bigjoiner_slave;
+
+	/* linked crtc for bigjoiner, either slave or master */
+	struct intel_crtc *bigjoiner_linked_crtc;
 
 	/* Display Stream compression state */
 	struct {
@@ -1134,7 +1169,7 @@ struct intel_crtc {
 	/* I915_MODE_FLAG_* */
 	u8 mode_flags;
 
-	unsigned long long enabled_power_domains;
+	struct intel_display_power_domain_set enabled_power_domains;
 	struct intel_overlay *overlay;
 
 	struct intel_crtc_state *config;
@@ -1160,6 +1195,15 @@ struct intel_crtc {
 		ktime_t start_vbl_time;
 		int min_vbl, max_vbl;
 		int scanline_start;
+#ifdef CONFIG_DRM_I915_DEBUG_VBLANK_EVADE
+		struct {
+			u64 min;
+			u64 max;
+			u64 sum;
+			unsigned int over;
+			unsigned int times[17]; /* [1us, 16ms] */
+		} vbl;
+#endif
 	} debug;
 
 	/* scalers available on this crtc */
@@ -1189,6 +1233,15 @@ struct intel_plane {
 	 * the intel_plane_state structure and accessed via plane_state.
 	 */
 
+	int (*min_width)(const struct drm_framebuffer *fb,
+			 int color_plane,
+			 unsigned int rotation);
+	int (*max_width)(const struct drm_framebuffer *fb,
+			 int color_plane,
+			 unsigned int rotation);
+	int (*max_height)(const struct drm_framebuffer *fb,
+			  int color_plane,
+			  unsigned int rotation);
 	unsigned int (*max_stride)(struct intel_plane *plane,
 				   u32 pixel_format, u64 modifier,
 				   unsigned int rotation);
@@ -1286,6 +1339,11 @@ struct intel_dp_compliance {
 	u8 test_lane_count;
 };
 
+struct intel_dp_pcon_frl {
+	bool is_trained;
+	int trained_rate_gbps;
+};
+
 struct intel_dp {
 	i915_reg_t output_reg;
 	u32 DP;
@@ -1296,6 +1354,7 @@ struct intel_dp {
 	bool has_hdmi_sink;
 	bool has_audio;
 	bool reset_link_params;
+	bool use_max_params;
 	u8 dpcd[DP_RECEIVER_CAP_SIZE];
 	u8 psr_dpcd[EDP_PSR_RECEIVER_CAP_SIZE];
 	u8 downstream_ports[DP_MAX_DOWNSTREAM_PORTS];
@@ -1304,6 +1363,7 @@ struct intel_dp {
 	u8 lttpr_common_caps[DP_LTTPR_COMMON_CAP_SIZE];
 	u8 lttpr_phy_caps[DP_MAX_LTTPR_COUNT][DP_LTTPR_PHY_CAP_SIZE];
 	u8 fec_capable;
+	u8 pcon_dsc_dpcd[DP_PCON_DSC_ENCODER_CAP_SIZE];
 	/* source rates */
 	int num_source_rates;
 	const int *source_rates;
@@ -1334,6 +1394,7 @@ struct intel_dp {
 	unsigned long last_power_on;
 	unsigned long last_backlight_off;
 	ktime_t panel_power_off_time;
+	intel_wakeref_t vdd_wakeref;
 
 	/*
 	 * Pipe whose power sequencer is currently locked into
@@ -1397,15 +1458,22 @@ struct intel_dp {
 	struct {
 		int min_tmds_clock, max_tmds_clock;
 		int max_dotclock;
+		int pcon_max_frl_bw;
 		u8 max_bpc;
 		bool ycbcr_444_to_420;
+		bool rgb_to_ycbcr;
 	} dfp;
+
+	/* To control wakeup latency, e.g. for irq-driven dp aux transfers. */
+	struct pm_qos_request pm_qos;
 
 	/* Display stream compression testing */
 	bool force_dsc_en;
 
 	bool hobl_failed;
 	bool hobl_active;
+
+	struct intel_dp_pcon_frl frl;
 };
 
 enum lspcon_vendor {
@@ -1415,6 +1483,7 @@ enum lspcon_vendor {
 
 struct intel_lspcon {
 	bool active;
+	bool hdr_supported;
 	enum drm_lspcon_mode mode;
 	enum lspcon_vendor vendor;
 };
@@ -1431,6 +1500,8 @@ struct intel_digital_port {
 	/* Used for DP and ICL+ TypeC/DP and TypeC/HDMI ports. */
 	enum aux_ch aux_ch;
 	enum intel_display_power_domain ddi_io_power_domain;
+	intel_wakeref_t ddi_io_wakeref;
+	intel_wakeref_t aux_wakeref;
 	struct mutex tc_lock;	/* protects the TypeC port mode */
 	intel_wakeref_t tc_lock_wakeref;
 	int tc_link_refcount;
@@ -1720,6 +1791,12 @@ intel_crtc_has_dp_encoder(const struct intel_crtc_state *crtc_state)
 		 (1 << INTEL_OUTPUT_EDP));
 }
 
+static inline bool
+intel_crtc_needs_modeset(const struct intel_crtc_state *crtc_state)
+{
+	return drm_atomic_crtc_needs_modeset(&crtc_state->uapi);
+}
+
 static inline void
 intel_wait_for_vblank(struct drm_i915_private *dev_priv, enum pipe pipe)
 {
@@ -1740,6 +1817,12 @@ intel_wait_for_vblank_if_active(struct drm_i915_private *dev_priv, enum pipe pip
 static inline u32 intel_plane_ggtt_offset(const struct intel_plane_state *state)
 {
 	return i915_ggtt_offset(state->vma);
+}
+
+static inline struct intel_frontbuffer *
+to_intel_frontbuffer(struct drm_framebuffer *fb)
+{
+	return fb ? to_intel_framebuffer(fb)->frontbuffer : NULL;
 }
 
 #endif /*  __INTEL_DISPLAY_TYPES_H__ */

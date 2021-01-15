@@ -24,6 +24,8 @@
 #include <linux/types.h>
 #include <linux/kernel.h>
 #include <linux/slab.h>
+#include <linux/pci.h>
+
 #include <drm/amdgpu_drm.h>
 #include "processpptables.h"
 #include <atom-types.h>
@@ -980,6 +982,8 @@ static int init_thermal_controller(
 			struct pp_hwmgr *hwmgr,
 			const ATOM_PPLIB_POWERPLAYTABLE *powerplay_table)
 {
+	struct amdgpu_device *adev = hwmgr->adev;
+
 	hwmgr->thermal_controller.ucType =
 			powerplay_table->sThermalController.ucType;
 	hwmgr->thermal_controller.ucI2cLine =
@@ -1004,7 +1008,104 @@ static int init_thermal_controller(
 		   ATOM_PP_THERMALCONTROLLER_NONE != hwmgr->thermal_controller.ucType,
 		   PHM_PlatformCaps_ThermalController);
 
-	hwmgr->thermal_controller.use_hw_fan_control = 1;
+        if (powerplay_table->usTableSize >= sizeof(ATOM_PPLIB_POWERPLAYTABLE3)) {
+		const ATOM_PPLIB_POWERPLAYTABLE3 *powerplay_table3 =
+			(const ATOM_PPLIB_POWERPLAYTABLE3 *)powerplay_table;
+
+		if (0 == le16_to_cpu(powerplay_table3->usFanTableOffset)) {
+			hwmgr->thermal_controller.use_hw_fan_control = 1;
+			return 0;
+		} else {
+			const ATOM_PPLIB_FANTABLE *fan_table =
+				(const ATOM_PPLIB_FANTABLE *)(((unsigned long)powerplay_table) +
+							      le16_to_cpu(powerplay_table3->usFanTableOffset));
+
+			if (1 <= fan_table->ucFanTableFormat) {
+				hwmgr->thermal_controller.advanceFanControlParameters.ucTHyst =
+					fan_table->ucTHyst;
+				hwmgr->thermal_controller.advanceFanControlParameters.usTMin =
+					le16_to_cpu(fan_table->usTMin);
+				hwmgr->thermal_controller.advanceFanControlParameters.usTMed =
+					le16_to_cpu(fan_table->usTMed);
+				hwmgr->thermal_controller.advanceFanControlParameters.usTHigh =
+					le16_to_cpu(fan_table->usTHigh);
+				hwmgr->thermal_controller.advanceFanControlParameters.usPWMMin =
+					le16_to_cpu(fan_table->usPWMMin);
+				hwmgr->thermal_controller.advanceFanControlParameters.usPWMMed =
+					le16_to_cpu(fan_table->usPWMMed);
+				hwmgr->thermal_controller.advanceFanControlParameters.usPWMHigh =
+					le16_to_cpu(fan_table->usPWMHigh);
+				hwmgr->thermal_controller.advanceFanControlParameters.usTMax = 10900;
+				hwmgr->thermal_controller.advanceFanControlParameters.ulCycleDelay = 100000;
+
+				phm_cap_set(hwmgr->platform_descriptor.platformCaps,
+					    PHM_PlatformCaps_MicrocodeFanControl);
+			}
+
+			if (2 <= fan_table->ucFanTableFormat) {
+				const ATOM_PPLIB_FANTABLE2 *fan_table2 =
+					(const ATOM_PPLIB_FANTABLE2 *)(((unsigned long)powerplay_table) +
+								       le16_to_cpu(powerplay_table3->usFanTableOffset));
+				hwmgr->thermal_controller.advanceFanControlParameters.usTMax =
+					le16_to_cpu(fan_table2->usTMax);
+			}
+
+			if (3 <= fan_table->ucFanTableFormat) {
+				const ATOM_PPLIB_FANTABLE3 *fan_table3 =
+					(const ATOM_PPLIB_FANTABLE3 *) (((unsigned long)powerplay_table) +
+									le16_to_cpu(powerplay_table3->usFanTableOffset));
+
+				hwmgr->thermal_controller.advanceFanControlParameters.ucFanControlMode =
+					fan_table3->ucFanControlMode;
+
+				if ((3 == fan_table->ucFanTableFormat) &&
+				    (0x67B1 == adev->pdev->device))
+					hwmgr->thermal_controller.advanceFanControlParameters.usDefaultMaxFanPWM =
+						47;
+				else
+					hwmgr->thermal_controller.advanceFanControlParameters.usDefaultMaxFanPWM =
+						le16_to_cpu(fan_table3->usFanPWMMax);
+
+				hwmgr->thermal_controller.advanceFanControlParameters.usDefaultFanOutputSensitivity =
+					4836;
+				hwmgr->thermal_controller.advanceFanControlParameters.usFanOutputSensitivity =
+					le16_to_cpu(fan_table3->usFanOutputSensitivity);
+			}
+
+			if (6 <= fan_table->ucFanTableFormat) {
+				const ATOM_PPLIB_FANTABLE4 *fan_table4 =
+					(const ATOM_PPLIB_FANTABLE4 *)(((unsigned long)powerplay_table) +
+								       le16_to_cpu(powerplay_table3->usFanTableOffset));
+
+				phm_cap_set(hwmgr->platform_descriptor.platformCaps,
+					    PHM_PlatformCaps_FanSpeedInTableIsRPM);
+
+				hwmgr->thermal_controller.advanceFanControlParameters.usDefaultMaxFanRPM =
+					le16_to_cpu(fan_table4->usFanRPMMax);
+			}
+
+			if (7 <= fan_table->ucFanTableFormat) {
+				const ATOM_PPLIB_FANTABLE5 *fan_table5 =
+					(const ATOM_PPLIB_FANTABLE5 *)(((unsigned long)powerplay_table) +
+								       le16_to_cpu(powerplay_table3->usFanTableOffset));
+
+				if (0x67A2 == adev->pdev->device ||
+				    0x67A9 == adev->pdev->device ||
+				    0x67B9 == adev->pdev->device) {
+					phm_cap_set(hwmgr->platform_descriptor.platformCaps,
+						    PHM_PlatformCaps_GeminiRegulatorFanControlSupport);
+					hwmgr->thermal_controller.advanceFanControlParameters.usFanCurrentLow =
+						le16_to_cpu(fan_table5->usFanCurrentLow);
+					hwmgr->thermal_controller.advanceFanControlParameters.usFanCurrentHigh =
+						le16_to_cpu(fan_table5->usFanCurrentHigh);
+					hwmgr->thermal_controller.advanceFanControlParameters.usFanRPMLow =
+						le16_to_cpu(fan_table5->usFanRPMLow);
+					hwmgr->thermal_controller.advanceFanControlParameters.usFanRPMHigh =
+						le16_to_cpu(fan_table5->usFanRPMHigh);
+				}
+			}
+		}
+	}
 
 	return 0;
 }

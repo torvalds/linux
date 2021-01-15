@@ -31,15 +31,9 @@
 #include <drm/radeon_drm.h>
 
 #include "radeon.h"
+#include "radeon_atombios.h"
+#include "radeon_legacy_encoders.h"
 #include "atom.h"
-
-extern void
-radeon_legacy_backlight_init(struct radeon_encoder *radeon_encoder,
-			     struct drm_connector *drm_connector);
-extern void
-radeon_atom_backlight_init(struct radeon_encoder *radeon_encoder,
-			   struct drm_connector *drm_connector);
-
 
 static uint32_t radeon_encoder_clones(struct drm_encoder *encoder)
 {

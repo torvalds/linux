@@ -287,7 +287,7 @@ struct apei_res {
 };
 
 /* Collect all resources requested, to avoid conflict */
-struct apei_resources apei_resources_all = {
+static struct apei_resources apei_resources_all = {
 	.iomem = LIST_HEAD_INIT(apei_resources_all.iomem),
 	.ioport = LIST_HEAD_INIT(apei_resources_all.ioport),
 };
@@ -632,6 +632,10 @@ int apei_map_generic_address(struct acpi_generic_address *reg)
 	rc = apei_check_gar(reg, &address, &access_bit_width);
 	if (rc)
 		return rc;
+
+	/* IO space doesn't need mapping */
+	if (reg->space_id == ACPI_ADR_SPACE_SYSTEM_IO)
+		return 0;
 
 	if (!acpi_os_map_generic_address(reg))
 		return -ENXIO;

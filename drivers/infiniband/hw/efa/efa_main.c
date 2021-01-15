@@ -245,9 +245,9 @@ static const struct ib_device_ops efa_dev_ops = {
 	.alloc_hw_stats = efa_alloc_hw_stats,
 	.alloc_pd = efa_alloc_pd,
 	.alloc_ucontext = efa_alloc_ucontext,
-	.create_ah = efa_create_ah,
 	.create_cq = efa_create_cq,
 	.create_qp = efa_create_qp,
+	.create_user_ah = efa_create_ah,
 	.dealloc_pd = efa_dealloc_pd,
 	.dealloc_ucontext = efa_dealloc_ucontext,
 	.dereg_mr = efa_dereg_mr,
@@ -307,27 +307,6 @@ static int efa_ib_device_add(struct efa_dev *dev)
 	dev->ibdev.phys_port_cnt = 1;
 	dev->ibdev.num_comp_vectors = 1;
 	dev->ibdev.dev.parent = &pdev->dev;
-
-	dev->ibdev.uverbs_cmd_mask =
-		(1ull << IB_USER_VERBS_CMD_GET_CONTEXT) |
-		(1ull << IB_USER_VERBS_CMD_QUERY_DEVICE) |
-		(1ull << IB_USER_VERBS_CMD_QUERY_PORT) |
-		(1ull << IB_USER_VERBS_CMD_ALLOC_PD) |
-		(1ull << IB_USER_VERBS_CMD_DEALLOC_PD) |
-		(1ull << IB_USER_VERBS_CMD_REG_MR) |
-		(1ull << IB_USER_VERBS_CMD_DEREG_MR) |
-		(1ull << IB_USER_VERBS_CMD_CREATE_COMP_CHANNEL) |
-		(1ull << IB_USER_VERBS_CMD_CREATE_CQ) |
-		(1ull << IB_USER_VERBS_CMD_DESTROY_CQ) |
-		(1ull << IB_USER_VERBS_CMD_CREATE_QP) |
-		(1ull << IB_USER_VERBS_CMD_MODIFY_QP) |
-		(1ull << IB_USER_VERBS_CMD_QUERY_QP) |
-		(1ull << IB_USER_VERBS_CMD_DESTROY_QP) |
-		(1ull << IB_USER_VERBS_CMD_CREATE_AH) |
-		(1ull << IB_USER_VERBS_CMD_DESTROY_AH);
-
-	dev->ibdev.uverbs_ex_cmd_mask =
-		(1ull << IB_USER_VERBS_EX_CMD_QUERY_DEVICE);
 
 	ib_set_device_ops(&dev->ibdev, &efa_dev_ops);
 
@@ -405,19 +384,12 @@ static int efa_device_init(struct efa_com_dev *edev, struct pci_dev *pdev)
 		return err;
 	}
 
-	err = pci_set_dma_mask(pdev, DMA_BIT_MASK(dma_width));
+	err = dma_set_mask_and_coherent(&pdev->dev, DMA_BIT_MASK(dma_width));
 	if (err) {
-		dev_err(&pdev->dev, "pci_set_dma_mask failed %d\n", err);
+		dev_err(&pdev->dev, "dma_set_mask_and_coherent failed %d\n", err);
 		return err;
 	}
 
-	err = pci_set_consistent_dma_mask(pdev, DMA_BIT_MASK(dma_width));
-	if (err) {
-		dev_err(&pdev->dev,
-			"err_pci_set_consistent_dma_mask failed %d\n",
-			err);
-		return err;
-	}
 	dma_set_max_seg_size(&pdev->dev, UINT_MAX);
 	return 0;
 }

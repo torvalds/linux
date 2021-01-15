@@ -589,7 +589,7 @@ static u32 bxt_get_backlight(struct intel_connector *connector)
 			     BXT_BLC_PWM_DUTY(panel->backlight.controller));
 }
 
-static u32 pwm_get_backlight(struct intel_connector *connector)
+static u32 ext_pwm_get_backlight(struct intel_connector *connector)
 {
 	struct intel_panel *panel = &connector->panel;
 	struct pwm_state state;
@@ -666,7 +666,7 @@ static void bxt_set_backlight(const struct drm_connector_state *conn_state, u32 
 		       BXT_BLC_PWM_DUTY(panel->backlight.controller), level);
 }
 
-static void pwm_set_backlight(const struct drm_connector_state *conn_state, u32 level)
+static void ext_pwm_set_backlight(const struct drm_connector_state *conn_state, u32 level)
 {
 	struct intel_panel *panel = &to_intel_connector(conn_state->connector)->panel;
 
@@ -684,7 +684,7 @@ intel_panel_actually_set_backlight(const struct drm_connector_state *conn_state,
 	drm_dbg_kms(&i915->drm, "set backlight PWM = %d\n", level);
 
 	level = intel_panel_compute_brightness(connector, level);
-	panel->backlight.set(conn_state, level);
+	panel->backlight.funcs->set(conn_state, level);
 }
 
 /* set backlight brightness to level in range [0..max], assuming hw min is
@@ -726,13 +726,13 @@ void intel_panel_set_backlight_acpi(const struct drm_connector_state *conn_state
 	mutex_unlock(&dev_priv->backlight_lock);
 }
 
-static void lpt_disable_backlight(const struct drm_connector_state *old_conn_state)
+static void lpt_disable_backlight(const struct drm_connector_state *old_conn_state, u32 level)
 {
 	struct intel_connector *connector = to_intel_connector(old_conn_state->connector);
 	struct drm_i915_private *dev_priv = to_i915(connector->base.dev);
 	u32 tmp;
 
-	intel_panel_actually_set_backlight(old_conn_state, 0);
+	intel_panel_actually_set_backlight(old_conn_state, level);
 
 	/*
 	 * Although we don't support or enable CPU PWM with LPT/SPT based
@@ -754,13 +754,13 @@ static void lpt_disable_backlight(const struct drm_connector_state *old_conn_sta
 	intel_de_write(dev_priv, BLC_PWM_PCH_CTL1, tmp & ~BLM_PCH_PWM_ENABLE);
 }
 
-static void pch_disable_backlight(const struct drm_connector_state *old_conn_state)
+static void pch_disable_backlight(const struct drm_connector_state *old_conn_state, u32 val)
 {
 	struct intel_connector *connector = to_intel_connector(old_conn_state->connector);
 	struct drm_i915_private *dev_priv = to_i915(connector->base.dev);
 	u32 tmp;
 
-	intel_panel_actually_set_backlight(old_conn_state, 0);
+	intel_panel_actually_set_backlight(old_conn_state, val);
 
 	tmp = intel_de_read(dev_priv, BLC_PWM_CPU_CTL2);
 	intel_de_write(dev_priv, BLC_PWM_CPU_CTL2, tmp & ~BLM_PWM_ENABLE);
@@ -769,44 +769,44 @@ static void pch_disable_backlight(const struct drm_connector_state *old_conn_sta
 	intel_de_write(dev_priv, BLC_PWM_PCH_CTL1, tmp & ~BLM_PCH_PWM_ENABLE);
 }
 
-static void i9xx_disable_backlight(const struct drm_connector_state *old_conn_state)
+static void i9xx_disable_backlight(const struct drm_connector_state *old_conn_state, u32 val)
 {
-	intel_panel_actually_set_backlight(old_conn_state, 0);
+	intel_panel_actually_set_backlight(old_conn_state, val);
 }
 
-static void i965_disable_backlight(const struct drm_connector_state *old_conn_state)
+static void i965_disable_backlight(const struct drm_connector_state *old_conn_state, u32 val)
 {
 	struct drm_i915_private *dev_priv = to_i915(old_conn_state->connector->dev);
 	u32 tmp;
 
-	intel_panel_actually_set_backlight(old_conn_state, 0);
+	intel_panel_actually_set_backlight(old_conn_state, val);
 
 	tmp = intel_de_read(dev_priv, BLC_PWM_CTL2);
 	intel_de_write(dev_priv, BLC_PWM_CTL2, tmp & ~BLM_PWM_ENABLE);
 }
 
-static void vlv_disable_backlight(const struct drm_connector_state *old_conn_state)
+static void vlv_disable_backlight(const struct drm_connector_state *old_conn_state, u32 val)
 {
 	struct intel_connector *connector = to_intel_connector(old_conn_state->connector);
 	struct drm_i915_private *dev_priv = to_i915(connector->base.dev);
 	enum pipe pipe = to_intel_crtc(old_conn_state->crtc)->pipe;
 	u32 tmp;
 
-	intel_panel_actually_set_backlight(old_conn_state, 0);
+	intel_panel_actually_set_backlight(old_conn_state, val);
 
 	tmp = intel_de_read(dev_priv, VLV_BLC_PWM_CTL2(pipe));
 	intel_de_write(dev_priv, VLV_BLC_PWM_CTL2(pipe),
 		       tmp & ~BLM_PWM_ENABLE);
 }
 
-static void bxt_disable_backlight(const struct drm_connector_state *old_conn_state)
+static void bxt_disable_backlight(const struct drm_connector_state *old_conn_state, u32 val)
 {
 	struct intel_connector *connector = to_intel_connector(old_conn_state->connector);
 	struct drm_i915_private *dev_priv = to_i915(connector->base.dev);
 	struct intel_panel *panel = &connector->panel;
-	u32 tmp, val;
+	u32 tmp;
 
-	intel_panel_actually_set_backlight(old_conn_state, 0);
+	intel_panel_actually_set_backlight(old_conn_state, val);
 
 	tmp = intel_de_read(dev_priv,
 			    BXT_BLC_PWM_CTL(panel->backlight.controller));
@@ -820,14 +820,14 @@ static void bxt_disable_backlight(const struct drm_connector_state *old_conn_sta
 	}
 }
 
-static void cnp_disable_backlight(const struct drm_connector_state *old_conn_state)
+static void cnp_disable_backlight(const struct drm_connector_state *old_conn_state, u32 val)
 {
 	struct intel_connector *connector = to_intel_connector(old_conn_state->connector);
 	struct drm_i915_private *dev_priv = to_i915(connector->base.dev);
 	struct intel_panel *panel = &connector->panel;
 	u32 tmp;
 
-	intel_panel_actually_set_backlight(old_conn_state, 0);
+	intel_panel_actually_set_backlight(old_conn_state, val);
 
 	tmp = intel_de_read(dev_priv,
 			    BXT_BLC_PWM_CTL(panel->backlight.controller));
@@ -835,7 +835,7 @@ static void cnp_disable_backlight(const struct drm_connector_state *old_conn_sta
 		       tmp & ~BXT_BLC_PWM_ENABLE);
 }
 
-static void pwm_disable_backlight(const struct drm_connector_state *old_conn_state)
+static void ext_pwm_disable_backlight(const struct drm_connector_state *old_conn_state, u32 level)
 {
 	struct intel_connector *connector = to_intel_connector(old_conn_state->connector);
 	struct intel_panel *panel = &connector->panel;
@@ -870,13 +870,13 @@ void intel_panel_disable_backlight(const struct drm_connector_state *old_conn_st
 	if (panel->backlight.device)
 		panel->backlight.device->props.power = FB_BLANK_POWERDOWN;
 	panel->backlight.enabled = false;
-	panel->backlight.disable(old_conn_state);
+	panel->backlight.funcs->disable(old_conn_state, 0);
 
 	mutex_unlock(&dev_priv->backlight_lock);
 }
 
 static void lpt_enable_backlight(const struct intel_crtc_state *crtc_state,
-				 const struct drm_connector_state *conn_state)
+				 const struct drm_connector_state *conn_state, u32 level)
 {
 	struct intel_connector *connector = to_intel_connector(conn_state->connector);
 	struct drm_i915_private *dev_priv = to_i915(connector->base.dev);
@@ -923,11 +923,11 @@ static void lpt_enable_backlight(const struct intel_crtc_state *crtc_state,
 		       pch_ctl1 | BLM_PCH_PWM_ENABLE);
 
 	/* This won't stick until the above enable. */
-	intel_panel_actually_set_backlight(conn_state, panel->backlight.level);
+	intel_panel_actually_set_backlight(conn_state, level);
 }
 
 static void pch_enable_backlight(const struct intel_crtc_state *crtc_state,
-				 const struct drm_connector_state *conn_state)
+				 const struct drm_connector_state *conn_state, u32 level)
 {
 	struct intel_connector *connector = to_intel_connector(conn_state->connector);
 	struct drm_i915_private *dev_priv = to_i915(connector->base.dev);
@@ -958,7 +958,7 @@ static void pch_enable_backlight(const struct intel_crtc_state *crtc_state,
 	intel_de_write(dev_priv, BLC_PWM_CPU_CTL2, cpu_ctl2 | BLM_PWM_ENABLE);
 
 	/* This won't stick until the above enable. */
-	intel_panel_actually_set_backlight(conn_state, panel->backlight.level);
+	intel_panel_actually_set_backlight(conn_state, level);
 
 	pch_ctl2 = panel->backlight.max << 16;
 	intel_de_write(dev_priv, BLC_PWM_PCH_CTL2, pch_ctl2);
@@ -974,7 +974,7 @@ static void pch_enable_backlight(const struct intel_crtc_state *crtc_state,
 }
 
 static void i9xx_enable_backlight(const struct intel_crtc_state *crtc_state,
-				  const struct drm_connector_state *conn_state)
+				  const struct drm_connector_state *conn_state, u32 level)
 {
 	struct intel_connector *connector = to_intel_connector(conn_state->connector);
 	struct drm_i915_private *dev_priv = to_i915(connector->base.dev);
@@ -1001,7 +1001,7 @@ static void i9xx_enable_backlight(const struct intel_crtc_state *crtc_state,
 	intel_de_posting_read(dev_priv, BLC_PWM_CTL);
 
 	/* XXX: combine this into above write? */
-	intel_panel_actually_set_backlight(conn_state, panel->backlight.level);
+	intel_panel_actually_set_backlight(conn_state, level);
 
 	/*
 	 * Needed to enable backlight on some 855gm models. BLC_HIST_CTL is
@@ -1013,7 +1013,7 @@ static void i9xx_enable_backlight(const struct intel_crtc_state *crtc_state,
 }
 
 static void i965_enable_backlight(const struct intel_crtc_state *crtc_state,
-				  const struct drm_connector_state *conn_state)
+				  const struct drm_connector_state *conn_state, u32 level)
 {
 	struct intel_connector *connector = to_intel_connector(conn_state->connector);
 	struct drm_i915_private *dev_priv = to_i915(connector->base.dev);
@@ -1044,11 +1044,11 @@ static void i965_enable_backlight(const struct intel_crtc_state *crtc_state,
 	intel_de_posting_read(dev_priv, BLC_PWM_CTL2);
 	intel_de_write(dev_priv, BLC_PWM_CTL2, ctl2 | BLM_PWM_ENABLE);
 
-	intel_panel_actually_set_backlight(conn_state, panel->backlight.level);
+	intel_panel_actually_set_backlight(conn_state, level);
 }
 
 static void vlv_enable_backlight(const struct intel_crtc_state *crtc_state,
-				 const struct drm_connector_state *conn_state)
+				 const struct drm_connector_state *conn_state, u32 level)
 {
 	struct intel_connector *connector = to_intel_connector(conn_state->connector);
 	struct drm_i915_private *dev_priv = to_i915(connector->base.dev);
@@ -1067,7 +1067,7 @@ static void vlv_enable_backlight(const struct intel_crtc_state *crtc_state,
 	intel_de_write(dev_priv, VLV_BLC_PWM_CTL(pipe), ctl);
 
 	/* XXX: combine this into above write? */
-	intel_panel_actually_set_backlight(conn_state, panel->backlight.level);
+	intel_panel_actually_set_backlight(conn_state, level);
 
 	ctl2 = 0;
 	if (panel->backlight.active_low_pwm)
@@ -1079,7 +1079,7 @@ static void vlv_enable_backlight(const struct intel_crtc_state *crtc_state,
 }
 
 static void bxt_enable_backlight(const struct intel_crtc_state *crtc_state,
-				 const struct drm_connector_state *conn_state)
+				 const struct drm_connector_state *conn_state, u32 level)
 {
 	struct intel_connector *connector = to_intel_connector(conn_state->connector);
 	struct drm_i915_private *dev_priv = to_i915(connector->base.dev);
@@ -1118,7 +1118,7 @@ static void bxt_enable_backlight(const struct intel_crtc_state *crtc_state,
 		       BXT_BLC_PWM_FREQ(panel->backlight.controller),
 		       panel->backlight.max);
 
-	intel_panel_actually_set_backlight(conn_state, panel->backlight.level);
+	intel_panel_actually_set_backlight(conn_state, level);
 
 	pwm_ctl = 0;
 	if (panel->backlight.active_low_pwm)
@@ -1133,7 +1133,7 @@ static void bxt_enable_backlight(const struct intel_crtc_state *crtc_state,
 }
 
 static void cnp_enable_backlight(const struct intel_crtc_state *crtc_state,
-				 const struct drm_connector_state *conn_state)
+				 const struct drm_connector_state *conn_state, u32 level)
 {
 	struct intel_connector *connector = to_intel_connector(conn_state->connector);
 	struct drm_i915_private *dev_priv = to_i915(connector->base.dev);
@@ -1154,7 +1154,7 @@ static void cnp_enable_backlight(const struct intel_crtc_state *crtc_state,
 		       BXT_BLC_PWM_FREQ(panel->backlight.controller),
 		       panel->backlight.max);
 
-	intel_panel_actually_set_backlight(conn_state, panel->backlight.level);
+	intel_panel_actually_set_backlight(conn_state, level);
 
 	pwm_ctl = 0;
 	if (panel->backlight.active_low_pwm)
@@ -1168,12 +1168,11 @@ static void cnp_enable_backlight(const struct intel_crtc_state *crtc_state,
 		       pwm_ctl | BXT_BLC_PWM_ENABLE);
 }
 
-static void pwm_enable_backlight(const struct intel_crtc_state *crtc_state,
-				 const struct drm_connector_state *conn_state)
+static void ext_pwm_enable_backlight(const struct intel_crtc_state *crtc_state,
+				     const struct drm_connector_state *conn_state, u32 level)
 {
 	struct intel_connector *connector = to_intel_connector(conn_state->connector);
 	struct intel_panel *panel = &connector->panel;
-	int level = panel->backlight.level;
 
 	level = intel_panel_compute_brightness(connector, level);
 	pwm_set_relative_duty_cycle(&panel->backlight.pwm_state, level, 100);
@@ -1198,7 +1197,7 @@ static void __intel_panel_enable_backlight(const struct intel_crtc_state *crtc_s
 						 panel->backlight.device->props.max_brightness);
 	}
 
-	panel->backlight.enable(crtc_state, conn_state);
+	panel->backlight.funcs->enable(crtc_state, conn_state, panel->backlight.level);
 	panel->backlight.enabled = true;
 	if (panel->backlight.device)
 		panel->backlight.device->props.power = FB_BLANK_UNBLANK;
@@ -1234,7 +1233,7 @@ static u32 intel_panel_get_backlight(struct intel_connector *connector)
 	mutex_lock(&dev_priv->backlight_lock);
 
 	if (panel->backlight.enabled) {
-		val = panel->backlight.get(connector);
+		val = panel->backlight.funcs->get(connector);
 		val = intel_panel_compute_brightness(connector, val);
 	}
 
@@ -1567,13 +1566,13 @@ static u32 get_backlight_max_vbt(struct intel_connector *connector)
 	u16 pwm_freq_hz = get_vbt_pwm_freq(dev_priv);
 	u32 pwm;
 
-	if (!panel->backlight.hz_to_pwm) {
+	if (!panel->backlight.funcs->hz_to_pwm) {
 		drm_dbg_kms(&dev_priv->drm,
 			    "backlight frequency conversion not supported\n");
 		return 0;
 	}
 
-	pwm = panel->backlight.hz_to_pwm(connector, pwm_freq_hz);
+	pwm = panel->backlight.funcs->hz_to_pwm(connector, pwm_freq_hz);
 	if (!pwm) {
 		drm_dbg_kms(&dev_priv->drm,
 			    "backlight frequency conversion failed\n");
@@ -1650,22 +1649,23 @@ static int lpt_setup_backlight(struct intel_connector *connector, enum pipe unus
 		val = pch_get_backlight(connector);
 	else
 		val = lpt_get_backlight(connector);
-	val = intel_panel_compute_brightness(connector, val);
-	panel->backlight.level = clamp(val, panel->backlight.min,
-				       panel->backlight.max);
 
 	if (cpu_mode) {
 		drm_dbg_kms(&dev_priv->drm,
 			    "CPU backlight register was enabled, switching to PCH override\n");
 
 		/* Write converted CPU PWM value to PCH override register */
-		lpt_set_backlight(connector->base.state, panel->backlight.level);
+		lpt_set_backlight(connector->base.state, val);
 		intel_de_write(dev_priv, BLC_PWM_PCH_CTL1,
 			       pch_ctl1 | BLM_PCH_OVERRIDE_ENABLE);
 
 		intel_de_write(dev_priv, BLC_PWM_CPU_CTL2,
 			       cpu_ctl2 & ~BLM_PWM_ENABLE);
 	}
+
+	val = intel_panel_compute_brightness(connector, val);
+	panel->backlight.level = clamp(val, panel->backlight.min,
+				       panel->backlight.max);
 
 	return 0;
 }
@@ -1890,8 +1890,8 @@ cnp_setup_backlight(struct intel_connector *connector, enum pipe unused)
 	return 0;
 }
 
-static int pwm_setup_backlight(struct intel_connector *connector,
-			       enum pipe pipe)
+static int ext_pwm_setup_backlight(struct intel_connector *connector,
+				   enum pipe pipe)
 {
 	struct drm_device *dev = connector->base.dev;
 	struct drm_i915_private *dev_priv = to_i915(dev);
@@ -1981,12 +1981,12 @@ int intel_panel_setup_backlight(struct drm_connector *connector, enum pipe pipe)
 	}
 
 	/* ensure intel_panel has been initialized first */
-	if (drm_WARN_ON(&dev_priv->drm, !panel->backlight.setup))
+	if (drm_WARN_ON(&dev_priv->drm, !panel->backlight.funcs))
 		return -ENODEV;
 
 	/* set level and max in panel struct */
 	mutex_lock(&dev_priv->backlight_lock);
-	ret = panel->backlight.setup(intel_connector, pipe);
+	ret = panel->backlight.funcs->setup(intel_connector, pipe);
 	mutex_unlock(&dev_priv->backlight_lock);
 
 	if (ret) {
@@ -2016,6 +2016,86 @@ static void intel_panel_destroy_backlight(struct intel_panel *panel)
 	panel->backlight.present = false;
 }
 
+static const struct intel_panel_bl_funcs bxt_funcs = {
+	.setup = bxt_setup_backlight,
+	.enable = bxt_enable_backlight,
+	.disable = bxt_disable_backlight,
+	.set = bxt_set_backlight,
+	.get = bxt_get_backlight,
+	.hz_to_pwm = bxt_hz_to_pwm,
+};
+
+static const struct intel_panel_bl_funcs cnp_funcs = {
+	.setup = cnp_setup_backlight,
+	.enable = cnp_enable_backlight,
+	.disable = cnp_disable_backlight,
+	.set = bxt_set_backlight,
+	.get = bxt_get_backlight,
+	.hz_to_pwm = cnp_hz_to_pwm,
+};
+
+static const struct intel_panel_bl_funcs lpt_funcs = {
+	.setup = lpt_setup_backlight,
+	.enable = lpt_enable_backlight,
+	.disable = lpt_disable_backlight,
+	.set = lpt_set_backlight,
+	.get = lpt_get_backlight,
+	.hz_to_pwm = lpt_hz_to_pwm,
+};
+
+static const struct intel_panel_bl_funcs spt_funcs = {
+	.setup = lpt_setup_backlight,
+	.enable = lpt_enable_backlight,
+	.disable = lpt_disable_backlight,
+	.set = lpt_set_backlight,
+	.get = lpt_get_backlight,
+	.hz_to_pwm = spt_hz_to_pwm,
+};
+
+static const struct intel_panel_bl_funcs pch_funcs = {
+	.setup = pch_setup_backlight,
+	.enable = pch_enable_backlight,
+	.disable = pch_disable_backlight,
+	.set = pch_set_backlight,
+	.get = pch_get_backlight,
+	.hz_to_pwm = pch_hz_to_pwm,
+};
+
+static const struct intel_panel_bl_funcs ext_pwm_funcs = {
+	.setup = ext_pwm_setup_backlight,
+	.enable = ext_pwm_enable_backlight,
+	.disable = ext_pwm_disable_backlight,
+	.set = ext_pwm_set_backlight,
+	.get = ext_pwm_get_backlight,
+};
+
+static const struct intel_panel_bl_funcs vlv_funcs = {
+	.setup = vlv_setup_backlight,
+	.enable = vlv_enable_backlight,
+	.disable = vlv_disable_backlight,
+	.set = vlv_set_backlight,
+	.get = vlv_get_backlight,
+	.hz_to_pwm = vlv_hz_to_pwm,
+};
+
+static const struct intel_panel_bl_funcs i965_funcs = {
+	.setup = i965_setup_backlight,
+	.enable = i965_enable_backlight,
+	.disable = i965_disable_backlight,
+	.set = i9xx_set_backlight,
+	.get = i9xx_get_backlight,
+	.hz_to_pwm = i965_hz_to_pwm,
+};
+
+static const struct intel_panel_bl_funcs i9xx_funcs = {
+	.setup = i9xx_setup_backlight,
+	.enable = i9xx_enable_backlight,
+	.disable = i9xx_disable_backlight,
+	.set = i9xx_set_backlight,
+	.get = i9xx_get_backlight,
+	.hz_to_pwm = i9xx_hz_to_pwm,
+};
+
 /* Set up chip specific backlight functions */
 static void
 intel_panel_init_backlight_funcs(struct intel_panel *panel)
@@ -2033,65 +2113,26 @@ intel_panel_init_backlight_funcs(struct intel_panel *panel)
 		return;
 
 	if (IS_GEN9_LP(dev_priv)) {
-		panel->backlight.setup = bxt_setup_backlight;
-		panel->backlight.enable = bxt_enable_backlight;
-		panel->backlight.disable = bxt_disable_backlight;
-		panel->backlight.set = bxt_set_backlight;
-		panel->backlight.get = bxt_get_backlight;
-		panel->backlight.hz_to_pwm = bxt_hz_to_pwm;
+		panel->backlight.funcs = &bxt_funcs;
 	} else if (INTEL_PCH_TYPE(dev_priv) >= PCH_CNP) {
-		panel->backlight.setup = cnp_setup_backlight;
-		panel->backlight.enable = cnp_enable_backlight;
-		panel->backlight.disable = cnp_disable_backlight;
-		panel->backlight.set = bxt_set_backlight;
-		panel->backlight.get = bxt_get_backlight;
-		panel->backlight.hz_to_pwm = cnp_hz_to_pwm;
+		panel->backlight.funcs = &cnp_funcs;
 	} else if (INTEL_PCH_TYPE(dev_priv) >= PCH_LPT) {
-		panel->backlight.setup = lpt_setup_backlight;
-		panel->backlight.enable = lpt_enable_backlight;
-		panel->backlight.disable = lpt_disable_backlight;
-		panel->backlight.set = lpt_set_backlight;
-		panel->backlight.get = lpt_get_backlight;
 		if (HAS_PCH_LPT(dev_priv))
-			panel->backlight.hz_to_pwm = lpt_hz_to_pwm;
+			panel->backlight.funcs = &lpt_funcs;
 		else
-			panel->backlight.hz_to_pwm = spt_hz_to_pwm;
+			panel->backlight.funcs = &spt_funcs;
 	} else if (HAS_PCH_SPLIT(dev_priv)) {
-		panel->backlight.setup = pch_setup_backlight;
-		panel->backlight.enable = pch_enable_backlight;
-		panel->backlight.disable = pch_disable_backlight;
-		panel->backlight.set = pch_set_backlight;
-		panel->backlight.get = pch_get_backlight;
-		panel->backlight.hz_to_pwm = pch_hz_to_pwm;
+		panel->backlight.funcs = &pch_funcs;
 	} else if (IS_VALLEYVIEW(dev_priv) || IS_CHERRYVIEW(dev_priv)) {
 		if (connector->base.connector_type == DRM_MODE_CONNECTOR_DSI) {
-			panel->backlight.setup = pwm_setup_backlight;
-			panel->backlight.enable = pwm_enable_backlight;
-			panel->backlight.disable = pwm_disable_backlight;
-			panel->backlight.set = pwm_set_backlight;
-			panel->backlight.get = pwm_get_backlight;
+			panel->backlight.funcs = &ext_pwm_funcs;
 		} else {
-			panel->backlight.setup = vlv_setup_backlight;
-			panel->backlight.enable = vlv_enable_backlight;
-			panel->backlight.disable = vlv_disable_backlight;
-			panel->backlight.set = vlv_set_backlight;
-			panel->backlight.get = vlv_get_backlight;
-			panel->backlight.hz_to_pwm = vlv_hz_to_pwm;
+			panel->backlight.funcs = &vlv_funcs;
 		}
 	} else if (IS_GEN(dev_priv, 4)) {
-		panel->backlight.setup = i965_setup_backlight;
-		panel->backlight.enable = i965_enable_backlight;
-		panel->backlight.disable = i965_disable_backlight;
-		panel->backlight.set = i9xx_set_backlight;
-		panel->backlight.get = i9xx_get_backlight;
-		panel->backlight.hz_to_pwm = i965_hz_to_pwm;
+		panel->backlight.funcs = &i965_funcs;
 	} else {
-		panel->backlight.setup = i9xx_setup_backlight;
-		panel->backlight.enable = i9xx_enable_backlight;
-		panel->backlight.disable = i9xx_disable_backlight;
-		panel->backlight.set = i9xx_set_backlight;
-		panel->backlight.get = i9xx_get_backlight;
-		panel->backlight.hz_to_pwm = i9xx_hz_to_pwm;
+		panel->backlight.funcs = &i9xx_funcs;
 	}
 }
 

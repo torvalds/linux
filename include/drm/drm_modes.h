@@ -195,6 +195,9 @@ enum drm_mode_status {
  * @crtc_vsync_end: hardware mode vertical sync end
  * @crtc_vtotal: hardware mode vertical total size
  *
+ * This is the kernel API display mode information structure. For the
+ * user-space version see struct drm_mode_modeinfo.
+ *
  * The horizontal and vertical timings are defined per the following diagram.
  *
  * ::

@@ -903,6 +903,7 @@ static enum bp_result bios_parser_get_soc_bb_info(
 			break;
 		case 4:
 			result = get_soc_bb_info_v4_4(bp, soc_bb_info);
+			break;
 		default:
 			break;
 		}
@@ -1019,6 +1020,7 @@ static enum bp_result bios_parser_get_embedded_panel_info(
 		default:
 			break;
 		}
+		break;
 	default:
 		break;
 	}
@@ -1451,6 +1453,72 @@ static struct atom_encoder_caps_record *get_encoder_cap_record(
 	}
 
 	return NULL;
+}
+
+static struct atom_disp_connector_caps_record *get_disp_connector_caps_record(
+	struct bios_parser *bp,
+	struct atom_display_object_path_v2 *object)
+{
+	struct atom_common_record_header *header;
+	uint32_t offset;
+
+	if (!object) {
+		BREAK_TO_DEBUGGER(); /* Invalid object */
+		return NULL;
+	}
+
+	offset = object->disp_recordoffset + bp->object_info_tbl_offset;
+
+	for (;;) {
+		header = GET_IMAGE(struct atom_common_record_header, offset);
+
+		if (!header)
+			return NULL;
+
+		offset += header->record_size;
+
+		if (header->record_type == LAST_RECORD_TYPE ||
+				!header->record_size)
+			break;
+
+		if (header->record_type != ATOM_DISP_CONNECTOR_CAPS_RECORD_TYPE)
+			continue;
+
+		if (sizeof(struct atom_disp_connector_caps_record) <=
+							header->record_size)
+			return (struct atom_disp_connector_caps_record *)header;
+	}
+
+	return NULL;
+}
+
+static enum bp_result bios_parser_get_disp_connector_caps_info(
+	struct dc_bios *dcb,
+	struct graphics_object_id object_id,
+	struct bp_disp_connector_caps_info *info)
+{
+	struct bios_parser *bp = BP_FROM_DCB(dcb);
+	struct atom_display_object_path_v2 *object;
+	struct atom_disp_connector_caps_record *record = NULL;
+
+	if (!info)
+		return BP_RESULT_BADINPUT;
+
+	object = get_bios_object(bp, object_id);
+
+	if (!object)
+		return BP_RESULT_BADINPUT;
+
+	record = get_disp_connector_caps_record(bp, object);
+	if (!record)
+		return BP_RESULT_NORECORD;
+
+	info->INTERNAL_DISPLAY = (record->connectcaps & ATOM_CONNECTOR_CAP_INTERNAL_DISPLAY)
+									? 1 : 0;
+	info->INTERNAL_DISPLAY_BL = (record->connectcaps & ATOM_CONNECTOR_CAP_INTERNAL_DISPLAY_BL)
+											? 1 : 0;
+
+	return BP_RESULT_OK;
 }
 
 static enum bp_result get_vram_info_v23(
@@ -2461,6 +2529,8 @@ static const struct dc_vbios_funcs vbios_funcs = {
 	.enable_lvtma_control = bios_parser_enable_lvtma_control,
 
 	.get_soc_bb_info = bios_parser_get_soc_bb_info,
+
+	.get_disp_connector_caps_info = bios_parser_get_disp_connector_caps_info,
 };
 
 static bool bios_parser2_construct(

@@ -207,6 +207,21 @@ static void amdgpu_irq_handle_ih2(struct work_struct *work)
 }
 
 /**
+ * amdgpu_irq_handle_ih_soft - kick of processing for ih_soft
+ *
+ * @work: work structure in struct amdgpu_irq
+ *
+ * Kick of processing IH soft ring.
+ */
+static void amdgpu_irq_handle_ih_soft(struct work_struct *work)
+{
+	struct amdgpu_device *adev = container_of(work, struct amdgpu_device,
+						  irq.ih_soft_work);
+
+	amdgpu_ih_process(adev, &adev->irq.ih_soft);
+}
+
+/**
  * amdgpu_msi_ok - check whether MSI functionality is enabled
  *
  * @adev: amdgpu device pointer (unused)
@@ -281,6 +296,7 @@ int amdgpu_irq_init(struct amdgpu_device *adev)
 
 	INIT_WORK(&adev->irq.ih1_work, amdgpu_irq_handle_ih1);
 	INIT_WORK(&adev->irq.ih2_work, amdgpu_irq_handle_ih2);
+	INIT_WORK(&adev->irq.ih_soft_work, amdgpu_irq_handle_ih_soft);
 
 	adev->irq.installed = true;
 	/* Use vector 0 for MSI-X */
@@ -413,6 +429,7 @@ void amdgpu_irq_dispatch(struct amdgpu_device *adev,
 	bool handled = false;
 	int r;
 
+	entry.ih = ih;
 	entry.iv_entry = (const uint32_t *)&ih->ring[ring_index];
 	amdgpu_ih_decode_iv(adev, &entry);
 
@@ -427,7 +444,8 @@ void amdgpu_irq_dispatch(struct amdgpu_device *adev,
 	} else	if (src_id >= AMDGPU_MAX_IRQ_SRC_ID) {
 		DRM_DEBUG("Invalid src_id in IV: %d\n", src_id);
 
-	} else if (adev->irq.virq[src_id]) {
+	} else if ((client_id == AMDGPU_IRQ_CLIENTID_LEGACY) &&
+		   adev->irq.virq[src_id]) {
 		generic_handle_irq(irq_find_mapping(adev->irq.domain, src_id));
 
 	} else if (!adev->irq.client[client_id].sources) {
@@ -448,6 +466,24 @@ void amdgpu_irq_dispatch(struct amdgpu_device *adev,
 	/* Send it to amdkfd as well if it isn't already handled */
 	if (!handled)
 		amdgpu_amdkfd_interrupt(adev, entry.iv_entry);
+}
+
+/**
+ * amdgpu_irq_delegate - delegate IV to soft IH ring
+ *
+ * @adev: amdgpu device pointer
+ * @entry: IV entry
+ * @num_dw: size of IV
+ *
+ * Delegate the IV to the soft IH ring and schedule processing of it. Used
+ * if the hardware delegation to IH1 or IH2 doesn't work for some reason.
+ */
+void amdgpu_irq_delegate(struct amdgpu_device *adev,
+			 struct amdgpu_iv_entry *entry,
+			 unsigned int num_dw)
+{
+	amdgpu_ih_ring_write(&adev->irq.ih_soft, entry->iv_entry, num_dw);
+	schedule_work(&adev->irq.ih_soft_work);
 }
 
 /**

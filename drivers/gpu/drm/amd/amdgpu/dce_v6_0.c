@@ -180,6 +180,7 @@ static void dce_v6_0_pageflip_interrupt_fini(struct amdgpu_device *adev)
  * @adev: amdgpu_device pointer
  * @crtc_id: crtc to cleanup pageflip on
  * @crtc_base: new address of the crtc (GPU MC address)
+ * @async: asynchronous flip
  *
  * Does the actual pageflip (evergreen+).
  * During vblank we take the crtc lock and wait for the update_pending
@@ -1047,7 +1048,6 @@ static u32 dce_v6_0_line_buffer_adjust(struct amdgpu_device *adev,
 
 
 /**
- *
  * dce_v6_0_bandwidth_update - program display watermarks
  *
  * @adev: amdgpu_device pointer

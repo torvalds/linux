@@ -53,8 +53,17 @@ static void nbio_v2_3_remap_hdp_registers(struct amdgpu_device *adev)
 
 static u32 nbio_v2_3_get_rev_id(struct amdgpu_device *adev)
 {
-	u32 tmp = RREG32_SOC15(NBIO, 0, mmRCC_DEV0_EPF0_STRAP0);
+	u32 tmp;
 
+	/*
+	 * guest vm gets 0xffffffff when reading RCC_DEV0_EPF0_STRAP0,
+	 * therefore we force rev_id to 0 (which is the default value)
+	 */
+	if (amdgpu_sriov_vf(adev)) {
+		return 0;
+	}
+
+	tmp = RREG32_SOC15(NBIO, 0, mmRCC_DEV0_EPF0_STRAP0);
 	tmp &= RCC_DEV0_EPF0_STRAP0__STRAP_ATI_REV_ID_DEV0_F0_MASK;
 	tmp >>= RCC_DEV0_EPF0_STRAP0__STRAP_ATI_REV_ID_DEV0_F0__SHIFT;
 
@@ -69,15 +78,6 @@ static void nbio_v2_3_mc_access_enable(struct amdgpu_device *adev, bool enable)
 			     BIF_FB_EN__FB_WRITE_EN_MASK);
 	else
 		WREG32_SOC15(NBIO, 0, mmBIF_FB_EN, 0);
-}
-
-static void nbio_v2_3_hdp_flush(struct amdgpu_device *adev,
-				struct amdgpu_ring *ring)
-{
-	if (!ring || !ring->funcs->emit_wreg)
-		WREG32_NO_KIQ((adev->rmmio_remap.reg_offset + KFD_MMIO_REMAP_HDP_MEM_FLUSH_CNTL) >> 2, 0);
-	else
-		amdgpu_ring_emit_wreg(ring, (adev->rmmio_remap.reg_offset + KFD_MMIO_REMAP_HDP_MEM_FLUSH_CNTL) >> 2, 0);
 }
 
 static u32 nbio_v2_3_get_memsize(struct amdgpu_device *adev)
@@ -357,7 +357,6 @@ const struct amdgpu_nbio_funcs nbio_v2_3_funcs = {
 	.get_pcie_data_offset = nbio_v2_3_get_pcie_data_offset,
 	.get_rev_id = nbio_v2_3_get_rev_id,
 	.mc_access_enable = nbio_v2_3_mc_access_enable,
-	.hdp_flush = nbio_v2_3_hdp_flush,
 	.get_memsize = nbio_v2_3_get_memsize,
 	.sdma_doorbell_range = nbio_v2_3_sdma_doorbell_range,
 	.vcn_doorbell_range = nbio_v2_3_vcn_doorbell_range,

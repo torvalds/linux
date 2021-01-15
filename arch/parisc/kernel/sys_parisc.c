@@ -53,6 +53,25 @@ static inline unsigned long COLOR_ALIGN(unsigned long addr,
 	return base + off;
 }
 
+
+#define STACK_SIZE_DEFAULT (USER_WIDE_MODE			\
+			? (1 << 30)	/* 1 GB */		\
+			: (CONFIG_STACK_MAX_DEFAULT_SIZE_MB*1024*1024))
+
+unsigned long calc_max_stack_size(unsigned long stack_max)
+{
+#ifdef CONFIG_COMPAT
+	if (!USER_WIDE_MODE && (stack_max == COMPAT_RLIM_INFINITY))
+		stack_max = STACK_SIZE_DEFAULT;
+	else
+#endif
+	if (stack_max == RLIM_INFINITY)
+		stack_max = STACK_SIZE_DEFAULT;
+
+	return stack_max;
+}
+
+
 /*
  * Top of mmap area (just below the process stack).
  */
@@ -69,8 +88,8 @@ static unsigned long mmap_upper_limit(struct rlimit *rlim_stack)
 	/* Limit stack size - see setup_arg_pages() in fs/exec.c */
 	stack_base = rlim_stack ? rlim_stack->rlim_max
 				: rlimit_max(RLIMIT_STACK);
-	if (stack_base > STACK_SIZE_MAX)
-		stack_base = STACK_SIZE_MAX;
+
+	stack_base = calc_max_stack_size(stack_base);
 
 	/* Add space for stack randomization. */
 	if (current->flags & PF_RANDOMIZE)

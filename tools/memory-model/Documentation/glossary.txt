@@ -1,0 +1,172 @@
+This document contains brief definitions of LKMM-related terms.  Like most
+glossaries, it is not intended to be read front to back (except perhaps
+as a way of confirming a diagnosis of OCD), but rather to be searched
+for specific terms.
+
+
+Address Dependency:  When the address of a later memory access is computed
+	based on the value returned by an earlier load, an "address
+	dependency" extends from that load extending to the later access.
+	Address dependencies are quite common in RCU read-side critical
+	sections:
+
+	 1 rcu_read_lock();
+	 2 p = rcu_dereference(gp);
+	 3 do_something(p->a);
+	 4 rcu_read_unlock();
+
+	 In this case, because the address of "p->a" on line 3 is computed
+	 from the value returned by the rcu_dereference() on line 2, the
+	 address dependency extends from that rcu_dereference() to that
+	 "p->a".  In rare cases, optimizing compilers can destroy address
+	 dependencies.	Please see Documentation/RCU/rcu_dereference.txt
+	 for more information.
+
+	 See also "Control Dependency" and "Data Dependency".
+
+Acquire:  With respect to a lock, acquiring that lock, for example,
+	using spin_lock().  With respect to a non-lock shared variable,
+	a special operation that includes a load and which orders that
+	load before later memory references running on that same CPU.
+	An example special acquire operation is smp_load_acquire(),
+	but atomic_read_acquire() and atomic_xchg_acquire() also include
+	acquire loads.
+
+	When an acquire load returns the value stored by a release store
+	to that same variable, then all operations preceding that store
+	happen before any operations following that load acquire.
+
+	See also "Relaxed" and "Release".
+
+Coherence (co):  When one CPU's store to a given variable overwrites
+	either the value from another CPU's store or some later value,
+	there is said to be a coherence link from the second CPU to
+	the first.
+
+	It is also possible to have a coherence link within a CPU, which
+	is a "coherence internal" (coi) link.  The term "coherence
+	external" (coe) link is used when it is necessary to exclude
+	the coi case.
+
+	See also "From-reads" and "Reads-from".
+
+Control Dependency:  When a later store's execution depends on a test
+	of a value computed from a value returned by an earlier load,
+	a "control dependency" extends from that load to that store.
+	For example:
+
+	 1 if (READ_ONCE(x))
+	 2   WRITE_ONCE(y, 1);
+
+	 Here, the control dependency extends from the READ_ONCE() on
+	 line 1 to the WRITE_ONCE() on line 2.	Control dependencies are
+	 fragile, and can be easily destroyed by optimizing compilers.
+	 Please see control-dependencies.txt for more information.
+
+	 See also "Address Dependency" and "Data Dependency".
+
+Cycle:	Memory-barrier pairing is restricted to a pair of CPUs, as the
+	name suggests.	And in a great many cases, a pair of CPUs is all
+	that is required.  In other cases, the notion of pairing must be
+	extended to additional CPUs, and the result is called a "cycle".
+	In a cycle, each CPU's ordering interacts with that of the next:
+
+	CPU 0                CPU 1                CPU 2
+	WRITE_ONCE(x, 1);    WRITE_ONCE(y, 1);    WRITE_ONCE(z, 1);
+	smp_mb();            smp_mb();            smp_mb();
+	r0 = READ_ONCE(y);   r1 = READ_ONCE(z);   r2 = READ_ONCE(x);
+
+	CPU 0's smp_mb() interacts with that of CPU 1, which interacts
+	with that of CPU 2, which in turn interacts with that of CPU 0
+	to complete the cycle.	Because of the smp_mb() calls between
+	each pair of memory accesses, the outcome where r0, r1, and r2
+	are all equal to zero is forbidden by LKMM.
+
+	See also "Pairing".
+
+Data Dependency:  When the data written by a later store is computed based
+	on the value returned by an earlier load, a "data dependency"
+	extends from that load to that later store.  For example:
+
+	 1 r1 = READ_ONCE(x);
+	 2 WRITE_ONCE(y, r1 + 1);
+
+	In this case, the data dependency extends from the READ_ONCE()
+	on line 1 to the WRITE_ONCE() on line 2.  Data dependencies are
+	fragile and can be easily destroyed by optimizing compilers.
+	Because optimizing compilers put a great deal of effort into
+	working out what values integer variables might have, this is
+	especially true in cases where the dependency is carried through
+	an integer.
+
+	See also "Address Dependency" and "Control Dependency".
+
+From-Reads (fr):  When one CPU's store to a given variable happened
+	too late to affect the value returned by another CPU's
+	load from that same variable, there is said to be a from-reads
+	link from the load to the store.
+
+	It is also possible to have a from-reads link within a CPU, which
+	is a "from-reads internal" (fri) link.  The term "from-reads
+	external" (fre) link is used when it is necessary to exclude
+	the fri case.
+
+	See also "Coherence" and "Reads-from".
+
+Fully Ordered:  An operation such as smp_mb() that orders all of
+	its CPU's prior accesses with all of that CPU's subsequent
+	accesses, or a marked access such as atomic_add_return()
+	that orders all of its CPU's prior accesses, itself, and
+	all of its CPU's subsequent accesses.
+
+Marked Access:  An access to a variable that uses an special function or
+	macro such as "r1 = READ_ONCE(x)" or "smp_store_release(&a, 1)".
+
+	See also "Unmarked Access".
+
+Pairing: "Memory-barrier pairing" reflects the fact that synchronizing
+	data between two CPUs requires that both CPUs their accesses.
+	Memory barriers thus tend to come in pairs, one executed by
+	one of the CPUs and the other by the other CPU.  Of course,
+	pairing also occurs with other types of operations, so that a
+	smp_store_release() pairs with an smp_load_acquire() that reads
+	the value stored.
+
+	See also "Cycle".
+
+Reads-From (rf):  When one CPU's load returns the value stored by some other
+	CPU, there is said to be a reads-from link from the second
+	CPU's store to the first CPU's load.  Reads-from links have the
+	nice property that time must advance from the store to the load,
+	which means that algorithms using reads-from links can use lighter
+	weight ordering and synchronization compared to algorithms using
+	coherence and from-reads links.
+
+	It is also possible to have a reads-from link within a CPU, which
+	is a "reads-from internal" (rfi) link.	The term "reads-from
+	external" (rfe) link is used when it is necessary to exclude
+	the rfi case.
+
+	See also Coherence" and "From-reads".
+
+Relaxed:  A marked access that does not imply ordering, for example, a
+	READ_ONCE(), WRITE_ONCE(), a non-value-returning read-modify-write
+	operation, or a value-returning read-modify-write operation whose
+	name ends in "_relaxed".
+
+	See also "Acquire" and "Release".
+
+Release:  With respect to a lock, releasing that lock, for example,
+	using spin_unlock().  With respect to a non-lock shared variable,
+	a special operation that includes a store and which orders that
+	store after earlier memory references that ran on that same CPU.
+	An example special release store is smp_store_release(), but
+	atomic_set_release() and atomic_cmpxchg_release() also include
+	release stores.
+
+	See also "Acquire" and "Relaxed".
+
+Unmarked Access:  An access to a variable that uses normal C-language
+	syntax, for example, "a = b[2]";
+
+	See also "Marked Access".

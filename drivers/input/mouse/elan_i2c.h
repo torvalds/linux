@@ -28,6 +28,22 @@
 
 #define ETP_FEATURE_REPORT_MK	BIT(0)
 
+#define ETP_REPORT_ID		0x5D
+#define ETP_TP_REPORT_ID	0x5E
+#define ETP_TP_REPORT_ID2	0x5F
+#define ETP_REPORT_ID2		0x60	/* High precision report */
+
+#define ETP_REPORT_ID_OFFSET	2
+#define ETP_TOUCH_INFO_OFFSET	3
+#define ETP_FINGER_DATA_OFFSET	4
+#define ETP_HOVER_INFO_OFFSET	30
+#define ETP_MK_DATA_OFFSET	33	/* For high precision reports */
+
+#define ETP_MAX_REPORT_LEN	39
+
+#define ETP_MAX_FINGERS		5
+#define ETP_FINGER_DATA_LEN	5
+
 /* IAP Firmware handling */
 #define ETP_PRODUCT_ID_FORMAT_STRING	"%d.0"
 #define ETP_FW_NAME		"elan_i2c_" ETP_PRODUCT_ID_FORMAT_STRING ".bin"
@@ -78,7 +94,7 @@ struct elan_transport_ops {
 	int (*iap_reset)(struct i2c_client *client);
 
 	int (*prepare_fw_update)(struct i2c_client *client, u16 ic_type,
-				 u8 iap_version);
+				 u8 iap_version, u16 fw_page_size);
 	int (*write_fw_block)(struct i2c_client *client, u16 fw_page_size,
 			      const u8 *page, u16 checksum, int idx);
 	int (*finish_fw_update)(struct i2c_client *client,

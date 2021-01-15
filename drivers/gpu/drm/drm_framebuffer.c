@@ -552,7 +552,7 @@ out:
 }
 
 /**
- * drm_mode_getfb2 - get extended FB info
+ * drm_mode_getfb2_ioctl - get extended FB info
  * @dev: drm device for the ioctl
  * @data: data pointer for the ioctl
  * @file_priv: drm file for the ioctl call

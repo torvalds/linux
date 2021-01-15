@@ -1485,7 +1485,7 @@ static PAD_PULLCTL_CONF(DNAND_D6, 2, 2, 1);
 static PAD_PULLCTL_CONF(DNAND_D7, 2, 2, 1);
 
 /* Pad info table */
-static struct owl_padinfo s500_padinfo[NUM_PADS] = {
+static const struct owl_padinfo s500_padinfo[NUM_PADS] = {
 	[DNAND_DQS] = PAD_INFO_PULLCTL(DNAND_DQS),
 	[DNAND_DQSN] = PAD_INFO_PULLCTL(DNAND_DQSN),
 	[ETH_TXD0] = PAD_INFO_ST(ETH_TXD0),

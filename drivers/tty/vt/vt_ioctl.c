@@ -596,12 +596,12 @@ static int vt_io_ioctl(struct vc_data *vc, unsigned int cmd, void __user *up,
 		return con_font_op(vc, &op);
 
 	case PIO_CMAP:
-                if (!perm)
+		if (!perm)
 			return -EPERM;
 		return con_set_cmap(up);
 
 	case GIO_CMAP:
-                return con_get_cmap(up);
+		return con_get_cmap(up);
 
 	case PIO_FONTX:
 		if (!perm)

@@ -222,34 +222,49 @@ void vtime_flush(struct task_struct *tsk)
 	S390_lowcore.avg_steal_timer = avg_steal;
 }
 
+static u64 vtime_delta(void)
+{
+	u64 timer = S390_lowcore.last_update_timer;
+
+	S390_lowcore.last_update_timer = get_vtimer();
+
+	return timer - S390_lowcore.last_update_timer;
+}
+
 /*
  * Update process times based on virtual cpu times stored by entry.S
  * to the lowcore fields user_timer, system_timer & steal_clock.
  */
-void vtime_account_irq_enter(struct task_struct *tsk)
-{
-	u64 timer;
-
-	timer = S390_lowcore.last_update_timer;
-	S390_lowcore.last_update_timer = get_vtimer();
-	timer -= S390_lowcore.last_update_timer;
-
-	if ((tsk->flags & PF_VCPU) && (irq_count() == 0))
-		S390_lowcore.guest_timer += timer;
-	else if (hardirq_count())
-		S390_lowcore.hardirq_timer += timer;
-	else if (in_serving_softirq())
-		S390_lowcore.softirq_timer += timer;
-	else
-		S390_lowcore.system_timer += timer;
-
-	virt_timer_forward(timer);
-}
-EXPORT_SYMBOL_GPL(vtime_account_irq_enter);
-
 void vtime_account_kernel(struct task_struct *tsk)
-__attribute__((alias("vtime_account_irq_enter")));
+{
+	u64 delta = vtime_delta();
+
+	if (tsk->flags & PF_VCPU)
+		S390_lowcore.guest_timer += delta;
+	else
+		S390_lowcore.system_timer += delta;
+
+	virt_timer_forward(delta);
+}
 EXPORT_SYMBOL_GPL(vtime_account_kernel);
+
+void vtime_account_softirq(struct task_struct *tsk)
+{
+	u64 delta = vtime_delta();
+
+	S390_lowcore.softirq_timer += delta;
+
+	virt_timer_forward(delta);
+}
+
+void vtime_account_hardirq(struct task_struct *tsk)
+{
+	u64 delta = vtime_delta();
+
+	S390_lowcore.hardirq_timer += delta;
+
+	virt_timer_forward(delta);
+}
 
 /*
  * Sorted add to a list. List is linear searched until first bigger

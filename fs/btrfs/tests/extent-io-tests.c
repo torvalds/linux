@@ -379,54 +379,50 @@ static int __test_eb_bitmaps(unsigned long *bitmap, struct extent_buffer *eb,
 static int test_eb_bitmaps(u32 sectorsize, u32 nodesize)
 {
 	struct btrfs_fs_info *fs_info;
-	unsigned long len;
 	unsigned long *bitmap = NULL;
 	struct extent_buffer *eb = NULL;
 	int ret;
 
 	test_msg("running extent buffer bitmap tests");
 
-	/*
-	 * In ppc64, sectorsize can be 64K, thus 4 * 64K will be larger than
-	 * BTRFS_MAX_METADATA_BLOCKSIZE.
-	 */
-	len = (sectorsize < BTRFS_MAX_METADATA_BLOCKSIZE)
-		? sectorsize * 4 : sectorsize;
-
-	fs_info = btrfs_alloc_dummy_fs_info(len, len);
+	fs_info = btrfs_alloc_dummy_fs_info(nodesize, sectorsize);
 	if (!fs_info) {
 		test_std_err(TEST_ALLOC_FS_INFO);
 		return -ENOMEM;
 	}
 
-	bitmap = kmalloc(len, GFP_KERNEL);
+	bitmap = kmalloc(nodesize, GFP_KERNEL);
 	if (!bitmap) {
 		test_err("couldn't allocate test bitmap");
 		ret = -ENOMEM;
 		goto out;
 	}
 
-	eb = __alloc_dummy_extent_buffer(fs_info, 0, len);
+	eb = __alloc_dummy_extent_buffer(fs_info, 0, nodesize);
 	if (!eb) {
 		test_std_err(TEST_ALLOC_ROOT);
 		ret = -ENOMEM;
 		goto out;
 	}
 
-	ret = __test_eb_bitmaps(bitmap, eb, len);
+	ret = __test_eb_bitmaps(bitmap, eb, nodesize);
 	if (ret)
 		goto out;
 
-	/* Do it over again with an extent buffer which isn't page-aligned. */
 	free_extent_buffer(eb);
-	eb = __alloc_dummy_extent_buffer(fs_info, nodesize / 2, len);
+
+	/*
+	 * Test again for case where the tree block is sectorsize aligned but
+	 * not nodesize aligned.
+	 */
+	eb = __alloc_dummy_extent_buffer(fs_info, sectorsize, nodesize);
 	if (!eb) {
 		test_std_err(TEST_ALLOC_ROOT);
 		ret = -ENOMEM;
 		goto out;
 	}
 
-	ret = __test_eb_bitmaps(bitmap, eb, len);
+	ret = __test_eb_bitmaps(bitmap, eb, nodesize);
 out:
 	free_extent_buffer(eb);
 	kfree(bitmap);

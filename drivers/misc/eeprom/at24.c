@@ -736,7 +736,6 @@ static int at24_probe(struct i2c_client *client)
 
 	nvmem_config.type = NVMEM_TYPE_EEPROM;
 	nvmem_config.dev = dev;
-	nvmem_config.id = NVMEM_DEVID_AUTO;
 	nvmem_config.read_only = !writable;
 	nvmem_config.root_only = !(flags & AT24_FLAG_IRUGO);
 	nvmem_config.owner = THIS_MODULE;

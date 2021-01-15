@@ -174,12 +174,12 @@ static inline void amdgpu_bo_unreserve(struct amdgpu_bo *bo)
 
 static inline unsigned long amdgpu_bo_size(struct amdgpu_bo *bo)
 {
-	return bo->tbo.num_pages << PAGE_SHIFT;
+	return bo->tbo.base.size;
 }
 
 static inline unsigned amdgpu_bo_ngpu_pages(struct amdgpu_bo *bo)
 {
-	return (bo->tbo.num_pages << PAGE_SHIFT) / AMDGPU_GPU_PAGE_SIZE;
+	return bo->tbo.base.size / AMDGPU_GPU_PAGE_SIZE;
 }
 
 static inline unsigned amdgpu_bo_gpu_page_alignment(struct amdgpu_bo *bo)
@@ -268,7 +268,6 @@ int amdgpu_bo_pin_restricted(struct amdgpu_bo *bo, u32 domain,
 void amdgpu_bo_unpin(struct amdgpu_bo *bo);
 int amdgpu_bo_evict_vram(struct amdgpu_device *adev);
 int amdgpu_bo_init(struct amdgpu_device *adev);
-int amdgpu_bo_late_init(struct amdgpu_device *adev);
 void amdgpu_bo_fini(struct amdgpu_device *adev);
 int amdgpu_bo_fbdev_mmap(struct amdgpu_bo *bo,
 				struct vm_area_struct *vma);

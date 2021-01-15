@@ -1,6 +1,9 @@
 # SPDX-License-Identifier: GPL-2.0
 menu "Generic Driver Options"
 
+config AUXILIARY_BUS
+	bool
+
 config UEVENT_HELPER
 	bool "Support for uevent helper"
 	help

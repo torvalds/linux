@@ -201,6 +201,7 @@ i915-y += \
 	display/intel_combo_phy.o \
 	display/intel_connector.o \
 	display/intel_csr.o \
+	display/intel_cursor.o \
 	display/intel_display.o \
 	display/intel_display_power.o \
 	display/intel_dpio_phy.o \
@@ -218,7 +219,8 @@ i915-y += \
 	display/intel_quirks.o \
 	display/intel_sprite.o \
 	display/intel_tc.o \
-	display/intel_vga.o
+	display/intel_vga.o \
+	display/i9xx_plane.o
 i915-$(CONFIG_ACPI) += \
 	display/intel_acpi.o \
 	display/intel_opregion.o
@@ -287,15 +289,7 @@ obj-$(CONFIG_DRM_I915_GVT_KVMGT) += gvt/kvmgt.o
 
 # exclude some broken headers from the test coverage
 no-header-test := \
-	display/intel_vbt_defs.h \
-	gvt/execlist.h \
-	gvt/fb_decoder.h \
-	gvt/gtt.h \
-	gvt/gvt.h \
-	gvt/interrupt.h \
-	gvt/mmio_context.h \
-	gvt/mpt.h \
-	gvt/scheduler.h
+	display/intel_vbt_defs.h
 
 extra-$(CONFIG_DRM_I915_WERROR) += \
 	$(patsubst %.h,%.hdrtest, $(filter-out $(no-header-test), \

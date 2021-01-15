@@ -52,7 +52,7 @@ static int alloc_defdata(struct tcf_defact *d, const struct nlattr *defdata)
 	d->tcfd_defdata = kzalloc(SIMP_MAX_DATA, GFP_KERNEL);
 	if (unlikely(!d->tcfd_defdata))
 		return -ENOMEM;
-	nla_strlcpy(d->tcfd_defdata, defdata, SIMP_MAX_DATA);
+	nla_strscpy(d->tcfd_defdata, defdata, SIMP_MAX_DATA);
 	return 0;
 }
 
@@ -71,7 +71,7 @@ static int reset_policy(struct tc_action *a, const struct nlattr *defdata,
 	spin_lock_bh(&d->tcf_lock);
 	goto_ch = tcf_action_set_ctrlact(a, p->action, goto_ch);
 	memset(d->tcfd_defdata, 0, SIMP_MAX_DATA);
-	nla_strlcpy(d->tcfd_defdata, defdata, SIMP_MAX_DATA);
+	nla_strscpy(d->tcfd_defdata, defdata, SIMP_MAX_DATA);
 	spin_unlock_bh(&d->tcf_lock);
 	if (goto_ch)
 		tcf_chain_put_by_act(goto_ch);

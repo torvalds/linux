@@ -267,7 +267,7 @@ static int catpt_restore_fwimage(struct catpt_dev *cdev,
 		r2.start = off;
 		r2.end = r2.start + info->size - 1;
 
-		if (!catpt_resource_overlapping(&r2, &r1, &common))
+		if (!resource_intersection(&r2, &r1, &common))
 			continue;
 		/* calculate start offset of common data area */
 		off = common.start - r1.start;
@@ -304,7 +304,7 @@ static int catpt_load_block(struct catpt_dev *cdev,
 	default:
 		sram = &cdev->dram;
 		break;
-	};
+	}
 
 	dst_addr = sram->start + blk->ram_offset;
 	if (alloc) {

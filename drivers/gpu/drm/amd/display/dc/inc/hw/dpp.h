@@ -47,7 +47,7 @@ struct dpp_input_csc_matrix {
 	uint16_t regval[12];
 };
 
-static const struct dpp_input_csc_matrix dpp_input_csc_matrix[] = {
+static const struct dpp_input_csc_matrix __maybe_unused dpp_input_csc_matrix[] = {
 	{COLOR_SPACE_SRGB,
 		{0x2000, 0, 0, 0, 0, 0x2000, 0, 0, 0, 0, 0x2000, 0} },
 	{COLOR_SPACE_SRGB_LIMITED,

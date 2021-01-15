@@ -3,7 +3,7 @@
 # Makefile for DCN21.
 
 DCN21 = dcn21_init.o dcn21_hubp.o dcn21_hubbub.o dcn21_resource.o \
-	 dcn21_hwseq.o dcn21_link_encoder.o
+	 dcn21_hwseq.o dcn21_link_encoder.o dcn21_dccg.o
 
 ifdef CONFIG_X86
 CFLAGS_$(AMDDALPATH)/dc/dcn21/dcn21_resource.o := -mhard-float -msse
@@ -11,10 +11,6 @@ endif
 
 ifdef CONFIG_PPC64
 CFLAGS_$(AMDDALPATH)/dc/dcn21/dcn21_resource.o := -mhard-float -maltivec
-endif
-
-ifdef CONFIG_ARM64
-CFLAGS_REMOVE_$(AMDDALPATH)/dc/dcn21/dcn21_resource.o := -mgeneral-regs-only
 endif
 
 ifdef CONFIG_CC_IS_GCC

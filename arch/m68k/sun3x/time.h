@@ -3,7 +3,7 @@
 #define SUN3X_TIME_H
 
 extern int sun3x_hwclk(int set, struct rtc_time *t);
-void sun3x_sched_init(irq_handler_t vector);
+void sun3x_sched_init(void);
 
 struct mostek_dt {
 	volatile unsigned char csr;

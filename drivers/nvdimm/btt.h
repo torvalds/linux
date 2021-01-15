@@ -7,7 +7,6 @@
 #ifndef _LINUX_BTT_H
 #define _LINUX_BTT_H
 
-#include <linux/badblocks.h>
 #include <linux/types.h>
 
 #define BTT_SIG_LEN 16
@@ -196,6 +195,8 @@ struct arena_info {
 	struct mutex err_lock;
 	int log_index[2];
 };
+
+struct badblocks;
 
 /**
  * struct btt - handle for a BTT instance

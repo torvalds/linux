@@ -117,12 +117,4 @@ struct av_sync_data {
 	uint8_t aud_del_ins3;/* DPCD 0002Dh */
 };
 
-/*Travis*/
-static const uint8_t DP_VGA_LVDS_CONVERTER_ID_2[] = "sivarT";
-/*Nutmeg*/
-static const uint8_t DP_VGA_LVDS_CONVERTER_ID_3[] = "dnomlA";
-/*DP to Dual link DVI converter*/
-static const uint8_t DP_DVI_CONVERTER_ID_4[] = "m2DVIa";
-static const uint8_t DP_DVI_CONVERTER_ID_5[] = "3393N2";
-
 #endif /* __DAL_DDC_SERVICE_TYPES_H__ */

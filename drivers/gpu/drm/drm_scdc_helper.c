@@ -125,7 +125,7 @@ ssize_t drm_scdc_write(struct i2c_adapter *adapter, u8 offset,
 EXPORT_SYMBOL(drm_scdc_write);
 
 /**
- * drm_scdc_check_scrambling_status - what is status of scrambling?
+ * drm_scdc_get_scrambling_status - what is status of scrambling?
  * @adapter: I2C adapter for DDC channel
  *
  * Reads the scrambler status over SCDC, and checks the

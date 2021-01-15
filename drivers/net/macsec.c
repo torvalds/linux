@@ -101,6 +101,7 @@ struct pcpu_secy_stats {
  * @real_dev: pointer to underlying netdevice
  * @stats: MACsec device stats
  * @secys: linked list of SecY's on the underlying device
+ * @gro_cells: pointer to the Generic Receive Offload cell
  * @offload: status of offloading on the MACsec device
  */
 struct macsec_dev {

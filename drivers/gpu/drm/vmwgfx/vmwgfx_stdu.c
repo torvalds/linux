@@ -512,7 +512,7 @@ static void vmw_stdu_bo_fifo_commit(struct vmw_kms_dirty *dirty)
 	cmd->body.host.mipmap = 0;
 	cmd->body.transfer = ddirty->transfer;
 	suffix->suffixSize = sizeof(*suffix);
-	suffix->maximumOffset = ddirty->buf->base.num_pages * PAGE_SIZE;
+	suffix->maximumOffset = ddirty->buf->base.base.size;
 
 	if (ddirty->transfer == SVGA3D_WRITE_HOST_VRAM) {
 		blit_size += sizeof(struct vmw_stdu_update);
@@ -1238,7 +1238,7 @@ static uint32_t vmw_stdu_bo_populate_update(struct vmw_du_update_plane  *update,
 	vfbbo = container_of(update->vfb, typeof(*vfbbo), base);
 
 	suffix->suffixSize = sizeof(*suffix);
-	suffix->maximumOffset = vfbbo->buffer->base.num_pages * PAGE_SIZE;
+	suffix->maximumOffset = vfbbo->buffer->base.base.size;
 
 	vmw_stdu_populate_update(&suffix[1], stdu->base.unit, bb->x1, bb->x2,
 				 bb->y1, bb->y2);

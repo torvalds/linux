@@ -691,21 +691,23 @@ static ssize_t zonefs_file_dio_append(struct kiocb *iocb, struct iov_iter *from)
 		bio->bi_opf |= REQ_FUA;
 
 	ret = bio_iov_iter_get_pages(bio, from);
-	if (unlikely(ret)) {
-		bio_io_error(bio);
-		return ret;
-	}
+	if (unlikely(ret))
+		goto out_release;
+
 	size = bio->bi_iter.bi_size;
-	task_io_account_write(ret);
+	task_io_account_write(size);
 
 	if (iocb->ki_flags & IOCB_HIPRI)
 		bio_set_polled(bio, iocb);
 
 	ret = submit_bio_wait(bio);
 
+	zonefs_file_write_dio_end_io(iocb, size, ret, 0);
+
+out_release:
+	bio_release_pages(bio, false);
 	bio_put(bio);
 
-	zonefs_file_write_dio_end_io(iocb, size, ret, 0);
 	if (ret >= 0) {
 		iocb->ki_pos += size;
 		return size;

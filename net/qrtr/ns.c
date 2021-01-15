@@ -517,10 +517,6 @@ static int ctrl_cmd_new_server(struct sockaddr_qrtr *from,
 		port = from->sq_port;
 	}
 
-	/* Don't accept spoofed messages */
-	if (from->sq_node != node_id)
-		return -EINVAL;
-
 	srv = server_add(service, instance, node_id, port);
 	if (!srv)
 		return -EINVAL;
@@ -558,10 +554,6 @@ static int ctrl_cmd_del_server(struct sockaddr_qrtr *from,
 		node_id = from->sq_node;
 		port = from->sq_port;
 	}
-
-	/* Don't accept spoofed messages */
-	if (from->sq_node != node_id)
-		return -EINVAL;
 
 	/* Local servers may only unregister themselves */
 	if (from->sq_node == qrtr_ns.local_node && from->sq_port != port)

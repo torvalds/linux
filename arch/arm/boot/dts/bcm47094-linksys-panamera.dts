@@ -123,31 +123,11 @@
 		};
 	};
 
-	mdio-bus-mux {
-		#address-cells = <1>;
-		#size-cells = <0>;
+	mdio-bus-mux@18003000 {
 
 		/* BIT(9) = 1 => external mdio */
-		mdio_ext: mdio@200 {
+		mdio@200 {
 			reg = <0x200>;
-			#address-cells = <1>;
-			#size-cells = <0>;
-		};
-	};
-
-	mdio-mii-mux {
-		compatible = "mdio-mux-mmioreg";
-		mdio-parent-bus = <&mdio_ext>;
-		#address-cells = <1>;
-		#size-cells = <0>;
-		reg = <0x1800c1c0 0x4>;
-
-		/* BIT(6) = mdc, BIT(7) = mdio */
-		mux-mask = <0xc0>;
-
-		mdio-mii@0 {
-			/* Enable MII function */
-			reg = <0x0>;
 			#address-cells = <1>;
 			#size-cells = <0>;
 
@@ -159,6 +139,8 @@
 				reset-names = "robo_reset";
 				reg = <0>;
 				dsa,member = <1 0>;
+				pinctrl-names = "default";
+				pinctrl-0 = <&pinmux_mdio>;
 
 				ports {
 					#address-cells = <1>;
@@ -219,9 +201,6 @@
 	dsa,member = <0 0>;
 
 	ports {
-		#address-cells = <1>;
-		#size-cells = <0>;
-
 		port@1 {
 			reg = <1>;
 			label = "lan7";
@@ -240,6 +219,30 @@
 		port@4 {
 			reg = <4>;
 			label = "wan";
+		};
+
+		port@5 {
+			reg = <5>;
+			ethernet = <&gmac0>;
+			label = "cpu";
+			status = "disabled";
+
+			fixed-link {
+				speed = <1000>;
+				full-duplex;
+			};
+		};
+
+		port@7 {
+			reg = <7>;
+			ethernet = <&gmac1>;
+			label = "cpu";
+			status = "disabled";
+
+			fixed-link {
+				speed = <1000>;
+				full-duplex;
+			};
 		};
 
 		port@8 {
@@ -267,4 +270,45 @@
 
 &usb3_phy {
 	status = "okay";
+};
+
+&nandcs {
+	partitions {
+		compatible = "fixed-partitions";
+		#address-cells = <1>;
+		#size-cells = <1>;
+
+		partition@0 {
+			label = "boot";
+			reg = <0x0000000 0x0080000>;
+			read-only;
+		};
+
+		partition@80000 {
+			label = "nvram";
+			reg = <0x080000 0x0100000>;
+		};
+
+		partition@180000{
+			label = "devinfo";
+			reg = <0x0180000 0x080000>;
+		};
+
+		partition@200000 {
+			label = "firmware";
+			reg = <0x0200000 0x01D00000>;
+			compatible = "brcm,trx";
+		};
+
+		partition@1F00000 {
+			label = "failsafe";
+			reg = <0x01F00000 0x01D00000>;
+			read-only;
+		};
+
+		partition@5200000 {
+			label = "system";
+			reg = <0x05200000 0x02E00000>;
+		};
+	};
 };

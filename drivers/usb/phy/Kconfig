@@ -144,7 +144,7 @@ config USB_MV_OTG
 	depends on USB_GADGET || !USB_GADGET # if USB_GADGET=m, this can't be 'y'
 	select USB_PHY
 	help
-	  Say Y here if you want to build Marvell USB OTG transciever
+	  Say Y here if you want to build Marvell USB OTG transceiver
 	  driver in kernel (including PXA and MMP series). This driver
 	  implements role switch between EHCI host driver and gadget driver.
 

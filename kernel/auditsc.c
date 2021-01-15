@@ -102,8 +102,6 @@ struct audit_aux_data {
 	int			type;
 };
 
-#define AUDIT_AUX_IPCPERM	0
-
 /* Number of target pids per aux struct. */
 #define AUDIT_AUX_PIDS	16
 
@@ -552,11 +550,11 @@ static int audit_filter_rules(struct task_struct *tsk,
 			break;
 
 		case AUDIT_EXIT:
-			if (ctx && ctx->return_valid)
+			if (ctx && ctx->return_valid != AUDITSC_INVALID)
 				result = audit_comparator(ctx->return_code, f->op, f->val);
 			break;
 		case AUDIT_SUCCESS:
-			if (ctx && ctx->return_valid) {
+			if (ctx && ctx->return_valid != AUDITSC_INVALID) {
 				if (f->val)
 					result = audit_comparator(ctx->return_valid, f->op, AUDITSC_SUCCESS);
 				else
@@ -929,6 +927,8 @@ static inline struct audit_context *audit_alloc_context(enum audit_state state)
 	context->prio = state == AUDIT_RECORD_CONTEXT ? ~0ULL : 0;
 	INIT_LIST_HEAD(&context->killed_trees);
 	INIT_LIST_HEAD(&context->names_list);
+	context->fds[0] = -1;
+	context->return_valid = AUDITSC_INVALID;
 	return context;
 }
 
@@ -952,7 +952,7 @@ int audit_alloc(struct task_struct *tsk)
 
 	state = audit_filter_task(tsk, &key);
 	if (state == AUDIT_DISABLED) {
-		clear_tsk_thread_flag(tsk, TIF_SYSCALL_AUDIT);
+		clear_task_syscall_work(tsk, SYSCALL_AUDIT);
 		return 0;
 	}
 
@@ -964,7 +964,7 @@ int audit_alloc(struct task_struct *tsk)
 	context->filterkey = key;
 
 	audit_set_context(tsk, context);
-	set_tsk_thread_flag(tsk, TIF_SYSCALL_AUDIT);
+	set_task_syscall_work(tsk, SYSCALL_AUDIT);
 	return 0;
 }
 
@@ -1367,7 +1367,10 @@ static void audit_log_name(struct audit_context *context, struct audit_names *n,
 			/* name was specified as a relative path and the
 			 * directory component is the cwd
 			 */
-			audit_log_d_path(ab, " name=", &context->pwd);
+			if (context->pwd.dentry && context->pwd.mnt)
+				audit_log_d_path(ab, " name=", &context->pwd);
+			else
+				audit_log_format(ab, " name=(null)");
 			break;
 		default:
 			/* log the name's directory component */
@@ -1435,9 +1438,6 @@ static void audit_log_proctitle(void)
 	struct audit_context *context = audit_context();
 	struct audit_buffer *ab;
 
-	if (!context || context->dummy)
-		return;
-
 	ab = audit_log_start(context, GFP_KERNEL, AUDIT_PROCTITLE);
 	if (!ab)
 		return;	/* audit_panic or being filtered */
@@ -1487,7 +1487,7 @@ static void audit_log_exit(void)
 			 context->arch, context->major);
 	if (context->personality != PER_LINUX)
 		audit_log_format(ab, " per=%lx", context->personality);
-	if (context->return_valid)
+	if (context->return_valid != AUDITSC_INVALID)
 		audit_log_format(ab, " success=%s exit=%ld",
 				 (context->return_valid==AUDITSC_SUCCESS)?"yes":"no",
 				 context->return_code);
@@ -1624,7 +1624,7 @@ void __audit_free(struct task_struct *tsk)
 	 * need to log via audit_log_exit().
 	 */
 	if (tsk == current && !context->dummy && context->in_syscall) {
-		context->return_valid = 0;
+		context->return_valid = AUDITSC_INVALID;
 		context->return_code = 0;
 
 		audit_filter_syscall(tsk, context,
@@ -1866,6 +1866,8 @@ static struct audit_names *audit_alloc_name(struct audit_context *context,
 	list_add_tail(&aname->list, &context->names_list);
 
 	context->name_count++;
+	if (!context->pwd.dentry)
+		get_fs_pwd(current->fs, &context->pwd);
 	return aname;
 }
 
@@ -1894,20 +1896,6 @@ __audit_reusename(const __user char *uptr)
 	return NULL;
 }
 
-inline void _audit_getcwd(struct audit_context *context)
-{
-	if (!context->pwd.dentry)
-		get_fs_pwd(current->fs, &context->pwd);
-}
-
-void __audit_getcwd(void)
-{
-	struct audit_context *context = audit_context();
-
-	if (context->in_syscall)
-		_audit_getcwd(context);
-}
-
 /**
  * __audit_getname - add a name to the list
  * @name: name to add
@@ -1931,8 +1919,6 @@ void __audit_getname(struct filename *name)
 	n->name_len = AUDIT_NAME_FULL;
 	name->aname = n;
 	name->refcnt++;
-
-	_audit_getcwd(context);
 }
 
 static inline int audit_copy_fcaps(struct audit_names *name,

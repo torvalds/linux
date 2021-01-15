@@ -228,12 +228,13 @@ struct signal_struct {
 					 * credential calculations
 					 * (notably. ptrace)
 					 * Deprecated do not use in new code.
-					 * Use exec_update_mutex instead.
+					 * Use exec_update_lock instead.
 					 */
-	struct mutex exec_update_mutex;	/* Held while task_struct is being
-					 * updated during exec, and may have
-					 * inconsistent permissions.
-					 */
+	struct rw_semaphore exec_update_lock;	/* Held while task_struct is
+						 * being updated during exec,
+						 * and may have inconsistent
+						 * permissions.
+						 */
 } __randomize_layout;
 
 /*
@@ -353,9 +354,21 @@ static inline int restart_syscall(void)
 	return -ERESTARTNOINTR;
 }
 
-static inline int signal_pending(struct task_struct *p)
+static inline int task_sigpending(struct task_struct *p)
 {
 	return unlikely(test_tsk_thread_flag(p,TIF_SIGPENDING));
+}
+
+static inline int signal_pending(struct task_struct *p)
+{
+	/*
+	 * TIF_NOTIFY_SIGNAL isn't really a signal, but it requires the same
+	 * behavior in terms of ensuring that we break out of wait loops
+	 * so that notify signal callbacks can be processed.
+	 */
+	if (unlikely(test_tsk_thread_flag(p, TIF_NOTIFY_SIGNAL)))
+		return 1;
+	return task_sigpending(p);
 }
 
 static inline int __fatal_signal_pending(struct task_struct *p)
@@ -365,7 +378,7 @@ static inline int __fatal_signal_pending(struct task_struct *p)
 
 static inline int fatal_signal_pending(struct task_struct *p)
 {
-	return signal_pending(p) && __fatal_signal_pending(p);
+	return task_sigpending(p) && __fatal_signal_pending(p);
 }
 
 static inline int signal_pending_state(long state, struct task_struct *p)
@@ -502,7 +515,7 @@ extern int set_user_sigmask(const sigset_t __user *umask, size_t sigsetsize);
 static inline void restore_saved_sigmask_unless(bool interrupted)
 {
 	if (interrupted)
-		WARN_ON(!test_thread_flag(TIF_SIGPENDING));
+		WARN_ON(!signal_pending(current));
 	else
 		restore_saved_sigmask();
 }

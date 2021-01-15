@@ -300,7 +300,7 @@ end:
 	return result;
 }
 
-/**
+/*
  * amdgpu_debugfs_regs_read - Callback for reading MMIO registers
  */
 static ssize_t amdgpu_debugfs_regs_read(struct file *f, char __user *buf,
@@ -309,7 +309,7 @@ static ssize_t amdgpu_debugfs_regs_read(struct file *f, char __user *buf,
 	return amdgpu_debugfs_process_reg_op(true, f, buf, size, pos);
 }
 
-/**
+/*
  * amdgpu_debugfs_regs_write - Callback for writing MMIO registers
  */
 static ssize_t amdgpu_debugfs_regs_write(struct file *f, const char __user *buf,
@@ -1427,7 +1427,7 @@ static void amdgpu_ib_preempt_job_recovery(struct drm_gpu_scheduler *sched)
 	struct dma_fence *fence;
 
 	spin_lock(&sched->job_list_lock);
-	list_for_each_entry(s_job, &sched->ring_mirror_list, node) {
+	list_for_each_entry(s_job, &sched->pending_list, list) {
 		fence = sched->ops->run_job(s_job);
 		dma_fence_put(fence);
 	}
@@ -1459,10 +1459,10 @@ static void amdgpu_ib_preempt_mark_partial_job(struct amdgpu_ring *ring)
 
 no_preempt:
 	spin_lock(&sched->job_list_lock);
-	list_for_each_entry_safe(s_job, tmp, &sched->ring_mirror_list, node) {
+	list_for_each_entry_safe(s_job, tmp, &sched->pending_list, list) {
 		if (dma_fence_is_signaled(&s_job->s_fence->finished)) {
 			/* remove job from ring_mirror_list */
-			list_del_init(&s_job->node);
+			list_del_init(&s_job->list);
 			sched->ops->free_job(s_job);
 			continue;
 		}

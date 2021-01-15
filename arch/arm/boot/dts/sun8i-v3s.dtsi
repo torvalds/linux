@@ -348,6 +348,12 @@
 			};
 
 			/omit-if-no-ref/
+			i2c1_pb_pins: i2c1-pb-pins {
+				pins = "PB8", "PB9";
+				function = "i2c1";
+			};
+
+			/omit-if-no-ref/
 			i2c1_pe_pins: i2c1-pe-pins {
 				pins = "PE21", "PE22";
 				function = "i2c1";
@@ -539,7 +545,7 @@
 		gic: interrupt-controller@1c81000 {
 			compatible = "arm,gic-400";
 			reg = <0x01c81000 0x1000>,
-			      <0x01c82000 0x1000>,
+			      <0x01c82000 0x2000>,
 			      <0x01c84000 0x2000>,
 			      <0x01c86000 0x2000>;
 			interrupt-controller;

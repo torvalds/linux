@@ -291,7 +291,7 @@ out_disable_clk:
 	return ret;
 }
 
-static int __exit replicator_remove(struct device *dev)
+static int replicator_remove(struct device *dev)
 {
 	struct replicator_drvdata *drvdata = dev_get_drvdata(dev);
 
@@ -318,7 +318,7 @@ static int static_replicator_probe(struct platform_device *pdev)
 	return ret;
 }
 
-static int __exit static_replicator_remove(struct platform_device *pdev)
+static int static_replicator_remove(struct platform_device *pdev)
 {
 	replicator_remove(&pdev->dev);
 	pm_runtime_disable(&pdev->dev);
@@ -374,7 +374,7 @@ static struct platform_driver static_replicator_driver = {
 	.remove         = static_replicator_remove,
 	.driver         = {
 		.name   = "coresight-static-replicator",
-		.owner	= THIS_MODULE,
+		/* THIS_MODULE is taken care of by platform_driver_register() */
 		.of_match_table = of_match_ptr(static_replicator_match),
 		.acpi_match_table = ACPI_PTR(static_replicator_acpi_ids),
 		.pm	= &replicator_dev_pm_ops,
@@ -388,7 +388,7 @@ static int dynamic_replicator_probe(struct amba_device *adev,
 	return replicator_probe(&adev->dev, &adev->res);
 }
 
-static int __exit dynamic_replicator_remove(struct amba_device *adev)
+static int dynamic_replicator_remove(struct amba_device *adev)
 {
 	return replicator_remove(&adev->dev);
 }

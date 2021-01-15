@@ -700,6 +700,6 @@ bool optc1_get_crc(struct timing_generator *optc,
 bool optc1_is_two_pixels_per_containter(const struct dc_crtc_timing *timing);
 
 void optc1_set_vtg_params(struct timing_generator *optc,
-		const struct dc_crtc_timing *dc_crtc_timing);
+		const struct dc_crtc_timing *dc_crtc_timing, bool program_fp2);
 
 #endif /* __DC_TIMING_GENERATOR_DCN10_H__ */

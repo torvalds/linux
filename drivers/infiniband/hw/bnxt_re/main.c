@@ -608,7 +608,7 @@ static ssize_t hw_rev_show(struct device *device, struct device_attribute *attr,
 	struct bnxt_re_dev *rdev =
 		rdma_device_to_drv_device(device, struct bnxt_re_dev, ibdev);
 
-	return scnprintf(buf, PAGE_SIZE, "0x%x\n", rdev->en_dev->pdev->vendor);
+	return sysfs_emit(buf, "0x%x\n", rdev->en_dev->pdev->vendor);
 }
 static DEVICE_ATTR_RO(hw_rev);
 
@@ -618,7 +618,7 @@ static ssize_t hca_type_show(struct device *device,
 	struct bnxt_re_dev *rdev =
 		rdma_device_to_drv_device(device, struct bnxt_re_dev, ibdev);
 
-	return scnprintf(buf, PAGE_SIZE, "%s\n", rdev->ibdev.node_desc);
+	return sysfs_emit(buf, "%s\n", rdev->ibdev.node_desc);
 }
 static DEVICE_ATTR_RO(hca_type);
 
@@ -646,6 +646,7 @@ static const struct ib_device_ops bnxt_re_dev_ops = {
 	.create_cq = bnxt_re_create_cq,
 	.create_qp = bnxt_re_create_qp,
 	.create_srq = bnxt_re_create_srq,
+	.create_user_ah = bnxt_re_create_ah,
 	.dealloc_driver = bnxt_re_dealloc_driver,
 	.dealloc_pd = bnxt_re_dealloc_pd,
 	.dealloc_ucontext = bnxt_re_dealloc_ucontext,
@@ -700,35 +701,6 @@ static int bnxt_re_register_ib(struct bnxt_re_dev *rdev)
 	ibdev->num_comp_vectors	= rdev->num_msix - 1;
 	ibdev->dev.parent = &rdev->en_dev->pdev->dev;
 	ibdev->local_dma_lkey = BNXT_QPLIB_RSVD_LKEY;
-
-	/* User space */
-	ibdev->uverbs_cmd_mask =
-			(1ull << IB_USER_VERBS_CMD_GET_CONTEXT)		|
-			(1ull << IB_USER_VERBS_CMD_QUERY_DEVICE)	|
-			(1ull << IB_USER_VERBS_CMD_QUERY_PORT)		|
-			(1ull << IB_USER_VERBS_CMD_ALLOC_PD)		|
-			(1ull << IB_USER_VERBS_CMD_DEALLOC_PD)		|
-			(1ull << IB_USER_VERBS_CMD_REG_MR)		|
-			(1ull << IB_USER_VERBS_CMD_REREG_MR)		|
-			(1ull << IB_USER_VERBS_CMD_DEREG_MR)		|
-			(1ull << IB_USER_VERBS_CMD_CREATE_COMP_CHANNEL) |
-			(1ull << IB_USER_VERBS_CMD_CREATE_CQ)		|
-			(1ull << IB_USER_VERBS_CMD_RESIZE_CQ)		|
-			(1ull << IB_USER_VERBS_CMD_DESTROY_CQ)		|
-			(1ull << IB_USER_VERBS_CMD_CREATE_QP)		|
-			(1ull << IB_USER_VERBS_CMD_MODIFY_QP)		|
-			(1ull << IB_USER_VERBS_CMD_QUERY_QP)		|
-			(1ull << IB_USER_VERBS_CMD_DESTROY_QP)		|
-			(1ull << IB_USER_VERBS_CMD_CREATE_SRQ)		|
-			(1ull << IB_USER_VERBS_CMD_MODIFY_SRQ)		|
-			(1ull << IB_USER_VERBS_CMD_QUERY_SRQ)		|
-			(1ull << IB_USER_VERBS_CMD_DESTROY_SRQ)		|
-			(1ull << IB_USER_VERBS_CMD_CREATE_AH)		|
-			(1ull << IB_USER_VERBS_CMD_MODIFY_AH)		|
-			(1ull << IB_USER_VERBS_CMD_QUERY_AH)		|
-			(1ull << IB_USER_VERBS_CMD_DESTROY_AH);
-	/* POLL_CQ and REQ_NOTIFY_CQ is directly handled in libbnxt_re */
-
 
 	rdma_set_device_sysfs_group(ibdev, &bnxt_re_dev_attr_group);
 	ib_set_device_ops(ibdev, &bnxt_re_dev_ops);

@@ -589,11 +589,7 @@ static int drm_dev_init(struct drm_device *dev,
 
 	kref_init(&dev->ref);
 	dev->dev = get_device(parent);
-#ifdef CONFIG_DRM_LEGACY
-	dev->driver = (struct drm_driver *)driver;
-#else
 	dev->driver = driver;
-#endif
 
 	INIT_LIST_HEAD(&dev->managed.resources);
 	spin_lock_init(&dev->managed.lock);
@@ -675,11 +671,8 @@ static int devm_drm_dev_init(struct device *parent,
 	if (ret)
 		return ret;
 
-	ret = devm_add_action(parent, devm_drm_dev_init_release, dev);
-	if (ret)
-		devm_drm_dev_init_release(dev);
-
-	return ret;
+	return devm_add_action_or_reset(parent,
+					devm_drm_dev_init_release, dev);
 }
 
 void *__devm_drm_dev_alloc(struct device *parent,
@@ -896,8 +889,6 @@ int drm_dev_register(struct drm_device *dev, unsigned long flags)
 
 	if (drm_core_check_feature(dev, DRIVER_MODESET))
 		drm_modeset_register_all(dev);
-
-	ret = 0;
 
 	DRM_INFO("Initialized %s %d.%d.%d %s for %s on minor %d\n",
 		 driver->name, driver->major, driver->minor,

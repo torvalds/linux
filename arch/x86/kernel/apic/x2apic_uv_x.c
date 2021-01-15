@@ -33,7 +33,7 @@ static union uvh_apicid		uvh_apicid;
 static int			uv_node_id;
 
 /* Unpack AT/OEM/TABLE ID's to be NULL terminated strings */
-static u8 uv_archtype[UV_AT_SIZE];
+static u8 uv_archtype[UV_AT_SIZE + 1];
 static u8 oem_id[ACPI_OEM_ID_SIZE + 1];
 static u8 oem_table_id[ACPI_OEM_TABLE_ID_SIZE + 1];
 
@@ -161,7 +161,7 @@ static int __init early_set_hub_type(void)
 	/* UV4/4A only have a revision difference */
 	case UV4_HUB_PART_NUMBER:
 		uv_min_hub_revision_id = node_id.s.revision
-					 + UV4_HUB_REVISION_BASE;
+					 + UV4_HUB_REVISION_BASE - 1;
 		uv_hub_type_set(UV4);
 		if (uv_min_hub_revision_id == UV4A_HUB_REVISION_BASE)
 			uv_hub_type_set(UV4|UV4A);
@@ -320,7 +320,7 @@ static int __init decode_arch_type(unsigned long ptr)
 
 	if (n > 0 && n < sizeof(uv_ate->archtype)) {
 		pr_info("UV: UVarchtype received from BIOS\n");
-		uv_stringify(UV_AT_SIZE, uv_archtype, uv_ate->archtype);
+		uv_stringify(sizeof(uv_archtype), uv_archtype, uv_ate->archtype);
 		return 1;
 	}
 	return 0;
@@ -378,7 +378,7 @@ static int __init uv_set_system_type(char *_oem_id, char *_oem_table_id)
 	if (!early_get_arch_type())
 
 		/* If not use OEM ID for UVarchtype */
-		uv_stringify(UV_AT_SIZE, uv_archtype, _oem_id);
+		uv_stringify(sizeof(uv_archtype), uv_archtype, oem_id);
 
 	/* Check if not hubbed */
 	if (strncmp(uv_archtype, "SGI", 3) != 0) {
@@ -501,6 +501,18 @@ enum uv_system_type get_uv_system_type(void)
 {
 	return uv_system_type;
 }
+
+int uv_get_hubless_system(void)
+{
+	return uv_hubless_system;
+}
+EXPORT_SYMBOL_GPL(uv_get_hubless_system);
+
+ssize_t uv_get_archtype(char *buf, int len)
+{
+	return scnprintf(buf, len, "%s/%s", uv_archtype, oem_table_id);
+}
+EXPORT_SYMBOL_GPL(uv_get_archtype);
 
 int is_uv_system(void)
 {
@@ -716,9 +728,9 @@ static void uv_send_IPI_one(int cpu, int vector)
 	unsigned long dmode, val;
 
 	if (vector == NMI_VECTOR)
-		dmode = dest_NMI;
+		dmode = APIC_DELIVERY_MODE_NMI;
 	else
-		dmode = dest_Fixed;
+		dmode = APIC_DELIVERY_MODE_FIXED;
 
 	val = (1UL << UVH_IPI_INT_SEND_SHFT) |
 		(apicid << UVH_IPI_INT_APIC_ID_SHFT) |
@@ -820,15 +832,13 @@ static struct apic apic_x2apic_uv_x __ro_after_init = {
 	.apic_id_valid			= uv_apic_id_valid,
 	.apic_id_registered		= uv_apic_id_registered,
 
-	.irq_delivery_mode		= dest_Fixed,
-	.irq_dest_mode			= 0, /* Physical */
+	.delivery_mode			= APIC_DELIVERY_MODE_FIXED,
+	.dest_mode_logical		= false,
 
 	.disable_esr			= 0,
-	.dest_logical			= APIC_DEST_LOGICAL,
+
 	.check_apicid_used		= NULL,
-
 	.init_apic_ldr			= uv_init_apic_ldr,
-
 	.ioapic_phys_id_map		= NULL,
 	.setup_apic_routing		= NULL,
 	.cpu_present_to_apicid		= default_cpu_present_to_apicid,
@@ -1603,21 +1613,30 @@ static void check_efi_reboot(void)
 		reboot_type = BOOT_ACPI;
 }
 
-/* Setup user proc fs files */
+/*
+ * User proc fs file handling now deprecated.
+ * Recommend using /sys/firmware/sgi_uv/... instead.
+ */
 static int __maybe_unused proc_hubbed_show(struct seq_file *file, void *data)
 {
+	pr_notice_once("%s: using deprecated /proc/sgi_uv/hubbed, use /sys/firmware/sgi_uv/hub_type\n",
+		       current->comm);
 	seq_printf(file, "0x%x\n", uv_hubbed_system);
 	return 0;
 }
 
 static int __maybe_unused proc_hubless_show(struct seq_file *file, void *data)
 {
+	pr_notice_once("%s: using deprecated /proc/sgi_uv/hubless, use /sys/firmware/sgi_uv/hubless\n",
+		       current->comm);
 	seq_printf(file, "0x%x\n", uv_hubless_system);
 	return 0;
 }
 
 static int __maybe_unused proc_archtype_show(struct seq_file *file, void *data)
 {
+	pr_notice_once("%s: using deprecated /proc/sgi_uv/archtype, use /sys/firmware/sgi_uv/archtype\n",
+		       current->comm);
 	seq_printf(file, "%s/%s\n", uv_archtype, oem_table_id);
 	return 0;
 }

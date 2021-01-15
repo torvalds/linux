@@ -232,32 +232,29 @@ static void dm9000_inblk_32bit(void __iomem *reg, void *data, int count)
 static void dm9000_dumpblk_8bit(void __iomem *reg, int count)
 {
 	int i;
-	int tmp;
 
 	for (i = 0; i < count; i++)
-		tmp = readb(reg);
+		readb(reg);
 }
 
 static void dm9000_dumpblk_16bit(void __iomem *reg, int count)
 {
 	int i;
-	int tmp;
 
 	count = (count + 1) >> 1;
 
 	for (i = 0; i < count; i++)
-		tmp = readw(reg);
+		readw(reg);
 }
 
 static void dm9000_dumpblk_32bit(void __iomem *reg, int count)
 {
 	int i;
-	int tmp;
 
 	count = (count + 3) >> 2;
 
 	for (i = 0; i < count; i++)
-		tmp = readl(reg);
+		readl(reg);
 }
 
 /*

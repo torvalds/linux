@@ -1145,7 +1145,7 @@ static int init_dpm_2_parameters(
 	return result;
 }
 
-int vega10_pp_tables_initialize(struct pp_hwmgr *hwmgr)
+static int vega10_pp_tables_initialize(struct pp_hwmgr *hwmgr)
 {
 	int result = 0;
 	const ATOM_Vega10_POWERPLAYTABLE *powerplay_table;

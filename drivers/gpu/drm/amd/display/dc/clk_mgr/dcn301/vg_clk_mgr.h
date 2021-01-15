@@ -39,5 +39,15 @@ void vg_clk_mgr_construct(struct dc_context *ctx,
 
 void vg_clk_mgr_destroy(struct clk_mgr_internal *clk_mgr);
 
+#include "dcn301_smu.h"
 void vg_notify_wm_ranges(struct clk_mgr *clk_mgr_base);
+
+void vg_get_dpm_table_from_smu(struct clk_mgr_internal *clk_mgr,
+		struct smu_dpm_clks *smu_dpm_clks);
+
+void vg_clk_mgr_helper_populate_bw_params(
+		struct clk_mgr_internal *clk_mgr,
+		struct integrated_info *bios_info,
+		const struct vg_dpm_clocks *clock_table);
+
 #endif //__VG_CLK_MGR_H__

@@ -313,7 +313,7 @@ patternProperties:
           wakeup-latency-us by this duration.
 
       idle-state-name:
-        $ref: /schemas/types.yaml#definitions/string
+        $ref: /schemas/types.yaml#/definitions/string
         description:
           A string used as a descriptive name for the idle state.
 

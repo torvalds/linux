@@ -213,6 +213,8 @@ static void print_hmi_event_info(struct OpalHMIEvent *hmi_evt)
 		"A hypervisor resource error occurred",
 		"CAPP recovery process is in progress",
 	};
+	static DEFINE_RATELIMIT_STATE(rs, DEFAULT_RATELIMIT_INTERVAL,
+				      DEFAULT_RATELIMIT_BURST);
 
 	/* Print things out */
 	if (hmi_evt->version < OpalHMIEvt_V1) {
@@ -240,19 +242,22 @@ static void print_hmi_event_info(struct OpalHMIEvent *hmi_evt)
 		break;
 	}
 
-	printk("%s%s Hypervisor Maintenance interrupt [%s]\n",
-		level, sevstr,
-		hmi_evt->disposition == OpalHMI_DISPOSITION_RECOVERED ?
-		"Recovered" : "Not recovered");
-	error_info = hmi_evt->type < ARRAY_SIZE(hmi_error_types) ?
-			hmi_error_types[hmi_evt->type]
-			: "Unknown";
-	printk("%s Error detail: %s\n", level, error_info);
-	printk("%s	HMER: %016llx\n", level, be64_to_cpu(hmi_evt->hmer));
-	if ((hmi_evt->type == OpalHMI_ERROR_TFAC) ||
-		(hmi_evt->type == OpalHMI_ERROR_TFMR_PARITY))
-		printk("%s	TFMR: %016llx\n", level,
+	if (hmi_evt->severity != OpalHMI_SEV_NO_ERROR || __ratelimit(&rs)) {
+		printk("%s%s Hypervisor Maintenance interrupt [%s]\n",
+			level, sevstr,
+			hmi_evt->disposition == OpalHMI_DISPOSITION_RECOVERED ?
+			"Recovered" : "Not recovered");
+		error_info = hmi_evt->type < ARRAY_SIZE(hmi_error_types) ?
+				hmi_error_types[hmi_evt->type]
+				: "Unknown";
+		printk("%s Error detail: %s\n", level, error_info);
+		printk("%s	HMER: %016llx\n", level,
+					be64_to_cpu(hmi_evt->hmer));
+		if ((hmi_evt->type == OpalHMI_ERROR_TFAC) ||
+			(hmi_evt->type == OpalHMI_ERROR_TFMR_PARITY))
+			printk("%s	TFMR: %016llx\n", level,
 						be64_to_cpu(hmi_evt->tfmr));
+	}
 
 	if (hmi_evt->version < OpalHMIEvt_V2)
 		return;

@@ -30,6 +30,18 @@
 struct amdgpu_device;
 struct amdgpu_iv_entry;
 
+struct amdgpu_ih_regs {
+	uint32_t ih_rb_base;
+	uint32_t ih_rb_base_hi;
+	uint32_t ih_rb_cntl;
+	uint32_t ih_rb_wptr;
+	uint32_t ih_rb_rptr;
+	uint32_t ih_doorbell_rptr;
+	uint32_t ih_rb_wptr_addr_lo;
+	uint32_t ih_rb_wptr_addr_hi;
+	uint32_t psp_reg_id;
+};
+
 /*
  * R6xx+ IH ring
  */
@@ -53,6 +65,7 @@ struct amdgpu_ih_ring {
 	bool                    enabled;
 	unsigned		rptr;
 	atomic_t		lock;
+	struct amdgpu_ih_regs	ih_regs;
 };
 
 /* provided by the ih block */
@@ -72,6 +85,10 @@ struct amdgpu_ih_funcs {
 int amdgpu_ih_ring_init(struct amdgpu_device *adev, struct amdgpu_ih_ring *ih,
 			unsigned ring_size, bool use_bus_addr);
 void amdgpu_ih_ring_fini(struct amdgpu_device *adev, struct amdgpu_ih_ring *ih);
+void amdgpu_ih_ring_write(struct amdgpu_ih_ring *ih, const uint32_t *iv,
+			  unsigned int num_dw);
 int amdgpu_ih_process(struct amdgpu_device *adev, struct amdgpu_ih_ring *ih);
-
+void amdgpu_ih_decode_iv_helper(struct amdgpu_device *adev,
+				struct amdgpu_ih_ring *ih,
+				struct amdgpu_iv_entry *entry);
 #endif

@@ -256,6 +256,28 @@ setup_cmd_nsb()
 	fi
 }
 
+setup_cmd_nsc()
+{
+	local cmd="$*"
+	local rc
+
+	run_cmd_nsc ${cmd}
+	rc=$?
+	if [ $rc -ne 0 ]; then
+		# show user the command if not done so already
+		if [ "$VERBOSE" = "0" ]; then
+			echo "setup command: $cmd"
+		fi
+		echo "failed. stopping tests"
+		if [ "${PAUSE_ON_FAIL}" = "yes" ]; then
+			echo
+			echo "hit enter to continue"
+			read a
+		fi
+		exit $rc
+	fi
+}
+
 # set sysctl values in NS-A
 set_sysctl()
 {
@@ -465,6 +487,36 @@ setup()
 	# tell ns-B how to get to remote addresses of ns-A
 	ip -netns ${NSB} ro add ${NSA_LO_IP}/32 via ${NSA_IP} dev ${NSB_DEV}
 	ip -netns ${NSB} ro add ${NSA_LO_IP6}/128 via ${NSA_IP6} dev ${NSB_DEV}
+
+	set +e
+
+	sleep 1
+}
+
+setup_lla_only()
+{
+	# make sure we are starting with a clean slate
+	kill_procs
+	cleanup 2>/dev/null
+
+	log_debug "Configuring network namespaces"
+	set -e
+
+	create_ns ${NSA} "-" "-"
+	create_ns ${NSB} "-" "-"
+	create_ns ${NSC} "-" "-"
+	connect_ns ${NSA} ${NSA_DEV} "-" "-" \
+		   ${NSB} ${NSB_DEV} "-" "-"
+	connect_ns ${NSA} ${NSA_DEV2} "-" "-" \
+		   ${NSC} ${NSC_DEV}  "-" "-"
+
+	NSA_LINKIP6=$(get_linklocal ${NSA} ${NSA_DEV})
+	NSB_LINKIP6=$(get_linklocal ${NSB} ${NSB_DEV})
+	NSC_LINKIP6=$(get_linklocal ${NSC} ${NSC_DEV})
+
+	create_vrf ${NSA} ${VRF} ${VRF_TABLE} "-" "-"
+	ip -netns ${NSA} link set dev ${NSA_DEV} vrf ${VRF}
+	ip -netns ${NSA} link set dev ${NSA_DEV2} vrf ${VRF}
 
 	set +e
 
@@ -3787,10 +3839,53 @@ use_case_br()
 	setup_cmd_nsb ip li del vlan100 2>/dev/null
 }
 
+# VRF only.
+# ns-A device is connected to both ns-B and ns-C on a single VRF but only has
+# LLA on the interfaces
+use_case_ping_lla_multi()
+{
+	setup_lla_only
+	# only want reply from ns-A
+	setup_cmd_nsb sysctl -qw net.ipv6.icmp.echo_ignore_multicast=1
+	setup_cmd_nsc sysctl -qw net.ipv6.icmp.echo_ignore_multicast=1
+
+	log_start
+	run_cmd_nsb ping -c1 -w1 ${MCAST}%${NSB_DEV}
+	log_test_addr ${MCAST}%${NSB_DEV} $? 0 "Pre cycle, ping out ns-B"
+
+	run_cmd_nsc ping -c1 -w1 ${MCAST}%${NSC_DEV}
+	log_test_addr ${MCAST}%${NSC_DEV} $? 0 "Pre cycle, ping out ns-C"
+
+	# cycle/flap the first ns-A interface
+	setup_cmd ip link set ${NSA_DEV} down
+	setup_cmd ip link set ${NSA_DEV} up
+	sleep 1
+
+	log_start
+	run_cmd_nsb ping -c1 -w1 ${MCAST}%${NSB_DEV}
+	log_test_addr ${MCAST}%${NSB_DEV} $? 0 "Post cycle ${NSA} ${NSA_DEV}, ping out ns-B"
+	run_cmd_nsc ping -c1 -w1 ${MCAST}%${NSC_DEV}
+	log_test_addr ${MCAST}%${NSC_DEV} $? 0 "Post cycle ${NSA} ${NSA_DEV}, ping out ns-C"
+
+	# cycle/flap the second ns-A interface
+	setup_cmd ip link set ${NSA_DEV2} down
+	setup_cmd ip link set ${NSA_DEV2} up
+	sleep 1
+
+	log_start
+	run_cmd_nsb ping -c1 -w1 ${MCAST}%${NSB_DEV}
+	log_test_addr ${MCAST}%${NSB_DEV} $? 0 "Post cycle ${NSA} ${NSA_DEV2}, ping out ns-B"
+	run_cmd_nsc ping -c1 -w1 ${MCAST}%${NSC_DEV}
+	log_test_addr ${MCAST}%${NSC_DEV} $? 0 "Post cycle ${NSA} ${NSA_DEV2}, ping out ns-C"
+}
+
 use_cases()
 {
 	log_section "Use cases"
+	log_subsection "Device enslaved to bridge"
 	use_case_br
+	log_subsection "Ping LLA with multiple interfaces"
+	use_case_ping_lla_multi
 }
 
 ################################################################################

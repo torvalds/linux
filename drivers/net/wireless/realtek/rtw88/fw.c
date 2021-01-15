@@ -13,6 +13,7 @@
 #include "debug.h"
 #include "util.h"
 #include "wow.h"
+#include "ps.h"
 
 static void rtw_fw_c2h_cmd_handle_ext(struct rtw_dev *rtwdev,
 				      struct sk_buff *skb)
@@ -182,6 +183,9 @@ void rtw_fw_c2h_cmd_rx_irqsafe(struct rtw_dev *rtwdev, u32 pkt_offset,
 	switch (c2h->id) {
 	case C2H_BT_MP_INFO:
 		rtw_coex_info_response(rtwdev, skb);
+		break;
+	case C2H_WLAN_RFON:
+		complete(&rtwdev->lps_leave_check);
 		break;
 	default:
 		/* pass offset for further operation */
@@ -628,7 +632,7 @@ void rtw_fw_set_nlo_info(struct rtw_dev *rtwdev, bool enable)
 
 	SET_NLO_FUN_EN(h2c_pkt, enable);
 	if (enable) {
-		if (rtw_fw_lps_deep_mode)
+		if (rtw_get_lps_deep_mode(rtwdev) != LPS_DEEP_MODE_NONE)
 			SET_NLO_PS_32K(h2c_pkt, enable);
 		SET_NLO_IGNORE_SECURITY(h2c_pkt, enable);
 		SET_NLO_LOC_NLO_INFO(h2c_pkt, loc_nlo);
@@ -1473,7 +1477,7 @@ static bool rtw_fw_dump_check_size(struct rtw_dev *rtwdev,
 	case RTW_FW_FIFO_SEL_RX:
 		if ((start_addr + size) > rtwdev->chip->fw_fifo_addr[sel])
 			return false;
-		/*fall through*/
+		fallthrough;
 	default:
 		return true;
 	}
@@ -1482,7 +1486,7 @@ static bool rtw_fw_dump_check_size(struct rtw_dev *rtwdev,
 int rtw_fw_dump_fifo(struct rtw_dev *rtwdev, u8 fifo_sel, u32 addr, u32 size,
 		     u32 *buffer)
 {
-	if (!rtwdev->chip->fw_fifo_addr) {
+	if (!rtwdev->chip->fw_fifo_addr[0]) {
 		rtw_dbg(rtwdev, RTW_DBG_FW, "chip not support dump fw fifo\n");
 		return -ENOTSUPP;
 	}

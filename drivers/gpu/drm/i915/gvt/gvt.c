@@ -312,7 +312,7 @@ int intel_gvt_init_device(struct drm_i915_private *i915)
 
 	gvt_dbg_core("init gvt device\n");
 
-	idr_init(&gvt->vgpu_idr);
+	idr_init_base(&gvt->vgpu_idr, 1);
 	spin_lock_init(&gvt->scheduler.mmio_context_lock);
 	mutex_init(&gvt->lock);
 	mutex_init(&gvt->sched_lock);
@@ -406,7 +406,16 @@ out_clean_idr:
 }
 
 int
-intel_gvt_register_hypervisor(struct intel_gvt_mpt *m)
+intel_gvt_pm_resume(struct intel_gvt *gvt)
+{
+	intel_gvt_restore_fence(gvt);
+	intel_gvt_restore_mmio(gvt);
+	intel_gvt_restore_ggtt(gvt);
+	return 0;
+}
+
+int
+intel_gvt_register_hypervisor(const struct intel_gvt_mpt *m)
 {
 	int ret;
 	void *gvt;

@@ -463,6 +463,15 @@ config DM_MULTIPATH_HST
 
 	  If unsure, say N.
 
+config DM_MULTIPATH_IOA
+	tristate "I/O Path Selector based on CPU submission"
+	depends on DM_MULTIPATH
+	help
+	  This path selector selects the path based on the CPU the IO is
+	  executed on and the CPU to path mapping setup at path addition time.
+
+	  If unsure, say N.
+
 config DM_DELAY
 	tristate "I/O delaying target"
 	depends on BLK_DEV_DM
@@ -530,10 +539,21 @@ config DM_VERITY_VERIFY_ROOTHASH_SIG
 	bool "Verity data device root hash signature verification support"
 	depends on DM_VERITY
 	select SYSTEM_DATA_VERIFICATION
-	  help
+	help
 	  Add ability for dm-verity device to be validated if the
 	  pre-generated tree of cryptographic checksums passed has a pkcs#7
 	  signature file that can validate the roothash of the tree.
+
+	  By default, rely on the builtin trusted keyring.
+
+	  If unsure, say N.
+
+config DM_VERITY_VERIFY_ROOTHASH_SIG_SECONDARY_KEYRING
+	bool "Verity data device root hash signature verification with secondary keyring"
+	depends on DM_VERITY_VERIFY_ROOTHASH_SIG
+	depends on SECONDARY_TRUSTED_KEYRING
+	help
+	  Rely on the secondary trusted keyring to verify dm-verity signatures.
 
 	  If unsure, say N.
 

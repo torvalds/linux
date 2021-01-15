@@ -24,6 +24,7 @@
 #include "smb2glob.h"
 #include "cifs_ioctl.h"
 #include "smbdirect.h"
+#include "fs_context.h"
 
 /* Change credits for different ops and return the total number of credits */
 static int
@@ -99,9 +100,10 @@ smb2_add_credits(struct TCP_Server_Info *server,
 	spin_unlock(&server->req_lock);
 	wake_up(&server->request_q);
 
-	if (reconnect_detected)
+	if (reconnect_detected) {
 		cifs_dbg(FYI, "trying to put %d credits from the old server instance %d\n",
 			 add, instance);
+	}
 
 	if (server->tcpStatus == CifsNeedReconnect
 	    || server->tcpStatus == CifsExiting)
@@ -123,7 +125,7 @@ smb2_add_credits(struct TCP_Server_Info *server,
 	default:
 		trace_smb3_add_credits(server->CurrentMid,
 			server->hostname, rc, add);
-		cifs_dbg(FYI, "add %u credits total=%d\n", add, rc);
+		cifs_dbg(FYI, "%s: added %u credits total=%d\n", __func__, add, rc);
 	}
 }
 
@@ -135,6 +137,11 @@ smb2_set_credits(struct TCP_Server_Info *server, const int val)
 	if (val == 1)
 		server->reconnect_instance++;
 	spin_unlock(&server->req_lock);
+
+	trace_smb3_set_credits(server->CurrentMid,
+			server->hostname, val, val);
+	cifs_dbg(FYI, "%s: set %u credits\n", __func__, val);
+
 	/* don't log while holding the lock */
 	if (val == 1)
 		cifs_dbg(FYI, "set credits to 1 due to smb2 reconnect\n");
@@ -201,6 +208,7 @@ smb2_wait_mtu_credits(struct TCP_Server_Info *server, unsigned int size,
 				DIV_ROUND_UP(*num, SMB2_MAX_BUFFER_SIZE);
 			credits->instance = server->reconnect_instance;
 			server->credits -= credits->value;
+			scredits = server->credits;
 			server->in_flight++;
 			if (server->in_flight > server->max_in_flight)
 				server->max_in_flight = server->in_flight;
@@ -208,6 +216,12 @@ smb2_wait_mtu_credits(struct TCP_Server_Info *server, unsigned int size,
 		}
 	}
 	spin_unlock(&server->req_lock);
+
+	trace_smb3_add_credits(server->CurrentMid,
+			server->hostname, scredits, -(credits->value));
+	cifs_dbg(FYI, "%s: removed %u credits total=%d\n",
+			__func__, credits->value, scredits);
+
 	return rc;
 }
 
@@ -217,13 +231,17 @@ smb2_adjust_credits(struct TCP_Server_Info *server,
 		    const unsigned int payload_size)
 {
 	int new_val = DIV_ROUND_UP(payload_size, SMB2_MAX_BUFFER_SIZE);
+	int scredits;
 
 	if (!credits->value || credits->value == new_val)
 		return 0;
 
 	if (credits->value < new_val) {
-		WARN_ONCE(1, "request has less credits (%d) than required (%d)",
-			  credits->value, new_val);
+		trace_smb3_too_many_credits(server->CurrentMid,
+				server->hostname, 0, credits->value - new_val);
+		cifs_server_dbg(VFS, "request has less credits (%d) than required (%d)",
+				credits->value, new_val);
+
 		return -ENOTSUPP;
 	}
 
@@ -231,15 +249,24 @@ smb2_adjust_credits(struct TCP_Server_Info *server,
 
 	if (server->reconnect_instance != credits->instance) {
 		spin_unlock(&server->req_lock);
+		trace_smb3_reconnect_detected(server->CurrentMid,
+			server->hostname, 0, 0);
 		cifs_server_dbg(VFS, "trying to return %d credits to old session\n",
 			 credits->value - new_val);
 		return -EAGAIN;
 	}
 
 	server->credits += credits->value - new_val;
+	scredits = server->credits;
 	spin_unlock(&server->req_lock);
 	wake_up(&server->request_q);
 	credits->value = new_val;
+
+	trace_smb3_add_credits(server->CurrentMid,
+			server->hostname, scredits, credits->value - new_val);
+	cifs_dbg(FYI, "%s: adjust added %u credits total=%d\n",
+			__func__, credits->value - new_val, scredits);
+
 	return 0;
 }
 
@@ -264,7 +291,7 @@ smb2_revert_current_mid(struct TCP_Server_Info *server, const unsigned int val)
 }
 
 static struct mid_q_entry *
-smb2_find_mid(struct TCP_Server_Info *server, char *buf)
+__smb2_find_mid(struct TCP_Server_Info *server, char *buf, bool dequeue)
 {
 	struct mid_q_entry *mid;
 	struct smb2_sync_hdr *shdr = (struct smb2_sync_hdr *)buf;
@@ -281,12 +308,28 @@ smb2_find_mid(struct TCP_Server_Info *server, char *buf)
 		    (mid->mid_state == MID_REQUEST_SUBMITTED) &&
 		    (mid->command == shdr->Command)) {
 			kref_get(&mid->refcount);
+			if (dequeue) {
+				list_del_init(&mid->qhead);
+				mid->mid_flags |= MID_DELETED;
+			}
 			spin_unlock(&GlobalMid_Lock);
 			return mid;
 		}
 	}
 	spin_unlock(&GlobalMid_Lock);
 	return NULL;
+}
+
+static struct mid_q_entry *
+smb2_find_mid(struct TCP_Server_Info *server, char *buf)
+{
+	return __smb2_find_mid(server, buf, false);
+}
+
+static struct mid_q_entry *
+smb2_find_dequeue_mid(struct TCP_Server_Info *server, char *buf)
+{
+	return __smb2_find_mid(server, buf, true);
 }
 
 static void
@@ -323,13 +366,13 @@ smb2_negotiate(const unsigned int xid, struct cifs_ses *ses)
 }
 
 static unsigned int
-smb2_negotiate_wsize(struct cifs_tcon *tcon, struct smb_vol *volume_info)
+smb2_negotiate_wsize(struct cifs_tcon *tcon, struct smb3_fs_context *ctx)
 {
 	struct TCP_Server_Info *server = tcon->ses->server;
 	unsigned int wsize;
 
 	/* start with specified wsize, or default */
-	wsize = volume_info->wsize ? volume_info->wsize : CIFS_DEFAULT_IOSIZE;
+	wsize = ctx->wsize ? ctx->wsize : CIFS_DEFAULT_IOSIZE;
 	wsize = min_t(unsigned int, wsize, server->max_write);
 	if (!(server->capabilities & SMB2_GLOBAL_CAP_LARGE_MTU))
 		wsize = min_t(unsigned int, wsize, SMB2_MAX_BUFFER_SIZE);
@@ -338,13 +381,13 @@ smb2_negotiate_wsize(struct cifs_tcon *tcon, struct smb_vol *volume_info)
 }
 
 static unsigned int
-smb3_negotiate_wsize(struct cifs_tcon *tcon, struct smb_vol *volume_info)
+smb3_negotiate_wsize(struct cifs_tcon *tcon, struct smb3_fs_context *ctx)
 {
 	struct TCP_Server_Info *server = tcon->ses->server;
 	unsigned int wsize;
 
 	/* start with specified wsize, or default */
-	wsize = volume_info->wsize ? volume_info->wsize : SMB3_DEFAULT_IOSIZE;
+	wsize = ctx->wsize ? ctx->wsize : SMB3_DEFAULT_IOSIZE;
 	wsize = min_t(unsigned int, wsize, server->max_write);
 #ifdef CONFIG_CIFS_SMB_DIRECT
 	if (server->rdma) {
@@ -370,13 +413,13 @@ smb3_negotiate_wsize(struct cifs_tcon *tcon, struct smb_vol *volume_info)
 }
 
 static unsigned int
-smb2_negotiate_rsize(struct cifs_tcon *tcon, struct smb_vol *volume_info)
+smb2_negotiate_rsize(struct cifs_tcon *tcon, struct smb3_fs_context *ctx)
 {
 	struct TCP_Server_Info *server = tcon->ses->server;
 	unsigned int rsize;
 
 	/* start with specified rsize, or default */
-	rsize = volume_info->rsize ? volume_info->rsize : CIFS_DEFAULT_IOSIZE;
+	rsize = ctx->rsize ? ctx->rsize : CIFS_DEFAULT_IOSIZE;
 	rsize = min_t(unsigned int, rsize, server->max_read);
 
 	if (!(server->capabilities & SMB2_GLOBAL_CAP_LARGE_MTU))
@@ -386,13 +429,13 @@ smb2_negotiate_rsize(struct cifs_tcon *tcon, struct smb_vol *volume_info)
 }
 
 static unsigned int
-smb3_negotiate_rsize(struct cifs_tcon *tcon, struct smb_vol *volume_info)
+smb3_negotiate_rsize(struct cifs_tcon *tcon, struct smb3_fs_context *ctx)
 {
 	struct TCP_Server_Info *server = tcon->ses->server;
 	unsigned int rsize;
 
 	/* start with specified rsize, or default */
-	rsize = volume_info->rsize ? volume_info->rsize : SMB3_DEFAULT_IOSIZE;
+	rsize = ctx->rsize ? ctx->rsize : SMB3_DEFAULT_IOSIZE;
 	rsize = min_t(unsigned int, rsize, server->max_read);
 #ifdef CONFIG_CIFS_SMB_DIRECT
 	if (server->rdma) {
@@ -461,7 +504,8 @@ parse_server_interfaces(struct network_interface_info_ioctl_rsp *buf,
 		goto out;
 	}
 
-	if (bytes_left || p->Next)
+	/* Azure rounds the buffer size up 8, to a 16 byte boundary */
+	if ((bytes_left > 8) || p->Next)
 		cifs_dbg(VFS, "%s: incomplete interface info\n", __func__);
 
 
@@ -2325,6 +2369,7 @@ static bool
 smb2_is_status_pending(char *buf, struct TCP_Server_Info *server)
 {
 	struct smb2_sync_hdr *shdr = (struct smb2_sync_hdr *)buf;
+	int scredits;
 
 	if (shdr->Status != STATUS_PENDING)
 		return false;
@@ -2332,8 +2377,14 @@ smb2_is_status_pending(char *buf, struct TCP_Server_Info *server)
 	if (shdr->CreditRequest) {
 		spin_lock(&server->req_lock);
 		server->credits += le16_to_cpu(shdr->CreditRequest);
+		scredits = server->credits;
 		spin_unlock(&server->req_lock);
 		wake_up(&server->request_q);
+
+		trace_smb3_add_credits(server->CurrentMid,
+				server->hostname, scredits, le16_to_cpu(shdr->CreditRequest));
+		cifs_dbg(FYI, "%s: status pending add %u credits total=%d\n",
+				__func__, le16_to_cpu(shdr->CreditRequest), scredits);
 	}
 
 	return true;
@@ -3098,8 +3149,8 @@ smb2_query_reparse_tag(const unsigned int xid, struct cifs_tcon *tcon,
 	rqst[1].rq_nvec = SMB2_IOCTL_IOV_SIZE;
 
 	rc = SMB2_ioctl_init(tcon, server,
-			     &rqst[1], fid.persistent_fid,
-			     fid.volatile_fid, FSCTL_GET_REPARSE_POINT,
+			     &rqst[1], COMPOUND_FID,
+			     COMPOUND_FID, FSCTL_GET_REPARSE_POINT,
 			     true /* is_fctl */, NULL, 0,
 			     CIFSMaxBufSize -
 			     MAX_SMB2_CREATE_RESPONSE_SIZE -
@@ -3163,7 +3214,7 @@ smb2_query_reparse_tag(const unsigned int xid, struct cifs_tcon *tcon,
 
 static struct cifs_ntsd *
 get_smb2_acl_by_fid(struct cifs_sb_info *cifs_sb,
-		const struct cifs_fid *cifsfid, u32 *pacllen)
+		    const struct cifs_fid *cifsfid, u32 *pacllen, u32 info)
 {
 	struct cifs_ntsd *pntsd = NULL;
 	unsigned int xid;
@@ -3177,7 +3228,8 @@ get_smb2_acl_by_fid(struct cifs_sb_info *cifs_sb,
 	cifs_dbg(FYI, "trying to get acl\n");
 
 	rc = SMB2_query_acl(xid, tlink_tcon(tlink), cifsfid->persistent_fid,
-			    cifsfid->volatile_fid, (void **)&pntsd, pacllen);
+			    cifsfid->volatile_fid, (void **)&pntsd, pacllen,
+			    info);
 	free_xid(xid);
 
 	cifs_put_tlink(tlink);
@@ -3191,7 +3243,7 @@ get_smb2_acl_by_fid(struct cifs_sb_info *cifs_sb,
 
 static struct cifs_ntsd *
 get_smb2_acl_by_path(struct cifs_sb_info *cifs_sb,
-		const char *path, u32 *pacllen)
+		     const char *path, u32 *pacllen, u32 info)
 {
 	struct cifs_ntsd *pntsd = NULL;
 	u8 oplock = SMB2_OPLOCK_LEVEL_NONE;
@@ -3229,12 +3281,16 @@ get_smb2_acl_by_path(struct cifs_sb_info *cifs_sb,
 	oparms.fid = &fid;
 	oparms.reconnect = false;
 
+	if (info & SACL_SECINFO)
+		oparms.desired_access |= SYSTEM_SECURITY;
+
 	rc = SMB2_open(xid, &oparms, utf16_path, &oplock, NULL, NULL, NULL,
 		       NULL);
 	kfree(utf16_path);
 	if (!rc) {
 		rc = SMB2_query_acl(xid, tlink_tcon(tlink), fid.persistent_fid,
-			    fid.volatile_fid, (void **)&pntsd, pacllen);
+				    fid.volatile_fid, (void **)&pntsd, pacllen,
+				    info);
 		SMB2_close(xid, tcon, fid.persistent_fid, fid.volatile_fid);
 	}
 
@@ -3268,10 +3324,12 @@ set_smb2_acl(struct cifs_ntsd *pnntsd, __u32 acllen,
 	tcon = tlink_tcon(tlink);
 	xid = get_xid();
 
-	if (aclflag == CIFS_ACL_OWNER || aclflag == CIFS_ACL_GROUP)
-		access_flags = WRITE_OWNER;
-	else
-		access_flags = WRITE_DAC;
+	if (aclflag & CIFS_ACL_OWNER || aclflag & CIFS_ACL_GROUP)
+		access_flags |= WRITE_OWNER;
+	if (aclflag & CIFS_ACL_SACL)
+		access_flags |= SYSTEM_SECURITY;
+	if (aclflag & CIFS_ACL_DACL)
+		access_flags |= WRITE_DAC;
 
 	utf16_path = cifs_convert_path_to_utf16(path, cifs_sb);
 	if (!utf16_path) {
@@ -3305,18 +3363,18 @@ set_smb2_acl(struct cifs_ntsd *pnntsd, __u32 acllen,
 /* Retrieve an ACL from the server */
 static struct cifs_ntsd *
 get_smb2_acl(struct cifs_sb_info *cifs_sb,
-				      struct inode *inode, const char *path,
-				      u32 *pacllen)
+	     struct inode *inode, const char *path,
+	     u32 *pacllen, u32 info)
 {
 	struct cifs_ntsd *pntsd = NULL;
 	struct cifsFileInfo *open_file = NULL;
 
-	if (inode)
+	if (inode && !(info & SACL_SECINFO))
 		open_file = find_readable_file(CIFS_I(inode), true);
-	if (!open_file)
-		return get_smb2_acl_by_path(cifs_sb, path, pacllen);
+	if (!open_file || (info & SACL_SECINFO))
+		return get_smb2_acl_by_path(cifs_sb, path, pacllen, info);
 
-	pntsd = get_smb2_acl_by_fid(cifs_sb, &open_file->fid, pacllen);
+	pntsd = get_smb2_acl_by_fid(cifs_sb, &open_file->fid, pacllen, info);
 	cifsFileInfo_put(open_file);
 	return pntsd;
 }
@@ -3933,7 +3991,7 @@ smb3_parse_lease_buf(void *buf, unsigned int *epoch, char *lease_key)
 static unsigned int
 smb2_wp_retry_size(struct inode *inode)
 {
-	return min_t(unsigned int, CIFS_SB(inode->i_sb)->wsize,
+	return min_t(unsigned int, CIFS_SB(inode->i_sb)->ctx->wsize,
 		     SMB2_MAX_BUFFER_SIZE);
 }
 
@@ -4356,7 +4414,8 @@ init_read_bvec(struct page **pages, unsigned int npages, unsigned int data_size,
 static int
 handle_read_data(struct TCP_Server_Info *server, struct mid_q_entry *mid,
 		 char *buf, unsigned int buf_len, struct page **pages,
-		 unsigned int npages, unsigned int page_data_size)
+		 unsigned int npages, unsigned int page_data_size,
+		 bool is_offloaded)
 {
 	unsigned int data_offset;
 	unsigned int data_len;
@@ -4378,7 +4437,8 @@ handle_read_data(struct TCP_Server_Info *server, struct mid_q_entry *mid,
 
 	if (server->ops->is_session_expired &&
 	    server->ops->is_session_expired(buf)) {
-		cifs_reconnect(server);
+		if (!is_offloaded)
+			cifs_reconnect(server);
 		return -1;
 	}
 
@@ -4402,7 +4462,10 @@ handle_read_data(struct TCP_Server_Info *server, struct mid_q_entry *mid,
 		cifs_dbg(FYI, "%s: server returned error %d\n",
 			 __func__, rdata->result);
 		/* normal error on read response */
-		dequeue_mid(mid, false);
+		if (is_offloaded)
+			mid->mid_state = MID_RESPONSE_RECEIVED;
+		else
+			dequeue_mid(mid, false);
 		return 0;
 	}
 
@@ -4426,7 +4489,10 @@ handle_read_data(struct TCP_Server_Info *server, struct mid_q_entry *mid,
 		cifs_dbg(FYI, "%s: data offset (%u) beyond end of smallbuf\n",
 			 __func__, data_offset);
 		rdata->result = -EIO;
-		dequeue_mid(mid, rdata->result);
+		if (is_offloaded)
+			mid->mid_state = MID_RESPONSE_MALFORMED;
+		else
+			dequeue_mid(mid, rdata->result);
 		return 0;
 	}
 
@@ -4442,21 +4508,30 @@ handle_read_data(struct TCP_Server_Info *server, struct mid_q_entry *mid,
 			cifs_dbg(FYI, "%s: data offset (%u) beyond 1st page of response\n",
 				 __func__, data_offset);
 			rdata->result = -EIO;
-			dequeue_mid(mid, rdata->result);
+			if (is_offloaded)
+				mid->mid_state = MID_RESPONSE_MALFORMED;
+			else
+				dequeue_mid(mid, rdata->result);
 			return 0;
 		}
 
 		if (data_len > page_data_size - pad_len) {
 			/* data_len is corrupt -- discard frame */
 			rdata->result = -EIO;
-			dequeue_mid(mid, rdata->result);
+			if (is_offloaded)
+				mid->mid_state = MID_RESPONSE_MALFORMED;
+			else
+				dequeue_mid(mid, rdata->result);
 			return 0;
 		}
 
 		rdata->result = init_read_bvec(pages, npages, page_data_size,
 					       cur_off, &bvec);
 		if (rdata->result != 0) {
-			dequeue_mid(mid, rdata->result);
+			if (is_offloaded)
+				mid->mid_state = MID_RESPONSE_MALFORMED;
+			else
+				dequeue_mid(mid, rdata->result);
 			return 0;
 		}
 
@@ -4471,7 +4546,10 @@ handle_read_data(struct TCP_Server_Info *server, struct mid_q_entry *mid,
 		/* read response payload cannot be in both buf and pages */
 		WARN_ONCE(1, "buf can not contain only a part of read data");
 		rdata->result = -EIO;
-		dequeue_mid(mid, rdata->result);
+		if (is_offloaded)
+			mid->mid_state = MID_RESPONSE_MALFORMED;
+		else
+			dequeue_mid(mid, rdata->result);
 		return 0;
 	}
 
@@ -4482,7 +4560,10 @@ handle_read_data(struct TCP_Server_Info *server, struct mid_q_entry *mid,
 	if (length < 0)
 		return length;
 
-	dequeue_mid(mid, false);
+	if (is_offloaded)
+		mid->mid_state = MID_RESPONSE_RECEIVED;
+	else
+		dequeue_mid(mid, false);
 	return length;
 }
 
@@ -4511,15 +4592,34 @@ static void smb2_decrypt_offload(struct work_struct *work)
 	}
 
 	dw->server->lstrp = jiffies;
-	mid = smb2_find_mid(dw->server, dw->buf);
+	mid = smb2_find_dequeue_mid(dw->server, dw->buf);
 	if (mid == NULL)
 		cifs_dbg(FYI, "mid not found\n");
 	else {
 		mid->decrypted = true;
 		rc = handle_read_data(dw->server, mid, dw->buf,
 				      dw->server->vals->read_rsp_size,
-				      dw->ppages, dw->npages, dw->len);
-		mid->callback(mid);
+				      dw->ppages, dw->npages, dw->len,
+				      true);
+		if (rc >= 0) {
+#ifdef CONFIG_CIFS_STATS2
+			mid->when_received = jiffies;
+#endif
+			mid->callback(mid);
+		} else {
+			spin_lock(&GlobalMid_Lock);
+			if (dw->server->tcpStatus == CifsNeedReconnect) {
+				mid->mid_state = MID_RETRY_NEEDED;
+				spin_unlock(&GlobalMid_Lock);
+				mid->callback(mid);
+			} else {
+				mid->mid_state = MID_REQUEST_SUBMITTED;
+				mid->mid_flags &= ~(MID_DELETED);
+				list_add_tail(&mid->qhead,
+					&dw->server->pending_mid_q);
+				spin_unlock(&GlobalMid_Lock);
+			}
+		}
 		cifs_mid_q_entry_release(mid);
 	}
 
@@ -4622,7 +4722,7 @@ non_offloaded_decrypt:
 		(*mid)->decrypted = true;
 		rc = handle_read_data(server, *mid, buf,
 				      server->vals->read_rsp_size,
-				      pages, npages, len);
+				      pages, npages, len, false);
 	}
 
 free_pages:
@@ -4765,7 +4865,7 @@ smb3_handle_read_data(struct TCP_Server_Info *server, struct mid_q_entry *mid)
 	char *buf = server->large_buf ? server->bigbuf : server->smallbuf;
 
 	return handle_read_data(server, mid, buf, server->pdu_size,
-				NULL, 0, 0);
+				NULL, 0, 0, false);
 }
 
 static int

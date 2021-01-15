@@ -284,7 +284,6 @@ static netdev_tx_t sja1000_start_xmit(struct sk_buff *skb,
 	struct sja1000_priv *priv = netdev_priv(dev);
 	struct can_frame *cf = (struct can_frame *)skb->data;
 	uint8_t fi;
-	uint8_t dlc;
 	canid_t id;
 	uint8_t dreg;
 	u8 cmd_reg_val = 0x00;
@@ -295,7 +294,7 @@ static netdev_tx_t sja1000_start_xmit(struct sk_buff *skb,
 
 	netif_stop_queue(dev);
 
-	fi = dlc = cf->can_dlc;
+	fi = can_get_cc_dlc(cf, priv->can.ctrlmode);
 	id = cf->can_id;
 
 	if (id & CAN_RTR_FLAG)
@@ -316,7 +315,7 @@ static netdev_tx_t sja1000_start_xmit(struct sk_buff *skb,
 		priv->write_reg(priv, SJA1000_ID2, (id & 0x00000007) << 5);
 	}
 
-	for (i = 0; i < dlc; i++)
+	for (i = 0; i < cf->len; i++)
 		priv->write_reg(priv, dreg++, cf->data[i]);
 
 	can_put_echo_skb(skb, dev, 0);
@@ -367,11 +366,11 @@ static void sja1000_rx(struct net_device *dev)
 		    | (priv->read_reg(priv, SJA1000_ID2) >> 5);
 	}
 
-	cf->can_dlc = get_can_dlc(fi & 0x0F);
+	can_frame_set_cc_len(cf, fi & 0x0F, priv->can.ctrlmode);
 	if (fi & SJA1000_FI_RTR) {
 		id |= CAN_RTR_FLAG;
 	} else {
-		for (i = 0; i < cf->can_dlc; i++)
+		for (i = 0; i < cf->len; i++)
 			cf->data[i] = priv->read_reg(priv, dreg++);
 	}
 
@@ -381,7 +380,7 @@ static void sja1000_rx(struct net_device *dev)
 	sja1000_write_cmdreg(priv, CMD_RRB);
 
 	stats->rx_packets++;
-	stats->rx_bytes += cf->can_dlc;
+	stats->rx_bytes += cf->len;
 	netif_rx(skb);
 
 	can_led_event(dev, CAN_LED_EVENT_RX);
@@ -474,7 +473,6 @@ static int sja1000_err(struct net_device *dev, uint8_t isrc, uint8_t status)
 		netdev_dbg(dev, "arbitration lost interrupt\n");
 		alc = priv->read_reg(priv, SJA1000_ALC);
 		priv->can.can_stats.arbitration_lost++;
-		stats->tx_errors++;
 		cf->can_id |= CAN_ERR_LOSTARB;
 		cf->data[0] = alc & 0x1f;
 	}
@@ -490,7 +488,7 @@ static int sja1000_err(struct net_device *dev, uint8_t isrc, uint8_t status)
 	}
 
 	stats->rx_packets++;
-	stats->rx_bytes += cf->can_dlc;
+	stats->rx_bytes += cf->len;
 	netif_rx(skb);
 
 	return 0;
@@ -638,7 +636,8 @@ struct net_device *alloc_sja1000dev(int sizeof_priv)
 				       CAN_CTRLMODE_3_SAMPLES |
 				       CAN_CTRLMODE_ONE_SHOT |
 				       CAN_CTRLMODE_BERR_REPORTING |
-				       CAN_CTRLMODE_PRESUME_ACK;
+				       CAN_CTRLMODE_PRESUME_ACK |
+				       CAN_CTRLMODE_CC_LEN8_DLC;
 
 	spin_lock_init(&priv->cmdreg_lock);
 

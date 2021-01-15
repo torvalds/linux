@@ -679,6 +679,38 @@ static void print_gpio(struct snd_info_buffer *buffer,
 	print_nid_array(buffer, codec, nid, &codec->nids);
 }
 
+static void print_dpmst_connections(struct snd_info_buffer *buffer, struct hda_codec *codec,
+				    hda_nid_t nid, int dev_num)
+{
+	int c, conn_len, curr, dev_id_saved;
+	hda_nid_t *conn;
+
+	conn_len = snd_hda_get_num_raw_conns(codec, nid);
+	if (conn_len <= 0)
+		return;
+
+	conn = kmalloc_array(conn_len, sizeof(hda_nid_t), GFP_KERNEL);
+	if (!conn)
+		return;
+
+	dev_id_saved = snd_hda_get_dev_select(codec, nid);
+
+	snd_hda_set_dev_select(codec, nid, dev_num);
+	curr = snd_hda_codec_read(codec, nid, 0, AC_VERB_GET_CONNECT_SEL, 0);
+	if (snd_hda_get_raw_connections(codec, nid, conn, conn_len) < 0)
+		goto out;
+
+	for (c = 0; c < conn_len; c++) {
+		snd_iprintf(buffer, " 0x%02x", conn[c]);
+		if (c == curr)
+			snd_iprintf(buffer, "*");
+	}
+
+out:
+	kfree(conn);
+	snd_hda_set_dev_select(codec, nid, dev_id_saved);
+}
+
 static void print_device_list(struct snd_info_buffer *buffer,
 			    struct hda_codec *codec, hda_nid_t nid)
 {
@@ -702,10 +734,14 @@ static void print_device_list(struct snd_info_buffer *buffer,
 			snd_iprintf(buffer, "     ");
 
 		snd_iprintf(buffer,
-			"Dev %02d: PD = %d, ELDV = %d, IA = %d\n", i,
+			"Dev %02d: PD = %d, ELDV = %d, IA = %d, Connections [", i,
 			!!(dev_list[i] & AC_DE_PD),
 			!!(dev_list[i] & AC_DE_ELDV),
 			!!(dev_list[i] & AC_DE_IA));
+
+		print_dpmst_connections(buffer, codec, nid, i);
+
+		snd_iprintf(buffer, " ]\n");
 	}
 }
 

@@ -916,10 +916,10 @@ static void ican3_to_can_frame(struct ican3_dev *mod,
 
 		cf->can_id |= desc->data[0] << 3;
 		cf->can_id |= (desc->data[1] & 0xe0) >> 5;
-		cf->can_dlc = get_can_dlc(desc->data[1] & ICAN3_CAN_DLC_MASK);
-		memcpy(cf->data, &desc->data[2], cf->can_dlc);
+		cf->len = can_cc_dlc2len(desc->data[1] & ICAN3_CAN_DLC_MASK);
+		memcpy(cf->data, &desc->data[2], cf->len);
 	} else {
-		cf->can_dlc = get_can_dlc(desc->data[0] & ICAN3_CAN_DLC_MASK);
+		cf->len = can_cc_dlc2len(desc->data[0] & ICAN3_CAN_DLC_MASK);
 		if (desc->data[0] & ICAN3_EFF_RTR)
 			cf->can_id |= CAN_RTR_FLAG;
 
@@ -934,7 +934,7 @@ static void ican3_to_can_frame(struct ican3_dev *mod,
 			cf->can_id |= desc->data[3] >> 5;  /* 2-0   */
 		}
 
-		memcpy(cf->data, &desc->data[6], cf->can_dlc);
+		memcpy(cf->data, &desc->data[6], cf->len);
 	}
 }
 
@@ -947,7 +947,7 @@ static void can_frame_to_ican3(struct ican3_dev *mod,
 
 	/* we always use the extended format, with the ECHO flag set */
 	desc->command = ICAN3_CAN_TYPE_EFF;
-	desc->data[0] |= cf->can_dlc;
+	desc->data[0] |= cf->len;
 	desc->data[1] |= ICAN3_ECHO;
 
 	/* support single transmission (no retries) mode */
@@ -970,7 +970,7 @@ static void can_frame_to_ican3(struct ican3_dev *mod,
 	}
 
 	/* copy the data bits into the descriptor */
-	memcpy(&desc->data[6], cf->data, cf->can_dlc);
+	memcpy(&desc->data[6], cf->data, cf->len);
 }
 
 /*
@@ -1294,7 +1294,7 @@ static unsigned int ican3_get_echo_skb(struct ican3_dev *mod)
 	}
 
 	cf = (struct can_frame *)skb->data;
-	dlc = cf->can_dlc;
+	dlc = cf->len;
 
 	/* check flag whether this packet has to be looped back */
 	if (skb->pkt_type != PACKET_LOOPBACK) {
@@ -1332,10 +1332,10 @@ static bool ican3_echo_skb_matches(struct ican3_dev *mod, struct sk_buff *skb)
 	if (cf->can_id != echo_cf->can_id)
 		return false;
 
-	if (cf->can_dlc != echo_cf->can_dlc)
+	if (cf->len != echo_cf->len)
 		return false;
 
-	return memcmp(cf->data, echo_cf->data, cf->can_dlc) == 0;
+	return memcmp(cf->data, echo_cf->data, cf->len) == 0;
 }
 
 /*
@@ -1421,7 +1421,7 @@ static int ican3_recv_skb(struct ican3_dev *mod)
 
 	/* update statistics, receive the skb */
 	stats->rx_packets++;
-	stats->rx_bytes += cf->can_dlc;
+	stats->rx_bytes += cf->len;
 	netif_receive_skb(skb);
 
 err_noalloc:

@@ -25,15 +25,6 @@ Multitouch Library
 .. kernel-doc:: drivers/input/input-mt.c
    :export:
 
-Polled input devices
---------------------
-
-.. kernel-doc:: include/linux/input-polldev.h
-   :internal:
-
-.. kernel-doc:: drivers/input/input-polldev.c
-   :export:
-
 Matrix keyboards/keypads
 ------------------------
 

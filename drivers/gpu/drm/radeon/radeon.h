@@ -75,7 +75,6 @@
 #include <drm/ttm/ttm_bo_api.h>
 #include <drm/ttm/ttm_bo_driver.h>
 #include <drm/ttm/ttm_placement.h>
-#include <drm/ttm/ttm_module.h>
 #include <drm/ttm/ttm_execbuf_util.h>
 
 #include <drm/drm_gem.h>
@@ -2831,6 +2830,12 @@ extern void radeon_program_register_sequence(struct radeon_device *rdev,
 					     const u32 *registers,
 					     const u32 array_size);
 struct radeon_device *radeon_get_rdev(struct ttm_bo_device *bdev);
+
+/* KMS */
+
+u32 radeon_get_vblank_counter_kms(struct drm_crtc *crtc);
+int radeon_enable_vblank_kms(struct drm_crtc *crtc);
+void radeon_disable_vblank_kms(struct drm_crtc *crtc);
 
 /*
  * vm

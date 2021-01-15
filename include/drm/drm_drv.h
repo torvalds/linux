@@ -499,8 +499,6 @@ struct drm_driver {
 	/* Everything below here is for legacy driver, never use! */
 	/* private: */
 
-	/* List of devices hanging off this driver with stealth attach. */
-	struct list_head legacy_dev_list;
 	int (*firstopen) (struct drm_device *);
 	void (*preclose) (struct drm_device *, struct drm_file *file_priv);
 	int (*dma_ioctl) (struct drm_device *dev, void *data, struct drm_file *file_priv);

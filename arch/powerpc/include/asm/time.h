@@ -15,6 +15,7 @@
 
 #include <asm/processor.h>
 #include <asm/cpu_has_feature.h>
+#include <asm/vdso/timebase.h>
 
 /* time.c */
 extern unsigned long tb_ticks_per_jiffy;
@@ -38,42 +39,12 @@ struct div_result {
 	u64 result_low;
 };
 
-/* For compatibility, get_tbl() is defined as get_tb() on ppc64 */
-static inline unsigned long get_tbl(void)
-{
-	return mftb();
-}
-
 static inline u64 get_vtb(void)
 {
-#ifdef CONFIG_PPC_BOOK3S_64
 	if (cpu_has_feature(CPU_FTR_ARCH_207S))
 		return mfspr(SPRN_VTB);
-#endif
+
 	return 0;
-}
-
-static inline u64 get_tb(void)
-{
-	unsigned int tbhi, tblo, tbhi2;
-
-	if (IS_ENABLED(CONFIG_PPC64))
-		return mftb();
-
-	do {
-		tbhi = mftbu();
-		tblo = mftb();
-		tbhi2 = mftbu();
-	} while (tbhi != tbhi2);
-
-	return ((u64)tbhi << 32) | tblo;
-}
-
-static inline void set_tb(unsigned int upper, unsigned int lower)
-{
-	mtspr(SPRN_TBWL, 0);
-	mtspr(SPRN_TBWU, upper);
-	mtspr(SPRN_TBWL, lower);
 }
 
 /* Accessor functions for the decrementer register.

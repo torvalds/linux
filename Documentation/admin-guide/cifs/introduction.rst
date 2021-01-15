@@ -9,7 +9,7 @@ Introduction
   PC operating systems. New and improved versions of CIFS are now
   called SMB2 and SMB3. Use of SMB3 (and later, including SMB3.1.1)
   is strongly preferred over using older dialects like CIFS due to
-  security reaasons. All modern dialects, including the most recent,
+  security reasons. All modern dialects, including the most recent,
   SMB3.1.1 are supported by the CIFS VFS module. The SMB3 protocol
   is implemented and supported by all major file servers
   such as all modern versions of Windows (including Windows 2016

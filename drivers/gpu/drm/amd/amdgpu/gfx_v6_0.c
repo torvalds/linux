@@ -1894,6 +1894,7 @@ static void gfx_v6_0_ring_emit_ib(struct amdgpu_ring *ring,
  * gfx_v6_0_ring_test_ib - basic ring IB test
  *
  * @ring: amdgpu_ring structure holding ring information
+ * @timeout: timeout value in jiffies, or MAX_SCHEDULE_TIMEOUT
  *
  * Allocate an IB and execute it on the gfx ring (SI).
  * Provides a basic gfx ring test to verify that IBs are working.

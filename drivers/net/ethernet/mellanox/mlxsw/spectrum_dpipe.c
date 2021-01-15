@@ -913,7 +913,8 @@ static u64 mlxsw_sp_dpipe_table_adj_size(struct mlxsw_sp *mlxsw_sp)
 
 	mlxsw_sp_nexthop_for_each(nh, mlxsw_sp->router)
 		if (mlxsw_sp_nexthop_offload(nh) &&
-		    !mlxsw_sp_nexthop_group_has_ipip(nh))
+		    !mlxsw_sp_nexthop_group_has_ipip(nh) &&
+		    !mlxsw_sp_nexthop_is_discard(nh))
 			size++;
 	return size;
 }
@@ -1105,7 +1106,8 @@ start_again:
 	nh_count = 0;
 	mlxsw_sp_nexthop_for_each(nh, mlxsw_sp->router) {
 		if (!mlxsw_sp_nexthop_offload(nh) ||
-		    mlxsw_sp_nexthop_group_has_ipip(nh))
+		    mlxsw_sp_nexthop_group_has_ipip(nh) ||
+		    mlxsw_sp_nexthop_is_discard(nh))
 			continue;
 
 		if (nh_count < nh_skip)
@@ -1186,7 +1188,8 @@ static int mlxsw_sp_dpipe_table_adj_counters_update(void *priv, bool enable)
 
 	mlxsw_sp_nexthop_for_each(nh, mlxsw_sp->router) {
 		if (!mlxsw_sp_nexthop_offload(nh) ||
-		    mlxsw_sp_nexthop_group_has_ipip(nh))
+		    mlxsw_sp_nexthop_group_has_ipip(nh) ||
+		    mlxsw_sp_nexthop_is_discard(nh))
 			continue;
 
 		mlxsw_sp_nexthop_indexes(nh, &adj_index, &adj_size,

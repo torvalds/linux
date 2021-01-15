@@ -14,10 +14,10 @@
 		reg = <0 0>;
 	};
 
-	pwmleds {
+	led-controller {
 		compatible = "pwm-leds";
 
-		overo {
+		led-1 {
 			label = "overo:blue:COM";
 			pwms = <&twl_pwmled 1 7812500>;
 			max-brightness = <127>;

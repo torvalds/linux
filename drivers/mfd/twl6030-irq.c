@@ -356,7 +356,7 @@ static const struct irq_domain_ops twl6030_irq_domain_ops = {
 	.xlate	= irq_domain_xlate_onetwocell,
 };
 
-static const struct of_device_id twl6030_of_match[] = {
+static const struct of_device_id twl6030_of_match[] __maybe_unused = {
 	{.compatible = "ti,twl6030", &twl6030_interrupt_mapping},
 	{.compatible = "ti,twl6032", &twl6032_interrupt_mapping},
 	{ },

@@ -50,6 +50,7 @@
 #ifdef CONFIG_RFS_ACCEL
 #include <linux/cpu_rmap.h>
 #endif
+#include <linux/version.h>
 #include <net/devlink.h>
 #include "mlx5_core.h"
 #include "lib/eq.h"
@@ -76,7 +77,6 @@
 MODULE_AUTHOR("Eli Cohen <eli@mellanox.com>");
 MODULE_DESCRIPTION("Mellanox 5th generation network adapters (ConnectX series) core driver");
 MODULE_LICENSE("Dual BSD/GPL");
-MODULE_VERSION(DRIVER_VERSION);
 
 unsigned int mlx5_core_debug_mask;
 module_param_named(debug_mask, mlx5_core_debug_mask, uint, 0644);
@@ -227,13 +227,16 @@ static void mlx5_set_driver_version(struct mlx5_core_dev *dev)
 	strncat(string, ",", remaining_size);
 
 	remaining_size = max_t(int, 0, driver_ver_sz - strlen(string));
-	strncat(string, DRIVER_NAME, remaining_size);
+	strncat(string, KBUILD_MODNAME, remaining_size);
 
 	remaining_size = max_t(int, 0, driver_ver_sz - strlen(string));
 	strncat(string, ",", remaining_size);
 
 	remaining_size = max_t(int, 0, driver_ver_sz - strlen(string));
-	strncat(string, DRIVER_VERSION, remaining_size);
+
+	snprintf(string + strlen(string), remaining_size, "%u.%u.%u",
+		 (u8)((LINUX_VERSION_CODE >> 16) & 0xff), (u8)((LINUX_VERSION_CODE >> 8) & 0xff),
+		 (u16)(LINUX_VERSION_CODE & 0xffff));
 
 	/*Send the command*/
 	MLX5_SET(set_driver_version_in, in, opcode,
@@ -309,7 +312,7 @@ static int request_bar(struct pci_dev *pdev)
 		return -ENODEV;
 	}
 
-	err = pci_request_regions(pdev, DRIVER_NAME);
+	err = pci_request_regions(pdev, KBUILD_MODNAME);
 	if (err)
 		dev_err(&pdev->dev, "Couldn't get PCI resources, aborting\n");
 
@@ -1126,23 +1129,23 @@ static int mlx5_load(struct mlx5_core_dev *dev)
 		goto err_sriov;
 	}
 
-	err = mlx5_sriov_attach(dev);
-	if (err) {
-		mlx5_core_err(dev, "sriov init failed %d\n", err);
-		goto err_sriov;
-	}
-
 	err = mlx5_ec_init(dev);
 	if (err) {
 		mlx5_core_err(dev, "Failed to init embedded CPU\n");
 		goto err_ec;
 	}
 
+	err = mlx5_sriov_attach(dev);
+	if (err) {
+		mlx5_core_err(dev, "sriov init failed %d\n", err);
+		goto err_sriov;
+	}
+
 	return 0;
 
-err_ec:
-	mlx5_sriov_detach(dev);
 err_sriov:
+	mlx5_ec_cleanup(dev);
+err_ec:
 	mlx5_cleanup_fs(dev);
 err_fs:
 	mlx5_accel_tls_cleanup(dev);
@@ -1168,8 +1171,8 @@ err_irq_table:
 
 static void mlx5_unload(struct mlx5_core_dev *dev)
 {
-	mlx5_ec_cleanup(dev);
 	mlx5_sriov_detach(dev);
+	mlx5_ec_cleanup(dev);
 	mlx5_cleanup_fs(dev);
 	mlx5_accel_ipsec_cleanup(dev);
 	mlx5_accel_tls_cleanup(dev);
@@ -1219,14 +1222,21 @@ int mlx5_load_one(struct mlx5_core_dev *dev, bool boot)
 		err = mlx5_devlink_register(priv_to_devlink(dev), dev->device);
 		if (err)
 			goto err_devlink_reg;
-		mlx5_register_device(dev);
+
+		err = mlx5_register_device(dev);
 	} else {
-		mlx5_attach_device(dev);
+		err = mlx5_attach_device(dev);
 	}
+
+	if (err)
+		goto err_register;
 
 	mutex_unlock(&dev->intf_state_mutex);
 	return 0;
 
+err_register:
+	if (boot)
+		mlx5_devlink_unregister(priv_to_devlink(dev));
 err_devlink_reg:
 	clear_bit(MLX5_INTERFACE_STATE_UP, &dev->intf_state);
 	mlx5_unload(dev);
@@ -1303,8 +1313,14 @@ static int mlx5_mdev_init(struct mlx5_core_dev *dev, int profile_idx)
 	if (err)
 		goto err_pagealloc_init;
 
+	err = mlx5_adev_init(dev);
+	if (err)
+		goto err_adev_init;
+
 	return 0;
 
+err_adev_init:
+	mlx5_pagealloc_cleanup(dev);
 err_pagealloc_init:
 	mlx5_health_cleanup(dev);
 err_health_init:
@@ -1321,6 +1337,7 @@ static void mlx5_mdev_uninit(struct mlx5_core_dev *dev)
 {
 	struct mlx5_priv *priv = &dev->priv;
 
+	mlx5_adev_cleanup(dev);
 	mlx5_pagealloc_cleanup(dev);
 	mlx5_health_cleanup(dev);
 	debugfs_remove_recursive(dev->priv.dbg_root);
@@ -1331,7 +1348,6 @@ static void mlx5_mdev_uninit(struct mlx5_core_dev *dev)
 	mutex_destroy(&dev->intf_state_mutex);
 }
 
-#define MLX5_IB_MOD "mlx5_ib"
 static int init_one(struct pci_dev *pdev, const struct pci_device_id *id)
 {
 	struct mlx5_core_dev *dev;
@@ -1351,6 +1367,10 @@ static int init_one(struct pci_dev *pdev, const struct pci_device_id *id)
 	dev->coredev_type = id->driver_data & MLX5_PCI_DEV_IS_VF ?
 			 MLX5_COREDEV_VF : MLX5_COREDEV_PF;
 
+	dev->priv.adev_idx = mlx5_adev_idx_alloc();
+	if (dev->priv.adev_idx < 0)
+		return dev->priv.adev_idx;
+
 	err = mlx5_mdev_init(dev, prof_sel);
 	if (err)
 		goto mdev_init_err;
@@ -1369,8 +1389,6 @@ static int init_one(struct pci_dev *pdev, const struct pci_device_id *id)
 		goto err_load_one;
 	}
 
-	request_module_nowait(MLX5_IB_MOD);
-
 	err = mlx5_crdump_enable(dev);
 	if (err)
 		dev_err(&pdev->dev, "mlx5_crdump_enable failed with error code %d\n", err);
@@ -1384,6 +1402,7 @@ err_load_one:
 pci_init_err:
 	mlx5_mdev_uninit(dev);
 mdev_init_err:
+	mlx5_adev_idx_free(dev->priv.adev_idx);
 	mlx5_devlink_free(devlink);
 
 	return err;
@@ -1400,6 +1419,7 @@ static void remove_one(struct pci_dev *pdev)
 	mlx5_unload_one(dev, true);
 	mlx5_pci_close(dev);
 	mlx5_mdev_uninit(dev);
+	mlx5_adev_idx_free(dev->priv.adev_idx);
 	mlx5_devlink_free(devlink);
 }
 
@@ -1594,6 +1614,7 @@ static const struct pci_device_id mlx5_core_pci_table[] = {
 	{ PCI_VDEVICE(MELLANOX, 0xa2d2) },			/* BlueField integrated ConnectX-5 network controller */
 	{ PCI_VDEVICE(MELLANOX, 0xa2d3), MLX5_PCI_DEV_IS_VF},	/* BlueField integrated ConnectX-5 network controller VF */
 	{ PCI_VDEVICE(MELLANOX, 0xa2d6) },			/* BlueField-2 integrated ConnectX-6 Dx network controller */
+	{ PCI_VDEVICE(MELLANOX, 0xa2dc) },			/* BlueField-3 integrated ConnectX-7 network controller */
 	{ 0, }
 };
 
@@ -1613,7 +1634,7 @@ void mlx5_recover_device(struct mlx5_core_dev *dev)
 }
 
 static struct pci_driver mlx5_core_driver = {
-	.name           = DRIVER_NAME,
+	.name           = KBUILD_MODNAME,
 	.id_table       = mlx5_core_pci_table,
 	.probe          = init_one,
 	.remove         = remove_one,
@@ -1639,6 +1660,9 @@ static int __init init(void)
 {
 	int err;
 
+	WARN_ONCE(strcmp(MLX5_ADEV_NAME, KBUILD_MODNAME),
+		  "mlx5_core name not in sync with kernel module name");
+
 	get_random_bytes(&sw_owner_id, sizeof(sw_owner_id));
 
 	mlx5_core_verify_params();
@@ -1650,7 +1674,11 @@ static int __init init(void)
 		goto err_debug;
 
 #ifdef CONFIG_MLX5_CORE_EN
-	mlx5e_init();
+	err = mlx5e_init();
+	if (err) {
+		pci_unregister_driver(&mlx5_core_driver);
+		goto err_debug;
+	}
 #endif
 
 	return 0;

@@ -384,7 +384,6 @@ int rtl8366_vlan_prepare(struct dsa_switch *ds, int port,
 {
 	struct realtek_smi *smi = ds->priv;
 	u16 vid;
-	int ret;
 
 	for (vid = vlan->vid_begin; vid < vlan->vid_end; vid++)
 		if (!smi->ops->is_vlan_valid(smi, vid))
@@ -397,11 +396,7 @@ int rtl8366_vlan_prepare(struct dsa_switch *ds, int port,
 	 * FIXME: what's with this 4k business?
 	 * Just rtl8366_enable_vlan() seems inconclusive.
 	 */
-	ret = rtl8366_enable_vlan4k(smi, true);
-	if (ret)
-		return ret;
-
-	return 0;
+	return rtl8366_enable_vlan4k(smi, true);
 }
 EXPORT_SYMBOL_GPL(rtl8366_vlan_prepare);
 

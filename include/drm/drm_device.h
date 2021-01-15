@@ -27,7 +27,7 @@ struct pci_controller;
 
 
 /**
- * enum drm_switch_power - power state of drm device
+ * enum switch_power_state - power state of drm device
  */
 
 enum switch_power_state {
@@ -51,13 +51,6 @@ enum switch_power_state {
  * may contain multiple heads.
  */
 struct drm_device {
-	/**
-	 * @legacy_dev_list:
-	 *
-	 * List of devices per driver for stealth attach cleanup
-	 */
-	struct list_head legacy_dev_list;
-
 	/** @if_version: Highest interface version set */
 	int if_version;
 
@@ -83,11 +76,7 @@ struct drm_device {
 	} managed;
 
 	/** @driver: DRM driver managing the device */
-#ifdef CONFIG_DRM_LEGACY
-	struct drm_driver *driver;
-#else
 	const struct drm_driver *driver;
-#endif
 
 	/**
 	 * @dev_private:
@@ -336,6 +325,9 @@ struct drm_device {
 	/* Everything below here is for legacy driver, never use! */
 	/* private: */
 #if IS_ENABLED(CONFIG_DRM_LEGACY)
+	/* List of devices per driver for stealth attach cleanup */
+	struct list_head legacy_dev_list;
+
 	/* Context handle management - linked list of context handles */
 	struct list_head ctxlist;
 

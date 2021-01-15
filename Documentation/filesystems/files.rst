@@ -62,7 +62,7 @@ the fdtable structure -
    be held.
 
 4. To look up the file structure given an fd, a reader
-   must use either fcheck() or fcheck_files() APIs. These
+   must use either lookup_fd_rcu() or files_lookup_fd_rcu() APIs. These
    take care of barrier requirements due to lock-free lookup.
 
    An example::
@@ -70,7 +70,7 @@ the fdtable structure -
 	struct file *file;
 
 	rcu_read_lock();
-	file = fcheck(fd);
+	file = lookup_fd_rcu(fd);
 	if (file) {
 		...
 	}
@@ -84,7 +84,7 @@ the fdtable structure -
    on ->f_count::
 
 	rcu_read_lock();
-	file = fcheck_files(files, fd);
+	file = files_lookup_fd_rcu(files, fd);
 	if (file) {
 		if (atomic_long_inc_not_zero(&file->f_count))
 			*fput_needed = 1;
@@ -104,7 +104,7 @@ the fdtable structure -
    lock-free, they must be installed using rcu_assign_pointer()
    API. If they are looked up lock-free, rcu_dereference()
    must be used. However it is advisable to use files_fdtable()
-   and fcheck()/fcheck_files() which take care of these issues.
+   and lookup_fd_rcu()/files_lookup_fd_rcu() which take care of these issues.
 
 7. While updating, the fdtable pointer must be looked up while
    holding files->file_lock. If ->file_lock is dropped, then

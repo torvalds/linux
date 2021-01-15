@@ -32,9 +32,9 @@
 // For dcn20_update_clocks_update_dpp_dto
 #include "dcn20/dcn20_clk_mgr.h"
 
-#include "vg_clk_mgr.h"
 
-#include "dcn301_smu.h"
+
+#include "vg_clk_mgr.h"
 #include "reg_helper.h"
 #include "core_types.h"
 #include "dm_helpers.h"
@@ -74,15 +74,8 @@ int vg_get_active_display_cnt_wa(
 	for (i = 0; i < dc->link_count; i++) {
 		const struct dc_link *link = dc->links[i];
 
-		/*
-		 * Only notify active stream or virtual stream.
-		 * Need to notify virtual stream to work around
-		 * headless case. HPD does not fire when system is in
-		 * S0i2.
-		 */
 		/* abusing the fact that the dig and phy are coupled to see if the phy is enabled */
-		if (link->connector_signal == SIGNAL_TYPE_VIRTUAL ||
-				link->link_enc->funcs->is_dig_enabled(link->link_enc))
+		if (link->link_enc->funcs->is_dig_enabled(link->link_enc))
 			display_count++;
 	}
 
@@ -631,7 +624,7 @@ static unsigned int find_dcfclk_for_voltage(const struct vg_dpm_clocks *clock_ta
 	return 0;
 }
 
-static void vg_clk_mgr_helper_populate_bw_params(
+void vg_clk_mgr_helper_populate_bw_params(
 		struct clk_mgr_internal *clk_mgr,
 		struct integrated_info *bios_info,
 		const struct vg_dpm_clocks *clock_table)
@@ -709,7 +702,7 @@ static struct vg_dpm_clocks dummy_clocks = {
 
 static struct watermarks dummy_wms = { 0 };
 
-static void vg_get_dpm_table_from_smu(struct clk_mgr_internal *clk_mgr,
+void vg_get_dpm_table_from_smu(struct clk_mgr_internal *clk_mgr,
 		struct smu_dpm_clks *smu_dpm_clks)
 {
 	struct vg_dpm_clocks *table = smu_dpm_clks->dpm_clks;

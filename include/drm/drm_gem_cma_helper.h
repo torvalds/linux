@@ -59,7 +59,7 @@ struct drm_gem_cma_object {
 		.poll		= drm_poll,\
 		.read		= drm_read,\
 		.llseek		= noop_llseek,\
-		.mmap		= drm_gem_cma_mmap,\
+		.mmap		= drm_gem_mmap,\
 		DRM_GEM_CMA_UNMAPPED_AREA_FOPS \
 	}
 
@@ -75,9 +75,6 @@ int drm_gem_cma_dumb_create_internal(struct drm_file *file_priv,
 int drm_gem_cma_dumb_create(struct drm_file *file_priv,
 			    struct drm_device *drm,
 			    struct drm_mode_create_dumb *args);
-
-/* set vm_flags and we can change the VM attribute to other one at here */
-int drm_gem_cma_mmap(struct file *filp, struct vm_area_struct *vma);
 
 /* allocate physical memory */
 struct drm_gem_cma_object *drm_gem_cma_create(struct drm_device *drm,
@@ -96,14 +93,13 @@ unsigned long drm_gem_cma_get_unmapped_area(struct file *filp,
 void drm_gem_cma_print_info(struct drm_printer *p, unsigned int indent,
 			    const struct drm_gem_object *obj);
 
-struct sg_table *drm_gem_cma_prime_get_sg_table(struct drm_gem_object *obj);
+struct sg_table *drm_gem_cma_get_sg_table(struct drm_gem_object *obj);
 struct drm_gem_object *
 drm_gem_cma_prime_import_sg_table(struct drm_device *dev,
 				  struct dma_buf_attachment *attach,
 				  struct sg_table *sgt);
-int drm_gem_cma_prime_mmap(struct drm_gem_object *obj,
-			   struct vm_area_struct *vma);
-int drm_gem_cma_prime_vmap(struct drm_gem_object *obj, struct dma_buf_map *map);
+int drm_gem_cma_vmap(struct drm_gem_object *obj, struct dma_buf_map *map);
+int drm_gem_cma_mmap(struct drm_gem_object *obj, struct vm_area_struct *vma);
 
 /**
  * DRM_GEM_CMA_DRIVER_OPS_WITH_DUMB_CREATE - CMA GEM driver operations
@@ -123,7 +119,7 @@ int drm_gem_cma_prime_vmap(struct drm_gem_object *obj, struct dma_buf_map *map);
 	.prime_handle_to_fd	= drm_gem_prime_handle_to_fd, \
 	.prime_fd_to_handle	= drm_gem_prime_fd_to_handle, \
 	.gem_prime_import_sg_table = drm_gem_cma_prime_import_sg_table, \
-	.gem_prime_mmap		= drm_gem_cma_prime_mmap
+	.gem_prime_mmap		= drm_gem_prime_mmap
 
 /**
  * DRM_GEM_CMA_DRIVER_OPS - CMA GEM driver operations

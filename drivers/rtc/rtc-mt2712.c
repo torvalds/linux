@@ -352,7 +352,7 @@ static int mt2712_rtc_probe(struct platform_device *pdev)
 	mt2712_rtc->rtc->range_min = RTC_TIMESTAMP_BEGIN_2000;
 	mt2712_rtc->rtc->range_max = MT2712_RTC_TIMESTAMP_END_2127;
 
-	return rtc_register_device(mt2712_rtc->rtc);
+	return devm_rtc_register_device(mt2712_rtc->rtc);
 }
 
 #ifdef CONFIG_PM_SLEEP

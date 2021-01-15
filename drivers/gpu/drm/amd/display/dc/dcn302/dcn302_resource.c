@@ -53,6 +53,7 @@
 #include "dce/dce_i2c_hw.h"
 #include "dce/dce_panel_cntl.h"
 #include "dce/dmub_abm.h"
+#include "dce/dmub_psr.h"
 
 #include "hw_sequencer_private.h"
 #include "reg_helper.h"
@@ -60,8 +61,8 @@
 #include "vm_helper.h"
 
 #include "dimgrey_cavefish_ip_offset.h"
-#include "dcn/dcn_3_0_0_offset.h"
-#include "dcn/dcn_3_0_0_sh_mask.h"
+#include "dcn/dcn_3_0_2_offset.h"
+#include "dcn/dcn_3_0_2_sh_mask.h"
 #include "dcn/dpcs_3_0_0_offset.h"
 #include "dcn/dpcs_3_0_0_sh_mask.h"
 #include "nbio/nbio_7_4_offset.h"
@@ -238,6 +239,7 @@ static const struct dc_debug_options debug_defaults_diags = {
 		.dwb_fi_phase = -1, // -1 = disable
 		.dmub_command_table = true,
 		.enable_tri_buf = true,
+		.disable_psr = true,
 };
 
 enum dcn302_clk_src_array_id {
@@ -967,6 +969,7 @@ static const struct encoder_feature_support link_enc_feature = {
 		[id] = {\
 				LE_DCN3_REG_LIST(id), \
 				UNIPHY_DCN2_REG_LIST(phyid), \
+				DPCS_DCN2_REG_LIST(id), \
 				SRI(DP_DPHY_INTERNAL_CTRL, DP, id) \
 		}
 
@@ -1212,6 +1215,9 @@ static void dcn302_resource_destruct(struct resource_pool *pool)
 			dce_abm_destroy(&pool->multiple_abms[i]);
 	}
 
+	if (pool->psr != NULL)
+		dmub_psr_destroy(&pool->psr);
+
 	if (pool->dccg != NULL)
 		dcn_dccg_destroy(&pool->dccg);
 }
@@ -1306,7 +1312,9 @@ static bool dcn302_resource_construct(
 	pool->mpcc_count = pool->res_cap->num_timing_generator;
 	dc->caps.max_downscale_ratio = 600;
 	dc->caps.i2c_speed_in_khz = 100;
+	dc->caps.i2c_speed_in_khz_hdcp = 5; /*1.4 w/a applied by derfault*/
 	dc->caps.max_cursor_size = 256;
+	dc->caps.min_horizontal_blanking_period = 80;
 	dc->caps.dmdata_alloc_size = 2048;
 
 	dc->caps.max_slave_planes = 1;
@@ -1327,6 +1335,7 @@ static bool dcn302_resource_construct(
 	dc->caps.color.dpp.dgam_rom_caps.hlg = 1;
 	dc->caps.color.dpp.post_csc = 1;
 	dc->caps.color.dpp.gamma_corr = 1;
+	dc->caps.color.dpp.dgam_rom_for_yuv = 0;
 
 	dc->caps.color.dpp.hw_3d_lut = 1;
 	dc->caps.color.dpp.ogam_ram = 1;
@@ -1350,8 +1359,6 @@ static bool dcn302_resource_construct(
 
 	if (dc->ctx->dce_environment == DCE_ENV_PRODUCTION_DRV)
 		dc->debug = debug_defaults_drv;
-	else if (dc->ctx->dce_environment == DCE_ENV_FPGA_MAXIMUS)
-		dc->debug = debug_defaults_diags;
 	else
 		dc->debug = debug_defaults_diags;
 
@@ -1464,6 +1471,14 @@ static bool dcn302_resource_construct(
 		}
 	}
 	pool->timing_generator_count = i;
+
+	/* PSR */
+	pool->psr = dmub_psr_create(ctx);
+	if (pool->psr == NULL) {
+		dm_error("DC: failed to create psr!\n");
+		BREAK_TO_DEBUGGER();
+		goto create_fail;
+	}
 
 	/* ABMs */
 	for (i = 0; i < pool->res_cap->num_timing_generator; i++) {

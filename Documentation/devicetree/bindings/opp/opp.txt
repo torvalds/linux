@@ -65,7 +65,9 @@ Required properties:
 
 - OPP nodes: One or more OPP nodes describing voltage-current-frequency
   combinations. Their name isn't significant but their phandle can be used to
-  reference an OPP.
+  reference an OPP. These are mandatory except for the case where the OPP table
+  is present only to indicate dependency between devices using the opp-shared
+  property.
 
 Optional properties:
 - opp-shared: Indicates that device nodes using this OPP Table Node's phandle
@@ -566,5 +568,55 @@ Example 6: opp-microvolt-<name>, opp-microamp-<name>:
 					     <965000 960000 975000>; /* Supply vcc1 */
 			opp-microamp =  <70000>; /* Will be used for both slow/fast */
 		};
+	};
+};
+
+Example 7: Single cluster Quad-core ARM cortex A53, OPP points from firmware,
+distinct clock controls but two sets of clock/voltage/current lines.
+
+/ {
+	cpus {
+		#address-cells = <2>;
+		#size-cells = <0>;
+
+		cpu@0 {
+			compatible = "arm,cortex-a53";
+			reg = <0x0 0x100>;
+			next-level-cache = <&A53_L2>;
+			clocks = <&dvfs_controller 0>;
+			operating-points-v2 = <&cpu_opp0_table>;
+		};
+		cpu@1 {
+			compatible = "arm,cortex-a53";
+			reg = <0x0 0x101>;
+			next-level-cache = <&A53_L2>;
+			clocks = <&dvfs_controller 1>;
+			operating-points-v2 = <&cpu_opp0_table>;
+		};
+		cpu@2 {
+			compatible = "arm,cortex-a53";
+			reg = <0x0 0x102>;
+			next-level-cache = <&A53_L2>;
+			clocks = <&dvfs_controller 2>;
+			operating-points-v2 = <&cpu_opp1_table>;
+		};
+		cpu@3 {
+			compatible = "arm,cortex-a53";
+			reg = <0x0 0x103>;
+			next-level-cache = <&A53_L2>;
+			clocks = <&dvfs_controller 3>;
+			operating-points-v2 = <&cpu_opp1_table>;
+		};
+
+	};
+
+	cpu_opp0_table: opp0_table {
+		compatible = "operating-points-v2";
+		opp-shared;
+	};
+
+	cpu_opp1_table: opp1_table {
+		compatible = "operating-points-v2";
+		opp-shared;
 	};
 };

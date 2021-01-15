@@ -1602,9 +1602,11 @@ static int pinctrl_pins_show(struct seq_file *s, void *what)
 	struct pinctrl_dev *pctldev = s->private;
 	const struct pinctrl_ops *ops = pctldev->desc->pctlops;
 	unsigned i, pin;
+#ifdef CONFIG_GPIOLIB
 	struct pinctrl_gpio_range *range;
 	unsigned int gpio_num;
 	struct gpio_chip *chip;
+#endif
 
 	seq_printf(s, "registered pins: %d\n", pctldev->desc->npins);
 

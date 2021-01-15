@@ -389,15 +389,17 @@ static void meson_drv_unbind(struct device *dev)
 		meson_canvas_free(priv->canvas, priv->canvas_id_vd1_2);
 	}
 
+	drm_dev_unregister(drm);
+	drm_kms_helper_poll_fini(drm);
+	drm_atomic_helper_shutdown(drm);
+	component_unbind_all(dev, drm);
+	drm_irq_uninstall(drm);
+	drm_dev_put(drm);
+
 	if (priv->afbcd.ops) {
 		priv->afbcd.ops->reset(priv);
 		meson_rdma_free(priv);
 	}
-
-	drm_dev_unregister(drm);
-	drm_irq_uninstall(drm);
-	drm_kms_helper_poll_fini(drm);
-	drm_dev_put(drm);
 }
 
 static const struct component_master_ops meson_drv_master_ops = {

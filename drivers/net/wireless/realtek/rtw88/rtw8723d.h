@@ -163,6 +163,7 @@ static inline s32 iqk_mult(s32 x, s32 y, s32 *ext)
 #define REG_CCK0_SYS		0x0a00
 #define BIT_CCK_SIDE_BAND	BIT(4)
 #define REG_CCK_ANT_SEL_11N	0x0a04
+#define REG_PWRTH		0x0a08
 #define REG_CCK_FA_RST_11N	0x0a2c
 #define BIT_MASK_CCK_CNT_KEEP	BIT(12)
 #define BIT_MASK_CCK_CNT_EN	BIT(13)
@@ -175,6 +176,8 @@ static inline s32 iqk_mult(s32 x, s32 y, s32 *ext)
 #define REG_CCK_CCA_CNT_11N	0x0a60
 #define BIT_MASK_CCK_FA_MSB	GENMASK(7, 0)
 #define BIT_MASK_CCK_FA_LSB	GENMASK(15, 8)
+#define REG_PWRTH2		0x0aa8
+#define REG_CSRATIO		0x0aaa
 #define REG_OFDM_FA_HOLDC_11N	0x0c00
 #define BIT_MASK_OFDM_FA_KEEP	BIT(31)
 #define REG_BB_RX_PATH_11N	0x0c04

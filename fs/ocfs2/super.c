@@ -1713,6 +1713,7 @@ static void ocfs2_inode_init_once(void *data)
 
 	oi->ip_blkno = 0ULL;
 	oi->ip_clusters = 0;
+	oi->ip_next_orphan = NULL;
 
 	ocfs2_resv_init_once(&oi->ip_la_data_resv);
 

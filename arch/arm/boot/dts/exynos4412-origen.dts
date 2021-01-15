@@ -116,7 +116,7 @@
 	pinctrl-names = "default";
 	status = "okay";
 
-	s5m8767_pmic@66 {
+	pmic@66 {
 		compatible = "samsung,s5m8767-pmic";
 		reg = <0x66>;
 
@@ -453,37 +453,37 @@
 	pinctrl-names = "default";
 	status = "okay";
 
-	key_home {
+	key-home {
 		keypad,row = <0>;
 		keypad,column = <0>;
 		linux,code = <KEY_HOME>;
 	};
 
-	key_down {
+	key-down {
 		keypad,row = <0>;
 		keypad,column = <1>;
 		linux,code = <KEY_DOWN>;
 	};
 
-	key_up {
+	key-up {
 		keypad,row = <1>;
 		keypad,column = <0>;
 		linux,code = <KEY_UP>;
 	};
 
-	key_menu {
+	key-menu {
 		keypad,row = <1>;
 		keypad,column = <1>;
 		linux,code = <KEY_MENU>;
 	};
 
-	key_back {
+	key-back {
 		keypad,row = <2>;
 		keypad,column = <0>;
 		linux,code = <KEY_BACK>;
 	};
 
-	key_enter {
+	key-enter {
 		keypad,row = <2>;
 		keypad,column = <1>;
 		linux,code = <KEY_ENTER>;

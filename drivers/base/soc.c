@@ -168,7 +168,7 @@ out1:
 }
 EXPORT_SYMBOL_GPL(soc_device_register);
 
-/* Ensure soc_dev->attr is freed prior to calling soc_device_unregister. */
+/* Ensure soc_dev->attr is freed after calling soc_device_unregister. */
 void soc_device_unregister(struct soc_device *soc_dev)
 {
 	device_unregister(&soc_dev->dev);

@@ -114,8 +114,7 @@ static int i915_gem_dmabuf_mmap(struct dma_buf *dma_buf, struct vm_area_struct *
 	if (ret)
 		return ret;
 
-	fput(vma->vm_file);
-	vma->vm_file = get_file(obj->base.filp);
+	vma_set_file(vma, obj->base.filp);
 
 	return 0;
 }

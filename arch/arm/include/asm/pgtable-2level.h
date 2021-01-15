@@ -75,6 +75,8 @@
 #define PTE_HWTABLE_OFF		(PTE_HWTABLE_PTRS * sizeof(pte_t))
 #define PTE_HWTABLE_SIZE	(PTRS_PER_PTE * sizeof(u32))
 
+#define MAX_POSSIBLE_PHYSMEM_BITS	32
+
 /*
  * PMD_SHIFT determines the size of the area a second-level page table can map
  * PGDIR_SHIFT determines what a third-level page table entry can map
@@ -177,11 +179,28 @@
  * the pud: the pud entry is never bad, always exists, and can't be set or
  * cleared.
  */
-#define pud_none(pud)		(0)
-#define pud_bad(pud)		(0)
-#define pud_present(pud)	(1)
-#define pud_clear(pudp)		do { } while (0)
-#define set_pud(pud,pudp)	do { } while (0)
+static inline int pud_none(pud_t pud)
+{
+	return 0;
+}
+
+static inline int pud_bad(pud_t pud)
+{
+	return 0;
+}
+
+static inline int pud_present(pud_t pud)
+{
+	return 1;
+}
+
+static inline void pud_clear(pud_t *pudp)
+{
+}
+
+static inline void set_pud(pud_t *pudp, pud_t pud)
+{
+}
 
 static inline pmd_t *pmd_offset(pud_t *pud, unsigned long addr)
 {

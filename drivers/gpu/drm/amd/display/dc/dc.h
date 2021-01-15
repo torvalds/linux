@@ -42,7 +42,7 @@
 #include "inc/hw/dmcu.h"
 #include "dml/display_mode_lib.h"
 
-#define DC_VER "3.2.110"
+#define DC_VER "3.2.116"
 
 #define MAX_SURFACES 3
 #define MAX_PLANES 6
@@ -125,6 +125,7 @@ struct dpp_color_caps {
 	uint16_t hw_3d_lut : 1;
 	uint16_t ogam_ram : 1; // blnd gam
 	uint16_t ocsc : 1;
+	uint16_t dgam_rom_for_yuv : 1;
 	struct rom_curve_caps dgam_rom_caps;
 	struct rom_curve_caps ogam_rom_caps;
 };
@@ -168,7 +169,11 @@ struct dc_caps {
 	bool psp_setup_panel_mode;
 	bool extended_aux_timeout_support;
 	bool dmcub_support;
+	uint32_t num_of_internal_disp;
 	enum dp_protocol_version max_dp_protocol_version;
+	unsigned int mall_size_per_mem_channel;
+	unsigned int mall_size_total;
+	unsigned int cursor_cache_size;
 	struct dc_plane_cap planes[MAX_PLANES];
 	struct dc_color_caps color;
 };
@@ -341,7 +346,9 @@ enum dcn_pwr_state {
  */
 struct dc_clocks {
 	int dispclk_khz;
+	int actual_dispclk_khz;
 	int dppclk_khz;
+	int actual_dppclk_khz;
 	int disp_dpp_voltage_level_khz;
 	int dcfclk_khz;
 	int socclk_khz;
@@ -416,6 +423,10 @@ struct dc_bw_validation_profile {
 
 union mem_low_power_enable_options {
 	struct {
+		bool i2c: 1;
+		bool dmcu: 1;
+		bool dscl: 1;
+		bool cm: 1;
 		bool mpc: 1;
 		bool optc: 1;
 	} bits;
@@ -479,7 +490,7 @@ struct dc_debug_options {
 	bool scl_reset_length10;
 	bool hdmi20_disable;
 	bool skip_detection_link_training;
-	bool edid_read_retry_times;
+	uint32_t edid_read_retry_times;
 	bool remove_disconnect_edp;
 	unsigned int force_odm_combine; //bit vector based on otg inst
 #if defined(CONFIG_DRM_AMD_DC_DCN)
@@ -491,6 +502,7 @@ struct dc_debug_options {
 	bool dmcub_emulation;
 #if defined(CONFIG_DRM_AMD_DC_DCN)
 	bool disable_idle_power_optimizations;
+	unsigned int mall_size_override;
 #endif
 	bool dmub_command_table; /* for testing only */
 	struct dc_bw_validation_profile bw_val_profile;
@@ -1088,6 +1100,7 @@ struct dpcd_caps {
 	bool panel_mode_edp;
 	bool dpcd_display_control_capable;
 	bool ext_receiver_cap_field_present;
+	bool dynamic_backlight_capable_edp;
 	union dpcd_fec_capability fec_cap;
 	struct dpcd_dsc_capabilities dsc_caps;
 	struct dc_lttpr_caps lttpr_caps;

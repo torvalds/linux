@@ -17,15 +17,17 @@ allOf:
 properties:
   compatible:
     items:
-      - const: sifive,fu540-c000-spi
+      - enum:
+          - sifive,fu540-c000-spi
+          - sifive,fu740-c000-spi
       - const: sifive,spi0
 
     description:
       Should be "sifive,<chip>-spi" and "sifive,spi<version>".
       Supported compatible strings are -
-      "sifive,fu540-c000-spi" for the SiFive SPI v0 as integrated
-      onto the SiFive FU540 chip, and "sifive,spi0" for the SiFive
-      SPI v0 IP block with no chip integration tweaks.
+      "sifive,fu540-c000-spi" and "sifive,fu740-c000-spi" for the SiFive SPI v0
+      as integrated onto the SiFive FU540 and FU740 chip resp, and "sifive,spi0"
+      for the SiFive SPI v0 IP block with no chip integration tweaks.
       Please refer to sifive-blocks-ip-versioning.txt for details
 
       SPI RTL that corresponds to the IP block version numbers can be found here -

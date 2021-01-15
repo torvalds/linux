@@ -132,3 +132,16 @@ used to obtain device's power state after the power state transition:
 The function returns a non-zero value if it succeeded getting the power count or
 runtime PM was disabled, in either of which cases the driver may proceed to
 access the device.
+
+Controls
+--------
+
+For camera sensors that are connected to a bus where transmitter and receiver
+require common configuration set by drivers, such as CSI-2 or parallel (BT.601
+or BT.656) bus, the ``V4L2_CID_LINK_FREQ`` control is mandatory on transmitter
+drivers. Receiver drivers can use the ``V4L2_CID_LINK_FREQ`` to query the
+frequency used on the bus.
+
+The transmitter drivers should also implement ``V4L2_CID_PIXEL_RATE`` control in
+order to tell the maximum pixel rate to the receiver. This is required on raw
+camera sensors.

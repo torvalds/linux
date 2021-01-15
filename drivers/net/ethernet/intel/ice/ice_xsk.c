@@ -446,8 +446,11 @@ bool ice_alloc_rx_bufs_zc(struct ice_ring *rx_ring, u16 count)
 		}
 	} while (--count);
 
-	if (rx_ring->next_to_use != ntu)
+	if (rx_ring->next_to_use != ntu) {
+		/* clear the status bits for the next_to_use descriptor */
+		rx_desc->wb.status_error0 = 0;
 		ice_release_rx_desc(rx_ring, ntu);
+	}
 
 	return ret;
 }
@@ -570,12 +573,6 @@ int ice_clean_rx_irq_zc(struct ice_ring *rx_ring, int budget)
 		u16 vlan_tag = 0;
 		u8 rx_ptype;
 
-		if (cleaned_count >= ICE_RX_BUF_WRITE) {
-			failure |= ice_alloc_rx_bufs_zc(rx_ring,
-							cleaned_count);
-			cleaned_count = 0;
-		}
-
 		rx_desc = ICE_RX_DESC(rx_ring, rx_ring->next_to_clean);
 
 		stat_err_bits = BIT(ICE_RX_FLEX_DESC_STATUS0_DD_S);
@@ -641,6 +638,9 @@ int ice_clean_rx_irq_zc(struct ice_ring *rx_ring, int budget)
 		ice_process_skb_fields(rx_ring, rx_desc, skb, rx_ptype);
 		ice_receive_skb(rx_ring, skb, vlan_tag);
 	}
+
+	if (cleaned_count >= ICE_RX_BUF_WRITE)
+		failure = !ice_alloc_rx_bufs_zc(rx_ring, cleaned_count);
 
 	ice_finalize_xdp_rx(rx_ring, xdp_xmit);
 	ice_update_rx_ring_stats(rx_ring, total_rx_packets, total_rx_bytes);

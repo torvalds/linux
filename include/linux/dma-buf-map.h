@@ -122,7 +122,7 @@ struct dma_buf_map {
 
 /**
  * DMA_BUF_MAP_INIT_VADDR - Initializes struct dma_buf_map to an address in system memory
- * @vaddr:	A system-memory address
+ * @vaddr_:	A system-memory address
  */
 #define DMA_BUF_MAP_INIT_VADDR(vaddr_) \
 	{ \

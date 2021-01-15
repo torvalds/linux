@@ -131,7 +131,7 @@ additionalProperties: false
 examples:
   - |
     #include <dt-bindings/clock/stm32mp1-clks.h>
-    timers2: timers@40000000 {
+    timers2: timer@40000000 {
       #address-cells = <1>;
       #size-cells = <0>;
       compatible = "st,stm32-timers";
@@ -149,9 +149,9 @@ examples:
         #pwm-cells = <3>;
         st,breakinput = <0 1 5>;
       };
-      timer@0 {
+      timer@1 {
         compatible = "st,stm32-timer-trigger";
-        reg = <0>;
+        reg = <1>;
       };
       counter {
         compatible = "st,stm32-timer-counter";

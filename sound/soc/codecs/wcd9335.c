@@ -3979,7 +3979,7 @@ static irqreturn_t wcd9335_slimbus_irq(int irq, void *data)
 	}
 
 	for_each_set_bit(j, &status, 32) {
-		tx = (j >= 16 ? true : false);
+		tx = (j >= 16);
 		port_id = (tx ? j - 16 : j);
 		regmap_read(wcd->if_regmap,
 				WCD9335_SLIM_PGD_PORT_INT_RX_SOURCE0 + j, &val);

@@ -2246,7 +2246,7 @@ static int vegam_update_sclk_threshold(struct pp_hwmgr *hwmgr)
 	return result;
 }
 
-int vegam_thermal_avfs_enable(struct pp_hwmgr *hwmgr)
+static int vegam_thermal_avfs_enable(struct pp_hwmgr *hwmgr)
 {
 	struct smu7_hwmgr *data = (struct smu7_hwmgr *)(hwmgr->backend);
 	int ret;

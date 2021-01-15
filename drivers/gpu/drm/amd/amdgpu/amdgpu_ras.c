@@ -905,13 +905,6 @@ int amdgpu_ras_error_inject(struct amdgpu_device *adev,
 	return ret;
 }
 
-int amdgpu_ras_error_cure(struct amdgpu_device *adev,
-		struct ras_cure_if *info)
-{
-	/* psp fw has no cure interface for now. */
-	return 0;
-}
-
 /* get the total error counts on all IPs */
 unsigned long amdgpu_ras_query_error_count(struct amdgpu_device *adev,
 		bool is_ce)
@@ -1174,7 +1167,7 @@ static void amdgpu_ras_debugfs_create_ctrl_node(struct amdgpu_device *adev)
 			con->dir, &con->disable_ras_err_cnt_harvest);
 }
 
-void amdgpu_ras_debugfs_create(struct amdgpu_device *adev,
+static void amdgpu_ras_debugfs_create(struct amdgpu_device *adev,
 		struct ras_fs_if *head)
 {
 	struct amdgpu_ras *con = amdgpu_ras_get_context(adev);
@@ -1196,7 +1189,6 @@ void amdgpu_ras_debugfs_create(struct amdgpu_device *adev,
 
 void amdgpu_ras_debugfs_create_all(struct amdgpu_device *adev)
 {
-#if defined(CONFIG_DEBUG_FS)
 	struct amdgpu_ras *con = amdgpu_ras_get_context(adev);
 	struct ras_manager *obj;
 	struct ras_fs_if fs_info;
@@ -1205,7 +1197,7 @@ void amdgpu_ras_debugfs_create_all(struct amdgpu_device *adev)
 	 * it won't be called in resume path, no need to check
 	 * suspend and gpu reset status
 	 */
-	if (!con)
+	if (!IS_ENABLED(CONFIG_DEBUG_FS) || !con)
 		return;
 
 	amdgpu_ras_debugfs_create_ctrl_node(adev);
@@ -1219,10 +1211,9 @@ void amdgpu_ras_debugfs_create_all(struct amdgpu_device *adev)
 			amdgpu_ras_debugfs_create(adev, &fs_info);
 		}
 	}
-#endif
 }
 
-void amdgpu_ras_debugfs_remove(struct amdgpu_device *adev,
+static void amdgpu_ras_debugfs_remove(struct amdgpu_device *adev,
 		struct ras_common_if *head)
 {
 	struct ras_manager *obj = amdgpu_ras_find_obj(adev, head);
@@ -1236,7 +1227,6 @@ void amdgpu_ras_debugfs_remove(struct amdgpu_device *adev,
 
 static void amdgpu_ras_debugfs_remove_all(struct amdgpu_device *adev)
 {
-#if defined(CONFIG_DEBUG_FS)
 	struct amdgpu_ras *con = amdgpu_ras_get_context(adev);
 	struct ras_manager *obj, *tmp;
 
@@ -1245,7 +1235,6 @@ static void amdgpu_ras_debugfs_remove_all(struct amdgpu_device *adev)
 	}
 
 	con->dir = NULL;
-#endif
 }
 /* debugfs end */
 
@@ -1293,7 +1282,8 @@ static int amdgpu_ras_fs_init(struct amdgpu_device *adev)
 
 static int amdgpu_ras_fs_fini(struct amdgpu_device *adev)
 {
-	amdgpu_ras_debugfs_remove_all(adev);
+	if (IS_ENABLED(CONFIG_DEBUG_FS))
+		amdgpu_ras_debugfs_remove_all(adev);
 	amdgpu_ras_sysfs_remove_all(adev);
 	return 0;
 }
@@ -1479,8 +1469,8 @@ static void amdgpu_ras_log_on_err_counter(struct amdgpu_device *adev)
 }
 
 /* Parse RdRspStatus and WrRspStatus */
-void amdgpu_ras_error_status_query(struct amdgpu_device *adev,
-		struct ras_query_if *info)
+static void amdgpu_ras_error_status_query(struct amdgpu_device *adev,
+					  struct ras_query_if *info)
 {
 	/*
 	 * Only two block need to query read/write
@@ -1528,7 +1518,7 @@ static int amdgpu_ras_badpages_read(struct amdgpu_device *adev,
 	struct amdgpu_ras *con = amdgpu_ras_get_context(adev);
 	struct ras_err_handler_data *data;
 	int i = 0;
-	int ret = 0;
+	int ret = 0, status;
 
 	if (!con || !con->eh_data || !bps || !count)
 		return -EINVAL;
@@ -1553,12 +1543,12 @@ static int amdgpu_ras_badpages_read(struct amdgpu_device *adev,
 			.size = AMDGPU_GPU_PAGE_SIZE,
 			.flags = AMDGPU_RAS_RETIRE_PAGE_RESERVED,
 		};
-		ret = amdgpu_vram_mgr_query_page_status(
+		status = amdgpu_vram_mgr_query_page_status(
 				ttm_manager_type(&adev->mman.bdev, TTM_PL_VRAM),
 				data->bps[i].retired_page);
-		if (ret == -EBUSY)
+		if (status == -EBUSY)
 			(*bps)[i].flags = AMDGPU_RAS_RETIRE_PAGE_PENDING;
-		else if (ret == -ENOENT)
+		else if (status == -ENOENT)
 			(*bps)[i].flags = AMDGPU_RAS_RETIRE_PAGE_FAULT;
 	}
 

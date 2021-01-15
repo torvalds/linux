@@ -120,7 +120,7 @@ static char *translate_scan(struct adapter *padapter,
 	start = iwe_stream_add_point(info, start, stop, &iwe, pnetwork->network.ssid.ssid);
 
 	/* parsing HT_CAP_IE */
-	p = rtw_get_ie(&pnetwork->network.ies[12], _HT_CAPABILITY_IE_, &ht_ielen, pnetwork->network.ie_length - 12);
+	p = rtw_get_ie(&pnetwork->network.ies[12], WLAN_EID_HT_CAPABILITY, &ht_ielen, pnetwork->network.ie_length - 12);
 
 	if (p && ht_ielen > 0) {
 		struct ieee80211_ht_cap *pht_capie;
@@ -587,7 +587,7 @@ static int rtw_set_wpa_ie(struct adapter *padapter, char *pie, unsigned short ie
 
 			while (cnt < ielen) {
 				eid = buf[cnt];
-				if ((eid == _VENDOR_SPECIFIC_IE_) && (!memcmp(&buf[cnt + 2], wps_oui, 4))) {
+				if ((eid == WLAN_EID_VENDOR_SPECIFIC) && (!memcmp(&buf[cnt + 2], wps_oui, 4))) {
 					DBG_88E("SET WPS_IE\n");
 
 					padapter->securitypriv.wps_ie_len = min(buf[cnt + 1] + 2, MAX_WPA_IE_LEN << 2);
@@ -629,7 +629,7 @@ static int rtw_wx_get_name(struct net_device *dev,
 
 	if (check_fwstate(pmlmepriv, _FW_LINKED | WIFI_ADHOC_MASTER_STATE)) {
 		/* parsing HT_CAP_IE */
-		p = rtw_get_ie(&pcur_bss->ies[12], _HT_CAPABILITY_IE_, &ht_ielen, pcur_bss->ie_length - 12);
+		p = rtw_get_ie(&pcur_bss->ies[12], WLAN_EID_HT_CAPABILITY, &ht_ielen, pcur_bss->ie_length - 12);
 		if (p && ht_ielen > 0)
 			ht_cap = true;
 
@@ -905,17 +905,6 @@ static int rtw_wx_get_range(struct net_device *dev,
 /*  The following code will proivde the security capability to network manager. */
 /*  If the driver doesn't provide this capability to network manager, */
 /*  the WPA/WPA2 routers can't be chosen in the network manager. */
-
-/*
-#define IW_SCAN_CAPA_NONE		0x00
-#define IW_SCAN_CAPA_ESSID		0x01
-#define IW_SCAN_CAPA_BSSID		0x02
-#define IW_SCAN_CAPA_CHANNEL		0x04
-#define IW_SCAN_CAPA_MODE		0x08
-#define IW_SCAN_CAPA_RATE		0x10
-#define IW_SCAN_CAPA_TYPE		0x20
-#define IW_SCAN_CAPA_TIME		0x40
-*/
 
 	range->enc_capa = IW_ENC_CAPA_WPA | IW_ENC_CAPA_WPA2 |
 			  IW_ENC_CAPA_CIPHER_TKIP | IW_ENC_CAPA_CIPHER_CCMP;
@@ -2633,7 +2622,7 @@ static int rtw_set_wps_beacon(struct net_device *dev, struct ieee_param *param, 
 
 		memcpy(pmlmepriv->wps_beacon_ie, param->u.bcn_ie.buf, ie_len);
 
-		update_beacon(padapter, _VENDOR_SPECIFIC_IE_, wps_oui, true);
+		update_beacon(padapter, WLAN_EID_VENDOR_SPECIFIC, wps_oui, true);
 
 		pmlmeext->bstart_bss = true;
 	}
@@ -2874,7 +2863,7 @@ static int rtw_wx_set_priv(struct net_device *dev,
 		int probereq_wpsie_len = len;
 		u8 wps_oui[4] = {0x0, 0x50, 0xf2, 0x04};
 
-		if ((probereq_wpsie[0] == _VENDOR_SPECIFIC_IE_) &&
+		if ((probereq_wpsie[0] == WLAN_EID_VENDOR_SPECIFIC) &&
 		    (!memcmp(&probereq_wpsie[2], wps_oui, 4))) {
 			cp_sz = min(probereq_wpsie_len, MAX_WPS_IE_LEN);
 

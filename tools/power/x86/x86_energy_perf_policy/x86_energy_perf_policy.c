@@ -91,6 +91,9 @@ unsigned int has_hwp_request_pkg;	/* IA32_HWP_REQUEST_PKG */
 
 unsigned int bdx_highest_ratio;
 
+#define PATH_TO_CPU "/sys/devices/system/cpu/"
+#define SYSFS_PATH_MAX 255
+
 /*
  * maintain compatibility with original implementation, but don't document it:
  */
@@ -622,6 +625,57 @@ void cmdline(int argc, char **argv)
 	}
 }
 
+/*
+ * Open a file, and exit on failure
+ */
+FILE *fopen_or_die(const char *path, const char *mode)
+{
+	FILE *filep = fopen(path, "r");
+
+	if (!filep)
+		err(1, "%s: open failed", path);
+	return filep;
+}
+
+void err_on_hypervisor(void)
+{
+	FILE *cpuinfo;
+	char *flags, *hypervisor;
+	char *buffer;
+
+	/* On VMs /proc/cpuinfo contains a "flags" entry for hypervisor */
+	cpuinfo = fopen_or_die("/proc/cpuinfo", "ro");
+
+	buffer = malloc(4096);
+	if (!buffer) {
+		fclose(cpuinfo);
+		err(-ENOMEM, "buffer malloc fail");
+	}
+
+	if (!fread(buffer, 1024, 1, cpuinfo)) {
+		fclose(cpuinfo);
+		free(buffer);
+		err(1, "Reading /proc/cpuinfo failed");
+	}
+
+	flags = strstr(buffer, "flags");
+	rewind(cpuinfo);
+	fseek(cpuinfo, flags - buffer, SEEK_SET);
+	if (!fgets(buffer, 4096, cpuinfo)) {
+		fclose(cpuinfo);
+		free(buffer);
+		err(1, "Reading /proc/cpuinfo failed");
+	}
+	fclose(cpuinfo);
+
+	hypervisor = strstr(buffer, "hypervisor");
+
+	free(buffer);
+
+	if (hypervisor)
+		err(-1,
+		    "not supported on this virtual machine");
+}
 
 int get_msr(int cpu, int offset, unsigned long long *msr)
 {
@@ -635,8 +689,10 @@ int get_msr(int cpu, int offset, unsigned long long *msr)
 		err(-1, "%s open failed, try chown or chmod +r /dev/cpu/*/msr, or run as root", pathname);
 
 	retval = pread(fd, msr, sizeof(*msr), offset);
-	if (retval != sizeof(*msr))
+	if (retval != sizeof(*msr)) {
+		err_on_hypervisor();
 		err(-1, "%s offset 0x%llx read failed", pathname, (unsigned long long)offset);
+	}
 
 	if (debug > 1)
 		fprintf(stderr, "get_msr(cpu%d, 0x%X, 0x%llX)\n", cpu, offset, *msr);
@@ -666,6 +722,48 @@ int put_msr(int cpu, int offset, unsigned long long new_msr)
 		fprintf(stderr, "put_msr(cpu%d, 0x%X, 0x%llX)\n", cpu, offset, new_msr);
 
 	return 0;
+}
+
+static unsigned int read_sysfs(const char *path, char *buf, size_t buflen)
+{
+	ssize_t numread;
+	int fd;
+
+	fd = open(path, O_RDONLY);
+	if (fd == -1)
+		return 0;
+
+	numread = read(fd, buf, buflen - 1);
+	if (numread < 1) {
+		close(fd);
+		return 0;
+	}
+
+	buf[numread] = '\0';
+	close(fd);
+
+	return (unsigned int) numread;
+}
+
+static unsigned int write_sysfs(const char *path, char *buf, size_t buflen)
+{
+	ssize_t numwritten;
+	int fd;
+
+	fd = open(path, O_WRONLY);
+	if (fd == -1)
+		return 0;
+
+	numwritten = write(fd, buf, buflen - 1);
+	if (numwritten < 1) {
+		perror("write failed\n");
+		close(fd);
+		return -1;
+	}
+
+	close(fd);
+
+	return (unsigned int) numwritten;
 }
 
 void print_hwp_cap(int cpu, struct msr_hwp_cap *cap, char *str)
@@ -745,17 +843,61 @@ void write_hwp_request(int cpu, struct msr_hwp_request *hwp_req, unsigned int ms
 	put_msr(cpu, msr_offset, msr);
 }
 
+static int get_epb(int cpu)
+{
+	char path[SYSFS_PATH_MAX];
+	char linebuf[3];
+	char *endp;
+	long val;
+
+	if (!has_epb)
+		return -1;
+
+	snprintf(path, sizeof(path), PATH_TO_CPU "cpu%u/power/energy_perf_bias", cpu);
+
+	if (!read_sysfs(path, linebuf, 3))
+		return -1;
+
+	val = strtol(linebuf, &endp, 0);
+	if (endp == linebuf || errno == ERANGE)
+		return -1;
+
+	return (int)val;
+}
+
+static int set_epb(int cpu, int val)
+{
+	char path[SYSFS_PATH_MAX];
+	char linebuf[3];
+	char *endp;
+	int ret;
+
+	if (!has_epb)
+		return -1;
+
+	snprintf(path, sizeof(path), PATH_TO_CPU "cpu%u/power/energy_perf_bias", cpu);
+	snprintf(linebuf, sizeof(linebuf), "%d", val);
+
+	ret = write_sysfs(path, linebuf, 3);
+	if (ret <= 0)
+		return -1;
+
+	val = strtol(linebuf, &endp, 0);
+	if (endp == linebuf || errno == ERANGE)
+		return -1;
+
+	return (int)val;
+}
+
 int print_cpu_msrs(int cpu)
 {
-	unsigned long long msr;
 	struct msr_hwp_request req;
 	struct msr_hwp_cap cap;
+	int epb;
 
-	if (has_epb) {
-		get_msr(cpu, MSR_IA32_ENERGY_PERF_BIAS, &msr);
-
-		printf("cpu%d: EPB %u\n", cpu, (unsigned int) msr);
-	}
+	epb = get_epb(cpu);
+	if (epb >= 0)
+		printf("cpu%d: EPB %u\n", cpu, (unsigned int) epb);
 
 	if (!has_hwp)
 		return 0;
@@ -1038,15 +1180,15 @@ int enable_hwp_on_cpu(int cpu)
 int update_cpu_msrs(int cpu)
 {
 	unsigned long long msr;
-
+	int epb;
 
 	if (update_epb) {
-		get_msr(cpu, MSR_IA32_ENERGY_PERF_BIAS, &msr);
-		put_msr(cpu, MSR_IA32_ENERGY_PERF_BIAS, new_epb);
+		epb = get_epb(cpu);
+		set_epb(cpu, new_epb);
 
 		if (verbose)
 			printf("cpu%d: ENERGY_PERF_BIAS old: %d new: %d\n",
-				cpu, (unsigned int) msr, (unsigned int) new_epb);
+				cpu, epb, (unsigned int) new_epb);
 	}
 
 	if (update_turbo) {
@@ -1084,18 +1226,6 @@ int update_cpu_msrs(int cpu)
 
 	update_hwp_request(cpu);
 	return 0;
-}
-
-/*
- * Open a file, and exit on failure
- */
-FILE *fopen_or_die(const char *path, const char *mode)
-{
-	FILE *filep = fopen(path, "r");
-
-	if (!filep)
-		err(1, "%s: open failed", path);
-	return filep;
 }
 
 unsigned int get_pkg_num(int cpu)

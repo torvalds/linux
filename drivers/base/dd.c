@@ -371,6 +371,13 @@ static void driver_bound(struct device *dev)
 	device_pm_check_callbacks(dev);
 
 	/*
+	 * Reorder successfully probed devices to the end of the device list.
+	 * This ensures that suspend/resume order matches probe order, which
+	 * is usually what drivers rely on.
+	 */
+	device_pm_move_to_tail(dev);
+
+	/*
 	 * Make sure the device is no longer in one of the deferred lists and
 	 * kick off retrying all pending devices
 	 */
@@ -717,7 +724,7 @@ EXPORT_SYMBOL_GPL(wait_for_device_probe);
  *
  * If the device has a parent, runtime-resume the parent before driver probing.
  */
-int driver_probe_device(struct device_driver *drv, struct device *dev)
+static int driver_probe_device(struct device_driver *drv, struct device *dev)
 {
 	int ret = 0;
 

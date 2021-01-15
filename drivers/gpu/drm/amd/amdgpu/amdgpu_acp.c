@@ -176,7 +176,7 @@ static struct device *get_mfd_cell_dev(const char *device_name, int r)
 /**
  * acp_hw_init - start and test ACP block
  *
- * @adev: amdgpu_device pointer
+ * @handle: handle used to pass amdgpu_device pointer
  *
  */
 static int acp_hw_init(void *handle)
@@ -405,7 +405,7 @@ failure:
 /**
  * acp_hw_fini - stop the hardware block
  *
- * @adev: amdgpu_device pointer
+ * @handle: handle used to pass amdgpu_device pointer
  *
  */
 static int acp_hw_fini(void *handle)

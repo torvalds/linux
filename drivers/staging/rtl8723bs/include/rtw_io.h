@@ -345,7 +345,7 @@ extern void free_io_queue(struct adapter *adapter);
 extern void async_bus_io(struct io_queue *pio_q);
 extern void bus_sync_io(struct io_queue *pio_q);
 extern u32 _ioreq2rwmem(struct io_queue *pio_q);
-extern void dev_power_down(struct adapter * Adapter, u8 bpwrup);
+extern void dev_power_down(struct adapter *Adapter, u8 bpwrup);
 
 #define PlatformEFIOWrite1Byte(_a, _b, _c)		\
 	rtw_write8(_a, _b, _c)

@@ -40,7 +40,6 @@
 #ifdef ESS
 
 #ifndef lint
-static const char ID_sccs[] = "@(#)ess.c	1.10 96/02/23 (C) SK" ;
 #define LINT_USE(x)
 #else
 #define LINT_USE(x)	(x)=(x)

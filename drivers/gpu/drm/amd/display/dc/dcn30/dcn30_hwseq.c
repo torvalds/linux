@@ -462,6 +462,13 @@ void dcn30_init_hw(struct dc *dc)
 		hws->funcs.disable_vga(dc->hwseq);
 	}
 
+	if (dc->debug.enable_mem_low_power.bits.dmcu) {
+		// Force ERAM to shutdown if DMCU is not enabled
+		if (dc->debug.disable_dmcu || dc->config.disable_dmcu) {
+			REG_UPDATE(DMU_MEM_PWR_CNTL, DMCU_ERAM_MEM_PWR_FORCE, 3);
+		}
+	}
+
 	// Set default OPTC memory power states
 	if (dc->debug.enable_mem_low_power.bits.optc) {
 		// Shutdown when unassigned and light sleep in VBLANK
@@ -661,7 +668,7 @@ void dcn30_update_info_frame(struct pipe_ctx *pipe_ctx)
 	is_hdmi_tmds = dc_is_hdmi_tmds_signal(pipe_ctx->stream->signal);
 	is_dp = dc_is_dp_signal(pipe_ctx->stream->signal);
 
-	if (!is_hdmi_tmds)
+	if (!is_hdmi_tmds && !is_dp)
 		return;
 
 	if (is_hdmi_tmds)
@@ -807,6 +814,19 @@ bool dcn30_apply_idle_power_optimizations(struct dc *dc, bool enable)
 	return true;
 }
 
+bool dcn30_does_plane_fit_in_mall(struct dc *dc, struct dc_plane_state *plane)
+{
+	// add meta size?
+	unsigned int surface_size = plane->plane_size.surface_pitch * plane->plane_size.surface_size.height *
+			(plane->format >= SURFACE_PIXEL_FORMAT_GRPH_ARGB16161616 ? 8 : 4);
+	unsigned int mall_size = dc->caps.mall_size_total;
+
+	if (dc->debug.mall_size_override)
+		mall_size = 1024 * 1024 * dc->debug.mall_size_override;
+
+	return (surface_size + dc->caps.cursor_cache_size) < mall_size;
+}
+
 void dcn30_hardware_release(struct dc *dc)
 {
 	/* if pstate unsupported, force it supported */
@@ -825,5 +845,5 @@ void dcn30_set_disp_pattern_generator(const struct dc *dc,
 		int width, int height, int offset)
 {
 	pipe_ctx->stream_res.opp->funcs->opp_set_disp_pattern_generator(pipe_ctx->stream_res.opp, test_pattern,
-			color_space, color_depth, solid_color, width, height, 0);
+			color_space, color_depth, solid_color, width, height, offset);
 }

@@ -177,33 +177,34 @@ static void HTIOTPeerDetermine(struct rtllib_device *ieee)
 			pHTInfo->IOTPeer = HT_IOT_PEER_REALTEK_92SE;
 		if (net->bssht.RT2RT_HT_Mode & RT_HT_CAP_USE_SOFTAP)
 			pHTInfo->IOTPeer = HT_IOT_PEER_92U_SOFTAP;
-	} else if (net->broadcom_cap_exist)
+	} else if (net->broadcom_cap_exist) {
 		pHTInfo->IOTPeer = HT_IOT_PEER_BROADCOM;
-	else if (!memcmp(net->bssid, UNKNOWN_BORADCOM, 3) ||
+	} else if (!memcmp(net->bssid, UNKNOWN_BORADCOM, 3) ||
 		 !memcmp(net->bssid, LINKSYSWRT330_LINKSYSWRT300_BROADCOM, 3) ||
-		 !memcmp(net->bssid, LINKSYSWRT350_LINKSYSWRT150_BROADCOM, 3))
+		 !memcmp(net->bssid, LINKSYSWRT350_LINKSYSWRT150_BROADCOM, 3)) {
 		pHTInfo->IOTPeer = HT_IOT_PEER_BROADCOM;
-	else if ((memcmp(net->bssid, BELKINF5D8233V1_RALINK, 3) == 0) ||
+	} else if ((memcmp(net->bssid, BELKINF5D8233V1_RALINK, 3) == 0) ||
 		 (memcmp(net->bssid, BELKINF5D82334V3_RALINK, 3) == 0) ||
 		 (memcmp(net->bssid, PCI_RALINK, 3) == 0) ||
 		 (memcmp(net->bssid, EDIMAX_RALINK, 3) == 0) ||
 		 (memcmp(net->bssid, AIRLINK_RALINK, 3) == 0) ||
-		  net->ralink_cap_exist)
+		  net->ralink_cap_exist) {
 		pHTInfo->IOTPeer = HT_IOT_PEER_RALINK;
-	else if ((net->atheros_cap_exist) ||
+	} else if ((net->atheros_cap_exist) ||
 		(memcmp(net->bssid, DLINK_ATHEROS_1, 3) == 0) ||
-		(memcmp(net->bssid, DLINK_ATHEROS_2, 3) == 0))
+		(memcmp(net->bssid, DLINK_ATHEROS_2, 3) == 0)) {
 		pHTInfo->IOTPeer = HT_IOT_PEER_ATHEROS;
-	else if ((memcmp(net->bssid, CISCO_BROADCOM, 3) == 0) ||
-		  net->cisco_cap_exist)
+	} else if ((memcmp(net->bssid, CISCO_BROADCOM, 3) == 0) ||
+		  net->cisco_cap_exist) {
 		pHTInfo->IOTPeer = HT_IOT_PEER_CISCO;
-	else if ((memcmp(net->bssid, LINKSYS_MARVELL_4400N, 3) == 0) ||
-		  net->marvell_cap_exist)
+	} else if ((memcmp(net->bssid, LINKSYS_MARVELL_4400N, 3) == 0) ||
+		  net->marvell_cap_exist) {
 		pHTInfo->IOTPeer = HT_IOT_PEER_MARVELL;
-	else if (net->airgo_cap_exist)
+	} else if (net->airgo_cap_exist) {
 		pHTInfo->IOTPeer = HT_IOT_PEER_AIRGO;
-	else
+	} else {
 		pHTInfo->IOTPeer = HT_IOT_PEER_UNKNOWN;
+	}
 
 	netdev_dbg(ieee->dev, "IOTPEER: %x\n", pHTInfo->IOTPeer);
 }

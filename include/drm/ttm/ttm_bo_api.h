@@ -125,7 +125,6 @@ struct ttm_buffer_object {
 	struct ttm_bo_device *bdev;
 	enum ttm_bo_type type;
 	void (*destroy) (struct ttm_buffer_object *);
-	unsigned long num_pages;
 	size_t acc_size;
 
 	/**
@@ -310,6 +309,7 @@ void ttm_bo_put(struct ttm_buffer_object *bo);
  * ttm_bo_move_to_lru_tail
  *
  * @bo: The buffer object.
+ * @mem: Resource object.
  * @bulk: optional bulk move structure to remember BO positions
  *
  * Move this BO to the tail of all lru lists used to lookup and reserve an
@@ -317,6 +317,7 @@ void ttm_bo_put(struct ttm_buffer_object *bo);
  * held, and is used to make a BO less likely to be considered for eviction.
  */
 void ttm_bo_move_to_lru_tail(struct ttm_buffer_object *bo,
+			     struct ttm_resource *mem,
 			     struct ttm_lru_bulk_move *bulk);
 
 /**
@@ -397,13 +398,11 @@ size_t ttm_bo_dma_acc_size(struct ttm_bo_device *bdev,
 
 int ttm_bo_init_reserved(struct ttm_bo_device *bdev,
 			 struct ttm_buffer_object *bo,
-			 unsigned long size,
-			 enum ttm_bo_type type,
+			 size_t size, enum ttm_bo_type type,
 			 struct ttm_placement *placement,
 			 uint32_t page_alignment,
 			 struct ttm_operation_ctx *ctx,
-			 size_t acc_size,
-			 struct sg_table *sg,
+			 size_t acc_size, struct sg_table *sg,
 			 struct dma_resv *resv,
 			 void (*destroy) (struct ttm_buffer_object *));
 
@@ -445,7 +444,7 @@ int ttm_bo_init_reserved(struct ttm_bo_device *bdev,
  * -ERESTARTSYS: Interrupted by signal while sleeping waiting for resources.
  */
 int ttm_bo_init(struct ttm_bo_device *bdev, struct ttm_buffer_object *bo,
-		unsigned long size, enum ttm_bo_type type,
+		size_t size, enum ttm_bo_type type,
 		struct ttm_placement *placement,
 		uint32_t page_alignment, bool interrubtible, size_t acc_size,
 		struct sg_table *sg, struct dma_resv *resv,
@@ -600,6 +599,7 @@ static inline bool ttm_bo_uses_embedded_gem_object(struct ttm_buffer_object *bo)
 static inline void ttm_bo_pin(struct ttm_buffer_object *bo)
 {
 	dma_resv_assert_held(bo->base.resv);
+	WARN_ON_ONCE(!kref_read(&bo->kref));
 	++bo->pin_count;
 }
 
@@ -613,6 +613,7 @@ static inline void ttm_bo_unpin(struct ttm_buffer_object *bo)
 {
 	dma_resv_assert_held(bo->base.resv);
 	WARN_ON_ONCE(!bo->pin_count);
+	WARN_ON_ONCE(!kref_read(&bo->kref));
 	--bo->pin_count;
 }
 

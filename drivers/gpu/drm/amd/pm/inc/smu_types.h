@@ -178,7 +178,7 @@
 	__SMU_DUMMY_MAP(SET_DRIVER_DUMMY_TABLE_DRAM_ADDR_LOW), \
 	__SMU_DUMMY_MAP(GET_UMC_FW_WA), \
 	__SMU_DUMMY_MAP(Mode1Reset), \
-	__SMU_DUMMY_MAP(Spare),                          \
+	__SMU_DUMMY_MAP(RlcPowerNotify),                 \
 	__SMU_DUMMY_MAP(SetHardMinIspiclkByFreq),        \
 	__SMU_DUMMY_MAP(SetHardMinIspxclkByFreq),        \
 	__SMU_DUMMY_MAP(SetSoftMinSocclkByFreq),         \
@@ -209,6 +209,9 @@
        __SMU_DUMMY_MAP(SetSoftMinCclk),                     \
        __SMU_DUMMY_MAP(SetSoftMaxCclk),                     \
 	__SMU_DUMMY_MAP(SetGpoFeaturePMask),             \
+	__SMU_DUMMY_MAP(DisallowGpo),                    \
+	__SMU_DUMMY_MAP(Enable2ndUSB20Port),             \
+	__SMU_DUMMY_MAP(RequestActiveWgp),               \
 
 #undef __SMU_DUMMY_MAP
 #define __SMU_DUMMY_MAP(type)	SMU_MSG_##type
@@ -238,6 +241,7 @@ enum smu_clk_type {
 	SMU_OD_MCLK,
 	SMU_OD_VDDC_CURVE,
 	SMU_OD_RANGE,
+	SMU_OD_VDDGFX_OFFSET,
 	SMU_CLK_COUNT,
 };
 

@@ -26,15 +26,14 @@
 #define ST1232_TS_NAME	"st1232-ts"
 #define ST1633_TS_NAME	"st1633-ts"
 
+#define REG_XY_RESOLUTION	0x04
+#define REG_XY_COORDINATES	0x12
 #define ST_TS_MAX_FINGERS	10
 
 struct st_chip_info {
 	bool	have_z;
-	u16	max_x;
-	u16	max_y;
 	u16	max_area;
 	u16	max_fingers;
-	u8	start_reg;
 };
 
 struct st1232_ts_data {
@@ -48,15 +47,14 @@ struct st1232_ts_data {
 	u8 *read_buf;
 };
 
-static int st1232_ts_read_data(struct st1232_ts_data *ts)
+static int st1232_ts_read_data(struct st1232_ts_data *ts, u8 reg)
 {
 	struct i2c_client *client = ts->client;
-	u8 start_reg = ts->chip_info->start_reg;
 	struct i2c_msg msg[] = {
 		{
 			.addr	= client->addr,
-			.len	= sizeof(start_reg),
-			.buf	= &start_reg,
+			.len	= sizeof(reg),
+			.buf	= &reg,
 		},
 		{
 			.addr	= client->addr,
@@ -70,6 +68,25 @@ static int st1232_ts_read_data(struct st1232_ts_data *ts)
 	ret = i2c_transfer(client->adapter, msg, ARRAY_SIZE(msg));
 	if (ret != ARRAY_SIZE(msg))
 		return ret < 0 ? ret : -EIO;
+
+	return 0;
+}
+
+static int st1232_ts_read_resolution(struct st1232_ts_data *ts, u16 *max_x,
+				     u16 *max_y)
+{
+	u8 *buf;
+	int error;
+
+	/* select resolution register */
+	error = st1232_ts_read_data(ts, REG_XY_RESOLUTION);
+	if (error)
+		return error;
+
+	buf = ts->read_buf;
+
+	*max_x = ((buf[0] & 0x0070) << 4) | buf[1];
+	*max_y = ((buf[0] & 0x0007) << 8) | buf[2];
 
 	return 0;
 }
@@ -123,7 +140,7 @@ static irqreturn_t st1232_ts_irq_handler(int irq, void *dev_id)
 	int count;
 	int error;
 
-	error = st1232_ts_read_data(ts);
+	error = st1232_ts_read_data(ts, REG_XY_COORDINATES);
 	if (error)
 		goto out;
 
@@ -157,20 +174,14 @@ static void st1232_ts_power_off(void *data)
 
 static const struct st_chip_info st1232_chip_info = {
 	.have_z		= true,
-	.max_x		= 0x31f, /* 800 - 1 */
-	.max_y		= 0x1df, /* 480 -1 */
 	.max_area	= 0xff,
 	.max_fingers	= 2,
-	.start_reg	= 0x12,
 };
 
 static const struct st_chip_info st1633_chip_info = {
 	.have_z		= false,
-	.max_x		= 0x13f, /* 320 - 1 */
-	.max_y		= 0x1df, /* 480 -1 */
 	.max_area	= 0x00,
 	.max_fingers	= 5,
-	.start_reg	= 0x12,
 };
 
 static int st1232_ts_probe(struct i2c_client *client,
@@ -179,6 +190,7 @@ static int st1232_ts_probe(struct i2c_client *client,
 	const struct st_chip_info *match;
 	struct st1232_ts_data *ts;
 	struct input_dev *input_dev;
+	u16 max_x, max_y;
 	int error;
 
 	match = device_get_match_data(&client->dev);
@@ -239,14 +251,22 @@ static int st1232_ts_probe(struct i2c_client *client,
 	input_dev->name = "st1232-touchscreen";
 	input_dev->id.bustype = BUS_I2C;
 
+	/* Read resolution from the chip */
+	error = st1232_ts_read_resolution(ts, &max_x, &max_y);
+	if (error) {
+		dev_err(&client->dev,
+			"Failed to read resolution: %d\n", error);
+		return error;
+	}
+
 	if (ts->chip_info->have_z)
 		input_set_abs_params(input_dev, ABS_MT_TOUCH_MAJOR, 0,
 				     ts->chip_info->max_area, 0, 0);
 
 	input_set_abs_params(input_dev, ABS_MT_POSITION_X,
-			     0, ts->chip_info->max_x, 0, 0);
+			     0, max_x, 0, 0);
 	input_set_abs_params(input_dev, ABS_MT_POSITION_Y,
-			     0, ts->chip_info->max_y, 0, 0);
+			     0, max_y, 0, 0);
 
 	touchscreen_parse_properties(input_dev, true, &ts->prop);
 

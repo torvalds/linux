@@ -128,6 +128,8 @@ static struct cmn2asic_msg_mapping sienna_cichlid_message_map[SMU_MSG_MAX_COUNT]
 	MSG_MAP(Mode1Reset,                     PPSMC_MSG_Mode1Reset,		       0),
 	MSG_MAP(SetMGpuFanBoostLimitRpm,	PPSMC_MSG_SetMGpuFanBoostLimitRpm,     0),
 	MSG_MAP(SetGpoFeaturePMask,		PPSMC_MSG_SetGpoFeaturePMask,          0),
+	MSG_MAP(DisallowGpo,			PPSMC_MSG_DisallowGpo,                 0),
+	MSG_MAP(Enable2ndUSB20Port,		PPSMC_MSG_Enable2ndUSB20Port,          0),
 };
 
 static struct cmn2asic_mapping sienna_cichlid_clk_map[SMU_CLK_COUNT] = {
@@ -218,7 +220,7 @@ static struct cmn2asic_mapping sienna_cichlid_workload_map[PP_SMC_POWER_PROFILE_
 	WORKLOAD_MAP(PP_SMC_POWER_PROFILE_POWERSAVING,		WORKLOAD_PPLIB_POWER_SAVING_BIT),
 	WORKLOAD_MAP(PP_SMC_POWER_PROFILE_VIDEO,		WORKLOAD_PPLIB_VIDEO_BIT),
 	WORKLOAD_MAP(PP_SMC_POWER_PROFILE_VR,			WORKLOAD_PPLIB_VR_BIT),
-	WORKLOAD_MAP(PP_SMC_POWER_PROFILE_COMPUTE,		WORKLOAD_PPLIB_CUSTOM_BIT),
+	WORKLOAD_MAP(PP_SMC_POWER_PROFILE_COMPUTE,		WORKLOAD_PPLIB_COMPUTE_BIT),
 	WORKLOAD_MAP(PP_SMC_POWER_PROFILE_CUSTOM,		WORKLOAD_PPLIB_CUSTOM_BIT),
 };
 
@@ -302,12 +304,21 @@ static int sienna_cichlid_check_powerplay_table(struct smu_context *smu)
 		table_context->power_play_table;
 	struct smu_baco_context *smu_baco = &smu->smu_baco;
 
+	if (powerplay_table->platform_caps & SMU_11_0_7_PP_PLATFORM_CAP_HARDWAREDC)
+		smu->dc_controlled_by_gpio = true;
+
 	if (powerplay_table->platform_caps & SMU_11_0_7_PP_PLATFORM_CAP_BACO ||
 	    powerplay_table->platform_caps & SMU_11_0_7_PP_PLATFORM_CAP_MACO)
 		smu_baco->platform_support = true;
 
 	table_context->thermal_controller_type =
 		powerplay_table->thermal_controller_type;
+
+	/*
+	 * Instead of having its own buffer space and get overdrive_table copied,
+	 * smu->od_settings just points to the actual overdrive_table
+	 */
+	smu->od_settings = &powerplay_table->overdrive_table;
 
 	return 0;
 }
@@ -377,7 +388,7 @@ static int sienna_cichlid_tables_init(struct smu_context *smu)
 		       PAGE_SIZE, AMDGPU_GEM_DOMAIN_VRAM);
 	SMU_TABLE_INIT(tables, SMU_TABLE_WATERMARKS, sizeof(Watermarks_t),
 		       PAGE_SIZE, AMDGPU_GEM_DOMAIN_VRAM);
-	SMU_TABLE_INIT(tables, SMU_TABLE_SMU_METRICS, sizeof(SmuMetrics_t),
+	SMU_TABLE_INIT(tables, SMU_TABLE_SMU_METRICS, sizeof(SmuMetricsExternal_t),
 		       PAGE_SIZE, AMDGPU_GEM_DOMAIN_VRAM);
 	SMU_TABLE_INIT(tables, SMU_TABLE_I2C_COMMANDS, sizeof(SwI2cRequest_t),
 		       PAGE_SIZE, AMDGPU_GEM_DOMAIN_VRAM);
@@ -386,10 +397,10 @@ static int sienna_cichlid_tables_init(struct smu_context *smu)
 	SMU_TABLE_INIT(tables, SMU_TABLE_PMSTATUSLOG, SMU11_TOOL_SIZE,
 		       PAGE_SIZE, AMDGPU_GEM_DOMAIN_VRAM);
 	SMU_TABLE_INIT(tables, SMU_TABLE_ACTIVITY_MONITOR_COEFF,
-		       sizeof(DpmActivityMonitorCoeffInt_t), PAGE_SIZE,
+		       sizeof(DpmActivityMonitorCoeffIntExternal_t), PAGE_SIZE,
 	               AMDGPU_GEM_DOMAIN_VRAM);
 
-	smu_table->metrics_table = kzalloc(sizeof(SmuMetrics_t), GFP_KERNEL);
+	smu_table->metrics_table = kzalloc(sizeof(SmuMetricsExternal_t), GFP_KERNEL);
 	if (!smu_table->metrics_table)
 		goto err0_out;
 	smu_table->metrics_time = 0;
@@ -418,7 +429,8 @@ static int sienna_cichlid_get_smu_metrics_data(struct smu_context *smu,
 					       uint32_t *value)
 {
 	struct smu_table_context *smu_table= &smu->smu_table;
-	SmuMetrics_t *metrics = (SmuMetrics_t *)smu_table->metrics_table;
+	SmuMetrics_t *metrics =
+		&(((SmuMetricsExternal_t *)(smu_table->metrics_table))->SmuMetrics);
 	int ret = 0;
 
 	mutex_lock(&smu->metrics_lock);
@@ -901,6 +913,22 @@ static bool sienna_cichlid_is_support_fine_grained_dpm(struct smu_context *smu, 
 	return dpm_desc->SnapToDiscrete == 0 ? true : false;
 }
 
+static bool sienna_cichlid_is_od_feature_supported(struct smu_11_0_7_overdrive_table *od_table,
+						   enum SMU_11_0_7_ODFEATURE_CAP cap)
+{
+	return od_table->cap[cap];
+}
+
+static void sienna_cichlid_get_od_setting_range(struct smu_11_0_7_overdrive_table *od_table,
+						enum SMU_11_0_7_ODSETTING_ID setting,
+						uint32_t *min, uint32_t *max)
+{
+	if (min)
+		*min = od_table->min[setting];
+	if (max)
+		*max = od_table->max[setting];
+}
+
 static int sienna_cichlid_print_clk_levels(struct smu_context *smu,
 			enum smu_clk_type clk_type, char *buf)
 {
@@ -909,11 +937,16 @@ static int sienna_cichlid_print_clk_levels(struct smu_context *smu,
 	struct smu_dpm_context *smu_dpm = &smu->smu_dpm;
 	struct smu_11_0_dpm_context *dpm_context = smu_dpm->dpm_context;
 	PPTable_t *pptable = (PPTable_t *)table_context->driver_pptable;
+	struct smu_11_0_7_overdrive_table *od_settings = smu->od_settings;
+	OverDriveTable_t *od_table =
+		(OverDriveTable_t *)table_context->overdrive_table;
 	int i, size = 0, ret = 0;
 	uint32_t cur_value = 0, value = 0, count = 0;
 	uint32_t freq_values[3] = {0};
 	uint32_t mark_index = 0;
 	uint32_t gen_speed, lane_width;
+	uint32_t min_value, max_value;
+	uint32_t smu_version;
 
 	switch (clk_type) {
 	case SMU_GFXCLK:
@@ -989,6 +1022,70 @@ static int sienna_cichlid_print_clk_levels(struct smu_context *smu,
 					(lane_width == dpm_context->dpm_tables.pcie_table.pcie_lane[i]) ?
 					"*" : "");
 		break;
+	case SMU_OD_SCLK:
+		if (!smu->od_enabled || !od_table || !od_settings)
+			break;
+
+		if (!sienna_cichlid_is_od_feature_supported(od_settings, SMU_11_0_7_ODCAP_GFXCLK_LIMITS))
+			break;
+
+		size += sprintf(buf + size, "OD_SCLK:\n");
+		size += sprintf(buf + size, "0: %uMhz\n1: %uMhz\n", od_table->GfxclkFmin, od_table->GfxclkFmax);
+		break;
+
+	case SMU_OD_MCLK:
+		if (!smu->od_enabled || !od_table || !od_settings)
+			break;
+
+		if (!sienna_cichlid_is_od_feature_supported(od_settings, SMU_11_0_7_ODCAP_UCLK_LIMITS))
+			break;
+
+		size += sprintf(buf + size, "OD_MCLK:\n");
+		size += sprintf(buf + size, "0: %uMhz\n1: %uMHz\n", od_table->UclkFmin, od_table->UclkFmax);
+		break;
+
+	case SMU_OD_VDDGFX_OFFSET:
+		if (!smu->od_enabled || !od_table || !od_settings)
+			break;
+
+		/*
+		 * OD GFX Voltage Offset functionality is supported only by 58.41.0
+		 * and onwards SMU firmwares.
+		 */
+		smu_cmn_get_smc_version(smu, NULL, &smu_version);
+		if ((adev->asic_type == CHIP_SIENNA_CICHLID) &&
+		     (smu_version < 0x003a2900))
+			break;
+
+		size += sprintf(buf + size, "OD_VDDGFX_OFFSET:\n");
+		size += sprintf(buf + size, "%dmV\n", od_table->VddGfxOffset);
+		break;
+
+	case SMU_OD_RANGE:
+		if (!smu->od_enabled || !od_table || !od_settings)
+			break;
+
+		size = sprintf(buf, "%s:\n", "OD_RANGE");
+
+		if (sienna_cichlid_is_od_feature_supported(od_settings, SMU_11_0_7_ODCAP_GFXCLK_LIMITS)) {
+			sienna_cichlid_get_od_setting_range(od_settings, SMU_11_0_7_ODSETTING_GFXCLKFMIN,
+							    &min_value, NULL);
+			sienna_cichlid_get_od_setting_range(od_settings, SMU_11_0_7_ODSETTING_GFXCLKFMAX,
+							    NULL, &max_value);
+			size += sprintf(buf + size, "SCLK: %7uMhz %10uMhz\n",
+					min_value, max_value);
+		}
+
+		if (sienna_cichlid_is_od_feature_supported(od_settings, SMU_11_0_7_ODCAP_UCLK_LIMITS)) {
+			sienna_cichlid_get_od_setting_range(od_settings, SMU_11_0_7_ODSETTING_UCLKFMIN,
+							    &min_value, NULL);
+			sienna_cichlid_get_od_setting_range(od_settings, SMU_11_0_7_ODSETTING_UCLKFMAX,
+							    NULL, &max_value);
+			size += sprintf(buf + size, "MCLK: %7uMhz %10uMhz\n",
+					min_value, max_value);
+		}
+		break;
+
 	default:
 		break;
 	}
@@ -1065,12 +1162,18 @@ static int sienna_cichlid_populate_umd_state_clk(struct smu_context *smu)
 
 	pstate_table->gfxclk_pstate.min = gfx_table->min;
 	pstate_table->gfxclk_pstate.peak = gfx_table->max;
+	if (gfx_table->max >= SIENNA_CICHLID_UMD_PSTATE_PROFILING_GFXCLK)
+		pstate_table->gfxclk_pstate.standard = SIENNA_CICHLID_UMD_PSTATE_PROFILING_GFXCLK;
 
 	pstate_table->uclk_pstate.min = mem_table->min;
 	pstate_table->uclk_pstate.peak = mem_table->max;
+	if (mem_table->max >= SIENNA_CICHLID_UMD_PSTATE_PROFILING_MEMCLK)
+		pstate_table->uclk_pstate.standard = SIENNA_CICHLID_UMD_PSTATE_PROFILING_MEMCLK;
 
 	pstate_table->socclk_pstate.min = soc_table->min;
 	pstate_table->socclk_pstate.peak = soc_table->max;
+	if (soc_table->max >= SIENNA_CICHLID_UMD_PSTATE_PROFILING_SOCCLK)
+		pstate_table->socclk_pstate.standard = SIENNA_CICHLID_UMD_PSTATE_PROFILING_SOCCLK;
 
 	return 0;
 }
@@ -1119,44 +1222,6 @@ static int sienna_cichlid_display_config_changed(struct smu_context *smu)
 	return ret;
 }
 
-static int sienna_cichlid_get_gpu_power(struct smu_context *smu, uint32_t *value)
-{
-	if (!value)
-		return -EINVAL;
-
-	return sienna_cichlid_get_smu_metrics_data(smu,
-						   METRICS_AVERAGE_SOCKETPOWER,
-						   value);
-}
-
-static int sienna_cichlid_get_current_activity_percent(struct smu_context *smu,
-					       enum amd_pp_sensors sensor,
-					       uint32_t *value)
-{
-	int ret = 0;
-
-	if (!value)
-		return -EINVAL;
-
-	switch (sensor) {
-	case AMDGPU_PP_SENSOR_GPU_LOAD:
-		ret = sienna_cichlid_get_smu_metrics_data(smu,
-							  METRICS_AVERAGE_GFXACTIVITY,
-							  value);
-		break;
-	case AMDGPU_PP_SENSOR_MEM_LOAD:
-		ret = sienna_cichlid_get_smu_metrics_data(smu,
-							  METRICS_AVERAGE_MEMACTIVITY,
-							  value);
-		break;
-	default:
-		dev_err(smu->adev->dev, "Invalid sensor for retrieving clock activity\n");
-		return -EINVAL;
-	}
-
-	return ret;
-}
-
 static bool sienna_cichlid_is_dpm_running(struct smu_context *smu)
 {
 	int ret = 0;
@@ -1194,7 +1259,9 @@ static int sienna_cichlid_get_fan_parameters(struct smu_context *smu)
 
 static int sienna_cichlid_get_power_profile_mode(struct smu_context *smu, char *buf)
 {
-	DpmActivityMonitorCoeffInt_t activity_monitor;
+	DpmActivityMonitorCoeffIntExternal_t activity_monitor_external;
+	DpmActivityMonitorCoeffInt_t *activity_monitor =
+		&(activity_monitor_external.DpmActivityMonitorCoeffInt);
 	uint32_t i, size = 0;
 	int16_t workload_type = 0;
 	static const char *profile_name[] = {
@@ -1236,7 +1303,7 @@ static int sienna_cichlid_get_power_profile_mode(struct smu_context *smu, char *
 
 		result = smu_cmn_update_table(smu,
 					  SMU_TABLE_ACTIVITY_MONITOR_COEFF, workload_type,
-					  (void *)(&activity_monitor), false);
+					  (void *)(&activity_monitor_external), false);
 		if (result) {
 			dev_err(smu->adev->dev, "[%s] Failed to get activity monitor!", __func__);
 			return result;
@@ -1249,43 +1316,43 @@ static int sienna_cichlid_get_power_profile_mode(struct smu_context *smu, char *
 			" ",
 			0,
 			"GFXCLK",
-			activity_monitor.Gfx_FPS,
-			activity_monitor.Gfx_MinFreqStep,
-			activity_monitor.Gfx_MinActiveFreqType,
-			activity_monitor.Gfx_MinActiveFreq,
-			activity_monitor.Gfx_BoosterFreqType,
-			activity_monitor.Gfx_BoosterFreq,
-			activity_monitor.Gfx_PD_Data_limit_c,
-			activity_monitor.Gfx_PD_Data_error_coeff,
-			activity_monitor.Gfx_PD_Data_error_rate_coeff);
+			activity_monitor->Gfx_FPS,
+			activity_monitor->Gfx_MinFreqStep,
+			activity_monitor->Gfx_MinActiveFreqType,
+			activity_monitor->Gfx_MinActiveFreq,
+			activity_monitor->Gfx_BoosterFreqType,
+			activity_monitor->Gfx_BoosterFreq,
+			activity_monitor->Gfx_PD_Data_limit_c,
+			activity_monitor->Gfx_PD_Data_error_coeff,
+			activity_monitor->Gfx_PD_Data_error_rate_coeff);
 
 		size += sprintf(buf + size, "%19s %d(%13s) %7d %7d %7d %7d %7d %7d %7d %7d %7d\n",
 			" ",
 			1,
 			"SOCCLK",
-			activity_monitor.Fclk_FPS,
-			activity_monitor.Fclk_MinFreqStep,
-			activity_monitor.Fclk_MinActiveFreqType,
-			activity_monitor.Fclk_MinActiveFreq,
-			activity_monitor.Fclk_BoosterFreqType,
-			activity_monitor.Fclk_BoosterFreq,
-			activity_monitor.Fclk_PD_Data_limit_c,
-			activity_monitor.Fclk_PD_Data_error_coeff,
-			activity_monitor.Fclk_PD_Data_error_rate_coeff);
+			activity_monitor->Fclk_FPS,
+			activity_monitor->Fclk_MinFreqStep,
+			activity_monitor->Fclk_MinActiveFreqType,
+			activity_monitor->Fclk_MinActiveFreq,
+			activity_monitor->Fclk_BoosterFreqType,
+			activity_monitor->Fclk_BoosterFreq,
+			activity_monitor->Fclk_PD_Data_limit_c,
+			activity_monitor->Fclk_PD_Data_error_coeff,
+			activity_monitor->Fclk_PD_Data_error_rate_coeff);
 
 		size += sprintf(buf + size, "%19s %d(%13s) %7d %7d %7d %7d %7d %7d %7d %7d %7d\n",
 			" ",
 			2,
 			"MEMLK",
-			activity_monitor.Mem_FPS,
-			activity_monitor.Mem_MinFreqStep,
-			activity_monitor.Mem_MinActiveFreqType,
-			activity_monitor.Mem_MinActiveFreq,
-			activity_monitor.Mem_BoosterFreqType,
-			activity_monitor.Mem_BoosterFreq,
-			activity_monitor.Mem_PD_Data_limit_c,
-			activity_monitor.Mem_PD_Data_error_coeff,
-			activity_monitor.Mem_PD_Data_error_rate_coeff);
+			activity_monitor->Mem_FPS,
+			activity_monitor->Mem_MinFreqStep,
+			activity_monitor->Mem_MinActiveFreqType,
+			activity_monitor->Mem_MinActiveFreq,
+			activity_monitor->Mem_BoosterFreqType,
+			activity_monitor->Mem_BoosterFreq,
+			activity_monitor->Mem_PD_Data_limit_c,
+			activity_monitor->Mem_PD_Data_error_coeff,
+			activity_monitor->Mem_PD_Data_error_rate_coeff);
 	}
 
 	return size;
@@ -1293,7 +1360,10 @@ static int sienna_cichlid_get_power_profile_mode(struct smu_context *smu, char *
 
 static int sienna_cichlid_set_power_profile_mode(struct smu_context *smu, long *input, uint32_t size)
 {
-	DpmActivityMonitorCoeffInt_t activity_monitor;
+
+	DpmActivityMonitorCoeffIntExternal_t activity_monitor_external;
+	DpmActivityMonitorCoeffInt_t *activity_monitor =
+		&(activity_monitor_external.DpmActivityMonitorCoeffInt);
 	int workload_type, ret = 0;
 
 	smu->power_profile_mode = input[size];
@@ -1307,7 +1377,7 @@ static int sienna_cichlid_set_power_profile_mode(struct smu_context *smu, long *
 
 		ret = smu_cmn_update_table(smu,
 				       SMU_TABLE_ACTIVITY_MONITOR_COEFF, WORKLOAD_PPLIB_CUSTOM_BIT,
-				       (void *)(&activity_monitor), false);
+				       (void *)(&activity_monitor_external), false);
 		if (ret) {
 			dev_err(smu->adev->dev, "[%s] Failed to get activity monitor!", __func__);
 			return ret;
@@ -1315,43 +1385,43 @@ static int sienna_cichlid_set_power_profile_mode(struct smu_context *smu, long *
 
 		switch (input[0]) {
 		case 0: /* Gfxclk */
-			activity_monitor.Gfx_FPS = input[1];
-			activity_monitor.Gfx_MinFreqStep = input[2];
-			activity_monitor.Gfx_MinActiveFreqType = input[3];
-			activity_monitor.Gfx_MinActiveFreq = input[4];
-			activity_monitor.Gfx_BoosterFreqType = input[5];
-			activity_monitor.Gfx_BoosterFreq = input[6];
-			activity_monitor.Gfx_PD_Data_limit_c = input[7];
-			activity_monitor.Gfx_PD_Data_error_coeff = input[8];
-			activity_monitor.Gfx_PD_Data_error_rate_coeff = input[9];
+			activity_monitor->Gfx_FPS = input[1];
+			activity_monitor->Gfx_MinFreqStep = input[2];
+			activity_monitor->Gfx_MinActiveFreqType = input[3];
+			activity_monitor->Gfx_MinActiveFreq = input[4];
+			activity_monitor->Gfx_BoosterFreqType = input[5];
+			activity_monitor->Gfx_BoosterFreq = input[6];
+			activity_monitor->Gfx_PD_Data_limit_c = input[7];
+			activity_monitor->Gfx_PD_Data_error_coeff = input[8];
+			activity_monitor->Gfx_PD_Data_error_rate_coeff = input[9];
 			break;
 		case 1: /* Socclk */
-			activity_monitor.Fclk_FPS = input[1];
-			activity_monitor.Fclk_MinFreqStep = input[2];
-			activity_monitor.Fclk_MinActiveFreqType = input[3];
-			activity_monitor.Fclk_MinActiveFreq = input[4];
-			activity_monitor.Fclk_BoosterFreqType = input[5];
-			activity_monitor.Fclk_BoosterFreq = input[6];
-			activity_monitor.Fclk_PD_Data_limit_c = input[7];
-			activity_monitor.Fclk_PD_Data_error_coeff = input[8];
-			activity_monitor.Fclk_PD_Data_error_rate_coeff = input[9];
+			activity_monitor->Fclk_FPS = input[1];
+			activity_monitor->Fclk_MinFreqStep = input[2];
+			activity_monitor->Fclk_MinActiveFreqType = input[3];
+			activity_monitor->Fclk_MinActiveFreq = input[4];
+			activity_monitor->Fclk_BoosterFreqType = input[5];
+			activity_monitor->Fclk_BoosterFreq = input[6];
+			activity_monitor->Fclk_PD_Data_limit_c = input[7];
+			activity_monitor->Fclk_PD_Data_error_coeff = input[8];
+			activity_monitor->Fclk_PD_Data_error_rate_coeff = input[9];
 			break;
 		case 2: /* Memlk */
-			activity_monitor.Mem_FPS = input[1];
-			activity_monitor.Mem_MinFreqStep = input[2];
-			activity_monitor.Mem_MinActiveFreqType = input[3];
-			activity_monitor.Mem_MinActiveFreq = input[4];
-			activity_monitor.Mem_BoosterFreqType = input[5];
-			activity_monitor.Mem_BoosterFreq = input[6];
-			activity_monitor.Mem_PD_Data_limit_c = input[7];
-			activity_monitor.Mem_PD_Data_error_coeff = input[8];
-			activity_monitor.Mem_PD_Data_error_rate_coeff = input[9];
+			activity_monitor->Mem_FPS = input[1];
+			activity_monitor->Mem_MinFreqStep = input[2];
+			activity_monitor->Mem_MinActiveFreqType = input[3];
+			activity_monitor->Mem_MinActiveFreq = input[4];
+			activity_monitor->Mem_BoosterFreqType = input[5];
+			activity_monitor->Mem_BoosterFreq = input[6];
+			activity_monitor->Mem_PD_Data_limit_c = input[7];
+			activity_monitor->Mem_PD_Data_error_coeff = input[8];
+			activity_monitor->Mem_PD_Data_error_rate_coeff = input[9];
 			break;
 		}
 
 		ret = smu_cmn_update_table(smu,
 				       SMU_TABLE_ACTIVITY_MONITOR_COEFF, WORKLOAD_PPLIB_CUSTOM_BIT,
-				       (void *)(&activity_monitor), true);
+				       (void *)(&activity_monitor_external), true);
 		if (ret) {
 			dev_err(smu->adev->dev, "[%s] Failed to set activity monitor!", __func__);
 			return ret;
@@ -1468,39 +1538,6 @@ static int sienna_cichlid_set_watermarks_table(struct smu_context *smu,
 	return 0;
 }
 
-static int sienna_cichlid_thermal_get_temperature(struct smu_context *smu,
-					     enum amd_pp_sensors sensor,
-					     uint32_t *value)
-{
-	int ret = 0;
-
-	if (!value)
-		return -EINVAL;
-
-	switch (sensor) {
-	case AMDGPU_PP_SENSOR_HOTSPOT_TEMP:
-		ret = sienna_cichlid_get_smu_metrics_data(smu,
-							  METRICS_TEMPERATURE_HOTSPOT,
-							  value);
-		break;
-	case AMDGPU_PP_SENSOR_EDGE_TEMP:
-		ret = sienna_cichlid_get_smu_metrics_data(smu,
-							  METRICS_TEMPERATURE_EDGE,
-							  value);
-		break;
-	case AMDGPU_PP_SENSOR_MEM_TEMP:
-		ret = sienna_cichlid_get_smu_metrics_data(smu,
-							  METRICS_TEMPERATURE_MEM,
-							  value);
-		break;
-	default:
-		dev_err(smu->adev->dev, "Invalid sensor for retrieving temp\n");
-		return -EINVAL;
-	}
-
-	return ret;
-}
-
 static int sienna_cichlid_read_sensor(struct smu_context *smu,
 				 enum amd_pp_sensors sensor,
 				 void *data, uint32_t *size)
@@ -1519,18 +1556,39 @@ static int sienna_cichlid_read_sensor(struct smu_context *smu,
 		*size = 4;
 		break;
 	case AMDGPU_PP_SENSOR_MEM_LOAD:
+		ret = sienna_cichlid_get_smu_metrics_data(smu,
+							  METRICS_AVERAGE_MEMACTIVITY,
+							  (uint32_t *)data);
+		*size = 4;
+		break;
 	case AMDGPU_PP_SENSOR_GPU_LOAD:
-		ret = sienna_cichlid_get_current_activity_percent(smu, sensor, (uint32_t *)data);
+		ret = sienna_cichlid_get_smu_metrics_data(smu,
+							  METRICS_AVERAGE_GFXACTIVITY,
+							  (uint32_t *)data);
 		*size = 4;
 		break;
 	case AMDGPU_PP_SENSOR_GPU_POWER:
-		ret = sienna_cichlid_get_gpu_power(smu, (uint32_t *)data);
+		ret = sienna_cichlid_get_smu_metrics_data(smu,
+							  METRICS_AVERAGE_SOCKETPOWER,
+							  (uint32_t *)data);
 		*size = 4;
 		break;
 	case AMDGPU_PP_SENSOR_HOTSPOT_TEMP:
+		ret = sienna_cichlid_get_smu_metrics_data(smu,
+							  METRICS_TEMPERATURE_HOTSPOT,
+							  (uint32_t *)data);
+		*size = 4;
+		break;
 	case AMDGPU_PP_SENSOR_EDGE_TEMP:
+		ret = sienna_cichlid_get_smu_metrics_data(smu,
+							  METRICS_TEMPERATURE_EDGE,
+							  (uint32_t *)data);
+		*size = 4;
+		break;
 	case AMDGPU_PP_SENSOR_MEM_TEMP:
-		ret = sienna_cichlid_thermal_get_temperature(smu, sensor, (uint32_t *)data);
+		ret = sienna_cichlid_get_smu_metrics_data(smu,
+							  METRICS_TEMPERATURE_MEM,
+							  (uint32_t *)data);
 		*size = 4;
 		break;
 	case AMDGPU_PP_SENSOR_GFX_MCLK:
@@ -1727,6 +1785,243 @@ static int sienna_cichlid_get_dpm_ultimate_freq(struct smu_context *smu,
 	return ret;
 }
 
+static void sienna_cichlid_dump_od_table(struct smu_context *smu,
+					 OverDriveTable_t *od_table)
+{
+	struct amdgpu_device *adev = smu->adev;
+	uint32_t smu_version;
+
+	dev_dbg(smu->adev->dev, "OD: Gfxclk: (%d, %d)\n", od_table->GfxclkFmin,
+							  od_table->GfxclkFmax);
+	dev_dbg(smu->adev->dev, "OD: Uclk: (%d, %d)\n", od_table->UclkFmin,
+							od_table->UclkFmax);
+
+	smu_cmn_get_smc_version(smu, NULL, &smu_version);
+	if (!((adev->asic_type == CHIP_SIENNA_CICHLID) &&
+	       (smu_version < 0x003a2900)))
+		dev_dbg(smu->adev->dev, "OD: VddGfxOffset: %d\n", od_table->VddGfxOffset);
+}
+
+static int sienna_cichlid_set_default_od_settings(struct smu_context *smu)
+{
+	OverDriveTable_t *od_table =
+		(OverDriveTable_t *)smu->smu_table.overdrive_table;
+	OverDriveTable_t *boot_od_table =
+		(OverDriveTable_t *)smu->smu_table.boot_overdrive_table;
+	int ret = 0;
+
+	ret = smu_cmn_update_table(smu, SMU_TABLE_OVERDRIVE,
+				   0, (void *)od_table, false);
+	if (ret) {
+		dev_err(smu->adev->dev, "Failed to get overdrive table!\n");
+		return ret;
+	}
+
+	memcpy(boot_od_table, od_table, sizeof(OverDriveTable_t));
+
+	sienna_cichlid_dump_od_table(smu, od_table);
+
+	return 0;
+}
+
+static int sienna_cichlid_od_setting_check_range(struct smu_context *smu,
+						 struct smu_11_0_7_overdrive_table *od_table,
+						 enum SMU_11_0_7_ODSETTING_ID setting,
+						 uint32_t value)
+{
+	if (value < od_table->min[setting]) {
+		dev_warn(smu->adev->dev, "OD setting (%d, %d) is less than the minimum allowed (%d)\n",
+					  setting, value, od_table->min[setting]);
+		return -EINVAL;
+	}
+	if (value > od_table->max[setting]) {
+		dev_warn(smu->adev->dev, "OD setting (%d, %d) is greater than the maximum allowed (%d)\n",
+					  setting, value, od_table->max[setting]);
+		return -EINVAL;
+	}
+
+	return 0;
+}
+
+static int sienna_cichlid_od_edit_dpm_table(struct smu_context *smu,
+					    enum PP_OD_DPM_TABLE_COMMAND type,
+					    long input[], uint32_t size)
+{
+	struct smu_table_context *table_context = &smu->smu_table;
+	OverDriveTable_t *od_table =
+		(OverDriveTable_t *)table_context->overdrive_table;
+	struct smu_11_0_7_overdrive_table *od_settings =
+		(struct smu_11_0_7_overdrive_table *)smu->od_settings;
+	struct amdgpu_device *adev = smu->adev;
+	enum SMU_11_0_7_ODSETTING_ID freq_setting;
+	uint16_t *freq_ptr;
+	int i, ret = 0;
+	uint32_t smu_version;
+
+	if (!smu->od_enabled) {
+		dev_warn(smu->adev->dev, "OverDrive is not enabled!\n");
+		return -EINVAL;
+	}
+
+	if (!smu->od_settings) {
+		dev_err(smu->adev->dev, "OD board limits are not set!\n");
+		return -ENOENT;
+	}
+
+	if (!(table_context->overdrive_table && table_context->boot_overdrive_table)) {
+		dev_err(smu->adev->dev, "Overdrive table was not initialized!\n");
+		return -EINVAL;
+	}
+
+	switch (type) {
+	case PP_OD_EDIT_SCLK_VDDC_TABLE:
+		if (!sienna_cichlid_is_od_feature_supported(od_settings,
+							    SMU_11_0_7_ODCAP_GFXCLK_LIMITS)) {
+			dev_warn(smu->adev->dev, "GFXCLK_LIMITS not supported!\n");
+			return -ENOTSUPP;
+		}
+
+		for (i = 0; i < size; i += 2) {
+			if (i + 2 > size) {
+				dev_info(smu->adev->dev, "invalid number of input parameters %d\n", size);
+				return -EINVAL;
+			}
+
+			switch (input[i]) {
+			case 0:
+				if (input[i + 1] > od_table->GfxclkFmax) {
+					dev_info(smu->adev->dev, "GfxclkFmin (%ld) must be <= GfxclkFmax (%u)!\n",
+						input[i + 1], od_table->GfxclkFmax);
+					return -EINVAL;
+				}
+
+				freq_setting = SMU_11_0_7_ODSETTING_GFXCLKFMIN;
+				freq_ptr = &od_table->GfxclkFmin;
+				break;
+
+			case 1:
+				if (input[i + 1] < od_table->GfxclkFmin) {
+					dev_info(smu->adev->dev, "GfxclkFmax (%ld) must be >= GfxclkFmin (%u)!\n",
+						input[i + 1], od_table->GfxclkFmin);
+					return -EINVAL;
+				}
+
+				freq_setting = SMU_11_0_7_ODSETTING_GFXCLKFMAX;
+				freq_ptr = &od_table->GfxclkFmax;
+				break;
+
+			default:
+				dev_info(smu->adev->dev, "Invalid SCLK_VDDC_TABLE index: %ld\n", input[i]);
+				dev_info(smu->adev->dev, "Supported indices: [0:min,1:max]\n");
+				return -EINVAL;
+			}
+
+			ret = sienna_cichlid_od_setting_check_range(smu, od_settings,
+								    freq_setting, input[i + 1]);
+			if (ret)
+				return ret;
+
+			*freq_ptr = (uint16_t)input[i + 1];
+		}
+		break;
+
+	case PP_OD_EDIT_MCLK_VDDC_TABLE:
+		if (!sienna_cichlid_is_od_feature_supported(od_settings, SMU_11_0_7_ODCAP_UCLK_LIMITS)) {
+			dev_warn(smu->adev->dev, "UCLK_LIMITS not supported!\n");
+			return -ENOTSUPP;
+		}
+
+		for (i = 0; i < size; i += 2) {
+			if (i + 2 > size) {
+				dev_info(smu->adev->dev, "invalid number of input parameters %d\n", size);
+				return -EINVAL;
+			}
+
+			switch (input[i]) {
+			case 0:
+				if (input[i + 1] > od_table->UclkFmax) {
+					dev_info(smu->adev->dev, "UclkFmin (%ld) must be <= UclkFmax (%u)!\n",
+						input[i + 1], od_table->UclkFmax);
+					return -EINVAL;
+				}
+
+				freq_setting = SMU_11_0_7_ODSETTING_UCLKFMIN;
+				freq_ptr = &od_table->UclkFmin;
+				break;
+
+			case 1:
+				if (input[i + 1] < od_table->UclkFmin) {
+					dev_info(smu->adev->dev, "UclkFmax (%ld) must be >= UclkFmin (%u)!\n",
+						input[i + 1], od_table->UclkFmin);
+					return -EINVAL;
+				}
+
+				freq_setting = SMU_11_0_7_ODSETTING_UCLKFMAX;
+				freq_ptr = &od_table->UclkFmax;
+				break;
+
+			default:
+				dev_info(smu->adev->dev, "Invalid MCLK_VDDC_TABLE index: %ld\n", input[i]);
+				dev_info(smu->adev->dev, "Supported indices: [0:min,1:max]\n");
+				return -EINVAL;
+			}
+
+			ret = sienna_cichlid_od_setting_check_range(smu, od_settings,
+								    freq_setting, input[i + 1]);
+			if (ret)
+				return ret;
+
+			*freq_ptr = (uint16_t)input[i + 1];
+		}
+		break;
+
+	case PP_OD_RESTORE_DEFAULT_TABLE:
+		memcpy(table_context->overdrive_table,
+				table_context->boot_overdrive_table,
+				sizeof(OverDriveTable_t));
+		fallthrough;
+
+	case PP_OD_COMMIT_DPM_TABLE:
+		sienna_cichlid_dump_od_table(smu, od_table);
+
+		ret = smu_cmn_update_table(smu, SMU_TABLE_OVERDRIVE,
+					   0, (void *)od_table, true);
+		if (ret) {
+			dev_err(smu->adev->dev, "Failed to import overdrive table!\n");
+			return ret;
+		}
+		break;
+
+	case PP_OD_EDIT_VDDGFX_OFFSET:
+		if (size != 1) {
+			dev_info(smu->adev->dev, "invalid number of parameters: %d\n", size);
+			return -EINVAL;
+		}
+
+		/*
+		 * OD GFX Voltage Offset functionality is supported only by 58.41.0
+		 * and onwards SMU firmwares.
+		 */
+		smu_cmn_get_smc_version(smu, NULL, &smu_version);
+		if ((adev->asic_type == CHIP_SIENNA_CICHLID) &&
+		     (smu_version < 0x003a2900)) {
+			dev_err(smu->adev->dev, "OD GFX Voltage offset functionality is supported "
+						"only by 58.41.0 and onwards SMU firmwares!\n");
+			return -EOPNOTSUPP;
+		}
+
+		od_table->VddGfxOffset = (int16_t)input[0];
+
+		sienna_cichlid_dump_od_table(smu, od_table);
+		break;
+
+	default:
+		return -ENOSYS;
+	}
+
+	return ret;
+}
+
 static int sienna_cichlid_run_btc(struct smu_context *smu)
 {
 	return smu_cmn_send_smc_msg(smu, SMU_MSG_RunDcBtc, NULL);
@@ -1805,11 +2100,6 @@ static void sienna_cichlid_dump_pptable(struct smu_context *smu)
 		dev_info(smu->adev->dev, "SmnclkDpmFreq[%d] = 0x%x\n", i, pptable->SmnclkDpmFreq[i]);
 		dev_info(smu->adev->dev, "SmnclkDpmVoltage[%d] = 0x%x\n", i, pptable->SmnclkDpmVoltage[i]);
 	}
-	dev_info(smu->adev->dev, "PaddingAPCC[0] = 0x%x\n", pptable->PaddingAPCC[0]);
-	dev_info(smu->adev->dev, "PaddingAPCC[1] = 0x%x\n", pptable->PaddingAPCC[1]);
-	dev_info(smu->adev->dev, "PaddingAPCC[2] = 0x%x\n", pptable->PaddingAPCC[2]);
-	dev_info(smu->adev->dev, "PaddingAPCC[3] = 0x%x\n", pptable->PaddingAPCC[3]);
-
 	dev_info(smu->adev->dev, "ThrottlerControlMask = 0x%x\n", pptable->ThrottlerControlMask);
 
 	dev_info(smu->adev->dev, "FwDStateMask = 0x%x\n", pptable->FwDStateMask);
@@ -2035,23 +2325,6 @@ static void sienna_cichlid_dump_pptable(struct smu_context *smu)
 	dev_info(smu->adev->dev, "FreqTableFclk\n");
 	for (i = 0; i < NUM_FCLK_DPM_LEVELS; i++)
 		dev_info(smu->adev->dev, "  .[%02d] = 0x%x\n", i, pptable->FreqTableFclk[i]);
-
-	dev_info(smu->adev->dev, "Paddingclks[0] = 0x%x\n",  pptable->Paddingclks[0]);
-	dev_info(smu->adev->dev, "Paddingclks[1] = 0x%x\n",  pptable->Paddingclks[1]);
-	dev_info(smu->adev->dev, "Paddingclks[2] = 0x%x\n",  pptable->Paddingclks[2]);
-	dev_info(smu->adev->dev, "Paddingclks[3] = 0x%x\n",  pptable->Paddingclks[3]);
-	dev_info(smu->adev->dev, "Paddingclks[4] = 0x%x\n",  pptable->Paddingclks[4]);
-	dev_info(smu->adev->dev, "Paddingclks[5] = 0x%x\n",  pptable->Paddingclks[5]);
-	dev_info(smu->adev->dev, "Paddingclks[6] = 0x%x\n",  pptable->Paddingclks[6]);
-	dev_info(smu->adev->dev, "Paddingclks[7] = 0x%x\n",  pptable->Paddingclks[7]);
-	dev_info(smu->adev->dev, "Paddingclks[8] = 0x%x\n",  pptable->Paddingclks[8]);
-	dev_info(smu->adev->dev, "Paddingclks[9] = 0x%x\n",  pptable->Paddingclks[9]);
-	dev_info(smu->adev->dev, "Paddingclks[10] = 0x%x\n", pptable->Paddingclks[10]);
-	dev_info(smu->adev->dev, "Paddingclks[11] = 0x%x\n", pptable->Paddingclks[11]);
-	dev_info(smu->adev->dev, "Paddingclks[12] = 0x%x\n", pptable->Paddingclks[12]);
-	dev_info(smu->adev->dev, "Paddingclks[13] = 0x%x\n", pptable->Paddingclks[13]);
-	dev_info(smu->adev->dev, "Paddingclks[14] = 0x%x\n", pptable->Paddingclks[14]);
-	dev_info(smu->adev->dev, "Paddingclks[15] = 0x%x\n", pptable->Paddingclks[15]);
 
 	dev_info(smu->adev->dev, "DcModeMaxFreq\n");
 	dev_info(smu->adev->dev, "  .PPCLK_GFXCLK = 0x%x\n", pptable->DcModeMaxFreq[PPCLK_GFXCLK]);
@@ -2427,7 +2700,7 @@ static void sienna_cichlid_fill_i2c_req(SwI2cRequest_t  *req, bool write,
 {
 	int i;
 
-	req->I2CcontrollerPort = 0;
+	req->I2CcontrollerPort = 1;
 	req->I2CSpeed = 2;
 	req->SlaveAddress = address;
 	req->NumCmds = numbytes;
@@ -2654,52 +2927,54 @@ static ssize_t sienna_cichlid_get_gpu_metrics(struct smu_context *smu,
 	struct smu_table_context *smu_table = &smu->smu_table;
 	struct gpu_metrics_v1_0 *gpu_metrics =
 		(struct gpu_metrics_v1_0 *)smu_table->gpu_metrics_table;
-	SmuMetrics_t metrics;
+	SmuMetricsExternal_t metrics_external;
+	SmuMetrics_t *metrics =
+		&(metrics_external.SmuMetrics);
 	int ret = 0;
 
 	ret = smu_cmn_get_metrics_table(smu,
-					&metrics,
+					&metrics_external,
 					true);
 	if (ret)
 		return ret;
 
 	smu_v11_0_init_gpu_metrics_v1_0(gpu_metrics);
 
-	gpu_metrics->temperature_edge = metrics.TemperatureEdge;
-	gpu_metrics->temperature_hotspot = metrics.TemperatureHotspot;
-	gpu_metrics->temperature_mem = metrics.TemperatureMem;
-	gpu_metrics->temperature_vrgfx = metrics.TemperatureVrGfx;
-	gpu_metrics->temperature_vrsoc = metrics.TemperatureVrSoc;
-	gpu_metrics->temperature_vrmem = metrics.TemperatureVrMem0;
+	gpu_metrics->temperature_edge = metrics->TemperatureEdge;
+	gpu_metrics->temperature_hotspot = metrics->TemperatureHotspot;
+	gpu_metrics->temperature_mem = metrics->TemperatureMem;
+	gpu_metrics->temperature_vrgfx = metrics->TemperatureVrGfx;
+	gpu_metrics->temperature_vrsoc = metrics->TemperatureVrSoc;
+	gpu_metrics->temperature_vrmem = metrics->TemperatureVrMem0;
 
-	gpu_metrics->average_gfx_activity = metrics.AverageGfxActivity;
-	gpu_metrics->average_umc_activity = metrics.AverageUclkActivity;
-	gpu_metrics->average_mm_activity = metrics.VcnActivityPercentage;
+	gpu_metrics->average_gfx_activity = metrics->AverageGfxActivity;
+	gpu_metrics->average_umc_activity = metrics->AverageUclkActivity;
+	gpu_metrics->average_mm_activity = metrics->VcnActivityPercentage;
 
-	gpu_metrics->average_socket_power = metrics.AverageSocketPower;
-	gpu_metrics->energy_accumulator = metrics.EnergyAccumulator;
+	gpu_metrics->average_socket_power = metrics->AverageSocketPower;
+	gpu_metrics->energy_accumulator = metrics->EnergyAccumulator;
 
-	if (metrics.AverageGfxActivity <= SMU_11_0_7_GFX_BUSY_THRESHOLD)
-		gpu_metrics->average_gfxclk_frequency = metrics.AverageGfxclkFrequencyPostDs;
+	if (metrics->AverageGfxActivity <= SMU_11_0_7_GFX_BUSY_THRESHOLD)
+		gpu_metrics->average_gfxclk_frequency = metrics->AverageGfxclkFrequencyPostDs;
 	else
-		gpu_metrics->average_gfxclk_frequency = metrics.AverageGfxclkFrequencyPreDs;
-	gpu_metrics->average_uclk_frequency = metrics.AverageUclkFrequencyPostDs;
-	gpu_metrics->average_vclk0_frequency = metrics.AverageVclk0Frequency;
-	gpu_metrics->average_dclk0_frequency = metrics.AverageDclk0Frequency;
-	gpu_metrics->average_vclk1_frequency = metrics.AverageVclk1Frequency;
-	gpu_metrics->average_dclk1_frequency = metrics.AverageDclk1Frequency;
+		gpu_metrics->average_gfxclk_frequency = metrics->AverageGfxclkFrequencyPreDs;
+	gpu_metrics->average_uclk_frequency = metrics->AverageUclkFrequencyPostDs;
+	gpu_metrics->average_vclk0_frequency = metrics->AverageVclk0Frequency;
+	gpu_metrics->average_dclk0_frequency = metrics->AverageDclk0Frequency;
+	gpu_metrics->average_vclk1_frequency = metrics->AverageVclk1Frequency;
+	gpu_metrics->average_dclk1_frequency = metrics->AverageDclk1Frequency;
 
-	gpu_metrics->current_gfxclk = metrics.CurrClock[PPCLK_GFXCLK];
-	gpu_metrics->current_socclk = metrics.CurrClock[PPCLK_SOCCLK];
-	gpu_metrics->current_uclk = metrics.CurrClock[PPCLK_UCLK];
-	gpu_metrics->current_vclk0 = metrics.CurrClock[PPCLK_VCLK_0];
-	gpu_metrics->current_dclk0 = metrics.CurrClock[PPCLK_DCLK_0];
-	gpu_metrics->current_vclk1 = metrics.CurrClock[PPCLK_VCLK_1];
-	gpu_metrics->current_dclk1 = metrics.CurrClock[PPCLK_DCLK_1];
+	gpu_metrics->current_gfxclk = metrics->CurrClock[PPCLK_GFXCLK];
+	gpu_metrics->current_socclk = metrics->CurrClock[PPCLK_SOCCLK];
+	gpu_metrics->current_uclk = metrics->CurrClock[PPCLK_UCLK];
+	gpu_metrics->current_vclk0 = metrics->CurrClock[PPCLK_VCLK_0];
+	gpu_metrics->current_dclk0 = metrics->CurrClock[PPCLK_DCLK_0];
+	gpu_metrics->current_vclk1 = metrics->CurrClock[PPCLK_VCLK_1];
+	gpu_metrics->current_dclk1 = metrics->CurrClock[PPCLK_DCLK_1];
 
-	gpu_metrics->throttle_status = metrics.ThrottlerStatus;
+	gpu_metrics->throttle_status = metrics->ThrottlerStatus;
 
-	gpu_metrics->current_fan_speed = metrics.CurrFanSpeed;
+	gpu_metrics->current_fan_speed = metrics->CurrFanSpeed;
 
 	gpu_metrics->pcie_link_width =
 			smu_v11_0_get_current_pcie_link_width(smu);
@@ -2722,23 +2997,82 @@ static int sienna_cichlid_enable_mgpu_fan_boost(struct smu_context *smu)
 static int sienna_cichlid_gpo_control(struct smu_context *smu,
 				      bool enablement)
 {
+	uint32_t smu_version;
 	int ret = 0;
 
+
 	if (smu_cmn_feature_is_supported(smu, SMU_FEATURE_DPM_GFX_GPO_BIT)) {
-		if (enablement)
-			ret = smu_cmn_send_smc_msg_with_param(smu,
-							SMU_MSG_SetGpoFeaturePMask,
-							GFX_GPO_PACE_MASK | GFX_GPO_DEM_MASK,
-							NULL);
-		else
-			ret = smu_cmn_send_smc_msg_with_param(smu,
-							SMU_MSG_SetGpoFeaturePMask,
-							0,
-							NULL);
+		ret = smu_cmn_get_smc_version(smu, NULL, &smu_version);
+		if (ret)
+			return ret;
+
+		if (enablement) {
+			if (smu_version < 0x003a2500) {
+				ret = smu_cmn_send_smc_msg_with_param(smu,
+								      SMU_MSG_SetGpoFeaturePMask,
+								      GFX_GPO_PACE_MASK | GFX_GPO_DEM_MASK,
+								      NULL);
+			} else {
+				ret = smu_cmn_send_smc_msg_with_param(smu,
+								      SMU_MSG_DisallowGpo,
+								      0,
+								      NULL);
+			}
+		} else {
+			if (smu_version < 0x003a2500) {
+				ret = smu_cmn_send_smc_msg_with_param(smu,
+								      SMU_MSG_SetGpoFeaturePMask,
+								      0,
+								      NULL);
+			} else {
+				ret = smu_cmn_send_smc_msg_with_param(smu,
+								      SMU_MSG_DisallowGpo,
+								      1,
+								      NULL);
+			}
+		}
 	}
 
 	return ret;
 }
+
+static int sienna_cichlid_notify_2nd_usb20_port(struct smu_context *smu)
+{
+	uint32_t smu_version;
+	int ret = 0;
+
+	ret = smu_cmn_get_smc_version(smu, NULL, &smu_version);
+	if (ret)
+		return ret;
+
+	/*
+	 * Message SMU_MSG_Enable2ndUSB20Port is supported by 58.45
+	 * onwards PMFWs.
+	 */
+	if (smu_version < 0x003A2D00)
+		return 0;
+
+	return smu_cmn_send_smc_msg_with_param(smu,
+					       SMU_MSG_Enable2ndUSB20Port,
+					       smu->smu_table.boot_values.firmware_caps & ATOM_FIRMWARE_CAP_ENABLE_2ND_USB20PORT ?
+					       1 : 0,
+					       NULL);
+}
+
+static int sienna_cichlid_system_features_control(struct smu_context *smu,
+						  bool en)
+{
+	int ret = 0;
+
+	if (en) {
+		ret = sienna_cichlid_notify_2nd_usb20_port(smu);
+		if (ret)
+			return ret;
+	}
+
+	return smu_v11_0_system_features_control(smu, en);
+}
+
 static const struct pptable_funcs sienna_cichlid_ppt_funcs = {
 	.get_allowed_feature_mask = sienna_cichlid_get_allowed_feature_mask,
 	.set_default_dpm_table = sienna_cichlid_set_default_dpm_table,
@@ -2779,7 +3113,7 @@ static const struct pptable_funcs sienna_cichlid_ppt_funcs = {
 	.set_driver_table_location = smu_v11_0_set_driver_table_location,
 	.set_tool_table_location = smu_v11_0_set_tool_table_location,
 	.notify_memory_pool_location = smu_v11_0_notify_memory_pool_location,
-	.system_features_control = smu_v11_0_system_features_control,
+	.system_features_control = sienna_cichlid_system_features_control,
 	.send_smc_msg_with_param = smu_cmn_send_smc_msg_with_param,
 	.send_smc_msg = smu_cmn_send_smc_msg,
 	.init_display_count = NULL,
@@ -2811,7 +3145,10 @@ static const struct pptable_funcs sienna_cichlid_ppt_funcs = {
 	.mode1_reset = smu_v11_0_mode1_reset,
 	.get_dpm_ultimate_freq = sienna_cichlid_get_dpm_ultimate_freq,
 	.set_soft_freq_limited_range = smu_v11_0_set_soft_freq_limited_range,
+	.set_default_od_settings = sienna_cichlid_set_default_od_settings,
+	.od_edit_dpm_table = sienna_cichlid_od_edit_dpm_table,
 	.run_btc = sienna_cichlid_run_btc,
+	.set_power_source = smu_v11_0_set_power_source,
 	.get_pp_feature_mask = smu_cmn_get_pp_feature_mask,
 	.set_pp_feature_mask = smu_cmn_set_pp_feature_mask,
 	.get_gpu_metrics = sienna_cichlid_get_gpu_metrics,

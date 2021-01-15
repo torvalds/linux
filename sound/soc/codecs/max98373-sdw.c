@@ -247,7 +247,7 @@ static __maybe_unused int max98373_suspend(struct device *dev)
 	struct max98373_priv *max98373 = dev_get_drvdata(dev);
 
 	regcache_cache_only(max98373->regmap, true);
-	regcache_mark_dirty(max98373->regmap);
+
 	return 0;
 }
 

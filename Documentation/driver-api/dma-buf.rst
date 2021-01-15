@@ -190,7 +190,7 @@ DMA Fence uABI/Sync File
 Indefinite DMA Fences
 ~~~~~~~~~~~~~~~~~~~~~
 
-At various times &dma_fence with an indefinite time until dma_fence_wait()
+At various times struct dma_fence with an indefinite time until dma_fence_wait()
 finishes have been proposed. Examples include:
 
 * Future fences, used in HWC1 to signal when a buffer isn't used by the display

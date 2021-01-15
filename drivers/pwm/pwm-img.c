@@ -240,7 +240,6 @@ static int img_pwm_probe(struct platform_device *pdev)
 	int ret;
 	u64 val;
 	unsigned long clk_rate;
-	struct resource *res;
 	struct img_pwm_chip *pwm;
 	const struct of_device_id *of_dev_id;
 
@@ -250,8 +249,7 @@ static int img_pwm_probe(struct platform_device *pdev)
 
 	pwm->dev = &pdev->dev;
 
-	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	pwm->base = devm_ioremap_resource(&pdev->dev, res);
+	pwm->base = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(pwm->base))
 		return PTR_ERR(pwm->base);
 

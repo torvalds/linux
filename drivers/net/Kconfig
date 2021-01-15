@@ -287,7 +287,7 @@ config GTP
 	  3GPP TS 29.060 standards.
 
 	  To compile this drivers as a module, choose M here: the module
-	  wil be called gtp.
+	  will be called gtp.
 
 config MACSEC
 	tristate "IEEE 802.1AE MAC-level encryption (MACsec)"
@@ -426,6 +426,13 @@ config VSOCKMON
 	  mostly intended for developers or support to debug vsock issues. If
 	  unsure, say N.
 
+config MHI_NET
+	tristate "MHI network driver"
+	depends on MHI_BUS
+	help
+	  This is the network driver for MHI bus.  It can be used with
+	  QCOM based WWAN modems (like SDX55).  Say Y or M.
+
 endif # NET_CORE
 
 config SUNGEM_PHY
@@ -488,8 +495,6 @@ source "drivers/s390/net/Kconfig"
 source "drivers/net/usb/Kconfig"
 
 source "drivers/net/wireless/Kconfig"
-
-source "drivers/net/wimax/Kconfig"
 
 source "drivers/net/wan/Kconfig"
 

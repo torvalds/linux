@@ -177,8 +177,10 @@ int gen4_init_dev(struct intel_ntb_dev *ndev)
 
 	ndev->reg = &gen4_reg;
 
-	if (pdev_is_ICX(pdev))
+	if (pdev_is_ICX(pdev)) {
 		ndev->hwerr_flags |= NTB_HWERR_BAR_ALIGN;
+		ndev->hwerr_flags |= NTB_HWERR_LTR_BAD;
+	}
 
 	ppd1 = ioread32(ndev->self_mmio + GEN4_PPD1_OFFSET);
 	ndev->ntb.topo = gen4_ppd_topo(ndev, ppd1);
@@ -431,6 +433,25 @@ static int intel_ntb4_link_enable(struct ntb_dev *ntb,
 		dev_dbg(&ntb->pdev->dev,
 				"ignoring max_width %d\n", max_width);
 
+	if (!(ndev->hwerr_flags & NTB_HWERR_LTR_BAD)) {
+		u32 ltr;
+
+		/* Setup active snoop LTR values */
+		ltr = NTB_LTR_ACTIVE_REQMNT | NTB_LTR_ACTIVE_VAL | NTB_LTR_ACTIVE_LATSCALE;
+		/* Setup active non-snoop values */
+		ltr = (ltr << NTB_LTR_NS_SHIFT) | ltr;
+		iowrite32(ltr, ndev->self_mmio + GEN4_LTR_ACTIVE_OFFSET);
+
+		/* Setup idle snoop LTR values */
+		ltr = NTB_LTR_IDLE_VAL | NTB_LTR_IDLE_LATSCALE | NTB_LTR_IDLE_REQMNT;
+		/* Setup idle non-snoop values */
+		ltr = (ltr << NTB_LTR_NS_SHIFT) | ltr;
+		iowrite32(ltr, ndev->self_mmio + GEN4_LTR_IDLE_OFFSET);
+
+		/* setup PCIe LTR to active */
+		iowrite8(NTB_LTR_SWSEL_ACTIVE, ndev->self_mmio + GEN4_LTR_SWSEL_OFFSET);
+	}
+
 	ntb_ctl = NTB_CTL_E2I_BAR23_SNOOP | NTB_CTL_I2E_BAR23_SNOOP;
 	ntb_ctl |= NTB_CTL_E2I_BAR45_SNOOP | NTB_CTL_I2E_BAR45_SNOOP;
 	iowrite32(ntb_ctl, ndev->self_mmio + ndev->reg->ntb_ctl);
@@ -475,6 +496,10 @@ static int intel_ntb4_link_disable(struct ntb_dev *ntb)
 	lnkctl = ioread16(ndev->self_mmio + GEN4_LINK_CTRL_OFFSET);
 	lnkctl |= GEN4_LINK_CTRL_LINK_DISABLE;
 	iowrite16(lnkctl, ndev->self_mmio + GEN4_LINK_CTRL_OFFSET);
+
+	/* set LTR to idle */
+	if (!(ndev->hwerr_flags & NTB_HWERR_LTR_BAD))
+		iowrite8(NTB_LTR_SWSEL_IDLE, ndev->self_mmio + GEN4_LTR_SWSEL_OFFSET);
 
 	ndev->dev_up = 0;
 

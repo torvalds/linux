@@ -41,7 +41,7 @@ do {							\
  */
 #define read_octeon_64bit_hash_dword(index)		\
 ({							\
-	u64 __value;					\
+	__be64 __value;					\
 							\
 	__asm__ __volatile__ (				\
 	"dmfc2 %[rt],0x0048+" STR(index)		\
