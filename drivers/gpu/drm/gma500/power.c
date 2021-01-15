@@ -93,6 +93,7 @@ static void gma_suspend_display(struct drm_device *dev)
 
 /**
  *	gma_resume_display	-	resume display side logic
+ *	@pdev: PCI device
  *
  *	Resume the display hardware restoring state and enabling
  *	as necessary.
@@ -146,7 +147,7 @@ static void gma_suspend_pci(struct pci_dev *pdev)
 
 /**
  *	gma_resume_pci		-	resume helper
- *	@dev: our PCI device
+ *	@pdev: our PCI device
  *
  *	Perform the resume processing on our PCI device state - rewrite
  *	register state and re-enable the PCI device
@@ -178,7 +179,7 @@ static bool gma_resume_pci(struct pci_dev *pdev)
 
 /**
  *	gma_power_suspend		-	bus callback for suspend
- *	@pdev: our PCI device
+ *	@_dev: our device
  *	@state: suspend type
  *
  *	Called back by the PCI layer during a suspend of the system. We
@@ -208,7 +209,7 @@ int gma_power_suspend(struct device *_dev)
 
 /**
  *	gma_power_resume		-	resume power
- *	@pdev: PCI device
+ *	@_dev: our device
  *
  *	Resume the PCI side of the graphics and then the displays
  */
