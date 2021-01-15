@@ -56,6 +56,7 @@ struct am65_cpsw_host {
 };
 
 struct am65_cpsw_tx_chn {
+	struct device *dma_dev;
 	struct napi_struct napi_tx;
 	struct am65_cpsw_common	*common;
 	struct k3_cppi_desc_pool *desc_pool;
@@ -69,6 +70,7 @@ struct am65_cpsw_tx_chn {
 
 struct am65_cpsw_rx_chn {
 	struct device *dev;
+	struct device *dma_dev;
 	struct k3_cppi_desc_pool *desc_pool;
 	struct k3_udma_glue_rx_channel *rx_chn;
 	u32 descs_num;
