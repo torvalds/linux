@@ -525,6 +525,18 @@ static inline int mv88e6xxx_g2_trunk_clear(struct mv88e6xxx_chip *chip)
 	return -EOPNOTSUPP;
 }
 
+static inline int mv88e6xxx_g2_trunk_mask_write(struct mv88e6xxx_chip *chip,
+						int num, bool hash, u16 mask)
+{
+	return -EOPNOTSUPP;
+}
+
+static inline int mv88e6xxx_g2_trunk_mapping_write(struct mv88e6xxx_chip *chip,
+						   int id, u16 map)
+{
+	return -EOPNOTSUPP;
+}
+
 static inline int mv88e6xxx_g2_device_mapping_write(struct mv88e6xxx_chip *chip,
 						    int target, int port)
 {
