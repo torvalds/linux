@@ -495,12 +495,13 @@ minstrel_ht_sort_best_tp_rates(struct minstrel_ht_sta *mi, u16 index,
  * Find and set the topmost probability rate per sta and per group
  */
 static void
-minstrel_ht_set_best_prob_rate(struct minstrel_ht_sta *mi, u16 index)
+minstrel_ht_set_best_prob_rate(struct minstrel_ht_sta *mi, u16 *dest, u16 index)
 {
 	struct minstrel_mcs_group_data *mg;
 	struct minstrel_rate_stats *mrs;
 	int tmp_group, tmp_idx, tmp_tp_avg, tmp_prob;
-	int max_tp_group, cur_tp_avg, cur_group, cur_idx;
+	int max_tp_group, max_tp_idx, max_tp_prob;
+	int cur_tp_avg, cur_group, cur_idx;
 	int max_gpr_group, max_gpr_idx;
 	int max_gpr_tp_avg, max_gpr_prob;
 
@@ -509,16 +510,24 @@ minstrel_ht_set_best_prob_rate(struct minstrel_ht_sta *mi, u16 index)
 	mg = &mi->groups[index / MCS_GROUP_RATES];
 	mrs = &mg->rates[index % MCS_GROUP_RATES];
 
-	tmp_group = mi->max_prob_rate / MCS_GROUP_RATES;
-	tmp_idx = mi->max_prob_rate % MCS_GROUP_RATES;
+	tmp_group = *dest / MCS_GROUP_RATES;
+	tmp_idx = *dest % MCS_GROUP_RATES;
 	tmp_prob = mi->groups[tmp_group].rates[tmp_idx].prob_avg;
 	tmp_tp_avg = minstrel_ht_get_tp_avg(mi, tmp_group, tmp_idx, tmp_prob);
 
 	/* if max_tp_rate[0] is from MCS_GROUP max_prob_rate get selected from
 	 * MCS_GROUP as well as CCK_GROUP rates do not allow aggregation */
 	max_tp_group = mi->max_tp_rate[0] / MCS_GROUP_RATES;
+	max_tp_idx = mi->max_tp_rate[0] % MCS_GROUP_RATES;
+	max_tp_prob = mi->groups[max_tp_group].rates[max_tp_idx].prob_avg;
+
 	if (minstrel_ht_is_legacy_group(index / MCS_GROUP_RATES) &&
 	    !minstrel_ht_is_legacy_group(max_tp_group))
+		return;
+
+	/* skip rates faster than max tp rate with lower prob */
+	if (minstrel_get_duration(mi->max_tp_rate[0]) > minstrel_get_duration(index) &&
+	    mrs->prob_avg < max_tp_prob)
 		return;
 
 	max_gpr_group = mg->max_group_prob_rate / MCS_GROUP_RATES;
@@ -538,7 +547,7 @@ minstrel_ht_set_best_prob_rate(struct minstrel_ht_sta *mi, u16 index)
 			mg->max_group_prob_rate = index;
 	} else {
 		if (mrs->prob_avg > tmp_prob)
-			mi->max_prob_rate = index;
+			*dest = index;
 		if (mrs->prob_avg > max_gpr_prob)
 			mg->max_group_prob_rate = index;
 	}
@@ -816,7 +825,8 @@ minstrel_ht_update_stats(struct minstrel_priv *mp, struct minstrel_ht_sta *mi,
 	struct minstrel_rate_stats *mrs;
 	int group, i, j, cur_prob;
 	u16 tmp_mcs_tp_rate[MAX_THR_RATES], tmp_group_tp_rate[MAX_THR_RATES];
-	u16 tmp_legacy_tp_rate[MAX_THR_RATES], index;
+	u16 tmp_legacy_tp_rate[MAX_THR_RATES], tmp_max_prob_rate;
+	u16 index;
 	bool ht_supported = mi->sta->ht_cap.ht_supported;
 
 	mi->sample_mode = MINSTREL_SAMPLE_IDLE;
@@ -863,6 +873,7 @@ minstrel_ht_update_stats(struct minstrel_priv *mp, struct minstrel_ht_sta *mi,
 	else
 		index = MINSTREL_OFDM_GROUP * MCS_GROUP_RATES;
 
+	tmp_max_prob_rate = index;
 	for (j = 0; j < ARRAY_SIZE(tmp_mcs_tp_rate); j++)
 		tmp_mcs_tp_rate[j] = index;
 
@@ -903,9 +914,6 @@ minstrel_ht_update_stats(struct minstrel_priv *mp, struct minstrel_ht_sta *mi,
 			/* Find max throughput rate set within a group */
 			minstrel_ht_sort_best_tp_rates(mi, index,
 						       tmp_group_tp_rate);
-
-			/* Find max probability rate per group and global */
-			minstrel_ht_set_best_prob_rate(mi, index);
 		}
 
 		memcpy(mg->max_group_tp_rate, tmp_group_tp_rate,
@@ -916,6 +924,27 @@ minstrel_ht_update_stats(struct minstrel_priv *mp, struct minstrel_ht_sta *mi,
 	minstrel_ht_assign_best_tp_rates(mi, tmp_mcs_tp_rate,
 					 tmp_legacy_tp_rate);
 	memcpy(mi->max_tp_rate, tmp_mcs_tp_rate, sizeof(mi->max_tp_rate));
+
+	for (group = 0; group < ARRAY_SIZE(minstrel_mcs_groups); group++) {
+		if (!mi->supported[group])
+			continue;
+
+		mg = &mi->groups[group];
+		mg->max_group_prob_rate = MCS_GROUP_RATES * group;
+
+		for (i = 0; i < MCS_GROUP_RATES; i++) {
+			if (!(mi->supported[group] & BIT(i)))
+				continue;
+
+			index = MCS_GROUP_RATES * group + i;
+
+			/* Find max probability rate per group and global */
+			minstrel_ht_set_best_prob_rate(mi, &tmp_max_prob_rate,
+						       index);
+		}
+	}
+
+	mi->max_prob_rate = tmp_max_prob_rate;
 
 	/* Try to increase robustness of max_prob_rate*/
 	minstrel_ht_prob_rate_reduce_streams(mi);
