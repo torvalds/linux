@@ -109,20 +109,20 @@ static int ipa_interconnect_enable(struct ipa *ipa)
 	int ret;
 
 	data = &clock->interconnect_data[IPA_INTERCONNECT_MEMORY];
-	ret = icc_set_bw(clock->memory_path, data->average_rate,
-			 data->peak_rate);
+	ret = icc_set_bw(clock->memory_path, data->average_bandwidth,
+			 data->peak_bandwidth);
 	if (ret)
 		return ret;
 
 	data = &clock->interconnect_data[IPA_INTERCONNECT_IMEM];
-	ret = icc_set_bw(clock->imem_path, data->average_rate,
-			 data->peak_rate);
+	ret = icc_set_bw(clock->imem_path, data->average_bandwidth,
+			 data->peak_bandwidth);
 	if (ret)
 		goto err_memory_path_disable;
 
 	data = &clock->interconnect_data[IPA_INTERCONNECT_CONFIG];
-	ret = icc_set_bw(clock->config_path, data->average_rate,
-			 data->peak_rate);
+	ret = icc_set_bw(clock->config_path, data->average_bandwidth,
+			 data->peak_bandwidth);
 	if (ret)
 		goto err_imem_path_disable;
 
@@ -159,12 +159,12 @@ static int ipa_interconnect_disable(struct ipa *ipa)
 
 err_imem_path_reenable:
 	data = &clock->interconnect_data[IPA_INTERCONNECT_IMEM];
-	(void)icc_set_bw(clock->imem_path, data->average_rate,
-			 data->peak_rate);
+	(void)icc_set_bw(clock->imem_path, data->average_bandwidth,
+			 data->peak_bandwidth);
 err_memory_path_reenable:
 	data = &clock->interconnect_data[IPA_INTERCONNECT_MEMORY];
-	(void)icc_set_bw(clock->memory_path, data->average_rate,
-			 data->peak_rate);
+	(void)icc_set_bw(clock->memory_path, data->average_bandwidth,
+			 data->peak_bandwidth);
 
 	return ret;
 }

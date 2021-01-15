@@ -331,20 +331,20 @@ static struct ipa_mem_data ipa_mem_data = {
 
 static struct ipa_clock_data ipa_clock_data = {
 	.core_clock_rate	= 75 * 1000 * 1000,	/* Hz */
-	/* Interconnect rates are in 1000 byte/second units */
+	/* Interconnect bandwidths are in 1000 byte/second units */
 	.interconnect = {
 		[IPA_INTERCONNECT_MEMORY] = {
-			.peak_rate	= 600000,	/* 600 MBps */
-			.average_rate	= 80000,	/* 80 MBps */
+			.peak_bandwidth		= 600000,	/* 600 MBps */
+			.average_bandwidth	= 80000,	/* 80 MBps */
 		},
-		/* Average rate is unused for the next two interconnects */
+		/* Average bandwidth unused for the next two interconnects */
 		[IPA_INTERCONNECT_IMEM] = {
-			.peak_rate	= 350000,	/* 350 MBps */
-			.average_rate	= 0,		/* unused */
+			.peak_bandwidth		= 350000,	/* 350 MBps */
+			.average_bandwidth	= 0,		/* unused */
 		},
 		[IPA_INTERCONNECT_CONFIG] = {
-			.peak_rate	= 40000,	/* 40 MBps */
-			.average_rate	= 0,		/* unused */
+			.peak_bandwidth		= 40000,	/* 40 MBps */
+			.average_bandwidth	= 0,		/* unused */
 		},
 	},
 };

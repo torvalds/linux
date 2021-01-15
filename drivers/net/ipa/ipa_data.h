@@ -267,13 +267,13 @@ enum ipa_interconnect_id {
 };
 
 /**
- * struct ipa_interconnect_data - description of IPA interconnect rates
- * @peak_rate:		Peak interconnect bandwidth (in 1000 byte/sec units)
- * @average_rate:	Average interconnect bandwidth (in 1000 byte/sec units)
+ * struct ipa_interconnect_data - description of IPA interconnect bandwidths
+ * @peak_bandwidth:	Peak interconnect bandwidth (in 1000 byte/sec units)
+ * @average_bandwidth:	Average interconnect bandwidth (in 1000 byte/sec units)
  */
 struct ipa_interconnect_data {
-	u32 peak_rate;
-	u32 average_rate;
+	u32 peak_bandwidth;
+	u32 average_bandwidth;
 };
 
 /**
