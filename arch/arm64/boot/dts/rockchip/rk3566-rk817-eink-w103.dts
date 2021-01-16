@@ -137,6 +137,20 @@
 		status = "okay";
 	};
 
+	reserved-memory {
+		#address-cells = <2>;
+		#size-cells = <2>;
+		ranges;
+
+		rknpu_reserved: rknpu {
+			compatible = "shared-dma-pool";
+			inactive;
+			reusable;
+			size = <0x0 0x20000000>;
+			alignment = <0x0 0x1000>;
+		};
+	};
+
 	vccsys: vccsys {
 		compatible = "regulator-fixed";
 		regulator-name = "vcc3v8_sys";
@@ -585,8 +599,8 @@
 			ocv_table = <3400 3513 3578 3687 3734 3752 3763
 				     3766 3771 3784 3804 3836 3885 3925
 				     3962 4005 4063 4114 4169 4227 4303>;
-			design_capacity = <5000>;
-			design_qmax = <5500>;
+			design_capacity = <4150>;
+			design_qmax = <4565>;
 			bat_res = <100>;
 			sleep_enter_current = <150>;
 			sleep_exit_current = <180>;
@@ -955,6 +969,16 @@
 
 &rkvenc_mmu {
 	status = "okay";
+};
+
+&rknpu {
+	memory-region = <&rknpu_reserved>;
+	rknpu-supply = <&vdd_gpu>;
+	status = "okay";
+};
+
+&rknpu_mmu {
+	status = "disabled";
 };
 
 &rockchip_suspend {
