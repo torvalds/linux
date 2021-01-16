@@ -79,5 +79,5 @@ config SCSI_MPT2SAS
 	select SCSI_MPT3SAS
 	depends on PCI && SCSI
 	help
-	Dummy config option for backwards compatiblity: configure the MPT3SAS
+	Dummy config option for backwards compatibility: configure the MPT3SAS
 	driver instead.
