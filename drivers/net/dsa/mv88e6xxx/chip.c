@@ -5385,8 +5385,12 @@ static bool mv88e6xxx_lag_can_offload(struct dsa_switch *ds,
 				      struct net_device *lag,
 				      struct netdev_lag_upper_info *info)
 {
+	struct mv88e6xxx_chip *chip = ds->priv;
 	struct dsa_port *dp;
 	int id, members = 0;
+
+	if (!mv88e6xxx_has_lag(chip))
+		return false;
 
 	id = dsa_lag_id(ds->dst, lag);
 	if (id < 0 || id >= ds->num_lag_ids)
@@ -5727,7 +5731,7 @@ static int mv88e6xxx_register_switch(struct mv88e6xxx_chip *chip)
 	 * 5-bit port mode, which we do not support. 640k^W16 ought to
 	 * be enough for anyone.
 	 */
-	ds->num_lag_ids = 16;
+	ds->num_lag_ids = mv88e6xxx_has_lag(chip) ? 16 : 0;
 
 	dev_set_drvdata(dev, ds);
 
