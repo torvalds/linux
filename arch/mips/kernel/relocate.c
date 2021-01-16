@@ -70,18 +70,14 @@ static void __init sync_icache(void *kbase, unsigned long kernel_length)
 	__sync();
 }
 
-static int __init apply_r_mips_64_rel(u32 *loc_orig, u32 *loc_new, long offset)
+static void __init apply_r_mips_64_rel(u32 *loc_new, long offset)
 {
 	*(u64 *)loc_new += offset;
-
-	return 0;
 }
 
-static int __init apply_r_mips_32_rel(u32 *loc_orig, u32 *loc_new, long offset)
+static void __init apply_r_mips_32_rel(u32 *loc_new, long offset)
 {
 	*loc_new += offset;
-
-	return 0;
 }
 
 static int __init apply_r_mips_26_rel(u32 *loc_orig, u32 *loc_new, long offset)
@@ -114,7 +110,8 @@ static int __init apply_r_mips_26_rel(u32 *loc_orig, u32 *loc_new, long offset)
 }
 
 
-static int __init apply_r_mips_hi16_rel(u32 *loc_orig, u32 *loc_new, long offset)
+static void __init apply_r_mips_hi16_rel(u32 *loc_orig, u32 *loc_new,
+					 long offset)
 {
 	unsigned long insn = *loc_orig;
 	unsigned long target = (insn & 0xffff) << 16; /* high 16bits of target */
@@ -122,17 +119,33 @@ static int __init apply_r_mips_hi16_rel(u32 *loc_orig, u32 *loc_new, long offset
 	target += offset;
 
 	*loc_new = (insn & ~0xffff) | ((target >> 16) & 0xffff);
+}
+
+static int __init reloc_handler(u32 type, u32 *loc_orig, u32 *loc_new,
+				long offset)
+{
+	switch (type) {
+	case R_MIPS_64:
+		apply_r_mips_64_rel(loc_new, offset);
+		break;
+	case R_MIPS_32:
+		apply_r_mips_32_rel(loc_new, offset);
+		break;
+	case R_MIPS_26:
+		return apply_r_mips_26_rel(loc_orig, loc_new, offset);
+	case R_MIPS_HI16:
+		apply_r_mips_hi16_rel(loc_orig, loc_new, offset);
+		break;
+	default:
+		pr_err("Unhandled relocation type %d at 0x%pK\n", type,
+		       loc_orig);
+		return -ENOEXEC;
+	}
+
 	return 0;
 }
 
-static int (*reloc_handlers_rel[]) (u32 *, u32 *, long) __initdata = {
-	[R_MIPS_64]		= apply_r_mips_64_rel,
-	[R_MIPS_32]		= apply_r_mips_32_rel,
-	[R_MIPS_26]		= apply_r_mips_26_rel,
-	[R_MIPS_HI16]		= apply_r_mips_hi16_rel,
-};
-
-int __init do_relocations(void *kbase_old, void *kbase_new, long offset)
+static int __init do_relocations(void *kbase_old, void *kbase_new, long offset)
 {
 	u32 *r;
 	u32 *loc_orig;
@@ -149,14 +162,7 @@ int __init do_relocations(void *kbase_old, void *kbase_new, long offset)
 		loc_orig = kbase_old + ((*r & 0x00ffffff) << 2);
 		loc_new = RELOCATED(loc_orig);
 
-		if (reloc_handlers_rel[type] == NULL) {
-			/* Unsupported relocation */
-			pr_err("Unhandled relocation type %d at 0x%pK\n",
-			       type, loc_orig);
-			return -ENOEXEC;
-		}
-
-		res = reloc_handlers_rel[type](loc_orig, loc_new, offset);
+		res = reloc_handler(type, loc_orig, loc_new, offset);
 		if (res)
 			return res;
 	}
@@ -412,7 +418,7 @@ out:
 /*
  * Show relocation information on panic.
  */
-void show_kernel_relocation(const char *level)
+static void show_kernel_relocation(const char *level)
 {
 	unsigned long offset;
 
