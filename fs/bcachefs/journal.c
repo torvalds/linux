@@ -81,6 +81,7 @@ static void bch2_journal_buf_init(struct journal *j)
 	bkey_extent_init(&buf->key);
 	buf->noflush	= false;
 	buf->must_flush	= false;
+	buf->separate_flush = false;
 
 	memset(buf->has_inode, 0, sizeof(buf->has_inode));
 

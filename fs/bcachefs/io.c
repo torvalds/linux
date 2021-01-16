@@ -509,9 +509,6 @@ void bch2_submit_wbio_replicas(struct bch_write_bio *wbio, struct bch_fs *c,
 		n->submit_time		= local_clock();
 		n->bio.bi_iter.bi_sector = ptr->offset;
 
-		if (!journal_flushes_device(ca))
-			n->bio.bi_opf |= REQ_FUA;
-
 		if (likely(n->have_ioref)) {
 			this_cpu_add(ca->io_done->sectors[WRITE][type],
 				     bio_sectors(&n->bio));

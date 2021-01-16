@@ -1188,6 +1188,51 @@ static void journal_write_endio(struct bio *bio)
 	percpu_ref_put(&ca->io_ref);
 }
 
+static void do_journal_write(struct closure *cl)
+{
+	struct journal *j = container_of(cl, struct journal, io);
+	struct bch_fs *c = container_of(j, struct bch_fs, journal);
+	struct bch_dev *ca;
+	struct journal_buf *w = journal_last_unwritten_buf(j);
+	struct bch_extent_ptr *ptr;
+	struct bio *bio;
+	unsigned sectors = vstruct_sectors(w->data, c->block_bits);
+
+	extent_for_each_ptr(bkey_i_to_s_extent(&w->key), ptr) {
+		ca = bch_dev_bkey_exists(c, ptr->dev);
+		if (!percpu_ref_tryget(&ca->io_ref)) {
+			/* XXX: fix this */
+			bch_err(c, "missing device for journal write\n");
+			continue;
+		}
+
+		this_cpu_add(ca->io_done->sectors[WRITE][BCH_DATA_journal],
+			     sectors);
+
+		bio = ca->journal.bio;
+		bio_reset(bio, ca->disk_sb.bdev, REQ_OP_WRITE|REQ_SYNC|REQ_META);
+		bio->bi_iter.bi_sector	= ptr->offset;
+		bio->bi_end_io		= journal_write_endio;
+		bio->bi_private		= ca;
+
+		if (!JSET_NO_FLUSH(w->data))
+			bio->bi_opf    |= REQ_FUA;
+		if (!JSET_NO_FLUSH(w->data) && !w->separate_flush)
+			bio->bi_opf    |= REQ_PREFLUSH;
+
+		bch2_bio_map(bio, w->data, sectors << 9);
+
+		trace_journal_write(bio);
+		closure_bio_submit(bio, cl);
+
+		ca->journal.bucket_seq[ca->journal.cur_idx] =
+			le64_to_cpu(w->data->seq);
+	}
+
+	continue_at(cl, journal_write_done, system_highpri_wq);
+	return;
+}
+
 void bch2_journal_write(struct closure *cl)
 {
 	struct journal *j = container_of(cl, struct journal, io);
@@ -1197,9 +1242,8 @@ void bch2_journal_write(struct closure *cl)
 	struct jset_entry *start, *end;
 	struct jset *jset;
 	struct bio *bio;
-	struct bch_extent_ptr *ptr;
 	bool validate_before_checksum = false;
-	unsigned i, sectors, bytes, u64s;
+	unsigned i, sectors, bytes, u64s, nr_rw_members = 0;
 	int ret;
 
 	BUG_ON(BCH_SB_CLEAN(c->disk_sb.sb));
@@ -1329,45 +1373,28 @@ retry_alloc:
 	if (c->opts.nochanges)
 		goto no_io;
 
-	extent_for_each_ptr(bkey_i_to_s_extent(&w->key), ptr) {
-		ca = bch_dev_bkey_exists(c, ptr->dev);
-		if (!percpu_ref_tryget(&ca->io_ref)) {
-			/* XXX: fix this */
-			bch_err(c, "missing device for journal write\n");
-			continue;
+	for_each_rw_member(ca, c, i)
+		nr_rw_members++;
+
+	if (nr_rw_members > 1)
+		w->separate_flush = true;
+
+	if (!JSET_NO_FLUSH(jset) && w->separate_flush) {
+		for_each_rw_member(ca, c, i) {
+			percpu_ref_get(&ca->io_ref);
+
+			bio = ca->journal.bio;
+			bio_reset(bio, ca->disk_sb.bdev, REQ_OP_FLUSH);
+			bio->bi_end_io		= journal_write_endio;
+			bio->bi_private		= ca;
+			closure_bio_submit(bio, cl);
 		}
-
-		this_cpu_add(ca->io_done->sectors[WRITE][BCH_DATA_journal],
-			     sectors);
-
-		bio = ca->journal.bio;
-		bio_reset(bio, ca->disk_sb.bdev, REQ_OP_WRITE|REQ_SYNC|REQ_META);
-		bio->bi_iter.bi_sector	= ptr->offset;
-		bio->bi_end_io		= journal_write_endio;
-		bio->bi_private		= ca;
-		if (!JSET_NO_FLUSH(jset))
-			bio->bi_opf    |= REQ_PREFLUSH|REQ_FUA;
-		bch2_bio_map(bio, jset, sectors << 9);
-
-		trace_journal_write(bio);
-		closure_bio_submit(bio, cl);
-
-		ca->journal.bucket_seq[ca->journal.cur_idx] = le64_to_cpu(jset->seq);
 	}
 
-	if (!JSET_NO_FLUSH(jset)) {
-		for_each_rw_member(ca, c, i)
-			if (journal_flushes_device(ca) &&
-			    !bch2_bkey_has_device(bkey_i_to_s_c(&w->key), i)) {
-				percpu_ref_get(&ca->io_ref);
+	bch2_bucket_seq_cleanup(c);
 
-				bio = ca->journal.bio;
-				bio_reset(bio, ca->disk_sb.bdev, REQ_OP_FLUSH);
-				bio->bi_end_io		= journal_write_endio;
-				bio->bi_private		= ca;
-				closure_bio_submit(bio, cl);
-			}
-	}
+	continue_at(cl, do_journal_write, system_highpri_wq);
+	return;
 no_io:
 	bch2_bucket_seq_cleanup(c);
 

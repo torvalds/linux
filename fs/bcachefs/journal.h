@@ -496,11 +496,6 @@ static inline int bch2_journal_error(struct journal *j)
 
 struct bch_dev;
 
-static inline bool journal_flushes_device(struct bch_dev *ca)
-{
-	return true;
-}
-
 static inline void bch2_journal_set_replay_done(struct journal *j)
 {
 	BUG_ON(!test_bit(JOURNAL_STARTED, &j->flags));
