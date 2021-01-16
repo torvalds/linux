@@ -68,8 +68,8 @@ static struct sk_buff *__skb_udp_tunnel_segment(struct sk_buff *skb,
 				      (NETIF_F_HW_CSUM | NETIF_F_IP_CSUM))));
 
 	features &= skb->dev->hw_enc_features;
-	/* CRC checksum can't be handled by HW when it's a UDP tunneling packet. */
-	features &= ~NETIF_F_SCTP_CRC;
+	if (need_csum)
+		features &= ~NETIF_F_SCTP_CRC;
 
 	/* The only checksum offload we care about from here on out is the
 	 * outer one so strip the existing checksum feature flags and
