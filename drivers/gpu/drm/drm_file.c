@@ -775,6 +775,72 @@ void drm_event_cancel_free(struct drm_device *dev,
 EXPORT_SYMBOL(drm_event_cancel_free);
 
 /**
+ * drm_send_event_helper - send DRM event to file descriptor
+ * @dev: DRM device
+ * @e: DRM event to deliver
+ * @timestamp: timestamp to set for the fence event in kernel's CLOCK_MONOTONIC
+ * time domain
+ *
+ * This helper function sends the event @e, initialized with
+ * drm_event_reserve_init(), to its associated userspace DRM file.
+ * The timestamp variant of dma_fence_signal is used when the caller
+ * sends a valid timestamp.
+ */
+void drm_send_event_helper(struct drm_device *dev,
+			   struct drm_pending_event *e, ktime_t timestamp)
+{
+	assert_spin_locked(&dev->event_lock);
+
+	if (e->completion) {
+		complete_all(e->completion);
+		e->completion_release(e->completion);
+		e->completion = NULL;
+	}
+
+	if (e->fence) {
+		if (timestamp)
+			dma_fence_signal_timestamp(e->fence, timestamp);
+		else
+			dma_fence_signal(e->fence);
+		dma_fence_put(e->fence);
+	}
+
+	if (!e->file_priv) {
+		kfree(e);
+		return;
+	}
+
+	list_del(&e->pending_link);
+	list_add_tail(&e->link,
+		      &e->file_priv->event_list);
+	wake_up_interruptible_poll(&e->file_priv->event_wait,
+		EPOLLIN | EPOLLRDNORM);
+}
+
+/**
+ * drm_send_event_timestamp_locked - send DRM event to file descriptor
+ * @dev: DRM device
+ * @e: DRM event to deliver
+ * @timestamp: timestamp to set for the fence event in kernel's CLOCK_MONOTONIC
+ * time domain
+ *
+ * This function sends the event @e, initialized with drm_event_reserve_init(),
+ * to its associated userspace DRM file. Callers must already hold
+ * &drm_device.event_lock.
+ *
+ * Note that the core will take care of unlinking and disarming events when the
+ * corresponding DRM file is closed. Drivers need not worry about whether the
+ * DRM file for this event still exists and can call this function upon
+ * completion of the asynchronous work unconditionally.
+ */
+void drm_send_event_timestamp_locked(struct drm_device *dev,
+				     struct drm_pending_event *e, ktime_t timestamp)
+{
+	drm_send_event_helper(dev, e, timestamp);
+}
+EXPORT_SYMBOL(drm_send_event_timestamp_locked);
+
+/**
  * drm_send_event_locked - send DRM event to file descriptor
  * @dev: DRM device
  * @e: DRM event to deliver
@@ -790,29 +856,7 @@ EXPORT_SYMBOL(drm_event_cancel_free);
  */
 void drm_send_event_locked(struct drm_device *dev, struct drm_pending_event *e)
 {
-	assert_spin_locked(&dev->event_lock);
-
-	if (e->completion) {
-		complete_all(e->completion);
-		e->completion_release(e->completion);
-		e->completion = NULL;
-	}
-
-	if (e->fence) {
-		dma_fence_signal(e->fence);
-		dma_fence_put(e->fence);
-	}
-
-	if (!e->file_priv) {
-		kfree(e);
-		return;
-	}
-
-	list_del(&e->pending_link);
-	list_add_tail(&e->link,
-		      &e->file_priv->event_list);
-	wake_up_interruptible_poll(&e->file_priv->event_wait,
-		EPOLLIN | EPOLLRDNORM);
+	drm_send_event_helper(dev, e, 0);
 }
 EXPORT_SYMBOL(drm_send_event_locked);
 
@@ -836,7 +880,7 @@ void drm_send_event(struct drm_device *dev, struct drm_pending_event *e)
 	unsigned long irqflags;
 
 	spin_lock_irqsave(&dev->event_lock, irqflags);
-	drm_send_event_locked(dev, e);
+	drm_send_event_helper(dev, e, 0);
 	spin_unlock_irqrestore(&dev->event_lock, irqflags);
 }
 EXPORT_SYMBOL(drm_send_event);
