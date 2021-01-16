@@ -107,10 +107,8 @@ static int __populate_cache_leaves(unsigned int cpu)
 		level++;
 	}
 
-	if (c->tcache.waysize) {
+	if (c->tcache.waysize)
 		populate_cache(tcache, this_leaf, level, CACHE_TYPE_UNIFIED);
-		level++;
-	}
 
 	this_cpu_ci->cpu_map_populated = true;
 
