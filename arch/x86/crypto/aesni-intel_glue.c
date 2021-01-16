@@ -283,16 +283,16 @@ static int ecb_encrypt(struct skcipher_request *req)
 	unsigned int nbytes;
 	int err;
 
-	err = skcipher_walk_virt(&walk, req, true);
+	err = skcipher_walk_virt(&walk, req, false);
 
-	kernel_fpu_begin();
 	while ((nbytes = walk.nbytes)) {
+		kernel_fpu_begin();
 		aesni_ecb_enc(ctx, walk.dst.virt.addr, walk.src.virt.addr,
 			      nbytes & AES_BLOCK_MASK);
+		kernel_fpu_end();
 		nbytes &= AES_BLOCK_SIZE - 1;
 		err = skcipher_walk_done(&walk, nbytes);
 	}
-	kernel_fpu_end();
 
 	return err;
 }
@@ -305,16 +305,16 @@ static int ecb_decrypt(struct skcipher_request *req)
 	unsigned int nbytes;
 	int err;
 
-	err = skcipher_walk_virt(&walk, req, true);
+	err = skcipher_walk_virt(&walk, req, false);
 
-	kernel_fpu_begin();
 	while ((nbytes = walk.nbytes)) {
+		kernel_fpu_begin();
 		aesni_ecb_dec(ctx, walk.dst.virt.addr, walk.src.virt.addr,
 			      nbytes & AES_BLOCK_MASK);
+		kernel_fpu_end();
 		nbytes &= AES_BLOCK_SIZE - 1;
 		err = skcipher_walk_done(&walk, nbytes);
 	}
-	kernel_fpu_end();
 
 	return err;
 }
@@ -327,16 +327,16 @@ static int cbc_encrypt(struct skcipher_request *req)
 	unsigned int nbytes;
 	int err;
 
-	err = skcipher_walk_virt(&walk, req, true);
+	err = skcipher_walk_virt(&walk, req, false);
 
-	kernel_fpu_begin();
 	while ((nbytes = walk.nbytes)) {
+		kernel_fpu_begin();
 		aesni_cbc_enc(ctx, walk.dst.virt.addr, walk.src.virt.addr,
 			      nbytes & AES_BLOCK_MASK, walk.iv);
+		kernel_fpu_end();
 		nbytes &= AES_BLOCK_SIZE - 1;
 		err = skcipher_walk_done(&walk, nbytes);
 	}
-	kernel_fpu_end();
 
 	return err;
 }
@@ -349,16 +349,16 @@ static int cbc_decrypt(struct skcipher_request *req)
 	unsigned int nbytes;
 	int err;
 
-	err = skcipher_walk_virt(&walk, req, true);
+	err = skcipher_walk_virt(&walk, req, false);
 
-	kernel_fpu_begin();
 	while ((nbytes = walk.nbytes)) {
+		kernel_fpu_begin();
 		aesni_cbc_dec(ctx, walk.dst.virt.addr, walk.src.virt.addr,
 			      nbytes & AES_BLOCK_MASK, walk.iv);
+		kernel_fpu_end();
 		nbytes &= AES_BLOCK_SIZE - 1;
 		err = skcipher_walk_done(&walk, nbytes);
 	}
-	kernel_fpu_end();
 
 	return err;
 }
@@ -476,21 +476,6 @@ static int cts_cbc_decrypt(struct skcipher_request *req)
 }
 
 #ifdef CONFIG_X86_64
-static void ctr_crypt_final(struct crypto_aes_ctx *ctx,
-			    struct skcipher_walk *walk)
-{
-	u8 *ctrblk = walk->iv;
-	u8 keystream[AES_BLOCK_SIZE];
-	u8 *src = walk->src.virt.addr;
-	u8 *dst = walk->dst.virt.addr;
-	unsigned int nbytes = walk->nbytes;
-
-	aesni_enc(ctx, keystream, ctrblk);
-	crypto_xor_cpy(dst, keystream, src, nbytes);
-
-	crypto_inc(ctrblk, AES_BLOCK_SIZE);
-}
-
 static void aesni_ctr_enc_avx_tfm(struct crypto_aes_ctx *ctx, u8 *out,
 			      const u8 *in, unsigned int len, u8 *iv)
 {
@@ -512,27 +497,33 @@ static int ctr_crypt(struct skcipher_request *req)
 {
 	struct crypto_skcipher *tfm = crypto_skcipher_reqtfm(req);
 	struct crypto_aes_ctx *ctx = aes_ctx(crypto_skcipher_ctx(tfm));
+	u8 keystream[AES_BLOCK_SIZE];
 	struct skcipher_walk walk;
 	unsigned int nbytes;
 	int err;
 
-	err = skcipher_walk_virt(&walk, req, true);
+	err = skcipher_walk_virt(&walk, req, false);
 
-	kernel_fpu_begin();
-	while ((nbytes = walk.nbytes) >= AES_BLOCK_SIZE) {
-		static_call(aesni_ctr_enc_tfm)(ctx, walk.dst.virt.addr,
-					       walk.src.virt.addr,
-					       nbytes & AES_BLOCK_MASK,
-					       walk.iv);
-		nbytes &= AES_BLOCK_SIZE - 1;
+	while ((nbytes = walk.nbytes) > 0) {
+		kernel_fpu_begin();
+		if (nbytes & AES_BLOCK_MASK)
+			static_call(aesni_ctr_enc_tfm)(ctx, walk.dst.virt.addr,
+						       walk.src.virt.addr,
+						       nbytes & AES_BLOCK_MASK,
+						       walk.iv);
+		nbytes &= ~AES_BLOCK_MASK;
+
+		if (walk.nbytes == walk.total && nbytes > 0) {
+			aesni_enc(ctx, keystream, walk.iv);
+			crypto_xor_cpy(walk.dst.virt.addr + walk.nbytes - nbytes,
+				       walk.src.virt.addr + walk.nbytes - nbytes,
+				       keystream, nbytes);
+			crypto_inc(walk.iv, AES_BLOCK_SIZE);
+			nbytes = 0;
+		}
+		kernel_fpu_end();
 		err = skcipher_walk_done(&walk, nbytes);
 	}
-	if (walk.nbytes) {
-		ctr_crypt_final(ctx, &walk);
-		err = skcipher_walk_done(&walk, 0);
-	}
-	kernel_fpu_end();
-
 	return err;
 }
 
