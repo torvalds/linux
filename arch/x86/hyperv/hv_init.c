@@ -312,6 +312,25 @@ static struct syscore_ops hv_syscore_ops = {
 	.resume		= hv_resume,
 };
 
+static void (* __initdata old_setup_percpu_clockev)(void);
+
+static void __init hv_stimer_setup_percpu_clockev(void)
+{
+	/*
+	 * Ignore any errors in setting up stimer clockevents
+	 * as we can run with the LAPIC timer as a fallback.
+	 */
+	(void)hv_stimer_alloc();
+
+	/*
+	 * Still register the LAPIC timer, because the direct-mode STIMER is
+	 * not supported by old versions of Hyper-V. This also allows users
+	 * to switch to LAPIC timer via /sys, if they want to.
+	 */
+	if (old_setup_percpu_clockev)
+		old_setup_percpu_clockev();
+}
+
 /*
  * This function is to be invoked early in the boot sequence after the
  * hypervisor has been detected.
@@ -390,10 +409,14 @@ void __init hyperv_init(void)
 	wrmsrl(HV_X64_MSR_HYPERCALL, hypercall_msr.as_uint64);
 
 	/*
-	 * Ignore any errors in setting up stimer clockevents
-	 * as we can run with the LAPIC timer as a fallback.
+	 * hyperv_init() is called before LAPIC is initialized: see
+	 * apic_intr_mode_init() -> x86_platform.apic_post_init() and
+	 * apic_bsp_setup() -> setup_local_APIC(). The direct-mode STIMER
+	 * depends on LAPIC, so hv_stimer_alloc() should be called from
+	 * x86_init.timers.setup_percpu_clockev.
 	 */
-	(void)hv_stimer_alloc();
+	old_setup_percpu_clockev = x86_init.timers.setup_percpu_clockev;
+	x86_init.timers.setup_percpu_clockev = hv_stimer_setup_percpu_clockev;
 
 	hv_apic_init();
 
