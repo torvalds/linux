@@ -98,6 +98,7 @@
 #define IFH_REW_OP_TWO_STEP_PTP		0x3
 #define IFH_REW_OP_ORIGIN_PTP		0x5
 
+#define OCELOT_NUM_TC			8
 #define OCELOT_TAG_LEN			16
 #define OCELOT_SHORT_PREFIX_LEN		4
 #define OCELOT_LONG_PREFIX_LEN		16
@@ -563,6 +564,8 @@ struct ocelot_ops {
 	int (*netdev_to_port)(struct net_device *dev);
 	int (*reset)(struct ocelot *ocelot);
 	u16 (*wm_enc)(u16 value);
+	u16 (*wm_dec)(u16 value);
+	void (*wm_stat)(u32 val, u32 *inuse, u32 *maxuse);
 };
 
 struct ocelot_vcap_block {
@@ -574,6 +577,18 @@ struct ocelot_vcap_block {
 struct ocelot_vlan {
 	bool valid;
 	u16 vid;
+};
+
+enum ocelot_sb {
+	OCELOT_SB_BUF,
+	OCELOT_SB_REF,
+	OCELOT_SB_NUM,
+};
+
+enum ocelot_sb_pool {
+	OCELOT_SB_POOL_ING,
+	OCELOT_SB_POOL_EGR,
+	OCELOT_SB_POOL_NUM,
 };
 
 struct ocelot_port {
@@ -599,6 +614,8 @@ struct ocelot_port {
 
 struct ocelot {
 	struct device			*dev;
+	struct devlink			*devlink;
+	struct devlink_port		*devlink_ports;
 
 	const struct ocelot_ops		*ops;
 	struct regmap			*targets[TARGET_MAX];
@@ -607,7 +624,9 @@ struct ocelot {
 	const struct ocelot_stat_layout	*stats_layout;
 	unsigned int			num_stats;
 
-	int				shared_queue_sz;
+	u32				pool_size[OCELOT_SB_NUM][OCELOT_SB_POOL_NUM];
+	int				packet_buffer_size;
+	int				num_frame_refs;
 	int				num_mact_rows;
 
 	struct net_device		*hw_bridge_dev;
@@ -776,5 +795,39 @@ int ocelot_port_mdb_add(struct ocelot *ocelot, int port,
 			const struct switchdev_obj_port_mdb *mdb);
 int ocelot_port_mdb_del(struct ocelot *ocelot, int port,
 			const struct switchdev_obj_port_mdb *mdb);
+
+int ocelot_devlink_sb_register(struct ocelot *ocelot);
+void ocelot_devlink_sb_unregister(struct ocelot *ocelot);
+int ocelot_sb_pool_get(struct ocelot *ocelot, unsigned int sb_index,
+		       u16 pool_index,
+		       struct devlink_sb_pool_info *pool_info);
+int ocelot_sb_pool_set(struct ocelot *ocelot, unsigned int sb_index,
+		       u16 pool_index, u32 size,
+		       enum devlink_sb_threshold_type threshold_type,
+		       struct netlink_ext_ack *extack);
+int ocelot_sb_port_pool_get(struct ocelot *ocelot, int port,
+			    unsigned int sb_index, u16 pool_index,
+			    u32 *p_threshold);
+int ocelot_sb_port_pool_set(struct ocelot *ocelot, int port,
+			    unsigned int sb_index, u16 pool_index,
+			    u32 threshold, struct netlink_ext_ack *extack);
+int ocelot_sb_tc_pool_bind_get(struct ocelot *ocelot, int port,
+			       unsigned int sb_index, u16 tc_index,
+			       enum devlink_sb_pool_type pool_type,
+			       u16 *p_pool_index, u32 *p_threshold);
+int ocelot_sb_tc_pool_bind_set(struct ocelot *ocelot, int port,
+			       unsigned int sb_index, u16 tc_index,
+			       enum devlink_sb_pool_type pool_type,
+			       u16 pool_index, u32 threshold,
+			       struct netlink_ext_ack *extack);
+int ocelot_sb_occ_snapshot(struct ocelot *ocelot, unsigned int sb_index);
+int ocelot_sb_occ_max_clear(struct ocelot *ocelot, unsigned int sb_index);
+int ocelot_sb_occ_port_pool_get(struct ocelot *ocelot, int port,
+				unsigned int sb_index, u16 pool_index,
+				u32 *p_cur, u32 *p_max);
+int ocelot_sb_occ_tc_port_bind_get(struct ocelot *ocelot, int port,
+				   unsigned int sb_index, u16 tc_index,
+				   enum devlink_sb_pool_type pool_type,
+				   u32 *p_cur, u32 *p_max);
 
 #endif

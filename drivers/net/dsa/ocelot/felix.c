@@ -299,7 +299,7 @@ static void felix_port_qos_map_init(struct ocelot *ocelot, int port)
 		       ANA_PORT_QOS_CFG,
 		       port);
 
-	for (i = 0; i < FELIX_NUM_TC * 2; i++) {
+	for (i = 0; i < OCELOT_NUM_TC * 2; i++) {
 		ocelot_rmw_ix(ocelot,
 			      (ANA_PORT_PCP_DEI_MAP_DP_PCP_DEI_VAL & i) |
 			      ANA_PORT_PCP_DEI_MAP_QOS_PCP_DEI_VAL(i),
@@ -422,12 +422,12 @@ static int felix_init_structs(struct felix *felix, int num_phys_ports)
 	ocelot->map		= felix->info->map;
 	ocelot->stats_layout	= felix->info->stats_layout;
 	ocelot->num_stats	= felix->info->num_stats;
-	ocelot->shared_queue_sz	= felix->info->shared_queue_sz;
 	ocelot->num_mact_rows	= felix->info->num_mact_rows;
 	ocelot->vcap		= felix->info->vcap;
 	ocelot->ops		= felix->info->ops;
 	ocelot->inj_prefix	= OCELOT_TAG_PREFIX_SHORT;
 	ocelot->xtr_prefix	= OCELOT_TAG_PREFIX_SHORT;
+	ocelot->devlink		= felix->ds->devlink;
 
 	port_phy_modes = kcalloc(num_phys_ports, sizeof(phy_interface_t),
 				 GFP_KERNEL);
@@ -589,6 +589,10 @@ static int felix_setup(struct dsa_switch *ds)
 		felix_port_qos_map_init(ocelot, port);
 	}
 
+	err = ocelot_devlink_sb_register(ocelot);
+	if (err)
+		return err;
+
 	/* Include the CPU port module in the forwarding mask for unknown
 	 * unicast - the hardware default value for ANA_FLOODING_FLD_UNICAST
 	 * excludes BIT(ocelot->num_phys_ports), and so does ocelot_init, since
@@ -610,14 +614,15 @@ static void felix_teardown(struct dsa_switch *ds)
 	struct felix *felix = ocelot_to_felix(ocelot);
 	int port;
 
-	if (felix->info->mdio_bus_free)
-		felix->info->mdio_bus_free(ocelot);
+	ocelot_devlink_sb_unregister(ocelot);
+	ocelot_deinit_timestamp(ocelot);
+	ocelot_deinit(ocelot);
 
 	for (port = 0; port < ocelot->num_phys_ports; port++)
 		ocelot_deinit_port(ocelot, port);
-	ocelot_deinit_timestamp(ocelot);
-	/* stop workqueue thread */
-	ocelot_deinit(ocelot);
+
+	if (felix->info->mdio_bus_free)
+		felix->info->mdio_bus_free(ocelot);
 }
 
 static int felix_hwtstamp_get(struct dsa_switch *ds, int port,
@@ -751,44 +756,156 @@ static int felix_port_setup_tc(struct dsa_switch *ds, int port,
 		return -EOPNOTSUPP;
 }
 
+static int felix_sb_pool_get(struct dsa_switch *ds, unsigned int sb_index,
+			     u16 pool_index,
+			     struct devlink_sb_pool_info *pool_info)
+{
+	struct ocelot *ocelot = ds->priv;
+
+	return ocelot_sb_pool_get(ocelot, sb_index, pool_index, pool_info);
+}
+
+static int felix_sb_pool_set(struct dsa_switch *ds, unsigned int sb_index,
+			     u16 pool_index, u32 size,
+			     enum devlink_sb_threshold_type threshold_type,
+			     struct netlink_ext_ack *extack)
+{
+	struct ocelot *ocelot = ds->priv;
+
+	return ocelot_sb_pool_set(ocelot, sb_index, pool_index, size,
+				  threshold_type, extack);
+}
+
+static int felix_sb_port_pool_get(struct dsa_switch *ds, int port,
+				  unsigned int sb_index, u16 pool_index,
+				  u32 *p_threshold)
+{
+	struct ocelot *ocelot = ds->priv;
+
+	return ocelot_sb_port_pool_get(ocelot, port, sb_index, pool_index,
+				       p_threshold);
+}
+
+static int felix_sb_port_pool_set(struct dsa_switch *ds, int port,
+				  unsigned int sb_index, u16 pool_index,
+				  u32 threshold, struct netlink_ext_ack *extack)
+{
+	struct ocelot *ocelot = ds->priv;
+
+	return ocelot_sb_port_pool_set(ocelot, port, sb_index, pool_index,
+				       threshold, extack);
+}
+
+static int felix_sb_tc_pool_bind_get(struct dsa_switch *ds, int port,
+				     unsigned int sb_index, u16 tc_index,
+				     enum devlink_sb_pool_type pool_type,
+				     u16 *p_pool_index, u32 *p_threshold)
+{
+	struct ocelot *ocelot = ds->priv;
+
+	return ocelot_sb_tc_pool_bind_get(ocelot, port, sb_index, tc_index,
+					  pool_type, p_pool_index,
+					  p_threshold);
+}
+
+static int felix_sb_tc_pool_bind_set(struct dsa_switch *ds, int port,
+				     unsigned int sb_index, u16 tc_index,
+				     enum devlink_sb_pool_type pool_type,
+				     u16 pool_index, u32 threshold,
+				     struct netlink_ext_ack *extack)
+{
+	struct ocelot *ocelot = ds->priv;
+
+	return ocelot_sb_tc_pool_bind_set(ocelot, port, sb_index, tc_index,
+					  pool_type, pool_index, threshold,
+					  extack);
+}
+
+static int felix_sb_occ_snapshot(struct dsa_switch *ds,
+				 unsigned int sb_index)
+{
+	struct ocelot *ocelot = ds->priv;
+
+	return ocelot_sb_occ_snapshot(ocelot, sb_index);
+}
+
+static int felix_sb_occ_max_clear(struct dsa_switch *ds,
+				  unsigned int sb_index)
+{
+	struct ocelot *ocelot = ds->priv;
+
+	return ocelot_sb_occ_max_clear(ocelot, sb_index);
+}
+
+static int felix_sb_occ_port_pool_get(struct dsa_switch *ds, int port,
+				      unsigned int sb_index, u16 pool_index,
+				      u32 *p_cur, u32 *p_max)
+{
+	struct ocelot *ocelot = ds->priv;
+
+	return ocelot_sb_occ_port_pool_get(ocelot, port, sb_index, pool_index,
+					   p_cur, p_max);
+}
+
+static int felix_sb_occ_tc_port_bind_get(struct dsa_switch *ds, int port,
+					 unsigned int sb_index, u16 tc_index,
+					 enum devlink_sb_pool_type pool_type,
+					 u32 *p_cur, u32 *p_max)
+{
+	struct ocelot *ocelot = ds->priv;
+
+	return ocelot_sb_occ_tc_port_bind_get(ocelot, port, sb_index, tc_index,
+					      pool_type, p_cur, p_max);
+}
+
 const struct dsa_switch_ops felix_switch_ops = {
-	.get_tag_protocol	= felix_get_tag_protocol,
-	.setup			= felix_setup,
-	.teardown		= felix_teardown,
-	.set_ageing_time	= felix_set_ageing_time,
-	.get_strings		= felix_get_strings,
-	.get_ethtool_stats	= felix_get_ethtool_stats,
-	.get_sset_count		= felix_get_sset_count,
-	.get_ts_info		= felix_get_ts_info,
-	.phylink_validate	= felix_phylink_validate,
-	.phylink_mac_config	= felix_phylink_mac_config,
-	.phylink_mac_link_down	= felix_phylink_mac_link_down,
-	.phylink_mac_link_up	= felix_phylink_mac_link_up,
-	.port_enable		= felix_port_enable,
-	.port_disable		= felix_port_disable,
-	.port_fdb_dump		= felix_fdb_dump,
-	.port_fdb_add		= felix_fdb_add,
-	.port_fdb_del		= felix_fdb_del,
-	.port_mdb_add		= felix_mdb_add,
-	.port_mdb_del		= felix_mdb_del,
-	.port_bridge_join	= felix_bridge_join,
-	.port_bridge_leave	= felix_bridge_leave,
-	.port_stp_state_set	= felix_bridge_stp_state_set,
-	.port_vlan_filtering	= felix_vlan_filtering,
-	.port_vlan_add		= felix_vlan_add,
-	.port_vlan_del		= felix_vlan_del,
-	.port_hwtstamp_get	= felix_hwtstamp_get,
-	.port_hwtstamp_set	= felix_hwtstamp_set,
-	.port_rxtstamp		= felix_rxtstamp,
-	.port_txtstamp		= felix_txtstamp,
-	.port_change_mtu	= felix_change_mtu,
-	.port_max_mtu		= felix_get_max_mtu,
-	.port_policer_add	= felix_port_policer_add,
-	.port_policer_del	= felix_port_policer_del,
-	.cls_flower_add		= felix_cls_flower_add,
-	.cls_flower_del		= felix_cls_flower_del,
-	.cls_flower_stats	= felix_cls_flower_stats,
-	.port_setup_tc		= felix_port_setup_tc,
+	.get_tag_protocol		= felix_get_tag_protocol,
+	.setup				= felix_setup,
+	.teardown			= felix_teardown,
+	.set_ageing_time		= felix_set_ageing_time,
+	.get_strings			= felix_get_strings,
+	.get_ethtool_stats		= felix_get_ethtool_stats,
+	.get_sset_count			= felix_get_sset_count,
+	.get_ts_info			= felix_get_ts_info,
+	.phylink_validate		= felix_phylink_validate,
+	.phylink_mac_config		= felix_phylink_mac_config,
+	.phylink_mac_link_down		= felix_phylink_mac_link_down,
+	.phylink_mac_link_up		= felix_phylink_mac_link_up,
+	.port_enable			= felix_port_enable,
+	.port_disable			= felix_port_disable,
+	.port_fdb_dump			= felix_fdb_dump,
+	.port_fdb_add			= felix_fdb_add,
+	.port_fdb_del			= felix_fdb_del,
+	.port_mdb_add			= felix_mdb_add,
+	.port_mdb_del			= felix_mdb_del,
+	.port_bridge_join		= felix_bridge_join,
+	.port_bridge_leave		= felix_bridge_leave,
+	.port_stp_state_set		= felix_bridge_stp_state_set,
+	.port_vlan_filtering		= felix_vlan_filtering,
+	.port_vlan_add			= felix_vlan_add,
+	.port_vlan_del			= felix_vlan_del,
+	.port_hwtstamp_get		= felix_hwtstamp_get,
+	.port_hwtstamp_set		= felix_hwtstamp_set,
+	.port_rxtstamp			= felix_rxtstamp,
+	.port_txtstamp			= felix_txtstamp,
+	.port_change_mtu		= felix_change_mtu,
+	.port_max_mtu			= felix_get_max_mtu,
+	.port_policer_add		= felix_port_policer_add,
+	.port_policer_del		= felix_port_policer_del,
+	.cls_flower_add			= felix_cls_flower_add,
+	.cls_flower_del			= felix_cls_flower_del,
+	.cls_flower_stats		= felix_cls_flower_stats,
+	.port_setup_tc			= felix_port_setup_tc,
+	.devlink_sb_pool_get		= felix_sb_pool_get,
+	.devlink_sb_pool_set		= felix_sb_pool_set,
+	.devlink_sb_port_pool_get	= felix_sb_port_pool_get,
+	.devlink_sb_port_pool_set	= felix_sb_port_pool_set,
+	.devlink_sb_tc_pool_bind_get	= felix_sb_tc_pool_bind_get,
+	.devlink_sb_tc_pool_bind_set	= felix_sb_tc_pool_bind_set,
+	.devlink_sb_occ_snapshot	= felix_sb_occ_snapshot,
+	.devlink_sb_occ_max_clear	= felix_sb_occ_max_clear,
+	.devlink_sb_occ_port_pool_get	= felix_sb_occ_port_pool_get,
+	.devlink_sb_occ_tc_port_bind_get= felix_sb_occ_tc_port_bind_get,
 };
 
 struct net_device *felix_port_to_netdev(struct ocelot *ocelot, int port)
