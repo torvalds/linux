@@ -23,6 +23,7 @@
 #include <asm/unaligned.h>
 
 #include <linux/notifier.h>
+#include "tp_suspend.h"
 
 //#define	ORIGIN_COORD
 
@@ -78,7 +79,9 @@ struct wacom_i2c {
 	u8 data[WACOM_QUERY_SIZE];
 	bool prox;
 	int tool;
+	struct tp_device tp;
 };
+
 static int get_hid_desc(struct i2c_client *client,
 			      struct hid_descriptor *hid_desc)
 {
@@ -178,6 +181,8 @@ static irqreturn_t wacom_i2c_irq(int irq, void *dev_id)
 	unsigned char tsw, f1, f2, ers;
 	int error;
 
+	if (device_can_wakeup(&wac_i2c->client->dev))
+		pm_stay_awake(&wac_i2c->client->dev);
 	error = i2c_master_recv(wac_i2c->client,
 				wac_i2c->data, sizeof(wac_i2c->data));
 	if (error < 0)
@@ -217,6 +222,9 @@ static irqreturn_t wacom_i2c_irq(int irq, void *dev_id)
 	input_sync(input);
 
 out:
+	if (device_can_wakeup(&wac_i2c->client->dev))
+		pm_relax(&wac_i2c->client->dev);
+
 	return IRQ_HANDLED;
 }
 
@@ -236,6 +244,26 @@ static void wacom_i2c_close(struct input_dev *dev)
 	struct i2c_client *client = wac_i2c->client;
 
 	disable_irq(client->irq);
+}
+
+static int __maybe_unused wacom_i2c_suspend(struct tp_device *tp_d)
+{
+	struct wacom_i2c *wac_i2c = container_of(tp_d, struct wacom_i2c, tp);
+
+	dev_dbg(&wac_i2c->client->dev, "%s\n", __func__);
+	disable_irq(wac_i2c->client->irq);
+
+	return 0;
+}
+
+static int __maybe_unused wacom_i2c_resume(struct tp_device *tp_d)
+{
+	struct wacom_i2c *wac_i2c = container_of(tp_d, struct wacom_i2c, tp);
+
+	dev_dbg(&wac_i2c->client->dev, "%s\n", __func__);
+	enable_irq(wac_i2c->client->irq);
+
+	return 0;
 }
 
 static int g_irq_gpio = -1;
@@ -372,7 +400,14 @@ static int wacom_i2c_probe(struct i2c_client *client,
 		goto err_free_irq;
 	}
 
+	device_init_wakeup(&client->dev, 1);
+	enable_irq_wake(client->irq);
+
+	wac_i2c->tp.tp_resume = wacom_i2c_resume;
+	wac_i2c->tp.tp_suspend = wacom_i2c_suspend;
+	tp_register_fb(&wac_i2c->tp);
 	i2c_set_clientdata(client, wac_i2c);
+
 	return 0;
 
 err_free_irq:
@@ -398,26 +433,6 @@ static int wacom_i2c_remove(struct i2c_client *client)
 	return 0;
 }
 
-static int __maybe_unused wacom_i2c_suspend(struct device *dev)
-{
-	struct i2c_client *client = to_i2c_client(dev);
-
-	disable_irq(client->irq);
-
-	return 0;
-}
-
-static int __maybe_unused wacom_i2c_resume(struct device *dev)
-{
-	struct i2c_client *client = to_i2c_client(dev);
-
-	enable_irq(client->irq);
-
-	return 0;
-}
-
-static SIMPLE_DEV_PM_OPS(wacom_i2c_pm, wacom_i2c_suspend, wacom_i2c_resume);
-
 static const struct i2c_device_id wacom_i2c_id[] = {
 	{ "wacom", 0 },
 	{ },
@@ -439,7 +454,6 @@ static struct i2c_driver wacom_i2c_driver = {
 		.name	= "wacom",
 		.owner	= THIS_MODULE,
 		.of_match_table = wacom_dt_ids,
-		.pm	= &wacom_i2c_pm,
 	},
 
 	.probe		= wacom_i2c_probe,
