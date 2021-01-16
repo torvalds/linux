@@ -4078,9 +4078,13 @@ static irqreturn_t cyttsp5_irq(int irq, void *handle)
 	if (!cyttsp5_check_irq_asserted(cd))
 		return IRQ_HANDLED;
 
+	pm_stay_awake(cd->dev);
+
 	rc = cyttsp5_read_input(cd);
 	if (!rc)
 		cyttsp5_parse_input(cd);
+
+	pm_relax(cd->dev);
 
 	return IRQ_HANDLED;
 }
