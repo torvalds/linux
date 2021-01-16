@@ -782,6 +782,7 @@
 				fsl,num-rx-queues = <3>;
 				nvmem-cells = <&eth_mac1>;
 				nvmem-cell-names = "mac-address";
+				fsl,stop-mode = <&gpr 0x10 3>;
 				nvmem_macaddr_swap;
 				status = "disabled";
 			};
