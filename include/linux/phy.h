@@ -648,8 +648,11 @@ struct phy_device {
 	const struct macsec_ops *macsec_ops;
 #endif
 };
-#define to_phy_device(d) container_of(to_mdio_device(d), \
-				      struct phy_device, mdio)
+
+static inline struct phy_device *to_phy_device(const struct device *dev)
+{
+	return container_of(to_mdio_device(dev), struct phy_device, mdio);
+}
 
 /**
  * struct phy_tdr_config - Configuration of a TDR raw test
