@@ -664,26 +664,6 @@
 	no-emmc;
 };
 
-&swr0 {
-	left_spkr: wsa8810-left{
-		compatible = "sdw10217211000";
-		reg = <0 3>;
-		powerdown-gpios = <&tlmm 130 GPIO_ACTIVE_HIGH>;
-		#thermal-sensor-cells = <0>;
-		sound-name-prefix = "SpkrLeft";
-		#sound-dai-cells = <0>;
-	};
-
-	right_spkr: wsa8810-right{
-		compatible = "sdw10217211000";
-		reg = <0 4>;
-		powerdown-gpios = <&tlmm 130 GPIO_ACTIVE_HIGH>;
-		#thermal-sensor-cells = <0>;
-		sound-name-prefix = "SpkrRight";
-		#sound-dai-cells = <0>;
-	};
-};
-
 &sound {
 	compatible = "qcom,qrb5165-rb5-sndcard";
 	pinctrl-0 = <&tert_mi2s_active>;
@@ -777,6 +757,26 @@
 		spi-max-frequency = <10000000>;
 		vdd-supply = <&vdc_5v>;
 		xceiver-supply = <&vdc_5v>;
+	};
+};
+
+&swr0 {
+	left_spkr: wsa8810-left{
+		compatible = "sdw10217211000";
+		reg = <0 3>;
+		powerdown-gpios = <&tlmm 130 GPIO_ACTIVE_HIGH>;
+		#thermal-sensor-cells = <0>;
+		sound-name-prefix = "SpkrLeft";
+		#sound-dai-cells = <0>;
+	};
+
+	right_spkr: wsa8810-right{
+		compatible = "sdw10217211000";
+		reg = <0 4>;
+		powerdown-gpios = <&tlmm 130 GPIO_ACTIVE_HIGH>;
+		#thermal-sensor-cells = <0>;
+		sound-name-prefix = "SpkrRight";
+		#sound-dai-cells = <0>;
 	};
 };
 
