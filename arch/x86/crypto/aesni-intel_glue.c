@@ -34,6 +34,7 @@
 #include <linux/jump_label.h>
 #include <linux/workqueue.h>
 #include <linux/spinlock.h>
+#include <linux/static_call.h>
 
 
 #define AESNI_ALIGN	16
@@ -107,10 +108,9 @@ asmlinkage void aesni_xts_decrypt(const struct crypto_aes_ctx *ctx, u8 *out,
 
 #ifdef CONFIG_X86_64
 
-static void (*aesni_ctr_enc_tfm)(struct crypto_aes_ctx *ctx, u8 *out,
-			      const u8 *in, unsigned int len, u8 *iv);
 asmlinkage void aesni_ctr_enc(struct crypto_aes_ctx *ctx, u8 *out,
 			      const u8 *in, unsigned int len, u8 *iv);
+DEFINE_STATIC_CALL(aesni_ctr_enc_tfm, aesni_ctr_enc);
 
 /* Scatter / Gather routines, with args similar to above */
 asmlinkage void aesni_gcm_init(void *ctx,
@@ -520,8 +520,10 @@ static int ctr_crypt(struct skcipher_request *req)
 
 	kernel_fpu_begin();
 	while ((nbytes = walk.nbytes) >= AES_BLOCK_SIZE) {
-		aesni_ctr_enc_tfm(ctx, walk.dst.virt.addr, walk.src.virt.addr,
-			              nbytes & AES_BLOCK_MASK, walk.iv);
+		static_call(aesni_ctr_enc_tfm)(ctx, walk.dst.virt.addr,
+					       walk.src.virt.addr,
+					       nbytes & AES_BLOCK_MASK,
+					       walk.iv);
 		nbytes &= AES_BLOCK_SIZE - 1;
 		err = skcipher_walk_done(&walk, nbytes);
 	}
@@ -1160,10 +1162,9 @@ static int __init aesni_init(void)
 	} else {
 		pr_info("SSE version of gcm_enc/dec engaged.\n");
 	}
-	aesni_ctr_enc_tfm = aesni_ctr_enc;
 	if (boot_cpu_has(X86_FEATURE_AVX)) {
 		/* optimize performance of ctr mode encryption transform */
-		aesni_ctr_enc_tfm = aesni_ctr_enc_avx_tfm;
+		static_call_update(aesni_ctr_enc_tfm, aesni_ctr_enc_avx_tfm);
 		pr_info("AES CTR mode by8 optimization enabled\n");
 	}
 #endif
