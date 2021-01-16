@@ -240,11 +240,6 @@ static int btf_parse_hdr(struct btf *btf)
 	}
 
 	meta_left = btf->raw_size - sizeof(*hdr);
-	if (!meta_left) {
-		pr_debug("BTF has no data\n");
-		return -EINVAL;
-	}
-
 	if (meta_left < hdr->str_off + hdr->str_len) {
 		pr_debug("Invalid BTF total size:%u\n", btf->raw_size);
 		return -EINVAL;

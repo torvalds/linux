@@ -272,7 +272,8 @@ int bpf_prog_test_run_raw_tp(struct bpf_prog *prog,
 	    kattr->test.repeat)
 		return -EINVAL;
 
-	if (ctx_size_in < prog->aux->max_ctx_offset)
+	if (ctx_size_in < prog->aux->max_ctx_offset ||
+	    ctx_size_in > MAX_BPF_FUNC_ARGS * sizeof(u64))
 		return -EINVAL;
 
 	if ((kattr->test.flags & BPF_F_TEST_RUN_ON_CPU) == 0 && cpu != 0)
