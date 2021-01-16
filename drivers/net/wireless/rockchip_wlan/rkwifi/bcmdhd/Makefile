@@ -23,7 +23,7 @@ DHDCFLAGS = -Wall -Wstrict-prototypes -Dlinux -DBCMDRIVER                 \
 	-DKEEP_ALIVE -DPKT_FILTER_SUPPORT -DDHDTCPACK_SUPPRESS                \
 	-DDHD_DONOT_FORWARD_BCMEVENT_AS_NETWORK_PKT                           \
 	-DMULTIPLE_SUPPLICANT -DTSQ_MULTIPLIER -DMFP -DDHD_8021X_DUMP         \
-	-DWL_EXT_IAPSTA -DWL_ESCAN                                            \
+	-DWL_EXT_IAPSTA -DWL_ESCAN -DCCODE_LIST                               \
 	-DENABLE_INSMOD_NO_FW_LOAD -DDHD_UNSUPPORT_IF_CNTS                    \
 	-Idrivers/net/wireless/rockchip_wlan/rkwifi/bcmdhd \
 	-Idrivers/net/wireless/rockchip_wlan/rkwifi/bcmdhd/include
@@ -33,7 +33,7 @@ DHDOFILES = aiutils.o siutils.o sbutils.o bcmutils.o bcmwifi_channels.o   \
 	dhd_common.o dhd_ip.o dhd_linux_wq.o dhd_custom_gpio.o                \
 	bcmevent.o hndpmu.o linux_osl.o wldev_common.o wl_android.o bcmxtlv.o \
 	dhd_debug_linux.o dhd_debug.o dhd_mschdbg.o hnd_pktq.o hnd_pktpool.o  \
-	dhd_config.o wl_event.o wl_android_ext.o wl_escan.o
+	dhd_config.o dhd_ccode.o wl_event.o wl_android_ext.o wl_escan.o
 
 #BCMDHD_SDIO
 ifneq ($(CONFIG_BCMDHD_SDIO),)

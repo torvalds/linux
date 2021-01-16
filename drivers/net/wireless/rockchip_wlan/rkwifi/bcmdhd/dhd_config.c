@@ -862,6 +862,10 @@ dhd_conf_map_country_list(dhd_pub_t *dhd, wl_country_t *cspec)
 	struct dhd_conf *conf = dhd->conf;
 	country_list_t *country = conf->country_head;
 
+#ifdef CCODE_LIST
+	bcmerror = dhd_ccode_map_country_list(dhd, cspec);
+#endif
+
 	while (country != NULL) {
 		if (!strncmp("**", country->cspec.country_abbrev, 2)) {
 			memcpy(cspec->ccode, country->cspec.ccode, WLC_CNTRY_BUF_SZ);
