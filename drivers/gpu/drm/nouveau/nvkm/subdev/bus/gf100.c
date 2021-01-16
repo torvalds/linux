@@ -40,7 +40,7 @@ gf100_bus_intr(struct nvkm_bus *bus)
 			   (addr & 0x00000002) ? "write" : "read", data,
 			   (addr & 0x00fffffc),
 			   (stat & 0x00000002) ? "!ENGINE " : "",
-			   (stat & 0x00000004) ? "IBUS " : "",
+			   (stat & 0x00000004) ? "PRIVRING " : "",
 			   (stat & 0x00000008) ? "TIMEOUT " : "");
 
 		nvkm_wr32(device, 0x009084, 0x00000000);

@@ -24,13 +24,13 @@
 #include "priv.h"
 
 static const struct nvkm_subdev_func
-gm200_ibus = {
-	.intr = gk104_ibus_intr,
+gm200_privring = {
+	.intr = gk104_privring_intr,
 };
 
 int
-gm200_ibus_new(struct nvkm_device *device, enum nvkm_subdev_type type, int inst,
-	       struct nvkm_subdev **pibus)
+gm200_privring_new(struct nvkm_device *device, enum nvkm_subdev_type type, int inst,
+		   struct nvkm_subdev **pprivring)
 {
-	return nvkm_subdev_new_(&gm200_ibus, device, type, inst, pibus);
+	return nvkm_subdev_new_(&gm200_privring, device, type, inst, pprivring);
 }

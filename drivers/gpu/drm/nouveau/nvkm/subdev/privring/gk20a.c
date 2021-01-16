@@ -19,13 +19,13 @@
  * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
  * DEALINGS IN THE SOFTWARE.
  */
-#include <subdev/ibus.h>
+#include <subdev/privring.h>
 #include <subdev/timer.h>
 
 static void
-gk20a_ibus_init_ibus_ring(struct nvkm_subdev *ibus)
+gk20a_privring_init_privring_ring(struct nvkm_subdev *privring)
 {
-	struct nvkm_device *device = ibus->device;
+	struct nvkm_device *device = privring->device;
 	nvkm_mask(device, 0x137250, 0x3f, 0);
 
 	nvkm_mask(device, 0x000200, 0x20, 0);
@@ -46,14 +46,14 @@ gk20a_ibus_init_ibus_ring(struct nvkm_subdev *ibus)
 }
 
 static void
-gk20a_ibus_intr(struct nvkm_subdev *ibus)
+gk20a_privring_intr(struct nvkm_subdev *privring)
 {
-	struct nvkm_device *device = ibus->device;
+	struct nvkm_device *device = privring->device;
 	u32 status0 = nvkm_rd32(device, 0x120058);
 
 	if (status0 & 0x7) {
-		nvkm_debug(ibus, "resetting ibus ring\n");
-		gk20a_ibus_init_ibus_ring(ibus);
+		nvkm_debug(privring, "resetting privring ring\n");
+		gk20a_privring_init_privring_ring(privring);
 	}
 
 	/* Acknowledge interrupt */
@@ -65,21 +65,21 @@ gk20a_ibus_intr(struct nvkm_subdev *ibus)
 }
 
 static int
-gk20a_ibus_init(struct nvkm_subdev *ibus)
+gk20a_privring_init(struct nvkm_subdev *privring)
 {
-	gk20a_ibus_init_ibus_ring(ibus);
+	gk20a_privring_init_privring_ring(privring);
 	return 0;
 }
 
 static const struct nvkm_subdev_func
-gk20a_ibus = {
-	.init = gk20a_ibus_init,
-	.intr = gk20a_ibus_intr,
+gk20a_privring = {
+	.init = gk20a_privring_init,
+	.intr = gk20a_privring_intr,
 };
 
 int
-gk20a_ibus_new(struct nvkm_device *device, enum nvkm_subdev_type type, int inst,
-	       struct nvkm_subdev **pibus)
+gk20a_privring_new(struct nvkm_device *device, enum nvkm_subdev_type type, int inst,
+		   struct nvkm_subdev **pprivring)
 {
-	return nvkm_subdev_new_(&gk20a_ibus, device, type, inst, pibus);
+	return nvkm_subdev_new_(&gk20a_privring, device, type, inst, pprivring);
 }

@@ -25,39 +25,39 @@
 #include <subdev/timer.h>
 
 static void
-gk104_ibus_intr_hub(struct nvkm_subdev *ibus, int i)
+gk104_privring_intr_hub(struct nvkm_subdev *privring, int i)
 {
-	struct nvkm_device *device = ibus->device;
+	struct nvkm_device *device = privring->device;
 	u32 addr = nvkm_rd32(device, 0x122120 + (i * 0x0800));
 	u32 data = nvkm_rd32(device, 0x122124 + (i * 0x0800));
 	u32 stat = nvkm_rd32(device, 0x122128 + (i * 0x0800));
-	nvkm_debug(ibus, "HUB%d: %06x %08x (%08x)\n", i, addr, data, stat);
+	nvkm_debug(privring, "HUB%d: %06x %08x (%08x)\n", i, addr, data, stat);
 }
 
 static void
-gk104_ibus_intr_rop(struct nvkm_subdev *ibus, int i)
+gk104_privring_intr_rop(struct nvkm_subdev *privring, int i)
 {
-	struct nvkm_device *device = ibus->device;
+	struct nvkm_device *device = privring->device;
 	u32 addr = nvkm_rd32(device, 0x124120 + (i * 0x0800));
 	u32 data = nvkm_rd32(device, 0x124124 + (i * 0x0800));
 	u32 stat = nvkm_rd32(device, 0x124128 + (i * 0x0800));
-	nvkm_debug(ibus, "ROP%d: %06x %08x (%08x)\n", i, addr, data, stat);
+	nvkm_debug(privring, "ROP%d: %06x %08x (%08x)\n", i, addr, data, stat);
 }
 
 static void
-gk104_ibus_intr_gpc(struct nvkm_subdev *ibus, int i)
+gk104_privring_intr_gpc(struct nvkm_subdev *privring, int i)
 {
-	struct nvkm_device *device = ibus->device;
+	struct nvkm_device *device = privring->device;
 	u32 addr = nvkm_rd32(device, 0x128120 + (i * 0x0800));
 	u32 data = nvkm_rd32(device, 0x128124 + (i * 0x0800));
 	u32 stat = nvkm_rd32(device, 0x128128 + (i * 0x0800));
-	nvkm_debug(ibus, "GPC%d: %06x %08x (%08x)\n", i, addr, data, stat);
+	nvkm_debug(privring, "GPC%d: %06x %08x (%08x)\n", i, addr, data, stat);
 }
 
 void
-gk104_ibus_intr(struct nvkm_subdev *ibus)
+gk104_privring_intr(struct nvkm_subdev *privring)
 {
-	struct nvkm_device *device = ibus->device;
+	struct nvkm_device *device = privring->device;
 	u32 intr0 = nvkm_rd32(device, 0x120058);
 	u32 intr1 = nvkm_rd32(device, 0x12005c);
 	u32 hubnr = nvkm_rd32(device, 0x120070);
@@ -68,7 +68,7 @@ gk104_ibus_intr(struct nvkm_subdev *ibus)
 	for (i = 0; (intr0 & 0x0000ff00) && i < hubnr; i++) {
 		u32 stat = 0x00000100 << i;
 		if (intr0 & stat) {
-			gk104_ibus_intr_hub(ibus, i);
+			gk104_privring_intr_hub(privring, i);
 			intr0 &= ~stat;
 		}
 	}
@@ -76,7 +76,7 @@ gk104_ibus_intr(struct nvkm_subdev *ibus)
 	for (i = 0; (intr0 & 0xffff0000) && i < ropnr; i++) {
 		u32 stat = 0x00010000 << i;
 		if (intr0 & stat) {
-			gk104_ibus_intr_rop(ibus, i);
+			gk104_privring_intr_rop(privring, i);
 			intr0 &= ~stat;
 		}
 	}
@@ -84,7 +84,7 @@ gk104_ibus_intr(struct nvkm_subdev *ibus)
 	for (i = 0; intr1 && i < gpcnr; i++) {
 		u32 stat = 0x00000001 << i;
 		if (intr1 & stat) {
-			gk104_ibus_intr_gpc(ibus, i);
+			gk104_privring_intr_gpc(privring, i);
 			intr1 &= ~stat;
 		}
 	}
@@ -97,9 +97,9 @@ gk104_ibus_intr(struct nvkm_subdev *ibus)
 }
 
 static int
-gk104_ibus_init(struct nvkm_subdev *ibus)
+gk104_privring_init(struct nvkm_subdev *privring)
 {
-	struct nvkm_device *device = ibus->device;
+	struct nvkm_device *device = privring->device;
 	nvkm_mask(device, 0x122318, 0x0003ffff, 0x00001000);
 	nvkm_mask(device, 0x12231c, 0x0003ffff, 0x00000200);
 	nvkm_mask(device, 0x122310, 0x0003ffff, 0x00000800);
@@ -111,15 +111,15 @@ gk104_ibus_init(struct nvkm_subdev *ibus)
 }
 
 static const struct nvkm_subdev_func
-gk104_ibus = {
-	.preinit = gk104_ibus_init,
-	.init = gk104_ibus_init,
-	.intr = gk104_ibus_intr,
+gk104_privring = {
+	.preinit = gk104_privring_init,
+	.init = gk104_privring_init,
+	.intr = gk104_privring_intr,
 };
 
 int
-gk104_ibus_new(struct nvkm_device *device, enum nvkm_subdev_type type, int inst,
-	       struct nvkm_subdev **pibus)
+gk104_privring_new(struct nvkm_device *device, enum nvkm_subdev_type type, int inst,
+		   struct nvkm_subdev **pprivring)
 {
-	return nvkm_subdev_new_(&gk104_ibus, device, type, inst, pibus);
+	return nvkm_subdev_new_(&gk104_privring, device, type, inst, pprivring);
 }
