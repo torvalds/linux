@@ -1172,6 +1172,15 @@
 				         <&clk IMX8MQ_CLK_ENET_PHY_REF>;
 				clock-names = "ipg", "ahb", "ptp",
 				              "enet_clk_ref", "enet_out";
+				assigned-clocks = <&clk IMX8MQ_CLK_ENET_AXI>,
+						  <&clk IMX8MQ_CLK_ENET_TIMER>,
+						  <&clk IMX8MQ_CLK_ENET_REF>,
+						  <&clk IMX8MQ_CLK_ENET_PHY_REF>;
+				assigned-clock-parents = <&clk IMX8MQ_SYS1_PLL_266M>,
+							 <&clk IMX8MQ_SYS2_PLL_100M>,
+							 <&clk IMX8MQ_SYS2_PLL_125M>,
+							 <&clk IMX8MQ_SYS2_PLL_50M>;
+				assigned-clock-rates = <0>, <100000000>, <125000000>, <0>;
 				fsl,num-tx-queues = <3>;
 				fsl,num-rx-queues = <3>;
 				status = "disabled";
