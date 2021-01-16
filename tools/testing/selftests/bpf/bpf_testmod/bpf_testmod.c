@@ -3,12 +3,15 @@
 #include <linux/error-injection.h>
 #include <linux/init.h>
 #include <linux/module.h>
+#include <linux/percpu-defs.h>
 #include <linux/sysfs.h>
 #include <linux/tracepoint.h>
 #include "bpf_testmod.h"
 
 #define CREATE_TRACE_POINTS
 #include "bpf_testmod-events.h"
+
+DEFINE_PER_CPU(int, bpf_testmod_ksym_percpu) = 123;
 
 noinline ssize_t
 bpf_testmod_test_read(struct file *file, struct kobject *kobj,

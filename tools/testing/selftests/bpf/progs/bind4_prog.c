@@ -29,18 +29,48 @@ static __inline int bind_to_device(struct bpf_sock_addr *ctx)
 	char veth2[IFNAMSIZ] = "test_sock_addr2";
 	char missing[IFNAMSIZ] = "nonexistent_dev";
 	char del_bind[IFNAMSIZ] = "";
+	int veth1_idx, veth2_idx;
 
 	if (bpf_setsockopt(ctx, SOL_SOCKET, SO_BINDTODEVICE,
-				&veth1, sizeof(veth1)))
+			   &veth1, sizeof(veth1)))
+		return 1;
+	if (bpf_getsockopt(ctx, SOL_SOCKET, SO_BINDTOIFINDEX,
+			   &veth1_idx, sizeof(veth1_idx)) || !veth1_idx)
 		return 1;
 	if (bpf_setsockopt(ctx, SOL_SOCKET, SO_BINDTODEVICE,
-				&veth2, sizeof(veth2)))
+			   &veth2, sizeof(veth2)))
+		return 1;
+	if (bpf_getsockopt(ctx, SOL_SOCKET, SO_BINDTOIFINDEX,
+			   &veth2_idx, sizeof(veth2_idx)) || !veth2_idx ||
+	    veth1_idx == veth2_idx)
 		return 1;
 	if (bpf_setsockopt(ctx, SOL_SOCKET, SO_BINDTODEVICE,
-				&missing, sizeof(missing)) != -ENODEV)
+			   &missing, sizeof(missing)) != -ENODEV)
+		return 1;
+	if (bpf_setsockopt(ctx, SOL_SOCKET, SO_BINDTOIFINDEX,
+			   &veth1_idx, sizeof(veth1_idx)))
 		return 1;
 	if (bpf_setsockopt(ctx, SOL_SOCKET, SO_BINDTODEVICE,
-				&del_bind, sizeof(del_bind)))
+			   &del_bind, sizeof(del_bind)))
+		return 1;
+
+	return 0;
+}
+
+static __inline int misc_opts(struct bpf_sock_addr *ctx, int opt)
+{
+	int old, tmp, new = 0xeb9f;
+
+	/* Socket in test case has guarantee that old never equals to new. */
+	if (bpf_getsockopt(ctx, SOL_SOCKET, opt, &old, sizeof(old)) ||
+	    old == new)
+		return 1;
+	if (bpf_setsockopt(ctx, SOL_SOCKET, opt, &new, sizeof(new)))
+		return 1;
+	if (bpf_getsockopt(ctx, SOL_SOCKET, opt, &tmp, sizeof(tmp)) ||
+	    tmp != new)
+		return 1;
+	if (bpf_setsockopt(ctx, SOL_SOCKET, opt, &old, sizeof(old)))
 		return 1;
 
 	return 0;
@@ -91,6 +121,10 @@ int bind_v4_prog(struct bpf_sock_addr *ctx)
 
 	/* Bind to device and unbind it. */
 	if (bind_to_device(ctx))
+		return 0;
+
+	/* Test for misc socket options. */
+	if (misc_opts(ctx, SO_MARK) || misc_opts(ctx, SO_PRIORITY))
 		return 0;
 
 	ctx->user_ip4 = bpf_htonl(SERV4_REWRITE_IP);

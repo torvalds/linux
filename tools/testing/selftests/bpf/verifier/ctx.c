@@ -10,14 +10,13 @@
 	.prog_type = BPF_PROG_TYPE_SCHED_CLS,
 },
 {
-	"context stores via XADD",
+	"context stores via BPF_ATOMIC",
 	.insns = {
 	BPF_MOV64_IMM(BPF_REG_0, 0),
-	BPF_RAW_INSN(BPF_STX | BPF_XADD | BPF_W, BPF_REG_1,
-		     BPF_REG_0, offsetof(struct __sk_buff, mark), 0),
+	BPF_ATOMIC_OP(BPF_W, BPF_ADD, BPF_REG_1, BPF_REG_0, offsetof(struct __sk_buff, mark)),
 	BPF_EXIT_INSN(),
 	},
-	.errstr = "BPF_XADD stores into R1 ctx is not allowed",
+	.errstr = "BPF_ATOMIC stores into R1 ctx is not allowed",
 	.result = REJECT,
 	.prog_type = BPF_PROG_TYPE_SCHED_CLS,
 },

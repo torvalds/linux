@@ -4295,13 +4295,13 @@ static struct bpf_test tests[] = {
 		{ { 0, 0xffffffff } },
 		.stack_depth = 40,
 	},
-	/* BPF_STX | BPF_XADD | BPF_W/DW */
+	/* BPF_STX | BPF_ATOMIC | BPF_W/DW */
 	{
 		"STX_XADD_W: Test: 0x12 + 0x10 = 0x22",
 		.u.insns_int = {
 			BPF_ALU32_IMM(BPF_MOV, R0, 0x12),
 			BPF_ST_MEM(BPF_W, R10, -40, 0x10),
-			BPF_STX_XADD(BPF_W, R10, R0, -40),
+			BPF_ATOMIC_OP(BPF_W, BPF_ADD, R10, R0, -40),
 			BPF_LDX_MEM(BPF_W, R0, R10, -40),
 			BPF_EXIT_INSN(),
 		},
@@ -4316,7 +4316,7 @@ static struct bpf_test tests[] = {
 			BPF_ALU64_REG(BPF_MOV, R1, R10),
 			BPF_ALU32_IMM(BPF_MOV, R0, 0x12),
 			BPF_ST_MEM(BPF_W, R10, -40, 0x10),
-			BPF_STX_XADD(BPF_W, R10, R0, -40),
+			BPF_ATOMIC_OP(BPF_W, BPF_ADD, R10, R0, -40),
 			BPF_ALU64_REG(BPF_MOV, R0, R10),
 			BPF_ALU64_REG(BPF_SUB, R0, R1),
 			BPF_EXIT_INSN(),
@@ -4331,7 +4331,7 @@ static struct bpf_test tests[] = {
 		.u.insns_int = {
 			BPF_ALU32_IMM(BPF_MOV, R0, 0x12),
 			BPF_ST_MEM(BPF_W, R10, -40, 0x10),
-			BPF_STX_XADD(BPF_W, R10, R0, -40),
+			BPF_ATOMIC_OP(BPF_W, BPF_ADD, R10, R0, -40),
 			BPF_EXIT_INSN(),
 		},
 		INTERNAL,
@@ -4352,7 +4352,7 @@ static struct bpf_test tests[] = {
 		.u.insns_int = {
 			BPF_ALU32_IMM(BPF_MOV, R0, 0x12),
 			BPF_ST_MEM(BPF_DW, R10, -40, 0x10),
-			BPF_STX_XADD(BPF_DW, R10, R0, -40),
+			BPF_ATOMIC_OP(BPF_DW, BPF_ADD, R10, R0, -40),
 			BPF_LDX_MEM(BPF_DW, R0, R10, -40),
 			BPF_EXIT_INSN(),
 		},
@@ -4367,7 +4367,7 @@ static struct bpf_test tests[] = {
 			BPF_ALU64_REG(BPF_MOV, R1, R10),
 			BPF_ALU32_IMM(BPF_MOV, R0, 0x12),
 			BPF_ST_MEM(BPF_DW, R10, -40, 0x10),
-			BPF_STX_XADD(BPF_DW, R10, R0, -40),
+			BPF_ATOMIC_OP(BPF_DW, BPF_ADD, R10, R0, -40),
 			BPF_ALU64_REG(BPF_MOV, R0, R10),
 			BPF_ALU64_REG(BPF_SUB, R0, R1),
 			BPF_EXIT_INSN(),
@@ -4382,7 +4382,7 @@ static struct bpf_test tests[] = {
 		.u.insns_int = {
 			BPF_ALU32_IMM(BPF_MOV, R0, 0x12),
 			BPF_ST_MEM(BPF_DW, R10, -40, 0x10),
-			BPF_STX_XADD(BPF_DW, R10, R0, -40),
+			BPF_ATOMIC_OP(BPF_DW, BPF_ADD, R10, R0, -40),
 			BPF_EXIT_INSN(),
 		},
 		INTERNAL,

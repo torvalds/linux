@@ -3563,17 +3563,17 @@ static int mvpp2_rx(struct mvpp2_port *port, struct napi_struct *napi,
 			frag_size = bm_pool->frag_size;
 
 		if (xdp_prog) {
-			xdp.data_hard_start = data;
-			xdp.data = data + MVPP2_MH_SIZE + MVPP2_SKB_HEADROOM;
-			xdp.data_end = xdp.data + rx_bytes;
-			xdp.frame_sz = PAGE_SIZE;
+			struct xdp_rxq_info *xdp_rxq;
 
 			if (bm_pool->pkt_size == MVPP2_BM_SHORT_PKT_SIZE)
-				xdp.rxq = &rxq->xdp_rxq_short;
+				xdp_rxq = &rxq->xdp_rxq_short;
 			else
-				xdp.rxq = &rxq->xdp_rxq_long;
+				xdp_rxq = &rxq->xdp_rxq_long;
 
-			xdp_set_data_meta_invalid(&xdp);
+			xdp_init_buff(&xdp, PAGE_SIZE, xdp_rxq);
+			xdp_prepare_buff(&xdp, data,
+					 MVPP2_MH_SIZE + MVPP2_SKB_HEADROOM,
+					 rx_bytes, false);
 
 			ret = mvpp2_run_xdp(port, rxq, xdp_prog, &xdp, pp, &ps);
 

@@ -2263,11 +2263,8 @@ mvneta_swbm_rx_frame(struct mvneta_port *pp,
 
 	/* Prefetch header */
 	prefetch(data);
-
-	xdp->data_hard_start = data;
-	xdp->data = data + pp->rx_offset_correction + MVNETA_MH_SIZE;
-	xdp->data_end = xdp->data + data_len;
-	xdp_set_data_meta_invalid(xdp);
+	xdp_prepare_buff(xdp, data, pp->rx_offset_correction + MVNETA_MH_SIZE,
+			 data_len, false);
 
 	sinfo = xdp_get_shared_info_from_buff(xdp);
 	sinfo->nr_frags = 0;
@@ -2363,9 +2360,8 @@ static int mvneta_rx_swbm(struct napi_struct *napi,
 	u32 desc_status, frame_sz;
 	struct xdp_buff xdp_buf;
 
+	xdp_init_buff(&xdp_buf, PAGE_SIZE, &rxq->xdp_rxq);
 	xdp_buf.data_hard_start = NULL;
-	xdp_buf.frame_sz = PAGE_SIZE;
-	xdp_buf.rxq = &rxq->xdp_rxq;
 
 	sinfo.nr_frags = 0;
 

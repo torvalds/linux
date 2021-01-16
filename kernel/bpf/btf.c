@@ -458,7 +458,7 @@ static bool btf_type_is_datasec(const struct btf_type *t)
 	return BTF_INFO_KIND(t->info) == BTF_KIND_DATASEC;
 }
 
-static u32 btf_nr_types_total(const struct btf *btf)
+u32 btf_nr_types(const struct btf *btf)
 {
 	u32 total = 0;
 
@@ -476,7 +476,7 @@ s32 btf_find_by_name_kind(const struct btf *btf, const char *name, u8 kind)
 	const char *tname;
 	u32 i, total;
 
-	total = btf_nr_types_total(btf);
+	total = btf_nr_types(btf);
 	for (i = 1; i < total; i++) {
 		t = btf_type_by_id(btf, i);
 		if (BTF_INFO_KIND(t->info) != kind)
@@ -5743,6 +5743,11 @@ bool btf_is_kernel(const struct btf *btf)
 	return btf->kernel_btf;
 }
 
+bool btf_is_module(const struct btf *btf)
+{
+	return btf->kernel_btf && strcmp(btf->name, "vmlinux") != 0;
+}
+
 static int btf_id_cmp_func(const void *a, const void *b)
 {
 	const int *pa = a, *pb = b;
@@ -5877,3 +5882,25 @@ static int __init btf_module_init(void)
 
 fs_initcall(btf_module_init);
 #endif /* CONFIG_DEBUG_INFO_BTF_MODULES */
+
+struct module *btf_try_get_module(const struct btf *btf)
+{
+	struct module *res = NULL;
+#ifdef CONFIG_DEBUG_INFO_BTF_MODULES
+	struct btf_module *btf_mod, *tmp;
+
+	mutex_lock(&btf_module_mutex);
+	list_for_each_entry_safe(btf_mod, tmp, &btf_modules, list) {
+		if (btf_mod->btf != btf)
+			continue;
+
+		if (try_module_get(btf_mod->module))
+			res = btf_mod->module;
+
+		break;
+	}
+	mutex_unlock(&btf_module_mutex);
+#endif
+
+	return res;
+}
