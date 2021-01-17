@@ -1466,7 +1466,7 @@ static int __bch2_stripe_write_key(struct btree_trans *trans,
 				   size_t idx,
 				   struct bkey_i_stripe *new_key)
 {
-	struct bch_fs *c = trans->c;
+	const struct bch_stripe *v;
 	struct bkey_s_c k;
 	unsigned i;
 	int ret;
@@ -1481,16 +1481,17 @@ static int __bch2_stripe_write_key(struct btree_trans *trans,
 	if (k.k->type != KEY_TYPE_stripe)
 		return -EIO;
 
+	v = bkey_s_c_to_stripe(k).v;
+	for (i = 0; i < v->nr_blocks; i++)
+		if (m->block_sectors[i] != stripe_blockcount_get(v, i))
+			goto write;
+	return 0;
+write:
 	bkey_reassemble(&new_key->k_i, k);
-
-	spin_lock(&c->ec_stripes_heap_lock);
 
 	for (i = 0; i < new_key->v.nr_blocks; i++)
 		stripe_blockcount_set(&new_key->v, i,
 				      m->block_sectors[i]);
-	m->dirty = false;
-
-	spin_unlock(&c->ec_stripes_heap_lock);
 
 	bch2_trans_update(trans, iter, &new_key->k_i, 0);
 	return 0;
@@ -1514,7 +1515,7 @@ int bch2_stripes_write(struct bch_fs *c, unsigned flags)
 				   BTREE_ITER_SLOTS|BTREE_ITER_INTENT);
 
 	genradix_for_each(&c->stripes[0], giter, m) {
-		if (!m->dirty)
+		if (!m->alive)
 			continue;
 
 		ret = __bch2_trans_do(&trans, NULL, NULL,

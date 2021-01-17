@@ -583,7 +583,6 @@ static int bch2_gc_done(struct bch_fs *c,
 				iter.pos, ##__VA_ARGS__,		\
 				dst->_f, src->_f);			\
 		dst->_f = src->_f;					\
-		dst->dirty = true;					\
 		set_bit(BCH_FS_NEED_ALLOC_WRITE, &c->flags);		\
 	}
 #define copy_bucket_field(_f)						\
@@ -609,17 +608,23 @@ static int bch2_gc_done(struct bch_fs *c,
 		while ((src = genradix_iter_peek(&iter, &c->stripes[1]))) {
 			dst = genradix_ptr_alloc(&c->stripes[0], iter.pos, GFP_KERNEL);
 
-			copy_stripe_field(alive,	"alive");
-			copy_stripe_field(sectors,	"sectors");
-			copy_stripe_field(algorithm,	"algorithm");
-			copy_stripe_field(nr_blocks,	"nr_blocks");
-			copy_stripe_field(nr_redundant,	"nr_redundant");
-			copy_stripe_field(blocks_nonempty,
-					  "blocks_nonempty");
+			if (dst->alive		!= src->alive ||
+			    dst->sectors	!= src->sectors ||
+			    dst->algorithm	!= src->algorithm ||
+			    dst->nr_blocks	!= src->nr_blocks ||
+			    dst->nr_redundant	!= src->nr_redundant) {
+				bch_err(c, "unexpected stripe inconsistency at bch2_gc_done, confused");
+				ret = -EINVAL;
+				goto fsck_err;
+			}
 
 			for (i = 0; i < ARRAY_SIZE(dst->block_sectors); i++)
 				copy_stripe_field(block_sectors[i],
 						  "block_sectors[%u]", i);
+
+			dst->blocks_nonempty = 0;
+			for (i = 0; i < dst->nr_blocks; i++)
+				dst->blocks_nonempty += dst->block_sectors[i] != 0;
 
 			genradix_iter_advance(&iter, &c->stripes[1]);
 		}

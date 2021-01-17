@@ -18,8 +18,7 @@ struct stripe {
 	u8			nr_blocks;
 	u8			nr_redundant;
 
-	unsigned		alive:1;
-	unsigned		dirty:1;
+	unsigned		alive:1; /* does a corresponding key exist in stripes btree? */
 	unsigned		on_heap:1;
 	u8			blocks_nonempty;
 	u16			block_sectors[BCH_BKEY_PTRS_MAX];
