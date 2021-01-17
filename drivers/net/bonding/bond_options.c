@@ -758,6 +758,19 @@ static bool bond_set_xfrm_features(struct bonding *bond)
 	return true;
 }
 
+static bool bond_set_tls_features(struct bonding *bond)
+{
+	if (!IS_ENABLED(CONFIG_TLS_DEVICE))
+		return false;
+
+	if (bond_sk_check(bond))
+		bond->dev->wanted_features |= BOND_TLS_FEATURES;
+	else
+		bond->dev->wanted_features &= ~BOND_TLS_FEATURES;
+
+	return true;
+}
+
 static int bond_option_mode_set(struct bonding *bond,
 				const struct bond_opt_value *newval)
 {
@@ -784,9 +797,15 @@ static int bond_option_mode_set(struct bonding *bond,
 	bond->params.arp_validate = BOND_ARP_VALIDATE_NONE;
 	bond->params.mode = newval->value;
 
-	if (bond->dev->reg_state == NETREG_REGISTERED)
-		if (bond_set_xfrm_features(bond))
+	if (bond->dev->reg_state == NETREG_REGISTERED) {
+		bool update = false;
+
+		update |= bond_set_xfrm_features(bond);
+		update |= bond_set_tls_features(bond);
+
+		if (update)
 			netdev_update_features(bond->dev);
+	}
 
 	return 0;
 }
@@ -1219,6 +1238,10 @@ static int bond_option_xmit_hash_policy_set(struct bonding *bond,
 	netdev_dbg(bond->dev, "Setting xmit hash policy to %s (%llu)\n",
 		   newval->string, newval->value);
 	bond->params.xmit_policy = newval->value;
+
+	if (bond->dev->reg_state == NETREG_REGISTERED)
+		if (bond_set_tls_features(bond))
+			netdev_update_features(bond->dev);
 
 	return 0;
 }

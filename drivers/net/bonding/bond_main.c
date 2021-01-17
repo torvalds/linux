@@ -83,6 +83,9 @@
 #include <net/bonding.h>
 #include <net/bond_3ad.h>
 #include <net/bond_alb.h>
+#if IS_ENABLED(CONFIG_TLS_DEVICE)
+#include <net/tls.h>
+#endif
 
 #include "bonding_priv.h"
 
@@ -1224,6 +1227,13 @@ static netdev_features_t bond_fix_features(struct net_device *dev,
 	struct list_head *iter;
 	netdev_features_t mask;
 	struct slave *slave;
+
+#if IS_ENABLED(CONFIG_TLS_DEVICE)
+	if (bond_sk_check(bond))
+		features |= BOND_TLS_FEATURES;
+	else
+		features &= ~BOND_TLS_FEATURES;
+#endif
 
 	mask = features;
 
@@ -4647,6 +4657,16 @@ static struct net_device *bond_sk_get_lower_dev(struct net_device *dev,
 	return lower;
 }
 
+#if IS_ENABLED(CONFIG_TLS_DEVICE)
+static netdev_tx_t bond_tls_device_xmit(struct bonding *bond, struct sk_buff *skb,
+					struct net_device *dev)
+{
+	if (likely(bond_get_slave_by_dev(bond, tls_get_ctx(skb->sk)->netdev)))
+		return bond_dev_queue_xmit(bond, skb, tls_get_ctx(skb->sk)->netdev);
+	return bond_tx_drop(dev, skb);
+}
+#endif
+
 static netdev_tx_t __bond_start_xmit(struct sk_buff *skb, struct net_device *dev)
 {
 	struct bonding *bond = netdev_priv(dev);
@@ -4654,6 +4674,11 @@ static netdev_tx_t __bond_start_xmit(struct sk_buff *skb, struct net_device *dev
 	if (bond_should_override_tx_queue(bond) &&
 	    !bond_slave_override(bond, skb))
 		return NETDEV_TX_OK;
+
+#if IS_ENABLED(CONFIG_TLS_DEVICE)
+	if (skb->sk && tls_is_sk_tx_device_offloaded(skb->sk))
+		return bond_tls_device_xmit(bond, skb, dev);
+#endif
 
 	switch (BOND_MODE(bond)) {
 	case BOND_MODE_ROUNDROBIN:
@@ -4855,6 +4880,10 @@ void bond_setup(struct net_device *bond_dev)
 	if (BOND_MODE(bond) == BOND_MODE_ACTIVEBACKUP)
 		bond_dev->features |= BOND_XFRM_FEATURES;
 #endif /* CONFIG_XFRM_OFFLOAD */
+#if IS_ENABLED(CONFIG_TLS_DEVICE)
+	if (bond_sk_check(bond))
+		bond_dev->features |= BOND_TLS_FEATURES;
+#endif
 }
 
 /* Destroy a bonding device.
