@@ -616,7 +616,7 @@ static struct attribute *arm_cmn_cpumask_attrs[] = {
 	NULL,
 };
 
-static struct attribute_group arm_cmn_cpumask_attr_group = {
+static const struct attribute_group arm_cmn_cpumask_attr_group = {
 	.attrs = arm_cmn_cpumask_attrs,
 };
 

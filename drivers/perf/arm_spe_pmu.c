@@ -146,7 +146,7 @@ static struct attribute *arm_spe_pmu_cap_attr[] = {
 	NULL,
 };
 
-static struct attribute_group arm_spe_pmu_cap_group = {
+static const struct attribute_group arm_spe_pmu_cap_group = {
 	.name	= "caps",
 	.attrs	= arm_spe_pmu_cap_attr,
 };
@@ -227,7 +227,7 @@ static struct attribute *arm_spe_pmu_formats_attr[] = {
 	NULL,
 };
 
-static struct attribute_group arm_spe_pmu_format_group = {
+static const struct attribute_group arm_spe_pmu_format_group = {
 	.name	= "format",
 	.attrs	= arm_spe_pmu_formats_attr,
 };
@@ -247,7 +247,7 @@ static struct attribute *arm_spe_pmu_attrs[] = {
 	NULL,
 };
 
-static struct attribute_group arm_spe_pmu_group = {
+static const struct attribute_group arm_spe_pmu_group = {
 	.attrs	= arm_spe_pmu_attrs,
 };
 

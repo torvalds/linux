@@ -1376,7 +1376,7 @@ static struct attribute *pmu_attrs[] = {
 	NULL,
 };
 
-static struct attribute_group pmu_attr_group = {
+static const struct attribute_group pmu_attr_group = {
 	.attrs = pmu_attrs,
 };
 
