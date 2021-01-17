@@ -16,4 +16,11 @@ mlx5e_fs_tt_redirect_udp_add_rule(struct mlx5e_priv *priv,
 				  u32 tir_num, u16 d_port);
 void mlx5e_fs_tt_redirect_udp_destroy(struct mlx5e_priv *priv);
 int mlx5e_fs_tt_redirect_udp_create(struct mlx5e_priv *priv);
+
+/* ANY traffic type redirect*/
+struct mlx5_flow_handle *
+mlx5e_fs_tt_redirect_any_add_rule(struct mlx5e_priv *priv,
+				  u32 tir_num, u16 ether_type);
+void mlx5e_fs_tt_redirect_any_destroy(struct mlx5e_priv *priv);
+int mlx5e_fs_tt_redirect_any_create(struct mlx5e_priv *priv);
 #endif
