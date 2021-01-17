@@ -514,6 +514,7 @@ struct iwl_trans_rxq_dma_data {
  *	of the trans debugfs
  * @set_pnvm: set the pnvm data in the prph scratch buffer, inside the
  *	context info.
+ * @interrupts: disable/enable interrupts to transport
  */
 struct iwl_trans_ops {
 
@@ -587,6 +588,7 @@ struct iwl_trans_ops {
 	void (*debugfs_cleanup)(struct iwl_trans *trans);
 	void (*sync_nmi)(struct iwl_trans *trans);
 	int (*set_pnvm)(struct iwl_trans *trans, const void *data, u32 len);
+	void (*interrupts)(struct iwl_trans *trans, bool enable);
 };
 
 /**
@@ -1409,6 +1411,9 @@ static inline void iwl_trans_sync_nmi(struct iwl_trans *trans)
 		trans->ops->sync_nmi(trans);
 }
 
+void iwl_trans_sync_nmi_with_addr(struct iwl_trans *trans, u32 inta_addr,
+				  u32 sw_err_bit);
+
 static inline int iwl_trans_set_pnvm(struct iwl_trans *trans,
 				     const void *data, u32 len)
 {
@@ -1428,6 +1433,12 @@ static inline bool iwl_trans_dbg_ini_valid(struct iwl_trans *trans)
 {
 	return trans->dbg.internal_ini_cfg != IWL_INI_CFG_STATE_NOT_LOADED ||
 		trans->dbg.external_ini_cfg != IWL_INI_CFG_STATE_NOT_LOADED;
+}
+
+static inline void iwl_trans_interrupts(struct iwl_trans *trans, bool enable)
+{
+	if (trans->ops->interrupts)
+		trans->ops->interrupts(trans, enable);
 }
 
 /*****************************************************

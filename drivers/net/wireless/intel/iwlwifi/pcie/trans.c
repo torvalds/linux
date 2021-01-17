@@ -3284,6 +3284,30 @@ static struct iwl_trans_dump_data
 	return dump_data;
 }
 
+static void iwl_trans_pci_interrupts(struct iwl_trans *trans, bool enable)
+{
+	if (enable)
+		iwl_enable_interrupts(trans);
+	else
+		iwl_disable_interrupts(trans);
+}
+
+static void iwl_trans_pcie_sync_nmi(struct iwl_trans *trans)
+{
+	u32 inta_addr, sw_err_bit;
+	struct iwl_trans_pcie *trans_pcie = IWL_TRANS_GET_PCIE_TRANS(trans);
+
+	if (trans_pcie->msix_enabled) {
+		inta_addr = CSR_MSIX_HW_INT_CAUSES_AD;
+		sw_err_bit = MSIX_HW_INT_CAUSES_REG_SW_ERR;
+	} else {
+		inta_addr = CSR_INT;
+		sw_err_bit = CSR_INT_BIT_SW_ERR;
+	}
+
+	iwl_trans_sync_nmi_with_addr(trans, inta_addr, sw_err_bit);
+}
+
 #ifdef CONFIG_PM_SLEEP
 static int iwl_trans_pcie_suspend(struct iwl_trans *trans)
 {
@@ -3314,7 +3338,8 @@ static void iwl_trans_pcie_resume(struct iwl_trans *trans)
 	.dump_data = iwl_trans_pcie_dump_data,				\
 	.d3_suspend = iwl_trans_pcie_d3_suspend,			\
 	.d3_resume = iwl_trans_pcie_d3_resume,				\
-	.sync_nmi = iwl_trans_pcie_sync_nmi
+	.interrupts = iwl_trans_pci_interrupts,				\
+	.sync_nmi = iwl_trans_pcie_sync_nmi				\
 
 #ifdef CONFIG_PM_SLEEP
 #define IWL_TRANS_PM_OPS						\
@@ -3535,49 +3560,4 @@ out_no_pci:
 out_free_trans:
 	iwl_trans_free(trans);
 	return ERR_PTR(ret);
-}
-
-void iwl_trans_pcie_sync_nmi(struct iwl_trans *trans)
-{
-	struct iwl_trans_pcie *trans_pcie = IWL_TRANS_GET_PCIE_TRANS(trans);
-	unsigned long timeout = jiffies + IWL_TRANS_NMI_TIMEOUT;
-	bool interrupts_enabled = test_bit(STATUS_INT_ENABLED, &trans->status);
-	u32 inta_addr, sw_err_bit;
-
-	if (trans_pcie->msix_enabled) {
-		inta_addr = CSR_MSIX_HW_INT_CAUSES_AD;
-		sw_err_bit = MSIX_HW_INT_CAUSES_REG_SW_ERR;
-	} else {
-		inta_addr = CSR_INT;
-		sw_err_bit = CSR_INT_BIT_SW_ERR;
-	}
-
-	/* if the interrupts were already disabled, there is no point in
-	 * calling iwl_disable_interrupts
-	 */
-	if (interrupts_enabled)
-		iwl_disable_interrupts(trans);
-
-	iwl_force_nmi(trans);
-	while (time_after(timeout, jiffies)) {
-		u32 inta_hw = iwl_read32(trans, inta_addr);
-
-		/* Error detected by uCode */
-		if (inta_hw & sw_err_bit) {
-			/* Clear causes register */
-			iwl_write32(trans, inta_addr, inta_hw & sw_err_bit);
-			break;
-		}
-
-		mdelay(1);
-	}
-
-	/* enable interrupts only if there were already enabled before this
-	 * function to avoid a case were the driver enable interrupts before
-	 * proper configurations were made
-	 */
-	if (interrupts_enabled)
-		iwl_enable_interrupts(trans);
-
-	iwl_trans_fw_error(trans);
 }
