@@ -385,6 +385,10 @@ int hl_fw_cpucp_pci_counters_get(struct hl_device *hdev,
 	}
 	counters->rx_throughput = result;
 
+	memset(&pkt, 0, sizeof(pkt));
+	pkt.ctl = cpu_to_le32(CPUCP_PACKET_PCIE_THROUGHPUT_GET <<
+			CPUCP_PKT_CTL_OPCODE_SHIFT);
+
 	/* Fetch PCI tx counter */
 	pkt.index = cpu_to_le32(cpucp_pcie_throughput_tx);
 	rc = hdev->asic_funcs->send_cpu_message(hdev, (u32 *) &pkt, sizeof(pkt),
@@ -397,6 +401,7 @@ int hl_fw_cpucp_pci_counters_get(struct hl_device *hdev,
 	counters->tx_throughput = result;
 
 	/* Fetch PCI replay counter */
+	memset(&pkt, 0, sizeof(pkt));
 	pkt.ctl = cpu_to_le32(CPUCP_PACKET_PCIE_REPLAY_CNT_GET <<
 			CPUCP_PKT_CTL_OPCODE_SHIFT);
 
