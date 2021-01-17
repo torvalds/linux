@@ -684,8 +684,8 @@ static void ec_stripe_delete_work(struct work_struct *work)
 /* stripe creation: */
 
 static int ec_stripe_bkey_insert(struct bch_fs *c,
-				 struct ec_stripe_new *s,
-				 struct bkey_i_stripe *stripe)
+				 struct bkey_i_stripe *stripe,
+				 struct disk_reservation *res)
 {
 	struct btree_trans trans;
 	struct btree_iter *iter;
@@ -726,7 +726,7 @@ found_slot:
 
 	bch2_trans_update(&trans, iter, &stripe->k_i, 0);
 
-	ret = bch2_trans_commit(&trans, &s->res, NULL,
+	ret = bch2_trans_commit(&trans, res, NULL,
 				BTREE_INSERT_NOFAIL);
 err:
 	bch2_trans_iter_put(&trans, iter);
@@ -737,6 +737,47 @@ err:
 	c->ec_stripe_hint = ret ? start_pos.offset : start_pos.offset + 1;
 	bch2_trans_exit(&trans);
 
+	return ret;
+}
+
+static int ec_stripe_bkey_update(struct btree_trans *trans,
+				 struct bkey_i_stripe *new)
+{
+	struct bch_fs *c = trans->c;
+	struct btree_iter *iter;
+	struct bkey_s_c k;
+	const struct bch_stripe *existing;
+	unsigned i;
+	int ret;
+
+	iter = bch2_trans_get_iter(trans, BTREE_ID_EC,
+				   new->k.p, BTREE_ITER_INTENT);
+	k = bch2_btree_iter_peek_slot(iter);
+	ret = bkey_err(k);
+	if (ret)
+		goto err;
+
+	if (!k.k || k.k->type != KEY_TYPE_stripe) {
+		bch_err(c, "error updating stripe: not found");
+		ret = -ENOENT;
+		goto err;
+	}
+
+	existing = bkey_s_c_to_stripe(k).v;
+
+	if (existing->nr_blocks != new->v.nr_blocks) {
+		bch_err(c, "error updating stripe: nr_blocks does not match");
+		ret = -EINVAL;
+		goto err;
+	}
+
+	for (i = 0; i < new->v.nr_blocks; i++)
+		stripe_blockcount_set(&new->v, i,
+			stripe_blockcount_get(existing, i));
+
+	bch2_trans_update(trans, iter, &new->k_i, 0);
+err:
+	bch2_trans_iter_put(trans, iter);
 	return ret;
 }
 
@@ -884,9 +925,9 @@ static void ec_stripe_create(struct ec_stripe_new *s)
 	}
 
 	ret = s->have_existing_stripe
-		? bch2_btree_insert(c, BTREE_ID_EC, &s->new_stripe.key.k_i,
-				    &s->res, NULL, BTREE_INSERT_NOFAIL)
-		: ec_stripe_bkey_insert(c, s, &s->new_stripe.key);
+		? bch2_trans_do(c, &s->res, NULL, BTREE_INSERT_NOFAIL,
+				ec_stripe_bkey_update(&trans, &s->new_stripe.key))
+		: ec_stripe_bkey_insert(c, &s->new_stripe.key, &s->res);
 	if (ret) {
 		bch_err(c, "error creating stripe: error creating stripe key");
 		goto err_put_writes;
@@ -902,11 +943,7 @@ static void ec_stripe_create(struct ec_stripe_new *s)
 
 	spin_lock(&c->ec_stripes_heap_lock);
 	m = genradix_ptr(&c->stripes[0], s->new_stripe.key.k.p.offset);
-#if 0
-	pr_info("created a %s stripe %llu",
-		s->have_existing_stripe ? "existing" : "new",
-		s->stripe.key.k.p.offset);
-#endif
+
 	BUG_ON(m->on_heap);
 	bch2_stripes_heap_insert(c, m, s->new_stripe.key.k.p.offset);
 	spin_unlock(&c->ec_stripes_heap_lock);
