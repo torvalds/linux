@@ -764,7 +764,7 @@
 	};
 
 	thermal_zones: thermal-zones {
-		cpu_thermal: cpu {
+		cpu_thermal: cpu-thermal {
 			polling-delay-passive = <100>;
 			polling-delay = <1000>;
 
@@ -808,7 +808,7 @@
 			};
 		};
 
-		gpu_thermal: gpu {
+		gpu_thermal: gpu-thermal {
 			polling-delay-passive = <100>;
 			polling-delay = <1000>;
 
