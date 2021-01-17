@@ -997,6 +997,8 @@ static int __iwl_mvm_suspend(struct ieee80211_hw *hw,
 
 	set_bit(IWL_MVM_STATUS_IN_D3, &mvm->status);
 
+	synchronize_net();
+
 	vif = iwl_mvm_get_bss_vif(mvm);
 	if (IS_ERR_OR_NULL(vif)) {
 		ret = 1;

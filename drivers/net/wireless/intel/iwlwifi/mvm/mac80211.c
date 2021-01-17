@@ -816,8 +816,7 @@ void iwl_mvm_mac_itxq_xmit(struct ieee80211_hw *hw, struct ieee80211_txq *txq)
 	rcu_read_lock();
 	do {
 		while (likely(!mvmtxq->stopped &&
-			      (mvm->trans->system_pm_mode ==
-			       IWL_PLAT_PM_MODE_DISABLED))) {
+			      !test_bit(IWL_MVM_STATUS_IN_D3, &mvm->status))) {
 			skb = ieee80211_tx_dequeue(hw, txq);
 
 			if (!skb) {
