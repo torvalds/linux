@@ -1938,6 +1938,9 @@ void iwl_mvm_rx_monitor_no_data(struct iwl_mvm *mvm, struct napi_struct *napi,
 		.info_type = IWL_RX_PHY_INFO_TYPE_NONE,
 	};
 
+	if (unlikely(iwl_rx_packet_payload_len(pkt) < sizeof(*desc)))
+		return;
+
 	if (unlikely(test_bit(IWL_MVM_STATUS_IN_HW_RESTART, &mvm->status)))
 		return;
 
@@ -2067,6 +2070,9 @@ void iwl_mvm_rx_frame_release(struct iwl_mvm *mvm, struct napi_struct *napi,
 	struct iwl_rx_packet *pkt = rxb_addr(rxb);
 	struct iwl_frame_release *release = (void *)pkt->data;
 
+	if (unlikely(iwl_rx_packet_payload_len(pkt) < sizeof(*release)))
+		return;
+
 	iwl_mvm_release_frames_from_notif(mvm, napi, release->baid,
 					  le16_to_cpu(release->nssn),
 					  queue, 0);
@@ -2086,6 +2092,9 @@ void iwl_mvm_rx_bar_frame_release(struct iwl_mvm *mvm, struct napi_struct *napi,
 	unsigned int tid = le32_get_bits(release->sta_tid,
 					 IWL_BAR_FRAME_RELEASE_TID_MASK);
 	struct iwl_mvm_baid_data *baid_data;
+
+	if (unlikely(iwl_rx_packet_payload_len(pkt) < sizeof(*release)))
+		return;
 
 	if (WARN_ON_ONCE(baid == IWL_RX_REORDER_DATA_INVALID_BAID ||
 			 baid >= ARRAY_SIZE(mvm->baid_map)))

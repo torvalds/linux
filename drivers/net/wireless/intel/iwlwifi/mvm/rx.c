@@ -20,6 +20,10 @@
 void iwl_mvm_rx_rx_phy_cmd(struct iwl_mvm *mvm, struct iwl_rx_cmd_buffer *rxb)
 {
 	struct iwl_rx_packet *pkt = rxb_addr(rxb);
+	unsigned int pkt_len = iwl_rx_packet_payload_len(pkt);
+
+	if (unlikely(pkt_len < sizeof(mvm->last_phy_info)))
+		return;
 
 	memcpy(&mvm->last_phy_info, pkt->data, sizeof(mvm->last_phy_info));
 	mvm->ampdu_ref++;
