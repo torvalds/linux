@@ -89,6 +89,19 @@ static int copy_inline_to_page(struct btrfs_inode *inode,
 	if (ret)
 		goto out_unlock;
 
+	/*
+	 * After dirtying the page our caller will need to start a transaction,
+	 * and if we are low on metadata free space, that can cause flushing of
+	 * delalloc for all inodes in order to get metadata space released.
+	 * However we are holding the range locked for the whole duration of
+	 * the clone/dedupe operation, so we may deadlock if that happens and no
+	 * other task releases enough space. So mark this inode as not being
+	 * possible to flush to avoid such deadlock. We will clear that flag
+	 * when we finish cloning all extents, since a transaction is started
+	 * after finding each extent to clone.
+	 */
+	set_bit(BTRFS_INODE_NO_DELALLOC_FLUSH, &inode->runtime_flags);
+
 	if (comp_type == BTRFS_COMPRESS_NONE) {
 		char *map;
 
@@ -547,6 +560,8 @@ process_slot:
 out:
 	btrfs_free_path(path);
 	kvfree(buf);
+	clear_bit(BTRFS_INODE_NO_DELALLOC_FLUSH, &BTRFS_I(inode)->runtime_flags);
+
 	return ret;
 }
 

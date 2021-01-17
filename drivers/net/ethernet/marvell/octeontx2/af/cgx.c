@@ -862,8 +862,10 @@ static int cgx_lmac_init(struct cgx *cgx)
 		if (!lmac)
 			return -ENOMEM;
 		lmac->name = kcalloc(1, sizeof("cgx_fwi_xxx_yyy"), GFP_KERNEL);
-		if (!lmac->name)
-			return -ENOMEM;
+		if (!lmac->name) {
+			err = -ENOMEM;
+			goto err_lmac_free;
+		}
 		sprintf(lmac->name, "cgx_fwi_%d_%d", cgx->cgx_id, i);
 		lmac->lmac_id = i;
 		lmac->cgx = cgx;
@@ -874,7 +876,7 @@ static int cgx_lmac_init(struct cgx *cgx)
 						 CGX_LMAC_FWI + i * 9),
 				   cgx_fwi_event_handler, 0, lmac->name, lmac);
 		if (err)
-			return err;
+			goto err_irq;
 
 		/* Enable interrupt */
 		cgx_write(cgx, lmac->lmac_id, CGXX_CMRX_INT_ENA_W1S,
@@ -886,6 +888,12 @@ static int cgx_lmac_init(struct cgx *cgx)
 	}
 
 	return cgx_lmac_verify_fwi_version(cgx);
+
+err_irq:
+	kfree(lmac->name);
+err_lmac_free:
+	kfree(lmac);
+	return err;
 }
 
 static int cgx_lmac_exit(struct cgx *cgx)

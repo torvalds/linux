@@ -4571,6 +4571,10 @@ static int btrfs_log_all_xattrs(struct btrfs_trans_handle *trans,
 	const u64 ino = btrfs_ino(inode);
 	int ins_nr = 0;
 	int start_slot = 0;
+	bool found_xattrs = false;
+
+	if (test_bit(BTRFS_INODE_NO_XATTRS, &inode->runtime_flags))
+		return 0;
 
 	key.objectid = ino;
 	key.type = BTRFS_XATTR_ITEM_KEY;
@@ -4609,6 +4613,7 @@ static int btrfs_log_all_xattrs(struct btrfs_trans_handle *trans,
 			start_slot = slot;
 		ins_nr++;
 		path->slots[0]++;
+		found_xattrs = true;
 		cond_resched();
 	}
 	if (ins_nr > 0) {
@@ -4617,6 +4622,9 @@ static int btrfs_log_all_xattrs(struct btrfs_trans_handle *trans,
 		if (ret < 0)
 			return ret;
 	}
+
+	if (!found_xattrs)
+		set_bit(BTRFS_INODE_NO_XATTRS, &inode->runtime_flags);
 
 	return 0;
 }

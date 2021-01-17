@@ -752,7 +752,8 @@ static int hclge_get_sset_count(struct hnae3_handle *handle, int stringset)
 		handle->flags |= HNAE3_SUPPORT_SERDES_SERIAL_LOOPBACK;
 		handle->flags |= HNAE3_SUPPORT_SERDES_PARALLEL_LOOPBACK;
 
-		if (hdev->hw.mac.phydev) {
+		if (hdev->hw.mac.phydev && hdev->hw.mac.phydev->drv &&
+		    hdev->hw.mac.phydev->drv->set_loopback) {
 			count += 1;
 			handle->flags |= HNAE3_SUPPORT_PHY_LOOPBACK;
 		}
@@ -4484,8 +4485,8 @@ static int hclge_set_rss_tuple(struct hnae3_handle *handle,
 		req->ipv4_sctp_en = tuple_sets;
 		break;
 	case SCTP_V6_FLOW:
-		if ((nfc->data & RXH_L4_B_0_1) ||
-		    (nfc->data & RXH_L4_B_2_3))
+		if (hdev->ae_dev->dev_version <= HNAE3_DEVICE_VERSION_V2 &&
+		    (nfc->data & (RXH_L4_B_0_1 | RXH_L4_B_2_3)))
 			return -EINVAL;
 
 		req->ipv6_sctp_en = tuple_sets;
@@ -4665,6 +4666,8 @@ static void hclge_rss_init_cfg(struct hclge_dev *hdev)
 		vport[i].rss_tuple_sets.ipv6_udp_en =
 			HCLGE_RSS_INPUT_TUPLE_OTHER;
 		vport[i].rss_tuple_sets.ipv6_sctp_en =
+			hdev->ae_dev->dev_version <= HNAE3_DEVICE_VERSION_V2 ?
+			HCLGE_RSS_INPUT_TUPLE_SCTP_NO_PORT :
 			HCLGE_RSS_INPUT_TUPLE_SCTP;
 		vport[i].rss_tuple_sets.ipv6_fragment_en =
 			HCLGE_RSS_INPUT_TUPLE_OTHER;

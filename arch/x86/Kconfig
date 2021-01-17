@@ -18,6 +18,7 @@ config X86_32
 	select MODULES_USE_ELF_REL
 	select OLD_SIGACTION
 	select GENERIC_VDSO_32
+	select ARCH_SPLIT_ARG64
 
 config X86_64
 	def_bool y
