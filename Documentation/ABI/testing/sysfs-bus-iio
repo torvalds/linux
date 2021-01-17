@@ -676,6 +676,17 @@ Description:
 		specified and unique if the output corresponds to a single
 		channel.
 
+What:		/sys/bus/iio/devices/iio:deviceX/out_currentY_raw
+Date:		May 2012
+KernelVersion:	3.5
+Contact:	Johan Hovold <jhovold@gmail.com>
+Description:
+		Set/get output current for channel Y. Units after application
+		of scale and offset are milliamps.
+		For some devices current channels are used to specify
+		current supplied to elements used in taking a measurement
+		of a different type. E.g. LED currents.
+
 What:		/sys/bus/iio/devices/iio:deviceX/events
 KernelVersion:	2.6.35
 Contact:	linux-iio@vger.kernel.org
