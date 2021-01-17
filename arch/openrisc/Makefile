@@ -42,17 +42,8 @@ endif
 
 head-y 		:= arch/openrisc/kernel/head.o
 
-core-y		+= arch/openrisc/lib/ \
-		   arch/openrisc/kernel/ \
-		   arch/openrisc/mm/
+core-y		+= arch/openrisc/
 libs-y		+= $(LIBGCC)
-
-ifneq '$(CONFIG_OPENRISC_BUILTIN_DTB)' '""'
-BUILTIN_DTB := y
-else
-BUILTIN_DTB := n
-endif
-core-$(BUILTIN_DTB) += arch/openrisc/boot/dts/
 
 PHONY += vmlinux.bin
 
