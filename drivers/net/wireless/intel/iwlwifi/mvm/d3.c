@@ -1104,15 +1104,10 @@ int iwl_mvm_suspend(struct ieee80211_hw *hw, struct cfg80211_wowlan *wowlan)
 {
 	struct iwl_mvm *mvm = IWL_MAC80211_GET_MVM(hw);
 	struct iwl_trans *trans = mvm->trans;
-	int ret;
 
 	iwl_mvm_pause_tcm(mvm, true);
 
 	iwl_fw_runtime_suspend(&mvm->fwrt);
-
-	ret = iwl_trans_suspend(trans);
-	if (ret)
-		return ret;
 
 	trans->system_pm_mode = IWL_PLAT_PM_MODE_D3;
 
@@ -2171,8 +2166,6 @@ out:
 
 static int iwl_mvm_resume_d3(struct iwl_mvm *mvm)
 {
-	iwl_trans_resume(mvm->trans);
-
 	return __iwl_mvm_resume(mvm, false);
 }
 

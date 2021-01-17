@@ -3308,17 +3308,6 @@ static void iwl_trans_pcie_sync_nmi(struct iwl_trans *trans)
 	iwl_trans_sync_nmi_with_addr(trans, inta_addr, sw_err_bit);
 }
 
-#ifdef CONFIG_PM_SLEEP
-static int iwl_trans_pcie_suspend(struct iwl_trans *trans)
-{
-	return 0;
-}
-
-static void iwl_trans_pcie_resume(struct iwl_trans *trans)
-{
-}
-#endif /* CONFIG_PM_SLEEP */
-
 #define IWL_TRANS_COMMON_OPS						\
 	.op_mode_leave = iwl_trans_pcie_op_mode_leave,			\
 	.write8 = iwl_trans_pcie_write8,				\
@@ -3341,17 +3330,8 @@ static void iwl_trans_pcie_resume(struct iwl_trans *trans)
 	.interrupts = iwl_trans_pci_interrupts,				\
 	.sync_nmi = iwl_trans_pcie_sync_nmi				\
 
-#ifdef CONFIG_PM_SLEEP
-#define IWL_TRANS_PM_OPS						\
-	.suspend = iwl_trans_pcie_suspend,				\
-	.resume = iwl_trans_pcie_resume,
-#else
-#define IWL_TRANS_PM_OPS
-#endif /* CONFIG_PM_SLEEP */
-
 static const struct iwl_trans_ops trans_ops_pcie = {
 	IWL_TRANS_COMMON_OPS,
-	IWL_TRANS_PM_OPS
 	.start_hw = iwl_trans_pcie_start_hw,
 	.fw_alive = iwl_trans_pcie_fw_alive,
 	.start_fw = iwl_trans_pcie_start_fw,
@@ -3378,7 +3358,6 @@ static const struct iwl_trans_ops trans_ops_pcie = {
 
 static const struct iwl_trans_ops trans_ops_pcie_gen2 = {
 	IWL_TRANS_COMMON_OPS,
-	IWL_TRANS_PM_OPS
 	.start_hw = iwl_trans_pcie_start_hw,
 	.fw_alive = iwl_trans_pcie_gen2_fw_alive,
 	.start_fw = iwl_trans_pcie_gen2_start_fw,
