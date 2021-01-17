@@ -187,10 +187,13 @@ int tcf_action_init(struct net *net, struct tcf_proto *tp, struct nlattr *nla,
 		    struct nlattr *est, char *name, int ovr, int bind,
 		    struct tc_action *actions[], size_t *attr_size,
 		    bool rtnl_held, struct netlink_ext_ack *extack);
+struct tc_action_ops *tc_action_load_ops(char *name, struct nlattr *nla,
+					 bool rtnl_held,
+					 struct netlink_ext_ack *extack);
 struct tc_action *tcf_action_init_1(struct net *net, struct tcf_proto *tp,
 				    struct nlattr *nla, struct nlattr *est,
 				    char *name, int ovr, int bind,
-				    bool rtnl_held,
+				    struct tc_action_ops *ops, bool rtnl_held,
 				    struct netlink_ext_ack *extack);
 int tcf_action_dump(struct sk_buff *skb, struct tc_action *actions[], int bind,
 		    int ref, bool terse);
