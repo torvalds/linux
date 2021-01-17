@@ -125,8 +125,12 @@ enum pf8x00_devid {
 #define PF8X00_DEVICE_FAM_MASK		GENMASK(7, 4)
 #define PF8X00_DEVICE_ID_MASK		GENMASK(3, 0)
 
-struct pf8x00_regulator {
+struct pf8x00_regulator_data {
 	struct regulator_desc desc;
+	unsigned int suspend_enable_reg;
+	unsigned int suspend_enable_mask;
+	unsigned int suspend_voltage_reg;
+	unsigned int suspend_voltage_cache;
 };
 
 struct pf8x00_chip {
@@ -276,6 +280,53 @@ static int pf8x00_of_parse_cb(struct device_node *np,
 	return 0;
 }
 
+static int pf8x00_suspend_enable(struct regulator_dev *rdev)
+{
+	struct pf8x00_regulator_data *regl = rdev_get_drvdata(rdev);
+	struct regmap *rmap = rdev_get_regmap(rdev);
+
+	return regmap_update_bits(rmap, regl->suspend_enable_reg,
+				  regl->suspend_enable_mask,
+				  regl->suspend_enable_mask);
+}
+
+static int pf8x00_suspend_disable(struct regulator_dev *rdev)
+{
+	struct pf8x00_regulator_data *regl = rdev_get_drvdata(rdev);
+	struct regmap *rmap = rdev_get_regmap(rdev);
+
+	return regmap_update_bits(rmap, regl->suspend_enable_reg,
+				  regl->suspend_enable_mask, 0);
+}
+
+static int pf8x00_set_suspend_voltage(struct regulator_dev *rdev, int uV)
+{
+	struct pf8x00_regulator_data *regl = rdev_get_drvdata(rdev);
+	int ret;
+
+	if (regl->suspend_voltage_cache == uV)
+		return 0;
+
+	ret = regulator_map_voltage_iterate(rdev, uV, uV);
+	if (ret < 0) {
+		dev_err(rdev_get_dev(rdev), "failed to map %i uV\n", uV);
+		return ret;
+	}
+
+	dev_dbg(rdev_get_dev(rdev), "uV: %i, reg: 0x%x, msk: 0x%x, val: 0x%x\n",
+		uV, regl->suspend_voltage_reg, regl->desc.vsel_mask, ret);
+	ret = regmap_update_bits(rdev->regmap, regl->suspend_voltage_reg,
+				 regl->desc.vsel_mask, ret);
+	if (ret < 0) {
+		dev_err(rdev_get_dev(rdev), "failed to set %i uV\n", uV);
+		return ret;
+	}
+
+	regl->suspend_voltage_cache = uV;
+
+	return 0;
+}
+
 static const struct regulator_ops pf8x00_ldo_ops = {
 	.enable = regulator_enable_regmap,
 	.disable = regulator_disable_regmap,
@@ -283,6 +334,9 @@ static const struct regulator_ops pf8x00_ldo_ops = {
 	.list_voltage = regulator_list_voltage_table,
 	.set_voltage_sel = regulator_set_voltage_sel_regmap,
 	.get_voltage_sel = regulator_get_voltage_sel_regmap,
+	.set_suspend_enable = pf8x00_suspend_enable,
+	.set_suspend_disable = pf8x00_suspend_disable,
+	.set_suspend_voltage = pf8x00_set_suspend_voltage,
 };
 
 
@@ -295,6 +349,9 @@ static const struct regulator_ops pf8x00_buck1_6_ops = {
 	.get_voltage_sel = regulator_get_voltage_sel_regmap,
 	.get_current_limit = regulator_get_current_limit_regmap,
 	.set_current_limit = regulator_set_current_limit_regmap,
+	.set_suspend_enable = pf8x00_suspend_enable,
+	.set_suspend_disable = pf8x00_suspend_disable,
+	.set_suspend_voltage = pf8x00_set_suspend_voltage,
 };
 
 static const struct regulator_ops pf8x00_buck7_ops = {
@@ -306,6 +363,8 @@ static const struct regulator_ops pf8x00_buck7_ops = {
 	.get_voltage_sel = regulator_get_voltage_sel_regmap,
 	.get_current_limit = regulator_get_current_limit_regmap,
 	.set_current_limit = regulator_set_current_limit_regmap,
+	.set_suspend_enable = pf8x00_suspend_enable,
+	.set_suspend_disable = pf8x00_suspend_disable,
 };
 
 static const struct regulator_ops pf8x00_vsnvs_ops = {
@@ -337,6 +396,9 @@ static const struct regulator_ops pf8x00_vsnvs_ops = {
 			.disable_val = 0x0,			\
 			.enable_mask = 2,			\
 		},						\
+		.suspend_enable_reg = (base) + LDO_CONFIG2,	\
+		.suspend_enable_mask = 1,			\
+		.suspend_voltage_reg = (base) + LDO_STBY_VOLT,	\
 	}
 
 #define PF8X00BUCK(_id, _name, base, voltages)			\
@@ -367,6 +429,9 @@ static const struct regulator_ops pf8x00_vsnvs_ops = {
 			.enable_mask = 0x3,			\
 			.enable_time = 500,			\
 		},						\
+		.suspend_enable_reg = (base) + SW_MODE1,	\
+		.suspend_enable_mask = 0xc,			\
+		.suspend_voltage_reg = (base) + SW_STBY_VOLT,	\
 	}
 
 #define PF8X00BUCK7(_name, base, voltages)			\
@@ -415,7 +480,7 @@ static const struct regulator_ops pf8x00_vsnvs_ops = {
 		},						\
 	}
 
-static struct pf8x00_regulator pf8x00_regulators_data[PF8X00_MAX_REGULATORS] = {
+static struct pf8x00_regulator_data pf8x00_regs_data[PF8X00_MAX_REGULATORS] = {
 	PF8X00LDO(1, "ldo1", PF8X00_LDO_BASE(PF8X00_LDO1), pf8x00_ldo_voltages),
 	PF8X00LDO(2, "ldo2", PF8X00_LDO_BASE(PF8X00_LDO2), pf8x00_ldo_voltages),
 	PF8X00LDO(3, "ldo3", PF8X00_LDO_BASE(PF8X00_LDO3), pf8x00_ldo_voltages),
@@ -500,12 +565,12 @@ static int pf8x00_i2c_probe(struct i2c_client *client)
 	if (ret)
 		return ret;
 
-	for (id = 0; id < ARRAY_SIZE(pf8x00_regulators_data); id++) {
-		struct pf8x00_regulator *data = &pf8x00_regulators_data[id];
+	for (id = 0; id < ARRAY_SIZE(pf8x00_regs_data); id++) {
+		struct pf8x00_regulator_data *data = &pf8x00_regs_data[id];
 		struct regulator_dev *rdev;
 
 		config.dev = chip->dev;
-		config.driver_data = chip;
+		config.driver_data = data;
 		config.regmap = chip->regmap;
 
 		rdev = devm_regulator_register(&client->dev, &data->desc, &config);
