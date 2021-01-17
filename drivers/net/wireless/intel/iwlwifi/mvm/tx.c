@@ -263,17 +263,20 @@ static u32 iwl_mvm_get_tx_ant(struct iwl_mvm *mvm,
 
 static u32 iwl_mvm_get_tx_rate(struct iwl_mvm *mvm,
 			       struct ieee80211_tx_info *info,
-			       struct ieee80211_sta *sta)
+			       struct ieee80211_sta *sta, __le16 fc)
 {
 	int rate_idx;
 	u8 rate_plcp;
 	u32 rate_flags = 0;
+	struct iwl_mvm_sta *mvmsta = iwl_mvm_sta_from_mac80211(sta);
 
 	/* HT rate doesn't make sense for a non data frame */
-	WARN_ONCE(info->control.rates[0].flags & IEEE80211_TX_RC_MCS,
-		  "Got an HT rate (flags:0x%x/mcs:%d) for a non data frame\n",
+	WARN_ONCE(info->control.rates[0].flags & IEEE80211_TX_RC_MCS &&
+		  !ieee80211_is_data(fc),
+		  "Got a HT rate (flags:0x%x/mcs:%d/fc:0x%x/state:%d) for a non data frame\n",
 		  info->control.rates[0].flags,
-		  info->control.rates[0].idx);
+		  info->control.rates[0].idx,
+		  le16_to_cpu(fc), mvmsta->sta_state);
 
 	rate_idx = info->control.rates[0].idx;
 	/* if the rate isn't a well known legacy rate, take the lowest one */
@@ -305,7 +308,7 @@ static u32 iwl_mvm_get_tx_rate_n_flags(struct iwl_mvm *mvm,
 				       struct ieee80211_tx_info *info,
 				       struct ieee80211_sta *sta, __le16 fc)
 {
-	return iwl_mvm_get_tx_rate(mvm, info, sta) |
+	return iwl_mvm_get_tx_rate(mvm, info, sta, fc) |
 		iwl_mvm_get_tx_ant(mvm, info, sta, fc);
 }
 
