@@ -331,6 +331,8 @@ struct hl_info_dram_usage {
 	__u64 ctx_dram_mem;
 };
 
+#define HL_BUSY_ENGINES_MASK_EXT_SIZE	2
+
 struct hl_info_hw_idle {
 	__u32 is_idle;
 	/*
@@ -343,7 +345,7 @@ struct hl_info_hw_idle {
 	 * Extended Bitmask of busy engines.
 	 * Bits definition is according to `enum <chip>_enging_id'.
 	 */
-	__u64 busy_engines_mask_ext;
+	__u64 busy_engines_mask_ext[HL_BUSY_ENGINES_MASK_EXT_SIZE];
 };
 
 struct hl_info_device_status {

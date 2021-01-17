@@ -414,7 +414,7 @@ static int engines_show(struct seq_file *s, void *data)
 		return 0;
 	}
 
-	hdev->asic_funcs->is_device_idle(hdev, NULL, s);
+	hdev->asic_funcs->is_device_idle(hdev, NULL, 0, s);
 
 	return 0;
 }
