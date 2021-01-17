@@ -247,6 +247,7 @@ static void mt7601u_complete_tx(struct urb *urb)
 	case -ECONNRESET:
 	case -ESHUTDOWN:
 	case -ENOENT:
+	case -EPROTO:
 		return;
 	default:
 		dev_err_ratelimited(dev->dev, "tx urb failed: %d\n",
