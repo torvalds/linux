@@ -580,7 +580,7 @@ static int bch2_gc_done(struct bch_fs *c,
 		if (verify)						\
 			fsck_err(c, "stripe %zu has wrong "_msg		\
 				": got %u, should be %u",		\
-				dst_iter.pos, ##__VA_ARGS__,		\
+				iter.pos, ##__VA_ARGS__,		\
 				dst->_f, src->_f);			\
 		dst->_f = src->_f;					\
 		dst->dirty = true;					\
@@ -603,13 +603,11 @@ static int bch2_gc_done(struct bch_fs *c,
 	copy_field(_f, "fs has wrong " _msg, ##__VA_ARGS__)
 
 	if (!metadata_only) {
-		struct genradix_iter dst_iter = genradix_iter_init(&c->stripes[0], 0);
-		struct genradix_iter src_iter = genradix_iter_init(&c->stripes[1], 0);
+		struct genradix_iter iter = genradix_iter_init(&c->stripes[1], 0);
 		struct stripe *dst, *src;
 
-		while ((dst = genradix_iter_peek(&dst_iter, &c->stripes[0])) &&
-		       (src = genradix_iter_peek(&src_iter, &c->stripes[1]))) {
-			BUG_ON(src_iter.pos != dst_iter.pos);
+		while ((src = genradix_iter_peek(&iter, &c->stripes[1]))) {
+			dst = genradix_ptr_alloc(&c->stripes[0], iter.pos, GFP_KERNEL);
 
 			copy_stripe_field(alive,	"alive");
 			copy_stripe_field(sectors,	"sectors");
@@ -623,8 +621,7 @@ static int bch2_gc_done(struct bch_fs *c,
 				copy_stripe_field(block_sectors[i],
 						  "block_sectors[%u]", i);
 
-			genradix_iter_advance(&dst_iter, &c->stripes[0]);
-			genradix_iter_advance(&src_iter, &c->stripes[1]);
+			genradix_iter_advance(&iter, &c->stripes[1]);
 		}
 	}
 
