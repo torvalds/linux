@@ -113,7 +113,7 @@ static struct net_device *get_netdev_for_sock(struct sock *sk)
 	struct net_device *netdev = NULL;
 
 	if (likely(dst)) {
-		netdev = dst->dev;
+		netdev = netdev_sk_get_lowest_dev(dst->dev, sk);
 		dev_hold(netdev);
 	}
 
