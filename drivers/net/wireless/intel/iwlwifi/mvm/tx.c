@@ -1840,6 +1840,7 @@ out:
 void iwl_mvm_rx_ba_notif(struct iwl_mvm *mvm, struct iwl_rx_cmd_buffer *rxb)
 {
 	struct iwl_rx_packet *pkt = rxb_addr(rxb);
+	unsigned int pkt_len = iwl_rx_packet_payload_len(pkt);
 	int sta_id, tid, txq, index;
 	struct ieee80211_tx_info ba_info = {};
 	struct iwl_mvm_ba_notif *ba_notif;
@@ -1852,7 +1853,11 @@ void iwl_mvm_rx_ba_notif(struct iwl_mvm *mvm, struct iwl_rx_cmd_buffer *rxb)
 		struct iwl_mvm_compressed_ba_notif *ba_res =
 			(void *)pkt->data;
 		u8 lq_color = TX_RES_RATE_TABLE_COL_GET(ba_res->tlc_rate_info);
+		u16 tfd_cnt;
 		int i;
+
+		if (unlikely(sizeof(*ba_res) > pkt_len))
+			return;
 
 		sta_id = ba_res->sta_id;
 		ba_info.status.ampdu_ack_len = (u8)le16_to_cpu(ba_res->done);
@@ -1862,8 +1867,9 @@ void iwl_mvm_rx_ba_notif(struct iwl_mvm *mvm, struct iwl_rx_cmd_buffer *rxb)
 		ba_info.status.status_driver_data[0] =
 			(void *)(uintptr_t)ba_res->reduced_txp;
 
-		if (!le16_to_cpu(ba_res->tfd_cnt))
-			goto out;
+		tfd_cnt = le16_to_cpu(ba_res->tfd_cnt);
+		if (!tfd_cnt || struct_size(ba_res, tfd, tfd_cnt) > pkt_len)
+			return;
 
 		rcu_read_lock();
 
@@ -1878,7 +1884,7 @@ void iwl_mvm_rx_ba_notif(struct iwl_mvm *mvm, struct iwl_rx_cmd_buffer *rxb)
 		 */
 
 		/* Free per TID */
-		for (i = 0; i < le16_to_cpu(ba_res->tfd_cnt); i++) {
+		for (i = 0; i < tfd_cnt; i++) {
 			struct iwl_mvm_compressed_ba_tfd *ba_tfd =
 				&ba_res->tfd[i];
 
@@ -1900,7 +1906,7 @@ void iwl_mvm_rx_ba_notif(struct iwl_mvm *mvm, struct iwl_rx_cmd_buffer *rxb)
 			iwl_mvm_tx_airtime(mvm, mvmsta,
 					   le32_to_cpu(ba_res->wireless_time));
 		rcu_read_unlock();
-out:
+
 		IWL_DEBUG_TX_REPLY(mvm,
 				   "BA_NOTIFICATION Received from sta_id = %d, flags %x, sent:%d, acked:%d\n",
 				   sta_id, le32_to_cpu(ba_res->flags),

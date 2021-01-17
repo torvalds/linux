@@ -156,12 +156,6 @@ void iwl_mvm_ct_kill_notif(struct iwl_mvm *mvm, struct iwl_rx_cmd_buffer *rxb)
 {
 	struct iwl_rx_packet *pkt = rxb_addr(rxb);
 	struct ct_kill_notif *notif;
-	int len = iwl_rx_packet_payload_len(pkt);
-
-	if (WARN_ON_ONCE(len != sizeof(*notif))) {
-		IWL_ERR(mvm, "Invalid CT_KILL_NOTIFICATION\n");
-		return;
-	}
 
 	notif = (struct ct_kill_notif *)pkt->data;
 	IWL_DEBUG_TEMP(mvm, "CT Kill notification temperature = %d\n",
