@@ -363,7 +363,6 @@ struct iwl_trans_pcie {
 	bool ucode_write_complete;
 	bool sx_complete;
 	wait_queue_head_t ucode_write_waitq;
-	wait_queue_head_t wait_command_queue;
 	wait_queue_head_t sx_waitq;
 
 	u8 def_rx_queue;
@@ -797,4 +796,8 @@ void iwl_trans_pcie_gen2_stop_device(struct iwl_trans *trans);
 void _iwl_trans_pcie_gen2_stop_device(struct iwl_trans *trans);
 void iwl_pcie_d3_complete_suspend(struct iwl_trans *trans,
 				  bool test, bool reset);
+int iwl_pcie_gen2_enqueue_hcmd(struct iwl_trans *trans,
+			       struct iwl_host_cmd *cmd);
+int iwl_pcie_enqueue_hcmd(struct iwl_trans *trans,
+			  struct iwl_host_cmd *cmd);
 #endif /* __iwl_trans_int_pcie_h__ */

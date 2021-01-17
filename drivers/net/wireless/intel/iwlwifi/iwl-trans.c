@@ -102,6 +102,9 @@ struct iwl_trans *iwl_trans_alloc(unsigned int priv_size,
 		return NULL;
 	}
 
+	/* Initialize the wait queue for commands */
+	init_waitqueue_head(&trans->wait_command_queue);
+
 	return trans;
 }
 
@@ -161,7 +164,7 @@ int iwl_trans_send_cmd(struct iwl_trans *trans, struct iwl_host_cmd *cmd)
 	if (trans->wide_cmd_header && !iwl_cmd_groupid(cmd->id))
 		cmd->id = DEF_ID(cmd->id);
 
-	ret = trans->ops->send_cmd(trans, cmd);
+	ret = iwl_trans_txq_send_hcmd(trans, cmd);
 
 	if (!(cmd->flags & CMD_ASYNC))
 		lock_map_release(&trans->sync_cmd_lockdep_map);
