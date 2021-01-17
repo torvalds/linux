@@ -649,7 +649,7 @@ static struct attribute *l2_cache_pmu_cpumask_attrs[] = {
 	NULL,
 };
 
-static struct attribute_group l2_cache_pmu_cpumask_group = {
+static const struct attribute_group l2_cache_pmu_cpumask_group = {
 	.attrs = l2_cache_pmu_cpumask_attrs,
 };
 
@@ -665,7 +665,7 @@ static struct attribute *l2_cache_pmu_formats[] = {
 	NULL,
 };
 
-static struct attribute_group l2_cache_pmu_format_group = {
+static const struct attribute_group l2_cache_pmu_format_group = {
 	.name = "format",
 	.attrs = l2_cache_pmu_formats,
 };
@@ -700,7 +700,7 @@ static struct attribute *l2_cache_pmu_events[] = {
 	NULL
 };
 
-static struct attribute_group l2_cache_pmu_events_group = {
+static const struct attribute_group l2_cache_pmu_events_group = {
 	.name = "events",
 	.attrs = l2_cache_pmu_events,
 };
