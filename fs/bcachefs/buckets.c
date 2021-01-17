@@ -1273,9 +1273,15 @@ static int bch2_mark_stripe(struct bch_fs *c,
 		m->blocks_nonempty = 0;
 
 		for (i = 0; i < new_s->nr_blocks; i++) {
-			m->block_sectors[i] =
-				stripe_blockcount_get(new_s, i);
-			m->blocks_nonempty += !!m->block_sectors[i];
+			unsigned s = stripe_blockcount_get(new_s, i);
+
+			/*
+			 * gc recalculates this field from stripe ptr
+			 * references:
+			 */
+			if (!gc)
+				m->block_sectors[i] = s;
+			m->blocks_nonempty += !!s;
 		}
 
 		if (gc && old_s)
