@@ -832,6 +832,36 @@ struct ieee80211_vif *iwl_mvm_get_bss_vif(struct iwl_mvm *mvm)
 	return bss_iter_data.vif;
 }
 
+struct iwl_bss_find_iter_data {
+	struct ieee80211_vif *vif;
+	u32 macid;
+};
+
+static void iwl_mvm_bss_find_iface_iterator(void *_data, u8 *mac,
+					    struct ieee80211_vif *vif)
+{
+	struct iwl_bss_find_iter_data *data = _data;
+	struct iwl_mvm_vif *mvmvif = iwl_mvm_vif_from_mac80211(vif);
+
+	if (mvmvif->id == data->macid)
+		data->vif = vif;
+}
+
+struct ieee80211_vif *iwl_mvm_get_vif_by_macid(struct iwl_mvm *mvm, u32 macid)
+{
+	struct iwl_bss_find_iter_data data = {
+		.macid = macid,
+	};
+
+	lockdep_assert_held(&mvm->mutex);
+
+	ieee80211_iterate_active_interfaces_atomic(
+		mvm->hw, IEEE80211_IFACE_ITER_NORMAL,
+		iwl_mvm_bss_find_iface_iterator, &data);
+
+	return data.vif;
+}
+
 struct iwl_sta_iter_data {
 	bool assoc;
 };

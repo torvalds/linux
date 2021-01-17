@@ -146,6 +146,70 @@ static void iwl_mvm_nic_config(struct iwl_op_mode *op_mode)
 				       ~APMG_PS_CTRL_EARLY_PWR_OFF_RESET_DIS);
 }
 
+static void iwl_mvm_rx_monitor_notif(struct iwl_mvm *mvm,
+				     struct iwl_rx_cmd_buffer *rxb)
+{
+	struct iwl_rx_packet *pkt = rxb_addr(rxb);
+	struct iwl_datapath_monitor_notif *notif = (void *)pkt->data;
+	struct ieee80211_supported_band *sband;
+	const struct ieee80211_sta_he_cap *he_cap;
+	struct ieee80211_vif *vif;
+
+	if (notif->type != cpu_to_le32(IWL_DP_MON_NOTIF_TYPE_EXT_CCA))
+		return;
+
+	vif = iwl_mvm_get_vif_by_macid(mvm, notif->mac_id);
+	if (!vif || vif->type != NL80211_IFTYPE_STATION)
+		return;
+
+	if (!vif->bss_conf.chandef.chan ||
+	    vif->bss_conf.chandef.chan->band != NL80211_BAND_2GHZ ||
+	    vif->bss_conf.chandef.width < NL80211_CHAN_WIDTH_40)
+		return;
+
+	if (!vif->bss_conf.assoc)
+		return;
+
+	/* this shouldn't happen *again*, ignore it */
+	if (mvm->cca_40mhz_workaround)
+		return;
+
+	/*
+	 * We'll decrement this on disconnect - so set to 2 since we'll
+	 * still have to disconnect from the current AP first.
+	 */
+	mvm->cca_40mhz_workaround = 2;
+
+	/*
+	 * This capability manipulation isn't really ideal, but it's the
+	 * easiest choice - otherwise we'd have to do some major changes
+	 * in mac80211 to support this, which isn't worth it. This does
+	 * mean that userspace may have outdated information, but that's
+	 * actually not an issue at all.
+	 */
+	sband = mvm->hw->wiphy->bands[NL80211_BAND_2GHZ];
+
+	WARN_ON(!sband->ht_cap.ht_supported);
+	WARN_ON(!(sband->ht_cap.cap & IEEE80211_HT_CAP_SUP_WIDTH_20_40));
+	sband->ht_cap.cap &= ~IEEE80211_HT_CAP_SUP_WIDTH_20_40;
+
+	he_cap = ieee80211_get_he_iftype_cap(sband,
+					     ieee80211_vif_type_p2p(vif));
+
+	if (he_cap) {
+		/* we know that ours is writable */
+		struct ieee80211_sta_he_cap *he = (void *)he_cap;
+
+		WARN_ON(!he->has_he);
+		WARN_ON(!(he->he_cap_elem.phy_cap_info[0] &
+				IEEE80211_HE_PHY_CAP0_CHANNEL_WIDTH_SET_40MHZ_IN_2G));
+		he->he_cap_elem.phy_cap_info[0] &=
+			~IEEE80211_HE_PHY_CAP0_CHANNEL_WIDTH_SET_40MHZ_IN_2G;
+	}
+
+	ieee80211_disconnect(vif, true);
+}
+
 /**
  * enum iwl_rx_handler_context context for Rx handler
  * @RX_HANDLER_SYNC : this means that it will be called in the Rx path
@@ -291,6 +355,9 @@ static const struct iwl_rx_handlers iwl_mvm_rx_handlers[] = {
 	RX_HANDLER_GRP(MAC_CONF_GROUP, CHANNEL_SWITCH_NOA_NOTIF,
 		       iwl_mvm_channel_switch_noa_notif,
 		       RX_HANDLER_SYNC, struct iwl_channel_switch_noa_notif),
+	RX_HANDLER_GRP(DATA_PATH_GROUP, MONITOR_NOTIF,
+		       iwl_mvm_rx_monitor_notif, RX_HANDLER_ASYNC_LOCKED,
+		       struct iwl_datapath_monitor_notif),
 };
 #undef RX_HANDLER
 #undef RX_HANDLER_GRP
@@ -435,6 +502,7 @@ static const struct iwl_hcmd_names iwl_mvm_data_path_names[] = {
 	HCMD_NAME(RFH_QUEUE_CONFIG_CMD),
 	HCMD_NAME(TLC_MNG_CONFIG_CMD),
 	HCMD_NAME(CHEST_COLLECTOR_FILTER_CONFIG_CMD),
+	HCMD_NAME(MONITOR_NOTIF),
 	HCMD_NAME(STA_PM_NOTIF),
 	HCMD_NAME(MU_GROUP_MGMT_NOTIF),
 	HCMD_NAME(RX_QUEUES_NOTIFICATION),

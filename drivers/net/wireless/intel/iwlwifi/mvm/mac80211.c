@@ -3009,6 +3009,39 @@ static void iwl_mvm_check_he_obss_narrow_bw_ru(struct ieee80211_hw *hw,
 	mvmvif->he_ru_2mhz_block = !iter_data.tolerated;
 }
 
+static void iwl_mvm_reset_cca_40mhz_workaround(struct iwl_mvm *mvm,
+					       struct ieee80211_vif *vif)
+{
+	struct ieee80211_supported_band *sband;
+	const struct ieee80211_sta_he_cap *he_cap;
+
+	if (vif->type != NL80211_IFTYPE_STATION)
+		return;
+
+	if (!mvm->cca_40mhz_workaround)
+		return;
+
+	/* decrement and check that we reached zero */
+	mvm->cca_40mhz_workaround--;
+	if (mvm->cca_40mhz_workaround)
+		return;
+
+	sband = mvm->hw->wiphy->bands[NL80211_BAND_2GHZ];
+
+	sband->ht_cap.cap |= IEEE80211_HT_CAP_SUP_WIDTH_20_40;
+
+	he_cap = ieee80211_get_he_iftype_cap(sband,
+					     ieee80211_vif_type_p2p(vif));
+
+	if (he_cap) {
+		/* we know that ours is writable */
+		struct ieee80211_sta_he_cap *he = (void *)he_cap;
+
+		he->he_cap_elem.phy_cap_info[0] |=
+			IEEE80211_HE_PHY_CAP0_CHANNEL_WIDTH_SET_40MHZ_IN_2G;
+	}
+}
+
 static int iwl_mvm_mac_sta_state(struct ieee80211_hw *hw,
 				 struct ieee80211_vif *vif,
 				 struct ieee80211_sta *sta,
@@ -3048,6 +3081,12 @@ static int iwl_mvm_mac_sta_state(struct ieee80211_hw *hw,
 		 * No need to make sure deferred TX indication is off since the
 		 * worker will already remove it if it was on
 		 */
+
+		/*
+		 * Additionally, reset the 40 MHz capability if we disconnected
+		 * from the AP now.
+		 */
+		iwl_mvm_reset_cca_40mhz_workaround(mvm, vif);
 	}
 
 	mutex_lock(&mvm->mutex);
