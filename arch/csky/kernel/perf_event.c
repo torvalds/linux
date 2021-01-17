@@ -87,7 +87,7 @@ static int csky_pmu_irq;
 })
 
 /* cycle counter */
-static uint64_t csky_pmu_read_cc(void)
+uint64_t csky_pmu_read_cc(void)
 {
 	uint32_t lo, hi, tmp;
 	uint64_t result;

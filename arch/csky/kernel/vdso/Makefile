@@ -6,12 +6,17 @@ ARCH_REL_TYPE_ABS := R_CKCORE_ADDR32|R_CKCORE_JUMP_SLOT
 include $(srctree)/lib/vdso/Makefile
 
 # Symbols present in the vdso
-vdso-syms  = rt_sigreturn
+vdso-syms  += rt_sigreturn
+vdso-syms  += vgettimeofday
 
 # Files to link into the vdso
 obj-vdso = $(patsubst %, %.o, $(vdso-syms)) note.o
 
-ccflags-y := -fno-stack-protector
+ifneq ($(c-gettimeofday-y),)
+	CFLAGS_vgettimeofday.o += -include $(c-gettimeofday-y)
+endif
+
+ccflags-y := -fno-stack-protector -DBUILD_VDSO32
 
 # Build rules
 targets := $(obj-vdso) vdso.so vdso.so.dbg vdso.lds vdso-dummy.o

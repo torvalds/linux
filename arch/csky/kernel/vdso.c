@@ -8,7 +8,11 @@
 #include <linux/slab.h>
 
 #include <asm/page.h>
+#ifdef GENERIC_TIME_VSYSCALL
+#include <vdso/datapage.h>
+#else
 #include <asm/vdso.h>
+#endif
 
 extern char vdso_start[], vdso_end[];
 
