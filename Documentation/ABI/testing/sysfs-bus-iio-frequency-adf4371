@@ -34,11 +34,3 @@ Description:
 		  out_altvoltage2_name: RF16x
 		  out_altvoltage3_name: RF32x
 
-What:		/sys/bus/iio/devices/iio:deviceX/out_altvoltageY_powerdown
-KernelVersion:
-Contact:	linux-iio@vger.kernel.org
-Description:
-		This attribute allows the user to power down the PLL and it's
-		RFOut buffers.
-		Writing 1 causes the specified channel to power down.
-		Clearing returns to normal operation.
