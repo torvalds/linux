@@ -345,7 +345,7 @@ https://bugzilla.kernel.org 는 리눅스 커널 개발자들이 커널의 버�
 
     https://bugzilla.kernel.org/page.cgi?id=faq.html
 
-메인 커널 소스 디렉토리에 있는 :ref:`admin-guide/reporting-bugs.rst <reportingbugs>`
+메인 커널 소스 디렉토리에 있는 'Documentation/admin-guide/reporting-issues.rst'
 파일은 커널 버그라고 생각되는 것을 보고하는 방법에 관한 좋은 템플릿이며 문제를
 추적하기 위해서 커널 개발자들이 필요로 하는 정보가 무엇들인지를 상세히 설명하고
 있다.
