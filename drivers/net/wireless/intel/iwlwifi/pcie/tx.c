@@ -393,7 +393,7 @@ static void iwl_pcie_tx_stop_fh(struct iwl_trans *trans)
 	int ch, ret;
 	u32 mask = 0;
 
-	spin_lock(&trans_pcie->irq_lock);
+	spin_lock_bh(&trans_pcie->irq_lock);
 
 	if (!iwl_trans_grab_nic_access(trans, &flags))
 		goto out;
@@ -414,7 +414,7 @@ static void iwl_pcie_tx_stop_fh(struct iwl_trans *trans)
 	iwl_trans_release_nic_access(trans, &flags);
 
 out:
-	spin_unlock(&trans_pcie->irq_lock);
+	spin_unlock_bh(&trans_pcie->irq_lock);
 }
 
 /*
@@ -571,7 +571,7 @@ int iwl_pcie_tx_init(struct iwl_trans *trans)
 		alloc = true;
 	}
 
-	spin_lock(&trans_pcie->irq_lock);
+	spin_lock_bh(&trans_pcie->irq_lock);
 
 	/* Turn off all Tx DMA fifos */
 	iwl_scd_deactivate_fifos(trans);
@@ -580,7 +580,7 @@ int iwl_pcie_tx_init(struct iwl_trans *trans)
 	iwl_write_direct32(trans, FH_KW_MEM_ADDR_REG,
 			   trans_pcie->kw.dma >> 4);
 
-	spin_unlock(&trans_pcie->irq_lock);
+	spin_unlock_bh(&trans_pcie->irq_lock);
 
 	/* Alloc and init all Tx queues, including the command queue (#4/#9) */
 	for (txq_id = 0; txq_id < trans->trans_cfg->base_params->num_of_queues;
