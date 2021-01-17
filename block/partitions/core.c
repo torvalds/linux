@@ -384,7 +384,7 @@ static struct block_device *add_partition(struct gendisk *disk, int partno,
 
 	err = blk_alloc_devt(bdev, &devt);
 	if (err)
-		goto out_bdput;
+		goto out_put;
 	pdev->devt = devt;
 
 	/* delay uevent until 'holders' subdir is created */
