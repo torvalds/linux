@@ -3,6 +3,14 @@
 
 #include "en/ptp.h"
 #include "en/txrx.h"
+#include "en/params.h"
+
+#define MLX5E_PTP_CHANNEL_IX 0
+
+struct mlx5e_ptp_params {
+	struct mlx5e_params params;
+	struct mlx5e_sq_param txq_sq_param;
+};
 
 struct mlx5e_skb_cb_hwtstamp {
 	ktime_t cqe_hwtstamp;
@@ -171,7 +179,7 @@ static int mlx5e_ptp_alloc_txqsq(struct mlx5e_ptp *c, int txq_ix,
 	sq->netdev    = c->netdev;
 	sq->priv      = c->priv;
 	sq->mdev      = mdev;
-	sq->ch_ix     = c->ix;
+	sq->ch_ix     = MLX5E_PTP_CHANNEL_IX;
 	sq->txq_ix    = txq_ix;
 	sq->uar_map   = mdev->mlx5e_res.hw_objs.bfreg.map;
 	sq->min_inline_mode = params->tx_min_inline_mode;
@@ -339,7 +347,7 @@ static int mlx5e_ptp_open_cqs(struct mlx5e_ptp *c,
 	ccp.node     = dev_to_node(mlx5_core_dma_dev(c->mdev));
 	ccp.ch_stats = c->stats;
 	ccp.napi     = &c->napi;
-	ccp.ix       = c->ix;
+	ccp.ix       = MLX5E_PTP_CHANNEL_IX;
 
 	cq_param = &cparams->txq_sq_param.cqp;
 
@@ -453,13 +461,8 @@ int mlx5e_ptp_open(struct mlx5e_priv *priv, struct mlx5e_params *params,
 	struct mlx5_core_dev *mdev = priv->mdev;
 	struct mlx5e_ptp_params *cparams;
 	struct mlx5e_ptp *c;
-	unsigned int irq;
 	int err;
-	int eqn;
 
-	err = mlx5_vector2eqn(priv->mdev, 0, &eqn, &irq);
-	if (err)
-		return err;
 
 	c = kvzalloc_node(sizeof(*c), GFP_KERNEL, dev_to_node(mlx5_core_dma_dev(mdev)));
 	cparams = kvzalloc(sizeof(*cparams), GFP_KERNEL);
@@ -469,7 +472,6 @@ int mlx5e_ptp_open(struct mlx5e_priv *priv, struct mlx5e_params *params,
 	c->priv     = priv;
 	c->mdev     = priv->mdev;
 	c->tstamp   = &priv->tstamp;
-	c->ix       = 0;
 	c->pdev     = mlx5_core_dma_dev(priv->mdev);
 	c->netdev   = priv->netdev;
 	c->mkey_be  = cpu_to_be32(priv->mdev->mlx5e_res.hw_objs.mkey.key);

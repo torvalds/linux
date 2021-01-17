@@ -5,7 +5,6 @@
 #define __MLX5_EN_PTP_H__
 
 #include "en.h"
-#include "en/params.h"
 #include "en_stats.h"
 
 struct mlx5e_ptpsq {
@@ -34,13 +33,6 @@ struct mlx5e_ptp {
 	struct mlx5e_priv         *priv;
 	struct mlx5_core_dev      *mdev;
 	struct hwtstamp_config    *tstamp;
-	DECLARE_BITMAP(state, MLX5E_CHANNEL_NUM_STATES);
-	int                        ix;
-};
-
-struct mlx5e_ptp_params {
-	struct mlx5e_params        params;
-	struct mlx5e_sq_param      txq_sq_param;
 };
 
 int mlx5e_ptp_open(struct mlx5e_priv *priv, struct mlx5e_params *params,
