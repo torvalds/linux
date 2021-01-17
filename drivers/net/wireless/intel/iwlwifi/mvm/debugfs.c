@@ -1169,9 +1169,9 @@ static ssize_t iwl_dbgfs_inject_packet_write(struct iwl_mvm *mvm,
 	if (ret)
 		goto out;
 
-	/* avoid invalid memory access */
+	/* avoid invalid memory access and malformed packet */
 	if (bin_len < sizeof(*pkt) ||
-	    bin_len < sizeof(*pkt) + iwl_rx_packet_payload_len(pkt))
+	    bin_len != sizeof(*pkt) + iwl_rx_packet_payload_len(pkt))
 		goto out;
 
 	local_bh_disable();
