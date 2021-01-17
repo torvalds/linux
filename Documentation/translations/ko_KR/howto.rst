@@ -583,7 +583,7 @@ Pat이라는 이름을 가진 여자가 있을 수도 있는 것이다. 리눅�
 
    "The Perfect Patch"
 
-    http://www.ozlabs.org/~akpm/stuff/tpp.txt
+    https://www.ozlabs.org/~akpm/stuff/tpp.txt
 
 
 이 모든 것을 하는 것은 매우 어려운 일이다. 완벽히 소화하는 데는 적어도 몇년이
