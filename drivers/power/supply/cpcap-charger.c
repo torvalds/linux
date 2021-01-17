@@ -318,7 +318,7 @@ static int cpcap_charger_current_to_regval(int microamp)
 		return CPCAP_REG_CRM_ICHRG(0x0);
 	if (miliamp < 177)
 		return CPCAP_REG_CRM_ICHRG(0x1);
-	if (miliamp > 1596)
+	if (miliamp >= 1596)
 		return CPCAP_REG_CRM_ICHRG(0xe);
 
 	res = microamp / 88666;
