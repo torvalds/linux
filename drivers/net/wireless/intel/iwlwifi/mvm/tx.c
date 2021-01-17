@@ -1701,7 +1701,8 @@ void iwl_mvm_rx_tx_cmd(struct iwl_mvm *mvm, struct iwl_rx_cmd_buffer *rxb)
 
 static void iwl_mvm_tx_reclaim(struct iwl_mvm *mvm, int sta_id, int tid,
 			       int txq, int index,
-			       struct ieee80211_tx_info *ba_info, u32 rate)
+			       struct ieee80211_tx_info *tx_info, u32 rate,
+			       bool is_flush)
 {
 	struct sk_buff_head reclaimed_skbs;
 	struct iwl_mvm_tid_data *tid_data = NULL;
@@ -1744,7 +1745,8 @@ static void iwl_mvm_tx_reclaim(struct iwl_mvm *mvm, int sta_id, int tid,
 		 * frames because before failing a frame the firmware transmits
 		 * it without aggregation at least once.
 		 */
-		info->flags |= IEEE80211_TX_STAT_ACK;
+		if (!is_flush)
+			info->flags |= IEEE80211_TX_STAT_ACK;
 	}
 
 	/*
@@ -1763,7 +1765,7 @@ static void iwl_mvm_tx_reclaim(struct iwl_mvm *mvm, int sta_id, int tid,
 
 	if (tid_data->txq_id != txq) {
 		IWL_ERR(mvm,
-			"invalid BA notification: Q %d, tid %d\n",
+			"invalid reclaim request: Q %d, tid %d\n",
 			tid_data->txq_id, tid);
 		rcu_read_unlock();
 		return;
@@ -1778,26 +1780,28 @@ static void iwl_mvm_tx_reclaim(struct iwl_mvm *mvm, int sta_id, int tid,
 	freed = 0;
 
 	/* pack lq color from tid_data along the reduced txp */
-	ba_info->status.status_driver_data[0] =
+	tx_info->status.status_driver_data[0] =
 		RS_DRV_DATA_PACK(tid_data->lq_color,
-				 ba_info->status.status_driver_data[0]);
-	ba_info->status.status_driver_data[1] = (void *)(uintptr_t)rate;
+				 tx_info->status.status_driver_data[0]);
+	tx_info->status.status_driver_data[1] = (void *)(uintptr_t)rate;
 
 	skb_queue_walk(&reclaimed_skbs, skb) {
 		struct ieee80211_hdr *hdr = (void *)skb->data;
 		struct ieee80211_tx_info *info = IEEE80211_SKB_CB(skb);
 
-		if (ieee80211_is_data_qos(hdr->frame_control))
-			freed++;
-		else
-			WARN_ON_ONCE(tid != IWL_MAX_TID_COUNT);
+		if (!is_flush) {
+			if (ieee80211_is_data_qos(hdr->frame_control))
+				freed++;
+			else
+				WARN_ON_ONCE(tid != IWL_MAX_TID_COUNT);
+		}
 
 		/* this is the first skb we deliver in this batch */
 		/* put the rate scaling data there */
 		if (freed == 1) {
 			info->flags |= IEEE80211_TX_STAT_AMPDU;
-			memcpy(&info->status, &ba_info->status,
-			       sizeof(ba_info->status));
+			memcpy(&info->status, &tx_info->status,
+			       sizeof(tx_info->status));
 			iwl_mvm_hwrate_to_tx_status(rate, info);
 		}
 	}
@@ -1808,7 +1812,7 @@ static void iwl_mvm_tx_reclaim(struct iwl_mvm *mvm, int sta_id, int tid,
 	 * possible (i.e. first MPDU in the aggregation wasn't acked)
 	 * Still it's important to update RS about sent vs. acked.
 	 */
-	if (skb_queue_empty(&reclaimed_skbs)) {
+	if (!is_flush && skb_queue_empty(&reclaimed_skbs)) {
 		struct ieee80211_chanctx_conf *chanctx_conf = NULL;
 
 		if (mvmsta->vif)
@@ -1818,13 +1822,13 @@ static void iwl_mvm_tx_reclaim(struct iwl_mvm *mvm, int sta_id, int tid,
 		if (WARN_ON_ONCE(!chanctx_conf))
 			goto out;
 
-		ba_info->band = chanctx_conf->def.chan->band;
-		iwl_mvm_hwrate_to_tx_status(rate, ba_info);
+		tx_info->band = chanctx_conf->def.chan->band;
+		iwl_mvm_hwrate_to_tx_status(rate, tx_info);
 
 		if (!iwl_mvm_has_tlc_offload(mvm)) {
 			IWL_DEBUG_TX_REPLY(mvm,
 					   "No reclaim. Update rs directly\n");
-			iwl_mvm_rs_tx_status(mvm, sta, tid, ba_info, false);
+			iwl_mvm_rs_tx_status(mvm, sta, tid, tx_info, false);
 		}
 	}
 
@@ -1899,7 +1903,7 @@ void iwl_mvm_rx_ba_notif(struct iwl_mvm *mvm, struct iwl_rx_cmd_buffer *rxb)
 					   (int)(le16_to_cpu(ba_tfd->q_num)),
 					   le16_to_cpu(ba_tfd->tfd_index),
 					   &ba_info,
-					   le32_to_cpu(ba_res->tx_rate));
+					   le32_to_cpu(ba_res->tx_rate), false);
 		}
 
 		if (mvmsta)
@@ -1942,7 +1946,7 @@ void iwl_mvm_rx_ba_notif(struct iwl_mvm *mvm, struct iwl_rx_cmd_buffer *rxb)
 	rcu_read_unlock();
 
 	iwl_mvm_tx_reclaim(mvm, sta_id, tid, txq, index, &ba_info,
-			   tid_data->rate_n_flags);
+			   tid_data->rate_n_flags, false);
 
 	IWL_DEBUG_TX_REPLY(mvm,
 			   "BA_NOTIFICATION Received from %pM, sta_id = %d\n",
@@ -1966,7 +1970,7 @@ void iwl_mvm_rx_ba_notif(struct iwl_mvm *mvm, struct iwl_rx_cmd_buffer *rxb)
  * 2) flush the Tx path
  * 3) wait for the transport queues to be empty
  */
-int iwl_mvm_flush_tx_path(struct iwl_mvm *mvm, u32 tfd_msk, u32 flags)
+int iwl_mvm_flush_tx_path(struct iwl_mvm *mvm, u32 tfd_msk)
 {
 	int ret;
 	struct iwl_tx_path_flush_cmd_v1 flush_cmd = {
@@ -1975,29 +1979,89 @@ int iwl_mvm_flush_tx_path(struct iwl_mvm *mvm, u32 tfd_msk, u32 flags)
 	};
 
 	WARN_ON(iwl_mvm_has_new_tx_api(mvm));
-
-	ret = iwl_mvm_send_cmd_pdu(mvm, TXPATH_FLUSH, flags,
+	ret = iwl_mvm_send_cmd_pdu(mvm, TXPATH_FLUSH, 0,
 				   sizeof(flush_cmd), &flush_cmd);
 	if (ret)
 		IWL_ERR(mvm, "Failed to send flush command (%d)\n", ret);
 	return ret;
 }
 
-int iwl_mvm_flush_sta_tids(struct iwl_mvm *mvm, u32 sta_id,
-			   u16 tids, u32 flags)
+int iwl_mvm_flush_sta_tids(struct iwl_mvm *mvm, u32 sta_id, u16 tids)
 {
 	int ret;
+	struct iwl_tx_path_flush_cmd_rsp *rsp;
 	struct iwl_tx_path_flush_cmd flush_cmd = {
 		.sta_id = cpu_to_le32(sta_id),
 		.tid_mask = cpu_to_le16(tids),
 	};
 
+	struct iwl_host_cmd cmd = {
+		.id = TXPATH_FLUSH,
+		.len = { sizeof(flush_cmd), },
+		.data = { &flush_cmd, },
+	};
+
 	WARN_ON(!iwl_mvm_has_new_tx_api(mvm));
 
-	ret = iwl_mvm_send_cmd_pdu(mvm, TXPATH_FLUSH, flags,
-				   sizeof(flush_cmd), &flush_cmd);
-	if (ret)
+	if (iwl_fw_lookup_notif_ver(mvm->fw, LONG_GROUP, TXPATH_FLUSH, 0) > 0)
+		cmd.flags |= CMD_WANT_SKB;
+
+	IWL_DEBUG_TX_QUEUES(mvm, "flush for sta id %d tid mask 0x%x\n",
+			    sta_id, tids);
+
+	ret = iwl_mvm_send_cmd(mvm, &cmd);
+
+	if (ret) {
 		IWL_ERR(mvm, "Failed to send flush command (%d)\n", ret);
+		return ret;
+	}
+
+	if (cmd.flags & CMD_WANT_SKB) {
+		int i;
+		int num_flushed_queues;
+
+		if (WARN_ON_ONCE(iwl_rx_packet_payload_len(cmd.resp_pkt) != sizeof(*rsp))) {
+			ret = -EIO;
+			goto free_rsp;
+		}
+
+		rsp = (void *)cmd.resp_pkt->data;
+
+		if (WARN_ONCE(le16_to_cpu(rsp->sta_id) != sta_id,
+			      "sta_id %d != rsp_sta_id %d",
+			      sta_id, le16_to_cpu(rsp->sta_id))) {
+			ret = -EIO;
+			goto free_rsp;
+		}
+
+		num_flushed_queues = le16_to_cpu(rsp->num_flushed_queues);
+		if (WARN_ONCE(num_flushed_queues > IWL_TX_FLUSH_QUEUE_RSP,
+			      "num_flushed_queues %d", num_flushed_queues)) {
+			ret = -EIO;
+			goto free_rsp;
+		}
+
+		for (i = 0; i < num_flushed_queues; i++) {
+			struct ieee80211_tx_info tx_info = {};
+			struct iwl_flush_queue_info *queue_info = &rsp->queues[i];
+			int tid = le16_to_cpu(queue_info->tid);
+			int read_before = le16_to_cpu(queue_info->read_before_flush);
+			int read_after = le16_to_cpu(queue_info->read_after_flush);
+			int queue_num = le16_to_cpu(queue_info->queue_num);
+
+			if (tid == IWL_MGMT_TID)
+				tid = IWL_MAX_TID_COUNT;
+
+			IWL_DEBUG_TX_QUEUES(mvm,
+					    "tid %d queue_id %d read-before %d read-after %d\n",
+					    tid, queue_num, read_before, read_after);
+
+			iwl_mvm_tx_reclaim(mvm, sta_id, tid, queue_num, read_after,
+					   &tx_info, 0, true);
+		}
+free_rsp:
+		iwl_free_resp(&cmd);
+	}
 	return ret;
 }
 
@@ -2010,10 +2074,10 @@ int iwl_mvm_flush_sta(struct iwl_mvm *mvm, void *sta, bool internal)
 		     offsetof(struct iwl_mvm_sta, sta_id));
 
 	if (iwl_mvm_has_new_tx_api(mvm))
-		return iwl_mvm_flush_sta_tids(mvm, mvm_sta->sta_id, 0xffff, 0);
+		return iwl_mvm_flush_sta_tids(mvm, mvm_sta->sta_id, 0xffff);
 
 	if (internal)
-		return iwl_mvm_flush_tx_path(mvm, int_sta->tfd_queue_msk, 0);
+		return iwl_mvm_flush_tx_path(mvm, int_sta->tfd_queue_msk);
 
-	return iwl_mvm_flush_tx_path(mvm, mvm_sta->tfd_queue_msk, 0);
+	return iwl_mvm_flush_tx_path(mvm, mvm_sta->tfd_queue_msk);
 }

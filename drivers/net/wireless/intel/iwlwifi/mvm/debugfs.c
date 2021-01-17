@@ -91,7 +91,7 @@ static ssize_t iwl_dbgfs_tx_flush_write(struct iwl_mvm *mvm, char *buf,
 				    "FLUSHING all tids queues on sta_id = %d\n",
 				    flush_arg);
 		mutex_lock(&mvm->mutex);
-		ret = iwl_mvm_flush_sta_tids(mvm, flush_arg, 0xFFFF, 0)
+		ret = iwl_mvm_flush_sta_tids(mvm, flush_arg, 0xFFFF)
 			? : count;
 		mutex_unlock(&mvm->mutex);
 		return ret;
@@ -101,7 +101,7 @@ static ssize_t iwl_dbgfs_tx_flush_write(struct iwl_mvm *mvm, char *buf,
 			    flush_arg);
 
 	mutex_lock(&mvm->mutex);
-	ret =  iwl_mvm_flush_tx_path(mvm, flush_arg, 0) ? : count;
+	ret =  iwl_mvm_flush_tx_path(mvm, flush_arg) ? : count;
 	mutex_unlock(&mvm->mutex);
 
 	return ret;
