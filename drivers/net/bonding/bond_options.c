@@ -745,17 +745,17 @@ const struct bond_option *bond_opt_get(unsigned int option)
 	return &bond_opts[option];
 }
 
-static void bond_set_xfrm_features(struct net_device *bond_dev, u64 mode)
+static bool bond_set_xfrm_features(struct bonding *bond)
 {
 	if (!IS_ENABLED(CONFIG_XFRM_OFFLOAD))
-		return;
+		return false;
 
-	if (mode == BOND_MODE_ACTIVEBACKUP)
-		bond_dev->wanted_features |= BOND_XFRM_FEATURES;
+	if (BOND_MODE(bond) == BOND_MODE_ACTIVEBACKUP)
+		bond->dev->wanted_features |= BOND_XFRM_FEATURES;
 	else
-		bond_dev->wanted_features &= ~BOND_XFRM_FEATURES;
+		bond->dev->wanted_features &= ~BOND_XFRM_FEATURES;
 
-	netdev_update_features(bond_dev);
+	return true;
 }
 
 static int bond_option_mode_set(struct bonding *bond,
@@ -780,12 +780,13 @@ static int bond_option_mode_set(struct bonding *bond,
 	if (newval->value == BOND_MODE_ALB)
 		bond->params.tlb_dynamic_lb = 1;
 
-	if (bond->dev->reg_state == NETREG_REGISTERED)
-		bond_set_xfrm_features(bond->dev, newval->value);
-
 	/* don't cache arp_validate between modes */
 	bond->params.arp_validate = BOND_ARP_VALIDATE_NONE;
 	bond->params.mode = newval->value;
+
+	if (bond->dev->reg_state == NETREG_REGISTERED)
+		if (bond_set_xfrm_features(bond))
+			netdev_update_features(bond->dev);
 
 	return 0;
 }
