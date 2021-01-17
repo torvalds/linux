@@ -2109,7 +2109,7 @@ int bch2_trans_mark_update(struct btree_trans *trans,
 #define SECTORS_CACHE	1024
 
 int bch2_disk_reservation_add(struct bch_fs *c, struct disk_reservation *res,
-			      unsigned sectors, int flags)
+			      u64 sectors, int flags)
 {
 	struct bch_fs_pcpu *pcpu;
 	u64 old, v, get;

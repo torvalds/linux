@@ -282,8 +282,8 @@ static inline void bch2_disk_reservation_put(struct bch_fs *c,
 #define BCH_DISK_RESERVATION_NOFAIL		(1 << 0)
 
 int bch2_disk_reservation_add(struct bch_fs *,
-			     struct disk_reservation *,
-			     unsigned, int);
+			      struct disk_reservation *,
+			      u64, int);
 
 static inline struct disk_reservation
 bch2_disk_reservation_init(struct bch_fs *c, unsigned nr_replicas)
@@ -300,8 +300,7 @@ bch2_disk_reservation_init(struct bch_fs *c, unsigned nr_replicas)
 
 static inline int bch2_disk_reservation_get(struct bch_fs *c,
 					    struct disk_reservation *res,
-					    unsigned sectors,
-					    unsigned nr_replicas,
+					    u64 sectors, unsigned nr_replicas,
 					    int flags)
 {
 	*res = bch2_disk_reservation_init(c, nr_replicas);
