@@ -1049,9 +1049,9 @@ static void iwl_mvm_rx(struct iwl_op_mode *op_mode,
 		iwl_mvm_rx_common(mvm, rxb, pkt);
 }
 
-static void iwl_mvm_rx_mq(struct iwl_op_mode *op_mode,
-			  struct napi_struct *napi,
-			  struct iwl_rx_cmd_buffer *rxb)
+void iwl_mvm_rx_mq(struct iwl_op_mode *op_mode,
+		   struct napi_struct *napi,
+		   struct iwl_rx_cmd_buffer *rxb)
 {
 	struct iwl_rx_packet *pkt = rxb_addr(rxb);
 	struct iwl_mvm *mvm = IWL_OP_MODE_GET_MVM(op_mode);

@@ -1547,6 +1547,9 @@ bool iwl_mvm_bcast_filter_build_cmd(struct iwl_mvm *mvm,
  * FW notifications / CMD responses handlers
  * Convention: iwl_mvm_rx_<NAME OF THE CMD>
  */
+void iwl_mvm_rx_mq(struct iwl_op_mode *op_mode,
+		   struct napi_struct *napi,
+		   struct iwl_rx_cmd_buffer *rxb);
 void iwl_mvm_rx_rx_phy_cmd(struct iwl_mvm *mvm, struct iwl_rx_cmd_buffer *rxb);
 void iwl_mvm_rx_rx_mpdu(struct iwl_mvm *mvm, struct napi_struct *napi,
 			struct iwl_rx_cmd_buffer *rxb);

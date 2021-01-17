@@ -1117,24 +1117,22 @@ static ssize_t iwl_dbgfs_inject_packet_write(struct iwl_mvm *mvm,
 					     char *buf, size_t count,
 					     loff_t *ppos)
 {
+	struct iwl_op_mode *opmode = container_of((void *)mvm,
+						  struct iwl_op_mode,
+						  op_mode_specific);
 	struct iwl_rx_cmd_buffer rxb = {
 		._rx_page_order = 0,
 		.truesize = 0, /* not used */
 		._offset = 0,
 	};
 	struct iwl_rx_packet *pkt;
-	struct iwl_rx_mpdu_desc *desc;
 	int bin_len = count / 2;
 	int ret = -EINVAL;
-	size_t mpdu_cmd_hdr_size = (mvm->trans->trans_cfg->device_family >=
-				    IWL_DEVICE_FAMILY_AX210) ?
-		sizeof(struct iwl_rx_mpdu_desc) :
-		IWL_RX_DESC_SIZE_V1;
 
 	if (!iwl_mvm_firmware_running(mvm))
 		return -EIO;
 
-	/* supporting only 9000 descriptor */
+	/* supporting only MQ RX */
 	if (!mvm->trans->trans_cfg->mq_rx_supported)
 		return -ENOTSUPP;
 
@@ -1148,22 +1146,12 @@ static ssize_t iwl_dbgfs_inject_packet_write(struct iwl_mvm *mvm,
 		goto out;
 
 	/* avoid invalid memory access */
-	if (bin_len < sizeof(*pkt) + mpdu_cmd_hdr_size)
-		goto out;
-
-	/* check this is RX packet */
-	if (WIDE_ID(pkt->hdr.group_id, pkt->hdr.cmd) !=
-	    WIDE_ID(LEGACY_GROUP, REPLY_RX_MPDU_CMD))
-		goto out;
-
-	/* check the length in metadata matches actual received length */
-	desc = (void *)pkt->data;
-	if (le16_to_cpu(desc->mpdu_len) !=
-	    (bin_len - mpdu_cmd_hdr_size - sizeof(*pkt)))
+	if (bin_len < sizeof(*pkt) ||
+	    bin_len < sizeof(*pkt) + iwl_rx_packet_payload_len(pkt))
 		goto out;
 
 	local_bh_disable();
-	iwl_mvm_rx_mpdu_mq(mvm, NULL, &rxb, 0);
+	iwl_mvm_rx_mq(opmode, NULL, &rxb);
 	local_bh_enable();
 	ret = 0;
 
