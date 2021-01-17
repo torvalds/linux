@@ -2872,9 +2872,7 @@ S:	Odd fixes
 W:	http://sourceforge.net/projects/xscaleiop
 F:	Documentation/crypto/async-tx-api.rst
 F:	crypto/async_tx/
-F:	drivers/dma/
 F:	include/linux/async_tx.h
-F:	include/linux/dmaengine.h
 
 AT24 EEPROM DRIVER
 M:	Bartosz Golaszewski <bgolaszewski@baylibre.com>
