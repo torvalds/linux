@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0 OR BSD-3-Clause
 /*
- * Copyright (C) 2005-2014, 2018-2020 Intel Corporation
+ * Copyright (C) 2005-2014, 2018-2021 Intel Corporation
  * Copyright (C) 2013-2015 Intel Mobile Communications GmbH
  * Copyright (C) 2015-2017 Intel Deutschland GmbH
  */
@@ -1157,10 +1157,7 @@ static int iwl_dump_ini_dev_mem_iter(struct iwl_fw_runtime *fwrt,
 static int _iwl_dump_ini_paging_iter(struct iwl_fw_runtime *fwrt,
 				     void *range_ptr, int idx)
 {
-	/* increase idx by 1 since the pages are from 1 to
-	 * fwrt->num_of_paging_blk + 1
-	 */
-	struct page *page = fwrt->fw_paging_db[++idx].fw_paging_block;
+	struct page *page = fwrt->fw_paging_db[idx].fw_paging_block;
 	struct iwl_fw_ini_error_dump_range *range = range_ptr;
 	dma_addr_t addr = fwrt->fw_paging_db[idx].fw_paging_phys;
 	u32 page_size = fwrt->fw_paging_db[idx].fw_paging_size;
@@ -1182,6 +1179,9 @@ static int iwl_dump_ini_paging_iter(struct iwl_fw_runtime *fwrt,
 {
 	struct iwl_fw_ini_error_dump_range *range;
 	u32 page_size;
+
+	/* all paged index start from 1 to skip CSS section */
+	idx++;
 
 	if (!fwrt->trans->trans_cfg->gen2)
 		return _iwl_dump_ini_paging_iter(fwrt, range_ptr, idx);
@@ -1684,8 +1684,12 @@ static u32 iwl_dump_ini_mem_ranges(struct iwl_fw_runtime *fwrt,
 static u32 iwl_dump_ini_paging_ranges(struct iwl_fw_runtime *fwrt,
 				      struct iwl_dump_ini_region_data *reg_data)
 {
-	if (fwrt->trans->trans_cfg->gen2)
-		return fwrt->trans->init_dram.paging_cnt;
+	if (fwrt->trans->trans_cfg->gen2) {
+		if (fwrt->trans->init_dram.paging_cnt)
+			return fwrt->trans->init_dram.paging_cnt - 1;
+		else
+			return 0;
+	}
 
 	return fwrt->num_of_paging_blk;
 }
@@ -1750,15 +1754,13 @@ iwl_dump_ini_paging_get_size(struct iwl_fw_runtime *fwrt,
 	u32 range_header_len = sizeof(struct iwl_fw_ini_error_dump_range);
 	u32 size = sizeof(struct iwl_fw_ini_error_dump);
 
-	if (fwrt->trans->trans_cfg->gen2) {
-		for (i = 0; i < iwl_dump_ini_paging_ranges(fwrt, reg_data); i++)
-			size += range_header_len +
-				fwrt->trans->init_dram.paging[i].size;
-	} else {
-		for (i = 1; i <= iwl_dump_ini_paging_ranges(fwrt, reg_data);
-		     i++)
-			size += range_header_len +
-				fwrt->fw_paging_db[i].fw_paging_size;
+	/* start from 1 to skip CSS section */
+	for (i = 1; i <= iwl_dump_ini_paging_ranges(fwrt, reg_data); i++) {
+		size += range_header_len;
+		if (fwrt->trans->trans_cfg->gen2)
+			size += fwrt->trans->init_dram.paging[i].size;
+		else
+			size += fwrt->fw_paging_db[i].fw_paging_size;
 	}
 
 	return size;
