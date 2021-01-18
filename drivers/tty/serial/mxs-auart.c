@@ -34,8 +34,6 @@
 #include <linux/dma-mapping.h>
 #include <linux/dmaengine.h>
 
-#include <asm/cacheflush.h>
-
 #include <linux/gpio/consumer.h>
 #include <linux/err.h>
 #include <linux/irq.h>
