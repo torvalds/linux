@@ -44,7 +44,7 @@ int amdgpu_amdkfd_init(void)
 	int ret;
 
 	si_meminfo(&si);
-	amdgpu_amdkfd_total_mem_size = si.totalram - si.totalhigh;
+	amdgpu_amdkfd_total_mem_size = si.freeram - si.freehigh;
 	amdgpu_amdkfd_total_mem_size *= si.mem_unit;
 
 	ret = kgd2kfd_init();

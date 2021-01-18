@@ -97,7 +97,7 @@ void amdgpu_amdkfd_gpuvm_init_mem_limits(void)
 	uint64_t mem;
 
 	si_meminfo(&si);
-	mem = si.totalram - si.totalhigh;
+	mem = si.freeram - si.freehigh;
 	mem *= si.mem_unit;
 
 	spin_lock_init(&kfd_mem_limit.mem_limit_lock);
