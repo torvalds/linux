@@ -142,6 +142,8 @@ extern void __static_call_update(struct static_call_key *key, void *tramp, void 
 extern int static_call_mod_init(struct module *mod);
 extern int static_call_text_reserved(void *start, void *end);
 
+extern long __static_call_return0(void);
+
 #define DEFINE_STATIC_CALL(name, _func)					\
 	DECLARE_STATIC_CALL(name, _func);				\
 	struct static_call_key STATIC_CALL_KEY(name) = {		\
@@ -206,6 +208,11 @@ static inline int static_call_text_reserved(void *start, void *end)
 	return 0;
 }
 
+static inline long __static_call_return0(void)
+{
+	return 0;
+}
+
 #define EXPORT_STATIC_CALL(name)					\
 	EXPORT_SYMBOL(STATIC_CALL_KEY(name));				\
 	EXPORT_SYMBOL(STATIC_CALL_TRAMP(name))
@@ -221,6 +228,11 @@ static inline int static_call_init(void) { return 0; }
 struct static_call_key {
 	void *func;
 };
+
+static inline long __static_call_return0(void)
+{
+	return 0;
+}
 
 #define DEFINE_STATIC_CALL(name, _func)					\
 	DECLARE_STATIC_CALL(name, _func);				\
