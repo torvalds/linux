@@ -54,6 +54,15 @@ config QCOM_CLK_APCC_MSM8996
 	  Say Y if you want to support CPU clock scaling using CPUfreq
 	  drivers for dynamic power management.
 
+config QCOM_CLK_APCS_SDX55
+	tristate "SDX55 APCS Clock Controller"
+	depends on QCOM_APCS_IPC || COMPILE_TEST
+	help
+	  Support for the APCS Clock Controller on SDX55 platform. The
+	  APCS is managing the mux and divider which feeds the CPUs.
+	  Say Y if you want to support CPU frequency scaling on devices
+	  such as SDX55.
+
 config QCOM_CLK_RPM
 	tristate "RPM based Clock Controller"
 	depends on MFD_QCOM_RPM
