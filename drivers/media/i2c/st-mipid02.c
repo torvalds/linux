@@ -879,7 +879,7 @@ static int mipid02_parse_rx_ep(struct mipid02_dev *bridge)
 	asd = v4l2_async_notifier_add_fwnode_remote_subdev(
 					&bridge->notifier,
 					of_fwnode_handle(ep_node),
-					sizeof(*asd));
+					struct v4l2_async_subdev);
 	of_node_put(ep_node);
 
 	if (IS_ERR(asd)) {

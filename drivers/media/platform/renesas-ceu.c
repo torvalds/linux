@@ -1495,7 +1495,6 @@ static int ceu_parse_platform_data(struct ceu_device *ceudev,
 				   const struct ceu_platform_data *pdata)
 {
 	const struct ceu_async_subdev *async_sd;
-	struct v4l2_async_subdev *asd;
 	struct ceu_subdev *ceu_sd;
 	unsigned int i;
 	int ret;
@@ -1511,15 +1510,14 @@ static int ceu_parse_platform_data(struct ceu_device *ceudev,
 
 		/* Setup the ceu subdevice and the async subdevice. */
 		async_sd = &pdata->subdevs[i];
-		asd = v4l2_async_notifier_add_i2c_subdev(&ceudev->notifier,
+		ceu_sd = v4l2_async_notifier_add_i2c_subdev(&ceudev->notifier,
 				async_sd->i2c_adapter_id,
 				async_sd->i2c_address,
-				sizeof(*ceu_sd));
-		if (IS_ERR(asd)) {
+				struct ceu_subdev);
+		if (IS_ERR(ceu_sd)) {
 			v4l2_async_notifier_cleanup(&ceudev->notifier);
-			return PTR_ERR(asd);
+			return PTR_ERR(ceu_sd);
 		}
-		ceu_sd = to_ceu_subdev(asd);
 		ceu_sd->mbus_flags = async_sd->flags;
 		ceudev->subdevs[i] = ceu_sd;
 	}
@@ -1534,7 +1532,6 @@ static int ceu_parse_dt(struct ceu_device *ceudev)
 {
 	struct device_node *of = ceudev->dev->of_node;
 	struct device_node *ep;
-	struct v4l2_async_subdev *asd;
 	struct ceu_subdev *ceu_sd;
 	unsigned int i;
 	int num_ep;
@@ -1576,14 +1573,13 @@ static int ceu_parse_dt(struct ceu_device *ceudev)
 		}
 
 		/* Setup the ceu subdevice and the async subdevice. */
-		asd = v4l2_async_notifier_add_fwnode_remote_subdev(
+		ceu_sd = v4l2_async_notifier_add_fwnode_remote_subdev(
 				&ceudev->notifier, of_fwnode_handle(ep),
-				sizeof(*ceu_sd));
-		if (IS_ERR(asd)) {
-			ret = PTR_ERR(asd);
+				struct ceu_subdev);
+		if (IS_ERR(ceu_sd)) {
+			ret = PTR_ERR(ceu_sd);
 			goto error_cleanup;
 		}
-		ceu_sd = to_ceu_subdev(asd);
 		ceu_sd->mbus_flags = fw_ep.bus.parallel.flags;
 		ceudev->subdevs[i] = ceu_sd;
 

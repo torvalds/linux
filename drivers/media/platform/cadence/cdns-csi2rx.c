@@ -398,7 +398,8 @@ static int csi2rx_parse_dt(struct csi2rx_priv *csi2rx)
 	v4l2_async_notifier_init(&csi2rx->notifier);
 
 	asd = v4l2_async_notifier_add_fwnode_remote_subdev(&csi2rx->notifier,
-							   fwh, sizeof(*asd));
+							   fwh,
+							   struct v4l2_async_subdev);
 	of_node_put(ep);
 	if (IS_ERR(asd))
 		return PTR_ERR(asd);

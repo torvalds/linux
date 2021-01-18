@@ -135,8 +135,8 @@ static int sun4i_csi_notifier_init(struct sun4i_csi *csi)
 
 	csi->bus = vep.bus.parallel;
 
-	asd = v4l2_async_notifier_add_fwnode_remote_subdev(&csi->notifier,
-							   ep, sizeof(*asd));
+	asd = v4l2_async_notifier_add_fwnode_remote_subdev(&csi->notifier, ep,
+							   struct v4l2_async_subdev);
 	if (IS_ERR(asd)) {
 		ret = PTR_ERR(asd);
 		goto out;

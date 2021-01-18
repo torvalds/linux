@@ -685,23 +685,21 @@ static int cal_async_notifier_register(struct cal_dev *cal)
 	for (i = 0; i < cal->data->num_csi2_phy; ++i) {
 		struct cal_camerarx *phy = cal->phy[i];
 		struct cal_v4l2_async_subdev *casd;
-		struct v4l2_async_subdev *asd;
 		struct fwnode_handle *fwnode;
 
 		if (!phy->sensor_node)
 			continue;
 
 		fwnode = of_fwnode_handle(phy->sensor_node);
-		asd = v4l2_async_notifier_add_fwnode_subdev(&cal->notifier,
-							    fwnode,
-							    sizeof(*casd));
-		if (IS_ERR(asd)) {
+		casd = v4l2_async_notifier_add_fwnode_subdev(&cal->notifier,
+							     fwnode,
+							     struct cal_v4l2_async_subdev);
+		if (IS_ERR(casd)) {
 			phy_err(phy, "Failed to add subdev to notifier\n");
-			ret = PTR_ERR(asd);
+			ret = PTR_ERR(casd);
 			goto error;
 		}
 
-		casd = to_cal_asd(asd);
 		casd->phy = phy;
 	}
 

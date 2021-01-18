@@ -2141,7 +2141,6 @@ static int isp_parse_of_endpoints(struct isp_device *isp)
 {
 	struct fwnode_handle *ep;
 	struct isp_async_subdev *isd = NULL;
-	struct v4l2_async_subdev *asd;
 	unsigned int i;
 
 	ep = fwnode_graph_get_endpoint_by_id(
@@ -2159,12 +2158,10 @@ static int isp_parse_of_endpoints(struct isp_device *isp)
 		ret = v4l2_fwnode_endpoint_parse(ep, &vep);
 
 		if (!ret) {
-			asd = v4l2_async_notifier_add_fwnode_remote_subdev(
-				&isp->notifier, ep, sizeof(*isd));
-			if (!IS_ERR(asd)) {
-				isd = container_of(asd, struct isp_async_subdev, asd);
+			isd = v4l2_async_notifier_add_fwnode_remote_subdev(
+				&isp->notifier, ep, struct isp_async_subdev);
+			if (!IS_ERR(isd))
 				isp_parse_of_parallel_endpoint(isp->dev, &vep, &isd->bus);
-			}
 		}
 
 		fwnode_handle_put(ep);
@@ -2200,12 +2197,10 @@ static int isp_parse_of_endpoints(struct isp_device *isp)
 		}
 
 		if (!ret) {
-			asd = v4l2_async_notifier_add_fwnode_remote_subdev(
-				&isp->notifier, ep, sizeof(*isd));
+			isd = v4l2_async_notifier_add_fwnode_remote_subdev(
+				&isp->notifier, ep, struct isp_async_subdev);
 
-			if (!IS_ERR(asd)) {
-				isd = container_of(asd, struct isp_async_subdev, asd);
-
+			if (!IS_ERR(isd)) {
 				switch (vep.bus_type) {
 				case V4L2_MBUS_CSI2_DPHY:
 					isd->bus.interface =

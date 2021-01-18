@@ -552,7 +552,7 @@ static int cafe_pci_probe(struct pci_dev *pdev,
 	asd = v4l2_async_notifier_add_i2c_subdev(&mcam->notifier,
 					i2c_adapter_id(cam->i2c_adapter),
 					ov7670_info.addr,
-					sizeof(*asd));
+					struct v4l2_async_subdev);
 	if (IS_ERR(asd)) {
 		ret = PTR_ERR(asd);
 		goto out_smbus_shutdown;

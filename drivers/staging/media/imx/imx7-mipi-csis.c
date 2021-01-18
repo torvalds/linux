@@ -1025,7 +1025,7 @@ static int mipi_csis_async_register(struct csi_state *state)
 	dev_dbg(state->dev, "flags: 0x%08x\n", state->bus.flags);
 
 	asd = v4l2_async_notifier_add_fwnode_remote_subdev(
-		&state->notifier, ep, sizeof(*asd));
+		&state->notifier, ep, struct v4l2_async_subdev);
 	if (IS_ERR(asd)) {
 		ret = PTR_ERR(asd);
 		goto err_parse;

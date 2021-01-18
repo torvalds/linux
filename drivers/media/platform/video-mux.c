@@ -371,7 +371,7 @@ static int video_mux_async_register(struct video_mux *vmux,
 			continue;
 
 		asd = v4l2_async_notifier_add_fwnode_remote_subdev(
-			&vmux->notifier, ep, sizeof(*asd));
+			&vmux->notifier, ep, struct v4l2_async_subdev);
 
 		fwnode_handle_put(ep);
 

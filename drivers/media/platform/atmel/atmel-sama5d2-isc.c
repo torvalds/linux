@@ -214,7 +214,7 @@ static int atmel_isc_probe(struct platform_device *pdev)
 		asd = v4l2_async_notifier_add_fwnode_remote_subdev(
 					&subdev_entity->notifier,
 					of_fwnode_handle(subdev_entity->epn),
-					sizeof(*asd));
+					struct v4l2_async_subdev);
 
 		of_node_put(subdev_entity->epn);
 		subdev_entity->epn = NULL;

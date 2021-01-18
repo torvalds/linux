@@ -1788,7 +1788,7 @@ static int tegra_vi_graph_parse_one(struct tegra_vi_channel *chan,
 	struct tegra_vi *vi = chan->vi;
 	struct fwnode_handle *ep = NULL;
 	struct fwnode_handle *remote = NULL;
-	struct v4l2_async_subdev *asd;
+	struct tegra_vi_graph_entity *tvge;
 	struct device_node *node = NULL;
 	int ret;
 
@@ -1812,10 +1812,10 @@ static int tegra_vi_graph_parse_one(struct tegra_vi_channel *chan,
 			continue;
 		}
 
-		asd = v4l2_async_notifier_add_fwnode_subdev(&chan->notifier,
-				remote, sizeof(struct tegra_vi_graph_entity));
-		if (IS_ERR(asd)) {
-			ret = PTR_ERR(asd);
+		tvge = v4l2_async_notifier_add_fwnode_subdev(&chan->notifier,
+				remote, struct tegra_vi_graph_entity);
+		if (IS_ERR(tvge)) {
+			ret = PTR_ERR(tvge);
 			dev_err(vi->dev,
 				"failed to add subdev to notifier: %d\n", ret);
 			fwnode_handle_put(remote);

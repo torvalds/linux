@@ -465,7 +465,8 @@ static int fimc_md_parse_one_endpoint(struct fimc_md *fmd,
 	}
 
 	asd = v4l2_async_notifier_add_fwnode_remote_subdev(
-		&fmd->subdev_notifier, of_fwnode_handle(ep), sizeof(*asd));
+		&fmd->subdev_notifier, of_fwnode_handle(ep),
+		struct v4l2_async_subdev);
 
 	of_node_put(ep);
 

@@ -1923,7 +1923,7 @@ static int imx_csi_async_register(struct csi_priv *priv)
 					     FWNODE_GRAPH_ENDPOINT_NEXT);
 	if (ep) {
 		asd = v4l2_async_notifier_add_fwnode_remote_subdev(
-			&priv->notifier, ep, sizeof(*asd));
+			&priv->notifier, ep, struct v4l2_async_subdev);
 
 		fwnode_handle_put(ep);
 

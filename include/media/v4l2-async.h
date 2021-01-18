@@ -168,9 +168,12 @@ int __v4l2_async_notifier_add_subdev(struct v4l2_async_notifier *notifier,
  * is released later at notifier cleanup time.
  */
 struct v4l2_async_subdev *
-v4l2_async_notifier_add_fwnode_subdev(struct v4l2_async_notifier *notifier,
-				      struct fwnode_handle *fwnode,
-				      unsigned int asd_struct_size);
+__v4l2_async_notifier_add_fwnode_subdev(struct v4l2_async_notifier *notifier,
+					struct fwnode_handle *fwnode,
+					unsigned int asd_struct_size);
+#define v4l2_async_notifier_add_fwnode_subdev(__notifier, __fwnode, __type)	\
+((__type *)__v4l2_async_notifier_add_fwnode_subdev(__notifier, __fwnode,	\
+						   sizeof(__type)))
 
 /**
  * v4l2_async_notifier_add_fwnode_remote_subdev - Allocate and add a fwnode
@@ -194,9 +197,12 @@ v4l2_async_notifier_add_fwnode_subdev(struct v4l2_async_notifier *notifier,
  * exception that the fwnode refers to a local endpoint, not the remote one.
  */
 struct v4l2_async_subdev *
-v4l2_async_notifier_add_fwnode_remote_subdev(struct v4l2_async_notifier *notif,
-					     struct fwnode_handle *endpoint,
-					     unsigned int asd_struct_size);
+__v4l2_async_notifier_add_fwnode_remote_subdev(struct v4l2_async_notifier *notif,
+					       struct fwnode_handle *endpoint,
+					       unsigned int asd_struct_size);
+#define v4l2_async_notifier_add_fwnode_remote_subdev(__notifier, __ep, __type)	\
+((__type *)__v4l2_async_notifier_add_fwnode_remote_subdev(__notifier, __ep,	\
+							  sizeof(__type)))
 
 /**
  * v4l2_async_notifier_add_i2c_subdev - Allocate and add an i2c async
@@ -214,9 +220,12 @@ v4l2_async_notifier_add_fwnode_remote_subdev(struct v4l2_async_notifier *notif,
  * Same as above but for I2C matched sub-devices.
  */
 struct v4l2_async_subdev *
-v4l2_async_notifier_add_i2c_subdev(struct v4l2_async_notifier *notifier,
-				   int adapter_id, unsigned short address,
-				   unsigned int asd_struct_size);
+__v4l2_async_notifier_add_i2c_subdev(struct v4l2_async_notifier *notifier,
+				     int adapter_id, unsigned short address,
+				     unsigned int asd_struct_size);
+#define v4l2_async_notifier_add_i2c_subdev(__notifier, __adap, __addr, __type)	\
+((__type *)__v4l2_async_notifier_add_i2c_subdev(__notifier, __adap, __addr,	\
+						sizeof(__type)))
 
 /**
  * v4l2_async_notifier_register - registers a subdevice asynchronous notifier

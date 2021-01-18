@@ -576,19 +576,19 @@ static int max9286_v4l2_notifier_register(struct max9286_priv *priv)
 
 	for_each_source(priv, source) {
 		unsigned int i = to_index(priv, source);
-		struct v4l2_async_subdev *asd;
+		struct max9286_asd *mas;
 
-		asd = v4l2_async_notifier_add_fwnode_subdev(&priv->notifier,
+		mas = v4l2_async_notifier_add_fwnode_subdev(&priv->notifier,
 							    source->fwnode,
-							    sizeof(struct max9286_asd));
-		if (IS_ERR(asd)) {
+							    struct max9286_asd);
+		if (IS_ERR(mas)) {
 			dev_err(dev, "Failed to add subdev for source %u: %ld",
-				i, PTR_ERR(asd));
+				i, PTR_ERR(mas));
 			v4l2_async_notifier_cleanup(&priv->notifier);
-			return PTR_ERR(asd);
+			return PTR_ERR(mas);
 		}
 
-		to_max9286_asd(asd)->source = source;
+		mas->source = source;
 	}
 
 	priv->notifier.ops = &max9286_notify_ops;

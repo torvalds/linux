@@ -631,9 +631,9 @@ unlock:
 EXPORT_SYMBOL_GPL(__v4l2_async_notifier_add_subdev);
 
 struct v4l2_async_subdev *
-v4l2_async_notifier_add_fwnode_subdev(struct v4l2_async_notifier *notifier,
-				      struct fwnode_handle *fwnode,
-				      unsigned int asd_struct_size)
+__v4l2_async_notifier_add_fwnode_subdev(struct v4l2_async_notifier *notifier,
+					struct fwnode_handle *fwnode,
+					unsigned int asd_struct_size)
 {
 	struct v4l2_async_subdev *asd;
 	int ret;
@@ -654,12 +654,12 @@ v4l2_async_notifier_add_fwnode_subdev(struct v4l2_async_notifier *notifier,
 
 	return asd;
 }
-EXPORT_SYMBOL_GPL(v4l2_async_notifier_add_fwnode_subdev);
+EXPORT_SYMBOL_GPL(__v4l2_async_notifier_add_fwnode_subdev);
 
 struct v4l2_async_subdev *
-v4l2_async_notifier_add_fwnode_remote_subdev(struct v4l2_async_notifier *notif,
-					     struct fwnode_handle *endpoint,
-					     unsigned int asd_struct_size)
+__v4l2_async_notifier_add_fwnode_remote_subdev(struct v4l2_async_notifier *notif,
+					       struct fwnode_handle *endpoint,
+					       unsigned int asd_struct_size)
 {
 	struct v4l2_async_subdev *asd;
 	struct fwnode_handle *remote;
@@ -668,21 +668,21 @@ v4l2_async_notifier_add_fwnode_remote_subdev(struct v4l2_async_notifier *notif,
 	if (!remote)
 		return ERR_PTR(-ENOTCONN);
 
-	asd = v4l2_async_notifier_add_fwnode_subdev(notif, remote,
-						    asd_struct_size);
+	asd = __v4l2_async_notifier_add_fwnode_subdev(notif, remote,
+						      asd_struct_size);
 	/*
-	 * Calling v4l2_async_notifier_add_fwnode_subdev grabs a refcount,
+	 * Calling __v4l2_async_notifier_add_fwnode_subdev grabs a refcount,
 	 * so drop the one we got in fwnode_graph_get_remote_port_parent.
 	 */
 	fwnode_handle_put(remote);
 	return asd;
 }
-EXPORT_SYMBOL_GPL(v4l2_async_notifier_add_fwnode_remote_subdev);
+EXPORT_SYMBOL_GPL(__v4l2_async_notifier_add_fwnode_remote_subdev);
 
 struct v4l2_async_subdev *
-v4l2_async_notifier_add_i2c_subdev(struct v4l2_async_notifier *notifier,
-				   int adapter_id, unsigned short address,
-				   unsigned int asd_struct_size)
+__v4l2_async_notifier_add_i2c_subdev(struct v4l2_async_notifier *notifier,
+				     int adapter_id, unsigned short address,
+				     unsigned int asd_struct_size)
 {
 	struct v4l2_async_subdev *asd;
 	int ret;
@@ -703,7 +703,7 @@ v4l2_async_notifier_add_i2c_subdev(struct v4l2_async_notifier *notifier,
 
 	return asd;
 }
-EXPORT_SYMBOL_GPL(v4l2_async_notifier_add_i2c_subdev);
+EXPORT_SYMBOL_GPL(__v4l2_async_notifier_add_i2c_subdev);
 
 int v4l2_async_register_subdev(struct v4l2_subdev *sd)
 {

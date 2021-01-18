@@ -1820,7 +1820,8 @@ static int dcmi_graph_init(struct stm32_dcmi *dcmi)
 	v4l2_async_notifier_init(&dcmi->notifier);
 
 	asd = v4l2_async_notifier_add_fwnode_remote_subdev(
-		&dcmi->notifier, of_fwnode_handle(ep), sizeof(*asd));
+		&dcmi->notifier, of_fwnode_handle(ep),
+		struct v4l2_async_subdev);
 
 	of_node_put(ep);
 

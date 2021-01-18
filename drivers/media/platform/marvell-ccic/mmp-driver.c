@@ -241,8 +241,8 @@ static int mmpcam_probe(struct platform_device *pdev)
 
 	v4l2_async_notifier_init(&mcam->notifier);
 
-	asd = v4l2_async_notifier_add_fwnode_remote_subdev(&mcam->notifier,
-							   ep, sizeof(*asd));
+	asd = v4l2_async_notifier_add_fwnode_remote_subdev(&mcam->notifier, ep,
+							   struct v4l2_async_subdev);
 	fwnode_handle_put(ep);
 	if (IS_ERR(asd)) {
 		ret = PTR_ERR(asd);

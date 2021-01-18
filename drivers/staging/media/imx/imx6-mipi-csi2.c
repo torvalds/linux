@@ -662,7 +662,7 @@ static int csi2_async_register(struct csi2_dev *csi2)
 	dev_dbg(csi2->dev, "flags: 0x%08x\n", vep.bus.mipi_csi2.flags);
 
 	asd = v4l2_async_notifier_add_fwnode_remote_subdev(
-		&csi2->notifier, ep, sizeof(*asd));
+		&csi2->notifier, ep, struct v4l2_async_subdev);
 	fwnode_handle_put(ep);
 
 	if (IS_ERR(asd))

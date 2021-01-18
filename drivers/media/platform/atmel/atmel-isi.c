@@ -1150,7 +1150,7 @@ static int isi_graph_init(struct atmel_isi *isi)
 	asd = v4l2_async_notifier_add_fwnode_remote_subdev(
 						&isi->notifier,
 						of_fwnode_handle(ep),
-						sizeof(*asd));
+						struct v4l2_async_subdev);
 	of_node_put(ep);
 
 	if (IS_ERR(asd))

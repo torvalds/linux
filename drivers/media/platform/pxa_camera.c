@@ -2259,7 +2259,7 @@ static int pxa_camera_pdata_from_dt(struct device *dev,
 	asd = v4l2_async_notifier_add_fwnode_remote_subdev(
 				&pcdev->notifier,
 				of_fwnode_handle(np),
-				sizeof(*asd));
+				struct v4l2_async_subdev);
 	if (IS_ERR(asd))
 		err = PTR_ERR(asd);
 out:
@@ -2309,7 +2309,7 @@ static int pxa_camera_probe(struct platform_device *pdev)
 				&pcdev->notifier,
 				pcdev->pdata->sensor_i2c_adapter_id,
 				pcdev->pdata->sensor_i2c_address,
-				sizeof(*asd));
+				struct v4l2_async_subdev);
 		if (IS_ERR(asd))
 			err = PTR_ERR(asd);
 	} else if (pdev->dev.of_node) {
