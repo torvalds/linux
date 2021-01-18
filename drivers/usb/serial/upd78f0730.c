@@ -145,14 +145,11 @@ static int upd78f0730_send_ctl(struct usb_serial_port *port,
 
 	kfree(buf);
 
-	if (res != size) {
+	if (res < 0) {
 		struct device *dev = &port->dev;
 
 		dev_err(dev, "failed to send control request %02x: %d\n",
 			*(u8 *)data, res);
-		/* The maximum expected length of a transfer is 6 bytes */
-		if (res >= 0)
-			res = -EIO;
 
 		return res;
 	}
