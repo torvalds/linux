@@ -16,9 +16,11 @@
 #include <linux/types.h>
 #include <linux/of_platform.h>
 #include <linux/slab.h>
+#include <linux/seq_file.h>
 #include <linux/uaccess.h>
 #include <linux/regmap.h>
 #include <linux/proc_fs.h>
+#include <linux/nospec.h>
 #include <soc/rockchip/pm_domains.h>
 
 #include "mpp_debug.h"
@@ -79,6 +81,17 @@ struct vepu_task {
 	struct mpp_request w_reqs[MPP_MAX_MSG_NUM];
 	u32 r_req_cnt;
 	struct mpp_request r_reqs[MPP_MAX_MSG_NUM];
+};
+
+struct vepu_session_priv {
+	struct rw_semaphore rw_sem;
+	/* codec info from user */
+	struct {
+		/* show mode */
+		u32 flag;
+		/* item data */
+		u64 val;
+	} codec_info[ENC_INFO_BUTT];
 };
 
 struct vepu_dev {
@@ -381,6 +394,78 @@ static int vepu_free_task(struct mpp_session *session,
 	return 0;
 }
 
+static int vepu_control(struct mpp_session *session, struct mpp_request *req)
+{
+	switch (req->cmd) {
+	case MPP_CMD_SEND_CODEC_INFO: {
+		int i;
+		int cnt;
+		struct codec_info_elem elem;
+		struct vepu_session_priv *priv;
+
+		if (!session || !session->priv) {
+			mpp_err("session info null\n");
+			return -EINVAL;
+		}
+		priv = session->priv;
+
+		cnt = req->size / sizeof(elem);
+		mpp_debug(DEBUG_IOCTL, "codec info count %d\n", cnt);
+		down_write(&priv->rw_sem);
+		for (i = 0; i < cnt; i++) {
+			if (copy_from_user(&elem, req->data + i * sizeof(elem), sizeof(elem))) {
+				mpp_err("copy_from_user failed\n");
+				continue;
+			}
+			if (elem.type > ENC_INFO_BASE && elem.type < ENC_INFO_BUTT &&
+			    elem.flag > ENC_INFO_FLAG_NULL && elem.flag < ENC_INFO_FLAG_BUTT) {
+				elem.type = array_index_nospec(elem.type, ENC_INFO_BUTT);
+				priv->codec_info[elem.type].flag = elem.flag;
+				priv->codec_info[elem.type].val = elem.data;
+			} else {
+				mpp_err("codec info invalid, type %d, flag %d\n",
+					elem.type, elem.flag);
+			}
+		}
+		up_write(&priv->rw_sem);
+	} break;
+	default: {
+		mpp_err("unknown mpp ioctl cmd %x\n", req->cmd);
+	} break;
+	}
+
+	return 0;
+}
+
+static int vepu_free_session(struct mpp_session *session)
+{
+	if (session && session->priv) {
+		kfree(session->priv);
+		session->priv = NULL;
+	}
+
+	return 0;
+}
+
+static int vepu_init_session(struct mpp_session *session)
+{
+	struct vepu_session_priv *priv;
+
+	if (!session) {
+		mpp_err("session is null\n");
+		return -EINVAL;
+	}
+
+	priv = kzalloc(sizeof(*priv), GFP_KERNEL);
+	if (!priv)
+		return -ENOMEM;
+
+	init_rwsem(&priv->rw_sem);
+	session->priv = priv;
+
+	return 0;
+}
+
 #ifdef CONFIG_PROC_FS
 static int vepu_procfs_remove(struct mpp_dev *mpp)
 {
@@ -390,6 +475,71 @@ static int vepu_procfs_remove(struct mpp_dev *mpp)
 		proc_remove(enc->procfs);
 		enc->procfs = NULL;
 	}
+
+	return 0;
+}
+
+static int vepu_dump_session(struct mpp_session *session, struct seq_file *seq)
+{
+	int i;
+	struct vepu_session_priv *priv = session->priv;
+
+	down_read(&priv->rw_sem);
+	/* item name */
+	seq_puts(seq, "------------------------------------------------------");
+	seq_puts(seq, "------------------------------------------------------\n");
+	seq_printf(seq, "|%8s|", (const char *)"session");
+	seq_printf(seq, "%8s|", (const char *)"device");
+	for (i = ENC_INFO_BASE; i < ENC_INFO_BUTT; i++) {
+		bool show = priv->codec_info[i].flag;
+
+		if (show)
+			seq_printf(seq, "%8s|", enc_info_item_name[i]);
+	}
+	seq_puts(seq, "\n");
+	/* item data*/
+	seq_printf(seq, "|%8p|", session);
+	seq_printf(seq, "%8s|", mpp_device_name[session->device_type]);
+	for (i = ENC_INFO_BASE; i < ENC_INFO_BUTT; i++) {
+		u32 flag = priv->codec_info[i].flag;
+
+		if (!flag)
+			continue;
+		if (flag == ENC_INFO_FLAG_NUMBER) {
+			u32 data = priv->codec_info[i].val;
+
+			seq_printf(seq, "%8d|", data);
+		} else if (flag == ENC_INFO_FLAG_STRING) {
+			const char *name = (const char *)&priv->codec_info[i].val;
+
+			seq_printf(seq, "%8s|", name);
+		} else {
+			seq_printf(seq, "%8s|", (const char *)"null");
+		}
+	}
+	seq_puts(seq, "\n");
+	up_read(&priv->rw_sem);
+
+	return 0;
+}
+
+static int vepu_show_session_info(struct seq_file *seq, void *offset)
+{
+	struct mpp_session *session = NULL, *n;
+	struct mpp_dev *mpp = seq->private;
+
+	mutex_lock(&mpp->srv->session_lock);
+	list_for_each_entry_safe(session, n,
+				 &mpp->srv->session_list,
+				 session_link) {
+		if (session->device_type != MPP_DEVICE_VEPU1)
+			continue;
+		if (!session->priv)
+			continue;
+		if (mpp->dev_ops->dump_session)
+			mpp->dev_ops->dump_session(session, seq);
+	}
+	mutex_unlock(&mpp->srv->session_lock);
 
 	return 0;
 }
@@ -408,6 +558,9 @@ static int vepu_procfs_init(struct mpp_dev *mpp)
 			      enc->procfs, &enc->aclk_info.debug_rate_hz);
 	mpp_procfs_create_u32("session_buffers", 0644,
 			      enc->procfs, &mpp->session_max_buffers);
+	/* for show session info */
+	proc_create_single_data("sessions-info", 0444,
+				enc->procfs, vepu_show_session_info, mpp);
 
 	return 0;
 }
@@ -418,6 +571,11 @@ static inline int vepu_procfs_remove(struct mpp_dev *mpp)
 }
 
 static inline int vepu_procfs_init(struct mpp_dev *mpp)
+{
+	return 0;
+}
+
+static inline int vepu_dump_session(struct mpp_session *session, struct seq_file *seq)
 {
 	return 0;
 }
@@ -527,6 +685,10 @@ static struct mpp_dev_ops vepu_v1_dev_ops = {
 	.finish = vepu_finish,
 	.result = vepu_result,
 	.free_task = vepu_free_task,
+	.ioctl = vepu_control,
+	.init_session = vepu_init_session,
+	.free_session = vepu_free_session,
+	.dump_session = vepu_dump_session,
 };
 
 static const struct mpp_dev_var vepu_v1_data = {
