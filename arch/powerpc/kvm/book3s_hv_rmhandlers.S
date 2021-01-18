@@ -902,15 +902,19 @@ ALT_FTR_SECTION_END_IFCLR(CPU_FTR_ARCH_300)
 	cmpdi	r3, 512		/* 1 microsecond */
 	blt	hdec_soon
 
-	/* For hash guest, clear out and reload the SLB */
 	ld	r6, VCPU_KVM(r4)
 	lbz	r0, KVM_RADIX(r6)
 	cmpwi	r0, 0
 	bne	9f
+
+	/* For hash guest, clear out and reload the SLB */
+BEGIN_MMU_FTR_SECTION
+	/* Radix host won't have populated the SLB, so no need to clear */
 	li	r6, 0
 	slbmte	r6, r6
 	slbia
 	ptesync
+END_MMU_FTR_SECTION_IFCLR(MMU_FTR_TYPE_RADIX)
 
 	/* Load up guest SLB entries (N.B. slb_max will be 0 for radix) */
 	lwz	r5,VCPU_SLB_MAX(r4)
