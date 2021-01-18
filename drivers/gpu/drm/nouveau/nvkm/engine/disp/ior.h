@@ -150,6 +150,8 @@ void gv100_sor_dp_audio(struct nvkm_ior *, int, bool);
 void gv100_sor_dp_audio_sym(struct nvkm_ior *, int, u16, u32);
 void gv100_sor_dp_watermark(struct nvkm_ior *, int, u8);
 
+void tu102_sor_dp_vcpi(struct nvkm_ior *, int, u8, u8, u16, u16);
+
 void g84_hdmi_ctrl(struct nvkm_ior *, int, bool, u8, u8, u8 *, u8 , u8 *, u8);
 void gt215_hdmi_ctrl(struct nvkm_ior *, int, bool, u8, u8, u8 *, u8 , u8 *, u8);
 void gf119_hdmi_ctrl(struct nvkm_ior *, int, bool, u8, u8, u8 *, u8 , u8 *, u8);
@@ -207,4 +209,6 @@ int gv100_sor_cnt(struct nvkm_disp *, unsigned long *);
 int gv100_sor_new(struct nvkm_disp *, int);
 
 int tu102_sor_new(struct nvkm_disp *, int);
+
+int ga102_sor_new(struct nvkm_disp *, int);
 #endif
