@@ -310,6 +310,17 @@
 		>;
 	};
 
+	pinctrl_dsirst: dsirstgrp {
+		fsl,pins = <
+			/* DSI_RST */
+			MX8MQ_IOMUXC_ENET_RD3_GPIO1_IO29	0x83
+			/* DSI_TE */
+			MX8MQ_IOMUXC_ENET_RD2_GPIO1_IO28	0x83
+			/* TP_RST */
+			MX8MQ_IOMUXC_ENET_RX_CTL_GPIO1_IO24	0x83
+		>;
+	};
+
 	pinctrl_ecspi1: ecspigrp {
 		fsl,pins = <
 			MX8MQ_IOMUXC_ECSPI1_MOSI_ECSPI1_MOSI	0x83
@@ -817,12 +828,12 @@
 		compatible = "tps65132";
 		reg = <0x3e>;
 
-		outp {
+		reg_lcd_avdd: outp {
 			regulator-name = "LCD_AVDD";
 			vin-supply = <&reg_lcd_3v4>;
 		};
 
-		outn {
+		reg_lcd_avee: outn {
 			regulator-name = "LCD_AVEE";
 			vin-supply = <&reg_lcd_3v4>;
 		};
@@ -944,6 +955,44 @@
 		ti,vinmin-threshold = <3900000>; /* uV */
 		monitored-battery = <&bat>;
 		power-supplies = <&typec_pd>;
+	};
+};
+
+&lcdif {
+	status = "okay";
+};
+
+&mipi_dsi {
+	#address-cells = <1>;
+	#size-cells = <0>;
+	status = "okay";
+
+	lcd_panel: panel@0 {
+		compatible = "mantix,mlaf057we51-x";
+		reg = <0>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&pinctrl_dsirst>;
+		avdd-supply = <&reg_lcd_avdd>;
+		avee-supply = <&reg_lcd_avee>;
+		vddi-supply = <&reg_lcd_1v8>;
+		backlight = <&backlight_dsi>;
+		reset-gpios = <&gpio1 29 GPIO_ACTIVE_LOW>;
+
+		port {
+			panel_in: endpoint {
+				remote-endpoint = <&mipi_dsi_out>;
+			};
+		};
+	};
+
+	ports {
+		port@1 {
+			reg = <1>;
+
+			mipi_dsi_out: endpoint {
+				remote-endpoint = <&panel_in>;
+			};
+		};
 	};
 };
 
