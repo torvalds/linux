@@ -8159,7 +8159,7 @@ F:	net/hsr/
 HT16K33 LED CONTROLLER DRIVER
 M:	Robin van der Gracht <robin@protonic.nl>
 S:	Maintained
-F:	Documentation/devicetree/bindings/display/ht16k33.txt
+F:	Documentation/devicetree/bindings/auxdisplay/holtek,ht16k33.yaml
 F:	drivers/auxdisplay/ht16k33.c
 
 HTCPEN TOUCHSCREEN DRIVER
