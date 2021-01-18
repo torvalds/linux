@@ -778,19 +778,27 @@ static int rkisp_config_path(struct rkisp_device *dev)
 	struct rkisp_sensor_info *sensor = dev->active_sensor;
 	u32 dpcl = readl(dev->base_addr + CIF_VI_DPCL);
 
-	if (sensor &&
-	    (sensor->mbus.type == V4L2_MBUS_BT656 ||
-	     sensor->mbus.type == V4L2_MBUS_PARALLEL)) {
+	/* isp input interface selects */
+	if ((sensor && sensor->mbus.type == V4L2_MBUS_CSI2) ||
+	    dev->isp_inp & (INP_RAWRD0 | INP_RAWRD1 | INP_RAWRD2 | INP_CIF)) {
+		/* mipi sensor->isp or isp read from ddr */
+		dpcl |= CIF_VI_DPCL_IF_SEL_MIPI;
+	} else if (sensor &&
+		   (sensor->mbus.type == V4L2_MBUS_BT656 ||
+		    sensor->mbus.type == V4L2_MBUS_PARALLEL)) {
+		/* dvp sensor->isp */
 		ret = rkisp_config_dvp(dev);
 		dpcl |= CIF_VI_DPCL_IF_SEL_PARALLEL;
-	} else if ((sensor && sensor->mbus.type == V4L2_MBUS_CSI2) ||
-		   dev->isp_inp & (INP_RAWRD0 | INP_RAWRD1 | INP_RAWRD2 | INP_CIF)) {
-		dpcl |= CIF_VI_DPCL_IF_SEL_MIPI;
 	} else if (dev->isp_inp == INP_DMARX_ISP) {
+		/* read from ddr, no sensor connect, debug only */
 		dpcl |= CIF_VI_DPCL_DMA_SW_ISP;
 	} else if (sensor && sensor->mbus.type == V4L2_MBUS_CCP2) {
+		/* lvds sensor->isp */
 		ret = rkisp_config_lvds(dev);
 		dpcl |= VI_DPCL_IF_SEL_LVDS;
+	} else {
+		v4l2_err(&dev->v4l2_dev, "Invalid input\n");
+		ret = -EINVAL;
 	}
 
 	writel(dpcl, dev->base_addr + CIF_VI_DPCL);
