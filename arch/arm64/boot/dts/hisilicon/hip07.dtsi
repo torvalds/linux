@@ -1708,8 +1708,8 @@
 			#size-cells = <2>;
 			device_type = "pci";
 			dma-coherent;
-			ranges = <0x02000000 0 0xa8000000 0 0xa8000000 0 0x77f0000
-				  0x01000000 0 0 0 0xaf7f0000 0 0x10000>;
+			ranges = <0x02000000 0 0xa8000000 0 0xa8000000 0 0x77f0000>,
+				 <0x01000000 0 0 0 0xaf7f0000 0 0x10000>;
 			#interrupt-cells = <1>;
 			interrupt-map-mask = <0xf800 0 0 7>;
 			interrupt-map = <0x0 0 0 1 &mbigen_pcie2_a 671 4
