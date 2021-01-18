@@ -1181,6 +1181,9 @@ static void cp210x_set_flow_control(struct tty_struct *tty,
 	else
 		flow_repl &= ~CP210X_SERIAL_AUTO_TRANSMIT;
 
+	flow_ctl.ulXonLimit = cpu_to_le32(128);
+	flow_ctl.ulXoffLimit = cpu_to_le32(128);
+
 	dev_dbg(&port->dev, "%s - ulControlHandshake=0x%08x, ulFlowReplace=0x%08x\n",
 			__func__, ctl_hs, flow_repl);
 
