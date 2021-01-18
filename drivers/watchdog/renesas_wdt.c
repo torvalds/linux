@@ -151,6 +151,9 @@ static int rwdt_restart(struct watchdog_device *wdev, unsigned long action,
 
 	rwdt_write(priv, RWTCSRA_TME, RWTCSRA);
 
+	/* wait 2 cycles, so watchdog will trigger */
+	udelay(DIV_ROUND_UP(2 * 1000000, priv->clk_rate));
+
 	return 0;
 }
 
