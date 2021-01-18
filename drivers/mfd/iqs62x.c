@@ -135,7 +135,6 @@ static int iqs62x_dev_init(struct iqs62x_core *iqs62x)
 
 		if (val & IQS620_PROX_SETTINGS_4_SAR_EN)
 			iqs62x->ui_sel = IQS62X_UI_SAR1;
-
 		fallthrough;
 
 	case IQS621_PROD_NUM:
@@ -469,7 +468,6 @@ static irqreturn_t iqs62x_irq(int irq, void *context)
 		switch (event_reg) {
 		case IQS62X_EVENT_UI_LO:
 			event_data.ui_data = get_unaligned_le16(&event_map[i]);
-
 			fallthrough;
 
 		case IQS62X_EVENT_UI_HI:
@@ -490,7 +488,6 @@ static irqreturn_t iqs62x_irq(int irq, void *context)
 
 		case IQS62X_EVENT_HYST:
 			event_map[i] <<= iqs62x->dev_desc->hyst_shift;
-
 			fallthrough;
 
 		case IQS62X_EVENT_WHEEL:
