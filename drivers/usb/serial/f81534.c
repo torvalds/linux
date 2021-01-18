@@ -235,11 +235,9 @@ static int f81534_set_register(struct usb_serial *serial, u16 reg, u8 data)
 					 USB_TYPE_VENDOR | USB_DIR_OUT,
 					 reg, 0, tmp, sizeof(u8),
 					 F81534_USB_TIMEOUT);
-		if (status > 0) {
+		if (status == sizeof(u8)) {
 			status = 0;
 			break;
-		} else if (status == 0) {
-			status = -EIO;
 		}
 	}
 
