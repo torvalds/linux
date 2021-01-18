@@ -674,16 +674,13 @@ static int cp210x_write_reg_block(struct usb_serial_port *port, u8 req,
 
 	kfree(dmabuf);
 
-	if (result == bufsize) {
-		result = 0;
-	} else {
+	if (result < 0) {
 		dev_err(&port->dev, "failed set req 0x%x size %d status: %d\n",
 				req, bufsize, result);
-		if (result >= 0)
-			result = -EIO;
+		return result;
 	}
 
-	return result;
+	return 0;
 }
 
 /*
@@ -720,17 +717,14 @@ static int cp210x_write_vendor_block(struct usb_serial *serial, u8 type,
 
 	kfree(dmabuf);
 
-	if (result == bufsize) {
-		result = 0;
-	} else {
+	if (result < 0) {
 		dev_err(&serial->interface->dev,
 			"failed to set vendor val 0x%04x size %d: %d\n", val,
 			bufsize, result);
-		if (result >= 0)
-			result = -EIO;
+		return result;
 	}
 
-	return result;
+	return 0;
 }
 #endif
 
