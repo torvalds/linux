@@ -505,17 +505,13 @@ config HOTPLUG_CPU
 	  Say N if you are unsure.
 
 config PPC_QUEUED_SPINLOCKS
-	bool "Queued spinlocks"
+	bool "Queued spinlocks" if EXPERT
 	depends on SMP
+	default PPC_BOOK3S_64
 	help
 	  Say Y here to use queued spinlocks which give better scalability and
 	  fairness on large SMP and NUMA systems without harming single threaded
 	  performance.
-
-	  This option is currently experimental, the code is more complex and
-	  less tested so it defaults to "N" for the moment.
-
-	  If unsure, say "N".
 
 config ARCH_CPU_PROBE_RELEASE
 	def_bool y
