@@ -404,8 +404,8 @@ void sas_resume_ha(struct sas_ha_struct *ha)
 
 		if (phy->suspended) {
 			dev_warn(&phy->phy->dev, "resume timeout\n");
-			sas_notify_phy_event_gfp(phy, PHYE_RESUME_TIMEOUT,
-						 GFP_KERNEL);
+			sas_notify_phy_event(phy, PHYE_RESUME_TIMEOUT,
+					     GFP_KERNEL);
 		}
 	}
 
@@ -604,8 +604,8 @@ struct asd_sas_event *sas_alloc_event(struct asd_sas_phy *phy,
 			if (cmpxchg(&phy->in_shutdown, 0, 1) == 0) {
 				pr_notice("The phy%d bursting events, shut it down.\n",
 					  phy->id);
-				sas_notify_phy_event_gfp(phy, PHYE_SHUTDOWN,
-							 gfp_flags);
+				sas_notify_phy_event(phy, PHYE_SHUTDOWN,
+						     gfp_flags);
 			}
 		} else {
 			/* Do not support PHY control, stop allocating events */

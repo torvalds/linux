@@ -109,7 +109,7 @@ void sas_enable_revalidation(struct sas_ha_struct *ha)
 
 		sas_phy = container_of(port->phy_list.next, struct asd_sas_phy,
 				port_phy_el);
-		sas_notify_port_event_gfp(sas_phy,
+		sas_notify_port_event(sas_phy,
 				PORTE_BROADCAST_RCVD, GFP_KERNEL);
 	}
 	mutex_unlock(&ha->disco_mutex);
@@ -141,7 +141,7 @@ int sas_notify_port_event(struct asd_sas_phy *phy, enum port_event event,
 
 	BUG_ON(event >= PORT_NUM_EVENTS);
 
-	ev = sas_alloc_event_gfp(phy, gfp_flags);
+	ev = sas_alloc_event(phy, gfp_flags);
 	if (!ev)
 		return -ENOMEM;
 
@@ -171,7 +171,7 @@ int sas_notify_phy_event(struct asd_sas_phy *phy, enum phy_event event,
 
 	BUG_ON(event >= PHY_NUM_EVENTS);
 
-	ev = sas_alloc_event_gfp(phy, gfp_flags);
+	ev = sas_alloc_event(phy, gfp_flags);
 	if (!ev)
 		return -ENOMEM;
 
