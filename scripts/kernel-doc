@@ -836,6 +836,7 @@ sub output_blockhead_rst(%) {
 	next if (defined($nosymbol_table{$section}));
 
 	if ($output_selection != OUTPUT_INCLUDE) {
+	    print ".. _$section:\n\n";
 	    print "**$section**\n\n";
 	}
         print_lineno($section_start_lines{$section});
