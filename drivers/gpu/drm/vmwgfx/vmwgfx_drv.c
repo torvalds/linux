@@ -1516,7 +1516,6 @@ static int vmw_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	if (IS_ERR(vmw))
 		return PTR_ERR(vmw);
 
-	vmw->drm.pdev = pdev;
 	pci_set_drvdata(pdev, &vmw->drm);
 
 	ret = vmw_driver_load(vmw, ent->device);
