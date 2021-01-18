@@ -24,7 +24,7 @@ static int __counter_set_mode(struct rdma_port_counter *port_counter,
 	return 0;
 }
 
-/**
+/*
  * rdma_counter_set_auto_mode() - Turn on/off per-port auto mode
  *
  * @dev: Device to operate
@@ -231,7 +231,7 @@ static void counter_history_stat_update(struct rdma_counter *counter)
 		port_counter->hstats->value[i] += counter->stats->value[i];
 }
 
-/**
+/*
  * rdma_get_counter_auto_mode - Find the counter that @qp should be bound
  *     with in auto mode
  *
@@ -278,7 +278,7 @@ static void counter_release(struct kref *kref)
 	rdma_counter_free(counter);
 }
 
-/**
+/*
  * rdma_counter_bind_qp_auto - Check and bind the QP to a counter base on
  *   the auto-mode rule
  */
@@ -315,7 +315,7 @@ int rdma_counter_bind_qp_auto(struct ib_qp *qp, u8 port)
 	return 0;
 }
 
-/**
+/*
  * rdma_counter_unbind_qp - Unbind a qp from a counter
  * @force:
  *   true - Decrease the counter ref-count anyway (e.g., qp destroy)
@@ -384,7 +384,7 @@ next:
 	return sum;
 }
 
-/**
+/*
  * rdma_counter_get_hwstat_value() - Get the sum value of all counters on a
  *   specific port, including the running ones and history data
  */
@@ -440,7 +440,7 @@ static struct rdma_counter *rdma_get_counter_by_id(struct ib_device *dev,
 	return counter;
 }
 
-/**
+/*
  * rdma_counter_bind_qpn() - Bind QP @qp_num to counter @counter_id
  */
 int rdma_counter_bind_qpn(struct ib_device *dev, u8 port,
@@ -489,7 +489,7 @@ err:
 	return ret;
 }
 
-/**
+/*
  * rdma_counter_bind_qpn_alloc() - Alloc a counter and bind QP @qp_num to it
  *   The id of new counter is returned in @counter_id
  */
@@ -537,7 +537,7 @@ err:
 	return ret;
 }
 
-/**
+/*
  * rdma_counter_unbind_qpn() - Unbind QP @qp_num from a counter
  */
 int rdma_counter_unbind_qpn(struct ib_device *dev, u8 port,
