@@ -967,10 +967,6 @@ static int fsl_esai_probe(struct platform_device *pdev)
 	snprintf(esai_priv->name, sizeof(esai_priv->name), "%pOFn", np);
 
 	esai_priv->soc = of_device_get_match_data(&pdev->dev);
-	if (!esai_priv->soc) {
-		dev_err(&pdev->dev, "failed to get soc data\n");
-		return -ENODEV;
-	}
 
 	/* Get the addresses and IRQ */
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
