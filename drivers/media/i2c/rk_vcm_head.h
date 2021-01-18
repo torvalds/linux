@@ -12,6 +12,7 @@
  */
 #define VCMDRV_MAX_LOG			64U
 
+#define OF_CAMERA_VCMDRV_MAX_CURRENT	"rockchip,vcm-max-current"
 #define OF_CAMERA_VCMDRV_START_CURRENT	"rockchip,vcm-start-current"
 #define OF_CAMERA_VCMDRV_RATED_CURRENT	"rockchip,vcm-rated-current"
 #define OF_CAMERA_VCMDRV_STEP_MODE	"rockchip,vcm-step-mode"

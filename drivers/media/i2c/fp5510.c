@@ -55,6 +55,7 @@ struct fp5510_device {
 	u32 module_index;
 	const char *module_facing;
 	struct rk_cam_vcm_cfg vcm_cfg;
+	int max_ma;
 };
 
 struct TimeTabel_s {
@@ -488,20 +489,26 @@ static void fp5510_update_vcm_cfg(struct fp5510_device *dev_vcm)
 	struct i2c_client *client = v4l2_get_subdevdata(&dev_vcm->sd);
 	int cur_dist;
 
+	if (dev_vcm->max_ma == 0) {
+		dev_err(&client->dev, "max current is zero");
+		return;
+	}
+
 	cur_dist = dev_vcm->vcm_cfg.rated_ma - dev_vcm->vcm_cfg.start_ma;
-	cur_dist = cur_dist * FP5510_MAX_REG / FP5510_MAX_CURRENT;
+	cur_dist = cur_dist * FP5510_MAX_REG / dev_vcm->max_ma;
 	dev_vcm->step = (cur_dist + (VCMDRV_MAX_LOG - 1)) / VCMDRV_MAX_LOG;
 	dev_vcm->start_current = dev_vcm->vcm_cfg.start_ma *
-				 FP5510_MAX_REG / FP5510_MAX_CURRENT;
+				 FP5510_MAX_REG / dev_vcm->max_ma;
 	dev_vcm->rated_current = dev_vcm->start_current +
 				 VCMDRV_MAX_LOG * dev_vcm->step;
 	dev_vcm->step_mode = dev_vcm->vcm_cfg.step_mode;
 
 	dev_dbg(&client->dev,
-		"vcm_cfg: %d, %d, %d\n",
+		"vcm_cfg: %d, %d, %d, max_ma %d\n",
 		dev_vcm->vcm_cfg.start_ma,
 		dev_vcm->vcm_cfg.rated_ma,
-		dev_vcm->vcm_cfg.step_mode);
+		dev_vcm->vcm_cfg.step_mode,
+		dev_vcm->max_ma);
 }
 
 static long fp5510_ioctl(struct v4l2_subdev *sd, unsigned int cmd, void *arg)
@@ -635,13 +642,24 @@ static int fp5510_probe(struct i2c_client *client,
 	struct device_node *np = of_node_get(client->dev.of_node);
 	struct fp5510_device *fp5510_dev;
 	struct device *dev = &client->dev;
-	unsigned int start_ma, rated_ma, step_mode;
+	unsigned int max_ma, start_ma, rated_ma, step_mode;
 	struct v4l2_subdev *sd;
 	char facing[2];
 	unsigned char data = 0x0;
 	int ret;
 
 	dev_info(&client->dev, "probing...\n");
+	if (of_property_read_u32(np,
+		OF_CAMERA_VCMDRV_MAX_CURRENT,
+		(unsigned int *)&max_ma)) {
+		max_ma = FP5510_MAX_CURRENT;
+		dev_info(&client->dev,
+			"could not get module %s from dts!\n",
+			OF_CAMERA_VCMDRV_MAX_CURRENT);
+	}
+	if (max_ma == 0)
+		max_ma = FP5510_MAX_CURRENT;
+
 	if (of_property_read_u32(np,
 		OF_CAMERA_VCMDRV_START_CURRENT,
 		(unsigned int *)&start_ma)) {
@@ -717,6 +735,7 @@ static int fp5510_probe(struct i2c_client *client,
 	if (ret)
 		dev_err(&client->dev, "v4l2 async register subdev failed\n");
 
+	fp5510_dev->max_ma = max_ma;
 	fp5510_dev->vcm_cfg.start_ma = start_ma;
 	fp5510_dev->vcm_cfg.rated_ma = rated_ma;
 	fp5510_dev->vcm_cfg.step_mode = step_mode;

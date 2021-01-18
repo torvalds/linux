@@ -43,6 +43,7 @@ struct vm149c_device {
 	u32 module_index;
 	const char *module_facing;
 	struct rk_cam_vcm_cfg vcm_cfg;
+	int max_ma;
 };
 
 static inline struct vm149c_device *to_vm149c_vcm(struct v4l2_ctrl *ctrl)
@@ -302,20 +303,26 @@ static void vm149c_update_vcm_cfg(struct vm149c_device *dev_vcm)
 	struct i2c_client *client = v4l2_get_subdevdata(&dev_vcm->sd);
 	int cur_dist;
 
+	if (dev_vcm->max_ma == 0) {
+		dev_err(&client->dev, "max current is zero");
+		return;
+	}
+
 	cur_dist = dev_vcm->vcm_cfg.rated_ma - dev_vcm->vcm_cfg.start_ma;
-	cur_dist = cur_dist * VM149C_MAX_REG / VM149C_MAX_CURRENT;
+	cur_dist = cur_dist * VM149C_MAX_REG / dev_vcm->max_ma;
 	dev_vcm->step = (cur_dist + (VCMDRV_MAX_LOG - 1)) / VCMDRV_MAX_LOG;
 	dev_vcm->start_current = dev_vcm->vcm_cfg.start_ma *
-				 VM149C_MAX_REG / VM149C_MAX_CURRENT;
+				 VM149C_MAX_REG / dev_vcm->max_ma;
 	dev_vcm->rated_current = dev_vcm->start_current +
 				 VCMDRV_MAX_LOG * dev_vcm->step;
 	dev_vcm->step_mode = dev_vcm->vcm_cfg.step_mode;
 
 	dev_dbg(&client->dev,
-		"vcm_cfg: %d, %d, %d\n",
+		"vcm_cfg: %d, %d, %d, max_ma %d\n",
 		dev_vcm->vcm_cfg.start_ma,
 		dev_vcm->vcm_cfg.rated_ma,
-		dev_vcm->vcm_cfg.step_mode);
+		dev_vcm->vcm_cfg.step_mode,
+		dev_vcm->max_ma);
 }
 
 static long vm149c_ioctl(struct v4l2_subdev *sd, unsigned int cmd, void *arg)
@@ -439,7 +446,7 @@ static int vm149c_probe(struct i2c_client *client,
 {
 	struct device_node *np = of_node_get(client->dev.of_node);
 	struct vm149c_device *vm149c_dev;
-	unsigned int start_ma, rated_ma, step_mode;
+	unsigned int max_ma, start_ma, rated_ma, step_mode;
 	struct v4l2_subdev *sd;
 	char facing[2];
 	int ret;
@@ -449,6 +456,17 @@ static int vm149c_probe(struct i2c_client *client,
 		DRIVER_VERSION >> 16,
 		(DRIVER_VERSION & 0xff00) >> 8,
 		DRIVER_VERSION & 0x00ff);
+
+	if (of_property_read_u32(np,
+		 OF_CAMERA_VCMDRV_MAX_CURRENT,
+		(unsigned int *)&max_ma)) {
+		max_ma = VM149C_MAX_CURRENT;
+		dev_info(&client->dev,
+			"could not get module %s from dts!\n",
+			OF_CAMERA_VCMDRV_MAX_CURRENT);
+	}
+	if (max_ma == 0)
+		max_ma = VM149C_MAX_CURRENT;
 
 	if (of_property_read_u32(np,
 		 OF_CAMERA_VCMDRV_START_CURRENT,
@@ -518,6 +536,7 @@ static int vm149c_probe(struct i2c_client *client,
 	if (ret)
 		dev_err(&client->dev, "v4l2 async register subdev failed\n");
 
+	vm149c_dev->max_ma = max_ma;
 	vm149c_dev->vcm_cfg.start_ma = start_ma;
 	vm149c_dev->vcm_cfg.rated_ma = rated_ma;
 	vm149c_dev->vcm_cfg.step_mode = step_mode;

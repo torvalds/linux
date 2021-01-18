@@ -54,6 +54,7 @@ struct dw9714_device {
 	u32 module_index;
 	const char *module_facing;
 	struct rk_cam_vcm_cfg vcm_cfg;
+	int max_ma;
 };
 
 struct TimeTabel_s {
@@ -462,20 +463,26 @@ static void dw9714_update_vcm_cfg(struct dw9714_device *dev_vcm)
 	struct i2c_client *client = v4l2_get_subdevdata(&dev_vcm->sd);
 	int cur_dist;
 
+	if (dev_vcm->max_ma == 0) {
+		dev_err(&client->dev, "max current is zero");
+		return;
+	}
+
 	cur_dist = dev_vcm->vcm_cfg.rated_ma - dev_vcm->vcm_cfg.start_ma;
-	cur_dist = cur_dist * DW9714_MAX_REG / DW9714_MAX_CURRENT;
+	cur_dist = cur_dist * DW9714_MAX_REG / dev_vcm->max_ma;
 	dev_vcm->step = (cur_dist + (VCMDRV_MAX_LOG - 1)) / VCMDRV_MAX_LOG;
 	dev_vcm->start_current = dev_vcm->vcm_cfg.start_ma *
-				 DW9714_MAX_REG / DW9714_MAX_CURRENT;
+				 DW9714_MAX_REG / dev_vcm->max_ma;
 	dev_vcm->rated_current = dev_vcm->start_current +
 				 VCMDRV_MAX_LOG * dev_vcm->step;
 	dev_vcm->step_mode = dev_vcm->vcm_cfg.step_mode;
 
 	dev_dbg(&client->dev,
-		"vcm_cfg: %d, %d, %d\n",
+		"vcm_cfg: %d, %d, %d, max_ma %d\n",
 		dev_vcm->vcm_cfg.start_ma,
 		dev_vcm->vcm_cfg.rated_ma,
-		dev_vcm->vcm_cfg.step_mode);
+		dev_vcm->vcm_cfg.step_mode,
+		dev_vcm->max_ma);
 }
 
 static long dw9714_ioctl(struct v4l2_subdev *sd, unsigned int cmd, void *arg)
@@ -609,13 +616,24 @@ static int dw9714_probe(struct i2c_client *client,
 {
 	struct device_node *np = of_node_get(client->dev.of_node);
 	struct dw9714_device *dw9714_dev;
-	unsigned int start_ma, rated_ma, step_mode;
+	unsigned int max_ma, start_ma, rated_ma, step_mode;
 	unsigned int dlc_en, mclk, t_src;
 	struct v4l2_subdev *sd;
 	char facing[2];
 	int ret;
 
 	dev_info(&client->dev, "probing...\n");
+	if (of_property_read_u32(np,
+		OF_CAMERA_VCMDRV_MAX_CURRENT,
+		(unsigned int *)&max_ma)) {
+		max_ma = DW9714_MAX_CURRENT;
+		dev_info(&client->dev,
+			"could not get module %s from dts!\n",
+			OF_CAMERA_VCMDRV_MAX_CURRENT);
+	}
+	if (max_ma == 0)
+		max_ma = DW9714_MAX_CURRENT;
+
 	if (of_property_read_u32(np,
 		OF_CAMERA_VCMDRV_START_CURRENT,
 		(unsigned int *)&start_ma)) {
@@ -708,6 +726,7 @@ static int dw9714_probe(struct i2c_client *client,
 	if (ret)
 		dev_err(&client->dev, "v4l2 async register subdev failed\n");
 
+	dw9714_dev->max_ma = max_ma;
 	dw9714_dev->vcm_cfg.start_ma = start_ma;
 	dw9714_dev->vcm_cfg.rated_ma = rated_ma;
 	dw9714_dev->vcm_cfg.step_mode = step_mode;
