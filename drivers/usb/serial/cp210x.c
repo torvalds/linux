@@ -1113,11 +1113,13 @@ static int cp210x_set_chars(struct usb_serial_port *port,
 
 static bool cp210x_termios_change(const struct ktermios *a, const struct ktermios *b)
 {
-	bool iflag_change;
+	bool iflag_change, cc_change;
 
 	iflag_change = ((a->c_iflag ^ b->c_iflag) & (INPCK | IXON | IXOFF));
+	cc_change = a->c_cc[VSTART] != b->c_cc[VSTART] ||
+			a->c_cc[VSTOP] != b->c_cc[VSTOP];
 
-	return tty_termios_hw_change(a, b) || iflag_change;
+	return tty_termios_hw_change(a, b) || iflag_change || cc_change;
 }
 
 static void cp210x_set_flow_control(struct tty_struct *tty,
@@ -1132,7 +1134,9 @@ static void cp210x_set_flow_control(struct tty_struct *tty,
 	if (old_termios &&
 			C_CRTSCTS(tty) == (old_termios->c_cflag & CRTSCTS) &&
 			I_IXON(tty) == (old_termios->c_iflag & IXON) &&
-			I_IXOFF(tty) == (old_termios->c_iflag & IXOFF)) {
+			I_IXOFF(tty) == (old_termios->c_iflag & IXOFF) &&
+			START_CHAR(tty) == old_termios->c_cc[VSTART] &&
+			STOP_CHAR(tty) == old_termios->c_cc[VSTOP]) {
 		return;
 	}
 
