@@ -4,6 +4,7 @@
 #ifndef _RKISPP_COMMON_H
 #define _RKISPP_COMMON_H
 
+#include <linux/clk.h>
 #include <linux/mutex.h>
 #include <media/media-device.h>
 #include <media/media-entity.h>
@@ -100,7 +101,6 @@ static inline struct vb2_queue *to_vb2_queue(struct file *file)
 }
 
 extern int rkispp_debug;
-extern bool rkispp_clk_dbg;
 extern bool rkispp_monitor;
 extern bool rkispp_reg_withstream;
 extern unsigned int rkispp_debug_reg;
@@ -130,4 +130,5 @@ int rkispp_find_regbuf_by_id(struct rkispp_device *ispp, struct rkisp_ispp_reg *
 void rkispp_release_regbuf(struct rkispp_device *ispp, struct rkisp_ispp_reg *freebuf);
 void rkispp_request_regbuf(struct rkispp_device *dev, struct rkisp_ispp_reg **free_buf);
 bool rkispp_get_reg_withstream(void);
+void rkispp_set_clk_rate(struct clk *clk, unsigned long rate);
 #endif

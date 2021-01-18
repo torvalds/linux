@@ -74,6 +74,14 @@ MODULE_PARM_DESC(debug_reg, "rkisp debug register");
 static DEFINE_MUTEX(rkisp_dev_mutex);
 static LIST_HEAD(rkisp_device_list);
 
+void rkisp_set_clk_rate(struct clk *clk, unsigned long rate)
+{
+	if (rkisp_clk_dbg)
+		return;
+
+	clk_set_rate(clk, rate);
+}
+
 static int __maybe_unused __rkisp_clr_unready_dev(void)
 {
 	struct rkisp_device *isp_dev;
@@ -154,9 +162,6 @@ static int __isp_pipeline_s_isp_clk(struct rkisp_pipeline *p)
 	u64 data_rate;
 	int i;
 
-	if (rkisp_clk_dbg)
-		return 0;
-
 	if (dev->isp_inp & (INP_RAWRD0 | INP_RAWRD1 | INP_RAWRD2 | INP_CIF)) {
 		for (i = 0; i < hw_dev->num_clk_rate_tbl; i++) {
 			if (w <= hw_dev->clk_rate_tbl[i].refer_data)
@@ -169,9 +174,8 @@ static int __isp_pipeline_s_isp_clk(struct rkisp_pipeline *p)
 		goto end;
 	}
 
-	if (dev->isp_inp == INP_DMARX_ISP) {
-		if (dev->hw_dev->clks[0])
-			clk_set_rate(hw_dev->clks[0], 400 * 1000000UL);
+	if (dev->isp_inp == INP_DMARX_ISP && dev->hw_dev->clks[0]) {
+		rkisp_set_clk_rate(hw_dev->clks[0], 400 * 1000000UL);
 		return 0;
 	}
 
@@ -211,7 +215,7 @@ static int __isp_pipeline_s_isp_clk(struct rkisp_pipeline *p)
 		i--;
 end:
 	/* set isp clock rate */
-	clk_set_rate(hw_dev->clks[0], hw_dev->clk_rate_tbl[i].clk_rate * 1000000UL);
+	rkisp_set_clk_rate(hw_dev->clks[0], hw_dev->clk_rate_tbl[i].clk_rate * 1000000UL);
 	dev_dbg(hw_dev->dev, "set isp clk = %luHz\n", clk_get_rate(hw_dev->clks[0]));
 
 	return 0;

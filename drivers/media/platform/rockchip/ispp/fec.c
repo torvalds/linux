@@ -42,7 +42,7 @@ static int fec_running(struct rkispp_fec_dev *fec,
 		 buf->out_fourcc >> 16, buf->out_fourcc >> 24);
 
 	if (clk_get_rate(fec->hw->clks[0]) <= fec->hw->core_clk_min)
-		clk_set_rate(fec->hw->clks[0], fec->hw->core_clk_max);
+		rkispp_set_clk_rate(fec->hw->clks[0], fec->hw->core_clk_max);
 
 	init_completion(&fec->cmpl);
 	density = w > 1920 ? SW_MESH_DENSITY : 0;

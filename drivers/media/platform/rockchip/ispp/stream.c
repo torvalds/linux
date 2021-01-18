@@ -1656,7 +1656,7 @@ static void rkispp_stop_streaming(struct vb2_queue *queue)
 
 	if (!atomic_read(&hw->refcnt) &&
 	    !atomic_read(&dev->stream_vdev.refcnt))
-		clk_set_rate(hw->clks[0], hw->core_clk_min);
+		rkispp_set_clk_rate(hw->clks[0], hw->core_clk_min);
 	v4l2_dbg(1, rkispp_debug, &dev->v4l2_dev,
 		 "%s id:%d exit\n", __func__, stream->id);
 }
@@ -1757,7 +1757,7 @@ static int rkispp_start_streaming(struct vb2_queue *queue,
 	if (!atomic_read(&hw->refcnt) &&
 	    !atomic_read(&dev->stream_vdev.refcnt) &&
 	    clk_get_rate(hw->clks[0]) <= hw->core_clk_min)
-		clk_set_rate(hw->clks[0], hw->core_clk_max);
+		rkispp_set_clk_rate(hw->clks[0], hw->core_clk_max);
 
 	stream->is_upd = false;
 	stream->is_cfg = false;

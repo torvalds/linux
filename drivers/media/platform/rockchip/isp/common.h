@@ -35,6 +35,7 @@
 #ifndef _RKISP_COMMON_H
 #define _RKISP_COMMON_H
 
+#include <linux/clk.h>
 #include <linux/mutex.h>
 #include <linux/media.h>
 #include <media/media-device.h>
@@ -174,4 +175,6 @@ void rkisp_finish_buffer(struct rkisp_device *dev, struct rkisp_dummy_buffer *bu
 int rkisp_attach_hw(struct rkisp_device *isp);
 int rkisp_alloc_common_dummy_buf(struct rkisp_device *dev);
 void rkisp_free_common_dummy_buf(struct rkisp_device *dev);
+
+void rkisp_set_clk_rate(struct clk *clk, unsigned long rate);
 #endif /* _RKISP_COMMON_H */

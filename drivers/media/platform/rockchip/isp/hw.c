@@ -604,8 +604,8 @@ static int enable_sys_clk(struct rkisp_hw_dev *dev)
 		}
 	}
 
-	clk_set_rate(dev->clks[0], dev->clk_rate_tbl[0].clk_rate * 1000000UL);
-
+	rkisp_set_clk_rate(dev->clks[0],
+			   dev->clk_rate_tbl[0].clk_rate * 1000000UL);
 	rkisp_soft_reset(dev);
 	isp_config_clk(dev, true);
 
