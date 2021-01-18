@@ -796,6 +796,7 @@ static int fp5510_vcm_resume(struct device *dev)
 	struct fp5510_device *fp5510_dev = sd_to_fp5510_vcm(sd);
 
 	__fp5510_power_on(fp5510_dev);
+	fp5510_set_pos(fp5510_dev, fp5510_dev->current_related_pos);
 
 	return 0;
 }

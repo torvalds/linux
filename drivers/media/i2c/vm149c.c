@@ -566,6 +566,11 @@ static int __maybe_unused vm149c_vcm_suspend(struct device *dev)
 
 static int  __maybe_unused vm149c_vcm_resume(struct device *dev)
 {
+	struct i2c_client *client = to_i2c_client(dev);
+	struct v4l2_subdev *sd = i2c_get_clientdata(client);
+	struct vm149c_device *vm149c_dev = sd_to_vm149c_vcm(sd);
+
+	vm149c_set_pos(vm149c_dev, vm149c_dev->current_related_pos);
 	return 0;
 }
 

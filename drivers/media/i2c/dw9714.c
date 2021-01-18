@@ -797,8 +797,11 @@ static int __maybe_unused dw9714_vcm_suspend(struct device *dev)
 static int __maybe_unused dw9714_vcm_resume(struct device *dev)
 {
 	struct i2c_client *client = to_i2c_client(dev);
+	struct v4l2_subdev *sd = i2c_get_clientdata(client);
+	struct dw9714_device *dev_vcm = sd_to_dw9714_vcm(sd);
 
 	dw9714_init(client);
+	dw9714_set_pos(dev_vcm, dev_vcm->current_related_pos);
 	return 0;
 }
 

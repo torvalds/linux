@@ -790,8 +790,11 @@ static int __maybe_unused gt9760s_vcm_suspend(struct device *dev)
 static int  __maybe_unused gt9760s_vcm_resume(struct device *dev)
 {
 	struct i2c_client *client = to_i2c_client(dev);
+	struct v4l2_subdev *sd = i2c_get_clientdata(client);
+	struct gt9760s_device *dev_vcm = sd_to_vcm_dev(sd);
 
 	gt9760s_init(client);
+	gt9760s_set_pos(dev_vcm, dev_vcm->current_related_pos);
 	return 0;
 }
 
