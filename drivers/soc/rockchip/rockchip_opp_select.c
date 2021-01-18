@@ -766,6 +766,21 @@ void rockchip_of_get_bin_sel(struct device *dev, struct device_node *np,
 }
 EXPORT_SYMBOL(rockchip_of_get_bin_sel);
 
+void rockchip_of_get_bin_volt_sel(struct device *dev, struct device_node *np,
+				  int bin, int *bin_volt_sel)
+{
+	int ret = 0;
+
+	if (!bin_volt_sel || bin < 0)
+		return;
+
+	ret = rockchip_get_bin_sel(np, "rockchip,bin-voltage-sel",
+				   bin, bin_volt_sel);
+	if (!ret)
+		dev_info(dev, "bin-volt-sel=%d\n", *bin_volt_sel);
+}
+EXPORT_SYMBOL(rockchip_of_get_bin_volt_sel);
+
 void rockchip_get_soc_info(struct device *dev,
 			   const struct of_device_id *matches,
 			   int *bin, int *process)
@@ -807,6 +822,7 @@ void rockchip_get_scale_volt_sel(struct device *dev, char *lkg_name,
 	struct device_node *np;
 	int lkg_scale = 0, pvtm_scale = 0, bin_scale = 0;
 	int lkg_volt_sel = -EINVAL, pvtm_volt_sel = -EINVAL;
+	int bin_volt_sel = -EINVAL;
 
 	np = of_parse_phandle(dev->of_node, "operating-points-v2", 0);
 	if (!np) {
@@ -819,10 +835,15 @@ void rockchip_get_scale_volt_sel(struct device *dev, char *lkg_name,
 	rockchip_of_get_pvtm_sel(dev, np, reg_name, process,
 				 &pvtm_volt_sel, &pvtm_scale);
 	rockchip_of_get_bin_sel(dev, np, bin, &bin_scale);
+	rockchip_of_get_bin_volt_sel(dev, np, bin, &bin_volt_sel);
 	if (scale)
 		*scale = max3(lkg_scale, pvtm_scale, bin_scale);
-	if (volt_sel)
-		*volt_sel = max(lkg_volt_sel, pvtm_volt_sel);
+	if (volt_sel) {
+		if (bin_volt_sel >= 0)
+			*volt_sel = bin_volt_sel;
+		else
+			*volt_sel = max(lkg_volt_sel, pvtm_volt_sel);
+	}
 
 	of_node_put(np);
 }
