@@ -1171,6 +1171,20 @@ EXPORT_SYMBOL_GPL(__kvmhv_vcpu_entry_p9)
 	mr	r4, r3
 	b	fast_guest_entry_c
 guest_exit_short_path:
+	/*
+	 * Malicious or buggy radix guests may have inserted SLB entries
+	 * (only 0..3 because radix always runs with UPRT=1), so these must
+	 * be cleared here to avoid side-channels. slbmte is used rather
+	 * than slbia, as it won't clear cached translations.
+	 */
+	li	r0,0
+	slbmte	r0,r0
+	li	r4,1
+	slbmte	r0,r4
+	li	r4,2
+	slbmte	r0,r4
+	li	r4,3
+	slbmte	r0,r4
 
 	li	r0, KVM_GUEST_MODE_NONE
 	stb	r0, HSTATE_IN_GUEST(r13)
@@ -1483,7 +1497,7 @@ guest_exit_cont:		/* r9 = vcpu, r12 = trap, r13 = paca */
 	lbz	r0, KVM_RADIX(r5)
 	li	r5, 0
 	cmpwi	r0, 0
-	bne	3f			/* for radix, save 0 entries */
+	bne	0f			/* for radix, save 0 entries */
 	lwz	r0,VCPU_SLB_NR(r9)	/* number of entries in SLB */
 	mtctr	r0
 	li	r6,0
@@ -1504,12 +1518,9 @@ guest_exit_cont:		/* r9 = vcpu, r12 = trap, r13 = paca */
 	slbmte	r0,r0
 	slbia
 	ptesync
-3:	stw	r5,VCPU_SLB_MAX(r9)
+	stw	r5,VCPU_SLB_MAX(r9)
 
 	/* load host SLB entries */
-BEGIN_MMU_FTR_SECTION
-	b	0f
-END_MMU_FTR_SECTION_IFSET(MMU_FTR_TYPE_RADIX)
 	ld	r8,PACA_SLBSHADOWPTR(r13)
 
 	.rept	SLB_NUM_BOLTED
@@ -1522,7 +1533,17 @@ END_MMU_FTR_SECTION_IFSET(MMU_FTR_TYPE_RADIX)
 	slbmte	r6,r5
 1:	addi	r8,r8,16
 	.endr
-0:
+	b	guest_bypass
+
+0:	/* Sanitise radix guest SLB, see guest_exit_short_path comment. */
+	li	r0,0
+	slbmte	r0,r0
+	li	r4,1
+	slbmte	r0,r4
+	li	r4,2
+	slbmte	r0,r4
+	li	r4,3
+	slbmte	r0,r4
 
 guest_bypass:
 	stw	r12, STACK_SLOT_TRAP(r1)
@@ -3325,12 +3346,14 @@ BEGIN_FTR_SECTION
 	mtspr	SPRN_DAWRX1, r0
 END_FTR_SECTION_IFSET(CPU_FTR_DAWR1)
 
+	/* Clear hash and radix guest SLB, see guest_exit_short_path comment. */
+	slbmte	r0, r0
+	slbia
+
 BEGIN_MMU_FTR_SECTION
 	b	4f
 END_MMU_FTR_SECTION_IFSET(MMU_FTR_TYPE_RADIX)
 
-	slbmte	r0, r0
-	slbia
 	ptesync
 	ld	r8, PACA_SLBSHADOWPTR(r13)
 	.rept	SLB_NUM_BOLTED
