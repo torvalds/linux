@@ -702,8 +702,10 @@ struct sas_phy *sas_get_local_phy(struct domain_device *dev);
 
 int sas_request_addr(struct Scsi_Host *shost, u8 *addr);
 
-int sas_notify_port_event(struct asd_sas_phy *phy, enum port_event event);
-int sas_notify_phy_event(struct asd_sas_phy *phy, enum phy_event event);
+int sas_notify_port_event(struct asd_sas_phy *phy, enum port_event event,
+			  gfp_t gfp_flags);
+int sas_notify_phy_event(struct asd_sas_phy *phy, enum phy_event event,
+			 gfp_t gfp_flags);
 int sas_notify_port_event_gfp(struct asd_sas_phy *phy, enum port_event event,
 			      gfp_t gfp_flags);
 int sas_notify_phy_event_gfp(struct asd_sas_phy *phy, enum phy_event event,

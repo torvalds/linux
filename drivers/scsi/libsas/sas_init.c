@@ -585,8 +585,8 @@ sas_domain_attach_transport(struct sas_domain_function_template *dft)
 }
 EXPORT_SYMBOL_GPL(sas_domain_attach_transport);
 
-static struct asd_sas_event *__sas_alloc_event(struct asd_sas_phy *phy,
-					       gfp_t gfp_flags)
+struct asd_sas_event *sas_alloc_event(struct asd_sas_phy *phy,
+				      gfp_t gfp_flags)
 {
 	struct asd_sas_event *event;
 	struct sas_ha_struct *sas_ha = phy->ha;
@@ -619,15 +619,11 @@ static struct asd_sas_event *__sas_alloc_event(struct asd_sas_phy *phy,
 	return event;
 }
 
-struct asd_sas_event *sas_alloc_event(struct asd_sas_phy *phy)
-{
-	return __sas_alloc_event(phy, in_interrupt() ? GFP_ATOMIC : GFP_KERNEL);
-}
-
 struct asd_sas_event *sas_alloc_event_gfp(struct asd_sas_phy *phy,
 					  gfp_t gfp_flags)
 {
-	return __sas_alloc_event(phy, gfp_flags);
+
+	return sas_alloc_event(phy, gfp_flags);
 }
 
 void sas_free_event(struct asd_sas_event *event)
