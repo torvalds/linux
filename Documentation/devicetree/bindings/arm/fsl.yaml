@@ -742,6 +742,7 @@ properties:
           - enum:
               - purism,librem5r2          # Purism Librem5 phone "Chestnut"
               - purism,librem5r3          # Purism Librem5 phone "Dogwood"
+              - purism,librem5r4          # Purism Librem5 phone "Evergreen"
           - const: purism,librem5
           - const: fsl,imx8mq
 
