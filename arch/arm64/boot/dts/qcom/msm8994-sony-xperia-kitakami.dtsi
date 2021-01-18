@@ -11,8 +11,17 @@
 
 / {
 	/* required for bootloader to select correct board */
-	qcom,msm-id = <0xcf 0x20001>;
+
+	/*
+	 * We support MSM8994 v2 (0x20000) and v2.1 (0x20001).
+	 * The V1 chip (0x0 and 0x10000) is significantly different
+	 * and requires driver-side changes (including CPR, be warned!!).
+	 * Besides that, it's very rare.
+	 */
+	qcom,msm-id = <207 0x20000>, <207 0x20001>;
+	/* We only use pm8994+pmi8994. */
 	qcom,pmic-id = <0x10009 0x1000a 0x00 0x00>;
+	/* This property is shared across all kitakami devices. */
 	qcom,board-id = <8 0>;
 
 	/* Kitakami firmware doesn't support PSCI */
@@ -120,7 +129,7 @@
 &blsp_i2c2 {
 	status = "okay";
 
-	/* NXP NFC */
+	/* NXP PN547 NFC */
 };
 
 &blsp_i2c4 {
@@ -132,7 +141,7 @@
 &blsp_i2c5 {
 	status = "okay";
 
-	/* SMB1357 charger and sii8620 HDMI/MHL bridge */
+	/* sii8620 HDMI/MHL bridge */
 };
 
 &blsp_i2c6 {
