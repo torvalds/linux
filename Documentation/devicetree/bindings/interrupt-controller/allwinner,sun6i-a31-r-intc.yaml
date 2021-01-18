@@ -27,6 +27,7 @@ properties:
       - items:
           - enum:
               - allwinner,sun8i-a83t-r-intc
+              - allwinner,sun8i-h3-r-intc
               - allwinner,sun50i-a64-r-intc
           - const: allwinner,sun6i-a31-r-intc
       - const: allwinner,sun50i-h6-r-intc
