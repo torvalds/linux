@@ -5265,6 +5265,12 @@ asmlinkage __visible void __sched notrace preempt_schedule(void)
 NOKPROBE_SYMBOL(preempt_schedule);
 EXPORT_SYMBOL(preempt_schedule);
 
+#ifdef CONFIG_PREEMPT_DYNAMIC
+DEFINE_STATIC_CALL(preempt_schedule, __preempt_schedule_func);
+EXPORT_STATIC_CALL(preempt_schedule);
+#endif
+
+
 /**
  * preempt_schedule_notrace - preempt_schedule called by tracing
  *
@@ -5316,6 +5322,12 @@ asmlinkage __visible void __sched notrace preempt_schedule_notrace(void)
 	} while (need_resched());
 }
 EXPORT_SYMBOL_GPL(preempt_schedule_notrace);
+
+#ifdef CONFIG_PREEMPT_DYNAMIC
+DEFINE_STATIC_CALL(preempt_schedule_notrace, __preempt_schedule_notrace_func);
+EXPORT_STATIC_CALL(preempt_schedule_notrace);
+#endif
+
 
 #endif /* CONFIG_PREEMPTION */
 
