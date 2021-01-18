@@ -16,13 +16,10 @@
 #include <linux/tty.h>
 #include <linux/tty_flip.h>
 #include <linux/module.h>
-#include <linux/moduleparam.h>
 #include <linux/usb.h>
-#include <linux/uaccess.h>
 #include <linux/usb/serial.h>
 #include <linux/gpio/driver.h>
 #include <linux/bitops.h>
-#include <linux/mutex.h>
 
 #define DRIVER_DESC "Silicon Labs CP210x RS232 serial adaptor driver"
 
