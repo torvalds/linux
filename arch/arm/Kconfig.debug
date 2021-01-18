@@ -1353,18 +1353,6 @@ choice
 		  This option selects UART0 on VIA/Wondermedia System-on-a-chip
 		  devices, including VT8500, WM8505, WM8650 and WM8850.
 
-	config DEBUG_ZTE_ZX
-		bool "Use ZTE ZX UART"
-		select DEBUG_UART_PL01X
-		depends on ARCH_ZX
-		help
-		  Say Y here if you are enabling ZTE ZX296702 SOC and need
-		  debug uart support.
-
-		  This option is preferred over the platform specific
-		  options; the platform specific options are deprecated
-		  and will be soon removed.
-
 	config DEBUG_ZYNQ_UART0
 		bool "Kernel low-level debugging on Xilinx Zynq using UART0"
 		depends on ARCH_ZYNQ
@@ -1599,7 +1587,6 @@ config DEBUG_UART_PHYS
 	default 0x02531000 if DEBUG_KEYSTONE_UART1
 	default 0x03010fe0 if ARCH_RPC
 	default 0x07000000 if DEBUG_SUN9I_UART0
-	default 0x09405000 if DEBUG_ZTE_ZX
 	default 0x10009000 if DEBUG_REALVIEW_STD_PORT || \
 				DEBUG_VEXPRESS_UART0_CA9
 	default 0x1010c000 if DEBUG_REALVIEW_PB1176_PORT
@@ -1782,7 +1769,6 @@ config DEBUG_UART_VIRT
 	default 0xfb020000 if DEBUG_OMAP3UART3
 	default 0xfb042000 if DEBUG_OMAP3UART4
 	default 0xfb10c000 if DEBUG_REALVIEW_PB1176_PORT
-	default 0xfc705000 if DEBUG_ZTE_ZX
 	default 0xfcfe8600 if DEBUG_BCM63XX_UART
 	default 0xfd000000 if DEBUG_SPEAR3XX || DEBUG_SPEAR13XX
 	default 0xfd883000 if DEBUG_ALPINE_UART0

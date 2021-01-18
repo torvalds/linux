@@ -718,8 +718,6 @@ source "arch/arm/mach-vexpress/Kconfig"
 
 source "arch/arm/mach-vt8500/Kconfig"
 
-source "arch/arm/mach-zx/Kconfig"
-
 source "arch/arm/mach-zynq/Kconfig"
 
 # ARMv7-M architecture
