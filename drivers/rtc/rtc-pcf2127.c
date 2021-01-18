@@ -58,6 +58,9 @@
 #define PCF2127_REG_ALARM_DM		0x0D
 #define PCF2127_REG_ALARM_DW		0x0E
 #define PCF2127_BIT_ALARM_AE			BIT(7)
+/* CLKOUT control register */
+#define PCF2127_REG_CLKOUT		0x0f
+#define PCF2127_BIT_CLKOUT_OTPR			BIT(5)
 /* Watchdog registers */
 #define PCF2127_REG_WD_CTL		0x10
 #define PCF2127_BIT_WD_CTL_TF0			BIT(0)
@@ -559,6 +562,7 @@ static int pcf2127_probe(struct device *dev, struct regmap *regmap,
 {
 	struct pcf2127 *pcf2127;
 	int ret = 0;
+	unsigned int val;
 
 	dev_dbg(dev, "%s\n", __func__);
 
@@ -614,6 +618,19 @@ static int pcf2127_probe(struct device *dev, struct regmap *regmap,
 	 */
 	regmap_clear_bits(pcf2127->regmap, PCF2127_REG_CTRL1,
 				PCF2127_BIT_CTRL1_POR_OVRD);
+
+	ret = regmap_read(pcf2127->regmap, PCF2127_REG_CLKOUT, &val);
+	if (ret < 0)
+		return ret;
+
+	if (!(val & PCF2127_BIT_CLKOUT_OTPR)) {
+		ret = regmap_set_bits(pcf2127->regmap, PCF2127_REG_CLKOUT,
+				      PCF2127_BIT_CLKOUT_OTPR);
+		if (ret < 0)
+			return ret;
+
+		msleep(100);
+	}
 
 	/*
 	 * Watchdog timer enabled and reset pin /RST activated when timed out.
