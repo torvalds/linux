@@ -332,7 +332,7 @@ static int qcom_show_pmic_model_array(struct seq_file *seq, void *p)
 		unsigned int model = SOCINFO_MINOR(get_unaligned_le32(ptr + 2 * i * sizeof(u32)));
 		unsigned int die_rev = get_unaligned_le32(ptr + (2 * i + 1) * sizeof(u32));
 
-		if (model <= ARRAY_SIZE(pmic_models) && pmic_models[model])
+		if (model < ARRAY_SIZE(pmic_models) && pmic_models[model])
 			seq_printf(seq, "%s %u.%u\n", pmic_models[model],
 				   SOCINFO_MAJOR(le32_to_cpu(die_rev)),
 				   SOCINFO_MINOR(le32_to_cpu(die_rev)));
