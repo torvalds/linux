@@ -1190,10 +1190,9 @@ int rockchip_pll_clk_compensation(struct clk *clk, int ppm)
 	struct clk *parent = clk_get_parent(clk);
 	struct rockchip_clk_pll *pll;
 	static u32 frac, fbdiv;
-	unsigned long m, n;
 	bool negative;
 	u32 pllcon, pllcon0, pllcon2, fbdiv_mask, frac_mask, frac_shift;
-	u64 fracdiv;
+	u64 fracdiv, m, n;
 
 	if ((ppm > 1000) || (ppm < -1000))
 		return -EINVAL;
@@ -1235,13 +1234,18 @@ int rockchip_pll_clk_compensation(struct clk *clk, int ppm)
 		fbdiv = readl_relaxed(pll->reg_base + pllcon0) & fbdiv_mask;
 	}
 
-	m = frac * ppm;
-	n = ppm << 24;
+	/*
+	 *   delta frac                 frac          ppm
+	 * -------------- = (fbdiv + ----------) * ---------
+	 *    1 << 24                 1 << 24       1000000
+	 *
+	 */
+	m = div64_u64((uint64_t)frac * ppm, 1000000);
+	n = div64_u64((uint64_t)ppm << 24, 1000000) * fbdiv;
 
-	fracdiv = negative ? frac - ((m / MHZ) + ((n / MHZ) * fbdiv)) :
-			     frac + ((m / MHZ) + ((n / MHZ) * fbdiv));
+	fracdiv = negative ? frac - (m + n) : frac + (m + n);
 
-	if (fracdiv > frac_mask)
+	if (!frac || fracdiv > frac_mask)
 		return -EINVAL;
 
 	pllcon = readl_relaxed(pll->reg_base + pllcon2);
