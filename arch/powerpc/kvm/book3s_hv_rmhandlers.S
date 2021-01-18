@@ -87,19 +87,6 @@ _GLOBAL_TOC(kvmppc_hv_entry_trampoline)
 	RFI_TO_KERNEL
 
 kvmppc_call_hv_entry:
-BEGIN_FTR_SECTION
-	/* On P9, do LPCR setting, if necessary */
-	ld	r3, HSTATE_SPLIT_MODE(r13)
-	cmpdi	r3, 0
-	beq	46f
-	lwz	r4, KVM_SPLIT_DO_SET(r3)
-	cmpwi	r4, 0
-	beq	46f
-	bl	kvmhv_p9_set_lpcr
-	nop
-46:
-END_FTR_SECTION_IFSET(CPU_FTR_ARCH_300)
-
 	ld	r4, HSTATE_KVM_VCPU(r13)
 	bl	kvmppc_hv_entry
 
@@ -363,11 +350,11 @@ kvm_secondary_got_guest:
 	LOAD_REG_ADDR(r6, decrementer_max)
 	ld	r6, 0(r6)
 	mtspr	SPRN_HDEC, r6
+BEGIN_FTR_SECTION
 	/* and set per-LPAR registers, if doing dynamic micro-threading */
 	ld	r6, HSTATE_SPLIT_MODE(r13)
 	cmpdi	r6, 0
 	beq	63f
-BEGIN_FTR_SECTION
 	ld	r0, KVM_SPLIT_RPR(r6)
 	mtspr	SPRN_RPR, r0
 	ld	r0, KVM_SPLIT_PMMAR(r6)
@@ -375,16 +362,7 @@ BEGIN_FTR_SECTION
 	ld	r0, KVM_SPLIT_LDBAR(r6)
 	mtspr	SPRN_LDBAR, r0
 	isync
-FTR_SECTION_ELSE
-	/* On P9 we use the split_info for coordinating LPCR changes */
-	lwz	r4, KVM_SPLIT_DO_SET(r6)
-	cmpwi	r4, 0
-	beq	1f
-	mr	r3, r6
-	bl	kvmhv_p9_set_lpcr
-	nop
-1:
-ALT_FTR_SECTION_END_IFCLR(CPU_FTR_ARCH_300)
+END_FTR_SECTION_IFCLR(CPU_FTR_ARCH_300)
 63:
 	/* Order load of vcpu after load of vcore */
 	lwsync
@@ -454,19 +432,15 @@ kvm_no_guest:
 	mtcr	r5
 	blr
 
-53:	HMT_LOW
+53:
+BEGIN_FTR_SECTION
+	HMT_LOW
 	ld	r5, HSTATE_KVM_VCORE(r13)
 	cmpdi	r5, 0
 	bne	60f
 	ld	r3, HSTATE_SPLIT_MODE(r13)
 	cmpdi	r3, 0
 	beq	kvm_no_guest
-	lwz	r0, KVM_SPLIT_DO_SET(r3)
-	cmpwi	r0, 0
-	bne	kvmhv_do_set
-	lwz	r0, KVM_SPLIT_DO_RESTORE(r3)
-	cmpwi	r0, 0
-	bne	kvmhv_do_restore
 	lbz	r0, KVM_SPLIT_DO_NAP(r3)
 	cmpwi	r0, 0
 	beq	kvm_no_guest
@@ -474,22 +448,17 @@ kvm_no_guest:
 	b	kvm_unsplit_nap
 60:	HMT_MEDIUM
 	b	kvm_secondary_got_guest
+FTR_SECTION_ELSE
+	HMT_LOW
+	ld	r5, HSTATE_KVM_VCORE(r13)
+	cmpdi	r5, 0
+	beq	kvm_no_guest
+	HMT_MEDIUM
+	b	kvm_secondary_got_guest
+ALT_FTR_SECTION_END_IFCLR(CPU_FTR_ARCH_300)
 
 54:	li	r0, KVM_HWTHREAD_IN_KVM
 	stb	r0, HSTATE_HWTHREAD_STATE(r13)
-	b	kvm_no_guest
-
-kvmhv_do_set:
-	/* Set LPCR, LPIDR etc. on P9 */
-	HMT_MEDIUM
-	bl	kvmhv_p9_set_lpcr
-	nop
-	b	kvm_no_guest
-
-kvmhv_do_restore:
-	HMT_MEDIUM
-	bl	kvmhv_p9_restore_lpcr
-	nop
 	b	kvm_no_guest
 
 /*
@@ -529,7 +498,8 @@ END_FTR_SECTION_IFSET(CPU_FTR_ARCH_207S)
 	/* Set kvm_split_mode.napped[tid] = 1 */
 	ld	r3, HSTATE_SPLIT_MODE(r13)
 	li	r0, 1
-	lbz	r4, HSTATE_TID(r13)
+	lhz	r4, PACAPACAINDEX(r13)
+	clrldi	r4, r4, 61	/* micro-threading => P8 => 8 threads/core */
 	addi	r4, r4, KVM_SPLIT_NAPPED
 	stbx	r0, r3, r4
 	/* Check the do_nap flag again after setting napped[] */
@@ -1958,24 +1928,10 @@ END_FTR_SECTION_IFSET(CPU_FTR_ARCH_207S)
 19:	lis	r8,0x7fff		/* MAX_INT@h */
 	mtspr	SPRN_HDEC,r8
 
-16:
-BEGIN_FTR_SECTION
-	/* On POWER9 with HPT-on-radix we need to wait for all other threads */
-	ld	r3, HSTATE_SPLIT_MODE(r13)
-	cmpdi	r3, 0
-	beq	47f
-	lwz	r8, KVM_SPLIT_DO_RESTORE(r3)
-	cmpwi	r8, 0
-	beq	47f
-	bl	kvmhv_p9_restore_lpcr
-	nop
-	b	48f
-47:
-END_FTR_SECTION_IFSET(CPU_FTR_ARCH_300)
-	ld	r8,KVM_HOST_LPCR(r4)
+16:	ld	r8,KVM_HOST_LPCR(r4)
 	mtspr	SPRN_LPCR,r8
 	isync
-48:
+
 #ifdef CONFIG_KVM_BOOK3S_HV_EXIT_TIMING
 	/* Finish timing, if we have a vcpu */
 	ld	r4, HSTATE_KVM_VCPU(r13)
@@ -2799,8 +2755,10 @@ ALT_FTR_SECTION_END_IFSET(CPU_FTR_ARCH_300)
 	beq	kvm_end_cede
 	cmpwi	r0, NAPPING_NOVCPU
 	beq	kvm_novcpu_wakeup
+BEGIN_FTR_SECTION
 	cmpwi	r0, NAPPING_UNSPLIT
 	beq	kvm_unsplit_wakeup
+END_FTR_SECTION_IFCLR(CPU_FTR_ARCH_300)
 	twi	31,0,0 /* Nap state must not be zero */
 
 33:	mr	r4, r3

@@ -134,7 +134,7 @@ static inline bool nesting_enabled(struct kvm *kvm)
 }
 
 /* If set, the threads on each CPU core have to be in the same MMU mode */
-static bool no_mixing_hpt_and_radix;
+static bool no_mixing_hpt_and_radix __read_mostly;
 
 static int kvmppc_hv_setup_htab_rma(struct kvm_vcpu *vcpu);
 
@@ -2890,11 +2890,6 @@ static bool can_dynamic_split(struct kvmppc_vcore *vc, struct core_info *cip)
 	if (one_vm_per_core && vc->kvm != cip->vc[0]->kvm)
 		return false;
 
-	/* Some POWER9 chips require all threads to be in the same MMU mode */
-	if (no_mixing_hpt_and_radix &&
-	    kvm_is_radix(vc->kvm) != kvm_is_radix(cip->vc[0]->kvm))
-		return false;
-
 	if (n_threads < cip->max_subcore_threads)
 		n_threads = cip->max_subcore_threads;
 	if (!subcore_config_ok(cip->n_subcores + 1, n_threads))
@@ -2933,6 +2928,9 @@ static void prepare_threads(struct kvmppc_vcore *vc)
 	for_each_runnable_thread(i, vcpu, vc) {
 		if (signal_pending(vcpu->arch.run_task))
 			vcpu->arch.ret = -EINTR;
+		else if (no_mixing_hpt_and_radix &&
+			 kvm_is_radix(vc->kvm) != radix_enabled())
+			vcpu->arch.ret = -EINVAL;
 		else if (vcpu->arch.vpa.update_pending ||
 			 vcpu->arch.slb_shadow.update_pending ||
 			 vcpu->arch.dtl.update_pending)
@@ -3138,7 +3136,6 @@ static noinline void kvmppc_run_core(struct kvmppc_vcore *vc)
 	int controlled_threads;
 	int trap;
 	bool is_power8;
-	bool hpt_on_radix;
 
 	/*
 	 * Remove from the list any threads that have a signal pending
@@ -3171,11 +3168,8 @@ static noinline void kvmppc_run_core(struct kvmppc_vcore *vc)
 	 * this is a HPT guest on a radix host machine where the
 	 * CPU threads may not be in different MMU modes.
 	 */
-	hpt_on_radix = no_mixing_hpt_and_radix && radix_enabled() &&
-		!kvm_is_radix(vc->kvm);
-	if (((controlled_threads > 1) &&
-	     ((vc->num_threads > threads_per_subcore) || !on_primary_thread())) ||
-	    (hpt_on_radix && vc->kvm->arch.threads_indep)) {
+	if ((controlled_threads > 1) &&
+	    ((vc->num_threads > threads_per_subcore) || !on_primary_thread())) {
 		for_each_runnable_thread(i, vcpu, vc) {
 			vcpu->arch.ret = -EBUSY;
 			kvmppc_remove_runnable(vc, vcpu);
@@ -3243,7 +3237,7 @@ static noinline void kvmppc_run_core(struct kvmppc_vcore *vc)
 	is_power8 = cpu_has_feature(CPU_FTR_ARCH_207S)
 		&& !cpu_has_feature(CPU_FTR_ARCH_300);
 
-	if (split > 1 || hpt_on_radix) {
+	if (split > 1) {
 		sip = &split_info;
 		memset(&split_info, 0, sizeof(split_info));
 		for (sub = 0; sub < core_info.n_subcores; ++sub)
@@ -3265,13 +3259,6 @@ static noinline void kvmppc_run_core(struct kvmppc_vcore *vc)
 			split_info.subcore_size = subcore_size;
 		} else {
 			split_info.subcore_size = 1;
-			if (hpt_on_radix) {
-				/* Use the split_info for LPCR/LPIDR changes */
-				split_info.lpcr_req = vc->lpcr;
-				split_info.lpidr_req = vc->kvm->arch.lpid;
-				split_info.host_lpcr = vc->kvm->arch.host_lpcr;
-				split_info.do_set = 1;
-			}
 		}
 
 		/* order writes to split_info before kvm_split_mode pointer */
@@ -3281,7 +3268,6 @@ static noinline void kvmppc_run_core(struct kvmppc_vcore *vc)
 	for (thr = 0; thr < controlled_threads; ++thr) {
 		struct paca_struct *paca = paca_ptrs[pcpu + thr];
 
-		paca->kvm_hstate.tid = thr;
 		paca->kvm_hstate.napping = 0;
 		paca->kvm_hstate.kvm_split_mode = sip;
 	}
@@ -3355,10 +3341,8 @@ static noinline void kvmppc_run_core(struct kvmppc_vcore *vc)
 	 * When doing micro-threading, poke the inactive threads as well.
 	 * This gets them to the nap instruction after kvm_do_nap,
 	 * which reduces the time taken to unsplit later.
-	 * For POWER9 HPT guest on radix host, we need all the secondary
-	 * threads woken up so they can do the LPCR/LPIDR change.
 	 */
-	if (cmd_bit || hpt_on_radix) {
+	if (cmd_bit) {
 		split_info.do_nap = 1;	/* ask secondaries to nap when done */
 		for (thr = 1; thr < threads_per_subcore; ++thr)
 			if (!(active & (1 << thr)))
@@ -3419,19 +3403,8 @@ static noinline void kvmppc_run_core(struct kvmppc_vcore *vc)
 			cpu_relax();
 			++loops;
 		}
-	} else if (hpt_on_radix) {
-		/* Wait for all threads to have seen final sync */
-		for (thr = 1; thr < controlled_threads; ++thr) {
-			struct paca_struct *paca = paca_ptrs[pcpu + thr];
-
-			while (paca->kvm_hstate.kvm_split_mode) {
-				HMT_low();
-				barrier();
-			}
-			HMT_medium();
-		}
+		split_info.do_nap = 0;
 	}
-	split_info.do_nap = 0;
 
 	kvmppc_set_host_core(pcpu);
 
@@ -4216,7 +4189,6 @@ int kvmhv_run_single_vcpu(struct kvm_vcpu *vcpu, u64 time_limit,
 
 	kvmppc_clear_host_core(pcpu);
 
-	local_paca->kvm_hstate.tid = 0;
 	local_paca->kvm_hstate.napping = 0;
 	local_paca->kvm_hstate.kvm_split_mode = NULL;
 	kvmppc_start_thread(vcpu, vc);
@@ -4401,15 +4373,11 @@ static int kvmppc_vcpu_run_hv(struct kvm_vcpu *vcpu)
 
 	do {
 		/*
-		 * The early POWER9 chips that can't mix radix and HPT threads
-		 * on the same core also need the workaround for the problem
-		 * where the TLB would prefetch entries in the guest exit path
-		 * for radix guests using the guest PIDR value and LPID 0.
-		 * The workaround is in the old path (kvmppc_run_vcpu())
-		 * but not the new path (kvmhv_run_single_vcpu()).
+		 * The TLB prefetch bug fixup is only in the kvmppc_run_vcpu
+		 * path, which also handles hash and dependent threads mode.
 		 */
 		if (kvm->arch.threads_indep && kvm_is_radix(kvm) &&
-		    !no_mixing_hpt_and_radix)
+		    !cpu_has_feature(CPU_FTR_P9_RADIX_PREFETCH_BUG))
 			r = kvmhv_run_single_vcpu(vcpu, ~(u64)0,
 						  vcpu->arch.vcore->lpcr);
 		else
