@@ -523,7 +523,7 @@
 		blsp2_uart2: serial@f995e000 {
 			compatible = "qcom,msm-uartdm-v1.4", "qcom,msm-uartdm";
 			reg = <0xf995e000 0x1000>;
-			interrupts = <GIC_SPI 146 IRQ_TYPE_EDGE_FALLING>;
+			interrupts = <GIC_SPI 114 IRQ_TYPE_LEVEL_HIGH>;
 			clock-names = "core", "iface";
 			clocks = <&gcc GCC_BLSP2_UART2_APPS_CLK>,
 					<&gcc GCC_BLSP2_AHB_CLK>;
@@ -618,16 +618,18 @@
 
 			blsp2_uart2_default: blsp2-uart2-default {
 				function = "blsp_uart8";
-				pins = "gpio45", "gpio46";
-				drive-strength = <2>;
+				pins = "gpio45", "gpio46",
+						"gpio47", "gpio48";
+				drive-strength = <16>;
 				bias-disable;
 			};
 
 			blsp2_uart2_sleep: blsp2-uart2-sleep {
 				function = "gpio";
-				pins = "gpio45", "gpio46";
+				pins = "gpio45", "gpio46",
+						"gpio47", "gpio48";
 				drive-strength = <2>;
-				bias-pull-down;
+				bias-disable;
 			};
 
 			i2c1_default: i2c1-default {
