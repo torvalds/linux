@@ -11,3 +11,8 @@
 	model = "Sony Xperia Z5 Premium";
 	compatible = "sony,satsuki-row", "qcom,msm8994";
 };
+
+&pm8994_l14 {
+	regulator-min-microvolt = <1850000>;
+	regulator-max-microvolt = <1850000>;
+};

@@ -19,3 +19,25 @@
 	 * sii8620 HDMI/MHL bridge @ 72 (kitakami-common)
 	 */
 };
+
+&pm8994_l3 {
+	regulator-min-microvolt = <1050000>;
+	regulator-max-microvolt = <1050000>;
+};
+
+&pm8994_l17 {
+	regulator-min-microvolt = <2700000>;
+	regulator-max-microvolt = <2700000>;
+};
+
+&pm8994_l22 {
+	regulator-min-microvolt = <3100000>;
+	regulator-max-microvolt = <3100000>;
+};
+
+&pm8994_l25 {
+	regulator-min-microvolt = <1037500>;
+	regulator-max-microvolt = <1037500>;
+};
+
+/delete-node/ &pm8994_l32;

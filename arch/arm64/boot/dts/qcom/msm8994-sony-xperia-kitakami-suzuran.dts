@@ -11,3 +11,10 @@
 	model = "Sony Xperia Z5 Compact";
 	compatible = "sony,suzuran-row", "qcom,msm8994";
 };
+
+&pm8994_l14 {
+	regulator-min-microvolt = <2000000>;
+	regulator-max-microvolt = <2000000>;
+};
+
+/delete-node/ &pm8994_l19;
