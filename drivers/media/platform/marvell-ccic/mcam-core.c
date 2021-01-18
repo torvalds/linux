@@ -1866,16 +1866,6 @@ int mccic_register(struct mcam_camera *cam)
 	cam->pix_format = mcam_def_pix_format;
 	cam->mbus_code = mcam_def_mbus_code;
 
-	/*
-	 * Register sensor notifier.
-	 */
-	v4l2_async_notifier_init(&cam->notifier);
-	ret = v4l2_async_notifier_add_subdev(&cam->notifier, &cam->asd);
-	if (ret) {
-		cam_warn(cam, "failed to add subdev to a notifier");
-		goto out;
-	}
-
 	cam->notifier.ops = &mccic_notify_ops;
 	ret = v4l2_async_notifier_register(&cam->v4l2_dev, &cam->notifier);
 	if (ret < 0) {
