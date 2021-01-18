@@ -170,8 +170,51 @@
 		#size-cells = <2>;
 		ranges;
 
+		dfps_data_mem: dfps_data_mem@3400000 {
+			reg = <0 0x03400000 0 0x1000>;
+			no-map;
+		};
+
+		cont_splash_mem: memory@3800000 {
+			reg = <0 0x03800000 0 0x2400000>;
+			no-map;
+		};
+
 		smem_mem: smem_region@6a00000 {
-			reg = <0x0 0x6a00000 0x0 0x200000>;
+			reg = <0 0x06a00000 0 0x200000>;
+			no-map;
+		};
+
+		mpss_mem: memory@7000000 {
+			reg = <0 0x07000000 0 0x5a00000>;
+			no-map;
+		};
+
+		peripheral_region: memory@ca00000 {
+			reg = <0 0x0ca00000 0 0x1f00000>;
+			no-map;
+		};
+
+		rmtfs_mem: memory@c6400000 {
+			compatible = "qcom,rmtfs-mem";
+			reg = <0 0xc6400000 0 0x180000>;
+			no-map;
+
+			qcom,client-id = <1>;
+		};
+
+		mba_mem: memory@c6700000 {
+			reg = <0 0xc6700000 0 0x100000>;
+			no-map;
+		};
+
+		audio_mem: memory@c7000000 {
+			reg = <0 0xc7000000 0 0x800000>;
+			no-map;
+		};
+
+		adsp_mem: memory@c9400000 {
+			reg = <0 0xc9400000 0 0x3f00000>;
 			no-map;
 		};
 	};
