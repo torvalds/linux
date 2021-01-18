@@ -1145,6 +1145,11 @@ static inline enum zone_type page_zonenum(const struct page *page)
 	return (page->flags >> ZONES_PGSHIFT) & ZONES_MASK;
 }
 
+static inline enum zone_type folio_zonenum(const struct folio *folio)
+{
+	return page_zonenum(&folio->page);
+}
+
 #ifdef CONFIG_ZONE_DEVICE
 static inline bool is_zone_device_page(const struct page *page)
 {
@@ -1558,6 +1563,16 @@ static inline struct zone *page_zone(const struct page *page)
 static inline pg_data_t *page_pgdat(const struct page *page)
 {
 	return NODE_DATA(page_to_nid(page));
+}
+
+static inline struct zone *folio_zone(const struct folio *folio)
+{
+	return page_zone(&folio->page);
+}
+
+static inline pg_data_t *folio_pgdat(const struct folio *folio)
+{
+	return page_pgdat(&folio->page);
 }
 
 #ifdef SECTION_IN_PAGE_FLAGS
