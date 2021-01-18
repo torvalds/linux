@@ -2000,7 +2000,7 @@ int rproc_set_firmware(struct rproc *rproc, const char *fw_name)
 		goto out;
 	}
 
-	kfree(rproc->firmware);
+	kfree_const(rproc->firmware);
 	rproc->firmware = p;
 
 out:
