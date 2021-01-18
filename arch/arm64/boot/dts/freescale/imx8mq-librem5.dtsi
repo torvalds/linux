@@ -82,6 +82,20 @@
 		enable-active-high;
 	};
 
+	reg_lcd_1v8: regulator-lcd-1v8 {
+		compatible = "regulator-fixed";
+		pinctrl-names = "default";
+		pinctrl-0 = <&pinctrl_dsien>;
+		regulator-name = "LCD_1V8";
+		regulator-min-microvolt = <1800000>;
+		regulator-max-microvolt = <1800000>;
+		vin-supply = <&reg_vdd_1v8>;
+		gpio = <&gpio1 5 GPIO_ACTIVE_HIGH>;
+		enable-active-high;
+		/* Otherwise i2c3 is not functional */
+		regulator-always-on;
+	};
+
 	reg_lcd_3v4: regulator-lcd-3v4 {
 		compatible = "regulator-fixed";
 		regulator-name = "LCD_3V4";
@@ -892,6 +906,7 @@
 		interrupts = <27 IRQ_TYPE_EDGE_FALLING>;
 		touchscreen-size-x = <720>;
 		touchscreen-size-y = <1440>;
+		vcc-supply = <&reg_lcd_1v8>;
 	};
 };
 
