@@ -1522,6 +1522,7 @@ int _opp_add(struct device *dev, struct dev_pm_opp *new_opp,
 	     struct opp_table *opp_table, bool rate_not_available)
 {
 	struct list_head *head;
+	unsigned int i;
 	int ret;
 
 	mutex_lock(&opp_table->lock);
@@ -1545,6 +1546,16 @@ int _opp_add(struct device *dev, struct dev_pm_opp *new_opp,
 		new_opp->available = false;
 		dev_warn(dev, "%s: OPP not supported by regulators (%lu)\n",
 			 __func__, new_opp->rate);
+	}
+
+	for (i = 0; i < opp_table->required_opp_count; i++) {
+		if (new_opp->required_opps[i]->available)
+			continue;
+
+		new_opp->available = false;
+		dev_warn(dev, "%s: OPP not supported by required OPP %pOF (%lu)\n",
+			 __func__, new_opp->required_opps[i]->np, new_opp->rate);
+		break;
 	}
 
 	return 0;
