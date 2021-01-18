@@ -1952,8 +1952,6 @@ static struct dma_chan *sdma_xlate(struct of_phandle_args *dma_spec,
 
 static int sdma_probe(struct platform_device *pdev)
 {
-	const struct of_device_id *of_id =
-			of_match_device(sdma_dt_ids, &pdev->dev);
 	struct device_node *np = pdev->dev.of_node;
 	struct device_node *spba_bus;
 	const char *fw_name;
@@ -1964,13 +1962,6 @@ static int sdma_probe(struct platform_device *pdev)
 	int i;
 	struct sdma_engine *sdma;
 	s32 *saddr_arr;
-	const struct sdma_driver_data *drvdata = NULL;
-
-	drvdata = of_id->data;
-	if (!drvdata) {
-		dev_err(&pdev->dev, "unable to find driver data\n");
-		return -EINVAL;
-	}
 
 	ret = dma_coerce_mask_and_coherent(&pdev->dev, DMA_BIT_MASK(32));
 	if (ret)
@@ -1983,7 +1974,7 @@ static int sdma_probe(struct platform_device *pdev)
 	spin_lock_init(&sdma->channel_0_lock);
 
 	sdma->dev = &pdev->dev;
-	sdma->drvdata = drvdata;
+	sdma->drvdata = of_device_get_match_data(sdma->dev);
 
 	irq = platform_get_irq(pdev, 0);
 	if (irq < 0)
