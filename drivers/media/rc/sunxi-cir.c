@@ -342,21 +342,11 @@ exit_reset_assert:
 
 static int sunxi_ir_remove(struct platform_device *pdev)
 {
-	unsigned long flags;
 	struct sunxi_ir *ir = platform_get_drvdata(pdev);
 
 	clk_disable_unprepare(ir->clk);
 	clk_disable_unprepare(ir->apb_clk);
 	reset_control_assert(ir->rst);
-
-	spin_lock_irqsave(&ir->ir_lock, flags);
-	/* disable IR IRQ */
-	writel(0, ir->base + SUNXI_IR_RXINT_REG);
-	/* clear All Rx Interrupt Status */
-	writel(REG_RXSTA_CLEARALL, ir->base + SUNXI_IR_RXSTA_REG);
-	/* disable IR */
-	writel(0, ir->base + SUNXI_IR_CTL_REG);
-	spin_unlock_irqrestore(&ir->ir_lock, flags);
 
 	rc_unregister_device(ir->rc);
 	return 0;
