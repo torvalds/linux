@@ -8,7 +8,7 @@ Required properties:
 
 Optional properties:
 - linux,no-autorepeat:	Disable keyrepeat.
-- default-brightness-level: Initial brightness level [0-15] (default: 15).
+- default-brightness-level: Initial brightness level [1-16] (default: 16).
 
 - Keypad
  Supply the 'interrupts' property to enable the keyscan feature.
