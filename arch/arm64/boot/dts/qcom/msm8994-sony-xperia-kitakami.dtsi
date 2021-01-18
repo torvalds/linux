@@ -185,6 +185,24 @@
 	status = "okay";
 };
 
+&pmi8994_spmi_regulators {
+	/*
+	 * Yeah, this one *is* managed by RPMPD, but also needs
+	 * to be hacked up as a-o due to the GPU device only accepting a single
+	 * power domain.. which still isn't enough and forces us to bind
+	 * OXILI_CX and OXILI_GX together!
+	 */
+	vdd_gfx: s2@1700 {
+		reg = <0x1700 0x100>;
+		regulator-name = "VDD_GFX";
+		regulator-min-microvolt = <980000>;
+		regulator-max-microvolt = <980000>;
+
+		/* hack until we rig up the gpu consumer */
+		regulator-always-on;
+	};
+};
+
 &rpm_requests {
 	pm8994_regulators: pm8994-regulators {
 		compatible = "qcom,rpm-pm8994-regulators";
