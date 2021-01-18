@@ -656,8 +656,6 @@ struct pxa_camera_dev {
 	const struct pxa_camera_format_xlate *current_fmt;
 	struct v4l2_pix_format	current_pix;
 
-	struct v4l2_async_subdev asd;
-
 	/*
 	 * PXA27x is only supposed to handle one camera on its Quick Capture
 	 * interface. If anyone ever builds hardware to enable more than
@@ -2202,11 +2200,11 @@ static int pxa_camera_resume(struct device *dev)
 }
 
 static int pxa_camera_pdata_from_dt(struct device *dev,
-				    struct pxa_camera_dev *pcdev,
-				    struct v4l2_async_subdev *asd)
+				    struct pxa_camera_dev *pcdev)
 {
 	u32 mclk_rate;
-	struct device_node *remote, *np = dev->of_node;
+	struct v4l2_async_subdev *asd;
+	struct device_node *np = dev->of_node;
 	struct v4l2_fwnode_endpoint ep = { .bus_type = 0 };
 	int err = of_property_read_u32(np, "clock-frequency",
 				       &mclk_rate);
@@ -2258,13 +2256,12 @@ static int pxa_camera_pdata_from_dt(struct device *dev,
 	if (ep.bus.parallel.flags & V4L2_MBUS_PCLK_SAMPLE_FALLING)
 		pcdev->platform_flags |= PXA_CAMERA_PCLK_EN;
 
-	asd->match_type = V4L2_ASYNC_MATCH_FWNODE;
-	remote = of_graph_get_remote_port_parent(np);
-	if (remote)
-		asd->match.fwnode = of_fwnode_handle(remote);
-	else
-		dev_notice(dev, "no remote for %pOF\n", np);
-
+	asd = v4l2_async_notifier_add_fwnode_remote_subdev(
+				&pcdev->notifier,
+				of_fwnode_handle(np),
+				sizeof(*asd));
+	if (IS_ERR(asd))
+		err = PTR_ERR(asd);
 out:
 	of_node_put(np);
 
@@ -2300,18 +2297,23 @@ static int pxa_camera_probe(struct platform_device *pdev)
 	if (IS_ERR(pcdev->clk))
 		return PTR_ERR(pcdev->clk);
 
+	v4l2_async_notifier_init(&pcdev->notifier);
 	pcdev->res = res;
-
 	pcdev->pdata = pdev->dev.platform_data;
 	if (pcdev->pdata) {
+		struct v4l2_async_subdev *asd;
+
 		pcdev->platform_flags = pcdev->pdata->flags;
 		pcdev->mclk = pcdev->pdata->mclk_10khz * 10000;
-		pcdev->asd.match_type = V4L2_ASYNC_MATCH_I2C;
-		pcdev->asd.match.i2c.adapter_id =
-			pcdev->pdata->sensor_i2c_adapter_id;
-		pcdev->asd.match.i2c.address = pcdev->pdata->sensor_i2c_address;
+		asd = v4l2_async_notifier_add_i2c_subdev(
+				&pcdev->notifier,
+				pcdev->pdata->sensor_i2c_adapter_id,
+				pcdev->pdata->sensor_i2c_address,
+				sizeof(*asd));
+		if (IS_ERR(asd))
+			err = PTR_ERR(asd);
 	} else if (pdev->dev.of_node) {
-		err = pxa_camera_pdata_from_dt(&pdev->dev, pcdev, &pcdev->asd);
+		err = pxa_camera_pdata_from_dt(&pdev->dev, pcdev);
 	} else {
 		return -ENODEV;
 	}
@@ -2403,27 +2405,15 @@ static int pxa_camera_probe(struct platform_device *pdev)
 	if (err)
 		goto exit_deactivate;
 
-	v4l2_async_notifier_init(&pcdev->notifier);
-
-	err = v4l2_async_notifier_add_subdev(&pcdev->notifier, &pcdev->asd);
-	if (err) {
-		fwnode_handle_put(pcdev->asd.match.fwnode);
-		goto exit_free_v4l2dev;
-	}
-
-	pcdev->notifier.ops = &pxa_camera_sensor_ops;
-
-	if (!of_have_populated_dt())
-		pcdev->asd.match_type = V4L2_ASYNC_MATCH_I2C;
-
 	err = pxa_camera_init_videobuf2(pcdev);
 	if (err)
 		goto exit_notifier_cleanup;
 
 	v4l2_clk_name_i2c(clk_name, sizeof(clk_name),
-			  pcdev->asd.match.i2c.adapter_id,
-			  pcdev->asd.match.i2c.address);
+			  pcdev->pdata->sensor_i2c_adapter_id,
+			  pcdev->pdata->sensor_i2c_address);
 
+	pcdev->notifier.ops = &pxa_camera_sensor_ops;
 	pcdev->mclk_clk = v4l2_clk_register(&pxa_camera_mclk_ops, clk_name, NULL);
 	if (IS_ERR(pcdev->mclk_clk)) {
 		err = PTR_ERR(pcdev->mclk_clk);
@@ -2439,7 +2429,6 @@ exit_free_clk:
 	v4l2_clk_unregister(pcdev->mclk_clk);
 exit_notifier_cleanup:
 	v4l2_async_notifier_cleanup(&pcdev->notifier);
-exit_free_v4l2dev:
 	v4l2_device_unregister(&pcdev->v4l2_dev);
 exit_deactivate:
 	pxa_camera_deactivate(pcdev);
