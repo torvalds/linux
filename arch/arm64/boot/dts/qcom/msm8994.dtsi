@@ -820,9 +820,9 @@
 			     <GIC_PPI 1 0xff08>;
 	};
 
-	vreg_vph_pwr: vreg-vph-pwr {
+	vph_pwr: vph-pwr-regulator {
 		compatible = "regulator-fixed";
-		regulator-name = "vph-pwr";
+		regulator-name = "vph_pwr";
 
 		regulator-min-microvolt = <3600000>;
 		regulator-max-microvolt = <3600000>;
