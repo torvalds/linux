@@ -3,6 +3,7 @@
  * Silicon Laboratories CP210x USB to RS232 serial adaptor driver
  *
  * Copyright (C) 2005 Craig Shelley (craig@microtron.org.uk)
+ * Copyright (C) 2010-2021 Johan Hovold (johan@kernel.org)
  *
  * Support to set flow control line levels using TIOCMGET and TIOCMSET
  * thanks to Karl Hiramoto karl@hiramoto.org. RTSCTS hardware flow
