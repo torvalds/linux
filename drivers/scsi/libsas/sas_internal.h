@@ -54,7 +54,6 @@ void sas_free_event(struct asd_sas_event *event);
 int  sas_register_ports(struct sas_ha_struct *sas_ha);
 void sas_unregister_ports(struct sas_ha_struct *sas_ha);
 
-int  sas_init_events(struct sas_ha_struct *sas_ha);
 void sas_disable_revalidation(struct sas_ha_struct *ha);
 void sas_enable_revalidation(struct sas_ha_struct *ha);
 void __sas_drain_work(struct sas_ha_struct *ha);
