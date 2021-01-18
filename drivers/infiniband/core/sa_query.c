@@ -1434,7 +1434,7 @@ enum opa_pr_supported {
 	PR_IB_SUPPORTED
 };
 
-/**
+/*
  * opa_pr_query_possible - Check if current PR query can be an OPA query.
  *
  * Retuns PR_NOT_SUPPORTED if a path record query is not
