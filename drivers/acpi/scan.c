@@ -578,29 +578,31 @@ static void acpi_scan_drop_device(acpi_handle handle, void *context)
 	mutex_unlock(&acpi_device_del_lock);
 }
 
-static int acpi_get_device_data(acpi_handle handle, struct acpi_device **device,
-				void (*callback)(void *))
+static struct acpi_device *handle_to_device(acpi_handle handle,
+					    void (*callback)(void *))
 {
+	struct acpi_device *adev = NULL;
 	acpi_status status;
 
-	if (!device)
-		return -EINVAL;
-
-	*device = NULL;
-
 	status = acpi_get_data_full(handle, acpi_scan_drop_device,
-				    (void **)device, callback);
-	if (ACPI_FAILURE(status) || !*device) {
-		ACPI_DEBUG_PRINT((ACPI_DB_INFO, "No context for object [%p]\n",
-				  handle));
-		return -ENODEV;
+				    (void **)&adev, callback);
+	if (ACPI_FAILURE(status) || !adev) {
+		acpi_handle_debug(handle, "No context!\n");
+		return NULL;
 	}
-	return 0;
+	return adev;
 }
 
 int acpi_bus_get_device(acpi_handle handle, struct acpi_device **device)
 {
-	return acpi_get_device_data(handle, device, NULL);
+	if (!device)
+		return -EINVAL;
+
+	*device = handle_to_device(handle, NULL);
+	if (!*device)
+		return -ENODEV;
+
+	return 0;
 }
 EXPORT_SYMBOL(acpi_bus_get_device);
 
@@ -612,10 +614,7 @@ static void get_acpi_device(void *dev)
 
 struct acpi_device *acpi_bus_get_acpi_device(acpi_handle handle)
 {
-	struct acpi_device *adev = NULL;
-
-	acpi_get_device_data(handle, &adev, get_acpi_device);
-	return adev;
+	return handle_to_device(handle, get_acpi_device);
 }
 
 void acpi_bus_put_acpi_device(struct acpi_device *adev)
