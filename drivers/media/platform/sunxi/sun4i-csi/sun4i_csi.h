@@ -139,7 +139,6 @@ struct sun4i_csi {
 	struct v4l2_mbus_framefmt	subdev_fmt;
 
 	/* V4L2 Async variables */
-	struct v4l2_async_subdev	asd;
 	struct v4l2_async_notifier	notifier;
 	struct v4l2_subdev		*src_subdev;
 	int				src_pad;

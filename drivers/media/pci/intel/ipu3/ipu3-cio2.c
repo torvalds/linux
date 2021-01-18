@@ -1476,7 +1476,8 @@ static int cio2_parse_firmware(struct cio2_device *cio2)
 		struct v4l2_fwnode_endpoint vep = {
 			.bus_type = V4L2_MBUS_CSI2_DPHY
 		};
-		struct sensor_async_subdev *s_asd = NULL;
+		struct sensor_async_subdev *s_asd;
+		struct v4l2_async_subdev *asd;
 		struct fwnode_handle *ep;
 
 		ep = fwnode_graph_get_endpoint_by_id(
@@ -1490,19 +1491,16 @@ static int cio2_parse_firmware(struct cio2_device *cio2)
 		if (ret)
 			goto err_parse;
 
-		s_asd = kzalloc(sizeof(*s_asd), GFP_KERNEL);
-		if (!s_asd) {
-			ret = -ENOMEM;
+		asd = v4l2_async_notifier_add_fwnode_remote_subdev(
+				&cio2->notifier, ep, sizeof(*s_asd));
+		if (IS_ERR(asd)) {
+			ret = PTR_ERR(asd);
 			goto err_parse;
 		}
 
+		s_asd = container_of(asd, struct sensor_async_subdev, asd);
 		s_asd->csi2.port = vep.base.port;
 		s_asd->csi2.lanes = vep.bus.mipi_csi2.num_data_lanes;
-
-		ret = v4l2_async_notifier_add_fwnode_remote_subdev(
-			&cio2->notifier, ep, &s_asd->asd);
-		if (ret)
-			goto err_parse;
 
 		fwnode_handle_put(ep);
 
@@ -1510,7 +1508,6 @@ static int cio2_parse_firmware(struct cio2_device *cio2)
 
 err_parse:
 		fwnode_handle_put(ep);
-		kfree(s_asd);
 		return ret;
 	}
 

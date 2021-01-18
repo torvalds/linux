@@ -673,26 +673,26 @@ v4l2_async_notifier_add_fwnode_subdev(struct v4l2_async_notifier *notifier,
 }
 EXPORT_SYMBOL_GPL(v4l2_async_notifier_add_fwnode_subdev);
 
-int
+struct v4l2_async_subdev *
 v4l2_async_notifier_add_fwnode_remote_subdev(struct v4l2_async_notifier *notif,
 					     struct fwnode_handle *endpoint,
-					     struct v4l2_async_subdev *asd)
+					     unsigned int asd_struct_size)
 {
+	struct v4l2_async_subdev *asd;
 	struct fwnode_handle *remote;
-	int ret;
 
 	remote = fwnode_graph_get_remote_port_parent(endpoint);
 	if (!remote)
-		return -ENOTCONN;
+		return ERR_PTR(-ENOTCONN);
 
-	asd->match_type = V4L2_ASYNC_MATCH_FWNODE;
-	asd->match.fwnode = remote;
-
-	ret = v4l2_async_notifier_add_subdev(notif, asd);
-	if (ret)
-		fwnode_handle_put(remote);
-
-	return ret;
+	asd = v4l2_async_notifier_add_fwnode_subdev(notif, remote,
+						    asd_struct_size);
+	/*
+	 * Calling v4l2_async_notifier_add_fwnode_subdev grabs a refcount,
+	 * so drop the one we got in fwnode_graph_get_remote_port_parent.
+	 */
+	fwnode_handle_put(remote);
+	return asd;
 }
 EXPORT_SYMBOL_GPL(v4l2_async_notifier_add_fwnode_remote_subdev);
 
