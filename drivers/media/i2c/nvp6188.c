@@ -1153,6 +1153,9 @@ static long nvp6188_ioctl(struct v4l2_subdev *sd, unsigned int cmd, void *arg)
 	case RKMODULE_GET_VC_HOTPLUG_INFO:
 		nvp6188_get_vc_hotplug_inf(nvp6188, (struct rkmodule_vc_hotplug_info *)arg);
 		break;
+	case RKMODULE_GET_START_STREAM_SEQ:
+		*(int *)arg = RKMODULE_START_STREAM_FRONT;
+		break;
 	default:
 		ret = -ENOTTY;
 		break;
@@ -1168,6 +1171,9 @@ static long nvp6188_compat_ioctl32(struct v4l2_subdev *sd,
 	void __user *up = compat_ptr(arg);
 	struct rkmodule_inf *inf;
 	struct rkmodule_awb_cfg *cfg;
+	struct rkmodule_vc_fmt_info *vc_fmt_inf;
+	struct rkmodule_vc_hotplug_info *vc_hp_inf;
+	int *seq;
 	long ret = 0;
 
 	switch (cmd) {
@@ -1194,6 +1200,42 @@ static long nvp6188_compat_ioctl32(struct v4l2_subdev *sd,
 		if (!ret)
 			ret = nvp6188_ioctl(sd, cmd, cfg);
 		kfree(cfg);
+		break;
+	case RKMODULE_GET_VC_FMT_INFO:
+		vc_fmt_inf = kzalloc(sizeof(*vc_fmt_inf), GFP_KERNEL);
+		if (!vc_fmt_inf) {
+			ret = -ENOMEM;
+			return ret;
+		}
+
+		ret = nvp6188_ioctl(sd, cmd, vc_fmt_inf);
+		if (!ret)
+			ret = copy_to_user(up, vc_fmt_inf, sizeof(*vc_fmt_inf));
+		kfree(vc_fmt_inf);
+		break;
+	case RKMODULE_GET_VC_HOTPLUG_INFO:
+		vc_hp_inf = kzalloc(sizeof(*vc_hp_inf), GFP_KERNEL);
+		if (!vc_hp_inf) {
+			ret = -ENOMEM;
+			return ret;
+		}
+
+		ret = nvp6188_ioctl(sd, cmd, vc_hp_inf);
+		if (!ret)
+			ret = copy_to_user(up, vc_hp_inf, sizeof(*vc_hp_inf));
+		kfree(vc_hp_inf);
+		break;
+	case RKMODULE_GET_START_STREAM_SEQ:
+		seq = kzalloc(sizeof(*seq), GFP_KERNEL);
+		if (!seq) {
+			ret = -ENOMEM;
+			return ret;
+		}
+
+		ret = nvp6188_ioctl(sd, cmd, seq);
+		if (!ret)
+			ret = copy_to_user(up, seq, sizeof(*seq));
+		kfree(seq);
 		break;
 	default:
 		ret = -ENOIOCTLCMD;
