@@ -778,7 +778,10 @@ static int hpre_qm_init(struct hisi_qm *qm, struct pci_dev *pdev)
 		return -EINVAL;
 	}
 
-	qm->algs = "rsa\ndh\n";
+	if (pdev->revision >= QM_HW_V3)
+		qm->algs = "rsa\ndh\necdh\nx25519\nx448\necdsa\nsm2\n";
+	else
+		qm->algs = "rsa\ndh\n";
 	qm->mode = uacce_mode;
 	qm->pdev = pdev;
 	qm->ver = pdev->revision;
