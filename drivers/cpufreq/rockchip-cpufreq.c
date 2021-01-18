@@ -184,6 +184,29 @@ out:
 
 	return ret;
 }
+
+static int rv1126_get_soc_info(struct device *dev, struct device_node *np,
+			       int *bin, int *process)
+{
+	int ret = 0, value = -EINVAL;
+
+	if (of_property_match_string(np, "nvmem-cell-names", "performance") >= 0) {
+		ret = rockchip_get_efuse_value(np, "performance", &value);
+		if (ret) {
+			dev_err(dev, "Failed to get soc performance value\n");
+			return ret;
+		}
+		if (value == 0x1)
+			*bin = 1;
+		else
+			*bin = 0;
+	}
+	if (*bin >= 0)
+		dev_info(dev, "bin=%d\n", *bin);
+
+	return ret;
+}
+
 static const struct of_device_id rockchip_cpufreq_of_match[] = {
 	{
 		.compatible = "rockchip,px30",
@@ -204,6 +227,14 @@ static const struct of_device_id rockchip_cpufreq_of_match[] = {
 	{
 		.compatible = "rockchip,rk3399",
 		.data = (void *)&rk3399_get_soc_info,
+	},
+	{
+		.compatible = "rockchip,rv1109",
+		.data = (void *)&rv1126_get_soc_info,
+	},
+	{
+		.compatible = "rockchip,rv1126",
+		.data = (void *)&rv1126_get_soc_info,
 	},
 	{},
 };
