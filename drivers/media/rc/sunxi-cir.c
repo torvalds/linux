@@ -234,6 +234,20 @@ static void sunxi_ir_hw_exit(struct device *dev)
 	reset_control_assert(ir->rst);
 }
 
+static int __maybe_unused sunxi_ir_suspend(struct device *dev)
+{
+	sunxi_ir_hw_exit(dev);
+
+	return 0;
+}
+
+static int __maybe_unused sunxi_ir_resume(struct device *dev)
+{
+	return sunxi_ir_hw_init(dev);
+}
+
+static SIMPLE_DEV_PM_OPS(sunxi_ir_pm_ops, sunxi_ir_suspend, sunxi_ir_resume);
+
 static int sunxi_ir_probe(struct platform_device *pdev)
 {
 	int ret = 0;
@@ -362,6 +376,11 @@ static int sunxi_ir_remove(struct platform_device *pdev)
 	return 0;
 }
 
+static void sunxi_ir_shutdown(struct platform_device *pdev)
+{
+	sunxi_ir_hw_exit(&pdev->dev);
+}
+
 static const struct sunxi_ir_quirks sun4i_a10_ir_quirks = {
 	.has_reset = false,
 	.fifo_size = 16,
@@ -397,9 +416,11 @@ MODULE_DEVICE_TABLE(of, sunxi_ir_match);
 static struct platform_driver sunxi_ir_driver = {
 	.probe          = sunxi_ir_probe,
 	.remove         = sunxi_ir_remove,
+	.shutdown       = sunxi_ir_shutdown,
 	.driver = {
 		.name = SUNXI_IR_DEV,
 		.of_match_table = sunxi_ir_match,
+		.pm = &sunxi_ir_pm_ops,
 	},
 };
 
