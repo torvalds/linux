@@ -402,7 +402,6 @@ int mt7615_mmio_probe(struct device *pdev, void __iomem *mem_base,
 		      int irq, const u32 *map);
 u32 mt7615_reg_map(struct mt7615_dev *dev, u32 addr);
 
-void mt7615_check_offload_capability(struct mt7615_dev *dev);
 void mt7615_init_device(struct mt7615_dev *dev);
 int mt7615_register_device(struct mt7615_dev *dev);
 void mt7615_unregister_device(struct mt7615_dev *dev);
@@ -520,9 +519,8 @@ void mt7615_roc_work(struct work_struct *work);
 void mt7615_roc_timer(struct timer_list *timer);
 void mt7615_init_txpower(struct mt7615_dev *dev,
 			 struct ieee80211_supported_band *sband);
-void mt7615_phy_init(struct mt7615_dev *dev);
-void mt7615_mac_init(struct mt7615_dev *dev);
 int mt7615_set_channel(struct mt7615_phy *phy);
+void mt7615_init_work(struct mt7615_dev *dev);
 
 int mt7615_mcu_restart(struct mt76_dev *dev);
 void mt7615_update_channel(struct mt76_dev *mdev);

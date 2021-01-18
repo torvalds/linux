@@ -47,11 +47,7 @@ static void mt7663u_init_work(struct work_struct *work)
 	if (mt7663u_mcu_init(dev))
 		return;
 
-	mt7615_mcu_set_eeprom(dev);
-	mt7615_mac_init(dev);
-	mt7615_phy_init(dev);
-	mt7615_mcu_del_wtbl_all(dev);
-	mt7615_check_offload_capability(dev);
+	mt7615_init_work(dev);
 }
 
 static int mt7663u_probe(struct usb_interface *usb_intf,

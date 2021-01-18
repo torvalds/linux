@@ -12,7 +12,7 @@
 #include "mac.h"
 #include "eeprom.h"
 
-static void mt7615_init_work(struct work_struct *work)
+static void mt7615_pci_init_work(struct work_struct *work)
 {
 	struct mt7615_dev *dev = container_of(work, struct mt7615_dev,
 					      mcu_work);
@@ -27,12 +27,7 @@ static void mt7615_init_work(struct work_struct *work)
 	if (ret)
 		return;
 
-	mt7615_mcu_set_eeprom(dev);
-	mt7615_mac_init(dev);
-	mt7615_phy_init(dev);
-	mt7615_mcu_del_wtbl_all(dev);
-	mt7615_check_offload_capability(dev);
-
+	mt7615_init_work(dev);
 	if (dev->dbdc_support)
 		mt7615_register_ext_phy(dev);
 }
@@ -44,7 +39,7 @@ static int mt7615_init_hardware(struct mt7615_dev *dev)
 
 	mt76_wr(dev, MT_INT_SOURCE_CSR, ~0);
 
-	INIT_WORK(&dev->mcu_work, mt7615_init_work);
+	INIT_WORK(&dev->mcu_work, mt7615_pci_init_work);
 	spin_lock_init(&dev->token_lock);
 	idr_init(&dev->token);
 
