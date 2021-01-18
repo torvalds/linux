@@ -501,8 +501,8 @@
 			ocv_table = <3400 3513 3578 3687 3734 3752 3763
 				     3766 3771 3784 3804 3836 3885 3925
 				     3962 4005 4063 4114 4169 4227 4303>;
-			design_capacity = <5000>;
-			design_qmax = <5500>;
+			design_capacity = <2250>;
+			design_qmax = <2750>;
 			bat_res = <100>;
 			sleep_enter_current = <150>;
 			sleep_exit_current = <180>;
