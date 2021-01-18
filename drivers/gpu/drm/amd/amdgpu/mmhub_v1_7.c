@@ -430,7 +430,7 @@ static void mmhub_v1_7_update_medium_grain_clock_gating(struct amdgpu_device *ad
 	def1 = data1 = RREG32_SOC15(MMHUB, 0, regDAGB0_CNTL_MISC2);
 	def2 = data2 = RREG32_SOC15(MMHUB, 0, regDAGB1_CNTL_MISC2);
 
-	if (enable && (adev->cg_flags & AMD_CG_SUPPORT_MC_MGCG)) {
+	if (enable) {
 		data |= ATC_L2_MISC_CG__ENABLE_MASK;
 
 		data1 &= ~(DAGB0_CNTL_MISC2__DISABLE_WRREQ_CG_MASK |
@@ -481,7 +481,7 @@ static void mmhub_v1_7_update_medium_grain_light_sleep(struct amdgpu_device *ade
 
 	def = data = RREG32_SOC15(MMHUB, 0, regATC_L2_MISC_CG);
 
-	if (enable && (adev->cg_flags & AMD_CG_SUPPORT_MC_LS))
+	if (enable)
 		data |= ATC_L2_MISC_CG__MEM_LS_ENABLE_MASK;
 	else
 		data &= ~ATC_L2_MISC_CG__MEM_LS_ENABLE_MASK;
@@ -496,16 +496,15 @@ static int mmhub_v1_7_set_clockgating(struct amdgpu_device *adev,
 	if (amdgpu_sriov_vf(adev))
 		return 0;
 
-	switch (adev->asic_type) {
-	case CHIP_ALDEBARAN:
+	/* Change state only if MCCG support is enabled through driver */
+	if (adev->cg_flags & AMD_CG_SUPPORT_MC_MGCG)
 		mmhub_v1_7_update_medium_grain_clock_gating(adev,
-				state == AMD_CG_STATE_GATE ? true : false);
+				state == AMD_CG_STATE_GATE);
+
+	/* Change state only if LS support is enabled through driver */
+	if (adev->cg_flags & AMD_CG_SUPPORT_MC_LS)
 		mmhub_v1_7_update_medium_grain_light_sleep(adev,
-				state == AMD_CG_STATE_GATE ? true : false);
-		break;
-	default:
-		break;
-	}
+				state == AMD_CG_STATE_GATE);
 
 	return 0;
 }
