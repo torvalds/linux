@@ -4,6 +4,7 @@ config NET_DSA_HIRSCHMANN_HELLCREEK
 	depends on HAS_IOMEM
 	depends on NET_DSA
 	depends on PTP_1588_CLOCK
+	depends on LEDS_CLASS
 	select NET_DSA_TAG_HELLCREEK
 	help
 	  This driver adds support for Hirschmann Hellcreek TSN switches.
