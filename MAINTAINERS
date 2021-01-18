@@ -2538,13 +2538,6 @@ F:	arch/arm/boot/dts/berlin*
 F:	arch/arm/mach-berlin/
 F:	arch/arm64/boot/dts/synaptics/
 
-ARM/TANGO ARCHITECTURE
-M:	Marc Gonzalez <marc.w.gonzalez@free.fr>
-M:	Mans Rullgard <mans@mansr.com>
-L:	linux-arm-kernel@lists.infradead.org
-S:	Odd Fixes
-N:	tango
-
 ARM/TECHNOLOGIC SYSTEMS TS7250 MACHINE SUPPORT
 M:	Lennert Buytenhek <kernel@wantstofly.org>
 L:	linux-arm-kernel@lists.infradead.org (moderated for non-subscribers)
