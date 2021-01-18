@@ -45,7 +45,7 @@
 #define HPRE_CORE_IS_SCHD_OFFSET	0x90
 
 #define HPRE_RAS_CE_ENB			0x301410
-#define HPRE_HAC_RAS_CE_ENABLE		0x1
+#define HPRE_HAC_RAS_CE_ENABLE		(BIT(0) | BIT(22) | BIT(23))
 #define HPRE_RAS_NFE_ENB		0x301414
 #define HPRE_HAC_RAS_NFE_ENABLE		0x3ffffe
 #define HPRE_RAS_FE_ENB			0x301418
@@ -129,7 +129,11 @@ static const struct hpre_hw_error hpre_hw_errors[] = {
 	{ .int_msk = BIT(9), .msg = "cluster4_shb_timeout_int_set" },
 	{ .int_msk = GENMASK(15, 10), .msg = "ooo_rdrsp_err_int_set" },
 	{ .int_msk = GENMASK(21, 16), .msg = "ooo_wrrsp_err_int_set" },
-	{ /* sentinel */ }
+	{ .int_msk = BIT(22), .msg = "pt_rng_timeout_int_set"},
+	{ .int_msk = BIT(23), .msg = "sva_fsm_timeout_int_set"},
+	{
+		/* sentinel */
+	}
 };
 
 static const u64 hpre_cluster_offsets[] = {
