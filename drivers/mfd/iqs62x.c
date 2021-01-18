@@ -81,6 +81,7 @@
 #define IQS62X_FW_REC_TYPE_MASK			3
 #define IQS62X_FW_REC_TYPE_DATA			4
 
+#define IQS62X_ATI_STARTUP_MS			350
 #define IQS62X_FILT_SETTLE_MS			250
 
 struct iqs62x_fw_rec {
@@ -111,6 +112,14 @@ static int iqs62x_dev_init(struct iqs62x_core *iqs62x)
 	int ret;
 
 	list_for_each_entry(fw_blk, &iqs62x->fw_blk_head, list) {
+		/*
+		 * In case ATI is in progress, wait for it to complete before
+		 * lowering the core clock frequency.
+		 */
+		if (fw_blk->addr == IQS62X_SYS_SETTINGS &&
+		    *fw_blk->data & IQS62X_SYS_SETTINGS_CLK_DIV)
+			msleep(IQS62X_ATI_STARTUP_MS);
+
 		if (fw_blk->mask)
 			ret = regmap_update_bits(iqs62x->regmap, fw_blk->addr,
 						 fw_blk->mask, *fw_blk->data);
