@@ -872,7 +872,7 @@
 
 		thermal-zones {
 
-			cls0: cls0 {
+			cls0: cls0-thermal {
 				polling-delay = <1000>;
 				polling-delay-passive = <100>;
 				sustainable-power = <3326>;
@@ -881,13 +881,13 @@
 				thermal-sensors = <&tsensor 2>;
 
 				trips {
-					threshold: trip-point@0 {
+					threshold: trip-point0 {
 						temperature = <65000>;
 						hysteresis = <0>;
 						type = "passive";
 					};
 
-					target: trip-point@1 {
+					target: trip-point1 {
 						temperature = <75000>;
 						hysteresis = <0>;
 						type = "passive";
