@@ -485,7 +485,6 @@ static void init_hal_msg(struct wcn36xx_hal_msg_header *hdr,
 
 #define PREPARE_HAL_PTT_MSG_BUF(send_buf, p_msg_body) \
 	do {							\
-		memset(send_buf, 0, p_msg_body->header.len); \
 		memcpy(send_buf, p_msg_body, p_msg_body->header.len); \
 	} while (0)
 
