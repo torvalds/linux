@@ -74,10 +74,6 @@ dtb-$(CONFIG_SOC_SAM_V7) += \
 	at91-sama5d4_xplained.dtb \
 	at91-sama5d4ek.dtb \
 	at91-vinco.dtb
-dtb-$(CONFIG_ARCH_ATLAS6) += \
-	atlas6-evb.dtb
-dtb-$(CONFIG_ARCH_ATLAS7) += \
-	atlas7-evb.dtb
 dtb-$(CONFIG_ARCH_AXXIA) += \
 	axm5516-amarillo.dtb
 dtb-$(CONFIG_ARCH_BCM2835) += \
@@ -886,8 +882,6 @@ dtb-$(CONFIG_ARCH_ACTIONS) += \
 	owl-s500-labrador-base-m.dtb \
 	owl-s500-roseapplepi.dtb \
 	owl-s500-sparky.dtb
-dtb-$(CONFIG_ARCH_PRIMA2) += \
-	prima2-evb.dtb
 dtb-$(CONFIG_ARCH_PXA) += \
 	pxa300-raumfeld-connector.dtb \
 	pxa300-raumfeld-controller.dtb \
