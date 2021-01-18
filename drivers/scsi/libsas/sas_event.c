@@ -155,13 +155,6 @@ int sas_notify_port_event(struct asd_sas_phy *phy, enum port_event event,
 }
 EXPORT_SYMBOL_GPL(sas_notify_port_event);
 
-int sas_notify_port_event_gfp(struct asd_sas_phy *phy, enum port_event event,
-			      gfp_t gfp_flags)
-{
-	return sas_notify_port_event(phy, event, gfp_flags);
-}
-EXPORT_SYMBOL_GPL(sas_notify_port_event_gfp);
-
 int sas_notify_phy_event(struct asd_sas_phy *phy, enum phy_event event,
 			 gfp_t gfp_flags)
 {
@@ -184,10 +177,3 @@ int sas_notify_phy_event(struct asd_sas_phy *phy, enum phy_event event,
 	return ret;
 }
 EXPORT_SYMBOL_GPL(sas_notify_phy_event);
-
-int sas_notify_phy_event_gfp(struct asd_sas_phy *phy, enum phy_event event,
-			     gfp_t gfp_flags)
-{
-	return sas_notify_phy_event(phy, event, gfp_flags);
-}
-EXPORT_SYMBOL_GPL(sas_notify_phy_event_gfp);
