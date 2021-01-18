@@ -505,7 +505,7 @@ static void enum_all_gids_of_dev_cb(struct ib_device *ib_dev,
  * rdma_roce_rescan_device - Rescan all of the network devices in the system
  * and add their gids, as needed, to the relevant RoCE devices.
  *
- * @device:         the rdma device
+ * @ib_dev:         the rdma device
  */
 void rdma_roce_rescan_device(struct ib_device *ib_dev)
 {
