@@ -669,11 +669,10 @@ int ib_cache_gid_del_all_netdev_gids(struct ib_device *ib_dev, u8 port,
  * rdma_find_gid_by_port - Returns the GID entry attributes when it finds
  * a valid GID entry for given search parameters. It searches for the specified
  * GID value in the local software cache.
- * @device: The device to query.
+ * @ib_dev: The device to query.
  * @gid: The GID value to search for.
  * @gid_type: The GID type to search for.
- * @port_num: The port number of the device where the GID value should be
- *   searched.
+ * @port: The port number of the device where the GID value should be searched.
  * @ndev: In RoCE, the net device of the device. NULL means ignore.
  *
  * Returns sgid attributes if the GID is found with valid reference or
@@ -719,7 +718,7 @@ EXPORT_SYMBOL(rdma_find_gid_by_port);
 /**
  * rdma_find_gid_by_filter - Returns the GID table attribute where a
  * specified GID value occurs
- * @device: The device to query.
+ * @ib_dev: The device to query.
  * @gid: The GID value to search for.
  * @port: The port number of the device where the GID value could be
  *   searched.
@@ -728,6 +727,7 @@ EXPORT_SYMBOL(rdma_find_gid_by_port);
  *   otherwise, we continue searching the GID table. It's guaranteed that
  *   while filter is executed, ndev field is valid and the structure won't
  *   change. filter is executed in an atomic context. filter must not be NULL.
+ * @context: Private data to pass into the call-back.
  *
  * rdma_find_gid_by_filter() searches for the specified GID value
  * of which the filter function returns true in the port's GID table.
@@ -1253,7 +1253,6 @@ EXPORT_SYMBOL(rdma_get_gid_attr);
  * @entries: Entries where GID entries are returned.
  * @max_entries: Maximum number of entries that can be returned.
  * Entries array must be allocated to hold max_entries number of entries.
- * @num_entries: Updated to the number of entries that were successfully read.
  *
  * Returns number of entries on success or appropriate error code.
  */
