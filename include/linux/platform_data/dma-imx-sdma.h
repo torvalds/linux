@@ -57,15 +57,4 @@ struct sdma_script_start_addrs {
 	/* End of v4 array */
 };
 
-/**
- * struct sdma_platform_data - platform specific data for SDMA engine
- *
- * @fw_name		The firmware name
- * @script_addrs	SDMA scripts addresses in SDMA ROM
- */
-struct sdma_platform_data {
-	char *fw_name;
-	struct sdma_script_start_addrs *script_addrs;
-};
-
 #endif /* __MACH_MXC_SDMA_H__ */
