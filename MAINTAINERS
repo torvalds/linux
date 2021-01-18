@@ -2136,7 +2136,7 @@ ARM/NEC MOBILEPRO 900/c MACHINE SUPPORT
 M:	Michael Petchkovsky <mkpetch@internode.on.net>
 S:	Maintained
 
-ARM/NOMADIK/U300/Ux500 ARCHITECTURES
+ARM/NOMADIK/Ux500 ARCHITECTURES
 M:	Linus Walleij <linus.walleij@linaro.org>
 L:	linux-arm-kernel@lists.infradead.org (moderated for non-subscribers)
 S:	Maintained
@@ -2145,35 +2145,23 @@ F:	Documentation/devicetree/bindings/arm/ste-*
 F:	Documentation/devicetree/bindings/arm/ux500.yaml
 F:	Documentation/devicetree/bindings/arm/ux500/
 F:	Documentation/devicetree/bindings/i2c/i2c-nomadik.txt
-F:	Documentation/devicetree/bindings/i2c/i2c-stu300.txt
 F:	arch/arm/boot/dts/ste-*
 F:	arch/arm/mach-nomadik/
-F:	arch/arm/mach-u300/
 F:	arch/arm/mach-ux500/
 F:	drivers/clk/clk-nomadik.c
-F:	drivers/clk/clk-u300.c
 F:	drivers/clocksource/clksrc-dbx500-prcmu.c
-F:	drivers/clocksource/timer-u300.c
-F:	drivers/dma/coh901318*
 F:	drivers/dma/ste_dma40*
 F:	drivers/hwspinlock/u8500_hsem.c
 F:	drivers/i2c/busses/i2c-nomadik.c
-F:	drivers/i2c/busses/i2c-stu300.c
 F:	drivers/iio/adc/ab8500-gpadc.c
-F:	drivers/mfd/ab3100*
 F:	drivers/mfd/ab8500*
 F:	drivers/mfd/abx500*
 F:	drivers/mfd/db8500*
 F:	drivers/mfd/dbx500*
 F:	drivers/pinctrl/nomadik/
-F:	drivers/pinctrl/pinctrl-coh901*
-F:	drivers/pinctrl/pinctrl-u300.c
-F:	drivers/rtc/rtc-ab3100.c
 F:	drivers/rtc/rtc-ab8500.c
-F:	drivers/rtc/rtc-coh901331.c
 F:	drivers/rtc/rtc-pl031.c
 F:	drivers/soc/ux500/
-F:	drivers/watchdog/coh901327_wdt.c
 
 ARM/NUVOTON NPCM ARCHITECTURE
 M:	Avi Fishman <avifishman70@gmail.com>

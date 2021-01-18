@@ -1280,14 +1280,6 @@ choice
 		  Say Y here if you want kernel low-level debugging support
 		  on Tegra based platforms.
 
-	config DEBUG_U300_UART
-		bool "Kernel low-level debugging messages via U300 UART0"
-		depends on ARCH_U300
-		select DEBUG_UART_PL01X
-		help
-		  Say Y here if you want the debug print routines to direct
-		  their output to the uart port on U300 devices.
-
 	config DEBUG_UX500_UART
 		depends on ARCH_U8500
 		bool "Use Ux500 UART for low-level debug"
@@ -1650,7 +1642,6 @@ config DEBUG_UART_PHYS
 	default 0x808c0000 if DEBUG_EP93XX || ARCH_EP93XX
 	default 0x90020000 if DEBUG_NSPIRE_CLASSIC_UART || DEBUG_NSPIRE_CX_UART
 	default 0xb0090000 if DEBUG_VEXPRESS_UART0_CRX
-	default 0xc0013000 if DEBUG_U300_UART
 	default 0xc8000000 if ARCH_IXP4XX && !CPU_BIG_ENDIAN
 	default 0xc8000003 if ARCH_IXP4XX && CPU_BIG_ENDIAN
 	default 0xd0000000 if DEBUG_SPEAR3XX
@@ -1804,7 +1795,6 @@ config DEBUG_UART_VIRT
 	default 0xfefb0000 if DEBUG_OMAP1UART1 || DEBUG_OMAP7XXUART1
 	default 0xfefb0800 if DEBUG_OMAP1UART2 || DEBUG_OMAP7XXUART2
 	default 0xfefb9800 if DEBUG_OMAP1UART3 || DEBUG_OMAP7XXUART3
-	default 0xff003000 if DEBUG_U300_UART
 	default 0xffd01000 if DEBUG_HIP01_UART
 	default DEBUG_UART_PHYS if !MMU
 	depends on DEBUG_LL_UART_8250 || DEBUG_LL_UART_PL01X || \

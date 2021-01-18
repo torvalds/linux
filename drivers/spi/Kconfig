@@ -601,7 +601,6 @@ config SPI_PIC32_SQI
 config SPI_PL022
 	tristate "ARM AMBA PL022 SSP controller"
 	depends on ARM_AMBA
-	default y if MACH_U300
 	default y if ARCH_REALVIEW
 	default y if INTEGRATOR_IMPD1
 	default y if ARCH_VERSATILE
