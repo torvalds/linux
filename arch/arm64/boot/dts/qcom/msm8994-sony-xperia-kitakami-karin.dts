@@ -41,3 +41,5 @@
 };
 
 /delete-node/ &pm8994_l32;
+/* Z4 tablets use a different touchscreen. */
+/delete-node/ &touchscreen;

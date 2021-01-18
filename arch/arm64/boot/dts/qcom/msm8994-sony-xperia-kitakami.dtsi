@@ -147,7 +147,34 @@
 &blsp_i2c6 {
 	status = "okay";
 
-	/* Synaptics touchscreen */
+	touchscreen: rmi4-i2c-dev@2c {
+		compatible = "syna,rmi4-i2c";
+		reg = <0x2c>;
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		interrupt-parent = <&tlmm>;
+		interrupts = <42 IRQ_TYPE_EDGE_FALLING>;
+
+		pinctrl-names = "default";
+		pinctrl-0 = <&ts_int_active &ts_reset_active>;
+
+		vdd-supply = <&pm8994_l22>;
+		vio-supply = <&pm8994_s4>;
+
+		syna,reset-delay-ms = <220>;
+		syna,startup-delay-ms = <220>;
+
+		rmi4-f01@1 {
+			reg = <0x01>;
+			syna,nosleep-mode = <1>;
+		};
+
+		rmi4-f11@11 {
+			reg = <0x11>;
+			syna,sensor-type = <1>;
+		};
+	};
 };
 
 &blsp1_uart2 {
@@ -432,4 +459,20 @@
 	 * vmmc-supply = <&pm8994_l20>;
 	 * vqmmc-supply = <&pm8994_s4>;
 	 */
+};
+
+&tlmm {
+	ts_int_active: ts-int-active {
+		pins = "gpio42";
+		drive-strength = <2>;
+		bias-disable;
+		input-enable;
+	};
+
+	ts_reset_active: ts-reset-active {
+		pins = "gpio109";
+		drive-strength = <2>;
+		bias-disable;
+		output-low;
+	};
 };
