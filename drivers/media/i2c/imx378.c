@@ -2626,7 +2626,7 @@ static int imx378_set_ctrl(struct v4l2_ctrl *ctrl)
 		break;
 	case V4L2_CID_ANALOGUE_GAIN:
 		again = ctrl->val > 978 ? 978 : ctrl->val;
-		dgain = ctrl->val > 978 ? ctrl->val - 978 : 0;
+		dgain = ctrl->val > 978 ? ctrl->val - 978 : 256;
 		ret = imx378_write_reg(imx378->client, IMX378_REG_GAIN_H,
 				       IMX378_REG_VALUE_08BIT,
 				       IMX378_FETCH_AGAIN_H(again));
