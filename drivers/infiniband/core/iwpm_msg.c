@@ -392,7 +392,7 @@ static const struct nla_policy resp_reg_policy[IWPM_NLA_RREG_PID_MAX] = {
 /**
  * iwpm_register_pid_cb - Process the port mapper response to
  *                        iwpm_register_pid query
- * @skb:
+ * @skb: The socket buffer
  * @cb: Contains the received message (payload and netlink header)
  *
  * If successful, the function receives the userspace port mapper pid
@@ -468,7 +468,7 @@ static const struct nla_policy resp_add_policy[IWPM_NLA_RMANAGE_MAPPING_MAX] = {
 /**
  * iwpm_add_mapping_cb - Process the port mapper response to
  *                       iwpm_add_mapping request
- * @skb:
+ * @skb: The socket buffer
  * @cb: Contains the received message (payload and netlink header)
  */
 int iwpm_add_mapping_cb(struct sk_buff *skb, struct netlink_callback *cb)
@@ -545,7 +545,7 @@ static const struct nla_policy resp_query_policy[IWPM_NLA_RQUERY_MAPPING_MAX] = 
 /**
  * iwpm_add_and_query_mapping_cb - Process the port mapper response to
  *                                 iwpm_add_and_query_mapping request
- * @skb:
+ * @skb: The socket buffer
  * @cb: Contains the received message (payload and netlink header)
  */
 int iwpm_add_and_query_mapping_cb(struct sk_buff *skb,
@@ -627,7 +627,7 @@ query_mapping_response_exit:
 /**
  * iwpm_remote_info_cb - Process remote connecting peer address info, which
  *                       the port mapper has received from the connecting peer
- * @skb:
+ * @skb: The socket buffer
  * @cb: Contains the received message (payload and netlink header)
  *
  * Stores the IPv4/IPv6 address info in a hash table
@@ -706,7 +706,7 @@ static const struct nla_policy resp_mapinfo_policy[IWPM_NLA_MAPINFO_REQ_MAX] = {
 /**
  * iwpm_mapping_info_cb - Process a notification that the userspace
  *                        port mapper daemon is started
- * @skb:
+ * @skb: The socket buffer
  * @cb: Contains the received message (payload and netlink header)
  *
  * Using the received port mapper pid, send all the local mapping
@@ -766,7 +766,7 @@ static const struct nla_policy ack_mapinfo_policy[IWPM_NLA_MAPINFO_NUM_MAX] = {
 /**
  * iwpm_ack_mapping_info_cb - Process the port mapper ack for
  *                            the provided local mapping info records
- * @skb:
+ * @skb: The socket buffer
  * @cb: Contains the received message (payload and netlink header)
  */
 int iwpm_ack_mapping_info_cb(struct sk_buff *skb, struct netlink_callback *cb)
@@ -796,7 +796,7 @@ static const struct nla_policy map_error_policy[IWPM_NLA_ERR_MAX] = {
 /**
  * iwpm_mapping_error_cb - Process port mapper notification for error
  *
- * @skb:
+ * @skb: The socket buffer
  * @cb: Contains the received message (payload and netlink header)
  */
 int iwpm_mapping_error_cb(struct sk_buff *skb, struct netlink_callback *cb)
@@ -841,7 +841,7 @@ static const struct nla_policy hello_policy[IWPM_NLA_HELLO_MAX] = {
 /**
  * iwpm_hello_cb - Process a hello message from iwpmd
  *
- * @skb:
+ * @skb: The socket buffer
  * @cb: Contains the received message (payload and netlink header)
  *
  * Using the received port mapper pid, send the kernel's abi_version
