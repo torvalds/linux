@@ -334,8 +334,8 @@ static int qcom_show_pmic_model_array(struct seq_file *seq, void *p)
 
 		if (model < ARRAY_SIZE(pmic_models) && pmic_models[model])
 			seq_printf(seq, "%s %u.%u\n", pmic_models[model],
-				   SOCINFO_MAJOR(le32_to_cpu(die_rev)),
-				   SOCINFO_MINOR(le32_to_cpu(die_rev)));
+				   SOCINFO_MAJOR(die_rev),
+				   SOCINFO_MINOR(die_rev));
 		else
 			seq_printf(seq, "unknown (%d)\n", model);
 	}
