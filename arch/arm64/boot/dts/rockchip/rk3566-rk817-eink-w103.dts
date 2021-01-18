@@ -665,11 +665,11 @@
 		compatible = "cy,cyttsp5_i2c_adapter";
 		reg = <0x24>;
 		cy,adapter_id = "cyttsp5_i2c_adapter";
+		pinctrl-names = "default";
+		pinctrl-0 = <&tsc_gpio>;
 		//cytp-supply = <&vcc_sd>;
 		cy,core {
 			cy,name = "cyttsp5_core";
-			pinctrl-names = "default";
-			pinctrl-0 = <&tsc_gpio>;
 			cy,irq_gpio =  <&gpio0 RK_PA6 GPIO_ACTIVE_HIGH>;
 			cy,rst_gpio =  <&gpio0 RK_PA5 GPIO_ACTIVE_HIGH>;
 			/*cy,1v8_gpio =  <&gpio3 RK_PC4 GPIO_ACTIVE_HIGH>;*/
