@@ -86,7 +86,6 @@ struct sunxi_ir_quirks {
 };
 
 struct sunxi_ir {
-	spinlock_t      ir_lock;
 	struct rc_dev   *rc;
 	void __iomem    *base;
 	int             irq;
@@ -104,8 +103,6 @@ static irqreturn_t sunxi_ir_irq(int irqno, void *dev_id)
 	unsigned int cnt, rc;
 	struct sunxi_ir *ir = dev_id;
 	struct ir_raw_event rawir = {};
-
-	spin_lock(&ir->ir_lock);
 
 	status = readl(ir->base + SUNXI_IR_RXSTA_REG);
 
@@ -137,8 +134,6 @@ static irqreturn_t sunxi_ir_irq(int irqno, void *dev_id)
 		ir_raw_event_handle(ir->rc);
 	}
 
-	spin_unlock(&ir->ir_lock);
-
 	return IRQ_HANDLED;
 }
 
@@ -160,17 +155,14 @@ static int sunxi_ir_set_timeout(struct rc_dev *rc_dev, unsigned int timeout)
 {
 	struct sunxi_ir *ir = rc_dev->priv;
 	unsigned int base_clk = clk_get_rate(ir->clk);
-	unsigned long flags;
 
 	unsigned int ithr = sunxi_usec_to_ithr(base_clk, timeout);
 
 	dev_dbg(rc_dev->dev.parent, "setting idle threshold to %u\n", ithr);
 
-	spin_lock_irqsave(&ir->ir_lock, flags);
 	/* Set noise threshold and idle threshold */
 	writel(REG_CIR_NTHR(SUNXI_IR_RXNOISE) | REG_CIR_ITHR(ithr),
 	       ir->base + SUNXI_IR_CIR_REG);
-	spin_unlock_irqrestore(&ir->ir_lock, flags);
 
 	rc_dev->timeout = sunxi_ithr_to_usec(base_clk, ithr);
 
@@ -198,8 +190,6 @@ static int sunxi_ir_probe(struct platform_device *pdev)
 		dev_err(&pdev->dev, "Failed to determine the quirks to use\n");
 		return -ENODEV;
 	}
-
-	spin_lock_init(&ir->ir_lock);
 
 	ir->fifo_size = quirks->fifo_size;
 
