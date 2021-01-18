@@ -2275,6 +2275,42 @@ void dev_pm_opp_detach_genpd(struct opp_table *opp_table)
 }
 EXPORT_SYMBOL_GPL(dev_pm_opp_detach_genpd);
 
+static void devm_pm_opp_detach_genpd(void *data)
+{
+	dev_pm_opp_detach_genpd(data);
+}
+
+/**
+ * devm_pm_opp_attach_genpd - Attach genpd(s) for the device and save virtual
+ *			      device pointer
+ * @dev: Consumer device for which the genpd is getting attached.
+ * @names: Null terminated array of pointers containing names of genpd to attach.
+ * @virt_devs: Pointer to return the array of virtual devices.
+ *
+ * This is a resource-managed version of dev_pm_opp_attach_genpd().
+ *
+ * Return: pointer to 'struct opp_table' on success and errorno otherwise.
+ */
+struct opp_table *
+devm_pm_opp_attach_genpd(struct device *dev, const char **names,
+			 struct device ***virt_devs)
+{
+	struct opp_table *opp_table;
+	int err;
+
+	opp_table = dev_pm_opp_attach_genpd(dev, names, virt_devs);
+	if (IS_ERR(opp_table))
+		return opp_table;
+
+	err = devm_add_action_or_reset(dev, devm_pm_opp_detach_genpd,
+				       opp_table);
+	if (err)
+		return ERR_PTR(err);
+
+	return opp_table;
+}
+EXPORT_SYMBOL_GPL(devm_pm_opp_attach_genpd);
+
 /**
  * dev_pm_opp_xlate_performance_state() - Find required OPP's pstate for src_table.
  * @src_table: OPP table which has dst_table as one of its required OPP table.
