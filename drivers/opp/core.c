@@ -1527,12 +1527,10 @@ int _opp_add(struct device *dev, struct dev_pm_opp *new_opp,
 	mutex_lock(&opp_table->lock);
 	head = &opp_table->opp_list;
 
-	if (likely(!rate_not_available)) {
-		ret = _opp_is_duplicate(dev, new_opp, opp_table, &head);
-		if (ret) {
-			mutex_unlock(&opp_table->lock);
-			return ret;
-		}
+	ret = _opp_is_duplicate(dev, new_opp, opp_table, &head);
+	if (ret) {
+		mutex_unlock(&opp_table->lock);
+		return ret;
 	}
 
 	list_add(&new_opp->node, head);
