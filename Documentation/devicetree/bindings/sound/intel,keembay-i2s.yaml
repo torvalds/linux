@@ -47,13 +47,11 @@ properties:
 
   dmas:
     items:
-      - description: DMA controller phandle and DMA channel
-                     for TX and RX
+      - description: DMA TX channel
+      - description: DMA RX channel
 
   dma-names:
     items:
-      - description: "tx" for the transmit channel
-                     "rx" for the receive channel
       - const: tx
       - const: rx
 
