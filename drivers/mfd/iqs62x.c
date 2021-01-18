@@ -533,7 +533,7 @@ static irqreturn_t iqs62x_irq(int irq, void *context)
 	 * ensure the device's RDY output has been deasserted by the time the
 	 * interrupt handler returns.
 	 */
-	usleep_range(50, 100);
+	usleep_range(150, 200);
 
 	return IRQ_HANDLED;
 }
