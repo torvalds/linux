@@ -9,6 +9,13 @@
 	compatible = "ti,dra762", "ti,dra7";
 
 	ocp {
+		emif1: emif@4c000000 {
+			compatible = "ti,emif-dra7xx";
+			reg = <0x4c000000 0x200>;
+			interrupts = <GIC_SPI 105 IRQ_TYPE_LEVEL_HIGH>;
+			status = "disabled";
+		};
+
 		target-module@42c01900 {
 			compatible = "ti,sysc-dra7-mcan", "ti,sysc";
 			ranges = <0x0 0x42c00000 0x2000>;
@@ -132,4 +139,33 @@
 &mmc3 {
 	/* dra76x is not affected by i887 */
 	max-frequency = <96000000>;
+};
+
+&cpu0_opp_table {
+	opp_plus@1800000000 {
+		opp-hz = /bits/ 64 <1800000000>;
+		opp-microvolt = <1250000 950000 1250000>,
+				<1250000 950000 1250000>;
+		opp-supported-hw = <0xFF 0x08>;
+	};
+};
+
+&opp_supply_mpu {
+	ti,efuse-settings = <
+	/* uV   offset */
+	1060000 0x0
+	1160000 0x4
+	1210000 0x8
+	1250000 0xC
+	>;
+};
+
+&abb_mpu {
+	ti,abb_info = <
+	/*uV		ABB	efuse	rbb_m fbb_m	vset_m*/
+	1060000		0	0x0	0 0x02000000 0x01F00000
+	1160000		0	0x4	0 0x02000000 0x01F00000
+	1210000		0	0x8	0 0x02000000 0x01F00000
+	1250000		0	0xC	0 0x02000000 0x01F00000
+	>;
 };
