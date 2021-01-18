@@ -266,7 +266,7 @@ static int ti_vread_sync(struct usb_device *dev, __u8 request,
 	if (status < 0)
 		return status;
 	if (status != size) {
-		dev_dbg(&dev->dev, "%s - wanted to write %d, but only wrote %d\n",
+		dev_dbg(&dev->dev, "%s - wanted to read %d, but only read %d\n",
 			__func__, size, status);
 		return -ECOMM;
 	}
