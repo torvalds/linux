@@ -347,6 +347,12 @@
 			      <0x17802000 0x1000>;
 		};
 
+		watchdog@17817000 {
+			compatible = "qcom,apss-wdt-sdx55", "qcom,kpss-wdt";
+			reg = <0x17817000 0x1000>;
+			clocks = <&sleep_clk>;
+		};
+
 		timer@17820000 {
 			#address-cells = <1>;
 			#size-cells = <1>;
