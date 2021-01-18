@@ -26,6 +26,7 @@
 #include <linux/sched/cputime.h>
 
 #include <asm/delay.h>
+#include <asm/efi.h>
 #include <asm/hw_irq.h>
 #include <asm/ptrace.h>
 #include <asm/sal.h>
