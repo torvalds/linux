@@ -265,9 +265,7 @@ static struct i40iw_pbl *i40iw_get_pbl(unsigned long va,
 
 /**
  * i40iw_free_qp_resources - free up memory resources for qp
- * @iwdev: iwarp device
  * @iwqp: qp ptr (user or kernel)
- * @qp_num: qp number assigned
  */
 void i40iw_free_qp_resources(struct i40iw_qp *iwqp)
 {
@@ -302,6 +300,7 @@ static void i40iw_clean_cqes(struct i40iw_qp *iwqp, struct i40iw_cq *iwcq)
 /**
  * i40iw_destroy_qp - destroy qp
  * @ibqp: qp's ib pointer also to get to device's qp address
+ * @udata: user data
  */
 static int i40iw_destroy_qp(struct ib_qp *ibqp, struct ib_udata *udata)
 {
@@ -338,8 +337,8 @@ static int i40iw_destroy_qp(struct ib_qp *ibqp, struct ib_udata *udata)
 
 /**
  * i40iw_setup_virt_qp - setup for allocation of virtual qp
- * @dev: iwarp device
- * @qp: qp ptr
+ * @iwdev: iwarp device
+ * @iwqp: qp ptr
  * @init_info: initialize info to return
  */
 static int i40iw_setup_virt_qp(struct i40iw_device *iwdev,
@@ -1241,7 +1240,7 @@ static void i40iw_copy_user_pgaddrs(struct i40iw_mr *iwmr,
  * i40iw_check_mem_contiguous - check if pbls stored in arr are contiguous
  * @arr: lvl1 pbl array
  * @npages: page count
- * pg_size: page size
+ * @pg_size: page size
  *
  */
 static bool i40iw_check_mem_contiguous(u64 *arr, u32 npages, u32 pg_size)
@@ -1258,7 +1257,7 @@ static bool i40iw_check_mem_contiguous(u64 *arr, u32 npages, u32 pg_size)
 /**
  * i40iw_check_mr_contiguous - check if MR is physically contiguous
  * @palloc: pbl allocation struct
- * pg_size: page size
+ * @pg_size: page size
  */
 static bool i40iw_check_mr_contiguous(struct i40iw_pble_alloc *palloc, u32 pg_size)
 {
@@ -1533,6 +1532,7 @@ static int i40iw_set_page(struct ib_mr *ibmr, u64 addr)
  * @ibmr: ib mem to access iwarp mr pointer
  * @sg: scatter gather list for fmr
  * @sg_nents: number of sg pages
+ * @sg_offset: scatter gather offset
  */
 static int i40iw_map_mr_sg(struct ib_mr *ibmr, struct scatterlist *sg,
 			   int sg_nents, unsigned int *sg_offset)
@@ -1881,6 +1881,7 @@ static void i40iw_del_memlist(struct i40iw_mr *iwmr,
 /**
  * i40iw_dereg_mr - deregister mr
  * @ib_mr: mr ptr for dereg
+ * @udata: user data
  */
 static int i40iw_dereg_mr(struct ib_mr *ib_mr, struct ib_udata *udata)
 {
@@ -1945,7 +1946,7 @@ static int i40iw_dereg_mr(struct ib_mr *ib_mr, struct ib_udata *udata)
 	return 0;
 }
 
-/**
+/*
  * hw_rev_show
  */
 static ssize_t hw_rev_show(struct device *dev,
@@ -1959,7 +1960,7 @@ static ssize_t hw_rev_show(struct device *dev,
 }
 static DEVICE_ATTR_RO(hw_rev);
 
-/**
+/*
  * hca_type_show
  */
 static ssize_t hca_type_show(struct device *dev,
@@ -1969,7 +1970,7 @@ static ssize_t hca_type_show(struct device *dev,
 }
 static DEVICE_ATTR_RO(hca_type);
 
-/**
+/*
  * board_id_show
  */
 static ssize_t board_id_show(struct device *dev,
