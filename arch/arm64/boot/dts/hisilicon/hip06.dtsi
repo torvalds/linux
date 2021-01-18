@@ -335,7 +335,6 @@
 		reg = <0x0 0xa0040000 0x0 0x20000>;
 		#iommu-cells = <1>;
 		dma-coherent;
-		smmu-cb-memtype = <0x0 0x1>;
 		hisilicon,broken-prefetch-cmd;
 		status = "disabled";
 	};
