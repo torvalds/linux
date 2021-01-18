@@ -302,7 +302,8 @@ static int audioformat_implicit_fb_quirk(struct snd_usb_audio *chip,
 	/* Pioneer devices with vendor spec class */
 	if (attr == USB_ENDPOINT_SYNC_ASYNC &&
 	    alts->desc.bInterfaceClass == USB_CLASS_VENDOR_SPEC &&
-	    USB_ID_VENDOR(chip->usb_id) == 0x2b73 /* Pioneer */) {
+	    (USB_ID_VENDOR(chip->usb_id) == 0x2b73 || /* Pioneer */
+	     USB_ID_VENDOR(chip->usb_id) == 0x08e4    /* Pioneer */)) {
 		if (skip_pioneer_sync_ep(chip, fmt, alts))
 			return 1;
 	}
