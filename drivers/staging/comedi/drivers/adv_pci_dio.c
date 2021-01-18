@@ -227,6 +227,7 @@ struct pci_dio_dev_private_data {
 	int boardtype;
 	int irq_subd;
 	unsigned short int_ctrl;
+	unsigned short int_rf;
 };
 
 struct pci_dio_sd_private_data {
@@ -313,7 +314,15 @@ static int pci_dio_asy_cmdtest(struct comedi_device *dev,
 	/* Step 3: check if arguments are trivially valid */
 
 	err |= comedi_check_trigger_arg_is(&cmd->start_arg, 0);
-	err |= comedi_check_trigger_arg_is(&cmd->scan_begin_arg, 0);
+	/*
+	 * For scan_begin_arg, the trigger number must be 0 and the only
+	 * allowed flags are CR_EDGE and CR_INVERT.  CR_EDGE is ignored,
+	 * CR_INVERT sets the trigger to falling edge.
+	 */
+	if (cmd->scan_begin_arg & ~(CR_EDGE | CR_INVERT)) {
+		cmd->scan_begin_arg &= (CR_EDGE | CR_INVERT);
+		err |= -EINVAL;
+	}
 	err |= comedi_check_trigger_arg_is(&cmd->convert_arg, 0);
 	err |= comedi_check_trigger_arg_is(&cmd->scan_end_arg,
 					   cmd->chanlist_len);
@@ -335,12 +344,18 @@ static int pci_dio_asy_cmd(struct comedi_device *dev,
 	struct pci_dio_dev_private_data *dev_private = dev->private;
 	struct pci_dio_sd_private_data *sd_priv = s->private;
 	const struct dio_boardtype *board = dev->board_ptr;
+	struct comedi_cmd *cmd = &s->async->cmd;
 	unsigned long cpu_flags;
 	unsigned short int_en;
 
 	int_en = board->sdirq[s->index - dev_private->irq_subd].int_en;
 
 	spin_lock_irqsave(&dev->spinlock, cpu_flags);
+	if (cmd->scan_begin_arg & CR_INVERT)
+		dev_private->int_rf |= int_en;	/* falling edge */
+	else
+		dev_private->int_rf &= ~int_en;	/* rising edge */
+	outb(dev_private->int_rf, dev->iobase + PCI173X_INT_RF_REG);
 	dev_private->int_ctrl |= int_en;	/* enable interrupt source */
 	outb(dev_private->int_ctrl, dev->iobase + PCI173X_INT_EN_REG);
 	spin_unlock_irqrestore(&dev->spinlock, cpu_flags);
@@ -483,7 +498,8 @@ static int pci_dio_reset(struct comedi_device *dev, unsigned long cardtype)
 		/* Reset all 4 Int Flags */
 		outb(0x0f, dev->iobase + PCI173X_INT_CLR_REG);
 		/* Rising Edge => IRQ . On all 4 Pins */
-		outb(0x00, dev->iobase + PCI173X_INT_RF_REG);
+		dev_private->int_rf = 0x00;
+		outb(dev_private->int_rf, dev->iobase + PCI173X_INT_RF_REG);
 		break;
 	case TYPE_PCI1739:
 	case TYPE_PCI1750:
