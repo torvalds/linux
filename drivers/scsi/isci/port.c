@@ -269,8 +269,8 @@ static void isci_port_link_down(struct isci_host *isci_host,
 	 * isci_port_deformed and isci_dev_gone functions.
 	 */
 	sas_phy_disconnected(&isci_phy->sas_phy);
-	sas_notify_phy_event(&isci_phy->sas_phy,
-					   PHYE_LOSS_OF_SIGNAL);
+	sas_notify_phy_event_gfp(&isci_phy->sas_phy,
+				 PHYE_LOSS_OF_SIGNAL, GFP_ATOMIC);
 
 	dev_dbg(&isci_host->pdev->dev,
 		"%s: isci_port = %p - Done\n", __func__, isci_port);
