@@ -3837,14 +3837,6 @@ F:	drivers/irqchip/irq-csky-*
 N:	csky
 K:	csky
 
-C6X ARCHITECTURE
-M:	Mark Salter <msalter@redhat.com>
-M:	Aurelien Jacquiot <jacquiot.aurelien@gmail.com>
-L:	linux-c6x-dev@linux-c6x.org
-S:	Maintained
-W:	http://www.linux-c6x.org/wiki/index.php/Main_Page
-F:	arch/c6x/
-
 CA8210 IEEE-802.15.4 RADIO DRIVER
 M:	Harry Morris <h.morris@cascoda.com>
 L:	linux-wpan@vger.kernel.org
