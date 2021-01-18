@@ -912,7 +912,7 @@ BEGIN_MMU_FTR_SECTION
 	/* Radix host won't have populated the SLB, so no need to clear */
 	li	r6, 0
 	slbmte	r6, r6
-	slbia
+	PPC_SLBIA(6)
 	ptesync
 END_MMU_FTR_SECTION_IFCLR(MMU_FTR_TYPE_RADIX)
 
@@ -1520,7 +1520,7 @@ guest_exit_cont:		/* r9 = vcpu, r12 = trap, r13 = paca */
 	/* Finally clear out the SLB */
 	li	r0,0
 	slbmte	r0,r0
-	slbia
+	PPC_SLBIA(6)
 	ptesync
 	stw	r5,VCPU_SLB_MAX(r9)
 
@@ -3352,7 +3352,7 @@ END_FTR_SECTION_IFSET(CPU_FTR_DAWR1)
 
 	/* Clear hash and radix guest SLB, see guest_exit_short_path comment. */
 	slbmte	r0, r0
-	slbia
+	PPC_SLBIA(6)
 
 BEGIN_MMU_FTR_SECTION
 	b	4f
