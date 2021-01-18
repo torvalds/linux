@@ -123,12 +123,6 @@ int sas_register_ha(struct sas_ha_struct *sas_ha)
 		goto Undo_phys;
 	}
 
-	error = sas_init_events(sas_ha);
-	if (error) {
-		pr_notice("couldn't start event thread:%d\n", error);
-		goto Undo_ports;
-	}
-
 	error = -ENOMEM;
 	snprintf(name, sizeof(name), "%s_event_q", dev_name(sas_ha->dev));
 	sas_ha->event_q = create_singlethread_workqueue(name);
