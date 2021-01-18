@@ -85,7 +85,6 @@ enum pm_api_id {
 	PM_CLOCK_GETPARENT,
 	PM_SECURE_AES = 47,
 	PM_FEATURE_CHECK = 63,
-	PM_API_MAX,
 };
 
 /* PMU-FW return status codes */
