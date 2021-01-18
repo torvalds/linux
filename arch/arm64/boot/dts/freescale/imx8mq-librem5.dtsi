@@ -928,6 +928,7 @@
 		ti,use-vinmin-threshold = <1>; /* enable VINDPM */
 		ti,vinmin-threshold = <3900000>; /* uV */
 		monitored-battery = <&bat>;
+		power-supplies = <&typec_pd>;
 	};
 };
 
