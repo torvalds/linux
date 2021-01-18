@@ -42,6 +42,7 @@ struct vm149c_device {
 
 	u32 module_index;
 	const char *module_facing;
+	struct rk_cam_vcm_cfg vcm_cfg;
 };
 
 static inline struct vm149c_device *to_vm149c_vcm(struct v4l2_ctrl *ctrl)
@@ -296,12 +297,34 @@ static const struct v4l2_subdev_internal_ops vm149c_int_ops = {
 	.close = vm149c_close,
 };
 
+static void vm149c_update_vcm_cfg(struct vm149c_device *dev_vcm)
+{
+	struct i2c_client *client = v4l2_get_subdevdata(&dev_vcm->sd);
+	int cur_dist;
+
+	cur_dist = dev_vcm->vcm_cfg.rated_ma - dev_vcm->vcm_cfg.start_ma;
+	cur_dist = cur_dist * VM149C_MAX_REG / VM149C_MAX_CURRENT;
+	dev_vcm->step = (cur_dist + (VCMDRV_MAX_LOG - 1)) / VCMDRV_MAX_LOG;
+	dev_vcm->start_current = dev_vcm->vcm_cfg.start_ma *
+				 VM149C_MAX_REG / VM149C_MAX_CURRENT;
+	dev_vcm->rated_current = dev_vcm->start_current +
+				 VCMDRV_MAX_LOG * dev_vcm->step;
+	dev_vcm->step_mode = dev_vcm->vcm_cfg.step_mode;
+
+	dev_dbg(&client->dev,
+		"vcm_cfg: %d, %d, %d\n",
+		dev_vcm->vcm_cfg.start_ma,
+		dev_vcm->vcm_cfg.rated_ma,
+		dev_vcm->vcm_cfg.step_mode);
+}
+
 static long vm149c_ioctl(struct v4l2_subdev *sd, unsigned int cmd, void *arg)
 {
-	int ret = 0;
-	struct rk_cam_vcm_tim *vcm_tim;
 	struct i2c_client *client = v4l2_get_subdevdata(sd);
 	struct vm149c_device *vm149c_dev = sd_to_vm149c_vcm(sd);
+	struct rk_cam_vcm_tim *vcm_tim;
+	struct rk_cam_vcm_cfg *vcm_cfg;
+	int ret = 0;
 
 	if (cmd == RK_VIDIOC_VCM_TIMEINFO) {
 		vcm_tim = (struct rk_cam_vcm_tim *)arg;
@@ -314,6 +337,19 @@ static long vm149c_ioctl(struct v4l2_subdev *sd, unsigned int cmd, void *arg)
 		dev_dbg(&client->dev, "vm149c_get_move_res 0x%lx, 0x%lx, 0x%lx, 0x%lx\n",
 			vcm_tim->vcm_start_t.tv_sec, vcm_tim->vcm_start_t.tv_usec,
 			vcm_tim->vcm_end_t.tv_sec, vcm_tim->vcm_end_t.tv_usec);
+	} else if (cmd == RK_VIDIOC_GET_VCM_CFG) {
+		vcm_cfg = (struct rk_cam_vcm_cfg *)arg;
+
+		vcm_cfg->start_ma = vm149c_dev->vcm_cfg.start_ma;
+		vcm_cfg->rated_ma = vm149c_dev->vcm_cfg.rated_ma;
+		vcm_cfg->step_mode = vm149c_dev->vcm_cfg.step_mode;
+	} else if (cmd == RK_VIDIOC_SET_VCM_CFG) {
+		vcm_cfg = (struct rk_cam_vcm_cfg *)arg;
+
+		vm149c_dev->vcm_cfg.start_ma = vcm_cfg->start_ma;
+		vm149c_dev->vcm_cfg.rated_ma = vcm_cfg->rated_ma;
+		vm149c_dev->vcm_cfg.step_mode = vcm_cfg->step_mode;
+		vm149c_update_vcm_cfg(vm149c_dev);
 	} else {
 		dev_err(&client->dev,
 			"cmd 0x%x not supported\n", cmd);
@@ -326,10 +362,11 @@ static long vm149c_ioctl(struct v4l2_subdev *sd, unsigned int cmd, void *arg)
 #ifdef CONFIG_COMPAT
 static long vm149c_compat_ioctl32(struct v4l2_subdev *sd, unsigned int cmd, unsigned long arg)
 {
-	struct rk_cam_vcm_tim vcm_tim;
-	struct rk_cam_compat_vcm_tim compat_vcm_tim;
-	struct rk_cam_compat_vcm_tim __user *p32 = compat_ptr(arg);
 	struct i2c_client *client = v4l2_get_subdevdata(sd);
+	struct rk_cam_compat_vcm_tim __user *p32 = compat_ptr(arg);
+	struct rk_cam_compat_vcm_tim compat_vcm_tim;
+	struct rk_cam_vcm_tim vcm_tim;
+	struct rk_cam_vcm_cfg vcm_cfg;
 	long ret;
 
 	if (cmd == RK_VIDIOC_COMPAT_VCM_TIMEINFO) {
@@ -343,6 +380,14 @@ static long vm149c_compat_ioctl32(struct v4l2_subdev *sd, unsigned int cmd, unsi
 		put_user(compat_vcm_tim.vcm_start_t.tv_usec, &p32->vcm_start_t.tv_usec);
 		put_user(compat_vcm_tim.vcm_end_t.tv_sec, &p32->vcm_end_t.tv_sec);
 		put_user(compat_vcm_tim.vcm_end_t.tv_usec, &p32->vcm_end_t.tv_usec);
+	} else if (cmd == RK_VIDIOC_GET_VCM_CFG) {
+		ret = vm149c_ioctl(sd, RK_VIDIOC_GET_VCM_CFG, &vcm_cfg);
+		if (!ret)
+			ret = copy_to_user(up, &vcm_cfg, sizeof(vcm_cfg));
+	} else if (cmd == RK_VIDIOC_SET_VCM_CFG) {
+		ret = copy_from_user(&vcm_cfg, up, sizeof(vcm_cfg));
+		if (!ret)
+			ret = vm149c_ioctl(sd, cmd, &vcm_cfg);
 	} else {
 		dev_err(&client->dev,
 			"cmd 0x%x not supported\n", cmd);
@@ -394,13 +439,10 @@ static int vm149c_probe(struct i2c_client *client,
 {
 	struct device_node *np = of_node_get(client->dev.of_node);
 	struct vm149c_device *vm149c_dev;
-	int ret;
-	int current_distance;
-	unsigned int start_current;
-	unsigned int rated_current;
-	unsigned int step_mode;
+	unsigned int start_ma, rated_ma, step_mode;
 	struct v4l2_subdev *sd;
 	char facing[2];
+	int ret;
 
 	dev_info(&client->dev, "probing...\n");
 	dev_info(&client->dev, "driver version: %02x.%02x.%02x",
@@ -410,16 +452,16 @@ static int vm149c_probe(struct i2c_client *client,
 
 	if (of_property_read_u32(np,
 		 OF_CAMERA_VCMDRV_START_CURRENT,
-		(unsigned int *)&start_current)) {
-		start_current = VM149C_DEFAULT_START_CURRENT;
+		(unsigned int *)&start_ma)) {
+		start_ma = VM149C_DEFAULT_START_CURRENT;
 		dev_info(&client->dev,
 			"could not get module %s from dts!\n",
 			OF_CAMERA_VCMDRV_START_CURRENT);
 	}
 	if (of_property_read_u32(np,
 		 OF_CAMERA_VCMDRV_RATED_CURRENT,
-		(unsigned int *)&rated_current)) {
-		rated_current = VM149C_DEFAULT_RATED_CURRENT;
+		(unsigned int *)&rated_ma)) {
+		rated_ma = VM149C_DEFAULT_RATED_CURRENT;
 		dev_info(&client->dev,
 			"could not get module %s from dts!\n",
 			OF_CAMERA_VCMDRV_RATED_CURRENT);
@@ -476,12 +518,10 @@ static int vm149c_probe(struct i2c_client *client,
 	if (ret)
 		dev_err(&client->dev, "v4l2 async register subdev failed\n");
 
-	current_distance = rated_current - start_current;
-	current_distance = current_distance * VM149C_MAX_REG / VM149C_MAX_CURRENT;
-	vm149c_dev->step = (current_distance + (VCMDRV_MAX_LOG - 1)) / VCMDRV_MAX_LOG;
-	vm149c_dev->start_current = start_current * VM149C_MAX_REG / VM149C_MAX_CURRENT;
-	vm149c_dev->rated_current = vm149c_dev->start_current + VCMDRV_MAX_LOG * vm149c_dev->step;
-	vm149c_dev->step_mode     = step_mode;
+	vm149c_dev->vcm_cfg.start_ma = start_ma;
+	vm149c_dev->vcm_cfg.rated_ma = rated_ma;
+	vm149c_dev->vcm_cfg.step_mode = step_mode;
+	vm149c_update_vcm_cfg(vm149c_dev);
 	vm149c_dev->move_ms       = 0;
 	vm149c_dev->current_related_pos = VCMDRV_MAX_LOG;
 	vm149c_dev->start_move_tv = ns_to_timeval(ktime_get_ns());
