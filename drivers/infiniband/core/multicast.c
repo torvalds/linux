@@ -721,6 +721,7 @@ EXPORT_SYMBOL(ib_sa_get_mcmember_rec);
  * member record and gid of the device.
  * @device:	RDMA device
  * @port_num:	Port of the rdma device to consider
+ * @rec:	Multicast member record to use
  * @ndev:	Optional netdevice, applicable only for RoCE
  * @gid_type:	GID type to consider
  * @ah_attr:	AH attribute to fillup on successful completion
