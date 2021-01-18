@@ -1887,9 +1887,9 @@ static int __ib_get_client_nl_info(struct ib_device *ibdev,
 
 /**
  * ib_get_client_nl_info - Fetch the nl_info from a client
- * @device - IB device
- * @client_name - Name of the client
- * @res - Result of the query
+ * @ibdev: IB device
+ * @client_name: Name of the client
+ * @res: Result of the query
  */
 int ib_get_client_nl_info(struct ib_device *ibdev, const char *client_name,
 			  struct ib_client_nl_info *res)
@@ -2317,7 +2317,7 @@ void ib_enum_all_roce_netdevs(roce_netdev_filter filter,
 	up_read(&devices_rwsem);
 }
 
-/**
+/*
  * ib_enum_all_devs - enumerate all ib_devices
  * @cb: Callback to call for each found ib_device
  *
