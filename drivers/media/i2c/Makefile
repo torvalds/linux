@@ -73,6 +73,7 @@ obj-$(CONFIG_VIDEO_VP27SMPX) += vp27smpx.o
 obj-$(CONFIG_VIDEO_SONY_BTF_MPX) += sony-btf-mpx.o
 obj-$(CONFIG_VIDEO_UPD64031A) += upd64031a.o
 obj-$(CONFIG_VIDEO_UPD64083) += upd64083.o
+obj-$(CONFIG_VIDEO_OS02G10) += os02g10.o
 obj-$(CONFIG_VIDEO_OS04A10) += os04a10.o
 obj-$(CONFIG_VIDEO_OS05A20) += os05a20.o
 obj-$(CONFIG_VIDEO_OV02B10) += ov02b10.o
