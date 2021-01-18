@@ -1130,15 +1130,10 @@ MODULE_DEVICE_TABLE(of, fsl_xcvr_dt_ids);
 static int fsl_xcvr_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
-	const struct of_device_id *of_id;
 	struct fsl_xcvr *xcvr;
 	struct resource *ram_res, *regs_res, *rx_res, *tx_res;
 	void __iomem *regs;
 	int ret, irq;
-
-	of_id = of_match_device(fsl_xcvr_dt_ids, dev);
-	if (!of_id)
-		return -EINVAL;
 
 	xcvr = devm_kzalloc(dev, sizeof(*xcvr), GFP_KERNEL);
 	if (!xcvr)
