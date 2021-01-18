@@ -111,7 +111,7 @@
 			regulator-max-microvolt = <1960000>;
 		};
 
-		ldo1 {
+		vreg_l1e_bb_1p2: ldo1 {
 			regulator-min-microvolt = <1200000>;
 			regulator-max-microvolt = <1200000>;
 			regulator-initial-mode = <RPMH_REGULATOR_MODE_LPM>;
@@ -129,13 +129,13 @@
 			regulator-initial-mode = <RPMH_REGULATOR_MODE_LPM>;
 		};
 
-		ldo4 {
+		vreg_l4e_bb_0p875: ldo4 {
 			regulator-min-microvolt = <872000>;
 			regulator-max-microvolt = <872000>;
 			regulator-initial-mode = <RPMH_REGULATOR_MODE_LPM>;
 		};
 
-		ldo5 {
+		vreg_l5e_bb_1p7: ldo5 {
 			regulator-min-microvolt = <1704000>;
 			regulator-max-microvolt = <1900000>;
 			regulator-initial-mode = <RPMH_REGULATOR_MODE_LPM>;
@@ -165,7 +165,7 @@
 			regulator-initial-mode = <RPMH_REGULATOR_MODE_LPM>;
 		};
 
-		ldo10 {
+		vreg_l10e_3p1: ldo10 {
 			regulator-min-microvolt = <3088000>;
 			regulator-max-microvolt = <3088000>;
 			regulator-initial-mode = <RPMH_REGULATOR_MODE_LPM>;
@@ -227,4 +227,25 @@
 		nand-ecc-step-size = <512>;
 		nand-bus-width = <8>;
 	};
+};
+
+&usb {
+	status = "okay";
+};
+
+&usb_dwc3 {
+	dr_mode = "peripheral";
+};
+
+&usb_hsphy {
+	status = "okay";
+	vdda-pll-supply = <&vreg_l4e_bb_0p875>;
+	vdda33-supply = <&vreg_l10e_3p1>;
+	vdda18-supply = <&vreg_l5e_bb_1p7>;
+};
+
+&usb_qmpphy {
+	status = "okay";
+	vdda-phy-supply = <&vreg_l4e_bb_0p875>;
+	vdda-pll-supply = <&vreg_l1e_bb_1p2>;
 };
