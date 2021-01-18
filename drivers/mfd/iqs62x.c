@@ -866,7 +866,7 @@ static const struct iqs62x_dev_desc iqs62x_devs[] = {
 	},
 };
 
-static const struct regmap_config iqs62x_map_config = {
+static const struct regmap_config iqs62x_regmap_config = {
 	.reg_bits = 8,
 	.val_bits = 8,
 	.max_register = IQS62X_MAX_REG,
@@ -892,7 +892,7 @@ static int iqs62x_probe(struct i2c_client *client)
 	INIT_LIST_HEAD(&iqs62x->fw_blk_head);
 	init_completion(&iqs62x->fw_done);
 
-	iqs62x->regmap = devm_regmap_init_i2c(client, &iqs62x_map_config);
+	iqs62x->regmap = devm_regmap_init_i2c(client, &iqs62x_regmap_config);
 	if (IS_ERR(iqs62x->regmap)) {
 		ret = PTR_ERR(iqs62x->regmap);
 		dev_err(&client->dev, "Failed to initialize register map: %d\n",
