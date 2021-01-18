@@ -833,6 +833,65 @@ static void tty_update_time(struct timespec64 *time)
 		time->tv_sec = sec;
 }
 
+/*
+ * Iterate on the ldisc ->read() function until we've gotten all
+ * the data the ldisc has for us.
+ *
+ * The "cookie" is something that the ldisc read function can fill
+ * in to let us know that there is more data to be had.
+ *
+ * We promise to continue to call the ldisc until it stops returning
+ * data or clears the cookie. The cookie may be something that the
+ * ldisc maintains state for and needs to free.
+ */
+static int iterate_tty_read(struct tty_ldisc *ld, struct tty_struct *tty, struct file *file,
+		char __user *buf, size_t count)
+{
+	int retval = 0;
+	void *cookie = NULL;
+	unsigned long offset = 0;
+	char kernel_buf[64];
+
+	do {
+		int size, uncopied;
+
+		size = count > sizeof(kernel_buf) ? sizeof(kernel_buf) : count;
+		size = ld->ops->read(tty, file, kernel_buf, size, &cookie, offset);
+		if (!size)
+			break;
+
+		/*
+		 * A ldisc read error return will override any previously copied
+		 * data (eg -EOVERFLOW from HDLC)
+		 */
+		if (size < 0) {
+			memzero_explicit(kernel_buf, sizeof(kernel_buf));
+			return size;
+		}
+
+		uncopied = copy_to_user(buf+offset, kernel_buf, size);
+		size -= uncopied;
+		offset += size;
+		count -= size;
+
+		/*
+		 * If the user copy failed, we still need to do another ->read()
+		 * call if we had a cookie to let the ldisc clear up.
+		 *
+		 * But make sure size is zeroed.
+		 */
+		if (unlikely(uncopied)) {
+			count = 0;
+			retval = -EFAULT;
+		}
+	} while (cookie);
+
+	/* We always clear tty buffer in case they contained passwords */
+	memzero_explicit(kernel_buf, sizeof(kernel_buf));
+	return offset ? offset : retval;
+}
+
+
 /**
  *	tty_read	-	read method for tty device files
  *	@file: pointer to tty file
@@ -866,10 +925,9 @@ static ssize_t tty_read(struct file *file, char __user *buf, size_t count,
 	ld = tty_ldisc_ref_wait(tty);
 	if (!ld)
 		return hung_up_tty_read(file, buf, count, ppos);
+	i = -EIO;
 	if (ld->ops->read)
-		i = ld->ops->read(tty, file, buf, count);
-	else
-		i = -EIO;
+		i = iterate_tty_read(ld, tty, file, buf, count);
 	tty_ldisc_deref(ld);
 
 	if (i > 0)
