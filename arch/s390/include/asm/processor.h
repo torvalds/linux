@@ -40,9 +40,7 @@
 #include <asm/fpu/internal.h>
 #include <asm/irqflags.h>
 
-typedef long (*sys_call_ptr_t)(unsigned long, unsigned long,
-			       unsigned long, unsigned long,
-			       unsigned long, unsigned long);
+typedef long (*sys_call_ptr_t)(struct pt_regs *regs);
 
 static inline void set_cpu_flag(int flag)
 {

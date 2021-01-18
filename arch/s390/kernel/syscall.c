@@ -132,12 +132,8 @@ void do_syscall(struct pt_regs *regs)
 	 */
 	if (!test_pt_regs_flag(regs, PIF_SYSCALL_RET_SET)) {
 		regs->gprs[2] = -ENOSYS;
-		if (likely(nr < NR_syscalls)) {
-			regs->gprs[2] = current->thread.sys_call_table[nr](
-					regs->orig_gpr2, regs->gprs[3],
-					regs->gprs[4], regs->gprs[5],
-					regs->gprs[6], regs->gprs[7]);
-		}
+		if (likely(nr < NR_syscalls))
+			regs->gprs[2] = current->thread.sys_call_table[nr](regs);
 	} else {
 		clear_pt_regs_flag(regs, PIF_SYSCALL_RET_SET);
 	}
