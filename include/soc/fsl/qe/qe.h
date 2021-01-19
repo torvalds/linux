@@ -104,6 +104,7 @@ s32 cpm_muram_alloc_fixed(unsigned long offset, unsigned long size);
 void __iomem *cpm_muram_addr(unsigned long offset);
 unsigned long cpm_muram_offset(const void __iomem *addr);
 dma_addr_t cpm_muram_dma(void __iomem *addr);
+void cpm_muram_free_addr(const void __iomem *addr);
 #else
 static inline s32 cpm_muram_alloc(unsigned long size,
 				  unsigned long align)
@@ -134,6 +135,9 @@ static inline unsigned long cpm_muram_offset(const void __iomem *addr)
 static inline dma_addr_t cpm_muram_dma(void __iomem *addr)
 {
 	return 0;
+}
+static inline void cpm_muram_free_addr(const void __iomem *addr)
+{
 }
 #endif /* defined(CONFIG_CPM) || defined(CONFIG_QUICC_ENGINE) */
 
@@ -239,6 +243,7 @@ static inline int qe_alive_during_sleep(void)
 #define qe_muram_addr cpm_muram_addr
 #define qe_muram_offset cpm_muram_offset
 #define qe_muram_dma cpm_muram_dma
+#define qe_muram_free_addr cpm_muram_free_addr
 
 #ifdef CONFIG_PPC32
 #define qe_iowrite8(val, addr)     out_8(addr, val)
