@@ -2351,6 +2351,7 @@ static int ucc_geth_startup(struct ucc_geth_private *ugeth)
 	u8 function_code = 0;
 	u8 __iomem *endOfRing;
 	u8 numThreadsRxNumerical, numThreadsTxNumerical;
+	s32 rx_glbl_pram_offset, tx_glbl_pram_offset;
 
 	ugeth_vdbg("%s: IN", __func__);
 	uccf = ugeth->uccf;
@@ -2495,17 +2496,15 @@ static int ucc_geth_startup(struct ucc_geth_private *ugeth)
 	 */
 	/* Tx global PRAM */
 	/* Allocate global tx parameter RAM page */
-	ugeth->tx_glbl_pram_offset =
+	tx_glbl_pram_offset =
 	    qe_muram_alloc(sizeof(struct ucc_geth_tx_global_pram),
 			   UCC_GETH_TX_GLOBAL_PRAM_ALIGNMENT);
-	if (IS_ERR_VALUE(ugeth->tx_glbl_pram_offset)) {
+	if (tx_glbl_pram_offset < 0) {
 		if (netif_msg_ifup(ugeth))
 			pr_err("Can not allocate DPRAM memory for p_tx_glbl_pram\n");
 		return -ENOMEM;
 	}
-	ugeth->p_tx_glbl_pram =
-	    (struct ucc_geth_tx_global_pram __iomem *) qe_muram_addr(ugeth->
-							tx_glbl_pram_offset);
+	ugeth->p_tx_glbl_pram = qe_muram_addr(tx_glbl_pram_offset);
 	/* Fill global PRAM */
 
 	/* TQPTR */
@@ -2656,17 +2655,15 @@ static int ucc_geth_startup(struct ucc_geth_private *ugeth)
 
 	/* Rx global PRAM */
 	/* Allocate global rx parameter RAM page */
-	ugeth->rx_glbl_pram_offset =
+	rx_glbl_pram_offset =
 	    qe_muram_alloc(sizeof(struct ucc_geth_rx_global_pram),
 			   UCC_GETH_RX_GLOBAL_PRAM_ALIGNMENT);
-	if (IS_ERR_VALUE(ugeth->rx_glbl_pram_offset)) {
+	if (rx_glbl_pram_offset < 0) {
 		if (netif_msg_ifup(ugeth))
 			pr_err("Can not allocate DPRAM memory for p_rx_glbl_pram\n");
 		return -ENOMEM;
 	}
-	ugeth->p_rx_glbl_pram =
-	    (struct ucc_geth_rx_global_pram __iomem *) qe_muram_addr(ugeth->
-							rx_glbl_pram_offset);
+	ugeth->p_rx_glbl_pram = qe_muram_addr(rx_glbl_pram_offset);
 	/* Fill global PRAM */
 
 	/* RQPTR */
@@ -2928,7 +2925,7 @@ static int ucc_geth_startup(struct ucc_geth_private *ugeth)
 	    ((u32) ug_info->numThreadsTx) << ENET_INIT_PARAM_TGF_SHIFT;
 
 	ugeth->p_init_enet_param_shadow->rgftgfrxglobal |=
-	    ugeth->rx_glbl_pram_offset | ug_info->riscRx;
+	    rx_glbl_pram_offset | ug_info->riscRx;
 	if ((ug_info->largestexternallookupkeysize !=
 	     QE_FLTR_LARGEST_EXTERNAL_TABLE_LOOKUP_KEY_SIZE_NONE) &&
 	    (ug_info->largestexternallookupkeysize !=
@@ -2966,7 +2963,7 @@ static int ucc_geth_startup(struct ucc_geth_private *ugeth)
 	}
 
 	ugeth->p_init_enet_param_shadow->txglobal =
-	    ugeth->tx_glbl_pram_offset | ug_info->riscTx;
+	    tx_glbl_pram_offset | ug_info->riscTx;
 	if ((ret_val =
 	     fill_init_enet_entries(ugeth,
 				    &(ugeth->p_init_enet_param_shadow->
