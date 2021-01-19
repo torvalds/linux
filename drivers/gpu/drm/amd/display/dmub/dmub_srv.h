@@ -323,6 +323,7 @@ struct dmub_srv_hw_funcs {
 
 	uint32_t (*get_gpint_response)(struct dmub_srv *dmub);
 
+	uint32_t (*get_current_time)(struct dmub_srv *dmub);
 };
 
 /**

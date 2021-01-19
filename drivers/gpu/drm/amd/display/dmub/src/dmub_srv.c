@@ -159,6 +159,7 @@ static bool dmub_srv_hw_setup(struct dmub_srv *dmub, enum dmub_asic asic)
 		funcs->get_fw_status = dmub_dcn20_get_fw_boot_status;
 		funcs->enable_dmub_boot_options = dmub_dcn20_enable_dmub_boot_options;
 		funcs->skip_dmub_panel_power_sequence = dmub_dcn20_skip_dmub_panel_power_sequence;
+		funcs->get_current_time = dmub_dcn20_get_current_time;
 
 		// Out mailbox register access functions for RN and above
 		funcs->setup_out_mailbox = dmub_dcn20_setup_out_mailbox;
