@@ -262,25 +262,6 @@ void arch_sync_kernel_mappings(unsigned long start, unsigned long end)
 	}
 }
 
-/*
- * Did it hit the DOS screen memory VA from vm86 mode?
- */
-static inline void
-check_v8086_mode(struct pt_regs *regs, unsigned long address,
-		 struct task_struct *tsk)
-{
-#ifdef CONFIG_VM86
-	unsigned long bit;
-
-	if (!v8086_mode(regs) || !tsk->thread.vm86)
-		return;
-
-	bit = (address - 0xA0000) >> PAGE_SHIFT;
-	if (bit < 32)
-		tsk->thread.vm86->screen_bitmap |= 1 << bit;
-#endif
-}
-
 static bool low_pfn(unsigned long pfn)
 {
 	return pfn < max_low_pfn;
@@ -334,15 +315,6 @@ KERN_ERR
 "******* Please consider a BIOS update.\n"
 "******* Disabling USB legacy in the BIOS may also help.\n";
 #endif
-
-/*
- * No vm86 mode in 64-bit mode:
- */
-static inline void
-check_v8086_mode(struct pt_regs *regs, unsigned long address,
-		 struct task_struct *tsk)
-{
-}
 
 static int bad_address(void *p)
 {
@@ -1416,8 +1388,6 @@ good_area:
 		mm_fault_error(regs, hw_error_code, address, fault);
 		return;
 	}
-
-	check_v8086_mode(regs, address, tsk);
 }
 NOKPROBE_SYMBOL(do_user_addr_fault);
 
