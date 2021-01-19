@@ -2203,17 +2203,14 @@ static int ucc_geth_alloc_tx(struct ucc_geth_private *ugeth)
 	for (j = 0; j < ug_info->numQueuesTx; j++) {
 		/* Setup the skbuff rings */
 		ugeth->tx_skbuff[j] =
-			kmalloc_array(ugeth->ug_info->bdRingLenTx[j],
-				      sizeof(struct sk_buff *), GFP_KERNEL);
+			kcalloc(ugeth->ug_info->bdRingLenTx[j],
+				sizeof(struct sk_buff *), GFP_KERNEL);
 
 		if (ugeth->tx_skbuff[j] == NULL) {
 			if (netif_msg_ifup(ugeth))
 				pr_err("Could not allocate tx_skbuff\n");
 			return -ENOMEM;
 		}
-
-		for (i = 0; i < ugeth->ug_info->bdRingLenTx[j]; i++)
-			ugeth->tx_skbuff[j][i] = NULL;
 
 		ugeth->skb_curtx[j] = ugeth->skb_dirtytx[j] = 0;
 		bd = ugeth->confBd[j] = ugeth->txBd[j] = ugeth->p_tx_bd_ring[j];
@@ -2266,17 +2263,14 @@ static int ucc_geth_alloc_rx(struct ucc_geth_private *ugeth)
 	for (j = 0; j < ug_info->numQueuesRx; j++) {
 		/* Setup the skbuff rings */
 		ugeth->rx_skbuff[j] =
-			kmalloc_array(ugeth->ug_info->bdRingLenRx[j],
-				      sizeof(struct sk_buff *), GFP_KERNEL);
+			kcalloc(ugeth->ug_info->bdRingLenRx[j],
+				sizeof(struct sk_buff *), GFP_KERNEL);
 
 		if (ugeth->rx_skbuff[j] == NULL) {
 			if (netif_msg_ifup(ugeth))
 				pr_err("Could not allocate rx_skbuff\n");
 			return -ENOMEM;
 		}
-
-		for (i = 0; i < ugeth->ug_info->bdRingLenRx[j]; i++)
-			ugeth->rx_skbuff[j][i] = NULL;
 
 		ugeth->skb_currx[j] = 0;
 		bd = ugeth->rxBd[j] = ugeth->p_rx_bd_ring[j];
