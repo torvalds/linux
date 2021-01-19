@@ -2196,9 +2196,8 @@ static int ucc_geth_alloc_tx(struct ucc_geth_private *ugeth)
 		    UCC_GETH_TX_BD_RING_SIZE_MEMORY_ALIGNMENT)
 			length += UCC_GETH_TX_BD_RING_SIZE_MEMORY_ALIGNMENT;
 		if (uf_info->bd_mem_part == MEM_PART_SYSTEM) {
-			u32 align = 4;
-			if (UCC_GETH_TX_BD_RING_ALIGNMENT > 4)
-				align = UCC_GETH_TX_BD_RING_ALIGNMENT;
+			u32 align = UCC_GETH_TX_BD_RING_ALIGNMENT;
+
 			ugeth->tx_bd_ring_offset[j] =
 				(u32) kmalloc((u32) (length + align), GFP_KERNEL);
 
@@ -2274,9 +2273,8 @@ static int ucc_geth_alloc_rx(struct ucc_geth_private *ugeth)
 	for (j = 0; j < ug_info->numQueuesRx; j++) {
 		length = ug_info->bdRingLenRx[j] * sizeof(struct qe_bd);
 		if (uf_info->bd_mem_part == MEM_PART_SYSTEM) {
-			u32 align = 4;
-			if (UCC_GETH_RX_BD_RING_ALIGNMENT > 4)
-				align = UCC_GETH_RX_BD_RING_ALIGNMENT;
+			u32 align = UCC_GETH_RX_BD_RING_ALIGNMENT;
+
 			ugeth->rx_bd_ring_offset[j] =
 				(u32) kmalloc((u32) (length + align), GFP_KERNEL);
 			if (ugeth->rx_bd_ring_offset[j] != 0)
