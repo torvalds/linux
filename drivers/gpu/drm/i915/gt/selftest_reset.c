@@ -321,7 +321,10 @@ static int igt_atomic_engine_reset(void *arg)
 		goto out_unlock;
 
 	for_each_engine(engine, gt, id) {
-		tasklet_disable(&engine->execlists.tasklet);
+		struct tasklet_struct *t = &engine->execlists.tasklet;
+
+		if (t->func)
+			tasklet_disable(t);
 		intel_engine_pm_get(engine);
 
 		for (p = igt_atomic_phases; p->name; p++) {
@@ -345,8 +348,10 @@ static int igt_atomic_engine_reset(void *arg)
 		}
 
 		intel_engine_pm_put(engine);
-		tasklet_enable(&engine->execlists.tasklet);
-		tasklet_hi_schedule(&engine->execlists.tasklet);
+		if (t->func) {
+			tasklet_enable(t);
+			tasklet_hi_schedule(t);
+		}
 		if (err)
 			break;
 	}
