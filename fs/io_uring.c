@@ -1364,14 +1364,6 @@ static bool req_need_defer(struct io_kiocb *req, u32 seq)
 	return false;
 }
 
-static void __io_commit_cqring(struct io_ring_ctx *ctx)
-{
-	struct io_rings *rings = ctx->rings;
-
-	/* order cqe stores with ring update */
-	smp_store_release(&rings->cq.tail, ctx->cached_cq_tail);
-}
-
 static void io_put_identity(struct io_uring_task *tctx, struct io_kiocb *req)
 {
 	if (req->work.identity == &tctx->__identity)
@@ -1693,7 +1685,9 @@ static void io_flush_timeouts(struct io_ring_ctx *ctx)
 static void io_commit_cqring(struct io_ring_ctx *ctx)
 {
 	io_flush_timeouts(ctx);
-	__io_commit_cqring(ctx);
+
+	/* order cqe stores with ring update */
+	smp_store_release(&ctx->rings->cq.tail, ctx->cached_cq_tail);
 
 	if (unlikely(!list_empty(&ctx->defer_list)))
 		__io_queue_deferred(ctx);
