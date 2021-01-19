@@ -22,6 +22,11 @@ properties:
     type: object
 
     properties:
+      qcom,soft-start-us:
+        $ref: /schemas/types.yaml#/definitions/uint32
+        description: Regulator soft start time in microseconds.
+        enum: [200, 400, 600, 800]
+        default: 200
 
       interrupts:
         maxItems: 1
@@ -35,6 +40,11 @@ properties:
     type: object
 
     properties:
+      qcom,discharge-resistor-kohms:
+        $ref: /schemas/types.yaml#/definitions/uint32
+        description: Discharge resistor value in KiloOhms.
+        enum: [300, 64, 32, 16]
+        default: 300
 
       interrupts:
         maxItems: 1
