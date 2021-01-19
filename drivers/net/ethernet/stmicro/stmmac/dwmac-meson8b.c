@@ -443,16 +443,16 @@ static int meson8b_dwmac_probe(struct platform_device *pdev)
 	}
 
 	if (dwmac->data->has_prg_eth1_rgmii_rx_delay) {
-		if (dwmac->rx_delay_ps != 0 && dwmac->rx_delay_ps != 2000) {
+		if (dwmac->rx_delay_ps > 3000 || dwmac->rx_delay_ps % 200) {
 			dev_err(dwmac->dev,
-				"The only allowed RGMII RX delays values are: 0ps, 2000ps");
+				"The RGMII RX delay range is 0..3000ps in 200ps steps");
 			ret = -EINVAL;
 			goto err_remove_config_dt;
 		}
 	} else {
-		if (dwmac->rx_delay_ps > 3000 || dwmac->rx_delay_ps % 200) {
+		if (dwmac->rx_delay_ps != 0 && dwmac->rx_delay_ps != 2000) {
 			dev_err(dwmac->dev,
-				"The RGMII RX delay range is 0..3000ps in 200ps steps");
+				"The only allowed RGMII RX delays values are: 0ps, 2000ps");
 			ret = -EINVAL;
 			goto err_remove_config_dt;
 		}
