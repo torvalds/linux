@@ -629,6 +629,7 @@ enum {
 	REQ_F_NO_FILE_TABLE_BIT,
 	REQ_F_WORK_INITIALIZED_BIT,
 	REQ_F_LTIMEOUT_ACTIVE_BIT,
+	REQ_F_COMPLETE_INLINE_BIT,
 
 	/* not a real bit, just to check we're not overflowing the space */
 	__REQ_F_LAST_BIT,
@@ -672,6 +673,8 @@ enum {
 	REQ_F_WORK_INITIALIZED	= BIT(REQ_F_WORK_INITIALIZED_BIT),
 	/* linked timeout is active, i.e. prepared by link's head */
 	REQ_F_LTIMEOUT_ACTIVE	= BIT(REQ_F_LTIMEOUT_ACTIVE_BIT),
+	/* completion is deferred through io_comp_state */
+	REQ_F_COMPLETE_INLINE	= BIT(REQ_F_COMPLETE_INLINE_BIT),
 };
 
 struct async_poll {
@@ -1917,14 +1920,15 @@ static void io_submit_flush_completions(struct io_comp_state *cs)
 		 * io_free_req() doesn't care about completion_lock unless one
 		 * of these flags is set. REQ_F_WORK_INITIALIZED is in the list
 		 * because of a potential deadlock with req->work.fs->lock
+		 * We defer both, completion and submission refs.
 		 */
 		if (req->flags & (REQ_F_FAIL_LINK|REQ_F_LINK_TIMEOUT
 				 |REQ_F_WORK_INITIALIZED)) {
 			spin_unlock_irq(&ctx->completion_lock);
-			io_put_req(req);
+			io_double_put_req(req);
 			spin_lock_irq(&ctx->completion_lock);
 		} else {
-			io_put_req(req);
+			io_double_put_req(req);
 		}
 	}
 	io_commit_cqring(ctx);
@@ -1940,8 +1944,7 @@ static void io_req_complete_state(struct io_kiocb *req, long res,
 	io_clean_op(req);
 	req->result = res;
 	req->compl.cflags = cflags;
-	list_add_tail(&req->compl.list, &cs->list);
-	cs->nr++;
+	req->flags |= REQ_F_COMPLETE_INLINE;
 }
 
 static inline void __io_req_complete(struct io_kiocb *req, long res,
@@ -6576,9 +6579,9 @@ again:
 			io_queue_linked_timeout(linked_timeout);
 	} else if (likely(!ret)) {
 		/* drop submission reference */
-		if (cs) {
-			io_put_req(req);
-			if (cs->nr >= 32)
+		if (req->flags & REQ_F_COMPLETE_INLINE) {
+			list_add_tail(&req->compl.list, &cs->list);
+			if (++cs->nr >= 32)
 				io_submit_flush_completions(cs);
 			req = NULL;
 		} else {
