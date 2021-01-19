@@ -1832,38 +1832,6 @@ void dev_pm_opp_put_prop_name(struct opp_table *opp_table)
 }
 EXPORT_SYMBOL_GPL(dev_pm_opp_put_prop_name);
 
-static int _allocate_set_opp_data(struct opp_table *opp_table)
-{
-	struct dev_pm_set_opp_data *data;
-	int len, count = opp_table->regulator_count;
-
-	if (WARN_ON(!opp_table->regulators))
-		return -EINVAL;
-
-	/* space for set_opp_data */
-	len = sizeof(*data);
-
-	/* space for old_opp.supplies and new_opp.supplies */
-	len += 2 * sizeof(struct dev_pm_opp_supply) * count;
-
-	data = kzalloc(len, GFP_KERNEL);
-	if (!data)
-		return -ENOMEM;
-
-	data->old_opp.supplies = (void *)(data + 1);
-	data->new_opp.supplies = data->old_opp.supplies + count;
-
-	opp_table->set_opp_data = data;
-
-	return 0;
-}
-
-static void _free_set_opp_data(struct opp_table *opp_table)
-{
-	kfree(opp_table->set_opp_data);
-	opp_table->set_opp_data = NULL;
-}
-
 /**
  * dev_pm_opp_set_regulators() - Set regulator names for the device
  * @dev: Device for which regulator name is being set.
@@ -1880,6 +1848,7 @@ struct opp_table *dev_pm_opp_set_regulators(struct device *dev,
 					    const char * const names[],
 					    unsigned int count)
 {
+	struct dev_pm_opp_supply *supplies;
 	struct opp_table *opp_table;
 	struct regulator *reg;
 	int ret, i;
@@ -1921,10 +1890,19 @@ struct opp_table *dev_pm_opp_set_regulators(struct device *dev,
 
 	opp_table->regulator_count = count;
 
-	/* Allocate block only once to pass to set_opp() routines */
-	ret = _allocate_set_opp_data(opp_table);
-	if (ret)
+	supplies = kmalloc_array(count * 2, sizeof(*supplies), GFP_KERNEL);
+	if (!supplies) {
+		ret = -ENOMEM;
 		goto free_regulators;
+	}
+
+	mutex_lock(&opp_table->lock);
+	opp_table->sod_supplies = supplies;
+	if (opp_table->set_opp_data) {
+		opp_table->set_opp_data->old_opp.supplies = supplies;
+		opp_table->set_opp_data->new_opp.supplies = supplies + count;
+	}
+	mutex_unlock(&opp_table->lock);
 
 	return opp_table;
 
@@ -1967,7 +1945,15 @@ void dev_pm_opp_put_regulators(struct opp_table *opp_table)
 	for (i = opp_table->regulator_count - 1; i >= 0; i--)
 		regulator_put(opp_table->regulators[i]);
 
-	_free_set_opp_data(opp_table);
+	mutex_lock(&opp_table->lock);
+	if (opp_table->set_opp_data) {
+		opp_table->set_opp_data->old_opp.supplies = NULL;
+		opp_table->set_opp_data->new_opp.supplies = NULL;
+	}
+
+	kfree(opp_table->sod_supplies);
+	opp_table->sod_supplies = NULL;
+	mutex_unlock(&opp_table->lock);
 
 	kfree(opp_table->regulators);
 	opp_table->regulators = NULL;
@@ -2063,6 +2049,7 @@ EXPORT_SYMBOL_GPL(dev_pm_opp_put_clkname);
 struct opp_table *dev_pm_opp_register_set_opp_helper(struct device *dev,
 			int (*set_opp)(struct dev_pm_set_opp_data *data))
 {
+	struct dev_pm_set_opp_data *data;
 	struct opp_table *opp_table;
 
 	if (!set_opp)
@@ -2079,8 +2066,23 @@ struct opp_table *dev_pm_opp_register_set_opp_helper(struct device *dev,
 	}
 
 	/* Another CPU that shares the OPP table has set the helper ? */
-	if (!opp_table->set_opp)
-		opp_table->set_opp = set_opp;
+	if (opp_table->set_opp)
+		return opp_table;
+
+	data = kzalloc(sizeof(*data), GFP_KERNEL);
+	if (!data)
+		return ERR_PTR(-ENOMEM);
+
+	mutex_lock(&opp_table->lock);
+	opp_table->set_opp_data = data;
+	if (opp_table->sod_supplies) {
+		data->old_opp.supplies = opp_table->sod_supplies;
+		data->new_opp.supplies = opp_table->sod_supplies +
+					 opp_table->regulator_count;
+	}
+	mutex_unlock(&opp_table->lock);
+
+	opp_table->set_opp = set_opp;
 
 	return opp_table;
 }
@@ -2102,6 +2104,12 @@ void dev_pm_opp_unregister_set_opp_helper(struct opp_table *opp_table)
 	WARN_ON(!list_empty(&opp_table->opp_list));
 
 	opp_table->set_opp = NULL;
+
+	mutex_lock(&opp_table->lock);
+	kfree(opp_table->set_opp_data);
+	opp_table->set_opp_data = NULL;
+	mutex_unlock(&opp_table->lock);
+
 	dev_pm_opp_put_opp_table(opp_table);
 }
 EXPORT_SYMBOL_GPL(dev_pm_opp_unregister_set_opp_helper);
