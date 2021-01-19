@@ -119,6 +119,17 @@
 		};
 	};
 
+	leds: gpio-leds {
+		compatible = "gpio-leds";
+
+		led@2 {
+			gpios = <&gpio3 RK_PC5 GPIO_ACTIVE_HIGH>;
+			linux,default-trigger = "battery-charging";
+			label = "battery_charging";
+			retain-state-suspended;
+		};
+	};
+
 	hall_sensor: hall-mh248 {
 		compatible = "hall-mh248";
 		irq-gpio = <&gpio0 RK_PC7 IRQ_TYPE_EDGE_BOTH>;
