@@ -427,10 +427,6 @@ static inline void i915_gem_object_unpin_map(struct drm_i915_gem_object *obj)
 
 void __i915_gem_object_release_map(struct drm_i915_gem_object *obj);
 
-void
-i915_gem_object_flush_write_domain(struct drm_i915_gem_object *obj,
-				   unsigned int flush_domains);
-
 int i915_gem_object_prepare_read(struct drm_i915_gem_object *obj,
 				 unsigned int *needs_clflush);
 int i915_gem_object_prepare_write(struct drm_i915_gem_object *obj,
