@@ -184,9 +184,26 @@ static const struct of_device_id usb_xhci_of_match[] = {
 MODULE_DEVICE_TABLE(of, usb_xhci_of_match);
 #endif
 
+static struct xhci_plat_priv_overwrite xhci_plat_vendor_overwrite;
+
+int xhci_plat_register_vendor_ops(struct xhci_vendor_ops *vendor_ops)
+{
+	if (vendor_ops == NULL)
+		return -EINVAL;
+
+	xhci_plat_vendor_overwrite.vendor_ops = vendor_ops;
+
+	return 0;
+}
+EXPORT_SYMBOL_GPL(xhci_plat_register_vendor_ops);
+
 static int xhci_vendor_init(struct xhci_hcd *xhci)
 {
 	struct xhci_vendor_ops *ops = xhci_vendor_get_ops(xhci);
+	struct xhci_plat_priv *priv = xhci_to_priv(xhci);
+
+	if (xhci_plat_vendor_overwrite.vendor_ops)
+		ops = priv->vendor_ops = xhci_plat_vendor_overwrite.vendor_ops;
 
 	if (ops && ops->vendor_init)
 		return ops->vendor_init(xhci);
@@ -196,9 +213,12 @@ static int xhci_vendor_init(struct xhci_hcd *xhci)
 static void xhci_vendor_cleanup(struct xhci_hcd *xhci)
 {
 	struct xhci_vendor_ops *ops = xhci_vendor_get_ops(xhci);
+	struct xhci_plat_priv *priv = xhci_to_priv(xhci);
 
 	if (ops && ops->vendor_cleanup)
 		ops->vendor_cleanup(xhci);
+
+	priv->vendor_ops = NULL;
 }
 
 static int xhci_plat_probe(struct platform_device *pdev)
