@@ -22,6 +22,8 @@
 #include <linux/close_range.h>
 #include <net/sock.h>
 
+#include "internal.h"
+
 unsigned int sysctl_nr_open __read_mostly = 1024*1024;
 unsigned int sysctl_nr_open_min = BITS_PER_LONG;
 /* our min() is unusable in constant expressions ;-/ */
@@ -780,6 +782,32 @@ int __close_range(unsigned fd, unsigned max_fd, unsigned int flags)
 }
 
 /*
+ * See close_fd_get_file() below, this variant assumes current->files->file_lock
+ * is held.
+ */
+int __close_fd_get_file(unsigned int fd, struct file **res)
+{
+	struct files_struct *files = current->files;
+	struct file *file;
+	struct fdtable *fdt;
+
+	fdt = files_fdtable(files);
+	if (fd >= fdt->max_fds)
+		goto out_err;
+	file = fdt->fd[fd];
+	if (!file)
+		goto out_err;
+	rcu_assign_pointer(fdt->fd[fd], NULL);
+	__put_unused_fd(files, fd);
+	get_file(file);
+	*res = file;
+	return 0;
+out_err:
+	*res = NULL;
+	return -ENOENT;
+}
+
+/*
  * variant of close_fd that gets a ref on the file for later fput.
  * The caller must ensure that filp_close() called on the file, and then
  * an fput().
@@ -787,27 +815,13 @@ int __close_range(unsigned fd, unsigned max_fd, unsigned int flags)
 int close_fd_get_file(unsigned int fd, struct file **res)
 {
 	struct files_struct *files = current->files;
-	struct file *file;
-	struct fdtable *fdt;
+	int ret;
 
 	spin_lock(&files->file_lock);
-	fdt = files_fdtable(files);
-	if (fd >= fdt->max_fds)
-		goto out_unlock;
-	file = fdt->fd[fd];
-	if (!file)
-		goto out_unlock;
-	rcu_assign_pointer(fdt->fd[fd], NULL);
-	__put_unused_fd(files, fd);
+	ret = __close_fd_get_file(fd, res);
 	spin_unlock(&files->file_lock);
-	get_file(file);
-	*res = file;
-	return 0;
 
-out_unlock:
-	spin_unlock(&files->file_lock);
-	*res = NULL;
-	return -ENOENT;
+	return ret;
 }
 
 void do_close_on_exec(struct files_struct *files)
