@@ -131,7 +131,7 @@ static struct lpass_variant ipq806x_data = {
 	.micmode		= REG_FIELD_ID(0x0010, 4, 7, 5, 0x4),
 	.micmono		= REG_FIELD_ID(0x0010, 3, 3, 5, 0x4),
 	.wssrc			= REG_FIELD_ID(0x0010, 2, 2, 5, 0x4),
-	.bitwidth		= REG_FIELD_ID(0x0010, 0, 0, 5, 0x4),
+	.bitwidth		= REG_FIELD_ID(0x0010, 0, 1, 5, 0x4),
 
 	.rdma_dyncclk		= REG_FIELD_ID(0x6000, 12, 12, 4, 0x1000),
 	.rdma_bursten		= REG_FIELD_ID(0x6000, 11, 11, 4, 0x1000),
