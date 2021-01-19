@@ -14,6 +14,7 @@ module="gpio-mockup"
 verbose=
 full_test=
 random=
+uapi_opt=
 active_opt=
 bias_opt=
 line_set_pid=
@@ -30,6 +31,7 @@ usage()
 	echo "-r:  test random lines as well as fence posts"
 	echo "-t:  interface type:"
 	echo "      cdev (character device ABI) - default"
+	echo "      cdev_v1 (deprecated character device ABI)"
 	echo "      sysfs (deprecated SYSFS ABI)"
 	echo "-v:  verbose progress reporting"
 	exit $ksft_fail
@@ -100,7 +102,8 @@ get_line()
 {
 	release_line
 
-	$BASE/gpio-mockup-cdev $active_opt /dev/$chip $offset
+	local cdev_opts=${uapi_opt}${active_opt}
+	$BASE/gpio-mockup-cdev $cdev_opts /dev/$chip $offset
 	echo $?
 }
 
@@ -142,7 +145,7 @@ set_line()
 		esac
 	done
 
-	local cdev_opts=${active_opt}
+	local cdev_opts=${uapi_opt}${active_opt}
 	if [ "$val" ]; then
 		$BASE/gpio-mockup-cdev $cdev_opts -s$val /dev/$chip $offset &
 		# failure to set is detected by reading mockup and toggling values
@@ -339,6 +342,10 @@ case "$dev_type" in
 sysfs)
 	source $BASE/gpio-mockup-sysfs.sh
 	echo "WARNING: gpio sysfs ABI is deprecated."
+	;;
+cdev_v1)
+	echo "WARNING: gpio cdev ABI v1 is deprecated."
+	uapi_opt="-u1 "
 	;;
 cdev)
 	;;

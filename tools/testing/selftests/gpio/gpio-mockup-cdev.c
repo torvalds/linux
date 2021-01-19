@@ -18,6 +18,44 @@
 
 #define CONSUMER	"gpio-mockup-cdev"
 
+static int request_line_v2(int cfd, unsigned int offset,
+			   uint64_t flags, unsigned int val)
+{
+	struct gpio_v2_line_request req;
+	int ret;
+
+	memset(&req, 0, sizeof(req));
+	req.num_lines = 1;
+	req.offsets[0] = offset;
+	req.config.flags = flags;
+	strcpy(req.consumer, CONSUMER);
+	if (flags & GPIO_V2_LINE_FLAG_OUTPUT) {
+		req.config.num_attrs = 1;
+		req.config.attrs[0].mask = 1;
+		req.config.attrs[0].attr.id = GPIO_V2_LINE_ATTR_ID_OUTPUT_VALUES;
+		if (val)
+			req.config.attrs[0].attr.values = 1;
+	}
+	ret = ioctl(cfd, GPIO_V2_GET_LINE_IOCTL, &req);
+	if (ret == -1)
+		return -errno;
+	return req.fd;
+}
+
+
+static int get_value_v2(int lfd)
+{
+	struct gpio_v2_line_values vals;
+	int ret;
+
+	memset(&vals, 0, sizeof(vals));
+	vals.mask = 1;
+	ret = ioctl(lfd, GPIO_V2_LINE_GET_VALUES_IOCTL, &vals);
+	if (ret == -1)
+		return -errno;
+	return vals.bits & 0x1;
+}
+
 static int request_line_v1(int cfd, unsigned int offset,
 			   uint32_t flags, unsigned int val)
 {
@@ -57,6 +95,7 @@ static void usage(char *prog)
 	printf("               (default is to leave bias unchanged):\n");
 	printf("        -l: set line active low (default is active high)\n");
 	printf("        -s: set line value (default is to get line value)\n");
+	printf("        -u: uAPI version to use (default is 2)\n");
 	exit(-1);
 }
 
@@ -78,29 +117,42 @@ int main(int argc, char *argv[])
 {
 	char *chip;
 	int opt, ret, cfd, lfd;
-	unsigned int offset, val;
+	unsigned int offset, val, abiv;
 	uint32_t flags_v1;
+	uint64_t flags_v2;
 
+	abiv = 2;
 	ret = 0;
 	flags_v1 = GPIOHANDLE_REQUEST_INPUT;
+	flags_v2 = GPIO_V2_LINE_FLAG_INPUT;
 
 	while ((opt = getopt(argc, argv, "lb:s:u:")) != -1) {
 		switch (opt) {
 		case 'l':
 			flags_v1 |= GPIOHANDLE_REQUEST_ACTIVE_LOW;
+			flags_v2 |= GPIO_V2_LINE_FLAG_ACTIVE_LOW;
 			break;
 		case 'b':
-			if (strcmp("pull-up", optarg) == 0)
+			if (strcmp("pull-up", optarg) == 0) {
 				flags_v1 |= GPIOHANDLE_REQUEST_BIAS_PULL_UP;
-			else if (strcmp("pull-down", optarg) == 0)
+				flags_v2 |= GPIO_V2_LINE_FLAG_BIAS_PULL_UP;
+			} else if (strcmp("pull-down", optarg) == 0) {
 				flags_v1 |= GPIOHANDLE_REQUEST_BIAS_PULL_DOWN;
-			else if (strcmp("disabled", optarg) == 0)
+				flags_v2 |= GPIO_V2_LINE_FLAG_BIAS_PULL_DOWN;
+			} else if (strcmp("disabled", optarg) == 0) {
 				flags_v1 |= GPIOHANDLE_REQUEST_BIAS_DISABLE;
+				flags_v2 |= GPIO_V2_LINE_FLAG_BIAS_DISABLED;
+			}
 			break;
 		case 's':
 			val = atoi(optarg);
 			flags_v1 &= ~GPIOHANDLE_REQUEST_INPUT;
 			flags_v1 |= GPIOHANDLE_REQUEST_OUTPUT;
+			flags_v2 &= ~GPIO_V2_LINE_FLAG_INPUT;
+			flags_v2 |= GPIO_V2_LINE_FLAG_OUTPUT;
+			break;
+		case 'u':
+			abiv = atoi(optarg);
 			break;
 		default:
 			usage(argv[0]);
@@ -119,7 +171,10 @@ int main(int argc, char *argv[])
 		return -errno;
 	}
 
-	lfd = request_line_v1(cfd, offset, flags_v1, val);
+	if (abiv == 1)
+		lfd = request_line_v1(cfd, offset, flags_v1, val);
+	else
+		lfd = request_line_v2(cfd, offset, flags_v2, val);
 
 	close(cfd);
 
@@ -128,10 +183,14 @@ int main(int argc, char *argv[])
 		return lfd;
 	}
 
-	if (flags_v1 & GPIOHANDLE_REQUEST_OUTPUT)
+	if (flags_v2 & GPIO_V2_LINE_FLAG_OUTPUT) {
 		wait_signal();
-	else
-		ret = get_value_v1(lfd);
+	} else {
+		if (abiv == 1)
+			ret = get_value_v1(lfd);
+		else
+			ret = get_value_v2(lfd);
+	}
 
 	close(lfd);
 
