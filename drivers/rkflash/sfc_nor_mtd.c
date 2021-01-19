@@ -21,6 +21,8 @@ struct snor_mtd_dev {
 
 static struct mtd_partition nor_parts[MAX_PART_COUNT];
 
+#define SFC_NOR_MTD_DMA_MAX 8192
+
 static inline struct snor_mtd_dev *mtd_to_priv(struct mtd_info *ptr_mtd)
 {
 	return (struct snor_mtd_dev *)((char *)ptr_mtd -
@@ -144,7 +146,7 @@ static int sfc_read_mtd(struct mtd_info *mtd, loff_t from, size_t len,
 	size = len;
 
 	while (size > 0) {
-		chunk = (size < NOR_PAGE_SIZE) ? size : NOR_PAGE_SIZE;
+		chunk = (size < SFC_NOR_MTD_DMA_MAX) ? size : SFC_NOR_MTD_DMA_MAX;
 		ret = snor_read_data(p_dev->snor, addr, p_dev->dma_buf, chunk);
 		if (ret != SFC_OK) {
 			rkflash_print_error("snor_read_data %x ret=%d\n", addr, ret);
@@ -200,7 +202,7 @@ int sfc_nor_mtd_init(struct SFNOR_DEV *p_dev, struct mutex *lock)
 	priv_dev->mtd.erasesize = p_dev->blk_size << 9;
 	priv_dev->mtd.writebufsize = NOR_PAGE_SIZE;
 	priv_dev->lock = lock;
-	priv_dev->dma_buf = kmalloc(NOR_PAGE_SIZE, GFP_KERNEL | GFP_DMA);
+	priv_dev->dma_buf = kmalloc(SFC_NOR_MTD_DMA_MAX, GFP_KERNEL | GFP_DMA);
 	if (!priv_dev->dma_buf) {
 		rkflash_print_error("%s %d alloc failed\n", __func__, __LINE__);
 		ret = -ENOMEM;
