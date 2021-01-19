@@ -286,6 +286,14 @@ int mt7915_dma_init(struct mt7915_dev *dev)
 				       rx_buf_size, MT_RX_DATA_RING_BASE);
 		if (ret)
 			return ret;
+
+		/* event from WA */
+		ret = mt76_queue_alloc(dev, &dev->mt76.q_rx[MT_RXQ_EXT_WA],
+				       MT7915_RXQ_MCU_WA_EXT,
+				       MT7915_RX_MCU_RING_SIZE,
+				       rx_buf_size, MT_RX_EVENT_RING_BASE);
+		if (ret)
+			return ret;
 	}
 
 	ret = mt76_init_queues(dev);

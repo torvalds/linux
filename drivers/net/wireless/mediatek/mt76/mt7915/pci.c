@@ -26,6 +26,7 @@ mt7915_rx_poll_complete(struct mt76_dev *mdev, enum mt76_rxq_id q)
 		[MT_RXQ_EXT] = MT_INT_RX_DONE_DATA1,
 		[MT_RXQ_MCU] = MT_INT_RX_DONE_WM,
 		[MT_RXQ_MCU_WA] = MT_INT_RX_DONE_WA,
+		[MT_RXQ_EXT_WA] = MT_INT_RX_DONE_WA_EXT,
 	};
 
 	mt7915_irq_enable(dev, rx_irq_mask[q]);
@@ -66,6 +67,9 @@ static irqreturn_t mt7915_irq_handler(int irq, void *dev_instance)
 
 	if (intr & MT_INT_RX_DONE_WA)
 		napi_schedule(&dev->mt76.napi[MT_RXQ_MCU_WA]);
+
+	if (intr & MT_INT_RX_DONE_WA_EXT)
+		napi_schedule(&dev->mt76.napi[MT_RXQ_EXT_WA]);
 
 	if (intr & MT_INT_MCU_CMD) {
 		u32 val = mt76_rr(dev, MT_MCU_CMD);
