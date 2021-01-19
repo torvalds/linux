@@ -326,24 +326,24 @@ static int hi3670_phy_set_params(struct hi3670_priv *priv)
 	return ret;
 }
 
-static int hi3670_is_abbclk_seleted(struct hi3670_priv *priv)
+static bool hi3670_is_abbclk_selected(struct hi3670_priv *priv)
 {
 	u32 reg;
 
 	if (!priv->sctrl) {
 		dev_err(priv->dev, "priv->sctrl is null!\n");
-		return 1;
+		return false;
 	}
 
 	if (regmap_read(priv->sctrl, SCTRL_SCDEEPSLEEPED, &reg)) {
 		dev_err(priv->dev, "SCTRL_SCDEEPSLEEPED read failed!\n");
-		return 1;
+		return false;
 	}
 
 	if ((reg & USB_CLK_SELECTED) == 0)
-		return 1;
+		return false;
 
-	return 0;
+	return true;
 }
 
 static int hi3670_config_phy_clock(struct hi3670_priv *priv)
@@ -351,7 +351,7 @@ static int hi3670_config_phy_clock(struct hi3670_priv *priv)
 	u32 val, mask;
 	int ret;
 
-	if (hi3670_is_abbclk_seleted(priv)) {
+	if (!hi3670_is_abbclk_selected(priv)) {
 		/* usb refclk iso disable */
 		ret = regmap_write(priv->peri_crg, PERI_CRG_ISODIS,
 				   USB_REFCLK_ISO_EN);
@@ -568,7 +568,7 @@ static int hi3670_phy_exit(struct phy *phy)
 	if (ret)
 		goto out;
 
-	if (hi3670_is_abbclk_seleted(priv)) {
+	if (!hi3670_is_abbclk_selected(priv)) {
 		/* disable usb_tcxo_en */
 		ret = regmap_write(priv->pctrl, PCTRL_PERI_CTRL3,
 				   USB_TCXO_EN << PCTRL_PERI_CTRL3_MSK_START);
