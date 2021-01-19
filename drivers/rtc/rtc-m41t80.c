@@ -158,21 +158,20 @@ static irqreturn_t m41t80_handle_irq(int irq, void *dev_id)
 {
 	struct i2c_client *client = dev_id;
 	struct m41t80_data *m41t80 = i2c_get_clientdata(client);
-	struct mutex *lock = &m41t80->rtc->ops_lock;
 	unsigned long events = 0;
 	int flags, flags_afe;
 
-	mutex_lock(lock);
+	rtc_lock(m41t80->rtc);
 
 	flags_afe = i2c_smbus_read_byte_data(client, M41T80_REG_ALARM_MON);
 	if (flags_afe < 0) {
-		mutex_unlock(lock);
+		rtc_unlock(m41t80->rtc);
 		return IRQ_NONE;
 	}
 
 	flags = i2c_smbus_read_byte_data(client, M41T80_REG_FLAGS);
 	if (flags <= 0) {
-		mutex_unlock(lock);
+		rtc_unlock(m41t80->rtc);
 		return IRQ_NONE;
 	}
 
@@ -189,7 +188,7 @@ static irqreturn_t m41t80_handle_irq(int irq, void *dev_id)
 					  flags_afe);
 	}
 
-	mutex_unlock(lock);
+	rtc_unlock(m41t80->rtc);
 
 	return IRQ_HANDLED;
 }
