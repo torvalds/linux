@@ -2815,16 +2815,12 @@ static void io_iopoll_req_issued(struct io_kiocb *req, bool in_async)
 		wake_up(&ctx->sq_data->wait);
 }
 
-static inline void __io_state_file_put(struct io_submit_state *state)
-{
-	fput_many(state->file, state->file_refs);
-	state->file_refs = 0;
-}
-
 static inline void io_state_file_put(struct io_submit_state *state)
 {
-	if (state->file_refs)
-		__io_state_file_put(state);
+	if (state->file_refs) {
+		fput_many(state->file, state->file_refs);
+		state->file_refs = 0;
+	}
 }
 
 /*
@@ -2842,7 +2838,7 @@ static struct file *__io_file_get(struct io_submit_state *state, int fd)
 			state->file_refs--;
 			return state->file;
 		}
-		__io_state_file_put(state);
+		io_state_file_put(state);
 	}
 	state->file = fget_many(fd, state->ios_left);
 	if (unlikely(!state->file))
