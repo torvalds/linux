@@ -41,6 +41,8 @@
 #include <asm/tlbflush.h>
 #include <asm/traps.h>
 
+#include <trace/hooks/fault.h>
+
 struct fault_info {
 	int	(*fn)(unsigned long far, unsigned int esr,
 		      struct pt_regs *regs);
@@ -290,6 +292,7 @@ static void die_kernel_fault(const char *msg, unsigned long addr,
 	pr_alert("Unable to handle kernel %s at virtual address %016lx\n", msg,
 		 addr);
 
+	trace_android_rvh_die_kernel_fault(regs, esr, addr, msg);
 	mem_abort_decode(esr);
 
 	show_pte(addr);
@@ -724,6 +727,7 @@ static int do_sea(unsigned long far, unsigned int esr, struct pt_regs *regs)
 		 */
 		siaddr  = untagged_addr(far);
 	}
+	trace_android_rvh_do_sea(regs, esr, siaddr, inf->name);
 	arm64_notify_die(inf->name, regs, inf->sig, inf->code, siaddr, esr);
 
 	return 0;
@@ -819,6 +823,7 @@ void do_mem_abort(unsigned long far, unsigned int esr, struct pt_regs *regs)
 
 	if (!user_mode(regs)) {
 		pr_alert("Unhandled fault at 0x%016lx\n", addr);
+		trace_android_rvh_do_mem_abort(regs, esr, addr, inf->name);
 		mem_abort_decode(esr);
 		show_pte(addr);
 	}
@@ -841,6 +846,8 @@ NOKPROBE_SYMBOL(do_el0_irq_bp_hardening);
 
 void do_sp_pc_abort(unsigned long addr, unsigned int esr, struct pt_regs *regs)
 {
+	trace_android_rvh_do_sp_pc_abort(regs, esr, addr, user_mode(regs));
+
 	arm64_notify_die("SP/PC alignment exception", regs, SIGBUS, BUS_ADRALN,
 			 addr, esr);
 }
