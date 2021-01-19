@@ -960,6 +960,40 @@ static struct monitor_dev_profile enc_mdevp = {
 	.high_temp_adjust = rockchip_monitor_dev_high_temp_adjust,
 };
 
+static int rv1126_get_soc_info(struct device *dev, struct device_node *np,
+			       int *bin, int *process)
+{
+	int ret = 0, value = -EINVAL;
+
+	if (of_property_match_string(np, "nvmem-cell-names", "performance") >= 0) {
+		ret = rockchip_get_efuse_value(np, "performance", &value);
+		if (ret) {
+			dev_err(dev, "Failed to get soc performance value\n");
+			return ret;
+		}
+		if (value == 0x1)
+			*bin = 1;
+		else
+			*bin = 0;
+	}
+	if (*bin >= 0)
+		dev_info(dev, "bin=%d\n", *bin);
+
+	return ret;
+}
+
+static const struct of_device_id rockchip_rkvenc_of_match[] = {
+	{
+		.compatible = "rockchip,rv1109",
+		.data = (void *)&rv1126_get_soc_info,
+	},
+	{
+		.compatible = "rockchip,rv1126",
+		.data = (void *)&rv1126_get_soc_info,
+	},
+	{},
+};
+
 static int rkvenc_devfreq_init(struct mpp_dev *mpp)
 {
 	struct rkvenc_dev *enc = to_rkvenc_dev(mpp);
@@ -982,7 +1016,7 @@ static int rkvenc_devfreq_init(struct mpp_dev *mpp)
 		return 0;
 	}
 
-	ret = rockchip_init_opp_table(mpp->dev, NULL,
+	ret = rockchip_init_opp_table(mpp->dev, rockchip_rkvenc_of_match,
 				      "leakage", "venc");
 	if (ret) {
 		dev_err(mpp->dev, "failed to init_opp_table\n");
