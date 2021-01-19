@@ -1278,11 +1278,6 @@ static inline void io_req_init_async(struct io_kiocb *req)
 		refcount_inc(&req->work.identity->count);
 }
 
-static inline bool io_async_submit(struct io_ring_ctx *ctx)
-{
-	return ctx->flags & IORING_SETUP_SQPOLL;
-}
-
 static void io_ring_ctx_ref_free(struct percpu_ref *ref)
 {
 	struct io_ring_ctx *ctx = container_of(ref, struct io_ring_ctx, refs);
@@ -6969,7 +6964,7 @@ fail_req:
 		}
 
 		trace_io_uring_submit_sqe(ctx, req->opcode, req->user_data,
-						true, io_async_submit(ctx));
+					true, ctx->flags & IORING_SETUP_SQPOLL);
 		err = io_submit_sqe(req, sqe, &link, &state.comp);
 		if (err)
 			goto fail_req;
