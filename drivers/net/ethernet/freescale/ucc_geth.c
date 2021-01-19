@@ -84,6 +84,16 @@ static int ucc_geth_thread_count(enum ucc_geth_num_of_threads idx)
 	return count[idx];
 }
 
+static inline int ucc_geth_tx_queues(const struct ucc_geth_info *info)
+{
+	return 1;
+}
+
+static inline int ucc_geth_rx_queues(const struct ucc_geth_info *info)
+{
+	return 1;
+}
+
 static const struct ucc_geth_info ugeth_primary_info = {
 	.uf_info = {
 		    .rtsm = UCC_FAST_SEND_IDLES_BETWEEN_FRAMES,
@@ -103,8 +113,6 @@ static const struct ucc_geth_info ugeth_primary_info = {
 		    .tcrc = UCC_FAST_16_BIT_CRC,
 		    .synl = UCC_FAST_SYNC_LEN_NOT_USED,
 		    },
-	.numQueuesTx = 1,
-	.numQueuesRx = 1,
 	.extendedFilteringChainPointer = ((uint32_t) NULL),
 	.typeorlen = 3072 /*1536 */ ,
 	.nonBackToBackIfgPart1 = 0x40,
@@ -569,7 +577,7 @@ static void dump_bds(struct ucc_geth_private *ugeth)
 	int i;
 	int length;
 
-	for (i = 0; i < ugeth->ug_info->numQueuesTx; i++) {
+	for (i = 0; i < ucc_geth_tx_queues(ugeth->ug_info); i++) {
 		if (ugeth->p_tx_bd_ring[i]) {
 			length =
 			    (ugeth->ug_info->bdRingLenTx[i] *
@@ -578,7 +586,7 @@ static void dump_bds(struct ucc_geth_private *ugeth)
 			mem_disp(ugeth->p_tx_bd_ring[i], length);
 		}
 	}
-	for (i = 0; i < ugeth->ug_info->numQueuesRx; i++) {
+	for (i = 0; i < ucc_geth_rx_queues(ugeth->ug_info); i++) {
 		if (ugeth->p_rx_bd_ring[i]) {
 			length =
 			    (ugeth->ug_info->bdRingLenRx[i] *
@@ -876,7 +884,7 @@ static void dump_regs(struct ucc_geth_private *ugeth)
 	if (ugeth->p_send_q_mem_reg) {
 		pr_info("Send Q memory registers:\n");
 		pr_info("Base address: 0x%08x\n", (u32)ugeth->p_send_q_mem_reg);
-		for (i = 0; i < ugeth->ug_info->numQueuesTx; i++) {
+		for (i = 0; i < ucc_geth_tx_queues(ugeth->ug_info); i++) {
 			pr_info("SQQD[%d]:\n", i);
 			pr_info("Base address: 0x%08x\n",
 				(u32)&ugeth->p_send_q_mem_reg->sqqd[i]);
@@ -908,7 +916,7 @@ static void dump_regs(struct ucc_geth_private *ugeth)
 		pr_info("RX IRQ coalescing tables:\n");
 		pr_info("Base address: 0x%08x\n",
 			(u32)ugeth->p_rx_irq_coalescing_tbl);
-		for (i = 0; i < ugeth->ug_info->numQueuesRx; i++) {
+		for (i = 0; i < ucc_geth_rx_queues(ugeth->ug_info); i++) {
 			pr_info("RX IRQ coalescing table entry[%d]:\n", i);
 			pr_info("Base address: 0x%08x\n",
 				(u32)&ugeth->p_rx_irq_coalescing_tbl->
@@ -930,7 +938,7 @@ static void dump_regs(struct ucc_geth_private *ugeth)
 	if (ugeth->p_rx_bd_qs_tbl) {
 		pr_info("RX BD QS tables:\n");
 		pr_info("Base address: 0x%08x\n", (u32)ugeth->p_rx_bd_qs_tbl);
-		for (i = 0; i < ugeth->ug_info->numQueuesRx; i++) {
+		for (i = 0; i < ucc_geth_rx_queues(ugeth->ug_info); i++) {
 			pr_info("RX BD QS table[%d]:\n", i);
 			pr_info("Base address: 0x%08x\n",
 				(u32)&ugeth->p_rx_bd_qs_tbl[i]);
@@ -1806,7 +1814,7 @@ static void ucc_geth_free_rx(struct ucc_geth_private *ugeth)
 	ug_info = ugeth->ug_info;
 	uf_info = &ug_info->uf_info;
 
-	for (i = 0; i < ugeth->ug_info->numQueuesRx; i++) {
+	for (i = 0; i < ucc_geth_rx_queues(ugeth->ug_info); i++) {
 		if (ugeth->p_rx_bd_ring[i]) {
 			/* Return existing data buffers in ring */
 			bd = ugeth->p_rx_bd_ring[i];
@@ -1846,7 +1854,7 @@ static void ucc_geth_free_tx(struct ucc_geth_private *ugeth)
 	ug_info = ugeth->ug_info;
 	uf_info = &ug_info->uf_info;
 
-	for (i = 0; i < ugeth->ug_info->numQueuesTx; i++) {
+	for (i = 0; i < ucc_geth_tx_queues(ugeth->ug_info); i++) {
 		bd = ugeth->p_tx_bd_ring[i];
 		if (!bd)
 			continue;
@@ -2024,7 +2032,7 @@ static int ucc_struct_init(struct ucc_geth_private *ugeth)
 	uf_info = &ug_info->uf_info;
 
 	/* Rx BD lengths */
-	for (i = 0; i < ug_info->numQueuesRx; i++) {
+	for (i = 0; i < ucc_geth_rx_queues(ug_info); i++) {
 		if ((ug_info->bdRingLenRx[i] < UCC_GETH_RX_BD_RING_SIZE_MIN) ||
 		    (ug_info->bdRingLenRx[i] %
 		     UCC_GETH_RX_BD_RING_SIZE_ALIGNMENT)) {
@@ -2035,7 +2043,7 @@ static int ucc_struct_init(struct ucc_geth_private *ugeth)
 	}
 
 	/* Tx BD lengths */
-	for (i = 0; i < ug_info->numQueuesTx; i++) {
+	for (i = 0; i < ucc_geth_tx_queues(ug_info); i++) {
 		if (ug_info->bdRingLenTx[i] < UCC_GETH_TX_BD_RING_SIZE_MIN) {
 			if (netif_msg_probe(ugeth))
 				pr_err("Tx BD ring length must be no smaller than 2\n");
@@ -2052,14 +2060,14 @@ static int ucc_struct_init(struct ucc_geth_private *ugeth)
 	}
 
 	/* num Tx queues */
-	if (ug_info->numQueuesTx > NUM_TX_QUEUES) {
+	if (ucc_geth_tx_queues(ug_info) > NUM_TX_QUEUES) {
 		if (netif_msg_probe(ugeth))
 			pr_err("number of tx queues too large\n");
 		return -EINVAL;
 	}
 
 	/* num Rx queues */
-	if (ug_info->numQueuesRx > NUM_RX_QUEUES) {
+	if (ucc_geth_rx_queues(ug_info) > NUM_RX_QUEUES) {
 		if (netif_msg_probe(ugeth))
 			pr_err("number of rx queues too large\n");
 		return -EINVAL;
@@ -2067,7 +2075,7 @@ static int ucc_struct_init(struct ucc_geth_private *ugeth)
 
 	/* l2qt */
 	for (i = 0; i < UCC_GETH_VLAN_PRIORITY_MAX; i++) {
-		if (ug_info->l2qt[i] >= ug_info->numQueuesRx) {
+		if (ug_info->l2qt[i] >= ucc_geth_rx_queues(ug_info)) {
 			if (netif_msg_probe(ugeth))
 				pr_err("VLAN priority table entry must not be larger than number of Rx queues\n");
 			return -EINVAL;
@@ -2076,7 +2084,7 @@ static int ucc_struct_init(struct ucc_geth_private *ugeth)
 
 	/* l3qt */
 	for (i = 0; i < UCC_GETH_IP_PRIORITY_MAX; i++) {
-		if (ug_info->l3qt[i] >= ug_info->numQueuesRx) {
+		if (ug_info->l3qt[i] >= ucc_geth_rx_queues(ug_info)) {
 			if (netif_msg_probe(ugeth))
 				pr_err("IP priority table entry must not be larger than number of Rx queues\n");
 			return -EINVAL;
@@ -2099,10 +2107,10 @@ static int ucc_struct_init(struct ucc_geth_private *ugeth)
 
 	/* Generate uccm_mask for receive */
 	uf_info->uccm_mask = ug_info->eventRegMask & UCCE_OTHER;/* Errors */
-	for (i = 0; i < ug_info->numQueuesRx; i++)
+	for (i = 0; i < ucc_geth_rx_queues(ug_info); i++)
 		uf_info->uccm_mask |= (UCC_GETH_UCCE_RXF0 << i);
 
-	for (i = 0; i < ug_info->numQueuesTx; i++)
+	for (i = 0; i < ucc_geth_tx_queues(ug_info); i++)
 		uf_info->uccm_mask |= (UCC_GETH_UCCE_TXB0 << i);
 	/* Initialize the general fast UCC block. */
 	if (ucc_fast_init(uf_info, &ugeth->uccf)) {
@@ -2141,7 +2149,7 @@ static int ucc_geth_alloc_tx(struct ucc_geth_private *ugeth)
 	uf_info = &ug_info->uf_info;
 
 	/* Allocate Tx bds */
-	for (j = 0; j < ug_info->numQueuesTx; j++) {
+	for (j = 0; j < ucc_geth_tx_queues(ug_info); j++) {
 		u32 align = UCC_GETH_TX_BD_RING_ALIGNMENT;
 
 		/* Allocate in multiple of
@@ -2174,7 +2182,7 @@ static int ucc_geth_alloc_tx(struct ucc_geth_private *ugeth)
 	}
 
 	/* Init Tx bds */
-	for (j = 0; j < ug_info->numQueuesTx; j++) {
+	for (j = 0; j < ucc_geth_tx_queues(ug_info); j++) {
 		/* Setup the skbuff rings */
 		ugeth->tx_skbuff[j] =
 			kcalloc(ugeth->ug_info->bdRingLenTx[j],
@@ -2215,7 +2223,7 @@ static int ucc_geth_alloc_rx(struct ucc_geth_private *ugeth)
 	uf_info = &ug_info->uf_info;
 
 	/* Allocate Rx bds */
-	for (j = 0; j < ug_info->numQueuesRx; j++) {
+	for (j = 0; j < ucc_geth_rx_queues(ug_info); j++) {
 		u32 align = UCC_GETH_RX_BD_RING_ALIGNMENT;
 
 		length = ug_info->bdRingLenRx[j] * sizeof(struct qe_bd);
@@ -2234,7 +2242,7 @@ static int ucc_geth_alloc_rx(struct ucc_geth_private *ugeth)
 	}
 
 	/* Init Rx bds */
-	for (j = 0; j < ug_info->numQueuesRx; j++) {
+	for (j = 0; j < ucc_geth_rx_queues(ug_info); j++) {
 		/* Setup the skbuff rings */
 		ugeth->rx_skbuff[j] =
 			kcalloc(ugeth->ug_info->bdRingLenRx[j],
@@ -2437,7 +2445,7 @@ static int ucc_geth_startup(struct ucc_geth_private *ugeth)
 	/* SQPTR */
 	/* Size varies with number of Tx queues */
 	ugeth->send_q_mem_reg_offset =
-	    qe_muram_alloc(ug_info->numQueuesTx *
+	    qe_muram_alloc(ucc_geth_tx_queues(ug_info) *
 			   sizeof(struct ucc_geth_send_queue_qd),
 			   UCC_GETH_SEND_QUEUE_QUEUE_DESCRIPTOR_ALIGNMENT);
 	if (IS_ERR_VALUE(ugeth->send_q_mem_reg_offset)) {
@@ -2453,7 +2461,7 @@ static int ucc_geth_startup(struct ucc_geth_private *ugeth)
 
 	/* Setup the table */
 	/* Assume BD rings are already established */
-	for (i = 0; i < ug_info->numQueuesTx; i++) {
+	for (i = 0; i < ucc_geth_tx_queues(ug_info); i++) {
 		endOfRing =
 		    ugeth->p_tx_bd_ring[i] + (ug_info->bdRingLenTx[i] -
 					      1) * sizeof(struct qe_bd);
@@ -2466,7 +2474,7 @@ static int ucc_geth_startup(struct ucc_geth_private *ugeth)
 
 	/* schedulerbasepointer */
 
-	if (ug_info->numQueuesTx > 1) {
+	if (ucc_geth_tx_queues(ug_info) > 1) {
 	/* scheduler exists only if more than 1 tx queue */
 		ugeth->scheduler_offset =
 		    qe_muram_alloc(sizeof(struct ucc_geth_scheduler),
@@ -2529,11 +2537,11 @@ static int ucc_geth_startup(struct ucc_geth_private *ugeth)
 	/* temoder */
 	/* Already has speed set */
 
-	if (ug_info->numQueuesTx > 1)
+	if (ucc_geth_tx_queues(ug_info) > 1)
 		temoder |= TEMODER_SCHEDULER_ENABLE;
 	if (ug_info->ipCheckSumGenerate)
 		temoder |= TEMODER_IP_CHECKSUM_GENERATE;
-	temoder |= ((ug_info->numQueuesTx - 1) << TEMODER_NUM_OF_QUEUES_SHIFT);
+	temoder |= ((ucc_geth_tx_queues(ug_info) - 1) << TEMODER_NUM_OF_QUEUES_SHIFT);
 	out_be16(&ugeth->p_tx_glbl_pram->temoder, temoder);
 
 	/* Function code register value to be used later */
@@ -2597,7 +2605,7 @@ static int ucc_geth_startup(struct ucc_geth_private *ugeth)
 
 	/* Size varies with number of Rx queues */
 	ugeth->rx_irq_coalescing_tbl_offset =
-	    qe_muram_alloc(ug_info->numQueuesRx *
+	    qe_muram_alloc(ucc_geth_rx_queues(ug_info) *
 			   sizeof(struct ucc_geth_rx_interrupt_coalescing_entry)
 			   + 4, UCC_GETH_RX_INTERRUPT_COALESCING_ALIGNMENT);
 	if (IS_ERR_VALUE(ugeth->rx_irq_coalescing_tbl_offset)) {
@@ -2613,7 +2621,7 @@ static int ucc_geth_startup(struct ucc_geth_private *ugeth)
 		 ugeth->rx_irq_coalescing_tbl_offset);
 
 	/* Fill interrupt coalescing table */
-	for (i = 0; i < ug_info->numQueuesRx; i++) {
+	for (i = 0; i < ucc_geth_rx_queues(ug_info); i++) {
 		out_be32(&ugeth->p_rx_irq_coalescing_tbl->coalescingentry[i].
 			 interruptcoalescingmaxvalue,
 			 ug_info->interruptcoalescingmaxvalue[i]);
@@ -2662,7 +2670,7 @@ static int ucc_geth_startup(struct ucc_geth_private *ugeth)
 	/* RBDQPTR */
 	/* Size varies with number of Rx queues */
 	ugeth->rx_bd_qs_tbl_offset =
-	    qe_muram_alloc(ug_info->numQueuesRx *
+	    qe_muram_alloc(ucc_geth_rx_queues(ug_info) *
 			   (sizeof(struct ucc_geth_rx_bd_queues_entry) +
 			    sizeof(struct ucc_geth_rx_prefetched_bds)),
 			   UCC_GETH_RX_BD_QUEUES_ALIGNMENT);
@@ -2679,7 +2687,7 @@ static int ucc_geth_startup(struct ucc_geth_private *ugeth)
 
 	/* Setup the table */
 	/* Assume BD rings are already established */
-	for (i = 0; i < ug_info->numQueuesRx; i++) {
+	for (i = 0; i < ucc_geth_rx_queues(ug_info); i++) {
 		out_be32(&ugeth->p_rx_bd_qs_tbl[i].externalbdbaseptr,
 			 (u32) virt_to_phys(ugeth->p_rx_bd_ring[i]));
 		/* rest of fields handled by QE */
@@ -2702,7 +2710,7 @@ static int ucc_geth_startup(struct ucc_geth_private *ugeth)
 	    ug_info->
 	    vlanOperationNonTagged << REMODER_VLAN_OPERATION_NON_TAGGED_SHIFT;
 	remoder |= ug_info->rxQoSMode << REMODER_RX_QOS_MODE_SHIFT;
-	remoder |= ((ug_info->numQueuesRx - 1) << REMODER_NUM_OF_QUEUES_SHIFT);
+	remoder |= ((ucc_geth_rx_queues(ug_info) - 1) << REMODER_NUM_OF_QUEUES_SHIFT);
 	if (ug_info->ipCheckSumCheck)
 		remoder |= REMODER_IP_CHECKSUM_CHECK;
 	if (ug_info->ipAddressAlignment)
@@ -2861,7 +2869,7 @@ static int ucc_geth_startup(struct ucc_geth_private *ugeth)
 	}
 
 	/* Load Rx bds with buffers */
-	for (i = 0; i < ug_info->numQueuesRx; i++) {
+	for (i = 0; i < ucc_geth_rx_queues(ug_info); i++) {
 		if ((ret_val = rx_bd_buffer_set(ugeth, (u8) i)) != 0) {
 			if (netif_msg_ifup(ugeth))
 				pr_err("Can not fill Rx bds with buffers\n");
@@ -3132,12 +3140,12 @@ static int ucc_geth_poll(struct napi_struct *napi, int budget)
 
 	/* Tx event processing */
 	spin_lock(&ugeth->lock);
-	for (i = 0; i < ug_info->numQueuesTx; i++)
+	for (i = 0; i < ucc_geth_tx_queues(ug_info); i++)
 		ucc_geth_tx(ugeth->ndev, i);
 	spin_unlock(&ugeth->lock);
 
 	howmany = 0;
-	for (i = 0; i < ug_info->numQueuesRx; i++)
+	for (i = 0; i < ucc_geth_rx_queues(ug_info); i++)
 		howmany += ucc_geth_rx(ugeth, i, budget - howmany);
 
 	if (howmany < budget) {
