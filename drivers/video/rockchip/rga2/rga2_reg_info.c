@@ -243,17 +243,17 @@ static void RGA2_set_reg_src_info(RK_U8 *base, struct rga2_req *msg)
         case RGA2_FORMAT_BGRX_8888    : src0_format = 0x1; src0_rb_swp = 0x1; pixel_width = 4; msg->src_trans_mode &= 0x07; break;
         case RGA2_FORMAT_RGB_888      : src0_format = 0x2; src0_rgb_pack = 1; pixel_width = 3; msg->src_trans_mode &= 0x07; break;
         case RGA2_FORMAT_BGR_888      : src0_format = 0x2; src0_rgb_pack = 1; src0_rb_swp = 1; pixel_width = 3; msg->src_trans_mode &= 0x07; break;
-        case RGA2_FORMAT_RGB_565      : src0_format = 0x4; pixel_width = 2; msg->src_trans_mode &= 0x07; src0_rb_swp = 0x1; break;
+        case RGA2_FORMAT_RGB_565      : src0_format = 0x4; pixel_width = 2; msg->src_trans_mode &= 0x07; break;
         case RGA2_FORMAT_RGBA_5551    : src0_format = 0x5; pixel_width = 2; src0_rb_swp = 0x1; break;
         case RGA2_FORMAT_RGBA_4444    : src0_format = 0x6; pixel_width = 2; src0_rb_swp = 0x1; break;
-        case RGA2_FORMAT_BGR_565      : src0_format = 0x4; pixel_width = 2; msg->src_trans_mode &= 0x07; break;
+        case RGA2_FORMAT_BGR_565      : src0_format = 0x4; pixel_width = 2; msg->src_trans_mode &= 0x07; src0_rb_swp = 0x1; break;
         case RGA2_FORMAT_BGRA_5551    : src0_format = 0x5; pixel_width = 2; break;
         case RGA2_FORMAT_BGRA_4444    : src0_format = 0x6; pixel_width = 2; break;
 
-		case RGA2_FORMAT_YVYU_422     : src0_format = 0x7; pixel_width = 2; src0_cbcr_swp = 0; src0_rb_swp = 0x0; break;//rbswap=ycswap
-		case RGA2_FORMAT_VYUY_422     : src0_format = 0x7; pixel_width = 2; src0_cbcr_swp = 0; src0_rb_swp = 0x1; break;
-		case RGA2_FORMAT_YUYV_422     : src0_format = 0x7; pixel_width = 2; src0_cbcr_swp = 1; src0_rb_swp = 0x0; break;
-		case RGA2_FORMAT_UYVY_422     : src0_format = 0x7; pixel_width = 2; src0_cbcr_swp = 1; src0_rb_swp = 0x1; break;
+		case RGA2_FORMAT_YVYU_422     : src0_format = 0x7; pixel_width = 2; src0_cbcr_swp = 1; src0_rb_swp = 0x1; break;//rbswap=ycswap
+		case RGA2_FORMAT_VYUY_422     : src0_format = 0x7; pixel_width = 2; src0_cbcr_swp = 1; src0_rb_swp = 0x0; break;
+		case RGA2_FORMAT_YUYV_422     : src0_format = 0x7; pixel_width = 2; src0_cbcr_swp = 0; src0_rb_swp = 0x1; break;
+		case RGA2_FORMAT_UYVY_422     : src0_format = 0x7; pixel_width = 2; src0_cbcr_swp = 0; src0_rb_swp = 0x0; break;
 
         case RGA2_FORMAT_YCbCr_422_SP : src0_format = 0x8; xdiv = 1; ydiv = 1; break;
         case RGA2_FORMAT_YCbCr_422_P  : src0_format = 0x9; xdiv = 2; ydiv = 1; break;
@@ -397,10 +397,10 @@ static void RGA2_set_reg_dst_info(u8 *base, struct rga2_req *msg)
         case RGA2_FORMAT_BGRX_8888    : src1_format = 0x1; src1_rb_swp = 0x1; spw = 4; break;
         case RGA2_FORMAT_RGB_888      : src1_format = 0x2; src1_rgb_pack = 1; spw = 3; break;
         case RGA2_FORMAT_BGR_888      : src1_format = 0x2; src1_rgb_pack = 1; src1_rb_swp = 1; spw = 3; break;
-        case RGA2_FORMAT_RGB_565      : src1_format = 0x4; spw = 2; src1_rb_swp = 0x1; break;
+        case RGA2_FORMAT_RGB_565      : src1_format = 0x4; spw = 2; break;
         case RGA2_FORMAT_RGBA_5551    : src1_format = 0x5; spw = 2; src1_rb_swp = 0x1; break;
         case RGA2_FORMAT_RGBA_4444    : src1_format = 0x6; spw = 2; src1_rb_swp = 0x1; break;
-        case RGA2_FORMAT_BGR_565      : src1_format = 0x4; spw = 2; break;
+        case RGA2_FORMAT_BGR_565      : src1_format = 0x4; spw = 2; src1_rb_swp = 0x1; break;
         case RGA2_FORMAT_BGRA_5551    : src1_format = 0x5; spw = 2; break;
         case RGA2_FORMAT_BGRA_4444    : src1_format = 0x6; spw = 2; break;
         default                       : spw = 4; break;
@@ -419,10 +419,10 @@ static void RGA2_set_reg_dst_info(u8 *base, struct rga2_req *msg)
         case RGA2_FORMAT_BGRX_8888    : dst_format = 0x1; dst_rb_swp = 0x1; dpw = 4; break;
         case RGA2_FORMAT_RGB_888      : dst_format = 0x2; dst_rgb_pack = 1; dpw = 3; break;
         case RGA2_FORMAT_BGR_888      : dst_format = 0x2; dst_rgb_pack = 1; dst_rb_swp = 1; dpw = 3; break;
-        case RGA2_FORMAT_RGB_565      : dst_format = 0x4; dpw = 2; dst_rb_swp = 0x1; break;
+        case RGA2_FORMAT_RGB_565      : dst_format = 0x4; dpw = 2; break;
         case RGA2_FORMAT_RGBA_5551    : dst_format = 0x5; dpw = 2; dst_rb_swp = 0x1; break;
         case RGA2_FORMAT_RGBA_4444    : dst_format = 0x6; dpw = 2; dst_rb_swp = 0x1; break;
-        case RGA2_FORMAT_BGR_565      : dst_format = 0x4; dpw = 2; break;
+        case RGA2_FORMAT_BGR_565      : dst_format = 0x4; dpw = 2; dst_rb_swp = 0x1; break;
         case RGA2_FORMAT_BGRA_5551    : dst_format = 0x5; dpw = 2; break;
         case RGA2_FORMAT_BGRA_4444    : dst_format = 0x6; dpw = 2; break;
 
@@ -438,14 +438,14 @@ static void RGA2_set_reg_dst_info(u8 *base, struct rga2_req *msg)
 		case RGA2_FORMAT_YCbCr_400    : dst_format = 0x8; dst_fmt_yuv400_en = 1; x_div = 1; y_div = 1; break;
 		case RGA2_FORMAT_Y4           : dst_format = 0x8; dst_fmt_y4_en = 1; dst_fmt_yuv400_en = 1; x_div = 1; y_div = 1; break;
 
-		case RGA2_FORMAT_YUYV_422     : dst_format = 0xc; dpw = 2; break;
-		case RGA2_FORMAT_YVYU_422     : dst_format = 0xc; dpw = 2; dst_cbcr_swp = 1; break;
-		case RGA2_FORMAT_YUYV_420     : dst_format = 0xd; dpw = 2; break;
-		case RGA2_FORMAT_YVYU_420     : dst_format = 0xd; dpw = 2; dst_cbcr_swp = 1; break;
-		case RGA2_FORMAT_UYVY_422     : dst_format = 0xe; dpw = 2; break;
-		case RGA2_FORMAT_VYUY_422     : dst_format = 0xe; dpw = 2; dst_cbcr_swp = 1; break;
-		case RGA2_FORMAT_UYVY_420     : dst_format = 0xf; dpw = 2; break;
-		case RGA2_FORMAT_VYUY_420     : dst_format = 0xf; dpw = 2; dst_cbcr_swp = 1; break;
+		case RGA2_FORMAT_YUYV_422     : dst_format = 0xe; dpw = 2; dst_cbcr_swp = 1; break;
+		case RGA2_FORMAT_YVYU_422     : dst_format = 0xe; dpw = 2; break;
+		case RGA2_FORMAT_YUYV_420     : dst_format = 0xf; dpw = 2; dst_cbcr_swp = 1; break;
+		case RGA2_FORMAT_YVYU_420     : dst_format = 0xf; dpw = 2; break;
+		case RGA2_FORMAT_UYVY_422     : dst_format = 0xc; dpw = 2; dst_cbcr_swp = 1; break;
+		case RGA2_FORMAT_VYUY_422     : dst_format = 0xc; dpw = 2; break;
+		case RGA2_FORMAT_UYVY_420     : dst_format = 0xd; dpw = 2; dst_cbcr_swp = 1; break;
+		case RGA2_FORMAT_VYUY_420     : dst_format = 0xd; dpw = 2; break;
     };
 
     reg = ((reg & (~m_RGA2_DST_INFO_SW_DST_FMT)) | (s_RGA2_DST_INFO_SW_DST_FMT(dst_format)));
