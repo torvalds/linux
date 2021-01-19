@@ -981,10 +981,22 @@ int bch2_trans_update(struct btree_trans *trans, struct btree_iter *iter,
 		.trigger_flags = flags, .iter = iter, .k = k
 	};
 
-	EBUG_ON(bkey_cmp(iter->pos,
-			 (iter->flags & BTREE_ITER_IS_EXTENTS)
-			 ? bkey_start_pos(&k->k)
-			 : k->k.p));
+#ifdef CONFIG_BCACHEFS_DEBUG
+	BUG_ON(bkey_cmp(iter->pos,
+			(iter->flags & BTREE_ITER_IS_EXTENTS)
+			? bkey_start_pos(&k->k)
+			: k->k.p));
+
+	trans_for_each_update(trans, i) {
+		BUG_ON(bkey_cmp(i->iter->pos,
+				 (i->iter->flags & BTREE_ITER_IS_EXTENTS)
+				 ? bkey_start_pos(&i->k->k)
+				 : i->k->k.p));
+
+		BUG_ON(i != trans->updates &&
+		       btree_iter_pos_cmp(i[-1].iter, i[0].iter) >= 0);
+	}
+#endif
 
 	iter->flags |= BTREE_ITER_KEEP_UNTIL_COMMIT;
 
