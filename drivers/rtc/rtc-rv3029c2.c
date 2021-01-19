@@ -265,24 +265,23 @@ static irqreturn_t rv3029_handle_irq(int irq, void *dev_id)
 {
 	struct device *dev = dev_id;
 	struct rv3029_data *rv3029 = dev_get_drvdata(dev);
-	struct mutex *lock = &rv3029->rtc->ops_lock;
 	unsigned int flags, controls;
 	unsigned long events = 0;
 	int ret;
 
-	mutex_lock(lock);
+	rtc_lock(rv3029->rtc);
 
 	ret = regmap_read(rv3029->regmap, RV3029_IRQ_CTRL, &controls);
 	if (ret) {
 		dev_warn(dev, "Read IRQ Control Register error %d\n", ret);
-		mutex_unlock(lock);
+		rtc_unlock(rv3029->rtc);
 		return IRQ_NONE;
 	}
 
 	ret = regmap_read(rv3029->regmap, RV3029_IRQ_FLAGS, &flags);
 	if (ret) {
 		dev_warn(dev, "Read IRQ Flags Register error %d\n", ret);
-		mutex_unlock(lock);
+		rtc_unlock(rv3029->rtc);
 		return IRQ_NONE;
 	}
 
@@ -297,7 +296,7 @@ static irqreturn_t rv3029_handle_irq(int irq, void *dev_id)
 		regmap_write(rv3029->regmap, RV3029_IRQ_FLAGS, flags);
 		regmap_write(rv3029->regmap, RV3029_IRQ_CTRL, controls);
 	}
-	mutex_unlock(lock);
+	rtc_unlock(rv3029->rtc);
 
 	return IRQ_HANDLED;
 }
