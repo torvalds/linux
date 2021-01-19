@@ -84,6 +84,14 @@ const struct i915_rev_steppings tgl_revid_step_tbl[] = {
 	[1] = { .gt_stepping = STEP_B0, .disp_stepping = STEP_D0 },
 };
 
+const struct i915_rev_steppings adls_revid_step_tbl[] = {
+	[0x0] = { .gt_stepping = STEP_A0, .disp_stepping = STEP_A0 },
+	[0x1] = { .gt_stepping = STEP_A0, .disp_stepping = STEP_A2 },
+	[0x4] = { .gt_stepping = STEP_B0, .disp_stepping = STEP_B0 },
+	[0x8] = { .gt_stepping = STEP_C0, .disp_stepping = STEP_B0 },
+	[0xC] = { .gt_stepping = STEP_D0, .disp_stepping = STEP_C0 },
+};
+
 static void wa_init_start(struct i915_wa_list *wal, const char *name, const char *engine_name)
 {
 	wal->name = name;
