@@ -120,6 +120,7 @@
 #define mmSPI_CONFIG_CNTL_Vangogh_BASE_IDX       1
 #define mmGCR_GENERAL_CNTL_Vangogh               0x1580
 #define mmGCR_GENERAL_CNTL_Vangogh_BASE_IDX      0
+#define RLC_PG_DELAY_3__CGCG_ACTIVE_BEFORE_CGPG_MASK_Vangogh   0x0000FFFFL
 
 #define mmCP_HYP_PFP_UCODE_ADDR			0x5814
 #define mmCP_HYP_PFP_UCODE_ADDR_BASE_IDX	1
@@ -7829,6 +7830,20 @@ static void gfx_v10_cntl_power_gating(struct amdgpu_device *adev, bool enable)
 		data &= ~RLC_PG_CNTL__GFX_POWER_GATING_ENABLE_MASK;
 
 	WREG32_SOC15(GC, 0, mmRLC_PG_CNTL, data);
+
+	/*
+	 * CGPG enablement required and the register to program the hysteresis value
+	 * RLC_PG_DELAY_3.CGCG_ACTIVE_BEFORE_CGPG to the desired CGPG hysteresis value
+	 * in refclk count. Note that RLC FW is modified to take 16 bits from
+	 * RLC_PG_DELAY_3[15:0] as the hysteresis instead of just 8 bits.
+	 *
+	 * The recommendation from RLC team is setting RLC_PG_DELAY_3 to 200us(0x4E20)
+	 * as part of CGPG enablement starting point.
+	 */
+	if (enable && (adev->pg_flags & AMD_PG_SUPPORT_GFX_PG) && adev->asic_type == CHIP_VANGOGH) {
+		data = 0x4E20 & RLC_PG_DELAY_3__CGCG_ACTIVE_BEFORE_CGPG_MASK_Vangogh;
+		WREG32_SOC15(GC, 0, mmRLC_PG_DELAY_3, data);
+	}
 }
 
 static void gfx_v10_cntl_pg(struct amdgpu_device *adev, bool enable)
