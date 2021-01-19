@@ -416,6 +416,7 @@ retry:
 	}
 
 	vma->display_alignment = max_t(u64, vma->display_alignment, alignment);
+	i915_vma_mark_scanout(vma);
 
 	i915_gem_object_flush_if_display_locked(obj);
 
