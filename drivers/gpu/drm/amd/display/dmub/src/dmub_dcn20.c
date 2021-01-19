@@ -81,7 +81,7 @@ static inline void dmub_dcn20_translate_addr(const union dmub_addr *addr_in,
 	addr_out->quad_part = addr_in->quad_part - fb_base + fb_offset;
 }
 
-static inline bool dmub_dcn20_use_cached_inbox(struct dmub_srv *dmub)
+bool dmub_dcn20_use_cached_inbox(struct dmub_srv *dmub)
 {
 	/* Cached inbox is not supported in this fw version range */
 	return !(dmub->fw_version >= DMUB_FW_VERSION(1, 0, 0) &&
