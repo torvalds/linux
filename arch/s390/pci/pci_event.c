@@ -80,7 +80,7 @@ static void __zpci_event_availability(struct zpci_ccdf_avail *ccdf)
 	enum zpci_state state;
 	int ret;
 
-	if (zdev && zdev->zbus && zdev->zbus->bus)
+	if (zdev && zdev->zbus->bus)
 		pdev = pci_get_slot(zdev->zbus->bus, zdev->devfn);
 
 	zpci_err("avail CCDF:\n");
