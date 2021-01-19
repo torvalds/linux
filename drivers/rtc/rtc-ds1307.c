@@ -558,11 +558,10 @@ static u8 do_trickle_setup_rx8130(struct ds1307 *ds1307, u32 ohms, bool diode)
 static irqreturn_t rx8130_irq(int irq, void *dev_id)
 {
 	struct ds1307           *ds1307 = dev_id;
-	struct mutex            *lock = &ds1307->rtc->ops_lock;
 	u8 ctl[3];
 	int ret;
 
-	mutex_lock(lock);
+	rtc_lock(ds1307->rtc);
 
 	/* Read control registers. */
 	ret = regmap_bulk_read(ds1307->regmap, RX8130_REG_EXTENSION, ctl,
@@ -582,7 +581,7 @@ static irqreturn_t rx8130_irq(int irq, void *dev_id)
 	rtc_update_irq(ds1307->rtc, 1, RTC_AF | RTC_IRQF);
 
 out:
-	mutex_unlock(lock);
+	rtc_unlock(ds1307->rtc);
 
 	return IRQ_HANDLED;
 }
