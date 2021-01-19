@@ -347,6 +347,88 @@ bool dc_stream_get_crtc_position(struct dc *dc,
 	return ret;
 }
 
+#if defined(CONFIG_DRM_AMD_SECURE_DISPLAY)
+bool dc_stream_forward_dmcu_crc_window(struct dc *dc, struct dc_stream_state *stream,
+			     struct crc_params *crc_window)
+{
+	int i;
+	struct dmcu *dmcu = dc->res_pool->dmcu;
+	struct pipe_ctx *pipe;
+	struct crc_region tmp_win, *crc_win;
+	struct otg_phy_mux mapping_tmp, *mux_mapping;
+
+	/*crc window can't be null*/
+	if (!crc_window)
+		return false;
+
+	if ((dmcu != NULL && dmcu->funcs->is_dmcu_initialized(dmcu))) {
+		crc_win = &tmp_win;
+		mux_mapping = &mapping_tmp;
+		/*set crc window*/
+		tmp_win.x_start = crc_window->windowa_x_start;
+		tmp_win.y_start = crc_window->windowa_y_start;
+		tmp_win.x_end = crc_window->windowa_x_end;
+		tmp_win.y_end = crc_window->windowa_y_end;
+
+		for (i = 0; i < MAX_PIPES; i++) {
+			pipe = &dc->current_state->res_ctx.pipe_ctx[i];
+			if (pipe->stream == stream && !pipe->top_pipe && !pipe->prev_odm_pipe)
+				break;
+		}
+
+		/* Stream not found */
+		if (i == MAX_PIPES)
+			return false;
+
+
+		/*set mux routing info*/
+		mapping_tmp.phy_output_num = stream->link->link_enc_hw_inst;
+		mapping_tmp.otg_output_num = pipe->stream_res.tg->inst;
+
+		dmcu->funcs->forward_crc_window(dmcu, crc_win, mux_mapping);
+	} else {
+		DC_LOG_DC("dmcu is not initialized");
+		return false;
+	}
+
+	return true;
+}
+
+bool dc_stream_stop_dmcu_crc_win_update(struct dc *dc, struct dc_stream_state *stream)
+{
+	int i;
+	struct dmcu *dmcu = dc->res_pool->dmcu;
+	struct pipe_ctx *pipe;
+	struct otg_phy_mux mapping_tmp, *mux_mapping;
+
+	if ((dmcu != NULL && dmcu->funcs->is_dmcu_initialized(dmcu))) {
+		mux_mapping = &mapping_tmp;
+
+		for (i = 0; i < MAX_PIPES; i++) {
+			pipe = &dc->current_state->res_ctx.pipe_ctx[i];
+			if (pipe->stream == stream && !pipe->top_pipe && !pipe->prev_odm_pipe)
+				break;
+		}
+
+		/* Stream not found */
+		if (i == MAX_PIPES)
+			return false;
+
+
+		/*set mux routing info*/
+		mapping_tmp.phy_output_num = stream->link->link_enc_hw_inst;
+		mapping_tmp.otg_output_num = pipe->stream_res.tg->inst;
+
+		dmcu->funcs->stop_crc_win_update(dmcu, mux_mapping);
+	} else {
+		DC_LOG_DC("dmcu is not initialized");
+		return false;
+	}
+
+	return true;
+}
+#endif
+
 /**
  * dc_stream_configure_crc() - Configure CRC capture for the given stream.
  * @dc: DC Object

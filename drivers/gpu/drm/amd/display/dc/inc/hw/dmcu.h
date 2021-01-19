@@ -56,6 +56,20 @@ struct dmcu {
 	bool auto_load_dmcu;
 };
 
+#if defined(CONFIG_DRM_AMD_SECURE_DISPLAY)
+struct crc_region {
+	uint16_t x_start;
+	uint16_t y_start;
+	uint16_t x_end;
+	uint16_t y_end;
+};
+
+struct otg_phy_mux {
+	uint8_t phy_output_num;
+	uint8_t otg_output_num;
+};
+#endif
+
 struct dmcu_funcs {
 	bool (*dmcu_init)(struct dmcu *dmcu);
 	bool (*load_iram)(struct dmcu *dmcu,
@@ -84,6 +98,13 @@ struct dmcu_funcs {
 			int *min_frame_rate,
 			int *max_frame_rate);
 	bool (*recv_edid_cea_ack)(struct dmcu *dmcu, int *offset);
+#if defined(CONFIG_DRM_AMD_SECURE_DISPLAY)
+	void (*forward_crc_window)(struct dmcu *dmcu,
+			struct crc_region *crc_win,
+			struct otg_phy_mux *mux_mapping);
+	void (*stop_crc_win_update)(struct dmcu *dmcu,
+			struct otg_phy_mux *mux_mapping);
+#endif
 };
 
 #endif
