@@ -2738,12 +2738,13 @@ end_req:
 static bool io_rw_reissue(struct io_kiocb *req, long res)
 {
 #ifdef CONFIG_BLOCK
-	umode_t mode = file_inode(req->file)->i_mode;
+	umode_t mode;
 	int ret;
 
-	if (!S_ISBLK(mode) && !S_ISREG(mode))
+	if (res != -EAGAIN && res != -EOPNOTSUPP)
 		return false;
-	if ((res != -EAGAIN && res != -EOPNOTSUPP) || io_wq_current_is_worker())
+	mode = file_inode(req->file)->i_mode;
+	if ((!S_ISBLK(mode) && !S_ISREG(mode)) || io_wq_current_is_worker())
 		return false;
 
 	lockdep_assert_held(&req->ctx->uring_lock);
