@@ -590,19 +590,52 @@ static void allow_maximum_power(struct thermal_zone_device *tz)
 }
 
 /**
+ * check_power_actors() - Check all cooling devices and warn when they are
+ *			not power actors
+ * @tz:		thermal zone to operate on
+ *
+ * Check all cooling devices in the @tz and warn every time they are missing
+ * power actor API. The warning should help to investigate the issue, which
+ * could be e.g. lack of Energy Model for a given device.
+ *
+ * Return: 0 on success, -EINVAL if any cooling device does not implement
+ * the power actor API.
+ */
+static int check_power_actors(struct thermal_zone_device *tz)
+{
+	struct thermal_instance *instance;
+	int ret = 0;
+
+	list_for_each_entry(instance, &tz->thermal_instances, tz_node) {
+		if (!cdev_is_power_actor(instance->cdev)) {
+			dev_warn(&tz->device, "power_allocator: %s is not a power actor\n",
+				 instance->cdev->type);
+			ret = -EINVAL;
+		}
+	}
+
+	return ret;
+}
+
+/**
  * power_allocator_bind() - bind the power_allocator governor to a thermal zone
  * @tz:	thermal zone to bind it to
  *
  * Initialize the PID controller parameters and bind it to the thermal
  * zone.
  *
- * Return: 0 on success, or -ENOMEM if we ran out of memory.
+ * Return: 0 on success, or -ENOMEM if we ran out of memory, or -EINVAL
+ * when there are unsupported cooling devices in the @tz.
  */
 static int power_allocator_bind(struct thermal_zone_device *tz)
 {
 	int ret;
 	struct power_allocator_params *params;
 	int control_temp;
+
+	ret = check_power_actors(tz);
+	if (ret)
+		return ret;
 
 	params = kzalloc(sizeof(*params), GFP_KERNEL);
 	if (!params)
