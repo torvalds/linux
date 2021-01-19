@@ -38,8 +38,8 @@ static void quirk_add(struct drm_i915_gem_object *obj,
 		      struct list_head *objects)
 {
 	/* quirk is only for live tiled objects, use it to declare ownership */
-	GEM_BUG_ON(obj->mm.quirked);
-	obj->mm.quirked = true;
+	GEM_BUG_ON(i915_gem_object_has_tiling_quirk(obj));
+	i915_gem_object_set_tiling_quirk(obj);
 	list_add(&obj->st_link, objects);
 }
 
@@ -85,7 +85,7 @@ static void unpin_ggtt(struct i915_ggtt *ggtt)
 	struct i915_vma *vma;
 
 	list_for_each_entry(vma, &ggtt->vm.bound_list, vm_link)
-		if (vma->obj->mm.quirked)
+		if (i915_gem_object_has_tiling_quirk(vma->obj))
 			i915_vma_unpin(vma);
 }
 
@@ -94,8 +94,8 @@ static void cleanup_objects(struct i915_ggtt *ggtt, struct list_head *list)
 	struct drm_i915_gem_object *obj, *on;
 
 	list_for_each_entry_safe(obj, on, list, st_link) {
-		GEM_BUG_ON(!obj->mm.quirked);
-		obj->mm.quirked = false;
+		GEM_BUG_ON(!i915_gem_object_has_tiling_quirk(obj));
+		i915_gem_object_set_tiling_quirk(obj);
 		i915_gem_object_put(obj);
 	}
 

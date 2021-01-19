@@ -173,6 +173,7 @@ struct drm_i915_gem_object {
 #define I915_BO_ALLOC_VOLATILE   BIT(1)
 #define I915_BO_ALLOC_FLAGS (I915_BO_ALLOC_CONTIGUOUS | I915_BO_ALLOC_VOLATILE)
 #define I915_BO_READONLY         BIT(2)
+#define I915_TILING_QUIRK_BIT    3 /* unknown swizzling; do not release! */
 
 	/*
 	 * Is the object to be mapped as read-only to the GPU
@@ -281,12 +282,6 @@ struct drm_i915_gem_object {
 		 * pages were last acquired.
 		 */
 		bool dirty:1;
-
-		/**
-		 * This is set if the object has been pinned due to unknown
-		 * swizzling.
-		 */
-		bool quirked:1;
 	} mm;
 
 	/** Record of address bit 17 of each page at last unbind. */

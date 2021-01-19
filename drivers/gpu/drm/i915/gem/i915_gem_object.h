@@ -188,6 +188,24 @@ i915_gem_object_set_volatile(struct drm_i915_gem_object *obj)
 }
 
 static inline bool
+i915_gem_object_has_tiling_quirk(struct drm_i915_gem_object *obj)
+{
+	return test_bit(I915_TILING_QUIRK_BIT, &obj->flags);
+}
+
+static inline void
+i915_gem_object_set_tiling_quirk(struct drm_i915_gem_object *obj)
+{
+	set_bit(I915_TILING_QUIRK_BIT, &obj->flags);
+}
+
+static inline void
+i915_gem_object_clear_tiling_quirk(struct drm_i915_gem_object *obj)
+{
+	clear_bit(I915_TILING_QUIRK_BIT, &obj->flags);
+}
+
+static inline bool
 i915_gem_object_type_has(const struct drm_i915_gem_object *obj,
 			 unsigned long flags)
 {

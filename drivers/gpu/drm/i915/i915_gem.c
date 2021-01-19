@@ -957,14 +957,14 @@ i915_gem_madvise_ioctl(struct drm_device *dev, void *data,
 	    i915_gem_object_is_tiled(obj) &&
 	    i915->quirks & QUIRK_PIN_SWIZZLED_PAGES) {
 		if (obj->mm.madv == I915_MADV_WILLNEED) {
-			GEM_BUG_ON(!obj->mm.quirked);
-			__i915_gem_object_unpin_pages(obj);
-			obj->mm.quirked = false;
+			GEM_BUG_ON(!i915_gem_object_has_tiling_quirk(obj));
+			i915_gem_object_clear_tiling_quirk(obj);
+			i915_gem_object_make_shrinkable(obj);
 		}
 		if (args->madv == I915_MADV_WILLNEED) {
-			GEM_BUG_ON(obj->mm.quirked);
-			__i915_gem_object_pin_pages(obj);
-			obj->mm.quirked = true;
+			GEM_BUG_ON(i915_gem_object_has_tiling_quirk(obj));
+			i915_gem_object_make_unshrinkable(obj);
+			i915_gem_object_set_tiling_quirk(obj);
 		}
 	}
 

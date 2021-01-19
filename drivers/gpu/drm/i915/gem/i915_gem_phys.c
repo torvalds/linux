@@ -227,7 +227,7 @@ int i915_gem_object_attach_phys(struct drm_i915_gem_object *obj, int align)
 		goto err_unlock;
 	}
 
-	if (obj->mm.quirked) {
+	if (i915_gem_object_has_tiling_quirk(obj)) {
 		err = -EFAULT;
 		goto err_unlock;
 	}
