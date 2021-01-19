@@ -114,6 +114,7 @@ struct htb_class {
 	 * Written often fields
 	 */
 	struct gnet_stats_basic_packed bstats;
+	struct gnet_stats_basic_packed bstats_bias;
 	struct tc_htb_xstats	xstats;	/* our special stats */
 
 	/* token bucket parameters */
@@ -1220,6 +1221,7 @@ static int htb_dump_class(struct Qdisc *sch, unsigned long arg,
 			  struct sk_buff *skb, struct tcmsg *tcm)
 {
 	struct htb_class *cl = (struct htb_class *)arg;
+	struct htb_sched *q = qdisc_priv(sch);
 	struct nlattr *nest;
 	struct tc_htb_opt opt;
 
@@ -1246,6 +1248,8 @@ static int htb_dump_class(struct Qdisc *sch, unsigned long arg,
 	opt.level = cl->level;
 	if (nla_put(skb, TCA_HTB_PARMS, sizeof(opt), &opt))
 		goto nla_put_failure;
+	if (q->offload && nla_put_flag(skb, TCA_HTB_OFFLOAD))
+		goto nla_put_failure;
 	if ((cl->rate.rate_bytes_ps >= (1ULL << 32)) &&
 	    nla_put_u64_64bit(skb, TCA_HTB_RATE64, cl->rate.rate_bytes_ps,
 			      TCA_HTB_PAD))
@@ -1262,10 +1266,39 @@ nla_put_failure:
 	return -1;
 }
 
+static void htb_offload_aggregate_stats(struct htb_sched *q,
+					struct htb_class *cl)
+{
+	struct htb_class *c;
+	unsigned int i;
+
+	memset(&cl->bstats, 0, sizeof(cl->bstats));
+
+	for (i = 0; i < q->clhash.hashsize; i++) {
+		hlist_for_each_entry(c, &q->clhash.hash[i], common.hnode) {
+			struct htb_class *p = c;
+
+			while (p && p->level < cl->level)
+				p = p->parent;
+
+			if (p != cl)
+				continue;
+
+			cl->bstats.bytes += c->bstats_bias.bytes;
+			cl->bstats.packets += c->bstats_bias.packets;
+			if (c->level == 0) {
+				cl->bstats.bytes += c->leaf.q->bstats.bytes;
+				cl->bstats.packets += c->leaf.q->bstats.packets;
+			}
+		}
+	}
+}
+
 static int
 htb_dump_class_stats(struct Qdisc *sch, unsigned long arg, struct gnet_dump *d)
 {
 	struct htb_class *cl = (struct htb_class *)arg;
+	struct htb_sched *q = qdisc_priv(sch);
 	struct gnet_stats_queue qs = {
 		.drops = cl->drops,
 		.overlimits = cl->overlimits,
@@ -1279,6 +1312,19 @@ htb_dump_class_stats(struct Qdisc *sch, unsigned long arg, struct gnet_dump *d)
 				    INT_MIN, INT_MAX);
 	cl->xstats.ctokens = clamp_t(s64, PSCHED_NS2TICKS(cl->ctokens),
 				     INT_MIN, INT_MAX);
+
+	if (q->offload) {
+		if (!cl->level) {
+			if (cl->leaf.q)
+				cl->bstats = cl->leaf.q->bstats;
+			else
+				memset(&cl->bstats, 0, sizeof(cl->bstats));
+			cl->bstats.bytes += cl->bstats_bias.bytes;
+			cl->bstats.packets += cl->bstats_bias.packets;
+		} else {
+			htb_offload_aggregate_stats(q, cl);
+		}
+	}
 
 	if (gnet_stats_copy_basic(qdisc_root_sleeping_running(sch),
 				  d, NULL, &cl->bstats) < 0 ||
@@ -1462,6 +1508,11 @@ static int htb_destroy_class_offload(struct Qdisc *sch, struct htb_class *cl,
 		old = htb_graft_helper(q->dev_queue, NULL);
 		WARN_ON(!old);
 		WARN_ON(old != q);
+	}
+
+	if (cl->parent) {
+		cl->parent->bstats_bias.bytes += q->bstats.bytes;
+		cl->parent->bstats_bias.packets += q->bstats.packets;
 	}
 
 	offload_opt = (struct tc_htb_qopt_offload) {
@@ -1803,6 +1854,8 @@ static int htb_change_class(struct Qdisc *sch, u32 classid,
 				htb_graft_helper(dev_queue, old_q);
 				goto err_kill_estimator;
 			}
+			parent->bstats_bias.bytes += old_q->bstats.bytes;
+			parent->bstats_bias.packets += old_q->bstats.packets;
 			qdisc_put(old_q);
 		}
 		new_q = qdisc_create_dflt(dev_queue, &pfifo_qdisc_ops,
