@@ -212,7 +212,7 @@ struct gpio_v2_line_request {
  * @offset: the local offset on this GPIO chip, fill this in when
  * requesting the line information from the kernel
  * @num_attrs: the number of attributes in @attrs
- * @flags: flags for the GPIO lines, with values from &enum
+ * @flags: flags for this GPIO line, with values from &enum
  * gpio_v2_line_flag, such as %GPIO_V2_LINE_FLAG_ACTIVE_LOW,
  * %GPIO_V2_LINE_FLAG_OUTPUT etc, added together.
  * @attrs: the configuration attributes associated with the line
