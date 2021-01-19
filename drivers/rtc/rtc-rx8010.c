@@ -73,11 +73,11 @@ static irqreturn_t rx8010_irq_1_handler(int irq, void *dev_id)
 	struct rx8010_data *rx8010 = i2c_get_clientdata(client);
 	int flagreg, err;
 
-	mutex_lock(&rx8010->rtc->ops_lock);
+	rtc_lock(rx8010->rtc);
 
 	err = regmap_read(rx8010->regs, RX8010_FLAG, &flagreg);
 	if (err) {
-		mutex_unlock(&rx8010->rtc->ops_lock);
+		rtc_unlock(rx8010->rtc);
 		return IRQ_NONE;
 	}
 
@@ -100,7 +100,7 @@ static irqreturn_t rx8010_irq_1_handler(int irq, void *dev_id)
 	}
 
 	err = regmap_write(rx8010->regs, RX8010_FLAG, flagreg);
-	mutex_unlock(&rx8010->rtc->ops_lock);
+	rtc_unlock(rx8010->rtc);
 	return err ? IRQ_NONE : IRQ_HANDLED;
 }
 
