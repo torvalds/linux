@@ -274,7 +274,7 @@ static void npc_scan_parse_result(struct npc_mcam *mcam, u8 bit_number,
 		break;
 	default:
 		return;
-	};
+	}
 	npc_set_kw_masks(mcam, type, nr_bits, kwi, offset, intf);
 }
 
