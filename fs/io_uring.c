@@ -5771,6 +5771,12 @@ static int io_timeout_remove_prep(struct io_kiocb *req,
 	return 0;
 }
 
+static inline enum hrtimer_mode io_translate_timeout_mode(unsigned int flags)
+{
+	return (flags & IORING_TIMEOUT_ABS) ? HRTIMER_MODE_ABS
+					    : HRTIMER_MODE_REL;
+}
+
 /*
  * Remove or update an existing timeout command
  */
@@ -5781,14 +5787,11 @@ static int io_timeout_remove(struct io_kiocb *req)
 	int ret;
 
 	spin_lock_irq(&ctx->completion_lock);
-	if (req->timeout_rem.flags & IORING_TIMEOUT_UPDATE) {
-		enum hrtimer_mode mode = (tr->flags & IORING_TIMEOUT_ABS)
-					? HRTIMER_MODE_ABS : HRTIMER_MODE_REL;
-
-		ret = io_timeout_update(ctx, tr->addr, &tr->ts, mode);
-	} else {
+	if (!(req->timeout_rem.flags & IORING_TIMEOUT_UPDATE))
 		ret = io_timeout_cancel(ctx, tr->addr);
-	}
+	else
+		ret = io_timeout_update(ctx, tr->addr, &tr->ts,
+					io_translate_timeout_mode(tr->flags));
 
 	io_cqring_fill_event(req, ret);
 	io_commit_cqring(ctx);
@@ -5828,11 +5831,7 @@ static int io_timeout_prep(struct io_kiocb *req, const struct io_uring_sqe *sqe,
 	if (get_timespec64(&data->ts, u64_to_user_ptr(sqe->addr)))
 		return -EFAULT;
 
-	if (flags & IORING_TIMEOUT_ABS)
-		data->mode = HRTIMER_MODE_ABS;
-	else
-		data->mode = HRTIMER_MODE_REL;
-
+	data->mode = io_translate_timeout_mode(flags);
 	hrtimer_init(&data->timer, CLOCK_MONOTONIC, data->mode);
 	return 0;
 }
