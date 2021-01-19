@@ -266,6 +266,119 @@ int smu_dpm_set_power_gate(struct smu_context *smu, uint32_t block_type,
 	return ret;
 }
 
+/**
+ * smu_set_user_clk_dependencies - set user profile clock dependencies
+ *
+ * @smu:	smu_context pointer
+ * @clk:	enum smu_clk_type type
+ *
+ * Enable/Disable the clock dependency for the @clk type.
+ */
+static void smu_set_user_clk_dependencies(struct smu_context *smu, enum smu_clk_type clk)
+{
+	if (smu->adev->in_suspend)
+		return;
+
+	/*
+	 * mclk, fclk and socclk are interdependent
+	 * on each other
+	 */
+	if (clk == SMU_MCLK) {
+		/* reset clock dependency */
+		smu->user_dpm_profile.clk_dependency = 0;
+		/* set mclk dependent clocks(fclk and socclk) */
+		smu->user_dpm_profile.clk_dependency = BIT(SMU_FCLK) | BIT(SMU_SOCCLK);
+	} else if (clk == SMU_FCLK) {
+		/* give priority to mclk, if mclk dependent clocks are set */
+		if (smu->user_dpm_profile.clk_dependency == (BIT(SMU_FCLK) | BIT(SMU_SOCCLK)))
+			return;
+
+		/* reset clock dependency */
+		smu->user_dpm_profile.clk_dependency = 0;
+		/* set fclk dependent clocks(mclk and socclk) */
+		smu->user_dpm_profile.clk_dependency = BIT(SMU_MCLK) | BIT(SMU_SOCCLK);
+	} else if (clk == SMU_SOCCLK) {
+		/* give priority to mclk, if mclk dependent clocks are set */
+		if (smu->user_dpm_profile.clk_dependency == (BIT(SMU_FCLK) | BIT(SMU_SOCCLK)))
+			return;
+
+		/* reset clock dependency */
+		smu->user_dpm_profile.clk_dependency = 0;
+		/* set socclk dependent clocks(mclk and fclk) */
+		smu->user_dpm_profile.clk_dependency = BIT(SMU_MCLK) | BIT(SMU_FCLK);
+	} else
+		/* add clk dependencies here, if any */
+		return;
+}
+
+/**
+ * smu_restore_dpm_user_profile - reinstate user dpm profile
+ *
+ * @smu:	smu_context pointer
+ *
+ * Restore the saved user power configurations include power limit,
+ * clock frequencies, fan control mode and fan speed.
+ */
+static void smu_restore_dpm_user_profile(struct smu_context *smu)
+{
+	struct smu_dpm_context *smu_dpm_ctx = &(smu->smu_dpm);
+	int ret = 0;
+
+	if (!smu->adev->in_suspend)
+		return;
+
+	if (!smu->pm_enabled || !smu->adev->pm.dpm_enabled)
+		return;
+
+	/* Enable restore flag */
+	smu->user_dpm_profile.flags = SMU_DPM_USER_PROFILE_RESTORE;
+
+	/* set the user dpm power limit */
+	if (smu->user_dpm_profile.power_limit) {
+		ret = smu_set_power_limit(smu, smu->user_dpm_profile.power_limit);
+		if (ret)
+			dev_err(smu->adev->dev, "Failed to set power limit value\n");
+	}
+
+	/* set the user dpm clock configurations */
+	if (smu_dpm_ctx->dpm_level == AMD_DPM_FORCED_LEVEL_MANUAL) {
+		enum smu_clk_type clk_type;
+
+		for (clk_type = 0; clk_type < SMU_CLK_COUNT; clk_type++) {
+			/*
+			 * Iterate over smu clk type and force the saved user clk
+			 * configs, skip if clock dependency is enabled
+			 */
+			if (!(smu->user_dpm_profile.clk_dependency & BIT(clk_type)) &&
+					smu->user_dpm_profile.clk_mask[clk_type]) {
+				ret = smu_force_clk_levels(smu, clk_type,
+						smu->user_dpm_profile.clk_mask[clk_type]);
+				if (ret)
+					dev_err(smu->adev->dev, "Failed to set clock type = %d\n",
+							clk_type);
+			}
+		}
+	}
+
+	/* set the user dpm fan configurations */
+	if (smu->user_dpm_profile.fan_mode == AMD_FAN_CTRL_MANUAL) {
+		ret = smu_set_fan_control_mode(smu, smu->user_dpm_profile.fan_mode);
+		if (ret) {
+			dev_err(smu->adev->dev, "Failed to set manual fan control mode\n");
+			return;
+		}
+
+		if (!ret && smu->user_dpm_profile.fan_speed_rpm) {
+			ret = smu_set_fan_speed_rpm(smu, smu->user_dpm_profile.fan_speed_rpm);
+			if (ret)
+				dev_err(smu->adev->dev, "Failed to set manual fan speed\n");
+		}
+	}
+
+	/* Disable restore flag */
+	smu->user_dpm_profile.flags &= ~SMU_DPM_USER_PROFILE_RESTORE;
+}
+
 int smu_get_power_num_states(struct smu_context *smu,
 			     struct pp_states_info *state_info)
 {
@@ -528,6 +641,8 @@ static int smu_late_init(void *handle)
 			smu->smu_dpm.dpm_level,
 			AMD_PP_TASK_COMPLETE_INIT,
 			false);
+
+	smu_restore_dpm_user_profile(smu);
 
 	return 0;
 }
@@ -1622,6 +1737,12 @@ int smu_force_performance_level(struct smu_context *smu, enum amd_dpm_forced_lev
 
 	mutex_unlock(&smu->mutex);
 
+	/* reset user dpm clock state */
+	if (!ret && smu_dpm_ctx->dpm_level != AMD_DPM_FORCED_LEVEL_MANUAL) {
+		memset(smu->user_dpm_profile.clk_mask, 0, sizeof(smu->user_dpm_profile.clk_mask));
+		smu->user_dpm_profile.clk_dependency = 0;
+	}
+
 	return ret;
 }
 
@@ -1656,8 +1777,13 @@ int smu_force_clk_levels(struct smu_context *smu,
 
 	mutex_lock(&smu->mutex);
 
-	if (smu->ppt_funcs && smu->ppt_funcs->force_clk_levels)
+	if (smu->ppt_funcs && smu->ppt_funcs->force_clk_levels) {
 		ret = smu->ppt_funcs->force_clk_levels(smu, clk_type, mask);
+		if (!ret && smu->user_dpm_profile.flags != SMU_DPM_USER_PROFILE_RESTORE) {
+			smu->user_dpm_profile.clk_mask[clk_type] = mask;
+			smu_set_user_clk_dependencies(smu, clk_type);
+		}
+	}
 
 	mutex_unlock(&smu->mutex);
 
@@ -1906,8 +2032,11 @@ int smu_set_fan_speed_rpm(struct smu_context *smu, uint32_t speed)
 
 	mutex_lock(&smu->mutex);
 
-	if (smu->ppt_funcs->set_fan_speed_rpm)
+	if (smu->ppt_funcs->set_fan_speed_rpm) {
 		ret = smu->ppt_funcs->set_fan_speed_rpm(smu, speed);
+		if (!ret && smu->user_dpm_profile.flags != SMU_DPM_USER_PROFILE_RESTORE)
+			smu->user_dpm_profile.fan_speed_rpm = speed;
+	}
 
 	mutex_unlock(&smu->mutex);
 
@@ -1949,8 +2078,11 @@ int smu_set_power_limit(struct smu_context *smu, uint32_t limit)
 	if (!limit)
 		limit = smu->current_power_limit;
 
-	if (smu->ppt_funcs->set_power_limit)
+	if (smu->ppt_funcs->set_power_limit) {
 		ret = smu->ppt_funcs->set_power_limit(smu, limit);
+		if (!ret && smu->user_dpm_profile.flags != SMU_DPM_USER_PROFILE_RESTORE)
+			smu->user_dpm_profile.power_limit = limit;
+	}
 
 out:
 	mutex_unlock(&smu->mutex);
@@ -2127,10 +2259,18 @@ int smu_set_fan_control_mode(struct smu_context *smu, int value)
 
 	mutex_lock(&smu->mutex);
 
-	if (smu->ppt_funcs->set_fan_control_mode)
+	if (smu->ppt_funcs->set_fan_control_mode) {
 		ret = smu->ppt_funcs->set_fan_control_mode(smu, value);
+		if (!ret && smu->user_dpm_profile.flags != SMU_DPM_USER_PROFILE_RESTORE)
+			smu->user_dpm_profile.fan_mode = value;
+	}
 
 	mutex_unlock(&smu->mutex);
+
+	/* reset user dpm fan speed */
+	if (!ret && value != AMD_FAN_CTRL_MANUAL &&
+			smu->user_dpm_profile.flags != SMU_DPM_USER_PROFILE_RESTORE)
+		smu->user_dpm_profile.fan_speed_rpm = 0;
 
 	return ret;
 }

@@ -33,6 +33,8 @@
 #define SMU_TEMPERATURE_UNITS_PER_CENTIGRADES	1000
 #define SMU_FW_NAME_LEN			0x24
 
+#define SMU_DPM_USER_PROFILE_RESTORE (1 << 0)
+
 struct smu_hw_power_state {
 	unsigned int magic;
 };
@@ -166,6 +168,17 @@ enum smu_memory_pool_size
     SMU_MEMORY_POOL_SIZE_512_MB = 0x20000000,
     SMU_MEMORY_POOL_SIZE_1_GB   = 0x40000000,
     SMU_MEMORY_POOL_SIZE_2_GB   = 0x80000000,
+};
+
+struct smu_user_dpm_profile {
+	uint32_t fan_mode;
+	uint32_t power_limit;
+	uint32_t fan_speed_rpm;
+	uint32_t flags;
+
+	/* user clock state information */
+	uint32_t clk_mask[SMU_CLK_COUNT];
+	uint32_t clk_dependency;
 };
 
 #define SMU_TABLE_INIT(tables, table_id, s, a, d)	\
@@ -473,6 +486,8 @@ struct smu_context
 	uint32_t cpu_actual_soft_max_freq;
 	uint32_t cpu_core_id_select;
 	uint16_t cpu_core_num;
+
+	struct smu_user_dpm_profile user_dpm_profile;
 };
 
 struct i2c_adapter;
