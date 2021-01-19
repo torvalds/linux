@@ -86,6 +86,8 @@ static void nv50_crc_ctx_flip_work(struct kthread_work *base)
 	struct drm_crtc *crtc = &head->base.base;
 	struct drm_device *dev = crtc->dev;
 	struct nv50_disp *disp = nv50_disp(dev);
+	const uint64_t start_vbl = drm_crtc_vblank_count(crtc);
+	uint64_t end_vbl;
 	u8 new_idx = crc->ctx_idx ^ 1;
 
 	/*
@@ -94,9 +96,7 @@ static void nv50_crc_ctx_flip_work(struct kthread_work *base)
 	 */
 	if (!mutex_trylock(&disp->mutex)) {
 		drm_dbg_kms(dev, "Lock contended, delaying CRC ctx flip for %s\n", crtc->name);
-		drm_vblank_work_schedule(work,
-					 drm_crtc_vblank_count(crtc) + 1,
-					 true);
+		drm_vblank_work_schedule(work, start_vbl + 1, true);
 		return;
 	}
 
@@ -106,6 +106,12 @@ static void nv50_crc_ctx_flip_work(struct kthread_work *base)
 	nv50_crc_program_ctx(head, NULL);
 	nv50_crc_program_ctx(head, &crc->ctx[new_idx]);
 	mutex_unlock(&disp->mutex);
+
+	end_vbl = drm_crtc_vblank_count(crtc);
+	if (unlikely(end_vbl != start_vbl))
+		NV_ERROR(nouveau_drm(dev),
+			 "Failed to flip CRC context on %s on time (%llu > %llu)\n",
+			 crtc->name, end_vbl, start_vbl);
 
 	spin_lock_irq(&crc->lock);
 	crc->ctx_changed = true;
