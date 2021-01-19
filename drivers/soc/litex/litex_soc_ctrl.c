@@ -15,6 +15,11 @@
 #include <linux/module.h>
 #include <linux/errno.h>
 #include <linux/io.h>
+#include <linux/reboot.h>
+
+/* reset register located at the base address */
+#define RESET_REG_OFF           0x00
+#define RESET_REG_VALUE         0x00000001
 
 #define SCRATCH_REG_OFF         0x04
 #define SCRATCH_REG_VALUE       0x12345678
@@ -66,7 +71,18 @@ static int litex_check_csr_access(void __iomem *reg_addr)
 
 struct litex_soc_ctrl_device {
 	void __iomem *base;
+	struct notifier_block reset_nb;
 };
+
+static int litex_reset_handler(struct notifier_block *this, unsigned long mode,
+			       void *cmd)
+{
+	struct litex_soc_ctrl_device *soc_ctrl_dev =
+		container_of(this, struct litex_soc_ctrl_device, reset_nb);
+
+	litex_write32(soc_ctrl_dev->base + RESET_REG_OFF, RESET_REG_VALUE);
+	return NOTIFY_DONE;
+}
 
 static const struct of_device_id litex_soc_ctrl_of_match[] = {
 	{.compatible = "litex,soc-controller"},
@@ -78,6 +94,7 @@ MODULE_DEVICE_TABLE(of, litex_soc_ctrl_of_match);
 static int litex_soc_ctrl_probe(struct platform_device *pdev)
 {
 	struct litex_soc_ctrl_device *soc_ctrl_dev;
+	int error;
 
 	soc_ctrl_dev = devm_kzalloc(&pdev->dev, sizeof(*soc_ctrl_dev), GFP_KERNEL);
 	if (!soc_ctrl_dev)
@@ -87,7 +104,29 @@ static int litex_soc_ctrl_probe(struct platform_device *pdev)
 	if (IS_ERR(soc_ctrl_dev->base))
 		return PTR_ERR(soc_ctrl_dev->base);
 
-	return litex_check_csr_access(soc_ctrl_dev->base);
+	error = litex_check_csr_access(soc_ctrl_dev->base);
+	if (error)
+		return error;
+
+	platform_set_drvdata(pdev, soc_ctrl_dev);
+
+	soc_ctrl_dev->reset_nb.notifier_call = litex_reset_handler;
+	soc_ctrl_dev->reset_nb.priority = 128;
+	error = register_restart_handler(&soc_ctrl_dev->reset_nb);
+	if (error) {
+		dev_warn(&pdev->dev, "cannot register restart handler: %d\n",
+			 error);
+	}
+
+	return 0;
+}
+
+static int litex_soc_ctrl_remove(struct platform_device *pdev)
+{
+	struct litex_soc_ctrl_device *soc_ctrl_dev = platform_get_drvdata(pdev);
+
+	unregister_restart_handler(&soc_ctrl_dev->reset_nb);
+	return 0;
 }
 
 static struct platform_driver litex_soc_ctrl_driver = {
@@ -96,6 +135,7 @@ static struct platform_driver litex_soc_ctrl_driver = {
 		.of_match_table = of_match_ptr(litex_soc_ctrl_of_match)
 	},
 	.probe = litex_soc_ctrl_probe,
+	.remove = litex_soc_ctrl_remove,
 };
 
 module_platform_driver(litex_soc_ctrl_driver);
