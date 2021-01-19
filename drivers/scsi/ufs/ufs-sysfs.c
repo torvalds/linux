@@ -214,7 +214,7 @@ static ssize_t wb_on_show(struct device *dev, struct device_attribute *attr,
 {
 	struct ufs_hba *hba = dev_get_drvdata(dev);
 
-	return sysfs_emit(buf, "%d\n", hba->wb_enabled);
+	return sysfs_emit(buf, "%d\n", hba->dev_info.wb_enabled);
 }
 
 static ssize_t wb_on_store(struct device *dev, struct device_attribute *attr,
