@@ -54,10 +54,7 @@
  * 0xffff_ffff_0000_0000 and limit EFI VA mapping space to 64G.
  */
 static u64 efi_va = EFI_VA_START;
-
-struct efi_scratch efi_scratch;
-
-EXPORT_SYMBOL_GPL(efi_mm);
+static struct mm_struct *efi_prev_mm;
 
 /*
  * We need our own copy of the higher levels of the page tables
@@ -481,11 +478,17 @@ void __init efi_dump_pagetable(void)
  * can not change under us.
  * It should be ensured that there are no concurent calls to this function.
  */
-void efi_switch_mm(struct mm_struct *mm)
+void efi_enter_mm(void)
 {
-	efi_scratch.prev_mm = current->active_mm;
-	current->active_mm = mm;
-	switch_mm(efi_scratch.prev_mm, mm, NULL);
+	efi_prev_mm = current->active_mm;
+	current->active_mm = &efi_mm;
+	switch_mm(efi_prev_mm, &efi_mm, NULL);
+}
+
+void efi_leave_mm(void)
+{
+	current->active_mm = efi_prev_mm;
+	switch_mm(&efi_mm, efi_prev_mm, NULL);
 }
 
 static DEFINE_SPINLOCK(efi_runtime_lock);
@@ -549,12 +552,12 @@ efi_thunk_set_virtual_address_map(unsigned long memory_map_size,
 	efi_sync_low_kernel_mappings();
 	local_irq_save(flags);
 
-	efi_switch_mm(&efi_mm);
+	efi_enter_mm();
 
 	status = __efi_thunk(set_virtual_address_map, memory_map_size,
 			     descriptor_size, descriptor_version, virtual_map);
 
-	efi_switch_mm(efi_scratch.prev_mm);
+	efi_leave_mm();
 	local_irq_restore(flags);
 
 	return status;
@@ -848,7 +851,7 @@ efi_set_virtual_address_map(unsigned long memory_map_size,
 							 descriptor_size,
 							 descriptor_version,
 							 virtual_map);
-	efi_switch_mm(&efi_mm);
+	efi_enter_mm();
 
 	kernel_fpu_begin();
 
@@ -864,7 +867,7 @@ efi_set_virtual_address_map(unsigned long memory_map_size,
 	/* grab the virtually remapped EFI runtime services table pointer */
 	efi.runtime = READ_ONCE(systab->runtime);
 
-	efi_switch_mm(efi_scratch.prev_mm);
+	efi_leave_mm();
 
 	return status;
 }
