@@ -2,6 +2,7 @@
 #include <drm/drm_crtc.h>
 
 #include "crc.h"
+#include "crcc37d.h"
 #include "core.h"
 #include "disp.h"
 #include "head.h"
@@ -10,38 +11,13 @@
 
 #include <nvhw/class/clc37d.h>
 
-#define CRCC37D_MAX_ENTRIES 2047
-
-struct crcc37d_notifier {
-	u32 status;
-
-	/* reserved */
-	u32 :32;
-	u32 :32;
-	u32 :32;
-	u32 :32;
-	u32 :32;
-	u32 :32;
-	u32 :32;
-
-	struct crcc37d_entry {
-		u32 status[2];
-		u32 :32; /* reserved */
-		u32 compositor_crc;
-		u32 rg_crc;
-		u32 output_crc[2];
-		u32 :32; /* reserved */
-	} entries[CRCC37D_MAX_ENTRIES];
-} __packed;
-
 static int
-crcc37d_set_src(struct nv50_head *head, int or,
-		enum nv50_crc_source_type source,
-		struct nv50_crc_notifier_ctx *ctx, u32 wndw)
+crcc37d_set_src(struct nv50_head *head, int or, enum nv50_crc_source_type source,
+		struct nv50_crc_notifier_ctx *ctx)
 {
 	struct nvif_push *push = nv50_disp(head->base.base.dev)->core->chan.push;
 	const int i = head->base.index;
-	u32 crc_args = NVVAL(NVC37D, HEAD_SET_CRC_CONTROL, CONTROLLING_CHANNEL, wndw) |
+	u32 crc_args = NVVAL(NVC37D, HEAD_SET_CRC_CONTROL, CONTROLLING_CHANNEL, i * 4) |
 		       NVDEF(NVC37D, HEAD_SET_CRC_CONTROL, EXPECT_BUFFER_COLLAPSE, FALSE) |
 		       NVDEF(NVC37D, HEAD_SET_CRC_CONTROL, SECONDARY_CRC, NONE) |
 		       NVDEF(NVC37D, HEAD_SET_CRC_CONTROL, CRC_DURING_SNOOZE, DISABLE);
@@ -75,8 +51,7 @@ crcc37d_set_src(struct nv50_head *head, int or,
 	return 0;
 }
 
-static int
-crcc37d_set_ctx(struct nv50_head *head, struct nv50_crc_notifier_ctx *ctx)
+int crcc37d_set_ctx(struct nv50_head *head, struct nv50_crc_notifier_ctx *ctx)
 {
 	struct nvif_push *push = nv50_disp(head->base.base.dev)->core->chan.push;
 	const int i = head->base.index;
@@ -89,9 +64,8 @@ crcc37d_set_ctx(struct nv50_head *head, struct nv50_crc_notifier_ctx *ctx)
 	return 0;
 }
 
-static u32 crcc37d_get_entry(struct nv50_head *head,
-			     struct nv50_crc_notifier_ctx *ctx,
-			     enum nv50_crc_source source, int idx)
+u32 crcc37d_get_entry(struct nv50_head *head, struct nv50_crc_notifier_ctx *ctx,
+		      enum nv50_crc_source source, int idx)
 {
 	struct crcc37d_notifier __iomem *notifier = ctx->mem.object.map.ptr;
 	struct crcc37d_entry __iomem *entry = &notifier->entries[idx];
@@ -105,8 +79,7 @@ static u32 crcc37d_get_entry(struct nv50_head *head,
 	return ioread32_native(crc_addr);
 }
 
-static bool crcc37d_ctx_finished(struct nv50_head *head,
-				 struct nv50_crc_notifier_ctx *ctx)
+bool crcc37d_ctx_finished(struct nv50_head *head, struct nv50_crc_notifier_ctx *ctx)
 {
 	struct nouveau_drm *drm = nouveau_drm(head->base.base.dev);
 	struct crcc37d_notifier __iomem *notifier = ctx->mem.object.map.ptr;
@@ -148,7 +121,7 @@ const struct nv50_crc_func crcc37d = {
 	.set_ctx = crcc37d_set_ctx,
 	.get_entry = crcc37d_get_entry,
 	.ctx_finished = crcc37d_ctx_finished,
-	.flip_threshold = CRCC37D_MAX_ENTRIES - 30,
+	.flip_threshold = CRCC37D_FLIP_THRESHOLD,
 	.num_entries = CRCC37D_MAX_ENTRIES,
 	.notifier_len = sizeof(struct crcc37d_notifier),
 };

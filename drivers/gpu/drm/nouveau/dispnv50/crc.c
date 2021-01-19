@@ -351,8 +351,6 @@ int nv50_crc_atomic_check_head(struct nv50_head *head,
 			       struct nv50_head_atom *armh)
 {
 	struct nv50_atom *atom = nv50_atom(asyh->state.state);
-	struct drm_device *dev = head->base.base.dev;
-	struct nv50_disp *disp = nv50_disp(dev);
 	bool changed = armh->crc.src != asyh->crc.src;
 
 	if (!armh->crc.src && !asyh->crc.src) {
@@ -361,30 +359,7 @@ int nv50_crc_atomic_check_head(struct nv50_head *head,
 		return 0;
 	}
 
-	/* While we don't care about entry tags, Volta+ hw always needs the
-	 * controlling wndw channel programmed to a wndw that's owned by our
-	 * head
-	 */
-	if (asyh->crc.src && disp->disp->object.oclass >= GV100_DISP &&
-	    !(BIT(asyh->crc.wndw) & asyh->wndw.owned)) {
-		if (!asyh->wndw.owned) {
-			/* TODO: once we support flexible channel ownership,
-			 * we should write some code here to handle attempting
-			 * to "steal" a plane: e.g. take a plane that is
-			 * currently not-visible and owned by another head,
-			 * and reassign it to this head. If we fail to do so,
-			 * we shuld reject the mode outright as CRC capture
-			 * then becomes impossible.
-			 */
-			NV_ATOMIC(nouveau_drm(dev),
-				  "No available wndws for CRC readback\n");
-			return -EINVAL;
-		}
-		asyh->crc.wndw = ffs(asyh->wndw.owned) - 1;
-	}
-
-	if (drm_atomic_crtc_needs_modeset(&asyh->state) || changed ||
-	    armh->crc.wndw != asyh->crc.wndw) {
+	if (drm_atomic_crtc_needs_modeset(&asyh->state) || changed) {
 		asyh->clr.crc = armh->crc.src && armh->state.active;
 		asyh->set.crc = asyh->crc.src && asyh->state.active;
 		if (changed)
@@ -471,9 +446,8 @@ void nv50_crc_atomic_set(struct nv50_head *head,
 	struct nouveau_encoder *outp =
 		nv50_real_outp(nv50_head_atom_get_encoder(asyh));
 
-	func->set_src(head, outp->or,
-		      nv50_crc_source_type(outp, asyh->crc.src),
-		      &crc->ctx[crc->ctx_idx], asyh->crc.wndw);
+	func->set_src(head, outp->or, nv50_crc_source_type(outp, asyh->crc.src),
+		      &crc->ctx[crc->ctx_idx]);
 }
 
 void nv50_crc_atomic_clr(struct nv50_head *head)
@@ -481,7 +455,7 @@ void nv50_crc_atomic_clr(struct nv50_head *head)
 	const struct nv50_crc_func *func =
 		nv50_disp(head->base.base.dev)->core->func->crc;
 
-	func->set_src(head, 0, NV50_CRC_SOURCE_TYPE_NONE, NULL, 0);
+	func->set_src(head, 0, NV50_CRC_SOURCE_TYPE_NONE, NULL);
 }
 
 static inline int
