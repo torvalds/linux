@@ -183,6 +183,7 @@ static int mtd_vendor_storage_init(void)
 		g_vendor->version = 1;
 		g_vendor->tag = MTD_VENDOR_TAG;
 		g_vendor->free_size = sizeof(g_vendor->data);
+		g_vendor->version2 = g_vendor->version;
 		for (offset = 0; offset < mtd->size; offset += mtd->erasesize) {
 			if (!mtd_block_isbad(mtd, offset)) {
 				memset(&ei, 0, sizeof(struct erase_info));
@@ -191,6 +192,7 @@ static int mtd_vendor_storage_init(void)
 				mtd_erase(mtd, &ei);
 			}
 		}
+		mtd_vendor_nand_write();
 	}
 
 	return 0;
