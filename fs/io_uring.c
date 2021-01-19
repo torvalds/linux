@@ -1941,8 +1941,7 @@ static void io_req_complete_state(struct io_kiocb *req, long res,
 	req->result = res;
 	req->compl.cflags = cflags;
 	list_add_tail(&req->compl.list, &cs->list);
-	if (++cs->nr >= 32)
-		io_submit_flush_completions(cs);
+	cs->nr++;
 }
 
 static inline void __io_req_complete(struct io_kiocb *req, long res,
@@ -6577,7 +6576,15 @@ again:
 			io_queue_linked_timeout(linked_timeout);
 	} else if (likely(!ret)) {
 		/* drop submission reference */
-		req = io_put_req_find_next(req);
+		if (cs) {
+			io_put_req(req);
+			if (cs->nr >= 32)
+				io_submit_flush_completions(cs);
+			req = NULL;
+		} else {
+			req = io_put_req_find_next(req);
+		}
+
 		if (linked_timeout)
 			io_queue_linked_timeout(linked_timeout);
 
