@@ -150,8 +150,6 @@ struct drm_i915_gem_object {
 	 */
 	struct list_head obj_link;
 
-	/** Stolen memory for this object, instead of being backed by shmem. */
-	struct drm_mm_node *stolen;
 	union {
 		struct rcu_head rcu;
 		struct llist_node freed;
@@ -302,6 +300,8 @@ struct drm_i915_gem_object {
 			struct i915_mmu_object *mmu_object;
 			struct work_struct *work;
 		} userptr;
+
+		struct drm_mm_node *stolen;
 
 		unsigned long scratch;
 		u64 encode;

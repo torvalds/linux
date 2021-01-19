@@ -42,7 +42,7 @@ int intel_ring_pin(struct intel_ring *ring, struct i915_gem_ww_ctx *ww)
 	/* Ring wraparound at offset 0 sometimes hangs. No idea why. */
 	flags = PIN_OFFSET_BIAS | i915_ggtt_pin_bias(vma);
 
-	if (vma->obj->stolen)
+	if (i915_gem_object_is_stolen(vma->obj))
 		flags |= PIN_MAPPABLE;
 	else
 		flags |= PIN_HIGH;

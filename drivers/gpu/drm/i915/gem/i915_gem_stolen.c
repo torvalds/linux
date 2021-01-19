@@ -781,3 +781,8 @@ err_free:
 	kfree(stolen);
 	return obj;
 }
+
+bool i915_gem_object_is_stolen(const struct drm_i915_gem_object *obj)
+{
+	return obj->ops == &i915_gem_object_stolen_ops;
+}

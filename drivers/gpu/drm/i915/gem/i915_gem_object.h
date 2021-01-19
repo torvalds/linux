@@ -531,4 +531,6 @@ i915_gem_object_invalidate_frontbuffer(struct drm_i915_gem_object *obj,
 		__i915_gem_object_invalidate_frontbuffer(obj, origin);
 }
 
+bool i915_gem_object_is_shmem(const struct drm_i915_gem_object *obj);
+
 #endif

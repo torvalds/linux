@@ -612,3 +612,8 @@ struct intel_memory_region *i915_gem_shmem_setup(struct drm_i915_private *i915)
 					  PAGE_SIZE, 0,
 					  &shmem_region_ops);
 }
+
+bool i915_gem_object_is_shmem(const struct drm_i915_gem_object *obj)
+{
+	return obj->ops == &i915_gem_shmem_ops;
+}
