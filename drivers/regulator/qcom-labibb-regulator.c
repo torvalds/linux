@@ -29,6 +29,15 @@
 #define LABIBB_STATUS1_VREG_OK_BIT	BIT(7)
 #define LABIBB_CONTROL_ENABLE		BIT(7)
 
+#define REG_LABIBB_CURRENT_LIMIT	0x4b
+ #define LAB_CURRENT_LIMIT_MASK		GENMASK(2, 0)
+ #define IBB_CURRENT_LIMIT_MASK		GENMASK(4, 0)
+ #define LAB_CURRENT_LIMIT_OVERRIDE_EN	BIT(3)
+ #define LABIBB_CURRENT_LIMIT_EN	BIT(7)
+
+#define REG_LABIBB_SEC_ACCESS		0xd0
+ #define LABIBB_SEC_UNLOCK_CODE		0xa5
+
 #define LAB_ENABLE_CTL_MASK		BIT(7)
 #define IBB_ENABLE_CTL_MASK		(BIT(7) | BIT(6))
 
@@ -37,11 +46,18 @@
 #define IBB_ENABLE_TIME			(LABIBB_OFF_ON_DELAY * 10)
 #define LABIBB_POLL_ENABLED_TIME	1000
 
+struct labibb_current_limits {
+	u32				uA_min;
+	u32				uA_step;
+	u8				ovr_val;
+};
+
 struct labibb_regulator {
 	struct regulator_desc		desc;
 	struct device			*dev;
 	struct regmap			*regmap;
 	struct regulator_dev		*rdev;
+	struct labibb_current_limits	uA_limits;
 	u16				base;
 	u8				type;
 };
@@ -53,6 +69,57 @@ struct labibb_regulator_data {
 	const struct regulator_desc	*desc;
 };
 
+static int qcom_labibb_set_current_limit(struct regulator_dev *rdev,
+					 int min_uA, int max_uA)
+{
+	struct labibb_regulator *vreg = rdev_get_drvdata(rdev);
+	struct regulator_desc *desc = &vreg->desc;
+	struct labibb_current_limits *lim = &vreg->uA_limits;
+	u32 mask, val;
+	int i, ret, sel = -1;
+
+	if (min_uA < lim->uA_min || max_uA < lim->uA_min)
+		return -EINVAL;
+
+	for (i = 0; i < desc->n_current_limits; i++) {
+		int uA_limit = (lim->uA_step * i) + lim->uA_min;
+
+		if (max_uA >= uA_limit && min_uA <= uA_limit)
+			sel = i;
+	}
+	if (sel < 0)
+		return -EINVAL;
+
+	/* Current limit setting needs secure access */
+	ret = regmap_write(vreg->regmap, vreg->base + REG_LABIBB_SEC_ACCESS,
+			   LABIBB_SEC_UNLOCK_CODE);
+	if (ret)
+		return ret;
+
+	mask = desc->csel_mask | lim->ovr_val;
+	mask |= LABIBB_CURRENT_LIMIT_EN;
+	val = (u32)sel | lim->ovr_val;
+	val |= LABIBB_CURRENT_LIMIT_EN;
+
+	return regmap_update_bits(vreg->regmap, desc->csel_reg, mask, val);
+}
+
+static int qcom_labibb_get_current_limit(struct regulator_dev *rdev)
+{
+	struct labibb_regulator *vreg = rdev_get_drvdata(rdev);
+	struct regulator_desc *desc = &vreg->desc;
+	struct labibb_current_limits *lim = &vreg->uA_limits;
+	unsigned int cur_step;
+	int ret;
+
+	ret = regmap_read(vreg->regmap, desc->csel_reg, &cur_step);
+	if (ret)
+		return ret;
+	cur_step &= desc->csel_mask;
+
+	return (cur_step * lim->uA_step) + lim->uA_min;
+}
+
 static const struct regulator_ops qcom_labibb_ops = {
 	.enable			= regulator_enable_regmap,
 	.disable		= regulator_disable_regmap,
@@ -61,6 +128,8 @@ static const struct regulator_ops qcom_labibb_ops = {
 	.get_voltage_sel	= regulator_get_voltage_sel_regmap,
 	.list_voltage		= regulator_list_voltage_linear,
 	.map_voltage		= regulator_map_voltage_linear,
+	.set_current_limit	= qcom_labibb_set_current_limit,
+	.get_current_limit	= qcom_labibb_get_current_limit,
 };
 
 static const struct regulator_desc pmi8998_lab_desc = {
@@ -73,6 +142,9 @@ static const struct regulator_desc pmi8998_lab_desc = {
 	.vsel_mask		= LAB_VOLTAGE_SET_MASK,
 	.apply_reg		= (PMI8998_LAB_REG_BASE + REG_LABIBB_VOLTAGE),
 	.apply_bit		= LABIBB_VOLTAGE_OVERRIDE_EN,
+	.csel_reg		= (PMI8998_LAB_REG_BASE + REG_LABIBB_CURRENT_LIMIT),
+	.csel_mask		= LAB_CURRENT_LIMIT_MASK,
+	.n_current_limits	= 8,
 	.off_on_delay		= LABIBB_OFF_ON_DELAY,
 	.owner			= THIS_MODULE,
 	.type			= REGULATOR_VOLTAGE,
@@ -92,6 +164,9 @@ static const struct regulator_desc pmi8998_ibb_desc = {
 	.vsel_mask		= IBB_VOLTAGE_SET_MASK,
 	.apply_reg		= (PMI8998_IBB_REG_BASE + REG_LABIBB_VOLTAGE),
 	.apply_bit		= LABIBB_VOLTAGE_OVERRIDE_EN,
+	.csel_reg		= (PMI8998_IBB_REG_BASE + REG_LABIBB_CURRENT_LIMIT),
+	.csel_mask		= IBB_CURRENT_LIMIT_MASK,
+	.n_current_limits	= 32,
 	.off_on_delay		= LABIBB_OFF_ON_DELAY,
 	.owner			= THIS_MODULE,
 	.type			= REGULATOR_VOLTAGE,
@@ -162,6 +237,23 @@ static int qcom_labibb_regulator_probe(struct platform_device *pdev)
 		vreg->dev = dev;
 		vreg->base = reg_data->base;
 		vreg->type = reg_data->type;
+
+		switch (vreg->type) {
+		case QCOM_LAB_TYPE:
+			/* LAB Limits: 200-1600mA */
+			vreg->uA_limits.uA_min  = 200000;
+			vreg->uA_limits.uA_step = 200000;
+			vreg->uA_limits.ovr_val = LAB_CURRENT_LIMIT_OVERRIDE_EN;
+			break;
+		case QCOM_IBB_TYPE:
+			/* IBB Limits: 0-1550mA */
+			vreg->uA_limits.uA_min  = 0;
+			vreg->uA_limits.uA_step = 50000;
+			vreg->uA_limits.ovr_val = 0; /* No override bit */
+			break;
+		default:
+			return -EINVAL;
+		}
 
 		memcpy(&vreg->desc, reg_data->desc, sizeof(vreg->desc));
 		vreg->desc.of_match = reg_data->name;
