@@ -115,6 +115,14 @@ struct mib_stats {
 	u16 ba_miss_cnt;
 };
 
+struct mt7915_hif {
+	struct list_head list;
+
+	struct device *dev;
+	void __iomem *regs;
+	int irq;
+};
+
 struct mt7915_phy {
 	struct mt76_phy *mt76;
 	struct mt7915_dev *dev;
@@ -163,10 +171,13 @@ struct mt7915_dev {
 		struct mt76_phy mphy;
 	};
 
+	struct mt7915_hif *hif2;
+
 	const struct mt76_bus_ops *bus_ops;
 	struct mt7915_phy phy;
 
 	u16 chainmask;
+	u32 hif_idx;
 
 	struct work_struct init_work;
 	struct work_struct rc_work;
@@ -278,7 +289,6 @@ static inline u8 mt7915_lmac_mapping(struct mt7915_dev *dev, u8 ac)
 }
 
 extern const struct ieee80211_ops mt7915_ops;
-extern struct pci_driver mt7915_pci_driver;
 extern const struct mt76_testmode_ops mt7915_testmode_ops;
 
 u32 mt7915_reg_map(struct mt7915_dev *dev, u32 addr);
@@ -365,14 +375,23 @@ static inline bool is_mt7915(struct mt76_dev *dev)
 	return mt76_chip(dev) == 0x7915;
 }
 
+void mt7915_dual_hif_set_irq_mask(struct mt7915_dev *dev, bool write_reg,
+				  u32 clear, u32 set);
+
 static inline void mt7915_irq_enable(struct mt7915_dev *dev, u32 mask)
 {
-	mt76_set_irq_mask(&dev->mt76, MT_INT_MASK_CSR, 0, mask);
+	if (dev->hif2)
+		mt7915_dual_hif_set_irq_mask(dev, true, 0, mask);
+	else
+		mt76_set_irq_mask(&dev->mt76, MT_INT_MASK_CSR, 0, mask);
 }
 
 static inline void mt7915_irq_disable(struct mt7915_dev *dev, u32 mask)
 {
-	mt76_set_irq_mask(&dev->mt76, MT_INT_MASK_CSR, mask, 0);
+	if (dev->hif2)
+		mt7915_dual_hif_set_irq_mask(dev, true, mask, 0);
+	else
+		mt76_set_irq_mask(&dev->mt76, MT_INT_MASK_CSR, mask, 0);
 }
 
 static inline u32

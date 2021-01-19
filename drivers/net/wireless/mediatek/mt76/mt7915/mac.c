@@ -1474,12 +1474,21 @@ mt7915_dma_reset(struct mt7915_phy *phy)
 {
 	struct mt7915_dev *dev = phy->dev;
 	struct mt76_phy *mphy_ext = dev->mt76.phy2;
+	u32 hif1_ofs = MT_WFDMA1_PCIE1_BASE - MT_WFDMA1_BASE;
 	int i;
 
 	mt76_clear(dev, MT_WFDMA0_GLO_CFG,
 		   MT_WFDMA0_GLO_CFG_TX_DMA_EN | MT_WFDMA0_GLO_CFG_RX_DMA_EN);
 	mt76_clear(dev, MT_WFDMA1_GLO_CFG,
 		   MT_WFDMA1_GLO_CFG_TX_DMA_EN | MT_WFDMA1_GLO_CFG_RX_DMA_EN);
+	if (dev->hif2) {
+		mt76_clear(dev, MT_WFDMA0_GLO_CFG + hif1_ofs,
+			   (MT_WFDMA0_GLO_CFG_TX_DMA_EN |
+			    MT_WFDMA0_GLO_CFG_RX_DMA_EN));
+		mt76_clear(dev, MT_WFDMA1_GLO_CFG + hif1_ofs,
+			   (MT_WFDMA1_GLO_CFG_TX_DMA_EN |
+			    MT_WFDMA1_GLO_CFG_RX_DMA_EN));
+	}
 	usleep_range(1000, 2000);
 
 	mt76_queue_tx_cleanup(dev, dev->mt76.q_mcu[MT_MCUQ_WA], true);
@@ -1500,6 +1509,14 @@ mt7915_dma_reset(struct mt7915_phy *phy)
 		 MT_WFDMA0_GLO_CFG_TX_DMA_EN | MT_WFDMA0_GLO_CFG_RX_DMA_EN);
 	mt76_set(dev, MT_WFDMA1_GLO_CFG,
 		 MT_WFDMA1_GLO_CFG_TX_DMA_EN | MT_WFDMA1_GLO_CFG_RX_DMA_EN);
+	if (dev->hif2) {
+		mt76_set(dev, MT_WFDMA0_GLO_CFG + hif1_ofs,
+			(MT_WFDMA0_GLO_CFG_TX_DMA_EN |
+			 MT_WFDMA0_GLO_CFG_RX_DMA_EN));
+		mt76_set(dev, MT_WFDMA1_GLO_CFG + hif1_ofs,
+			(MT_WFDMA1_GLO_CFG_TX_DMA_EN |
+			 MT_WFDMA1_GLO_CFG_RX_DMA_EN));
+	}
 }
 
 void mt7915_tx_token_put(struct mt7915_dev *dev)
