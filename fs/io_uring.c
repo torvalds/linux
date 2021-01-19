@@ -423,7 +423,6 @@ struct io_poll_remove {
 
 struct io_close {
 	struct file			*file;
-	struct file			*put_file;
 	int				fd;
 };
 
@@ -920,8 +919,6 @@ static const struct io_op_def io_op_defs[] = {
 						IO_WQ_WORK_FS | IO_WQ_WORK_MM,
 	},
 	[IORING_OP_CLOSE] = {
-		.needs_file		= 1,
-		.needs_file_no_error	= 1,
 		.work_flags		= IO_WQ_WORK_FILES | IO_WQ_WORK_BLKCG,
 	},
 	[IORING_OP_FILES_UPDATE] = {
@@ -4475,13 +4472,6 @@ static int io_statx(struct io_kiocb *req, bool force_nonblock)
 
 static int io_close_prep(struct io_kiocb *req, const struct io_uring_sqe *sqe)
 {
-	/*
-	 * If we queue this for async, it must not be cancellable. That would
-	 * leave the 'file' in an undeterminate state, and here need to modify
-	 * io_wq_work.flags, so initialize io_wq_work firstly.
-	 */
-	io_req_init_async(req);
-
 	if (unlikely(req->ctx->flags & IORING_SETUP_IOPOLL))
 		return -EINVAL;
 	if (sqe->ioprio || sqe->off || sqe->addr || sqe->len ||
@@ -4491,43 +4481,59 @@ static int io_close_prep(struct io_kiocb *req, const struct io_uring_sqe *sqe)
 		return -EBADF;
 
 	req->close.fd = READ_ONCE(sqe->fd);
-	if ((req->file && req->file->f_op == &io_uring_fops))
-		return -EBADF;
-
-	req->close.put_file = NULL;
 	return 0;
 }
 
 static int io_close(struct io_kiocb *req, bool force_nonblock,
 		    struct io_comp_state *cs)
 {
+	struct files_struct *files = current->files;
 	struct io_close *close = &req->close;
+	struct fdtable *fdt;
+	struct file *file;
 	int ret;
 
-	/* might be already done during nonblock submission */
-	if (!close->put_file) {
-		ret = close_fd_get_file(close->fd, &close->put_file);
-		if (ret < 0)
-			return (ret == -ENOENT) ? -EBADF : ret;
+	file = NULL;
+	ret = -EBADF;
+	spin_lock(&files->file_lock);
+	fdt = files_fdtable(files);
+	if (close->fd >= fdt->max_fds) {
+		spin_unlock(&files->file_lock);
+		goto err;
+	}
+	file = fdt->fd[close->fd];
+	if (!file) {
+		spin_unlock(&files->file_lock);
+		goto err;
+	}
+
+	if (file->f_op == &io_uring_fops) {
+		spin_unlock(&files->file_lock);
+		file = NULL;
+		goto err;
 	}
 
 	/* if the file has a flush method, be safe and punt to async */
-	if (close->put_file->f_op->flush && force_nonblock) {
-		/* not safe to cancel at this point */
-		req->work.flags |= IO_WQ_WORK_NO_CANCEL;
-		/* was never set, but play safe */
-		req->flags &= ~REQ_F_NOWAIT;
-		/* avoid grabbing files - we don't need the files */
-		req->flags |= REQ_F_NO_FILE_TABLE;
+	if (file->f_op->flush && force_nonblock) {
+		spin_unlock(&files->file_lock);
 		return -EAGAIN;
 	}
 
+	ret = __close_fd_get_file(close->fd, &file);
+	spin_unlock(&files->file_lock);
+	if (ret < 0) {
+		if (ret == -ENOENT)
+			ret = -EBADF;
+		goto err;
+	}
+
 	/* No ->flush() or already async, safely close from here */
-	ret = filp_close(close->put_file, req->work.identity->files);
+	ret = filp_close(file, current->files);
+err:
 	if (ret < 0)
 		req_set_fail_links(req);
-	fput(close->put_file);
-	close->put_file = NULL;
+	if (file)
+		fput(file);
 	__io_req_complete(req, ret, 0, cs);
 	return 0;
 }
