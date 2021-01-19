@@ -33,6 +33,7 @@
 #include <trace/hooks/bug.h>
 #include <trace/hooks/timer.h>
 #include <trace/hooks/softlockup.h>
+#include <trace/hooks/power.h>
 
 /*
  * Export tracepoints that act as a bare tracehook (ie: have no trace event
@@ -141,3 +142,5 @@ EXPORT_TRACEPOINT_SYMBOL_GPL(android_vh_cpu_down);
 EXPORT_TRACEPOINT_SYMBOL_GPL(android_rvh_sched_balance_rt);
 EXPORT_TRACEPOINT_SYMBOL_GPL(android_vh_timer_calc_index);
 EXPORT_TRACEPOINT_SYMBOL_GPL(android_vh_watchdog_timer_softlockup);
+EXPORT_TRACEPOINT_SYMBOL_GPL(android_vh_try_to_freeze_todo);
+EXPORT_TRACEPOINT_SYMBOL_GPL(android_vh_try_to_freeze_todo_unfrozen);
