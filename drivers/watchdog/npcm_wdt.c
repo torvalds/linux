@@ -202,8 +202,10 @@ static void npcm_get_reset_status(struct npcm_wdt *wdt, struct device *dev)
 	u32 rstval;
 
 	gcr_regmap = syscon_regmap_lookup_by_phandle(dev->of_node, "syscon");
-	if (IS_ERR(gcr_regmap))
+	if (IS_ERR(gcr_regmap)) {
 		dev_warn(dev, "Failed to find gcr syscon, WD reset status not supported\n");
+		return;
+	}
 
 	regmap_read(gcr_regmap, NPCM7XX_RESSR_OFFSET, &rstval);
 	if (!rstval) {
