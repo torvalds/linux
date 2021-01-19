@@ -3938,10 +3938,10 @@ normal:
 			skb_release_head_state(nskb);
 			__skb_push(nskb, doffset);
 		} else {
+			if (hsize < 0)
+				hsize = 0;
 			if (hsize > len || !sg)
 				hsize = len;
-			else if (hsize < 0)
-				hsize = 0;
 
 			nskb = __alloc_skb(hsize + doffset + headroom,
 					   GFP_ATOMIC, skb_alloc_rx_flag(head_skb),
