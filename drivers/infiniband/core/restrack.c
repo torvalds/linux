@@ -244,6 +244,7 @@ void rdma_restrack_add(struct rdma_restrack_entry *res)
 	} else {
 		ret = xa_alloc_cyclic(&rt->xa, &res->id, res, xa_limit_32b,
 				      &rt->next_id, GFP_KERNEL);
+		ret = (ret < 0) ? ret : 0;
 	}
 
 	if (!ret)
