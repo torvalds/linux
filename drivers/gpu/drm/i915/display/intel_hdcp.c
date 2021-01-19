@@ -53,6 +53,8 @@ intel_hdcp_required_content_stream(struct intel_digital_port *dig_port)
 	bool enforce_type0 = false;
 	int k;
 
+	data->k = 0;
+
 	if (dig_port->hdcp_auth_status)
 		return 0;
 
