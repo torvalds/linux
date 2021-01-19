@@ -538,9 +538,7 @@ struct ufs_dev_info {
 	u8 *model;
 	u16 wspecversion;
 	u32 clk_gating_wait_us;
-	u32 d_ext_ufs_feature_sup;
 	u8 b_wb_buffer_type;
-	u32 d_wb_alloc_units;
 	bool b_rpm_dev_flush_capable;
 	u8 b_presrv_uspc_en;
 };
