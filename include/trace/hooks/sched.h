@@ -215,8 +215,8 @@ DECLARE_RESTRICTED_HOOK(android_rvh_ttwu_cond,
 	TP_ARGS(cond), 1);
 
 DECLARE_RESTRICTED_HOOK(android_rvh_schedule_bug,
-	TP_PROTO(void *unused),
-	TP_ARGS(unused), 1);
+	TP_PROTO(struct task_struct *p),
+	TP_ARGS(p), 1);
 
 DECLARE_RESTRICTED_HOOK(android_rvh_sched_exec,
 	TP_PROTO(bool *cond),
@@ -237,6 +237,10 @@ DECLARE_HOOK(android_vh_em_cpu_energy,
 DECLARE_RESTRICTED_HOOK(android_rvh_sched_balance_rt,
 	TP_PROTO(struct rq *rq, struct task_struct *p, int *done),
 	TP_ARGS(rq, p, done), 1);
+
+DECLARE_RESTRICTED_HOOK(android_rvh_dequeue_task_idle,
+	TP_PROTO(struct task_struct *p),
+	TP_ARGS(p), 1);
 
 /* macro versions of hooks are no longer required */
 
