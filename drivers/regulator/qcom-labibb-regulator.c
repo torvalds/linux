@@ -59,8 +59,8 @@ static const struct regulator_ops qcom_labibb_ops = {
 	.is_enabled		= regulator_is_enabled_regmap,
 	.set_voltage_sel	= regulator_set_voltage_sel_regmap,
 	.get_voltage_sel	= regulator_get_voltage_sel_regmap,
-	.list_voltage		= regulator_list_voltage_linear_range,
-	.map_voltage		= regulator_map_voltage_linear_range,
+	.list_voltage		= regulator_list_voltage_linear,
+	.map_voltage		= regulator_map_voltage_linear,
 };
 
 static const struct regulator_desc pmi8998_lab_desc = {
@@ -76,10 +76,8 @@ static const struct regulator_desc pmi8998_lab_desc = {
 	.off_on_delay		= LABIBB_OFF_ON_DELAY,
 	.owner			= THIS_MODULE,
 	.type			= REGULATOR_VOLTAGE,
-	.linear_ranges		= (struct linear_range[]) {
-		REGULATOR_LINEAR_RANGE(4600000, 0, 15, 100000),
-	},
-	.n_linear_ranges	= 1,
+	.min_uV			= 4600000,
+	.uV_step		= 100000,
 	.n_voltages		= 16,
 	.ops			= &qcom_labibb_ops,
 };
@@ -97,10 +95,8 @@ static const struct regulator_desc pmi8998_ibb_desc = {
 	.off_on_delay		= LABIBB_OFF_ON_DELAY,
 	.owner			= THIS_MODULE,
 	.type			= REGULATOR_VOLTAGE,
-	.linear_ranges		= (struct linear_range[]) {
-		REGULATOR_LINEAR_RANGE(1400000, 0, 63, 100000),
-	},
-	.n_linear_ranges	= 1,
+	.min_uV			= 1400000,
+	.uV_step		= 100000,
 	.n_voltages		= 64,
 	.ops			= &qcom_labibb_ops,
 };
