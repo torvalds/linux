@@ -710,8 +710,11 @@ void dcn30_program_dmdata_engine(struct pipe_ctx *pipe_ctx)
 bool dcn30_apply_idle_power_optimizations(struct dc *dc, bool enable)
 {
 	union dmub_rb_cmd cmd;
-	unsigned int surface_size, refresh_hz, denom;
 	uint32_t tmr_delay = 0, tmr_scale = 0;
+	struct dc_cursor_attributes cursor_attr;
+	bool cursor_cache_enable = false;
+	struct dc_stream_state *stream = NULL;
+	struct dc_plane_state *plane = NULL;
 
 	if (!dc->ctx->dmub_srv)
 		return false;
@@ -722,72 +725,150 @@ bool dcn30_apply_idle_power_optimizations(struct dc *dc, bool enable)
 
 			/* First, check no-memory-requests case */
 			for (i = 0; i < dc->current_state->stream_count; i++) {
-				if (dc->current_state->stream_status[i]
-					    .plane_count)
+				if (dc->current_state->stream_status[i].plane_count)
 					/* Fail eligibility on a visible stream */
 					break;
 			}
 
-			if (dc->current_state->stream_count == 1 // single display only
-			    && dc->current_state->stream_status[0].plane_count == 1 // single surface only
-			    && dc->current_state->stream_status[0].plane_states[0]->address.page_table_base.quad_part == 0 // no VM
-			    // Only 8 and 16 bit formats
-			    && dc->current_state->stream_status[0].plane_states[0]->format <= SURFACE_PIXEL_FORMAT_GRPH_ABGR16161616F
-			    && dc->current_state->stream_status[0].plane_states[0]->format >= SURFACE_PIXEL_FORMAT_GRPH_ARGB8888) {
-				surface_size = dc->current_state->stream_status[0].plane_states[0]->plane_size.surface_pitch *
-					dc->current_state->stream_status[0].plane_states[0]->plane_size.surface_size.height *
-					(dc->current_state->stream_status[0].plane_states[0]->format >= SURFACE_PIXEL_FORMAT_GRPH_ARGB16161616 ?
-					 8 : 4);
-			} else {
-				// TODO: remove hard code size
-				surface_size = 128 * 1024 * 1024;
+			if (i == dc->current_state->stream_count) {
+				/* Enable no-memory-requests case */
+				memset(&cmd, 0, sizeof(cmd));
+				cmd.mall.header.type = DMUB_CMD__MALL;
+				cmd.mall.header.sub_type = DMUB_CMD__MALL_ACTION_NO_DF_REQ;
+				cmd.mall.header.payload_bytes = sizeof(cmd.mall) - sizeof(cmd.mall.header);
+
+				dc_dmub_srv_cmd_queue(dc->ctx->dmub_srv, &cmd);
+				dc_dmub_srv_cmd_execute(dc->ctx->dmub_srv);
+
+				return true;
 			}
 
-			// TODO: remove hard code size
-			if (surface_size < 128 * 1024 * 1024) {
-				refresh_hz = div_u64((unsigned long long) dc->current_state->streams[0]->timing.pix_clk_100hz *
-						     100LL,
-						     (dc->current_state->streams[0]->timing.v_total *
-						      dc->current_state->streams[0]->timing.h_total));
+			stream = dc->current_state->streams[0];
+			plane = (stream ? dc->current_state->stream_status[0].plane_states[0] : NULL);
+
+			if (stream && plane) {
+				cursor_cache_enable = stream->cursor_position.enable &&
+						plane->address.grph.cursor_cache_addr.quad_part;
+				cursor_attr = stream->cursor_attributes;
+			}
+
+			/*
+			 * Second, check MALL eligibility
+			 *
+			 * single display only, single surface only, 8 and 16 bit formats only, no VM,
+			 * do not use MALL for displays that support PSR as they use D0i3.2 in DMCUB FW
+			 *
+			 * TODO: When we implement multi-display, PSR displays will be allowed if there is
+			 * a non-PSR display present, since in that case we can't do D0i3.2
+			 */
+			if (dc->current_state->stream_count == 1 &&
+					stream->link->psr_settings.psr_version == DC_PSR_VERSION_UNSUPPORTED &&
+					dc->current_state->stream_status[0].plane_count == 1 &&
+					plane->format <= SURFACE_PIXEL_FORMAT_GRPH_ABGR16161616F &&
+					plane->format >= SURFACE_PIXEL_FORMAT_GRPH_ARGB8888 &&
+					plane->address.page_table_base.quad_part == 0 &&
+					dc->hwss.does_plane_fit_in_mall &&
+					dc->hwss.does_plane_fit_in_mall(dc, plane,
+							cursor_cache_enable ? &cursor_attr : NULL)) {
+				unsigned int v_total = stream->adjust.v_total_max ?
+						stream->adjust.v_total_max : stream->timing.v_total;
+				unsigned int refresh_hz = (unsigned long long) stream->timing.pix_clk_100hz *
+						100LL /	(v_total * stream->timing.h_total);
 
 				/*
-				 * Delay_Us = 65.28 * (64 + MallFrameCacheTmrDly) * 2^MallFrameCacheTmrScale
-				 * Delay_Us / 65.28 = (64 + MallFrameCacheTmrDly) * 2^MallFrameCacheTmrScale
-				 * (Delay_Us / 65.28) / 2^MallFrameCacheTmrScale = 64 + MallFrameCacheTmrDly
-				 * MallFrameCacheTmrDly = ((Delay_Us / 65.28) / 2^MallFrameCacheTmrScale) - 64
-				 *                      = (1000000 / refresh) / 65.28 / 2^MallFrameCacheTmrScale - 64
-				 *                      = 1000000 / (refresh * 65.28 * 2^MallFrameCacheTmrScale) - 64
-				 *                      = (1000000 * 100) / (refresh * 6528 * 2^MallFrameCacheTmrScale) - 64
+				 * one frame time in microsec:
+				 * Delay_Us = 1000000 / refresh
+				 * dynamic_delay_us = 1000000 / refresh + 2 * stutter_period
+				 *
+				 * one frame time modified by 'additional timer percent' (p):
+				 * Delay_Us_modified = dynamic_delay_us + dynamic_delay_us * p / 100
+				 *                   = dynamic_delay_us * (1 + p / 100)
+				 *                   = (1000000 / refresh + 2 * stutter_period) * (100 + p) / 100
+				 *                   = (1000000 + 2 * stutter_period * refresh) * (100 + p) / (100 * refresh)
+				 *
+				 * formula for timer duration based on parameters, from regspec:
+				 * dynamic_delay_us = 65.28 * (64 + MallFrameCacheTmrDly) * 2^MallFrameCacheTmrScale
+				 *
+				 * dynamic_delay_us / 65.28 = (64 + MallFrameCacheTmrDly) * 2^MallFrameCacheTmrScale
+				 * (dynamic_delay_us / 65.28) / 2^MallFrameCacheTmrScale = 64 + MallFrameCacheTmrDly
+				 * MallFrameCacheTmrDly = ((dynamic_delay_us / 65.28) / 2^MallFrameCacheTmrScale) - 64
+				 *                      = (1000000 + 2 * stutter_period * refresh) * (100 + p) / (100 * refresh) / 65.28 / 2^MallFrameCacheTmrScale - 64
+				 *                      = (1000000 + 2 * stutter_period * refresh) * (100 + p) / (refresh * 6528 * 2^MallFrameCacheTmrScale) - 64
 				 *
 				 * need to round up the result of the division before the subtraction
 				 */
-				denom = refresh_hz * 6528;
-				tmr_delay = div_u64((100000000LL + denom - 1), denom) - 64LL;
+				unsigned int denom = refresh_hz * 6528;
+				unsigned int stutter_period = dc->current_state->perf_params.stutter_period_us;
+
+				tmr_delay = (((1000000LL + 2 * stutter_period * refresh_hz) *
+						(100LL + dc->debug.mall_additional_timer_percent) + denom - 1) /
+						denom) - 64LL;
 
 				/* scale should be increased until it fits into 6 bits */
 				while (tmr_delay & ~0x3F) {
 					tmr_scale++;
 
 					if (tmr_scale > 3) {
-						/* The delay exceeds the range of the hystersis timer */
+						/* Delay exceeds range of hysteresis timer */
 						ASSERT(false);
 						return false;
 					}
 
 					denom *= 2;
-					tmr_delay = div_u64((100000000LL + denom - 1), denom) - 64LL;
+					tmr_delay = (((1000000LL + 2 * stutter_period * refresh_hz) *
+							(100LL + dc->debug.mall_additional_timer_percent) + denom - 1) /
+							denom) - 64LL;
+				}
+
+				/* Copy HW cursor */
+				if (cursor_cache_enable) {
+					memset(&cmd, 0, sizeof(cmd));
+					cmd.mall.header.type = DMUB_CMD__MALL;
+					cmd.mall.header.sub_type = DMUB_CMD__MALL_ACTION_COPY_CURSOR;
+					cmd.mall.header.payload_bytes =
+							sizeof(cmd.mall) - sizeof(cmd.mall.header);
+
+					switch (cursor_attr.color_format) {
+					case CURSOR_MODE_MONO:
+						cmd.mall.cursor_bpp = 2;
+						break;
+					case CURSOR_MODE_COLOR_1BIT_AND:
+					case CURSOR_MODE_COLOR_PRE_MULTIPLIED_ALPHA:
+					case CURSOR_MODE_COLOR_UN_PRE_MULTIPLIED_ALPHA:
+						cmd.mall.cursor_bpp = 32;
+						break;
+
+					case CURSOR_MODE_COLOR_64BIT_FP_PRE_MULTIPLIED:
+					case CURSOR_MODE_COLOR_64BIT_FP_UN_PRE_MULTIPLIED:
+						cmd.mall.cursor_bpp = 64;
+						break;
+					}
+
+					cmd.mall.cursor_copy_src.quad_part = cursor_attr.address.quad_part;
+					cmd.mall.cursor_copy_dst.quad_part =
+							plane->address.grph.cursor_cache_addr.quad_part;
+					cmd.mall.cursor_width = cursor_attr.width;
+					cmd.mall.cursor_height = cursor_attr.height;
+					cmd.mall.cursor_pitch = cursor_attr.pitch;
+
+					dc_dmub_srv_cmd_queue(dc->ctx->dmub_srv, &cmd);
+					dc_dmub_srv_cmd_execute(dc->ctx->dmub_srv);
+					dc_dmub_srv_wait_idle(dc->ctx->dmub_srv);
+
+					/* Use copied cursor, and it's okay to not switch back */
+					cursor_attr.address.quad_part =
+							plane->address.grph.cursor_cache_addr.quad_part;
+					dc_stream_set_cursor_attributes(stream, &cursor_attr);
 				}
 
 				/* Enable MALL */
 				memset(&cmd, 0, sizeof(cmd));
 				cmd.mall.header.type = DMUB_CMD__MALL;
-				cmd.mall.header.sub_type =
-					DMUB_CMD__MALL_ACTION_ALLOW;
-				cmd.mall.header.payload_bytes =
-					sizeof(cmd.mall) -
-					sizeof(cmd.mall.header);
+				cmd.mall.header.sub_type = DMUB_CMD__MALL_ACTION_ALLOW;
+				cmd.mall.header.payload_bytes = sizeof(cmd.mall) - sizeof(cmd.mall.header);
 				cmd.mall.tmr_delay = tmr_delay;
 				cmd.mall.tmr_scale = tmr_scale;
+				cmd.mall.debug_bits = dc->debug.mall_error_as_fatal;
 
 				dc_dmub_srv_cmd_queue(dc->ctx->dmub_srv, &cmd);
 				dc_dmub_srv_cmd_execute(dc->ctx->dmub_srv);

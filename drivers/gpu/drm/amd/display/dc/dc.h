@@ -502,6 +502,8 @@ struct dc_debug_options {
 #if defined(CONFIG_DRM_AMD_DC_DCN)
 	bool disable_idle_power_optimizations;
 	unsigned int mall_size_override;
+	unsigned int mall_additional_timer_percent;
+	bool mall_error_as_fatal;
 #endif
 	bool dmub_command_table; /* for testing only */
 	struct dc_bw_validation_profile bw_val_profile;

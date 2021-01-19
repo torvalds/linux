@@ -458,6 +458,10 @@ struct dmub_rb_cmd_mall {
 	uint16_t cursor_pitch;
 	uint16_t cursor_height;
 	uint8_t cursor_bpp;
+	uint8_t debug_bits;
+
+	uint8_t reserved1;
+	uint8_t reserved2;
 };
 
 struct dmub_cmd_digx_encoder_control_data {
@@ -624,6 +628,7 @@ enum dmub_cmd_mall_type {
 	DMUB_CMD__MALL_ACTION_ALLOW = 0,
 	DMUB_CMD__MALL_ACTION_DISALLOW = 1,
 	DMUB_CMD__MALL_ACTION_COPY_CURSOR = 2,
+	DMUB_CMD__MALL_ACTION_NO_DF_REQ = 3,
 };
 
 struct dmub_cmd_psr_copy_settings_data {
