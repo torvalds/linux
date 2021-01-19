@@ -210,7 +210,8 @@ struct Qdisc_class_ops {
 	int			(*change)(struct Qdisc *, u32, u32,
 					struct nlattr **, unsigned long *,
 					struct netlink_ext_ack *);
-	int			(*delete)(struct Qdisc *, unsigned long);
+	int			(*delete)(struct Qdisc *, unsigned long,
+					  struct netlink_ext_ack *);
 	void			(*walk)(struct Qdisc *, struct qdisc_walker * arg);
 
 	/* Filter manipulation */
