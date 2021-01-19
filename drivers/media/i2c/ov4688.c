@@ -1184,7 +1184,7 @@ static int __ov4688_start_stream(struct ov4688 *ov4688)
 
 	ret |= ov4688_write_reg(ov4688->client, OV4688_REG_CTRL_MODE,
 				OV4688_REG_VALUE_08BIT, OV4688_MODE_STREAMING);
-	usleep_range(500, 500 * 2);
+	usleep_range(1000 * 10, 1000 * 11);
 	ret |= ov4688_write_array(ov4688->client, ov4688_linear_global_regs);
 
 	return ret;
@@ -1308,6 +1308,7 @@ static int __ov4688_power_on(struct ov4688 *ov4688)
 		goto disable_clk;
 	}
 
+	usleep_range(500, 1000);
 	if (!IS_ERR(ov4688->reset_gpio))
 		gpiod_set_value_cansleep(ov4688->reset_gpio, 0);
 
@@ -1315,6 +1316,7 @@ static int __ov4688_power_on(struct ov4688 *ov4688)
 	if (!IS_ERR(ov4688->pwdn_gpio))
 		gpiod_set_value_cansleep(ov4688->pwdn_gpio, 1);
 
+	usleep_range(1000 * 10, 1000 * 11);
 	/* 8192 cycles prior to first SCCB transaction */
 	delay_us = ov4688_cal_delay(8192);
 	usleep_range(delay_us, delay_us * 2);
