@@ -814,17 +814,38 @@ bool dcn30_apply_idle_power_optimizations(struct dc *dc, bool enable)
 	return true;
 }
 
-bool dcn30_does_plane_fit_in_mall(struct dc *dc, struct dc_plane_state *plane)
+bool dcn30_does_plane_fit_in_mall(struct dc *dc, struct dc_plane_state *plane, struct dc_cursor_attributes *cursor_attr)
 {
 	// add meta size?
 	unsigned int surface_size = plane->plane_size.surface_pitch * plane->plane_size.surface_size.height *
 			(plane->format >= SURFACE_PIXEL_FORMAT_GRPH_ARGB16161616 ? 8 : 4);
 	unsigned int mall_size = dc->caps.mall_size_total;
+	unsigned int cursor_size = 0;
 
 	if (dc->debug.mall_size_override)
 		mall_size = 1024 * 1024 * dc->debug.mall_size_override;
 
-	return (surface_size + dc->caps.cursor_cache_size) < mall_size;
+	if (cursor_attr) {
+		cursor_size = dc->caps.max_cursor_size * dc->caps.max_cursor_size;
+
+		switch (cursor_attr->color_format) {
+		case CURSOR_MODE_MONO:
+			cursor_size /= 2;
+			break;
+		case CURSOR_MODE_COLOR_1BIT_AND:
+		case CURSOR_MODE_COLOR_PRE_MULTIPLIED_ALPHA:
+		case CURSOR_MODE_COLOR_UN_PRE_MULTIPLIED_ALPHA:
+			cursor_size *= 4;
+			break;
+
+		case CURSOR_MODE_COLOR_64BIT_FP_PRE_MULTIPLIED:
+		case CURSOR_MODE_COLOR_64BIT_FP_UN_PRE_MULTIPLIED:
+			cursor_size *= 8;
+			break;
+		}
+	}
+
+	return (surface_size + cursor_size) < mall_size;
 }
 
 void dcn30_hardware_release(struct dc *dc)
