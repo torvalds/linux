@@ -2689,17 +2689,16 @@ static void io_complete_rw_common(struct kiocb *kiocb, long res,
 }
 
 #ifdef CONFIG_BLOCK
-static bool io_resubmit_prep(struct io_kiocb *req, int error)
+static bool io_resubmit_prep(struct io_kiocb *req)
 {
 	struct iovec inline_vecs[UIO_FASTIOV], *iovec = inline_vecs;
 	ssize_t ret = -ECANCELED;
 	struct iov_iter iter;
 	int rw;
 
-	if (error) {
-		ret = error;
-		goto end_req;
-	}
+	/* already prepared */
+	if (req->async_data)
+		return true;
 
 	switch (req->opcode) {
 	case IORING_OP_READV:
@@ -2715,22 +2714,16 @@ static bool io_resubmit_prep(struct io_kiocb *req, int error)
 	default:
 		printk_once(KERN_WARNING "io_uring: bad opcode in resubmit %d\n",
 				req->opcode);
-		goto end_req;
+		return false;
 	}
 
-	if (!req->async_data) {
-		ret = io_import_iovec(rw, req, &iovec, &iter, false);
-		if (ret < 0)
-			goto end_req;
-		ret = io_setup_async_rw(req, iovec, inline_vecs, &iter, false);
-		if (!ret)
-			return true;
-		kfree(iovec);
-	} else {
+	ret = io_import_iovec(rw, req, &iovec, &iter, false);
+	if (ret < 0)
+		return false;
+	ret = io_setup_async_rw(req, iovec, inline_vecs, &iter, false);
+	if (!ret)
 		return true;
-	}
-end_req:
-	req_set_fail_links(req);
+	kfree(iovec);
 	return false;
 }
 #endif
@@ -2751,12 +2744,12 @@ static bool io_rw_reissue(struct io_kiocb *req, long res)
 
 	ret = io_sq_thread_acquire_mm_files(req->ctx, req);
 
-	if (io_resubmit_prep(req, ret)) {
+	if (!ret && io_resubmit_prep(req)) {
 		refcount_inc(&req->refs);
 		io_queue_async_work(req);
 		return true;
 	}
-
+	req_set_fail_links(req);
 #endif
 	return false;
 }
