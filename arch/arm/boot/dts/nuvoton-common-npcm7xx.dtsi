@@ -420,6 +420,7 @@
 				reg = <0x801C 0x4>;
 				status = "disabled";
 				clocks = <&clk NPCM7XX_CLK_TIMER>;
+				syscon = <&gcr>;
 			};
 
 			watchdog1: watchdog@901C {
@@ -428,6 +429,7 @@
 				reg = <0x901C 0x4>;
 				status = "disabled";
 				clocks = <&clk NPCM7XX_CLK_TIMER>;
+				syscon = <&gcr>;
 			};
 
 			watchdog2: watchdog@a01C {
@@ -436,6 +438,7 @@
 				reg = <0xa01C 0x4>;
 				status = "disabled";
 				clocks = <&clk NPCM7XX_CLK_TIMER>;
+				syscon = <&gcr>;
 			};
 
 			serial0: serial@1000 {
@@ -486,6 +489,7 @@
 				interrupts = <GIC_SPI 0 IRQ_TYPE_LEVEL_HIGH>;
 				clocks = <&clk NPCM7XX_CLK_ADC>;
 				resets = <&rstc NPCM7XX_RESET_IPSRST1 NPCM7XX_RESET_ADC>;
+				syscon = <&fuse>;
 				status = "disabled";
 			};
 
