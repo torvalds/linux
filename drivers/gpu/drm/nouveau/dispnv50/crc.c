@@ -84,7 +84,8 @@ static void nv50_crc_ctx_flip_work(struct kthread_work *base)
 	struct nv50_crc *crc = container_of(work, struct nv50_crc, flip_work);
 	struct nv50_head *head = container_of(crc, struct nv50_head, crc);
 	struct drm_crtc *crtc = &head->base.base;
-	struct nv50_disp *disp = nv50_disp(crtc->dev);
+	struct drm_device *dev = crtc->dev;
+	struct nv50_disp *disp = nv50_disp(dev);
 	u8 new_idx = crc->ctx_idx ^ 1;
 
 	/*
@@ -92,18 +93,15 @@ static void nv50_crc_ctx_flip_work(struct kthread_work *base)
 	 * try again for the next vblank if we don't grab the lock
 	 */
 	if (!mutex_trylock(&disp->mutex)) {
-		DRM_DEV_DEBUG_KMS(crtc->dev->dev,
-				  "Lock contended, delaying CRC ctx flip for head-%d\n",
-				  head->base.index);
+		drm_dbg_kms(dev, "Lock contended, delaying CRC ctx flip for %s\n", crtc->name);
 		drm_vblank_work_schedule(work,
 					 drm_crtc_vblank_count(crtc) + 1,
 					 true);
 		return;
 	}
 
-	DRM_DEV_DEBUG_KMS(crtc->dev->dev,
-			  "Flipping notifier ctx for head %d (%d -> %d)\n",
-			  drm_crtc_index(crtc), crc->ctx_idx, new_idx);
+	drm_dbg_kms(dev, "Flipping notifier ctx for %s (%d -> %d)\n",
+		    crtc->name, crc->ctx_idx, new_idx);
 
 	nv50_crc_program_ctx(head, NULL);
 	nv50_crc_program_ctx(head, &crc->ctx[new_idx]);
@@ -189,9 +187,9 @@ void nv50_crc_handle_vblank(struct nv50_head *head)
 		 * updates back-to-back without waiting, we'll just be
 		 * optimistic and assume we always miss exactly one frame.
 		 */
-		DRM_DEV_DEBUG_KMS(head->base.base.dev->dev,
-				  "Notifier ctx flip for head-%d finished, lost CRC for frame %llu\n",
-				  head->base.index, crc->frame);
+		drm_dbg_kms(head->base.base.dev,
+			    "Notifier ctx flip for head-%d finished, lost CRC for frame %llu\n",
+			    head->base.index, crc->frame);
 		crc->frame++;
 
 		nv50_crc_reset_ctx(ctx);
