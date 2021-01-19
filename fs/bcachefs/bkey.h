@@ -178,6 +178,11 @@ static inline struct bpos bpos_min(struct bpos l, struct bpos r)
 	return bkey_cmp(l, r) < 0 ? l : r;
 }
 
+static inline struct bpos bpos_max(struct bpos l, struct bpos r)
+{
+	return bkey_cmp(l, r) > 0 ? l : r;
+}
+
 void bch2_bpos_swab(struct bpos *);
 void bch2_bkey_swab_key(const struct bkey_format *, struct bkey_packed *);
 

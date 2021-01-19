@@ -690,7 +690,8 @@ static int ec_stripe_bkey_insert(struct bch_fs *c,
 	struct btree_trans trans;
 	struct btree_iter *iter;
 	struct bkey_s_c k;
-	struct bpos start_pos = POS(0, c->ec_stripe_hint);
+	struct bpos min_pos = POS(0, 1);
+	struct bpos start_pos = bpos_max(min_pos, POS(0, c->ec_stripe_hint));
 	int ret;
 
 	bch2_trans_init(&trans, c, 0, 0);
@@ -701,7 +702,7 @@ retry:
 			   BTREE_ITER_SLOTS|BTREE_ITER_INTENT, k, ret) {
 		if (bkey_cmp(k.k->p, POS(0, U32_MAX)) > 0) {
 			if (start_pos.offset) {
-				start_pos = POS_MIN;
+				start_pos = min_pos;
 				bch2_btree_iter_set_pos(iter, start_pos);
 				continue;
 			}
