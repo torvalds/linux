@@ -223,7 +223,7 @@ void __iomem *cpm_muram_addr(unsigned long offset)
 }
 EXPORT_SYMBOL(cpm_muram_addr);
 
-unsigned long cpm_muram_offset(void __iomem *addr)
+unsigned long cpm_muram_offset(const void __iomem *addr)
 {
 	return addr - (void __iomem *)muram_vbase;
 }

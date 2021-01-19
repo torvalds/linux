@@ -102,7 +102,7 @@ s32 cpm_muram_alloc(unsigned long size, unsigned long align);
 void cpm_muram_free(s32 offset);
 s32 cpm_muram_alloc_fixed(unsigned long offset, unsigned long size);
 void __iomem *cpm_muram_addr(unsigned long offset);
-unsigned long cpm_muram_offset(void __iomem *addr);
+unsigned long cpm_muram_offset(const void __iomem *addr);
 dma_addr_t cpm_muram_dma(void __iomem *addr);
 #else
 static inline s32 cpm_muram_alloc(unsigned long size,
@@ -126,7 +126,7 @@ static inline void __iomem *cpm_muram_addr(unsigned long offset)
 	return NULL;
 }
 
-static inline unsigned long cpm_muram_offset(void __iomem *addr)
+static inline unsigned long cpm_muram_offset(const void __iomem *addr)
 {
 	return -ENOSYS;
 }
