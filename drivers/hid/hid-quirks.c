@@ -1029,7 +1029,7 @@ static DEFINE_MUTEX(dquirks_lock);
 /* Runtime ("dynamic") quirks manipulation functions */
 
 /**
- * hid_exists_dquirk: find any dynamic quirks for a HID device
+ * hid_exists_dquirk - find any dynamic quirks for a HID device
  * @hdev: the HID device to match
  *
  * Description:
@@ -1037,7 +1037,7 @@ static DEFINE_MUTEX(dquirks_lock);
  *         the pointer to the relevant struct hid_device_id if found.
  *         Must be called with a read lock held on dquirks_lock.
  *
- * Returns: NULL if no quirk found, struct hid_device_id * if found.
+ * Return: NULL if no quirk found, struct hid_device_id * if found.
  */
 static struct hid_device_id *hid_exists_dquirk(const struct hid_device *hdev)
 {
@@ -1061,7 +1061,7 @@ static struct hid_device_id *hid_exists_dquirk(const struct hid_device *hdev)
 
 
 /**
- * hid_modify_dquirk: add/replace a HID quirk
+ * hid_modify_dquirk - add/replace a HID quirk
  * @id: the HID device to match
  * @quirks: the unsigned long quirks value to add/replace
  *
@@ -1070,7 +1070,7 @@ static struct hid_device_id *hid_exists_dquirk(const struct hid_device *hdev)
  *         quirks value with what was provided.  Otherwise, add the quirk
  *         to the dynamic quirks list.
  *
- * Returns: 0 OK, -error on failure.
+ * Return: 0 OK, -error on failure.
  */
 static int hid_modify_dquirk(const struct hid_device_id *id,
 			     const unsigned long quirks)
@@ -1122,7 +1122,7 @@ static int hid_modify_dquirk(const struct hid_device_id *id,
 }
 
 /**
- * hid_remove_all_dquirks: remove all runtime HID quirks from memory
+ * hid_remove_all_dquirks - remove all runtime HID quirks from memory
  * @bus: bus to match against. Use HID_BUS_ANY if all need to be removed.
  *
  * Description:
@@ -1146,7 +1146,10 @@ static void hid_remove_all_dquirks(__u16 bus)
 }
 
 /**
- * hid_quirks_init: apply HID quirks specified at module load time
+ * hid_quirks_init - apply HID quirks specified at module load time
+ * @quirks_param: array of quirks strings (vendor:product:quirks)
+ * @bus: bus type
+ * @count: number of quirks to check
  */
 int hid_quirks_init(char **quirks_param, __u16 bus, int count)
 {
@@ -1177,7 +1180,7 @@ int hid_quirks_init(char **quirks_param, __u16 bus, int count)
 EXPORT_SYMBOL_GPL(hid_quirks_init);
 
 /**
- * hid_quirks_exit: release memory associated with dynamic_quirks
+ * hid_quirks_exit - release memory associated with dynamic_quirks
  * @bus: a bus to match against
  *
  * Description:
@@ -1194,14 +1197,14 @@ void hid_quirks_exit(__u16 bus)
 EXPORT_SYMBOL_GPL(hid_quirks_exit);
 
 /**
- * hid_gets_squirk: return any static quirks for a HID device
+ * hid_gets_squirk - return any static quirks for a HID device
  * @hdev: the HID device to match
  *
  * Description:
  *     Given a HID device, return a pointer to the quirked hid_device_id entry
  *     associated with that device.
  *
- * Returns: the quirks.
+ * Return: the quirks.
  */
 static unsigned long hid_gets_squirk(const struct hid_device *hdev)
 {
@@ -1225,13 +1228,13 @@ static unsigned long hid_gets_squirk(const struct hid_device *hdev)
 }
 
 /**
- * hid_lookup_quirk: return any quirks associated with a HID device
+ * hid_lookup_quirk - return any quirks associated with a HID device
  * @hdev: the HID device to look for
  *
  * Description:
  *     Given a HID device, return any quirks associated with that device.
  *
- * Returns: an unsigned long quirks value.
+ * Return: an unsigned long quirks value.
  */
 unsigned long hid_lookup_quirk(const struct hid_device *hdev)
 {
