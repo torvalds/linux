@@ -27,12 +27,6 @@
 #define QE_NUM_OF_BRGS	16
 #define QE_NUM_OF_PORTS	1024
 
-/* Memory partitions
-*/
-#define MEM_PART_SYSTEM		0
-#define MEM_PART_SECONDARY	1
-#define MEM_PART_MURAM		2
-
 /* Clocks and BRGs */
 enum qe_clock {
 	QE_CLK_NONE = 0,

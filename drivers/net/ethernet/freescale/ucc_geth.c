@@ -72,7 +72,6 @@ MODULE_PARM_DESC(debug, "Debug verbosity level (0=none, ..., 0xffff=all)");
 
 static const struct ucc_geth_info ugeth_primary_info = {
 	.uf_info = {
-		    .bd_mem_part = MEM_PART_SYSTEM,
 		    .rtsm = UCC_FAST_SEND_IDLES_BETWEEN_FRAMES,
 		    .max_rx_buf_length = 1536,
 		    /* adjusted at startup if max-speed 1000 */
@@ -1854,12 +1853,7 @@ static void ucc_geth_free_rx(struct ucc_geth_private *ugeth)
 
 			kfree(ugeth->rx_skbuff[i]);
 
-			if (ugeth->ug_info->uf_info.bd_mem_part ==
-			    MEM_PART_SYSTEM)
-				kfree((void *)ugeth->rx_bd_ring_offset[i]);
-			else if (ugeth->ug_info->uf_info.bd_mem_part ==
-				 MEM_PART_MURAM)
-				qe_muram_free(ugeth->rx_bd_ring_offset[i]);
+			kfree((void *)ugeth->rx_bd_ring_offset[i]);
 			ugeth->p_rx_bd_ring[i] = NULL;
 		}
 	}
@@ -1897,12 +1891,7 @@ static void ucc_geth_free_tx(struct ucc_geth_private *ugeth)
 		kfree(ugeth->tx_skbuff[i]);
 
 		if (ugeth->p_tx_bd_ring[i]) {
-			if (ugeth->ug_info->uf_info.bd_mem_part ==
-			    MEM_PART_SYSTEM)
-				kfree((void *)ugeth->tx_bd_ring_offset[i]);
-			else if (ugeth->ug_info->uf_info.bd_mem_part ==
-				 MEM_PART_MURAM)
-				qe_muram_free(ugeth->tx_bd_ring_offset[i]);
+			kfree((void *)ugeth->tx_bd_ring_offset[i]);
 			ugeth->p_tx_bd_ring[i] = NULL;
 		}
 	}
@@ -2060,13 +2049,6 @@ static int ucc_struct_init(struct ucc_geth_private *ugeth)
 	ug_info = ugeth->ug_info;
 	uf_info = &ug_info->uf_info;
 
-	if (!((uf_info->bd_mem_part == MEM_PART_SYSTEM) ||
-	      (uf_info->bd_mem_part == MEM_PART_MURAM))) {
-		if (netif_msg_probe(ugeth))
-			pr_err("Bad memory partition value\n");
-		return -EINVAL;
-	}
-
 	/* Rx BD lengths */
 	for (i = 0; i < ug_info->numQueuesRx; i++) {
 		if ((ug_info->bdRingLenRx[i] < UCC_GETH_RX_BD_RING_SIZE_MIN) ||
@@ -2186,6 +2168,8 @@ static int ucc_geth_alloc_tx(struct ucc_geth_private *ugeth)
 
 	/* Allocate Tx bds */
 	for (j = 0; j < ug_info->numQueuesTx; j++) {
+		u32 align = UCC_GETH_TX_BD_RING_ALIGNMENT;
+
 		/* Allocate in multiple of
 		   UCC_GETH_TX_BD_RING_SIZE_MEMORY_ALIGNMENT,
 		   according to spec */
@@ -2195,25 +2179,15 @@ static int ucc_geth_alloc_tx(struct ucc_geth_private *ugeth)
 		if ((ug_info->bdRingLenTx[j] * sizeof(struct qe_bd)) %
 		    UCC_GETH_TX_BD_RING_SIZE_MEMORY_ALIGNMENT)
 			length += UCC_GETH_TX_BD_RING_SIZE_MEMORY_ALIGNMENT;
-		if (uf_info->bd_mem_part == MEM_PART_SYSTEM) {
-			u32 align = UCC_GETH_TX_BD_RING_ALIGNMENT;
 
-			ugeth->tx_bd_ring_offset[j] =
-				(u32) kmalloc((u32) (length + align), GFP_KERNEL);
+		ugeth->tx_bd_ring_offset[j] =
+			(u32) kmalloc((u32) (length + align), GFP_KERNEL);
 
-			if (ugeth->tx_bd_ring_offset[j] != 0)
-				ugeth->p_tx_bd_ring[j] =
-					(u8 __iomem *)((ugeth->tx_bd_ring_offset[j] +
-					align) & ~(align - 1));
-		} else if (uf_info->bd_mem_part == MEM_PART_MURAM) {
-			ugeth->tx_bd_ring_offset[j] =
-			    qe_muram_alloc(length,
-					   UCC_GETH_TX_BD_RING_ALIGNMENT);
-			if (!IS_ERR_VALUE(ugeth->tx_bd_ring_offset[j]))
-				ugeth->p_tx_bd_ring[j] =
-				    (u8 __iomem *) qe_muram_addr(ugeth->
-							 tx_bd_ring_offset[j]);
-		}
+		if (ugeth->tx_bd_ring_offset[j] != 0)
+			ugeth->p_tx_bd_ring[j] =
+				(u8 __iomem *)((ugeth->tx_bd_ring_offset[j] +
+						align) & ~(align - 1));
+
 		if (!ugeth->p_tx_bd_ring[j]) {
 			if (netif_msg_ifup(ugeth))
 				pr_err("Can not allocate memory for Tx bd rings\n");
@@ -2271,25 +2245,16 @@ static int ucc_geth_alloc_rx(struct ucc_geth_private *ugeth)
 
 	/* Allocate Rx bds */
 	for (j = 0; j < ug_info->numQueuesRx; j++) {
-		length = ug_info->bdRingLenRx[j] * sizeof(struct qe_bd);
-		if (uf_info->bd_mem_part == MEM_PART_SYSTEM) {
-			u32 align = UCC_GETH_RX_BD_RING_ALIGNMENT;
+		u32 align = UCC_GETH_RX_BD_RING_ALIGNMENT;
 
-			ugeth->rx_bd_ring_offset[j] =
-				(u32) kmalloc((u32) (length + align), GFP_KERNEL);
-			if (ugeth->rx_bd_ring_offset[j] != 0)
-				ugeth->p_rx_bd_ring[j] =
-					(u8 __iomem *)((ugeth->rx_bd_ring_offset[j] +
-					align) & ~(align - 1));
-		} else if (uf_info->bd_mem_part == MEM_PART_MURAM) {
-			ugeth->rx_bd_ring_offset[j] =
-			    qe_muram_alloc(length,
-					   UCC_GETH_RX_BD_RING_ALIGNMENT);
-			if (!IS_ERR_VALUE(ugeth->rx_bd_ring_offset[j]))
-				ugeth->p_rx_bd_ring[j] =
-				    (u8 __iomem *) qe_muram_addr(ugeth->
-							 rx_bd_ring_offset[j]);
-		}
+		length = ug_info->bdRingLenRx[j] * sizeof(struct qe_bd);
+		ugeth->rx_bd_ring_offset[j] =
+			(u32) kmalloc((u32) (length + align), GFP_KERNEL);
+		if (ugeth->rx_bd_ring_offset[j] != 0)
+			ugeth->p_rx_bd_ring[j] =
+				(u8 __iomem *)((ugeth->rx_bd_ring_offset[j] +
+						align) & ~(align - 1));
+
 		if (!ugeth->p_rx_bd_ring[j]) {
 			if (netif_msg_ifup(ugeth))
 				pr_err("Can not allocate memory for Rx bd rings\n");
@@ -2554,20 +2519,11 @@ static int ucc_geth_startup(struct ucc_geth_private *ugeth)
 		endOfRing =
 		    ugeth->p_tx_bd_ring[i] + (ug_info->bdRingLenTx[i] -
 					      1) * sizeof(struct qe_bd);
-		if (ugeth->ug_info->uf_info.bd_mem_part == MEM_PART_SYSTEM) {
-			out_be32(&ugeth->p_send_q_mem_reg->sqqd[i].bd_ring_base,
-				 (u32) virt_to_phys(ugeth->p_tx_bd_ring[i]));
-			out_be32(&ugeth->p_send_q_mem_reg->sqqd[i].
-				 last_bd_completed_address,
-				 (u32) virt_to_phys(endOfRing));
-		} else if (ugeth->ug_info->uf_info.bd_mem_part ==
-			   MEM_PART_MURAM) {
-			out_be32(&ugeth->p_send_q_mem_reg->sqqd[i].bd_ring_base,
-				 (u32)qe_muram_dma(ugeth->p_tx_bd_ring[i]));
-			out_be32(&ugeth->p_send_q_mem_reg->sqqd[i].
-				 last_bd_completed_address,
-				 (u32)qe_muram_dma(endOfRing));
-		}
+		out_be32(&ugeth->p_send_q_mem_reg->sqqd[i].bd_ring_base,
+			 (u32) virt_to_phys(ugeth->p_tx_bd_ring[i]));
+		out_be32(&ugeth->p_send_q_mem_reg->sqqd[i].
+			 last_bd_completed_address,
+			 (u32) virt_to_phys(endOfRing));
 	}
 
 	/* schedulerbasepointer */
@@ -2786,14 +2742,8 @@ static int ucc_geth_startup(struct ucc_geth_private *ugeth)
 	/* Setup the table */
 	/* Assume BD rings are already established */
 	for (i = 0; i < ug_info->numQueuesRx; i++) {
-		if (ugeth->ug_info->uf_info.bd_mem_part == MEM_PART_SYSTEM) {
-			out_be32(&ugeth->p_rx_bd_qs_tbl[i].externalbdbaseptr,
-				 (u32) virt_to_phys(ugeth->p_rx_bd_ring[i]));
-		} else if (ugeth->ug_info->uf_info.bd_mem_part ==
-			   MEM_PART_MURAM) {
-			out_be32(&ugeth->p_rx_bd_qs_tbl[i].externalbdbaseptr,
-				 (u32)qe_muram_dma(ugeth->p_rx_bd_ring[i]));
-		}
+		out_be32(&ugeth->p_rx_bd_qs_tbl[i].externalbdbaseptr,
+			 (u32) virt_to_phys(ugeth->p_rx_bd_ring[i]));
 		/* rest of fields handled by QE */
 	}
 
