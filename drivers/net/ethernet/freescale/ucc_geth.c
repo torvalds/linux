@@ -1835,7 +1835,7 @@ static void ucc_geth_free_rx(struct ucc_geth_private *ugeth)
 
 			kfree(ugeth->rx_skbuff[i]);
 
-			kfree((void *)ugeth->rx_bd_ring_offset[i]);
+			kfree(ugeth->p_rx_bd_ring[i]);
 			ugeth->p_rx_bd_ring[i] = NULL;
 		}
 	}
@@ -1872,10 +1872,8 @@ static void ucc_geth_free_tx(struct ucc_geth_private *ugeth)
 
 		kfree(ugeth->tx_skbuff[i]);
 
-		if (ugeth->p_tx_bd_ring[i]) {
-			kfree((void *)ugeth->tx_bd_ring_offset[i]);
-			ugeth->p_tx_bd_ring[i] = NULL;
-		}
+		kfree(ugeth->p_tx_bd_ring[i]);
+		ugeth->p_tx_bd_ring[i] = NULL;
 	}
 
 }
@@ -2150,25 +2148,15 @@ static int ucc_geth_alloc_tx(struct ucc_geth_private *ugeth)
 
 	/* Allocate Tx bds */
 	for (j = 0; j < ucc_geth_tx_queues(ug_info); j++) {
-		u32 align = UCC_GETH_TX_BD_RING_ALIGNMENT;
+		u32 align = max(UCC_GETH_TX_BD_RING_ALIGNMENT,
+				UCC_GETH_TX_BD_RING_SIZE_MEMORY_ALIGNMENT);
+		u32 alloc;
 
-		/* Allocate in multiple of
-		   UCC_GETH_TX_BD_RING_SIZE_MEMORY_ALIGNMENT,
-		   according to spec */
-		length = ((ug_info->bdRingLenTx[j] * sizeof(struct qe_bd))
-			  / UCC_GETH_TX_BD_RING_SIZE_MEMORY_ALIGNMENT)
-		    * UCC_GETH_TX_BD_RING_SIZE_MEMORY_ALIGNMENT;
-		if ((ug_info->bdRingLenTx[j] * sizeof(struct qe_bd)) %
-		    UCC_GETH_TX_BD_RING_SIZE_MEMORY_ALIGNMENT)
-			length += UCC_GETH_TX_BD_RING_SIZE_MEMORY_ALIGNMENT;
+		length = ug_info->bdRingLenTx[j] * sizeof(struct qe_bd);
+		alloc = round_up(length, align);
+		alloc = roundup_pow_of_two(alloc);
 
-		ugeth->tx_bd_ring_offset[j] =
-			(u32) kmalloc((u32) (length + align), GFP_KERNEL);
-
-		if (ugeth->tx_bd_ring_offset[j] != 0)
-			ugeth->p_tx_bd_ring[j] =
-				(u8 __iomem *)((ugeth->tx_bd_ring_offset[j] +
-						align) & ~(align - 1));
+		ugeth->p_tx_bd_ring[j] = kmalloc(alloc, GFP_KERNEL);
 
 		if (!ugeth->p_tx_bd_ring[j]) {
 			if (netif_msg_ifup(ugeth))
@@ -2176,9 +2164,7 @@ static int ucc_geth_alloc_tx(struct ucc_geth_private *ugeth)
 			return -ENOMEM;
 		}
 		/* Zero unused end of bd ring, according to spec */
-		memset_io((void __iomem *)(ugeth->p_tx_bd_ring[j] +
-		       ug_info->bdRingLenTx[j] * sizeof(struct qe_bd)), 0,
-		       length - ug_info->bdRingLenTx[j] * sizeof(struct qe_bd));
+		memset(ugeth->p_tx_bd_ring[j] + length, 0, alloc - length);
 	}
 
 	/* Init Tx bds */
@@ -2225,15 +2211,13 @@ static int ucc_geth_alloc_rx(struct ucc_geth_private *ugeth)
 	/* Allocate Rx bds */
 	for (j = 0; j < ucc_geth_rx_queues(ug_info); j++) {
 		u32 align = UCC_GETH_RX_BD_RING_ALIGNMENT;
+		u32 alloc;
 
 		length = ug_info->bdRingLenRx[j] * sizeof(struct qe_bd);
-		ugeth->rx_bd_ring_offset[j] =
-			(u32) kmalloc((u32) (length + align), GFP_KERNEL);
-		if (ugeth->rx_bd_ring_offset[j] != 0)
-			ugeth->p_rx_bd_ring[j] =
-				(u8 __iomem *)((ugeth->rx_bd_ring_offset[j] +
-						align) & ~(align - 1));
+		alloc = round_up(length, align);
+		alloc = roundup_pow_of_two(alloc);
 
+		ugeth->p_rx_bd_ring[j] = kmalloc(alloc, GFP_KERNEL);
 		if (!ugeth->p_rx_bd_ring[j]) {
 			if (netif_msg_ifup(ugeth))
 				pr_err("Can not allocate memory for Rx bd rings\n");

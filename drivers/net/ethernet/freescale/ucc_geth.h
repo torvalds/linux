@@ -1181,9 +1181,7 @@ struct ucc_geth_private {
 	struct ucc_geth_rx_bd_queues_entry __iomem *p_rx_bd_qs_tbl;
 	u32 rx_bd_qs_tbl_offset;
 	u8 __iomem *p_tx_bd_ring[NUM_TX_QUEUES];
-	u32 tx_bd_ring_offset[NUM_TX_QUEUES];
 	u8 __iomem *p_rx_bd_ring[NUM_RX_QUEUES];
-	u32 rx_bd_ring_offset[NUM_RX_QUEUES];
 	u8 __iomem *confBd[NUM_TX_QUEUES];
 	u8 __iomem *txBd[NUM_TX_QUEUES];
 	u8 __iomem *rxBd[NUM_RX_QUEUES];
