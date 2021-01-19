@@ -1175,19 +1175,13 @@ int i915_gem_freeze_late(struct drm_i915_private *i915)
 	 * the objects as well, see i915_gem_freeze()
 	 */
 
-	wakeref = intel_runtime_pm_get(&i915->runtime_pm);
-
-	i915_gem_shrink(i915, -1UL, NULL, ~0);
+	with_intel_runtime_pm(&i915->runtime_pm, wakeref)
+		i915_gem_shrink(i915, -1UL, NULL, ~0);
 	i915_gem_drain_freed_objects(i915);
 
-	list_for_each_entry(obj, &i915->mm.shrink_list, mm.link) {
-		i915_gem_object_lock(obj, NULL);
-		drm_WARN_ON(&i915->drm,
-			    i915_gem_object_set_to_cpu_domain(obj, true));
-		i915_gem_object_unlock(obj);
-	}
-
-	intel_runtime_pm_put(&i915->runtime_pm, wakeref);
+	wbinvd_on_all_cpus();
+	list_for_each_entry(obj, &i915->mm.shrink_list, mm.link)
+		__start_cpu_write(obj);
 
 	return 0;
 }
