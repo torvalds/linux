@@ -417,8 +417,8 @@ void amdgpu_dm_crtc_handle_crc_window_irq(struct drm_crtc *crtc)
 				tmp_window.windowb_y_end =
 							acrtc->dm_irq_params.crc_window.y_end;
 
-				dc_stream_configure_crc(stream_state->ctx->dc,
-							stream_state, crc_window, true, true);
+				dc_stream_forward_dmcu_crc_window(stream_state->ctx->dc,
+									stream_state, crc_window);
 
 				acrtc->dm_irq_params.crc_window.update_win = false;
 			}
