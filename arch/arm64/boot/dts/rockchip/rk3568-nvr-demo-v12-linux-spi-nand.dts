@@ -1,0 +1,20 @@
+// SPDX-License-Identifier: (GPL-2.0+ OR MIT)
+/*
+ * Copyright (c) 2021 Rockchip Electronics Co., Ltd.
+ */
+
+/dts-v1/;
+
+#include "rk3568-nvr-demo-v12.dtsi"
+#include "rk3568-linux.dtsi"
+
+/ {
+	model = "Rockchip RK3568 NVR DEMO DDR4 V12 Linux SPI NAND Board";
+	compatible = "rockchip,rk3568-nvr-demo-ddr4-v12-linux-spi-nand", "rockchip,rk3568";
+
+	chosen {
+		bootargs = "earlycon=uart8250,mmio32,0xfe660000 swiotlb=1 console=ttyFIQ0 ubi.mtd=3 root=ubi0:rootfs rootfstype=ubifs";
+	};
+
+};
+

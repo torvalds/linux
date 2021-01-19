@@ -1,0 +1,39 @@
+// SPDX-License-Identifier: (GPL-2.0+ OR MIT)
+/*
+ * Copyright (c) 2021 Rockchip Electronics Co., Ltd.
+ *
+ */
+
+/dts-v1/;
+
+#include "rk3568-nvr-demo-v10.dtsi"
+
+/ {
+	model = "Rockchip RK3568 NVR DEMO V12 Board";
+	compatible = "rockchip,rk3568-nvr-demo-v12", "rockchip,rk3568";
+};
+
+&gmac0 {
+	tx_delay = <0x35>;
+	rx_delay = <0x2d>;
+};
+
+&gmac1 {
+	tx_delay = <0x43>;
+	rx_delay = <0x27>;
+};
+
+&gpu {
+	mali-supply = <&vdd_npu>;
+	status = "okay";
+};
+
+&vdd_logic {
+	regulator-min-microvolt = <810000>;
+	regulator-max-microvolt = <1000000>;
+};
+
+&vdd_npu {
+	regulator-min-microvolt = <810000>;
+	regulator-max-microvolt = <1100000>;
+};
