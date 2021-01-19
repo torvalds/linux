@@ -1276,7 +1276,10 @@ static int __reloc_gpu_alloc(struct i915_execbuffer *eb,
 	int err;
 
 	if (!pool) {
-		pool = intel_gt_get_buffer_pool(engine->gt, PAGE_SIZE);
+		pool = intel_gt_get_buffer_pool(engine->gt, PAGE_SIZE,
+						cache->has_llc ?
+						I915_MAP_WB :
+						I915_MAP_WC);
 		if (IS_ERR(pool))
 			return PTR_ERR(pool);
 	}
@@ -1286,10 +1289,7 @@ static int __reloc_gpu_alloc(struct i915_execbuffer *eb,
 	if (err)
 		goto err_pool;
 
-	cmd = i915_gem_object_pin_map(pool->obj,
-				      cache->has_llc ?
-				      I915_MAP_FORCE_WB :
-				      I915_MAP_FORCE_WC);
+	cmd = i915_gem_object_pin_map(pool->obj, pool->type);
 	if (IS_ERR(cmd)) {
 		err = PTR_ERR(cmd);
 		goto err_pool;
@@ -2458,7 +2458,8 @@ static int eb_parse(struct i915_execbuffer *eb)
 		return -EINVAL;
 
 	if (!pool) {
-		pool = intel_gt_get_buffer_pool(eb->engine->gt, len);
+		pool = intel_gt_get_buffer_pool(eb->engine->gt, len,
+						I915_MAP_WB);
 		if (IS_ERR(pool))
 			return PTR_ERR(pool);
 		eb->batch_pool = pool;
