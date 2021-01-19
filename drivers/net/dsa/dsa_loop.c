@@ -207,7 +207,7 @@ static int dsa_loop_port_vlan_add(struct dsa_switch *ds, int port,
 	struct mii_bus *bus = ps->bus;
 	struct dsa_loop_vlan *vl;
 
-	if (vlan->vid > ARRAY_SIZE(ps->vlans))
+	if (vlan->vid >= ARRAY_SIZE(ps->vlans))
 		return -ERANGE;
 
 	/* Just do a sleeping operation to make lockdep checks effective */
