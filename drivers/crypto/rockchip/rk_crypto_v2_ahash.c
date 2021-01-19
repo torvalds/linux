@@ -605,6 +605,8 @@ static int rk_cra_hash_init(struct crypto_tfm *tfm)
 				 sizeof(struct rk_ahash_rctx) +
 				 crypto_ahash_reqsize(ctx->fallback_tfm));
 
+	algt->alg.hash.halg.statesize = crypto_ahash_statesize(ctx->fallback_tfm);
+
 	return 0;
 }
 
