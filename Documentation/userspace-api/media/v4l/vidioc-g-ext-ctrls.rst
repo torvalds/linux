@@ -358,6 +358,10 @@ still cause this situation.
       - 0xa20000
       - The class containing RF tuner controls. These controls are
 	described in :ref:`rf-tuner-controls`.
+    * - ``V4L2_CTRL_CLASS_COLORIMETRY``
+      - 0xa50000
+      - The class containing colorimetry controls. These controls are
+        described in :ref:`colorimetry-controls`.
 
 Return Value
 ============
