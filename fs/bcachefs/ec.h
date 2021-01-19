@@ -143,11 +143,9 @@ struct ec_stripe_new {
 	bool			pending;
 	bool			have_existing_stripe;
 
+	unsigned long		blocks_gotten[BITS_TO_LONGS(BCH_BKEY_PTRS_MAX)];
 	unsigned long		blocks_allocated[BITS_TO_LONGS(BCH_BKEY_PTRS_MAX)];
-
-	struct open_buckets	blocks;
-	u8			data_block_idx[BCH_BKEY_PTRS_MAX];
-	struct open_buckets	parity;
+	open_bucket_idx_t	blocks[BCH_BKEY_PTRS_MAX];
 	struct disk_reservation	res;
 
 	struct keylist		keys;

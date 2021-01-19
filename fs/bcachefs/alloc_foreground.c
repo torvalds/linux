@@ -489,16 +489,20 @@ bucket_alloc_from_stripe(struct bch_fs *c,
 	devs_sorted = bch2_dev_alloc_list(c, &wp->stripe, devs_may_alloc);
 
 	for (i = 0; i < devs_sorted.nr; i++)
-		open_bucket_for_each(c, &h->s->blocks, ob, ec_idx)
+		for (ec_idx = 0; ec_idx < h->s->nr_data; ec_idx++) {
+			if (!h->s->blocks[ec_idx])
+				continue;
+
+			ob = c->open_buckets + h->s->blocks[ec_idx];
 			if (ob->ptr.dev == devs_sorted.devs[i] &&
-			    !test_and_set_bit(h->s->data_block_idx[ec_idx],
-					      h->s->blocks_allocated))
+			    !test_and_set_bit(ec_idx, h->s->blocks_allocated))
 				goto got_bucket;
+		}
 	goto out_put_head;
 got_bucket:
 	ca = bch_dev_bkey_exists(c, ob->ptr.dev);
 
-	ob->ec_idx	= h->s->data_block_idx[ec_idx];
+	ob->ec_idx	= ec_idx;
 	ob->ec		= h->s;
 
 	add_new_bucket(c, ptrs, devs_may_alloc,
@@ -636,10 +640,13 @@ void bch2_open_buckets_stop_dev(struct bch_fs *c, struct bch_dev *ca,
 
 		if (!drop && ob->ec) {
 			mutex_lock(&ob->ec->lock);
-			open_bucket_for_each(c, &ob->ec->blocks, ob2, j)
+			for (j = 0; j < ob->ec->new_stripe.key.v.nr_blocks; j++) {
+				if (!ob->ec->blocks[j])
+					continue;
+
+				ob2 = c->open_buckets + ob->ec->blocks[j];
 				drop |= ob2->ptr.dev == ca->dev_idx;
-			open_bucket_for_each(c, &ob->ec->parity, ob2, j)
-				drop |= ob2->ptr.dev == ca->dev_idx;
+			}
 			mutex_unlock(&ob->ec->lock);
 		}
 
