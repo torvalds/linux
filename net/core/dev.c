@@ -5709,7 +5709,7 @@ static void flush_all_backlogs(void)
 	}
 
 	/* we can have in flight packet[s] on the cpus we are not flushing,
-	 * synchronize_net() in rollback_registered_many() will take care of
+	 * synchronize_net() in unregister_netdevice_many() will take care of
 	 * them
 	 */
 	for_each_cpu(cpu, &flush_cpus)
@@ -10610,8 +10610,6 @@ void synchronize_net(void)
 }
 EXPORT_SYMBOL(synchronize_net);
 
-static void rollback_registered_many(struct list_head *head);
-
 /**
  *	unregister_netdevice_queue - remove device from the kernel
  *	@dev: device
@@ -10635,8 +10633,7 @@ void unregister_netdevice_queue(struct net_device *dev, struct list_head *head)
 		LIST_HEAD(single);
 
 		list_add(&dev->unreg_list, &single);
-		rollback_registered_many(&single);
-		list_del(&single);
+		unregister_netdevice_many(&single);
 	}
 }
 EXPORT_SYMBOL(unregister_netdevice_queue);
@@ -10650,20 +10647,14 @@ EXPORT_SYMBOL(unregister_netdevice_queue);
  */
 void unregister_netdevice_many(struct list_head *head)
 {
-	if (!list_empty(head)) {
-		rollback_registered_many(head);
-		list_del(head);
-	}
-}
-EXPORT_SYMBOL(unregister_netdevice_many);
-
-static void rollback_registered_many(struct list_head *head)
-{
 	struct net_device *dev, *tmp;
 	LIST_HEAD(close_head);
 
 	BUG_ON(dev_boot_phase);
 	ASSERT_RTNL();
+
+	if (list_empty(head))
+		return;
 
 	list_for_each_entry_safe(dev, tmp, head, unreg_list) {
 		/* Some devices call without registering
@@ -10748,7 +10739,10 @@ static void rollback_registered_many(struct list_head *head)
 		dev_put(dev);
 		net_set_todo(dev);
 	}
+
+	list_del(head);
 }
+EXPORT_SYMBOL(unregister_netdevice_many);
 
 /**
  *	unregister_netdev - remove device from the kernel
