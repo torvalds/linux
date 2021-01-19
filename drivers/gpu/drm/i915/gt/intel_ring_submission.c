@@ -301,13 +301,17 @@ static void xcs_sanitize(struct intel_engine_cs *engine)
 
 static bool stop_ring(struct intel_engine_cs *engine)
 {
+	/* Empty the ring by skipping to the end */
 	ENGINE_WRITE_FW(engine, RING_HEAD, ENGINE_READ_FW(engine, RING_TAIL));
-
-	ENGINE_WRITE_FW(engine, RING_HEAD, 0);
-	ENGINE_WRITE_FW(engine, RING_TAIL, 0);
+	ENGINE_POSTING_READ(engine, RING_HEAD);
 
 	/* The ring must be empty before it is disabled */
 	ENGINE_WRITE_FW(engine, RING_CTL, 0);
+	ENGINE_POSTING_READ(engine, RING_CTL);
+
+	/* Then reset the disabled ring */
+	ENGINE_WRITE_FW(engine, RING_HEAD, 0);
+	ENGINE_WRITE_FW(engine, RING_TAIL, 0);
 
 	return (ENGINE_READ_FW(engine, RING_HEAD) & HEAD_ADDR) == 0;
 }
