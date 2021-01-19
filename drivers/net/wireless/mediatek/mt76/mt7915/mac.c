@@ -1733,7 +1733,7 @@ void mt7915_mac_work(struct work_struct *work)
 	if (++phy->sta_work_count == 10) {
 		phy->sta_work_count = 0;
 		mt7915_mac_sta_stats_work(phy);
-	};
+	}
 
 	mutex_unlock(&mphy->dev->mutex);
 
