@@ -116,7 +116,7 @@ free:
 static void mlx5_rdma_del_roce_addr(struct mlx5_core_dev *dev)
 {
 	mlx5_core_roce_gid_set(dev, 0, 0, 0,
-			       NULL, NULL, false, 0, 0);
+			       NULL, NULL, false, 0, 1);
 }
 
 static void mlx5_rdma_make_default_gid(struct mlx5_core_dev *dev, union ib_gid *gid)

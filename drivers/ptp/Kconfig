@@ -64,6 +64,7 @@ config DP83640_PHY
 	depends on NETWORK_PHY_TIMESTAMPING
 	depends on PHYLIB
 	depends on PTP_1588_CLOCK
+	select CRC32
 	help
 	  Supports the DP83640 PHYTER with IEEE 1588 features.
 
@@ -78,6 +79,7 @@ config DP83640_PHY
 config PTP_1588_CLOCK_INES
 	tristate "ZHAW InES PTP time stamping IP core"
 	depends on NETWORK_PHY_TIMESTAMPING
+	depends on HAS_IOMEM
 	depends on PHYLIB
 	depends on PTP_1588_CLOCK
 	help

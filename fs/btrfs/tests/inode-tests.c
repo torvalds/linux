@@ -232,11 +232,6 @@ static noinline int test_btrfs_get_extent(u32 sectorsize, u32 nodesize)
 		return ret;
 	}
 
-	inode->i_mode = S_IFREG;
-	BTRFS_I(inode)->location.type = BTRFS_INODE_ITEM_KEY;
-	BTRFS_I(inode)->location.objectid = BTRFS_FIRST_FREE_OBJECTID;
-	BTRFS_I(inode)->location.offset = 0;
-
 	fs_info = btrfs_alloc_dummy_fs_info(nodesize, sectorsize);
 	if (!fs_info) {
 		test_std_err(TEST_ALLOC_FS_INFO);
@@ -834,10 +829,6 @@ static int test_hole_first(u32 sectorsize, u32 nodesize)
 		test_std_err(TEST_ALLOC_INODE);
 		return ret;
 	}
-
-	BTRFS_I(inode)->location.type = BTRFS_INODE_ITEM_KEY;
-	BTRFS_I(inode)->location.objectid = BTRFS_FIRST_FREE_OBJECTID;
-	BTRFS_I(inode)->location.offset = 0;
 
 	fs_info = btrfs_alloc_dummy_fs_info(nodesize, sectorsize);
 	if (!fs_info) {

@@ -353,8 +353,12 @@ static int dsa_port_devlink_setup(struct dsa_port *dp)
 
 static void dsa_port_teardown(struct dsa_port *dp)
 {
+	struct devlink_port *dlp = &dp->devlink_port;
+
 	if (!dp->setup)
 		return;
+
+	devlink_port_type_clear(dlp);
 
 	switch (dp->type) {
 	case DSA_PORT_TYPE_UNUSED:

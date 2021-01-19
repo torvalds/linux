@@ -18,6 +18,7 @@
 #include "adreno_pm4.xml.h"
 
 extern bool snapshot_debugbus;
+extern bool allow_vram_carveout;
 
 enum {
 	ADRENO_FW_PM4 = 0,
@@ -209,6 +210,11 @@ static inline int adreno_is_a530(struct adreno_gpu *gpu)
 static inline int adreno_is_a540(struct adreno_gpu *gpu)
 {
 	return gpu->revn == 540;
+}
+
+static inline bool adreno_is_a6xx(struct adreno_gpu *gpu)
+{
+	return ((gpu->revn < 700 && gpu->revn > 599));
 }
 
 static inline int adreno_is_a618(struct adreno_gpu *gpu)

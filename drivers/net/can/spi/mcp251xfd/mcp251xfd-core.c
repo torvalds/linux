@@ -1368,13 +1368,10 @@ static int mcp251xfd_handle_tefif(struct mcp251xfd_priv *priv)
 		struct mcp251xfd_tx_ring *tx_ring = priv->tx;
 		struct spi_transfer *last_xfer;
 
-		tx_ring->tail += len;
-
 		/* Increment the TEF FIFO tail pointer 'len' times in
 		 * a single SPI message.
-		 */
-
-		/* Note:
+		 *
+		 * Note:
 		 *
 		 * "cs_change == 1" on the last transfer results in an
 		 * active chip select after the complete SPI
@@ -1390,6 +1387,8 @@ static int mcp251xfd_handle_tefif(struct mcp251xfd_priv *priv)
 		last_xfer->cs_change = 1;
 		if (err)
 			return err;
+
+		tx_ring->tail += len;
 
 		err = mcp251xfd_check_tef_tail(priv);
 		if (err)
@@ -1492,7 +1491,7 @@ mcp251xfd_handle_rxif_one(struct mcp251xfd_priv *priv,
 	else
 		skb = alloc_can_skb(priv->ndev, (struct can_frame **)&cfd);
 
-	if (!cfd) {
+	if (!skb) {
 		stats->rx_dropped++;
 		return 0;
 	}
@@ -1553,10 +1552,8 @@ mcp251xfd_handle_rxif_ring(struct mcp251xfd_priv *priv,
 
 		/* Increment the RX FIFO tail pointer 'len' times in a
 		 * single SPI message.
-		 */
-		ring->tail += len;
-
-		/* Note:
+		 *
+		 * Note:
 		 *
 		 * "cs_change == 1" on the last transfer results in an
 		 * active chip select after the complete SPI
@@ -1572,6 +1569,8 @@ mcp251xfd_handle_rxif_ring(struct mcp251xfd_priv *priv,
 		last_xfer->cs_change = 1;
 		if (err)
 			return err;
+
+		ring->tail += len;
 	}
 
 	return 0;
