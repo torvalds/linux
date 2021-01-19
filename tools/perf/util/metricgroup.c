@@ -773,7 +773,6 @@ int __weak arch_get_runtimeparam(struct pmu_event *pe __maybe_unused)
 struct metricgroup_add_iter_data {
 	struct list_head *metric_list;
 	const char *metric;
-	struct metric **m;
 	struct expr_ids *ids;
 	int *ret;
 	bool *has_match;
@@ -1065,12 +1064,13 @@ static int metricgroup__add_metric_sys_event_iter(struct pmu_event *pe,
 						  void *data)
 {
 	struct metricgroup_add_iter_data *d = data;
+	struct metric *m = NULL;
 	int ret;
 
 	if (!match_pe_metric(pe, d->metric))
 		return 0;
 
-	ret = add_metric(d->metric_list, pe, d->metric_no_group, d->m, NULL, d->ids);
+	ret = add_metric(d->metric_list, pe, d->metric_no_group, &m, NULL, d->ids);
 	if (ret)
 		return ret;
 
@@ -1121,7 +1121,6 @@ static int metricgroup__add_metric(const char *metric, bool metric_no_group,
 				.metric_list = &list,
 				.metric = metric,
 				.metric_no_group = metric_no_group,
-				.m = &m,
 				.ids = &ids,
 				.has_match = &has_match,
 				.ret = &ret,
