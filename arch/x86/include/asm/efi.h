@@ -12,6 +12,7 @@
 #include <linux/pgtable.h>
 
 extern unsigned long efi_fw_vendor, efi_config_table;
+extern unsigned long efi_mixed_mode_stack_pa;
 
 /*
  * We map the EFI regions needed for runtime services non-contiguously,
@@ -96,11 +97,9 @@ extern asmlinkage u64 __efi_call(void *fp, ...);
 
 /*
  * struct efi_scratch - Scratch space used while switching to/from efi_mm
- * @phys_stack: stack used during EFI Mixed Mode
  * @prev_mm:    store/restore stolen mm_struct while switching to/from efi_mm
  */
 struct efi_scratch {
-	u64			phys_stack;
 	struct mm_struct	*prev_mm;
 } __packed;
 
