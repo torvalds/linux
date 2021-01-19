@@ -532,7 +532,7 @@ struct hns_roce_qp_table {
 	struct hns_roce_hem_table	sccc_table;
 	struct mutex			scc_mutex;
 	struct hns_roce_bank bank[HNS_ROCE_QP_BANK_NUM];
-	spinlock_t bank_lock;
+	struct mutex bank_mutex;
 };
 
 struct hns_roce_cq_table {
