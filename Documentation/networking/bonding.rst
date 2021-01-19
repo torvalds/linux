@@ -951,6 +951,19 @@ xmit_hash_policy
 		packets will be distributed according to the encapsulated
 		flows.
 
+	vlan+srcmac
+
+		This policy uses a very rudimentary vlan ID and source mac
+		hash to load-balance traffic per-vlan, with failover
+		should one leg fail. The intended use case is for a bond
+		shared by multiple virtual machines, all configured to
+		use their own vlan, to give lacp-like functionality
+		without requiring lacp-capable switching hardware.
+
+		The formula for the hash is simply
+
+		hash = (vlan ID) XOR (source MAC vendor) XOR (source MAC dev)
+
 	The default value is layer2.  This option was added in bonding
 	version 2.6.3.  In earlier versions of bonding, this parameter
 	does not exist, and the layer2 policy is the only policy.  The
