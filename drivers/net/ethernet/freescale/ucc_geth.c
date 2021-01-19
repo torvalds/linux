@@ -3646,6 +3646,36 @@ static const struct net_device_ops ucc_geth_netdev_ops = {
 #endif
 };
 
+static int ucc_geth_parse_clock(struct device_node *np, const char *which,
+				enum qe_clock *out)
+{
+	const char *sprop;
+	char buf[24];
+
+	snprintf(buf, sizeof(buf), "%s-clock-name", which);
+	sprop = of_get_property(np, buf, NULL);
+	if (sprop) {
+		*out = qe_clock_source(sprop);
+	} else {
+		u32 val;
+
+		snprintf(buf, sizeof(buf), "%s-clock", which);
+		if (of_property_read_u32(np, buf, &val)) {
+			/* If both *-clock-name and *-clock are missing,
+			 * we want to tell people to use *-clock-name.
+			 */
+			pr_err("missing %s-clock-name property\n", buf);
+			return -EINVAL;
+		}
+		*out = val;
+	}
+	if (*out < QE_CLK_NONE || *out > QE_CLK24) {
+		pr_err("invalid %s property\n", buf);
+		return -EINVAL;
+	}
+	return 0;
+}
+
 static int ucc_geth_probe(struct platform_device* ofdev)
 {
 	struct device *device = &ofdev->dev;
@@ -3656,7 +3686,6 @@ static int ucc_geth_probe(struct platform_device* ofdev)
 	struct resource res;
 	int err, ucc_num, max_speed = 0;
 	const unsigned int *prop;
-	const char *sprop;
 	const void *mac_addr;
 	phy_interface_t phy_interface;
 	static const int enet_to_speed[] = {
@@ -3695,49 +3724,12 @@ static int ucc_geth_probe(struct platform_device* ofdev)
 
 	ug_info->uf_info.ucc_num = ucc_num;
 
-	sprop = of_get_property(np, "rx-clock-name", NULL);
-	if (sprop) {
-		ug_info->uf_info.rx_clock = qe_clock_source(sprop);
-		if ((ug_info->uf_info.rx_clock < QE_CLK_NONE) ||
-		    (ug_info->uf_info.rx_clock > QE_CLK24)) {
-			pr_err("invalid rx-clock-name property\n");
-			return -EINVAL;
-		}
-	} else {
-		prop = of_get_property(np, "rx-clock", NULL);
-		if (!prop) {
-			/* If both rx-clock-name and rx-clock are missing,
-			   we want to tell people to use rx-clock-name. */
-			pr_err("missing rx-clock-name property\n");
-			return -EINVAL;
-		}
-		if ((*prop < QE_CLK_NONE) || (*prop > QE_CLK24)) {
-			pr_err("invalid rx-clock property\n");
-			return -EINVAL;
-		}
-		ug_info->uf_info.rx_clock = *prop;
-	}
-
-	sprop = of_get_property(np, "tx-clock-name", NULL);
-	if (sprop) {
-		ug_info->uf_info.tx_clock = qe_clock_source(sprop);
-		if ((ug_info->uf_info.tx_clock < QE_CLK_NONE) ||
-		    (ug_info->uf_info.tx_clock > QE_CLK24)) {
-			pr_err("invalid tx-clock-name property\n");
-			return -EINVAL;
-		}
-	} else {
-		prop = of_get_property(np, "tx-clock", NULL);
-		if (!prop) {
-			pr_err("missing tx-clock-name property\n");
-			return -EINVAL;
-		}
-		if ((*prop < QE_CLK_NONE) || (*prop > QE_CLK24)) {
-			pr_err("invalid tx-clock property\n");
-			return -EINVAL;
-		}
-		ug_info->uf_info.tx_clock = *prop;
-	}
+	err = ucc_geth_parse_clock(np, "rx", &ug_info->uf_info.rx_clock);
+	if (err)
+		return err;
+	err = ucc_geth_parse_clock(np, "tx", &ug_info->uf_info.tx_clock);
+	if (err)
+		return err;
 
 	err = of_address_to_resource(np, 0, &res);
 	if (err)
