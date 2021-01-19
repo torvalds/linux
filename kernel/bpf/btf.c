@@ -3540,11 +3540,6 @@ static s32 btf_datasec_check_meta(struct btf_verifier_env *env,
 		return -EINVAL;
 	}
 
-	if (!btf_type_vlen(t)) {
-		btf_verifier_log_type(env, t, "vlen == 0");
-		return -EINVAL;
-	}
-
 	if (!t->size) {
 		btf_verifier_log_type(env, t, "size == 0");
 		return -EINVAL;
