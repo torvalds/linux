@@ -4149,10 +4149,14 @@ static int walt_init_stop_handler(void *data)
 	return 0;
 }
 
-static int walt_module_init(void)
+static void walt_init(void)
 {
 	struct ctl_table_header *hdr;
+	static atomic_t already_inited = ATOMIC_INIT(0);
 	int i;
+
+	if (atomic_cmpxchg(&already_inited, 0, 1))
+		return;
 
 	walt_tunables();
 
@@ -4179,6 +4183,50 @@ static int walt_module_init(void)
 	i = match_string(sched_feat_names, __SCHED_FEAT_NR, "TTWU_QUEUE");
 	static_key_disable_cpuslocked(&sched_feat_keys[i]);
 	sysctl_sched_features &= ~(1UL << i);
+}
+
+static bool are_cpufreq_policies_available(void)
+{
+	int cpu;
+
+	for_each_possible_cpu(cpu) {
+		if (!cpufreq_cpu_get_raw(cpu))
+			return false;
+	}
+
+	return true;
+}
+
+struct work_struct walt_cpufreq_policy_work;
+
+static int walt_cpufreq_notifier_cb(struct notifier_block *nb,
+				    unsigned long action,
+				    void *data)
+{
+	if (are_cpufreq_policies_available())
+		schedule_work(&walt_cpufreq_policy_work);
+
+	return 0;
+}
+
+static struct notifier_block walt_cpufreq_notifier_block = {
+	.notifier_call  = walt_cpufreq_notifier_cb
+};
+
+static void walt_wq_cpufreq_policy_update(struct work_struct *work)
+{
+	walt_init();
+	cpufreq_unregister_notifier(&walt_cpufreq_notifier_block, CPUFREQ_POLICY_NOTIFIER);
+}
+
+static int walt_module_init(void)
+{
+	INIT_WORK(&walt_cpufreq_policy_work, walt_wq_cpufreq_policy_update);
+	cpufreq_register_notifier(&walt_cpufreq_notifier_block,
+					CPUFREQ_POLICY_NOTIFIER);
+
+	if (are_cpufreq_policies_available())
+		walt_init();
 
 	return 0;
 }
