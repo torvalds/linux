@@ -106,28 +106,53 @@ return_txq:
 	return priv->port_ptp_tc2realtxq[up];
 }
 
+static int mlx5e_select_htb_queue(struct mlx5e_priv *priv, struct sk_buff *skb,
+				  u16 htb_maj_id)
+{
+	u16 classid;
+
+	if ((TC_H_MAJ(skb->priority) >> 16) == htb_maj_id)
+		classid = TC_H_MIN(skb->priority);
+	else
+		classid = READ_ONCE(priv->htb.defcls);
+
+	if (!classid)
+		return 0;
+
+	return mlx5e_get_txq_by_classid(priv, classid);
+}
+
 u16 mlx5e_select_queue(struct net_device *dev, struct sk_buff *skb,
 		       struct net_device *sb_dev)
 {
 	struct mlx5e_priv *priv = netdev_priv(dev);
+	int num_tc_x_num_ch;
 	int txq_ix;
 	int up = 0;
 	int ch_ix;
 
-	if (unlikely(priv->channels.port_ptp)) {
-		int num_tc_x_num_ch;
+	/* Sync with mlx5e_update_num_tc_x_num_ch - avoid refetching. */
+	num_tc_x_num_ch = READ_ONCE(priv->num_tc_x_num_ch);
+	if (unlikely(dev->real_num_tx_queues > num_tc_x_num_ch)) {
+		/* Order maj_id before defcls - pairs with mlx5e_htb_root_add. */
+		u16 htb_maj_id = smp_load_acquire(&priv->htb.maj_id);
 
-		if (unlikely(skb_shinfo(skb)->tx_flags & SKBTX_HW_TSTAMP) &&
-		    mlx5e_use_ptpsq(skb))
-			return mlx5e_select_ptpsq(dev, skb);
+		if (unlikely(htb_maj_id)) {
+			txq_ix = mlx5e_select_htb_queue(priv, skb, htb_maj_id);
+			if (txq_ix > 0)
+				return txq_ix;
+		}
 
-		/* Sync with mlx5e_update_num_tc_x_num_ch - avoid refetching. */
-		num_tc_x_num_ch = READ_ONCE(priv->num_tc_x_num_ch);
+		if (unlikely(priv->channels.port_ptp))
+			if (unlikely(skb_shinfo(skb)->tx_flags & SKBTX_HW_TSTAMP) &&
+			    mlx5e_use_ptpsq(skb))
+				return mlx5e_select_ptpsq(dev, skb);
 
 		txq_ix = netdev_pick_tx(dev, skb, NULL);
-		/* Fix netdev_pick_tx() not to choose ptp_channel txqs.
+		/* Fix netdev_pick_tx() not to choose ptp_channel and HTB txqs.
 		 * If they are selected, switch to regular queues.
-		 * Driver to select these queues only at mlx5e_select_ptpsq().
+		 * Driver to select these queues only at mlx5e_select_ptpsq()
+		 * and mlx5e_select_htb_queue().
 		 */
 		if (unlikely(txq_ix >= num_tc_x_num_ch))
 			txq_ix %= num_tc_x_num_ch;
@@ -702,6 +727,10 @@ netdev_tx_t mlx5e_xmit(struct sk_buff *skb, struct net_device *dev)
 	u16 pi;
 
 	sq = priv->txq2sq[skb_get_queue_mapping(skb)];
+	if (unlikely(!sq)) {
+		dev_kfree_skb_any(skb);
+		return NETDEV_TX_OK;
+	}
 
 	/* May send SKBs and WQEs. */
 	if (unlikely(!mlx5e_accel_tx_begin(dev, sq, skb, &accel)))
