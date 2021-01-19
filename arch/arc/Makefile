@@ -91,14 +91,9 @@ libs-y		+= arch/arc/lib/ $(LIBGCC)
 
 boot		:= arch/arc/boot
 
-#default target for make without any arguments.
-KBUILD_IMAGE	:= $(boot)/bootpImage
+boot_targets := uImage uImage.bin uImage.gz uImage.lzma
 
-all:	bootpImage
-bootpImage: vmlinux
-
-boot_targets += uImage uImage.bin uImage.gz
-
+PHONY += $(boot_targets)
 $(boot_targets): vmlinux
 	$(Q)$(MAKE) $(build)=$(boot) $(boot)/$@
 
