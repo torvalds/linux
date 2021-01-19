@@ -2506,9 +2506,6 @@ static int ucc_geth_startup(struct ucc_geth_private *ugeth)
 	ugeth->p_tx_glbl_pram =
 	    (struct ucc_geth_tx_global_pram __iomem *) qe_muram_addr(ugeth->
 							tx_glbl_pram_offset);
-	/* Zero out p_tx_glbl_pram */
-	memset_io((void __iomem *)ugeth->p_tx_glbl_pram, 0, sizeof(struct ucc_geth_tx_global_pram));
-
 	/* Fill global PRAM */
 
 	/* TQPTR */
@@ -2596,8 +2593,6 @@ static int ucc_geth_startup(struct ucc_geth_private *ugeth)
 							   scheduler_offset);
 		out_be32(&ugeth->p_tx_glbl_pram->schedulerbasepointer,
 			 ugeth->scheduler_offset);
-		/* Zero out p_scheduler */
-		memset_io((void __iomem *)ugeth->p_scheduler, 0, sizeof(struct ucc_geth_scheduler));
 
 		/* Set values in scheduler */
 		out_be32(&ugeth->p_scheduler->mblinterval,
@@ -2640,9 +2635,6 @@ static int ucc_geth_startup(struct ucc_geth_private *ugeth)
 		ugeth->p_tx_fw_statistics_pram =
 		    (struct ucc_geth_tx_firmware_statistics_pram __iomem *)
 		    qe_muram_addr(ugeth->tx_fw_statistics_pram_offset);
-		/* Zero out p_tx_fw_statistics_pram */
-		memset_io((void __iomem *)ugeth->p_tx_fw_statistics_pram,
-		       0, sizeof(struct ucc_geth_tx_firmware_statistics_pram));
 	}
 
 	/* temoder */
@@ -2675,9 +2667,6 @@ static int ucc_geth_startup(struct ucc_geth_private *ugeth)
 	ugeth->p_rx_glbl_pram =
 	    (struct ucc_geth_rx_global_pram __iomem *) qe_muram_addr(ugeth->
 							rx_glbl_pram_offset);
-	/* Zero out p_rx_glbl_pram */
-	memset_io((void __iomem *)ugeth->p_rx_glbl_pram, 0, sizeof(struct ucc_geth_rx_global_pram));
-
 	/* Fill global PRAM */
 
 	/* RQPTR */
@@ -2715,9 +2704,6 @@ static int ucc_geth_startup(struct ucc_geth_private *ugeth)
 		ugeth->p_rx_fw_statistics_pram =
 		    (struct ucc_geth_rx_firmware_statistics_pram __iomem *)
 		    qe_muram_addr(ugeth->rx_fw_statistics_pram_offset);
-		/* Zero out p_rx_fw_statistics_pram */
-		memset_io((void __iomem *)ugeth->p_rx_fw_statistics_pram, 0,
-		       sizeof(struct ucc_geth_rx_firmware_statistics_pram));
 	}
 
 	/* intCoalescingPtr */
@@ -2803,11 +2789,6 @@ static int ucc_geth_startup(struct ucc_geth_private *ugeth)
 	    (struct ucc_geth_rx_bd_queues_entry __iomem *) qe_muram_addr(ugeth->
 				    rx_bd_qs_tbl_offset);
 	out_be32(&ugeth->p_rx_glbl_pram->rbdqptr, ugeth->rx_bd_qs_tbl_offset);
-	/* Zero out p_rx_bd_qs_tbl */
-	memset_io((void __iomem *)ugeth->p_rx_bd_qs_tbl,
-	       0,
-	       ug_info->numQueuesRx * (sizeof(struct ucc_geth_rx_bd_queues_entry) +
-				       sizeof(struct ucc_geth_rx_prefetched_bds)));
 
 	/* Setup the table */
 	/* Assume BD rings are already established */
