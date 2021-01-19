@@ -1559,54 +1559,54 @@ extern const struct i915_rev_steppings kbl_revids[];
 	(IS_JSL_EHL(p) && IS_REVID(p, since, until))
 
 enum {
-	TGL_REVID_A0,
-	TGL_REVID_B0,
-	TGL_REVID_B1,
-	TGL_REVID_C0,
-	TGL_REVID_D0,
+	STEP_A0,
+	STEP_B0,
+	STEP_B1,
+	STEP_C0,
+	STEP_D0,
 };
 
-#define TGL_UY_REVIDS_SIZE	4
-#define TGL_REVIDS_SIZE		2
+#define TGL_UY_REVID_STEP_TBL_SIZE	4
+#define TGL_REVID_STEP_TBL_SIZE		2
 
-extern const struct i915_rev_steppings tgl_uy_revids[TGL_UY_REVIDS_SIZE];
-extern const struct i915_rev_steppings tgl_revids[TGL_REVIDS_SIZE];
+extern const struct i915_rev_steppings tgl_uy_revid_step_tbl[TGL_UY_REVID_STEP_TBL_SIZE];
+extern const struct i915_rev_steppings tgl_revid_step_tbl[TGL_REVID_STEP_TBL_SIZE];
 
 static inline const struct i915_rev_steppings *
-tgl_revids_get(struct drm_i915_private *dev_priv)
+tgl_stepping_get(struct drm_i915_private *dev_priv)
 {
 	u8 revid = INTEL_REVID(dev_priv);
 	u8 size;
-	const struct i915_rev_steppings *tgl_revid_tbl;
+	const struct i915_rev_steppings *revid_step_tbl;
 
 	if (IS_TGL_U(dev_priv) || IS_TGL_Y(dev_priv)) {
-		tgl_revid_tbl = tgl_uy_revids;
-		size = ARRAY_SIZE(tgl_uy_revids);
+		revid_step_tbl = tgl_uy_revid_step_tbl;
+		size = ARRAY_SIZE(tgl_uy_revid_step_tbl);
 	} else {
-		tgl_revid_tbl = tgl_revids;
-		size = ARRAY_SIZE(tgl_revids);
+		revid_step_tbl = tgl_revid_step_tbl;
+		size = ARRAY_SIZE(tgl_revid_step_tbl);
 	}
 
 	revid = min_t(u8, revid, size - 1);
 
-	return &tgl_revid_tbl[revid];
+	return &revid_step_tbl[revid];
 }
 
-#define IS_TGL_DISP_REVID(p, since, until) \
+#define IS_TGL_DISP_STEPPING(p, since, until) \
 	(IS_TIGERLAKE(p) && \
-	 tgl_revids_get(p)->disp_stepping >= (since) && \
-	 tgl_revids_get(p)->disp_stepping <= (until))
+	 tgl_stepping_get(p)->disp_stepping >= (since) && \
+	 tgl_stepping_get(p)->disp_stepping <= (until))
 
-#define IS_TGL_UY_GT_REVID(p, since, until) \
+#define IS_TGL_UY_GT_STEPPING(p, since, until) \
 	((IS_TGL_U(p) || IS_TGL_Y(p)) && \
-	 tgl_revids_get(p)->gt_stepping >= (since) && \
-	 tgl_revids_get(p)->gt_stepping <= (until))
+	 tgl_stepping_get(p)->gt_stepping >= (since) && \
+	 tgl_stepping_get(p)->gt_stepping <= (until))
 
-#define IS_TGL_GT_REVID(p, since, until) \
+#define IS_TGL_GT_STEPPING(p, since, until) \
 	(IS_TIGERLAKE(p) && \
 	 !(IS_TGL_U(p) || IS_TGL_Y(p)) && \
-	 tgl_revids_get(p)->gt_stepping >= (since) && \
-	 tgl_revids_get(p)->gt_stepping <= (until))
+	 tgl_stepping_get(p)->gt_stepping >= (since) && \
+	 tgl_stepping_get(p)->gt_stepping <= (until))
 
 #define RKL_REVID_A0		0x0
 #define RKL_REVID_B0		0x1

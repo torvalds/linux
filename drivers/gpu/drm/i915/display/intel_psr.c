@@ -550,7 +550,7 @@ static void hsw_activate_psr2(struct intel_dp *intel_dp)
 
 	if (dev_priv->psr.psr2_sel_fetch_enabled) {
 		/* WA 1408330847 */
-		if (IS_TGL_DISP_REVID(dev_priv, TGL_REVID_A0, TGL_REVID_A0) ||
+		if (IS_TGL_DISP_STEPPING(dev_priv, STEP_A0, STEP_A0) ||
 		    IS_RKL_REVID(dev_priv, RKL_REVID_A0, RKL_REVID_A0))
 			intel_de_rmw(dev_priv, CHICKEN_PAR1_1,
 				     DIS_RAM_BYPASS_PSR2_MAN_TRACK,
@@ -1102,7 +1102,7 @@ static void intel_psr_disable_locked(struct intel_dp *intel_dp)
 
 	/* WA 1408330847 */
 	if (dev_priv->psr.psr2_sel_fetch_enabled &&
-	    (IS_TGL_DISP_REVID(dev_priv, TGL_REVID_A0, TGL_REVID_A0) ||
+	    (IS_TGL_DISP_STEPPING(dev_priv, STEP_A0, STEP_A0) ||
 	     IS_RKL_REVID(dev_priv, RKL_REVID_A0, RKL_REVID_A0)))
 		intel_de_rmw(dev_priv, CHICKEN_PAR1_1,
 			     DIS_RAM_BYPASS_PSR2_MAN_TRACK, 0);

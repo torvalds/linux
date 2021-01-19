@@ -71,17 +71,17 @@ const struct i915_rev_steppings kbl_revids[] = {
 	[7] = { .gt_stepping = KBL_REVID_G0, .disp_stepping = KBL_REVID_C0 },
 };
 
-const struct i915_rev_steppings tgl_uy_revids[] = {
-	[0] = { .gt_stepping = TGL_REVID_A0, .disp_stepping = TGL_REVID_A0 },
-	[1] = { .gt_stepping = TGL_REVID_B0, .disp_stepping = TGL_REVID_C0 },
-	[2] = { .gt_stepping = TGL_REVID_B1, .disp_stepping = TGL_REVID_C0 },
-	[3] = { .gt_stepping = TGL_REVID_C0, .disp_stepping = TGL_REVID_D0 },
+const struct i915_rev_steppings tgl_uy_revid_step_tbl[] = {
+	[0] = { .gt_stepping = STEP_A0, .disp_stepping = STEP_A0 },
+	[1] = { .gt_stepping = STEP_B0, .disp_stepping = STEP_C0 },
+	[2] = { .gt_stepping = STEP_B1, .disp_stepping = STEP_C0 },
+	[3] = { .gt_stepping = STEP_C0, .disp_stepping = STEP_D0 },
 };
 
 /* Same GT stepping between tgl_uy_revids and tgl_revids don't mean the same HW */
-const struct i915_rev_steppings tgl_revids[] = {
-	[0] = { .gt_stepping = TGL_REVID_A0, .disp_stepping = TGL_REVID_B0 },
-	[1] = { .gt_stepping = TGL_REVID_B0, .disp_stepping = TGL_REVID_D0 },
+const struct i915_rev_steppings tgl_revid_step_tbl[] = {
+	[0] = { .gt_stepping = STEP_A0, .disp_stepping = STEP_B0 },
+	[1] = { .gt_stepping = STEP_B0, .disp_stepping = STEP_D0 },
 };
 
 static void wa_init_start(struct i915_wa_list *wal, const char *name, const char *engine_name)
@@ -1123,19 +1123,19 @@ tgl_gt_workarounds_init(struct drm_i915_private *i915, struct i915_wa_list *wal)
 	gen12_gt_workarounds_init(i915, wal);
 
 	/* Wa_1409420604:tgl */
-	if (IS_TGL_UY_GT_REVID(i915, TGL_REVID_A0, TGL_REVID_A0))
+	if (IS_TGL_UY_GT_STEPPING(i915, STEP_A0, STEP_A0))
 		wa_write_or(wal,
 			    SUBSLICE_UNIT_LEVEL_CLKGATE2,
 			    CPSSUNIT_CLKGATE_DIS);
 
 	/* Wa_1607087056:tgl also know as BUG:1409180338 */
-	if (IS_TGL_UY_GT_REVID(i915, TGL_REVID_A0, TGL_REVID_A0))
+	if (IS_TGL_UY_GT_STEPPING(i915, STEP_A0, STEP_A0))
 		wa_write_or(wal,
 			    SLICE_UNIT_LEVEL_CLKGATE,
 			    L3_CLKGATE_DIS | L3_CR2X_CLKGATE_DIS);
 
 	/* Wa_1408615072:tgl[a0] */
-	if (IS_TGL_UY_GT_REVID(i915, TGL_REVID_A0, TGL_REVID_A0))
+	if (IS_TGL_UY_GT_STEPPING(i915, STEP_A0, STEP_A0))
 		wa_write_or(wal, UNSLICE_UNIT_LEVEL_CLKGATE2,
 			    VSUNIT_CLKGATE_DIS_TGL);
 }
@@ -1613,7 +1613,7 @@ rcs_engine_wa_init(struct intel_engine_cs *engine, struct i915_wa_list *wal)
 	struct drm_i915_private *i915 = engine->i915;
 
 	if (IS_DG1_REVID(i915, DG1_REVID_A0, DG1_REVID_A0) ||
-	    IS_TGL_UY_GT_REVID(i915, TGL_REVID_A0, TGL_REVID_A0)) {
+	    IS_TGL_UY_GT_STEPPING(i915, STEP_A0, STEP_A0)) {
 		/*
 		 * Wa_1607138336:tgl[a0],dg1[a0]
 		 * Wa_1607063988:tgl[a0],dg1[a0]
@@ -1623,7 +1623,7 @@ rcs_engine_wa_init(struct intel_engine_cs *engine, struct i915_wa_list *wal)
 			    GEN12_DISABLE_POSH_BUSY_FF_DOP_CG);
 	}
 
-	if (IS_TGL_UY_GT_REVID(i915, TGL_REVID_A0, TGL_REVID_A0)) {
+	if (IS_TGL_UY_GT_STEPPING(i915, STEP_A0, STEP_A0)) {
 		/*
 		 * Wa_1606679103:tgl
 		 * (see also Wa_1606682166:icl)
