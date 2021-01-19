@@ -1988,7 +1988,7 @@ static struct io_kiocb *io_alloc_req(struct io_ring_ctx *ctx,
 		if (unlikely(ret <= 0)) {
 			state->reqs[0] = kmem_cache_alloc(req_cachep, gfp);
 			if (!state->reqs[0])
-				goto fallback;
+				return io_get_fallback_req(ctx);
 			ret = 1;
 		}
 		state->free_reqs = ret;
@@ -1996,8 +1996,6 @@ static struct io_kiocb *io_alloc_req(struct io_ring_ctx *ctx,
 
 	state->free_reqs--;
 	return state->reqs[state->free_reqs];
-fallback:
-	return io_get_fallback_req(ctx);
 }
 
 static inline void io_put_file(struct io_kiocb *req, struct file *file,
