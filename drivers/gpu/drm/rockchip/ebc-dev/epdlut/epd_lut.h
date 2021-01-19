@@ -40,6 +40,7 @@ enum pvi_wf_mode {
 struct epd_lut_data {
 	unsigned int frame_num;
 	unsigned int *data;
+	u8 *wf_table;
 };
 
 /*

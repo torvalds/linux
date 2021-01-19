@@ -21,15 +21,8 @@ struct panel_buffer {
 struct ebc_panel {
 	struct device *dev;
 	struct ebc_tcon *tcon;
-	struct eink_tcon *eink_tcon;
 	struct ebc_pmic *pmic;
 	struct panel_buffer fb[DIRECT_FB_NUM]; //for direct mode, one pixel 2bit
-	struct panel_buffer auto_old; //for three win mode, one pixel 4bit
-	struct panel_buffer auto_new; //for three win mode, one pixel 4bit
-	struct panel_buffer auto_count; //for three win mode, one pixel 8bit
-	struct panel_buffer eink_buf[2]; //for eink module, one pixel 16bit
-	struct panel_buffer *eink_prev_buf;
-	struct panel_buffer *eink_curr_buf;
 	int current_buffer;
 
 	u32 width;
