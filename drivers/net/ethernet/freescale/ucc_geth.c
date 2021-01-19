@@ -70,6 +70,20 @@ static struct {
 module_param_named(debug, debug.msg_enable, int, 0);
 MODULE_PARM_DESC(debug, "Debug verbosity level (0=none, ..., 0xffff=all)");
 
+static int ucc_geth_thread_count(enum ucc_geth_num_of_threads idx)
+{
+	static const u8 count[] = {
+		[UCC_GETH_NUM_OF_THREADS_1] = 1,
+		[UCC_GETH_NUM_OF_THREADS_2] = 2,
+		[UCC_GETH_NUM_OF_THREADS_4] = 4,
+		[UCC_GETH_NUM_OF_THREADS_6] = 6,
+		[UCC_GETH_NUM_OF_THREADS_8] = 8,
+	};
+	if (idx >= ARRAY_SIZE(count))
+		return 0;
+	return count[idx];
+}
+
 static const struct ucc_geth_info ugeth_primary_info = {
 	.uf_info = {
 		    .rtsm = UCC_FAST_SEND_IDLES_BETWEEN_FRAMES,
@@ -668,32 +682,12 @@ static void dump_regs(struct ucc_geth_private *ugeth)
 		in_be32(&ugeth->ug_regs->scam));
 
 	if (ugeth->p_thread_data_tx) {
-		int numThreadsTxNumerical;
-		switch (ugeth->ug_info->numThreadsTx) {
-		case UCC_GETH_NUM_OF_THREADS_1:
-			numThreadsTxNumerical = 1;
-			break;
-		case UCC_GETH_NUM_OF_THREADS_2:
-			numThreadsTxNumerical = 2;
-			break;
-		case UCC_GETH_NUM_OF_THREADS_4:
-			numThreadsTxNumerical = 4;
-			break;
-		case UCC_GETH_NUM_OF_THREADS_6:
-			numThreadsTxNumerical = 6;
-			break;
-		case UCC_GETH_NUM_OF_THREADS_8:
-			numThreadsTxNumerical = 8;
-			break;
-		default:
-			numThreadsTxNumerical = 0;
-			break;
-		}
+		int count = ucc_geth_thread_count(ugeth->ug_info->numThreadsTx);
 
 		pr_info("Thread data TXs:\n");
 		pr_info("Base address: 0x%08x\n",
 			(u32)ugeth->p_thread_data_tx);
-		for (i = 0; i < numThreadsTxNumerical; i++) {
+		for (i = 0; i < count; i++) {
 			pr_info("Thread data TX[%d]:\n", i);
 			pr_info("Base address: 0x%08x\n",
 				(u32)&ugeth->p_thread_data_tx[i]);
@@ -702,32 +696,12 @@ static void dump_regs(struct ucc_geth_private *ugeth)
 		}
 	}
 	if (ugeth->p_thread_data_rx) {
-		int numThreadsRxNumerical;
-		switch (ugeth->ug_info->numThreadsRx) {
-		case UCC_GETH_NUM_OF_THREADS_1:
-			numThreadsRxNumerical = 1;
-			break;
-		case UCC_GETH_NUM_OF_THREADS_2:
-			numThreadsRxNumerical = 2;
-			break;
-		case UCC_GETH_NUM_OF_THREADS_4:
-			numThreadsRxNumerical = 4;
-			break;
-		case UCC_GETH_NUM_OF_THREADS_6:
-			numThreadsRxNumerical = 6;
-			break;
-		case UCC_GETH_NUM_OF_THREADS_8:
-			numThreadsRxNumerical = 8;
-			break;
-		default:
-			numThreadsRxNumerical = 0;
-			break;
-		}
+		int count = ucc_geth_thread_count(ugeth->ug_info->numThreadsRx);
 
 		pr_info("Thread data RX:\n");
 		pr_info("Base address: 0x%08x\n",
 			(u32)ugeth->p_thread_data_rx);
-		for (i = 0; i < numThreadsRxNumerical; i++) {
+		for (i = 0; i < count; i++) {
 			pr_info("Thread data RX[%d]:\n", i);
 			pr_info("Base address: 0x%08x\n",
 				(u32)&ugeth->p_thread_data_rx[i]);
@@ -2315,45 +2289,15 @@ static int ucc_geth_startup(struct ucc_geth_private *ugeth)
 	uf_regs = uccf->uf_regs;
 	ug_regs = ugeth->ug_regs;
 
-	switch (ug_info->numThreadsRx) {
-	case UCC_GETH_NUM_OF_THREADS_1:
-		numThreadsRxNumerical = 1;
-		break;
-	case UCC_GETH_NUM_OF_THREADS_2:
-		numThreadsRxNumerical = 2;
-		break;
-	case UCC_GETH_NUM_OF_THREADS_4:
-		numThreadsRxNumerical = 4;
-		break;
-	case UCC_GETH_NUM_OF_THREADS_6:
-		numThreadsRxNumerical = 6;
-		break;
-	case UCC_GETH_NUM_OF_THREADS_8:
-		numThreadsRxNumerical = 8;
-		break;
-	default:
+	numThreadsRxNumerical = ucc_geth_thread_count(ug_info->numThreadsRx);
+	if (!numThreadsRxNumerical) {
 		if (netif_msg_ifup(ugeth))
 			pr_err("Bad number of Rx threads value\n");
 		return -EINVAL;
 	}
 
-	switch (ug_info->numThreadsTx) {
-	case UCC_GETH_NUM_OF_THREADS_1:
-		numThreadsTxNumerical = 1;
-		break;
-	case UCC_GETH_NUM_OF_THREADS_2:
-		numThreadsTxNumerical = 2;
-		break;
-	case UCC_GETH_NUM_OF_THREADS_4:
-		numThreadsTxNumerical = 4;
-		break;
-	case UCC_GETH_NUM_OF_THREADS_6:
-		numThreadsTxNumerical = 6;
-		break;
-	case UCC_GETH_NUM_OF_THREADS_8:
-		numThreadsTxNumerical = 8;
-		break;
-	default:
+	numThreadsTxNumerical = ucc_geth_thread_count(ug_info->numThreadsTx);
+	if (!numThreadsTxNumerical) {
 		if (netif_msg_ifup(ugeth))
 			pr_err("Bad number of Tx threads value\n");
 		return -EINVAL;
