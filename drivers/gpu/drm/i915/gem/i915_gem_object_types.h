@@ -67,6 +67,14 @@ struct drm_i915_gem_object_ops {
 	const char *name; /* friendly name for debug, e.g. lockdep classes */
 };
 
+enum i915_map_type {
+	I915_MAP_WB = 0,
+	I915_MAP_WC,
+#define I915_MAP_OVERRIDE BIT(31)
+	I915_MAP_FORCE_WB = I915_MAP_WB | I915_MAP_OVERRIDE,
+	I915_MAP_FORCE_WC = I915_MAP_WC | I915_MAP_OVERRIDE,
+};
+
 enum i915_mmap_type {
 	I915_MMAP_TYPE_GTT = 0,
 	I915_MMAP_TYPE_WC,
