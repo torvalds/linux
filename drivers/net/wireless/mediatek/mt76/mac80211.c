@@ -387,9 +387,9 @@ void mt76_unregister_phy(struct mt76_phy *phy)
 {
 	struct mt76_dev *dev = phy->dev;
 
-	dev->phy2 = NULL;
 	mt76_tx_status_check(dev, NULL, true);
 	ieee80211_unregister_hw(phy->hw);
+	dev->phy2 = NULL;
 }
 EXPORT_SYMBOL_GPL(mt76_unregister_phy);
 
