@@ -3401,6 +3401,25 @@ int mt7915_mcu_set_ser(struct mt7915_dev *dev, u8 action, u8 set, u8 band)
 				 &req, sizeof(req), false);
 }
 
+int mt7915_mcu_set_txbf_module(struct mt7915_dev *dev)
+{
+#define MT_BF_MODULE_UPDATE               25
+	struct {
+		u8 action;
+		u8 bf_num;
+		u8 bf_bitmap;
+		u8 bf_sel[8];
+		u8 rsv[8];
+	} __packed req = {
+		.action = MT_BF_MODULE_UPDATE,
+		.bf_num = 2,
+		.bf_bitmap = GENMASK(1, 0),
+	};
+
+	return mt76_mcu_send_msg(&dev->mt76, MCU_EXT_CMD(TXBF_ACTION), &req,
+				 sizeof(req), true);
+}
+
 int mt7915_mcu_set_txbf_type(struct mt7915_dev *dev)
 {
 #define MT_BF_TYPE_UPDATE		20

@@ -169,6 +169,13 @@ static int mt7915_txbf_init(struct mt7915_dev *dev)
 {
 	int ret;
 
+
+	if (dev->dbdc_support) {
+		ret = mt7915_mcu_set_txbf_module(dev);
+		if (ret)
+			return ret;
+	}
+
 	/* trigger sounding packets */
 	ret = mt7915_mcu_set_txbf_sounding(dev);
 	if (ret)
