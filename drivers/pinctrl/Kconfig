@@ -271,12 +271,6 @@ config PINCTRL_STMFX
 	  and configuring push-pull, open-drain, and can also be used as
 	  interrupt-controller.
 
-config PINCTRL_U300
-	bool "U300 pin controller driver"
-	depends on ARCH_U300
-	select PINMUX
-	select GENERIC_PINCONF
-
 config PINCTRL_MAX77620
 	tristate "MAX77620/MAX20024 Pincontrol support"
 	depends on MFD_MAX77620 && OF
