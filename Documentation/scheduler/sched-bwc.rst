@@ -25,9 +25,10 @@ Management
 ----------
 Quota and period are managed within the cpu subsystem via cgroupfs.
 
-cpu.cfs_quota_us: the total available run-time within a period (in microseconds)
-cpu.cfs_period_us: the length of a period (in microseconds)
-cpu.stat: exports throttling statistics [explained further below]
+- cpu.cfs_quota_us: the total available run-time within a period (in
+  microseconds)
+- cpu.cfs_period_us: the length of a period (in microseconds)
+- cpu.stat: exports throttling statistics [explained further below]
 
 The default values are::
 
