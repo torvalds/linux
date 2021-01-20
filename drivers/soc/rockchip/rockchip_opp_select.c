@@ -393,6 +393,10 @@ static int rockchip_get_pvtm_specific_value(struct device *dev,
 		if (max_value - min_value < pvtm->err)
 			break;
 	}
+	if (!total_value || !pvtm->num) {
+		ret = -EINVAL;
+		goto resetore_volt;
+	}
 	avg_value = total_value / pvtm->num;
 
 	/*
