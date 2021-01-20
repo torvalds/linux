@@ -2210,14 +2210,6 @@ static bool __grp_src_block_incl(struct net_bridge_port_group *pg, void *h_addr,
 	if (to_send)
 		__grp_src_query_marked_and_rexmit(pg);
 
-	if (pg->filter_mode == MCAST_INCLUDE && hlist_empty(&pg->src_list)) {
-		br_multicast_find_del_pg(pg->key.port->br, pg);
-		/* a notification has already been sent and we shouldn't access
-		 * pg after the delete thus we have to return false
-		 */
-		changed = false;
-	}
-
 	return changed;
 }
 
@@ -2277,6 +2269,15 @@ static bool br_multicast_block(struct net_bridge_port_group *pg, void *h_addr,
 		changed = __grp_src_block_excl(pg, h_addr, srcs, nsrcs, addr_size,
 					       grec_type);
 		break;
+	}
+
+	if ((pg->filter_mode == MCAST_INCLUDE && hlist_empty(&pg->src_list)) ||
+	    br_multicast_eht_should_del_pg(pg)) {
+		br_multicast_find_del_pg(pg->key.port->br, pg);
+		/* a notification has already been sent and we shouldn't
+		 * access pg after the delete so we have to return false
+		 */
+		changed = false;
 	}
 
 	return changed;
