@@ -615,6 +615,9 @@ static ssize_t state_store(struct kobject *kobj, struct kobj_attribute *attr,
 		if (state == PM_SUSPEND_MEM)
 			state = mem_sleep_current;
 
+		if (state == PM_SUSPEND_MEM_LITE || state == PM_SUSPEND_MEM_ULTRA)
+			state = PM_SUSPEND_MEM;
+
 		error = pm_suspend(state);
 	} else if (state == PM_SUSPEND_MAX) {
 		error = hibernate();

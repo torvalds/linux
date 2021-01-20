@@ -46,6 +46,8 @@ static const char * const mem_sleep_labels[] = {
 	[PM_SUSPEND_TO_IDLE] = "s2idle",
 	[PM_SUSPEND_STANDBY] = "shallow",
 	[PM_SUSPEND_MEM] = "deep",
+	[PM_SUSPEND_MEM_LITE] = "lite",
+	[PM_SUSPEND_MEM_ULTRA] = "ultra",
 };
 const char *mem_sleep_states[PM_SUSPEND_MAX];
 
@@ -230,6 +232,8 @@ void suspend_set_ops(const struct platform_suspend_ops *ops)
 	}
 	if (valid_state(PM_SUSPEND_MEM)) {
 		mem_sleep_states[PM_SUSPEND_MEM] = mem_sleep_labels[PM_SUSPEND_MEM];
+		mem_sleep_states[PM_SUSPEND_MEM_LITE] = mem_sleep_labels[PM_SUSPEND_MEM_LITE];
+		mem_sleep_states[PM_SUSPEND_MEM_ULTRA] = mem_sleep_labels[PM_SUSPEND_MEM_ULTRA];
 		if (mem_sleep_default >= PM_SUSPEND_MEM)
 			mem_sleep_current = PM_SUSPEND_MEM;
 	}
