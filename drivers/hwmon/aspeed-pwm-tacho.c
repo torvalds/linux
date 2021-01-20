@@ -568,14 +568,15 @@ static int aspeed_get_fan_tach_ch_rpm(struct aspeed_pwm_tacho_data *priv,
 	 */
 	mode = priv->type_fan_tach_mode[type];
 	both = (mode & BOTH_EDGES) ? 1 : 0;
-
-	tach_div = (0x4 << both) << (tach_div * 2);
+	raw_data <<= both;
+	/* 4^(tach_div+1) */
+	tach_div = 0x4 << (tach_div * 2);
 	clk_source = priv->clk_freq;
 
 	if (raw_data == 0)
 		return 0;
 
-	return (clk_source * 60) / (2 * raw_data * tach_div);
+	return (clk_source * 60) / (priv->pulse_pr * raw_data * tach_div);
 }
 
 static ssize_t pwm_store(struct device *dev, struct device_attribute *attr,
