@@ -537,7 +537,7 @@ static bool __eht_allow_excl(struct net_bridge_port_group *pg,
 			src_ent = br_multicast_find_group_src(pg, &src_ip);
 			if (!src_ent)
 				continue;
-			br_multicast_del_group_src(src_ent);
+			br_multicast_del_group_src(src_ent, true);
 			changed = true;
 		}
 	}
@@ -588,7 +588,7 @@ static bool __eht_block_incl(struct net_bridge_port_group *pg,
 		src_ent = br_multicast_find_group_src(pg, &src_ip);
 		if (!src_ent)
 			continue;
-		br_multicast_del_group_src(src_ent);
+		br_multicast_del_group_src(src_ent, true);
 		changed = true;
 	}
 
@@ -625,7 +625,7 @@ static bool __eht_block_excl(struct net_bridge_port_group *pg,
 			src_ent = br_multicast_find_group_src(pg, &src_ip);
 			if (!src_ent)
 				continue;
-			br_multicast_del_group_src(src_ent);
+			br_multicast_del_group_src(src_ent, true);
 			changed = true;
 		}
 	}
@@ -689,7 +689,7 @@ static bool __eht_inc_exc(struct net_bridge_port_group *pg,
 			br_multicast_ip_src_to_eht_addr(&src_ent->addr,
 							&eht_src_addr);
 			if (!br_multicast_eht_set_lookup(pg, &eht_src_addr)) {
-				br_multicast_del_group_src(src_ent);
+				br_multicast_del_group_src(src_ent, true);
 				changed = true;
 				continue;
 			}
