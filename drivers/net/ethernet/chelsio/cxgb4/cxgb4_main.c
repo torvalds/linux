@@ -5137,7 +5137,7 @@ static int adap_init0(struct adapter *adap, int vpd_skip)
 
 	/* See if FW supports FW_FILTER2 work request */
 	if (is_t4(adap->params.chip)) {
-		adap->params.filter2_wr_support = 0;
+		adap->params.filter2_wr_support = false;
 	} else {
 		params[0] = FW_PARAM_DEV(FILTER2_WR);
 		ret = t4_query_params(adap, adap->mbox, adap->pf, 0,
