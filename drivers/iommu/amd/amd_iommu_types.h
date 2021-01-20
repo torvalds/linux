@@ -379,6 +379,10 @@
 #define IOMMU_CAP_NPCACHE 26
 #define IOMMU_CAP_EFR     27
 
+/* IOMMU IVINFO */
+#define IOMMU_IVINFO_OFFSET     36
+#define IOMMU_IVINFO_EFRSUP     BIT(0)
+
 /* IOMMU Feature Reporting Field (for IVHD type 10h */
 #define IOMMU_FEAT_GASUP_SHIFT	6
 
