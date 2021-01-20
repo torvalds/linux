@@ -1,5 +1,5 @@
 /*
- * Copyright 2012-15 Advanced Micro Devices, Inc.
+ * Copyright 2021 Advanced Micro Devices, Inc.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -19,24 +19,18 @@
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
  * OTHER DEALINGS IN THE SOFTWARE.
  *
- * Authors: AMD
  *
  */
+#ifndef _AMDGPU_SECUREDISPLAY_H
+#define _AMDGPU_SECUREDISPLAY_H
 
-#ifndef __DAL_DC_COMMON_H__
-#define __DAL_DC_COMMON_H__
+#include "amdgpu.h"
+#include "ta_secureDisplay_if.h"
 
-#include "core_types.h"
-
-bool is_rgb_cspace(enum dc_color_space output_color_space);
-
-bool is_child_pipe_tree_visible(struct pipe_ctx *pipe_ctx);
-
-bool is_parent_pipe_tree_visible(struct pipe_ctx *pipe_ctx);
-
-bool is_pipe_tree_visible(struct pipe_ctx *pipe_ctx);
-
-void build_prescale_params(struct  dc_bias_and_scale *bias_and_scale,
-		const struct dc_plane_state *plane_state);
+void amdgpu_securedisplay_debugfs_init(struct amdgpu_device *adev);
+void psp_securedisplay_parse_resp_status(struct psp_context *psp,
+		enum ta_securedisplay_status status);
+void psp_prep_securedisplay_cmd_buf(struct psp_context *psp, struct securedisplay_cmd **cmd,
+		enum ta_securedisplay_command command_id);
 
 #endif

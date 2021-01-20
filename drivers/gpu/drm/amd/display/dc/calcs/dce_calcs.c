@@ -106,7 +106,6 @@ static void calculate_bandwidth(
 	bool lpt_enabled;
 	enum bw_defines sclk_message;
 	enum bw_defines yclk_message;
-	enum bw_defines v_filter_init_mode[maximum_number_of_surfaces];
 	enum bw_defines tiling_mode[maximum_number_of_surfaces];
 	enum bw_defines surface_type[maximum_number_of_surfaces];
 	enum bw_defines voltage;
@@ -792,11 +791,7 @@ static void calculate_bandwidth(
 				data->v_filter_init[i] = bw_add(data->v_filter_init[i], bw_int_to_fixed(1));
 			}
 			if (data->stereo_mode[i] == bw_def_top_bottom) {
-				v_filter_init_mode[i] = bw_def_manual;
 				data->v_filter_init[i] = bw_min2(data->v_filter_init[i], bw_int_to_fixed(4));
-			}
-			else {
-				v_filter_init_mode[i] = bw_def_auto;
 			}
 			if (data->stereo_mode[i] == bw_def_top_bottom) {
 				data->num_lines_at_frame_start = bw_int_to_fixed(1);
@@ -2730,7 +2725,7 @@ void bw_calcs_init(struct bw_calcs_dceip *bw_dceip,
 
 }
 
-/**
+/*
  * Compare calculated (required) clocks against the clocks available at
  * maximum voltage (max Performance Level).
  */
@@ -3001,13 +2996,12 @@ static bool all_displays_in_sync(const struct pipe_ctx pipe[],
 	return true;
 }
 
-/**
+/*
  * Return:
  *	true -	Display(s) configuration supported.
  *		In this case 'calcs_output' contains data for HW programming
  *	false - Display(s) configuration not supported (not enough bandwidth).
  */
-
 bool bw_calcs(struct dc_context *ctx,
 	const struct bw_calcs_dceip *dceip,
 	const struct bw_calcs_vbios *vbios,
@@ -3028,7 +3022,7 @@ bool bw_calcs(struct dc_context *ctx,
 		calcs_output->all_displays_in_sync = false;
 
 	if (data->number_of_displays != 0) {
-		uint8_t yclk_lvl, sclk_lvl;
+		uint8_t yclk_lvl;
 		struct bw_fixed high_sclk = vbios->high_sclk;
 		struct bw_fixed mid1_sclk = vbios->mid1_sclk;
 		struct bw_fixed mid2_sclk = vbios->mid2_sclk;
@@ -3049,7 +3043,6 @@ bool bw_calcs(struct dc_context *ctx,
 		calculate_bandwidth(dceip, vbios, data);
 
 		yclk_lvl = data->y_clk_level;
-		sclk_lvl = data->sclk_level;
 
 		calcs_output->nbp_state_change_enable =
 			data->nbp_state_change_enable;

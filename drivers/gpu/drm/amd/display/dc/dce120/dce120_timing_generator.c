@@ -69,7 +69,7 @@
 #define CRTC_REG_SET_3(reg, field1, val1, field2, val2, field3, val3)	\
 		CRTC_REG_SET_N(reg, 3, FD(reg##__##field1), val1, FD(reg##__##field2), val2, FD(reg##__##field3), val3)
 
-/**
+/*
  *****************************************************************************
  *  Function: is_in_vertical_blank
  *
@@ -98,7 +98,7 @@ static bool dce120_timing_generator_is_in_vertical_blank(
 
 
 /* determine if given timing can be supported by TG */
-bool dce120_timing_generator_validate_timing(
+static bool dce120_timing_generator_validate_timing(
 	struct timing_generator *tg,
 	const struct dc_crtc_timing *timing,
 	enum signal_type signal)
@@ -125,7 +125,7 @@ bool dce120_timing_generator_validate_timing(
 	return true;
 }
 
-bool dce120_tg_validate_timing(struct timing_generator *tg,
+static bool dce120_tg_validate_timing(struct timing_generator *tg,
 	const struct dc_crtc_timing *timing)
 {
 	return dce120_timing_generator_validate_timing(tg, timing, SIGNAL_TYPE_NONE);
@@ -133,7 +133,7 @@ bool dce120_tg_validate_timing(struct timing_generator *tg,
 
 /******** HW programming ************/
 /* Disable/Enable Timing Generator */
-bool dce120_timing_generator_enable_crtc(struct timing_generator *tg)
+static bool dce120_timing_generator_enable_crtc(struct timing_generator *tg)
 {
 	enum bp_result result;
 	struct dce110_timing_generator *tg110 = DCE110TG_FROM_TG(tg);
@@ -153,7 +153,7 @@ bool dce120_timing_generator_enable_crtc(struct timing_generator *tg)
 	return result == BP_RESULT_OK;
 }
 
-void dce120_timing_generator_set_early_control(
+static void dce120_timing_generator_set_early_control(
 		struct timing_generator *tg,
 		uint32_t early_cntl)
 {
@@ -166,7 +166,7 @@ void dce120_timing_generator_set_early_control(
 /**************** TG current status ******************/
 
 /* return the current frame counter. Used by Linux kernel DRM */
-uint32_t dce120_timing_generator_get_vblank_counter(
+static uint32_t dce120_timing_generator_get_vblank_counter(
 		struct timing_generator *tg)
 {
 	struct dce110_timing_generator *tg110 = DCE110TG_FROM_TG(tg);
@@ -181,7 +181,7 @@ uint32_t dce120_timing_generator_get_vblank_counter(
 }
 
 /* Get current H and V position */
-void dce120_timing_generator_get_crtc_position(
+static void dce120_timing_generator_get_crtc_position(
 	struct timing_generator *tg,
 	struct crtc_position *position)
 {
@@ -207,7 +207,7 @@ void dce120_timing_generator_get_crtc_position(
 }
 
 /* wait until TG is in beginning of vertical blank region */
-void dce120_timing_generator_wait_for_vblank(struct timing_generator *tg)
+static void dce120_timing_generator_wait_for_vblank(struct timing_generator *tg)
 {
 	/* We want to catch beginning of VBlank here, so if the first try are
 	 * in VBlank, we might be very close to Active, in this case wait for
@@ -229,7 +229,7 @@ void dce120_timing_generator_wait_for_vblank(struct timing_generator *tg)
 }
 
 /* wait until TG is in beginning of active region */
-void dce120_timing_generator_wait_for_vactive(struct timing_generator *tg)
+static void dce120_timing_generator_wait_for_vactive(struct timing_generator *tg)
 {
 	while (dce120_timing_generator_is_in_vertical_blank(tg)) {
 		if (!tg->funcs->is_counter_moving(tg)) {
@@ -242,7 +242,7 @@ void dce120_timing_generator_wait_for_vactive(struct timing_generator *tg)
 /*********** Timing Generator Synchronization routines ****/
 
 /* Setups Global Swap Lock group, TimingServer or TimingClient*/
-void dce120_timing_generator_setup_global_swap_lock(
+static void dce120_timing_generator_setup_global_swap_lock(
 	struct timing_generator *tg,
 	const struct dcp_gsl_params *gsl_params)
 {
@@ -279,7 +279,7 @@ void dce120_timing_generator_setup_global_swap_lock(
 }
 
 /* Clear all the register writes done by setup_global_swap_lock */
-void dce120_timing_generator_tear_down_global_swap_lock(
+static void dce120_timing_generator_tear_down_global_swap_lock(
 	struct timing_generator *tg)
 {
 	struct dce110_timing_generator *tg110 = DCE110TG_FROM_TG(tg);
@@ -300,7 +300,7 @@ void dce120_timing_generator_tear_down_global_swap_lock(
 }
 
 /* Reset slave controllers on master VSync */
-void dce120_timing_generator_enable_reset_trigger(
+static void dce120_timing_generator_enable_reset_trigger(
 	struct timing_generator *tg,
 	int source)
 {
@@ -347,7 +347,7 @@ void dce120_timing_generator_enable_reset_trigger(
 }
 
 /* disabling trigger-reset */
-void dce120_timing_generator_disable_reset_trigger(
+static void dce120_timing_generator_disable_reset_trigger(
 	struct timing_generator *tg)
 {
 	struct dce110_timing_generator *tg110 = DCE110TG_FROM_TG(tg);
@@ -367,7 +367,7 @@ void dce120_timing_generator_disable_reset_trigger(
 }
 
 /* Checks whether CRTC triggered reset occurred */
-bool dce120_timing_generator_did_triggered_reset_occur(
+static bool dce120_timing_generator_did_triggered_reset_occur(
 	struct timing_generator *tg)
 {
 	struct dce110_timing_generator *tg110 = DCE110TG_FROM_TG(tg);
@@ -384,7 +384,7 @@ bool dce120_timing_generator_did_triggered_reset_occur(
 
 /******** Stuff to move to other virtual HW objects *****************/
 /* Move to enable accelerated mode */
-void dce120_timing_generator_disable_vga(struct timing_generator *tg)
+static void dce120_timing_generator_disable_vga(struct timing_generator *tg)
 {
 	uint32_t offset = 0;
 	uint32_t value = 0;
@@ -425,7 +425,7 @@ void dce120_timing_generator_disable_vga(struct timing_generator *tg)
 }
 /* TODO: Should we move it to transform */
 /* Fully program CRTC timing in timing generator */
-void dce120_timing_generator_program_blanking(
+static void dce120_timing_generator_program_blanking(
 	struct timing_generator *tg,
 	const struct dc_crtc_timing *timing)
 {
@@ -485,7 +485,7 @@ void dce120_timing_generator_program_blanking(
 
 /* TODO: Should we move it to opp? */
 /* Combine with below and move YUV/RGB color conversion to SW layer */
-void dce120_timing_generator_program_blank_color(
+static void dce120_timing_generator_program_blank_color(
 	struct timing_generator *tg,
 	const struct tg_color *black_color)
 {
@@ -498,7 +498,7 @@ void dce120_timing_generator_program_blank_color(
 		CRTC_BLACK_COLOR_R_CR, black_color->color_r_cr);
 }
 /* Combine with above and move YUV/RGB color conversion to SW layer */
-void dce120_timing_generator_set_overscan_color_black(
+static void dce120_timing_generator_set_overscan_color_black(
 	struct timing_generator *tg,
 	const struct tg_color *color)
 {
@@ -540,7 +540,7 @@ void dce120_timing_generator_set_overscan_color_black(
 	 */
 }
 
-void dce120_timing_generator_set_drr(
+static void dce120_timing_generator_set_drr(
 	struct timing_generator *tg,
 	const struct drr_params *params)
 {
@@ -589,50 +589,7 @@ void dce120_timing_generator_set_drr(
 	}
 }
 
-/**
- *****************************************************************************
- *  Function: dce120_timing_generator_get_position
- *
- *  @brief
- *     Returns CRTC vertical/horizontal counters
- *
- *  @param [out] position
- *****************************************************************************
- */
-void dce120_timing_generator_get_position(struct timing_generator *tg,
-	struct crtc_position *position)
-{
-	uint32_t value;
-	struct dce110_timing_generator *tg110 = DCE110TG_FROM_TG(tg);
-
-	value = dm_read_reg_soc15(
-			tg->ctx,
-			mmCRTC0_CRTC_STATUS_POSITION,
-			tg110->offsets.crtc);
-
-	position->horizontal_count = get_reg_field_value(
-			value,
-			CRTC0_CRTC_STATUS_POSITION,
-			CRTC_HORZ_COUNT);
-
-	position->vertical_count = get_reg_field_value(
-			value,
-			CRTC0_CRTC_STATUS_POSITION,
-			CRTC_VERT_COUNT);
-
-	value = dm_read_reg_soc15(
-			tg->ctx,
-			mmCRTC0_CRTC_NOM_VERT_POSITION,
-			tg110->offsets.crtc);
-
-	position->nominal_vcount = get_reg_field_value(
-			value,
-			CRTC0_CRTC_NOM_VERT_POSITION,
-			CRTC_VERT_COUNT_NOM);
-}
-
-
-void dce120_timing_generator_get_crtc_scanoutpos(
+static void dce120_timing_generator_get_crtc_scanoutpos(
 	struct timing_generator *tg,
 	uint32_t *v_blank_start,
 	uint32_t *v_blank_end,
@@ -661,7 +618,7 @@ void dce120_timing_generator_get_crtc_scanoutpos(
 	*v_position = position.vertical_count;
 }
 
-void dce120_timing_generator_enable_advanced_request(
+static void dce120_timing_generator_enable_advanced_request(
 	struct timing_generator *tg,
 	bool enable,
 	const struct dc_crtc_timing *timing)
@@ -699,7 +656,7 @@ void dce120_timing_generator_enable_advanced_request(
 			value);
 }
 
-void dce120_tg_program_blank_color(struct timing_generator *tg,
+static void dce120_tg_program_blank_color(struct timing_generator *tg,
 	const struct tg_color *black_color)
 {
 	struct dce110_timing_generator *tg110 = DCE110TG_FROM_TG(tg);
@@ -722,7 +679,7 @@ void dce120_tg_program_blank_color(struct timing_generator *tg,
 		value);
 }
 
-void dce120_tg_set_overscan_color(struct timing_generator *tg,
+static void dce120_tg_set_overscan_color(struct timing_generator *tg,
 	const struct tg_color *overscan_color)
 {
 	struct dce110_timing_generator *tg110 = DCE110TG_FROM_TG(tg);
@@ -749,7 +706,7 @@ static void dce120_tg_program_timing(struct timing_generator *tg,
 		dce120_timing_generator_program_blanking(tg, timing);
 }
 
-bool dce120_tg_is_blanked(struct timing_generator *tg)
+static bool dce120_tg_is_blanked(struct timing_generator *tg)
 {
 	struct dce110_timing_generator *tg110 = DCE110TG_FROM_TG(tg);
 	uint32_t value = dm_read_reg_soc15(
@@ -770,7 +727,7 @@ bool dce120_tg_is_blanked(struct timing_generator *tg)
 	return false;
 }
 
-void dce120_tg_set_blank(struct timing_generator *tg,
+static void dce120_tg_set_blank(struct timing_generator *tg,
 		bool enable_blanking)
 {
 	struct dce110_timing_generator *tg110 = DCE110TG_FROM_TG(tg);
@@ -789,7 +746,7 @@ void dce120_tg_set_blank(struct timing_generator *tg,
 bool dce120_tg_validate_timing(struct timing_generator *tg,
 	const struct dc_crtc_timing *timing);
 
-void dce120_tg_wait_for_state(struct timing_generator *tg,
+static void dce120_tg_wait_for_state(struct timing_generator *tg,
 	enum crtc_state state)
 {
 	switch (state) {
@@ -806,7 +763,7 @@ void dce120_tg_wait_for_state(struct timing_generator *tg,
 	}
 }
 
-void dce120_tg_set_colors(struct timing_generator *tg,
+static void dce120_tg_set_colors(struct timing_generator *tg,
 	const struct tg_color *blank_color,
 	const struct tg_color *overscan_color)
 {
@@ -833,7 +790,7 @@ static void dce120_timing_generator_set_static_screen_control(
 			CRTC_STATIC_SCREEN_FRAME_COUNT, num_frames);
 }
 
-void dce120_timing_generator_set_test_pattern(
+static void dce120_timing_generator_set_test_pattern(
 	struct timing_generator *tg,
 	/* TODO: replace 'controller_dp_test_pattern' by 'test_pattern_mode'
 	 * because this is not DP-specific (which is probably somewhere in DP

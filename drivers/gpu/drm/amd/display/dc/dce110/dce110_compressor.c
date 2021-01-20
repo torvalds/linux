@@ -412,36 +412,6 @@ void dce110_compressor_destroy(struct compressor **compressor)
 	*compressor = NULL;
 }
 
-bool dce110_get_required_compressed_surfacesize(struct fbc_input_info fbc_input_info,
-						struct fbc_requested_compressed_size size)
-{
-	bool result = false;
-
-	unsigned int max_x = FBC_MAX_X, max_y = FBC_MAX_Y;
-
-	get_max_support_fbc_buffersize(&max_x, &max_y);
-
-	if (fbc_input_info.dynamic_fbc_buffer_alloc == 0) {
-		/*
-		 * For DCE11 here use Max HW supported size:  HW Support up to 3840x2400 resolution
-		 * or 18000 chunks.
-		 */
-		size.preferred_size = size.min_size = align_to_chunks_number_per_line(max_x) * max_y * 4;  /* (For FBC when LPT not supported). */
-		size.preferred_size_alignment = size.min_size_alignment = 0x100;       /* For FBC when LPT not supported */
-		size.bits.preferred_must_be_framebuffer_pool = 1;
-		size.bits.min_must_be_framebuffer_pool = 1;
-
-		result = true;
-	}
-	/*
-	 * Maybe to add registry key support with optional size here to override above
-	 * for debugging purposes
-	 */
-
-	return result;
-}
-
-
 void get_max_support_fbc_buffersize(unsigned int *max_x, unsigned int *max_y)
 {
 	*max_x = FBC_MAX_X;
@@ -454,31 +424,6 @@ void get_max_support_fbc_buffersize(unsigned int *max_x, unsigned int *max_y)
 	 * }
 	 */
 }
-
-
-unsigned int controller_id_to_index(enum controller_id controller_id)
-{
-	unsigned int index = 0;
-
-	switch (controller_id) {
-	case CONTROLLER_ID_D0:
-		index = 0;
-		break;
-	case CONTROLLER_ID_D1:
-		index = 1;
-		break;
-	case CONTROLLER_ID_D2:
-		index = 2;
-		break;
-	case CONTROLLER_ID_D3:
-		index = 3;
-		break;
-	default:
-		break;
-	}
-	return index;
-}
-
 
 static const struct compressor_funcs dce110_compressor_funcs = {
 	.power_up_fbc = dce110_compressor_power_up_fbc,

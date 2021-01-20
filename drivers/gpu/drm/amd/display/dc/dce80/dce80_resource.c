@@ -60,6 +60,8 @@
 #include "dce/dce_i2c.h"
 /* TODO remove this include */
 
+#include "dce80_resource.h"
+
 #ifndef mmMC_HUB_RDREQ_DMIF_LIMIT
 #include "gmc/gmc_7_1_d.h"
 #include "gmc/gmc_7_1_sh_mask.h"

@@ -409,16 +409,11 @@ void mod_build_vsc_infopacket(const struct dc_stream_state *stream,
 }
 
 /**
- *****************************************************************************
- *  Function: mod_build_hf_vsif_infopacket
+ *  mod_build_hf_vsif_infopacket - Prepare HDMI Vendor Specific info frame.
+ *                                 Follows HDMI Spec to build up Vendor Specific info frame
  *
- *  @brief
- *     Prepare HDMI Vendor Specific info frame.
- *     Follows HDMI Spec to build up Vendor Specific info frame
- *
- *  @param [in] stream: contains data we may need to construct VSIF (i.e. timing_3d_format, etc.)
- *  @param [out] info_packet:   output structure where to store VSIF
- *****************************************************************************
+ *  @stream:      contains data we may need to construct VSIF (i.e. timing_3d_format, etc.)
+ *  @info_packet: output structure where to store VSIF
  */
 void mod_build_hf_vsif_infopacket(const struct dc_stream_state *stream,
 		struct dc_info_packet *info_packet)

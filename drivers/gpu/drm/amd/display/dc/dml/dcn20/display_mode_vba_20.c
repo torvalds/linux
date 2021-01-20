@@ -3138,7 +3138,7 @@ static void CalculateFlipSchedule(
 				4.0 * (TimeForFetchingMetaPTEImmediateFlip / LineTime + 0.125),
 				1) / 4.0;
 
-		if ((GPUVMEnable == true || DCCEnable == true)) {
+		if ((GPUVMEnable || DCCEnable)) {
 			mode_lib->vba.ImmediateFlipBW[0] = BandwidthAvailableForImmediateFlip
 					* ImmediateFlipBytes / TotImmediateFlipBytes;
 			TimeForFetchingRowInVBlankImmediateFlip = dml_max(

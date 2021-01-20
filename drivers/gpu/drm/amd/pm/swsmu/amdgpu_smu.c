@@ -288,6 +288,20 @@ bool is_support_sw_smu(struct amdgpu_device *adev)
 	return false;
 }
 
+bool is_support_cclk_dpm(struct amdgpu_device *adev)
+{
+	struct smu_context *smu = &adev->smu;
+
+	if (!is_support_sw_smu(adev))
+		return false;
+
+	if (!smu_feature_is_enabled(smu, SMU_FEATURE_CCLK_DPM_BIT))
+		return false;
+
+	return true;
+}
+
+
 int smu_sys_get_pp_table(struct smu_context *smu, void **table)
 {
 	struct smu_table_context *smu_table = &smu->smu_table;
@@ -402,15 +416,9 @@ static int smu_set_funcs(struct amdgpu_device *adev)
 		break;
 	case CHIP_RENOIR:
 		renoir_set_ppt_funcs(smu);
-		/* enable the fine grain tuning function by default */
-		smu->fine_grain_enabled = true;
-		/* close the fine grain tuning function by default */
-		smu->fine_grain_started = false;
 		break;
 	case CHIP_VANGOGH:
 		vangogh_set_ppt_funcs(smu);
-		/* enable the OD by default to allow the fine grain tuning function */
-		smu->od_enabled = true;
 		break;
 	default:
 		return -EINVAL;

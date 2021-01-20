@@ -284,20 +284,16 @@ static void dc_perf_trace_destroy(struct dc_perf_trace **perf_trace)
 }
 
 /**
- *****************************************************************************
- *  Function: dc_stream_adjust_vmin_vmax
+ *  dc_stream_adjust_vmin_vmax:
  *
- *  @brief
- *     Looks up the pipe context of dc_stream_state and updates the
- *     vertical_total_min and vertical_total_max of the DRR, Dynamic Refresh
- *     Rate, which is a power-saving feature that targets reducing panel
- *     refresh rate while the screen is static
+ *  Looks up the pipe context of dc_stream_state and updates the
+ *  vertical_total_min and vertical_total_max of the DRR, Dynamic Refresh
+ *  Rate, which is a power-saving feature that targets reducing panel
+ *  refresh rate while the screen is static
  *
- *  @param [in] dc: dc reference
- *  @param [in] stream: Initial dc stream state
- *  @param [in] adjust: Updated parameters for vertical_total_min and
- *  vertical_total_max
- *****************************************************************************
+ *  @dc:     dc reference
+ *  @stream: Initial dc stream state
+ *  @adjust: Updated parameters for vertical_total_min and vertical_total_max
  */
 bool dc_stream_adjust_vmin_vmax(struct dc *dc,
 		struct dc_stream_state *stream,
@@ -355,6 +351,7 @@ bool dc_stream_get_crtc_position(struct dc *dc,
  * @dc: DC Object
  * @stream: The stream to configure CRC on.
  * @enable: Enable CRC if true, disable otherwise.
+ * @crc_window: CRC window (x/y start/end) information
  * @continuous: Capture CRC on every frame if true. Otherwise, only capture
  *              once.
  *
@@ -420,7 +417,9 @@ bool dc_stream_configure_crc(struct dc *dc, struct dc_stream_state *stream,
  * dc_stream_get_crc() - Get CRC values for the given stream.
  * @dc: DC object
  * @stream: The DC stream state of the stream to get CRCs from.
- * @r_cr, g_y, b_cb: CRC values for the three channels are stored here.
+ * @r_cr: CRC value for the first of the 3 channels stored here.
+ * @g_y:  CRC value for the second of the 3 channels stored here.
+ * @b_cb: CRC value for the third of the 3 channels stored here.
  *
  * dc_stream_configure_crc needs to be called beforehand to enable CRCs.
  * Return false if stream is not found, or if CRCs are not enabled.
@@ -803,7 +802,8 @@ static void disable_all_writeback_pipes_for_stream(
 		stream->writeback_info[i].wb_enabled = false;
 }
 
-void apply_ctx_interdependent_lock(struct dc *dc, struct dc_state *context, struct dc_stream_state *stream, bool lock)
+static void apply_ctx_interdependent_lock(struct dc *dc, struct dc_state *context,
+					  struct dc_stream_state *stream, bool lock)
 {
 	int i = 0;
 
@@ -2011,7 +2011,7 @@ static enum surface_update_type check_update_surfaces_for_stream(
 	return overall_type;
 }
 
-/**
+/*
  * dc_check_update_surfaces_for_stream() - Determine update type (fast, med, or full)
  *
  * See :c:type:`enum surface_update_type <surface_update_type>` for explanation of update types
@@ -2265,6 +2265,9 @@ static void copy_stream_update_to_stream(struct dc *dc,
 
 	if (update->dither_option)
 		stream->dither_option = *update->dither_option;
+
+	if (update->pending_test_pattern)
+		stream->test_pattern = *update->pending_test_pattern;
 	/* update current stream with writeback info */
 	if (update->wb_update) {
 		int i;
@@ -2359,6 +2362,15 @@ static void commit_planes_do_stream_update(struct dc *dc,
 							&stream->clamping);
 					odm_pipe = odm_pipe->next_odm_pipe;
 				}
+			}
+
+			if (stream_update->pending_test_pattern) {
+				dc_link_dp_set_test_pattern(stream->link,
+					stream->test_pattern.type,
+					stream->test_pattern.color_space,
+					stream->test_pattern.p_link_settings,
+					stream->test_pattern.p_custom_pattern,
+					stream->test_pattern.cust_pattern_size);
 			}
 
 			/* Full fe update*/
@@ -2814,7 +2826,7 @@ enum dc_irq_source dc_interrupt_to_irq_source(
 	return dal_irq_service_to_irq_source(dc->res_pool->irqs, src_id, ext_id);
 }
 
-/**
+/*
  * dc_interrupt_set() - Enable/disable an AMD hw interrupt source
  */
 bool dc_interrupt_set(struct dc *dc, enum dc_irq_source src, bool enable)
@@ -2948,7 +2960,7 @@ static bool link_add_remote_sink_helper(struct dc_link *dc_link, struct dc_sink 
 	return true;
 }
 
-/**
+/*
  * dc_link_add_remote_sink() - Create a sink and attach it to an existing link
  *
  * EDID length is in bytes
@@ -3011,7 +3023,7 @@ fail_add_sink:
 	return NULL;
 }
 
-/**
+/*
  * dc_link_remove_remote_sink() - Remove a remote sink from a dc_link
  *
  * Note that this just removes the struct dc_sink - it doesn't

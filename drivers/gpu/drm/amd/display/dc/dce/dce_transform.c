@@ -493,7 +493,6 @@ static void dce60_transform_set_scaler(
 {
 	struct dce_transform *xfm_dce = TO_DCE_TRANSFORM(xfm);
 	bool is_scaling_required;
-	bool filter_updated = false;
 	const uint16_t *coeffs_v, *coeffs_h;
 
 	/*Use whole line buffer memory always*/
@@ -558,7 +557,6 @@ static void dce60_transform_set_scaler(
 
 			xfm_dce->filter_v = coeffs_v;
 			xfm_dce->filter_h = coeffs_h;
-			filter_updated = true;
 		}
 	}
 
@@ -1037,34 +1035,23 @@ static void dce60_transform_set_pixel_storage_depth(
 	const struct bit_depth_reduction_params *bit_depth_params)
 {
 	struct dce_transform *xfm_dce = TO_DCE_TRANSFORM(xfm);
-	int pixel_depth, expan_mode;
 	enum dc_color_depth color_depth;
 
 	switch (depth) {
 	case LB_PIXEL_DEPTH_18BPP:
 		color_depth = COLOR_DEPTH_666;
-		pixel_depth = 2;
-		expan_mode  = 1;
 		break;
 	case LB_PIXEL_DEPTH_24BPP:
 		color_depth = COLOR_DEPTH_888;
-		pixel_depth = 1;
-		expan_mode  = 1;
 		break;
 	case LB_PIXEL_DEPTH_30BPP:
 		color_depth = COLOR_DEPTH_101010;
-		pixel_depth = 0;
-		expan_mode  = 1;
 		break;
 	case LB_PIXEL_DEPTH_36BPP:
 		color_depth = COLOR_DEPTH_121212;
-		pixel_depth = 3;
-		expan_mode  = 0;
 		break;
 	default:
 		color_depth = COLOR_DEPTH_101010;
-		pixel_depth = 0;
-		expan_mode  = 1;
 		BREAK_TO_DEBUGGER();
 		break;
 	}
@@ -1113,7 +1100,7 @@ static void program_gamut_remap(
 
 }
 
-/**
+/*
  *****************************************************************************
  *  Function: dal_transform_wide_gamut_set_gamut_remap
  *

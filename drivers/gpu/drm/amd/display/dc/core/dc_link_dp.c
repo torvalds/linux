@@ -3707,7 +3707,7 @@ bool detect_dp_sink_caps(struct dc_link *link)
 	/* TODO save sink caps in link->sink */
 }
 
-enum dc_link_rate linkRateInKHzToLinkRateMultiplier(uint32_t link_rate_in_khz)
+static enum dc_link_rate linkRateInKHzToLinkRateMultiplier(uint32_t link_rate_in_khz)
 {
 	enum dc_link_rate link_rate;
 	// LinkRate is normally stored as a multiplier of 0.27 Gbps per lane. Do the translation.
@@ -3992,7 +3992,7 @@ bool dc_link_dp_set_test_pattern(
 	unsigned int cust_pattern_size)
 {
 	struct pipe_ctx *pipes = link->dc->current_state->res_ctx.pipe_ctx;
-	struct pipe_ctx *pipe_ctx = &pipes[0];
+	struct pipe_ctx *pipe_ctx = NULL;
 	unsigned int lane;
 	unsigned int i;
 	unsigned char link_qual_pattern[LANE_COUNT_DP_MAX] = {0};
@@ -4002,11 +4002,17 @@ bool dc_link_dp_set_test_pattern(
 	memset(&training_pattern, 0, sizeof(training_pattern));
 
 	for (i = 0; i < MAX_PIPES; i++) {
+		if (pipes[i].stream == NULL)
+			continue;
+
 		if (pipes[i].stream->link == link && !pipes[i].top_pipe && !pipes[i].prev_odm_pipe) {
 			pipe_ctx = &pipes[i];
 			break;
 		}
 	}
+
+	if (pipe_ctx == NULL)
+		return false;
 
 	/* Reset CRTC Test Pattern if it is currently running and request is VideoMode */
 	if (link->test_pattern_enabled && test_pattern ==
@@ -4339,7 +4345,7 @@ void dp_set_fec_ready(struct dc_link *link, bool ready)
 	struct link_encoder *link_enc = link->link_enc;
 	uint8_t fec_config = 0;
 
-	if (!dc_link_is_fec_supported(link) || link->dc->debug.disable_fec)
+	if (!dc_link_should_enable_fec(link))
 		return;
 
 	if (link_enc->funcs->fec_set_ready &&
@@ -4374,7 +4380,7 @@ void dp_set_fec_enable(struct dc_link *link, bool enable)
 {
 	struct link_encoder *link_enc = link->link_enc;
 
-	if (!dc_link_is_fec_supported(link) || link->dc->debug.disable_fec)
+	if (!dc_link_should_enable_fec(link))
 		return;
 
 	if (link_enc->funcs->fec_set_enable &&
@@ -4400,24 +4406,39 @@ void dp_set_fec_enable(struct dc_link *link, bool enable)
 void dpcd_set_source_specific_data(struct dc_link *link)
 {
 	if (!link->dc->vendor_signature.is_valid) {
-		enum dc_status result_write_min_hblank = DC_NOT_SUPPORTED;
-		struct dpcd_amd_signature amd_signature;
-		amd_signature.AMD_IEEE_TxSignature_byte1 = 0x0;
-		amd_signature.AMD_IEEE_TxSignature_byte2 = 0x0;
-		amd_signature.AMD_IEEE_TxSignature_byte3 = 0x1A;
-		amd_signature.device_id_byte1 =
-				(uint8_t)(link->ctx->asic_id.chip_id);
-		amd_signature.device_id_byte2 =
-				(uint8_t)(link->ctx->asic_id.chip_id >> 8);
-		memset(&amd_signature.zero, 0, 4);
-		amd_signature.dce_version =
-				(uint8_t)(link->ctx->dce_version);
-		amd_signature.dal_version_byte1 = 0x0; // needed? where to get?
-		amd_signature.dal_version_byte2 = 0x0; // needed? where to get?
+		enum dc_status __maybe_unused result_write_min_hblank = DC_NOT_SUPPORTED;
+		struct dpcd_amd_signature amd_signature = {0};
+		struct dpcd_amd_device_id amd_device_id = {0};
 
-		core_link_write_dpcd(link, DP_SOURCE_OUI,
+		amd_device_id.device_id_byte1 =
+				(uint8_t)(link->ctx->asic_id.chip_id);
+		amd_device_id.device_id_byte2 =
+				(uint8_t)(link->ctx->asic_id.chip_id >> 8);
+		amd_device_id.dce_version =
+				(uint8_t)(link->ctx->dce_version);
+		amd_device_id.dal_version_byte1 = 0x0; // needed? where to get?
+		amd_device_id.dal_version_byte2 = 0x0; // needed? where to get?
+
+		core_link_read_dpcd(link, DP_SOURCE_OUI,
 				(uint8_t *)(&amd_signature),
 				sizeof(amd_signature));
+
+		if (!((amd_signature.AMD_IEEE_TxSignature_byte1 == 0x0) &&
+			(amd_signature.AMD_IEEE_TxSignature_byte2 == 0x0) &&
+			(amd_signature.AMD_IEEE_TxSignature_byte3 == 0x1A))) {
+
+			amd_signature.AMD_IEEE_TxSignature_byte1 = 0x0;
+			amd_signature.AMD_IEEE_TxSignature_byte2 = 0x0;
+			amd_signature.AMD_IEEE_TxSignature_byte3 = 0x1A;
+
+			core_link_write_dpcd(link, DP_SOURCE_OUI,
+				(uint8_t *)(&amd_signature),
+				sizeof(amd_signature));
+		}
+
+		core_link_write_dpcd(link, DP_SOURCE_OUI+0x03,
+				(uint8_t *)(&amd_device_id),
+				sizeof(amd_device_id));
 
 		if (link->ctx->dce_version >= DCN_VERSION_2_0 &&
 			link->dc->caps.min_horizontal_blanking_period != 0) {

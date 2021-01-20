@@ -88,7 +88,7 @@ static void vega20_ih_init_register_offset(struct amdgpu_device *adev)
  * vega20_ih_toggle_ring_interrupts - toggle the interrupt ring buffer
  *
  * @adev: amdgpu_device pointer
- * @ih: amdgpu_ih_ring pointet
+ * @ih: amdgpu_ih_ring pointer
  * @enable: true - enable the interrupts, false - disable the interrupts
  *
  * Toggle the interrupt ring buffer (VEGA20)
@@ -367,6 +367,7 @@ static void vega20_ih_irq_disable(struct amdgpu_device *adev)
  * vega20_ih_get_wptr - get the IH ring buffer wptr
  *
  * @adev: amdgpu_device pointer
+ * @ih: amdgpu_ih_ring pointer
  *
  * Get the IH ring buffer wptr from either the register
  * or the writeback memory buffer (VEGA20).  Also check for
@@ -414,6 +415,7 @@ out:
  * vega20_ih_irq_rearm - rearm IRQ if lost
  *
  * @adev: amdgpu_device pointer
+ * @ih: amdgpu_ih_ring pointer
  *
  */
 static void vega20_ih_irq_rearm(struct amdgpu_device *adev,
@@ -439,6 +441,7 @@ static void vega20_ih_irq_rearm(struct amdgpu_device *adev,
  * vega20_ih_set_rptr - set the IH ring buffer rptr
  *
  * @adev: amdgpu_device pointer
+ * @ih: amdgpu_ih_ring pointer
  *
  * Set the IH ring buffer rptr.
  */

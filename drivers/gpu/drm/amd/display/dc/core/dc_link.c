@@ -203,9 +203,21 @@ static bool program_hpd_filter(const struct dc_link *link)
 	return result;
 }
 
+bool dc_link_wait_for_t12(struct dc_link *link)
+{
+	if (link->connector_signal == SIGNAL_TYPE_EDP && link->dc->hwss.edp_wait_for_T12) {
+		link->dc->hwss.edp_wait_for_T12(link);
+
+		return true;
+	}
+
+	return false;
+}
+
 /**
  * dc_link_detect_sink() - Determine if there is a sink connected
  *
+ * @link: pointer to the dc link
  * @type: Returned connection type
  * Does not detect downstream devices, such as MST sinks
  * or display connected through active dongles
@@ -342,7 +354,7 @@ static enum signal_type get_basic_signal_type(struct graphics_object_id encoder,
 	return SIGNAL_TYPE_NONE;
 }
 
-/**
+/*
  * dc_link_is_dp_sink_present() - Check if there is a native DP
  * or passive DP-HDMI dongle connected
  */
@@ -596,8 +608,6 @@ static void query_hdcp_capability(enum signal_type signal, struct dc_link *link)
 	dc_process_hdcp_msg(signal, link, &msg22);
 
 	if (signal == SIGNAL_TYPE_DISPLAY_PORT || signal == SIGNAL_TYPE_DISPLAY_PORT_MST) {
-		enum hdcp_message_status status = HDCP_MESSAGE_UNSUPPORTED;
-
 		msg14.data = &link->hdcp_caps.bcaps.raw;
 		msg14.length = sizeof(link->hdcp_caps.bcaps.raw);
 		msg14.msg_id = HDCP_MESSAGE_ID_READ_BCAPS;
@@ -605,7 +615,7 @@ static void query_hdcp_capability(enum signal_type signal, struct dc_link *link)
 		msg14.link = HDCP_LINK_PRIMARY;
 		msg14.max_retries = 5;
 
-		status = dc_process_hdcp_msg(signal, link, &msg14);
+		dc_process_hdcp_msg(signal, link, &msg14);
 	}
 
 }
@@ -830,7 +840,7 @@ static bool wait_for_entering_dp_alt_mode(struct dc_link *link)
 	return false;
 }
 
-/**
+/*
  * dc_link_detect() - Detect if a sink is attached to a given link
  *
  * link->local_sink is created or destroyed as needed.
@@ -1064,9 +1074,6 @@ static bool dc_link_detect_helper(struct dc_link *link,
 		default:
 			break;
 		}
-
-		if (link->local_sink->edid_caps.panel_patch.disable_fec)
-			link->ctx->dc->debug.disable_fec = true;
 
 		// Check if edid is the same
 		if ((prev_sink) &&
@@ -1366,12 +1373,16 @@ static bool dc_link_construct(struct dc_link *link,
 	struct dc_context *dc_ctx = init_params->ctx;
 	struct encoder_init_data enc_init_data = { 0 };
 	struct panel_cntl_init_data panel_cntl_init_data = { 0 };
-	struct integrated_info info = {{{ 0 }}};
+	struct integrated_info *info;
 	struct dc_bios *bios = init_params->dc->ctx->dc_bios;
 	const struct dc_vbios_funcs *bp_funcs = bios->funcs;
 	struct bp_disp_connector_caps_info disp_connect_caps_info = { 0 };
 
 	DC_LOGGER_INIT(dc_ctx->logger);
+
+	info = kzalloc(sizeof(*info), GFP_KERNEL);
+	if (!info)
+		goto create_fail;
 
 	link->irq_source_hpd = DC_IRQ_SOURCE_INVALID;
 	link->irq_source_hpd_rx = DC_IRQ_SOURCE_INVALID;
@@ -1534,12 +1545,12 @@ static bool dc_link_construct(struct dc_link *link,
 	}
 
 	if (bios->integrated_info)
-		info = *bios->integrated_info;
+		memcpy(info, bios->integrated_info, sizeof(*info));
 
 	/* Look for channel mapping corresponding to connector and device tag */
 	for (i = 0; i < MAX_NUMBER_OF_EXT_DISPLAY_PATH; i++) {
 		struct external_display_path *path =
-			&info.ext_disp_conn_info.path[i];
+			&info->ext_disp_conn_info.path[i];
 
 		if (path->device_connector_id.enum_id == link->link_id.enum_id &&
 		    path->device_connector_id.id == link->link_id.id &&
@@ -1585,6 +1596,8 @@ create_fail:
 		dal_gpio_destroy_irq(&link->hpd_gpio);
 		link->hpd_gpio = NULL;
 	}
+
+	kfree(info);
 
 	return false;
 }
@@ -3396,10 +3409,7 @@ void core_link_set_avmute(struct pipe_ctx *pipe_ctx, bool enable)
 }
 
 /**
- *****************************************************************************
- *  Function: dc_link_enable_hpd_filter
- *
- *  @brief
+ *  dc_link_enable_hpd_filter:
  *     If enable is true, programs HPD filter on associated HPD line using
  *     delay_on_disconnect/delay_on_connect values dependent on
  *     link->connector_signal
@@ -3407,9 +3417,8 @@ void core_link_set_avmute(struct pipe_ctx *pipe_ctx, bool enable)
  *     If enable is false, programs HPD filter on associated HPD line with no
  *     delays on connect or disconnect
  *
- *  @param [in] link: pointer to the dc link
- *  @param [in] enable: boolean specifying whether to enable hbd
- *****************************************************************************
+ *  @link:   pointer to the dc link
+ *  @enable: boolean specifying whether to enable hbd
  */
 void dc_link_enable_hpd_filter(struct dc_link *link, bool enable)
 {
@@ -3635,7 +3644,7 @@ uint32_t dc_link_bandwidth_kbps(
 	link_bw_kbps *= 8;   /* 8 bits per byte*/
 	link_bw_kbps *= link_setting->lane_count;
 
-	if (dc_link_is_fec_supported(link) && !link->dc->debug.disable_fec) {
+	if (dc_link_should_enable_fec(link)) {
 		/* Account for FEC overhead.
 		 * We have to do it based on caps,
 		 * and not based on FEC being set ready,
@@ -3687,3 +3696,18 @@ bool dc_link_is_fec_supported(const struct dc_link *link)
 			!IS_FPGA_MAXIMUS_DC(link->ctx->dce_environment));
 }
 
+bool dc_link_should_enable_fec(const struct dc_link *link)
+{
+	bool is_fec_disable = false;
+	bool ret = false;
+
+	if (link->connector_signal != SIGNAL_TYPE_DISPLAY_PORT_MST &&
+			link->local_sink &&
+			link->local_sink->edid_caps.panel_patch.disable_fec)
+		is_fec_disable = true;
+
+	if (dc_link_is_fec_supported(link) && !link->dc->debug.disable_fec && !is_fec_disable)
+		ret = true;
+
+	return ret;
+}

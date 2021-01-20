@@ -35,6 +35,7 @@
 #include "amdgpu_dm_debugfs.h"
 #include "amdgpu_ras.h"
 #include "amdgpu_rap.h"
+#include "amdgpu_securedisplay.h"
 #include "amdgpu_fw_attestation.h"
 
 /**
@@ -1668,6 +1669,8 @@ int amdgpu_debugfs_init(struct amdgpu_device *adev)
 	amdgpu_debugfs_autodump_init(adev);
 
 	amdgpu_rap_debugfs_init(adev);
+
+	amdgpu_securedisplay_debugfs_init(adev);
 
 	amdgpu_fw_attestation_debugfs_init(adev);
 

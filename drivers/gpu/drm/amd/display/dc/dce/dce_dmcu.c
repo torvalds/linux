@@ -65,13 +65,17 @@
 //Register access policy version
 #define mmMP0_SMN_C2PMSG_91				0x1609B
 
+#if defined(CONFIG_DRM_AMD_DC_DCN)
+static const uint32_t abm_gain_stepsize = 0x0060;
+#endif
+
 static bool dce_dmcu_init(struct dmcu *dmcu)
 {
 	// Do nothing
 	return true;
 }
 
-bool dce_dmcu_load_iram(struct dmcu *dmcu,
+static bool dce_dmcu_load_iram(struct dmcu *dmcu,
 		unsigned int start_offset,
 		const char *src,
 		unsigned int bytes)

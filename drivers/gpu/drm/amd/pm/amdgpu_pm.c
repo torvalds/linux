@@ -36,6 +36,7 @@
 #include <linux/hwmon-sysfs.h>
 #include <linux/nospec.h>
 #include <linux/pm_runtime.h>
+#include <asm/processor.h>
 #include "hwmgr.h"
 
 static const struct cg_flag_name clocks[] = {
@@ -799,6 +800,8 @@ static ssize_t amdgpu_set_pp_od_clk_voltage(struct device *dev,
 
 	if (*buf == 's')
 		type = PP_OD_EDIT_SCLK_VDDC_TABLE;
+	else if (*buf == 'p')
+		type = PP_OD_EDIT_CCLK_VDDC_TABLE;
 	else if (*buf == 'm')
 		type = PP_OD_EDIT_MCLK_VDDC_TABLE;
 	else if(*buf == 'r')
@@ -915,6 +918,7 @@ static ssize_t amdgpu_get_pp_od_clk_voltage(struct device *dev,
 		size += smu_print_clk_levels(&adev->smu, SMU_OD_VDDC_CURVE, buf+size);
 		size += smu_print_clk_levels(&adev->smu, SMU_OD_VDDGFX_OFFSET, buf+size);
 		size += smu_print_clk_levels(&adev->smu, SMU_OD_RANGE, buf+size);
+		size += smu_print_clk_levels(&adev->smu, SMU_OD_CCLK, buf+size);
 	} else if (adev->powerplay.pp_funcs->print_clock_levels) {
 		size = amdgpu_dpm_print_clock_levels(adev, OD_SCLK, buf);
 		size += amdgpu_dpm_print_clock_levels(adev, OD_MCLK, buf+size);
@@ -2217,7 +2221,7 @@ static int default_attr_update(struct amdgpu_device *adev, struct amdgpu_device_
 	} else if (DEVICE_ATTR_IS(pp_od_clk_voltage)) {
 		*states = ATTR_STATE_UNSUPPORTED;
 		if ((is_support_sw_smu(adev) && adev->smu.od_enabled) ||
-		    (is_support_sw_smu(adev) && adev->smu.fine_grain_enabled) ||
+		    (is_support_sw_smu(adev) && adev->smu.is_apu) ||
 			(!is_support_sw_smu(adev) && hwmgr->od_enabled))
 			*states = ATTR_STATE_SUPPORTED;
 	} else if (DEVICE_ATTR_IS(mem_busy_percent)) {
@@ -3622,6 +3626,27 @@ void amdgpu_pm_sysfs_fini(struct amdgpu_device *adev)
  */
 #if defined(CONFIG_DEBUG_FS)
 
+static void amdgpu_debugfs_prints_cpu_info(struct seq_file *m,
+					   struct amdgpu_device *adev) {
+	uint16_t *p_val;
+	uint32_t size;
+	int i;
+
+	if (is_support_cclk_dpm(adev)) {
+		p_val = kcalloc(adev->smu.cpu_core_num, sizeof(uint16_t),
+				GFP_KERNEL);
+
+		if (!amdgpu_dpm_read_sensor(adev, AMDGPU_PP_SENSOR_CPU_CLK,
+					    (void *)p_val, &size)) {
+			for (i = 0; i < adev->smu.cpu_core_num; i++)
+				seq_printf(m, "\t%u MHz (CPU%d)\n",
+					   *(p_val + i), i);
+		}
+
+		kfree(p_val);
+	}
+}
+
 static int amdgpu_debugfs_pm_info_pp(struct seq_file *m, struct amdgpu_device *adev)
 {
 	uint32_t value;
@@ -3632,6 +3657,9 @@ static int amdgpu_debugfs_pm_info_pp(struct seq_file *m, struct amdgpu_device *a
 	/* GPU Clocks */
 	size = sizeof(value);
 	seq_printf(m, "GFX Clocks and Power:\n");
+
+	amdgpu_debugfs_prints_cpu_info(m, adev);
+
 	if (!amdgpu_dpm_read_sensor(adev, AMDGPU_PP_SENSOR_GFX_MCLK, (void *)&value, &size))
 		seq_printf(m, "\t%u MHz (MCLK)\n", value/100);
 	if (!amdgpu_dpm_read_sensor(adev, AMDGPU_PP_SENSOR_GFX_SCLK, (void *)&value, &size))
