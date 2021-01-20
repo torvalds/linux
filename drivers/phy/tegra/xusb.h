@@ -232,7 +232,7 @@ struct tegra_xusb_pcie_pad {
 	struct reset_control *rst;
 	struct clk *pll;
 
-	unsigned int enable;
+	bool enable;
 };
 
 static inline struct tegra_xusb_pcie_pad *
@@ -247,7 +247,7 @@ struct tegra_xusb_sata_pad {
 	struct reset_control *rst;
 	struct clk *pll;
 
-	unsigned int enable;
+	bool enable;
 };
 
 static inline struct tegra_xusb_sata_pad *

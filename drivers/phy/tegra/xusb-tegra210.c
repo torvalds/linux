@@ -288,16 +288,18 @@ static int tegra210_pex_uphy_enable(struct tegra_xusb_padctl *padctl)
 	struct tegra_xusb_pcie_pad *pcie = to_pcie_pad(padctl->pcie);
 	unsigned long timeout;
 	u32 value;
+	unsigned int i;
 	int err;
 
-	if (pcie->enable > 0) {
-		pcie->enable++;
+	if (pcie->enable)
 		return 0;
-	}
 
 	err = clk_prepare_enable(pcie->pll);
 	if (err < 0)
 		return err;
+
+	if (tegra210_plle_hw_sequence_is_enabled())
+		goto skip_pll_init;
 
 	err = reset_control_deassert(pcie->rst);
 	if (err < 0)
@@ -481,7 +483,14 @@ static int tegra210_pex_uphy_enable(struct tegra_xusb_padctl *padctl)
 
 	tegra210_xusb_pll_hw_sequence_start();
 
-	pcie->enable++;
+skip_pll_init:
+	pcie->enable = true;
+
+	for (i = 0; i < padctl->pcie->soc->num_lanes; i++) {
+		value = padctl_readl(padctl, XUSB_PADCTL_USB3_PAD_MUX);
+		value |= XUSB_PADCTL_USB3_PAD_MUX_PCIE_IDDQ_DISABLE(i);
+		padctl_writel(padctl, value, XUSB_PADCTL_USB3_PAD_MUX);
+	}
 
 	return 0;
 
@@ -495,29 +504,44 @@ disable:
 static void tegra210_pex_uphy_disable(struct tegra_xusb_padctl *padctl)
 {
 	struct tegra_xusb_pcie_pad *pcie = to_pcie_pad(padctl->pcie);
+	u32 value;
+	unsigned int i;
 
-	if (WARN_ON(pcie->enable == 0))
+	if (WARN_ON(!pcie->enable))
 		return;
 
-	if (--pcie->enable > 0)
-		return;
+	pcie->enable = false;
 
-	reset_control_assert(pcie->rst);
+	for (i = 0; i < padctl->pcie->soc->num_lanes; i++) {
+		value = padctl_readl(padctl, XUSB_PADCTL_USB3_PAD_MUX);
+		value &= ~XUSB_PADCTL_USB3_PAD_MUX_PCIE_IDDQ_DISABLE(i);
+		padctl_writel(padctl, value, XUSB_PADCTL_USB3_PAD_MUX);
+	}
+
 	clk_disable_unprepare(pcie->pll);
 }
 
 /* must be called under padctl->lock */
-static int tegra210_sata_uphy_enable(struct tegra_xusb_padctl *padctl, bool usb)
+static int tegra210_sata_uphy_enable(struct tegra_xusb_padctl *padctl)
 {
 	struct tegra_xusb_sata_pad *sata = to_sata_pad(padctl->sata);
+	struct tegra_xusb_lane *lane = tegra_xusb_find_lane(padctl, "sata", 0);
 	unsigned long timeout;
 	u32 value;
+	unsigned int i;
 	int err;
+	bool usb;
 
-	if (sata->enable > 0) {
-		sata->enable++;
+	if (sata->enable)
 		return 0;
-	}
+
+	if (IS_ERR(lane))
+		return 0;
+
+	if (tegra210_plle_hw_sequence_is_enabled())
+		goto skip_pll_init;
+
+	usb = tegra_xusb_lane_check(lane, "usb3-ss");
 
 	err = clk_prepare_enable(sata->pll);
 	if (err < 0)
@@ -718,7 +742,14 @@ static int tegra210_sata_uphy_enable(struct tegra_xusb_padctl *padctl, bool usb)
 
 	tegra210_sata_pll_hw_sequence_start();
 
-	sata->enable++;
+skip_pll_init:
+	sata->enable = true;
+
+	for (i = 0; i < padctl->sata->soc->num_lanes; i++) {
+		value = padctl_readl(padctl, XUSB_PADCTL_USB3_PAD_MUX);
+		value |= XUSB_PADCTL_USB3_PAD_MUX_SATA_IDDQ_DISABLE(i);
+		padctl_writel(padctl, value, XUSB_PADCTL_USB3_PAD_MUX);
+	}
 
 	return 0;
 
@@ -732,25 +763,26 @@ disable:
 static void tegra210_sata_uphy_disable(struct tegra_xusb_padctl *padctl)
 {
 	struct tegra_xusb_sata_pad *sata = to_sata_pad(padctl->sata);
+	u32 value;
+	unsigned int i;
 
-	if (WARN_ON(sata->enable == 0))
+	if (WARN_ON(!sata->enable))
 		return;
 
-	if (--sata->enable > 0)
-		return;
+	sata->enable = false;
 
-	reset_control_assert(sata->rst);
+	for (i = 0; i < padctl->sata->soc->num_lanes; i++) {
+		value = padctl_readl(padctl, XUSB_PADCTL_USB3_PAD_MUX);
+		value &= ~XUSB_PADCTL_USB3_PAD_MUX_SATA_IDDQ_DISABLE(i);
+		padctl_writel(padctl, value, XUSB_PADCTL_USB3_PAD_MUX);
+	}
+
 	clk_disable_unprepare(sata->pll);
 }
 
-static int tegra210_xusb_padctl_enable(struct tegra_xusb_padctl *padctl)
+static void tegra210_aux_mux_lp0_clamp_disable(struct tegra_xusb_padctl *padctl)
 {
 	u32 value;
-
-	mutex_lock(&padctl->lock);
-
-	if (padctl->enable++ > 0)
-		goto out;
 
 	value = padctl_readl(padctl, XUSB_PADCTL_ELPG_PROGRAM1);
 	value &= ~XUSB_PADCTL_ELPG_PROGRAM1_AUX_MUX_LP0_CLAMP_EN;
@@ -767,23 +799,11 @@ static int tegra210_xusb_padctl_enable(struct tegra_xusb_padctl *padctl)
 	value = padctl_readl(padctl, XUSB_PADCTL_ELPG_PROGRAM1);
 	value &= ~XUSB_PADCTL_ELPG_PROGRAM1_AUX_MUX_LP0_VCORE_DOWN;
 	padctl_writel(padctl, value, XUSB_PADCTL_ELPG_PROGRAM1);
-
-out:
-	mutex_unlock(&padctl->lock);
-	return 0;
 }
 
-static int tegra210_xusb_padctl_disable(struct tegra_xusb_padctl *padctl)
+static void tegra210_aux_mux_lp0_clamp_enable(struct tegra_xusb_padctl *padctl)
 {
 	u32 value;
-
-	mutex_lock(&padctl->lock);
-
-	if (WARN_ON(padctl->enable == 0))
-		goto out;
-
-	if (--padctl->enable > 0)
-		goto out;
 
 	value = padctl_readl(padctl, XUSB_PADCTL_ELPG_PROGRAM1);
 	value |= XUSB_PADCTL_ELPG_PROGRAM1_AUX_MUX_LP0_VCORE_DOWN;
@@ -800,10 +820,36 @@ static int tegra210_xusb_padctl_disable(struct tegra_xusb_padctl *padctl)
 	value = padctl_readl(padctl, XUSB_PADCTL_ELPG_PROGRAM1);
 	value |= XUSB_PADCTL_ELPG_PROGRAM1_AUX_MUX_LP0_CLAMP_EN;
 	padctl_writel(padctl, value, XUSB_PADCTL_ELPG_PROGRAM1);
+}
 
-out:
-	mutex_unlock(&padctl->lock);
+static int tegra210_uphy_init(struct tegra_xusb_padctl *padctl)
+{
+	if (padctl->pcie)
+		tegra210_pex_uphy_enable(padctl);
+
+	if (padctl->sata)
+		tegra210_sata_uphy_enable(padctl);
+
+	if (!tegra210_plle_hw_sequence_is_enabled())
+		tegra210_plle_hw_sequence_start();
+	else
+		dev_dbg(padctl->dev, "PLLE is already in HW control\n");
+
+	tegra210_aux_mux_lp0_clamp_disable(padctl);
+
 	return 0;
+}
+
+static void __maybe_unused
+tegra210_uphy_deinit(struct tegra_xusb_padctl *padctl)
+{
+	tegra210_aux_mux_lp0_clamp_enable(padctl);
+
+	if (padctl->sata)
+		tegra210_sata_uphy_disable(padctl);
+
+	if (padctl->pcie)
+		tegra210_pex_uphy_disable(padctl);
 }
 
 static int tegra210_hsic_set_idle(struct tegra_xusb_padctl *padctl,
@@ -942,14 +988,12 @@ static int tegra210_usb2_phy_init(struct phy *phy)
 		 XUSB_PADCTL_USB2_PAD_MUX_USB2_BIAS_PAD_SHIFT;
 	padctl_writel(padctl, value, XUSB_PADCTL_USB2_PAD_MUX);
 
-	return tegra210_xusb_padctl_enable(padctl);
+	return 0;
 }
 
 static int tegra210_usb2_phy_exit(struct phy *phy)
 {
-	struct tegra_xusb_lane *lane = phy_get_drvdata(phy);
-
-	return tegra210_xusb_padctl_disable(lane->pad->padctl);
+	return 0;
 }
 
 static int tegra210_xusb_padctl_vbus_override(struct tegra_xusb_padctl *padctl,
@@ -1407,14 +1451,12 @@ static int tegra210_hsic_phy_init(struct phy *phy)
 		 XUSB_PADCTL_USB2_PAD_MUX_HSIC_PAD_TRK_SHIFT;
 	padctl_writel(padctl, value, XUSB_PADCTL_USB2_PAD_MUX);
 
-	return tegra210_xusb_padctl_enable(padctl);
+	return 0;
 }
 
 static int tegra210_hsic_phy_exit(struct phy *phy)
 {
-	struct tegra_xusb_lane *lane = phy_get_drvdata(phy);
-
-	return tegra210_xusb_padctl_disable(lane->pad->padctl);
+	return 0;
 }
 
 static int tegra210_hsic_phy_power_on(struct phy *phy)
@@ -1778,38 +1820,28 @@ static const struct tegra_xusb_lane_ops tegra210_pcie_lane_ops = {
 static int tegra210_pcie_phy_init(struct phy *phy)
 {
 	struct tegra_xusb_lane *lane = phy_get_drvdata(phy);
+	struct tegra_xusb_padctl *padctl = lane->pad->padctl;
 
-	return tegra210_xusb_padctl_enable(lane->pad->padctl);
-}
+	mutex_lock(&padctl->lock);
 
-static int tegra210_pcie_phy_exit(struct phy *phy)
-{
-	struct tegra_xusb_lane *lane = phy_get_drvdata(phy);
+	tegra210_uphy_init(padctl);
 
-	return tegra210_xusb_padctl_disable(lane->pad->padctl);
+	mutex_unlock(&padctl->lock);
+
+	return 0;
 }
 
 static int tegra210_pcie_phy_power_on(struct phy *phy)
 {
 	struct tegra_xusb_lane *lane = phy_get_drvdata(phy);
 	struct tegra_xusb_padctl *padctl = lane->pad->padctl;
-	u32 value;
-	int err;
+	int err = 0;
 
 	mutex_lock(&padctl->lock);
-
-	err = tegra210_pex_uphy_enable(padctl);
-	if (err < 0)
-		goto unlock;
-
-	value = padctl_readl(padctl, XUSB_PADCTL_USB3_PAD_MUX);
-	value |= XUSB_PADCTL_USB3_PAD_MUX_PCIE_IDDQ_DISABLE(lane->index);
-	padctl_writel(padctl, value, XUSB_PADCTL_USB3_PAD_MUX);
 
 	if (tegra_xusb_lane_check(lane, "usb3-ss"))
 		err = tegra210_usb3_phy_power_on(phy);
 
-unlock:
 	mutex_unlock(&padctl->lock);
 	return err;
 }
@@ -1819,15 +1851,8 @@ static int tegra210_pcie_phy_power_off(struct phy *phy)
 	struct tegra_xusb_lane *lane = phy_get_drvdata(phy);
 	struct tegra_xusb_padctl *padctl = lane->pad->padctl;
 	int err = 0;
-	u32 value;
 
 	mutex_lock(&padctl->lock);
-
-	value = padctl_readl(padctl, XUSB_PADCTL_USB3_PAD_MUX);
-	value &= ~XUSB_PADCTL_USB3_PAD_MUX_PCIE_IDDQ_DISABLE(lane->index);
-	padctl_writel(padctl, value, XUSB_PADCTL_USB3_PAD_MUX);
-
-	tegra210_pex_uphy_disable(padctl);
 
 	if (tegra_xusb_lane_check(lane, "usb3-ss"))
 		err = tegra210_usb3_phy_power_off(phy);
@@ -1838,7 +1863,6 @@ static int tegra210_pcie_phy_power_off(struct phy *phy)
 
 static const struct phy_ops tegra210_pcie_phy_ops = {
 	.init = tegra210_pcie_phy_init,
-	.exit = tegra210_pcie_phy_exit,
 	.power_on = tegra210_pcie_phy_power_on,
 	.power_off = tegra210_pcie_phy_power_off,
 	.owner = THIS_MODULE,
@@ -1959,38 +1983,27 @@ static const struct tegra_xusb_lane_ops tegra210_sata_lane_ops = {
 static int tegra210_sata_phy_init(struct phy *phy)
 {
 	struct tegra_xusb_lane *lane = phy_get_drvdata(phy);
+	struct tegra_xusb_padctl *padctl = lane->pad->padctl;
 
-	return tegra210_xusb_padctl_enable(lane->pad->padctl);
-}
+	mutex_lock(&padctl->lock);
 
-static int tegra210_sata_phy_exit(struct phy *phy)
-{
-	struct tegra_xusb_lane *lane = phy_get_drvdata(phy);
+	tegra210_uphy_init(padctl);
 
-	return tegra210_xusb_padctl_disable(lane->pad->padctl);
+	mutex_unlock(&padctl->lock);
+	return 0;
 }
 
 static int tegra210_sata_phy_power_on(struct phy *phy)
 {
 	struct tegra_xusb_lane *lane = phy_get_drvdata(phy);
 	struct tegra_xusb_padctl *padctl = lane->pad->padctl;
-	u32 value;
-	int err;
+	int err = 0;
 
 	mutex_lock(&padctl->lock);
-
-	err = tegra210_sata_uphy_enable(padctl, false);
-	if (err < 0)
-		goto unlock;
-
-	value = padctl_readl(padctl, XUSB_PADCTL_USB3_PAD_MUX);
-	value |= XUSB_PADCTL_USB3_PAD_MUX_SATA_IDDQ_DISABLE(lane->index);
-	padctl_writel(padctl, value, XUSB_PADCTL_USB3_PAD_MUX);
 
 	if (tegra_xusb_lane_check(lane, "usb3-ss"))
 		err = tegra210_usb3_phy_power_on(phy);
 
-unlock:
 	mutex_unlock(&padctl->lock);
 	return err;
 }
@@ -2000,15 +2013,8 @@ static int tegra210_sata_phy_power_off(struct phy *phy)
 	struct tegra_xusb_lane *lane = phy_get_drvdata(phy);
 	struct tegra_xusb_padctl *padctl = lane->pad->padctl;
 	int err = 0;
-	u32 value;
 
 	mutex_lock(&padctl->lock);
-
-	value = padctl_readl(padctl, XUSB_PADCTL_USB3_PAD_MUX);
-	value &= ~XUSB_PADCTL_USB3_PAD_MUX_SATA_IDDQ_DISABLE(lane->index);
-	padctl_writel(padctl, value, XUSB_PADCTL_USB3_PAD_MUX);
-
-	tegra210_sata_uphy_disable(lane->pad->padctl);
 
 	if (tegra_xusb_lane_check(lane, "usb3-ss"))
 		err = tegra210_usb3_phy_power_off(phy);
@@ -2019,7 +2025,6 @@ static int tegra210_sata_phy_power_off(struct phy *phy)
 
 static const struct phy_ops tegra210_sata_phy_ops = {
 	.init = tegra210_sata_phy_init,
-	.exit = tegra210_sata_phy_exit,
 	.power_on = tegra210_sata_phy_power_on,
 	.power_off = tegra210_sata_phy_power_off,
 	.owner = THIS_MODULE,
