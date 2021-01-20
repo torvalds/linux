@@ -451,8 +451,9 @@ static void aspeed_set_tacho_type_values(struct regmap *regmap, u8 type,
 
 	regmap_update_bits(regmap, type_params[type].ctrl_reg,
 			   TYPE_CTRL_FAN_MASK, reg_value);
+	/* Falling point need to less than tach period to avoid sample error */
 	regmap_update_bits(regmap, type_params[type].ctrl_reg1,
-			   TYPE_CTRL_FAN1_MASK, unit << 16);
+			   TYPE_CTRL_FAN1_MASK, (unit - 0x10) << 16);
 }
 
 static void aspeed_set_fan_tach_ch_enable(struct regmap *regmap, u8 fan_tach_ch,
