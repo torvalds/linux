@@ -656,6 +656,8 @@ static bool __eht_inc_exc(struct net_bridge_port_group *pg,
 	}
 	/* we can be missing sets only if we've deleted some entries */
 	if (flush_entries) {
+		struct net_bridge *br = pg->key.port->br;
+		struct net_bridge_group_eht_set *eht_set;
 		struct net_bridge_group_src *src_ent;
 		struct hlist_node *tmp;
 
@@ -667,6 +669,25 @@ static bool __eht_inc_exc(struct net_bridge_port_group *pg,
 				changed = true;
 				continue;
 			}
+			/* this is an optimization for TO_INCLUDE where we lower
+			 * the set's timeout to LMQT to catch timeout hosts:
+			 * - host A (timing out): set entries X, Y
+			 * - host B: set entry Z (new from current TO_INCLUDE)
+			 *           sends BLOCK Z after LMQT but host A's EHT
+			 *           entries still exist (unless lowered to LMQT
+			 *           so they can timeout with the S,Gs)
+			 * => we wait another LMQT, when we can just delete the
+			 *    group immediately
+			 */
+			if (!(src_ent->flags & BR_SGRP_F_SEND) ||
+			    filter_mode != MCAST_INCLUDE ||
+			    !to_report)
+				continue;
+			eht_set = br_multicast_eht_set_lookup(pg,
+							      &eht_src_addr);
+			if (!eht_set)
+				continue;
+			mod_timer(&eht_set->timer, jiffies + br_multicast_lmqt(br));
 		}
 	}
 
