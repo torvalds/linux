@@ -460,8 +460,10 @@ affs_xrename(struct inode *old_dir, struct dentry *old_dentry,
 		return -EIO;
 
 	bh_new = affs_bread(sb, d_inode(new_dentry)->i_ino);
-	if (!bh_new)
+	if (!bh_new) {
+		affs_brelse(bh_old);
 		return -EIO;
+	}
 
 	/* Remove old header from its parent directory. */
 	affs_lock_dir(old_dir);
