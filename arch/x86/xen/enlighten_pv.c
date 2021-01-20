@@ -1035,8 +1035,6 @@ void __init xen_setup_vcpu_info_placement(void)
 	 */
 	if (xen_have_vcpu_info_placement) {
 		pv_ops.irq.save_fl = __PV_IS_CALLEE_SAVE(xen_save_fl_direct);
-		pv_ops.irq.restore_fl =
-			__PV_IS_CALLEE_SAVE(xen_restore_fl_direct);
 		pv_ops.irq.irq_disable =
 			__PV_IS_CALLEE_SAVE(xen_irq_disable_direct);
 		pv_ops.irq.irq_enable =

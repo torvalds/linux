@@ -25,7 +25,6 @@ struct patch_xxl {
 	const unsigned char	mmu_read_cr2[3];
 	const unsigned char	mmu_read_cr3[3];
 	const unsigned char	mmu_write_cr3[3];
-	const unsigned char	irq_restore_fl[2];
 	const unsigned char	cpu_wbinvd[2];
 	const unsigned char	mov64[3];
 };
@@ -37,7 +36,6 @@ static const struct patch_xxl patch_data_xxl = {
 	.mmu_read_cr2		= { 0x0f, 0x20, 0xd0 },	// mov %cr2, %[re]ax
 	.mmu_read_cr3		= { 0x0f, 0x20, 0xd8 },	// mov %cr3, %[re]ax
 	.mmu_write_cr3		= { 0x0f, 0x22, 0xdf },	// mov %rdi, %cr3
-	.irq_restore_fl		= { 0x57, 0x9d },	// push %rdi; popfq
 	.cpu_wbinvd		= { 0x0f, 0x09 },	// wbinvd
 	.mov64			= { 0x48, 0x89, 0xf8 },	// mov %rdi, %rax
 };
@@ -71,7 +69,6 @@ unsigned int native_patch(u8 type, void *insn_buff, unsigned long addr,
 	switch (type) {
 
 #ifdef CONFIG_PARAVIRT_XXL
-	PATCH_CASE(irq, restore_fl, xxl, insn_buff, len);
 	PATCH_CASE(irq, save_fl, xxl, insn_buff, len);
 	PATCH_CASE(irq, irq_enable, xxl, insn_buff, len);
 	PATCH_CASE(irq, irq_disable, xxl, insn_buff, len);

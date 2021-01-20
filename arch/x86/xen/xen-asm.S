@@ -72,34 +72,6 @@ SYM_FUNC_START(xen_save_fl_direct)
 	ret
 SYM_FUNC_END(xen_save_fl_direct)
 
-
-/*
- * In principle the caller should be passing us a value return from
- * xen_save_fl_direct, but for robustness sake we test only the
- * X86_EFLAGS_IF flag rather than the whole byte. After setting the
- * interrupt mask state, it checks for unmasked pending events and
- * enters the hypervisor to get them delivered if so.
- */
-SYM_FUNC_START(xen_restore_fl_direct)
-	FRAME_BEGIN
-	testw $X86_EFLAGS_IF, %di
-	setz PER_CPU_VAR(xen_vcpu_info) + XEN_vcpu_info_mask
-	/*
-	 * Preempt here doesn't matter because that will deal with any
-	 * pending interrupts.  The pending check may end up being run
-	 * on the wrong CPU, but that doesn't hurt.
-	 */
-
-	/* check for unmasked and pending */
-	cmpw $0x0001, PER_CPU_VAR(xen_vcpu_info) + XEN_vcpu_info_pending
-	jnz 1f
-	call check_events
-1:
-	FRAME_END
-	ret
-SYM_FUNC_END(xen_restore_fl_direct)
-
-
 /*
  * Force an event check by making a hypercall, but preserve regs
  * before making the call.
