@@ -86,9 +86,9 @@ void __init mem_init(void)
 #ifdef CONFIG_HIGHMEM
 	unsigned long tmp;
 
-	max_mapnr = highend_pfn;
+	set_max_mapnr(highend_pfn - ARCH_PFN_OFFSET);
 #else
-	max_mapnr = max_low_pfn;
+	set_max_mapnr(max_low_pfn - ARCH_PFN_OFFSET);
 #endif
 	high_memory = (void *) __va(max_low_pfn << PAGE_SHIFT);
 
