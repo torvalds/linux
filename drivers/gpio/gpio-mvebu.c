@@ -667,22 +667,21 @@ static void mvebu_pwm_get_state(struct pwm_chip *chip,
 	spin_lock_irqsave(&mvpwm->lock, flags);
 
 	regmap_read(mvpwm->regs, mvebu_pwmreg_blink_on_duration(mvpwm), &u);
-	val = (unsigned long long) u * NSEC_PER_SEC;
-	val = DIV_ROUND_UP_ULL(val, mvpwm->clk_rate);
-	if (val)
-		state->duty_cycle = val;
+	/* Hardware treats zero as 2^32. See mvebu_pwm_apply(). */
+	if (u > 0)
+		val = u;
 	else
-		state->duty_cycle = 1;
+		val = UINT_MAX + 1ULL;
+	state->duty_cycle = DIV_ROUND_UP_ULL(val * NSEC_PER_SEC,
+			mvpwm->clk_rate);
 
-	val = (unsigned long long) u; /* on duration */
 	regmap_read(mvpwm->regs, mvebu_pwmreg_blink_off_duration(mvpwm), &u);
-	val += (unsigned long long) u; /* period = on + off duration */
-	val *= NSEC_PER_SEC;
-	val = DIV_ROUND_UP_ULL(val, mvpwm->clk_rate);
-	if (val)
-		state->period = val;
+	/* period = on + off duration */
+	if (u > 0)
+		val += u;
 	else
-		state->period = 1;
+		val += UINT_MAX + 1ULL;
+	state->period = DIV_ROUND_UP_ULL(val * NSEC_PER_SEC, mvpwm->clk_rate);
 
 	regmap_read(mvchip->regs, GPIO_BLINK_EN_OFF + mvchip->offset, &u);
 	if (u)
@@ -704,9 +703,15 @@ static int mvebu_pwm_apply(struct pwm_chip *chip, struct pwm_device *pwm,
 
 	val = (unsigned long long) mvpwm->clk_rate * state->duty_cycle;
 	do_div(val, NSEC_PER_SEC);
-	if (val > UINT_MAX)
+	if (val > UINT_MAX + 1ULL)
 		return -EINVAL;
-	if (val)
+	/*
+	 * Zero on/off values don't work as expected. Experimentation shows
+	 * that zero value is treated as 2^32. This behavior is not documented.
+	 */
+	if (val == UINT_MAX + 1ULL)
+		on = 0;
+	else if (val)
 		on = val;
 	else
 		on = 1;
@@ -714,9 +719,11 @@ static int mvebu_pwm_apply(struct pwm_chip *chip, struct pwm_device *pwm,
 	val = (unsigned long long) mvpwm->clk_rate * state->period;
 	do_div(val, NSEC_PER_SEC);
 	val -= on;
-	if (val > UINT_MAX)
+	if (val > UINT_MAX + 1ULL)
 		return -EINVAL;
-	if (val)
+	if (val == UINT_MAX + 1ULL)
+		off = 0;
+	else if (val)
 		off = val;
 	else
 		off = 1;
