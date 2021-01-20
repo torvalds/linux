@@ -551,14 +551,6 @@ config CLKSRC_MIPS_GIC
 	select CLOCKSOURCE_WATCHDOG
 	select TIMER_OF
 
-config CLKSRC_TANGO_XTAL
-	bool "Clocksource for Tango SoC" if COMPILE_TEST
-	depends on ARM
-	select TIMER_OF
-	select CLKSRC_MMIO
-	help
-	  This enables the clocksource for Tango SoC.
-
 config CLKSRC_PXA
 	bool "Clocksource for PXA or SA-11x0 platform" if COMPILE_TEST
 	depends on HAS_IOMEM
