@@ -26,6 +26,11 @@ Management
 ----------
 Quota and period are managed within the cpu subsystem via cgroupfs.
 
+.. note::
+   The cgroupfs files described in this section are only applicable
+   to cgroup v1. For cgroup v2, see
+   :ref:`Documentation/admin-guide/cgroupv2.rst <cgroup-v2-cpu>`.
+
 - cpu.cfs_quota_us: the total available run-time within a period (in
   microseconds)
 - cpu.cfs_period_us: the length of a period (in microseconds)

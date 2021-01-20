@@ -1,3 +1,5 @@
+.. _cgroup-v2:
+
 ================
 Control Group v2
 ================
@@ -953,6 +955,8 @@ All cgroup core files are prefixed with "cgroup."
 
 Controllers
 ===========
+
+.. _cgroup-v2-cpu:
 
 CPU
 ---
