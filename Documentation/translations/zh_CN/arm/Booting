@@ -124,7 +124,7 @@ bootloader 必须传递一个系统内存的位置和最小值，以及根文件
 
 bootloader 必须以 64bit 地址对齐的形式加载一个设备树映像(dtb)到系统
 RAM 中，并用启动数据初始化它。dtb 格式在文档
-Documentation/devicetree/booting-without-of.rst 中。内核将会在
+https://www.devicetree.org/specifications/ 中。内核将会在
 dtb 物理地址处查找 dtb 魔数值（0xd00dfeed），以确定 dtb 是否已经代替
 标签列表被传递进来。
 
