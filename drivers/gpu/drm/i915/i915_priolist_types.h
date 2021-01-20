@@ -24,9 +24,6 @@ enum {
 	I915_PRIORITY_DISPLAY,
 };
 
-#define I915_USER_PRIORITY_SHIFT 0
-#define I915_USER_PRIORITY(x) ((x) << I915_USER_PRIORITY_SHIFT)
-
 /* Smallest priority value that cannot be bumped. */
 #define I915_PRIORITY_INVALID (INT_MIN)
 
