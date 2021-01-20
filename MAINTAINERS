@@ -2787,6 +2787,14 @@ F:	arch/arm64/
 F:	tools/testing/selftests/arm64/
 X:	arch/arm64/boot/dts/
 
+ARROW SPEEDCHIPS XRS7000 SERIES ETHERNET SWITCH DRIVER
+M:	George McCollister <george.mccollister@gmail.com>
+L:	netdev@vger.kernel.org
+S:	Maintained
+F:	Documentation/devicetree/bindings/net/dsa/arrow,xrs700x.yaml
+F:	drivers/net/dsa/xrs700x/*
+F:	net/dsa/tag_xrs700x.c
+
 AS3645A LED FLASH CONTROLLER DRIVER
 M:	Sakari Ailus <sakari.ailus@iki.fi>
 L:	linux-leds@vger.kernel.org
