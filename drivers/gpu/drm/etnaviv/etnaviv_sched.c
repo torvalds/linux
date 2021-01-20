@@ -82,7 +82,8 @@ static struct dma_fence *etnaviv_sched_run_job(struct drm_sched_job *sched_job)
 	return fence;
 }
 
-static void etnaviv_sched_timedout_job(struct drm_sched_job *sched_job)
+static enum drm_gpu_sched_stat etnaviv_sched_timedout_job(struct drm_sched_job
+							  *sched_job)
 {
 	struct etnaviv_gem_submit *submit = to_etnaviv_submit(sched_job);
 	struct etnaviv_gpu *gpu = submit->gpu;
@@ -120,9 +121,13 @@ static void etnaviv_sched_timedout_job(struct drm_sched_job *sched_job)
 
 	drm_sched_resubmit_jobs(&gpu->sched);
 
+	drm_sched_start(&gpu->sched, true);
+	return DRM_GPU_SCHED_STAT_NOMINAL;
+
 out_no_timeout:
 	/* restart scheduler after GPU is usable again */
 	drm_sched_start(&gpu->sched, true);
+	return DRM_GPU_SCHED_STAT_NOMINAL;
 }
 
 static void etnaviv_sched_free_job(struct drm_sched_job *sched_job)

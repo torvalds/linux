@@ -432,7 +432,8 @@ static void panfrost_scheduler_start(struct panfrost_queue_state *queue)
 	mutex_unlock(&queue->lock);
 }
 
-static void panfrost_job_timedout(struct drm_sched_job *sched_job)
+static enum drm_gpu_sched_stat panfrost_job_timedout(struct drm_sched_job
+						     *sched_job)
 {
 	struct panfrost_job *job = to_panfrost_job(sched_job);
 	struct panfrost_device *pfdev = job->pfdev;
@@ -443,7 +444,7 @@ static void panfrost_job_timedout(struct drm_sched_job *sched_job)
 	 * spurious. Bail out.
 	 */
 	if (dma_fence_is_signaled(job->done_fence))
-		return;
+		return DRM_GPU_SCHED_STAT_NOMINAL;
 
 	dev_err(pfdev->dev, "gpu sched timeout, js=%d, config=0x%x, status=0x%x, head=0x%x, tail=0x%x, sched_job=%p",
 		js,
@@ -455,11 +456,13 @@ static void panfrost_job_timedout(struct drm_sched_job *sched_job)
 
 	/* Scheduler is already stopped, nothing to do. */
 	if (!panfrost_scheduler_stop(&pfdev->js->queue[js], sched_job))
-		return;
+		return DRM_GPU_SCHED_STAT_NOMINAL;
 
 	/* Schedule a reset if there's no reset in progress. */
 	if (!atomic_xchg(&pfdev->reset.pending, 1))
 		schedule_work(&pfdev->reset.work);
+
+	return DRM_GPU_SCHED_STAT_NOMINAL;
 }
 
 static const struct drm_sched_backend_ops panfrost_sched_ops = {
