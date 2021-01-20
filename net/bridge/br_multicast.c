@@ -2142,11 +2142,12 @@ static bool br_multicast_toex(struct net_bridge_port_group *pg, void *h_addr,
 /* State          Msg type      New state                Actions
  * INCLUDE (A)    BLOCK (B)     INCLUDE (A)              Send Q(G,A*B)
  */
-static void __grp_src_block_incl(struct net_bridge_port_group *pg, void *h_addr,
+static bool __grp_src_block_incl(struct net_bridge_port_group *pg, void *h_addr,
 				 void *srcs, u32 nsrcs, size_t addr_size)
 {
 	struct net_bridge_group_src *ent;
 	u32 src_idx, to_send = 0;
+	bool changed = false;
 	struct br_ip src_ip;
 
 	hlist_for_each_entry(ent, &pg->src_list, node)
@@ -2167,8 +2168,15 @@ static void __grp_src_block_incl(struct net_bridge_port_group *pg, void *h_addr,
 	if (to_send)
 		__grp_src_query_marked_and_rexmit(pg);
 
-	if (pg->filter_mode == MCAST_INCLUDE && hlist_empty(&pg->src_list))
+	if (pg->filter_mode == MCAST_INCLUDE && hlist_empty(&pg->src_list)) {
 		br_multicast_find_del_pg(pg->key.port->br, pg);
+		/* a notification has already been sent and we shouldn't access
+		 * pg after the delete thus we have to return false
+		 */
+		changed = false;
+	}
+
+	return changed;
 }
 
 /* State          Msg type      New state                Actions
@@ -2218,7 +2226,7 @@ static bool br_multicast_block(struct net_bridge_port_group *pg, void *h_addr,
 
 	switch (pg->filter_mode) {
 	case MCAST_INCLUDE:
-		__grp_src_block_incl(pg, h_addr, srcs, nsrcs, addr_size);
+		changed = __grp_src_block_incl(pg, h_addr, srcs, nsrcs, addr_size);
 		break;
 	case MCAST_EXCLUDE:
 		changed = __grp_src_block_excl(pg, h_addr, srcs, nsrcs, addr_size);
