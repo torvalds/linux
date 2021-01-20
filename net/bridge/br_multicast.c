@@ -33,6 +33,7 @@
 #endif
 
 #include "br_private.h"
+#include "br_private_mcast_eht.h"
 
 static const struct rhashtable_params br_mdb_rht_params = {
 	.head_offset = offsetof(struct net_bridge_mdb_entry, rhnode),

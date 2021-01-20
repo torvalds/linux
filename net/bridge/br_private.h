@@ -252,6 +252,8 @@ struct net_bridge_port_group {
 	struct timer_list		timer;
 	struct timer_list		rexmit_timer;
 	struct hlist_node		mglist;
+	struct rb_root			eht_set_tree;
+	struct rb_root			eht_host_tree;
 
 	struct rhash_head		rhnode;
 	struct net_bridge_mcast_gc	mcast_gc;
