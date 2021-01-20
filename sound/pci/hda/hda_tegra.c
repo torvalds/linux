@@ -178,7 +178,7 @@ static int __maybe_unused hda_tegra_runtime_resume(struct device *dev)
 	rc = clk_bulk_prepare_enable(hda->nclocks, hda->clocks);
 	if (rc != 0)
 		return rc;
-	if (chip && chip->running) {
+	if (chip->running) {
 		hda_tegra_init(hda);
 		azx_init_chip(chip, 1);
 		/* disable controller wake up event*/
