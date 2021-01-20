@@ -434,3 +434,20 @@ static bool br_multicast_del_eht_set_entry(struct net_bridge_port_group *pg,
 out:
 	return set_deleted;
 }
+
+static void br_multicast_del_eht_host(struct net_bridge_port_group *pg,
+				      union net_bridge_eht_addr *h_addr)
+{
+	struct net_bridge_group_eht_set_entry *set_h;
+	struct net_bridge_group_eht_host *eht_host;
+	struct hlist_node *tmp;
+
+	eht_host = br_multicast_eht_host_lookup(pg, h_addr);
+	if (!eht_host)
+		return;
+
+	hlist_for_each_entry_safe(set_h, tmp, &eht_host->set_entries, host_list)
+		br_multicast_del_eht_set_entry(set_h->eht_set->pg,
+					       &set_h->eht_set->src_addr,
+					       &set_h->h_addr);
+}
