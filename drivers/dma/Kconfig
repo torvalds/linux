@@ -703,15 +703,6 @@ config XILINX_ZYNQMP_DPDMA
 	  driver provides the dmaengine required by the DisplayPort subsystem
 	  display driver.
 
-config ZX_DMA
-	tristate "ZTE ZX DMA support"
-	depends on ARCH_ZX || COMPILE_TEST
-	select DMA_ENGINE
-	select DMA_VIRTUAL_CHANNELS
-	help
-	  Support the DMA engine for ZTE ZX family platform devices.
-
-
 # driver files
 source "drivers/dma/bestcomm/Kconfig"
 
