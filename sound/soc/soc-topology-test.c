@@ -6,7 +6,6 @@
  */
 
 #include <linux/firmware.h>
-#include <linux/random.h>
 #include <sound/core.h>
 #include <sound/soc.h>
 #include <sound/soc-topology.h>
@@ -106,6 +105,37 @@ static const struct snd_soc_component_driver test_component = {
 	.probe = d_probe,
 	.remove = d_remove,
 	.non_legacy_dai_naming = 1,
+};
+
+/* ===== TOPOLOGY TEMPLATES ================================================= */
+
+// Structural representation of topology which can be generated with:
+// $ touch empty
+// $ alsatplg -c empty -o empty.tplg
+// $ xxd -i empty.tplg
+
+struct tplg_tmpl_001 {
+	struct snd_soc_tplg_hdr header;
+	struct snd_soc_tplg_manifest manifest;
+} __packed;
+
+static struct tplg_tmpl_001 tplg_tmpl_empty = {
+	.header = {
+		.magic = SND_SOC_TPLG_MAGIC,
+		.abi = 5,
+		.version = 0,
+		.type = SND_SOC_TPLG_TYPE_MANIFEST,
+		.size = sizeof(struct snd_soc_tplg_hdr),
+		.vendor_type = 0,
+		.payload_size = sizeof(struct snd_soc_tplg_manifest),
+		.index = 0,
+		.count = 1,
+	},
+
+	.manifest = {
+		.size = sizeof(struct snd_soc_tplg_manifest),
+		/* rest of fields is 0 */
+	},
 };
 
 /* ===== TEST CASES ========================================================= */
@@ -282,12 +312,291 @@ static void snd_soc_tplg_test_load_with_null_fw(struct kunit *test)
 	snd_soc_unregister_component(test_dev);
 }
 
+// TEST CASE
+// Test passing "empty" topology file
+static void snd_soc_tplg_test_load_empty_tplg(struct kunit *test)
+{
+	struct kunit_soc_component *kunit_comp;
+	struct tplg_tmpl_001 *data;
+	int size;
+	int ret;
+
+	/* prepare */
+	kunit_comp = kunit_kzalloc(test, sizeof(*kunit_comp), GFP_KERNEL);
+	KUNIT_EXPECT_NOT_ERR_OR_NULL(test, kunit_comp);
+	kunit_comp->kunit = test;
+	kunit_comp->expect = 0; /* expect success */
+
+	size = sizeof(tplg_tmpl_empty);
+	data = kunit_kzalloc(kunit_comp->kunit, size, GFP_KERNEL);
+	KUNIT_EXPECT_NOT_ERR_OR_NULL(kunit_comp->kunit, data);
+
+	memcpy(data, &tplg_tmpl_empty, sizeof(tplg_tmpl_empty));
+
+	kunit_comp->fw.data = (u8 *)data;
+	kunit_comp->fw.size = size;
+
+	kunit_comp->card.dev = test_dev,
+	kunit_comp->card.name = "kunit-card",
+	kunit_comp->card.owner = THIS_MODULE,
+	kunit_comp->card.dai_link = kunit_dai_links,
+	kunit_comp->card.num_links = ARRAY_SIZE(kunit_dai_links),
+	kunit_comp->card.fully_routed = true,
+
+	/* run test */
+	ret = snd_soc_register_card(&kunit_comp->card);
+	if (ret != 0 && ret != -EPROBE_DEFER)
+		KUNIT_FAIL(test, "Failed to register card");
+
+	ret = snd_soc_component_initialize(&kunit_comp->comp, &test_component, test_dev);
+	KUNIT_EXPECT_EQ(test, 0, ret);
+
+	ret = snd_soc_add_component(&kunit_comp->comp, NULL, 0);
+	KUNIT_EXPECT_EQ(test, 0, ret);
+
+	/* cleanup */
+	ret = snd_soc_unregister_card(&kunit_comp->card);
+	KUNIT_EXPECT_EQ(test, 0, ret);
+
+	snd_soc_unregister_component(test_dev);
+}
+
+// TEST CASE
+// Test "empty" topology file, but with bad "magic"
+// In theory we could loop through all possible bad values, but it takes too
+// long, so just use SND_SOC_TPLG_MAGIC + 1
+static void snd_soc_tplg_test_load_empty_tplg_bad_magic(struct kunit *test)
+{
+	struct kunit_soc_component *kunit_comp;
+	struct tplg_tmpl_001 *data;
+	int size;
+	int ret;
+
+	/* prepare */
+	kunit_comp = kunit_kzalloc(test, sizeof(*kunit_comp), GFP_KERNEL);
+	KUNIT_EXPECT_NOT_ERR_OR_NULL(test, kunit_comp);
+	kunit_comp->kunit = test;
+	kunit_comp->expect = -EINVAL; /* expect failure */
+
+	size = sizeof(tplg_tmpl_empty);
+	data = kunit_kzalloc(kunit_comp->kunit, size, GFP_KERNEL);
+	KUNIT_EXPECT_NOT_ERR_OR_NULL(kunit_comp->kunit, data);
+
+	memcpy(data, &tplg_tmpl_empty, sizeof(tplg_tmpl_empty));
+	/*
+	 * override abi
+	 * any value != magic number is wrong
+	 */
+	data->header.magic = SND_SOC_TPLG_MAGIC + 1;
+
+	kunit_comp->fw.data = (u8 *)data;
+	kunit_comp->fw.size = size;
+
+	kunit_comp->card.dev = test_dev,
+	kunit_comp->card.name = "kunit-card",
+	kunit_comp->card.owner = THIS_MODULE,
+	kunit_comp->card.dai_link = kunit_dai_links,
+	kunit_comp->card.num_links = ARRAY_SIZE(kunit_dai_links),
+	kunit_comp->card.fully_routed = true,
+
+	/* run test */
+	ret = snd_soc_register_card(&kunit_comp->card);
+	if (ret != 0 && ret != -EPROBE_DEFER)
+		KUNIT_FAIL(test, "Failed to register card");
+
+	ret = snd_soc_component_initialize(&kunit_comp->comp, &test_component, test_dev);
+	KUNIT_EXPECT_EQ(test, 0, ret);
+
+	ret = snd_soc_add_component(&kunit_comp->comp, NULL, 0);
+	KUNIT_EXPECT_EQ(test, 0, ret);
+
+	/* cleanup */
+	ret = snd_soc_unregister_card(&kunit_comp->card);
+	KUNIT_EXPECT_EQ(test, 0, ret);
+
+	snd_soc_unregister_component(test_dev);
+}
+
+// TEST CASE
+// Test "empty" topology file, but with bad "abi"
+// In theory we could loop through all possible bad values, but it takes too
+// long, so just use SND_SOC_TPLG_ABI_VERSION + 1
+static void snd_soc_tplg_test_load_empty_tplg_bad_abi(struct kunit *test)
+{
+	struct kunit_soc_component *kunit_comp;
+	struct tplg_tmpl_001 *data;
+	int size;
+	int ret;
+
+	/* prepare */
+	kunit_comp = kunit_kzalloc(test, sizeof(*kunit_comp), GFP_KERNEL);
+	KUNIT_EXPECT_NOT_ERR_OR_NULL(test, kunit_comp);
+	kunit_comp->kunit = test;
+	kunit_comp->expect = -EINVAL; /* expect failure */
+
+	size = sizeof(tplg_tmpl_empty);
+	data = kunit_kzalloc(kunit_comp->kunit, size, GFP_KERNEL);
+	KUNIT_EXPECT_NOT_ERR_OR_NULL(kunit_comp->kunit, data);
+
+	memcpy(data, &tplg_tmpl_empty, sizeof(tplg_tmpl_empty));
+	/*
+	 * override abi
+	 * any value != accepted range is wrong
+	 */
+	data->header.abi = SND_SOC_TPLG_ABI_VERSION + 1;
+
+	kunit_comp->fw.data = (u8 *)data;
+	kunit_comp->fw.size = size;
+
+	kunit_comp->card.dev = test_dev,
+	kunit_comp->card.name = "kunit-card",
+	kunit_comp->card.owner = THIS_MODULE,
+	kunit_comp->card.dai_link = kunit_dai_links,
+	kunit_comp->card.num_links = ARRAY_SIZE(kunit_dai_links),
+	kunit_comp->card.fully_routed = true,
+
+	/* run test */
+	ret = snd_soc_register_card(&kunit_comp->card);
+	if (ret != 0 && ret != -EPROBE_DEFER)
+		KUNIT_FAIL(test, "Failed to register card");
+
+	ret = snd_soc_component_initialize(&kunit_comp->comp, &test_component, test_dev);
+	KUNIT_EXPECT_EQ(test, 0, ret);
+
+	ret = snd_soc_add_component(&kunit_comp->comp, NULL, 0);
+	KUNIT_EXPECT_EQ(test, 0, ret);
+
+	/* cleanup */
+	ret = snd_soc_unregister_card(&kunit_comp->card);
+	KUNIT_EXPECT_EQ(test, 0, ret);
+
+	snd_soc_unregister_component(test_dev);
+}
+
+// TEST CASE
+// Test "empty" topology file, but with bad "size"
+// In theory we could loop through all possible bad values, but it takes too
+// long, so just use sizeof(struct snd_soc_tplg_hdr) + 1
+static void snd_soc_tplg_test_load_empty_tplg_bad_size(struct kunit *test)
+{
+	struct kunit_soc_component *kunit_comp;
+	struct tplg_tmpl_001 *data;
+	int size;
+	int ret;
+
+	/* prepare */
+	kunit_comp = kunit_kzalloc(test, sizeof(*kunit_comp), GFP_KERNEL);
+	KUNIT_EXPECT_NOT_ERR_OR_NULL(test, kunit_comp);
+	kunit_comp->kunit = test;
+	kunit_comp->expect = -EINVAL; /* expect failure */
+
+	size = sizeof(tplg_tmpl_empty);
+	data = kunit_kzalloc(kunit_comp->kunit, size, GFP_KERNEL);
+	KUNIT_EXPECT_NOT_ERR_OR_NULL(kunit_comp->kunit, data);
+
+	memcpy(data, &tplg_tmpl_empty, sizeof(tplg_tmpl_empty));
+	/*
+	 * override size
+	 * any value != struct size is wrong
+	 */
+	data->header.size = sizeof(struct snd_soc_tplg_hdr) + 1;
+
+	kunit_comp->fw.data = (u8 *)data;
+	kunit_comp->fw.size = size;
+
+	kunit_comp->card.dev = test_dev,
+	kunit_comp->card.name = "kunit-card",
+	kunit_comp->card.owner = THIS_MODULE,
+	kunit_comp->card.dai_link = kunit_dai_links,
+	kunit_comp->card.num_links = ARRAY_SIZE(kunit_dai_links),
+	kunit_comp->card.fully_routed = true,
+
+	/* run test */
+	ret = snd_soc_register_card(&kunit_comp->card);
+	if (ret != 0 && ret != -EPROBE_DEFER)
+		KUNIT_FAIL(test, "Failed to register card");
+
+	ret = snd_soc_component_initialize(&kunit_comp->comp, &test_component, test_dev);
+	KUNIT_EXPECT_EQ(test, 0, ret);
+
+	ret = snd_soc_add_component(&kunit_comp->comp, NULL, 0);
+	KUNIT_EXPECT_EQ(test, 0, ret);
+
+	/* cleanup */
+	ret = snd_soc_unregister_card(&kunit_comp->card);
+	KUNIT_EXPECT_EQ(test, 0, ret);
+
+	snd_soc_unregister_component(test_dev);
+}
+
+// TEST CASE
+// Test "empty" topology file, but with bad "payload_size"
+// In theory we could loop through all possible bad values, but it takes too
+// long, so just use the known wrong one
+static void snd_soc_tplg_test_load_empty_tplg_bad_payload_size(struct kunit *test)
+{
+	struct kunit_soc_component *kunit_comp;
+	struct tplg_tmpl_001 *data;
+	int size;
+	int ret;
+
+	/* prepare */
+	kunit_comp = kunit_kzalloc(test, sizeof(*kunit_comp), GFP_KERNEL);
+	KUNIT_EXPECT_NOT_ERR_OR_NULL(test, kunit_comp);
+	kunit_comp->kunit = test;
+	kunit_comp->expect = -EINVAL; /* expect failure */
+
+	size = sizeof(tplg_tmpl_empty);
+	data = kunit_kzalloc(kunit_comp->kunit, size, GFP_KERNEL);
+	KUNIT_EXPECT_NOT_ERR_OR_NULL(kunit_comp->kunit, data);
+
+	memcpy(data, &tplg_tmpl_empty, sizeof(tplg_tmpl_empty));
+	/*
+	 * override payload size
+	 * there is only explicit check for 0, so check with it, other values
+	 * are handled by just not reading behind EOF
+	 */
+	data->header.payload_size = 0;
+
+	kunit_comp->fw.data = (u8 *)data;
+	kunit_comp->fw.size = size;
+
+	kunit_comp->card.dev = test_dev,
+	kunit_comp->card.name = "kunit-card",
+	kunit_comp->card.owner = THIS_MODULE,
+	kunit_comp->card.dai_link = kunit_dai_links,
+	kunit_comp->card.num_links = ARRAY_SIZE(kunit_dai_links),
+	kunit_comp->card.fully_routed = true,
+
+	/* run test */
+	ret = snd_soc_register_card(&kunit_comp->card);
+	if (ret != 0 && ret != -EPROBE_DEFER)
+		KUNIT_FAIL(test, "Failed to register card");
+
+	ret = snd_soc_component_initialize(&kunit_comp->comp, &test_component, test_dev);
+	KUNIT_EXPECT_EQ(test, 0, ret);
+
+	ret = snd_soc_add_component(&kunit_comp->comp, NULL, 0);
+	KUNIT_EXPECT_EQ(test, 0, ret);
+
+	/* cleanup */
+	snd_soc_unregister_component(test_dev);
+
+	ret = snd_soc_unregister_card(&kunit_comp->card);
+	KUNIT_EXPECT_EQ(test, 0, ret);
+}
+
 /* ===== KUNIT MODULE DEFINITIONS =========================================== */
 
 static struct kunit_case snd_soc_tplg_test_cases[] = {
 	KUNIT_CASE(snd_soc_tplg_test_load_with_null_comp),
 	KUNIT_CASE(snd_soc_tplg_test_load_with_null_ops),
 	KUNIT_CASE(snd_soc_tplg_test_load_with_null_fw),
+	KUNIT_CASE(snd_soc_tplg_test_load_empty_tplg),
+	KUNIT_CASE(snd_soc_tplg_test_load_empty_tplg_bad_magic),
+	KUNIT_CASE(snd_soc_tplg_test_load_empty_tplg_bad_abi),
+	KUNIT_CASE(snd_soc_tplg_test_load_empty_tplg_bad_size),
+	KUNIT_CASE(snd_soc_tplg_test_load_empty_tplg_bad_payload_size),
 	{}
 };
 
