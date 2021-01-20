@@ -878,14 +878,14 @@ static int _intel_hdcp_disable(struct intel_connector *connector)
 		}
 		drm_dbg_kms(&dev_priv->drm, "HDCP 1.4 transcoder: %s stream encryption disabled\n",
 			    transcoder_name(hdcp->stream_transcoder));
+		/*
+		 * If there are other connectors on this port using HDCP,
+		 * don't disable it until it disabled HDCP encryption for
+		 * all connectors in MST topology.
+		 */
+		if (dig_port->num_hdcp_streams > 0)
+			return 0;
 	}
-
-	/*
-	 * If there are other connectors on this port using HDCP, don't disable it
-	 * until it disabled HDCP encryption for all connectors in MST topology.
-	 */
-	if (dig_port->num_hdcp_streams > 0)
-		return ret;
 
 	hdcp->hdcp_encrypted = false;
 	intel_de_write(dev_priv, HDCP_CONF(dev_priv, cpu_transcoder, port), 0);
@@ -1947,10 +1947,10 @@ static int _intel_hdcp2_disable(struct intel_connector *connector)
 		}
 		drm_dbg_kms(&i915->drm, "HDCP 2.2 transcoder: %s stream encryption disabled\n",
 			    transcoder_name(hdcp->stream_transcoder));
-	}
 
-	if (dig_port->num_hdcp_streams > 0)
-		return ret;
+		if (dig_port->num_hdcp_streams > 0)
+			return 0;
+	}
 
 	ret = hdcp2_disable_encryption(connector);
 
