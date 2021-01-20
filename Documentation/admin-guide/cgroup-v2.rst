@@ -1263,9 +1263,9 @@ PAGE_SIZE multiple when read back.
 	can show up in the middle. Don't rely on items remaining in a
 	fixed position; use the keys to look up specific values!
 
-	If the entry has no per-node counter(or not show in the
-	mempry.numa_stat). We use 'npn'(non-per-node) as the tag
-	to indicate that it will not show in the mempry.numa_stat.
+	If the entry has no per-node counter (or not show in the
+	memory.numa_stat). We use 'npn' (non-per-node) as the tag
+	to indicate that it will not show in the memory.numa_stat.
 
 	  anon
 		Amount of memory used in anonymous mappings such as
@@ -1281,11 +1281,11 @@ PAGE_SIZE multiple when read back.
 	  pagetables
                 Amount of memory allocated for page tables.
 
-	  percpu(npn)
+	  percpu (npn)
 		Amount of memory used for storing per-cpu kernel
 		data structures.
 
-	  sock(npn)
+	  sock (npn)
 		Amount of memory used in network transmission buffers
 
 	  shmem
@@ -1333,7 +1333,7 @@ PAGE_SIZE multiple when read back.
 		Part of "slab" that cannot be reclaimed on memory
 		pressure.
 
-	  slab(npn)
+	  slab (npn)
 		Amount of memory used for storing in-kernel data
 		structures.
 
@@ -1361,39 +1361,39 @@ PAGE_SIZE multiple when read back.
 	  workingset_nodereclaim
 		Number of times a shadow node has been reclaimed
 
-	  pgfault(npn)
+	  pgfault (npn)
 		Total number of page faults incurred
 
-	  pgmajfault(npn)
+	  pgmajfault (npn)
 		Number of major page faults incurred
 
-	  pgrefill(npn)
+	  pgrefill (npn)
 		Amount of scanned pages (in an active LRU list)
 
-	  pgscan(npn)
+	  pgscan (npn)
 		Amount of scanned pages (in an inactive LRU list)
 
-	  pgsteal(npn)
+	  pgsteal (npn)
 		Amount of reclaimed pages
 
-	  pgactivate(npn)
+	  pgactivate (npn)
 		Amount of pages moved to the active LRU list
 
-	  pgdeactivate(npn)
+	  pgdeactivate (npn)
 		Amount of pages moved to the inactive LRU list
 
-	  pglazyfree(npn)
+	  pglazyfree (npn)
 		Amount of pages postponed to be freed under memory pressure
 
-	  pglazyfreed(npn)
+	  pglazyfreed (npn)
 		Amount of reclaimed lazyfree pages
 
-	  thp_fault_alloc(npn)
+	  thp_fault_alloc (npn)
 		Number of transparent hugepages which were allocated to satisfy
 		a page fault. This counter is not present when CONFIG_TRANSPARENT_HUGEPAGE
                 is not set.
 
-	  thp_collapse_alloc(npn)
+	  thp_collapse_alloc (npn)
 		Number of transparent hugepages which were allocated to allow
 		collapsing an existing range of pages. This counter is not
 		present when CONFIG_TRANSPARENT_HUGEPAGE is not set.
