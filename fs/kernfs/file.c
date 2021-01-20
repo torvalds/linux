@@ -242,13 +242,7 @@ static ssize_t kernfs_fop_read_iter(struct kiocb *iocb, struct iov_iter *iter)
 	return kernfs_file_read_iter(iocb, iter);
 }
 
-/**
- * kernfs_fop_write - kernfs vfs write callback
- * @file: file pointer
- * @user_buf: data to write
- * @count: number of bytes
- * @ppos: starting offset
- *
+/*
  * Copy data in from userland and pass it to the matching kernfs write
  * operation.
  *
@@ -258,20 +252,18 @@ static ssize_t kernfs_fop_read_iter(struct kiocb *iocb, struct iov_iter *iter)
  * modify only the the value you're changing, then write entire buffer
  * back.
  */
-static ssize_t kernfs_fop_write(struct file *file, const char __user *user_buf,
-				size_t count, loff_t *ppos)
+static ssize_t kernfs_fop_write_iter(struct kiocb *iocb, struct iov_iter *iter)
 {
-	struct kernfs_open_file *of = kernfs_of(file);
+	struct kernfs_open_file *of = kernfs_of(iocb->ki_filp);
+	ssize_t len = iov_iter_count(iter);
 	const struct kernfs_ops *ops;
-	ssize_t len;
 	char *buf;
 
 	if (of->atomic_write_len) {
-		len = count;
 		if (len > of->atomic_write_len)
 			return -E2BIG;
 	} else {
-		len = min_t(size_t, count, PAGE_SIZE);
+		len = min_t(size_t, len, PAGE_SIZE);
 	}
 
 	buf = of->prealloc_buf;
@@ -282,7 +274,7 @@ static ssize_t kernfs_fop_write(struct file *file, const char __user *user_buf,
 	if (!buf)
 		return -ENOMEM;
 
-	if (copy_from_user(buf, user_buf, len)) {
+	if (copy_from_iter(buf, len, iter) != len) {
 		len = -EFAULT;
 		goto out_free;
 	}
@@ -301,7 +293,7 @@ static ssize_t kernfs_fop_write(struct file *file, const char __user *user_buf,
 
 	ops = kernfs_ops(of->kn);
 	if (ops->write)
-		len = ops->write(of, buf, len, *ppos);
+		len = ops->write(of, buf, len, iocb->ki_pos);
 	else
 		len = -EINVAL;
 
@@ -309,7 +301,7 @@ static ssize_t kernfs_fop_write(struct file *file, const char __user *user_buf,
 	mutex_unlock(&of->mutex);
 
 	if (len > 0)
-		*ppos += len;
+		iocb->ki_pos += len;
 
 out_free:
 	if (buf == of->prealloc_buf)
@@ -662,7 +654,7 @@ static int kernfs_fop_open(struct inode *inode, struct file *file)
 
 	/*
 	 * Write path needs to atomic_write_len outside active reference.
-	 * Cache it in open_file.  See kernfs_fop_write() for details.
+	 * Cache it in open_file.  See kernfs_fop_write_iter() for details.
 	 */
 	of->atomic_write_len = ops->atomic_write_len;
 
@@ -950,7 +942,7 @@ EXPORT_SYMBOL_GPL(kernfs_notify);
 
 const struct file_operations kernfs_file_fops = {
 	.read_iter	= kernfs_fop_read_iter,
-	.write		= kernfs_fop_write,
+	.write_iter	= kernfs_fop_write_iter,
 	.llseek		= generic_file_llseek,
 	.mmap		= kernfs_fop_mmap,
 	.open		= kernfs_fop_open,
