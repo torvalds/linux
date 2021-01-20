@@ -1116,6 +1116,14 @@ static const struct of_device_id __maybe_unused rpmh_regulator_match_table[] = {
 		.data = pm6150l_vreg_data,
 	},
 	{
+		.compatible = "qcom,pmc8180-rpmh-regulators",
+		.data = pm8150_vreg_data,
+	},
+	{
+		.compatible = "qcom,pmc8180c-rpmh-regulators",
+		.data = pm8150l_vreg_data,
+	},
+	{
 		.compatible = "qcom,pmx55-rpmh-regulators",
 		.data = pmx55_vreg_data,
 	},
