@@ -414,8 +414,8 @@ peci_cpupower_read_energy(void *ctx, struct peci_sensor_conf *sensor_conf,
 		return ret;
 	}
 
-	/* Energy consumed in microjoules */
-	sensor_data->value = (u32)peci_pcs_xn_to_uunits(priv->energy_cache.value,
+	/* Energy consumed in microjoules - adjusted to 31 bits counter */
+	sensor_data->value = S32_MAX & (u32)peci_pcs_xn_to_uunits(priv->energy_cache.value,
 							priv->units.bits.eng_unit);
 	peci_sensor_mark_updated_with_time(sensor_data,
 					   priv->energy_cache.last_updated);
