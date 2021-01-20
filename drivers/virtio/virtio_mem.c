@@ -2577,7 +2577,7 @@ static int virtio_mem_probe(struct virtio_device *vdev)
 	 * actually in use (e.g., trying to reload the driver).
 	 */
 	if (vm->plugged_size) {
-		vm->unplug_all_required = 1;
+		vm->unplug_all_required = true;
 		dev_info(&vm->vdev->dev, "unplugging all memory is required\n");
 	}
 
