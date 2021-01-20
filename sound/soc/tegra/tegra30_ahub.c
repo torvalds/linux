@@ -337,6 +337,8 @@ static const struct {
 	const char *rst_name;
 	u32 mod_list_mask;
 } configlink_mods[] = {
+	{ "d_audio", MOD_LIST_MASK_TEGRA30_OR_LATER },
+	{ "apbif", MOD_LIST_MASK_TEGRA30_OR_LATER },
 	{ "i2s0", MOD_LIST_MASK_TEGRA30_OR_LATER },
 	{ "i2s1", MOD_LIST_MASK_TEGRA30_OR_LATER },
 	{ "i2s2", MOD_LIST_MASK_TEGRA30_OR_LATER },
