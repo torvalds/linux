@@ -1943,19 +1943,17 @@ static inline int input_available_p(struct tty_struct *tty, int poll)
  *	Helper function to speed up n_tty_read.  It is only called when
  *	ICANON is off; it copies characters straight from the tty queue.
  *
- *	It can be profitably called twice; once to drain the space from
- *	the tail pointer to the (physical) end of the buffer, and once
- *	to drain the space from the (physical) beginning of the buffer
- *	to head pointer.
- *
  *	Called under the ldata->atomic_read_lock sem
+ *
+ *	Returns true if it successfully copied data, but there is still
+ *	more data to be had.
  *
  *	n_tty_read()/consumer path:
  *		caller holds non-exclusive termios_rwsem
  *		read_tail published
  */
 
-static void copy_from_read_buf(struct tty_struct *tty,
+static bool copy_from_read_buf(struct tty_struct *tty,
 				      unsigned char **kbp,
 				      size_t *nr)
 
@@ -1978,10 +1976,14 @@ static void copy_from_read_buf(struct tty_struct *tty,
 		/* Turn single EOF into zero-length read */
 		if (L_EXTPROC(tty) && ldata->icanon && is_eof &&
 		    (head == ldata->read_tail))
-			n = 0;
+			return false;
 		*kbp += n;
 		*nr -= n;
+
+		/* If we have more to copy, let the caller know */
+		return head != ldata->read_tail;
 	}
+	return false;
 }
 
 /**
@@ -2132,6 +2134,25 @@ static ssize_t n_tty_read(struct tty_struct *tty, struct file *file,
 	int packet;
 	size_t tail;
 
+	/*
+	 * Is this a continuation of a read started earler?
+	 *
+	 * If so, we still hold the atomic_read_lock and the
+	 * termios_rwsem, and can just continue to copy data.
+	 */
+	if (*cookie) {
+		if (copy_from_read_buf(tty, &kb, &nr))
+			return kb - kbuf;
+
+		/* No more data - release locks and stop retries */
+		n_tty_kick_worker(tty);
+		n_tty_check_unthrottle(tty);
+		up_read(&tty->termios_rwsem);
+		mutex_unlock(&ldata->atomic_read_lock);
+		*cookie = NULL;
+		return kb - kbuf;
+	}
+
 	c = job_control(tty, file);
 	if (c < 0)
 		return c;
@@ -2226,9 +2247,20 @@ static ssize_t n_tty_read(struct tty_struct *tty, struct file *file,
 				nr--;
 			}
 
-			/* See comment above copy_from_read_buf() why twice */
-			copy_from_read_buf(tty, &kb, &nr);
-			copy_from_read_buf(tty, &kb, &nr);
+			/*
+			 * Copy data, and if there is more to be had
+			 * and we have nothing more to wait for, then
+			 * let's mark us for retries.
+			 *
+			 * NOTE! We return here with both the termios_sem
+			 * and atomic_read_lock still held, the retries
+			 * will release them when done.
+			 */
+			if (copy_from_read_buf(tty, &kb, &nr) && kb - kbuf >= minimum) {
+				remove_wait_queue(&tty->read_wait, &wait);
+				*cookie = cookie;
+				return kb - kbuf;
+			}
 		}
 
 		n_tty_check_unthrottle(tty);
