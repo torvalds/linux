@@ -36,6 +36,9 @@ static int vdec_op_s_ctrl(struct v4l2_ctrl *ctrl)
 	case V4L2_CID_MPEG_VIDEO_DEC_DISPLAY_DELAY_ENABLE:
 		ctr->display_delay_enable = ctrl->val;
 		break;
+	case V4L2_CID_MPEG_VIDEO_DEC_CONCEAL_COLOR:
+		ctr->conceal_color = *ctrl->p_new.p_s64;
+		break;
 	default:
 		return -EINVAL;
 	}
@@ -95,7 +98,7 @@ int vdec_ctrl_init(struct venus_inst *inst)
 	struct v4l2_ctrl *ctrl;
 	int ret;
 
-	ret = v4l2_ctrl_handler_init(&inst->ctrl_handler, 11);
+	ret = v4l2_ctrl_handler_init(&inst->ctrl_handler, 12);
 	if (ret)
 		return ret;
 
@@ -171,6 +174,10 @@ int vdec_ctrl_init(struct venus_inst *inst)
 	v4l2_ctrl_new_std(&inst->ctrl_handler, &vdec_ctrl_ops,
 			  V4L2_CID_MPEG_VIDEO_DEC_DISPLAY_DELAY_ENABLE,
 			  0, 1, 1, 0);
+
+	v4l2_ctrl_new_std(&inst->ctrl_handler, &vdec_ctrl_ops,
+			  V4L2_CID_MPEG_VIDEO_DEC_CONCEAL_COLOR, 0,
+			  0xffffffffffffLL, 1, 0x8000800010LL);
 
 	ret = inst->ctrl_handler.error;
 	if (ret) {

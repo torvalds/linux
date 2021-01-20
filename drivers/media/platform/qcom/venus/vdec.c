@@ -620,7 +620,7 @@ static int vdec_set_properties(struct venus_inst *inst)
 {
 	struct vdec_controls *ctr = &inst->controls.dec;
 	struct hfi_enable en = { .enable = 1 };
-	u32 ptype, decode_order;
+	u32 ptype, decode_order, conceal;
 	int ret;
 
 	if (ctr->post_loop_deb_mode) {
@@ -637,6 +637,15 @@ static int vdec_set_properties(struct venus_inst *inst)
 		if (ret)
 			return ret;
 	}
+
+	ptype = HFI_PROPERTY_PARAM_VDEC_CONCEAL_COLOR;
+	conceal = ctr->conceal_color & 0xffff;
+	conceal |= ((ctr->conceal_color >> 16) & 0xffff) << 10;
+	conceal |= ((ctr->conceal_color >> 32) & 0xffff) << 20;
+
+	ret = hfi_session_set_property(inst, ptype, &conceal);
+	if (ret)
+		return ret;
 
 	return 0;
 }

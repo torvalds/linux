@@ -174,6 +174,7 @@ struct vdec_controls {
 	u32 level;
 	u32 display_delay;
 	u32 display_delay_enable;
+	u64 conceal_color;
 };
 
 struct venc_controls {
