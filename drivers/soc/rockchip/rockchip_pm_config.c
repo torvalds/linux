@@ -14,12 +14,29 @@
 #include <linux/module.h>
 #include <linux/of_gpio.h>
 #include <linux/platform_device.h>
+#include <linux/pm.h>
+#include <linux/regulator/driver.h>
 #include <linux/regulator/machine.h>
 #include <linux/rockchip/rockchip_sip.h>
 #include <linux/suspend.h>
 #include <dt-bindings/input/input.h>
+#include <../drivers/regulator/internal.h>
 
-#define PM_INVALID_GPIO	0xffff
+#define PM_INVALID_GPIO			0xffff
+#define MAX_ON_OFF_REG_NUM		30
+#define MAX_ON_OFF_REG_PROP_NAME_LEN	60
+
+enum rk_pm_state {
+	RK_PM_MEM = 0,
+	RK_PM_MEM_LITE,
+	RK_PM_MEM_ULTRA,
+	RK_PM_STATE_MAX
+};
+
+static struct rk_on_off_regulator_list {
+	struct regulator_dev *on_reg_list[MAX_ON_OFF_REG_NUM];
+	struct regulator_dev *off_reg_list[MAX_ON_OFF_REG_NUM];
+} on_off_regs_list[RK_PM_STATE_MAX];
 
 static const struct of_device_id pm_match_table[] = {
 	{ .compatible = "rockchip,pm-px30",},
@@ -50,7 +67,89 @@ static void rockchip_pm_virt_pwroff_prepare(void)
 	sip_smc_virtual_poweroff();
 }
 
-static int __init pm_config_init(struct platform_device *pdev)
+static int parse_on_off_regulator(struct device_node *node, enum rk_pm_state state)
+{
+	char on_prop_name[MAX_ON_OFF_REG_PROP_NAME_LEN] = {0};
+	char off_prop_name[MAX_ON_OFF_REG_PROP_NAME_LEN] = {0};
+	int i, j;
+	struct device_node *dn;
+	struct regulator_dev *reg;
+	struct regulator_dev **on_list;
+	struct regulator_dev **off_list;
+
+	switch (state) {
+	case RK_PM_MEM:
+		strncpy(on_prop_name, "rockchip,regulator-on-in-mem",
+			MAX_ON_OFF_REG_PROP_NAME_LEN);
+		strncpy(off_prop_name, "rockchip,regulator-off-in-mem",
+			MAX_ON_OFF_REG_PROP_NAME_LEN);
+	break;
+
+	case RK_PM_MEM_LITE:
+		strncpy(on_prop_name, "rockchip,regulator-on-in-mem-lite",
+			MAX_ON_OFF_REG_PROP_NAME_LEN);
+		strncpy(off_prop_name, "rockchip,regulator-off-in-mem-lite",
+			MAX_ON_OFF_REG_PROP_NAME_LEN);
+	break;
+
+	case RK_PM_MEM_ULTRA:
+		strncpy(on_prop_name, "rockchip,regulator-on-in-mem-ultra",
+			MAX_ON_OFF_REG_PROP_NAME_LEN);
+		strncpy(off_prop_name, "rockchip,regulator-off-in-mem-ultra",
+			MAX_ON_OFF_REG_PROP_NAME_LEN);
+	break;
+
+	default:
+		return 0;
+	}
+
+	on_list = on_off_regs_list[state].on_reg_list;
+	off_list = on_off_regs_list[state].off_reg_list;
+
+	if (of_find_property(node, on_prop_name, NULL)) {
+		for (i = 0, j = 0;
+		     (dn = of_parse_phandle(node, on_prop_name, i));
+		     i++) {
+			reg = of_find_regulator_by_node(dn);
+			if (reg == NULL) {
+				pr_warn("failed to find regulator %s for %s\n",
+					dn->name, on_prop_name);
+			} else {
+				pr_debug("%s on regulator=%s\n", __func__,
+					 reg->desc->name);
+				on_list[j++] = reg;
+			}
+			of_node_put(dn);
+
+			if (j >= MAX_ON_OFF_REG_NUM)
+				return 0;
+		}
+	}
+
+	if (of_find_property(node, off_prop_name, NULL)) {
+		for (i = 0, j = 0;
+		     (dn = of_parse_phandle(node, off_prop_name, i));
+		     i++) {
+			reg = of_find_regulator_by_node(dn);
+			if (reg == NULL) {
+				pr_warn("failed to find regulator %s for %s\n",
+					dn->name, off_prop_name);
+			} else {
+				pr_debug("%s off regulator=%s\n", __func__,
+					 reg->desc->name);
+				off_list[j++] = reg;
+			}
+			of_node_put(dn);
+
+			if (j >= MAX_ON_OFF_REG_NUM)
+				return 0;
+		}
+	}
+
+	return 0;
+}
+
+static int pm_config_probe(struct platform_device *pdev)
 {
 	const struct of_device_id *match_id;
 	struct device_node *node;
@@ -136,20 +235,56 @@ static int __init pm_config_init(struct platform_device *pdev)
 	    virtual_poweroff_en)
 		pm_power_off_prepare = rockchip_pm_virt_pwroff_prepare;
 
+	for (i = RK_PM_MEM; i < RK_PM_STATE_MAX; i++)
+		parse_on_off_regulator(node, i);
+
 	return 0;
 }
 
+static int pm_config_prepare(struct device *dev)
+{
+	int i;
+	suspend_state_t suspend_state = mem_sleep_current;
+	enum rk_pm_state state = suspend_state - PM_SUSPEND_MEM;
+	struct regulator_dev **on_list;
+	struct regulator_dev **off_list;
+
+	sip_smc_set_suspend_mode(LINUX_PM_STATE,
+				 suspend_state,
+				 0);
+
+	if (state >= RK_PM_STATE_MAX)
+		return 0;
+
+	on_list = on_off_regs_list[state].on_reg_list;
+	off_list = on_off_regs_list[state].off_reg_list;
+
+	for (i = 0; i < MAX_ON_OFF_REG_NUM && on_list[i]; i++)
+		regulator_suspend_enable(on_list[i], PM_SUSPEND_MEM);
+
+	for (i = 0; i < MAX_ON_OFF_REG_NUM && off_list[i]; i++)
+		regulator_suspend_disable(off_list[i], PM_SUSPEND_MEM);
+
+	return 0;
+}
+
+static const struct dev_pm_ops rockchip_pm_ops = {
+	.prepare = pm_config_prepare,
+};
+
 static struct platform_driver pm_driver = {
+	.probe = pm_config_probe,
 	.driver = {
 		.name = "rockchip-pm",
 		.of_match_table = pm_match_table,
+		.pm = &rockchip_pm_ops,
 	},
 };
 
 static int __init rockchip_pm_drv_register(void)
 {
-	return platform_driver_probe(&pm_driver, pm_config_init);
+	return platform_driver_register(&pm_driver);
 }
-subsys_initcall(rockchip_pm_drv_register);
+late_initcall_sync(rockchip_pm_drv_register);
 MODULE_DESCRIPTION("Rockchip suspend mode config");
 MODULE_LICENSE("GPL");
