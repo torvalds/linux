@@ -216,13 +216,6 @@ config PRIMA2_TIMER
 	help
 	  Enables support for the Prima2 timer.
 
-config U300_TIMER
-	bool "U300 timer driver" if COMPILE_TEST
-	depends on ARM
-	select CLKSRC_MMIO
-	help
-	  Enables support for the U300 timer.
-
 config NSPIRE_TIMER
 	bool "NSpire timer driver" if COMPILE_TEST
 	select CLKSRC_MMIO
