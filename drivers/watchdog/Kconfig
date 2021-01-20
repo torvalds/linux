@@ -788,16 +788,6 @@ config MOXART_WDT
 	  To compile this driver as a module, choose M here: the
 	  module will be called moxart_wdt.
 
-config SIRFSOC_WATCHDOG
-	tristate "SiRFSOC watchdog"
-	depends on HAS_IOMEM
-	depends on ARCH_SIRF || COMPILE_TEST
-	select WATCHDOG_CORE
-	default y
-	help
-	  Support for CSR SiRFprimaII and SiRFatlasVI watchdog. When
-	  the watchdog triggers the system will be reset.
-
 config ST_LPC_WATCHDOG
 	tristate "STMicroelectronics LPC Watchdog"
 	depends on ARCH_STI || COMPILE_TEST
