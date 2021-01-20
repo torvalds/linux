@@ -507,11 +507,11 @@ static struct message *msg_get_to_user(struct target *t)
 static struct message *msg_get_from_user(struct channel *c, u64 seq)
 {
 	struct message *m;
-	struct list_head *cur;
+	struct list_head *cur, *tmp;
 
 	lockdep_assert_held(&c->lock);
 
-	list_for_each (cur, &c->from_user) {
+	list_for_each_safe (cur, tmp, &c->from_user) {
 		m = list_entry(cur, struct message, from_user);
 		if (m->msg.seq == seq) {
 			list_del(&m->from_user);
@@ -544,14 +544,14 @@ static int target_poll(struct target *t)
 static void target_release(struct kref *ref)
 {
 	struct target *t = container_of(ref, struct target, references);
-	struct list_head *cur;
+	struct list_head *cur, *tmp;
 
 	/*
 	 * There may be outstanding BIOs that have not yet been given to
 	 * userspace.  At this point there's nothing we can do about them, as
 	 * there are and will never be any channels.
 	 */
-	list_for_each (cur, &t->to_user) {
+	list_for_each_safe (cur, tmp, &t->to_user) {
 		message_kill(list_entry(cur, struct message, to_user),
 			     &t->message_pool);
 	}
@@ -595,7 +595,7 @@ static struct channel *channel_alloc(struct target *t)
 
 static void channel_free(struct channel *c)
 {
-	struct list_head *cur;
+	struct list_head *cur, *tmp;
 
 	lockdep_assert_held(&c->lock);
 
@@ -616,7 +616,7 @@ static void channel_free(struct channel *c)
 		message_kill(c->cur_to_user, &c->target->message_pool);
 	if (c->cur_from_user != &c->scratch_message_from_user)
 		message_kill(c->cur_from_user, &c->target->message_pool);
-	list_for_each (cur, &c->from_user)
+	list_for_each_safe (cur, tmp, &c->from_user)
 		message_kill(list_entry(cur, struct message, from_user),
 			     &c->target->message_pool);
 
