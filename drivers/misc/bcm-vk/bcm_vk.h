@@ -6,11 +6,13 @@
 #ifndef BCM_VK_H
 #define BCM_VK_H
 
+#include <linux/atomic.h>
 #include <linux/firmware.h>
 #include <linux/kref.h>
 #include <linux/miscdevice.h>
 #include <linux/mutex.h>
 #include <linux/pci.h>
+#include <linux/poll.h>
 #include <linux/sched/signal.h>
 #include <linux/uaccess.h>
 #include <uapi/linux/misc/bcm_vk.h>
@@ -93,14 +95,53 @@
 #define MAJOR_SOC_REV(_chip_id)		(((_chip_id) >> 20) & 0xf)
 
 #define BAR_CARD_TEMPERATURE		0x45c
+/* defines for all temperature sensor */
+#define BCM_VK_TEMP_FIELD_MASK		0xff
+#define BCM_VK_CPU_TEMP_SHIFT		0
+#define BCM_VK_DDR0_TEMP_SHIFT		8
+#define BCM_VK_DDR1_TEMP_SHIFT		16
 
 #define BAR_CARD_VOLTAGE		0x460
+/* defines for voltage rail conversion */
+#define BCM_VK_VOLT_RAIL_MASK		0xffff
+#define BCM_VK_3P3_VOLT_REG_SHIFT	16
 
 #define BAR_CARD_ERR_LOG		0x464
+/* Error log register bit definition - register for error alerts */
+#define ERR_LOG_UECC			BIT(0)
+#define ERR_LOG_SSIM_BUSY		BIT(1)
+#define ERR_LOG_AFBC_BUSY		BIT(2)
+#define ERR_LOG_HIGH_TEMP_ERR		BIT(3)
+#define ERR_LOG_WDOG_TIMEOUT		BIT(4)
+#define ERR_LOG_SYS_FAULT		BIT(5)
+#define ERR_LOG_RAMDUMP			BIT(6)
+#define ERR_LOG_COP_WDOG_TIMEOUT	BIT(7)
+/* warnings */
+#define ERR_LOG_MEM_ALLOC_FAIL		BIT(8)
+#define ERR_LOG_LOW_TEMP_WARN		BIT(9)
+#define ERR_LOG_ECC			BIT(10)
+#define ERR_LOG_IPC_DWN			BIT(11)
+
+/* Alert bit definitions detectd on host */
+#define ERR_LOG_HOST_INTF_V_FAIL	BIT(13)
+#define ERR_LOG_HOST_HB_FAIL		BIT(14)
+#define ERR_LOG_HOST_PCIE_DWN		BIT(15)
 
 #define BAR_CARD_ERR_MEM		0x468
+/* defines for mem err, all fields have same width */
+#define BCM_VK_MEM_ERR_FIELD_MASK	0xff
+#define BCM_VK_ECC_MEM_ERR_SHIFT	0
+#define BCM_VK_UECC_MEM_ERR_SHIFT	8
+/* threshold of event occurrence and logs start to come out */
+#define BCM_VK_ECC_THRESHOLD		10
+#define BCM_VK_UECC_THRESHOLD		1
 
 #define BAR_CARD_PWR_AND_THRE		0x46c
+/* defines for power and temp threshold, all fields have same width */
+#define BCM_VK_PWR_AND_THRE_FIELD_MASK	0xff
+#define BCM_VK_LOW_TEMP_THRE_SHIFT	0
+#define BCM_VK_HIGH_TEMP_THRE_SHIFT	8
+#define BCM_VK_PWR_STATE_SHIFT		16
 
 #define BAR_CARD_STATIC_INFO		0x470
 
@@ -142,6 +183,11 @@
 /* Card OS Firmware version size */
 #define BAR_FIRMWARE_TAG_SIZE		50
 #define FIRMWARE_STATUS_PRE_INIT_DONE	0x1f
+
+/* VK MSG_ID defines */
+#define VK_MSG_ID_BITMAP_SIZE		4096
+#define VK_MSG_ID_BITMAP_MASK		(VK_MSG_ID_BITMAP_SIZE - 1)
+#define VK_MSG_ID_OVERFLOW		0xffff
 
 /*
  * BAR1
@@ -196,6 +242,10 @@
 
 /* VK device supports a maximum of 3 bars */
 #define MAX_BAR	3
+
+/* default number of msg blk for inband SGL */
+#define BCM_VK_DEF_IB_SGL_BLK_LEN	 16
+#define BCM_VK_IB_SGL_BLK_MAX		 24
 
 enum pci_barno {
 	BAR_0 = 0,
@@ -267,9 +317,27 @@ struct bcm_vk_proc_mon_info {
 	struct bcm_vk_proc_mon_entry_t entries[BCM_VK_PROC_MON_MAX];
 };
 
+struct bcm_vk_hb_ctrl {
+	struct timer_list timer;
+	u32 last_uptime;
+	u32 lost_cnt;
+};
+
+struct bcm_vk_alert {
+	u16 flags;
+	u16 notfs;
+};
+
+/* some alert counters that the driver will keep track */
+struct bcm_vk_alert_cnts {
+	u16 ecc;
+	u16 uecc;
+};
+
 struct bcm_vk {
 	struct pci_dev *pdev;
 	void __iomem *bar[MAX_BAR];
+	int num_irqs;
 
 	struct bcm_vk_card_info card_info;
 	struct bcm_vk_proc_mon_info proc_mon_info;
@@ -283,9 +351,17 @@ struct bcm_vk {
 	/* Reference-counting to handle file operations */
 	struct kref kref;
 
+	spinlock_t msg_id_lock; /* Spinlock for msg_id */
+	u16 msg_id;
+	DECLARE_BITMAP(bmap, VK_MSG_ID_BITMAP_SIZE);
 	spinlock_t ctx_lock; /* Spinlock for component context */
 	struct bcm_vk_ctx ctx[VK_CMPT_CTX_MAX];
 	struct bcm_vk_ht_entry pid_ht[VK_PID_HT_SZ];
+	pid_t reset_pid; /* process that issue reset */
+
+	atomic_t msgq_inited; /* indicate if info has been synced with vk */
+	struct bcm_vk_msg_chan to_v_msg_chan;
+	struct bcm_vk_msg_chan to_h_msg_chan;
 
 	struct workqueue_struct *wq_thread;
 	struct work_struct wq_work; /* work queue for deferred job */
@@ -294,6 +370,15 @@ struct bcm_vk {
 	dma_addr_t tdma_addr; /* test dma segment bus addr */
 
 	struct notifier_block panic_nb;
+	u32 ib_sgl_size; /* size allocated for inband sgl insertion */
+
+	/* heart beat mechanism control structure */
+	struct bcm_vk_hb_ctrl hb_ctrl;
+	/* house-keeping variable of error logs */
+	spinlock_t host_alert_lock; /* protection to access host_alert struct */
+	struct bcm_vk_alert host_alert;
+	struct bcm_vk_alert peer_alert; /* bits set by the card */
+	struct bcm_vk_alert_cnts alert_cnts;
 
 	/* offset of the peer log control in BAR2 */
 	u32 peerlog_off;
@@ -306,7 +391,25 @@ struct bcm_vk {
 enum bcm_vk_wq_offload_flags {
 	BCM_VK_WQ_DWNLD_PEND = 0,
 	BCM_VK_WQ_DWNLD_AUTO = 1,
+	BCM_VK_WQ_NOTF_PEND  = 2,
 };
+
+/* a macro to get an individual field with mask and shift */
+#define BCM_VK_EXTRACT_FIELD(_field, _reg, _mask, _shift) \
+		(_field = (((_reg) >> (_shift)) & (_mask)))
+
+struct bcm_vk_entry {
+	const u32 mask;
+	const u32 exp_val;
+	const char *str;
+};
+
+/* alerts that could be generated from peer */
+#define BCM_VK_PEER_ERR_NUM 12
+extern struct bcm_vk_entry const bcm_vk_peer_err[BCM_VK_PEER_ERR_NUM];
+/* alerts detected by the host */
+#define BCM_VK_HOST_ERR_NUM 3
+extern struct bcm_vk_entry const bcm_vk_host_err[BCM_VK_HOST_ERR_NUM];
 
 /*
  * check if PCIe interface is down on read.  Use it when it is
@@ -354,8 +457,28 @@ static inline bool bcm_vk_msgq_marker_valid(struct bcm_vk *vk)
 }
 
 int bcm_vk_open(struct inode *inode, struct file *p_file);
+ssize_t bcm_vk_read(struct file *p_file, char __user *buf, size_t count,
+		    loff_t *f_pos);
+ssize_t bcm_vk_write(struct file *p_file, const char __user *buf,
+		     size_t count, loff_t *f_pos);
+__poll_t bcm_vk_poll(struct file *p_file, struct poll_table_struct *wait);
 int bcm_vk_release(struct inode *inode, struct file *p_file);
 void bcm_vk_release_data(struct kref *kref);
+irqreturn_t bcm_vk_msgq_irqhandler(int irq, void *dev_id);
+irqreturn_t bcm_vk_notf_irqhandler(int irq, void *dev_id);
+int bcm_vk_msg_init(struct bcm_vk *vk);
+void bcm_vk_msg_remove(struct bcm_vk *vk);
+int bcm_vk_sync_msgq(struct bcm_vk *vk, bool force_sync);
+void bcm_vk_blk_drv_access(struct bcm_vk *vk);
+s32 bcm_to_h_msg_dequeue(struct bcm_vk *vk);
+int bcm_vk_send_shutdown_msg(struct bcm_vk *vk, u32 shut_type,
+			     const pid_t pid, const u32 q_num);
+void bcm_to_v_q_doorbell(struct bcm_vk *vk, u32 q_num, u32 db_val);
 int bcm_vk_auto_load_all_images(struct bcm_vk *vk);
+void bcm_vk_hb_init(struct bcm_vk *vk);
+void bcm_vk_hb_deinit(struct bcm_vk *vk);
+void bcm_vk_handle_notf(struct bcm_vk *vk);
+bool bcm_vk_drv_access_ok(struct bcm_vk *vk);
+void bcm_vk_set_host_alert(struct bcm_vk *vk, u32 bit_mask);
 
 #endif

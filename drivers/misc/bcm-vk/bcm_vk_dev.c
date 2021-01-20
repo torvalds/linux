@@ -8,6 +8,7 @@
 #include <linux/firmware.h>
 #include <linux/fs.h>
 #include <linux/idr.h>
+#include <linux/interrupt.h>
 #include <linux/kref.h>
 #include <linux/module.h>
 #include <linux/mutex.h>
@@ -102,6 +103,54 @@ static uint nr_scratch_pages = VK_BAR1_SCRATCH_DEF_NR_PAGES;
 module_param(nr_scratch_pages, uint, 0444);
 MODULE_PARM_DESC(nr_scratch_pages,
 		 "Number of pre allocated DMAable coherent pages.\n");
+static uint nr_ib_sgl_blk = BCM_VK_DEF_IB_SGL_BLK_LEN;
+module_param(nr_ib_sgl_blk, uint, 0444);
+MODULE_PARM_DESC(nr_ib_sgl_blk,
+		 "Number of in-band msg blks for short SGL.\n");
+
+/*
+ * alerts that could be generated from peer
+ */
+const struct bcm_vk_entry bcm_vk_peer_err[BCM_VK_PEER_ERR_NUM] = {
+	{ERR_LOG_UECC, ERR_LOG_UECC, "uecc"},
+	{ERR_LOG_SSIM_BUSY, ERR_LOG_SSIM_BUSY, "ssim_busy"},
+	{ERR_LOG_AFBC_BUSY, ERR_LOG_AFBC_BUSY, "afbc_busy"},
+	{ERR_LOG_HIGH_TEMP_ERR, ERR_LOG_HIGH_TEMP_ERR, "high_temp"},
+	{ERR_LOG_WDOG_TIMEOUT, ERR_LOG_WDOG_TIMEOUT, "wdog_timeout"},
+	{ERR_LOG_SYS_FAULT, ERR_LOG_SYS_FAULT, "sys_fault"},
+	{ERR_LOG_RAMDUMP, ERR_LOG_RAMDUMP, "ramdump"},
+	{ERR_LOG_COP_WDOG_TIMEOUT, ERR_LOG_COP_WDOG_TIMEOUT,
+	 "cop_wdog_timeout"},
+	{ERR_LOG_MEM_ALLOC_FAIL, ERR_LOG_MEM_ALLOC_FAIL, "malloc_fail warn"},
+	{ERR_LOG_LOW_TEMP_WARN, ERR_LOG_LOW_TEMP_WARN, "low_temp warn"},
+	{ERR_LOG_ECC, ERR_LOG_ECC, "ecc"},
+	{ERR_LOG_IPC_DWN, ERR_LOG_IPC_DWN, "ipc_down"},
+};
+
+/* alerts detected by the host */
+const struct bcm_vk_entry bcm_vk_host_err[BCM_VK_HOST_ERR_NUM] = {
+	{ERR_LOG_HOST_PCIE_DWN, ERR_LOG_HOST_PCIE_DWN, "PCIe_down"},
+	{ERR_LOG_HOST_HB_FAIL, ERR_LOG_HOST_HB_FAIL, "hb_fail"},
+	{ERR_LOG_HOST_INTF_V_FAIL, ERR_LOG_HOST_INTF_V_FAIL, "intf_ver_fail"},
+};
+
+irqreturn_t bcm_vk_notf_irqhandler(int irq, void *dev_id)
+{
+	struct bcm_vk *vk = dev_id;
+
+	if (!bcm_vk_drv_access_ok(vk)) {
+		dev_err(&vk->pdev->dev,
+			"Interrupt %d received when msgq not inited\n", irq);
+		goto skip_schedule_work;
+	}
+
+	/* if notification is not pending, set bit and schedule work */
+	if (test_and_set_bit(BCM_VK_WQ_NOTF_PEND, vk->wq_offload) == 0)
+		queue_work(vk->wq_thread, &vk->wq_work);
+
+skip_schedule_work:
+	return IRQ_HANDLED;
+}
 
 static int bcm_vk_intf_ver_chk(struct bcm_vk *vk)
 {
@@ -126,6 +175,7 @@ static int bcm_vk_intf_ver_chk(struct bcm_vk *vk)
 		dev_err(dev,
 			"Intf major.minor=%d.%d rejected - drv %d.%d\n",
 			major, minor, SEMANTIC_MAJOR, SEMANTIC_MINOR);
+		bcm_vk_set_host_alert(vk, ERR_LOG_HOST_INTF_V_FAIL);
 		ret = -EPFNOSUPPORT;
 	} else {
 		dev_dbg(dev,
@@ -133,6 +183,154 @@ static int bcm_vk_intf_ver_chk(struct bcm_vk *vk)
 			major, minor, SEMANTIC_MAJOR, SEMANTIC_MINOR);
 	}
 	return ret;
+}
+
+static void bcm_vk_log_notf(struct bcm_vk *vk,
+			    struct bcm_vk_alert *alert,
+			    struct bcm_vk_entry const *entry_tab,
+			    const u32 table_size)
+{
+	u32 i;
+	u32 masked_val, latched_val;
+	struct bcm_vk_entry const *entry;
+	u32 reg;
+	u16 ecc_mem_err, uecc_mem_err;
+	struct device *dev = &vk->pdev->dev;
+
+	for (i = 0; i < table_size; i++) {
+		entry = &entry_tab[i];
+		masked_val = entry->mask & alert->notfs;
+		latched_val = entry->mask & alert->flags;
+
+		if (masked_val == ERR_LOG_UECC) {
+			/*
+			 * if there is difference between stored cnt and it
+			 * is greater than threshold, log it.
+			 */
+			reg = vkread32(vk, BAR_0, BAR_CARD_ERR_MEM);
+			BCM_VK_EXTRACT_FIELD(uecc_mem_err, reg,
+					     BCM_VK_MEM_ERR_FIELD_MASK,
+					     BCM_VK_UECC_MEM_ERR_SHIFT);
+			if ((uecc_mem_err != vk->alert_cnts.uecc) &&
+			    (uecc_mem_err >= BCM_VK_UECC_THRESHOLD))
+				dev_info(dev,
+					 "ALERT! %s.%d uecc RAISED - ErrCnt %d\n",
+					 DRV_MODULE_NAME, vk->devid,
+					 uecc_mem_err);
+			vk->alert_cnts.uecc = uecc_mem_err;
+		} else if (masked_val == ERR_LOG_ECC) {
+			reg = vkread32(vk, BAR_0, BAR_CARD_ERR_MEM);
+			BCM_VK_EXTRACT_FIELD(ecc_mem_err, reg,
+					     BCM_VK_MEM_ERR_FIELD_MASK,
+					     BCM_VK_ECC_MEM_ERR_SHIFT);
+			if ((ecc_mem_err != vk->alert_cnts.ecc) &&
+			    (ecc_mem_err >= BCM_VK_ECC_THRESHOLD))
+				dev_info(dev, "ALERT! %s.%d ecc RAISED - ErrCnt %d\n",
+					 DRV_MODULE_NAME, vk->devid,
+					 ecc_mem_err);
+			vk->alert_cnts.ecc = ecc_mem_err;
+		} else if (masked_val != latched_val) {
+			/* print a log as info */
+			dev_info(dev, "ALERT! %s.%d %s %s\n",
+				 DRV_MODULE_NAME, vk->devid, entry->str,
+				 masked_val ? "RAISED" : "CLEARED");
+		}
+	}
+}
+
+static void bcm_vk_dump_peer_log(struct bcm_vk *vk)
+{
+	struct bcm_vk_peer_log log;
+	struct bcm_vk_peer_log *log_info = &vk->peerlog_info;
+	char loc_buf[BCM_VK_PEER_LOG_LINE_MAX];
+	int cnt;
+	struct device *dev = &vk->pdev->dev;
+	unsigned int data_offset;
+
+	memcpy_fromio(&log, vk->bar[BAR_2] + vk->peerlog_off, sizeof(log));
+
+	dev_dbg(dev, "Peer PANIC: Size 0x%x(0x%x), [Rd Wr] = [%d %d]\n",
+		log.buf_size, log.mask, log.rd_idx, log.wr_idx);
+
+	if (!log_info->buf_size) {
+		dev_err(dev, "Peer log dump disabled - skipped!\n");
+		return;
+	}
+
+	/* perform range checking for rd/wr idx */
+	if ((log.rd_idx > log_info->mask) ||
+	    (log.wr_idx > log_info->mask) ||
+	    (log.buf_size != log_info->buf_size) ||
+	    (log.mask != log_info->mask)) {
+		dev_err(dev,
+			"Corrupted Ptrs: Size 0x%x(0x%x) Mask 0x%x(0x%x) [Rd Wr] = [%d %d], skip log dump.\n",
+			log_info->buf_size, log.buf_size,
+			log_info->mask, log.mask,
+			log.rd_idx, log.wr_idx);
+		return;
+	}
+
+	cnt = 0;
+	data_offset = vk->peerlog_off + sizeof(struct bcm_vk_peer_log);
+	loc_buf[BCM_VK_PEER_LOG_LINE_MAX - 1] = '\0';
+	while (log.rd_idx != log.wr_idx) {
+		loc_buf[cnt] = vkread8(vk, BAR_2, data_offset + log.rd_idx);
+
+		if ((loc_buf[cnt] == '\0') ||
+		    (cnt == (BCM_VK_PEER_LOG_LINE_MAX - 1))) {
+			dev_err(dev, "%s", loc_buf);
+			cnt = 0;
+		} else {
+			cnt++;
+		}
+		log.rd_idx = (log.rd_idx + 1) & log.mask;
+	}
+	/* update rd idx at the end */
+	vkwrite32(vk, log.rd_idx, BAR_2,
+		  vk->peerlog_off + offsetof(struct bcm_vk_peer_log, rd_idx));
+}
+
+void bcm_vk_handle_notf(struct bcm_vk *vk)
+{
+	u32 reg;
+	struct bcm_vk_alert alert;
+	bool intf_down;
+	unsigned long flags;
+
+	/* handle peer alerts and then locally detected ones */
+	reg = vkread32(vk, BAR_0, BAR_CARD_ERR_LOG);
+	intf_down = BCM_VK_INTF_IS_DOWN(reg);
+	if (!intf_down) {
+		vk->peer_alert.notfs = reg;
+		bcm_vk_log_notf(vk, &vk->peer_alert, bcm_vk_peer_err,
+				ARRAY_SIZE(bcm_vk_peer_err));
+		vk->peer_alert.flags = vk->peer_alert.notfs;
+	} else {
+		/* turn off access */
+		bcm_vk_blk_drv_access(vk);
+	}
+
+	/* check and make copy of alert with lock and then free lock */
+	spin_lock_irqsave(&vk->host_alert_lock, flags);
+	if (intf_down)
+		vk->host_alert.notfs |= ERR_LOG_HOST_PCIE_DWN;
+
+	alert = vk->host_alert;
+	vk->host_alert.flags = vk->host_alert.notfs;
+	spin_unlock_irqrestore(&vk->host_alert_lock, flags);
+
+	/* call display with copy */
+	bcm_vk_log_notf(vk, &alert, bcm_vk_host_err,
+			ARRAY_SIZE(bcm_vk_host_err));
+
+	/*
+	 * If it is a sys fault or heartbeat timeout, we would like extract
+	 * log msg from the card so that we would know what is the last fault
+	 */
+	if (!intf_down &&
+	    ((vk->host_alert.flags & ERR_LOG_HOST_HB_FAIL) ||
+	     (vk->peer_alert.flags & ERR_LOG_SYS_FAULT)))
+		bcm_vk_dump_peer_log(vk);
 }
 
 static inline int bcm_vk_wait(struct bcm_vk *vk, enum pci_barno bar,
@@ -299,6 +497,31 @@ static int bcm_vk_sync_card_info(struct bcm_vk *vk)
 	bcm_vk_get_proc_mon_info(vk);
 
 	return 0;
+}
+
+void bcm_vk_blk_drv_access(struct bcm_vk *vk)
+{
+	int i;
+
+	/*
+	 * kill all the apps
+	 */
+	spin_lock(&vk->ctx_lock);
+
+	/* set msgq_inited to 0 so that all rd/wr will be blocked */
+	atomic_set(&vk->msgq_inited, 0);
+
+	for (i = 0; i < VK_PID_HT_SZ; i++) {
+		struct bcm_vk_ctx *ctx;
+
+		list_for_each_entry(ctx, &vk->pid_ht[i].head, node) {
+			dev_dbg(&vk->pdev->dev,
+				"Send kill signal to pid %d\n",
+				ctx->pid);
+			kill_pid(find_vpid(ctx->pid), SIGKILL, 1);
+		}
+	}
+	spin_unlock(&vk->ctx_lock);
 }
 
 static void bcm_vk_buf_notify(struct bcm_vk *vk, void *bufp,
@@ -518,6 +741,17 @@ static int bcm_vk_load_image_by_type(struct bcm_vk *vk, u32 load_type,
 				goto err_firmware_out;
 			}
 
+			/*
+			 * Next, initialize Message Q if we are loading boot2.
+			 * Do a force sync
+			 */
+			ret = bcm_vk_sync_msgq(vk, true);
+			if (ret) {
+				dev_err(dev, "Boot2 Error reading comm msg Q info\n");
+				ret = -EIO;
+				goto err_firmware_out;
+			}
+
 			/* sync & channel other info */
 			ret = bcm_vk_sync_card_info(vk);
 			if (ret) {
@@ -668,12 +902,20 @@ static int bcm_vk_trigger_autoload(struct bcm_vk *vk)
 }
 
 /*
- * deferred work queue for auto download.
+ * deferred work queue for draining and auto download.
  */
 static void bcm_vk_wq_handler(struct work_struct *work)
 {
 	struct bcm_vk *vk = container_of(work, struct bcm_vk, wq_work);
+	struct device *dev = &vk->pdev->dev;
+	s32 ret;
 
+	/* check wq offload bit map to perform various operations */
+	if (test_bit(BCM_VK_WQ_NOTF_PEND, vk->wq_offload)) {
+		/* clear bit right the way for notification */
+		clear_bit(BCM_VK_WQ_NOTF_PEND, vk->wq_offload);
+		bcm_vk_handle_notf(vk);
+	}
 	if (test_bit(BCM_VK_WQ_DWNLD_AUTO, vk->wq_offload)) {
 		bcm_vk_auto_load_all_images(vk);
 
@@ -684,6 +926,14 @@ static void bcm_vk_wq_handler(struct work_struct *work)
 		clear_bit(BCM_VK_WQ_DWNLD_AUTO, vk->wq_offload);
 		clear_bit(BCM_VK_WQ_DWNLD_PEND, vk->wq_offload);
 	}
+
+	/* next, try to drain */
+	ret = bcm_to_h_msg_dequeue(vk);
+
+	if (ret == 0)
+		dev_dbg(dev, "Spurious trigger for workqueue\n");
+	else if (ret < 0)
+		bcm_vk_blk_drv_access(vk);
 }
 
 static long bcm_vk_load_image(struct bcm_vk *vk,
@@ -837,6 +1087,9 @@ static long bcm_vk_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 static const struct file_operations bcm_vk_fops = {
 	.owner = THIS_MODULE,
 	.open = bcm_vk_open,
+	.read = bcm_vk_read,
+	.write = bcm_vk_write,
+	.poll = bcm_vk_poll,
 	.release = bcm_vk_release,
 	.unlocked_ioctl = bcm_vk_ioctl,
 };
@@ -869,6 +1122,12 @@ static int bcm_vk_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 		return -ENOMEM;
 
 	kref_init(&vk->kref);
+	if (nr_ib_sgl_blk > BCM_VK_IB_SGL_BLK_MAX) {
+		dev_warn(dev, "Inband SGL blk %d limited to max %d\n",
+			 nr_ib_sgl_blk, BCM_VK_IB_SGL_BLK_MAX);
+		nr_ib_sgl_blk = BCM_VK_IB_SGL_BLK_MAX;
+	}
+	vk->ib_sgl_size = nr_ib_sgl_blk * VK_MSGQ_BLK_SIZE;
 	mutex_init(&vk->mutex);
 
 	err = pci_enable_device(pdev);
@@ -932,11 +1191,34 @@ static int bcm_vk_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 		}
 	}
 
+	for (vk->num_irqs = 0;
+	     vk->num_irqs < VK_MSIX_MSGQ_MAX;
+	     vk->num_irqs++) {
+		err = devm_request_irq(dev, pci_irq_vector(pdev, vk->num_irqs),
+				       bcm_vk_msgq_irqhandler,
+				       IRQF_SHARED, DRV_MODULE_NAME, vk);
+		if (err) {
+			dev_err(dev, "failed to request msgq IRQ %d for MSIX %d\n",
+				pdev->irq + vk->num_irqs, vk->num_irqs + 1);
+			goto err_irq;
+		}
+	}
+	/* one irq for notification from VK */
+	err = devm_request_irq(dev, pci_irq_vector(pdev, vk->num_irqs),
+			       bcm_vk_notf_irqhandler,
+			       IRQF_SHARED, DRV_MODULE_NAME, vk);
+	if (err) {
+		dev_err(dev, "failed to request notf IRQ %d for MSIX %d\n",
+			pdev->irq + vk->num_irqs, vk->num_irqs + 1);
+		goto err_irq;
+	}
+	vk->num_irqs++;
+
 	id = ida_simple_get(&bcm_vk_ida, 0, 0, GFP_KERNEL);
 	if (id < 0) {
 		err = id;
 		dev_err(dev, "unable to get id\n");
-		goto err_iounmap;
+		goto err_irq;
 	}
 
 	vk->devid = id;
@@ -964,6 +1246,12 @@ static int bcm_vk_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 		dev_err(dev, "Fail to create workqueue thread\n");
 		err = -ENOMEM;
 		goto err_misc_deregister;
+	}
+
+	err = bcm_vk_msg_init(vk);
+	if (err) {
+		dev_err(dev, "failed to init msg queue info\n");
+		goto err_destroy_workqueue;
 	}
 
 	/* sync other info */
@@ -994,6 +1282,9 @@ static int bcm_vk_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 		}
 	}
 
+	/* enable hb */
+	bcm_vk_hb_init(vk);
+
 	dev_dbg(dev, "BCM-VK:%u created\n", id);
 
 	return 0;
@@ -1014,6 +1305,13 @@ err_kfree_name:
 
 err_ida_remove:
 	ida_simple_remove(&bcm_vk_ida, id);
+
+err_irq:
+	for (i = 0; i < vk->num_irqs; i++)
+		devm_free_irq(dev, pci_irq_vector(pdev, i), vk);
+
+	pci_disable_msix(pdev);
+	pci_disable_msi(pdev);
 
 err_iounmap:
 	for (i = 0; i < MAX_BAR; i++) {
@@ -1053,6 +1351,8 @@ static void bcm_vk_remove(struct pci_dev *pdev)
 	struct bcm_vk *vk = pci_get_drvdata(pdev);
 	struct miscdevice *misc_device = &vk->miscdev;
 
+	bcm_vk_hb_deinit(vk);
+
 	/*
 	 * Trigger a reset to card and wait enough time for UCODE to rerun,
 	 * which re-initialize the card into its default state.
@@ -1076,6 +1376,11 @@ static void bcm_vk_remove(struct pci_dev *pdev)
 		kfree(misc_device->name);
 		ida_simple_remove(&bcm_vk_ida, vk->devid);
 	}
+	for (i = 0; i < vk->num_irqs; i++)
+		devm_free_irq(&pdev->dev, pci_irq_vector(pdev, i), vk);
+
+	pci_disable_msix(pdev);
+	pci_disable_msi(pdev);
 
 	cancel_work_sync(&vk->wq_work);
 	destroy_workqueue(vk->wq_thread);

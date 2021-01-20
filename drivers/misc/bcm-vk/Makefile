@@ -6,5 +6,6 @@
 obj-$(CONFIG_BCM_VK) += bcm_vk.o
 bcm_vk-objs := \
 	bcm_vk_dev.o \
-	bcm_vk_msg.o
+	bcm_vk_msg.o \
+	bcm_vk_sg.o
 
