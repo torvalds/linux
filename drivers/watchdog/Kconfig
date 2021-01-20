@@ -254,17 +254,6 @@ config MENZ069_WATCHDOG
 	  This driver can also be built as a module. If so the module
 	  will be called menz069_wdt.
 
-config TANGOX_WATCHDOG
-	tristate "Sigma Designs SMP86xx/SMP87xx watchdog"
-	select WATCHDOG_CORE
-	depends on ARCH_TANGO || COMPILE_TEST
-	depends on HAS_IOMEM
-	help
-	  Support for the watchdog in Sigma Designs SMP86xx (tango3)
-	  and SMP87xx (tango4) family chips.
-
-	  This driver can be built as a module. The module name is tangox_wdt.
-
 config WDAT_WDT
 	tristate "ACPI Watchdog Action Table (WDAT)"
 	depends on ACPI
