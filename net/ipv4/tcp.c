@@ -3767,11 +3767,24 @@ static size_t tcp_opt_stats_get_size(void)
 		nla_total_size(sizeof(u16)) + /* TCP_NLA_TIMEOUT_REHASH */
 		nla_total_size(sizeof(u32)) + /* TCP_NLA_BYTES_NOTSENT */
 		nla_total_size_64bit(sizeof(u64)) + /* TCP_NLA_EDT */
+		nla_total_size(sizeof(u8)) + /* TCP_NLA_TTL */
 		0;
 }
 
+/* Returns TTL or hop limit of an incoming packet from skb. */
+static u8 tcp_skb_ttl_or_hop_limit(const struct sk_buff *skb)
+{
+	if (skb->protocol == htons(ETH_P_IP))
+		return ip_hdr(skb)->ttl;
+	else if (skb->protocol == htons(ETH_P_IPV6))
+		return ipv6_hdr(skb)->hop_limit;
+	else
+		return 0;
+}
+
 struct sk_buff *tcp_get_timestamping_opt_stats(const struct sock *sk,
-					       const struct sk_buff *orig_skb)
+					       const struct sk_buff *orig_skb,
+					       const struct sk_buff *ack_skb)
 {
 	const struct tcp_sock *tp = tcp_sk(sk);
 	struct sk_buff *stats;
@@ -3827,6 +3840,9 @@ struct sk_buff *tcp_get_timestamping_opt_stats(const struct sock *sk,
 		    max_t(int, 0, tp->write_seq - tp->snd_nxt));
 	nla_put_u64_64bit(stats, TCP_NLA_EDT, orig_skb->skb_mstamp_ns,
 			  TCP_NLA_PAD);
+	if (ack_skb)
+		nla_put_u8(stats, TCP_NLA_TTL,
+			   tcp_skb_ttl_or_hop_limit(ack_skb));
 
 	return stats;
 }

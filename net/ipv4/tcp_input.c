@@ -3145,7 +3145,7 @@ static u32 tcp_tso_acked(struct sock *sk, struct sk_buff *skb)
 }
 
 static void tcp_ack_tstamp(struct sock *sk, struct sk_buff *skb,
-			   u32 prior_snd_una)
+			   const struct sk_buff *ack_skb, u32 prior_snd_una)
 {
 	const struct skb_shared_info *shinfo;
 
@@ -3157,7 +3157,7 @@ static void tcp_ack_tstamp(struct sock *sk, struct sk_buff *skb,
 	if (!before(shinfo->tskey, prior_snd_una) &&
 	    before(shinfo->tskey, tcp_sk(sk)->snd_una)) {
 		tcp_skb_tsorted_save(skb) {
-			__skb_tstamp_tx(skb, NULL, sk, SCM_TSTAMP_ACK);
+			__skb_tstamp_tx(skb, ack_skb, NULL, sk, SCM_TSTAMP_ACK);
 		} tcp_skb_tsorted_restore(skb);
 	}
 }
@@ -3166,8 +3166,8 @@ static void tcp_ack_tstamp(struct sock *sk, struct sk_buff *skb,
  * is before the ack sequence we can discard it as it's confirmed to have
  * arrived at the other end.
  */
-static int tcp_clean_rtx_queue(struct sock *sk, u32 prior_fack,
-			       u32 prior_snd_una,
+static int tcp_clean_rtx_queue(struct sock *sk, const struct sk_buff *ack_skb,
+			       u32 prior_fack, u32 prior_snd_una,
 			       struct tcp_sacktag_state *sack, bool ece_ack)
 {
 	const struct inet_connection_sock *icsk = inet_csk(sk);
@@ -3256,7 +3256,7 @@ static int tcp_clean_rtx_queue(struct sock *sk, u32 prior_fack,
 		if (!fully_acked)
 			break;
 
-		tcp_ack_tstamp(sk, skb, prior_snd_una);
+		tcp_ack_tstamp(sk, skb, ack_skb, prior_snd_una);
 
 		next = skb_rb_next(skb);
 		if (unlikely(skb == tp->retransmit_skb_hint))
@@ -3274,7 +3274,7 @@ static int tcp_clean_rtx_queue(struct sock *sk, u32 prior_fack,
 		tp->snd_up = tp->snd_una;
 
 	if (skb) {
-		tcp_ack_tstamp(sk, skb, prior_snd_una);
+		tcp_ack_tstamp(sk, skb, ack_skb, prior_snd_una);
 		if (TCP_SKB_CB(skb)->sacked & TCPCB_SACKED_ACKED)
 			flag |= FLAG_SACK_RENEGING;
 	}
@@ -3809,8 +3809,8 @@ static int tcp_ack(struct sock *sk, const struct sk_buff *skb, int flag)
 		goto no_queue;
 
 	/* See if we can take anything off of the retransmit queue. */
-	flag |= tcp_clean_rtx_queue(sk, prior_fack, prior_snd_una, &sack_state,
-				    flag & FLAG_ECE);
+	flag |= tcp_clean_rtx_queue(sk, skb, prior_fack, prior_snd_una,
+				    &sack_state, flag & FLAG_ECE);
 
 	tcp_rack_update_reo_wnd(sk, &rs);
 
