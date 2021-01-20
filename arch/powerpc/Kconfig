@@ -716,18 +716,6 @@ config ARCH_MEMORY_PROBE
 	def_bool y
 	depends on MEMORY_HOTPLUG
 
-config STDBINUTILS
-	bool "Using standard binutils settings"
-	depends on 44x
-	default y
-	help
-	  Turning this option off allows you to select 256KB PAGE_SIZE on 44x.
-	  Note, that kernel will be able to run only those applications,
-	  which had been compiled using binutils later than 2.17.50.0.3 with
-	  '-zmax-page-size' set to 256K (the default is 64K). Or, if using
-	  the older binutils, you can patch them with a trivial patch, which
-	  changes the ELF_MAXPAGESIZE definition from 0x10000 to 0x40000.
-
 choice
 	prompt "Page size"
 	default PPC_4K_PAGES
@@ -767,17 +755,15 @@ config PPC_64K_PAGES
 	select HAVE_ARCH_SOFT_DIRTY if PPC_BOOK3S_64
 
 config PPC_256K_PAGES
-	bool "256k page size"
-	depends on 44x && !STDBINUTILS && !PPC_47x
+	bool "256k page size (Requires non-standard binutils settings)"
+	depends on 44x && !PPC_47x
 	help
 	  Make the page size 256k.
 
-	  As the ELF standard only requires alignment to support page
-	  sizes up to 64k, you will need to compile all of your user
-	  space applications with a non-standard binutils settings
-	  (see the STDBINUTILS description for details).
-
-	  Say N unless you know what you are doing.
+	  The kernel will only be able to run applications that have been
+	  compiled with '-zmax-page-size' set to 256K (the default is 64K) using
+	  binutils later than 2.17.50.0.3, or by patching the ELF_MAXPAGESIZE
+	  definition from 0x10000 to 0x40000 in older versions.
 
 endchoice
 
