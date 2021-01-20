@@ -65,14 +65,39 @@ static int tegra30_ahub_runtime_resume(struct device *dev)
 {
 	int ret;
 
+	ret = reset_control_assert(ahub->reset);
+	if (ret)
+		return ret;
+
 	ret = clk_bulk_prepare_enable(ahub->nclocks, ahub->clocks);
 	if (ret)
 		return ret;
 
+	usleep_range(10, 100);
+
+	ret = reset_control_deassert(ahub->reset);
+	if (ret)
+		goto disable_clocks;
+
 	regcache_cache_only(ahub->regmap_apbif, false);
 	regcache_cache_only(ahub->regmap_ahub, false);
+	regcache_mark_dirty(ahub->regmap_apbif);
+	regcache_mark_dirty(ahub->regmap_ahub);
+
+	ret = regcache_sync(ahub->regmap_apbif);
+	if (ret)
+		goto disable_clocks;
+
+	ret = regcache_sync(ahub->regmap_ahub);
+	if (ret)
+		goto disable_clocks;
 
 	return 0;
+
+disable_clocks:
+	clk_bulk_disable_unprepare(ahub->nclocks, ahub->clocks);
+
+	return ret;
 }
 
 int tegra30_ahub_allocate_rx_fifo(enum tegra30_ahub_rxcif *rxcif,
@@ -519,7 +544,6 @@ static int tegra30_ahub_probe(struct platform_device *pdev)
 	/*
 	 * The AHUB hosts a register bus: the "configlink". For this to
 	 * operate correctly, all devices on this bus must be out of reset.
-	 * Ensure that here.
 	 */
 	for (i = 0; i < ARRAY_SIZE(configlink_mods); i++) {
 		if (!(configlink_mods[i].mod_list_mask &
@@ -535,10 +559,8 @@ static int tegra30_ahub_probe(struct platform_device *pdev)
 			return ret;
 		}
 
-		ret = reset_control_deassert(rst);
+		/* just check presence of the reset control in DT */
 		reset_control_put(rst);
-		if (ret)
-			return ret;
 	}
 
 	ahub = devm_kzalloc(&pdev->dev, sizeof(struct tegra30_ahub),
@@ -556,6 +578,12 @@ static int tegra30_ahub_probe(struct platform_device *pdev)
 	ret = devm_clk_bulk_get(&pdev->dev, ahub->nclocks, ahub->clocks);
 	if (ret)
 		return ret;
+
+	ahub->reset = devm_reset_control_array_get_exclusive(&pdev->dev);
+	if (IS_ERR(ahub->reset)) {
+		dev_err(&pdev->dev, "Can't get resets: %pe\n", ahub->reset);
+		return PTR_ERR(ahub->reset);
+	}
 
 	res0 = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	regs_apbif = devm_ioremap_resource(&pdev->dev, res0);
