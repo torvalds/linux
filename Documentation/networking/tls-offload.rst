@@ -534,3 +534,6 @@ offload. Hence, TLS TX device feature flag requires TX csum offload being set.
 Disabling the latter implies clearing the former. Disabling TX checksum offload
 should not affect old connections, and drivers should make sure checksum
 calculation does not break for them.
+Similarly, device-offloaded TLS decryption implies doing RXCSUM. If the user
+does not want to enable RX csum offload, TLS RX device feature is disabled
+as well.

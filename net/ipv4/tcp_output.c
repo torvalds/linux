@@ -4084,6 +4084,7 @@ void tcp_send_probe0(struct sock *sk)
 		/* Cancel probe timer, if it is not required. */
 		icsk->icsk_probes_out = 0;
 		icsk->icsk_backoff = 0;
+		icsk->icsk_probes_tstamp = 0;
 		return;
 	}
 

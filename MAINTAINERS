@@ -3334,7 +3334,7 @@ F:	arch/riscv/net/
 X:	arch/riscv/net/bpf_jit_comp64.c
 
 BPF JIT for RISC-V (64-bit)
-M:	Björn Töpel <bjorn.topel@gmail.com>
+M:	Björn Töpel <bjorn@kernel.org>
 L:	netdev@vger.kernel.org
 L:	bpf@vger.kernel.org
 S:	Maintained
@@ -19416,7 +19416,7 @@ F:	drivers/net/ethernet/*/*/*xdp*
 K:	(?:\b|_)xdp(?:\b|_)
 
 XDP SOCKETS (AF_XDP)
-M:	Björn Töpel <bjorn.topel@intel.com>
+M:	Björn Töpel <bjorn@kernel.org>
 M:	Magnus Karlsson <magnus.karlsson@intel.com>
 R:	Jonathan Lemon <jonathan.lemon@gmail.com>
 L:	netdev@vger.kernel.org
