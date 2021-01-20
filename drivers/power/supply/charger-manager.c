@@ -570,7 +570,7 @@ static int cm_get_target_status(struct charger_manager *cm)
 		return POWER_SUPPLY_STATUS_DISCHARGING;
 
 	if (cm_check_thermal_status(cm)) {
-		/* Check if discharging duration exeeds limit. */
+		/* Check if discharging duration exceeds limit. */
 		if (check_charging_duration(cm))
 			goto charging_ok;
 		return POWER_SUPPLY_STATUS_NOT_CHARGING;
@@ -578,7 +578,7 @@ static int cm_get_target_status(struct charger_manager *cm)
 
 	switch (cm->battery_status) {
 	case POWER_SUPPLY_STATUS_CHARGING:
-		/* Check if charging duration exeeds limit. */
+		/* Check if charging duration exceeds limit. */
 		if (check_charging_duration(cm))
 			return POWER_SUPPLY_STATUS_FULL;
 		fallthrough;
