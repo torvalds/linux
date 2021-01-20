@@ -4129,7 +4129,7 @@ intel_dp_link_down(struct intel_encoder *encoder,
 		intel_set_pch_fifo_underrun_reporting(dev_priv, PIPE_A, true);
 	}
 
-	msleep(intel_dp->panel_power_down_delay);
+	msleep(intel_dp->pps.panel_power_down_delay);
 
 	intel_dp->DP = DP;
 
@@ -4137,7 +4137,7 @@ intel_dp_link_down(struct intel_encoder *encoder,
 		intel_wakeref_t wakeref;
 
 		with_intel_pps_lock(intel_dp, wakeref)
-			intel_dp->active_pipe = INVALID_PIPE;
+			intel_dp->pps.active_pipe = INVALID_PIPE;
 	}
 }
 
@@ -6368,7 +6368,7 @@ void intel_dp_encoder_reset(struct drm_encoder *encoder)
 		intel_wakeref_t wakeref;
 
 		with_intel_pps_lock(intel_dp, wakeref)
-			intel_dp->active_pipe = vlv_active_pipe(intel_dp);
+			intel_dp->pps.active_pipe = vlv_active_pipe(intel_dp);
 	}
 
 	intel_pps_encoder_reset(intel_dp);
@@ -7139,7 +7139,7 @@ static bool intel_edp_init_connector(struct intel_dp *intel_dp,
 		pipe = vlv_active_pipe(intel_dp);
 
 		if (pipe != PIPE_A && pipe != PIPE_B)
-			pipe = intel_dp->pps_pipe;
+			pipe = intel_dp->pps.pps_pipe;
 
 		if (pipe != PIPE_A && pipe != PIPE_B)
 			pipe = PIPE_A;
@@ -7216,8 +7216,8 @@ intel_dp_init_connector(struct intel_digital_port *dig_port,
 	intel_dp_set_source_rates(intel_dp);
 
 	intel_dp->reset_link_params = true;
-	intel_dp->pps_pipe = INVALID_PIPE;
-	intel_dp->active_pipe = INVALID_PIPE;
+	intel_dp->pps.pps_pipe = INVALID_PIPE;
+	intel_dp->pps.active_pipe = INVALID_PIPE;
 
 	/* Preserve the current hw state. */
 	intel_dp->DP = intel_de_read(dev_priv, intel_dp->output_reg);
@@ -7235,7 +7235,7 @@ intel_dp_init_connector(struct intel_digital_port *dig_port,
 	}
 
 	if (IS_VALLEYVIEW(dev_priv) || IS_CHERRYVIEW(dev_priv))
-		intel_dp->active_pipe = vlv_active_pipe(intel_dp);
+		intel_dp->pps.active_pipe = vlv_active_pipe(intel_dp);
 
 	/*
 	 * For eDP we always set the encoder type to INTEL_OUTPUT_EDP, but
