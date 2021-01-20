@@ -125,7 +125,7 @@ static void heartbeat(struct work_struct *wrk)
 			 * low latency and no jitter] the chance to naturally
 			 * complete before being preempted.
 			 */
-			attr.priority = I915_PRIORITY_MASK;
+			attr.priority = 0;
 			if (rq->sched.attr.priority >= attr.priority)
 				attr.priority |= I915_USER_PRIORITY(I915_PRIORITY_HEARTBEAT);
 			if (rq->sched.attr.priority >= attr.priority)
