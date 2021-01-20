@@ -2064,9 +2064,14 @@ static void __dwc3_gadget_set_ssp_rate(struct dwc3 *dwc)
 
 static void __dwc3_gadget_set_speed(struct dwc3 *dwc)
 {
+	enum usb_device_speed	speed;
 	u32			reg;
 
-	if (dwc->gadget_max_speed == USB_SPEED_SUPER_PLUS &&
+	speed = dwc->gadget_max_speed;
+	if (speed > dwc->maximum_speed)
+		speed = dwc->maximum_speed;
+
+	if (speed == USB_SPEED_SUPER_PLUS &&
 	    DWC3_IP_IS(DWC32)) {
 		__dwc3_gadget_set_ssp_rate(dwc);
 		return;
@@ -2092,7 +2097,7 @@ static void __dwc3_gadget_set_speed(struct dwc3 *dwc)
 	    !dwc->dis_metastability_quirk) {
 		reg |= DWC3_DCFG_SUPERSPEED;
 	} else {
-		switch (dwc->gadget_max_speed) {
+		switch (speed) {
 		case USB_SPEED_LOW:
 			reg |= DWC3_DCFG_LOWSPEED;
 			break;
@@ -2112,7 +2117,7 @@ static void __dwc3_gadget_set_speed(struct dwc3 *dwc)
 				reg |= DWC3_DCFG_SUPERSPEED_PLUS;
 			break;
 		default:
-			dev_err(dwc->dev, "invalid speed (%d)\n", dwc->gadget_max_speed);
+			dev_err(dwc->dev, "invalid speed (%d)\n", speed);
 
 			if (DWC3_IP_IS(DWC3))
 				reg |= DWC3_DCFG_SUPERSPEED;
@@ -2122,8 +2127,8 @@ static void __dwc3_gadget_set_speed(struct dwc3 *dwc)
 	}
 
 	if (DWC3_IP_IS(DWC32) &&
-	    dwc->gadget_max_speed > USB_SPEED_UNKNOWN &&
-	    dwc->gadget_max_speed < USB_SPEED_SUPER_PLUS)
+	    speed > USB_SPEED_UNKNOWN &&
+	    speed < USB_SPEED_SUPER_PLUS)
 		reg &= ~DWC3_DCFG_NUMLANES(~0);
 
 	dwc3_writel(dwc->regs, DWC3_DCFG, reg);
