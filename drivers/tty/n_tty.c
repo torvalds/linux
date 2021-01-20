@@ -2009,21 +2009,22 @@ static bool copy_from_read_buf(struct tty_struct *tty,
  *		read_tail published
  */
 
-static void canon_copy_from_read_buf(struct tty_struct *tty,
+static bool canon_copy_from_read_buf(struct tty_struct *tty,
 				     unsigned char **kbp,
 				     size_t *nr)
 {
 	struct n_tty_data *ldata = tty->disc_data;
 	size_t n, size, more, c;
 	size_t eol;
-	size_t tail;
+	size_t tail, canon_head;
 	int found = 0;
 
 	/* N.B. avoid overrun if nr == 0 */
 	if (!*nr)
-		return;
+		return false;
 
-	n = min(*nr + 1, smp_load_acquire(&ldata->canon_head) - ldata->read_tail);
+	canon_head = smp_load_acquire(&ldata->canon_head);
+	n = min(*nr + 1, canon_head - ldata->read_tail);
 
 	tail = ldata->read_tail & (N_TTY_BUF_SIZE - 1);
 	size = min_t(size_t, tail + n, N_TTY_BUF_SIZE);
@@ -2067,7 +2068,11 @@ static void canon_copy_from_read_buf(struct tty_struct *tty,
 		else
 			ldata->push = 0;
 		tty_audit_push();
+		return false;
 	}
+
+	/* No EOL found - do a continuation retry if there is more data */
+	return ldata->read_tail != canon_head;
 }
 
 extern ssize_t redirected_tty_write(struct file *, const char __user *,
@@ -2141,8 +2146,13 @@ static ssize_t n_tty_read(struct tty_struct *tty, struct file *file,
 	 * termios_rwsem, and can just continue to copy data.
 	 */
 	if (*cookie) {
-		if (copy_from_read_buf(tty, &kb, &nr))
-			return kb - kbuf;
+		if (ldata->icanon && !L_EXTPROC(tty)) {
+			if (canon_copy_from_read_buf(tty, &kb, &nr))
+				return kb - kbuf;
+		} else {
+			if (copy_from_read_buf(tty, &kb, &nr))
+				return kb - kbuf;
+		}
 
 		/* No more data - release locks and stop retries */
 		n_tty_kick_worker(tty);
@@ -2239,7 +2249,8 @@ static ssize_t n_tty_read(struct tty_struct *tty, struct file *file,
 		}
 
 		if (ldata->icanon && !L_EXTPROC(tty)) {
-			canon_copy_from_read_buf(tty, &kb, &nr);
+			if (canon_copy_from_read_buf(tty, &kb, &nr))
+				goto more_to_be_read;
 		} else {
 			/* Deal with packet mode. */
 			if (packet && kb == kbuf) {
@@ -2257,6 +2268,7 @@ static ssize_t n_tty_read(struct tty_struct *tty, struct file *file,
 			 * will release them when done.
 			 */
 			if (copy_from_read_buf(tty, &kb, &nr) && kb - kbuf >= minimum) {
+more_to_be_read:
 				remove_wait_queue(&tty->read_wait, &wait);
 				*cookie = cookie;
 				return kb - kbuf;
