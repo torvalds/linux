@@ -72,6 +72,17 @@ extern const char *usb_speed_string(enum usb_device_speed speed);
 extern enum usb_device_speed usb_get_maximum_speed(struct device *dev);
 
 /**
+ * usb_get_maximum_ssp_rate - Get the signaling rate generation and lane count
+ *	of a SuperSpeed Plus capable device.
+ * @dev: Pointer to the given USB controller device
+ *
+ * If the string from "maximum-speed" property is super-speed-plus-genXxY where
+ * 'X' is the generation number and 'Y' is the number of lanes, then this
+ * function returns the corresponding enum usb_ssp_rate.
+ */
+extern enum usb_ssp_rate usb_get_maximum_ssp_rate(struct device *dev);
+
+/**
  * usb_state_string - Returns human readable name for the state.
  * @state: The state to return a human-readable name for. If it's not
  *	any of the states devices in usb_device_state_string enum,
