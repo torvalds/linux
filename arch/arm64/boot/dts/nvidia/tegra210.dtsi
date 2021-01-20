@@ -1044,6 +1044,7 @@
 		interrupts = <GIC_SPI 49 IRQ_TYPE_LEVEL_HIGH>;
 		resets = <&tegra_car 142>;
 		reset-names = "padctl";
+		nvidia,pmc =  <&tegra_pmc>;
 
 		status = "disabled";
 
