@@ -762,7 +762,7 @@ static void
 qla27xx_handle_8200_aen(scsi_qla_host_t *vha, uint16_t *mb)
 {
 	struct qla_hw_data *ha = vha->hw;
-	bool reset_isp_needed = 0;
+	bool reset_isp_needed = false;
 
 	ql_log(ql_log_warn, vha, 0x02f0,
 	       "MPI Heartbeat stop. MPI reset is%s needed. "
@@ -778,7 +778,7 @@ qla27xx_handle_8200_aen(scsi_qla_host_t *vha, uint16_t *mb)
 
 	if (ql2xfulldump_on_mpifail) {
 		ha->isp_ops->fw_dump(vha);
-		reset_isp_needed = 1;
+		reset_isp_needed = true;
 	}
 
 	ha->isp_ops->mpi_fw_dump(vha, 1);
