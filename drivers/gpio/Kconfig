@@ -741,13 +741,6 @@ config GPIO_ZYNQ
 	help
 	  Say yes here to support Xilinx Zynq GPIO controller.
 
-config GPIO_ZX
-	bool "ZTE ZX GPIO support"
-	depends on ARCH_ZX || COMPILE_TEST
-	select GPIOLIB_IRQCHIP
-	help
-	  Say yes here to support the GPIO device on ZTE ZX SoCs.
-
 config GPIO_LOONGSON1
 	tristate "Loongson1 GPIO support"
 	depends on MACH_LOONGSON32
