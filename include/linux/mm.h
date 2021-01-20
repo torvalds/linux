@@ -517,11 +517,14 @@ static inline bool fault_flag_allow_retry_first(unsigned int flags)
  * pgoff should be used in favour of virtual_address, if possible.
  */
 struct vm_fault {
-	struct vm_area_struct *vma;	/* Target VMA */
-	unsigned int flags;		/* FAULT_FLAG_xxx flags */
-	gfp_t gfp_mask;			/* gfp mask to be used for allocations */
-	pgoff_t pgoff;			/* Logical page offset based on vma */
-	unsigned long address;		/* Faulting virtual address */
+	struct {
+		struct vm_area_struct *vma;	/* Target VMA */
+		gfp_t gfp_mask;			/* gfp mask to be used for allocations */
+		pgoff_t pgoff;			/* Logical page offset based on vma */
+		unsigned long address;		/* Faulting virtual address */
+	};
+	unsigned int flags;		/* FAULT_FLAG_xxx flags
+					 * XXX: should really be 'const' */
 	pmd_t *pmd;			/* Pointer to pmd entry matching
 					 * the 'address' */
 	pud_t *pud;			/* Pointer to pud entry matching
