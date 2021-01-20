@@ -1793,13 +1793,6 @@ config RTC_DRV_IMX_SC
 	   If you say yes here you get support for the NXP i.MX System
 	   Controller RTC module.
 
-config RTC_DRV_SIRFSOC
-	tristate "SiRFSOC RTC"
-	depends on ARCH_SIRF
-	help
-	  Say "yes" here to support the real time clock on SiRF SOC chips.
-	  This driver can also be built as a module called rtc-sirfsoc.
-
 config RTC_DRV_ST_LPC
 	tristate "STMicroelectronics LPC RTC"
 	depends on ARCH_STI
