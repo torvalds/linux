@@ -201,6 +201,12 @@ i915_gem_object_has_struct_page(const struct drm_i915_gem_object *obj)
 }
 
 static inline bool
+i915_gem_object_has_iomem(const struct drm_i915_gem_object *obj)
+{
+	return i915_gem_object_type_has(obj, I915_GEM_OBJECT_HAS_IOMEM);
+}
+
+static inline bool
 i915_gem_object_is_shrinkable(const struct drm_i915_gem_object *obj)
 {
 	return i915_gem_object_type_has(obj, I915_GEM_OBJECT_IS_SHRINKABLE);
@@ -539,5 +545,7 @@ i915_gem_object_invalidate_frontbuffer(struct drm_i915_gem_object *obj,
 	if (unlikely(rcu_access_pointer(obj->frontbuffer)))
 		__i915_gem_object_invalidate_frontbuffer(obj, origin);
 }
+
+int i915_gem_object_read_from_page(struct drm_i915_gem_object *obj, u64 offset, void *dst, int size);
 
 #endif
