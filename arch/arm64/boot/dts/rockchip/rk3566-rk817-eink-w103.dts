@@ -324,7 +324,9 @@
 		regulator-boot-on;
 		regulator-always-on;
 		regulator-state-mem {
-			regulator-off-in-suspend;
+			regulator-on-in-suspend;
+			regulator-suspend-microvolt = <1100000>;
+			regulator-changeable-in-suspend;
 		};
 	};
 
@@ -401,6 +403,7 @@
 				regulator-state-mem {
 					regulator-off-in-suspend;
 					regulator-suspend-microvolt = <900000>;
+					regulator-changeable-in-suspend;
 				};
 			};
 
@@ -415,6 +418,7 @@
 				regulator-name = "vdd_gpu";
 					regulator-state-mem {
 					regulator-off-in-suspend;
+					regulator-changeable-in-suspend;
 				};
 			};
 
@@ -437,6 +441,7 @@
 				regulator-name = "vcc_3v3";
 				regulator-state-mem {
 					regulator-off-in-suspend;
+					regulator-changeable-in-suspend;
 				};
 			};
 
@@ -449,6 +454,7 @@
 				regulator-state-mem {
 					regulator-on-in-suspend;
 					regulator-suspend-microvolt = <1800000>;
+					regulator-changeable-in-suspend;
 				};
 			};
 
@@ -460,6 +466,7 @@
 				regulator-name = "vdda_0v9";
 				regulator-state-mem {
 					regulator-off-in-suspend;
+					regulator-changeable-in-suspend;
 				};
 			};
 
@@ -472,6 +479,7 @@
 				regulator-state-mem {
 					regulator-on-in-suspend;
 					regulator-suspend-microvolt = <900000>;
+					regulator-changeable-in-suspend;
 				};
 			};
 
@@ -483,6 +491,7 @@
 				regulator-name = "vccio_acodec";
 				regulator-state-mem {
 					regulator-off-in-suspend;
+					regulator-changeable-in-suspend;
 				};
 			};
 
@@ -492,6 +501,7 @@
 				regulator-name = "vccio_sd";
 				regulator-state-mem {
 					regulator-off-in-suspend;
+					regulator-changeable-in-suspend;
 				};
 			};
 
@@ -504,6 +514,7 @@
 				regulator-state-mem {
 					regulator-on-in-suspend;
 					regulator-suspend-microvolt = <3300000>;
+					regulator-changeable-in-suspend;
 				};
 			};
 
@@ -515,6 +526,7 @@
 				regulator-name = "vcc_1v8";
 				regulator-state-mem {
 					regulator-off-in-suspend;
+					regulator-changeable-in-suspend;
 				};
 			};
 
@@ -524,13 +536,16 @@
 				regulator-name = "vcc1v8_dvp";
 				regulator-state-mem {
 					regulator-off-in-suspend;
+					regulator-changeable-in-suspend;
 				};
 			};
 
-			vcc2v8_dvp: LDO_REG9 {
-				regulator-name = "vcc2v8_dvp";
+			sleep_sta_ctl: LDO_REG9 {
+				regulator-name = "sleep_sta_ctl";
 				regulator-state-mem {
 					regulator-on-in-suspend;
+					regulator-suspend-microvolt = <3300000>;
+					regulator-changeable-in-suspend;
 				};
 			};
 
@@ -542,6 +557,7 @@
 				regulator-name = "boost";
 				regulator-state-mem {
 					regulator-off-in-suspend;
+					regulator-changeable-in-suspend;
 				};
 			};
 
@@ -549,6 +565,7 @@
 				regulator-name = "otg_switch";
 				regulator-state-mem {
 					regulator-off-in-suspend;
+					regulator-changeable-in-suspend;
 				};
 			};
 		};
@@ -928,6 +945,28 @@
 
 &rkvenc_mmu {
 	status = "okay";
+};
+
+&rockchip_suspend {
+	status = "okay";
+
+	rockchip,regulator-off-in-mem-lite =
+		<&vdd_cpu>, <&vdd_logic>, <&vdd_gpu>, <&vcc_3v3>, <&vdda_0v9>, <&vcc_1v8>,
+		<&vccio_acodec>, <&vccio_sd>, <&vcc1v8_dvp>, <&dcdc_boost>, <&otg_switch>;
+	rockchip,regulator-on-in-mem-lite =
+		<&vcc_ddr>, <&vdda0v9_pmu>, <&vcca1v8_pmu>, <&vcc3v3_pmu>, <&sleep_sta_ctl>;
+
+	rockchip,regulator-off-in-mem =
+		<&vdd_cpu>, <&vdd_logic>, <&vdd_gpu>, <&vcc_3v3>, <&vdda_0v9>, <&vcc_1v8>,
+		<&vccio_acodec>, <&vccio_sd>, <&vcc1v8_dvp>, <&dcdc_boost>, <&otg_switch>;
+	rockchip,regulator-on-in-mem =
+		<&vcc_ddr>, <&vdda0v9_pmu>, <&vcca1v8_pmu>, <&vcc3v3_pmu>, <&sleep_sta_ctl>;
+
+	rockchip,regulator-off-in-mem-ultra =
+		<&vdd_logic>, <&vdd_gpu>, <&vcc_ddr>, <&vcc_3v3>, <&vdda_0v9>, <&vcc_1v8>,
+		<&vdda0v9_pmu>, <&vcca1v8_pmu>, <&vcc3v3_pmu>, <&vccio_acodec>, <&vccio_sd>,
+		<&vcc1v8_dvp>, <&dcdc_boost>, <&otg_switch>;
+	rockchip,regulator-on-in-mem-ultra = <&vdd_cpu>, <&sleep_sta_ctl>;
 };
 
 &saradc {
