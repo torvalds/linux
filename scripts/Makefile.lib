@@ -59,14 +59,24 @@ endif
 # Expand $(foo-objs) $(foo-y) by calling $(call suffix-search,foo.o,-objs -y)
 suffix-search = $(foreach s,$(2),$($(1:.o=$s)))
 # If $(foo-objs), $(foo-y), $(foo-m), or $(foo-) exists, foo.o is a composite object
-multi-search = $(sort $(foreach m,$(1), $(if $(strip $(call suffix-search,$(m),$(2) -)), $(m))))
+# Do this recursively to find nested composite objects.
+# foo-y may contain foo.o bar.o . For backwards compatibility, don't treat this
+# foo.o as a nested object
+multi-search = $(sort $(foreach m,$(1),$(if $(strip $(call suffix-search,$(m),$(2) -)),\
+	$(if $(filter $(m),$(strip $(call suffix-search,$(m),$(2) -))),,\
+	$(m) $(call multi-search,$(call suffix-search,$(m),$(2)),$(2))))))
 multi-used-y := $(call multi-search,$(obj-y),-objs -y)
 multi-used-m := $(call multi-search,$(obj-m),-objs -y -m)
 multi-used   := $(multi-used-y) $(multi-used-m)
 
 # Replace multi-part objects by their individual parts,
 # including built-in.a from subdirectories
-real-search = $(foreach m,$(1), $(if $(strip $(call suffix-search,$(m),$(2) -)),$(call suffix-search,$(m),$(2)),$(m)))
+# Recursively search for real files. For backwards compatibility,
+# foo-y may contain foo.o bar.o . foo.o in this context is a real object, and
+# shouldn't be recursed into.
+real-search = $(foreach m,$(1), $(if $(strip $(call suffix-search,$(m),$(2) -)), \
+	$(filter $(m),$(call suffix-search,$(m),$(2))) $(call real-search,$(filter-out $(m),$(call suffix-search,$(m),$(2))),$(2)),\
+	$(m)))
 real-obj-y := $(call real-search, $(obj-y),-objs -y)
 real-obj-m := $(call real-search, $(obj-m),-objs -y -m)
 
