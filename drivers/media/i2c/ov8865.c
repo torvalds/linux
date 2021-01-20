@@ -2839,9 +2839,9 @@ static int ov8865_probe(struct i2c_client *client)
 
 	/* DOVDD: digital I/O */
 	sensor->dovdd = devm_regulator_get(dev, "dovdd");
-	if (IS_ERR(sensor->dvdd)) {
+	if (IS_ERR(sensor->dovdd)) {
 		dev_err(dev, "cannot get DOVDD (digital I/O) regulator\n");
-		ret = PTR_ERR(sensor->dvdd);
+		ret = PTR_ERR(sensor->dovdd);
 		goto error_endpoint;
 	}
 
@@ -2849,7 +2849,7 @@ static int ov8865_probe(struct i2c_client *client)
 	sensor->avdd = devm_regulator_get(dev, "avdd");
 	if (IS_ERR(sensor->avdd)) {
 		dev_err(dev, "cannot get AVDD (analog) regulator\n");
-		ret = PTR_ERR(sensor->dvdd);
+		ret = PTR_ERR(sensor->avdd);
 		goto error_endpoint;
 	}
 
