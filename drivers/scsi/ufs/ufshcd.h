@@ -419,7 +419,10 @@ struct ufs_saved_pwr_info {
  * @suspend_work: worker to suspend devfreq
  * @resume_work: worker to resume devfreq
  * @min_gear: lowest HS gear to scale down to
- * @is_allowed: tracks if scaling is currently allowed or not
+ * @is_enabled: tracks if scaling is currently enabled or not, controlled by
+		clkscale_enable sysfs node
+ * @is_allowed: tracks if scaling is currently allowed or not, used to block
+		clock scaling which is not invoked from devfreq governor
  * @is_busy_started: tracks if busy period has started or not
  * @is_suspended: tracks if devfreq is suspended or not
  */
@@ -434,6 +437,7 @@ struct ufs_clk_scaling {
 	struct work_struct suspend_work;
 	struct work_struct resume_work;
 	u32 min_gear;
+	bool is_enabled;
 	bool is_allowed;
 	bool is_busy_started;
 	bool is_suspended;
