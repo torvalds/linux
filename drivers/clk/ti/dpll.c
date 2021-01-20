@@ -151,7 +151,7 @@ static const struct clk_ops dpll_x2_ck_ops = {
 
 /**
  * _register_dpll - low level registration of a DPLL clock
- * @hw: hardware clock definition for the clock
+ * @user: pointer to the hardware clock definition for the clock
  * @node: device node for the clock
  *
  * Finalizes DPLL registration process. In case a failure (clk-ref or
