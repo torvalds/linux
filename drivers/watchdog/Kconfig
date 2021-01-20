@@ -890,16 +890,6 @@ config LPC18XX_WATCHDOG
 	  To compile this driver as a module, choose M here: the
 	  module will be called lpc18xx_wdt.
 
-config ATLAS7_WATCHDOG
-	tristate "CSRatlas7 watchdog"
-	depends on ARCH_ATLAS7 || COMPILE_TEST
-	help
-	  Say Y here to include Watchdog timer support for the watchdog
-	  existing on the CSRatlas7 series platforms.
-
-	  To compile this driver as a module, choose M here: the
-	  module will be called atlas7_wdt.
-
 config RENESAS_WDT
 	tristate "Renesas WDT Watchdog"
 	depends on ARCH_RENESAS || COMPILE_TEST
