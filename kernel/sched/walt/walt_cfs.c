@@ -752,7 +752,8 @@ static void walt_binder_low_latency_set(void *unused, struct task_struct *task)
 		return;
 	if (task && current->signal &&
 			(current->signal->oom_score_adj == 0) &&
-			(current->prio < DEFAULT_PRIO))
+			((current->prio < DEFAULT_PRIO) ||
+			(task->group_leader->prio < MAX_RT_PRIO)))
 		wts->low_latency |= WALT_LOW_LATENCY_BINDER;
 }
 
