@@ -142,10 +142,15 @@ int smu_cmn_send_smc_msg_with_param(struct smu_context *smu,
 
 	ret = smu_cmn_wait_for_response(smu);
 	if (ret != 0x1) {
-		dev_err(adev->dev, "failed send message: %10s (%d) \tparam: 0x%08x response %#x\n",
-			smu_get_message_name(smu, msg), index, param, ret);
-		if (ret != -ETIME)
+		if (ret == -ETIME) {
+			dev_err(adev->dev, "message: %15s (%d) \tparam: 0x%08x is timeout (no response)\n",
+				smu_get_message_name(smu, msg), index, param);
+		} else {
+			dev_err(adev->dev, "failed send message: %15s (%d) \tparam: 0x%08x response %#x\n",
+				smu_get_message_name(smu, msg), index, param,
+				ret);
 			ret = -EIO;
+		}
 		goto out;
 	}
 
