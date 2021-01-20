@@ -40,6 +40,13 @@ static const struct nla_policy rtm_nh_policy_get[] = {
 	[NHA_ID]		= { .type = NLA_U32 },
 };
 
+static const struct nla_policy rtm_nh_policy_dump[] = {
+	[NHA_OIF]		= { .type = NLA_U32 },
+	[NHA_GROUPS]		= { .type = NLA_FLAG },
+	[NHA_MASTER]		= { .type = NLA_U32 },
+	[NHA_FDB]		= { .type = NLA_FLAG },
+};
+
 static bool nexthop_notifiers_is_empty(struct net *net)
 {
 	return !net->nexthop.notifier_chain.head;
@@ -1983,48 +1990,35 @@ static int nh_valid_dump_req(const struct nlmsghdr *nlh, int *dev_idx,
 			     bool *fdb_filter, struct netlink_callback *cb)
 {
 	struct netlink_ext_ack *extack = cb->extack;
-	struct nlattr *tb[NHA_MAX + 1];
+	struct nlattr *tb[ARRAY_SIZE(rtm_nh_policy_dump)];
 	struct nhmsg *nhm;
-	int err, i;
+	int err;
 	u32 idx;
 
-	err = nlmsg_parse(nlh, sizeof(*nhm), tb, NHA_MAX, rtm_nh_policy,
-			  NULL);
+	err = nlmsg_parse(nlh, sizeof(*nhm), tb,
+			  ARRAY_SIZE(rtm_nh_policy_dump) - 1,
+			  rtm_nh_policy_dump, NULL);
 	if (err < 0)
 		return err;
 
-	for (i = 0; i <= NHA_MAX; ++i) {
-		if (!tb[i])
-			continue;
-
-		switch (i) {
-		case NHA_OIF:
-			idx = nla_get_u32(tb[i]);
-			if (idx > INT_MAX) {
-				NL_SET_ERR_MSG(extack, "Invalid device index");
-				return -EINVAL;
-			}
-			*dev_idx = idx;
-			break;
-		case NHA_MASTER:
-			idx = nla_get_u32(tb[i]);
-			if (idx > INT_MAX) {
-				NL_SET_ERR_MSG(extack, "Invalid master device index");
-				return -EINVAL;
-			}
-			*master_idx = idx;
-			break;
-		case NHA_GROUPS:
-			*group_filter = true;
-			break;
-		case NHA_FDB:
-			*fdb_filter = true;
-			break;
-		default:
-			NL_SET_ERR_MSG(extack, "Unsupported attribute in dump request");
+	if (tb[NHA_OIF]) {
+		idx = nla_get_u32(tb[NHA_OIF]);
+		if (idx > INT_MAX) {
+			NL_SET_ERR_MSG(extack, "Invalid device index");
 			return -EINVAL;
 		}
+		*dev_idx = idx;
 	}
+	if (tb[NHA_MASTER]) {
+		idx = nla_get_u32(tb[NHA_MASTER]);
+		if (idx > INT_MAX) {
+			NL_SET_ERR_MSG(extack, "Invalid master device index");
+			return -EINVAL;
+		}
+		*master_idx = idx;
+	}
+	*group_filter = nla_get_flag(tb[NHA_GROUPS]);
+	*fdb_filter = nla_get_flag(tb[NHA_FDB]);
 
 	nhm = nlmsg_data(nlh);
 	if (nhm->nh_protocol || nhm->resvd || nhm->nh_scope || nhm->nh_flags) {
