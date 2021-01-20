@@ -305,9 +305,6 @@ vlv_initial_power_sequencer_setup(struct intel_dp *intel_dp)
 		    dig_port->base.base.base.id,
 		    dig_port->base.base.name,
 		    pipe_name(intel_dp->pps_pipe));
-
-	pps_init_delays(intel_dp);
-	pps_init_registers(intel_dp, false);
 }
 
 void intel_pps_reset_all(struct drm_i915_private *dev_priv)
@@ -1342,20 +1339,9 @@ static void pps_init_registers(struct intel_dp *intel_dp, bool force_disable_vdd
 		    (intel_de_read(dev_priv, regs.pp_ctrl) & BXT_POWER_CYCLE_DELAY_MASK));
 }
 
-static void intel_dp_pps_init(struct intel_dp *intel_dp)
-{
-	struct drm_i915_private *dev_priv = dp_to_i915(intel_dp);
-
-	if (IS_VALLEYVIEW(dev_priv) || IS_CHERRYVIEW(dev_priv)) {
-		vlv_initial_power_sequencer_setup(intel_dp);
-	} else {
-		pps_init_delays(intel_dp);
-		pps_init_registers(intel_dp, false);
-	}
-}
-
 void intel_pps_encoder_reset(struct intel_dp *intel_dp)
 {
+	struct drm_i915_private *i915 = dp_to_i915(intel_dp);
 	intel_wakeref_t wakeref;
 
 	if (!intel_dp_is_edp(intel_dp))
@@ -1363,23 +1349,24 @@ void intel_pps_encoder_reset(struct intel_dp *intel_dp)
 
 	with_intel_pps_lock(intel_dp, wakeref) {
 		/*
-		 * Reinit the power sequencer, in case BIOS did something nasty
-		 * with it.
+		 * Reinit the power sequencer also on the resume path, in case
+		 * BIOS did something nasty with it.
 		 */
-		intel_dp_pps_init(intel_dp);
+		if (IS_VALLEYVIEW(i915) || IS_CHERRYVIEW(i915))
+			vlv_initial_power_sequencer_setup(intel_dp);
+
+		pps_init_delays(intel_dp);
+		pps_init_registers(intel_dp, false);
+
 		intel_pps_vdd_sanitize(intel_dp);
 	}
 }
 
 void intel_pps_init(struct intel_dp *intel_dp)
 {
-	intel_wakeref_t wakeref;
-
 	INIT_DELAYED_WORK(&intel_dp->panel_vdd_work, edp_panel_vdd_work);
 
-	with_intel_pps_lock(intel_dp, wakeref) {
-		pps_init_timestamps(intel_dp);
-		intel_dp_pps_init(intel_dp);
-		intel_pps_vdd_sanitize(intel_dp);
-	}
+	pps_init_timestamps(intel_dp);
+
+	intel_pps_encoder_reset(intel_dp);
 }
