@@ -56,7 +56,7 @@ properties:
     maxItems: 1
 
   intel,dma-poll-cnt:
-    $ref: /schemas/types.yaml#definitions/uint32
+    $ref: /schemas/types.yaml#/definitions/uint32
     description:
       DMA descriptor polling counter is used to control the poling mechanism
       for the descriptor fetching for all channels.
