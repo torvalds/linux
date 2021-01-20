@@ -54,6 +54,9 @@ properties:
       - high-speed
       - super-speed
       - super-speed-plus
+      - super-speed-plus-gen2x1
+      - super-speed-plus-gen1x2
+      - super-speed-plus-gen2x2
 
 additionalProperties: true
 
