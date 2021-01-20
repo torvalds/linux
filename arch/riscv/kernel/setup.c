@@ -127,7 +127,9 @@ static void __init init_resources(void)
 {
 	struct memblock_region *region = NULL;
 	struct resource *res = NULL;
-	int ret = 0;
+	struct resource *mem_res = NULL;
+	size_t mem_res_sz = 0;
+	int ret = 0, i = 0;
 
 	code_res.start = __pa_symbol(_text);
 	code_res.end = __pa_symbol(_etext) - 1;
@@ -145,16 +147,17 @@ static void __init init_resources(void)
 	bss_res.end = __pa_symbol(__bss_stop) - 1;
 	bss_res.flags = IORESOURCE_SYSTEM_RAM | IORESOURCE_BUSY;
 
+	mem_res_sz = (memblock.memory.cnt + memblock.reserved.cnt) * sizeof(*mem_res);
+	mem_res = memblock_alloc(mem_res_sz, SMP_CACHE_BYTES);
+	if (!mem_res)
+		panic("%s: Failed to allocate %zu bytes\n", __func__, mem_res_sz);
 	/*
 	 * Start by adding the reserved regions, if they overlap
 	 * with /memory regions, insert_resource later on will take
 	 * care of it.
 	 */
 	for_each_reserved_mem_region(region) {
-		res = memblock_alloc(sizeof(struct resource), SMP_CACHE_BYTES);
-		if (!res)
-			panic("%s: Failed to allocate %zu bytes\n", __func__,
-			      sizeof(struct resource));
+		res = &mem_res[i++];
 
 		res->name = "Reserved";
 		res->flags = IORESOURCE_MEM | IORESOURCE_BUSY;
@@ -171,8 +174,10 @@ static void __init init_resources(void)
 		 * Ignore any other reserved regions within
 		 * system memory.
 		 */
-		if (memblock_is_memory(res->start))
+		if (memblock_is_memory(res->start)) {
+			memblock_free((phys_addr_t) res, sizeof(struct resource));
 			continue;
+		}
 
 		ret = add_resource(&iomem_resource, res);
 		if (ret < 0)
@@ -181,10 +186,7 @@ static void __init init_resources(void)
 
 	/* Add /memory regions to the resource tree */
 	for_each_mem_region(region) {
-		res = memblock_alloc(sizeof(struct resource), SMP_CACHE_BYTES);
-		if (!res)
-			panic("%s: Failed to allocate %zu bytes\n", __func__,
-			      sizeof(struct resource));
+		res = &mem_res[i++];
 
 		if (unlikely(memblock_is_nomap(region))) {
 			res->name = "Reserved";
@@ -205,9 +207,9 @@ static void __init init_resources(void)
 	return;
 
  error:
-	memblock_free((phys_addr_t) res, sizeof(struct resource));
 	/* Better an empty resource tree than an inconsistent one */
 	release_child_resources(&iomem_resource);
+	memblock_free((phys_addr_t) mem_res, mem_res_sz);
 }
 
 

@@ -41,7 +41,7 @@ void amd_start_sensor(struct amd_mp2_dev *privdata, struct amd_mp2_sensor_info i
 	cmd_param.s.buf_layout = 1;
 	cmd_param.s.buf_length = 16;
 
-	writeq(info.phys_address, privdata->mmio + AMD_C2P_MSG2);
+	writeq(info.dma_address, privdata->mmio + AMD_C2P_MSG2);
 	writel(cmd_param.ul, privdata->mmio + AMD_C2P_MSG1);
 	writel(cmd_base.ul, privdata->mmio + AMD_C2P_MSG0);
 }

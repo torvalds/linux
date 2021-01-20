@@ -186,11 +186,8 @@ extern int braille_register_console(struct console *, int index,
 extern int braille_unregister_console(struct console *);
 #ifdef CONFIG_TTY
 extern void console_sysfs_notify(void);
-extern void register_ttynull_console(void);
 #else
 static inline void console_sysfs_notify(void)
-{ }
-static inline void register_ttynull_console(void)
 { }
 #endif
 extern bool console_suspend_enabled;
