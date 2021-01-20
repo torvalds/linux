@@ -161,10 +161,6 @@ i915_gem_object_create_region(struct intel_memory_region *mem,
 	GEM_BUG_ON(!size);
 	GEM_BUG_ON(!IS_ALIGNED(size, I915_GTT_MIN_ALIGNMENT));
 
-	obj = i915_gem_object_alloc();
-	if (!obj)
-		return ERR_PTR(-ENOMEM);
-
 	/*
 	 * XXX: There is a prevalence of the assumption that we fit the
 	 * object's page count inside a 32bit _signed_ variable. Let's document
@@ -177,6 +173,10 @@ i915_gem_object_create_region(struct intel_memory_region *mem,
 
 	if (overflows_type(size, obj->base.size))
 		return ERR_PTR(-E2BIG);
+
+	obj = i915_gem_object_alloc();
+	if (!obj)
+		return ERR_PTR(-ENOMEM);
 
 	err = mem->ops->init_object(mem, obj, size, flags);
 	if (err)
