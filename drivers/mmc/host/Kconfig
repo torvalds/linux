@@ -326,18 +326,6 @@ config MMC_SDHCI_S3C
 
 	  If unsure, say N.
 
-config MMC_SDHCI_SIRF
-	tristate "SDHCI support on CSR SiRFprimaII and SiRFmarco SoCs"
-	depends on ARCH_SIRF || COMPILE_TEST
-	depends on MMC_SDHCI_PLTFM
-	select MMC_SDHCI_IO_ACCESSORS
-	help
-	  This selects the SDHCI support for SiRF System-on-Chip devices.
-
-	  If you have a controller with this interface, say Y or M here.
-
-	  If unsure, say N.
-
 config MMC_SDHCI_PXAV3
 	tristate "Marvell MMP2 SD Host Controller support (PXAV3)"
 	depends on CLKDEV_LOOKUP
