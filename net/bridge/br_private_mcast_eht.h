@@ -47,4 +47,6 @@ struct net_bridge_group_eht_set {
 	struct net_bridge_mcast_gc	mcast_gc;
 };
 
+void br_multicast_eht_clean_sets(struct net_bridge_port_group *pg);
+
 #endif /* _BR_PRIVATE_MCAST_EHT_H_ */
