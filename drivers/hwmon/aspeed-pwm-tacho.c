@@ -152,13 +152,13 @@
 #define M_PWM_PERIOD 0x5F
 #define M_TACH_CLK_DIV 0x00
 /*
- * 5:4 Type N fan tach mode selection bit:
+ * 5:4 fan tach mode selection bit:
  * 00: falling
  * 01: rising
  * 10: both
  * 11: reserved.
  */
-#define M_TACH_MODE 0x02 /* 10b */
+#define M_TACH_MODE 0x00 /* 10b */
 #define M_TACH_UNIT 0x0210
 #define INIT_FAN_CTRL 0xFF
 
