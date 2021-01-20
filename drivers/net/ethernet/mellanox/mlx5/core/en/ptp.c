@@ -579,6 +579,9 @@ static int mlx5e_ptp_set_state(struct mlx5e_ptp *c, struct mlx5e_params *params)
 	if (MLX5E_GET_PFLAG(params, MLX5E_PFLAG_TX_PORT_TS))
 		__set_bit(MLX5E_PTP_STATE_TX, c->state);
 
+	if (params->ptp_rx)
+		__set_bit(MLX5E_PTP_STATE_RX, c->state);
+
 	return bitmap_empty(c->state, MLX5E_PTP_STATE_NUM_STATES) ? -EINVAL : 0;
 }
 

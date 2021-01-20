@@ -269,6 +269,7 @@ struct mlx5e_params {
 	struct mlx5e_xsk *xsk;
 	unsigned int sw_mtu;
 	int hard_mtu;
+	bool ptp_rx;
 };
 
 enum {
