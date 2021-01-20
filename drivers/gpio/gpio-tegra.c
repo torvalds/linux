@@ -703,7 +703,6 @@ static int tegra_gpio_probe(struct platform_device *pdev)
 #ifdef CONFIG_PM_SLEEP
 	tgi->ic.irq_set_wake		= tegra_gpio_irq_set_wake;
 #endif
-	tgi->ic.irq_set_affinity	= tegra_gpio_irq_set_affinity;
 	tgi->ic.irq_request_resources	= tegra_gpio_irq_request_resources;
 	tgi->ic.irq_release_resources	= tegra_gpio_irq_release_resources;
 
@@ -757,6 +756,8 @@ static int tegra_gpio_probe(struct platform_device *pdev)
 
 		if (!irq->parent_domain)
 			return -EPROBE_DEFER;
+
+		tgi->ic.irq_set_affinity = tegra_gpio_irq_set_affinity;
 	}
 
 	tgi->regs = devm_platform_ioremap_resource(pdev, 0);
