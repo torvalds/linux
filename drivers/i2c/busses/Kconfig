@@ -993,16 +993,6 @@ config I2C_SIMTEC
 	  This driver can also be built as a module. If so, the module
 	  will be called i2c-simtec.
 
-config I2C_SIRF
-	tristate "CSR SiRFprimaII I2C interface"
-	depends on ARCH_SIRF || COMPILE_TEST
-	help
-	  If you say yes to this option, support will be included for the
-	  CSR SiRFprimaII I2C interface.
-
-	  This driver can also be built as a module.  If so, the module
-	  will be called i2c-sirf.
-
 config I2C_SPRD
 	tristate "Spreadtrum I2C interface"
 	depends on I2C=y && (ARCH_SPRD || COMPILE_TEST)
