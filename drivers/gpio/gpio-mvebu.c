@@ -669,9 +669,7 @@ static void mvebu_pwm_get_state(struct pwm_chip *chip,
 	regmap_read(mvpwm->regs, mvebu_pwmreg_blink_on_duration(mvpwm), &u);
 	val = (unsigned long long) u * NSEC_PER_SEC;
 	val = DIV_ROUND_UP_ULL(val, mvpwm->clk_rate);
-	if (val > UINT_MAX)
-		state->duty_cycle = UINT_MAX;
-	else if (val)
+	if (val)
 		state->duty_cycle = val;
 	else
 		state->duty_cycle = 1;
@@ -681,9 +679,7 @@ static void mvebu_pwm_get_state(struct pwm_chip *chip,
 	val += (unsigned long long) u; /* period = on + off duration */
 	val *= NSEC_PER_SEC;
 	val = DIV_ROUND_UP_ULL(val, mvpwm->clk_rate);
-	if (val > UINT_MAX)
-		state->period = UINT_MAX;
-	else if (val)
+	if (val)
 		state->period = val;
 	else
 		state->period = 1;
