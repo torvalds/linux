@@ -210,6 +210,10 @@
 	__SMU_DUMMY_MAP(DisallowGpo),                    \
 	__SMU_DUMMY_MAP(Enable2ndUSB20Port),             \
 	__SMU_DUMMY_MAP(RequestActiveWgp),               \
+       __SMU_DUMMY_MAP(SetFastPPTLimit),                \
+       __SMU_DUMMY_MAP(SetSlowPPTLimit),                \
+       __SMU_DUMMY_MAP(GetFastPPTLimit),                \
+       __SMU_DUMMY_MAP(GetSlowPPTLimit),                \
 
 #undef __SMU_DUMMY_MAP
 #define __SMU_DUMMY_MAP(type)	SMU_MSG_##type
