@@ -848,6 +848,9 @@ void br_multicast_star_g_handle_mode(struct net_bridge_port_group *pg,
 				     u8 filter_mode);
 void br_multicast_sg_add_exclude_ports(struct net_bridge_mdb_entry *star_mp,
 				       struct net_bridge_port_group *sg);
+struct net_bridge_group_src *
+br_multicast_find_group_src(struct net_bridge_port_group *pg, struct br_ip *ip);
+void br_multicast_del_group_src(struct net_bridge_group_src *src);
 
 static inline bool br_group_is_l2(const struct br_ip *group)
 {
