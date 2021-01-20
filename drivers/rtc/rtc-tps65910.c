@@ -418,10 +418,14 @@ static int tps65910_rtc_probe(struct platform_device *pdev)
 		irq = -1;
 
 	tps_rtc->irq = irq;
-	if (irq != -1)
-		device_set_wakeup_capable(&pdev->dev, 1);
-	else
+	if (irq != -1) {
+		if (device_property_present(tps65910->dev, "wakeup-source"))
+			device_init_wakeup(&pdev->dev, 1);
+		else
+			device_set_wakeup_capable(&pdev->dev, 1);
+	} else {
 		clear_bit(RTC_FEATURE_ALARM, tps_rtc->rtc->features);
+	}
 
 	tps_rtc->rtc->ops = &tps65910_rtc_ops;
 	tps_rtc->rtc->range_min = RTC_TIMESTAMP_BEGIN_2000;
