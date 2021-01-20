@@ -206,7 +206,7 @@ enum cif_reg_index {
 
 #define CIF_FETCH_Y_LAST_LINE(val)	((val) & 0x1fff)
 /* Check if swap y and c in bt1120 mode */
-#define CIF_FETCH_IS_Y_FIRST(val)	((val) & 0xf)
+#define CIF_FETCH_IS_Y_FIRST(val)	((val >> 5) & 0x3)
 #define CIF_RAW_STORED_BIT_WIDTH	(16U)
 #define CIF_YUV_STORED_BIT_WIDTH	(8U)
 

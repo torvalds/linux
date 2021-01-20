@@ -2251,7 +2251,7 @@ static int rkcif_stream_start(struct rkcif_stream *stream)
 			xfer_mode = BT1120_TRANSMIT_PROGRESS;
 		else
 			xfer_mode = BT1120_TRANSMIT_INTERFACE;
-		if (!CIF_FETCH_IS_Y_FIRST(stream->cif_fmt_in->dvp_fmt_val))
+		if (CIF_FETCH_IS_Y_FIRST(stream->cif_fmt_in->dvp_fmt_val))
 			yc_swap = BT1120_YC_SWAP;
 	}
 
