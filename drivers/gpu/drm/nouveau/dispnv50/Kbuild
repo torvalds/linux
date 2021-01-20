@@ -37,6 +37,7 @@ nouveau-y += dispnv50/wimmc37b.o
 nouveau-y += dispnv50/wndw.o
 nouveau-y += dispnv50/wndwc37e.o
 nouveau-y += dispnv50/wndwc57e.o
+nouveau-y += dispnv50/wndwc67e.o
 
 nouveau-y += dispnv50/base.o
 nouveau-y += dispnv50/base507c.o

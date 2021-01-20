@@ -64,6 +64,9 @@ pramin_init(struct nvkm_bios *bios, const char *name)
 		return NULL;
 
 	/* we can't get the bios image pointer without PDISP */
+	if (device->card_type >= GA100)
+		addr = device->chipset == 0x170; /*XXX: find the fuse reg for this */
+	else
 	if (device->card_type >= GM100)
 		addr = nvkm_rd32(device, 0x021c04);
 	else

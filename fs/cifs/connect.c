@@ -3740,7 +3740,7 @@ cifs_setup_session(const unsigned int xid, struct cifs_ses *ses,
 
 	if (!ses->binding) {
 		ses->capabilities = server->capabilities;
-		if (linuxExtEnabled == 0)
+		if (!linuxExtEnabled)
 			ses->capabilities &= (~server->vals->cap_unix);
 
 		if (ses->auth_key.response) {
