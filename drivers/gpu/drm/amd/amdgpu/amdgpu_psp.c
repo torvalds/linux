@@ -57,7 +57,7 @@ static int psp_load_smu_fw(struct psp_context *psp);
  *   - Load XGMI/RAS/HDCP/DTM TA if any
  *
  * This new sequence is required for
- *   - Arcturus
+ *   - Arcturus and onwards
  *   - Navi12 and onwards
  */
 static void psp_check_pmfw_centralized_cstate_management(struct psp_context *psp)
@@ -72,8 +72,7 @@ static void psp_check_pmfw_centralized_cstate_management(struct psp_context *psp
 	if (adev->flags & AMD_IS_APU)
 		return;
 
-	if ((adev->asic_type == CHIP_ARCTURUS)	||
-	    (adev->asic_type == CHIP_ALDEBARAN)	||
+	if ((adev->asic_type >= CHIP_ARCTURUS) ||
 	    (adev->asic_type >= CHIP_NAVI12))
 		psp->pmfw_centralized_cstate_management = true;
 }
