@@ -32,50 +32,6 @@
 		spi1 = &spi1;
 	};
 
-	amba: bus {
-		compatible = "simple-bus";
-		#address-cells = <1>;
-		#size-cells = <1>;
-		ranges;
-
-		dmac1_s: dma-controller@20018000 {
-			compatible = "arm,pl330", "arm,primecell";
-			reg = <0x20018000 0x4000>;
-			interrupts = <GIC_SPI 0 IRQ_TYPE_LEVEL_HIGH>,
-				     <GIC_SPI 1 IRQ_TYPE_LEVEL_HIGH>;
-			#dma-cells = <1>;
-			arm,pl330-broken-no-flushp;
-			arm,pl330-periph-burst;
-			clocks = <&cru ACLK_DMA1>;
-			clock-names = "apb_pclk";
-		};
-
-		dmac1_ns: dma-controller@2001c000 {
-			compatible = "arm,pl330", "arm,primecell";
-			reg = <0x2001c000 0x4000>;
-			interrupts = <GIC_SPI 0 IRQ_TYPE_LEVEL_HIGH>,
-				     <GIC_SPI 1 IRQ_TYPE_LEVEL_HIGH>;
-			#dma-cells = <1>;
-			arm,pl330-broken-no-flushp;
-			arm,pl330-periph-burst;
-			clocks = <&cru ACLK_DMA1>;
-			clock-names = "apb_pclk";
-			status = "disabled";
-		};
-
-		dmac2: dma-controller@20078000 {
-			compatible = "arm,pl330", "arm,primecell";
-			reg = <0x20078000 0x4000>;
-			interrupts = <GIC_SPI 2 IRQ_TYPE_LEVEL_HIGH>,
-				     <GIC_SPI 3 IRQ_TYPE_LEVEL_HIGH>;
-			#dma-cells = <1>;
-			arm,pl330-broken-no-flushp;
-			arm,pl330-periph-burst;
-			clocks = <&cru ACLK_DMA2>;
-			clock-names = "apb_pclk";
-		};
-	};
-
 	xin24m: oscillator {
 		compatible = "fixed-clock";
 		clock-frequency = <24000000>;
@@ -304,6 +260,31 @@
 		reg = <0x20008000 0x200>;
 	};
 
+	dmac1_s: dma-controller@20018000 {
+		compatible = "arm,pl330", "arm,primecell";
+		reg = <0x20018000 0x4000>;
+		interrupts = <GIC_SPI 0 IRQ_TYPE_LEVEL_HIGH>,
+			     <GIC_SPI 1 IRQ_TYPE_LEVEL_HIGH>;
+		#dma-cells = <1>;
+		arm,pl330-broken-no-flushp;
+		arm,pl330-periph-burst;
+		clocks = <&cru ACLK_DMA1>;
+		clock-names = "apb_pclk";
+	};
+
+	dmac1_ns: dma-controller@2001c000 {
+		compatible = "arm,pl330", "arm,primecell";
+		reg = <0x2001c000 0x4000>;
+		interrupts = <GIC_SPI 0 IRQ_TYPE_LEVEL_HIGH>,
+			     <GIC_SPI 1 IRQ_TYPE_LEVEL_HIGH>;
+		#dma-cells = <1>;
+		arm,pl330-broken-no-flushp;
+		arm,pl330-periph-burst;
+		clocks = <&cru ACLK_DMA1>;
+		clock-names = "apb_pclk";
+		status = "disabled";
+	};
+
 	i2c0: i2c@2002d000 {
 		compatible = "rockchip,rk3066-i2c";
 		reg = <0x2002d000 0x1000>;
@@ -477,5 +458,17 @@
 		dmas = <&dmac2 12>, <&dmac2 13>;
 		dma-names = "tx", "rx";
 		status = "disabled";
+	};
+
+	dmac2: dma-controller@20078000 {
+		compatible = "arm,pl330", "arm,primecell";
+		reg = <0x20078000 0x4000>;
+		interrupts = <GIC_SPI 2 IRQ_TYPE_LEVEL_HIGH>,
+			     <GIC_SPI 3 IRQ_TYPE_LEVEL_HIGH>;
+		#dma-cells = <1>;
+		arm,pl330-broken-no-flushp;
+		arm,pl330-periph-burst;
+		clocks = <&cru ACLK_DMA2>;
+		clock-names = "apb_pclk";
 	};
 };
