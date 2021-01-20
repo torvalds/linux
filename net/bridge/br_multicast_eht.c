@@ -629,13 +629,79 @@ static bool br_multicast_eht_block(struct net_bridge_port_group *pg,
 	return changed;
 }
 
+/* flush_entries is true when changing mode */
+static bool __eht_inc_exc(struct net_bridge_port_group *pg,
+			  union net_bridge_eht_addr *h_addr,
+			  void *srcs,
+			  u32 nsrcs,
+			  size_t addr_size,
+			  unsigned char filter_mode,
+			  bool to_report)
+{
+	bool changed = false, flush_entries = to_report;
+	union net_bridge_eht_addr eht_src_addr;
+	u32 src_idx;
+
+	if (br_multicast_eht_host_filter_mode(pg, h_addr) != filter_mode)
+		flush_entries = true;
+
+	memset(&eht_src_addr, 0, sizeof(eht_src_addr));
+	/* if we're changing mode del host and its entries */
+	if (flush_entries)
+		br_multicast_del_eht_host(pg, h_addr);
+	for (src_idx = 0; src_idx < nsrcs; src_idx++) {
+		memcpy(&eht_src_addr, srcs + (src_idx * addr_size), addr_size);
+		br_multicast_create_eht_set_entry(pg, &eht_src_addr, h_addr,
+						  filter_mode, false);
+	}
+	/* we can be missing sets only if we've deleted some entries */
+	if (flush_entries) {
+		struct net_bridge_group_src *src_ent;
+		struct hlist_node *tmp;
+
+		hlist_for_each_entry_safe(src_ent, tmp, &pg->src_list, node) {
+			br_multicast_ip_src_to_eht_addr(&src_ent->addr,
+							&eht_src_addr);
+			if (!br_multicast_eht_set_lookup(pg, &eht_src_addr)) {
+				br_multicast_del_group_src(src_ent);
+				changed = true;
+				continue;
+			}
+		}
+	}
+
+	return changed;
+}
+
+static bool br_multicast_eht_inc(struct net_bridge_port_group *pg,
+				 union net_bridge_eht_addr *h_addr,
+				 void *srcs,
+				 u32 nsrcs,
+				 size_t addr_size,
+				 bool to_report)
+{
+	return __eht_inc_exc(pg, h_addr, srcs, nsrcs, addr_size, MCAST_INCLUDE,
+			     to_report);
+}
+
+static bool br_multicast_eht_exc(struct net_bridge_port_group *pg,
+				 union net_bridge_eht_addr *h_addr,
+				 void *srcs,
+				 u32 nsrcs,
+				 size_t addr_size,
+				 bool to_report)
+{
+	return __eht_inc_exc(pg, h_addr, srcs, nsrcs, addr_size, MCAST_EXCLUDE,
+			     to_report);
+}
+
 static bool __eht_ip4_handle(struct net_bridge_port_group *pg,
 			     union net_bridge_eht_addr *h_addr,
 			     void *srcs,
 			     u32 nsrcs,
 			     int grec_type)
 {
-	bool changed = false;
+	bool changed = false, to_report = false;
 
 	switch (grec_type) {
 	case IGMPV3_ALLOW_NEW_SOURCES:
@@ -644,6 +710,20 @@ static bool __eht_ip4_handle(struct net_bridge_port_group *pg,
 	case IGMPV3_BLOCK_OLD_SOURCES:
 		changed = br_multicast_eht_block(pg, h_addr, srcs, nsrcs,
 						 sizeof(__be32));
+		break;
+	case IGMPV3_CHANGE_TO_INCLUDE:
+		to_report = true;
+		fallthrough;
+	case IGMPV3_MODE_IS_INCLUDE:
+		changed = br_multicast_eht_inc(pg, h_addr, srcs, nsrcs,
+					       sizeof(__be32), to_report);
+		break;
+	case IGMPV3_CHANGE_TO_EXCLUDE:
+		to_report = true;
+		fallthrough;
+	case IGMPV3_MODE_IS_EXCLUDE:
+		changed = br_multicast_eht_exc(pg, h_addr, srcs, nsrcs,
+					       sizeof(__be32), to_report);
 		break;
 	}
 
@@ -657,7 +737,7 @@ static bool __eht_ip6_handle(struct net_bridge_port_group *pg,
 			     u32 nsrcs,
 			     int grec_type)
 {
-	bool changed = false;
+	bool changed = false, to_report = false;
 
 	switch (grec_type) {
 	case MLD2_ALLOW_NEW_SOURCES:
@@ -667,6 +747,22 @@ static bool __eht_ip6_handle(struct net_bridge_port_group *pg,
 	case MLD2_BLOCK_OLD_SOURCES:
 		changed = br_multicast_eht_block(pg, h_addr, srcs, nsrcs,
 						 sizeof(struct in6_addr));
+		break;
+	case MLD2_CHANGE_TO_INCLUDE:
+		to_report = true;
+		fallthrough;
+	case MLD2_MODE_IS_INCLUDE:
+		changed = br_multicast_eht_inc(pg, h_addr, srcs, nsrcs,
+					       sizeof(struct in6_addr),
+					       to_report);
+		break;
+	case MLD2_CHANGE_TO_EXCLUDE:
+		to_report = true;
+		fallthrough;
+	case MLD2_MODE_IS_EXCLUDE:
+		changed = br_multicast_eht_exc(pg, h_addr, srcs, nsrcs,
+					       sizeof(struct in6_addr),
+					       to_report);
 		break;
 	}
 

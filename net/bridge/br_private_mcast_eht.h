@@ -55,4 +55,11 @@ bool br_multicast_eht_handle(struct net_bridge_port_group *pg,
 			     size_t addr_size,
 			     int grec_type);
 
+static inline bool
+br_multicast_eht_should_del_pg(const struct net_bridge_port_group *pg)
+{
+	return !!((pg->key.port->flags & BR_MULTICAST_FAST_LEAVE) &&
+		  RB_EMPTY_ROOT(&pg->eht_host_tree));
+}
+
 #endif /* _BR_PRIVATE_MCAST_EHT_H_ */
