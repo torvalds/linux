@@ -730,10 +730,14 @@ wake:
 
 void __mptcp_flush_join_list(struct mptcp_sock *msk)
 {
+	struct mptcp_subflow_context *subflow;
+
 	if (likely(list_empty(&msk->join_list)))
 		return;
 
 	spin_lock_bh(&msk->join_list_lock);
+	list_for_each_entry(subflow, &msk->join_list, node)
+		mptcp_propagate_sndbuf((struct sock *)msk, mptcp_subflow_tcp_sock(subflow));
 	list_splice_tail_init(&msk->join_list, &msk->conn_list);
 	spin_unlock_bh(&msk->join_list_lock);
 }
@@ -1032,13 +1036,6 @@ out:
 		if (tcp_under_memory_pressure(sk)) {
 			__mptcp_update_wmem(sk);
 			sk_mem_reclaim_partial(sk);
-		}
-
-		if (sk_stream_is_writeable(sk)) {
-			/* pairs with memory barrier in mptcp_poll */
-			smp_mb();
-			if (test_and_clear_bit(MPTCP_NOSPACE, &msk->flags))
-				sk_stream_write_space(sk);
 		}
 	}
 
@@ -1358,8 +1355,7 @@ struct subflow_send_info {
 	u64 ratio;
 };
 
-static struct sock *mptcp_subflow_get_send(struct mptcp_sock *msk,
-					   u32 *sndbuf)
+static struct sock *mptcp_subflow_get_send(struct mptcp_sock *msk)
 {
 	struct subflow_send_info send_info[2];
 	struct mptcp_subflow_context *subflow;
@@ -1370,24 +1366,17 @@ static struct sock *mptcp_subflow_get_send(struct mptcp_sock *msk,
 
 	sock_owned_by_me((struct sock *)msk);
 
-	*sndbuf = 0;
 	if (__mptcp_check_fallback(msk)) {
 		if (!msk->first)
 			return NULL;
-		*sndbuf = msk->first->sk_sndbuf;
 		return sk_stream_memory_free(msk->first) ? msk->first : NULL;
 	}
 
 	/* re-use last subflow, if the burst allow that */
 	if (msk->last_snd && msk->snd_burst > 0 &&
 	    sk_stream_memory_free(msk->last_snd) &&
-	    mptcp_subflow_active(mptcp_subflow_ctx(msk->last_snd))) {
-		mptcp_for_each_subflow(msk, subflow) {
-			ssk =  mptcp_subflow_tcp_sock(subflow);
-			*sndbuf = max(tcp_sk(ssk)->snd_wnd, *sndbuf);
-		}
+	    mptcp_subflow_active(mptcp_subflow_ctx(msk->last_snd)))
 		return msk->last_snd;
-	}
 
 	/* pick the subflow with the lower wmem/wspace ratio */
 	for (i = 0; i < 2; ++i) {
@@ -1400,7 +1389,6 @@ static struct sock *mptcp_subflow_get_send(struct mptcp_sock *msk,
 			continue;
 
 		nr_active += !subflow->backup;
-		*sndbuf = max(tcp_sk(ssk)->snd_wnd, *sndbuf);
 		if (!sk_stream_memory_free(subflow->tcp_sock))
 			continue;
 
@@ -1430,6 +1418,7 @@ static struct sock *mptcp_subflow_get_send(struct mptcp_sock *msk,
 				       sk_stream_wspace(msk->last_snd));
 		return msk->last_snd;
 	}
+
 	return NULL;
 }
 
@@ -1450,7 +1439,6 @@ static void mptcp_push_pending(struct sock *sk, unsigned int flags)
 	};
 	struct mptcp_data_frag *dfrag;
 	int len, copied = 0;
-	u32 sndbuf;
 
 	while ((dfrag = mptcp_send_head(sk))) {
 		info.sent = dfrag->already_sent;
@@ -1461,12 +1449,7 @@ static void mptcp_push_pending(struct sock *sk, unsigned int flags)
 
 			prev_ssk = ssk;
 			__mptcp_flush_join_list(msk);
-			ssk = mptcp_subflow_get_send(msk, &sndbuf);
-
-			/* do auto tuning */
-			if (!(sk->sk_userlocks & SOCK_SNDBUF_LOCK) &&
-			    sndbuf > READ_ONCE(sk->sk_sndbuf))
-				WRITE_ONCE(sk->sk_sndbuf, sndbuf);
+			ssk = mptcp_subflow_get_send(msk);
 
 			/* try to keep the subflow socket lock across
 			 * consecutive xmit on the same socket
@@ -1533,11 +1516,6 @@ static void __mptcp_subflow_push_pending(struct sock *sk, struct sock *ssk)
 		while (len > 0) {
 			int ret = 0;
 
-			/* do auto tuning */
-			if (!(sk->sk_userlocks & SOCK_SNDBUF_LOCK) &&
-			    ssk->sk_sndbuf > READ_ONCE(sk->sk_sndbuf))
-				WRITE_ONCE(sk->sk_sndbuf, ssk->sk_sndbuf);
-
 			if (unlikely(mptcp_must_reclaim_memory(sk, ssk))) {
 				__mptcp_update_wmem(sk);
 				sk_mem_reclaim_partial(sk);
@@ -1573,6 +1551,15 @@ out:
 		    msk->snd_nxt + 1 == msk->write_seq)
 			mptcp_schedule_work(sk);
 	}
+}
+
+static void mptcp_set_nospace(struct sock *sk)
+{
+	/* enable autotune */
+	set_bit(SOCK_NOSPACE, &sk->sk_socket->flags);
+
+	/* will be cleared on avail space */
+	set_bit(MPTCP_NOSPACE, &mptcp_sk(sk)->flags);
 }
 
 static int mptcp_sendmsg(struct sock *sk, struct msghdr *msg, size_t len)
@@ -1676,7 +1663,7 @@ static int mptcp_sendmsg(struct sock *sk, struct msghdr *msg, size_t len)
 		continue;
 
 wait_for_memory:
-		set_bit(MPTCP_NOSPACE, &msk->flags);
+		mptcp_set_nospace(sk);
 		mptcp_push_pending(sk, msg->msg_flags);
 		ret = sk_stream_wait_memory(sk, &timeo);
 		if (ret)
@@ -3268,6 +3255,7 @@ static int mptcp_stream_accept(struct socket *sock, struct socket *newsock,
 
 		mptcp_copy_inaddrs(newsk, msk->first);
 		mptcp_rcv_space_init(msk, msk->first);
+		mptcp_propagate_sndbuf(newsk, msk->first);
 
 		/* set ssk->sk_socket of accept()ed flows to mptcp socket.
 		 * This is needed so NOSPACE flag can be set from tcp stack.
@@ -3308,7 +3296,7 @@ static __poll_t mptcp_check_writeable(struct mptcp_sock *msk)
 	if (sk_stream_is_writeable(sk))
 		return EPOLLOUT | EPOLLWRNORM;
 
-	set_bit(MPTCP_NOSPACE, &msk->flags);
+	mptcp_set_nospace(sk);
 	smp_mb__after_atomic(); /* msk->flags is changed by write_space cb */
 	if (sk_stream_is_writeable(sk))
 		return EPOLLOUT | EPOLLWRNORM;

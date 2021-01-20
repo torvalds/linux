@@ -343,6 +343,7 @@ static void subflow_finish_connect(struct sock *sk, const struct sk_buff *skb)
 	if (subflow->conn_finished)
 		return;
 
+	mptcp_propagate_sndbuf(parent, sk);
 	subflow->rel_write_seq = 1;
 	subflow->conn_finished = 1;
 	subflow->ssn_offset = TCP_SKB_CB(skb)->seq;
@@ -1040,7 +1041,10 @@ static void subflow_data_ready(struct sock *sk)
 
 static void subflow_write_space(struct sock *ssk)
 {
-	/* we take action in __mptcp_clean_una() */
+	struct sock *sk = mptcp_subflow_ctx(ssk)->conn;
+
+	mptcp_propagate_sndbuf(sk, ssk);
+	mptcp_write_space(sk);
 }
 
 static struct inet_connection_sock_af_ops *
@@ -1302,6 +1306,7 @@ static void subflow_state_change(struct sock *sk)
 	__subflow_state_change(sk);
 
 	if (subflow_simultaneous_connect(sk)) {
+		mptcp_propagate_sndbuf(parent, sk);
 		mptcp_do_fallback(sk);
 		mptcp_rcv_space_init(mptcp_sk(parent), sk);
 		pr_fallback(mptcp_sk(parent));
