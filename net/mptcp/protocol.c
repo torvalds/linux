@@ -1389,7 +1389,7 @@ static struct sock *mptcp_subflow_get_send(struct mptcp_sock *msk)
 			continue;
 
 		nr_active += !subflow->backup;
-		if (!sk_stream_memory_free(subflow->tcp_sock))
+		if (!sk_stream_memory_free(subflow->tcp_sock) || !tcp_sk(ssk)->snd_wnd)
 			continue;
 
 		pace = READ_ONCE(ssk->sk_pacing_rate);
@@ -1415,7 +1415,7 @@ static struct sock *mptcp_subflow_get_send(struct mptcp_sock *msk)
 	if (send_info[0].ssk) {
 		msk->last_snd = send_info[0].ssk;
 		msk->snd_burst = min_t(int, MPTCP_SEND_BURST_SIZE,
-				       sk_stream_wspace(msk->last_snd));
+				       tcp_sk(msk->last_snd)->snd_wnd);
 		return msk->last_snd;
 	}
 
