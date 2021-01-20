@@ -804,7 +804,7 @@ EXPORT_SYMBOL(empty_zero_page)
 swapper_pg_dir:
 	.space	PGD_TABLE_SIZE
 
-/* Room for two PTE table poiners, usually the kernel and current user
+/* Room for two PTE table pointers, usually the kernel and current user
  * pointer to their respective root page table (pgdir).
  */
 	.globl	abatron_pteptrs
