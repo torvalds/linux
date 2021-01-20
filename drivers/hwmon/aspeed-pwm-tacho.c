@@ -724,6 +724,7 @@ static const struct attribute_group fan_dev_group = {
  */
 static void aspeed_create_type(struct aspeed_pwm_tacho_data *priv)
 {
+	u32 tach_period, pwm_clk;
 	priv->type_pwm_clock_division_h[TYPEM] = M_PWM_DIV_H;
 	priv->type_pwm_clock_division_l[TYPEM] = M_PWM_DIV_L;
 	priv->type_pwm_clock_unit[TYPEM] = M_PWM_PERIOD;
@@ -731,10 +732,27 @@ static void aspeed_create_type(struct aspeed_pwm_tacho_data *priv)
 				    M_PWM_DIV_L, M_PWM_PERIOD);
 	aspeed_set_tacho_type_enable(priv->regmap, TYPEM, true);
 	priv->type_fan_tach_clock_division[TYPEM] = M_TACH_CLK_DIV;
-	priv->type_fan_tach_unit[TYPEM] = M_TACH_UNIT;
+	/*
+	 * min(Tach input clock) = (PulsePR * minRPM) / 60
+	 * max(Tach input period) = 60 / (PulsePR * minRPM)
+	 * Tach sample period > 2 * max(Tach input period) = (2*60) / (PulsePR * minRPM)
+	 * Tach sample period = PWM period * Tach period value = Tach period value / PWM clock
+	 * Tach period value / PWM clock > (2*60) / (PulsePR * minRPM)
+	 * Tach period value > (60 * 2 * PWM clock) / (PulsePR * miniRPM)
+	 */
+	pwm_clk = aspeed_get_pwm_clock(priv, TYPEM);
+	pr_info("tach period = 60 * 2 * %d / (%d * %d)", pwm_clk, priv->minrpm,
+		priv->pulse_pr);
+	tach_period = 60 * 2 * aspeed_get_pwm_clock(priv, TYPEM) /
+		      (priv->minrpm * priv->pulse_pr);
+	/* Add the margin (about 1.2) of tach sample period to avoid sample miss */
+	tach_period = (tach_period * 1200) >> 10;
+
+	pr_info("tach period = %d", tach_period);
+	priv->type_fan_tach_unit[TYPEM] = tach_period;
 	priv->type_fan_tach_mode[TYPEM] = M_TACH_MODE;
 	aspeed_set_tacho_type_values(priv->regmap, TYPEM, M_TACH_MODE,
-				     M_TACH_UNIT, M_TACH_CLK_DIV);
+				     tach_period, M_TACH_CLK_DIV);
 }
 
 static void aspeed_create_pwm_port(struct aspeed_pwm_tacho_data *priv,
