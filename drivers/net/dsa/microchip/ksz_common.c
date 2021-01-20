@@ -434,7 +434,7 @@ int ksz_switch_register(struct ksz_device *dev,
 				if (of_property_read_u32(port, "reg",
 							 &port_num))
 					continue;
-				if (port_num >= dev->port_cnt)
+				if (!(dev->port_mask & BIT(port_num)))
 					return -EINVAL;
 				of_get_phy_mode(port,
 						&dev->ports[port_num].interface);
