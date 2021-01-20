@@ -242,10 +242,7 @@ nowrote_alloc:
 	 * the journal kicks off btree writes via reclaim - wait for in flight
 	 * writes after stopping journal:
 	 */
-	if (test_bit(BCH_FS_EMERGENCY_RO, &c->flags))
-		bch2_btree_flush_all_writes(c);
-	else
-		bch2_btree_verify_flushed(c);
+	bch2_btree_flush_all_writes(c);
 
 	/*
 	 * After stopping journal:
