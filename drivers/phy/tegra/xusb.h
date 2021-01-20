@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0-only */
 /*
- * Copyright (c) 2014-2015, NVIDIA CORPORATION.  All rights reserved.
+ * Copyright (c) 2014-2020, NVIDIA CORPORATION.  All rights reserved.
  * Copyright (c) 2015, Google Inc.
  */
 
@@ -127,6 +127,8 @@ struct tegra_xusb_lane_ops {
 					 unsigned int index);
 	void (*remove)(struct tegra_xusb_lane *lane);
 };
+
+bool tegra_xusb_lane_check(struct tegra_xusb_lane *lane, const char *function);
 
 /*
  * pads
