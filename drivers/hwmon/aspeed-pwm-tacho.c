@@ -167,6 +167,9 @@
 
 #define MAX_CDEV_NAME_LEN 16
 
+#define DEFAULT_FAN_PULSE_PR 2
+#define DEFAULT_FAN_MIN_RPM 1000
+
 struct aspeed_cooling_device {
 	char name[16];
 	struct aspeed_pwm_tacho_data *priv;
@@ -194,6 +197,8 @@ struct aspeed_pwm_tacho_data {
 	u8 fan_tach_ch_source[16];
 	struct aspeed_cooling_device *cdev[8];
 	const struct attribute_group *groups[3];
+	u32 pulse_pr;
+	u32 minrpm;
 };
 
 enum type { TYPEM, TYPEN, TYPEO };
@@ -930,6 +935,14 @@ static int aspeed_pwm_tacho_probe(struct platform_device *pdev)
 	priv->clk_freq = clk_get_rate(clk);
 	aspeed_set_clock_enable(priv->regmap, true);
 	aspeed_set_clock_source(priv->regmap, 0);
+
+	ret = of_property_read_u32(pdev->dev.of_node, "aspeed,minrpm", &priv->minrpm);
+	if (ret)
+		priv->minrpm = DEFAULT_FAN_MIN_RPM;
+
+	ret = of_property_read_u32(pdev->dev.of_node, "aspeed,pulse-pr", &priv->pulse_pr);
+	if (ret)
+		priv->pulse_pr = DEFAULT_FAN_PULSE_PR;
 
 	aspeed_create_type(priv);
 
