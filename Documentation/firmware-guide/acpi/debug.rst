@@ -52,7 +52,6 @@ shows the supported mask values, currently these::
     ACPI_CA_DISASSEMBLER            0x00000800
     ACPI_COMPILER                   0x00001000
     ACPI_TOOLS                      0x00002000
-    ACPI_BUS_COMPONENT              0x00010000
     ACPI_AC_COMPONENT               0x00020000
     ACPI_BATTERY_COMPONENT          0x00040000
     ACPI_BUTTON_COMPONENT           0x00080000
@@ -117,15 +116,15 @@ currently these::
 Examples
 ========
 
-For example, drivers/acpi/bus.c contains this::
+For example, drivers/acpi/acpica/evxfevnt.c contains this::
 
-    #define _COMPONENT              ACPI_BUS_COMPONENT
+    #define _COMPONENT          ACPI_EVENTS
     ...
-    ACPI_DEBUG_PRINT((ACPI_DB_INFO, "Device insertion detected\n"));
+    ACPI_DEBUG_PRINT((ACPI_DB_INIT, "ACPI mode disabled\n"));
 
-To turn on this message, set the ACPI_BUS_COMPONENT bit in acpi.debug_layer
-and the ACPI_LV_INFO bit in acpi.debug_level.  (The ACPI_DEBUG_PRINT
-statement uses ACPI_DB_INFO, which is macro based on the ACPI_LV_INFO
+To turn on this message, set the ACPI_EVENTS bit in acpi.debug_layer
+and the ACPI_LV_INIT bit in acpi.debug_level.  (The ACPI_DEBUG_PRINT
+statement uses ACPI_DB_INIT, which is a macro based on the ACPI_LV_INIT
 definition.)
 
 Enable all AML "Debug" output (stores to the Debug object while interpreting
