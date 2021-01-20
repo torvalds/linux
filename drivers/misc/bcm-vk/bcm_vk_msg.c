@@ -209,6 +209,15 @@ static struct bcm_vk_ctx *bcm_vk_get_ctx(struct bcm_vk *vk, const pid_t pid)
 
 	spin_lock(&vk->ctx_lock);
 
+	/* check if it is in reset, if so, don't allow */
+	if (vk->reset_pid) {
+		dev_err(&vk->pdev->dev,
+			"No context allowed during reset by pid %d\n",
+			vk->reset_pid);
+
+		goto in_reset_exit;
+	}
+
 	for (i = 0; i < ARRAY_SIZE(vk->ctx); i++) {
 		if (!vk->ctx[i].in_use) {
 			vk->ctx[i].in_use = true;
@@ -237,6 +246,7 @@ static struct bcm_vk_ctx *bcm_vk_get_ctx(struct bcm_vk *vk, const pid_t pid)
 	init_waitqueue_head(&ctx->rd_wq);
 
 all_in_use_exit:
+in_reset_exit:
 	spin_unlock(&vk->ctx_lock);
 
 	return ctx;
@@ -379,6 +389,12 @@ static void bcm_vk_drain_all_pend(struct device *dev,
 	if (num && ctx)
 		dev_info(dev, "Total drained items %d [fd-%d]\n",
 			 num, ctx->idx);
+}
+
+void bcm_vk_drain_msg_on_reset(struct bcm_vk *vk)
+{
+	bcm_vk_drain_all_pend(&vk->pdev->dev, &vk->to_v_msg_chan, NULL);
+	bcm_vk_drain_all_pend(&vk->pdev->dev, &vk->to_h_msg_chan, NULL);
 }
 
 /*
@@ -712,13 +728,22 @@ static int bcm_vk_handle_last_sess(struct bcm_vk *vk, const pid_t pid,
 
 	/*
 	 * don't send down or do anything if message queue is not initialized
+	 * and if it is the reset session, clear it.
 	 */
-	if (!bcm_vk_drv_access_ok(vk))
+	if (!bcm_vk_drv_access_ok(vk)) {
+		if (vk->reset_pid == pid)
+			vk->reset_pid = 0;
 		return -EPERM;
+	}
 
 	dev_dbg(dev, "No more sessions, shut down pid %d\n", pid);
 
-	rc = bcm_vk_send_shutdown_msg(vk, VK_SHUTDOWN_PID, pid, q_num);
+	/* only need to do it if it is not the reset process */
+	if (vk->reset_pid != pid)
+		rc = bcm_vk_send_shutdown_msg(vk, VK_SHUTDOWN_PID, pid, q_num);
+	else
+		/* put reset_pid to 0 if it is exiting last session */
+		vk->reset_pid = 0;
 
 	return rc;
 }
@@ -1121,6 +1146,17 @@ ssize_t bcm_vk_write(struct file *p_file,
 		unsigned int num_planes;
 		int dir;
 		struct _vk_data *data;
+
+		/*
+		 * check if we are in reset, if so, no buffer transfer is
+		 * allowed and return error.
+		 */
+		if (vk->reset_pid) {
+			dev_dbg(dev, "No Transfer allowed during reset, pid %d.\n",
+				ctx->pid);
+			rc = -EACCES;
+			goto write_free_msgid;
+		}
 
 		num_planes = entry->to_v_msg[0].cmd & VK_CMD_PLANES_MASK;
 		if ((entry->to_v_msg[0].cmd & VK_CMD_MASK) == VK_CMD_DOWNLOAD)
