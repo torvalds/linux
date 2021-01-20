@@ -1370,3 +1370,37 @@ void intel_pps_init(struct intel_dp *intel_dp)
 
 	intel_pps_encoder_reset(intel_dp);
 }
+
+void intel_pps_unlock_regs_wa(struct drm_i915_private *dev_priv)
+{
+	int pps_num;
+	int pps_idx;
+
+	if (HAS_DDI(dev_priv))
+		return;
+	/*
+	 * This w/a is needed at least on CPT/PPT, but to be sure apply it
+	 * everywhere where registers can be write protected.
+	 */
+	if (IS_VALLEYVIEW(dev_priv) || IS_CHERRYVIEW(dev_priv))
+		pps_num = 2;
+	else
+		pps_num = 1;
+
+	for (pps_idx = 0; pps_idx < pps_num; pps_idx++) {
+		u32 val = intel_de_read(dev_priv, PP_CONTROL(pps_idx));
+
+		val = (val & ~PANEL_UNLOCK_MASK) | PANEL_UNLOCK_REGS;
+		intel_de_write(dev_priv, PP_CONTROL(pps_idx), val);
+	}
+}
+
+void intel_pps_setup(struct drm_i915_private *i915)
+{
+	if (HAS_PCH_SPLIT(i915) || IS_GEN9_LP(i915))
+		i915->pps_mmio_base = PCH_PPS_BASE;
+	else if (IS_VALLEYVIEW(i915) || IS_CHERRYVIEW(i915))
+		i915->pps_mmio_base = VLV_PPS_BASE;
+	else
+		i915->pps_mmio_base = PPS_BASE;
+}

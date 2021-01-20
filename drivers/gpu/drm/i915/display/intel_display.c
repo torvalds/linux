@@ -83,6 +83,7 @@
 #include "intel_overlay.h"
 #include "intel_pipe_crc.h"
 #include "intel_pm.h"
+#include "intel_pps.h"
 #include "intel_psr.h"
 #include "intel_quirks.h"
 #include "intel_sideband.h"
@@ -13795,48 +13796,12 @@ static bool intel_ddi_crt_present(struct drm_i915_private *dev_priv)
 	return true;
 }
 
-void intel_pps_unlock_regs_wa(struct drm_i915_private *dev_priv)
-{
-	int pps_num;
-	int pps_idx;
-
-	if (HAS_DDI(dev_priv))
-		return;
-	/*
-	 * This w/a is needed at least on CPT/PPT, but to be sure apply it
-	 * everywhere where registers can be write protected.
-	 */
-	if (IS_VALLEYVIEW(dev_priv) || IS_CHERRYVIEW(dev_priv))
-		pps_num = 2;
-	else
-		pps_num = 1;
-
-	for (pps_idx = 0; pps_idx < pps_num; pps_idx++) {
-		u32 val = intel_de_read(dev_priv, PP_CONTROL(pps_idx));
-
-		val = (val & ~PANEL_UNLOCK_MASK) | PANEL_UNLOCK_REGS;
-		intel_de_write(dev_priv, PP_CONTROL(pps_idx), val);
-	}
-}
-
-static void intel_pps_init(struct drm_i915_private *dev_priv)
-{
-	if (HAS_PCH_SPLIT(dev_priv) || IS_GEN9_LP(dev_priv))
-		dev_priv->pps_mmio_base = PCH_PPS_BASE;
-	else if (IS_VALLEYVIEW(dev_priv) || IS_CHERRYVIEW(dev_priv))
-		dev_priv->pps_mmio_base = VLV_PPS_BASE;
-	else
-		dev_priv->pps_mmio_base = PPS_BASE;
-
-	intel_pps_unlock_regs_wa(dev_priv);
-}
-
 static void intel_setup_outputs(struct drm_i915_private *dev_priv)
 {
 	struct intel_encoder *encoder;
 	bool dpd_is_edp = false;
 
-	intel_pps_init(dev_priv);
+	intel_pps_unlock_regs_wa(dev_priv);
 
 	if (!HAS_DISPLAY(dev_priv))
 		return;
@@ -14847,6 +14812,8 @@ int intel_modeset_init_nogem(struct drm_i915_private *i915)
 	intel_init_pm(i915);
 
 	intel_panel_sanitize_ssc(i915);
+
+	intel_pps_setup(i915);
 
 	intel_gmbus_setup(i915);
 

@@ -546,7 +546,6 @@ unsigned int intel_rotation_info_size(const struct intel_rotation_info *rot_info
 unsigned int intel_remapped_info_size(const struct intel_remapped_info *rem_info);
 bool intel_has_pending_fb_unpin(struct drm_i915_private *dev_priv);
 int intel_display_suspend(struct drm_device *dev);
-void intel_pps_unlock_regs_wa(struct drm_i915_private *dev_priv);
 void intel_encoder_destroy(struct drm_encoder *encoder);
 struct drm_display_mode *
 intel_encoder_current_mode(struct intel_encoder *encoder);
