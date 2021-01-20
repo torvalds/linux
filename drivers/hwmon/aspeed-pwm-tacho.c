@@ -503,12 +503,10 @@ static void aspeed_set_pwm_port_fan_ctrl(struct aspeed_pwm_tacho_data *priv,
 	}
 }
 
-static u32 aspeed_get_fan_tach_ch_measure_period(struct aspeed_pwm_tacho_data
-						 *priv, u8 type)
+static u32 aspeed_get_pwm_clock(struct aspeed_pwm_tacho_data *priv, u8 type)
 {
-	u32 clk;
-	u16 tacho_unit;
-	u8 clk_unit, div_h, div_l, tacho_div;
+	u32 clk, result;
+	u8 clk_unit, div_h, div_l;
 
 	clk = priv->clk_freq;
 	clk_unit = priv->type_pwm_clock_unit[type];
@@ -519,6 +517,9 @@ static u32 aspeed_get_fan_tach_ch_measure_period(struct aspeed_pwm_tacho_data
 		div_l = 1;
 	else
 		div_l = div_l * 2;
+	result = clk / (clk_unit * div_h * div_l);
+	return result;
+}
 
 	tacho_unit = priv->type_fan_tach_unit[type];
 	tacho_div = priv->type_fan_tach_clock_division[type];
