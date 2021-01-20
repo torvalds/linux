@@ -3302,6 +3302,28 @@ static irq_handler_t fatal_interrupts[HISI_SAS_FATAL_INT_NR] = {
 	fatal_axi_int_v2_hw
 };
 
+#define CQ0_IRQ_INDEX (96)
+
+static int hisi_sas_v2_interrupt_preinit(struct hisi_hba *hisi_hba)
+{
+	struct platform_device *pdev = hisi_hba->platform_dev;
+	struct Scsi_Host *shost = hisi_hba->shost;
+	struct irq_affinity desc = {
+		.pre_vectors = CQ0_IRQ_INDEX,
+		.post_vectors = 16,
+	};
+	int resv = desc.pre_vectors + desc.post_vectors, minvec = resv + 1, nvec;
+
+	nvec = devm_platform_get_irqs_affinity(pdev, &desc, minvec, 128,
+					       &hisi_hba->irq_map);
+	if (nvec < 0)
+		return nvec;
+
+	shost->nr_hw_queues = hisi_hba->cq_nvecs = nvec - resv;
+
+	return 0;
+}
+
 /*
  * There is a limitation in the hip06 chipset that we need
  * to map in all mbigen interrupts, even if they are not used.
@@ -3310,14 +3332,11 @@ static int interrupt_init_v2_hw(struct hisi_hba *hisi_hba)
 {
 	struct platform_device *pdev = hisi_hba->platform_dev;
 	struct device *dev = &pdev->dev;
-	int irq, rc = 0, irq_map[128];
+	int irq, rc = 0;
 	int i, phy_no, fatal_no, queue_no;
 
-	for (i = 0; i < 128; i++)
-		irq_map[i] = platform_get_irq(pdev, i);
-
 	for (i = 0; i < HISI_SAS_PHY_INT_NR; i++) {
-		irq = irq_map[i + 1]; /* Phy up/down is irq1 */
+		irq = hisi_hba->irq_map[i + 1]; /* Phy up/down is irq1 */
 		rc = devm_request_irq(dev, irq, phy_interrupts[i], 0,
 				      DRV_NAME " phy", hisi_hba);
 		if (rc) {
@@ -3331,7 +3350,7 @@ static int interrupt_init_v2_hw(struct hisi_hba *hisi_hba)
 	for (phy_no = 0; phy_no < hisi_hba->n_phy; phy_no++) {
 		struct hisi_sas_phy *phy = &hisi_hba->phy[phy_no];
 
-		irq = irq_map[phy_no + 72];
+		irq = hisi_hba->irq_map[phy_no + 72];
 		rc = devm_request_irq(dev, irq, sata_int_v2_hw, 0,
 				      DRV_NAME " sata", phy);
 		if (rc) {
@@ -3343,7 +3362,7 @@ static int interrupt_init_v2_hw(struct hisi_hba *hisi_hba)
 	}
 
 	for (fatal_no = 0; fatal_no < HISI_SAS_FATAL_INT_NR; fatal_no++) {
-		irq = irq_map[fatal_no + 81];
+		irq = hisi_hba->irq_map[fatal_no + 81];
 		rc = devm_request_irq(dev, irq, fatal_interrupts[fatal_no], 0,
 				      DRV_NAME " fatal", hisi_hba);
 		if (rc) {
@@ -3354,24 +3373,22 @@ static int interrupt_init_v2_hw(struct hisi_hba *hisi_hba)
 		}
 	}
 
-	for (queue_no = 0; queue_no < hisi_hba->queue_count; queue_no++) {
+	for (queue_no = 0; queue_no < hisi_hba->cq_nvecs; queue_no++) {
 		struct hisi_sas_cq *cq = &hisi_hba->cq[queue_no];
 
-		cq->irq_no = irq_map[queue_no + 96];
+		cq->irq_no = hisi_hba->irq_map[queue_no + 96];
 		rc = devm_request_threaded_irq(dev, cq->irq_no,
 					       cq_interrupt_v2_hw,
 					       cq_thread_v2_hw, IRQF_ONESHOT,
 					       DRV_NAME " cq", cq);
 		if (rc) {
 			dev_err(dev, "irq init: could not request cq interrupt %d, rc=%d\n",
-				irq, rc);
+					cq->irq_no, rc);
 			rc = -ENOENT;
 			goto err_out;
 		}
+		cq->irq_mask = irq_get_affinity_mask(cq->irq_no);
 	}
-
-	hisi_hba->cq_nvecs = hisi_hba->queue_count;
-
 err_out:
 	return rc;
 }
@@ -3529,6 +3546,26 @@ static struct device_attribute *host_attrs_v2_hw[] = {
 	NULL
 };
 
+static int map_queues_v2_hw(struct Scsi_Host *shost)
+{
+	struct hisi_hba *hisi_hba = shost_priv(shost);
+	struct blk_mq_queue_map *qmap = &shost->tag_set.map[HCTX_TYPE_DEFAULT];
+	const struct cpumask *mask;
+	unsigned int queue, cpu;
+
+	for (queue = 0; queue < qmap->nr_queues; queue++) {
+		mask = irq_get_affinity_mask(hisi_hba->irq_map[96 + queue]);
+		if (!mask)
+			continue;
+
+		for_each_cpu(cpu, mask)
+			qmap->mq_map[cpu] = qmap->queue_offset + queue;
+	}
+
+	return 0;
+
+}
+
 static struct scsi_host_template sht_v2_hw = {
 	.name			= DRV_NAME,
 	.proc_name		= DRV_NAME,
@@ -3553,10 +3590,13 @@ static struct scsi_host_template sht_v2_hw = {
 #endif
 	.shost_attrs		= host_attrs_v2_hw,
 	.host_reset		= hisi_sas_host_reset,
+	.map_queues		= map_queues_v2_hw,
+	.host_tagset		= 1,
 };
 
 static const struct hisi_sas_hw hisi_sas_v2_hw = {
 	.hw_init = hisi_sas_v2_init,
+	.interrupt_preinit = hisi_sas_v2_interrupt_preinit,
 	.setup_itct = setup_itct_v2_hw,
 	.slot_index_alloc = slot_index_alloc_quirk_v2_hw,
 	.alloc_dev = alloc_dev_quirk_v2_hw,
