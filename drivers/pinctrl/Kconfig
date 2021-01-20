@@ -226,14 +226,6 @@ config PINCTRL_SINGLE
 	help
 	  This selects the device tree based generic pinctrl driver.
 
-config PINCTRL_SIRF
-	bool "CSR SiRFprimaII pin controller driver"
-	depends on ARCH_SIRF
-	select PINMUX
-	select PINCONF
-	select GENERIC_PINCONF
-	select GPIOLIB_IRQCHIP
-
 config PINCTRL_SX150X
 	bool "Semtech SX150x I2C GPIO expander pinctrl driver"
 	depends on I2C=y
