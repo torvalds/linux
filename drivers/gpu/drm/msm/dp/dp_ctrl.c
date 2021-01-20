@@ -1420,16 +1420,14 @@ void dp_ctrl_host_deinit(struct dp_ctrl *dp_ctrl)
 static bool dp_ctrl_use_fixed_nvid(struct dp_ctrl_private *ctrl)
 {
 	u8 *dpcd = ctrl->panel->dpcd;
-	u32 edid_quirks = 0;
 
-	edid_quirks = drm_dp_get_edid_quirks(ctrl->panel->edid);
 	/*
 	 * For better interop experience, used a fixed NVID=0x8000
 	 * whenever connected to a VGA dongle downstream.
 	 */
 	if (drm_dp_is_branch(dpcd))
-		return (drm_dp_has_quirk(&ctrl->panel->desc, edid_quirks,
-				DP_DPCD_QUIRK_CONSTANT_N));
+		return (drm_dp_has_quirk(&ctrl->panel->desc,
+					 DP_DPCD_QUIRK_CONSTANT_N));
 
 	return false;
 }
