@@ -1427,7 +1427,7 @@ phys_addr_t __init memblock_phys_alloc_range(phys_addr_t size,
 }
 
 /**
- * memblock_phys_alloc_try_nid - allocate a memory block from specified MUMA node
+ * memblock_phys_alloc_try_nid - allocate a memory block from specified NUMA node
  * @size: size of memory block to be allocated in bytes
  * @align: alignment of the region and block's size
  * @nid: nid of the free area to find, %NUMA_NO_NODE for any node
