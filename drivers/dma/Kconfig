@@ -124,13 +124,6 @@ config BCM_SBA_RAID
 	  has the capability to offload memcpy, xor and pq computation
 	  for raid5/6.
 
-config COH901318
-	bool "ST-Ericsson COH901318 DMA support"
-	select DMA_ENGINE
-	depends on ARCH_U300 || COMPILE_TEST
-	help
-	  Enable support for ST-Ericsson COH 901 318 DMA.
-
 config DMA_BCM2835
 	tristate "BCM2835 DMA engine support"
 	depends on ARCH_BCM2835
