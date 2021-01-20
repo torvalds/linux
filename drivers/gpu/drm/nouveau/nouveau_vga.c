@@ -87,18 +87,20 @@ nouveau_vga_init(struct nouveau_drm *drm)
 {
 	struct drm_device *dev = drm->dev;
 	bool runtime = nouveau_pmops_runtime();
+	struct pci_dev *pdev;
 
 	/* only relevant for PCI devices */
-	if (!dev->pdev)
+	if (!dev_is_pci(dev->dev))
 		return;
+	pdev = to_pci_dev(dev->dev);
 
-	vga_client_register(dev->pdev, dev, NULL, nouveau_vga_set_decode);
+	vga_client_register(pdev, dev, NULL, nouveau_vga_set_decode);
 
 	/* don't register Thunderbolt eGPU with vga_switcheroo */
-	if (pci_is_thunderbolt_attached(dev->pdev))
+	if (pci_is_thunderbolt_attached(pdev))
 		return;
 
-	vga_switcheroo_register_client(dev->pdev, &nouveau_switcheroo_ops, runtime);
+	vga_switcheroo_register_client(pdev, &nouveau_switcheroo_ops, runtime);
 
 	if (runtime && nouveau_is_v1_dsm() && !nouveau_is_optimus())
 		vga_switcheroo_init_domain_pm_ops(drm->dev->dev, &drm->vga_pm_domain);
@@ -109,17 +111,19 @@ nouveau_vga_fini(struct nouveau_drm *drm)
 {
 	struct drm_device *dev = drm->dev;
 	bool runtime = nouveau_pmops_runtime();
+	struct pci_dev *pdev;
 
 	/* only relevant for PCI devices */
-	if (!dev->pdev)
+	if (!dev_is_pci(dev->dev))
+		return;
+	pdev = to_pci_dev(dev->dev);
+
+	vga_client_register(pdev, NULL, NULL, NULL);
+
+	if (pci_is_thunderbolt_attached(pdev))
 		return;
 
-	vga_client_register(dev->pdev, NULL, NULL, NULL);
-
-	if (pci_is_thunderbolt_attached(dev->pdev))
-		return;
-
-	vga_switcheroo_unregister_client(dev->pdev);
+	vga_switcheroo_unregister_client(pdev);
 	if (runtime && nouveau_is_v1_dsm() && !nouveau_is_optimus())
 		vga_switcheroo_fini_domain_pm_ops(drm->dev->dev);
 }

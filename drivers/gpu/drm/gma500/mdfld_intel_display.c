@@ -95,7 +95,7 @@ void mdfldWaitForPipeEnable(struct drm_device *dev, int pipe)
 	}
 }
 
-/**
+/*
  * Return the pipe currently connected to the panel fitter,
  * or -1 if the panel fitter is not present or not in use
  */
@@ -263,7 +263,7 @@ void mdfld_disable_crtc(struct drm_device *dev, int pipe)
 
 }
 
-/**
+/*
  * Sets the power management mode of the pipe and plane.
  *
  * This code should probably grow support for turning the cursor off and back
@@ -599,7 +599,7 @@ static void mdfld_clock(int refclk, struct mrst_clock_t *clock)
 	clock->dot = (refclk * clock->m) / clock->p1;
 }
 
-/**
+/*
  * Returns a set of divisors for the desired target clock with the given refclk,
  * or FALSE.  Divisor values are the actual divisors for
  */

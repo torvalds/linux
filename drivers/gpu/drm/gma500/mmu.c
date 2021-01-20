@@ -313,8 +313,8 @@ static struct psb_mmu_pt *psb_mmu_alloc_pt(struct psb_mmu_pd *pd)
 	return pt;
 }
 
-struct psb_mmu_pt *psb_mmu_pt_alloc_map_lock(struct psb_mmu_pd *pd,
-					     unsigned long addr)
+static struct psb_mmu_pt *psb_mmu_pt_alloc_map_lock(struct psb_mmu_pd *pd,
+						    unsigned long addr)
 {
 	uint32_t index = psb_mmu_pd_index(addr);
 	struct psb_mmu_pt *pt;
@@ -414,15 +414,6 @@ struct psb_mmu_pd *psb_mmu_get_default_pd(struct psb_mmu_driver *driver)
 	up_read(&driver->sem);
 
 	return pd;
-}
-
-/* Returns the physical address of the PD shared by sgx/msvdx */
-uint32_t psb_get_default_pd_addr(struct psb_mmu_driver *driver)
-{
-	struct psb_mmu_pd *pd;
-
-	pd = psb_mmu_get_default_pd(driver);
-	return page_to_pfn(pd->p) << PAGE_SHIFT;
 }
 
 void psb_mmu_driver_takedown(struct psb_mmu_driver *driver)
@@ -690,7 +681,7 @@ out:
 	if (pd->hw_context != -1)
 		psb_mmu_flush(pd->driver);
 
-	return 0;
+	return ret;
 }
 
 int psb_mmu_insert_pages(struct psb_mmu_pd *pd, struct page **pages,

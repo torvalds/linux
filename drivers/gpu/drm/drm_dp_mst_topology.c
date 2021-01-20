@@ -2751,7 +2751,7 @@ static void drm_dp_mst_link_probe_work(struct work_struct *work)
 	drm_dp_mst_topology_put_mstb(mstb);
 
 	mutex_unlock(&mgr->probe_lock);
-	if (ret)
+	if (ret > 0)
 		drm_kms_helper_hotplug_event(dev);
 }
 

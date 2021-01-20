@@ -324,7 +324,7 @@ static int radeon_ttm_io_mem_reserve(struct ttm_bo_device *bdev, struct ttm_reso
 		 * access, as done in ttm_bo_vm_fault().
 		 */
 		mem->bus.offset = (mem->bus.offset & 0x0ffffffffUL) +
-			rdev->ddev->hose->dense_mem_base;
+			rdev->hose->dense_mem_base;
 #endif
 		break;
 	default:

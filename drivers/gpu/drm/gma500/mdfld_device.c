@@ -523,7 +523,9 @@ static struct gpiod_lookup_table mdfld_dsi_pipe_gpio_table = {
 static int mdfld_chip_setup(struct drm_device *dev)
 {
 	struct drm_psb_private *dev_priv = dev->dev_private;
-	if (pci_enable_msi(dev->pdev))
+	struct pci_dev *pdev = to_pci_dev(dev->dev);
+
+	if (pci_enable_msi(pdev))
 		dev_warn(dev->dev, "Enabling MSI failed!\n");
 	dev_priv->regmap = mdfld_regmap;
 

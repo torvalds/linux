@@ -43,10 +43,10 @@ enum {
 	CHIP_MFLD_0130 = 3,		/* Medfield */
 };
 
-#define IS_PSB(dev) (((dev)->pdev->device & 0xfffe) == 0x8108)
-#define IS_MRST(dev) (((dev)->pdev->device & 0xfff0) == 0x4100)
-#define IS_MFLD(dev) (((dev)->pdev->device & 0xfff8) == 0x0130)
-#define IS_CDV(dev) (((dev)->pdev->device & 0xfff0) == 0x0be0)
+#define IS_PSB(drm) ((to_pci_dev((drm)->dev)->device & 0xfffe) == 0x8108)
+#define IS_MRST(drm) ((to_pci_dev((drm)->dev)->device & 0xfff0) == 0x4100)
+#define IS_MFLD(drm) ((to_pci_dev((drm)->dev)->device & 0xfff8) == 0x0130)
+#define IS_CDV(drm) ((to_pci_dev((drm)->dev)->device & 0xfff0) == 0x0be0)
 
 /* Hardware offsets */
 #define PSB_VDC_OFFSET		 0x00000000

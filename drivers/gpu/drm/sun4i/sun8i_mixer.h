@@ -50,10 +50,8 @@
 #define SUN8I_MIXER_BLEND_CK_MIN(base, x)	((base) + 0xe0 + 0x04 * (x))
 #define SUN8I_MIXER_BLEND_OUTCTL(base)		((base) + 0xfc)
 #define SUN50I_MIXER_BLEND_CSC_CTL(base)	((base) + 0x100)
-#define SUN50I_MIXER_BLEND_CSC_COEFF(base, layer, x, y) \
-	((base) + 0x110 + (layer) * 0x30 +  (x) * 0x10 + 4 * (y))
-#define SUN50I_MIXER_BLEND_CSC_CONST(base, layer, i) \
-	((base) + 0x110 + (layer) * 0x30 +  (i) * 0x10 + 0x0c)
+#define SUN50I_MIXER_BLEND_CSC_COEFF(base, layer, x) \
+	((base) + 0x110 + (layer) * 0x30 +  (x) * 4)
 
 #define SUN8I_MIXER_BLEND_PIPE_CTL_EN_MSK	GENMASK(12, 8)
 #define SUN8I_MIXER_BLEND_PIPE_CTL_EN(pipe)	BIT(8 + pipe)

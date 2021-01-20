@@ -181,6 +181,7 @@ nouveau_abi16_ioctl_getparam(ABI16_IOCTL_ARGS)
 	struct nvif_device *device = &drm->client.device;
 	struct nvkm_gr *gr = nvxx_gr(device);
 	struct drm_nouveau_getparam *getparam = data;
+	struct pci_dev *pdev = to_pci_dev(dev->dev);
 
 	switch (getparam->param) {
 	case NOUVEAU_GETPARAM_CHIPSET_ID:
@@ -188,13 +189,13 @@ nouveau_abi16_ioctl_getparam(ABI16_IOCTL_ARGS)
 		break;
 	case NOUVEAU_GETPARAM_PCI_VENDOR:
 		if (device->info.platform != NV_DEVICE_INFO_V0_SOC)
-			getparam->value = dev->pdev->vendor;
+			getparam->value = pdev->vendor;
 		else
 			getparam->value = 0;
 		break;
 	case NOUVEAU_GETPARAM_PCI_DEVICE:
 		if (device->info.platform != NV_DEVICE_INFO_V0_SOC)
-			getparam->value = dev->pdev->device;
+			getparam->value = pdev->device;
 		else
 			getparam->value = 0;
 		break;
@@ -205,7 +206,7 @@ nouveau_abi16_ioctl_getparam(ABI16_IOCTL_ARGS)
 		case NV_DEVICE_INFO_V0_PCIE: getparam->value = 2; break;
 		case NV_DEVICE_INFO_V0_SOC : getparam->value = 3; break;
 		case NV_DEVICE_INFO_V0_IGP :
-			if (!pci_is_pcie(dev->pdev))
+			if (!pci_is_pcie(pdev))
 				getparam->value = 1;
 			else
 				getparam->value = 2;

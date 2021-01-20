@@ -63,7 +63,7 @@ static int __init parse_LABC_control(char *arg)
 early_param("LABC", parse_LABC_control);
 #endif
 
-/**
+/*
  * Check and see if the generic control or data buffer is empty and ready.
  */
 void mdfld_dsi_gen_fifo_ready(struct drm_device *dev, u32 gen_fifo_stat_reg,
@@ -85,7 +85,7 @@ void mdfld_dsi_gen_fifo_ready(struct drm_device *dev, u32 gen_fifo_stat_reg,
 					gen_fifo_stat_reg);
 }
 
-/**
+/*
  * Manage the DSI MIPI keyboard and display brightness.
  * FIXME: this is exported to OSPM code. should work out an specific
  * display interface to OSPM.

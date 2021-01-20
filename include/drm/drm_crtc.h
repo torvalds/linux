@@ -1232,7 +1232,7 @@ void *__drmm_crtc_alloc_with_planes(struct drm_device *dev,
 				    const char *name, ...);
 
 /**
- * drm_crtc_alloc_with_planes - Allocate and initialize a new CRTC object with
+ * drmm_crtc_alloc_with_planes - Allocate and initialize a new CRTC object with
  *    specified primary and cursor planes.
  * @dev: DRM device
  * @type: the type of the struct which contains struct &drm_crtc

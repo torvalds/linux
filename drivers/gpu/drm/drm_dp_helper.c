@@ -954,7 +954,7 @@ EXPORT_SYMBOL(drm_dp_downstream_444_to_420_conversion);
  *                                               RGB->YCbCr conversion capability
  * @dpcd: DisplayPort configuration data
  * @port_cap: downstream facing port capabilities
- * @colorspc: Colorspace for which conversion cap is sought
+ * @color_spc: Colorspace for which conversion cap is sought
  *
  * Returns: whether the downstream facing port can convert RGB->YCbCr for a given
  * colorspace.
@@ -2671,6 +2671,7 @@ EXPORT_SYMBOL(drm_dp_get_pcon_max_frl_bw);
 /**
  * drm_dp_pcon_frl_prepare() - Prepare PCON for FRL.
  * @aux: DisplayPort AUX channel
+ * @enable_frl_ready_hpd: Configure DP_PCON_ENABLE_HPD_READY.
  *
  * Returns 0 if success, else returns negative error code.
  */

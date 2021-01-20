@@ -211,7 +211,7 @@ static void hibmc_hw_config(struct hibmc_drm_private *priv)
 static int hibmc_hw_map(struct hibmc_drm_private *priv)
 {
 	struct drm_device *dev = &priv->dev;
-	struct pci_dev *pdev = dev->pdev;
+	struct pci_dev *pdev = to_pci_dev(dev->dev);
 	resource_size_t addr, size, ioaddr, iosize;
 
 	ioaddr = pci_resource_start(pdev, 1);
@@ -255,13 +255,14 @@ static int hibmc_unload(struct drm_device *dev)
 	if (dev->irq_enabled)
 		drm_irq_uninstall(dev);
 
-	pci_disable_msi(dev->pdev);
+	pci_disable_msi(to_pci_dev(dev->dev));
 
 	return 0;
 }
 
 static int hibmc_load(struct drm_device *dev)
 {
+	struct pci_dev *pdev = to_pci_dev(dev->dev);
 	struct hibmc_drm_private *priv = to_hibmc_drm_private(dev);
 	int ret;
 
@@ -269,8 +270,7 @@ static int hibmc_load(struct drm_device *dev)
 	if (ret)
 		goto err;
 
-	ret = drmm_vram_helper_init(dev, pci_resource_start(dev->pdev, 0),
-				    priv->fb_size);
+	ret = drmm_vram_helper_init(dev, pci_resource_start(pdev, 0), priv->fb_size);
 	if (ret) {
 		drm_err(dev, "Error initializing VRAM MM; %d\n", ret);
 		goto err;
@@ -286,11 +286,11 @@ static int hibmc_load(struct drm_device *dev)
 		goto err;
 	}
 
-	ret = pci_enable_msi(dev->pdev);
+	ret = pci_enable_msi(pdev);
 	if (ret) {
 		drm_warn(dev, "enabling MSI failed: %d\n", ret);
 	} else {
-		ret = drm_irq_install(dev, dev->pdev->irq);
+		ret = drm_irq_install(dev, pdev->irq);
 		if (ret)
 			drm_warn(dev, "install irq failed: %d\n", ret);
 	}
@@ -326,7 +326,6 @@ static int hibmc_pci_probe(struct pci_dev *pdev,
 	}
 
 	dev = &priv->dev;
-	dev->pdev = pdev;
 	pci_set_drvdata(pdev, dev);
 
 	ret = pcim_enable_device(pdev);

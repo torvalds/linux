@@ -454,13 +454,13 @@ static void tc35876x_brightness_init(struct drm_device *dev)
 	ret = intel_scu_ipc_ioread8(GPIOPWMCTRL, &pwmctrl);
 	if (ret || pwmctrl != 0x01) {
 		if (ret)
-			dev_err(&dev->pdev->dev, "GPIOPWMCTRL read failed\n");
+			dev_err(dev->dev, "GPIOPWMCTRL read failed\n");
 		else
-			dev_warn(&dev->pdev->dev, "GPIOPWMCTRL was not set to system clock (pwmctrl = 0x%02x)\n", pwmctrl);
+			dev_warn(dev->dev, "GPIOPWMCTRL was not set to system clock (pwmctrl = 0x%02x)\n", pwmctrl);
 
 		ret = intel_scu_ipc_iowrite8(GPIOPWMCTRL, 0x01);
 		if (ret)
-			dev_err(&dev->pdev->dev, "GPIOPWMCTRL set failed\n");
+			dev_err(dev->dev, "GPIOPWMCTRL set failed\n");
 	}
 
 	clkdiv = calc_clkdiv(SYSTEMCLK, PWM_FREQUENCY);
@@ -470,9 +470,9 @@ static void tc35876x_brightness_init(struct drm_device *dev)
 		ret = intel_scu_ipc_iowrite8(PWM0CLKDIV0, clkdiv & 0xff);
 
 	if (ret)
-		dev_err(&dev->pdev->dev, "PWM0CLKDIV set failed\n");
+		dev_err(dev->dev, "PWM0CLKDIV set failed\n");
 	else
-		dev_dbg(&dev->pdev->dev, "PWM0CLKDIV set to 0x%04x (%d Hz)\n",
+		dev_dbg(dev->dev, "PWM0CLKDIV set to 0x%04x (%d Hz)\n",
 			clkdiv, PWM_FREQUENCY);
 }
 
@@ -575,7 +575,7 @@ static struct drm_display_mode *tc35876x_get_config_mode(struct drm_device *dev)
 {
 	struct drm_display_mode *mode;
 
-	dev_dbg(&dev->pdev->dev, "%s\n", __func__);
+	dev_dbg(dev->dev, "%s\n", __func__);
 
 	mode = kzalloc(sizeof(*mode), GFP_KERNEL);
 	if (!mode)
@@ -592,15 +592,15 @@ static struct drm_display_mode *tc35876x_get_config_mode(struct drm_device *dev)
 	mode->vtotal = 838;
 	mode->clock = 33324 << 1;
 
-	dev_info(&dev->pdev->dev, "hdisplay(w) = %d\n", mode->hdisplay);
-	dev_info(&dev->pdev->dev, "vdisplay(h) = %d\n", mode->vdisplay);
-	dev_info(&dev->pdev->dev, "HSS = %d\n", mode->hsync_start);
-	dev_info(&dev->pdev->dev, "HSE = %d\n", mode->hsync_end);
-	dev_info(&dev->pdev->dev, "htotal = %d\n", mode->htotal);
-	dev_info(&dev->pdev->dev, "VSS = %d\n", mode->vsync_start);
-	dev_info(&dev->pdev->dev, "VSE = %d\n", mode->vsync_end);
-	dev_info(&dev->pdev->dev, "vtotal = %d\n", mode->vtotal);
-	dev_info(&dev->pdev->dev, "clock = %d\n", mode->clock);
+	dev_info(dev->dev, "hdisplay(w) = %d\n", mode->hdisplay);
+	dev_info(dev->dev, "vdisplay(h) = %d\n", mode->vdisplay);
+	dev_info(dev->dev, "HSS = %d\n", mode->hsync_start);
+	dev_info(dev->dev, "HSE = %d\n", mode->hsync_end);
+	dev_info(dev->dev, "htotal = %d\n", mode->htotal);
+	dev_info(dev->dev, "VSS = %d\n", mode->vsync_start);
+	dev_info(dev->dev, "VSE = %d\n", mode->vsync_end);
+	dev_info(dev->dev, "vtotal = %d\n", mode->vtotal);
+	dev_info(dev->dev, "clock = %d\n", mode->clock);
 
 	drm_mode_set_name(mode);
 	drm_mode_set_crtcinfo(mode, 0);
@@ -775,19 +775,19 @@ void tc35876x_init(struct drm_device *dev)
 {
 	int r;
 
-	dev_dbg(&dev->pdev->dev, "%s\n", __func__);
+	dev_dbg(dev->dev, "%s\n", __func__);
 
 	cmi_lcd_hack_create_device();
 
 	r = i2c_add_driver(&cmi_lcd_i2c_driver);
 	if (r < 0)
-		dev_err(&dev->pdev->dev,
+		dev_err(dev->dev,
 			"%s: i2c_add_driver() for %s failed (%d)\n",
 			__func__, cmi_lcd_i2c_driver.driver.name, r);
 
 	r = i2c_add_driver(&tc35876x_bridge_i2c_driver);
 	if (r < 0)
-		dev_err(&dev->pdev->dev,
+		dev_err(dev->dev,
 			"%s: i2c_add_driver() for %s failed (%d)\n",
 			__func__, tc35876x_bridge_i2c_driver.driver.name, r);
 

@@ -138,7 +138,7 @@ static void dsi_set_pipe_plane_enable_state(struct drm_device *dev,
 		REG_WRITE(pipeconf_reg, BIT(31));
 
 		if (REG_BIT_WAIT(pipeconf_reg, 1, 30))
-			dev_err(&dev->pdev->dev, "%s: Pipe enable timeout\n",
+			dev_err(dev->dev, "%s: Pipe enable timeout\n",
 				__func__);
 
 		/*Set up display plane */
@@ -165,11 +165,11 @@ static void dsi_set_pipe_plane_enable_state(struct drm_device *dev,
 		REG_FLD_MOD(pipeconf_reg, 0, 31, 31);
 
 		if (REG_BIT_WAIT(pipeconf_reg, 0, 30))
-			dev_err(&dev->pdev->dev, "%s: Pipe disable timeout\n",
+			dev_err(dev->dev, "%s: Pipe disable timeout\n",
 				__func__);
 
 		if (REG_BIT_WAIT(MIPI_GEN_FIFO_STAT_REG(pipe), 1, 28))
-			dev_err(&dev->pdev->dev, "%s: FIFO not empty\n",
+			dev_err(dev->dev, "%s: FIFO not empty\n",
 				__func__);
 	}
 }
@@ -867,7 +867,7 @@ void mdfld_dsi_dpi_mode_set(struct drm_encoder *encoder,
 		REG_WRITE(MRST_DPLL_A, 0x80800000);
 
 		if (REG_BIT_WAIT(pipeconf_reg, 1, 29))
-			dev_err(&dev->pdev->dev, "%s: DSI PLL lock timeout\n",
+			dev_err(dev->dev, "%s: DSI PLL lock timeout\n",
 				__func__);
 
 		REG_WRITE(MIPI_DPHY_PARAM_REG(pipe), 0x2A0c6008);

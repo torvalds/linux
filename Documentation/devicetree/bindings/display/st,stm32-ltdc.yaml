@@ -35,15 +35,13 @@ properties:
     maxItems: 1
 
   port:
-    type: object
-    description:
-      "Video port for DPI RGB output.
+    $ref: /schemas/graph.yaml#/properties/port
+    description: |
+      Video port for DPI RGB output.
       ltdc has one video port with up to 2 endpoints:
       - for external dpi rgb panel or bridge, using gpios.
       - for internal dpi input of the MIPI DSI host controller.
       Note: These 2 endpoints cannot be activated simultaneously.
-      Please refer to the bindings defined in
-      Documentation/devicetree/bindings/media/video-interfaces.txt."
 
 required:
   - compatible

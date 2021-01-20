@@ -138,8 +138,10 @@ void ttm_bo_move_to_lru_tail(struct ttm_buffer_object *bo,
 
 	dma_resv_assert_held(bo->base.resv);
 
-	if (bo->pin_count)
+	if (bo->pin_count) {
+		ttm_bo_del_from_lru(bo);
 		return;
+	}
 
 	man = ttm_manager_type(bdev, mem->mem_type);
 	list_move_tail(&bo->lru, &man->lru[bo->priority]);

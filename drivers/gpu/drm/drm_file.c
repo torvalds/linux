@@ -239,9 +239,6 @@ static void drm_events_release(struct drm_file *file_priv)
  * before calling this.
  *
  * If NULL is passed, this is a no-op.
- *
- * RETURNS:
- * 0 on success, or error code on failure.
  */
 void drm_file_free(struct drm_file *file)
 {
@@ -370,6 +367,7 @@ static int drm_open_helper(struct file *filp, struct drm_minor *minor)
 	list_add(&priv->lhead, &dev->filelist);
 	mutex_unlock(&dev->filelist_mutex);
 
+#ifdef CONFIG_DRM_LEGACY
 #ifdef __alpha__
 	/*
 	 * Default the hose
@@ -389,6 +387,7 @@ static int drm_open_helper(struct file *filp, struct drm_minor *minor)
 				dev->hose = b->sysdata;
 		}
 	}
+#endif
 #endif
 
 	return 0;
