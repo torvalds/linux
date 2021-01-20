@@ -470,6 +470,10 @@ static void macb_set_tx_clk(struct macb *bp, int speed)
 	if (!bp->tx_clk || (bp->caps & MACB_CAPS_CLK_HW_CHG))
 		return;
 
+	/* In case of MII the PHY is the clock master */
+	if (bp->phy_interface == PHY_INTERFACE_MODE_MII)
+		return;
+
 	switch (speed) {
 	case SPEED_10:
 		rate = 2500000;
