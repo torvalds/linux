@@ -380,5 +380,5 @@ This configuration option sets the maximum number of "watches" that are
 allowed for each user.
 Each "watch" costs roughly 90 bytes on a 32bit kernel, and roughly 160 bytes
 on a 64bit one.
-The current default value for  max_user_watches  is the 1/32 of the available
-low memory, divided for the "watch" cost in bytes.
+The current default value for  max_user_watches  is the 1/25 (4%) of the
+available low memory, divided for the "watch" cost in bytes.
