@@ -994,7 +994,6 @@ int dev_pm_opp_set_rate(struct device *dev, unsigned long target_freq)
 	struct opp_table *opp_table;
 	unsigned long freq, old_freq, temp_freq;
 	struct dev_pm_opp *old_opp, *opp;
-	struct clk *clk;
 	int ret;
 
 	opp_table = _find_opp_table(dev);
@@ -1008,19 +1007,11 @@ int dev_pm_opp_set_rate(struct device *dev, unsigned long target_freq)
 		goto put_opp_table;
 	}
 
-	clk = opp_table->clk;
-	if (IS_ERR(clk)) {
-		dev_err(dev, "%s: No clock available for the device\n",
-			__func__);
-		ret = PTR_ERR(clk);
-		goto put_opp_table;
-	}
-
-	freq = clk_round_rate(clk, target_freq);
+	freq = clk_round_rate(opp_table->clk, target_freq);
 	if ((long)freq <= 0)
 		freq = target_freq;
 
-	old_freq = clk_get_rate(clk);
+	old_freq = clk_get_rate(opp_table->clk);
 
 	/* Return early if nothing to do */
 	if (opp_table->enabled && old_freq == freq) {
@@ -1038,7 +1029,7 @@ int dev_pm_opp_set_rate(struct device *dev, unsigned long target_freq)
 	 * equivalent to a clk_set_rate()
 	 */
 	if (!_get_opp_count(opp_table)) {
-		ret = _generic_set_opp_clk_only(dev, clk, freq);
+		ret = _generic_set_opp_clk_only(dev, opp_table->clk, freq);
 		goto put_opp_table;
 	}
 
@@ -1078,7 +1069,7 @@ int dev_pm_opp_set_rate(struct device *dev, unsigned long target_freq)
 						 opp->supplies);
 	} else {
 		/* Only frequency scaling */
-		ret = _generic_set_opp_clk_only(dev, clk, freq);
+		ret = _generic_set_opp_clk_only(dev, opp_table->clk, freq);
 	}
 
 	/* Scaling down? Configure required OPPs after frequency */
