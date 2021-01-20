@@ -623,6 +623,24 @@
 			FF FF FF FF FF FF FF FF F6 01
 		];
 	};
+
+	ft5436: focaltech@38 {
+		status = "okay";
+		compatible = "focaltech,ft5436";
+		reg = <0x38>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&tp_gpio>;
+		focaltech,reset-gpio = <&gpio0 RK_PA5 GPIO_ACTIVE_HIGH>;
+		focaltech,irq-gpio = <&gpio0 RK_PA6 IRQ_TYPE_EDGE_FALLING>;
+		focaltech,max-touch-number = <5>;
+		focaltech,display-coords =  <0 0 1024 758>;
+		focaltech,have-key = <1>;
+		focaltech,key-number = <1>;
+		focaltech,keys = <158>;
+		focaltech,key-x-coords = <300>;
+		focaltech,key-y-coords = <1200>;
+		wakeup-source;
+	};
 };
 
 &i2s0_8ch {
