@@ -9,29 +9,41 @@
 #include <linux/platform_device.h>
 #include "peci-hwmon.h"
 
-#define PECI_DIMMPOWER_CHANNEL_COUNT   1 /* Supported channels number */
+enum PECI_DIMMPOWER_SENSOR_TYPES {
+	PECI_DIMMPOWER_SENSOR_TYPE_POWER = 0,
+	PECI_DIMMPOWER_SENSOR_TYPE_ENERGY,
+	PECI_DIMMPOWER_SENSOR_TYPES_COUNT,
+};
 
-#define PECI_DIMMPOWER_SENSOR_COUNT 4 /* Supported sensors/readings number */
+#define PECI_DIMMPOWER_POWER_CHANNEL_COUNT	1 /* Supported channels number */
+#define PECI_DIMMPOWER_ENERGY_CHANNEL_COUNT	1 /* Supported channels number */
+
+#define PECI_DIMMPOWER_POWER_SENSOR_COUNT	4 /* Supported sensors/readings number */
+#define PECI_DIMMPOWER_ENERGY_SENSOR_COUNT	4 /* Supported sensors/readings number */
 
 struct peci_dimmpower {
 	struct device *dev;
 	struct peci_client_manager *mgr;
 	char name[PECI_NAME_SIZE];
-	u32 power_config[PECI_DIMMPOWER_CHANNEL_COUNT + 1];
-	u32 config_idx;
+	u32 power_config[PECI_DIMMPOWER_POWER_CHANNEL_COUNT + 1];
+	u32 energy_config[PECI_DIMMPOWER_ENERGY_CHANNEL_COUNT + 1];
+
 	struct hwmon_channel_info power_info;
-	const struct hwmon_channel_info *info[2];
+	struct hwmon_channel_info energy_info;
+	const struct hwmon_channel_info *info[PECI_DIMMPOWER_SENSOR_TYPES_COUNT + 1];
 	struct hwmon_chip_info chip;
 
 	struct peci_sensor_data
-		sensor_data_list[PECI_DIMMPOWER_CHANNEL_COUNT]
-				[PECI_DIMMPOWER_SENSOR_COUNT];
+		power_sensor_data_list[PECI_DIMMPOWER_POWER_CHANNEL_COUNT]
+				      [PECI_DIMMPOWER_POWER_SENSOR_COUNT];
+	struct peci_sensor_data
+		energy_sensor_data_list[PECI_DIMMPOWER_ENERGY_CHANNEL_COUNT]
+				       [PECI_DIMMPOWER_ENERGY_SENSOR_COUNT];
 
-	/*
-	 * Not exposed to any sensor directly - just used to store previous raw
-	 * energy counter value that is required to calculate average power
-	 */
+	/* Below structs are not exposed to any sensor directly */
+	struct peci_sensor_data energy_cache; /* used to limit PECI communication */
 	struct peci_sensor_data power_sensor_prev_energy;
+	struct peci_sensor_data energy_sensor_prev_energy;
 
 	union peci_pkg_power_sku_unit units;
 	bool units_valid;
@@ -40,8 +52,9 @@ struct peci_dimmpower {
 	bool dpl_time_window_valid;
 };
 
-static const char *peci_dimmpower_labels[PECI_DIMMPOWER_CHANNEL_COUNT] = {
+static const char *peci_dimmpower_labels[PECI_DIMMPOWER_SENSOR_TYPES_COUNT] = {
 	"dimm power",
+	"dimm energy",
 };
 
 /**
@@ -60,18 +73,53 @@ peci_dimmpower_read_dram_power_limit(struct peci_client_manager *peci_mgr,
 }
 
 static int
+peci_dimmpower_get_energy_counter(struct peci_dimmpower *priv,
+				  struct peci_sensor_data *sensor_data,
+				  ulong update_interval)
+{
+	int ret;
+
+	if (!peci_sensor_need_update_with_time(sensor_data,
+					       update_interval)) {
+		dev_dbg(priv->dev, "skip reading peci\n");
+		return 0;
+	}
+
+	ret = peci_pcs_read(priv->mgr, PECI_MBX_INDEX_ENERGY_STATUS,
+			    PECI_PKG_ID_DIMM, &sensor_data->value);
+	if (ret) {
+		dev_dbg(priv->dev, "not able to read package energy\n");
+		return ret;
+	}
+
+	peci_sensor_mark_updated(sensor_data);
+
+	dev_dbg(priv->dev,
+		"energy counter updated %duJ, jif %lu, HZ is %d jiffies\n",
+		sensor_data->value, sensor_data->last_updated, HZ);
+
+	return ret;
+}
+
+static int
 peci_dimmpower_get_avg_power(void *ctx, struct peci_sensor_conf *sensor_conf,
 			     struct peci_sensor_data *sensor_data)
 {
 	struct peci_dimmpower *priv = (struct peci_dimmpower *)ctx;
-	struct peci_sensor_data energy;
 	int ret;
 
 	if (!peci_sensor_need_update_with_time(sensor_data,
 					       sensor_conf->update_interval)) {
-		dev_dbg(priv->dev, "skip reading peci, average power %dmW\n",
-			sensor_data->value);
+		dev_dbg(priv->dev, "skip reading peci, average power %dmW jif %lu\n",
+			sensor_data->value, jiffies);
 		return 0;
+	}
+
+	ret = peci_dimmpower_get_energy_counter(priv, &priv->energy_cache,
+						sensor_conf->update_interval);
+	if (ret) {
+		dev_dbg(priv->dev, "cannot update energy counter\n");
+		return ret;
 	}
 
 	ret = peci_pcs_get_units(priv->mgr, &priv->units, &priv->units_valid);
@@ -80,23 +128,20 @@ peci_dimmpower_get_avg_power(void *ctx, struct peci_sensor_conf *sensor_conf,
 		return ret;
 	}
 
-	ret = peci_pcs_read(priv->mgr, PECI_MBX_INDEX_ENERGY_STATUS,
-			    PECI_PKG_ID_DIMM, &energy.value);
+	ret = peci_pcs_calc_pwr_from_eng(priv->dev,
+					 &priv->power_sensor_prev_energy,
+					 &priv->energy_cache,
+					 priv->units.bits.eng_unit,
+					 &sensor_data->value);
 	if (ret) {
-		dev_dbg(priv->dev, "not able to read energy\n");
+		dev_dbg(priv->dev, "power calculation failed\n");
 		return ret;
 	}
 
-	energy.last_updated = jiffies;
-
-	ret = peci_pcs_calc_pwr_from_eng(priv->dev,
-					 &priv->power_sensor_prev_energy,
-					 &energy, priv->units.bits.eng_unit,
-					 &sensor_data->value);
-	peci_sensor_mark_updated_with_time(sensor_data, energy.last_updated);
+	peci_sensor_mark_updated_with_time(sensor_data, priv->energy_cache.last_updated);
 
 	dev_dbg(priv->dev, "average power %dmW, jif %lu, HZ is %d jiffies\n",
-		sensor_data->value, energy.last_updated, HZ);
+		sensor_data->value, sensor_data->last_updated, HZ);
 
 	return ret;
 }
@@ -277,9 +322,56 @@ peci_dimmpower_read_min_power(void *ctx, struct peci_sensor_conf *sensor_conf,
 	return ret;
 }
 
+static int
+peci_dimmpower_read_energy(void *ctx, struct peci_sensor_conf *sensor_conf,
+			   struct peci_sensor_data *sensor_data)
+{
+	struct peci_dimmpower *priv = (struct peci_dimmpower *)ctx;
+	int ret;
+
+	if (!peci_sensor_need_update_with_time(sensor_data,
+					       sensor_conf->update_interval)) {
+		dev_dbg(priv->dev,
+			"skip generating new energy value %duJ jif %lu\n",
+			sensor_data->uvalue, jiffies);
+		return 0;
+	}
+
+	ret = peci_dimmpower_get_energy_counter(priv, &priv->energy_cache,
+						sensor_conf->update_interval);
+	if (ret) {
+		dev_dbg(priv->dev, "cannot update energy counter\n");
+		return ret;
+	}
+
+	ret = peci_pcs_get_units(priv->mgr, &priv->units, &priv->units_valid);
+	if (ret) {
+		dev_dbg(priv->dev, "not able to read units\n");
+		return ret;
+	}
+
+	ret = peci_pcs_calc_acc_eng(priv->dev,
+				    &priv->energy_sensor_prev_energy,
+				    &priv->energy_cache,
+				    priv->units.bits.eng_unit,
+				    &sensor_data->uvalue);
+
+	if (ret) {
+		dev_dbg(priv->dev, "cumulative energy calculation failed\n");
+		return ret;
+	}
+	peci_sensor_mark_updated_with_time(sensor_data,
+					   priv->energy_cache.last_updated);
+
+	dev_dbg(priv->dev, "energy %duJ, jif %lu, HZ is %d jiffies\n",
+		sensor_data->uvalue, sensor_data->last_updated, HZ);
+
+	return 0;
+}
+
 static struct peci_sensor_conf
-peci_dimmpower_cfg[PECI_DIMMPOWER_CHANNEL_COUNT]
-		  [PECI_DIMMPOWER_SENSOR_COUNT] = {
+peci_dimmpower_power_cfg[PECI_DIMMPOWER_POWER_CHANNEL_COUNT]
+			[PECI_DIMMPOWER_POWER_SENSOR_COUNT] = {
 	/* Channel 0  - Power */
 	{
 		{
@@ -313,18 +405,52 @@ peci_dimmpower_cfg[PECI_DIMMPOWER_CHANNEL_COUNT]
 	},
 };
 
+static struct peci_sensor_conf
+peci_dimmpower_energy_cfg[PECI_DIMMPOWER_ENERGY_CHANNEL_COUNT]
+			 [PECI_DIMMPOWER_ENERGY_SENSOR_COUNT] = {
+	/* Channel 0  - Energy */
+	{
+		{
+			.attribute = hwmon_energy_input,
+			.config = HWMON_E_INPUT,
+			.update_interval = UPDATE_INTERVAL_100MS,
+			.read = peci_dimmpower_read_energy,
+			.write = NULL,
+		},
+	}
+};
+
+static bool
+peci_dimmpower_is_channel_valid(enum hwmon_sensor_types type,
+				int channel)
+{
+	if ((type == hwmon_power && channel < PECI_DIMMPOWER_POWER_CHANNEL_COUNT) ||
+	    (type == hwmon_energy && channel < PECI_DIMMPOWER_ENERGY_CHANNEL_COUNT))
+		return true;
+
+	return false;
+}
+
 static int
 peci_dimmpower_read_string(struct device *dev, enum hwmon_sensor_types type,
 			   u32 attr, int channel, const char **str)
 {
-	if (attr != hwmon_power_label ||
-	    channel >= PECI_DIMMPOWER_CHANNEL_COUNT)
+	if (!str)
+		return -EINVAL;
+
+	if (!peci_dimmpower_is_channel_valid(type, channel))
 		return -EOPNOTSUPP;
 
-	if (str)
-		*str = peci_dimmpower_labels[channel];
-	else
-		return -EINVAL;
+	switch (attr) {
+	case hwmon_power_label:
+		*str = peci_dimmpower_labels[PECI_DIMMPOWER_SENSOR_TYPE_POWER];
+		break;
+	case hwmon_energy_label:
+		*str = peci_dimmpower_labels[PECI_DIMMPOWER_SENSOR_TYPE_ENERGY];
+		break;
+	default:
+		return -EOPNOTSUPP;
+	}
 
 	return 0;
 }
@@ -341,13 +467,28 @@ peci_dimmpower_read(struct device *dev, enum hwmon_sensor_types type,
 	if (!priv || !val)
 		return -EINVAL;
 
-	if (channel >= PECI_DIMMPOWER_CHANNEL_COUNT)
+	if (!peci_dimmpower_is_channel_valid(type, channel))
 		return -EOPNOTSUPP;
 
-	ret = peci_sensor_get_ctx(attr, peci_dimmpower_cfg[channel],
-				  &sensor_conf, priv->sensor_data_list[channel],
-				  &sensor_data,
-				  ARRAY_SIZE(peci_dimmpower_cfg[channel]));
+	switch (type) {
+	case hwmon_power:
+		ret = peci_sensor_get_ctx(attr, peci_dimmpower_power_cfg[channel],
+					  &sensor_conf,
+					  priv->power_sensor_data_list[channel],
+					  &sensor_data,
+					  ARRAY_SIZE(peci_dimmpower_power_cfg[channel]));
+		break;
+	case hwmon_energy:
+		ret = peci_sensor_get_ctx(attr, peci_dimmpower_energy_cfg[channel],
+					  &sensor_conf,
+					  priv->energy_sensor_data_list[channel],
+					  &sensor_data,
+					  ARRAY_SIZE(peci_dimmpower_energy_cfg[channel]));
+		break;
+	default:
+		ret = -EOPNOTSUPP;
+	}
+
 	if (ret)
 		return ret;
 
@@ -374,13 +515,28 @@ peci_dimmpower_write(struct device *dev, enum hwmon_sensor_types type,
 	if (!priv)
 		return -EINVAL;
 
-	if (channel >= PECI_DIMMPOWER_CHANNEL_COUNT)
+	if (!peci_dimmpower_is_channel_valid(type, channel))
 		return -EOPNOTSUPP;
 
-	ret = peci_sensor_get_ctx(attr, peci_dimmpower_cfg[channel],
-				  &sensor_conf, priv->sensor_data_list[channel],
-				  &sensor_data,
-				  ARRAY_SIZE(peci_dimmpower_cfg[channel]));
+	switch (type) {
+	case hwmon_power:
+		ret = peci_sensor_get_ctx(attr, peci_dimmpower_power_cfg[channel],
+					  &sensor_conf,
+					  priv->power_sensor_data_list[channel],
+					  &sensor_data,
+					  ARRAY_SIZE(peci_dimmpower_power_cfg[channel]));
+		break;
+	case hwmon_energy:
+		ret = peci_sensor_get_ctx(attr, peci_dimmpower_energy_cfg[channel],
+					  &sensor_conf,
+					  priv->energy_sensor_data_list[channel],
+					  &sensor_data,
+					  ARRAY_SIZE(peci_dimmpower_energy_cfg[channel]));
+		break;
+	default:
+		ret = -EOPNOTSUPP;
+	}
+
 	if (ret)
 		return ret;
 
@@ -402,15 +558,27 @@ peci_dimmpower_is_visible(const void *data, enum hwmon_sensor_types type,
 	umode_t mode = 0;
 	int ret;
 
-	if (channel >= PECI_DIMMPOWER_CHANNEL_COUNT)
+	if (!peci_dimmpower_is_channel_valid(type, channel))
 		return mode;
 
-	if (attr == hwmon_power_label)
+	if (attr == hwmon_power_label || attr == hwmon_energy_label)
 		return 0444;
 
-	ret = peci_sensor_get_ctx(attr, peci_dimmpower_cfg[channel],
-				  &sensor_conf, NULL, NULL,
-				  ARRAY_SIZE(peci_dimmpower_cfg[channel]));
+	switch (type) {
+	case hwmon_power:
+		ret = peci_sensor_get_ctx(attr, peci_dimmpower_power_cfg[channel],
+					  &sensor_conf, NULL, NULL,
+					  ARRAY_SIZE(peci_dimmpower_power_cfg[channel]));
+		break;
+	case hwmon_energy:
+		ret = peci_sensor_get_ctx(attr, peci_dimmpower_energy_cfg[channel],
+					  &sensor_conf, NULL, NULL,
+					  ARRAY_SIZE(peci_dimmpower_energy_cfg[channel]));
+		break;
+	default:
+		return mode;
+	}
+
 	if (!ret) {
 		if (sensor_conf->read)
 			mode |= 0444;
@@ -434,6 +602,8 @@ static int peci_dimmpower_probe(struct platform_device *pdev)
 	struct device *dev = &pdev->dev;
 	struct peci_dimmpower *priv;
 	struct device *hwmon_dev;
+	u32 power_config_idx = 0;
+	u32 energy_config_idx = 0;
 	u32 cmd_mask;
 
 	cmd_mask = BIT(PECI_CMD_RD_PKG_CFG) | BIT(PECI_CMD_WR_PKG_CFG);
@@ -451,18 +621,24 @@ static int peci_dimmpower_probe(struct platform_device *pdev)
 	snprintf(priv->name, PECI_NAME_SIZE, "peci_dimmpower.cpu%d",
 		 mgr->client->addr - PECI_BASE_ADDR);
 
-	priv->power_config[priv->config_idx] = HWMON_P_LABEL |
-		peci_sensor_get_config(peci_dimmpower_cfg[priv->config_idx],
-				       ARRAY_SIZE(peci_dimmpower_cfg
-						  [priv->config_idx]));
-	priv->config_idx++;
+	priv->power_config[power_config_idx] = HWMON_P_LABEL |
+		peci_sensor_get_config(peci_dimmpower_power_cfg[power_config_idx],
+				       ARRAY_SIZE(peci_dimmpower_power_cfg[power_config_idx]));
+
+	priv->energy_config[energy_config_idx] = HWMON_E_LABEL |
+		peci_sensor_get_config(peci_dimmpower_energy_cfg[energy_config_idx],
+				       ARRAY_SIZE(peci_dimmpower_energy_cfg[energy_config_idx]));
+
+	priv->info[PECI_DIMMPOWER_SENSOR_TYPE_POWER] = &priv->power_info;
+	priv->power_info.type = hwmon_power;
+	priv->power_info.config = priv->power_config;
+
+	priv->info[PECI_DIMMPOWER_SENSOR_TYPE_ENERGY] = &priv->energy_info;
+	priv->energy_info.type = hwmon_energy;
+	priv->energy_info.config = priv->energy_config;
 
 	priv->chip.ops = &peci_dimmpower_ops;
 	priv->chip.info = priv->info;
-	priv->info[0] = &priv->power_info;
-
-	priv->power_info.type = hwmon_power;
-	priv->power_info.config = priv->power_config;
 
 	hwmon_dev = devm_hwmon_device_register_with_info(priv->dev, priv->name,
 							 priv, &priv->chip,
