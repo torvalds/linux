@@ -185,6 +185,10 @@
 	cpu-supply = <&vdd_cpu>;
 };
 
+&cpu0_opp_table {
+	/delete-node/ opp-1992000000;
+};
+
 &dsi0_in_vp0 {
 	status = "disabled";
 };
