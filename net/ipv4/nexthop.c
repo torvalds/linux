@@ -22,7 +22,7 @@ static void remove_nexthop(struct net *net, struct nexthop *nh,
 #define NH_DEV_HASHBITS  8
 #define NH_DEV_HASHSIZE (1U << NH_DEV_HASHBITS)
 
-static const struct nla_policy rtm_nh_policy[NHA_MAX + 1] = {
+static const struct nla_policy rtm_nh_policy_new[] = {
 	[NHA_ID]		= { .type = NLA_U32 },
 	[NHA_GROUP]		= { .type = NLA_BINARY },
 	[NHA_GROUP_TYPE]	= { .type = NLA_U16 },
@@ -31,8 +31,6 @@ static const struct nla_policy rtm_nh_policy[NHA_MAX + 1] = {
 	[NHA_GATEWAY]		= { .type = NLA_BINARY },
 	[NHA_ENCAP_TYPE]	= { .type = NLA_U16 },
 	[NHA_ENCAP]		= { .type = NLA_NESTED },
-	[NHA_GROUPS]		= { .type = NLA_FLAG },
-	[NHA_MASTER]		= { .type = NLA_U32 },
 	[NHA_FDB]		= { .type = NLA_FLAG },
 };
 
@@ -576,7 +574,8 @@ static int nh_check_attr_fdb_group(struct nexthop *nh, u8 *nh_family,
 	return 0;
 }
 
-static int nh_check_attr_group(struct net *net, struct nlattr *tb[],
+static int nh_check_attr_group(struct net *net,
+			       struct nlattr *tb[], size_t tb_size,
 			       struct netlink_ext_ack *extack)
 {
 	unsigned int len = nla_len(tb[NHA_GROUP]);
@@ -635,7 +634,7 @@ static int nh_check_attr_group(struct net *net, struct nlattr *tb[],
 			return -EINVAL;
 		}
 	}
-	for (i = NHA_GROUP_TYPE + 1; i < __NHA_MAX; ++i) {
+	for (i = NHA_GROUP_TYPE + 1; i < tb_size; ++i) {
 		if (!tb[i])
 			continue;
 		if (i == NHA_FDB)
@@ -1654,11 +1653,12 @@ static int rtm_to_nh_config(struct net *net, struct sk_buff *skb,
 			    struct netlink_ext_ack *extack)
 {
 	struct nhmsg *nhm = nlmsg_data(nlh);
-	struct nlattr *tb[NHA_MAX + 1];
+	struct nlattr *tb[ARRAY_SIZE(rtm_nh_policy_new)];
 	int err;
 
-	err = nlmsg_parse(nlh, sizeof(*nhm), tb, NHA_MAX, rtm_nh_policy,
-			  extack);
+	err = nlmsg_parse(nlh, sizeof(*nhm), tb,
+			  ARRAY_SIZE(rtm_nh_policy_new) - 1,
+			  rtm_nh_policy_new, extack);
 	if (err < 0)
 		return err;
 
@@ -1682,11 +1682,6 @@ static int rtm_to_nh_config(struct net *net, struct sk_buff *skb,
 		fallthrough;
 	default:
 		NL_SET_ERR_MSG(extack, "Invalid address family");
-		goto out;
-	}
-
-	if (tb[NHA_GROUPS] || tb[NHA_MASTER]) {
-		NL_SET_ERR_MSG(extack, "Invalid attributes in request");
 		goto out;
 	}
 
@@ -1731,7 +1726,7 @@ static int rtm_to_nh_config(struct net *net, struct sk_buff *skb,
 			NL_SET_ERR_MSG(extack, "Invalid group type");
 			goto out;
 		}
-		err = nh_check_attr_group(net, tb, extack);
+		err = nh_check_attr_group(net, tb, ARRAY_SIZE(tb), extack);
 
 		/* no other attributes should be set */
 		goto out;
