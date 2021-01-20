@@ -527,7 +527,7 @@ void drm_sched_start(struct drm_gpu_scheduler *sched, bool full_recovery)
 EXPORT_SYMBOL(drm_sched_start);
 
 /**
- * drm_sched_resubmit_jobs - helper to relunch job from pending ring list
+ * drm_sched_resubmit_jobs - helper to relaunch jobs from the pending list
  *
  * @sched: scheduler instance
  *
@@ -561,8 +561,6 @@ void drm_sched_resubmit_jobs(struct drm_gpu_scheduler *sched)
 		} else {
 			s_job->s_fence->parent = fence;
 		}
-
-
 	}
 }
 EXPORT_SYMBOL(drm_sched_resubmit_jobs);
