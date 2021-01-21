@@ -1853,6 +1853,18 @@ int close(int fd)
 }
 
 static __attribute__((unused))
+int dup(int fd)
+{
+	int ret = sys_dup(fd);
+
+	if (ret < 0) {
+		SET_ERRNO(-ret);
+		ret = -1;
+	}
+	return ret;
+}
+
+static __attribute__((unused))
 int dup2(int old, int new)
 {
 	int ret = sys_dup2(old, new);
