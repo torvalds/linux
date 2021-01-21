@@ -378,7 +378,7 @@ config MMP_PDMA
 	  Support the MMP PDMA engine for PXA and MMP platform.
 
 config MMP_TDMA
-	bool "MMP Two-Channel DMA support"
+	tristate "MMP Two-Channel DMA support"
 	depends on ARCH_MMP || COMPILE_TEST
 	select DMA_ENGINE
 	select GENERIC_ALLOCATOR
