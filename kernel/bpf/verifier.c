@@ -6266,7 +6266,7 @@ static void scalar32_min_max_rsh(struct bpf_reg_state *dst_reg,
 	 * 3) the signed bounds cross zero, so they tell us nothing
 	 *    about the result
 	 * If the value in dst_reg is known nonnegative, then again the
-	 * unsigned bounts capture the signed bounds.
+	 * unsigned bounds capture the signed bounds.
 	 * Thus, in all cases it suffices to blow away our signed bounds
 	 * and rely on inferring new ones from the unsigned bounds and
 	 * var_off of the result.
@@ -6297,7 +6297,7 @@ static void scalar_min_max_rsh(struct bpf_reg_state *dst_reg,
 	 * 3) the signed bounds cross zero, so they tell us nothing
 	 *    about the result
 	 * If the value in dst_reg is known nonnegative, then again the
-	 * unsigned bounts capture the signed bounds.
+	 * unsigned bounds capture the signed bounds.
 	 * Thus, in all cases it suffices to blow away our signed bounds
 	 * and rely on inferring new ones from the unsigned bounds and
 	 * var_off of the result.
