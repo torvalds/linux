@@ -7,6 +7,7 @@
  * Contacts   Dhaval Shah <dshah@xilinx.com>
  */
 #include <linux/clk.h>
+#include <linux/clk-provider.h>
 #include <linux/device.h>
 #include <linux/errno.h>
 #include <linux/io.h>
@@ -73,6 +74,7 @@
  * @aclk: axi clock source
  * @logicore_reg_ba: logicore reg base address
  * @vcu_slcr_ba: vcu_slcr Register base address
+ * @pll: handle for the VCU PLL
  */
 struct xvcu_device {
 	struct device *dev;
@@ -80,6 +82,7 @@ struct xvcu_device {
 	struct clk *aclk;
 	struct regmap *logicore_reg_ba;
 	void __iomem *vcu_slcr_ba;
+	struct clk_hw *pll;
 };
 
 static struct regmap_config vcu_settings_regmap_config = {
@@ -403,7 +406,9 @@ static int xvcu_set_vcu_pll_info(struct xvcu_device *xvcu)
 	u32 clkoutdiv, vcu_pll_ctrl, pll_clk;
 	u32 mod, ctrl;
 	int i;
+	int ret;
 	const struct xvcu_pll_cfg *found = NULL;
+	struct clk_hw *hw;
 
 	regmap_read(xvcu->logicore_reg_ba, VCU_PLL_CLK, &inte);
 	regmap_read(xvcu->logicore_reg_ba, VCU_PLL_CLK_DEC, &deci);
@@ -505,7 +510,18 @@ static int xvcu_set_vcu_pll_info(struct xvcu_device *xvcu)
 	ctrl |= (VCU_SRCSEL_PLL & VCU_SRCSEL_MASK) << VCU_SRCSEL_SHIFT;
 	xvcu_write(xvcu->vcu_slcr_ba, VCU_DEC_MCU_CTRL, ctrl);
 
-	return xvcu_pll_set_rate(xvcu, fvco, refclk);
+	ret = xvcu_pll_set_rate(xvcu, fvco, refclk);
+	if (ret)
+		return ret;
+
+	hw = clk_hw_register_fixed_rate(xvcu->dev, "vcu_pll",
+					__clk_get_name(xvcu->pll_ref),
+					0, pll_clk);
+	if (IS_ERR(hw))
+		return PTR_ERR(hw);
+	xvcu->pll = hw;
+
+	return 0;
 }
 
 /**
@@ -652,6 +668,7 @@ static int xvcu_remove(struct platform_device *pdev)
 	/* Add the the Gasket isolation and put the VCU in reset. */
 	regmap_write(xvcu->logicore_reg_ba, VCU_GASKET_INIT, 0);
 
+	clk_hw_unregister_fixed_rate(xvcu->pll);
 	xvcu_pll_disable(xvcu);
 	clk_disable_unprepare(xvcu->aclk);
 
