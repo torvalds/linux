@@ -2300,13 +2300,13 @@ void rkisp_isp_isr(unsigned int isp_mis,
 	/* start edge of v_sync */
 	if (isp_mis & CIF_ISP_V_START) {
 		rkisp_set_state(dev, ISP_FRAME_VS);
+		/* last vsync to config next buf */
+		if (!dev->csi_dev.filt_state[CSI_F_VS])
+			rkisp_bridge_update_mi(dev);
+		else
+			dev->csi_dev.filt_state[CSI_F_VS]--;
 		if (IS_HDR_RDBK(dev->hdr.op_mode)) {
 			rkisp_stats_rdbk_enable(&dev->stats_vdev, true);
-			/* last readback to config next buf */
-			if (!dev->csi_dev.filt_state[CSI_F_VS])
-				rkisp_bridge_update_mi(dev);
-			else
-				dev->csi_dev.filt_state[CSI_F_VS]--;
 			goto vs_skip;
 		}
 		if (dev->cap_dev.stream[RKISP_STREAM_SP].interlaced) {
