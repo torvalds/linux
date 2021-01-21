@@ -177,6 +177,7 @@ Hardware Monitoring Kernel Drivers
    tmp401
    tmp421
    tmp513
+   tps23861
    tps40422
    tps53679
    twl4030-madc-hwmon
