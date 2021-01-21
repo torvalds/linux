@@ -1569,6 +1569,7 @@
   getboottime64
   get_random_u32
   get_task_mm
+  get_task_pid
   get_unmapped_area
   get_user_pages
   idr_for_each
