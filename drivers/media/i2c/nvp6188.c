@@ -5,6 +5,11 @@
  * Copyright (C) 2020 Rockchip Electronics Co., Ltd.
  *
  * V0.0X01.0X00 first version.
+ * V0.0X01.0X01 version.
+ *  1. add get virtual channel fmt ioctl
+ *  2. add get virtual channel hotplug status ioctl
+ *  3. add virtual channel hotplug status event report to vicap
+ *  4. fixup variables are reused when multiple devices use the same driver
  */
 
 #include <linux/clk.h>
@@ -149,7 +154,7 @@ struct nvp6188 {
 	struct v4l2_ctrl	*link_freq;
 	struct mutex		mutex;
 	bool			power_on;
-	struct nvp6188_mode *cur_mode;
+	struct nvp6188_mode cur_mode;
 
 	u32			module_index;
 	u32			cfg_num;
@@ -166,6 +171,7 @@ struct nvp6188 {
 	struct input_dev* input_dev;
 	unsigned char detect_status;
 	unsigned char last_detect_status;
+	u8 is_reset;
 };
 
 #define to_nvp6188(sd) container_of(sd, struct nvp6188, subdev)
@@ -690,7 +696,7 @@ static struct nvp6188_mode supported_modes[] = {
 			.numerator = 10000,
 			.denominator = 250000,
 		},
-		.global_reg_list = common_setting_756M_regs,
+		.global_reg_list = common_setting_1458M_regs,
 		.mipi_freq_idx = 1,
 		.bpp = 8,
 		.vc[PAD0] = V4L2_MBUS_CSI2_CHANNEL_0,
@@ -865,40 +871,40 @@ static __maybe_unused int nvp6188_auto_detect_fmt(struct nvp6188 *nvp6188)
 		nvp6188_write_reg(client, 0x71, val_13x71);
 		switch(ch_vfc[ch]) {
 			case NVP_RESO_960H_NSTC_VALUE:
-			    dev_dbg(&client->dev, "channel %d det 960h nstc", ch);
-				nvp6188->cur_mode->channel_reso[ch] = NVP_RESO_960H_NSTC;
+				dev_dbg(&client->dev, "channel %d det 960h nstc", ch);
+				nvp6188->cur_mode.channel_reso[ch] = NVP_RESO_960H_NSTC;
 			break;
 			case NVP_RESO_960H_PAL_VALUE:
-			    dev_dbg(&client->dev, "channel %d det 960h pal", ch);
-				nvp6188->cur_mode->channel_reso[ch] = NVP_RESO_960H_PAL;
+				dev_dbg(&client->dev, "channel %d det 960h pal", ch);
+				nvp6188->cur_mode.channel_reso[ch] = NVP_RESO_960H_PAL;
 			break;
 			case NVP_RESO_720P_NSTC_VALUE:
-			    dev_dbg(&client->dev, "channel %d det 720p nstc", ch);
-				nvp6188->cur_mode->channel_reso[ch] = NVP_RESO_720P_NSTC;
+				dev_dbg(&client->dev, "channel %d det 720p nstc", ch);
+				nvp6188->cur_mode.channel_reso[ch] = NVP_RESO_720P_NSTC;
 			break;
 			case NVP_RESO_720P_PAL_VALUE:
-			    dev_dbg(&client->dev, "channel %d det 720p pal", ch);
-				nvp6188->cur_mode->channel_reso[ch] = NVP_RESO_720P_PAL;
+				dev_dbg(&client->dev, "channel %d det 720p pal", ch);
+				nvp6188->cur_mode.channel_reso[ch] = NVP_RESO_720P_PAL;
 			break;
 			case NVP_RESO_1080P_NSTC_VALUE:
-			    dev_dbg(&client->dev, "channel %d det 1080p nstc", ch);
-				nvp6188->cur_mode->channel_reso[ch] = NVP_RESO_1080P_NSTC;
+				dev_dbg(&client->dev, "channel %d det 1080p nstc", ch);
+				nvp6188->cur_mode.channel_reso[ch] = NVP_RESO_1080P_NSTC;
 			break;
 			case NVP_RESO_1080P_PAL_VALUE:
-			    dev_dbg(&client->dev, "channel %d det 1080p pal", ch);
-				nvp6188->cur_mode->channel_reso[ch] = NVP_RESO_1080P_PAL;
+				dev_dbg(&client->dev, "channel %d det 1080p pal", ch);
+				nvp6188->cur_mode.channel_reso[ch] = NVP_RESO_1080P_PAL;
 			break;
 			case NVP_RESO_960P_NSTC_VALUE:
-			    dev_dbg(&client->dev, "channel %d det 960p nstc", ch);
-				nvp6188->cur_mode->channel_reso[ch] = NVP_RESO_960P_NSTC;
+				dev_dbg(&client->dev, "channel %d det 960p nstc", ch);
+				nvp6188->cur_mode.channel_reso[ch] = NVP_RESO_960P_NSTC;
 			break;
 			case NVP_RESO_960P_PAL_VALUE:
-			    dev_dbg(&client->dev, "channel %d det 960p pal", ch);
-				nvp6188->cur_mode->channel_reso[ch] = NVP_RESO_960P_PAL;
+				dev_dbg(&client->dev, "channel %d det 960p pal", ch);
+				nvp6188->cur_mode.channel_reso[ch] = NVP_RESO_960P_PAL;
 			break;
 			default:
-				dev_err(&client->dev, "channel %d ch_vfc not valid, def 1080p pal\n", ch);
-				nvp6188->cur_mode->channel_reso[ch] = NVP_RESO_1080P_PAL;
+				dev_err(&client->dev, "channel %d not detect, def 1080p pal\n", ch);
+				nvp6188->cur_mode.channel_reso[ch] = NVP_RESO_1080P_PAL;
 			break;
 		}
 	}
@@ -923,7 +929,7 @@ static int nvp6188_get_reso_dist(const struct nvp6188_mode *mode,
 	       abs(mode->height - framefmt->height);
 }
 
-static const struct nvp6188_mode *
+static struct nvp6188_mode *
 nvp6188_find_best_fit(struct nvp6188 *nvp6188,
                       struct v4l2_subdev_format *fmt)
 {
@@ -950,12 +956,14 @@ static int nvp6188_set_fmt(struct v4l2_subdev *sd,
 			   struct v4l2_subdev_format *fmt)
 {
 	struct nvp6188 *nvp6188 = to_nvp6188(sd);
-	const struct nvp6188_mode *mode;
+	struct nvp6188_mode *mode;
 	u64 pixel_rate = 0;
 
 	mutex_lock(&nvp6188->mutex);
 
 	mode = nvp6188_find_best_fit(nvp6188, fmt);
+	memcpy(&nvp6188->cur_mode, mode, sizeof(struct nvp6188_mode));
+
 	fmt->format.code = mode->bus_fmt;
 	fmt->format.width = mode->width;
 	fmt->format.height = mode->height;
@@ -988,7 +996,7 @@ static int nvp6188_get_fmt(struct v4l2_subdev *sd,
 	struct nvp6188 *nvp6188 = to_nvp6188(sd);
 	struct i2c_client *client = nvp6188->client;
 
-	const struct nvp6188_mode *mode = nvp6188->cur_mode;
+	const struct nvp6188_mode *mode = &nvp6188->cur_mode;
 
 	mutex_lock(&nvp6188->mutex);
 	if (fmt->which == V4L2_SUBDEV_FORMAT_TRY) {
@@ -1025,7 +1033,7 @@ static int nvp6188_enum_mbus_code(struct v4l2_subdev *sd,
 
 	if (code->index != 0)
 		return -EINVAL;
-	code->code = nvp6188->cur_mode->bus_fmt;
+	code->code = nvp6188->cur_mode.bus_fmt;
 
 	return 0;
 }
@@ -1138,6 +1146,19 @@ static void nvp6188_get_vc_hotplug_inf(struct nvp6188 *nvp6188,
 	inf->detect_status = nvp6188->detect_status;
 }
 
+static void nvp6188_get_vicap_rst_inf(struct nvp6188 *nvp6188,
+				   struct rkmodule_vicap_reset_info *rst_info)
+{
+	rst_info->is_reset = nvp6188->is_reset;
+	rst_info->src = RKCIF_RESET_SRC_ERR_HOTPLUG;
+}
+
+static void nvp6188_set_vicap_rst_inf(struct nvp6188 *nvp6188,
+				   struct rkmodule_vicap_reset_info rst_info)
+{
+	nvp6188->is_reset = rst_info.is_reset;
+}
+
 static long nvp6188_ioctl(struct v4l2_subdev *sd, unsigned int cmd, void *arg)
 {
 	struct nvp6188 *nvp6188 = to_nvp6188(sd);
@@ -1152,6 +1173,12 @@ static long nvp6188_ioctl(struct v4l2_subdev *sd, unsigned int cmd, void *arg)
 		break;
 	case RKMODULE_GET_VC_HOTPLUG_INFO:
 		nvp6188_get_vc_hotplug_inf(nvp6188, (struct rkmodule_vc_hotplug_info *)arg);
+		break;
+	case RKMODULE_GET_VICAP_RST_INFO:
+		nvp6188_get_vicap_rst_inf(nvp6188, (struct rkmodule_vicap_reset_info *)arg);
+		break;
+	case RKMODULE_SET_VICAP_RST_INFO:
+		nvp6188_set_vicap_rst_inf(nvp6188, *(struct rkmodule_vicap_reset_info *)arg);
 		break;
 	case RKMODULE_GET_START_STREAM_SEQ:
 		*(int *)arg = RKMODULE_START_STREAM_FRONT;
@@ -1173,6 +1200,7 @@ static long nvp6188_compat_ioctl32(struct v4l2_subdev *sd,
 	struct rkmodule_awb_cfg *cfg;
 	struct rkmodule_vc_fmt_info *vc_fmt_inf;
 	struct rkmodule_vc_hotplug_info *vc_hp_inf;
+	struct rkmodule_vicap_reset_info *vicap_rst_inf;
 	int *seq;
 	long ret = 0;
 
@@ -1224,6 +1252,30 @@ static long nvp6188_compat_ioctl32(struct v4l2_subdev *sd,
 		if (!ret)
 			ret = copy_to_user(up, vc_hp_inf, sizeof(*vc_hp_inf));
 		kfree(vc_hp_inf);
+		break;
+	case RKMODULE_GET_VICAP_RST_INFO:
+		vicap_rst_inf = kzalloc(sizeof(*vicap_rst_inf), GFP_KERNEL);
+		if (!vicap_rst_inf) {
+			ret = -ENOMEM;
+			return ret;
+		}
+
+		ret = nvp6188_ioctl(sd, cmd, vicap_rst_inf);
+		if (!ret)
+			ret = copy_to_user(up, vicap_rst_inf, sizeof(*vicap_rst_inf));
+		kfree(vicap_rst_inf);
+		break;
+	case RKMODULE_SET_VICAP_RST_INFO:
+		vicap_rst_inf = kzalloc(sizeof(*vicap_rst_inf), GFP_KERNEL);
+		if (!vicap_rst_inf) {
+			ret = -ENOMEM;
+			return ret;
+		}
+
+		ret = copy_from_user(vicap_rst_inf, up, sizeof(*vicap_rst_inf));
+		if (!ret)
+			ret = nvp6188_ioctl(sd, cmd, vicap_rst_inf);
+		kfree(vicap_rst_inf);
 		break;
 	case RKMODULE_GET_START_STREAM_SEQ:
 		seq = kzalloc(sizeof(*seq), GFP_KERNEL);
@@ -1492,7 +1544,7 @@ static __maybe_unused void nvp6188_manual_mode(struct nvp6188 *nvp6188)
 {
 	int i, reso;
 	for (i = 3; i >= 0; i--) {
-		reso = nvp6188->cur_mode->channel_reso[i];
+		reso = nvp6188->cur_mode.channel_reso[i];
 		switch (reso) {
 		case NVP_RESO_960H_PAL:
 			nv6188_set_chn_960h(nvp6188, i, 1);
@@ -1524,9 +1576,11 @@ static int detect_thread_function(void *data)
 	struct nvp6188 *nvp6188 = (struct nvp6188 *) data;
 	struct i2c_client *client = nvp6188->client;
 	unsigned char bits = 0, ch, val_13x70 = 0, val_13x71 = 0;
+	int need_reset_wait = -1;
 	if (nvp6188->power_on) {
 		nvp6188_auto_detect_hotplug(nvp6188);
 		nvp6188->last_detect_status = nvp6188->detect_status;
+		nvp6188->is_reset = 0;
 	}
 	while (!kthread_should_stop()) {
 		if (nvp6188->power_on) {
@@ -1548,6 +1602,14 @@ static int detect_thread_function(void *data)
 				nvp6188->last_detect_status = nvp6188->detect_status;
 				input_event(nvp6188->input_dev, EV_MSC, MSC_RAW, nvp6188->detect_status);
 				input_sync(nvp6188->input_dev);
+				need_reset_wait = 5;
+			}
+			if (need_reset_wait > 0) {
+				need_reset_wait--;
+			} else if (need_reset_wait == 0) {
+				need_reset_wait = -1;
+				nvp6188->is_reset = 1;
+				dev_err(&client->dev, "trigger reset time up\n");
 			}
 		}
 		set_current_state(TASK_INTERRUPTIBLE);
@@ -1556,7 +1618,8 @@ static int detect_thread_function(void *data)
 	return 0;
 }
 
-static int __maybe_unused detect_thread_start(struct nvp6188 *nvp6188) {
+static int __maybe_unused detect_thread_start(struct nvp6188 *nvp6188)
+{
 	int ret = 0;
 	struct i2c_client *client = nvp6188->client;
 	nvp6188->detect_thread = kthread_create(detect_thread_function,
@@ -1585,16 +1648,16 @@ static int __nvp6188_start_stream(struct nvp6188 *nvp6188)
 	int array_size = 0;
 	struct i2c_client *client = nvp6188->client;
 
-	if (nvp6188->cur_mode->global_reg_list == common_setting_1458M_regs) {
+	if (nvp6188->cur_mode.global_reg_list == common_setting_1458M_regs) {
 		array_size = ARRAY_SIZE(common_setting_1458M_regs);
-	} else if (nvp6188->cur_mode->global_reg_list == common_setting_756M_regs) {
+	} else if (nvp6188->cur_mode.global_reg_list == common_setting_756M_regs) {
 		array_size = ARRAY_SIZE(common_setting_756M_regs);
 	} else {
 		return -1;
 	}
 
 	ret = nvp6188_write_array(nvp6188->client,
-		nvp6188->cur_mode->global_reg_list, array_size);
+		nvp6188->cur_mode.global_reg_list, array_size);
 	if (ret) {
 		dev_err(&client->dev, "__nvp6188_start_stream global_reg_list faild");
 		return ret;
@@ -1624,8 +1687,8 @@ static int nvp6188_stream(struct v4l2_subdev *sd, int on)
 	struct i2c_client *client = nvp6188->client;
 
 	dev_dbg(&client->dev, "s_stream: %d. %dx%d\n", on,
-			nvp6188->cur_mode->width,
-			nvp6188->cur_mode->height);
+			nvp6188->cur_mode.width,
+			nvp6188->cur_mode.height);
 
 	mutex_lock(&nvp6188->mutex);
 	on = !!on;
@@ -1767,7 +1830,7 @@ static int nvp6188_initialize_controls(struct nvp6188 *nvp6188)
 	int ret;
 
 	handler = &nvp6188->ctrl_handler;
-	mode = nvp6188->cur_mode;
+	mode = &nvp6188->cur_mode;
 	ret = v4l2_ctrl_handler_init(handler, 2);
 	if (ret)
 		return ret;
@@ -2352,7 +2415,8 @@ static int nvp6188_probe(struct i2c_client *client,
 	}
 
 	nvp6188->client = client;
-	nvp6188->cur_mode = &supported_modes[0];
+	nvp6188->cfg_num = ARRAY_SIZE(supported_modes);
+	memcpy(&nvp6188->cur_mode, &supported_modes[0], sizeof(struct nvp6188_mode));
 
 	nvp6188->xvclk = devm_clk_get(dev, "xvclk");
 	if (IS_ERR(nvp6188->xvclk)) {
