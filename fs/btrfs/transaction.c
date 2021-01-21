@@ -2265,14 +2265,6 @@ int btrfs_commit_transaction(struct btrfs_trans_handle *trans)
 	btrfs_free_log_root_tree(trans, fs_info);
 
 	/*
-	 * commit_fs_roots() can call btrfs_save_ino_cache(), which generates
-	 * new delayed refs. Must handle them or qgroup can be wrong.
-	 */
-	ret = btrfs_run_delayed_refs(trans, (unsigned long)-1);
-	if (ret)
-		goto unlock_tree_log;
-
-	/*
 	 * Since fs roots are all committed, we can get a quite accurate
 	 * new_roots. So let's do quota accounting.
 	 */

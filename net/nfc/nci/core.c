@@ -508,7 +508,7 @@ static int nci_open_device(struct nci_dev *ndev)
 		};
 		unsigned long opt = 0;
 
-		if (!(ndev->nci_ver & NCI_VER_2_MASK))
+		if (ndev->nci_ver & NCI_VER_2_MASK)
 			opt = (unsigned long)&nci_init_v2_cmd;
 
 		rc = __nci_request(ndev, nci_init_req, opt,
