@@ -737,12 +737,12 @@ static inline int _generic_set_opp_clk_only(struct device *dev, struct clk *clk,
 
 static int _generic_set_opp_regulator(struct opp_table *opp_table,
 				      struct device *dev,
-				      unsigned long old_freq,
+				      struct dev_pm_opp *opp,
 				      unsigned long freq,
-				      struct dev_pm_opp_supply *old_supply,
-				      struct dev_pm_opp_supply *new_supply)
+				      int scaling_down)
 {
 	struct regulator *reg = opp_table->regulators[0];
+	struct dev_pm_opp *old_opp = opp_table->current_opp;
 	int ret;
 
 	/* This function only supports single regulator per device */
@@ -752,8 +752,8 @@ static int _generic_set_opp_regulator(struct opp_table *opp_table,
 	}
 
 	/* Scaling up? Scale voltage before frequency */
-	if (freq >= old_freq) {
-		ret = _set_opp_voltage(dev, reg, new_supply);
+	if (!scaling_down) {
+		ret = _set_opp_voltage(dev, reg, opp->supplies);
 		if (ret)
 			goto restore_voltage;
 	}
@@ -764,8 +764,8 @@ static int _generic_set_opp_regulator(struct opp_table *opp_table,
 		goto restore_voltage;
 
 	/* Scaling down? Scale voltage after frequency */
-	if (freq < old_freq) {
-		ret = _set_opp_voltage(dev, reg, new_supply);
+	if (scaling_down) {
+		ret = _set_opp_voltage(dev, reg, opp->supplies);
 		if (ret)
 			goto restore_freq;
 	}
@@ -783,12 +783,12 @@ static int _generic_set_opp_regulator(struct opp_table *opp_table,
 	return 0;
 
 restore_freq:
-	if (_generic_set_opp_clk_only(dev, opp_table->clk, old_freq))
+	if (_generic_set_opp_clk_only(dev, opp_table->clk, old_opp->rate))
 		dev_err(dev, "%s: failed to restore old-freq (%lu Hz)\n",
-			__func__, old_freq);
+			__func__, old_opp->rate);
 restore_voltage:
 	/* This shouldn't harm even if the voltages weren't updated earlier */
-	_set_opp_voltage(dev, reg, old_supply);
+	_set_opp_voltage(dev, reg, old_opp->supplies);
 
 	return ret;
 }
@@ -1041,9 +1041,8 @@ static int _set_opp(struct device *dev, struct opp_table *opp_table,
 		ret = _set_opp_custom(opp_table, dev, old_freq, freq,
 				      old_opp->supplies, opp->supplies);
 	} else if (opp_table->regulators) {
-		ret = _generic_set_opp_regulator(opp_table, dev, old_freq, freq,
-						 old_opp->supplies,
-						 opp->supplies);
+		ret = _generic_set_opp_regulator(opp_table, dev, opp, freq,
+						 scaling_down);
 	} else {
 		/* Only frequency scaling */
 		ret = _generic_set_opp_clk_only(dev, opp_table->clk, freq);
