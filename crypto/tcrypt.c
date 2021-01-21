@@ -71,7 +71,7 @@ static const char *check[] = {
 	"blowfish", "twofish", "serpent", "sha384", "sha512", "md4", "aes",
 	"cast6", "arc4", "michael_mic", "deflate", "crc32c", "tea", "xtea",
 	"khazad", "wp512", "wp384", "wp256", "tnepres", "xeta",  "fcrypt",
-	"camellia", "seed", "salsa20", "rmd160",
+	"camellia", "seed", "rmd160",
 	"lzo", "lzo-rle", "cts", "sha3-224", "sha3-256", "sha3-384",
 	"sha3-512", "streebog256", "streebog512",
 	NULL
@@ -1835,10 +1835,6 @@ static int do_test(const char *alg, u32 type, u32 mask, int m, u32 num_mb)
 		ret += tcrypt_test("sha224");
 		break;
 
-	case 34:
-		ret += tcrypt_test("salsa20");
-		break;
-
 	case 35:
 		ret += tcrypt_test("gcm(aes)");
 		break;
@@ -2151,11 +2147,6 @@ static int do_test(const char *alg, u32 type, u32 mask, int m, u32 num_mb)
 				speed_template_32_48_64);
 		test_cipher_speed("xts(camellia)", DECRYPT, sec, NULL, 0,
 				speed_template_32_48_64);
-		break;
-
-	case 206:
-		test_cipher_speed("salsa20", ENCRYPT, sec, NULL, 0,
-				  speed_template_16_32);
 		break;
 
 	case 207:

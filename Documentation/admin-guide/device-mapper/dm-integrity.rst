@@ -143,8 +143,8 @@ recalculate
 journal_crypt:algorithm(:key)	(the key is optional)
 	Encrypt the journal using given algorithm to make sure that the
 	attacker can't read the journal. You can use a block cipher here
-	(such as "cbc(aes)") or a stream cipher (for example "chacha20",
-	"salsa20" or "ctr(aes)").
+	(such as "cbc(aes)") or a stream cipher (for example "chacha20"
+	or "ctr(aes)").
 
 	The journal contains history of last writes to the block device,
 	an attacker reading the journal could see the last sector numbers

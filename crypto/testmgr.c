@@ -5283,12 +5283,6 @@ static const struct alg_test_desc alg_test_descs[] = {
 			.akcipher = __VECS(rsa_tv_template)
 		}
 	}, {
-		.alg = "salsa20",
-		.test = alg_test_skcipher,
-		.suite = {
-			.cipher = __VECS(salsa20_stream_tv_template)
-		}
-	}, {
 		.alg = "sha1",
 		.test = alg_test_hash,
 		.fips_allowed = 1,

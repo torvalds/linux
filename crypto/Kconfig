@@ -1400,18 +1400,6 @@ config CRYPTO_KHAZAD
 	  See also:
 	  <http://www.larc.usp.br/~pbarreto/KhazadPage.html>
 
-config CRYPTO_SALSA20
-	tristate "Salsa20 stream cipher algorithm"
-	select CRYPTO_SKCIPHER
-	help
-	  Salsa20 stream cipher algorithm.
-
-	  Salsa20 is a stream cipher submitted to eSTREAM, the ECRYPT
-	  Stream Cipher Project. See <https://www.ecrypt.eu.org/stream/>
-
-	  The Salsa20 stream cipher algorithm is designed by Daniel J.
-	  Bernstein <djb@cr.yp.to>. See <https://cr.yp.to/snuffle.html>
-
 config CRYPTO_CHACHA20
 	tristate "ChaCha stream cipher algorithms"
 	select CRYPTO_LIB_CHACHA_GENERIC
