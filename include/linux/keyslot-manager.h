@@ -85,6 +85,9 @@ struct blk_keyslot_manager {
 
 int blk_ksm_init(struct blk_keyslot_manager *ksm, unsigned int num_slots);
 
+int devm_blk_ksm_init(struct device *dev, struct blk_keyslot_manager *ksm,
+		      unsigned int num_slots);
+
 blk_status_t blk_ksm_get_slot_for_key(struct blk_keyslot_manager *ksm,
 				      const struct blk_crypto_key *key,
 				      struct blk_ksm_keyslot **slot_ptr);
