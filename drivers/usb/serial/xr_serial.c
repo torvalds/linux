@@ -401,7 +401,6 @@ static int xr_set_baudrate(struct tty_struct *tty,
 static void xr_set_flow_mode(struct tty_struct *tty,
 			     struct usb_serial_port *port)
 {
-	unsigned int cflag = tty->termios.c_cflag;
 	u8 flow, gpio_mode;
 	int ret;
 
@@ -409,7 +408,7 @@ static void xr_set_flow_mode(struct tty_struct *tty,
 	if (ret)
 		return;
 
-	if (cflag & CRTSCTS) {
+	if (C_CRTSCTS(tty)) {
 		dev_dbg(&port->dev, "Enabling hardware flow ctrl\n");
 
 		/*
