@@ -223,3 +223,7 @@
 &watchdog0 {
 	clocks = <&zynqmp_clk WDT>;
 };
+
+&lpd_watchdog {
+	clocks = <&zynqmp_clk LPD_WDT>;
+};
