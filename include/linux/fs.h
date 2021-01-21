@@ -2083,9 +2083,11 @@ static inline bool sb_rdonly(const struct super_block *sb) { return sb->s_flags 
 #define IS_WHITEOUT(inode)	(S_ISCHR(inode->i_mode) && \
 				 (inode)->i_rdev == WHITEOUT_DEV)
 
-static inline bool HAS_UNMAPPED_ID(struct inode *inode)
+static inline bool HAS_UNMAPPED_ID(struct user_namespace *mnt_userns,
+				   struct inode *inode)
 {
-	return !uid_valid(inode->i_uid) || !gid_valid(inode->i_gid);
+	return !uid_valid(i_uid_into_mnt(mnt_userns, inode)) ||
+	       !gid_valid(i_gid_into_mnt(mnt_userns, inode));
 }
 
 static inline enum rw_hint file_write_hint(struct file *file)
@@ -2823,7 +2825,8 @@ static inline int path_permission(const struct path *path, int mask)
 	return inode_permission(mnt_user_ns(path->mnt),
 				d_inode(path->dentry), mask);
 }
-extern int __check_sticky(struct inode *dir, struct inode *inode);
+int __check_sticky(struct user_namespace *mnt_userns, struct inode *dir,
+		   struct inode *inode);
 
 static inline bool execute_ok(struct inode *inode)
 {
@@ -3442,12 +3445,13 @@ static inline bool is_sxid(umode_t mode)
 	return (mode & S_ISUID) || ((mode & S_ISGID) && (mode & S_IXGRP));
 }
 
-static inline int check_sticky(struct inode *dir, struct inode *inode)
+static inline int check_sticky(struct user_namespace *mnt_userns,
+			       struct inode *dir, struct inode *inode)
 {
 	if (!(dir->i_mode & S_ISVTX))
 		return 0;
 
-	return __check_sticky(dir, inode);
+	return __check_sticky(mnt_userns, dir, inode);
 }
 
 static inline void inode_has_no_xattr(struct inode *inode)
