@@ -552,6 +552,9 @@ static int xr_probe(struct usb_serial *serial, const struct usb_device_id *id)
 
 	/* But claim the control interface during data interface probe */
 	control_interface = usb_ifnum_to_if(usb_dev, 0);
+	if (!control_interface)
+		return -ENODEV;
+
 	ret = usb_driver_claim_interface(driver, control_interface, NULL);
 	if (ret) {
 		dev_err(&serial->interface->dev, "Failed to claim control interface\n");
