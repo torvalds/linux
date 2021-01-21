@@ -30,6 +30,17 @@
 		reg = <0x0 0x80000000>;
 		device_type = "memory";
 	};
+
+	ec_input_spi: spi {
+		compatible = "spi-gpio";
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		num-chipselects = <0>;
+		sck-gpios = <&gpio 55 GPIO_ACTIVE_HIGH>;
+		miso-gpios = <&gpio 57 GPIO_ACTIVE_HIGH>;
+		mosi-gpios = <&gpio 58 GPIO_ACTIVE_HIGH>;
+	};
 };
 
 &uart3 {
@@ -118,7 +129,7 @@
 	};
 };
 
-&ssp2 {
+&ec_input_spi {
 	status = "okay";
 	cs-gpios = <&gpio 56 GPIO_ACTIVE_LOW>;
 
