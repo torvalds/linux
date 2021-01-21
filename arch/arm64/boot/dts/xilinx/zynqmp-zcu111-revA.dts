@@ -572,6 +572,7 @@
 &sdhci1 {
 	status = "okay";
 	no-1-8-v;
+	xlnx,mio-bank = <1>;
 };
 
 &uart0 {

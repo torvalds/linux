@@ -233,11 +233,13 @@
 	status = "okay";
 	no-1-8-v;
 	disable-wp;
+	xlnx,mio-bank = <0>;
 };
 
 &sdhci1 {
 	status = "okay";
 	bus-width = <0x4>;
+	xlnx,mio-bank = <0>;
 	non-removable;
 	disable-wp;
 	cap-power-off-card;
