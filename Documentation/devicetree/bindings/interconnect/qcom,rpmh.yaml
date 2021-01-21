@@ -69,7 +69,7 @@ properties:
       - qcom,sm8250-system-noc
 
   '#interconnect-cells':
-    const: 1
+    enum: [ 1, 2 ]
 
   qcom,bcm-voters:
     $ref: /schemas/types.yaml#/definitions/phandle-array
