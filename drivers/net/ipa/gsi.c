@@ -1555,10 +1555,8 @@ static int gsi_channel_poll(struct napi_struct *napi, int budget)
 		gsi_trans_complete(trans);
 	}
 
-	if (count < budget) {
-		napi_complete(&channel->napi);
+	if (count < budget && napi_complete(napi))
 		gsi_irq_ieob_enable(channel->gsi, channel->evt_ring_id);
-	}
 
 	return count;
 }
