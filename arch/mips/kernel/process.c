@@ -9,50 +9,33 @@
  * Copyright (C) 2004 Thiemo Seufer
  * Copyright (C) 2013  Imagination Technologies Ltd.
  */
+#include <linux/cpu.h>
 #include <linux/errno.h>
+#include <linux/init.h>
+#include <linux/kallsyms.h>
+#include <linux/kernel.h>
+#include <linux/nmi.h>
+#include <linux/personality.h>
+#include <linux/prctl.h>
+#include <linux/random.h>
 #include <linux/sched.h>
 #include <linux/sched/debug.h>
-#include <linux/sched/task.h>
 #include <linux/sched/task_stack.h>
-#include <linux/tick.h>
-#include <linux/kernel.h>
-#include <linux/mm.h>
-#include <linux/stddef.h>
-#include <linux/unistd.h>
-#include <linux/export.h>
-#include <linux/ptrace.h>
-#include <linux/mman.h>
-#include <linux/personality.h>
-#include <linux/sys.h>
-#include <linux/init.h>
-#include <linux/completion.h>
-#include <linux/kallsyms.h>
-#include <linux/random.h>
-#include <linux/prctl.h>
-#include <linux/nmi.h>
-#include <linux/cpu.h>
 
 #include <asm/abi.h>
 #include <asm/asm.h>
-#include <asm/bootinfo.h>
-#include <asm/cpu.h>
 #include <asm/dsemul.h>
 #include <asm/dsp.h>
 #include <asm/fpu.h>
+#include <asm/inst.h>
 #include <asm/irq.h>
-#include <asm/mips-cps.h>
+#include <asm/irq_regs.h>
+#include <asm/isadep.h>
 #include <asm/msa.h>
+#include <asm/mips-cps.h>
 #include <asm/mipsregs.h>
 #include <asm/processor.h>
 #include <asm/reg.h>
-#include <linux/uaccess.h>
-#include <asm/io.h>
-#include <asm/elf.h>
-#include <asm/isadep.h>
-#include <asm/inst.h>
-#include <asm/stacktrace.h>
-#include <asm/irq_regs.h>
-#include <asm/exec.h>
 
 #ifdef CONFIG_HOTPLUG_CPU
 void arch_cpu_idle_dead(void)
