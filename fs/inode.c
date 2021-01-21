@@ -1912,7 +1912,7 @@ static int __remove_privs(struct dentry *dentry, int kill)
 	 * Note we call this on write, so notify_change will not
 	 * encounter any conflicting delegations:
 	 */
-	return notify_change(dentry, &newattrs, NULL);
+	return notify_change(&init_user_ns, dentry, &newattrs, NULL);
 }
 
 /*

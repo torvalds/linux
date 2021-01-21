@@ -122,7 +122,7 @@ int kernfs_iop_setattr(struct dentry *dentry, struct iattr *iattr)
 		return -EINVAL;
 
 	mutex_lock(&kernfs_mutex);
-	error = setattr_prepare(dentry, iattr);
+	error = setattr_prepare(&init_user_ns, dentry, iattr);
 	if (error)
 		goto out;
 
@@ -131,7 +131,7 @@ int kernfs_iop_setattr(struct dentry *dentry, struct iattr *iattr)
 		goto out;
 
 	/* this ignores size changes */
-	setattr_copy(inode, iattr);
+	setattr_copy(&init_user_ns, inode, iattr);
 
 out:
 	mutex_unlock(&kernfs_mutex);

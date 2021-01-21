@@ -2809,7 +2809,8 @@ static inline int bmap(struct inode *inode,  sector_t *block)
 }
 #endif
 
-extern int notify_change(struct dentry *, struct iattr *, struct inode **);
+int notify_change(struct user_namespace *, struct dentry *,
+		  struct iattr *, struct inode **);
 int inode_permission(struct user_namespace *, struct inode *, int);
 int generic_permission(struct user_namespace *, struct inode *, int);
 static inline int file_permission(struct file *file, int mask)
@@ -3274,9 +3275,10 @@ extern int buffer_migrate_page_norefs(struct address_space *,
 #define buffer_migrate_page_norefs NULL
 #endif
 
-extern int setattr_prepare(struct dentry *, struct iattr *);
+int setattr_prepare(struct user_namespace *, struct dentry *, struct iattr *);
 extern int inode_newsize_ok(const struct inode *, loff_t offset);
-extern void setattr_copy(struct inode *inode, const struct iattr *attr);
+void setattr_copy(struct user_namespace *, struct inode *inode,
+		  const struct iattr *attr);
 
 extern int file_update_time(struct file *file);
 

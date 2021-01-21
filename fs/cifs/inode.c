@@ -2610,7 +2610,7 @@ cifs_setattr_unix(struct dentry *direntry, struct iattr *attrs)
 	if (cifs_sb->mnt_cifs_flags & CIFS_MOUNT_NO_PERM)
 		attrs->ia_valid |= ATTR_FORCE;
 
-	rc = setattr_prepare(direntry, attrs);
+	rc = setattr_prepare(&init_user_ns, direntry, attrs);
 	if (rc < 0)
 		goto out;
 
@@ -2715,7 +2715,7 @@ cifs_setattr_unix(struct dentry *direntry, struct iattr *attrs)
 	    attrs->ia_size != i_size_read(inode))
 		truncate_setsize(inode, attrs->ia_size);
 
-	setattr_copy(inode, attrs);
+	setattr_copy(&init_user_ns, inode, attrs);
 	mark_inode_dirty(inode);
 
 	/* force revalidate when any of these times are set since some
@@ -2757,7 +2757,7 @@ cifs_setattr_nounix(struct dentry *direntry, struct iattr *attrs)
 	if (cifs_sb->mnt_cifs_flags & CIFS_MOUNT_NO_PERM)
 		attrs->ia_valid |= ATTR_FORCE;
 
-	rc = setattr_prepare(direntry, attrs);
+	rc = setattr_prepare(&init_user_ns, direntry, attrs);
 	if (rc < 0) {
 		free_xid(xid);
 		return rc;
@@ -2913,7 +2913,7 @@ cifs_setattr_nounix(struct dentry *direntry, struct iattr *attrs)
 	    attrs->ia_size != i_size_read(inode))
 		truncate_setsize(inode, attrs->ia_size);
 
-	setattr_copy(inode, attrs);
+	setattr_copy(&init_user_ns, inode, attrs);
 	mark_inode_dirty(inode);
 
 cifs_setattr_exit:

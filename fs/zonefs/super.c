@@ -488,7 +488,7 @@ static int zonefs_inode_setattr(struct dentry *dentry, struct iattr *iattr)
 	if (unlikely(IS_IMMUTABLE(inode)))
 		return -EPERM;
 
-	ret = setattr_prepare(dentry, iattr);
+	ret = setattr_prepare(&init_user_ns, dentry, iattr);
 	if (ret)
 		return ret;
 
@@ -516,7 +516,7 @@ static int zonefs_inode_setattr(struct dentry *dentry, struct iattr *iattr)
 			return ret;
 	}
 
-	setattr_copy(inode, iattr);
+	setattr_copy(&init_user_ns, inode, iattr);
 
 	return 0;
 }

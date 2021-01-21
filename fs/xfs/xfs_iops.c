@@ -637,7 +637,7 @@ xfs_vn_change_ok(
 	if (XFS_FORCED_SHUTDOWN(mp))
 		return -EIO;
 
-	return setattr_prepare(dentry, iattr);
+	return setattr_prepare(&init_user_ns, dentry, iattr);
 }
 
 /*

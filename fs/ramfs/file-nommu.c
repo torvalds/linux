@@ -165,7 +165,7 @@ static int ramfs_nommu_setattr(struct dentry *dentry, struct iattr *ia)
 	int ret = 0;
 
 	/* POSIX UID/GID verification for setting inode attributes */
-	ret = setattr_prepare(dentry, ia);
+	ret = setattr_prepare(&init_user_ns, dentry, ia);
 	if (ret)
 		return ret;
 
@@ -185,7 +185,7 @@ static int ramfs_nommu_setattr(struct dentry *dentry, struct iattr *ia)
 		}
 	}
 
-	setattr_copy(inode, ia);
+	setattr_copy(&init_user_ns, inode, ia);
  out:
 	ia->ia_valid = old_ia_valid;
 	return ret;

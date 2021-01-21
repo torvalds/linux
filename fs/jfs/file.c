@@ -90,7 +90,7 @@ int jfs_setattr(struct dentry *dentry, struct iattr *iattr)
 	struct inode *inode = d_inode(dentry);
 	int rc;
 
-	rc = setattr_prepare(dentry, iattr);
+	rc = setattr_prepare(&init_user_ns, dentry, iattr);
 	if (rc)
 		return rc;
 
@@ -118,7 +118,7 @@ int jfs_setattr(struct dentry *dentry, struct iattr *iattr)
 		jfs_truncate(inode);
 	}
 
-	setattr_copy(inode, iattr);
+	setattr_copy(&init_user_ns, inode, iattr);
 	mark_inode_dirty(inode);
 
 	if (iattr->ia_valid & ATTR_MODE)
