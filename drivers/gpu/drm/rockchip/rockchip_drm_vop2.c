@@ -4121,6 +4121,8 @@ static void vop2_setup_dly_for_window(struct vop2_video_port *vp, const struct v
 			dly = win->dly[VOP2_DLY_MODE_HIHO_H];
 		else
 			dly = win->dly[VOP2_DLY_MODE_DEFAULT];
+		if (vop2_cluster_window(win))
+			dly |= dly << 8;
 
 		VOP_CTRL_SET(vop2, win_dly[win->phys_id], dly);
 	}
