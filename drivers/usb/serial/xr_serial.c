@@ -451,8 +451,7 @@ static void xr_set_termios(struct tty_struct *tty,
 	u8 bits = 0;
 	int ret;
 
-	if ((old_termios && tty->termios.c_ospeed != old_termios->c_ospeed) ||
-	    !old_termios)
+	if (!old_termios || (tty->termios.c_ospeed != old_termios->c_ospeed))
 		xr_set_baudrate(tty, port);
 
 	switch (C_CSIZE(tty)) {
