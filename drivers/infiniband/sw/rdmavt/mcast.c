@@ -180,7 +180,7 @@ struct rvt_mcast *rvt_mcast_find(struct rvt_ibport *ibp, union ib_gid *mgid,
 }
 EXPORT_SYMBOL(rvt_mcast_find);
 
-/**
+/*
  * rvt_mcast_add - insert mcast GID into table and attach QP struct
  * @mcast: the mcast GID table
  * @mqp: the QP to attach
