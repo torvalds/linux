@@ -1828,6 +1828,9 @@ setup_metrics:
 		}
 		if (evlist__add_default_attrs(evsel_list, default_attrs1) < 0)
 			return -1;
+
+		if (arch_evlist__add_default_attrs(evsel_list) < 0)
+			return -1;
 	}
 
 	/* Detailed events get appended to the event list: */
