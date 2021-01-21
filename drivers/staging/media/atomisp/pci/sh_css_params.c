@@ -1575,8 +1575,7 @@ ia_css_isp_3a_statistics_map_allocate(
 	return me;
 
 err:
-	if (me)
-		kvfree(me);
+	kvfree(me);
 	return NULL;
 }
 
@@ -3006,8 +3005,7 @@ ia_css_stream_isp_parameters_uninit(struct ia_css_stream *stream)
 	}
 
 	kvfree(params);
-	if (per_frame_params)
-		kvfree(per_frame_params);
+	kvfree(per_frame_params);
 	stream->isp_params_configs = NULL;
 	stream->per_frame_isp_params_configs = NULL;
 
