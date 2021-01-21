@@ -2514,7 +2514,7 @@ static int qib_7322_bringup_serdes(struct qib_pportdata *ppd)
 
 /**
  * qib_7322_quiet_serdes - set serdes to txidle
- * @dd: the qlogic_ib device
+ * @ppd: the qlogic_ib device
  * Called when driver is being unloaded
  */
 static void qib_7322_mini_quiet_serdes(struct qib_pportdata *ppd)
@@ -3760,7 +3760,7 @@ bail:
  * qib_7322_put_tid - write a TID to the chip
  * @dd: the qlogic_ib device
  * @tidptr: pointer to the expected TID (in chip) to update
- * @tidtype: 0 for eager, 1 for expected
+ * @type: 0 for eager, 1 for expected
  * @pa: physical address of in memory buffer; tidinvalid if freeing
  */
 static void qib_7322_put_tid(struct qib_devdata *dd, u64 __iomem *tidptr,
@@ -3796,7 +3796,7 @@ static void qib_7322_put_tid(struct qib_devdata *dd, u64 __iomem *tidptr,
 /**
  * qib_7322_clear_tids - clear all TID entries for a ctxt, expected and eager
  * @dd: the qlogic_ib device
- * @ctxt: the ctxt
+ * @rcd: the ctxt
  *
  * clear all TID entries for a ctxt, expected and eager.
  * Used from qib_close().
@@ -3861,7 +3861,7 @@ static void qib_7322_tidtemplate(struct qib_devdata *dd)
 /**
  * qib_init_7322_get_base_info - set chip-specific flags for user code
  * @rcd: the qlogic_ib ctxt
- * @kbase: qib_base_info pointer
+ * @kinfo: qib_base_info pointer
  *
  * We set the PCIE flag because the lower bandwidth on PCIe vs
  * HyperTransport can affect some user packet algorithims.
@@ -4724,7 +4724,7 @@ static void sendctrl_7322_mod(struct qib_pportdata *ppd, u32 op)
 /**
  * qib_portcntr_7322 - read a per-port chip counter
  * @ppd: the qlogic_ib pport
- * @creg: the counter to read (not a chip offset)
+ * @reg: the counter to read (not a chip offset)
  */
 static u64 qib_portcntr_7322(struct qib_pportdata *ppd, u32 reg)
 {
@@ -5096,7 +5096,7 @@ done:
 
 /**
  * qib_get_7322_faststats - get word counters from chip before they overflow
- * @opaque - contains a pointer to the qlogic_ib device qib_devdata
+ * @t: contains a pointer to the qlogic_ib device qib_devdata
  *
  * VESTIGIAL IBA7322 has no "small fast counters", so the only
  * real purpose of this function is to maintain the notion of
@@ -7175,7 +7175,7 @@ static int qib_7322_tempsense_rd(struct qib_devdata *dd, int regnum)
 
 /**
  * qib_init_iba7322_funcs - set up the chip-specific function pointers
- * @dev: the pci_dev for qlogic_ib device
+ * @pdev: the pci_dev for qlogic_ib device
  * @ent: pci_device_id struct for this dev
  *
  * Also allocates, inits, and returns the devdata struct for this
