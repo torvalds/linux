@@ -981,11 +981,11 @@ static int stm32_usart_init_port(struct stm32_port *stm32port,
 {
 	struct uart_port *port = &stm32port->port;
 	struct resource *res;
-	int ret;
+	int ret, irq;
 
-	ret = platform_get_irq(pdev, 0);
-	if (ret <= 0)
-		return ret ? : -ENODEV;
+	irq = platform_get_irq(pdev, 0);
+	if (irq <= 0)
+		return irq ? : -ENODEV;
 
 	port->iotype	= UPIO_MEM;
 	port->flags	= UPF_BOOT_AUTOCONF;
@@ -993,7 +993,7 @@ static int stm32_usart_init_port(struct stm32_port *stm32port,
 	port->dev	= &pdev->dev;
 	port->fifosize	= stm32port->info->cfg.fifosize;
 	port->has_sysrq = IS_ENABLED(CONFIG_SERIAL_STM32_CONSOLE);
-	port->irq = ret;
+	port->irq = irq;
 	port->rs485_config = stm32_usart_config_rs485;
 
 	ret = stm32_usart_init_rs485(port, pdev);
