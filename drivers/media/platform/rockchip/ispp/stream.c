@@ -2672,8 +2672,6 @@ static void tnr_work_event(struct rkispp_device *dev,
 	bool is_3to1 = vdev->tnr.is_3to1, is_start = false, is_skip = false;
 	bool is_en = rkispp_read(dev, RKISPP_TNR_CORE_CTRL) & SW_TNR_EN;
 	struct rkisp_ispp_reg *reg_buf;
-	u32 *vaddr, buf_size;
-	u64 pic_ts, gain_ts;
 
 	if (!(vdev->module_ens & ISPP_MODULE_TNR) ||
 	    (dev->inp == INP_ISP && dev->isp_mode & ISP_ISPP_QUICK))
@@ -2799,43 +2797,21 @@ static void tnr_work_event(struct rkispp_device *dev,
 		} else {
 			buf = get_pool_buf(dev, vdev->tnr.cur_rd);
 			val = buf->dma[GROUP_BUF_PIC];
-			vaddr = (u32 *)buf->vaddr[GROUP_BUF_PIC];
-			buf_size = buf->dbufs->dbuf[GROUP_BUF_PIC]->size;
-			pic_ts = *(u64 *)(vaddr + buf_size / 4 - 2);
 			rkispp_write(dev, RKISPP_TNR_CUR_Y_BASE, val);
 			val += vdev->tnr.uv_offset;
 			rkispp_write(dev, RKISPP_TNR_CUR_UV_BASE, val);
 
 			val = buf->dma[GROUP_BUF_GAIN];
-			vaddr = (u32 *)buf->vaddr[GROUP_BUF_GAIN];
-			buf_size = buf->dbufs->dbuf[GROUP_BUF_GAIN]->size;
-			gain_ts = *(u64 *)(vaddr + buf_size / 4 - 2);
-			if (abs(pic_ts - gain_ts) > 5000000LL) {
-				v4l2_info(&dev->v4l2_dev,
-					"%s: frame %d, timestamp is not match (pic_ts %lld, gain_ts %lld)",
-					__func__, vdev->tnr.nxt_rd->frame_id, pic_ts, gain_ts);
-			}
 			rkispp_write(dev, RKISPP_TNR_GAIN_CUR_Y_BASE, val);
 			if (is_3to1) {
 				buf = get_pool_buf(dev, vdev->tnr.nxt_rd);
 				val = buf->dma[GROUP_BUF_PIC];
-				vaddr = (u32 *)buf->vaddr[GROUP_BUF_PIC];
-				buf_size = buf->dbufs->dbuf[GROUP_BUF_PIC]->size;
-				pic_ts = *(u64 *)(vaddr + buf_size / 4 - 2);
 				rkispp_write(dev, RKISPP_TNR_NXT_Y_BASE, val);
 				val += vdev->tnr.uv_offset;
 				rkispp_write(dev, RKISPP_TNR_NXT_UV_BASE, val);
 
 				val = buf->dma[GROUP_BUF_GAIN];
 				rkispp_write(dev, RKISPP_TNR_GAIN_NXT_Y_BASE, val);
-				vaddr = (u32 *)buf->vaddr[GROUP_BUF_GAIN];
-				buf_size = buf->dbufs->dbuf[GROUP_BUF_GAIN]->size;
-				gain_ts = *(u64 *)(vaddr + buf_size / 4 - 2);
-				if (abs(pic_ts - gain_ts) > 5000000LL) {
-					v4l2_info(&dev->v4l2_dev,
-						"%s: frame %d, timestamp is not match (pic_ts %lld, gain_ts %lld)",
-						__func__, vdev->tnr.nxt_rd->frame_id, pic_ts, gain_ts);
-				}
 
 				if (rkispp_read(dev, RKISPP_TNR_CTRL) & SW_TNR_1ST_FRM)
 					vdev->tnr.cur_rd = NULL;
