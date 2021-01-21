@@ -705,6 +705,7 @@ static int udf_check_vsd(struct super_block *sb)
 	struct buffer_head *bh = NULL;
 	int nsr = 0;
 	struct udf_sb_info *sbi;
+	loff_t session_offset;
 
 	sbi = UDF_SB(sb);
 	if (sb->s_blocksize < sizeof(struct volStructDesc))
@@ -712,7 +713,8 @@ static int udf_check_vsd(struct super_block *sb)
 	else
 		sectorsize = sb->s_blocksize;
 
-	sector += (((loff_t)sbi->s_session) << sb->s_blocksize_bits);
+	session_offset = (loff_t)sbi->s_session << sb->s_blocksize_bits;
+	sector += session_offset;
 
 	udf_debug("Starting at sector %u (%lu byte sectors)\n",
 		  (unsigned int)(sector >> sb->s_blocksize_bits),
@@ -757,8 +759,7 @@ static int udf_check_vsd(struct super_block *sb)
 
 	if (nsr > 0)
 		return 1;
-	else if (!bh && sector - (sbi->s_session << sb->s_blocksize_bits) ==
-			VSD_FIRST_SECTOR_OFFSET)
+	else if (!bh && sector - session_offset == VSD_FIRST_SECTOR_OFFSET)
 		return -1;
 	else
 		return 0;
