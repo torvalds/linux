@@ -271,6 +271,8 @@ struct stat {
 #define WEXITSTATUS(status)   (((status) & 0xff00) >> 8)
 #define WIFEXITED(status)     (((status) & 0x7f) == 0)
 
+/* for SIGCHLD */
+#include <asm/signal.h>
 
 /* Below comes the architecture-specific code. For each architecture, we have
  * the syscall declarations and the _start code definition. This is the only
@@ -1529,7 +1531,15 @@ int sys_execve(const char *filename, char *const argv[], char *const envp[])
 static __attribute__((unused))
 pid_t sys_fork(void)
 {
+#ifdef __NR_clone
+	/* note: some archs only have clone() and not fork(). Different archs
+	 * have a different API, but most archs have the flags on first arg and
+	 * will not use the rest with no other flag.
+	 */
+	return my_syscall5(__NR_clone, SIGCHLD, 0, 0, 0, 0);
+#else
 	return my_syscall0(__NR_fork);
+#endif
 }
 
 static __attribute__((unused))
