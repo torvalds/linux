@@ -272,7 +272,7 @@ static void gsi_irq_ch_ctrl_disable(struct gsi *gsi)
 	iowrite32(0, gsi->virt + GSI_CNTXT_SRC_CH_IRQ_MSK_OFFSET);
 }
 
-static void gsi_irq_ieob_enable(struct gsi *gsi, u32 evt_ring_id)
+static void gsi_irq_ieob_enable_one(struct gsi *gsi, u32 evt_ring_id)
 {
 	bool enable_ieob = !gsi->ieob_enabled_bitmap;
 	u32 val;
@@ -286,11 +286,11 @@ static void gsi_irq_ieob_enable(struct gsi *gsi, u32 evt_ring_id)
 		gsi_irq_type_enable(gsi, GSI_IEOB);
 }
 
-static void gsi_irq_ieob_disable(struct gsi *gsi, u32 evt_ring_id)
+static void gsi_irq_ieob_disable(struct gsi *gsi, u32 event_mask)
 {
 	u32 val;
 
-	gsi->ieob_enabled_bitmap &= ~BIT(evt_ring_id);
+	gsi->ieob_enabled_bitmap &= ~event_mask;
 
 	/* Disable the interrupt type if this was the last enabled channel */
 	if (!gsi->ieob_enabled_bitmap)
@@ -298,6 +298,11 @@ static void gsi_irq_ieob_disable(struct gsi *gsi, u32 evt_ring_id)
 
 	val = gsi->ieob_enabled_bitmap;
 	iowrite32(val, gsi->virt + GSI_CNTXT_SRC_IEOB_IRQ_MSK_OFFSET);
+}
+
+static void gsi_irq_ieob_disable_one(struct gsi *gsi, u32 evt_ring_id)
+{
+	gsi_irq_ieob_disable(gsi, BIT(evt_ring_id));
 }
 
 /* Enable all GSI_interrupt types */
@@ -766,13 +771,13 @@ static void gsi_channel_freeze(struct gsi_channel *channel)
 
 	napi_disable(&channel->napi);
 
-	gsi_irq_ieob_disable(channel->gsi, channel->evt_ring_id);
+	gsi_irq_ieob_disable_one(channel->gsi, channel->evt_ring_id);
 }
 
 /* Allow transactions to be used on the channel again. */
 static void gsi_channel_thaw(struct gsi_channel *channel)
 {
-	gsi_irq_ieob_enable(channel->gsi, channel->evt_ring_id);
+	gsi_irq_ieob_enable_one(channel->gsi, channel->evt_ring_id);
 
 	napi_enable(&channel->napi);
 }
@@ -1207,7 +1212,7 @@ static void gsi_isr_ieob(struct gsi *gsi)
 
 		event_mask ^= BIT(evt_ring_id);
 
-		gsi_irq_ieob_disable(gsi, evt_ring_id);
+		gsi_irq_ieob_disable_one(gsi, evt_ring_id);
 		napi_schedule(&gsi->evt_ring[evt_ring_id].channel->napi);
 	}
 }
@@ -1555,7 +1560,7 @@ static int gsi_channel_poll(struct napi_struct *napi, int budget)
 	}
 
 	if (count < budget && napi_complete(napi))
-		gsi_irq_ieob_enable(channel->gsi, channel->evt_ring_id);
+		gsi_irq_ieob_enable_one(channel->gsi, channel->evt_ring_id);
 
 	return count;
 }
