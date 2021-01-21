@@ -369,7 +369,7 @@ qla_dfs_tgt_counters_show(struct seq_file *s, void *unused)
 	seq_puts(s, "\n");
 
 	list_for_each_entry(fcport, &vha->vp_fcports, list) {
-		if (!fcport || !fcport->rport)
+		if (!fcport->rport)
 			continue;
 
 		seq_printf(s, "Target Num = %7d Link Down Count = %14lld\n",
