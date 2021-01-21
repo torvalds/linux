@@ -185,6 +185,9 @@ EBU Armada family ARMv8
   Product Brief:
 	http://www.marvell.com/embedded-processors/assets/PB-88F3700-FNL.pdf
 
+  Hardware Spec:
+	http://www.marvell.com/content/dam/marvell/en/public-collateral/embedded-processors/marvell-embedded-processors-armada-37xx-hardware-specifications-2019-09.pdf
+
   Device tree files:
 	arch/arm64/boot/dts/marvell/armada-37*
 
