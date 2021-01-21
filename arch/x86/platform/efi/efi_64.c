@@ -850,7 +850,7 @@ efi_set_virtual_address_map(unsigned long memory_map_size,
 							 virtual_map);
 	efi_switch_mm(&efi_mm);
 
-	kernel_fpu_begin();
+	efi_fpu_begin();
 
 	/* Disable interrupts around EFI calls: */
 	local_irq_save(flags);
@@ -859,7 +859,7 @@ efi_set_virtual_address_map(unsigned long memory_map_size,
 			  descriptor_version, virtual_map);
 	local_irq_restore(flags);
 
-	kernel_fpu_end();
+	efi_fpu_end();
 
 	/* grab the virtually remapped EFI runtime services table pointer */
 	efi.runtime = READ_ONCE(systab->runtime);
