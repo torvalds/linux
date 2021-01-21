@@ -140,6 +140,7 @@ struct rk_pcie_of_data {
 };
 
 #define to_rk_pcie(x)	dev_get_drvdata((x)->dev)
+static const struct dev_pm_ops rockchip_dw_pcie_pm_ops;
 
 static int rk_pcie_read(void __iomem *addr, int size, u32 *val)
 {
@@ -1114,6 +1115,7 @@ static int rk_pcie_really_probe(void *p)
 	const struct rk_pcie_of_data *data;
 	enum rk_pcie_device_mode mode;
 	struct device_node *np = pdev->dev.of_node;
+	struct platform_driver *drv = to_platform_driver(dev->driver);
 	u32 val;
 
 	match = of_match_device(rk_pcie_of_match, dev);
@@ -1253,6 +1255,7 @@ static int rk_pcie_really_probe(void *p)
 	dw_pcie_dbi_ro_wr_dis(pci);
 
 	device_init_wakeup(dev, true);
+	drv->driver.pm = &rockchip_dw_pcie_pm_ops;
 
 	return 0;
 
@@ -1403,7 +1406,6 @@ static struct platform_driver rk_plat_pcie_driver = {
 		.name	= "rk-pcie",
 		.of_match_table = rk_pcie_of_match,
 		.suppress_bind_attrs = true,
-		.pm = &rockchip_dw_pcie_pm_ops,
 	},
 };
 
