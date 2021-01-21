@@ -1691,7 +1691,7 @@ int ext2_setattr(struct dentry *dentry, struct iattr *iattr)
 	}
 	setattr_copy(&init_user_ns, inode, iattr);
 	if (iattr->ia_valid & ATTR_MODE)
-		error = posix_acl_chmod(inode, inode->i_mode);
+		error = posix_acl_chmod(&init_user_ns, inode, inode->i_mode);
 	mark_inode_dirty(inode);
 
 	return error;

@@ -1143,7 +1143,7 @@ static int shmem_setattr(struct dentry *dentry, struct iattr *attr)
 
 	setattr_copy(&init_user_ns, inode, attr);
 	if (attr->ia_valid & ATTR_MODE)
-		error = posix_acl_chmod(inode, inode->i_mode);
+		error = posix_acl_chmod(&init_user_ns, inode, inode->i_mode);
 	return error;
 }
 
@@ -3273,6 +3273,7 @@ static int shmem_xattr_handler_get(const struct xattr_handler *handler,
 }
 
 static int shmem_xattr_handler_set(const struct xattr_handler *handler,
+				   struct user_namespace *mnt_userns,
 				   struct dentry *unused, struct inode *inode,
 				   const char *name, const void *value,
 				   size_t size, int flags)

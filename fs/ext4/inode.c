@@ -5524,7 +5524,7 @@ out_mmap_sem:
 		ext4_orphan_del(NULL, inode);
 
 	if (!error && (ia_valid & ATTR_MODE))
-		rc = posix_acl_chmod(inode, inode->i_mode);
+		rc = posix_acl_chmod(&init_user_ns, inode, inode->i_mode);
 
 err_out:
 	if  (error)

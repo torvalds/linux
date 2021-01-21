@@ -132,7 +132,8 @@ int orangefs_set_acl(struct inode *inode, struct posix_acl *acl, int type)
 		 * and "mode" to the new desired value. It is up to
 		 * us to propagate the new mode back to the server...
 		 */
-		error = posix_acl_update_mode(inode, &iattr.ia_mode, &acl);
+		error = posix_acl_update_mode(&init_user_ns, inode,
+					      &iattr.ia_mode, &acl);
 		if (error) {
 			gossip_err("%s: posix_acl_update_mode err: %d\n",
 				   __func__,

@@ -980,6 +980,7 @@ ovl_posix_acl_xattr_get(const struct xattr_handler *handler,
 
 static int __maybe_unused
 ovl_posix_acl_xattr_set(const struct xattr_handler *handler,
+			struct user_namespace *mnt_userns,
 			struct dentry *dentry, struct inode *inode,
 			const char *name, const void *value,
 			size_t size, int flags)
@@ -1044,6 +1045,7 @@ static int ovl_own_xattr_get(const struct xattr_handler *handler,
 }
 
 static int ovl_own_xattr_set(const struct xattr_handler *handler,
+			     struct user_namespace *mnt_userns,
 			     struct dentry *dentry, struct inode *inode,
 			     const char *name, const void *value,
 			     size_t size, int flags)
@@ -1059,6 +1061,7 @@ static int ovl_other_xattr_get(const struct xattr_handler *handler,
 }
 
 static int ovl_other_xattr_set(const struct xattr_handler *handler,
+			       struct user_namespace *mnt_userns,
 			       struct dentry *dentry, struct inode *inode,
 			       const char *name, const void *value,
 			       size_t size, int flags)

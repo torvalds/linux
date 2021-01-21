@@ -239,6 +239,7 @@ static int v9fs_xattr_get_acl(const struct xattr_handler *handler,
 }
 
 static int v9fs_xattr_set_acl(const struct xattr_handler *handler,
+			      struct user_namespace *mnt_userns,
 			      struct dentry *dentry, struct inode *inode,
 			      const char *name, const void *value,
 			      size_t size, int flags)
@@ -279,7 +280,8 @@ static int v9fs_xattr_set_acl(const struct xattr_handler *handler,
 			struct iattr iattr = { 0 };
 			struct posix_acl *old_acl = acl;
 
-			retval = posix_acl_update_mode(inode, &iattr.ia_mode, &acl);
+			retval = posix_acl_update_mode(mnt_userns, inode,
+						       &iattr.ia_mode, &acl);
 			if (retval)
 				goto err_out;
 			if (!acl) {

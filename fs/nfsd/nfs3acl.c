@@ -103,10 +103,12 @@ static __be32 nfsd3_proc_setacl(struct svc_rqst *rqstp)
 
 	fh_lock(fh);
 
-	error = set_posix_acl(inode, ACL_TYPE_ACCESS, argp->acl_access);
+	error = set_posix_acl(&init_user_ns, inode, ACL_TYPE_ACCESS,
+			      argp->acl_access);
 	if (error)
 		goto out_drop_lock;
-	error = set_posix_acl(inode, ACL_TYPE_DEFAULT, argp->acl_default);
+	error = set_posix_acl(&init_user_ns, inode, ACL_TYPE_DEFAULT,
+			      argp->acl_default);
 
 out_drop_lock:
 	fh_unlock(fh);

@@ -2262,7 +2262,7 @@ int ceph_setattr(struct dentry *dentry, struct iattr *attr)
 	err = __ceph_setattr(inode, attr);
 
 	if (err >= 0 && (attr->ia_valid & ATTR_MODE))
-		err = posix_acl_chmod(inode, attr->ia_mode);
+		err = posix_acl_chmod(&init_user_ns, inode, attr->ia_mode);
 
 	return err;
 }

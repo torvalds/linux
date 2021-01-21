@@ -861,7 +861,7 @@ again:
 
 	if (iattr->ia_valid & ATTR_MODE)
 		/* change mod on a file that has ACLs */
-		ret = posix_acl_chmod(inode, inode->i_mode);
+		ret = posix_acl_chmod(&init_user_ns, inode, inode->i_mode);
 
 	ret = 0;
 out:

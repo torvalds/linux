@@ -223,7 +223,8 @@ ext2_set_acl(struct inode *inode, struct posix_acl *acl, int type)
 	umode_t mode = inode->i_mode;
 
 	if (type == ACL_TYPE_ACCESS && acl) {
-		error = posix_acl_update_mode(inode, &mode, &acl);
+		error = posix_acl_update_mode(&init_user_ns, inode, &mode,
+					      &acl);
 		if (error)
 			return error;
 		update_mode = 1;

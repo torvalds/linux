@@ -450,16 +450,33 @@ int cap_inode_getsecurity(struct inode *inode, const char *name, void **buffer,
 	return size;
 }
 
+/**
+ * rootid_from_xattr - translate root uid of vfs caps
+ *
+ * @value:	vfs caps value which may be modified by this function
+ * @size:	size of @ivalue
+ * @task_ns:	user namespace of the caller
+ * @mnt_userns:	user namespace of the mount the inode was found from
+ *
+ * If the inode has been found through an idmapped mount the user namespace of
+ * the vfsmount must be passed through @mnt_userns. This function will then
+ * take care to map the inode according to @mnt_userns before checking
+ * permissions. On non-idmapped mounts or if permission checking is to be
+ * performed on the raw inode simply passs init_user_ns.
+ */
 static kuid_t rootid_from_xattr(const void *value, size_t size,
-				struct user_namespace *task_ns)
+				struct user_namespace *task_ns,
+				struct user_namespace *mnt_userns)
 {
 	const struct vfs_ns_cap_data *nscap = value;
+	kuid_t rootkid;
 	uid_t rootid = 0;
 
 	if (size == XATTR_CAPS_SZ_3)
 		rootid = le32_to_cpu(nscap->rootid);
 
-	return make_kuid(task_ns, rootid);
+	rootkid = make_kuid(task_ns, rootid);
+	return kuid_from_mnt(mnt_userns, rootkid);
 }
 
 static bool validheader(size_t size, const struct vfs_cap_data *cap)
@@ -467,13 +484,27 @@ static bool validheader(size_t size, const struct vfs_cap_data *cap)
 	return is_v2header(size, cap) || is_v3header(size, cap);
 }
 
-/*
+/**
+ * cap_convert_nscap - check vfs caps
+ *
+ * @mnt_userns:	user namespace of the mount the inode was found from
+ * @dentry:	used to retrieve inode to check permissions on
+ * @ivalue:	vfs caps value which may be modified by this function
+ * @size:	size of @ivalue
+ *
  * User requested a write of security.capability.  If needed, update the
  * xattr to change from v2 to v3, or to fixup the v3 rootid.
  *
+ * If the inode has been found through an idmapped mount the user namespace of
+ * the vfsmount must be passed through @mnt_userns. This function will then
+ * take care to map the inode according to @mnt_userns before checking
+ * permissions. On non-idmapped mounts or if permission checking is to be
+ * performed on the raw inode simply passs init_user_ns.
+ *
  * If all is ok, we return the new size, on error return < 0.
  */
-int cap_convert_nscap(struct dentry *dentry, const void **ivalue, size_t size)
+int cap_convert_nscap(struct user_namespace *mnt_userns, struct dentry *dentry,
+		      const void **ivalue, size_t size)
 {
 	struct vfs_ns_cap_data *nscap;
 	uid_t nsrootid;
@@ -489,14 +520,14 @@ int cap_convert_nscap(struct dentry *dentry, const void **ivalue, size_t size)
 		return -EINVAL;
 	if (!validheader(size, cap))
 		return -EINVAL;
-	if (!capable_wrt_inode_uidgid(&init_user_ns, inode, CAP_SETFCAP))
+	if (!capable_wrt_inode_uidgid(mnt_userns, inode, CAP_SETFCAP))
 		return -EPERM;
-	if (size == XATTR_CAPS_SZ_2)
+	if (size == XATTR_CAPS_SZ_2 && (mnt_userns == &init_user_ns))
 		if (ns_capable(inode->i_sb->s_user_ns, CAP_SETFCAP))
 			/* user is privileged, just write the v2 */
 			return size;
 
-	rootid = rootid_from_xattr(*ivalue, size, task_ns);
+	rootid = rootid_from_xattr(*ivalue, size, task_ns, mnt_userns);
 	if (!uid_valid(rootid))
 		return -EINVAL;
 

@@ -831,8 +831,8 @@ int f2fs_getattr(const struct path *path, struct kstat *stat,
 }
 
 #ifdef CONFIG_F2FS_FS_POSIX_ACL
-static void __setattr_copy(struct user_namespace *mnt_userns, struct inode *inode,
-			   const struct iattr *attr)
+static void __setattr_copy(struct user_namespace *mnt_userns,
+			   struct inode *inode, const struct iattr *attr)
 {
 	unsigned int ia_valid = attr->ia_valid;
 
@@ -950,7 +950,8 @@ int f2fs_setattr(struct dentry *dentry, struct iattr *attr)
 	__setattr_copy(&init_user_ns, inode, attr);
 
 	if (attr->ia_valid & ATTR_MODE) {
-		err = posix_acl_chmod(inode, f2fs_get_inode_mode(inode));
+		err = posix_acl_chmod(&init_user_ns, inode,
+				      f2fs_get_inode_mode(inode));
 		if (err || is_inode_flag_set(inode, FI_ACL_MODE)) {
 			inode->i_mode = F2FS_I(inode)->i_acl_mode;
 			clear_inode_flag(inode, FI_ACL_MODE);

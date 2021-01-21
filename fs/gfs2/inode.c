@@ -1993,7 +1993,8 @@ static int gfs2_setattr(struct dentry *dentry, struct iattr *attr)
 	else {
 		error = gfs2_setattr_simple(inode, attr);
 		if (!error && attr->ia_valid & ATTR_MODE)
-			error = posix_acl_chmod(inode, inode->i_mode);
+			error = posix_acl_chmod(&init_user_ns, inode,
+						inode->i_mode);
 	}
 
 error:
