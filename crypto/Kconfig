@@ -1009,19 +1009,6 @@ config CRYPTO_STREEBOG
 	  https://tc26.ru/upload/iblock/fed/feddbb4d26b685903faa2ba11aea43f6.pdf
 	  https://tools.ietf.org/html/rfc6986
 
-config CRYPTO_TGR192
-	tristate "Tiger digest algorithms"
-	select CRYPTO_HASH
-	help
-	  Tiger hash algorithm 192, 160 and 128-bit hashes
-
-	  Tiger is a hash function optimized for 64-bit processors while
-	  still having decent performance on 32-bit processors.
-	  Tiger was developed by Ross Anderson and Eli Biham.
-
-	  See also:
-	  <https://www.cs.technion.ac.il/~biham/Reports/Tiger/>.
-
 config CRYPTO_WP512
 	tristate "Whirlpool digest algorithms"
 	select CRYPTO_HASH

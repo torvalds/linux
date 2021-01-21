@@ -1815,18 +1815,6 @@ static int do_test(const char *alg, u32 type, u32 mask, int m, u32 num_mb)
 		ret += tcrypt_test("cbc(anubis)");
 		break;
 
-	case 27:
-		ret += tcrypt_test("tgr192");
-		break;
-
-	case 28:
-		ret += tcrypt_test("tgr160");
-		break;
-
-	case 29:
-		ret += tcrypt_test("tgr128");
-		break;
-
 	case 30:
 		ret += tcrypt_test("ecb(xeta)");
 		break;
@@ -2377,18 +2365,6 @@ static int do_test(const char *alg, u32 type, u32 mask, int m, u32 num_mb)
 		test_hash_speed("wp512", sec, generic_hash_speed_template);
 		if (mode > 300 && mode < 400) break;
 		fallthrough;
-	case 310:
-		test_hash_speed("tgr128", sec, generic_hash_speed_template);
-		if (mode > 300 && mode < 400) break;
-		fallthrough;
-	case 311:
-		test_hash_speed("tgr160", sec, generic_hash_speed_template);
-		if (mode > 300 && mode < 400) break;
-		fallthrough;
-	case 312:
-		test_hash_speed("tgr192", sec, generic_hash_speed_template);
-		if (mode > 300 && mode < 400) break;
-		fallthrough;
 	case 313:
 		test_hash_speed("sha224", sec, generic_hash_speed_template);
 		if (mode > 300 && mode < 400) break;
@@ -2487,18 +2463,6 @@ static int do_test(const char *alg, u32 type, u32 mask, int m, u32 num_mb)
 		fallthrough;
 	case 409:
 		test_ahash_speed("wp512", sec, generic_hash_speed_template);
-		if (mode > 400 && mode < 500) break;
-		fallthrough;
-	case 410:
-		test_ahash_speed("tgr128", sec, generic_hash_speed_template);
-		if (mode > 400 && mode < 500) break;
-		fallthrough;
-	case 411:
-		test_ahash_speed("tgr160", sec, generic_hash_speed_template);
-		if (mode > 400 && mode < 500) break;
-		fallthrough;
-	case 412:
-		test_ahash_speed("tgr192", sec, generic_hash_speed_template);
 		if (mode > 400 && mode < 500) break;
 		fallthrough;
 	case 413:
