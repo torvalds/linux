@@ -480,7 +480,8 @@ unlock:
 	return ret;
 }
 
-static int zonefs_inode_setattr(struct dentry *dentry, struct iattr *iattr)
+static int zonefs_inode_setattr(struct user_namespace *mnt_userns,
+				struct dentry *dentry, struct iattr *iattr)
 {
 	struct inode *inode = d_inode(dentry);
 	int ret;

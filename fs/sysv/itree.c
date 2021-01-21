@@ -441,8 +441,8 @@ static unsigned sysv_nblocks(struct super_block *s, loff_t size)
 	return blocks;
 }
 
-int sysv_getattr(const struct path *path, struct kstat *stat,
-		 u32 request_mask, unsigned int flags)
+int sysv_getattr(struct user_namespace *mnt_userns, const struct path *path,
+		 struct kstat *stat, u32 request_mask, unsigned int flags)
 {
 	struct super_block *s = path->dentry->d_sb;
 	generic_fillattr(&init_user_ns, d_inode(path->dentry), stat);

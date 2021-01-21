@@ -289,7 +289,8 @@ static struct dentry *proc_tgid_net_lookup(struct inode *dir,
 	return de;
 }
 
-static int proc_tgid_net_getattr(const struct path *path, struct kstat *stat,
+static int proc_tgid_net_getattr(struct user_namespace *mnt_userns,
+				 const struct path *path, struct kstat *stat,
 				 u32 request_mask, unsigned int query_flags)
 {
 	struct inode *inode = d_inode(path->dentry);

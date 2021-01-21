@@ -594,8 +594,8 @@ out_unlock:
 	return error;
 }
 
-static int mqueue_create(struct inode *dir, struct dentry *dentry,
-				umode_t mode, bool excl)
+static int mqueue_create(struct user_namespace *mnt_userns, struct inode *dir,
+			 struct dentry *dentry, umode_t mode, bool excl)
 {
 	return mqueue_create_attr(dentry, mode, NULL);
 }

@@ -751,7 +751,8 @@ out:
 	return error;
 }
 
-static int hugetlbfs_setattr(struct dentry *dentry, struct iattr *attr)
+static int hugetlbfs_setattr(struct user_namespace *mnt_userns,
+			     struct dentry *dentry, struct iattr *attr)
 {
 	struct inode *inode = d_inode(dentry);
 	struct hstate *h = hstate_inode(inode);
@@ -898,33 +899,39 @@ static int do_hugetlbfs_mknod(struct inode *dir,
 	return error;
 }
 
-static int hugetlbfs_mknod(struct inode *dir,
-			struct dentry *dentry, umode_t mode, dev_t dev)
+static int hugetlbfs_mknod(struct user_namespace *mnt_userns, struct inode *dir,
+			   struct dentry *dentry, umode_t mode, dev_t dev)
 {
 	return do_hugetlbfs_mknod(dir, dentry, mode, dev, false);
 }
 
-static int hugetlbfs_mkdir(struct inode *dir, struct dentry *dentry, umode_t mode)
+static int hugetlbfs_mkdir(struct user_namespace *mnt_userns, struct inode *dir,
+			   struct dentry *dentry, umode_t mode)
 {
-	int retval = hugetlbfs_mknod(dir, dentry, mode | S_IFDIR, 0);
+	int retval = hugetlbfs_mknod(&init_user_ns, dir, dentry,
+				     mode | S_IFDIR, 0);
 	if (!retval)
 		inc_nlink(dir);
 	return retval;
 }
 
-static int hugetlbfs_create(struct inode *dir, struct dentry *dentry, umode_t mode, bool excl)
+static int hugetlbfs_create(struct user_namespace *mnt_userns,
+			    struct inode *dir, struct dentry *dentry,
+			    umode_t mode, bool excl)
 {
-	return hugetlbfs_mknod(dir, dentry, mode | S_IFREG, 0);
+	return hugetlbfs_mknod(&init_user_ns, dir, dentry, mode | S_IFREG, 0);
 }
 
-static int hugetlbfs_tmpfile(struct inode *dir,
-			struct dentry *dentry, umode_t mode)
+static int hugetlbfs_tmpfile(struct user_namespace *mnt_userns,
+			     struct inode *dir, struct dentry *dentry,
+			     umode_t mode)
 {
 	return do_hugetlbfs_mknod(dir, dentry, mode | S_IFREG, 0, true);
 }
 
-static int hugetlbfs_symlink(struct inode *dir,
-			struct dentry *dentry, const char *symname)
+static int hugetlbfs_symlink(struct user_namespace *mnt_userns,
+			     struct inode *dir, struct dentry *dentry,
+			     const char *symname)
 {
 	struct inode *inode;
 	int error = -ENOSPC;

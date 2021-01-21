@@ -871,7 +871,8 @@ out:
 /*
  * Change attributes of an object referenced by dentry.
  */
-int orangefs_setattr(struct dentry *dentry, struct iattr *iattr)
+int orangefs_setattr(struct user_namespace *mnt_userns, struct dentry *dentry,
+		     struct iattr *iattr)
 {
 	int ret;
 	gossip_debug(GOSSIP_INODE_DEBUG, "__orangefs_setattr: called on %pd\n",
@@ -890,8 +891,8 @@ out:
 /*
  * Obtain attributes of an object given a dentry
  */
-int orangefs_getattr(const struct path *path, struct kstat *stat,
-		     u32 request_mask, unsigned int flags)
+int orangefs_getattr(struct user_namespace *mnt_userns, const struct path *path,
+		     struct kstat *stat, u32 request_mask, unsigned int flags)
 {
 	int ret;
 	struct inode *inode = path->dentry->d_inode;
@@ -919,7 +920,8 @@ int orangefs_getattr(const struct path *path, struct kstat *stat,
 	return ret;
 }
 
-int orangefs_permission(struct inode *inode, int mask)
+int orangefs_permission(struct user_namespace *mnt_userns,
+			struct inode *inode, int mask)
 {
 	int ret;
 

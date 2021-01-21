@@ -261,8 +261,8 @@ static int msdos_add_entry(struct inode *dir, const unsigned char *name,
 }
 
 /***** Create a file */
-static int msdos_create(struct inode *dir, struct dentry *dentry, umode_t mode,
-			bool excl)
+static int msdos_create(struct user_namespace *mnt_userns, struct inode *dir,
+			struct dentry *dentry, umode_t mode, bool excl)
 {
 	struct super_block *sb = dir->i_sb;
 	struct inode *inode = NULL;
@@ -339,7 +339,8 @@ out:
 }
 
 /***** Make a directory */
-static int msdos_mkdir(struct inode *dir, struct dentry *dentry, umode_t mode)
+static int msdos_mkdir(struct user_namespace *mnt_userns, struct inode *dir,
+		       struct dentry *dentry, umode_t mode)
 {
 	struct super_block *sb = dir->i_sb;
 	struct fat_slot_info sinfo;
@@ -593,7 +594,8 @@ error_inode:
 }
 
 /***** Rename, a wrapper for rename_same_dir & rename_diff_dir */
-static int msdos_rename(struct inode *old_dir, struct dentry *old_dentry,
+static int msdos_rename(struct user_namespace *mnt_userns,
+			struct inode *old_dir, struct dentry *old_dentry,
 			struct inode *new_dir, struct dentry *new_dentry,
 			unsigned int flags)
 {

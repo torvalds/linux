@@ -257,7 +257,8 @@ out:
  * Returns zero on success; non-zero on error condition
  */
 static int
-ecryptfs_create(struct inode *directory_inode, struct dentry *ecryptfs_dentry,
+ecryptfs_create(struct user_namespace *mnt_userns,
+		struct inode *directory_inode, struct dentry *ecryptfs_dentry,
 		umode_t mode, bool excl)
 {
 	struct inode *ecryptfs_inode;
@@ -463,7 +464,8 @@ static int ecryptfs_unlink(struct inode *dir, struct dentry *dentry)
 	return ecryptfs_do_unlink(dir, dentry, d_inode(dentry));
 }
 
-static int ecryptfs_symlink(struct inode *dir, struct dentry *dentry,
+static int ecryptfs_symlink(struct user_namespace *mnt_userns,
+			    struct inode *dir, struct dentry *dentry,
 			    const char *symname)
 {
 	int rc;
@@ -502,7 +504,8 @@ out_lock:
 	return rc;
 }
 
-static int ecryptfs_mkdir(struct inode *dir, struct dentry *dentry, umode_t mode)
+static int ecryptfs_mkdir(struct user_namespace *mnt_userns, struct inode *dir,
+			  struct dentry *dentry, umode_t mode)
 {
 	int rc;
 	struct dentry *lower_dentry;
@@ -559,7 +562,8 @@ static int ecryptfs_rmdir(struct inode *dir, struct dentry *dentry)
 }
 
 static int
-ecryptfs_mknod(struct inode *dir, struct dentry *dentry, umode_t mode, dev_t dev)
+ecryptfs_mknod(struct user_namespace *mnt_userns, struct inode *dir,
+	       struct dentry *dentry, umode_t mode, dev_t dev)
 {
 	int rc;
 	struct dentry *lower_dentry;
@@ -584,9 +588,9 @@ out:
 }
 
 static int
-ecryptfs_rename(struct inode *old_dir, struct dentry *old_dentry,
-		struct inode *new_dir, struct dentry *new_dentry,
-		unsigned int flags)
+ecryptfs_rename(struct user_namespace *mnt_userns, struct inode *old_dir,
+		struct dentry *old_dentry, struct inode *new_dir,
+		struct dentry *new_dentry, unsigned int flags)
 {
 	int rc;
 	struct dentry *lower_old_dentry;
@@ -874,7 +878,8 @@ int ecryptfs_truncate(struct dentry *dentry, loff_t new_length)
 }
 
 static int
-ecryptfs_permission(struct inode *inode, int mask)
+ecryptfs_permission(struct user_namespace *mnt_userns, struct inode *inode,
+		    int mask)
 {
 	return inode_permission(&init_user_ns,
 				ecryptfs_inode_to_lower(inode), mask);
@@ -892,7 +897,8 @@ ecryptfs_permission(struct inode *inode, int mask)
  * All other metadata changes will be passed right to the lower filesystem,
  * and we will just update our inode to look like the lower.
  */
-static int ecryptfs_setattr(struct dentry *dentry, struct iattr *ia)
+static int ecryptfs_setattr(struct user_namespace *mnt_userns,
+			    struct dentry *dentry, struct iattr *ia)
 {
 	int rc = 0;
 	struct dentry *lower_dentry;
@@ -979,7 +985,8 @@ out:
 	return rc;
 }
 
-static int ecryptfs_getattr_link(const struct path *path, struct kstat *stat,
+static int ecryptfs_getattr_link(struct user_namespace *mnt_userns,
+				 const struct path *path, struct kstat *stat,
 				 u32 request_mask, unsigned int flags)
 {
 	struct dentry *dentry = path->dentry;
@@ -1004,7 +1011,8 @@ static int ecryptfs_getattr_link(const struct path *path, struct kstat *stat,
 	return rc;
 }
 
-static int ecryptfs_getattr(const struct path *path, struct kstat *stat,
+static int ecryptfs_getattr(struct user_namespace *mnt_userns,
+			    const struct path *path, struct kstat *stat,
 			    u32 request_mask, unsigned int flags)
 {
 	struct dentry *dentry = path->dentry;

@@ -95,7 +95,7 @@ static int fat_ioctl_set_attributes(struct file *file, u32 __user *user_attr)
 		goto out_unlock_inode;
 
 	/* This MUST be done before doing anything irreversible... */
-	err = fat_setattr(file->f_path.dentry, &ia);
+	err = fat_setattr(file_mnt_user_ns(file), file->f_path.dentry, &ia);
 	if (err)
 		goto out_unlock_inode;
 
@@ -394,8 +394,8 @@ void fat_truncate_blocks(struct inode *inode, loff_t offset)
 	fat_flush_inodes(inode->i_sb, inode, NULL);
 }
 
-int fat_getattr(const struct path *path, struct kstat *stat,
-		u32 request_mask, unsigned int flags)
+int fat_getattr(struct user_namespace *mnt_userns, const struct path *path,
+		struct kstat *stat, u32 request_mask, unsigned int flags)
 {
 	struct inode *inode = d_inode(path->dentry);
 	generic_fillattr(&init_user_ns, inode, stat);
@@ -466,7 +466,8 @@ static int fat_allow_set_time(struct msdos_sb_info *sbi, struct inode *inode)
 /* valid file mode bits */
 #define FAT_VALID_MODE	(S_IFREG | S_IFDIR | S_IRWXUGO)
 
-int fat_setattr(struct dentry *dentry, struct iattr *attr)
+int fat_setattr(struct user_namespace *mnt_userns, struct dentry *dentry,
+		struct iattr *attr)
 {
 	struct msdos_sb_info *sbi = MSDOS_SB(dentry->d_sb);
 	struct inode *inode = d_inode(dentry);

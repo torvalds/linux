@@ -216,7 +216,8 @@ affs_write_inode(struct inode *inode, struct writeback_control *wbc)
 }
 
 int
-affs_notify_change(struct dentry *dentry, struct iattr *attr)
+affs_notify_change(struct user_namespace *mnt_userns, struct dentry *dentry,
+		   struct iattr *attr)
 {
 	struct inode *inode = d_inode(dentry);
 	int error;

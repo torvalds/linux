@@ -85,7 +85,8 @@ static int jfs_release(struct inode *inode, struct file *file)
 	return 0;
 }
 
-int jfs_setattr(struct dentry *dentry, struct iattr *iattr)
+int jfs_setattr(struct user_namespace *mnt_userns, struct dentry *dentry,
+		struct iattr *iattr)
 {
 	struct inode *inode = d_inode(dentry);
 	int rc;

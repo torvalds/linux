@@ -91,7 +91,8 @@ out:
 	return rc;
 }
 
-int jfs_set_acl(struct inode *inode, struct posix_acl *acl, int type)
+int jfs_set_acl(struct user_namespace *mnt_userns, struct inode *inode,
+		struct posix_acl *acl, int type)
 {
 	int rc;
 	tid_t tid;

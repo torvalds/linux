@@ -14,7 +14,8 @@
 #include "overlayfs.h"
 
 
-int ovl_setattr(struct dentry *dentry, struct iattr *attr)
+int ovl_setattr(struct user_namespace *mnt_userns, struct dentry *dentry,
+		struct iattr *attr)
 {
 	int err;
 	bool full_copy_up = false;
@@ -154,8 +155,8 @@ static int ovl_map_dev_ino(struct dentry *dentry, struct kstat *stat, int fsid)
 	return 0;
 }
 
-int ovl_getattr(const struct path *path, struct kstat *stat,
-		u32 request_mask, unsigned int flags)
+int ovl_getattr(struct user_namespace *mnt_userns, const struct path *path,
+		struct kstat *stat, u32 request_mask, unsigned int flags)
 {
 	struct dentry *dentry = path->dentry;
 	enum ovl_path_type type;
@@ -277,7 +278,8 @@ out:
 	return err;
 }
 
-int ovl_permission(struct inode *inode, int mask)
+int ovl_permission(struct user_namespace *mnt_userns,
+		   struct inode *inode, int mask)
 {
 	struct inode *upperinode = ovl_inode_upper(inode);
 	struct inode *realinode = upperinode ?: ovl_inode_lower(inode);

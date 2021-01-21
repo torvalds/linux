@@ -82,7 +82,8 @@ retry:
 	return acl;
 }
 
-int ceph_set_acl(struct inode *inode, struct posix_acl *acl, int type)
+int ceph_set_acl(struct user_namespace *mnt_userns, struct inode *inode,
+		 struct posix_acl *acl, int type)
 {
 	int ret = 0, size = 0;
 	const char *name = NULL;

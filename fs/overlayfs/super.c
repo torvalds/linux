@@ -1023,7 +1023,7 @@ ovl_posix_acl_xattr_set(const struct xattr_handler *handler,
 	    !capable_wrt_inode_uidgid(&init_user_ns, inode, CAP_FSETID)) {
 		struct iattr iattr = { .ia_valid = ATTR_KILL_SGID };
 
-		err = ovl_setattr(dentry, &iattr);
+		err = ovl_setattr(&init_user_ns, dentry, &iattr);
 		if (err)
 			return err;
 	}

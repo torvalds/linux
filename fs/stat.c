@@ -75,6 +75,7 @@ EXPORT_SYMBOL(generic_fillattr);
 int vfs_getattr_nosec(const struct path *path, struct kstat *stat,
 		      u32 request_mask, unsigned int query_flags)
 {
+	struct user_namespace *mnt_userns;
 	struct inode *inode = d_backing_inode(path->dentry);
 
 	memset(stat, 0, sizeof(*stat));
@@ -91,11 +92,12 @@ int vfs_getattr_nosec(const struct path *path, struct kstat *stat,
 	if (IS_DAX(inode))
 		stat->attributes |= STATX_ATTR_DAX;
 
+	mnt_userns = mnt_user_ns(path->mnt);
 	if (inode->i_op->getattr)
-		return inode->i_op->getattr(path, stat, request_mask,
-					    query_flags);
+		return inode->i_op->getattr(mnt_userns, path, stat,
+					    request_mask, query_flags);
 
-	generic_fillattr(mnt_user_ns(path->mnt), inode, stat);
+	generic_fillattr(mnt_userns, inode, stat);
 	return 0;
 }
 EXPORT_SYMBOL(vfs_getattr_nosec);

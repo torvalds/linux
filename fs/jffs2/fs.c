@@ -190,7 +190,8 @@ int jffs2_do_setattr (struct inode *inode, struct iattr *iattr)
 	return 0;
 }
 
-int jffs2_setattr(struct dentry *dentry, struct iattr *iattr)
+int jffs2_setattr(struct user_namespace *mnt_userns, struct dentry *dentry,
+		  struct iattr *iattr)
 {
 	struct inode *inode = d_inode(dentry);
 	int rc;

@@ -220,29 +220,32 @@ xfs_generic_create(
 
 STATIC int
 xfs_vn_mknod(
-	struct inode	*dir,
-	struct dentry	*dentry,
-	umode_t		mode,
-	dev_t		rdev)
+	struct user_namespace	*mnt_userns,
+	struct inode		*dir,
+	struct dentry		*dentry,
+	umode_t			mode,
+	dev_t			rdev)
 {
 	return xfs_generic_create(dir, dentry, mode, rdev, false);
 }
 
 STATIC int
 xfs_vn_create(
-	struct inode	*dir,
-	struct dentry	*dentry,
-	umode_t		mode,
-	bool		flags)
+	struct user_namespace	*mnt_userns,
+	struct inode		*dir,
+	struct dentry		*dentry,
+	umode_t			mode,
+	bool			flags)
 {
 	return xfs_generic_create(dir, dentry, mode, 0, false);
 }
 
 STATIC int
 xfs_vn_mkdir(
-	struct inode	*dir,
-	struct dentry	*dentry,
-	umode_t		mode)
+	struct user_namespace	*mnt_userns,
+	struct inode		*dir,
+	struct dentry		*dentry,
+	umode_t			mode)
 {
 	return xfs_generic_create(dir, dentry, mode | S_IFDIR, 0, false);
 }
@@ -361,9 +364,10 @@ xfs_vn_unlink(
 
 STATIC int
 xfs_vn_symlink(
-	struct inode	*dir,
-	struct dentry	*dentry,
-	const char	*symname)
+	struct user_namespace	*mnt_userns,
+	struct inode		*dir,
+	struct dentry		*dentry,
+	const char		*symname)
 {
 	struct inode	*inode;
 	struct xfs_inode *cip = NULL;
@@ -403,11 +407,12 @@ xfs_vn_symlink(
 
 STATIC int
 xfs_vn_rename(
-	struct inode	*odir,
-	struct dentry	*odentry,
-	struct inode	*ndir,
-	struct dentry	*ndentry,
-	unsigned int	flags)
+	struct user_namespace	*mnt_userns,
+	struct inode		*odir,
+	struct dentry		*odentry,
+	struct inode		*ndir,
+	struct dentry		*ndentry,
+	unsigned int		flags)
 {
 	struct inode	*new_inode = d_inode(ndentry);
 	int		omode = 0;
@@ -529,6 +534,7 @@ xfs_stat_blksize(
 
 STATIC int
 xfs_vn_getattr(
+	struct user_namespace	*mnt_userns,
 	const struct path	*path,
 	struct kstat		*stat,
 	u32			request_mask,
@@ -1047,6 +1053,7 @@ xfs_vn_setattr_size(
 
 STATIC int
 xfs_vn_setattr(
+	struct user_namespace	*mnt_userns,
 	struct dentry		*dentry,
 	struct iattr		*iattr)
 {
@@ -1144,9 +1151,10 @@ xfs_vn_fiemap(
 
 STATIC int
 xfs_vn_tmpfile(
-	struct inode	*dir,
-	struct dentry	*dentry,
-	umode_t		mode)
+	struct user_namespace	*mnt_userns,
+	struct inode		*dir,
+	struct dentry		*dentry,
+	umode_t			mode)
 {
 	return xfs_generic_create(dir, dentry, mode, 0, true);
 }

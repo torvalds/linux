@@ -308,7 +308,8 @@ void __init proc_root_init(void)
 	register_filesystem(&proc_fs_type);
 }
 
-static int proc_root_getattr(const struct path *path, struct kstat *stat,
+static int proc_root_getattr(struct user_namespace *mnt_userns,
+			     const struct path *path, struct kstat *stat,
 			     u32 request_mask, unsigned int query_flags)
 {
 	generic_fillattr(&init_user_ns, d_inode(path->dentry), stat);

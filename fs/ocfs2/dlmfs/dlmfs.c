@@ -190,7 +190,8 @@ static int dlmfs_file_release(struct inode *inode,
  * We do ->setattr() just to override size changes.  Our size is the size
  * of the LVB and nothing else.
  */
-static int dlmfs_file_setattr(struct dentry *dentry, struct iattr *attr)
+static int dlmfs_file_setattr(struct user_namespace *mnt_userns,
+			      struct dentry *dentry, struct iattr *attr)
 {
 	int error;
 	struct inode *inode = d_inode(dentry);
@@ -395,7 +396,8 @@ static struct inode *dlmfs_get_inode(struct inode *parent,
  * File creation. Allocate an inode, and we're done..
  */
 /* SMP-safe */
-static int dlmfs_mkdir(struct inode * dir,
+static int dlmfs_mkdir(struct user_namespace * mnt_userns,
+		       struct inode * dir,
 		       struct dentry * dentry,
 		       umode_t mode)
 {
@@ -443,7 +445,8 @@ bail:
 	return status;
 }
 
-static int dlmfs_create(struct inode *dir,
+static int dlmfs_create(struct user_namespace *mnt_userns,
+			struct inode *dir,
 			struct dentry *dentry,
 			umode_t mode,
 			bool excl)

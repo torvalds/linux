@@ -292,7 +292,8 @@ out:
  * later.
  */
 int
-adfs_notify_change(struct dentry *dentry, struct iattr *attr)
+adfs_notify_change(struct user_namespace *mnt_userns, struct dentry *dentry,
+		   struct iattr *attr)
 {
 	struct inode *inode = d_inode(dentry);
 	struct super_block *sb = inode->i_sb;

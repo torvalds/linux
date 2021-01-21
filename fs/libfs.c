@@ -27,8 +27,9 @@
 
 #include "internal.h"
 
-int simple_getattr(const struct path *path, struct kstat *stat,
-		   u32 request_mask, unsigned int query_flags)
+int simple_getattr(struct user_namespace *mnt_userns, const struct path *path,
+		   struct kstat *stat, u32 request_mask,
+		   unsigned int query_flags)
 {
 	struct inode *inode = d_inode(path->dentry);
 	generic_fillattr(&init_user_ns, inode, stat);
@@ -447,9 +448,9 @@ int simple_rmdir(struct inode *dir, struct dentry *dentry)
 }
 EXPORT_SYMBOL(simple_rmdir);
 
-int simple_rename(struct inode *old_dir, struct dentry *old_dentry,
-		  struct inode *new_dir, struct dentry *new_dentry,
-		  unsigned int flags)
+int simple_rename(struct user_namespace *mnt_userns, struct inode *old_dir,
+		  struct dentry *old_dentry, struct inode *new_dir,
+		  struct dentry *new_dentry, unsigned int flags)
 {
 	struct inode *inode = d_inode(old_dentry);
 	int they_are_dirs = d_is_dir(old_dentry);
@@ -492,18 +493,19 @@ EXPORT_SYMBOL(simple_rename);
  * on simple regular filesystems.  Anything that needs to change on-disk
  * or wire state on size changes needs its own setattr method.
  */
-int simple_setattr(struct dentry *dentry, struct iattr *iattr)
+int simple_setattr(struct user_namespace *mnt_userns, struct dentry *dentry,
+		   struct iattr *iattr)
 {
 	struct inode *inode = d_inode(dentry);
 	int error;
 
-	error = setattr_prepare(&init_user_ns, dentry, iattr);
+	error = setattr_prepare(mnt_userns, dentry, iattr);
 	if (error)
 		return error;
 
 	if (iattr->ia_valid & ATTR_SIZE)
 		truncate_setsize(inode, iattr->ia_size);
-	setattr_copy(&init_user_ns, inode, iattr);
+	setattr_copy(mnt_userns, inode, iattr);
 	mark_inode_dirty(inode);
 	return 0;
 }
@@ -1300,7 +1302,8 @@ static struct dentry *empty_dir_lookup(struct inode *dir, struct dentry *dentry,
 	return ERR_PTR(-ENOENT);
 }
 
-static int empty_dir_getattr(const struct path *path, struct kstat *stat,
+static int empty_dir_getattr(struct user_namespace *mnt_userns,
+			     const struct path *path, struct kstat *stat,
 			     u32 request_mask, unsigned int query_flags)
 {
 	struct inode *inode = d_inode(path->dentry);
@@ -1308,7 +1311,8 @@ static int empty_dir_getattr(const struct path *path, struct kstat *stat,
 	return 0;
 }
 
-static int empty_dir_setattr(struct dentry *dentry, struct iattr *attr)
+static int empty_dir_setattr(struct user_namespace *mnt_userns,
+			     struct dentry *dentry, struct iattr *attr)
 {
 	return -EPERM;
 }
@@ -1318,14 +1322,9 @@ static ssize_t empty_dir_listxattr(struct dentry *dentry, char *list, size_t siz
 	return -EOPNOTSUPP;
 }
 
-static int empty_dir_permission(struct inode *inode, int mask)
-{
-	return generic_permission(&init_user_ns, inode, mask);
-}
-
 static const struct inode_operations empty_dir_inode_operations = {
 	.lookup		= empty_dir_lookup,
-	.permission	= empty_dir_permission,
+	.permission	= generic_permission,
 	.setattr	= empty_dir_setattr,
 	.getattr	= empty_dir_getattr,
 	.listxattr	= empty_dir_listxattr,

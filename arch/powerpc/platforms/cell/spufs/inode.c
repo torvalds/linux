@@ -91,7 +91,8 @@ out:
 }
 
 static int
-spufs_setattr(struct dentry *dentry, struct iattr *attr)
+spufs_setattr(struct user_namespace *mnt_userns, struct dentry *dentry,
+	      struct iattr *attr)
 {
 	struct inode *inode = d_inode(dentry);
 

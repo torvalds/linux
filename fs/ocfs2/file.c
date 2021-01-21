@@ -1112,7 +1112,8 @@ out:
 	return ret;
 }
 
-int ocfs2_setattr(struct dentry *dentry, struct iattr *attr)
+int ocfs2_setattr(struct user_namespace *mnt_userns, struct dentry *dentry,
+		  struct iattr *attr)
 {
 	int status = 0, size_change;
 	int inode_locked = 0;
@@ -1298,8 +1299,8 @@ bail:
 	return status;
 }
 
-int ocfs2_getattr(const struct path *path, struct kstat *stat,
-		  u32 request_mask, unsigned int flags)
+int ocfs2_getattr(struct user_namespace *mnt_userns, const struct path *path,
+		  struct kstat *stat, u32 request_mask, unsigned int flags)
 {
 	struct inode *inode = d_inode(path->dentry);
 	struct super_block *sb = path->dentry->d_sb;
@@ -1330,7 +1331,8 @@ bail:
 	return err;
 }
 
-int ocfs2_permission(struct inode *inode, int mask)
+int ocfs2_permission(struct user_namespace *mnt_userns, struct inode *inode,
+		     int mask)
 {
 	int ret, had_lock;
 	struct ocfs2_lock_holder oh;

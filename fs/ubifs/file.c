@@ -1257,7 +1257,8 @@ static int do_setattr(struct ubifs_info *c, struct inode *inode,
 	return err;
 }
 
-int ubifs_setattr(struct dentry *dentry, struct iattr *attr)
+int ubifs_setattr(struct user_namespace *mnt_userns, struct dentry *dentry,
+		  struct iattr *attr)
 {
 	int err;
 	struct inode *inode = d_inode(dentry);

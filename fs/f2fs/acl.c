@@ -249,7 +249,8 @@ static int __f2fs_set_acl(struct inode *inode, int type,
 	return error;
 }
 
-int f2fs_set_acl(struct inode *inode, struct posix_acl *acl, int type)
+int f2fs_set_acl(struct user_namespace *mnt_userns, struct inode *inode,
+		 struct posix_acl *acl, int type)
 {
 	if (unlikely(f2fs_cp_error(F2FS_I_SB(inode))))
 		return -EIO;

@@ -5319,7 +5319,8 @@ static void ext4_wait_for_tail_page_commit(struct inode *inode)
  *
  * Called with inode->i_mutex down.
  */
-int ext4_setattr(struct dentry *dentry, struct iattr *attr)
+int ext4_setattr(struct user_namespace *mnt_userns, struct dentry *dentry,
+		 struct iattr *attr)
 {
 	struct inode *inode = d_inode(dentry);
 	int error, rc = 0;
@@ -5535,8 +5536,8 @@ err_out:
 	return error;
 }
 
-int ext4_getattr(const struct path *path, struct kstat *stat,
-		 u32 request_mask, unsigned int query_flags)
+int ext4_getattr(struct user_namespace *mnt_userns, const struct path *path,
+		 struct kstat *stat, u32 request_mask, unsigned int query_flags)
 {
 	struct inode *inode = d_inode(path->dentry);
 	struct ext4_inode *raw_inode;
@@ -5575,13 +5576,14 @@ int ext4_getattr(const struct path *path, struct kstat *stat,
 	return 0;
 }
 
-int ext4_file_getattr(const struct path *path, struct kstat *stat,
+int ext4_file_getattr(struct user_namespace *mnt_userns,
+		      const struct path *path, struct kstat *stat,
 		      u32 request_mask, unsigned int query_flags)
 {
 	struct inode *inode = d_inode(path->dentry);
 	u64 delalloc_blocks;
 
-	ext4_getattr(path, stat, request_mask, query_flags);
+	ext4_getattr(&init_user_ns, path, stat, request_mask, query_flags);
 
 	/*
 	 * If there is inline data in the inode, the inode will normally not

@@ -262,7 +262,8 @@ static int ocfs2_set_acl(handle_t *handle,
 	return ret;
 }
 
-int ocfs2_iop_set_acl(struct inode *inode, struct posix_acl *acl, int type)
+int ocfs2_iop_set_acl(struct user_namespace *mnt_userns, struct inode *inode,
+		      struct posix_acl *acl, int type)
 {
 	struct buffer_head *bh = NULL;
 	int status, had_lock;

@@ -267,8 +267,9 @@ write_size:
 	mutex_unlock(&sbi->s_lock);
 }
 
-int exfat_getattr(const struct path *path, struct kstat *stat,
-		unsigned int request_mask, unsigned int query_flags)
+int exfat_getattr(struct user_namespace *mnt_uerns, const struct path *path,
+		  struct kstat *stat, unsigned int request_mask,
+		  unsigned int query_flags)
 {
 	struct inode *inode = d_backing_inode(path->dentry);
 	struct exfat_inode_info *ei = EXFAT_I(inode);
@@ -282,7 +283,8 @@ int exfat_getattr(const struct path *path, struct kstat *stat,
 	return 0;
 }
 
-int exfat_setattr(struct dentry *dentry, struct iattr *attr)
+int exfat_setattr(struct user_namespace *mnt_userns, struct dentry *dentry,
+		  struct iattr *attr)
 {
 	struct exfat_sb_info *sbi = EXFAT_SB(dentry->d_sb);
 	struct inode *inode = dentry->d_inode;

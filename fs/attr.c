@@ -395,9 +395,9 @@ int notify_change(struct user_namespace *mnt_userns, struct dentry *dentry,
 		return error;
 
 	if (inode->i_op->setattr)
-		error = inode->i_op->setattr(dentry, attr);
+		error = inode->i_op->setattr(mnt_userns, dentry, attr);
 	else
-		error = simple_setattr(dentry, attr);
+		error = simple_setattr(mnt_userns, dentry, attr);
 
 	if (!error) {
 		fsnotify_change(dentry, ia_valid);

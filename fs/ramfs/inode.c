@@ -101,7 +101,8 @@ struct inode *ramfs_get_inode(struct super_block *sb,
  */
 /* SMP-safe */
 static int
-ramfs_mknod(struct inode *dir, struct dentry *dentry, umode_t mode, dev_t dev)
+ramfs_mknod(struct user_namespace *mnt_userns, struct inode *dir,
+	    struct dentry *dentry, umode_t mode, dev_t dev)
 {
 	struct inode * inode = ramfs_get_inode(dir->i_sb, dir, mode, dev);
 	int error = -ENOSPC;
@@ -115,20 +116,23 @@ ramfs_mknod(struct inode *dir, struct dentry *dentry, umode_t mode, dev_t dev)
 	return error;
 }
 
-static int ramfs_mkdir(struct inode * dir, struct dentry * dentry, umode_t mode)
+static int ramfs_mkdir(struct user_namespace *mnt_userns, struct inode *dir,
+		       struct dentry *dentry, umode_t mode)
 {
-	int retval = ramfs_mknod(dir, dentry, mode | S_IFDIR, 0);
+	int retval = ramfs_mknod(&init_user_ns, dir, dentry, mode | S_IFDIR, 0);
 	if (!retval)
 		inc_nlink(dir);
 	return retval;
 }
 
-static int ramfs_create(struct inode *dir, struct dentry *dentry, umode_t mode, bool excl)
+static int ramfs_create(struct user_namespace *mnt_userns, struct inode *dir,
+			struct dentry *dentry, umode_t mode, bool excl)
 {
-	return ramfs_mknod(dir, dentry, mode | S_IFREG, 0);
+	return ramfs_mknod(&init_user_ns, dir, dentry, mode | S_IFREG, 0);
 }
 
-static int ramfs_symlink(struct inode * dir, struct dentry *dentry, const char * symname)
+static int ramfs_symlink(struct user_namespace *mnt_userns, struct inode *dir,
+			 struct dentry *dentry, const char *symname)
 {
 	struct inode *inode;
 	int error = -ENOSPC;

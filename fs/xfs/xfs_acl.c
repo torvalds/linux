@@ -238,7 +238,8 @@ xfs_acl_set_mode(
 }
 
 int
-xfs_set_acl(struct inode *inode, struct posix_acl *acl, int type)
+xfs_set_acl(struct user_namespace *mnt_userns, struct inode *inode,
+	    struct posix_acl *acl, int type)
 {
 	umode_t mode;
 	bool set_mode = false;

@@ -22,7 +22,7 @@
 #include <linux/uaccess.h>
 #include "internal.h"
 
-static int ramfs_nommu_setattr(struct dentry *, struct iattr *);
+static int ramfs_nommu_setattr(struct user_namespace *, struct dentry *, struct iattr *);
 static unsigned long ramfs_nommu_get_unmapped_area(struct file *file,
 						   unsigned long addr,
 						   unsigned long len,
@@ -158,7 +158,8 @@ static int ramfs_nommu_resize(struct inode *inode, loff_t newsize, loff_t size)
  * handle a change of attributes
  * - we're specifically interested in a change of size
  */
-static int ramfs_nommu_setattr(struct dentry *dentry, struct iattr *ia)
+static int ramfs_nommu_setattr(struct user_namespace *mnt_userns,
+			       struct dentry *dentry, struct iattr *ia)
 {
 	struct inode *inode = d_inode(dentry);
 	unsigned int old_ia_valid = ia->ia_valid;

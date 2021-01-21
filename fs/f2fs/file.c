@@ -783,8 +783,8 @@ int f2fs_truncate(struct inode *inode)
 	return 0;
 }
 
-int f2fs_getattr(const struct path *path, struct kstat *stat,
-		 u32 request_mask, unsigned int query_flags)
+int f2fs_getattr(struct user_namespace *mnt_userns, const struct path *path,
+		 struct kstat *stat, u32 request_mask, unsigned int query_flags)
 {
 	struct inode *inode = d_inode(path->dentry);
 	struct f2fs_inode_info *fi = F2FS_I(inode);
@@ -859,7 +859,8 @@ static void __setattr_copy(struct user_namespace *mnt_userns,
 #define __setattr_copy setattr_copy
 #endif
 
-int f2fs_setattr(struct dentry *dentry, struct iattr *attr)
+int f2fs_setattr(struct user_namespace *mnt_userns, struct dentry *dentry,
+		 struct iattr *attr)
 {
 	struct inode *inode = d_inode(dentry);
 	int err;

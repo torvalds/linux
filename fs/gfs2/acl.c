@@ -106,7 +106,8 @@ out:
 	return error;
 }
 
-int gfs2_set_acl(struct inode *inode, struct posix_acl *acl, int type)
+int gfs2_set_acl(struct user_namespace *mnt_userns, struct inode *inode,
+		 struct posix_acl *acl, int type)
 {
 	struct gfs2_inode *ip = GFS2_I(inode);
 	struct gfs2_holder gh;

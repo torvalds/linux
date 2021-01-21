@@ -734,8 +734,8 @@ error_unlock:
 /*
  * read the attributes of an inode
  */
-int afs_getattr(const struct path *path, struct kstat *stat,
-		u32 request_mask, unsigned int query_flags)
+int afs_getattr(struct user_namespace *mnt_userns, const struct path *path,
+		struct kstat *stat, u32 request_mask, unsigned int query_flags)
 {
 	struct inode *inode = d_inode(path->dentry);
 	struct afs_vnode *vnode = AFS_FS_I(inode);
@@ -857,7 +857,8 @@ static const struct afs_operation_ops afs_setattr_operation = {
 /*
  * set the attributes of an inode
  */
-int afs_setattr(struct dentry *dentry, struct iattr *attr)
+int afs_setattr(struct user_namespace *mnt_userns, struct dentry *dentry,
+		struct iattr *attr)
 {
 	struct afs_operation *op;
 	struct afs_vnode *vnode = AFS_FS_I(d_inode(dentry));

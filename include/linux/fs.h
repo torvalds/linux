@@ -1930,22 +1930,28 @@ struct file_operations {
 struct inode_operations {
 	struct dentry * (*lookup) (struct inode *,struct dentry *, unsigned int);
 	const char * (*get_link) (struct dentry *, struct inode *, struct delayed_call *);
-	int (*permission) (struct inode *, int);
+	int (*permission) (struct user_namespace *, struct inode *, int);
 	struct posix_acl * (*get_acl)(struct inode *, int);
 
 	int (*readlink) (struct dentry *, char __user *,int);
 
-	int (*create) (struct inode *,struct dentry *, umode_t, bool);
+	int (*create) (struct user_namespace *, struct inode *,struct dentry *,
+		       umode_t, bool);
 	int (*link) (struct dentry *,struct inode *,struct dentry *);
 	int (*unlink) (struct inode *,struct dentry *);
-	int (*symlink) (struct inode *,struct dentry *,const char *);
-	int (*mkdir) (struct inode *,struct dentry *,umode_t);
+	int (*symlink) (struct user_namespace *, struct inode *,struct dentry *,
+			const char *);
+	int (*mkdir) (struct user_namespace *, struct inode *,struct dentry *,
+		      umode_t);
 	int (*rmdir) (struct inode *,struct dentry *);
-	int (*mknod) (struct inode *,struct dentry *,umode_t,dev_t);
-	int (*rename) (struct inode *, struct dentry *,
+	int (*mknod) (struct user_namespace *, struct inode *,struct dentry *,
+		      umode_t,dev_t);
+	int (*rename) (struct user_namespace *, struct inode *, struct dentry *,
 			struct inode *, struct dentry *, unsigned int);
-	int (*setattr) (struct dentry *, struct iattr *);
-	int (*getattr) (const struct path *, struct kstat *, u32, unsigned int);
+	int (*setattr) (struct user_namespace *, struct dentry *,
+			struct iattr *);
+	int (*getattr) (struct user_namespace *, const struct path *,
+			struct kstat *, u32, unsigned int);
 	ssize_t (*listxattr) (struct dentry *, char *, size_t);
 	int (*fiemap)(struct inode *, struct fiemap_extent_info *, u64 start,
 		      u64 len);
@@ -1953,8 +1959,10 @@ struct inode_operations {
 	int (*atomic_open)(struct inode *, struct dentry *,
 			   struct file *, unsigned open_flag,
 			   umode_t create_mode);
-	int (*tmpfile) (struct inode *, struct dentry *, umode_t);
-	int (*set_acl)(struct inode *, struct posix_acl *, int);
+	int (*tmpfile) (struct user_namespace *, struct inode *,
+			struct dentry *, umode_t);
+	int (*set_acl)(struct user_namespace *, struct inode *,
+		       struct posix_acl *, int);
 } ____cacheline_aligned;
 
 static inline ssize_t call_read_iter(struct file *file, struct kiocb *kio,
@@ -3227,15 +3235,18 @@ extern int dcache_dir_open(struct inode *, struct file *);
 extern int dcache_dir_close(struct inode *, struct file *);
 extern loff_t dcache_dir_lseek(struct file *, loff_t, int);
 extern int dcache_readdir(struct file *, struct dir_context *);
-extern int simple_setattr(struct dentry *, struct iattr *);
-extern int simple_getattr(const struct path *, struct kstat *, u32, unsigned int);
+extern int simple_setattr(struct user_namespace *, struct dentry *,
+			  struct iattr *);
+extern int simple_getattr(struct user_namespace *, const struct path *,
+			  struct kstat *, u32, unsigned int);
 extern int simple_statfs(struct dentry *, struct kstatfs *);
 extern int simple_open(struct inode *inode, struct file *file);
 extern int simple_link(struct dentry *, struct inode *, struct dentry *);
 extern int simple_unlink(struct inode *, struct dentry *);
 extern int simple_rmdir(struct inode *, struct dentry *);
-extern int simple_rename(struct inode *, struct dentry *,
-			 struct inode *, struct dentry *, unsigned int);
+extern int simple_rename(struct user_namespace *, struct inode *,
+			 struct dentry *, struct inode *, struct dentry *,
+			 unsigned int);
 extern void simple_recursive_removal(struct dentry *,
                               void (*callback)(struct dentry *));
 extern int noop_fsync(struct file *, loff_t, loff_t, int);

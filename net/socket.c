@@ -538,9 +538,10 @@ static ssize_t sockfs_listxattr(struct dentry *dentry, char *buffer,
 	return used;
 }
 
-static int sockfs_setattr(struct dentry *dentry, struct iattr *iattr)
+static int sockfs_setattr(struct user_namespace *mnt_userns,
+			  struct dentry *dentry, struct iattr *iattr)
 {
-	int err = simple_setattr(dentry, iattr);
+	int err = simple_setattr(&init_user_ns, dentry, iattr);
 
 	if (!err && (iattr->ia_valid & ATTR_UID)) {
 		struct socket *sock = SOCKET_I(d_inode(dentry));

@@ -22,7 +22,8 @@ const struct file_operations minix_file_operations = {
 	.splice_read	= generic_file_splice_read,
 };
 
-static int minix_setattr(struct dentry *dentry, struct iattr *attr)
+static int minix_setattr(struct user_namespace *mnt_userns,
+			 struct dentry *dentry, struct iattr *attr)
 {
 	struct inode *inode = d_inode(dentry);
 	int error;

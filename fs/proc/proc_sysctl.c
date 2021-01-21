@@ -785,7 +785,8 @@ out:
 	return 0;
 }
 
-static int proc_sys_permission(struct inode *inode, int mask)
+static int proc_sys_permission(struct user_namespace *mnt_userns,
+			       struct inode *inode, int mask)
 {
 	/*
 	 * sysctl entries that are not writeable,
@@ -813,7 +814,8 @@ static int proc_sys_permission(struct inode *inode, int mask)
 	return error;
 }
 
-static int proc_sys_setattr(struct dentry *dentry, struct iattr *attr)
+static int proc_sys_setattr(struct user_namespace *mnt_userns,
+			    struct dentry *dentry, struct iattr *attr)
 {
 	struct inode *inode = d_inode(dentry);
 	int error;
@@ -830,7 +832,8 @@ static int proc_sys_setattr(struct dentry *dentry, struct iattr *attr)
 	return 0;
 }
 
-static int proc_sys_getattr(const struct path *path, struct kstat *stat,
+static int proc_sys_getattr(struct user_namespace *mnt_userns,
+			    const struct path *path, struct kstat *stat,
 			    u32 request_mask, unsigned int query_flags)
 {
 	struct inode *inode = d_inode(path->dentry);

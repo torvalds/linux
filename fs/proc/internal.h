@@ -162,8 +162,10 @@ extern int proc_pid_statm(struct seq_file *, struct pid_namespace *,
  * base.c
  */
 extern const struct dentry_operations pid_dentry_operations;
-extern int pid_getattr(const struct path *, struct kstat *, u32, unsigned int);
-extern int proc_setattr(struct dentry *, struct iattr *);
+extern int pid_getattr(struct user_namespace *, const struct path *,
+		       struct kstat *, u32, unsigned int);
+extern int proc_setattr(struct user_namespace *, struct dentry *,
+			struct iattr *);
 extern void proc_pid_evict_inode(struct proc_inode *);
 extern struct inode *proc_pid_make_inode(struct super_block *, struct task_struct *, umode_t);
 extern void pid_update_inode(struct task_struct *, struct inode *);

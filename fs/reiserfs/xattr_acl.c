@@ -18,7 +18,8 @@ static int __reiserfs_set_acl(struct reiserfs_transaction_handle *th,
 
 
 int
-reiserfs_set_acl(struct inode *inode, struct posix_acl *acl, int type)
+reiserfs_set_acl(struct user_namespace *mnt_userns, struct inode *inode,
+		 struct posix_acl *acl, int type)
 {
 	int error, error2;
 	struct reiserfs_transaction_handle th;

@@ -650,19 +650,20 @@ out:
 	return err;
 }
 
-static int ovl_create(struct inode *dir, struct dentry *dentry, umode_t mode,
-		      bool excl)
+static int ovl_create(struct user_namespace *mnt_userns, struct inode *dir,
+		      struct dentry *dentry, umode_t mode, bool excl)
 {
 	return ovl_create_object(dentry, (mode & 07777) | S_IFREG, 0, NULL);
 }
 
-static int ovl_mkdir(struct inode *dir, struct dentry *dentry, umode_t mode)
+static int ovl_mkdir(struct user_namespace *mnt_userns, struct inode *dir,
+		     struct dentry *dentry, umode_t mode)
 {
 	return ovl_create_object(dentry, (mode & 07777) | S_IFDIR, 0, NULL);
 }
 
-static int ovl_mknod(struct inode *dir, struct dentry *dentry, umode_t mode,
-		     dev_t rdev)
+static int ovl_mknod(struct user_namespace *mnt_userns, struct inode *dir,
+		     struct dentry *dentry, umode_t mode, dev_t rdev)
 {
 	/* Don't allow creation of "whiteout" on overlay */
 	if (S_ISCHR(mode) && rdev == WHITEOUT_DEV)
@@ -671,8 +672,8 @@ static int ovl_mknod(struct inode *dir, struct dentry *dentry, umode_t mode,
 	return ovl_create_object(dentry, mode, rdev, NULL);
 }
 
-static int ovl_symlink(struct inode *dir, struct dentry *dentry,
-		       const char *link)
+static int ovl_symlink(struct user_namespace *mnt_userns, struct inode *dir,
+		       struct dentry *dentry, const char *link)
 {
 	return ovl_create_object(dentry, S_IFLNK, 0, link);
 }
@@ -1069,9 +1070,9 @@ static int ovl_set_redirect(struct dentry *dentry, bool samedir)
 	return err;
 }
 
-static int ovl_rename(struct inode *olddir, struct dentry *old,
-		      struct inode *newdir, struct dentry *new,
-		      unsigned int flags)
+static int ovl_rename(struct user_namespace *mnt_userns, struct inode *olddir,
+		      struct dentry *old, struct inode *newdir,
+		      struct dentry *new, unsigned int flags)
 {
 	int err;
 	struct dentry *old_upperdir;

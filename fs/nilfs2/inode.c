@@ -805,7 +805,8 @@ void nilfs_evict_inode(struct inode *inode)
 	 */
 }
 
-int nilfs_setattr(struct dentry *dentry, struct iattr *iattr)
+int nilfs_setattr(struct user_namespace *mnt_userns, struct dentry *dentry,
+		  struct iattr *iattr)
 {
 	struct nilfs_transaction_info ti;
 	struct inode *inode = d_inode(dentry);
@@ -843,7 +844,8 @@ out_err:
 	return err;
 }
 
-int nilfs_permission(struct inode *inode, int mask)
+int nilfs_permission(struct user_namespace *mnt_userns, struct inode *inode,
+		     int mask)
 {
 	struct nilfs_root *root = NILFS_I(inode)->i_root;
 

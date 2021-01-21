@@ -112,7 +112,8 @@ int kernfs_setattr(struct kernfs_node *kn, const struct iattr *iattr)
 	return ret;
 }
 
-int kernfs_iop_setattr(struct dentry *dentry, struct iattr *iattr)
+int kernfs_iop_setattr(struct user_namespace *mnt_userns, struct dentry *dentry,
+		       struct iattr *iattr)
 {
 	struct inode *inode = d_inode(dentry);
 	struct kernfs_node *kn = inode->i_private;
@@ -183,7 +184,8 @@ static void kernfs_refresh_inode(struct kernfs_node *kn, struct inode *inode)
 		set_nlink(inode, kn->dir.subdirs + 2);
 }
 
-int kernfs_iop_getattr(const struct path *path, struct kstat *stat,
+int kernfs_iop_getattr(struct user_namespace *mnt_userns,
+		       const struct path *path, struct kstat *stat,
 		       u32 request_mask, unsigned int query_flags)
 {
 	struct inode *inode = d_inode(path->dentry);
@@ -272,7 +274,8 @@ void kernfs_evict_inode(struct inode *inode)
 	kernfs_put(kn);
 }
 
-int kernfs_iop_permission(struct inode *inode, int mask)
+int kernfs_iop_permission(struct user_namespace *mnt_userns,
+			  struct inode *inode, int mask)
 {
 	struct kernfs_node *kn;
 

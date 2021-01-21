@@ -415,28 +415,29 @@ As of kernel 2.6.22, the following members are defined:
 .. code-block:: c
 
 	struct inode_operations {
-		int (*create) (struct inode *,struct dentry *, umode_t, bool);
+		int (*create) (struct user_namespace *, struct inode *,struct dentry *, umode_t, bool);
 		struct dentry * (*lookup) (struct inode *,struct dentry *, unsigned int);
 		int (*link) (struct dentry *,struct inode *,struct dentry *);
 		int (*unlink) (struct inode *,struct dentry *);
-		int (*symlink) (struct inode *,struct dentry *,const char *);
-		int (*mkdir) (struct inode *,struct dentry *,umode_t);
+		int (*symlink) (struct user_namespace *, struct inode *,struct dentry *,const char *);
+		int (*mkdir) (struct user_namespace *, struct inode *,struct dentry *,umode_t);
 		int (*rmdir) (struct inode *,struct dentry *);
-		int (*mknod) (struct inode *,struct dentry *,umode_t,dev_t);
-		int (*rename) (struct inode *, struct dentry *,
+		int (*mknod) (struct user_namespace *, struct inode *,struct dentry *,umode_t,dev_t);
+		int (*rename) (struct user_namespace *, struct inode *, struct dentry *,
 			       struct inode *, struct dentry *, unsigned int);
 		int (*readlink) (struct dentry *, char __user *,int);
 		const char *(*get_link) (struct dentry *, struct inode *,
 					 struct delayed_call *);
-		int (*permission) (struct inode *, int);
+		int (*permission) (struct user_namespace *, struct inode *, int);
 		int (*get_acl)(struct inode *, int);
-		int (*setattr) (struct dentry *, struct iattr *);
-		int (*getattr) (const struct path *, struct kstat *, u32, unsigned int);
+		int (*setattr) (struct user_namespace *, struct dentry *, struct iattr *);
+		int (*getattr) (struct user_namespace *, const struct path *, struct kstat *, u32, unsigned int);
 		ssize_t (*listxattr) (struct dentry *, char *, size_t);
 		void (*update_time)(struct inode *, struct timespec *, int);
 		int (*atomic_open)(struct inode *, struct dentry *, struct file *,
 				   unsigned open_flag, umode_t create_mode);
-		int (*tmpfile) (struct inode *, struct dentry *, umode_t);
+		int (*tmpfile) (struct user_namespace *, struct inode *, struct dentry *, umode_t);
+	        int (*set_acl)(struct user_namespace *, struct inode *, struct posix_acl *, int);
 	};
 
 Again, all methods are called without any locks being held, unless

@@ -3282,7 +3282,8 @@ static ssize_t reiserfs_direct_IO(struct kiocb *iocb, struct iov_iter *iter)
 	return ret;
 }
 
-int reiserfs_setattr(struct dentry *dentry, struct iattr *attr)
+int reiserfs_setattr(struct user_namespace *mnt_userns, struct dentry *dentry,
+		     struct iattr *attr)
 {
 	struct inode *inode = d_inode(dentry);
 	unsigned int ia_valid;

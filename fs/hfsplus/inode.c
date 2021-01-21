@@ -241,7 +241,8 @@ static int hfsplus_file_release(struct inode *inode, struct file *file)
 	return 0;
 }
 
-static int hfsplus_setattr(struct dentry *dentry, struct iattr *attr)
+static int hfsplus_setattr(struct user_namespace *mnt_userns,
+			   struct dentry *dentry, struct iattr *attr)
 {
 	struct inode *inode = d_inode(dentry);
 	int error;
@@ -270,8 +271,9 @@ static int hfsplus_setattr(struct dentry *dentry, struct iattr *attr)
 	return 0;
 }
 
-int hfsplus_getattr(const struct path *path, struct kstat *stat,
-		    u32 request_mask, unsigned int query_flags)
+int hfsplus_getattr(struct user_namespace *mnt_userns, const struct path *path,
+		    struct kstat *stat, u32 request_mask,
+		    unsigned int query_flags)
 {
 	struct inode *inode = d_inode(path->dentry);
 	struct hfsplus_inode_info *hip = HFSPLUS_I(inode);

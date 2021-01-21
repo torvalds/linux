@@ -116,7 +116,8 @@ out:
 	return error;
 }
 
-int orangefs_set_acl(struct inode *inode, struct posix_acl *acl, int type)
+int orangefs_set_acl(struct user_namespace *mnt_userns, struct inode *inode,
+		     struct posix_acl *acl, int type)
 {
 	int error;
 	struct iattr iattr;

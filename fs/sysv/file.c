@@ -29,7 +29,8 @@ const struct file_operations sysv_file_operations = {
 	.splice_read	= generic_file_splice_read,
 };
 
-static int sysv_setattr(struct dentry *dentry, struct iattr *attr)
+static int sysv_setattr(struct user_namespace *mnt_userns,
+			struct dentry *dentry, struct iattr *attr)
 {
 	struct inode *inode = d_inode(dentry);
 	int error;

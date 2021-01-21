@@ -676,8 +676,8 @@ error:
  */
 
 static int
-v9fs_vfs_create(struct inode *dir, struct dentry *dentry, umode_t mode,
-		bool excl)
+v9fs_vfs_create(struct user_namespace *mnt_userns, struct inode *dir,
+		struct dentry *dentry, umode_t mode, bool excl)
 {
 	struct v9fs_session_info *v9ses = v9fs_inode2v9ses(dir);
 	u32 perm = unixmode2p9mode(v9ses, mode);
@@ -702,7 +702,8 @@ v9fs_vfs_create(struct inode *dir, struct dentry *dentry, umode_t mode,
  *
  */
 
-static int v9fs_vfs_mkdir(struct inode *dir, struct dentry *dentry, umode_t mode)
+static int v9fs_vfs_mkdir(struct user_namespace *mnt_userns, struct inode *dir,
+			  struct dentry *dentry, umode_t mode)
 {
 	int err;
 	u32 perm;
@@ -907,9 +908,9 @@ int v9fs_vfs_rmdir(struct inode *i, struct dentry *d)
  */
 
 int
-v9fs_vfs_rename(struct inode *old_dir, struct dentry *old_dentry,
-		struct inode *new_dir, struct dentry *new_dentry,
-		unsigned int flags)
+v9fs_vfs_rename(struct user_namespace *mnt_userns, struct inode *old_dir,
+		struct dentry *old_dentry, struct inode *new_dir,
+		struct dentry *new_dentry, unsigned int flags)
 {
 	int retval;
 	struct inode *old_inode;
@@ -1016,8 +1017,8 @@ done:
  */
 
 static int
-v9fs_vfs_getattr(const struct path *path, struct kstat *stat,
-		 u32 request_mask, unsigned int flags)
+v9fs_vfs_getattr(struct user_namespace *mnt_userns, const struct path *path,
+		 struct kstat *stat, u32 request_mask, unsigned int flags)
 {
 	struct dentry *dentry = path->dentry;
 	struct v9fs_session_info *v9ses;
@@ -1054,7 +1055,8 @@ v9fs_vfs_getattr(const struct path *path, struct kstat *stat,
  *
  */
 
-static int v9fs_vfs_setattr(struct dentry *dentry, struct iattr *iattr)
+static int v9fs_vfs_setattr(struct user_namespace *mnt_userns,
+			    struct dentry *dentry, struct iattr *iattr)
 {
 	int retval, use_dentry = 0;
 	struct v9fs_session_info *v9ses;
@@ -1295,7 +1297,8 @@ static int v9fs_vfs_mkspecial(struct inode *dir, struct dentry *dentry,
  */
 
 static int
-v9fs_vfs_symlink(struct inode *dir, struct dentry *dentry, const char *symname)
+v9fs_vfs_symlink(struct user_namespace *mnt_userns, struct inode *dir,
+		 struct dentry *dentry, const char *symname)
 {
 	p9_debug(P9_DEBUG_VFS, " %lu,%pd,%s\n",
 		 dir->i_ino, dentry, symname);
@@ -1348,7 +1351,8 @@ v9fs_vfs_link(struct dentry *old_dentry, struct inode *dir,
  */
 
 static int
-v9fs_vfs_mknod(struct inode *dir, struct dentry *dentry, umode_t mode, dev_t rdev)
+v9fs_vfs_mknod(struct user_namespace *mnt_userns, struct inode *dir,
+	       struct dentry *dentry, umode_t mode, dev_t rdev)
 {
 	struct v9fs_session_info *v9ses = v9fs_inode2v9ses(dir);
 	int retval;

@@ -594,7 +594,8 @@ EXPORT_SYMBOL_GPL(nfs_fhget);
 #define NFS_VALID_ATTRS (ATTR_MODE|ATTR_UID|ATTR_GID|ATTR_SIZE|ATTR_ATIME|ATTR_ATIME_SET|ATTR_MTIME|ATTR_MTIME_SET|ATTR_FILE|ATTR_OPEN)
 
 int
-nfs_setattr(struct dentry *dentry, struct iattr *attr)
+nfs_setattr(struct user_namespace *mnt_userns, struct dentry *dentry,
+	    struct iattr *attr)
 {
 	struct inode *inode = d_inode(dentry);
 	struct nfs_fattr *fattr;
@@ -787,8 +788,8 @@ static bool nfs_need_revalidate_inode(struct inode *inode)
 	return false;
 }
 
-int nfs_getattr(const struct path *path, struct kstat *stat,
-		u32 request_mask, unsigned int query_flags)
+int nfs_getattr(struct user_namespace *mnt_userns, const struct path *path,
+		struct kstat *stat, u32 request_mask, unsigned int query_flags)
 {
 	struct inode *inode = d_inode(path->dentry);
 	struct nfs_server *server = NFS_SERVER(inode);

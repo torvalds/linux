@@ -152,7 +152,8 @@ static void bpf_dentry_finalize(struct dentry *dentry, struct inode *inode,
 	dir->i_ctime = dir->i_mtime;
 }
 
-static int bpf_mkdir(struct inode *dir, struct dentry *dentry, umode_t mode)
+static int bpf_mkdir(struct user_namespace *mnt_userns, struct inode *dir,
+		     struct dentry *dentry, umode_t mode)
 {
 	struct inode *inode;
 
@@ -381,8 +382,8 @@ bpf_lookup(struct inode *dir, struct dentry *dentry, unsigned flags)
 	return simple_lookup(dir, dentry, flags);
 }
 
-static int bpf_symlink(struct inode *dir, struct dentry *dentry,
-		       const char *target)
+static int bpf_symlink(struct user_namespace *mnt_userns, struct inode *dir,
+		       struct dentry *dentry, const char *target)
 {
 	char *link = kstrdup(target, GFP_USER | __GFP_NOWARN);
 	struct inode *inode;

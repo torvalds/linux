@@ -152,8 +152,9 @@ out_unmap:
 	return err;
 }
 
-static int udf_symlink_getattr(const struct path *path, struct kstat *stat,
-				u32 request_mask, unsigned int flags)
+static int udf_symlink_getattr(struct user_namespace *mnt_userns,
+			       const struct path *path, struct kstat *stat,
+			       u32 request_mask, unsigned int flags)
 {
 	struct dentry *dentry = path->dentry;
 	struct inode *inode = d_backing_inode(dentry);
