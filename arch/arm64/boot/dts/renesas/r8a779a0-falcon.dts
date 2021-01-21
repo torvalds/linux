@@ -13,6 +13,7 @@
 	compatible = "renesas,falcon-breakout", "renesas,falcon-cpu", "renesas,r8a779a0";
 
 	aliases {
+		ethernet0 = &avb0;
 		serial0 = &scif0;
 	};
 
