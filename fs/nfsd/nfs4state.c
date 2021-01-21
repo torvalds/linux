@@ -4633,40 +4633,40 @@ static __be32 nfsd4_check_seqid(struct nfsd4_compound_state *cstate, struct nfs4
 	return nfserr_bad_seqid;
 }
 
+static struct nfs4_client *lookup_clientid(clientid_t *clid, bool sessions,
+						struct nfsd_net *nn)
+{
+	struct nfs4_client *found;
+
+	spin_lock(&nn->client_lock);
+	found = find_confirmed_client(clid, sessions, nn);
+	if (found)
+		atomic_inc(&found->cl_rpc_users);
+	spin_unlock(&nn->client_lock);
+	return found;
+}
+
 static __be32 set_client(clientid_t *clid,
 		struct nfsd4_compound_state *cstate,
 		struct nfsd_net *nn,
 		bool sessions)
 {
-	struct nfs4_client *found;
-
 	if (cstate->clp) {
-		found = cstate->clp;
-		if (!same_clid(&found->cl_clientid, clid))
+		if (!same_clid(&cstate->clp->cl_clientid, clid))
 			return nfserr_stale_clientid;
 		return nfs_ok;
 	}
-
 	if (STALE_CLIENTID(clid, nn))
 		return nfserr_stale_clientid;
-
 	/*
 	 * For v4.1+ we get the client in the SEQUENCE op. If we don't have one
 	 * cached already then we know this is for is for v4.0 and "sessions"
 	 * will be false.
 	 */
 	WARN_ON_ONCE(cstate->session);
-	spin_lock(&nn->client_lock);
-	found = find_confirmed_client(clid, sessions, nn);
-	if (!found) {
-		spin_unlock(&nn->client_lock);
+	cstate->clp = lookup_clientid(clid, sessions, nn);
+	if (!cstate->clp)
 		return nfserr_expired;
-	}
-	atomic_inc(&found->cl_rpc_users);
-	spin_unlock(&nn->client_lock);
-
-	/* Cache the nfs4_client in cstate! */
-	cstate->clp = found;
 	return nfs_ok;
 }
 
