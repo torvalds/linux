@@ -834,18 +834,6 @@ config CRYPTO_RMD160
 	  Developed by Hans Dobbertin, Antoon Bosselaers and Bart Preneel.
 	  See <https://homes.esat.kuleuven.be/~bosselae/ripemd160.html>
 
-config CRYPTO_RMD256
-	tristate "RIPEMD-256 digest algorithm"
-	select CRYPTO_HASH
-	help
-	  RIPEMD-256 is an optional extension of RIPEMD-128 with a
-	  256 bit hash. It is intended for applications that require
-	  longer hash-results, without needing a larger security level
-	  (than RIPEMD-128).
-
-	  Developed by Hans Dobbertin, Antoon Bosselaers and Bart Preneel.
-	  See <https://homes.esat.kuleuven.be/~bosselae/ripemd160.html>
-
 config CRYPTO_RMD320
 	tristate "RIPEMD-320 digest algorithm"
 	select CRYPTO_HASH

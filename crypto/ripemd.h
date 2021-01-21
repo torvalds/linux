@@ -9,9 +9,6 @@
 #define RMD160_DIGEST_SIZE      20
 #define RMD160_BLOCK_SIZE       64
 
-#define RMD256_DIGEST_SIZE      32
-#define RMD256_BLOCK_SIZE       64
-
 #define RMD320_DIGEST_SIZE      40
 #define RMD320_BLOCK_SIZE       64
 
