@@ -50,4 +50,8 @@ int intel_gvt_scan_and_shadow_ringbuffer(struct intel_vgpu_workload *workload);
 
 int intel_gvt_scan_and_shadow_wa_ctx(struct intel_shadow_wa_ctx *wa_ctx);
 
+void intel_gvt_update_reg_whitelist(struct intel_vgpu *vgpu);
+
+int intel_gvt_scan_engine_context(struct intel_vgpu_workload *workload);
+
 #endif
