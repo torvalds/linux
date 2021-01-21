@@ -726,6 +726,10 @@ static inline int _generic_set_opp_clk_only(struct device *dev, struct clk *clk,
 {
 	int ret;
 
+	/* We may reach here for devices which don't change frequency */
+	if (IS_ERR(clk))
+		return 0;
+
 	ret = clk_set_rate(clk, freq);
 	if (ret) {
 		dev_err(dev, "%s: failed to set clock rate: %d\n", __func__,
