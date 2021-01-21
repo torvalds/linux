@@ -285,7 +285,7 @@ int kernfs_iop_permission(struct inode *inode, int mask)
 	kernfs_refresh_inode(kn, inode);
 	mutex_unlock(&kernfs_mutex);
 
-	return generic_permission(inode, mask);
+	return generic_permission(&init_user_ns, inode, mask);
 }
 
 int kernfs_xattr_get(struct kernfs_node *kn, const char *name,

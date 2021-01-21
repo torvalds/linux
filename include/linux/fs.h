@@ -2810,15 +2810,17 @@ static inline int bmap(struct inode *inode,  sector_t *block)
 #endif
 
 extern int notify_change(struct dentry *, struct iattr *, struct inode **);
-extern int inode_permission(struct inode *, int);
-extern int generic_permission(struct inode *, int);
+int inode_permission(struct user_namespace *, struct inode *, int);
+int generic_permission(struct user_namespace *, struct inode *, int);
 static inline int file_permission(struct file *file, int mask)
 {
-	return inode_permission(file_inode(file), mask);
+	return inode_permission(file_mnt_user_ns(file),
+				file_inode(file), mask);
 }
 static inline int path_permission(const struct path *path, int mask)
 {
-	return inode_permission(d_inode(path->dentry), mask);
+	return inode_permission(mnt_user_ns(path->mnt),
+				d_inode(path->dentry), mask);
 }
 extern int __check_sticky(struct inode *dir, struct inode *inode);
 

@@ -281,7 +281,7 @@ int proc_fd_permission(struct inode *inode, int mask)
 	struct task_struct *p;
 	int rv;
 
-	rv = generic_permission(inode, mask);
+	rv = generic_permission(&init_user_ns, inode, mask);
 	if (rv == 0)
 		return rv;
 

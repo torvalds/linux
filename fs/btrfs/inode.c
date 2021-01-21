@@ -9889,7 +9889,7 @@ static int btrfs_permission(struct inode *inode, int mask)
 		if (BTRFS_I(inode)->flags & BTRFS_INODE_READONLY)
 			return -EACCES;
 	}
-	return generic_permission(inode, mask);
+	return generic_permission(&init_user_ns, inode, mask);
 }
 
 static int btrfs_tmpfile(struct inode *dir, struct dentry *dentry, umode_t mode)

@@ -197,7 +197,8 @@ int configfs_symlink(struct inode *dir, struct dentry *dentry, const char *symna
 	if (dentry->d_inode || d_unhashed(dentry))
 		ret = -EEXIST;
 	else
-		ret = inode_permission(dir, MAY_WRITE | MAY_EXEC);
+		ret = inode_permission(&init_user_ns, dir,
+				       MAY_WRITE | MAY_EXEC);
 	if (!ret)
 		ret = type->ct_item_ops->allow_link(parent_item, target_item);
 	if (!ret) {

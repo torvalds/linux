@@ -438,7 +438,7 @@ static bool allow_file_dedupe(struct file *file)
 		return true;
 	if (uid_eq(current_fsuid(), file_inode(file)->i_uid))
 		return true;
-	if (!inode_permission(file_inode(file), MAY_WRITE))
+	if (!inode_permission(&init_user_ns, file_inode(file), MAY_WRITE))
 		return true;
 	return false;
 }
