@@ -1502,10 +1502,22 @@ int sys_dup(int fd)
 	return my_syscall1(__NR_dup, fd);
 }
 
+#ifdef __NR_dup3
+static __attribute__((unused))
+int sys_dup3(int old, int new, int flags)
+{
+	return my_syscall3(__NR_dup3, old, new, flags);
+}
+#endif
+
 static __attribute__((unused))
 int sys_dup2(int old, int new)
 {
+#ifdef __NR_dup3
+	return my_syscall3(__NR_dup3, old, new, 0);
+#else
 	return my_syscall2(__NR_dup2, old, new);
+#endif
 }
 
 static __attribute__((unused))
@@ -1875,6 +1887,20 @@ int dup2(int old, int new)
 	}
 	return ret;
 }
+
+#ifdef __NR_dup3
+static __attribute__((unused))
+int dup3(int old, int new, int flags)
+{
+	int ret = sys_dup3(old, new, flags);
+
+	if (ret < 0) {
+		SET_ERRNO(-ret);
+		ret = -1;
+	}
+	return ret;
+}
+#endif
 
 static __attribute__((unused))
 int execve(const char *filename, char *const argv[], char *const envp[])
