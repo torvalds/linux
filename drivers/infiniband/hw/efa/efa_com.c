@@ -795,7 +795,7 @@ err_destroy_comp_ctxt:
  * This method goes over the admin completion queue and wakes up
  * all the pending threads that wait on the commands wait event.
  *
- * @note: Should be called after MSI-X interrupt.
+ * Note: Should be called after MSI-X interrupt.
  */
 void efa_com_admin_q_comp_intr_handler(struct efa_com_dev *edev)
 {
