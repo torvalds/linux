@@ -1249,7 +1249,8 @@ static struct page *alloc_gigantic_page(struct hstate *h, gfp_t gfp_mask,
 
 		if (hugetlb_cma[nid]) {
 			page = cma_alloc(hugetlb_cma[nid], nr_pages,
-					huge_page_order(h), true);
+					huge_page_order(h),
+					GFP_KERNEL | __GFP_NOWARN);
 			if (page)
 				return page;
 		}
@@ -1260,7 +1261,8 @@ static struct page *alloc_gigantic_page(struct hstate *h, gfp_t gfp_mask,
 					continue;
 
 				page = cma_alloc(hugetlb_cma[node], nr_pages,
-						huge_page_order(h), true);
+						huge_page_order(h),
+						GFP_KERNEL | __GFP_NOWARN);
 				if (page)
 					return page;
 			}

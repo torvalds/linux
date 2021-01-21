@@ -292,7 +292,7 @@ static struct dma_buf *cma_heap_allocate(struct dma_heap *heap,
 	if (align > CONFIG_CMA_ALIGNMENT)
 		align = CONFIG_CMA_ALIGNMENT;
 
-	cma_pages = cma_alloc(cma_heap->cma, pagecount, align, false);
+	cma_pages = cma_alloc(cma_heap->cma, pagecount, align, GFP_KERNEL);
 	if (!cma_pages)
 		goto free_buffer;
 
