@@ -33,7 +33,6 @@
 	};
 
 	memory@0 {
-		linux,usable-memory = <0x0 0x1f800000>;
 		available = <0xcf000 0x1ef31000 0x1000 0xbf000>;
 		reg = <0x0 0x20000000>;
 		device_type = "memory";
