@@ -961,7 +961,7 @@ static int aspeed_pwm_tacho_probe(struct platform_device *pdev)
 	aspeed_set_clock_enable(priv->regmap, true);
 	aspeed_set_clock_source(priv->regmap, 0);
 
-	ret = of_property_read_u32(pdev->dev.of_node, "aspeed,minrpm", &priv->minrpm);
+	ret = of_property_read_u32(pdev->dev.of_node, "aspeed,min-rpm", &priv->minrpm);
 	if (ret)
 		priv->minrpm = DEFAULT_FAN_MIN_RPM;
 
