@@ -1452,7 +1452,7 @@ void gsi_channel_doorbell(struct gsi_channel *channel)
 }
 
 /* Consult hardware, move any newly completed transactions to completed list */
-static void gsi_channel_update(struct gsi_channel *channel)
+static struct gsi_trans *gsi_channel_update(struct gsi_channel *channel)
 {
 	u32 evt_ring_id = channel->evt_ring_id;
 	struct gsi *gsi = channel->gsi;
@@ -1471,7 +1471,7 @@ static void gsi_channel_update(struct gsi_channel *channel)
 	offset = GSI_EV_CH_E_CNTXT_4_OFFSET(evt_ring_id);
 	index = gsi_ring_index(ring, ioread32(gsi->virt + offset));
 	if (index == ring->index % ring->count)
-		return;
+		return NULL;
 
 	/* Get the transaction for the latest completed event.  Take a
 	 * reference to keep it from completing before we give the events
@@ -1496,6 +1496,8 @@ static void gsi_channel_update(struct gsi_channel *channel)
 	gsi_evt_ring_doorbell(channel->gsi, channel->evt_ring_id, index);
 
 	gsi_trans_free(trans);
+
+	return gsi_channel_trans_complete(channel);
 }
 
 /**
@@ -1516,11 +1518,8 @@ static struct gsi_trans *gsi_channel_poll_one(struct gsi_channel *channel)
 
 	/* Get the first transaction from the completed list */
 	trans = gsi_channel_trans_complete(channel);
-	if (!trans) {
-		/* List is empty; see if there's more to do */
-		gsi_channel_update(channel);
-		trans = gsi_channel_trans_complete(channel);
-	}
+	if (!trans)	/* List is empty; see if there's more to do */
+		trans = gsi_channel_update(channel);
 
 	if (trans)
 		gsi_trans_move_polled(trans);
