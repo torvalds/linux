@@ -1854,8 +1854,6 @@ static const struct snd_soc_dapm_route rt5682_dapm_routes[] = {
 
 	{"CLKDET SYS", NULL, "CLKDET"},
 
-	{"IN1P", NULL, "LDO2"},
-
 	{"BST1 CBJ", NULL, "IN1P"},
 
 	{"RECMIX1L", "CBJ Switch", "BST1 CBJ"},
