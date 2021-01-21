@@ -1003,7 +1003,7 @@ static int _set_opp(struct device *dev, struct opp_table *opp_table,
 {
 	struct dev_pm_opp *old_opp;
 	unsigned long old_freq;
-	int ret;
+	int scaling_down, ret;
 
 	if (unlikely(!opp))
 		return _disable_opp_table(dev, opp_table);
@@ -1021,11 +1021,17 @@ static int _set_opp(struct device *dev, struct opp_table *opp_table,
 		return 0;
 	}
 
-	dev_dbg(dev, "%s: switching OPP: %lu Hz --> %lu Hz\n", __func__,
-		old_freq, freq);
+	dev_dbg(dev, "%s: switching OPP: Freq %lu -> %lu Hz, Level %u -> %u, Bw %u -> %u\n",
+		__func__, old_freq, freq, old_opp->level, opp->level,
+		old_opp->bandwidth ? old_opp->bandwidth[0].peak : 0,
+		opp->bandwidth ? opp->bandwidth[0].peak : 0);
+
+	scaling_down = _opp_compare_key(old_opp, opp);
+	if (scaling_down == -1)
+		scaling_down = 0;
 
 	/* Scaling up? Configure required OPPs before frequency */
-	if (freq >= old_freq) {
+	if (!scaling_down) {
 		ret = _set_required_opps(dev, opp_table, opp, true);
 		if (ret)
 			return ret;
@@ -1044,7 +1050,7 @@ static int _set_opp(struct device *dev, struct opp_table *opp_table,
 	}
 
 	/* Scaling down? Configure required OPPs after frequency */
-	if (!ret && freq < old_freq) {
+	if (!ret && scaling_down) {
 		ret = _set_required_opps(dev, opp_table, opp, false);
 		if (ret)
 			dev_err(dev, "Failed to set required opps: %d\n", ret);
