@@ -2659,8 +2659,14 @@ int snd_soc_tplg_component_load(struct snd_soc_component *comp,
 	struct soc_tplg tplg;
 	int ret;
 
-	/* component needs to exist to keep and reference data while parsing */
-	if (!comp)
+	/*
+	 * check if we have sane parameters:
+	 * comp - needs to exist to keep and reference data while parsing
+	 * comp->dev - used for resource management and prints
+	 * comp->card - used for setting card related parameters
+	 * fw - we need it, as it is the very thing we parse
+	 */
+	if (!comp || !comp->dev || !comp->card || !fw)
 		return -EINVAL;
 
 	/* setup parsing context */
@@ -2668,11 +2674,13 @@ int snd_soc_tplg_component_load(struct snd_soc_component *comp,
 	tplg.fw = fw;
 	tplg.dev = comp->dev;
 	tplg.comp = comp;
-	tplg.ops = ops;
-	tplg.io_ops = ops->io_ops;
-	tplg.io_ops_count = ops->io_ops_count;
-	tplg.bytes_ext_ops = ops->bytes_ext_ops;
-	tplg.bytes_ext_ops_count = ops->bytes_ext_ops_count;
+	if (ops) {
+		tplg.ops = ops;
+		tplg.io_ops = ops->io_ops;
+		tplg.io_ops_count = ops->io_ops_count;
+		tplg.bytes_ext_ops = ops->bytes_ext_ops;
+		tplg.bytes_ext_ops_count = ops->bytes_ext_ops_count;
+	}
 
 	ret = soc_tplg_load(&tplg);
 	/* free the created components if fail to load topology */
