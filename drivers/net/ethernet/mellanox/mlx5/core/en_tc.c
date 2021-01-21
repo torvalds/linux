@@ -165,6 +165,11 @@ struct mlx5e_tc_attr_to_reg_mapping mlx5e_tc_attr_to_reg_mappings[] = {
 		.moffset = 0,
 		.mlen = 2,
 	},
+	[VPORT_TO_REG] = {
+		.mfield = MLX5_ACTION_IN_FIELD_METADATA_REG_C_0,
+		.moffset = 2,
+		.mlen = 2,
+	},
 	[TUNNEL_TO_REG] = {
 		.mfield = MLX5_ACTION_IN_FIELD_METADATA_REG_C_1,
 		.moffset = 1,
@@ -1313,6 +1318,44 @@ static void remove_unready_flow(struct mlx5e_tc_flow *flow)
 	mutex_lock(&uplink_priv->unready_flows_lock);
 	unready_flow_del(flow);
 	mutex_unlock(&uplink_priv->unready_flows_lock);
+}
+
+static bool same_hw_devs(struct mlx5e_priv *priv, struct mlx5e_priv *peer_priv);
+
+static bool mlx5e_tc_is_vf_tunnel(struct net_device *out_dev, struct net_device *route_dev)
+{
+	struct mlx5_core_dev *out_mdev, *route_mdev;
+	struct mlx5e_priv *out_priv, *route_priv;
+
+	out_priv = netdev_priv(out_dev);
+	out_mdev = out_priv->mdev;
+	route_priv = netdev_priv(route_dev);
+	route_mdev = route_priv->mdev;
+
+	if (out_mdev->coredev_type != MLX5_COREDEV_PF ||
+	    route_mdev->coredev_type != MLX5_COREDEV_VF)
+		return false;
+
+	return same_hw_devs(out_priv, route_priv);
+}
+
+static int mlx5e_tc_query_route_vport(struct net_device *out_dev, struct net_device *route_dev,
+				      u16 *vport)
+{
+	struct mlx5e_priv *out_priv, *route_priv;
+	struct mlx5_core_dev *route_mdev;
+	struct mlx5_eswitch *esw;
+	u16 vhca_id;
+	int err;
+
+	out_priv = netdev_priv(out_dev);
+	esw = out_priv->mdev->priv.eswitch;
+	route_priv = netdev_priv(route_dev);
+	route_mdev = route_priv->mdev;
+
+	vhca_id = MLX5_CAP_GEN(route_mdev, vhca_id);
+	err = mlx5_eswitch_vhca_id_to_vport(esw, vhca_id, vport);
+	return err;
 }
 
 static int
@@ -3700,6 +3743,45 @@ static bool is_duplicated_encap_entry(struct mlx5e_priv *priv,
 	return false;
 }
 
+static int mlx5e_set_vf_tunnel(struct mlx5_eswitch *esw,
+			       struct mlx5_flow_attr *attr,
+			       struct mlx5e_tc_mod_hdr_acts *mod_hdr_acts,
+			       struct net_device *out_dev,
+			       int route_dev_ifindex,
+			       int out_index)
+{
+	struct mlx5_esw_flow_attr *esw_attr = attr->esw_attr;
+	struct net_device *route_dev;
+	u16 vport_num;
+	int err = 0;
+	u32 data;
+
+	route_dev = dev_get_by_index(dev_net(out_dev), route_dev_ifindex);
+
+	if (!route_dev || route_dev->netdev_ops != &mlx5e_netdev_ops ||
+	    !mlx5e_tc_is_vf_tunnel(out_dev, route_dev))
+		goto out;
+
+	err = mlx5e_tc_query_route_vport(out_dev, route_dev, &vport_num);
+	if (err)
+		goto out;
+
+	attr->dest_chain = 0;
+	attr->action |= MLX5_FLOW_CONTEXT_ACTION_MOD_HDR;
+	esw_attr->dests[out_index].flags |= MLX5_ESW_DEST_CHAIN_WITH_SRC_PORT_CHANGE;
+	data = mlx5_eswitch_get_vport_metadata_for_set(esw_attr->in_mdev->priv.eswitch,
+						       vport_num);
+	err = mlx5e_tc_match_to_reg_set(esw->dev, mod_hdr_acts,
+					MLX5_FLOW_NAMESPACE_FDB, VPORT_TO_REG, data);
+	if (err)
+		goto out;
+
+out:
+	if (route_dev)
+		dev_put(route_dev);
+	return err;
+}
+
 static int mlx5e_attach_encap(struct mlx5e_priv *priv,
 			      struct mlx5e_tc_flow *flow,
 			      struct net_device *mirred_dev,
@@ -3791,6 +3873,11 @@ static int mlx5e_attach_encap(struct mlx5e_priv *priv,
 	e->compl_result = 1;
 
 attach_flow:
+	err = mlx5e_set_vf_tunnel(esw, attr, &parse_attr->mod_hdr_acts, e->out_dev,
+				  e->route_dev_ifindex, out_index);
+	if (err)
+		goto out_err;
+
 	flow->encaps[out_index].e = e;
 	list_add(&flow->encaps[out_index].list, &e->flows);
 	flow->encaps[out_index].index = out_index;
