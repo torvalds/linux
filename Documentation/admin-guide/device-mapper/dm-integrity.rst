@@ -186,6 +186,17 @@ fix_padding
 	space-efficient. If this option is not present, large padding is
 	used - that is for compatibility with older kernels.
 
+fix_hmac
+	Improve security of internal_hash and journal_mac:
+
+	- the section number is mixed to the mac, so that an attacker can't
+	  copy sectors from one journal section to another journal section
+	- the superblock is protected by journal_mac
+	- a 16-byte salt stored in the superblock is mixed to the mac, so
+	  that the attacker can't detect that two disks have the same hmac
+	  key and also to disallow the attacker to move sectors from one
+	  disk to another
+
 legacy_recalculate
 	Allow recalculating of volumes with HMAC keys. This is disabled by
 	default for security reasons - an attacker could modify the volume,
