@@ -344,7 +344,7 @@ struct wacom_wac {
 	struct input_dev *pen_input;
 	struct input_dev *touch_input;
 	struct input_dev *pad_input;
-	struct kfifo_rec_ptr_2 pen_fifo;
+	struct kfifo_rec_ptr_2 *pen_fifo;
 	int pid;
 	int num_contacts_left;
 	u8 bt_features;
