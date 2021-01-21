@@ -502,6 +502,7 @@ static void xr_set_termios(struct tty_struct *tty,
 
 static int xr_open(struct tty_struct *tty, struct usb_serial_port *port)
 {
+	u8 gpio_dir;
 	int ret;
 
 	ret = xr_uart_enable(port);
@@ -509,6 +510,13 @@ static int xr_open(struct tty_struct *tty, struct usb_serial_port *port)
 		dev_err(&port->dev, "Failed to enable UART\n");
 		return ret;
 	}
+
+	/*
+	 * Configure DTR and RTS as outputs and RI, CD, DSR and CTS as
+	 * inputs.
+	 */
+	gpio_dir = XR21V141X_UART_MODE_DTR | XR21V141X_UART_MODE_RTS;
+	xr_set_reg_uart(port, XR21V141X_REG_GPIO_DIR, gpio_dir);
 
 	/* Setup termios */
 	if (tty)
