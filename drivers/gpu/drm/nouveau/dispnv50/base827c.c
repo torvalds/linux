@@ -49,7 +49,11 @@ base827c_image_set(struct nv50_wndw *wndw, struct nv50_wndw_atom *asyw)
 			  NVVAL(NV827C, SET_CONVERSION, OFS, 0x64));
 	} else {
 		PUSH_MTHD(push, NV827C, SET_PROCESSING,
-			  NVDEF(NV827C, SET_PROCESSING, USE_GAIN_OFS, DISABLE));
+			  NVDEF(NV827C, SET_PROCESSING, USE_GAIN_OFS, DISABLE),
+
+					SET_CONVERSION,
+			  NVVAL(NV827C, SET_CONVERSION, GAIN, 0) |
+			  NVVAL(NV827C, SET_CONVERSION, OFS, 0));
 	}
 
 	PUSH_MTHD(push, NV827C, SURFACE_SET_OFFSET(0, 0), asyw->image.offset[0] >> 8,
