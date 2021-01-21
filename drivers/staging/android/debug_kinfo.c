@@ -110,11 +110,6 @@ static int debug_kinfo_probe(struct platform_device *pdev)
 		return -ENODEV;
 	}
 
-	/* Deferred until dss.ko(dpm.o) and debug-snapshot-debug-kinfo.ko are ready */
-	if (!rmem->priv) {
-		return -EPROBE_DEFER;
-	}
-
 	if (!rmem->base || !rmem->size) {
 		dev_warn(&pdev->dev, "unexpected reserved memory\n");
 		return -EINVAL;
