@@ -1124,16 +1124,18 @@ srcu_unlock:
 /**
  * Parse a series of data segments for page fault handling.
  *
- * @pfault contains page fault information.
- * @wqe points at the first data segment in the WQE.
- * @wqe_end points after the end of the WQE.
- * @bytes_mapped receives the number of bytes that the function was able to
- *               map. This allows the caller to decide intelligently whether
- *               enough memory was mapped to resolve the page fault
- *               successfully (e.g. enough for the next MTU, or the entire
- *               WQE).
- * @total_wqe_bytes receives the total data size of this WQE in bytes (minus
- *                  the committed bytes).
+ * @dev:  Pointer to mlx5 IB device
+ * @pfault: contains page fault information.
+ * @wqe: points at the first data segment in the WQE.
+ * @wqe_end: points after the end of the WQE.
+ * @bytes_mapped: receives the number of bytes that the function was able to
+ *                map. This allows the caller to decide intelligently whether
+ *                enough memory was mapped to resolve the page fault
+ *                successfully (e.g. enough for the next MTU, or the entire
+ *                WQE).
+ * @total_wqe_bytes: receives the total data size of this WQE in bytes (minus
+ *                   the committed bytes).
+ * @receive_queue: receive WQE end of sg list
  *
  * Returns the number of pages loaded if positive, zero for an empty WQE, or a
  * negative error code.
