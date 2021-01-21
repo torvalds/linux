@@ -584,12 +584,11 @@ static void lock_bus(struct i2c_adapter *i2c, unsigned int flags)
 {
 	struct amdgpu_device *adev = to_amdgpu_device(i2c);
 
-	if (!smu_v11_0_i2c_bus_lock(i2c)) {
+	mutex_lock(&adev->pm.smu_i2c_mutex);
+	if (!smu_v11_0_i2c_bus_lock(i2c))
 		DRM_ERROR("Failed to lock the bus from SMU");
-		return;
-	}
-
-	adev->pm.bus_locked = true;
+	else
+		adev->pm.bus_locked = true;
 }
 
 static int trylock_bus(struct i2c_adapter *i2c, unsigned int flags)
@@ -602,12 +601,11 @@ static void unlock_bus(struct i2c_adapter *i2c, unsigned int flags)
 {
 	struct amdgpu_device *adev = to_amdgpu_device(i2c);
 
-	if (!smu_v11_0_i2c_bus_unlock(i2c)) {
+	if (!smu_v11_0_i2c_bus_unlock(i2c))
 		DRM_ERROR("Failed to unlock the bus from SMU");
-		return;
-	}
-
-	adev->pm.bus_locked = false;
+	else
+		adev->pm.bus_locked = false;
+	mutex_unlock(&adev->pm.smu_i2c_mutex);
 }
 
 static const struct i2c_lock_operations smu_v11_0_i2c_i2c_lock_ops = {
@@ -665,6 +663,7 @@ int smu_v11_0_i2c_control_init(struct i2c_adapter *control)
 	struct amdgpu_device *adev = to_amdgpu_device(control);
 	int res;
 
+	mutex_init(&adev->pm.smu_i2c_mutex);
 	control->owner = THIS_MODULE;
 	control->class = I2C_CLASS_SPD;
 	control->dev.parent = &adev->pdev->dev;
