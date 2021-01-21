@@ -914,7 +914,7 @@ static struct btf_raw_test raw_tests[] = {
 	.err_str = "Member exceeds struct_size",
 },
 
-/* Test member exeeds the size of struct
+/* Test member exceeds the size of struct
  *
  * struct A {
  *     int m;
@@ -948,7 +948,7 @@ static struct btf_raw_test raw_tests[] = {
 	.err_str = "Member exceeds struct_size",
 },
 
-/* Test member exeeds the size of struct
+/* Test member exceeds the size of struct
  *
  * struct A {
  *     int m;
