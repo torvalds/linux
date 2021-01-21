@@ -586,9 +586,14 @@ intel_dp_aux_supports_vesa_backlight(struct intel_connector *connector)
 	struct drm_i915_private *i915 = dp_to_i915(intel_dp);
 
 	/* Check the eDP Display control capabilities registers to determine if
-	 * the panel can support backlight control over the aux channel
+	 * the panel can support backlight control over the aux channel.
+	 *
+	 * TODO: We currently only support AUX only backlight configurations, not backlights which
+	 * require a mix of PWM and AUX controls to work. In the mean time, these machines typically
+	 * work just fine using normal PWM controls anyway.
 	 */
 	if (intel_dp->edp_dpcd[1] & DP_EDP_TCON_BACKLIGHT_ADJUSTMENT_CAP &&
+	    (intel_dp->edp_dpcd[1] & DP_EDP_BACKLIGHT_AUX_ENABLE_CAP) &&
 	    (intel_dp->edp_dpcd[2] & DP_EDP_BACKLIGHT_BRIGHTNESS_AUX_SET_CAP)) {
 		drm_dbg_kms(&i915->drm, "AUX Backlight Control Supported!\n");
 		return true;
