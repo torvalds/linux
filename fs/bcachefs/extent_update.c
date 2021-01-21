@@ -192,18 +192,13 @@ bch2_extent_can_insert(struct btree_trans *trans,
 		       struct btree_iter *iter,
 		       struct bkey_i *insert)
 {
-	struct btree_iter_level *l = &iter->l[0];
-	struct btree_node_iter node_iter = l->iter;
-	struct bkey_packed *_k;
 	struct bkey_s_c k;
-	struct bkey unpacked;
-	int sectors;
+	int ret, sectors;
 
-	_k = bch2_btree_node_iter_peek(&node_iter, l->b);
-	if (!_k)
-		return BTREE_INSERT_OK;
-
-	k = bkey_disassemble(l->b, _k, &unpacked);
+	k = bch2_btree_iter_peek_slot(iter);
+	ret = bkey_err(k);
+	if (ret)
+		return ret;
 
 	/* Check if we're splitting a compressed extent: */
 
