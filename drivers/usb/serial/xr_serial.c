@@ -564,6 +564,15 @@ static int xr_probe(struct usb_serial *serial, const struct usb_device_id *id)
 	return 0;
 }
 
+static void xr_disconnect(struct usb_serial *serial)
+{
+	struct usb_driver *driver = serial->type->usb_driver;
+	struct usb_interface *control_interface;
+
+	control_interface = usb_ifnum_to_if(serial->dev, 0);
+	usb_driver_release_interface(driver, control_interface);
+}
+
 static const struct usb_device_id id_table[] = {
 	{ USB_DEVICE(0x04e2, 0x1410) }, /* XR21V141X */
 	{ }
@@ -578,6 +587,7 @@ static struct usb_serial_driver xr_device = {
 	.id_table		= id_table,
 	.num_ports		= 1,
 	.probe			= xr_probe,
+	.disconnect		= xr_disconnect,
 	.open			= xr_open,
 	.close			= xr_close,
 	.break_ctl		= xr_break_ctl,
