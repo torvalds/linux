@@ -18,7 +18,6 @@
 #include <linux/of_device.h>
 #include <linux/of_dma.h>
 #include <linux/of.h>
-#include <linux/dma/mmp-pdma.h>
 
 #include "dmaengine.h"
 
@@ -1147,19 +1146,6 @@ static struct platform_driver mmp_pdma_driver = {
 	.probe		= mmp_pdma_probe,
 	.remove		= mmp_pdma_remove,
 };
-
-bool mmp_pdma_filter_fn(struct dma_chan *chan, void *param)
-{
-	struct mmp_pdma_chan *c = to_mmp_pdma_chan(chan);
-
-	if (chan->device->dev->driver != &mmp_pdma_driver.driver)
-		return false;
-
-	c->drcmr = *(unsigned int *)param;
-
-	return true;
-}
-EXPORT_SYMBOL_GPL(mmp_pdma_filter_fn);
 
 module_platform_driver(mmp_pdma_driver);
 
