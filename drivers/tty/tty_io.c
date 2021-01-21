@@ -437,8 +437,7 @@ static ssize_t hung_up_tty_read(struct file *file, char __user *buf,
 	return 0;
 }
 
-static ssize_t hung_up_tty_write(struct file *file, const char __user *buf,
-				 size_t count, loff_t *ppos)
+static ssize_t hung_up_tty_write(struct kiocb *iocb, struct iov_iter *from)
 {
 	return -EIO;
 }
@@ -506,7 +505,7 @@ static const struct file_operations console_fops = {
 static const struct file_operations hung_up_tty_fops = {
 	.llseek		= no_llseek,
 	.read		= hung_up_tty_read,
-	.write		= hung_up_tty_write,
+	.write_iter	= hung_up_tty_write,
 	.poll		= hung_up_tty_poll,
 	.unlocked_ioctl	= hung_up_tty_ioctl,
 	.compat_ioctl	= hung_up_tty_compat_ioctl,
@@ -1119,7 +1118,9 @@ static ssize_t tty_write(struct kiocb *iocb, struct iov_iter *from)
 	if (tty->ops->write_room == NULL)
 		tty_err(tty, "missing write_room method\n");
 	ld = tty_ldisc_ref_wait(tty);
-	if (!ld || !ld->ops->write)
+	if (!ld)
+		return hung_up_tty_write(iocb, from);
+	if (!ld->ops->write)
 		ret = -EIO;
 	else
 		ret = do_tty_write(ld->ops->write, tty, file, from);
