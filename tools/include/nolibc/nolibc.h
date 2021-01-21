@@ -81,14 +81,6 @@
  *
  */
 
-/* Some archs (at least aarch64) don't expose the regular syscalls anymore by
- * default, either because they have an "_at" replacement, or because there are
- * more modern alternatives. For now we'd rather still use them.
- */
-#define __ARCH_WANT_SYSCALL_NO_AT
-#define __ARCH_WANT_SYSCALL_NO_FLAGS
-#define __ARCH_WANT_SYSCALL_DEPRECATED
-
 #include <asm/unistd.h>
 #include <asm/ioctls.h>
 #include <asm/errno.h>
