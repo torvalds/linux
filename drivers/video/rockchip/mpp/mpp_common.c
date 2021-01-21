@@ -2056,7 +2056,11 @@ int px30_workaround_combo_init(struct mpp_dev *mpp)
 			iommu->mmu_num++;
 		}
 		iommu->grf_val = mpp->grf_info->val & MPP_GRF_VAL_MASK;
+		if (mpp->hw_ops->clk_on)
+			mpp->hw_ops->clk_on(mpp);
 		iommu->dte_addr =  mpp_iommu_get_dte_addr(iommu);
+		if (mpp->hw_ops->clk_off)
+			mpp->hw_ops->clk_off(mpp);
 		INIT_LIST_HEAD(&iommu->link);
 		mutex_lock(&mpp->queue->mmu_lock);
 		list_add_tail(&iommu->link, &mpp->queue->mmu_list);
