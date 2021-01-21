@@ -408,14 +408,11 @@ static void xr_set_flow_mode(struct tty_struct *tty,
 	if (ret)
 		return;
 
+	/* Set GPIO mode for controlling the pins manually by default. */
+	gpio_mode &= ~XR21V141X_UART_MODE_GPIO_MASK;
+
 	if (C_CRTSCTS(tty)) {
 		dev_dbg(&port->dev, "Enabling hardware flow ctrl\n");
-
-		/*
-		 * RTS/CTS is the default flow control mode, so set GPIO mode
-		 * for controlling the pins manually by default.
-		 */
-		gpio_mode &= ~XR21V141X_UART_MODE_GPIO_MASK;
 		gpio_mode |= XR21V141X_UART_MODE_RTS_CTS;
 		flow = XR21V141X_UART_FLOW_MODE_HW;
 	} else if (I_IXON(tty)) {
