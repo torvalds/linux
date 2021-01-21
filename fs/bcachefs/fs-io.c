@@ -93,6 +93,7 @@ struct dio_read {
 	struct closure			cl;
 	struct kiocb			*req;
 	long				ret;
+	bool				should_dirty;
 	struct bch_read_bio		rbio;
 };
 
@@ -1599,12 +1600,22 @@ again:
 
 /* O_DIRECT reads */
 
+static void bio_check_or_release(struct bio *bio, bool check_dirty)
+{
+	if (check_dirty) {
+		bio_check_pages_dirty(bio);
+	} else {
+		bio_release_pages(bio, false);
+		bio_put(bio);
+	}
+}
+
 static void bch2_dio_read_complete(struct closure *cl)
 {
 	struct dio_read *dio = container_of(cl, struct dio_read, cl);
 
 	dio->req->ki_complete(dio->req, dio->ret);
-	bio_check_pages_dirty(&dio->rbio.bio);	/* transfers ownership */
+	bio_check_or_release(&dio->rbio.bio, dio->should_dirty);
 }
 
 static void bch2_direct_IO_read_endio(struct bio *bio)
@@ -1619,8 +1630,11 @@ static void bch2_direct_IO_read_endio(struct bio *bio)
 
 static void bch2_direct_IO_read_split_endio(struct bio *bio)
 {
+	struct dio_read *dio = bio->bi_private;
+	bool should_dirty = dio->should_dirty;
+
 	bch2_direct_IO_read_endio(bio);
-	bio_check_pages_dirty(bio);	/* transfers ownership */
+	bio_check_or_release(bio, should_dirty);
 }
 
 static int bch2_direct_IO_read(struct kiocb *req, struct iov_iter *iter)
@@ -1676,6 +1690,12 @@ static int bch2_direct_IO_read(struct kiocb *req, struct iov_iter *iter)
 
 	dio->req	= req;
 	dio->ret	= ret;
+	/*
+	 * This is one of the sketchier things I've encountered: we have to skip
+	 * the dirtying of requests that are internal from the kernel (i.e. from
+	 * loopback), because we'll deadlock on page_lock.
+	 */
+	dio->should_dirty = iter_is_iovec(iter);
 
 	goto start;
 	while (iter->count) {
@@ -1699,7 +1719,9 @@ start:
 		}
 
 		offset += bio->bi_iter.bi_size;
-		bio_set_pages_dirty(bio);
+
+		if (dio->should_dirty)
+			bio_set_pages_dirty(bio);
 
 		if (iter->count)
 			closure_get(&dio->cl);
@@ -1713,7 +1735,7 @@ start:
 		closure_sync(&dio->cl);
 		closure_debug_destroy(&dio->cl);
 		ret = dio->ret;
-		bio_check_pages_dirty(&dio->rbio.bio); /* transfers ownership */
+		bio_check_or_release(&dio->rbio.bio, dio->should_dirty);
 		return ret;
 	} else {
 		return -EIOCBQUEUED;
