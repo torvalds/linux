@@ -119,8 +119,16 @@
 };
 
 &ssp2 {
-	cs-gpios = <&gpio 56 GPIO_ACTIVE_LOW>;
 	status = "okay";
+	cs-gpios = <&gpio 56 GPIO_ACTIVE_LOW>;
+
+	power-button@0 {
+		reg = <0>;
+		interrupt-parent = <&gpio>;
+		interrupts = <60 IRQ_TYPE_EDGE_RISING>;
+		compatible = "dell,wyse-ariel-ec-input", "ene,kb3930-input";
+		spi-max-frequency = <33000000>;
+	};
 };
 
 &gpu_2d {
