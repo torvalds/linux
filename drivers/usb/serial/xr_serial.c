@@ -341,8 +341,11 @@ static int xr_set_baudrate(struct tty_struct *tty,
 	u16 tx_mask, rx_mask;
 	int ret;
 
-	baud = clamp(tty->termios.c_ospeed, XR21V141X_MIN_SPEED,
-		     XR21V141X_MAX_SPEED);
+	baud = tty->termios.c_ospeed;
+	if (!baud)
+		return 0;
+
+	baud = clamp(baud, XR21V141X_MIN_SPEED, XR21V141X_MAX_SPEED);
 	divisor = XR_INT_OSC_HZ / baud;
 	idx = ((32 * XR_INT_OSC_HZ) / baud) & 0x1f;
 	tx_mask = xr21v141x_txrx_clk_masks[idx].tx;
@@ -399,7 +402,8 @@ static int xr_set_baudrate(struct tty_struct *tty,
 }
 
 static void xr_set_flow_mode(struct tty_struct *tty,
-			     struct usb_serial_port *port)
+			     struct usb_serial_port *port,
+			     struct ktermios *old_termios)
 {
 	u8 flow, gpio_mode;
 	int ret;
@@ -411,7 +415,7 @@ static void xr_set_flow_mode(struct tty_struct *tty,
 	/* Set GPIO mode for controlling the pins manually by default. */
 	gpio_mode &= ~XR21V141X_UART_MODE_GPIO_MASK;
 
-	if (C_CRTSCTS(tty)) {
+	if (C_CRTSCTS(tty) && C_BAUD(tty) != B0) {
 		dev_dbg(&port->dev, "Enabling hardware flow ctrl\n");
 		gpio_mode |= XR21V141X_UART_MODE_RTS_CTS;
 		flow = XR21V141X_UART_FLOW_MODE_HW;
@@ -438,6 +442,11 @@ static void xr_set_flow_mode(struct tty_struct *tty,
 	xr_uart_enable(port);
 
 	xr_set_reg_uart(port, XR21V141X_REG_GPIO_MODE, gpio_mode);
+
+	if (C_BAUD(tty) == B0)
+		xr_dtr_rts(port, 0);
+	else if (old_termios && (old_termios->c_cflag & CBAUD) == B0)
+		xr_dtr_rts(port, 1);
 }
 
 static void xr_set_termios(struct tty_struct *tty,
@@ -493,11 +502,7 @@ static void xr_set_termios(struct tty_struct *tty,
 	if (ret)
 		return;
 
-	/* If baud rate is B0, clear DTR and RTS */
-	if (C_BAUD(tty) == B0)
-		xr_dtr_rts(port, 0);
-
-	xr_set_flow_mode(tty, port);
+	xr_set_flow_mode(tty, port, old_termios);
 }
 
 static int xr_open(struct tty_struct *tty, struct usb_serial_port *port)
