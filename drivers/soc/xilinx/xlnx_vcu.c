@@ -72,6 +72,7 @@
  * @logicore_reg_ba: logicore reg base address
  * @vcu_slcr_ba: vcu_slcr Register base address
  * @pll: handle for the VCU PLL
+ * @pll_post: handle for the VCU PLL post divider
  * @clk_data: clocks provided by the vcu clock provider
  */
 struct xvcu_device {
@@ -81,6 +82,7 @@ struct xvcu_device {
 	struct regmap *logicore_reg_ba;
 	void __iomem *vcu_slcr_ba;
 	struct clk_hw *pll;
+	struct clk_hw *pll_post;
 	struct clk_hw_onecell_data *clk_data;
 };
 
@@ -274,6 +276,29 @@ static int xvcu_pll_wait_for_lock(struct xvcu_device *xvcu)
 	return -ETIMEDOUT;
 }
 
+static struct clk_hw *xvcu_register_pll_post(struct device *dev,
+					     const char *name,
+					     const struct clk_hw *parent_hw,
+					     void __iomem *reg_base)
+{
+	u32 div;
+	u32 vcu_pll_ctrl;
+
+	/*
+	 * The output divider of the PLL must be set to 1/2 to meet the
+	 * timing in the design.
+	 */
+	vcu_pll_ctrl = xvcu_read(reg_base, VCU_PLL_CTRL);
+	div = vcu_pll_ctrl >> VCU_PLL_CTRL_CLKOUTDIV_SHIFT;
+	div = div & VCU_PLL_CTRL_CLKOUTDIV_MASK;
+	if (div != 1)
+		return ERR_PTR(-EINVAL);
+
+	return clk_hw_register_fixed_factor(dev, "vcu_pll_post",
+					    clk_hw_get_name(parent_hw),
+					    CLK_SET_RATE_PARENT, 1, 2);
+}
+
 static const struct xvcu_pll_cfg *xvcu_find_cfg(int div)
 {
 	const struct xvcu_pll_cfg *cfg = NULL;
@@ -402,7 +427,7 @@ static int xvcu_set_vcu_pll_info(struct xvcu_device *xvcu)
 {
 	u32 refclk, coreclk, mcuclk, inte, deci;
 	u32 divisor_mcu, divisor_core, fvco;
-	u32 clkoutdiv, vcu_pll_ctrl, pll_clk;
+	u32 pll_clk;
 	u32 mod;
 	int i;
 	int ret;
@@ -424,19 +449,6 @@ static int xvcu_set_vcu_pll_info(struct xvcu_device *xvcu)
 	dev_dbg(xvcu->dev, "Ref clock from logicoreIP is %uHz\n", refclk);
 	dev_dbg(xvcu->dev, "Core clock from logicoreIP is %uHz\n", coreclk);
 	dev_dbg(xvcu->dev, "Mcu clock from logicoreIP is %uHz\n", mcuclk);
-
-	/*
-	 * The divide-by-2 should be always enabled (==1)
-	 * to meet the timing in the design.
-	 * Otherwise, it's an error
-	 */
-	vcu_pll_ctrl = xvcu_read(xvcu->vcu_slcr_ba, VCU_PLL_CTRL);
-	clkoutdiv = vcu_pll_ctrl >> VCU_PLL_CTRL_CLKOUTDIV_SHIFT;
-	clkoutdiv = clkoutdiv & VCU_PLL_CTRL_CLKOUTDIV_MASK;
-	if (clkoutdiv != 1) {
-		dev_err(xvcu->dev, "clkoutdiv value is invalid\n");
-		return -EINVAL;
-	}
 
 	for (i = ARRAY_SIZE(xvcu_pll_cfg) - 1; i >= 0; i--) {
 		const struct xvcu_pll_cfg *cfg = &xvcu_pll_cfg[i];
@@ -484,7 +496,7 @@ static int xvcu_set_vcu_pll_info(struct xvcu_device *xvcu)
 
 	hw = clk_hw_register_fixed_rate(xvcu->dev, "vcu_pll",
 					__clk_get_name(xvcu->pll_ref),
-					0, pll_clk);
+					0, fvco);
 	if (IS_ERR(hw))
 		return PTR_ERR(hw);
 	xvcu->pll = hw;
@@ -607,6 +619,7 @@ static int xvcu_register_clock_provider(struct xvcu_device *xvcu)
 	struct clk_parent_data parent_data[2] = { 0 };
 	struct clk_hw_onecell_data *data;
 	struct clk_hw **hws;
+	struct clk_hw *hw;
 	void __iomem *reg_base = xvcu->vcu_slcr_ba;
 
 	data = devm_kzalloc(dev, struct_size(data, hws, CLK_XVCU_NUM_CLOCKS), GFP_KERNEL);
@@ -617,8 +630,13 @@ static int xvcu_register_clock_provider(struct xvcu_device *xvcu)
 
 	xvcu->clk_data = data;
 
+	hw = xvcu_register_pll_post(dev, "vcu_pll_post", xvcu->pll, reg_base);
+	if (IS_ERR(hw))
+		return PTR_ERR(hw);
+	xvcu->pll_post = hw;
+
 	parent_data[0].fw_name = "pll_ref";
-	parent_data[1].hw = xvcu->pll;
+	parent_data[1].hw = xvcu->pll_post;
 
 	hws[CLK_XVCU_ENC_CORE] =
 		xvcu_clk_hw_register_leaf(dev, "venc_core_clk",
@@ -657,6 +675,8 @@ static void xvcu_unregister_clock_provider(struct xvcu_device *xvcu)
 		xvcu_clk_hw_unregister_leaf(hws[CLK_XVCU_ENC_MCU]);
 	if (!IS_ERR_OR_NULL(hws[CLK_XVCU_ENC_CORE]))
 		xvcu_clk_hw_unregister_leaf(hws[CLK_XVCU_ENC_CORE]);
+
+	clk_hw_unregister_fixed_factor(xvcu->pll_post);
 }
 
 /**
