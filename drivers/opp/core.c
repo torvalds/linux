@@ -798,7 +798,7 @@ restore_voltage:
 }
 
 static int _set_opp_bw(const struct opp_table *opp_table,
-		       struct dev_pm_opp *opp, struct device *dev, bool remove)
+		       struct dev_pm_opp *opp, struct device *dev)
 {
 	u32 avg, peak;
 	int i, ret;
@@ -807,7 +807,7 @@ static int _set_opp_bw(const struct opp_table *opp_table,
 		return 0;
 
 	for (i = 0; i < opp_table->path_count; i++) {
-		if (remove) {
+		if (!opp) {
 			avg = 0;
 			peak = 0;
 		} else {
@@ -817,7 +817,7 @@ static int _set_opp_bw(const struct opp_table *opp_table,
 		ret = icc_set_bw(opp_table->paths[i], avg, peak);
 		if (ret) {
 			dev_err(dev, "Failed to %s bandwidth[%d]: %d\n",
-				remove ? "remove" : "set", i, ret);
+				opp ? "set" : "remove", i, ret);
 			return ret;
 		}
 	}
@@ -917,37 +917,6 @@ static int _set_required_opps(struct device *dev,
 	return ret;
 }
 
-/**
- * dev_pm_opp_set_bw() - sets bandwidth levels corresponding to an opp
- * @dev:	device for which we do this operation
- * @opp:	opp based on which the bandwidth levels are to be configured
- *
- * This configures the bandwidth to the levels specified by the OPP. However
- * if the OPP specified is NULL the bandwidth levels are cleared out.
- *
- * Return: 0 on success or a negative error value.
- */
-int dev_pm_opp_set_bw(struct device *dev, struct dev_pm_opp *opp)
-{
-	struct opp_table *opp_table;
-	int ret;
-
-	opp_table = _find_opp_table(dev);
-	if (IS_ERR(opp_table)) {
-		dev_err(dev, "%s: device opp table doesn't exist\n", __func__);
-		return PTR_ERR(opp_table);
-	}
-
-	if (opp)
-		ret = _set_opp_bw(opp_table, opp, dev, false);
-	else
-		ret = _set_opp_bw(opp_table, NULL, dev, true);
-
-	dev_pm_opp_put_opp_table(opp_table);
-	return ret;
-}
-EXPORT_SYMBOL_GPL(dev_pm_opp_set_bw);
-
 static void _find_current_opp(struct device *dev, struct opp_table *opp_table)
 {
 	struct dev_pm_opp *opp = ERR_PTR(-ENODEV);
@@ -988,7 +957,7 @@ static int _disable_opp_table(struct device *dev, struct opp_table *opp_table)
 	if (!_get_opp_count(opp_table))
 		return 0;
 
-	ret = _set_opp_bw(opp_table, NULL, dev, true);
+	ret = _set_opp_bw(opp_table, NULL, dev);
 	if (ret)
 		return ret;
 
@@ -1056,7 +1025,7 @@ static int _set_opp(struct device *dev, struct opp_table *opp_table,
 	}
 
 	if (!ret) {
-		ret = _set_opp_bw(opp_table, opp, dev, false);
+		ret = _set_opp_bw(opp_table, opp, dev);
 		if (!ret) {
 			opp_table->enabled = true;
 			dev_pm_opp_put(old_opp);
