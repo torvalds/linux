@@ -1543,13 +1543,12 @@ static struct gsi_trans *gsi_channel_poll_one(struct gsi_channel *channel)
 static int gsi_channel_poll(struct napi_struct *napi, int budget)
 {
 	struct gsi_channel *channel;
-	int count = 0;
+	int count;
 
 	channel = container_of(napi, struct gsi_channel, napi);
-	while (count < budget) {
+	for (count = 0; count < budget; count++) {
 		struct gsi_trans *trans;
 
-		count++;
 		trans = gsi_channel_poll_one(channel);
 		if (!trans)
 			break;
