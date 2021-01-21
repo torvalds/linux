@@ -40,6 +40,7 @@
 
 struct intel_gvt;
 struct intel_shadow_wa_ctx;
+struct intel_vgpu;
 struct intel_vgpu_workload;
 
 void intel_gvt_clean_cmd_parser(struct intel_gvt *gvt);
