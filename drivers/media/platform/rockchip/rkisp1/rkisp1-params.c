@@ -589,7 +589,6 @@ static void rkisp1_hst_config(struct rkisp1_params *params,
 		RKISP1_CIF_ISP_HIST_WEIGHT_22TO03,
 		RKISP1_CIF_ISP_HIST_WEIGHT_13TO43,
 		RKISP1_CIF_ISP_HIST_WEIGHT_04TO34,
-		RKISP1_CIF_ISP_HIST_WEIGHT_44,
 	};
 	const u8 *weight;
 	unsigned int i;
@@ -622,6 +621,8 @@ static void rkisp1_hst_config(struct rkisp1_params *params,
 							    weight[2],
 							    weight[3]),
 				 hist_weight_regs[i]);
+
+	rkisp1_write(params->rkisp1, weight[0] & 0x1F, RKISP1_CIF_ISP_HIST_WEIGHT_44);
 }
 
 static void
