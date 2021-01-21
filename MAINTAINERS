@@ -2603,7 +2603,7 @@ L:	linux-kernel@vger.kernel.org
 S:	Maintained
 F:	drivers/clk/keystone/
 
-ARM/TEXAS INSTRUMENT KEYSTONE ClOCKSOURCE
+ARM/TEXAS INSTRUMENT KEYSTONE CLOCKSOURCE
 M:	Santosh Shilimkar <ssantosh@kernel.org>
 L:	linux-arm-kernel@lists.infradead.org (moderated for non-subscribers)
 L:	linux-kernel@vger.kernel.org
