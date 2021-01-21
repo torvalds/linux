@@ -227,3 +227,7 @@
 &lpd_watchdog {
 	clocks = <&zynqmp_clk LPD_WDT>;
 };
+
+&zynqmp_dpdma {
+	clocks = <&zynqmp_clk DPDMA_REF>;
+};
