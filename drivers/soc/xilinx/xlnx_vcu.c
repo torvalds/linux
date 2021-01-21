@@ -256,6 +256,22 @@ static void xvcu_write_field_reg(void __iomem *iomem, int offset,
 	xvcu_write(iomem, offset, val);
 }
 
+static int xvcu_pll_wait_for_lock(struct xvcu_device *xvcu)
+{
+	void __iomem *base = xvcu->vcu_slcr_ba;
+	unsigned long timeout;
+	u32 lock_status;
+
+	timeout = jiffies + msecs_to_jiffies(2000);
+	do {
+		lock_status = xvcu_read(base, VCU_PLL_STATUS);
+		if (lock_status & VCU_PLL_STATUS_LOCK_STATUS_MASK)
+			return 0;
+	} while (!time_after(jiffies, timeout));
+
+	return -ETIMEDOUT;
+}
+
 /**
  * xvcu_set_vcu_pll_info - Set the VCU PLL info
  * @xvcu:	Pointer to the xvcu_device structure
@@ -428,8 +444,6 @@ static int xvcu_set_vcu_pll_info(struct xvcu_device *xvcu)
  */
 static int xvcu_set_pll(struct xvcu_device *xvcu)
 {
-	u32 lock_status;
-	unsigned long timeout;
 	int ret;
 
 	ret = xvcu_set_vcu_pll_info(xvcu);
@@ -447,24 +461,18 @@ static int xvcu_set_pll(struct xvcu_device *xvcu)
 	xvcu_write_field_reg(xvcu->vcu_slcr_ba, VCU_PLL_CTRL,
 			     0, VCU_PLL_CTRL_RESET_MASK,
 			     VCU_PLL_CTRL_RESET_SHIFT);
-	/*
-	 * Defined the timeout for the max time to wait the
-	 * PLL_STATUS to be locked.
-	 */
-	timeout = jiffies + msecs_to_jiffies(2000);
-	do {
-		lock_status = xvcu_read(xvcu->vcu_slcr_ba, VCU_PLL_STATUS);
-		if (lock_status & VCU_PLL_STATUS_LOCK_STATUS_MASK) {
-			xvcu_write_field_reg(xvcu->vcu_slcr_ba, VCU_PLL_CTRL,
-					     0, VCU_PLL_CTRL_BYPASS_MASK,
-					     VCU_PLL_CTRL_BYPASS_SHIFT);
-			return 0;
-		}
-	} while (!time_after(jiffies, timeout));
 
-	/* PLL is not locked even after the timeout of the 2sec */
-	dev_err(xvcu->dev, "PLL is not locked\n");
-	return -ETIMEDOUT;
+	ret = xvcu_pll_wait_for_lock(xvcu);
+	if (ret) {
+		dev_err(xvcu->dev, "PLL is not locked\n");
+		return ret;
+	}
+
+	xvcu_write_field_reg(xvcu->vcu_slcr_ba, VCU_PLL_CTRL,
+			     0, VCU_PLL_CTRL_BYPASS_MASK,
+			     VCU_PLL_CTRL_BYPASS_SHIFT);
+
+	return ret;
 }
 
 /**
