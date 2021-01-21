@@ -619,7 +619,7 @@ static int xvcu_probe(struct platform_device *pdev)
 	}
 
 	xvcu->vcu_slcr_ba = devm_ioremap(&pdev->dev, res->start,
-						 resource_size(res));
+					 resource_size(res));
 	if (!xvcu->vcu_slcr_ba) {
 		dev_err(&pdev->dev, "vcu_slcr register mapping failed.\n");
 		return -ENOMEM;
