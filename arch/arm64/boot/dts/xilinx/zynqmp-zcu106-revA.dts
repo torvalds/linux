@@ -132,6 +132,12 @@
 		compatible = "iio-hwmon";
 		io-channels = <&u75 0>, <&u75 1>, <&u75 2>, <&u75 3>;
 	};
+
+	refhdmi: refhdmi {
+		compatible = "fixed-clock";
+		#clock-cells = <0>;
+		clock-frequency = <114285000>;
+	};
 };
 
 &can1 {
@@ -520,6 +526,22 @@
 			reg = <4>;
 			si5328: clock-generator@69 {/* SI5328 - u20 */
 				reg = <0x69>;
+				/*
+				 * Chip has interrupt present connected to PL
+				 * interrupt-parent = <&>;
+				 * interrupts = <>;
+				 */
+				#address-cells = <1>;
+				#size-cells = <0>;
+				#clock-cells = <1>;
+				clocks = <&refhdmi>;
+				clock-names = "xtal";
+				clock-output-names = "si5328";
+
+				si5328_clk: clk0@0 {
+					reg = <0>;
+					clock-frequency = <27000000>;
+				};
 			};
 		};
 		i2c@5 {
