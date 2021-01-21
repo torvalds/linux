@@ -470,10 +470,12 @@
 				};
 			};
 
-			vcc2v8_dvp: LDO_REG9 {
-				regulator-name = "vcc2v8_dvp";
+			sleep_sta_ctl: LDO_REG9 {
+				regulator-name = "sleep_sta_ctl";
 				regulator-state-mem {
 					regulator-on-in-suspend;
+					regulator-changeable-in-suspend;
+					regulator-suspend-microvolt = <3300000>;
 				};
 			};
 
