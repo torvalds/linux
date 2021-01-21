@@ -805,13 +805,10 @@ static void __init check_initrd(void)
  */
 static void __init reserve_kernel(void)
 {
-	unsigned long start_pfn = PFN_UP(__pa(_end));
-
 	memblock_reserve(0, STARTUP_NORMAL_OFFSET);
-	memblock_reserve((unsigned long)sclp_early_sccb, EXT_SCCB_READ_SCP);
 	memblock_reserve(__amode31_base, __eamode31 - __samode31);
-	memblock_reserve((unsigned long)_stext, PFN_PHYS(start_pfn)
-			 - (unsigned long)_stext);
+	memblock_reserve(__pa(sclp_early_sccb), EXT_SCCB_READ_SCP);
+	memblock_reserve(__pa(_stext), _end - _stext);
 }
 
 static void __init setup_memory(void)
