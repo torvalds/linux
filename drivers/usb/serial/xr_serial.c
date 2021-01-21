@@ -541,7 +541,6 @@ static void xr_close(struct usb_serial_port *port)
 
 static int xr_probe(struct usb_serial *serial, const struct usb_device_id *id)
 {
-	struct usb_device *usb_dev = interface_to_usbdev(serial->interface);
 	struct usb_driver *driver = serial->type->usb_driver;
 	struct usb_interface *control_interface;
 	int ret;
@@ -551,7 +550,7 @@ static int xr_probe(struct usb_serial *serial, const struct usb_device_id *id)
 		return -ENODEV;
 
 	/* But claim the control interface during data interface probe */
-	control_interface = usb_ifnum_to_if(usb_dev, 0);
+	control_interface = usb_ifnum_to_if(serial->dev, 0);
 	if (!control_interface)
 		return -ENODEV;
 
