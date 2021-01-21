@@ -1076,7 +1076,9 @@ static void rga2_del_running_list_timeout(void)
 	while (!list_empty(&rga2_service.running)) {
 		reg = list_entry(rga2_service.running.next, struct rga2_reg,
 				 status_link);
+#if 0
 		kfree(reg->MMU_base);
+#endif
 		if (reg->MMU_len && tbuf) {
 			if (tbuf->back + reg->MMU_len > 2 * tbuf->size)
 				tbuf->back = reg->MMU_len + tbuf->size;

@@ -1128,6 +1128,14 @@ static int rga2_mmu_info_update_palette_table_mode(struct rga2_reg *reg, struct 
     return status;
 }
 
+/*
+ * yqw:
+ * This function is currently not sure whether rga2 is used,
+ * because invalidate/clean cache occupies the parameter
+ * reg->MMU_base, so block this function first, and re-implement
+ * this function if necessary.
+ */
+#if 0
 static int rga2_mmu_info_update_patten_buff_mode(struct rga2_reg *reg, struct rga2_req *req)
 {
     int SrcMemSize, CMDMemSize;
@@ -1207,6 +1215,7 @@ static int rga2_mmu_info_update_patten_buff_mode(struct rga2_reg *reg, struct rg
 
     return status;
 }
+#endif
 
 int rga2_set_mmu_info(struct rga2_reg *reg, struct rga2_req *req)
 {
@@ -1230,9 +1239,11 @@ int rga2_set_mmu_info(struct rga2_reg *reg, struct rga2_req *req)
         case update_palette_table_mode :
             ret = rga2_mmu_info_update_palette_table_mode(reg, req);
             break;
+#if 0
         case update_patten_buff_mode :
             ret = rga2_mmu_info_update_patten_buff_mode(reg, req);
             break;
+#endif
         default :
             ret = -1;
             break;
