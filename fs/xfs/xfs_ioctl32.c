@@ -209,14 +209,16 @@ xfs_fsbulkstat_one_fmt_compat(
 /* copied from xfs_ioctl.c */
 STATIC int
 xfs_compat_ioc_fsbulkstat(
-	xfs_mount_t		  *mp,
+	struct file		*file,
 	unsigned int		  cmd,
 	struct compat_xfs_fsop_bulkreq __user *p32)
 {
+	struct xfs_mount	*mp = XFS_I(file_inode(file))->i_mount;
 	u32			addr;
 	struct xfs_fsop_bulkreq	bulkreq;
 	struct xfs_ibulk	breq = {
 		.mp		= mp,
+		.mnt_userns	= file_mnt_user_ns(file),
 		.ocount		= 0,
 	};
 	xfs_ino_t		lastino;
@@ -507,7 +509,7 @@ xfs_file_compat_ioctl(
 	case XFS_IOC_FSBULKSTAT_32:
 	case XFS_IOC_FSBULKSTAT_SINGLE_32:
 	case XFS_IOC_FSINUMBERS_32:
-		return xfs_compat_ioc_fsbulkstat(mp, cmd, arg);
+		return xfs_compat_ioc_fsbulkstat(filp, cmd, arg);
 	case XFS_IOC_FD_TO_HANDLE_32:
 	case XFS_IOC_PATH_TO_HANDLE_32:
 	case XFS_IOC_PATH_TO_FSHANDLE_32: {

@@ -766,6 +766,7 @@ xfs_inode_inherit_flags2(
  */
 static int
 xfs_init_new_inode(
+	struct user_namespace	*mnt_userns,
 	struct xfs_trans	*tp,
 	struct xfs_inode	*pip,
 	xfs_ino_t		ino,
@@ -806,7 +807,7 @@ xfs_init_new_inode(
 	inode = VFS_I(ip);
 	inode->i_mode = mode;
 	set_nlink(inode, nlink);
-	inode->i_uid = current_fsuid();
+	inode->i_uid = fsuid_into_mnt(mnt_userns);
 	inode->i_rdev = rdev;
 	ip->i_d.di_projid = prid;
 
@@ -815,7 +816,7 @@ xfs_init_new_inode(
 		if ((VFS_I(pip)->i_mode & S_ISGID) && S_ISDIR(mode))
 			inode->i_mode |= S_ISGID;
 	} else {
-		inode->i_gid = current_fsgid();
+		inode->i_gid = fsgid_into_mnt(mnt_userns);
 	}
 
 	/*
@@ -824,7 +825,8 @@ xfs_init_new_inode(
 	 * (and only if the irix_sgid_inherit compatibility variable is set).
 	 */
 	if (irix_sgid_inherit &&
-	    (inode->i_mode & S_ISGID) && !in_group_p(inode->i_gid))
+	    (inode->i_mode & S_ISGID) &&
+	    !in_group_p(i_gid_into_mnt(mnt_userns, inode)))
 		inode->i_mode &= ~S_ISGID;
 
 	ip->i_d.di_size = 0;
@@ -901,6 +903,7 @@ xfs_init_new_inode(
  */
 int
 xfs_dir_ialloc(
+	struct user_namespace	*mnt_userns,
 	struct xfs_trans	**tpp,
 	struct xfs_inode	*dp,
 	umode_t			mode,
@@ -933,7 +936,8 @@ xfs_dir_ialloc(
 		return error;
 	ASSERT(ino != NULLFSINO);
 
-	return xfs_init_new_inode(*tpp, dp, ino, mode, nlink, rdev, prid, ipp);
+	return xfs_init_new_inode(mnt_userns, *tpp, dp, ino, mode, nlink, rdev,
+				  prid, ipp);
 }
 
 /*
@@ -973,6 +977,7 @@ xfs_bumplink(
 
 int
 xfs_create(
+	struct user_namespace	*mnt_userns,
 	xfs_inode_t		*dp,
 	struct xfs_name		*name,
 	umode_t			mode,
@@ -1047,7 +1052,8 @@ xfs_create(
 	 * entry pointing to them, but a directory also the "." entry
 	 * pointing to itself.
 	 */
-	error = xfs_dir_ialloc(&tp, dp, mode, is_dir ? 2 : 1, rdev, prid, &ip);
+	error = xfs_dir_ialloc(mnt_userns, &tp, dp, mode, is_dir ? 2 : 1, rdev,
+			       prid, &ip);
 	if (error)
 		goto out_trans_cancel;
 
@@ -1128,6 +1134,7 @@ xfs_create(
 
 int
 xfs_create_tmpfile(
+	struct user_namespace	*mnt_userns,
 	struct xfs_inode	*dp,
 	umode_t			mode,
 	struct xfs_inode	**ipp)
@@ -1169,7 +1176,7 @@ xfs_create_tmpfile(
 	if (error)
 		goto out_trans_cancel;
 
-	error = xfs_dir_ialloc(&tp, dp, mode, 0, 0, prid, &ip);
+	error = xfs_dir_ialloc(mnt_userns, &tp, dp, mode, 0, 0, prid, &ip);
 	if (error)
 		goto out_trans_cancel;
 
@@ -2977,13 +2984,15 @@ out_trans_abort:
  */
 static int
 xfs_rename_alloc_whiteout(
+	struct user_namespace	*mnt_userns,
 	struct xfs_inode	*dp,
 	struct xfs_inode	**wip)
 {
 	struct xfs_inode	*tmpfile;
 	int			error;
 
-	error = xfs_create_tmpfile(dp, S_IFCHR | WHITEOUT_MODE, &tmpfile);
+	error = xfs_create_tmpfile(mnt_userns, dp, S_IFCHR | WHITEOUT_MODE,
+				   &tmpfile);
 	if (error)
 		return error;
 
@@ -3005,6 +3014,7 @@ xfs_rename_alloc_whiteout(
  */
 int
 xfs_rename(
+	struct user_namespace	*mnt_userns,
 	struct xfs_inode	*src_dp,
 	struct xfs_name		*src_name,
 	struct xfs_inode	*src_ip,
@@ -3036,7 +3046,7 @@ xfs_rename(
 	 */
 	if (flags & RENAME_WHITEOUT) {
 		ASSERT(!(flags & (RENAME_NOREPLACE | RENAME_EXCHANGE)));
-		error = xfs_rename_alloc_whiteout(target_dp, &wip);
+		error = xfs_rename_alloc_whiteout(mnt_userns, target_dp, &wip);
 		if (error)
 			return error;
 

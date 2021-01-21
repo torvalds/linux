@@ -369,15 +369,18 @@ int		xfs_release(struct xfs_inode *ip);
 void		xfs_inactive(struct xfs_inode *ip);
 int		xfs_lookup(struct xfs_inode *dp, struct xfs_name *name,
 			   struct xfs_inode **ipp, struct xfs_name *ci_name);
-int		xfs_create(struct xfs_inode *dp, struct xfs_name *name,
+int		xfs_create(struct user_namespace *mnt_userns,
+			   struct xfs_inode *dp, struct xfs_name *name,
 			   umode_t mode, dev_t rdev, struct xfs_inode **ipp);
-int		xfs_create_tmpfile(struct xfs_inode *dp, umode_t mode,
+int		xfs_create_tmpfile(struct user_namespace *mnt_userns,
+			   struct xfs_inode *dp, umode_t mode,
 			   struct xfs_inode **ipp);
 int		xfs_remove(struct xfs_inode *dp, struct xfs_name *name,
 			   struct xfs_inode *ip);
 int		xfs_link(struct xfs_inode *tdp, struct xfs_inode *sip,
 			 struct xfs_name *target_name);
-int		xfs_rename(struct xfs_inode *src_dp, struct xfs_name *src_name,
+int		xfs_rename(struct user_namespace *mnt_userns,
+			   struct xfs_inode *src_dp, struct xfs_name *src_name,
 			   struct xfs_inode *src_ip, struct xfs_inode *target_dp,
 			   struct xfs_name *target_name,
 			   struct xfs_inode *target_ip, unsigned int flags);
@@ -407,9 +410,10 @@ void		xfs_lock_two_inodes(struct xfs_inode *ip0, uint ip0_mode,
 xfs_extlen_t	xfs_get_extsz_hint(struct xfs_inode *ip);
 xfs_extlen_t	xfs_get_cowextsz_hint(struct xfs_inode *ip);
 
-int xfs_dir_ialloc(struct xfs_trans **tpp, struct xfs_inode *dp, umode_t mode,
-		   xfs_nlink_t nlink, dev_t dev, prid_t prid,
-		   struct xfs_inode **ipp);
+int		xfs_dir_ialloc(struct user_namespace *mnt_userns,
+			       struct xfs_trans **tpp, struct xfs_inode *dp,
+			       umode_t mode, xfs_nlink_t nlink, dev_t dev,
+			       prid_t prid, struct xfs_inode **ipp);
 
 static inline int
 xfs_itruncate_extents(

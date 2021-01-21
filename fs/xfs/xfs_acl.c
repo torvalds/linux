@@ -253,8 +253,7 @@ xfs_set_acl(struct user_namespace *mnt_userns, struct inode *inode,
 		return error;
 
 	if (type == ACL_TYPE_ACCESS) {
-		error = posix_acl_update_mode(&init_user_ns, inode, &mode,
-					      &acl);
+		error = posix_acl_update_mode(mnt_userns, inode, &mode, &acl);
 		if (error)
 			return error;
 		set_mode = true;

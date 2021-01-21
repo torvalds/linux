@@ -128,6 +128,7 @@ xfs_cleanup_inode(
 
 STATIC int
 xfs_generic_create(
+	struct user_namespace	*mnt_userns,
 	struct inode	*dir,
 	struct dentry	*dentry,
 	umode_t		mode,
@@ -161,9 +162,10 @@ xfs_generic_create(
 		goto out_free_acl;
 
 	if (!tmpfile) {
-		error = xfs_create(XFS_I(dir), &name, mode, rdev, &ip);
+		error = xfs_create(mnt_userns, XFS_I(dir), &name, mode, rdev,
+				   &ip);
 	} else {
-		error = xfs_create_tmpfile(XFS_I(dir), mode, &ip);
+		error = xfs_create_tmpfile(mnt_userns, XFS_I(dir), mode, &ip);
 	}
 	if (unlikely(error))
 		goto out_free_acl;
@@ -226,7 +228,7 @@ xfs_vn_mknod(
 	umode_t			mode,
 	dev_t			rdev)
 {
-	return xfs_generic_create(dir, dentry, mode, rdev, false);
+	return xfs_generic_create(mnt_userns, dir, dentry, mode, rdev, false);
 }
 
 STATIC int
@@ -237,7 +239,7 @@ xfs_vn_create(
 	umode_t			mode,
 	bool			flags)
 {
-	return xfs_generic_create(dir, dentry, mode, 0, false);
+	return xfs_generic_create(mnt_userns, dir, dentry, mode, 0, false);
 }
 
 STATIC int
@@ -247,7 +249,8 @@ xfs_vn_mkdir(
 	struct dentry		*dentry,
 	umode_t			mode)
 {
-	return xfs_generic_create(dir, dentry, mode | S_IFDIR, 0, false);
+	return xfs_generic_create(mnt_userns, dir, dentry, mode | S_IFDIR, 0,
+				  false);
 }
 
 STATIC struct dentry *
@@ -381,7 +384,7 @@ xfs_vn_symlink(
 	if (unlikely(error))
 		goto out;
 
-	error = xfs_symlink(XFS_I(dir), &name, symname, mode, &cip);
+	error = xfs_symlink(mnt_userns, XFS_I(dir), &name, symname, mode, &cip);
 	if (unlikely(error))
 		goto out;
 
@@ -436,8 +439,8 @@ xfs_vn_rename(
 	if (unlikely(error))
 		return error;
 
-	return xfs_rename(XFS_I(odir), &oname, XFS_I(d_inode(odentry)),
-			  XFS_I(ndir), &nname,
+	return xfs_rename(mnt_userns, XFS_I(odir), &oname,
+			  XFS_I(d_inode(odentry)), XFS_I(ndir), &nname,
 			  new_inode ? XFS_I(new_inode) : NULL, flags);
 }
 
@@ -553,8 +556,8 @@ xfs_vn_getattr(
 	stat->dev = inode->i_sb->s_dev;
 	stat->mode = inode->i_mode;
 	stat->nlink = inode->i_nlink;
-	stat->uid = inode->i_uid;
-	stat->gid = inode->i_gid;
+	stat->uid = i_uid_into_mnt(mnt_userns, inode);
+	stat->gid = i_gid_into_mnt(mnt_userns, inode);
 	stat->ino = ip->i_ino;
 	stat->atime = inode->i_atime;
 	stat->mtime = inode->i_mtime;
@@ -632,8 +635,9 @@ xfs_setattr_time(
 
 static int
 xfs_vn_change_ok(
-	struct dentry	*dentry,
-	struct iattr	*iattr)
+	struct user_namespace	*mnt_userns,
+	struct dentry		*dentry,
+	struct iattr		*iattr)
 {
 	struct xfs_mount	*mp = XFS_I(d_inode(dentry))->i_mount;
 
@@ -643,7 +647,7 @@ xfs_vn_change_ok(
 	if (XFS_FORCED_SHUTDOWN(mp))
 		return -EIO;
 
-	return setattr_prepare(&init_user_ns, dentry, iattr);
+	return setattr_prepare(mnt_userns, dentry, iattr);
 }
 
 /*
@@ -654,6 +658,7 @@ xfs_vn_change_ok(
  */
 static int
 xfs_setattr_nonsize(
+	struct user_namespace	*mnt_userns,
 	struct xfs_inode	*ip,
 	struct iattr		*iattr)
 {
@@ -813,7 +818,7 @@ xfs_setattr_nonsize(
 	 * 	     Posix ACL code seems to care about this issue either.
 	 */
 	if (mask & ATTR_MODE) {
-		error = posix_acl_chmod(&init_user_ns, inode, inode->i_mode);
+		error = posix_acl_chmod(mnt_userns, inode, inode->i_mode);
 		if (error)
 			return error;
 	}
@@ -837,6 +842,7 @@ out_dqrele:
  */
 STATIC int
 xfs_setattr_size(
+	struct user_namespace	*mnt_userns,
 	struct xfs_inode	*ip,
 	struct iattr		*iattr)
 {
@@ -868,7 +874,7 @@ xfs_setattr_size(
 		 * Use the regular setattr path to update the timestamps.
 		 */
 		iattr->ia_valid &= ~ATTR_SIZE;
-		return xfs_setattr_nonsize(ip, iattr);
+		return xfs_setattr_nonsize(mnt_userns, ip, iattr);
 	}
 
 	/*
@@ -1037,6 +1043,7 @@ out_trans_cancel:
 
 int
 xfs_vn_setattr_size(
+	struct user_namespace	*mnt_userns,
 	struct dentry		*dentry,
 	struct iattr		*iattr)
 {
@@ -1045,10 +1052,10 @@ xfs_vn_setattr_size(
 
 	trace_xfs_setattr(ip);
 
-	error = xfs_vn_change_ok(dentry, iattr);
+	error = xfs_vn_change_ok(mnt_userns, dentry, iattr);
 	if (error)
 		return error;
-	return xfs_setattr_size(ip, iattr);
+	return xfs_setattr_size(mnt_userns, ip, iattr);
 }
 
 STATIC int
@@ -1073,14 +1080,14 @@ xfs_vn_setattr(
 			return error;
 		}
 
-		error = xfs_vn_setattr_size(dentry, iattr);
+		error = xfs_vn_setattr_size(mnt_userns, dentry, iattr);
 		xfs_iunlock(ip, XFS_MMAPLOCK_EXCL);
 	} else {
 		trace_xfs_setattr(ip);
 
-		error = xfs_vn_change_ok(dentry, iattr);
+		error = xfs_vn_change_ok(mnt_userns, dentry, iattr);
 		if (!error)
-			error = xfs_setattr_nonsize(ip, iattr);
+			error = xfs_setattr_nonsize(mnt_userns, ip, iattr);
 	}
 
 	return error;
@@ -1156,7 +1163,7 @@ xfs_vn_tmpfile(
 	struct dentry		*dentry,
 	umode_t			mode)
 {
-	return xfs_generic_create(dir, dentry, mode, 0, true);
+	return xfs_generic_create(mnt_userns, dir, dentry, mode, 0, true);
 }
 
 static const struct inode_operations xfs_inode_operations = {
