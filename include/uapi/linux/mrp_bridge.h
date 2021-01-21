@@ -97,7 +97,7 @@ struct br_mrp_ring_test_hdr {
 	__be16 state;
 	__be16 transitions;
 	__be32 timestamp;
-};
+} __attribute__((__packed__));
 
 struct br_mrp_ring_topo_hdr {
 	__be16 prio;
@@ -142,7 +142,7 @@ struct br_mrp_in_test_hdr {
 	__be16 state;
 	__be16 transitions;
 	__be32 timestamp;
-};
+} __attribute__((__packed__));
 
 struct br_mrp_in_topo_hdr {
 	__u8 sa[ETH_ALEN];
