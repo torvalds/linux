@@ -7905,6 +7905,7 @@ static int gfx_v10_0_set_powergating_state(void *handle,
 		break;
 	case CHIP_VANGOGH:
 		gfx_v10_cntl_pg(adev, enable);
+		amdgpu_gfx_off_ctrl(adev, enable);
 		break;
 	default:
 		break;
