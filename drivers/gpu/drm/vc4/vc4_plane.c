@@ -437,6 +437,7 @@ static void vc4_write_ppf(struct vc4_plane_state *vc4_state, u32 src, u32 dst)
 static u32 vc4_lbm_size(struct drm_plane_state *state)
 {
 	struct vc4_plane_state *vc4_state = to_vc4_plane_state(state);
+	struct vc4_dev *vc4 = to_vc4_dev(state->plane->dev);
 	u32 pix_per_line;
 	u32 lbm;
 
@@ -472,7 +473,11 @@ static u32 vc4_lbm_size(struct drm_plane_state *state)
 		lbm = pix_per_line * 16;
 	}
 
-	lbm = roundup(lbm, 32);
+	/* Align it to 64 or 128 (hvs5) bytes */
+	lbm = roundup(lbm, vc4->hvs->hvs5 ? 128 : 64);
+
+	/* Each "word" of the LBM memory contains 2 or 4 (hvs5) pixels */
+	lbm /= vc4->hvs->hvs5 ? 4 : 2;
 
 	return lbm;
 }
