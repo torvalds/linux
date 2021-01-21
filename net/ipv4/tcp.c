@@ -280,6 +280,12 @@
 #include <asm/ioctls.h>
 #include <net/busy_poll.h>
 
+/* Track pending CMSGs. */
+enum {
+	TCP_CMSG_INQ = 1,
+	TCP_CMSG_TS = 2
+};
+
 struct percpu_counter tcp_orphan_count;
 EXPORT_SYMBOL_GPL(tcp_orphan_count);
 
@@ -2272,7 +2278,7 @@ static int tcp_recvmsg_locked(struct sock *sk, struct msghdr *msg, size_t len,
 		goto out;
 
 	if (tp->recvmsg_inq)
-		*cmsg_flags = 1;
+		*cmsg_flags = TCP_CMSG_INQ;
 	timeo = sock_rcvtimeo(sk, nonblock);
 
 	/* Urgent data needs to be handled specially. */
@@ -2453,7 +2459,7 @@ skip_copy:
 
 		if (TCP_SKB_CB(skb)->has_rxtstamp) {
 			tcp_update_recv_tstamps(skb, tss);
-			*cmsg_flags |= 2;
+			*cmsg_flags |= TCP_CMSG_TS;
 		}
 
 		if (used + offset < skb->len)
@@ -2513,9 +2519,9 @@ int tcp_recvmsg(struct sock *sk, struct msghdr *msg, size_t len, int nonblock,
 	release_sock(sk);
 
 	if (cmsg_flags && ret >= 0) {
-		if (cmsg_flags & 2)
+		if (cmsg_flags & TCP_CMSG_TS)
 			tcp_recv_timestamp(msg, sk, &tss);
-		if (cmsg_flags & 1) {
+		if (cmsg_flags & TCP_CMSG_INQ) {
 			inq = tcp_inq_hint(sk);
 			put_cmsg(msg, SOL_TCP, TCP_CM_INQ, sizeof(inq), &inq);
 		}
