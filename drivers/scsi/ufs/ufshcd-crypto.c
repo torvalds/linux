@@ -187,8 +187,8 @@ int ufshcd_hba_init_crypto_capabilities(struct ufs_hba *hba)
 	}
 
 	/* The actual number of configurations supported is (CFGC+1) */
-	err = blk_ksm_init(&hba->ksm,
-			   hba->crypto_capabilities.config_count + 1);
+	err = devm_blk_ksm_init(hba->dev, &hba->ksm,
+				hba->crypto_capabilities.config_count + 1);
 	if (err)
 		goto out_free_caps;
 
@@ -246,9 +246,4 @@ void ufshcd_crypto_setup_rq_keyslot_manager(struct ufs_hba *hba,
 {
 	if (hba->caps & UFSHCD_CAP_CRYPTO)
 		blk_ksm_register(&hba->ksm, q);
-}
-
-void ufshcd_crypto_destroy_keyslot_manager(struct ufs_hba *hba)
-{
-	blk_ksm_destroy(&hba->ksm);
 }
