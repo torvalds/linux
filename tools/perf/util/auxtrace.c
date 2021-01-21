@@ -788,6 +788,21 @@ no_opt:
 	return auxtrace_validate_aux_sample_size(evlist, opts);
 }
 
+void auxtrace_regroup_aux_output(struct evlist *evlist)
+{
+	struct evsel *evsel, *aux_evsel = NULL;
+	struct evsel_config_term *term;
+
+	evlist__for_each_entry(evlist, evsel) {
+		if (evsel__is_aux_event(evsel))
+			aux_evsel = evsel;
+		term = evsel__get_config_term(evsel, AUX_OUTPUT);
+		/* If possible, group with the AUX event */
+		if (term && aux_evsel)
+			evlist__regroup(evlist, aux_evsel, evsel);
+	}
+}
+
 struct auxtrace_record *__weak
 auxtrace_record__init(struct evlist *evlist __maybe_unused, int *err)
 {
