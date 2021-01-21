@@ -5276,12 +5276,6 @@ static const struct alg_test_desc alg_test_descs[] = {
 			.hash = __VECS(rmd160_tv_template)
 		}
 	}, {
-		.alg = "rmd320",
-		.test = alg_test_hash,
-		.suite = {
-			.hash = __VECS(rmd320_tv_template)
-		}
-	}, {
 		.alg = "rsa",
 		.test = alg_test_akcipher,
 		.fips_allowed = 1,
