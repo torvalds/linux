@@ -27,12 +27,6 @@
 #define QE_NUM_OF_BRGS	16
 #define QE_NUM_OF_PORTS	1024
 
-/* Memory partitions
-*/
-#define MEM_PART_SYSTEM		0
-#define MEM_PART_SECONDARY	1
-#define MEM_PART_MURAM		2
-
 /* Clocks and BRGs */
 enum qe_clock {
 	QE_CLK_NONE = 0,
@@ -102,8 +96,9 @@ s32 cpm_muram_alloc(unsigned long size, unsigned long align);
 void cpm_muram_free(s32 offset);
 s32 cpm_muram_alloc_fixed(unsigned long offset, unsigned long size);
 void __iomem *cpm_muram_addr(unsigned long offset);
-unsigned long cpm_muram_offset(void __iomem *addr);
+unsigned long cpm_muram_offset(const void __iomem *addr);
 dma_addr_t cpm_muram_dma(void __iomem *addr);
+void cpm_muram_free_addr(const void __iomem *addr);
 #else
 static inline s32 cpm_muram_alloc(unsigned long size,
 				  unsigned long align)
@@ -126,7 +121,7 @@ static inline void __iomem *cpm_muram_addr(unsigned long offset)
 	return NULL;
 }
 
-static inline unsigned long cpm_muram_offset(void __iomem *addr)
+static inline unsigned long cpm_muram_offset(const void __iomem *addr)
 {
 	return -ENOSYS;
 }
@@ -134,6 +129,9 @@ static inline unsigned long cpm_muram_offset(void __iomem *addr)
 static inline dma_addr_t cpm_muram_dma(void __iomem *addr)
 {
 	return 0;
+}
+static inline void cpm_muram_free_addr(const void __iomem *addr)
+{
 }
 #endif /* defined(CONFIG_CPM) || defined(CONFIG_QUICC_ENGINE) */
 
@@ -239,6 +237,7 @@ static inline int qe_alive_during_sleep(void)
 #define qe_muram_addr cpm_muram_addr
 #define qe_muram_offset cpm_muram_offset
 #define qe_muram_dma cpm_muram_dma
+#define qe_muram_free_addr cpm_muram_free_addr
 
 #ifdef CONFIG_PPC32
 #define qe_iowrite8(val, addr)     out_8(addr, val)
