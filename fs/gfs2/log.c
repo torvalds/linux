@@ -822,8 +822,8 @@ void gfs2_write_log_header(struct gfs2_sbd *sdp, struct gfs2_jdesc *jd,
 		     sb->s_blocksize - LH_V1_SIZE - 4);
 	lh->lh_crc = cpu_to_be32(crc);
 
-	gfs2_log_write(sdp, page, sb->s_blocksize, 0, dblock);
-	gfs2_log_submit_bio(&sdp->sd_log_bio, REQ_OP_WRITE | op_flags);
+	gfs2_log_write(sdp, jd, page, sb->s_blocksize, 0, dblock);
+	gfs2_log_submit_bio(&jd->jd_log_bio, REQ_OP_WRITE | op_flags);
 out:
 	log_flush_wait(sdp);
 }
@@ -999,7 +999,7 @@ void gfs2_log_flush(struct gfs2_sbd *sdp, struct gfs2_glock *gl, u32 flags)
 	lops_before_commit(sdp, tr);
 	if (gfs2_withdrawn(sdp))
 		goto out_withdraw;
-	gfs2_log_submit_bio(&sdp->sd_log_bio, REQ_OP_WRITE);
+	gfs2_log_submit_bio(&sdp->sd_jdesc->jd_log_bio, REQ_OP_WRITE);
 	if (gfs2_withdrawn(sdp))
 		goto out_withdraw;
 

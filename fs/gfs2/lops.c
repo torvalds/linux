@@ -322,17 +322,18 @@ static struct bio *gfs2_log_get_bio(struct gfs2_sbd *sdp, u64 blkno,
  * then add the page segment to that.
  */
 
-void gfs2_log_write(struct gfs2_sbd *sdp, struct page *page,
-		    unsigned size, unsigned offset, u64 blkno)
+void gfs2_log_write(struct gfs2_sbd *sdp, struct gfs2_jdesc *jd,
+		    struct page *page, unsigned size, unsigned offset,
+		    u64 blkno)
 {
 	struct bio *bio;
 	int ret;
 
-	bio = gfs2_log_get_bio(sdp, blkno, &sdp->sd_log_bio, REQ_OP_WRITE,
+	bio = gfs2_log_get_bio(sdp, blkno, &jd->jd_log_bio, REQ_OP_WRITE,
 			       gfs2_end_log_write, false);
 	ret = bio_add_page(bio, page, size, offset);
 	if (ret == 0) {
-		bio = gfs2_log_get_bio(sdp, blkno, &sdp->sd_log_bio,
+		bio = gfs2_log_get_bio(sdp, blkno, &jd->jd_log_bio,
 				       REQ_OP_WRITE, gfs2_end_log_write, true);
 		ret = bio_add_page(bio, page, size, offset);
 		WARN_ON(ret == 0);
@@ -355,7 +356,8 @@ static void gfs2_log_write_bh(struct gfs2_sbd *sdp, struct buffer_head *bh)
 
 	dblock = gfs2_log_bmap(sdp->sd_jdesc, sdp->sd_log_flush_head);
 	gfs2_log_incr_head(sdp);
-	gfs2_log_write(sdp, bh->b_page, bh->b_size, bh_offset(bh), dblock);
+	gfs2_log_write(sdp, sdp->sd_jdesc, bh->b_page, bh->b_size,
+		       bh_offset(bh), dblock);
 }
 
 /**
@@ -376,7 +378,7 @@ static void gfs2_log_write_page(struct gfs2_sbd *sdp, struct page *page)
 
 	dblock = gfs2_log_bmap(sdp->sd_jdesc, sdp->sd_log_flush_head);
 	gfs2_log_incr_head(sdp);
-	gfs2_log_write(sdp, page, sb->s_blocksize, 0, dblock);
+	gfs2_log_write(sdp, sdp->sd_jdesc, page, sb->s_blocksize, 0, dblock);
 }
 
 /**

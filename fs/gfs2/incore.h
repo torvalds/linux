@@ -531,6 +531,7 @@ struct gfs2_jdesc {
 	unsigned int nr_extents;
 	struct work_struct jd_work;
 	struct inode *jd_inode;
+	struct bio *jd_log_bio;
 	unsigned long jd_flags;
 #define JDF_RECOVERY 1
 	unsigned int jd_jid;
@@ -844,7 +845,6 @@ struct gfs2_sbd {
 
 	struct rw_semaphore sd_log_flush_lock;
 	atomic_t sd_log_in_flight;
-	struct bio *sd_log_bio;
 	wait_queue_head_t sd_log_flush_wait;
 	int sd_log_error; /* First log error */
 	wait_queue_head_t sd_withdraw_wait;
