@@ -73,6 +73,14 @@ static DECLARE_RWSEM(namespace_sem);
 static HLIST_HEAD(unmounted);	/* protected by namespace_sem */
 static LIST_HEAD(ex_mountpoints); /* protected by namespace_sem */
 
+struct mount_kattr {
+	unsigned int attr_set;
+	unsigned int attr_clr;
+	unsigned int propagation;
+	unsigned int lookup_flags;
+	bool recurse;
+};
+
 /* /sys/fs */
 struct kobject *fs_kobj;
 EXPORT_SYMBOL_GPL(fs_kobj);
@@ -3469,6 +3477,11 @@ out_type:
 	(MOUNT_ATTR_RDONLY | MOUNT_ATTR_NOSUID | MOUNT_ATTR_NODEV | \
 	 MOUNT_ATTR_NOEXEC | MOUNT_ATTR__ATIME | MOUNT_ATTR_NODIRATIME)
 
+#define MOUNT_SETATTR_VALID_FLAGS FSMOUNT_VALID_FLAGS
+
+#define MOUNT_SETATTR_PROPAGATION_FLAGS \
+	(MS_UNBINDABLE | MS_PRIVATE | MS_SLAVE | MS_SHARED)
+
 static unsigned int attr_flags_to_mnt_flags(u64 attr_flags)
 {
 	unsigned int mnt_flags = 0;
@@ -3818,6 +3831,256 @@ out1:
 	path_put(&new);
 out0:
 	return error;
+}
+
+static unsigned int recalc_flags(struct mount_kattr *kattr, struct mount *mnt)
+{
+	unsigned int flags = mnt->mnt.mnt_flags;
+
+	/*  flags to clear */
+	flags &= ~kattr->attr_clr;
+	/* flags to raise */
+	flags |= kattr->attr_set;
+
+	return flags;
+}
+
+static struct mount *mount_setattr_prepare(struct mount_kattr *kattr,
+					   struct mount *mnt, int *err)
+{
+	struct mount *m = mnt, *last = NULL;
+
+	if (!is_mounted(&m->mnt)) {
+		*err = -EINVAL;
+		goto out;
+	}
+
+	if (!(mnt_has_parent(m) ? check_mnt(m) : is_anon_ns(m->mnt_ns))) {
+		*err = -EINVAL;
+		goto out;
+	}
+
+	do {
+		unsigned int flags;
+
+		flags = recalc_flags(kattr, m);
+		if (!can_change_locked_flags(m, flags)) {
+			*err = -EPERM;
+			goto out;
+		}
+
+		last = m;
+
+		if ((kattr->attr_set & MNT_READONLY) &&
+		    !(m->mnt.mnt_flags & MNT_READONLY)) {
+			*err = mnt_hold_writers(m);
+			if (*err)
+				goto out;
+		}
+	} while (kattr->recurse && (m = next_mnt(m, mnt)));
+
+out:
+	return last;
+}
+
+static void mount_setattr_commit(struct mount_kattr *kattr,
+				 struct mount *mnt, struct mount *last,
+				 int err)
+{
+	struct mount *m = mnt;
+
+	do {
+		if (!err) {
+			unsigned int flags;
+
+			flags = recalc_flags(kattr, m);
+			WRITE_ONCE(m->mnt.mnt_flags, flags);
+		}
+
+		/*
+		 * We either set MNT_READONLY above so make it visible
+		 * before ~MNT_WRITE_HOLD or we failed to recursively
+		 * apply mount options.
+		 */
+		if ((kattr->attr_set & MNT_READONLY) &&
+		    (m->mnt.mnt_flags & MNT_WRITE_HOLD))
+			mnt_unhold_writers(m);
+
+		if (!err && kattr->propagation)
+			change_mnt_propagation(m, kattr->propagation);
+
+		/*
+		 * On failure, only cleanup until we found the first mount
+		 * we failed to handle.
+		 */
+		if (err && m == last)
+			break;
+	} while (kattr->recurse && (m = next_mnt(m, mnt)));
+
+	if (!err)
+		touch_mnt_namespace(mnt->mnt_ns);
+}
+
+static int do_mount_setattr(struct path *path, struct mount_kattr *kattr)
+{
+	struct mount *mnt = real_mount(path->mnt), *last = NULL;
+	int err = 0;
+
+	if (path->dentry != mnt->mnt.mnt_root)
+		return -EINVAL;
+
+	if (kattr->propagation) {
+		/*
+		 * Only take namespace_lock() if we're actually changing
+		 * propagation.
+		 */
+		namespace_lock();
+		if (kattr->propagation == MS_SHARED) {
+			err = invent_group_ids(mnt, kattr->recurse);
+			if (err) {
+				namespace_unlock();
+				return err;
+			}
+		}
+	}
+
+	lock_mount_hash();
+
+	/*
+	 * Get the mount tree in a shape where we can change mount
+	 * properties without failure.
+	 */
+	last = mount_setattr_prepare(kattr, mnt, &err);
+	if (last) /* Commit all changes or revert to the old state. */
+		mount_setattr_commit(kattr, mnt, last, err);
+
+	unlock_mount_hash();
+
+	if (kattr->propagation) {
+		namespace_unlock();
+		if (err)
+			cleanup_group_ids(mnt, NULL);
+	}
+
+	return err;
+}
+
+static int build_mount_kattr(const struct mount_attr *attr,
+			     struct mount_kattr *kattr, unsigned int flags)
+{
+	unsigned int lookup_flags = LOOKUP_AUTOMOUNT | LOOKUP_FOLLOW;
+
+	if (flags & AT_NO_AUTOMOUNT)
+		lookup_flags &= ~LOOKUP_AUTOMOUNT;
+	if (flags & AT_SYMLINK_NOFOLLOW)
+		lookup_flags &= ~LOOKUP_FOLLOW;
+	if (flags & AT_EMPTY_PATH)
+		lookup_flags |= LOOKUP_EMPTY;
+
+	*kattr = (struct mount_kattr) {
+		.lookup_flags	= lookup_flags,
+		.recurse	= !!(flags & AT_RECURSIVE),
+	};
+
+	if (attr->propagation & ~MOUNT_SETATTR_PROPAGATION_FLAGS)
+		return -EINVAL;
+	if (hweight32(attr->propagation & MOUNT_SETATTR_PROPAGATION_FLAGS) > 1)
+		return -EINVAL;
+	kattr->propagation = attr->propagation;
+
+	if ((attr->attr_set | attr->attr_clr) & ~MOUNT_SETATTR_VALID_FLAGS)
+		return -EINVAL;
+
+	if (attr->userns_fd)
+		return -EINVAL;
+
+	kattr->attr_set = attr_flags_to_mnt_flags(attr->attr_set);
+	kattr->attr_clr = attr_flags_to_mnt_flags(attr->attr_clr);
+
+	/*
+	 * Since the MOUNT_ATTR_<atime> values are an enum, not a bitmap,
+	 * users wanting to transition to a different atime setting cannot
+	 * simply specify the atime setting in @attr_set, but must also
+	 * specify MOUNT_ATTR__ATIME in the @attr_clr field.
+	 * So ensure that MOUNT_ATTR__ATIME can't be partially set in
+	 * @attr_clr and that @attr_set can't have any atime bits set if
+	 * MOUNT_ATTR__ATIME isn't set in @attr_clr.
+	 */
+	if (attr->attr_clr & MOUNT_ATTR__ATIME) {
+		if ((attr->attr_clr & MOUNT_ATTR__ATIME) != MOUNT_ATTR__ATIME)
+			return -EINVAL;
+
+		/*
+		 * Clear all previous time settings as they are mutually
+		 * exclusive.
+		 */
+		kattr->attr_clr |= MNT_RELATIME | MNT_NOATIME;
+		switch (attr->attr_set & MOUNT_ATTR__ATIME) {
+		case MOUNT_ATTR_RELATIME:
+			kattr->attr_set |= MNT_RELATIME;
+			break;
+		case MOUNT_ATTR_NOATIME:
+			kattr->attr_set |= MNT_NOATIME;
+			break;
+		case MOUNT_ATTR_STRICTATIME:
+			break;
+		default:
+			return -EINVAL;
+		}
+	} else {
+		if (attr->attr_set & MOUNT_ATTR__ATIME)
+			return -EINVAL;
+	}
+
+	return 0;
+}
+
+SYSCALL_DEFINE5(mount_setattr, int, dfd, const char __user *, path,
+		unsigned int, flags, struct mount_attr __user *, uattr,
+		size_t, usize)
+{
+	int err;
+	struct path target;
+	struct mount_attr attr;
+	struct mount_kattr kattr;
+
+	BUILD_BUG_ON(sizeof(struct mount_attr) != MOUNT_ATTR_SIZE_VER0);
+
+	if (flags & ~(AT_EMPTY_PATH |
+		      AT_RECURSIVE |
+		      AT_SYMLINK_NOFOLLOW |
+		      AT_NO_AUTOMOUNT))
+		return -EINVAL;
+
+	if (unlikely(usize > PAGE_SIZE))
+		return -E2BIG;
+	if (unlikely(usize < MOUNT_ATTR_SIZE_VER0))
+		return -EINVAL;
+
+	if (!may_mount())
+		return -EPERM;
+
+	err = copy_struct_from_user(&attr, sizeof(attr), uattr, usize);
+	if (err)
+		return err;
+
+	/* Don't bother walking through the mounts if this is a nop. */
+	if (attr.attr_set == 0 &&
+	    attr.attr_clr == 0 &&
+	    attr.propagation == 0)
+		return 0;
+
+	err = build_mount_kattr(&attr, &kattr, flags);
+	if (err)
+		return err;
+
+	err = user_path_at(dfd, path, kattr.lookup_flags, &target);
+	if (err)
+		return err;
+
+	err = do_mount_setattr(&target, &kattr);
+	path_put(&target);
+	return err;
 }
 
 static void __init init_mount_tree(void)
