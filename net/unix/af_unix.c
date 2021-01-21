@@ -996,8 +996,8 @@ static int unix_mknod(const char *sun_path, umode_t mode, struct path *res)
 	 */
 	err = security_path_mknod(&path, dentry, mode, 0);
 	if (!err) {
-		err = vfs_mknod(&init_user_ns, d_inode(path.dentry), dentry,
-				mode, 0);
+		err = vfs_mknod(mnt_user_ns(path.mnt), d_inode(path.dentry),
+				dentry, mode, 0);
 		if (!err) {
 			res->mnt = mntget(path.mnt);
 			res->dentry = dget(dentry);
