@@ -271,7 +271,9 @@ static inline bool checkpoint_restore_ns_capable(struct user_namespace *ns)
 }
 
 /* audit system wants to get cap info from files as well */
-extern int get_vfs_caps_from_disk(const struct dentry *dentry, struct cpu_vfs_cap_data *cpu_caps);
+int get_vfs_caps_from_disk(struct user_namespace *mnt_userns,
+			   const struct dentry *dentry,
+			   struct cpu_vfs_cap_data *cpu_caps);
 
 int cap_convert_nscap(struct user_namespace *mnt_userns, struct dentry *dentry,
 		      const void **ivalue, size_t size);
