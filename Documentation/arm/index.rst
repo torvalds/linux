@@ -33,7 +33,7 @@ SoC-specific documents
 
    ixp4xx
 
-   marvel
+   marvell
    microchip
 
    netwinder
