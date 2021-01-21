@@ -1762,8 +1762,8 @@ static inline bool sb_start_intwrite_trylock(struct super_block *sb)
 	return __sb_start_write_trylock(sb, SB_FREEZE_FS);
 }
 
-
-extern bool inode_owner_or_capable(const struct inode *inode);
+bool inode_owner_or_capable(struct user_namespace *mnt_userns,
+			    const struct inode *inode);
 
 /*
  * VFS helper functions..
@@ -1805,8 +1805,8 @@ extern long compat_ptr_ioctl(struct file *file, unsigned int cmd,
 /*
  * VFS file helper functions.
  */
-extern void inode_init_owner(struct inode *inode, const struct inode *dir,
-			umode_t mode);
+void inode_init_owner(struct user_namespace *mnt_userns, struct inode *inode,
+		      const struct inode *dir, umode_t mode);
 extern bool may_open_dev(const struct path *path);
 
 /*

@@ -1300,7 +1300,7 @@ xfs_ioctl_setattr_get_trans(
 	 * The user ID of the calling process must be equal to the file owner
 	 * ID, except in cases where the CAP_FSETID capability is applicable.
 	 */
-	if (!inode_owner_or_capable(VFS_I(ip))) {
+	if (!inode_owner_or_capable(&init_user_ns, VFS_I(ip))) {
 		error = -EPERM;
 		goto out_cancel;
 	}
