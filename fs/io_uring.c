@@ -3552,7 +3552,7 @@ static int io_read(struct io_kiocb *req, bool force_nonblock,
 
 	/* read it all, or we did blocking attempt. no retry. */
 	if (!iov_iter_count(iter) || !force_nonblock ||
-	    (req->file->f_flags & O_NONBLOCK))
+	    (req->file->f_flags & O_NONBLOCK) || !(req->flags & REQ_F_ISREG))
 		goto done;
 
 	io_size -= ret;
