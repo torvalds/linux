@@ -233,8 +233,7 @@ int btrfs_alloc_stripe_hash_table(struct btrfs_fs_info *info)
 	}
 
 	x = cmpxchg(&info->stripe_hash_table, NULL, table);
-	if (x)
-		kvfree(x);
+	kvfree(x);
 	return 0;
 }
 
