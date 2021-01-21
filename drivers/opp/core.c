@@ -826,12 +826,11 @@ static int _set_opp_bw(const struct opp_table *opp_table,
 }
 
 static int _set_opp_custom(const struct opp_table *opp_table,
-			   struct device *dev, unsigned long old_freq,
-			   unsigned long freq,
-			   struct dev_pm_opp_supply *old_supply,
-			   struct dev_pm_opp_supply *new_supply)
+			   struct device *dev, struct dev_pm_opp *opp,
+			   unsigned long freq)
 {
 	struct dev_pm_set_opp_data *data = opp_table->set_opp_data;
+	struct dev_pm_opp *old_opp = opp_table->current_opp;
 	int size;
 
 	/*
@@ -839,9 +838,9 @@ static int _set_opp_custom(const struct opp_table *opp_table,
 	 * earlier.
 	 */
 	if (opp_table->sod_supplies) {
-		size = sizeof(*old_supply) * opp_table->regulator_count;
-		memcpy(data->old_opp.supplies, old_supply, size);
-		memcpy(data->new_opp.supplies, new_supply, size);
+		size = sizeof(*old_opp->supplies) * opp_table->regulator_count;
+		memcpy(data->old_opp.supplies, old_opp->supplies, size);
+		memcpy(data->new_opp.supplies, opp->supplies, size);
 		data->regulator_count = opp_table->regulator_count;
 	} else {
 		data->regulator_count = 0;
@@ -850,7 +849,7 @@ static int _set_opp_custom(const struct opp_table *opp_table,
 	data->regulators = opp_table->regulators;
 	data->clk = opp_table->clk;
 	data->dev = dev;
-	data->old_opp.rate = old_freq;
+	data->old_opp.rate = old_opp->rate;
 	data->new_opp.rate = freq;
 
 	return opp_table->set_opp(data);
@@ -1006,7 +1005,6 @@ static int _set_opp(struct device *dev, struct opp_table *opp_table,
 		    struct dev_pm_opp *opp, unsigned long freq)
 {
 	struct dev_pm_opp *old_opp;
-	unsigned long old_freq;
 	int scaling_down, ret;
 
 	if (unlikely(!opp))
@@ -1017,7 +1015,6 @@ static int _set_opp(struct device *dev, struct opp_table *opp_table,
 		_find_current_opp(dev, opp_table);
 
 	old_opp = opp_table->current_opp;
-	old_freq = old_opp->rate;
 
 	/* Return early if nothing to do */
 	if (opp_table->enabled && old_opp == opp) {
@@ -1026,7 +1023,7 @@ static int _set_opp(struct device *dev, struct opp_table *opp_table,
 	}
 
 	dev_dbg(dev, "%s: switching OPP: Freq %lu -> %lu Hz, Level %u -> %u, Bw %u -> %u\n",
-		__func__, old_freq, freq, old_opp->level, opp->level,
+		__func__, old_opp->rate, freq, old_opp->level, opp->level,
 		old_opp->bandwidth ? old_opp->bandwidth[0].peak : 0,
 		opp->bandwidth ? opp->bandwidth[0].peak : 0);
 
@@ -1042,8 +1039,7 @@ static int _set_opp(struct device *dev, struct opp_table *opp_table,
 	}
 
 	if (opp_table->set_opp) {
-		ret = _set_opp_custom(opp_table, dev, old_freq, freq,
-				      old_opp->supplies, opp->supplies);
+		ret = _set_opp_custom(opp_table, dev, opp, freq);
 	} else if (opp_table->regulators) {
 		ret = _generic_set_opp_regulator(opp_table, dev, opp, freq,
 						 scaling_down);
