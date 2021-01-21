@@ -256,7 +256,7 @@ int coda_getattr(const struct path *path, struct kstat *stat,
 {
 	int err = coda_revalidate_inode(d_inode(path->dentry));
 	if (!err)
-		generic_fillattr(d_inode(path->dentry), stat);
+		generic_fillattr(&init_user_ns, d_inode(path->dentry), stat);
 	return err;
 }
 

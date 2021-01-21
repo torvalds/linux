@@ -857,7 +857,7 @@ out_no_revalidate:
 	/* Only return attributes that were revalidated. */
 	stat->result_mask &= request_mask;
 out_no_update:
-	generic_fillattr(inode, stat);
+	generic_fillattr(&init_user_ns, inode, stat);
 	stat->ino = nfs_compat_user_ino64(NFS_FILEID(inode));
 	if (S_ISDIR(inode->i_mode))
 		stat->blksize = NFS_SERVER(inode)->dtsize;

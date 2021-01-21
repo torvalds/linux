@@ -233,7 +233,7 @@ int vboxsf_getattr(const struct path *path, struct kstat *kstat,
 	if (err)
 		return err;
 
-	generic_fillattr(d_inode(dentry), kstat);
+	generic_fillattr(&init_user_ns, d_inode(dentry), kstat);
 	return 0;
 }
 

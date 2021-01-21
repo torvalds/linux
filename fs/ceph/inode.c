@@ -2385,7 +2385,7 @@ int ceph_getattr(const struct path *path, struct kstat *stat,
 			return err;
 	}
 
-	generic_fillattr(inode, stat);
+	generic_fillattr(&init_user_ns, inode, stat);
 	stat->ino = ceph_present_inode(inode);
 
 	/*

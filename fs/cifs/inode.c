@@ -2408,7 +2408,7 @@ int cifs_getattr(const struct path *path, struct kstat *stat,
 			return rc;
 	}
 
-	generic_fillattr(inode, stat);
+	generic_fillattr(&init_user_ns, inode, stat);
 	stat->blksize = cifs_sb->ctx->bsize;
 	stat->ino = CIFS_I(inode)->uniqueid;
 

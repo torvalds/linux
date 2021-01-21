@@ -311,7 +311,7 @@ void __init proc_root_init(void)
 static int proc_root_getattr(const struct path *path, struct kstat *stat,
 			     u32 request_mask, unsigned int query_flags)
 {
-	generic_fillattr(d_inode(path->dentry), stat);
+	generic_fillattr(&init_user_ns, d_inode(path->dentry), stat);
 	stat->nlink = proc_root.nlink + nr_processes();
 	return 0;
 }
