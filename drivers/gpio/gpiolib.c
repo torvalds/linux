@@ -1489,6 +1489,9 @@ static int gpiochip_add_irqchip(struct gpio_chip *gc,
 		type = IRQ_TYPE_NONE;
 	}
 
+	if (gc->to_irq)
+		chip_warn(gc, "to_irq is redefined in %s and you shouldn't rely on it\n", __func__);
+
 	gc->to_irq = gpiochip_to_irq;
 	gc->irq.default_type = type;
 	gc->irq.lock_key = lock_key;
