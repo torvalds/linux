@@ -141,7 +141,8 @@ static int ecryptfs_do_unlink(struct inode *dir, struct dentry *dentry,
 	else if (d_unhashed(lower_dentry))
 		rc = -EINVAL;
 	else
-		rc = vfs_unlink(lower_dir_inode, lower_dentry, NULL);
+		rc = vfs_unlink(&init_user_ns, lower_dir_inode, lower_dentry,
+				NULL);
 	if (rc) {
 		printk(KERN_ERR "Error in vfs_unlink; rc = [%d]\n", rc);
 		goto out_unlock;
@@ -180,7 +181,8 @@ ecryptfs_do_create(struct inode *directory_inode,
 
 	lower_dentry = ecryptfs_dentry_to_lower(ecryptfs_dentry);
 	lower_dir_dentry = lock_parent(lower_dentry);
-	rc = vfs_create(d_inode(lower_dir_dentry), lower_dentry, mode, true);
+	rc = vfs_create(&init_user_ns, d_inode(lower_dir_dentry), lower_dentry,
+			mode, true);
 	if (rc) {
 		printk(KERN_ERR "%s: Failure to create dentry in lower fs; "
 		       "rc = [%d]\n", __func__, rc);
@@ -190,7 +192,8 @@ ecryptfs_do_create(struct inode *directory_inode,
 	inode = __ecryptfs_get_inode(d_inode(lower_dentry),
 				     directory_inode->i_sb);
 	if (IS_ERR(inode)) {
-		vfs_unlink(d_inode(lower_dir_dentry), lower_dentry, NULL);
+		vfs_unlink(&init_user_ns, d_inode(lower_dir_dentry),
+			   lower_dentry, NULL);
 		goto out_lock;
 	}
 	fsstack_copy_attr_times(directory_inode, d_inode(lower_dir_dentry));
@@ -436,8 +439,8 @@ static int ecryptfs_link(struct dentry *old_dentry, struct inode *dir,
 	dget(lower_old_dentry);
 	dget(lower_new_dentry);
 	lower_dir_dentry = lock_parent(lower_new_dentry);
-	rc = vfs_link(lower_old_dentry, d_inode(lower_dir_dentry),
-		      lower_new_dentry, NULL);
+	rc = vfs_link(lower_old_dentry, &init_user_ns,
+		      d_inode(lower_dir_dentry), lower_new_dentry, NULL);
 	if (rc || d_really_is_negative(lower_new_dentry))
 		goto out_lock;
 	rc = ecryptfs_interpose(lower_new_dentry, new_dentry, dir->i_sb);
@@ -481,7 +484,7 @@ static int ecryptfs_symlink(struct inode *dir, struct dentry *dentry,
 						  strlen(symname));
 	if (rc)
 		goto out_lock;
-	rc = vfs_symlink(d_inode(lower_dir_dentry), lower_dentry,
+	rc = vfs_symlink(&init_user_ns, d_inode(lower_dir_dentry), lower_dentry,
 			 encoded_symname);
 	kfree(encoded_symname);
 	if (rc || d_really_is_negative(lower_dentry))
@@ -507,7 +510,8 @@ static int ecryptfs_mkdir(struct inode *dir, struct dentry *dentry, umode_t mode
 
 	lower_dentry = ecryptfs_dentry_to_lower(dentry);
 	lower_dir_dentry = lock_parent(lower_dentry);
-	rc = vfs_mkdir(d_inode(lower_dir_dentry), lower_dentry, mode);
+	rc = vfs_mkdir(&init_user_ns, d_inode(lower_dir_dentry), lower_dentry,
+		       mode);
 	if (rc || d_really_is_negative(lower_dentry))
 		goto out;
 	rc = ecryptfs_interpose(lower_dentry, dentry, dir->i_sb);
@@ -541,7 +545,7 @@ static int ecryptfs_rmdir(struct inode *dir, struct dentry *dentry)
 	else if (d_unhashed(lower_dentry))
 		rc = -EINVAL;
 	else
-		rc = vfs_rmdir(lower_dir_inode, lower_dentry);
+		rc = vfs_rmdir(&init_user_ns, lower_dir_inode, lower_dentry);
 	if (!rc) {
 		clear_nlink(d_inode(dentry));
 		fsstack_copy_attr_times(dir, lower_dir_inode);
@@ -563,7 +567,8 @@ ecryptfs_mknod(struct inode *dir, struct dentry *dentry, umode_t mode, dev_t dev
 
 	lower_dentry = ecryptfs_dentry_to_lower(dentry);
 	lower_dir_dentry = lock_parent(lower_dentry);
-	rc = vfs_mknod(d_inode(lower_dir_dentry), lower_dentry, mode, dev);
+	rc = vfs_mknod(&init_user_ns, d_inode(lower_dir_dentry), lower_dentry,
+		       mode, dev);
 	if (rc || d_really_is_negative(lower_dentry))
 		goto out;
 	rc = ecryptfs_interpose(lower_dentry, dentry, dir->i_sb);
@@ -621,10 +626,12 @@ ecryptfs_rename(struct inode *old_dir, struct dentry *old_dentry,
 		goto out_lock;
 	}
 
-	rd.old_dir	= d_inode(lower_old_dir_dentry);
-	rd.old_dentry	= lower_old_dentry;
-	rd.new_dir	= d_inode(lower_new_dir_dentry);
-	rd.new_dentry	= lower_new_dentry;
+	rd.old_mnt_userns	= &init_user_ns;
+	rd.old_dir		= d_inode(lower_old_dir_dentry);
+	rd.old_dentry		= lower_old_dentry;
+	rd.new_mnt_userns	= &init_user_ns;
+	rd.new_dir		= d_inode(lower_new_dir_dentry);
+	rd.new_dentry		= lower_new_dentry;
 	rc = vfs_rename(&rd);
 	if (rc)
 		goto out_lock;

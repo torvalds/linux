@@ -965,7 +965,8 @@ SYSCALL_DEFINE1(mq_unlink, const char __user *, u_name)
 		err = -ENOENT;
 	} else {
 		ihold(inode);
-		err = vfs_unlink(d_inode(dentry->d_parent), dentry, NULL);
+		err = vfs_unlink(&init_user_ns, d_inode(dentry->d_parent),
+				 dentry, NULL);
 	}
 	dput(dentry);
 
