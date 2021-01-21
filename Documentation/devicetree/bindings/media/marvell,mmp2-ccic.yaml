@@ -23,6 +23,9 @@ properties:
   interrupts:
     maxItems: 1
 
+  power-domains:
+    maxItems: 1
+
   port:
     type: object
     additionalProperties: false
@@ -75,6 +78,7 @@ additionalProperties: false
 examples:
   - |
     #include <dt-bindings/clock/marvell,mmp2.h>
+    #include <dt-bindings/power/marvell,mmp2.h>
 
     camera@d420a000 {
       compatible = "marvell,mmp2-ccic";
@@ -84,6 +88,7 @@ examples:
       clock-names = "axi";
       #clock-cells = <0>;
       clock-output-names = "mclk";
+      power-domains = <&soc_clocks MMP3_POWER_DOMAIN_CAMERA>;
 
       port {
         camera0_0: endpoint {
