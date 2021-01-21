@@ -199,8 +199,12 @@ static int __btrfs_add_ordered_extent(struct btrfs_inode *inode, u64 file_offset
 	entry->compress_type = compress_type;
 	entry->truncated_len = (u64)-1;
 	entry->qgroup_rsv = ret;
-	if (type != BTRFS_ORDERED_IO_DONE && type != BTRFS_ORDERED_COMPLETE)
-		set_bit(type, &entry->flags);
+
+	ASSERT(type == BTRFS_ORDERED_REGULAR ||
+	       type == BTRFS_ORDERED_NOCOW ||
+	       type == BTRFS_ORDERED_PREALLOC ||
+	       type == BTRFS_ORDERED_COMPRESSED);
+	set_bit(type, &entry->flags);
 
 	if (dio) {
 		percpu_counter_add_batch(&fs_info->dio_bytes, num_bytes,
@@ -256,6 +260,9 @@ int btrfs_add_ordered_extent(struct btrfs_inode *inode, u64 file_offset,
 			     u64 disk_bytenr, u64 num_bytes, u64 disk_num_bytes,
 			     int type)
 {
+	ASSERT(type == BTRFS_ORDERED_REGULAR ||
+	       type == BTRFS_ORDERED_NOCOW ||
+	       type == BTRFS_ORDERED_PREALLOC);
 	return __btrfs_add_ordered_extent(inode, file_offset, disk_bytenr,
 					  num_bytes, disk_num_bytes, type, 0,
 					  BTRFS_COMPRESS_NONE);
@@ -265,6 +272,9 @@ int btrfs_add_ordered_extent_dio(struct btrfs_inode *inode, u64 file_offset,
 				 u64 disk_bytenr, u64 num_bytes,
 				 u64 disk_num_bytes, int type)
 {
+	ASSERT(type == BTRFS_ORDERED_REGULAR ||
+	       type == BTRFS_ORDERED_NOCOW ||
+	       type == BTRFS_ORDERED_PREALLOC);
 	return __btrfs_add_ordered_extent(inode, file_offset, disk_bytenr,
 					  num_bytes, disk_num_bytes, type, 1,
 					  BTRFS_COMPRESS_NONE);
@@ -272,11 +282,12 @@ int btrfs_add_ordered_extent_dio(struct btrfs_inode *inode, u64 file_offset,
 
 int btrfs_add_ordered_extent_compress(struct btrfs_inode *inode, u64 file_offset,
 				      u64 disk_bytenr, u64 num_bytes,
-				      u64 disk_num_bytes, int type,
-				      int compress_type)
+				      u64 disk_num_bytes, int compress_type)
 {
+	ASSERT(compress_type != BTRFS_COMPRESS_NONE);
 	return __btrfs_add_ordered_extent(inode, file_offset, disk_bytenr,
-					  num_bytes, disk_num_bytes, type, 0,
+					  num_bytes, disk_num_bytes,
+					  BTRFS_ORDERED_COMPRESSED, 0,
 					  compress_type);
 }
 

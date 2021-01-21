@@ -27,7 +27,7 @@ struct btrfs_ordered_sum {
 };
 
 /*
- * bits for the flags field:
+ * Bits for btrfs_ordered_extent::flags.
  *
  * BTRFS_ORDERED_IO_DONE is set when all of the blocks are written.
  * It is used to make sure metadata is inserted into the tree only once
@@ -38,24 +38,36 @@ struct btrfs_ordered_sum {
  * IO is done and any metadata is inserted into the tree.
  */
 enum {
+	/*
+	 * Different types for direct io, one and only one of the 4 type can
+	 * be set when creating ordered extent.
+	 *
+	 * REGULAR:	For regular non-compressed COW write
+	 * NOCOW:	For NOCOW write into existing non-hole extent
+	 * PREALLOC:	For NOCOW write into preallocated extent
+	 * COMPRESSED:	For compressed COW write
+	 */
+	BTRFS_ORDERED_REGULAR,
+	BTRFS_ORDERED_NOCOW,
+	BTRFS_ORDERED_PREALLOC,
+	BTRFS_ORDERED_COMPRESSED,
+
+	/*
+	 * Extra bit for direct io, can only be set for
+	 * REGULAR/NOCOW/PREALLOC. No direct io for compressed extent.
+	 */
+	BTRFS_ORDERED_DIRECT,
+
+	/* Extra status bits for ordered extents */
+
 	/* set when all the pages are written */
 	BTRFS_ORDERED_IO_DONE,
 	/* set when removed from the tree */
 	BTRFS_ORDERED_COMPLETE,
-	/* set when we want to write in place */
-	BTRFS_ORDERED_NOCOW,
-	/* writing a zlib compressed extent */
-	BTRFS_ORDERED_COMPRESSED,
-	/* set when writing to preallocated extent */
-	BTRFS_ORDERED_PREALLOC,
-	/* set when we're doing DIO with this extent */
-	BTRFS_ORDERED_DIRECT,
 	/* We had an io error when writing this out */
 	BTRFS_ORDERED_IOERR,
 	/* Set when we have to truncate an extent */
 	BTRFS_ORDERED_TRUNCATED,
-	/* Regular IO for COW */
-	BTRFS_ORDERED_REGULAR,
 	/* Used during fsync to track already logged extents */
 	BTRFS_ORDERED_LOGGED,
 	/* We have already logged all the csums of the ordered extent */
@@ -167,8 +179,7 @@ int btrfs_add_ordered_extent_dio(struct btrfs_inode *inode, u64 file_offset,
 				 u64 disk_num_bytes, int type);
 int btrfs_add_ordered_extent_compress(struct btrfs_inode *inode, u64 file_offset,
 				      u64 disk_bytenr, u64 num_bytes,
-				      u64 disk_num_bytes, int type,
-				      int compress_type);
+				      u64 disk_num_bytes, int compress_type);
 void btrfs_add_ordered_sum(struct btrfs_ordered_extent *entry,
 			   struct btrfs_ordered_sum *sum);
 struct btrfs_ordered_extent *btrfs_lookup_ordered_extent(struct btrfs_inode *inode,
