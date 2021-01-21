@@ -5812,21 +5812,27 @@ static __be32 find_cpntf_state(struct nfsd_net *nn, stateid_t *st,
 {
 	__be32 status;
 	struct nfs4_cpntf_state *cps = NULL;
-	struct nfsd4_compound_state cstate;
+	struct nfs4_client *found;
 
 	status = manage_cpntf_state(nn, st, NULL, &cps);
 	if (status)
 		return status;
 
 	cps->cpntf_time = ktime_get_boottime_seconds();
-	memset(&cstate, 0, sizeof(cstate));
-	status = set_client(&cps->cp_p_clid, &cstate, nn, true);
-	if (status)
+
+	status = nfserr_expired;
+	found = lookup_clientid(&cps->cp_p_clid, true, nn);
+	if (!found)
 		goto out;
-	status = nfsd4_lookup_stateid(&cstate, &cps->cp_p_stateid,
-				NFS4_DELEG_STID|NFS4_OPEN_STID|NFS4_LOCK_STID,
-				stid, nn);
-	put_client_renew(cstate.clp);
+
+	*stid = find_stateid_by_type(found, &cps->cp_p_stateid,
+			NFS4_DELEG_STID|NFS4_OPEN_STID|NFS4_LOCK_STID);
+	if (*stid)
+		status = nfs_ok;
+	else
+		status = nfserr_bad_stateid;
+
+	put_client_renew(found);
 out:
 	nfs4_put_cpntf_state(nn, cps);
 	return status;
