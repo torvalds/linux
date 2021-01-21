@@ -936,7 +936,7 @@ static struct sock *unix_find_other(struct net *net,
 		if (err)
 			goto fail;
 		inode = d_backing_inode(path.dentry);
-		err = inode_permission(inode, MAY_WRITE);
+		err = path_permission(&path, MAY_WRITE);
 		if (err)
 			goto put_fail;
 

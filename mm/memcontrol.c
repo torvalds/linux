@@ -4899,7 +4899,7 @@ static ssize_t memcg_write_event_control(struct kernfs_open_file *of,
 
 	/* the process need read permission on control file */
 	/* AV: shouldn't we check that it's been opened for read instead? */
-	ret = inode_permission(file_inode(cfile.file), MAY_READ);
+	ret = file_permission(cfile.file, MAY_READ);
 	if (ret < 0)
 		goto out_put_cfile;
 
