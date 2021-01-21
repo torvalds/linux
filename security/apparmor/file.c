@@ -11,6 +11,8 @@
 #include <linux/tty.h>
 #include <linux/fdtable.h>
 #include <linux/file.h>
+#include <linux/fs.h>
+#include <linux/mount.h>
 
 #include "include/apparmor.h"
 #include "include/audit.h"
@@ -509,7 +511,7 @@ static int __file_path_perm(const char *op, struct aa_label *label,
 	struct aa_profile *profile;
 	struct aa_perms perms = {};
 	struct path_cond cond = {
-		.uid = file_inode(file)->i_uid,
+		.uid = i_uid_into_mnt(file_mnt_user_ns(file), file_inode(file)),
 		.mode = file_inode(file)->i_mode
 	};
 	char *buffer;
