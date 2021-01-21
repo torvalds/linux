@@ -373,10 +373,8 @@ static inline int is_sp_move_ins(union mips_instruction *ip, int *frame_size)
 static int get_frame_info(struct mips_frame_info *info)
 {
 	bool is_mmips = IS_ENABLED(CONFIG_CPU_MICROMIPS);
-	union mips_instruction insn, *ip;
-	const unsigned int max_insns = 128;
+	union mips_instruction insn, *ip, *ip_end;
 	unsigned int last_insn_size = 0;
-	unsigned int i;
 	bool saw_jump = false;
 
 	info->pc_offset = -1;
@@ -386,7 +384,9 @@ static int get_frame_info(struct mips_frame_info *info)
 	if (!ip)
 		goto err;
 
-	for (i = 0; i < max_insns; i++) {
+	ip_end = (void *)ip + (info->func_size ? info->func_size : 512);
+
+	while (ip < ip_end) {
 		ip = (void *)ip + last_insn_size;
 
 		if (is_mmips && mm_insn_16bit(ip->halfword[0])) {
