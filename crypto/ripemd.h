@@ -6,9 +6,6 @@
 #ifndef _CRYPTO_RMD_H
 #define _CRYPTO_RMD_H
 
-#define RMD128_DIGEST_SIZE      16
-#define RMD128_BLOCK_SIZE       64
-
 #define RMD160_DIGEST_SIZE      20
 #define RMD160_BLOCK_SIZE       64
 

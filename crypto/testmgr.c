@@ -4958,12 +4958,6 @@ static const struct alg_test_desc alg_test_descs[] = {
 			.hash = __VECS(hmac_md5_tv_template)
 		}
 	}, {
-		.alg = "hmac(rmd128)",
-		.test = alg_test_hash,
-		.suite = {
-			.hash = __VECS(hmac_rmd128_tv_template)
-		}
-	}, {
 		.alg = "hmac(rmd160)",
 		.test = alg_test_hash,
 		.suite = {
@@ -5274,12 +5268,6 @@ static const struct alg_test_desc alg_test_descs[] = {
 				.einval_allowed = 1,
 				.aad_iv = 1,
 			}
-		}
-	}, {
-		.alg = "rmd128",
-		.test = alg_test_hash,
-		.suite = {
-			.hash = __VECS(rmd128_tv_template)
 		}
 	}, {
 		.alg = "rmd160",
