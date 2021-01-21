@@ -107,10 +107,12 @@ void ext4_reset_inode_seed(struct inode *inode)
  * important fields of the inodes.
  *
  * @sb:         the super block of the filesystem
+ * @mnt_userns:	user namespace of the mount the inode was found from
  * @inode:      the inode to swap with EXT4_BOOT_LOADER_INO
  *
  */
 static long swap_inode_boot_loader(struct super_block *sb,
+				struct user_namespace *mnt_userns,
 				struct inode *inode)
 {
 	handle_t *handle;
@@ -139,7 +141,7 @@ static long swap_inode_boot_loader(struct super_block *sb,
 	}
 
 	if (IS_RDONLY(inode) || IS_APPEND(inode) || IS_IMMUTABLE(inode) ||
-	    !inode_owner_or_capable(&init_user_ns, inode) ||
+	    !inode_owner_or_capable(mnt_userns, inode) ||
 	    !capable(CAP_SYS_ADMIN)) {
 		err = -EPERM;
 		goto journal_err_out;
@@ -815,6 +817,7 @@ static long __ext4_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 	struct inode *inode = file_inode(filp);
 	struct super_block *sb = inode->i_sb;
 	struct ext4_inode_info *ei = EXT4_I(inode);
+	struct user_namespace *mnt_userns = file_mnt_user_ns(filp);
 	unsigned int flags;
 
 	ext4_debug("cmd = %u, arg = %lu\n", cmd, arg);
@@ -830,7 +833,7 @@ static long __ext4_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 	case FS_IOC_SETFLAGS: {
 		int err;
 
-		if (!inode_owner_or_capable(&init_user_ns, inode))
+		if (!inode_owner_or_capable(mnt_userns, inode))
 			return -EACCES;
 
 		if (get_user(flags, (int __user *) arg))
@@ -872,7 +875,7 @@ static long __ext4_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 		__u32 generation;
 		int err;
 
-		if (!inode_owner_or_capable(&init_user_ns, inode))
+		if (!inode_owner_or_capable(mnt_userns, inode))
 			return -EPERM;
 
 		if (ext4_has_metadata_csum(inode->i_sb)) {
@@ -1011,7 +1014,7 @@ mext_out:
 	case EXT4_IOC_MIGRATE:
 	{
 		int err;
-		if (!inode_owner_or_capable(&init_user_ns, inode))
+		if (!inode_owner_or_capable(mnt_userns, inode))
 			return -EACCES;
 
 		err = mnt_want_write_file(filp);
@@ -1033,7 +1036,7 @@ mext_out:
 	case EXT4_IOC_ALLOC_DA_BLKS:
 	{
 		int err;
-		if (!inode_owner_or_capable(&init_user_ns, inode))
+		if (!inode_owner_or_capable(mnt_userns, inode))
 			return -EACCES;
 
 		err = mnt_want_write_file(filp);
@@ -1052,7 +1055,7 @@ mext_out:
 		err = mnt_want_write_file(filp);
 		if (err)
 			return err;
-		err = swap_inode_boot_loader(sb, inode);
+		err = swap_inode_boot_loader(sb, mnt_userns, inode);
 		mnt_drop_write_file(filp);
 		return err;
 	}
@@ -1218,7 +1221,7 @@ resizefs_out:
 
 	case EXT4_IOC_CLEAR_ES_CACHE:
 	{
-		if (!inode_owner_or_capable(&init_user_ns, inode))
+		if (!inode_owner_or_capable(mnt_userns, inode))
 			return -EACCES;
 		ext4_clear_inode_es(inode);
 		return 0;
@@ -1264,7 +1267,7 @@ resizefs_out:
 			return -EFAULT;
 
 		/* Make sure caller has proper permission */
-		if (!inode_owner_or_capable(&init_user_ns, inode))
+		if (!inode_owner_or_capable(mnt_userns, inode))
 			return -EACCES;
 
 		if (fa.fsx_xflags & ~EXT4_SUPPORTED_FS_XFLAGS)
