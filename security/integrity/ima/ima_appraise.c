@@ -94,7 +94,7 @@ static int ima_fix_xattr(struct dentry *dentry,
 		iint->ima_hash->xattr.ng.type = IMA_XATTR_DIGEST_NG;
 		iint->ima_hash->xattr.ng.algo = algo;
 	}
-	rc = __vfs_setxattr_noperm(dentry, XATTR_NAME_IMA,
+	rc = __vfs_setxattr_noperm(&init_user_ns, dentry, XATTR_NAME_IMA,
 				   &iint->ima_hash->xattr.data[offset],
 				   (sizeof(iint->ima_hash->xattr) - offset) +
 				   iint->ima_hash->length, 0);
@@ -215,8 +215,8 @@ int ima_read_xattr(struct dentry *dentry,
 {
 	ssize_t ret;
 
-	ret = vfs_getxattr_alloc(dentry, XATTR_NAME_IMA, (char **)xattr_value,
-				 0, GFP_NOFS);
+	ret = vfs_getxattr_alloc(&init_user_ns, dentry, XATTR_NAME_IMA,
+				 (char **)xattr_value, 0, GFP_NOFS);
 	if (ret == -EOPNOTSUPP)
 		ret = 0;
 	return ret;
@@ -520,7 +520,7 @@ void ima_inode_post_setattr(struct dentry *dentry)
 
 	action = ima_must_appraise(inode, MAY_ACCESS, POST_SETATTR);
 	if (!action)
-		__vfs_removexattr(dentry, XATTR_NAME_IMA);
+		__vfs_removexattr(&init_user_ns, dentry, XATTR_NAME_IMA);
 	iint = integrity_iint_find(inode);
 	if (iint) {
 		set_bit(IMA_CHANGE_ATTR, &iint->atomic_flags);
