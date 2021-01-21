@@ -990,6 +990,7 @@ static int mtr_init_buf_cfg(struct hns_roce_dev *hr_dev,
 /**
  * hns_roce_mtr_create - Create hns memory translate region.
  *
+ * @hr_dev: RoCE device struct pointer
  * @mtr: memory translate region
  * @buf_attr: buffer attribute for creating mtr
  * @ba_page_shift: page shift for multi-hop base address table
