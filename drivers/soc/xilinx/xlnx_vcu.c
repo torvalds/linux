@@ -712,7 +712,7 @@ static int xvcu_remove(struct platform_device *pdev)
 
 	xvcu_unregister_clock_provider(xvcu);
 
-	/* Add the the Gasket isolation and put the VCU in reset. */
+	/* Add the Gasket isolation and put the VCU in reset. */
 	regmap_write(xvcu->logicore_reg_ba, VCU_GASKET_INIT, 0);
 
 	clk_disable_unprepare(xvcu->aclk);
