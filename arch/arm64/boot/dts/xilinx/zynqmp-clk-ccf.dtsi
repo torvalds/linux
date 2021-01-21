@@ -164,6 +164,10 @@
 	clocks = <&zynqmp_clk PCIE_REF>;
 };
 
+&qspi {
+	clocks = <&zynqmp_clk QSPI_REF>, <&zynqmp_clk LPD_LSBUS>;
+};
+
 &sata {
 	clocks = <&zynqmp_clk SATA_REF>;
 };
