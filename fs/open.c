@@ -438,7 +438,7 @@ retry:
 			goto out_path_release;
 	}
 
-	res = inode_permission(&init_user_ns, inode, mode | MAY_ACCESS);
+	res = inode_permission(mnt_user_ns(path.mnt), inode, mode | MAY_ACCESS);
 	/* SuS v2 requires we report a read only fs too */
 	if (res || !(mode & S_IWOTH) || special_file(inode->i_mode))
 		goto out_path_release;
@@ -582,8 +582,8 @@ retry_deleg:
 		goto out_unlock;
 	newattrs.ia_mode = (mode & S_IALLUGO) | (inode->i_mode & ~S_IALLUGO);
 	newattrs.ia_valid = ATTR_MODE | ATTR_CTIME;
-	error = notify_change(&init_user_ns, path->dentry, &newattrs,
-			      &delegated_inode);
+	error = notify_change(mnt_user_ns(path->mnt), path->dentry,
+			      &newattrs, &delegated_inode);
 out_unlock:
 	inode_unlock(inode);
 	if (delegated_inode) {
@@ -644,6 +644,7 @@ SYSCALL_DEFINE2(chmod, const char __user *, filename, umode_t, mode)
 
 int chown_common(const struct path *path, uid_t user, gid_t group)
 {
+	struct user_namespace *mnt_userns;
 	struct inode *inode = path->dentry->d_inode;
 	struct inode *delegated_inode = NULL;
 	int error;
@@ -653,6 +654,10 @@ int chown_common(const struct path *path, uid_t user, gid_t group)
 
 	uid = make_kuid(current_user_ns(), user);
 	gid = make_kgid(current_user_ns(), group);
+
+	mnt_userns = mnt_user_ns(path->mnt);
+	uid = kuid_from_mnt(mnt_userns, uid);
+	gid = kgid_from_mnt(mnt_userns, gid);
 
 retry_deleg:
 	newattrs.ia_valid =  ATTR_CTIME;
@@ -674,7 +679,7 @@ retry_deleg:
 	inode_lock(inode);
 	error = security_path_chown(path, uid, gid);
 	if (!error)
-		error = notify_change(&init_user_ns, path->dentry, &newattrs,
+		error = notify_change(mnt_userns, path->dentry, &newattrs,
 				      &delegated_inode);
 	inode_unlock(inode);
 	if (delegated_inode) {
