@@ -451,9 +451,6 @@ struct bch_dev {
 
 	size_t			fifo_last_bucket;
 
-	/* last calculated minimum prio */
-	u16			max_last_bucket_io[2];
-
 	size_t			inc_gen_needs_gc;
 	size_t			inc_gen_really_needs_gc;
 
@@ -692,14 +689,6 @@ struct bch_fs {
 	/* single element mempool: */
 	struct mutex		usage_scratch_lock;
 	struct bch_fs_usage_online *usage_scratch;
-
-	/*
-	 * When we invalidate buckets, we use both the priority and the amount
-	 * of good data to determine which buckets to reuse first - to weight
-	 * those together consistently we keep track of the smallest nonzero
-	 * priority of any bucket.
-	 */
-	struct bucket_clock	bucket_clock[2];
 
 	struct io_clock		io_clock[2];
 

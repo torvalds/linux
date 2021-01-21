@@ -169,12 +169,12 @@ static int bch2_rebalance_thread(void *arg)
 	unsigned long start, prev_start;
 	unsigned long prev_run_time, prev_run_cputime;
 	unsigned long cputime, prev_cputime;
-	unsigned long io_start;
+	u64 io_start;
 	long throttle;
 
 	set_freezable();
 
-	io_start	= atomic_long_read(&clock->now);
+	io_start	= atomic64_read(&clock->now);
 	p		= rebalance_work(c);
 	prev_start	= jiffies;
 	prev_cputime	= curr_cputime();
@@ -210,7 +210,7 @@ static int bch2_rebalance_thread(void *arg)
 					(20 - w.dev_most_full_percent),
 					50);
 
-			if (atomic_long_read(&clock->now) + clock->max_slop <
+			if (atomic64_read(&clock->now) + clock->max_slop <
 			    r->throttled_until_iotime) {
 				r->throttled_until_cputime = start + throttle;
 				r->state = REBALANCE_THROTTLED;
@@ -229,7 +229,7 @@ static int bch2_rebalance_thread(void *arg)
 			      max(p.dev_most_full_percent, 1U) /
 			      max(w.dev_most_full_percent, 1U));
 
-		io_start	= atomic_long_read(&clock->now);
+		io_start	= atomic64_read(&clock->now);
 		p		= w;
 		prev_start	= start;
 		prev_cputime	= cputime;
@@ -274,7 +274,7 @@ void bch2_rebalance_work_to_text(struct printbuf *out, struct bch_fs *c)
 	case REBALANCE_THROTTLED:
 		bch2_hprint(&PBUF(h1),
 			    (r->throttled_until_iotime -
-			     atomic_long_read(&c->io_clock[WRITE].now)) << 9);
+			     atomic64_read(&c->io_clock[WRITE].now)) << 9);
 		pr_buf(out, "throttled for %lu sec or %s io\n",
 		       (r->throttled_until_cputime - jiffies) / HZ,
 		       h1);

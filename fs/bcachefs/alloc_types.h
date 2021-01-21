@@ -10,30 +10,6 @@
 
 struct ec_bucket_buf;
 
-/* There's two of these clocks, one for reads and one for writes: */
-struct bucket_clock {
-	/*
-	 * "now" in (read/write) IO time - incremented whenever we do X amount
-	 * of reads or writes.
-	 *
-	 * Goes with the bucket read/write prios: when we read or write to a
-	 * bucket we reset the bucket's prio to the current hand; thus hand -
-	 * prio = time since bucket was last read/written.
-	 *
-	 * The units are some amount (bytes/sectors) of data read/written, and
-	 * the units can change on the fly if we need to rescale to fit
-	 * everything in a u16 - your only guarantee is that the units are
-	 * consistent.
-	 */
-	u16			hand;
-	u16			max_last_io;
-
-	int			rw;
-
-	struct io_timer		rescale;
-	struct mutex		lock;
-};
-
 enum alloc_reserve {
 	RESERVE_BTREE_MOVINGGC	= -2,
 	RESERVE_BTREE		= -1,

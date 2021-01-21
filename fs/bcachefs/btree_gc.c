@@ -1489,7 +1489,7 @@ static int bch2_gc_thread(void *arg)
 {
 	struct bch_fs *c = arg;
 	struct io_clock *clock = &c->io_clock[WRITE];
-	unsigned long last = atomic_long_read(&clock->now);
+	unsigned long last = atomic64_read(&clock->now);
 	unsigned last_kick = atomic_read(&c->kick_gc);
 	int ret;
 
@@ -1510,7 +1510,7 @@ static int bch2_gc_thread(void *arg)
 			if (c->btree_gc_periodic) {
 				unsigned long next = last + c->capacity / 16;
 
-				if (atomic_long_read(&clock->now) >= next)
+				if (atomic64_read(&clock->now) >= next)
 					break;
 
 				bch2_io_clock_schedule_timeout(clock, next);
@@ -1522,7 +1522,7 @@ static int bch2_gc_thread(void *arg)
 		}
 		__set_current_state(TASK_RUNNING);
 
-		last = atomic_long_read(&clock->now);
+		last = atomic64_read(&clock->now);
 		last_kick = atomic_read(&c->kick_gc);
 
 		/*

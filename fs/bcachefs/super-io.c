@@ -966,29 +966,25 @@ int bch2_fs_mark_dirty(struct bch_fs *c)
 	return ret;
 }
 
-static void
-entry_init_u64s(struct jset_entry *entry, unsigned u64s)
+static struct jset_entry *jset_entry_init(struct jset_entry **end, size_t size)
 {
-	memset(entry, 0, u64s * sizeof(u64));
+	struct jset_entry *entry = *end;
+	unsigned u64s = DIV_ROUND_UP(size, sizeof(u64));
 
+	memset(entry, 0, u64s * sizeof(u64));
 	/*
 	 * The u64s field counts from the start of data, ignoring the shared
 	 * fields.
 	 */
 	entry->u64s = u64s - 1;
+
+	*end = vstruct_next(*end);
+	return entry;
 }
 
-static void
-entry_init_size(struct jset_entry *entry, size_t size)
-{
-	unsigned u64s = DIV_ROUND_UP(size, sizeof(u64));
-	entry_init_u64s(entry, u64s);
-}
-
-struct jset_entry *
-bch2_journal_super_entries_add_common(struct bch_fs *c,
-				      struct jset_entry *entry,
-				      u64 journal_seq)
+void bch2_journal_super_entries_add_common(struct bch_fs *c,
+					   struct jset_entry **end,
+					   u64 journal_seq)
 {
 	unsigned i;
 
@@ -1003,59 +999,59 @@ bch2_journal_super_entries_add_common(struct bch_fs *c,
 
 	{
 		struct jset_entry_usage *u =
-			container_of(entry, struct jset_entry_usage, entry);
+			container_of(jset_entry_init(end, sizeof(*u)),
+				     struct jset_entry_usage, entry);
 
-		entry_init_size(entry, sizeof(*u));
 		u->entry.type	= BCH_JSET_ENTRY_usage;
 		u->entry.btree_id = FS_USAGE_INODES;
 		u->v		= cpu_to_le64(c->usage_base->nr_inodes);
-
-		entry = vstruct_next(entry);
 	}
 
 	{
 		struct jset_entry_usage *u =
-			container_of(entry, struct jset_entry_usage, entry);
+			container_of(jset_entry_init(end, sizeof(*u)),
+				     struct jset_entry_usage, entry);
 
-		entry_init_size(entry, sizeof(*u));
 		u->entry.type	= BCH_JSET_ENTRY_usage;
 		u->entry.btree_id = FS_USAGE_KEY_VERSION;
 		u->v		= cpu_to_le64(atomic64_read(&c->key_version));
-
-		entry = vstruct_next(entry);
 	}
 
 	for (i = 0; i < BCH_REPLICAS_MAX; i++) {
 		struct jset_entry_usage *u =
-			container_of(entry, struct jset_entry_usage, entry);
+			container_of(jset_entry_init(end, sizeof(*u)),
+				     struct jset_entry_usage, entry);
 
-		entry_init_size(entry, sizeof(*u));
 		u->entry.type	= BCH_JSET_ENTRY_usage;
 		u->entry.btree_id = FS_USAGE_RESERVED;
 		u->entry.level	= i;
 		u->v		= cpu_to_le64(c->usage_base->persistent_reserved[i]);
-
-		entry = vstruct_next(entry);
 	}
 
 	for (i = 0; i < c->replicas.nr; i++) {
 		struct bch_replicas_entry *e =
 			cpu_replicas_entry(&c->replicas, i);
 		struct jset_entry_data_usage *u =
-			container_of(entry, struct jset_entry_data_usage, entry);
+			container_of(jset_entry_init(end, sizeof(*u) + e->nr_devs),
+				     struct jset_entry_data_usage, entry);
 
-		entry_init_size(entry, sizeof(*u) + e->nr_devs);
 		u->entry.type	= BCH_JSET_ENTRY_data_usage;
 		u->v		= cpu_to_le64(c->usage_base->replicas[i]);
 		unsafe_memcpy(&u->r, e, replicas_entry_bytes(e),
 			      "embedded variable length struct");
-
-		entry = vstruct_next(entry);
 	}
 
 	percpu_up_read(&c->mark_lock);
 
-	return entry;
+	for (i = 0; i < 2; i++) {
+		struct jset_entry_clock *clock =
+			container_of(jset_entry_init(end, sizeof(*clock)),
+				     struct jset_entry_clock, entry);
+
+		clock->entry.type = BCH_JSET_ENTRY_clock;
+		clock->rw	= i;
+		clock->time	= atomic64_read(&c->io_clock[i].now);
+	}
 }
 
 void bch2_fs_mark_clean(struct bch_fs *c)
@@ -1084,15 +1080,13 @@ void bch2_fs_mark_clean(struct bch_fs *c)
 	}
 
 	sb_clean->flags		= 0;
-	sb_clean->read_clock	= cpu_to_le16(c->bucket_clock[READ].hand);
-	sb_clean->write_clock	= cpu_to_le16(c->bucket_clock[WRITE].hand);
 	sb_clean->journal_seq	= cpu_to_le64(journal_cur_seq(&c->journal) - 1);
 
 	/* Trying to catch outstanding bug: */
 	BUG_ON(le64_to_cpu(sb_clean->journal_seq) > S64_MAX);
 
 	entry = sb_clean->start;
-	entry = bch2_journal_super_entries_add_common(c, entry, 0);
+	bch2_journal_super_entries_add_common(c, &entry, 0);
 	entry = bch2_btree_roots_to_journal_entries(c, entry, entry);
 	BUG_ON((void *) entry > vstruct_end(&sb_clean->field));
 

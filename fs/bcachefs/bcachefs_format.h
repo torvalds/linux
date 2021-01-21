@@ -1143,8 +1143,8 @@ struct bch_sb_field_clean {
 	struct bch_sb_field	field;
 
 	__le32			flags;
-	__le16			read_clock;
-	__le16			write_clock;
+	__le16			_read_clock; /* no longer used */
+	__le16			_write_clock;
 	__le64			journal_seq;
 
 	union {
@@ -1511,7 +1511,8 @@ static inline __u64 __bset_magic(struct bch_sb *sb)
 	x(blacklist,		3)		\
 	x(blacklist_v2,		4)		\
 	x(usage,		5)		\
-	x(data_usage,		6)
+	x(data_usage,		6)		\
+	x(clock,		7)
 
 enum {
 #define x(f, nr)	BCH_JSET_ENTRY_##f	= nr,
@@ -1559,6 +1560,13 @@ struct jset_entry_data_usage {
 	struct bch_replicas_entry r;
 } __attribute__((packed));
 
+struct jset_entry_clock {
+	struct jset_entry	entry;
+	__u8			rw;
+	__u8			pad[7];
+	__le64			time;
+} __attribute__((packed));
+
 /*
  * On disk format for a journal entry:
  * seq is monotonically increasing; every journal entry has its own unique
@@ -1581,8 +1589,8 @@ struct jset {
 
 	__u8			encrypted_start[0];
 
-	__le16			read_clock;
-	__le16			write_clock;
+	__le16			_read_clock; /* no longer used */
+	__le16			_write_clock;
 
 	/* Sequence number of oldest dirty journal entry */
 	__le64			last_seq;

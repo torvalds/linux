@@ -426,6 +426,32 @@ fsck_err:
 	return ret;
 }
 
+static int journal_entry_validate_clock(struct bch_fs *c,
+					struct jset *jset,
+					struct jset_entry *entry,
+					int write)
+{
+	struct jset_entry_clock *clock =
+		container_of(entry, struct jset_entry_clock, entry);
+	unsigned bytes = jset_u64s(le16_to_cpu(entry->u64s)) * sizeof(u64);
+	int ret = 0;
+
+	if (journal_entry_err_on(bytes != sizeof(*clock),
+				 c, "invalid journal entry clock: bad size")) {
+		journal_entry_null_range(entry, vstruct_next(entry));
+		return ret;
+	}
+
+	if (journal_entry_err_on(clock->rw > 1,
+				 c, "invalid journal entry clock: bad rw")) {
+		journal_entry_null_range(entry, vstruct_next(entry));
+		return ret;
+	}
+
+fsck_err:
+	return ret;
+}
+
 struct jset_entry_ops {
 	int (*validate)(struct bch_fs *, struct jset *,
 			struct jset_entry *, int);
@@ -1361,8 +1387,8 @@ void bch2_journal_write(struct closure *cl)
 
 	end	= bch2_btree_roots_to_journal_entries(c, jset->start, end);
 
-	end	= bch2_journal_super_entries_add_common(c, end,
-						le64_to_cpu(jset->seq));
+	bch2_journal_super_entries_add_common(c, &end,
+				le64_to_cpu(jset->seq));
 	u64s	= (u64 *) end - (u64 *) start;
 	BUG_ON(u64s > j->entry_u64s_reserved);
 
@@ -1371,10 +1397,7 @@ void bch2_journal_write(struct closure *cl)
 
 	journal_write_compact(jset);
 
-	jset->read_clock	= cpu_to_le16(c->bucket_clock[READ].hand);
-	jset->write_clock	= cpu_to_le16(c->bucket_clock[WRITE].hand);
 	jset->magic		= cpu_to_le64(jset_magic(c));
-
 	jset->version		= c->sb.version < bcachefs_metadata_version_new_versioning
 		? cpu_to_le32(BCH_JSET_VERSION_OLD)
 		: cpu_to_le32(c->sb.version);

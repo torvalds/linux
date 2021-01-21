@@ -17,7 +17,7 @@ struct bch_fs_rebalance {
 	atomic64_t		work_unknown_dev;
 
 	enum rebalance_state	state;
-	unsigned long		throttled_until_iotime;
+	u64			throttled_until_iotime;
 	unsigned long		throttled_until_cputime;
 	struct bch_move_stats	move_stats;
 

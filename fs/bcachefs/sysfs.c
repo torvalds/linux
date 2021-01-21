@@ -705,7 +705,7 @@ static unsigned bucket_last_io_fn(struct bch_fs *c, struct bch_dev *ca,
 {
 	int rw = (private ? 1 : 0);
 
-	return bucket_last_io(c, bucket(ca, b), rw);
+	return atomic64_read(&c->io_clock[rw].now) - bucket(ca, b)->io_time[rw];
 }
 
 static unsigned bucket_sectors_used_fn(struct bch_fs *c, struct bch_dev *ca,
@@ -718,7 +718,7 @@ static unsigned bucket_sectors_used_fn(struct bch_fs *c, struct bch_dev *ca,
 static unsigned bucket_oldest_gen_fn(struct bch_fs *c, struct bch_dev *ca,
 				     size_t b, void *private)
 {
-	return bucket_gc_gen(ca, b);
+	return bucket_gc_gen(bucket(ca, b));
 }
 
 static int unsigned_cmp(const void *_l, const void *_r)

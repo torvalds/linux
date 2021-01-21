@@ -19,7 +19,7 @@ void bch2_io_timer_add(struct io_clock *clock, struct io_timer *timer)
 
 	spin_lock(&clock->timer_lock);
 
-	if (time_after_eq((unsigned long) atomic_long_read(&clock->now),
+	if (time_after_eq((unsigned long) atomic64_read(&clock->now),
 			  timer->expire)) {
 		spin_unlock(&clock->timer_lock);
 		timer->fn(timer);
@@ -146,7 +146,7 @@ static struct io_timer *get_expired_timer(struct io_clock *clock,
 void __bch2_increment_clock(struct io_clock *clock, unsigned sectors)
 {
 	struct io_timer *timer;
-	unsigned long now = atomic_long_add_return(sectors, &clock->now);
+	unsigned long now = atomic64_add_return(sectors, &clock->now);
 
 	while ((timer = get_expired_timer(clock, now)))
 		timer->fn(timer);
@@ -158,7 +158,7 @@ void bch2_io_timers_to_text(struct printbuf *out, struct io_clock *clock)
 	unsigned i;
 
 	spin_lock(&clock->timer_lock);
-	now = atomic_long_read(&clock->now);
+	now = atomic64_read(&clock->now);
 
 	for (i = 0; i < clock->timers.used; i++)
 		pr_buf(out, "%ps:\t%li\n",
@@ -175,7 +175,7 @@ void bch2_io_clock_exit(struct io_clock *clock)
 
 int bch2_io_clock_init(struct io_clock *clock)
 {
-	atomic_long_set(&clock->now, 0);
+	atomic64_set(&clock->now, 0);
 	spin_lock_init(&clock->timer_lock);
 
 	clock->max_slop = IO_CLOCK_PCPU_SECTORS * num_possible_cpus();

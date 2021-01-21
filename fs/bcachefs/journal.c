@@ -1123,6 +1123,9 @@ int bch2_fs_journal_init(struct journal *j)
 	j->entry_u64s_reserved +=
 		BTREE_ID_NR * (JSET_KEYS_U64s + BKEY_BTREE_PTR_U64s_MAX);
 
+	j->entry_u64s_reserved +=
+		2 * (sizeof(struct jset_entry_clock) / sizeof(u64));
+
 	atomic64_set(&j->reservations.counter,
 		((union journal_res_state)
 		 { .cur_entry_offset = JOURNAL_ENTRY_CLOSED_VAL }).v);

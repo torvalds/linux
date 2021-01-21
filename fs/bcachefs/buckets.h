@@ -58,20 +58,13 @@ static inline struct bucket *bucket(struct bch_dev *ca, size_t b)
 	return __bucket(ca, b, false);
 }
 
-static inline u16 bucket_last_io(struct bch_fs *c, struct bucket *g, int rw)
-{
-	return c->bucket_clock[rw].hand - g->io_time[rw];
-}
-
 /*
  * bucket_gc_gen() returns the difference between the bucket's current gen and
  * the oldest gen of any pointer into that bucket in the btree.
  */
 
-static inline u8 bucket_gc_gen(struct bch_dev *ca, size_t b)
+static inline u8 bucket_gc_gen(struct bucket *g)
 {
-	struct bucket *g = bucket(ca, b);
-
 	return g->mark.gen - g->oldest_gen;
 }
 

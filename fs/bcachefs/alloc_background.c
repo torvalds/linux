@@ -31,8 +31,6 @@ static const unsigned BCH_ALLOC_V1_FIELD_BYTES[] = {
 #undef x
 };
 
-static void bch2_recalc_oldest_io(struct bch_fs *, struct bch_dev *, int);
-
 /* Ratelimiting/PD controllers */
 
 static void pd_controllers_update(struct work_struct *work)
@@ -340,9 +338,7 @@ static int bch2_alloc_read_fn(struct bch_fs *c, enum btree_id id,
 
 int bch2_alloc_read(struct bch_fs *c, struct journal_keys *journal_keys)
 {
-	struct bch_dev *ca;
-	unsigned i;
-	int ret = 0;
+	int ret;
 
 	down_read(&c->gc_lock);
 	ret = bch2_btree_and_journal_walk(c, journal_keys, BTREE_ID_ALLOC,
@@ -357,22 +353,6 @@ int bch2_alloc_read(struct bch_fs *c, struct journal_keys *journal_keys)
 	percpu_down_write(&c->mark_lock);
 	bch2_dev_usage_from_buckets(c);
 	percpu_up_write(&c->mark_lock);
-
-	mutex_lock(&c->bucket_clock[READ].lock);
-	for_each_member_device(ca, c, i) {
-		down_read(&ca->bucket_lock);
-		bch2_recalc_oldest_io(c, ca, READ);
-		up_read(&ca->bucket_lock);
-	}
-	mutex_unlock(&c->bucket_clock[READ].lock);
-
-	mutex_lock(&c->bucket_clock[WRITE].lock);
-	for_each_member_device(ca, c, i) {
-		down_read(&ca->bucket_lock);
-		bch2_recalc_oldest_io(c, ca, WRITE);
-		up_read(&ca->bucket_lock);
-	}
-	mutex_unlock(&c->bucket_clock[WRITE].lock);
 
 	return 0;
 }
@@ -460,114 +440,6 @@ err:
 
 /* Bucket IO clocks: */
 
-static void bch2_recalc_oldest_io(struct bch_fs *c, struct bch_dev *ca, int rw)
-{
-	struct bucket_clock *clock = &c->bucket_clock[rw];
-	struct bucket_array *buckets = bucket_array(ca);
-	struct bucket *g;
-	u16 max_last_io = 0;
-	unsigned i;
-
-	lockdep_assert_held(&c->bucket_clock[rw].lock);
-
-	/* Recalculate max_last_io for this device: */
-	for_each_bucket(g, buckets)
-		max_last_io = max(max_last_io, bucket_last_io(c, g, rw));
-
-	ca->max_last_bucket_io[rw] = max_last_io;
-
-	/* Recalculate global max_last_io: */
-	max_last_io = 0;
-
-	for_each_member_device(ca, c, i)
-		max_last_io = max(max_last_io, ca->max_last_bucket_io[rw]);
-
-	clock->max_last_io = max_last_io;
-}
-
-static void bch2_rescale_bucket_io_times(struct bch_fs *c, int rw)
-{
-	struct bucket_clock *clock = &c->bucket_clock[rw];
-	struct bucket_array *buckets;
-	struct bch_dev *ca;
-	struct bucket *g;
-	unsigned i;
-
-	trace_rescale_prios(c);
-
-	for_each_member_device(ca, c, i) {
-		down_read(&ca->bucket_lock);
-		buckets = bucket_array(ca);
-
-		for_each_bucket(g, buckets)
-			g->io_time[rw] = clock->hand -
-			bucket_last_io(c, g, rw) / 2;
-
-		bch2_recalc_oldest_io(c, ca, rw);
-
-		up_read(&ca->bucket_lock);
-	}
-}
-
-static inline u64 bucket_clock_freq(u64 capacity)
-{
-	return max(capacity >> 10, 2028ULL);
-}
-
-static void bch2_inc_clock_hand(struct io_timer *timer)
-{
-	struct bucket_clock *clock = container_of(timer,
-						struct bucket_clock, rescale);
-	struct bch_fs *c = container_of(clock,
-					struct bch_fs, bucket_clock[clock->rw]);
-	struct bch_dev *ca;
-	u64 capacity;
-	unsigned i;
-
-	mutex_lock(&clock->lock);
-
-	/* if clock cannot be advanced more, rescale prio */
-	if (clock->max_last_io >= U16_MAX - 2)
-		bch2_rescale_bucket_io_times(c, clock->rw);
-
-	BUG_ON(clock->max_last_io >= U16_MAX - 2);
-
-	for_each_member_device(ca, c, i)
-		ca->max_last_bucket_io[clock->rw]++;
-	clock->max_last_io++;
-	clock->hand++;
-
-	mutex_unlock(&clock->lock);
-
-	capacity = READ_ONCE(c->capacity);
-
-	if (!capacity)
-		return;
-
-	/*
-	 * we only increment when 0.1% of the filesystem capacity has been read
-	 * or written too, this determines if it's time
-	 *
-	 * XXX: we shouldn't really be going off of the capacity of devices in
-	 * RW mode (that will be 0 when we're RO, yet we can still service
-	 * reads)
-	 */
-	timer->expire += bucket_clock_freq(capacity);
-
-	bch2_io_timer_add(&c->io_clock[clock->rw], timer);
-}
-
-static void bch2_bucket_clock_init(struct bch_fs *c, int rw)
-{
-	struct bucket_clock *clock = &c->bucket_clock[rw];
-
-	clock->hand		= 1;
-	clock->rw		= rw;
-	clock->rescale.fn	= bch2_inc_clock_hand;
-	clock->rescale.expire	= bucket_clock_freq(c->capacity);
-	mutex_init(&clock->lock);
-}
-
 int bch2_bucket_io_time_reset(struct btree_trans *trans, unsigned dev,
 			      size_t bucket_nr, int rw)
 {
@@ -577,7 +449,7 @@ int bch2_bucket_io_time_reset(struct btree_trans *trans, unsigned dev,
 	struct bucket *g;
 	struct bkey_alloc_buf *a;
 	struct bkey_alloc_unpacked u;
-	u64 *time;
+	u64 *time, now;
 	int ret = 0;
 
 	iter = bch2_trans_get_iter(trans, BTREE_ID_ALLOC, POS(dev, bucket_nr),
@@ -599,10 +471,11 @@ int bch2_bucket_io_time_reset(struct btree_trans *trans, unsigned dev,
 	percpu_up_read(&c->mark_lock);
 
 	time = rw == READ ? &u.read_time : &u.write_time;
-	if (*time == c->bucket_clock[rw].hand)
+	now = atomic64_read(&c->io_clock[rw].now);
+	if (*time == now)
 		goto out;
 
-	*time = c->bucket_clock[rw].hand;
+	*time = now;
 
 	bch2_alloc_pack(c, a, u);
 	ret   = bch2_trans_update(trans, iter, &a->k, 0) ?:
@@ -674,23 +547,22 @@ static int wait_buckets_available(struct bch_fs *c, struct bch_dev *ca)
 	return ret;
 }
 
-static bool bch2_can_invalidate_bucket(struct bch_dev *ca,
-				       size_t bucket,
-				       struct bucket_mark mark)
+static bool bch2_can_invalidate_bucket(struct bch_dev *ca, size_t b,
+				       struct bucket_mark m)
 {
 	u8 gc_gen;
 
-	if (!is_available_bucket(mark))
+	if (!is_available_bucket(m))
 		return false;
 
-	if (mark.owned_by_allocator)
+	if (m.owned_by_allocator)
 		return false;
 
 	if (ca->buckets_nouse &&
-	    test_bit(bucket, ca->buckets_nouse))
+	    test_bit(b, ca->buckets_nouse))
 		return false;
 
-	gc_gen = bucket_gc_gen(ca, bucket);
+	gc_gen = bucket_gc_gen(bucket(ca, b));
 
 	if (gc_gen >= BUCKET_GC_GEN_MAX / 2)
 		ca->inc_gen_needs_gc++;
@@ -704,43 +576,33 @@ static bool bch2_can_invalidate_bucket(struct bch_dev *ca,
 /*
  * Determines what order we're going to reuse buckets, smallest bucket_key()
  * first.
- *
- *
- * - We take into account the read prio of the bucket, which gives us an
- *   indication of how hot the data is -- we scale the prio so that the prio
- *   farthest from the clock is worth 1/8th of the closest.
- *
- * - The number of sectors of cached data in the bucket, which gives us an
- *   indication of the cost in cache misses this eviction will cause.
- *
- * - If hotness * sectors used compares equal, we pick the bucket with the
- *   smallest bucket_gc_gen() - since incrementing the same bucket's generation
- *   number repeatedly forces us to run mark and sweep gc to avoid generation
- *   number wraparound.
  */
 
-static unsigned long bucket_sort_key(struct bch_fs *c, struct bch_dev *ca,
-				     size_t b, struct bucket_mark m)
+static unsigned bucket_sort_key(struct bucket *g, struct bucket_mark m,
+				u64 now, u64 last_seq_ondisk)
 {
-	unsigned last_io = bucket_last_io(c, bucket(ca, b), READ);
-	unsigned max_last_io = ca->max_last_bucket_io[READ];
+	unsigned used = bucket_sectors_used(m);
 
-	/*
-	 * Time since last read, scaled to [0, 8) where larger value indicates
-	 * more recently read data:
-	 */
-	unsigned long hotness = (max_last_io - last_io) * 7 / max_last_io;
+	if (used) {
+		/*
+		 * Prefer to keep buckets that have been read more recently, and
+		 * buckets that have more data in them:
+		 */
+		u64 last_read = max_t(s64, 0, now - g->io_time[READ]);
+		u32 last_read_scaled = max_t(u64, U32_MAX, div_u64(last_read, used));
 
-	/* How much we want to keep the data in this bucket: */
-	unsigned long data_wantness =
-		(hotness + 1) * bucket_sectors_used(m);
-
-	unsigned long needs_journal_commit =
-		bucket_needs_journal_commit(m, c->journal.last_seq_ondisk);
-
-	return  (data_wantness << 9) |
-		(needs_journal_commit << 8) |
-		(bucket_gc_gen(ca, b) / 16);
+		return -last_read_scaled;
+	} else {
+		/*
+		 * Prefer to use buckets with smaller gc_gen so that we don't
+		 * have to walk the btree and recalculate oldest_gen - but shift
+		 * off the low bits so that buckets will still have equal sort
+		 * keys when there's only a small difference, so that we can
+		 * keep sequential buckets together:
+		 */
+		return  (bucket_needs_journal_commit(m, last_seq_ondisk) << 4)|
+			(bucket_gc_gen(g) >> 4);
+	}
 }
 
 static inline int bucket_alloc_cmp(alloc_heap *h,
@@ -763,16 +625,15 @@ static void find_reclaimable_buckets_lru(struct bch_fs *c, struct bch_dev *ca)
 {
 	struct bucket_array *buckets;
 	struct alloc_heap_entry e = { 0 };
+	u64 now, last_seq_ondisk;
 	size_t b, i, nr = 0;
 
-	ca->alloc_heap.used = 0;
-
-	mutex_lock(&c->bucket_clock[READ].lock);
 	down_read(&ca->bucket_lock);
 
 	buckets = bucket_array(ca);
-
-	bch2_recalc_oldest_io(c, ca, READ);
+	ca->alloc_heap.used = 0;
+	now = atomic64_read(&c->io_clock[READ].now);
+	last_seq_ondisk = c->journal.last_seq_ondisk;
 
 	/*
 	 * Find buckets with lowest read priority, by building a maxheap sorted
@@ -780,8 +641,9 @@ static void find_reclaimable_buckets_lru(struct bch_fs *c, struct bch_dev *ca)
 	 * all buckets have been visited.
 	 */
 	for (b = ca->mi.first_bucket; b < ca->mi.nbuckets; b++) {
-		struct bucket_mark m = READ_ONCE(buckets->b[b].mark);
-		unsigned long key = bucket_sort_key(c, ca, b, m);
+		struct bucket *g = &buckets->b[b];
+		struct bucket_mark m = READ_ONCE(g->mark);
+		unsigned key = bucket_sort_key(g, m, now, last_seq_ondisk);
 
 		if (!bch2_can_invalidate_bucket(ca, b, m))
 			continue;
@@ -816,7 +678,6 @@ static void find_reclaimable_buckets_lru(struct bch_fs *c, struct bch_dev *ca)
 	}
 
 	up_read(&ca->bucket_lock);
-	mutex_unlock(&c->bucket_clock[READ].lock);
 }
 
 static void find_reclaimable_buckets_fifo(struct bch_fs *c, struct bch_dev *ca)
@@ -1031,8 +892,8 @@ retry:
 	u.data_type	= 0;
 	u.dirty_sectors	= 0;
 	u.cached_sectors = 0;
-	u.read_time	= c->bucket_clock[READ].hand;
-	u.write_time	= c->bucket_clock[WRITE].hand;
+	u.read_time	= atomic64_read(&c->io_clock[READ].now);
+	u.write_time	= atomic64_read(&c->io_clock[WRITE].now);
 
 	bch2_alloc_pack(c, &a, u);
 	bch2_trans_update(trans, iter, &a.k,
@@ -1542,8 +1403,6 @@ int bch2_dev_allocator_start(struct bch_dev *ca)
 void bch2_fs_allocator_background_init(struct bch_fs *c)
 {
 	spin_lock_init(&c->freelist_lock);
-	bch2_bucket_clock_init(c, READ);
-	bch2_bucket_clock_init(c, WRITE);
 
 	c->pd_controllers_update_seconds = 5;
 	INIT_DELAYED_WORK(&c->pd_controllers_update, pd_controllers_update);

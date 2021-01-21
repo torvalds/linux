@@ -181,9 +181,6 @@ static void __bch2_fs_read_only(struct bch_fs *c)
 	bch2_copygc_stop(c);
 	bch2_gc_thread_stop(c);
 
-	bch2_io_timer_del(&c->io_clock[READ], &c->bucket_clock[READ].rescale);
-	bch2_io_timer_del(&c->io_clock[WRITE], &c->bucket_clock[WRITE].rescale);
-
 	/*
 	 * Flush journal before stopping allocators, because flushing journal
 	 * blacklist entries involves allocating new btree nodes:
@@ -405,9 +402,6 @@ static int __bch2_fs_read_write(struct bch_fs *c, bool early)
 	for_each_rw_member(ca, c, i)
 		bch2_dev_allocator_add(c, ca);
 	bch2_recalc_capacity(c);
-
-	bch2_io_timer_add(&c->io_clock[READ], &c->bucket_clock[READ].rescale);
-	bch2_io_timer_add(&c->io_clock[WRITE], &c->bucket_clock[WRITE].rescale);
 
 	for_each_rw_member(ca, c, i) {
 		ret = bch2_dev_allocator_start(ca);

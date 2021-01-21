@@ -298,7 +298,7 @@ static int bch2_copygc_thread(void *arg)
 {
 	struct bch_fs *c = arg;
 	struct io_clock *clock = &c->io_clock[WRITE];
-	unsigned long last, wait;
+	u64 last, wait;
 
 	set_freezable();
 
@@ -306,7 +306,7 @@ static int bch2_copygc_thread(void *arg)
 		if (kthread_wait_freezable(c->copy_gc_enabled))
 			break;
 
-		last = atomic_long_read(&clock->now);
+		last = atomic64_read(&clock->now);
 		wait = bch2_copygc_wait_amount(c);
 
 		if (wait > clock->max_slop) {

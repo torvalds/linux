@@ -847,6 +847,12 @@ static int journal_replay_entry_early(struct bch_fs *c,
 				le64_to_cpu(bl_entry->end) + 1);
 		break;
 	}
+	case BCH_JSET_ENTRY_clock: {
+		struct jset_entry_clock *clock =
+			container_of(entry, struct jset_entry_clock, entry);
+
+		atomic64_set(&c->io_clock[clock->rw].now, clock->time);
+	}
 	}
 
 	return ret;
@@ -861,9 +867,6 @@ static int journal_replay_early(struct bch_fs *c,
 	int ret;
 
 	if (clean) {
-		c->bucket_clock[READ].hand = le16_to_cpu(clean->read_clock);
-		c->bucket_clock[WRITE].hand = le16_to_cpu(clean->write_clock);
-
 		for (entry = clean->start;
 		     entry != vstruct_end(&clean->field);
 		     entry = vstruct_next(entry)) {
@@ -875,9 +878,6 @@ static int journal_replay_early(struct bch_fs *c,
 		list_for_each_entry(i, journal, list) {
 			if (i->ignore)
 				continue;
-
-			c->bucket_clock[READ].hand = le16_to_cpu(i->j.read_clock);
-			c->bucket_clock[WRITE].hand = le16_to_cpu(i->j.write_clock);
 
 			vstruct_for_each(&i->j, entry) {
 				ret = journal_replay_entry_early(c, entry);
@@ -941,13 +941,6 @@ static int verify_superblock_clean(struct bch_fs *c,
 		*cleanp = NULL;
 		return 0;
 	}
-
-	mustfix_fsck_err_on(j->read_clock != clean->read_clock, c,
-			"superblock read clock %u doesn't match journal %u after clean shutdown",
-			clean->read_clock, j->read_clock);
-	mustfix_fsck_err_on(j->write_clock != clean->write_clock, c,
-			"superblock write clock %u doesn't match journal %u after clean shutdown",
-			clean->write_clock, j->write_clock);
 
 	for (i = 0; i < BTREE_ID_NR; i++) {
 		char buf1[200], buf2[200];
