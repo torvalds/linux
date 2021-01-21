@@ -950,7 +950,7 @@ int dev_pm_opp_set_bw(struct device *dev, struct dev_pm_opp *opp)
 }
 EXPORT_SYMBOL_GPL(dev_pm_opp_set_bw);
 
-static int _opp_set_rate_zero(struct device *dev, struct opp_table *opp_table)
+static int _disable_opp_table(struct device *dev, struct opp_table *opp_table)
 {
 	int ret;
 
@@ -1004,7 +1004,7 @@ int dev_pm_opp_set_rate(struct device *dev, unsigned long target_freq)
 	}
 
 	if (unlikely(!target_freq)) {
-		ret = _opp_set_rate_zero(dev, opp_table);
+		ret = _disable_opp_table(dev, opp_table);
 		goto put_opp_table;
 	}
 
