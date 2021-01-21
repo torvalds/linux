@@ -371,7 +371,7 @@ config MILBEAUT_XDMAC
 	  XDMAC device.
 
 config MMP_PDMA
-	bool "MMP PDMA support"
+	tristate "MMP PDMA support"
 	depends on ARCH_MMP || ARCH_PXA || COMPILE_TEST
 	select DMA_ENGINE
 	help
