@@ -26,7 +26,7 @@
 
 #include <asm/mach-au1x00/au1550_spi.h>
 
-static unsigned usedma = 1;
+static unsigned int usedma = 1;
 module_param(usedma, uint, 0644);
 
 /*
@@ -43,9 +43,9 @@ struct au1550_spi {
 	volatile psc_spi_t __iomem *regs;
 	int irq;
 
-	unsigned len;
-	unsigned tx_count;
-	unsigned rx_count;
+	unsigned int len;
+	unsigned int tx_count;
+	unsigned int rx_count;
 	const u8 *tx;
 	u8 *rx;
 
@@ -56,14 +56,14 @@ struct au1550_spi {
 
 	struct completion master_done;
 
-	unsigned usedma;
+	unsigned int usedma;
 	u32 dma_tx_id;
 	u32 dma_rx_id;
 	u32 dma_tx_ch;
 	u32 dma_rx_ch;
 
 	u8 *dma_rx_tmpbuf;
-	unsigned dma_rx_tmpbuf_size;
+	unsigned int dma_rx_tmpbuf_size;
 	u32 dma_rx_tmpbuf_addr;
 
 	struct spi_master *master;
@@ -99,7 +99,7 @@ static void au1550_spi_bits_handlers_set(struct au1550_spi *hw, int bpw);
  *    BRG valid range is 4..63
  *    DIV valid range is 0..3
  */
-static u32 au1550_spi_baudcfg(struct au1550_spi *hw, unsigned speed_hz)
+static u32 au1550_spi_baudcfg(struct au1550_spi *hw, unsigned int speed_hz)
 {
 	u32 mainclk_hz = hw->pdata->mainclk_hz;
 	u32 div, brg;
@@ -161,7 +161,7 @@ static void au1550_spi_reset_fifos(struct au1550_spi *hw)
 static void au1550_spi_chipsel(struct spi_device *spi, int value)
 {
 	struct au1550_spi *hw = spi_master_get_devdata(spi->master);
-	unsigned cspol = spi->mode & SPI_CS_HIGH ? 1 : 0;
+	unsigned int cspol = spi->mode & SPI_CS_HIGH ? 1 : 0;
 	u32 cfg, stat;
 
 	switch (value) {
@@ -221,7 +221,7 @@ static void au1550_spi_chipsel(struct spi_device *spi, int value)
 static int au1550_spi_setupxfer(struct spi_device *spi, struct spi_transfer *t)
 {
 	struct au1550_spi *hw = spi_master_get_devdata(spi->master);
-	unsigned bpw, hz;
+	unsigned int bpw, hz;
 	u32 cfg, stat;
 
 	if (t) {
@@ -276,7 +276,7 @@ static int au1550_spi_setupxfer(struct spi_device *spi, struct spi_transfer *t)
  * spi master done event irq is not generated unless rx fifo is empty (emptied)
  * so we need rx tmp buffer to use for rx dma if user does not provide one
  */
-static int au1550_spi_dma_rxtmp_alloc(struct au1550_spi *hw, unsigned size)
+static int au1550_spi_dma_rxtmp_alloc(struct au1550_spi *hw, unsigned int size)
 {
 	hw->dma_rx_tmpbuf = kmalloc(size, GFP_KERNEL);
 	if (!hw->dma_rx_tmpbuf)
