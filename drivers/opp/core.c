@@ -1136,6 +1136,34 @@ put_opp_table:
 }
 EXPORT_SYMBOL_GPL(dev_pm_opp_set_rate);
 
+/**
+ * dev_pm_opp_set_opp() - Configure device for OPP
+ * @dev: device for which we do this operation
+ * @opp: OPP to set to
+ *
+ * This configures the device based on the properties of the OPP passed to this
+ * routine.
+ *
+ * Return: 0 on success, a negative error number otherwise.
+ */
+int dev_pm_opp_set_opp(struct device *dev, struct dev_pm_opp *opp)
+{
+	struct opp_table *opp_table;
+	int ret;
+
+	opp_table = _find_opp_table(dev);
+	if (IS_ERR(opp_table)) {
+		dev_err(dev, "%s: device opp doesn't exist\n", __func__);
+		return PTR_ERR(opp_table);
+	}
+
+	ret = _set_opp(dev, opp_table, opp, opp ? opp->rate : 0);
+	dev_pm_opp_put_opp_table(opp_table);
+
+	return ret;
+}
+EXPORT_SYMBOL_GPL(dev_pm_opp_set_opp);
+
 /* OPP-dev Helpers */
 static void _remove_opp_dev(struct opp_device *opp_dev,
 			    struct opp_table *opp_table)
