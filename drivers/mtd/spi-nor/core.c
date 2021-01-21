@@ -465,7 +465,7 @@ static int spi_nor_read_fsr(struct spi_nor *nor, u8 *fsr)
  *
  * Return: 0 on success, -errno otherwise.
  */
-static int spi_nor_read_cr(struct spi_nor *nor, u8 *cr)
+int spi_nor_read_cr(struct spi_nor *nor, u8 *cr)
 {
 	int ret;
 
