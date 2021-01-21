@@ -116,8 +116,8 @@ static int xr_set_reg(struct usb_serial_port *port, u8 block, u8 reg, u8 val)
 	ret = usb_control_msg(serial->dev,
 			      usb_sndctrlpipe(serial->dev, 0),
 			      XR21V141X_SET_REQ,
-			      USB_DIR_OUT | USB_TYPE_VENDOR, val,
-			      reg | (block << 8), NULL, 0,
+			      USB_DIR_OUT | USB_TYPE_VENDOR | USB_RECIP_DEVICE,
+			      val, reg | (block << 8), NULL, 0,
 			      USB_CTRL_SET_TIMEOUT);
 	if (ret < 0) {
 		dev_err(&port->dev, "Failed to set reg 0x%02x: %d\n", reg, ret);
@@ -140,8 +140,8 @@ static int xr_get_reg(struct usb_serial_port *port, u8 block, u8 reg, u8 *val)
 	ret = usb_control_msg(serial->dev,
 			      usb_rcvctrlpipe(serial->dev, 0),
 			      XR21V141X_GET_REQ,
-			      USB_DIR_IN | USB_TYPE_VENDOR, 0,
-			      reg | (block << 8), dmabuf, 1,
+			      USB_DIR_IN | USB_TYPE_VENDOR | USB_RECIP_DEVICE,
+			      0, reg | (block << 8), dmabuf, 1,
 			      USB_CTRL_GET_TIMEOUT);
 	if (ret == 1) {
 		*val = *dmabuf;
