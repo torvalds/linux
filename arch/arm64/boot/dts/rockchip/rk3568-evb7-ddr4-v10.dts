@@ -1,0 +1,34 @@
+// SPDX-License-Identifier: (GPL-2.0+ OR MIT)
+/*
+ * Copyright (c) 2020 Rockchip Electronics Co., Ltd.
+ *
+ */
+
+#include "rk3568-evb1-ddr4-v10.dtsi"
+#include "rk3568-android.dtsi"
+/{
+	model = "Rockchip RK3568 EVB7 DDR4 V10 Board";
+	compatible = "rockchip,rk3568-evb7-ddr4-v10", "rockchip,rk3568";
+};
+
+&dmc {
+	system-status-freq = <
+		/*system status         freq(KHz)*/
+		SYS_STATUS_NORMAL       780000
+		SYS_STATUS_REBOOT       1056000
+		SYS_STATUS_SUSPEND      324000
+		SYS_STATUS_VIDEO_4K     780000
+		SYS_STATUS_VIDEO_4K_10B 780000
+		SYS_STATUS_BOOST        1056000
+		SYS_STATUS_ISP          1056000
+		SYS_STATUS_PERFORMANCE  1056000
+	>;
+};
+
+&dmc_opp_table {
+	opp-1056000000 {
+		opp-hz = /bits/ 64 <1056000000>;
+		opp-microvolt = <900000>;
+	};
+	/delete-node/ opp-1560000000;
+};
