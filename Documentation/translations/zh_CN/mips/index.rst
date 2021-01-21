@@ -5,9 +5,6 @@
 :Original: :doc:`../../../mips/index`
 :Translator: Yanteng Si <siyanteng@loongson.cn>
 
-.. _cn_index:
-
-
 ===========================
 MIPS特性文档
 ===========================
