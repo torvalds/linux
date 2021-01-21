@@ -2076,6 +2076,7 @@ static void vop2_initial(struct drm_crtc *crtc)
 	struct vop2_video_port *vp = to_vop2_video_port(crtc);
 	struct vop2 *vop2 = vp->vop2;
 	uint32_t current_vp_id = vp->id;
+	struct vop2_wb *wb = &vop2->wb;
 	int ret;
 
 	if (vop2->enable_count == 0) {
@@ -2093,6 +2094,10 @@ static void vop2_initial(struct drm_crtc *crtc)
 		}
 
 		memcpy(vop2->regsbak, vop2->regs, vop2->len);
+
+		VOP_MODULE_SET(vop2, wb, axi_yrgb_id, 0xd);
+		VOP_MODULE_SET(vop2, wb, axi_uv_id, 0xe);
+		vop2_wb_cfg_done(vop2);
 
 		VOP_CTRL_SET(vop2, cfg_done_en, 1);
 		/*

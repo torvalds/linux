@@ -613,6 +613,8 @@ struct vop2_wb_regs {
 	struct vop_reg scale_x_factor;
 	struct vop_reg scale_x_en;
 	struct vop_reg scale_y_en;
+	struct vop_reg axi_yrgb_id;
+	struct vop_reg axi_uv_id;
 };
 
 struct vop_win_data {
