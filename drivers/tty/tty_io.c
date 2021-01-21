@@ -877,13 +877,20 @@ static int iterate_tty_read(struct tty_ldisc *ld, struct tty_struct *tty,
 		if (!size)
 			break;
 
-		/*
-		 * A ldisc read error return will override any previously copied
-		 * data (eg -EOVERFLOW from HDLC)
-		 */
 		if (size < 0) {
-			memzero_explicit(kernel_buf, sizeof(kernel_buf));
-			return size;
+			/* Did we have an earlier error (ie -EFAULT)? */
+			if (retval)
+				break;
+			retval = size;
+
+			/*
+			 * -EOVERFLOW means we didn't have enough space
+			 * for a whole packet, and we shouldn't return
+			 * a partial result.
+			 */
+			if (retval == -EOVERFLOW)
+				offset = 0;
+			break;
 		}
 
 		copied = copy_to_iter(kernel_buf, size, to);
