@@ -998,63 +998,19 @@ static int _disable_opp_table(struct device *dev, struct opp_table *opp_table)
 	return ret;
 }
 
-/**
- * dev_pm_opp_set_rate() - Configure new OPP based on frequency
- * @dev:	 device for which we do this operation
- * @target_freq: frequency to achieve
- *
- * This configures the power-supplies to the levels specified by the OPP
- * corresponding to the target_freq, and programs the clock to a value <=
- * target_freq, as rounded by clk_round_rate(). Device wanting to run at fmax
- * provided by the opp, should have already rounded to the target OPP's
- * frequency.
- */
-int dev_pm_opp_set_rate(struct device *dev, unsigned long target_freq)
+static int _set_opp(struct device *dev, struct opp_table *opp_table,
+		    struct dev_pm_opp *opp, unsigned long freq)
 {
-	struct opp_table *opp_table;
-	unsigned long freq, old_freq, temp_freq;
-	struct dev_pm_opp *old_opp, *opp;
+	struct dev_pm_opp *old_opp;
+	unsigned long old_freq;
 	int ret;
 
-	opp_table = _find_opp_table(dev);
-	if (IS_ERR(opp_table)) {
-		dev_err(dev, "%s: device opp doesn't exist\n", __func__);
-		return PTR_ERR(opp_table);
-	}
-
-	if (unlikely(!target_freq)) {
-		ret = _disable_opp_table(dev, opp_table);
-		goto put_opp_table;
-	}
-
-	freq = clk_round_rate(opp_table->clk, target_freq);
-	if ((long)freq <= 0)
-		freq = target_freq;
-
-	/*
-	 * For IO devices which require an OPP on some platforms/SoCs
-	 * while just needing to scale the clock on some others
-	 * we look for empty OPP tables with just a clock handle and
-	 * scale only the clk. This makes dev_pm_opp_set_rate()
-	 * equivalent to a clk_set_rate()
-	 */
-	if (!_get_opp_count(opp_table)) {
-		ret = _generic_set_opp_clk_only(dev, opp_table->clk, freq);
-		goto put_opp_table;
-	}
+	if (unlikely(!opp))
+		return _disable_opp_table(dev, opp_table);
 
 	/* Find the currently set OPP if we don't know already */
 	if (unlikely(!opp_table->current_opp))
 		_find_current_opp(dev, opp_table);
-
-	temp_freq = freq;
-	opp = _find_freq_ceil(opp_table, &temp_freq);
-	if (IS_ERR(opp)) {
-		ret = PTR_ERR(opp);
-		dev_err(dev, "%s: failed to find OPP for freq %lu (%d)\n",
-			__func__, freq, ret);
-		goto put_opp_table;
-	}
 
 	old_opp = opp_table->current_opp;
 	old_freq = old_opp->rate;
@@ -1062,8 +1018,7 @@ int dev_pm_opp_set_rate(struct device *dev, unsigned long target_freq)
 	/* Return early if nothing to do */
 	if (opp_table->enabled && old_opp == opp) {
 		dev_dbg(dev, "%s: OPPs are same, nothing to do\n", __func__);
-		ret = 0;
-		goto put_opp;
+		return 0;
 	}
 
 	dev_dbg(dev, "%s: switching OPP: %lu Hz --> %lu Hz\n", __func__,
@@ -1073,7 +1028,7 @@ int dev_pm_opp_set_rate(struct device *dev, unsigned long target_freq)
 	if (freq >= old_freq) {
 		ret = _set_required_opps(dev, opp_table, opp, true);
 		if (ret)
-			goto put_opp;
+			return ret;
 	}
 
 	if (opp_table->set_opp) {
@@ -1107,8 +1062,69 @@ int dev_pm_opp_set_rate(struct device *dev, unsigned long target_freq)
 		}
 	}
 
-put_opp:
-	dev_pm_opp_put(opp);
+	return ret;
+}
+
+/**
+ * dev_pm_opp_set_rate() - Configure new OPP based on frequency
+ * @dev:	 device for which we do this operation
+ * @target_freq: frequency to achieve
+ *
+ * This configures the power-supplies to the levels specified by the OPP
+ * corresponding to the target_freq, and programs the clock to a value <=
+ * target_freq, as rounded by clk_round_rate(). Device wanting to run at fmax
+ * provided by the opp, should have already rounded to the target OPP's
+ * frequency.
+ */
+int dev_pm_opp_set_rate(struct device *dev, unsigned long target_freq)
+{
+	struct opp_table *opp_table;
+	unsigned long freq = 0, temp_freq;
+	struct dev_pm_opp *opp = NULL;
+	int ret;
+
+	opp_table = _find_opp_table(dev);
+	if (IS_ERR(opp_table)) {
+		dev_err(dev, "%s: device's opp table doesn't exist\n", __func__);
+		return PTR_ERR(opp_table);
+	}
+
+	if (target_freq) {
+		/*
+		 * For IO devices which require an OPP on some platforms/SoCs
+		 * while just needing to scale the clock on some others
+		 * we look for empty OPP tables with just a clock handle and
+		 * scale only the clk. This makes dev_pm_opp_set_rate()
+		 * equivalent to a clk_set_rate()
+		 */
+		if (!_get_opp_count(opp_table)) {
+			ret = _generic_set_opp_clk_only(dev, opp_table->clk, target_freq);
+			goto put_opp_table;
+		}
+
+		freq = clk_round_rate(opp_table->clk, target_freq);
+		if ((long)freq <= 0)
+			freq = target_freq;
+
+		/*
+		 * The clock driver may support finer resolution of the
+		 * frequencies than the OPP table, don't update the frequency we
+		 * pass to clk_set_rate() here.
+		 */
+		temp_freq = freq;
+		opp = _find_freq_ceil(opp_table, &temp_freq);
+		if (IS_ERR(opp)) {
+			ret = PTR_ERR(opp);
+			dev_err(dev, "%s: failed to find OPP for freq %lu (%d)\n",
+				__func__, freq, ret);
+			goto put_opp_table;
+		}
+	}
+
+	ret = _set_opp(dev, opp_table, opp, freq);
+
+	if (target_freq)
+		dev_pm_opp_put(opp);
 put_opp_table:
 	dev_pm_opp_put_opp_table(opp_table);
 	return ret;
