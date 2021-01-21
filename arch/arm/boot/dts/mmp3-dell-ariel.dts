@@ -95,6 +95,15 @@
 
 &twsi4 {
 	status = "okay";
+
+	embedded-controller@58 {
+		compatible = "dell,wyse-ariel-ec", "ene,kb3930";
+		reg = <0x58>;
+		system-power-controller;
+
+		off-gpios = <&gpio 126 GPIO_ACTIVE_HIGH>,
+			    <&gpio 127 GPIO_ACTIVE_HIGH>;
+	};
 };
 
 &ssp1 {
