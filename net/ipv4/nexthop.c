@@ -22,7 +22,7 @@ static void remove_nexthop(struct net *net, struct nexthop *nh,
 #define NH_DEV_HASHBITS  8
 #define NH_DEV_HASHSIZE (1U << NH_DEV_HASHBITS)
 
-static const struct nla_policy rtm_nh_policy[NHA_MAX + 1] = {
+static const struct nla_policy rtm_nh_policy_new[] = {
 	[NHA_ID]		= { .type = NLA_U32 },
 	[NHA_GROUP]		= { .type = NLA_BINARY },
 	[NHA_GROUP_TYPE]	= { .type = NLA_U16 },
@@ -31,6 +31,15 @@ static const struct nla_policy rtm_nh_policy[NHA_MAX + 1] = {
 	[NHA_GATEWAY]		= { .type = NLA_BINARY },
 	[NHA_ENCAP_TYPE]	= { .type = NLA_U16 },
 	[NHA_ENCAP]		= { .type = NLA_NESTED },
+	[NHA_FDB]		= { .type = NLA_FLAG },
+};
+
+static const struct nla_policy rtm_nh_policy_get[] = {
+	[NHA_ID]		= { .type = NLA_U32 },
+};
+
+static const struct nla_policy rtm_nh_policy_dump[] = {
+	[NHA_OIF]		= { .type = NLA_U32 },
 	[NHA_GROUPS]		= { .type = NLA_FLAG },
 	[NHA_MASTER]		= { .type = NLA_U32 },
 	[NHA_FDB]		= { .type = NLA_FLAG },
@@ -565,7 +574,8 @@ static int nh_check_attr_fdb_group(struct nexthop *nh, u8 *nh_family,
 	return 0;
 }
 
-static int nh_check_attr_group(struct net *net, struct nlattr *tb[],
+static int nh_check_attr_group(struct net *net,
+			       struct nlattr *tb[], size_t tb_size,
 			       struct netlink_ext_ack *extack)
 {
 	unsigned int len = nla_len(tb[NHA_GROUP]);
@@ -624,7 +634,7 @@ static int nh_check_attr_group(struct net *net, struct nlattr *tb[],
 			return -EINVAL;
 		}
 	}
-	for (i = NHA_GROUP_TYPE + 1; i < __NHA_MAX; ++i) {
+	for (i = NHA_GROUP_TYPE + 1; i < tb_size; ++i) {
 		if (!tb[i])
 			continue;
 		if (i == NHA_FDB)
@@ -1643,11 +1653,12 @@ static int rtm_to_nh_config(struct net *net, struct sk_buff *skb,
 			    struct netlink_ext_ack *extack)
 {
 	struct nhmsg *nhm = nlmsg_data(nlh);
-	struct nlattr *tb[NHA_MAX + 1];
+	struct nlattr *tb[ARRAY_SIZE(rtm_nh_policy_new)];
 	int err;
 
-	err = nlmsg_parse(nlh, sizeof(*nhm), tb, NHA_MAX, rtm_nh_policy,
-			  extack);
+	err = nlmsg_parse(nlh, sizeof(*nhm), tb,
+			  ARRAY_SIZE(rtm_nh_policy_new) - 1,
+			  rtm_nh_policy_new, extack);
 	if (err < 0)
 		return err;
 
@@ -1671,11 +1682,6 @@ static int rtm_to_nh_config(struct net *net, struct sk_buff *skb,
 		fallthrough;
 	default:
 		NL_SET_ERR_MSG(extack, "Invalid address family");
-		goto out;
-	}
-
-	if (tb[NHA_GROUPS] || tb[NHA_MASTER]) {
-		NL_SET_ERR_MSG(extack, "Invalid attributes in request");
 		goto out;
 	}
 
@@ -1720,7 +1726,7 @@ static int rtm_to_nh_config(struct net *net, struct sk_buff *skb,
 			NL_SET_ERR_MSG(extack, "Invalid group type");
 			goto out;
 		}
-		err = nh_check_attr_group(net, tb, extack);
+		err = nh_check_attr_group(net, tb, ARRAY_SIZE(tb), extack);
 
 		/* no other attributes should be set */
 		goto out;
@@ -1842,28 +1848,16 @@ static int nh_valid_get_del_req(struct nlmsghdr *nlh, u32 *id,
 				struct netlink_ext_ack *extack)
 {
 	struct nhmsg *nhm = nlmsg_data(nlh);
-	struct nlattr *tb[NHA_MAX + 1];
-	int err, i;
+	struct nlattr *tb[ARRAY_SIZE(rtm_nh_policy_get)];
+	int err;
 
-	err = nlmsg_parse(nlh, sizeof(*nhm), tb, NHA_MAX, rtm_nh_policy,
-			  extack);
+	err = nlmsg_parse(nlh, sizeof(*nhm), tb,
+			  ARRAY_SIZE(rtm_nh_policy_get) - 1,
+			  rtm_nh_policy_get, extack);
 	if (err < 0)
 		return err;
 
 	err = -EINVAL;
-	for (i = 0; i < __NHA_MAX; ++i) {
-		if (!tb[i])
-			continue;
-
-		switch (i) {
-		case NHA_ID:
-			break;
-		default:
-			NL_SET_ERR_MSG_ATTR(extack, tb[i],
-					    "Unexpected attribute in request");
-			goto out;
-		}
-	}
 	if (nhm->nh_protocol || nhm->resvd || nhm->nh_scope || nhm->nh_flags) {
 		NL_SET_ERR_MSG(extack, "Invalid values in header");
 		goto out;
@@ -1991,48 +1985,35 @@ static int nh_valid_dump_req(const struct nlmsghdr *nlh, int *dev_idx,
 			     bool *fdb_filter, struct netlink_callback *cb)
 {
 	struct netlink_ext_ack *extack = cb->extack;
-	struct nlattr *tb[NHA_MAX + 1];
+	struct nlattr *tb[ARRAY_SIZE(rtm_nh_policy_dump)];
 	struct nhmsg *nhm;
-	int err, i;
+	int err;
 	u32 idx;
 
-	err = nlmsg_parse(nlh, sizeof(*nhm), tb, NHA_MAX, rtm_nh_policy,
-			  NULL);
+	err = nlmsg_parse(nlh, sizeof(*nhm), tb,
+			  ARRAY_SIZE(rtm_nh_policy_dump) - 1,
+			  rtm_nh_policy_dump, NULL);
 	if (err < 0)
 		return err;
 
-	for (i = 0; i <= NHA_MAX; ++i) {
-		if (!tb[i])
-			continue;
-
-		switch (i) {
-		case NHA_OIF:
-			idx = nla_get_u32(tb[i]);
-			if (idx > INT_MAX) {
-				NL_SET_ERR_MSG(extack, "Invalid device index");
-				return -EINVAL;
-			}
-			*dev_idx = idx;
-			break;
-		case NHA_MASTER:
-			idx = nla_get_u32(tb[i]);
-			if (idx > INT_MAX) {
-				NL_SET_ERR_MSG(extack, "Invalid master device index");
-				return -EINVAL;
-			}
-			*master_idx = idx;
-			break;
-		case NHA_GROUPS:
-			*group_filter = true;
-			break;
-		case NHA_FDB:
-			*fdb_filter = true;
-			break;
-		default:
-			NL_SET_ERR_MSG(extack, "Unsupported attribute in dump request");
+	if (tb[NHA_OIF]) {
+		idx = nla_get_u32(tb[NHA_OIF]);
+		if (idx > INT_MAX) {
+			NL_SET_ERR_MSG(extack, "Invalid device index");
 			return -EINVAL;
 		}
+		*dev_idx = idx;
 	}
+	if (tb[NHA_MASTER]) {
+		idx = nla_get_u32(tb[NHA_MASTER]);
+		if (idx > INT_MAX) {
+			NL_SET_ERR_MSG(extack, "Invalid master device index");
+			return -EINVAL;
+		}
+		*master_idx = idx;
+	}
+	*group_filter = nla_get_flag(tb[NHA_GROUPS]);
+	*fdb_filter = nla_get_flag(tb[NHA_FDB]);
 
 	nhm = nlmsg_data(nlh);
 	if (nhm->nh_protocol || nhm->resvd || nhm->nh_scope || nhm->nh_flags) {
