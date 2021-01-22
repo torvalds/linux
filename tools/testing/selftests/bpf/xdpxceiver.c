@@ -728,7 +728,6 @@ static void worker_pkt_validate(void)
 	u32 payloadseqnum = -2;
 
 	while (1) {
-		pkt_node_rx_q = malloc(sizeof(struct pkt));
 		pkt_node_rx_q = TAILQ_LAST(&head, head_s);
 		if (!pkt_node_rx_q)
 			break;
