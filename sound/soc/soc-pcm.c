@@ -1514,6 +1514,10 @@ unwind:
 static void dpcm_init_runtime_hw(struct snd_pcm_runtime *runtime,
 				 struct snd_soc_pcm_stream *stream)
 {
+	runtime->hw.rates = stream->rates;
+
+	snd_pcm_limit_hw_rates(runtime);
+
 	runtime->hw.rate_min = stream->rate_min;
 	runtime->hw.rate_max = min_not_zero(stream->rate_max, UINT_MAX);
 	runtime->hw.channels_min = stream->channels_min;
@@ -1522,7 +1526,6 @@ static void dpcm_init_runtime_hw(struct snd_pcm_runtime *runtime,
 		runtime->hw.formats &= stream->formats;
 	else
 		runtime->hw.formats = stream->formats;
-	runtime->hw.rates = stream->rates;
 }
 
 static void dpcm_runtime_merge_format(struct snd_pcm_substream *substream,
@@ -1648,9 +1651,12 @@ static void dpcm_runtime_merge_rate(struct snd_pcm_substream *substream,
 
 			pcm = snd_soc_dai_get_pcm_stream(dai, stream);
 
+			hw->rates = snd_pcm_rate_mask_intersect(hw->rates, pcm->rates);
+
+			snd_pcm_limit_hw_rates(runtime);
+
 			hw->rate_min = max(hw->rate_min, pcm->rate_min);
 			hw->rate_max = min_not_zero(hw->rate_max, pcm->rate_max);
-			hw->rates = snd_pcm_rate_mask_intersect(hw->rates, pcm->rates);
 		}
 	}
 }
@@ -1738,7 +1744,6 @@ static int dpcm_apply_symmetry(struct snd_pcm_substream *fe_substream,
 static int dpcm_fe_dai_startup(struct snd_pcm_substream *fe_substream)
 {
 	struct snd_soc_pcm_runtime *fe = asoc_substream_to_rtd(fe_substream);
-	struct snd_pcm_runtime *runtime = fe_substream->runtime;
 	int stream = fe_substream->stream, ret = 0;
 
 	dpcm_set_fe_update_state(fe, stream, SND_SOC_DPCM_UPDATE_FE);
@@ -1761,7 +1766,6 @@ static int dpcm_fe_dai_startup(struct snd_pcm_substream *fe_substream)
 	fe->dpcm[stream].state = SND_SOC_DPCM_STATE_OPEN;
 
 	dpcm_set_fe_runtime(fe_substream);
-	snd_pcm_limit_hw_rates(runtime);
 
 	ret = dpcm_apply_symmetry(fe_substream, stream);
 	if (ret < 0)
