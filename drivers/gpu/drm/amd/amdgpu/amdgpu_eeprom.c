@@ -55,6 +55,21 @@ int amdgpu_eeprom_xfer(struct i2c_adapter *i2c_adap,
 		r = i2c_transfer(i2c_adap, msgs, ARRAY_SIZE(msgs));
 		if (r <= 0)
 			return r;
+
+		/* Only for write data */
+		if (!msgs[1].flags)
+			/*
+			 * According to EEPROM spec there is a MAX of 10 ms required for
+			 * EEPROM to flush internal RX buffer after STOP was issued at the
+			 * end of write transaction. During this time the EEPROM will not be
+			 * responsive to any more commands - so wait a bit more.
+			 *
+			 * TODO Improve to wait for first ACK for slave address after
+			 * internal write cycle done.
+			 */
+			msleep(10);
+
+
 		bytes_transferred = r - EEPROM_OFFSET_LENGTH;
 		eeprom_addr += bytes_transferred;
 		msgs[0].buf[0] = ((eeprom_addr >> 8) & 0xff);
