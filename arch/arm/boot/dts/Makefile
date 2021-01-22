@@ -1278,6 +1278,7 @@ dtb-$(CONFIG_ARCH_U8500) += \
 	ste-hrefv60plus-tvk.dtb \
 	ste-href520-tvk.dtb \
 	ste-ux500-samsung-golden.dtb \
+	ste-ux500-samsung-janice.dtb \
 	ste-ux500-samsung-skomer.dtb
 dtb-$(CONFIG_ARCH_UNIPHIER) += \
 	uniphier-ld4-ref.dtb \

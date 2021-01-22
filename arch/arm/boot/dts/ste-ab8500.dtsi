@@ -122,9 +122,11 @@
 
 				ab8500_temp {
 					compatible = "stericsson,abx500-temp";
+					interrupts = <3 IRQ_TYPE_LEVEL_HIGH>;
+					interrupt-names = "ABX500_TEMP_WARM";
 					io-channels = <&gpadc 0x06>,
 						      <&gpadc 0x07>;
-					io-channel-name = "aux1", "aux2";
+					io-channel-names = "aux1", "aux2";
 				};
 
 				ab8500_battery: ab8500_battery {
@@ -134,29 +136,77 @@
 
 				ab8500_fg {
 					compatible = "stericsson,ab8500-fg";
-					battery	   = <&ab8500_battery>;
+					interrupts = <24 IRQ_TYPE_LEVEL_HIGH>,
+						     <8 IRQ_TYPE_LEVEL_HIGH>,
+						     <28 IRQ_TYPE_LEVEL_HIGH>,
+						     <27 IRQ_TYPE_LEVEL_HIGH>,
+						     <26 IRQ_TYPE_LEVEL_HIGH>;
+					interrupt-names = "NCONV_ACCU",
+							  "BATT_OVV",
+							  "LOW_BAT_F",
+							  "CC_INT_CALIB",
+							  "CCEOC";
+					battery = <&ab8500_battery>;
 					io-channels = <&gpadc 0x08>;
-					io-channel-name = "main_bat_v";
+					io-channel-names = "main_bat_v";
 				};
 
 				ab8500_btemp {
 					compatible = "stericsson,ab8500-btemp";
-					battery	   = <&ab8500_battery>;
+					interrupts = <20 IRQ_TYPE_LEVEL_HIGH>,
+						     <80 IRQ_TYPE_LEVEL_HIGH>,
+						     <83 IRQ_TYPE_LEVEL_HIGH>,
+						     <81 IRQ_TYPE_LEVEL_HIGH>,
+						     <82 IRQ_TYPE_LEVEL_HIGH>;
+					interrupt-names = "BAT_CTRL_INDB",
+							  "BTEMP_LOW",
+							  "BTEMP_HIGH",
+							  "BTEMP_LOW_MEDIUM",
+							  "BTEMP_MEDIUM_HIGH";
+					battery = <&ab8500_battery>;
 					io-channels = <&gpadc 0x02>,
 						      <&gpadc 0x01>;
-					io-channel-name = "btemp_ball",
+					io-channel-names = "btemp_ball",
 							"bat_ctrl";
 				};
 
 				ab8500_charger {
-					compatible	= "stericsson,ab8500-charger";
+					compatible = "stericsson,ab8500-charger";
+					interrupts = <10 IRQ_TYPE_LEVEL_HIGH>,
+						     <11 IRQ_TYPE_LEVEL_HIGH>,
+						     <0 IRQ_TYPE_LEVEL_HIGH>,
+						     <107 IRQ_TYPE_LEVEL_HIGH>,
+						     <106 IRQ_TYPE_LEVEL_HIGH>,
+						     <14 IRQ_TYPE_LEVEL_HIGH>,
+						     <15 IRQ_TYPE_LEVEL_HIGH>,
+						     <79 IRQ_TYPE_LEVEL_HIGH>,
+						     <105 IRQ_TYPE_LEVEL_HIGH>,
+						     <104 IRQ_TYPE_LEVEL_HIGH>,
+						     <89 IRQ_TYPE_LEVEL_HIGH>,
+						     <22 IRQ_TYPE_LEVEL_HIGH>,
+						     <21 IRQ_TYPE_LEVEL_HIGH>,
+						     <16 IRQ_TYPE_LEVEL_HIGH>;
+					interrupt-names = "MAIN_CH_UNPLUG_DET",
+							  "MAIN_CHARGE_PLUG_DET",
+							  "MAIN_EXT_CH_NOT_OK",
+							  "MAIN_CH_TH_PROT_R",
+							  "MAIN_CH_TH_PROT_F",
+							  "VBUS_DET_F",
+							  "VBUS_DET_R",
+							  "USB_LINK_STATUS",
+							  "USB_CH_TH_PROT_R",
+							  "USB_CH_TH_PROT_F",
+							  "USB_CHARGER_NOT_OKR",
+							  "VBUS_OVV",
+							  "CH_WD_EXP",
+							  "VBUS_CH_DROP_END";
 					battery		= <&ab8500_battery>;
 					vddadc-supply	= <&ab8500_ldo_tvout_reg>;
 					io-channels = <&gpadc 0x03>,
 						      <&gpadc 0x0a>,
 						      <&gpadc 0x09>,
 						      <&gpadc 0x0b>;
-					io-channel-name = "main_charger_v",
+					io-channel-names = "main_charger_v",
 							"main_charger_c",
 							"vbus_v",
 							"usb_charger_c";
