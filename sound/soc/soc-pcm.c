@@ -2760,8 +2760,8 @@ int soc_new_pcm(struct snd_soc_pcm_runtime *rtd, int num)
 	else
 		rtd->close_delayed_work_func = snd_soc_close_delayed_work;
 
-	pcm->nonatomic = rtd->dai_link->nonatomic;
 	rtd->pcm = pcm;
+	pcm->nonatomic = rtd->dai_link->nonatomic;
 	pcm->private_data = rtd;
 
 	if (rtd->dai_link->no_pcm || rtd->dai_link->params) {
