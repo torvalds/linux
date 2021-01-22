@@ -92,7 +92,7 @@ int i915_ggtt_init_hw(struct drm_i915_private *i915)
 }
 
 /*
- * Certain Gen5 chipsets require require idling the GPU before
+ * Certain Gen5 chipsets require idling the GPU before
  * unmapping anything from the GTT when VT-d is enabled.
  */
 static bool needs_idle_maps(struct drm_i915_private *i915)

@@ -2864,7 +2864,7 @@ static int __live_preempt_ring(struct intel_engine_cs *engine,
 	err = wait_for_submit(engine, rq, HZ / 2);
 	i915_request_put(rq);
 	if (err) {
-		pr_err("%s: preemption request was not submited\n",
+		pr_err("%s: preemption request was not submitted\n",
 		       engine->name);
 		err = -ETIME;
 	}

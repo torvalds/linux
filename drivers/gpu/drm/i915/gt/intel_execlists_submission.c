@@ -3108,7 +3108,7 @@ static void execlists_release(struct intel_engine_cs *engine)
 static void
 logical_ring_default_vfuncs(struct intel_engine_cs *engine)
 {
-	/* Default vfuncs which can be overriden by each engine. */
+	/* Default vfuncs which can be overridden by each engine. */
 
 	engine->resume = execlists_resume;
 

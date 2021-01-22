@@ -280,7 +280,7 @@ static void gen8_ctx_workarounds_init(struct intel_engine_cs *engine,
 		     PARTIAL_INSTRUCTION_SHOOTDOWN_DISABLE);
 
 	/* Use Force Non-Coherent whenever executing a 3D context. This is a
-	 * workaround for for a possible hang in the unlikely event a TLB
+	 * workaround for a possible hang in the unlikely event a TLB
 	 * invalidation occurs during a PSD flush.
 	 */
 	/* WaForceEnableNonCoherent:bdw,chv */
