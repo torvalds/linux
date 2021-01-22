@@ -10330,6 +10330,13 @@ static void intel_dump_pipe_config(const struct intel_crtc_state *pipe_config,
 	    intel_hdmi_infoframe_enable(DP_SDP_VSC))
 		intel_dump_dp_vsc_sdp(dev_priv, &pipe_config->infoframes.vsc);
 
+	drm_dbg_kms(&dev_priv->drm, "vrr: %s, vmin: %d, vmax: %d, pipeline full: %d, flipline: %d, vmin vblank: %d, vmax vblank: %d\n",
+		    yesno(pipe_config->vrr.enable),
+		    pipe_config->vrr.vmin, pipe_config->vrr.vmax,
+		    pipe_config->vrr.pipeline_full, pipe_config->vrr.flipline,
+		    intel_vrr_vmin_vblank_start(pipe_config),
+		    intel_vrr_vmax_vblank_start(pipe_config));
+
 	drm_dbg_kms(&dev_priv->drm, "requested mode:\n");
 	drm_mode_debug_printmodeline(&pipe_config->hw.mode);
 	drm_dbg_kms(&dev_priv->drm, "adjusted mode:\n");
