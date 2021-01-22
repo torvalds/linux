@@ -229,8 +229,10 @@ static void walt_find_best_target(struct sched_domain *sd,
 		most_spare_wake_cap = LONG_MIN;
 	}
 
-	if (fbt_env->strict_max)
-		target_max_spare_cap = LONG_MIN;
+	if (fbt_env->strict_max) {
+		stop_index = 0;
+		most_spare_wake_cap = LONG_MIN;
+	}
 
 	if (p->state == TASK_RUNNING)
 		most_spare_wake_cap = ULONG_MAX;
@@ -290,9 +292,8 @@ static void walt_find_best_target(struct sched_domain *sd,
 				most_spare_cap_cpu = i;
 			}
 
-			if ((per_task_boost(cpu_rq(i)->curr) ==
-					TASK_BOOST_STRICT_MAX) &&
-					!fbt_env->strict_max)
+			if (per_task_boost(cpu_rq(i)->curr) ==
+					TASK_BOOST_STRICT_MAX)
 				continue;
 
 			/* get rq's utilization with this task included */
@@ -305,7 +306,7 @@ static void walt_find_best_target(struct sched_domain *sd,
 			 * than the one required to boost the task.
 			 */
 			new_util = max(min_util, new_util);
-			if (!fbt_env->strict_max && new_util > capacity_orig)
+			if (new_util > capacity_orig)
 				continue;
 
 			/*
