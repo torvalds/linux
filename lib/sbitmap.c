@@ -334,20 +334,21 @@ static unsigned int __sbitmap_weight(const struct sbitmap *sb, bool set)
 	return weight;
 }
 
-static unsigned int sbitmap_weight(const struct sbitmap *sb)
-{
-	return __sbitmap_weight(sb, true);
-}
-
 static unsigned int sbitmap_cleared(const struct sbitmap *sb)
 {
 	return __sbitmap_weight(sb, false);
 }
 
+unsigned int sbitmap_weight(const struct sbitmap *sb)
+{
+	return __sbitmap_weight(sb, true) - sbitmap_cleared(sb);
+}
+EXPORT_SYMBOL_GPL(sbitmap_weight);
+
 void sbitmap_show(struct sbitmap *sb, struct seq_file *m)
 {
 	seq_printf(m, "depth=%u\n", sb->depth);
-	seq_printf(m, "busy=%u\n", sbitmap_weight(sb) - sbitmap_cleared(sb));
+	seq_printf(m, "busy=%u\n", sbitmap_weight(sb));
 	seq_printf(m, "cleared=%u\n", sbitmap_cleared(sb));
 	seq_printf(m, "bits_per_word=%u\n", 1U << sb->shift);
 	seq_printf(m, "map_nr=%u\n", sb->map_nr);
