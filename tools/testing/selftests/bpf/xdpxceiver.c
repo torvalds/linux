@@ -416,7 +416,7 @@ static int validate_interfaces(void)
 				exit_with_error(errno);
 
 			targs->idx = i;
-			if (pthread_create(&ns_thread, NULL, nsswitchthread, (void *)targs))
+			if (pthread_create(&ns_thread, NULL, nsswitchthread, targs))
 				exit_with_error(errno);
 
 			pthread_join(ns_thread, NULL);
@@ -923,12 +923,12 @@ static void testapp_validate(void)
 
 	/*Spawn RX thread */
 	if (!opt_bidi || (opt_bidi && !bidi_pass)) {
-		if (pthread_create(&t0, &attr, worker_testapp_validate, (void *)ifdict[1]))
+		if (pthread_create(&t0, &attr, worker_testapp_validate, ifdict[1]))
 			exit_with_error(errno);
 	} else if (opt_bidi && bidi_pass) {
 		/*switch Tx/Rx vectors */
 		ifdict[0]->fv.vector = rx;
-		if (pthread_create(&t0, &attr, worker_testapp_validate, (void *)ifdict[0]))
+		if (pthread_create(&t0, &attr, worker_testapp_validate, ifdict[0]))
 			exit_with_error(errno);
 	}
 
@@ -943,12 +943,12 @@ static void testapp_validate(void)
 
 	/*Spawn TX thread */
 	if (!opt_bidi || (opt_bidi && !bidi_pass)) {
-		if (pthread_create(&t1, &attr, worker_testapp_validate, (void *)ifdict[0]))
+		if (pthread_create(&t1, &attr, worker_testapp_validate, ifdict[0]))
 			exit_with_error(errno);
 	} else if (opt_bidi && bidi_pass) {
 		/*switch Tx/Rx vectors */
 		ifdict[1]->fv.vector = tx;
-		if (pthread_create(&t1, &attr, worker_testapp_validate, (void *)ifdict[1]))
+		if (pthread_create(&t1, &attr, worker_testapp_validate, ifdict[1]))
 			exit_with_error(errno);
 	}
 
