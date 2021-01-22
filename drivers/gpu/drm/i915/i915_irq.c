@@ -893,7 +893,20 @@ static bool i915_get_crtc_scanoutpos(struct drm_crtc *_crtc,
 	if (stime)
 		*stime = ktime_get();
 
-	if (use_scanline_counter) {
+	if (crtc->mode_flags & I915_MODE_FLAG_VRR) {
+		int scanlines = intel_crtc_scanlines_since_frame_timestamp(crtc);
+
+		position = __intel_get_crtc_scanline(crtc);
+
+		/*
+		 * Already exiting vblank? If so, shift our position
+		 * so it looks like we're already apporaching the full
+		 * vblank end. This should make the generated timestamp
+		 * more or less match when the active portion will start.
+		 */
+		if (position >= vbl_start && scanlines < position)
+			position = min(crtc->vmax_vblank_start + scanlines, vtotal - 1);
+	} else if (use_scanline_counter) {
 		/* No obvious pixelcount register. Only query vertical
 		 * scanout position from Display scan line register.
 		 */

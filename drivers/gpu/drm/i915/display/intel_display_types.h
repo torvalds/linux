@@ -693,6 +693,8 @@ struct intel_crtc_scaler_state {
 #define I915_MODE_FLAG_DSI_USE_TE1 (1<<4)
 /* Flag to indicate mipi dsi periodic command mode where we do not get TE */
 #define I915_MODE_FLAG_DSI_PERIODIC_CMD_MODE (1<<5)
+/* Do tricks to make vblank timestamps sane with VRR? */
+#define I915_MODE_FLAG_VRR (1<<6)
 
 struct intel_wm_level {
 	bool enable;
@@ -1199,6 +1201,8 @@ struct intel_crtc {
 
 	/* I915_MODE_FLAG_* */
 	u8 mode_flags;
+
+	u16 vmax_vblank_start;
 
 	struct intel_display_power_domain_set enabled_power_domains;
 	struct intel_overlay *overlay;

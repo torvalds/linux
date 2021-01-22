@@ -134,6 +134,8 @@ intel_vrr_compute_config(struct intel_crtc_state *crtc_state,
 	 */
 	crtc_state->vrr.pipeline_full =
 		min(255, crtc_state->vrr.vmin - adjusted_mode->crtc_vdisplay - 4 - 1);
+
+	crtc_state->mode_flags |= I915_MODE_FLAG_VRR;
 }
 
 void intel_vrr_enable(struct intel_encoder *encoder,
@@ -202,4 +204,6 @@ void intel_vrr_get_config(struct intel_crtc *crtc,
 		crtc_state->vrr.flipline = intel_de_read(dev_priv, TRANS_VRR_FLIPLINE(cpu_transcoder)) + 1;
 	crtc_state->vrr.vmax = intel_de_read(dev_priv, TRANS_VRR_VMAX(cpu_transcoder)) + 1;
 	crtc_state->vrr.vmin = intel_de_read(dev_priv, TRANS_VRR_VMIN(cpu_transcoder)) + 1;
+
+	crtc_state->mode_flags |= I915_MODE_FLAG_VRR;
 }

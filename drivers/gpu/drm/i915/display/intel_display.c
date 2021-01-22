@@ -11794,10 +11794,17 @@ intel_crtc_update_active_timings(const struct intel_crtc_state *crtc_state)
 {
 	struct intel_crtc *crtc = to_intel_crtc(crtc_state->uapi.crtc);
 	struct drm_i915_private *dev_priv = to_i915(crtc->base.dev);
-	const struct drm_display_mode *adjusted_mode =
-		&crtc_state->hw.adjusted_mode;
+	struct drm_display_mode adjusted_mode =
+		crtc_state->hw.adjusted_mode;
 
-	drm_calc_timestamping_constants(&crtc->base, adjusted_mode);
+	if (crtc_state->vrr.enable) {
+		adjusted_mode.crtc_vtotal = crtc_state->vrr.vmax;
+		adjusted_mode.crtc_vblank_end = crtc_state->vrr.vmax;
+		adjusted_mode.crtc_vblank_start = intel_vrr_vmin_vblank_start(crtc_state);
+		crtc->vmax_vblank_start = intel_vrr_vmax_vblank_start(crtc_state);
+	}
+
+	drm_calc_timestamping_constants(&crtc->base, &adjusted_mode);
 
 	crtc->mode_flags = crtc_state->mode_flags;
 
@@ -11831,8 +11838,8 @@ intel_crtc_update_active_timings(const struct intel_crtc_state *crtc_state)
 	if (IS_GEN(dev_priv, 2)) {
 		int vtotal;
 
-		vtotal = adjusted_mode->crtc_vtotal;
-		if (adjusted_mode->flags & DRM_MODE_FLAG_INTERLACE)
+		vtotal = adjusted_mode.crtc_vtotal;
+		if (adjusted_mode.flags & DRM_MODE_FLAG_INTERLACE)
 			vtotal /= 2;
 
 		crtc->scanline_offset = vtotal - 1;
