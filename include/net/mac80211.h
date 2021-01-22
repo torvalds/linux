@@ -5529,7 +5529,7 @@ void ieee80211_iterate_active_interfaces_atomic(struct ieee80211_hw *hw,
 						void *data);
 
 /**
- * ieee80211_iterate_active_interfaces_rtnl - iterate active interfaces
+ * ieee80211_iterate_active_interfaces_mtx - iterate active interfaces
  *
  * This function iterates over the interfaces associated with a given
  * hardware that are currently active and calls the callback for them.
@@ -5540,12 +5540,12 @@ void ieee80211_iterate_active_interfaces_atomic(struct ieee80211_hw *hw,
  * @iterator: the iterator function to call, cannot sleep
  * @data: first argument of the iterator function
  */
-void ieee80211_iterate_active_interfaces_rtnl(struct ieee80211_hw *hw,
-					      u32 iter_flags,
-					      void (*iterator)(void *data,
+void ieee80211_iterate_active_interfaces_mtx(struct ieee80211_hw *hw,
+					     u32 iter_flags,
+					     void (*iterator)(void *data,
 						u8 *mac,
 						struct ieee80211_vif *vif),
-					      void *data);
+					     void *data);
 
 /**
  * ieee80211_iterate_stations_atomic - iterate stations

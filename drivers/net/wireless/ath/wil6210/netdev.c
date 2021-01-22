@@ -473,7 +473,9 @@ int wil_if_add(struct wil6210_priv *wil)
 	wil_update_net_queues_bh(wil, vif, NULL, true);
 
 	rtnl_lock();
+	wiphy_lock(wiphy);
 	rc = wil_vif_add(wil, vif);
+	wiphy_unlock(wiphy);
 	rtnl_unlock();
 	if (rc < 0)
 		goto out_wiphy;
@@ -543,15 +545,18 @@ void wil_if_remove(struct wil6210_priv *wil)
 {
 	struct net_device *ndev = wil->main_ndev;
 	struct wireless_dev *wdev = ndev->ieee80211_ptr;
+	struct wiphy *wiphy = wdev->wiphy;
 
 	wil_dbg_misc(wil, "if_remove\n");
 
 	rtnl_lock();
+	wiphy_lock(wiphy);
 	wil_vif_remove(wil, 0);
+	wiphy_unlock(wiphy);
 	rtnl_unlock();
 
 	netif_napi_del(&wil->napi_tx);
 	netif_napi_del(&wil->napi_rx);
 
-	wiphy_unregister(wdev->wiphy);
+	wiphy_unregister(wiphy);
 }

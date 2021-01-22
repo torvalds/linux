@@ -2143,7 +2143,7 @@ err:
 
 out_iterate:
 	if (!test)
-		ieee80211_iterate_active_interfaces_rtnl(mvm->hw,
+		ieee80211_iterate_active_interfaces_mtx(mvm->hw,
 			IEEE80211_IFACE_ITER_NORMAL,
 			iwl_mvm_d3_disconnect_iter, keep ? vif : NULL);
 

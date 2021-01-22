@@ -537,7 +537,9 @@ static int virt_wifi_newlink(struct net *src_net, struct net_device *dev,
 	dev->ieee80211_ptr->iftype = NL80211_IFTYPE_STATION;
 	dev->ieee80211_ptr->wiphy = common_wiphy;
 
+	wiphy_lock(common_wiphy);
 	err = register_netdevice(dev);
+	wiphy_unlock(common_wiphy);
 	if (err) {
 		dev_err(&priv->lowerdev->dev, "can't register_netdevice: %d\n",
 			err);
@@ -560,7 +562,9 @@ static int virt_wifi_newlink(struct net *src_net, struct net_device *dev,
 
 	return 0;
 unregister_netdev:
+	wiphy_lock(common_wiphy);
 	unregister_netdevice(dev);
+	wiphy_unlock(common_wiphy);
 free_wireless_dev:
 	kfree(dev->ieee80211_ptr);
 	dev->ieee80211_ptr = NULL;
@@ -586,7 +590,9 @@ static void virt_wifi_dellink(struct net_device *dev,
 	netdev_rx_handler_unregister(priv->lowerdev);
 	netdev_upper_dev_unlink(priv->lowerdev, dev);
 
+	wiphy_lock(common_wiphy);
 	unregister_netdevice_queue(dev, head);
+	wiphy_unlock(common_wiphy);
 	module_put(THIS_MODULE);
 
 	/* Deleting the wiphy is handled in the module destructor. */
@@ -625,7 +631,9 @@ static int virt_wifi_event(struct notifier_block *this, unsigned long event,
 		upper_dev = priv->upperdev;
 
 		upper_dev->rtnl_link_ops->dellink(upper_dev, &list_kill);
+		wiphy_lock(common_wiphy);
 		unregister_netdevice_many(&list_kill);
+		wiphy_unlock(common_wiphy);
 		break;
 	}
 

@@ -260,7 +260,7 @@ int iwl_mvm_init_fw_regd(struct iwl_mvm *mvm)
 	int ret;
 	bool changed;
 	const struct ieee80211_regdomain *r =
-			rtnl_dereference(mvm->hw->wiphy->regd);
+			wiphy_dereference(mvm->hw->wiphy, mvm->hw->wiphy->regd);
 
 	if (!r)
 		return -ENOENT;
@@ -282,7 +282,7 @@ int iwl_mvm_init_fw_regd(struct iwl_mvm *mvm)
 
 	/* update cfg80211 if the regdomain was changed */
 	if (changed)
-		ret = regulatory_set_wiphy_regd_sync_rtnl(mvm->hw->wiphy, regd);
+		ret = regulatory_set_wiphy_regd_sync(mvm->hw->wiphy, regd);
 	else
 		ret = 0;
 

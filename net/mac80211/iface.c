@@ -357,11 +357,14 @@ static int ieee80211_open(struct net_device *dev)
 	if (err)
 		return err;
 
-	return ieee80211_do_open(&sdata->wdev, true);
+	wiphy_lock(sdata->local->hw.wiphy);
+	err = ieee80211_do_open(&sdata->wdev, true);
+	wiphy_unlock(sdata->local->hw.wiphy);
+
+	return err;
 }
 
-static void ieee80211_do_stop(struct ieee80211_sub_if_data *sdata,
-			      bool going_down)
+static void ieee80211_do_stop(struct ieee80211_sub_if_data *sdata, bool going_down)
 {
 	struct ieee80211_local *local = sdata->local;
 	unsigned long flags;
@@ -637,7 +640,9 @@ static int ieee80211_stop(struct net_device *dev)
 {
 	struct ieee80211_sub_if_data *sdata = IEEE80211_DEV_TO_SUB_IF(dev);
 
+	wiphy_lock(sdata->local->hw.wiphy);
 	ieee80211_do_stop(sdata, true);
+	wiphy_unlock(sdata->local->hw.wiphy);
 
 	return 0;
 }
@@ -2057,13 +2062,16 @@ void ieee80211_remove_interfaces(struct ieee80211_local *local)
 			list_add(&sdata->list, &wdev_list);
 	}
 	mutex_unlock(&local->iflist_mtx);
+
 	unregister_netdevice_many(&unreg_list);
 
+	wiphy_lock(local->hw.wiphy);
 	list_for_each_entry_safe(sdata, tmp, &wdev_list, list) {
 		list_del(&sdata->list);
 		cfg80211_unregister_wdev(&sdata->wdev);
 		kfree(sdata);
 	}
+	wiphy_unlock(local->hw.wiphy);
 }
 
 static int netdev_notify(struct notifier_block *nb,
