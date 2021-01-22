@@ -956,9 +956,6 @@ static int pcwd_isa_remove(struct device *dev, unsigned int id)
 	if (debug >= DEBUG)
 		pr_debug("pcwd_isa_remove id=%d\n", id);
 
-	if (!pcwd_private.io_addr)
-		return 1;
-
 	/*  Disable the board  */
 	if (!nowayout)
 		pcwd_stop();
