@@ -2356,6 +2356,24 @@ static void bfq_requests_merged(struct request_queue *q, struct request *rq,
 /* Must be called with bfqq != NULL */
 static void bfq_bfqq_end_wr(struct bfq_queue *bfqq)
 {
+	/*
+	 * If bfqq has been enjoying interactive weight-raising, then
+	 * reset soft_rt_next_start. We do it for the following
+	 * reason. bfqq may have been conveying the I/O needed to load
+	 * a soft real-time application. Such an application actually
+	 * exhibits a soft real-time I/O pattern after it finishes
+	 * loading, and finally starts doing its job. But, if bfqq has
+	 * been receiving a lot of bandwidth so far (likely to happen
+	 * on a fast device), then soft_rt_next_start now contains a
+	 * high value that. So, without this reset, bfqq would be
+	 * prevented from being possibly considered as soft_rt for a
+	 * very long time.
+	 */
+
+	if (bfqq->wr_cur_max_time !=
+	    bfqq->bfqd->bfq_wr_rt_max_time)
+		bfqq->soft_rt_next_start = jiffies;
+
 	if (bfq_bfqq_busy(bfqq))
 		bfqq->bfqd->wr_busy_queues--;
 	bfqq->wr_coeff = 1;
@@ -3956,30 +3974,15 @@ void bfq_bfqq_expire(struct bfq_data *bfqd,
 		 * If we get here, and there are no outstanding
 		 * requests, then the request pattern is isochronous
 		 * (see the comments on the function
-		 * bfq_bfqq_softrt_next_start()). Thus we can compute
-		 * soft_rt_next_start. And we do it, unless bfqq is in
-		 * interactive weight raising. We do not do it in the
-		 * latter subcase, for the following reason. bfqq may
-		 * be conveying the I/O needed to load a soft
-		 * real-time application. Such an application will
-		 * actually exhibit a soft real-time I/O pattern after
-		 * it finally starts doing its job. But, if
-		 * soft_rt_next_start is computed here for an
-		 * interactive bfqq, and bfqq had received a lot of
-		 * service before remaining with no outstanding
-		 * request (likely to happen on a fast device), then
-		 * soft_rt_next_start would be assigned such a high
-		 * value that, for a very long time, bfqq would be
-		 * prevented from being possibly considered as soft
-		 * real time.
+		 * bfq_bfqq_softrt_next_start()). Therefore we can
+		 * compute soft_rt_next_start.
 		 *
 		 * If, instead, the queue still has outstanding
 		 * requests, then we have to wait for the completion
 		 * of all the outstanding requests to discover whether
 		 * the request pattern is actually isochronous.
 		 */
-		if (bfqq->dispatched == 0 &&
-		    bfqq->wr_coeff != bfqd->bfq_wr_coeff)
+		if (bfqq->dispatched == 0)
 			bfqq->soft_rt_next_start =
 				bfq_bfqq_softrt_next_start(bfqd, bfqq);
 		else if (bfqq->dispatched > 0) {
@@ -4563,9 +4566,21 @@ static void bfq_update_wr_data(struct bfq_data *bfqd, struct bfq_queue *bfqq)
 						bfqq->wr_cur_max_time)) {
 			if (bfqq->wr_cur_max_time != bfqd->bfq_wr_rt_max_time ||
 			time_is_before_jiffies(bfqq->wr_start_at_switch_to_srt +
-					       bfq_wr_duration(bfqd)))
+					       bfq_wr_duration(bfqd))) {
+				/*
+				 * Either in interactive weight
+				 * raising, or in soft_rt weight
+				 * raising with the
+				 * interactive-weight-raising period
+				 * elapsed (so no switch back to
+				 * interactive weight raising).
+				 */
 				bfq_bfqq_end_wr(bfqq);
-			else {
+			} else { /*
+				  * soft_rt finishing while still in
+				  * interactive period, switch back to
+				  * interactive weight raising
+				  */
 				switch_back_to_interactive_wr(bfqq, bfqd);
 				bfqq->entity.prio_changed = 1;
 			}
@@ -5016,6 +5031,8 @@ bfq_set_next_ioprio_data(struct bfq_queue *bfqq, struct bfq_io_cq *bic)
 	}
 
 	bfqq->entity.new_weight = bfq_ioprio_to_weight(bfqq->new_ioprio);
+	bfq_log_bfqq(bfqd, bfqq, "new_ioprio %d new_weight %d",
+		     bfqq->new_ioprio, bfqq->entity.new_weight);
 	bfqq->entity.prio_changed = 1;
 }
 
