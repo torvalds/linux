@@ -804,12 +804,12 @@ static const struct of_device_id tegra_gpio_of_match[] = {
 };
 
 static struct platform_driver tegra_gpio_driver = {
-	.driver		= {
-		.name	= "tegra-gpio",
-		.pm	= &tegra_gpio_pm_ops,
+	.driver = {
+		.name = "tegra-gpio",
+		.pm = &tegra_gpio_pm_ops,
 		.of_match_table = tegra_gpio_of_match,
 	},
-	.probe		= tegra_gpio_probe,
+	.probe = tegra_gpio_probe,
 };
 
 static int __init tegra_gpio_init(void)
