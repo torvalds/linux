@@ -20,6 +20,7 @@ __u64 msft_get_features(struct hci_dev *hdev);
 int msft_add_monitor_pattern(struct hci_dev *hdev, struct adv_monitor *monitor);
 int msft_remove_monitor(struct hci_dev *hdev, struct adv_monitor *monitor,
 			u16 handle);
+int msft_set_filter_enable(struct hci_dev *hdev, bool enable);
 
 #else
 
@@ -41,6 +42,11 @@ static inline int msft_add_monitor_pattern(struct hci_dev *hdev,
 static inline int msft_remove_monitor(struct hci_dev *hdev,
 				      struct adv_monitor *monitor,
 				      u16 handle)
+{
+	return -EOPNOTSUPP;
+}
+
+static inline int msft_set_filter_enable(struct hci_dev *hdev, bool enable)
 {
 	return -EOPNOTSUPP;
 }
