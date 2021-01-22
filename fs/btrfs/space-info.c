@@ -561,10 +561,10 @@ static void shrink_delalloc(struct btrfs_fs_info *fs_info,
 }
 
 /**
- * maybe_commit_transaction - possibly commit the transaction if its ok to
- * @root - the root we're allocating for
- * @bytes - the number of bytes we want to reserve
- * @force - force the commit
+ * Possibly commit the transaction if its ok to
+ *
+ * @fs_info:    the filesystem
+ * @space_info: space_info we are checking for commit, either data or metadata
  *
  * This will check to make sure that committing the transaction will actually
  * get us somewhere and then commit the transaction if it does.  Otherwise it
@@ -1215,11 +1215,12 @@ static void wait_reserve_ticket(struct btrfs_fs_info *fs_info,
 }
 
 /**
- * handle_reserve_ticket - do the appropriate flushing and waiting for a ticket
- * @fs_info - the fs
- * @space_info - the space_info for the reservation
- * @ticket - the ticket for the reservation
- * @flush - how much we can flush
+ * Do the appropriate flushing and waiting for a ticket
+ *
+ * @fs_info:    the filesystem
+ * @space_info: space info for the reservation
+ * @ticket:     ticket for the reservation
+ * @flush:      how much we can flush
  *
  * This does the work of figuring out how to flush for the ticket, waiting for
  * the reservation, and returning the appropriate error if there is one.
@@ -1296,11 +1297,12 @@ static inline bool is_normal_flushing(enum btrfs_reserve_flush_enum flush)
 }
 
 /**
- * reserve_metadata_bytes - try to reserve bytes from the block_rsv's space
- * @root - the root we're allocating for
- * @space_info - the space info we want to allocate from
- * @orig_bytes - the number of bytes we want
- * @flush - whether or not we can flush to make our reservation
+ * Try to reserve bytes from the block_rsv's space
+ *
+ * @fs_info:    the filesystem
+ * @space_info: space info we want to allocate from
+ * @orig_bytes: number of bytes we want
+ * @flush:      whether or not we can flush to make our reservation
  *
  * This will reserve orig_bytes number of bytes from the space info associated
  * with the block_rsv.  If there is not enough space it will make an attempt to
@@ -1407,11 +1409,12 @@ static int __reserve_bytes(struct btrfs_fs_info *fs_info,
 }
 
 /**
- * reserve_metadata_bytes - try to reserve bytes from the block_rsv's space
- * @root - the root we're allocating for
- * @block_rsv - the block_rsv we're allocating for
- * @orig_bytes - the number of bytes we want
- * @flush - whether or not we can flush to make our reservation
+ * Trye to reserve metadata bytes from the block_rsv's space
+ *
+ * @root:       the root we're allocating for
+ * @block_rsv:  block_rsv we're allocating for
+ * @orig_bytes: number of bytes we want
+ * @flush:      whether or not we can flush to make our reservation
  *
  * This will reserve orig_bytes number of bytes from the space info associated
  * with the block_rsv.  If there is not enough space it will make an attempt to
@@ -1449,10 +1452,11 @@ int btrfs_reserve_metadata_bytes(struct btrfs_root *root,
 }
 
 /**
- * btrfs_reserve_data_bytes - try to reserve data bytes for an allocation
- * @fs_info - the filesystem
- * @bytes - the number of bytes we need
- * @flush - how we are allowed to flush
+ * Try to reserve data bytes for an allocation
+ *
+ * @fs_info: the filesystem
+ * @bytes:   number of bytes we need
+ * @flush:   how we are allowed to flush
  *
  * This will reserve bytes from the data space info.  If there is not enough
  * space then we will attempt to flush space as specified by flush.
