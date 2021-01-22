@@ -236,8 +236,6 @@ bch2_fs_usage_read_short(struct bch_fs *);
 void bch2_bucket_seq_cleanup(struct bch_fs *);
 void bch2_fs_usage_initialize(struct bch_fs *);
 
-void bch2_invalidate_bucket(struct bch_fs *, struct bch_dev *,
-			    size_t, struct bucket_mark *);
 void bch2_mark_alloc_bucket(struct bch_fs *, struct bch_dev *,
 			    size_t, bool, struct gc_pos, unsigned);
 void bch2_mark_metadata_bucket(struct bch_fs *, struct bch_dev *,

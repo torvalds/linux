@@ -896,33 +896,31 @@ static int bch2_invalidate_one_bucket2(struct btree_trans *trans,
 
 	/* first, put on free_inc and mark as owned by allocator: */
 	percpu_down_read(&c->mark_lock);
-	spin_lock(&c->freelist_lock);
-
-	verify_not_on_freelist(c, ca, b);
-
-	BUG_ON(!fifo_push(&ca->free_inc, b));
-
 	g = bucket(ca, b);
 	m = READ_ONCE(g->mark);
 
-	invalidating_cached_data = m.cached_sectors != 0;
+	BUG_ON(m.data_type || m.dirty_sectors);
+
+	bch2_mark_alloc_bucket(c, ca, b, true, gc_pos_alloc(c, NULL), 0);
+
+	spin_lock(&c->freelist_lock);
+	verify_not_on_freelist(c, ca, b);
+	BUG_ON(!fifo_push(&ca->free_inc, b));
+	spin_unlock(&c->freelist_lock);
 
 	/*
 	 * If we're not invalidating cached data, we only increment the bucket
 	 * gen in memory here, the incremented gen will be updated in the btree
 	 * by bch2_trans_mark_pointer():
 	 */
-
-	if (!invalidating_cached_data)
-		bch2_invalidate_bucket(c, ca, b, &m);
-	else
-		bch2_mark_alloc_bucket(c, ca, b, true, gc_pos_alloc(c, NULL), 0);
-
-	spin_unlock(&c->freelist_lock);
-	percpu_up_read(&c->mark_lock);
-
-	if (!invalidating_cached_data)
+	if (!m.cached_sectors &&
+	    !bucket_needs_journal_commit(m, c->journal.last_seq_ondisk)) {
+		bucket_cmpxchg(g, m, m.gen++);
+		percpu_up_read(&c->mark_lock);
 		goto out;
+	}
+
+	percpu_up_read(&c->mark_lock);
 
 	/*
 	 * If the read-only path is trying to shut down, we can't be generating

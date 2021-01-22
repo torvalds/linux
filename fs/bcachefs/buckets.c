@@ -644,46 +644,6 @@ unwind:
 	ret;								\
 })
 
-static int __bch2_invalidate_bucket(struct bch_fs *c, struct bch_dev *ca,
-				    size_t b, struct bucket_mark *ret,
-				    bool gc)
-{
-	struct bch_fs_usage *fs_usage = fs_usage_ptr(c, 0, gc);
-	struct bucket *g = __bucket(ca, b, gc);
-	struct bucket_mark old, new;
-
-	old = bucket_cmpxchg(g, new, ({
-		BUG_ON(!is_available_bucket(new));
-
-		new.owned_by_allocator	= true;
-		new.data_type		= 0;
-		new.cached_sectors	= 0;
-		new.dirty_sectors	= 0;
-		new.gen++;
-	}));
-
-	bch2_dev_usage_update(c, ca, fs_usage, old, new, gc);
-
-	if (old.cached_sectors)
-		update_cached_sectors(c, fs_usage, ca->dev_idx,
-				      -((s64) old.cached_sectors));
-
-	if (!gc)
-		*ret = old;
-	return 0;
-}
-
-void bch2_invalidate_bucket(struct bch_fs *c, struct bch_dev *ca,
-			    size_t b, struct bucket_mark *old)
-{
-	do_mark_fn(__bch2_invalidate_bucket, c, gc_phase(GC_PHASE_START), 0,
-		   ca, b, old);
-
-	if (!old->owned_by_allocator && old->cached_sectors)
-		trace_invalidate(ca, bucket_to_sector(ca, b),
-				 old->cached_sectors);
-}
-
 static int __bch2_mark_alloc_bucket(struct bch_fs *c, struct bch_dev *ca,
 				    size_t b, bool owned_by_allocator,
 				    bool gc)
