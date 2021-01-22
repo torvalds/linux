@@ -1743,6 +1743,21 @@ static void arm_smmu_tlb_inv_range_domain(unsigned long iova, size_t size,
 	arm_smmu_atc_inv_domain(smmu_domain, 0, iova, size);
 }
 
+void arm_smmu_tlb_inv_range_asid(unsigned long iova, size_t size, int asid,
+				 size_t granule, bool leaf,
+				 struct arm_smmu_domain *smmu_domain)
+{
+	struct arm_smmu_cmdq_ent cmd = {
+		.opcode	= CMDQ_OP_TLBI_NH_VA,
+		.tlbi = {
+			.asid	= asid,
+			.leaf	= leaf,
+		},
+	};
+
+	__arm_smmu_tlb_inv_range(&cmd, iova, size, granule, smmu_domain);
+}
+
 static void arm_smmu_tlb_inv_page_nosync(struct iommu_iotlb_gather *gather,
 					 unsigned long iova, size_t granule,
 					 void *cookie)
