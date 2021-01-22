@@ -214,7 +214,7 @@ acpi_ds_load2_begin_op(struct acpi_walk_state *walk_state,
 				break;
 			}
 
-			/*lint -fallthrough */
+			ACPI_FALLTHROUGH;
 
 		default:
 

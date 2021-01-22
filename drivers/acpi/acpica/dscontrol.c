@@ -62,7 +62,7 @@ acpi_ds_exec_begin_control_op(struct acpi_walk_state *walk_state,
 			}
 		}
 
-		/*lint -fallthrough */
+		ACPI_FALLTHROUGH;
 
 	case AML_IF_OP:
 		/*
