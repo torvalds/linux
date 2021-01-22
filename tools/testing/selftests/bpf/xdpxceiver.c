@@ -382,21 +382,19 @@ static bool switch_namespace(int idx)
 
 static void *nsswitchthread(void *args)
 {
-	if (switch_namespace(((struct targs *)args)->idx)) {
-		ifdict[((struct targs *)args)->idx]->ifindex =
-		    if_nametoindex(ifdict[((struct targs *)args)->idx]->ifname);
-		if (!ifdict[((struct targs *)args)->idx]->ifindex) {
-			ksft_test_result_fail
-			    ("ERROR: [%s] interface \"%s\" does not exist\n",
-			     __func__, ifdict[((struct targs *)args)->idx]->ifname);
-			((struct targs *)args)->retptr = false;
+	struct targs *targs = args;
+
+	targs->retptr = false;
+
+	if (switch_namespace(targs->idx)) {
+		ifdict[targs->idx]->ifindex = if_nametoindex(ifdict[targs->idx]->ifname);
+		if (!ifdict[targs->idx]->ifindex) {
+			ksft_test_result_fail("ERROR: [%s] interface \"%s\" does not exist\n",
+					      __func__, ifdict[targs->idx]->ifname);
 		} else {
-			ksft_print_msg("Interface found: %s\n",
-				       ifdict[((struct targs *)args)->idx]->ifname);
-			((struct targs *)args)->retptr = true;
+			ksft_print_msg("Interface found: %s\n", ifdict[targs->idx]->ifname);
+			targs->retptr = true;
 		}
-	} else {
-		((struct targs *)args)->retptr = false;
 	}
 	pthread_exit(NULL);
 }
