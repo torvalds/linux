@@ -770,21 +770,7 @@ i915_gem_userptr_ioctl(struct drm_device *dev,
 			    I915_USERPTR_UNSYNCHRONIZED))
 		return -EINVAL;
 
-	/*
-	 * XXX: There is a prevalence of the assumption that we fit the
-	 * object's page count inside a 32bit _signed_ variable. Let's document
-	 * this and catch if we ever need to fix it. In the meantime, if you do
-	 * spot such a local variable, please consider fixing!
-	 *
-	 * Aside from our own locals (for which we have no excuse!):
-	 * - sg_table embeds unsigned int for num_pages
-	 * - get_user_pages*() mixed ints with longs
-	 */
-
-	if (args->user_size >> PAGE_SHIFT > INT_MAX)
-		return -E2BIG;
-
-	if (overflows_type(args->user_size, obj->base.size))
+	if (i915_gem_object_size_2big(args->user_size))
 		return -E2BIG;
 
 	if (!args->user_size)

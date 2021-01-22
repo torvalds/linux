@@ -244,14 +244,7 @@ struct drm_gem_object *i915_gem_prime_import(struct drm_device *dev,
 		}
 	}
 
-	/*
-	 * XXX: There is a prevalence of the assumption that we fit the
-	 * object's page count inside a 32bit _signed_ variable. Let's document
-	 * this and catch if we ever need to fix it. In the meantime, if you do
-	 * spot such a local variable, please consider fixing!
-	 */
-
-	if (dma_buf->size >> PAGE_SHIFT > INT_MAX)
+	if (i915_gem_object_size_2big(dma_buf->size))
 		return ERR_PTR(-E2BIG);
 
 	/* need to attach */

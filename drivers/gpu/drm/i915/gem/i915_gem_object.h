@@ -16,6 +16,32 @@
 #include "i915_gem_gtt.h"
 #include "i915_vma_types.h"
 
+/*
+ * XXX: There is a prevalence of the assumption that we fit the
+ * object's page count inside a 32bit _signed_ variable. Let's document
+ * this and catch if we ever need to fix it. In the meantime, if you do
+ * spot such a local variable, please consider fixing!
+ *
+ * Aside from our own locals (for which we have no excuse!):
+ * - sg_table embeds unsigned int for num_pages
+ * - get_user_pages*() mixed ints with longs
+ */
+#define GEM_CHECK_SIZE_OVERFLOW(sz) \
+	GEM_WARN_ON((sz) >> PAGE_SHIFT > INT_MAX)
+
+static inline bool i915_gem_object_size_2big(u64 size)
+{
+	struct drm_i915_gem_object *obj;
+
+	if (GEM_CHECK_SIZE_OVERFLOW(size))
+		return true;
+
+	if (overflows_type(size, obj->base.size))
+		return true;
+
+	return false;
+}
+
 void i915_gem_init__objects(struct drm_i915_private *i915);
 
 struct drm_i915_gem_object *i915_gem_object_alloc(void);
