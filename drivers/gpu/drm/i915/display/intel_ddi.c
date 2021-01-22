@@ -4060,6 +4060,8 @@ static void intel_ddi_post_disable(struct intel_atomic_state *state,
 
 		intel_disable_pipe(old_crtc_state);
 
+		intel_vrr_disable(old_crtc_state);
+
 		intel_ddi_disable_transcoder_func(old_crtc_state);
 
 		intel_dsc_disable(old_crtc_state);

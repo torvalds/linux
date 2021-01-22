@@ -23,5 +23,6 @@ void intel_vrr_compute_config(struct intel_crtc_state *crtc_state,
 void intel_vrr_enable(struct intel_encoder *encoder,
 		      const struct intel_crtc_state *crtc_state);
 void intel_vrr_send_push(const struct intel_crtc_state *crtc_state);
+void intel_vrr_disable(const struct intel_crtc_state *old_crtc_state);
 
 #endif /* __INTEL_VRR_H__ */
