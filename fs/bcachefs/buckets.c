@@ -379,25 +379,17 @@ static inline int is_unavailable_bucket(struct bucket_mark m)
 	return !is_available_bucket(m);
 }
 
-static inline int is_fragmented_bucket(struct bucket_mark m,
-				       struct bch_dev *ca)
+static inline int bucket_sectors_fragmented(struct bch_dev *ca,
+					    struct bucket_mark m)
 {
-	if (!m.owned_by_allocator &&
-	    m.data_type == BCH_DATA_user &&
-	    bucket_sectors_used(m))
-		return max_t(int, 0, (int) ca->mi.bucket_size -
-			     bucket_sectors_used(m));
-	return 0;
+	return bucket_sectors_used(m)
+		? max(0, (int) ca->mi.bucket_size - (int) bucket_sectors_used(m))
+		: 0;
 }
 
 static inline int is_stripe_data_bucket(struct bucket_mark m)
 {
 	return m.stripe && m.data_type != BCH_DATA_parity;
-}
-
-static inline int bucket_stripe_sectors(struct bucket_mark m)
-{
-	return is_stripe_data_bucket(m) ? m.dirty_sectors : 0;
 }
 
 static inline enum bch_data_type bucket_type(struct bucket_mark m)
@@ -461,7 +453,7 @@ static inline void account_bucket(struct bch_fs_usage *fs_usage,
 	if (type == BCH_DATA_sb || type == BCH_DATA_journal)
 		fs_usage->hidden	+= size;
 
-	dev_usage->buckets[type]	+= nr;
+	dev_usage->d[type].buckets	+= nr;
 }
 
 static void bch2_dev_usage_update(struct bch_fs *c, struct bch_dev *ca,
@@ -487,16 +479,14 @@ static void bch2_dev_usage_update(struct bch_fs *c, struct bch_dev *ca,
 	u->buckets_unavailable +=
 		is_unavailable_bucket(new) - is_unavailable_bucket(old);
 
-	u->buckets_ec += (int) new.stripe - (int) old.stripe;
-	u->sectors_ec += bucket_stripe_sectors(new) -
-			 bucket_stripe_sectors(old);
-
-	u->sectors[old.data_type] -= old.dirty_sectors;
-	u->sectors[new.data_type] += new.dirty_sectors;
-	u->sectors[BCH_DATA_cached] +=
+	u->d[old.data_type].sectors -= old.dirty_sectors;
+	u->d[new.data_type].sectors += new.dirty_sectors;
+	u->d[BCH_DATA_cached].sectors +=
 		(int) new.cached_sectors - (int) old.cached_sectors;
-	u->sectors_fragmented +=
-		is_fragmented_bucket(new, ca) - is_fragmented_bucket(old, ca);
+
+	u->d[old.data_type].fragmented -= bucket_sectors_fragmented(ca, old);
+	u->d[new.data_type].fragmented += bucket_sectors_fragmented(ca, new);
+
 	preempt_enable();
 
 	if (!is_available_bucket(old) && is_available_bucket(new))

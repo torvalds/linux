@@ -291,7 +291,7 @@ unsigned long bch2_copygc_wait_amount(struct bch_fs *c)
 
 		fragmented_allowed += ((__dev_buckets_available(ca, usage) *
 					ca->mi.bucket_size) >> 1);
-		fragmented += usage.sectors_fragmented;
+		fragmented += usage.d[BCH_DATA_user].fragmented;
 	}
 
 	return max_t(s64, 0, fragmented_allowed - fragmented);

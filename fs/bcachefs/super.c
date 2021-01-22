@@ -1221,7 +1221,7 @@ static int bch2_dev_attach_bdev(struct bch_fs *c, struct bch_sb_handle *sb)
 		return ret;
 
 	if (test_bit(BCH_FS_ALLOC_READ_DONE, &c->flags) &&
-	    !percpu_u64_get(&ca->usage[0]->buckets[BCH_DATA_sb])) {
+	    !percpu_u64_get(&ca->usage[0]->d[BCH_DATA_sb].buckets)) {
 		mutex_lock(&c->sb_lock);
 		bch2_mark_dev_superblock(ca->fs, ca, 0);
 		mutex_unlock(&c->sb_lock);

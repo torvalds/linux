@@ -477,11 +477,11 @@ static long bch2_ioctl_dev_usage(struct bch_fs *c,
 	arg.nr_buckets		= ca->mi.nbuckets - ca->mi.first_bucket;
 	arg.available_buckets	= arg.nr_buckets - src.buckets_unavailable;
 	arg.ec_buckets		= src.buckets_ec;
-	arg.ec_sectors		= src.sectors_ec;
+	arg.ec_sectors		= 0;
 
 	for (i = 0; i < BCH_DATA_NR; i++) {
-		arg.buckets[i] = src.buckets[i];
-		arg.sectors[i] = src.sectors[i];
+		arg.buckets[i] = src.d[i].buckets;
+		arg.sectors[i] = src.d[i].sectors;
 	}
 
 	percpu_ref_put(&ca->ref);

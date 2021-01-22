@@ -153,18 +153,9 @@ static inline unsigned bucket_sectors_used(struct bucket_mark mark)
 	return mark.dirty_sectors + mark.cached_sectors;
 }
 
-static inline bool bucket_unused(struct bucket_mark mark)
-{
-	return !mark.owned_by_allocator &&
-		!mark.data_type &&
-		!bucket_sectors_used(mark);
-}
-
 static inline bool is_available_bucket(struct bucket_mark mark)
 {
-	return (!mark.owned_by_allocator &&
-		!mark.dirty_sectors &&
-		!mark.stripe);
+	return !mark.dirty_sectors && !mark.stripe;
 }
 
 static inline bool bucket_needs_journal_commit(struct bucket_mark m,

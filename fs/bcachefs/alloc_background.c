@@ -54,10 +54,10 @@ static void pd_controllers_update(struct work_struct *work)
 		 * reclaimed by copy GC
 		 */
 		fragmented += max_t(s64, 0, (bucket_to_sector(ca,
-					stats.buckets[BCH_DATA_user] +
-					stats.buckets[BCH_DATA_cached]) -
-				  (stats.sectors[BCH_DATA_user] +
-				   stats.sectors[BCH_DATA_cached])) << 9);
+					stats.d[BCH_DATA_user].buckets +
+					stats.d[BCH_DATA_cached].buckets) -
+				  (stats.d[BCH_DATA_user].sectors +
+				   stats.d[BCH_DATA_cached].sectors)) << 9);
 	}
 
 	bch2_pd_controller_update(&c->copygc_pd, free, fragmented, -1);
@@ -217,7 +217,7 @@ static int bch2_alloc_read_fn(struct bch_fs *c, enum btree_id id,
 		return 0;
 
 	ca = bch_dev_bkey_exists(c, k.k->p.inode);
-	g = __bucket(ca, k.k->p.offset, 0);
+	g = bucket(ca, k.k->p.offset);
 	u = bch2_alloc_unpack(k);
 
 	g->_mark.gen		= u.gen;
@@ -278,7 +278,6 @@ static int bch2_alloc_write_key(struct btree_trans *trans,
 	struct bch_fs *c = trans->c;
 	struct bkey_s_c k;
 	struct bch_dev *ca;
-	struct bucket_array *ba;
 	struct bucket *g;
 	struct bucket_mark m;
 	struct bkey_alloc_unpacked old_u, new_u;
@@ -302,9 +301,7 @@ retry:
 
 	percpu_down_read(&c->mark_lock);
 	ca	= bch_dev_bkey_exists(c, iter->pos.inode);
-	ba	= bucket_array(ca);
-
-	g	= &ba->b[iter->pos.offset];
+	g	= bucket(ca, iter->pos.offset);
 	m	= READ_ONCE(g->mark);
 	new_u	= alloc_mem_to_key(g, m);
 	percpu_up_read(&c->mark_lock);
@@ -330,15 +327,9 @@ int bch2_dev_alloc_write(struct bch_fs *c, struct bch_dev *ca, unsigned flags)
 {
 	struct btree_trans trans;
 	struct btree_iter *iter;
-	u64 first_bucket, nbuckets;
+	u64 first_bucket	= ca->mi.first_bucket;
+	u64 nbuckets		= ca->mi.nbuckets;
 	int ret = 0;
-
-	percpu_down_read(&c->mark_lock);
-	first_bucket	= bucket_array(ca)->first_bucket;
-	nbuckets	= bucket_array(ca)->nbuckets;
-	percpu_up_read(&c->mark_lock);
-
-	BUG_ON(BKEY_ALLOC_VAL_U64s_MAX > 8);
 
 	bch2_trans_init(&trans, c, BTREE_ITER_MAX, 0);
 
@@ -552,7 +543,8 @@ out:
 static int wait_buckets_available(struct bch_fs *c, struct bch_dev *ca)
 {
 	unsigned long gc_count = c->gc_count;
-	u64 available;
+	s64 available;
+	unsigned i;
 	int ret = 0;
 
 	ca->allocator_state = ALLOCATOR_BLOCKED;
@@ -568,8 +560,15 @@ static int wait_buckets_available(struct bch_fs *c, struct bch_dev *ca)
 		if (gc_count != c->gc_count)
 			ca->inc_gen_really_needs_gc = 0;
 
-		available = max_t(s64, 0, dev_buckets_available(ca) -
-				  ca->inc_gen_really_needs_gc);
+		available  = dev_buckets_available(ca);
+		available -= ca->inc_gen_really_needs_gc;
+
+		spin_lock(&c->freelist_lock);
+		for (i = 0; i < RESERVE_NR; i++)
+			available -= fifo_used(&ca->free[i]);
+		spin_unlock(&c->freelist_lock);
+
+		available = max(available, 0LL);
 
 		if (available > fifo_free(&ca->free_inc) ||
 		    (available &&
@@ -596,6 +595,9 @@ static bool bch2_can_invalidate_bucket(struct bch_dev *ca,
 	u8 gc_gen;
 
 	if (!is_available_bucket(mark))
+		return false;
+
+	if (mark.owned_by_allocator)
 		return false;
 
 	if (ca->buckets_nouse &&
