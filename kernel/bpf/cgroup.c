@@ -1442,6 +1442,11 @@ int __cgroup_bpf_run_filter_getsockopt(struct sock *sk, int level,
 			goto out;
 		}
 
+		if (ctx.optlen < 0) {
+			ret = -EFAULT;
+			goto out;
+		}
+
 		if (copy_from_user(ctx.optval, optval,
 				   min(ctx.optlen, max_optlen)) != 0) {
 			ret = -EFAULT;
