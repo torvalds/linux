@@ -1673,6 +1673,12 @@
 			In such case C2/C3 won't be used again.
 			idle=nomwait: Disable mwait for CPU C-states
 
+	idxd.sva=	[HW]
+			Format: <bool>
+			Allow force disabling of Shared Virtual Memory (SVA)
+			support for the idxd driver. By default it is set to
+			true (1).
+
 	ieee754=	[MIPS] Select IEEE Std 754 conformance mode
 			Format: { strict | legacy | 2008 | relaxed }
 			Default: strict

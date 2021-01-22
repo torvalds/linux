@@ -26,6 +26,10 @@ MODULE_VERSION(IDXD_DRIVER_VERSION);
 MODULE_LICENSE("GPL v2");
 MODULE_AUTHOR("Intel Corporation");
 
+static bool sva = true;
+module_param(sva, bool, 0644);
+MODULE_PARM_DESC(sva, "Toggle SVA support on/off");
+
 #define DRV_NAME "idxd"
 
 bool support_enqcmd;
@@ -338,12 +342,14 @@ static int idxd_probe(struct idxd_device *idxd)
 	idxd_device_init_reset(idxd);
 	dev_dbg(dev, "IDXD reset complete\n");
 
-	if (IS_ENABLED(CONFIG_INTEL_IDXD_SVM)) {
+	if (IS_ENABLED(CONFIG_INTEL_IDXD_SVM) && sva) {
 		rc = idxd_enable_system_pasid(idxd);
 		if (rc < 0)
 			dev_warn(dev, "Failed to enable PASID. No SVA support: %d\n", rc);
 		else
 			set_bit(IDXD_FLAG_PASID_ENABLED, &idxd->flags);
+	} else if (!sva) {
+		dev_warn(dev, "User forced SVA off via module param.\n");
 	}
 
 	idxd_read_caps(idxd);
