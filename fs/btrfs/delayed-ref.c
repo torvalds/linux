@@ -69,9 +69,10 @@ int btrfs_should_throttle_delayed_refs(struct btrfs_trans_handle *trans)
 }
 
 /**
- * btrfs_delayed_refs_rsv_release - release a ref head's reservation.
- * @fs_info - the fs_info for our fs.
- * @nr - the number of items to drop.
+ * Release a ref head's reservation
+ *
+ * @fs_info:  the filesystem
+ * @nr:       number of items to drop
  *
  * This drops the delayed ref head's count from the delayed refs rsv and frees
  * any excess reservation we had.
@@ -114,10 +115,11 @@ void btrfs_update_delayed_refs_rsv(struct btrfs_trans_handle *trans)
 }
 
 /**
- * btrfs_migrate_to_delayed_refs_rsv - transfer bytes to our delayed refs rsv.
- * @fs_info - the fs info for our fs.
- * @src - the source block rsv to transfer from.
- * @num_bytes - the number of bytes to transfer.
+ * Transfer bytes to our delayed refs rsv
+ *
+ * @fs_info:   the filesystem
+ * @src:       source block rsv to transfer from
+ * @num_bytes: number of bytes to transfer
  *
  * This transfers up to the num_bytes amount from the src rsv to the
  * delayed_refs_rsv.  Any extra bytes are returned to the space info.
@@ -162,9 +164,10 @@ void btrfs_migrate_to_delayed_refs_rsv(struct btrfs_fs_info *fs_info,
 }
 
 /**
- * btrfs_delayed_refs_rsv_refill - refill based on our delayed refs usage.
- * @fs_info - the fs_info for our fs.
- * @flush - control how we can flush for this reservation.
+ * Refill based on our delayed refs usage
+ *
+ * @fs_info: the filesystem
+ * @flush:   control how we can flush for this reservation.
  *
  * This will refill the delayed block_rsv up to 1 items size worth of space and
  * will return -ENOSPC if we can't make the reservation.
