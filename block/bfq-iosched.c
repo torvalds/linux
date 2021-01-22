@@ -1671,15 +1671,19 @@ static void bfq_bfqq_handle_idle_busy_switch(struct bfq_data *bfqd,
 	 * - it is sync,
 	 * - it does not belong to a large burst,
 	 * - it has been idle for enough time or is soft real-time,
-	 * - is linked to a bfq_io_cq (it is not shared in any sense).
+	 * - is linked to a bfq_io_cq (it is not shared in any sense),
+	 * - has a default weight (otherwise we assume the user wanted
+	 *   to control its weight explicitly)
 	 */
 	in_burst = bfq_bfqq_in_large_burst(bfqq);
 	soft_rt = bfqd->bfq_wr_max_softrt_rate > 0 &&
 		!BFQQ_TOTALLY_SEEKY(bfqq) &&
 		!in_burst &&
 		time_is_before_jiffies(bfqq->soft_rt_next_start) &&
-		bfqq->dispatched == 0;
-	*interactive = !in_burst && idle_for_long_time;
+		bfqq->dispatched == 0 &&
+		bfqq->entity.new_weight == 40;
+	*interactive = !in_burst && idle_for_long_time &&
+		bfqq->entity.new_weight == 40;
 	wr_or_deserves_wr = bfqd->low_latency &&
 		(bfqq->wr_coeff > 1 ||
 		 (bfq_bfqq_sync(bfqq) &&
