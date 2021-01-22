@@ -4103,63 +4103,35 @@ static unsigned int intel_crtc_ddb_weight(const struct intel_crtc_state *crtc_st
 static u8 skl_compute_dbuf_slices(struct intel_crtc *crtc,
 				  u8 active_pipes);
 
-static int
-skl_ddb_get_pipe_allocation_limits(struct drm_i915_private *dev_priv,
-				   struct intel_crtc_state *crtc_state,
-				   const u64 total_data_rate,
-				   struct skl_ddb_entry *alloc, /* out */
-				   int *num_active /* out */)
+static int intel_crtc_dbuf_weights(struct intel_atomic_state *state,
+				   struct intel_crtc *for_crtc,
+				   unsigned int *weight_start,
+				   unsigned int *weight_end,
+				   unsigned int *weight_total)
 {
-	struct drm_atomic_state *state = crtc_state->uapi.state;
-	struct intel_atomic_state *intel_state = to_intel_atomic_state(state);
-	struct intel_crtc *for_crtc = to_intel_crtc(crtc_state->uapi.crtc);
-	struct intel_crtc *crtc;
-	unsigned int pipe_weight = 0, total_weight = 0, weight_before_pipe = 0;
-	enum pipe for_pipe = for_crtc->pipe;
-	struct intel_dbuf_state *new_dbuf_state =
-		intel_atomic_get_new_dbuf_state(intel_state);
 	const struct intel_dbuf_state *old_dbuf_state =
-		intel_atomic_get_old_dbuf_state(intel_state);
+		intel_atomic_get_old_dbuf_state(state);
+	struct intel_dbuf_state *new_dbuf_state =
+		intel_atomic_get_new_dbuf_state(state);
 	u8 active_pipes = new_dbuf_state->active_pipes;
-	struct skl_ddb_entry ddb_slices;
-	u32 ddb_range_size;
-	u32 i;
-	u32 dbuf_slice_mask;
-	u32 total_slice_mask;
-	u32 start, end;
-	int ret;
-
-	*num_active = hweight8(active_pipes);
-
-	if (!crtc_state->hw.active) {
-		alloc->start = 0;
-		alloc->end = 0;
-		crtc_state->wm.skl.ddb = *alloc;
-		return 0;
-	}
-
-	/*
-	 * If the state doesn't change the active CRTC's or there is no
-	 * modeset request, then there's no need to recalculate;
-	 * the existing pipe allocation limits should remain unchanged.
-	 * Note that we're safe from racing commits since any racing commit
-	 * that changes the active CRTC list or do modeset would need to
-	 * grab _all_ crtc locks, including the one we currently hold.
-	 */
-	if (old_dbuf_state->active_pipes == new_dbuf_state->active_pipes &&
-	    !dev_priv->wm.distrust_bios_wm)
-		return 0;
+	enum pipe for_pipe = for_crtc->pipe;
+	const struct intel_crtc_state *crtc_state;
+	struct intel_crtc *crtc;
+	u8 dbuf_slice_mask;
+	u8 total_slice_mask;
+	int i, ret;
 
 	/*
 	 * Get allowed DBuf slices for correspondent pipe and platform.
 	 */
 	dbuf_slice_mask = skl_compute_dbuf_slices(for_crtc, active_pipes);
-
-	skl_ddb_entry_for_slices(dev_priv, dbuf_slice_mask, &ddb_slices);
-	ddb_range_size = skl_ddb_entry_size(&ddb_slices);
-
 	total_slice_mask = dbuf_slice_mask;
-	for_each_new_intel_crtc_in_state(intel_state, crtc, crtc_state, i) {
+
+	*weight_start = 0;
+	*weight_end = 0;
+	*weight_total = 0;
+
+	for_each_new_intel_crtc_in_state(state, crtc, crtc_state, i) {
 		enum pipe pipe = crtc->pipe;
 		unsigned int weight;
 		u8 pipe_dbuf_slice_mask;
@@ -4190,12 +4162,14 @@ skl_ddb_get_pipe_allocation_limits(struct drm_i915_private *dev_priv,
 			continue;
 
 		weight = intel_crtc_ddb_weight(crtc_state);
-		total_weight += weight;
+		*weight_total += weight;
 
-		if (pipe < for_pipe)
-			weight_before_pipe += weight;
-		else if (pipe == for_pipe)
-			pipe_weight = weight;
+		if (pipe < for_pipe) {
+			*weight_start += weight;
+			*weight_end += weight;
+		} else if (pipe == for_pipe) {
+			*weight_end += weight;
+		}
 	}
 
 	/*
@@ -4210,8 +4184,67 @@ skl_ddb_get_pipe_allocation_limits(struct drm_i915_private *dev_priv,
 			return ret;
 	}
 
-	start = ddb_range_size * weight_before_pipe / total_weight;
-	end = ddb_range_size * (weight_before_pipe + pipe_weight) / total_weight;
+	return 0;
+}
+
+static int
+skl_ddb_get_pipe_allocation_limits(struct drm_i915_private *dev_priv,
+				   struct intel_crtc_state *crtc_state,
+				   const u64 total_data_rate,
+				   struct skl_ddb_entry *alloc, /* out */
+				   int *num_active /* out */)
+{
+	struct intel_atomic_state *state =
+		to_intel_atomic_state(crtc_state->uapi.state);
+	struct intel_crtc *crtc = to_intel_crtc(crtc_state->uapi.crtc);
+	unsigned int weight_start, weight_end, weight_total;
+	const struct intel_dbuf_state *old_dbuf_state =
+		intel_atomic_get_old_dbuf_state(state);
+	struct intel_dbuf_state *new_dbuf_state =
+		intel_atomic_get_new_dbuf_state(state);
+	u8 active_pipes = new_dbuf_state->active_pipes;
+	struct skl_ddb_entry ddb_slices;
+	u32 ddb_range_size;
+	u32 dbuf_slice_mask;
+	u32 start, end;
+	int ret;
+
+	*num_active = hweight8(active_pipes);
+
+	if (!crtc_state->hw.active) {
+		alloc->start = 0;
+		alloc->end = 0;
+		crtc_state->wm.skl.ddb = *alloc;
+		return 0;
+	}
+
+	/*
+	 * If the state doesn't change the active CRTC's or there is no
+	 * modeset request, then there's no need to recalculate;
+	 * the existing pipe allocation limits should remain unchanged.
+	 * Note that we're safe from racing commits since any racing commit
+	 * that changes the active CRTC list or do modeset would need to
+	 * grab _all_ crtc locks, including the one we currently hold.
+	 */
+	if (old_dbuf_state->active_pipes == new_dbuf_state->active_pipes &&
+	    !dev_priv->wm.distrust_bios_wm)
+		return 0;
+
+	/*
+	 * Get allowed DBuf slices for correspondent pipe and platform.
+	 */
+	dbuf_slice_mask = skl_compute_dbuf_slices(crtc, active_pipes);
+
+	skl_ddb_entry_for_slices(dev_priv, dbuf_slice_mask, &ddb_slices);
+	ddb_range_size = skl_ddb_entry_size(&ddb_slices);
+
+	ret = intel_crtc_dbuf_weights(state, crtc,
+				      &weight_start, &weight_end, &weight_total);
+	if (ret)
+		return ret;
+
+	start = ddb_range_size * weight_start / weight_total;
+	end = ddb_range_size * weight_end / weight_total;
 
 	alloc->start = ddb_slices.start + start;
 	alloc->end = ddb_slices.start + end;
@@ -4219,7 +4252,7 @@ skl_ddb_get_pipe_allocation_limits(struct drm_i915_private *dev_priv,
 
 	drm_dbg_kms(&dev_priv->drm,
 		    "[CRTC:%d:%s] dbuf slices 0x%x, ddb (%d - %d), active pipes 0x%x\n",
-		    for_crtc->base.base.id, for_crtc->base.name,
+		    crtc->base.base.id, crtc->base.name,
 		    dbuf_slice_mask, alloc->start, alloc->end, active_pipes);
 
 	return 0;
