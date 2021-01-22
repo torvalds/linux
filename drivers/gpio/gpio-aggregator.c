@@ -243,7 +243,7 @@ static DRIVER_ATTR_WO(delete_device);
 static struct attribute *gpio_aggregator_attrs[] = {
 	&driver_attr_new_device.attr,
 	&driver_attr_delete_device.attr,
-	NULL,
+	NULL
 };
 ATTRIBUTE_GROUPS(gpio_aggregator);
 
@@ -517,7 +517,7 @@ static const struct of_device_id gpio_aggregator_dt_ids[] = {
 	 * Add GPIO-operated devices controlled from userspace below,
 	 * or use "driver_override" in sysfs
 	 */
-	{},
+	{}
 };
 MODULE_DEVICE_TABLE(of, gpio_aggregator_dt_ids);
 #endif
