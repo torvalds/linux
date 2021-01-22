@@ -580,6 +580,7 @@ static void detect_bit_6_swizzle(struct i915_ggtt *ggtt)
 			}
 		} else {
 			u32 dimm_c0, dimm_c1;
+
 			dimm_c0 = intel_uncore_read(uncore, MAD_DIMM_C0);
 			dimm_c1 = intel_uncore_read(uncore, MAD_DIMM_C1);
 			dimm_c0 &= MAD_DIMM_A_SIZE_MASK | MAD_DIMM_B_SIZE_MASK;
@@ -769,10 +770,12 @@ i915_gem_object_do_bit_17_swizzle(struct drm_i915_gem_object *obj,
 	i = 0;
 	for_each_sgt_page(page, sgt_iter, pages) {
 		char new_bit_17 = page_to_phys(page) >> 17;
+
 		if ((new_bit_17 & 0x1) != (test_bit(i, obj->bit_17) != 0)) {
 			swizzle_page(page);
 			set_page_dirty(page);
 		}
+
 		i++;
 	}
 }

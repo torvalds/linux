@@ -62,6 +62,7 @@ static int render_state_setup(struct intel_renderstate *so,
 
 		if (i * 4  == rodata->reloc[reloc_index]) {
 			u64 r = s + so->vma->node.start;
+
 			s = lower_32_bits(r);
 			if (HAS_64BIT_RELOC(i915)) {
 				if (i + 1 >= rodata->batch_items ||

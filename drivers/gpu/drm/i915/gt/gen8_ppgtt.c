@@ -145,6 +145,7 @@ static unsigned int gen8_pt_count(u64 start, u64 end)
 static unsigned int gen8_pd_top_count(const struct i915_address_space *vm)
 {
 	unsigned int shift = __gen8_pte_shift(vm->top);
+
 	return (vm->total + (1ull << shift) - 1) >> shift;
 }
 
