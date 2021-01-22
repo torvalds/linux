@@ -29,7 +29,7 @@
 #define AT91_CIDR_EXT			BIT(31)
 #define AT91_CIDR_MATCH_MASK		GENMASK(30, 5)
 
-static const struct at91_soc __initconst socs[] = {
+static const struct at91_soc socs[] __initconst = {
 #ifdef CONFIG_SOC_AT91RM9200
 	AT91_SOC(AT91RM9200_CIDR_MATCH, 0, "at91rm9200 BGA", "at91rm9200"),
 #endif
