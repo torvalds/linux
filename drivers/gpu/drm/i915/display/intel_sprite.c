@@ -62,6 +62,16 @@ int intel_usecs_to_scanlines(const struct drm_display_mode *adjusted_mode,
 			    1000 * adjusted_mode->crtc_htotal);
 }
 
+static int intel_mode_vblank_start(const struct drm_display_mode *mode)
+{
+	int vblank_start = mode->crtc_vblank_start;
+
+	if (mode->flags & DRM_MODE_FLAG_INTERLACE)
+		vblank_start = DIV_ROUND_UP(vblank_start, 2);
+
+	return vblank_start;
+}
+
 /**
  * intel_pipe_update_start() - start update of a set of display registers
  * @new_crtc_state: the new crtc state
@@ -90,9 +100,7 @@ void intel_pipe_update_start(const struct intel_crtc_state *new_crtc_state)
 	if (new_crtc_state->uapi.async_flip)
 		return;
 
-	vblank_start = adjusted_mode->crtc_vblank_start;
-	if (adjusted_mode->flags & DRM_MODE_FLAG_INTERLACE)
-		vblank_start = DIV_ROUND_UP(vblank_start, 2);
+	vblank_start = intel_mode_vblank_start(adjusted_mode);
 
 	/* FIXME needs to be calibrated sensibly */
 	min = vblank_start - intel_usecs_to_scanlines(adjusted_mode,
