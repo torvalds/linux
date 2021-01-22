@@ -1070,7 +1070,7 @@ static bool hns3_check_hw_tx_csum(struct sk_buff *skb)
 	 * HW checksum of the non-IP packets and GSO packets is handled at
 	 * different place in the following code
 	 */
-	if (skb->csum_not_inet || skb_is_gso(skb) ||
+	if (skb_csum_is_sctp(skb) || skb_is_gso(skb) ||
 	    !test_bit(HNS3_NIC_STATE_HW_TX_CSUM_ENABLE, &priv->state))
 		return false;
 
