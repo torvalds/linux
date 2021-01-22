@@ -609,7 +609,7 @@ static void tegra_gpio_irq_release_resources(struct irq_data *d)
 
 static int tegra_dbg_gpio_show(struct seq_file *s, void *unused)
 {
-	struct tegra_gpio_info *tgi = s->private;
+	struct tegra_gpio_info *tgi = dev_get_drvdata(s->private);
 	unsigned int i, j;
 
 	for (i = 0; i < tgi->bank_count; i++) {
@@ -631,12 +631,10 @@ static int tegra_dbg_gpio_show(struct seq_file *s, void *unused)
 	return 0;
 }
 
-DEFINE_SHOW_ATTRIBUTE(tegra_dbg_gpio);
-
 static void tegra_gpio_debuginit(struct tegra_gpio_info *tgi)
 {
-	debugfs_create_file("tegra_gpio", 0444, NULL, tgi,
-			    &tegra_dbg_gpio_fops);
+	debugfs_create_devm_seqfile(tgi->dev, "tegra_gpio", NULL,
+				    tegra_dbg_gpio_show);
 }
 
 #else
