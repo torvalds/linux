@@ -337,13 +337,11 @@ int radio_isa_probe(struct device *pdev, unsigned int dev)
 }
 EXPORT_SYMBOL_GPL(radio_isa_probe);
 
-int radio_isa_remove(struct device *pdev, unsigned int dev)
+void radio_isa_remove(struct device *pdev, unsigned int dev)
 {
 	struct radio_isa_card *isa = dev_get_drvdata(pdev);
 
 	radio_isa_common_remove(isa, isa->drv->region_size);
-
-	return 0;
 }
 EXPORT_SYMBOL_GPL(radio_isa_remove);
 

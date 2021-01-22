@@ -11459,12 +11459,11 @@ static int advansys_isa_probe(struct device *dev, unsigned int id)
 	return err;
 }
 
-static int advansys_isa_remove(struct device *dev, unsigned int id)
+static void advansys_isa_remove(struct device *dev, unsigned int id)
 {
 	int ioport = _asc_def_iop_base[id];
 	advansys_release(dev_get_drvdata(dev));
 	release_region(ioport, ASC_IOADR_GAP);
-	return 0;
 }
 
 static struct isa_driver advansys_isa_driver = {
