@@ -385,9 +385,12 @@ static void extent_map_device_clear_bits(struct extent_map *em, unsigned bits)
 }
 
 /**
- * add_extent_mapping - add new extent map to the extent tree
+ * Add new extent map to the extent tree
+ *
  * @tree:	tree to insert new map in
  * @em:		map to insert
+ * @modified:	indicate whether the given @em should be added to the
+ *	        modified list, which indicates the extent needs to be logged
  *
  * Insert @em into @tree or perform a simple forward/backward merge with
  * existing mappings.  The extent_map struct passed in will be inserted
