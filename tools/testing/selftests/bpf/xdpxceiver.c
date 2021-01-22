@@ -411,7 +411,7 @@ static int validate_interfaces(void)
 		if (strcmp(ifdict[i]->nsname, "")) {
 			struct targs *targs;
 
-			targs = (struct targs *)malloc(sizeof(struct targs));
+			targs = malloc(sizeof(*targs));
 			if (!targs)
 				exit_with_error(errno);
 
@@ -578,7 +578,7 @@ static void rx_pkt(struct xsk_socket_info *xsk, struct pollfd *fds)
 		if (!pkt_node_rx)
 			exit_with_error(errno);
 
-		pkt_node_rx->pkt_frame = (char *)malloc(PKT_SIZE);
+		pkt_node_rx->pkt_frame = malloc(PKT_SIZE);
 		if (!pkt_node_rx->pkt_frame)
 			exit_with_error(errno);
 
@@ -739,8 +739,8 @@ static void worker_pkt_validate(void)
 		if (iphdr->version == IP_PKT_VER && iphdr->tos == IP_PKT_TOS) {
 			payloadseqnum = *((uint32_t *)(pkt_node_rx_q->pkt_frame + PKT_HDR_SIZE));
 			if (debug_pkt_dump && payloadseqnum != EOT) {
-				pkt_obj = (struct pkt_frame *)malloc(sizeof(struct pkt_frame));
-				pkt_obj->payload = (char *)malloc(PKT_SIZE);
+				pkt_obj = malloc(sizeof(*pkt_obj));
+				pkt_obj->payload = malloc(PKT_SIZE);
 				memcpy(pkt_obj->payload, pkt_node_rx_q->pkt_frame, PKT_SIZE);
 				pkt_buf[payloadseqnum] = pkt_obj;
 			}
@@ -865,7 +865,7 @@ static void *worker_testapp_validate(void *arg)
 
 		TAILQ_INIT(&head);
 		if (debug_pkt_dump) {
-			pkt_buf = malloc(sizeof(struct pkt_frame **) * num_frames);
+			pkt_buf = calloc(num_frames, sizeof(*pkt_buf));
 			if (!pkt_buf)
 				exit_with_error(errno);
 		}
@@ -1017,7 +1017,7 @@ int main(int argc, char **argv)
 	u16 UDP_DST_PORT = 2020;
 	u16 UDP_SRC_PORT = 2121;
 
-	ifaceconfig = (struct ifaceconfigobj *)malloc(sizeof(struct ifaceconfigobj));
+	ifaceconfig = malloc(sizeof(struct ifaceconfigobj));
 	memcpy(ifaceconfig->dst_mac, MAC1, ETH_ALEN);
 	memcpy(ifaceconfig->src_mac, MAC2, ETH_ALEN);
 	inet_aton(IP1, &ifaceconfig->dst_ip);
@@ -1026,7 +1026,7 @@ int main(int argc, char **argv)
 	ifaceconfig->src_port = UDP_SRC_PORT;
 
 	for (int i = 0; i < MAX_INTERFACES; i++) {
-		ifdict[i] = (struct ifobject *)malloc(sizeof(struct ifobject));
+		ifdict[i] = malloc(sizeof(struct ifobject));
 		if (!ifdict[i])
 			exit_with_error(errno);
 
