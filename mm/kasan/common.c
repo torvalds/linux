@@ -336,6 +336,9 @@ static bool ____kasan_slab_free(struct kmem_cache *cache, void *object,
 	tagged_object = object;
 	object = kasan_reset_tag(object);
 
+	if (is_kfence_address(object))
+		return false;
+
 	if (unlikely(nearest_obj(cache, virt_to_head_page(object), object) !=
 	    object)) {
 		kasan_report_invalid_free(tagged_object, ip);
@@ -413,6 +416,9 @@ static void *____kasan_kmalloc(struct kmem_cache *cache, const void *object,
 
 	if (unlikely(object == NULL))
 		return NULL;
+
+	if (is_kfence_address(object))
+		return (void *)object;
 
 	redzone_start = round_up((unsigned long)(object + size),
 				KASAN_GRANULE_SIZE);
