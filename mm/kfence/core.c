@@ -94,9 +94,6 @@ DEFINE_STATIC_KEY_FALSE(kfence_allocation_key);
 /* Gates the allocation, ensuring only one succeeds in a given period. */
 static atomic_t allocation_gate = ATOMIC_INIT(1);
 
-/* Wait queue to wake up allocation-gate timer task. */
-static DECLARE_WAIT_QUEUE_HEAD(allocation_wait);
-
 /* Statistics counters for debugfs. */
 enum kfence_counter_id {
 	KFENCE_COUNTER_ALLOCATED,
@@ -582,6 +579,8 @@ late_initcall(kfence_debugfs_init);
 static struct delayed_work kfence_timer;
 static void toggle_allocation_gate(struct work_struct *work)
 {
+	unsigned long end_wait;
+
 	if (!READ_ONCE(kfence_enabled))
 		return;
 
@@ -592,7 +591,14 @@ static void toggle_allocation_gate(struct work_struct *work)
 	 * Await an allocation. Timeout after 1 second, in case the kernel stops
 	 * doing allocations, to avoid stalling this worker task for too long.
 	 */
-	wait_event_timeout(allocation_wait, atomic_read(&allocation_gate) != 0, HZ);
+	end_wait = jiffies + HZ;
+	do {
+		set_current_state(TASK_UNINTERRUPTIBLE);
+		if (atomic_read(&allocation_gate) != 0)
+			break;
+		schedule_timeout(1);
+	} while (time_before(jiffies, end_wait));
+	__set_current_state(TASK_RUNNING);
 
 	/* Disable static key and reset timer. */
 	static_branch_disable(&kfence_allocation_key);
@@ -703,7 +709,6 @@ void *__kfence_alloc(struct kmem_cache *s, size_t size, gfp_t flags)
 	 */
 	if (atomic_read(&allocation_gate) || atomic_inc_return(&allocation_gate) > 1)
 		return NULL;
-	wake_up(&allocation_wait);
 
 	if (!READ_ONCE(kfence_enabled))
 		return NULL;
