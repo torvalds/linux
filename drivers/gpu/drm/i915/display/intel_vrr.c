@@ -20,10 +20,10 @@ bool intel_vrr_is_capable(struct drm_connector *connector)
 
 	intel_dp = intel_attached_dp(to_intel_connector(connector));
 	/*
-	 * DP Sink is capable of Variable refresh video timings if
+	 * DP Sink is capable of VRR video timings if
 	 * Ignore MSA bit is set in DPCD.
 	 * EDID monitor range also should be atleast 10 for reasonable
-	 * Adaptive sync/ VRR end user experience.
+	 * Adaptive Sync or Variable Refresh Rate end user experience.
 	 */
 	return HAS_VRR(i915) &&
 		drm_dp_sink_can_do_video_without_timing_msa(intel_dp->dpcd) &&
