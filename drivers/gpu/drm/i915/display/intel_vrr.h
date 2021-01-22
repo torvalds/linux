@@ -27,5 +27,7 @@ void intel_vrr_send_push(const struct intel_crtc_state *crtc_state);
 void intel_vrr_disable(const struct intel_crtc_state *old_crtc_state);
 void intel_vrr_get_config(struct intel_crtc *crtc,
 			  struct intel_crtc_state *crtc_state);
+int intel_vrr_vmax_vblank_start(const struct intel_crtc_state *crtc_state);
+int intel_vrr_vmin_vblank_start(const struct intel_crtc_state *crtc_state);
 
 #endif /* __INTEL_VRR_H__ */

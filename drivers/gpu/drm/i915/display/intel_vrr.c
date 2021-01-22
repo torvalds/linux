@@ -45,6 +45,42 @@ intel_vrr_check_modeset(struct intel_atomic_state *state)
 	}
 }
 
+/*
+ * Without VRR registers get latched at:
+ *  vblank_start
+ *
+ * With VRR the earliest registers can get latched is:
+ *  intel_vrr_vmin_vblank_start(), which if we want to maintain
+ *  the correct min vtotal is >=vblank_start+1
+ *
+ * The latest point registers can get latched is the vmax decision boundary:
+ *  intel_vrr_vmax_vblank_start()
+ *
+ * Between those two points the vblank exit starts (and hence registers get
+ * latched) ASAP after a push is sent.
+ *
+ * framestart_delay is programmable 0-3.
+ */
+static int intel_vrr_vblank_exit_length(const struct intel_crtc_state *crtc_state)
+{
+	struct intel_crtc *crtc = to_intel_crtc(crtc_state->uapi.crtc);
+	struct drm_i915_private *i915 = to_i915(crtc->base.dev);
+
+	/* The hw imposes the extra scanline before frame start */
+	return crtc_state->vrr.pipeline_full + i915->framestart_delay + 1;
+}
+
+int intel_vrr_vmin_vblank_start(const struct intel_crtc_state *crtc_state)
+{
+	/* Min vblank actually determined by flipline that is always >=vmin+1 */
+	return crtc_state->vrr.vmin + 1 - intel_vrr_vblank_exit_length(crtc_state);
+}
+
+int intel_vrr_vmax_vblank_start(const struct intel_crtc_state *crtc_state)
+{
+	return crtc_state->vrr.vmax - intel_vrr_vblank_exit_length(crtc_state);
+}
+
 void
 intel_vrr_compute_config(struct intel_crtc_state *crtc_state,
 			 struct drm_connector_state *conn_state)
