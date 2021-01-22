@@ -43,7 +43,7 @@ render_state_get_rodata(const struct intel_engine_cs *engine)
 		if ((i) >= PAGE_SIZE / sizeof(u32))		\
 			goto out;				\
 		(batch)[(i)++] = (val);				\
-	} while(0)
+	} while (0)
 
 static int render_state_setup(struct intel_renderstate *so,
 			      struct drm_i915_private *i915)
