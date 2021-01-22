@@ -1725,6 +1725,9 @@ intel_dp_drrs_compute_config(struct intel_dp *intel_dp,
 	struct intel_connector *intel_connector = intel_dp->attached_connector;
 	struct drm_i915_private *dev_priv = dp_to_i915(intel_dp);
 
+	if (pipe_config->vrr.enable)
+		return;
+
 	/*
 	 * DRRS and PSR can't be enable together, so giving preference to PSR
 	 * as it allows more power-savings by complete shutting down display,
