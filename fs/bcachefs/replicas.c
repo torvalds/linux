@@ -159,7 +159,7 @@ cpu_replicas_add_entry(struct bch_replicas_cpu *old,
 	BUG_ON(!new_entry->data_type);
 	verify_replicas_entry(new_entry);
 
-	new.entries = kcalloc(new.nr, new.entry_size, GFP_NOIO);
+	new.entries = kcalloc(new.nr, new.entry_size, GFP_KERNEL);
 	if (!new.entries)
 		return new;
 
@@ -284,20 +284,20 @@ static int replicas_table_update(struct bch_fs *c,
 
 	for (i = 0; i < ARRAY_SIZE(new_usage); i++)
 		if (!(new_usage[i] = __alloc_percpu_gfp(bytes,
-					sizeof(u64), GFP_NOIO)))
+					sizeof(u64), GFP_KERNEL)))
 			goto err;
 
 	memset(new_usage, 0, sizeof(new_usage));
 
 	for (i = 0; i < ARRAY_SIZE(new_usage); i++)
 		if (!(new_usage[i] = __alloc_percpu_gfp(bytes,
-					sizeof(u64), GFP_NOIO)))
+					sizeof(u64), GFP_KERNEL)))
 			goto err;
 
-	if (!(new_base = kzalloc(bytes, GFP_NOIO)) ||
-	    !(new_scratch  = kmalloc(scratch_bytes, GFP_NOIO)) ||
+	if (!(new_base = kzalloc(bytes, GFP_KERNEL)) ||
+	    !(new_scratch  = kmalloc(scratch_bytes, GFP_KERNEL)) ||
 	    (c->usage_gc &&
-	     !(new_gc = __alloc_percpu_gfp(bytes, sizeof(u64), GFP_NOIO))))
+	     !(new_gc = __alloc_percpu_gfp(bytes, sizeof(u64), GFP_KERNEL))))
 		goto err;
 
 	for (i = 0; i < ARRAY_SIZE(new_usage); i++)
@@ -557,7 +557,7 @@ int bch2_replicas_gc_start(struct bch_fs *c, unsigned typemask)
 
 	c->replicas_gc.entries = kcalloc(c->replicas_gc.nr,
 					 c->replicas_gc.entry_size,
-					 GFP_NOIO);
+					 GFP_KERNEL);
 	if (!c->replicas_gc.entries) {
 		mutex_unlock(&c->sb_lock);
 		bch_err(c, "error allocating c->replicas_gc");
@@ -680,7 +680,7 @@ __bch2_sb_replicas_to_cpu_replicas(struct bch_sb_field_replicas *sb_r,
 		nr++;
 	}
 
-	cpu_r->entries = kcalloc(nr, entry_size, GFP_NOIO);
+	cpu_r->entries = kcalloc(nr, entry_size, GFP_KERNEL);
 	if (!cpu_r->entries)
 		return -ENOMEM;
 
@@ -712,7 +712,7 @@ __bch2_sb_replicas_v0_to_cpu_replicas(struct bch_sb_field_replicas_v0 *sb_r,
 	entry_size += sizeof(struct bch_replicas_entry) -
 		sizeof(struct bch_replicas_entry_v0);
 
-	cpu_r->entries = kcalloc(nr, entry_size, GFP_NOIO);
+	cpu_r->entries = kcalloc(nr, entry_size, GFP_KERNEL);
 	if (!cpu_r->entries)
 		return -ENOMEM;
 
