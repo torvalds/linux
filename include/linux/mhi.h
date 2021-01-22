@@ -38,6 +38,7 @@ struct mhi_buf_info;
  * @MHI_CB_FATAL_ERROR: MHI device entered fatal error state
  * @MHI_CB_BW_REQ: Received a bandwidth switch request from device
  * @MHI_CB_FALLBACK_IMG: MHI device was loaded with the provided fallback image
+ * @MHI_CB_DTR_SIGNAL: DTR signaling update
  */
 enum mhi_callback {
 	MHI_CB_IDLE,
@@ -50,6 +51,7 @@ enum mhi_callback {
 	MHI_CB_FATAL_ERROR,
 	MHI_CB_BW_REQ,
 	MHI_CB_FALLBACK_IMG,
+	MHI_CB_DTR_SIGNAL,
 };
 
 /**
@@ -495,6 +497,7 @@ struct mhi_controller {
  * @dl_chan_id: MHI channel id for DL transfer
  * @ul_event_id: MHI event ring id for DL transfer
  * @dev_wake: Device wakeup counter
+ * @tiocm: Device current terminal settings
  */
 struct mhi_device {
 	const struct mhi_device_id *id;
@@ -509,6 +512,7 @@ struct mhi_device {
 	int dl_chan_id;
 	int dl_event_id;
 	u32 dev_wake;
+	u32 tiocm;
 };
 
 /**
