@@ -1718,7 +1718,7 @@ static bool copy_data(struct prb_data_ring *data_ring,
 
 	/* Caller interested in the line count? */
 	if (line_count)
-		*line_count = count_lines(data, data_size);
+		*line_count = count_lines(data, len);
 
 	/* Caller interested in the data content? */
 	if (!buf || !buf_size)

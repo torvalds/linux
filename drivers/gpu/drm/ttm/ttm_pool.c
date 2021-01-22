@@ -79,12 +79,13 @@ static struct page *ttm_pool_alloc_page(struct ttm_pool *pool, gfp_t gfp_flags,
 	struct page *p;
 	void *vaddr;
 
-	if (order) {
-		gfp_flags |= GFP_TRANSHUGE_LIGHT | __GFP_NORETRY |
+	/* Don't set the __GFP_COMP flag for higher order allocations.
+	 * Mapping pages directly into an userspace process and calling
+	 * put_page() on a TTM allocated page is illegal.
+	 */
+	if (order)
+		gfp_flags |= __GFP_NOMEMALLOC | __GFP_NORETRY |
 			__GFP_KSWAPD_RECLAIM;
-		gfp_flags &= ~__GFP_MOVABLE;
-		gfp_flags &= ~__GFP_COMP;
-	}
 
 	if (!pool->use_dma_alloc) {
 		p = alloc_pages(gfp_flags, order);
