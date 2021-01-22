@@ -29,3 +29,73 @@ bool intel_vrr_is_capable(struct drm_connector *connector)
 		drm_dp_sink_can_do_video_without_timing_msa(intel_dp->dpcd) &&
 		info->monitor_range.max_vfreq - info->monitor_range.min_vfreq > 10;
 }
+
+void
+intel_vrr_check_modeset(struct intel_atomic_state *state)
+{
+	int i;
+	struct intel_crtc_state *old_crtc_state, *new_crtc_state;
+	struct intel_crtc *crtc;
+
+	for_each_oldnew_intel_crtc_in_state(state, crtc, old_crtc_state,
+					    new_crtc_state, i) {
+		if (new_crtc_state->uapi.vrr_enabled !=
+		    old_crtc_state->uapi.vrr_enabled)
+			new_crtc_state->uapi.mode_changed = true;
+	}
+}
+
+void
+intel_vrr_compute_config(struct intel_crtc_state *crtc_state,
+			 struct drm_connector_state *conn_state)
+{
+	struct intel_connector *connector =
+		to_intel_connector(conn_state->connector);
+	struct drm_display_mode *adjusted_mode = &crtc_state->hw.adjusted_mode;
+	const struct drm_display_info *info = &connector->base.display_info;
+	int vmin, vmax;
+
+	if (!intel_vrr_is_capable(&connector->base))
+		return;
+
+	if (adjusted_mode->flags & DRM_MODE_FLAG_INTERLACE)
+		return;
+
+	if (!crtc_state->uapi.vrr_enabled)
+		return;
+
+	vmin = DIV_ROUND_UP(adjusted_mode->crtc_clock * 1000,
+			    adjusted_mode->crtc_htotal * info->monitor_range.max_vfreq);
+	vmax = adjusted_mode->crtc_clock * 1000 /
+		(adjusted_mode->crtc_htotal * info->monitor_range.min_vfreq);
+
+	vmin = max_t(int, vmin, adjusted_mode->crtc_vtotal);
+	vmax = max_t(int, vmax, adjusted_mode->crtc_vtotal);
+
+	if (vmin >= vmax)
+		return;
+
+	/*
+	 * flipline determines the min vblank length the hardware will
+	 * generate, and flipline>=vmin+1, hence we reduce vmin by one
+	 * to make sure we can get the actual min vblank length.
+	 */
+	crtc_state->vrr.vmin = vmin - 1;
+	crtc_state->vrr.vmax = vmax;
+	crtc_state->vrr.enable = true;
+
+	crtc_state->vrr.flipline = crtc_state->vrr.vmin + 1;
+
+	/*
+	 * FIXME: s/4/framestart_delay+1/ to get consistent
+	 * earliest/latest points for register latching regardless
+	 * of the framestart_delay used?
+	 *
+	 * FIXME: this really needs the extra scanline to provide consistent
+	 * behaviour for all framestart_delay values. Otherwise with
+	 * framestart_delay==3 we will end up extending the min vblank by
+	 * one extra line.
+	 */
+	crtc_state->vrr.pipeline_full =
+		min(255, crtc_state->vrr.vmin - adjusted_mode->crtc_vdisplay - 4 - 1);
+}

@@ -58,6 +58,7 @@
 #include "display/intel_sdvo.h"
 #include "display/intel_tv.h"
 #include "display/intel_vdsc.h"
+#include "display/intel_vrr.h"
 
 #include "gem/i915_gem_object.h"
 
@@ -11319,6 +11320,12 @@ intel_pipe_config_compare(const struct intel_crtc_state *current_config,
 
 	PIPE_CONF_CHECK_I(mst_master_transcoder);
 
+	PIPE_CONF_CHECK_BOOL(vrr.enable);
+	PIPE_CONF_CHECK_I(vrr.vmin);
+	PIPE_CONF_CHECK_I(vrr.vmax);
+	PIPE_CONF_CHECK_I(vrr.flipline);
+	PIPE_CONF_CHECK_I(vrr.pipeline_full);
+
 #undef PIPE_CONF_CHECK_X
 #undef PIPE_CONF_CHECK_I
 #undef PIPE_CONF_CHECK_BOOL
@@ -12475,6 +12482,8 @@ static int intel_atomic_check(struct drm_device *dev,
 		if (new_crtc_state->inherited != old_crtc_state->inherited)
 			new_crtc_state->uapi.mode_changed = true;
 	}
+
+	intel_vrr_check_modeset(state);
 
 	ret = drm_atomic_helper_check_modeset(dev, &state->base);
 	if (ret)
