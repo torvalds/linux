@@ -92,4 +92,12 @@ config SYSTEM_REVOCATION_LIST
 	  blacklist keyring and implements a hook whereby a PKCS#7 message can
 	  be checked to see if it matches such a certificate.
 
+config SYSTEM_REVOCATION_KEYS
+	string "X.509 certificates to be preloaded into the system blacklist keyring"
+	depends on SYSTEM_REVOCATION_LIST
+	help
+	  If set, this option should be the filename of a PEM-formatted file
+	  containing X.509 certificates to be included in the default blacklist
+	  keyring.
+
 endmenu
