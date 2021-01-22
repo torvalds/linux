@@ -75,3 +75,4 @@ bool cpufreq_this_cpu_can_update(struct cpufreq_policy *policy)
 		(policy->dvfs_possible_from_any_cpu &&
 		 rcu_dereference_sched(*this_cpu_ptr(&cpufreq_update_util_data)));
 }
+EXPORT_SYMBOL_GPL(cpufreq_this_cpu_can_update);
