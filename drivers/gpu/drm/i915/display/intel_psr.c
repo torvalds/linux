@@ -812,6 +812,13 @@ void intel_psr_compute_config(struct intel_dp *intel_dp,
 		&crtc_state->hw.adjusted_mode;
 	int psr_setup_time;
 
+	/*
+	 * Current PSR panels dont work reliably with VRR enabled
+	 * So if VRR is enabled, do not enable PSR.
+	 */
+	if (crtc_state->vrr.enable)
+		return;
+
 	if (!CAN_PSR(dev_priv))
 		return;
 
