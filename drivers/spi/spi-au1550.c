@@ -74,8 +74,7 @@ struct au1550_spi {
 
 
 /* we use an 8-bit memory device for dma transfers to/from spi fifo */
-static dbdev_tab_t au1550_spi_mem_dbdev =
-{
+static dbdev_tab_t au1550_spi_mem_dbdev = {
 	.dev_id			= DBDMA_MEM_CHAN,
 	.dev_flags		= DEV_FLAGS_ANYUSE|DEV_FLAGS_SYNC,
 	.dev_tsize		= 0,
@@ -399,10 +398,10 @@ static int au1550_spi_dma_txrxb(struct spi_device *spi, struct spi_transfer *t)
 			DMA_FROM_DEVICE);
 	}
 	/* unmap buffers if mapped above */
-	if (t->rx_buf && t->rx_dma == 0 )
+	if (t->rx_buf && t->rx_dma == 0)
 		dma_unmap_single(hw->dev, dma_rx_addr, t->len,
 			DMA_FROM_DEVICE);
-	if (t->tx_buf && t->tx_dma == 0 )
+	if (t->tx_buf && t->tx_dma == 0)
 		dma_unmap_single(hw->dev, dma_tx_addr, t->len,
 			DMA_TO_DEVICE);
 
@@ -493,12 +492,12 @@ static void au1550_spi_tx_word_##size(struct au1550_spi *hw)		\
 	wmb(); /* drain writebuffer */					\
 }
 
-AU1550_SPI_RX_WORD(8,0xff)
-AU1550_SPI_RX_WORD(16,0xffff)
-AU1550_SPI_RX_WORD(32,0xffffff)
-AU1550_SPI_TX_WORD(8,0xff)
-AU1550_SPI_TX_WORD(16,0xffff)
-AU1550_SPI_TX_WORD(32,0xffffff)
+AU1550_SPI_RX_WORD(8, 0xff)
+AU1550_SPI_RX_WORD(16, 0xffff)
+AU1550_SPI_RX_WORD(32, 0xffffff)
+AU1550_SPI_TX_WORD(8, 0xff)
+AU1550_SPI_TX_WORD(16, 0xffff)
+AU1550_SPI_TX_WORD(32, 0xffffff)
 
 static int au1550_spi_pio_txrxb(struct spi_device *spi, struct spi_transfer *t)
 {
@@ -636,12 +635,14 @@ static irqreturn_t au1550_spi_pio_irq_callback(struct au1550_spi *hw)
 static int au1550_spi_txrx_bufs(struct spi_device *spi, struct spi_transfer *t)
 {
 	struct au1550_spi *hw = spi_master_get_devdata(spi->master);
+
 	return hw->txrx_bufs(spi, t);
 }
 
 static irqreturn_t au1550_spi_irq(int irq, void *dev)
 {
 	struct au1550_spi *hw = dev;
+
 	return hw->irq_callback(hw);
 }
 
@@ -872,6 +873,7 @@ static int au1550_spi_probe(struct platform_device *pdev)
 	{
 		int min_div = (2 << 0) * (2 * (4 + 1));
 		int max_div = (2 << 3) * (2 * (63 + 1));
+
 		master->max_speed_hz = hw->pdata->mainclk_hz / min_div;
 		master->min_speed_hz =
 				hw->pdata->mainclk_hz / (max_div + 1) + 1;
