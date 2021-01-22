@@ -981,25 +981,25 @@ static void testapp_sockets(void)
 	print_ksft_result();
 }
 
-static void init_iface_config(void *ifaceconfig)
+static void init_iface_config(struct ifaceconfigobj *ifaceconfig)
 {
 	/*Init interface0 */
 	ifdict[0]->fv.vector = tx;
-	memcpy(ifdict[0]->dst_mac, ((struct ifaceconfigobj *)ifaceconfig)->dst_mac, ETH_ALEN);
-	memcpy(ifdict[0]->src_mac, ((struct ifaceconfigobj *)ifaceconfig)->src_mac, ETH_ALEN);
-	ifdict[0]->dst_ip = ((struct ifaceconfigobj *)ifaceconfig)->dst_ip.s_addr;
-	ifdict[0]->src_ip = ((struct ifaceconfigobj *)ifaceconfig)->src_ip.s_addr;
-	ifdict[0]->dst_port = ((struct ifaceconfigobj *)ifaceconfig)->dst_port;
-	ifdict[0]->src_port = ((struct ifaceconfigobj *)ifaceconfig)->src_port;
+	memcpy(ifdict[0]->dst_mac, ifaceconfig->dst_mac, ETH_ALEN);
+	memcpy(ifdict[0]->src_mac, ifaceconfig->src_mac, ETH_ALEN);
+	ifdict[0]->dst_ip = ifaceconfig->dst_ip.s_addr;
+	ifdict[0]->src_ip = ifaceconfig->src_ip.s_addr;
+	ifdict[0]->dst_port = ifaceconfig->dst_port;
+	ifdict[0]->src_port = ifaceconfig->src_port;
 
 	/*Init interface1 */
 	ifdict[1]->fv.vector = rx;
-	memcpy(ifdict[1]->dst_mac, ((struct ifaceconfigobj *)ifaceconfig)->src_mac, ETH_ALEN);
-	memcpy(ifdict[1]->src_mac, ((struct ifaceconfigobj *)ifaceconfig)->dst_mac, ETH_ALEN);
-	ifdict[1]->dst_ip = ((struct ifaceconfigobj *)ifaceconfig)->src_ip.s_addr;
-	ifdict[1]->src_ip = ((struct ifaceconfigobj *)ifaceconfig)->dst_ip.s_addr;
-	ifdict[1]->dst_port = ((struct ifaceconfigobj *)ifaceconfig)->src_port;
-	ifdict[1]->src_port = ((struct ifaceconfigobj *)ifaceconfig)->dst_port;
+	memcpy(ifdict[1]->dst_mac, ifaceconfig->src_mac, ETH_ALEN);
+	memcpy(ifdict[1]->src_mac, ifaceconfig->dst_mac, ETH_ALEN);
+	ifdict[1]->dst_ip = ifaceconfig->src_ip.s_addr;
+	ifdict[1]->src_ip = ifaceconfig->dst_ip.s_addr;
+	ifdict[1]->dst_port = ifaceconfig->src_port;
+	ifdict[1]->src_port = ifaceconfig->dst_port;
 }
 
 int main(int argc, char **argv)
@@ -1038,7 +1038,7 @@ int main(int argc, char **argv)
 
 	num_frames = ++opt_pkt_count;
 
-	init_iface_config((void *)ifaceconfig);
+	init_iface_config(ifaceconfig);
 
 	pthread_init_mutex();
 
