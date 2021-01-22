@@ -143,6 +143,7 @@ i915_gem_object_create_region(struct intel_memory_region *mem,
 			      unsigned int flags)
 {
 	struct drm_i915_gem_object *obj;
+	int err;
 
 	/*
 	 * NB: Our use of resource_size_t for the size stems from using struct
@@ -173,9 +174,18 @@ i915_gem_object_create_region(struct intel_memory_region *mem,
 	if (overflows_type(size, obj->base.size))
 		return ERR_PTR(-E2BIG);
 
-	obj = mem->ops->create_object(mem, size, flags);
-	if (!IS_ERR(obj))
-		trace_i915_gem_object_create(obj);
+	obj = i915_gem_object_alloc();
+	if (!obj)
+		return ERR_PTR(-ENOMEM);
 
+	err = mem->ops->init_object(mem, obj, size, flags);
+	if (err)
+		goto err_object_free;
+
+	trace_i915_gem_object_create(obj);
 	return obj;
+
+err_object_free:
+	i915_gem_object_free(obj);
+	return ERR_PTR(err);
 }

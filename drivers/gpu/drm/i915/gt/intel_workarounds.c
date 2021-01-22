@@ -1304,7 +1304,7 @@ bool intel_gt_verify_workarounds(struct intel_gt *gt, const char *from)
 }
 
 __maybe_unused
-static inline bool is_nonpriv_flags_valid(u32 flags)
+static bool is_nonpriv_flags_valid(u32 flags)
 {
 	/* Check only valid flag bits are set */
 	if (flags & ~RING_FORCE_TO_NONPRIV_MASK_VALID)

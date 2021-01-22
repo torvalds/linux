@@ -363,6 +363,21 @@ i915_vma_unpin_fence(struct i915_vma *vma)
 
 void i915_vma_parked(struct intel_gt *gt);
 
+static inline bool i915_vma_is_scanout(const struct i915_vma *vma)
+{
+	return test_bit(I915_VMA_SCANOUT_BIT, __i915_vma_flags(vma));
+}
+
+static inline void i915_vma_mark_scanout(struct i915_vma *vma)
+{
+	set_bit(I915_VMA_SCANOUT_BIT, __i915_vma_flags(vma));
+}
+
+static inline void i915_vma_clear_scanout(struct i915_vma *vma)
+{
+	clear_bit(I915_VMA_SCANOUT_BIT, __i915_vma_flags(vma));
+}
+
 #define for_each_until(cond) if (cond) break; else
 
 /**

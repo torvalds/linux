@@ -151,8 +151,7 @@ static void mark_innocent(struct i915_request *rq)
 void __i915_request_reset(struct i915_request *rq, bool guilty)
 {
 	RQ_TRACE(rq, "guilty? %s\n", yesno(guilty));
-
-	GEM_BUG_ON(i915_request_completed(rq));
+	GEM_BUG_ON(__i915_request_is_complete(rq));
 
 	rcu_read_lock(); /* protect the GEM context */
 	if (guilty) {
@@ -1110,7 +1109,7 @@ error:
 	goto finish;
 }
 
-static inline int intel_gt_reset_engine(struct intel_engine_cs *engine)
+static int intel_gt_reset_engine(struct intel_engine_cs *engine)
 {
 	return __intel_gt_reset(engine->gt, engine->mask);
 }

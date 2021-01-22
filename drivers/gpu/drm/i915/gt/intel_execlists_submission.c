@@ -115,6 +115,7 @@
 #include "intel_breadcrumbs.h"
 #include "intel_context.h"
 #include "intel_engine_pm.h"
+#include "intel_engine_stats.h"
 #include "intel_execlists_submission.h"
 #include "intel_gt.h"
 #include "intel_gt_pm.h"
@@ -230,8 +231,7 @@ active_request(const struct intel_timeline * const tl, struct i915_request *rq)
 	return __active_request(tl, rq, 0);
 }
 
-static inline void
-ring_set_paused(const struct intel_engine_cs *engine, int state)
+static void ring_set_paused(const struct intel_engine_cs *engine, int state)
 {
 	/*
 	 * We inspect HWS_PREEMPT with a semaphore inside
@@ -244,12 +244,12 @@ ring_set_paused(const struct intel_engine_cs *engine, int state)
 		wmb();
 }
 
-static inline struct i915_priolist *to_priolist(struct rb_node *rb)
+static struct i915_priolist *to_priolist(struct rb_node *rb)
 {
 	return rb_entry(rb, struct i915_priolist, node);
 }
 
-static inline int rq_prio(const struct i915_request *rq)
+static int rq_prio(const struct i915_request *rq)
 {
 	return READ_ONCE(rq->sched.attr.priority);
 }
@@ -299,8 +299,8 @@ static int virtual_prio(const struct intel_engine_execlists *el)
 	return rb ? rb_entry(rb, struct ve_node, rb)->prio : INT_MIN;
 }
 
-static inline bool need_preempt(const struct intel_engine_cs *engine,
-				const struct i915_request *rq)
+static bool need_preempt(const struct intel_engine_cs *engine,
+			 const struct i915_request *rq)
 {
 	int last_prio;
 
@@ -351,7 +351,7 @@ static inline bool need_preempt(const struct intel_engine_cs *engine,
 		   queue_prio(&engine->execlists)) > last_prio;
 }
 
-__maybe_unused static inline bool
+__maybe_unused static bool
 assert_priority_queue(const struct i915_request *prev,
 		      const struct i915_request *next)
 {
@@ -418,7 +418,7 @@ execlists_unwind_incomplete_requests(struct intel_engine_execlists *execlists)
 	return __unwind_incomplete_requests(engine);
 }
 
-static inline void
+static void
 execlists_context_status_change(struct i915_request *rq, unsigned long status)
 {
 	/*
@@ -430,39 +430,6 @@ execlists_context_status_change(struct i915_request *rq, unsigned long status)
 
 	atomic_notifier_call_chain(&rq->engine->context_status_notifier,
 				   status, rq);
-}
-
-static void intel_engine_context_in(struct intel_engine_cs *engine)
-{
-	unsigned long flags;
-
-	if (atomic_add_unless(&engine->stats.active, 1, 0))
-		return;
-
-	write_seqlock_irqsave(&engine->stats.lock, flags);
-	if (!atomic_add_unless(&engine->stats.active, 1, 0)) {
-		engine->stats.start = ktime_get();
-		atomic_inc(&engine->stats.active);
-	}
-	write_sequnlock_irqrestore(&engine->stats.lock, flags);
-}
-
-static void intel_engine_context_out(struct intel_engine_cs *engine)
-{
-	unsigned long flags;
-
-	GEM_BUG_ON(!atomic_read(&engine->stats.active));
-
-	if (atomic_add_unless(&engine->stats.active, -1, 1))
-		return;
-
-	write_seqlock_irqsave(&engine->stats.lock, flags);
-	if (atomic_dec_and_test(&engine->stats.active)) {
-		engine->stats.total =
-			ktime_add(engine->stats.total,
-				  ktime_sub(ktime_get(), engine->stats.start));
-	}
-	write_sequnlock_irqrestore(&engine->stats.lock, flags);
 }
 
 static void reset_active(struct i915_request *rq,
@@ -503,7 +470,7 @@ static void reset_active(struct i915_request *rq,
 	ce->lrc.lrca = lrc_update_regs(ce, engine, head);
 }
 
-static inline struct intel_engine_cs *
+static struct intel_engine_cs *
 __execlists_schedule_in(struct i915_request *rq)
 {
 	struct intel_engine_cs * const engine = rq->engine;
@@ -539,7 +506,7 @@ __execlists_schedule_in(struct i915_request *rq)
 	ce->lrc.ccid |= engine->execlists.ccid;
 
 	__intel_gt_pm_get(engine->gt);
-	if (engine->fw_domain && !atomic_fetch_inc(&engine->fw_active))
+	if (engine->fw_domain && !engine->fw_active++)
 		intel_uncore_forcewake_get(engine->uncore, engine->fw_domain);
 	execlists_context_status_change(rq, INTEL_CONTEXT_SCHEDULE_IN);
 	intel_engine_context_in(engine);
@@ -549,7 +516,7 @@ __execlists_schedule_in(struct i915_request *rq)
 	return engine;
 }
 
-static inline void execlists_schedule_in(struct i915_request *rq, int idx)
+static void execlists_schedule_in(struct i915_request *rq, int idx)
 {
 	struct intel_context * const ce = rq->context;
 	struct intel_engine_cs *old;
@@ -608,9 +575,9 @@ static void kick_siblings(struct i915_request *rq, struct intel_context *ce)
 		tasklet_hi_schedule(&ve->base.execlists.tasklet);
 }
 
-static inline void __execlists_schedule_out(struct i915_request *rq)
+static void __execlists_schedule_out(struct i915_request * const rq,
+				     struct intel_context * const ce)
 {
-	struct intel_context * const ce = rq->context;
 	struct intel_engine_cs * const engine = rq->engine;
 	unsigned int ccid;
 
@@ -621,6 +588,7 @@ static inline void __execlists_schedule_out(struct i915_request *rq)
 	 */
 
 	CE_TRACE(ce, "schedule-out, ccid:%x\n", ce->lrc.ccid);
+	GEM_BUG_ON(ce->inflight != engine);
 
 	if (IS_ENABLED(CONFIG_DRM_I915_DEBUG_GEM))
 		lrc_check_regs(ce, engine, "after");
@@ -645,7 +613,7 @@ static inline void __execlists_schedule_out(struct i915_request *rq)
 	lrc_update_runtime(ce);
 	intel_engine_context_out(engine);
 	execlists_context_status_change(rq, INTEL_CONTEXT_SCHEDULE_OUT);
-	if (engine->fw_domain && !atomic_dec_return(&engine->fw_active))
+	if (engine->fw_domain && !--engine->fw_active)
 		intel_uncore_forcewake_put(engine->uncore, engine->fw_domain);
 	intel_gt_pm_put_async(engine->gt);
 
@@ -660,10 +628,12 @@ static inline void __execlists_schedule_out(struct i915_request *rq)
 	 */
 	if (ce->engine != engine)
 		kick_siblings(rq, ce);
+
+	WRITE_ONCE(ce->inflight, NULL);
+	intel_context_put(ce);
 }
 
-static inline void
-execlists_schedule_out(struct i915_request *rq)
+static inline void execlists_schedule_out(struct i915_request *rq)
 {
 	struct intel_context * const ce = rq->context;
 
@@ -671,12 +641,8 @@ execlists_schedule_out(struct i915_request *rq)
 
 	GEM_BUG_ON(!ce->inflight);
 	ce->inflight = ptr_dec(ce->inflight);
-	if (!__intel_context_inflight_count(ce->inflight)) {
-		GEM_BUG_ON(ce->inflight != rq->engine);
-		__execlists_schedule_out(rq);
-		WRITE_ONCE(ce->inflight, NULL);
-		intel_context_put(ce);
-	}
+	if (!__intel_context_inflight_count(ce->inflight))
+		__execlists_schedule_out(rq, ce);
 
 	i915_request_put(rq);
 }
@@ -728,7 +694,7 @@ static u64 execlists_update_context(struct i915_request *rq)
 	return desc;
 }
 
-static inline void write_desc(struct intel_engine_execlists *execlists, u64 desc, u32 port)
+static void write_desc(struct intel_engine_execlists *execlists, u64 desc, u32 port)
 {
 	if (execlists->ctrl_reg) {
 		writel(lower_32_bits(desc), execlists->submit_reg + port * 2);
@@ -757,7 +723,7 @@ dump_port(char *buf, int buflen, const char *prefix, struct i915_request *rq)
 	return buf;
 }
 
-static __maybe_unused void
+static __maybe_unused noinline void
 trace_ports(const struct intel_engine_execlists *execlists,
 	    const char *msg,
 	    struct i915_request * const *ports)
@@ -774,13 +740,13 @@ trace_ports(const struct intel_engine_execlists *execlists,
 		     dump_port(p1, sizeof(p1), ", ", ports[1]));
 }
 
-static inline bool
+static bool
 reset_in_progress(const struct intel_engine_execlists *execlists)
 {
 	return unlikely(!__tasklet_is_enabled(&execlists->tasklet));
 }
 
-static __maybe_unused bool
+static __maybe_unused noinline bool
 assert_pending_valid(const struct intel_engine_execlists *execlists,
 		     const char *msg)
 {
@@ -1258,12 +1224,20 @@ static void set_preempt_timeout(struct intel_engine_cs *engine,
 		     active_preempt_timeout(engine, rq));
 }
 
+static bool completed(const struct i915_request *rq)
+{
+	if (i915_request_has_sentinel(rq))
+		return false;
+
+	return __i915_request_is_complete(rq);
+}
+
 static void execlists_dequeue(struct intel_engine_cs *engine)
 {
 	struct intel_engine_execlists * const execlists = &engine->execlists;
 	struct i915_request **port = execlists->pending;
 	struct i915_request ** const last_port = port + execlists->port_mask;
-	struct i915_request *last = *execlists->active;
+	struct i915_request *last, * const *active;
 	struct virtual_engine *ve;
 	struct rb_node *rb;
 	bool submit = false;
@@ -1300,21 +1274,13 @@ static void execlists_dequeue(struct intel_engine_cs *engine)
 	 * i.e. we will retrigger preemption following the ack in case
 	 * of trouble.
 	 *
-	 * In theory we can skip over completed contexts that have not
-	 * yet been processed by events (as those events are in flight):
-	 *
-	 * while ((last = *active) && i915_request_completed(last))
-	 *	active++;
-	 *
-	 * However, the GPU cannot handle this as it will ultimately
-	 * find itself trying to jump back into a context it has just
-	 * completed and barf.
 	 */
+	active = execlists->active;
+	while ((last = *active) && completed(last))
+		active++;
 
 	if (last) {
-		if (__i915_request_is_complete(last)) {
-			goto check_secondary;
-		} else if (need_preempt(engine, last)) {
+		if (need_preempt(engine, last)) {
 			ENGINE_TRACE(engine,
 				     "preempting last=%llx:%lld, prio=%d, hint=%d\n",
 				     last->fence.context,
@@ -1393,9 +1359,7 @@ static void execlists_dequeue(struct intel_engine_cs *engine)
 			 * we hopefully coalesce several updates into a single
 			 * submission.
 			 */
-check_secondary:
-			if (!list_is_last(&last->sched.link,
-					  &engine->active.requests)) {
+			if (active[1]) {
 				/*
 				 * Even if ELSP[1] is occupied and not worthy
 				 * of timeslices, our queue might be.
@@ -1596,7 +1560,7 @@ done:
 	 * of ordered contexts.
 	 */
 	if (submit &&
-	    memcmp(execlists->active,
+	    memcmp(active,
 		   execlists->pending,
 		   (port - execlists->pending) * sizeof(*port))) {
 		*port = NULL;
@@ -1604,7 +1568,7 @@ done:
 			execlists_schedule_in(*port, port - execlists->pending);
 
 		WRITE_ONCE(execlists->yield, -1);
-		set_preempt_timeout(engine, *execlists->active);
+		set_preempt_timeout(engine, *active);
 		execlists_submit_ports(engine);
 	} else {
 		ring_set_paused(engine, 0);
@@ -1621,12 +1585,12 @@ static void execlists_dequeue_irq(struct intel_engine_cs *engine)
 	local_irq_enable(); /* flush irq_work (e.g. breadcrumb enabling) */
 }
 
-static inline void clear_ports(struct i915_request **ports, int count)
+static void clear_ports(struct i915_request **ports, int count)
 {
 	memset_p((void **)ports, NULL, count);
 }
 
-static inline void
+static void
 copy_ports(struct i915_request **dst, struct i915_request **src, int count)
 {
 	/* A memcpy_p() would be very useful here! */
@@ -1660,8 +1624,7 @@ cancel_port_requests(struct intel_engine_execlists * const execlists,
 	return inactive;
 }
 
-static inline void
-invalidate_csb_entries(const u64 *first, const u64 *last)
+static void invalidate_csb_entries(const u64 *first, const u64 *last)
 {
 	clflush((void *)first);
 	clflush((void *)last);
@@ -1693,7 +1656,7 @@ invalidate_csb_entries(const u64 *first, const u64 *last)
  *     bits 47-57: sw context id of the lrc the GT switched away from
  *     bits 58-63: sw counter of the lrc the GT switched away from
  */
-static inline bool gen12_csb_parse(const u64 csb)
+static bool gen12_csb_parse(const u64 csb)
 {
 	bool ctx_away_valid = GEN12_CSB_CTX_VALID(upper_32_bits(csb));
 	bool new_queue =
@@ -1720,7 +1683,7 @@ static inline bool gen12_csb_parse(const u64 csb)
 	return false;
 }
 
-static inline bool gen8_csb_parse(const u64 csb)
+static bool gen8_csb_parse(const u64 csb)
 {
 	return csb & (GEN8_CTX_STATUS_IDLE_ACTIVE | GEN8_CTX_STATUS_PREEMPTED);
 }
@@ -1759,8 +1722,7 @@ wa_csb_read(const struct intel_engine_cs *engine, u64 * const csb)
 	return entry;
 }
 
-static inline u64
-csb_read(const struct intel_engine_cs *engine, u64 * const csb)
+static u64 csb_read(const struct intel_engine_cs *engine, u64 * const csb)
 {
 	u64 entry = READ_ONCE(*csb);
 
@@ -2026,6 +1988,9 @@ static void __execlists_hold(struct i915_request *rq)
 			struct i915_request *w =
 				container_of(p->waiter, typeof(*w), sched);
 
+			if (p->flags & I915_DEPENDENCY_WEAK)
+				continue;
+
 			/* Leave semaphores spinning on the other engines */
 			if (w->engine != rq->engine)
 				continue;
@@ -2123,6 +2088,9 @@ static void __execlists_unhold(struct i915_request *rq)
 		for_each_waiter(p, rq) {
 			struct i915_request *w =
 				container_of(p->waiter, typeof(*w), sched);
+
+			if (p->flags & I915_DEPENDENCY_WEAK)
+				continue;
 
 			/* Propagate any change in error status */
 			if (rq->fence.error)
@@ -3180,8 +3148,7 @@ logical_ring_default_vfuncs(struct intel_engine_cs *engine)
 	}
 }
 
-static inline void
-logical_ring_default_irqs(struct intel_engine_cs *engine)
+static void logical_ring_default_irqs(struct intel_engine_cs *engine)
 {
 	unsigned int shift = 0;
 
@@ -3296,7 +3263,7 @@ static void rcu_virtual_context_destroy(struct work_struct *wrk)
 
 		old = fetch_and_zero(&ve->request);
 		if (old) {
-			GEM_BUG_ON(!i915_request_completed(old));
+			GEM_BUG_ON(!__i915_request_is_complete(old));
 			__i915_request_submit(old);
 			i915_request_put(old);
 		}
@@ -3573,7 +3540,7 @@ static void virtual_submit_request(struct i915_request *rq)
 	}
 
 	if (ve->request) { /* background completion from preempt-to-busy */
-		GEM_BUG_ON(!i915_request_completed(ve->request));
+		GEM_BUG_ON(!__i915_request_is_complete(ve->request));
 		__i915_request_submit(ve->request);
 		i915_request_put(ve->request);
 	}

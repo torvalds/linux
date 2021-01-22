@@ -408,7 +408,7 @@ __active_engine(struct i915_request *rq, struct intel_engine_cs **active)
 	}
 
 	if (i915_request_is_active(rq)) {
-		if (!i915_request_completed(rq))
+		if (!__i915_request_is_complete(rq))
 			*active = locked;
 		ret = true;
 	}
@@ -717,7 +717,8 @@ err_free:
 }
 
 static inline struct i915_gem_engines *
-__context_engines_await(const struct i915_gem_context *ctx)
+__context_engines_await(const struct i915_gem_context *ctx,
+			bool *user_engines)
 {
 	struct i915_gem_engines *engines;
 
@@ -726,6 +727,10 @@ __context_engines_await(const struct i915_gem_context *ctx)
 		engines = rcu_dereference(ctx->engines);
 		GEM_BUG_ON(!engines);
 
+		if (user_engines)
+			*user_engines = i915_gem_context_user_engines(ctx);
+
+		/* successful await => strong mb */
 		if (unlikely(!i915_sw_fence_await(&engines->fence)))
 			continue;
 
@@ -749,7 +754,7 @@ context_apply_all(struct i915_gem_context *ctx,
 	struct intel_context *ce;
 	int err = 0;
 
-	e = __context_engines_await(ctx);
+	e = __context_engines_await(ctx, NULL);
 	for_each_gem_engine(ce, e, it) {
 		err = fn(ce, data);
 		if (err)
@@ -1075,7 +1080,7 @@ static int context_barrier_task(struct i915_gem_context *ctx,
 		return err;
 	}
 
-	e = __context_engines_await(ctx);
+	e = __context_engines_await(ctx, NULL);
 	if (!e) {
 		i915_active_release(&cb->base);
 		return -ENOENT;
@@ -1838,27 +1843,6 @@ replace:
 	return 0;
 }
 
-static struct i915_gem_engines *
-__copy_engines(struct i915_gem_engines *e)
-{
-	struct i915_gem_engines *copy;
-	unsigned int n;
-
-	copy = alloc_engines(e->num_engines);
-	if (!copy)
-		return ERR_PTR(-ENOMEM);
-
-	for (n = 0; n < e->num_engines; n++) {
-		if (e->engines[n])
-			copy->engines[n] = intel_context_get(e->engines[n]);
-		else
-			copy->engines[n] = NULL;
-	}
-	copy->num_engines = n;
-
-	return copy;
-}
-
 static int
 get_engines(struct i915_gem_context *ctx,
 	    struct drm_i915_gem_context_param *args)
@@ -1866,19 +1850,17 @@ get_engines(struct i915_gem_context *ctx,
 	struct i915_context_param_engines __user *user;
 	struct i915_gem_engines *e;
 	size_t n, count, size;
+	bool user_engines;
 	int err = 0;
 
-	err = mutex_lock_interruptible(&ctx->engines_mutex);
-	if (err)
-		return err;
+	e = __context_engines_await(ctx, &user_engines);
+	if (!e)
+		return -ENOENT;
 
-	e = NULL;
-	if (i915_gem_context_user_engines(ctx))
-		e = __copy_engines(i915_gem_context_engines(ctx));
-	mutex_unlock(&ctx->engines_mutex);
-	if (IS_ERR_OR_NULL(e)) {
+	if (!user_engines) {
+		i915_sw_fence_complete(&e->fence);
 		args->size = 0;
-		return PTR_ERR_OR_ZERO(e);
+		return 0;
 	}
 
 	count = e->num_engines;
@@ -1929,7 +1911,7 @@ get_engines(struct i915_gem_context *ctx,
 	args->size = size;
 
 err_free:
-	free_engines(e);
+	i915_sw_fence_complete(&e->fence);
 	return err;
 }
 
@@ -2095,10 +2077,13 @@ static int copy_ring_size(struct intel_context *dst,
 static int clone_engines(struct i915_gem_context *dst,
 			 struct i915_gem_context *src)
 {
-	struct i915_gem_engines *e = i915_gem_context_lock_engines(src);
-	struct i915_gem_engines *clone;
+	struct i915_gem_engines *clone, *e;
 	bool user_engines;
 	unsigned long n;
+
+	e = __context_engines_await(src, &user_engines);
+	if (!e)
+		return -ENOENT;
 
 	clone = alloc_engines(e->num_engines);
 	if (!clone)
@@ -2141,9 +2126,7 @@ static int clone_engines(struct i915_gem_context *dst,
 		}
 	}
 	clone->num_engines = n;
-
-	user_engines = i915_gem_context_user_engines(src);
-	i915_gem_context_unlock_engines(src);
+	i915_sw_fence_complete(&e->fence);
 
 	/* Serialised by constructor */
 	engines_idle_release(dst, rcu_replace_pointer(dst->engines, clone, 1));
@@ -2154,7 +2137,7 @@ static int clone_engines(struct i915_gem_context *dst,
 	return 0;
 
 err_unlock:
-	i915_gem_context_unlock_engines(src);
+	i915_sw_fence_complete(&e->fence);
 	return -ENOMEM;
 }
 

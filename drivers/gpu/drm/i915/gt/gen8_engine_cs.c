@@ -330,7 +330,7 @@ int gen12_emit_flush_xcs(struct i915_request *rq, u32 mode)
 	return 0;
 }
 
-static inline u32 preempt_address(struct intel_engine_cs *engine)
+static u32 preempt_address(struct intel_engine_cs *engine)
 {
 	return (i915_ggtt_offset(engine->status_page.vma) +
 		I915_GEM_HWS_PREEMPT_ADDR);
@@ -488,6 +488,7 @@ static u32 *gen8_emit_wa_tail(struct i915_request *rq, u32 *cs)
 
 static u32 *emit_preempt_busywait(struct i915_request *rq, u32 *cs)
 {
+	*cs++ = MI_ARB_CHECK; /* trigger IDLE->ACTIVE first */
 	*cs++ = MI_SEMAPHORE_WAIT |
 		MI_SEMAPHORE_GLOBAL_GTT |
 		MI_SEMAPHORE_POLL |
@@ -495,6 +496,7 @@ static u32 *emit_preempt_busywait(struct i915_request *rq, u32 *cs)
 	*cs++ = 0;
 	*cs++ = preempt_address(rq->engine);
 	*cs++ = 0;
+	*cs++ = MI_NOOP;
 
 	return cs;
 }

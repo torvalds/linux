@@ -25,7 +25,6 @@
 #include <linux/sched/mm.h>
 
 #include "display/intel_frontbuffer.h"
-#include "gt/intel_gt.h"
 #include "i915_drv.h"
 #include "i915_gem_clflush.h"
 #include "i915_gem_context.h"
@@ -311,52 +310,6 @@ static void i915_gem_free_object(struct drm_gem_object *gem_obj)
 	 */
 	if (llist_add(&obj->freed, &i915->mm.free_list))
 		queue_work(i915->wq, &i915->mm.free_work);
-}
-
-static bool gpu_write_needs_clflush(struct drm_i915_gem_object *obj)
-{
-	return !(obj->cache_level == I915_CACHE_NONE ||
-		 obj->cache_level == I915_CACHE_WT);
-}
-
-void
-i915_gem_object_flush_write_domain(struct drm_i915_gem_object *obj,
-				   unsigned int flush_domains)
-{
-	struct i915_vma *vma;
-
-	assert_object_held(obj);
-
-	if (!(obj->write_domain & flush_domains))
-		return;
-
-	switch (obj->write_domain) {
-	case I915_GEM_DOMAIN_GTT:
-		spin_lock(&obj->vma.lock);
-		for_each_ggtt_vma(vma, obj) {
-			if (i915_vma_unset_ggtt_write(vma))
-				intel_gt_flush_ggtt_writes(vma->vm->gt);
-		}
-		spin_unlock(&obj->vma.lock);
-
-		i915_gem_object_flush_frontbuffer(obj, ORIGIN_CPU);
-		break;
-
-	case I915_GEM_DOMAIN_WC:
-		wmb();
-		break;
-
-	case I915_GEM_DOMAIN_CPU:
-		i915_gem_clflush_object(obj, I915_CLFLUSH_SYNC);
-		break;
-
-	case I915_GEM_DOMAIN_RENDER:
-		if (gpu_write_needs_clflush(obj))
-			obj->cache_dirty = true;
-		break;
-	}
-
-	obj->write_domain = 0;
 }
 
 void __i915_gem_object_flush_frontbuffer(struct drm_i915_gem_object *obj,
