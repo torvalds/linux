@@ -1695,7 +1695,7 @@ static long rga_ioctl(struct file *file, uint32_t cmd, unsigned long arg)
 			}
 			RGA_MSG_2_RGA2_MSG(&req_rga, &req);
 
-			if (first_RGA2_proc == 0 && req.bitblt_mode == bitblt_mode && rga2_service.dev_mode == 1) {
+			if (first_RGA2_proc == 0 && req.render_mode == bitblt_mode && rga2_service.dev_mode == 1) {
 				memcpy(&req_first, &req, sizeof(struct rga2_req));
 				if ((req_first.src.act_w != req_first.dst.act_w)
 						|| (req_first.src.act_h != req_first.dst.act_h)) {
@@ -1721,7 +1721,7 @@ static long rga_ioctl(struct file *file, uint32_t cmd, unsigned long arg)
 			}
 
 			RGA_MSG_2_RGA2_MSG(&req_rga, &req);
-			if (first_RGA2_proc == 0 && req.bitblt_mode == bitblt_mode && rga2_service.dev_mode == 1) {
+			if (first_RGA2_proc == 0 && req.render_mode == bitblt_mode && rga2_service.dev_mode == 1) {
 				memcpy(&req_first, &req, sizeof(struct rga2_req));
 				if ((req_first.src.act_w != req_first.dst.act_w)
 						|| (req_first.src.act_h != req_first.dst.act_h)
@@ -1869,7 +1869,7 @@ static long compat_rga_ioctl(struct file *file, uint32_t cmd, unsigned long arg)
 
 			RGA_MSG_2_RGA2_MSG_32(&req_rga, &req);
 
-			if (first_RGA2_proc == 0 && req.bitblt_mode == bitblt_mode && rga2_service.dev_mode == 1) {
+			if (first_RGA2_proc == 0 && req.render_mode == bitblt_mode && rga2_service.dev_mode == 1) {
 				memcpy(&req_first, &req, sizeof(struct rga2_req));
 				if ((req_first.src.act_w != req_first.dst.act_w)
 						|| (req_first.src.act_h != req_first.dst.act_h)) {
@@ -1895,7 +1895,7 @@ static long compat_rga_ioctl(struct file *file, uint32_t cmd, unsigned long arg)
 			}
 			RGA_MSG_2_RGA2_MSG_32(&req_rga, &req);
 
-			if (first_RGA2_proc == 0 && req.bitblt_mode == bitblt_mode && rga2_service.dev_mode == 1) {
+			if (first_RGA2_proc == 0 && req.render_mode == bitblt_mode && rga2_service.dev_mode == 1) {
 				memcpy(&req_first, &req, sizeof(struct rga2_req));
 				if ((req_first.src.act_w != req_first.dst.act_w)
 						|| (req_first.src.act_h != req_first.dst.act_h)) {
