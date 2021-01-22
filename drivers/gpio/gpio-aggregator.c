@@ -62,34 +62,6 @@ static char *get_arg(char **args)
 	return start;
 }
 
-static bool isrange(const char *s)
-{
-	size_t n;
-
-	if (IS_ERR_OR_NULL(s))
-		return false;
-
-	while (1) {
-		n = strspn(s, "0123456789");
-		if (!n)
-			return false;
-
-		s += n;
-
-		switch (*s++) {
-		case '\0':
-			return true;
-
-		case '-':
-		case ',':
-			break;
-
-		default:
-			return false;
-		}
-	}
-}
-
 static int aggr_add_gpio(struct gpio_aggregator *aggr, const char *key,
 			 int hwnum, unsigned int *n)
 {
@@ -112,10 +84,10 @@ static int aggr_add_gpio(struct gpio_aggregator *aggr, const char *key,
 
 static int aggr_parse(struct gpio_aggregator *aggr)
 {
+	char *name, *offsets, *p;
 	char *args = aggr->args;
 	unsigned long *bitmap;
 	unsigned int i, n = 0;
-	char *name, *offsets;
 	int error = 0;
 
 	bitmap = bitmap_alloc(ARCH_NR_GPIOS, GFP_KERNEL);
@@ -130,7 +102,8 @@ static int aggr_parse(struct gpio_aggregator *aggr)
 			goto free_bitmap;
 		}
 
-		if (!isrange(offsets)) {
+		p = get_options(offsets, 0, &error);
+		if (error == 0 || *p) {
 			/* Named GPIO line */
 			error = aggr_add_gpio(aggr, name, U16_MAX, &n);
 			if (error)
