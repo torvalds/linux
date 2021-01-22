@@ -953,6 +953,7 @@ void bch2_fs_journal_stop(struct journal *j)
 	journal_quiesce(j);
 
 	BUG_ON(!bch2_journal_error(j) &&
+	       test_bit(JOURNAL_REPLAY_DONE, &j->flags) &&
 	       (journal_entry_is_open(j) ||
 		j->last_empty_seq + 1 != journal_cur_seq(j)));
 
