@@ -741,13 +741,14 @@ static int mi_set_context(struct i915_request *rq,
 
 static int remap_l3_slice(struct i915_request *rq, int slice)
 {
+#define L3LOG_DW (GEN7_L3LOG_SIZE / sizeof(u32))
 	u32 *cs, *remap_info = rq->engine->i915->l3_parity.remap_info[slice];
 	int i;
 
 	if (!remap_info)
 		return 0;
 
-	cs = intel_ring_begin(rq, GEN7_L3LOG_SIZE/4 * 2 + 2);
+	cs = intel_ring_begin(rq, L3LOG_DW * 2 + 2);
 	if (IS_ERR(cs))
 		return PTR_ERR(cs);
 
@@ -756,8 +757,8 @@ static int remap_l3_slice(struct i915_request *rq, int slice)
 	 * here because no other code should access these registers other than
 	 * at initialization time.
 	 */
-	*cs++ = MI_LOAD_REGISTER_IMM(GEN7_L3LOG_SIZE/4);
-	for (i = 0; i < GEN7_L3LOG_SIZE/4; i++) {
+	*cs++ = MI_LOAD_REGISTER_IMM(L3LOG_DW);
+	for (i = 0; i < L3LOG_DW; i++) {
 		*cs++ = i915_mmio_reg_offset(GEN7_L3LOG(slice, i));
 		*cs++ = remap_info[i];
 	}
@@ -765,6 +766,7 @@ static int remap_l3_slice(struct i915_request *rq, int slice)
 	intel_ring_advance(rq, cs);
 
 	return 0;
+#undef L3LOG_DW
 }
 
 static int remap_l3(struct i915_request *rq)
