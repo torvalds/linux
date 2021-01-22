@@ -3553,6 +3553,22 @@ i915_reg_t dp_tp_status_reg(struct intel_encoder *encoder,
 		return DP_TP_STATUS(encoder->port);
 }
 
+static void intel_dp_sink_set_msa_timing_par_ignore_state(struct intel_dp *intel_dp,
+							  const struct intel_crtc_state *crtc_state,
+							  bool enable)
+{
+	struct drm_i915_private *i915 = dp_to_i915(intel_dp);
+
+	if (!crtc_state->vrr.enable)
+		return;
+
+	if (drm_dp_dpcd_writeb(&intel_dp->aux, DP_DOWNSPREAD_CTRL,
+			       enable ? DP_MSA_TIMING_PAR_IGNORE_EN : 0) <= 0)
+		drm_dbg_kms(&i915->drm,
+			    "Failed to set MSA_TIMING_PAR_IGNORE %s in the sink\n",
+			    enable ? "enable" : "disable");
+}
+
 static void intel_dp_sink_set_fec_ready(struct intel_dp *intel_dp,
 					const struct intel_crtc_state *crtc_state)
 {
@@ -4351,6 +4367,9 @@ static void intel_disable_ddi_dp(struct intel_atomic_state *state,
 	/* Disable the decompression in DP Sink */
 	intel_dp_sink_set_decompression_state(intel_dp, old_crtc_state,
 					      false);
+	/* Disable Ignore_MSA bit in DP Sink */
+	intel_dp_sink_set_msa_timing_par_ignore_state(intel_dp, old_crtc_state,
+						      false);
 }
 
 static void intel_disable_ddi_hdmi(struct intel_atomic_state *state,
