@@ -109,13 +109,22 @@ static void cmdline_do_one_range_test(struct kunit *test, const char *in,
 {
 	unsigned int i;
 	int r[16];
+	int *p;
 
 	memset(r, 0, sizeof(r));
 	get_options(in, ARRAY_SIZE(r), r);
-	KUNIT_EXPECT_EQ_MSG(test, r[0], e[0], "in test %u expected %d numbers, got %d",
+	KUNIT_EXPECT_EQ_MSG(test, r[0], e[0], "in test %u (parsed) expected %d numbers, got %d",
 			    n, e[0], r[0]);
 	for (i = 1; i < ARRAY_SIZE(r); i++)
 		KUNIT_EXPECT_EQ_MSG(test, r[i], e[i], "in test %u at %u", n, i);
+
+	memset(r, 0, sizeof(r));
+	get_options(in, 0, r);
+	KUNIT_EXPECT_EQ_MSG(test, r[0], e[0], "in test %u (validated) expected %d numbers, got %d",
+			    n, e[0], r[0]);
+
+	p = memchr_inv(&r[1], 0, sizeof(r) - sizeof(r[0]));
+	KUNIT_EXPECT_PTR_EQ_MSG(test, p, (int *)0, "in test %u at %u out of bound", n, p - r);
 }
 
 static void cmdline_test_range(struct kunit *test)
