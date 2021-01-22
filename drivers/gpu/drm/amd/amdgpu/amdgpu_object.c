@@ -1065,13 +1065,17 @@ static const char *amdgpu_vram_names[] = {
  */
 int amdgpu_bo_init(struct amdgpu_device *adev)
 {
-	/* reserve PAT memory space to WC for VRAM */
-	arch_io_reserve_memtype_wc(adev->gmc.aper_base,
-				   adev->gmc.aper_size);
+	/* On A+A platform, VRAM can be mapped as WB */
+	if (!adev->gmc.xgmi.connected_to_cpu) {
+		/* reserve PAT memory space to WC for VRAM */
+		arch_io_reserve_memtype_wc(adev->gmc.aper_base,
+				adev->gmc.aper_size);
 
-	/* Add an MTRR for the VRAM */
-	adev->gmc.vram_mtrr = arch_phys_wc_add(adev->gmc.aper_base,
-					      adev->gmc.aper_size);
+		/* Add an MTRR for the VRAM */
+		adev->gmc.vram_mtrr = arch_phys_wc_add(adev->gmc.aper_base,
+				adev->gmc.aper_size);
+	}
+
 	DRM_INFO("Detected VRAM RAM=%lluM, BAR=%lluM\n",
 		 adev->gmc.mc_vram_size >> 20,
 		 (unsigned long long)adev->gmc.aper_size >> 20);
@@ -1089,8 +1093,10 @@ int amdgpu_bo_init(struct amdgpu_device *adev)
 void amdgpu_bo_fini(struct amdgpu_device *adev)
 {
 	amdgpu_ttm_fini(adev);
-	arch_phys_wc_del(adev->gmc.vram_mtrr);
-	arch_io_free_memtype_wc(adev->gmc.aper_base, adev->gmc.aper_size);
+	if (!adev->gmc.xgmi.connected_to_cpu) {
+		arch_phys_wc_del(adev->gmc.vram_mtrr);
+		arch_io_free_memtype_wc(adev->gmc.aper_base, adev->gmc.aper_size);
+	}
 }
 
 /**
