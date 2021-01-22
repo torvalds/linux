@@ -5228,6 +5228,7 @@ struct cfg80211_cqm_config;
  *
  * @wiphy: pointer to hardware description
  * @iftype: interface type
+ * @registered: is this wdev already registered with cfg80211
  * @list: (private) Used to collect the interfaces
  * @netdev: (private) Used to reference back to the netdev, may be %NULL
  * @identifier: (private) Identifier used in nl80211 to identify this
@@ -5311,7 +5312,7 @@ struct wireless_dev {
 
 	struct mutex mtx;
 
-	bool use_4addr, is_running;
+	bool use_4addr, is_running, registered;
 
 	u8 address[ETH_ALEN] __aligned(sizeof(u16));
 
@@ -7654,17 +7655,40 @@ u32 cfg80211_calculate_bitrate(struct rate_info *rate);
  * cfg80211_unregister_wdev - remove the given wdev
  * @wdev: struct wireless_dev to remove
  *
- * Call this function only for wdevs that have no netdev assigned,
- * e.g. P2P Devices. It removes the device from the list so that
- * it can no longer be used. It is necessary to call this function
- * even when cfg80211 requests the removal of the interface by
- * calling the del_virtual_intf() callback. The function must also
- * be called when the driver wishes to unregister the wdev, e.g.
- * when the device is unbound from the driver.
+ * This function removes the device so it can no longer be used. It is necessary
+ * to call this function even when cfg80211 requests the removal of the device
+ * by calling the del_virtual_intf() callback. The function must also be called
+ * when the driver wishes to unregister the wdev, e.g. when the hardware device
+ * is unbound from the driver.
  *
  * Requires the RTNL to be held.
  */
 void cfg80211_unregister_wdev(struct wireless_dev *wdev);
+
+/**
+ * cfg80211_register_netdevice - register the given netdev
+ * @dev: the netdev to register
+ *
+ * Note: In contexts coming from cfg80211 callbacks, you must call this rather
+ * than register_netdevice(), unregister_netdev() is impossible as the RTNL is
+ * held. Otherwise, both register_netdevice() and register_netdev() are usable
+ * instead as well.
+ */
+int cfg80211_register_netdevice(struct net_device *dev);
+
+/**
+ * cfg80211_unregister_netdevice - unregister the given netdev
+ * @dev: the netdev to register
+ *
+ * Note: In contexts coming from cfg80211 callbacks, you must call this rather
+ * than unregister_netdevice(), unregister_netdev() is impossible as the RTNL
+ * is held. Otherwise, both unregister_netdevice() and unregister_netdev() are
+ * usable instead as well.
+ */
+static inline void cfg80211_unregister_netdevice(struct net_device *dev)
+{
+	cfg80211_unregister_wdev(dev->ieee80211_ptr);
+}
 
 /**
  * struct cfg80211_ft_event_params - FT Information Elements

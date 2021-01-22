@@ -1976,7 +1976,7 @@ int ieee80211_if_add(struct ieee80211_local *local, const char *name,
 		ndev->min_mtu = 256;
 		ndev->max_mtu = local->hw.max_mtu;
 
-		ret = register_netdevice(ndev);
+		ret = cfg80211_register_netdevice(ndev);
 		if (ret) {
 			free_netdev(ndev);
 			return ret;
@@ -2006,10 +2006,9 @@ void ieee80211_if_remove(struct ieee80211_sub_if_data *sdata)
 
 	synchronize_rcu();
 
-	if (sdata->dev) {
-		unregister_netdevice(sdata->dev);
-	} else {
-		cfg80211_unregister_wdev(&sdata->wdev);
+	cfg80211_unregister_wdev(&sdata->wdev);
+
+	if (!sdata->dev) {
 		ieee80211_teardown_sdata(sdata);
 		kfree(sdata);
 	}

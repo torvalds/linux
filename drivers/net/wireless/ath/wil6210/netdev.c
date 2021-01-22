@@ -424,7 +424,7 @@ int wil_vif_add(struct wil6210_priv *wil, struct wil6210_vif *vif)
 		if (rc)
 			return rc;
 	}
-	rc = register_netdevice(ndev);
+	rc = cfg80211_register_netdevice(ndev);
 	if (rc < 0) {
 		dev_err(&ndev->dev, "Failed to register netdev: %d\n", rc);
 		if (any_active && vif->mid != 0)
@@ -511,7 +511,7 @@ void wil_vif_remove(struct wil6210_priv *wil, u8 mid)
 	/* during unregister_netdevice cfg80211_leave may perform operations
 	 * such as stop AP, disconnect, so we only clear the VIF afterwards
 	 */
-	unregister_netdevice(ndev);
+	cfg80211_unregister_netdevice(ndev);
 
 	if (any_active && vif->mid != 0)
 		wmi_port_delete(wil, vif->mid);

@@ -1094,7 +1094,8 @@ void cfg80211_cqm_config_free(struct wireless_dev *wdev)
 	wdev->cqm_config = NULL;
 }
 
-static void __cfg80211_unregister_wdev(struct wireless_dev *wdev, bool sync)
+static void _cfg80211_unregister_wdev(struct wireless_dev *wdev,
+				      bool unregister_netdev)
 {
 	struct cfg80211_registered_device *rdev = wiphy_to_rdev(wdev->wiphy);
 
@@ -1104,9 +1105,16 @@ static void __cfg80211_unregister_wdev(struct wireless_dev *wdev, bool sync)
 
 	nl80211_notify_iface(rdev, wdev, NL80211_CMD_DEL_INTERFACE);
 
+	wdev->registered = false;
+
+	if (wdev->netdev) {
+		sysfs_remove_link(&wdev->netdev->dev.kobj, "phy80211");
+		if (unregister_netdev)
+			unregister_netdevice(wdev->netdev);
+	}
+
 	list_del_rcu(&wdev->list);
-	if (sync)
-		synchronize_rcu();
+	synchronize_net();
 	rdev->devlist_generation++;
 
 	cfg80211_mlme_purge_registrations(wdev);
@@ -1131,14 +1139,23 @@ static void __cfg80211_unregister_wdev(struct wireless_dev *wdev, bool sync)
 		flush_work(&wdev->disconnect_wk);
 
 	cfg80211_cqm_config_free(wdev);
+
+	/*
+	 * Ensure that all events have been processed and
+	 * freed.
+	 */
+	cfg80211_process_wdev_events(wdev);
+
+	if (WARN_ON(wdev->current_bss)) {
+		cfg80211_unhold_bss(wdev->current_bss);
+		cfg80211_put_bss(wdev->wiphy, &wdev->current_bss->pub);
+		wdev->current_bss = NULL;
+	}
 }
 
 void cfg80211_unregister_wdev(struct wireless_dev *wdev)
 {
-	if (WARN_ON(wdev->netdev))
-		return;
-
-	__cfg80211_unregister_wdev(wdev, true);
+	_cfg80211_unregister_wdev(wdev, true);
 }
 EXPORT_SYMBOL(cfg80211_unregister_wdev);
 
@@ -1290,9 +1307,48 @@ void cfg80211_register_wdev(struct cfg80211_registered_device *rdev,
 		wdev->identifier = ++rdev->wdev_id;
 	list_add_rcu(&wdev->list, &rdev->wiphy.wdev_list);
 	rdev->devlist_generation++;
+	wdev->registered = true;
 
 	nl80211_notify_iface(rdev, wdev, NL80211_CMD_NEW_INTERFACE);
 }
+
+int cfg80211_register_netdevice(struct net_device *dev)
+{
+	struct wireless_dev *wdev = dev->ieee80211_ptr;
+	struct cfg80211_registered_device *rdev;
+	int ret;
+
+	ASSERT_RTNL();
+
+	if (WARN_ON(!wdev))
+		return -EINVAL;
+
+	rdev = wiphy_to_rdev(wdev->wiphy);
+
+	lockdep_assert_held(&rdev->wiphy.mtx);
+
+	/* we'll take care of this */
+	wdev->registered = true;
+	ret = register_netdevice(dev);
+	if (ret)
+		goto out;
+
+	if (sysfs_create_link(&dev->dev.kobj, &rdev->wiphy.dev.kobj,
+			      "phy80211")) {
+		pr_err("failed to add phy80211 symlink to netdev!\n");
+		unregister_netdevice(dev);
+		ret = -EINVAL;
+		goto out;
+	}
+
+	cfg80211_register_wdev(rdev, wdev);
+	ret = 0;
+out:
+	if (ret)
+		wdev->registered = false;
+	return ret;
+}
+EXPORT_SYMBOL(cfg80211_register_netdevice);
 
 static int cfg80211_netdev_notifier_call(struct notifier_block *nb,
 					 unsigned long state, void *ptr)
@@ -1319,17 +1375,16 @@ static int cfg80211_netdev_notifier_call(struct notifier_block *nb,
 		cfg80211_init_wdev(wdev);
 		break;
 	case NETDEV_REGISTER:
+		if (!wdev->registered)
+			cfg80211_register_wdev(rdev, wdev);
+		break;
+	case NETDEV_UNREGISTER:
 		/*
-		 * NB: cannot take rdev->mtx here because this may be
-		 * called within code protected by it when interfaces
-		 * are added with nl80211.
+		 * It is possible to get NETDEV_UNREGISTER multiple times,
+		 * so check wdev->registered.
 		 */
-		if (sysfs_create_link(&dev->dev.kobj, &rdev->wiphy.dev.kobj,
-				      "phy80211")) {
-			pr_err("failed to add phy80211 symlink to netdev!\n");
-		}
-
-		cfg80211_register_wdev(rdev, wdev);
+		if (wdev->registered)
+			_cfg80211_unregister_wdev(wdev, false);
 		break;
 	case NETDEV_GOING_DOWN:
 		cfg80211_leave(rdev, wdev);
@@ -1399,38 +1454,6 @@ static int cfg80211_netdev_notifier_call(struct notifier_block *nb,
 					wdev->ps_timeout)) {
 			/* assume this means it's off */
 			wdev->ps = false;
-		}
-		break;
-	case NETDEV_UNREGISTER:
-		/*
-		 * It is possible to get NETDEV_UNREGISTER
-		 * multiple times. To detect that, check
-		 * that the interface is still on the list
-		 * of registered interfaces, and only then
-		 * remove and clean it up.
-		 */
-		if (!list_empty(&wdev->list)) {
-			__cfg80211_unregister_wdev(wdev, false);
-			sysfs_remove_link(&dev->dev.kobj, "phy80211");
-		}
-		/*
-		 * synchronise (so that we won't find this netdev
-		 * from other code any more) and then clear the list
-		 * head so that the above code can safely check for
-		 * !list_empty() to avoid double-cleanup.
-		 */
-		synchronize_rcu();
-		INIT_LIST_HEAD(&wdev->list);
-		/*
-		 * Ensure that all events have been processed and
-		 * freed.
-		 */
-		cfg80211_process_wdev_events(wdev);
-
-		if (WARN_ON(wdev->current_bss)) {
-			cfg80211_unhold_bss(wdev->current_bss);
-			cfg80211_put_bss(wdev->wiphy, &wdev->current_bss->pub);
-			wdev->current_bss = NULL;
 		}
 		break;
 	case NETDEV_PRE_UP:

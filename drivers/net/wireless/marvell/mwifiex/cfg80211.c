@@ -3081,7 +3081,7 @@ struct wireless_dev *mwifiex_add_virtual_intf(struct wiphy *wiphy,
 	mutex_init(&priv->async_mutex);
 
 	/* Register network device */
-	if (register_netdevice(dev)) {
+	if (cfg80211_register_netdevice(dev)) {
 		mwifiex_dbg(adapter, ERROR, "cannot register network device\n");
 		ret = -EFAULT;
 		goto err_reg_netdev;
@@ -3160,7 +3160,7 @@ int mwifiex_del_virtual_intf(struct wiphy *wiphy, struct wireless_dev *wdev)
 		netif_carrier_off(priv->netdev);
 
 	if (wdev->netdev->reg_state == NETREG_REGISTERED)
-		unregister_netdevice(wdev->netdev);
+		cfg80211_unregister_netdevice(wdev->netdev);
 
 	if (priv->dfs_cac_workqueue) {
 		flush_workqueue(priv->dfs_cac_workqueue);

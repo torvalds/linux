@@ -657,7 +657,7 @@ int brcmf_net_attach(struct brcmf_if *ifp, bool rtnl_locked)
 	INIT_WORK(&ifp->ndoffload_work, _brcmf_update_ndtable);
 
 	if (rtnl_locked)
-		err = register_netdevice(ndev);
+		err = cfg80211_register_netdevice(ndev);
 	else
 		err = register_netdev(ndev);
 	if (err != 0) {
@@ -681,7 +681,7 @@ void brcmf_net_detach(struct net_device *ndev, bool rtnl_locked)
 {
 	if (ndev->reg_state == NETREG_REGISTERED) {
 		if (rtnl_locked)
-			unregister_netdevice(ndev);
+			cfg80211_unregister_netdevice(ndev);
 		else
 			unregister_netdev(ndev);
 	} else {
@@ -758,7 +758,7 @@ int brcmf_net_mon_attach(struct brcmf_if *ifp)
 	ndev = ifp->ndev;
 	ndev->netdev_ops = &brcmf_netdev_ops_mon;
 
-	err = register_netdevice(ndev);
+	err = cfg80211_register_netdevice(ndev);
 	if (err)
 		bphy_err(drvr, "Failed to register %s device\n", ndev->name);
 

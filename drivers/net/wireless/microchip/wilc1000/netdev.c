@@ -950,7 +950,7 @@ struct wilc_vif *wilc_netdev_ifc_init(struct wilc *wl, const char *name,
 	vif->priv.dev = ndev;
 
 	if (rtnl_locked)
-		ret = register_netdevice(ndev);
+		ret = cfg80211_register_netdevice(ndev);
 	else
 		ret = register_netdev(ndev);
 
