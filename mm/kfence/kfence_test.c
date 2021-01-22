@@ -71,7 +71,13 @@ struct expect_report {
 	enum kfence_error_type type; /* The type or error. */
 	void *fn; /* Function pointer to expected function where access occurred. */
 	char *addr; /* Address at which the bad access occurred. */
+	bool is_write; /* Is access a write. */
 };
+
+static const char *get_access_type(const struct expect_report *r)
+{
+	return r->is_write ? "write" : "read";
+}
 
 /* Check observed report matches information in @r. */
 static bool report_matches(const struct expect_report *r)
@@ -93,16 +99,19 @@ static bool report_matches(const struct expect_report *r)
 	end = &expect[0][sizeof(expect[0]) - 1];
 	switch (r->type) {
 	case KFENCE_ERROR_OOB:
-		cur += scnprintf(cur, end - cur, "BUG: KFENCE: out-of-bounds");
+		cur += scnprintf(cur, end - cur, "BUG: KFENCE: out-of-bounds %s",
+				 get_access_type(r));
 		break;
 	case KFENCE_ERROR_UAF:
-		cur += scnprintf(cur, end - cur, "BUG: KFENCE: use-after-free");
+		cur += scnprintf(cur, end - cur, "BUG: KFENCE: use-after-free %s",
+				 get_access_type(r));
 		break;
 	case KFENCE_ERROR_CORRUPTION:
 		cur += scnprintf(cur, end - cur, "BUG: KFENCE: memory corruption");
 		break;
 	case KFENCE_ERROR_INVALID:
-		cur += scnprintf(cur, end - cur, "BUG: KFENCE: invalid access");
+		cur += scnprintf(cur, end - cur, "BUG: KFENCE: invalid %s",
+				 get_access_type(r));
 		break;
 	case KFENCE_ERROR_INVALID_FREE:
 		cur += scnprintf(cur, end - cur, "BUG: KFENCE: invalid free");
@@ -121,16 +130,16 @@ static bool report_matches(const struct expect_report *r)
 
 	switch (r->type) {
 	case KFENCE_ERROR_OOB:
-		cur += scnprintf(cur, end - cur, "Out-of-bounds access at");
+		cur += scnprintf(cur, end - cur, "Out-of-bounds %s at", get_access_type(r));
 		break;
 	case KFENCE_ERROR_UAF:
-		cur += scnprintf(cur, end - cur, "Use-after-free access at");
+		cur += scnprintf(cur, end - cur, "Use-after-free %s at", get_access_type(r));
 		break;
 	case KFENCE_ERROR_CORRUPTION:
 		cur += scnprintf(cur, end - cur, "Corrupted memory at");
 		break;
 	case KFENCE_ERROR_INVALID:
-		cur += scnprintf(cur, end - cur, "Invalid access at");
+		cur += scnprintf(cur, end - cur, "Invalid %s at", get_access_type(r));
 		break;
 	case KFENCE_ERROR_INVALID_FREE:
 		cur += scnprintf(cur, end - cur, "Invalid free of");
@@ -294,6 +303,7 @@ static void test_out_of_bounds_read(struct kunit *test)
 	struct expect_report expect = {
 		.type = KFENCE_ERROR_OOB,
 		.fn = test_out_of_bounds_read,
+		.is_write = false,
 	};
 	char *buf;
 
@@ -321,12 +331,31 @@ static void test_out_of_bounds_read(struct kunit *test)
 	test_free(buf);
 }
 
+static void test_out_of_bounds_write(struct kunit *test)
+{
+	size_t size = 32;
+	struct expect_report expect = {
+		.type = KFENCE_ERROR_OOB,
+		.fn = test_out_of_bounds_write,
+		.is_write = true,
+	};
+	char *buf;
+
+	setup_test_cache(test, size, 0, NULL);
+	buf = test_alloc(test, size, GFP_KERNEL, ALLOCATE_LEFT);
+	expect.addr = buf - 1;
+	WRITE_ONCE(*expect.addr, 42);
+	KUNIT_EXPECT_TRUE(test, report_matches(&expect));
+	test_free(buf);
+}
+
 static void test_use_after_free_read(struct kunit *test)
 {
 	const size_t size = 32;
 	struct expect_report expect = {
 		.type = KFENCE_ERROR_UAF,
 		.fn = test_use_after_free_read,
+		.is_write = false,
 	};
 
 	setup_test_cache(test, size, 0, NULL);
@@ -411,6 +440,7 @@ static void test_kmalloc_aligned_oob_read(struct kunit *test)
 	struct expect_report expect = {
 		.type = KFENCE_ERROR_OOB,
 		.fn = test_kmalloc_aligned_oob_read,
+		.is_write = false,
 	};
 	char *buf;
 
@@ -509,6 +539,7 @@ static void test_init_on_free(struct kunit *test)
 	struct expect_report expect = {
 		.type = KFENCE_ERROR_UAF,
 		.fn = test_init_on_free,
+		.is_write = false,
 	};
 	int i;
 
@@ -598,6 +629,7 @@ static void test_invalid_access(struct kunit *test)
 		.type = KFENCE_ERROR_INVALID,
 		.fn = test_invalid_access,
 		.addr = &__kfence_pool[10],
+		.is_write = false,
 	};
 
 	READ_ONCE(__kfence_pool[10]);
@@ -611,6 +643,7 @@ static void test_memcache_typesafe_by_rcu(struct kunit *test)
 	struct expect_report expect = {
 		.type = KFENCE_ERROR_UAF,
 		.fn = test_memcache_typesafe_by_rcu,
+		.is_write = false,
 	};
 
 	setup_test_cache(test, size, SLAB_TYPESAFE_BY_RCU, NULL);
@@ -647,6 +680,7 @@ static void test_krealloc(struct kunit *test)
 		.type = KFENCE_ERROR_UAF,
 		.fn = test_krealloc,
 		.addr = test_alloc(test, size, GFP_KERNEL, ALLOCATE_ANY),
+		.is_write = false,
 	};
 	char *buf = expect.addr;
 	int i;
@@ -728,6 +762,7 @@ static void test_memcache_alloc_bulk(struct kunit *test)
 
 static struct kunit_case kfence_test_cases[] = {
 	KFENCE_KUNIT_CASE(test_out_of_bounds_read),
+	KFENCE_KUNIT_CASE(test_out_of_bounds_write),
 	KFENCE_KUNIT_CASE(test_use_after_free_read),
 	KFENCE_KUNIT_CASE(test_double_free),
 	KFENCE_KUNIT_CASE(test_invalid_addr_free),
