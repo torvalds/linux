@@ -4077,6 +4077,24 @@ u32 skl_ddb_dbuf_slice_mask(struct drm_i915_private *dev_priv,
 	return slice_mask;
 }
 
+static unsigned int intel_crtc_ddb_weight(const struct intel_crtc_state *crtc_state)
+{
+	const struct drm_display_mode *pipe_mode = &crtc_state->hw.pipe_mode;
+	int hdisplay, vdisplay;
+
+	if (!crtc_state->hw.active)
+		return 0;
+
+	/*
+	 * Watermark/ddb requirement highly depends upon width of the
+	 * framebuffer, So instead of allocating DDB equally among pipes
+	 * distribute DDB based on resolution/width of the display.
+	 */
+	drm_mode_get_hv_timing(pipe_mode, &hdisplay, &vdisplay);
+
+	return hdisplay;
+}
+
 static u8 skl_compute_dbuf_slices(const struct intel_crtc_state *crtc_state,
 				  u8 active_pipes);
 
@@ -4091,7 +4109,7 @@ skl_ddb_get_pipe_allocation_limits(struct drm_i915_private *dev_priv,
 	struct intel_atomic_state *intel_state = to_intel_atomic_state(state);
 	struct drm_crtc *for_crtc = crtc_state->uapi.crtc;
 	const struct intel_crtc *crtc;
-	u32 pipe_width = 0, total_width_in_range = 0, width_before_pipe_in_range = 0;
+	unsigned int pipe_weight = 0, total_weight = 0, weight_before_pipe = 0;
 	enum pipe for_pipe = to_intel_crtc(for_crtc)->pipe;
 	struct intel_dbuf_state *new_dbuf_state =
 		intel_atomic_get_new_dbuf_state(intel_state);
@@ -4160,18 +4178,11 @@ skl_ddb_get_pipe_allocation_limits(struct drm_i915_private *dev_priv,
 	 */
 	ddb_range_size = hweight8(dbuf_slice_mask) * slice_size;
 
-	/*
-	 * Watermark/ddb requirement highly depends upon width of the
-	 * framebuffer, So instead of allocating DDB equally among pipes
-	 * distribute DDB based on resolution/width of the display.
-	 */
 	total_slice_mask = dbuf_slice_mask;
 	for_each_new_intel_crtc_in_state(intel_state, crtc, crtc_state, i) {
-		const struct drm_display_mode *pipe_mode =
-			&crtc_state->hw.pipe_mode;
 		enum pipe pipe = crtc->pipe;
-		int hdisplay, vdisplay;
-		u32 pipe_dbuf_slice_mask;
+		unsigned int weight;
+		u8 pipe_dbuf_slice_mask;
 
 		if (!crtc_state->hw.active)
 			continue;
@@ -4198,14 +4209,13 @@ skl_ddb_get_pipe_allocation_limits(struct drm_i915_private *dev_priv,
 		if (dbuf_slice_mask != pipe_dbuf_slice_mask)
 			continue;
 
-		drm_mode_get_hv_timing(pipe_mode, &hdisplay, &vdisplay);
-
-		total_width_in_range += hdisplay;
+		weight = intel_crtc_ddb_weight(crtc_state);
+		total_weight += weight;
 
 		if (pipe < for_pipe)
-			width_before_pipe_in_range += hdisplay;
+			weight_before_pipe += weight;
 		else if (pipe == for_pipe)
-			pipe_width = hdisplay;
+			pipe_weight = weight;
 	}
 
 	/*
@@ -4220,9 +4230,8 @@ skl_ddb_get_pipe_allocation_limits(struct drm_i915_private *dev_priv,
 			return ret;
 	}
 
-	start = ddb_range_size * width_before_pipe_in_range / total_width_in_range;
-	end = ddb_range_size *
-		(width_before_pipe_in_range + pipe_width) / total_width_in_range;
+	start = ddb_range_size * weight_before_pipe / total_weight;
+	end = ddb_range_size * (weight_before_pipe + pipe_weight) / total_weight;
 
 	alloc->start = offset + start;
 	alloc->end = offset + end;
