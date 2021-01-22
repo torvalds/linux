@@ -530,13 +530,11 @@ static bool smu_v11_0_i2c_bus_unlock(struct i2c_adapter *control)
 /***************************** I2C GLUE ****************************/
 
 static uint32_t smu_v11_0_i2c_read_data(struct i2c_adapter *control,
-					struct i2c_msg *msg)
+					struct i2c_msg *msg, uint32_t i2c_flag)
 {
-	uint32_t  ret = 0;
+	uint32_t  ret;
 
-	/* Now read data starting with that address */
-	ret = smu_v11_0_i2c_receive(control, msg->addr, msg->buf, msg->len,
-				    I2C_RESTART);
+	ret = smu_v11_0_i2c_receive(control, msg->addr, msg->buf, msg->len, i2c_flag);
 
 	if (ret != I2C_OK)
 		DRM_ERROR("ReadData() - I2C error occurred :%x", ret);
@@ -545,12 +543,11 @@ static uint32_t smu_v11_0_i2c_read_data(struct i2c_adapter *control,
 }
 
 static uint32_t smu_v11_0_i2c_write_data(struct i2c_adapter *control,
-					struct i2c_msg *msg)
+					struct i2c_msg *msg, uint32_t i2c_flag)
 {
 	uint32_t  ret;
 
-	/* Send I2C_NO_STOP unless requested to stop. */
-	ret = smu_v11_0_i2c_transmit(control, msg->addr, msg->buf, msg->len, ((msg->flags & I2C_M_STOP) ? 0 : I2C_NO_STOP));
+	ret = smu_v11_0_i2c_transmit(control, msg->addr, msg->buf, msg->len, i2c_flag);
 
 	if (ret != I2C_OK)
 		DRM_ERROR("WriteI2CData() - I2C error occurred :%x", ret);
@@ -601,12 +598,17 @@ static int smu_v11_0_i2c_xfer(struct i2c_adapter *i2c_adap,
 	smu_v11_0_i2c_init(i2c_adap);
 
 	for (i = 0; i < num; i++) {
+		uint32_t i2c_flag = ((msgs[i].flags & I2C_M_NOSTART) ? 0 : I2C_RESTART) ||
+				    (((msgs[i].flags & I2C_M_STOP) ? 0 : I2C_NO_STOP));
+
 		if (msgs[i].flags & I2C_M_RD)
 			ret = smu_v11_0_i2c_read_data(i2c_adap,
-						      msgs + i);
+						      msgs + i,
+						      i2c_flag);
 		else
 			ret = smu_v11_0_i2c_write_data(i2c_adap,
-						       msgs + i);
+						       msgs + i,
+						       i2c_flag);
 
 		if (ret != I2C_OK) {
 			num = -EIO;
