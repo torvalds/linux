@@ -37,6 +37,7 @@
 #include <linux/key-type.h>
 #include <keys/user-type.h>
 #include <keys/encrypted-type.h>
+#include <keys/trusted-type.h>
 
 #include <linux/device-mapper.h>
 
@@ -2452,6 +2453,22 @@ static int set_key_encrypted(struct crypt_config *cc, struct key *key)
 	return 0;
 }
 
+static int set_key_trusted(struct crypt_config *cc, struct key *key)
+{
+	const struct trusted_key_payload *tkp;
+
+	tkp = key->payload.data[0];
+	if (!tkp)
+		return -EKEYREVOKED;
+
+	if (cc->key_size != tkp->key_len)
+		return -EINVAL;
+
+	memcpy(cc->key, tkp->key, cc->key_size);
+
+	return 0;
+}
+
 static int crypt_set_keyring_key(struct crypt_config *cc, const char *key_string)
 {
 	char *new_key_string, *key_desc;
@@ -2484,6 +2501,10 @@ static int crypt_set_keyring_key(struct crypt_config *cc, const char *key_string
 		   !strncmp(key_string, "encrypted:", key_desc - key_string + 1)) {
 		type = &key_type_encrypted;
 		set_key = set_key_encrypted;
+	} else if (IS_ENABLED(CONFIG_TRUSTED_KEYS) &&
+	           !strncmp(key_string, "trusted:", key_desc - key_string + 1)) {
+		type = &key_type_trusted;
+		set_key = set_key_trusted;
 	} else {
 		return -EINVAL;
 	}
@@ -3555,7 +3576,7 @@ static void crypt_io_hints(struct dm_target *ti, struct queue_limits *limits)
 
 static struct target_type crypt_target = {
 	.name   = "crypt",
-	.version = {1, 22, 0},
+	.version = {1, 23, 0},
 	.module = THIS_MODULE,
 	.ctr    = crypt_ctr,
 	.dtr    = crypt_dtr,

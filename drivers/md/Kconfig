@@ -270,6 +270,7 @@ config DM_CRYPT
 	tristate "Crypt target support"
 	depends on BLK_DEV_DM
 	depends on (ENCRYPTED_KEYS || ENCRYPTED_KEYS=n)
+	depends on (TRUSTED_KEYS || TRUSTED_KEYS=n)
 	select CRYPTO
 	select CRYPTO_CBC
 	select CRYPTO_ESSIV
