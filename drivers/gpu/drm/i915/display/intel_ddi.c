@@ -51,6 +51,7 @@
 #include "intel_sprite.h"
 #include "intel_tc.h"
 #include "intel_vdsc.h"
+#include "intel_vrr.h"
 
 struct ddi_buf_trans {
 	u32 trans1;	/* balance leg enable, de-emph level */
@@ -4309,6 +4310,8 @@ static void intel_enable_ddi(struct intel_atomic_state *state,
 
 	if (!crtc_state->bigjoiner_slave)
 		intel_ddi_enable_transcoder_func(encoder, crtc_state);
+
+	intel_vrr_enable(encoder, crtc_state);
 
 	intel_enable_pipe(crtc_state);
 

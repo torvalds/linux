@@ -99,3 +99,25 @@ intel_vrr_compute_config(struct intel_crtc_state *crtc_state,
 	crtc_state->vrr.pipeline_full =
 		min(255, crtc_state->vrr.vmin - adjusted_mode->crtc_vdisplay - 4 - 1);
 }
+
+void intel_vrr_enable(struct intel_encoder *encoder,
+		      const struct intel_crtc_state *crtc_state)
+{
+	struct drm_i915_private *dev_priv = to_i915(encoder->base.dev);
+	enum transcoder cpu_transcoder = crtc_state->cpu_transcoder;
+	u32 trans_vrr_ctl;
+
+	if (!crtc_state->vrr.enable)
+		return;
+
+	trans_vrr_ctl = VRR_CTL_VRR_ENABLE |
+		VRR_CTL_IGN_MAX_SHIFT | VRR_CTL_FLIP_LINE_EN |
+		VRR_CTL_PIPELINE_FULL(crtc_state->vrr.pipeline_full) |
+		VRR_CTL_PIPELINE_FULL_OVERRIDE;
+
+	intel_de_write(dev_priv, TRANS_VRR_VMIN(cpu_transcoder), crtc_state->vrr.vmin - 1);
+	intel_de_write(dev_priv, TRANS_VRR_VMAX(cpu_transcoder), crtc_state->vrr.vmax - 1);
+	intel_de_write(dev_priv, TRANS_VRR_CTL(cpu_transcoder), trans_vrr_ctl);
+	intel_de_write(dev_priv, TRANS_VRR_FLIPLINE(cpu_transcoder), crtc_state->vrr.flipline - 1);
+	intel_de_write(dev_priv, TRANS_PUSH(cpu_transcoder), TRANS_PUSH_EN);
+}
