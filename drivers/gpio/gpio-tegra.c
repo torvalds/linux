@@ -432,8 +432,10 @@ static void tegra_gpio_irq_handler(struct irq_desc *desc)
 		chained_irq_exit(chip, desc);
 }
 
-static int tegra_gpio_child_to_parent_hwirq(struct gpio_chip *chip, unsigned int hwirq,
-					    unsigned int type, unsigned int *parent_hwirq,
+static int tegra_gpio_child_to_parent_hwirq(struct gpio_chip *chip,
+					    unsigned int hwirq,
+					    unsigned int type,
+					    unsigned int *parent_hwirq,
 					    unsigned int *parent_type)
 {
 	*parent_hwirq = chip->irq.child_offset_to_irq(chip, hwirq);
@@ -442,7 +444,8 @@ static int tegra_gpio_child_to_parent_hwirq(struct gpio_chip *chip, unsigned int
 	return 0;
 }
 
-static void *tegra_gpio_populate_parent_fwspec(struct gpio_chip *chip, unsigned int parent_hwirq,
+static void *tegra_gpio_populate_parent_fwspec(struct gpio_chip *chip,
+					       unsigned int parent_hwirq,
 					       unsigned int parent_type)
 {
 	struct irq_fwspec *fwspec;
@@ -570,7 +573,8 @@ static int tegra_gpio_irq_set_wake(struct irq_data *d, unsigned int enable)
 }
 #endif
 
-static int tegra_gpio_irq_set_affinity(struct irq_data *data, const struct cpumask *dest,
+static int tegra_gpio_irq_set_affinity(struct irq_data *data,
+				       const struct cpumask *dest,
 				       bool force)
 {
 	if (data->parent_data)
@@ -715,7 +719,8 @@ static int tegra_gpio_probe(struct platform_device *pdev)
 	if (!tgi->bank_info)
 		return -ENOMEM;
 
-	tgi->irqs = devm_kcalloc(&pdev->dev, tgi->bank_count, sizeof(*tgi->irqs), GFP_KERNEL);
+	tgi->irqs = devm_kcalloc(&pdev->dev, tgi->bank_count,
+				 sizeof(*tgi->irqs), GFP_KERNEL);
 	if (!tgi->irqs)
 		return -ENOMEM;
 
