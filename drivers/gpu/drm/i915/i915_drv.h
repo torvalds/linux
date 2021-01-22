@@ -1122,15 +1122,6 @@ struct drm_i915_private {
 		 * crtc_state->wm.need_postvbl_update.
 		 */
 		struct mutex wm_mutex;
-
-		/*
-		 * Set during HW readout of watermarks/DDB.  Some platforms
-		 * need to know when we're still using BIOS-provided values
-		 * (which we don't fully trust).
-		 *
-		 * FIXME get rid of this.
-		 */
-		bool distrust_bios_wm;
 	} wm;
 
 	struct dram_info {

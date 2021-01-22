@@ -71,6 +71,8 @@ struct intel_dbuf_state {
 	struct intel_global_state base;
 
 	struct skl_ddb_entry ddb[I915_MAX_PIPES];
+	unsigned int weight[I915_MAX_PIPES];
+	u8 slices[I915_MAX_PIPES];
 
 	u8 enabled_slices;
 	u8 active_pipes;

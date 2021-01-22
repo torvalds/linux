@@ -12628,20 +12628,6 @@ static int intel_atomic_check(struct drm_device *dev,
 	if (ret)
 		goto fail;
 
-	/*
-	 * distrust_bios_wm will force a full dbuf recomputation
-	 * but the hardware state will only get updated accordingly
-	 * if state->modeset==true. Hence distrust_bios_wm==true &&
-	 * state->modeset==false is an invalid combination which
-	 * would cause the hardware and software dbuf state to get
-	 * out of sync. We must prevent that.
-	 *
-	 * FIXME clean up this mess and introduce better
-	 * state tracking for dbuf.
-	 */
-	if (dev_priv->wm.distrust_bios_wm)
-		any_ms = true;
-
 	intel_fbc_choose_crtc(dev_priv, state);
 	ret = calc_watermark_data(state);
 	if (ret)
@@ -13526,7 +13512,6 @@ static int intel_atomic_commit(struct drm_device *dev,
 		intel_runtime_pm_put(&dev_priv->runtime_pm, state->wakeref);
 		return ret;
 	}
-	dev_priv->wm.distrust_bios_wm = false;
 	intel_shared_dpll_swap_state(state);
 	intel_atomic_track_fbs(state);
 

@@ -1139,7 +1139,6 @@ static ssize_t i915_ipc_status_write(struct file *file, const char __user *ubuf,
 		if (!dev_priv->ipc_enabled && enable)
 			drm_info(&dev_priv->drm,
 				 "Enabling IPC: WM will be proper only after next commit\n");
-		dev_priv->wm.distrust_bios_wm = true;
 		dev_priv->ipc_enabled = enable;
 		intel_enable_ipc(dev_priv);
 	}
