@@ -1099,27 +1099,13 @@ use_clean:
 
 	set_bit(BCH_FS_ALLOC_READ_DONE, &c->flags);
 
-	if ((c->sb.compat & (1ULL << BCH_COMPAT_FEAT_ALLOC_INFO)) &&
-	    !(c->sb.compat & (1ULL << BCH_COMPAT_FEAT_ALLOC_METADATA))) {
-		/*
-		 * interior btree node updates aren't consistent with the
-		 * journal; after an unclean shutdown we have to walk all
-		 * pointers to metadata:
-		 */
-		bch_info(c, "starting metadata mark and sweep");
-		err = "error in mark and sweep";
-		ret = bch2_gc(c, &c->journal_keys, true, true);
-		if (ret)
-			goto err;
-		bch_verbose(c, "mark and sweep done");
-	}
-
 	if (c->opts.fsck ||
 	    !(c->sb.compat & (1ULL << BCH_COMPAT_FEAT_ALLOC_INFO)) ||
+	    !(c->sb.compat & (1ULL << BCH_COMPAT_FEAT_ALLOC_METADATA)) ||
 	    test_bit(BCH_FS_REBUILD_REPLICAS, &c->flags)) {
 		bch_info(c, "starting mark and sweep");
 		err = "error in mark and sweep";
-		ret = bch2_gc(c, &c->journal_keys, true, false);
+		ret = bch2_gc(c, &c->journal_keys, true);
 		if (ret)
 			goto err;
 		bch_verbose(c, "mark and sweep done");

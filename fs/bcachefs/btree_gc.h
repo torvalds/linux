@@ -7,7 +7,7 @@
 void bch2_coalesce(struct bch_fs *);
 
 struct journal_keys;
-int bch2_gc(struct bch_fs *, struct journal_keys *, bool, bool);
+int bch2_gc(struct bch_fs *, struct journal_keys *, bool);
 int bch2_gc_gens(struct bch_fs *);
 void bch2_gc_thread_stop(struct bch_fs *);
 int bch2_gc_thread_start(struct bch_fs *);
