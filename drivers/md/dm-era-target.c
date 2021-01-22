@@ -71,8 +71,6 @@ static size_t bitset_size(unsigned nr_bits)
  */
 static int writeset_alloc(struct writeset *ws, dm_block_t nr_blocks)
 {
-	ws->md.nr_bits = nr_blocks;
-	ws->md.root = INVALID_WRITESET_ROOT;
 	ws->bits = vzalloc(bitset_size(nr_blocks));
 	if (!ws->bits) {
 		DMERR("%s: couldn't allocate in memory bitset", __func__);
@@ -85,12 +83,14 @@ static int writeset_alloc(struct writeset *ws, dm_block_t nr_blocks)
 /*
  * Wipes the in-core bitset, and creates a new on disk bitset.
  */
-static int writeset_init(struct dm_disk_bitset *info, struct writeset *ws)
+static int writeset_init(struct dm_disk_bitset *info, struct writeset *ws,
+			 dm_block_t nr_blocks)
 {
 	int r;
 
-	memset(ws->bits, 0, bitset_size(ws->md.nr_bits));
+	memset(ws->bits, 0, bitset_size(nr_blocks));
 
+	ws->md.nr_bits = nr_blocks;
 	r = setup_on_disk_bitset(info, ws->md.nr_bits, &ws->md.root);
 	if (r) {
 		DMERR("%s: setup_on_disk_bitset failed", __func__);
@@ -579,6 +579,7 @@ static int open_metadata(struct era_metadata *md)
 	md->nr_blocks = le32_to_cpu(disk->nr_blocks);
 	md->current_era = le32_to_cpu(disk->current_era);
 
+	ws_unpack(&disk->current_writeset, &md->current_writeset->md);
 	md->writeset_tree_root = le64_to_cpu(disk->writeset_tree_root);
 	md->era_array_root = le64_to_cpu(disk->era_array_root);
 	md->metadata_snap = le64_to_cpu(disk->metadata_snap);
@@ -870,7 +871,6 @@ static int metadata_era_archive(struct era_metadata *md)
 	}
 
 	ws_pack(&md->current_writeset->md, &value);
-	md->current_writeset->md.root = INVALID_WRITESET_ROOT;
 
 	keys[0] = md->current_era;
 	__dm_bless_for_disk(&value);
@@ -882,6 +882,7 @@ static int metadata_era_archive(struct era_metadata *md)
 		return r;
 	}
 
+	md->current_writeset->md.root = INVALID_WRITESET_ROOT;
 	md->archived_writesets = true;
 
 	return 0;
@@ -898,7 +899,7 @@ static int metadata_new_era(struct era_metadata *md)
 	int r;
 	struct writeset *new_writeset = next_writeset(md);
 
-	r = writeset_init(&md->bitset_info, new_writeset);
+	r = writeset_init(&md->bitset_info, new_writeset, md->nr_blocks);
 	if (r) {
 		DMERR("%s: writeset_init failed", __func__);
 		return r;
@@ -951,7 +952,7 @@ static int metadata_commit(struct era_metadata *md)
 	int r;
 	struct dm_block *sblock;
 
-	if (md->current_writeset->md.root != SUPERBLOCK_LOCATION) {
+	if (md->current_writeset->md.root != INVALID_WRITESET_ROOT) {
 		r = dm_bitset_flush(&md->bitset_info, md->current_writeset->md.root,
 				    &md->current_writeset->md.root);
 		if (r) {
@@ -1565,7 +1566,7 @@ static int era_preresume(struct dm_target *ti)
 
 	start_worker(era);
 
-	r = in_worker0(era, metadata_new_era);
+	r = in_worker0(era, metadata_era_rollover);
 	if (r) {
 		DMERR("%s: metadata_era_rollover failed", __func__);
 		return r;
