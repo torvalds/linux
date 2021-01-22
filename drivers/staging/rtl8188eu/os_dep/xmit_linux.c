@@ -205,5 +205,5 @@ drop_packet:
 		 ("%s: drop, tx_drop=%d\n", __func__, (u32)pxmitpriv->tx_drop));
 
 exit:
-	return 0;
+	return NETDEV_TX_OK;
 }
