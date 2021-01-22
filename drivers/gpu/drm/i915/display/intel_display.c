@@ -845,7 +845,7 @@ static void ilk_enable_pch_transcoder(const struct intel_crtc_state *crtc_state)
 		val |= TRANS_CHICKEN2_TIMING_OVERRIDE;
 		/* Configure frame start delay to match the CPU */
 		val &= ~TRANS_CHICKEN2_FRAME_START_DELAY_MASK;
-		val |= TRANS_CHICKEN2_FRAME_START_DELAY(0);
+		val |= TRANS_CHICKEN2_FRAME_START_DELAY(dev_priv->framestart_delay - 1);
 		intel_de_write(dev_priv, reg, val);
 	}
 
@@ -856,7 +856,7 @@ static void ilk_enable_pch_transcoder(const struct intel_crtc_state *crtc_state)
 	if (HAS_PCH_IBX(dev_priv)) {
 		/* Configure frame start delay to match the CPU */
 		val &= ~TRANS_FRAME_START_DELAY_MASK;
-		val |= TRANS_FRAME_START_DELAY(0);
+		val |= TRANS_FRAME_START_DELAY(dev_priv->framestart_delay - 1);
 
 		/*
 		 * Make the BPC in transcoder be consistent with
@@ -901,7 +901,7 @@ static void lpt_enable_pch_transcoder(struct drm_i915_private *dev_priv,
 	val |= TRANS_CHICKEN2_TIMING_OVERRIDE;
 	/* Configure frame start delay to match the CPU */
 	val &= ~TRANS_CHICKEN2_FRAME_START_DELAY_MASK;
-	val |= TRANS_CHICKEN2_FRAME_START_DELAY(0);
+	val |= TRANS_CHICKEN2_FRAME_START_DELAY(dev_priv->framestart_delay - 1);
 	intel_de_write(dev_priv, TRANS_CHICKEN2(PIPE_A), val);
 
 	val = TRANS_ENABLE;
@@ -5415,7 +5415,7 @@ static void hsw_set_frame_start_delay(const struct intel_crtc_state *crtc_state)
 
 	val = intel_de_read(dev_priv, reg);
 	val &= ~HSW_FRAME_START_DELAY_MASK;
-	val |= HSW_FRAME_START_DELAY(0);
+	val |= HSW_FRAME_START_DELAY(dev_priv->framestart_delay - 1);
 	intel_de_write(dev_priv, reg, val);
 }
 
@@ -7128,12 +7128,11 @@ static void i9xx_set_pipeconf(const struct intel_crtc_state *crtc_state)
 
 	pipeconf |= PIPECONF_GAMMA_MODE(crtc_state->gamma_mode);
 
-	pipeconf |= PIPECONF_FRAME_START_DELAY(0);
+	pipeconf |= PIPECONF_FRAME_START_DELAY(dev_priv->framestart_delay - 1);
 
 	intel_de_write(dev_priv, PIPECONF(crtc->pipe), pipeconf);
 	intel_de_posting_read(dev_priv, PIPECONF(crtc->pipe));
 }
-
 
 static bool i9xx_has_pfit(struct drm_i915_private *dev_priv)
 {
@@ -8036,7 +8035,7 @@ static void ilk_set_pipeconf(const struct intel_crtc_state *crtc_state)
 
 	val |= PIPECONF_GAMMA_MODE(crtc_state->gamma_mode);
 
-	val |= PIPECONF_FRAME_START_DELAY(0);
+	val |= PIPECONF_FRAME_START_DELAY(dev_priv->framestart_delay - 1);
 
 	intel_de_write(dev_priv, PIPECONF(pipe), val);
 	intel_de_posting_read(dev_priv, PIPECONF(pipe));
@@ -14858,6 +14857,8 @@ int intel_modeset_init_noirq(struct drm_i915_private *i915)
 	i915->flip_wq = alloc_workqueue("i915_flip", WQ_HIGHPRI |
 					WQ_UNBOUND, WQ_UNBOUND_MAX_ACTIVE);
 
+	i915->framestart_delay = 1; /* 1-4 */
+
 	intel_mode_config_init(i915);
 
 	ret = intel_cdclk_init(i915);
@@ -15194,7 +15195,7 @@ static void intel_sanitize_frame_start_delay(const struct intel_crtc_state *crtc
 
 		val = intel_de_read(dev_priv, reg);
 		val &= ~HSW_FRAME_START_DELAY_MASK;
-		val |= HSW_FRAME_START_DELAY(0);
+		val |= HSW_FRAME_START_DELAY(dev_priv->framestart_delay - 1);
 		intel_de_write(dev_priv, reg, val);
 	} else {
 		i915_reg_t reg = PIPECONF(cpu_transcoder);
@@ -15202,7 +15203,7 @@ static void intel_sanitize_frame_start_delay(const struct intel_crtc_state *crtc
 
 		val = intel_de_read(dev_priv, reg);
 		val &= ~PIPECONF_FRAME_START_DELAY_MASK;
-		val |= PIPECONF_FRAME_START_DELAY(0);
+		val |= PIPECONF_FRAME_START_DELAY(dev_priv->framestart_delay - 1);
 		intel_de_write(dev_priv, reg, val);
 	}
 
@@ -15215,7 +15216,7 @@ static void intel_sanitize_frame_start_delay(const struct intel_crtc_state *crtc
 
 		val = intel_de_read(dev_priv, reg);
 		val &= ~TRANS_FRAME_START_DELAY_MASK;
-		val |= TRANS_FRAME_START_DELAY(0);
+		val |= TRANS_FRAME_START_DELAY(dev_priv->framestart_delay - 1);
 		intel_de_write(dev_priv, reg, val);
 	} else {
 		enum pipe pch_transcoder = intel_crtc_pch_transcoder(crtc);
@@ -15224,7 +15225,7 @@ static void intel_sanitize_frame_start_delay(const struct intel_crtc_state *crtc
 
 		val = intel_de_read(dev_priv, reg);
 		val &= ~TRANS_CHICKEN2_FRAME_START_DELAY_MASK;
-		val |= TRANS_CHICKEN2_FRAME_START_DELAY(0);
+		val |= TRANS_CHICKEN2_FRAME_START_DELAY(dev_priv->framestart_delay - 1);
 		intel_de_write(dev_priv, reg, val);
 	}
 }

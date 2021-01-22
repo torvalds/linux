@@ -1182,6 +1182,8 @@ struct drm_i915_private {
 		struct file *mmap_singleton;
 	} gem;
 
+	u8 framestart_delay;
+
 	u8 pch_ssc_use;
 
 	/* For i915gm/i945gm vblank irq workaround */
