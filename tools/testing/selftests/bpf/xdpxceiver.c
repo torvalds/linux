@@ -807,10 +807,10 @@ static void *worker_testapp_validate(void *arg)
 {
 	struct udphdr *udp_hdr =
 	    (struct udphdr *)(pkt_data + sizeof(struct ethhdr) + sizeof(struct iphdr));
-	struct generic_data *data = (struct generic_data *)malloc(sizeof(struct generic_data));
 	struct iphdr *ip_hdr = (struct iphdr *)(pkt_data + sizeof(struct ethhdr));
 	struct ethhdr *eth_hdr = (struct ethhdr *)pkt_data;
 	struct ifobject *ifobject = (struct ifobject *)arg;
+	struct generic_data data;
 	void *bufs = NULL;
 
 	pthread_attr_setstacksize(&attr, THREAD_STACK);
@@ -840,17 +840,16 @@ static void *worker_testapp_validate(void *arg)
 		for (int i = 0; i < num_frames; i++) {
 			/*send EOT frame */
 			if (i == (num_frames - 1))
-				data->seqnum = -1;
+				data.seqnum = -1;
 			else
-				data->seqnum = i;
-			gen_udp_hdr(data, ifobject, udp_hdr);
+				data.seqnum = i;
+			gen_udp_hdr(&data, ifobject, udp_hdr);
 			gen_ip_hdr(ifobject, ip_hdr);
 			gen_udp_csum(udp_hdr, ip_hdr);
 			gen_eth_hdr(ifobject, eth_hdr);
 			gen_eth_frame(ifobject->umem, i * XSK_UMEM__DEFAULT_FRAME_SIZE);
 		}
 
-		free(data);
 		ksft_print_msg("Sending %d packets on interface %s\n",
 			       (opt_pkt_count - 1), ifobject->ifname);
 		tx_only_all(ifobject);
