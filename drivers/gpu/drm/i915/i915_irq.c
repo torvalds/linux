@@ -718,25 +718,15 @@ u32 g4x_get_vblank_counter(struct drm_crtc *crtc)
 	return intel_uncore_read(&dev_priv->uncore, PIPE_FRMCOUNT_G4X(pipe));
 }
 
-/*
- * On certain encoders on certain platforms, pipe
- * scanline register will not work to get the scanline,
- * since the timings are driven from the PORT or issues
- * with scanline register updates.
- * This function will use Framestamp and current
- * timestamp registers to calculate the scanline.
- */
-static u32 __intel_get_crtc_scanline_from_timestamp(struct intel_crtc *crtc)
+static u32 intel_crtc_scanlines_since_frame_timestamp(struct intel_crtc *crtc)
 {
 	struct drm_i915_private *dev_priv = to_i915(crtc->base.dev);
 	struct drm_vblank_crtc *vblank =
 		&crtc->base.dev->vblank[drm_crtc_index(&crtc->base)];
 	const struct drm_display_mode *mode = &vblank->hwmode;
-	u32 vblank_start = mode->crtc_vblank_start;
-	u32 vtotal = mode->crtc_vtotal;
 	u32 htotal = mode->crtc_htotal;
 	u32 clock = mode->crtc_clock;
-	u32 scanline, scan_prev_time, scan_curr_time, scan_post_time;
+	u32 scan_prev_time, scan_curr_time, scan_post_time;
 
 	/*
 	 * To avoid the race condition where we might cross into the
@@ -763,8 +753,28 @@ static u32 __intel_get_crtc_scanline_from_timestamp(struct intel_crtc *crtc)
 						  PIPE_FRMTMSTMP(crtc->pipe));
 	} while (scan_post_time != scan_prev_time);
 
-	scanline = div_u64(mul_u32_u32(scan_curr_time - scan_prev_time,
-					clock), 1000 * htotal);
+	return div_u64(mul_u32_u32(scan_curr_time - scan_prev_time,
+				   clock), 1000 * htotal);
+}
+
+/*
+ * On certain encoders on certain platforms, pipe
+ * scanline register will not work to get the scanline,
+ * since the timings are driven from the PORT or issues
+ * with scanline register updates.
+ * This function will use Framestamp and current
+ * timestamp registers to calculate the scanline.
+ */
+static u32 __intel_get_crtc_scanline_from_timestamp(struct intel_crtc *crtc)
+{
+	struct drm_vblank_crtc *vblank =
+		&crtc->base.dev->vblank[drm_crtc_index(&crtc->base)];
+	const struct drm_display_mode *mode = &vblank->hwmode;
+	u32 vblank_start = mode->crtc_vblank_start;
+	u32 vtotal = mode->crtc_vtotal;
+	u32 scanline;
+
+	scanline = intel_crtc_scanlines_since_frame_timestamp(crtc);
 	scanline = min(scanline, vtotal - 1);
 	scanline = (scanline + vblank_start) % vtotal;
 
