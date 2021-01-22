@@ -1512,7 +1512,8 @@ static inline __u64 __bset_magic(struct bch_sb *sb)
 	x(blacklist_v2,		4)		\
 	x(usage,		5)		\
 	x(data_usage,		6)		\
-	x(clock,		7)
+	x(clock,		7)		\
+	x(dev_usage,		8)
 
 enum {
 #define x(f, nr)	BCH_JSET_ENTRY_##f	= nr,
@@ -1565,6 +1566,23 @@ struct jset_entry_clock {
 	__u8			rw;
 	__u8			pad[7];
 	__le64			time;
+} __attribute__((packed));
+
+struct jset_entry_dev_usage_type {
+	__le64			buckets;
+	__le64			sectors;
+	__le64			fragmented;
+} __attribute__((packed));
+
+struct jset_entry_dev_usage {
+	struct jset_entry	entry;
+	__le32			dev;
+	__u32			pad;
+
+	__le64			buckets_ec;
+	__le64			buckets_unavailable;
+
+	struct jset_entry_dev_usage_type d[];
 } __attribute__((packed));
 
 /*

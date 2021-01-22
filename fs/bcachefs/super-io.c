@@ -986,7 +986,8 @@ void bch2_journal_super_entries_add_common(struct bch_fs *c,
 					   struct jset_entry **end,
 					   u64 journal_seq)
 {
-	unsigned i;
+	struct bch_dev *ca;
+	unsigned i, dev;
 
 	percpu_down_read(&c->mark_lock);
 
@@ -1039,6 +1040,25 @@ void bch2_journal_super_entries_add_common(struct bch_fs *c,
 		u->v		= cpu_to_le64(c->usage_base->replicas[i]);
 		unsafe_memcpy(&u->r, e, replicas_entry_bytes(e),
 			      "embedded variable length struct");
+	}
+
+	for_each_member_device(ca, c, dev) {
+		unsigned b = sizeof(struct jset_entry_dev_usage) +
+			sizeof(struct jset_entry_dev_usage_type) * BCH_DATA_NR;
+		struct jset_entry_dev_usage *u =
+			container_of(jset_entry_init(end, b),
+				     struct jset_entry_dev_usage, entry);
+
+		u->entry.type = BCH_JSET_ENTRY_dev_usage;
+		u->dev = cpu_to_le32(dev);
+		u->buckets_ec		= cpu_to_le64(ca->usage_base->buckets_ec);
+		u->buckets_unavailable	= cpu_to_le64(ca->usage_base->buckets_unavailable);
+
+		for (i = 0; i < BCH_DATA_NR; i++) {
+			u->d[i].buckets = cpu_to_le64(ca->usage_base->d[i].buckets);
+			u->d[i].sectors	= cpu_to_le64(ca->usage_base->d[i].sectors);
+			u->d[i].fragmented = cpu_to_le64(ca->usage_base->d[i].fragmented);
+		}
 	}
 
 	percpu_up_read(&c->mark_lock);

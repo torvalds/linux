@@ -706,8 +706,8 @@ static void bch2_gc_free(struct bch_fs *c)
 			ca->mi.nbuckets * sizeof(struct bucket));
 		ca->buckets[1] = NULL;
 
-		free_percpu(ca->usage[1]);
-		ca->usage[1] = NULL;
+		free_percpu(ca->usage_gc);
+		ca->usage_gc = NULL;
 	}
 
 	free_percpu(c->usage_gc);
@@ -720,7 +720,7 @@ static int bch2_gc_done(struct bch_fs *c,
 	struct bch_dev *ca;
 	bool verify = (!initial ||
 		       (c->sb.compat & (1ULL << BCH_COMPAT_FEAT_ALLOC_INFO)));
-	unsigned i;
+	unsigned i, dev;
 	int ret = 0;
 
 #define copy_field(_f, _msg, ...)					\
@@ -786,7 +786,10 @@ static int bch2_gc_done(struct bch_fs *c,
 		}
 	}
 
-	for_each_member_device(ca, c, i) {
+	for (i = 0; i < ARRAY_SIZE(c->usage); i++)
+		bch2_fs_usage_acc_to_base(c, i);
+
+	for_each_member_device(ca, c, dev) {
 		struct bucket_array *dst = __bucket_array(ca, 0);
 		struct bucket_array *src = __bucket_array(ca, 1);
 		size_t b;
@@ -801,12 +804,23 @@ static int bch2_gc_done(struct bch_fs *c,
 
 			dst->b[b].oldest_gen = src->b[b].oldest_gen;
 		}
+
+		{
+			struct bch_dev_usage *dst = ca->usage_base;
+			struct bch_dev_usage *src = (void *)
+				bch2_acc_percpu_u64s((void *) ca->usage_gc,
+						     dev_usage_u64s());
+
+			copy_dev_field(buckets_ec,		"buckets_ec");
+			copy_dev_field(buckets_unavailable,	"buckets_unavailable");
+
+			for (i = 0; i < BCH_DATA_NR; i++) {
+				copy_dev_field(d[i].buckets,	"%s buckets", bch2_data_types[i]);
+				copy_dev_field(d[i].sectors,	"%s sectors", bch2_data_types[i]);
+				copy_dev_field(d[i].fragmented,	"%s fragmented", bch2_data_types[i]);
+			}
+		}
 	};
-
-	for (i = 0; i < ARRAY_SIZE(c->usage); i++)
-		bch2_fs_usage_acc_to_base(c, i);
-
-	bch2_dev_usage_from_buckets(c);
 
 	{
 		unsigned nr = fs_usage_u64s(c);
@@ -862,7 +876,7 @@ static int bch2_gc_start(struct bch_fs *c)
 
 	for_each_member_device(ca, c, i) {
 		BUG_ON(ca->buckets[1]);
-		BUG_ON(ca->usage[1]);
+		BUG_ON(ca->usage_gc);
 
 		ca->buckets[1] = kvpmalloc(sizeof(struct bucket_array) +
 				ca->mi.nbuckets * sizeof(struct bucket),
@@ -873,9 +887,9 @@ static int bch2_gc_start(struct bch_fs *c)
 			return -ENOMEM;
 		}
 
-		ca->usage[1] = alloc_percpu(struct bch_dev_usage);
-		if (!ca->usage[1]) {
-			bch_err(c, "error allocating ca->usage[gc]");
+		ca->usage_gc = alloc_percpu(struct bch_dev_usage);
+		if (!ca->usage_gc) {
+			bch_err(c, "error allocating ca->usage_gc");
 			percpu_ref_put(&ca->ref);
 			return -ENOMEM;
 		}

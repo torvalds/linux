@@ -429,7 +429,9 @@ struct bch_dev {
 	unsigned long		*buckets_nouse;
 	struct rw_semaphore	bucket_lock;
 
-	struct bch_dev_usage __percpu *usage[2];
+	struct bch_dev_usage		*usage_base;
+	struct bch_dev_usage __percpu	*usage[JOURNAL_BUF_NR];
+	struct bch_dev_usage __percpu	*usage_gc;
 
 	/* Allocator: */
 	struct task_struct __rcu *alloc_thread;
@@ -581,6 +583,8 @@ struct bch_fs {
 	struct mutex		replicas_gc_lock;
 
 	struct journal_entry_res replicas_journal_res;
+
+	struct journal_entry_res dev_usage_journal_res;
 
 	struct bch_disk_groups_cpu __rcu *disk_groups;
 

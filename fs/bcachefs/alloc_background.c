@@ -350,10 +350,6 @@ int bch2_alloc_read(struct bch_fs *c, struct journal_keys *journal_keys)
 		return ret;
 	}
 
-	percpu_down_write(&c->mark_lock);
-	bch2_dev_usage_from_buckets(c);
-	percpu_up_write(&c->mark_lock);
-
 	return 0;
 }
 

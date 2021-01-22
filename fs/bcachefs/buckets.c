@@ -137,6 +137,7 @@ void bch2_bucket_seq_cleanup(struct bch_fs *c)
 void bch2_fs_usage_initialize(struct bch_fs *c)
 {
 	struct bch_fs_usage *usage;
+	struct bch_dev *ca;
 	unsigned i;
 
 	percpu_down_write(&c->mark_lock);
@@ -153,6 +154,14 @@ void bch2_fs_usage_initialize(struct bch_fs *c)
 			cpu_replicas_entry(&c->replicas, i);
 
 		fs_usage_data_type_to_base(usage, e->data_type, usage->replicas[i]);
+	}
+
+	for_each_member_device(ca, c, i) {
+		struct bch_dev_usage dev = bch2_dev_usage_read(ca);
+
+		usage->hidden += (dev.d[BCH_DATA_sb].buckets +
+				  dev.d[BCH_DATA_journal].buckets) *
+			ca->mi.bucket_size;
 	}
 
 	percpu_up_write(&c->mark_lock);
@@ -189,14 +198,27 @@ out_pool:
 	return ret;
 }
 
+static inline struct bch_dev_usage *dev_usage_ptr(struct bch_dev *ca,
+						  unsigned journal_seq,
+						  bool gc)
+{
+	return this_cpu_ptr(gc
+			    ? ca->usage_gc
+			    : ca->usage[journal_seq & JOURNAL_BUF_MASK]);
+}
+
 struct bch_dev_usage bch2_dev_usage_read(struct bch_dev *ca)
 {
+	struct bch_fs *c = ca->fs;
 	struct bch_dev_usage ret;
+	unsigned seq, i, u64s = dev_usage_u64s();
 
-	memset(&ret, 0, sizeof(ret));
-	acc_u64s_percpu((u64 *) &ret,
-			(u64 __percpu *) ca->usage[0],
-			sizeof(ret) / sizeof(u64));
+	do {
+		seq = read_seqcount_begin(&c->usage_lock);
+		memcpy(&ret, ca->usage_base, u64s * sizeof(u64));
+		for (i = 0; i < ARRAY_SIZE(ca->usage); i++)
+			acc_u64s_percpu((u64 *) &ret, (u64 __percpu *) ca->usage[i], u64s);
+	} while (read_seqcount_retry(&c->usage_lock, seq));
 
 	return ret;
 }
@@ -264,7 +286,8 @@ retry:
 
 void bch2_fs_usage_acc_to_base(struct bch_fs *c, unsigned idx)
 {
-	unsigned u64s = fs_usage_u64s(c);
+	struct bch_dev *ca;
+	unsigned i, u64s = fs_usage_u64s(c);
 
 	BUG_ON(idx >= ARRAY_SIZE(c->usage));
 
@@ -274,6 +297,16 @@ void bch2_fs_usage_acc_to_base(struct bch_fs *c, unsigned idx)
 	acc_u64s_percpu((u64 *) c->usage_base,
 			(u64 __percpu *) c->usage[idx], u64s);
 	percpu_memset(c->usage[idx], 0, u64s * sizeof(u64));
+
+	rcu_read_lock();
+	for_each_member_device_rcu(ca, c, i, NULL) {
+		u64s = dev_usage_u64s();
+
+		acc_u64s_percpu((u64 *) ca->usage_base,
+				(u64 __percpu *) ca->usage[idx], u64s);
+		percpu_memset(ca->usage[idx], 0, u64s * sizeof(u64));
+	}
+	rcu_read_unlock();
 
 	write_seqcount_end(&c->usage_lock);
 	preempt_enable();
@@ -459,14 +492,14 @@ static inline void account_bucket(struct bch_fs_usage *fs_usage,
 static void bch2_dev_usage_update(struct bch_fs *c, struct bch_dev *ca,
 				  struct bch_fs_usage *fs_usage,
 				  struct bucket_mark old, struct bucket_mark new,
-				  bool gc)
+				  u64 journal_seq, bool gc)
 {
 	struct bch_dev_usage *u;
 
 	percpu_rwsem_assert_held(&c->mark_lock);
 
 	preempt_disable();
-	u = this_cpu_ptr(ca->usage[gc]);
+	u = dev_usage_ptr(ca, journal_seq, gc);
 
 	if (bucket_type(old))
 		account_bucket(fs_usage, u, bucket_type(old),
@@ -491,31 +524,6 @@ static void bch2_dev_usage_update(struct bch_fs *c, struct bch_dev *ca,
 
 	if (!is_available_bucket(old) && is_available_bucket(new))
 		bch2_wake_allocator(ca);
-}
-
-__flatten
-void bch2_dev_usage_from_buckets(struct bch_fs *c)
-{
-	struct bch_dev *ca;
-	struct bucket_mark old = { .v.counter = 0 };
-	struct bucket_array *buckets;
-	struct bucket *g;
-	unsigned i;
-	int cpu;
-
-	c->usage_base->hidden = 0;
-
-	for_each_member_device(ca, c, i) {
-		for_each_possible_cpu(cpu)
-			memset(per_cpu_ptr(ca->usage[0], cpu), 0,
-			       sizeof(*ca->usage[0]));
-
-		buckets = bucket_array(ca);
-
-		for_each_bucket(g, buckets)
-			bch2_dev_usage_update(c, ca, c->usage_base,
-					      old, g->mark, false);
-	}
 }
 
 static inline int update_replicas(struct bch_fs *c,
@@ -656,7 +664,12 @@ static int __bch2_mark_alloc_bucket(struct bch_fs *c, struct bch_dev *ca,
 		new.owned_by_allocator	= owned_by_allocator;
 	}));
 
-	bch2_dev_usage_update(c, ca, fs_usage, old, new, gc);
+	/*
+	 * XXX: this is wrong, this means we'll be doing updates to the percpu
+	 * buckets_alloc counter that don't have an open journal buffer and
+	 * we'll race with the machinery that accumulates that to ca->usage_base
+	 */
+	bch2_dev_usage_update(c, ca, fs_usage, old, new, 0, gc);
 
 	BUG_ON(!gc &&
 	       !owned_by_allocator && !old.owned_by_allocator);
@@ -720,7 +733,7 @@ static int bch2_mark_alloc(struct bch_fs *c,
 		}
 	}));
 
-	bch2_dev_usage_update(c, ca, fs_usage, old_m, m, gc);
+	bch2_dev_usage_update(c, ca, fs_usage, old_m, m, journal_seq, gc);
 
 	g->io_time[READ]	= u.read_time;
 	g->io_time[WRITE]	= u.write_time;
@@ -785,7 +798,7 @@ static int __bch2_mark_metadata_bucket(struct bch_fs *c, struct bch_dev *ca,
 
 	if (c)
 		bch2_dev_usage_update(c, ca, fs_usage_ptr(c, 0, gc),
-				      old, new, gc);
+				      old, new, 0, gc);
 
 	return 0;
 }
@@ -966,7 +979,7 @@ static int mark_stripe_bucket(struct bch_fs *c, struct bkey_s_c k,
 	g->stripe		= k.k->p.offset;
 	g->stripe_redundancy	= s->nr_redundant;
 
-	bch2_dev_usage_update(c, ca, fs_usage, old, new, gc);
+	bch2_dev_usage_update(c, ca, fs_usage, old, new, journal_seq, gc);
 	return 0;
 }
 
@@ -1033,7 +1046,7 @@ static int bch2_mark_pointer(struct bch_fs *c, struct bkey_s_c k,
 			      old.v.counter,
 			      new.v.counter)) != old.v.counter);
 
-	bch2_dev_usage_update(c, ca, fs_usage, old, new, gc);
+	bch2_dev_usage_update(c, ca, fs_usage, old, new, journal_seq, gc);
 
 	BUG_ON(!gc && bucket_became_unavailable(old, new));
 
@@ -2389,13 +2402,24 @@ void bch2_dev_buckets_free(struct bch_dev *ca)
 		sizeof(struct bucket_array) +
 		ca->mi.nbuckets * sizeof(struct bucket));
 
-	free_percpu(ca->usage[0]);
+	for (i = 0; i < ARRAY_SIZE(ca->usage); i++)
+		free_percpu(ca->usage[i]);
+	kfree(ca->usage_base);
 }
 
 int bch2_dev_buckets_alloc(struct bch_fs *c, struct bch_dev *ca)
 {
-	if (!(ca->usage[0] = alloc_percpu(struct bch_dev_usage)))
+	unsigned i;
+
+	ca->usage_base = kzalloc(sizeof(struct bch_dev_usage), GFP_KERNEL);
+	if (!ca->usage_base)
 		return -ENOMEM;
+
+	for (i = 0; i < ARRAY_SIZE(ca->usage); i++) {
+		ca->usage[i] = alloc_percpu(struct bch_dev_usage);
+		if (!ca->usage[i])
+			return -ENOMEM;
+	}
 
 	return bch2_dev_buckets_resize(c, ca, ca->mi.nbuckets);;
 }

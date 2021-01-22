@@ -155,6 +155,22 @@ struct bch_fs *bch2_uuid_to_fs(__uuid_t uuid)
 	return c;
 }
 
+static void bch2_dev_usage_journal_reserve(struct bch_fs *c)
+{
+	struct bch_dev *ca;
+	unsigned i, nr = 0, u64s =
+		(sizeof(struct jset_entry_dev_usage) +
+		 sizeof(struct jset_entry_dev_usage_type) * BCH_DATA_NR);
+
+	rcu_read_lock();
+	for_each_member_device_rcu(ca, c, i, NULL)
+		nr++;
+	rcu_read_unlock();
+
+	bch2_journal_entry_res_resize(&c->journal,
+			&c->dev_usage_journal_res, u64s * nr);
+}
+
 /* Filesystem RO/RW: */
 
 /*
@@ -779,6 +795,8 @@ static struct bch_fs *bch2_fs_alloc(struct bch_sb *sb, struct bch_opts opts)
 	    bch2_fs_ec_init(c) ||
 	    bch2_fs_fsio_init(c))
 		goto err;
+
+	bch2_dev_usage_journal_reserve(c);
 
 	mi = bch2_sb_get_members(c->disk_sb.sb);
 	for (i = 0; i < c->sb.nr_devices; i++)
@@ -1516,6 +1534,8 @@ int bch2_dev_remove(struct bch_fs *c, struct bch_dev *ca, int flags)
 
 	mutex_unlock(&c->sb_lock);
 	up_write(&c->state_lock);
+
+	bch2_dev_usage_journal_reserve(c);
 	return 0;
 err:
 	if (ca->mi.state == BCH_MEMBER_STATE_RW &&
@@ -1523,19 +1543,6 @@ err:
 		__bch2_dev_read_write(c, ca);
 	up_write(&c->state_lock);
 	return ret;
-}
-
-static void dev_usage_clear(struct bch_dev *ca)
-{
-	struct bucket_array *buckets;
-
-	percpu_memset(ca->usage[0], 0, sizeof(*ca->usage[0]));
-
-	down_read(&ca->bucket_lock);
-	buckets = bucket_array(ca);
-
-	memset(buckets->b, 0, sizeof(buckets->b[0]) * buckets->nbuckets);
-	up_read(&ca->bucket_lock);
 }
 
 /* Add new device to running filesystem: */
@@ -1595,8 +1602,6 @@ int bch2_dev_add(struct bch_fs *c, const char *path)
 	if (ret)
 		goto err;
 
-	dev_usage_clear(ca);
-
 	down_write(&c->state_lock);
 	mutex_lock(&c->sb_lock);
 
@@ -1649,6 +1654,8 @@ have_slot:
 
 	bch2_write_super(c);
 	mutex_unlock(&c->sb_lock);
+
+	bch2_dev_usage_journal_reserve(c);
 
 	err = "error marking superblock";
 	ret = bch2_trans_mark_dev_sb(c, NULL, ca);

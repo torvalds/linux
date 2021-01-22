@@ -162,8 +162,6 @@ static inline bool bucket_needs_journal_commit(struct bucket_mark m,
 
 struct bch_dev_usage bch2_dev_usage_read(struct bch_dev *);
 
-void bch2_dev_usage_from_buckets(struct bch_fs *);
-
 static inline u64 __dev_buckets_available(struct bch_dev *ca,
 					  struct bch_dev_usage stats)
 {
@@ -205,6 +203,11 @@ static inline unsigned fs_usage_u64s(struct bch_fs *c)
 
 	return sizeof(struct bch_fs_usage) / sizeof(u64) +
 		READ_ONCE(c->replicas.nr);
+}
+
+static inline unsigned dev_usage_u64s(void)
+{
+	return sizeof(struct bch_dev_usage) / sizeof(u64);
 }
 
 void bch2_fs_usage_scratch_put(struct bch_fs *, struct bch_fs_usage_online *);

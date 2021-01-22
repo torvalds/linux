@@ -452,6 +452,43 @@ fsck_err:
 	return ret;
 }
 
+static int journal_entry_validate_dev_usage(struct bch_fs *c,
+					    struct jset *jset,
+					    struct jset_entry *entry,
+					    int write)
+{
+	struct jset_entry_dev_usage *u =
+		container_of(entry, struct jset_entry_dev_usage, entry);
+	unsigned bytes = jset_u64s(le16_to_cpu(entry->u64s)) * sizeof(u64);
+	unsigned expected = sizeof(*u) + sizeof(u->d[0]) * 7; /* Current value of BCH_DATA_NR */
+	unsigned dev;
+	int ret = 0;
+
+	if (journal_entry_err_on(bytes < expected,
+				 c, "invalid journal entry dev usage: bad size (%u < %u)",
+				 bytes, expected)) {
+		journal_entry_null_range(entry, vstruct_next(entry));
+		return ret;
+	}
+
+	dev = le32_to_cpu(u->dev);
+
+	if (journal_entry_err_on(!bch2_dev_exists2(c, dev),
+				 c, "invalid journal entry dev usage: bad dev")) {
+		journal_entry_null_range(entry, vstruct_next(entry));
+		return ret;
+	}
+
+	if (journal_entry_err_on(u->pad,
+				 c, "invalid journal entry dev usage: bad pad")) {
+		journal_entry_null_range(entry, vstruct_next(entry));
+		return ret;
+	}
+
+fsck_err:
+	return ret;
+}
+
 struct jset_entry_ops {
 	int (*validate)(struct bch_fs *, struct jset *,
 			struct jset_entry *, int);
