@@ -16,14 +16,19 @@
 
 struct at91_soc {
 	u32 cidr_match;
+	u32 cidr_mask;
+	u32 version_mask;
 	u32 exid_match;
 	const char *name;
 	const char *family;
 };
 
-#define AT91_SOC(__cidr, __exid, __name, __family)		\
+#define AT91_SOC(__cidr, __cidr_mask, __version_mask, __exid,	\
+		 __name, __family)				\
 	{							\
 		.cidr_match = (__cidr),				\
+		.cidr_mask = (__cidr_mask),			\
+		.version_mask = (__version_mask),		\
 		.exid_match = (__exid),				\
 		.name = (__name),				\
 		.family = (__family),				\
