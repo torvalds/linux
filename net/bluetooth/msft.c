@@ -58,6 +58,17 @@ struct msft_rp_le_monitor_advertisement {
 	__u8 handle;
 } __packed;
 
+#define MSFT_OP_LE_CANCEL_MONITOR_ADVERTISEMENT	0x04
+struct msft_cp_le_cancel_monitor_advertisement {
+	__u8 sub_opcode;
+	__u8 handle;
+} __packed;
+
+struct msft_rp_le_cancel_monitor_advertisement {
+	__u8 status;
+	__u8 sub_opcode;
+} __packed;
+
 struct msft_monitor_advertisement_handle_data {
 	__u8  msft_handle;
 	__u16 mgmt_handle;
@@ -70,6 +81,7 @@ struct msft_data {
 	__u8  *evt_prefix;
 	struct list_head handle_map;
 	__u16 pending_add_handle;
+	__u16 pending_remove_handle;
 };
 
 bool msft_monitor_supported(struct hci_dev *hdev)
@@ -205,6 +217,26 @@ __u64 msft_get_features(struct hci_dev *hdev)
 	return msft ? msft->features : 0;
 }
 
+/* is_mgmt = true matches the handle exposed to userspace via mgmt.
+ * is_mgmt = false matches the handle used by the msft controller.
+ * This function requires the caller holds hdev->lock
+ */
+static struct msft_monitor_advertisement_handle_data *msft_find_handle_data
+				(struct hci_dev *hdev, u16 handle, bool is_mgmt)
+{
+	struct msft_monitor_advertisement_handle_data *entry;
+	struct msft_data *msft = hdev->msft_data;
+
+	list_for_each_entry(entry, &msft->handle_map, list) {
+		if (is_mgmt && entry->mgmt_handle == handle)
+			return entry;
+		if (!is_mgmt && entry->msft_handle == handle)
+			return entry;
+	}
+
+	return NULL;
+}
+
 static void msft_le_monitor_advertisement_cb(struct hci_dev *hdev,
 					     u8 status, u16 opcode,
 					     struct sk_buff *skb)
@@ -247,14 +279,69 @@ static void msft_le_monitor_advertisement_cb(struct hci_dev *hdev,
 	monitor->state = ADV_MONITOR_STATE_OFFLOADED;
 
 unlock:
-	if (status && monitor) {
-		idr_remove(&hdev->adv_monitors_idr, monitor->handle);
-		hci_free_adv_monitor(monitor);
-	}
+	if (status && monitor)
+		hci_free_adv_monitor(hdev, monitor);
 
 	hci_dev_unlock(hdev);
 
 	hci_add_adv_patterns_monitor_complete(hdev, status);
+}
+
+static void msft_le_cancel_monitor_advertisement_cb(struct hci_dev *hdev,
+						    u8 status, u16 opcode,
+						    struct sk_buff *skb)
+{
+	struct msft_cp_le_cancel_monitor_advertisement *cp;
+	struct msft_rp_le_cancel_monitor_advertisement *rp;
+	struct adv_monitor *monitor;
+	struct msft_monitor_advertisement_handle_data *handle_data;
+	struct msft_data *msft = hdev->msft_data;
+	int err;
+	bool pending;
+
+	if (status)
+		goto done;
+
+	rp = (struct msft_rp_le_cancel_monitor_advertisement *)skb->data;
+	if (skb->len < sizeof(*rp)) {
+		status = HCI_ERROR_UNSPECIFIED;
+		goto done;
+	}
+
+	hci_dev_lock(hdev);
+
+	cp = hci_sent_cmd_data(hdev, hdev->msft_opcode);
+	handle_data = msft_find_handle_data(hdev, cp->handle, false);
+
+	if (handle_data) {
+		monitor = idr_find(&hdev->adv_monitors_idr,
+				   handle_data->mgmt_handle);
+		if (monitor)
+			hci_free_adv_monitor(hdev, monitor);
+
+		list_del(&handle_data->list);
+		kfree(handle_data);
+	}
+
+	/* If remove all monitors is required, we need to continue the process
+	 * here because the earlier it was paused when waiting for the
+	 * response from controller.
+	 */
+	if (msft->pending_remove_handle == 0) {
+		pending = hci_remove_all_adv_monitor(hdev, &err);
+		if (pending) {
+			hci_dev_unlock(hdev);
+			return;
+		}
+
+		if (err)
+			status = HCI_ERROR_UNSPECIFIED;
+	}
+
+	hci_dev_unlock(hdev);
+
+done:
+	hci_remove_adv_monitor_complete(hdev, status);
 }
 
 static bool msft_monitor_rssi_valid(struct adv_monitor *monitor)
@@ -343,6 +430,38 @@ int msft_add_monitor_pattern(struct hci_dev *hdev, struct adv_monitor *monitor)
 
 	if (!err)
 		msft->pending_add_handle = monitor->handle;
+
+	return err;
+}
+
+/* This function requires the caller holds hdev->lock */
+int msft_remove_monitor(struct hci_dev *hdev, struct adv_monitor *monitor,
+			u16 handle)
+{
+	struct msft_cp_le_cancel_monitor_advertisement cp;
+	struct msft_monitor_advertisement_handle_data *handle_data;
+	struct hci_request req;
+	struct msft_data *msft = hdev->msft_data;
+	int err = 0;
+
+	if (!msft)
+		return -EOPNOTSUPP;
+
+	handle_data = msft_find_handle_data(hdev, monitor->handle, true);
+
+	/* If no matched handle, just remove without telling controller */
+	if (!handle_data)
+		return -ENOENT;
+
+	cp.sub_opcode = MSFT_OP_LE_CANCEL_MONITOR_ADVERTISEMENT;
+	cp.handle = handle_data->msft_handle;
+
+	hci_req_init(&req, hdev);
+	hci_req_add(&req, hdev->msft_opcode, sizeof(cp), &cp);
+	err = hci_req_run_skb(&req, msft_le_cancel_monitor_advertisement_cb);
+
+	if (!err)
+		msft->pending_remove_handle = handle;
 
 	return err;
 }
