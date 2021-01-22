@@ -205,27 +205,9 @@ static bool create_links(
 		link = link_create(&link_init_params);
 
 		if (link) {
-			bool should_destory_link = false;
-
-			if (link->connector_signal == SIGNAL_TYPE_EDP) {
-				if (dc->config.edp_not_connected) {
-					if (!IS_DIAG_DC(dc->ctx->dce_environment))
-						should_destory_link = true;
-				} else {
-					enum dc_connection_type type;
-					dc_link_detect_sink(link, &type);
-					if (type == dc_connection_none)
-						should_destory_link = true;
-				}
-			}
-
-			if (dc->config.force_enum_edp || !should_destory_link) {
 				dc->links[dc->link_count] = link;
 				link->dc = dc;
 				++dc->link_count;
-			} else {
-				link_destroy(&link);
-			}
 		}
 	}
 
@@ -1016,8 +998,30 @@ destruct_dc:
 	return NULL;
 }
 
+static void detect_edp_presence(struct dc *dc)
+{
+	struct dc_link *edp_link = get_edp_link(dc);
+	bool edp_sink_present = true;
+
+	if (!edp_link)
+		return;
+
+	if (dc->config.edp_not_connected) {
+			edp_sink_present = false;
+	} else {
+		enum dc_connection_type type;
+		dc_link_detect_sink(edp_link, &type);
+		if (type == dc_connection_none)
+			edp_sink_present = false;
+	}
+
+	edp_link->edp_sink_present = edp_sink_present;
+}
+
 void dc_hardware_init(struct dc *dc)
 {
+
+	detect_edp_presence(dc);
 	if (dc->ctx->dce_environment != DCE_ENV_VIRTUAL_HW)
 		dc->hwss.init_hw(dc);
 }
