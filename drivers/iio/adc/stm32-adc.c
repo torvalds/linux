@@ -546,8 +546,7 @@ static int stm32_adc_hw_stop(struct device *dev)
 	if (adc->cfg->unprepare)
 		adc->cfg->unprepare(indio_dev);
 
-	if (adc->clk)
-		clk_disable_unprepare(adc->clk);
+	clk_disable_unprepare(adc->clk);
 
 	return 0;
 }
@@ -558,11 +557,9 @@ static int stm32_adc_hw_start(struct device *dev)
 	struct stm32_adc *adc = iio_priv(indio_dev);
 	int ret;
 
-	if (adc->clk) {
-		ret = clk_prepare_enable(adc->clk);
-		if (ret)
-			return ret;
-	}
+	ret = clk_prepare_enable(adc->clk);
+	if (ret)
+		return ret;
 
 	stm32_adc_set_res(adc);
 
@@ -575,8 +572,7 @@ static int stm32_adc_hw_start(struct device *dev)
 	return 0;
 
 err_clk_dis:
-	if (adc->clk)
-		clk_disable_unprepare(adc->clk);
+	clk_disable_unprepare(adc->clk);
 
 	return ret;
 }

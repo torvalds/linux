@@ -282,7 +282,7 @@ static int pms7003_probe(struct serdev_device *serdev)
 	state->serdev = serdev;
 	indio_dev->info = &pms7003_info;
 	indio_dev->name = PMS7003_DRIVER_NAME;
-	indio_dev->channels = pms7003_channels,
+	indio_dev->channels = pms7003_channels;
 	indio_dev->num_channels = ARRAY_SIZE(pms7003_channels);
 	indio_dev->modes = INDIO_DIRECT_MODE;
 	indio_dev->available_scan_masks = pms7003_scan_masks;

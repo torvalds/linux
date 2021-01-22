@@ -1,0 +1,31 @@
+What:		/sys/bus/iio/devices/iio:deviceX/in_voltageY_dither_enable
+KernelVersion:	5.12
+Contact:	linux-iio@vger.kernel.org
+Description:
+		Dither enable. Write 1 to enable dither or 0 to disable it.
+
+What:		/sys/bus/iio/devices/iio:deviceX/in_voltageY_dither_invert
+KernelVersion:	5.12
+Contact:	linux-iio@vger.kernel.org
+Description:
+		Inverts the dither applied to the selected DAC channel. Dither is not
+		inverted by default. Write "1" to invert dither.
+
+What:		/sys/bus/iio/devices/iio:deviceX/in_voltageY_dither_scale_available
+KernelVersion:	5.12
+Contact:	linux-iio@vger.kernel.org
+Description:
+		Returns possible scalings available for the current channel.
+
+What:		/sys/bus/iio/devices/iio:deviceX/in_voltageY_dither_scale
+KernelVersion:	5.12
+Contact:	linux-iio@vger.kernel.org
+Description:
+		Scales the dither before it is applied to the selected channel.
+
+What:		/sys/bus/iio/devices/iio:deviceX/in_voltageY_dither_source
+KernelVersion:	5.12
+Contact:	linux-iio@vger.kernel.org
+Description:
+		Selects dither source applied to the selected channel. Write "0" to
+		select N0 source, write "1" to select N1 source.

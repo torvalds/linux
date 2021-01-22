@@ -20,11 +20,15 @@ struct dev_rot_state {
 	struct hid_sensor_hub_callbacks callbacks;
 	struct hid_sensor_common common_attributes;
 	struct hid_sensor_hub_attribute_info quaternion;
-	u32 sampled_vals[4];
+	struct {
+		u32 sampled_vals[4] __aligned(16);
+		u64 timestamp __aligned(8);
+	} scan;
 	int scale_pre_decml;
 	int scale_post_decml;
 	int scale_precision;
 	int value_offset;
+	s64 timestamp;
 };
 
 /* Channel definitions */
@@ -37,8 +41,10 @@ static const struct iio_chan_spec dev_rot_channels[] = {
 		.info_mask_shared_by_type = BIT(IIO_CHAN_INFO_SAMP_FREQ) |
 					BIT(IIO_CHAN_INFO_OFFSET) |
 					BIT(IIO_CHAN_INFO_SCALE) |
-					BIT(IIO_CHAN_INFO_HYSTERESIS)
-	}
+					BIT(IIO_CHAN_INFO_HYSTERESIS),
+		.scan_index = 0
+	},
+	IIO_CHAN_SOFT_TIMESTAMP(1)
 };
 
 /* Adjust channel real bits based on report descriptor */
@@ -70,7 +76,7 @@ static int dev_rot_read_raw(struct iio_dev *indio_dev,
 	case IIO_CHAN_INFO_RAW:
 		if (size >= 4) {
 			for (i = 0; i < 4; ++i)
-				vals[i] = rot_state->sampled_vals[i];
+				vals[i] = rot_state->scan.sampled_vals[i];
 			ret_type = IIO_VAL_INT_MULTIPLE;
 			*val_len =  4;
 		} else
@@ -132,15 +138,6 @@ static const struct iio_info dev_rot_info = {
 	.write_raw = &dev_rot_write_raw,
 };
 
-/* Function to push data to buffer */
-static void hid_sensor_push_data(struct iio_dev *indio_dev, u8 *data, int len)
-{
-	dev_dbg(&indio_dev->dev, "hid_sensor_push_data >>\n");
-	iio_push_to_buffers(indio_dev, (u8 *)data);
-	dev_dbg(&indio_dev->dev, "hid_sensor_push_data <<\n");
-
-}
-
 /* Callback handler to send event after all samples are received and captured */
 static int dev_rot_proc_event(struct hid_sensor_hub_device *hsdev,
 				unsigned usage_id,
@@ -150,10 +147,15 @@ static int dev_rot_proc_event(struct hid_sensor_hub_device *hsdev,
 	struct dev_rot_state *rot_state = iio_priv(indio_dev);
 
 	dev_dbg(&indio_dev->dev, "dev_rot_proc_event\n");
-	if (atomic_read(&rot_state->common_attributes.data_ready))
-		hid_sensor_push_data(indio_dev,
-				(u8 *)rot_state->sampled_vals,
-				sizeof(rot_state->sampled_vals));
+	if (atomic_read(&rot_state->common_attributes.data_ready)) {
+		if (!rot_state->timestamp)
+			rot_state->timestamp = iio_get_time_ns(indio_dev);
+
+		iio_push_to_buffers_with_timestamp(indio_dev, &rot_state->scan,
+						   rot_state->timestamp);
+
+		rot_state->timestamp = 0;
+	}
 
 	return 0;
 }
@@ -168,10 +170,14 @@ static int dev_rot_capture_sample(struct hid_sensor_hub_device *hsdev,
 	struct dev_rot_state *rot_state = iio_priv(indio_dev);
 
 	if (usage_id == HID_USAGE_SENSOR_ORIENT_QUATERNION) {
-		memcpy(rot_state->sampled_vals, raw_data,
-					sizeof(rot_state->sampled_vals));
+		memcpy(&rot_state->scan.sampled_vals, raw_data,
+		       sizeof(rot_state->scan.sampled_vals));
+
 		dev_dbg(&indio_dev->dev, "Recd Quat len:%zu::%zu\n", raw_len,
-					sizeof(rot_state->sampled_vals));
+			sizeof(rot_state->scan.sampled_vals));
+	} else if (usage_id == HID_USAGE_SENSOR_TIME_TIMESTAMP) {
+		rot_state->timestamp = hid_sensor_convert_timestamp(&rot_state->common_attributes,
+								    *(s64 *)raw_data);
 	}
 
 	return 0;

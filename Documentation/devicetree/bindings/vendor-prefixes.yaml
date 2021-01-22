@@ -1252,6 +1252,8 @@ patternProperties:
     description: Shenzhen Xunlong Software CO.,Limited
   "^xylon,.*":
     description: Xylon
+  "^yamaha,.*":
+    description: Yamaha Corporation
   "^yes-optoelectronics,.*":
     description: Yes Optoelectronics Co.,Ltd.
   "^ylm,.*":
