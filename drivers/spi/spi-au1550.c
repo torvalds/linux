@@ -447,8 +447,8 @@ static irqreturn_t au1550_spi_dma_irq_callback(struct au1550_spi *hw)
 				"dma transfer: receive FIFO overflow!\n");
 		else
 			dev_err(hw->dev,
-				"dma transfer: unexpected SPI error "
-				"(event=0x%x stat=0x%x)!\n", evnt, stat);
+				"dma transfer: unexpected SPI error (event=0x%x stat=0x%x)!\n",
+				evnt, stat);
 
 		complete(&hw->master_done);
 		return IRQ_HANDLED;
@@ -567,8 +567,8 @@ static irqreturn_t au1550_spi_pio_irq_callback(struct au1550_spi *hw)
 		au1550_spi_mask_ack_all(hw);
 		au1550_spi_reset_fifos(hw);
 		dev_err(hw->dev,
-			"pio transfer: unexpected SPI error "
-			"(event=0x%x stat=0x%x)!\n", evnt, stat);
+			"pio transfer: unexpected SPI error (event=0x%x stat=0x%x)!\n",
+			evnt, stat);
 		complete(&hw->master_done);
 		return IRQ_HANDLED;
 	}
@@ -972,8 +972,7 @@ static int __init au1550_spi_init(void)
 	if (usedma) {
 		ddma_memid = au1xxx_ddma_add_device(&au1550_spi_mem_dbdev);
 		if (!ddma_memid)
-			printk(KERN_ERR "au1550-spi: cannot add memory"
-					"dbdma device\n");
+			printk(KERN_ERR "au1550-spi: cannot add memory dbdma device\n");
 	}
 	return platform_driver_register(&au1550_spi_drv);
 }
