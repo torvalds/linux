@@ -9,8 +9,10 @@
 #include <linux/types.h>
 
 #include "display/intel_bw.h"
+#include "display/intel_display.h"
 #include "display/intel_global_state.h"
 
+#include "i915_drv.h"
 #include "i915_reg.h"
 
 struct drm_device;
@@ -67,6 +69,8 @@ bool intel_set_memory_cxsr(struct drm_i915_private *dev_priv, bool enable);
 
 struct intel_dbuf_state {
 	struct intel_global_state base;
+
+	struct skl_ddb_entry ddb[I915_MAX_PIPES];
 
 	u8 enabled_slices;
 	u8 active_pipes;
