@@ -595,7 +595,7 @@ config GPIO_TB10X
 	select OF_GPIO
 
 config GPIO_TEGRA
-	bool "NVIDIA Tegra GPIO support"
+	tristate "NVIDIA Tegra GPIO support"
 	default ARCH_TEGRA
 	depends on ARCH_TEGRA || COMPILE_TEST
 	depends on OF_GPIO

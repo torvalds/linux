@@ -802,6 +802,7 @@ static const struct of_device_id tegra_gpio_of_match[] = {
 	{ .compatible = "nvidia,tegra20-gpio", .data = &tegra20_gpio_config },
 	{ },
 };
+MODULE_DEVICE_TABLE(of, tegra_gpio_of_match);
 
 static struct platform_driver tegra_gpio_driver = {
 	.driver = {
@@ -811,9 +812,11 @@ static struct platform_driver tegra_gpio_driver = {
 	},
 	.probe = tegra_gpio_probe,
 };
+module_platform_driver(tegra_gpio_driver);
 
-static int __init tegra_gpio_init(void)
-{
-	return platform_driver_register(&tegra_gpio_driver);
-}
-subsys_initcall(tegra_gpio_init);
+MODULE_DESCRIPTION("NVIDIA Tegra GPIO controller driver");
+MODULE_AUTHOR("Laxman Dewangan <ldewangan@nvidia.com>");
+MODULE_AUTHOR("Stephen Warren <swarren@nvidia.com>");
+MODULE_AUTHOR("Thierry Reding <treding@nvidia.com>");
+MODULE_AUTHOR("Erik Gilling <konkers@google.com>");
+MODULE_LICENSE("GPL v2");
