@@ -5663,6 +5663,18 @@ static bool skl_ddb_entries_overlap(const struct skl_ddb_entry *a,
 	return a->start < b->end && b->start < a->end;
 }
 
+static void skl_ddb_entry_union(struct skl_ddb_entry *a,
+				const struct skl_ddb_entry *b)
+{
+	if (a->end && b->end) {
+		a->start = min(a->start, b->start);
+		a->end = max(a->end, b->end);
+	} else if (b->end) {
+		a->start = b->start;
+		a->end = b->end;
+	}
+}
+
 bool skl_ddb_allocation_overlaps(const struct skl_ddb_entry *ddb,
 				 const struct skl_ddb_entry *entries,
 				 int num_entries, int ignore_idx)
@@ -6176,15 +6188,49 @@ void skl_pipe_wm_get_hw_state(struct intel_crtc *crtc,
 
 void skl_wm_get_hw_state(struct drm_i915_private *dev_priv)
 {
+	struct intel_dbuf_state *dbuf_state =
+		to_intel_dbuf_state(dev_priv->dbuf.obj.state);
 	struct intel_crtc *crtc;
-	struct intel_crtc_state *crtc_state;
 
 	for_each_intel_crtc(&dev_priv->drm, crtc) {
-		crtc_state = to_intel_crtc_state(crtc->base.state);
+		struct intel_crtc_state *crtc_state =
+			to_intel_crtc_state(crtc->base.state);
+		enum pipe pipe = crtc->pipe;
+		enum plane_id plane_id;
 
 		skl_pipe_wm_get_hw_state(crtc, &crtc_state->wm.skl.optimal);
 		crtc_state->wm.skl.raw = crtc_state->wm.skl.optimal;
+
+		memset(&dbuf_state->ddb[pipe], 0, sizeof(dbuf_state->ddb[pipe]));
+
+		for_each_plane_id_on_crtc(crtc, plane_id) {
+			struct skl_ddb_entry *ddb_y =
+				&crtc_state->wm.skl.plane_ddb_y[plane_id];
+			struct skl_ddb_entry *ddb_uv =
+				&crtc_state->wm.skl.plane_ddb_uv[plane_id];
+
+			skl_ddb_get_hw_plane_state(dev_priv, crtc->pipe,
+						   plane_id, ddb_y, ddb_uv);
+
+			skl_ddb_entry_union(&dbuf_state->ddb[pipe], ddb_y);
+			skl_ddb_entry_union(&dbuf_state->ddb[pipe], ddb_uv);
+		}
+
+		dbuf_state->slices[pipe] =
+			skl_compute_dbuf_slices(crtc, dbuf_state->active_pipes);
+
+		dbuf_state->weight[pipe] = intel_crtc_ddb_weight(crtc_state);
+
+		crtc_state->wm.skl.ddb = dbuf_state->ddb[pipe];
+
+		drm_dbg_kms(&dev_priv->drm,
+			    "[CRTC:%d:%s] dbuf slices 0x%x, ddb (%d - %d), active pipes 0x%x\n",
+			    crtc->base.base.id, crtc->base.name,
+			    dbuf_state->slices[pipe], dbuf_state->ddb[pipe].start,
+			    dbuf_state->ddb[pipe].end, dbuf_state->active_pipes);
 	}
+
+	dbuf_state->enabled_slices = dev_priv->dbuf.enabled_slices;
 }
 
 static void ilk_pipe_wm_get_hw_state(struct intel_crtc *crtc)

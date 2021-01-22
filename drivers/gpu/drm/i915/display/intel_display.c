@@ -14542,14 +14542,10 @@ void intel_modeset_init_hw(struct drm_i915_private *i915)
 {
 	struct intel_cdclk_state *cdclk_state =
 		to_intel_cdclk_state(i915->cdclk.obj.state);
-	struct intel_dbuf_state *dbuf_state =
-		to_intel_dbuf_state(i915->dbuf.obj.state);
 
 	intel_update_cdclk(i915);
 	intel_dump_cdclk_config(&i915->cdclk.hw, "Current CDCLK");
 	cdclk_state->logical = cdclk_state->actual = i915->cdclk.hw;
-
-	dbuf_state->enabled_slices = i915->dbuf.enabled_slices;
 }
 
 static int sanitize_watermarks_add_affected(struct drm_atomic_state *state)
