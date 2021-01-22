@@ -1327,14 +1327,6 @@ config INTEL_CHTDC_TI_PWRBTN
 	  To compile this driver as a module, choose M here: the module
 	  will be called intel_chtdc_ti_pwrbtn.
 
-config INTEL_MID_POWER_BUTTON
-	tristate "power button driver for Intel MID platforms"
-	depends on INTEL_SCU && INPUT
-	help
-	  This driver handles the power button on the Intel MID platforms.
-
-	  If unsure, say N.
-
 config INTEL_MRFLD_PWRBTN
 	tristate "Intel Merrifield Basin Cove power button driver"
 	depends on INTEL_SOC_PMIC_MRFLD
