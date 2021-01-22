@@ -1,4 +1,10 @@
 /* SPDX-License-Identifier: GPL-2.0 */
+/*
+ * Kernel Electric-Fence (KFENCE). For more info please see
+ * Documentation/dev-tools/kfence.rst.
+ *
+ * Copyright (C) 2020, Google LLC.
+ */
 
 #ifndef MM_KFENCE_KFENCE_H
 #define MM_KFENCE_KFENCE_H

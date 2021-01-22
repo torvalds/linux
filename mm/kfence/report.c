@@ -1,4 +1,9 @@
 // SPDX-License-Identifier: GPL-2.0
+/*
+ * KFENCE reporting.
+ *
+ * Copyright (C) 2020, Google LLC.
+ */
 
 #include <stdarg.h>
 

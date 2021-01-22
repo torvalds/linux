@@ -1,4 +1,10 @@
 /* SPDX-License-Identifier: GPL-2.0 */
+/*
+ * Kernel Electric-Fence (KFENCE). Public interface for allocator and fault
+ * handler integration. For more info see Documentation/dev-tools/kfence.rst.
+ *
+ * Copyright (C) 2020, Google LLC.
+ */
 
 #ifndef _LINUX_KFENCE_H
 #define _LINUX_KFENCE_H
