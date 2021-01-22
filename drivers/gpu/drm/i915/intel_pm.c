@@ -4035,25 +4035,23 @@ static int intel_dbuf_slice_size(struct drm_i915_private *dev_priv)
 		INTEL_INFO(dev_priv)->num_supported_dbuf_slices;
 }
 
-/*
- * Calculate initial DBuf slice offset, based on slice size
- * and mask(i.e if slice size is 1024 and second slice is enabled
- * offset would be 1024)
- */
-static unsigned int
-icl_get_first_dbuf_slice_offset(u32 dbuf_slice_mask,
-				u32 slice_size,
-				u32 ddb_size)
+static void
+skl_ddb_entry_for_slices(struct drm_i915_private *dev_priv, u8 slice_mask,
+			 struct skl_ddb_entry *ddb)
 {
-	unsigned int offset = 0;
+	int slice_size = intel_dbuf_slice_size(dev_priv);
 
-	if (!dbuf_slice_mask)
-		return 0;
+	if (!slice_mask) {
+		ddb->start = 0;
+		ddb->end = 0;
+		return;
+	}
 
-	offset = (ffs(dbuf_slice_mask) - 1) * slice_size;
+	ddb->start = (ffs(slice_mask) - 1) * slice_size;
+	ddb->end = fls(slice_mask) * slice_size;
 
-	WARN_ON(offset >= ddb_size);
-	return offset;
+	WARN_ON(ddb->start >= ddb->end);
+	WARN_ON(ddb->end > intel_dbuf_size(dev_priv));
 }
 
 u32 skl_ddb_dbuf_slice_mask(struct drm_i915_private *dev_priv,
@@ -4123,12 +4121,10 @@ skl_ddb_get_pipe_allocation_limits(struct drm_i915_private *dev_priv,
 	const struct intel_dbuf_state *old_dbuf_state =
 		intel_atomic_get_old_dbuf_state(intel_state);
 	u8 active_pipes = new_dbuf_state->active_pipes;
-	u16 ddb_size;
+	struct skl_ddb_entry ddb_slices;
 	u32 ddb_range_size;
 	u32 i;
 	u32 dbuf_slice_mask;
-	u32 offset;
-	u32 slice_size;
 	u32 total_slice_mask;
 	u32 start, end;
 	int ret;
@@ -4140,9 +4136,6 @@ skl_ddb_get_pipe_allocation_limits(struct drm_i915_private *dev_priv,
 		alloc->end = 0;
 		return 0;
 	}
-
-	ddb_size = intel_dbuf_size(dev_priv);
-	slice_size = intel_dbuf_slice_size(dev_priv);
 
 	/*
 	 * If the state doesn't change the active CRTC's or there is no
@@ -4169,20 +4162,8 @@ skl_ddb_get_pipe_allocation_limits(struct drm_i915_private *dev_priv,
 	 */
 	dbuf_slice_mask = skl_compute_dbuf_slices(for_crtc, active_pipes);
 
-	/*
-	 * Figure out at which DBuf slice we start, i.e if we start at Dbuf S2
-	 * and slice size is 1024, the offset would be 1024
-	 */
-	offset = icl_get_first_dbuf_slice_offset(dbuf_slice_mask,
-						 slice_size, ddb_size);
-
-	/*
-	 * Figure out total size of allowed DBuf slices, which is basically
-	 * a number of allowed slices for that pipe multiplied by slice size.
-	 * Inside of this
-	 * range ddb entries are still allocated in proportion to display width.
-	 */
-	ddb_range_size = hweight8(dbuf_slice_mask) * slice_size;
+	skl_ddb_entry_for_slices(dev_priv, dbuf_slice_mask, &ddb_slices);
+	ddb_range_size = skl_ddb_entry_size(&ddb_slices);
 
 	total_slice_mask = dbuf_slice_mask;
 	for_each_new_intel_crtc_in_state(intel_state, crtc, crtc_state, i) {
@@ -4239,8 +4220,8 @@ skl_ddb_get_pipe_allocation_limits(struct drm_i915_private *dev_priv,
 	start = ddb_range_size * weight_before_pipe / total_weight;
 	end = ddb_range_size * (weight_before_pipe + pipe_weight) / total_weight;
 
-	alloc->start = offset + start;
-	alloc->end = offset + end;
+	alloc->start = ddb_slices.start + start;
+	alloc->end = ddb_slices.start + end;
 
 	drm_dbg_kms(&dev_priv->drm,
 		    "[CRTC:%d:%s] dbuf slices 0x%x, ddb (%d - %d), active pipes 0x%x\n",
