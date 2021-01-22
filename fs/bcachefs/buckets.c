@@ -2060,6 +2060,168 @@ int bch2_trans_mark_update(struct btree_trans *trans,
 	return ret;
 }
 
+static int __bch2_trans_mark_metadata_bucket(struct btree_trans *trans,
+				    struct bch_dev *ca, size_t b,
+				    enum bch_data_type type,
+				    unsigned sectors)
+{
+	struct bch_fs *c = trans->c;
+	struct btree_iter *iter;
+	struct bkey_alloc_unpacked u;
+	struct bkey_i_alloc *a;
+	struct bch_extent_ptr ptr = {
+		.dev = ca->dev_idx,
+		.offset = bucket_to_sector(ca, b),
+	};
+	int ret = 0;
+
+	a = bch2_trans_kmalloc(trans, BKEY_ALLOC_U64s_MAX * 8);
+	ret = PTR_ERR_OR_ZERO(a);
+	if (ret)
+		return ret;
+
+	ret = bch2_trans_start_alloc_update(trans, &iter, &ptr, &u);
+	if (ret)
+		return ret;
+
+	if (u.data_type && u.data_type != type) {
+		bch2_fsck_err(c, FSCK_CAN_IGNORE|FSCK_NEED_FSCK,
+			"bucket %llu:%llu gen %u different types of data in same bucket: %s, %s\n"
+			"while marking %s",
+			iter->pos.inode, iter->pos.offset, u.gen,
+			bch2_data_types[u.data_type],
+			bch2_data_types[type],
+			bch2_data_types[type]);
+		ret = -EIO;
+		goto out;
+	}
+
+	if ((unsigned) (u.dirty_sectors + sectors) > ca->mi.bucket_size) {
+		bch2_fsck_err(c, FSCK_CAN_IGNORE|FSCK_NEED_FSCK,
+			"bucket %llu:%llu gen %u data type %s sector count overflow: %u + %u > %u\n"
+			"while marking %s",
+			iter->pos.inode, iter->pos.offset, u.gen,
+			bch2_data_types[u.data_type ?: type],
+			u.dirty_sectors, sectors, ca->mi.bucket_size,
+			bch2_data_types[type]);
+		ret = -EIO;
+		goto out;
+	}
+
+	if (u.data_type		== type &&
+	    u.dirty_sectors	== sectors)
+		goto out;
+
+	u.data_type	= type;
+	u.dirty_sectors	= sectors;
+
+	bkey_alloc_init(&a->k_i);
+	a->k.p = iter->pos;
+	bch2_alloc_pack(a, u);
+	bch2_trans_update(trans, iter, &a->k_i, 0);
+out:
+	bch2_trans_iter_put(trans, iter);
+	return ret;
+}
+
+int bch2_trans_mark_metadata_bucket(struct btree_trans *trans,
+				    struct disk_reservation *res,
+				    struct bch_dev *ca, size_t b,
+				    enum bch_data_type type,
+				    unsigned sectors)
+{
+	return __bch2_trans_do(trans, res, NULL, 0,
+			__bch2_trans_mark_metadata_bucket(trans, ca, b, BCH_DATA_journal,
+							ca->mi.bucket_size));
+
+}
+
+static int bch2_trans_mark_metadata_sectors(struct btree_trans *trans,
+					    struct disk_reservation *res,
+					    struct bch_dev *ca,
+					    u64 start, u64 end,
+					    enum bch_data_type type,
+					    u64 *bucket, unsigned *bucket_sectors)
+{
+	int ret;
+
+	do {
+		u64 b = sector_to_bucket(ca, start);
+		unsigned sectors =
+			min_t(u64, bucket_to_sector(ca, b + 1), end) - start;
+
+		if (b != *bucket) {
+			if (*bucket_sectors) {
+				ret = bch2_trans_mark_metadata_bucket(trans, res, ca,
+						*bucket, type, *bucket_sectors);
+				if (ret)
+					return ret;
+			}
+
+			*bucket		= b;
+			*bucket_sectors	= 0;
+		}
+
+		*bucket_sectors	+= sectors;
+		start += sectors;
+	} while (!ret && start < end);
+
+	return 0;
+}
+
+static int __bch2_trans_mark_dev_sb(struct btree_trans *trans,
+			     struct disk_reservation *res,
+			     struct bch_dev *ca)
+{
+	struct bch_sb_layout *layout = &ca->disk_sb.sb->layout;
+	u64 bucket = 0;
+	unsigned i, bucket_sectors = 0;
+	int ret;
+
+	for (i = 0; i < layout->nr_superblocks; i++) {
+		u64 offset = le64_to_cpu(layout->sb_offset[i]);
+
+		if (offset == BCH_SB_SECTOR) {
+			ret = bch2_trans_mark_metadata_sectors(trans, res, ca,
+						0, BCH_SB_SECTOR,
+						BCH_DATA_sb, &bucket, &bucket_sectors);
+			if (ret)
+				return ret;
+		}
+
+		ret = bch2_trans_mark_metadata_sectors(trans, res, ca, offset,
+				      offset + (1 << layout->sb_max_size_bits),
+				      BCH_DATA_sb, &bucket, &bucket_sectors);
+		if (ret)
+			return ret;
+	}
+
+	if (bucket_sectors) {
+		ret = bch2_trans_mark_metadata_bucket(trans, res, ca,
+				bucket, BCH_DATA_sb, bucket_sectors);
+		if (ret)
+			return ret;
+	}
+
+	for (i = 0; i < ca->journal.nr; i++) {
+		ret = bch2_trans_mark_metadata_bucket(trans, res, ca,
+				ca->journal.buckets[i],
+				BCH_DATA_journal, ca->mi.bucket_size);
+		if (ret)
+			return ret;
+	}
+
+	return 0;
+}
+
+int bch2_trans_mark_dev_sb(struct bch_fs *c,
+			   struct disk_reservation *res,
+			   struct bch_dev *ca)
+{
+	return bch2_trans_do(c, res, NULL, 0,
+			__bch2_trans_mark_dev_sb(&trans, res, ca));
+}
+
 /* Disk reservations: */
 
 #define SECTORS_CACHE	1024

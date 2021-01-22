@@ -323,48 +323,36 @@ err:
 	return ret;
 }
 
-int bch2_dev_alloc_write(struct bch_fs *c, struct bch_dev *ca, unsigned flags)
+int bch2_alloc_write(struct bch_fs *c, unsigned flags)
 {
 	struct btree_trans trans;
 	struct btree_iter *iter;
-	u64 first_bucket	= ca->mi.first_bucket;
-	u64 nbuckets		= ca->mi.nbuckets;
-	int ret = 0;
-
-	bch2_trans_init(&trans, c, BTREE_ITER_MAX, 0);
-
-	iter = bch2_trans_get_iter(&trans, BTREE_ID_ALLOC,
-				   POS(ca->dev_idx, first_bucket),
-				   BTREE_ITER_SLOTS|BTREE_ITER_INTENT);
-
-	while (iter->pos.offset < nbuckets) {
-		bch2_trans_cond_resched(&trans);
-
-		ret = bch2_alloc_write_key(&trans, iter, flags);
-		if (ret)
-			break;
-		bch2_btree_iter_next_slot(iter);
-	}
-
-	bch2_trans_exit(&trans);
-
-	return ret;
-}
-
-int bch2_alloc_write(struct bch_fs *c, unsigned flags)
-{
 	struct bch_dev *ca;
 	unsigned i;
 	int ret = 0;
 
+	bch2_trans_init(&trans, c, BTREE_ITER_MAX, 0);
+
+	iter = bch2_trans_get_iter(&trans, BTREE_ID_ALLOC, POS_MIN,
+				   BTREE_ITER_SLOTS|BTREE_ITER_INTENT);
+
 	for_each_member_device(ca, c, i) {
-		bch2_dev_alloc_write(c, ca, flags);
-		if (ret) {
-			percpu_ref_put(&ca->io_ref);
-			break;
+		bch2_btree_iter_set_pos(iter,
+			POS(ca->dev_idx, ca->mi.first_bucket));
+
+		while (iter->pos.offset < ca->mi.nbuckets) {
+			bch2_trans_cond_resched(&trans);
+
+			ret = bch2_alloc_write_key(&trans, iter, flags);
+			if (ret) {
+				percpu_ref_put(&ca->io_ref);
+				goto err;
+			}
+			bch2_btree_iter_next_slot(iter);
 		}
 	}
-
+err:
+	bch2_trans_exit(&trans);
 	return ret;
 }
 

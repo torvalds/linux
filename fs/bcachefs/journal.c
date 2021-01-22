@@ -9,6 +9,7 @@
 #include "alloc_foreground.h"
 #include "bkey_methods.h"
 #include "btree_gc.h"
+#include "btree_update.h"
 #include "buckets.h"
 #include "journal.h"
 #include "journal_io.h"
@@ -823,18 +824,28 @@ static int __bch2_set_nr_journal_buckets(struct bch_dev *ca, unsigned nr,
 		if (pos <= ja->cur_idx)
 			ja->cur_idx = (ja->cur_idx + 1) % ja->nr;
 
-		bch2_mark_metadata_bucket(c, ca, bucket, BCH_DATA_journal,
-					  ca->mi.bucket_size,
-					  gc_phase(GC_PHASE_SB),
-					  0);
+		if (!c || new_fs)
+			bch2_mark_metadata_bucket(c, ca, bucket, BCH_DATA_journal,
+						  ca->mi.bucket_size,
+						  gc_phase(GC_PHASE_SB),
+						  0);
 
 		if (c) {
 			spin_unlock(&c->journal.lock);
 			percpu_up_read(&c->mark_lock);
 		}
 
+		if (c && !new_fs)
+			ret = bch2_trans_do(c, NULL, NULL, BTREE_INSERT_NOFAIL,
+				bch2_trans_mark_metadata_bucket(&trans, NULL, ca,
+						bucket, BCH_DATA_journal,
+						ca->mi.bucket_size));
+
 		if (!new_fs)
 			bch2_open_bucket_put(c, ob);
+
+		if (ret)
+			goto err;
 	}
 err:
 	bch2_sb_resize_journal(&ca->disk_sb,
