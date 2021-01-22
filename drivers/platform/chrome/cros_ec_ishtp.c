@@ -140,12 +140,8 @@ static void ish_evt_handler(struct work_struct *work)
 {
 	struct ishtp_cl_data *client_data =
 		container_of(work, struct ishtp_cl_data, work_ec_evt);
-	struct cros_ec_device *ec_dev = client_data->ec_dev;
-	bool ec_has_more_events;
 
-	do {
-		ec_has_more_events = cros_ec_handle_event(ec_dev);
-	} while (ec_has_more_events);
+	cros_ec_irq_thread(0, client_data->ec_dev);
 }
 
 /**
