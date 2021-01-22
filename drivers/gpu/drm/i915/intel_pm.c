@@ -4095,7 +4095,7 @@ static unsigned int intel_crtc_ddb_weight(const struct intel_crtc_state *crtc_st
 	return hdisplay;
 }
 
-static u8 skl_compute_dbuf_slices(const struct intel_crtc_state *crtc_state,
+static u8 skl_compute_dbuf_slices(struct intel_crtc *crtc,
 				  u8 active_pipes);
 
 static int
@@ -4107,10 +4107,10 @@ skl_ddb_get_pipe_allocation_limits(struct drm_i915_private *dev_priv,
 {
 	struct drm_atomic_state *state = crtc_state->uapi.state;
 	struct intel_atomic_state *intel_state = to_intel_atomic_state(state);
-	struct drm_crtc *for_crtc = crtc_state->uapi.crtc;
-	const struct intel_crtc *crtc;
+	struct intel_crtc *for_crtc = to_intel_crtc(crtc_state->uapi.crtc);
+	struct intel_crtc *crtc;
 	unsigned int pipe_weight = 0, total_weight = 0, weight_before_pipe = 0;
-	enum pipe for_pipe = to_intel_crtc(for_crtc)->pipe;
+	enum pipe for_pipe = for_crtc->pipe;
 	struct intel_dbuf_state *new_dbuf_state =
 		intel_atomic_get_new_dbuf_state(intel_state);
 	const struct intel_dbuf_state *old_dbuf_state =
@@ -4154,14 +4154,14 @@ skl_ddb_get_pipe_allocation_limits(struct drm_i915_private *dev_priv,
 		 *
 		 * FIXME get rid of this mess
 		 */
-		*alloc = to_intel_crtc_state(for_crtc->state)->wm.skl.ddb;
+		*alloc = to_intel_crtc_state(for_crtc->base.state)->wm.skl.ddb;
 		return 0;
 	}
 
 	/*
 	 * Get allowed DBuf slices for correspondent pipe and platform.
 	 */
-	dbuf_slice_mask = skl_compute_dbuf_slices(crtc_state, active_pipes);
+	dbuf_slice_mask = skl_compute_dbuf_slices(for_crtc, active_pipes);
 
 	/*
 	 * Figure out at which DBuf slice we start, i.e if we start at Dbuf S2
@@ -4187,8 +4187,8 @@ skl_ddb_get_pipe_allocation_limits(struct drm_i915_private *dev_priv,
 		if (!crtc_state->hw.active)
 			continue;
 
-		pipe_dbuf_slice_mask = skl_compute_dbuf_slices(crtc_state,
-							       active_pipes);
+		pipe_dbuf_slice_mask =
+			skl_compute_dbuf_slices(crtc, active_pipes);
 
 		/*
 		 * According to BSpec pipe can share one dbuf slice with another
@@ -4238,7 +4238,7 @@ skl_ddb_get_pipe_allocation_limits(struct drm_i915_private *dev_priv,
 
 	drm_dbg_kms(&dev_priv->drm,
 		    "[CRTC:%d:%s] dbuf slices 0x%x, ddb (%d - %d), active pipes 0x%x\n",
-		    for_crtc->base.id, for_crtc->name,
+		    for_crtc->base.base.id, for_crtc->base.name,
 		    dbuf_slice_mask, alloc->start, alloc->end, active_pipes);
 
 	return 0;
@@ -4641,10 +4641,8 @@ static u8 tgl_compute_dbuf_slices(enum pipe pipe, u8 active_pipes)
 	return compute_dbuf_slices(pipe, active_pipes, tgl_allowed_dbufs);
 }
 
-static u8 skl_compute_dbuf_slices(const struct intel_crtc_state *crtc_state,
-				  u8 active_pipes)
+static u8 skl_compute_dbuf_slices(struct intel_crtc *crtc, u8 active_pipes)
 {
-	struct intel_crtc *crtc = to_intel_crtc(crtc_state->uapi.crtc);
 	struct drm_i915_private *dev_priv = to_i915(crtc->base.dev);
 	enum pipe pipe = crtc->pipe;
 
