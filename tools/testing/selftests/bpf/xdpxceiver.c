@@ -726,16 +726,17 @@ static void worker_pkt_dump(void)
 static void worker_pkt_validate(void)
 {
 	u32 payloadseqnum = -2;
+	struct iphdr *iphdr;
 
 	while (1) {
 		pkt_node_rx_q = TAILQ_LAST(&head, head_s);
 		if (!pkt_node_rx_q)
 			break;
+
+		iphdr = (struct iphdr *)(pkt_node_rx_q->pkt_frame + sizeof(struct ethhdr));
+
 		/*do not increment pktcounter if !(tos=0x9 and ipv4) */
-		if ((((struct iphdr *)(pkt_node_rx_q->pkt_frame +
-				       sizeof(struct ethhdr)))->version == IP_PKT_VER) &&
-		    (((struct iphdr *)(pkt_node_rx_q->pkt_frame + sizeof(struct ethhdr)))->tos ==
-			IP_PKT_TOS)) {
+		if (iphdr->version == IP_PKT_VER && iphdr->tos == IP_PKT_TOS) {
 			payloadseqnum = *((uint32_t *)(pkt_node_rx_q->pkt_frame + PKT_HDR_SIZE));
 			if (debug_pkt_dump && payloadseqnum != EOT) {
 				pkt_obj = (struct pkt_frame *)malloc(sizeof(struct pkt_frame));
@@ -757,24 +758,18 @@ static void worker_pkt_validate(void)
 				ksft_exit_xfail();
 			}
 
-			TAILQ_REMOVE(&head, pkt_node_rx_q, pkt_nodes);
-			free(pkt_node_rx_q->pkt_frame);
-			free(pkt_node_rx_q);
-			pkt_node_rx_q = NULL;
 			prev_pkt = payloadseqnum;
 			pkt_counter++;
 		} else {
 			ksft_print_msg("Invalid frame received: ");
-			ksft_print_msg("[IP_PKT_VER: %02X], [IP_PKT_TOS: %02X]\n",
-				       ((struct iphdr *)(pkt_node_rx_q->pkt_frame +
-							 sizeof(struct ethhdr)))->version,
-				       ((struct iphdr *)(pkt_node_rx_q->pkt_frame +
-							 sizeof(struct ethhdr)))->tos);
-			TAILQ_REMOVE(&head, pkt_node_rx_q, pkt_nodes);
-			free(pkt_node_rx_q->pkt_frame);
-			free(pkt_node_rx_q);
-			pkt_node_rx_q = NULL;
+			ksft_print_msg("[IP_PKT_VER: %02X], [IP_PKT_TOS: %02X]\n", iphdr->version,
+				       iphdr->tos);
 		}
+
+		TAILQ_REMOVE(&head, pkt_node_rx_q, pkt_nodes);
+		free(pkt_node_rx_q->pkt_frame);
+		free(pkt_node_rx_q);
+		pkt_node_rx_q = NULL;
 	}
 }
 
