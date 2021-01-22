@@ -198,7 +198,7 @@
 /*
  * Below configuration ties VINx endpoints to ov5640/ov7725 camera endpoints
  *
- * Uncomment the #include statements to change configuration
+ * (un)comment the #include statements to change configuration
  */
 
 /* 8bit CMOS Camera 1 (J13) */
@@ -208,6 +208,7 @@
 #define VIN_EP			vin0ep
 #undef CAM_ENABLED
 #include "r8a7742-iwg21d-q7-dbcm-ov5640-single.dtsi"
+//#include "r8a7742-iwg21d-q7-dbcm-ov7725-single.dtsi"
 
 #ifdef CAM_ENABLED
 &vin0 {
@@ -241,6 +242,7 @@
 #define VIN_EP			vin1ep
 #undef CAM_ENABLED
 #include "r8a7742-iwg21d-q7-dbcm-ov5640-single.dtsi"
+//#include "r8a7742-iwg21d-q7-dbcm-ov7725-single.dtsi"
 
 #ifdef CAM_ENABLED
 &vin1 {
@@ -272,6 +274,7 @@
 #define VIN_EP			vin2ep
 #undef CAM_ENABLED
 #include "r8a7742-iwg21d-q7-dbcm-ov5640-single.dtsi"
+//#include "r8a7742-iwg21d-q7-dbcm-ov7725-single.dtsi"
 
 #ifdef CAM_ENABLED
 &vin2 {
@@ -302,6 +305,7 @@
 #define VIN_EP			vin3ep
 #undef CAM_ENABLED
 #include "r8a7742-iwg21d-q7-dbcm-ov5640-single.dtsi"
+//#include "r8a7742-iwg21d-q7-dbcm-ov7725-single.dtsi"
 
 #ifdef CAM_ENABLED
 &vin3 {
