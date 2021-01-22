@@ -27,8 +27,10 @@
 #define AT91_CHIPID_EXID		0x04
 #define AT91_CIDR_VERSION(x, m)		((x) & (m))
 #define AT91_CIDR_VERSION_MASK		GENMASK(4, 0)
+#define AT91_CIDR_VERSION_MASK_SAMA7G5	GENMASK(3, 0)
 #define AT91_CIDR_EXT			BIT(31)
 #define AT91_CIDR_MATCH_MASK		GENMASK(30, 5)
+#define AT91_CIDR_MASK_SAMA7G5		GENMASK(27, 5)
 
 static const struct at91_soc socs[] __initconst = {
 #ifdef CONFIG_SOC_AT91RM9200
@@ -221,6 +223,20 @@ static const struct at91_soc socs[] __initconst = {
 		 AT91_CIDR_VERSION_MASK, SAMV70Q19_EXID_MATCH,
 		 "samv70q19", "samv7"),
 #endif
+#ifdef CONFIG_SOC_SAMA7
+	AT91_SOC(SAMA7G5_CIDR_MATCH, AT91_CIDR_MATCH_MASK,
+		 AT91_CIDR_VERSION_MASK_SAMA7G5, SAMA7G51_EXID_MATCH,
+		 "sama7g51", "sama7g5"),
+	AT91_SOC(SAMA7G5_CIDR_MATCH, AT91_CIDR_MATCH_MASK,
+		 AT91_CIDR_VERSION_MASK_SAMA7G5, SAMA7G52_EXID_MATCH,
+		 "sama7g52", "sama7g5"),
+	AT91_SOC(SAMA7G5_CIDR_MATCH, AT91_CIDR_MATCH_MASK,
+		 AT91_CIDR_VERSION_MASK_SAMA7G5, SAMA7G53_EXID_MATCH,
+		 "sama7g53", "sama7g5"),
+	AT91_SOC(SAMA7G5_CIDR_MATCH, AT91_CIDR_MATCH_MASK,
+		 AT91_CIDR_VERSION_MASK_SAMA7G5, SAMA7G54_EXID_MATCH,
+		 "sama7g54", "sama7g5"),
+#endif
 	{ /* sentinel */ },
 };
 
@@ -258,6 +274,7 @@ static int __init at91_get_cidr_exid_from_chipid(u32 *cidr, u32 *exid)
 	void __iomem *regs;
 	static const struct of_device_id chipids[] = {
 		{ .compatible = "atmel,sama5d2-chipid" },
+		{ .compatible = "microchip,sama7g5-chipid" },
 		{ },
 	};
 
@@ -345,6 +362,7 @@ static const struct of_device_id at91_soc_allowed_list[] __initconst = {
 	{ .compatible = "atmel,at91sam9", },
 	{ .compatible = "atmel,sama5", },
 	{ .compatible = "atmel,samv7", },
+	{ .compatible = "microchip,sama7g5", },
 	{ }
 };
 
