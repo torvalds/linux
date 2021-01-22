@@ -210,9 +210,10 @@ static inline bool _walt_can_migrate_task(struct task_struct *p, int dst_cpu,
 					  bool to_lower)
 {
 	struct walt_rq *wrq = (struct walt_rq *) task_rq(p)->android_vendor_data1;
+	struct walt_task_struct *wts = (struct walt_task_struct *) p->android_vendor_data1;
 
 	if (to_lower) {
-		if (p->in_iowait)
+		if (wts->iowaited)
 			return false;
 		if (per_task_boost(p) == TASK_BOOST_STRICT_MAX &&
 				task_in_related_thread_group(p))

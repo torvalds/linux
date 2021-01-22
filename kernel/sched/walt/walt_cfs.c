@@ -213,7 +213,8 @@ static void walt_find_best_target(struct sched_domain *sd,
 	unsigned int target_nr_rtg_high_prio = UINT_MAX;
 	bool rtg_high_prio_task = task_rtg_high_prio(p);
 	cpumask_t visit_cpus;
-	bool io_task_pack = (order_index > 0 && p->in_iowait);
+	struct walt_task_struct *wts = (struct walt_task_struct *) p->android_vendor_data1;
+	bool io_task_pack = (order_index > 0 && wts->iowaited);
 	struct cfs_rq *cfs_rq;
 
 	/* Find start CPU based on boost value */

@@ -2187,6 +2187,8 @@ static void walt_update_task_ravg(struct task_struct *p, struct rq *rq, int even
 	update_task_demand(p, rq, event, wallclock);
 	update_cpu_busy_time(p, rq, event, wallclock, irqtime);
 	update_task_pred_demand(rq, p, event);
+	if (event == PUT_PREV_TASK && p->state)
+		wts->iowaited = p->in_iowait;
 
 	trace_sched_update_task_ravg(p, rq, event, wallclock, irqtime,
 				&wrq->grp_time, wrq, wts);
@@ -4047,6 +4049,7 @@ static void android_rvh_sched_fork_init(void *unused, struct task_struct *p)
 	wts->boost_expires		= 0;
 	wts->boost_period		= false;
 	wts->low_latency		= false;
+	wts->iowaited			= false;
 }
 
 static void android_rvh_ttwu_cond(void *unused, bool *cond)
