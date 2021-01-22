@@ -105,6 +105,9 @@ const char *bch2_stripe_invalid(const struct bch_fs *c, struct bkey_s_c k)
 {
 	const struct bch_stripe *s = bkey_s_c_to_stripe(k).v;
 
+	if (!bkey_cmp(k.k->p, POS_MIN))
+		return "stripe at pos 0";
+
 	if (k.k->p.inode)
 		return "invalid stripe key";
 
@@ -279,10 +282,14 @@ static void ec_validate_checksums(struct bch_fs *c, struct ec_stripe_buf *buf)
 			struct bch_csum got = ec_block_checksum(buf, i, offset);
 
 			if (bch2_crc_cmp(want, got)) {
+				char buf2[200];
+
+				bch2_bkey_val_to_text(&PBUF(buf2), c, bkey_i_to_s_c(&buf->key.k_i));
+
 				bch_err_ratelimited(c,
-					"stripe checksum error at %u:%u: csum type %u, expected %llx got %llx",
-					i, j, v->csum_type,
-					want.lo, got.lo);
+					"stripe checksum error for %ps at %u:%u: csum type %u, expected %llx got %llx\n%s",
+					(void *) _RET_IP_, i, j, v->csum_type,
+					want.lo, got.lo, buf2);
 				clear_bit(i, buf->valid);
 				break;
 			}
@@ -335,6 +342,8 @@ static int ec_do_recov(struct bch_fs *c, struct ec_stripe_buf *buf)
 static void ec_block_endio(struct bio *bio)
 {
 	struct ec_bio *ec_bio = container_of(bio, struct ec_bio, bio);
+	struct bch_stripe *v = &ec_bio->buf->key.v;
+	struct bch_extent_ptr *ptr = &v->ptrs[ec_bio->idx];
 	struct bch_dev *ca = ec_bio->ca;
 	struct closure *cl = bio->bi_private;
 
@@ -342,6 +351,13 @@ static void ec_block_endio(struct bio *bio)
 			       bio_data_dir(bio) ? "write" : "read",
 			       bch2_blk_status_to_str(bio->bi_status)))
 		clear_bit(ec_bio->idx, ec_bio->buf->valid);
+
+	if (ptr_stale(ca, ptr)) {
+		bch_err_ratelimited(ca->fs,
+				    "error %s stripe: stale pointer after io",
+				    bio_data_dir(bio) == READ ? "reading from" : "writing to");
+		clear_bit(ec_bio->idx, ec_bio->buf->valid);
+	}
 
 	bio_put(&ec_bio->bio);
 	percpu_ref_put(&ca->io_ref);
@@ -652,7 +668,6 @@ void bch2_stripes_heap_update(struct bch_fs *c,
 
 static int ec_stripe_delete(struct bch_fs *c, size_t idx)
 {
-	//pr_info("deleting stripe %zu", idx);
 	return bch2_btree_delete_range(c, BTREE_ID_EC,
 				       POS(0, idx),
 				       POS(0, idx + 1),
@@ -795,6 +810,7 @@ static void extent_stripe_ptr_add(struct bkey_s_extent e,
 	*dst = (struct bch_extent_stripe_ptr) {
 		.type = 1 << BCH_EXTENT_ENTRY_stripe_ptr,
 		.block		= block,
+		.redundancy	= s->key.v.nr_redundant,
 		.idx		= s->key.k.p.offset,
 	};
 }
@@ -1053,8 +1069,6 @@ void bch2_ec_add_backpointer(struct bch_fs *c, struct write_point *wp,
 
 	if (!ob)
 		return;
-
-	//pr_info("adding backpointer at %llu:%llu", pos.inode, pos.offset);
 
 	ec = ob->ec;
 	mutex_lock(&ec->lock);
@@ -1348,12 +1362,14 @@ static s64 get_existing_stripe(struct bch_fs *c,
 	struct stripe *m;
 	size_t heap_idx;
 	u64 stripe_idx;
+	s64 ret = -1;
 
 	if (may_create_new_stripe(c))
 		return -1;
 
 	spin_lock(&c->ec_stripes_heap_lock);
 	for (heap_idx = 0; heap_idx < h->used; heap_idx++) {
+		/* No blocks worth reusing, stripe will just be deleted: */
 		if (!h->data[heap_idx].blocks_nonempty)
 			continue;
 
@@ -1365,13 +1381,12 @@ static s64 get_existing_stripe(struct bch_fs *c,
 		    m->sectors		== head->blocksize &&
 		    m->blocks_nonempty	< m->nr_blocks - m->nr_redundant) {
 			bch2_stripes_heap_del(c, m, stripe_idx);
-			spin_unlock(&c->ec_stripes_heap_lock);
-			return stripe_idx;
+			ret = stripe_idx;
+			break;
 		}
 	}
-
 	spin_unlock(&c->ec_stripes_heap_lock);
-	return -1;
+	return ret;
 }
 
 struct ec_stripe_head *bch2_ec_stripe_head_get(struct bch_fs *c,

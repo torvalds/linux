@@ -703,14 +703,8 @@ unsigned bch2_bkey_replicas(struct bch_fs *c, struct bkey_s_c k)
 		if (p.ptr.cached)
 			continue;
 
-		if (p.has_ec) {
-			struct stripe *s =
-				genradix_ptr(&c->stripes[0], p.ec.idx);
-
-			WARN_ON(!s);
-			if (s)
-				replicas += s->nr_redundant;
-		}
+		if (p.has_ec)
+			replicas += p.ec.redundancy;
 
 		replicas++;
 
@@ -733,16 +727,9 @@ static unsigned bch2_extent_ptr_durability(struct bch_fs *c,
 	if (ca->mi.state != BCH_MEMBER_STATE_FAILED)
 		durability = max_t(unsigned, durability, ca->mi.durability);
 
-	if (p.has_ec) {
-		struct stripe *s =
-			genradix_ptr(&c->stripes[0], p.ec.idx);
+	if (p.has_ec)
+		durability += p.ec.redundancy;
 
-		if (WARN_ON(!s))
-			goto out;
-
-		durability += s->nr_redundant;
-	}
-out:
 	return durability;
 }
 

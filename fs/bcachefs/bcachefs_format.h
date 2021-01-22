@@ -345,7 +345,8 @@ static inline void bkey_init(struct bkey *k)
 	x(reflink_v,		16)			\
 	x(inline_data,		17)			\
 	x(btree_ptr_v2,		18)			\
-	x(indirect_inline_data,	19)
+	x(indirect_inline_data,	19)			\
+	x(alloc_v2,		20)
 
 enum bch_bkey_type {
 #define x(name, nr) KEY_TYPE_##name	= nr,
@@ -555,9 +556,11 @@ struct bch_extent_stripe_ptr {
 #if defined(__LITTLE_ENDIAN_BITFIELD)
 	__u64			type:5,
 				block:8,
-				idx:51;
+				redundancy:4,
+				idx:47;
 #elif defined (__BIG_ENDIAN_BITFIELD)
-	__u64			idx:51,
+	__u64			idx:47,
+				redundancy:4,
 				block:8,
 				type:5;
 #endif
@@ -803,34 +806,39 @@ struct bch_alloc {
 	__u8			data[];
 } __attribute__((packed, aligned(8)));
 
-#define BCH_ALLOC_FIELDS()			\
+#define BCH_ALLOC_FIELDS_V1()			\
 	x(read_time,		16)		\
 	x(write_time,		16)		\
 	x(data_type,		8)		\
 	x(dirty_sectors,	16)		\
 	x(cached_sectors,	16)		\
-	x(oldest_gen,		8)
+	x(oldest_gen,		8)		\
+	x(stripe,		32)		\
+	x(stripe_redundancy,	8)
+
+struct bch_alloc_v2 {
+	struct bch_val		v;
+	__u8			nr_fields;
+	__u8			gen;
+	__u8			oldest_gen;
+	__u8			data_type;
+	__u8			data[];
+} __attribute__((packed, aligned(8)));
+
+#define BCH_ALLOC_FIELDS_V2()			\
+	x(read_time,		64)		\
+	x(write_time,		64)		\
+	x(dirty_sectors,	16)		\
+	x(cached_sectors,	16)		\
+	x(stripe,		32)		\
+	x(stripe_redundancy,	8)
 
 enum {
-#define x(name, bytes) BCH_ALLOC_FIELD_##name,
-	BCH_ALLOC_FIELDS()
+#define x(name, _bits) BCH_ALLOC_FIELD_V1_##name,
+	BCH_ALLOC_FIELDS_V1()
 #undef x
 	BCH_ALLOC_FIELD_NR
 };
-
-static const unsigned BCH_ALLOC_FIELD_BYTES[] = {
-#define x(name, bits) [BCH_ALLOC_FIELD_##name] = bits / 8,
-	BCH_ALLOC_FIELDS()
-#undef x
-};
-
-#define x(name, bits) + (bits / 8)
-static const unsigned BKEY_ALLOC_VAL_U64s_MAX =
-	DIV_ROUND_UP(offsetof(struct bch_alloc, data)
-		     BCH_ALLOC_FIELDS(), sizeof(u64));
-#undef x
-
-#define BKEY_ALLOC_U64s_MAX	(BKEY_U64s + BKEY_ALLOC_VAL_U64s_MAX)
 
 /* Quotas: */
 
@@ -1337,7 +1345,8 @@ LE64_BITMASK(BCH_SB_METADATA_TARGET,	struct bch_sb, flags[3], 16, 28);
 	x(btree_updates_journalled,	13)	\
 	x(reflink_inline_data,		14)	\
 	x(new_varint,			15)	\
-	x(journal_no_flush,		16)
+	x(journal_no_flush,		16)	\
+	x(alloc_v2,			17)
 
 #define BCH_SB_FEATURES_ALL				\
 	((1ULL << BCH_FEATURE_new_siphash)|		\
@@ -1345,7 +1354,8 @@ LE64_BITMASK(BCH_SB_METADATA_TARGET,	struct bch_sb, flags[3], 16, 28);
 	 (1ULL << BCH_FEATURE_btree_ptr_v2)|		\
 	 (1ULL << BCH_FEATURE_extents_above_btree_updates)|\
 	 (1ULL << BCH_FEATURE_new_varint)|		\
-	 (1ULL << BCH_FEATURE_journal_no_flush))
+	 (1ULL << BCH_FEATURE_journal_no_flush)|	\
+	 (1ULL << BCH_FEATURE_alloc_v2))
 
 enum bch_sb_feature {
 #define x(f, n) BCH_FEATURE_##f,

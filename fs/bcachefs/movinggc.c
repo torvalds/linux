@@ -92,11 +92,8 @@ static enum data_cmd copygc_pred(struct bch_fs *c, void *arg,
 			data_opts->btree_insert_flags	= BTREE_INSERT_USE_RESERVE;
 			data_opts->rewrite_dev		= p.ptr.dev;
 
-			if (p.has_ec) {
-				struct stripe *m = genradix_ptr(&c->stripes[0], p.ec.idx);
-
-				data_opts->nr_replicas += m->nr_redundant;
-			}
+			if (p.has_ec)
+				data_opts->nr_replicas += p.ec.redundancy;
 
 			return DATA_REWRITE;
 		}
@@ -179,12 +176,12 @@ static int bch2_copygc(struct bch_fs *c)
 			    bucket_sectors_used(m) >= ca->mi.bucket_size)
 				continue;
 
-			WARN_ON(m.stripe && !g->ec_redundancy);
+			WARN_ON(m.stripe && !g->stripe_redundancy);
 
 			e = (struct copygc_heap_entry) {
 				.dev		= dev_idx,
 				.gen		= m.gen,
-				.replicas	= 1 + g->ec_redundancy,
+				.replicas	= 1 + g->stripe_redundancy,
 				.fragmentation	= bucket_sectors_used(m) * (1U << 15)
 					/ ca->mi.bucket_size,
 				.sectors	= bucket_sectors_used(m),

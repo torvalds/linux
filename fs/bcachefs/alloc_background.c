@@ -15,6 +15,7 @@
 #include "error.h"
 #include "recovery.h"
 #include "trace.h"
+#include "varint.h"
 
 #include <linux/kthread.h>
 #include <linux/math64.h>
@@ -24,11 +25,10 @@
 #include <linux/sched/task.h>
 #include <linux/sort.h>
 
-static const char * const bch2_alloc_field_names[] = {
-#define x(name, bytes) #name,
-	BCH_ALLOC_FIELDS()
+static const unsigned BCH_ALLOC_V1_FIELD_BYTES[] = {
+#define x(name, bits) [BCH_ALLOC_FIELD_V1_##name] = bits / 8,
+	BCH_ALLOC_FIELDS_V1()
 #undef x
-	NULL
 };
 
 static void bch2_recalc_oldest_io(struct bch_fs *, struct bch_dev *, int);
@@ -67,10 +67,10 @@ static void pd_controllers_update(struct work_struct *work)
 
 /* Persistent alloc info: */
 
-static inline u64 get_alloc_field(const struct bch_alloc *a,
-				  const void **p, unsigned field)
+static inline u64 alloc_field_v1_get(const struct bch_alloc *a,
+				     const void **p, unsigned field)
 {
-	unsigned bytes = BCH_ALLOC_FIELD_BYTES[field];
+	unsigned bytes = BCH_ALLOC_V1_FIELD_BYTES[field];
 	u64 v;
 
 	if (!(a->fields & (1 << field)))
@@ -97,10 +97,10 @@ static inline u64 get_alloc_field(const struct bch_alloc *a,
 	return v;
 }
 
-static inline void put_alloc_field(struct bkey_i_alloc *a, void **p,
-				   unsigned field, u64 v)
+static inline void alloc_field_v1_put(struct bkey_i_alloc *a, void **p,
+				      unsigned field, u64 v)
 {
-	unsigned bytes = BCH_ALLOC_FIELD_BYTES[field];
+	unsigned bytes = BCH_ALLOC_V1_FIELD_BYTES[field];
 
 	if (!v)
 		return;
@@ -127,55 +127,149 @@ static inline void put_alloc_field(struct bkey_i_alloc *a, void **p,
 	*p += bytes;
 }
 
+static void bch2_alloc_unpack_v1(struct bkey_alloc_unpacked *out,
+				 struct bkey_s_c k)
+{
+	const struct bch_alloc *in = bkey_s_c_to_alloc(k).v;
+	const void *d = in->data;
+	unsigned idx = 0;
+
+	out->gen = in->gen;
+
+#define x(_name, _bits) out->_name = alloc_field_v1_get(in, &d, idx++);
+	BCH_ALLOC_FIELDS_V1()
+#undef  x
+}
+
+static void bch2_alloc_pack_v1(struct bkey_alloc_buf *dst,
+			       const struct bkey_alloc_unpacked src)
+{
+	struct bkey_i_alloc *a = bkey_alloc_init(&dst->k);
+	void *d = a->v.data;
+	unsigned bytes, idx = 0;
+
+	a->k.p		= POS(src.dev, src.bucket);
+	a->v.fields	= 0;
+	a->v.gen	= src.gen;
+
+#define x(_name, _bits)	alloc_field_v1_put(a, &d, idx++, src._name);
+	BCH_ALLOC_FIELDS_V1()
+#undef  x
+	bytes = (void *) d - (void *) &a->v;
+	set_bkey_val_bytes(&a->k, bytes);
+	memset_u64s_tail(&a->v, 0, bytes);
+}
+
+static int bch2_alloc_unpack_v2(struct bkey_alloc_unpacked *out,
+				struct bkey_s_c k)
+{
+	struct bkey_s_c_alloc_v2 a = bkey_s_c_to_alloc_v2(k);
+	const u8 *in = a.v->data;
+	const u8 *end = bkey_val_end(a);
+	unsigned fieldnr = 0;
+	int ret;
+	u64 v;
+
+	out->gen	= a.v->gen;
+	out->oldest_gen	= a.v->oldest_gen;
+	out->data_type	= a.v->data_type;
+
+#define x(_name, _bits)							\
+	if (fieldnr < a.v->nr_fields) {					\
+		ret = bch2_varint_decode(in, end, &v);			\
+		if (ret < 0)						\
+			return ret;					\
+		in += ret;						\
+	} else {							\
+		v = 0;							\
+	}								\
+	out->_name = v;							\
+	if (v != out->_name)						\
+		return -1;						\
+	fieldnr++;
+
+	BCH_ALLOC_FIELDS_V2()
+#undef  x
+	return 0;
+}
+
+static void bch2_alloc_pack_v2(struct bkey_alloc_buf *dst,
+			       const struct bkey_alloc_unpacked src)
+{
+	struct bkey_i_alloc_v2 *a = bkey_alloc_v2_init(&dst->k);
+	unsigned nr_fields = 0, last_nonzero_fieldnr = 0;
+	u8 *out = a->v.data;
+	u8 *end = (void *) &dst[1];
+	u8 *last_nonzero_field = out;
+	unsigned bytes;
+
+	a->k.p		= POS(src.dev, src.bucket);
+	a->v.gen	= src.gen;
+	a->v.oldest_gen	= src.oldest_gen;
+	a->v.data_type	= src.data_type;
+
+#define x(_name, _bits)							\
+	nr_fields++;							\
+									\
+	if (src._name) {						\
+		out += bch2_varint_encode(out, src._name);		\
+									\
+		last_nonzero_field = out;				\
+		last_nonzero_fieldnr = nr_fields;			\
+	} else {							\
+		*out++ = 0;						\
+	}
+
+	BCH_ALLOC_FIELDS_V2()
+#undef  x
+	BUG_ON(out > end);
+
+	out = last_nonzero_field;
+	a->v.nr_fields = last_nonzero_fieldnr;
+
+	bytes = (u8 *) out - (u8 *) &a->v;
+	set_bkey_val_bytes(&a->k, bytes);
+	memset_u64s_tail(&a->v, 0, bytes);
+}
+
 struct bkey_alloc_unpacked bch2_alloc_unpack(struct bkey_s_c k)
 {
-	struct bkey_alloc_unpacked ret = { .gen = 0 };
+	struct bkey_alloc_unpacked ret = {
+		.dev	= k.k->p.inode,
+		.bucket	= k.k->p.offset,
+		.gen	= 0,
+	};
 
-	if (k.k->type == KEY_TYPE_alloc) {
-		const struct bch_alloc *a = bkey_s_c_to_alloc(k).v;
-		const void *d = a->data;
-		unsigned idx = 0;
+	if (k.k->type == KEY_TYPE_alloc_v2)
+		bch2_alloc_unpack_v2(&ret, k);
+	else if (k.k->type == KEY_TYPE_alloc)
+		bch2_alloc_unpack_v1(&ret, k);
 
-		ret.gen = a->gen;
-
-#define x(_name, _bits)	ret._name = get_alloc_field(a, &d, idx++);
-		BCH_ALLOC_FIELDS()
-#undef  x
-	}
 	return ret;
 }
 
-void bch2_alloc_pack(struct bkey_i_alloc *dst,
+void bch2_alloc_pack(struct bch_fs *c,
+		     struct bkey_alloc_buf *dst,
 		     const struct bkey_alloc_unpacked src)
 {
-	unsigned idx = 0;
-	void *d = dst->v.data;
-	unsigned bytes;
-
-	dst->v.fields	= 0;
-	dst->v.gen	= src.gen;
-
-#define x(_name, _bits)	put_alloc_field(dst, &d, idx++, src._name);
-	BCH_ALLOC_FIELDS()
-#undef  x
-
-	bytes = (void *) d - (void *) &dst->v;
-	set_bkey_val_bytes(&dst->k, bytes);
-	memset_u64s_tail(&dst->v, 0, bytes);
+	if (c->sb.features & (1ULL << BCH_FEATURE_alloc_v2))
+		bch2_alloc_pack_v2(dst, src);
+	else
+		bch2_alloc_pack_v1(dst, src);
 }
 
 static unsigned bch_alloc_val_u64s(const struct bch_alloc *a)
 {
 	unsigned i, bytes = offsetof(struct bch_alloc, data);
 
-	for (i = 0; i < ARRAY_SIZE(BCH_ALLOC_FIELD_BYTES); i++)
+	for (i = 0; i < ARRAY_SIZE(BCH_ALLOC_V1_FIELD_BYTES); i++)
 		if (a->fields & (1 << i))
-			bytes += BCH_ALLOC_FIELD_BYTES[i];
+			bytes += BCH_ALLOC_V1_FIELD_BYTES[i];
 
 	return DIV_ROUND_UP(bytes, sizeof(u64));
 }
 
-const char *bch2_alloc_invalid(const struct bch_fs *c, struct bkey_s_c k)
+const char *bch2_alloc_v1_invalid(const struct bch_fs *c, struct bkey_s_c k)
 {
 	struct bkey_s_c_alloc a = bkey_s_c_to_alloc(k);
 
@@ -190,20 +284,30 @@ const char *bch2_alloc_invalid(const struct bch_fs *c, struct bkey_s_c k)
 	return NULL;
 }
 
-void bch2_alloc_to_text(struct printbuf *out, struct bch_fs *c,
-			struct bkey_s_c k)
+const char *bch2_alloc_v2_invalid(const struct bch_fs *c, struct bkey_s_c k)
 {
-	struct bkey_s_c_alloc a = bkey_s_c_to_alloc(k);
-	const void *d = a.v->data;
-	unsigned i;
+	struct bkey_alloc_unpacked u;
 
-	pr_buf(out, "gen %u", a.v->gen);
+	if (k.k->p.inode >= c->sb.nr_devices ||
+	    !c->devs[k.k->p.inode])
+		return "invalid device";
 
-	for (i = 0; i < BCH_ALLOC_FIELD_NR; i++)
-		if (a.v->fields & (1 << i))
-			pr_buf(out, " %s %llu",
-			       bch2_alloc_field_names[i],
-			       get_alloc_field(a.v, &d, i));
+	if (bch2_alloc_unpack_v2(&u, k))
+		return "unpack error";
+
+	return NULL;
+}
+
+void bch2_alloc_to_text(struct printbuf *out, struct bch_fs *c,
+			   struct bkey_s_c k)
+{
+	struct bkey_alloc_unpacked u = bch2_alloc_unpack(k);
+
+	pr_buf(out, "gen %u oldest_gen %u data_type %u",
+	       u.gen, u.oldest_gen, u.data_type);
+#define x(_name, ...)	pr_buf(out, #_name " %llu ", (u64) u._name);
+	BCH_ALLOC_FIELDS_V2()
+#undef  x
 }
 
 static int bch2_alloc_read_fn(struct bch_fs *c, enum btree_id id,
@@ -213,7 +317,9 @@ static int bch2_alloc_read_fn(struct bch_fs *c, enum btree_id id,
 	struct bucket *g;
 	struct bkey_alloc_unpacked u;
 
-	if (level || k.k->type != KEY_TYPE_alloc)
+	if (level ||
+	    (k.k->type != KEY_TYPE_alloc &&
+	     k.k->type != KEY_TYPE_alloc_v2))
 		return 0;
 
 	ca = bch_dev_bkey_exists(c, k.k->p.inode);
@@ -281,8 +387,7 @@ static int bch2_alloc_write_key(struct btree_trans *trans,
 	struct bucket *g;
 	struct bucket_mark m;
 	struct bkey_alloc_unpacked old_u, new_u;
-	__BKEY_PADDED(k, 8) alloc_key; /* hack: */
-	struct bkey_i_alloc *a;
+	struct bkey_alloc_buf a;
 	int ret;
 retry:
 	bch2_trans_begin(trans);
@@ -303,17 +408,14 @@ retry:
 	ca	= bch_dev_bkey_exists(c, iter->pos.inode);
 	g	= bucket(ca, iter->pos.offset);
 	m	= READ_ONCE(g->mark);
-	new_u	= alloc_mem_to_key(g, m);
+	new_u	= alloc_mem_to_key(iter, g, m);
 	percpu_up_read(&c->mark_lock);
 
 	if (!bkey_alloc_unpacked_cmp(old_u, new_u))
 		return 0;
 
-	a = bkey_alloc_init(&alloc_key.k);
-	a->k.p = iter->pos;
-	bch2_alloc_pack(a, new_u);
-
-	bch2_trans_update(trans, iter, &a->k_i,
+	bch2_alloc_pack(c, &a, new_u);
+	bch2_trans_update(trans, iter, &a.k,
 			  BTREE_TRIGGER_NORUN);
 	ret = bch2_trans_commit(trans, NULL, NULL,
 				BTREE_INSERT_NOFAIL|flags);
@@ -473,9 +575,9 @@ int bch2_bucket_io_time_reset(struct btree_trans *trans, unsigned dev,
 	struct bch_dev *ca = bch_dev_bkey_exists(c, dev);
 	struct btree_iter *iter;
 	struct bucket *g;
-	struct bkey_i_alloc *a;
+	struct bkey_alloc_buf *a;
 	struct bkey_alloc_unpacked u;
-	u16 *time;
+	u64 *time;
 	int ret = 0;
 
 	iter = bch2_trans_get_iter(trans, BTREE_ID_ALLOC, POS(dev, bucket_nr),
@@ -486,18 +588,15 @@ int bch2_bucket_io_time_reset(struct btree_trans *trans, unsigned dev,
 	if (ret)
 		goto out;
 
-	a = bch2_trans_kmalloc(trans, BKEY_ALLOC_U64s_MAX * 8);
+	a = bch2_trans_kmalloc(trans, sizeof(struct bkey_alloc_buf));
 	ret = PTR_ERR_OR_ZERO(a);
 	if (ret)
 		goto out;
 
 	percpu_down_read(&c->mark_lock);
 	g = bucket(ca, bucket_nr);
-	u = alloc_mem_to_key(g, READ_ONCE(g->mark));
+	u = alloc_mem_to_key(iter, g, READ_ONCE(g->mark));
 	percpu_up_read(&c->mark_lock);
-
-	bkey_alloc_init(&a->k_i);
-	a->k.p = iter->pos;
 
 	time = rw == READ ? &u.read_time : &u.write_time;
 	if (*time == c->bucket_clock[rw].hand)
@@ -505,9 +604,8 @@ int bch2_bucket_io_time_reset(struct btree_trans *trans, unsigned dev,
 
 	*time = c->bucket_clock[rw].hand;
 
-	bch2_alloc_pack(a, u);
-
-	ret   = bch2_trans_update(trans, iter, &a->k_i, 0) ?:
+	bch2_alloc_pack(c, a, u);
+	ret   = bch2_trans_update(trans, iter, &a->k, 0) ?:
 		bch2_trans_commit(trans, NULL, NULL, 0);
 out:
 	bch2_trans_iter_put(trans, iter);
@@ -863,14 +961,8 @@ static int bch2_invalidate_one_bucket2(struct btree_trans *trans,
 				       struct btree_iter *iter,
 				       u64 *journal_seq, unsigned flags)
 {
-#if 0
-	__BKEY_PADDED(k, BKEY_ALLOC_VAL_U64s_MAX) alloc_key;
-#else
-	/* hack: */
-	__BKEY_PADDED(k, 8) alloc_key;
-#endif
 	struct bch_fs *c = trans->c;
-	struct bkey_i_alloc *a;
+	struct bkey_alloc_buf a;
 	struct bkey_alloc_unpacked u;
 	struct bucket *g;
 	struct bucket_mark m;
@@ -920,8 +1012,6 @@ static int bch2_invalidate_one_bucket2(struct btree_trans *trans,
 		goto out;
 	}
 
-	BUG_ON(BKEY_ALLOC_VAL_U64s_MAX > 8);
-
 	bch2_btree_iter_set_pos(iter, POS(ca->dev_idx, b));
 retry:
 	ret = bch2_btree_iter_traverse(iter);
@@ -931,7 +1021,7 @@ retry:
 	percpu_down_read(&c->mark_lock);
 	g = bucket(ca, iter->pos.offset);
 	m = READ_ONCE(g->mark);
-	u = alloc_mem_to_key(g, m);
+	u = alloc_mem_to_key(iter, g, m);
 
 	percpu_up_read(&c->mark_lock);
 
@@ -944,11 +1034,8 @@ retry:
 	u.read_time	= c->bucket_clock[READ].hand;
 	u.write_time	= c->bucket_clock[WRITE].hand;
 
-	a = bkey_alloc_init(&alloc_key.k);
-	a->k.p = iter->pos;
-	bch2_alloc_pack(a, u);
-
-	bch2_trans_update(trans, iter, &a->k_i,
+	bch2_alloc_pack(c, &a, u);
+	bch2_trans_update(trans, iter, &a.k,
 			  BTREE_TRIGGER_BUCKET_INVALIDATE);
 
 	/*

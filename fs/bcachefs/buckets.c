@@ -688,7 +688,8 @@ static int bch2_mark_alloc(struct bch_fs *c,
 	struct bucket_mark old_m, m;
 
 	/* We don't do anything for deletions - do we?: */
-	if (new.k->type != KEY_TYPE_alloc)
+	if (new.k->type != KEY_TYPE_alloc &&
+	    new.k->type != KEY_TYPE_alloc_v2)
 		return 0;
 
 	/*
@@ -711,6 +712,7 @@ static int bch2_mark_alloc(struct bch_fs *c,
 		m.data_type		= u.data_type;
 		m.dirty_sectors		= u.dirty_sectors;
 		m.cached_sectors	= u.cached_sectors;
+		m.stripe		= u.stripe != 0;
 
 		if (journal_seq) {
 			m.journal_seq_valid	= 1;
@@ -724,6 +726,8 @@ static int bch2_mark_alloc(struct bch_fs *c,
 	g->io_time[WRITE]	= u.write_time;
 	g->oldest_gen		= u.oldest_gen;
 	g->gen_valid		= 1;
+	g->stripe		= u.stripe;
+	g->stripe_redundancy	= u.stripe_redundancy;
 
 	/*
 	 * need to know if we're getting called from the invalidate path or
@@ -918,11 +922,10 @@ static int check_bucket_ref(struct bch_fs *c, struct bkey_s_c k,
 	return 0;
 }
 
-static int bucket_set_stripe(struct bch_fs *c, struct bkey_s_c k,
+static int mark_stripe_bucket(struct bch_fs *c, struct bkey_s_c k,
 			     unsigned ptr_idx,
 			     struct bch_fs_usage *fs_usage,
-			     u64 journal_seq, unsigned flags,
-			     bool enabled)
+			     u64 journal_seq, unsigned flags)
 {
 	const struct bch_stripe *s = bkey_s_c_to_stripe(k).v;
 	unsigned nr_data = s->nr_blocks - s->nr_redundant;
@@ -935,8 +938,13 @@ static int bucket_set_stripe(struct bch_fs *c, struct bkey_s_c k,
 	char buf[200];
 	int ret;
 
-	if (enabled)
-		g->ec_redundancy = s->nr_redundant;
+	if (g->stripe && g->stripe != k.k->p.offset) {
+		bch2_fs_inconsistent(c,
+			      "bucket %u:%zu gen %u: multiple stripes using same bucket\n%s",
+			      ptr->dev, PTR_BUCKET_NR(ca, ptr), new.gen,
+			      (bch2_bkey_val_to_text(&PBUF(buf), c, k), buf));
+		return -EINVAL;
+	}
 
 	old = bucket_cmpxchg(g, new, ({
 		ret = check_bucket_ref(c, k, ptr, 0, 0, new.gen, new.data_type,
@@ -944,23 +952,9 @@ static int bucket_set_stripe(struct bch_fs *c, struct bkey_s_c k,
 		if (ret)
 			return ret;
 
-		if (new.stripe && enabled)
-			bch2_fsck_err(c, FSCK_CAN_IGNORE|FSCK_NEED_FSCK,
-				      "bucket %u:%zu gen %u: multiple stripes using same bucket\n%s",
-				      ptr->dev, PTR_BUCKET_NR(ca, ptr), new.gen,
-				      (bch2_bkey_val_to_text(&PBUF(buf), c, k), buf));
-
-		if (!new.stripe && !enabled)
-			bch2_fsck_err(c, FSCK_CAN_IGNORE|FSCK_NEED_FSCK,
-				      "bucket %u:%zu gen %u: deleting stripe but not marked\n%s",
-				      ptr->dev, PTR_BUCKET_NR(ca, ptr), new.gen,
-				      (bch2_bkey_val_to_text(&PBUF(buf), c, k), buf));
-
-		new.stripe			= enabled;
-
-		if ((flags & BTREE_TRIGGER_GC) && parity) {
-			new.data_type = enabled ? BCH_DATA_parity : 0;
-			new.dirty_sectors = enabled ? le16_to_cpu(s->sectors): 0;
+		if (parity) {
+			new.data_type		= BCH_DATA_parity;
+			new.dirty_sectors	= le16_to_cpu(s->sectors);
 		}
 
 		if (journal_seq) {
@@ -969,8 +963,8 @@ static int bucket_set_stripe(struct bch_fs *c, struct bkey_s_c k,
 		}
 	}));
 
-	if (!enabled)
-		g->ec_redundancy = 0;
+	g->stripe		= k.k->p.offset;
+	g->stripe_redundancy	= s->nr_redundant;
 
 	bch2_dev_usage_update(c, ca, fs_usage, old, new, gc);
 	return 0;
@@ -1166,6 +1160,8 @@ static int bch2_mark_stripe(struct bch_fs *c,
 	unsigned i;
 	int ret;
 
+	BUG_ON(gc && old_s);
+
 	if (!m || (old_s && !m->alive)) {
 		bch_err_ratelimited(c, "error marking nonexistent stripe %zu",
 				    idx);
@@ -1173,48 +1169,12 @@ static int bch2_mark_stripe(struct bch_fs *c,
 	}
 
 	if (!new_s) {
-		/* Deleting: */
-		for (i = 0; i < old_s->nr_blocks; i++) {
-			ret = bucket_set_stripe(c, old, i, fs_usage,
-						journal_seq, flags, false);
-			if (ret)
-				return ret;
-		}
-
-		if (!gc && m->on_heap) {
-			spin_lock(&c->ec_stripes_heap_lock);
-			bch2_stripes_heap_del(c, m, idx);
-			spin_unlock(&c->ec_stripes_heap_lock);
-		}
-
-		if (gc)
-			update_replicas(c, fs_usage, &m->r.e,
-					-((s64) m->sectors * m->nr_redundant));
+		spin_lock(&c->ec_stripes_heap_lock);
+		bch2_stripes_heap_del(c, m, idx);
+		spin_unlock(&c->ec_stripes_heap_lock);
 
 		memset(m, 0, sizeof(*m));
 	} else {
-		BUG_ON(old_s && new_s->nr_blocks != old_s->nr_blocks);
-		BUG_ON(old_s && new_s->nr_redundant != old_s->nr_redundant);
-
-		for (i = 0; i < new_s->nr_blocks; i++) {
-			if (!old_s ||
-			    memcmp(new_s->ptrs + i,
-				   old_s->ptrs + i,
-				   sizeof(struct bch_extent_ptr))) {
-
-				if (old_s) {
-					bucket_set_stripe(c, old, i, fs_usage,
-							  journal_seq, flags, false);
-					if (ret)
-						return ret;
-				}
-				ret = bucket_set_stripe(c, new, i, fs_usage,
-							journal_seq, flags, true);
-				if (ret)
-					return ret;
-			}
-		}
-
 		m->alive	= true;
 		m->sectors	= le16_to_cpu(new_s->sectors);
 		m->algorithm	= new_s->algorithm;
@@ -1223,32 +1183,37 @@ static int bch2_mark_stripe(struct bch_fs *c,
 		m->blocks_nonempty = 0;
 
 		for (i = 0; i < new_s->nr_blocks; i++) {
-			unsigned s = stripe_blockcount_get(new_s, i);
-
-			/*
-			 * gc recalculates this field from stripe ptr
-			 * references:
-			 */
-			if (!gc)
-				m->block_sectors[i] = s;
-			m->blocks_nonempty += !!s;
+			m->block_sectors[i] =
+				stripe_blockcount_get(new_s, i);
+			m->blocks_nonempty += !!m->block_sectors[i];
 		}
 
-		if (gc && old_s)
-			update_replicas(c, fs_usage, &m->r.e,
-					-((s64) m->sectors * m->nr_redundant));
-
 		bch2_bkey_to_replicas(&m->r.e, new);
-
-		if (gc)
-			update_replicas(c, fs_usage, &m->r.e,
-					((s64) m->sectors * m->nr_redundant));
 
 		if (!gc) {
 			spin_lock(&c->ec_stripes_heap_lock);
 			bch2_stripes_heap_update(c, m, idx);
 			spin_unlock(&c->ec_stripes_heap_lock);
 		}
+	}
+
+	if (gc) {
+		/*
+		 * gc recalculates this field from stripe ptr
+		 * references:
+		 */
+		memset(m->block_sectors, 0, sizeof(m->block_sectors));
+		m->blocks_nonempty = 0;
+
+		for (i = 0; i < new_s->nr_blocks; i++) {
+			ret = mark_stripe_bucket(c, new, i, fs_usage,
+						 journal_seq, flags);
+			if (ret)
+				return ret;
+		}
+
+		update_replicas(c, fs_usage, &m->r.e,
+				((s64) m->sectors * m->nr_redundant));
 	}
 
 	return 0;
@@ -1274,6 +1239,7 @@ static int bch2_mark_key_locked(struct bch_fs *c,
 
 	switch (k.k->type) {
 	case KEY_TYPE_alloc:
+	case KEY_TYPE_alloc_v2:
 		ret = bch2_mark_alloc(c, old, new, fs_usage, journal_seq, flags);
 		break;
 	case KEY_TYPE_btree_ptr:
@@ -1542,9 +1508,10 @@ static int trans_get_key(struct btree_trans *trans,
 	return ret;
 }
 
-static int bch2_trans_start_alloc_update(struct btree_trans *trans, struct btree_iter **_iter,
-					 const struct bch_extent_ptr *ptr,
-					 struct bkey_alloc_unpacked *u)
+static struct bkey_alloc_buf *
+bch2_trans_start_alloc_update(struct btree_trans *trans, struct btree_iter **_iter,
+			      const struct bch_extent_ptr *ptr,
+			      struct bkey_alloc_unpacked *u)
 {
 	struct bch_fs *c = trans->c;
 	struct bch_dev *ca = bch_dev_bkey_exists(c, ptr->dev);
@@ -1552,7 +1519,12 @@ static int bch2_trans_start_alloc_update(struct btree_trans *trans, struct btree
 	struct bucket *g;
 	struct btree_iter *iter;
 	struct bkey_s_c k;
+	struct bkey_alloc_buf *a;
 	int ret;
+
+	a = bch2_trans_kmalloc(trans, sizeof(struct bkey_alloc_buf));
+	if (IS_ERR(a))
+		return a;
 
 	iter = trans_get_update(trans, BTREE_ID_ALLOC, pos, &k);
 	if (iter) {
@@ -1565,17 +1537,17 @@ static int bch2_trans_start_alloc_update(struct btree_trans *trans, struct btree
 		ret = bch2_btree_iter_traverse(iter);
 		if (ret) {
 			bch2_trans_iter_put(trans, iter);
-			return ret;
+			return ERR_PTR(ret);
 		}
 
 		percpu_down_read(&c->mark_lock);
 		g = bucket(ca, pos.offset);
-		*u = alloc_mem_to_key(g, READ_ONCE(g->mark));
+		*u = alloc_mem_to_key(iter, g, READ_ONCE(g->mark));
 		percpu_up_read(&c->mark_lock);
 	}
 
 	*_iter = iter;
-	return 0;
+	return a;
 }
 
 static int bch2_trans_mark_pointer(struct btree_trans *trans,
@@ -1585,27 +1557,20 @@ static int bch2_trans_mark_pointer(struct btree_trans *trans,
 	struct bch_fs *c = trans->c;
 	struct btree_iter *iter;
 	struct bkey_alloc_unpacked u;
-	struct bkey_i_alloc *a;
+	struct bkey_alloc_buf *a;
 	int ret;
 
-	ret = bch2_trans_start_alloc_update(trans, &iter, &p.ptr, &u);
-	if (ret)
-		return ret;
+	a = bch2_trans_start_alloc_update(trans, &iter, &p.ptr, &u);
+	if (IS_ERR(a))
+		return PTR_ERR(a);
 
 	ret = __mark_pointer(c, k, &p.ptr, sectors, data_type, u.gen, &u.data_type,
 			     &u.dirty_sectors, &u.cached_sectors);
 	if (ret)
 		goto out;
 
-	a = bch2_trans_kmalloc(trans, BKEY_ALLOC_U64s_MAX * 8);
-	ret = PTR_ERR_OR_ZERO(a);
-	if (ret)
-		goto out;
-
-	bkey_alloc_init(&a->k_i);
-	a->k.p = iter->pos;
-	bch2_alloc_pack(a, u);
-	bch2_trans_update(trans, iter, &a->k_i, 0);
+	bch2_alloc_pack(c, a, u);
+	bch2_trans_update(trans, iter, &a->k, 0);
 out:
 	bch2_trans_iter_put(trans, iter);
 	return ret;
@@ -1716,34 +1681,51 @@ static int bch2_trans_mark_extent(struct btree_trans *trans,
 }
 
 static int bch2_trans_mark_stripe_alloc_ref(struct btree_trans *trans,
-					    const struct bch_extent_ptr *ptr,
-					    s64 sectors, bool parity)
+					    struct bkey_s_c_stripe s,
+					    unsigned idx, bool deleting)
 {
-	struct bkey_i_alloc *a;
+	struct bch_fs *c = trans->c;
+	const struct bch_extent_ptr *ptr = &s.v->ptrs[idx];
+	struct bkey_alloc_buf *a;
 	struct btree_iter *iter;
 	struct bkey_alloc_unpacked u;
-	int ret;
+	bool parity = idx >= s.v->nr_blocks - s.v->nr_redundant;
+	int ret = 0;
 
-	ret = bch2_trans_start_alloc_update(trans, &iter, ptr, &u);
-	if (ret)
-		return ret;
+	a = bch2_trans_start_alloc_update(trans, &iter, ptr, &u);
+	if (IS_ERR(a))
+		return PTR_ERR(a);
 
 	if (parity) {
+		s64 sectors = le16_to_cpu(s.v->sectors);
+
+		if (deleting)
+			sectors = -sectors;
+
 		u.dirty_sectors += sectors;
 		u.data_type = u.dirty_sectors
 			? BCH_DATA_parity
 			: 0;
 	}
 
-	a = bch2_trans_kmalloc(trans, BKEY_ALLOC_U64s_MAX * 8);
-	ret = PTR_ERR_OR_ZERO(a);
-	if (ret)
-		goto err;
+	if (!deleting) {
+		if (bch2_fs_inconsistent_on(u.stripe && u.stripe != s.k->p.offset, c,
+				"bucket %llu:%llu gen %u: multiple stripes using same bucket (%u, %llu)",
+				iter->pos.inode, iter->pos.offset, u.gen,
+				u.stripe, s.k->p.offset)) {
+			ret = -EIO;
+			goto err;
+		}
 
-	bkey_alloc_init(&a->k_i);
-	a->k.p = iter->pos;
-	bch2_alloc_pack(a, u);
-	bch2_trans_update(trans, iter, &a->k_i, 0);
+		u.stripe		= s.k->p.offset;
+		u.stripe_redundancy	= s.v->nr_redundant;
+	} else {
+		u.stripe		= 0;
+		u.stripe_redundancy	= 0;
+	}
+
+	bch2_alloc_pack(c, a, u);
+	bch2_trans_update(trans, iter, &a->k, 0);
 err:
 	bch2_trans_iter_put(trans, iter);
 	return ret;
@@ -1753,51 +1735,50 @@ static int bch2_trans_mark_stripe(struct btree_trans *trans,
 				  struct bkey_s_c old, struct bkey_s_c new,
 				  unsigned flags)
 {
-	const struct bch_stripe *old_s = old.k->type == KEY_TYPE_stripe
-		? bkey_s_c_to_stripe(old).v : NULL;
-	const struct bch_stripe *new_s = new.k->type == KEY_TYPE_stripe
-		? bkey_s_c_to_stripe(new).v : NULL;
+	struct bkey_s_c_stripe old_s = { NULL };
+	struct bkey_s_c_stripe new_s = { NULL };
 	struct bch_replicas_padded r;
 	unsigned i;
 	int ret = 0;
 
+	if (old.k->type == KEY_TYPE_stripe)
+		old_s = bkey_s_c_to_stripe(old);
+	if (new.k->type == KEY_TYPE_stripe)
+		new_s = bkey_s_c_to_stripe(new);
+
 	/*
 	 * If the pointers aren't changing, we don't need to do anything:
 	 */
-	if (new_s && old_s &&
-	    !memcmp(old_s->ptrs, new_s->ptrs,
-		    new_s->nr_blocks * sizeof(struct bch_extent_ptr)))
+	if (new_s.k && old_s.k &&
+	    new_s.v->nr_blocks		== old_s.v->nr_blocks &&
+	    new_s.v->nr_redundant	== old_s.v->nr_redundant &&
+	    !memcmp(old_s.v->ptrs, new_s.v->ptrs,
+		    new_s.v->nr_blocks * sizeof(struct bch_extent_ptr)))
 		return 0;
 
-	if (new_s) {
-		unsigned nr_data = new_s->nr_blocks - new_s->nr_redundant;
-		s64 sectors = le16_to_cpu(new_s->sectors);
+	if (new_s.k) {
+		s64 sectors = le16_to_cpu(new_s.v->sectors);
 
 		bch2_bkey_to_replicas(&r.e, new);
-		update_replicas_list(trans, &r.e, sectors * new_s->nr_redundant);
+		update_replicas_list(trans, &r.e, sectors * new_s.v->nr_redundant);
 
-		for (i = 0; i < new_s->nr_blocks; i++) {
-			bool parity = i >= nr_data;
-
-			ret = bch2_trans_mark_stripe_alloc_ref(trans,
-					&new_s->ptrs[i], sectors, parity);
+		for (i = 0; i < new_s.v->nr_blocks; i++) {
+			ret = bch2_trans_mark_stripe_alloc_ref(trans, new_s,
+							       i, false);
 			if (ret)
 				return ret;
 		}
 	}
 
-	if (old_s) {
-		unsigned nr_data = old_s->nr_blocks - old_s->nr_redundant;
-		s64 sectors = -((s64) le16_to_cpu(old_s->sectors));
+	if (old_s.k) {
+		s64 sectors = -((s64) le16_to_cpu(old_s.v->sectors));
 
 		bch2_bkey_to_replicas(&r.e, old);
-		update_replicas_list(trans, &r.e, sectors * old_s->nr_redundant);
+		update_replicas_list(trans, &r.e, sectors * old_s.v->nr_redundant);
 
-		for (i = 0; i < old_s->nr_blocks; i++) {
-			bool parity = i >= nr_data;
-
-			ret = bch2_trans_mark_stripe_alloc_ref(trans,
-					&old_s->ptrs[i], sectors, parity);
+		for (i = 0; i < old_s.v->nr_blocks; i++) {
+			ret = bch2_trans_mark_stripe_alloc_ref(trans, old_s,
+							       i, true);
 			if (ret)
 				return ret;
 		}
@@ -2068,21 +2049,16 @@ static int __bch2_trans_mark_metadata_bucket(struct btree_trans *trans,
 	struct bch_fs *c = trans->c;
 	struct btree_iter *iter;
 	struct bkey_alloc_unpacked u;
-	struct bkey_i_alloc *a;
+	struct bkey_alloc_buf *a;
 	struct bch_extent_ptr ptr = {
 		.dev = ca->dev_idx,
 		.offset = bucket_to_sector(ca, b),
 	};
 	int ret = 0;
 
-	a = bch2_trans_kmalloc(trans, BKEY_ALLOC_U64s_MAX * 8);
-	ret = PTR_ERR_OR_ZERO(a);
-	if (ret)
-		return ret;
-
-	ret = bch2_trans_start_alloc_update(trans, &iter, &ptr, &u);
-	if (ret)
-		return ret;
+	a = bch2_trans_start_alloc_update(trans, &iter, &ptr, &u);
+	if (IS_ERR(a))
+		return PTR_ERR(a);
 
 	if (u.data_type && u.data_type != type) {
 		bch2_fsck_err(c, FSCK_CAN_IGNORE|FSCK_NEED_FSCK,
@@ -2115,10 +2091,8 @@ static int __bch2_trans_mark_metadata_bucket(struct btree_trans *trans,
 	u.data_type	= type;
 	u.dirty_sectors	= sectors;
 
-	bkey_alloc_init(&a->k_i);
-	a->k.p = iter->pos;
-	bch2_alloc_pack(a, u);
-	bch2_trans_update(trans, iter, &a->k_i, 0);
+	bch2_alloc_pack(c, a, u);
+	bch2_trans_update(trans, iter, &a->k, 0);
 out:
 	bch2_trans_iter_put(trans, iter);
 	return ret;

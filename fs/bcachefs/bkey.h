@@ -538,6 +538,7 @@ BKEY_VAL_ACCESSORS(reflink_v);
 BKEY_VAL_ACCESSORS(inline_data);
 BKEY_VAL_ACCESSORS(btree_ptr_v2);
 BKEY_VAL_ACCESSORS(indirect_inline_data);
+BKEY_VAL_ACCESSORS(alloc_v2);
 
 /* byte order helpers */
 
