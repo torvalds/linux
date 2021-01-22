@@ -588,7 +588,11 @@ static void toggle_allocation_gate(struct work_struct *work)
 	/* Enable static key, and await allocation to happen. */
 	atomic_set(&allocation_gate, 0);
 	static_branch_enable(&kfence_allocation_key);
-	wait_event(allocation_wait, atomic_read(&allocation_gate) != 0);
+	/*
+	 * Await an allocation. Timeout after 1 second, in case the kernel stops
+	 * doing allocations, to avoid stalling this worker task for too long.
+	 */
+	wait_event_timeout(allocation_wait, atomic_read(&allocation_gate) != 0, HZ);
 
 	/* Disable static key and reset timer. */
 	static_branch_disable(&kfence_allocation_key);
