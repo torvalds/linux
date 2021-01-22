@@ -389,16 +389,16 @@ do_insert:
 }
 
 /**
- * __etree_search - searche @tree for an entry that contains @offset. Such
- * entry would have entry->start <= offset && entry->end >= offset.
+ * Search @tree for an entry that contains @offset. Such entry would have
+ * entry->start <= offset && entry->end >= offset.
  *
- * @tree - the tree to search
- * @offset - offset that should fall within an entry in @tree
- * @next_ret - pointer to the first entry whose range ends after @offset
- * @prev - pointer to the first entry whose range begins before @offset
- * @p_ret - pointer where new node should be anchored (used when inserting an
- *	    entry in the tree)
- * @parent_ret - points to entry which would have been the parent of the entry,
+ * @tree:       the tree to search
+ * @offset:     offset that should fall within an entry in @tree
+ * @next_ret:   pointer to the first entry whose range ends after @offset
+ * @prev_ret:   pointer to the first entry whose range begins before @offset
+ * @p_ret:      pointer where new node should be anchored (used when inserting an
+ *	        entry in the tree)
+ * @parent_ret: points to entry which would have been the parent of the entry,
  *               containing @offset
  *
  * This function returns a pointer to the entry that contains @offset byte
@@ -1588,12 +1588,13 @@ out:
 }
 
 /**
- * find_contiguous_extent_bit: find a contiguous area of bits
- * @tree - io tree to check
- * @start - offset to start the search from
- * @start_ret - the first offset we found with the bits set
- * @end_ret - the final contiguous range of the bits that were set
- * @bits - bits to look for
+ * Find a contiguous area of bits
+ *
+ * @tree:      io tree to check
+ * @start:     offset to start the search from
+ * @start_ret: the first offset we found with the bits set
+ * @end_ret:   the final contiguous range of the bits that were set
+ * @bits:      bits to look for
  *
  * set_extent_bit and clear_extent_bit can temporarily split contiguous ranges
  * to set bits appropriately, and then merge them again.  During this time it
@@ -1625,14 +1626,14 @@ int find_contiguous_extent_bit(struct extent_io_tree *tree, u64 start,
 }
 
 /**
- * find_first_clear_extent_bit - find the first range that has @bits not set.
- * This range could start before @start.
+ * Find the first range that has @bits not set. This range could start before
+ * @start.
  *
- * @tree - the tree to search
- * @start - the offset at/after which the found extent should start
- * @start_ret - records the beginning of the range
- * @end_ret - records the end of the range (inclusive)
- * @bits - the set of bits which must be unset
+ * @tree:      the tree to search
+ * @start:     offset at/after which the found extent should start
+ * @start_ret: records the beginning of the range
+ * @end_ret:   records the end of the range (inclusive)
+ * @bits:      the set of bits which must be unset
  *
  * Since unallocated range is also considered one which doesn't have the bits
  * set it's possible that @end_ret contains -1, this happens in case the range
@@ -4168,10 +4169,11 @@ retry:
 }
 
 /**
- * write_cache_pages - walk the list of dirty pages of the given address space and write all of them.
+ * Walk the list of dirty pages of the given address space and write all of them.
+ *
  * @mapping: address space structure to write
- * @wbc: subtract the number of written pages from *@wbc->nr_to_write
- * @data: data passed to __extent_writepage function
+ * @wbc:     subtract the number of written pages from *@wbc->nr_to_write
+ * @epd:     holds context for the write, namely the bio
  *
  * If a page is already under I/O, write_cache_pages() skips it, even
  * if it's dirty.  This is desirable behaviour for memory-cleaning writeback,
