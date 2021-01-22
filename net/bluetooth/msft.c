@@ -579,9 +579,19 @@ int msft_remove_monitor(struct hci_dev *hdev, struct adv_monitor *monitor,
 	return err;
 }
 
+void msft_req_add_set_filter_enable(struct hci_request *req, bool enable)
+{
+	struct hci_dev *hdev = req->hdev;
+	struct msft_cp_le_set_advertisement_filter_enable cp;
+
+	cp.sub_opcode = MSFT_OP_LE_SET_ADVERTISEMENT_FILTER_ENABLE;
+	cp.enable = enable;
+
+	hci_req_add(req, hdev->msft_opcode, sizeof(cp), &cp);
+}
+
 int msft_set_filter_enable(struct hci_dev *hdev, bool enable)
 {
-	struct msft_cp_le_set_advertisement_filter_enable cp;
 	struct hci_request req;
 	struct msft_data *msft = hdev->msft_data;
 	int err;
@@ -589,11 +599,8 @@ int msft_set_filter_enable(struct hci_dev *hdev, bool enable)
 	if (!msft)
 		return -EOPNOTSUPP;
 
-	cp.sub_opcode = MSFT_OP_LE_SET_ADVERTISEMENT_FILTER_ENABLE;
-	cp.enable = enable;
-
 	hci_req_init(&req, hdev);
-	hci_req_add(&req, hdev->msft_opcode, sizeof(cp), &cp);
+	msft_req_add_set_filter_enable(&req, enable);
 	err = hci_req_run_skb(&req, msft_le_set_advertisement_filter_enable_cb);
 
 	return err;
