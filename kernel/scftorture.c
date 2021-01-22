@@ -398,6 +398,7 @@ static void scftorture_invoke_one(struct scf_statistics *scfp, struct torture_ra
 static int scftorture_invoker(void *arg)
 {
 	int cpu;
+	int curcpu;
 	DEFINE_TORTURE_RANDOM(rand);
 	struct scf_statistics *scfp = (struct scf_statistics *)arg;
 	bool was_offline = false;
@@ -412,7 +413,10 @@ static int scftorture_invoker(void *arg)
 	VERBOSE_SCFTORTOUT("scftorture_invoker %d: Waiting for all SCF torturers from cpu %d", scfp->cpu, smp_processor_id());
 
 	// Make sure that the CPU is affinitized appropriately during testing.
-	WARN_ON_ONCE(smp_processor_id() != scfp->cpu);
+	curcpu = smp_processor_id();
+	WARN_ONCE(curcpu != scfp->cpu % nr_cpu_ids,
+		  "%s: Wanted CPU %d, running on %d, nr_cpu_ids = %d\n",
+		  __func__, scfp->cpu, curcpu, nr_cpu_ids);
 
 	if (!atomic_dec_return(&n_started))
 		while (atomic_read_acquire(&n_started)) {

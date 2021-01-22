@@ -461,6 +461,12 @@ out:
 	spin_unlock_irqrestore(&slob_lock, flags);
 }
 
+void kmem_obj_info(struct kmem_obj_info *kpp, void *object, struct page *page)
+{
+	kpp->kp_ptr = object;
+	kpp->kp_page = page;
+}
+
 /*
  * End of slob allocator proper. Begin kmem_cache_alloc and kmalloc frontend.
  */
