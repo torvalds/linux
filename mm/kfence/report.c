@@ -10,6 +10,7 @@
 #include <linux/kernel.h>
 #include <linux/lockdep.h>
 #include <linux/printk.h>
+#include <linux/sched/debug.h>
 #include <linux/seq_file.h>
 #include <linux/stacktrace.h>
 #include <linux/string.h>
@@ -41,7 +42,6 @@ static int get_stack_skipnr(const unsigned long stack_entries[], int num_entries
 {
 	char buf[64];
 	int skipnr, fallback = 0;
-	bool is_access_fault = false;
 
 	if (type) {
 		/* Depending on error type, find different stack entries. */
@@ -49,8 +49,12 @@ static int get_stack_skipnr(const unsigned long stack_entries[], int num_entries
 		case KFENCE_ERROR_UAF:
 		case KFENCE_ERROR_OOB:
 		case KFENCE_ERROR_INVALID:
-			is_access_fault = true;
-			break;
+			/*
+			 * kfence_handle_page_fault() may be called with pt_regs
+			 * set to NULL; in that case we'll simply show the full
+			 * stack trace.
+			 */
+			return 0;
 		case KFENCE_ERROR_CORRUPTION:
 		case KFENCE_ERROR_INVALID_FREE:
 			break;
@@ -60,26 +64,21 @@ static int get_stack_skipnr(const unsigned long stack_entries[], int num_entries
 	for (skipnr = 0; skipnr < num_entries; skipnr++) {
 		int len = scnprintf(buf, sizeof(buf), "%ps", (void *)stack_entries[skipnr]);
 
-		if (is_access_fault) {
-			if (!strncmp(buf, KFENCE_SKIP_ARCH_FAULT_HANDLER, len))
-				goto found;
-		} else {
-			if (str_has_prefix(buf, "kfence_") || str_has_prefix(buf, "__kfence_") ||
-			    !strncmp(buf, "__slab_free", len)) {
-				/*
-				 * In case of tail calls from any of the below
-				 * to any of the above.
-				 */
-				fallback = skipnr + 1;
-			}
-
-			/* Also the *_bulk() variants by only checking prefixes. */
-			if (str_has_prefix(buf, "kfree") ||
-			    str_has_prefix(buf, "kmem_cache_free") ||
-			    str_has_prefix(buf, "__kmalloc") ||
-			    str_has_prefix(buf, "kmem_cache_alloc"))
-				goto found;
+		if (str_has_prefix(buf, "kfence_") || str_has_prefix(buf, "__kfence_") ||
+		    !strncmp(buf, "__slab_free", len)) {
+			/*
+			 * In case of tail calls from any of the below
+			 * to any of the above.
+			 */
+			fallback = skipnr + 1;
 		}
+
+		/* Also the *_bulk() variants by only checking prefixes. */
+		if (str_has_prefix(buf, "kfree") ||
+		    str_has_prefix(buf, "kmem_cache_free") ||
+		    str_has_prefix(buf, "__kmalloc") ||
+		    str_has_prefix(buf, "kmem_cache_alloc"))
+			goto found;
 	}
 	if (fallback < num_entries)
 		return fallback;
@@ -157,13 +156,20 @@ static void print_diff_canary(unsigned long address, size_t bytes_to_show,
 	pr_cont(" ]");
 }
 
-void kfence_report_error(unsigned long address, const struct kfence_metadata *meta,
-			 enum kfence_error_type type)
+void kfence_report_error(unsigned long address, struct pt_regs *regs,
+			 const struct kfence_metadata *meta, enum kfence_error_type type)
 {
 	unsigned long stack_entries[KFENCE_STACK_DEPTH] = { 0 };
-	int num_stack_entries = stack_trace_save(stack_entries, KFENCE_STACK_DEPTH, 1);
-	int skipnr = get_stack_skipnr(stack_entries, num_stack_entries, &type);
 	const ptrdiff_t object_index = meta ? meta - kfence_metadata : -1;
+	int num_stack_entries;
+	int skipnr = 0;
+
+	if (regs) {
+		num_stack_entries = stack_trace_save_regs(regs, stack_entries, KFENCE_STACK_DEPTH, 0);
+	} else {
+		num_stack_entries = stack_trace_save(stack_entries, KFENCE_STACK_DEPTH, 1);
+		skipnr = get_stack_skipnr(stack_entries, num_stack_entries, &type);
+	}
 
 	/* Require non-NULL meta, except if KFENCE_ERROR_INVALID. */
 	if (WARN_ON(type != KFENCE_ERROR_INVALID && !meta))
@@ -227,7 +233,10 @@ void kfence_report_error(unsigned long address, const struct kfence_metadata *me
 
 	/* Print report footer. */
 	pr_err("\n");
-	dump_stack_print_info(KERN_ERR);
+	if (IS_ENABLED(CONFIG_DEBUG_KERNEL) && regs)
+		show_regs(regs);
+	else
+		dump_stack_print_info(KERN_ERR);
 	pr_err("==================================================================\n");
 
 	lockdep_on();

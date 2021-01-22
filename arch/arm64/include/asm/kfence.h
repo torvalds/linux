@@ -10,8 +10,6 @@
 
 #include <asm/cacheflush.h>
 
-#define KFENCE_SKIP_ARCH_FAULT_HANDLER "el1_sync"
-
 static inline bool arch_kfence_init_pool(void) { return true; }
 
 static inline bool kfence_protect_page(unsigned long addr, bool protect)
