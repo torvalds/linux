@@ -3103,14 +3103,16 @@ void btrfs_run_delayed_iputs(struct btrfs_fs_info *fs_info)
 }
 
 /**
- * btrfs_wait_on_delayed_iputs - wait on the delayed iputs to be done running
- * @fs_info - the fs_info for this fs
- * @return - EINTR if we were killed, 0 if nothing's pending
+ * Wait for flushing all delayed iputs
+ *
+ * @fs_info:  the filesystem
  *
  * This will wait on any delayed iputs that are currently running with KILLABLE
  * set.  Once they are all done running we will return, unless we are killed in
  * which case we return EINTR. This helps in user operations like fallocate etc
  * that might get blocked on the iputs.
+ *
+ * Return EINTR if we were killed, 0 if nothing's pending
  */
 int btrfs_wait_on_delayed_iputs(struct btrfs_fs_info *fs_info)
 {
