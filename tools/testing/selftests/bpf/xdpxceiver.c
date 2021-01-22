@@ -567,9 +567,11 @@ static void rx_pkt(struct xsk_socket_info *xsk, struct pollfd *fds)
 	}
 
 	for (i = 0; i < rcvd; i++) {
-		u64 addr = xsk_ring_cons__rx_desc(&xsk->rx, idx_rx)->addr;
-		(void)xsk_ring_cons__rx_desc(&xsk->rx, idx_rx++)->len;
-		u64 orig = xsk_umem__extract_addr(addr);
+		u64 addr, orig;
+
+		addr = xsk_ring_cons__rx_desc(&xsk->rx, idx_rx)->addr;
+		xsk_ring_cons__rx_desc(&xsk->rx, idx_rx++);
+		orig = xsk_umem__extract_addr(addr);
 
 		addr = xsk_umem__add_offset_to_addr(addr);
 		pkt_node_rx = malloc(sizeof(struct pkt) + PKT_SIZE);
@@ -905,6 +907,8 @@ static void *worker_testapp_validate(void *arg)
 
 static void testapp_validate(void)
 {
+	struct timespec max_wait = { 0, 0 };
+
 	pthread_attr_init(&attr);
 	pthread_attr_setstacksize(&attr, THREAD_STACK);
 
@@ -928,8 +932,6 @@ static void testapp_validate(void)
 		if (pthread_create(&t0, &attr, worker_testapp_validate, (void *)ifdict[0]))
 			exit_with_error(errno);
 	}
-
-	struct timespec max_wait = { 0, 0 };
 
 	if (clock_gettime(CLOCK_REALTIME, &max_wait))
 		exit_with_error(errno);
