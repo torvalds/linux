@@ -538,6 +538,25 @@ out_unlock:
 	raw_spin_unlock_irqrestore(&walt_lb_migration_lock, flags);
 }
 
+static bool should_help_min_cap(int this_cpu)
+{
+	int cpu;
+
+	if (!sysctl_sched_force_lb_enable || is_min_capacity_cpu(this_cpu))
+		return false;
+
+	for_each_cpu(cpu, &cpu_array[0][0]) {
+		struct walt_rq *wrq = (struct walt_rq *) cpu_rq(cpu)->android_vendor_data1;
+
+		if (wrq->walt_stats.nr_big_tasks)
+			return true;
+	}
+
+	return false;
+}
+
+/* similar to sysctl_sched_migration_cost */
+#define NEWIDLE_BALANCE_THRESHOLD	500000
 static void walt_newidle_balance(void *unused, struct rq *this_rq,
 				 struct rq_flags *rf, int *pulled_task,
 				 int *done)
@@ -547,6 +566,8 @@ static void walt_newidle_balance(void *unused, struct rq *this_rq,
 	int order_index = wrq->cluster->id;
 	int cluster = 0;
 	int busy_cpu;
+	bool enough_idle = (this_rq->avg_idle > NEWIDLE_BALANCE_THRESHOLD);
+	bool help_min_cap;
 
 	if (unlikely(!cpu_array))
 		return;
@@ -571,6 +592,10 @@ static void walt_newidle_balance(void *unused, struct rq *this_rq,
 	if (!READ_ONCE(this_rq->rd->overload))
 		return;
 
+	if (atomic_read(&this_rq->nr_iowait) && !enough_idle)
+		return;
+
+	help_min_cap = should_help_min_cap(this_cpu);
 	rq_unpin_lock(this_rq, rf);
 	raw_spin_unlock(&this_rq->lock);
 
@@ -588,6 +613,8 @@ static void walt_newidle_balance(void *unused, struct rq *this_rq,
 		if (busy_cpu != -1 || this_rq->nr_running > 0)
 			break;
 
+		if (!enough_idle && !help_min_cap)
+			break;
 	} while (++cluster < num_sched_clusters);
 
 	/* sanity checks before attempting the pull */
