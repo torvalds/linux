@@ -757,7 +757,7 @@ __intel_engine_init_ctx_wa(struct intel_engine_cs *engine,
 	else if (IS_GEN(i915, 6))
 		gen6_ctx_workarounds_init(engine, wal);
 	else if (INTEL_GEN(i915) < 8)
-		return;
+		;
 	else
 		MISSING_CASE(INTEL_GEN(i915));
 
@@ -1209,7 +1209,7 @@ gt_init_workarounds(struct drm_i915_private *i915, struct i915_wa_list *wal)
 	else if (IS_GEN(i915, 4))
 		gen4_gt_workarounds_init(i915, wal);
 	else if (INTEL_GEN(i915) <= 8)
-		return;
+		;
 	else
 		MISSING_CASE(INTEL_GEN(i915));
 }
@@ -1584,7 +1584,7 @@ void intel_engine_init_whitelist(struct intel_engine_cs *engine)
 	else if (IS_SKYLAKE(i915))
 		skl_whitelist_build(engine);
 	else if (INTEL_GEN(i915) <= 8)
-		return;
+		;
 	else
 		MISSING_CASE(INTEL_GEN(i915));
 
