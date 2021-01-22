@@ -165,7 +165,6 @@ void intel_gt_init_clock_frequency(struct intel_gt *gt)
 		 gt->clock_period_ns,
 		 div_u64(mul_u32_u32(gt->clock_period_ns, S32_MAX),
 			 USEC_PER_SEC));
-
 }
 
 #if IS_ENABLED(CONFIG_DRM_I915_DEBUG_GEM)
