@@ -167,14 +167,14 @@ void fpstate_sanitize_xstate(struct fpu *fpu)
 		fx->fop = 0;
 		fx->rip = 0;
 		fx->rdp = 0;
-		memset(&fx->st_space[0], 0, 128);
+		memset(fx->st_space, 0, sizeof(fx->st_space));
 	}
 
 	/*
 	 * SSE is in init state
 	 */
 	if (!(xfeatures & XFEATURE_MASK_SSE))
-		memset(&fx->xmm_space[0], 0, 256);
+		memset(fx->xmm_space, 0, sizeof(fx->xmm_space));
 
 	/*
 	 * First two features are FPU and SSE, which above we handled
