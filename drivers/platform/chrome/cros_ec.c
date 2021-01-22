@@ -283,6 +283,13 @@ int cros_ec_register(struct cros_ec_device *ec_dev)
 
 	dev_info(dev, "Chrome EC device registered\n");
 
+	/*
+	 * Unlock EC that may be waiting for AP to process MKBP events.
+	 * If the AP takes to long to answer, the EC would stop sending events.
+	 */
+	if (ec_dev->mkbp_event_supported)
+		cros_ec_irq_thread(0, ec_dev);
+
 	return 0;
 }
 EXPORT_SYMBOL(cros_ec_register);
