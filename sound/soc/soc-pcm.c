@@ -1526,9 +1526,10 @@ static void dpcm_init_runtime_hw(struct snd_pcm_runtime *runtime,
 }
 
 static void dpcm_runtime_merge_format(struct snd_pcm_substream *substream,
-				      u64 *formats)
+				      struct snd_pcm_runtime *runtime)
 {
 	struct snd_soc_pcm_runtime *fe = asoc_substream_to_rtd(substream);
+	struct snd_pcm_hardware *hw = &runtime->hw;
 	struct snd_soc_dpcm *dpcm;
 	struct snd_soc_dai *dai;
 	int stream = substream->stream;
@@ -1556,16 +1557,16 @@ static void dpcm_runtime_merge_format(struct snd_pcm_substream *substream,
 
 			codec_stream = snd_soc_dai_get_pcm_stream(dai, stream);
 
-			*formats &= codec_stream->formats;
+			hw->formats &= codec_stream->formats;
 		}
 	}
 }
 
 static void dpcm_runtime_merge_chan(struct snd_pcm_substream *substream,
-				    unsigned int *channels_min,
-				    unsigned int *channels_max)
+				    struct snd_pcm_runtime *runtime)
 {
 	struct snd_soc_pcm_runtime *fe = asoc_substream_to_rtd(substream);
+	struct snd_pcm_hardware *hw = &runtime->hw;
 	struct snd_soc_dpcm *dpcm;
 	int stream = substream->stream;
 
@@ -1594,10 +1595,10 @@ static void dpcm_runtime_merge_chan(struct snd_pcm_substream *substream,
 
 			cpu_stream = snd_soc_dai_get_pcm_stream(dai, stream);
 
-			*channels_min = max(*channels_min,
-					    cpu_stream->channels_min);
-			*channels_max = min(*channels_max,
-					    cpu_stream->channels_max);
+			hw->channels_min = max(hw->channels_min,
+					       cpu_stream->channels_min);
+			hw->channels_max = min(hw->channels_max,
+					       cpu_stream->channels_max);
 		}
 
 		/*
@@ -1607,20 +1608,19 @@ static void dpcm_runtime_merge_chan(struct snd_pcm_substream *substream,
 		if (be->num_codecs == 1) {
 			codec_stream = snd_soc_dai_get_pcm_stream(asoc_rtd_to_codec(be, 0), stream);
 
-			*channels_min = max(*channels_min,
-					    codec_stream->channels_min);
-			*channels_max = min(*channels_max,
-					    codec_stream->channels_max);
+			hw->channels_min = max(hw->channels_min,
+					       codec_stream->channels_min);
+			hw->channels_max = min(hw->channels_max,
+					       codec_stream->channels_max);
 		}
 	}
 }
 
 static void dpcm_runtime_merge_rate(struct snd_pcm_substream *substream,
-				    unsigned int *rates,
-				    unsigned int *rate_min,
-				    unsigned int *rate_max)
+				    struct snd_pcm_runtime *runtime)
 {
 	struct snd_soc_pcm_runtime *fe = asoc_substream_to_rtd(substream);
+	struct snd_pcm_hardware *hw = &runtime->hw;
 	struct snd_soc_dpcm *dpcm;
 	int stream = substream->stream;
 
@@ -1648,9 +1648,9 @@ static void dpcm_runtime_merge_rate(struct snd_pcm_substream *substream,
 
 			pcm = snd_soc_dai_get_pcm_stream(dai, stream);
 
-			*rate_min = max(*rate_min, pcm->rate_min);
-			*rate_max = min_not_zero(*rate_max, pcm->rate_max);
-			*rates = snd_pcm_rate_mask_intersect(*rates, pcm->rates);
+			hw->rate_min = max(hw->rate_min, pcm->rate_min);
+			hw->rate_max = min_not_zero(hw->rate_max, pcm->rate_max);
+			hw->rates = snd_pcm_rate_mask_intersect(hw->rates, pcm->rates);
 		}
 	}
 }
@@ -1675,11 +1675,9 @@ static void dpcm_set_fe_runtime(struct snd_pcm_substream *substream)
 						   substream->stream));
 	}
 
-	dpcm_runtime_merge_format(substream, &runtime->hw.formats);
-	dpcm_runtime_merge_chan(substream, &runtime->hw.channels_min,
-				&runtime->hw.channels_max);
-	dpcm_runtime_merge_rate(substream, &runtime->hw.rates,
-				&runtime->hw.rate_min, &runtime->hw.rate_max);
+	dpcm_runtime_merge_format(substream, runtime);
+	dpcm_runtime_merge_chan(substream, runtime);
+	dpcm_runtime_merge_rate(substream, runtime);
 }
 
 static int dpcm_apply_symmetry(struct snd_pcm_substream *fe_substream,
