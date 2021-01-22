@@ -46,8 +46,8 @@
 /* Context size. */
 #define DMUB_CONTEXT_SIZE (512 * 1024)
 
-/* Mailbox size */
-#define DMUB_MAILBOX_SIZE (DMUB_RB_SIZE)
+/* Mailbox size : Ring buffers are required for both inbox and outbox */
+#define DMUB_MAILBOX_SIZE ((2 * DMUB_RB_SIZE))
 
 /* Default state size if meta is absent. */
 #define DMUB_FW_STATE_SIZE (64 * 1024)
@@ -156,6 +156,11 @@ static bool dmub_srv_hw_setup(struct dmub_srv *dmub, enum dmub_asic asic)
 		funcs->get_fw_status = dmub_dcn20_get_fw_boot_status;
 		funcs->enable_dmub_boot_options = dmub_dcn20_enable_dmub_boot_options;
 		funcs->skip_dmub_panel_power_sequence = dmub_dcn20_skip_dmub_panel_power_sequence;
+
+		// Out mailbox register access functions for RN and above
+		funcs->setup_out_mailbox = dmub_dcn20_setup_out_mailbox;
+		funcs->get_outbox1_wptr = dmub_dcn20_get_outbox1_wptr;
+		funcs->set_outbox1_rptr = dmub_dcn20_set_outbox1_rptr;
 
 		if (asic == DMUB_ASIC_DCN21) {
 			dmub->regs = &dmub_srv_dcn21_regs;
@@ -397,7 +402,7 @@ enum dmub_status dmub_srv_hw_init(struct dmub_srv *dmub,
 
 	struct dmub_rb_init_params rb_params;
 	struct dmub_window cw0, cw1, cw2, cw3, cw4, cw5, cw6;
-	struct dmub_region inbox1;
+	struct dmub_region inbox1, outbox1;
 
 	if (!dmub->sw_init)
 		return DMUB_STATUS_INVALID;
@@ -444,8 +449,17 @@ enum dmub_status dmub_srv_hw_init(struct dmub_srv *dmub,
 		cw4.region.base = DMUB_CW4_BASE;
 		cw4.region.top = cw4.region.base + mail_fb->size;
 
+		/**
+		 * Doubled the mailbox region to accomodate inbox and outbox.
+		 * Note: Currently, currently total mailbox size is 16KB. It is split
+		 * equally into 8KB between inbox and outbox. If this config is
+		 * changed, then uncached base address configuration of outbox1
+		 * has to be updated in funcs->setup_out_mailbox.
+		 */
 		inbox1.base = cw4.region.base;
-		inbox1.top = cw4.region.top;
+		inbox1.top = cw4.region.base + DMUB_RB_SIZE;
+		outbox1.base = inbox1.top;
+		outbox1.top = cw4.region.top;
 
 		cw5.offset.quad_part = tracebuff_fb->gpu_addr;
 		cw5.region.base = DMUB_CW5_BASE;
@@ -465,6 +479,8 @@ enum dmub_status dmub_srv_hw_init(struct dmub_srv *dmub,
 
 		if (dmub->hw_funcs.setup_mailbox)
 			dmub->hw_funcs.setup_mailbox(dmub, &inbox1);
+		if (dmub->hw_funcs.setup_out_mailbox)
+			dmub->hw_funcs.setup_out_mailbox(dmub, &outbox1);
 	}
 
 	if (mail_fb) {
@@ -474,6 +490,13 @@ enum dmub_status dmub_srv_hw_init(struct dmub_srv *dmub,
 		rb_params.capacity = DMUB_RB_SIZE;
 
 		dmub_rb_init(&dmub->inbox1_rb, &rb_params);
+
+		// Initialize outbox1 ring buffer
+		rb_params.ctx = dmub;
+		rb_params.base_address = (void *) ((uint64_t) (mail_fb->cpu_addr) + DMUB_RB_SIZE);
+		rb_params.capacity = DMUB_RB_SIZE;
+		dmub_rb_init(&dmub->outbox1_rb, &rb_params);
+
 	}
 
 	if (dmub->hw_funcs.reset_release)

@@ -40,6 +40,10 @@ struct dmub_srv;
 	DMUB_SR(DMCUB_INBOX1_SIZE) \
 	DMUB_SR(DMCUB_INBOX1_RPTR) \
 	DMUB_SR(DMCUB_INBOX1_WPTR) \
+	DMUB_SR(DMCUB_OUTBOX1_BASE_ADDRESS) \
+	DMUB_SR(DMCUB_OUTBOX1_SIZE) \
+	DMUB_SR(DMCUB_OUTBOX1_RPTR) \
+	DMUB_SR(DMCUB_OUTBOX1_WPTR) \
 	DMUB_SR(DMCUB_REGION3_CW0_OFFSET) \
 	DMUB_SR(DMCUB_REGION3_CW1_OFFSET) \
 	DMUB_SR(DMCUB_REGION3_CW2_OFFSET) \
@@ -184,6 +188,13 @@ void dmub_dcn20_setup_mailbox(struct dmub_srv *dmub,
 uint32_t dmub_dcn20_get_inbox1_rptr(struct dmub_srv *dmub);
 
 void dmub_dcn20_set_inbox1_wptr(struct dmub_srv *dmub, uint32_t wptr_offset);
+
+void dmub_dcn20_setup_out_mailbox(struct dmub_srv *dmub,
+			      const struct dmub_region *outbox1);
+
+uint32_t dmub_dcn20_get_outbox1_wptr(struct dmub_srv *dmub);
+
+void dmub_dcn20_set_outbox1_rptr(struct dmub_srv *dmub, uint32_t rptr_offset);
 
 bool dmub_dcn20_is_hw_init(struct dmub_srv *dmub);
 

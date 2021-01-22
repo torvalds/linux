@@ -42,6 +42,9 @@
 #include "inc/hw/dmcu.h"
 #include "dml/display_mode_lib.h"
 
+/* forward declaration */
+struct aux_payload;
+
 #define DC_VER "3.2.124"
 
 #define MAX_SURFACES 3
@@ -531,6 +534,9 @@ struct dc_debug_options {
 	bool enable_dram_clock_change_one_display_vactive;
 	union mem_low_power_enable_options enable_mem_low_power;
 	bool force_vblank_alignment;
+
+	/* Enable dmub aux for legacy ddc */
+	bool enable_dmub_aux_for_legacy_ddc;
 };
 
 struct dc_debug_data {
@@ -1292,6 +1298,12 @@ void dc_hardware_release(struct dc *dc);
 #endif
 
 bool dc_set_psr_allow_active(struct dc *dc, bool enable);
+
+bool dc_enable_dmub_notifications(struct dc *dc);
+
+bool dc_process_dmub_aux_transfer_async(struct dc *dc,
+				uint32_t link_index,
+				struct aux_payload *payload);
 
 /*******************************************************************************
  * DSC Interfaces

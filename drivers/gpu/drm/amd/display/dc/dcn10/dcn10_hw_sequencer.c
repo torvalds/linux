@@ -53,6 +53,7 @@
 #include "dsc.h"
 #include "dce/dmub_hw_lock_mgr.h"
 #include "dc_trace.h"
+#include "dce/dmub_outbox.h"
 
 #define DC_LOGGER_INIT(logger)
 
@@ -1354,6 +1355,10 @@ void dcn10_init_hw(struct dc *dc)
 			if (hws->funcs.dsc_pg_control != NULL)
 				hws->funcs.dsc_pg_control(hws, res_pool->dscs[i]->inst, false);
 	}
+
+	/* Enable outbox notification feature of dmub */
+	if (dc->debug.enable_dmub_aux_for_legacy_ddc)
+		dmub_enable_outbox_notification(dc);
 
 	/* we want to turn off all dp displays before doing detection */
 	if (dc->config.power_down_display_on_boot) {

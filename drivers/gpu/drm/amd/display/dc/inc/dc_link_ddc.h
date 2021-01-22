@@ -56,6 +56,7 @@ struct dp_receiver_id_info;
 
 struct i2c_payloads;
 struct aux_payloads;
+enum aux_return_code_type;
 
 void dal_ddc_i2c_payloads_add(
 		struct i2c_payloads *payloads,
@@ -100,7 +101,7 @@ bool dal_ddc_submit_aux_command(struct ddc_service *ddc,
 
 int dc_link_aux_transfer_raw(struct ddc_service *ddc,
 		struct aux_payload *payload,
-		enum aux_channel_operation_result *operation_result);
+		enum aux_return_code_type *operation_result);
 
 bool dc_link_aux_transfer_with_retries(struct ddc_service *ddc,
 		struct aux_payload *payload);

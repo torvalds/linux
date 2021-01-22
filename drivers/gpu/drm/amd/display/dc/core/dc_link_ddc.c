@@ -36,6 +36,7 @@
 #include "core_types.h"
 #include "dc_link_ddc.h"
 #include "dce/dce_aux.h"
+#include "dmub/inc/dmub_cmd.h"
 
 #define DC_LOGGER_INIT(logger)
 
@@ -655,7 +656,7 @@ bool dal_ddc_submit_aux_command(struct ddc_service *ddc,
  */
 int dc_link_aux_transfer_raw(struct ddc_service *ddc,
 		struct aux_payload *payload,
-		enum aux_channel_operation_result *operation_result)
+		enum aux_return_code_type *operation_result)
 {
 	return dce_aux_transfer_raw(ddc, payload, operation_result);
 }
