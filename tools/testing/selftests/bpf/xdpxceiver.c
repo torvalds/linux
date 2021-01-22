@@ -246,13 +246,13 @@ static void gen_ip_hdr(struct ifobject *ifobject, struct iphdr *ip_hdr)
 	ip_hdr->check = 0;
 }
 
-static void gen_udp_hdr(void *data, struct ifobject *ifobject, struct udphdr *udp_hdr)
+static void gen_udp_hdr(struct generic_data *data, struct ifobject *ifobject,
+			struct udphdr *udp_hdr)
 {
 	udp_hdr->source = htons(ifobject->src_port);
 	udp_hdr->dest = htons(ifobject->dst_port);
 	udp_hdr->len = htons(UDP_PKT_SIZE);
-	memset32_htonl(pkt_data + PKT_HDR_SIZE,
-		       htonl(((struct generic_data *)data)->seqnum), UDP_PKT_DATA_SIZE);
+	memset32_htonl(pkt_data + PKT_HDR_SIZE, htonl(data->seqnum), UDP_PKT_DATA_SIZE);
 }
 
 static void gen_udp_csum(struct udphdr *udp_hdr, struct iphdr *ip_hdr)
@@ -841,7 +841,7 @@ static void *worker_testapp_validate(void *arg)
 				data->seqnum = -1;
 			else
 				data->seqnum = i;
-			gen_udp_hdr((void *)data, ifobject, udp_hdr);
+			gen_udp_hdr(data, ifobject, udp_hdr);
 			gen_ip_hdr(ifobject, ip_hdr);
 			gen_udp_csum(udp_hdr, ip_hdr);
 			gen_eth_hdr(ifobject, eth_hdr);
