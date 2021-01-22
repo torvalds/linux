@@ -2631,15 +2631,11 @@ open_end:
 	return ret;
 }
 
-/* create a new pcm */
-int soc_new_pcm(struct snd_soc_pcm_runtime *rtd, int num)
+static int soc_get_playback_capture(struct snd_soc_pcm_runtime *rtd,
+				    int *playback, int *capture)
 {
 	struct snd_soc_dai *codec_dai;
 	struct snd_soc_dai *cpu_dai;
-	struct snd_soc_component *component;
-	struct snd_pcm *pcm;
-	char new_name[64];
-	int ret = 0, playback = 0, capture = 0;
 	int stream;
 	int i;
 
@@ -2655,12 +2651,11 @@ int soc_new_pcm(struct snd_soc_pcm_runtime *rtd, int num)
 
 			for_each_rtd_cpu_dais(rtd, i, cpu_dai) {
 				if (snd_soc_dai_stream_valid(cpu_dai, stream)) {
-					playback = 1;
+					*playback = 1;
 					break;
 				}
 			}
-
-			if (!playback) {
+			if (!*playback) {
 				dev_err(rtd->card->dev,
 					"No CPU DAIs support playback for stream %s\n",
 					rtd->dai_link->stream_name);
@@ -2672,12 +2667,12 @@ int soc_new_pcm(struct snd_soc_pcm_runtime *rtd, int num)
 
 			for_each_rtd_cpu_dais(rtd, i, cpu_dai) {
 				if (snd_soc_dai_stream_valid(cpu_dai, stream)) {
-					capture = 1;
+					*capture = 1;
 					break;
 				}
 			}
 
-			if (!capture) {
+			if (!*capture) {
 				dev_err(rtd->card->dev,
 					"No CPU DAIs support capture for stream %s\n",
 					rtd->dai_link->stream_name);
@@ -2704,22 +2699,38 @@ int soc_new_pcm(struct snd_soc_pcm_runtime *rtd, int num)
 
 			if (snd_soc_dai_stream_valid(codec_dai, SNDRV_PCM_STREAM_PLAYBACK) &&
 			    snd_soc_dai_stream_valid(cpu_dai,   cpu_playback))
-				playback = 1;
+				*playback = 1;
 			if (snd_soc_dai_stream_valid(codec_dai, SNDRV_PCM_STREAM_CAPTURE) &&
 			    snd_soc_dai_stream_valid(cpu_dai,   cpu_capture))
-				capture = 1;
+				*capture = 1;
 		}
 	}
 
 	if (rtd->dai_link->playback_only) {
-		playback = 1;
-		capture = 0;
+		*playback = 1;
+		*capture = 0;
 	}
 
 	if (rtd->dai_link->capture_only) {
-		playback = 0;
-		capture = 1;
+		*playback = 0;
+		*capture = 1;
 	}
+
+	return 0;
+}
+
+/* create a new pcm */
+int soc_new_pcm(struct snd_soc_pcm_runtime *rtd, int num)
+{
+	struct snd_soc_component *component;
+	struct snd_pcm *pcm;
+	char new_name[64];
+	int ret = 0, playback = 0, capture = 0;
+	int i;
+
+	ret = soc_get_playback_capture(rtd, &playback, &capture);
+	if (ret < 0)
+		return ret;
 
 	/* create the PCM */
 	if (rtd->dai_link->params) {
