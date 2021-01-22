@@ -53,12 +53,25 @@ visibility.
 Preserving tags
 ---------------
 
-Non-zero tags are not preserved when delivering signals. This means that
-signal handlers in applications making use of tags cannot rely on the
-tag information for user virtual addresses being maintained for fields
-inside siginfo_t. One exception to this rule is for signals raised in
-response to watchpoint debug exceptions, where the tag information will
-be preserved.
+When delivering signals, non-zero tags are not preserved in
+siginfo.si_addr unless the flag SA_EXPOSE_TAGBITS was set in
+sigaction.sa_flags when the signal handler was installed. This means
+that signal handlers in applications making use of tags cannot rely
+on the tag information for user virtual addresses being maintained
+in these fields unless the flag was set.
+
+Due to architecture limitations, bits 63:60 of the fault address
+are not preserved in response to synchronous tag check faults
+(SEGV_MTESERR) even if SA_EXPOSE_TAGBITS was set. Applications should
+treat the values of these bits as undefined in order to accommodate
+future architecture revisions which may preserve the bits.
+
+For signals raised in response to watchpoint debug exceptions, the
+tag information will be preserved regardless of the SA_EXPOSE_TAGBITS
+flag setting.
+
+Non-zero tags are never preserved in sigcontext.fault_address
+regardless of the SA_EXPOSE_TAGBITS flag setting.
 
 The architecture prevents the use of a tagged PC, so the upper byte will
 be set to a sign-extension of bit 55 on exception return.
