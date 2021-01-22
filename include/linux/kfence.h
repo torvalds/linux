@@ -125,7 +125,7 @@ size_t kfence_ksize(const void *addr);
 
 /**
  * kfence_object_start() - find the beginning of a KFENCE object
- * @addr - address within a KFENCE-allocated object
+ * @addr: address within a KFENCE-allocated object
  *
  * Return: address of the beginning of the object.
  *
