@@ -5,6 +5,7 @@
 #include <linux/device.h>
 #include <linux/async.h>
 #include <scsi/scsi_device.h>
+#include <linux/sbitmap.h>
 
 struct request_queue;
 struct request;
@@ -181,6 +182,8 @@ void scsi_dh_release_device(struct scsi_device *sdev);
 static inline void scsi_dh_add_device(struct scsi_device *sdev) { }
 static inline void scsi_dh_release_device(struct scsi_device *sdev) { }
 #endif
+
+extern int scsi_device_max_queue_depth(struct scsi_device *sdev);
 
 /* 
  * internal scsi timeout functions: for use by mid-layer and transport

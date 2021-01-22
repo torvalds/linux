@@ -3678,8 +3678,7 @@ _base_get_high_iops_msix_index(struct MPT3SAS_ADAPTER *ioc,
 	 * IOs on the target device is >=8.
 	 */
 
-	if (atomic_read(&scmd->device->device_busy) >
-	    MPT3SAS_DEVICE_HIGH_IOPS_DEPTH)
+	if (scsi_device_busy(scmd->device) > MPT3SAS_DEVICE_HIGH_IOPS_DEPTH)
 		return base_mod64((
 		    atomic64_add_return(1, &ioc->high_iops_outstanding) /
 		    MPT3SAS_HIGH_IOPS_BATCH_COUNT),
