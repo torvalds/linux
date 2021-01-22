@@ -44,12 +44,6 @@ Files
 	This is a compatibility header for GCC plugins.
 	It should be always included instead of individual gcc headers.
 
-**$(src)/scripts/gcc-plugin.sh**
-
-	This script checks the availability of the included headers in
-	gcc-common.h and chooses the proper host compiler to build the plugins
-	(gcc-4.7 can be built by either gcc or g++).
-
 **$(src)/scripts/gcc-plugins/gcc-generate-gimple-pass.h,
 $(src)/scripts/gcc-plugins/gcc-generate-ipa-pass.h,
 $(src)/scripts/gcc-plugins/gcc-generate-simple_ipa-pass.h,
