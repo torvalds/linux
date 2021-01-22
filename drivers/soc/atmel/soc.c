@@ -27,7 +27,7 @@
 #define AT91_CHIPID_EXID		0x04
 #define AT91_CIDR_VERSION(x)		((x) & 0x1f)
 #define AT91_CIDR_EXT			BIT(31)
-#define AT91_CIDR_MATCH_MASK		0x7fffffe0
+#define AT91_CIDR_MATCH_MASK		GENMASK(30, 5)
 
 static const struct at91_soc __initconst socs[] = {
 #ifdef CONFIG_SOC_AT91RM9200
