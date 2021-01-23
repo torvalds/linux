@@ -2599,12 +2599,15 @@ xlog_covered_state(
 	int			iclogs_changed)
 {
 	/*
-	 * We usually go to NEED. But we go to NEED2 if the changed indicates we
-	 * are done writing the dummy record.  If we are done with the second
-	 * dummy recored (DONE2), then we go to IDLE.
+	 * We go to NEED for any non-covering writes. We go to NEED2 if we just
+	 * wrote the first covering record (DONE). We go to IDLE if we just
+	 * wrote the second covering record (DONE2) and remain in IDLE until a
+	 * non-covering write occurs.
 	 */
 	switch (prev_state) {
 	case XLOG_STATE_COVER_IDLE:
+		if (iclogs_changed == 1)
+			return XLOG_STATE_COVER_IDLE;
 	case XLOG_STATE_COVER_NEED:
 	case XLOG_STATE_COVER_NEED2:
 		break;
