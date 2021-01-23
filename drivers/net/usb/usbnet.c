@@ -1964,12 +1964,12 @@ static int __usbnet_read_cmd(struct usbnet *dev, u8 cmd, u8 reqtype,
 			      cmd, reqtype, value, index, buf, size,
 			      USB_CTRL_GET_TIMEOUT);
 	if (err > 0 && err <= size) {
-        if (data)
-            memcpy(data, buf, err);
-        else
-            netdev_dbg(dev->net,
-                "Huh? Data requested but thrown away.\n");
-    }
+		if (data)
+			memcpy(data, buf, err);
+		else
+			netdev_dbg(dev->net,
+				   "Huh? Data requested but thrown away.\n");
+	}
 	kfree(buf);
 out:
 	return err;
