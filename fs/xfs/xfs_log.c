@@ -1051,14 +1051,12 @@ xfs_log_space_wake(
  * there's no point in running a dummy transaction at this point because we
  * can't start trying to idle the log until both the CIL and AIL are empty.
  */
-static int
-xfs_log_need_covered(xfs_mount_t *mp)
+static bool
+xfs_log_need_covered(
+	struct xfs_mount	*mp)
 {
-	struct xlog	*log = mp->m_log;
-	int		needed = 0;
-
-	if (!xfs_fs_writable(mp, SB_FREEZE_WRITE))
-		return 0;
+	struct xlog		*log = mp->m_log;
+	bool			needed = false;
 
 	if (!xlog_cil_empty(log))
 		return 0;
@@ -1076,14 +1074,14 @@ xfs_log_need_covered(xfs_mount_t *mp)
 		if (!xlog_iclogs_empty(log))
 			break;
 
-		needed = 1;
+		needed = true;
 		if (log->l_covered_state == XLOG_STATE_COVER_NEED)
 			log->l_covered_state = XLOG_STATE_COVER_DONE;
 		else
 			log->l_covered_state = XLOG_STATE_COVER_DONE2;
 		break;
 	default:
-		needed = 1;
+		needed = true;
 		break;
 	}
 	spin_unlock(&log->l_icloglock);
@@ -1273,7 +1271,7 @@ xfs_log_worker(
 	struct xfs_mount	*mp = log->l_mp;
 
 	/* dgc: errors ignored - not fatal and nowhere to report them */
-	if (xfs_log_need_covered(mp)) {
+	if (xfs_fs_writable(mp, SB_FREEZE_WRITE) && xfs_log_need_covered(mp)) {
 		/*
 		 * Dump a transaction into the log that contains no real change.
 		 * This is needed to stamp the current tail LSN into the log
