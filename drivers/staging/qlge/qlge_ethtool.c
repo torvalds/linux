@@ -366,7 +366,7 @@ static void
 qlge_get_ethtool_stats(struct net_device *ndev,
 		       struct ethtool_stats *stats, u64 *data)
 {
-	struct qlge_adapter *qdev = netdev_priv(ndev);
+	struct qlge_adapter *qdev = netdev_to_qdev(ndev);
 	int index, length;
 
 	length = QLGE_STATS_LEN;
@@ -383,7 +383,7 @@ qlge_get_ethtool_stats(struct net_device *ndev,
 static int qlge_get_link_ksettings(struct net_device *ndev,
 				   struct ethtool_link_ksettings *ecmd)
 {
-	struct qlge_adapter *qdev = netdev_priv(ndev);
+	struct qlge_adapter *qdev = netdev_to_qdev(ndev);
 	u32 supported, advertising;
 
 	supported = SUPPORTED_10000baseT_Full;
@@ -415,7 +415,7 @@ static int qlge_get_link_ksettings(struct net_device *ndev,
 static void qlge_get_drvinfo(struct net_device *ndev,
 			     struct ethtool_drvinfo *drvinfo)
 {
-	struct qlge_adapter *qdev = netdev_priv(ndev);
+	struct qlge_adapter *qdev = netdev_to_qdev(ndev);
 
 	strlcpy(drvinfo->driver, qlge_driver_name, sizeof(drvinfo->driver));
 	strlcpy(drvinfo->version, qlge_driver_version,
@@ -431,7 +431,7 @@ static void qlge_get_drvinfo(struct net_device *ndev,
 
 static void qlge_get_wol(struct net_device *ndev, struct ethtool_wolinfo *wol)
 {
-	struct qlge_adapter *qdev = netdev_priv(ndev);
+	struct qlge_adapter *qdev = netdev_to_qdev(ndev);
 	unsigned short ssys_dev = qdev->pdev->subsystem_device;
 
 	/* WOL is only supported for mezz card. */
@@ -444,7 +444,7 @@ static void qlge_get_wol(struct net_device *ndev, struct ethtool_wolinfo *wol)
 
 static int qlge_set_wol(struct net_device *ndev, struct ethtool_wolinfo *wol)
 {
-	struct qlge_adapter *qdev = netdev_priv(ndev);
+	struct qlge_adapter *qdev = netdev_to_qdev(ndev);
 	unsigned short ssys_dev = qdev->pdev->subsystem_device;
 
 	/* WOL is only supported for mezz card. */
@@ -466,7 +466,7 @@ static int qlge_set_phys_id(struct net_device *ndev,
 			    enum ethtool_phys_id_state state)
 
 {
-	struct qlge_adapter *qdev = netdev_priv(ndev);
+	struct qlge_adapter *qdev = netdev_to_qdev(ndev);
 
 	switch (state) {
 	case ETHTOOL_ID_ACTIVE:
@@ -574,7 +574,7 @@ out:
 static void qlge_self_test(struct net_device *ndev,
 			   struct ethtool_test *eth_test, u64 *data)
 {
-	struct qlge_adapter *qdev = netdev_priv(ndev);
+	struct qlge_adapter *qdev = netdev_to_qdev(ndev);
 
 	memset(data, 0, sizeof(u64) * QLGE_TEST_LEN);
 
@@ -603,7 +603,7 @@ static void qlge_self_test(struct net_device *ndev,
 
 static int qlge_get_regs_len(struct net_device *ndev)
 {
-	struct qlge_adapter *qdev = netdev_priv(ndev);
+	struct qlge_adapter *qdev = netdev_to_qdev(ndev);
 
 	if (!test_bit(QL_FRC_COREDUMP, &qdev->flags))
 		return sizeof(struct qlge_mpi_coredump);
@@ -614,7 +614,7 @@ static int qlge_get_regs_len(struct net_device *ndev)
 static void qlge_get_regs(struct net_device *ndev,
 			  struct ethtool_regs *regs, void *p)
 {
-	struct qlge_adapter *qdev = netdev_priv(ndev);
+	struct qlge_adapter *qdev = netdev_to_qdev(ndev);
 
 	qlge_get_dump(qdev, p);
 	qdev->core_is_dumped = 0;
@@ -624,9 +624,9 @@ static void qlge_get_regs(struct net_device *ndev,
 		regs->len = sizeof(struct qlge_reg_dump);
 }
 
-static int qlge_get_coalesce(struct net_device *dev, struct ethtool_coalesce *c)
+static int qlge_get_coalesce(struct net_device *ndev, struct ethtool_coalesce *c)
 {
-	struct qlge_adapter *qdev = netdev_priv(dev);
+	struct qlge_adapter *qdev = netdev_to_qdev(ndev);
 
 	c->rx_coalesce_usecs = qdev->rx_coalesce_usecs;
 	c->tx_coalesce_usecs = qdev->tx_coalesce_usecs;
@@ -649,7 +649,7 @@ static int qlge_get_coalesce(struct net_device *dev, struct ethtool_coalesce *c)
 
 static int qlge_set_coalesce(struct net_device *ndev, struct ethtool_coalesce *c)
 {
-	struct qlge_adapter *qdev = netdev_priv(ndev);
+	struct qlge_adapter *qdev = netdev_to_qdev(ndev);
 
 	/* Validate user parameters. */
 	if (c->rx_coalesce_usecs > qdev->rx_ring_size / 2)
@@ -677,10 +677,10 @@ static int qlge_set_coalesce(struct net_device *ndev, struct ethtool_coalesce *c
 	return qlge_update_ring_coalescing(qdev);
 }
 
-static void qlge_get_pauseparam(struct net_device *netdev,
+static void qlge_get_pauseparam(struct net_device *ndev,
 				struct ethtool_pauseparam *pause)
 {
-	struct qlge_adapter *qdev = netdev_priv(netdev);
+	struct qlge_adapter *qdev = netdev_to_qdev(ndev);
 
 	qlge_mb_get_port_cfg(qdev);
 	if (qdev->link_config & CFG_PAUSE_STD) {
@@ -689,10 +689,10 @@ static void qlge_get_pauseparam(struct net_device *netdev,
 	}
 }
 
-static int qlge_set_pauseparam(struct net_device *netdev,
+static int qlge_set_pauseparam(struct net_device *ndev,
 			       struct ethtool_pauseparam *pause)
 {
-	struct qlge_adapter *qdev = netdev_priv(netdev);
+	struct qlge_adapter *qdev = netdev_to_qdev(ndev);
 
 	if ((pause->rx_pause) && (pause->tx_pause))
 		qdev->link_config |= CFG_PAUSE_STD;
@@ -706,14 +706,14 @@ static int qlge_set_pauseparam(struct net_device *netdev,
 
 static u32 qlge_get_msglevel(struct net_device *ndev)
 {
-	struct qlge_adapter *qdev = netdev_priv(ndev);
+	struct qlge_adapter *qdev = netdev_to_qdev(ndev);
 
 	return qdev->msg_enable;
 }
 
 static void qlge_set_msglevel(struct net_device *ndev, u32 value)
 {
-	struct qlge_adapter *qdev = netdev_priv(ndev);
+	struct qlge_adapter *qdev = netdev_to_qdev(ndev);
 
 	qdev->msg_enable = value;
 }

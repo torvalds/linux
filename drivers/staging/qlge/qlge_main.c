@@ -42,6 +42,7 @@
 #include <net/ip6_checksum.h>
 
 #include "qlge.h"
+#include "qlge_devlink.h"
 
 char qlge_driver_name[] = DRV_NAME;
 const char qlge_driver_version[] = DRV_VERSION;
@@ -2229,7 +2230,7 @@ static int qlge_napi_poll_msix(struct napi_struct *napi, int budget)
 
 static void qlge_vlan_mode(struct net_device *ndev, netdev_features_t features)
 {
-	struct qlge_adapter *qdev = netdev_priv(ndev);
+	struct qlge_adapter *qdev = netdev_to_qdev(ndev);
 
 	if (features & NETIF_F_HW_VLAN_CTAG_RX) {
 		qlge_write32(qdev, NIC_RCV_CFG, NIC_RCV_CFG_VLAN_MASK |
@@ -2246,9 +2247,9 @@ static void qlge_vlan_mode(struct net_device *ndev, netdev_features_t features)
 static int qlge_update_hw_vlan_features(struct net_device *ndev,
 					netdev_features_t features)
 {
-	struct qlge_adapter *qdev = netdev_priv(ndev);
-	int status = 0;
+	struct qlge_adapter *qdev = netdev_to_qdev(ndev);
 	bool need_restart = netif_running(ndev);
+	int status = 0;
 
 	if (need_restart) {
 		status = qlge_adapter_down(qdev);
@@ -2307,7 +2308,7 @@ static int __qlge_vlan_rx_add_vid(struct qlge_adapter *qdev, u16 vid)
 
 static int qlge_vlan_rx_add_vid(struct net_device *ndev, __be16 proto, u16 vid)
 {
-	struct qlge_adapter *qdev = netdev_priv(ndev);
+	struct qlge_adapter *qdev = netdev_to_qdev(ndev);
 	int status;
 	int err;
 
@@ -2338,7 +2339,7 @@ static int __qlge_vlan_rx_kill_vid(struct qlge_adapter *qdev, u16 vid)
 
 static int qlge_vlan_rx_kill_vid(struct net_device *ndev, __be16 proto, u16 vid)
 {
-	struct qlge_adapter *qdev = netdev_priv(ndev);
+	struct qlge_adapter *qdev = netdev_to_qdev(ndev);
 	int status;
 	int err;
 
@@ -2531,9 +2532,9 @@ static void qlge_hw_csum_setup(struct sk_buff *skb,
 
 static netdev_tx_t qlge_send(struct sk_buff *skb, struct net_device *ndev)
 {
-	struct tx_ring_desc *tx_ring_desc;
+	struct qlge_adapter *qdev = netdev_to_qdev(ndev);
 	struct qlge_ob_mac_iocb_req *mac_iocb_ptr;
-	struct qlge_adapter *qdev = netdev_priv(ndev);
+	struct tx_ring_desc *tx_ring_desc;
 	int tso;
 	struct tx_ring *tx_ring;
 	u32 tx_ring_idx = (u32)skb->queue_mapping;
@@ -3728,7 +3729,7 @@ static int qlge_adapter_reset(struct qlge_adapter *qdev)
 
 static void qlge_display_dev_info(struct net_device *ndev)
 {
-	struct qlge_adapter *qdev = netdev_priv(ndev);
+	struct qlge_adapter *qdev = netdev_to_qdev(ndev);
 
 	netif_info(qdev, probe, qdev->ndev,
 		   "Function #%d, Port %d, NIC Roll %d, NIC Rev = %d, XG Roll = %d, XG Rev = %d.\n",
@@ -3886,7 +3887,7 @@ static int qlge_get_adapter_resources(struct qlge_adapter *qdev)
 
 static int qlge_close(struct net_device *ndev)
 {
-	struct qlge_adapter *qdev = netdev_priv(ndev);
+	struct qlge_adapter *qdev = netdev_to_qdev(ndev);
 	int i;
 
 	/* If we hit pci_channel_io_perm_failure
@@ -3993,8 +3994,8 @@ static int qlge_configure_rings(struct qlge_adapter *qdev)
 
 static int qlge_open(struct net_device *ndev)
 {
+	struct qlge_adapter *qdev = netdev_to_qdev(ndev);
 	int err = 0;
-	struct qlge_adapter *qdev = netdev_priv(ndev);
 
 	err = qlge_adapter_reset(qdev);
 	if (err)
@@ -4062,7 +4063,7 @@ error:
 
 static int qlge_change_mtu(struct net_device *ndev, int new_mtu)
 {
-	struct qlge_adapter *qdev = netdev_priv(ndev);
+	struct qlge_adapter *qdev = netdev_to_qdev(ndev);
 	int status;
 
 	if (ndev->mtu == 1500 && new_mtu == 9000)
@@ -4092,7 +4093,7 @@ static int qlge_change_mtu(struct net_device *ndev, int new_mtu)
 static struct net_device_stats *qlge_get_stats(struct net_device
 					       *ndev)
 {
-	struct qlge_adapter *qdev = netdev_priv(ndev);
+	struct qlge_adapter *qdev = netdev_to_qdev(ndev);
 	struct rx_ring *rx_ring = &qdev->rx_ring[0];
 	struct tx_ring *tx_ring = &qdev->tx_ring[0];
 	unsigned long pkts, mcast, dropped, errors, bytes;
@@ -4128,7 +4129,7 @@ static struct net_device_stats *qlge_get_stats(struct net_device
 
 static void qlge_set_multicast_list(struct net_device *ndev)
 {
-	struct qlge_adapter *qdev = netdev_priv(ndev);
+	struct qlge_adapter *qdev = netdev_to_qdev(ndev);
 	struct netdev_hw_addr *ha;
 	int i, status;
 
@@ -4218,7 +4219,7 @@ exit:
 
 static int qlge_set_mac_address(struct net_device *ndev, void *p)
 {
-	struct qlge_adapter *qdev = netdev_priv(ndev);
+	struct qlge_adapter *qdev = netdev_to_qdev(ndev);
 	struct sockaddr *addr = p;
 	int status;
 
@@ -4242,7 +4243,7 @@ static int qlge_set_mac_address(struct net_device *ndev, void *p)
 
 static void qlge_tx_timeout(struct net_device *ndev, unsigned int txqueue)
 {
-	struct qlge_adapter *qdev = netdev_priv(ndev);
+	struct qlge_adapter *qdev = netdev_to_qdev(ndev);
 
 	qlge_queue_asic_error(qdev);
 }
@@ -4359,8 +4360,7 @@ static int qlge_get_board_info(struct qlge_adapter *qdev)
 
 static void qlge_release_all(struct pci_dev *pdev)
 {
-	struct net_device *ndev = pci_get_drvdata(pdev);
-	struct qlge_adapter *qdev = netdev_priv(ndev);
+	struct qlge_adapter *qdev = pci_get_drvdata(pdev);
 
 	if (qdev->workqueue) {
 		destroy_workqueue(qdev->workqueue);
@@ -4375,22 +4375,20 @@ static void qlge_release_all(struct pci_dev *pdev)
 	pci_release_regions(pdev);
 }
 
-static int qlge_init_device(struct pci_dev *pdev, struct net_device *ndev,
+static int qlge_init_device(struct pci_dev *pdev, struct qlge_adapter *qdev,
 			    int cards_found)
 {
-	struct qlge_adapter *qdev = netdev_priv(ndev);
+	struct net_device *ndev = qdev->ndev;
 	int err = 0;
 
-	memset((void *)qdev, 0, sizeof(*qdev));
 	err = pci_enable_device(pdev);
 	if (err) {
 		dev_err(&pdev->dev, "PCI device enable failed.\n");
 		return err;
 	}
 
-	qdev->ndev = ndev;
 	qdev->pdev = pdev;
-	pci_set_drvdata(pdev, ndev);
+	pci_set_drvdata(pdev, qdev);
 
 	/* Set PCIe read request size */
 	err = pcie_set_readrq(pdev, 4096);
@@ -4541,27 +4539,38 @@ static void qlge_timer(struct timer_list *t)
 	mod_timer(&qdev->timer, jiffies + (5 * HZ));
 }
 
+static const struct devlink_ops qlge_devlink_ops;
+
 static int qlge_probe(struct pci_dev *pdev,
 		      const struct pci_device_id *pci_entry)
 {
-	struct net_device *ndev = NULL;
+	struct qlge_netdev_priv *ndev_priv;
 	struct qlge_adapter *qdev = NULL;
+	struct net_device *ndev = NULL;
+	struct devlink *devlink;
 	static int cards_found;
 	int err = 0;
 
-	ndev = alloc_etherdev_mq(sizeof(struct qlge_adapter),
+	devlink = devlink_alloc(&qlge_devlink_ops, sizeof(struct qlge_adapter));
+	if (!devlink)
+		return -ENOMEM;
+
+	qdev = devlink_priv(devlink);
+
+	ndev = alloc_etherdev_mq(sizeof(struct qlge_netdev_priv),
 				 min(MAX_CPUS,
 				     netif_get_num_default_rss_queues()));
 	if (!ndev)
-		return -ENOMEM;
+		goto devlink_free;
 
-	err = qlge_init_device(pdev, ndev, cards_found);
-	if (err < 0) {
-		free_netdev(ndev);
-		return err;
-	}
+	ndev_priv = netdev_priv(ndev);
+	ndev_priv->qdev = qdev;
+	ndev_priv->ndev = ndev;
+	qdev->ndev = ndev;
+	err = qlge_init_device(pdev, qdev, cards_found);
+	if (err < 0)
+		goto netdev_free;
 
-	qdev = netdev_priv(ndev);
 	SET_NETDEV_DEV(ndev, &pdev->dev);
 	ndev->hw_features = NETIF_F_SG |
 		NETIF_F_IP_CSUM |
@@ -4603,9 +4612,14 @@ static int qlge_probe(struct pci_dev *pdev,
 		dev_err(&pdev->dev, "net device registration failed.\n");
 		qlge_release_all(pdev);
 		pci_disable_device(pdev);
-		free_netdev(ndev);
-		return err;
+		goto netdev_free;
 	}
+
+	err = devlink_register(devlink, &pdev->dev);
+	if (err)
+		goto netdev_free;
+
+	qlge_health_create_reporters(qdev);
 	/* Start up the timer to trigger EEH if
 	 * the bus goes dead
 	 */
@@ -4616,6 +4630,13 @@ static int qlge_probe(struct pci_dev *pdev,
 	atomic_set(&qdev->lb_count, 0);
 	cards_found++;
 	return 0;
+
+netdev_free:
+	free_netdev(ndev);
+devlink_free:
+	devlink_free(devlink);
+
+	return err;
 }
 
 netdev_tx_t qlge_lb_send(struct sk_buff *skb, struct net_device *ndev)
@@ -4630,22 +4651,26 @@ int qlge_clean_lb_rx_ring(struct rx_ring *rx_ring, int budget)
 
 static void qlge_remove(struct pci_dev *pdev)
 {
-	struct net_device *ndev = pci_get_drvdata(pdev);
-	struct qlge_adapter *qdev = netdev_priv(ndev);
+	struct qlge_adapter *qdev = pci_get_drvdata(pdev);
+	struct net_device *ndev = qdev->ndev;
+	struct devlink *devlink = priv_to_devlink(qdev);
 
 	del_timer_sync(&qdev->timer);
 	qlge_cancel_all_work_sync(qdev);
 	unregister_netdev(ndev);
 	qlge_release_all(pdev);
 	pci_disable_device(pdev);
+	devlink_health_reporter_destroy(qdev->reporter);
+	devlink_unregister(devlink);
+	devlink_free(devlink);
 	free_netdev(ndev);
 }
 
 /* Clean up resources without touching hardware. */
 static void qlge_eeh_close(struct net_device *ndev)
 {
+	struct qlge_adapter *qdev = netdev_to_qdev(ndev);
 	int i;
-	struct qlge_adapter *qdev = netdev_priv(ndev);
 
 	if (netif_carrier_ok(ndev)) {
 		netif_carrier_off(ndev);
@@ -4671,8 +4696,8 @@ static void qlge_eeh_close(struct net_device *ndev)
 static pci_ers_result_t qlge_io_error_detected(struct pci_dev *pdev,
 					       pci_channel_state_t state)
 {
-	struct net_device *ndev = pci_get_drvdata(pdev);
-	struct qlge_adapter *qdev = netdev_priv(ndev);
+	struct qlge_adapter *qdev = pci_get_drvdata(pdev);
+	struct net_device *ndev = qdev->ndev;
 
 	switch (state) {
 	case pci_channel_io_normal:
@@ -4705,8 +4730,7 @@ static pci_ers_result_t qlge_io_error_detected(struct pci_dev *pdev,
  */
 static pci_ers_result_t qlge_io_slot_reset(struct pci_dev *pdev)
 {
-	struct net_device *ndev = pci_get_drvdata(pdev);
-	struct qlge_adapter *qdev = netdev_priv(ndev);
+	struct qlge_adapter *qdev = pci_get_drvdata(pdev);
 
 	pdev->error_state = pci_channel_io_normal;
 
@@ -4729,8 +4753,8 @@ static pci_ers_result_t qlge_io_slot_reset(struct pci_dev *pdev)
 
 static void qlge_io_resume(struct pci_dev *pdev)
 {
-	struct net_device *ndev = pci_get_drvdata(pdev);
-	struct qlge_adapter *qdev = netdev_priv(ndev);
+	struct qlge_adapter *qdev = pci_get_drvdata(pdev);
+	struct net_device *ndev = qdev->ndev;
 	int err = 0;
 
 	if (netif_running(ndev)) {
@@ -4756,10 +4780,13 @@ static const struct pci_error_handlers qlge_err_handler = {
 
 static int __maybe_unused qlge_suspend(struct device *dev_d)
 {
-	struct net_device *ndev = dev_get_drvdata(dev_d);
-	struct qlge_adapter *qdev = netdev_priv(ndev);
+	struct pci_dev *pdev = to_pci_dev(dev_d);
+	struct qlge_adapter *qdev;
+	struct net_device *ndev;
 	int err;
 
+	qdev = pci_get_drvdata(pdev);
+	ndev = qdev->ndev;
 	netif_device_detach(ndev);
 	del_timer_sync(&qdev->timer);
 
@@ -4776,11 +4803,15 @@ static int __maybe_unused qlge_suspend(struct device *dev_d)
 
 static int __maybe_unused qlge_resume(struct device *dev_d)
 {
-	struct net_device *ndev = dev_get_drvdata(dev_d);
-	struct qlge_adapter *qdev = netdev_priv(ndev);
+	struct pci_dev *pdev = to_pci_dev(dev_d);
+	struct qlge_adapter *qdev;
+	struct net_device *ndev;
 	int err;
 
-	pci_set_master(to_pci_dev(dev_d));
+	qdev = pci_get_drvdata(pdev);
+	ndev = qdev->ndev;
+
+	pci_set_master(pdev);
 
 	device_wakeup_disable(dev_d);
 

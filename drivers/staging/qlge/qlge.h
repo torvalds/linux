@@ -2060,6 +2060,18 @@ struct nic_operations {
 	int (*port_initialize)(struct qlge_adapter *qdev);
 };
 
+struct qlge_netdev_priv {
+	struct qlge_adapter *qdev;
+	struct net_device *ndev;
+};
+
+static inline
+struct qlge_adapter *netdev_to_qdev(struct net_device *ndev)
+{
+	struct qlge_netdev_priv *ndev_priv = netdev_priv(ndev);
+
+	return ndev_priv->qdev;
+}
 /*
  * The main Adapter structure definition.
  * This structure has all fields relevant to the hardware.
@@ -2077,6 +2089,7 @@ struct qlge_adapter {
 	struct pci_dev *pdev;
 	struct net_device *ndev;	/* Parent NET device */
 
+	struct devlink_health_reporter *reporter;
 	/* Hardware information */
 	u32 chip_rev_id;
 	u32 fw_rev_id;
