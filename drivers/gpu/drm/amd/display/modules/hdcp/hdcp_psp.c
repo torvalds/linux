@@ -548,6 +548,8 @@ enum mod_hdcp_status mod_hdcp_hdcp2_validate_ake_cert(struct mod_hdcp *hdcp)
 			   TA_HDCP2_MSG_AUTHENTICATION_STATUS__RECEIVERID_REVOKED) {
 			hdcp->connection.is_hdcp2_revoked = 1;
 			status = MOD_HDCP_STATUS_HDCP2_AKE_CERT_REVOKED;
+		}  else {
+			status = MOD_HDCP_STATUS_HDCP2_VALIDATE_AKE_CERT_FAILURE;
 		}
 	}
 	mutex_unlock(&psp->hdcp_context.mutex);
