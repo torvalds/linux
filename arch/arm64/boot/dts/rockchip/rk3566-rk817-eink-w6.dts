@@ -576,6 +576,7 @@
 		reg = <0x68>;
 		pinctrl-names = "default";
 		pinctrl-0 = <&tps65185_gpio>;
+		int-gpios = <&gpio3 RK_PA6 GPIO_ACTIVE_HIGH>;
 		wakeup-gpios = <&gpio3 RK_PA5 GPIO_ACTIVE_HIGH>;
 		vcomctl-gpios = <&gpio4 RK_PB2 GPIO_ACTIVE_HIGH>;
 		powerup-gpios = <&gpio3 RK_PB0 GPIO_ACTIVE_HIGH>;
@@ -707,6 +708,7 @@
 			rockchip,pins =
 				<4 RK_PB2 RK_FUNC_GPIO &pcfg_pull_up>,
 				<3 RK_PA5 RK_FUNC_GPIO &pcfg_pull_up>,
+				<3 RK_PA6 RK_FUNC_GPIO &pcfg_pull_up>,
 				<3 RK_PB0 RK_FUNC_GPIO &pcfg_pull_up>,
 				<0 RK_PC1 RK_FUNC_GPIO &pcfg_output_high>;
 		};
