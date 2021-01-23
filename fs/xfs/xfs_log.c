@@ -957,7 +957,13 @@ xfs_log_quiesce(
 	xfs_buftarg_wait(mp->m_ddev_targp);
 	xfs_buf_lock(mp->m_sb_bp);
 	xfs_buf_unlock(mp->m_sb_bp);
+}
 
+void
+xfs_log_clean(
+	struct xfs_mount	*mp)
+{
+	xfs_log_quiesce(mp);
 	xfs_log_unmount_write(mp);
 }
 
@@ -972,7 +978,7 @@ void
 xfs_log_unmount(
 	struct xfs_mount	*mp)
 {
-	xfs_log_quiesce(mp);
+	xfs_log_clean(mp);
 
 	xfs_buftarg_drain(mp->m_ddev_targp);
 

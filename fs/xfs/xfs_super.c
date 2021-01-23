@@ -897,7 +897,7 @@ xfs_quiesce_attr(
 	if (error)
 		xfs_warn(mp, "xfs_attr_quiesce: failed to log sb changes. "
 				"Frozen image may not be consistent.");
-	xfs_log_quiesce(mp);
+	xfs_log_clean(mp);
 }
 
 /*
