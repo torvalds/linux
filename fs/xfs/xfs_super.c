@@ -1713,7 +1713,7 @@ xfs_remount_ro(
 	xfs_stop_block_reaping(mp);
 
 	/* Get rid of any leftover CoW reservations... */
-	error = xfs_icache_free_cowblocks(mp, NULL);
+	error = xfs_blockgc_free_space(mp, NULL);
 	if (error) {
 		xfs_force_shutdown(mp, SHUTDOWN_CORRUPT_INCORE);
 		return error;

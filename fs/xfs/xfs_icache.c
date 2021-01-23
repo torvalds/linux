@@ -1567,7 +1567,7 @@ out_iolock:
 	return ret;
 }
 
-int
+static int
 xfs_icache_free_cowblocks(
 	struct xfs_mount	*mp,
 	struct xfs_eofblocks	*eofb)
