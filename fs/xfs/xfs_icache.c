@@ -1571,21 +1571,19 @@ xfs_start_block_reaping(
 	xfs_blockgc_queue(mp);
 }
 
-/* Scan all incore inodes for block preallocations that we can remove. */
-static inline int
-xfs_blockgc_scan(
-	struct xfs_mount	*mp,
-	struct xfs_eofblocks	*eofb)
+/* Scan one incore inode for block preallocations that we can remove. */
+static int
+xfs_blockgc_scan_inode(
+	struct xfs_inode	*ip,
+	void			*args)
 {
 	int			error;
 
-	error = xfs_inode_walk(mp, 0, xfs_inode_free_eofblocks, eofb,
-			XFS_ICI_BLOCKGC_TAG);
+	error = xfs_inode_free_eofblocks(ip, args);
 	if (error)
 		return error;
 
-	error = xfs_inode_walk(mp, 0, xfs_inode_free_cowblocks, eofb,
-			XFS_ICI_BLOCKGC_TAG);
+	error = xfs_inode_free_cowblocks(ip, args);
 	if (error)
 		return error;
 
@@ -1603,7 +1601,8 @@ xfs_blockgc_worker(
 
 	if (!sb_start_write_trylock(mp->m_super))
 		return;
-	error = xfs_blockgc_scan(mp, NULL);
+	error = xfs_inode_walk(mp, 0, xfs_blockgc_scan_inode, NULL,
+			XFS_ICI_BLOCKGC_TAG);
 	if (error)
 		xfs_info(mp, "preallocation gc worker failed, err=%d", error);
 	sb_end_write(mp->m_super);
@@ -1620,7 +1619,8 @@ xfs_blockgc_free_space(
 {
 	trace_xfs_blockgc_free_space(mp, eofb, _RET_IP_);
 
-	return xfs_blockgc_scan(mp, eofb);
+	return xfs_inode_walk(mp, 0, xfs_blockgc_scan_inode, eofb,
+			XFS_ICI_BLOCKGC_TAG);
 }
 
 /*
