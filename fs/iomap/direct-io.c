@@ -485,6 +485,13 @@ __iomap_dio_rw(struct kiocb *iocb, struct iov_iter *iter,
 		iomap_flags |= IOMAP_NOWAIT;
 	}
 
+	if (dio_flags & IOMAP_DIO_OVERWRITE_ONLY) {
+		ret = -EAGAIN;
+		if (pos >= dio->i_size || pos + count > dio->i_size)
+			goto out_free_dio;
+		iomap_flags |= IOMAP_OVERWRITE_ONLY;
+	}
+
 	ret = filemap_write_and_wait_range(mapping, pos, end);
 	if (ret)
 		goto out_free_dio;

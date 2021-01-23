@@ -122,6 +122,7 @@ struct iomap_page_ops {
 #define IOMAP_FAULT		(1 << 3) /* mapping for page fault */
 #define IOMAP_DIRECT		(1 << 4) /* direct I/O */
 #define IOMAP_NOWAIT		(1 << 5) /* do not block */
+#define IOMAP_OVERWRITE_ONLY	(1 << 6) /* only pure overwrites allowed */
 
 struct iomap_ops {
 	/*
@@ -261,6 +262,13 @@ struct iomap_dio_ops {
  * synchronous.
  */
 #define IOMAP_DIO_FORCE_WAIT	(1 << 0)
+
+/*
+ * Do not allocate blocks or zero partial blocks, but instead fall back to
+ * the caller by returning -EAGAIN.  Used to optimize direct I/O writes that
+ * are not aligned to the file system block size.
+  */
+#define IOMAP_DIO_OVERWRITE_ONLY	(1 << 1)
 
 ssize_t iomap_dio_rw(struct kiocb *iocb, struct iov_iter *iter,
 		const struct iomap_ops *ops, const struct iomap_dio_ops *dops,
