@@ -1138,16 +1138,21 @@ retry:
 int
 xfs_trans_alloc_ichange(
 	struct xfs_inode	*ip,
-	struct xfs_dquot	*udqp,
-	struct xfs_dquot	*gdqp,
-	struct xfs_dquot	*pdqp,
+	struct xfs_dquot	*new_udqp,
+	struct xfs_dquot	*new_gdqp,
+	struct xfs_dquot	*new_pdqp,
 	bool			force,
 	struct xfs_trans	**tpp)
 {
 	struct xfs_trans	*tp;
 	struct xfs_mount	*mp = ip->i_mount;
+	struct xfs_dquot	*udqp;
+	struct xfs_dquot	*gdqp;
+	struct xfs_dquot	*pdqp;
+	bool			retried = false;
 	int			error;
 
+retry:
 	error = xfs_trans_alloc(mp, &M_RES(mp)->tr_ichange, 0, 0, 0, &tp);
 	if (error)
 		return error;
@@ -1165,14 +1170,12 @@ xfs_trans_alloc_ichange(
 	/*
 	 * For each quota type, skip quota reservations if the inode's dquots
 	 * now match the ones that came from the caller, or the caller didn't
-	 * pass one in.
+	 * pass one in.  The inode's dquots can change if we drop the ILOCK to
+	 * perform a blockgc scan, so we must preserve the caller's arguments.
 	 */
-	if (udqp == ip->i_udquot)
-		udqp = NULL;
-	if (gdqp == ip->i_gdquot)
-		gdqp = NULL;
-	if (pdqp == ip->i_pdquot)
-		pdqp = NULL;
+	udqp = (new_udqp != ip->i_udquot) ? new_udqp : NULL;
+	gdqp = (new_gdqp != ip->i_gdquot) ? new_gdqp : NULL;
+	pdqp = (new_pdqp != ip->i_pdquot) ? new_pdqp : NULL;
 	if (udqp || gdqp || pdqp) {
 		unsigned int	qflags = XFS_QMOPT_RES_REGBLKS;
 
@@ -1188,6 +1191,12 @@ xfs_trans_alloc_ichange(
 		error = xfs_trans_reserve_quota_bydquots(tp, mp, udqp, gdqp,
 				pdqp, ip->i_d.di_nblocks + ip->i_delayed_blks,
 				1, qflags);
+		if ((error == -EDQUOT || error == -ENOSPC) && !retried) {
+			xfs_trans_cancel(tp);
+			xfs_blockgc_free_dquots(mp, udqp, gdqp, pdqp, 0);
+			retried = true;
+			goto retry;
+		}
 		if (error)
 			goto out_cancel;
 	}
