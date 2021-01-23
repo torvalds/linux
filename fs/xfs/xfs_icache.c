@@ -1557,7 +1557,7 @@ xfs_inode_clear_cowblocks_tag(
 
 /* Disable post-EOF and CoW block auto-reclamation. */
 void
-xfs_stop_block_reaping(
+xfs_blockgc_stop(
 	struct xfs_mount	*mp)
 {
 	cancel_delayed_work_sync(&mp->m_blockgc_work);
@@ -1565,7 +1565,7 @@ xfs_stop_block_reaping(
 
 /* Enable post-EOF and CoW block auto-reclamation. */
 void
-xfs_start_block_reaping(
+xfs_blockgc_start(
 	struct xfs_mount	*mp)
 {
 	xfs_blockgc_queue(mp);
