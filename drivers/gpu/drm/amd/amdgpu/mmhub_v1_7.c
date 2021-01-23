@@ -178,8 +178,17 @@ static void mmhub_v1_7_init_cache_regs(struct amdgpu_device *adev)
 	WREG32_SOC15(MMHUB, 0, regVM_L2_CNTL3, tmp);
 
 	tmp = regVM_L2_CNTL4_DEFAULT;
-	tmp = REG_SET_FIELD(tmp, VM_L2_CNTL4, VMC_TAP_PDE_REQUEST_PHYSICAL, 0);
-	tmp = REG_SET_FIELD(tmp, VM_L2_CNTL4, VMC_TAP_PTE_REQUEST_PHYSICAL, 0);
+	if (adev->gmc.xgmi.connected_to_cpu) {
+		tmp = REG_SET_FIELD(tmp, VM_L2_CNTL4,
+				    VMC_TAP_PDE_REQUEST_PHYSICAL, 1);
+		tmp = REG_SET_FIELD(tmp, VM_L2_CNTL4,
+				    VMC_TAP_PTE_REQUEST_PHYSICAL, 1);
+	} else {
+		tmp = REG_SET_FIELD(tmp, VM_L2_CNTL4,
+				    VMC_TAP_PDE_REQUEST_PHYSICAL, 0);
+		tmp = REG_SET_FIELD(tmp, VM_L2_CNTL4,
+				    VMC_TAP_PTE_REQUEST_PHYSICAL, 0);
+	}
 	WREG32_SOC15(MMHUB, 0, regVM_L2_CNTL4, tmp);
 }
 
