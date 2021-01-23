@@ -155,7 +155,7 @@ static int fdp_nci_i2c_read(struct fdp_i2c_phy *phy, struct sk_buff **skb)
 
 		/*
 		 * LRC check failed. This may due to transmission error or
-		 * desynchronization between driver and FDP. Drop the paquet
+		 * desynchronization between driver and FDP. Drop the packet
 		 * and force resynchronization
 		 */
 		if (lrc) {
