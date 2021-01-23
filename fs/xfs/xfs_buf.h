@@ -347,6 +347,7 @@ xfs_buf_update_cksum(struct xfs_buf *bp, unsigned long cksum_offset)
 extern struct xfs_buftarg *xfs_alloc_buftarg(struct xfs_mount *,
 		struct block_device *, struct dax_device *);
 extern void xfs_free_buftarg(struct xfs_buftarg *);
+extern void xfs_buftarg_wait(struct xfs_buftarg *);
 extern void xfs_buftarg_drain(struct xfs_buftarg *);
 extern int xfs_setsize_buftarg(struct xfs_buftarg *, unsigned int);
 

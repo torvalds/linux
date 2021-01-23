@@ -936,13 +936,13 @@ xfs_log_quiesce(
 
 	/*
 	 * The superblock buffer is uncached and while xfs_ail_push_all_sync()
-	 * will push it, xfs_buftarg_drain() will not wait for it. Further,
+	 * will push it, xfs_buftarg_wait() will not wait for it. Further,
 	 * xfs_buf_iowait() cannot be used because it was pushed with the
 	 * XBF_ASYNC flag set, so we need to use a lock/unlock pair to wait for
 	 * the IO to complete.
 	 */
 	xfs_ail_push_all_sync(mp->m_ail);
-	xfs_buftarg_drain(mp->m_ddev_targp);
+	xfs_buftarg_wait(mp->m_ddev_targp);
 	xfs_buf_lock(mp->m_sb_bp);
 	xfs_buf_unlock(mp->m_sb_bp);
 
@@ -961,6 +961,8 @@ xfs_log_unmount(
 	struct xfs_mount	*mp)
 {
 	xfs_log_quiesce(mp);
+
+	xfs_buftarg_drain(mp->m_ddev_targp);
 
 	xfs_trans_ail_destroy(mp);
 
