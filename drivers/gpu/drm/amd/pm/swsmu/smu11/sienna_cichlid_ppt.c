@@ -3487,9 +3487,9 @@ static int sienna_cichlid_i2c_xfer(struct i2c_adapter *i2c_adap,
 				cmd->CmdConfig |= CMDCONFIG_READWRITE_MASK;
 				cmd->ReadWriteData = msg->buf[j];
 			}
-			if ((msg[i].flags & I2C_M_STOP) ||
-			    (!remaining_bytes))
+			if (!remaining_bytes)
 				cmd->CmdConfig |= CMDCONFIG_STOP_MASK;
+
 			if ((j == 0) && !(msg[i].flags & I2C_M_NOSTART))
 				cmd->CmdConfig |= CMDCONFIG_RESTART_BIT;
 		}
