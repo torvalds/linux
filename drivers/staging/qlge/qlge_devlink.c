@@ -56,9 +56,22 @@ static int qlge_reporter_coredump(struct devlink_health_reporter *reporter,
 
 	struct qlge_adapter *qdev = devlink_health_reporter_priv(reporter);
 	struct qlge_mpi_coredump *dump;
+	wait_queue_head_t wait;
 
 	if (!netif_running(qdev->ndev))
 		return 0;
+
+	if (test_bit(QL_FRC_COREDUMP, &qdev->flags)) {
+		if (qlge_own_firmware(qdev)) {
+			qlge_queue_fw_error(qdev);
+			init_waitqueue_head(&wait);
+			wait_event_timeout(wait, 0, 5 * HZ);
+		} else {
+			netif_err(qdev, ifup, qdev->ndev,
+				  "Force Coredump failed because this NIC function doesn't own the firmware\n");
+			return -EPERM;
+		}
+	}
 
 	dump = kvmalloc(sizeof(*dump), GFP_KERNEL);
 	if (!dump)
