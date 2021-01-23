@@ -656,7 +656,7 @@ void amdgpu_gmc_init_pdb0(struct amdgpu_device *adev)
 	 * PTB who has more than 512 entries each
 	 * pointing to a 4K system page
 	 */
-	flags = AMDGPU_PTE_VALID | AMDGPU_PTE_SYSTEM;
+	flags = AMDGPU_PTE_VALID;
 	flags |= AMDGPU_PDE_BFS(0) | AMDGPU_PTE_SNOOPED;
 	/* Requires gart_ptb_gpu_pa to be 4K aligned */
 	amdgpu_gmc_set_pte_pde(adev, adev->gmc.ptr_pdb0, i, gart_ptb_gpu_pa, flags);
