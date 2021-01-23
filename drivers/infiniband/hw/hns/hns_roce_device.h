@@ -335,7 +335,6 @@ struct hns_roce_buf_attr {
 	} region[HNS_ROCE_MAX_BT_REGION];
 	unsigned int region_count; /* valid region count */
 	unsigned int page_shift;  /* buffer page shift */
-	bool fixed_page; /* decide page shift is fixed-size or maximum size */
 	unsigned int user_access; /* umem access flag */
 	bool mtt_only; /* only alloc buffer-required MTT memory */
 };
