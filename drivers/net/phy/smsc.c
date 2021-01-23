@@ -284,7 +284,8 @@ static int smsc_phy_probe(struct phy_device *phydev)
 	/* Make clk optional to keep DTB backward compatibility. */
 	priv->refclk = clk_get_optional(dev, NULL);
 	if (IS_ERR(priv->refclk))
-		dev_err_probe(dev, PTR_ERR(priv->refclk), "Failed to request clock\n");
+		return dev_err_probe(dev, PTR_ERR(priv->refclk),
+				     "Failed to request clock\n");
 
 	ret = clk_prepare_enable(priv->refclk);
 	if (ret)
