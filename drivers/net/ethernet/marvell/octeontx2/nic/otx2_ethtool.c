@@ -448,10 +448,14 @@ static int otx2_get_rss_hash_opts(struct otx2_nic *pfvf,
 			nfc->data |= RXH_L4_B_0_1 | RXH_L4_B_2_3;
 		break;
 	case AH_ESP_V4_FLOW:
+	case AH_ESP_V6_FLOW:
+		if (rss->flowkey_cfg & NIX_FLOW_KEY_TYPE_ESP)
+			nfc->data |= RXH_L4_B_0_1 | RXH_L4_B_2_3;
+		break;
 	case AH_V4_FLOW:
 	case ESP_V4_FLOW:
 	case IPV4_FLOW:
-	case AH_ESP_V6_FLOW:
+		break;
 	case AH_V6_FLOW:
 	case ESP_V6_FLOW:
 	case IPV6_FLOW:
@@ -459,6 +463,7 @@ static int otx2_get_rss_hash_opts(struct otx2_nic *pfvf,
 	default:
 		return -EINVAL;
 	}
+
 	return 0;
 }
 
@@ -522,6 +527,36 @@ static int otx2_set_rss_hash_opts(struct otx2_nic *pfvf,
 			break;
 		case (RXH_L4_B_0_1 | RXH_L4_B_2_3):
 			rss_cfg |= NIX_FLOW_KEY_TYPE_SCTP;
+			break;
+		default:
+			return -EINVAL;
+		}
+		break;
+	case AH_ESP_V4_FLOW:
+	case AH_ESP_V6_FLOW:
+		switch (nfc->data & rxh_l4) {
+		case 0:
+			rss_cfg &= ~(NIX_FLOW_KEY_TYPE_ESP |
+				     NIX_FLOW_KEY_TYPE_AH);
+			rss_cfg |= NIX_FLOW_KEY_TYPE_VLAN |
+				   NIX_FLOW_KEY_TYPE_IPV4_PROTO;
+			break;
+		case (RXH_L4_B_0_1 | RXH_L4_B_2_3):
+			/* If VLAN hashing is also requested for ESP then do not
+			 * allow because of hardware 40 bytes flow key limit.
+			 */
+			if (rss_cfg & NIX_FLOW_KEY_TYPE_VLAN) {
+				netdev_err(pfvf->netdev,
+					   "RSS hash of ESP or AH with VLAN is not supported\n");
+				return -EOPNOTSUPP;
+			}
+
+			rss_cfg |= NIX_FLOW_KEY_TYPE_ESP | NIX_FLOW_KEY_TYPE_AH;
+			/* Disable IPv4 proto hashing since IPv6 SA+DA(32 bytes)
+			 * and ESP SPI+sequence(8 bytes) uses hardware maximum
+			 * limit of 40 byte flow key.
+			 */
+			rss_cfg &= ~NIX_FLOW_KEY_TYPE_IPV4_PROTO;
 			break;
 		default:
 			return -EINVAL;

@@ -2580,6 +2580,7 @@ static int set_flowkey_fields(struct nix_rx_flowkey_alg *alg, u32 flow_cfg)
 	struct nix_rx_flowkey_alg *field;
 	struct nix_rx_flowkey_alg tmp;
 	u32 key_type, valid_key;
+	int l4_key_offset;
 
 	if (!alg)
 		return -EINVAL;
@@ -2712,6 +2713,12 @@ static int set_flowkey_fields(struct nix_rx_flowkey_alg *alg, u32 flow_cfg)
 				field_marker = false;
 				keyoff_marker = false;
 			}
+
+			/* TCP/UDP/SCTP and ESP/AH falls at same offset so
+			 * remember the TCP key offset of 40 byte hash key.
+			 */
+			if (key_type == NIX_FLOW_KEY_TYPE_TCP)
+				l4_key_offset = key_off;
 			break;
 		case NIX_FLOW_KEY_TYPE_NVGRE:
 			field->lid = NPC_LID_LD;
@@ -2783,11 +2790,31 @@ static int set_flowkey_fields(struct nix_rx_flowkey_alg *alg, u32 flow_cfg)
 			field->ltype_mask = 0xF;
 			field->fn_mask = 1; /* Mask out the first nibble */
 			break;
+		case NIX_FLOW_KEY_TYPE_AH:
+		case NIX_FLOW_KEY_TYPE_ESP:
+			field->hdr_offset = 0;
+			field->bytesm1 = 7; /* SPI + sequence number */
+			field->ltype_mask = 0xF;
+			field->lid = NPC_LID_LE;
+			field->ltype_match = NPC_LT_LE_ESP;
+			if (key_type == NIX_FLOW_KEY_TYPE_AH) {
+				field->lid = NPC_LID_LD;
+				field->ltype_match = NPC_LT_LD_AH;
+				field->hdr_offset = 4;
+				keyoff_marker = false;
+			}
+			break;
 		}
 		field->ena = 1;
 
 		/* Found a valid flow key type */
 		if (valid_key) {
+			/* Use the key offset of TCP/UDP/SCTP fields
+			 * for ESP/AH fields.
+			 */
+			if (key_type == NIX_FLOW_KEY_TYPE_ESP ||
+			    key_type == NIX_FLOW_KEY_TYPE_AH)
+				key_off = l4_key_offset;
 			field->key_offset = key_off;
 			memcpy(&alg[nr_field], field, sizeof(*field));
 			max_key_off = max(max_key_off, field->bytesm1 + 1);
