@@ -1324,15 +1324,6 @@ xfs_inode_free_eofblocks(
 	return ret;
 }
 
-static int
-xfs_icache_free_eofblocks(
-	struct xfs_mount	*mp,
-	struct xfs_eofblocks	*eofb)
-{
-	return xfs_inode_walk(mp, 0, xfs_inode_free_eofblocks, eofb,
-			XFS_ICI_EOFBLOCKS_TAG);
-}
-
 /*
  * Background scanning to trim post-EOF preallocated space. This is queued
  * based on the 'speculative_prealloc_lifetime' tunable (5m by default).
@@ -1358,7 +1349,8 @@ xfs_eofblocks_worker(
 
 	if (!sb_start_write_trylock(mp->m_super))
 		return;
-	xfs_icache_free_eofblocks(mp, NULL);
+	xfs_inode_walk(mp, 0, xfs_inode_free_eofblocks, NULL,
+			XFS_ICI_EOFBLOCKS_TAG);
 	sb_end_write(mp->m_super);
 
 	xfs_queue_eofblocks(mp);
@@ -1567,15 +1559,6 @@ out_iolock:
 	return ret;
 }
 
-static int
-xfs_icache_free_cowblocks(
-	struct xfs_mount	*mp,
-	struct xfs_eofblocks	*eofb)
-{
-	return xfs_inode_walk(mp, 0, xfs_inode_free_cowblocks, eofb,
-			XFS_ICI_COWBLOCKS_TAG);
-}
-
 /*
  * Background scanning to trim preallocated CoW space. This is queued
  * based on the 'speculative_cow_prealloc_lifetime' tunable (5m by default).
@@ -1602,7 +1585,8 @@ xfs_cowblocks_worker(
 
 	if (!sb_start_write_trylock(mp->m_super))
 		return;
-	xfs_icache_free_cowblocks(mp, NULL);
+	xfs_inode_walk(mp, 0, xfs_inode_free_cowblocks, NULL,
+			XFS_ICI_COWBLOCKS_TAG);
 	sb_end_write(mp->m_super);
 
 	xfs_queue_cowblocks(mp);
@@ -1653,11 +1637,13 @@ xfs_blockgc_scan(
 {
 	int			error;
 
-	error = xfs_icache_free_eofblocks(mp, eofb);
+	error = xfs_inode_walk(mp, 0, xfs_inode_free_eofblocks, eofb,
+			XFS_ICI_EOFBLOCKS_TAG);
 	if (error)
 		return error;
 
-	error = xfs_icache_free_cowblocks(mp, eofb);
+	error = xfs_inode_walk(mp, 0, xfs_inode_free_cowblocks, eofb,
+			XFS_ICI_COWBLOCKS_TAG);
 	if (error)
 		return error;
 
