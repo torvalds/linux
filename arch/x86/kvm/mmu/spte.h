@@ -185,23 +185,19 @@ static inline bool is_access_track_spte(u64 spte)
 	return !spte_ad_enabled(spte) && (spte & shadow_acc_track_mask) == 0;
 }
 
-static inline int is_shadow_present_pte(u64 pte)
+static inline bool is_shadow_present_pte(u64 pte)
 {
 	return (pte != 0) && !is_mmio_spte(pte);
 }
 
-static inline int is_large_pte(u64 pte)
+static inline bool is_large_pte(u64 pte)
 {
 	return pte & PT_PAGE_SIZE_MASK;
 }
 
-static inline int is_last_spte(u64 pte, int level)
+static inline bool is_last_spte(u64 pte, int level)
 {
-	if (level == PG_LEVEL_4K)
-		return 1;
-	if (is_large_pte(pte))
-		return 1;
-	return 0;
+	return (level == PG_LEVEL_4K) || is_large_pte(pte);
 }
 
 static inline bool is_executable_pte(u64 spte)

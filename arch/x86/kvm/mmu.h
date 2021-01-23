@@ -152,7 +152,7 @@ static inline int kvm_mmu_do_page_fault(struct kvm_vcpu *vcpu, gpa_t cr2_or_gpa,
  *
  * TODO: introduce APIs to split these two cases.
  */
-static inline int is_writable_pte(unsigned long pte)
+static inline bool is_writable_pte(unsigned long pte)
 {
 	return pte & PT_WRITABLE_MASK;
 }
