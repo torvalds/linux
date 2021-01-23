@@ -1110,12 +1110,28 @@ xfs_log_cover(
 {
 	struct xlog		*log = mp->m_log;
 	int			error = 0;
+	bool			need_covered;
 
 	ASSERT((xlog_cil_empty(log) && xlog_iclogs_empty(log) &&
 	        !xfs_ail_min_lsn(log->l_ailp)) ||
 	       XFS_FORCED_SHUTDOWN(mp));
 
 	if (!xfs_log_writable(mp))
+		return 0;
+
+	/*
+	 * xfs_log_need_covered() is not idempotent because it progresses the
+	 * state machine if the log requires covering. Therefore, we must call
+	 * this function once and use the result until we've issued an sb sync.
+	 * Do so first to make that abundantly clear.
+	 *
+	 * Fall into the covering sequence if the log needs covering or the
+	 * mount has lazy superblock accounting to sync to disk. The sb sync
+	 * used for covering accumulates the in-core counters, so covering
+	 * handles this for us.
+	 */
+	need_covered = xfs_log_need_covered(mp);
+	if (!need_covered && !xfs_sb_version_haslazysbcount(&mp->m_sb))
 		return 0;
 
 	/*
@@ -1127,12 +1143,12 @@ xfs_log_cover(
 	 * covering the log. Push the AIL one more time to leave it empty, as
 	 * we found it.
 	 */
-	while (xfs_log_need_covered(mp)) {
+	do {
 		error = xfs_sync_sb(mp, true);
 		if (error)
 			break;
 		xfs_ail_push_all_sync(mp->m_ail);
-	}
+	} while (xfs_log_need_covered(mp));
 
 	return error;
 }

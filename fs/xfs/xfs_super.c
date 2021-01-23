@@ -884,19 +884,11 @@ void
 xfs_quiesce_attr(
 	struct xfs_mount	*mp)
 {
-	int	error = 0;
-
 	cancel_delayed_work_sync(&mp->m_log->l_work);
 
 	/* force the log to unpin objects from the now complete transactions */
 	xfs_log_force(mp, XFS_LOG_SYNC);
 
-
-	/* Push the superblock and write an unmount record */
-	error = xfs_log_sbcount(mp);
-	if (error)
-		xfs_warn(mp, "xfs_attr_quiesce: failed to log sb changes. "
-				"Frozen image may not be consistent.");
 	xfs_log_clean(mp);
 }
 

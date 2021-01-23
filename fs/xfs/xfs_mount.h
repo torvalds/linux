@@ -399,7 +399,6 @@ int xfs_buf_hash_init(xfs_perag_t *pag);
 void xfs_buf_hash_destroy(xfs_perag_t *pag);
 
 extern void	xfs_uuid_table_free(void);
-extern int	xfs_log_sbcount(xfs_mount_t *);
 extern uint64_t xfs_default_resblks(xfs_mount_t *mp);
 extern int	xfs_mountfs(xfs_mount_t *mp);
 extern int	xfs_initialize_perag(xfs_mount_t *mp, xfs_agnumber_t agcount,

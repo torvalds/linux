@@ -1124,12 +1124,6 @@ xfs_unmountfs(
 		xfs_warn(mp, "Unable to free reserved block pool. "
 				"Freespace may not be correct on next mount.");
 
-	error = xfs_log_sbcount(mp);
-	if (error)
-		xfs_warn(mp, "Unable to update superblock counters. "
-				"Freespace may not be correct on next mount.");
-
-
 	xfs_log_unmount(mp);
 	xfs_da_unmount(mp);
 	xfs_uuid_unmount(mp);
@@ -1162,31 +1156,6 @@ xfs_fs_writable(
 		return false;
 
 	return true;
-}
-
-/*
- * xfs_log_sbcount
- *
- * Sync the superblock counters to disk.
- *
- * Note this code can be called during the process of freezing, so we use the
- * transaction allocator that does not block when the transaction subsystem is
- * in its frozen state.
- */
-int
-xfs_log_sbcount(xfs_mount_t *mp)
-{
-	if (!xfs_log_writable(mp))
-		return 0;
-
-	/*
-	 * we don't need to do this if we are updating the superblock
-	 * counters on every modification.
-	 */
-	if (!xfs_sb_version_haslazysbcount(&mp->m_sb))
-		return 0;
-
-	return xfs_sync_sb(mp, true);
 }
 
 /*
