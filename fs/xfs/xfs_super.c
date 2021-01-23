@@ -889,8 +889,7 @@ xfs_fs_freeze(
 	flags = memalloc_nofs_save();
 	xfs_stop_block_reaping(mp);
 	xfs_save_resvblks(mp);
-	xfs_log_clean(mp);
-	ret = xfs_sync_sb(mp, true);
+	ret = xfs_log_quiesce(mp);
 	memalloc_nofs_restore(flags);
 	return ret;
 }
