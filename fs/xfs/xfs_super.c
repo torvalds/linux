@@ -884,11 +884,6 @@ void
 xfs_quiesce_attr(
 	struct xfs_mount	*mp)
 {
-	cancel_delayed_work_sync(&mp->m_log->l_work);
-
-	/* force the log to unpin objects from the now complete transactions */
-	xfs_log_force(mp, XFS_LOG_SYNC);
-
 	xfs_log_clean(mp);
 }
 
