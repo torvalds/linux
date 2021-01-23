@@ -2964,8 +2964,8 @@ reflush:
 
 		if (++flush_cnt == 10 ||
 		    (flush_cnt % 100 == 0 && flush_cnt <= 1000))
-			pr_warn("workqueue %s: drain_workqueue() isn't complete after %u tries\n",
-				wq->name, flush_cnt);
+			pr_warn("workqueue %s: %s() isn't complete after %u tries\n",
+				wq->name, __func__, flush_cnt);
 
 		mutex_unlock(&wq->mutex);
 		goto reflush;
