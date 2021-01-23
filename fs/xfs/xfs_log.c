@@ -91,6 +91,9 @@ STATIC int
 xlog_iclogs_empty(
 	struct xlog		*log);
 
+static int
+xfs_log_cover(struct xfs_mount *);
+
 static void
 xlog_grant_sub_space(
 	struct xlog		*log,
@@ -936,10 +939,9 @@ xfs_log_unmount_write(
  * To do this, we first need to shut down the background log work so it is not
  * trying to cover the log as we clean up. We then need to unpin all objects in
  * the log so we can then flush them out. Once they have completed their IO and
- * run the callbacks removing themselves from the AIL, we can write the unmount
- * record.
+ * run the callbacks removing themselves from the AIL, we can cover the log.
  */
-void
+int
 xfs_log_quiesce(
 	struct xfs_mount	*mp)
 {
@@ -957,6 +959,8 @@ xfs_log_quiesce(
 	xfs_buftarg_wait(mp->m_ddev_targp);
 	xfs_buf_lock(mp->m_sb_bp);
 	xfs_buf_unlock(mp->m_sb_bp);
+
+	return xfs_log_cover(mp);
 }
 
 void
@@ -1092,6 +1096,45 @@ xfs_log_need_covered(
 	}
 	spin_unlock(&log->l_icloglock);
 	return needed;
+}
+
+/*
+ * Explicitly cover the log. This is similar to background log covering but
+ * intended for usage in quiesce codepaths. The caller is responsible to ensure
+ * the log is idle and suitable for covering. The CIL, iclog buffers and AIL
+ * must all be empty.
+ */
+static int
+xfs_log_cover(
+	struct xfs_mount	*mp)
+{
+	struct xlog		*log = mp->m_log;
+	int			error = 0;
+
+	ASSERT((xlog_cil_empty(log) && xlog_iclogs_empty(log) &&
+	        !xfs_ail_min_lsn(log->l_ailp)) ||
+	       XFS_FORCED_SHUTDOWN(mp));
+
+	if (!xfs_log_writable(mp))
+		return 0;
+
+	/*
+	 * To cover the log, commit the superblock twice (at most) in
+	 * independent checkpoints. The first serves as a reference for the
+	 * tail pointer. The sync transaction and AIL push empties the AIL and
+	 * updates the in-core tail to the LSN of the first checkpoint. The
+	 * second commit updates the on-disk tail with the in-core LSN,
+	 * covering the log. Push the AIL one more time to leave it empty, as
+	 * we found it.
+	 */
+	while (xfs_log_need_covered(mp)) {
+		error = xfs_sync_sb(mp, true);
+		if (error)
+			break;
+		xfs_ail_push_all_sync(mp->m_ail);
+	}
+
+	return error;
 }
 
 /*
