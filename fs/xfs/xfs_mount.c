@@ -1023,8 +1023,8 @@ xfs_mountfs(
 	xfs_log_mount_cancel(mp);
  out_fail_wait:
 	if (mp->m_logdev_targp && mp->m_logdev_targp != mp->m_ddev_targp)
-		xfs_wait_buftarg(mp->m_logdev_targp);
-	xfs_wait_buftarg(mp->m_ddev_targp);
+		xfs_buftarg_drain(mp->m_logdev_targp);
+	xfs_buftarg_drain(mp->m_ddev_targp);
  out_free_perag:
 	xfs_free_perag(mp);
  out_free_dir:
