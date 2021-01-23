@@ -1324,7 +1324,7 @@ xfs_inode_free_eofblocks(
 	return ret;
 }
 
-int
+static int
 xfs_icache_free_eofblocks(
 	struct xfs_mount	*mp,
 	struct xfs_eofblocks	*eofb)
