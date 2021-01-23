@@ -544,10 +544,13 @@ out_unlock:
  * to do sub-block zeroing and that requires serialisation against other direct
  * I/O to the same block.  In this case we need to serialise the submission of
  * the unaligned I/O so that we don't get racing block zeroing in the dio layer.
+ * In the case where sub-block zeroing is not required, we can do concurrent
+ * sub-block dios to the same block successfully.
  *
- * This means that unaligned dio writes always block. There is no "nowait" fast
- * path in this code - if IOCB_NOWAIT is set we simply return -EAGAIN up front
- * and we don't have to worry about that anymore.
+ * Optimistically submit the I/O using the shared lock first, but use the
+ * IOMAP_DIO_OVERWRITE_ONLY flag to tell the lower layers to return -EAGAIN
+ * if block allocation or partial block zeroing would be required.  In that case
+ * we try again with the exclusive lock.
  */
 static noinline ssize_t
 xfs_file_dio_write_unaligned(
@@ -555,13 +558,28 @@ xfs_file_dio_write_unaligned(
 	struct kiocb		*iocb,
 	struct iov_iter		*from)
 {
-	int			iolock = XFS_IOLOCK_EXCL;
+	size_t			isize = i_size_read(VFS_I(ip));
+	size_t			count = iov_iter_count(from);
+	int			iolock = XFS_IOLOCK_SHARED;
+	unsigned int		flags = IOMAP_DIO_OVERWRITE_ONLY;
 	ssize_t			ret;
 
-	/* unaligned dio always waits, bail */
-	if (iocb->ki_flags & IOCB_NOWAIT)
-		return -EAGAIN;
-	xfs_ilock(ip, iolock);
+	/*
+	 * Extending writes need exclusivity because of the sub-block zeroing
+	 * that the DIO code always does for partial tail blocks beyond EOF, so
+	 * don't even bother trying the fast path in this case.
+	 */
+	if (iocb->ki_pos > isize || iocb->ki_pos + count >= isize) {
+retry_exclusive:
+		if (iocb->ki_flags & IOCB_NOWAIT)
+			return -EAGAIN;
+		iolock = XFS_IOLOCK_EXCL;
+		flags = IOMAP_DIO_FORCE_WAIT;
+	}
+
+	ret = xfs_ilock_iocb(iocb, iolock);
+	if (ret)
+		return ret;
 
 	/*
 	 * We can't properly handle unaligned direct I/O to reflink files yet,
@@ -578,15 +596,29 @@ xfs_file_dio_write_unaligned(
 		goto out_unlock;
 
 	/*
-	 * If we are doing unaligned I/O, this must be the only I/O in-flight.
-	 * Otherwise we risk data corruption due to unwritten extent conversions
-	 * from the AIO end_io handler.  Wait for all other I/O to drain first.
+	 * If we are doing exclusive unaligned I/O, this must be the only I/O
+	 * in-flight.  Otherwise we risk data corruption due to unwritten extent
+	 * conversions from the AIO end_io handler.  Wait for all other I/O to
+	 * drain first.
 	 */
-	inode_dio_wait(VFS_I(ip));
+	if (flags & IOMAP_DIO_FORCE_WAIT)
+		inode_dio_wait(VFS_I(ip));
 
 	trace_xfs_file_direct_write(iocb, from);
 	ret = iomap_dio_rw(iocb, from, &xfs_direct_write_iomap_ops,
-			   &xfs_dio_write_ops, IOMAP_DIO_FORCE_WAIT);
+			   &xfs_dio_write_ops, flags);
+
+	/*
+	 * Retry unaligned I/O with exclusive blocking semantics if the DIO
+	 * layer rejected it for mapping or locking reasons. If we are doing
+	 * nonblocking user I/O, propagate the error.
+	 */
+	if (ret == -EAGAIN && !(iocb->ki_flags & IOCB_NOWAIT)) {
+		ASSERT(flags & IOMAP_DIO_OVERWRITE_ONLY);
+		xfs_iunlock(ip, iolock);
+		goto retry_exclusive;
+	}
+
 out_unlock:
 	if (iolock)
 		xfs_iunlock(ip, iolock);
