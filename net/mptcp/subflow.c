@@ -18,11 +18,14 @@
 #include <net/tcp.h>
 #if IS_ENABLED(CONFIG_MPTCP_IPV6)
 #include <net/ip6_route.h>
+#include <net/transp_v6.h>
 #endif
 #include <net/mptcp.h>
 #include <uapi/linux/mptcp.h>
 #include "protocol.h"
 #include "mib.h"
+
+static void mptcp_subflow_ops_undo_override(struct sock *ssk);
 
 static void SUBFLOW_REQ_INC_STATS(struct request_sock *req,
 				  enum linux_mptcp_mib_field field)
@@ -343,6 +346,7 @@ static void subflow_finish_connect(struct sock *sk, const struct sk_buff *skb)
 	if (subflow->conn_finished)
 		return;
 
+	mptcp_propagate_sndbuf(parent, sk);
 	subflow->rel_write_seq = 1;
 	subflow->conn_finished = 1;
 	subflow->ssn_offset = TCP_SKB_CB(skb)->seq;
@@ -427,6 +431,7 @@ drop:
 static struct tcp_request_sock_ops subflow_request_sock_ipv6_ops;
 static struct inet_connection_sock_af_ops subflow_v6_specific;
 static struct inet_connection_sock_af_ops subflow_v6m_specific;
+static struct proto tcpv6_prot_override;
 
 static int subflow_v6_conn_request(struct sock *sk, struct sk_buff *skb)
 {
@@ -508,6 +513,8 @@ static void subflow_ulp_fallback(struct sock *sk,
 	icsk->icsk_ulp_ops = NULL;
 	rcu_assign_pointer(icsk->icsk_ulp_data, NULL);
 	tcp_sk(sk)->is_mptcp = 0;
+
+	mptcp_subflow_ops_undo_override(sk);
 }
 
 static void subflow_drop_ctx(struct sock *ssk)
@@ -681,6 +688,7 @@ dispose_child:
 }
 
 static struct inet_connection_sock_af_ops subflow_specific;
+static struct proto tcp_prot_override;
 
 enum mapping_status {
 	MAPPING_OK,
@@ -1040,7 +1048,10 @@ static void subflow_data_ready(struct sock *sk)
 
 static void subflow_write_space(struct sock *ssk)
 {
-	/* we take action in __mptcp_clean_una() */
+	struct sock *sk = mptcp_subflow_ctx(ssk)->conn;
+
+	mptcp_propagate_sndbuf(sk, ssk);
+	mptcp_write_space(sk);
 }
 
 static struct inet_connection_sock_af_ops *
@@ -1159,6 +1170,9 @@ int __mptcp_subflow_connect(struct sock *sk, const struct mptcp_addr_info *loc,
 	if (err && err != -EINPROGRESS)
 		goto failed_unlink;
 
+	/* discard the subflow socket */
+	mptcp_sock_graft(ssk, sk->sk_socket);
+	iput(SOCK_INODE(sf));
 	return err;
 
 failed_unlink:
@@ -1196,6 +1210,25 @@ static void mptcp_attach_cgroup(struct sock *parent, struct sock *child)
 #endif /* CONFIG_SOCK_CGROUP_DATA */
 }
 
+static void mptcp_subflow_ops_override(struct sock *ssk)
+{
+#if IS_ENABLED(CONFIG_MPTCP_IPV6)
+	if (ssk->sk_prot == &tcpv6_prot)
+		ssk->sk_prot = &tcpv6_prot_override;
+	else
+#endif
+		ssk->sk_prot = &tcp_prot_override;
+}
+
+static void mptcp_subflow_ops_undo_override(struct sock *ssk)
+{
+#if IS_ENABLED(CONFIG_MPTCP_IPV6)
+	if (ssk->sk_prot == &tcpv6_prot_override)
+		ssk->sk_prot = &tcpv6_prot;
+	else
+#endif
+		ssk->sk_prot = &tcp_prot;
+}
 int mptcp_subflow_create_socket(struct sock *sk, struct socket **new_sock)
 {
 	struct mptcp_subflow_context *subflow;
@@ -1251,6 +1284,7 @@ int mptcp_subflow_create_socket(struct sock *sk, struct socket **new_sock)
 	*new_sock = sf;
 	sock_hold(sk);
 	subflow->conn = sk;
+	mptcp_subflow_ops_override(sf->sk);
 
 	return 0;
 }
@@ -1267,6 +1301,7 @@ static struct mptcp_subflow_context *subflow_create_ctx(struct sock *sk,
 
 	rcu_assign_pointer(icsk->icsk_ulp_data, ctx);
 	INIT_LIST_HEAD(&ctx->node);
+	INIT_LIST_HEAD(&ctx->delegated_node);
 
 	pr_debug("subflow=%p", ctx);
 
@@ -1299,6 +1334,7 @@ static void subflow_state_change(struct sock *sk)
 	__subflow_state_change(sk);
 
 	if (subflow_simultaneous_connect(sk)) {
+		mptcp_propagate_sndbuf(parent, sk);
 		mptcp_do_fallback(sk);
 		mptcp_rcv_space_init(mptcp_sk(parent), sk);
 		pr_fallback(mptcp_sk(parent));
@@ -1378,6 +1414,7 @@ static void subflow_ulp_release(struct sock *ssk)
 		sock_put(sk);
 	}
 
+	mptcp_subflow_ops_undo_override(ssk);
 	if (release)
 		kfree_rcu(ctx, rcu);
 }
@@ -1431,6 +1468,16 @@ static void subflow_ulp_clone(const struct request_sock *req,
 	}
 }
 
+static void tcp_release_cb_override(struct sock *ssk)
+{
+	struct mptcp_subflow_context *subflow = mptcp_subflow_ctx(ssk);
+
+	if (mptcp_subflow_has_delegated_action(subflow))
+		mptcp_subflow_process_delegated(ssk);
+
+	tcp_release_cb(ssk);
+}
+
 static struct tcp_ulp_ops subflow_ulp_ops __read_mostly = {
 	.name		= "mptcp",
 	.owner		= THIS_MODULE,
@@ -1471,6 +1518,9 @@ void __init mptcp_subflow_init(void)
 	subflow_specific.syn_recv_sock = subflow_syn_recv_sock;
 	subflow_specific.sk_rx_dst_set = subflow_finish_connect;
 
+	tcp_prot_override = tcp_prot;
+	tcp_prot_override.release_cb = tcp_release_cb_override;
+
 #if IS_ENABLED(CONFIG_MPTCP_IPV6)
 	subflow_request_sock_ipv6_ops = tcp_request_sock_ipv6_ops;
 	subflow_request_sock_ipv6_ops.route_req = subflow_v6_route_req;
@@ -1486,6 +1536,9 @@ void __init mptcp_subflow_init(void)
 	subflow_v6m_specific.net_header_len = ipv4_specific.net_header_len;
 	subflow_v6m_specific.mtu_reduced = ipv4_specific.mtu_reduced;
 	subflow_v6m_specific.net_frag_header_len = 0;
+
+	tcpv6_prot_override = tcpv6_prot;
+	tcpv6_prot_override.release_cb = tcp_release_cb_override;
 #endif
 
 	mptcp_diag_subflow_init(&subflow_ulp_ops);
