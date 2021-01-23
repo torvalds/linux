@@ -914,8 +914,7 @@ struct hns_roce_hw {
 	int (*write_mtpt)(struct hns_roce_dev *hr_dev, void *mb_buf,
 			  struct hns_roce_mr *mr, unsigned long mtpt_idx);
 	int (*rereg_write_mtpt)(struct hns_roce_dev *hr_dev,
-				struct hns_roce_mr *mr, int flags, u32 pdn,
-				int mr_access_flags, u64 iova, u64 size,
+				struct hns_roce_mr *mr, int flags,
 				void *mb_buf);
 	int (*frmr_write_mtpt)(struct hns_roce_dev *hr_dev, void *mb_buf,
 			       struct hns_roce_mr *mr);
@@ -1284,7 +1283,6 @@ u8 hns_get_gid_index(struct hns_roce_dev *hr_dev, u8 port, int gid_index);
 void hns_roce_handle_device_err(struct hns_roce_dev *hr_dev);
 int hns_roce_init(struct hns_roce_dev *hr_dev);
 void hns_roce_exit(struct hns_roce_dev *hr_dev);
-
 int hns_roce_fill_res_cq_entry(struct sk_buff *msg,
 			       struct ib_cq *ib_cq);
 #endif /* _HNS_ROCE_DEVICE_H */

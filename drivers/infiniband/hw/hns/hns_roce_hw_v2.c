@@ -2927,20 +2927,17 @@ static int hns_roce_v2_write_mtpt(struct hns_roce_dev *hr_dev,
 
 static int hns_roce_v2_rereg_write_mtpt(struct hns_roce_dev *hr_dev,
 					struct hns_roce_mr *mr, int flags,
-					u32 pdn, int mr_access_flags, u64 iova,
-					u64 size, void *mb_buf)
+					void *mb_buf)
 {
 	struct hns_roce_v2_mpt_entry *mpt_entry = mb_buf;
+	u32 mr_access_flags = mr->access;
 	int ret = 0;
 
 	roce_set_field(mpt_entry->byte_4_pd_hop_st, V2_MPT_BYTE_4_MPT_ST_M,
 		       V2_MPT_BYTE_4_MPT_ST_S, V2_MPT_ST_VALID);
 
-	if (flags & IB_MR_REREG_PD) {
-		roce_set_field(mpt_entry->byte_4_pd_hop_st, V2_MPT_BYTE_4_PD_M,
-			       V2_MPT_BYTE_4_PD_S, pdn);
-		mr->pd = pdn;
-	}
+	roce_set_field(mpt_entry->byte_4_pd_hop_st, V2_MPT_BYTE_4_PD_M,
+		       V2_MPT_BYTE_4_PD_S, mr->pd);
 
 	if (flags & IB_MR_REREG_ACCESS) {
 		roce_set_bit(mpt_entry->byte_8_mw_cnt_en,
@@ -2958,13 +2955,10 @@ static int hns_roce_v2_rereg_write_mtpt(struct hns_roce_dev *hr_dev,
 	}
 
 	if (flags & IB_MR_REREG_TRANS) {
-		mpt_entry->va_l = cpu_to_le32(lower_32_bits(iova));
-		mpt_entry->va_h = cpu_to_le32(upper_32_bits(iova));
-		mpt_entry->len_l = cpu_to_le32(lower_32_bits(size));
-		mpt_entry->len_h = cpu_to_le32(upper_32_bits(size));
-
-		mr->iova = iova;
-		mr->size = size;
+		mpt_entry->va_l = cpu_to_le32(lower_32_bits(mr->iova));
+		mpt_entry->va_h = cpu_to_le32(upper_32_bits(mr->iova));
+		mpt_entry->len_l = cpu_to_le32(lower_32_bits(mr->size));
+		mpt_entry->len_h = cpu_to_le32(upper_32_bits(mr->size));
 
 		ret = set_mtpt_pbl(hr_dev, mpt_entry, mr);
 	}
