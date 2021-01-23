@@ -868,26 +868,6 @@ xfs_restore_resvblks(struct xfs_mount *mp)
 }
 
 /*
- * Trigger writeback of all the dirty metadata in the file system.
- *
- * This ensures that the metadata is written to their location on disk rather
- * than just existing in transactions in the log. This means after a quiesce
- * there is no log replay required to write the inodes to disk - this is the
- * primary difference between a sync and a quiesce.
- *
- * We cancel log work early here to ensure all transactions the log worker may
- * run have finished before we clean up and log the superblock and write an
- * unmount record. The unfreeze process is responsible for restarting the log
- * worker correctly.
- */
-void
-xfs_quiesce_attr(
-	struct xfs_mount	*mp)
-{
-	xfs_log_clean(mp);
-}
-
-/*
  * Second stage of a freeze. The data is already frozen so we only
  * need to take care of the metadata. Once that's done sync the superblock
  * to the log to dirty it in case of a crash while frozen. This ensures that we
@@ -909,7 +889,7 @@ xfs_fs_freeze(
 	flags = memalloc_nofs_save();
 	xfs_stop_block_reaping(mp);
 	xfs_save_resvblks(mp);
-	xfs_quiesce_attr(mp);
+	xfs_log_clean(mp);
 	ret = xfs_sync_sb(mp, true);
 	memalloc_nofs_restore(flags);
 	return ret;
@@ -1752,7 +1732,7 @@ xfs_remount_ro(
 	 */
 	xfs_save_resvblks(mp);
 
-	xfs_quiesce_attr(mp);
+	xfs_log_clean(mp);
 	mp->m_flags |= XFS_MOUNT_RDONLY;
 
 	return 0;

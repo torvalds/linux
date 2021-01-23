@@ -946,7 +946,7 @@ xfs_mountfs(
 	 */
 	if ((mp->m_flags & (XFS_MOUNT_RDONLY|XFS_MOUNT_NORECOVERY)) ==
 							XFS_MOUNT_RDONLY) {
-		xfs_quiesce_attr(mp);
+		xfs_log_clean(mp);
 	}
 
 	/*
