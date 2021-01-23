@@ -115,7 +115,8 @@ struct papyrus_sess {
 	uint8_t upseq1;
 	uint8_t dwnseq0;
 	uint8_t dwnseq1;
-
+	int irq;
+	struct gpio_desc *int_pin;
 	struct gpio_desc *pwr_en_pin;
 	struct gpio_desc *pwr_up_pin;
 	struct gpio_desc *wake_up_pin;
@@ -188,11 +189,15 @@ static int papyrus_hw_getreg(struct papyrus_sess *sess, uint8_t regaddr, uint8_t
 	return stat;
 }
 
-static void papyrus_hw_get_pg(struct papyrus_sess *sess, struct papyrus_hw_state *hwst)
+static void papyrus_hw_get_int_state(struct papyrus_sess *sess, struct papyrus_hw_state *hwst)
 {
 	int stat;
 
-	stat = papyrus_hw_getreg(sess, PAPYRUS_ADDR_PG_STATUS, &hwst->pg_status);
+	stat = papyrus_hw_getreg(sess, PAPYRUS_ADDR_INT_STATUS1, &hwst->int_status1);
+	if (stat)
+		dev_err(&sess->client->dev, "i2c error: %d\n", stat);
+
+	stat = papyrus_hw_getreg(sess, PAPYRUS_ADDR_INT_STATUS2, &hwst->int_status2);
 	if (stat)
 		dev_err(&sess->client->dev, "i2c error: %d\n", stat);
 }
@@ -209,8 +214,7 @@ static bool papyrus_hw_power_ack(struct papyrus_sess *sess, int up)
 	}
 
 	do {
-		papyrus_hw_get_pg(sess, &hwst);
-
+		papyrus_hw_getreg(sess, PAPYRUS_ADDR_PG_STATUS, &hwst.pg_status);
 		dev_dbg(&sess->client->dev, "hwst: tmst_val=%d, ist1=%02x, ist2=%02x, pg=%02x\n",
 			hwst.tmst_value, hwst.int_status1, hwst.int_status2, hwst.pg_status);
 		hwst.pg_status &= 0xfa;
@@ -275,6 +279,23 @@ static void papyrus_hw_send_powerdown(struct papyrus_sess *sess)
 	mutex_unlock(&sess->power_lock);
 
 	return;
+}
+
+static irqreturn_t papyrus_irq(int irq, void *dev_id)
+{
+	struct papyrus_sess *sess = dev_id;
+	struct papyrus_hw_state hwst;
+
+	papyrus_hw_get_int_state(sess, &hwst);
+	dev_info(&sess->client->dev, "%s: (INT1 = %02x, INT2 = %02x)\n", __func__,
+						hwst.int_status1, hwst.int_status2);
+	//reset pmic
+	if ((hwst.int_status2 & 0xfa) || (hwst.int_status1 & 0x04)) {
+		if (sess->enable_reg_shadow | V3P3_EN_MASK)
+			papyrus_hw_setreg(sess, PAPYRUS_ADDR_ENABLE, sess->enable_reg_shadow);
+	}
+
+	return IRQ_HANDLED;
 }
 
 static int papyrus_hw_get_revid(struct papyrus_sess *sess)
@@ -366,12 +387,15 @@ static void papyrus_hw_power_req(struct ebc_pmic *pmic, bool up)
 {
 	struct papyrus_sess *sess = (struct papyrus_sess *)pmic->drvpar;
 
-	if (up)
+	if (up) {
 		papyrus_hw_send_powerup(sess);
-	else
+		papyrus_hw_power_ack(sess, up);
+		enable_irq(sess->irq);
+	} else {
+		disable_irq(sess->irq);
 		papyrus_hw_send_powerdown(sess);
-
-	papyrus_hw_power_ack(sess, up);
+		papyrus_hw_power_ack(sess, up);
+	}
 
 	return;
 }
@@ -490,6 +514,27 @@ static int papyrus_probe(struct ebc_pmic *pmic, struct i2c_client *client)
 	sess->pwr_up_pin = devm_gpiod_get_optional(&client->dev, "powerup", GPIOD_OUT_HIGH);
 	if (IS_ERR_OR_NULL(sess->pwr_up_pin))
 		dev_err(&client->dev, "tsp65185: no pwr_up pin find\n");
+
+	sess->int_pin = devm_gpiod_get(&client->dev, "int", GPIOD_IN);
+	if (IS_ERR(sess->int_pin)) {
+		dev_err(&client->dev, "tsp65185: failed to find int pin\n");
+		return PTR_ERR(sess->int_pin);
+	}
+	sess->irq = gpiod_to_irq(sess->int_pin);
+	if (sess->irq < 0) {
+		dev_err(&client->dev, "Unable to get irq number for int pin\n");
+		return sess->irq;
+	}
+
+	irq_set_status_flags(sess->irq, IRQ_NOAUTOEN);
+	stat = devm_request_threaded_irq(&client->dev, sess->irq, NULL, papyrus_irq,
+					IRQF_TRIGGER_LOW | IRQF_ONESHOT,
+					"tps65185", sess);
+	if (stat) {
+		dev_err(&client->dev,
+			"Failed to enable IRQ, error: %d\n", stat);
+		return stat;
+	}
 
 	stat = papyrus_hw_init(sess);
 	if (stat)
