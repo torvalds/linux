@@ -27,7 +27,7 @@ static DECLARE_BITMAP(irqs_resend, IRQ_BITMAP_BITS);
 /*
  * Run software resends of IRQ's
  */
-static void resend_irqs(unsigned long arg)
+static void resend_irqs(struct tasklet_struct *unused)
 {
 	struct irq_desc *desc;
 	int irq;
@@ -45,7 +45,7 @@ static void resend_irqs(unsigned long arg)
 }
 
 /* Tasklet to handle resend: */
-static DECLARE_TASKLET_OLD(resend_tasklet, resend_irqs);
+static DECLARE_TASKLET(resend_tasklet, resend_irqs);
 
 static int irq_sw_resend(struct irq_desc *desc)
 {
