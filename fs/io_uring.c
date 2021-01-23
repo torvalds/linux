@@ -1075,8 +1075,11 @@ static bool io_match_task(struct io_kiocb *head,
 		return true;
 
 	io_for_each_link(req, head) {
-		if ((req->flags & REQ_F_WORK_INITIALIZED) &&
-		    (req->work.flags & IO_WQ_WORK_FILES) &&
+		if (!(req->flags & REQ_F_WORK_INITIALIZED))
+			continue;
+		if (req->file && req->file->f_op == &io_uring_fops)
+			return true;
+		if ((req->work.flags & IO_WQ_WORK_FILES) &&
 		    req->work.identity->files == files)
 			return true;
 	}
@@ -1505,11 +1508,14 @@ static bool io_grab_identity(struct io_kiocb *req)
 			return false;
 		atomic_inc(&id->files->count);
 		get_nsproxy(id->nsproxy);
-		req->flags |= REQ_F_INFLIGHT;
 
-		spin_lock_irq(&ctx->inflight_lock);
-		list_add(&req->inflight_entry, &ctx->inflight_list);
-		spin_unlock_irq(&ctx->inflight_lock);
+		if (!(req->flags & REQ_F_INFLIGHT)) {
+			req->flags |= REQ_F_INFLIGHT;
+
+			spin_lock_irq(&ctx->inflight_lock);
+			list_add(&req->inflight_entry, &ctx->inflight_list);
+			spin_unlock_irq(&ctx->inflight_lock);
+		}
 		req->work.flags |= IO_WQ_WORK_FILES;
 	}
 	if (!(req->work.flags & IO_WQ_WORK_MM) &&
@@ -6164,8 +6170,10 @@ static void io_req_drop_files(struct io_kiocb *req)
 	struct io_uring_task *tctx = req->task->io_uring;
 	unsigned long flags;
 
-	put_files_struct(req->work.identity->files);
-	put_nsproxy(req->work.identity->nsproxy);
+	if (req->work.flags & IO_WQ_WORK_FILES) {
+		put_files_struct(req->work.identity->files);
+		put_nsproxy(req->work.identity->nsproxy);
+	}
 	spin_lock_irqsave(&ctx->inflight_lock, flags);
 	list_del(&req->inflight_entry);
 	spin_unlock_irqrestore(&ctx->inflight_lock, flags);
@@ -6448,6 +6456,15 @@ static struct file *io_file_get(struct io_submit_state *state,
 	} else {
 		trace_io_uring_file_get(ctx, fd);
 		file = __io_file_get(state, fd);
+	}
+
+	if (file && file->f_op == &io_uring_fops) {
+		io_req_init_async(req);
+		req->flags |= REQ_F_INFLIGHT;
+
+		spin_lock_irq(&ctx->inflight_lock);
+		list_add(&req->inflight_entry, &ctx->inflight_list);
+		spin_unlock_irq(&ctx->inflight_lock);
 	}
 
 	return file;
@@ -8860,8 +8877,7 @@ static void io_uring_cancel_files(struct io_ring_ctx *ctx,
 
 		spin_lock_irq(&ctx->inflight_lock);
 		list_for_each_entry(req, &ctx->inflight_list, inflight_entry) {
-			if (req->task != task ||
-			    req->work.identity->files != files)
+			if (!io_match_task(req, task, files))
 				continue;
 			found = true;
 			break;
