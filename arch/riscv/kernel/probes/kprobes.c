@@ -57,7 +57,7 @@ int __kprobes arch_prepare_kprobe(struct kprobe *p)
 	}
 
 	/* copy instruction */
-	p->opcode = le32_to_cpu(*p->addr);
+	p->opcode = *p->addr;
 
 	/* decode instruction */
 	switch (riscv_probe_decode_insn(p->addr, &p->ainsn.api)) {

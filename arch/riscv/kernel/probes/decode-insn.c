@@ -16,7 +16,7 @@
 enum probe_insn __kprobes
 riscv_probe_decode_insn(probe_opcode_t *addr, struct arch_probe_insn *api)
 {
-	probe_opcode_t insn = le32_to_cpu(*addr);
+	probe_opcode_t insn = *addr;
 
 	/*
 	 * Reject instructions list:
