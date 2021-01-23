@@ -89,6 +89,13 @@ struct xfs_ifork {
 #define XFS_IEXT_REFLINK_END_COW_CNT	(2)
 
 /*
+ * Removing an initial range of source/donor file's extent and adding a new
+ * extent (from donor/source file) in its place will cause extent count to
+ * increase by 1.
+ */
+#define XFS_IEXT_SWAP_RMAP_CNT		(1)
+
+/*
  * Fork handling.
  */
 
