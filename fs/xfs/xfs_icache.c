@@ -1645,6 +1645,38 @@ xfs_start_block_reaping(
 	xfs_queue_cowblocks(mp);
 }
 
+/* Scan all incore inodes for block preallocations that we can remove. */
+static inline int
+xfs_blockgc_scan(
+	struct xfs_mount	*mp,
+	struct xfs_eofblocks	*eofb)
+{
+	int			error;
+
+	error = xfs_icache_free_eofblocks(mp, eofb);
+	if (error)
+		return error;
+
+	error = xfs_icache_free_cowblocks(mp, eofb);
+	if (error)
+		return error;
+
+	return 0;
+}
+
+/*
+ * Try to free space in the filesystem by purging eofblocks and cowblocks.
+ */
+int
+xfs_blockgc_free_space(
+	struct xfs_mount	*mp,
+	struct xfs_eofblocks	*eofb)
+{
+	trace_xfs_blockgc_free_space(mp, eofb, _RET_IP_);
+
+	return xfs_blockgc_scan(mp, eofb);
+}
+
 /*
  * Run cow/eofblocks scans on the supplied dquots.  We don't know exactly which
  * quota caused an allocation failure, so we make a best effort by including
@@ -1665,7 +1697,6 @@ xfs_blockgc_free_dquots(
 {
 	struct xfs_eofblocks	eofb = {0};
 	bool			do_work = false;
-	int			error;
 
 	if (!udqp && !gdqp && !pdqp)
 		return 0;
@@ -1697,11 +1728,7 @@ xfs_blockgc_free_dquots(
 	if (!do_work)
 		return 0;
 
-	error = xfs_icache_free_eofblocks(mp, &eofb);
-	if (error)
-		return error;
-
-	return xfs_icache_free_cowblocks(mp, &eofb);
+	return xfs_blockgc_free_space(mp, &eofb);
 }
 
 /* Run cow/eofblocks scans on the quotas attached to the inode. */
