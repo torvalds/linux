@@ -32,6 +32,7 @@
 
 #ifndef _HNS_ROCE_COMMON_H
 #define _HNS_ROCE_COMMON_H
+#include <linux/bitfield.h>
 
 #define roce_write(dev, reg, val)	writel((val), (dev)->reg_base + (reg))
 #define roce_read(dev, reg)		readl((dev)->reg_base + (reg))
@@ -64,6 +65,27 @@
 	})
 
 #define hr_reg_enable(ptr, field) _hr_reg_enable(ptr, field)
+
+#define _hr_reg_clear(ptr, field_type, field_h, field_l)                       \
+	({                                                                     \
+		const field_type *_ptr = ptr;                                  \
+		*((__le32 *)_ptr + (field_h) / 32) &=                          \
+			cpu_to_le32(                                           \
+				~GENMASK((field_h) % 32, (field_l) % 32)) +    \
+			BUILD_BUG_ON_ZERO(((field_h) / 32) !=                  \
+					  ((field_l) / 32));                   \
+	})
+
+#define hr_reg_clear(ptr, field) _hr_reg_clear(ptr, field)
+
+#define _hr_reg_write(ptr, field_type, field_h, field_l, val)                  \
+	({                                                                     \
+		_hr_reg_clear(ptr, field_type, field_h, field_l);              \
+		*((__le32 *)ptr + (field_h) / 32) |= cpu_to_le32(FIELD_PREP(   \
+			GENMASK((field_h) % 32, (field_l) % 32), val));        \
+	})
+
+#define hr_reg_write(ptr, field, val) _hr_reg_write(ptr, field, val)
 
 #define ROCEE_GLB_CFG_ROCEE_DB_SQ_MODE_S 3
 #define ROCEE_GLB_CFG_ROCEE_DB_OTH_MODE_S 4

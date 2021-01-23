@@ -2880,36 +2880,20 @@ static int hns_roce_v2_write_mtpt(struct hns_roce_dev *hr_dev,
 	mpt_entry = mb_buf;
 	memset(mpt_entry, 0, sizeof(*mpt_entry));
 
-	roce_set_field(mpt_entry->byte_4_pd_hop_st, V2_MPT_BYTE_4_MPT_ST_M,
-		       V2_MPT_BYTE_4_MPT_ST_S, V2_MPT_ST_VALID);
-	roce_set_field(mpt_entry->byte_4_pd_hop_st, V2_MPT_BYTE_4_PBL_HOP_NUM_M,
-		       V2_MPT_BYTE_4_PBL_HOP_NUM_S, mr->pbl_hop_num ==
-		       HNS_ROCE_HOP_NUM_0 ? 0 : mr->pbl_hop_num);
-	roce_set_field(mpt_entry->byte_4_pd_hop_st,
-		       V2_MPT_BYTE_4_PBL_BA_PG_SZ_M,
-		       V2_MPT_BYTE_4_PBL_BA_PG_SZ_S,
-		       to_hr_hw_page_shift(mr->pbl_mtr.hem_cfg.ba_pg_shift));
-	roce_set_field(mpt_entry->byte_4_pd_hop_st, V2_MPT_BYTE_4_PD_M,
-		       V2_MPT_BYTE_4_PD_S, mr->pd);
+	hr_reg_write(mpt_entry, MPT_ST, V2_MPT_ST_VALID);
+	hr_reg_write(mpt_entry, MPT_PD, mr->pd);
+	hr_reg_enable(mpt_entry, MPT_L_INV_EN);
 
-	roce_set_bit(mpt_entry->byte_8_mw_cnt_en, V2_MPT_BYTE_8_RA_EN_S, 0);
-	roce_set_bit(mpt_entry->byte_8_mw_cnt_en, V2_MPT_BYTE_8_R_INV_EN_S, 0);
-	roce_set_bit(mpt_entry->byte_8_mw_cnt_en, V2_MPT_BYTE_8_L_INV_EN_S, 1);
-	roce_set_bit(mpt_entry->byte_8_mw_cnt_en, V2_MPT_BYTE_8_BIND_EN_S,
-		     (mr->access & IB_ACCESS_MW_BIND ? 1 : 0));
-	roce_set_bit(mpt_entry->byte_8_mw_cnt_en, V2_MPT_BYTE_8_ATOMIC_EN_S,
-		     mr->access & IB_ACCESS_REMOTE_ATOMIC ? 1 : 0);
-	roce_set_bit(mpt_entry->byte_8_mw_cnt_en, V2_MPT_BYTE_8_RR_EN_S,
-		     (mr->access & IB_ACCESS_REMOTE_READ ? 1 : 0));
-	roce_set_bit(mpt_entry->byte_8_mw_cnt_en, V2_MPT_BYTE_8_RW_EN_S,
-		     (mr->access & IB_ACCESS_REMOTE_WRITE ? 1 : 0));
-	roce_set_bit(mpt_entry->byte_8_mw_cnt_en, V2_MPT_BYTE_8_LW_EN_S,
-		     (mr->access & IB_ACCESS_LOCAL_WRITE ? 1 : 0));
-
-	roce_set_bit(mpt_entry->byte_12_mw_pa, V2_MPT_BYTE_12_PA_S,
-		     mr->type == MR_TYPE_MR ? 0 : 1);
-	roce_set_bit(mpt_entry->byte_12_mw_pa, V2_MPT_BYTE_12_INNER_PA_VLD_S,
-		     1);
+	hr_reg_write(mpt_entry, MPT_BIND_EN,
+		     !!(mr->access & IB_ACCESS_MW_BIND));
+	hr_reg_write(mpt_entry, MPT_ATOMIC_EN,
+		     !!(mr->access & IB_ACCESS_REMOTE_ATOMIC));
+	hr_reg_write(mpt_entry, MPT_RR_EN,
+		     !!(mr->access & IB_ACCESS_REMOTE_READ));
+	hr_reg_write(mpt_entry, MPT_RW_EN,
+		     !!(mr->access & IB_ACCESS_REMOTE_WRITE));
+	hr_reg_write(mpt_entry, MPT_LW_EN,
+		     !!((mr->access & IB_ACCESS_LOCAL_WRITE)));
 
 	mpt_entry->len_l = cpu_to_le32(lower_32_bits(mr->size));
 	mpt_entry->len_h = cpu_to_le32(upper_32_bits(mr->size));
@@ -2917,8 +2901,18 @@ static int hns_roce_v2_write_mtpt(struct hns_roce_dev *hr_dev,
 	mpt_entry->va_l = cpu_to_le32(lower_32_bits(mr->iova));
 	mpt_entry->va_h = cpu_to_le32(upper_32_bits(mr->iova));
 
+	if (mr->type != MR_TYPE_MR)
+		hr_reg_enable(mpt_entry, MPT_PA);
+
 	if (mr->type == MR_TYPE_DMA)
 		return 0;
+
+	if (mr->pbl_hop_num != HNS_ROCE_HOP_NUM_0)
+		hr_reg_write(mpt_entry, MPT_PBL_HOP_NUM, mr->pbl_hop_num);
+
+	hr_reg_write(mpt_entry, MPT_PBL_BA_PG_SZ,
+		     to_hr_hw_page_shift(mr->pbl_mtr.hem_cfg.ba_pg_shift));
+	hr_reg_enable(mpt_entry, MPT_INNER_PA_VLD);
 
 	ret = set_mtpt_pbl(hr_dev, mpt_entry, mr);
 
