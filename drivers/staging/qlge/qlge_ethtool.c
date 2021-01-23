@@ -328,8 +328,6 @@ end:
 	qlge_sem_unlock(qdev, qdev->xg_sem_mask);
 quit:
 	spin_unlock(&qdev->stats_lock);
-
-	QL_DUMP_STAT(qdev);
 }
 
 static void qlge_get_strings(struct net_device *dev, u32 stringset, u8 *buf)

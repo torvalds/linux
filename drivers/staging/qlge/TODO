@@ -14,10 +14,6 @@
   queues" is confusing.
 * struct rx_ring is used for rx and tx completions, with some members relevant
   to one case only
-* there is an inordinate amount of disparate debugging code, most of which is
-  of questionable value. In particular, qlge_dbg.c has hundreds of lines of
-  code bitrotting away in ifdef land (doesn't compile since commit
-  18c49b91777c ("qlge: do vlan cleanup", v3.1-rc1), 8 years ago).
 * the flow control implementation in firmware is buggy (sends a flood of pause
   frames, resets the link, device and driver buffer queues become
   desynchronized), disable it by default
