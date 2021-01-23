@@ -4394,13 +4394,13 @@ static int qlge_init_device(struct pci_dev *pdev, struct qlge_adapter *qdev,
 	err = pcie_set_readrq(pdev, 4096);
 	if (err) {
 		dev_err(&pdev->dev, "Set readrq failed.\n");
-		goto err_out1;
+		goto err_disable_pci;
 	}
 
 	err = pci_request_regions(pdev, DRV_NAME);
 	if (err) {
 		dev_err(&pdev->dev, "PCI region request failed.\n");
-		return err;
+		goto err_disable_pci;
 	}
 
 	pci_set_master(pdev);
@@ -4416,7 +4416,7 @@ static int qlge_init_device(struct pci_dev *pdev, struct qlge_adapter *qdev,
 
 	if (err) {
 		dev_err(&pdev->dev, "No usable DMA configuration.\n");
-		goto err_out2;
+		goto err_release_pci;
 	}
 
 	/* Set PCIe reset type for EEH to fundamental. */
@@ -4427,7 +4427,7 @@ static int qlge_init_device(struct pci_dev *pdev, struct qlge_adapter *qdev,
 	if (!qdev->reg_base) {
 		dev_err(&pdev->dev, "Register mapping failed.\n");
 		err = -ENOMEM;
-		goto err_out2;
+		goto err_release_pci;
 	}
 
 	qdev->doorbell_area_size = pci_resource_len(pdev, 3);
@@ -4436,14 +4436,14 @@ static int qlge_init_device(struct pci_dev *pdev, struct qlge_adapter *qdev,
 	if (!qdev->doorbell_area) {
 		dev_err(&pdev->dev, "Doorbell register mapping failed.\n");
 		err = -ENOMEM;
-		goto err_out2;
+		goto err_iounmap_base;
 	}
 
 	err = qlge_get_board_info(qdev);
 	if (err) {
 		dev_err(&pdev->dev, "Register access failed.\n");
 		err = -EIO;
-		goto err_out2;
+		goto err_iounmap_doorbell;
 	}
 	qdev->msg_enable = netif_msg_init(debug, default_msg);
 	spin_lock_init(&qdev->stats_lock);
@@ -4453,7 +4453,7 @@ static int qlge_init_device(struct pci_dev *pdev, struct qlge_adapter *qdev,
 			vmalloc(sizeof(struct qlge_mpi_coredump));
 		if (!qdev->mpi_coredump) {
 			err = -ENOMEM;
-			goto err_out2;
+			goto err_iounmap_doorbell;
 		}
 		if (qlge_force_coredump)
 			set_bit(QL_FRC_COREDUMP, &qdev->flags);
@@ -4462,7 +4462,7 @@ static int qlge_init_device(struct pci_dev *pdev, struct qlge_adapter *qdev,
 	err = qdev->nic_ops->get_flash(qdev);
 	if (err) {
 		dev_err(&pdev->dev, "Invalid FLASH.\n");
-		goto err_out2;
+		goto err_free_mpi_coredump;
 	}
 
 	/* Keep local copy of current mac address. */
@@ -4485,7 +4485,7 @@ static int qlge_init_device(struct pci_dev *pdev, struct qlge_adapter *qdev,
 						  ndev->name);
 	if (!qdev->workqueue) {
 		err = -ENOMEM;
-		goto err_out2;
+		goto err_free_mpi_coredump;
 	}
 
 	INIT_DELAYED_WORK(&qdev->asic_reset_work, qlge_asic_reset_work);
@@ -4503,10 +4503,18 @@ static int qlge_init_device(struct pci_dev *pdev, struct qlge_adapter *qdev,
 			 DRV_NAME, DRV_VERSION);
 	}
 	return 0;
-err_out2:
-	qlge_release_all(pdev);
-err_out1:
+
+err_free_mpi_coredump:
+	vfree(qdev->mpi_coredump);
+err_iounmap_doorbell:
+	iounmap(qdev->doorbell_area);
+err_iounmap_base:
+	iounmap(qdev->reg_base);
+err_release_pci:
+	pci_release_regions(pdev);
+err_disable_pci:
 	pci_disable_device(pdev);
+
 	return err;
 }
 
