@@ -200,7 +200,14 @@ xfs_file_fsync(
 	else if (mp->m_logdev_targp != mp->m_ddev_targp)
 		xfs_blkdev_issue_flush(mp->m_ddev_targp);
 
-	error = xfs_fsync_flush_log(ip, datasync, &log_flushed);
+	/*
+	 * Any inode that has dirty modifications in the log is pinned.  The
+	 * racy check here for a pinned inode while not catch modifications
+	 * that happen concurrently to the fsync call, but fsync semantics
+	 * only require to sync previously completed I/O.
+	 */
+	if (xfs_ipincount(ip))
+		error = xfs_fsync_flush_log(ip, datasync, &log_flushed);
 
 	/*
 	 * If we only have a single device, and the log force about was
