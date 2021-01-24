@@ -119,13 +119,6 @@ int arch_setup_additional_pages(struct linux_binprm *bprm, int uses_interp)
 
 	vdso_pages = vdso64_pages;
 	/*
-	 * vDSO has a problem and was disabled, just don't "enable" it for
-	 * the process
-	 */
-	if (vdso_pages == 0)
-		return 0;
-
-	/*
 	 * pick a base address for the vDSO in process space. We try to put
 	 * it at vdso_base which is the "natural" base for it, but we might
 	 * fail and end up putting it elsewhere.
