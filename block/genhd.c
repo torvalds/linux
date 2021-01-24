@@ -161,7 +161,7 @@ static void part_in_flight_rw(struct block_device *part,
 		inflight[1] = 0;
 }
 
-struct block_device *__disk_get_part(struct gendisk *disk, int partno)
+static struct block_device *__disk_get_part(struct gendisk *disk, int partno)
 {
 	struct disk_part_tbl *ptbl = rcu_dereference(disk->part_tbl);
 

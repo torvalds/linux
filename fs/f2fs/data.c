@@ -427,16 +427,6 @@ int f2fs_target_device_index(struct f2fs_sb_info *sbi, block_t blkaddr)
 	return 0;
 }
 
-/*
- * Return true, if pre_bio's bdev is same as its target device.
- */
-static bool __same_bdev(struct f2fs_sb_info *sbi,
-				block_t blk_addr, struct bio *bio)
-{
-	struct block_device *b = f2fs_target_device(sbi, blk_addr, NULL);
-	return bio->bi_disk == b->bd_disk && bio->bi_partno == b->bd_partno;
-}
-
 static struct bio *__bio_alloc(struct f2fs_io_info *fio, int npages)
 {
 	struct f2fs_sb_info *sbi = fio->sbi;
@@ -741,7 +731,7 @@ static bool page_is_mergeable(struct f2fs_sb_info *sbi, struct bio *bio,
 		return false;
 	if (last_blkaddr + 1 != cur_blkaddr)
 		return false;
-	return __same_bdev(sbi, cur_blkaddr, bio);
+	return bio->bi_bdev == f2fs_target_device(sbi, cur_blkaddr, NULL);
 }
 
 static bool io_type_is_mergeable(struct f2fs_bio_info *io,

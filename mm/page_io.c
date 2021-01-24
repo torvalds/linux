@@ -433,7 +433,7 @@ int swap_readpage(struct page *page, bool synchronous)
 		ret = -ENOMEM;
 		goto out;
 	}
-	disk = bio->bi_disk;
+	disk = bio->bi_bdev->bd_disk;
 	/*
 	 * Keep this task valid during swap readpage because the oom killer may
 	 * attempt to access it in the page fault retry time check.

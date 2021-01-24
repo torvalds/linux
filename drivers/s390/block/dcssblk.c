@@ -879,7 +879,7 @@ dcssblk_submit_bio(struct bio *bio)
 	blk_queue_split(&bio);
 
 	bytes_done = 0;
-	dev_info = bio->bi_disk->private_data;
+	dev_info = bio->bi_bdev->bd_disk->private_data;
 	if (dev_info == NULL)
 		goto fail;
 	if ((bio->bi_iter.bi_sector & 7) != 0 ||

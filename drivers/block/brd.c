@@ -284,7 +284,7 @@ out:
 
 static blk_qc_t brd_submit_bio(struct bio *bio)
 {
-	struct brd_device *brd = bio->bi_disk->private_data;
+	struct brd_device *brd = bio->bi_bdev->bd_disk->private_data;
 	sector_t sector = bio->bi_iter.bi_sector;
 	struct bio_vec bvec;
 	struct bvec_iter iter;

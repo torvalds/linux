@@ -483,24 +483,22 @@ extern void bvec_free(mempool_t *, struct bio_vec *, unsigned int);
 extern unsigned int bvec_nr_vecs(unsigned short idx);
 extern const char *bio_devname(struct bio *bio, char *buffer);
 
-#define bio_set_dev(bio, bdev) 			\
-do {						\
-	if ((bio)->bi_disk != (bdev)->bd_disk)	\
-		bio_clear_flag(bio, BIO_THROTTLED);\
-	(bio)->bi_disk = (bdev)->bd_disk;	\
-	(bio)->bi_partno = (bdev)->bd_partno;	\
-	bio_associate_blkg(bio);		\
+#define bio_set_dev(bio, bdev) 				\
+do {							\
+	if ((bio)->bi_bdev != (bdev))			\
+		bio_clear_flag(bio, BIO_THROTTLED);	\
+	(bio)->bi_bdev = (bdev);			\
+	bio_associate_blkg(bio);			\
 } while (0)
 
 #define bio_copy_dev(dst, src)			\
 do {						\
-	(dst)->bi_disk = (src)->bi_disk;	\
-	(dst)->bi_partno = (src)->bi_partno;	\
+	(dst)->bi_bdev = (src)->bi_bdev;	\
 	bio_clone_blkg_association(dst, src);	\
 } while (0)
 
 #define bio_dev(bio) \
-	disk_devt((bio)->bi_disk)
+	disk_devt((bio)->bi_bdev->bd_disk)
 
 #ifdef CONFIG_BLK_CGROUP
 void bio_associate_blkg(struct bio *bio);

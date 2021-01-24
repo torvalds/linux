@@ -486,7 +486,7 @@ static void md_end_io(struct bio *bio)
 static blk_qc_t md_submit_bio(struct bio *bio)
 {
 	const int rw = bio_data_dir(bio);
-	struct mddev *mddev = bio->bi_disk->private_data;
+	struct mddev *mddev = bio->bi_bdev->bd_disk->private_data;
 
 	if (mddev == NULL || mddev->pers == NULL) {
 		bio_io_error(bio);
