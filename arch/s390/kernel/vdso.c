@@ -175,7 +175,10 @@ static int __init vdso_init(void)
 	/* Make sure pages are in the correct state */
 	vdso64_pagelist = kcalloc(vdso64_pages + 1, sizeof(struct page *),
 				  GFP_KERNEL);
-	BUG_ON(vdso64_pagelist == NULL);
+	if (!vdso64_pagelist) {
+		vdso_enabled = 0;
+		return -ENOMEM;
+	}
 	for (i = 0; i < vdso64_pages - 1; i++) {
 		struct page *pg = virt_to_page(vdso64_kbase + i*PAGE_SIZE);
 		get_page(pg);
