@@ -38,6 +38,7 @@
 #include <linux/mlx5/fs.h>
 #include "mlx5_core.h"
 #include "eswitch.h"
+#include "esw/indir_table.h"
 #include "esw/acl/ofld.h"
 #include "rdma.h"
 #include "en.h"
@@ -2342,11 +2343,19 @@ static void esw_destroy_uplink_offloads_acl_tables(struct mlx5_eswitch *esw)
 
 static int esw_offloads_steering_init(struct mlx5_eswitch *esw)
 {
+	struct mlx5_esw_indir_table *indir;
 	int err;
 
 	memset(&esw->fdb_table.offloads, 0, sizeof(struct offloads_fdb));
 	mutex_init(&esw->fdb_table.offloads.vports.lock);
 	hash_init(esw->fdb_table.offloads.vports.table);
+
+	indir = mlx5_esw_indir_table_init();
+	if (IS_ERR(indir)) {
+		err = PTR_ERR(indir);
+		goto create_indir_err;
+	}
+	esw->fdb_table.offloads.indir = indir;
 
 	err = esw_create_uplink_offloads_acl_tables(esw);
 	if (err)
@@ -2379,6 +2388,8 @@ create_restore_err:
 create_offloads_err:
 	esw_destroy_uplink_offloads_acl_tables(esw);
 create_acl_err:
+	mlx5_esw_indir_table_destroy(esw->fdb_table.offloads.indir);
+create_indir_err:
 	mutex_destroy(&esw->fdb_table.offloads.vports.lock);
 	return err;
 }
@@ -2390,6 +2401,7 @@ static void esw_offloads_steering_cleanup(struct mlx5_eswitch *esw)
 	esw_destroy_restore_table(esw);
 	esw_destroy_offloads_table(esw);
 	esw_destroy_uplink_offloads_acl_tables(esw);
+	mlx5_esw_indir_table_destroy(esw->fdb_table.offloads.indir);
 	mutex_destroy(&esw->fdb_table.offloads.vports.lock);
 }
 

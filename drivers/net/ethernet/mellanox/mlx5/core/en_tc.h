@@ -76,11 +76,25 @@ struct mlx5_flow_attr {
 	struct mlx5_flow_table *dest_ft;
 	u8 inner_match_level;
 	u8 outer_match_level;
+	u8 ip_version;
 	u32 flags;
 	union {
 		struct mlx5_esw_flow_attr esw_attr[0];
 		struct mlx5_nic_flow_attr nic_attr[0];
 	};
+};
+
+struct mlx5_rx_tun_attr {
+	u16 decap_vport;
+	union {
+		__be32 v4;
+		struct in6_addr v6;
+	} src_ip; /* Valid if decap_vport is not zero */
+	union {
+		__be32 v4;
+		struct in6_addr v6;
+	} dst_ip; /* Valid if decap_vport is not zero */
+	u32 vni;
 };
 
 #define MLX5E_TC_TABLE_CHAIN_TAG_BITS 16

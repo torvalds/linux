@@ -161,6 +161,8 @@ struct mlx5_vport {
 	struct devlink_port *dl_port;
 };
 
+struct mlx5_esw_indir_table;
+
 struct mlx5_eswitch_fdb {
 	union {
 		struct legacy_fdb {
@@ -190,6 +192,8 @@ struct mlx5_eswitch_fdb {
 				/* Protects vports.table */
 				struct mutex lock;
 			} vports;
+
+			struct mlx5_esw_indir_table *indir;
 
 		} offloads;
 	};
@@ -418,6 +422,7 @@ struct mlx5_esw_flow_attr {
 		struct mlx5_core_dev *mdev;
 		struct mlx5_termtbl_handle *termtbl;
 	} dests[MLX5_MAX_FLOW_FWD_VPORTS];
+	struct mlx5_rx_tun_attr *rx_tun_attr;
 	struct mlx5_pkt_reformat *decap_pkt_reformat;
 };
 
