@@ -127,6 +127,26 @@ properties:
       driver to sample the receive data (for example with a voltage switch
       transceiver).
 
+  st,cmd-gpios:
+    maxItems: 1
+    description:
+      The GPIO matching the CMD pin.
+
+  st,ck-gpios:
+    maxItems: 1
+    description:
+      The GPIO matching the CK pin.
+
+  st,ckin-gpios:
+    maxItems: 1
+    description:
+      The GPIO matching the CKIN pin.
+
+dependencies:
+  st,cmd-gpios: [ "st,use-ckin" ]
+  st,ck-gpios: [ "st,use-ckin" ]
+  st,ckin-gpios: [ "st,use-ckin" ]
+
 unevaluatedProperties: false
 
 required:
