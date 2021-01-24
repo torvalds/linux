@@ -488,7 +488,6 @@ int btrfs_sb_log_location_bdev(struct block_device *bdev, int mirror, int rw,
 	unsigned int zone_sectors;
 	u32 sb_zone;
 	int ret;
-	u64 zone_size;
 	u8 zone_sectors_shift;
 	sector_t nr_sectors;
 	u32 nr_zones;
@@ -503,7 +502,6 @@ int btrfs_sb_log_location_bdev(struct block_device *bdev, int mirror, int rw,
 	zone_sectors = bdev_zone_sectors(bdev);
 	if (!is_power_of_2(zone_sectors))
 		return -EINVAL;
-	zone_size = zone_sectors << SECTOR_SHIFT;
 	zone_sectors_shift = ilog2(zone_sectors);
 	nr_sectors = bdev_nr_sectors(bdev);
 	nr_zones = nr_sectors >> zone_sectors_shift;
