@@ -425,6 +425,9 @@ include::itrace.txt[]
 	For example, to select the symbol noploop or the address 0x4007a0:
 	perf script --symbols=noploop,0x4007a0
 
+--dsos=::
+	Only consider symbols in these DSOs.
+
 --call-trace::
 	Show call stream for intel_pt traces. The CPUs are interleaved, but
 	can be filtered with -C.
