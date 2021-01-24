@@ -4,8 +4,7 @@
 
 #include <vdso/datapage.h>
 
-/* Default link addresses for the vDSOs */
-#define VDSO32_LBASE	0
+/* Default link address for the vDSO */
 #define VDSO64_LBASE	0
 
 #define VDSO_VERSION_STRING	LINUX_2.6.29
