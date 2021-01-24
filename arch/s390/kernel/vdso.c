@@ -6,40 +6,40 @@
  *  Author(s): Martin Schwidefsky (schwidefsky@de.ibm.com)
  */
 
-#include <linux/init.h>
+#include <linux/binfmts.h>
+#include <linux/compat.h>
+#include <linux/elf.h>
 #include <linux/errno.h>
-#include <linux/sched.h>
+#include <linux/init.h>
 #include <linux/kernel.h>
 #include <linux/mm.h>
-#include <linux/smp.h>
-#include <linux/stddef.h>
-#include <linux/unistd.h>
 #include <linux/slab.h>
-#include <linux/user.h>
-#include <linux/elf.h>
-#include <linux/security.h>
-#include <linux/memblock.h>
-#include <linux/compat.h>
-#include <linux/binfmts.h>
+#include <linux/smp.h>
 #include <vdso/datapage.h>
-#include <asm/asm-offsets.h>
-#include <asm/processor.h>
-#include <asm/mmu.h>
-#include <asm/mmu_context.h>
-#include <asm/sections.h>
 #include <asm/vdso.h>
-#include <asm/facility.h>
-#include <asm/timex.h>
 
 extern char vdso64_start[], vdso64_end[];
 static unsigned int vdso_pages;
 static struct page **vdso_pagelist;
 
-/*
- * Should the kernel map a VDSO page into processes and pass its
- * address down to glibc upon exec()?
- */
+static union {
+	struct vdso_data	data[CS_BASES];
+	u8			page[PAGE_SIZE];
+} vdso_data_store __page_aligned_data;
+
+struct vdso_data *vdso_data = vdso_data_store.data;
+
 unsigned int __read_mostly vdso_enabled = 1;
+
+static int __init vdso_setup(char *str)
+{
+	bool enabled;
+
+	if (!kstrtobool(str, &enabled))
+		vdso_enabled = enabled;
+	return 1;
+}
+__setup("vdso=", vdso_setup);
 
 static vm_fault_t vdso_fault(const struct vm_special_mapping *sm,
 		      struct vm_area_struct *vma, struct vm_fault *vmf)
@@ -56,7 +56,6 @@ static int vdso_mremap(const struct vm_special_mapping *sm,
 		       struct vm_area_struct *vma)
 {
 	current->mm->context.vdso_base = vma->vm_start;
-
 	return 0;
 }
 
@@ -66,25 +65,6 @@ static const struct vm_special_mapping vdso_mapping = {
 	.mremap = vdso_mremap,
 };
 
-static int __init vdso_setup(char *str)
-{
-	bool enabled;
-
-	if (!kstrtobool(str, &enabled))
-		vdso_enabled = enabled;
-	return 1;
-}
-__setup("vdso=", vdso_setup);
-
-/*
- * The vdso data page
- */
-static union {
-	struct vdso_data	data[CS_BASES];
-	u8			page[PAGE_SIZE];
-} vdso_data_store __page_aligned_data;
-struct vdso_data *vdso_data = vdso_data_store.data;
-
 int vdso_getcpu_init(void)
 {
 	set_tod_programmable_field(smp_processor_id());
@@ -92,10 +72,6 @@ int vdso_getcpu_init(void)
 }
 early_initcall(vdso_getcpu_init); /* Must be called before SMP init */
 
-/*
- * This is called from binfmt_elf, we create the special vma for the
- * vDSO and insert it into the mm struct tree
- */
 int arch_setup_additional_pages(struct linux_binprm *bprm, int uses_interp)
 {
 	struct mm_struct *mm = current->mm;
@@ -103,25 +79,14 @@ int arch_setup_additional_pages(struct linux_binprm *bprm, int uses_interp)
 	unsigned long vdso_base;
 	int rc;
 
-	if (!vdso_enabled)
+	if (!vdso_enabled || is_compat_task())
 		return 0;
-
-	if (is_compat_task())
-		return 0;
-
-	/*
-	 * pick a base address for the vDSO in process space. We try to put
-	 * it at vdso_base which is the "natural" base for it, but we might
-	 * fail and end up putting it elsewhere.
-	 */
 	if (mmap_write_lock_killable(mm))
 		return -EINTR;
 	vdso_base = get_unmapped_area(NULL, 0, vdso_pages << PAGE_SHIFT, 0, 0);
-	if (IS_ERR_VALUE(vdso_base)) {
-		rc = vdso_base;
-		goto out_up;
-	}
-
+	rc = vdso_base;
+	if (IS_ERR_VALUE(vdso_base))
+		goto out;
 	/*
 	 * our vma flags don't have VM_WRITE so by default, the process
 	 * isn't allowed to write those pages.
@@ -136,15 +101,12 @@ int arch_setup_additional_pages(struct linux_binprm *bprm, int uses_interp)
 				       VM_READ|VM_EXEC|
 				       VM_MAYREAD|VM_MAYWRITE|VM_MAYEXEC,
 				       &vdso_mapping);
-	if (IS_ERR(vma)) {
-		rc = PTR_ERR(vma);
-		goto out_up;
-	}
-
+	rc = PTR_ERR(vma);
+	if (IS_ERR(vma))
+		goto out;
 	current->mm->context.vdso_base = vdso_base;
 	rc = 0;
-
-out_up:
+out:
 	mmap_write_unlock(mm);
 	return rc;
 }
@@ -153,9 +115,7 @@ static int __init vdso_init(void)
 {
 	int i;
 
-	/* Calculate the size of the vDSO */
 	vdso_pages = ((vdso64_end - vdso64_start) >> PAGE_SHIFT) + 1;
-
 	/* Make sure pages are in the correct state */
 	vdso_pagelist = kcalloc(vdso_pages + 1, sizeof(struct page *),
 				GFP_KERNEL);
@@ -170,9 +130,7 @@ static int __init vdso_init(void)
 	}
 	vdso_pagelist[vdso_pages - 1] = virt_to_page(vdso_data);
 	vdso_pagelist[vdso_pages] = NULL;
-
 	get_page(virt_to_page(vdso_data));
-
 	return 0;
 }
 arch_initcall(vdso_init);
