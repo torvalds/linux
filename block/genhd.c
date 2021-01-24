@@ -161,15 +161,6 @@ static void part_in_flight_rw(struct block_device *part,
 		inflight[1] = 0;
 }
 
-static struct block_device *__disk_get_part(struct gendisk *disk, int partno)
-{
-	struct disk_part_tbl *ptbl = rcu_dereference(disk->part_tbl);
-
-	if (unlikely(partno < 0 || partno >= ptbl->len))
-		return NULL;
-	return rcu_dereference(ptbl->part[partno]);
-}
-
 /**
  * disk_part_iter_init - initialize partition iterator
  * @piter: iterator to initialize
@@ -204,41 +195,26 @@ void disk_part_iter_init(struct disk_part_iter *piter, struct gendisk *disk,
  */
 struct block_device *disk_part_iter_next(struct disk_part_iter *piter)
 {
-	struct disk_part_tbl *ptbl;
+	struct block_device *part;
+	unsigned long idx;
 
 	/* put the last partition */
 	disk_part_iter_exit(piter);
 
-	/* get part_tbl */
 	rcu_read_lock();
-	ptbl = rcu_dereference(piter->disk->part_tbl);
-
-	/* iterate to the next partition */
-	for (; piter->idx != ptbl->len; piter->idx += 1) {
-		struct block_device *part;
-
-		part = rcu_dereference(ptbl->part[piter->idx]);
-		if (!part)
-			continue;
-		piter->part = bdgrab(part);
-		if (!piter->part)
-			continue;
+	xa_for_each_start(&piter->disk->part_tbl, idx, part, piter->idx) {
 		if (!bdev_nr_sectors(part) &&
 		    !(piter->flags & DISK_PITER_INCL_EMPTY) &&
 		    !(piter->flags & DISK_PITER_INCL_EMPTY_PART0 &&
-		      piter->idx == 0)) {
-			bdput(piter->part);
-			piter->part = NULL;
+		      piter->idx == 0))
 			continue;
-		}
 
 		piter->part = bdgrab(part);
 		if (!piter->part)
 			continue;
-		piter->idx += 1;
+		piter->idx = idx + 1;
 		break;
 	}
-
 	rcu_read_unlock();
 
 	return piter->part;
@@ -259,42 +235,6 @@ void disk_part_iter_exit(struct disk_part_iter *piter)
 		bdput(piter->part);
 	piter->part = NULL;
 }
-
-/**
- * disk_has_partitions
- * @disk: gendisk of interest
- *
- * Walk through the partition table and check if valid partition exists.
- *
- * CONTEXT:
- * Don't care.
- *
- * RETURNS:
- * True if the gendisk has at least one valid non-zero size partition.
- * Otherwise false.
- */
-bool disk_has_partitions(struct gendisk *disk)
-{
-	struct disk_part_tbl *ptbl;
-	int i;
-	bool ret = false;
-
-	rcu_read_lock();
-	ptbl = rcu_dereference(disk->part_tbl);
-
-	/* Iterate partitions skipping the whole device at index 0 */
-	for (i = 1; i < ptbl->len; i++) {
-		if (rcu_dereference(ptbl->part[i])) {
-			ret = true;
-			break;
-		}
-	}
-
-	rcu_read_unlock();
-
-	return ret;
-}
-EXPORT_SYMBOL_GPL(disk_has_partitions);
 
 /*
  * Can be deleted altogether. Later.
@@ -858,7 +798,7 @@ struct block_device *bdget_disk(struct gendisk *disk, int partno)
 	struct block_device *bdev = NULL;
 
 	rcu_read_lock();
-	bdev = __disk_get_part(disk, partno);
+	bdev = xa_load(&disk->part_tbl, partno);
 	if (bdev && !bdgrab(bdev))
 		bdev = NULL;
 	rcu_read_unlock();
@@ -1249,83 +1189,6 @@ static const struct attribute_group *disk_attr_groups[] = {
 };
 
 /**
- * disk_replace_part_tbl - replace disk->part_tbl in RCU-safe way
- * @disk: disk to replace part_tbl for
- * @new_ptbl: new part_tbl to install
- *
- * Replace disk->part_tbl with @new_ptbl in RCU-safe way.  The
- * original ptbl is freed using RCU callback.
- *
- * LOCKING:
- * Matching bd_mutex locked or the caller is the only user of @disk.
- */
-static void disk_replace_part_tbl(struct gendisk *disk,
-				  struct disk_part_tbl *new_ptbl)
-{
-	struct disk_part_tbl *old_ptbl =
-		rcu_dereference_protected(disk->part_tbl, 1);
-
-	rcu_assign_pointer(disk->part_tbl, new_ptbl);
-
-	if (old_ptbl) {
-		rcu_assign_pointer(old_ptbl->last_lookup, NULL);
-		kfree_rcu(old_ptbl, rcu_head);
-	}
-}
-
-/**
- * disk_expand_part_tbl - expand disk->part_tbl
- * @disk: disk to expand part_tbl for
- * @partno: expand such that this partno can fit in
- *
- * Expand disk->part_tbl such that @partno can fit in.  disk->part_tbl
- * uses RCU to allow unlocked dereferencing for stats and other stuff.
- *
- * LOCKING:
- * Matching bd_mutex locked or the caller is the only user of @disk.
- * Might sleep.
- *
- * RETURNS:
- * 0 on success, -errno on failure.
- */
-int disk_expand_part_tbl(struct gendisk *disk, int partno)
-{
-	struct disk_part_tbl *old_ptbl =
-		rcu_dereference_protected(disk->part_tbl, 1);
-	struct disk_part_tbl *new_ptbl;
-	int len = old_ptbl ? old_ptbl->len : 0;
-	int i, target;
-
-	/*
-	 * check for int overflow, since we can get here from blkpg_ioctl()
-	 * with a user passed 'partno'.
-	 */
-	target = partno + 1;
-	if (target < 0)
-		return -EINVAL;
-
-	/* disk_max_parts() is zero during initialization, ignore if so */
-	if (disk_max_parts(disk) && target > disk_max_parts(disk))
-		return -EINVAL;
-
-	if (target <= len)
-		return 0;
-
-	new_ptbl = kzalloc_node(struct_size(new_ptbl, part, target), GFP_KERNEL,
-				disk->node_id);
-	if (!new_ptbl)
-		return -ENOMEM;
-
-	new_ptbl->len = target;
-
-	for (i = 0; i < len; i++)
-		rcu_assign_pointer(new_ptbl->part[i], old_ptbl->part[i]);
-
-	disk_replace_part_tbl(disk, new_ptbl);
-	return 0;
-}
-
-/**
  * disk_release - releases all allocated resources of the gendisk
  * @dev: the device representing this disk
  *
@@ -1348,7 +1211,7 @@ static void disk_release(struct device *dev)
 	blk_free_devt(dev->devt);
 	disk_release_events(disk);
 	kfree(disk->random);
-	disk_replace_part_tbl(disk, NULL);
+	xa_destroy(&disk->part_tbl);
 	bdput(disk->part0);
 	if (disk->queue)
 		blk_put_queue(disk->queue);
@@ -1501,7 +1364,6 @@ dev_t blk_lookup_devt(const char *name, int partno)
 struct gendisk *__alloc_disk_node(int minors, int node_id)
 {
 	struct gendisk *disk;
-	struct disk_part_tbl *ptbl;
 
 	if (minors > DISK_MAX_PARTS) {
 		printk(KERN_ERR
@@ -1519,11 +1381,9 @@ struct gendisk *__alloc_disk_node(int minors, int node_id)
 		goto out_free_disk;
 
 	disk->node_id = node_id;
-	if (disk_expand_part_tbl(disk, 0))
-		goto out_bdput;
-
-	ptbl = rcu_dereference_protected(disk->part_tbl, 1);
-	rcu_assign_pointer(ptbl->part[0], disk->part0);
+	xa_init(&disk->part_tbl);
+	if (xa_insert(&disk->part_tbl, 0, disk->part0, GFP_KERNEL))
+		goto out_destroy_part_tbl;
 
 	disk->minors = minors;
 	rand_initialize_disk(disk);
@@ -1532,7 +1392,8 @@ struct gendisk *__alloc_disk_node(int minors, int node_id)
 	device_initialize(disk_to_dev(disk));
 	return disk;
 
-out_bdput:
+out_destroy_part_tbl:
+	xa_destroy(&disk->part_tbl);
 	bdput(disk->part0);
 out_free_disk:
 	kfree(disk);

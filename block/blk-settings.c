@@ -865,7 +865,7 @@ void blk_queue_set_zoned(struct gendisk *disk, enum blk_zoned_model model)
 		 * we do nothing special as far as the block layer is concerned.
 		 */
 		if (!IS_ENABLED(CONFIG_BLK_DEV_ZONED) ||
-		    disk_has_partitions(disk))
+		    !xa_empty(&disk->part_tbl))
 			model = BLK_ZONED_NONE;
 		break;
 	case BLK_ZONED_NONE:

@@ -32,6 +32,7 @@ extern struct class block_class;
 #include <linux/string.h>
 #include <linux/fs.h>
 #include <linux/workqueue.h>
+#include <linux/xarray.h>
 
 #define PARTITION_META_INFO_VOLNAMELTH	64
 /*
@@ -116,13 +117,6 @@ enum {
 	DISK_EVENT_FLAG_UEVENT			= 1 << 1,
 };
 
-struct disk_part_tbl {
-	struct rcu_head rcu_head;
-	int len;
-	struct block_device __rcu *last_lookup;
-	struct block_device __rcu *part[];
-};
-
 struct disk_events;
 struct badblocks;
 
@@ -148,12 +142,7 @@ struct gendisk {
 	unsigned short events;		/* supported events */
 	unsigned short event_flags;	/* flags related to event processing */
 
-	/* Array of pointers to partitions indexed by partno.
-	 * Protected with matching bdev lock but stat and other
-	 * non-critical accesses use RCU.  Always access through
-	 * helpers.
-	 */
-	struct disk_part_tbl __rcu *part_tbl;
+	struct xarray part_tbl;
 	struct block_device *part0;
 
 	const struct block_device_operations *fops;
@@ -225,7 +214,7 @@ void disk_uevent(struct gendisk *disk, enum kobject_action action);
 struct disk_part_iter {
 	struct gendisk		*disk;
 	struct block_device	*part;
-	int			idx;
+	unsigned long		idx;
 	unsigned int		flags;
 };
 
@@ -233,7 +222,6 @@ extern void disk_part_iter_init(struct disk_part_iter *piter,
 				 struct gendisk *disk, unsigned int flags);
 struct block_device *disk_part_iter_next(struct disk_part_iter *piter);
 extern void disk_part_iter_exit(struct disk_part_iter *piter);
-extern bool disk_has_partitions(struct gendisk *disk);
 
 /* block/genhd.c */
 extern void device_add_disk(struct device *parent, struct gendisk *disk,
