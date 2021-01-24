@@ -752,7 +752,7 @@ static int blk_partition_remap(struct bio *bio)
 				      bio->bi_iter.bi_sector -
 				      p->bd_start_sect);
 	}
-	bio->bi_bdev = bdev_whole(p);
+	bio_set_flag(bio, BIO_REMAPPED);
 	return 0;
 }
 
@@ -817,7 +817,8 @@ static noinline_for_stack bool submit_bio_checks(struct bio *bio)
 		goto end_io;
 	if (unlikely(bio_check_eod(bio)))
 		goto end_io;
-	if (bio->bi_bdev->bd_partno && unlikely(blk_partition_remap(bio)))
+	if (bio->bi_bdev->bd_partno && !bio_flagged(bio, BIO_REMAPPED) &&
+	    unlikely(blk_partition_remap(bio)))
 		goto end_io;
 
 	/*

@@ -303,6 +303,7 @@ enum {
 				 * of this bio. */
 	BIO_CGROUP_ACCT,	/* has been accounted to a cgroup */
 	BIO_TRACKED,		/* set if bio goes through the rq_qos path */
+	BIO_REMAPPED,
 	BIO_FLAG_LAST
 };
 

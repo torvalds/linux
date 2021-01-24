@@ -485,6 +485,7 @@ extern const char *bio_devname(struct bio *bio, char *buffer);
 
 #define bio_set_dev(bio, bdev) 				\
 do {							\
+	bio_clear_flag(bio, BIO_REMAPPED);		\
 	if ((bio)->bi_bdev != (bdev))			\
 		bio_clear_flag(bio, BIO_THROTTLED);	\
 	(bio)->bi_bdev = (bdev);			\
@@ -493,6 +494,7 @@ do {							\
 
 #define bio_copy_dev(dst, src)			\
 do {						\
+	bio_clear_flag(dst, BIO_REMAPPED);		\
 	(dst)->bi_bdev = (src)->bi_bdev;	\
 	bio_clone_blkg_association(dst, src);	\
 } while (0)
