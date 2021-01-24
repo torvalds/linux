@@ -170,8 +170,7 @@ static int __init vdso_init(void)
 	int i;
 
 	/* Calculate the size of the 64 bit vDSO */
-	vdso64_pages = ((&vdso64_end - &vdso64_start
-			 + PAGE_SIZE - 1) >> PAGE_SHIFT) + 1;
+	vdso64_pages = ((&vdso64_end - &vdso64_start) >> PAGE_SHIFT) + 1;
 
 	/* Make sure pages are in the correct state */
 	vdso64_pagelist = kcalloc(vdso64_pages + 1, sizeof(struct page *),
