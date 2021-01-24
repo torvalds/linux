@@ -1779,12 +1779,13 @@ static bool __io_cqring_overflow_flush(struct io_ring_ctx *ctx, bool force,
 	struct io_kiocb *req, *tmp;
 	struct io_uring_cqe *cqe;
 	unsigned long flags;
-	bool all_flushed;
+	bool all_flushed, posted;
 	LIST_HEAD(list);
 
 	if (!force && __io_cqring_events(ctx) == rings->cq_ring_entries)
 		return false;
 
+	posted = false;
 	spin_lock_irqsave(&ctx->completion_lock, flags);
 	list_for_each_entry_safe(req, tmp, &ctx->cq_overflow_list, compl.list) {
 		if (!io_match_task(req, tsk, files))
@@ -1804,6 +1805,7 @@ static bool __io_cqring_overflow_flush(struct io_ring_ctx *ctx, bool force,
 			WRITE_ONCE(ctx->rings->cq_overflow,
 				   ctx->cached_cq_overflow);
 		}
+		posted = true;
 	}
 
 	all_flushed = list_empty(&ctx->cq_overflow_list);
@@ -1813,9 +1815,11 @@ static bool __io_cqring_overflow_flush(struct io_ring_ctx *ctx, bool force,
 		ctx->rings->sq_flags &= ~IORING_SQ_CQ_OVERFLOW;
 	}
 
-	io_commit_cqring(ctx);
+	if (posted)
+		io_commit_cqring(ctx);
 	spin_unlock_irqrestore(&ctx->completion_lock, flags);
-	io_cqring_ev_posted(ctx);
+	if (posted)
+		io_cqring_ev_posted(ctx);
 
 	while (!list_empty(&list)) {
 		req = list_first_entry(&list, struct io_kiocb, compl.list);
