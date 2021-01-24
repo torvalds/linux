@@ -31,10 +31,9 @@
 #include <asm/facility.h>
 #include <asm/timex.h>
 
-extern char vdso64_start, vdso64_end;
-static void *vdso64_kbase = &vdso64_start;
-static unsigned int vdso64_pages;
-static struct page **vdso64_pagelist;
+extern char vdso64_start[], vdso64_end[];
+static unsigned int vdso_pages;
+static struct page **vdso_pagelist;
 
 /*
  * Should the kernel map a VDSO page into processes and pass its
@@ -45,12 +44,6 @@ unsigned int __read_mostly vdso_enabled = 1;
 static vm_fault_t vdso_fault(const struct vm_special_mapping *sm,
 		      struct vm_area_struct *vma, struct vm_fault *vmf)
 {
-	struct page **vdso_pagelist;
-	unsigned long vdso_pages;
-
-	vdso_pagelist = vdso64_pagelist;
-	vdso_pages = vdso64_pages;
-
 	if (vmf->pgoff >= vdso_pages)
 		return VM_FAULT_SIGBUS;
 
@@ -107,7 +100,6 @@ int arch_setup_additional_pages(struct linux_binprm *bprm, int uses_interp)
 {
 	struct mm_struct *mm = current->mm;
 	struct vm_area_struct *vma;
-	unsigned long vdso_pages;
 	unsigned long vdso_base;
 	int rc;
 
@@ -117,7 +109,6 @@ int arch_setup_additional_pages(struct linux_binprm *bprm, int uses_interp)
 	if (is_compat_task())
 		return 0;
 
-	vdso_pages = vdso64_pages;
 	/*
 	 * pick a base address for the vDSO in process space. We try to put
 	 * it at vdso_base which is the "natural" base for it, but we might
@@ -162,23 +153,23 @@ static int __init vdso_init(void)
 {
 	int i;
 
-	/* Calculate the size of the 64 bit vDSO */
-	vdso64_pages = ((&vdso64_end - &vdso64_start) >> PAGE_SHIFT) + 1;
+	/* Calculate the size of the vDSO */
+	vdso_pages = ((vdso64_end - vdso64_start) >> PAGE_SHIFT) + 1;
 
 	/* Make sure pages are in the correct state */
-	vdso64_pagelist = kcalloc(vdso64_pages + 1, sizeof(struct page *),
-				  GFP_KERNEL);
-	if (!vdso64_pagelist) {
+	vdso_pagelist = kcalloc(vdso_pages + 1, sizeof(struct page *),
+				GFP_KERNEL);
+	if (!vdso_pagelist) {
 		vdso_enabled = 0;
 		return -ENOMEM;
 	}
-	for (i = 0; i < vdso64_pages - 1; i++) {
-		struct page *pg = virt_to_page(vdso64_kbase + i*PAGE_SIZE);
+	for (i = 0; i < vdso_pages - 1; i++) {
+		struct page *pg = virt_to_page(vdso64_start + i * PAGE_SIZE);
 		get_page(pg);
-		vdso64_pagelist[i] = pg;
+		vdso_pagelist[i] = pg;
 	}
-	vdso64_pagelist[vdso64_pages - 1] = virt_to_page(vdso_data);
-	vdso64_pagelist[vdso64_pages] = NULL;
+	vdso_pagelist[vdso_pages - 1] = virt_to_page(vdso_data);
+	vdso_pagelist[vdso_pages] = NULL;
 
 	get_page(virt_to_page(vdso_data));
 
