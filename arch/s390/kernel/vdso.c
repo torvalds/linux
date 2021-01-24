@@ -92,10 +92,12 @@ static union {
 } vdso_data_store __page_aligned_data;
 struct vdso_data *vdso_data = vdso_data_store.data;
 
-void vdso_getcpu_init(void)
+int vdso_getcpu_init(void)
 {
 	set_tod_programmable_field(smp_processor_id());
+	return 0;
 }
+early_initcall(vdso_getcpu_init); /* Must be called before SMP init */
 
 /*
  * This is called from binfmt_elf, we create the special vma for the
@@ -167,7 +169,6 @@ static int __init vdso_init(void)
 {
 	int i;
 
-	vdso_getcpu_init();
 	/* Calculate the size of the 64 bit vDSO */
 	vdso64_pages = ((&vdso64_end - &vdso64_start
 			 + PAGE_SIZE - 1) >> PAGE_SHIFT) + 1;
@@ -188,4 +189,4 @@ static int __init vdso_init(void)
 
 	return 0;
 }
-early_initcall(vdso_init);
+arch_initcall(vdso_init);
