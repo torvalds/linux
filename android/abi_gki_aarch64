@@ -139,7 +139,9 @@
   kstrtoull
   __ll_sc_atomic64_fetch_andnot_release
   __ll_sc_atomic64_fetch_or_acquire
+  __ll_sc_atomic_add
   __ll_sc_atomic_sub_return
+  __ll_sc___cmpxchg_case_mb_4
   memcpy
   memset
   memzero_explicit
