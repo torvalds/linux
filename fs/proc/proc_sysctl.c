@@ -1770,6 +1770,12 @@ static int process_sysctl_arg(char *param, char *val,
 			return 0;
 	}
 
+	if (!val)
+		return -EINVAL;
+	len = strlen(val);
+	if (len == 0)
+		return -EINVAL;
+
 	/*
 	 * To set sysctl options, we use a temporary mount of proc, look up the
 	 * respective sys/ file and write to it. To avoid mounting it when no
@@ -1811,7 +1817,6 @@ static int process_sysctl_arg(char *param, char *val,
 				file, param, val);
 		goto out;
 	}
-	len = strlen(val);
 	wret = kernel_write(file, val, len, &pos);
 	if (wret < 0) {
 		err = wret;
