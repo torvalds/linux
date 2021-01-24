@@ -460,7 +460,6 @@ mt76_txq_schedule_list(struct mt76_phy *phy, enum mt76_txq_id qid)
 	struct mt76_wcid *wcid;
 	int ret = 0;
 
-	spin_lock_bh(&q->lock);
 	while (1) {
 		if (test_bit(MT76_STATE_PM, &phy->state) ||
 		    test_bit(MT76_RESET, &phy->state)) {
@@ -470,13 +469,8 @@ mt76_txq_schedule_list(struct mt76_phy *phy, enum mt76_txq_id qid)
 
 		if (dev->queue_ops->tx_cleanup &&
 		    q->queued + 2 * MT_TXQ_FREE_THR >= q->ndesc) {
-			spin_unlock_bh(&q->lock);
 			dev->queue_ops->tx_cleanup(dev, q, false);
-			spin_lock_bh(&q->lock);
 		}
-
-		if (mt76_txq_stopped(q))
-			break;
 
 		txq = ieee80211_next_txq(phy->hw, qid);
 		if (!txq)
@@ -486,6 +480,8 @@ mt76_txq_schedule_list(struct mt76_phy *phy, enum mt76_txq_id qid)
 		wcid = mtxq->wcid;
 		if (wcid && test_bit(MT_WCID_FLAG_PS, &wcid->flags))
 			continue;
+
+		spin_lock_bh(&q->lock);
 
 		if (mtxq->send_bar && mtxq->aggr) {
 			struct ieee80211_txq *txq = mtxq_to_txq(mtxq);
@@ -500,10 +496,13 @@ mt76_txq_schedule_list(struct mt76_phy *phy, enum mt76_txq_id qid)
 			spin_lock_bh(&q->lock);
 		}
 
-		ret += mt76_txq_send_burst(phy, q, mtxq);
+		if (!mt76_txq_stopped(q))
+			ret += mt76_txq_send_burst(phy, q, mtxq);
+
+		spin_unlock_bh(&q->lock);
+
 		ieee80211_return_txq(phy->hw, txq, false);
 	}
-	spin_unlock_bh(&q->lock);
 
 	return ret;
 }
