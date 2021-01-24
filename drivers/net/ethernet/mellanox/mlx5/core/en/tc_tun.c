@@ -6,6 +6,7 @@
 #include <net/geneve.h>
 #include <net/bareudp.h>
 #include "en/tc_tun.h"
+#include "en/tc_priv.h"
 #include "en_tc.h"
 #include "rep/tc.h"
 #include "rep/neigh.h"
