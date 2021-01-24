@@ -87,10 +87,10 @@ __setup("vdso=", vdso_setup);
  * The vdso data page
  */
 static union {
-	struct vdso_data	data;
+	struct vdso_data	data[CS_BASES];
 	u8			page[PAGE_SIZE];
 } vdso_data_store __page_aligned_data;
-struct vdso_data *vdso_data = (struct vdso_data *)&vdso_data_store.data;
+struct vdso_data *vdso_data = vdso_data_store.data;
 
 void vdso_getcpu_init(void)
 {
