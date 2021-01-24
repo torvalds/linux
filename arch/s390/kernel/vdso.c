@@ -20,7 +20,6 @@
 
 extern char vdso64_start[], vdso64_end[];
 static unsigned int vdso_pages;
-static struct page **vdso_pagelist;
 
 static union {
 	struct vdso_data	data[CS_BASES];
@@ -41,17 +40,6 @@ static int __init vdso_setup(char *str)
 }
 __setup("vdso=", vdso_setup);
 
-static vm_fault_t vdso_fault(const struct vm_special_mapping *sm,
-		      struct vm_area_struct *vma, struct vm_fault *vmf)
-{
-	if (vmf->pgoff >= vdso_pages)
-		return VM_FAULT_SIGBUS;
-
-	vmf->page = vdso_pagelist[vmf->pgoff];
-	get_page(vmf->page);
-	return 0;
-}
-
 static int vdso_mremap(const struct vm_special_mapping *sm,
 		       struct vm_area_struct *vma)
 {
@@ -59,9 +47,8 @@ static int vdso_mremap(const struct vm_special_mapping *sm,
 	return 0;
 }
 
-static const struct vm_special_mapping vdso_mapping = {
+static struct vm_special_mapping vdso_mapping = {
 	.name = "[vdso]",
-	.fault = vdso_fault,
 	.mremap = vdso_mremap,
 };
 
@@ -113,24 +100,20 @@ out:
 
 static int __init vdso_init(void)
 {
+	struct page **pages;
 	int i;
 
 	vdso_pages = ((vdso64_end - vdso64_start) >> PAGE_SHIFT) + 1;
-	/* Make sure pages are in the correct state */
-	vdso_pagelist = kcalloc(vdso_pages + 1, sizeof(struct page *),
-				GFP_KERNEL);
-	if (!vdso_pagelist) {
+	pages = kcalloc(vdso_pages + 1, sizeof(struct page *), GFP_KERNEL);
+	if (!pages) {
 		vdso_enabled = 0;
 		return -ENOMEM;
 	}
-	for (i = 0; i < vdso_pages - 1; i++) {
-		struct page *pg = virt_to_page(vdso64_start + i * PAGE_SIZE);
-		get_page(pg);
-		vdso_pagelist[i] = pg;
-	}
-	vdso_pagelist[vdso_pages - 1] = virt_to_page(vdso_data);
-	vdso_pagelist[vdso_pages] = NULL;
-	get_page(virt_to_page(vdso_data));
+	for (i = 0; i < vdso_pages - 1; i++)
+		pages[i] = virt_to_page(vdso64_start + i * PAGE_SIZE);
+	pages[vdso_pages - 1] = virt_to_page(vdso_data);
+	pages[vdso_pages] = NULL;
+	vdso_mapping.pages = pages;
 	return 0;
 }
 arch_initcall(vdso_init);
