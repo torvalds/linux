@@ -1321,14 +1321,17 @@ static unsigned long __part_start_io_acct(struct block_device *part,
 	return now;
 }
 
-unsigned long part_start_io_acct(struct gendisk *disk, struct block_device **part,
-				 struct bio *bio)
+/**
+ * bio_start_io_acct - start I/O accounting for bio based drivers
+ * @bio:	bio to start account for
+ *
+ * Returns the start time that should be passed back to bio_end_io_acct().
+ */
+unsigned long bio_start_io_acct(struct bio *bio)
 {
-	*part = disk_map_sector_rcu(disk, bio->bi_iter.bi_sector);
-
-	return __part_start_io_acct(*part, bio_sectors(bio), bio_op(bio));
+	return __part_start_io_acct(bio->bi_bdev, bio_sectors(bio), bio_op(bio));
 }
-EXPORT_SYMBOL_GPL(part_start_io_acct);
+EXPORT_SYMBOL_GPL(bio_start_io_acct);
 
 unsigned long disk_start_io_acct(struct gendisk *disk, unsigned int sectors,
 				 unsigned int op)
@@ -1351,12 +1354,12 @@ static void __part_end_io_acct(struct block_device *part, unsigned int op,
 	part_stat_unlock();
 }
 
-void part_end_io_acct(struct block_device *part, struct bio *bio,
-		      unsigned long start_time)
+void bio_end_io_acct_remapped(struct bio *bio, unsigned long start_time,
+		struct block_device *orig_bdev)
 {
-	__part_end_io_acct(part, bio_op(bio), start_time);
+	__part_end_io_acct(orig_bdev, bio_op(bio), start_time);
 }
-EXPORT_SYMBOL_GPL(part_end_io_acct);
+EXPORT_SYMBOL_GPL(bio_end_io_acct_remapped);
 
 void disk_end_io_acct(struct gendisk *disk, unsigned int op,
 		      unsigned long start_time)

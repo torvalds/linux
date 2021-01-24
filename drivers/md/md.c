@@ -463,8 +463,8 @@ struct md_io {
 	struct mddev *mddev;
 	bio_end_io_t *orig_bi_end_io;
 	void *orig_bi_private;
+	struct block_device *orig_bi_bdev;
 	unsigned long start_time;
-	struct block_device *part;
 };
 
 static void md_end_io(struct bio *bio)
@@ -472,7 +472,7 @@ static void md_end_io(struct bio *bio)
 	struct md_io *md_io = bio->bi_private;
 	struct mddev *mddev = md_io->mddev;
 
-	part_end_io_acct(md_io->part, bio, md_io->start_time);
+	bio_end_io_acct_remapped(bio, md_io->start_time, md_io->orig_bi_bdev);
 
 	bio->bi_end_io = md_io->orig_bi_end_io;
 	bio->bi_private = md_io->orig_bi_private;
@@ -514,12 +514,12 @@ static blk_qc_t md_submit_bio(struct bio *bio)
 		md_io->mddev = mddev;
 		md_io->orig_bi_end_io = bio->bi_end_io;
 		md_io->orig_bi_private = bio->bi_private;
+		md_io->orig_bi_bdev = bio->bi_bdev;
 
 		bio->bi_end_io = md_end_io;
 		bio->bi_private = md_io;
 
-		md_io->start_time = part_start_io_acct(mddev->gendisk,
-						       &md_io->part, bio);
+		md_io->start_time = bio_start_io_acct(bio);
 	}
 
 	/* bio could be mergeable after passing to underlayer */

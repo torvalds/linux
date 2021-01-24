@@ -1954,22 +1954,9 @@ unsigned long disk_start_io_acct(struct gendisk *disk, unsigned int sectors,
 void disk_end_io_acct(struct gendisk *disk, unsigned int op,
 		unsigned long start_time);
 
-unsigned long part_start_io_acct(struct gendisk *disk,
-		struct block_device **part, struct bio *bio);
-void part_end_io_acct(struct block_device *part, struct bio *bio,
-		      unsigned long start_time);
-
-/**
- * bio_start_io_acct - start I/O accounting for bio based drivers
- * @bio:	bio to start account for
- *
- * Returns the start time that should be passed back to bio_end_io_acct().
- */
-static inline unsigned long bio_start_io_acct(struct bio *bio)
-{
-	return disk_start_io_acct(bio->bi_bdev->bd_disk, bio_sectors(bio),
-				  bio_op(bio));
-}
+unsigned long bio_start_io_acct(struct bio *bio);
+void bio_end_io_acct_remapped(struct bio *bio, unsigned long start_time,
+		struct block_device *orig_bdev);
 
 /**
  * bio_end_io_acct - end I/O accounting for bio based drivers
@@ -1978,7 +1965,7 @@ static inline unsigned long bio_start_io_acct(struct bio *bio)
  */
 static inline void bio_end_io_acct(struct bio *bio, unsigned long start_time)
 {
-	return disk_end_io_acct(bio->bi_bdev->bd_disk, bio_op(bio), start_time);
+	return bio_end_io_acct_remapped(bio, start_time, bio->bi_bdev);
 }
 
 int bdev_read_only(struct block_device *bdev);
