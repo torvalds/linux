@@ -2776,7 +2776,7 @@ struct processed_extent {
 	struct btrfs_inode *inode;
 	/* Start of the range in @inode */
 	u64 start;
-	/* End of the range in in @inode */
+	/* End of the range in @inode */
 	u64 end;
 	bool uptodate;
 };
