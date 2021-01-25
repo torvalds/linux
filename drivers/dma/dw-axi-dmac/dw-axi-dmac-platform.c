@@ -307,6 +307,29 @@ static void write_chan_llp(struct axi_dma_chan *chan, dma_addr_t adr)
 	axi_chan_iowrite64(chan, CH_LLP, adr);
 }
 
+static void dw_axi_dma_set_byte_halfword(struct axi_dma_chan *chan, bool set)
+{
+	u32 offset = DMAC_APB_BYTE_WR_CH_EN;
+	u32 reg_width, val;
+
+	if (!chan->chip->apb_regs) {
+		dev_dbg(chan->chip->dev, "apb_regs not initialized\n");
+		return;
+	}
+
+	reg_width = __ffs(chan->config.dst_addr_width);
+	if (reg_width == DWAXIDMAC_TRANS_WIDTH_16)
+		offset = DMAC_APB_HALFWORD_WR_CH_EN;
+
+	val = ioread32(chan->chip->apb_regs + offset);
+
+	if (set)
+		val |= BIT(chan->id);
+	else
+		val &= ~BIT(chan->id);
+
+	iowrite32(val, chan->chip->apb_regs + offset);
+}
 /* Called in chan locked context */
 static void axi_chan_block_xfer_start(struct axi_dma_chan *chan,
 				      struct axi_dma_desc *first)
@@ -334,6 +357,7 @@ static void axi_chan_block_xfer_start(struct axi_dma_chan *chan,
 	       DWAXIDMAC_HS_SEL_HW << CH_CFG_H_HS_SEL_SRC_POS);
 	switch (chan->direction) {
 	case DMA_MEM_TO_DEV:
+		dw_axi_dma_set_byte_halfword(chan, true);
 		reg |= (chan->config.device_fc ?
 			DWAXIDMAC_TT_FC_MEM_TO_PER_DST :
 			DWAXIDMAC_TT_FC_MEM_TO_PER_DMAC)
@@ -1008,6 +1032,8 @@ static int dma_chan_terminate_all(struct dma_chan *dchan)
 	if (chan->direction != DMA_MEM_TO_MEM)
 		dw_axi_dma_set_hw_channel(chan->chip,
 					  chan->hw_handshake_num, false);
+	if (chan->direction == DMA_MEM_TO_DEV)
+		dw_axi_dma_set_byte_halfword(chan, false);
 
 	spin_lock_irqsave(&chan->vc.lock, flags);
 
