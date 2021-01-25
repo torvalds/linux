@@ -203,8 +203,8 @@ F:	include/uapi/linux/nl80211.h
 F:	net/wireless/
 
 8169 10/100/1000 GIGABIT ETHERNET DRIVER
-M:	Realtek linux nic maintainers <nic_swsd@realtek.com>
 M:	Heiner Kallweit <hkallweit1@gmail.com>
+M:	nic_swsd@realtek.com
 L:	netdev@vger.kernel.org
 S:	Maintained
 F:	drivers/net/ethernet/realtek/r8169*
@@ -2119,7 +2119,7 @@ N:	atmel
 ARM/Microchip Sparx5 SoC support
 M:	Lars Povlsen <lars.povlsen@microchip.com>
 M:	Steen Hegelund <Steen.Hegelund@microchip.com>
-M:	Microchip Linux Driver Support <UNGLinuxDriver@microchip.com>
+M:	UNGLinuxDriver@microchip.com
 L:	linux-arm-kernel@lists.infradead.org (moderated for non-subscribers)
 S:	Supported
 T:	git git://github.com/microchip-ung/linux-upstream.git
@@ -3556,7 +3556,7 @@ S:	Supported
 F:	drivers/net/ethernet/broadcom/bnxt/
 
 BROADCOM BRCM80211 IEEE802.11n WIRELESS DRIVER
-M:	Arend van Spriel <arend.vanspriel@broadcom.com>
+M:	Arend van Spriel <aspriel@gmail.com>
 M:	Franky Lin <franky.lin@broadcom.com>
 M:	Hante Meuleman <hante.meuleman@broadcom.com>
 M:	Chi-hsien Lin <chi-hsien.lin@infineon.com>
@@ -3883,7 +3883,7 @@ F:	drivers/mtd/nand/raw/cadence-nand-controller.c
 CADENCE USB3 DRD IP DRIVER
 M:	Peter Chen <peter.chen@nxp.com>
 M:	Pawel Laszczak <pawell@cadence.com>
-M:	Roger Quadros <rogerq@ti.com>
+R:	Roger Quadros <rogerq@kernel.org>
 R:	Aswath Govindraju <a-govindraju@ti.com>
 L:	linux-usb@vger.kernel.org
 S:	Maintained
@@ -3961,7 +3961,7 @@ F:	net/can/
 CAN-J1939 NETWORK LAYER
 M:	Robin van der Gracht <robin@protonic.nl>
 M:	Oleksij Rempel <o.rempel@pengutronix.de>
-R:	Pengutronix Kernel Team <kernel@pengutronix.de>
+R:	kernel@pengutronix.de
 L:	linux-can@vger.kernel.org
 S:	Maintained
 F:	Documentation/networking/j1939.rst
@@ -4588,7 +4588,7 @@ B:	https://bugzilla.kernel.org
 T:	git git://git.kernel.org/pub/scm/linux/kernel/git/rafael/linux-pm.git
 F:	Documentation/admin-guide/pm/cpuidle.rst
 F:	Documentation/driver-api/pm/cpuidle.rst
-F:	drivers/cpuidle/*
+F:	drivers/cpuidle/
 F:	include/linux/cpuidle.h
 
 CPU POWER MONITORING SUBSYSTEM
@@ -7363,7 +7363,6 @@ L:	linux-hardening@vger.kernel.org
 S:	Maintained
 F:	Documentation/kbuild/gcc-plugins.rst
 F:	scripts/Makefile.gcc-plugins
-F:	scripts/gcc-plugin.sh
 F:	scripts/gcc-plugins/
 
 GCOV BASED KERNEL PROFILING
@@ -9240,7 +9239,7 @@ F:	tools/testing/selftests/sgx/*
 K:	\bSGX_
 
 INTERCONNECT API
-M:	Georgi Djakov <georgi.djakov@linaro.org>
+M:	Georgi Djakov <djakov@kernel.org>
 L:	linux-pm@vger.kernel.org
 S:	Maintained
 F:	Documentation/devicetree/bindings/interconnect/
@@ -9273,7 +9272,7 @@ F:	drivers/net/ethernet/sgi/ioc3-eth.c
 
 IOMAP FILESYSTEM LIBRARY
 M:	Christoph Hellwig <hch@infradead.org>
-M:	Darrick J. Wong <darrick.wong@oracle.com>
+M:	Darrick J. Wong <djwong@kernel.org>
 M:	linux-xfs@vger.kernel.org
 M:	linux-fsdevel@vger.kernel.org
 L:	linux-xfs@vger.kernel.org
@@ -9776,7 +9775,7 @@ F:	tools/testing/selftests/kvm/s390x/
 
 KERNEL VIRTUAL MACHINE FOR X86 (KVM/x86)
 M:	Paolo Bonzini <pbonzini@redhat.com>
-R:	Sean Christopherson <sean.j.christopherson@intel.com>
+R:	Sean Christopherson <seanjc@google.com>
 R:	Vitaly Kuznetsov <vkuznets@redhat.com>
 R:	Wanpeng Li <wanpengli@tencent.com>
 R:	Jim Mattson <jmattson@google.com>
@@ -10260,7 +10259,6 @@ S:	Supported
 T:	git git://git.kernel.org/pub/scm/linux/kernel/git/paulmck/linux-rcu.git dev
 F:	Documentation/atomic_bitops.txt
 F:	Documentation/atomic_t.txt
-F:	Documentation/core-api/atomic_ops.rst
 F:	Documentation/core-api/refcount-vs-atomic.rst
 F:	Documentation/litmus-tests/
 F:	Documentation/memory-barriers.txt
@@ -10847,7 +10845,7 @@ F:	drivers/media/radio/radio-maxiradio*
 
 MCAN MMIO DEVICE DRIVER
 M:	Dan Murphy <dmurphy@ti.com>
-M:	Sriram Dash <sriram.dash@samsung.com>
+M:	Pankaj Sharma <pankj.sharma@samsung.com>
 L:	linux-can@vger.kernel.org
 S:	Maintained
 F:	Documentation/devicetree/bindings/net/can/bosch,m_can.yaml
@@ -11667,7 +11665,7 @@ F:	drivers/media/platform/atmel/atmel-isi.h
 
 MICROCHIP KSZ SERIES ETHERNET SWITCH DRIVER
 M:	Woojung Huh <woojung.huh@microchip.com>
-M:	Microchip Linux Driver Support <UNGLinuxDriver@microchip.com>
+M:	UNGLinuxDriver@microchip.com
 L:	netdev@vger.kernel.org
 S:	Maintained
 F:	Documentation/devicetree/bindings/net/dsa/microchip,ksz.yaml
@@ -11677,7 +11675,7 @@ F:	net/dsa/tag_ksz.c
 
 MICROCHIP LAN743X ETHERNET DRIVER
 M:	Bryan Whitehead <bryan.whitehead@microchip.com>
-M:	Microchip Linux Driver Support <UNGLinuxDriver@microchip.com>
+M:	UNGLinuxDriver@microchip.com
 L:	netdev@vger.kernel.org
 S:	Maintained
 F:	drivers/net/ethernet/microchip/lan743x_*
@@ -11771,7 +11769,7 @@ F:	drivers/net/wireless/microchip/wilc1000/
 
 MICROSEMI MIPS SOCS
 M:	Alexandre Belloni <alexandre.belloni@bootlin.com>
-M:	Microchip Linux Driver Support <UNGLinuxDriver@microchip.com>
+M:	UNGLinuxDriver@microchip.com
 L:	linux-mips@vger.kernel.org
 S:	Supported
 F:	Documentation/devicetree/bindings/mips/mscc.txt
@@ -12825,10 +12823,10 @@ F:	tools/objtool/
 F:	include/linux/objtool.h
 
 OCELOT ETHERNET SWITCH DRIVER
-M:	Microchip Linux Driver Support <UNGLinuxDriver@microchip.com>
 M:	Vladimir Oltean <vladimir.oltean@nxp.com>
 M:	Claudiu Manoil <claudiu.manoil@nxp.com>
 M:	Alexandre Belloni <alexandre.belloni@bootlin.com>
+M:	UNGLinuxDriver@microchip.com
 L:	netdev@vger.kernel.org
 S:	Supported
 F:	drivers/net/dsa/ocelot/*
@@ -13890,7 +13888,7 @@ F:	drivers/platform/x86/peaq-wmi.c
 
 PENSANDO ETHERNET DRIVERS
 M:	Shannon Nelson <snelson@pensando.io>
-M:	Pensando Drivers <drivers@pensando.io>
+M:	drivers@pensando.io
 L:	netdev@vger.kernel.org
 S:	Supported
 F:	Documentation/networking/device_drivers/ethernet/pensando/ionic.rst
@@ -14669,7 +14667,7 @@ T:	git git://git.kernel.org/pub/scm/linux/kernel/git/kvalo/ath.git
 F:	drivers/net/wireless/ath/ath11k/
 
 QUALCOMM ATHEROS ATH9K WIRELESS DRIVER
-M:	QCA ath9k Development <ath9k-devel@qca.qualcomm.com>
+M:	ath9k-devel@qca.qualcomm.com
 L:	linux-wireless@vger.kernel.org
 S:	Supported
 W:	https://wireless.wiki.kernel.org/en/users/Drivers/ath9k
@@ -16710,6 +16708,8 @@ M:	Samuel Thibault <samuel.thibault@ens-lyon.org>
 L:	speakup@linux-speakup.org
 S:	Odd Fixes
 W:	http://www.linux-speakup.org/
+W:	https://github.com/linux-speakup/speakup
+B:	https://github.com/linux-speakup/speakup/issues
 F:	drivers/accessibility/speakup/
 
 SPEAR CLOCK FRAMEWORK SUPPORT
@@ -17553,6 +17553,19 @@ S:	Supported
 F:	Documentation/devicetree/bindings/iio/dac/ti,dac7612.txt
 F:	drivers/iio/dac/ti-dac7612.c
 
+TEXAS INSTRUMENTS DMA DRIVERS
+M:	Peter Ujfalusi <peter.ujfalusi@gmail.com>
+L:	dmaengine@vger.kernel.org
+S:	Maintained
+F:	Documentation/devicetree/bindings/dma/ti-dma-crossbar.txt
+F:	Documentation/devicetree/bindings/dma/ti-edma.txt
+F:	Documentation/devicetree/bindings/dma/ti/
+F:	drivers/dma/ti/
+X:	drivers/dma/ti/cppi41.c
+F:	include/linux/dma/k3-udma-glue.h
+F:	include/linux/dma/ti-cppi5.h
+F:	include/linux/dma/k3-psil.h
+
 TEXAS INSTRUMENTS' SYSTEM CONTROL INTERFACE (TISCI) PROTOCOL DRIVER
 M:	Nishanth Menon <nm@ti.com>
 M:	Tero Kristo <t-kristo@ti.com>
@@ -18370,7 +18383,7 @@ F:	include/linux/usb/isp116x.h
 
 USB LAN78XX ETHERNET DRIVER
 M:	Woojung Huh <woojung.huh@microchip.com>
-M:	Microchip Linux Driver Support <UNGLinuxDriver@microchip.com>
+M:	UNGLinuxDriver@microchip.com
 L:	netdev@vger.kernel.org
 S:	Maintained
 F:	Documentation/devicetree/bindings/net/microchip,lan78xx.txt
@@ -18484,7 +18497,7 @@ F:	drivers/net/usb/smsc75xx.*
 
 USB SMSC95XX ETHERNET DRIVER
 M:	Steve Glendinning <steve.glendinning@shawell.net>
-M:	Microchip Linux Driver Support <UNGLinuxDriver@microchip.com>
+M:	UNGLinuxDriver@microchip.com
 L:	netdev@vger.kernel.org
 S:	Maintained
 F:	drivers/net/usb/smsc95xx.*
@@ -19031,7 +19044,7 @@ F:	drivers/input/mouse/vmmouse.h
 
 VMWARE VMXNET3 ETHERNET DRIVER
 M:	Ronak Doshi <doshir@vmware.com>
-M:	"VMware, Inc." <pv-drivers@vmware.com>
+M:	pv-drivers@vmware.com
 L:	netdev@vger.kernel.org
 S:	Maintained
 F:	drivers/net/vmxnet3/
@@ -19505,7 +19518,7 @@ F:	arch/x86/xen/*swiotlb*
 F:	drivers/xen/*swiotlb*
 
 XFS FILESYSTEM
-M:	Darrick J. Wong <darrick.wong@oracle.com>
+M:	Darrick J. Wong <djwong@kernel.org>
 M:	linux-xfs@vger.kernel.org
 L:	linux-xfs@vger.kernel.org
 S:	Supported

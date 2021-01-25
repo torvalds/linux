@@ -335,6 +335,8 @@ static int cs_counters_info(struct hl_fpriv *hpriv, struct hl_info_args *args)
 			atomic64_read(&cntr->device_in_reset_drop_cnt);
 	cs_counters.total_max_cs_in_flight_drop_cnt =
 			atomic64_read(&cntr->max_cs_in_flight_drop_cnt);
+	cs_counters.total_validation_drop_cnt =
+			atomic64_read(&cntr->validation_drop_cnt);
 
 	if (hpriv->ctx) {
 		cs_counters.ctx_out_of_mem_drop_cnt =
@@ -352,6 +354,9 @@ static int cs_counters_info(struct hl_fpriv *hpriv, struct hl_info_args *args)
 		cs_counters.ctx_max_cs_in_flight_drop_cnt =
 				atomic64_read(
 			&hpriv->ctx->cs_counters.max_cs_in_flight_drop_cnt);
+		cs_counters.ctx_validation_drop_cnt =
+				atomic64_read(
+				&hpriv->ctx->cs_counters.validation_drop_cnt);
 	}
 
 	return copy_to_user(out, &cs_counters,
@@ -406,7 +411,7 @@ static int total_energy_consumption_info(struct hl_fpriv *hpriv,
 static int pll_frequency_info(struct hl_fpriv *hpriv, struct hl_info_args *args)
 {
 	struct hl_device *hdev = hpriv->hdev;
-	struct hl_pll_frequency_info freq_info = {0};
+	struct hl_pll_frequency_info freq_info = { {0} };
 	u32 max_size = args->return_size;
 	void __user *out = (void __user *) (uintptr_t) args->return_pointer;
 	int rc;

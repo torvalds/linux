@@ -1765,6 +1765,8 @@ static int dcb_doit(struct sk_buff *skb, struct nlmsghdr *nlh,
 	fn = &reply_funcs[dcb->cmd];
 	if (!fn->cb)
 		return -EOPNOTSUPP;
+	if (fn->type != nlh->nlmsg_type)
+		return -EPERM;
 
 	if (!tb[DCB_ATTR_IFNAME])
 		return -EINVAL;

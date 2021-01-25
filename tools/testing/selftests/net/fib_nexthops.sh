@@ -869,7 +869,7 @@ ipv6_torture()
 	pid3=$!
 	ip netns exec me ping -f 2001:db8:101::2 >/dev/null 2>&1 &
 	pid4=$!
-	ip netns exec me mausezahn veth1 -B 2001:db8:101::2 -A 2001:db8:91::1 -c 0 -t tcp "dp=1-1023, flags=syn" >/dev/null 2>&1 &
+	ip netns exec me mausezahn -6 veth1 -B 2001:db8:101::2 -A 2001:db8:91::1 -c 0 -t tcp "dp=1-1023, flags=syn" >/dev/null 2>&1 &
 	pid5=$!
 
 	sleep 300

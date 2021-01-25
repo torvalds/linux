@@ -5034,7 +5034,7 @@ _base_check_for_trigger_pages_support(struct MPT3SAS_ADAPTER *ioc)
 static void
 _base_get_diag_triggers(struct MPT3SAS_ADAPTER *ioc)
 {
-	u16 trigger_flags;
+	int trigger_flags;
 
 	/*
 	 * Default setting of master trigger.

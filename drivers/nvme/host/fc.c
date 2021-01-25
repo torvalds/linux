@@ -166,6 +166,7 @@ struct nvme_fc_ctrl {
 	struct blk_mq_tag_set	admin_tag_set;
 	struct blk_mq_tag_set	tag_set;
 
+	struct work_struct	ioerr_work;
 	struct delayed_work	connect_work;
 
 	struct kref		ref;
@@ -1889,6 +1890,15 @@ __nvme_fc_fcpop_chk_teardowns(struct nvme_fc_ctrl *ctrl,
 }
 
 static void
+nvme_fc_ctrl_ioerr_work(struct work_struct *work)
+{
+	struct nvme_fc_ctrl *ctrl =
+			container_of(work, struct nvme_fc_ctrl, ioerr_work);
+
+	nvme_fc_error_recovery(ctrl, "transport detected io error");
+}
+
+static void
 nvme_fc_fcpio_done(struct nvmefc_fcp_req *req)
 {
 	struct nvme_fc_fcp_op *op = fcp_req_to_fcp_op(req);
@@ -2046,7 +2056,7 @@ done:
 
 check_error:
 	if (terminate_assoc)
-		nvme_fc_error_recovery(ctrl, "transport detected io error");
+		queue_work(nvme_reset_wq, &ctrl->ioerr_work);
 }
 
 static int
@@ -3233,6 +3243,7 @@ nvme_fc_delete_ctrl(struct nvme_ctrl *nctrl)
 {
 	struct nvme_fc_ctrl *ctrl = to_fc_ctrl(nctrl);
 
+	cancel_work_sync(&ctrl->ioerr_work);
 	cancel_delayed_work_sync(&ctrl->connect_work);
 	/*
 	 * kill the association on the link side.  this will block
@@ -3449,6 +3460,7 @@ nvme_fc_init_ctrl(struct device *dev, struct nvmf_ctrl_options *opts,
 
 	INIT_WORK(&ctrl->ctrl.reset_work, nvme_fc_reset_ctrl_work);
 	INIT_DELAYED_WORK(&ctrl->connect_work, nvme_fc_connect_ctrl_work);
+	INIT_WORK(&ctrl->ioerr_work, nvme_fc_ctrl_ioerr_work);
 	spin_lock_init(&ctrl->lock);
 
 	/* io queue count */
@@ -3540,6 +3552,7 @@ nvme_fc_init_ctrl(struct device *dev, struct nvmf_ctrl_options *opts,
 
 fail_ctrl:
 	nvme_change_ctrl_state(&ctrl->ctrl, NVME_CTRL_DELETING);
+	cancel_work_sync(&ctrl->ioerr_work);
 	cancel_work_sync(&ctrl->ctrl.reset_work);
 	cancel_delayed_work_sync(&ctrl->connect_work);
 
