@@ -140,6 +140,18 @@ static bool yellow_carp_is_dpm_running(struct smu_context *smu)
 
 }
 
+static int yellow_carp_post_smu_init(struct smu_context *smu)
+{
+	struct amdgpu_device *adev = smu->adev;
+	int ret = 0;
+
+	/* allow message will be sent after enable message on Yellow Carp*/
+	ret = smu_cmn_send_smc_msg(smu, SMU_MSG_EnableGfxOff, NULL);
+	if (ret)
+		dev_err(adev->dev, "Failed to Enable GfxOff!\n");
+	return ret;
+}
+
 static const struct pptable_funcs yellow_carp_ppt_funcs = {
 	.check_fw_status = smu_v13_0_1_check_fw_status,
 	.check_fw_version = smu_v13_0_1_check_fw_version,
@@ -153,6 +165,7 @@ static const struct pptable_funcs yellow_carp_ppt_funcs = {
 	.get_pp_feature_mask = smu_cmn_get_pp_feature_mask,
 	.set_driver_table_location = smu_v13_0_1_set_driver_table_location,
 	.gfx_off_control = smu_v13_0_1_gfx_off_control,
+	.post_init = yellow_carp_post_smu_init,
 };
 
 void yellow_carp_set_ppt_funcs(struct smu_context *smu)
