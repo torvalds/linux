@@ -124,7 +124,7 @@ void mlx5e_rep_update_flows(struct mlx5e_priv *priv,
 	}
 unlock:
 	mutex_unlock(&esw->offloads.encap_tbl_lock);
-	mlx5e_put_encap_flow_list(priv, &flow_list);
+	mlx5e_put_flow_list(priv, &flow_list);
 }
 
 static int

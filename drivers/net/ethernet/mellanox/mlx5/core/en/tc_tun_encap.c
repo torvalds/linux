@@ -106,8 +106,8 @@ void mlx5e_tc_encap_flows_add(struct mlx5e_priv *priv,
 		esw_attr = attr->esw_attr;
 		spec = &attr->parse_attr->spec;
 
-		esw_attr->dests[flow->tmp_efi_index].pkt_reformat = e->pkt_reformat;
-		esw_attr->dests[flow->tmp_efi_index].flags |= MLX5_ESW_DEST_ENCAP_VALID;
+		esw_attr->dests[flow->tmp_entry_index].pkt_reformat = e->pkt_reformat;
+		esw_attr->dests[flow->tmp_entry_index].flags |= MLX5_ESW_DEST_ENCAP_VALID;
 		/* Flow can be associated with multiple encap entries.
 		 * Before offloading the flow verify that all of them have
 		 * a valid neighbour.
@@ -161,7 +161,7 @@ void mlx5e_tc_encap_flows_del(struct mlx5e_priv *priv,
 		/* update from encap rule to slow path rule */
 		rule = mlx5e_tc_offload_to_slow_path(esw, flow, spec);
 		/* mark the flow's encap dest as non-valid */
-		esw_attr->dests[flow->tmp_efi_index].flags &= ~MLX5_ESW_DEST_ENCAP_VALID;
+		esw_attr->dests[flow->tmp_entry_index].flags &= ~MLX5_ESW_DEST_ENCAP_VALID;
 
 		if (IS_ERR(rule)) {
 			err = PTR_ERR(rule);
@@ -195,7 +195,7 @@ void mlx5e_take_all_encap_flows(struct mlx5e_encap_entry *e, struct list_head *f
 			continue;
 		wait_for_completion(&flow->init_done);
 
-		flow->tmp_efi_index = efi->index;
+		flow->tmp_entry_index = efi->index;
 		list_add(&flow->tmp_list, flow_list);
 	}
 }
@@ -294,7 +294,7 @@ void mlx5e_tc_update_neigh_used_value(struct mlx5e_neigh_hash_entry *nhe)
 		}
 		mutex_unlock(&esw->offloads.encap_tbl_lock);
 
-		mlx5e_put_encap_flow_list(priv, &flow_list);
+		mlx5e_put_flow_list(priv, &flow_list);
 		if (neigh_used) {
 			/* release current encap before breaking the loop */
 			mlx5e_encap_put(priv, e);

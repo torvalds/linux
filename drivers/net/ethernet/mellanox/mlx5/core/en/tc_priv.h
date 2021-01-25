@@ -95,7 +95,7 @@ struct mlx5e_tc_flow {
 				   * due to missing route)
 				   */
 	struct net_device *orig_dev; /* netdev adding flow first */
-	int tmp_efi_index;
+	int tmp_entry_index;
 	struct list_head tmp_list; /* temporary flow list used by neigh update */
 	refcount_t refcnt;
 	struct rcu_head rcu_head;

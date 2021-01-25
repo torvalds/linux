@@ -1451,7 +1451,7 @@ struct mlx5_fc *mlx5e_tc_get_counter(struct mlx5e_tc_flow *flow)
 }
 
 /* Iterate over tmp_list of flows attached to flow_list head. */
-void mlx5e_put_encap_flow_list(struct mlx5e_priv *priv, struct list_head *flow_list)
+void mlx5e_put_flow_list(struct mlx5e_priv *priv, struct list_head *flow_list)
 {
 	struct mlx5e_tc_flow *flow, *tmp;
 
