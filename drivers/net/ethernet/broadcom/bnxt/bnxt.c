@@ -2405,6 +2405,10 @@ static int bnxt_poll(struct napi_struct *napi, int budget)
 	struct bnxt_cp_ring_info *cpr = &bnapi->cp_ring;
 	int work_done = 0;
 
+	if (unlikely(test_bit(BNXT_STATE_FW_FATAL_COND, &bp->state))) {
+		napi_complete(napi);
+		return 0;
+	}
 	while (1) {
 		work_done += bnxt_poll_work(bp, cpr, budget - work_done);
 
@@ -2479,6 +2483,10 @@ static int bnxt_poll_p5(struct napi_struct *napi, int budget)
 	int work_done = 0;
 	u32 cons;
 
+	if (unlikely(test_bit(BNXT_STATE_FW_FATAL_COND, &bp->state))) {
+		napi_complete(napi);
+		return 0;
+	}
 	if (cpr->has_more_work) {
 		cpr->has_more_work = 0;
 		work_done = __bnxt_poll_cqs(bp, bnapi, budget);
