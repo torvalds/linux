@@ -9411,8 +9411,8 @@ static int bnxt_hwrm_if_change(struct bnxt *bp, bool up)
 	struct hwrm_func_drv_if_change_output *resp = bp->hwrm_cmd_resp_addr;
 	struct hwrm_func_drv_if_change_input req = {0};
 	bool resc_reinit = false, fw_reset = false;
+	int rc, retry = 0;
 	u32 flags = 0;
-	int rc;
 
 	if (!(bp->fw_cap & BNXT_FW_CAP_IF_CHANGE))
 		return 0;
@@ -9421,10 +9421,21 @@ static int bnxt_hwrm_if_change(struct bnxt *bp, bool up)
 	if (up)
 		req.flags = cpu_to_le32(FUNC_DRV_IF_CHANGE_REQ_FLAGS_UP);
 	mutex_lock(&bp->hwrm_cmd_lock);
-	rc = _hwrm_send_message(bp, &req, sizeof(req), HWRM_CMD_TIMEOUT);
+	while (retry < BNXT_FW_IF_RETRY) {
+		rc = _hwrm_send_message(bp, &req, sizeof(req),
+					HWRM_CMD_TIMEOUT);
+		if (rc != -EAGAIN)
+			break;
+
+		msleep(50);
+		retry++;
+	}
 	if (!rc)
 		flags = le32_to_cpu(resp->flags);
 	mutex_unlock(&bp->hwrm_cmd_lock);
+
+	if (rc == -EAGAIN)
+		return rc;
 	if (rc && up) {
 		rc = bnxt_try_recover_fw(bp);
 		fw_reset = true;
