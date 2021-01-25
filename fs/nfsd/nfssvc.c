@@ -33,12 +33,6 @@
 
 #define NFSDDBG_FACILITY	NFSDDBG_SVC
 
-bool inter_copy_offload_enable;
-EXPORT_SYMBOL_GPL(inter_copy_offload_enable);
-module_param(inter_copy_offload_enable, bool, 0644);
-MODULE_PARM_DESC(inter_copy_offload_enable,
-		 "Enable inter server to server copy offload. Default: false");
-
 extern struct svc_program	nfsd_program;
 static int			nfsd(void *vrqstp);
 #if defined(CONFIG_NFSD_V2_ACL) || defined(CONFIG_NFSD_V3_ACL)
