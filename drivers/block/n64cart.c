@@ -116,9 +116,7 @@ static const struct block_device_operations n64cart_fops = {
  */
 static int __init n64cart_probe(struct platform_device *pdev)
 {
-	int err;
 	struct gendisk *disk;
-	struct request_queue *queue;
 
 	if (!start || !size) {
 		pr_err("start or size not specified\n");
@@ -130,26 +128,21 @@ static int __init n64cart_probe(struct platform_device *pdev)
 		return -ENODEV;
 	}
 
-	queue = blk_alloc_queue(NUMA_NO_NODE);
-	if (!queue)
-		return -ENOMEM;
-
 	reg_base = devm_platform_ioremap_resource(pdev, 0);
-	if (!reg_base) {
-		err = -EINVAL;
-		goto fail_queue;
-	}
+	if (!reg_base)
+		return -EINVAL;
 
 	disk = alloc_disk(0);
-	if (!disk) {
-		err = -ENOMEM;
-		goto fail_queue;
-	}
+	if (!disk)
+		return -ENOMEM;
+
+	disk->queue = blk_alloc_queue(NUMA_NO_NODE);
+	if (!disk->queue)
+		return -ENOMEM;
 
 	dev = &pdev->dev;
 
 	disk->first_minor = 0;
-	disk->queue = queue;
 	disk->flags = GENHD_FL_NO_PART_SCAN | GENHD_FL_EXT_DEVT;
 	disk->fops = &n64cart_fops;
 	strcpy(disk->disk_name, "n64cart");
@@ -157,19 +150,15 @@ static int __init n64cart_probe(struct platform_device *pdev)
 	set_capacity(disk, size >> SECTOR_SHIFT);
 	set_disk_ro(disk, 1);
 
-	blk_queue_flag_set(QUEUE_FLAG_NONROT, queue);
-	blk_queue_physical_block_size(queue, 4096);
-	blk_queue_logical_block_size(queue, 4096);
+	blk_queue_flag_set(QUEUE_FLAG_NONROT, disk->queue);
+	blk_queue_physical_block_size(disk->queue, 4096);
+	blk_queue_logical_block_size(disk->queue, 4096);
 
 	add_disk(disk);
 
 	pr_info("n64cart: %u kb disk\n", size / 1024);
 
 	return 0;
-fail_queue:
-	blk_cleanup_queue(queue);
-
-	return err;
 }
 
 static struct platform_driver n64cart_driver = {
