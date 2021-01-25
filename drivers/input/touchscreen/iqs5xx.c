@@ -30,9 +30,9 @@
 
 #define IQS5XX_FW_FILE_LEN	64
 #define IQS5XX_NUM_RETRIES	10
-#define IQS5XX_NUM_POINTS	256
 #define IQS5XX_NUM_CONTACTS	5
 #define IQS5XX_WR_BYTES_MAX	2
+#define IQS5XX_XY_RES_MAX	0xFFFE
 
 #define IQS5XX_PROD_NUM_IQS550	40
 #define IQS5XX_PROD_NUM_IQS572	58
@@ -52,10 +52,6 @@
 #define IQS5XX_EVENT_MODE	0x01
 #define IQS5XX_TP_EVENT		0x04
 
-#define IQS5XX_FLIP_X		0x01
-#define IQS5XX_FLIP_Y		0x02
-#define IQS5XX_SWITCH_XY_AXIS	0x04
-
 #define IQS5XX_PROD_NUM		0x0000
 #define IQS5XX_SYS_INFO0	0x000F
 #define IQS5XX_SYS_INFO1	0x0010
@@ -63,9 +59,6 @@
 #define IQS5XX_SYS_CTRL1	0x0432
 #define IQS5XX_SYS_CFG0		0x058E
 #define IQS5XX_SYS_CFG1		0x058F
-#define IQS5XX_TOTAL_RX		0x063D
-#define IQS5XX_TOTAL_TX		0x063E
-#define IQS5XX_XY_CFG0		0x0669
 #define IQS5XX_X_RES		0x066E
 #define IQS5XX_Y_RES		0x0670
 #define IQS5XX_CHKSM		0x83C0
@@ -102,6 +95,7 @@ struct iqs5xx_private {
 	struct i2c_client *client;
 	struct input_dev *input;
 	struct gpio_desc *reset_gpio;
+	struct touchscreen_properties prop;
 	struct mutex lock;
 	u8 bl_status;
 };
@@ -497,12 +491,10 @@ static void iqs5xx_close(struct input_dev *input)
 static int iqs5xx_axis_init(struct i2c_client *client)
 {
 	struct iqs5xx_private *iqs5xx = i2c_get_clientdata(client);
-	struct touchscreen_properties prop;
+	struct touchscreen_properties *prop = &iqs5xx->prop;
 	struct input_dev *input;
+	u16 max_x, max_y;
 	int error;
-	u16 max_x, max_x_hw;
-	u16 max_y, max_y_hw;
-	u8 val;
 
 	if (!iqs5xx->input) {
 		input = devm_input_allocate_device(&client->dev);
@@ -522,88 +514,38 @@ static int iqs5xx_axis_init(struct i2c_client *client)
 		iqs5xx->input = input;
 	}
 
-	touchscreen_parse_properties(iqs5xx->input, true, &prop);
-
-	error = iqs5xx_read_byte(client, IQS5XX_TOTAL_RX, &val);
-	if (error)
-		return error;
-	max_x_hw = (val - 1) * IQS5XX_NUM_POINTS;
-
-	error = iqs5xx_read_byte(client, IQS5XX_TOTAL_TX, &val);
-	if (error)
-		return error;
-	max_y_hw = (val - 1) * IQS5XX_NUM_POINTS;
-
-	error = iqs5xx_read_byte(client, IQS5XX_XY_CFG0, &val);
+	error = iqs5xx_read_word(client, IQS5XX_X_RES, &max_x);
 	if (error)
 		return error;
 
-	if (val & IQS5XX_SWITCH_XY_AXIS)
-		swap(max_x_hw, max_y_hw);
-
-	if (prop.swap_x_y)
-		val ^= IQS5XX_SWITCH_XY_AXIS;
-
-	if (prop.invert_x)
-		val ^= prop.swap_x_y ? IQS5XX_FLIP_Y : IQS5XX_FLIP_X;
-
-	if (prop.invert_y)
-		val ^= prop.swap_x_y ? IQS5XX_FLIP_X : IQS5XX_FLIP_Y;
-
-	error = iqs5xx_write_byte(client, IQS5XX_XY_CFG0, val);
+	error = iqs5xx_read_word(client, IQS5XX_Y_RES, &max_y);
 	if (error)
 		return error;
 
-	if (prop.max_x > max_x_hw) {
+	input_abs_set_max(iqs5xx->input, ABS_MT_POSITION_X, max_x);
+	input_abs_set_max(iqs5xx->input, ABS_MT_POSITION_Y, max_y);
+
+	touchscreen_parse_properties(iqs5xx->input, true, prop);
+
+	if (prop->max_x > IQS5XX_XY_RES_MAX) {
 		dev_err(&client->dev, "Invalid maximum x-coordinate: %u > %u\n",
-			prop.max_x, max_x_hw);
+			prop->max_x, IQS5XX_XY_RES_MAX);
 		return -EINVAL;
-	} else if (prop.max_x == 0) {
-		error = iqs5xx_read_word(client, IQS5XX_X_RES, &max_x);
+	} else if (prop->max_x != max_x) {
+		error = iqs5xx_write_word(client, IQS5XX_X_RES, prop->max_x);
 		if (error)
 			return error;
-
-		input_abs_set_max(iqs5xx->input,
-				  prop.swap_x_y ? ABS_MT_POSITION_Y :
-						  ABS_MT_POSITION_X,
-				  max_x);
-	} else {
-		max_x = (u16)prop.max_x;
 	}
 
-	if (prop.max_y > max_y_hw) {
+	if (prop->max_y > IQS5XX_XY_RES_MAX) {
 		dev_err(&client->dev, "Invalid maximum y-coordinate: %u > %u\n",
-			prop.max_y, max_y_hw);
+			prop->max_y, IQS5XX_XY_RES_MAX);
 		return -EINVAL;
-	} else if (prop.max_y == 0) {
-		error = iqs5xx_read_word(client, IQS5XX_Y_RES, &max_y);
+	} else if (prop->max_y != max_y) {
+		error = iqs5xx_write_word(client, IQS5XX_Y_RES, prop->max_y);
 		if (error)
 			return error;
-
-		input_abs_set_max(iqs5xx->input,
-				  prop.swap_x_y ? ABS_MT_POSITION_X :
-						  ABS_MT_POSITION_Y,
-				  max_y);
-	} else {
-		max_y = (u16)prop.max_y;
 	}
-
-	/*
-	 * Write horizontal and vertical resolution to the device in case its
-	 * original defaults were overridden or swapped as per the properties
-	 * specified in the device tree.
-	 */
-	error = iqs5xx_write_word(client,
-				  prop.swap_x_y ? IQS5XX_Y_RES : IQS5XX_X_RES,
-				  max_x);
-	if (error)
-		return error;
-
-	error = iqs5xx_write_word(client,
-				  prop.swap_x_y ? IQS5XX_X_RES : IQS5XX_Y_RES,
-				  max_y);
-	if (error)
-		return error;
 
 	error = input_mt_init_slots(iqs5xx->input, IQS5XX_NUM_CONTACTS,
 				    INPUT_MT_DIRECT);
@@ -760,10 +702,10 @@ static irqreturn_t iqs5xx_irq(int irq, void *data)
 		input_mt_slot(input, i);
 		if (input_mt_report_slot_state(input, MT_TOOL_FINGER,
 					       pressure != 0)) {
-			input_report_abs(input, ABS_MT_POSITION_X,
-					 be16_to_cpu(touch_data->abs_x));
-			input_report_abs(input, ABS_MT_POSITION_Y,
-					 be16_to_cpu(touch_data->abs_y));
+			touchscreen_report_pos(iqs5xx->input, &iqs5xx->prop,
+					       be16_to_cpu(touch_data->abs_x),
+					       be16_to_cpu(touch_data->abs_y),
+					       true);
 			input_report_abs(input, ABS_MT_PRESSURE, pressure);
 		}
 	}
