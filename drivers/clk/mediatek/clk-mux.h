@@ -14,6 +14,7 @@ struct mtk_clk_mux {
 	struct regmap *regmap;
 	const struct mtk_mux *data;
 	spinlock_t *lock;
+	bool reparent;
 };
 
 struct mtk_mux {
