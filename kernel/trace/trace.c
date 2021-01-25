@@ -2579,19 +2579,12 @@ enum print_line_t trace_handle_return(struct trace_seq *s)
 }
 EXPORT_SYMBOL_GPL(trace_handle_return);
 
-unsigned int tracing_gen_ctx_flags(unsigned long irqflags)
+unsigned int tracing_gen_ctx_irq_test(unsigned int irqs_status)
 {
-	unsigned int trace_flags = 0;
+	unsigned int trace_flags = irqs_status;
 	unsigned int pc;
 
 	pc = preempt_count();
-
-#ifdef CONFIG_TRACE_IRQFLAGS_SUPPORT
-	if (irqs_disabled_flags(irqflags))
-		trace_flags |= TRACE_FLAG_IRQS_OFF;
-#else
-	trace_flags |= TRACE_FLAG_IRQS_NOSUPPORT;
-#endif
 
 	if (pc & NMI_MASK)
 		trace_flags |= TRACE_FLAG_NMI;
@@ -2606,33 +2599,6 @@ unsigned int tracing_gen_ctx_flags(unsigned long irqflags)
 	if (test_preempt_need_resched())
 		trace_flags |= TRACE_FLAG_PREEMPT_RESCHED;
 	return (trace_flags << 16) | (pc & 0xff);
-}
-
-unsigned int tracing_gen_ctx(void)
-{
-	unsigned long irqflags;
-
-#ifdef CONFIG_TRACE_IRQFLAGS_SUPPORT
-	local_save_flags(irqflags);
-#else
-	irqflags = 0;
-#endif
-	return tracing_gen_ctx_flags(irqflags);
-}
-
-unsigned int tracing_gen_ctx_dec(void)
-{
-	unsigned int trace_ctx;
-
-	trace_ctx = tracing_gen_ctx();
-
-	/*
-	 * Subtract one from the preeption counter if preemption is enabled,
-	 * see trace_event_buffer_reserve()for details.
-	 */
-	if (IS_ENABLED(CONFIG_PREEMPTION))
-		trace_ctx--;
-	return trace_ctx;
 }
 
 struct ring_buffer_event *
