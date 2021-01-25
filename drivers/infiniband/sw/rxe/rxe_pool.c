@@ -157,24 +157,16 @@ int rxe_pool_init(
 		pool->key.key_size = rxe_type_info[type].key_size;
 	}
 
-	pool->state = RXE_POOL_STATE_VALID;
-
 out:
 	return err;
 }
 
 void rxe_pool_cleanup(struct rxe_pool *pool)
 {
-	unsigned long flags;
-
-	write_lock_irqsave(&pool->pool_lock, flags);
-	pool->state = RXE_POOL_STATE_INVALID;
 	if (atomic_read(&pool->num_elem) > 0)
 		pr_warn("%s pool destroyed with unfree'd elem\n",
 			pool_name(pool));
-	write_unlock_irqrestore(&pool->pool_lock, flags);
 
-	pool->state = RXE_POOL_STATE_INVALID;
 	kfree(pool->index.table);
 }
 
@@ -328,9 +320,6 @@ void *rxe_alloc_locked(struct rxe_pool *pool)
 	struct rxe_pool_entry *elem;
 	u8 *obj;
 
-	if (pool->state != RXE_POOL_STATE_VALID)
-		return NULL;
-
 	if (atomic_inc_return(&pool->num_elem) > pool->max_elem)
 		goto out_cnt;
 
@@ -352,18 +341,9 @@ out_cnt:
 
 void *rxe_alloc(struct rxe_pool *pool)
 {
-	unsigned long flags;
 	struct rxe_type_info *info = &rxe_type_info[pool->type];
 	struct rxe_pool_entry *elem;
 	u8 *obj;
-
-	read_lock_irqsave(&pool->pool_lock, flags);
-	if (pool->state != RXE_POOL_STATE_VALID) {
-		read_unlock_irqrestore(&pool->pool_lock, flags);
-		return NULL;
-	}
-
-	read_unlock_irqrestore(&pool->pool_lock, flags);
 
 	if (atomic_inc_return(&pool->num_elem) > pool->max_elem)
 		goto out_cnt;
@@ -386,15 +366,6 @@ out_cnt:
 
 int __rxe_add_to_pool(struct rxe_pool *pool, struct rxe_pool_entry *elem)
 {
-	unsigned long flags;
-
-	read_lock_irqsave(&pool->pool_lock, flags);
-	if (pool->state != RXE_POOL_STATE_VALID) {
-		read_unlock_irqrestore(&pool->pool_lock, flags);
-		return -EINVAL;
-	}
-	read_unlock_irqrestore(&pool->pool_lock, flags);
-
 	if (atomic_inc_return(&pool->num_elem) > pool->max_elem)
 		goto out_cnt;
 
@@ -437,9 +408,6 @@ void *rxe_pool_get_index(struct rxe_pool *pool, u32 index)
 
 	read_lock_irqsave(&pool->pool_lock, flags);
 
-	if (pool->state != RXE_POOL_STATE_VALID)
-		goto out;
-
 	node = pool->index.tree.rb_node;
 
 	while (node) {
@@ -460,8 +428,8 @@ void *rxe_pool_get_index(struct rxe_pool *pool, u32 index)
 		obj = NULL;
 	}
 
-out:
 	read_unlock_irqrestore(&pool->pool_lock, flags);
+
 	return obj;
 }
 
@@ -472,9 +440,6 @@ void *rxe_pool_get_key_locked(struct rxe_pool *pool, void *key)
 	struct rxe_pool_entry *elem;
 	u8 *obj = NULL;
 	int cmp;
-
-	if (pool->state != RXE_POOL_STATE_VALID)
-		goto out;
 
 	node = pool->key.tree.rb_node;
 
@@ -499,7 +464,6 @@ void *rxe_pool_get_key_locked(struct rxe_pool *pool, void *key)
 		obj = NULL;
 	}
 
-out:
 	return obj;
 }
 
