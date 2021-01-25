@@ -668,9 +668,10 @@ static int vmw_setup_pci_resources(struct vmw_private *dev,
 				      fifo_size,
 				      MEMREMAP_WB);
 
-	if (unlikely(dev->fifo_mem == NULL)) {
+	if (IS_ERR(dev->fifo_mem)) {
 		DRM_ERROR("Failed mapping FIFO memory.\n");
-		return -ENOMEM;
+		pci_release_regions(pdev);
+		return PTR_ERR(dev->fifo_mem);
 	}
 
 	/*
