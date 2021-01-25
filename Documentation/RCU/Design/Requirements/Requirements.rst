@@ -45,7 +45,7 @@ requirements:
 #. `Other RCU Flavors`_
 #. `Possible Future Changes`_
 
-This is followed by a `summary <#Summary>`__, however, the answers to
+This is followed by a summary_, however, the answers to
 each quick quiz immediately follows the quiz. Select the big white space
 with your mouse to see the answer.
 
@@ -1096,7 +1096,7 @@ memory barriers.
 | case, voluntary context switch) within an RCU read-side critical      |
 | section. However, sleeping locks may be used within userspace RCU     |
 | read-side critical sections, and also within Linux-kernel sleepable   |
-| RCU `(SRCU) <#Sleepable%20RCU>`__ read-side critical sections. In     |
+| RCU `(SRCU) <Sleepable RCU_>`__ read-side critical sections. In       |
 | addition, the -rt patchset turns spinlocks into a sleeping locks so   |
 | that the corresponding critical sections can be preempted, which also |
 | means that these sleeplockified spinlocks (but not other sleeping     |
@@ -1186,7 +1186,7 @@ non-preemptible (``CONFIG_PREEMPT=n``) kernels, and thus `tiny
 RCU <https://lkml.kernel.org/g/20090113221724.GA15307@linux.vnet.ibm.com>`__
 was born. Josh Triplett has since taken over the small-memory banner
 with his `Linux kernel tinification <https://tiny.wiki.kernel.org/>`__
-project, which resulted in `SRCU <#Sleepable%20RCU>`__ becoming optional
+project, which resulted in `SRCU <Sleepable RCU_>`__ becoming optional
 for those kernels not needing it.
 
 The remaining performance requirements are, for the most part,
@@ -1457,8 +1457,8 @@ will vary as the value of ``HZ`` varies, and can also be changed using
 the relevant Kconfig options and kernel boot parameters. RCU currently
 does not do much sanity checking of these parameters, so please use
 caution when changing them. Note that these forward-progress measures
-are provided only for RCU, not for `SRCU <#Sleepable%20RCU>`__ or `Tasks
-RCU <#Tasks%20RCU>`__.
+are provided only for RCU, not for `SRCU <Sleepable RCU_>`__ or `Tasks
+RCU`_.
 
 RCU takes the following steps in ``call_rcu()`` to encourage timely
 invocation of callbacks when any given non-\ ``rcu_nocbs`` CPU has
@@ -1477,8 +1477,8 @@ encouragement was provided:
 
 Again, these are default values when running at ``HZ=1000``, and can be
 overridden. Again, these forward-progress measures are provided only for
-RCU, not for `SRCU <#Sleepable%20RCU>`__ or `Tasks
-RCU <#Tasks%20RCU>`__. Even for RCU, callback-invocation forward
+RCU, not for `SRCU <Sleepable RCU_>`__ or `Tasks
+RCU`_. Even for RCU, callback-invocation forward
 progress for ``rcu_nocbs`` CPUs is much less well-developed, in part
 because workloads benefiting from ``rcu_nocbs`` CPUs tend to invoke
 ``call_rcu()`` relatively infrequently. If workloads emerge that need
@@ -1920,7 +1920,7 @@ Hotplug CPU
 
 The Linux kernel supports CPU hotplug, which means that CPUs can come
 and go. It is of course illegal to use any RCU API member from an
-offline CPU, with the exception of `SRCU <#Sleepable%20RCU>`__ read-side
+offline CPU, with the exception of `SRCU <Sleepable RCU_>`__ read-side
 critical sections. This requirement was present from day one in
 DYNIX/ptx, but on the other hand, the Linux kernel's CPU-hotplug
 implementation is “interesting.”
@@ -2177,7 +2177,7 @@ handles these states differently:
 However, RCU must be reliably informed as to whether any given CPU is
 currently in the idle loop, and, for ``NO_HZ_FULL``, also whether that
 CPU is executing in usermode, as discussed
-`earlier <#Energy%20Efficiency>`__. It also requires that the
+`earlier <Energy Efficiency_>`__. It also requires that the
 scheduling-clock interrupt be enabled when RCU needs it to be:
 
 #. If a CPU is either idle or executing in usermode, and RCU believes it
@@ -2294,7 +2294,7 @@ Performance, Scalability, Response Time, and Reliability
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 Expanding on the `earlier
-discussion <#Performance%20and%20Scalability>`__, RCU is used heavily by
+discussion <Performance and Scalability_>`__, RCU is used heavily by
 hot code paths in performance-critical portions of the Linux kernel's
 networking, security, virtualization, and scheduling code paths. RCU
 must therefore use efficient implementations, especially in its

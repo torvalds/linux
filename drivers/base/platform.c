@@ -366,6 +366,8 @@ int devm_platform_get_irqs_affinity(struct platform_device *dev,
 		return -ERANGE;
 
 	nvec = platform_irq_count(dev);
+	if (nvec < 0)
+		return nvec;
 
 	if (nvec < minvec)
 		return -ENOSPC;

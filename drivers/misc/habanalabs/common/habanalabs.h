@@ -944,7 +944,7 @@ struct hl_asic_funcs {
 	u32 (*get_signal_cb_size)(struct hl_device *hdev);
 	u32 (*get_wait_cb_size)(struct hl_device *hdev);
 	u32 (*gen_signal_cb)(struct hl_device *hdev, void *data, u16 sob_id,
-			u32 size);
+			u32 size, bool eb);
 	u32 (*gen_wait_cb)(struct hl_device *hdev,
 			struct hl_gen_wait_properties *prop);
 	void (*reset_sob)(struct hl_device *hdev, void *data);
@@ -1000,6 +1000,7 @@ struct hl_va_range {
  * @queue_full_drop_cnt: dropped due to queue full
  * @device_in_reset_drop_cnt: dropped due to device in reset
  * @max_cs_in_flight_drop_cnt: dropped due to maximum CS in-flight
+ * @validation_drop_cnt: dropped due to error in validation
  */
 struct hl_cs_counters_atomic {
 	atomic64_t out_of_mem_drop_cnt;
@@ -1007,6 +1008,7 @@ struct hl_cs_counters_atomic {
 	atomic64_t queue_full_drop_cnt;
 	atomic64_t device_in_reset_drop_cnt;
 	atomic64_t max_cs_in_flight_drop_cnt;
+	atomic64_t validation_drop_cnt;
 };
 
 /**
@@ -2180,6 +2182,7 @@ void hl_mmu_v1_set_funcs(struct hl_device *hdev, struct hl_mmu_funcs *mmu);
 int hl_mmu_va_to_pa(struct hl_ctx *ctx, u64 virt_addr, u64 *phys_addr);
 int hl_mmu_get_tlb_info(struct hl_ctx *ctx, u64 virt_addr,
 			struct hl_mmu_hop_info *hops);
+bool hl_is_dram_va(struct hl_device *hdev, u64 virt_addr);
 
 int hl_fw_load_fw_to_device(struct hl_device *hdev, const char *fw_name,
 				void __iomem *dst, u32 src_offset, u32 size);

@@ -135,7 +135,7 @@ unsigned long ib_umem_find_best_pgsz(struct ib_umem *umem,
 	 */
 	if (mask)
 		pgsz_bitmap &= GENMASK(count_trailing_zeros(mask), 0);
-	return rounddown_pow_of_two(pgsz_bitmap);
+	return pgsz_bitmap ? rounddown_pow_of_two(pgsz_bitmap) : 0;
 }
 EXPORT_SYMBOL(ib_umem_find_best_pgsz);
 

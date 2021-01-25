@@ -161,7 +161,8 @@ properties:
             * snps,route-dcbcp, DCB Control Packets
             * snps,route-up, Untagged Packets
             * snps,route-multi-broad, Multicast & Broadcast Packets
-          * snps,priority, RX queue priority (Range 0x0 to 0xF)
+          * snps,priority, bitmask of the tagged frames priorities assigned to
+            the queue
 
   snps,mtl-tx-config:
     $ref: /schemas/types.yaml#/definitions/phandle
@@ -188,7 +189,10 @@ properties:
             * snps,idle_slope, unlock on WoL
             * snps,high_credit, max write outstanding req. limit
             * snps,low_credit, max read outstanding req. limit
-          * snps,priority, TX queue priority (Range 0x0 to 0xF)
+          * snps,priority, bitmask of the priorities assigned to the queue.
+            When a PFC frame is received with priorities matching the bitmask,
+            the queue is blocked from transmitting for the pause time specified
+            in the PFC frame.
 
   snps,reset-gpio:
     deprecated: true

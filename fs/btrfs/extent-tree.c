@@ -844,6 +844,7 @@ int lookup_inline_extent_backref(struct btrfs_trans_handle *trans,
 	want = extent_ref_type(parent, owner);
 	if (insert) {
 		extra_size = btrfs_extent_inline_ref_size(want);
+		path->search_for_extension = 1;
 		path->keep_locks = 1;
 	} else
 		extra_size = -1;
@@ -996,6 +997,7 @@ again:
 out:
 	if (insert) {
 		path->keep_locks = 0;
+		path->search_for_extension = 0;
 		btrfs_unlock_up_safe(path, 1);
 	}
 	return err;
@@ -5547,7 +5549,15 @@ int btrfs_drop_snapshot(struct btrfs_root *root, int update_ref, int for_reloc)
 				goto out_free;
 			}
 
-			trans = btrfs_start_transaction(tree_root, 0);
+		       /*
+			* Use join to avoid potential EINTR from transaction
+			* start. See wait_reserve_ticket and the whole
+			* reservation callchain.
+			*/
+			if (for_reloc)
+				trans = btrfs_join_transaction(tree_root);
+			else
+				trans = btrfs_start_transaction(tree_root, 0);
 			if (IS_ERR(trans)) {
 				err = PTR_ERR(trans);
 				goto out_free;
