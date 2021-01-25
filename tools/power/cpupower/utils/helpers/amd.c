@@ -45,10 +45,10 @@ static int get_did(int family, union core_pstate pstate)
 {
 	int t;
 
-	if (family == 0x12)
-		t = pstate.val & 0xf;
-	else if (family == 0x17 || family == 0x18)
+	if (cpupower_cpu_info.caps & CPUPOWER_CAP_AMD_PSTATEDEF)
 		t = pstate.pstatedef.did;
+	else if (family == 0x12)
+		t = pstate.val & 0xf;
 	else
 		t = pstate.pstate.did;
 
@@ -61,7 +61,7 @@ static int get_cof(int family, union core_pstate pstate)
 	int fid, did, cof;
 
 	did = get_did(family, pstate);
-	if (family == 0x17 || family == 0x18) {
+	if (cpupower_cpu_info.caps & CPUPOWER_CAP_AMD_PSTATEDEF) {
 		fid = pstate.pstatedef.fid;
 		cof = 200 * fid / did;
 	} else {

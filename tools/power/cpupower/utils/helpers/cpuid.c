@@ -133,9 +133,13 @@ out:
 				cpu_info->caps |= CPUPOWER_CAP_AMD_CPB;
 
 			if ((cpuid_edx(0x80000007) & (1 << 7)) &&
-			    cpu_info->family != 0x14)
+			    cpu_info->family != 0x14) {
 				/* HW pstate was not implemented in family 0x14 */
 				cpu_info->caps |= CPUPOWER_CAP_AMD_HW_PSTATE;
+
+				if (cpu_info->family >= 0x17)
+					cpu_info->caps |= CPUPOWER_CAP_AMD_PSTATEDEF;
+			}
 		}
 
 		if (ext_cpuid_level >= 0x80000008 &&
