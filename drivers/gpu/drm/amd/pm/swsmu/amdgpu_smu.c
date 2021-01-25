@@ -2046,35 +2046,50 @@ int smu_get_power_limit(struct smu_context *smu,
 			uint32_t *limit,
 			enum smu_ppt_limit_level limit_level)
 {
-	if (!smu->pm_enabled || !smu->adev->pm.dpm_enabled)
-		return -EOPNOTSUPP;
-
-	mutex_lock(&smu->mutex);
-
-	switch (limit_level) {
-	case SMU_PPT_LIMIT_CURRENT:
-		*limit = smu->current_power_limit;
-		break;
-	case SMU_PPT_LIMIT_MAX:
-		*limit = smu->max_power_limit;
-		break;
-	default:
-		break;
-	}
-
-	mutex_unlock(&smu->mutex);
-
-	return 0;
-}
-
-int smu_set_power_limit(struct smu_context *smu, uint32_t limit)
-{
+	uint32_t limit_type = *limit >> 24;
 	int ret = 0;
 
 	if (!smu->pm_enabled || !smu->adev->pm.dpm_enabled)
 		return -EOPNOTSUPP;
 
 	mutex_lock(&smu->mutex);
+
+	if (limit_type != SMU_DEFAULT_PPT_LIMIT) {
+		if (smu->ppt_funcs->get_ppt_limit)
+			ret = smu->ppt_funcs->get_ppt_limit(smu, limit, limit_type, limit_level);
+	} else {
+		switch (limit_level) {
+		case SMU_PPT_LIMIT_CURRENT:
+			*limit = smu->current_power_limit;
+			break;
+		case SMU_PPT_LIMIT_MAX:
+			*limit = smu->max_power_limit;
+			break;
+		default:
+			break;
+		}
+	}
+
+	mutex_unlock(&smu->mutex);
+
+	return ret;
+}
+
+int smu_set_power_limit(struct smu_context *smu, uint32_t limit)
+{
+	uint32_t limit_type = limit >> 24;
+	int ret = 0;
+
+	if (!smu->pm_enabled || !smu->adev->pm.dpm_enabled)
+		return -EOPNOTSUPP;
+
+	mutex_lock(&smu->mutex);
+
+	if (limit_type != SMU_DEFAULT_PPT_LIMIT)
+		if (smu->ppt_funcs->set_power_limit) {
+			ret = smu->ppt_funcs->set_power_limit(smu, limit);
+			goto out;
+		}
 
 	if (limit > smu->max_power_limit) {
 		dev_err(smu->adev->dev,

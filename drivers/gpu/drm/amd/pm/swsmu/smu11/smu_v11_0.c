@@ -474,12 +474,14 @@ int smu_v11_0_fini_smc_tables(struct smu_context *smu)
 int smu_v11_0_init_power(struct smu_context *smu)
 {
 	struct smu_power_context *smu_power = &smu->smu_power;
+	size_t size = smu->adev->asic_type == CHIP_VANGOGH ?
+			sizeof(struct smu_11_5_power_context) :
+			sizeof(struct smu_11_0_power_context);
 
-	smu_power->power_context = kzalloc(sizeof(struct smu_11_0_power_context),
-					   GFP_KERNEL);
+	smu_power->power_context = kzalloc(size, GFP_KERNEL);
 	if (!smu_power->power_context)
 		return -ENOMEM;
-	smu_power->power_context_size = sizeof(struct smu_11_0_power_context);
+	smu_power->power_context_size = size;
 
 	return 0;
 }
