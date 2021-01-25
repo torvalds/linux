@@ -10905,11 +10905,18 @@ static void bnxt_rx_ring_reset(struct bnxt *bp)
 static void bnxt_fw_reset_close(struct bnxt *bp)
 {
 	bnxt_ulp_stop(bp);
-	/* When firmware is fatal state, disable PCI device to prevent
-	 * any potential bad DMAs before freeing kernel memory.
+	/* When firmware is in fatal state, quiesce device and disable
+	 * bus master to prevent any potential bad DMAs before freeing
+	 * kernel memory.
 	 */
-	if (test_bit(BNXT_STATE_FW_FATAL_COND, &bp->state))
+	if (test_bit(BNXT_STATE_FW_FATAL_COND, &bp->state)) {
+		bnxt_tx_disable(bp);
+		bnxt_disable_napi(bp);
+		bnxt_disable_int_sync(bp);
+		bnxt_free_irq(bp);
+		bnxt_clear_int_mode(bp);
 		pci_disable_device(bp->pdev);
+	}
 	__bnxt_close_nic(bp, true, false);
 	bnxt_clear_int_mode(bp);
 	bnxt_hwrm_func_drv_unrgtr(bp);
