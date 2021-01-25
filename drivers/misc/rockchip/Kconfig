@@ -1,0 +1,18 @@
+# SPDX-License-Identifier: GPL-2.0
+#
+# Misc strange devices for rockchip
+
+config PCIE_FUNC_RKEP
+	tristate "Rockchip PCIe EP function driver"
+	depends on PCI
+	depends on ARCH_ROCKCHIP
+	help
+           Enable this configuration option to enable the host side function
+	   driver for Rockchip's EP demo function driver.
+
+config PCIE_FUNC_RKEP_USERPAGES
+	bool "EP function driver reserve continuous physical space for user layer"
+	depends on PCIE_FUNC_RKEP=y
+	help
+	  Enable this configuration option to reserve continuous physical space
+          for user layer in Rockchip's EP demo function driver.
