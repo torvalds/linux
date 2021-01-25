@@ -72,9 +72,7 @@ obj-$(CONFIG_VSOCKETS)	+= vmw_vsock/
 obj-$(CONFIG_MPLS)		+= mpls/
 obj-$(CONFIG_NET_NSH)		+= nsh/
 obj-$(CONFIG_HSR)		+= hsr/
-ifneq ($(CONFIG_NET_SWITCHDEV),)
-obj-y				+= switchdev/
-endif
+obj-$(CONFIG_NET_SWITCHDEV)	+= switchdev/
 ifneq ($(CONFIG_NET_L3_MASTER_DEV),)
 obj-y				+= l3mdev/
 endif
