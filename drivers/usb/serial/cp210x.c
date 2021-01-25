@@ -449,16 +449,13 @@ struct cp210x_flow_ctl {
 
 /* cp210x_flow_ctl::ulControlHandshake */
 #define CP210X_SERIAL_DTR_MASK		GENMASK(1, 0)
-#define CP210X_SERIAL_DTR_SHIFT(_mode)	(_mode)
+#define CP210X_SERIAL_DTR_INACTIVE	(0 << 0)
+#define CP210X_SERIAL_DTR_ACTIVE	(1 << 0)
+#define CP210X_SERIAL_DTR_FLOW_CTL	(2 << 0)
 #define CP210X_SERIAL_CTS_HANDSHAKE	BIT(3)
 #define CP210X_SERIAL_DSR_HANDSHAKE	BIT(4)
 #define CP210X_SERIAL_DCD_HANDSHAKE	BIT(5)
 #define CP210X_SERIAL_DSR_SENSITIVITY	BIT(6)
-
-/* values for cp210x_flow_ctl::ulControlHandshake::CP210X_SERIAL_DTR_MASK */
-#define CP210X_SERIAL_DTR_INACTIVE	0
-#define CP210X_SERIAL_DTR_ACTIVE	1
-#define CP210X_SERIAL_DTR_FLOW_CTL	2
 
 /* cp210x_flow_ctl::ulFlowReplace */
 #define CP210X_SERIAL_AUTO_TRANSMIT	BIT(0)
@@ -467,13 +464,10 @@ struct cp210x_flow_ctl {
 #define CP210X_SERIAL_NULL_STRIPPING	BIT(3)
 #define CP210X_SERIAL_BREAK_CHAR	BIT(4)
 #define CP210X_SERIAL_RTS_MASK		GENMASK(7, 6)
-#define CP210X_SERIAL_RTS_SHIFT(_mode)	(_mode << 6)
+#define CP210X_SERIAL_RTS_INACTIVE	(0 << 6)
+#define CP210X_SERIAL_RTS_ACTIVE	(1 << 6)
+#define CP210X_SERIAL_RTS_FLOW_CTL	(2 << 6)
 #define CP210X_SERIAL_XOFF_CONTINUE	BIT(31)
-
-/* values for cp210x_flow_ctl::ulFlowReplace::CP210X_SERIAL_RTS_MASK */
-#define CP210X_SERIAL_RTS_INACTIVE	0
-#define CP210X_SERIAL_RTS_ACTIVE	1
-#define CP210X_SERIAL_RTS_FLOW_CTL	2
 
 /* CP210X_VENDOR_SPECIFIC, CP210X_GET_DEVICEMODE call reads these 0x2 bytes. */
 struct cp210x_pin_mode {
@@ -1165,22 +1159,22 @@ static void cp210x_set_flow_control(struct tty_struct *tty,
 	ctl_hs &= ~CP210X_SERIAL_DSR_SENSITIVITY;
 	ctl_hs &= ~CP210X_SERIAL_DTR_MASK;
 	if (port_priv->dtr)
-		ctl_hs |= CP210X_SERIAL_DTR_SHIFT(CP210X_SERIAL_DTR_ACTIVE);
+		ctl_hs |= CP210X_SERIAL_DTR_ACTIVE;
 	else
-		ctl_hs |= CP210X_SERIAL_DTR_SHIFT(CP210X_SERIAL_DTR_INACTIVE);
+		ctl_hs |= CP210X_SERIAL_DTR_INACTIVE;
 
 	if (C_CRTSCTS(tty)) {
 		ctl_hs |= CP210X_SERIAL_CTS_HANDSHAKE;
 		flow_repl &= ~CP210X_SERIAL_RTS_MASK;
-		flow_repl |= CP210X_SERIAL_RTS_SHIFT(CP210X_SERIAL_RTS_FLOW_CTL);
+		flow_repl |= CP210X_SERIAL_RTS_FLOW_CTL;
 		port_priv->crtscts = true;
 	} else {
 		ctl_hs &= ~CP210X_SERIAL_CTS_HANDSHAKE;
 		flow_repl &= ~CP210X_SERIAL_RTS_MASK;
 		if (port_priv->rts)
-			flow_repl |= CP210X_SERIAL_RTS_SHIFT(CP210X_SERIAL_RTS_ACTIVE);
+			flow_repl |= CP210X_SERIAL_RTS_ACTIVE;
 		else
-			flow_repl |= CP210X_SERIAL_RTS_SHIFT(CP210X_SERIAL_RTS_INACTIVE);
+			flow_repl |= CP210X_SERIAL_RTS_INACTIVE;
 		port_priv->crtscts = false;
 	}
 
