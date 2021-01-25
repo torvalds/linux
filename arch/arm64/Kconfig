@@ -1927,20 +1927,6 @@ config DMI
 
 endmenu
 
-config ASYMMETRIC_AARCH32
-	bool "Allow support for asymmetric AArch32 support"
-	depends on COMPAT && EXPERT && !KVM
-	help
-	  Enable this option to allow support for asymmetric AArch32 EL0
-	  CPU configurations. Once the AArch32 EL0 support is detected
-	  on a CPU, the feature is made available to user space to allow
-	  the execution of 32-bit (compat) applications. If the affinity
-	  of the 32-bit application contains a non-AArch32 capable CPU
-	  or the last AArch32 capable CPU is offlined, the application
-	  will be killed.
-
-	  If unsure say N.
-
 config SYSVIPC_COMPAT
 	def_bool y
 	depends on COMPAT && SYSVIPC

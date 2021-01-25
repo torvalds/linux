@@ -17,7 +17,6 @@
 #ifndef __ASSEMBLY__
 
 #include <linux/bug.h>
-#include <linux/cpumask.h>
 #include <linux/jump_label.h>
 #include <linux/kernel.h>
 
@@ -394,8 +393,6 @@ static __always_inline bool is_hyp_code(void)
 {
 	return is_vhe_hyp_code() || is_nvhe_hyp_code();
 }
-
-extern cpumask_t aarch32_el0_mask;
 
 extern DECLARE_BITMAP(cpu_hwcaps, ARM64_NCAPS);
 extern struct static_key_false cpu_hwcap_keys[ARM64_NCAPS];

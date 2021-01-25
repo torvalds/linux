@@ -15,7 +15,6 @@
 struct cpuinfo_arm64 {
 	struct cpu	cpu;
 	struct kobject	kobj;
-	bool		aarch32_valid;
 	u32		reg_ctr;
 	u32		reg_cntfrq;
 	u32		reg_dczid;
@@ -66,7 +65,6 @@ void cpuinfo_store_cpu(void);
 void __init cpuinfo_store_boot_cpu(void);
 
 void __init init_cpu_features(struct cpuinfo_arm64 *info);
-void init_cpu_32bit_features(struct cpuinfo_arm64 *info);
 void update_cpu_features(int cpu, struct cpuinfo_arm64 *info,
 				 struct cpuinfo_arm64 *boot);
 

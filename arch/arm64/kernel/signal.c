@@ -8,7 +8,6 @@
 
 #include <linux/cache.h>
 #include <linux/compat.h>
-#include <linux/cpumask.h>
 #include <linux/errno.h>
 #include <linux/kernel.h>
 #include <linux/signal.h>
@@ -912,18 +911,6 @@ static void do_signal(struct pt_regs *regs)
 	restore_saved_sigmask();
 }
 
-static void check_aarch32_cpumask(void)
-{
-	/*
-	 * The task must be a subset of aarch32_el0_mask or it could end up
-	 * migrating and running on the wrong CPU.
-	 */
-	if (!cpumask_subset(current->cpus_ptr, &aarch32_el0_mask)) {
-		pr_warn_once("CPU affinity contains CPUs that are not capable of running 32-bit tasks\n");
-		force_sig(SIGKILL);
-	}
-}
-
 asmlinkage void do_notify_resume(struct pt_regs *regs,
 				 unsigned long thread_flags)
 {
@@ -938,12 +925,6 @@ asmlinkage void do_notify_resume(struct pt_regs *regs,
 			schedule();
 		} else {
 			local_daif_restore(DAIF_PROCCTX);
-
-			if (IS_ENABLED(CONFIG_ASYMMETRIC_AARCH32) &&
-			    thread_flags & _TIF_CHECK_32BIT_AFFINITY) {
-				clear_thread_flag(TIF_CHECK_32BIT_AFFINITY);
-				check_aarch32_cpumask();
-			}
 
 			if (thread_flags & _TIF_UPROBE)
 				uprobe_notify_resume(regs);
