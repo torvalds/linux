@@ -152,10 +152,8 @@ static inline void tracing_generic_entry_update(struct trace_entry *entry,
 						unsigned short type,
 						unsigned int trace_ctx)
 {
-	struct task_struct *tsk = current;
-
 	entry->preempt_count		= trace_ctx & 0xff;
-	entry->pid			= (tsk) ? tsk->pid : 0;
+	entry->pid			= current->pid;
 	entry->type			= type;
 	entry->flags =			trace_ctx >> 16;
 }
