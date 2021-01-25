@@ -234,5 +234,7 @@ Congrats! You just wrote your first KUnit test!
 
 Next Steps
 ==========
-*   Check out the :doc:`usage` page for a more
+*   Check out the :doc:`tips` page for tips on
+    writing idiomatic KUnit tests.
+*   Optional: see the :doc:`usage` page for a more
     in-depth explanation of KUnit.
