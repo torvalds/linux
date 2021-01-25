@@ -30,7 +30,6 @@ enum {
 #define MIN_ALIGNMENT		8
 
 static u32 __iomem *reg_base;
-static struct device *dev;
 
 static unsigned int start;
 module_param(start, uint, 0);
@@ -89,6 +88,7 @@ static blk_qc_t n64cart_submit_bio(struct bio *bio)
 {
 	struct bio_vec bvec;
 	struct bvec_iter iter;
+	struct device *dev = bio->bi_disk->private_data;
 	u32 pos = bio->bi_iter.bi_sector << SECTOR_SHIFT;
 
 	bio_for_each_segment(bvec, bio, iter) {
@@ -140,11 +140,10 @@ static int __init n64cart_probe(struct platform_device *pdev)
 	if (!disk->queue)
 		return -ENOMEM;
 
-	dev = &pdev->dev;
-
 	disk->first_minor = 0;
 	disk->flags = GENHD_FL_NO_PART_SCAN | GENHD_FL_EXT_DEVT;
 	disk->fops = &n64cart_fops;
+	disk->private_data = &pdev->dev;
 	strcpy(disk->disk_name, "n64cart");
 
 	set_capacity(disk, size >> SECTOR_SHIFT);
