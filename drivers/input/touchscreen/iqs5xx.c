@@ -883,7 +883,7 @@ static int iqs5xx_fw_file_parse(struct i2c_client *client,
 static int iqs5xx_fw_file_write(struct i2c_client *client, const char *fw_file)
 {
 	struct iqs5xx_private *iqs5xx = i2c_get_clientdata(client);
-	int error;
+	int error, error_bl;
 	u8 *pmap;
 
 	if (iqs5xx->bl_status == IQS5XX_BL_STATUS_NONE)
@@ -937,6 +937,7 @@ err_reset:
 		usleep_range(10000, 10100);
 	}
 
+	error_bl = error;
 	error = iqs5xx_dev_init(client);
 	if (!error && iqs5xx->bl_status == IQS5XX_BL_STATUS_RESET)
 		error = -EINVAL;
@@ -947,6 +948,9 @@ err_reset:
 
 err_kfree:
 	kfree(pmap);
+
+	if (error_bl)
+		return error_bl;
 
 	return error;
 }
