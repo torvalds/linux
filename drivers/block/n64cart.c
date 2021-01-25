@@ -133,9 +133,8 @@ static int __init n64cart_probe(struct platform_device *pdev)
 	}
 
 	queue = blk_alloc_queue(NUMA_NO_NODE);
-	if (!queue) {
+	if (!queue)
 		return -ENOMEM;
-	}
 
 	reg_base = devm_platform_ioremap_resource(pdev, 0);
 	if (!reg_base) {
