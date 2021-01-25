@@ -13,11 +13,13 @@
 #include <linux/module.h>
 #include <linux/platform_device.h>
 
-#define PI_DRAM_REG		0
-#define PI_CART_REG		1
-#define PI_READ_REG		2
-#define PI_WRITE_REG		3
-#define PI_STATUS_REG		4
+enum {
+	PI_DRAM_REG = 0,
+	PI_CART_REG,
+	PI_READ_REG,
+	PI_WRITE_REG,
+	PI_STATUS_REG,
+};
 
 #define PI_STATUS_DMA_BUSY	(1 << 0)
 #define PI_STATUS_IO_BUSY	(1 << 1)
