@@ -147,8 +147,10 @@ static int do_map_benchmark(struct map_benchmark_data *map)
 	atomic64_set(&map->sum_sq_unmap, 0);
 	atomic64_set(&map->loops, 0);
 
-	for (i = 0; i < threads; i++)
+	for (i = 0; i < threads; i++) {
+		get_task_struct(tsk[i]);
 		wake_up_process(tsk[i]);
+	}
 
 	msleep_interruptible(map->bparam.seconds * 1000);
 
@@ -183,6 +185,8 @@ static int do_map_benchmark(struct map_benchmark_data *map)
 	}
 
 out:
+	for (i = 0; i < threads; i++)
+		put_task_struct(tsk[i]);
 	put_device(map->dev);
 	kfree(tsk);
 	return ret;
