@@ -2667,7 +2667,7 @@ qla2x00_get_tgt_stats(struct bsg_job *bsg_job)
 
 		bsg_reply->reply_payload_rcv_len =
 			sg_copy_from_buffer(bsg_job->reply_payload.sg_list,
-					    bsg_job->reply_payload.sg_cnt, &data,
+					    bsg_job->reply_payload.sg_cnt, data,
 					    sizeof(struct ql_vnd_tgt_stats_resp));
 
 		bsg_reply->result = DID_OK;
