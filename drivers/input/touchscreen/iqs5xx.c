@@ -852,7 +852,7 @@ static int iqs5xx_fw_file_parse(struct i2c_client *client,
 static int iqs5xx_fw_file_write(struct i2c_client *client, const char *fw_file)
 {
 	struct iqs5xx_private *iqs5xx = i2c_get_clientdata(client);
-	int error, error_bl;
+	int error, error_bl = 0;
 	u8 *pmap;
 
 	if (iqs5xx->bl_status == IQS5XX_BL_STATUS_NONE)
