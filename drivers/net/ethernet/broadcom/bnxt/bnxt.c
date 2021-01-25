@@ -272,6 +272,7 @@ static const u16 bnxt_async_events_arr[] = {
 	ASYNC_EVENT_CMPL_EVENT_ID_PORT_PHY_CFG_CHANGE,
 	ASYNC_EVENT_CMPL_EVENT_ID_RESET_NOTIFY,
 	ASYNC_EVENT_CMPL_EVENT_ID_ERROR_RECOVERY,
+	ASYNC_EVENT_CMPL_EVENT_ID_DEBUG_NOTIFICATION,
 	ASYNC_EVENT_CMPL_EVENT_ID_RING_MONITOR_MSG,
 };
 
@@ -2132,6 +2133,13 @@ static int bnxt_async_event_process(struct bnxt *bp,
 			bnxt_fw_health_readl(bp, BNXT_FW_RESET_CNT_REG);
 		goto async_event_process_exit;
 	}
+	case ASYNC_EVENT_CMPL_EVENT_ID_DEBUG_NOTIFICATION:
+		if (netif_msg_hw(bp)) {
+			netdev_notice(bp->dev,
+				      "Received firmware debug notification, data1: 0x%x, data2: 0x%x\n",
+				      data1, data2);
+		}
+		goto async_event_process_exit;
 	case ASYNC_EVENT_CMPL_EVENT_ID_RING_MONITOR_MSG: {
 		struct bnxt_rx_ring_info *rxr;
 		u16 grp_idx;
