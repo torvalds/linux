@@ -1649,6 +1649,8 @@ static bool bfq_bfqq_higher_class_or_weight(struct bfq_queue *bfqq,
 	return bfqq_weight > in_serv_weight;
 }
 
+static bool bfq_better_to_idle(struct bfq_queue *bfqq);
+
 static void bfq_bfqq_handle_idle_busy_switch(struct bfq_data *bfqd,
 					     struct bfq_queue *bfqq,
 					     int old_wr_coeff,
@@ -1750,10 +1752,10 @@ static void bfq_bfqq_handle_idle_busy_switch(struct bfq_data *bfqd,
 	bfq_add_bfqq_busy(bfqd, bfqq);
 
 	/*
-	 * Expire in-service queue only if preemption may be needed
-	 * for guarantees. In particular, we care only about two
-	 * cases. The first is that bfqq has to recover a service
-	 * hole, as explained in the comments on
+	 * Expire in-service queue if preemption may be needed for
+	 * guarantees or throughput. As for guarantees, we care
+	 * explicitly about two cases. The first is that bfqq has to
+	 * recover a service hole, as explained in the comments on
 	 * bfq_bfqq_update_budg_for_activation(), i.e., that
 	 * bfqq_wants_to_preempt is true. However, if bfqq does not
 	 * carry time-critical I/O, then bfqq's bandwidth is less
@@ -1780,11 +1782,23 @@ static void bfq_bfqq_handle_idle_busy_switch(struct bfq_data *bfqd,
 	 * timestamps of the in-service queue would need to be
 	 * updated, and this operation is quite costly (see the
 	 * comments on bfq_bfqq_update_budg_for_activation()).
+	 *
+	 * As for throughput, we ask bfq_better_to_idle() whether we
+	 * still need to plug I/O dispatching. If bfq_better_to_idle()
+	 * says no, then plugging is not needed any longer, either to
+	 * boost throughput or to perserve service guarantees. Then
+	 * the best option is to stop plugging I/O, as not doing so
+	 * would certainly lower throughput. We may end up in this
+	 * case if: (1) upon a dispatch attempt, we detected that it
+	 * was better to plug I/O dispatch, and to wait for a new
+	 * request to arrive for the currently in-service queue, but
+	 * (2) this switch of bfqq to busy changes the scenario.
 	 */
 	if (bfqd->in_service_queue &&
 	    ((bfqq_wants_to_preempt &&
 	      bfqq->wr_coeff >= bfqd->in_service_queue->wr_coeff) ||
-	     bfq_bfqq_higher_class_or_weight(bfqq, bfqd->in_service_queue)) &&
+	     bfq_bfqq_higher_class_or_weight(bfqq, bfqd->in_service_queue) ||
+	     !bfq_better_to_idle(bfqd->in_service_queue)) &&
 	    next_queue_may_preempt(bfqd))
 		bfq_bfqq_expire(bfqd, bfqd->in_service_queue,
 				false, BFQQE_PREEMPTED);
