@@ -325,7 +325,6 @@ void mptcp_pm_free_anno_list(struct mptcp_sock *msk)
 
 static void mptcp_pm_create_subflow_or_signal_addr(struct mptcp_sock *msk)
 {
-	struct mptcp_addr_info remote = { 0 };
 	struct sock *sk = (struct sock *)msk;
 	struct mptcp_pm_addr_entry *local;
 	struct pm_nl_pernet *pernet;
@@ -359,13 +358,14 @@ static void mptcp_pm_create_subflow_or_signal_addr(struct mptcp_sock *msk)
 	/* check if should create a new subflow */
 	if (msk->pm.local_addr_used < msk->pm.local_addr_max &&
 	    msk->pm.subflows < msk->pm.subflows_max) {
-		remote_address((struct sock_common *)sk, &remote);
-
 		local = select_local_address(pernet, msk);
 		if (local) {
+			struct mptcp_addr_info remote = { 0 };
+
 			msk->pm.local_addr_used++;
 			msk->pm.subflows++;
 			check_work_pending(msk);
+			remote_address((struct sock_common *)sk, &remote);
 			spin_unlock_bh(&msk->pm.lock);
 			__mptcp_subflow_connect(sk, &local->addr, &remote);
 			spin_lock_bh(&msk->pm.lock);
