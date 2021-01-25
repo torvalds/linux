@@ -56,6 +56,35 @@
 	};
 };
 
+&blsp_i2c3 {
+	status = "okay";
+
+	magnetometer@d {
+		compatible = "asahi-kasei,ak09911";
+		reg = <0x0d>;
+
+		vdd-supply = <&pm8916_l17>;
+		vid-supply = <&pm8916_l6>;
+
+		reset-gpios = <&msmgpio 111 GPIO_ACTIVE_LOW>;
+
+		pinctrl-names = "default";
+		pinctrl-0 = <&mag_reset_default>;
+	};
+
+	imu@68 {
+		compatible = "bosch,bmi160";
+		reg = <0x68>;
+
+		vdd-supply = <&pm8916_l17>;
+		vddio-supply = <&pm8916_l6>;
+
+		mount-matrix = "0", "1", "0",
+			      "-1", "0", "0",
+			       "0", "0", "1";
+	};
+};
+
 &blsp1_uart2 {
 	status = "okay";
 };
@@ -218,6 +247,14 @@
 
 		drive-strength = <2>;
 		bias-pull-up;
+	};
+
+	mag_reset_default: mag-reset-default {
+		pins = "gpio111";
+		function = "gpio";
+
+		drive-strength = <2>;
+		bias-disable;
 	};
 
 	usb_id_default: usb-id-default {
