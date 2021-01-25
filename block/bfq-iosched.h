@@ -291,6 +291,11 @@ struct bfq_queue {
 	/* associated @bfq_ttime struct */
 	struct bfq_ttime ttime;
 
+	/* when bfqq started to do I/O within the last observation window */
+	u64 io_start_time;
+	/* how long bfqq has remained empty during the last observ. window */
+	u64 tot_idle_time;
+
 	/* bit vector: a 1 for each seeky requests in history */
 	u32 seek_history;
 
@@ -406,6 +411,9 @@ struct bfq_io_cq {
 	 * classification of a queue.
 	 */
 	bool saved_IO_bound;
+
+	u64 saved_io_start_time;
+	u64 saved_tot_idle_time;
 
 	/*
 	 * Same purpose as the previous fields for the value of the
@@ -640,14 +648,6 @@ struct bfq_data {
 	 * without service-domain guarantees).
 	 */
 	unsigned int bfq_timeout;
-
-	/*
-	 * Number of consecutive requests that must be issued within
-	 * the idle time slice to set again idling to a queue which
-	 * was marked as non-I/O-bound (see the definition of the
-	 * IO_bound flag for further details).
-	 */
-	unsigned int bfq_requests_within_timer;
 
 	/*
 	 * Force device idling whenever needed to provide accurate

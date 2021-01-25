@@ -1026,6 +1026,8 @@ bfq_bfqq_resume_state(struct bfq_queue *bfqq, struct bfq_data *bfqd,
 
 	bfqq->entity.new_weight = bic->saved_weight;
 	bfqq->ttime = bic->saved_ttime;
+	bfqq->io_start_time = bic->saved_io_start_time;
+	bfqq->tot_idle_time = bic->saved_tot_idle_time;
 	bfqq->wr_coeff = bic->saved_wr_coeff;
 	bfqq->wr_start_at_switch_to_srt = bic->saved_wr_start_at_switch_to_srt;
 	bfqq->last_wr_start_finish = bic->saved_last_wr_start_finish;
@@ -1721,17 +1723,6 @@ static void bfq_bfqq_handle_idle_busy_switch(struct bfq_data *bfqd,
 
 	bfq_clear_bfqq_just_created(bfqq);
 
-
-	if (!bfq_bfqq_IO_bound(bfqq)) {
-		if (arrived_in_time) {
-			bfqq->requests_within_timer++;
-			if (bfqq->requests_within_timer >=
-			    bfqd->bfq_requests_within_timer)
-				bfq_mark_bfqq_IO_bound(bfqq);
-		} else
-			bfqq->requests_within_timer = 0;
-	}
-
 	if (bfqd->low_latency) {
 		if (unlikely(time_is_after_jiffies(bfqq->split_time)))
 			/* wraparound */
@@ -1865,6 +1856,36 @@ static void bfq_reset_inject_limit(struct bfq_data *bfqd,
 	bfqq->decrease_time_jif = jiffies;
 }
 
+static void bfq_update_io_intensity(struct bfq_queue *bfqq, u64 now_ns)
+{
+	u64 tot_io_time = now_ns - bfqq->io_start_time;
+
+	if (RB_EMPTY_ROOT(&bfqq->sort_list) && bfqq->dispatched == 0)
+		bfqq->tot_idle_time +=
+			now_ns - bfqq->ttime.last_end_request;
+
+	if (unlikely(bfq_bfqq_just_created(bfqq)))
+		return;
+
+	/*
+	 * Must be busy for at least about 80% of the time to be
+	 * considered I/O bound.
+	 */
+	if (bfqq->tot_idle_time * 5 > tot_io_time)
+		bfq_clear_bfqq_IO_bound(bfqq);
+	else
+		bfq_mark_bfqq_IO_bound(bfqq);
+
+	/*
+	 * Keep an observation window of at most 200 ms in the past
+	 * from now.
+	 */
+	if (tot_io_time > 200 * NSEC_PER_MSEC) {
+		bfqq->io_start_time = now_ns - (tot_io_time>>1);
+		bfqq->tot_idle_time >>= 1;
+	}
+}
+
 static void bfq_add_request(struct request *rq)
 {
 	struct bfq_queue *bfqq = RQ_BFQQ(rq);
@@ -1872,6 +1893,7 @@ static void bfq_add_request(struct request *rq)
 	struct request *next_rq, *prev;
 	unsigned int old_wr_coeff = bfqq->wr_coeff;
 	bool interactive = false;
+	u64 now_ns = ktime_get_ns();
 
 	bfq_log_bfqq(bfqd, bfqq, "add_request %d", rq_is_sync(rq));
 	bfqq->queued[rq_is_sync(rq)]++;
@@ -1934,7 +1956,7 @@ static void bfq_add_request(struct request *rq)
 		 */
 		if (bfqd->last_completed_rq_bfqq &&
 		    !bfq_bfqq_has_short_ttime(bfqq) &&
-		    ktime_get_ns() - bfqd->last_completion <
+		    now_ns - bfqd->last_completion <
 		    4 * NSEC_PER_MSEC) {
 			if (bfqd->last_completed_rq_bfqq != bfqq &&
 			    bfqd->last_completed_rq_bfqq !=
@@ -2050,6 +2072,9 @@ static void bfq_add_request(struct request *rq)
 				bfqd->rqs_injected = false;
 		}
 	}
+
+	if (bfq_bfqq_sync(bfqq))
+		bfq_update_io_intensity(bfqq, now_ns);
 
 	elv_rb_add(&bfqq->sort_list, rq);
 
@@ -2712,6 +2737,8 @@ static void bfq_bfqq_save_state(struct bfq_queue *bfqq)
 	bic->saved_ttime = bfqq->ttime;
 	bic->saved_has_short_ttime = bfq_bfqq_has_short_ttime(bfqq);
 	bic->saved_IO_bound = bfq_bfqq_IO_bound(bfqq);
+	bic->saved_io_start_time = bfqq->io_start_time;
+	bic->saved_tot_idle_time = bfqq->tot_idle_time;
 	bic->saved_in_large_burst = bfq_bfqq_in_large_burst(bfqq);
 	bic->was_in_burst_list = !hlist_unhashed(&bfqq->burst_list_node);
 	if (unlikely(bfq_bfqq_just_created(bfqq) &&
@@ -3979,10 +4006,6 @@ void bfq_bfqq_expire(struct bfq_data *bfqd,
 	      bfq_bfqq_budget_left(bfqq) >=  entity->budget / 3)))
 		bfq_bfqq_charge_time(bfqd, bfqq, delta);
 
-	if (reason == BFQQE_TOO_IDLE &&
-	    entity->service <= 2 * entity->budget / 10)
-		bfq_clear_bfqq_IO_bound(bfqq);
-
 	if (bfqd->low_latency && bfqq->wr_coeff == 1)
 		bfqq->last_wr_start_finish = jiffies;
 
@@ -5085,6 +5108,8 @@ static void bfq_check_ioprio_change(struct bfq_io_cq *bic, struct bio *bio)
 static void bfq_init_bfqq(struct bfq_data *bfqd, struct bfq_queue *bfqq,
 			  struct bfq_io_cq *bic, pid_t pid, int is_sync)
 {
+	u64 now_ns = ktime_get_ns();
+
 	RB_CLEAR_NODE(&bfqq->entity.rb_node);
 	INIT_LIST_HEAD(&bfqq->fifo);
 	INIT_HLIST_NODE(&bfqq->burst_list_node);
@@ -5112,7 +5137,9 @@ static void bfq_init_bfqq(struct bfq_data *bfqd, struct bfq_queue *bfqq,
 		bfq_clear_bfqq_sync(bfqq);
 
 	/* set end request to minus infinity from now */
-	bfqq->ttime.last_end_request = ktime_get_ns() + 1;
+	bfqq->ttime.last_end_request = now_ns + 1;
+
+	bfqq->io_start_time = now_ns;
 
 	bfq_mark_bfqq_IO_bound(bfqq);
 
@@ -6523,8 +6550,6 @@ static int bfq_init_queue(struct request_queue *q, struct elevator_type *e)
 	bfqd->bfq_back_penalty = bfq_back_penalty;
 	bfqd->bfq_slice_idle = bfq_slice_idle;
 	bfqd->bfq_timeout = bfq_timeout;
-
-	bfqd->bfq_requests_within_timer = 120;
 
 	bfqd->bfq_large_burst_thresh = 8;
 	bfqd->bfq_burst_interval = msecs_to_jiffies(180);
