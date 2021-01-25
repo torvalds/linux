@@ -2338,7 +2338,7 @@ static int ov5648_enum_frame_interval(struct v4l2_subdev *subdev,
 		}
 	}
 
-	if (mode_index == ARRAY_SIZE(ov5648_modes) || !mode)
+	if (mode_index == ARRAY_SIZE(ov5648_modes))
 		return -EINVAL;
 
 	switch (interval_enum->code) {
