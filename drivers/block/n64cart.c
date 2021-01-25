@@ -157,7 +157,7 @@ static int __init n64cart_probe(struct platform_device *pdev)
 	disk->fops = &n64cart_fops;
 	strcpy(disk->disk_name, "n64cart");
 
-	set_capacity(disk, size / 512);
+	set_capacity(disk, size >> SECTOR_SHIFT);
 	set_disk_ro(disk, 1);
 
 	blk_queue_flag_set(QUEUE_FLAG_NONROT, queue);
