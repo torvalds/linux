@@ -41,6 +41,7 @@ struct axi_dma_chan {
 
 	struct virt_dma_chan		vc;
 
+	struct axi_dma_desc		*desc;
 	/* these other elements are all protected by vc.lock */
 	bool				is_paused;
 };
@@ -80,12 +81,16 @@ struct __packed axi_dma_lli {
 	__le32		reserved_hi;
 };
 
+struct axi_dma_hw_desc {
+	struct axi_dma_lli	*lli;
+	dma_addr_t		llp;
+};
+
 struct axi_dma_desc {
-	struct axi_dma_lli		lli;
+	struct axi_dma_hw_desc	*hw_desc;
 
 	struct virt_dma_desc		vd;
 	struct axi_dma_chan		*chan;
-	struct list_head		xfer_list;
 };
 
 static inline struct device *dchan2dev(struct dma_chan *dchan)
