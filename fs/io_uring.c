@@ -9099,6 +9099,10 @@ static int io_uring_add_task_file(struct io_ring_ctx *ctx, struct file *file)
 				fput(file);
 				return ret;
 			}
+
+			/* one and only SQPOLL file note, held by sqo_task */
+			WARN_ON_ONCE((ctx->flags & IORING_SETUP_SQPOLL) &&
+				     current != ctx->sqo_task);
 		}
 		tctx->last = file;
 	}
