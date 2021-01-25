@@ -1566,9 +1566,7 @@ static ssize_t fuse_file_read_iter(struct kiocb *iocb, struct iov_iter *to)
 	if (FUSE_IS_DAX(inode))
 		return fuse_dax_read_iter(iocb, to);
 
-	if (ff->passthrough.filp)
-		return fuse_passthrough_read_iter(iocb, to);
-	else if (!(ff->open_flags & FOPEN_DIRECT_IO))
+	if (!(ff->open_flags & FOPEN_DIRECT_IO))
 		return fuse_cache_read_iter(iocb, to);
 	else
 		return fuse_direct_read_iter(iocb, to);
@@ -1586,9 +1584,7 @@ static ssize_t fuse_file_write_iter(struct kiocb *iocb, struct iov_iter *from)
 	if (FUSE_IS_DAX(inode))
 		return fuse_dax_write_iter(iocb, from);
 
-	if (ff->passthrough.filp)
-		return fuse_passthrough_write_iter(iocb, from);
-	else if (!(ff->open_flags & FOPEN_DIRECT_IO))
+	if (!(ff->open_flags & FOPEN_DIRECT_IO))
 		return fuse_cache_write_iter(iocb, from);
 	else
 		return fuse_direct_write_iter(iocb, from);
