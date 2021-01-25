@@ -17,7 +17,7 @@
 
 struct nft_bitwise {
 	u8			sreg;
-	enum nft_registers	dreg:8;
+	u8			dreg;
 	enum nft_bitwise_ops	op:8;
 	u8			len;
 	struct nft_data		mask;
@@ -174,9 +174,9 @@ static int nft_bitwise_init(const struct nft_ctx *ctx,
 	if (err < 0)
 		return err;
 
-	priv->dreg = nft_parse_register(tb[NFTA_BITWISE_DREG]);
-	err = nft_validate_register_store(ctx, priv->dreg, NULL,
-					  NFT_DATA_VALUE, priv->len);
+	err = nft_parse_register_store(ctx, tb[NFTA_BITWISE_DREG],
+				       &priv->dreg, NULL, NFT_DATA_VALUE,
+				       priv->len);
 	if (err < 0)
 		return err;
 
@@ -320,9 +320,8 @@ static int nft_bitwise_fast_init(const struct nft_ctx *ctx,
 	if (err < 0)
 		return err;
 
-	priv->dreg = nft_parse_register(tb[NFTA_BITWISE_DREG]);
-	err = nft_validate_register_store(ctx, priv->dreg, NULL,
-					  NFT_DATA_VALUE, sizeof(u32));
+	err = nft_parse_register_store(ctx, tb[NFTA_BITWISE_DREG], &priv->dreg,
+				       NULL, NFT_DATA_VALUE, sizeof(u32));
 	if (err < 0)
 		return err;
 
