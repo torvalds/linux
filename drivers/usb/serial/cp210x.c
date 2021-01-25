@@ -1163,9 +1163,9 @@ static void cp210x_set_flow_control(struct tty_struct *tty,
 	else
 		ctl_hs |= CP210X_SERIAL_DTR_INACTIVE;
 
+	flow_repl &= ~CP210X_SERIAL_RTS_MASK;
 	if (C_CRTSCTS(tty)) {
 		ctl_hs |= CP210X_SERIAL_CTS_HANDSHAKE;
-		flow_repl &= ~CP210X_SERIAL_RTS_MASK;
 		if (port_priv->rts)
 			flow_repl |= CP210X_SERIAL_RTS_FLOW_CTL;
 		else
@@ -1173,7 +1173,6 @@ static void cp210x_set_flow_control(struct tty_struct *tty,
 		port_priv->crtscts = true;
 	} else {
 		ctl_hs &= ~CP210X_SERIAL_CTS_HANDSHAKE;
-		flow_repl &= ~CP210X_SERIAL_RTS_MASK;
 		if (port_priv->rts)
 			flow_repl |= CP210X_SERIAL_RTS_ACTIVE;
 		else
