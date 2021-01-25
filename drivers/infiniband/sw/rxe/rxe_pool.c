@@ -343,12 +343,53 @@ void *rxe_alloc_nl(struct rxe_pool *pool)
 	struct rxe_pool_entry *elem;
 	u8 *obj;
 
-	might_sleep_if(!(pool->flags & RXE_POOL_ATOMIC));
-
 	if (pool->state != RXE_POOL_STATE_VALID)
 		return NULL;
 
 	kref_get(&pool->ref_cnt);
+
+	if (!ib_device_try_get(&pool->rxe->ib_dev))
+		goto out_put_pool;
+
+	if (atomic_inc_return(&pool->num_elem) > pool->max_elem)
+		goto out_cnt;
+
+	obj = kzalloc(info->size, GFP_ATOMIC);
+	if (!obj)
+		goto out_cnt;
+
+	elem = (struct rxe_pool_entry *)(obj + info->elem_offset);
+
+	elem->pool = pool;
+	kref_init(&elem->ref_cnt);
+
+	return obj;
+
+out_cnt:
+	atomic_dec(&pool->num_elem);
+	ib_device_put(&pool->rxe->ib_dev);
+out_put_pool:
+	rxe_pool_put(pool);
+	return NULL;
+}
+
+void *rxe_alloc(struct rxe_pool *pool)
+{
+	unsigned long flags;
+	struct rxe_type_info *info = &rxe_type_info[pool->type];
+	struct rxe_pool_entry *elem;
+	u8 *obj;
+
+	might_sleep_if(!(pool->flags & RXE_POOL_ATOMIC));
+
+	read_lock_irqsave(&pool->pool_lock, flags);
+	if (pool->state != RXE_POOL_STATE_VALID) {
+		read_unlock_irqrestore(&pool->pool_lock, flags);
+		return NULL;
+	}
+
+	kref_get(&pool->ref_cnt);
+	read_unlock_irqrestore(&pool->pool_lock, flags);
 
 	if (!ib_device_try_get(&pool->rxe->ib_dev))
 		goto out_put_pool;
@@ -374,18 +415,6 @@ out_cnt:
 out_put_pool:
 	rxe_pool_put(pool);
 	return NULL;
-}
-
-void *rxe_alloc(struct rxe_pool *pool)
-{
-	u8 *obj;
-	unsigned long flags;
-
-	read_lock_irqsave(&pool->pool_lock, flags);
-	obj = rxe_alloc_nl(pool);
-	read_unlock_irqrestore(&pool->pool_lock, flags);
-
-	return obj;
 }
 
 int __rxe_add_to_pool(struct rxe_pool *pool, struct rxe_pool_entry *elem)
