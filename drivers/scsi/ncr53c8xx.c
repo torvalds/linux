@@ -4999,7 +4999,7 @@ void ncr_complete (struct ncb *np, struct ccb *cp)
 		/*
 		**   SCSI bus reset
 		*/
-		set_status_byte(cmd, sp->scsi_status);
+		set_status_byte(cmd, cp->scsi_status);
 		set_host_byte(cmd, DID_RESET);
 
 	} else if (cp->host_status == HS_ABORTED) {
@@ -6605,7 +6605,7 @@ static void ncr_sir_to_redo(struct ncb *np, int num, struct ccb *cp)
 		OUTL_DSP (NCB_SCRIPT_PHYS (np, reselect));
 		return;
 	case SAM_STAT_COMMAND_TERMINATED:
-	case SAM_STAT_CHECK_CONDIION:
+	case SAM_STAT_CHECK_CONDITION:
 		/*
 		**	If we were requesting sense, give up.
 		*/
@@ -8044,7 +8044,7 @@ printk("ncr53c8xx_queue_command\n");
      spin_lock_irqsave(&np->smp_lock, flags);
 
      if ((sts = ncr_queue_command(np, cmd)) != DID_OK) {
-	     set_host_byte(cmd, sts;
+	     set_host_byte(cmd, sts);
 #ifdef DEBUG_NCR53C8XX
 printk("ncr53c8xx : command not queued - result=%d\n", sts);
 #endif
