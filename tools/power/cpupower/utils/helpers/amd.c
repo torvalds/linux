@@ -90,7 +90,7 @@ static int get_cof(int family, union core_pstate pstate)
 int decode_pstates(unsigned int cpu, unsigned int cpu_family,
 		   int boost_states, unsigned long *pstates, int *no)
 {
-	int i, psmax, pscur;
+	int i, psmax;
 	union core_pstate pstate;
 	unsigned long long val;
 
@@ -104,13 +104,6 @@ int decode_pstates(unsigned int cpu, unsigned int cpu_family,
 		return -1;
 
 	psmax = (val >> 4) & 0x7;
-
-	if (read_msr(cpu, MSR_AMD_PSTATE_STATUS, &val))
-		return -1;
-
-	pscur = val & 0x7;
-
-	pscur += boost_states;
 	psmax += boost_states;
 	for (i = 0; i <= psmax; i++) {
 		if (i >= MAX_HW_PSTATES) {
