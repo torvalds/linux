@@ -318,6 +318,105 @@ release_neigh:
 	return err;
 }
 
+int mlx5e_tc_tun_update_header_ipv4(struct mlx5e_priv *priv,
+				    struct net_device *mirred_dev,
+				    struct mlx5e_encap_entry *e)
+{
+	int max_encap_size = MLX5_CAP_ESW(priv->mdev, max_encap_header_size);
+	const struct ip_tunnel_key *tun_key = &e->tun_info->key;
+	TC_TUN_ROUTE_ATTR_INIT(attr);
+	int ipv4_encap_size;
+	char *encap_header;
+	struct iphdr *ip;
+	u8 nud_state;
+	int err;
+
+	/* add the IP fields */
+	attr.fl.fl4.flowi4_tos = tun_key->tos;
+	attr.fl.fl4.daddr = tun_key->u.ipv4.dst;
+	attr.fl.fl4.saddr = tun_key->u.ipv4.src;
+	attr.ttl = tun_key->ttl;
+
+	err = mlx5e_route_lookup_ipv4_get(priv, mirred_dev, &attr);
+	if (err)
+		return err;
+
+	ipv4_encap_size =
+		(is_vlan_dev(attr.route_dev) ? VLAN_ETH_HLEN : ETH_HLEN) +
+		sizeof(struct iphdr) +
+		e->tunnel->calc_hlen(e);
+
+	if (max_encap_size < ipv4_encap_size) {
+		mlx5_core_warn(priv->mdev, "encap size %d too big, max supported is %d\n",
+			       ipv4_encap_size, max_encap_size);
+		err = -EOPNOTSUPP;
+		goto release_neigh;
+	}
+
+	encap_header = kzalloc(ipv4_encap_size, GFP_KERNEL);
+	if (!encap_header) {
+		err = -ENOMEM;
+		goto release_neigh;
+	}
+
+	e->route_dev_ifindex = attr.route_dev->ifindex;
+
+	read_lock_bh(&attr.n->lock);
+	nud_state = attr.n->nud_state;
+	ether_addr_copy(e->h_dest, attr.n->ha);
+	WRITE_ONCE(e->nhe->neigh_dev, attr.n->dev);
+	read_unlock_bh(&attr.n->lock);
+
+	/* add ethernet header */
+	ip = (struct iphdr *)gen_eth_tnl_hdr(encap_header, attr.route_dev, e,
+					     ETH_P_IP);
+
+	/* add ip header */
+	ip->tos = tun_key->tos;
+	ip->version = 0x4;
+	ip->ihl = 0x5;
+	ip->ttl = attr.ttl;
+	ip->daddr = attr.fl.fl4.daddr;
+	ip->saddr = attr.fl.fl4.saddr;
+
+	/* add tunneling protocol header */
+	err = mlx5e_gen_ip_tunnel_header((char *)ip + sizeof(struct iphdr),
+					 &ip->protocol, e);
+	if (err)
+		goto free_encap;
+
+	e->encap_size = ipv4_encap_size;
+	kfree(e->encap_header);
+	e->encap_header = encap_header;
+
+	if (!(nud_state & NUD_VALID)) {
+		neigh_event_send(attr.n, NULL);
+		/* the encap entry will be made valid on neigh update event
+		 * and not used before that.
+		 */
+		goto release_neigh;
+	}
+	e->pkt_reformat = mlx5_packet_reformat_alloc(priv->mdev,
+						     e->reformat_type,
+						     ipv4_encap_size, encap_header,
+						     MLX5_FLOW_NAMESPACE_FDB);
+	if (IS_ERR(e->pkt_reformat)) {
+		err = PTR_ERR(e->pkt_reformat);
+		goto free_encap;
+	}
+
+	e->flags |= MLX5_ENCAP_ENTRY_VALID;
+	mlx5e_rep_queue_neigh_stats_work(netdev_priv(attr.out_dev));
+	mlx5e_route_lookup_ipv4_put(&attr);
+	return err;
+
+free_encap:
+	kfree(encap_header);
+release_neigh:
+	mlx5e_route_lookup_ipv4_put(&attr);
+	return err;
+}
+
 #if IS_ENABLED(CONFIG_INET) && IS_ENABLED(CONFIG_IPV6)
 static int mlx5e_route_lookup_ipv6_get(struct mlx5e_priv *priv,
 				       struct net_device *mirred_dev,
@@ -470,6 +569,105 @@ int mlx5e_tc_tun_create_header_ipv6(struct mlx5e_priv *priv,
 
 destroy_neigh_entry:
 	mlx5e_rep_encap_entry_detach(netdev_priv(e->out_dev), e);
+free_encap:
+	kfree(encap_header);
+release_neigh:
+	mlx5e_route_lookup_ipv6_put(&attr);
+	return err;
+}
+
+int mlx5e_tc_tun_update_header_ipv6(struct mlx5e_priv *priv,
+				    struct net_device *mirred_dev,
+				    struct mlx5e_encap_entry *e)
+{
+	int max_encap_size = MLX5_CAP_ESW(priv->mdev, max_encap_header_size);
+	const struct ip_tunnel_key *tun_key = &e->tun_info->key;
+	TC_TUN_ROUTE_ATTR_INIT(attr);
+	struct ipv6hdr *ip6h;
+	int ipv6_encap_size;
+	char *encap_header;
+	u8 nud_state;
+	int err;
+
+	attr.ttl = tun_key->ttl;
+
+	attr.fl.fl6.flowlabel = ip6_make_flowinfo(RT_TOS(tun_key->tos), tun_key->label);
+	attr.fl.fl6.daddr = tun_key->u.ipv6.dst;
+	attr.fl.fl6.saddr = tun_key->u.ipv6.src;
+
+	err = mlx5e_route_lookup_ipv6_get(priv, mirred_dev, &attr);
+	if (err)
+		return err;
+
+	ipv6_encap_size =
+		(is_vlan_dev(attr.route_dev) ? VLAN_ETH_HLEN : ETH_HLEN) +
+		sizeof(struct ipv6hdr) +
+		e->tunnel->calc_hlen(e);
+
+	if (max_encap_size < ipv6_encap_size) {
+		mlx5_core_warn(priv->mdev, "encap size %d too big, max supported is %d\n",
+			       ipv6_encap_size, max_encap_size);
+		err = -EOPNOTSUPP;
+		goto release_neigh;
+	}
+
+	encap_header = kzalloc(ipv6_encap_size, GFP_KERNEL);
+	if (!encap_header) {
+		err = -ENOMEM;
+		goto release_neigh;
+	}
+
+	e->route_dev_ifindex = attr.route_dev->ifindex;
+
+	read_lock_bh(&attr.n->lock);
+	nud_state = attr.n->nud_state;
+	ether_addr_copy(e->h_dest, attr.n->ha);
+	WRITE_ONCE(e->nhe->neigh_dev, attr.n->dev);
+	read_unlock_bh(&attr.n->lock);
+
+	/* add ethernet header */
+	ip6h = (struct ipv6hdr *)gen_eth_tnl_hdr(encap_header, attr.route_dev, e,
+						 ETH_P_IPV6);
+
+	/* add ip header */
+	ip6_flow_hdr(ip6h, tun_key->tos, 0);
+	/* the HW fills up ipv6 payload len */
+	ip6h->hop_limit   = attr.ttl;
+	ip6h->daddr	  = attr.fl.fl6.daddr;
+	ip6h->saddr	  = attr.fl.fl6.saddr;
+
+	/* add tunneling protocol header */
+	err = mlx5e_gen_ip_tunnel_header((char *)ip6h + sizeof(struct ipv6hdr),
+					 &ip6h->nexthdr, e);
+	if (err)
+		goto free_encap;
+
+	e->encap_size = ipv6_encap_size;
+	kfree(e->encap_header);
+	e->encap_header = encap_header;
+
+	if (!(nud_state & NUD_VALID)) {
+		neigh_event_send(attr.n, NULL);
+		/* the encap entry will be made valid on neigh update event
+		 * and not used before that.
+		 */
+		goto release_neigh;
+	}
+
+	e->pkt_reformat = mlx5_packet_reformat_alloc(priv->mdev,
+						     e->reformat_type,
+						     ipv6_encap_size, encap_header,
+						     MLX5_FLOW_NAMESPACE_FDB);
+	if (IS_ERR(e->pkt_reformat)) {
+		err = PTR_ERR(e->pkt_reformat);
+		goto free_encap;
+	}
+
+	e->flags |= MLX5_ENCAP_ENTRY_VALID;
+	mlx5e_rep_queue_neigh_stats_work(netdev_priv(attr.out_dev));
+	mlx5e_route_lookup_ipv6_put(&attr);
+	return err;
+
 free_encap:
 	kfree(encap_header);
 release_neigh:

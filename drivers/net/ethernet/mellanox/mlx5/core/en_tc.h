@@ -214,6 +214,11 @@ int mlx5e_tc_match_to_reg_set(struct mlx5_core_dev *mdev,
 			      enum mlx5e_tc_attr_to_reg type,
 			      u32 data);
 
+void mlx5e_tc_match_to_reg_mod_hdr_change(struct mlx5_core_dev *mdev,
+					  struct mlx5e_tc_mod_hdr_acts *mod_hdr_acts,
+					  enum mlx5e_tc_attr_to_reg type,
+					  int act_id, u32 data);
+
 void mlx5e_tc_match_to_reg_match(struct mlx5_flow_spec *spec,
 				 enum mlx5e_tc_attr_to_reg type,
 				 u32 data,
@@ -223,6 +228,16 @@ void mlx5e_tc_match_to_reg_get_match(struct mlx5_flow_spec *spec,
 				     enum mlx5e_tc_attr_to_reg type,
 				     u32 *data,
 				     u32 *mask);
+
+int mlx5e_tc_match_to_reg_set_and_get_id(struct mlx5_core_dev *mdev,
+					 struct mlx5e_tc_mod_hdr_acts *mod_hdr_acts,
+					 enum mlx5_flow_namespace_type ns,
+					 enum mlx5e_tc_attr_to_reg type,
+					 u32 data);
+
+int mlx5e_tc_add_flow_mod_hdr(struct mlx5e_priv *priv,
+			      struct mlx5e_tc_flow_parse_attr *parse_attr,
+			      struct mlx5e_tc_flow *flow);
 
 int alloc_mod_hdr_actions(struct mlx5_core_dev *mdev,
 			  int namespace,

@@ -170,11 +170,11 @@ mlx5e_tc_match_to_reg_get_match(struct mlx5_flow_spec *spec,
 }
 
 int
-mlx5e_tc_match_to_reg_set(struct mlx5_core_dev *mdev,
-			  struct mlx5e_tc_mod_hdr_acts *mod_hdr_acts,
-			  enum mlx5_flow_namespace_type ns,
-			  enum mlx5e_tc_attr_to_reg type,
-			  u32 data)
+mlx5e_tc_match_to_reg_set_and_get_id(struct mlx5_core_dev *mdev,
+				     struct mlx5e_tc_mod_hdr_acts *mod_hdr_acts,
+				     enum mlx5_flow_namespace_type ns,
+				     enum mlx5e_tc_attr_to_reg type,
+				     u32 data)
 {
 	int moffset = mlx5e_tc_attr_to_reg_mappings[type].moffset;
 	int mfield = mlx5e_tc_attr_to_reg_mappings[type].mfield;
@@ -198,9 +198,10 @@ mlx5e_tc_match_to_reg_set(struct mlx5_core_dev *mdev,
 	MLX5_SET(set_action_in, modact, offset, moffset * 8);
 	MLX5_SET(set_action_in, modact, length, mlen * 8);
 	MLX5_SET(set_action_in, modact, data, data);
+	err = mod_hdr_acts->num_actions;
 	mod_hdr_acts->num_actions++;
 
-	return 0;
+	return err;
 }
 
 static struct mlx5_tc_ct_priv *
@@ -247,6 +248,41 @@ mlx5_tc_rule_delete(struct mlx5e_priv *priv,
 	}
 
 	mlx5e_del_offloaded_nic_rule(priv, rule, attr);
+}
+
+int
+mlx5e_tc_match_to_reg_set(struct mlx5_core_dev *mdev,
+			  struct mlx5e_tc_mod_hdr_acts *mod_hdr_acts,
+			  enum mlx5_flow_namespace_type ns,
+			  enum mlx5e_tc_attr_to_reg type,
+			  u32 data)
+{
+	int ret = mlx5e_tc_match_to_reg_set_and_get_id(mdev, mod_hdr_acts, ns, type, data);
+
+	return ret < 0 ? ret : 0;
+}
+
+void mlx5e_tc_match_to_reg_mod_hdr_change(struct mlx5_core_dev *mdev,
+					  struct mlx5e_tc_mod_hdr_acts *mod_hdr_acts,
+					  enum mlx5e_tc_attr_to_reg type,
+					  int act_id, u32 data)
+{
+	int moffset = mlx5e_tc_attr_to_reg_mappings[type].moffset;
+	int mfield = mlx5e_tc_attr_to_reg_mappings[type].mfield;
+	int mlen = mlx5e_tc_attr_to_reg_mappings[type].mlen;
+	char *modact;
+
+	modact = mod_hdr_acts->actions + (act_id * MLX5_MH_ACT_SZ);
+
+	/* Firmware has 5bit length field and 0 means 32bits */
+	if (mlen == 4)
+		mlen = 0;
+
+	MLX5_SET(set_action_in, modact, action_type, MLX5_ACTION_TYPE_SET);
+	MLX5_SET(set_action_in, modact, field, mfield);
+	MLX5_SET(set_action_in, modact, offset, moffset * 8);
+	MLX5_SET(set_action_in, modact, length, mlen * 8);
+	MLX5_SET(set_action_in, modact, data, data);
 }
 
 struct mlx5e_hairpin {
@@ -1214,6 +1250,26 @@ int mlx5e_tc_query_route_vport(struct net_device *out_dev, struct net_device *ro
 	return err;
 }
 
+int mlx5e_tc_add_flow_mod_hdr(struct mlx5e_priv *priv,
+			      struct mlx5e_tc_flow_parse_attr *parse_attr,
+			      struct mlx5e_tc_flow *flow)
+{
+	struct mlx5e_tc_mod_hdr_acts *mod_hdr_acts = &parse_attr->mod_hdr_acts;
+	struct mlx5_modify_hdr *mod_hdr;
+
+	mod_hdr = mlx5_modify_header_alloc(priv->mdev,
+					   get_flow_name_space(flow),
+					   mod_hdr_acts->num_actions,
+					   mod_hdr_acts->actions);
+	if (IS_ERR(mod_hdr))
+		return PTR_ERR(mod_hdr);
+
+	WARN_ON(flow->attr->modify_hdr);
+	flow->attr->modify_hdr = mod_hdr;
+
+	return 0;
+}
+
 static int
 mlx5e_tc_add_fdb_flow(struct mlx5e_priv *priv,
 		      struct mlx5e_tc_flow *flow,
@@ -1293,7 +1349,6 @@ mlx5e_tc_add_fdb_flow(struct mlx5e_priv *priv,
 	if (attr->action & MLX5_FLOW_CONTEXT_ACTION_MOD_HDR &&
 	    !(attr->ct_attr.ct_action & TCA_CT_ACT_CLEAR)) {
 		err = mlx5e_attach_mod_hdr(priv, flow, parse_attr);
-		dealloc_mod_hdr_actions(&parse_attr->mod_hdr_acts);
 		if (err)
 			return err;
 	}
@@ -1376,8 +1431,10 @@ static void mlx5e_tc_del_fdb_flow(struct mlx5e_priv *priv,
 
 	mlx5_tc_ct_match_del(get_ct_priv(priv), &flow->attr->ct_attr);
 
-	if (attr->action & MLX5_FLOW_CONTEXT_ACTION_MOD_HDR)
+	if (attr->action & MLX5_FLOW_CONTEXT_ACTION_MOD_HDR) {
+		dealloc_mod_hdr_actions(&attr->parse_attr->mod_hdr_acts);
 		mlx5e_detach_mod_hdr(priv, flow);
+	}
 
 	if (attr->action & MLX5_FLOW_CONTEXT_ACTION_COUNT)
 		mlx5_fc_destroy(esw_attr->counter_dev, attr->counter);
