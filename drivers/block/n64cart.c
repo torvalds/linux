@@ -5,6 +5,7 @@
  * Copyright (c) 2021 Lauri Kasanen
  */
 
+#define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
 #include <linux/bitops.h>
 #include <linux/blkdev.h>
 #include <linux/dma-mapping.h>
@@ -117,12 +118,12 @@ static int __init n64cart_probe(struct platform_device *pdev)
 	struct gendisk *disk;
 
 	if (!start || !size) {
-		pr_err("n64cart: start and size not specified\n");
+		pr_err("start or size not specified\n");
 		return -ENODEV;
 	}
 
 	if (size & 4095) {
-		pr_err("n64cart: size must be a multiple of 4K\n");
+		pr_err("size must be a multiple of 4K\n");
 		return -ENODEV;
 	}
 
