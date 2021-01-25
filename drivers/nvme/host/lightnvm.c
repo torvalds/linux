@@ -819,7 +819,7 @@ static int nvme_nvm_submit_user_cmd(struct request_queue *q,
 		bio->bi_bdev = ns->disk->part0;
 	}
 
-	blk_execute_rq(q, NULL, rq, 0);
+	blk_execute_rq(NULL, rq, 0);
 
 	if (nvme_req(rq)->flags & NVME_REQ_CANCELLED)
 		ret = -EINTR;
