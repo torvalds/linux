@@ -13,10 +13,6 @@
 #include <linux/module.h>
 #include <linux/platform_device.h>
 
-MODULE_AUTHOR("Lauri Kasanen <cand@gmx.com>");
-MODULE_DESCRIPTION("Driver for the N64 cart");
-MODULE_LICENSE("GPL");
-
 static unsigned int start, size;
 static u32 __iomem *reg_base;
 static struct device *dev;
@@ -188,3 +184,7 @@ module_param(size, uint, 0);
 MODULE_PARM_DESC(size, "Size of the cart block data, in bytes");
 
 module_init(n64cart_init);
+
+MODULE_AUTHOR("Lauri Kasanen <cand@gmx.com>");
+MODULE_DESCRIPTION("Driver for the N64 cart");
+MODULE_LICENSE("GPL");
