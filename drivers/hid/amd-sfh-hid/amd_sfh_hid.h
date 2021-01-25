@@ -27,7 +27,7 @@ struct amdtp_cl_data {
 	int hid_descr_size[MAX_HID_DEVICES];
 	phys_addr_t phys_addr_base;
 	u32 *sensor_virt_addr[MAX_HID_DEVICES];
-	phys_addr_t sensor_phys_addr[MAX_HID_DEVICES];
+	dma_addr_t sensor_dma_addr[MAX_HID_DEVICES];
 	u32 sensor_sts[MAX_HID_DEVICES];
 	u32 sensor_requested_cnt[MAX_HID_DEVICES];
 	u8 report_type[MAX_HID_DEVICES];

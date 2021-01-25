@@ -251,6 +251,9 @@ static void cma_heap_dma_buf_release(struct dma_buf *dmabuf)
 		buffer->vaddr = NULL;
 	}
 
+	/* free page list */
+	kfree(buffer->pages);
+	/* release memory */
 	cma_release(cma_heap->cma, buffer->cma_pages, buffer->pagecount);
 	kfree(buffer);
 }

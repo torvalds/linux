@@ -305,14 +305,14 @@ static enum es_result vc_ioio_exitinfo(struct es_em_ctxt *ctxt, u64 *exitinfo)
 	case 0xe4:
 	case 0xe5:
 		*exitinfo |= IOIO_TYPE_IN;
-		*exitinfo |= (u64)insn->immediate.value << 16;
+		*exitinfo |= (u8)insn->immediate.value << 16;
 		break;
 
 	/* OUT immediate opcodes */
 	case 0xe6:
 	case 0xe7:
 		*exitinfo |= IOIO_TYPE_OUT;
-		*exitinfo |= (u64)insn->immediate.value << 16;
+		*exitinfo |= (u8)insn->immediate.value << 16;
 		break;
 
 	/* IN register opcodes */

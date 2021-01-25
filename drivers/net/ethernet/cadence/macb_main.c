@@ -467,7 +467,7 @@ static void macb_set_tx_clk(struct macb *bp, int speed)
 {
 	long ferr, rate, rate_rounded;
 
-	if (!bp->tx_clk || !(bp->caps & MACB_CAPS_CLK_HW_CHG))
+	if (!bp->tx_clk || (bp->caps & MACB_CAPS_CLK_HW_CHG))
 		return;
 
 	switch (speed) {

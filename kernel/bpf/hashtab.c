@@ -152,6 +152,7 @@ static void htab_init_buckets(struct bpf_htab *htab)
 			lockdep_set_class(&htab->buckets[i].lock,
 					  &htab->lockdep_key);
 		}
+		cond_resched();
 	}
 }
 

@@ -2503,8 +2503,10 @@ static int bcm_sysport_probe(struct platform_device *pdev)
 	priv = netdev_priv(dev);
 
 	priv->clk = devm_clk_get_optional(&pdev->dev, "sw_sysport");
-	if (IS_ERR(priv->clk))
-		return PTR_ERR(priv->clk);
+	if (IS_ERR(priv->clk)) {
+		ret = PTR_ERR(priv->clk);
+		goto err_free_netdev;
+	}
 
 	/* Allocate number of TX rings */
 	priv->tx_rings = devm_kcalloc(&pdev->dev, txq,
@@ -2577,6 +2579,7 @@ static int bcm_sysport_probe(struct platform_device *pdev)
 			 NETIF_F_HW_VLAN_CTAG_TX;
 	dev->hw_features |= dev->features;
 	dev->vlan_features |= dev->features;
+	dev->max_mtu = UMAC_MAX_MTU_SIZE;
 
 	/* Request the WOL interrupt and advertise suspend if available */
 	priv->wol_irq_disabled = 1;
