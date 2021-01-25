@@ -398,15 +398,12 @@ void rxe_elem_release(struct kref *kref)
 	atomic_dec(&pool->num_elem);
 }
 
-void *rxe_pool_get_index(struct rxe_pool *pool, u32 index)
+void *rxe_pool_get_index_locked(struct rxe_pool *pool, u32 index)
 {
 	struct rxe_type_info *info = &rxe_type_info[pool->type];
 	struct rb_node *node;
 	struct rxe_pool_entry *elem;
-	u8 *obj = NULL;
-	unsigned long flags;
-
-	read_lock_irqsave(&pool->pool_lock, flags);
+	u8 *obj;
 
 	node = pool->index.tree.rb_node;
 
@@ -428,6 +425,16 @@ void *rxe_pool_get_index(struct rxe_pool *pool, u32 index)
 		obj = NULL;
 	}
 
+	return obj;
+}
+
+void *rxe_pool_get_index(struct rxe_pool *pool, u32 index)
+{
+	u8 *obj;
+	unsigned long flags;
+
+	read_lock_irqsave(&pool->pool_lock, flags);
+	obj = rxe_pool_get_index_locked(pool, index);
 	read_unlock_irqrestore(&pool->pool_lock, flags);
 
 	return obj;
@@ -438,7 +445,7 @@ void *rxe_pool_get_key_locked(struct rxe_pool *pool, void *key)
 	struct rxe_type_info *info = &rxe_type_info[pool->type];
 	struct rb_node *node;
 	struct rxe_pool_entry *elem;
-	u8 *obj = NULL;
+	u8 *obj;
 	int cmp;
 
 	node = pool->key.tree.rb_node;
@@ -469,7 +476,7 @@ void *rxe_pool_get_key_locked(struct rxe_pool *pool, void *key)
 
 void *rxe_pool_get_key(struct rxe_pool *pool, void *key)
 {
-	u8 *obj = NULL;
+	u8 *obj;
 	unsigned long flags;
 
 	read_lock_irqsave(&pool->pool_lock, flags);
