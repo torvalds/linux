@@ -182,10 +182,13 @@ struct fuse_release_args;
 
 /**
  * Reference to lower filesystem file for read/write operations handled in
- * passthrough mode
+ * passthrough mode.
+ * This struct also tracks the credentials to be used for handling read/write
+ * operations.
  */
 struct fuse_passthrough {
 	struct file *filp;
+	struct cred *cred;
 };
 
 /** FUSE specific file data */
