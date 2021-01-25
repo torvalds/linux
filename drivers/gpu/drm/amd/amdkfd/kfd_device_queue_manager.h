@@ -83,13 +83,17 @@ struct device_process_node {
  * control stack, if kept in the MQD, to the given userspace address.
  *
  * @reset_queues: reset queues which consume RAS poison
+ * @get_queue_checkpoint_info: Retrieves queue size information for CRIU checkpoint.
+ *
+ * @checkpoint_mqd: checkpoint queue MQD contents for CRIU.
  */
 
 struct device_queue_manager_ops {
 	int	(*create_queue)(struct device_queue_manager *dqm,
 				struct queue *q,
 				struct qcm_process_device *qpd,
-				const struct kfd_criu_queue_priv_data *qd);
+				const struct kfd_criu_queue_priv_data *qd,
+				const void *restore_mqd);
 
 	int	(*destroy_queue)(struct device_queue_manager *dqm,
 				struct qcm_process_device *qpd,
@@ -140,6 +144,12 @@ struct device_queue_manager_ops {
 
 	int (*reset_queues)(struct device_queue_manager *dqm,
 					uint16_t pasid);
+	void	(*get_queue_checkpoint_info)(struct device_queue_manager *dqm,
+				  const struct queue *q, u32 *mqd_size);
+
+	int	(*checkpoint_mqd)(struct device_queue_manager *dqm,
+				  const struct queue *q,
+				  void *mqd);
 };
 
 struct device_queue_manager_asic_ops {
