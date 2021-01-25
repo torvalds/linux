@@ -209,8 +209,7 @@ static void intel_hpd_init_pins(struct drm_i915_private *dev_priv)
 
 	if (HAS_PCH_DG1(dev_priv))
 		hpd->pch_hpd = hpd_sde_dg1;
-	else if (HAS_PCH_TGP(dev_priv) || HAS_PCH_JSP(dev_priv) ||
-		 HAS_PCH_ICP(dev_priv) || HAS_PCH_MCC(dev_priv))
+	else if (INTEL_PCH_TYPE(dev_priv) >= PCH_ICP)
 		hpd->pch_hpd = hpd_icp;
 	else if (HAS_PCH_CNP(dev_priv) || HAS_PCH_SPT(dev_priv))
 		hpd->pch_hpd = hpd_spt;
