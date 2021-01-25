@@ -164,13 +164,9 @@ EXPORT_SYMBOL_GPL(platform_profile_register);
 
 int platform_profile_remove(void)
 {
-	mutex_lock(&profile_lock);
-	if (!cur_profile) {
-		mutex_unlock(&profile_lock);
-		return -ENODEV;
-	}
-
 	sysfs_remove_group(acpi_kobj, &platform_profile_group);
+
+	mutex_lock(&profile_lock);
 	cur_profile = NULL;
 	mutex_unlock(&profile_lock);
 	return 0;
