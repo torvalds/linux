@@ -127,7 +127,7 @@ EBU Armada family
 	- 88F6828 Armada 388
 
     - Product infos:   http://www.marvell.com/embedded-processors/armada-38x/
-    - Functional Spec: https://marvellcorp.wufoo.com/forms/marvell-armada-38x-functional-specifications/
+    - Functional Spec: http://www.marvell.com/content/dam/marvell/en/public-collateral/embedded-processors/marvell-embedded-processors-armada-38x-functional-specifications-2015-11.pdf
 
   Core:
 	ARM Cortex-A9
