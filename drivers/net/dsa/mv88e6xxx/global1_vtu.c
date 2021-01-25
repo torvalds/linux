@@ -434,35 +434,6 @@ int mv88e6390_g1_vtu_getnext(struct mv88e6xxx_chip *chip,
 	return 0;
 }
 
-int mv88e6250_g1_vtu_loadpurge(struct mv88e6xxx_chip *chip,
-			       struct mv88e6xxx_vtu_entry *entry)
-{
-	u16 op = MV88E6XXX_G1_VTU_OP_VTU_LOAD_PURGE;
-	int err;
-
-	err = mv88e6xxx_g1_vtu_op_wait(chip);
-	if (err)
-		return err;
-
-	err = mv88e6xxx_g1_vtu_vid_write(chip, entry);
-	if (err)
-		return err;
-
-	if (entry->valid) {
-		err = mv88e6185_g1_vtu_data_write(chip, entry);
-		if (err)
-			return err;
-
-		/* VTU DBNum[3:0] are located in VTU Operation 3:0
-		 * VTU DBNum[5:4] are located in VTU Operation 9:8
-		 */
-		op |= entry->fid & 0x000f;
-		op |= (entry->fid & 0x0030) << 4;
-	}
-
-	return mv88e6xxx_g1_vtu_op(chip, op);
-}
-
 int mv88e6185_g1_vtu_loadpurge(struct mv88e6xxx_chip *chip,
 			       struct mv88e6xxx_vtu_entry *entry)
 {
@@ -484,6 +455,10 @@ int mv88e6185_g1_vtu_loadpurge(struct mv88e6xxx_chip *chip,
 
 		/* VTU DBNum[3:0] are located in VTU Operation 3:0
 		 * VTU DBNum[7:4] are located in VTU Operation 11:8
+		 *
+		 * For the 6250/6220, the latter are really [5:4] and
+		 * 9:8, but in those cases bits 7:6 of entry->fid are
+		 * 0 since they have num_databases = 64.
 		 */
 		op |= entry->fid & 0x000f;
 		op |= (entry->fid & 0x00f0) << 4;
