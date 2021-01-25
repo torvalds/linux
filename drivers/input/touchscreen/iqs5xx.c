@@ -2,8 +2,7 @@
 /*
  * Azoteq IQS550/572/525 Trackpad/Touchscreen Controller
  *
- * Copyright (C) 2018
- * Author: Jeff LaBundy <jeff@labundy.com>
+ * Copyright (C) 2018 Jeff LaBundy <jeff@labundy.com>
  *
  * These devices require firmware exported from a PC-based configuration tool
  * made available by the vendor. Firmware files may be pushed to the device's
@@ -952,8 +951,9 @@ err_kfree:
 	return error;
 }
 
-static ssize_t fw_file_store(struct device *dev, struct device_attribute *attr,
-				const char *buf, size_t count)
+static ssize_t fw_file_store(struct device *dev,
+			     struct device_attribute *attr, const char *buf,
+			     size_t count)
 {
 	struct iqs5xx_private *iqs5xx = dev_get_drvdata(dev);
 	struct i2c_client *client = iqs5xx->client;
