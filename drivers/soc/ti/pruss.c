@@ -273,7 +273,7 @@ static int pruss_probe(struct platform_device *pdev)
 
 	ret = pruss_clk_init(pruss, child);
 	if (ret) {
-		dev_err(dev, "failed to setup coreclk-mux\n");
+		dev_err(dev, "pruss_clk_init failed, ret = %d\n", ret);
 		goto node_put;
 	}
 
