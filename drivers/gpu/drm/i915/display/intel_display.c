@@ -10598,20 +10598,27 @@ static void icl_get_ddi_pll(struct drm_i915_private *dev_priv, enum port port,
 	struct intel_shared_dpll *pll;
 	enum intel_dpll_id id;
 	bool pll_active;
+	i915_reg_t reg;
 	u32 temp;
 
 	if (intel_phy_is_combo(dev_priv, phy)) {
 		u32 mask, shift;
 
-		if (IS_ROCKETLAKE(dev_priv)) {
+		if (IS_ALDERLAKE_S(dev_priv)) {
+			reg = ADLS_DPCLKA_CFGCR(phy);
+			mask = ADLS_DPCLKA_CFGCR_DDI_CLK_SEL_MASK(phy);
+			shift = ADLS_DPCLKA_CFGCR_DDI_SHIFT(phy);
+		} else if (IS_ROCKETLAKE(dev_priv)) {
+			reg = ICL_DPCLKA_CFGCR0;
 			mask = RKL_DPCLKA_CFGCR0_DDI_CLK_SEL_MASK(phy);
 			shift = RKL_DPCLKA_CFGCR0_DDI_CLK_SEL_SHIFT(phy);
 		} else {
+			reg = ICL_DPCLKA_CFGCR0;
 			mask = ICL_DPCLKA_CFGCR0_DDI_CLK_SEL_MASK(phy);
 			shift = ICL_DPCLKA_CFGCR0_DDI_CLK_SEL_SHIFT(phy);
 		}
 
-		temp = intel_de_read(dev_priv, ICL_DPCLKA_CFGCR0) & mask;
+		temp = intel_de_read(dev_priv, reg) & mask;
 		id = temp >> shift;
 		port_dpll_id = ICL_PORT_DPLL_DEFAULT;
 	} else if (intel_phy_is_tc(dev_priv, phy)) {

@@ -10307,7 +10307,7 @@ enum skl_power_gate {
 
 /* ICL Clocks */
 #define ICL_DPCLKA_CFGCR0			_MMIO(0x164280)
-#define  ICL_DPCLKA_CFGCR0_DDI_CLK_OFF(phy)	(1 << _PICK(phy, 10, 11, 24))
+#define  ICL_DPCLKA_CFGCR0_DDI_CLK_OFF(phy)	(1 << _PICK(phy, 10, 11, 24, 4, 5))
 #define  RKL_DPCLKA_CFGCR0_DDI_CLK_OFF(phy)	REG_BIT((phy) + 10)
 #define  ICL_DPCLKA_CFGCR0_TC_CLK_OFF(tc_port)	(1 << ((tc_port) < TC_PORT_4 ? \
 						       (tc_port) + 12 : \
@@ -10341,6 +10341,27 @@ enum skl_power_gate {
 #define   DG1_DPCLKA_CFGCR0_DDI_CLK_SEL_MASK(phy)	(0x3 << DG1_DPCLKA_CFGCR0_DDI_CLK_SEL_SHIFT(phy))
 #define   DG1_DPCLKA_CFGCR0_DDI_CLK_SEL_DPLL_MAP(clk_sel, phy) \
 	(((clk_sel) >> DG1_DPCLKA_CFGCR0_DDI_CLK_SEL_SHIFT(phy)) + _DG1_PHY_DPLL_MAP(phy))
+
+/* ADLS Clocks */
+#define _ADLS_DPCLKA_CFGCR0			0x164280
+#define _ADLS_DPCLKA_CFGCR1			0x1642BC
+#define ADLS_DPCLKA_CFGCR(phy)			_MMIO_PHY((phy) / 3, \
+							  _ADLS_DPCLKA_CFGCR0, \
+							  _ADLS_DPCLKA_CFGCR1)
+#define  ADLS_DPCLKA_CFGCR_DDI_SHIFT(phy)		(((phy) % 3) * 2)
+/* ADLS DPCLKA_CFGCR0 DDI mask */
+#define  ADLS_DPCLKA_DDII_SEL_MASK			REG_GENMASK(5, 4)
+#define  ADLS_DPCLKA_DDIB_SEL_MASK			REG_GENMASK(3, 2)
+#define  ADLS_DPCLKA_DDIA_SEL_MASK			REG_GENMASK(1, 0)
+/* ADLS DPCLKA_CFGCR1 DDI mask */
+#define  ADLS_DPCLKA_DDIK_SEL_MASK			REG_GENMASK(3, 2)
+#define  ADLS_DPCLKA_DDIJ_SEL_MASK			REG_GENMASK(1, 0)
+#define  ADLS_DPCLKA_CFGCR_DDI_CLK_SEL_MASK(phy)	_PICK((phy), \
+							ADLS_DPCLKA_DDIA_SEL_MASK, \
+							ADLS_DPCLKA_DDIB_SEL_MASK, \
+							ADLS_DPCLKA_DDII_SEL_MASK, \
+							ADLS_DPCLKA_DDIJ_SEL_MASK, \
+							ADLS_DPCLKA_DDIK_SEL_MASK)
 
 /* CNL PLL */
 #define DPLL0_ENABLE		0x46010
