@@ -93,7 +93,8 @@ struct device_queue_manager_ops {
 				struct queue *q,
 				struct qcm_process_device *qpd,
 				const struct kfd_criu_queue_priv_data *qd,
-				const void *restore_mqd);
+				const void *restore_mqd,
+				const void *restore_ctl_stack);
 
 	int	(*destroy_queue)(struct device_queue_manager *dqm,
 				struct qcm_process_device *qpd,
@@ -145,11 +146,13 @@ struct device_queue_manager_ops {
 	int (*reset_queues)(struct device_queue_manager *dqm,
 					uint16_t pasid);
 	void	(*get_queue_checkpoint_info)(struct device_queue_manager *dqm,
-				  const struct queue *q, u32 *mqd_size);
+				  const struct queue *q, u32 *mqd_size,
+				  u32 *ctl_stack_size);
 
 	int	(*checkpoint_mqd)(struct device_queue_manager *dqm,
 				  const struct queue *q,
-				  void *mqd);
+				  void *mqd,
+				  void *ctl_stack);
 };
 
 struct device_queue_manager_asic_ops {

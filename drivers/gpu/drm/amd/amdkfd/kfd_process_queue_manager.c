@@ -209,6 +209,7 @@ int pqm_create_queue(struct process_queue_manager *pqm,
 			    unsigned int *qid,
 			    const struct kfd_criu_queue_priv_data *q_data,
 			    const void *restore_mqd,
+			    const void *restore_ctl_stack,
 			    uint32_t *p_doorbell_offset_in_process)
 {
 	int retval;
@@ -273,7 +274,8 @@ int pqm_create_queue(struct process_queue_manager *pqm,
 			goto err_create_queue;
 		pqn->q = q;
 		pqn->kq = NULL;
-		retval = dev->dqm->ops.create_queue(dev->dqm, q, &pdd->qpd, q_data, restore_mqd);
+		retval = dev->dqm->ops.create_queue(dev->dqm, q, &pdd->qpd, q_data,
+						    restore_mqd, restore_ctl_stack);
 		print_queue(q);
 		break;
 
@@ -293,7 +295,8 @@ int pqm_create_queue(struct process_queue_manager *pqm,
 			goto err_create_queue;
 		pqn->q = q;
 		pqn->kq = NULL;
-		retval = dev->dqm->ops.create_queue(dev->dqm, q, &pdd->qpd, q_data, restore_mqd);
+		retval = dev->dqm->ops.create_queue(dev->dqm, q, &pdd->qpd, q_data,
+						    restore_mqd, restore_ctl_stack);
 		print_queue(q);
 		break;
 	case KFD_QUEUE_TYPE_DIQ:
@@ -518,11 +521,17 @@ int pqm_get_wave_state(struct process_queue_manager *pqm,
 						       save_area_used_size);
 }
 
-static int get_queue_data_sizes(struct kfd_process_device *pdd, struct queue *q, uint32_t *mqd_size)
+static int get_queue_data_sizes(struct kfd_process_device *pdd,
+				struct queue *q,
+				uint32_t *mqd_size,
+				uint32_t *ctl_stack_size)
 {
 	int ret;
 
-	ret = pqm_get_queue_checkpoint_info(&pdd->process->pqm, q->properties.queue_id, mqd_size);
+	ret = pqm_get_queue_checkpoint_info(&pdd->process->pqm,
+					    q->properties.queue_id,
+					    mqd_size,
+					    ctl_stack_size);
 	if (ret)
 		pr_err("Failed to get queue dump info (%d)\n", ret);
 
@@ -548,14 +557,15 @@ int kfd_process_get_queue_info(struct kfd_process *p,
 			if (q->properties.type == KFD_QUEUE_TYPE_COMPUTE ||
 				q->properties.type == KFD_QUEUE_TYPE_SDMA ||
 				q->properties.type == KFD_QUEUE_TYPE_SDMA_XGMI) {
-				uint32_t mqd_size;
+				uint32_t mqd_size, ctl_stack_size;
+
 				*num_queues = *num_queues + 1;
 
-				ret = get_queue_data_sizes(pdd, q, &mqd_size);
+				ret = get_queue_data_sizes(pdd, q, &mqd_size, &ctl_stack_size);
 				if (ret)
 					return ret;
 
-				extra_data_sizes += mqd_size;
+				extra_data_sizes += mqd_size + ctl_stack_size;
 			} else {
 				pr_err("Unsupported queue type (%d)\n", q->properties.type);
 				return -EOPNOTSUPP;
@@ -568,7 +578,10 @@ int kfd_process_get_queue_info(struct kfd_process *p,
 	return 0;
 }
 
-static int pqm_checkpoint_mqd(struct process_queue_manager *pqm, unsigned int qid, void *mqd)
+static int pqm_checkpoint_mqd(struct process_queue_manager *pqm,
+			      unsigned int qid,
+			      void *mqd,
+			      void *ctl_stack)
 {
 	struct process_queue_node *pqn;
 
@@ -583,17 +596,19 @@ static int pqm_checkpoint_mqd(struct process_queue_manager *pqm, unsigned int qi
 		return -EOPNOTSUPP;
 	}
 
-	return pqn->q->device->dqm->ops.checkpoint_mqd(pqn->q->device->dqm, pqn->q, mqd);
+	return pqn->q->device->dqm->ops.checkpoint_mqd(pqn->q->device->dqm,
+						       pqn->q, mqd, ctl_stack);
 }
 
 static int criu_checkpoint_queue(struct kfd_process_device *pdd,
 			   struct queue *q,
 			   struct kfd_criu_queue_priv_data *q_data)
 {
-	uint8_t *mqd;
+	uint8_t *mqd, *ctl_stack;
 	int ret;
 
 	mqd = (void *)(q_data + 1);
+	ctl_stack = mqd + q_data->mqd_size;
 
 	q_data->gpu_id = pdd->dev->id;
 	q_data->type = q->properties.type;
@@ -620,7 +635,7 @@ static int criu_checkpoint_queue(struct kfd_process_device *pdd,
 	q_data->ctx_save_restore_area_size =
 		q->properties.ctx_save_restore_area_size;
 
-	ret = pqm_checkpoint_mqd(&pdd->process->pqm, q->properties.queue_id, mqd);
+	ret = pqm_checkpoint_mqd(&pdd->process->pqm, q->properties.queue_id, mqd, ctl_stack);
 	if (ret) {
 		pr_err("Failed checkpoint queue_mqd (%d)\n", ret);
 		return ret;
@@ -644,6 +659,7 @@ static int criu_checkpoint_queues_device(struct kfd_process_device *pdd,
 		struct kfd_criu_queue_priv_data *q_data;
 		uint64_t q_data_size;
 		uint32_t mqd_size;
+		uint32_t ctl_stack_size;
 
 		if (q->properties.type != KFD_QUEUE_TYPE_COMPUTE &&
 			q->properties.type != KFD_QUEUE_TYPE_SDMA &&
@@ -654,11 +670,11 @@ static int criu_checkpoint_queues_device(struct kfd_process_device *pdd,
 			break;
 		}
 
-		ret = get_queue_data_sizes(pdd, q, &mqd_size);
+		ret = get_queue_data_sizes(pdd, q, &mqd_size, &ctl_stack_size);
 		if (ret)
 			break;
 
-		q_data_size = sizeof(*q_data) + mqd_size;
+		q_data_size = sizeof(*q_data) + mqd_size + ctl_stack_size;
 
 		/* Increase local buffer space if needed */
 		if (q_private_data_size < q_data_size) {
@@ -674,8 +690,9 @@ static int criu_checkpoint_queues_device(struct kfd_process_device *pdd,
 
 		q_data = (struct kfd_criu_queue_priv_data *)q_private_data;
 
-		/* data stored in this order: priv_data, mqd */
+		/* data stored in this order: priv_data, mqd, ctl_stack */
 		q_data->mqd_size = mqd_size;
+		q_data->ctl_stack_size = ctl_stack_size;
 
 		ret = criu_checkpoint_queue(pdd, q, q_data);
 		if (ret)
@@ -746,8 +763,8 @@ int kfd_criu_restore_queue(struct kfd_process *p,
 			   uint64_t *priv_data_offset,
 			   uint64_t max_priv_data_size)
 {
+	uint8_t *mqd, *ctl_stack, *q_extra_data = NULL;
 	struct kfd_criu_queue_priv_data *q_data;
-	uint8_t *mqd, *q_extra_data = NULL;
 	struct kfd_process_device *pdd;
 	uint64_t q_extra_data_size;
 	struct queue_properties qp;
@@ -769,7 +786,7 @@ int kfd_criu_restore_queue(struct kfd_process *p,
 	}
 
 	*priv_data_offset += sizeof(*q_data);
-	q_extra_data_size = q_data->mqd_size;
+	q_extra_data_size = q_data->ctl_stack_size + q_data->mqd_size;
 
 	if (*priv_data_offset + q_extra_data_size > max_priv_data_size) {
 		ret = -EINVAL;
@@ -805,15 +822,17 @@ int kfd_criu_restore_queue(struct kfd_process *p,
 		ret = -EFAULT;
 		return ret;
 	}
-	/* data stored in this order: mqd */
+	/* data stored in this order: mqd, ctl_stack */
 	mqd = q_extra_data;
+	ctl_stack = mqd + q_data->mqd_size;
 
 	memset(&qp, 0, sizeof(qp));
 	set_queue_properties_from_criu(&qp, q_data);
 
 	print_queue_properties(&qp);
 
-	ret = pqm_create_queue(&p->pqm, pdd->dev, NULL, &qp, &queue_id, q_data, mqd, NULL);
+	ret = pqm_create_queue(&p->pqm, pdd->dev, NULL, &qp, &queue_id, q_data, mqd, ctl_stack,
+				NULL);
 	if (ret) {
 		pr_err("Failed to create new queue err:%d\n", ret);
 		ret = -EINVAL;
@@ -832,7 +851,8 @@ exit:
 
 int pqm_get_queue_checkpoint_info(struct process_queue_manager *pqm,
 				  unsigned int qid,
-				  uint32_t *mqd_size)
+				  uint32_t *mqd_size,
+				  uint32_t *ctl_stack_size)
 {
 	struct process_queue_node *pqn;
 
@@ -847,7 +867,9 @@ int pqm_get_queue_checkpoint_info(struct process_queue_manager *pqm,
 		return -EOPNOTSUPP;
 	}
 
-	pqn->q->device->dqm->ops.get_queue_checkpoint_info(pqn->q->device->dqm, pqn->q, mqd_size);
+	pqn->q->device->dqm->ops.get_queue_checkpoint_info(pqn->q->device->dqm,
+						       pqn->q, mqd_size,
+						       ctl_stack_size);
 	return 0;
 }
 
