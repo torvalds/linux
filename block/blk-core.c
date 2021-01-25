@@ -815,11 +815,12 @@ static noinline_for_stack bool submit_bio_checks(struct bio *bio)
 		goto end_io;
 	if (unlikely(bio_check_ro(bio)))
 		goto end_io;
-	if (unlikely(bio_check_eod(bio)))
-		goto end_io;
-	if (bio->bi_bdev->bd_partno && !bio_flagged(bio, BIO_REMAPPED) &&
-	    unlikely(blk_partition_remap(bio)))
-		goto end_io;
+	if (!bio_flagged(bio, BIO_REMAPPED)) {
+		if (unlikely(bio_check_eod(bio)))
+			goto end_io;
+		if (bdev->bd_partno && unlikely(blk_partition_remap(bio)))
+			goto end_io;
+	}
 
 	/*
 	 * Filter flush bio's early so that bio based drivers without flush
