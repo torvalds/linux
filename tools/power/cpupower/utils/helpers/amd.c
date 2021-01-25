@@ -94,11 +94,10 @@ int decode_pstates(unsigned int cpu, unsigned int cpu_family,
 	union core_pstate pstate;
 	unsigned long long val;
 
-	/* Only read out frequencies from HW when CPU might be boostable
-	   to keep the code as short and clean as possible.
-	   Otherwise frequencies are exported via ACPI tables.
-	*/
-	if (cpu_family < 0x10 || cpu_family == 0x14)
+	/* Only read out frequencies from HW if HW Pstate is supported,
+	 * otherwise frequencies are exported via ACPI tables.
+	 */
+	if (!(cpupower_cpu_info.caps & CPUPOWER_CAP_AMD_HW_PSTATE))
 		return -1;
 
 	if (read_msr(cpu, MSR_AMD_PSTATE_LIMIT, &val))
