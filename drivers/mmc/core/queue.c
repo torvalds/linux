@@ -7,7 +7,6 @@
 #include <linux/module.h>
 #include <linux/blkdev.h>
 #include <linux/freezer.h>
-#include <linux/kthread.h>
 #include <linux/scatterlist.h>
 #include <linux/dma-mapping.h>
 #include <linux/backing-dev.h>
