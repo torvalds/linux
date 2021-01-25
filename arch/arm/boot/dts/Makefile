@@ -817,6 +817,7 @@ dtb-$(CONFIG_SOC_AM33XX) += \
 	am335x-lxm.dtb \
 	am335x-moxa-uc-2101.dtb \
 	am335x-moxa-uc-8100-me-t.dtb \
+	am335x-myirtech-myd.dtb \
 	am335x-nano.dtb \
 	am335x-netcan-plus-1xx.dtb \
 	am335x-netcom-plus-2xx.dtb \
