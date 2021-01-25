@@ -93,7 +93,7 @@ DECLARE_STATIC_CALL(might_resched, __cond_resched);
 
 static __always_inline void might_resched(void)
 {
-	static_call(might_resched)();
+	static_call_mod(might_resched)();
 }
 
 #else

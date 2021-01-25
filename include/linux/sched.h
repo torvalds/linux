@@ -1880,7 +1880,7 @@ DECLARE_STATIC_CALL(cond_resched, __cond_resched);
 
 static __always_inline int _cond_resched(void)
 {
-	return static_call(cond_resched)();
+	return static_call_mod(cond_resched)();
 }
 
 #else
