@@ -70,6 +70,9 @@ mlx5e_tc_tun_create_header_ipv6(struct mlx5e_priv *priv,
 				struct net_device *mirred_dev,
 				struct mlx5e_encap_entry *e) { return -EOPNOTSUPP; }
 #endif
+int mlx5e_tc_tun_route_lookup(struct mlx5e_priv *priv,
+			      struct mlx5_flow_spec *spec,
+			      struct mlx5_flow_attr *attr);
 
 bool mlx5e_tc_tun_device_to_offload(struct mlx5e_priv *priv,
 				    struct net_device *netdev);

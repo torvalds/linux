@@ -1322,7 +1322,7 @@ static void remove_unready_flow(struct mlx5e_tc_flow *flow)
 
 static bool same_hw_devs(struct mlx5e_priv *priv, struct mlx5e_priv *peer_priv);
 
-static bool mlx5e_tc_is_vf_tunnel(struct net_device *out_dev, struct net_device *route_dev)
+bool mlx5e_tc_is_vf_tunnel(struct net_device *out_dev, struct net_device *route_dev)
 {
 	struct mlx5_core_dev *out_mdev, *route_mdev;
 	struct mlx5e_priv *out_priv, *route_priv;
@@ -1339,8 +1339,7 @@ static bool mlx5e_tc_is_vf_tunnel(struct net_device *out_dev, struct net_device 
 	return same_hw_devs(out_priv, route_priv);
 }
 
-static int mlx5e_tc_query_route_vport(struct net_device *out_dev, struct net_device *route_dev,
-				      u16 *vport)
+int mlx5e_tc_query_route_vport(struct net_device *out_dev, struct net_device *route_dev, u16 *vport)
 {
 	struct mlx5e_priv *out_priv, *route_priv;
 	struct mlx5_core_dev *route_mdev;
@@ -1504,6 +1503,7 @@ static void mlx5e_tc_del_fdb_flow(struct mlx5e_priv *priv,
 			kfree(attr->parse_attr->tun_info[out_index]);
 		}
 	kvfree(attr->parse_attr);
+	kvfree(attr->esw_attr->rx_tun_attr);
 
 	mlx5_tc_ct_match_del(get_ct_priv(priv), &flow->attr->ct_attr);
 
@@ -2134,6 +2134,67 @@ void mlx5e_tc_set_ethertype(struct mlx5_core_dev *mdev,
 	}
 }
 
+static u8 mlx5e_tc_get_ip_version(struct mlx5_flow_spec *spec, bool outer)
+{
+	void *headers_v;
+	u16 ethertype;
+	u8 ip_version;
+
+	if (outer)
+		headers_v = MLX5_ADDR_OF(fte_match_param, spec->match_value, outer_headers);
+	else
+		headers_v = MLX5_ADDR_OF(fte_match_param, spec->match_value, inner_headers);
+
+	ip_version = MLX5_GET(fte_match_set_lyr_2_4, headers_v, ip_version);
+	/* Return ip_version converted from ethertype anyway */
+	if (!ip_version) {
+		ethertype = MLX5_GET(fte_match_set_lyr_2_4, headers_v, ethertype);
+		if (ethertype == ETH_P_IP || ethertype == ETH_P_ARP)
+			ip_version = 4;
+		else if (ethertype == ETH_P_IPV6)
+			ip_version = 6;
+	}
+	return ip_version;
+}
+
+static int mlx5e_tc_set_attr_rx_tun(struct mlx5e_tc_flow *flow,
+				    struct mlx5_flow_spec *spec)
+{
+	struct mlx5_esw_flow_attr *esw_attr = flow->attr->esw_attr;
+	struct mlx5_rx_tun_attr *tun_attr;
+	void *daddr, *saddr;
+	u8 ip_version;
+
+	tun_attr = kvzalloc(sizeof(*tun_attr), GFP_KERNEL);
+	if (!tun_attr)
+		return -ENOMEM;
+
+	esw_attr->rx_tun_attr = tun_attr;
+	ip_version = mlx5e_tc_get_ip_version(spec, true);
+
+	if (ip_version == 4) {
+		daddr = MLX5_ADDR_OF(fte_match_param, spec->match_value,
+				     outer_headers.dst_ipv4_dst_ipv6.ipv4_layout.ipv4);
+		saddr = MLX5_ADDR_OF(fte_match_param, spec->match_value,
+				     outer_headers.src_ipv4_src_ipv6.ipv4_layout.ipv4);
+		tun_attr->dst_ip.v4 = *(__be32 *)daddr;
+		tun_attr->src_ip.v4 = *(__be32 *)saddr;
+	}
+#if IS_ENABLED(CONFIG_INET) && IS_ENABLED(CONFIG_IPV6)
+	else if (ip_version == 6) {
+		int ipv6_size = MLX5_FLD_SZ_BYTES(ipv6_layout, ipv6);
+
+		daddr = MLX5_ADDR_OF(fte_match_param, spec->match_value,
+				     outer_headers.dst_ipv4_dst_ipv6.ipv6_layout.ipv6);
+		saddr = MLX5_ADDR_OF(fte_match_param, spec->match_value,
+				     outer_headers.src_ipv4_src_ipv6.ipv6_layout.ipv6);
+		memcpy(&tun_attr->dst_ip.v6, daddr, ipv6_size);
+		memcpy(&tun_attr->src_ip.v6, saddr, ipv6_size);
+	}
+#endif
+	return 0;
+}
+
 static int parse_tunnel_attr(struct mlx5e_priv *priv,
 			     struct mlx5e_tc_flow *flow,
 			     struct mlx5_flow_spec *spec,
@@ -2142,6 +2203,7 @@ static int parse_tunnel_attr(struct mlx5e_priv *priv,
 			     u8 *match_level,
 			     bool *match_inner)
 {
+	struct mlx5e_tc_tunnel *tunnel = mlx5e_get_tc_tun(filter_dev);
 	struct mlx5_eswitch *esw = priv->mdev->priv.eswitch;
 	struct netlink_ext_ack *extack = f->common.extack;
 	bool needs_mapping, sets_mapping;
@@ -2179,6 +2241,31 @@ static int parse_tunnel_attr(struct mlx5e_priv *priv,
 		 */
 		if (!netif_is_bareudp(filter_dev))
 			flow->attr->action |= MLX5_FLOW_CONTEXT_ACTION_DECAP;
+		err = mlx5e_tc_set_attr_rx_tun(flow, spec);
+		if (err)
+			return err;
+	} else if (tunnel && tunnel->tunnel_type == MLX5E_TC_TUNNEL_TYPE_VXLAN) {
+		struct mlx5_flow_spec *tmp_spec;
+
+		tmp_spec = kvzalloc(sizeof(*tmp_spec), GFP_KERNEL);
+		if (!tmp_spec) {
+			NL_SET_ERR_MSG_MOD(extack, "Failed to allocate memory for vxlan tmp spec");
+			netdev_warn(priv->netdev, "Failed to allocate memory for vxlan tmp spec");
+			return -ENOMEM;
+		}
+		memcpy(tmp_spec, spec, sizeof(*tmp_spec));
+
+		err = mlx5e_tc_tun_parse(filter_dev, priv, tmp_spec, f, match_level);
+		if (err) {
+			kvfree(tmp_spec);
+			NL_SET_ERR_MSG_MOD(extack, "Failed to parse tunnel attributes");
+			netdev_warn(priv->netdev, "Failed to parse tunnel attributes");
+			return err;
+		}
+		err = mlx5e_tc_set_attr_rx_tun(flow, tmp_spec);
+		kvfree(tmp_spec);
+		if (err)
+			return err;
 	}
 
 	if (!needs_mapping && !sets_mapping)
@@ -4472,6 +4559,15 @@ static int parse_tc_fdb_actions(struct mlx5e_priv *priv,
 			return -EOPNOTSUPP;
 		}
 	}
+
+	if (decap && esw_attr->rx_tun_attr) {
+		err = mlx5e_tc_tun_route_lookup(priv, &parse_attr->spec, attr);
+		if (err)
+			return err;
+	}
+
+	/* always set IP version for indirect table handling */
+	attr->ip_version = mlx5e_tc_get_ip_version(&parse_attr->spec, true);
 
 	if (MLX5_CAP_GEN(esw->dev, prio_tag_required) &&
 	    action & MLX5_FLOW_CONTEXT_ACTION_VLAN_POP) {

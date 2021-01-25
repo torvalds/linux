@@ -483,6 +483,57 @@ release_neigh:
 }
 #endif
 
+int mlx5e_tc_tun_route_lookup(struct mlx5e_priv *priv,
+			      struct mlx5_flow_spec *spec,
+			      struct mlx5_flow_attr *flow_attr)
+{
+	struct mlx5_esw_flow_attr *esw_attr = flow_attr->esw_attr;
+	TC_TUN_ROUTE_ATTR_INIT(attr);
+	u16 vport_num;
+	int err = 0;
+
+	if (flow_attr->ip_version == 4) {
+		/* Addresses are swapped for decap */
+		attr.fl.fl4.saddr = esw_attr->rx_tun_attr->dst_ip.v4;
+		attr.fl.fl4.daddr = esw_attr->rx_tun_attr->src_ip.v4;
+		err = mlx5e_route_lookup_ipv4_get(priv, priv->netdev, &attr);
+	}
+#if IS_ENABLED(CONFIG_INET) && IS_ENABLED(CONFIG_IPV6)
+	else if (flow_attr->ip_version == 6) {
+		/* Addresses are swapped for decap */
+		attr.fl.fl6.saddr = esw_attr->rx_tun_attr->dst_ip.v6;
+		attr.fl.fl6.daddr = esw_attr->rx_tun_attr->src_ip.v6;
+		err = mlx5e_route_lookup_ipv6_get(priv, priv->netdev, &attr);
+	}
+#endif
+	else
+		return 0;
+
+	if (err)
+		return err;
+
+	if (attr.route_dev->netdev_ops != &mlx5e_netdev_ops ||
+	    !mlx5e_tc_is_vf_tunnel(attr.out_dev, attr.route_dev))
+		goto out;
+
+	err = mlx5e_tc_query_route_vport(attr.out_dev, attr.route_dev, &vport_num);
+	if (err)
+		goto out;
+
+	esw_attr->rx_tun_attr->vni = MLX5_GET(fte_match_param, spec->match_value,
+					      misc_parameters.vxlan_vni);
+	esw_attr->rx_tun_attr->decap_vport = vport_num;
+
+out:
+	if (flow_attr->ip_version == 4)
+		mlx5e_route_lookup_ipv4_put(&attr);
+#if IS_ENABLED(CONFIG_INET) && IS_ENABLED(CONFIG_IPV6)
+	else if (flow_attr->ip_version == 6)
+		mlx5e_route_lookup_ipv6_put(&attr);
+#endif
+	return err;
+}
+
 bool mlx5e_tc_tun_device_to_offload(struct mlx5e_priv *priv,
 				    struct net_device *netdev)
 {

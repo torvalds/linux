@@ -257,6 +257,10 @@ mlx5_tc_rule_delete(struct mlx5e_priv *priv,
 		    struct mlx5_flow_handle *rule,
 		    struct mlx5_flow_attr *attr);
 
+bool mlx5e_tc_is_vf_tunnel(struct net_device *out_dev, struct net_device *route_dev);
+int mlx5e_tc_query_route_vport(struct net_device *out_dev, struct net_device *route_dev,
+			       u16 *vport);
+
 #else /* CONFIG_MLX5_CLS_ACT */
 static inline int  mlx5e_tc_nic_init(struct mlx5e_priv *priv) { return 0; }
 static inline void mlx5e_tc_nic_cleanup(struct mlx5e_priv *priv) {}

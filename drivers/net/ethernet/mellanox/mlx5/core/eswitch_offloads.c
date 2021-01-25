@@ -40,6 +40,7 @@
 #include "eswitch.h"
 #include "esw/indir_table.h"
 #include "esw/acl/ofld.h"
+#include "esw/indir_table.h"
 #include "rdma.h"
 #include "en.h"
 #include "fs_core.h"
@@ -258,6 +259,7 @@ mlx5_eswitch_set_rule_flow_source(struct mlx5_eswitch *esw,
 static void
 mlx5_eswitch_set_rule_source_port(struct mlx5_eswitch *esw,
 				  struct mlx5_flow_spec *spec,
+				  struct mlx5_flow_attr *attr,
 				  struct mlx5_eswitch *src_esw,
 				  u16 vport)
 {
@@ -268,6 +270,8 @@ mlx5_eswitch_set_rule_source_port(struct mlx5_eswitch *esw,
 	 * VHCA in dual-port RoCE mode, and matching on source vport may fail.
 	 */
 	if (mlx5_eswitch_vport_match_metadata_enabled(esw)) {
+		if (mlx5_esw_indir_table_decap_vport(attr))
+			vport = mlx5_esw_indir_table_decap_vport(attr);
 		misc2 = MLX5_ADDR_OF(fte_match_param, spec->match_value, misc_parameters_2);
 		MLX5_SET(fte_match_set_misc2, misc2, metadata_reg_c_0,
 			 mlx5_eswitch_get_vport_metadata_for_match(src_esw,
@@ -297,15 +301,46 @@ mlx5_eswitch_set_rule_source_port(struct mlx5_eswitch *esw,
 	}
 }
 
+static int
+esw_setup_decap_indir(struct mlx5_eswitch *esw,
+		      struct mlx5_flow_attr *attr,
+		      struct mlx5_flow_spec *spec)
+{
+	struct mlx5_flow_table *ft;
+
+	if (!(attr->flags & MLX5_ESW_ATTR_FLAG_SRC_REWRITE))
+		return -EOPNOTSUPP;
+
+	ft = mlx5_esw_indir_table_get(esw, attr, spec,
+				      mlx5_esw_indir_table_decap_vport(attr), true);
+	return PTR_ERR_OR_ZERO(ft);
+}
+
 static void
+esw_cleanup_decap_indir(struct mlx5_eswitch *esw,
+			struct mlx5_flow_attr *attr)
+{
+	if (mlx5_esw_indir_table_decap_vport(attr))
+		mlx5_esw_indir_table_put(esw, attr,
+					 mlx5_esw_indir_table_decap_vport(attr),
+					 true);
+}
+
+static int
 esw_setup_ft_dest(struct mlx5_flow_destination *dest,
 		  struct mlx5_flow_act *flow_act,
+		  struct mlx5_eswitch *esw,
 		  struct mlx5_flow_attr *attr,
+		  struct mlx5_flow_spec *spec,
 		  int i)
 {
 	flow_act->flags |= FLOW_ACT_IGNORE_FLOW_LEVEL;
 	dest[i].type = MLX5_FLOW_DESTINATION_TYPE_FLOW_TABLE;
 	dest[i].ft = attr->dest_ft;
+
+	if (mlx5_esw_indir_table_decap_vport(attr))
+		return esw_setup_decap_indir(esw, attr, spec);
+	return 0;
 }
 
 static void
@@ -348,6 +383,10 @@ static void esw_put_dest_tables_loop(struct mlx5_eswitch *esw, struct mlx5_flow_
 	for (i = from; i < to; i++)
 		if (esw_attr->dests[i].flags & MLX5_ESW_DEST_CHAIN_WITH_SRC_PORT_CHANGE)
 			mlx5_chains_put_table(chains, 0, 1, 0);
+		else if (mlx5_esw_indir_table_needed(esw, attr, esw_attr->dests[i].rep->vport,
+						     esw_attr->dests[i].mdev))
+			mlx5_esw_indir_table_put(esw, attr, esw_attr->dests[i].rep->vport,
+						 false);
 }
 
 static bool
@@ -395,6 +434,68 @@ static void esw_cleanup_chain_src_port_rewrite(struct mlx5_eswitch *esw,
 	struct mlx5_esw_flow_attr *esw_attr = attr->esw_attr;
 
 	esw_put_dest_tables_loop(esw, attr, esw_attr->split_count, esw_attr->out_count);
+}
+
+static bool
+esw_is_indir_table(struct mlx5_eswitch *esw, struct mlx5_flow_attr *attr)
+{
+	struct mlx5_esw_flow_attr *esw_attr = attr->esw_attr;
+	int i;
+
+	for (i = esw_attr->split_count; i < esw_attr->out_count; i++)
+		if (mlx5_esw_indir_table_needed(esw, attr, esw_attr->dests[i].rep->vport,
+						esw_attr->dests[i].mdev))
+			return true;
+	return false;
+}
+
+static int
+esw_setup_indir_table(struct mlx5_flow_destination *dest,
+		      struct mlx5_flow_act *flow_act,
+		      struct mlx5_eswitch *esw,
+		      struct mlx5_flow_attr *attr,
+		      struct mlx5_flow_spec *spec,
+		      bool ignore_flow_lvl,
+		      int *i)
+{
+	struct mlx5_esw_flow_attr *esw_attr = attr->esw_attr;
+	int j, err;
+
+	if (!(attr->flags & MLX5_ESW_ATTR_FLAG_SRC_REWRITE))
+		return -EOPNOTSUPP;
+
+	for (j = esw_attr->split_count; j < esw_attr->out_count; j++, (*i)++) {
+		if (ignore_flow_lvl)
+			flow_act->flags |= FLOW_ACT_IGNORE_FLOW_LEVEL;
+		dest[*i].type = MLX5_FLOW_DESTINATION_TYPE_FLOW_TABLE;
+
+		dest[*i].ft = mlx5_esw_indir_table_get(esw, attr, spec,
+						       esw_attr->dests[j].rep->vport, false);
+		if (IS_ERR(dest[*i].ft)) {
+			err = PTR_ERR(dest[*i].ft);
+			goto err_indir_tbl_get;
+		}
+	}
+
+	if (mlx5_esw_indir_table_decap_vport(attr)) {
+		err = esw_setup_decap_indir(esw, attr, spec);
+		if (err)
+			goto err_indir_tbl_get;
+	}
+
+	return 0;
+
+err_indir_tbl_get:
+	esw_put_dest_tables_loop(esw, attr, esw_attr->split_count, j);
+	return err;
+}
+
+static void esw_cleanup_indir_table(struct mlx5_eswitch *esw, struct mlx5_flow_attr *attr)
+{
+	struct mlx5_esw_flow_attr *esw_attr = attr->esw_attr;
+
+	esw_put_dest_tables_loop(esw, attr, esw_attr->split_count, esw_attr->out_count);
+	esw_cleanup_decap_indir(esw, attr);
 }
 
 static void
@@ -454,7 +555,7 @@ esw_setup_dests(struct mlx5_flow_destination *dest,
 		attr->flags |= MLX5_ESW_ATTR_FLAG_SRC_REWRITE;
 
 	if (attr->dest_ft) {
-		esw_setup_ft_dest(dest, flow_act, attr, *i);
+		esw_setup_ft_dest(dest, flow_act, esw, attr, spec, *i);
 		(*i)++;
 	} else if (attr->flags & MLX5_ESW_ATTR_FLAG_SLOW_PATH) {
 		esw_setup_slow_path_dest(dest, flow_act, chains, *i);
@@ -463,6 +564,8 @@ esw_setup_dests(struct mlx5_flow_destination *dest,
 		err = esw_setup_chain_dest(dest, flow_act, chains, attr->dest_chain,
 					   1, 0, *i);
 		(*i)++;
+	} else if (esw_is_indir_table(esw, attr)) {
+		err = esw_setup_indir_table(dest, flow_act, esw, attr, spec, true, i);
 	} else if (esw_is_chain_src_port_rewrite(esw, esw_attr)) {
 		err = esw_setup_chain_src_port_rewrite(dest, flow_act, esw, chains, attr, i);
 	} else {
@@ -479,9 +582,13 @@ esw_cleanup_dests(struct mlx5_eswitch *esw,
 	struct mlx5_esw_flow_attr *esw_attr = attr->esw_attr;
 	struct mlx5_fs_chains *chains = esw_chains(esw);
 
-	if (!(attr->flags & MLX5_ESW_ATTR_FLAG_SLOW_PATH)) {
+	if (attr->dest_ft) {
+		esw_cleanup_decap_indir(esw, attr);
+	} else if (!(attr->flags & MLX5_ESW_ATTR_FLAG_SLOW_PATH)) {
 		if (attr->dest_chain)
 			esw_cleanup_chain_dest(chains, attr->dest_chain, 1, 0);
+		else if (esw_is_indir_table(esw, attr))
+			esw_cleanup_indir_table(esw, attr);
 		else if (esw_is_chain_src_port_rewrite(esw, esw_attr))
 			esw_cleanup_chain_src_port_rewrite(esw, attr);
 	}
@@ -564,7 +671,7 @@ mlx5_eswitch_add_offloaded_rule(struct mlx5_eswitch *esw,
 			fdb = attr->ft;
 
 		if (!(attr->flags & MLX5_ESW_ATTR_FLAG_NO_IN_PORT))
-			mlx5_eswitch_set_rule_source_port(esw, spec,
+			mlx5_eswitch_set_rule_source_port(esw, spec, attr,
 							  esw_attr->in_mdev->priv.eswitch,
 							  esw_attr->in_rep->vport);
 	}
@@ -628,7 +735,9 @@ mlx5_eswitch_add_fwd_rule(struct mlx5_eswitch *esw,
 
 	flow_act.action = MLX5_FLOW_CONTEXT_ACTION_FWD_DEST;
 	for (i = 0; i < esw_attr->split_count; i++) {
-		if (esw_is_chain_src_port_rewrite(esw, esw_attr))
+		if (esw_is_indir_table(esw, attr))
+			err = esw_setup_indir_table(dest, &flow_act, esw, attr, spec, false, &i);
+		else if (esw_is_chain_src_port_rewrite(esw, esw_attr))
 			err = esw_setup_chain_src_port_rewrite(dest, &flow_act, esw, chains, attr,
 							       &i);
 		else
@@ -643,7 +752,7 @@ mlx5_eswitch_add_fwd_rule(struct mlx5_eswitch *esw,
 	dest[i].ft = fwd_fdb;
 	i++;
 
-	mlx5_eswitch_set_rule_source_port(esw, spec,
+	mlx5_eswitch_set_rule_source_port(esw, spec, attr,
 					  esw_attr->in_mdev->priv.eswitch,
 					  esw_attr->in_rep->vport);
 
