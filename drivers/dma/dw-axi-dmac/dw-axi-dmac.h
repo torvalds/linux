@@ -44,6 +44,7 @@ struct axi_dma_chan {
 
 	struct axi_dma_desc		*desc;
 	struct dma_slave_config		config;
+	enum dma_transfer_direction	direction;
 	/* these other elements are all protected by vc.lock */
 	bool				is_paused;
 };
