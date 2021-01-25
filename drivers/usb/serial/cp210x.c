@@ -1166,7 +1166,10 @@ static void cp210x_set_flow_control(struct tty_struct *tty,
 	if (C_CRTSCTS(tty)) {
 		ctl_hs |= CP210X_SERIAL_CTS_HANDSHAKE;
 		flow_repl &= ~CP210X_SERIAL_RTS_MASK;
-		flow_repl |= CP210X_SERIAL_RTS_FLOW_CTL;
+		if (port_priv->rts)
+			flow_repl |= CP210X_SERIAL_RTS_FLOW_CTL;
+		else
+			flow_repl |= CP210X_SERIAL_RTS_INACTIVE;
 		port_priv->crtscts = true;
 	} else {
 		ctl_hs &= ~CP210X_SERIAL_CTS_HANDSHAKE;
@@ -1286,6 +1289,8 @@ static int cp210x_tiocmset_port(struct usb_serial_port *port,
 		unsigned int set, unsigned int clear)
 {
 	struct cp210x_port_private *port_priv = usb_get_serial_port_data(port);
+	struct cp210x_flow_ctl flow_ctl;
+	u32 ctl_hs, flow_repl;
 	u16 control = 0;
 	int ret;
 
@@ -1313,16 +1318,44 @@ static int cp210x_tiocmset_port(struct usb_serial_port *port,
 	}
 
 	/*
-	 * SET_MHS cannot be used to control RTS when auto-RTS is enabled.
-	 * Note that RTS is still deasserted when disabling the UART on close.
+	 * Use SET_FLOW to set DTR and enable/disable auto-RTS when hardware
+	 * flow control is enabled.
 	 */
-	if (port_priv->crtscts)
-		control &= ~CONTROL_WRITE_RTS;
+	if (port_priv->crtscts && control & CONTROL_WRITE_RTS) {
+		ret = cp210x_read_reg_block(port, CP210X_GET_FLOW, &flow_ctl,
+				sizeof(flow_ctl));
+		if (ret)
+			goto out_unlock;
 
-	dev_dbg(&port->dev, "%s - control = 0x%04x\n", __func__, control);
+		ctl_hs = le32_to_cpu(flow_ctl.ulControlHandshake);
+		flow_repl = le32_to_cpu(flow_ctl.ulFlowReplace);
 
-	ret = cp210x_write_u16_reg(port, CP210X_SET_MHS, control);
+		ctl_hs &= ~CP210X_SERIAL_DTR_MASK;
+		if (port_priv->dtr)
+			ctl_hs |= CP210X_SERIAL_DTR_ACTIVE;
+		else
+			ctl_hs |= CP210X_SERIAL_DTR_INACTIVE;
 
+		flow_repl &= ~CP210X_SERIAL_RTS_MASK;
+		if (port_priv->rts)
+			flow_repl |= CP210X_SERIAL_RTS_FLOW_CTL;
+		else
+			flow_repl |= CP210X_SERIAL_RTS_INACTIVE;
+
+		flow_ctl.ulControlHandshake = cpu_to_le32(ctl_hs);
+		flow_ctl.ulFlowReplace = cpu_to_le32(flow_repl);
+
+		dev_dbg(&port->dev, "%s - ctrl = 0x%02x, flow = 0x%02x\n",
+				__func__, ctl_hs, flow_repl);
+
+		ret = cp210x_write_reg_block(port, CP210X_SET_FLOW, &flow_ctl,
+				sizeof(flow_ctl));
+	} else {
+		dev_dbg(&port->dev, "%s - control = 0x%04x\n", __func__, control);
+
+		ret = cp210x_write_u16_reg(port, CP210X_SET_MHS, control);
+	}
+out_unlock:
 	mutex_unlock(&port_priv->mutex);
 
 	return ret;
