@@ -444,6 +444,11 @@ struct bfq_io_cq {
 	unsigned long saved_wr_start_at_switch_to_srt;
 	unsigned int saved_wr_cur_max_time;
 	struct bfq_ttime saved_ttime;
+
+	/* Save also injection state */
+	u64 saved_last_serv_time_ns;
+	unsigned int saved_inject_limit;
+	unsigned long saved_decrease_time_jif;
 };
 
 /**

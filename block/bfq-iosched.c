@@ -1024,6 +1024,10 @@ bfq_bfqq_resume_state(struct bfq_queue *bfqq, struct bfq_data *bfqd,
 	else
 		bfq_clear_bfqq_IO_bound(bfqq);
 
+	bfqq->last_serv_time_ns = bic->saved_last_serv_time_ns;
+	bfqq->inject_limit = bic->saved_inject_limit;
+	bfqq->decrease_time_jif = bic->saved_decrease_time_jif;
+
 	bfqq->entity.new_weight = bic->saved_weight;
 	bfqq->ttime = bic->saved_ttime;
 	bfqq->io_start_time = bic->saved_io_start_time;
@@ -2747,6 +2751,10 @@ static void bfq_bfqq_save_state(struct bfq_queue *bfqq)
 	 */
 	if (!bic)
 		return;
+
+	bic->saved_last_serv_time_ns = bfqq->last_serv_time_ns;
+	bic->saved_inject_limit = bfqq->inject_limit;
+	bic->saved_decrease_time_jif = bfqq->decrease_time_jif;
 
 	bic->saved_weight = bfqq->entity.orig_weight;
 	bic->saved_ttime = bfqq->ttime;
