@@ -483,11 +483,7 @@ static inline void perf_check_microcode(void) { }
 extern struct perf_guest_switch_msr *perf_guest_get_msrs(int *nr);
 extern int x86_perf_get_lbr(struct x86_pmu_lbr *lbr);
 #else
-static inline struct perf_guest_switch_msr *perf_guest_get_msrs(int *nr)
-{
-	*nr = 0;
-	return NULL;
-}
+struct perf_guest_switch_msr *perf_guest_get_msrs(int *nr);
 static inline int x86_perf_get_lbr(struct x86_pmu_lbr *lbr)
 {
 	return -1;

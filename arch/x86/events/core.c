@@ -81,6 +81,8 @@ DEFINE_STATIC_CALL_NULL(x86_pmu_swap_task_ctx, *x86_pmu.swap_task_ctx);
 DEFINE_STATIC_CALL_NULL(x86_pmu_drain_pebs,   *x86_pmu.drain_pebs);
 DEFINE_STATIC_CALL_NULL(x86_pmu_pebs_aliases, *x86_pmu.pebs_aliases);
 
+DEFINE_STATIC_CALL_NULL(x86_pmu_guest_get_msrs,  *x86_pmu.guest_get_msrs);
+
 u64 __read_mostly hw_cache_event_ids
 				[PERF_COUNT_HW_CACHE_MAX]
 				[PERF_COUNT_HW_CACHE_OP_MAX]
@@ -664,6 +666,12 @@ void x86_pmu_disable_all(void)
 			wrmsrl(x86_pmu_config_addr(idx + 1), 0);
 	}
 }
+
+struct perf_guest_switch_msr *perf_guest_get_msrs(int *nr)
+{
+	return static_call(x86_pmu_guest_get_msrs)(nr);
+}
+EXPORT_SYMBOL_GPL(perf_guest_get_msrs);
 
 /*
  * There may be PMI landing after enabled=0. The PMI hitting could be before or
@@ -1923,11 +1931,20 @@ static void x86_pmu_static_call_update(void)
 
 	static_call_update(x86_pmu_drain_pebs, x86_pmu.drain_pebs);
 	static_call_update(x86_pmu_pebs_aliases, x86_pmu.pebs_aliases);
+
+	static_call_update(x86_pmu_guest_get_msrs, x86_pmu.guest_get_msrs);
 }
 
 static void _x86_pmu_read(struct perf_event *event)
 {
 	x86_perf_event_update(event);
+}
+
+static inline struct perf_guest_switch_msr *
+perf_guest_get_msrs_nop(int *nr)
+{
+	*nr = 0;
+	return NULL;
 }
 
 static int __init init_hw_perf_events(void)
@@ -2000,6 +2017,9 @@ static int __init init_hw_perf_events(void)
 
 	if (!x86_pmu.read)
 		x86_pmu.read = _x86_pmu_read;
+
+	if (!x86_pmu.guest_get_msrs)
+		x86_pmu.guest_get_msrs = perf_guest_get_msrs_nop;
 
 	x86_pmu_static_call_update();
 
