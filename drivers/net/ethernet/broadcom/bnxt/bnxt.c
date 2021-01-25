@@ -9337,6 +9337,37 @@ static int bnxt_hwrm_shutdown_link(struct bnxt *bp)
 
 static int bnxt_fw_init_one(struct bnxt *bp);
 
+static int bnxt_fw_reset_via_optee(struct bnxt *bp)
+{
+#ifdef CONFIG_TEE_BNXT_FW
+	int rc = tee_bnxt_fw_load();
+
+	if (rc)
+		netdev_err(bp->dev, "Failed FW reset via OP-TEE, rc=%d\n", rc);
+
+	return rc;
+#else
+	netdev_err(bp->dev, "OP-TEE not supported\n");
+	return -ENODEV;
+#endif
+}
+
+static int bnxt_try_recover_fw(struct bnxt *bp)
+{
+	if (bp->fw_health && bp->fw_health->status_reliable) {
+		u32 sts = bnxt_fw_health_readl(bp, BNXT_FW_HEALTH_REG);
+
+		netdev_err(bp->dev, "Firmware not responding, status: 0x%x\n",
+			   sts);
+		if (sts & FW_STATUS_REG_CRASHED_NO_MASTER) {
+			netdev_warn(bp->dev, "Firmware recover via OP-TEE requested\n");
+			return bnxt_fw_reset_via_optee(bp);
+		}
+	}
+
+	return -ENODEV;
+}
+
 static int bnxt_hwrm_if_change(struct bnxt *bp, bool up)
 {
 	struct hwrm_func_drv_if_change_output *resp = bp->hwrm_cmd_resp_addr;
@@ -9356,6 +9387,10 @@ static int bnxt_hwrm_if_change(struct bnxt *bp, bool up)
 	if (!rc)
 		flags = le32_to_cpu(resp->flags);
 	mutex_unlock(&bp->hwrm_cmd_lock);
+	if (rc && up) {
+		rc = bnxt_try_recover_fw(bp);
+		fw_reset = true;
+	}
 	if (rc)
 		return rc;
 
@@ -11183,21 +11218,6 @@ static void bnxt_init_dflt_coal(struct bnxt *bp)
 	bp->stats_coal_ticks = BNXT_DEF_STATS_COAL_TICKS;
 }
 
-static int bnxt_fw_reset_via_optee(struct bnxt *bp)
-{
-#ifdef CONFIG_TEE_BNXT_FW
-	int rc = tee_bnxt_fw_load();
-
-	if (rc)
-		netdev_err(bp->dev, "Failed FW reset via OP-TEE, rc=%d\n", rc);
-
-	return rc;
-#else
-	netdev_err(bp->dev, "OP-TEE not supported\n");
-	return -ENODEV;
-#endif
-}
-
 static int bnxt_fw_init_one_p1(struct bnxt *bp)
 {
 	int rc;
@@ -11206,19 +11226,10 @@ static int bnxt_fw_init_one_p1(struct bnxt *bp)
 	rc = bnxt_hwrm_ver_get(bp);
 	bnxt_try_map_fw_health_reg(bp);
 	if (rc) {
-		if (bp->fw_health && bp->fw_health->status_reliable) {
-			u32 sts = bnxt_fw_health_readl(bp, BNXT_FW_HEALTH_REG);
-
-			netdev_err(bp->dev,
-				   "Firmware not responding, status: 0x%x\n",
-				   sts);
-			if (sts & FW_STATUS_REG_CRASHED_NO_MASTER) {
-				netdev_warn(bp->dev, "Firmware recover via OP-TEE requested\n");
-				rc = bnxt_fw_reset_via_optee(bp);
-				if (!rc)
-					rc = bnxt_hwrm_ver_get(bp);
-			}
-		}
+		rc = bnxt_try_recover_fw(bp);
+		if (rc)
+			return rc;
+		rc = bnxt_hwrm_ver_get(bp);
 		if (rc)
 			return rc;
 	}
