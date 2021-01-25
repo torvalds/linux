@@ -190,10 +190,10 @@ static int trans_pgd_map_page(pgd_t *trans_pgd, void *page,
 
 	pgdp = pgd_offset_pgd(trans_pgd, dst_addr);
 	if (pgd_none(READ_ONCE(*pgdp))) {
-		pudp = (void *)get_safe_page(GFP_ATOMIC);
-		if (!pudp)
+		p4dp = (void *)get_safe_page(GFP_ATOMIC);
+		if (!pgdp)
 			return -ENOMEM;
-		pgd_populate(&init_mm, pgdp, pudp);
+		pgd_populate(&init_mm, pgdp, p4dp);
 	}
 
 	p4dp = p4d_offset(pgdp, dst_addr);
