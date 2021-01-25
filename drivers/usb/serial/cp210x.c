@@ -1319,7 +1319,7 @@ static int cp210x_tiocmset_port(struct usb_serial_port *port,
 	if (port_priv->crtscts)
 		control &= ~CONTROL_WRITE_RTS;
 
-	dev_dbg(&port->dev, "%s - control = 0x%.4x\n", __func__, control);
+	dev_dbg(&port->dev, "%s - control = 0x%04x\n", __func__, control);
 
 	ret = cp210x_write_u16_reg(port, CP210X_SET_MHS, control);
 
@@ -1353,7 +1353,7 @@ static int cp210x_tiocmget(struct tty_struct *tty)
 		|((control & CONTROL_RING)? TIOCM_RI  : 0)
 		|((control & CONTROL_DCD) ? TIOCM_CD  : 0);
 
-	dev_dbg(&port->dev, "%s - control = 0x%.2x\n", __func__, control);
+	dev_dbg(&port->dev, "%s - control = 0x%02x\n", __func__, control);
 
 	return result;
 }
