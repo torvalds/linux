@@ -51,6 +51,7 @@ detailed description):
 	- UWB enable and disable
 	- LCD Shadow (PrivacyGuard) enable and disable
 	- Lap mode sensor
+	- Setting keyboard language
 
 A compatibility table by model and feature is maintained on the web
 site, http://ibm-acpi.sf.net/. I appreciate any success or failure
@@ -1465,6 +1466,29 @@ Sysfs notes
 
 	rfkill controller switch "tpacpi_uwb_sw": refer to
 	Documentation/driver-api/rfkill.rst for details.
+
+
+Setting keyboard language
+-------------------
+
+sysfs: keyboard_lang
+
+This feature is used to set keyboard language to ECFW using ASL interface.
+Fewer thinkpads models like T580 , T590 , T15 Gen 1 etc.. has "=", "(',
+")" numeric keys, which are not displaying correctly, when keyboard language
+is other than "english". This is because of default keyboard language in ECFW
+is set as "english". Hence using this sysfs, user can set correct keyboard
+language to ECFW and then these key's will work correctly .
+
+Example of command to set keyboard language is mentioned below::
+
+        echo jp > /sys/devices/platform/thinkpad_acpi/keyboard_lang
+
+Text corresponding to keyboard layout to be set in sysfs are : jp (Japan), be(Belgian),
+cz(Czech), en(English), da(Danish), de(German), es(Spain) , et(Estonian),
+fr(French) , fr-ch (French(Switzerland)), pl(Polish), sl(Slovenian), hu
+(Hungarian), nl(Dutch), tr(Turkey), it(Italy), sv(Sweden), pt(portugese)
+
 
 Adaptive keyboard
 -----------------

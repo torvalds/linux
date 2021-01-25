@@ -9983,6 +9983,183 @@ static struct ibm_struct proxsensor_driver_data = {
 	.exit = proxsensor_exit,
 };
 
+/*************************************************************************
+ * Keyboard language interface
+ */
+
+struct keyboard_lang_data {
+	const char *lang_str;
+	int lang_code;
+};
+
+/*
+ * When adding new entries to keyboard_lang_data, please check that
+ * the select_lang[] buffer in keyboard_lang_show() is still large enough.
+ */
+struct keyboard_lang_data keyboard_lang_data[] = {
+	{"en", 0},
+	{"be", 0x080c},
+	{"cz", 0x0405},
+	{"da", 0x0406},
+	{"de", 0x0c07},
+	{"es", 0x2c0a},
+	{"et", 0x0425},
+	{"fr", 0x040c},
+	{"fr-ch", 0x100c},
+	{"hu", 0x040e},
+	{"it", 0x0410},
+	{"jp", 0x0411},
+	{"nl", 0x0413},
+	{"nn", 0x0414},
+	{"pl", 0x0415},
+	{"pt", 0x0816},
+	{"sl", 0x041b},
+	{"sv", 0x081d},
+	{"tr", 0x041f},
+};
+
+static int set_keyboard_lang_command(int command)
+{
+	acpi_handle sskl_handle;
+	int output;
+
+	if (ACPI_FAILURE(acpi_get_handle(hkey_handle, "SSKL", &sskl_handle))) {
+		/* Platform doesn't support SSKL */
+		return -ENODEV;
+	}
+
+	if (!acpi_evalf(sskl_handle, &output, NULL, "dd", command))
+		return -EIO;
+
+	return 0;
+}
+
+static int get_keyboard_lang(int *output)
+{
+	acpi_handle gskl_handle;
+	int kbd_lang;
+
+	if (ACPI_FAILURE(acpi_get_handle(hkey_handle, "GSKL", &gskl_handle))) {
+		/* Platform doesn't support GSKL */
+		return -ENODEV;
+	}
+
+	if (!acpi_evalf(gskl_handle, &kbd_lang, NULL, "dd", 0x02000000))
+		return -EIO;
+
+	*output = kbd_lang;
+
+	return 0;
+}
+
+/* sysfs keyboard language entry */
+static ssize_t keyboard_lang_show(struct device *dev,
+				struct device_attribute *attr,
+				char *buf)
+{
+	int output, err, i;
+	char select_lang[80] = "";
+	char lang[8] = "";
+
+	err = get_keyboard_lang(&output);
+	if (err)
+		return err;
+
+	for (i = 0; i < ARRAY_SIZE(keyboard_lang_data); i++) {
+		if (i)
+			strcat(select_lang, " ");
+
+		if (output == keyboard_lang_data[i].lang_code) {
+			strcat(lang, "[");
+			strcat(lang, keyboard_lang_data[i].lang_str);
+			strcat(lang, "]");
+			strcat(select_lang, lang);
+		} else {
+			strcat(select_lang, keyboard_lang_data[i].lang_str);
+		}
+	}
+
+	return sysfs_emit(buf, "%s\n", select_lang);
+}
+
+static ssize_t keyboard_lang_store(struct device *dev,
+				struct device_attribute *attr,
+				const char *buf, size_t count)
+{
+	int err, i;
+	bool lang_found = false;
+	int lang_code = 0;
+
+	for (i = 0; i < ARRAY_SIZE(keyboard_lang_data); i++) {
+		if (sysfs_streq(buf, keyboard_lang_data[i].lang_str)) {
+			lang_code = keyboard_lang_data[i].lang_code;
+			lang_found = true;
+			break;
+		}
+	}
+
+	if (lang_found) {
+		lang_code = lang_code | 1 << 24;
+
+		/* Set language code */
+		err = set_keyboard_lang_command(lang_code);
+		if (err)
+			return err;
+	} else {
+		pr_err("Unknown Keyboard language. Ignoring\n");
+		return -EINVAL;
+	}
+
+	tpacpi_disclose_usertask(attr->attr.name,
+			"keyboard language is set to  %s\n", buf);
+
+	sysfs_notify(&tpacpi_pdev->dev.kobj, NULL, "keyboard_lang");
+
+	return count;
+}
+
+static DEVICE_ATTR_RW(keyboard_lang);
+
+static struct attribute *kbdlang_attributes[] = {
+	&dev_attr_keyboard_lang.attr,
+	NULL
+};
+
+static const struct attribute_group kbdlang_attr_group = {
+	.attrs = kbdlang_attributes,
+};
+
+static int tpacpi_kbdlang_init(struct ibm_init_struct *iibm)
+{
+	int err, output;
+
+	err = get_keyboard_lang(&output);
+	/*
+	 * If support isn't available (ENODEV) then don't return an error
+	 * just don't create the sysfs group
+	 */
+	if (err == -ENODEV)
+		return 0;
+
+	if (err)
+		return err;
+
+	/* Platform supports this feature - create the sysfs file */
+	err = sysfs_create_group(&tpacpi_pdev->dev.kobj, &kbdlang_attr_group);
+
+	return err;
+}
+
+static void kbdlang_exit(void)
+{
+	sysfs_remove_group(&tpacpi_pdev->dev.kobj, &kbdlang_attr_group);
+}
+
+static struct ibm_struct kbdlang_driver_data = {
+	.name = "kbdlang",
+	.exit = kbdlang_exit,
+};
+
 /****************************************************************************
  ****************************************************************************
  *
@@ -10474,6 +10651,10 @@ static struct ibm_init_struct ibms_init[] __initdata = {
 	{
 		.init = tpacpi_proxsensor_init,
 		.data = &proxsensor_driver_data,
+	},
+	{
+		.init = tpacpi_kbdlang_init,
+		.data = &kbdlang_driver_data,
 	},
 };
 
