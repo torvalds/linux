@@ -1525,12 +1525,12 @@ static bool dc_link_construct(struct dc_link *link,
 	link->link_enc =
 		link->dc->res_pool->funcs->link_enc_create(&enc_init_data);
 
-	DC_LOG_DC("BIOS object table - DP_IS_USB_C: %d", link->link_enc->features.flags.bits.DP_IS_USB_C);
-
 	if (!link->link_enc) {
 		DC_ERROR("Failed to create link encoder!\n");
 		goto link_enc_create_fail;
 	}
+
+	DC_LOG_DC("BIOS object table - DP_IS_USB_C: %d", link->link_enc->features.flags.bits.DP_IS_USB_C);
 
 	link->link_enc_hw_inst = link->link_enc->transmitter;
 
