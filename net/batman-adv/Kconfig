@@ -9,7 +9,6 @@
 
 config BATMAN_ADV
 	tristate "B.A.T.M.A.N. Advanced Meshing Protocol"
-	depends on NET
 	select LIBCRC32C
 	help
 	  B.A.T.M.A.N. (better approach to mobile ad-hoc networking) is

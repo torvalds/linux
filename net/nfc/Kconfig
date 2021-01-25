@@ -4,7 +4,6 @@
 #
 
 menuconfig NFC
-	depends on NET
 	depends on RFKILL || !RFKILL
 	tristate "NFC subsystem support"
 	default n
