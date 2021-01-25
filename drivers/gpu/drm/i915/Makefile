@@ -260,6 +260,7 @@ i915-y += \
 	display/intel_sdvo.o \
 	display/intel_tv.o \
 	display/intel_vdsc.o \
+	display/intel_vrr.o \
 	display/vlv_dsi.o \
 	display/vlv_dsi_pll.o
 
