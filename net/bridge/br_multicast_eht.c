@@ -85,15 +85,15 @@ br_multicast_eht_set_entry_lookup(struct net_bridge_group_eht_set *eht_set,
 		struct net_bridge_group_eht_set_entry *this;
 		int result;
 
-	this = rb_entry(node, struct net_bridge_group_eht_set_entry,
-			rb_node);
-	result = memcmp(h_addr, &this->h_addr, sizeof(*h_addr));
-	if (result < 0)
-		node = node->rb_left;
-	else if (result > 0)
-		node = node->rb_right;
-	else
-		return this;
+		this = rb_entry(node, struct net_bridge_group_eht_set_entry,
+				rb_node);
+		result = memcmp(h_addr, &this->h_addr, sizeof(*h_addr));
+		if (result < 0)
+			node = node->rb_left;
+		else if (result > 0)
+			node = node->rb_right;
+		else
+			return this;
 	}
 
 	return NULL;
