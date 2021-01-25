@@ -985,7 +985,7 @@ static int __maybe_unused iqs5xx_suspend(struct device *dev)
 	struct input_dev *input = iqs5xx->input;
 	int error = 0;
 
-	if (!input)
+	if (!input || device_may_wakeup(dev))
 		return error;
 
 	mutex_lock(&input->mutex);
@@ -1004,7 +1004,7 @@ static int __maybe_unused iqs5xx_resume(struct device *dev)
 	struct input_dev *input = iqs5xx->input;
 	int error = 0;
 
-	if (!input)
+	if (!input || device_may_wakeup(dev))
 		return error;
 
 	mutex_lock(&input->mutex);
