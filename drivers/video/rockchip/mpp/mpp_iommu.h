@@ -101,5 +101,6 @@ bool mpp_iommu_is_paged(struct mpp_rk_iommu *iommu);
 u32 mpp_iommu_get_dte_addr(struct mpp_rk_iommu *iommu);
 int mpp_iommu_enable(struct mpp_rk_iommu *iommu);
 int mpp_iommu_disable(struct mpp_rk_iommu *iommu);
+int mpp_iommu_refresh(struct mpp_iommu_info *info, struct device *dev);
 
 #endif

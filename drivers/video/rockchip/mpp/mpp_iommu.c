@@ -19,6 +19,7 @@
 #include <linux/of_platform.h>
 #include <linux/kref.h>
 #include <linux/slab.h>
+#include <linux/pm_runtime.h>
 
 #include "mpp_debug.h"
 #include "mpp_iommu.h"
@@ -553,6 +554,31 @@ int mpp_iommu_disable(struct mpp_rk_iommu *iommu)
 			       iommu->bases[i] + RK_MMU_COMMAND);
 		udelay(2);
 	}
+
+	return 0;
+}
+
+int mpp_iommu_refresh(struct mpp_iommu_info *info, struct device *dev)
+{
+	int i;
+	int usage_count;
+	struct device_link *link;
+	struct device *iommu_dev = &info->pdev->dev;
+
+	rcu_read_lock();
+
+	usage_count = atomic_read(&iommu_dev->power.usage_count);
+	list_for_each_entry_rcu(link, &dev->links.suppliers, c_node) {
+		for (i = 0; i < usage_count; i++)
+			pm_runtime_put_sync(link->supplier);
+	}
+
+	list_for_each_entry_rcu(link, &dev->links.suppliers, c_node) {
+		for (i = 0; i < usage_count; i++)
+			pm_runtime_get_sync(link->supplier);
+	}
+
+	rcu_read_unlock();
 
 	return 0;
 }

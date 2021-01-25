@@ -520,6 +520,7 @@ struct reset_control *mpp_reset_control_get(struct mpp_dev *mpp,
 					    const char *name);
 
 u32 mpp_get_grf(struct mpp_grf_info *grf_info);
+bool mpp_grf_is_changed(struct mpp_grf_info *grf_info);
 int mpp_set_grf(struct mpp_grf_info *grf_info);
 
 int mpp_time_record(struct mpp_task *task);

@@ -392,32 +392,6 @@ static int mpp_process_task(struct mpp_session *session,
 	return 0;
 }
 
-static int mpp_refresh_pm_runtime(struct mpp_iommu_info *info,
-				  struct device *dev)
-{
-	int i;
-	int usage_count;
-	struct device_link *link;
-	struct device *iommu_dev = &info->pdev->dev;
-
-	rcu_read_lock();
-
-	usage_count = atomic_read(&iommu_dev->power.usage_count);
-	list_for_each_entry_rcu(link, &dev->links.suppliers, c_node) {
-		for (i = 0; i < usage_count; i++)
-			pm_runtime_put_sync(link->supplier);
-	}
-
-	list_for_each_entry_rcu(link, &dev->links.suppliers, c_node) {
-		for (i = 0; i < usage_count; i++)
-			pm_runtime_get_sync(link->supplier);
-	}
-
-	rcu_read_unlock();
-
-	return 0;
-}
-
 struct reset_control *
 mpp_reset_control_get(struct mpp_dev *mpp, enum MPP_RESET_TYPE type, const char *name)
 {
@@ -499,7 +473,7 @@ int mpp_dev_reset(struct mpp_dev *mpp)
 	 * as an empty operation. Therefore, force to close and then open,
 	 * will be update the domain. In this way, domain can really attach.
 	 */
-	mpp_refresh_pm_runtime(mpp->iommu_info, mpp->dev);
+	mpp_iommu_refresh(mpp->iommu_info, mpp->dev);
 
 	mpp_iommu_attach(mpp->iommu_info);
 	mpp_reset_up_write(mpp->reset_group);
@@ -881,7 +855,7 @@ static __u32 mpp_get_cmd_butt(__u32 cmd)
 		mask = MPP_CMD_CONTROL_BUTT;
 		break;
 	default:
-		mpp_err("unknow dev cmd 0x%x\n", cmd);
+		mpp_err("unknown dev cmd 0x%x\n", cmd);
 		break;
 	}
 
@@ -1430,8 +1404,7 @@ int mpp_extract_reg_offset_info(struct reg_offset_info *off_inf,
 		return -EINVAL;
 	}
 	if (copy_from_user(&off_inf->elem[off_inf->cnt],
-				req->data,
-				req->size)) {
+			   req->data, req->size)) {
 		mpp_err("copy_from_user failed\n");
 		return -EINVAL;
 	}
@@ -1755,7 +1728,6 @@ int mpp_dev_remove(struct mpp_dev *mpp)
 
 irqreturn_t mpp_dev_irq(int irq, void *param)
 {
-
 	struct mpp_dev *mpp = param;
 	struct mpp_task *task = mpp->cur_task;
 	irqreturn_t irq_ret = IRQ_NONE;
@@ -1769,7 +1741,8 @@ irqreturn_t mpp_dev_irq(int irq, void *param)
 			 * isr should not to response, and handle it in delayed work
 			 */
 			if (test_and_set_bit(TASK_STATE_HANDLE, &task->state)) {
-				mpp_err("error, task has been handled, irq_status %08x\n", mpp->irq_status);
+				mpp_err("error, task has been handled, irq_status %08x\n",
+					mpp->irq_status);
 				irq_ret = IRQ_HANDLED;
 				goto done;
 			}
@@ -1812,6 +1785,20 @@ u32 mpp_get_grf(struct mpp_grf_info *grf_info)
 		regmap_read(grf_info->grf, grf_info->offset, &val);
 
 	return (val & MPP_GRF_VAL_MASK);
+}
+
+bool mpp_grf_is_changed(struct mpp_grf_info *grf_info)
+{
+	bool changed = false;
+
+	if (grf_info && grf_info->grf && grf_info->val) {
+		u32 grf_status = mpp_get_grf(grf_info);
+		u32 grf_val = grf_info->val & MPP_GRF_VAL_MASK;
+
+		changed = (grf_status == grf_val) ? false : true;
+	}
+
+	return changed;
 }
 
 int mpp_set_grf(struct mpp_grf_info *grf_info)

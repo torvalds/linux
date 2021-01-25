@@ -188,6 +188,7 @@ struct rkvdec_dev {
 	/* record last infos */
 	u32 last_fmt;
 	bool had_reset;
+	bool grf_changed;
 };
 
 /*
@@ -1449,11 +1450,40 @@ static int rkvdec_3368_get_freq(struct mpp_dev *mpp,
 	return 0;
 }
 
+static int rkvdec_3368_set_grf(struct mpp_dev *mpp)
+{
+	struct rkvdec_dev *dec = to_rkvdec_dev(mpp);
+
+	dec->grf_changed = mpp_grf_is_changed(mpp->grf_info);
+	mpp_set_grf(mpp->grf_info);
+
+	return 0;
+}
+
 static int rkvdec_set_freq(struct mpp_dev *mpp,
 			   struct mpp_task *mpp_task)
 {
 	struct rkvdec_dev *dec = to_rkvdec_dev(mpp);
 	struct rkvdec_task *task =  to_rkvdec_task(mpp_task);
+
+	mpp_clk_set_rate(&dec->aclk_info, task->clk_mode);
+	mpp_clk_set_rate(&dec->core_clk_info, task->clk_mode);
+	mpp_clk_set_rate(&dec->cabac_clk_info, task->clk_mode);
+	mpp_clk_set_rate(&dec->hevc_cabac_clk_info, task->clk_mode);
+
+	return 0;
+}
+
+static int rkvdec_3368_set_freq(struct mpp_dev *mpp, struct mpp_task *mpp_task)
+{
+	struct rkvdec_dev *dec = to_rkvdec_dev(mpp);
+	struct rkvdec_task *task =  to_rkvdec_task(mpp_task);
+
+	/* if grf changed, need reset iommu for rk3368 */
+	if (dec->grf_changed) {
+		mpp_iommu_refresh(mpp->iommu_info, mpp->dev);
+		dec->grf_changed = false;
+	}
 
 	mpp_clk_set_rate(&dec->aclk_info, task->clk_mode);
 	mpp_clk_set_rate(&dec->core_clk_info, task->clk_mode);
@@ -1617,9 +1647,10 @@ static struct mpp_hw_ops rkvdec_3368_hw_ops = {
 	.clk_on = rkvdec_clk_on,
 	.clk_off = rkvdec_clk_off,
 	.get_freq = rkvdec_3368_get_freq,
-	.set_freq = rkvdec_set_freq,
+	.set_freq = rkvdec_3368_set_freq,
 	.reduce_freq = rkvdec_reduce_freq,
 	.reset = rkvdec_reset,
+	.set_grf = rkvdec_3368_set_grf,
 };
 
 static struct mpp_dev_ops rkvdec_v1_dev_ops = {
