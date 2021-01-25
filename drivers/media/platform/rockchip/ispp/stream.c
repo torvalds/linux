@@ -1558,29 +1558,26 @@ static void rkispp_stream_stop(struct rkispp_stream *stream)
 {
 	struct rkispp_device *dev = stream->isppdev;
 	bool is_wait = true;
-	int ret;
+	int ret = 0;
 
 	stream->stopping = true;
 	if (dev->inp == INP_ISP &&
 	    atomic_read(&dev->stream_vdev.refcnt) == 1) {
-		v4l2_subdev_call(&dev->ispp_sdev.sd,
-				 video, s_stream, false);
+		v4l2_subdev_call(&dev->ispp_sdev.sd, video, s_stream, false);
 		rkispp_stop_3a_run(dev);
-		ret = readl(dev->hw_dev->base_addr + RKISPP_CTRL_SYS_STATUS);
-		ret &= 0xff;
-		if (!ret && (dev->dev_id == dev->hw_dev->cur_dev_id))
+		if (dev->stream_vdev.fec.is_end &&
+		    (dev->dev_id != dev->hw_dev->cur_dev_id || dev->hw_dev->is_idle))
 			is_wait = false;
 	}
-	ret = 0;
 	if (is_wait) {
 		ret = wait_event_timeout(stream->done,
 					 !stream->streaming,
-					 msecs_to_jiffies(1000));
+					 msecs_to_jiffies(500));
 		if (!ret)
 			v4l2_warn(&dev->v4l2_dev,
 				  "stream:%d stop timeout\n", stream->id);
 	}
-	if (!ret && stream->ops) {
+	if (stream->ops) {
 		/* scl stream close dma write */
 		if (stream->ops->stop)
 			stream->ops->stop(stream);
@@ -1653,8 +1650,10 @@ static void rkispp_stop_streaming(struct vb2_queue *queue)
 	atomic_dec(&dev->stream_vdev.refcnt);
 
 	if (!atomic_read(&hw->refcnt) &&
-	    !atomic_read(&dev->stream_vdev.refcnt))
+	    !atomic_read(&dev->stream_vdev.refcnt)) {
 		rkispp_set_clk_rate(hw->clks[0], hw->core_clk_min);
+		hw->is_idle = true;
+	}
 	v4l2_dbg(1, rkispp_debug, &dev->v4l2_dev,
 		 "%s id:%d exit\n", __func__, stream->id);
 }
