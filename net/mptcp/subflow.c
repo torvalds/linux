@@ -1085,21 +1085,31 @@ void mptcpv6_handle_mapped(struct sock *sk, bool mapped)
 #endif
 
 static void mptcp_info2sockaddr(const struct mptcp_addr_info *info,
-				struct sockaddr_storage *addr)
+				struct sockaddr_storage *addr,
+				unsigned short family)
 {
 	memset(addr, 0, sizeof(*addr));
-	addr->ss_family = info->family;
+	addr->ss_family = family;
 	if (addr->ss_family == AF_INET) {
 		struct sockaddr_in *in_addr = (struct sockaddr_in *)addr;
 
-		in_addr->sin_addr = info->addr;
+		if (info->family == AF_INET)
+			in_addr->sin_addr = info->addr;
+#if IS_ENABLED(CONFIG_MPTCP_IPV6)
+		else if (ipv6_addr_v4mapped(&info->addr6))
+			in_addr->sin_addr.s_addr = info->addr6.s6_addr32[3];
+#endif
 		in_addr->sin_port = info->port;
 	}
 #if IS_ENABLED(CONFIG_MPTCP_IPV6)
 	else if (addr->ss_family == AF_INET6) {
 		struct sockaddr_in6 *in6_addr = (struct sockaddr_in6 *)addr;
 
-		in6_addr->sin6_addr = info->addr6;
+		if (info->family == AF_INET)
+			ipv6_addr_set_v4mapped(info->addr.s_addr,
+					       &in6_addr->sin6_addr);
+		else
+			in6_addr->sin6_addr = info->addr6;
 		in6_addr->sin6_port = info->port;
 	}
 #endif
@@ -1143,11 +1153,11 @@ int __mptcp_subflow_connect(struct sock *sk, const struct mptcp_addr_info *loc,
 	subflow->remote_key = msk->remote_key;
 	subflow->local_key = msk->local_key;
 	subflow->token = msk->token;
-	mptcp_info2sockaddr(loc, &addr);
+	mptcp_info2sockaddr(loc, &addr, ssk->sk_family);
 
 	addrlen = sizeof(struct sockaddr_in);
 #if IS_ENABLED(CONFIG_MPTCP_IPV6)
-	if (loc->family == AF_INET6)
+	if (addr.ss_family == AF_INET6)
 		addrlen = sizeof(struct sockaddr_in6);
 #endif
 	ssk->sk_bound_dev_if = loc->ifindex;
@@ -1163,7 +1173,7 @@ int __mptcp_subflow_connect(struct sock *sk, const struct mptcp_addr_info *loc,
 	subflow->remote_id = remote_id;
 	subflow->request_join = 1;
 	subflow->request_bkup = !!(loc->flags & MPTCP_PM_ADDR_FLAG_BACKUP);
-	mptcp_info2sockaddr(remote, &addr);
+	mptcp_info2sockaddr(remote, &addr, ssk->sk_family);
 
 	mptcp_add_pending_subflow(msk, subflow);
 	err = kernel_connect(sf, (struct sockaddr *)&addr, addrlen, O_NONBLOCK);
