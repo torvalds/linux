@@ -371,6 +371,32 @@ static void __cpuinfo_store_cpu(struct cpuinfo_arm64 *info)
 	info->reg_id_aa64pfr1 = read_cpuid(ID_AA64PFR1_EL1);
 	info->reg_id_aa64zfr0 = read_cpuid(ID_AA64ZFR0_EL1);
 
+	/* Update the 32bit ID registers only if AArch32 is implemented */
+	if (id_aa64pfr0_32bit_el0(info->reg_id_aa64pfr0)) {
+		info->reg_id_dfr0 = read_cpuid(ID_DFR0_EL1);
+		info->reg_id_dfr1 = read_cpuid(ID_DFR1_EL1);
+		info->reg_id_isar0 = read_cpuid(ID_ISAR0_EL1);
+		info->reg_id_isar1 = read_cpuid(ID_ISAR1_EL1);
+		info->reg_id_isar2 = read_cpuid(ID_ISAR2_EL1);
+		info->reg_id_isar3 = read_cpuid(ID_ISAR3_EL1);
+		info->reg_id_isar4 = read_cpuid(ID_ISAR4_EL1);
+		info->reg_id_isar5 = read_cpuid(ID_ISAR5_EL1);
+		info->reg_id_isar6 = read_cpuid(ID_ISAR6_EL1);
+		info->reg_id_mmfr0 = read_cpuid(ID_MMFR0_EL1);
+		info->reg_id_mmfr1 = read_cpuid(ID_MMFR1_EL1);
+		info->reg_id_mmfr2 = read_cpuid(ID_MMFR2_EL1);
+		info->reg_id_mmfr3 = read_cpuid(ID_MMFR3_EL1);
+		info->reg_id_mmfr4 = read_cpuid(ID_MMFR4_EL1);
+		info->reg_id_mmfr5 = read_cpuid(ID_MMFR5_EL1);
+		info->reg_id_pfr0 = read_cpuid(ID_PFR0_EL1);
+		info->reg_id_pfr1 = read_cpuid(ID_PFR1_EL1);
+		info->reg_id_pfr2 = read_cpuid(ID_PFR2_EL1);
+
+		info->reg_mvfr0 = read_cpuid(MVFR0_EL1);
+		info->reg_mvfr1 = read_cpuid(MVFR1_EL1);
+		info->reg_mvfr2 = read_cpuid(MVFR2_EL1);
+	}
+
 	if (IS_ENABLED(CONFIG_ARM64_SVE) &&
 	    id_aa64pfr0_sve(info->reg_id_aa64pfr0))
 		info->reg_zcr = read_zcr_features();
@@ -378,51 +404,10 @@ static void __cpuinfo_store_cpu(struct cpuinfo_arm64 *info)
 	cpuinfo_detect_icache_policy(info);
 }
 
-static void __cpuinfo_store_cpu_32bit(struct cpuinfo_arm64 *info)
-{
-	info->aarch32_valid = true;
-
-	info->reg_id_dfr0 = read_cpuid(ID_DFR0_EL1);
-	info->reg_id_dfr1 = read_cpuid(ID_DFR1_EL1);
-	info->reg_id_isar0 = read_cpuid(ID_ISAR0_EL1);
-	info->reg_id_isar1 = read_cpuid(ID_ISAR1_EL1);
-	info->reg_id_isar2 = read_cpuid(ID_ISAR2_EL1);
-	info->reg_id_isar3 = read_cpuid(ID_ISAR3_EL1);
-	info->reg_id_isar4 = read_cpuid(ID_ISAR4_EL1);
-	info->reg_id_isar5 = read_cpuid(ID_ISAR5_EL1);
-	info->reg_id_isar6 = read_cpuid(ID_ISAR6_EL1);
-	info->reg_id_mmfr0 = read_cpuid(ID_MMFR0_EL1);
-	info->reg_id_mmfr1 = read_cpuid(ID_MMFR1_EL1);
-	info->reg_id_mmfr2 = read_cpuid(ID_MMFR2_EL1);
-	info->reg_id_mmfr3 = read_cpuid(ID_MMFR3_EL1);
-	info->reg_id_mmfr4 = read_cpuid(ID_MMFR4_EL1);
-	info->reg_id_mmfr5 = read_cpuid(ID_MMFR5_EL1);
-	info->reg_id_pfr0 = read_cpuid(ID_PFR0_EL1);
-	info->reg_id_pfr1 = read_cpuid(ID_PFR1_EL1);
-	info->reg_id_pfr2 = read_cpuid(ID_PFR2_EL1);
-
-	info->reg_mvfr0 = read_cpuid(MVFR0_EL1);
-	info->reg_mvfr1 = read_cpuid(MVFR1_EL1);
-	info->reg_mvfr2 = read_cpuid(MVFR2_EL1);
-}
-
 void cpuinfo_store_cpu(void)
 {
 	struct cpuinfo_arm64 *info = this_cpu_ptr(&cpu_data);
 	__cpuinfo_store_cpu(info);
-	if (id_aa64pfr0_32bit_el0(info->reg_id_aa64pfr0))
-		__cpuinfo_store_cpu_32bit(info);
-	/*
-	 * With asymmetric AArch32 support, populate the boot CPU information
-	 * on the first 32-bit capable secondary CPU if the primary one
-	 * skipped this step.
-	 */
-	if (IS_ENABLED(CONFIG_ASYMMETRIC_AARCH32) &&
-	    !boot_cpu_data.aarch32_valid &&
-	    id_aa64pfr0_32bit_el0(info->reg_id_aa64pfr0)) {
-		__cpuinfo_store_cpu_32bit(&boot_cpu_data);
-		init_cpu_32bit_features(&boot_cpu_data);
-	}
 	update_cpu_features(smp_processor_id(), info, &boot_cpu_data);
 }
 
@@ -430,11 +415,7 @@ void __init cpuinfo_store_boot_cpu(void)
 {
 	struct cpuinfo_arm64 *info = &per_cpu(cpu_data, 0);
 	__cpuinfo_store_cpu(info);
-	if (id_aa64pfr0_32bit_el0(info->reg_id_aa64pfr0))
-		__cpuinfo_store_cpu_32bit(info);
 
 	boot_cpu_data = *info;
 	init_cpu_features(&boot_cpu_data);
-	if (id_aa64pfr0_32bit_el0(boot_cpu_data.reg_id_aa64pfr0))
-		init_cpu_32bit_features(&boot_cpu_data);
 }
