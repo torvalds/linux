@@ -44,21 +44,20 @@ static int bnxt_fw_reporter_diagnose(struct devlink_health_reporter *reporter,
 				     struct netlink_ext_ack *extack)
 {
 	struct bnxt *bp = devlink_health_reporter_priv(reporter);
-	u32 val, health_status;
+	u32 val;
 	int rc;
 
 	if (test_bit(BNXT_STATE_IN_FW_RESET, &bp->state))
 		return 0;
 
 	val = bnxt_fw_health_readl(bp, BNXT_FW_HEALTH_REG);
-	health_status = val & 0xffff;
 
-	if (health_status < BNXT_FW_STATUS_HEALTHY) {
+	if (BNXT_FW_IS_BOOTING(val)) {
 		rc = devlink_fmsg_string_pair_put(fmsg, "Description",
 						  "Not yet completed initialization");
 		if (rc)
 			return rc;
-	} else if (health_status > BNXT_FW_STATUS_HEALTHY) {
+	} else if (BNXT_FW_IS_ERR(val)) {
 		rc = devlink_fmsg_string_pair_put(fmsg, "Description",
 						  "Encountered fatal error and cannot recover");
 		if (rc)
