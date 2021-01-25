@@ -133,6 +133,8 @@ static int hw_idle(struct hl_device *hdev, struct hl_info_args *args)
 
 	hw_idle.is_idle = hdev->asic_funcs->is_device_idle(hdev,
 					&hw_idle.busy_engines_mask_ext, NULL);
+	hw_idle.busy_engines_mask =
+			lower_32_bits(hw_idle.busy_engines_mask_ext);
 
 	return copy_to_user(out, &hw_idle,
 		min((size_t) max_size, sizeof(hw_idle))) ? -EFAULT : 0;

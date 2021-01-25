@@ -26,7 +26,16 @@ cache_get_priv_group(struct cacheinfo *this_leaf)
 
 static struct cacheinfo *get_cacheinfo(u32 level, enum cache_type type)
 {
-	struct cpu_cacheinfo *this_cpu_ci = get_cpu_cacheinfo(smp_processor_id());
+	/*
+	 * Using raw_smp_processor_id() elides a preemptability check, but this
+	 * is really indicative of a larger problem: the cacheinfo UABI assumes
+	 * that cores have a homonogenous view of the cache hierarchy.  That
+	 * happens to be the case for the current set of RISC-V systems, but
+	 * likely won't be true in general.  Since there's no way to provide
+	 * correct information for these systems via the current UABI we're
+	 * just eliding the check for now.
+	 */
+	struct cpu_cacheinfo *this_cpu_ci = get_cpu_cacheinfo(raw_smp_processor_id());
 	struct cacheinfo *this_leaf;
 	int index;
 

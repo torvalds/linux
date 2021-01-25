@@ -8244,11 +8244,9 @@ megasas_mgmt_fw_ioctl(struct megasas_instance *instance,
 			goto out;
 		}
 
+		/* always store 64 bits regardless of addressing */
 		sense_ptr = (void *)cmd->frame + ioc->sense_off;
-		if (instance->consistent_mask_64bit)
-			put_unaligned_le64(sense_handle, sense_ptr);
-		else
-			put_unaligned_le32(sense_handle, sense_ptr);
+		put_unaligned_le64(sense_handle, sense_ptr);
 	}
 
 	/*

@@ -601,7 +601,7 @@ static int sx9310_read_thresh(struct sx9310_data *data,
 		return ret;
 
 	regval = FIELD_GET(SX9310_REG_PROX_CTRL8_9_PTHRESH_MASK, regval);
-	if (regval > ARRAY_SIZE(sx9310_pthresh_codes))
+	if (regval >= ARRAY_SIZE(sx9310_pthresh_codes))
 		return -EINVAL;
 
 	*val = sx9310_pthresh_codes[regval];
@@ -1305,7 +1305,8 @@ sx9310_get_default_reg(struct sx9310_data *data, int i,
 		if (ret)
 			break;
 
-		pos = min(max(ilog2(pos), 3), 10) - 3;
+		/* Powers of 2, except for a gap between 16 and 64 */
+		pos = clamp(ilog2(pos), 3, 11) - (pos >= 32 ? 4 : 3);
 		reg_def->def &= ~SX9310_REG_PROX_CTRL7_AVGPOSFILT_MASK;
 		reg_def->def |= FIELD_PREP(SX9310_REG_PROX_CTRL7_AVGPOSFILT_MASK,
 					   pos);

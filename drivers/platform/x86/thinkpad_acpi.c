@@ -8783,6 +8783,7 @@ static const struct tpacpi_quirk fan_quirk_table[] __initconst = {
 	TPACPI_Q_LNV3('N', '1', 'T', TPACPI_FAN_2CTL),	/* P71 */
 	TPACPI_Q_LNV3('N', '1', 'U', TPACPI_FAN_2CTL),	/* P51 */
 	TPACPI_Q_LNV3('N', '2', 'C', TPACPI_FAN_2CTL),	/* P52 / P72 */
+	TPACPI_Q_LNV3('N', '2', 'N', TPACPI_FAN_2CTL),	/* P53 / P73 */
 	TPACPI_Q_LNV3('N', '2', 'E', TPACPI_FAN_2CTL),	/* P1 / X1 Extreme (1st gen) */
 	TPACPI_Q_LNV3('N', '2', 'O', TPACPI_FAN_2CTL),	/* P1 / X1 Extreme (2nd gen) */
 	TPACPI_Q_LNV3('N', '2', 'V', TPACPI_FAN_2CTL),	/* P1 / X1 Extreme (3nd gen) */
@@ -9951,9 +9952,9 @@ static int tpacpi_proxsensor_init(struct ibm_init_struct *iibm)
 	if ((palm_err == -ENODEV) && (lap_err == -ENODEV))
 		return 0;
 	/* Otherwise, if there was an error return it */
-	if (palm_err && (palm_err != ENODEV))
+	if (palm_err && (palm_err != -ENODEV))
 		return palm_err;
-	if (lap_err && (lap_err != ENODEV))
+	if (lap_err && (lap_err != -ENODEV))
 		return lap_err;
 
 	if (has_palmsensor) {
