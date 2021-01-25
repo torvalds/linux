@@ -220,6 +220,22 @@
 		bias-disable;
 	};
 
+	i2c3_default: i2c3-default {
+		pins = "gpio10", "gpio11";
+		function = "blsp_i2c3";
+
+		drive-strength = <2>;
+		bias-disable;
+	};
+
+	i2c3_sleep: i2c3-sleep {
+		pins = "gpio10", "gpio11";
+		function = "gpio";
+
+		drive-strength = <2>;
+		bias-disable;
+	};
+
 	i2c4_default: i2c4-default {
 		pins = "gpio14", "gpio15";
 		function = "blsp_i2c4";
