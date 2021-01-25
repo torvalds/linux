@@ -6,8 +6,6 @@ obj-$(subst m,y,$(CONFIG_MMC_SDHCI_PCI)) += platform_mrfld_sd.o
 # WiFi + BT
 obj-$(subst m,y,$(CONFIG_BRCMFMAC_SDIO)) += platform_bcm43xx.o
 obj-$(subst m,y,$(CONFIG_BT_HCIUART_BCM)) += platform_bt.o
-# IPC Devices
-obj-$(subst m,y,$(CONFIG_MFD_INTEL_MSIC)) += platform_msic.o
 # SPI Devices
 obj-$(subst m,y,$(CONFIG_SPI_SPIDEV)) += platform_mrfld_spidev.o
 # I2C Devices

@@ -338,13 +338,6 @@ static void __init sfi_handle_ipc_dev(struct sfi_device_table_entry *pentry,
 	if (IS_ERR(pdata))
 		return;
 
-	/*
-	 * On Medfield the platform device creation is handled by the MSIC
-	 * MFD driver so we don't need to do it here.
-	 */
-	if (dev->msic && intel_mid_has_msic())
-		return;
-
 	pdev = platform_device_alloc(pentry->name, 0);
 	if (pdev == NULL) {
 		pr_err("out of memory for SFI platform device '%s'.\n",
