@@ -5290,8 +5290,26 @@ bfq_update_io_seektime(struct bfq_data *bfqd, struct bfq_queue *bfqq,
 
 	if (bfqq->wr_coeff > 1 &&
 	    bfqq->wr_cur_max_time == bfqd->bfq_wr_rt_max_time &&
-	    BFQQ_TOTALLY_SEEKY(bfqq))
-		bfq_bfqq_end_wr(bfqq);
+	    BFQQ_TOTALLY_SEEKY(bfqq)) {
+		if (time_is_before_jiffies(bfqq->wr_start_at_switch_to_srt +
+					   bfq_wr_duration(bfqd))) {
+			/*
+			 * In soft_rt weight raising with the
+			 * interactive-weight-raising period
+			 * elapsed (so no switch back to
+			 * interactive weight raising).
+			 */
+			bfq_bfqq_end_wr(bfqq);
+		} else { /*
+			  * stopping soft_rt weight raising
+			  * while still in interactive period,
+			  * switch back to interactive weight
+			  * raising
+			  */
+			switch_back_to_interactive_wr(bfqq, bfqd);
+			bfqq->entity.prio_changed = 1;
+		}
+	}
 }
 
 static void bfq_update_has_short_ttime(struct bfq_data *bfqd,
