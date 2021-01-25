@@ -413,6 +413,7 @@ static const struct regulator_ops pf8x00_vsnvs_ops = {
 			.type = REGULATOR_VOLTAGE,		\
 			.id = PF8X00_BUCK ## _id,		\
 			.owner = THIS_MODULE,			\
+			.ramp_delay = 19000,			\
 			.linear_ranges = pf8x00_sw1_to_6_voltages, \
 			.n_linear_ranges = \
 				ARRAY_SIZE(pf8x00_sw1_to_6_voltages), \
@@ -446,6 +447,7 @@ static const struct regulator_ops pf8x00_vsnvs_ops = {
 			.type = REGULATOR_VOLTAGE,		\
 			.id = PF8X00_BUCK7,		\
 			.owner = THIS_MODULE,			\
+			.ramp_delay = 19000,			\
 			.volt_table = voltages,			\
 			.vsel_reg = (base) + SW_RUN_VOLT,	\
 			.vsel_mask = 0xff,			\
