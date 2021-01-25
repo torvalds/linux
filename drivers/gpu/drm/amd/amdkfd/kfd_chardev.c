@@ -2015,19 +2015,36 @@ exit:
 	return ret;
 }
 
-static void criu_get_process_object_info(struct kfd_process *p,
-					 uint32_t *num_bos,
-					 uint64_t *objs_priv_size)
+static int criu_get_process_object_info(struct kfd_process *p,
+					uint32_t *num_bos,
+					uint32_t *num_objects,
+					uint64_t *objs_priv_size)
 {
+	int ret;
 	uint64_t priv_size;
+	uint32_t num_queues, num_events, num_svm_ranges;
+	uint64_t queues_priv_data_size;
 
 	*num_bos = get_process_num_bos(p);
+
+	ret = kfd_process_get_queue_info(p, &num_queues, &queues_priv_data_size);
+	if (ret)
+		return ret;
+
+	num_events = 0;     /* TODO: Implement Events */
+	num_svm_ranges = 0; /* TODO: Implement SVM-Ranges */
+
+	*num_objects = num_queues + num_events + num_svm_ranges;
 
 	if (objs_priv_size) {
 		priv_size = sizeof(struct kfd_criu_process_priv_data);
 		priv_size += *num_bos * sizeof(struct kfd_criu_bo_priv_data);
+		priv_size += queues_priv_data_size;
+		/* TODO: Add Events priv size */
+		/* TODO: Add SVM ranges priv size */
 		*objs_priv_size = priv_size;
 	}
+	return 0;
 }
 
 static int criu_checkpoint(struct file *filep,
@@ -2035,7 +2052,7 @@ static int criu_checkpoint(struct file *filep,
 			   struct kfd_ioctl_criu_args *args)
 {
 	int ret;
-	uint32_t num_bos;
+	uint32_t num_bos, num_objects;
 	uint64_t priv_size, priv_offset = 0;
 
 	if (!args->bos || !args->priv_data)
@@ -2057,9 +2074,12 @@ static int criu_checkpoint(struct file *filep,
 		goto exit_unlock;
 	}
 
-	criu_get_process_object_info(p, &num_bos, &priv_size);
+	ret = criu_get_process_object_info(p, &num_bos, &num_objects, &priv_size);
+	if (ret)
+		goto exit_unlock;
 
 	if (num_bos != args->num_bos ||
+	    num_objects != args->num_objects ||
 	    priv_size != args->priv_data_size) {
 
 		ret = -EINVAL;
@@ -2075,6 +2095,17 @@ static int criu_checkpoint(struct file *filep,
 			    (uint8_t __user *)args->priv_data, &priv_offset);
 	if (ret)
 		goto exit_unlock;
+
+	if (num_objects) {
+		ret = kfd_criu_checkpoint_queues(p, (uint8_t __user *)args->priv_data,
+						 &priv_offset);
+		if (ret)
+			goto exit_unlock;
+
+		/* TODO: Dump Events */
+
+		/* TODO: Dump SVM-Ranges */
+	}
 
 exit_unlock:
 	mutex_unlock(&p->mutex);
@@ -2344,6 +2375,62 @@ exit:
 	return ret;
 }
 
+static int criu_restore_objects(struct file *filep,
+				struct kfd_process *p,
+				struct kfd_ioctl_criu_args *args,
+				uint64_t *priv_offset,
+				uint64_t max_priv_data_size)
+{
+	int ret = 0;
+	uint32_t i;
+
+	BUILD_BUG_ON(offsetof(struct kfd_criu_queue_priv_data, object_type));
+	BUILD_BUG_ON(offsetof(struct kfd_criu_event_priv_data, object_type));
+	BUILD_BUG_ON(offsetof(struct kfd_criu_svm_range_priv_data, object_type));
+
+	for (i = 0; i < args->num_objects; i++) {
+		uint32_t object_type;
+
+		if (*priv_offset + sizeof(object_type) > max_priv_data_size) {
+			pr_err("Invalid private data size\n");
+			return -EINVAL;
+		}
+
+		ret = get_user(object_type, (uint32_t __user *)(args->priv_data + *priv_offset));
+		if (ret) {
+			pr_err("Failed to copy private information from user\n");
+			goto exit;
+		}
+
+		switch (object_type) {
+		case KFD_CRIU_OBJECT_TYPE_QUEUE:
+			ret = kfd_criu_restore_queue(p, (uint8_t __user *)args->priv_data,
+						     priv_offset, max_priv_data_size);
+			if (ret)
+				goto exit;
+			break;
+		case KFD_CRIU_OBJECT_TYPE_EVENT:
+			/* TODO: Implement Events */
+			*priv_offset += sizeof(struct kfd_criu_event_priv_data);
+			if (ret)
+				goto exit;
+			break;
+		case KFD_CRIU_OBJECT_TYPE_SVM_RANGE:
+			/* TODO: Implement SVM range */
+			*priv_offset += sizeof(struct kfd_criu_svm_range_priv_data);
+			if (ret)
+				goto exit;
+			break;
+		default:
+			pr_err("Invalid object type:%u at index:%d\n", object_type, i);
+			ret = -EINVAL;
+			goto exit;
+		}
+	}
+exit:
+	return ret;
+}
+
 static int criu_restore(struct file *filep,
 			struct kfd_process *p,
 			struct kfd_ioctl_criu_args *args)
@@ -2374,6 +2461,10 @@ static int criu_restore(struct file *filep,
 		goto exit_unlock;
 
 	ret = criu_restore_bos(p, args, &priv_offset, args->priv_data_size);
+	if (ret)
+		goto exit_unlock;
+
+	ret = criu_restore_objects(filep, p, args, &priv_offset, args->priv_data_size);
 	if (ret)
 		goto exit_unlock;
 
@@ -2474,9 +2565,14 @@ static int criu_process_info(struct file *filep,
 	args->pid = task_pid_nr_ns(p->lead_thread,
 					task_active_pid_ns(p->lead_thread));
 
-	criu_get_process_object_info(p, &args->num_bos, &args->priv_data_size);
+	ret = criu_get_process_object_info(p, &args->num_bos, &args->num_objects,
+					   &args->priv_data_size);
+	if (ret)
+		goto err_unlock;
 
-	dev_dbg(kfd_device, "Num of bos:%u\n", args->num_bos);
+	dev_dbg(kfd_device, "Num of bos:%u objects:%u priv_data_size:%lld\n",
+				args->num_bos, args->num_objects, args->priv_data_size);
+
 err_unlock:
 	if (ret) {
 		kfd_process_restore_queues(p);

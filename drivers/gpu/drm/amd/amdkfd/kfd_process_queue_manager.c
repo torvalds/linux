@@ -497,6 +497,214 @@ int pqm_get_wave_state(struct process_queue_manager *pqm,
 						       save_area_used_size);
 }
 
+int kfd_process_get_queue_info(struct kfd_process *p,
+			       uint32_t *num_queues,
+			       uint64_t *priv_data_sizes)
+{
+	struct queue *q;
+	int i;
+
+	*num_queues = 0;
+
+	/* Run over all PDDs of the process */
+	for (i = 0; i < p->n_pdds; i++) {
+		struct kfd_process_device *pdd = p->pdds[i];
+
+		list_for_each_entry(q, &pdd->qpd.queues_list, list) {
+			if (q->properties.type == KFD_QUEUE_TYPE_COMPUTE ||
+				q->properties.type == KFD_QUEUE_TYPE_SDMA ||
+				q->properties.type == KFD_QUEUE_TYPE_SDMA_XGMI) {
+
+				*num_queues = *num_queues + 1;
+			} else {
+				pr_err("Unsupported queue type (%d)\n", q->properties.type);
+				return -EOPNOTSUPP;
+			}
+		}
+	}
+	*priv_data_sizes = *num_queues * sizeof(struct kfd_criu_queue_priv_data);
+
+	return 0;
+}
+
+static void criu_dump_queue(struct kfd_process_device *pdd,
+			   struct queue *q,
+			   struct kfd_criu_queue_priv_data *q_data)
+{
+	q_data->gpu_id = pdd->dev->id;
+	q_data->type = q->properties.type;
+	q_data->format = q->properties.format;
+	q_data->q_id =  q->properties.queue_id;
+	q_data->q_address = q->properties.queue_address;
+	q_data->q_size = q->properties.queue_size;
+	q_data->priority = q->properties.priority;
+	q_data->q_percent = q->properties.queue_percent;
+	q_data->read_ptr_addr = (uint64_t)q->properties.read_ptr;
+	q_data->write_ptr_addr = (uint64_t)q->properties.write_ptr;
+	q_data->doorbell_id = q->doorbell_id;
+
+	q_data->sdma_id = q->sdma_id;
+
+	q_data->eop_ring_buffer_address =
+		q->properties.eop_ring_buffer_address;
+
+	q_data->eop_ring_buffer_size = q->properties.eop_ring_buffer_size;
+
+	q_data->ctx_save_restore_area_address =
+		q->properties.ctx_save_restore_area_address;
+
+	q_data->ctx_save_restore_area_size =
+		q->properties.ctx_save_restore_area_size;
+
+	pr_debug("Dumping Queue: gpu_id:%x queue_id:%u\n", q_data->gpu_id, q_data->q_id);
+}
+
+static int criu_dump_queues_device(struct kfd_process_device *pdd,
+				   uint8_t __user *user_priv,
+				   unsigned int *q_index,
+				   uint64_t *queues_priv_data_offset)
+{
+	struct kfd_criu_queue_priv_data *q_data;
+	struct queue *q;
+	int ret = 0;
+
+	q_data = kzalloc(sizeof(*q_data), GFP_KERNEL);
+	if (!q_data)
+		return -ENOMEM;
+
+	list_for_each_entry(q, &pdd->qpd.queues_list, list) {
+		if (q->properties.type != KFD_QUEUE_TYPE_COMPUTE &&
+			q->properties.type != KFD_QUEUE_TYPE_SDMA &&
+			q->properties.type != KFD_QUEUE_TYPE_SDMA_XGMI) {
+
+			pr_err("Unsupported queue type (%d)\n", q->properties.type);
+			ret = -EOPNOTSUPP;
+			break;
+		}
+
+		criu_dump_queue(pdd, q, q_data);
+
+		ret = copy_to_user(user_priv + *queues_priv_data_offset, q_data, sizeof(*q_data));
+		if (ret) {
+			ret = -EFAULT;
+			break;
+		}
+		*queues_priv_data_offset += sizeof(*q_data);
+		*q_index = *q_index + 1;
+	}
+
+	kfree(q_data);
+
+	return ret;
+}
+
+int kfd_criu_checkpoint_queues(struct kfd_process *p,
+			 uint8_t __user *user_priv_data,
+			 uint64_t *priv_data_offset)
+{
+	int ret = 0, pdd_index, q_index = 0;
+
+	for (pdd_index = 0; pdd_index < p->n_pdds; pdd_index++) {
+		struct kfd_process_device *pdd = p->pdds[pdd_index];
+
+		/*
+		 * criu_dump_queues_device will copy data to user and update q_index and
+		 * queues_priv_data_offset
+		 */
+		ret = criu_dump_queues_device(pdd, user_priv_data, &q_index, priv_data_offset);
+		if (ret)
+			break;
+	}
+
+	return ret;
+}
+
+static void set_queue_properties_from_criu(struct queue_properties *qp,
+					  struct kfd_criu_queue_priv_data *q_data)
+{
+	qp->is_interop = false;
+	qp->is_gws = q_data->is_gws;
+	qp->queue_percent = q_data->q_percent;
+	qp->priority = q_data->priority;
+	qp->queue_address = q_data->q_address;
+	qp->queue_size = q_data->q_size;
+	qp->read_ptr = (uint32_t *) q_data->read_ptr_addr;
+	qp->write_ptr = (uint32_t *) q_data->write_ptr_addr;
+	qp->eop_ring_buffer_address = q_data->eop_ring_buffer_address;
+	qp->eop_ring_buffer_size = q_data->eop_ring_buffer_size;
+	qp->ctx_save_restore_area_address = q_data->ctx_save_restore_area_address;
+	qp->ctx_save_restore_area_size = q_data->ctx_save_restore_area_size;
+	qp->ctl_stack_size = q_data->ctl_stack_size;
+	qp->type = q_data->type;
+	qp->format = q_data->format;
+}
+
+int kfd_criu_restore_queue(struct kfd_process *p,
+			   uint8_t __user *user_priv_ptr,
+			   uint64_t *priv_data_offset,
+			   uint64_t max_priv_data_size)
+{
+	struct kfd_criu_queue_priv_data *q_data;
+	struct kfd_process_device *pdd;
+	struct kfd_dev *dev;
+	struct queue_properties qp;
+	unsigned int queue_id;
+
+	int ret = 0;
+
+	if (*priv_data_offset + sizeof(*q_data) > max_priv_data_size)
+		return -EINVAL;
+
+	q_data = kmalloc(sizeof(*q_data), GFP_KERNEL);
+	if (!q_data)
+		return -ENOMEM;
+
+	ret = copy_from_user(q_data, user_priv_ptr + *priv_data_offset, sizeof(*q_data));
+	if (ret) {
+		ret = -EFAULT;
+		goto exit;
+	}
+
+	*priv_data_offset += sizeof(*q_data);
+
+	dev = kfd_device_by_id(q_data->gpu_id);
+	if (!dev) {
+		pr_err("Could not get kfd_dev from gpu_id = 0x%x\n",
+		q_data->gpu_id);
+
+		ret = -EINVAL;
+		goto exit;
+	}
+
+	pdd = kfd_get_process_device_data(dev, p);
+	if (!pdd) {
+		pr_err("Failed to get pdd\n");
+		ret = -EFAULT;
+		return ret;
+	}
+
+	memset(&qp, 0, sizeof(qp));
+	set_queue_properties_from_criu(&qp, q_data);
+
+	print_queue_properties(&qp);
+
+	ret = pqm_create_queue(&p->pqm, pdd->dev, NULL, &qp, &queue_id, NULL);
+	if (ret) {
+		pr_err("Failed to create new queue err:%d\n", ret);
+		ret = -EINVAL;
+	}
+
+exit:
+	if (ret)
+		pr_err("Failed to create queue (%d)\n", ret);
+	else
+		pr_debug("Queue id %d was restored successfully\n", queue_id);
+
+	kfree(q_data);
+
+	return ret;
+}
+
 #if defined(CONFIG_DEBUG_FS)
 
 int pqm_debugfs_mqds(struct seq_file *m, void *data)
