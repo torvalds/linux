@@ -6591,10 +6591,9 @@ static int changed_cb(struct btrfs_path *left_path,
 		      struct btrfs_path *right_path,
 		      struct btrfs_key *key,
 		      enum btrfs_compare_tree_result result,
-		      void *ctx)
+		      struct send_ctx *sctx)
 {
 	int ret = 0;
-	struct send_ctx *sctx = ctx;
 
 	if (result == BTRFS_COMPARE_TREE_SAME) {
 		if (key->type == BTRFS_INODE_REF_KEY ||
@@ -6799,7 +6798,7 @@ static int tree_compare_item(struct btrfs_path *left_path,
  * If it detects a change, it aborts immediately.
  */
 static int btrfs_compare_trees(struct btrfs_root *left_root,
-			struct btrfs_root *right_root, void *ctx)
+			struct btrfs_root *right_root, struct send_ctx *sctx)
 {
 	struct btrfs_fs_info *fs_info = left_root->fs_info;
 	int ret;
@@ -6951,7 +6950,7 @@ static int btrfs_compare_trees(struct btrfs_root *left_root,
 				ret = changed_cb(left_path, right_path,
 						&right_key,
 						BTRFS_COMPARE_TREE_DELETED,
-						ctx);
+						sctx);
 				if (ret < 0)
 					goto out;
 			}
@@ -6962,7 +6961,7 @@ static int btrfs_compare_trees(struct btrfs_root *left_root,
 				ret = changed_cb(left_path, right_path,
 						&left_key,
 						BTRFS_COMPARE_TREE_NEW,
-						ctx);
+						sctx);
 				if (ret < 0)
 					goto out;
 			}
@@ -6976,7 +6975,7 @@ static int btrfs_compare_trees(struct btrfs_root *left_root,
 				ret = changed_cb(left_path, right_path,
 						&left_key,
 						BTRFS_COMPARE_TREE_NEW,
-						ctx);
+						sctx);
 				if (ret < 0)
 					goto out;
 				advance_left = ADVANCE;
@@ -6984,7 +6983,7 @@ static int btrfs_compare_trees(struct btrfs_root *left_root,
 				ret = changed_cb(left_path, right_path,
 						&right_key,
 						BTRFS_COMPARE_TREE_DELETED,
-						ctx);
+						sctx);
 				if (ret < 0)
 					goto out;
 				advance_right = ADVANCE;
@@ -6999,7 +6998,7 @@ static int btrfs_compare_trees(struct btrfs_root *left_root,
 				else
 					result = BTRFS_COMPARE_TREE_SAME;
 				ret = changed_cb(left_path, right_path,
-						 &left_key, result, ctx);
+						 &left_key, result, sctx);
 				if (ret < 0)
 					goto out;
 				advance_left = ADVANCE;
