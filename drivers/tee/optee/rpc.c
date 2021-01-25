@@ -54,8 +54,9 @@ bad:
 static void handle_rpc_func_cmd_i2c_transfer(struct tee_context *ctx,
 					     struct optee_msg_arg *arg)
 {
-	struct i2c_client client = { 0 };
 	struct tee_param *params;
+	struct i2c_adapter *adapter;
+	struct i2c_msg msg = { };
 	size_t i;
 	int ret = -EOPNOTSUPP;
 	u8 attr[] = {
@@ -85,48 +86,48 @@ static void handle_rpc_func_cmd_i2c_transfer(struct tee_context *ctx,
 			goto bad;
 	}
 
-	client.adapter = i2c_get_adapter(params[0].u.value.b);
-	if (!client.adapter)
+	adapter = i2c_get_adapter(params[0].u.value.b);
+	if (!adapter)
 		goto bad;
 
 	if (params[1].u.value.a & OPTEE_MSG_RPC_CMD_I2C_FLAGS_TEN_BIT) {
-		if (!i2c_check_functionality(client.adapter,
+		if (!i2c_check_functionality(adapter,
 					     I2C_FUNC_10BIT_ADDR)) {
-			i2c_put_adapter(client.adapter);
+			i2c_put_adapter(adapter);
 			goto bad;
 		}
 
-		client.flags = I2C_CLIENT_TEN;
+		msg.flags = I2C_M_TEN;
 	}
 
-	client.addr = params[0].u.value.c;
-	snprintf(client.name, I2C_NAME_SIZE, "i2c%d", client.adapter->nr);
+	msg.addr = params[0].u.value.c;
+	msg.buf  = params[2].u.memref.shm->kaddr;
+	msg.len  = params[2].u.memref.size;
 
 	switch (params[0].u.value.a) {
 	case OPTEE_MSG_RPC_CMD_I2C_TRANSFER_RD:
-		ret = i2c_master_recv(&client, params[2].u.memref.shm->kaddr,
-				      params[2].u.memref.size);
+		msg.flags |= I2C_M_RD;
 		break;
 	case OPTEE_MSG_RPC_CMD_I2C_TRANSFER_WR:
-		ret = i2c_master_send(&client, params[2].u.memref.shm->kaddr,
-				      params[2].u.memref.size);
 		break;
 	default:
-		i2c_put_adapter(client.adapter);
+		i2c_put_adapter(adapter);
 		goto bad;
 	}
+
+	ret = i2c_transfer(adapter, &msg, 1);
 
 	if (ret < 0) {
 		arg->ret = TEEC_ERROR_COMMUNICATION;
 	} else {
-		params[3].u.value.a = ret;
+		params[3].u.value.a = msg.len;
 		if (optee_to_msg_param(arg->params, arg->num_params, params))
 			arg->ret = TEEC_ERROR_BAD_PARAMETERS;
 		else
 			arg->ret = TEEC_SUCCESS;
 	}
 
-	i2c_put_adapter(client.adapter);
+	i2c_put_adapter(adapter);
 	kfree(params);
 	return;
 bad:
