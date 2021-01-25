@@ -16,6 +16,7 @@
 
 #include "sparsebit.h"
 
+#define KVM_MAX_VCPUS 512
 
 /*
  * Callers of kvm_util only have an incomplete/opaque description of the
@@ -69,6 +70,14 @@ enum vm_guest_mode {
 
 #define vm_guest_mode_string(m) vm_guest_mode_string[m]
 extern const char * const vm_guest_mode_string[];
+
+struct vm_guest_mode_params {
+	unsigned int pa_bits;
+	unsigned int va_bits;
+	unsigned int page_size;
+	unsigned int page_shift;
+};
+extern const struct vm_guest_mode_params vm_guest_mode_params[];
 
 enum vm_mem_backing_src_type {
 	VM_MEM_SRC_ANONYMOUS,

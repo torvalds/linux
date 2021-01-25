@@ -1,7 +1,7 @@
 /* SPDX-License-Identifier: MIT */
 #ifndef __NVKM_I2C_PAD_H__
 #define __NVKM_I2C_PAD_H__
-#include <subdev/i2c.h>
+#include "priv.h"
 
 struct nvkm_i2c_pad {
 	const struct nvkm_i2c_pad_func *func;

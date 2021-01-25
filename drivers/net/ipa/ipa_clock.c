@@ -115,13 +115,13 @@ static int ipa_interconnect_enable(struct ipa *ipa)
 		return ret;
 
 	data = &clock->interconnect_data[IPA_INTERCONNECT_IMEM];
-	ret = icc_set_bw(clock->memory_path, data->average_rate,
+	ret = icc_set_bw(clock->imem_path, data->average_rate,
 			 data->peak_rate);
 	if (ret)
 		goto err_memory_path_disable;
 
 	data = &clock->interconnect_data[IPA_INTERCONNECT_CONFIG];
-	ret = icc_set_bw(clock->memory_path, data->average_rate,
+	ret = icc_set_bw(clock->config_path, data->average_rate,
 			 data->peak_rate);
 	if (ret)
 		goto err_imem_path_disable;

@@ -160,29 +160,14 @@ intended for use in production as a security mitigation. Therefore it supports
 boot parameters that allow to disable KASAN competely or otherwise control
 particular KASAN features.
 
-The things that can be controlled are:
+- ``kasan=off`` or ``=on`` controls whether KASAN is enabled (default: ``on``).
 
-1. Whether KASAN is enabled at all.
-2. Whether KASAN collects and saves alloc/free stacks.
-3. Whether KASAN panics on a detected bug or not.
+- ``kasan.stacktrace=off`` or ``=on`` disables or enables alloc and free stack
+  traces collection (default: ``on`` for ``CONFIG_DEBUG_KERNEL=y``, otherwise
+  ``off``).
 
-The ``kasan.mode`` boot parameter allows to choose one of three main modes:
-
-- ``kasan.mode=off`` - KASAN is disabled, no tag checks are performed
-- ``kasan.mode=prod`` - only essential production features are enabled
-- ``kasan.mode=full`` - all KASAN features are enabled
-
-The chosen mode provides default control values for the features mentioned
-above. However it's also possible to override the default values by providing:
-
-- ``kasan.stacktrace=off`` or ``=on`` - enable alloc/free stack collection
-					(default: ``on`` for ``mode=full``,
-					 otherwise ``off``)
-- ``kasan.fault=report`` or ``=panic`` - only print KASAN report or also panic
-					 (default: ``report``)
-
-If ``kasan.mode`` parameter is not provided, it defaults to ``full`` when
-``CONFIG_DEBUG_KERNEL`` is enabled, and to ``prod`` otherwise.
+- ``kasan.fault=report`` or ``=panic`` controls whether to only print a KASAN
+  report or also panic the kernel (default: ``report``).
 
 For developers
 ~~~~~~~~~~~~~~

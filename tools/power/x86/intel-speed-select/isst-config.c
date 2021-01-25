@@ -1249,6 +1249,8 @@ static void dump_isst_config(int arg)
 	isst_ctdp_display_information_end(outf);
 }
 
+static void adjust_scaling_max_from_base_freq(int cpu);
+
 static void set_tdp_level_for_cpu(int cpu, void *arg1, void *arg2, void *arg3,
 				  void *arg4)
 {
@@ -1267,6 +1269,9 @@ static void set_tdp_level_for_cpu(int cpu, void *arg1, void *arg2, void *arg3,
 			int pkg_id = get_physical_package_id(cpu);
 			int die_id = get_physical_die_id(cpu);
 
+			/* Wait for updated base frequencies */
+			usleep(2000);
+
 			fprintf(stderr, "Option is set to online/offline\n");
 			ctdp_level.core_cpumask_size =
 				alloc_cpu_set(&ctdp_level.core_cpumask);
@@ -1283,6 +1288,7 @@ static void set_tdp_level_for_cpu(int cpu, void *arg1, void *arg2, void *arg3,
 					if (CPU_ISSET_S(i, ctdp_level.core_cpumask_size, ctdp_level.core_cpumask)) {
 						fprintf(stderr, "online cpu %d\n", i);
 						set_cpu_online_offline(i, 1);
+						adjust_scaling_max_from_base_freq(i);
 					} else {
 						fprintf(stderr, "offline cpu %d\n", i);
 						set_cpu_online_offline(i, 0);
@@ -1440,6 +1446,31 @@ static int set_cpufreq_scaling_min_max(int cpu, int max, int freq)
 	return 0;
 }
 
+static int no_turbo(void)
+{
+	return parse_int_file(0, "/sys/devices/system/cpu/intel_pstate/no_turbo");
+}
+
+static void adjust_scaling_max_from_base_freq(int cpu)
+{
+	int base_freq, scaling_max_freq;
+
+	scaling_max_freq = parse_int_file(0, "/sys/devices/system/cpu/cpu%d/cpufreq/scaling_max_freq", cpu);
+	base_freq = get_cpufreq_base_freq(cpu);
+	if (scaling_max_freq < base_freq || no_turbo())
+		set_cpufreq_scaling_min_max(cpu, 1, base_freq);
+}
+
+static void adjust_scaling_min_from_base_freq(int cpu)
+{
+	int base_freq, scaling_min_freq;
+
+	scaling_min_freq = parse_int_file(0, "/sys/devices/system/cpu/cpu%d/cpufreq/scaling_min_freq", cpu);
+	base_freq = get_cpufreq_base_freq(cpu);
+	if (scaling_min_freq < base_freq)
+		set_cpufreq_scaling_min_max(cpu, 0, base_freq);
+}
+
 static int set_clx_pbf_cpufreq_scaling_min_max(int cpu)
 {
 	struct isst_pkg_ctdp_level_info *ctdp_level;
@@ -1537,6 +1568,7 @@ static void set_scaling_min_to_cpuinfo_max(int cpu)
 			continue;
 
 		set_cpufreq_scaling_min_max_from_cpuinfo(i, 1, 0);
+		adjust_scaling_min_from_base_freq(i);
 	}
 }
 
