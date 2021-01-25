@@ -11,6 +11,7 @@
  * Link to PC-based configuration tool and data sheet: http://www.azoteq.com/
  */
 
+#include <linux/bits.h>
 #include <linux/delay.h>
 #include <linux/device.h>
 #include <linux/err.h>
@@ -40,8 +41,11 @@
 #define IQS5XX_PROJ_NUM_B000	15
 #define IQS5XX_MAJOR_VER_MIN	2
 
-#define IQS5XX_RESUME		0x00
-#define IQS5XX_SUSPEND		0x01
+#define IQS5XX_SHOW_RESET	BIT(7)
+#define IQS5XX_ACK_RESET	BIT(7)
+
+#define IQS5XX_SUSPEND		BIT(0)
+#define IQS5XX_RESUME		0
 
 #define IQS5XX_SW_INPUT_EVENT	0x10
 #define IQS5XX_SETUP_COMPLETE	0x40
@@ -53,8 +57,8 @@
 #define IQS5XX_SWITCH_XY_AXIS	0x04
 
 #define IQS5XX_PROD_NUM		0x0000
-#define IQS5XX_ABS_X		0x0016
-#define IQS5XX_ABS_Y		0x0018
+#define IQS5XX_SYS_INFO0	0x000F
+#define IQS5XX_SYS_INFO1	0x0010
 #define IQS5XX_SYS_CTRL0	0x0431
 #define IQS5XX_SYS_CTRL1	0x0432
 #define IQS5XX_SYS_CFG0		0x058E
@@ -123,6 +127,14 @@ struct iqs5xx_touch_data {
 	__be16 abs_y;
 	__be16 strength;
 	u8 area;
+} __packed;
+
+struct iqs5xx_status {
+	u8 sys_info[2];
+	u8 num_active;
+	__be16 rel_x;
+	__be16 rel_y;
+	struct iqs5xx_touch_data touch_data[IQS5XX_NUM_CONTACTS];
 } __packed;
 
 static int iqs5xx_read_burst(struct i2c_client *client,
@@ -670,6 +682,10 @@ static int iqs5xx_dev_init(struct i2c_client *client)
 	if (error)
 		return error;
 
+	error = iqs5xx_write_byte(client, IQS5XX_SYS_CTRL0, IQS5XX_ACK_RESET);
+	if (error)
+		return error;
+
 	error = iqs5xx_read_byte(client, IQS5XX_SYS_CFG0, &val);
 	if (error)
 		return error;
@@ -706,7 +722,7 @@ static int iqs5xx_dev_init(struct i2c_client *client)
 static irqreturn_t iqs5xx_irq(int irq, void *data)
 {
 	struct iqs5xx_private *iqs5xx = data;
-	struct iqs5xx_touch_data touch_data[IQS5XX_NUM_CONTACTS];
+	struct iqs5xx_status status;
 	struct i2c_client *client = iqs5xx->client;
 	struct input_dev *input = iqs5xx->input;
 	int error, i;
@@ -719,21 +735,35 @@ static irqreturn_t iqs5xx_irq(int irq, void *data)
 	if (iqs5xx->bl_status == IQS5XX_BL_STATUS_RESET)
 		return IRQ_NONE;
 
-	error = iqs5xx_read_burst(client, IQS5XX_ABS_X,
-				  touch_data, sizeof(touch_data));
+	error = iqs5xx_read_burst(client, IQS5XX_SYS_INFO0,
+				  &status, sizeof(status));
 	if (error)
 		return IRQ_NONE;
 
-	for (i = 0; i < ARRAY_SIZE(touch_data); i++) {
-		u16 pressure = be16_to_cpu(touch_data[i].strength);
+	if (status.sys_info[0] & IQS5XX_SHOW_RESET) {
+		dev_err(&client->dev, "Unexpected device reset\n");
+
+		error = iqs5xx_dev_init(client);
+		if (error) {
+			dev_err(&client->dev,
+				"Failed to re-initialize device: %d\n", error);
+			return IRQ_NONE;
+		}
+
+		return IRQ_HANDLED;
+	}
+
+	for (i = 0; i < ARRAY_SIZE(status.touch_data); i++) {
+		struct iqs5xx_touch_data *touch_data = &status.touch_data[i];
+		u16 pressure = be16_to_cpu(touch_data->strength);
 
 		input_mt_slot(input, i);
 		if (input_mt_report_slot_state(input, MT_TOOL_FINGER,
 					       pressure != 0)) {
 			input_report_abs(input, ABS_MT_POSITION_X,
-					 be16_to_cpu(touch_data[i].abs_x));
+					 be16_to_cpu(touch_data->abs_x));
 			input_report_abs(input, ABS_MT_POSITION_Y,
-					 be16_to_cpu(touch_data[i].abs_y));
+					 be16_to_cpu(touch_data->abs_y));
 			input_report_abs(input, ABS_MT_PRESSURE, pressure);
 		}
 	}
