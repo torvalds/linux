@@ -2300,7 +2300,7 @@ static int azx_probe_continue(struct azx *chip)
 
 		/* HSW/BDW controllers need this power */
 		if (CONTROLLER_IN_GPU(pci))
-			hda->need_i915_power = 1;
+			hda->need_i915_power = true;
 	}
 
 	/* Request display power well for the HDA controller or codec. For
