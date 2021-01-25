@@ -31,6 +31,7 @@
 
 #include "pmbus.h"
 
+#define REG_DEFAULT_NUM_POP	0xc4
 #define REG_SETPT_DVID		0xd1
 #define  DAC_10MV_MODE		BIT(4)
 #define REG_IOUT_AVG_PK		0xee
@@ -39,6 +40,8 @@
 #define REG_PHASE_ID		0xf3
 #define  CORE_RAIL_INDICATOR	BIT(7)
 #define REG_PHASE_REPORTING	0xf4
+
+#define MAX16601_NUM_PHASES	8
 
 struct max16601_data {
 	struct pmbus_driver_info info;
@@ -195,6 +198,18 @@ static int max16601_identify(struct i2c_client *client,
 	else
 		info->vrm_version[0] = vr12;
 
+	reg = i2c_smbus_read_byte_data(client, REG_DEFAULT_NUM_POP);
+	if (reg < 0)
+		return reg;
+
+	/*
+	 * If REG_DEFAULT_NUM_POP returns 0, we don't know how many phases
+	 * are populated. Stick with the default in that case.
+	 */
+	reg &= 0x0f;
+	if (reg && reg <= MAX16601_NUM_PHASES)
+		info->phases[0] = reg;
+
 	return 0;
 }
 
@@ -216,7 +231,7 @@ static struct pmbus_driver_info max16601_info = {
 	.func[2] = PMBUS_HAVE_IIN | PMBUS_HAVE_STATUS_INPUT |
 		PMBUS_HAVE_IOUT | PMBUS_HAVE_STATUS_IOUT |
 		PMBUS_HAVE_TEMP | PMBUS_HAVE_STATUS_TEMP | PMBUS_PAGE_VIRTUAL,
-	.phases[0] = 8,
+	.phases[0] = MAX16601_NUM_PHASES,
 	.pfunc[0] = PMBUS_HAVE_IIN | PMBUS_HAVE_IOUT | PMBUS_HAVE_TEMP,
 	.pfunc[1] = PMBUS_HAVE_IIN | PMBUS_HAVE_IOUT,
 	.pfunc[2] = PMBUS_HAVE_IIN | PMBUS_HAVE_IOUT | PMBUS_HAVE_TEMP,
