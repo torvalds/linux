@@ -540,6 +540,7 @@
 
 &usb_dwc3_0 {
 	dr_mode = "host";
+	maximum-speed = "high-speed";
 	status = "okay";
 };
 
@@ -550,6 +551,7 @@
 
 &usb_dwc3_1 {
 	dr_mode = "host";
+	maximum-speed = "high-speed";
 	status = "okay";
 };
 
