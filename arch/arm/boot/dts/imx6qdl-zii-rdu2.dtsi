@@ -598,6 +598,8 @@
 			touchscreen-inverted-x;
 			touchscreen-swapped-x-y;
 			syna,sensor-type = <1>;
+			syna,delta-x-threshold = <5>;
+			syna,delta-y-threshold = <10>;
 		};
 
 		rmi4-f12@12 {
