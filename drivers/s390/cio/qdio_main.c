@@ -508,11 +508,6 @@ static int get_inbound_buffer_frontier(struct qdio_q *q, unsigned int start)
 	}
 }
 
-static int qdio_inbound_q_moved(struct qdio_q *q, unsigned int start)
-{
-	return get_inbound_buffer_frontier(q, start);
-}
-
 static inline int qdio_inbound_q_done(struct qdio_q *q, unsigned int start)
 {
 	unsigned char state = 0;
@@ -1497,7 +1492,7 @@ static int __qdio_inspect_queue(struct qdio_q *q, unsigned int *bufnr,
 	unsigned int start = q->first_to_check;
 	int count;
 
-	count = q->is_input_q ? qdio_inbound_q_moved(q, start) :
+	count = q->is_input_q ? get_inbound_buffer_frontier(q, start) :
 				qdio_outbound_q_moved(q, start);
 	if (count == 0)
 		return 0;
