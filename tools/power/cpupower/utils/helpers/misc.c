@@ -26,7 +26,7 @@ int cpufreq_has_boost_support(unsigned int cpu, int *support, int *active,
 	if (ret)
 		return ret;
 
-	if (cpupower_cpu_info.caps & CPUPOWER_CAP_AMD_CBP) {
+	if (cpupower_cpu_info.caps & CPUPOWER_CAP_AMD_CPB) {
 		*support = 1;
 
 		/* AMD Family 0x17 does not utilize PCI D18F4 like prior
