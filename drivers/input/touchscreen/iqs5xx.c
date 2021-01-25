@@ -643,13 +643,12 @@ static int iqs5xx_dev_init(struct i2c_client *client)
 	iqs5xx->bl_status = dev_id_info->bl_status;
 
 	/*
-	 * Closure of the first communication window that appears following the
-	 * release of reset appears to kick off an initialization period during
-	 * which further communication is met with clock stretching. The return
-	 * from this function is delayed so that further communication attempts
-	 * avoid this period.
+	 * The following delay allows ATI to complete before the open and close
+	 * callbacks are free to elicit I2C communication. Any attempts to read
+	 * from or write to the device during this time may face extended clock
+	 * stretching and prompt the I2C controller to report an error.
 	 */
-	msleep(100);
+	msleep(250);
 
 	return 0;
 }
