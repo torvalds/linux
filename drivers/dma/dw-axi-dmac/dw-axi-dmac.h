@@ -100,6 +100,7 @@ struct axi_dma_desc {
 	struct axi_dma_chan		*chan;
 	u32				completed_blocks;
 	u32				length;
+	u32				period_len;
 };
 
 static inline struct device *dchan2dev(struct dma_chan *dchan)

@@ -581,6 +581,11 @@ static int dw_axi_dma_set_hw_desc(struct axi_dma_chan *chan,
 	if (mem_width > DWAXIDMAC_TRANS_WIDTH_32)
 		mem_width = DWAXIDMAC_TRANS_WIDTH_32;
 
+	if (!IS_ALIGNED(mem_addr, 4)) {
+		dev_err(chan->chip->dev, "invalid buffer alignment\n");
+		return -EINVAL;
+	}
+
 	switch (chan->direction) {
 	case DMA_MEM_TO_DEV:
 		reg_width = __ffs(chan->config.dst_addr_width);
@@ -642,6 +647,35 @@ static int dw_axi_dma_set_hw_desc(struct axi_dma_chan *chan,
 	return 0;
 }
 
+static size_t calculate_block_len(struct axi_dma_chan *chan,
+				  dma_addr_t dma_addr, size_t buf_len,
+				  enum dma_transfer_direction direction)
+{
+	u32 data_width, reg_width, mem_width;
+	size_t axi_block_ts, block_len;
+
+	axi_block_ts = chan->chip->dw->hdata->block_size[chan->id];
+
+	switch (direction) {
+	case DMA_MEM_TO_DEV:
+		data_width = BIT(chan->chip->dw->hdata->m_data_width);
+		mem_width = __ffs(data_width | dma_addr | buf_len);
+		if (mem_width > DWAXIDMAC_TRANS_WIDTH_32)
+			mem_width = DWAXIDMAC_TRANS_WIDTH_32;
+
+		block_len = axi_block_ts << mem_width;
+		break;
+	case DMA_DEV_TO_MEM:
+		reg_width = __ffs(chan->config.src_addr_width);
+		block_len = axi_block_ts << reg_width;
+		break;
+	default:
+		block_len = 0;
+	}
+
+	return block_len;
+}
+
 static struct dma_async_tx_descriptor *
 dw_axi_dma_chan_prep_cyclic(struct dma_chan *dchan, dma_addr_t dma_addr,
 			    size_t buf_len, size_t period_len,
@@ -652,13 +686,27 @@ dw_axi_dma_chan_prep_cyclic(struct dma_chan *dchan, dma_addr_t dma_addr,
 	struct axi_dma_hw_desc *hw_desc = NULL;
 	struct axi_dma_desc *desc = NULL;
 	dma_addr_t src_addr = dma_addr;
-	u32 num_periods = buf_len / period_len;
+	u32 num_periods, num_segments;
+	size_t axi_block_len;
+	u32 total_segments;
+	u32 segment_len;
 	unsigned int i;
 	int status;
 	u64 llp = 0;
 	u8 lms = 0; /* Select AXI0 master for LLI fetching */
 
-	desc = axi_desc_alloc(num_periods);
+	num_periods = buf_len / period_len;
+
+	axi_block_len = calculate_block_len(chan, dma_addr, buf_len, direction);
+	if (axi_block_len == 0)
+		return NULL;
+
+	num_segments = DIV_ROUND_UP(period_len, axi_block_len);
+	segment_len = DIV_ROUND_UP(period_len, num_segments);
+
+	total_segments = num_periods * num_segments;
+
+	desc = axi_desc_alloc(total_segments);
 	if (unlikely(!desc))
 		goto err_desc_get;
 
@@ -666,12 +714,13 @@ dw_axi_dma_chan_prep_cyclic(struct dma_chan *dchan, dma_addr_t dma_addr,
 	desc->chan = chan;
 	chan->cyclic = true;
 	desc->length = 0;
+	desc->period_len = period_len;
 
-	for (i = 0; i < num_periods; i++) {
+	for (i = 0; i < total_segments; i++) {
 		hw_desc = &desc->hw_desc[i];
 
 		status = dw_axi_dma_set_hw_desc(chan, hw_desc, src_addr,
-						period_len);
+						segment_len);
 		if (status < 0)
 			goto err_desc_get;
 
@@ -681,17 +730,17 @@ dw_axi_dma_chan_prep_cyclic(struct dma_chan *dchan, dma_addr_t dma_addr,
 		 */
 		set_desc_last(hw_desc);
 
-		src_addr += period_len;
+		src_addr += segment_len;
 	}
 
 	llp = desc->hw_desc[0].llp;
 
 	/* Managed transfer list */
 	do {
-		hw_desc = &desc->hw_desc[--num_periods];
+		hw_desc = &desc->hw_desc[--total_segments];
 		write_desc_llp(hw_desc, llp | lms);
 		llp = hw_desc->llp;
-	} while (num_periods);
+	} while (total_segments);
 
 	dw_axi_dma_set_hw_channel(chan->chip, chan->hw_handshake_num, true);
 
@@ -713,9 +762,13 @@ dw_axi_dma_chan_prep_slave_sg(struct dma_chan *dchan, struct scatterlist *sgl,
 	struct axi_dma_chan *chan = dchan_to_axi_dma_chan(dchan);
 	struct axi_dma_hw_desc *hw_desc = NULL;
 	struct axi_dma_desc *desc = NULL;
+	u32 num_segments, segment_len;
+	unsigned int loop = 0;
 	struct scatterlist *sg;
+	size_t axi_block_len;
+	u32 len, num_sgs = 0;
 	unsigned int i;
-	u32 mem, len;
+	dma_addr_t mem;
 	int status;
 	u64 llp = 0;
 	u8 lms = 0; /* Select AXI0 master for LLI fetching */
@@ -723,35 +776,51 @@ dw_axi_dma_chan_prep_slave_sg(struct dma_chan *dchan, struct scatterlist *sgl,
 	if (unlikely(!is_slave_direction(direction) || !sg_len))
 		return NULL;
 
-	chan->direction = direction;
+	mem = sg_dma_address(sgl);
+	len = sg_dma_len(sgl);
 
-	desc = axi_desc_alloc(sg_len);
+	axi_block_len = calculate_block_len(chan, mem, len, direction);
+	if (axi_block_len == 0)
+		return NULL;
+
+	for_each_sg(sgl, sg, sg_len, i)
+		num_sgs += DIV_ROUND_UP(sg_dma_len(sg), axi_block_len);
+
+	desc = axi_desc_alloc(num_sgs);
 	if (unlikely(!desc))
 		goto err_desc_get;
 
 	desc->chan = chan;
 	desc->length = 0;
+	chan->direction = direction;
 
 	for_each_sg(sgl, sg, sg_len, i) {
 		mem = sg_dma_address(sg);
 		len = sg_dma_len(sg);
-		hw_desc = &desc->hw_desc[i];
+		num_segments = DIV_ROUND_UP(sg_dma_len(sg), axi_block_len);
+		segment_len = DIV_ROUND_UP(sg_dma_len(sg), num_segments);
 
-		status = dw_axi_dma_set_hw_desc(chan, hw_desc, mem, len);
-		if (status < 0)
-			goto err_desc_get;
-		desc->length += hw_desc->len;
+		do {
+			hw_desc = &desc->hw_desc[loop++];
+			status = dw_axi_dma_set_hw_desc(chan, hw_desc, mem, segment_len);
+			if (status < 0)
+				goto err_desc_get;
+
+			desc->length += hw_desc->len;
+			len -= segment_len;
+			mem += segment_len;
+		} while (len >= segment_len);
 	}
 
 	/* Set end-of-link to the last link descriptor of list */
-	set_desc_last(&desc->hw_desc[sg_len - 1]);
+	set_desc_last(&desc->hw_desc[num_sgs - 1]);
 
 	/* Managed transfer list */
 	do {
-		hw_desc = &desc->hw_desc[--sg_len];
+		hw_desc = &desc->hw_desc[--num_sgs];
 		write_desc_llp(hw_desc, llp | lms);
 		llp = hw_desc->llp;
-	} while (sg_len);
+	} while (num_sgs);
 
 	dw_axi_dma_set_hw_channel(chan->chip, chan->hw_handshake_num, true);
 
@@ -953,7 +1022,6 @@ static void axi_chan_block_xfer_complete(struct axi_dma_chan *chan)
 	vd = vchan_next_desc(&chan->vc);
 
 	if (chan->cyclic) {
-		vchan_cyclic_callback(vd);
 		desc = vd_to_axi_desc(vd);
 		if (desc) {
 			llp = lo_hi_readq(chan->chan_regs + CH_LLP);
@@ -963,6 +1031,9 @@ static void axi_chan_block_xfer_complete(struct axi_dma_chan *chan)
 					axi_chan_irq_clear(chan, hw_desc->lli->status_lo);
 					hw_desc->lli->ctl_hi |= CH_CTL_H_LLI_VALID;
 					desc->completed_blocks = i;
+
+					if (((hw_desc->len * (i + 1)) % desc->period_len) == 0)
+						vchan_cyclic_callback(vd);
 					break;
 				}
 			}
