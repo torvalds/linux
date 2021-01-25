@@ -273,3 +273,52 @@ int trans_pgd_map_page(struct trans_pgd_info *info, pgd_t *trans_pgd,
 
 	return 0;
 }
+
+/*
+ * The page we want to idmap may be outside the range covered by VA_BITS that
+ * can be built using the kernel's p?d_populate() helpers. As a one off, for a
+ * single page, we build these page tables bottom up and just assume that will
+ * need the maximum T0SZ.
+ *
+ * Returns 0 on success, and -ENOMEM on failure.
+ * On success trans_ttbr0 contains page table with idmapped page, t0sz is set to
+ * maximum T0SZ for this page.
+ */
+int trans_pgd_idmap_page(struct trans_pgd_info *info, phys_addr_t *trans_ttbr0,
+			 unsigned long *t0sz, void *page)
+{
+	phys_addr_t dst_addr = virt_to_phys(page);
+	unsigned long pfn = __phys_to_pfn(dst_addr);
+	int max_msb = (dst_addr & GENMASK(52, 48)) ? 51 : 47;
+	int bits_mapped = PAGE_SHIFT - 4;
+	unsigned long level_mask, prev_level_entry, *levels[4];
+	int this_level, index, level_lsb, level_msb;
+
+	dst_addr &= PAGE_MASK;
+	prev_level_entry = pte_val(pfn_pte(pfn, PAGE_KERNEL_EXEC));
+
+	for (this_level = 3; this_level >= 0; this_level--) {
+		levels[this_level] = trans_alloc(info);
+		if (!levels[this_level])
+			return -ENOMEM;
+
+		level_lsb = ARM64_HW_PGTABLE_LEVEL_SHIFT(this_level);
+		level_msb = min(level_lsb + bits_mapped, max_msb);
+		level_mask = GENMASK_ULL(level_msb, level_lsb);
+
+		index = (dst_addr & level_mask) >> level_lsb;
+		*(levels[this_level] + index) = prev_level_entry;
+
+		pfn = virt_to_pfn(levels[this_level]);
+		prev_level_entry = pte_val(pfn_pte(pfn,
+						   __pgprot(PMD_TYPE_TABLE)));
+
+		if (level_msb == max_msb)
+			break;
+	}
+
+	*trans_ttbr0 = phys_to_ttbr(__pfn_to_phys(pfn));
+	*t0sz = TCR_T0SZ(max_msb + 1);
+
+	return 0;
+}
