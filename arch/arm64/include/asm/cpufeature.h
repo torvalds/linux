@@ -614,15 +614,6 @@ static inline bool system_supports_32bit_el0(void)
 	return cpus_have_const_cap(ARM64_HAS_32BIT_EL0);
 }
 
-static inline bool kvm_system_supports_32bit_el0(void)
-{
-#ifndef CONFIG_ASYMMETRIC_AARCH32
-	return system_supports_32bit_el0();
-#else
-	return cpumask_equal(&aarch32_el0_mask, cpu_possible_mask);
-#endif
-}
-
 static inline bool system_supports_4kb_granule(void)
 {
 	u64 mmfr0;
