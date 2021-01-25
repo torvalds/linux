@@ -5,6 +5,14 @@ Kernel driver max16601
 
 Supported chips:
 
+  * Maxim MAX16508
+
+    Prefix: 'max16508'
+
+    Addresses scanned: -
+
+    Datasheet: Not published
+
   * Maxim MAX16601
 
     Prefix: 'max16601'
@@ -19,8 +27,8 @@ Author: Guenter Roeck <linux@roeck-us.net>
 Description
 -----------
 
-This driver supports the MAX16601 VR13.HC Dual-Output Voltage Regulator
-Chipset.
+This driver supports the MAX16508 VR13 Dual-Output Voltage Regulator
+as well as the MAX16601 VR13.HC Dual-Output Voltage Regulator chipsets.
 
 The driver is a client driver to the core PMBus driver.
 Please see Documentation/hwmon/pmbus.rst for details on PMBus client drivers.
