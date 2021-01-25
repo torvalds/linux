@@ -3559,7 +3559,13 @@ static bool icl_get_combo_phy_dpll(struct intel_atomic_state *state,
 
 	icl_calc_dpll_state(dev_priv, &pll_params, &port_dpll->hw_state);
 
-	if (IS_DG1(dev_priv)) {
+	if (IS_ALDERLAKE_S(dev_priv)) {
+		dpll_mask =
+			BIT(DPLL_ID_DG1_DPLL3) |
+			BIT(DPLL_ID_DG1_DPLL2) |
+			BIT(DPLL_ID_ICL_DPLL1) |
+			BIT(DPLL_ID_ICL_DPLL0);
+	} else if (IS_DG1(dev_priv)) {
 		if (port == PORT_D || port == PORT_E) {
 			dpll_mask =
 				BIT(DPLL_ID_DG1_DPLL2) |
@@ -3865,7 +3871,10 @@ static bool icl_pll_get_hw_state(struct drm_i915_private *dev_priv,
 	if (!(val & PLL_ENABLE))
 		goto out;
 
-	if (IS_DG1(dev_priv)) {
+	if (IS_ALDERLAKE_S(dev_priv)) {
+		hw_state->cfgcr0 = intel_de_read(dev_priv, ADLS_DPLL_CFGCR0(id));
+		hw_state->cfgcr1 = intel_de_read(dev_priv, ADLS_DPLL_CFGCR1(id));
+	} else if (IS_DG1(dev_priv)) {
 		hw_state->cfgcr0 = intel_de_read(dev_priv, DG1_DPLL_CFGCR0(id));
 		hw_state->cfgcr1 = intel_de_read(dev_priv, DG1_DPLL_CFGCR1(id));
 	} else if (IS_ROCKETLAKE(dev_priv)) {
@@ -3921,7 +3930,10 @@ static void icl_dpll_write(struct drm_i915_private *dev_priv,
 	const enum intel_dpll_id id = pll->info->id;
 	i915_reg_t cfgcr0_reg, cfgcr1_reg;
 
-	if (IS_DG1(dev_priv)) {
+	if (IS_ALDERLAKE_S(dev_priv)) {
+		cfgcr0_reg = ADLS_DPLL_CFGCR0(id);
+		cfgcr1_reg = ADLS_DPLL_CFGCR1(id);
+	} else if (IS_DG1(dev_priv)) {
 		cfgcr0_reg = DG1_DPLL_CFGCR0(id);
 		cfgcr1_reg = DG1_DPLL_CFGCR1(id);
 	} else if (IS_ROCKETLAKE(dev_priv)) {
@@ -4384,6 +4396,22 @@ static const struct intel_dpll_mgr dg1_pll_mgr = {
 	.dump_hw_state = icl_dump_hw_state,
 };
 
+static const struct dpll_info adls_plls[] = {
+	{ "DPLL 0", &combo_pll_funcs, DPLL_ID_ICL_DPLL0, 0 },
+	{ "DPLL 1", &combo_pll_funcs, DPLL_ID_ICL_DPLL1, 0 },
+	{ "DPLL 2", &combo_pll_funcs, DPLL_ID_DG1_DPLL2, 0 },
+	{ "DPLL 3", &combo_pll_funcs, DPLL_ID_DG1_DPLL3, 0 },
+	{ },
+};
+
+static const struct intel_dpll_mgr adls_pll_mgr = {
+	.dpll_info = adls_plls,
+	.get_dplls = icl_get_dplls,
+	.put_dplls = icl_put_dplls,
+	.update_ref_clks = icl_update_dpll_ref_clks,
+	.dump_hw_state = icl_dump_hw_state,
+};
+
 /**
  * intel_shared_dpll_init - Initialize shared DPLLs
  * @dev: drm device
@@ -4397,7 +4425,9 @@ void intel_shared_dpll_init(struct drm_device *dev)
 	const struct dpll_info *dpll_info;
 	int i;
 
-	if (IS_DG1(dev_priv))
+	if (IS_ALDERLAKE_S(dev_priv))
+		dpll_mgr = &adls_pll_mgr;
+	else if (IS_DG1(dev_priv))
 		dpll_mgr = &dg1_pll_mgr;
 	else if (IS_ROCKETLAKE(dev_priv))
 		dpll_mgr = &rkl_pll_mgr;
