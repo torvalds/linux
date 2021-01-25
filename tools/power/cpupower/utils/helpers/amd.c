@@ -13,7 +13,8 @@
 #define MSR_AMD_PSTATE		0xc0010064
 #define MSR_AMD_PSTATE_LIMIT	0xc0010061
 
-union msr_pstate {
+union core_pstate {
+	/* pre fam 17h: */
 	struct {
 		unsigned fid:6;
 		unsigned did:3;
@@ -26,7 +27,8 @@ union msr_pstate {
 		unsigned idddiv:2;
 		unsigned res3:21;
 		unsigned en:1;
-	} bits;
+	} pstate;
+	/* since fam 17h: */
 	struct {
 		unsigned fid:8;
 		unsigned did:6;
@@ -35,36 +37,36 @@ union msr_pstate {
 		unsigned idddiv:2;
 		unsigned res1:31;
 		unsigned en:1;
-	} fam17h_bits;
+	} pstatedef;
 	unsigned long long val;
 };
 
-static int get_did(int family, union msr_pstate pstate)
+static int get_did(int family, union core_pstate pstate)
 {
 	int t;
 
 	if (family == 0x12)
 		t = pstate.val & 0xf;
 	else if (family == 0x17 || family == 0x18)
-		t = pstate.fam17h_bits.did;
+		t = pstate.pstatedef.did;
 	else
-		t = pstate.bits.did;
+		t = pstate.pstate.did;
 
 	return t;
 }
 
-static int get_cof(int family, union msr_pstate pstate)
+static int get_cof(int family, union core_pstate pstate)
 {
 	int t;
 	int fid, did, cof;
 
 	did = get_did(family, pstate);
 	if (family == 0x17 || family == 0x18) {
-		fid = pstate.fam17h_bits.fid;
+		fid = pstate.pstatedef.fid;
 		cof = 200 * fid / did;
 	} else {
 		t = 0x10;
-		fid = pstate.bits.fid;
+		fid = pstate.pstate.fid;
 		if (family == 0x11)
 			t = 0x8;
 		cof = (100 * (fid + t)) >> did;
@@ -89,7 +91,7 @@ int decode_pstates(unsigned int cpu, unsigned int cpu_family,
 		   int boost_states, unsigned long *pstates, int *no)
 {
 	int i, psmax, pscur;
-	union msr_pstate pstate;
+	union core_pstate pstate;
 	unsigned long long val;
 
 	/* Only read out frequencies from HW when CPU might be boostable
@@ -119,9 +121,9 @@ int decode_pstates(unsigned int cpu, unsigned int cpu_family,
 		}
 		if (read_msr(cpu, MSR_AMD_PSTATE + i, &pstate.val))
 			return -1;
-		if ((cpu_family == 0x17) && (!pstate.fam17h_bits.en))
+		if ((cpu_family == 0x17) && (!pstate.pstatedef.en))
 			continue;
-		else if (!pstate.bits.en)
+		else if (!pstate.pstate.en)
 			continue;
 
 		pstates[i] = get_cof(cpu_family, pstate);
