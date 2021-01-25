@@ -162,6 +162,14 @@ static bool contains_event(struct evsel **metric_events, int num_events,
 	return false;
 }
 
+static bool evsel_same_pmu(struct evsel *ev1, struct evsel *ev2)
+{
+	if (!ev1->pmu_name || !ev2->pmu_name)
+		return false;
+
+	return !strcmp(ev1->pmu_name, ev2->pmu_name);
+}
+
 /**
  * Find a group of events in perf_evlist that correspond to those from a parsed
  * metric expression. Note, as find_evsel_group is called in the same order as
@@ -280,8 +288,7 @@ static struct evsel *find_evsel_group(struct evlist *perf_evlist,
 			 */
 			if (!has_constraint &&
 			    ev->leader != metric_events[i]->leader &&
-			    !strcmp(ev->leader->pmu_name,
-				    metric_events[i]->leader->pmu_name))
+			    evsel_same_pmu(ev->leader, metric_events[i]->leader))
 				break;
 			if (!strcmp(metric_events[i]->name, ev->name)) {
 				set_bit(ev->idx, evlist_used);
@@ -766,7 +773,6 @@ int __weak arch_get_runtimeparam(struct pmu_event *pe __maybe_unused)
 struct metricgroup_add_iter_data {
 	struct list_head *metric_list;
 	const char *metric;
-	struct metric **m;
 	struct expr_ids *ids;
 	int *ret;
 	bool *has_match;
@@ -1058,12 +1064,13 @@ static int metricgroup__add_metric_sys_event_iter(struct pmu_event *pe,
 						  void *data)
 {
 	struct metricgroup_add_iter_data *d = data;
+	struct metric *m = NULL;
 	int ret;
 
 	if (!match_pe_metric(pe, d->metric))
 		return 0;
 
-	ret = add_metric(d->metric_list, pe, d->metric_no_group, d->m, NULL, d->ids);
+	ret = add_metric(d->metric_list, pe, d->metric_no_group, &m, NULL, d->ids);
 	if (ret)
 		return ret;
 
@@ -1114,7 +1121,6 @@ static int metricgroup__add_metric(const char *metric, bool metric_no_group,
 				.metric_list = &list,
 				.metric = metric,
 				.metric_no_group = metric_no_group,
-				.m = &m,
 				.ids = &ids,
 				.has_match = &has_match,
 				.ret = &ret,

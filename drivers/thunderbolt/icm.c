@@ -2316,7 +2316,7 @@ static int icm_usb4_switch_nvm_authenticate_status(struct tb_switch *sw,
 
 	if (auth && auth->reply.route_hi == sw->config.route_hi &&
 	    auth->reply.route_lo == sw->config.route_lo) {
-		tb_dbg(tb, "NVM_AUTH found for %llx flags 0x%#x status %#x\n",
+		tb_dbg(tb, "NVM_AUTH found for %llx flags %#x status %#x\n",
 		       tb_route(sw), auth->reply.hdr.flags, auth->reply.status);
 		if (auth->reply.hdr.flags & ICM_FLAGS_ERROR)
 			ret = -EIO;

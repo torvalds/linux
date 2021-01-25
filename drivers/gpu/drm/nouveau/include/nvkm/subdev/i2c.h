@@ -92,6 +92,7 @@ int g94_i2c_new(struct nvkm_device *, int, struct nvkm_i2c **);
 int gf117_i2c_new(struct nvkm_device *, int, struct nvkm_i2c **);
 int gf119_i2c_new(struct nvkm_device *, int, struct nvkm_i2c **);
 int gk104_i2c_new(struct nvkm_device *, int, struct nvkm_i2c **);
+int gk110_i2c_new(struct nvkm_device *, int, struct nvkm_i2c **);
 int gm200_i2c_new(struct nvkm_device *, int, struct nvkm_i2c **);
 
 static inline int
