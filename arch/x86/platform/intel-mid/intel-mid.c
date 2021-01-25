@@ -25,7 +25,6 @@
 #include <asm/apic.h>
 #include <asm/io_apic.h>
 #include <asm/intel-mid.h>
-#include <asm/intel_mid_vrtc.h>
 #include <asm/io.h>
 #include <asm/i8259.h>
 #include <asm/intel_scu_ipc.h>
@@ -159,7 +158,6 @@ void __init x86_intel_mid_early_setup(void)
 
 	x86_init.timers.timer_init = intel_mid_time_init;
 	x86_init.timers.setup_percpu_clockev = x86_init_noop;
-	x86_init.timers.wallclock_init = intel_mid_rtc_init;
 
 	x86_init.irqs.pre_vector_init = x86_init_noop;
 

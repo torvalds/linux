@@ -31,7 +31,6 @@
 #include <asm/apic.h>
 #include <asm/io_apic.h>
 #include <asm/intel-mid.h>
-#include <asm/intel_mid_vrtc.h>
 #include <asm/io.h>
 #include <asm/i8259.h>
 #include <asm/intel_scu_ipc.h>
@@ -54,11 +53,7 @@ static int i2c_next_dev;
 static int i2c_bus[MAX_SCU_I2C];
 static int gpio_num_entry;
 static u32 sfi_mtimer_usage[SFI_MTMR_MAX_NUM];
-int sfi_mrtc_num;
 int sfi_mtimer_num;
-
-struct sfi_rtc_table_entry sfi_mrtc_array[SFI_MRTC_MAX];
-EXPORT_SYMBOL_GPL(sfi_mrtc_array);
 
 struct blocking_notifier_head intel_scu_notifier =
 			BLOCKING_NOTIFIER_INIT(intel_scu_notifier);
@@ -137,43 +132,6 @@ void sfi_free_mtmr(struct sfi_timer_table_entry *mtmr)
 		i++;
 	}
 }
-
-/* parse all the mrtc info to a global mrtc array */
-int __init sfi_parse_mrtc(struct sfi_table_header *table)
-{
-	struct sfi_table_simple *sb;
-	struct sfi_rtc_table_entry *pentry;
-	struct mpc_intsrc mp_irq;
-
-	int totallen;
-
-	sb = (struct sfi_table_simple *)table;
-	if (!sfi_mrtc_num) {
-		sfi_mrtc_num = SFI_GET_NUM_ENTRIES(sb,
-						struct sfi_rtc_table_entry);
-		pentry = (struct sfi_rtc_table_entry *)sb->pentry;
-		totallen = sfi_mrtc_num * sizeof(*pentry);
-		memcpy(sfi_mrtc_array, pentry, totallen);
-	}
-
-	pr_debug("SFI RTC info (num = %d):\n", sfi_mrtc_num);
-	pentry = sfi_mrtc_array;
-	for (totallen = 0; totallen < sfi_mrtc_num; totallen++, pentry++) {
-		pr_debug("RTC[%d]: paddr = 0x%08x, irq = %d\n",
-			totallen, (u32)pentry->phys_addr, pentry->irq);
-		mp_irq.type = MP_INTSRC;
-		mp_irq.irqtype = mp_INT;
-		mp_irq.irqflag = MP_IRQTRIG_LEVEL | MP_IRQPOL_ACTIVE_LOW;
-		mp_irq.srcbus = MP_BUS_ISA;
-		mp_irq.srcbusirq = pentry->irq;	/* IRQ */
-		mp_irq.dstapic = MP_APIC_ALL;
-		mp_irq.dstirq = pentry->irq;
-		mp_save_irq(&mp_irq);
-		mp_map_gsi_to_irq(pentry->irq, IOAPIC_MAP_ALLOC, NULL);
-	}
-	return 0;
-}
-
 
 /*
  * Parsing GPIO table first, since the DEVS table will need this table

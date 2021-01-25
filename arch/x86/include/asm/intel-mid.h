@@ -23,10 +23,7 @@ extern void intel_mid_pwr_power_off(void);
 extern int intel_mid_pwr_get_lss_id(struct pci_dev *pdev);
 
 extern int get_gpio_by_name(const char *name);
-extern int __init sfi_parse_mrtc(struct sfi_table_header *table);
 extern int __init sfi_parse_mtmr(struct sfi_table_header *table);
-extern int sfi_mrtc_num;
-extern struct sfi_rtc_table_entry sfi_mrtc_array[];
 
 /*
  * Here defines the array of devices platform data that IAFW would export
@@ -112,13 +109,6 @@ extern enum intel_mid_timer_options intel_mid_timer_options;
 #define BSEL_SOC_FUSE_111		0x7
 
 #define SFI_MTMR_MAX_NUM		8
-#define SFI_MRTC_MAX			8
-
-/* VRTC timer */
-#define MRST_VRTC_MAP_SZ		1024
-/* #define MRST_VRTC_PGOFFSET		0xc00 */
-
-extern void intel_mid_rtc_init(void);
 
 /* The offset for the mapping of global gpio pin to irq */
 #define INTEL_MID_IRQ_OFFSET		0x100
