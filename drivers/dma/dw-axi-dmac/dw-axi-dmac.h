@@ -37,6 +37,7 @@ struct axi_dma_chan {
 	struct axi_dma_chip		*chip;
 	void __iomem			*chan_regs;
 	u8				id;
+	u8				hw_handshake_num;
 	atomic_t			descs_allocated;
 
 	struct dma_pool			*desc_pool;
