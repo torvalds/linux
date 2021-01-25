@@ -912,34 +912,14 @@ static void do_signal(struct pt_regs *regs)
 	restore_saved_sigmask();
 }
 
-static void set_32bit_cpus_allowed(void)
+static void check_aarch32_cpumask(void)
 {
-	int ret;
-
 	/*
-	 * Try to honour as best as possible whatever affinity request this
-	 * task has. If it spans no compatible CPU, disregard it entirely.
+	 * The task must be a subset of aarch32_el0_mask or it could end up
+	 * migrating and running on the wrong CPU.
 	 */
-	if (cpumask_intersects(current->cpus_ptr, &aarch32_el0_mask)) {
-		cpumask_var_t cpus_allowed;
-
-		if (!alloc_cpumask_var(&cpus_allowed, GFP_ATOMIC)) {
-
-			ret = set_cpus_allowed_ptr(current, &aarch32_el0_mask);
-
-		} else {
-
-			cpumask_and(cpus_allowed, current->cpus_ptr, &aarch32_el0_mask);
-			ret = set_cpus_allowed_ptr(current, cpus_allowed);
-			free_cpumask_var(cpus_allowed);
-
-		}
-	} else {
-		ret = set_cpus_allowed_ptr(current, &aarch32_el0_mask);
-	}
-
-	if (ret) {
-		pr_warn_once("No CPUs capable of running 32-bit tasks\n");
+	if (!cpumask_subset(current->cpus_ptr, &aarch32_el0_mask)) {
+		pr_warn_once("CPU affinity contains CPUs that are not capable of running 32-bit tasks\n");
 		force_sig(SIGKILL);
 	}
 }
@@ -962,7 +942,7 @@ asmlinkage void do_notify_resume(struct pt_regs *regs,
 			if (IS_ENABLED(CONFIG_ASYMMETRIC_AARCH32) &&
 			    thread_flags & _TIF_CHECK_32BIT_AFFINITY) {
 				clear_thread_flag(TIF_CHECK_32BIT_AFFINITY);
-				set_32bit_cpus_allowed();
+				check_aarch32_cpumask();
 			}
 
 			if (thread_flags & _TIF_UPROBE)
