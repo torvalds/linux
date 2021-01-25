@@ -376,6 +376,11 @@ struct bfq_queue {
 	 * bfq_select_queue().
 	 */
 	struct bfq_queue *waker_bfqq;
+	/* pointer to the curr. tentative waker queue, see bfq_check_waker() */
+	struct bfq_queue *tentative_waker_bfqq;
+	/* number of times the same tentative waker has been detected */
+	unsigned int num_waker_detections;
+
 	/* node for woken_list, see below */
 	struct hlist_node woken_list_node;
 	/*
@@ -776,7 +781,6 @@ enum bfqq_state_flags {
 				 */
 	BFQQF_coop,		/* bfqq is shared */
 	BFQQF_split_coop,	/* shared bfqq will be split */
-	BFQQF_has_waker		/* bfqq has a waker queue */
 };
 
 #define BFQ_BFQQ_FNS(name)						\
@@ -796,7 +800,6 @@ BFQ_BFQQ_FNS(in_large_burst);
 BFQ_BFQQ_FNS(coop);
 BFQ_BFQQ_FNS(split_coop);
 BFQ_BFQQ_FNS(softrt_update);
-BFQ_BFQQ_FNS(has_waker);
 #undef BFQ_BFQQ_FNS
 
 /* Expiration reasons. */
