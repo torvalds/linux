@@ -1748,6 +1748,8 @@ DEFINE_PER_CPU(bool, hardirq_stack_inuse);
 DEFINE_PER_CPU(int, __preempt_count) = INIT_PREEMPT_COUNT;
 EXPORT_PER_CPU_SYMBOL(__preempt_count);
 
+DEFINE_PER_CPU(unsigned long, cpu_current_top_of_stack) = TOP_OF_INIT_STACK;
+
 /* May not be marked __init: used by software suspend */
 void syscall_init(void)
 {
