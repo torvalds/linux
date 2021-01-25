@@ -440,6 +440,7 @@ struct bfq_io_cq {
 	 */
 	unsigned long saved_wr_coeff;
 	unsigned long saved_last_wr_start_finish;
+	unsigned long saved_service_from_wr;
 	unsigned long saved_wr_start_at_switch_to_srt;
 	unsigned int saved_wr_cur_max_time;
 	struct bfq_ttime saved_ttime;

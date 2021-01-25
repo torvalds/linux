@@ -1029,6 +1029,7 @@ bfq_bfqq_resume_state(struct bfq_queue *bfqq, struct bfq_data *bfqd,
 	bfqq->io_start_time = bic->saved_io_start_time;
 	bfqq->tot_idle_time = bic->saved_tot_idle_time;
 	bfqq->wr_coeff = bic->saved_wr_coeff;
+	bfqq->service_from_wr = bic->saved_service_from_wr;
 	bfqq->wr_start_at_switch_to_srt = bic->saved_wr_start_at_switch_to_srt;
 	bfqq->last_wr_start_finish = bic->saved_last_wr_start_finish;
 	bfqq->wr_cur_max_time = bic->saved_wr_cur_max_time;
@@ -2775,6 +2776,7 @@ static void bfq_bfqq_save_state(struct bfq_queue *bfqq)
 		bic->saved_wr_coeff = bfqq->wr_coeff;
 		bic->saved_wr_start_at_switch_to_srt =
 			bfqq->wr_start_at_switch_to_srt;
+		bic->saved_service_from_wr = bfqq->service_from_wr;
 		bic->saved_last_wr_start_finish = bfqq->last_wr_start_finish;
 		bic->saved_wr_cur_max_time = bfqq->wr_cur_max_time;
 	}
