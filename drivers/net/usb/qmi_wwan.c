@@ -57,6 +57,7 @@ struct qmi_wwan_state {
 enum qmi_wwan_flags {
 	QMI_WWAN_FLAG_RAWIP = 1 << 0,
 	QMI_WWAN_FLAG_MUX = 1 << 1,
+	QMI_WWAN_FLAG_PASS_THROUGH = 1 << 2,
 };
 
 enum qmi_wwan_quirks {
@@ -350,6 +351,13 @@ static ssize_t raw_ip_store(struct device *d,  struct device_attribute *attr, co
 	if (enable == (info->flags & QMI_WWAN_FLAG_RAWIP))
 		return len;
 
+	/* ip mode cannot be cleared when pass through mode is set */
+	if (!enable && (info->flags & QMI_WWAN_FLAG_PASS_THROUGH)) {
+		netdev_err(dev->net,
+			   "Cannot clear ip mode on pass through device\n");
+		return -EINVAL;
+	}
+
 	if (!rtnl_trylock())
 		return restart_syscall();
 
@@ -480,14 +488,59 @@ err:
 	return ret;
 }
 
+static ssize_t pass_through_show(struct device *d,
+				 struct device_attribute *attr, char *buf)
+{
+	struct usbnet *dev = netdev_priv(to_net_dev(d));
+	struct qmi_wwan_state *info;
+
+	info = (void *)&dev->data;
+	return sprintf(buf, "%c\n",
+		       info->flags & QMI_WWAN_FLAG_PASS_THROUGH ? 'Y' : 'N');
+}
+
+static ssize_t pass_through_store(struct device *d,
+				  struct device_attribute *attr,
+				  const char *buf, size_t len)
+{
+	struct usbnet *dev = netdev_priv(to_net_dev(d));
+	struct qmi_wwan_state *info;
+	bool enable;
+
+	if (strtobool(buf, &enable))
+		return -EINVAL;
+
+	info = (void *)&dev->data;
+
+	/* no change? */
+	if (enable == (info->flags & QMI_WWAN_FLAG_PASS_THROUGH))
+		return len;
+
+	/* pass through mode can be set for raw ip devices only */
+	if (!(info->flags & QMI_WWAN_FLAG_RAWIP)) {
+		netdev_err(dev->net,
+			   "Cannot set pass through mode on non ip device\n");
+		return -EINVAL;
+	}
+
+	if (enable)
+		info->flags |= QMI_WWAN_FLAG_PASS_THROUGH;
+	else
+		info->flags &= ~QMI_WWAN_FLAG_PASS_THROUGH;
+
+	return len;
+}
+
 static DEVICE_ATTR_RW(raw_ip);
 static DEVICE_ATTR_RW(add_mux);
 static DEVICE_ATTR_RW(del_mux);
+static DEVICE_ATTR_RW(pass_through);
 
 static struct attribute *qmi_wwan_sysfs_attrs[] = {
 	&dev_attr_raw_ip.attr,
 	&dev_attr_add_mux.attr,
 	&dev_attr_del_mux.attr,
+	&dev_attr_pass_through.attr,
 	NULL,
 };
 
@@ -533,6 +586,11 @@ static int qmi_wwan_rx_fixup(struct usbnet *dev, struct sk_buff *skb)
 
 	if (info->flags & QMI_WWAN_FLAG_MUX)
 		return qmimux_rx_fixup(dev, skb);
+
+	if (info->flags & QMI_WWAN_FLAG_PASS_THROUGH) {
+		skb->protocol = htons(ETH_P_MAP);
+		return (netif_rx(skb) == NET_RX_SUCCESS);
+	}
 
 	switch (skb->data[0] & 0xf0) {
 	case 0x40:
