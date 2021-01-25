@@ -248,6 +248,13 @@ void dmub_dcn20_setup_windows(struct dmub_srv *dmub,
 		  DMCUB_REGION3_CW5_TOP_ADDRESS, cw5->region.top,
 		  DMCUB_REGION3_CW5_ENABLE, 1);
 
+	REG_WRITE(DMCUB_REGION5_OFFSET, offset.u.low_part);
+	REG_WRITE(DMCUB_REGION5_OFFSET_HIGH, offset.u.high_part);
+	REG_SET_2(DMCUB_REGION5_TOP_ADDRESS, 0,
+		  DMCUB_REGION5_TOP_ADDRESS,
+		  cw5->region.top - cw5->region.base - 1,
+		  DMCUB_REGION5_ENABLE, 1);
+
 	dmub_dcn20_translate_addr(&cw6->offset, fb_base, fb_offset, &offset);
 
 	REG_WRITE(DMCUB_REGION3_CW6_OFFSET, offset.u.low_part);
