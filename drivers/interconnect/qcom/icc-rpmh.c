@@ -194,8 +194,8 @@ int qcom_icc_bcm_init(struct qcom_icc_bcm *bcm, struct device *dev)
 		return -EINVAL;
 	}
 
-	bcm->aux_data.unit = le32_to_cpu(data->unit);
-	bcm->aux_data.width = le16_to_cpu(data->width);
+	bcm->aux_data.unit = max_t(u32, 1, le32_to_cpu(data->unit));
+	bcm->aux_data.width = max_t(u16, 1, le16_to_cpu(data->width));
 	bcm->aux_data.vcd = data->vcd;
 	bcm->aux_data.reserved = data->reserved;
 	INIT_LIST_HEAD(&bcm->list);
