@@ -269,6 +269,8 @@ struct cp210x_port_private {
 
 	struct mutex		mutex;
 	bool			crtscts;
+	bool			dtr;
+	bool			rts;
 };
 
 static struct usb_serial_driver cp210x_device = {
@@ -1162,7 +1164,10 @@ static void cp210x_set_flow_control(struct tty_struct *tty,
 	ctl_hs &= ~CP210X_SERIAL_DCD_HANDSHAKE;
 	ctl_hs &= ~CP210X_SERIAL_DSR_SENSITIVITY;
 	ctl_hs &= ~CP210X_SERIAL_DTR_MASK;
-	ctl_hs |= CP210X_SERIAL_DTR_SHIFT(CP210X_SERIAL_DTR_ACTIVE);
+	if (port_priv->dtr)
+		ctl_hs |= CP210X_SERIAL_DTR_SHIFT(CP210X_SERIAL_DTR_ACTIVE);
+	else
+		ctl_hs |= CP210X_SERIAL_DTR_SHIFT(CP210X_SERIAL_DTR_INACTIVE);
 
 	if (C_CRTSCTS(tty)) {
 		ctl_hs |= CP210X_SERIAL_CTS_HANDSHAKE;
@@ -1172,7 +1177,10 @@ static void cp210x_set_flow_control(struct tty_struct *tty,
 	} else {
 		ctl_hs &= ~CP210X_SERIAL_CTS_HANDSHAKE;
 		flow_repl &= ~CP210X_SERIAL_RTS_MASK;
-		flow_repl |= CP210X_SERIAL_RTS_SHIFT(CP210X_SERIAL_RTS_ACTIVE);
+		if (port_priv->rts)
+			flow_repl |= CP210X_SERIAL_RTS_SHIFT(CP210X_SERIAL_RTS_ACTIVE);
+		else
+			flow_repl |= CP210X_SERIAL_RTS_SHIFT(CP210X_SERIAL_RTS_INACTIVE);
 		port_priv->crtscts = false;
 	}
 
@@ -1287,24 +1295,28 @@ static int cp210x_tiocmset_port(struct usb_serial_port *port,
 	u16 control = 0;
 	int ret;
 
+	mutex_lock(&port_priv->mutex);
+
 	if (set & TIOCM_RTS) {
+		port_priv->rts = true;
 		control |= CONTROL_RTS;
 		control |= CONTROL_WRITE_RTS;
 	}
 	if (set & TIOCM_DTR) {
+		port_priv->dtr = true;
 		control |= CONTROL_DTR;
 		control |= CONTROL_WRITE_DTR;
 	}
 	if (clear & TIOCM_RTS) {
+		port_priv->rts = false;
 		control &= ~CONTROL_RTS;
 		control |= CONTROL_WRITE_RTS;
 	}
 	if (clear & TIOCM_DTR) {
+		port_priv->dtr = false;
 		control &= ~CONTROL_DTR;
 		control |= CONTROL_WRITE_DTR;
 	}
-
-	mutex_lock(&port_priv->mutex);
 
 	/*
 	 * SET_MHS cannot be used to control RTS when auto-RTS is enabled.
