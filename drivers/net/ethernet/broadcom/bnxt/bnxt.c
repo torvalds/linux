@@ -7441,9 +7441,22 @@ static void bnxt_try_map_fw_health_reg(struct bnxt *bp)
 
 	sig = readl(hs + offsetof(struct hcomm_status, sig_ver));
 	if ((sig & HCOMM_STATUS_SIGNATURE_MASK) != HCOMM_STATUS_SIGNATURE_VAL) {
-		if (bp->fw_health)
-			bp->fw_health->status_reliable = false;
-		return;
+		if (!bp->chip_num) {
+			__bnxt_map_fw_health_reg(bp, BNXT_GRC_REG_BASE);
+			bp->chip_num = readl(bp->bar0 +
+					     BNXT_FW_HEALTH_WIN_BASE +
+					     BNXT_GRC_REG_CHIP_NUM);
+		}
+		if (!BNXT_CHIP_P5(bp)) {
+			if (bp->fw_health)
+				bp->fw_health->status_reliable = false;
+			return;
+		}
+		status_loc = BNXT_GRC_REG_STATUS_P5 |
+			     BNXT_FW_HEALTH_REG_TYPE_BAR0;
+	} else {
+		status_loc = readl(hs + offsetof(struct hcomm_status,
+						 fw_status_loc));
 	}
 
 	if (__bnxt_alloc_fw_health(bp)) {
@@ -7451,7 +7464,6 @@ static void bnxt_try_map_fw_health_reg(struct bnxt *bp)
 		return;
 	}
 
-	status_loc = readl(hs + offsetof(struct hcomm_status, fw_status_loc));
 	bp->fw_health->regs[BNXT_FW_HEALTH_REG] = status_loc;
 	reg_type = BNXT_FW_HEALTH_REG_TYPE(status_loc);
 	if (reg_type == BNXT_FW_HEALTH_REG_TYPE_GRC) {
@@ -9355,14 +9367,30 @@ static int bnxt_fw_reset_via_optee(struct bnxt *bp)
 static int bnxt_try_recover_fw(struct bnxt *bp)
 {
 	if (bp->fw_health && bp->fw_health->status_reliable) {
-		u32 sts = bnxt_fw_health_readl(bp, BNXT_FW_HEALTH_REG);
+		int retry = 0, rc;
+		u32 sts;
 
-		netdev_err(bp->dev, "Firmware not responding, status: 0x%x\n",
-			   sts);
+		mutex_lock(&bp->hwrm_cmd_lock);
+		do {
+			rc = __bnxt_hwrm_ver_get(bp, true);
+			sts = bnxt_fw_health_readl(bp, BNXT_FW_HEALTH_REG);
+			if (!sts || !BNXT_FW_IS_BOOTING(sts))
+				break;
+			retry++;
+		} while (rc == -EBUSY && retry < BNXT_FW_RETRY);
+		mutex_unlock(&bp->hwrm_cmd_lock);
+
+		if (!BNXT_FW_IS_HEALTHY(sts)) {
+			netdev_err(bp->dev,
+				   "Firmware not responding, status: 0x%x\n",
+				   sts);
+			rc = -ENODEV;
+		}
 		if (sts & FW_STATUS_REG_CRASHED_NO_MASTER) {
 			netdev_warn(bp->dev, "Firmware recover via OP-TEE requested\n");
 			return bnxt_fw_reset_via_optee(bp);
 		}
+		return rc;
 	}
 
 	return -ENODEV;
