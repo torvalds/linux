@@ -127,8 +127,8 @@ extern struct pci_dev *pci_slot_func_init(struct pci_access **pacc,
 
 /* AMD HW pstate decoding **************************/
 
-extern int decode_pstates(unsigned int cpu, unsigned int cpu_family,
-			  int boost_states, unsigned long *pstates, int *no);
+extern int decode_pstates(unsigned int cpu, int boost_states,
+			  unsigned long *pstates, int *no);
 
 /* AMD HW pstate decoding **************************/
 
@@ -145,9 +145,8 @@ unsigned int cpuid_edx(unsigned int op);
 /* cpuid and cpuinfo helpers  **************************/
 /* X86 ONLY ********************************************/
 #else
-static inline int decode_pstates(unsigned int cpu, unsigned int cpu_family,
-				 int boost_states, unsigned long *pstates,
-				 int *no)
+static inline int decode_pstates(unsigned int cpu, int boost_states,
+				 unsigned long *pstates, int *no)
 { return -1; };
 
 static inline int read_msr(int cpu, unsigned int idx, unsigned long long *val)

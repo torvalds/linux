@@ -41,13 +41,13 @@ union core_pstate {
 	unsigned long long val;
 };
 
-static int get_did(int family, union core_pstate pstate)
+static int get_did(union core_pstate pstate)
 {
 	int t;
 
 	if (cpupower_cpu_info.caps & CPUPOWER_CAP_AMD_PSTATEDEF)
 		t = pstate.pstatedef.did;
-	else if (family == 0x12)
+	else if (cpupower_cpu_info.family == 0x12)
 		t = pstate.val & 0xf;
 	else
 		t = pstate.pstate.did;
@@ -55,19 +55,19 @@ static int get_did(int family, union core_pstate pstate)
 	return t;
 }
 
-static int get_cof(int family, union core_pstate pstate)
+static int get_cof(union core_pstate pstate)
 {
 	int t;
 	int fid, did, cof;
 
-	did = get_did(family, pstate);
+	did = get_did(pstate);
 	if (cpupower_cpu_info.caps & CPUPOWER_CAP_AMD_PSTATEDEF) {
 		fid = pstate.pstatedef.fid;
 		cof = 200 * fid / did;
 	} else {
 		t = 0x10;
 		fid = pstate.pstate.fid;
-		if (family == 0x11)
+		if (cpupower_cpu_info.family == 0x11)
 			t = 0x8;
 		cof = (100 * (fid + t)) >> did;
 	}
@@ -76,8 +76,7 @@ static int get_cof(int family, union core_pstate pstate)
 
 /* Needs:
  * cpu          -> the cpu that gets evaluated
- * cpu_family   -> The cpu's family (0x10, 0x12,...)
- * boots_states -> how much boost states the machines support
+ * boost_states -> how much boost states the machines support
  *
  * Fills up:
  * pstates -> a pointer to an array of size MAX_HW_PSTATES
@@ -87,8 +86,8 @@ static int get_cof(int family, union core_pstate pstate)
  *
  * returns zero on success, -1 on failure
  */
-int decode_pstates(unsigned int cpu, unsigned int cpu_family,
-		   int boost_states, unsigned long *pstates, int *no)
+int decode_pstates(unsigned int cpu, int boost_states,
+		   unsigned long *pstates, int *no)
 {
 	int i, psmax;
 	union core_pstate pstate;
@@ -118,7 +117,7 @@ int decode_pstates(unsigned int cpu, unsigned int cpu_family,
 		if (!pstate.pstatedef.en)
 			continue;
 
-		pstates[i] = get_cof(cpu_family, pstate);
+		pstates[i] = get_cof(pstate);
 	}
 	*no = i;
 	return 0;
