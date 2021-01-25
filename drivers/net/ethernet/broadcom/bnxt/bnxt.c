@@ -2082,10 +2082,9 @@ static int bnxt_async_event_process(struct bnxt *bp,
 			goto async_event_process_exit;
 		set_bit(BNXT_RESET_TASK_SILENT_SP_EVENT, &bp->sp_event);
 		break;
-	case ASYNC_EVENT_CMPL_EVENT_ID_RESET_NOTIFY:
-		if (netif_msg_hw(bp))
-			netdev_warn(bp->dev, "Received RESET_NOTIFY event, data1: 0x%x, data2: 0x%x\n",
-				    data1, data2);
+	case ASYNC_EVENT_CMPL_EVENT_ID_RESET_NOTIFY: {
+		char *fatal_str = "non-fatal";
+
 		if (!bp->fw_health)
 			goto async_event_process_exit;
 
@@ -2097,14 +2096,18 @@ static int bnxt_async_event_process(struct bnxt *bp,
 		if (!bp->fw_reset_max_dsecs)
 			bp->fw_reset_max_dsecs = BNXT_DFLT_FW_RST_MAX_DSECS;
 		if (EVENT_DATA1_RESET_NOTIFY_FATAL(data1)) {
-			netdev_warn(bp->dev, "Firmware fatal reset event received\n");
+			fatal_str = "fatal";
 			set_bit(BNXT_STATE_FW_FATAL_COND, &bp->state);
-		} else {
-			netdev_warn(bp->dev, "Firmware non-fatal reset event received, max wait time %d msec\n",
+		}
+		if (netif_msg_hw(bp)) {
+			netdev_warn(bp->dev, "Firmware %s reset event, data1: 0x%x, data2: 0x%x, min wait %u ms, max wait %u ms\n",
+				    fatal_str, data1, data2,
+				    bp->fw_reset_min_dsecs * 100,
 				    bp->fw_reset_max_dsecs * 100);
 		}
 		set_bit(BNXT_FW_RESET_NOTIFY_SP_EVENT, &bp->sp_event);
 		break;
+	}
 	case ASYNC_EVENT_CMPL_EVENT_ID_ERROR_RECOVERY: {
 		struct bnxt_fw_health *fw_health = bp->fw_health;
 
