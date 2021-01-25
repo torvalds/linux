@@ -541,6 +541,10 @@ struct dc_debug_options {
 	/* Enable dmub aux for legacy ddc */
 	bool enable_dmub_aux_for_legacy_ddc;
 	bool optimize_edp_link_rate; /* eDP ILR */
+	/* force enable edp FEC */
+	bool force_enable_edp_fec;
+	/* FEC/PSR1 sequence enable delay in 100us */
+	uint8_t fec_enable_delay_in100us;
 };
 
 struct dc_debug_data {
