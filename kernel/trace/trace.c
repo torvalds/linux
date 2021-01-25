@@ -2590,8 +2590,7 @@ unsigned int tracing_gen_ctx_irq_test(unsigned int irqs_status)
 		trace_flags |= TRACE_FLAG_NMI;
 	if (pc & HARDIRQ_MASK)
 		trace_flags |= TRACE_FLAG_HARDIRQ;
-
-	if (pc & SOFTIRQ_OFFSET)
+	if (in_serving_softirq())
 		trace_flags |= TRACE_FLAG_SOFTIRQ;
 
 	if (tif_need_resched())
