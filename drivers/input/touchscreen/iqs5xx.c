@@ -47,10 +47,13 @@
 #define IQS5XX_SUSPEND		BIT(0)
 #define IQS5XX_RESUME		0
 
-#define IQS5XX_SW_INPUT_EVENT	0x10
-#define IQS5XX_SETUP_COMPLETE	0x40
-#define IQS5XX_EVENT_MODE	0x01
-#define IQS5XX_TP_EVENT		0x04
+#define IQS5XX_SETUP_COMPLETE	BIT(6)
+#define IQS5XX_WDT		BIT(5)
+#define IQS5XX_ALP_REATI	BIT(3)
+#define IQS5XX_REATI		BIT(2)
+
+#define IQS5XX_TP_EVENT		BIT(2)
+#define IQS5XX_EVENT_MODE	BIT(0)
 
 #define IQS5XX_PROD_NUM		0x0000
 #define IQS5XX_SYS_INFO0	0x000F
@@ -185,11 +188,6 @@ static int iqs5xx_read_word(struct i2c_client *client, u16 reg, u16 *val)
 	*val = be16_to_cpu(val_buf);
 
 	return 0;
-}
-
-static int iqs5xx_read_byte(struct i2c_client *client, u16 reg, u8 *val)
-{
-	return iqs5xx_read_burst(client, reg, val, sizeof(*val));
 }
 
 static int iqs5xx_write_burst(struct i2c_client *client,
@@ -561,7 +559,6 @@ static int iqs5xx_dev_init(struct i2c_client *client)
 	struct iqs5xx_private *iqs5xx = i2c_get_clientdata(client);
 	struct iqs5xx_dev_id_info *dev_id_info;
 	int error;
-	u8 val;
 	u8 buf[sizeof(*dev_id_info) + 1];
 
 	error = iqs5xx_read_burst(client, IQS5XX_PROD_NUM,
@@ -628,18 +625,14 @@ static int iqs5xx_dev_init(struct i2c_client *client)
 	if (error)
 		return error;
 
-	error = iqs5xx_read_byte(client, IQS5XX_SYS_CFG0, &val);
+	error = iqs5xx_write_byte(client, IQS5XX_SYS_CFG0,
+				  IQS5XX_SETUP_COMPLETE | IQS5XX_WDT |
+				  IQS5XX_ALP_REATI | IQS5XX_REATI);
 	if (error)
 		return error;
 
-	val |= IQS5XX_SETUP_COMPLETE;
-	val &= ~IQS5XX_SW_INPUT_EVENT;
-	error = iqs5xx_write_byte(client, IQS5XX_SYS_CFG0, val);
-	if (error)
-		return error;
-
-	val = IQS5XX_TP_EVENT | IQS5XX_EVENT_MODE;
-	error = iqs5xx_write_byte(client, IQS5XX_SYS_CFG1, val);
+	error = iqs5xx_write_byte(client, IQS5XX_SYS_CFG1,
+				  IQS5XX_TP_EVENT | IQS5XX_EVENT_MODE);
 	if (error)
 		return error;
 
