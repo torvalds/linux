@@ -1166,7 +1166,7 @@ int kgdb_register_io_module(struct kgdb_io *new_dbg_io_ops)
 EXPORT_SYMBOL_GPL(kgdb_register_io_module);
 
 /**
- *	kkgdb_unregister_io_module - unregister KGDB IO module
+ *	kgdb_unregister_io_module - unregister KGDB IO module
  *	@old_dbg_io_ops: the io ops vector
  *
  *	Unregister it with the KGDB core.
