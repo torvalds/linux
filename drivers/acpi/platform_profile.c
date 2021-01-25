@@ -9,7 +9,7 @@
 #include <linux/platform_profile.h>
 #include <linux/sysfs.h>
 
-static const struct platform_profile_handler *cur_profile;
+static struct platform_profile_handler *cur_profile;
 static DEFINE_MUTEX(profile_lock);
 
 static const char * const profile_names[] = {
@@ -132,7 +132,7 @@ void platform_profile_notify(void)
 }
 EXPORT_SYMBOL_GPL(platform_profile_notify);
 
-int platform_profile_register(const struct platform_profile_handler *pprof)
+int platform_profile_register(struct platform_profile_handler *pprof)
 {
 	int err;
 

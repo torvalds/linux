@@ -32,7 +32,7 @@ struct platform_profile_handler {
 	int (*profile_set)(enum platform_profile_option profile);
 };
 
-int platform_profile_register(const struct platform_profile_handler *pprof);
+int platform_profile_register(struct platform_profile_handler *pprof);
 int platform_profile_remove(void);
 void platform_profile_notify(void);
 
