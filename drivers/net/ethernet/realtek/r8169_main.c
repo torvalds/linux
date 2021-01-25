@@ -4850,10 +4850,8 @@ static void rtl_shutdown(struct pci_dev *pdev)
 	rtl_rar_set(tp, tp->dev->perm_addr);
 
 	if (system_state == SYSTEM_POWER_OFF) {
-		if (tp->saved_wolopts) {
-			rtl_wol_enable_rx(tp);
+		if (tp->saved_wolopts)
 			rtl_wol_shutdown_quirk(tp);
-		}
 
 		pci_wake_from_d3(pdev, tp->saved_wolopts);
 		pci_set_power_state(pdev, PCI_D3hot);
