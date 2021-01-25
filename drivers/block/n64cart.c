@@ -88,10 +88,8 @@ static bool n64cart_do_bvec(struct device *dev, struct bio_vec *bv, u32 pos)
 static blk_qc_t n64cart_submit_bio(struct bio *bio)
 {
 	struct bio_vec bvec;
-	u32 pos;
 	struct bvec_iter iter;
-
-	pos = bio->bi_iter.bi_sector << SECTOR_SHIFT;
+	u32 pos = bio->bi_iter.bi_sector << SECTOR_SHIFT;
 
 	bio_for_each_segment(bvec, bio, iter) {
 		if (!n64cart_do_bvec(dev, &bvec, pos))
@@ -119,8 +117,8 @@ static const struct block_device_operations n64cart_fops = {
 static int __init n64cart_probe(struct platform_device *pdev)
 {
 	int err;
-	struct request_queue *queue;
 	struct gendisk *disk;
+	struct request_queue *queue;
 
 	if (!start || !size) {
 		pr_err("start or size not specified\n");
