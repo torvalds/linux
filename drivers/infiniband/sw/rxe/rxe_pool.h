@@ -68,7 +68,6 @@ struct rxe_pool {
 	struct rxe_dev		*rxe;
 	rwlock_t		pool_lock; /* protects pool add/del/search */
 	size_t			elem_size;
-	struct kref		ref_cnt;
 	void			(*cleanup)(struct rxe_pool_entry *obj);
 	enum rxe_pool_state	state;
 	enum rxe_pool_flags	flags;

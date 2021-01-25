@@ -142,8 +142,6 @@ int rxe_pool_init(
 
 	atomic_set(&pool->num_elem, 0);
 
-	kref_init(&pool->ref_cnt);
-
 	rwlock_init(&pool->pool_lock);
 
 	if (rxe_type_info[type].flags & RXE_POOL_INDEX) {
@@ -165,19 +163,6 @@ out:
 	return err;
 }
 
-static void rxe_pool_release(struct kref *kref)
-{
-	struct rxe_pool *pool = container_of(kref, struct rxe_pool, ref_cnt);
-
-	pool->state = RXE_POOL_STATE_INVALID;
-	kfree(pool->index.table);
-}
-
-static void rxe_pool_put(struct rxe_pool *pool)
-{
-	kref_put(&pool->ref_cnt, rxe_pool_release);
-}
-
 void rxe_pool_cleanup(struct rxe_pool *pool)
 {
 	unsigned long flags;
@@ -189,7 +174,8 @@ void rxe_pool_cleanup(struct rxe_pool *pool)
 			pool_name(pool));
 	write_unlock_irqrestore(&pool->pool_lock, flags);
 
-	rxe_pool_put(pool);
+	pool->state = RXE_POOL_STATE_INVALID;
+	kfree(pool->index.table);
 }
 
 static u32 alloc_index(struct rxe_pool *pool)
@@ -345,11 +331,6 @@ void *rxe_alloc_locked(struct rxe_pool *pool)
 	if (pool->state != RXE_POOL_STATE_VALID)
 		return NULL;
 
-	kref_get(&pool->ref_cnt);
-
-	if (!ib_device_try_get(&pool->rxe->ib_dev))
-		goto out_put_pool;
-
 	if (atomic_inc_return(&pool->num_elem) > pool->max_elem)
 		goto out_cnt;
 
@@ -366,9 +347,6 @@ void *rxe_alloc_locked(struct rxe_pool *pool)
 
 out_cnt:
 	atomic_dec(&pool->num_elem);
-	ib_device_put(&pool->rxe->ib_dev);
-out_put_pool:
-	rxe_pool_put(pool);
 	return NULL;
 }
 
@@ -385,11 +363,7 @@ void *rxe_alloc(struct rxe_pool *pool)
 		return NULL;
 	}
 
-	kref_get(&pool->ref_cnt);
 	read_unlock_irqrestore(&pool->pool_lock, flags);
-
-	if (!ib_device_try_get(&pool->rxe->ib_dev))
-		goto out_put_pool;
 
 	if (atomic_inc_return(&pool->num_elem) > pool->max_elem)
 		goto out_cnt;
@@ -407,9 +381,6 @@ void *rxe_alloc(struct rxe_pool *pool)
 
 out_cnt:
 	atomic_dec(&pool->num_elem);
-	ib_device_put(&pool->rxe->ib_dev);
-out_put_pool:
-	rxe_pool_put(pool);
 	return NULL;
 }
 
@@ -422,11 +393,7 @@ int __rxe_add_to_pool(struct rxe_pool *pool, struct rxe_pool_entry *elem)
 		read_unlock_irqrestore(&pool->pool_lock, flags);
 		return -EINVAL;
 	}
-	kref_get(&pool->ref_cnt);
 	read_unlock_irqrestore(&pool->pool_lock, flags);
-
-	if (!ib_device_try_get(&pool->rxe->ib_dev))
-		goto out_put_pool;
 
 	if (atomic_inc_return(&pool->num_elem) > pool->max_elem)
 		goto out_cnt;
@@ -438,9 +405,6 @@ int __rxe_add_to_pool(struct rxe_pool *pool, struct rxe_pool_entry *elem)
 
 out_cnt:
 	atomic_dec(&pool->num_elem);
-	ib_device_put(&pool->rxe->ib_dev);
-out_put_pool:
-	rxe_pool_put(pool);
 	return -EINVAL;
 }
 
@@ -461,8 +425,6 @@ void rxe_elem_release(struct kref *kref)
 	}
 
 	atomic_dec(&pool->num_elem);
-	ib_device_put(&pool->rxe->ib_dev);
-	rxe_pool_put(pool);
 }
 
 void *rxe_pool_get_index(struct rxe_pool *pool, u32 index)
