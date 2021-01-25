@@ -11503,6 +11503,12 @@ static void bnxt_reset_all(struct bnxt *bp)
 	bp->fw_reset_timestamp = jiffies;
 }
 
+static bool bnxt_fw_reset_timeout(struct bnxt *bp)
+{
+	return time_after(jiffies, bp->fw_reset_timestamp +
+			  (bp->fw_reset_max_dsecs * HZ / 10));
+}
+
 static void bnxt_fw_reset_task(struct work_struct *work)
 {
 	struct bnxt *bp = container_of(work, struct bnxt, fw_reset_task.work);
@@ -11524,8 +11530,7 @@ static void bnxt_fw_reset_task(struct work_struct *work)
 				   bp->fw_reset_timestamp));
 			goto fw_reset_abort;
 		} else if (n > 0) {
-			if (time_after(jiffies, bp->fw_reset_timestamp +
-				       (bp->fw_reset_max_dsecs * HZ / 10))) {
+			if (bnxt_fw_reset_timeout(bp)) {
 				clear_bit(BNXT_STATE_IN_FW_RESET, &bp->state);
 				bp->fw_reset_state = 0;
 				netdev_err(bp->dev, "Firmware reset aborted, bnxt_get_registered_vfs() returns %d\n",
@@ -11554,8 +11559,7 @@ static void bnxt_fw_reset_task(struct work_struct *work)
 
 		val = bnxt_fw_health_readl(bp, BNXT_FW_HEALTH_REG);
 		if (!(val & BNXT_FW_STATUS_SHUTDOWN) &&
-		    !time_after(jiffies, bp->fw_reset_timestamp +
-		    (bp->fw_reset_max_dsecs * HZ / 10))) {
+		    !bnxt_fw_reset_timeout(bp)) {
 			bnxt_queue_fw_reset_work(bp, HZ / 5);
 			return;
 		}
@@ -11597,8 +11601,7 @@ static void bnxt_fw_reset_task(struct work_struct *work)
 		bp->hwrm_cmd_timeout = SHORT_HWRM_CMD_TIMEOUT;
 		rc = __bnxt_hwrm_ver_get(bp, true);
 		if (rc) {
-			if (time_after(jiffies, bp->fw_reset_timestamp +
-				       (bp->fw_reset_max_dsecs * HZ / 10))) {
+			if (bnxt_fw_reset_timeout(bp)) {
 				netdev_err(bp->dev, "Firmware reset aborted\n");
 				goto fw_reset_abort_status;
 			}
