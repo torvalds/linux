@@ -1308,6 +1308,9 @@ static int dwc3_core_init_mode(struct dwc3 *dwc)
 		}
 		ret = dwc3_drd_init(dwc);
 		if (ret) {
+			if (dwc->en_runtime)
+				dwc3_gadget_exit(dwc);
+
 			if (ret != -EPROBE_DEFER)
 				dev_err(dev, "failed to initialize dual-role\n");
 			return ret;
