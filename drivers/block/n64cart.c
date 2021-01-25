@@ -13,10 +13,6 @@
 #include <linux/module.h>
 #include <linux/platform_device.h>
 
-static unsigned int start, size;
-static u32 __iomem *reg_base;
-static struct device *dev;
-
 #define PI_DRAM_REG		0
 #define PI_CART_REG		1
 #define PI_READ_REG		2
@@ -30,6 +26,17 @@ static struct device *dev;
 #define CART_MAX		0x1FFFFFFF
 
 #define MIN_ALIGNMENT		8
+
+static u32 __iomem *reg_base;
+static struct device *dev;
+
+static unsigned int start;
+module_param(start, uint, 0);
+MODULE_PARM_DESC(start, "Start address of the cart block data");
+
+static unsigned int size;
+module_param(size, uint, 0);
+MODULE_PARM_DESC(size, "Size of the cart block data, in bytes");
 
 static void n64cart_write_reg(const u8 reg, const u32 value)
 {
@@ -176,12 +183,6 @@ static int __init n64cart_init(void)
 {
 	return platform_driver_probe(&n64cart_driver, n64cart_probe);
 }
-
-module_param(start, uint, 0);
-MODULE_PARM_DESC(start, "Start address of the cart block data");
-
-module_param(size, uint, 0);
-MODULE_PARM_DESC(size, "Size of the cart block data, in bytes");
 
 module_init(n64cart_init);
 
