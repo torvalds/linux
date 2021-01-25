@@ -9098,9 +9098,7 @@ F:	drivers/gpio/gpio-*cove.c
 INTEL PMIC MULTIFUNCTION DEVICE DRIVERS
 M:	Andy Shevchenko <andy@kernel.org>
 S:	Maintained
-F:	drivers/mfd/intel_msic.c
 F:	drivers/mfd/intel_soc_pmic*
-F:	include/linux/mfd/intel_msic.h
 F:	include/linux/mfd/intel_soc_pmic*
 
 INTEL PMT DRIVER

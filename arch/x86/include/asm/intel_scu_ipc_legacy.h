@@ -16,22 +16,10 @@
 
 /* Don't call these in new code - they will be removed eventually */
 
-/* Read single register */
-static inline int intel_scu_ipc_ioread8(u16 addr, u8 *data)
-{
-	return intel_scu_ipc_dev_ioread8(NULL, addr, data);
-}
-
 /* Read a vector */
 static inline int intel_scu_ipc_readv(u16 *addr, u8 *data, int len)
 {
 	return intel_scu_ipc_dev_readv(NULL, addr, data, len);
-}
-
-/* Write single register */
-static inline int intel_scu_ipc_iowrite8(u16 addr, u8 data)
-{
-	return intel_scu_ipc_dev_iowrite8(NULL, addr, data);
 }
 
 /* Write a vector */
