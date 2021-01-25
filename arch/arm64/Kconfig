@@ -1935,10 +1935,8 @@ config ASYMMETRIC_AARCH32
 	  CPU configurations. Once the AArch32 EL0 support is detected
 	  on a CPU, the feature is made available to user space to allow
 	  the execution of 32-bit (compat) applications by migrating
-	  them to the capable CPUs. You will not be able to offline all
-	  such CPUs to prevent any running 32-bit application from being
-	  killed. I.e: we guarantee there will always be at least one
-	  32-bit capable CPU online.
+	  them to the capable CPUs. Offlining such CPUs leads to 32-bit
+	  applications being killed.
 
 	  If unsure say N.
 

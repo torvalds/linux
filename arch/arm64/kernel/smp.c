@@ -98,54 +98,6 @@ static inline int op_cpu_kill(unsigned int cpu)
 }
 #endif
 
-#ifdef CONFIG_ASYMMETRIC_AARCH32
-static int last_aarch32_cpu = -1;
-static cpumask_t aarch32_online;
-
-static void asym_aarch32_online(void)
-{
-		/*
-		 * Since we onlined another cpu, restore the hotpluggability of
-		 * the last AAarch32 cpu if it was disabled.
-		 */
-		cpumask_and(&aarch32_online, &aarch32_el0_mask, cpu_online_mask);
-
-		if (last_aarch32_cpu >= 0 &&
-		    cpumask_weight(&aarch32_online) > 1) {
-
-			struct device *dev;
-
-			dev = get_cpu_device(last_aarch32_cpu);
-			dev->offline_disabled = 0;
-			last_aarch32_cpu = -1;
-		}
-}
-
-static void asym_aarch32_offline(void)
-{
-	/* Don't let the last AArch32-compatible CPU go down */
-	if (!cpumask_empty(&aarch32_el0_mask)) {
-
-		cpumask_and(&aarch32_online, &aarch32_el0_mask, cpu_online_mask);
-
-		/*
-		 * If we're left with only one AAarch32 cpu, prevent it from
-		 * being offlined.
-		 */
-		if (cpumask_weight(&aarch32_online) == 1) {
-			struct device *dev;
-
-			last_aarch32_cpu = cpumask_first(&aarch32_online);
-			dev = get_cpu_device(last_aarch32_cpu);
-			dev->offline_disabled = 1;
-		}
-	}
-}
-#else
-static void asym_aarch32_online(void) {}
-static void asym_aarch32_offline(void) {}
-#endif
-
 
 /*
  * Boot a secondary CPU, and assign it the specified idle task.
@@ -190,10 +142,8 @@ int __cpu_up(unsigned int cpu, struct task_struct *idle)
 	 */
 	wait_for_completion_timeout(&cpu_running,
 				    msecs_to_jiffies(5000));
-	if (cpu_online(cpu)) {
-		asym_aarch32_online();
+	if (cpu_online(cpu))
 		return 0;
-	}
 
 	pr_crit("CPU%u: failed to come online\n", cpu);
 	secondary_data.task = NULL;
@@ -370,8 +320,6 @@ int __cpu_disable(void)
 	 */
 	set_cpu_online(cpu, false);
 	ipi_teardown(cpu);
-
-	asym_aarch32_offline();
 
 	/*
 	 * OK - migrate IRQs away from this CPU
