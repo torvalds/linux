@@ -2023,17 +2023,22 @@ static void io_dismantle_req(struct io_kiocb *req)
 	io_req_clean_work(req);
 }
 
+static inline void io_put_task(struct task_struct *task, int nr)
+{
+	struct io_uring_task *tctx = task->io_uring;
+
+	percpu_counter_sub(&tctx->inflight, nr);
+	if (unlikely(atomic_read(&tctx->in_idle)))
+		wake_up(&tctx->wait);
+	put_task_struct_many(task, nr);
+}
+
 static void __io_free_req(struct io_kiocb *req)
 {
-	struct io_uring_task *tctx = req->task->io_uring;
 	struct io_ring_ctx *ctx = req->ctx;
 
 	io_dismantle_req(req);
-
-	percpu_counter_dec(&tctx->inflight);
-	if (atomic_read(&tctx->in_idle))
-		wake_up(&tctx->wait);
-	put_task_struct(req->task);
+	io_put_task(req->task, 1);
 
 	if (likely(!io_is_fallback_req(req)))
 		kmem_cache_free(req_cachep, req);
@@ -2287,12 +2292,7 @@ static void io_req_free_batch_finish(struct io_ring_ctx *ctx,
 	if (rb->to_free)
 		__io_req_free_batch_flush(ctx, rb);
 	if (rb->task) {
-		struct io_uring_task *tctx = rb->task->io_uring;
-
-		percpu_counter_sub(&tctx->inflight, rb->task_refs);
-		if (atomic_read(&tctx->in_idle))
-			wake_up(&tctx->wait);
-		put_task_struct_many(rb->task, rb->task_refs);
+		io_put_task(rb->task, rb->task_refs);
 		rb->task = NULL;
 	}
 }
@@ -2306,14 +2306,8 @@ static void io_req_free_batch(struct req_batch *rb, struct io_kiocb *req)
 	io_queue_next(req);
 
 	if (req->task != rb->task) {
-		if (rb->task) {
-			struct io_uring_task *tctx = rb->task->io_uring;
-
-			percpu_counter_sub(&tctx->inflight, rb->task_refs);
-			if (atomic_read(&tctx->in_idle))
-				wake_up(&tctx->wait);
-			put_task_struct_many(rb->task, rb->task_refs);
-		}
+		if (rb->task)
+			io_put_task(rb->task, rb->task_refs);
 		rb->task = req->task;
 		rb->task_refs = 0;
 	}
