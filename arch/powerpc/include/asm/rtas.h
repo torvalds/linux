@@ -369,7 +369,7 @@ void rtas_initialize(void);
 #else
 static inline int page_is_rtas_user_buf(unsigned long pfn) { return 0;}
 static inline void pSeries_coalesce_init(void) { }
-static inline void rtas_initialize(void) { };
+static inline void rtas_initialize(void) { }
 #endif
 
 extern int call_rtas(const char *, int, int, unsigned long *, ...);

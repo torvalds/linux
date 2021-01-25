@@ -35,7 +35,7 @@ extern void radix__flush_pwc_lpid(unsigned int lpid);
 extern void radix__flush_all_lpid(unsigned int lpid);
 extern void radix__flush_all_lpid_guest(unsigned int lpid);
 #else
-static inline void radix__tlbiel_all(unsigned int action) { WARN_ON(1); };
+static inline void radix__tlbiel_all(unsigned int action) { WARN_ON(1); }
 static inline void radix__flush_tlb_lpid_page(unsigned int lpid,
 					unsigned long addr,
 					unsigned long page_size)
