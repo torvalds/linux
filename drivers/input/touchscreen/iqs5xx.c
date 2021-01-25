@@ -336,11 +336,16 @@ static int iqs5xx_bl_open(struct i2c_client *client)
 	 */
 	for (i = 0; i < IQS5XX_BL_ATTEMPTS; i++) {
 		iqs5xx_reset(client);
+		usleep_range(350, 400);
 
 		for (j = 0; j < IQS5XX_NUM_RETRIES; j++) {
 			error = iqs5xx_bl_cmd(client, IQS5XX_BL_CMD_VER, 0);
-			if (!error || error == -EINVAL)
-				return error;
+			if (!error)
+				usleep_range(10000, 10100);
+			else if (error != -EINVAL)
+				continue;
+
+			return error;
 		}
 	}
 
