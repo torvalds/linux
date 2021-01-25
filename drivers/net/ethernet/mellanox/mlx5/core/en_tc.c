@@ -1279,11 +1279,11 @@ mlx5e_tc_add_fdb_flow(struct mlx5e_priv *priv,
 	struct net_device *out_dev, *encap_dev = NULL;
 	struct mlx5e_tc_flow_parse_attr *parse_attr;
 	struct mlx5_flow_attr *attr = flow->attr;
+	bool vf_tun = false, encap_valid = true;
 	struct mlx5_esw_flow_attr *esw_attr;
 	struct mlx5_fc *counter = NULL;
 	struct mlx5e_rep_priv *rpriv;
 	struct mlx5e_priv *out_priv;
-	bool encap_valid = true;
 	u32 max_prio, max_chain;
 	int err = 0;
 	int out_index;
@@ -1297,26 +1297,28 @@ mlx5e_tc_add_fdb_flow(struct mlx5e_priv *priv,
 	if (!mlx5e_is_ft_flow(flow) && attr->chain > max_chain) {
 		NL_SET_ERR_MSG_MOD(extack,
 				   "Requested chain is out of supported range");
-		return -EOPNOTSUPP;
+		err = -EOPNOTSUPP;
+		goto err_out;
 	}
 
 	max_prio = mlx5_chains_get_prio_range(esw_chains(esw));
 	if (attr->prio > max_prio) {
 		NL_SET_ERR_MSG_MOD(extack,
 				   "Requested priority is out of supported range");
-		return -EOPNOTSUPP;
+		err = -EOPNOTSUPP;
+		goto err_out;
 	}
 
 	if (flow_flag_test(flow, TUN_RX)) {
 		err = mlx5e_attach_decap_route(priv, flow);
 		if (err)
-			return err;
+			goto err_out;
 	}
 
 	if (flow_flag_test(flow, L3_TO_L2_DECAP)) {
 		err = mlx5e_attach_decap(priv, flow, extack);
 		if (err)
-			return err;
+			goto err_out;
 	}
 
 	parse_attr = attr->parse_attr;
@@ -1334,8 +1336,11 @@ mlx5e_tc_add_fdb_flow(struct mlx5e_priv *priv,
 		err = mlx5e_attach_encap(priv, flow, out_dev, out_index,
 					 extack, &encap_dev, &encap_valid);
 		if (err)
-			return err;
+			goto err_out;
 
+		if (esw_attr->dests[out_index].flags &
+		    MLX5_ESW_DEST_CHAIN_WITH_SRC_PORT_CHANGE)
+			vf_tun = true;
 		out_priv = netdev_priv(encap_dev);
 		rpriv = out_priv->ppriv;
 		esw_attr->dests[out_index].rep = rpriv->rep;
@@ -1344,19 +1349,27 @@ mlx5e_tc_add_fdb_flow(struct mlx5e_priv *priv,
 
 	err = mlx5_eswitch_add_vlan_action(esw, attr);
 	if (err)
-		return err;
+		goto err_out;
 
 	if (attr->action & MLX5_FLOW_CONTEXT_ACTION_MOD_HDR &&
 	    !(attr->ct_attr.ct_action & TCA_CT_ACT_CLEAR)) {
-		err = mlx5e_attach_mod_hdr(priv, flow, parse_attr);
-		if (err)
-			return err;
+		if (vf_tun) {
+			err = mlx5e_tc_add_flow_mod_hdr(priv, parse_attr, flow);
+			if (err)
+				goto err_out;
+		} else {
+			err = mlx5e_attach_mod_hdr(priv, flow, parse_attr);
+			if (err)
+				goto err_out;
+		}
 	}
 
 	if (attr->action & MLX5_FLOW_CONTEXT_ACTION_COUNT) {
 		counter = mlx5_fc_create(esw_attr->counter_dev, true);
-		if (IS_ERR(counter))
-			return PTR_ERR(counter);
+		if (IS_ERR(counter)) {
+			err = PTR_ERR(counter);
+			goto err_out;
+		}
 
 		attr->counter = counter;
 	}
@@ -1370,12 +1383,17 @@ mlx5e_tc_add_fdb_flow(struct mlx5e_priv *priv,
 	else
 		flow->rule[0] = mlx5e_tc_offload_fdb_rules(esw, flow, &parse_attr->spec, attr);
 
-	if (IS_ERR(flow->rule[0]))
-		return PTR_ERR(flow->rule[0]);
-	else
-		flow_flag_set(flow, OFFLOADED);
+	if (IS_ERR(flow->rule[0])) {
+		err = PTR_ERR(flow->rule[0]);
+		goto err_out;
+	}
+	flow_flag_set(flow, OFFLOADED);
 
 	return 0;
+
+err_out:
+	flow_flag_set(flow, FAILED);
+	return err;
 }
 
 static bool mlx5_flow_has_geneve_opt(struct mlx5e_tc_flow *flow)
@@ -1397,6 +1415,7 @@ static void mlx5e_tc_del_fdb_flow(struct mlx5e_priv *priv,
 	struct mlx5_eswitch *esw = priv->mdev->priv.eswitch;
 	struct mlx5_flow_attr *attr = flow->attr;
 	struct mlx5_esw_flow_attr *esw_attr;
+	bool vf_tun = false;
 	int out_index;
 
 	esw_attr = attr->esw_attr;
@@ -1421,20 +1440,26 @@ static void mlx5e_tc_del_fdb_flow(struct mlx5e_priv *priv,
 		mlx5e_detach_decap_route(priv, flow);
 
 	for (out_index = 0; out_index < MLX5_MAX_FLOW_FWD_VPORTS; out_index++) {
+		if (esw_attr->dests[out_index].flags &
+		    MLX5_ESW_DEST_CHAIN_WITH_SRC_PORT_CHANGE)
+			vf_tun = true;
 		if (esw_attr->dests[out_index].flags & MLX5_ESW_DEST_ENCAP) {
 			mlx5e_detach_encap(priv, flow, out_index);
 			kfree(attr->parse_attr->tun_info[out_index]);
 		}
 	}
-	kvfree(attr->parse_attr);
-	kvfree(attr->esw_attr->rx_tun_attr);
 
 	mlx5_tc_ct_match_del(get_ct_priv(priv), &flow->attr->ct_attr);
 
 	if (attr->action & MLX5_FLOW_CONTEXT_ACTION_MOD_HDR) {
 		dealloc_mod_hdr_actions(&attr->parse_attr->mod_hdr_acts);
-		mlx5e_detach_mod_hdr(priv, flow);
+		if (vf_tun && attr->modify_hdr)
+			mlx5_modify_header_dealloc(priv->mdev, attr->modify_hdr);
+		else
+			mlx5e_detach_mod_hdr(priv, flow);
 	}
+	kvfree(attr->parse_attr);
+	kvfree(attr->esw_attr->rx_tun_attr);
 
 	if (attr->action & MLX5_FLOW_CONTEXT_ACTION_COUNT)
 		mlx5_fc_destroy(esw_attr->counter_dev, attr->counter);
@@ -4044,7 +4069,6 @@ __mlx5e_add_fdb_flow(struct mlx5e_priv *priv,
 	return flow;
 
 err_free:
-	dealloc_mod_hdr_actions(&parse_attr->mod_hdr_acts);
 	mlx5e_flow_put(priv, flow);
 out:
 	return ERR_PTR(err);
@@ -4189,6 +4213,7 @@ mlx5e_add_nic_flow(struct mlx5e_priv *priv,
 	return 0;
 
 err_free:
+	flow_flag_set(flow, FAILED);
 	dealloc_mod_hdr_actions(&parse_attr->mod_hdr_acts);
 	mlx5e_flow_put(priv, flow);
 out:
@@ -4724,8 +4749,14 @@ int mlx5e_tc_esw_init(struct rhashtable *tc_ht)
 
 	lockdep_set_class(&tc_ht->mutex, &tc_ht_lock_key);
 
+	uplink_priv->encap = mlx5e_tc_tun_init(priv);
+	if (IS_ERR(uplink_priv->encap))
+		goto err_register_fib_notifier;
+
 	return err;
 
+err_register_fib_notifier:
+	rhashtable_destroy(tc_ht);
 err_ht_init:
 	mapping_destroy(uplink_priv->tunnel_enc_opts_mapping);
 err_enc_opts_mapping:
@@ -4742,9 +4773,10 @@ void mlx5e_tc_esw_cleanup(struct rhashtable *tc_ht)
 {
 	struct mlx5_rep_uplink_priv *uplink_priv;
 
-	rhashtable_free_and_destroy(tc_ht, _mlx5e_tc_del_flow, NULL);
-
 	uplink_priv = container_of(tc_ht, struct mlx5_rep_uplink_priv, tc_ht);
+
+	rhashtable_free_and_destroy(tc_ht, _mlx5e_tc_del_flow, NULL);
+	mlx5e_tc_tun_cleanup(uplink_priv->encap);
 
 	mapping_destroy(uplink_priv->tunnel_enc_opts_mapping);
 	mapping_destroy(uplink_priv->tunnel_mapping);

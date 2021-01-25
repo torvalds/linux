@@ -59,6 +59,8 @@ struct mlx5e_neigh_update_table {
 
 struct mlx5_tc_ct_priv;
 struct mlx5e_rep_bond;
+struct mlx5e_tc_tun_encap;
+
 struct mlx5_rep_uplink_priv {
 	/* Filters DB - instantiated by the uplink representor and shared by
 	 * the uplink's VFs
@@ -90,6 +92,9 @@ struct mlx5_rep_uplink_priv {
 
 	/* support eswitch vports bonding */
 	struct mlx5e_rep_bond *bond;
+
+	/* tc tunneling encapsulation private data */
+	struct mlx5e_tc_tun_encap *encap;
 };
 
 struct mlx5e_rep_priv {
@@ -153,6 +158,7 @@ enum {
 	/* set when the encap entry is successfully offloaded into HW */
 	MLX5_ENCAP_ENTRY_VALID     = BIT(0),
 	MLX5_REFORMAT_DECAP        = BIT(1),
+	MLX5_ENCAP_ENTRY_NO_ROUTE  = BIT(2),
 };
 
 struct mlx5e_decap_key {

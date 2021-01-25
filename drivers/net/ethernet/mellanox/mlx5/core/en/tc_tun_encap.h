@@ -32,4 +32,7 @@ struct ip_tunnel_info *mlx5e_dup_tun_info(const struct ip_tunnel_info *tun_info)
 int mlx5e_tc_set_attr_rx_tun(struct mlx5e_tc_flow *flow,
 			     struct mlx5_flow_spec *spec);
 
+struct mlx5e_tc_tun_encap *mlx5e_tc_tun_init(struct mlx5e_priv *priv);
+void mlx5e_tc_tun_cleanup(struct mlx5e_tc_tun_encap *encap);
+
 #endif /* __MLX5_EN_TC_TUN_ENCAP_H__ */
