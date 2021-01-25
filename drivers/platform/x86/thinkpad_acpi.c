@@ -10047,6 +10047,13 @@ static int get_keyboard_lang(int *output)
 	if (!acpi_evalf(gskl_handle, &kbd_lang, NULL, "dd", 0x02000000))
 		return -EIO;
 
+	/*
+	 * METHOD_ERR gets returned on devices where there are no special (e.g. '=',
+	 * '(' and ')') keys which use layout dependent key-press emulation.
+	 */
+	if (kbd_lang & METHOD_ERR)
+		return -ENODEV;
+
 	*output = kbd_lang;
 
 	return 0;
