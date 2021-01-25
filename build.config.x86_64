@@ -7,6 +7,7 @@ LINUX_GCC_CROSS_COMPILE_PREBUILTS_BIN=prebuilts/gas/linux-x86
 MAKE_GOALS="
 bzImage
 modules
+prepare-objtool
 "
 
 FILES="
