@@ -300,10 +300,11 @@ static void __trace_mmiotrace_rw(struct trace_array *tr,
 	struct trace_buffer *buffer = tr->array_buffer.buffer;
 	struct ring_buffer_event *event;
 	struct trace_mmiotrace_rw *entry;
-	int pc = preempt_count();
+	unsigned int trace_ctx;
 
+	trace_ctx = tracing_gen_ctx_flags(0);
 	event = trace_buffer_lock_reserve(buffer, TRACE_MMIO_RW,
-					  sizeof(*entry), 0, pc);
+					  sizeof(*entry), trace_ctx);
 	if (!event) {
 		atomic_inc(&dropped_count);
 		return;
@@ -312,7 +313,7 @@ static void __trace_mmiotrace_rw(struct trace_array *tr,
 	entry->rw			= *rw;
 
 	if (!call_filter_check_discard(call, entry, buffer, event))
-		trace_buffer_unlock_commit(tr, buffer, event, 0, pc);
+		trace_buffer_unlock_commit(tr, buffer, event, trace_ctx);
 }
 
 void mmio_trace_rw(struct mmiotrace_rw *rw)
@@ -330,10 +331,11 @@ static void __trace_mmiotrace_map(struct trace_array *tr,
 	struct trace_buffer *buffer = tr->array_buffer.buffer;
 	struct ring_buffer_event *event;
 	struct trace_mmiotrace_map *entry;
-	int pc = preempt_count();
+	unsigned int trace_ctx;
 
+	trace_ctx = tracing_gen_ctx_flags(0);
 	event = trace_buffer_lock_reserve(buffer, TRACE_MMIO_MAP,
-					  sizeof(*entry), 0, pc);
+					  sizeof(*entry), trace_ctx);
 	if (!event) {
 		atomic_inc(&dropped_count);
 		return;
@@ -342,7 +344,7 @@ static void __trace_mmiotrace_map(struct trace_array *tr,
 	entry->map			= *map;
 
 	if (!call_filter_check_discard(call, entry, buffer, event))
-		trace_buffer_unlock_commit(tr, buffer, event, 0, pc);
+		trace_buffer_unlock_commit(tr, buffer, event, trace_ctx);
 }
 
 void mmio_trace_mapping(struct mmiotrace_map *map)

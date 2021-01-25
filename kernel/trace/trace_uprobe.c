@@ -961,7 +961,7 @@ static void __uprobe_trace_func(struct trace_uprobe *tu,
 	esize = SIZEOF_TRACE_ENTRY(is_ret_probe(tu));
 	size = esize + tu->tp.size + dsize;
 	event = trace_event_buffer_lock_reserve(&buffer, trace_file,
-						call->event.type, size, 0, 0);
+						call->event.type, size, 0);
 	if (!event)
 		return;
 
@@ -977,7 +977,7 @@ static void __uprobe_trace_func(struct trace_uprobe *tu,
 
 	memcpy(data, ucb->buf, tu->tp.size + dsize);
 
-	event_trigger_unlock_commit(trace_file, buffer, event, entry, 0, 0);
+	event_trigger_unlock_commit(trace_file, buffer, event, entry, 0);
 }
 
 /* uprobe handler */
