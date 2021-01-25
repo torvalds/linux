@@ -887,7 +887,7 @@ static int bch2_invalidate_one_bucket2(struct btree_trans *trans,
 	g = bucket(ca, b);
 	m = READ_ONCE(g->mark);
 
-	BUG_ON(m.data_type || m.dirty_sectors);
+	BUG_ON(m.dirty_sectors);
 
 	bch2_mark_alloc_bucket(c, ca, b, true, gc_pos_alloc(c, NULL), 0);
 
@@ -903,6 +903,7 @@ static int bch2_invalidate_one_bucket2(struct btree_trans *trans,
 	 */
 	if (!m.cached_sectors &&
 	    !bucket_needs_journal_commit(m, c->journal.last_seq_ondisk)) {
+		BUG_ON(m.data_type);
 		bucket_cmpxchg(g, m, m.gen++);
 		percpu_up_read(&c->mark_lock);
 		goto out;
