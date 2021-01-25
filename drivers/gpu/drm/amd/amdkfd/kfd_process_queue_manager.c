@@ -42,6 +42,20 @@ static inline struct process_queue_node *get_queue_by_qid(
 	return NULL;
 }
 
+static int assign_queue_slot_by_qid(struct process_queue_manager *pqm,
+				    unsigned int qid)
+{
+	if (qid >= KFD_MAX_NUM_OF_QUEUES_PER_PROCESS)
+		return -EINVAL;
+
+	if (__test_and_set_bit(qid, pqm->queue_slot_bitmap)) {
+		pr_err("Cannot create new queue because requested qid(%u) is in use\n", qid);
+		return -ENOSPC;
+	}
+
+	return 0;
+}
+
 static int find_available_queue_slot(struct process_queue_manager *pqm,
 					unsigned int *qid)
 {
@@ -193,6 +207,7 @@ int pqm_create_queue(struct process_queue_manager *pqm,
 			    struct file *f,
 			    struct queue_properties *properties,
 			    unsigned int *qid,
+			    const struct kfd_criu_queue_priv_data *q_data,
 			    uint32_t *p_doorbell_offset_in_process)
 {
 	int retval;
@@ -224,7 +239,12 @@ int pqm_create_queue(struct process_queue_manager *pqm,
 	if (pdd->qpd.queue_count >= max_queues)
 		return -ENOSPC;
 
-	retval = find_available_queue_slot(pqm, qid);
+	if (q_data) {
+		retval = assign_queue_slot_by_qid(pqm, q_data->q_id);
+		*qid = q_data->q_id;
+	} else
+		retval = find_available_queue_slot(pqm, qid);
+
 	if (retval != 0)
 		return retval;
 
@@ -527,7 +547,7 @@ int kfd_process_get_queue_info(struct kfd_process *p,
 	return 0;
 }
 
-static void criu_dump_queue(struct kfd_process_device *pdd,
+static void criu_checkpoint_queue(struct kfd_process_device *pdd,
 			   struct queue *q,
 			   struct kfd_criu_queue_priv_data *q_data)
 {
@@ -559,7 +579,7 @@ static void criu_dump_queue(struct kfd_process_device *pdd,
 	pr_debug("Dumping Queue: gpu_id:%x queue_id:%u\n", q_data->gpu_id, q_data->q_id);
 }
 
-static int criu_dump_queues_device(struct kfd_process_device *pdd,
+static int criu_checkpoint_queues_device(struct kfd_process_device *pdd,
 				   uint8_t __user *user_priv,
 				   unsigned int *q_index,
 				   uint64_t *queues_priv_data_offset)
@@ -582,7 +602,8 @@ static int criu_dump_queues_device(struct kfd_process_device *pdd,
 			break;
 		}
 
-		criu_dump_queue(pdd, q, q_data);
+		criu_checkpoint_queue(pdd, q, q_data);
+		q_data->object_type = KFD_CRIU_OBJECT_TYPE_QUEUE;
 
 		ret = copy_to_user(user_priv + *queues_priv_data_offset, q_data, sizeof(*q_data));
 		if (ret) {
@@ -608,10 +629,12 @@ int kfd_criu_checkpoint_queues(struct kfd_process *p,
 		struct kfd_process_device *pdd = p->pdds[pdd_index];
 
 		/*
-		 * criu_dump_queues_device will copy data to user and update q_index and
+		 * criu_checkpoint_queues_device will copy data to user and update q_index and
 		 * queues_priv_data_offset
 		 */
-		ret = criu_dump_queues_device(pdd, user_priv_data, &q_index, priv_data_offset);
+		ret = criu_checkpoint_queues_device(pdd, user_priv_data, &q_index,
+					      priv_data_offset);
+
 		if (ret)
 			break;
 	}
@@ -688,7 +711,7 @@ int kfd_criu_restore_queue(struct kfd_process *p,
 
 	print_queue_properties(&qp);
 
-	ret = pqm_create_queue(&p->pqm, pdd->dev, NULL, &qp, &queue_id, NULL);
+	ret = pqm_create_queue(&p->pqm, pdd->dev, NULL, &qp, &queue_id, q_data, NULL);
 	if (ret) {
 		pr_err("Failed to create new queue err:%d\n", ret);
 		ret = -EINVAL;
