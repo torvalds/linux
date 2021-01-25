@@ -642,14 +642,6 @@ int mlx5e_tc_tun_parse(struct net_device *filter_dev,
 		}
 	}
 
-	/* Enforce DMAC when offloading incoming tunneled flows.
-	 * Flow counters require a match on the DMAC.
-	 */
-	MLX5_SET_TO_ONES(fte_match_set_lyr_2_4, headers_c, dmac_47_16);
-	MLX5_SET_TO_ONES(fte_match_set_lyr_2_4, headers_c, dmac_15_0);
-	ether_addr_copy(MLX5_ADDR_OF(fte_match_set_lyr_2_4, headers_v,
-				     dmac_47_16), priv->netdev->dev_addr);
-
 	/* let software handle IP fragments */
 	MLX5_SET(fte_match_set_lyr_2_4, headers_c, frag, 1);
 	MLX5_SET(fte_match_set_lyr_2_4, headers_v, frag, 0);
