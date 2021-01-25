@@ -5932,12 +5932,6 @@
 			default x2apic cluster mode on platforms
 			supporting x2apic.
 
-	x86_intel_mid_timer= [X86-32,APBT]
-			Choose timer option for x86 Intel MID platform.
-			Two valid options are apbt timer only and lapic timer
-			plus one apbt timer for broadcast timer.
-			x86_intel_mid_timer=apbt_only | lapic_and_apbt
-
 	xen_512gb_limit		[KNL,X86-64,XEN]
 			Restricts the kernel running paravirtualized under Xen
 			to use only up to 512 GB of RAM. The reason to do so is

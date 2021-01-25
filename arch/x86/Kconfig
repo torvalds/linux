@@ -892,18 +892,6 @@ config HPET_EMULATE_RTC
 	def_bool y
 	depends on HPET_TIMER && (RTC=y || RTC=m || RTC_DRV_CMOS=m || RTC_DRV_CMOS=y)
 
-config APB_TIMER
-	def_bool y if X86_INTEL_MID
-	prompt "Intel MID APB Timer Support" if X86_INTEL_MID
-	select DW_APB_TIMER
-	depends on X86_INTEL_MID && SFI
-	help
-	 APB timer is the replacement for 8254, HPET on X86 MID platforms.
-	 The APBT provides a stable time base on SMP
-	 systems, unlike the TSC, but it is more expensive to access,
-	 as it is off-chip. APB timers are always running regardless of CPU
-	 C states, they are used as per CPU clockevent device when possible.
-
 # Mark as expert because too many people got it wrong.
 # The code disables itself when not needed.
 config DMI

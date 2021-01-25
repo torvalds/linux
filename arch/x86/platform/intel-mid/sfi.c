@@ -34,7 +34,6 @@
 #include <asm/io.h>
 #include <asm/i8259.h>
 #include <asm/intel_scu_ipc.h>
-#include <asm/apb_timer.h>
 #include <asm/reboot.h>
 
 #define	SFI_SIG_OEM0	"OEM0"
@@ -46,14 +45,11 @@ static struct platform_device *ipc_devs[MAX_IPCDEVS];
 static struct spi_board_info *spi_devs[MAX_SCU_SPI];
 static struct i2c_board_info *i2c_devs[MAX_SCU_I2C];
 static struct sfi_gpio_table_entry *gpio_table;
-static struct sfi_timer_table_entry sfi_mtimer_array[SFI_MTMR_MAX_NUM];
 static int ipc_next_dev;
 static int spi_next_dev;
 static int i2c_next_dev;
 static int i2c_bus[MAX_SCU_I2C];
 static int gpio_num_entry;
-static u32 sfi_mtimer_usage[SFI_MTMR_MAX_NUM];
-int sfi_mtimer_num;
 
 struct blocking_notifier_head intel_scu_notifier =
 			BLOCKING_NOTIFIER_INIT(intel_scu_notifier);
@@ -61,77 +57,6 @@ EXPORT_SYMBOL_GPL(intel_scu_notifier);
 
 #define intel_mid_sfi_get_pdata(dev, priv)	\
 	((dev)->get_platform_data ? (dev)->get_platform_data(priv) : NULL)
-
-/* parse all the mtimer info to a static mtimer array */
-int __init sfi_parse_mtmr(struct sfi_table_header *table)
-{
-	struct sfi_table_simple *sb;
-	struct sfi_timer_table_entry *pentry;
-	struct mpc_intsrc mp_irq;
-	int totallen;
-
-	sb = (struct sfi_table_simple *)table;
-	if (!sfi_mtimer_num) {
-		sfi_mtimer_num = SFI_GET_NUM_ENTRIES(sb,
-					struct sfi_timer_table_entry);
-		pentry = (struct sfi_timer_table_entry *) sb->pentry;
-		totallen = sfi_mtimer_num * sizeof(*pentry);
-		memcpy(sfi_mtimer_array, pentry, totallen);
-	}
-
-	pr_debug("SFI MTIMER info (num = %d):\n", sfi_mtimer_num);
-	pentry = sfi_mtimer_array;
-	for (totallen = 0; totallen < sfi_mtimer_num; totallen++, pentry++) {
-		pr_debug("timer[%d]: paddr = 0x%08x, freq = %dHz, irq = %d\n",
-			totallen, (u32)pentry->phys_addr,
-			pentry->freq_hz, pentry->irq);
-		mp_irq.type = MP_INTSRC;
-		mp_irq.irqtype = mp_INT;
-		mp_irq.irqflag = MP_IRQTRIG_EDGE | MP_IRQPOL_ACTIVE_HIGH;
-		mp_irq.srcbus = MP_BUS_ISA;
-		mp_irq.srcbusirq = pentry->irq;	/* IRQ */
-		mp_irq.dstapic = MP_APIC_ALL;
-		mp_irq.dstirq = pentry->irq;
-		mp_save_irq(&mp_irq);
-		mp_map_gsi_to_irq(pentry->irq, IOAPIC_MAP_ALLOC, NULL);
-	}
-
-	return 0;
-}
-
-struct sfi_timer_table_entry *sfi_get_mtmr(int hint)
-{
-	int i;
-	if (hint < sfi_mtimer_num) {
-		if (!sfi_mtimer_usage[hint]) {
-			pr_debug("hint taken for timer %d irq %d\n",
-				hint, sfi_mtimer_array[hint].irq);
-			sfi_mtimer_usage[hint] = 1;
-			return &sfi_mtimer_array[hint];
-		}
-	}
-	/* take the first timer available */
-	for (i = 0; i < sfi_mtimer_num;) {
-		if (!sfi_mtimer_usage[i]) {
-			sfi_mtimer_usage[i] = 1;
-			return &sfi_mtimer_array[i];
-		}
-		i++;
-	}
-	return NULL;
-}
-
-void sfi_free_mtmr(struct sfi_timer_table_entry *mtmr)
-{
-	int i;
-	for (i = 0; i < sfi_mtimer_num;) {
-		if (mtmr->irq == sfi_mtimer_array[i].irq) {
-			sfi_mtimer_usage[i] = 0;
-			return;
-		}
-		i++;
-	}
-}
 
 /*
  * Parsing GPIO table first, since the DEVS table will need this table

@@ -23,7 +23,6 @@ extern void intel_mid_pwr_power_off(void);
 extern int intel_mid_pwr_get_lss_id(struct pci_dev *pdev);
 
 extern int get_gpio_by_name(const char *name);
-extern int __init sfi_parse_mtmr(struct sfi_table_header *table);
 
 /*
  * Here defines the array of devices platform data that IAFW would export
@@ -91,14 +90,6 @@ static inline void intel_scu_devices_destroy(void) { }
 
 #endif /* !CONFIG_X86_INTEL_MID */
 
-enum intel_mid_timer_options {
-	INTEL_MID_TIMER_DEFAULT,
-	INTEL_MID_TIMER_APBT_ONLY,
-	INTEL_MID_TIMER_LAPIC_APBT,
-};
-
-extern enum intel_mid_timer_options intel_mid_timer_options;
-
 /* Bus Select SoC Fuse value */
 #define BSEL_SOC_FUSE_MASK		0x7
 /* FSB 133MHz */
@@ -107,8 +98,6 @@ extern enum intel_mid_timer_options intel_mid_timer_options;
 #define BSEL_SOC_FUSE_101		0x5
 /* FSB 83MHz */
 #define BSEL_SOC_FUSE_111		0x7
-
-#define SFI_MTMR_MAX_NUM		8
 
 /* The offset for the mapping of global gpio pin to irq */
 #define INTEL_MID_IRQ_OFFSET		0x100
