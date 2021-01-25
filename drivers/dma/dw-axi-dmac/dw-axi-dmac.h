@@ -88,6 +88,7 @@ struct __packed axi_dma_lli {
 struct axi_dma_hw_desc {
 	struct axi_dma_lli	*lli;
 	dma_addr_t		llp;
+	u32			len;
 };
 
 struct axi_dma_desc {
@@ -96,6 +97,7 @@ struct axi_dma_desc {
 	struct virt_dma_desc		vd;
 	struct axi_dma_chan		*chan;
 	u32				completed_blocks;
+	u32				length;
 };
 
 static inline struct device *dchan2dev(struct dma_chan *dchan)
