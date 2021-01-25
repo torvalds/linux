@@ -9768,6 +9768,25 @@ static void bnxt_preset_reg_win(struct bnxt *bp)
 
 static int bnxt_init_dflt_ring_mode(struct bnxt *bp);
 
+static int bnxt_reinit_after_abort(struct bnxt *bp)
+{
+	int rc;
+
+	if (test_bit(BNXT_STATE_IN_FW_RESET, &bp->state))
+		return -EBUSY;
+
+	rc = bnxt_fw_init_one(bp);
+	if (!rc) {
+		bnxt_clear_int_mode(bp);
+		rc = bnxt_init_int_mode(bp);
+		if (!rc) {
+			clear_bit(BNXT_STATE_ABORT_ERR, &bp->state);
+			set_bit(BNXT_STATE_FW_RESET_DET, &bp->state);
+		}
+	}
+	return rc;
+}
+
 static int __bnxt_open_nic(struct bnxt *bp, bool irq_re_init, bool link_re_init)
 {
 	int rc = 0;
@@ -9926,8 +9945,14 @@ static int bnxt_open(struct net_device *dev)
 	int rc;
 
 	if (test_bit(BNXT_STATE_ABORT_ERR, &bp->state)) {
-		netdev_err(bp->dev, "A previous firmware reset did not complete, aborting\n");
-		return -ENODEV;
+		rc = bnxt_reinit_after_abort(bp);
+		if (rc) {
+			if (rc == -EBUSY)
+				netdev_err(bp->dev, "A previous firmware reset has not completed, aborting\n");
+			else
+				netdev_err(bp->dev, "Failed to reinitialize after aborted firmware reset\n");
+			return -ENODEV;
+		}
 	}
 
 	rc = bnxt_hwrm_if_change(bp, true);
