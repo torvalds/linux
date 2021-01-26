@@ -467,7 +467,7 @@ void *hfi1_netdev_get_data(struct hfi1_devdata *dd, int id)
  * hfi1_netdev_get_first_dat - Gets first entry with greater or equal id.
  *
  * @dd: hfi1 dev data
- * @id: requested integer id up to INT_MAX
+ * @start_id: requested integer id up to INT_MAX
  */
 void *hfi1_netdev_get_first_data(struct hfi1_devdata *dd, int *start_id)
 {
