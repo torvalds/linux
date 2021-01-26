@@ -360,6 +360,11 @@ static int mlx5e_handle_action_trap(struct mlx5e_priv *priv, int trap_id)
 		if (err)
 			goto err_out;
 		break;
+	case DEVLINK_TRAP_GENERIC_ID_DMAC_FILTER:
+		err = mlx5e_add_mac_trap(priv, trap_id, mlx5e_trap_get_tirn(priv->en_trap));
+		if (err)
+			goto err_out;
+		break;
 	default:
 		netdev_warn(priv->netdev, "%s: Unknown trap id %d\n", __func__, trap_id);
 		err = -EINVAL;
@@ -378,6 +383,9 @@ static int mlx5e_handle_action_drop(struct mlx5e_priv *priv, int trap_id)
 	switch (trap_id) {
 	case DEVLINK_TRAP_GENERIC_ID_INGRESS_VLAN_FILTER:
 		mlx5e_remove_vlan_trap(priv);
+		break;
+	case DEVLINK_TRAP_GENERIC_ID_DMAC_FILTER:
+		mlx5e_remove_mac_trap(priv);
 		break;
 	default:
 		netdev_warn(priv->netdev, "%s: Unknown trap id %d\n", __func__, trap_id);
