@@ -1376,9 +1376,8 @@ static const hfi1_make_rc_ack hfi1_make_rc_ack_tbl[2] = {
 	[HFI1_PKT_TYPE_16B] = &hfi1_make_rc_ack_16B
 };
 
-/**
+/*
  * hfi1_send_rc_ack - Construct an ACK packet and send it
- * @qp: a pointer to the QP
  *
  * This is called from hfi1_rc_rcv() and handle_receive_interrupt().
  * Note that RDMA reads and atomics are handled in the
