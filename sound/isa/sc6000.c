@@ -672,7 +672,7 @@ err_exit:
 	return err;
 }
 
-static int snd_sc6000_remove(struct device *devptr, unsigned int dev)
+static void snd_sc6000_remove(struct device *devptr, unsigned int dev)
 {
 	struct snd_card *card = dev_get_drvdata(devptr);
 	char __iomem **vport = card->private_data;
@@ -684,7 +684,6 @@ static int snd_sc6000_remove(struct device *devptr, unsigned int dev)
 	release_region(mss_port[dev], 4);
 
 	snd_card_free(card);
-	return 0;
 }
 
 static struct isa_driver snd_sc6000_driver = {

@@ -339,12 +339,11 @@ err_free:
 	return err;
 }
 
-static int snd_jazz16_remove(struct device *devptr, unsigned int dev)
+static void snd_jazz16_remove(struct device *devptr, unsigned int dev)
 {
 	struct snd_card *card = dev_get_drvdata(devptr);
 
 	snd_card_free(card);
-	return 0;
 }
 
 #ifdef CONFIG_PM

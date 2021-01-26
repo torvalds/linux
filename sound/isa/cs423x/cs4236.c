@@ -487,11 +487,10 @@ static int snd_cs423x_isa_probe(struct device *pdev,
 	return 0;
 }
 
-static int snd_cs423x_isa_remove(struct device *pdev,
+static void snd_cs423x_isa_remove(struct device *pdev,
 				 unsigned int dev)
 {
 	snd_card_free(dev_get_drvdata(pdev));
-	return 0;
 }
 
 #ifdef CONFIG_PM
