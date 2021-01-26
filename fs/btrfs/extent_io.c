@@ -5064,6 +5064,13 @@ struct extent_buffer *btrfs_clone_extent_buffer(const struct extent_buffer *src)
 	if (new == NULL)
 		return NULL;
 
+	/*
+	 * Set UNMAPPED before calling btrfs_release_extent_buffer(), as
+	 * btrfs_release_extent_buffer() have different behavior for
+	 * UNMAPPED subpage extent buffer.
+	 */
+	set_bit(EXTENT_BUFFER_UNMAPPED, &new->bflags);
+
 	for (i = 0; i < num_pages; i++) {
 		p = alloc_page(GFP_NOFS);
 		if (!p) {
@@ -5076,9 +5083,7 @@ struct extent_buffer *btrfs_clone_extent_buffer(const struct extent_buffer *src)
 		new->pages[i] = p;
 		copy_page(page_address(p), page_address(src->pages[i]));
 	}
-
 	set_bit(EXTENT_BUFFER_UPTODATE, &new->bflags);
-	set_bit(EXTENT_BUFFER_UNMAPPED, &new->bflags);
 
 	return new;
 }
