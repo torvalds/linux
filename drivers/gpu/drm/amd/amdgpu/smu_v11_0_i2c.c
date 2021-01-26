@@ -41,9 +41,7 @@
 #define I2C_SW_TIMEOUT        8
 #define I2C_ABORT             0x10
 
-/* I2C transaction flags */
-#define I2C_NO_STOP	1
-#define I2C_RESTART	2
+#define I2C_X_RESTART         BIT(31)
 
 #define to_amdgpu_device(x) (container_of(x, struct amdgpu_device, pm.smu_i2c))
 
@@ -205,9 +203,6 @@ static uint32_t smu_v11_0_i2c_poll_rx_status(struct i2c_adapter *control)
 	return ret;
 }
 
-
-
-
 /**
  * smu_v11_0_i2c_transmit - Send a block of data over the I2C bus to a slave device.
  *
@@ -252,21 +247,22 @@ static uint32_t smu_v11_0_i2c_transmit(struct i2c_adapter *control,
 		reg = RREG32_SOC15(SMUIO, 0, mmCKSVII2C_IC_STATUS);
 		if (REG_GET_FIELD(reg, CKSVII2C_IC_STATUS, TFNF)) {
 			do {
-				reg = 0;
-				/*
-				 * Prepare transaction, no need to set RESTART. I2C engine will send
-				 * START as soon as it sees data in TXFIFO
-				 */
-				if (bytes_sent == 0)
-					reg = REG_SET_FIELD(reg, CKSVII2C_IC_DATA_CMD, RESTART,
-							    (i2c_flag & I2C_RESTART) ? 1 : 0);
 				reg = REG_SET_FIELD(reg, CKSVII2C_IC_DATA_CMD, DAT, data[bytes_sent]);
 
-				/* determine if we need to send STOP bit or not */
-				if (numbytes == 1)
-					/* Final transaction, so send stop unless I2C_NO_STOP */
-					reg = REG_SET_FIELD(reg, CKSVII2C_IC_DATA_CMD, STOP,
-							    (i2c_flag & I2C_NO_STOP) ? 0 : 1);
+				/* Final message, final byte, must
+				 * generate a STOP, to release the
+				 * bus, i.e. don't hold SCL low.
+				 */
+				if (numbytes == 1 && i2c_flag & I2C_M_STOP)
+					reg = REG_SET_FIELD(reg,
+							    CKSVII2C_IC_DATA_CMD,
+							    STOP, 1);
+
+				if (bytes_sent == 0 && i2c_flag & I2C_X_RESTART)
+					reg = REG_SET_FIELD(reg,
+							    CKSVII2C_IC_DATA_CMD,
+							    RESTART, 1);
+
 				/* Write */
 				reg = REG_SET_FIELD(reg, CKSVII2C_IC_DATA_CMD, CMD, 0);
 				WREG32_SOC15(SMUIO, 0, mmCKSVII2C_IC_DATA_CMD, reg);
@@ -341,23 +337,21 @@ static uint32_t smu_v11_0_i2c_receive(struct i2c_adapter *control,
 
 		smu_v11_0_i2c_clear_status(control);
 
-
 		/* Prepare transaction */
-
-		/* Each time we disable I2C, so this is not a restart */
-		if (bytes_received == 0)
-			reg = REG_SET_FIELD(reg, CKSVII2C_IC_DATA_CMD, RESTART,
-					    (i2c_flag & I2C_RESTART) ? 1 : 0);
-
 		reg = REG_SET_FIELD(reg, CKSVII2C_IC_DATA_CMD, DAT, 0);
 		/* Read */
 		reg = REG_SET_FIELD(reg, CKSVII2C_IC_DATA_CMD, CMD, 1);
 
-		/* Transmitting last byte */
-		if (numbytes == 1)
-			/* Final transaction, so send stop if requested */
-			reg = REG_SET_FIELD(reg, CKSVII2C_IC_DATA_CMD, STOP,
-					    (i2c_flag & I2C_NO_STOP) ? 0 : 1);
+		/* Final message, final byte, must generate a STOP
+		 * to release the bus, i.e. don't hold SCL low.
+		 */
+		if (numbytes == 1 && i2c_flag & I2C_M_STOP)
+			reg = REG_SET_FIELD(reg, CKSVII2C_IC_DATA_CMD,
+					    STOP, 1);
+
+		if (bytes_received == 0 && i2c_flag & I2C_X_RESTART)
+			reg = REG_SET_FIELD(reg, CKSVII2C_IC_DATA_CMD,
+					    RESTART, 1);
 
 		WREG32_SOC15(SMUIO, 0, mmCKSVII2C_IC_DATA_CMD, reg);
 
@@ -591,23 +585,59 @@ static const struct i2c_lock_operations smu_v11_0_i2c_i2c_lock_ops = {
 };
 
 static int smu_v11_0_i2c_xfer(struct i2c_adapter *i2c_adap,
-			      struct i2c_msg *msgs, int num)
+			      struct i2c_msg *msg, int num)
 {
 	int i, ret;
+	u16 addr, dir;
 
 	smu_v11_0_i2c_init(i2c_adap);
 
-	for (i = 0; i < num; i++) {
-		uint32_t i2c_flag = ((msgs[i].flags & I2C_M_NOSTART) ? 0 : I2C_RESTART) ||
-				    (((msgs[i].flags & I2C_M_STOP) ? 0 : I2C_NO_STOP));
+	/* From the client's point of view, this sequence of
+	 * messages-- the array i2c_msg *msg, is a single transaction
+	 * on the bus, starting with START and ending with STOP.
+	 *
+	 * The client is welcome to send any sequence of messages in
+	 * this array, as processing under this function here is
+	 * striving to be agnostic.
+	 *
+	 * Record the first address and direction we see. If either
+	 * changes for a subsequent message, generate ReSTART. The
+	 * DW_apb_i2c databook, v1.21a, specifies that ReSTART is
+	 * generated when the direction changes, with the default IP
+	 * block parameter settings, but it doesn't specify if ReSTART
+	 * is generated when the address changes (possibly...). We
+	 * don't rely on the default IP block parameter settings as
+	 * the block is shared and they may change.
+	 */
+	if (num > 0) {
+		addr = msg[0].addr;
+		dir  = msg[0].flags & I2C_M_RD;
+	}
 
-		if (msgs[i].flags & I2C_M_RD)
+	for (i = 0; i < num; i++) {
+		u32 i2c_flag = 0;
+
+		if (msg[i].addr != addr || (msg[i].flags ^ dir) & I2C_M_RD) {
+			addr = msg[i].addr;
+			dir  = msg[i].flags & I2C_M_RD;
+			i2c_flag |= I2C_X_RESTART;
+		}
+
+		if (i == num - 1) {
+			/* Set the STOP bit on the last message, so
+			 * that the IP block generates a STOP after
+			 * the last byte of the message.
+			 */
+			i2c_flag |= I2C_M_STOP;
+		}
+
+		if (msg[i].flags & I2C_M_RD)
 			ret = smu_v11_0_i2c_read_data(i2c_adap,
-						      msgs + i,
+						      msg + i,
 						      i2c_flag);
 		else
 			ret = smu_v11_0_i2c_write_data(i2c_adap,
-						       msgs + i,
+						       msg + i,
 						       i2c_flag);
 
 		if (ret != I2C_OK) {
@@ -624,7 +654,6 @@ static u32 smu_v11_0_i2c_func(struct i2c_adapter *adap)
 {
 	return I2C_FUNC_I2C | I2C_FUNC_SMBUS_EMUL;
 }
-
 
 static const struct i2c_algorithm smu_v11_0_i2c_algo = {
 	.master_xfer = smu_v11_0_i2c_xfer,

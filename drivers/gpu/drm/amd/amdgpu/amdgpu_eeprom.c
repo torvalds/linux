@@ -41,10 +41,10 @@ int amdgpu_eeprom_xfer(struct i2c_adapter *i2c_adap,
 		},
 		{
 			.addr = slave_addr,
-			.flags = read ? I2C_M_RD: 0,
+			.flags = read ? I2C_M_RD : 0,
 			.len = bytes,
 			.buf = eeprom_buf,
-		}
+		},
 	};
 	int r;
 
