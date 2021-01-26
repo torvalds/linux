@@ -18,13 +18,6 @@
 #endif
 
 #define SHA256_DIGEST_SIZE 32
-#define INCFS_MAX_MTREE_LEVELS 8
-
-unsigned int rnd(unsigned int max, unsigned int *seed);
-
-int remove_dir(const char *dir);
-
-int drop_caches(void);
 
 int mount_fs(const char *mount_dir, const char *backing_dir,
 	     int read_timeout_ms);

@@ -48,7 +48,7 @@ int cancel_threads;
 
 int parse_options(int argc, char *const *argv, struct options *options)
 {
-	signed char c;
+	char c;
 
 	/* Set defaults here */
 	*options = (struct options){
@@ -70,25 +70,52 @@ int parse_options(int argc, char *const *argv, struct options *options)
 			break;
 
 		case 'g':
-			options->rng_seed = strtol(optarg, NULL, 10);
+			options->rng_seed = atoi(optarg);
 			break;
 
 		case 'n':
-			options->num_reads = strtol(optarg, NULL, 10);
+			options->num_reads = atoi(optarg);
 			break;
 
 		case 'r':
-			options->readers = strtol(optarg, NULL, 10);
+			options->readers = atoi(optarg);
 			break;
 
 		case 's':
-			options->size = strtol(optarg, NULL, 10);
+			options->size = atoi(optarg);
 			break;
 
 		case 't':
-			options->timeout = strtol(optarg, NULL, 10);
+			options->timeout = atoi(optarg);
 			break;
 		}
+	}
+
+	return 0;
+}
+
+unsigned int rnd(unsigned int max, unsigned int *seed)
+{
+	return rand_r(seed) * ((uint64_t)max + 1) / RAND_MAX;
+}
+
+int remove_dir(const char *dir)
+{
+	int err = rmdir(dir);
+
+	if (err && errno == ENOTEMPTY) {
+		err = delete_dir_tree(dir);
+		if (err) {
+			err_msg("Can't delete dir %s", dir);
+			return err;
+		}
+
+		return 0;
+	}
+
+	if (err && errno != ENOENT) {
+		err_msg("Can't delete dir %s", dir);
+		return -errno;
 	}
 
 	return 0;
