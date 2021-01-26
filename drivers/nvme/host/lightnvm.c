@@ -816,7 +816,7 @@ static int nvme_nvm_submit_user_cmd(struct request_queue *q,
 			vcmd->ph_rw.metadata = cpu_to_le64(metadata_dma);
 		}
 
-		bio->bi_bdev = ns->disk->part0;
+		bio_set_dev(bio, ns->disk->part0);
 	}
 
 	blk_execute_rq(NULL, rq, 0);
