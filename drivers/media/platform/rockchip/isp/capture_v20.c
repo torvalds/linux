@@ -1654,7 +1654,8 @@ static void rkisp_buf_queue(struct vb2_buffer *vb)
 	struct v4l2_pix_format_mplane *pixm = &stream->out_fmt;
 	struct capture_fmt *isp_fmt = &stream->out_isp_fmt;
 	struct sg_table *sgt;
-	u32 i, val;
+	u32 val;
+	int i;
 
 	memset(ispbuf->buff_addr, 0, sizeof(ispbuf->buff_addr));
 	for (i = 0; i < isp_fmt->mplanes; i++) {
