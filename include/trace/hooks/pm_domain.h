@@ -11,15 +11,12 @@
 #include <linux/tracepoint.h>
 #include <trace/hooks/vendor_hooks.h>
 
-#if defined(CONFIG_TRACEPOINTS) && defined(CONFIG_ANDROID_VENDOR_HOOKS)
 struct generic_pm_domain;
 DECLARE_HOOK(android_vh_allow_domain_state,
 	TP_PROTO(struct generic_pm_domain *genpd, uint32_t idx, bool *allow),
 	TP_ARGS(genpd, idx, allow))
 
-#else
-#define trace_android_vh_allow_domain_state(genpd, idx, allow)
-#endif
+/* macro versions of hooks are no longer required */
 
 #endif /* _TRACE_HOOK_PM_DOMAIN_H */
 

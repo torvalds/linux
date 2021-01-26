@@ -10,7 +10,6 @@
  * Following tracepoints are not exported in tracefs and provide a
  * mechanism for vendor modules to hook and extend functionality
  */
-#if defined(CONFIG_TRACEPOINTS) && defined(CONFIG_ANDROID_VENDOR_HOOKS)
 struct rw_semaphore;
 struct rwsem_waiter;
 DECLARE_HOOK(android_vh_rwsem_init,
@@ -27,12 +26,9 @@ DECLARE_HOOK(android_vh_alter_rwsem_list_add,
 		 struct rw_semaphore *sem,
 		 bool *already_on_list),
 	TP_ARGS(waiter, sem, already_on_list));
-#else
-#define trace_android_vh_rwsem_init(sem)
-#define trace_android_vh_rwsem_wake(sem)
-#define trace_android_vh_rwsem_write_finished(sem)
-#define trace_android_vh_alter_rwsem_list_add(waiter, sem, already_on_list)
-#endif
+
+/* macro versions of hooks are no longer required */
+
 #endif /* _TRACE_HOOK_RWSEM_H */
 /* This part must be outside protection */
 #include <trace/define_trace.h>

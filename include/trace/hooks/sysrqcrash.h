@@ -11,13 +11,11 @@
  * Following tracepoints are not exported in tracefs and provide a
  * mechanism for vendor modules to hook and extend functionality
  */
-#if defined(CONFIG_TRACEPOINTS) && defined(CONFIG_ANDROID_VENDOR_HOOKS)
 DECLARE_HOOK(android_vh_sysrq_crash,
 	TP_PROTO(void *data),
 	TP_ARGS(data));
-#else
-#define trace_android_vh_sysrq_crash(data)
-#endif
+
+/* macro versions of hooks are no longer required */
 
 #endif /* _TRACE_HOOK_SYSRQCRASH_H */
 /* This part must be outside protection */

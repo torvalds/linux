@@ -18,6 +18,8 @@ DECLARE_HOOK(android_vh_cpu_down,
 	TP_PROTO(void *unused),
 	TP_ARGS(unused));
 
+/* macro versions of hooks are no longer required */
+
 #endif /* _TRACE_HOOK_CPU_H */
 /* This part must be outside protection */
 #include <trace/define_trace.h>

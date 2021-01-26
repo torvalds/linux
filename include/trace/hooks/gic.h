@@ -12,17 +12,11 @@
 #include <linux/tracepoint.h>
 #include <trace/hooks/vendor_hooks.h>
 
-#if defined(CONFIG_TRACEPOINTS) && defined(CONFIG_ANDROID_VENDOR_HOOKS)
-
 DECLARE_HOOK(android_vh_gic_resume,
 	TP_PROTO(struct irq_domain *domain, void __iomem *dist_base),
 	TP_ARGS(domain, dist_base));
 
-#else
-
-#define trace_android_vh_gic_resume(domain, dist_base)
-
-#endif
+/* macro versions of hooks are no longer required */
 
 #endif /* _TRACE_HOOK_GIC_H */
 /* This part must be outside protection */

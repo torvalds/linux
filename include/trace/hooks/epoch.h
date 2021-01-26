@@ -10,8 +10,6 @@
 #include <linux/tracepoint.h>
 #include <trace/hooks/vendor_hooks.h>
 
-#if defined(CONFIG_TRACEPOINTS) && defined(CONFIG_ANDROID_VENDOR_HOOKS)
-
 DECLARE_HOOK(android_vh_show_suspend_epoch_val,
 	TP_PROTO(u64 suspend_ns, u64 suspend_cycles),
 	TP_ARGS(suspend_ns, suspend_cycles));
@@ -19,12 +17,8 @@ DECLARE_HOOK(android_vh_show_suspend_epoch_val,
 DECLARE_HOOK(android_vh_show_resume_epoch_val,
 	TP_PROTO(u64 resume_cycles),
 	TP_ARGS(resume_cycles));
-#else
 
-#define trace_android_vh_show_suspend_epoch_val(suspend_ns, suspend_cycles)
-#define trace_android_vh_show_resume_epoch_val(resume_cycles)
-
-#endif
+/* macro versions of hooks are no longer required */
 
 #endif /* _TRACE_HOOK_EPOCH_H */
 /* This part must be outside protection */

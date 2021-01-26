@@ -12,15 +12,14 @@
  * Following tracepoints are not exported in tracefs and provide a
  * mechanism for vendor modules to hook and extend functionality
  */
-#if defined(CONFIG_TRACEPOINTS) && defined(CONFIG_ANDROID_VENDOR_HOOKS)
 DECLARE_HOOK(android_vh_alter_futex_plist_add,
 	TP_PROTO(struct plist_node *node,
 		 struct plist_head *head,
 		 bool *already_on_hb),
 	TP_ARGS(node, head, already_on_hb));
-#else
-#define trace_android_vh_alter_futex_plist_add(node, head, already_on_hb)
-#endif
+
+/* macro versions of hooks are no longer required */
+
 #endif /* _TRACE_HOOK_FUTEX_H */
 /* This part must be outside protection */
 #include <trace/define_trace.h>

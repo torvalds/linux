@@ -10,7 +10,6 @@
 #include <linux/tracepoint.h>
 #include <trace/hooks/vendor_hooks.h>
 
-#if defined(CONFIG_TRACEPOINTS) && defined(CONFIG_ANDROID_VENDOR_HOOKS)
 struct cpuidle_device;
 
 DECLARE_HOOK(android_vh_cpu_idle_enter,
@@ -19,10 +18,8 @@ DECLARE_HOOK(android_vh_cpu_idle_enter,
 DECLARE_HOOK(android_vh_cpu_idle_exit,
 	TP_PROTO(int state, struct cpuidle_device *dev),
 	TP_ARGS(state, dev))
-#else
-#define trace_android_vh_cpu_idle_enter(state, dev)
-#define trace_android_vh_cpu_idle_exit(state, dev)
-#endif
+
+/* macro versions of hooks are no longer required */
 
 #endif /* _TRACE_HOOK_CPUIDLE_H */
 /* This part must be outside protection */

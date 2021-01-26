@@ -10,7 +10,6 @@
  * Following tracepoints are not exported in tracefs and provide a
  * mechanism for vendor modules to hook and extend functionality
  */
-#if defined(CONFIG_TRACEPOINTS) && defined(CONFIG_ANDROID_VENDOR_HOOKS)
 struct irq_data;
 struct cpumask;
 DECLARE_HOOK(android_vh_gic_v3_affinity_init,
@@ -20,10 +19,9 @@ DECLARE_HOOK(android_vh_gic_v3_set_affinity,
 	TP_PROTO(struct irq_data *d, const struct cpumask *mask_val,
 		 u64 *affinity),
 	TP_ARGS(d, mask_val, affinity));
-#else
-#define trace_android_vh_gic_v3_affinity_init(irq, offset, affinity)
-#define trace_android_vh_gic_v3_set_affinity(d, mask_val, affinity)
-#endif
+
+/* macro versions of hooks are no longer required */
+
 #endif /* _TRACE_HOOK_GIC_V3_H */
 /* This part must be outside protection */
 #include <trace/define_trace.h>

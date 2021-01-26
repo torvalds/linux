@@ -10,8 +10,6 @@
 #include <linux/tracepoint.h>
 #include <trace/hooks/vendor_hooks.h>
 
-#if defined(CONFIG_TRACEPOINTS) && defined(CONFIG_ANDROID_VENDOR_HOOKS)
-
 DECLARE_HOOK(android_vh_show_max_freq,
 	TP_PROTO(struct cpufreq_policy *policy, unsigned int *max_freq),
 	TP_ARGS(policy, max_freq));
@@ -20,12 +18,8 @@ DECLARE_HOOK(android_vh_freq_table_limits,
 	TP_PROTO(struct cpufreq_policy *policy, unsigned int min_freq,
 		 unsigned int max_freq),
 	TP_ARGS(policy, min_freq, max_freq));
-#else
 
-#define trace_android_vh_show_max_freq(policy, max_freq)
-#define trace_android_vh_freq_table_limits(policy, min_freq, max_freq)
-
-#endif
+/* macro versions of hooks are no longer required */
 
 #endif /* _TRACE_HOOK_CPUFREQ_H */
 /* This part must be outside protection */

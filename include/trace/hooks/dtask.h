@@ -11,7 +11,6 @@
  * Following tracepoints are not exported in tracefs and provide a
  * mechanism for vendor modules to hook and extend functionality
  */
-#if defined(CONFIG_TRACEPOINTS) && defined(CONFIG_ANDROID_VENDOR_HOOKS)
 struct mutex;
 DECLARE_HOOK(android_vh_mutex_wait_start,
 	TP_PROTO(struct mutex *lock),
@@ -38,15 +37,8 @@ struct task_struct;
 DECLARE_HOOK(android_vh_sched_show_task,
 	TP_PROTO(struct task_struct *task),
 	TP_ARGS(task));
-#else
-#define trace_android_vh_mutex_wait_start(lock)
-#define trace_android_vh_mutex_wait_finish(lock)
-#define trace_android_vh_rwsem_read_wait_start(sem)
-#define trace_android_vh_rwsem_read_wait_finish(sem)
-#define trace_android_vh_rwsem_write_wait_start(sem)
-#define trace_android_vh_rwsem_write_wait_finish(sem)
-#define trace_android_vh_sched_show_task(task)
-#endif
+
+/* macro versions of hooks are no longer required */
 
 #endif /* _TRACE_HOOK_DTASK_H */
 /* This part must be outside protection */

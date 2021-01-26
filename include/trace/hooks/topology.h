@@ -11,18 +11,12 @@
 #include <trace/hooks/vendor_hooks.h>
 #include <linux/cpumask.h>
 
-#if defined(CONFIG_TRACEPOINTS) && defined(CONFIG_ANDROID_VENDOR_HOOKS)
-
 DECLARE_HOOK(android_vh_arch_set_freq_scale,
 	TP_PROTO(const struct cpumask *cpus, unsigned long freq,
 		 unsigned long max, unsigned long *scale),
 	TP_ARGS(cpus, freq, max, scale));
 
-#else
-
-#define trace_android_vh_arch_set_freq_scale(cpus, freq, max, scale)
-
-#endif
+/* macro versions of hooks are no longer required */
 
 #endif /* _TRACE_HOOK_TOPOLOGY_H */
 /* This part must be outside protection */

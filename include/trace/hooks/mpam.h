@@ -11,14 +11,13 @@
  * Following tracepoints are not exported in tracefs and provide a
  * mechanism for vendor modules to hook and extend functionality
  */
-#if defined(CONFIG_TRACEPOINTS) && defined(CONFIG_ANDROID_VENDOR_HOOKS)
 struct task_struct;
 DECLARE_HOOK(android_vh_mpam_set,
 	TP_PROTO(struct task_struct *prev, struct task_struct *next),
 	TP_ARGS(prev, next));
-#else
-#define trace_android_vh_mpam_set(prev, next)
-#endif
+
+/* macro versions of hooks are no longer required */
+
 #endif /* _TRACE_HOOK_MPAM_H */
 /* This part must be outside protection */
 #include <trace/define_trace.h>
