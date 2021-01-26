@@ -273,7 +273,7 @@
 		reg = <0>;
 
 		backlight = <&backlight>;
-		power-supply=<&vcc_3v3>;
+		//power-supply=<&vcc_3v3>;
 		enable-gpios = <&gpio0 RK_PC7 GPIO_ACTIVE_HIGH>;
 		stbyb-gpios = <&gpio0 RK_PC0 GPIO_ACTIVE_HIGH>;
 		reset-gpios = <&gpio0 RK_PC2 GPIO_ACTIVE_LOW>;
