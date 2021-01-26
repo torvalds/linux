@@ -19,6 +19,7 @@ struct btrfs_subpage {
 	/* Common members for both data and metadata pages */
 	spinlock_t lock;
 	u16 uptodate_bitmap;
+	u16 error_bitmap;
 	union {
 		/*
 		 * Structures only used by metadata
@@ -77,5 +78,6 @@ bool btrfs_page_test_##name(const struct btrfs_fs_info *fs_info,	\
 		struct page *page, u64 start, u32 len);
 
 DECLARE_BTRFS_SUBPAGE_OPS(uptodate);
+DECLARE_BTRFS_SUBPAGE_OPS(error);
 
 #endif
