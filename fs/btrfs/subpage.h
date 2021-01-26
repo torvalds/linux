@@ -18,6 +18,10 @@
 struct btrfs_subpage {
 	/* Common members for both data and metadata pages */
 	spinlock_t lock;
+	union {
+		/* Structures only used by metadata */
+		/* Structures only used by data */
+	};
 };
 
 enum btrfs_subpage_type {
@@ -29,5 +33,11 @@ int btrfs_attach_subpage(const struct btrfs_fs_info *fs_info,
 			 struct page *page, enum btrfs_subpage_type type);
 void btrfs_detach_subpage(const struct btrfs_fs_info *fs_info,
 			  struct page *page);
+
+/* Allocate additional data where page represents more than one sector */
+int btrfs_alloc_subpage(const struct btrfs_fs_info *fs_info,
+			struct btrfs_subpage **ret,
+			enum btrfs_subpage_type type);
+void btrfs_free_subpage(struct btrfs_subpage *subpage);
 
 #endif
