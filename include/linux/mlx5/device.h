@@ -903,6 +903,11 @@ static inline u64 get_cqe_ts(struct mlx5_cqe64 *cqe)
 	return (u64)lo | ((u64)hi << 32);
 }
 
+static inline u16 get_cqe_flow_tag(struct mlx5_cqe64 *cqe)
+{
+	return be32_to_cpu(cqe->sop_drop_qpn) & 0xFFF;
+}
+
 #define MLX5_MPWQE_LOG_NUM_STRIDES_BASE	(9)
 #define MLX5_MPWQE_LOG_STRIDE_SZ_BASE	(6)
 

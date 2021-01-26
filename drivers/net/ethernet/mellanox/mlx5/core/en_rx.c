@@ -52,6 +52,7 @@
 #include "en/xsk/rx.h"
 #include "en/health.h"
 #include "en/params.h"
+#include "devlink.h"
 
 static struct sk_buff *
 mlx5e_skb_from_cqe_mpwrq_linear(struct mlx5e_rq *rq, struct mlx5e_mpw_info *wi,
@@ -1814,4 +1815,49 @@ int mlx5e_rq_set_handlers(struct mlx5e_rq *rq, struct mlx5e_params *params, bool
 	}
 
 	return 0;
+}
+
+static void mlx5e_trap_handle_rx_cqe(struct mlx5e_rq *rq, struct mlx5_cqe64 *cqe)
+{
+	struct mlx5e_priv *priv = netdev_priv(rq->netdev);
+	struct mlx5_wq_cyc *wq = &rq->wqe.wq;
+	struct mlx5e_wqe_frag_info *wi;
+	struct sk_buff *skb;
+	u32 cqe_bcnt;
+	u16 trap_id;
+	u16 ci;
+
+	trap_id  = get_cqe_flow_tag(cqe);
+	ci       = mlx5_wq_cyc_ctr2ix(wq, be16_to_cpu(cqe->wqe_counter));
+	wi       = get_frag(rq, ci);
+	cqe_bcnt = be32_to_cpu(cqe->byte_cnt);
+
+	if (unlikely(MLX5E_RX_ERR_CQE(cqe))) {
+		rq->stats->wqe_err++;
+		goto free_wqe;
+	}
+
+	skb = mlx5e_skb_from_cqe_nonlinear(rq, cqe, wi, cqe_bcnt);
+	if (!skb)
+		goto free_wqe;
+
+	mlx5e_complete_rx_cqe(rq, cqe, cqe_bcnt, skb);
+	skb_push(skb, ETH_HLEN);
+
+	mlx5_devlink_trap_report(rq->mdev, trap_id, skb, &priv->dl_port);
+	dev_kfree_skb_any(skb);
+
+free_wqe:
+	mlx5e_free_rx_wqe(rq, wi, false);
+	mlx5_wq_cyc_pop(wq);
+}
+
+void mlx5e_rq_set_trap_handlers(struct mlx5e_rq *rq, struct mlx5e_params *params)
+{
+	rq->wqe.skb_from_cqe = mlx5e_rx_is_linear_skb(params, NULL) ?
+			       mlx5e_skb_from_cqe_linear :
+			       mlx5e_skb_from_cqe_nonlinear;
+	rq->post_wqes = mlx5e_post_rx_wqes;
+	rq->dealloc_wqe = mlx5e_dealloc_rx_wqe;
+	rq->handle_rx_cqe = mlx5e_trap_handle_rx_cqe;
 }
