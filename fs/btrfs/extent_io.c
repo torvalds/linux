@@ -5185,8 +5185,13 @@ struct extent_buffer *__alloc_dummy_extent_buffer(struct btrfs_fs_info *fs_info,
 
 	num_pages = num_extent_pages(eb);
 	for (i = 0; i < num_pages; i++) {
+		int ret;
+
 		eb->pages[i] = alloc_page(GFP_NOFS);
 		if (!eb->pages[i])
+			goto err;
+		ret = attach_extent_buffer_page(eb, eb->pages[i], NULL);
+		if (ret < 0)
 			goto err;
 	}
 	set_extent_buffer_uptodate(eb);
@@ -5195,8 +5200,10 @@ struct extent_buffer *__alloc_dummy_extent_buffer(struct btrfs_fs_info *fs_info,
 
 	return eb;
 err:
-	for (; i > 0; i--)
+	for (; i > 0; i--) {
+		detach_extent_buffer_page(eb, eb->pages[i - 1]);
 		__free_page(eb->pages[i - 1]);
+	}
 	__free_extent_buffer(eb);
 	return NULL;
 }
