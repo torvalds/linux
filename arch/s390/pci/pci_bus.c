@@ -30,6 +30,39 @@ static LIST_HEAD(zbus_list);
 static DEFINE_SPINLOCK(zbus_list_lock);
 static int zpci_nb_devices;
 
+/* zpci_bus_remove_device - Removes the given zdev from the PCI core
+ * @zdev: the zdev to be removed from the PCI core
+ * @set_error: if true the device's error state is set to permanent failure
+ *
+ * Sets a zPCI device to a configured but offline state; the zPCI
+ * device is still accessible through its hotplug slot and the zPCI
+ * API but is removed from the common code PCI bus, making it
+ * no longer available to drivers.
+ */
+void zpci_bus_remove_device(struct zpci_dev *zdev, bool set_error)
+{
+	struct zpci_bus *zbus = zdev->zbus;
+	struct pci_dev *pdev;
+
+	if (!zdev->zbus->bus)
+		return;
+
+	pdev = pci_get_slot(zbus->bus, zdev->devfn);
+	if (pdev) {
+		if (set_error)
+			pdev->error_state = pci_channel_io_perm_failure;
+		if (pdev->is_virtfn) {
+			zpci_iov_remove_virtfn(pdev, zdev->vfn);
+			/* balance pci_get_slot */
+			pci_dev_put(pdev);
+			return;
+		}
+		pci_stop_and_remove_bus_device_locked(pdev);
+		/* balance pci_get_slot */
+		pci_dev_put(pdev);
+	}
+}
+
 /* zpci_bus_scan
  * @zbus: the zbus holding the zdevices
  * @ops: the pci operations

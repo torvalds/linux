@@ -10,6 +10,8 @@
 int zpci_bus_device_register(struct zpci_dev *zdev, struct pci_ops *ops);
 void zpci_bus_device_unregister(struct zpci_dev *zdev);
 
+void zpci_bus_remove_device(struct zpci_dev *zdev, bool set_error);
+
 void zpci_release_device(struct kref *kref);
 static inline void zpci_zdev_put(struct zpci_dev *zdev)
 {

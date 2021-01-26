@@ -201,7 +201,6 @@ extern unsigned int s390_pci_no_rid;
 ----------------------------------------------------------------------------- */
 /* Base stuff */
 int zpci_create_device(u32 fid, u32 fh, enum zpci_state state);
-void zpci_remove_device(struct zpci_dev *zdev, bool set_error);
 int zpci_enable_device(struct zpci_dev *);
 int zpci_disable_device(struct zpci_dev *);
 int zpci_configure_device(struct zpci_dev *zdev, u32 fh);

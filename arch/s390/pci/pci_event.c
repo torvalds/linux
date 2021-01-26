@@ -82,7 +82,7 @@ static void zpci_event_hard_deconfigured(struct zpci_dev *zdev, u32 fh)
 	/* Give the driver a hint that the function is
 	 * already unusable.
 	 */
-	zpci_remove_device(zdev, true);
+	zpci_bus_remove_device(zdev, true);
 	if (zdev_enabled(zdev)) {
 		rc = zpci_disable_device(zdev);
 		if (rc)
