@@ -57,6 +57,8 @@ bool br_multicast_eht_handle(struct net_bridge_port_group *pg,
 			     u32 nsrcs,
 			     size_t addr_size,
 			     int grec_type);
+int br_multicast_eht_set_hosts_limit(struct net_bridge_port *p,
+				     u32 eht_hosts_limit);
 
 static inline bool
 br_multicast_eht_should_del_pg(const struct net_bridge_port_group *pg)

@@ -861,3 +861,18 @@ bool br_multicast_eht_handle(struct net_bridge_port_group *pg,
 out:
 	return changed;
 }
+
+int br_multicast_eht_set_hosts_limit(struct net_bridge_port *p,
+				     u32 eht_hosts_limit)
+{
+	struct net_bridge *br = p->br;
+
+	if (!eht_hosts_limit)
+		return -EINVAL;
+
+	spin_lock_bh(&br->multicast_lock);
+	p->multicast_eht_hosts_limit = eht_hosts_limit;
+	spin_unlock_bh(&br->multicast_lock);
+
+	return 0;
+}

@@ -16,6 +16,7 @@
 #include <linux/sched/signal.h>
 
 #include "br_private.h"
+#include "br_private_mcast_eht.h"
 
 struct brport_attribute {
 	struct attribute	attr;
@@ -245,6 +246,29 @@ static int store_multicast_router(struct net_bridge_port *p,
 static BRPORT_ATTR(multicast_router, 0644, show_multicast_router,
 		   store_multicast_router);
 
+static ssize_t show_multicast_eht_hosts_limit(struct net_bridge_port *p,
+					      char *buf)
+{
+	return sprintf(buf, "%u\n", p->multicast_eht_hosts_limit);
+}
+
+static int store_multicast_eht_hosts_limit(struct net_bridge_port *p,
+					   unsigned long v)
+{
+	return br_multicast_eht_set_hosts_limit(p, v);
+}
+static BRPORT_ATTR(multicast_eht_hosts_limit, 0644,
+		   show_multicast_eht_hosts_limit,
+		   store_multicast_eht_hosts_limit);
+
+static ssize_t show_multicast_eht_hosts_cnt(struct net_bridge_port *p,
+					    char *buf)
+{
+	return sprintf(buf, "%u\n", p->multicast_eht_hosts_cnt);
+}
+static BRPORT_ATTR(multicast_eht_hosts_cnt, 0444, show_multicast_eht_hosts_cnt,
+		   NULL);
+
 BRPORT_ATTR_FLAG(multicast_fast_leave, BR_MULTICAST_FAST_LEAVE);
 BRPORT_ATTR_FLAG(multicast_to_unicast, BR_MULTICAST_TO_UNICAST);
 #endif
@@ -274,6 +298,8 @@ static const struct brport_attribute *brport_attrs[] = {
 	&brport_attr_multicast_router,
 	&brport_attr_multicast_fast_leave,
 	&brport_attr_multicast_to_unicast,
+	&brport_attr_multicast_eht_hosts_limit,
+	&brport_attr_multicast_eht_hosts_cnt,
 #endif
 	&brport_attr_proxyarp,
 	&brport_attr_proxyarp_wifi,
