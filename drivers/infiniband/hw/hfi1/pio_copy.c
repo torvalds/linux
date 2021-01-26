@@ -55,6 +55,7 @@
 
 /**
  * pio_copy - copy data block to MMIO space
+ * @dd: hfi1 dev data
  * @pbuf: a number of blocks allocated within a PIO send context
  * @pbc: PBC to send
  * @from: source, must be 8 byte aligned
