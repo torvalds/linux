@@ -1952,7 +1952,8 @@ static void bfq_update_io_intensity(struct bfq_queue *bfqq, u64 now_ns)
  *
  * On queue merging all waker information is lost.
  */
-void bfq_check_waker(struct bfq_data *bfqd, struct bfq_queue *bfqq, u64 now_ns)
+static void bfq_check_waker(struct bfq_data *bfqd, struct bfq_queue *bfqq,
+			    u64 now_ns)
 {
 	if (!bfqd->last_completed_rq_bfqq ||
 	    bfqd->last_completed_rq_bfqq == bfqq ||
