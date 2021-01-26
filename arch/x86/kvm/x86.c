@@ -8804,7 +8804,7 @@ static void vcpu_load_eoi_exitmap(struct kvm_vcpu *vcpu)
 		return;
 
 	bitmap_or((ulong *)eoi_exit_bitmap, vcpu->arch.ioapic_handled_vectors,
-		  vcpu_to_synic(vcpu)->vec_bitmap, 256);
+		  to_hv_synic(vcpu)->vec_bitmap, 256);
 	static_call(kvm_x86_load_eoi_exitmap)(vcpu, eoi_exit_bitmap);
 }
 
