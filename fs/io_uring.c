@@ -8038,6 +8038,9 @@ static int __io_sqe_files_update(struct io_ring_ctx *ctx,
 			err = -EFAULT;
 			break;
 		}
+		if (fd == IORING_REGISTER_FILES_SKIP)
+			continue;
+
 		i = array_index_nospec(up->offset + done, ctx->nr_user_files);
 		table = &ctx->file_data->table[i >> IORING_FILE_TABLE_SHIFT];
 		index = i & IORING_FILE_TABLE_MASK;

@@ -298,6 +298,9 @@ struct io_uring_rsrc_update {
 	__aligned_u64 data;
 };
 
+/* Skip updating fd indexes set to this value in the fd table */
+#define IORING_REGISTER_FILES_SKIP	(-2)
+
 #define IO_URING_OP_SUPPORTED	(1U << 0)
 
 struct io_uring_probe_op {
