@@ -68,6 +68,7 @@ struct mlx5e_l2_table {
 	struct hlist_head          netdev_mc[MLX5E_L2_ADDR_HASH_SIZE];
 	struct mlx5e_l2_rule	   broadcast;
 	struct mlx5e_l2_rule	   allmulti;
+	struct mlx5_flow_handle    *trap_rule;
 	bool                       broadcast_enabled;
 	bool                       allmulti_enabled;
 	bool                       promisc_enabled;
@@ -297,6 +298,8 @@ void mlx5e_destroy_flow_steering(struct mlx5e_priv *priv);
 u8 mlx5e_get_proto_by_tunnel_type(enum mlx5e_tunnel_types tt);
 int mlx5e_add_vlan_trap(struct mlx5e_priv *priv, int  trap_id, int tir_num);
 void mlx5e_remove_vlan_trap(struct mlx5e_priv *priv);
+int mlx5e_add_mac_trap(struct mlx5e_priv *priv, int  trap_id, int tir_num);
+void mlx5e_remove_mac_trap(struct mlx5e_priv *priv);
 
 #endif /* __MLX5E_FLOW_STEER_H__ */
 

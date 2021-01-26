@@ -352,6 +352,32 @@ void mlx5e_remove_vlan_trap(struct mlx5e_priv *priv)
 	}
 }
 
+int mlx5e_add_mac_trap(struct mlx5e_priv *priv, int trap_id, int tir_num)
+{
+	struct mlx5_flow_table *ft = priv->fs.l2.ft.t;
+	struct mlx5_flow_handle *rule;
+	int err;
+
+	rule = mlx5e_add_trap_rule(ft, trap_id, tir_num);
+	if (IS_ERR(rule)) {
+		err = PTR_ERR(rule);
+		priv->fs.l2.trap_rule = NULL;
+		netdev_err(priv->netdev, "%s: add MAC trap rule failed, err %d\n",
+			   __func__, err);
+		return err;
+	}
+	priv->fs.l2.trap_rule = rule;
+	return 0;
+}
+
+void mlx5e_remove_mac_trap(struct mlx5e_priv *priv)
+{
+	if (priv->fs.l2.trap_rule) {
+		mlx5_del_flow_rules(priv->fs.l2.trap_rule);
+		priv->fs.l2.trap_rule = NULL;
+	}
+}
+
 void mlx5e_enable_cvlan_filter(struct mlx5e_priv *priv)
 {
 	if (!priv->fs.vlan.cvlan_filter_disabled)
@@ -1444,11 +1470,13 @@ static int mlx5e_add_l2_flow_rule(struct mlx5e_priv *priv,
 	return err;
 }
 
-#define MLX5E_NUM_L2_GROUPS	   2
+#define MLX5E_NUM_L2_GROUPS	   3
 #define MLX5E_L2_GROUP1_SIZE	   BIT(15)
 #define MLX5E_L2_GROUP2_SIZE	   BIT(0)
+#define MLX5E_L2_GROUP_TRAP_SIZE   BIT(0) /* must be last */
 #define MLX5E_L2_TABLE_SIZE	   (MLX5E_L2_GROUP1_SIZE +\
-				    MLX5E_L2_GROUP2_SIZE)
+				    MLX5E_L2_GROUP2_SIZE +\
+				    MLX5E_L2_GROUP_TRAP_SIZE)
 static int mlx5e_create_l2_table_groups(struct mlx5e_l2_table *l2_table)
 {
 	int inlen = MLX5_ST_SZ_BYTES(create_flow_group_in);
@@ -1487,6 +1515,16 @@ static int mlx5e_create_l2_table_groups(struct mlx5e_l2_table *l2_table)
 	mc_dmac[0] = 0x01;
 	MLX5_SET_CFG(in, start_flow_index, ix);
 	ix += MLX5E_L2_GROUP2_SIZE;
+	MLX5_SET_CFG(in, end_flow_index, ix - 1);
+	ft->g[ft->num_groups] = mlx5_create_flow_group(ft->t, in);
+	if (IS_ERR(ft->g[ft->num_groups]))
+		goto err_destroy_groups;
+	ft->num_groups++;
+
+	/* Flow Group for l2 traps */
+	memset(in, 0, inlen);
+	MLX5_SET_CFG(in, start_flow_index, ix);
+	ix += MLX5E_L2_GROUP_TRAP_SIZE;
 	MLX5_SET_CFG(in, end_flow_index, ix - 1);
 	ft->g[ft->num_groups] = mlx5_create_flow_group(ft->t, in);
 	if (IS_ERR(ft->g[ft->num_groups]))
