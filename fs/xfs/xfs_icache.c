@@ -1283,11 +1283,11 @@ xfs_reclaim_worker(
 STATIC int
 xfs_inode_free_eofblocks(
 	struct xfs_inode	*ip,
-	void			*args)
+	void			*args,
+	unsigned int		*lockflags)
 {
 	struct xfs_eofblocks	*eofb = args;
 	bool			wait;
-	int			ret;
 
 	wait = eofb && (eofb->eof_flags & XFS_EOF_FLAGS_SYNC);
 
@@ -1320,11 +1320,9 @@ xfs_inode_free_eofblocks(
 			return -EAGAIN;
 		return 0;
 	}
+	*lockflags |= XFS_IOLOCK_EXCL;
 
-	ret = xfs_free_eofblocks(ip);
-	xfs_iunlock(ip, XFS_IOLOCK_EXCL);
-
-	return ret;
+	return xfs_free_eofblocks(ip);
 }
 
 /*
@@ -1493,7 +1491,8 @@ xfs_prep_free_cowblocks(
 STATIC int
 xfs_inode_free_cowblocks(
 	struct xfs_inode	*ip,
-	void			*args)
+	void			*args,
+	unsigned int		*lockflags)
 {
 	struct xfs_eofblocks	*eofb = args;
 	bool			wait;
@@ -1514,16 +1513,20 @@ xfs_inode_free_cowblocks(
 	 * If the caller is waiting, return -EAGAIN to keep the background
 	 * scanner moving and revisit the inode in a subsequent pass.
 	 */
-	if (!xfs_ilock_nowait(ip, XFS_IOLOCK_EXCL)) {
+	if (!(*lockflags & XFS_IOLOCK_EXCL) &&
+	    !xfs_ilock_nowait(ip, XFS_IOLOCK_EXCL)) {
 		if (wait)
 			return -EAGAIN;
 		return 0;
 	}
+	*lockflags |= XFS_IOLOCK_EXCL;
+
 	if (!xfs_ilock_nowait(ip, XFS_MMAPLOCK_EXCL)) {
 		if (wait)
-			ret = -EAGAIN;
-		goto out_iolock;
+			return -EAGAIN;
+		return 0;
 	}
+	*lockflags |= XFS_MMAPLOCK_EXCL;
 
 	/*
 	 * Check again, nobody else should be able to dirty blocks or change
@@ -1531,11 +1534,6 @@ xfs_inode_free_cowblocks(
 	 */
 	if (xfs_prep_free_cowblocks(ip))
 		ret = xfs_reflink_cancel_cow_range(ip, 0, NULLFILEOFF, false);
-
-	xfs_iunlock(ip, XFS_MMAPLOCK_EXCL);
-out_iolock:
-	xfs_iunlock(ip, XFS_IOLOCK_EXCL);
-
 	return ret;
 }
 
@@ -1593,17 +1591,18 @@ xfs_blockgc_scan_inode(
 	struct xfs_inode	*ip,
 	void			*args)
 {
+	unsigned int		lockflags = 0;
 	int			error;
 
-	error = xfs_inode_free_eofblocks(ip, args);
+	error = xfs_inode_free_eofblocks(ip, args, &lockflags);
 	if (error)
-		return error;
+		goto unlock;
 
-	error = xfs_inode_free_cowblocks(ip, args);
-	if (error)
-		return error;
-
-	return 0;
+	error = xfs_inode_free_cowblocks(ip, args, &lockflags);
+unlock:
+	if (lockflags)
+		xfs_iunlock(ip, lockflags);
+	return error;
 }
 
 /* Background worker that trims preallocated space. */
