@@ -105,6 +105,14 @@ config PCIE_DW_DMATEST
 	help
 	  Enables support for the DW PCIe controller DMA test.
 
+config PCIE_DW_ROCKCHIP_EP
+	bool "Rockchip DesignWare PCIe EP controller"
+	select PCIE_DW
+	depends on ARCH_ROCKCHIP
+	depends on OF
+	help
+	  Enables support for the DW PCIe controller in the Rockchip SoC.
+
 config PCI_EXYNOS
 	bool "Samsung Exynos PCIe controller"
 	depends on SOC_EXYNOS5440 || COMPILE_TEST
