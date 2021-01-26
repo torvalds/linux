@@ -1037,7 +1037,7 @@ static int ppl_recover(struct ppl_log *log, struct ppl_header *pplhdr,
 	}
 
 	/* flush the disk cache after recovery if necessary */
-	ret = blkdev_issue_flush(rdev->bdev, GFP_KERNEL);
+	ret = blkdev_issue_flush(rdev->bdev);
 out:
 	__free_page(page);
 	return ret;

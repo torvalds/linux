@@ -1288,7 +1288,7 @@ static inline bool blk_needs_flush_plug(struct task_struct *tsk)
 		 !list_empty(&plug->cb_list));
 }
 
-int blkdev_issue_flush(struct block_device *, gfp_t);
+int blkdev_issue_flush(struct block_device *bdev);
 long nr_blockdev_pages(void);
 #else /* CONFIG_BLOCK */
 struct blk_plug {
@@ -1316,7 +1316,7 @@ static inline bool blk_needs_flush_plug(struct task_struct *tsk)
 	return false;
 }
 
-static inline int blkdev_issue_flush(struct block_device *bdev, gfp_t gfp_mask)
+static inline int blkdev_issue_flush(struct block_device *bdev)
 {
 	return 0;
 }

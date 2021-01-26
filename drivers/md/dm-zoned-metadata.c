@@ -819,7 +819,7 @@ static int dmz_write_sb(struct dmz_metadata *zmd, unsigned int set)
 	ret = dmz_rdwr_block(dev, REQ_OP_WRITE, zmd->sb[set].block,
 			     mblk->page);
 	if (ret == 0)
-		ret = blkdev_issue_flush(dev->bdev, GFP_NOIO);
+		ret = blkdev_issue_flush(dev->bdev);
 
 	return ret;
 }
@@ -862,7 +862,7 @@ static int dmz_write_dirty_mblocks(struct dmz_metadata *zmd,
 
 	/* Flush drive cache (this will also sync data) */
 	if (ret == 0)
-		ret = blkdev_issue_flush(dev->bdev, GFP_NOIO);
+		ret = blkdev_issue_flush(dev->bdev);
 
 	return ret;
 }
@@ -933,7 +933,7 @@ int dmz_flush_metadata(struct dmz_metadata *zmd)
 
 	/* If there are no dirty metadata blocks, just flush the device cache */
 	if (list_empty(&write_list)) {
-		ret = blkdev_issue_flush(dev->bdev, GFP_NOIO);
+		ret = blkdev_issue_flush(dev->bdev);
 		goto err;
 	}
 

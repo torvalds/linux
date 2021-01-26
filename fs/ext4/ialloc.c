@@ -1583,7 +1583,7 @@ int ext4_init_inode_table(struct super_block *sb, ext4_group_t group,
 	if (ret < 0)
 		goto err_out;
 	if (barrier)
-		blkdev_issue_flush(sb->s_bdev, GFP_NOFS);
+		blkdev_issue_flush(sb->s_bdev);
 
 skip_zeroout:
 	ext4_lock_group(sb, group);
