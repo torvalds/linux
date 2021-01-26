@@ -1027,6 +1027,7 @@ TRACE_EVENT(sched_enq_deq_task,
 		__field(unsigned int,	cpus_allowed)
 		__field(unsigned int,	demand)
 		__field(unsigned int,	pred_demand)
+		__field(bool,		 compat_thread)
 	),
 
 	TP_fast_assign(
@@ -1040,16 +1041,18 @@ TRACE_EVENT(sched_enq_deq_task,
 		__entry->cpus_allowed	= cpus_allowed;
 		__entry->demand		= task_load(p);
 		__entry->pred_demand	= task_pl(p);
+		__entry->compat_thread	= is_compat_thread(task_thread_info(p));
 	),
 
-	TP_printk("cpu=%d %s comm=%s pid=%d prio=%d nr_running=%u rt_nr_running=%u affine=%x demand=%u pred_demand=%u",
+	TP_printk("cpu=%d %s comm=%s pid=%d prio=%d nr_running=%u rt_nr_running=%u affine=%x demand=%u pred_demand=%u is_compat_t=%d",
 			__entry->cpu,
 			__entry->enqueue ? "enqueue" : "dequeue",
 			__entry->comm, __entry->pid,
 			__entry->prio, __entry->nr_running,
 			__entry->rt_nr_running,
 			__entry->cpus_allowed, __entry->demand,
-			__entry->pred_demand)
+			__entry->pred_demand,
+			__entry->compat_thread)
 );
 
 TRACE_EVENT(walt_window_rollover,
