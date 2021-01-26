@@ -3191,10 +3191,38 @@ static int attach_extent_buffer_page(struct extent_buffer *eb,
 	return ret;
 }
 
-void set_page_extent_mapped(struct page *page)
+int set_page_extent_mapped(struct page *page)
 {
+	struct btrfs_fs_info *fs_info;
+
+	ASSERT(page->mapping);
+
+	if (PagePrivate(page))
+		return 0;
+
+	fs_info = btrfs_sb(page->mapping->host->i_sb);
+
+	if (fs_info->sectorsize < PAGE_SIZE)
+		return btrfs_attach_subpage(fs_info, page, BTRFS_SUBPAGE_DATA);
+
+	attach_page_private(page, (void *)EXTENT_PAGE_PRIVATE);
+	return 0;
+}
+
+void clear_page_extent_mapped(struct page *page)
+{
+	struct btrfs_fs_info *fs_info;
+
+	ASSERT(page->mapping);
+
 	if (!PagePrivate(page))
-		attach_page_private(page, (void *)EXTENT_PAGE_PRIVATE);
+		return;
+
+	fs_info = btrfs_sb(page->mapping->host->i_sb);
+	if (fs_info->sectorsize < PAGE_SIZE)
+		return btrfs_detach_subpage(fs_info, page);
+
+	detach_page_private(page);
 }
 
 static struct extent_map *
@@ -3251,7 +3279,12 @@ int btrfs_do_readpage(struct page *page, struct extent_map **em_cached,
 	unsigned long this_bio_flag = 0;
 	struct extent_io_tree *tree = &BTRFS_I(inode)->io_tree;
 
-	set_page_extent_mapped(page);
+	ret = set_page_extent_mapped(page);
+	if (ret < 0) {
+		unlock_extent(tree, start, end);
+		SetPageError(page);
+		goto out;
+	}
 
 	if (!PageUptodate(page)) {
 		if (cleancache_get_page(page) == 0) {
@@ -3691,7 +3724,11 @@ static int __extent_writepage(struct page *page, struct writeback_control *wbc,
 		flush_dcache_page(page);
 	}
 
-	set_page_extent_mapped(page);
+	ret = set_page_extent_mapped(page);
+	if (ret < 0) {
+		SetPageError(page);
+		goto done;
+	}
 
 	if (!epd->extent_locked) {
 		ret = writepage_delalloc(BTRFS_I(inode), page, wbc, start,

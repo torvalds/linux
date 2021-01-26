@@ -2679,6 +2679,15 @@ static int relocate_file_extent_cluster(struct inode *inode,
 				goto out;
 			}
 		}
+		ret = set_page_extent_mapped(page);
+		if (ret < 0) {
+			btrfs_delalloc_release_metadata(BTRFS_I(inode),
+							PAGE_SIZE, true);
+			btrfs_delalloc_release_extents(BTRFS_I(inode), PAGE_SIZE);
+			unlock_page(page);
+			put_page(page);
+			goto out;
+		}
 
 		if (PageReadahead(page)) {
 			page_cache_async_readahead(inode->i_mapping,
@@ -2705,8 +2714,6 @@ static int relocate_file_extent_cluster(struct inode *inode,
 		page_end = page_start + PAGE_SIZE - 1;
 
 		lock_extent(&BTRFS_I(inode)->io_tree, page_start, page_end);
-
-		set_page_extent_mapped(page);
 
 		if (nr < cluster->nr &&
 		    page_start + offset == cluster->boundary[nr]) {

@@ -431,11 +431,22 @@ static int io_ctl_prepare_pages(struct btrfs_io_ctl *io_ctl, bool uptodate)
 	int i;
 
 	for (i = 0; i < io_ctl->num_pages; i++) {
+		int ret;
+
 		page = find_or_create_page(inode->i_mapping, i, mask);
 		if (!page) {
 			io_ctl_drop_pages(io_ctl);
 			return -ENOMEM;
 		}
+
+		ret = set_page_extent_mapped(page);
+		if (ret < 0) {
+			unlock_page(page);
+			put_page(page);
+			io_ctl_drop_pages(io_ctl);
+			return ret;
+		}
+
 		io_ctl->pages[i] = page;
 		if (uptodate && !PageUptodate(page)) {
 			btrfs_readpage(NULL, page);
@@ -455,10 +466,8 @@ static int io_ctl_prepare_pages(struct btrfs_io_ctl *io_ctl, bool uptodate)
 		}
 	}
 
-	for (i = 0; i < io_ctl->num_pages; i++) {
+	for (i = 0; i < io_ctl->num_pages; i++)
 		clear_page_dirty_for_io(io_ctl->pages[i]);
-		set_page_extent_mapped(io_ctl->pages[i]);
-	}
 
 	return 0;
 }
