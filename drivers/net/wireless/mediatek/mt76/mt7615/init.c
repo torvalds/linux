@@ -10,6 +10,7 @@
 #include <linux/etherdevice.h>
 #include "mt7615.h"
 #include "mac.h"
+#include "mcu.h"
 #include "eeprom.h"
 
 static void
@@ -96,7 +97,7 @@ mt7615_mac_init(struct mt7615_dev *dev)
 		 MT_TMAC_CTCR0_INS_DDLMT_VHT_SMPDU_EN |
 		 MT_TMAC_CTCR0_INS_DDLMT_EN);
 
-	mt7615_mcu_set_rts_thresh(&dev->phy, 0x92b);
+	mt76_connac_mcu_set_rts_thresh(&dev->mt76, 0x92b, 0);
 	mt7615_mac_set_scs(&dev->phy, true);
 
 	mt76_rmw(dev, MT_AGG_SCR, MT_AGG_SCR_NLNAV_MID_PTEC_DIS,
@@ -313,7 +314,8 @@ mt7615_regd_notifier(struct wiphy *wiphy,
 
 	if (chandef->chan->flags & IEEE80211_CHAN_RADAR)
 		mt7615_dfs_init_radar_detector(phy);
-	mt7615_mcu_set_channel_domain(phy);
+	if (mt7615_firmware_offload(phy->dev))
+		mt76_connac_mcu_set_channel_domain(mphy);
 
 	mt7615_mutex_release(dev);
 }

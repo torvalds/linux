@@ -10,6 +10,7 @@
 #include <linux/pci.h>
 
 #include "mt7615.h"
+#include "mcu.h"
 
 static const struct pci_device_id mt7615_pci_device_table[] = {
 	{ PCI_DEVICE(0x14c3, 0x7615) },

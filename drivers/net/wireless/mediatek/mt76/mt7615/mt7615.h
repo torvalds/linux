@@ -200,9 +200,9 @@ struct mt7615_phy {
 
 #define mt7615_mcu_add_tx_ba(dev, ...)	(dev)->mcu_ops->add_tx_ba((dev), __VA_ARGS__)
 #define mt7615_mcu_add_rx_ba(dev, ...)	(dev)->mcu_ops->add_rx_ba((dev), __VA_ARGS__)
-#define mt7615_mcu_sta_add(dev, ...)	(dev)->mcu_ops->sta_add((dev),  __VA_ARGS__)
-#define mt7615_mcu_add_dev_info(dev, ...) (dev)->mcu_ops->add_dev_info((dev),  __VA_ARGS__)
-#define mt7615_mcu_add_bss_info(phy, ...) (phy->dev)->mcu_ops->add_bss_info((phy),  __VA_ARGS__)
+#define mt7615_mcu_sta_add(phy, ...)	((phy)->dev)->mcu_ops->sta_add((phy),  __VA_ARGS__)
+#define mt7615_mcu_add_dev_info(phy, ...) ((phy)->dev)->mcu_ops->add_dev_info((phy),  __VA_ARGS__)
+#define mt7615_mcu_add_bss_info(phy, ...) ((phy)->dev)->mcu_ops->add_bss_info((phy),  __VA_ARGS__)
 #define mt7615_mcu_add_beacon(dev, ...)	(dev)->mcu_ops->add_beacon_offload((dev),  __VA_ARGS__)
 #define mt7615_mcu_set_pm(dev, ...)	(dev)->mcu_ops->set_pm_state((dev),  __VA_ARGS__)
 #define mt7615_mcu_set_drv_ctrl(dev)	(dev)->mcu_ops->set_drv_ctrl((dev))
@@ -214,11 +214,10 @@ struct mt7615_mcu_ops {
 	int (*add_rx_ba)(struct mt7615_dev *dev,
 			 struct ieee80211_ampdu_params *params,
 			 bool enable);
-	int (*sta_add)(struct mt7615_dev *dev,
-		       struct ieee80211_vif *vif,
+	int (*sta_add)(struct mt7615_phy *phy, struct ieee80211_vif *vif,
 		       struct ieee80211_sta *sta, bool enable);
-	int (*add_dev_info)(struct mt7615_dev *dev,
-			    struct ieee80211_vif *vif, bool enable);
+	int (*add_dev_info)(struct mt7615_phy *phy, struct ieee80211_vif *vif,
+			    bool enable);
 	int (*add_bss_info)(struct mt7615_phy *phy, struct ieee80211_vif *vif,
 			    struct ieee80211_sta *sta, bool enable);
 	int (*add_beacon_offload)(struct mt7615_dev *dev,
@@ -313,20 +312,6 @@ enum tx_pkt_queue_idx {
 	MT_LMAC_BMC1,
 	MT_LMAC_BCN1,
 	MT_LMAC_PSMP1,
-};
-
-enum {
-	HW_BSSID_0 = 0x0,
-	HW_BSSID_1,
-	HW_BSSID_2,
-	HW_BSSID_3,
-	HW_BSSID_MAX = HW_BSSID_3,
-	EXT_BSSID_START = 0x10,
-	EXT_BSSID_1,
-	EXT_BSSID_15 = 0x1f,
-	EXT_BSSID_MAX = EXT_BSSID_15,
-	REPEATER_BSSID_START = 0x20,
-	REPEATER_BSSID_MAX = 0x3f,
 };
 
 enum {
@@ -546,14 +531,11 @@ u32 mt7615_rf_rr(struct mt7615_dev *dev, u32 wf, u32 reg);
 int mt7615_rf_wr(struct mt7615_dev *dev, u32 wf, u32 reg, u32 val);
 int mt7615_mcu_set_dbdc(struct mt7615_dev *dev);
 int mt7615_mcu_set_eeprom(struct mt7615_dev *dev);
-int mt7615_mcu_set_mac_enable(struct mt7615_dev *dev, int band, bool enable);
-int mt7615_mcu_set_rts_thresh(struct mt7615_phy *phy, u32 val);
 int mt7615_mcu_get_temperature(struct mt7615_dev *dev, int index);
 int mt7615_mcu_set_tx_power(struct mt7615_phy *phy);
 void mt7615_mcu_exit(struct mt7615_dev *dev);
 void mt7615_mcu_fill_msg(struct mt7615_dev *dev, struct sk_buff *skb,
 			 int cmd, int *wait_seq);
-int mt7615_mcu_set_channel_domain(struct mt7615_phy *phy);
 int mt7615_mcu_hw_scan(struct mt7615_phy *phy, struct ieee80211_vif *vif,
 		       struct ieee80211_scan_request *scan_req);
 int mt7615_mcu_cancel_hw_scan(struct mt7615_phy *phy,
@@ -592,7 +574,6 @@ int mt7615_mcu_set_test_param(struct mt7615_dev *dev, u8 param, bool test_mode,
 int mt7615_mcu_set_sku_en(struct mt7615_phy *phy, bool enable);
 int mt7615_mcu_apply_rx_dcoc(struct mt7615_phy *phy);
 int mt7615_mcu_apply_tx_dpd(struct mt7615_phy *phy);
-int mt7615_mcu_set_vif_ps(struct mt7615_dev *dev, struct ieee80211_vif *vif);
 int mt7615_dfs_init_radar_detector(struct mt7615_phy *phy);
 
 int mt7615_mcu_set_p2p_oppps(struct ieee80211_hw *hw,

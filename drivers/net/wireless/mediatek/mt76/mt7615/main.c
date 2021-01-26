@@ -55,17 +55,19 @@ static int mt7615_start(struct ieee80211_hw *hw)
 
 	if (!running) {
 		mt7615_mcu_set_pm(dev, 0, 0);
-		mt7615_mcu_set_mac_enable(dev, 0, true);
+		mt76_connac_mcu_set_mac_enable(&dev->mt76, 0, true, false);
 		mt7615_mac_enable_nf(dev, 0);
 	}
 
 	if (phy != &dev->phy) {
 		mt7615_mcu_set_pm(dev, 1, 0);
-		mt7615_mcu_set_mac_enable(dev, 1, true);
+		mt76_connac_mcu_set_mac_enable(&dev->mt76, 1, true, false);
 		mt7615_mac_enable_nf(dev, 1);
 	}
 
-	mt7615_mcu_set_channel_domain(phy);
+	if (mt7615_firmware_offload(dev))
+		mt76_connac_mcu_set_channel_domain(phy->mt76);
+
 	mt7615_mcu_set_chan_info(phy, MCU_EXT_CMD_SET_RX_PATH);
 
 	set_bit(MT76_STATE_RUNNING, &phy->mt76->state);
@@ -104,12 +106,12 @@ static void mt7615_stop(struct ieee80211_hw *hw)
 
 	if (phy != &dev->phy) {
 		mt7615_mcu_set_pm(dev, 1, 1);
-		mt7615_mcu_set_mac_enable(dev, 1, false);
+		mt76_connac_mcu_set_mac_enable(&dev->mt76, 1, false, false);
 	}
 
 	if (!mt7615_dev_running(dev)) {
 		mt7615_mcu_set_pm(dev, 0, 1);
-		mt7615_mcu_set_mac_enable(dev, 0, false);
+		mt76_connac_mcu_set_mac_enable(&dev->mt76, 0, false, false);
 	}
 
 	mt7615_mutex_release(dev);
@@ -228,7 +230,7 @@ static int mt7615_add_interface(struct ieee80211_hw *hw,
 		mtxq->wcid = &mvif->sta.wcid;
 	}
 
-	ret = mt7615_mcu_add_dev_info(dev, vif, true);
+	ret = mt7615_mcu_add_dev_info(phy, vif, true);
 	if (ret)
 		goto out;
 
@@ -259,7 +261,7 @@ static void mt7615_remove_interface(struct ieee80211_hw *hw,
 	mt7615_free_pending_tx_skbs(dev, msta);
 
 	mt7615_mac_set_beacon_filter(phy, vif, false);
-	mt7615_mcu_add_dev_info(dev, vif, false);
+	mt7615_mcu_add_dev_info(phy, vif, false);
 
 	rcu_assign_pointer(dev->mt76.wcid[idx], NULL);
 
@@ -542,7 +544,7 @@ static void mt7615_bss_info_changed(struct ieee80211_hw *hw,
 
 	if (changed & BSS_CHANGED_BEACON_ENABLED) {
 		mt7615_mcu_add_bss_info(phy, vif, NULL, info->enable_beacon);
-		mt7615_mcu_sta_add(dev, vif, NULL, info->enable_beacon);
+		mt7615_mcu_sta_add(phy, vif, NULL, info->enable_beacon);
 
 		if (vif->p2p && info->enable_beacon)
 			mt7615_mcu_set_p2p_oppps(hw, vif);
@@ -553,7 +555,7 @@ static void mt7615_bss_info_changed(struct ieee80211_hw *hw,
 		mt7615_mcu_add_beacon(dev, hw, vif, info->enable_beacon);
 
 	if (changed & BSS_CHANGED_PS)
-		mt7615_mcu_set_vif_ps(dev, vif);
+		mt76_connac_mcu_set_vif_ps(&dev->mt76, vif);
 
 	if (changed & BSS_CHANGED_ARP_FILTER)
 		mt7615_mcu_update_arp_filter(hw, vif, info);
@@ -603,7 +605,7 @@ int mt7615_mac_sta_add(struct mt76_dev *mdev, struct ieee80211_vif *vif,
 	}
 	mt7615_mac_wtbl_update(dev, idx,
 			       MT_WTBL_UPDATE_ADM_COUNT_CLEAR);
-	mt7615_mcu_sta_add(dev, vif, sta, true);
+	mt7615_mcu_sta_add(&dev->phy, vif, sta, true);
 
 	mt7615_pm_power_save_sched(dev);
 
@@ -620,7 +622,7 @@ void mt7615_mac_sta_remove(struct mt76_dev *mdev, struct ieee80211_vif *vif,
 	mt7615_free_pending_tx_skbs(dev, msta);
 	mt7615_pm_wake(dev);
 
-	mt7615_mcu_sta_add(dev, vif, sta, false);
+	mt7615_mcu_sta_add(&dev->phy, vif, sta, false);
 	mt7615_mac_wtbl_update(dev, msta->wcid.idx,
 			       MT_WTBL_UPDATE_ADM_COUNT_CLEAR);
 	if (vif->type == NL80211_IFTYPE_STATION && !sta->tdls) {
@@ -737,9 +739,10 @@ static int mt7615_set_rts_threshold(struct ieee80211_hw *hw, u32 val)
 {
 	struct mt7615_dev *dev = mt7615_hw_dev(hw);
 	struct mt7615_phy *phy = mt7615_hw_phy(hw);
+	int band = phy != &dev->phy;
 
 	mt7615_mutex_acquire(dev);
-	mt7615_mcu_set_rts_thresh(phy, val);
+	mt76_connac_mcu_set_rts_thresh(&dev->mt76, val, band);
 	mt7615_mutex_release(dev);
 
 	return 0;
