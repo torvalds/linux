@@ -819,12 +819,6 @@ enum efa_admin_aenq_group {
 	EFA_ADMIN_AENQ_GROUPS_NUM                   = 5,
 };
 
-enum efa_admin_aenq_notification_syndrom {
-	EFA_ADMIN_SUSPEND                           = 0,
-	EFA_ADMIN_RESUME                            = 1,
-	EFA_ADMIN_UPDATE_HINTS                      = 2,
-};
-
 struct efa_admin_mmio_req_read_less_resp {
 	u16 req_id;
 
