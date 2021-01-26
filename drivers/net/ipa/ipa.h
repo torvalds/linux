@@ -43,6 +43,7 @@ enum ipa_flag {
  * @flags:		Boolean state flags
  * @version:		IPA hardware version
  * @pdev:		Platform device
+ * @completion:		Used to signal pipeline clear transfer complete
  * @smp2p:		SMP2P information
  * @clock:		IPA clocking information
  * @table_addr:		DMA address of filter/route table content
@@ -82,6 +83,7 @@ struct ipa {
 	DECLARE_BITMAP(flags, IPA_FLAG_COUNT);
 	enum ipa_version version;
 	struct platform_device *pdev;
+	struct completion completion;
 	struct notifier_block nb;
 	void *notifier;
 	struct ipa_smp2p *smp2p;

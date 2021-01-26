@@ -171,7 +171,14 @@ void ipa_cmd_pipeline_clear_add(struct gsi_trans *trans);
 u32 ipa_cmd_pipeline_clear_count(void);
 
 /**
+ * ipa_cmd_pipeline_clear_wait() - Wait pipeline clear to complete
+ * @ipa:	- IPA pointer
+ */
+void ipa_cmd_pipeline_clear_wait(struct ipa *ipa);
+
+/**
  * ipa_cmd_pipeline_clear() - Clear the hardware pipeline
+ * @ipa:	- IPA pointer
  */
 void ipa_cmd_pipeline_clear(struct ipa *ipa);
 

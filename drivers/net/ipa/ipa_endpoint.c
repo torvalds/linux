@@ -436,6 +436,8 @@ int ipa_endpoint_modem_exception_reset_all(struct ipa *ipa)
 	/* XXX This should have a 1 second timeout */
 	gsi_trans_commit_wait(trans);
 
+	ipa_cmd_pipeline_clear_wait(ipa);
+
 	return 0;
 }
 
@@ -1178,7 +1180,30 @@ static bool ipa_endpoint_status_skip(struct ipa_endpoint *endpoint,
 static bool ipa_endpoint_status_tag(struct ipa_endpoint *endpoint,
 				    const struct ipa_status *status)
 {
-	return !!le16_get_bits(status->mask, IPA_STATUS_MASK_TAG_VALID_FMASK);
+	struct ipa_endpoint *command_endpoint;
+	struct ipa *ipa = endpoint->ipa;
+	u32 endpoint_id;
+
+	if (!le16_get_bits(status->mask, IPA_STATUS_MASK_TAG_VALID_FMASK))
+		return false;	/* No valid tag */
+
+	/* The status contains a valid tag.  We know the packet was sent to
+	 * this endpoint (already verified by ipa_endpoint_status_skip()).
+	 * If the packet came from the AP->command TX endpoint we know
+	 * this packet was sent as part of the pipeline clear process.
+	 */
+	endpoint_id = u8_get_bits(status->endp_src_idx,
+				  IPA_STATUS_SRC_IDX_FMASK);
+	command_endpoint = ipa->name_map[IPA_ENDPOINT_AP_COMMAND_TX];
+	if (endpoint_id == command_endpoint->endpoint_id) {
+		complete(&ipa->completion);
+	} else {
+		dev_err(&ipa->pdev->dev,
+			"unexpected tagged packet from endpoint %u\n",
+			endpoint_id);
+	}
+
+	return true;
 }
 
 /* Return whether the status indicates the packet should be dropped */

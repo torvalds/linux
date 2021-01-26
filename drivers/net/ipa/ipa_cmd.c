@@ -573,6 +573,9 @@ void ipa_cmd_pipeline_clear_add(struct gsi_trans *trans)
 	struct ipa *ipa = container_of(trans->gsi, struct ipa, gsi);
 	struct ipa_endpoint *endpoint;
 
+	/* This will complete when the transfer is received */
+	reinit_completion(&ipa->completion);
+
 	/* Issue a no-op register write command (mask 0 means no write) */
 	ipa_cmd_register_write_add(trans, 0, 0, 0, true);
 
@@ -596,6 +599,11 @@ u32 ipa_cmd_pipeline_clear_count(void)
 	return 4;
 }
 
+void ipa_cmd_pipeline_clear_wait(struct ipa *ipa)
+{
+	wait_for_completion(&ipa->completion);
+}
+
 void ipa_cmd_pipeline_clear(struct ipa *ipa)
 {
 	u32 count = ipa_cmd_pipeline_clear_count();
@@ -605,6 +613,7 @@ void ipa_cmd_pipeline_clear(struct ipa *ipa)
 	if (trans) {
 		ipa_cmd_pipeline_clear_add(trans);
 		gsi_trans_commit_wait(trans);
+		ipa_cmd_pipeline_clear_wait(ipa);
 	} else {
 		dev_err(&ipa->pdev->dev,
 			"error allocating %u entry tag transaction\n", count);
