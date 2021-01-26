@@ -18,6 +18,7 @@
 struct btrfs_subpage {
 	/* Common members for both data and metadata pages */
 	spinlock_t lock;
+	u16 uptodate_bitmap;
 	union {
 		/*
 		 * Structures only used by metadata
@@ -50,5 +51,31 @@ void btrfs_page_inc_eb_refs(const struct btrfs_fs_info *fs_info,
 			    struct page *page);
 void btrfs_page_dec_eb_refs(const struct btrfs_fs_info *fs_info,
 			    struct page *page);
+
+/*
+ * Template for subpage related operations.
+ *
+ * btrfs_subpage_*() are for call sites where the page has subpage attached and
+ * the range is ensured to be inside the page.
+ *
+ * btrfs_page_*() are for call sites where the page can either be subpage
+ * specific or regular page. The function will handle both cases.
+ * But the range still needs to be inside the page.
+ */
+#define DECLARE_BTRFS_SUBPAGE_OPS(name)					\
+void btrfs_subpage_set_##name(const struct btrfs_fs_info *fs_info,	\
+		struct page *page, u64 start, u32 len);			\
+void btrfs_subpage_clear_##name(const struct btrfs_fs_info *fs_info,	\
+		struct page *page, u64 start, u32 len);			\
+bool btrfs_subpage_test_##name(const struct btrfs_fs_info *fs_info,	\
+		struct page *page, u64 start, u32 len);			\
+void btrfs_page_set_##name(const struct btrfs_fs_info *fs_info,		\
+		struct page *page, u64 start, u32 len);			\
+void btrfs_page_clear_##name(const struct btrfs_fs_info *fs_info,	\
+		struct page *page, u64 start, u32 len);			\
+bool btrfs_page_test_##name(const struct btrfs_fs_info *fs_info,	\
+		struct page *page, u64 start, u32 len);
+
+DECLARE_BTRFS_SUBPAGE_OPS(uptodate);
 
 #endif
