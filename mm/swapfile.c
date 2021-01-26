@@ -2302,16 +2302,6 @@ static sector_t map_swap_entry(swp_entry_t entry, struct block_device **bdev)
 }
 
 /*
- * Returns the page offset into bdev for the specified page's swap entry.
- */
-sector_t map_swap_page(struct page *page, struct block_device **bdev)
-{
-	swp_entry_t entry;
-	entry.val = page_private(page);
-	return map_swap_entry(entry, bdev);
-}
-
-/*
  * Free all of a swapdev's extent information
  */
 static void destroy_swap_extents(struct swap_info_struct *sis)
