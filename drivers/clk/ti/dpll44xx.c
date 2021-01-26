@@ -102,7 +102,8 @@ static void omap4_dpll_lpmode_recalc(struct dpll_data *dd)
 
 /**
  * omap4_dpll_regm4xen_recalc - compute DPLL rate, considering REGM4XEN bit
- * @clk: struct clk * of the DPLL to compute the rate for
+ * @hw: pointer to the clock to compute the rate for
+ * @parent_rate: clock rate of the DPLL parent
  *
  * Compute the output rate for the OMAP4 DPLL represented by @clk.
  * Takes the REGM4XEN bit into consideration, which is needed for the
@@ -134,8 +135,9 @@ unsigned long omap4_dpll_regm4xen_recalc(struct clk_hw *hw,
 
 /**
  * omap4_dpll_regm4xen_round_rate - round DPLL rate, considering REGM4XEN bit
- * @clk: struct clk * of the DPLL to round a rate for
+ * @hw: struct hw_clk containing the struct clk * of the DPLL to round a rate for
  * @target_rate: the desired rate of the DPLL
+ * @parent_rate: clock rate of the DPLL parent
  *
  * Compute the rate that would be programmed into the DPLL hardware
  * for @clk if set_rate() were to be provided with the rate
