@@ -951,15 +951,13 @@ stm_unregister:
 	return ret;
 }
 
-static int stm_remove(struct amba_device *adev)
+static void stm_remove(struct amba_device *adev)
 {
 	struct stm_drvdata *drvdata = dev_get_drvdata(&adev->dev);
 
 	coresight_unregister(drvdata->csdev);
 
 	stm_unregister_device(&drvdata->stm);
-
-	return 0;
 }
 
 #ifdef CONFIG_PM
