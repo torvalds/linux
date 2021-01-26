@@ -46,7 +46,6 @@ static void mlx5e_del_l2_flow_rule(struct mlx5e_priv *priv,
 enum {
 	MLX5E_FULLMATCH = 0,
 	MLX5E_ALLMULTI  = 1,
-	MLX5E_PROMISC   = 2,
 };
 
 enum {
@@ -596,6 +595,83 @@ static void mlx5e_handle_netdev_addr(struct mlx5e_priv *priv)
 	mlx5e_apply_netdev_addr(priv);
 }
 
+#define MLX5E_PROMISC_GROUP0_SIZE BIT(0)
+#define MLX5E_PROMISC_TABLE_SIZE MLX5E_PROMISC_GROUP0_SIZE
+
+static int mlx5e_add_promisc_rule(struct mlx5e_priv *priv)
+{
+	struct mlx5_flow_table *ft = priv->fs.promisc.ft.t;
+	struct mlx5_flow_destination dest = {};
+	struct mlx5_flow_handle **rule_p;
+	MLX5_DECLARE_FLOW_ACT(flow_act);
+	struct mlx5_flow_spec *spec;
+	int err = 0;
+
+	spec = kvzalloc(sizeof(*spec), GFP_KERNEL);
+	if (!spec)
+		return -ENOMEM;
+	dest.type = MLX5_FLOW_DESTINATION_TYPE_FLOW_TABLE;
+	dest.ft = priv->fs.ttc.ft.t;
+
+	rule_p = &priv->fs.promisc.rule;
+	*rule_p = mlx5_add_flow_rules(ft, spec, &flow_act, &dest, 1);
+	if (IS_ERR(*rule_p)) {
+		err = PTR_ERR(*rule_p);
+		*rule_p = NULL;
+		netdev_err(priv->netdev, "%s: add promiscuous rule failed\n", __func__);
+	}
+	kvfree(spec);
+	return err;
+}
+
+static int mlx5e_create_promisc_table(struct mlx5e_priv *priv)
+{
+	struct mlx5e_flow_table *ft = &priv->fs.promisc.ft;
+	struct mlx5_flow_table_attr ft_attr = {};
+	int err;
+
+	ft_attr.max_fte = MLX5E_PROMISC_TABLE_SIZE;
+	ft_attr.autogroup.max_num_groups = 1;
+	ft_attr.level = MLX5E_PROMISC_FT_LEVEL;
+	ft_attr.prio = MLX5E_NIC_PRIO;
+
+	ft->t = mlx5_create_auto_grouped_flow_table(priv->fs.ns, &ft_attr);
+	if (IS_ERR(ft->t)) {
+		err = PTR_ERR(ft->t);
+		netdev_err(priv->netdev, "fail to create promisc table err=%d\n", err);
+		return err;
+	}
+
+	err = mlx5e_add_promisc_rule(priv);
+	if (err)
+		goto err_destroy_promisc_table;
+
+	return 0;
+
+err_destroy_promisc_table:
+	mlx5_destroy_flow_table(ft->t);
+	ft->t = NULL;
+
+	return err;
+}
+
+static void mlx5e_del_promisc_rule(struct mlx5e_priv *priv)
+{
+	if (WARN(!priv->fs.promisc.rule, "Trying to remove non-existing promiscuous rule"))
+		return;
+	mlx5_del_flow_rules(priv->fs.promisc.rule);
+	priv->fs.promisc.rule = NULL;
+}
+
+static void mlx5e_destroy_promisc_table(struct mlx5e_priv *priv)
+{
+	if (WARN(!priv->fs.promisc.ft.t, "Trying to remove non-existing promiscuous table"))
+		return;
+	mlx5e_del_promisc_rule(priv);
+	mlx5_destroy_flow_table(priv->fs.promisc.ft.t);
+	priv->fs.promisc.ft.t = NULL;
+}
+
 void mlx5e_set_rx_mode_work(struct work_struct *work)
 {
 	struct mlx5e_priv *priv = container_of(work, struct mlx5e_priv,
@@ -615,14 +691,15 @@ void mlx5e_set_rx_mode_work(struct work_struct *work)
 	bool disable_allmulti  =  ea->allmulti_enabled  && !allmulti_enabled;
 	bool enable_broadcast  = !ea->broadcast_enabled &&  broadcast_enabled;
 	bool disable_broadcast =  ea->broadcast_enabled && !broadcast_enabled;
+	int err;
 
 	if (enable_promisc) {
-		if (!priv->channels.params.vlan_strip_disable)
+		err = mlx5e_create_promisc_table(priv);
+		if (err)
+			enable_promisc = false;
+		if (!priv->channels.params.vlan_strip_disable && !err)
 			netdev_warn_once(ndev,
 					 "S-tagged traffic will be dropped while C-tag vlan stripping is enabled\n");
-		mlx5e_add_l2_flow_rule(priv, &ea->promisc, MLX5E_PROMISC);
-		if (!priv->fs.vlan.cvlan_filter_disabled)
-			mlx5e_add_any_vid_rules(priv);
 	}
 	if (enable_allmulti)
 		mlx5e_add_l2_flow_rule(priv, &ea->allmulti, MLX5E_ALLMULTI);
@@ -635,11 +712,8 @@ void mlx5e_set_rx_mode_work(struct work_struct *work)
 		mlx5e_del_l2_flow_rule(priv, &ea->broadcast);
 	if (disable_allmulti)
 		mlx5e_del_l2_flow_rule(priv, &ea->allmulti);
-	if (disable_promisc) {
-		if (!priv->fs.vlan.cvlan_filter_disabled)
-			mlx5e_del_any_vid_rules(priv);
-		mlx5e_del_l2_flow_rule(priv, &ea->promisc);
-	}
+	if (disable_promisc)
+		mlx5e_destroy_promisc_table(priv);
 
 	ea->promisc_enabled   = promisc_enabled;
 	ea->allmulti_enabled  = allmulti_enabled;
@@ -1306,9 +1380,6 @@ static int mlx5e_add_l2_flow_rule(struct mlx5e_priv *priv,
 		mc_dmac[0] = 0x01;
 		mv_dmac[0] = 0x01;
 		break;
-
-	case MLX5E_PROMISC:
-		break;
 	}
 
 	ai->rule = mlx5_add_flow_rules(ft, spec, &flow_act, &dest, 1);
@@ -1324,13 +1395,11 @@ static int mlx5e_add_l2_flow_rule(struct mlx5e_priv *priv,
 	return err;
 }
 
-#define MLX5E_NUM_L2_GROUPS	   3
-#define MLX5E_L2_GROUP1_SIZE	   BIT(0)
-#define MLX5E_L2_GROUP2_SIZE	   BIT(15)
-#define MLX5E_L2_GROUP3_SIZE	   BIT(0)
+#define MLX5E_NUM_L2_GROUPS	   2
+#define MLX5E_L2_GROUP1_SIZE	   BIT(15)
+#define MLX5E_L2_GROUP2_SIZE	   BIT(0)
 #define MLX5E_L2_TABLE_SIZE	   (MLX5E_L2_GROUP1_SIZE +\
-				    MLX5E_L2_GROUP2_SIZE +\
-				    MLX5E_L2_GROUP3_SIZE)
+				    MLX5E_L2_GROUP2_SIZE)
 static int mlx5e_create_l2_table_groups(struct mlx5e_l2_table *l2_table)
 {
 	int inlen = MLX5_ST_SZ_BYTES(create_flow_group_in);
@@ -1353,20 +1422,11 @@ static int mlx5e_create_l2_table_groups(struct mlx5e_l2_table *l2_table)
 	mc = MLX5_ADDR_OF(create_flow_group_in, in, match_criteria);
 	mc_dmac = MLX5_ADDR_OF(fte_match_param, mc,
 			       outer_headers.dmac_47_16);
-	/* Flow Group for promiscuous */
-	MLX5_SET_CFG(in, start_flow_index, ix);
-	ix += MLX5E_L2_GROUP1_SIZE;
-	MLX5_SET_CFG(in, end_flow_index, ix - 1);
-	ft->g[ft->num_groups] = mlx5_create_flow_group(ft->t, in);
-	if (IS_ERR(ft->g[ft->num_groups]))
-		goto err_destroy_groups;
-	ft->num_groups++;
-
 	/* Flow Group for full match */
 	eth_broadcast_addr(mc_dmac);
 	MLX5_SET_CFG(in, match_criteria_enable, MLX5_MATCH_OUTER_HEADERS);
 	MLX5_SET_CFG(in, start_flow_index, ix);
-	ix += MLX5E_L2_GROUP2_SIZE;
+	ix += MLX5E_L2_GROUP1_SIZE;
 	MLX5_SET_CFG(in, end_flow_index, ix - 1);
 	ft->g[ft->num_groups] = mlx5_create_flow_group(ft->t, in);
 	if (IS_ERR(ft->g[ft->num_groups]))
@@ -1377,7 +1437,7 @@ static int mlx5e_create_l2_table_groups(struct mlx5e_l2_table *l2_table)
 	eth_zero_addr(mc_dmac);
 	mc_dmac[0] = 0x01;
 	MLX5_SET_CFG(in, start_flow_index, ix);
-	ix += MLX5E_L2_GROUP3_SIZE;
+	ix += MLX5E_L2_GROUP2_SIZE;
 	MLX5_SET_CFG(in, end_flow_index, ix - 1);
 	ft->g[ft->num_groups] = mlx5_create_flow_group(ft->t, in);
 	if (IS_ERR(ft->g[ft->num_groups]))
