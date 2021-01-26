@@ -340,16 +340,6 @@ static int start_readonly;
  */
 static bool create_on_open = true;
 
-struct bio *bio_alloc_mddev(gfp_t gfp_mask, int nr_iovecs,
-			    struct mddev *mddev)
-{
-	if (!mddev || !bioset_initialized(&mddev->bio_set))
-		return bio_alloc(gfp_mask, nr_iovecs);
-
-	return bio_alloc_bioset(gfp_mask, nr_iovecs, &mddev->bio_set);
-}
-EXPORT_SYMBOL_GPL(bio_alloc_mddev);
-
 static struct bio *md_bio_alloc_sync(struct mddev *mddev)
 {
 	if (!mddev || !bioset_initialized(&mddev->sync_set))
@@ -613,7 +603,7 @@ static void submit_flushes(struct work_struct *ws)
 			atomic_inc(&rdev->nr_pending);
 			atomic_inc(&rdev->nr_pending);
 			rcu_read_unlock();
-			bi = bio_alloc_mddev(GFP_NOIO, 0, mddev);
+			bi = bio_alloc_bioset(GFP_NOIO, 0, &mddev->bio_set);
 			bi->bi_end_io = md_end_flush;
 			bi->bi_private = rdev;
 			bio_set_dev(bi, rdev->bdev);
