@@ -51,39 +51,46 @@ static inline void gc_pos_set(struct bch_fs *c, struct gc_pos new_pos)
 }
 
 static int bch2_gc_check_topology(struct bch_fs *c,
-				  struct bkey_s_c k,
-				  struct bpos *expected_start,
-				  struct bpos expected_end,
+				  struct btree *b,
+				  struct bkey_buf *prev,
+				  struct bkey_buf cur,
 				  bool is_last)
 {
+	struct bpos node_start	= b->data->min_key;
+	struct bpos node_end	= b->data->max_key;
+	struct bpos expected_start = bkey_deleted(&prev->k->k)
+		? node_start
+		: bkey_successor(prev->k->k.p);
+	char buf1[200], buf2[200];
 	int ret = 0;
 
-	if (k.k->type == KEY_TYPE_btree_ptr_v2) {
-		struct bkey_s_c_btree_ptr_v2 bp = bkey_s_c_to_btree_ptr_v2(k);
+	if (cur.k->k.type == KEY_TYPE_btree_ptr_v2) {
+		struct bkey_i_btree_ptr_v2 *bp = bkey_i_to_btree_ptr_v2(cur.k);
 
-		if (fsck_err_on(bkey_cmp(*expected_start, bp.v->min_key), c,
-				"btree node with incorrect min_key: got %llu:%llu, should be %llu:%llu",
-				bp.v->min_key.inode,
-				bp.v->min_key.offset,
-				expected_start->inode,
-				expected_start->offset)) {
+		if (bkey_deleted(&prev->k->k))
+			scnprintf(buf1, sizeof(buf1), "start of node: %llu:%llu",
+				  node_start.inode,
+				  node_start.offset);
+		else
+			bch2_bkey_val_to_text(&PBUF(buf1), c, bkey_i_to_s_c(prev->k));
+
+		if (fsck_err_on(bkey_cmp(expected_start, bp->v.min_key), c,
+				"btree node with incorrect min_key:\n  prev %s\n  cur %s",
+				buf1,
+				(bch2_bkey_val_to_text(&PBUF(buf2), c, bkey_i_to_s_c(cur.k)), buf2))) {
 			BUG();
 		}
 	}
 
-	*expected_start = bkey_cmp(k.k->p, POS_MAX)
-		? bkey_successor(k.k->p)
-		: k.k->p;
-
 	if (fsck_err_on(is_last &&
-			bkey_cmp(k.k->p, expected_end), c,
-			"btree node with incorrect max_key: got %llu:%llu, should be %llu:%llu",
-			k.k->p.inode,
-			k.k->p.offset,
-			expected_end.inode,
-			expected_end.offset)) {
+			bkey_cmp(cur.k->k.p, node_end), c,
+			"btree node with incorrect max_key:\n  %s\n  expected %s",
+			(bch2_bkey_val_to_text(&PBUF(buf1), c, bkey_i_to_s_c(cur.k)), buf1),
+			(bch2_bpos_to_text(&PBUF(buf2), node_end), buf2))) {
 		BUG();
 	}
+
+	bch2_bkey_buf_copy(prev, c, cur.k);
 fsck_err:
 	return ret;
 }
@@ -169,10 +176,10 @@ fsck_err:
 static int btree_gc_mark_node(struct bch_fs *c, struct btree *b, u8 *max_stale,
 			      bool initial)
 {
-	struct bpos next_node_start = b->data->min_key;
 	struct btree_node_iter iter;
 	struct bkey unpacked;
 	struct bkey_s_c k;
+	struct bkey_buf prev, cur;
 	int ret = 0;
 
 	*max_stale = 0;
@@ -181,6 +188,9 @@ static int btree_gc_mark_node(struct bch_fs *c, struct btree *b, u8 *max_stale,
 		return 0;
 
 	bch2_btree_node_iter_init_from_start(&iter, b);
+	bch2_bkey_buf_init(&prev);
+	bch2_bkey_buf_init(&cur);
+	bkey_init(&prev.k->k);
 
 	while ((k = bch2_btree_node_iter_peek_unpack(&iter, b, &unpacked)).k) {
 		bch2_bkey_debugcheck(c, b, k);
@@ -192,15 +202,17 @@ static int btree_gc_mark_node(struct bch_fs *c, struct btree *b, u8 *max_stale,
 		bch2_btree_node_iter_advance(&iter, b);
 
 		if (b->c.level) {
-			ret = bch2_gc_check_topology(c, k,
-					&next_node_start,
-					b->data->max_key,
+			bch2_bkey_buf_reassemble(&cur, c, k);
+
+			ret = bch2_gc_check_topology(c, b, &prev, cur,
 					bch2_btree_node_iter_end(&iter));
 			if (ret)
 				break;
 		}
 	}
 
+	bch2_bkey_buf_exit(&cur, c);
+	bch2_bkey_buf_exit(&prev, c);
 	return ret;
 }
 
@@ -267,13 +279,14 @@ static int bch2_gc_btree_init_recurse(struct bch_fs *c, struct btree *b,
 {
 	struct btree_and_journal_iter iter;
 	struct bkey_s_c k;
-	struct bpos next_node_start = b->data->min_key;
-	struct bkey_buf tmp;
+	struct bkey_buf cur, prev;
 	u8 max_stale = 0;
 	int ret = 0;
 
 	bch2_btree_and_journal_iter_init_node_iter(&iter, journal_keys, b);
-	bch2_bkey_buf_init(&tmp);
+	bch2_bkey_buf_init(&prev);
+	bch2_bkey_buf_init(&cur);
+	bkey_init(&prev.k->k);
 
 	while ((k = bch2_btree_and_journal_iter_peek(&iter)).k) {
 		bch2_bkey_debugcheck(c, b, k);
@@ -288,20 +301,19 @@ static int bch2_gc_btree_init_recurse(struct bch_fs *c, struct btree *b,
 		if (b->c.level) {
 			struct btree *child;
 
-			bch2_bkey_buf_reassemble(&tmp, c, k);
-			k = bkey_i_to_s_c(tmp.k);
+			bch2_bkey_buf_reassemble(&cur, c, k);
+			k = bkey_i_to_s_c(cur.k);
 
 			bch2_btree_and_journal_iter_advance(&iter);
 
-			ret = bch2_gc_check_topology(c, k,
-					&next_node_start,
-					b->data->max_key,
+			ret = bch2_gc_check_topology(c, b,
+					&prev, cur,
 					!bch2_btree_and_journal_iter_peek(&iter).k);
 			if (ret)
 				break;
 
 			if (b->c.level > target_depth) {
-				child = bch2_btree_node_get_noiter(c, tmp.k,
+				child = bch2_btree_node_get_noiter(c, cur.k,
 							b->c.btree_id, b->c.level - 1);
 				ret = PTR_ERR_OR_ZERO(child);
 				if (ret)
@@ -319,7 +331,8 @@ static int bch2_gc_btree_init_recurse(struct bch_fs *c, struct btree *b,
 		}
 	}
 
-	bch2_bkey_buf_exit(&tmp, c);
+	bch2_bkey_buf_exit(&cur, c);
+	bch2_bkey_buf_exit(&prev, c);
 	return ret;
 }
 
