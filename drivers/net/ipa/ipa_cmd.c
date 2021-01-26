@@ -567,33 +567,43 @@ static void ipa_cmd_transfer_add(struct gsi_trans *trans, u16 size)
 			  direction, opcode);
 }
 
-void ipa_cmd_tag_process_add(struct gsi_trans *trans)
+/* Add immediate commands to a transaction to clear the hardware pipeline */
+void ipa_cmd_pipeline_clear_add(struct gsi_trans *trans)
 {
 	struct ipa *ipa = container_of(trans->gsi, struct ipa, gsi);
 	struct ipa_endpoint *endpoint;
 
-	endpoint = ipa->name_map[IPA_ENDPOINT_AP_LAN_RX];
-
+	/* Issue a no-op register write command (mask 0 means no write) */
 	ipa_cmd_register_write_add(trans, 0, 0, 0, true);
+
+	/* Send a data packet through the IPA pipeline.  The packet_init
+	 * command says to send the next packet directly to the exception
+	 * endpoint without any other IPA processing.  The tag_status
+	 * command requests that status be generated on completion of
+	 * that transfer, and that it will contain the given tag value.
+	 * Finally, the transfer command sends a small packet of data
+	 * (instead of a command) using the command endpoint.
+	 */
+	endpoint = ipa->name_map[IPA_ENDPOINT_AP_LAN_RX];
 	ipa_cmd_ip_packet_init_add(trans, endpoint->endpoint_id);
 	ipa_cmd_ip_tag_status_add(trans, 0xcba987654321);
 	ipa_cmd_transfer_add(trans, 4);
 }
 
-/* Returns the number of commands required for the tag process */
-u32 ipa_cmd_tag_process_count(void)
+/* Returns the number of commands required to clear the pipeline */
+u32 ipa_cmd_pipeline_clear_count(void)
 {
 	return 4;
 }
 
-void ipa_cmd_tag_process(struct ipa *ipa)
+void ipa_cmd_pipeline_clear(struct ipa *ipa)
 {
-	u32 count = ipa_cmd_tag_process_count();
+	u32 count = ipa_cmd_pipeline_clear_count();
 	struct gsi_trans *trans;
 
 	trans = ipa_cmd_trans_alloc(ipa, count);
 	if (trans) {
-		ipa_cmd_tag_process_add(trans);
+		ipa_cmd_pipeline_clear_add(trans);
 		gsi_trans_commit_wait(trans);
 	} else {
 		dev_err(&ipa->pdev->dev,

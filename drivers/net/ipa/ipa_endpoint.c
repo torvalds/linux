@@ -399,7 +399,7 @@ int ipa_endpoint_modem_exception_reset_all(struct ipa *ipa)
 	 * That won't happen, and we could be more precise, but this is fine
 	 * for now.  We need to end the transaction with a "tag process."
 	 */
-	count = hweight32(initialized) + ipa_cmd_tag_process_count();
+	count = hweight32(initialized) + ipa_cmd_pipeline_clear_count();
 	trans = ipa_cmd_trans_alloc(ipa, count);
 	if (!trans) {
 		dev_err(&ipa->pdev->dev,
@@ -428,7 +428,7 @@ int ipa_endpoint_modem_exception_reset_all(struct ipa *ipa)
 		ipa_cmd_register_write_add(trans, offset, 0, ~0, false);
 	}
 
-	ipa_cmd_tag_process_add(trans);
+	ipa_cmd_pipeline_clear_add(trans);
 
 	/* XXX This should have a 1 second timeout */
 	gsi_trans_commit_wait(trans);
@@ -1564,7 +1564,7 @@ void ipa_endpoint_suspend(struct ipa *ipa)
 	if (ipa->modem_netdev)
 		ipa_modem_suspend(ipa->modem_netdev);
 
-	ipa_cmd_tag_process(ipa);
+	ipa_cmd_pipeline_clear(ipa);
 
 	ipa_endpoint_suspend_one(ipa->name_map[IPA_ENDPOINT_AP_LAN_RX]);
 	ipa_endpoint_suspend_one(ipa->name_map[IPA_ENDPOINT_AP_COMMAND_TX]);
