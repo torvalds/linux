@@ -1465,7 +1465,7 @@ static void mt7615_mac_tx_free(struct mt7615_dev *dev, struct sk_buff *skb)
 	mt7615_mac_sta_poll(dev);
 	rcu_read_unlock();
 
-	mt7615_pm_power_save_sched(dev);
+	mt76_connac_power_save_sched(&dev->mphy, &dev->pm);
 	mt76_worker_schedule(&dev->mt76.tx_worker);
 }
 
@@ -1789,11 +1789,11 @@ void mt7615_update_channel(struct mt76_dev *mdev)
 {
 	struct mt7615_dev *dev = container_of(mdev, struct mt7615_dev, mt76);
 
-	if (mt7615_pm_wake(dev))
+	if (mt76_connac_pm_wake(&dev->mphy, &dev->pm))
 		return;
 
 	__mt7615_update_channel(dev);
-	mt7615_pm_power_save_sched(dev);
+	mt76_connac_power_save_sched(&dev->mphy, &dev->pm);
 }
 EXPORT_SYMBOL_GPL(mt7615_update_channel);
 
@@ -1862,94 +1862,19 @@ void mt7615_pm_wake_work(struct work_struct *work)
 {
 	struct mt7615_dev *dev;
 	struct mt76_phy *mphy;
-	int i;
 
 	dev = (struct mt7615_dev *)container_of(work, struct mt7615_dev,
 						pm.wake_work);
 	mphy = dev->phy.mt76;
 
-	if (mt7615_mcu_set_drv_ctrl(dev)) {
+	if (!mt7615_mcu_set_drv_ctrl(dev))
+		mt76_connac_pm_dequeue_skbs(mphy, &dev->pm);
+	else
 		dev_err(mphy->dev->dev, "failed to wake device\n");
-		goto out;
-	}
 
-	spin_lock_bh(&dev->pm.txq_lock);
-	for (i = 0; i < IEEE80211_NUM_ACS; i++) {
-		struct mt76_wcid *wcid = dev->pm.tx_q[i].wcid;
-		struct ieee80211_sta *sta = NULL;
-
-		if (!dev->pm.tx_q[i].skb)
-			continue;
-
-		if (wcid && wcid->sta)
-			sta = container_of((void *)wcid, struct ieee80211_sta,
-					   drv_priv);
-
-		mt76_tx(mphy, sta, wcid, dev->pm.tx_q[i].skb);
-		dev->pm.tx_q[i].skb = NULL;
-	}
-	spin_unlock_bh(&dev->pm.txq_lock);
-
-	mt76_worker_schedule(&dev->mt76.tx_worker);
-
-out:
 	ieee80211_wake_queues(mphy->hw);
 	complete_all(&dev->pm.wake_cmpl);
 }
-
-int mt7615_pm_wake(struct mt7615_dev *dev)
-{
-	struct mt76_phy *mphy = dev->phy.mt76;
-
-	if (!mt7615_firmware_offload(dev))
-		return 0;
-
-	if (!mt76_is_mmio(mphy->dev))
-		return 0;
-
-	if (!test_bit(MT76_STATE_PM, &mphy->state))
-		return 0;
-
-	if (test_bit(MT76_HW_SCANNING, &mphy->state) ||
-	    test_bit(MT76_HW_SCHED_SCANNING, &mphy->state))
-		return 0;
-
-	if (queue_work(dev->mt76.wq, &dev->pm.wake_work))
-		reinit_completion(&dev->pm.wake_cmpl);
-
-	if (!wait_for_completion_timeout(&dev->pm.wake_cmpl, 3 * HZ)) {
-		ieee80211_wake_queues(mphy->hw);
-		return -ETIMEDOUT;
-	}
-
-	return 0;
-}
-EXPORT_SYMBOL_GPL(mt7615_pm_wake);
-
-void mt7615_pm_power_save_sched(struct mt7615_dev *dev)
-{
-	struct mt76_phy *mphy = dev->phy.mt76;
-
-	if (!mt7615_firmware_offload(dev))
-		return;
-
-	if (!mt76_is_mmio(mphy->dev))
-		return;
-
-	if (!dev->pm.enable || !test_bit(MT76_STATE_RUNNING, &mphy->state))
-		return;
-
-	dev->pm.last_activity = jiffies;
-
-	if (test_bit(MT76_HW_SCANNING, &mphy->state) ||
-	    test_bit(MT76_HW_SCHED_SCANNING, &mphy->state))
-		return;
-
-	if (!test_bit(MT76_STATE_PM, &mphy->state))
-		queue_delayed_work(dev->mt76.wq, &dev->pm.ps_work,
-				   dev->pm.idle_timeout);
-}
-EXPORT_SYMBOL_GPL(mt7615_pm_power_save_sched);
 
 void mt7615_pm_power_save_work(struct work_struct *work)
 {

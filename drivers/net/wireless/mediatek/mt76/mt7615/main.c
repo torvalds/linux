@@ -24,22 +24,6 @@ static bool mt7615_dev_running(struct mt7615_dev *dev)
 	return phy && test_bit(MT76_STATE_RUNNING, &phy->mt76->state);
 }
 
-static void mt7615_free_pending_tx_skbs(struct mt7615_dev *dev,
-					struct mt7615_sta *msta)
-{
-	int i;
-
-	spin_lock_bh(&dev->pm.txq_lock);
-	for (i = 0; i < IEEE80211_NUM_ACS; i++) {
-		if (msta && dev->pm.tx_q[i].wcid != &msta->wcid)
-			continue;
-
-		dev_kfree_skb(dev->pm.tx_q[i].skb);
-		dev->pm.tx_q[i].skb = NULL;
-	}
-	spin_unlock_bh(&dev->pm.txq_lock);
-}
-
 static int mt7615_start(struct ieee80211_hw *hw)
 {
 	struct mt7615_dev *dev = mt7615_hw_dev(hw);
@@ -95,7 +79,7 @@ static void mt7615_stop(struct ieee80211_hw *hw)
 	cancel_delayed_work_sync(&dev->pm.ps_work);
 	cancel_work_sync(&dev->pm.wake_work);
 
-	mt7615_free_pending_tx_skbs(dev, NULL);
+	mt76_connac_free_pending_tx_skbs(&dev->pm, NULL);
 
 	mt7615_mutex_acquire(dev);
 
@@ -258,7 +242,7 @@ static void mt7615_remove_interface(struct ieee80211_hw *hw,
 	if (vif == phy->monitor_vif)
 	    phy->monitor_vif = NULL;
 
-	mt7615_free_pending_tx_skbs(dev, msta);
+	mt76_connac_free_pending_tx_skbs(&dev->pm, &msta->wcid);
 
 	mt7615_mac_set_beacon_filter(phy, vif, false);
 	mt7615_mcu_add_dev_info(phy, vif, false);
@@ -581,6 +565,7 @@ int mt7615_mac_sta_add(struct mt76_dev *mdev, struct ieee80211_vif *vif,
 	struct mt7615_dev *dev = container_of(mdev, struct mt7615_dev, mt76);
 	struct mt7615_sta *msta = (struct mt7615_sta *)sta->drv_priv;
 	struct mt7615_vif *mvif = (struct mt7615_vif *)vif->drv_priv;
+	struct mt7615_phy *phy;
 	int idx, err;
 
 	idx = mt76_wcid_alloc(dev->mt76.wcid_mask, MT7615_WTBL_STA - 1);
@@ -593,21 +578,18 @@ int mt7615_mac_sta_add(struct mt76_dev *mdev, struct ieee80211_vif *vif,
 	msta->wcid.idx = idx;
 	msta->wcid.ext_phy = mvif->mt76.band_idx;
 
-	err = mt7615_pm_wake(dev);
+	phy = mvif->mt76.band_idx ? mt7615_ext_phy(dev) : &dev->phy;
+	err = mt76_connac_pm_wake(phy->mt76, &dev->pm);
 	if (err)
 		return err;
 
-	if (vif->type == NL80211_IFTYPE_STATION && !sta->tdls) {
-		struct mt7615_phy *phy;
-
-		phy = mvif->mt76.band_idx ? mt7615_ext_phy(dev) : &dev->phy;
+	if (vif->type == NL80211_IFTYPE_STATION && !sta->tdls)
 		mt7615_mcu_add_bss_info(phy, vif, sta, true);
-	}
 	mt7615_mac_wtbl_update(dev, idx,
 			       MT_WTBL_UPDATE_ADM_COUNT_CLEAR);
 	mt7615_mcu_sta_add(&dev->phy, vif, sta, true);
 
-	mt7615_pm_power_save_sched(dev);
+	mt76_connac_power_save_sched(phy->mt76, &dev->pm);
 
 	return 0;
 }
@@ -618,27 +600,26 @@ void mt7615_mac_sta_remove(struct mt76_dev *mdev, struct ieee80211_vif *vif,
 {
 	struct mt7615_dev *dev = container_of(mdev, struct mt7615_dev, mt76);
 	struct mt7615_sta *msta = (struct mt7615_sta *)sta->drv_priv;
+	struct mt7615_vif *mvif = (struct mt7615_vif *)vif->drv_priv;
+	struct mt7615_phy *phy;
 
-	mt7615_free_pending_tx_skbs(dev, msta);
-	mt7615_pm_wake(dev);
+	mt76_connac_free_pending_tx_skbs(&dev->pm, &msta->wcid);
+
+	phy = mvif->mt76.band_idx ? mt7615_ext_phy(dev) : &dev->phy;
+	mt76_connac_pm_wake(phy->mt76, &dev->pm);
 
 	mt7615_mcu_sta_add(&dev->phy, vif, sta, false);
 	mt7615_mac_wtbl_update(dev, msta->wcid.idx,
 			       MT_WTBL_UPDATE_ADM_COUNT_CLEAR);
-	if (vif->type == NL80211_IFTYPE_STATION && !sta->tdls) {
-		struct mt7615_vif *mvif = (struct mt7615_vif *)vif->drv_priv;
-		struct mt7615_phy *phy;
-
-		phy = mvif->mt76.band_idx ? mt7615_ext_phy(dev) : &dev->phy;
+	if (vif->type == NL80211_IFTYPE_STATION && !sta->tdls)
 		mt7615_mcu_add_bss_info(phy, vif, sta, false);
-	}
 
 	spin_lock_bh(&dev->sta_poll_lock);
 	if (!list_empty(&msta->poll_list))
 		list_del_init(&msta->poll_list);
 	spin_unlock_bh(&dev->sta_poll_lock);
 
-	mt7615_pm_power_save_sched(dev);
+	mt76_connac_power_save_sched(phy->mt76, &dev->pm);
 }
 EXPORT_SYMBOL_GPL(mt7615_mac_sta_remove);
 
@@ -723,16 +704,7 @@ static void mt7615_tx(struct ieee80211_hw *hw,
 		skb_set_queue_mapping(skb, qid);
 	}
 
-	spin_lock_bh(&dev->pm.txq_lock);
-	if (!dev->pm.tx_q[qid].skb) {
-		ieee80211_stop_queues(hw);
-		dev->pm.tx_q[qid].wcid = wcid;
-		dev->pm.tx_q[qid].skb = skb;
-		queue_work(dev->mt76.wq, &dev->pm.wake_work);
-	} else {
-		dev_kfree_skb(skb);
-	}
-	spin_unlock_bh(&dev->pm.txq_lock);
+	mt76_connac_pm_queue_skb(hw, &dev->pm, wcid, skb);
 }
 
 static int mt7615_set_rts_threshold(struct ieee80211_hw *hw, u32 val)
@@ -1120,7 +1092,7 @@ static int mt7615_suspend(struct ieee80211_hw *hw,
 	int err = 0;
 
 	cancel_delayed_work_sync(&dev->pm.ps_work);
-	mt7615_free_pending_tx_skbs(dev, NULL);
+	mt76_connac_free_pending_tx_skbs(&dev->pm, NULL);
 
 	mt7615_mutex_acquire(dev);
 

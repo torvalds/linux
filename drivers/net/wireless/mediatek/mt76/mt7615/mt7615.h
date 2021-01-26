@@ -382,8 +382,6 @@ void mt7615_mac_set_rates(struct mt7615_phy *phy, struct mt7615_sta *sta,
 			  struct ieee80211_tx_rate *probe_rate,
 			  struct ieee80211_tx_rate *rates);
 void mt7615_pm_wake_work(struct work_struct *work);
-int mt7615_pm_wake(struct mt7615_dev *dev);
-void mt7615_pm_power_save_sched(struct mt7615_dev *dev);
 void mt7615_pm_power_save_work(struct work_struct *work);
 int mt7615_mcu_del_wtbl_all(struct mt7615_dev *dev);
 int mt7615_mcu_set_chan_info(struct mt7615_phy *phy, int cmd);
@@ -439,19 +437,10 @@ static inline u16 mt7615_wtbl_size(struct mt7615_dev *dev)
 		return MT7615_WTBL_SIZE;
 }
 
-static inline void mt7615_mutex_acquire(struct mt7615_dev *dev)
-	 __acquires(&dev->mt76.mutex)
-{
-	mutex_lock(&dev->mt76.mutex);
-	mt7615_pm_wake(dev);
-}
-
-static inline void mt7615_mutex_release(struct mt7615_dev *dev)
-	__releases(&dev->mt76.mutex)
-{
-	mt7615_pm_power_save_sched(dev);
-	mutex_unlock(&dev->mt76.mutex);
-}
+#define mt7615_mutex_acquire(dev)	\
+	mt76_connac_mutex_acquire(&(dev)->mt76, &(dev)->pm)
+#define mt7615_mutex_release(dev)	\
+	mt76_connac_mutex_release(&(dev)->mt76, &(dev)->pm)
 
 static inline u8 mt7615_lmac_mapping(struct mt7615_dev *dev, u8 ac)
 {

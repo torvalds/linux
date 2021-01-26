@@ -59,4 +59,33 @@ struct mt76_connac_pm {
 
 extern const struct wiphy_wowlan_support mt76_connac_wowlan_support;
 
+int mt76_connac_pm_wake(struct mt76_phy *phy, struct mt76_connac_pm *pm);
+void mt76_connac_power_save_sched(struct mt76_phy *phy,
+				  struct mt76_connac_pm *pm);
+void mt76_connac_free_pending_tx_skbs(struct mt76_connac_pm *pm,
+				      struct mt76_wcid *wcid);
+
+static inline void
+mt76_connac_mutex_acquire(struct mt76_dev *dev, struct mt76_connac_pm *pm)
+	__acquires(&dev->mutex)
+{
+	mutex_lock(&dev->mutex);
+	mt76_connac_pm_wake(&dev->phy, pm);
+}
+
+static inline void
+mt76_connac_mutex_release(struct mt76_dev *dev, struct mt76_connac_pm *pm)
+	__releases(&dev->mutex)
+{
+	mt76_connac_power_save_sched(&dev->phy, pm);
+	mutex_unlock(&dev->mutex);
+}
+
+void mt76_connac_pm_queue_skb(struct ieee80211_hw *hw,
+			      struct mt76_connac_pm *pm,
+			      struct mt76_wcid *wcid,
+			      struct sk_buff *skb);
+void mt76_connac_pm_dequeue_skbs(struct mt76_phy *phy,
+				 struct mt76_connac_pm *pm);
+
 #endif /* __MT76_CONNAC_H */
