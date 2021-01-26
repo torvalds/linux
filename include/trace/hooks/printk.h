@@ -10,17 +10,9 @@
 #include <linux/tracepoint.h>
 #include <trace/hooks/vendor_hooks.h>
 
-#if defined(CONFIG_TRACEPOINTS) && defined(CONFIG_ANDROID_VENDOR_HOOKS)
-
 DECLARE_HOOK(android_vh_printk_hotplug,
 	TP_PROTO(int *flag),
 	TP_ARGS(flag));
-
-#else
-
-#define trace_android_vh_printk_hotplug(flag)
-
-#endif
 
 #endif /* _TRACE_HOOK_PRINTK_H */
 /* This part must be outside protection */
