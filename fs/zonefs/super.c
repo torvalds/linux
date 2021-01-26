@@ -24,6 +24,9 @@
 
 #include "zonefs.h"
 
+#define CREATE_TRACE_POINTS
+#include "trace.h"
+
 static inline int zonefs_zone_mgmt(struct inode *inode,
 				   enum req_opf op)
 {
@@ -32,6 +35,7 @@ static inline int zonefs_zone_mgmt(struct inode *inode,
 
 	lockdep_assert_held(&zi->i_truncate_mutex);
 
+	trace_zonefs_zone_mgmt(inode, op);
 	ret = blkdev_zone_mgmt(inode->i_sb->s_bdev, op, zi->i_zsector,
 			       zi->i_zone_size >> SECTOR_SHIFT, GFP_NOFS);
 	if (ret) {
@@ -99,6 +103,8 @@ static int zonefs_iomap_begin(struct inode *inode, loff_t offset, loff_t length,
 	iomap->length = ALIGN(offset + length, sb->s_blocksize) - iomap->offset;
 	iomap->bdev = inode->i_sb->s_bdev;
 	iomap->addr = (zi->i_zsector << SECTOR_SHIFT) + iomap->offset;
+
+	trace_zonefs_iomap_begin(inode, iomap);
 
 	return 0;
 }
@@ -703,6 +709,7 @@ static ssize_t zonefs_file_dio_append(struct kiocb *iocb, struct iov_iter *from)
 	ret = submit_bio_wait(bio);
 
 	zonefs_file_write_dio_end_io(iocb, size, ret, 0);
+	trace_zonefs_file_dio_append(inode, size, ret);
 
 out_release:
 	bio_release_pages(bio, false);
