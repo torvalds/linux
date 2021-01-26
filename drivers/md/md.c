@@ -340,14 +340,6 @@ static int start_readonly;
  */
 static bool create_on_open = true;
 
-static struct bio *md_bio_alloc_sync(struct mddev *mddev)
-{
-	if (!mddev || !bioset_initialized(&mddev->sync_set))
-		return bio_alloc(GFP_NOIO, 1);
-
-	return bio_alloc_bioset(GFP_NOIO, 1, &mddev->sync_set);
-}
-
 /*
  * We have a system wide 'event count' that is incremented
  * on any 'interesting' event, and readers of /proc/mdstat
@@ -989,7 +981,7 @@ void md_super_write(struct mddev *mddev, struct md_rdev *rdev,
 	if (test_bit(Faulty, &rdev->flags))
 		return;
 
-	bio = md_bio_alloc_sync(mddev);
+	bio = bio_alloc_bioset(GFP_NOIO, 1, &mddev->sync_set);
 
 	atomic_inc(&rdev->nr_pending);
 
