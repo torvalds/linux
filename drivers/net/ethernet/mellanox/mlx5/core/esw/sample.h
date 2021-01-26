@@ -5,12 +5,15 @@
 #define __MLX5_EN_TC_SAMPLE_H__
 
 #include "en.h"
+#include "eswitch.h"
 
 struct mlx5_sample_attr {
 	u32 group_num;
 	u32 rate;
 	u32 trunc_size;
 };
+
+void mlx5_esw_sample_skb(struct sk_buff *skb, struct mlx5_mapped_obj *mapped_obj);
 
 struct mlx5_esw_psample *
 mlx5_esw_sample_init(struct mlx5e_priv *priv);

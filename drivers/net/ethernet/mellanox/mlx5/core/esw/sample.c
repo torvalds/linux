@@ -298,6 +298,21 @@ sample_restore_put(struct mlx5_esw_psample *esw_psample, struct mlx5_sample_rest
 	}
 }
 
+void mlx5_esw_sample_skb(struct sk_buff *skb, struct mlx5_mapped_obj *mapped_obj)
+{
+	u32 trunc_size = mapped_obj->sample.trunc_size;
+	struct psample_group psample_group = {};
+	struct psample_metadata md = {};
+
+	md.trunc_size = trunc_size ? min(trunc_size, skb->len) : skb->len;
+	md.in_ifindex = skb->dev->ifindex;
+	psample_group.group_num = mapped_obj->sample.group_id;
+	psample_group.net = &init_net;
+	skb_push(skb, skb->mac_len);
+
+	psample_sample_packet(&psample_group, skb, mapped_obj->sample.rate, &md);
+}
+
 struct mlx5_esw_psample *
 mlx5_esw_sample_init(struct mlx5e_priv *priv)
 {

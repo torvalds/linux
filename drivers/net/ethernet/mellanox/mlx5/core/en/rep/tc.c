@@ -17,6 +17,7 @@
 #include "en/mapping.h"
 #include "en/tc_tun.h"
 #include "lib/port_tun.h"
+#include "esw/sample.h"
 
 struct mlx5e_rep_indr_block_priv {
 	struct net_device *netdev;
@@ -675,13 +676,20 @@ bool mlx5e_rep_tc_update_skb(struct mlx5_cqe64 *cqe,
 	}
 
 #if IS_ENABLED(CONFIG_NET_TC_SKB_EXT)
-	if (mapped_obj.type == MLX5_MAPPED_OBJ_CHAIN) {
+	if (mapped_obj.type == MLX5_MAPPED_OBJ_CHAIN)
 		return mlx5e_restore_skb(skb, mapped_obj.chain, reg_c1, tc_priv);
-	} else {
+#endif /* CONFIG_NET_TC_SKB_EXT */
+#if IS_ENABLED(CONFIG_MLX5_TC_SAMPLE)
+	if (mapped_obj.type == MLX5_MAPPED_OBJ_SAMPLE) {
+		mlx5_esw_sample_skb(skb, &mapped_obj);
+		return false;
+	}
+#endif /* CONFIG_MLX5_TC_SAMPLE */
+	if (mapped_obj.type != MLX5_MAPPED_OBJ_SAMPLE &&
+	    mapped_obj.type != MLX5_MAPPED_OBJ_CHAIN) {
 		netdev_dbg(priv->netdev, "Invalid mapped object type: %d\n", mapped_obj.type);
 		return false;
 	}
-#endif /* CONFIG_NET_TC_SKB_EXT */
 
 	return true;
 }
