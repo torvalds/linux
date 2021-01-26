@@ -6860,24 +6860,24 @@ static void gaudi_print_sm_sei_info(struct hl_device *hdev, u16 event_type,
 	u32 index = event_type - GAUDI_EVENT_DMA_IF_SEI_0;
 
 	switch (sei_data->sei_cause) {
-	case GAUDI_SM_SEI_SO_OVERFLOW:
+	case SM_SEI_SO_OVERFLOW:
 		dev_err(hdev->dev,
 			"SM %u SEI Error: SO %u overflow/underflow",
-			index, le16_to_cpu(sei_data->sei_log));
+			index, le32_to_cpu(sei_data->sei_log));
 		break;
-	case GAUDI_SM_SEI_LBW_4B_UNALIGNED:
+	case SM_SEI_LBW_4B_UNALIGNED:
 		dev_err(hdev->dev,
 			"SM %u SEI Error: Unaligned 4B LBW access, monitor agent address low - %#x",
-			index, le16_to_cpu(sei_data->sei_log));
+			index, le32_to_cpu(sei_data->sei_log));
 		break;
-	case GAUDI_SM_SEI_AXI_RESPONSE_ERR:
+	case SM_SEI_AXI_RESPONSE_ERR:
 		dev_err(hdev->dev,
 			"SM %u SEI Error: AXI ID %u response error",
-			index, le16_to_cpu(sei_data->sei_log));
+			index, le32_to_cpu(sei_data->sei_log));
 		break;
 	default:
 		dev_err(hdev->dev, "Unknown SM SEI cause %u",
-				le16_to_cpu(sei_data->sei_log));
+				le32_to_cpu(sei_data->sei_log));
 		break;
 	}
 }

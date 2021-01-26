@@ -58,10 +58,17 @@ struct hl_eq_ecc_data {
 	__u8 pad[7];
 };
 
+enum hl_sm_sei_cause {
+	SM_SEI_SO_OVERFLOW,
+	SM_SEI_LBW_4B_UNALIGNED,
+	SM_SEI_AXI_RESPONSE_ERR
+};
+
 struct hl_eq_sm_sei_data {
-	__le16 sei_log;
+	__le32 sei_log;
+	/* enum hl_sm_sei_cause */
 	__u8 sei_cause;
-	__u8 pad[5];
+	__u8 pad[3];
 };
 
 struct hl_eq_entry {
