@@ -701,6 +701,13 @@ static bool vop2_fs_irq_is_pending(struct vop2_video_port *vp)
 	return VOP_INTR_GET_TYPE(vop2, intr, status, FS_FIELD_INTR);
 }
 
+static uint32_t vop2_read_vcnt(struct vop2_video_port *vp)
+{
+	uint32_t offset =  RK3568_SYS_STATUS0 + (vp->id << 2);
+
+	return vop2_readl(vp->vop2, offset) >> 16;
+}
+
 static void vop2_wait_for_irq_handler(struct drm_crtc *crtc)
 {
 	struct vop2_video_port *vp = to_vop2_video_port(crtc);
@@ -724,19 +731,20 @@ static void vop2_wait_for_irq_handler(struct drm_crtc *crtc)
 	synchronize_irq(vop2->irq);
 }
 
-static void vop2_wait_for_irq_fs(struct vop2_video_port *vp)
+static void vop2_wait_for_fs_by_vcnt(struct vop2_video_port *vp, uint32_t base_vcnt)
 {
 	struct vop2 *vop2 = vp->vop2;
-	bool pending;
+	uint32_t vcnt;
 	int ret;
 
 	/*
-	 * Spin until frame start interrupts come
+	 * Spin until vcnt wraps around(from a big value to a little value)
 	 */
-	ret = readx_poll_timeout_atomic(vop2_fs_irq_is_pending, vp, pending,
-					pending, 0, 20 * 1000);
+	ret = readx_poll_timeout_atomic(vop2_read_vcnt, vp, vcnt,
+					vcnt < base_vcnt, 0, 20 * 1000);
 	if (ret)
-		DRM_DEV_ERROR(vop2->dev, "wait fs irq for vp%d timeout\n", vp->id);
+		DRM_DEV_ERROR(vop2->dev, "wait fs for vp%d timeout: %d--->%d\n",
+			      vp->id, base_vcnt, vcnt);
 }
 
 static inline void vop2_cfg_done(struct drm_crtc *crtc)
@@ -774,11 +782,10 @@ static inline void vop2_cfg_done(struct drm_crtc *crtc)
 		if (vp_id != vp->id) {
 			done_vp = &vop2->vps[vp_id];
 			vcstate = to_rockchip_crtc_state(done_vp->crtc.state);
-			vcnt = vop2_readl(vop2, RK3568_SYS_STATUS0 + (vp_id << 2));
-			vcnt >>= 16;
+			vcnt = vop2_read_vcnt(done_vp);
 			/* if close to the last 1/4 frame, wait to next frame */
 			if (vcnt > (vcstate->vdisplay * 3 >> 2)) {
-				vop2_wait_for_irq_fs(done_vp);
+				vop2_wait_for_fs_by_vcnt(done_vp, vcnt);
 				done_bits = 0;
 			}
 		}
