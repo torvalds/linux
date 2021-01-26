@@ -46,7 +46,7 @@ int mlx5_create_encryption_key(struct mlx5_core_dev *mdev,
 		 MLX5_CMD_OP_CREATE_GENERAL_OBJECT);
 	MLX5_SET(general_obj_in_cmd_hdr, in, obj_type,
 		 MLX5_GENERAL_OBJECT_TYPES_ENCRYPTION_KEY);
-	MLX5_SET(encryption_key_obj, obj, pd, mdev->mlx5e_res.pdn);
+	MLX5_SET(encryption_key_obj, obj, pd, mdev->mlx5e_res.hw_objs.pdn);
 
 	err = mlx5_cmd_exec(mdev, in, sizeof(in), out, sizeof(out));
 	if (!err)
