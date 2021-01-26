@@ -200,6 +200,8 @@ struct spk_synth {
 	struct synth_indexing indexing;
 	int alive;
 	struct attribute_group attributes;
+
+	void *dev;
 };
 
 /*
