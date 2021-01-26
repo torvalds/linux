@@ -449,6 +449,7 @@ static void mlx5_devlink_set_params_init_values(struct devlink *devlink)
 
 static const struct devlink_trap mlx5_traps_arr[] = {
 	MLX5_TRAP_DROP(INGRESS_VLAN_FILTER, L2_DROPS),
+	MLX5_TRAP_DROP(DMAC_FILTER, L2_DROPS),
 };
 
 static const struct devlink_trap_group mlx5_trap_groups_arr[] = {
