@@ -142,10 +142,10 @@ static struct kvm_vcpu *get_vcpu_by_vpidx(struct kvm *kvm, u32 vpidx)
 		return NULL;
 
 	vcpu = kvm_get_vcpu(kvm, vpidx);
-	if (vcpu && vcpu_to_hv_vcpu(vcpu)->vp_index == vpidx)
+	if (vcpu && to_hv_vcpu(vcpu)->vp_index == vpidx)
 		return vcpu;
 	kvm_for_each_vcpu(i, vcpu, kvm)
-		if (vcpu_to_hv_vcpu(vcpu)->vp_index == vpidx)
+		if (to_hv_vcpu(vcpu)->vp_index == vpidx)
 			return vcpu;
 	return NULL;
 }
@@ -166,7 +166,7 @@ static void kvm_hv_notify_acked_sint(struct kvm_vcpu *vcpu, u32 sint)
 {
 	struct kvm *kvm = vcpu->kvm;
 	struct kvm_vcpu_hv_synic *synic = vcpu_to_synic(vcpu);
-	struct kvm_vcpu_hv *hv_vcpu = vcpu_to_hv_vcpu(vcpu);
+	struct kvm_vcpu_hv *hv_vcpu = to_hv_vcpu(vcpu);
 	struct kvm_vcpu_hv_stimer *stimer;
 	int gsi, idx;
 
@@ -317,7 +317,7 @@ static int syndbg_set_msr(struct kvm_vcpu *vcpu, u32 msr, u64 data, bool host)
 		return 1;
 
 	trace_kvm_hv_syndbg_set_msr(vcpu->vcpu_id,
-				    vcpu_to_hv_vcpu(vcpu)->vp_index, msr, data);
+				    to_hv_vcpu(vcpu)->vp_index, msr, data);
 	switch (msr) {
 	case HV_X64_MSR_SYNDBG_CONTROL:
 		syndbg->control.control = data;
@@ -379,7 +379,7 @@ static int syndbg_get_msr(struct kvm_vcpu *vcpu, u32 msr, u64 *pdata, bool host)
 	}
 
 	trace_kvm_hv_syndbg_get_msr(vcpu->vcpu_id,
-				    vcpu_to_hv_vcpu(vcpu)->vp_index, msr,
+				    to_hv_vcpu(vcpu)->vp_index, msr,
 				    *pdata);
 
 	return 0;
@@ -538,7 +538,7 @@ static void stimer_mark_pending(struct kvm_vcpu_hv_stimer *stimer,
 	struct kvm_vcpu *vcpu = stimer_to_vcpu(stimer);
 
 	set_bit(stimer->index,
-		vcpu_to_hv_vcpu(vcpu)->stimer_pending_bitmap);
+		to_hv_vcpu(vcpu)->stimer_pending_bitmap);
 	kvm_make_request(KVM_REQ_HV_STIMER, vcpu);
 	if (vcpu_kick)
 		kvm_vcpu_kick(vcpu);
@@ -553,7 +553,7 @@ static void stimer_cleanup(struct kvm_vcpu_hv_stimer *stimer)
 
 	hrtimer_cancel(&stimer->timer);
 	clear_bit(stimer->index,
-		  vcpu_to_hv_vcpu(vcpu)->stimer_pending_bitmap);
+		  to_hv_vcpu(vcpu)->stimer_pending_bitmap);
 	stimer->msg_pending = false;
 	stimer->exp_time = 0;
 }
@@ -802,7 +802,7 @@ static void stimer_expiration(struct kvm_vcpu_hv_stimer *stimer)
 
 void kvm_hv_process_stimers(struct kvm_vcpu *vcpu)
 {
-	struct kvm_vcpu_hv *hv_vcpu = vcpu_to_hv_vcpu(vcpu);
+	struct kvm_vcpu_hv *hv_vcpu = to_hv_vcpu(vcpu);
 	struct kvm_vcpu_hv_stimer *stimer;
 	u64 time_now, exp_time;
 	int i;
@@ -832,7 +832,7 @@ void kvm_hv_process_stimers(struct kvm_vcpu *vcpu)
 
 void kvm_hv_vcpu_uninit(struct kvm_vcpu *vcpu)
 {
-	struct kvm_vcpu_hv *hv_vcpu = vcpu_to_hv_vcpu(vcpu);
+	struct kvm_vcpu_hv *hv_vcpu = to_hv_vcpu(vcpu);
 	int i;
 
 	for (i = 0; i < ARRAY_SIZE(hv_vcpu->stimer); i++)
@@ -883,7 +883,7 @@ static void stimer_init(struct kvm_vcpu_hv_stimer *stimer, int timer_index)
 
 void kvm_hv_vcpu_init(struct kvm_vcpu *vcpu)
 {
-	struct kvm_vcpu_hv *hv_vcpu = vcpu_to_hv_vcpu(vcpu);
+	struct kvm_vcpu_hv *hv_vcpu = to_hv_vcpu(vcpu);
 	int i;
 
 	synic_init(&hv_vcpu->synic);
@@ -895,7 +895,7 @@ void kvm_hv_vcpu_init(struct kvm_vcpu *vcpu)
 
 void kvm_hv_vcpu_postcreate(struct kvm_vcpu *vcpu)
 {
-	struct kvm_vcpu_hv *hv_vcpu = vcpu_to_hv_vcpu(vcpu);
+	struct kvm_vcpu_hv *hv_vcpu = to_hv_vcpu(vcpu);
 
 	hv_vcpu->vp_index = kvm_vcpu_get_idx(vcpu);
 }
@@ -1501,7 +1501,7 @@ static __always_inline unsigned long *sparse_set_to_vcpu_mask(
 
 	bitmap_zero(vcpu_bitmap, KVM_MAX_VCPUS);
 	kvm_for_each_vcpu(i, vcpu, kvm) {
-		if (test_bit(vcpu_to_hv_vcpu(vcpu)->vp_index,
+		if (test_bit(to_hv_vcpu(vcpu)->vp_index,
 			     (unsigned long *)vp_bitmap))
 			__set_bit(i, vcpu_bitmap);
 	}
