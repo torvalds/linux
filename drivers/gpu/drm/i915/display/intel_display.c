@@ -8981,7 +8981,7 @@ static bool hsw_get_pipe_config(struct intel_crtc *crtc,
 		intel_get_transcoder_timings(crtc, pipe_config);
 	}
 
-	if (HAS_VRR(dev_priv))
+	if (HAS_VRR(dev_priv) && !transcoder_is_dsi(pipe_config->cpu_transcoder))
 		intel_vrr_get_config(crtc, pipe_config);
 
 	intel_get_pipe_src_size(crtc, pipe_config);
