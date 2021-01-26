@@ -9,6 +9,7 @@
 #define CREATE_TRACE_POINTS
 #include <trace/hooks/vendor_hooks.h>
 #include <trace/hooks/sched.h>
+#include <trace/hooks/cpu.h>
 #include <trace/hooks/fpsimd.h>
 #include <trace/hooks/binder.h>
 #include <trace/hooks/rwsem.h>
@@ -133,3 +134,5 @@ EXPORT_TRACEPOINT_SYMBOL_GPL(android_vh_allow_domain_state);
 EXPORT_TRACEPOINT_SYMBOL_GPL(android_vh_map_util_freq);
 EXPORT_TRACEPOINT_SYMBOL_GPL(android_rvh_report_bug);
 EXPORT_TRACEPOINT_SYMBOL_GPL(android_vh_em_cpu_energy);
+EXPORT_TRACEPOINT_SYMBOL_GPL(android_vh_cpu_up);
+EXPORT_TRACEPOINT_SYMBOL_GPL(android_vh_cpu_down);
