@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0 OR BSD-2-Clause */
 /*
- * Copyright 2018-2020 Amazon.com, Inc. or its affiliates. All rights reserved.
+ * Copyright 2018-2021 Amazon.com, Inc. or its affiliates. All rights reserved.
  */
 
 #ifndef _EFA_ADMIN_CMDS_H_
@@ -161,8 +161,8 @@ struct efa_admin_create_qp_resp {
 	u32 qp_handle;
 
 	/*
-	 * QP number in the given EFA virtual device. Least-significant bits
-	 *    (as needed according to max_qp) carry unique QP ID
+	 * QP number in the given EFA virtual device. Least-significant bits (as
+	 * needed according to max_qp) carry unique QP ID
 	 */
 	u16 qp_num;
 
@@ -465,7 +465,7 @@ struct efa_admin_create_cq_cmd {
 
 	/*
 	 * number of sub cqs - must be equal to sub_cqs_per_cq of queue
-	 *    attributes.
+	 * attributes.
 	 */
 	u16 num_sub_cqs;
 
