@@ -3932,8 +3932,8 @@ static void mtip_disable_link_opts(struct driver_data *dd, struct pci_dev *pdev)
 		pci_read_config_word(pdev,
 			pos + PCI_EXP_DEVCTL,
 			&pcie_dev_ctrl);
-		if (pcie_dev_ctrl & (1 << 11) ||
-		    pcie_dev_ctrl & (1 << 4)) {
+		if (pcie_dev_ctrl & PCI_EXP_DEVCTL_NOSNOOP_EN ||
+		    pcie_dev_ctrl & PCI_EXP_DEVCTL_RELAX_EN) {
 			dev_info(&dd->pdev->dev,
 				"Disabling ERO/No-Snoop on bridge device %04x:%04x\n",
 					pdev->vendor, pdev->device);
