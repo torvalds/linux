@@ -131,6 +131,7 @@ static void free_netvsc_device(struct rcu_head *head)
 
 	for (i = 0; i < VRSS_CHANNEL_MAX; i++) {
 		xdp_rxq_info_unreg(&nvdev->chan_table[i].xdp_rxq);
+		kfree(nvdev->chan_table[i].recv_buf);
 		vfree(nvdev->chan_table[i].mrc.slots);
 	}
 
@@ -1284,6 +1285,19 @@ static int netvsc_receive(struct net_device *ndev,
 			continue;
 		}
 
+		/* We're going to copy (sections of) the packet into nvchan->recv_buf;
+		 * make sure that nvchan->recv_buf is large enough to hold the packet.
+		 */
+		if (unlikely(buflen > net_device->recv_section_size)) {
+			nvchan->rsc.cnt = 0;
+			status = NVSP_STAT_FAIL;
+			netif_err(net_device_ctx, rx_err, ndev,
+				  "Packet too big: buflen=%u recv_section_size=%u\n",
+				  buflen, net_device->recv_section_size);
+
+			continue;
+		}
+
 		data = recv_buf + offset;
 
 		nvchan->rsc.is_last = (i == count - 1);
@@ -1534,6 +1548,12 @@ struct netvsc_device *netvsc_device_add(struct hv_device *device,
 
 	for (i = 0; i < VRSS_CHANNEL_MAX; i++) {
 		struct netvsc_channel *nvchan = &net_device->chan_table[i];
+
+		nvchan->recv_buf = kzalloc(device_info->recv_section_size, GFP_KERNEL);
+		if (nvchan->recv_buf == NULL) {
+			ret = -ENOMEM;
+			goto cleanup2;
+		}
 
 		nvchan->channel = device->channel;
 		nvchan->net_device = net_device;

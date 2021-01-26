@@ -743,7 +743,8 @@ static netdev_tx_t netvsc_start_xmit(struct sk_buff *skb,
  * netvsc_linkstatus_callback - Link up/down notification
  */
 void netvsc_linkstatus_callback(struct net_device *net,
-				struct rndis_message *resp)
+				struct rndis_message *resp,
+				void *data)
 {
 	struct rndis_indicate_status *indicate = &resp->msg.indicate_status;
 	struct net_device_context *ndev_ctx = netdev_priv(net);
@@ -756,6 +757,9 @@ void netvsc_linkstatus_callback(struct net_device *net,
 			   resp->msg_len);
 		return;
 	}
+
+	/* Copy the RNDIS indicate status into nvchan->recv_buf */
+	memcpy(indicate, data + RNDIS_HEADER_SIZE, sizeof(*indicate));
 
 	/* Update the physical link speed when changing to another vSwitch */
 	if (indicate->status == RNDIS_STATUS_LINK_SPEED_CHANGE) {
@@ -771,8 +775,7 @@ void netvsc_linkstatus_callback(struct net_device *net,
 			return;
 		}
 
-		speed = *(u32 *)((void *)indicate
-				 + indicate->status_buf_offset) / 10000;
+		speed = *(u32 *)(data + RNDIS_HEADER_SIZE + indicate->status_buf_offset) / 10000;
 		ndev_ctx->speed = speed;
 		return;
 	}
@@ -827,10 +830,11 @@ static struct sk_buff *netvsc_alloc_recv_skb(struct net_device *net,
 					     struct xdp_buff *xdp)
 {
 	struct napi_struct *napi = &nvchan->napi;
-	const struct ndis_pkt_8021q_info *vlan = nvchan->rsc.vlan;
+	const struct ndis_pkt_8021q_info *vlan = &nvchan->rsc.vlan;
 	const struct ndis_tcp_ip_checksum_info *csum_info =
-						nvchan->rsc.csum_info;
-	const u32 *hash_info = nvchan->rsc.hash_info;
+						&nvchan->rsc.csum_info;
+	const u32 *hash_info = &nvchan->rsc.hash_info;
+	u8 ppi_flags = nvchan->rsc.ppi_flags;
 	struct sk_buff *skb;
 	void *xbuf = xdp->data_hard_start;
 	int i;
@@ -874,7 +878,7 @@ static struct sk_buff *netvsc_alloc_recv_skb(struct net_device *net,
 	 * We compute it here if the flags are set, because on Linux, the IP
 	 * checksum is always checked.
 	 */
-	if (csum_info && csum_info->receive.ip_checksum_value_invalid &&
+	if ((ppi_flags & NVSC_RSC_CSUM_INFO) && csum_info->receive.ip_checksum_value_invalid &&
 	    csum_info->receive.ip_checksum_succeeded &&
 	    skb->protocol == htons(ETH_P_IP)) {
 		/* Check that there is enough space to hold the IP header. */
@@ -886,16 +890,16 @@ static struct sk_buff *netvsc_alloc_recv_skb(struct net_device *net,
 	}
 
 	/* Do L4 checksum offload if enabled and present. */
-	if (csum_info && (net->features & NETIF_F_RXCSUM)) {
+	if ((ppi_flags & NVSC_RSC_CSUM_INFO) && (net->features & NETIF_F_RXCSUM)) {
 		if (csum_info->receive.tcp_checksum_succeeded ||
 		    csum_info->receive.udp_checksum_succeeded)
 			skb->ip_summed = CHECKSUM_UNNECESSARY;
 	}
 
-	if (hash_info && (net->features & NETIF_F_RXHASH))
+	if ((ppi_flags & NVSC_RSC_HASH_INFO) && (net->features & NETIF_F_RXHASH))
 		skb_set_hash(skb, *hash_info, PKT_HASH_TYPE_L4);
 
-	if (vlan) {
+	if (ppi_flags & NVSC_RSC_VLAN) {
 		u16 vlan_tci = vlan->vlanid | (vlan->pri << VLAN_PRIO_SHIFT) |
 			(vlan->cfi ? VLAN_CFI_MASK : 0);
 
