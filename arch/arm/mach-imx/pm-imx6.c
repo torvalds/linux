@@ -4,6 +4,7 @@
  * Copyright 2011 Linaro Ltd.
  */
 
+#include <linux/clk/imx.h>
 #include <linux/delay.h>
 #include <linux/init.h>
 #include <linux/io.h>
