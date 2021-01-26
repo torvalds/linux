@@ -8926,17 +8926,23 @@ void __io_uring_task_cancel(void)
 
 static int io_uring_flush(struct file *file, void *data)
 {
-	if (!current->io_uring)
+	struct io_uring_task *tctx = current->io_uring;
+
+	if (!tctx)
 		return 0;
+
+	/* we should have cancelled and erased it before PF_EXITING */
+	WARN_ON_ONCE((current->flags & PF_EXITING) &&
+		     xa_load(&tctx->xa, (unsigned long)file));
 
 	/*
 	 * fput() is pending, will be 2 if the only other ref is our potential
 	 * task file note. If the task is exiting, drop regardless of count.
 	 */
-	if (fatal_signal_pending(current) || (current->flags & PF_EXITING) ||
-	    atomic_long_read(&file->f_count) == 2)
-		io_uring_del_task_file(file);
+	if (atomic_long_read(&file->f_count) != 2)
+		return 0;
 
+	io_uring_del_task_file(file);
 	return 0;
 }
 
