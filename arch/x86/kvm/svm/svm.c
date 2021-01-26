@@ -1040,6 +1040,9 @@ static __init int svm_hardware_setup(void)
 		}
 	}
 
+	if (boot_cpu_has(X86_FEATURE_SVME_ADDR_CHK))
+		svm_gp_erratum_intercept = false;
+
 	if (vgif) {
 		if (!boot_cpu_has(X86_FEATURE_VGIF))
 			vgif = false;
