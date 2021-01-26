@@ -4448,7 +4448,7 @@ static void nvme_free_cels(struct nvme_ctrl *ctrl)
 	struct nvme_effects_log	*cel;
 	unsigned long i;
 
-	xa_for_each (&ctrl->cels, i, cel) {
+	xa_for_each(&ctrl->cels, i, cel) {
 		xa_erase(&ctrl->cels, i);
 		kfree(cel);
 	}
