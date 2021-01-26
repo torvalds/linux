@@ -164,7 +164,7 @@ static struct bio *blk_crypto_clone_bio(struct bio *bio_src)
 	struct bio_vec bv;
 	struct bio *bio;
 
-	bio = bio_alloc_bioset(GFP_NOIO, bio_segments(bio_src), NULL);
+	bio = bio_kmalloc(GFP_NOIO, bio_segments(bio_src));
 	if (!bio)
 		return NULL;
 	bio->bi_bdev		= bio_src->bi_bdev;
