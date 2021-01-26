@@ -268,6 +268,8 @@ static irqreturn_t rv3028_handle_irq(int irq, void *dev_id)
 	if (status & RV3028_STATUS_PORF)
 		dev_warn(&rv3028->rtc->dev, "Voltage low, data loss detected.\n");
 
+	status &= ~RV3028_STATUS_PORF;
+
 	if (status & RV3028_STATUS_TF) {
 		status |= RV3028_STATUS_TF;
 		ctrl |= RV3028_CTRL2_TIE;
