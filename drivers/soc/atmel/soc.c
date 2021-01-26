@@ -1,13 +1,9 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (C) 2015 Atmel
  *
  * Alexandre Belloni <alexandre.belloni@free-electrons.com
  * Boris Brezillon <boris.brezillon@free-electrons.com
- *
- * This file is licensed under the terms of the GNU General Public
- * License version 2.  This program is licensed "as is" without any
- * warranty of any kind, whether express or implied.
- *
  */
 
 #define pr_fmt(fmt)	"AT91: " fmt
