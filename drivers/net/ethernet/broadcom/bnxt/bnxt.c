@@ -255,6 +255,7 @@ static const u16 bnxt_async_events_arr[] = {
 	ASYNC_EVENT_CMPL_EVENT_ID_PORT_PHY_CFG_CHANGE,
 	ASYNC_EVENT_CMPL_EVENT_ID_RESET_NOTIFY,
 	ASYNC_EVENT_CMPL_EVENT_ID_ERROR_RECOVERY,
+	ASYNC_EVENT_CMPL_EVENT_ID_DEBUG_NOTIFICATION,
 	ASYNC_EVENT_CMPL_EVENT_ID_RING_MONITOR_MSG,
 };
 
@@ -2021,10 +2022,9 @@ static int bnxt_async_event_process(struct bnxt *bp,
 			goto async_event_process_exit;
 		set_bit(BNXT_RESET_TASK_SILENT_SP_EVENT, &bp->sp_event);
 		break;
-	case ASYNC_EVENT_CMPL_EVENT_ID_RESET_NOTIFY:
-		if (netif_msg_hw(bp))
-			netdev_warn(bp->dev, "Received RESET_NOTIFY event, data1: 0x%x, data2: 0x%x\n",
-				    data1, data2);
+	case ASYNC_EVENT_CMPL_EVENT_ID_RESET_NOTIFY: {
+		char *fatal_str = "non-fatal";
+
 		if (!bp->fw_health)
 			goto async_event_process_exit;
 
@@ -2036,14 +2036,18 @@ static int bnxt_async_event_process(struct bnxt *bp,
 		if (!bp->fw_reset_max_dsecs)
 			bp->fw_reset_max_dsecs = BNXT_DFLT_FW_RST_MAX_DSECS;
 		if (EVENT_DATA1_RESET_NOTIFY_FATAL(data1)) {
-			netdev_warn(bp->dev, "Firmware fatal reset event received\n");
+			fatal_str = "fatal";
 			set_bit(BNXT_STATE_FW_FATAL_COND, &bp->state);
-		} else {
-			netdev_warn(bp->dev, "Firmware non-fatal reset event received, max wait time %d msec\n",
+		}
+		if (netif_msg_hw(bp)) {
+			netdev_warn(bp->dev, "Firmware %s reset event, data1: 0x%x, data2: 0x%x, min wait %u ms, max wait %u ms\n",
+				    fatal_str, data1, data2,
+				    bp->fw_reset_min_dsecs * 100,
 				    bp->fw_reset_max_dsecs * 100);
 		}
 		set_bit(BNXT_FW_RESET_NOTIFY_SP_EVENT, &bp->sp_event);
 		break;
+	}
 	case ASYNC_EVENT_CMPL_EVENT_ID_ERROR_RECOVERY: {
 		struct bnxt_fw_health *fw_health = bp->fw_health;
 
@@ -2072,6 +2076,13 @@ static int bnxt_async_event_process(struct bnxt *bp,
 			bnxt_fw_health_readl(bp, BNXT_FW_RESET_CNT_REG);
 		goto async_event_process_exit;
 	}
+	case ASYNC_EVENT_CMPL_EVENT_ID_DEBUG_NOTIFICATION:
+		if (netif_msg_hw(bp)) {
+			netdev_notice(bp->dev,
+				      "Received firmware debug notification, data1: 0x%x, data2: 0x%x\n",
+				      data1, data2);
+		}
+		goto async_event_process_exit;
 	case ASYNC_EVENT_CMPL_EVENT_ID_RING_MONITOR_MSG: {
 		struct bnxt_rx_ring_info *rxr;
 		u16 grp_idx;
@@ -2394,6 +2405,10 @@ static int bnxt_poll(struct napi_struct *napi, int budget)
 	struct bnxt_cp_ring_info *cpr = &bnapi->cp_ring;
 	int work_done = 0;
 
+	if (unlikely(test_bit(BNXT_STATE_FW_FATAL_COND, &bp->state))) {
+		napi_complete(napi);
+		return 0;
+	}
 	while (1) {
 		work_done += bnxt_poll_work(bp, cpr, budget - work_done);
 
@@ -2468,6 +2483,10 @@ static int bnxt_poll_p5(struct napi_struct *napi, int budget)
 	int work_done = 0;
 	u32 cons;
 
+	if (unlikely(test_bit(BNXT_STATE_FW_FATAL_COND, &bp->state))) {
+		napi_complete(napi);
+		return 0;
+	}
 	if (cpr->has_more_work) {
 		cpr->has_more_work = 0;
 		work_done = __bnxt_poll_cqs(bp, bnapi, budget);
@@ -4272,6 +4291,9 @@ static void bnxt_disable_int_sync(struct bnxt *bp)
 {
 	int i;
 
+	if (!bp->irq_tbl)
+		return;
+
 	atomic_inc(&bp->intr_sem);
 
 	bnxt_disable_int(bp);
@@ -4425,6 +4447,8 @@ static int bnxt_hwrm_do_send_msg(struct bnxt *bp, void *msg, u32 msg_len,
 
 	if (!timeout)
 		timeout = DFLT_HWRM_CMD_TIMEOUT;
+	/* Limit timeout to an upper limit */
+	timeout = min(timeout, HWRM_CMD_MAX_TIMEOUT);
 	/* convert timeout to usec */
 	timeout *= 1000;
 
@@ -6845,6 +6869,7 @@ static int bnxt_hwrm_func_backing_store_cfg(struct bnxt *bp, u32 enables)
 	struct hwrm_func_backing_store_cfg_input req = {0};
 	struct bnxt_ctx_mem_info *ctx = bp->ctx;
 	struct bnxt_ctx_pg_info *ctx_pg;
+	u32 req_len = sizeof(req);
 	__le32 *num_entries;
 	__le64 *pg_dir;
 	u32 flags = 0;
@@ -6855,6 +6880,8 @@ static int bnxt_hwrm_func_backing_store_cfg(struct bnxt *bp, u32 enables)
 	if (!ctx)
 		return 0;
 
+	if (req_len > bp->hwrm_max_ext_req_len)
+		req_len = BNXT_BACKING_STORE_CFG_LEGACY_LEN;
 	bnxt_hwrm_cmd_hdr_init(bp, &req, HWRM_FUNC_BACKING_STORE_CFG, -1, -1);
 	req.enables = cpu_to_le32(enables);
 
@@ -6938,7 +6965,7 @@ static int bnxt_hwrm_func_backing_store_cfg(struct bnxt *bp, u32 enables)
 		bnxt_hwrm_set_pg_attr(&ctx_pg->ring_mem, pg_attr, pg_dir);
 	}
 	req.flags = cpu_to_le32(flags);
-	return hwrm_send_message(bp, &req, sizeof(req), HWRM_CMD_TIMEOUT);
+	return hwrm_send_message(bp, &req, req_len, HWRM_CMD_TIMEOUT);
 }
 
 static int bnxt_alloc_ctx_mem_blk(struct bnxt *bp,
@@ -7438,9 +7465,22 @@ static void bnxt_try_map_fw_health_reg(struct bnxt *bp)
 
 	sig = readl(hs + offsetof(struct hcomm_status, sig_ver));
 	if ((sig & HCOMM_STATUS_SIGNATURE_MASK) != HCOMM_STATUS_SIGNATURE_VAL) {
-		if (bp->fw_health)
-			bp->fw_health->status_reliable = false;
-		return;
+		if (!bp->chip_num) {
+			__bnxt_map_fw_health_reg(bp, BNXT_GRC_REG_BASE);
+			bp->chip_num = readl(bp->bar0 +
+					     BNXT_FW_HEALTH_WIN_BASE +
+					     BNXT_GRC_REG_CHIP_NUM);
+		}
+		if (!BNXT_CHIP_P5(bp)) {
+			if (bp->fw_health)
+				bp->fw_health->status_reliable = false;
+			return;
+		}
+		status_loc = BNXT_GRC_REG_STATUS_P5 |
+			     BNXT_FW_HEALTH_REG_TYPE_BAR0;
+	} else {
+		status_loc = readl(hs + offsetof(struct hcomm_status,
+						 fw_status_loc));
 	}
 
 	if (__bnxt_alloc_fw_health(bp)) {
@@ -7448,7 +7488,6 @@ static void bnxt_try_map_fw_health_reg(struct bnxt *bp)
 		return;
 	}
 
-	status_loc = readl(hs + offsetof(struct hcomm_status, fw_status_loc));
 	bp->fw_health->regs[BNXT_FW_HEALTH_REG] = status_loc;
 	reg_type = BNXT_FW_HEALTH_REG_TYPE(status_loc);
 	if (reg_type == BNXT_FW_HEALTH_REG_TYPE_GRC) {
@@ -8811,7 +8850,8 @@ static void bnxt_disable_napi(struct bnxt *bp)
 {
 	int i;
 
-	if (!bp->bnapi)
+	if (!bp->bnapi ||
+	    test_and_set_bit(BNXT_STATE_NAPI_DISABLED, &bp->state))
 		return;
 
 	for (i = 0; i < bp->cp_nr_rings; i++) {
@@ -8828,6 +8868,7 @@ static void bnxt_enable_napi(struct bnxt *bp)
 {
 	int i;
 
+	clear_bit(BNXT_STATE_NAPI_DISABLED, &bp->state);
 	for (i = 0; i < bp->cp_nr_rings; i++) {
 		struct bnxt_napi *bnapi = bp->bnapi[i];
 		struct bnxt_cp_ring_info *cpr;
@@ -9334,13 +9375,60 @@ static int bnxt_hwrm_shutdown_link(struct bnxt *bp)
 
 static int bnxt_fw_init_one(struct bnxt *bp);
 
+static int bnxt_fw_reset_via_optee(struct bnxt *bp)
+{
+#ifdef CONFIG_TEE_BNXT_FW
+	int rc = tee_bnxt_fw_load();
+
+	if (rc)
+		netdev_err(bp->dev, "Failed FW reset via OP-TEE, rc=%d\n", rc);
+
+	return rc;
+#else
+	netdev_err(bp->dev, "OP-TEE not supported\n");
+	return -ENODEV;
+#endif
+}
+
+static int bnxt_try_recover_fw(struct bnxt *bp)
+{
+	if (bp->fw_health && bp->fw_health->status_reliable) {
+		int retry = 0, rc;
+		u32 sts;
+
+		mutex_lock(&bp->hwrm_cmd_lock);
+		do {
+			rc = __bnxt_hwrm_ver_get(bp, true);
+			sts = bnxt_fw_health_readl(bp, BNXT_FW_HEALTH_REG);
+			if (!sts || !BNXT_FW_IS_BOOTING(sts))
+				break;
+			retry++;
+		} while (rc == -EBUSY && retry < BNXT_FW_RETRY);
+		mutex_unlock(&bp->hwrm_cmd_lock);
+
+		if (!BNXT_FW_IS_HEALTHY(sts)) {
+			netdev_err(bp->dev,
+				   "Firmware not responding, status: 0x%x\n",
+				   sts);
+			rc = -ENODEV;
+		}
+		if (sts & FW_STATUS_REG_CRASHED_NO_MASTER) {
+			netdev_warn(bp->dev, "Firmware recover via OP-TEE requested\n");
+			return bnxt_fw_reset_via_optee(bp);
+		}
+		return rc;
+	}
+
+	return -ENODEV;
+}
+
 static int bnxt_hwrm_if_change(struct bnxt *bp, bool up)
 {
 	struct hwrm_func_drv_if_change_output *resp = bp->hwrm_cmd_resp_addr;
 	struct hwrm_func_drv_if_change_input req = {0};
 	bool resc_reinit = false, fw_reset = false;
+	int rc, retry = 0;
 	u32 flags = 0;
-	int rc;
 
 	if (!(bp->fw_cap & BNXT_FW_CAP_IF_CHANGE))
 		return 0;
@@ -9349,10 +9437,25 @@ static int bnxt_hwrm_if_change(struct bnxt *bp, bool up)
 	if (up)
 		req.flags = cpu_to_le32(FUNC_DRV_IF_CHANGE_REQ_FLAGS_UP);
 	mutex_lock(&bp->hwrm_cmd_lock);
-	rc = _hwrm_send_message(bp, &req, sizeof(req), HWRM_CMD_TIMEOUT);
+	while (retry < BNXT_FW_IF_RETRY) {
+		rc = _hwrm_send_message(bp, &req, sizeof(req),
+					HWRM_CMD_TIMEOUT);
+		if (rc != -EAGAIN)
+			break;
+
+		msleep(50);
+		retry++;
+	}
 	if (!rc)
 		flags = le32_to_cpu(resp->flags);
 	mutex_unlock(&bp->hwrm_cmd_lock);
+
+	if (rc == -EAGAIN)
+		return rc;
+	if (rc && up) {
+		rc = bnxt_try_recover_fw(bp);
+		fw_reset = true;
+	}
 	if (rc)
 		return rc;
 
@@ -9692,6 +9795,25 @@ static void bnxt_preset_reg_win(struct bnxt *bp)
 
 static int bnxt_init_dflt_ring_mode(struct bnxt *bp);
 
+static int bnxt_reinit_after_abort(struct bnxt *bp)
+{
+	int rc;
+
+	if (test_bit(BNXT_STATE_IN_FW_RESET, &bp->state))
+		return -EBUSY;
+
+	rc = bnxt_fw_init_one(bp);
+	if (!rc) {
+		bnxt_clear_int_mode(bp);
+		rc = bnxt_init_int_mode(bp);
+		if (!rc) {
+			clear_bit(BNXT_STATE_ABORT_ERR, &bp->state);
+			set_bit(BNXT_STATE_FW_RESET_DET, &bp->state);
+		}
+	}
+	return rc;
+}
+
 static int __bnxt_open_nic(struct bnxt *bp, bool irq_re_init, bool link_re_init)
 {
 	int rc = 0;
@@ -9850,8 +9972,14 @@ static int bnxt_open(struct net_device *dev)
 	int rc;
 
 	if (test_bit(BNXT_STATE_ABORT_ERR, &bp->state)) {
-		netdev_err(bp->dev, "A previous firmware reset did not complete, aborting\n");
-		return -ENODEV;
+		rc = bnxt_reinit_after_abort(bp);
+		if (rc) {
+			if (rc == -EBUSY)
+				netdev_err(bp->dev, "A previous firmware reset has not completed, aborting\n");
+			else
+				netdev_err(bp->dev, "Failed to reinitialize after aborted firmware reset\n");
+			return -ENODEV;
+		}
 	}
 
 	rc = bnxt_hwrm_if_change(bp, true);
@@ -10788,11 +10916,18 @@ static void bnxt_rx_ring_reset(struct bnxt *bp)
 static void bnxt_fw_reset_close(struct bnxt *bp)
 {
 	bnxt_ulp_stop(bp);
-	/* When firmware is fatal state, disable PCI device to prevent
-	 * any potential bad DMAs before freeing kernel memory.
+	/* When firmware is in fatal state, quiesce device and disable
+	 * bus master to prevent any potential bad DMAs before freeing
+	 * kernel memory.
 	 */
-	if (test_bit(BNXT_STATE_FW_FATAL_COND, &bp->state))
+	if (test_bit(BNXT_STATE_FW_FATAL_COND, &bp->state)) {
+		bnxt_tx_disable(bp);
+		bnxt_disable_napi(bp);
+		bnxt_disable_int_sync(bp);
+		bnxt_free_irq(bp);
+		bnxt_clear_int_mode(bp);
 		pci_disable_device(bp->pdev);
+	}
 	__bnxt_close_nic(bp, true, false);
 	bnxt_clear_int_mode(bp);
 	bnxt_hwrm_func_drv_unrgtr(bp);
@@ -11180,21 +11315,6 @@ static void bnxt_init_dflt_coal(struct bnxt *bp)
 	bp->stats_coal_ticks = BNXT_DEF_STATS_COAL_TICKS;
 }
 
-static int bnxt_fw_reset_via_optee(struct bnxt *bp)
-{
-#ifdef CONFIG_TEE_BNXT_FW
-	int rc = tee_bnxt_fw_load();
-
-	if (rc)
-		netdev_err(bp->dev, "Failed FW reset via OP-TEE, rc=%d\n", rc);
-
-	return rc;
-#else
-	netdev_err(bp->dev, "OP-TEE not supported\n");
-	return -ENODEV;
-#endif
-}
-
 static int bnxt_fw_init_one_p1(struct bnxt *bp)
 {
 	int rc;
@@ -11203,19 +11323,10 @@ static int bnxt_fw_init_one_p1(struct bnxt *bp)
 	rc = bnxt_hwrm_ver_get(bp);
 	bnxt_try_map_fw_health_reg(bp);
 	if (rc) {
-		if (bp->fw_health && bp->fw_health->status_reliable) {
-			u32 sts = bnxt_fw_health_readl(bp, BNXT_FW_HEALTH_REG);
-
-			netdev_err(bp->dev,
-				   "Firmware not responding, status: 0x%x\n",
-				   sts);
-			if (sts & FW_STATUS_REG_CRASHED_NO_MASTER) {
-				netdev_warn(bp->dev, "Firmware recover via OP-TEE requested\n");
-				rc = bnxt_fw_reset_via_optee(bp);
-				if (!rc)
-					rc = bnxt_hwrm_ver_get(bp);
-			}
-		}
+		rc = bnxt_try_recover_fw(bp);
+		if (rc)
+			return rc;
+		rc = bnxt_hwrm_ver_get(bp);
 		if (rc)
 			return rc;
 	}
@@ -11415,6 +11526,12 @@ static void bnxt_reset_all(struct bnxt *bp)
 	bp->fw_reset_timestamp = jiffies;
 }
 
+static bool bnxt_fw_reset_timeout(struct bnxt *bp)
+{
+	return time_after(jiffies, bp->fw_reset_timestamp +
+			  (bp->fw_reset_max_dsecs * HZ / 10));
+}
+
 static void bnxt_fw_reset_task(struct work_struct *work)
 {
 	struct bnxt *bp = container_of(work, struct bnxt, fw_reset_task.work);
@@ -11436,8 +11553,7 @@ static void bnxt_fw_reset_task(struct work_struct *work)
 				   bp->fw_reset_timestamp));
 			goto fw_reset_abort;
 		} else if (n > 0) {
-			if (time_after(jiffies, bp->fw_reset_timestamp +
-				       (bp->fw_reset_max_dsecs * HZ / 10))) {
+			if (bnxt_fw_reset_timeout(bp)) {
 				clear_bit(BNXT_STATE_IN_FW_RESET, &bp->state);
 				bp->fw_reset_state = 0;
 				netdev_err(bp->dev, "Firmware reset aborted, bnxt_get_registered_vfs() returns %d\n",
@@ -11466,8 +11582,7 @@ static void bnxt_fw_reset_task(struct work_struct *work)
 
 		val = bnxt_fw_health_readl(bp, BNXT_FW_HEALTH_REG);
 		if (!(val & BNXT_FW_STATUS_SHUTDOWN) &&
-		    !time_after(jiffies, bp->fw_reset_timestamp +
-		    (bp->fw_reset_max_dsecs * HZ / 10))) {
+		    !bnxt_fw_reset_timeout(bp)) {
 			bnxt_queue_fw_reset_work(bp, HZ / 5);
 			return;
 		}
@@ -11509,8 +11624,7 @@ static void bnxt_fw_reset_task(struct work_struct *work)
 		bp->hwrm_cmd_timeout = SHORT_HWRM_CMD_TIMEOUT;
 		rc = __bnxt_hwrm_ver_get(bp, true);
 		if (rc) {
-			if (time_after(jiffies, bp->fw_reset_timestamp +
-				       (bp->fw_reset_max_dsecs * HZ / 10))) {
+			if (bnxt_fw_reset_timeout(bp)) {
 				netdev_err(bp->dev, "Firmware reset aborted\n");
 				goto fw_reset_abort_status;
 			}
@@ -12542,9 +12656,6 @@ static int bnxt_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 	dev->ethtool_ops = &bnxt_ethtool_ops;
 	pci_set_drvdata(pdev, dev);
 
-	if (BNXT_PF(bp))
-		bnxt_vpd_read_info(bp);
-
 	rc = bnxt_alloc_hwrm_resources(bp);
 	if (rc)
 		goto init_err_pci_clean;
@@ -12555,6 +12666,9 @@ static int bnxt_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 	rc = bnxt_fw_init_one_p1(bp);
 	if (rc)
 		goto init_err_pci_clean;
+
+	if (BNXT_PF(bp))
+		bnxt_vpd_read_info(bp);
 
 	if (BNXT_CHIP_P5(bp)) {
 		bp->flags |= BNXT_FLAG_CHIP_P5;
