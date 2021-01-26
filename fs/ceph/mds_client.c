@@ -653,14 +653,9 @@ const char *ceph_session_state_name(int s)
 
 struct ceph_mds_session *ceph_get_mds_session(struct ceph_mds_session *s)
 {
-	if (refcount_inc_not_zero(&s->s_ref)) {
-		dout("mdsc get_session %p %d -> %d\n", s,
-		     refcount_read(&s->s_ref)-1, refcount_read(&s->s_ref));
+	if (refcount_inc_not_zero(&s->s_ref))
 		return s;
-	} else {
-		dout("mdsc get_session %p 0 -- FAIL\n", s);
-		return NULL;
-	}
+	return NULL;
 }
 
 void ceph_put_mds_session(struct ceph_mds_session *s)
@@ -668,8 +663,6 @@ void ceph_put_mds_session(struct ceph_mds_session *s)
 	if (IS_ERR_OR_NULL(s))
 		return;
 
-	dout("mdsc put_session %p %d -> %d\n", s,
-	     refcount_read(&s->s_ref), refcount_read(&s->s_ref)-1);
 	if (refcount_dec_and_test(&s->s_ref)) {
 		if (s->s_auth.authorizer)
 			ceph_auth_destroy_authorizer(s->s_auth.authorizer);
