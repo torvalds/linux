@@ -6810,12 +6810,10 @@ static fastpath_t vmx_vcpu_run(struct kvm_vcpu *vcpu)
 
 	/* All fields are clean at this point */
 	if (static_branch_unlikely(&enable_evmcs)) {
-		struct kvm_vcpu_hv *hv_vcpu = to_hv_vcpu(vcpu);
-
 		current_evmcs->hv_clean_fields |=
 			HV_VMX_ENLIGHTENED_CLEAN_FIELD_ALL;
 
-		current_evmcs->hv_vp_id = hv_vcpu->vp_index;
+		current_evmcs->hv_vp_id = kvm_hv_get_vpindex(vcpu);
 	}
 
 	/* MSR_IA32_DEBUGCTLMSR is zeroed on vmexit. Restore it if needed */

@@ -142,10 +142,10 @@ static struct kvm_vcpu *get_vcpu_by_vpidx(struct kvm *kvm, u32 vpidx)
 		return NULL;
 
 	vcpu = kvm_get_vcpu(kvm, vpidx);
-	if (vcpu && to_hv_vcpu(vcpu)->vp_index == vpidx)
+	if (vcpu && kvm_hv_get_vpindex(vcpu) == vpidx)
 		return vcpu;
 	kvm_for_each_vcpu(i, vcpu, kvm)
-		if (to_hv_vcpu(vcpu)->vp_index == vpidx)
+		if (kvm_hv_get_vpindex(vcpu) == vpidx)
 			return vcpu;
 	return NULL;
 }
@@ -377,9 +377,7 @@ static int syndbg_get_msr(struct kvm_vcpu *vcpu, u32 msr, u64 *pdata, bool host)
 		break;
 	}
 
-	trace_kvm_hv_syndbg_get_msr(vcpu->vcpu_id,
-				    to_hv_vcpu(vcpu)->vp_index, msr,
-				    *pdata);
+	trace_kvm_hv_syndbg_get_msr(vcpu->vcpu_id, kvm_hv_get_vpindex(vcpu), msr, *pdata);
 
 	return 0;
 }
@@ -806,6 +804,9 @@ void kvm_hv_process_stimers(struct kvm_vcpu *vcpu)
 	u64 time_now, exp_time;
 	int i;
 
+	if (!hv_vcpu)
+		return;
+
 	for (i = 0; i < ARRAY_SIZE(hv_vcpu->stimer); i++)
 		if (test_and_clear_bit(i, hv_vcpu->stimer_pending_bitmap)) {
 			stimer = &hv_vcpu->stimer[i];
@@ -841,6 +842,9 @@ void kvm_hv_vcpu_uninit(struct kvm_vcpu *vcpu)
 bool kvm_hv_assist_page_enabled(struct kvm_vcpu *vcpu)
 {
 	struct kvm_vcpu_hv *hv_vcpu = to_hv_vcpu(vcpu);
+
+	if (!hv_vcpu)
+		return false;
 
 	if (!(hv_vcpu->hv_vapic & HV_X64_MSR_VP_ASSIST_PAGE_ENABLE))
 		return false;
@@ -1504,8 +1508,7 @@ static __always_inline unsigned long *sparse_set_to_vcpu_mask(
 
 	bitmap_zero(vcpu_bitmap, KVM_MAX_VCPUS);
 	kvm_for_each_vcpu(i, vcpu, kvm) {
-		if (test_bit(to_hv_vcpu(vcpu)->vp_index,
-			     (unsigned long *)vp_bitmap))
+		if (test_bit(kvm_hv_get_vpindex(vcpu), (unsigned long *)vp_bitmap))
 			__set_bit(i, vcpu_bitmap);
 	}
 	return vcpu_bitmap;
