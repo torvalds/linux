@@ -837,6 +837,9 @@ void kvm_hv_vcpu_uninit(struct kvm_vcpu *vcpu)
 
 	for (i = 0; i < ARRAY_SIZE(hv_vcpu->stimer); i++)
 		stimer_cleanup(&hv_vcpu->stimer[i]);
+
+	kfree(hv_vcpu);
+	vcpu->arch.hyperv = NULL;
 }
 
 bool kvm_hv_assist_page_enabled(struct kvm_vcpu *vcpu)
@@ -886,16 +889,25 @@ static void stimer_init(struct kvm_vcpu_hv_stimer *stimer, int timer_index)
 	stimer_prepare_msg(stimer);
 }
 
-void kvm_hv_vcpu_init(struct kvm_vcpu *vcpu)
+int kvm_hv_vcpu_init(struct kvm_vcpu *vcpu)
 {
-	struct kvm_vcpu_hv *hv_vcpu = to_hv_vcpu(vcpu);
+	struct kvm_vcpu_hv *hv_vcpu;
 	int i;
+
+	hv_vcpu = kzalloc(sizeof(struct kvm_vcpu_hv), GFP_KERNEL_ACCOUNT);
+	if (!hv_vcpu)
+		return -ENOMEM;
+
+	vcpu->arch.hyperv = hv_vcpu;
+	hv_vcpu->vcpu = vcpu;
 
 	synic_init(&hv_vcpu->synic);
 
 	bitmap_zero(hv_vcpu->stimer_pending_bitmap, HV_SYNIC_STIMER_COUNT);
 	for (i = 0; i < ARRAY_SIZE(hv_vcpu->stimer); i++)
 		stimer_init(&hv_vcpu->stimer[i], i);
+
+	return 0;
 }
 
 void kvm_hv_vcpu_postcreate(struct kvm_vcpu *vcpu)

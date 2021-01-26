@@ -57,20 +57,19 @@ static inline struct kvm_hv *to_kvm_hv(struct kvm *kvm)
 
 static inline struct kvm_vcpu_hv *to_hv_vcpu(struct kvm_vcpu *vcpu)
 {
-	return &vcpu->arch.hyperv;
+	return vcpu->arch.hyperv;
 }
 
 static inline struct kvm_vcpu *hv_vcpu_to_vcpu(struct kvm_vcpu_hv *hv_vcpu)
 {
-	struct kvm_vcpu_arch *arch;
-
-	arch = container_of(hv_vcpu, struct kvm_vcpu_arch, hyperv);
-	return container_of(arch, struct kvm_vcpu, arch);
+	return hv_vcpu->vcpu;
 }
 
 static inline struct kvm_vcpu_hv_synic *to_hv_synic(struct kvm_vcpu *vcpu)
 {
-	return &vcpu->arch.hyperv.synic;
+	struct kvm_vcpu_hv *hv_vcpu = to_hv_vcpu(vcpu);
+
+	return &hv_vcpu->synic;
 }
 
 static inline struct kvm_vcpu *hv_synic_to_vcpu(struct kvm_vcpu_hv_synic *synic)
@@ -101,7 +100,7 @@ int kvm_hv_synic_set_irq(struct kvm *kvm, u32 vcpu_id, u32 sint);
 void kvm_hv_synic_send_eoi(struct kvm_vcpu *vcpu, int vector);
 int kvm_hv_activate_synic(struct kvm_vcpu *vcpu, bool dont_zero_synic_pages);
 
-void kvm_hv_vcpu_init(struct kvm_vcpu *vcpu);
+int kvm_hv_vcpu_init(struct kvm_vcpu *vcpu);
 void kvm_hv_vcpu_postcreate(struct kvm_vcpu *vcpu);
 void kvm_hv_vcpu_uninit(struct kvm_vcpu *vcpu);
 
