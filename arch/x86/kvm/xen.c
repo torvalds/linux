@@ -369,7 +369,7 @@ int kvm_xen_hypercall(struct kvm_vcpu *vcpu)
 
 	/* Hyper-V hypercalls get bit 31 set in EAX */
 	if ((input & 0x80000000) &&
-	    kvm_hv_hypercall_enabled(vcpu->kvm))
+	    kvm_hv_hypercall_enabled(vcpu))
 		return kvm_hv_hypercall(vcpu);
 
 	longmode = is_64_bit_mode(vcpu);

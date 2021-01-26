@@ -92,7 +92,7 @@ int main(int argc, char *argv[])
 	}
 
 	vm = vm_create_default(VCPU_ID, 0, (void *) guest_code);
-	vcpu_set_cpuid(vm, VCPU_ID, kvm_get_supported_cpuid());
+	vcpu_set_hv_cpuid(vm, VCPU_ID);
 
 	struct kvm_xen_hvm_config hvmc = {
 		.flags = KVM_XEN_HVM_CONFIG_INTERCEPT_HCALL,

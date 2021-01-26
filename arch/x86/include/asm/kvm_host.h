@@ -736,6 +736,7 @@ struct kvm_vcpu_arch {
 	/* used for guest single stepping over the given code position */
 	unsigned long singlestep_rip;
 
+	bool hyperv_enabled;
 	struct kvm_vcpu_hv *hyperv;
 	struct kvm_vcpu_xen xen;
 
