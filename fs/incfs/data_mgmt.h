@@ -14,7 +14,6 @@
 #include <linux/completion.h>
 #include <linux/wait.h>
 #include <crypto/hash.h>
-#include <linux/rwsem.h>
 
 #include <uapi/linux/incrementalfs.h>
 
@@ -185,7 +184,8 @@ struct data_file_segment {
 	wait_queue_head_t new_data_arrival_wq;
 
 	/* Protects reads and writes from the blockmap */
-	struct rw_semaphore rwsem;
+	/* Good candidate for read/write mutex */
+	struct mutex blockmap_mutex;
 
 	/* List of active pending_read objects belonging to this segment */
 	/* Protected by mount_info.pending_reads_mutex */
@@ -303,7 +303,7 @@ bool incfs_fresh_pending_reads_exist(struct mount_info *mi, int last_number);
  */
 int incfs_collect_pending_reads(struct mount_info *mi, int sn_lowerbound,
 				struct incfs_pending_read_info *reads,
-				int reads_size, int *new_max_sn);
+				int reads_size);
 
 int incfs_collect_logged_reads(struct mount_info *mi,
 			       struct read_log_state *start_state,
