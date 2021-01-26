@@ -114,8 +114,6 @@ struct mount_info {
 
 	struct dentry *mi_index_dir;
 
-	struct dentry *mi_incomplete_dir;
-
 	const struct cred *mi_owner;
 
 	struct mount_options mi_options;
