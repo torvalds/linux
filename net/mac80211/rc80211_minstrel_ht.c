@@ -537,7 +537,7 @@ minstrel_ht_set_best_prob_rate(struct minstrel_ht_sta *mi, u16 *dest, u16 index)
 		cur_tp_avg = minstrel_ht_get_tp_avg(mi, cur_group, cur_idx,
 						    mrs->prob_avg);
 		if (cur_tp_avg > tmp_tp_avg)
-			mi->max_prob_rate = index;
+			*dest = index;
 
 		max_gpr_tp_avg = minstrel_ht_get_tp_avg(mi, max_gpr_group,
 							max_gpr_idx,
