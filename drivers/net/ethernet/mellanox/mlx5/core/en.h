@@ -859,6 +859,7 @@ struct mlx5e_priv {
 	u16                        q_counter;
 	u16                        drop_rq_q_counter;
 	struct notifier_block      events_nb;
+	struct notifier_block      blocking_events_nb;
 	int                        num_tc_x_num_ch;
 
 	struct udp_tunnel_nic_info nic_info;
