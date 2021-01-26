@@ -390,6 +390,10 @@ static const struct imx219_reg raw10_framefmt_regs[] = {
 	{0x0309, 0x0a},
 };
 
+static const s64 imx219_link_freq_menu[] = {
+	IMX219_DEFAULT_LINK_FREQ,
+};
+
 static const char * const imx219_test_pattern_menu[] = {
 	"Disabled",
 	"Color Bars",
@@ -547,6 +551,7 @@ struct imx219 {
 	struct v4l2_ctrl_handler ctrl_handler;
 	/* V4L2 Controls */
 	struct v4l2_ctrl *pixel_rate;
+	struct v4l2_ctrl *link_freq;
 	struct v4l2_ctrl *exposure;
 	struct v4l2_ctrl *vflip;
 	struct v4l2_ctrl *hflip;
@@ -1269,7 +1274,7 @@ static int imx219_init_controls(struct imx219 *imx219)
 	int i, ret;
 
 	ctrl_hdlr = &imx219->ctrl_handler;
-	ret = v4l2_ctrl_handler_init(ctrl_hdlr, 11);
+	ret = v4l2_ctrl_handler_init(ctrl_hdlr, 12);
 	if (ret)
 		return ret;
 
@@ -1282,6 +1287,14 @@ static int imx219_init_controls(struct imx219 *imx219)
 					       IMX219_PIXEL_RATE,
 					       IMX219_PIXEL_RATE, 1,
 					       IMX219_PIXEL_RATE);
+
+	imx219->link_freq =
+		v4l2_ctrl_new_int_menu(ctrl_hdlr, &imx219_ctrl_ops,
+				       V4L2_CID_LINK_FREQ,
+				       ARRAY_SIZE(imx219_link_freq_menu) - 1, 0,
+				       imx219_link_freq_menu);
+	if (imx219->link_freq)
+		imx219->link_freq->flags |= V4L2_CTRL_FLAG_READ_ONLY;
 
 	/* Initial vblank/hblank/exposure parameters based on current mode */
 	imx219->vblank = v4l2_ctrl_new_std(ctrl_hdlr, &imx219_ctrl_ops,
