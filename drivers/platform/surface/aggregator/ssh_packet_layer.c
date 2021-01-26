@@ -1694,7 +1694,24 @@ static size_t ssh_ptl_rx_eval(struct ssh_ptl *ptl, struct ssam_span *source)
 	/* Find SYN. */
 	syn_found = sshp_find_syn(source, &aligned);
 
-	if (unlikely(aligned.ptr - source->ptr) > 0) {
+	if (unlikely(aligned.ptr != source->ptr)) {
+		/*
+		 * We expect aligned.ptr == source->ptr. If this is not the
+		 * case, then aligned.ptr > source->ptr and we've encountered
+		 * some unexpected data where we'd expect the start of a new
+		 * message (i.e. the SYN sequence).
+		 *
+		 * This can happen when a CRC check for the previous message
+		 * failed and we start actively searching for the next one
+		 * (via the call to sshp_find_syn() above), or the first bytes
+		 * of a message got dropped or corrupted.
+		 *
+		 * In any case, we issue a warning, send a NAK to the EC to
+		 * request re-transmission of any data we haven't acknowledged
+		 * yet, and finally, skip everything up to the next SYN
+		 * sequence.
+		 */
+
 		ptl_warn(ptl, "rx: parser: invalid start of frame, skipping\n");
 
 		/*
