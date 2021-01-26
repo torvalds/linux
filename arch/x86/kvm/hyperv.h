@@ -60,11 +60,6 @@ static inline struct kvm_vcpu_hv *to_hv_vcpu(struct kvm_vcpu *vcpu)
 	return vcpu->arch.hyperv;
 }
 
-static inline struct kvm_vcpu *hv_vcpu_to_vcpu(struct kvm_vcpu_hv *hv_vcpu)
-{
-	return hv_vcpu->vcpu;
-}
-
 static inline struct kvm_vcpu_hv_synic *to_hv_synic(struct kvm_vcpu *vcpu)
 {
 	struct kvm_vcpu_hv *hv_vcpu = to_hv_vcpu(vcpu);
@@ -74,7 +69,9 @@ static inline struct kvm_vcpu_hv_synic *to_hv_synic(struct kvm_vcpu *vcpu)
 
 static inline struct kvm_vcpu *hv_synic_to_vcpu(struct kvm_vcpu_hv_synic *synic)
 {
-	return hv_vcpu_to_vcpu(container_of(synic, struct kvm_vcpu_hv, synic));
+	struct kvm_vcpu_hv *hv_vcpu = container_of(synic, struct kvm_vcpu_hv, synic);
+
+	return hv_vcpu->vcpu;
 }
 
 static inline struct kvm_hv_syndbg *to_hv_syndbg(struct kvm_vcpu *vcpu)
@@ -118,7 +115,7 @@ static inline struct kvm_vcpu *hv_stimer_to_vcpu(struct kvm_vcpu_hv_stimer *stim
 
 	hv_vcpu = container_of(stimer - stimer->index, struct kvm_vcpu_hv,
 			       stimer[0]);
-	return hv_vcpu_to_vcpu(hv_vcpu);
+	return hv_vcpu->vcpu;
 }
 
 static inline bool kvm_hv_has_stimer_pending(struct kvm_vcpu *vcpu)
