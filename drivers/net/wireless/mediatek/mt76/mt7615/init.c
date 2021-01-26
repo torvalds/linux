@@ -345,11 +345,12 @@ mt7615_init_wiphy(struct ieee80211_hw *hw)
 	}
 	wiphy->reg_notifier = mt7615_regd_notifier;
 
-	wiphy->max_sched_scan_plan_interval = MT7615_MAX_SCHED_SCAN_INTERVAL;
+	wiphy->max_sched_scan_plan_interval =
+		MT76_CONNAC_MAX_SCHED_SCAN_INTERVAL;
 	wiphy->max_sched_scan_ie_len = IEEE80211_MAX_DATA_LEN;
-	wiphy->max_scan_ie_len = MT7615_SCAN_IE_LEN;
-	wiphy->max_sched_scan_ssids = MT7615_MAX_SCHED_SCAN_SSID;
-	wiphy->max_match_sets = MT7615_MAX_SCAN_MATCH;
+	wiphy->max_scan_ie_len = MT76_CONNAC_SCAN_IE_LEN;
+	wiphy->max_sched_scan_ssids = MT76_CONNAC_MAX_SCHED_SCAN_SSID;
+	wiphy->max_match_sets = MT76_CONNAC_MAX_SCAN_MATCH;
 	wiphy->max_sched_scan_reqs = 1;
 	wiphy->max_scan_ssids = 4;
 

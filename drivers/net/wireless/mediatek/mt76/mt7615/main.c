@@ -997,8 +997,12 @@ mt7615_hw_scan(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 	struct mt76_phy *mphy = hw->priv;
 	int err;
 
+	/* fall-back to sw-scan */
+	if (!mt7615_firmware_offload(dev))
+		return 1;
+
 	mt7615_mutex_acquire(dev);
-	err = mt7615_mcu_hw_scan(mphy->priv, vif, req);
+	err = mt76_connac_mcu_hw_scan(mphy, vif, req);
 	mt7615_mutex_release(dev);
 
 	return err;
@@ -1011,7 +1015,7 @@ mt7615_cancel_hw_scan(struct ieee80211_hw *hw, struct ieee80211_vif *vif)
 	struct mt76_phy *mphy = hw->priv;
 
 	mt7615_mutex_acquire(dev);
-	mt7615_mcu_cancel_hw_scan(mphy->priv, vif);
+	mt76_connac_mcu_cancel_hw_scan(mphy, vif);
 	mt7615_mutex_release(dev);
 }
 
@@ -1024,13 +1028,16 @@ mt7615_start_sched_scan(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 	struct mt76_phy *mphy = hw->priv;
 	int err;
 
+	if (!mt7615_firmware_offload(dev))
+		return -EOPNOTSUPP;
+
 	mt7615_mutex_acquire(dev);
 
-	err = mt7615_mcu_sched_scan_req(mphy->priv, vif, req);
+	err = mt76_connac_mcu_sched_scan_req(mphy, vif, req);
 	if (err < 0)
 		goto out;
 
-	err = mt7615_mcu_sched_scan_enable(mphy->priv, vif, true);
+	err = mt76_connac_mcu_sched_scan_enable(mphy, vif, true);
 out:
 	mt7615_mutex_release(dev);
 
@@ -1044,8 +1051,11 @@ mt7615_stop_sched_scan(struct ieee80211_hw *hw, struct ieee80211_vif *vif)
 	struct mt76_phy *mphy = hw->priv;
 	int err;
 
+	if (!mt7615_firmware_offload(dev))
+		return -EOPNOTSUPP;
+
 	mt7615_mutex_acquire(dev);
-	err = mt7615_mcu_sched_scan_enable(mphy->priv, vif, false);
+	err = mt76_connac_mcu_sched_scan_enable(mphy, vif, false);
 	mt7615_mutex_release(dev);
 
 	return err;
