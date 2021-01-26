@@ -10433,7 +10433,7 @@ void kvm_arch_sched_in(struct kvm_vcpu *vcpu, int cpu)
 
 void kvm_arch_free_vm(struct kvm *kvm)
 {
-	kfree(kvm->arch.hyperv.hv_pa_pg);
+	kfree(to_kvm_hv(kvm)->hv_pa_pg);
 	vfree(kvm);
 }
 

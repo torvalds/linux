@@ -50,6 +50,11 @@
 /* Hyper-V HV_X64_MSR_SYNDBG_OPTIONS bits */
 #define HV_X64_SYNDBG_OPTION_USE_HCALLS		BIT(2)
 
+static inline struct kvm_hv *to_kvm_hv(struct kvm *kvm)
+{
+	return &kvm->arch.hyperv;
+}
+
 static inline struct kvm_vcpu_hv *to_hv_vcpu(struct kvm_vcpu *vcpu)
 {
 	return &vcpu->arch.hyperv;
