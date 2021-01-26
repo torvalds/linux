@@ -8757,7 +8757,8 @@ static void io_disable_sqo_submit(struct io_ring_ctx *ctx)
 	mutex_unlock(&ctx->uring_lock);
 
 	/* make sure callers enter the ring to get error */
-	io_ring_set_wakeup_flag(ctx);
+	if (ctx->rings)
+		io_ring_set_wakeup_flag(ctx);
 }
 
 /*
