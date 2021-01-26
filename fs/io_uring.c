@@ -8962,7 +8962,10 @@ static int io_uring_flush(struct file *file, void *data)
 
 	if (ctx->flags & IORING_SETUP_SQPOLL) {
 		/* there is only one file note, which is owned by sqo_task */
-		WARN_ON_ONCE((ctx->sqo_task == current) ==
+		WARN_ON_ONCE(ctx->sqo_task != current &&
+			     xa_load(&tctx->xa, (unsigned long)file));
+		/* sqo_dead check is for when this happens after cancellation */
+		WARN_ON_ONCE(ctx->sqo_task == current && !ctx->sqo_dead &&
 			     !xa_load(&tctx->xa, (unsigned long)file));
 
 		io_disable_sqo_submit(ctx);
