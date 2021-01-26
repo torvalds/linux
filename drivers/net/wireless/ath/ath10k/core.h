@@ -1295,6 +1295,9 @@ struct ath10k {
 	bool coex_support;
 	int coex_gpio_pin;
 
+	s32 tx_power_2g_limit;
+	s32 tx_power_5g_limit;
+
 	/* must be last */
 	u8 drv_priv[] __aligned(sizeof(void *));
 };
