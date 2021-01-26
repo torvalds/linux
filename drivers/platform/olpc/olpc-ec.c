@@ -393,11 +393,12 @@ static struct regulator_ops dcon_regulator_ops = {
 };
 
 static const struct regulator_desc dcon_desc = {
-	.name	= "dcon",
-	.id	= 0,
-	.ops	= &dcon_regulator_ops,
-	.type	= REGULATOR_VOLTAGE,
-	.owner	= THIS_MODULE,
+	.name		= "dcon",
+	.id		= 0,
+	.ops		= &dcon_regulator_ops,
+	.type		= REGULATOR_VOLTAGE,
+	.owner		= THIS_MODULE,
+	.enable_time	= 25000,
 };
 
 static int olpc_ec_probe(struct platform_device *pdev)
