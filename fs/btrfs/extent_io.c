@@ -5284,9 +5284,18 @@ free_eb:
 }
 #endif
 
-static struct extent_buffer *grab_extent_buffer(struct page *page)
+static struct extent_buffer *grab_extent_buffer(
+		struct btrfs_fs_info *fs_info, struct page *page)
 {
 	struct extent_buffer *exists;
+
+	/*
+	 * For subpage case, we completely rely on radix tree to ensure we
+	 * don't try to insert two ebs for the same bytenr.  So here we always
+	 * return NULL and just continue.
+	 */
+	if (fs_info->sectorsize < PAGE_SIZE)
+		return NULL;
 
 	/* Page not yet attached to an extent buffer */
 	if (!PagePrivate(page))
@@ -5373,7 +5382,7 @@ struct extent_buffer *alloc_extent_buffer(struct btrfs_fs_info *fs_info,
 		}
 
 		spin_lock(&mapping->private_lock);
-		exists = grab_extent_buffer(p);
+		exists = grab_extent_buffer(fs_info, p);
 		if (exists) {
 			spin_unlock(&mapping->private_lock);
 			unlock_page(p);
