@@ -342,9 +342,10 @@ struct ipoib_walk_data {
 	struct net_device *result;
 };
 
-static int ipoib_upper_walk(struct net_device *upper, void *_data)
+static int ipoib_upper_walk(struct net_device *upper,
+			    struct netdev_nested_priv *priv)
 {
-	struct ipoib_walk_data *data = _data;
+	struct ipoib_walk_data *data = (struct ipoib_walk_data *)priv->data;
 	int ret = 0;
 
 	if (ipoib_is_dev_match_addr_rcu(data->addr, upper)) {
@@ -368,10 +369,12 @@ static int ipoib_upper_walk(struct net_device *upper, void *_data)
 static struct net_device *ipoib_get_net_dev_match_addr(
 		const struct sockaddr *addr, struct net_device *dev)
 {
+	struct netdev_nested_priv priv;
 	struct ipoib_walk_data data = {
 		.addr = addr,
 	};
 
+	priv.data = (void *)&data;
 	rcu_read_lock();
 	if (ipoib_is_dev_match_addr_rcu(addr, dev)) {
 		dev_hold(dev);
@@ -379,7 +382,7 @@ static struct net_device *ipoib_get_net_dev_match_addr(
 		goto out;
 	}
 
-	netdev_walk_all_upper_dev_rcu(dev, ipoib_upper_walk, &data);
+	netdev_walk_all_upper_dev_rcu(dev, ipoib_upper_walk, &priv);
 out:
 	rcu_read_unlock();
 	return data.result;
@@ -502,7 +505,7 @@ static struct net_device *ipoib_get_net_dev_by_params(
 	default:
 		dev_warn_ratelimited(&dev->dev,
 				     "duplicate IP address detected\n");
-		/* Fall through */
+		fallthrough;
 	case 1:
 		return net_dev;
 	}
@@ -1892,8 +1895,15 @@ static void ipoib_child_init(struct net_device *ndev)
 
 	priv->max_ib_mtu = ppriv->max_ib_mtu;
 	set_bit(IPOIB_FLAG_SUBINTERFACE, &priv->flags);
-	memcpy(priv->dev->dev_addr, ppriv->dev->dev_addr, INFINIBAND_ALEN);
-	memcpy(&priv->local_gid, &ppriv->local_gid, sizeof(priv->local_gid));
+	if (memchr_inv(priv->dev->dev_addr, 0, INFINIBAND_ALEN))
+		memcpy(&priv->local_gid, priv->dev->dev_addr + 4,
+		       sizeof(priv->local_gid));
+	else {
+		memcpy(priv->dev->dev_addr, ppriv->dev->dev_addr,
+		       INFINIBAND_ALEN);
+		memcpy(&priv->local_gid, &ppriv->local_gid,
+		       sizeof(priv->local_gid));
+	}
 }
 
 static int ipoib_ndo_init(struct net_device *ndev)
@@ -1976,6 +1986,8 @@ static void ipoib_ndo_uninit(struct net_device *dev)
 
 	/* no more works over the priv->wq */
 	if (priv->wq) {
+		/* See ipoib_mcast_carrier_on_task() */
+		WARN_ON(test_bit(IPOIB_FLAG_OPER_UP, &priv->flags));
 		flush_workqueue(priv->wq);
 		destroy_workqueue(priv->wq);
 		priv->wq = NULL;

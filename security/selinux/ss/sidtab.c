@@ -464,6 +464,16 @@ int sidtab_convert(struct sidtab *s, struct sidtab_convert_params *params)
 	return 0;
 }
 
+void sidtab_cancel_convert(struct sidtab *s)
+{
+	unsigned long flags;
+
+	/* cancelling policy load - disable live convert of sidtab */
+	spin_lock_irqsave(&s->lock, flags);
+	s->convert = NULL;
+	spin_unlock_irqrestore(&s->lock, flags);
+}
+
 static void sidtab_destroy_entry(struct sidtab_entry *entry)
 {
 	context_destroy(&entry->context);

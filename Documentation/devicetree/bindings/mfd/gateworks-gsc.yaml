@@ -79,18 +79,19 @@ properties:
             description: |
               conversion mode:
                 0 - temperature, in C*10
-                1 - pre-scaled voltage value
+                1 - pre-scaled 24-bit voltage value
                 2 - scaled voltage based on an optional resistor divider
                     and optional offset
+                3 - pre-scaled 16-bit voltage value
             $ref: /schemas/types.yaml#/definitions/uint32
-            enum: [0, 1, 2]
+            enum: [0, 1, 2, 3]
 
           gw,voltage-divider-ohms:
             description: Values of resistors for divider on raw ADC input
             maxItems: 2
             items:
-             minimum: 1000
-             maximum: 1000000
+              minimum: 1000
+              maximum: 1000000
 
           gw,voltage-offset-microvolt:
             description: |
@@ -143,9 +144,12 @@ required:
   - "#address-cells"
   - "#size-cells"
 
+additionalProperties: false
+
 examples:
   - |
     #include <dt-bindings/gpio/gpio.h>
+    #include <dt-bindings/interrupt-controller/irq.h>
     i2c {
         #address-cells = <1>;
         #size-cells = <0>;
@@ -154,7 +158,7 @@ examples:
             compatible = "gw,gsc";
             reg = <0x20>;
             interrupt-parent = <&gpio1>;
-            interrupts = <4 GPIO_ACTIVE_LOW>;
+            interrupts = <4 IRQ_TYPE_LEVEL_LOW>;
             interrupt-controller;
             #interrupt-cells = <1>;
             #address-cells = <1>;

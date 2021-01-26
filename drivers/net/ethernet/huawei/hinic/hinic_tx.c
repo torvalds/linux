@@ -717,8 +717,8 @@ static int free_tx_poll(struct napi_struct *napi, int budget)
 		netdev_txq = netdev_get_tx_queue(txq->netdev, qp->q_id);
 
 		__netif_tx_lock(netdev_txq, smp_processor_id());
-
-		netif_wake_subqueue(nic_dev->netdev, qp->q_id);
+		if (!netif_testing(nic_dev->netdev))
+			netif_wake_subqueue(nic_dev->netdev, qp->q_id);
 
 		__netif_tx_unlock(netdev_txq);
 
@@ -743,18 +743,6 @@ static int free_tx_poll(struct napi_struct *napi, int budget)
 	}
 
 	return budget;
-}
-
-static void tx_napi_add(struct hinic_txq *txq, int weight)
-{
-	netif_napi_add(txq->netdev, &txq->napi, free_tx_poll, weight);
-	napi_enable(&txq->napi);
-}
-
-static void tx_napi_del(struct hinic_txq *txq)
-{
-	napi_disable(&txq->napi);
-	netif_napi_del(&txq->napi);
 }
 
 static irqreturn_t tx_irq(int irq, void *data)
@@ -790,7 +778,7 @@ static int tx_request_irq(struct hinic_txq *txq)
 
 	qp = container_of(sq, struct hinic_qp, sq);
 
-	tx_napi_add(txq, nic_dev->tx_weight);
+	netif_napi_add(txq->netdev, &txq->napi, free_tx_poll, nic_dev->tx_weight);
 
 	hinic_hwdev_msix_set(nic_dev->hwdev, sq->msix_entry,
 			     TX_IRQ_NO_PENDING, TX_IRQ_NO_COALESC,
@@ -807,14 +795,14 @@ static int tx_request_irq(struct hinic_txq *txq)
 	if (err) {
 		netif_err(nic_dev, drv, txq->netdev,
 			  "Failed to set TX interrupt coalescing attribute\n");
-		tx_napi_del(txq);
+		netif_napi_del(&txq->napi);
 		return err;
 	}
 
 	err = request_irq(sq->irq, tx_irq, 0, txq->irq_name, txq);
 	if (err) {
 		dev_err(&pdev->dev, "Failed to request Tx irq\n");
-		tx_napi_del(txq);
+		netif_napi_del(&txq->napi);
 		return err;
 	}
 
@@ -826,7 +814,7 @@ static void tx_free_irq(struct hinic_txq *txq)
 	struct hinic_sq *sq = txq->sq;
 
 	free_irq(sq->irq, txq);
-	tx_napi_del(txq);
+	netif_napi_del(&txq->napi);
 }
 
 /**

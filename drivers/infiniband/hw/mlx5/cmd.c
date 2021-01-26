@@ -148,18 +148,6 @@ void mlx5_cmd_dealloc_memic(struct mlx5_dm *dm, phys_addr_t addr, u64 length)
 	spin_unlock(&dm->lock);
 }
 
-int mlx5_cmd_query_ext_ppcnt_counters(struct mlx5_core_dev *dev, void *out)
-{
-	u32 in[MLX5_ST_SZ_DW(ppcnt_reg)] = {};
-	int sz = MLX5_ST_SZ_BYTES(ppcnt_reg);
-
-	MLX5_SET(ppcnt_reg, in, local_port, 1);
-
-	MLX5_SET(ppcnt_reg, in, grp, MLX5_ETHERNET_EXTENDED_COUNTERS_GROUP);
-	return  mlx5_core_access_reg(dev, in, sz, out, sz, MLX5_REG_PPCNT,
-				     0, 0);
-}
-
 void mlx5_cmd_destroy_tir(struct mlx5_core_dev *dev, u32 tirn, u16 uid)
 {
 	u32 in[MLX5_ST_SZ_DW(destroy_tir_in)] = {};

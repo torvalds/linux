@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0 */
 // TI LMU Common Core
-// Copyright (C) 2018 Texas Instruments Incorporated - http://www.ti.com/
+// Copyright (C) 2018 Texas Instruments Incorporated - https://www.ti.com/
 
 #ifndef _TI_LMU_COMMON_H_
 #define _TI_LMU_COMMON_H_

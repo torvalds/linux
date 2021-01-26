@@ -2310,7 +2310,7 @@ static int artpec6_crypto_prepare_submit_hash(struct ahash_request *req)
 
 	case ARTPEC6_CRYPTO_PREPARE_HASH_NO_START:
 		ret = 0;
-		/* Fallthrough */
+		fallthrough;
 
 	default:
 		artpec6_crypto_common_destroy(&req_ctx->common);

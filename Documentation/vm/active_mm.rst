@@ -64,7 +64,7 @@ Active MM
  actually get cases where you have a address space that is _only_ used by
  lazy users. That is often a short-lived state, because once that thread
  gets scheduled away in favour of a real thread, the "zombie" mm gets
- released because "mm_users" becomes zero.
+ released because "mm_count" becomes zero.
 
  Also, a new rule is that _nobody_ ever has "init_mm" as a real MM any
  more. "init_mm" should be considered just a "lazy context when no other

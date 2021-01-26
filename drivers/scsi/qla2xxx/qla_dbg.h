@@ -1,8 +1,7 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * QLogic Fibre Channel HBA Driver
  * Copyright (c)  2003-2014 QLogic Corporation
- *
- * See LICENSE.qla2xxx for copyright and licensing details.
  */
 
 #include "qla_def.h"
@@ -53,6 +52,7 @@ struct qla2100_fw_dump {
 	__be16 fpm_b0_reg[64];
 	__be16 fpm_b1_reg[64];
 	__be16 risc_ram[0xf000];
+	u8	queue_dump[];
 };
 
 struct qla24xx_fw_dump {
@@ -379,5 +379,8 @@ extern int qla24xx_soft_reset(struct qla_hw_data *);
 static inline int
 ql_mask_match(uint level)
 {
+	if (ql2xextended_error_logging == 1)
+		ql2xextended_error_logging = QL_DBG_DEFAULT1_MASK;
+
 	return (level & ql2xextended_error_logging) == level;
 }

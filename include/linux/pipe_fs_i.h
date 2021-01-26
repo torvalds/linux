@@ -240,8 +240,9 @@ extern unsigned int pipe_max_size;
 extern unsigned long pipe_user_pages_hard;
 extern unsigned long pipe_user_pages_soft;
 
-/* Drop the inode semaphore and wait for a pipe event, atomically */
-void pipe_wait(struct pipe_inode_info *pipe);
+/* Wait for a pipe to be readable/writable while dropping the pipe lock */
+void pipe_wait_readable(struct pipe_inode_info *);
+void pipe_wait_writable(struct pipe_inode_info *);
 
 struct pipe_inode_info *alloc_pipe_info(void);
 void free_pipe_info(struct pipe_inode_info *);

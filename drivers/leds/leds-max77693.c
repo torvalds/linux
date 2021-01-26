@@ -599,7 +599,7 @@ static int max77693_led_parse_dt(struct max77693_led_device *led,
 {
 	struct device *dev = &led->pdev->dev;
 	struct max77693_sub_led *sub_leds = led->sub_leds;
-	struct device_node *node = dev->of_node, *child_node;
+	struct device_node *node = dev_of_node(dev), *child_node;
 	struct property *prop;
 	u32 led_sources[2];
 	int i, ret, fled_id;

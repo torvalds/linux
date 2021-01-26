@@ -29,7 +29,7 @@ SYNOPSIS
   void libperf_init(libperf_print_fn_t fn);
 --
 
-*API to handle cpu maps:*
+*API to handle CPU maps:*
 
 [source,c]
 --
@@ -217,7 +217,7 @@ Following objects are key to the libperf interface:
 
 [horizontal]
 
-struct perf_cpu_map:: Provides a cpu list abstraction.
+struct perf_cpu_map:: Provides a CPU list abstraction.
 
 struct perf_thread_map:: Provides a thread list abstraction.
 

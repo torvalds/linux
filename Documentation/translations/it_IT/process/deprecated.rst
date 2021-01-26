@@ -130,7 +130,7 @@ chi usa solo stringe terminate. La versione sicura da usare è
 strscpy(). (chi usa strscpy() e necessita di estendere la
 terminazione con NUL deve aggiungere una chiamata a memset())
 
-Se il chiamate no usa stringhe terminate con NUL, allore strncpy()()
+Se il chiamate no usa stringhe terminate con NUL, allore strncpy()
 può continuare ad essere usata, ma i buffer di destinazione devono essere
 marchiati con l'attributo `__nonstring <https://gcc.gnu.org/onlinedocs/gcc/Common-Variable-Attributes.html>`_
 per evitare avvisi durante la compilazione.

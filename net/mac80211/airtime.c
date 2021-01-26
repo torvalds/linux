@@ -405,18 +405,14 @@ ieee80211_calc_legacy_rate_duration(u16 bitrate, bool short_pre,
 	return duration;
 }
 
-u32 ieee80211_calc_rx_airtime(struct ieee80211_hw *hw,
-			      struct ieee80211_rx_status *status,
-			      int len)
+static u32 ieee80211_get_rate_duration(struct ieee80211_hw *hw,
+				       struct ieee80211_rx_status *status,
+				       u32 *overhead)
 {
-	struct ieee80211_supported_band *sband;
-	const struct ieee80211_rate *rate;
 	bool sgi = status->enc_flags & RX_ENC_FLAG_SHORT_GI;
-	bool sp = status->enc_flags & RX_ENC_FLAG_SHORTPRE;
 	int bw, streams;
 	int group, idx;
 	u32 duration;
-	bool cck;
 
 	switch (status->bw) {
 	case RATE_INFO_BW_20:
@@ -437,20 +433,6 @@ u32 ieee80211_calc_rx_airtime(struct ieee80211_hw *hw,
 	}
 
 	switch (status->encoding) {
-	case RX_ENC_LEGACY:
-		if (WARN_ON_ONCE(status->band > NL80211_BAND_5GHZ))
-			return 0;
-
-		sband = hw->wiphy->bands[status->band];
-		if (!sband || status->rate_idx >= sband->n_bitrates)
-			return 0;
-
-		rate = &sband->bitrates[status->rate_idx];
-		cck = rate->flags & IEEE80211_RATE_MANDATORY_B;
-
-		return ieee80211_calc_legacy_rate_duration(rate->bitrate, sp,
-							   cck, len);
-
 	case RX_ENC_VHT:
 		streams = status->nss;
 		idx = status->rate_idx;
@@ -477,50 +459,145 @@ u32 ieee80211_calc_rx_airtime(struct ieee80211_hw *hw,
 
 	duration = airtime_mcs_groups[group].duration[idx];
 	duration <<= airtime_mcs_groups[group].shift;
+	*overhead = 36 + (streams << 2);
+
+	return duration;
+}
+
+
+u32 ieee80211_calc_rx_airtime(struct ieee80211_hw *hw,
+			      struct ieee80211_rx_status *status,
+			      int len)
+{
+	struct ieee80211_supported_band *sband;
+	u32 duration, overhead = 0;
+
+	if (status->encoding == RX_ENC_LEGACY) {
+		const struct ieee80211_rate *rate;
+		bool sp = status->enc_flags & RX_ENC_FLAG_SHORTPRE;
+		bool cck;
+
+		if (WARN_ON_ONCE(status->band > NL80211_BAND_5GHZ))
+			return 0;
+
+		sband = hw->wiphy->bands[status->band];
+		if (!sband || status->rate_idx >= sband->n_bitrates)
+			return 0;
+
+		rate = &sband->bitrates[status->rate_idx];
+		cck = rate->flags & IEEE80211_RATE_MANDATORY_B;
+
+		return ieee80211_calc_legacy_rate_duration(rate->bitrate, sp,
+							   cck, len);
+	}
+
+	duration = ieee80211_get_rate_duration(hw, status, &overhead);
+	if (!duration)
+		return 0;
+
 	duration *= len;
 	duration /= AVG_PKT_SIZE;
 	duration /= 1024;
 
-	duration += 36 + (streams << 2);
-
-	return duration;
+	return duration + overhead;
 }
 EXPORT_SYMBOL_GPL(ieee80211_calc_rx_airtime);
 
-static u32 ieee80211_calc_tx_airtime_rate(struct ieee80211_hw *hw,
-					  struct ieee80211_tx_rate *rate,
-					  u8 band, int len)
+static bool ieee80211_fill_rate_info(struct ieee80211_hw *hw,
+				     struct ieee80211_rx_status *stat, u8 band,
+				     struct rate_info *ri)
 {
-	struct ieee80211_rx_status stat = {
-		.band = band,
-	};
+	struct ieee80211_supported_band *sband = hw->wiphy->bands[band];
+	int i;
 
-	if (rate->idx < 0 || !rate->count)
+	if (!ri || !sband)
+	    return false;
+
+	stat->bw = ri->bw;
+	stat->nss = ri->nss;
+	stat->rate_idx = ri->mcs;
+
+	if (ri->flags & RATE_INFO_FLAGS_HE_MCS)
+		stat->encoding = RX_ENC_HE;
+	else if (ri->flags & RATE_INFO_FLAGS_VHT_MCS)
+		stat->encoding = RX_ENC_VHT;
+	else if (ri->flags & RATE_INFO_FLAGS_MCS)
+		stat->encoding = RX_ENC_HT;
+	else
+		stat->encoding = RX_ENC_LEGACY;
+
+	if (ri->flags & RATE_INFO_FLAGS_SHORT_GI)
+		stat->enc_flags |= RX_ENC_FLAG_SHORT_GI;
+
+	stat->he_gi = ri->he_gi;
+
+	if (stat->encoding != RX_ENC_LEGACY)
+		return true;
+
+	stat->rate_idx = 0;
+	for (i = 0; i < sband->n_bitrates; i++) {
+		if (ri->legacy != sband->bitrates[i].bitrate)
+			continue;
+
+		stat->rate_idx = i;
+		return true;
+	}
+
+	return false;
+}
+
+static int ieee80211_fill_rx_status(struct ieee80211_rx_status *stat,
+				    struct ieee80211_hw *hw,
+				    struct ieee80211_tx_rate *rate,
+				    struct rate_info *ri, u8 band, int len)
+{
+	memset(stat, 0, sizeof(*stat));
+	stat->band = band;
+
+	if (ieee80211_fill_rate_info(hw, stat, band, ri))
 		return 0;
 
-	if (rate->flags & IEEE80211_TX_RC_80_MHZ_WIDTH)
-		stat.bw = RATE_INFO_BW_80;
+	if (rate->idx < 0 || !rate->count)
+		return -1;
+
+	if (rate->flags & IEEE80211_TX_RC_160_MHZ_WIDTH)
+		stat->bw = RATE_INFO_BW_160;
+	else if (rate->flags & IEEE80211_TX_RC_80_MHZ_WIDTH)
+		stat->bw = RATE_INFO_BW_80;
 	else if (rate->flags & IEEE80211_TX_RC_40_MHZ_WIDTH)
-		stat.bw = RATE_INFO_BW_40;
+		stat->bw = RATE_INFO_BW_40;
 	else
-		stat.bw = RATE_INFO_BW_20;
+		stat->bw = RATE_INFO_BW_20;
 
-	stat.enc_flags = 0;
+	stat->enc_flags = 0;
 	if (rate->flags & IEEE80211_TX_RC_USE_SHORT_PREAMBLE)
-		stat.enc_flags |= RX_ENC_FLAG_SHORTPRE;
+		stat->enc_flags |= RX_ENC_FLAG_SHORTPRE;
 	if (rate->flags & IEEE80211_TX_RC_SHORT_GI)
-		stat.enc_flags |= RX_ENC_FLAG_SHORT_GI;
+		stat->enc_flags |= RX_ENC_FLAG_SHORT_GI;
 
-	stat.rate_idx = rate->idx;
+	stat->rate_idx = rate->idx;
 	if (rate->flags & IEEE80211_TX_RC_VHT_MCS) {
-		stat.encoding = RX_ENC_VHT;
-		stat.rate_idx = ieee80211_rate_get_vht_mcs(rate);
-		stat.nss = ieee80211_rate_get_vht_nss(rate);
+		stat->encoding = RX_ENC_VHT;
+		stat->rate_idx = ieee80211_rate_get_vht_mcs(rate);
+		stat->nss = ieee80211_rate_get_vht_nss(rate);
 	} else if (rate->flags & IEEE80211_TX_RC_MCS) {
-		stat.encoding = RX_ENC_HT;
+		stat->encoding = RX_ENC_HT;
 	} else {
-		stat.encoding = RX_ENC_LEGACY;
+		stat->encoding = RX_ENC_LEGACY;
 	}
+
+	return 0;
+}
+
+static u32 ieee80211_calc_tx_airtime_rate(struct ieee80211_hw *hw,
+					  struct ieee80211_tx_rate *rate,
+					  struct rate_info *ri,
+					  u8 band, int len)
+{
+	struct ieee80211_rx_status stat;
+
+	if (ieee80211_fill_rx_status(&stat, hw, rate, ri, band, len))
+		return 0;
 
 	return ieee80211_calc_rx_airtime(hw, &stat, len);
 }
@@ -536,7 +613,7 @@ u32 ieee80211_calc_tx_airtime(struct ieee80211_hw *hw,
 		struct ieee80211_tx_rate *rate = &info->status.rates[i];
 		u32 cur_duration;
 
-		cur_duration = ieee80211_calc_tx_airtime_rate(hw, rate,
+		cur_duration = ieee80211_calc_tx_airtime_rate(hw, rate, NULL,
 							      info->band, len);
 		if (!cur_duration)
 			break;
@@ -572,26 +649,47 @@ u32 ieee80211_calc_expected_tx_airtime(struct ieee80211_hw *hw,
 	if (pubsta) {
 		struct sta_info *sta = container_of(pubsta, struct sta_info,
 						    sta);
+		struct ieee80211_rx_status stat;
 		struct ieee80211_tx_rate *rate = &sta->tx_stats.last_rate;
-		u32 airtime;
+		struct rate_info *ri = &sta->tx_stats.last_rate_info;
+		u32 duration, overhead;
+		u8 agg_shift;
 
-		if (!(rate->flags & (IEEE80211_TX_RC_VHT_MCS |
-				     IEEE80211_TX_RC_MCS)))
-			ampdu = false;
+		if (ieee80211_fill_rx_status(&stat, hw, rate, ri, band, len))
+			return 0;
 
+		if (stat.encoding == RX_ENC_LEGACY || !ampdu)
+			return ieee80211_calc_rx_airtime(hw, &stat, len);
+
+		duration = ieee80211_get_rate_duration(hw, &stat, &overhead);
 		/*
 		 * Assume that HT/VHT transmission on any AC except VO will
 		 * use aggregation. Since we don't have reliable reporting
-		 * of aggregation length, assume an average of 16.
+		 * of aggregation length, assume an average size based on the
+		 * tx rate.
 		 * This will not be very accurate, but much better than simply
-		 * assuming un-aggregated tx.
+		 * assuming un-aggregated tx in all cases.
 		 */
-		airtime = ieee80211_calc_tx_airtime_rate(hw, rate, band,
-							 ampdu ? len * 16 : len);
-		if (ampdu)
-			airtime /= 16;
+		if (duration > 400 * 1024) /* <= VHT20 MCS2 1S */
+			agg_shift = 1;
+		else if (duration > 250 * 1024) /* <= VHT20 MCS3 1S or MCS1 2S */
+			agg_shift = 2;
+		else if (duration > 150 * 1024) /* <= VHT20 MCS5 1S or MCS2 2S */
+			agg_shift = 3;
+		else if (duration > 70 * 1024) /* <= VHT20 MCS5 2S */
+			agg_shift = 4;
+		else if (stat.encoding != RX_ENC_HE ||
+			 duration > 20 * 1024) /* <= HE40 MCS6 2S */
+			agg_shift = 5;
+		else
+			agg_shift = 6;
 
-		return airtime;
+		duration *= len;
+		duration /= AVG_PKT_SIZE;
+		duration /= 1024;
+		duration += (overhead >> agg_shift);
+
+		return max_t(u32, duration, 4);
 	}
 
 	if (!conf)

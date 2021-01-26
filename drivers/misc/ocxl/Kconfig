@@ -9,9 +9,8 @@ config OCXL_BASE
 
 config OCXL
 	tristate "OpenCAPI coherent accelerator support"
-	depends on PPC_POWERNV && PCI && EEH
+	depends on PPC_POWERNV && PCI && EEH && HOTPLUG_PCI_POWERNV
 	select OCXL_BASE
-	select HOTPLUG_PCI_POWERNV
 	default m
 	help
 	  Select this option to enable the ocxl driver for Open
@@ -23,7 +22,7 @@ config OCXL
 	  The ocxl driver enables userspace programs to access these
 	  accelerators through devices in /dev/ocxl/.
 
-	  For more information, see http://opencapi.org.
+	  For more information, see https://opencapi.org.
 
 	  This is not to be confused with the support for IBM CAPI
 	  accelerators (CONFIG_CXL), which are PCI-based instead of a

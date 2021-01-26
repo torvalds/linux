@@ -20,7 +20,7 @@
 #include <linux/module.h>
 #include <linux/pm.h>
 #include <linux/bitops.h>
-#include <linux/of.h>
+#include <linux/mod_devicetable.h>
 #include <linux/irq.h>
 #include <linux/interrupt.h>
 
@@ -463,7 +463,6 @@ static int tmp007_probe(struct i2c_client *client,
 	data->client = client;
 	mutex_init(&data->lock);
 
-	indio_dev->dev.parent = &client->dev;
 	indio_dev->name = "tmp007";
 	indio_dev->modes = INDIO_DIRECT_MODE;
 	indio_dev->info = &tmp007_info;
@@ -579,7 +578,7 @@ MODULE_DEVICE_TABLE(i2c, tmp007_id);
 static struct i2c_driver tmp007_driver = {
 	.driver = {
 		.name	= "tmp007",
-		.of_match_table = of_match_ptr(tmp007_of_match),
+		.of_match_table = tmp007_of_match,
 		.pm	= &tmp007_pm_ops,
 	},
 	.probe		= tmp007_probe,

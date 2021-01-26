@@ -452,13 +452,19 @@ int rtl8366_vlan_del(struct dsa_switch *ds, int port,
 				return ret;
 
 			if (vid == vlanmc.vid) {
-				/* clear VLAN member configurations */
-				vlanmc.vid = 0;
-				vlanmc.priority = 0;
-				vlanmc.member = 0;
-				vlanmc.untag = 0;
-				vlanmc.fid = 0;
-
+				/* Remove this port from the VLAN */
+				vlanmc.member &= ~BIT(port);
+				vlanmc.untag &= ~BIT(port);
+				/*
+				 * If no ports are members of this VLAN
+				 * anymore then clear the whole member
+				 * config so it can be reused.
+				 */
+				if (!vlanmc.member && vlanmc.untag) {
+					vlanmc.vid = 0;
+					vlanmc.priority = 0;
+					vlanmc.fid = 0;
+				}
 				ret = smi->ops->set_vlan_mc(smi, i, &vlanmc);
 				if (ret) {
 					dev_err(smi->dev,

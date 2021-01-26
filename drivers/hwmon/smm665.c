@@ -562,8 +562,9 @@ static struct attribute *smm665_attrs[] = {
 
 ATTRIBUTE_GROUPS(smm665);
 
-static int smm665_probe(struct i2c_client *client,
-			const struct i2c_device_id *id)
+static const struct i2c_device_id smm665_id[];
+
+static int smm665_probe(struct i2c_client *client)
 {
 	struct i2c_adapter *adapter = client->adapter;
 	struct smm665_data *data;
@@ -585,7 +586,7 @@ static int smm665_probe(struct i2c_client *client,
 	mutex_init(&data->update_lock);
 
 	data->client = client;
-	data->type = id->driver_data;
+	data->type = i2c_match_id(smm665_id, client)->driver_data;
 	data->cmdreg = i2c_new_dummy_device(adapter, (client->addr & ~SMM665_REGMASK)
 				     | SMM665_CMDREG_BASE);
 	if (IS_ERR(data->cmdreg))
@@ -694,7 +695,7 @@ static struct i2c_driver smm665_driver = {
 	.driver = {
 		   .name = "smm665",
 		   },
-	.probe = smm665_probe,
+	.probe_new = smm665_probe,
 	.remove = smm665_remove,
 	.id_table = smm665_id,
 };

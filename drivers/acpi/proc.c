@@ -10,14 +10,10 @@
 #include "sleep.h"
 #include "internal.h"
 
-#define _COMPONENT		ACPI_SYSTEM_COMPONENT
-
 /*
  * this file provides support for:
  * /proc/acpi/wakeup
  */
-
-ACPI_MODULE_NAME("sleep")
 
 static int
 acpi_system_wakeup_device_seq_show(struct seq_file *seq, void *offset)

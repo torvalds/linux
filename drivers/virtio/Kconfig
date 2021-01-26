@@ -126,4 +126,11 @@ config VIRTIO_MMIO_CMDLINE_DEVICES
 
 	 If unsure, say 'N'.
 
+config VIRTIO_DMA_SHARED_BUFFER
+	tristate
+	depends on DMA_SHARED_BUFFER
+	help
+	 This option adds a flavor of dma buffers that are backed by
+	 virtio resources.
+
 endif # VIRTIO_MENU

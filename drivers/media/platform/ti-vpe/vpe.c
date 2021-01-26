@@ -1576,7 +1576,7 @@ static int vpe_g_fmt(struct file *file, void *priv, struct v4l2_format *f)
 
 	*f = q_data->format;
 
-	if (!V4L2_TYPE_IS_OUTPUT(f->type)) {
+	if (V4L2_TYPE_IS_CAPTURE(f->type)) {
 		struct vpe_q_data *s_q_data;
 		struct v4l2_pix_format_mplane *spix;
 
@@ -2475,6 +2475,8 @@ static int vpe_runtime_get(struct platform_device *pdev)
 
 	r = pm_runtime_get_sync(&pdev->dev);
 	WARN_ON(r < 0);
+	if (r)
+		pm_runtime_put_noidle(&pdev->dev);
 	return r < 0 ? r : 0;
 }
 

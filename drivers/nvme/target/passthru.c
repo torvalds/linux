@@ -165,7 +165,7 @@ static void nvmet_passthru_execute_cmd_work(struct work_struct *w)
 
 	req->cqe->result = nvme_req(rq)->result;
 	nvmet_req_complete(req, status);
-	blk_put_request(rq);
+	blk_mq_free_request(rq);
 }
 
 static void nvmet_passthru_req_done(struct request *rq,
@@ -175,7 +175,7 @@ static void nvmet_passthru_req_done(struct request *rq,
 
 	req->cqe->result = nvme_req(rq)->result;
 	nvmet_req_complete(req, nvme_req(rq)->status);
-	blk_put_request(rq);
+	blk_mq_free_request(rq);
 }
 
 static int nvmet_passthru_map_sg(struct nvmet_req *req, struct request *rq)
@@ -230,7 +230,7 @@ static void nvmet_passthru_execute_cmd(struct nvmet_req *req)
 		if (unlikely(!ns)) {
 			pr_err("failed to get passthru ns nsid:%u\n", nsid);
 			status = NVME_SC_INVALID_NS | NVME_SC_DNR;
-			goto fail_out;
+			goto out;
 		}
 
 		q = ns->queue;
@@ -238,16 +238,15 @@ static void nvmet_passthru_execute_cmd(struct nvmet_req *req)
 
 	rq = nvme_alloc_request(q, req->cmd, BLK_MQ_REQ_NOWAIT, NVME_QID_ANY);
 	if (IS_ERR(rq)) {
-		rq = NULL;
 		status = NVME_SC_INTERNAL;
-		goto fail_out;
+		goto out_put_ns;
 	}
 
 	if (req->sg_cnt) {
 		ret = nvmet_passthru_map_sg(req, rq);
 		if (unlikely(ret)) {
 			status = NVME_SC_INTERNAL;
-			goto fail_out;
+			goto out_put_req;
 		}
 	}
 
@@ -274,11 +273,13 @@ static void nvmet_passthru_execute_cmd(struct nvmet_req *req)
 
 	return;
 
-fail_out:
+out_put_req:
+	blk_mq_free_request(rq);
+out_put_ns:
 	if (ns)
 		nvme_put_ns(ns);
+out:
 	nvmet_req_complete(req, status);
-	blk_put_request(rq);
 }
 
 /*
@@ -326,6 +327,10 @@ static u16 nvmet_setup_passthru_command(struct nvmet_req *req)
 
 u16 nvmet_parse_passthru_io_cmd(struct nvmet_req *req)
 {
+	/* Reject any commands with non-sgl flags set (ie. fused commands) */
+	if (req->cmd->common.flags & ~NVME_CMD_SGL_ALL)
+		return NVME_SC_INVALID_FIELD;
+
 	switch (req->cmd->common.opcode) {
 	case nvme_cmd_resv_register:
 	case nvme_cmd_resv_report:
@@ -396,6 +401,10 @@ static u16 nvmet_passthru_get_set_features(struct nvmet_req *req)
 
 u16 nvmet_parse_passthru_admin_cmd(struct nvmet_req *req)
 {
+	/* Reject any commands with non-sgl flags set (ie. fused commands) */
+	if (req->cmd->common.flags & ~NVME_CMD_SGL_ALL)
+		return NVME_SC_INVALID_FIELD;
+
 	/*
 	 * Passthru all vendor specific commands
 	 */
@@ -447,10 +456,26 @@ u16 nvmet_parse_passthru_admin_cmd(struct nvmet_req *req)
 			req->execute = nvmet_passthru_execute_cmd;
 			req->p.use_workqueue = true;
 			return NVME_SC_SUCCESS;
+		case NVME_ID_CNS_CS_CTRL:
+			switch (req->cmd->identify.csi) {
+			case NVME_CSI_ZNS:
+				req->execute = nvmet_passthru_execute_cmd;
+				req->p.use_workqueue = true;
+				return NVME_SC_SUCCESS;
+			}
+			return NVME_SC_INVALID_OPCODE | NVME_SC_DNR;
 		case NVME_ID_CNS_NS:
 			req->execute = nvmet_passthru_execute_cmd;
 			req->p.use_workqueue = true;
 			return NVME_SC_SUCCESS;
+		case NVME_ID_CNS_CS_NS:
+			switch (req->cmd->identify.csi) {
+			case NVME_CSI_ZNS:
+				req->execute = nvmet_passthru_execute_cmd;
+				req->p.use_workqueue = true;
+				return NVME_SC_SUCCESS;
+			}
+			return NVME_SC_INVALID_OPCODE | NVME_SC_DNR;
 		default:
 			return nvmet_setup_passthru_command(req);
 		}
@@ -465,6 +490,7 @@ u16 nvmet_parse_passthru_admin_cmd(struct nvmet_req *req)
 int nvmet_passthru_ctrl_enable(struct nvmet_subsys *subsys)
 {
 	struct nvme_ctrl *ctrl;
+	struct file *file;
 	int ret = -EINVAL;
 	void *old;
 
@@ -479,24 +505,29 @@ int nvmet_passthru_ctrl_enable(struct nvmet_subsys *subsys)
 		goto out_unlock;
 	}
 
-	ctrl = nvme_ctrl_get_by_path(subsys->passthru_ctrl_path);
-	if (IS_ERR(ctrl)) {
-		ret = PTR_ERR(ctrl);
+	file = filp_open(subsys->passthru_ctrl_path, O_RDWR, 0);
+	if (IS_ERR(file)) {
+		ret = PTR_ERR(file);
+		goto out_unlock;
+	}
+
+	ctrl = nvme_ctrl_from_file(file);
+	if (!ctrl) {
 		pr_err("failed to open nvme controller %s\n",
 		       subsys->passthru_ctrl_path);
 
-		goto out_unlock;
+		goto out_put_file;
 	}
 
 	old = xa_cmpxchg(&passthru_subsystems, ctrl->cntlid, NULL,
 			 subsys, GFP_KERNEL);
 	if (xa_is_err(old)) {
 		ret = xa_err(old);
-		goto out_put_ctrl;
+		goto out_put_file;
 	}
 
 	if (old)
-		goto out_put_ctrl;
+		goto out_put_file;
 
 	subsys->passthru_ctrl = ctrl;
 	subsys->ver = ctrl->vs;
@@ -507,12 +538,12 @@ int nvmet_passthru_ctrl_enable(struct nvmet_subsys *subsys)
 			NVME_TERTIARY(subsys->ver));
 		subsys->ver = NVME_VS(1, 2, 1);
 	}
+	nvme_get_ctrl(ctrl);
+	__module_get(subsys->passthru_ctrl->ops->module);
+	ret = 0;
 
-	mutex_unlock(&subsys->lock);
-	return 0;
-
-out_put_ctrl:
-	nvme_put_ctrl(ctrl);
+out_put_file:
+	filp_close(file, NULL);
 out_unlock:
 	mutex_unlock(&subsys->lock);
 	return ret;
@@ -522,6 +553,7 @@ static void __nvmet_passthru_ctrl_disable(struct nvmet_subsys *subsys)
 {
 	if (subsys->passthru_ctrl) {
 		xa_erase(&passthru_subsystems, subsys->passthru_ctrl->cntlid);
+		module_put(subsys->passthru_ctrl->ops->module);
 		nvme_put_ctrl(subsys->passthru_ctrl);
 	}
 	subsys->passthru_ctrl = NULL;

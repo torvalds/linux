@@ -116,7 +116,6 @@
 		switch0: ksz8563@0 {
 			compatible = "microchip,ksz8563";
 			reg = <0>;
-			phy-mode = "mii";
 			reset-gpios = <&pioA PIN_PD4 GPIO_ACTIVE_LOW>;
 
 			spi-max-frequency = <500000>;
@@ -140,6 +139,7 @@
 					reg = <2>;
 					label = "cpu";
 					ethernet = <&macb0>;
+					phy-mode = "mii";
 					fixed-link {
 						speed = <100>;
 						full-duplex;

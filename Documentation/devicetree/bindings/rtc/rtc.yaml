@@ -47,4 +47,6 @@ properties:
     description:
       Enables wake up of host system on alarm.
 
+additionalProperties: true
+
 ...

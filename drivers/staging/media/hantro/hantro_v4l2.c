@@ -40,7 +40,7 @@ hantro_get_formats(const struct hantro_ctx *ctx, unsigned int *num_fmts)
 {
 	const struct hantro_fmt *formats;
 
-	if (hantro_is_encoder_ctx(ctx)) {
+	if (ctx->is_encoder) {
 		formats = ctx->dev->variant->enc_fmts;
 		*num_fmts = ctx->dev->variant->num_enc_fmts;
 	} else {
@@ -55,7 +55,7 @@ static const struct hantro_fmt *
 hantro_get_postproc_formats(const struct hantro_ctx *ctx,
 			    unsigned int *num_fmts)
 {
-	if (hantro_is_encoder_ctx(ctx)) {
+	if (ctx->is_encoder) {
 		*num_fmts = 0;
 		return NULL;
 	}
@@ -158,7 +158,7 @@ static int vidioc_enum_fmt(struct file *file, void *priv,
 	 *    not MODE_NONE.
 	 *  - on the output side we want to filter out all MODE_NONE formats.
 	 */
-	skip_mode_none = capture == hantro_is_encoder_ctx(ctx);
+	skip_mode_none = capture == ctx->is_encoder;
 
 	formats = hantro_get_formats(ctx, &num_fmts);
 	for (i = 0; i < num_fmts; i++) {
@@ -237,10 +237,10 @@ static int hantro_try_fmt(const struct hantro_ctx *ctx,
 			  enum v4l2_buf_type type)
 {
 	const struct hantro_fmt *fmt, *vpu_fmt;
-	bool capture = !V4L2_TYPE_IS_OUTPUT(type);
+	bool capture = V4L2_TYPE_IS_CAPTURE(type);
 	bool coded;
 
-	coded = capture == hantro_is_encoder_ctx(ctx);
+	coded = capture == ctx->is_encoder;
 
 	vpu_debug(4, "trying format %c%c%c%c\n",
 		  (pix_mp->pixelformat & 0x7f),
@@ -257,7 +257,7 @@ static int hantro_try_fmt(const struct hantro_ctx *ctx,
 	if (coded) {
 		pix_mp->num_planes = 1;
 		vpu_fmt = fmt;
-	} else if (hantro_is_encoder_ctx(ctx)) {
+	} else if (ctx->is_encoder) {
 		vpu_fmt = ctx->vpu_dst_fmt;
 	} else {
 		vpu_fmt = ctx->vpu_src_fmt;
@@ -330,7 +330,7 @@ hantro_reset_encoded_fmt(struct hantro_ctx *ctx)
 
 	vpu_fmt = hantro_get_default_fmt(ctx, true);
 
-	if (hantro_is_encoder_ctx(ctx)) {
+	if (ctx->is_encoder) {
 		ctx->vpu_dst_fmt = vpu_fmt;
 		fmt = &ctx->dst_fmt;
 	} else {
@@ -341,7 +341,7 @@ hantro_reset_encoded_fmt(struct hantro_ctx *ctx)
 	hantro_reset_fmt(fmt, vpu_fmt);
 	fmt->width = vpu_fmt->frmsize.min_width;
 	fmt->height = vpu_fmt->frmsize.min_height;
-	if (hantro_is_encoder_ctx(ctx))
+	if (ctx->is_encoder)
 		hantro_set_fmt_cap(ctx, fmt);
 	else
 		hantro_set_fmt_out(ctx, fmt);
@@ -355,7 +355,7 @@ hantro_reset_raw_fmt(struct hantro_ctx *ctx)
 
 	raw_vpu_fmt = hantro_get_default_fmt(ctx, false);
 
-	if (hantro_is_encoder_ctx(ctx)) {
+	if (ctx->is_encoder) {
 		ctx->vpu_src_fmt = raw_vpu_fmt;
 		raw_fmt = &ctx->src_fmt;
 		encoded_fmt = &ctx->dst_fmt;
@@ -368,7 +368,7 @@ hantro_reset_raw_fmt(struct hantro_ctx *ctx)
 	hantro_reset_fmt(raw_fmt, raw_vpu_fmt);
 	raw_fmt->width = encoded_fmt->width;
 	raw_fmt->width = encoded_fmt->width;
-	if (hantro_is_encoder_ctx(ctx))
+	if (ctx->is_encoder)
 		hantro_set_fmt_out(ctx, raw_fmt);
 	else
 		hantro_set_fmt_cap(ctx, raw_fmt);
@@ -409,7 +409,7 @@ static int hantro_set_fmt_out(struct hantro_ctx *ctx,
 	if (ret)
 		return ret;
 
-	if (!hantro_is_encoder_ctx(ctx)) {
+	if (!ctx->is_encoder) {
 		struct vb2_queue *peer_vq;
 
 		/*
@@ -450,7 +450,7 @@ static int hantro_set_fmt_out(struct hantro_ctx *ctx,
 	 * Note that hantro_reset_raw_fmt() also propagates size
 	 * changes to the raw format.
 	 */
-	if (!hantro_is_encoder_ctx(ctx))
+	if (!ctx->is_encoder)
 		hantro_reset_raw_fmt(ctx);
 
 	/* Colorimetry information are always propagated. */
@@ -479,7 +479,7 @@ static int hantro_set_fmt_cap(struct hantro_ctx *ctx,
 	if (vb2_is_busy(vq))
 		return -EBUSY;
 
-	if (hantro_is_encoder_ctx(ctx)) {
+	if (ctx->is_encoder) {
 		struct vb2_queue *peer_vq;
 
 		/*
@@ -512,7 +512,7 @@ static int hantro_set_fmt_cap(struct hantro_ctx *ctx,
 	 * Note that hantro_reset_raw_fmt() also propagates size
 	 * changes to the raw format.
 	 */
-	if (hantro_is_encoder_ctx(ctx))
+	if (ctx->is_encoder)
 		hantro_reset_raw_fmt(ctx);
 
 	/* Colorimetry information are always propagated. */
@@ -655,7 +655,7 @@ static bool hantro_vq_is_coded(struct vb2_queue *q)
 {
 	struct hantro_ctx *ctx = vb2_get_drv_priv(q);
 
-	return hantro_is_encoder_ctx(ctx) != V4L2_TYPE_IS_OUTPUT(q->type);
+	return ctx->is_encoder != V4L2_TYPE_IS_OUTPUT(q->type);
 }
 
 static int hantro_start_streaming(struct vb2_queue *q, unsigned int count)

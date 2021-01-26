@@ -303,7 +303,6 @@ _config_request(struct MPT3SAS_ADAPTER *ioc, Mpi2ConfigRequest_t
 	u8 retry_count, issue_host_reset = 0;
 	struct config_request mem;
 	u32 ioc_status = UINT_MAX;
-	u8 issue_reset = 0;
 
 	mutex_lock(&ioc->config_cmds.mutex);
 	if (ioc->config_cmds.status != MPT3_CMD_NOT_USED) {
@@ -372,7 +371,7 @@ _config_request(struct MPT3SAS_ADAPTER *ioc, Mpi2ConfigRequest_t
 	}
 
 	r = 0;
-	memset(mpi_reply, 0, sizeof(Mpi2ConfigReply_t));
+	memset(ioc->config_cmds.reply, 0, sizeof(Mpi2ConfigReply_t));
 	ioc->config_cmds.status = MPT3_CMD_PENDING;
 	config_request = mpt3sas_base_get_msg_frame(ioc, smid);
 	ioc->config_cmds.smid = smid;
@@ -386,9 +385,9 @@ _config_request(struct MPT3SAS_ADAPTER *ioc, Mpi2ConfigRequest_t
 		if (!(ioc->logging_level & MPT_DEBUG_CONFIG))
 			_config_display_some_debug(ioc,
 			    smid, "config_request", NULL);
-		mpt3sas_check_cmd_timeout(ioc,
-		    ioc->config_cmds.status, mpi_request,
-		    sizeof(Mpi2ConfigRequest_t)/4, issue_reset);
+		ioc_err(ioc, "%s: command timeout\n", __func__);
+		mpt3sas_base_check_cmd_timeout(ioc, ioc->config_cmds.status,
+				mpi_request, sizeof(Mpi2ConfigRequest_t) / 4);
 		retry_count++;
 		if (ioc->config_cmds.smid == smid)
 			mpt3sas_base_free_smid(ioc, smid);

@@ -41,6 +41,11 @@ void rnbd_dev_close(struct rnbd_dev *dev);
 
 void rnbd_endio(void *priv, int error);
 
+void rnbd_dev_bi_end_io(struct bio *bio);
+
+struct bio *rnbd_bio_map_kern(void *data, struct bio_set *bs,
+			      unsigned int len, gfp_t gfp_mask);
+
 static inline int rnbd_dev_get_max_segs(const struct rnbd_dev *dev)
 {
 	return queue_max_segments(bdev_get_queue(dev->bdev));
@@ -74,19 +79,5 @@ static inline int rnbd_dev_get_discard_alignment(const struct rnbd_dev *dev)
 {
 	return bdev_get_queue(dev->bdev)->limits.discard_alignment;
 }
-
-/**
- * rnbd_dev_submit_io() - Submit an I/O to the disk
- * @dev:	device to that the I/O is submitted
- * @sector:	address to read/write data to
- * @data:	I/O data to write or buffer to read I/O date into
- * @len:	length of @data
- * @bi_size:	Amount of data that will be read/written
- * @prio:       IO priority
- * @priv:	private data passed to @io_fn
- */
-int rnbd_dev_submit_io(struct rnbd_dev *dev, sector_t sector, void *data,
-			size_t len, u32 bi_size, enum rnbd_io_flags flags,
-			short prio, void *priv);
 
 #endif /* RNBD_SRV_DEV_H */

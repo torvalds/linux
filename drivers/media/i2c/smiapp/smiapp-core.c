@@ -508,9 +508,7 @@ static int smiapp_set_ctrl(struct v4l2_ctrl *ctrl)
 		break;
 	}
 
-	pm_runtime_get_noresume(&client->dev);
-	pm_status = pm_runtime_get_if_in_use(&client->dev);
-	pm_runtime_put_noidle(&client->dev);
+	pm_status = pm_runtime_get_if_active(&client->dev, true);
 	if (!pm_status)
 		return 0;
 
@@ -1723,7 +1721,7 @@ static void smiapp_propagate(struct v4l2_subdev *subdev,
 				sensor->binning_vertical = 1;
 			}
 		}
-		/* Fall through */
+		fallthrough;
 	case V4L2_SEL_TGT_COMPOSE:
 		*crops[SMIAPP_PAD_SRC] = *comp;
 		break;
@@ -2122,7 +2120,7 @@ static int __smiapp_sel_supported(struct v4l2_subdev *subdev,
 		    && SMIA_LIM(sensor, SCALING_CAPABILITY)
 		    != SMIAPP_SCALING_CAPABILITY_NONE)
 			return 0;
-		/* Fall through */
+		fallthrough;
 	default:
 		return -EINVAL;
 	}
@@ -2797,7 +2795,7 @@ static struct smiapp_hwconfig *smiapp_get_hwconfig(struct device *dev)
 		case 180:
 			hwcfg->module_board_orient =
 				SMIAPP_MODULE_BOARD_ORIENT_180;
-			/* Fall through */
+			fallthrough;
 		case 0:
 			break;
 		default:
@@ -3103,6 +3101,7 @@ static int smiapp_probe(struct i2c_client *client)
 	return 0;
 
 out_disable_runtime_pm:
+	pm_runtime_put_noidle(&client->dev);
 	pm_runtime_disable(&client->dev);
 
 out_media_entity_cleanup:

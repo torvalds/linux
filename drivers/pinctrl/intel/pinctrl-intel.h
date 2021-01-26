@@ -10,12 +10,15 @@
 #ifndef PINCTRL_INTEL_H
 #define PINCTRL_INTEL_H
 
+#include <linux/bits.h>
+#include <linux/compiler_types.h>
 #include <linux/gpio/driver.h>
 #include <linux/irq.h>
+#include <linux/kernel.h>
 #include <linux/pm.h>
+#include <linux/pinctrl/pinctrl.h>
 #include <linux/spinlock_types.h>
 
-struct pinctrl_pin_desc;
 struct platform_device;
 struct device;
 
@@ -103,6 +106,8 @@ enum {
  * @gpps: Pad groups if the controller has variable size pad groups
  * @ngpps: Number of pad groups in this community
  * @pad_map: Optional non-linear mapping of the pads
+ * @nirqs: Optional total number of IRQs this community can generate
+ * @acpi_space_id: Optional address space ID for ACPI OpRegion handler
  * @regs: Community specific common registers (reserved for core driver)
  * @pad_regs: Community specific pad registers (reserved for core driver)
  *
@@ -127,6 +132,8 @@ struct intel_community {
 	const struct intel_padgroup *gpps;
 	size_t ngpps;
 	const unsigned int *pad_map;
+	unsigned short nirqs;
+	unsigned short acpi_space_id;
 
 	/* Reserved for the core driver */
 	void __iomem *regs;
@@ -189,6 +196,8 @@ struct intel_pinctrl_soc_data {
 	const struct intel_community *communities;
 	size_t ncommunities;
 };
+
+const struct intel_pinctrl_soc_data *intel_pinctrl_get_soc_data(struct platform_device *pdev);
 
 struct intel_pad_context;
 struct intel_community_context;

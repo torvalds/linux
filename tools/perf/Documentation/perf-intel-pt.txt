@@ -825,6 +825,7 @@ The letters are:
 	l	synthesize last branch entries (use with i or x)
 	L	synthesize last branch entries on existing event records
 	s	skip initial number of events
+	q	quicker (less detailed) decoding
 
 "Instructions" events look like they were recorded by "perf record -e
 instructions".
@@ -871,11 +872,24 @@ Developer Manuals.
 
 Error events show where the decoder lost the trace.  Error events
 are quite important.  Users must know if what they are seeing is a complete
-picture or not.
+picture or not. The "e" option may be followed by flags which affect what errors
+will or will not be reported.  Each flag must be preceded by either '+' or '-'.
+The flags supported by Intel PT are:
+		-o	Suppress overflow errors
+		-l	Suppress trace data lost errors
+For example, for errors but not overflow or data lost errors:
+
+	--itrace=e-o-l
 
 The "d" option will cause the creation of a file "intel_pt.log" containing all
 decoded packets and instructions.  Note that this option slows down the decoder
-and that the resulting file may be very large.
+and that the resulting file may be very large.  The "d" option may be followed
+by flags which affect what debug messages will or will not be logged. Each flag
+must be preceded by either '+' or '-'. The flags support by Intel PT are:
+		-a	Suppress logging of perf events
+		+a	Log all perf events
+By default, logged perf events are filtered by any specified time ranges, but
+flag +a overrides that.
 
 In addition, the period of the "instructions" event can be specified. e.g.
 
@@ -955,6 +969,51 @@ at the beginning. This is useful to ignore initialization code.
 	--itrace=i0nss1000000
 
 skips the first million instructions.
+
+The q option changes the way the trace is decoded.  The decoding is much faster
+but much less detailed.  Specifically, with the q option, the decoder does not
+decode TNT packets, and does not walk object code, but gets the ip from FUP and
+TIP packets.  The q option can be used with the b and i options but the period
+is not used.  The q option decodes more quickly, but is useful only if the
+control flow of interest is represented or indicated by FUP, TIP, TIP.PGE, or
+TIP.PGD packets (refer below).  However the q option could be used to find time
+ranges that could then be decoded fully using the --time option.
+
+What will *not* be decoded with the (single) q option:
+
+	- direct calls and jmps
+	- conditional branches
+	- non-branch instructions
+
+What *will* be decoded with the (single) q option:
+
+	- asynchronous branches such as interrupts
+	- indirect branches
+	- function return target address *if* the noretcomp config term (refer
+	config terms section) was used
+	- start of (control-flow) tracing
+	- end of (control-flow) tracing, if it is not out of context
+	- power events, ptwrite, transaction start and abort
+	- instruction pointer associated with PSB packets
+
+Note the q option does not specify what events will be synthesized e.g. the p
+option must be used also to show power events.
+
+Repeating the q option (double-q i.e. qq) results in even faster decoding and even
+less detail.  The decoder decodes only extended PSB (PSB+) packets, getting the
+instruction pointer if there is a FUP packet within PSB+ (i.e. between PSB and
+PSBEND).  Note PSB packets occur regularly in the trace based on the psb_period
+config term (refer config terms section).  There will be a FUP packet if the
+PSB+ occurs while control flow is being traced.
+
+What will *not* be decoded with the qq option:
+
+	- everything except instruction pointer associated with PSB packets
+
+What *will* be decoded with the qq option:
+
+	- instruction pointer associated with PSB packets
+
 
 dump option
 ~~~~~~~~~~~

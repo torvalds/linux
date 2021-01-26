@@ -330,7 +330,7 @@ void snd_aw2_saa7146_pcm_trigger_stop_capture(struct snd_aw2_saa7146 *chip,
 irqreturn_t snd_aw2_saa7146_interrupt(int irq, void *dev_id)
 {
 	unsigned int isr;
-	unsigned int iicsta;
+	__always_unused unsigned int iicsta;
 	struct snd_aw2_saa7146 *chip = dev_id;
 
 	isr = READREG(ISR);

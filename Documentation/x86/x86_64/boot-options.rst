@@ -173,6 +173,10 @@ NUMA
   numa=noacpi
     Don't parse the SRAT table for NUMA setup
 
+  numa=nohmat
+    Don't parse the HMAT table for NUMA setup, or soft-reserved memory
+    partitioning.
+
   numa=fake=<size>[MG]
     If given as a memory unit, fills all system RAM with nodes of
     size interleaved over physical nodes.

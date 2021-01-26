@@ -34,6 +34,13 @@
 #define MRFLD_FW_FEATURE_BASE_OFFSET 0x4
 #define MRFLD_FW_BSS_RESET_BIT 0
 
+/* SST Shim register map */
+#define SST_CSR			0x00
+#define SST_ISRX		0x18
+#define SST_IMRX		0x28
+#define SST_IPCX		0x38 /* IPC IA -> SST */
+#define SST_IPCD		0x40 /* IPC SST -> IA */
+
 extern const struct dev_pm_ops intel_sst_pm;
 enum sst_states {
 	SST_FW_LOADING = 1,
@@ -428,34 +435,34 @@ struct intel_sst_ops {
 };
 
 int sst_realloc_stream(struct intel_sst_drv *sst_drv_ctx, int str_id);
-int sst_pause_stream(struct intel_sst_drv *sst_drv_ctx, int id);
-int sst_resume_stream(struct intel_sst_drv *sst_drv_ctx, int id);
-int sst_drop_stream(struct intel_sst_drv *sst_drv_ctx, int id);
-int sst_free_stream(struct intel_sst_drv *sst_drv_ctx, int id);
+int sst_pause_stream(struct intel_sst_drv *sst_drv_ctx, int str_id);
+int sst_resume_stream(struct intel_sst_drv *sst_drv_ctx, int str_id);
+int sst_drop_stream(struct intel_sst_drv *sst_drv_ctx, int str_id);
+int sst_free_stream(struct intel_sst_drv *sst_drv_ctx, int str_id);
 int sst_start_stream(struct intel_sst_drv *sst_drv_ctx, int str_id);
-int sst_send_byte_stream_mrfld(struct intel_sst_drv *ctx,
-			struct snd_sst_bytes_v2 *sbytes);
+int sst_send_byte_stream_mrfld(struct intel_sst_drv *sst_drv_ctx,
+			struct snd_sst_bytes_v2 *bytes);
 int sst_set_stream_param(int str_id, struct snd_sst_params *str_param);
 int sst_set_metadata(int str_id, char *params);
-int sst_get_stream(struct intel_sst_drv *sst_drv_ctx,
+int sst_get_stream(struct intel_sst_drv *ctx,
 		struct snd_sst_params *str_param);
 int sst_get_stream_allocated(struct intel_sst_drv *ctx,
 		struct snd_sst_params *str_param,
 		struct snd_sst_lib_download **lib_dnld);
 int sst_drain_stream(struct intel_sst_drv *sst_drv_ctx,
 		int str_id, bool partial_drain);
-int sst_post_message_mrfld(struct intel_sst_drv *ctx,
-		struct ipc_post *msg, bool sync);
-void sst_process_reply_mrfld(struct intel_sst_drv *ctx, struct ipc_post *msg);
-int sst_start_mrfld(struct intel_sst_drv *ctx);
-int intel_sst_reset_dsp_mrfld(struct intel_sst_drv *ctx);
-void intel_sst_clear_intr_mrfld(struct intel_sst_drv *ctx);
+int sst_post_message_mrfld(struct intel_sst_drv *sst_drv_ctx,
+		struct ipc_post *ipc_msg, bool sync);
+void sst_process_reply_mrfld(struct intel_sst_drv *sst_drv_ctx, struct ipc_post *msg);
+int sst_start_mrfld(struct intel_sst_drv *sst_drv_ctx);
+int intel_sst_reset_dsp_mrfld(struct intel_sst_drv *sst_drv_ctx);
+void intel_sst_clear_intr_mrfld(struct intel_sst_drv *sst_drv_ctx);
 
-int sst_load_fw(struct intel_sst_drv *ctx);
+int sst_load_fw(struct intel_sst_drv *sst_drv_ctx);
 int sst_load_library(struct snd_sst_lib_download *lib, u8 ops);
 void sst_post_download_mrfld(struct intel_sst_drv *ctx);
 int sst_get_block_stream(struct intel_sst_drv *sst_drv_ctx);
-void sst_memcpy_free_resources(struct intel_sst_drv *ctx);
+void sst_memcpy_free_resources(struct intel_sst_drv *sst_drv_ctx);
 
 int sst_wait_interruptible(struct intel_sst_drv *sst_drv_ctx,
 				struct sst_block *block);
@@ -490,7 +497,7 @@ int sst_prepare_and_post_msg(struct intel_sst_drv *sst,
 		bool large, bool fill_dsp, bool sync, bool response);
 
 void sst_process_pending_msg(struct work_struct *work);
-int sst_assign_pvt_id(struct intel_sst_drv *sst_drv_ctx);
+int sst_assign_pvt_id(struct intel_sst_drv *drv);
 int sst_validate_strid(struct intel_sst_drv *sst_drv_ctx, int str_id);
 struct stream_info *get_stream_info(struct intel_sst_drv *sst_drv_ctx,
 		int str_id);

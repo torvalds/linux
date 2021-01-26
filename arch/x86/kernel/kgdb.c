@@ -450,7 +450,7 @@ int kgdb_arch_handle_exception(int e_vector, int signo, int err_code,
 		ptr = &remcomInBuffer[1];
 		if (kgdb_hex2long(&ptr, &addr))
 			linux_regs->ip = addr;
-		/* fall through */
+		fallthrough;
 	case 'D':
 	case 'k':
 		/* clear the trace bit */
@@ -539,7 +539,7 @@ static int __kgdb_notify(struct die_args *args, unsigned long cmd)
 			 * a system call which should be ignored
 			 */
 			return NOTIFY_DONE;
-		/* fall through */
+		fallthrough;
 	default:
 		if (user_mode(regs))
 			return NOTIFY_DONE;
@@ -629,9 +629,10 @@ static void kgdb_hw_overflow_handler(struct perf_event *event,
 	struct task_struct *tsk = current;
 	int i;
 
-	for (i = 0; i < 4; i++)
+	for (i = 0; i < 4; i++) {
 		if (breakinfo[i].enabled)
-			tsk->thread.debugreg6 |= (DR_TRAP0 << i);
+			tsk->thread.virtual_dr6 |= (DR_TRAP0 << i);
+	}
 }
 
 void kgdb_arch_late(void)

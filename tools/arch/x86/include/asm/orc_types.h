@@ -39,27 +39,6 @@
 #define ORC_REG_SP_INDIRECT		9
 #define ORC_REG_MAX			15
 
-/*
- * ORC_TYPE_CALL: Indicates that sp_reg+sp_offset resolves to PREV_SP (the
- * caller's SP right before it made the call).  Used for all callable
- * functions, i.e. all C code and all callable asm functions.
- *
- * ORC_TYPE_REGS: Used in entry code to indicate that sp_reg+sp_offset points
- * to a fully populated pt_regs from a syscall, interrupt, or exception.
- *
- * ORC_TYPE_REGS_IRET: Used in entry code to indicate that sp_reg+sp_offset
- * points to the iret return frame.
- *
- * The UNWIND_HINT macros are used only for the unwind_hint struct.  They
- * aren't used in struct orc_entry due to size and complexity constraints.
- * Objtool converts them to real types when it converts the hints to orc
- * entries.
- */
-#define ORC_TYPE_CALL			0
-#define ORC_TYPE_REGS			1
-#define ORC_TYPE_REGS_IRET		2
-#define UNWIND_HINT_TYPE_RET_OFFSET	3
-
 #ifndef __ASSEMBLY__
 /*
  * This struct is more or less a vastly simplified version of the DWARF Call
@@ -78,19 +57,6 @@ struct orc_entry {
 	unsigned	end:1;
 } __packed;
 
-/*
- * This struct is used by asm and inline asm code to manually annotate the
- * location of registers on the stack for the ORC unwinder.
- *
- * Type can be either ORC_TYPE_* or UNWIND_HINT_TYPE_*.
- */
-struct unwind_hint {
-	u32		ip;
-	s16		sp_offset;
-	u8		sp_reg;
-	u8		type;
-	u8		end;
-};
 #endif /* __ASSEMBLY__ */
 
 #endif /* _ORC_TYPES_H */

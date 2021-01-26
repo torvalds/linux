@@ -25,10 +25,9 @@ static struct pmbus_driver_info tps40422_info = {
 		| PMBUS_HAVE_IOUT | PMBUS_HAVE_STATUS_IOUT,
 };
 
-static int tps40422_probe(struct i2c_client *client,
-			  const struct i2c_device_id *id)
+static int tps40422_probe(struct i2c_client *client)
 {
-	return pmbus_do_probe(client, id, &tps40422_info);
+	return pmbus_do_probe(client, &tps40422_info);
 }
 
 static const struct i2c_device_id tps40422_id[] = {
@@ -43,7 +42,7 @@ static struct i2c_driver tps40422_driver = {
 	.driver = {
 		   .name = "tps40422",
 		   },
-	.probe = tps40422_probe,
+	.probe_new = tps40422_probe,
 	.remove = pmbus_do_remove,
 	.id_table = tps40422_id,
 };

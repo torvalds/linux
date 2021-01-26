@@ -26,6 +26,9 @@ do {								\
 	case 4:							\
 		__get_user_asm(x, ptr, retval, "l");		\
 		break;						\
+	case 8:							\
+		__get_user_u64(x, ptr, retval);			\
+		break;						\
 	default:						\
 		__get_user_unknown();				\
 		break;						\
@@ -65,6 +68,56 @@ do {							\
 #endif /* CONFIG_MMU */
 
 extern void __get_user_unknown(void);
+
+#if defined(CONFIG_CPU_LITTLE_ENDIAN)
+#define __get_user_u64(x, addr, err) \
+({ \
+__asm__ __volatile__( \
+	"1:\n\t" \
+	"mov.l	%2,%R1\n\t" \
+	"mov.l	%T2,%S1\n\t" \
+	"2:\n" \
+	".section	.fixup,\"ax\"\n" \
+	"3:\n\t" \
+	"mov  #0,%R1\n\t"   \
+	"mov  #0,%S1\n\t"   \
+	"mov.l	4f, %0\n\t" \
+	"jmp	@%0\n\t" \
+	" mov	%3, %0\n\t" \
+	".balign	4\n" \
+	"4:	.long	2b\n\t" \
+	".previous\n" \
+	".section	__ex_table,\"a\"\n\t" \
+	".long	1b, 3b\n\t" \
+	".long	1b + 2, 3b\n\t" \
+	".previous" \
+	:"=&r" (err), "=&r" (x) \
+	:"m" (__m(addr)), "i" (-EFAULT), "0" (err)); })
+#else
+#define __get_user_u64(x, addr, err) \
+({ \
+__asm__ __volatile__( \
+	"1:\n\t" \
+	"mov.l	%2,%S1\n\t" \
+	"mov.l	%T2,%R1\n\t" \
+	"2:\n" \
+	".section	.fixup,\"ax\"\n" \
+	"3:\n\t" \
+	"mov  #0,%S1\n\t"   \
+	"mov  #0,%R1\n\t"   \
+	"mov.l	4f, %0\n\t" \
+	"jmp	@%0\n\t" \
+	" mov	%3, %0\n\t" \
+	".balign	4\n" \
+	"4:	.long	2b\n\t" \
+	".previous\n" \
+	".section	__ex_table,\"a\"\n\t" \
+	".long	1b, 3b\n\t" \
+	".long	1b + 2, 3b\n\t" \
+	".previous" \
+	:"=&r" (err), "=&r" (x) \
+	:"m" (__m(addr)), "i" (-EFAULT), "0" (err)); })
+#endif
 
 #define __put_user_size(x,ptr,size,retval)		\
 do {							\

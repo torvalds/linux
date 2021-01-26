@@ -151,6 +151,7 @@ config DVB_USB_CXUSB
 config DVB_USB_CXUSB_ANALOG
 	bool "Analog support for the Conexant USB2.0 hybrid reference design"
 	depends on DVB_USB_CXUSB && VIDEO_V4L2
+	depends on VIDEO_V4L2=y || VIDEO_V4L2=DVB_USB_CXUSB
 	select VIDEO_CX25840
 	select VIDEOBUF2_VMALLOC
 	help
@@ -278,6 +279,7 @@ config DVB_USB_PCTV452E
 	tristate "Pinnacle PCTV HDTV Pro USB device/TT Connect S2-3600"
 	depends on DVB_USB
 	select TTPCI_EEPROM
+	select DVB_ISL6423 if MEDIA_SUBDRV_AUTOSELECT
 	select DVB_LNBP22 if MEDIA_SUBDRV_AUTOSELECT
 	select DVB_STB0899 if MEDIA_SUBDRV_AUTOSELECT
 	select DVB_STB6100 if MEDIA_SUBDRV_AUTOSELECT

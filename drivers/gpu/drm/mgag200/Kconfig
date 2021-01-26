@@ -1,13 +1,11 @@
 # SPDX-License-Identifier: GPL-2.0-only
 config DRM_MGAG200
-	tristate "Kernel modesetting driver for MGA G200 server engines"
+	tristate "Matrox G200"
 	depends on DRM && PCI && MMU
 	select DRM_GEM_SHMEM_HELPER
 	select DRM_KMS_HELPER
 	help
-	 This is a KMS driver for the MGA G200 server chips, it
-	 does not support the original MGA G200 or any of the desktop
-	 chips. It requires 0.3.0 of the modesetting userspace driver,
-	 and a version of mga driver that will fail on KMS enabled
-	 devices.
-
+	 This is a KMS driver for Matrox G200 chips. It supports the original
+	 MGA G200 desktop chips and the server variants. It requires 0.3.0
+	 of the modesetting userspace driver, and a version of mga driver
+	 that will fail on KMS enabled devices.

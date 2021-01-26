@@ -200,7 +200,7 @@ static void skl_get_ssp_clks(struct skl_dev *skl, struct skl_ssp_clk *ssp_clks,
 	struct skl_ssp_clk *sclk, *sclkfs;
 	struct nhlt_fmt_cfg *fmt_cfg;
 	struct wav_fmt_ext *wav_fmt;
-	unsigned long rate = 0;
+	unsigned long rate;
 	bool present = false;
 	int rate_index = 0;
 	u16 channels, bps;

@@ -95,6 +95,7 @@ Contents:
    seg6-sysctl
    strparser
    switchdev
+   sysfs-tagging
    tc-actions-env-rules
    tcp-thin
    team

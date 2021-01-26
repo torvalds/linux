@@ -6,6 +6,7 @@
  **************************************************************************/
 
 #include <linux/delay.h>
+#include <linux/gpio/machine.h>
 
 #include <asm/intel_scu_ipc.h>
 
@@ -505,12 +506,31 @@ static const struct psb_offset mdfld_regmap[3] = {
 	},
 };
 
+/*
+ * The GPIO lines for resetting DSI pipe 0 and 2 are available in the
+ * PCI device 0000:00:0c.0 on the Medfield.
+ */
+static struct gpiod_lookup_table mdfld_dsi_pipe_gpio_table = {
+	.table  = {
+		GPIO_LOOKUP("0000:00:0c.0", 128, "dsi-pipe0-reset",
+			    GPIO_ACTIVE_HIGH),
+		GPIO_LOOKUP("0000:00:0c.0", 34, "dsi-pipe2-reset",
+			    GPIO_ACTIVE_HIGH),
+		{ },
+	},
+};
+
 static int mdfld_chip_setup(struct drm_device *dev)
 {
 	struct drm_psb_private *dev_priv = dev->dev_private;
 	if (pci_enable_msi(dev->pdev))
 		dev_warn(dev->dev, "Enabling MSI failed!\n");
 	dev_priv->regmap = mdfld_regmap;
+
+	/* Associate the GPIO lines with the DRM device */
+	mdfld_dsi_pipe_gpio_table.dev_id = dev_name(dev->dev);
+	gpiod_add_lookup_table(&mdfld_dsi_pipe_gpio_table);
+
 	return mid_chip_setup(dev);
 }
 

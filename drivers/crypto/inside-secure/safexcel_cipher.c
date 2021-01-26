@@ -61,8 +61,6 @@ struct safexcel_cipher_ctx {
 	/* All the below is AEAD specific */
 	u32 hash_alg;
 	u32 state_sz;
-	__be32 ipad[SHA512_DIGEST_SIZE / sizeof(u32)];
-	__be32 opad[SHA512_DIGEST_SIZE / sizeof(u32)];
 
 	struct crypto_cipher *hkaes;
 	struct crypto_aead *fback;
@@ -375,7 +373,7 @@ static int safexcel_skcipher_aes_setkey(struct crypto_skcipher *ctfm,
 {
 	struct crypto_tfm *tfm = crypto_skcipher_tfm(ctfm);
 	struct safexcel_cipher_ctx *ctx = crypto_tfm_ctx(tfm);
-	struct safexcel_crypto_priv *priv = ctx->priv;
+	struct safexcel_crypto_priv *priv = ctx->base.priv;
 	struct crypto_aes_ctx aes;
 	int ret, i;
 
@@ -406,11 +404,11 @@ static int safexcel_aead_setkey(struct crypto_aead *ctfm, const u8 *key,
 {
 	struct crypto_tfm *tfm = crypto_aead_tfm(ctfm);
 	struct safexcel_cipher_ctx *ctx = crypto_tfm_ctx(tfm);
-	struct safexcel_ahash_export_state istate, ostate;
-	struct safexcel_crypto_priv *priv = ctx->priv;
+	struct safexcel_crypto_priv *priv = ctx->base.priv;
 	struct crypto_authenc_keys keys;
 	struct crypto_aes_ctx aes;
 	int err = -EINVAL, i;
+	const char *alg;
 
 	if (unlikely(crypto_authenc_extractkeys(&keys, key, len)))
 		goto badkey;
@@ -465,52 +463,36 @@ static int safexcel_aead_setkey(struct crypto_aead *ctfm, const u8 *key,
 	/* Auth key */
 	switch (ctx->hash_alg) {
 	case CONTEXT_CONTROL_CRYPTO_ALG_SHA1:
-		if (safexcel_hmac_setkey("safexcel-sha1", keys.authkey,
-					 keys.authkeylen, &istate, &ostate))
-			goto badkey;
+		alg = "safexcel-sha1";
 		break;
 	case CONTEXT_CONTROL_CRYPTO_ALG_SHA224:
-		if (safexcel_hmac_setkey("safexcel-sha224", keys.authkey,
-					 keys.authkeylen, &istate, &ostate))
-			goto badkey;
+		alg = "safexcel-sha224";
 		break;
 	case CONTEXT_CONTROL_CRYPTO_ALG_SHA256:
-		if (safexcel_hmac_setkey("safexcel-sha256", keys.authkey,
-					 keys.authkeylen, &istate, &ostate))
-			goto badkey;
+		alg = "safexcel-sha256";
 		break;
 	case CONTEXT_CONTROL_CRYPTO_ALG_SHA384:
-		if (safexcel_hmac_setkey("safexcel-sha384", keys.authkey,
-					 keys.authkeylen, &istate, &ostate))
-			goto badkey;
+		alg = "safexcel-sha384";
 		break;
 	case CONTEXT_CONTROL_CRYPTO_ALG_SHA512:
-		if (safexcel_hmac_setkey("safexcel-sha512", keys.authkey,
-					 keys.authkeylen, &istate, &ostate))
-			goto badkey;
+		alg = "safexcel-sha512";
 		break;
 	case CONTEXT_CONTROL_CRYPTO_ALG_SM3:
-		if (safexcel_hmac_setkey("safexcel-sm3", keys.authkey,
-					 keys.authkeylen, &istate, &ostate))
-			goto badkey;
+		alg = "safexcel-sm3";
 		break;
 	default:
 		dev_err(priv->dev, "aead: unsupported hash algorithm\n");
 		goto badkey;
 	}
 
-	if (priv->flags & EIP197_TRC_CACHE && ctx->base.ctxr_dma &&
-	    (memcmp(ctx->ipad, istate.state, ctx->state_sz) ||
-	     memcmp(ctx->opad, ostate.state, ctx->state_sz)))
-		ctx->base.needs_inv = true;
+	if (safexcel_hmac_setkey(&ctx->base, keys.authkey, keys.authkeylen,
+				 alg, ctx->state_sz))
+		goto badkey;
 
 	/* Now copy the keys into the context */
 	for (i = 0; i < keys.enckeylen / sizeof(u32); i++)
 		ctx->key[i] = cpu_to_le32(((u32 *)keys.enckey)[i]);
 	ctx->key_len = keys.enckeylen;
-
-	memcpy(ctx->ipad, &istate.state, ctx->state_sz);
-	memcpy(ctx->opad, &ostate.state, ctx->state_sz);
 
 	memzero_explicit(&keys, sizeof(keys));
 	return 0;
@@ -525,7 +507,7 @@ static int safexcel_context_control(struct safexcel_cipher_ctx *ctx,
 				    struct safexcel_cipher_req *sreq,
 				    struct safexcel_command_desc *cdesc)
 {
-	struct safexcel_crypto_priv *priv = ctx->priv;
+	struct safexcel_crypto_priv *priv = ctx->base.priv;
 	int ctrl_size = ctx->key_len / sizeof(u32);
 
 	cdesc->control_data.control1 = ctx->mode;
@@ -692,7 +674,7 @@ static int safexcel_send_req(struct crypto_async_request *base, int ring,
 	struct skcipher_request *areq = skcipher_request_cast(base);
 	struct crypto_skcipher *skcipher = crypto_skcipher_reqtfm(areq);
 	struct safexcel_cipher_ctx *ctx = crypto_tfm_ctx(base->tfm);
-	struct safexcel_crypto_priv *priv = ctx->priv;
+	struct safexcel_crypto_priv *priv = ctx->base.priv;
 	struct safexcel_command_desc *cdesc;
 	struct safexcel_command_desc *first_cdesc = NULL;
 	struct safexcel_result_desc *rdesc, *first_rdesc = NULL;
@@ -718,10 +700,10 @@ static int safexcel_send_req(struct crypto_async_request *base, int ring,
 			totlen_dst += digestsize;
 
 		memcpy(ctx->base.ctxr->data + ctx->key_len / sizeof(u32),
-		       ctx->ipad, ctx->state_sz);
+		       &ctx->base.ipad, ctx->state_sz);
 		if (!ctx->xcm)
 			memcpy(ctx->base.ctxr->data + (ctx->key_len +
-			       ctx->state_sz) / sizeof(u32), ctx->opad,
+			       ctx->state_sz) / sizeof(u32), &ctx->base.opad,
 			       ctx->state_sz);
 	} else if ((ctx->mode == CONTEXT_CONTROL_CRYPTO_MODE_CBC) &&
 		   (sreq->direction == SAFEXCEL_DECRYPT)) {
@@ -1020,7 +1002,7 @@ static int safexcel_cipher_send_inv(struct crypto_async_request *base,
 				    int ring, int *commands, int *results)
 {
 	struct safexcel_cipher_ctx *ctx = crypto_tfm_ctx(base->tfm);
-	struct safexcel_crypto_priv *priv = ctx->priv;
+	struct safexcel_crypto_priv *priv = ctx->base.priv;
 	int ret;
 
 	ret = safexcel_invalidate_cache(base, priv, ctx->base.ctxr_dma, ring);
@@ -1039,7 +1021,7 @@ static int safexcel_skcipher_send(struct crypto_async_request *async, int ring,
 	struct skcipher_request *req = skcipher_request_cast(async);
 	struct safexcel_cipher_ctx *ctx = crypto_tfm_ctx(req->base.tfm);
 	struct safexcel_cipher_req *sreq = skcipher_request_ctx(req);
-	struct safexcel_crypto_priv *priv = ctx->priv;
+	struct safexcel_crypto_priv *priv = ctx->base.priv;
 	int ret;
 
 	BUG_ON(!(priv->flags & EIP197_TRC_CACHE) && sreq->needs_inv);
@@ -1072,7 +1054,7 @@ static int safexcel_aead_send(struct crypto_async_request *async, int ring,
 	struct crypto_aead *tfm = crypto_aead_reqtfm(req);
 	struct safexcel_cipher_ctx *ctx = crypto_tfm_ctx(req->base.tfm);
 	struct safexcel_cipher_req *sreq = aead_request_ctx(req);
-	struct safexcel_crypto_priv *priv = ctx->priv;
+	struct safexcel_crypto_priv *priv = ctx->base.priv;
 	int ret;
 
 	BUG_ON(!(priv->flags & EIP197_TRC_CACHE) && sreq->needs_inv);
@@ -1094,7 +1076,7 @@ static int safexcel_cipher_exit_inv(struct crypto_tfm *tfm,
 				    struct safexcel_inv_result *result)
 {
 	struct safexcel_cipher_ctx *ctx = crypto_tfm_ctx(tfm);
-	struct safexcel_crypto_priv *priv = ctx->priv;
+	struct safexcel_crypto_priv *priv = ctx->base.priv;
 	int ring = ctx->base.ring;
 
 	init_completion(&result->completion);
@@ -1157,7 +1139,7 @@ static int safexcel_queue_req(struct crypto_async_request *base,
 			enum safexcel_cipher_direction dir)
 {
 	struct safexcel_cipher_ctx *ctx = crypto_tfm_ctx(base->tfm);
-	struct safexcel_crypto_priv *priv = ctx->priv;
+	struct safexcel_crypto_priv *priv = ctx->base.priv;
 	int ret, ring;
 
 	sreq->needs_inv = false;
@@ -1211,7 +1193,7 @@ static int safexcel_skcipher_cra_init(struct crypto_tfm *tfm)
 	crypto_skcipher_set_reqsize(__crypto_skcipher_cast(tfm),
 				    sizeof(struct safexcel_cipher_req));
 
-	ctx->priv = tmpl->priv;
+	ctx->base.priv = tmpl->priv;
 
 	ctx->base.send = safexcel_skcipher_send;
 	ctx->base.handle_result = safexcel_skcipher_handle_result;
@@ -1237,7 +1219,7 @@ static int safexcel_cipher_cra_exit(struct crypto_tfm *tfm)
 static void safexcel_skcipher_cra_exit(struct crypto_tfm *tfm)
 {
 	struct safexcel_cipher_ctx *ctx = crypto_tfm_ctx(tfm);
-	struct safexcel_crypto_priv *priv = ctx->priv;
+	struct safexcel_crypto_priv *priv = ctx->base.priv;
 	int ret;
 
 	if (safexcel_cipher_cra_exit(tfm))
@@ -1257,7 +1239,7 @@ static void safexcel_skcipher_cra_exit(struct crypto_tfm *tfm)
 static void safexcel_aead_cra_exit(struct crypto_tfm *tfm)
 {
 	struct safexcel_cipher_ctx *ctx = crypto_tfm_ctx(tfm);
-	struct safexcel_crypto_priv *priv = ctx->priv;
+	struct safexcel_crypto_priv *priv = ctx->base.priv;
 	int ret;
 
 	if (safexcel_cipher_cra_exit(tfm))
@@ -1431,7 +1413,7 @@ static int safexcel_skcipher_aesctr_setkey(struct crypto_skcipher *ctfm,
 {
 	struct crypto_tfm *tfm = crypto_skcipher_tfm(ctfm);
 	struct safexcel_cipher_ctx *ctx = crypto_tfm_ctx(tfm);
-	struct safexcel_crypto_priv *priv = ctx->priv;
+	struct safexcel_crypto_priv *priv = ctx->base.priv;
 	struct crypto_aes_ctx aes;
 	int ret, i;
 	unsigned int keylen;
@@ -1505,7 +1487,7 @@ static int safexcel_des_setkey(struct crypto_skcipher *ctfm, const u8 *key,
 			       unsigned int len)
 {
 	struct safexcel_cipher_ctx *ctx = crypto_skcipher_ctx(ctfm);
-	struct safexcel_crypto_priv *priv = ctx->priv;
+	struct safexcel_crypto_priv *priv = ctx->base.priv;
 	int ret;
 
 	ret = verify_skcipher_des_key(ctfm, key);
@@ -1604,7 +1586,7 @@ static int safexcel_des3_ede_setkey(struct crypto_skcipher *ctfm,
 				   const u8 *key, unsigned int len)
 {
 	struct safexcel_cipher_ctx *ctx = crypto_skcipher_ctx(ctfm);
-	struct safexcel_crypto_priv *priv = ctx->priv;
+	struct safexcel_crypto_priv *priv = ctx->base.priv;
 	int err;
 
 	err = verify_skcipher_des3_key(ctfm, key);
@@ -1723,7 +1705,7 @@ static int safexcel_aead_cra_init(struct crypto_tfm *tfm)
 	crypto_aead_set_reqsize(__crypto_aead_cast(tfm),
 				sizeof(struct safexcel_cipher_req));
 
-	ctx->priv = tmpl->priv;
+	ctx->base.priv = tmpl->priv;
 
 	ctx->alg  = SAFEXCEL_AES; /* default */
 	ctx->blocksz = AES_BLOCK_SIZE;
@@ -2466,7 +2448,7 @@ static int safexcel_skcipher_aesxts_setkey(struct crypto_skcipher *ctfm,
 {
 	struct crypto_tfm *tfm = crypto_skcipher_tfm(ctfm);
 	struct safexcel_cipher_ctx *ctx = crypto_tfm_ctx(tfm);
-	struct safexcel_crypto_priv *priv = ctx->priv;
+	struct safexcel_crypto_priv *priv = ctx->base.priv;
 	struct crypto_aes_ctx aes;
 	int ret, i;
 	unsigned int keylen;
@@ -2580,7 +2562,7 @@ static int safexcel_aead_gcm_setkey(struct crypto_aead *ctfm, const u8 *key,
 {
 	struct crypto_tfm *tfm = crypto_aead_tfm(ctfm);
 	struct safexcel_cipher_ctx *ctx = crypto_tfm_ctx(tfm);
-	struct safexcel_crypto_priv *priv = ctx->priv;
+	struct safexcel_crypto_priv *priv = ctx->base.priv;
 	struct crypto_aes_ctx aes;
 	u32 hashkey[AES_BLOCK_SIZE >> 2];
 	int ret, i;
@@ -2618,7 +2600,7 @@ static int safexcel_aead_gcm_setkey(struct crypto_aead *ctfm, const u8 *key,
 
 	if (priv->flags & EIP197_TRC_CACHE && ctx->base.ctxr_dma) {
 		for (i = 0; i < AES_BLOCK_SIZE / sizeof(u32); i++) {
-			if (be32_to_cpu(ctx->ipad[i]) != hashkey[i]) {
+			if (be32_to_cpu(ctx->base.ipad.be[i]) != hashkey[i]) {
 				ctx->base.needs_inv = true;
 				break;
 			}
@@ -2626,7 +2608,7 @@ static int safexcel_aead_gcm_setkey(struct crypto_aead *ctfm, const u8 *key,
 	}
 
 	for (i = 0; i < AES_BLOCK_SIZE / sizeof(u32); i++)
-		ctx->ipad[i] = cpu_to_be32(hashkey[i]);
+		ctx->base.ipad.be[i] = cpu_to_be32(hashkey[i]);
 
 	memzero_explicit(hashkey, AES_BLOCK_SIZE);
 	memzero_explicit(&aes, sizeof(aes));
@@ -2693,7 +2675,7 @@ static int safexcel_aead_ccm_setkey(struct crypto_aead *ctfm, const u8 *key,
 {
 	struct crypto_tfm *tfm = crypto_aead_tfm(ctfm);
 	struct safexcel_cipher_ctx *ctx = crypto_tfm_ctx(tfm);
-	struct safexcel_crypto_priv *priv = ctx->priv;
+	struct safexcel_crypto_priv *priv = ctx->base.priv;
 	struct crypto_aes_ctx aes;
 	int ret, i;
 
@@ -2714,7 +2696,7 @@ static int safexcel_aead_ccm_setkey(struct crypto_aead *ctfm, const u8 *key,
 
 	for (i = 0; i < len / sizeof(u32); i++) {
 		ctx->key[i] = cpu_to_le32(aes.key_enc[i]);
-		ctx->ipad[i + 2 * AES_BLOCK_SIZE / sizeof(u32)] =
+		ctx->base.ipad.be[i + 2 * AES_BLOCK_SIZE / sizeof(u32)] =
 			cpu_to_be32(aes.key_enc[i]);
 	}
 
@@ -2815,7 +2797,7 @@ struct safexcel_alg_template safexcel_alg_ccm = {
 static void safexcel_chacha20_setkey(struct safexcel_cipher_ctx *ctx,
 				     const u8 *key)
 {
-	struct safexcel_crypto_priv *priv = ctx->priv;
+	struct safexcel_crypto_priv *priv = ctx->base.priv;
 
 	if (priv->flags & EIP197_TRC_CACHE && ctx->base.ctxr_dma)
 		if (memcmp(ctx->key, key, CHACHA_KEY_SIZE))
@@ -3084,7 +3066,7 @@ static int safexcel_skcipher_sm4_setkey(struct crypto_skcipher *ctfm,
 {
 	struct crypto_tfm *tfm = crypto_skcipher_tfm(ctfm);
 	struct safexcel_cipher_ctx *ctx = crypto_tfm_ctx(tfm);
-	struct safexcel_crypto_priv *priv = ctx->priv;
+	struct safexcel_crypto_priv *priv = ctx->base.priv;
 
 	if (len != SM4_KEY_SIZE)
 		return -EINVAL;

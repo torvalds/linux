@@ -138,8 +138,22 @@ secondary_start_common:
 	la a0, swapper_pg_dir
 	call relocate
 #endif
+	call setup_trap_vector
 	tail smp_callin
 #endif /* CONFIG_SMP */
+
+.align 2
+setup_trap_vector:
+	/* Set trap vector to exception handler */
+	la a0, handle_exception
+	csrw CSR_TVEC, a0
+
+	/*
+	 * Set sup0 scratch register to 0, indicating to exception vector that
+	 * we are presently executing in kernel.
+	 */
+	csrw CSR_SCRATCH, zero
+	ret
 
 .Lsecondary_park:
 	/* We lack SMP support or have too many harts, so park this hart */
@@ -234,6 +248,7 @@ clear_bss_done:
 	call relocate
 #endif /* CONFIG_MMU */
 
+	call setup_trap_vector
 	/* Restore C environment */
 	la tp, init_task
 	sw zero, TASK_TI_CPU(tp)

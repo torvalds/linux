@@ -34,7 +34,7 @@ static int battery_technology		= POWER_SUPPLY_TECHNOLOGY_LION;
 static int battery_capacity		= 50;
 static int battery_voltage		= 3300;
 static int battery_charge_counter	= -1000;
-static int battery_current		= 1600;
+static int battery_current		= -1600;
 
 static bool module_initialized;
 

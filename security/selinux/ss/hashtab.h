@@ -136,6 +136,12 @@ int hashtab_map(struct hashtab *h,
 		int (*apply)(void *k, void *d, void *args),
 		void *args);
 
+int hashtab_duplicate(struct hashtab *new, struct hashtab *orig,
+		int (*copy)(struct hashtab_node *new,
+			struct hashtab_node *orig, void *args),
+		int (*destroy)(void *k, void *d, void *args),
+		void *args);
+
 /* Fill info with some hash table statistics */
 void hashtab_stat(struct hashtab *h, struct hashtab_info *info);
 

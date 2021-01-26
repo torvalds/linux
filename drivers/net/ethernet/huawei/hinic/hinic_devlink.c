@@ -334,19 +334,14 @@ void hinic_devlink_unregister(struct hinic_devlink_priv *priv)
 static int chip_fault_show(struct devlink_fmsg *fmsg,
 			   struct hinic_fault_event *event)
 {
-	char fault_level[FAULT_TYPE_MAX][FAULT_SHOW_STR_LEN + 1] = {
-		"fatal", "reset", "flr", "general", "suggestion"};
-	char level_str[FAULT_SHOW_STR_LEN + 1] = {0};
-	u8 level;
+	const char * const level_str[FAULT_LEVEL_MAX + 1] = {
+		"fatal", "reset", "flr", "general", "suggestion", "Unknown"};
+	u8 fault_level;
 	int err;
 
-	level = event->event.chip.err_level;
-	if (level < FAULT_LEVEL_MAX)
-		strncpy(level_str, fault_level[level], strlen(fault_level[level]));
-	else
-		strncpy(level_str, "Unknown", strlen("Unknown"));
-
-	if (level == FAULT_LEVEL_SERIOUS_FLR) {
+	fault_level = (event->event.chip.err_level < FAULT_LEVEL_MAX) ?
+		event->event.chip.err_level : FAULT_LEVEL_MAX;
+	if (fault_level == FAULT_LEVEL_SERIOUS_FLR) {
 		err = devlink_fmsg_u32_pair_put(fmsg, "Function level err func_id",
 						(u32)event->event.chip.func_id);
 		if (err)
@@ -361,7 +356,7 @@ static int chip_fault_show(struct devlink_fmsg *fmsg,
 	if (err)
 		return err;
 
-	err = devlink_fmsg_string_pair_put(fmsg, "err_level", level_str);
+	err = devlink_fmsg_string_pair_put(fmsg, "err_level", level_str[fault_level]);
 	if (err)
 		return err;
 
@@ -381,18 +376,15 @@ static int chip_fault_show(struct devlink_fmsg *fmsg,
 static int fault_report_show(struct devlink_fmsg *fmsg,
 			     struct hinic_fault_event *event)
 {
-	char fault_type[FAULT_TYPE_MAX][FAULT_SHOW_STR_LEN + 1] = {
+	const char * const type_str[FAULT_TYPE_MAX + 1] = {
 		"chip", "ucode", "mem rd timeout", "mem wr timeout",
-		"reg rd timeout", "reg wr timeout", "phy fault"};
-	char type_str[FAULT_SHOW_STR_LEN + 1] = {0};
+		"reg rd timeout", "reg wr timeout", "phy fault", "Unknown"};
+	u8 fault_type;
 	int err;
 
-	if (event->type < FAULT_TYPE_MAX)
-		strncpy(type_str, fault_type[event->type], strlen(fault_type[event->type]));
-	else
-		strncpy(type_str, "Unknown", strlen("Unknown"));
+	fault_type = (event->type < FAULT_TYPE_MAX) ? event->type : FAULT_TYPE_MAX;
 
-	err = devlink_fmsg_string_pair_put(fmsg, "Fault type", type_str);
+	err = devlink_fmsg_string_pair_put(fmsg, "Fault type", type_str[fault_type]);
 	if (err)
 		return err;
 

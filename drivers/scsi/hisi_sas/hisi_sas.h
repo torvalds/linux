@@ -8,6 +8,8 @@
 #define _HISI_SAS_H_
 
 #include <linux/acpi.h>
+#include <linux/blk-mq.h>
+#include <linux/blk-mq-pci.h>
 #include <linux/clk.h>
 #include <linux/debugfs.h>
 #include <linux/dmapool.h>
@@ -19,6 +21,7 @@
 #include <linux/of_address.h>
 #include <linux/pci.h>
 #include <linux/platform_device.h>
+#include <linux/pm_runtime.h>
 #include <linux/property.h>
 #include <linux/regmap.h>
 #include <linux/timer.h>
@@ -32,6 +35,7 @@
 #define HISI_SAS_MAX_DEVICES HISI_SAS_MAX_ITCT_ENTRIES
 #define HISI_SAS_RESET_BIT	0
 #define HISI_SAS_REJECT_CMD_BIT	1
+#define HISI_SAS_PM_BIT		2
 #define HISI_SAS_MAX_COMMANDS (HISI_SAS_QUEUE_SLOTS)
 #define HISI_SAS_RESERVED_IPTT  96
 #define HISI_SAS_UNRESERVED_IPTT \
@@ -273,6 +277,39 @@ enum hisi_sas_debugfs_cache_type {
 	HISI_SAS_IOST_CACHE,
 };
 
+enum hisi_sas_debugfs_bist_ffe_cfg {
+	FFE_SAS_1_5_GBPS,
+	FFE_SAS_3_0_GBPS,
+	FFE_SAS_6_0_GBPS,
+	FFE_SAS_12_0_GBPS,
+	FFE_RESV,
+	FFE_SATA_1_5_GBPS,
+	FFE_SATA_3_0_GBPS,
+	FFE_SATA_6_0_GBPS,
+	FFE_CFG_MAX
+};
+
+enum hisi_sas_debugfs_bist_fixed_code {
+	FIXED_CODE,
+	FIXED_CODE_1,
+	FIXED_CODE_MAX
+};
+
+enum {
+	HISI_SAS_BIST_CODE_MODE_PRBS7,
+	HISI_SAS_BIST_CODE_MODE_PRBS23,
+	HISI_SAS_BIST_CODE_MODE_PRBS31,
+	HISI_SAS_BIST_CODE_MODE_JTPAT,
+	HISI_SAS_BIST_CODE_MODE_CJTPAT,
+	HISI_SAS_BIST_CODE_MODE_SCRAMBED_0,
+	HISI_SAS_BIST_CODE_MODE_TRAIN,
+	HISI_SAS_BIST_CODE_MODE_TRAIN_DONE,
+	HISI_SAS_BIST_CODE_MODE_HFTP,
+	HISI_SAS_BIST_CODE_MODE_MFTP,
+	HISI_SAS_BIST_CODE_MODE_LFTP,
+	HISI_SAS_BIST_CODE_MODE_FIXED_DATA,
+};
+
 struct hisi_sas_hw {
 	int (*hw_init)(struct hisi_hba *hisi_hba);
 	void (*setup_itct)(struct hisi_hba *hisi_hba,
@@ -431,7 +468,6 @@ struct hisi_hba {
 	u32 intr_coal_count;	/* Interrupt count to coalesce */
 
 	int cq_nvecs;
-	unsigned int *reply_map;
 
 	/* bist */
 	enum sas_linkrate debugfs_bist_linkrate;
@@ -440,6 +476,8 @@ struct hisi_hba {
 	int debugfs_bist_mode;
 	u32 debugfs_bist_cnt;
 	int debugfs_bist_enable;
+	u32 debugfs_bist_ffe[HISI_SAS_MAX_PHYS][FFE_CFG_MAX];
+	u32 debugfs_bist_fixed_code[FIXED_CODE_MAX];
 
 	/* debugfs memories */
 	/* Put Global AXI and RAS Register into register array */

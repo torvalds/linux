@@ -2815,10 +2815,12 @@ extern void radeon_legacy_set_clock_gating(struct radeon_device *rdev, int enabl
 extern void radeon_atom_set_clock_gating(struct radeon_device *rdev, int enable);
 extern void radeon_ttm_placement_from_domain(struct radeon_bo *rbo, u32 domain);
 extern bool radeon_ttm_bo_is_radeon_bo(struct ttm_buffer_object *bo);
-extern int radeon_ttm_tt_set_userptr(struct ttm_tt *ttm, uint64_t addr,
+extern int radeon_ttm_tt_set_userptr(struct radeon_device *rdev,
+				     struct ttm_tt *ttm, uint64_t addr,
 				     uint32_t flags);
-extern bool radeon_ttm_tt_has_userptr(struct ttm_tt *ttm);
-extern bool radeon_ttm_tt_is_readonly(struct ttm_tt *ttm);
+extern bool radeon_ttm_tt_has_userptr(struct radeon_device *rdev, struct ttm_tt *ttm);
+extern bool radeon_ttm_tt_is_readonly(struct radeon_device *rdev, struct ttm_tt *ttm);
+bool radeon_ttm_tt_is_bound(struct ttm_bo_device *bdev, struct ttm_tt *ttm);
 extern void radeon_vram_location(struct radeon_device *rdev, struct radeon_mc *mc, u64 base);
 extern void radeon_gtt_location(struct radeon_device *rdev, struct radeon_mc *mc);
 extern int radeon_resume_kms(struct drm_device *dev, bool resume, bool fbcon);
@@ -2857,7 +2859,7 @@ int radeon_vm_clear_invalids(struct radeon_device *rdev,
 			     struct radeon_vm *vm);
 int radeon_vm_bo_update(struct radeon_device *rdev,
 			struct radeon_bo_va *bo_va,
-			struct ttm_mem_reg *mem);
+			struct ttm_resource *mem);
 void radeon_vm_bo_invalidate(struct radeon_device *rdev,
 			     struct radeon_bo *bo);
 struct radeon_bo_va *radeon_vm_bo_find(struct radeon_vm *vm,

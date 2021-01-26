@@ -221,47 +221,17 @@ static __poll_t dlmfs_file_poll(struct file *file, poll_table *wait)
 	return event;
 }
 
-static ssize_t dlmfs_file_read(struct file *filp,
+static ssize_t dlmfs_file_read(struct file *file,
 			       char __user *buf,
 			       size_t count,
 			       loff_t *ppos)
 {
-	int bytes_left;
-	ssize_t got;
-	char *lvb_buf;
-	struct inode *inode = file_inode(filp);
+	char lvb[DLM_LVB_LEN];
 
-	mlog(0, "inode %lu, count = %zu, *ppos = %llu\n",
-		inode->i_ino, count, *ppos);
-
-	if (*ppos >= i_size_read(inode))
+	if (!user_dlm_read_lvb(file_inode(file), lvb))
 		return 0;
 
-	/* don't read past the lvb */
-	if (count > i_size_read(inode) - *ppos)
-		count = i_size_read(inode) - *ppos;
-
-	if (!count)
-		return 0;
-
-	lvb_buf = kmalloc(count, GFP_NOFS);
-	if (!lvb_buf)
-		return -ENOMEM;
-
-	got = user_dlm_read_lvb(inode, lvb_buf, count);
-	if (got) {
-		BUG_ON(got != count);
-		bytes_left = copy_to_user(buf, lvb_buf, count);
-		count -= bytes_left;
-	} else
-		count = 0;
-
-	kfree(lvb_buf);
-
-	*ppos = *ppos + count;
-
-	mlog(0, "read %zu bytes\n", count);
-	return count;
+	return simple_read_from_buffer(buf, count, ppos, lvb, sizeof(lvb));
 }
 
 static ssize_t dlmfs_file_write(struct file *filp,
@@ -269,33 +239,27 @@ static ssize_t dlmfs_file_write(struct file *filp,
 				size_t count,
 				loff_t *ppos)
 {
+	char lvb_buf[DLM_LVB_LEN];
 	int bytes_left;
-	char *lvb_buf;
 	struct inode *inode = file_inode(filp);
 
 	mlog(0, "inode %lu, count = %zu, *ppos = %llu\n",
 		inode->i_ino, count, *ppos);
 
-	if (*ppos >= i_size_read(inode))
+	if (*ppos >= DLM_LVB_LEN)
 		return -ENOSPC;
 
 	/* don't write past the lvb */
-	if (count > i_size_read(inode) - *ppos)
-		count = i_size_read(inode) - *ppos;
+	if (count > DLM_LVB_LEN - *ppos)
+		count = DLM_LVB_LEN - *ppos;
 
 	if (!count)
 		return 0;
-
-	lvb_buf = kmalloc(count, GFP_NOFS);
-	if (!lvb_buf)
-		return -ENOMEM;
 
 	bytes_left = copy_from_user(lvb_buf, buf, count);
 	count -= bytes_left;
 	if (count)
 		user_dlm_write_lvb(inode, lvb_buf, count);
-
-	kfree(lvb_buf);
 
 	*ppos = *ppos + count;
 	mlog(0, "wrote %zu bytes\n", count);

@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0
-/**
+/*
  * configfs to configure the PCI endpoint
  *
  * Copyright (C) 2017 Texas Instruments

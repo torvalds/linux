@@ -1136,7 +1136,7 @@ static struct phy *tegra_xusb_get_phy(struct tegra_xusb *tegra, char *name,
 	unsigned int i, phy_count = 0;
 
 	for (i = 0; i < tegra->soc->num_types; i++) {
-		if (!strncmp(tegra->soc->phy_types[i].name, "usb2",
+		if (!strncmp(tegra->soc->phy_types[i].name, name,
 							    strlen(name)))
 			return tegra->phys[phy_count+port];
 
@@ -1258,6 +1258,8 @@ static int tegra_xusb_init_usb_phy(struct tegra_xusb *tegra)
 
 	INIT_WORK(&tegra->id_work, tegra_xhci_id_work);
 	tegra->id_nb.notifier_call = tegra_xhci_id_notify;
+	tegra->otg_usb2_port = -EINVAL;
+	tegra->otg_usb3_port = -EINVAL;
 
 	for (i = 0; i < tegra->num_usb_phys; i++) {
 		struct phy *phy = tegra_xusb_get_phy(tegra, "usb2", i);
@@ -1863,7 +1865,6 @@ static const struct tegra_xusb_phy_type tegra124_phy_types[] = {
 };
 
 static const unsigned int tegra124_xusb_context_ipfs[] = {
-	IPFS_XUSB_HOST_MSI_BAR_SZ_0,
 	IPFS_XUSB_HOST_MSI_BAR_SZ_0,
 	IPFS_XUSB_HOST_MSI_AXI_BAR_ST_0,
 	IPFS_XUSB_HOST_MSI_FPCI_BAR_ST_0,

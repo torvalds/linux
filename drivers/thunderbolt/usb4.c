@@ -196,6 +196,46 @@ static int usb4_switch_op(struct tb_switch *sw, u16 opcode, u8 *status)
 	return 0;
 }
 
+static void usb4_switch_check_wakes(struct tb_switch *sw)
+{
+	struct tb_port *port;
+	bool wakeup = false;
+	u32 val;
+
+	if (!device_may_wakeup(&sw->dev))
+		return;
+
+	if (tb_route(sw)) {
+		if (tb_sw_read(sw, &val, TB_CFG_SWITCH, ROUTER_CS_6, 1))
+			return;
+
+		tb_sw_dbg(sw, "PCIe wake: %s, USB3 wake: %s\n",
+			  (val & ROUTER_CS_6_WOPS) ? "yes" : "no",
+			  (val & ROUTER_CS_6_WOUS) ? "yes" : "no");
+
+		wakeup = val & (ROUTER_CS_6_WOPS | ROUTER_CS_6_WOUS);
+	}
+
+	/* Check for any connected downstream ports for USB4 wake */
+	tb_switch_for_each_port(sw, port) {
+		if (!tb_port_has_remote(port))
+			continue;
+
+		if (tb_port_read(port, &val, TB_CFG_PORT,
+				 port->cap_usb4 + PORT_CS_18, 1))
+			break;
+
+		tb_port_dbg(port, "USB4 wake: %s\n",
+			    (val & PORT_CS_18_WOU4S) ? "yes" : "no");
+
+		if (val & PORT_CS_18_WOU4S)
+			wakeup = true;
+	}
+
+	if (wakeup)
+		pm_wakeup_event(&sw->dev, 0);
+}
+
 static bool link_is_usb4(struct tb_port *port)
 {
 	u32 val;
@@ -228,6 +268,8 @@ int usb4_switch_setup(struct tb_switch *sw)
 	bool tbt3, xhci;
 	u32 val = 0;
 	int ret;
+
+	usb4_switch_check_wakes(sw);
 
 	if (!tb_route(sw))
 		return 0;
@@ -338,60 +380,6 @@ int usb4_switch_drom_read(struct tb_switch *sw, unsigned int address, void *buf,
 				 usb4_switch_drom_read_block, sw);
 }
 
-static int usb4_set_port_configured(struct tb_port *port, bool configured)
-{
-	int ret;
-	u32 val;
-
-	ret = tb_port_read(port, &val, TB_CFG_PORT,
-			   port->cap_usb4 + PORT_CS_19, 1);
-	if (ret)
-		return ret;
-
-	if (configured)
-		val |= PORT_CS_19_PC;
-	else
-		val &= ~PORT_CS_19_PC;
-
-	return tb_port_write(port, &val, TB_CFG_PORT,
-			     port->cap_usb4 + PORT_CS_19, 1);
-}
-
-/**
- * usb4_switch_configure_link() - Set upstream USB4 link configured
- * @sw: USB4 router
- *
- * Sets the upstream USB4 link to be configured for power management
- * purposes.
- */
-int usb4_switch_configure_link(struct tb_switch *sw)
-{
-	struct tb_port *up;
-
-	if (!tb_route(sw))
-		return 0;
-
-	up = tb_upstream_port(sw);
-	return usb4_set_port_configured(up, true);
-}
-
-/**
- * usb4_switch_unconfigure_link() - Un-set upstream USB4 link configuration
- * @sw: USB4 router
- *
- * Reverse of usb4_switch_configure_link().
- */
-void usb4_switch_unconfigure_link(struct tb_switch *sw)
-{
-	struct tb_port *up;
-
-	if (sw->is_unplugged || !tb_route(sw))
-		return;
-
-	up = tb_upstream_port(sw);
-	usb4_set_port_configured(up, false);
-}
-
 /**
  * usb4_switch_lane_bonding_possible() - Are conditions met for lane bonding
  * @sw: USB4 router
@@ -414,11 +402,77 @@ bool usb4_switch_lane_bonding_possible(struct tb_switch *sw)
 }
 
 /**
+ * usb4_switch_set_wake() - Enabled/disable wake
+ * @sw: USB4 router
+ * @flags: Wakeup flags (%0 to disable)
+ *
+ * Enables/disables router to wake up from sleep.
+ */
+int usb4_switch_set_wake(struct tb_switch *sw, unsigned int flags)
+{
+	struct tb_port *port;
+	u64 route = tb_route(sw);
+	u32 val;
+	int ret;
+
+	/*
+	 * Enable wakes coming from all USB4 downstream ports (from
+	 * child routers). For device routers do this also for the
+	 * upstream USB4 port.
+	 */
+	tb_switch_for_each_port(sw, port) {
+		if (!route && tb_is_upstream_port(port))
+			continue;
+
+		ret = tb_port_read(port, &val, TB_CFG_PORT,
+				   port->cap_usb4 + PORT_CS_19, 1);
+		if (ret)
+			return ret;
+
+		val &= ~(PORT_CS_19_WOC | PORT_CS_19_WOD | PORT_CS_19_WOU4);
+
+		if (flags & TB_WAKE_ON_CONNECT)
+			val |= PORT_CS_19_WOC;
+		if (flags & TB_WAKE_ON_DISCONNECT)
+			val |= PORT_CS_19_WOD;
+		if (flags & TB_WAKE_ON_USB4)
+			val |= PORT_CS_19_WOU4;
+
+		ret = tb_port_write(port, &val, TB_CFG_PORT,
+				    port->cap_usb4 + PORT_CS_19, 1);
+		if (ret)
+			return ret;
+	}
+
+	/*
+	 * Enable wakes from PCIe and USB 3.x on this router. Only
+	 * needed for device routers.
+	 */
+	if (route) {
+		ret = tb_sw_read(sw, &val, TB_CFG_SWITCH, ROUTER_CS_5, 1);
+		if (ret)
+			return ret;
+
+		val &= ~(ROUTER_CS_5_WOP | ROUTER_CS_5_WOU);
+		if (flags & TB_WAKE_ON_USB3)
+			val |= ROUTER_CS_5_WOU;
+		if (flags & TB_WAKE_ON_PCIE)
+			val |= ROUTER_CS_5_WOP;
+
+		ret = tb_sw_write(sw, &val, TB_CFG_SWITCH, ROUTER_CS_5, 1);
+		if (ret)
+			return ret;
+	}
+
+	return 0;
+}
+
+/**
  * usb4_switch_set_sleep() - Prepare the router to enter sleep
  * @sw: USB4 router
  *
- * Enables wakes and sets sleep bit for the router. Returns when the
- * router sleep ready bit has been asserted.
+ * Sets sleep bit for the router. Returns when the router sleep ready
+ * bit has been asserted.
  */
 int usb4_switch_set_sleep(struct tb_switch *sw)
 {
@@ -793,6 +847,95 @@ int usb4_port_unlock(struct tb_port *port)
 
 	val &= ~ADP_CS_4_LCK;
 	return tb_port_write(port, &val, TB_CFG_PORT, ADP_CS_4, 1);
+}
+
+static int usb4_port_set_configured(struct tb_port *port, bool configured)
+{
+	int ret;
+	u32 val;
+
+	if (!port->cap_usb4)
+		return -EINVAL;
+
+	ret = tb_port_read(port, &val, TB_CFG_PORT,
+			   port->cap_usb4 + PORT_CS_19, 1);
+	if (ret)
+		return ret;
+
+	if (configured)
+		val |= PORT_CS_19_PC;
+	else
+		val &= ~PORT_CS_19_PC;
+
+	return tb_port_write(port, &val, TB_CFG_PORT,
+			     port->cap_usb4 + PORT_CS_19, 1);
+}
+
+/**
+ * usb4_port_configure() - Set USB4 port configured
+ * @port: USB4 router
+ *
+ * Sets the USB4 link to be configured for power management purposes.
+ */
+int usb4_port_configure(struct tb_port *port)
+{
+	return usb4_port_set_configured(port, true);
+}
+
+/**
+ * usb4_port_unconfigure() - Set USB4 port unconfigured
+ * @port: USB4 router
+ *
+ * Sets the USB4 link to be unconfigured for power management purposes.
+ */
+void usb4_port_unconfigure(struct tb_port *port)
+{
+	usb4_port_set_configured(port, false);
+}
+
+static int usb4_set_xdomain_configured(struct tb_port *port, bool configured)
+{
+	int ret;
+	u32 val;
+
+	if (!port->cap_usb4)
+		return -EINVAL;
+
+	ret = tb_port_read(port, &val, TB_CFG_PORT,
+			   port->cap_usb4 + PORT_CS_19, 1);
+	if (ret)
+		return ret;
+
+	if (configured)
+		val |= PORT_CS_19_PID;
+	else
+		val &= ~PORT_CS_19_PID;
+
+	return tb_port_write(port, &val, TB_CFG_PORT,
+			     port->cap_usb4 + PORT_CS_19, 1);
+}
+
+/**
+ * usb4_port_configure_xdomain() - Configure port for XDomain
+ * @port: USB4 port connected to another host
+ *
+ * Marks the USB4 port as being connected to another host. Returns %0 in
+ * success and negative errno in failure.
+ */
+int usb4_port_configure_xdomain(struct tb_port *port)
+{
+	return usb4_set_xdomain_configured(port, true);
+}
+
+/**
+ * usb4_port_unconfigure_xdomain() - Unconfigure port for XDomain
+ * @port: USB4 port that was connected to another host
+ *
+ * Clears USB4 port from being marked as XDomain.
+ */
+void usb4_port_unconfigure_xdomain(struct tb_port *port)
+{
+	usb4_set_xdomain_configured(port, false);
 }
 
 static int usb4_port_wait_for_bit(struct tb_port *port, u32 offset, u32 bit,

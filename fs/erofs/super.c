@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (C) 2017-2018 HUAWEI, Inc.
- *             http://www.huawei.com/
+ *             https://www.huawei.com/
  * Created by Gao Xiang <gaoxiang25@huawei.com>
  */
 #include <linux/module.h>
@@ -211,9 +211,7 @@ static void erofs_default_options(struct erofs_fs_context *ctx)
 
 enum {
 	Opt_user_xattr,
-	Opt_nouser_xattr,
 	Opt_acl,
-	Opt_noacl,
 	Opt_cache_strategy,
 	Opt_err
 };

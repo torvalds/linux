@@ -42,6 +42,8 @@
 #include <linux/bitmap.h>
 #include <linux/dma-resv.h>
 
+#include "ttm_resource.h"
+
 struct ttm_bo_global;
 
 struct ttm_bo_device;
@@ -53,55 +55,6 @@ struct ttm_placement;
 struct ttm_place;
 
 struct ttm_lru_bulk_move;
-
-/**
- * struct ttm_bus_placement
- *
- * @addr:		mapped virtual address
- * @base:		bus base address
- * @is_iomem:		is this io memory ?
- * @size:		size in byte
- * @offset:		offset from the base address
- * @io_reserved_vm:     The VM system has a refcount in @io_reserved_count
- * @io_reserved_count:  Refcounting the numbers of callers to ttm_mem_io_reserve
- *
- * Structure indicating the bus placement of an object.
- */
-struct ttm_bus_placement {
-	void		*addr;
-	phys_addr_t	base;
-	unsigned long	size;
-	unsigned long	offset;
-	bool		is_iomem;
-	bool		io_reserved_vm;
-	uint64_t        io_reserved_count;
-};
-
-
-/**
- * struct ttm_mem_reg
- *
- * @mm_node: Memory manager node.
- * @size: Requested size of memory region.
- * @num_pages: Actual size of memory region in pages.
- * @page_alignment: Page alignment.
- * @placement: Placement flags.
- * @bus: Placement on io bus accessible to the CPU
- *
- * Structure indicating the placement and space resources used by a
- * buffer object.
- */
-
-struct ttm_mem_reg {
-	void *mm_node;
-	unsigned long start;
-	unsigned long size;
-	unsigned long num_pages;
-	uint32_t page_alignment;
-	uint32_t mem_type;
-	uint32_t placement;
-	struct ttm_bus_placement bus;
-};
 
 /**
  * enum ttm_bo_type
@@ -185,10 +138,9 @@ struct ttm_buffer_object {
 	 * Members protected by the bo::resv::reserved lock.
 	 */
 
-	struct ttm_mem_reg mem;
+	struct ttm_resource mem;
 	struct file *persistent_swap_storage;
 	struct ttm_tt *ttm;
-	bool evicted;
 	bool deleted;
 
 	/**
@@ -198,7 +150,6 @@ struct ttm_buffer_object {
 	struct list_head lru;
 	struct list_head ddestroy;
 	struct list_head swap;
-	struct list_head io_reserve_lru;
 
 	/**
 	 * Members protected by a bo reservation.
@@ -314,12 +265,12 @@ int ttm_bo_wait(struct ttm_buffer_object *bo, bool interruptible, bool no_wait);
  * ttm_bo_mem_compat - Check if proposed placement is compatible with a bo
  *
  * @placement:  Return immediately if buffer is busy.
- * @mem:  The struct ttm_mem_reg indicating the region where the bo resides
+ * @mem:  The struct ttm_resource indicating the region where the bo resides
  * @new_flags: Describes compatible placement found
  *
  * Returns true if the placement is compatible
  */
-bool ttm_bo_mem_compat(struct ttm_placement *placement, struct ttm_mem_reg *mem,
+bool ttm_bo_mem_compat(struct ttm_placement *placement, struct ttm_resource *mem,
 		       uint32_t *new_flags);
 
 /**
@@ -400,18 +351,6 @@ void ttm_bo_unlock_delayed_workqueue(struct ttm_bo_device *bdev, int resched);
 bool ttm_bo_eviction_valuable(struct ttm_buffer_object *bo,
 			      const struct ttm_place *place);
 
-/**
- * ttm_bo_acc_size
- *
- * @bdev: Pointer to a ttm_bo_device struct.
- * @bo_size: size of the buffer object in byte.
- * @struct_size: size of the structure holding buffer object datas
- *
- * Returns size to account for a buffer object
- */
-size_t ttm_bo_acc_size(struct ttm_bo_device *bdev,
-		       unsigned long bo_size,
-		       unsigned struct_size);
 size_t ttm_bo_dma_acc_size(struct ttm_bo_device *bdev,
 			   unsigned long bo_size,
 			   unsigned struct_size);
@@ -530,52 +469,6 @@ int ttm_bo_create(struct ttm_bo_device *bdev, unsigned long size,
 		  enum ttm_bo_type type, struct ttm_placement *placement,
 		  uint32_t page_alignment, bool interruptible,
 		  struct ttm_buffer_object **p_bo);
-
-/**
- * ttm_bo_init_mm
- *
- * @bdev: Pointer to a ttm_bo_device struct.
- * @mem_type: The memory type.
- * @p_size: size managed area in pages.
- *
- * Initialize a manager for a given memory type.
- * Note: if part of driver firstopen, it must be protected from a
- * potentially racing lastclose.
- * Returns:
- * -EINVAL: invalid size or memory type.
- * -ENOMEM: Not enough memory.
- * May also return driver-specified errors.
- */
-int ttm_bo_init_mm(struct ttm_bo_device *bdev, unsigned type,
-		   unsigned long p_size);
-
-/**
- * ttm_bo_clean_mm
- *
- * @bdev: Pointer to a ttm_bo_device struct.
- * @mem_type: The memory type.
- *
- * Take down a manager for a given memory type after first walking
- * the LRU list to evict any buffers left alive.
- *
- * Normally, this function is part of lastclose() or unload(), and at that
- * point there shouldn't be any buffers left created by user-space, since
- * there should've been removed by the file descriptor release() method.
- * However, before this function is run, make sure to signal all sync objects,
- * and verify that the delayed delete queue is empty. The driver must also
- * make sure that there are no NO_EVICT buffers present in this memory type
- * when the call is made.
- *
- * If this function is part of a VT switch, the caller must make sure that
- * there are no appications currently validating buffers before this
- * function is called. The caller can do that by first taking the
- * struct ttm_bo_device::ttm_lock in write mode.
- *
- * Returns:
- * -EINVAL: invalid or uninitialized memory type.
- * -EBUSY: There are still buffers left in this memory type.
- */
-int ttm_bo_clean_mm(struct ttm_bo_device *bdev, unsigned mem_type);
 
 /**
  * ttm_bo_evict_mm
@@ -712,6 +605,12 @@ static inline bool ttm_bo_uses_embedded_gem_object(struct ttm_buffer_object *bo)
 {
 	return bo->base.dev != NULL;
 }
+
+int ttm_mem_evict_first(struct ttm_bo_device *bdev,
+			struct ttm_resource_manager *man,
+			const struct ttm_place *place,
+			struct ttm_operation_ctx *ctx,
+			struct ww_acquire_ctx *ticket);
 
 /* Default number of pre-faulted pages in the TTM fault handler */
 #define TTM_BO_VM_NUM_PREFAULT 16

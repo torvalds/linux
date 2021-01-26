@@ -1319,6 +1319,13 @@ static int rtrs_srv_get_next_cq_vector(struct rtrs_srv_sess *sess)
 	return sess->cur_cq_vector;
 }
 
+static void rtrs_srv_dev_release(struct device *dev)
+{
+	struct rtrs_srv *srv = container_of(dev, struct rtrs_srv, dev);
+
+	kfree(srv);
+}
+
 static struct rtrs_srv *__alloc_srv(struct rtrs_srv_ctx *ctx,
 				     const uuid_t *paths_uuid)
 {
@@ -1336,6 +1343,8 @@ static struct rtrs_srv *__alloc_srv(struct rtrs_srv_ctx *ctx,
 	uuid_copy(&srv->paths_uuid, paths_uuid);
 	srv->queue_depth = sess_queue_depth;
 	srv->ctx = ctx;
+	device_initialize(&srv->dev);
+	srv->dev.release = rtrs_srv_dev_release;
 
 	srv->chunks = kcalloc(srv->queue_depth, sizeof(*srv->chunks),
 			      GFP_KERNEL);
@@ -2150,7 +2159,7 @@ static int __init rtrs_server_init(void)
 		err = PTR_ERR(rtrs_dev_class);
 		goto out_chunk_pool;
 	}
-	rtrs_wq = alloc_workqueue("rtrs_server_wq", WQ_MEM_RECLAIM, 0);
+	rtrs_wq = alloc_workqueue("rtrs_server_wq", 0, 0);
 	if (!rtrs_wq) {
 		err = -ENOMEM;
 		goto out_dev_class;

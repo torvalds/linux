@@ -22,7 +22,7 @@
 #include <asm/dvma.h>
 #include <asm/io.h>
 #include <asm/page.h>
-#include <asm/pgalloc.h>
+#include <asm/tlbflush.h>
 
 /* IOMMU support */
 

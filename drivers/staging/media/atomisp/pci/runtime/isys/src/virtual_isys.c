@@ -17,7 +17,7 @@
 
 #include "system_global.h"
 
-#ifdef USE_INPUT_SYSTEM_VERSION_2401
+#ifdef ISP2401
 
 #include "ia_css_isys.h"
 #include "ia_css_debug.h"
@@ -33,7 +33,7 @@
  *************************************************/
 
 static bool create_input_system_channel(
-    input_system_cfg_t	*cfg,
+    isp2401_input_system_cfg_t	*cfg,
     bool			metadata,
     input_system_channel_t	*channel);
 
@@ -41,7 +41,7 @@ static void destroy_input_system_channel(
     input_system_channel_t	*channel);
 
 static bool create_input_system_input_port(
-    input_system_cfg_t		*cfg,
+    isp2401_input_system_cfg_t		*cfg,
     input_system_input_port_t	*input_port);
 
 static void destroy_input_system_input_port(
@@ -50,14 +50,14 @@ static void destroy_input_system_input_port(
 static bool calculate_input_system_channel_cfg(
     input_system_channel_t		*channel,
     input_system_input_port_t	*input_port,
-    input_system_cfg_t		*isys_cfg,
+    isp2401_input_system_cfg_t		*isys_cfg,
     input_system_channel_cfg_t	*channel_cfg,
     bool metadata);
 
 static bool calculate_input_system_input_port_cfg(
     input_system_channel_t		*channel,
     input_system_input_port_t	*input_port,
-    input_system_cfg_t		*isys_cfg,
+    isp2401_input_system_cfg_t		*isys_cfg,
     input_system_input_port_cfg_t	*input_port_cfg);
 
 static bool acquire_sid(
@@ -74,10 +74,10 @@ static bool acquire_ib_buffer(
     s32 lines_per_frame,
     s32 align_in_bytes,
     bool online,
-    ib_buffer_t *buf);
+    isp2401_ib_buffer_t *buf);
 
 static void release_ib_buffer(
-    ib_buffer_t *buf);
+    isp2401_ib_buffer_t *buf);
 
 static bool acquire_dma_channel(
     isys2401_dma_ID_t	dma_id,
@@ -100,43 +100,43 @@ static void release_be_lut_entry(
 static bool calculate_tpg_cfg(
     input_system_channel_t		*channel,
     input_system_input_port_t	*input_port,
-    input_system_cfg_t		*isys_cfg,
+    isp2401_input_system_cfg_t		*isys_cfg,
     pixelgen_tpg_cfg_t		*cfg);
 
 static bool calculate_prbs_cfg(
     input_system_channel_t		*channel,
     input_system_input_port_t	*input_port,
-    input_system_cfg_t		*isys_cfg,
+    isp2401_input_system_cfg_t		*isys_cfg,
     pixelgen_prbs_cfg_t		*cfg);
 
 static bool calculate_fe_cfg(
-    const input_system_cfg_t	*isys_cfg,
+    const isp2401_input_system_cfg_t	*isys_cfg,
     csi_rx_frontend_cfg_t		*cfg);
 
 static bool calculate_be_cfg(
     const input_system_input_port_t	*input_port,
-    const input_system_cfg_t	*isys_cfg,
+    const isp2401_input_system_cfg_t	*isys_cfg,
     bool				metadata,
     csi_rx_backend_cfg_t		*cfg);
 
 static bool calculate_stream2mmio_cfg(
-    const input_system_cfg_t	*isys_cfg,
+    const isp2401_input_system_cfg_t	*isys_cfg,
     bool				metadata,
     stream2mmio_cfg_t		*cfg);
 
 static bool calculate_ibuf_ctrl_cfg(
     const input_system_channel_t	*channel,
     const input_system_input_port_t	*input_port,
-    const input_system_cfg_t	*isys_cfg,
+    const isp2401_input_system_cfg_t	*isys_cfg,
     ibuf_ctrl_cfg_t			*cfg);
 
 static bool calculate_isys2401_dma_cfg(
     const input_system_channel_t	*channel,
-    const input_system_cfg_t	*isys_cfg,
+    const isp2401_input_system_cfg_t	*isys_cfg,
     isys2401_dma_cfg_t		*cfg);
 
 static bool calculate_isys2401_dma_port_cfg(
-    const input_system_cfg_t	*isys_cfg,
+    const isp2401_input_system_cfg_t	*isys_cfg,
     bool				raw_packed,
     bool				metadata,
     isys2401_dma_port_cfg_t		*cfg);
@@ -287,7 +287,7 @@ ia_css_isys_error_t ia_css_isys_stream_calculate_cfg(
  *
  **************************************************/
 static bool create_input_system_channel(
-    input_system_cfg_t	*cfg,
+    isp2401_input_system_cfg_t	*cfg,
     bool			metadata,
     input_system_channel_t	*me)
 {
@@ -361,7 +361,7 @@ static void destroy_input_system_channel(
 }
 
 static bool create_input_system_input_port(
-    input_system_cfg_t		*cfg,
+    isp2401_input_system_cfg_t		*cfg,
     input_system_input_port_t	*me)
 {
 	csi_mipi_packet_type_t packet_type;
@@ -457,7 +457,7 @@ static void destroy_input_system_input_port(
 static bool calculate_input_system_channel_cfg(
     input_system_channel_t		*channel,
     input_system_input_port_t	*input_port,
-    input_system_cfg_t		*isys_cfg,
+    isp2401_input_system_cfg_t		*isys_cfg,
     input_system_channel_cfg_t	*channel_cfg,
     bool metadata)
 {
@@ -508,7 +508,7 @@ static bool calculate_input_system_channel_cfg(
 static bool calculate_input_system_input_port_cfg(
     input_system_channel_t		*channel,
     input_system_input_port_t	*input_port,
-    input_system_cfg_t		*isys_cfg,
+    isp2401_input_system_cfg_t		*isys_cfg,
     input_system_input_port_cfg_t	*input_port_cfg)
 {
 	bool rc;
@@ -595,7 +595,7 @@ static bool acquire_ib_buffer(
     s32 lines_per_frame,
     s32 align_in_bytes,
     bool online,
-    ib_buffer_t *buf)
+    isp2401_ib_buffer_t *buf)
 {
 	buf->stride = calculate_stride(bits_per_pixel, pixels_per_line, false,
 				       align_in_bytes);
@@ -610,7 +610,7 @@ static bool acquire_ib_buffer(
 }
 
 static void release_ib_buffer(
-    ib_buffer_t *buf)
+    isp2401_ib_buffer_t *buf)
 {
 	ia_css_isys_ibuf_rmgr_release(&buf->start_addr);
 }
@@ -648,7 +648,7 @@ static void release_be_lut_entry(
 static bool calculate_tpg_cfg(
     input_system_channel_t		*channel,
     input_system_input_port_t	*input_port,
-    input_system_cfg_t		*isys_cfg,
+    isp2401_input_system_cfg_t		*isys_cfg,
     pixelgen_tpg_cfg_t		*cfg)
 {
 	memcpy(cfg, &isys_cfg->tpg_port_attr, sizeof(pixelgen_tpg_cfg_t));
@@ -659,7 +659,7 @@ static bool calculate_tpg_cfg(
 static bool calculate_prbs_cfg(
     input_system_channel_t		*channel,
     input_system_input_port_t	*input_port,
-    input_system_cfg_t		*isys_cfg,
+    isp2401_input_system_cfg_t		*isys_cfg,
     pixelgen_prbs_cfg_t		*cfg)
 {
 	memcpy(cfg, &isys_cfg->prbs_port_attr, sizeof(pixelgen_prbs_cfg_t));
@@ -668,7 +668,7 @@ static bool calculate_prbs_cfg(
 }
 
 static bool calculate_fe_cfg(
-    const input_system_cfg_t	*isys_cfg,
+    const isp2401_input_system_cfg_t	*isys_cfg,
     csi_rx_frontend_cfg_t		*cfg)
 {
 	cfg->active_lanes = isys_cfg->csi_port_attr.active_lanes;
@@ -677,7 +677,7 @@ static bool calculate_fe_cfg(
 
 static bool calculate_be_cfg(
     const input_system_input_port_t	*input_port,
-    const input_system_cfg_t	*isys_cfg,
+    const isp2401_input_system_cfg_t	*isys_cfg,
     bool				metadata,
     csi_rx_backend_cfg_t		*cfg)
 {
@@ -707,7 +707,7 @@ static bool calculate_be_cfg(
 }
 
 static bool calculate_stream2mmio_cfg(
-    const input_system_cfg_t	*isys_cfg,
+    const isp2401_input_system_cfg_t	*isys_cfg,
     bool				metadata,
     stream2mmio_cfg_t		*cfg
 )
@@ -725,7 +725,7 @@ static bool calculate_stream2mmio_cfg(
 static bool calculate_ibuf_ctrl_cfg(
     const input_system_channel_t	*channel,
     const input_system_input_port_t	*input_port,
-    const input_system_cfg_t	*isys_cfg,
+    const isp2401_input_system_cfg_t	*isys_cfg,
     ibuf_ctrl_cfg_t			*cfg)
 {
 	const s32 bits_per_byte = 8;
@@ -807,7 +807,7 @@ static bool calculate_ibuf_ctrl_cfg(
 
 static bool calculate_isys2401_dma_cfg(
     const input_system_channel_t	*channel,
-    const input_system_cfg_t	*isys_cfg,
+    const isp2401_input_system_cfg_t	*isys_cfg,
     isys2401_dma_cfg_t		*cfg)
 {
 	cfg->channel	= channel->dma_channel;
@@ -827,7 +827,7 @@ static bool calculate_isys2401_dma_cfg(
 
 /* See also: ia_css_dma_configure_from_info() */
 static bool calculate_isys2401_dma_port_cfg(
-    const input_system_cfg_t	*isys_cfg,
+    const isp2401_input_system_cfg_t	*isys_cfg,
     bool				raw_packed,
     bool				metadata,
     isys2401_dma_port_cfg_t		*cfg)

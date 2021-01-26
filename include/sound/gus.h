@@ -613,4 +613,8 @@ int snd_gus_dram_write(struct snd_gus_card *gus, char __user *ptr,
 int snd_gus_dram_read(struct snd_gus_card *gus, char __user *ptr,
 		      unsigned int addr, unsigned int size, int rom);
 
+/* gus_timer.c */
+void snd_gf1_timers_init(struct snd_gus_card *gus);
+void snd_gf1_timers_done(struct snd_gus_card *gus);
+
 #endif /* __SOUND_GUS_H */

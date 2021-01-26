@@ -192,10 +192,10 @@ static int wm8961_hp_event(struct snd_soc_dapm_widget *w,
 			   struct snd_kcontrol *kcontrol, int event)
 {
 	struct snd_soc_component *component = snd_soc_dapm_to_component(w->dapm);
-	u16 hp_reg = snd_soc_component_read32(component, WM8961_ANALOGUE_HP_0);
-	u16 cp_reg = snd_soc_component_read32(component, WM8961_CHARGE_PUMP_1);
-	u16 pwr_reg = snd_soc_component_read32(component, WM8961_PWR_MGMT_2);
-	u16 dcs_reg = snd_soc_component_read32(component, WM8961_DC_SERVO_1);
+	u16 hp_reg = snd_soc_component_read(component, WM8961_ANALOGUE_HP_0);
+	u16 cp_reg = snd_soc_component_read(component, WM8961_CHARGE_PUMP_1);
+	u16 pwr_reg = snd_soc_component_read(component, WM8961_PWR_MGMT_2);
+	u16 dcs_reg = snd_soc_component_read(component, WM8961_DC_SERVO_1);
 	int timeout = 500;
 
 	if (event & SND_SOC_DAPM_POST_PMU) {
@@ -229,7 +229,7 @@ static int wm8961_hp_event(struct snd_soc_dapm_widget *w,
 		snd_soc_component_write(component, WM8961_DC_SERVO_1, dcs_reg);
 		do {
 			msleep(1);
-			dcs_reg = snd_soc_component_read32(component, WM8961_DC_SERVO_1);
+			dcs_reg = snd_soc_component_read(component, WM8961_DC_SERVO_1);
 		} while (--timeout &&
 			 dcs_reg & (WM8961_DCS_TRIG_STARTUP_HPR |
 				WM8961_DCS_TRIG_STARTUP_HPL));
@@ -284,8 +284,8 @@ static int wm8961_spk_event(struct snd_soc_dapm_widget *w,
 			    struct snd_kcontrol *kcontrol, int event)
 {
 	struct snd_soc_component *component = snd_soc_dapm_to_component(w->dapm);
-	u16 pwr_reg = snd_soc_component_read32(component, WM8961_PWR_MGMT_2);
-	u16 spk_reg = snd_soc_component_read32(component, WM8961_CLASS_D_CONTROL_1);
+	u16 pwr_reg = snd_soc_component_read(component, WM8961_PWR_MGMT_2);
+	u16 spk_reg = snd_soc_component_read(component, WM8961_CLASS_D_CONTROL_1);
 
 	if (event & SND_SOC_DAPM_POST_PMU) {
 		/* Enable the PGA */
@@ -521,7 +521,7 @@ static int wm8961_hw_params(struct snd_pcm_substream *substream,
 		    abs(wm8961_srate[best].rate - fs))
 			best = i;
 	}
-	reg = snd_soc_component_read32(component, WM8961_ADDITIONAL_CONTROL_3);
+	reg = snd_soc_component_read(component, WM8961_ADDITIONAL_CONTROL_3);
 	reg &= ~WM8961_SAMPLE_RATE_MASK;
 	reg |= wm8961_srate[best].val;
 	snd_soc_component_write(component, WM8961_ADDITIONAL_CONTROL_3, reg);
@@ -554,12 +554,12 @@ static int wm8961_hw_params(struct snd_pcm_substream *substream,
 		wm8961_clk_sys_ratio[i].ratio, wm8961->sysclk, fs,
 		wm8961->sysclk / fs);
 
-	reg = snd_soc_component_read32(component, WM8961_CLOCKING_4);
+	reg = snd_soc_component_read(component, WM8961_CLOCKING_4);
 	reg &= ~WM8961_CLK_SYS_RATE_MASK;
 	reg |= wm8961_clk_sys_ratio[i].val << WM8961_CLK_SYS_RATE_SHIFT;
 	snd_soc_component_write(component, WM8961_CLOCKING_4, reg);
 
-	reg = snd_soc_component_read32(component, WM8961_AUDIO_INTERFACE_0);
+	reg = snd_soc_component_read(component, WM8961_AUDIO_INTERFACE_0);
 	reg &= ~WM8961_WL_MASK;
 	switch (params_width(params)) {
 	case 16:
@@ -579,7 +579,7 @@ static int wm8961_hw_params(struct snd_pcm_substream *substream,
 	snd_soc_component_write(component, WM8961_AUDIO_INTERFACE_0, reg);
 
 	/* Sloping stop-band filter is recommended for <= 24kHz */
-	reg = snd_soc_component_read32(component, WM8961_ADC_DAC_CONTROL_2);
+	reg = snd_soc_component_read(component, WM8961_ADC_DAC_CONTROL_2);
 	if (fs <= 24000)
 		reg |= WM8961_DACSLOPE;
 	else
@@ -595,7 +595,7 @@ static int wm8961_set_sysclk(struct snd_soc_dai *dai, int clk_id,
 {
 	struct snd_soc_component *component = dai->component;
 	struct wm8961_priv *wm8961 = snd_soc_component_get_drvdata(component);
-	u16 reg = snd_soc_component_read32(component, WM8961_CLOCKING1);
+	u16 reg = snd_soc_component_read(component, WM8961_CLOCKING1);
 
 	if (freq > 33000000) {
 		dev_err(component->dev, "MCLK must be <33MHz\n");
@@ -621,7 +621,7 @@ static int wm8961_set_sysclk(struct snd_soc_dai *dai, int clk_id,
 static int wm8961_set_fmt(struct snd_soc_dai *dai, unsigned int fmt)
 {
 	struct snd_soc_component *component = dai->component;
-	u16 aif = snd_soc_component_read32(component, WM8961_AUDIO_INTERFACE_0);
+	u16 aif = snd_soc_component_read(component, WM8961_AUDIO_INTERFACE_0);
 
 	aif &= ~(WM8961_BCLKINV | WM8961_LRP |
 		 WM8961_MS | WM8961_FORMAT_MASK);
@@ -650,7 +650,7 @@ static int wm8961_set_fmt(struct snd_soc_dai *dai, unsigned int fmt)
 
 	case SND_SOC_DAIFMT_DSP_B:
 		aif |= WM8961_LRP;
-		/* fall through */
+		fallthrough;
 	case SND_SOC_DAIFMT_DSP_A:
 		aif |= 3;
 		switch (fmt & SND_SOC_DAIFMT_INV_MASK) {
@@ -688,7 +688,7 @@ static int wm8961_set_fmt(struct snd_soc_dai *dai, unsigned int fmt)
 static int wm8961_set_tristate(struct snd_soc_dai *dai, int tristate)
 {
 	struct snd_soc_component *component = dai->component;
-	u16 reg = snd_soc_component_read32(component, WM8961_ADDITIONAL_CONTROL_2);
+	u16 reg = snd_soc_component_read(component, WM8961_ADDITIONAL_CONTROL_2);
 
 	if (tristate)
 		reg |= WM8961_TRIS;
@@ -698,10 +698,10 @@ static int wm8961_set_tristate(struct snd_soc_dai *dai, int tristate)
 	return snd_soc_component_write(component, WM8961_ADDITIONAL_CONTROL_2, reg);
 }
 
-static int wm8961_digital_mute(struct snd_soc_dai *dai, int mute)
+static int wm8961_mute(struct snd_soc_dai *dai, int mute, int direction)
 {
 	struct snd_soc_component *component = dai->component;
-	u16 reg = snd_soc_component_read32(component, WM8961_ADC_DAC_CONTROL_1);
+	u16 reg = snd_soc_component_read(component, WM8961_ADC_DAC_CONTROL_1);
 
 	if (mute)
 		reg |= WM8961_DACMU;
@@ -720,14 +720,14 @@ static int wm8961_set_clkdiv(struct snd_soc_dai *dai, int div_id, int div)
 
 	switch (div_id) {
 	case WM8961_BCLK:
-		reg = snd_soc_component_read32(component, WM8961_CLOCKING2);
+		reg = snd_soc_component_read(component, WM8961_CLOCKING2);
 		reg &= ~WM8961_BCLKDIV_MASK;
 		reg |= div;
 		snd_soc_component_write(component, WM8961_CLOCKING2, reg);
 		break;
 
 	case WM8961_LRCLK:
-		reg = snd_soc_component_read32(component, WM8961_AUDIO_INTERFACE_2);
+		reg = snd_soc_component_read(component, WM8961_AUDIO_INTERFACE_2);
 		reg &= ~WM8961_LRCLK_RATE_MASK;
 		reg |= div;
 		snd_soc_component_write(component, WM8961_AUDIO_INTERFACE_2, reg);
@@ -757,12 +757,12 @@ static int wm8961_set_bias_level(struct snd_soc_component *component,
 	case SND_SOC_BIAS_PREPARE:
 		if (snd_soc_component_get_bias_level(component) == SND_SOC_BIAS_STANDBY) {
 			/* Enable bias generation */
-			reg = snd_soc_component_read32(component, WM8961_ANTI_POP);
+			reg = snd_soc_component_read(component, WM8961_ANTI_POP);
 			reg |= WM8961_BUFIOEN | WM8961_BUFDCOPEN;
 			snd_soc_component_write(component, WM8961_ANTI_POP, reg);
 
 			/* VMID=2*50k, VREF */
-			reg = snd_soc_component_read32(component, WM8961_PWR_MGMT_1);
+			reg = snd_soc_component_read(component, WM8961_PWR_MGMT_1);
 			reg &= ~WM8961_VMIDSEL_MASK;
 			reg |= (1 << WM8961_VMIDSEL_SHIFT) | WM8961_VREF;
 			snd_soc_component_write(component, WM8961_PWR_MGMT_1, reg);
@@ -772,17 +772,17 @@ static int wm8961_set_bias_level(struct snd_soc_component *component,
 	case SND_SOC_BIAS_STANDBY:
 		if (snd_soc_component_get_bias_level(component) == SND_SOC_BIAS_PREPARE) {
 			/* VREF off */
-			reg = snd_soc_component_read32(component, WM8961_PWR_MGMT_1);
+			reg = snd_soc_component_read(component, WM8961_PWR_MGMT_1);
 			reg &= ~WM8961_VREF;
 			snd_soc_component_write(component, WM8961_PWR_MGMT_1, reg);
 
 			/* Bias generation off */
-			reg = snd_soc_component_read32(component, WM8961_ANTI_POP);
+			reg = snd_soc_component_read(component, WM8961_ANTI_POP);
 			reg &= ~(WM8961_BUFIOEN | WM8961_BUFDCOPEN);
 			snd_soc_component_write(component, WM8961_ANTI_POP, reg);
 
 			/* VMID off */
-			reg = snd_soc_component_read32(component, WM8961_PWR_MGMT_1);
+			reg = snd_soc_component_read(component, WM8961_PWR_MGMT_1);
 			reg &= ~WM8961_VMIDSEL_MASK;
 			snd_soc_component_write(component, WM8961_PWR_MGMT_1, reg);
 		}
@@ -806,9 +806,10 @@ static const struct snd_soc_dai_ops wm8961_dai_ops = {
 	.hw_params = wm8961_hw_params,
 	.set_sysclk = wm8961_set_sysclk,
 	.set_fmt = wm8961_set_fmt,
-	.digital_mute = wm8961_digital_mute,
+	.mute_stream = wm8961_mute,
 	.set_tristate = wm8961_set_tristate,
 	.set_clkdiv = wm8961_set_clkdiv,
+	.no_capture_mute = 1,
 };
 
 static struct snd_soc_dai_driver wm8961_dai = {
@@ -833,35 +834,35 @@ static int wm8961_probe(struct snd_soc_component *component)
 	u16 reg;
 
 	/* Enable class W */
-	reg = snd_soc_component_read32(component, WM8961_CHARGE_PUMP_B);
+	reg = snd_soc_component_read(component, WM8961_CHARGE_PUMP_B);
 	reg |= WM8961_CP_DYN_PWR_MASK;
 	snd_soc_component_write(component, WM8961_CHARGE_PUMP_B, reg);
 
 	/* Latch volume update bits (right channel only, we always
 	 * write both out) and default ZC on. */
-	reg = snd_soc_component_read32(component, WM8961_ROUT1_VOLUME);
+	reg = snd_soc_component_read(component, WM8961_ROUT1_VOLUME);
 	snd_soc_component_write(component, WM8961_ROUT1_VOLUME,
 		     reg | WM8961_LO1ZC | WM8961_OUT1VU);
 	snd_soc_component_write(component, WM8961_LOUT1_VOLUME, reg | WM8961_LO1ZC);
-	reg = snd_soc_component_read32(component, WM8961_ROUT2_VOLUME);
+	reg = snd_soc_component_read(component, WM8961_ROUT2_VOLUME);
 	snd_soc_component_write(component, WM8961_ROUT2_VOLUME,
 		     reg | WM8961_SPKRZC | WM8961_SPKVU);
 	snd_soc_component_write(component, WM8961_LOUT2_VOLUME, reg | WM8961_SPKLZC);
 
-	reg = snd_soc_component_read32(component, WM8961_RIGHT_ADC_VOLUME);
+	reg = snd_soc_component_read(component, WM8961_RIGHT_ADC_VOLUME);
 	snd_soc_component_write(component, WM8961_RIGHT_ADC_VOLUME, reg | WM8961_ADCVU);
-	reg = snd_soc_component_read32(component, WM8961_RIGHT_INPUT_VOLUME);
+	reg = snd_soc_component_read(component, WM8961_RIGHT_INPUT_VOLUME);
 	snd_soc_component_write(component, WM8961_RIGHT_INPUT_VOLUME, reg | WM8961_IPVU);
 
 	/* Use soft mute by default */
-	reg = snd_soc_component_read32(component, WM8961_ADC_DAC_CONTROL_2);
+	reg = snd_soc_component_read(component, WM8961_ADC_DAC_CONTROL_2);
 	reg |= WM8961_DACSMM;
 	snd_soc_component_write(component, WM8961_ADC_DAC_CONTROL_2, reg);
 
 	/* Use automatic clocking mode by default; for now this is all
 	 * we support.
 	 */
-	reg = snd_soc_component_read32(component, WM8961_CLOCKING_3);
+	reg = snd_soc_component_read(component, WM8961_CLOCKING_3);
 	reg &= ~WM8961_MANUAL_MODE;
 	snd_soc_component_write(component, WM8961_CLOCKING_3, reg);
 

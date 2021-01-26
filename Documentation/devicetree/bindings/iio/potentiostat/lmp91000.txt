@@ -1,7 +1,7 @@
 * Texas Instruments LMP91000 series of potentiostats
 
-LMP91000: http://www.ti.com/lit/ds/symlink/lmp91000.pdf
-LMP91002: http://www.ti.com/lit/ds/symlink/lmp91002.pdf
+LMP91000: https://www.ti.com/lit/ds/symlink/lmp91000.pdf
+LMP91002: https://www.ti.com/lit/ds/symlink/lmp91002.pdf
 
 Required properties:
 

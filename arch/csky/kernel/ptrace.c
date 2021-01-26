@@ -76,17 +76,14 @@ enum csky_regset {
 
 static int gpr_get(struct task_struct *target,
 		   const struct user_regset *regset,
-		   unsigned int pos, unsigned int count,
-		   void *kbuf, void __user *ubuf)
+		   struct membuf to)
 {
-	struct pt_regs *regs;
-
-	regs = task_pt_regs(target);
+	struct pt_regs *regs = task_pt_regs(target);
 
 	/* Abiv1 regs->tls is fake and we need sync here. */
 	regs->tls = task_thread_info(target)->tp_value;
 
-	return user_regset_copyout(&pos, &count, &kbuf, &ubuf, regs, 0, -1);
+	return membuf_write(&to, regs, sizeof(regs));
 }
 
 static int gpr_set(struct task_struct *target,
@@ -114,8 +111,7 @@ static int gpr_set(struct task_struct *target,
 
 static int fpr_get(struct task_struct *target,
 		   const struct user_regset *regset,
-		   unsigned int pos, unsigned int count,
-		   void *kbuf, void __user *ubuf)
+		   struct membuf to)
 {
 	struct user_fp *regs = (struct user_fp *)&target->thread.user_fp;
 
@@ -131,9 +127,9 @@ static int fpr_get(struct task_struct *target,
 	for (i = 0; i < 32; i++)
 		tmp.vr[64 + i] = regs->vr[32 + i];
 
-	return user_regset_copyout(&pos, &count, &kbuf, &ubuf, &tmp, 0, -1);
+	return membuf_write(&to, &tmp, sizeof(tmp));
 #else
-	return user_regset_copyout(&pos, &count, &kbuf, &ubuf, regs, 0, -1);
+	return membuf_write(&to, regs, sizeof(*regs));
 #endif
 }
 
@@ -173,16 +169,16 @@ static const struct user_regset csky_regsets[] = {
 		.n = sizeof(struct pt_regs) / sizeof(u32),
 		.size = sizeof(u32),
 		.align = sizeof(u32),
-		.get = &gpr_get,
-		.set = &gpr_set,
+		.regset_get = gpr_get,
+		.set = gpr_set,
 	},
 	[REGSET_FPR] = {
 		.core_note_type = NT_PRFPREG,
 		.n = sizeof(struct user_fp) / sizeof(u32),
 		.size = sizeof(u32),
 		.align = sizeof(u32),
-		.get = &fpr_get,
-		.set = &fpr_set,
+		.regset_get = fpr_get,
+		.set = fpr_set,
 	},
 };
 

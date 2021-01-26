@@ -1,0 +1,20 @@
+# SPDX-License-Identifier: GPL-2.0
+#
+# Copyright 2020 Amazon.com, Inc. or its affiliates. All Rights Reserved.
+
+# Amazon Nitro Enclaves (NE) support.
+# Nitro is a hypervisor that has been developed by Amazon.
+
+# TODO: Add dependency for ARM64 once NE is supported on Arm platforms. For now,
+# the NE kernel driver can be built for aarch64 arch.
+# depends on (ARM64 || X86) && HOTPLUG_CPU && PCI && SMP
+
+config NITRO_ENCLAVES
+	tristate "Nitro Enclaves Support"
+	depends on X86 && HOTPLUG_CPU && PCI && SMP
+	help
+	  This driver consists of support for enclave lifetime management
+	  for Nitro Enclaves (NE).
+
+	  To compile this driver as a module, choose M here.
+	  The module will be called nitro_enclaves.

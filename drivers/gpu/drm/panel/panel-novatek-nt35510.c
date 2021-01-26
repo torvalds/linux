@@ -35,7 +35,6 @@
 #include <drm/drm_mipi_dsi.h>
 #include <drm/drm_modes.h>
 #include <drm/drm_panel.h>
-#include <drm/drm_print.h>
 
 #define MCS_CMD_MAUCCTR		0xF0 /* Manufacturer command enable */
 #define MCS_CMD_READ_ID1	0xDA
@@ -376,6 +375,10 @@ struct nt35510 {
 };
 
 /* Manufacturer command has strictly this byte sequence */
+static const u8 nt35510_mauc_mtp_read_param[] = { 0xAA, 0x55, 0x25, 0x01 };
+static const u8 nt35510_mauc_mtp_read_setting[] = { 0x01, 0x02, 0x00, 0x20,
+						    0x33, 0x13, 0x00, 0x40,
+						    0x00, 0x00, 0x23, 0x02 };
 static const u8 nt35510_mauc_select_page_0[] = { 0x55, 0xAA, 0x52, 0x08, 0x00 };
 static const u8 nt35510_mauc_select_page_1[] = { 0x55, 0xAA, 0x52, 0x08, 0x01 };
 static const u8 nt35510_vgh_on[] = { 0x01 };
@@ -400,9 +403,7 @@ static int nt35510_send_long(struct nt35510 *nt, struct mipi_dsi_device *dsi,
 		chunk = 15;
 	ret = mipi_dsi_dcs_write(dsi, cmd, seqp, chunk);
 	if (ret < 0) {
-		DRM_DEV_ERROR(nt->dev,
-			      "error sending DCS command seq cmd %02x\n",
-			      cmd);
+		dev_err(nt->dev, "error sending DCS command seq cmd %02x\n", cmd);
 		return ret;
 	}
 	cmdwritten += chunk;
@@ -414,16 +415,13 @@ static int nt35510_send_long(struct nt35510 *nt, struct mipi_dsi_device *dsi,
 			chunk = 15;
 		ret = mipi_dsi_generic_write(dsi, seqp, chunk);
 		if (ret < 0) {
-			DRM_DEV_ERROR(nt->dev,
-				      "error sending generic write seq %02x\n",
-				      cmd);
+			dev_err(nt->dev, "error sending generic write seq %02x\n", cmd);
 			return ret;
 		}
 		cmdwritten += chunk;
 		seqp += chunk;
 	}
-	DRM_DEV_DEBUG(nt->dev, "sent command %02x %02x bytes\n",
-		      cmd, cmdlen);
+	dev_dbg(nt->dev, "sent command %02x %02x bytes\n", cmd, cmdlen);
 	return 0;
 }
 
@@ -435,17 +433,17 @@ static int nt35510_read_id(struct nt35510 *nt)
 
 	ret = mipi_dsi_dcs_read(dsi, MCS_CMD_READ_ID1, &id1, 1);
 	if (ret < 0) {
-		DRM_DEV_ERROR(nt->dev, "could not read MTP ID1\n");
+		dev_err(nt->dev, "could not read MTP ID1\n");
 		return ret;
 	}
 	ret = mipi_dsi_dcs_read(dsi, MCS_CMD_READ_ID2, &id2, 1);
 	if (ret < 0) {
-		DRM_DEV_ERROR(nt->dev, "could not read MTP ID2\n");
+		dev_err(nt->dev, "could not read MTP ID2\n");
 		return ret;
 	}
 	ret = mipi_dsi_dcs_read(dsi, MCS_CMD_READ_ID3, &id3, 1);
 	if (ret < 0) {
-		DRM_DEV_ERROR(nt->dev, "could not read MTP ID3\n");
+		dev_err(nt->dev, "could not read MTP ID3\n");
 		return ret;
 	}
 
@@ -454,9 +452,7 @@ static int nt35510_read_id(struct nt35510 *nt)
 	 * ID (e.g. Hydis 0x55), driver ID (e.g. NT35510 0xc0) and
 	 * version.
 	 */
-	DRM_DEV_INFO(nt->dev,
-		     "MTP ID manufacturer: %02x version: %02x driver: %02x\n",
-		     id1, id2, id3);
+	dev_info(nt->dev, "MTP ID manufacturer: %02x version: %02x driver: %02x\n", id1, id2, id3);
 
 	return 0;
 }
@@ -657,7 +653,7 @@ static int nt35510_set_brightness(struct backlight_device *bl)
 	u8 brightness = bl->props.brightness;
 	int ret;
 
-	DRM_DEV_DEBUG(nt->dev, "set brightness %d\n", brightness);
+	dev_dbg(nt->dev, "set brightness %d\n", brightness);
 	ret = mipi_dsi_dcs_write(dsi, MIPI_DCS_SET_DISPLAY_BRIGHTNESS,
 				 &brightness,
 				 sizeof(brightness));
@@ -697,6 +693,18 @@ static int nt35510_power_on(struct nt35510 *nt)
 		 */
 		usleep_range(120000, 140000);
 	}
+
+	ret = nt35510_send_long(nt, dsi, MCS_CMD_MTP_READ_PARAM,
+				ARRAY_SIZE(nt35510_mauc_mtp_read_param),
+				nt35510_mauc_mtp_read_param);
+	if (ret)
+		return ret;
+
+	ret = nt35510_send_long(nt, dsi, MCS_CMD_MTP_READ_SETTING,
+				ARRAY_SIZE(nt35510_mauc_mtp_read_setting),
+				nt35510_mauc_mtp_read_setting);
+	if (ret)
+		return ret;
 
 	ret = nt35510_read_id(nt);
 	if (ret)
@@ -780,8 +788,7 @@ static int nt35510_unprepare(struct drm_panel *panel)
 
 	ret = mipi_dsi_dcs_set_display_off(dsi);
 	if (ret) {
-		DRM_DEV_ERROR(nt->dev, "failed to turn display off (%d)\n",
-			      ret);
+		dev_err(nt->dev, "failed to turn display off (%d)\n", ret);
 		return ret;
 	}
 	usleep_range(10000, 20000);
@@ -789,8 +796,7 @@ static int nt35510_unprepare(struct drm_panel *panel)
 	/* Enter sleep mode */
 	ret = mipi_dsi_dcs_enter_sleep_mode(dsi);
 	if (ret) {
-		DRM_DEV_ERROR(nt->dev, "failed to enter sleep mode (%d)\n",
-			      ret);
+		dev_err(nt->dev, "failed to enter sleep mode (%d)\n", ret);
 		return ret;
 	}
 
@@ -817,8 +823,7 @@ static int nt35510_prepare(struct drm_panel *panel)
 	/* Exit sleep mode */
 	ret = mipi_dsi_dcs_exit_sleep_mode(dsi);
 	if (ret) {
-		DRM_DEV_ERROR(nt->dev, "failed to exit sleep mode (%d)\n",
-			      ret);
+		dev_err(nt->dev, "failed to exit sleep mode (%d)\n", ret);
 		return ret;
 	}
 	/* Up to 120 ms */
@@ -826,8 +831,7 @@ static int nt35510_prepare(struct drm_panel *panel)
 
 	ret = mipi_dsi_dcs_set_display_on(dsi);
 	if (ret) {
-		DRM_DEV_ERROR(nt->dev, "failed to turn display on (%d)\n",
-			      ret);
+		dev_err(nt->dev, "failed to turn display on (%d)\n", ret);
 		return ret;
 	}
 	/* Some 10 ms */
@@ -848,7 +852,7 @@ static int nt35510_get_modes(struct drm_panel *panel,
 	info->height_mm = nt->conf->height_mm;
 	mode = drm_mode_duplicate(connector->dev, &nt->conf->mode);
 	if (!mode) {
-		DRM_ERROR("bad mode or failed to add mode\n");
+		dev_err(panel->dev, "bad mode or failed to add mode\n");
 		return -EINVAL;
 	}
 	drm_mode_set_name(mode);
@@ -947,7 +951,7 @@ static int nt35510_probe(struct mipi_dsi_device *dsi)
 		bl = devm_backlight_device_register(dev, "nt35510", dev, nt,
 						    &nt35510_bl_ops, NULL);
 		if (IS_ERR(bl)) {
-			DRM_DEV_ERROR(dev, "failed to register backlight device\n");
+			dev_err(dev, "failed to register backlight device\n");
 			return PTR_ERR(bl);
 		}
 		bl->props.max_brightness = 255;
@@ -956,9 +960,7 @@ static int nt35510_probe(struct mipi_dsi_device *dsi)
 		nt->panel.backlight = bl;
 	}
 
-	ret = drm_panel_add(&nt->panel);
-	if (ret < 0)
-		return ret;
+	drm_panel_add(&nt->panel);
 
 	ret = mipi_dsi_attach(dsi);
 	if (ret < 0)

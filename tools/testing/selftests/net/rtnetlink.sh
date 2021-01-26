@@ -1175,6 +1175,51 @@ kci_test_neigh_get()
 	echo "PASS: neigh get"
 }
 
+kci_test_bridge_parent_id()
+{
+	local ret=0
+	sysfsnet=/sys/bus/netdevsim/devices/netdevsim
+	probed=false
+
+	if [ ! -w /sys/bus/netdevsim/new_device ] ; then
+		modprobe -q netdevsim
+		check_err $?
+		if [ $ret -ne 0 ]; then
+			echo "SKIP: bridge_parent_id can't load netdevsim"
+			return $ksft_skip
+		fi
+		probed=true
+	fi
+
+	echo "10 1" > /sys/bus/netdevsim/new_device
+	while [ ! -d ${sysfsnet}10 ] ; do :; done
+	echo "20 1" > /sys/bus/netdevsim/new_device
+	while [ ! -d ${sysfsnet}20 ] ; do :; done
+	udevadm settle
+	dev10=`ls ${sysfsnet}10/net/`
+	dev20=`ls ${sysfsnet}20/net/`
+
+	ip link add name test-bond0 type bond mode 802.3ad
+	ip link set dev $dev10 master test-bond0
+	ip link set dev $dev20 master test-bond0
+	ip link add name test-br0 type bridge
+	ip link set dev test-bond0 master test-br0
+	check_err $?
+
+	# clean up any leftovers
+	ip link del dev test-br0
+	ip link del dev test-bond0
+	echo 20 > /sys/bus/netdevsim/del_device
+	echo 10 > /sys/bus/netdevsim/del_device
+	$probed && rmmod netdevsim
+
+	if [ $ret -ne 0 ]; then
+		echo "FAIL: bridge_parent_id"
+		return 1
+	fi
+	echo "PASS: bridge_parent_id"
+}
+
 kci_test_rtnl()
 {
 	local ret=0
@@ -1223,6 +1268,8 @@ kci_test_rtnl()
 	kci_test_fdb_get
 	check_err $?
 	kci_test_neigh_get
+	check_err $?
+	kci_test_bridge_parent_id
 	check_err $?
 
 	kci_del_dummy

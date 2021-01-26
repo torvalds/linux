@@ -40,6 +40,15 @@ struct mx25_gcq_priv {
 	int irq;
 	struct regulator *vref[4];
 	u32 channel_vref_mv[MX25_NUM_CFGS];
+	/*
+	 * Lock to protect the device state during a potential concurrent
+	 * read access from userspace. Reading a raw value requires a sequence
+	 * of register writes, then a wait for a completion callback,
+	 * and finally a register read, during which userspace could issue
+	 * another read request. This lock protects a read access from
+	 * ocurring before another one has finished.
+	 */
+	struct mutex lock;
 };
 
 #define MX25_CQG_CHAN(chan, id) {\
@@ -137,9 +146,9 @@ static int mx25_gcq_read_raw(struct iio_dev *indio_dev,
 
 	switch (mask) {
 	case IIO_CHAN_INFO_RAW:
-		mutex_lock(&indio_dev->mlock);
+		mutex_lock(&priv->lock);
 		ret = mx25_gcq_get_raw_value(&indio_dev->dev, chan, priv, val);
-		mutex_unlock(&indio_dev->mlock);
+		mutex_unlock(&priv->lock);
 		return ret;
 
 	case IIO_CHAN_INFO_SCALE:
@@ -314,6 +323,8 @@ static int mx25_gcq_probe(struct platform_device *pdev)
 		return PTR_ERR(priv->regs);
 	}
 
+	mutex_init(&priv->lock);
+
 	init_completion(&priv->completed);
 
 	ret = mx25_gcq_setup_cfgs(pdev, priv);
@@ -350,7 +361,6 @@ static int mx25_gcq_probe(struct platform_device *pdev)
 		goto err_clk_unprepare;
 	}
 
-	indio_dev->dev.parent = &pdev->dev;
 	indio_dev->channels = mx25_gcq_channels;
 	indio_dev->num_channels = ARRAY_SIZE(mx25_gcq_channels);
 	indio_dev->info = &mx25_gcq_iio_info;

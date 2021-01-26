@@ -2,7 +2,7 @@
 /*
  * Texas Instruments PCM186x Universal Audio ADC - SPI
  *
- * Copyright (C) 2015-2017 Texas Instruments Incorporated - http://www.ti.com
+ * Copyright (C) 2015-2017 Texas Instruments Incorporated - https://www.ti.com
  *	Andreas Dannenberg <dannenberg@ti.com>
  *	Andrew F. Davis <afd@ti.com>
  */

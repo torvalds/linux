@@ -32,6 +32,14 @@ static inline int _soc_dai_ret(struct snd_soc_dai *dai,
 	return ret;
 }
 
+/*
+ * We might want to check substream by using list.
+ * In such case, we can update these macros.
+ */
+#define soc_dai_mark_push(dai, substream, tgt)	((dai)->mark_##tgt = substream)
+#define soc_dai_mark_pop(dai, substream, tgt)	((dai)->mark_##tgt = NULL)
+#define soc_dai_mark_match(dai, substream, tgt)	((dai)->mark_##tgt == substream)
+
 /**
  * snd_soc_dai_set_sysclk - configure DAI system or master clock.
  * @dai: DAI
@@ -298,13 +306,15 @@ int snd_soc_dai_digital_mute(struct snd_soc_dai *dai, int mute,
 {
 	int ret = -ENOTSUPP;
 
+	/*
+	 * ignore if direction was CAPTURE
+	 * and it had .no_capture_mute flag
+	 */
 	if (dai->driver->ops &&
-	    dai->driver->ops->mute_stream)
+	    dai->driver->ops->mute_stream &&
+	    (direction == SNDRV_PCM_STREAM_PLAYBACK ||
+	     !dai->driver->ops->no_capture_mute))
 		ret = dai->driver->ops->mute_stream(dai, mute, direction);
-	else if (direction == SNDRV_PCM_STREAM_PLAYBACK &&
-		 dai->driver->ops &&
-		 dai->driver->ops->digital_mute)
-		ret = dai->driver->ops->digital_mute(dai, mute);
 
 	return soc_dai_ret(dai, ret);
 }
@@ -314,7 +324,7 @@ int snd_soc_dai_hw_params(struct snd_soc_dai *dai,
 			  struct snd_pcm_substream *substream,
 			  struct snd_pcm_hw_params *params)
 {
-	struct snd_soc_pcm_runtime *rtd = substream->private_data;
+	struct snd_soc_pcm_runtime *rtd = asoc_substream_to_rtd(substream);
 	int ret = 0;
 
 	/* perform any topology hw_params fixups before DAI  */
@@ -346,15 +356,26 @@ int snd_soc_dai_startup(struct snd_soc_dai *dai,
 	    dai->driver->ops->startup)
 		ret = dai->driver->ops->startup(substream, dai);
 
+	/* mark substream if succeeded */
+	if (ret == 0)
+		soc_dai_mark_push(dai, substream, startup);
+
 	return soc_dai_ret(dai, ret);
 }
 
 void snd_soc_dai_shutdown(struct snd_soc_dai *dai,
-			 struct snd_pcm_substream *substream)
+			  struct snd_pcm_substream *substream,
+			  int rollback)
 {
+	if (rollback && !soc_dai_mark_match(dai, substream, startup))
+		return;
+
 	if (dai->driver->ops &&
 	    dai->driver->ops->shutdown)
 		dai->driver->ops->shutdown(substream, dai);
+
+	/* remove marked substream */
+	soc_dai_mark_pop(dai, substream, startup);
 }
 
 snd_pcm_sframes_t snd_soc_dai_delay(struct snd_soc_dai *dai,
@@ -400,28 +421,30 @@ void snd_soc_dai_link_set_capabilities(struct snd_soc_dai_link *dai_link)
 	struct snd_soc_dai_link_component *codec;
 	struct snd_soc_dai *dai;
 	bool supported[SNDRV_PCM_STREAM_LAST + 1];
+	bool supported_cpu;
+	bool supported_codec;
 	int direction;
 	int i;
 
 	for_each_pcm_streams(direction) {
-		supported[direction] = true;
+		supported_cpu = false;
+		supported_codec = false;
 
 		for_each_link_cpus(dai_link, i, cpu) {
-			dai = snd_soc_find_dai(cpu);
-			if (!dai || !snd_soc_dai_stream_valid(dai, direction)) {
-				supported[direction] = false;
+			dai = snd_soc_find_dai_with_mutex(cpu);
+			if (dai && snd_soc_dai_stream_valid(dai, direction)) {
+				supported_cpu = true;
 				break;
 			}
 		}
-		if (!supported[direction])
-			continue;
 		for_each_link_codecs(dai_link, i, codec) {
-			dai = snd_soc_find_dai(codec);
-			if (!dai || !snd_soc_dai_stream_valid(dai, direction)) {
-				supported[direction] = false;
+			dai = snd_soc_find_dai_with_mutex(codec);
+			if (dai && snd_soc_dai_stream_valid(dai, direction)) {
+				supported_codec = true;
 				break;
 			}
 		}
+		supported[direction] = supported_cpu && supported_codec;
 	}
 
 	dai_link->dpcm_playback = supported[SNDRV_PCM_STREAM_PLAYBACK];
@@ -514,7 +537,7 @@ int snd_soc_pcm_dai_new(struct snd_soc_pcm_runtime *rtd)
 
 int snd_soc_pcm_dai_prepare(struct snd_pcm_substream *substream)
 {
-	struct snd_soc_pcm_runtime *rtd = substream->private_data;
+	struct snd_soc_pcm_runtime *rtd = asoc_substream_to_rtd(substream);
 	struct snd_soc_dai *dai;
 	int i, ret;
 
@@ -533,7 +556,7 @@ int snd_soc_pcm_dai_prepare(struct snd_pcm_substream *substream)
 int snd_soc_pcm_dai_trigger(struct snd_pcm_substream *substream,
 			    int cmd)
 {
-	struct snd_soc_pcm_runtime *rtd = substream->private_data;
+	struct snd_soc_pcm_runtime *rtd = asoc_substream_to_rtd(substream);
 	struct snd_soc_dai *dai;
 	int i, ret;
 
@@ -552,7 +575,7 @@ int snd_soc_pcm_dai_trigger(struct snd_pcm_substream *substream,
 int snd_soc_pcm_dai_bespoke_trigger(struct snd_pcm_substream *substream,
 				    int cmd)
 {
-	struct snd_soc_pcm_runtime *rtd = substream->private_data;
+	struct snd_soc_pcm_runtime *rtd = asoc_substream_to_rtd(substream);
 	struct snd_soc_dai *dai;
 	int i, ret;
 

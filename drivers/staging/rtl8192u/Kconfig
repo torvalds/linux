@@ -8,3 +8,4 @@ config RTL8192U
 	select CRYPTO
 	select CRYPTO_AES
 	select CRYPTO_CCM
+	select CRYPTO_LIB_ARC4

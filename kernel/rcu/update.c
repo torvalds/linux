@@ -469,7 +469,7 @@ void destroy_rcu_head_on_stack(struct rcu_head *head)
 }
 EXPORT_SYMBOL_GPL(destroy_rcu_head_on_stack);
 
-struct debug_obj_descr rcuhead_debug_descr = {
+const struct debug_obj_descr rcuhead_debug_descr = {
 	.name = "rcu_head",
 	.is_static_object = rcuhead_is_static_object,
 };

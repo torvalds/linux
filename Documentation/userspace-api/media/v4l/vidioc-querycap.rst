@@ -1,11 +1,4 @@
-.. Permission is granted to copy, distribute and/or modify this
-.. document under the terms of the GNU Free Documentation License,
-.. Version 1.1 or any later version published by the Free Software
-.. Foundation, with no Invariant Sections, no Front-Cover Texts
-.. and no Back-Cover Texts. A copy of the license is included at
-.. Documentation/userspace-api/media/fdl-appendix.rst.
-..
-.. TODO: replace it to GFDL-1.1-or-later WITH no-invariant-sections
+.. SPDX-License-Identifier: GFDL-1.1-no-invariants-or-later
 
 .. _VIDIOC_QUERYCAP:
 
@@ -168,11 +161,11 @@ specification the ioctl returns an ``EINVAL`` error code.
       - The device supports the :ref:`multi-planar API <planar-apis>`
 	through the :ref:`Video Output <output>` interface.
     * - ``V4L2_CAP_VIDEO_M2M``
-      - 0x00004000
+      - 0x00008000
       - The device supports the single-planar API through the Video
 	Memory-To-Memory interface.
     * - ``V4L2_CAP_VIDEO_M2M_MPLANE``
-      - 0x00008000
+      - 0x00004000
       - The device supports the :ref:`multi-planar API <planar-apis>`
 	through the Video Memory-To-Memory interface.
     * - ``V4L2_CAP_VIDEO_OVERLAY``

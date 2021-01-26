@@ -7,10 +7,6 @@
  * 1999-07-01 (jmt) - First implementation for new driver architecture.
  *
  * 1999-07-31 (jmt) - First working version.
- *
- * TODO:
- *
- * o Implement SRQ handling.
  */
 
 #include <linux/types.h>
@@ -18,24 +14,17 @@
 #include <linux/mm.h>
 #include <linux/delay.h>
 #include <linux/init.h>
-#include <linux/proc_fs.h>
 
 #include <asm/macintosh.h>
 #include <asm/macints.h>
 #include <asm/mac_iop.h>
-#include <asm/mac_oss.h>
 #include <asm/adb_iop.h>
 
 #include <linux/adb.h>
 
-/*#define DEBUG_ADB_IOP*/
-
 static struct adb_request *current_req;
 static struct adb_request *last_req;
-#if 0
-static unsigned char reply_buff[16];
-static unsigned char *reply_ptr;
-#endif
+static unsigned int autopoll_devs;
 
 static enum adb_iop_state {
 	idle,
@@ -62,13 +51,19 @@ struct adb_driver adb_iop_driver = {
 	.reset_bus    = adb_iop_reset_bus
 };
 
-static void adb_iop_end_req(struct adb_request *req, int state)
+static void adb_iop_done(void)
 {
+	struct adb_request *req = current_req;
+
+	adb_iop_state = idle;
+
 	req->complete = 1;
 	current_req = req->next;
 	if (req->done)
 		(*req->done)(req);
-	adb_iop_state = state;
+
+	if (adb_iop_state == idle)
+		adb_iop_start();
 }
 
 /*
@@ -79,15 +74,14 @@ static void adb_iop_end_req(struct adb_request *req, int state)
 
 static void adb_iop_complete(struct iop_msg *msg)
 {
-	struct adb_request *req;
 	unsigned long flags;
 
 	local_irq_save(flags);
 
-	req = current_req;
-	if ((adb_iop_state == sending) && req && req->reply_expected) {
+	if (current_req->reply_expected)
 		adb_iop_state = awaiting_reply;
-	}
+	else
+		adb_iop_done();
 
 	local_irq_restore(flags);
 }
@@ -102,52 +96,36 @@ static void adb_iop_complete(struct iop_msg *msg)
 static void adb_iop_listen(struct iop_msg *msg)
 {
 	struct adb_iopmsg *amsg = (struct adb_iopmsg *)msg->message;
-	struct adb_request *req;
 	unsigned long flags;
-#ifdef DEBUG_ADB_IOP
-	int i;
-#endif
+	bool req_done = false;
 
 	local_irq_save(flags);
 
-	req = current_req;
+	/* Handle a timeout. Timeout packets seem to occur even after
+	 * we've gotten a valid reply to a TALK, presumably because of
+	 * autopolling.
+	 */
 
-#ifdef DEBUG_ADB_IOP
-	printk("adb_iop_listen %p: rcvd packet, %d bytes: %02X %02X", req,
-	       (uint)amsg->count + 2, (uint)amsg->flags, (uint)amsg->cmd);
-	for (i = 0; i < amsg->count; i++)
-		printk(" %02X", (uint)amsg->data[i]);
-	printk("\n");
-#endif
+	if (amsg->flags & ADB_IOP_EXPLICIT) {
+		if (adb_iop_state == awaiting_reply) {
+			struct adb_request *req = current_req;
 
-	/* Handle a timeout. Timeout packets seem to occur even after */
-	/* we've gotten a valid reply to a TALK, so I'm assuming that */
-	/* a "timeout" is actually more like an "end-of-data" signal. */
-	/* We need to send back a timeout packet to the IOP to shut   */
-	/* it up, plus complete the current request, if any.          */
-
-	if (amsg->flags & ADB_IOP_TIMEOUT) {
-		msg->reply[0] = ADB_IOP_TIMEOUT | ADB_IOP_AUTOPOLL;
-		msg->reply[1] = 0;
-		msg->reply[2] = 0;
-		if (req && (adb_iop_state != idle)) {
-			adb_iop_end_req(req, idle);
-		}
-	} else {
-		/* TODO: is it possible for more than one chunk of data  */
-		/*       to arrive before the timeout? If so we need to */
-		/*       use reply_ptr here like the other drivers do.  */
-		if ((adb_iop_state == awaiting_reply) &&
-		    (amsg->flags & ADB_IOP_EXPLICIT)) {
 			req->reply_len = amsg->count + 1;
 			memcpy(req->reply, &amsg->cmd, req->reply_len);
-		} else {
-			adb_input(&amsg->cmd, amsg->count + 1,
-				  amsg->flags & ADB_IOP_AUTOPOLL);
+
+			req_done = true;
 		}
-		memcpy(msg->reply, msg->message, IOP_MSG_LEN);
+	} else if (!(amsg->flags & ADB_IOP_TIMEOUT)) {
+		adb_input(&amsg->cmd, amsg->count + 1,
+			  amsg->flags & ADB_IOP_AUTOPOLL);
 	}
+
+	msg->reply[0] = autopoll_devs ? ADB_IOP_AUTOPOLL : 0;
 	iop_complete_message(msg);
+
+	if (req_done)
+		adb_iop_done();
+
 	local_irq_restore(flags);
 }
 
@@ -160,63 +138,50 @@ static void adb_iop_listen(struct iop_msg *msg)
 
 static void adb_iop_start(void)
 {
-	unsigned long flags;
 	struct adb_request *req;
 	struct adb_iopmsg amsg;
-#ifdef DEBUG_ADB_IOP
-	int i;
-#endif
 
 	/* get the packet to send */
 	req = current_req;
 	if (!req)
 		return;
 
-	local_irq_save(flags);
-
-#ifdef DEBUG_ADB_IOP
-	printk("adb_iop_start %p: sending packet, %d bytes:", req, req->nbytes);
-	for (i = 0; i < req->nbytes; i++)
-		printk(" %02X", (uint)req->data[i]);
-	printk("\n");
-#endif
-
-	/* The IOP takes MacII-style packets, so */
-	/* strip the initial ADB_PACKET byte.    */
-
+	/* The IOP takes MacII-style packets, so strip the initial
+	 * ADB_PACKET byte.
+	 */
 	amsg.flags = ADB_IOP_EXPLICIT;
 	amsg.count = req->nbytes - 2;
 
-	/* amsg.data immediately follows amsg.cmd, effectively making */
-	/* amsg.cmd a pointer to the beginning of a full ADB packet.  */
+	/* amsg.data immediately follows amsg.cmd, effectively making
+	 * &amsg.cmd a pointer to the beginning of a full ADB packet.
+	 */
 	memcpy(&amsg.cmd, req->data + 1, req->nbytes - 1);
 
 	req->sent = 1;
 	adb_iop_state = sending;
-	local_irq_restore(flags);
 
-	/* Now send it. The IOP manager will call adb_iop_complete */
-	/* when the packet has been sent.                          */
-
+	/* Now send it. The IOP manager will call adb_iop_complete
+	 * when the message has been sent.
+	 */
 	iop_send_message(ADB_IOP, ADB_CHAN, req, sizeof(amsg), (__u8 *)&amsg,
 			 adb_iop_complete);
 }
 
-int adb_iop_probe(void)
+static int adb_iop_probe(void)
 {
 	if (!iop_ism_present)
 		return -ENODEV;
 	return 0;
 }
 
-int adb_iop_init(void)
+static int adb_iop_init(void)
 {
 	pr_info("adb: IOP ISM driver v0.4 for Unified ADB\n");
 	iop_listen(ADB_IOP, ADB_CHAN, adb_iop_listen, "ADB");
 	return 0;
 }
 
-int adb_iop_send_request(struct adb_request *req, int sync)
+static int adb_iop_send_request(struct adb_request *req, int sync)
 {
 	int err;
 
@@ -240,14 +205,14 @@ static int adb_iop_write(struct adb_request *req)
 		return -EINVAL;
 	}
 
-	local_irq_save(flags);
-
 	req->next = NULL;
 	req->sent = 0;
 	req->complete = 0;
 	req->reply_len = 0;
 
-	if (current_req != 0) {
+	local_irq_save(flags);
+
+	if (current_req) {
 		last_req->next = req;
 		last_req = req;
 	} else {
@@ -255,39 +220,58 @@ static int adb_iop_write(struct adb_request *req)
 		last_req = req;
 	}
 
+	if (adb_iop_state == idle)
+		adb_iop_start();
+
 	local_irq_restore(flags);
 
-	if (adb_iop_state == idle)
-		adb_iop_start();
 	return 0;
 }
 
-int adb_iop_autopoll(int devs)
+static void adb_iop_set_ap_complete(struct iop_msg *msg)
 {
-	/* TODO: how do we enable/disable autopoll? */
+	struct adb_iopmsg *amsg = (struct adb_iopmsg *)msg->message;
+
+	autopoll_devs = (amsg->data[1] << 8) | amsg->data[0];
+}
+
+static int adb_iop_autopoll(int devs)
+{
+	struct adb_iopmsg amsg;
+	unsigned long flags;
+	unsigned int mask = (unsigned int)devs & 0xFFFE;
+
+	local_irq_save(flags);
+
+	amsg.flags = ADB_IOP_SET_AUTOPOLL | (mask ? ADB_IOP_AUTOPOLL : 0);
+	amsg.count = 2;
+	amsg.cmd = 0;
+	amsg.data[0] = mask & 0xFF;
+	amsg.data[1] = (mask >> 8) & 0xFF;
+
+	iop_send_message(ADB_IOP, ADB_CHAN, NULL, sizeof(amsg), (__u8 *)&amsg,
+			 adb_iop_set_ap_complete);
+
+	local_irq_restore(flags);
+
 	return 0;
 }
 
-void adb_iop_poll(void)
+static void adb_iop_poll(void)
 {
-	if (adb_iop_state == idle)
-		adb_iop_start();
 	iop_ism_irq_poll(ADB_IOP);
 }
 
-int adb_iop_reset_bus(void)
+static int adb_iop_reset_bus(void)
 {
-	struct adb_request req = {
-		.reply_expected = 0,
-		.nbytes = 2,
-		.data = { ADB_PACKET, 0 },
-	};
+	struct adb_request req;
 
-	adb_iop_write(&req);
-	while (!req.complete) {
-		adb_iop_poll();
-		schedule();
-	}
+	/* Command = 0, Address = ignored */
+	adb_request(&req, NULL, ADBREQ_NOSEND, 1, ADB_BUSRESET);
+	adb_iop_send_request(&req, 1);
+
+	/* Don't want any more requests during the Global Reset low time. */
+	mdelay(3);
 
 	return 0;
 }

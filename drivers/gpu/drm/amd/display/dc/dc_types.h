@@ -122,7 +122,7 @@ struct dc_context {
 };
 
 
-#define DC_MAX_EDID_BUFFER_SIZE 1024
+#define DC_MAX_EDID_BUFFER_SIZE 1280
 #define DC_EDID_BLOCK_SIZE 128
 #define MAX_SURFACE_NUM 4
 #define NUM_PIXEL_FORMATS 10
@@ -233,6 +233,7 @@ struct dc_panel_patch {
 	unsigned int skip_scdc_overwrite;
 	unsigned int delay_ignore_msa;
 	unsigned int disable_fec;
+	unsigned int extra_t3_ms;
 };
 
 struct dc_edid_caps {
@@ -889,6 +890,20 @@ struct dsc_dec_dpcd_caps {
 	uint32_t branch_overall_throughput_1_mps; /* In MPs */
 	uint32_t branch_max_line_width;
 };
+
+struct dc_golden_table {
+	uint16_t dc_golden_table_ver;
+	uint32_t aux_dphy_rx_control0_val;
+	uint32_t aux_dphy_tx_control_val;
+	uint32_t aux_dphy_rx_control1_val;
+	uint32_t dc_gpio_aux_ctrl_0_val;
+	uint32_t dc_gpio_aux_ctrl_1_val;
+	uint32_t dc_gpio_aux_ctrl_2_val;
+	uint32_t dc_gpio_aux_ctrl_3_val;
+	uint32_t dc_gpio_aux_ctrl_4_val;
+	uint32_t dc_gpio_aux_ctrl_5_val;
+};
+
 
 #if defined(CONFIG_DRM_AMD_DC_DCN3_0)
 enum dc_gpu_mem_alloc_type {

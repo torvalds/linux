@@ -10,7 +10,7 @@ Introduction
 ============
 
 The kernel provides a variety of locking primitives which can be divided
-into two categories:
+into three categories:
 
  - Sleeping locks
  - CPU local locks
@@ -164,14 +164,14 @@ by disabling preemption or interrupts.
 On non-PREEMPT_RT kernels local_lock operations map to the preemption and
 interrupt disabling and enabling primitives:
 
- =========================== ======================
- local_lock(&llock)          preempt_disable()
- local_unlock(&llock)        preempt_enable()
- local_lock_irq(&llock)      local_irq_disable()
- local_unlock_irq(&llock)    local_irq_enable()
- local_lock_save(&llock)     local_irq_save()
- local_lock_restore(&llock)  local_irq_save()
- =========================== ======================
+ ===============================  ======================
+ local_lock(&llock)               preempt_disable()
+ local_unlock(&llock)             preempt_enable()
+ local_lock_irq(&llock)           local_irq_disable()
+ local_unlock_irq(&llock)         local_irq_enable()
+ local_lock_irqsave(&llock)       local_irq_save()
+ local_unlock_irqrestore(&llock)  local_irq_restore()
+ ===============================  ======================
 
 The named scope of local_lock has two advantages over the regular
 primitives:
@@ -353,14 +353,14 @@ protection scope. So the following substitution is wrong::
   {
     local_irq_save(flags);    -> local_lock_irqsave(&local_lock_1, flags);
     func3();
-    local_irq_restore(flags); -> local_lock_irqrestore(&local_lock_1, flags);
+    local_irq_restore(flags); -> local_unlock_irqrestore(&local_lock_1, flags);
   }
 
   func2()
   {
     local_irq_save(flags);    -> local_lock_irqsave(&local_lock_2, flags);
     func3();
-    local_irq_restore(flags); -> local_lock_irqrestore(&local_lock_2, flags);
+    local_irq_restore(flags); -> local_unlock_irqrestore(&local_lock_2, flags);
   }
 
   func3()
@@ -379,14 +379,14 @@ PREEMPT_RT-specific semantics of spinlock_t. The correct substitution is::
   {
     local_irq_save(flags);    -> local_lock_irqsave(&local_lock, flags);
     func3();
-    local_irq_restore(flags); -> local_lock_irqrestore(&local_lock, flags);
+    local_irq_restore(flags); -> local_unlock_irqrestore(&local_lock, flags);
   }
 
   func2()
   {
     local_irq_save(flags);    -> local_lock_irqsave(&local_lock, flags);
     func3();
-    local_irq_restore(flags); -> local_lock_irqrestore(&local_lock, flags);
+    local_irq_restore(flags); -> local_unlock_irqrestore(&local_lock, flags);
   }
 
   func3()

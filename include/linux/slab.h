@@ -155,9 +155,6 @@ struct kmem_cache *kmem_cache_create_usercopy(const char *name,
 void kmem_cache_destroy(struct kmem_cache *);
 int kmem_cache_shrink(struct kmem_cache *);
 
-void memcg_create_kmem_cache(struct mem_cgroup *, struct kmem_cache *);
-void memcg_deactivate_kmem_caches(struct mem_cgroup *, struct mem_cgroup *);
-
 /*
  * Please use this macro to create slab caches. Simply specify the
  * name of the structure and maybe some flags that are listed above.
@@ -186,9 +183,11 @@ void memcg_deactivate_kmem_caches(struct mem_cgroup *, struct mem_cgroup *);
  */
 void * __must_check krealloc(const void *, size_t, gfp_t);
 void kfree(const void *);
-void kzfree(const void *);
+void kfree_sensitive(const void *);
 size_t __ksize(const void *);
 size_t ksize(const void *);
+
+#define kzfree(x)	kfree_sensitive(x)	/* For backward compatibility */
 
 #ifdef CONFIG_HAVE_HARDENED_USERCOPY_ALLOCATOR
 void __check_heap_object(const void *ptr, unsigned long n, struct page *page,
@@ -280,7 +279,7 @@ static inline void __check_heap_object(const void *ptr, unsigned long n,
 #define KMALLOC_MAX_SIZE	(1UL << KMALLOC_SHIFT_MAX)
 /* Maximum size for which we actually use a slab cache */
 #define KMALLOC_MAX_CACHE_SIZE	(1UL << KMALLOC_SHIFT_HIGH)
-/* Maximum order allocatable via the slab allocagtor */
+/* Maximum order allocatable via the slab allocator */
 #define KMALLOC_MAX_ORDER	(KMALLOC_SHIFT_MAX - PAGE_SHIFT)
 
 /*
@@ -577,8 +576,6 @@ static __always_inline void *kmalloc_node(size_t size, gfp_t flags, int node)
 #endif
 	return __kmalloc_node(size, flags, node);
 }
-
-int memcg_update_all_caches(int num_memcgs);
 
 /**
  * kmalloc_array - allocate memory for an array.

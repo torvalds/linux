@@ -2,7 +2,7 @@
 /*
  * Common private data for Silicon Labs WFx chips.
  *
- * Copyright (c) 2017-2019, Silicon Laboratories, Inc.
+ * Copyright (c) 2017-2020, Silicon Laboratories, Inc.
  * Copyright (c) 2010, ST-Ericsson
  * Copyright (c) 2006, Michael Wu <flamingice@sourmilk.net>
  * Copyright 2004-2006 Jean-Baptiste Note <jbnote@gmail.com>, et al.
@@ -20,7 +20,6 @@
 #include "data_tx.h"
 #include "main.h"
 #include "queue.h"
-#include "secure_link.h"
 #include "hif_tx.h"
 
 #define USEC_PER_TXOP 32 // see struct ieee80211_tx_queue_params
@@ -41,14 +40,12 @@ struct wfx_dev {
 	struct completion	firmware_ready;
 	struct hif_ind_startup	hw_caps;
 	struct wfx_hif		hif;
-	struct sl_context	sl;
 	struct delayed_work	cooling_timeout_work;
 	bool			poll_irq;
 	bool			chip_frozen;
 	struct mutex		conf_mutex;
 
 	struct wfx_hif_cmd	hif_cmd;
-	struct wfx_queue	tx_queue[4];
 	struct sk_buff_head	tx_pending;
 	wait_queue_head_t	tx_dequeue;
 	atomic_t		tx_lock;
@@ -60,6 +57,7 @@ struct wfx_dev {
 	struct mutex		rx_stats_lock;
 	struct hif_tx_power_loop_info tx_power_loop_info;
 	struct mutex		tx_power_loop_info_lock;
+	int			force_ps_timeout;
 };
 
 struct wfx_vif {
@@ -75,13 +73,11 @@ struct wfx_vif {
 
 	struct delayed_work	beacon_loss_work;
 
+	struct wfx_queue	tx_queue[4];
 	struct tx_policy_cache	tx_policy_cache;
 	struct work_struct	tx_policy_upload_work;
 
 	struct work_struct	update_tim_work;
-
-	int			filter_mcast_count;
-	u8			filter_mcast_addr[8][ETH_ALEN];
 
 	unsigned long		uapsd_mask;
 
@@ -92,8 +88,6 @@ struct wfx_vif {
 	bool			scan_abort;
 	struct ieee80211_scan_request *scan_req;
 
-	bool			bss_not_support_ps_poll;
-	struct work_struct	update_pm_work;
 	struct completion	set_pm_mode_complete;
 };
 

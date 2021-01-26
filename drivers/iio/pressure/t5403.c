@@ -236,7 +236,6 @@ static int t5403_probe(struct i2c_client *client,
 	i2c_set_clientdata(client, indio_dev);
 	indio_dev->info = &t5403_info;
 	indio_dev->name = id->name;
-	indio_dev->dev.parent = &client->dev;
 	indio_dev->modes = INDIO_DIRECT_MODE;
 	indio_dev->channels = t5403_channels;
 	indio_dev->num_channels = ARRAY_SIZE(t5403_channels);

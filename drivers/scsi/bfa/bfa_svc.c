@@ -2718,7 +2718,7 @@ bfa_fcport_sm_ddport(struct bfa_fcport_s *fcport,
 	case BFA_FCPORT_SM_DPORTDISABLE:
 	case BFA_FCPORT_SM_ENABLE:
 	case BFA_FCPORT_SM_START:
-		/**
+		/*
 		 * Ignore event for a port that is ddport
 		 */
 		break;
@@ -3839,7 +3839,7 @@ bfa_fcport_get_topology(struct bfa_s *bfa)
 	return fcport->topology;
 }
 
-/**
+/*
  * Get config topology.
  */
 enum bfa_port_topology
@@ -6397,7 +6397,7 @@ bfa_dport_sm_starting(struct bfa_dport_s *dport, enum bfa_dport_sm_event event)
 			dport->test_state = BFA_DPORT_ST_INP;
 			bfa_dport_result_start(dport, BFA_DPORT_OPMODE_MANU);
 		}
-		/* fall thru */
+		fallthrough;
 
 	case BFA_DPORT_SM_REQFAIL:
 		bfa_sm_set_state(dport, bfa_dport_sm_enabled);

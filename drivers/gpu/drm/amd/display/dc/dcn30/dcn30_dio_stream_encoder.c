@@ -790,8 +790,8 @@ static const struct stream_encoder_funcs dcn30_str_enc_funcs = {
 		enc3_stream_encoder_hdmi_set_stream_attribute,
 	.dvi_set_stream_attribute =
 		enc3_stream_encoder_dvi_set_stream_attribute,
-	.set_mst_bandwidth =
-		enc1_stream_encoder_set_mst_bandwidth,
+	.set_throttled_vcp_size =
+		enc1_stream_encoder_set_throttled_vcp_size,
 	.update_hdmi_info_packets =
 		enc3_stream_encoder_update_hdmi_info_packets,
 	.stop_hdmi_info_packets =

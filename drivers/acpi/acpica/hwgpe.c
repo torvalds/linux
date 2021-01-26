@@ -26,6 +26,76 @@ acpi_hw_gpe_enable_write(u8 enable_mask,
 
 /******************************************************************************
  *
+ * FUNCTION:    acpi_hw_gpe_read
+ *
+ * PARAMETERS:  value               - Where the value is returned
+ *              reg                 - GPE register structure
+ *
+ * RETURN:      Status
+ *
+ * DESCRIPTION: Read from a GPE register in either memory or IO space.
+ *
+ * LIMITATIONS: <These limitations also apply to acpi_hw_gpe_write>
+ *      space_ID must be system_memory or system_IO.
+ *
+ ******************************************************************************/
+
+acpi_status acpi_hw_gpe_read(u64 *value, struct acpi_gpe_address *reg)
+{
+	acpi_status status;
+	u32 value32;
+
+	if (reg->space_id == ACPI_ADR_SPACE_SYSTEM_MEMORY) {
+#ifdef ACPI_GPE_USE_LOGICAL_ADDRESSES
+		*value = (u64)ACPI_GET8(reg->address);
+		return_ACPI_STATUS(AE_OK);
+#else
+		return acpi_os_read_memory((acpi_physical_address)reg->address,
+					    value, ACPI_GPE_REGISTER_WIDTH);
+#endif
+	}
+
+	status = acpi_os_read_port((acpi_io_address)reg->address,
+				   &value32, ACPI_GPE_REGISTER_WIDTH);
+	if (ACPI_FAILURE(status))
+		return_ACPI_STATUS(status);
+
+	*value = (u64)value32;
+
+	return_ACPI_STATUS(AE_OK);
+}
+
+/******************************************************************************
+ *
+ * FUNCTION:    acpi_hw_gpe_write
+ *
+ * PARAMETERS:  value               - Value to be written
+ *              reg                 - GPE register structure
+ *
+ * RETURN:      Status
+ *
+ * DESCRIPTION: Write to a GPE register in either memory or IO space.
+ *
+ ******************************************************************************/
+
+acpi_status acpi_hw_gpe_write(u64 value, struct acpi_gpe_address *reg)
+{
+	if (reg->space_id == ACPI_ADR_SPACE_SYSTEM_MEMORY) {
+#ifdef ACPI_GPE_USE_LOGICAL_ADDRESSES
+		ACPI_SET8(reg->address, value);
+		return_ACPI_STATUS(AE_OK);
+#else
+		return acpi_os_write_memory((acpi_physical_address)reg->address,
+					    value, ACPI_GPE_REGISTER_WIDTH);
+#endif
+	}
+
+	return acpi_os_write_port((acpi_io_address)reg->address, (u32)value,
+				  ACPI_GPE_REGISTER_WIDTH);
+}
+
+/******************************************************************************
+ *
  * FUNCTION:	acpi_hw_get_gpe_register_bit
  *
  * PARAMETERS:	gpe_event_info	    - Info block for the GPE
@@ -79,7 +149,8 @@ acpi_hw_low_set_gpe(struct acpi_gpe_event_info *gpe_event_info, u32 action)
 
 	/* Get current value of the enable register that contains this GPE */
 
-	status = acpi_hw_read(&enable_mask, &gpe_register_info->enable_address);
+	status = acpi_hw_gpe_read(&enable_mask,
+				  &gpe_register_info->enable_address);
 	if (ACPI_FAILURE(status)) {
 		return (status);
 	}
@@ -118,9 +189,8 @@ acpi_hw_low_set_gpe(struct acpi_gpe_event_info *gpe_event_info, u32 action)
 
 		/* Write the updated enable mask */
 
-		status =
-		    acpi_hw_write(enable_mask,
-				  &gpe_register_info->enable_address);
+		status = acpi_hw_gpe_write(enable_mask,
+					   &gpe_register_info->enable_address);
 	}
 	return (status);
 }
@@ -158,8 +228,8 @@ acpi_status acpi_hw_clear_gpe(struct acpi_gpe_event_info *gpe_event_info)
 	 */
 	register_bit = acpi_hw_get_gpe_register_bit(gpe_event_info);
 
-	status =
-	    acpi_hw_write(register_bit, &gpe_register_info->status_address);
+	status = acpi_hw_gpe_write(register_bit,
+				   &gpe_register_info->status_address);
 	return (status);
 }
 
@@ -227,7 +297,7 @@ acpi_hw_get_gpe_status(struct acpi_gpe_event_info *gpe_event_info,
 
 	/* GPE currently enabled (enable bit == 1)? */
 
-	status = acpi_hw_read(&in_byte, &gpe_register_info->enable_address);
+	status = acpi_hw_gpe_read(&in_byte, &gpe_register_info->enable_address);
 	if (ACPI_FAILURE(status)) {
 		return (status);
 	}
@@ -238,7 +308,7 @@ acpi_hw_get_gpe_status(struct acpi_gpe_event_info *gpe_event_info,
 
 	/* GPE currently active (status bit == 1)? */
 
-	status = acpi_hw_read(&in_byte, &gpe_register_info->status_address);
+	status = acpi_hw_gpe_read(&in_byte, &gpe_register_info->status_address);
 	if (ACPI_FAILURE(status)) {
 		return (status);
 	}
@@ -274,7 +344,8 @@ acpi_hw_gpe_enable_write(u8 enable_mask,
 
 	gpe_register_info->enable_mask = enable_mask;
 
-	status = acpi_hw_write(enable_mask, &gpe_register_info->enable_address);
+	status = acpi_hw_gpe_write(enable_mask,
+				   &gpe_register_info->enable_address);
 	return (status);
 }
 
@@ -341,9 +412,8 @@ acpi_hw_clear_gpe_block(struct acpi_gpe_xrupt_info *gpe_xrupt_info,
 
 		/* Clear status on all GPEs in this register */
 
-		status =
-		    acpi_hw_write(0xFF,
-				  &gpe_block->register_info[i].status_address);
+		status = acpi_hw_gpe_write(0xFF,
+					   &gpe_block->register_info[i].status_address);
 		if (ACPI_FAILURE(status)) {
 			return (status);
 		}
@@ -481,14 +551,14 @@ acpi_hw_get_gpe_block_status(struct acpi_gpe_xrupt_info *gpe_xrupt_info,
 	for (i = 0; i < gpe_block->register_count; i++) {
 		gpe_register_info = &gpe_block->register_info[i];
 
-		status = acpi_hw_read(&in_enable,
-				      &gpe_register_info->enable_address);
+		status = acpi_hw_gpe_read(&in_enable,
+					  &gpe_register_info->enable_address);
 		if (ACPI_FAILURE(status)) {
 			continue;
 		}
 
-		status = acpi_hw_read(&in_status,
-				      &gpe_register_info->status_address);
+		status = acpi_hw_gpe_read(&in_status,
+					  &gpe_register_info->status_address);
 		if (ACPI_FAILURE(status)) {
 			continue;
 		}

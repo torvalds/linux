@@ -4,7 +4,7 @@
  *
  * Copyright (c) 2014 Cadence Design Systems Inc.
  *
- * Reference: http://www.ti.com/lit/ds/symlink/cdce706.pdf
+ * Reference: https://www.ti.com/lit/ds/symlink/cdce706.pdf
  */
 
 #include <linux/clk.h>

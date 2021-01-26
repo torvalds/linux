@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0
 /* TI ADS124S0X chip family driver
- * Copyright (C) 2018 Texas Instruments Incorporated - http://www.ti.com/
+ * Copyright (C) 2018 Texas Instruments Incorporated - https://www.ti.com/
  */
 
 #include <linux/err.h>
@@ -325,8 +325,6 @@ static int ads124s_probe(struct spi_device *spi)
 	ads124s_priv->spi = spi;
 
 	indio_dev->name = spi_id->name;
-	indio_dev->dev.parent = &spi->dev;
-	indio_dev->dev.of_node = spi->dev.of_node;
 	indio_dev->modes = INDIO_DIRECT_MODE;
 	indio_dev->channels = ads124s_priv->chip_info->channels;
 	indio_dev->num_channels = ads124s_priv->chip_info->num_channels;

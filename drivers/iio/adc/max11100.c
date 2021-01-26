@@ -8,6 +8,7 @@
  */
 #include <linux/delay.h>
 #include <linux/kernel.h>
+#include <linux/mod_devicetable.h>
 #include <linux/module.h>
 #include <linux/regulator/consumer.h>
 #include <linux/spi/spi.h>
@@ -37,7 +38,7 @@ struct max11100_state {
 	u8 buffer[3] ____cacheline_aligned;
 };
 
-static struct iio_chan_spec max11100_channels[] = {
+static const struct iio_chan_spec max11100_channels[] = {
 	{ /* [0] */
 		.type = IIO_VOLTAGE,
 		.info_mask_separate = BIT(IIO_CHAN_INFO_RAW) |
@@ -115,8 +116,6 @@ static int max11100_probe(struct spi_device *spi)
 	state = iio_priv(indio_dev);
 	state->spi = spi;
 
-	indio_dev->dev.parent = &spi->dev;
-	indio_dev->dev.of_node = spi->dev.of_node;
 	indio_dev->name = "max11100";
 	indio_dev->info = &max11100_info;
 	indio_dev->modes = INDIO_DIRECT_MODE;
@@ -163,7 +162,7 @@ MODULE_DEVICE_TABLE(of, max11100_ids);
 static struct spi_driver max11100_driver = {
 	.driver = {
 		.name	= "max11100",
-		.of_match_table = of_match_ptr(max11100_ids),
+		.of_match_table = max11100_ids,
 	},
 	.probe		= max11100_probe,
 	.remove		= max11100_remove,

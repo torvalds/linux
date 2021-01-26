@@ -11,6 +11,7 @@
  */
 
 #include <linux/module.h>
+#include <linux/mod_devicetable.h>
 #include <linux/init.h>
 #include <linux/err.h>
 #include <linux/spi/spi.h>
@@ -179,8 +180,6 @@ static int ti_adc_probe(struct spi_device *spi)
 		return -ENOMEM;
 
 	indio_dev->info = &ti_adc_info;
-	indio_dev->dev.parent = &spi->dev;
-	indio_dev->dev.of_node = spi->dev.of_node;
 	indio_dev->name = TI_ADC_DRV_NAME;
 	indio_dev->modes = INDIO_DIRECT_MODE;
 	spi_set_drvdata(spi, indio_dev);
@@ -259,7 +258,7 @@ MODULE_DEVICE_TABLE(spi, ti_adc_id);
 static struct spi_driver ti_adc_driver = {
 	.driver = {
 		.name	= TI_ADC_DRV_NAME,
-		.of_match_table = of_match_ptr(ti_adc_dt_ids),
+		.of_match_table = ti_adc_dt_ids,
 	},
 	.probe		= ti_adc_probe,
 	.remove		= ti_adc_remove,

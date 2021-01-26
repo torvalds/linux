@@ -28,6 +28,7 @@
 
 #include <linux/async.h>
 #include <linux/i2c.h>
+#include <linux/pwm.h>
 #include <linux/sched/clock.h>
 
 #include <drm/drm_atomic.h>
@@ -223,6 +224,7 @@ struct intel_panel {
 		bool util_pin_active_low;	/* bxt+ */
 		u8 controller;		/* bxt+ only */
 		struct pwm_device *pwm;
+		struct pwm_state pwm_state;
 
 		/* DPCD backlight */
 		u8 pwmgen_bit_count;
@@ -314,10 +316,12 @@ struct intel_hdcp_shim {
 
 	/* Enables HDCP signalling on the port */
 	int (*toggle_signalling)(struct intel_digital_port *dig_port,
+				 enum transcoder cpu_transcoder,
 				 bool enable);
 
 	/* Ensures the link is still protected */
-	bool (*check_link)(struct intel_digital_port *dig_port);
+	bool (*check_link)(struct intel_digital_port *dig_port,
+			   struct intel_connector *connector);
 
 	/* Detects panel's hdcp capability. This is optional for HDMI. */
 	int (*hdcp_capable)(struct intel_digital_port *dig_port,
@@ -479,8 +483,6 @@ struct intel_atomic_state {
 
 	bool dpll_set, modeset;
 
-	u8 active_pipes;
-
 	struct intel_shared_dpll_state shared_dpll[I915_NUM_PLLS];
 
 	/*
@@ -490,11 +492,6 @@ struct intel_atomic_state {
 	bool skip_intermediate_wm;
 
 	bool rps_interactive;
-
-	/*
-	 * active_pipes
-	 */
-	bool global_state_changed;
 
 	struct i915_sw_fence commit_ready;
 
@@ -931,6 +928,7 @@ struct intel_crtc_state {
 
 	bool has_psr;
 	bool has_psr2;
+	bool enable_psr2_sel_fetch;
 	u32 dc3co_exitline;
 
 	/*
@@ -1073,6 +1071,8 @@ struct intel_crtc_state {
 
 	/* For DSB related info */
 	struct intel_dsb *dsb;
+
+	u32 psr2_man_track_ctl;
 };
 
 enum intel_pipe_crc_source {
@@ -1272,6 +1272,7 @@ struct intel_dp {
 	u8 sink_count;
 	bool link_mst;
 	bool link_trained;
+	bool has_hdmi_sink;
 	bool has_audio;
 	bool reset_link_params;
 	u8 dpcd[DP_RECEIVER_CAP_SIZE];
@@ -1373,8 +1374,19 @@ struct intel_dp {
 	/* Displayport compliance testing */
 	struct intel_dp_compliance compliance;
 
+	/* Downstream facing port caps */
+	struct {
+		int min_tmds_clock, max_tmds_clock;
+		int max_dotclock;
+		u8 max_bpc;
+		bool ycbcr_444_to_420;
+	} dfp;
+
 	/* Display stream compression testing */
 	bool force_dsc_en;
+
+	bool hobl_failed;
+	bool hobl_active;
 };
 
 enum lspcon_vendor {
@@ -1408,6 +1420,11 @@ struct intel_digital_port {
 	enum tc_port_mode tc_mode;
 	enum phy_fia tc_phy_fia;
 	u8 tc_phy_fia_idx;
+
+	/* protects num_hdcp_streams reference count */
+	struct mutex hdcp_mutex;
+	/* the number of pipes using HDCP signalling out of this port */
+	unsigned int num_hdcp_streams;
 
 	void (*write_infoframe)(struct intel_encoder *encoder,
 				const struct intel_crtc_state *crtc_state,
@@ -1519,6 +1536,18 @@ static inline bool intel_encoder_is_dig_port(struct intel_encoder *encoder)
 	}
 }
 
+static inline bool intel_encoder_is_mst(struct intel_encoder *encoder)
+{
+	return encoder->type == INTEL_OUTPUT_DP_MST;
+}
+
+static inline struct intel_dp_mst_encoder *
+enc_to_mst(struct intel_encoder *encoder)
+{
+	return container_of(&encoder->base, struct intel_dp_mst_encoder,
+			    base.base);
+}
+
 static inline struct intel_digital_port *
 enc_to_dig_port(struct intel_encoder *encoder)
 {
@@ -1527,6 +1556,8 @@ enc_to_dig_port(struct intel_encoder *encoder)
 	if (intel_encoder_is_dig_port(intel_encoder))
 		return container_of(&encoder->base, struct intel_digital_port,
 				    base.base);
+	else if (intel_encoder_is_mst(intel_encoder))
+		return enc_to_mst(encoder)->primary;
 	else
 		return NULL;
 }
@@ -1535,13 +1566,6 @@ static inline struct intel_digital_port *
 intel_attached_dig_port(struct intel_connector *connector)
 {
 	return enc_to_dig_port(intel_attached_encoder(connector));
-}
-
-static inline struct intel_dp_mst_encoder *
-enc_to_mst(struct intel_encoder *encoder)
-{
-	return container_of(&encoder->base, struct intel_dp_mst_encoder,
-			    base.base);
 }
 
 static inline struct intel_dp *enc_to_intel_dp(struct intel_encoder *encoder)

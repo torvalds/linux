@@ -29,4 +29,22 @@ config IFCVF
 	  To compile this driver as a module, choose M here: the module will
 	  be called ifcvf.
 
+config MLX5_VDPA
+	bool
+	help
+	  Support library for Mellanox VDPA drivers. Provides code that is
+	  common for all types of VDPA drivers. The following drivers are planned:
+	  net, block.
+
+config MLX5_VDPA_NET
+	tristate "vDPA driver for ConnectX devices"
+	select MLX5_VDPA
+	depends on MLX5_CORE
+	default n
+	help
+	  VDPA network driver for ConnectX6 and newer. Provides offloading
+	  of virtio net datapath such that descriptors put on the ring will
+	  be executed by the hardware. It also supports a variety of stateless
+	  offloads depending on the actual device used and firmware version.
+
 endif # VDPA

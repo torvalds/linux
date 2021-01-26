@@ -18,23 +18,23 @@
 typedef uint64_t	xfs_qcnt_t;
 typedef uint16_t	xfs_qwarncnt_t;
 
+typedef uint8_t		xfs_dqtype_t;
+
+#define XFS_DQTYPE_STRINGS \
+	{ XFS_DQTYPE_USER,	"USER" }, \
+	{ XFS_DQTYPE_PROJ,	"PROJ" }, \
+	{ XFS_DQTYPE_GROUP,	"GROUP" }, \
+	{ XFS_DQTYPE_BIGTIME,	"BIGTIME" }
+
 /*
  * flags for q_flags field in the dquot.
  */
-#define XFS_DQ_USER		0x0001		/* a user quota */
-#define XFS_DQ_PROJ		0x0002		/* project quota */
-#define XFS_DQ_GROUP		0x0004		/* a group quota */
-#define XFS_DQ_DIRTY		0x0008		/* dquot is dirty */
-#define XFS_DQ_FREEING		0x0010		/* dquot is being torn down */
+#define XFS_DQFLAG_DIRTY	(1 << 0)	/* dquot is dirty */
+#define XFS_DQFLAG_FREEING	(1 << 1)	/* dquot is being torn down */
 
-#define XFS_DQ_ALLTYPES		(XFS_DQ_USER|XFS_DQ_PROJ|XFS_DQ_GROUP)
-
-#define XFS_DQ_FLAGS \
-	{ XFS_DQ_USER,		"USER" }, \
-	{ XFS_DQ_PROJ,		"PROJ" }, \
-	{ XFS_DQ_GROUP,		"GROUP" }, \
-	{ XFS_DQ_DIRTY,		"DIRTY" }, \
-	{ XFS_DQ_FREEING,	"FREEING" }
+#define XFS_DQFLAG_STRINGS \
+	{ XFS_DQFLAG_DIRTY,	"DIRTY" }, \
+	{ XFS_DQFLAG_FREEING,	"FREEING" }
 
 /*
  * We have the possibility of all three quota types being active at once, and
@@ -137,11 +137,16 @@ typedef uint16_t	xfs_qwarncnt_t;
 #define XFS_QMOPT_RESBLK_MASK	(XFS_QMOPT_RES_REGBLKS | XFS_QMOPT_RES_RTBLKS)
 
 extern xfs_failaddr_t xfs_dquot_verify(struct xfs_mount *mp,
-		struct xfs_disk_dquot *ddq, xfs_dqid_t id, uint type);
+		struct xfs_disk_dquot *ddq, xfs_dqid_t id);
 extern xfs_failaddr_t xfs_dqblk_verify(struct xfs_mount *mp,
-		struct xfs_dqblk *dqb, xfs_dqid_t id, uint type);
+		struct xfs_dqblk *dqb, xfs_dqid_t id);
 extern int xfs_calc_dquots_per_chunk(unsigned int nbblks);
 extern void xfs_dqblk_repair(struct xfs_mount *mp, struct xfs_dqblk *dqb,
-		xfs_dqid_t id, uint type);
+		xfs_dqid_t id, xfs_dqtype_t type);
+
+struct xfs_dquot;
+time64_t xfs_dquot_from_disk_ts(struct xfs_disk_dquot *ddq,
+		__be32 dtimer);
+__be32 xfs_dquot_to_disk_ts(struct xfs_dquot *ddq, time64_t timer);
 
 #endif	/* __XFS_QUOTA_H__ */

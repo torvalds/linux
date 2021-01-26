@@ -17,7 +17,6 @@
 #include <asm/mman.h>
 #include <asm/tlb.h>
 #include <asm/tlbflush.h>
-#include <asm/pgalloc.h>
 
 /*
  * HugeTLB Support Matrix

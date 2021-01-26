@@ -413,7 +413,7 @@ int sun4i_csi_dma_register(struct sun4i_csi *csi, int irq)
 
 	q->min_buffers_needed = 3;
 	q->type = V4L2_BUF_TYPE_VIDEO_CAPTURE_MPLANE;
-	q->io_modes = VB2_MMAP;
+	q->io_modes = VB2_MMAP | VB2_DMABUF;
 	q->lock = &csi->lock;
 	q->drv_priv = csi;
 	q->buf_struct_size = sizeof(struct sun4i_csi_buffer);
@@ -431,7 +431,7 @@ int sun4i_csi_dma_register(struct sun4i_csi *csi, int irq)
 	ret = v4l2_device_register(csi->dev, &csi->v4l);
 	if (ret) {
 		dev_err(csi->dev, "Couldn't register the v4l2 device\n");
-		goto err_free_queue;
+		goto err_free_mutex;
 	}
 
 	ret = devm_request_irq(csi->dev, irq, sun4i_csi_irq, 0,
@@ -446,9 +446,6 @@ int sun4i_csi_dma_register(struct sun4i_csi *csi, int irq)
 err_unregister_device:
 	v4l2_device_unregister(&csi->v4l);
 
-err_free_queue:
-	vb2_queue_release(q);
-
 err_free_mutex:
 	mutex_destroy(&csi->lock);
 	return ret;
@@ -457,6 +454,5 @@ err_free_mutex:
 void sun4i_csi_dma_unregister(struct sun4i_csi *csi)
 {
 	v4l2_device_unregister(&csi->v4l);
-	vb2_queue_release(&csi->queue);
 	mutex_destroy(&csi->lock);
 }

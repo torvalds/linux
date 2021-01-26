@@ -402,8 +402,6 @@ void __init prom_meminit(void)
 		}
 		__node_data[node] = &null_node;
 	}
-
-	memblocks_present();
 }
 
 void __init prom_free_prom_memory(void)

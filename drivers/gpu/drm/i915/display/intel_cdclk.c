@@ -326,7 +326,7 @@ static void pnv_get_cdclk(struct drm_i915_private *dev_priv,
 	default:
 		drm_err(&dev_priv->drm,
 			"Unknown pnv display core clock 0x%04x\n", gcfgc);
-		/* fall through */
+		fallthrough;
 	case GC_DISPLAY_CLOCK_133_MHZ_PNV:
 		cdclk_config->cdclk = 133333;
 		break;
@@ -766,7 +766,7 @@ static void bdw_set_cdclk(struct drm_i915_private *dev_priv,
 	switch (cdclk) {
 	default:
 		MISSING_CASE(cdclk);
-		/* fall through */
+		fallthrough;
 	case 337500:
 		val |= LCPLL_CLK_FREQ_337_5_BDW;
 		break;
@@ -1042,7 +1042,7 @@ static void skl_set_cdclk(struct drm_i915_private *dev_priv,
 		drm_WARN_ON(&dev_priv->drm,
 			    cdclk != dev_priv->cdclk.hw.bypass);
 		drm_WARN_ON(&dev_priv->drm, vco != 0);
-		/* fall through */
+		fallthrough;
 	case 308571:
 	case 337500:
 		freq_select = CDCLK_FREQ_337_308;
@@ -1333,7 +1333,7 @@ static void icl_readout_refclk(struct drm_i915_private *dev_priv,
 	switch (dssm) {
 	default:
 		MISSING_CASE(dssm);
-		/* fall through */
+		fallthrough;
 	case ICL_DSSM_CDCLK_PLL_REFCLK_24MHz:
 		cdclk_config->ref = 24000;
 		break;
@@ -1561,7 +1561,7 @@ static void bxt_set_cdclk(struct drm_i915_private *dev_priv,
 		drm_WARN_ON(&dev_priv->drm,
 			    cdclk != dev_priv->cdclk.hw.bypass);
 		drm_WARN_ON(&dev_priv->drm, vco != 0);
-		/* fall through */
+		fallthrough;
 	case 2:
 		divider = BXT_CDCLK_CD2X_DIV_SEL_1;
 		break;
@@ -2426,7 +2426,6 @@ static struct intel_global_state *intel_cdclk_duplicate_state(struct intel_globa
 	if (!cdclk_state)
 		return NULL;
 
-	cdclk_state->force_min_cdclk_changed = false;
 	cdclk_state->pipe = INVALID_PIPE;
 
 	return &cdclk_state->base;
@@ -2501,6 +2500,7 @@ int intel_modeset_calc_cdclk(struct intel_atomic_state *state)
 		if (ret)
 			return ret;
 	} else if (old_cdclk_state->active_pipes != new_cdclk_state->active_pipes ||
+		   old_cdclk_state->force_min_cdclk != new_cdclk_state->force_min_cdclk ||
 		   intel_cdclk_changed(&old_cdclk_state->logical,
 				       &new_cdclk_state->logical)) {
 		ret = intel_atomic_lock_global_state(&new_cdclk_state->base);
@@ -2677,7 +2677,7 @@ void intel_update_cdclk(struct drm_i915_private *dev_priv)
 	 */
 	if (IS_VALLEYVIEW(dev_priv) || IS_CHERRYVIEW(dev_priv))
 		intel_de_write(dev_priv, GMBUSFREQ_VLV,
-		               DIV_ROUND_UP(dev_priv->cdclk.hw.cdclk, 1000));
+			       DIV_ROUND_UP(dev_priv->cdclk.hw.cdclk, 1000));
 }
 
 static int cnp_rawclk(struct drm_i915_private *dev_priv)
@@ -2903,9 +2903,10 @@ void intel_init_cdclk_hooks(struct drm_i915_private *dev_priv)
 		dev_priv->display.get_cdclk = i85x_get_cdclk;
 	else if (IS_I845G(dev_priv))
 		dev_priv->display.get_cdclk = fixed_200mhz_get_cdclk;
-	else { /* 830 */
-		drm_WARN(&dev_priv->drm, !IS_I830(dev_priv),
-			 "Unknown platform. Assuming 133 MHz CDCLK\n");
+	else if (IS_I830(dev_priv))
 		dev_priv->display.get_cdclk = fixed_133mhz_get_cdclk;
-	}
+
+	if (drm_WARN(&dev_priv->drm, !dev_priv->display.get_cdclk,
+		     "Unknown platform. Assuming 133 MHz CDCLK\n"))
+		dev_priv->display.get_cdclk = fixed_133mhz_get_cdclk;
 }

@@ -23,6 +23,8 @@
 #include "../sof-audio.h"
 #include "hda.h"
 
+#define HDA_LTRP_GB_VALUE_US	95
+
 /*
  * set up one of BDL entries for a stream
  */
@@ -318,6 +320,73 @@ int hda_dsp_stream_trigger(struct snd_sof_dev *sdev,
 		dev_err(sdev->dev, "error: unknown command: %d\n", cmd);
 		return -EINVAL;
 	}
+
+	return 0;
+}
+
+/* minimal recommended programming for ICCMAX stream */
+int hda_dsp_iccmax_stream_hw_params(struct snd_sof_dev *sdev, struct hdac_ext_stream *stream,
+				    struct snd_dma_buffer *dmab,
+				    struct snd_pcm_hw_params *params)
+{
+	struct hdac_bus *bus = sof_to_bus(sdev);
+	struct hdac_stream *hstream = &stream->hstream;
+	int sd_offset = SOF_STREAM_SD_OFFSET(hstream);
+	int ret;
+	u32 mask = 0x1 << hstream->index;
+
+	if (!stream) {
+		dev_err(sdev->dev, "error: no stream available\n");
+		return -ENODEV;
+	}
+
+	if (hstream->posbuf)
+		*hstream->posbuf = 0;
+
+	/* reset BDL address */
+	snd_sof_dsp_write(sdev, HDA_DSP_HDA_BAR,
+			  sd_offset + SOF_HDA_ADSP_REG_CL_SD_BDLPL,
+			  0x0);
+	snd_sof_dsp_write(sdev, HDA_DSP_HDA_BAR,
+			  sd_offset + SOF_HDA_ADSP_REG_CL_SD_BDLPU,
+			  0x0);
+
+	hstream->frags = 0;
+
+	ret = hda_dsp_stream_setup_bdl(sdev, dmab, hstream);
+	if (ret < 0) {
+		dev_err(sdev->dev, "error: set up of BDL failed\n");
+		return ret;
+	}
+
+	/* program BDL address */
+	snd_sof_dsp_write(sdev, HDA_DSP_HDA_BAR,
+			  sd_offset + SOF_HDA_ADSP_REG_CL_SD_BDLPL,
+			  (u32)hstream->bdl.addr);
+	snd_sof_dsp_write(sdev, HDA_DSP_HDA_BAR,
+			  sd_offset + SOF_HDA_ADSP_REG_CL_SD_BDLPU,
+			  upper_32_bits(hstream->bdl.addr));
+
+	/* program cyclic buffer length */
+	snd_sof_dsp_write(sdev, HDA_DSP_HDA_BAR,
+			  sd_offset + SOF_HDA_ADSP_REG_CL_SD_CBL,
+			  hstream->bufsize);
+
+	/* program last valid index */
+	snd_sof_dsp_update_bits(sdev, HDA_DSP_HDA_BAR,
+				sd_offset + SOF_HDA_ADSP_REG_CL_SD_LVI,
+				0xffff, (hstream->frags - 1));
+
+	/* decouple host and link DMA, enable DSP features */
+	snd_sof_dsp_update_bits(sdev, HDA_DSP_PP_BAR, SOF_HDA_REG_PP_PPCTL,
+				mask, mask);
+
+	/* Follow HW recommendation to set the guardband value to 95us during FW boot */
+	snd_hdac_chip_updateb(bus, VS_LTRP, HDA_VS_INTEL_LTRP_GB_MASK, HDA_LTRP_GB_VALUE_US);
+
+	/* start DMA */
+	snd_sof_dsp_update_bits(sdev, HDA_DSP_HDA_BAR, sd_offset,
+				SOF_HDA_SD_CTL_DMA_START, SOF_HDA_SD_CTL_DMA_START);
 
 	return 0;
 }

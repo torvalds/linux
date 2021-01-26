@@ -255,7 +255,7 @@ static int gsc_m2m_buf_prepare(struct vb2_buffer *vb)
 	if (IS_ERR(frame))
 		return PTR_ERR(frame);
 
-	if (!V4L2_TYPE_IS_OUTPUT(vb->vb2_queue->type)) {
+	if (V4L2_TYPE_IS_CAPTURE(vb->vb2_queue->type)) {
 		for (i = 0; i < frame->fmt->num_planes; i++)
 			vb2_set_plane_payload(vb, i, frame->payload[i]);
 	}

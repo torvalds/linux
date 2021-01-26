@@ -1,11 +1,4 @@
-.. Permission is granted to copy, distribute and/or modify this
-.. document under the terms of the GNU Free Documentation License,
-.. Version 1.1 or any later version published by the Free Software
-.. Foundation, with no Invariant Sections, no Front-Cover Texts
-.. and no Back-Cover Texts. A copy of the license is included at
-.. Documentation/userspace-api/media/fdl-appendix.rst.
-..
-.. TODO: replace it to GFDL-1.1-or-later WITH no-invariant-sections
+.. SPDX-License-Identifier: GFDL-1.1-no-invariants-or-later
 
 .. _CEC_ADAP_G_CAPS:
 
@@ -57,6 +50,9 @@ returns the information to the application. The ioctl never fails.
       - ``name[32]``
       - The name of this CEC adapter. The combination ``driver`` and
 	``name`` must be unique.
+    * - __u32
+      - ``available_log_addrs``
+      - The maximum number of logical addresses that can be configured.
     * - __u32
       - ``capabilities``
       - The capabilities of the CEC adapter, see

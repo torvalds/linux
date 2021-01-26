@@ -25,13 +25,12 @@
 #include <sound/soc-dapm.h>
 #include <sound/initval.h>
 #include <sound/tlv.h>
-#include <sound/rt5670.h>
 
 #include "rl6231.h"
 #include "rt5670.h"
 #include "rt5670-dsp.h"
 
-#define RT5670_DEV_GPIO			BIT(0)
+#define RT5670_GPIO1_IS_IRQ			BIT(0)
 #define RT5670_IN2_DIFF			BIT(1)
 #define RT5670_DMIC_EN			BIT(2)
 #define RT5670_DMIC1_IN2P		BIT(3)
@@ -453,13 +452,13 @@ static int rt5670_headset_detect(struct snd_soc_component *component, int jack_i
 		snd_soc_component_update_bits(component, RT5670_CJ_CTRL2,
 			RT5670_CBJ_MN_JD, 0);
 		msleep(300);
-		val = snd_soc_component_read32(component, RT5670_CJ_CTRL3) & 0x7;
+		val = snd_soc_component_read(component, RT5670_CJ_CTRL3) & 0x7;
 		if (val == 0x1 || val == 0x2) {
 			rt5670->jack_type = SND_JACK_HEADSET;
 			/* for push button */
 			snd_soc_component_update_bits(component, RT5670_INT_IRQ_ST, 0x8, 0x8);
 			snd_soc_component_update_bits(component, RT5670_IL_CMD, 0x40, 0x40);
-			snd_soc_component_read32(component, RT5670_IL_CMD);
+			snd_soc_component_read(component, RT5670_IL_CMD);
 		} else {
 			snd_soc_component_update_bits(component, RT5670_GEN_CTRL3, 0x4, 0x4);
 			rt5670->jack_type = SND_JACK_HEADPHONE;
@@ -499,12 +498,12 @@ static int rt5670_button_detect(struct snd_soc_component *component)
 {
 	int btn_type, val;
 
-	val = snd_soc_component_read32(component, RT5670_IL_CMD);
+	val = snd_soc_component_read(component, RT5670_IL_CMD);
 	btn_type = val & 0xff80;
 	snd_soc_component_write(component, RT5670_IL_CMD, val);
 	if (btn_type != 0) {
 		msleep(20);
-		val = snd_soc_component_read32(component, RT5670_IL_CMD);
+		val = snd_soc_component_read(component, RT5670_IL_CMD);
 		snd_soc_component_write(component, RT5670_IL_CMD, val);
 	}
 
@@ -518,10 +517,10 @@ static int rt5670_irq_detection(void *data)
 	struct snd_soc_jack *jack = rt5670->jack;
 	int val, btn_type, report = jack->status;
 
-	if (rt5670->pdata.jd_mode == 1) /* 2 port */
-		val = snd_soc_component_read32(rt5670->component, RT5670_A_JD_CTRL1) & 0x0070;
+	if (rt5670->jd_mode == 1) /* 2 port */
+		val = snd_soc_component_read(rt5670->component, RT5670_A_JD_CTRL1) & 0x0070;
 	else
-		val = snd_soc_component_read32(rt5670->component, RT5670_A_JD_CTRL1) & 0x0020;
+		val = snd_soc_component_read(rt5670->component, RT5670_A_JD_CTRL1) & 0x0020;
 
 	switch (val) {
 	/* jack in */
@@ -534,7 +533,7 @@ static int rt5670_irq_detection(void *data)
 			break;
 		}
 		btn_type = 0;
-		if (snd_soc_component_read32(rt5670->component, RT5670_INT_IRQ_ST) & 0x4) {
+		if (snd_soc_component_read(rt5670->component, RT5670_INT_IRQ_ST) & 0x4) {
 			/* button pressed */
 			report = SND_JACK_HEADSET;
 			btn_type = rt5670_button_detect(rt5670->component);
@@ -763,7 +762,7 @@ static int is_using_asrc(struct snd_soc_dapm_widget *source,
 		return 0;
 	}
 
-	val = (snd_soc_component_read32(component, reg) >> shift) & 0xf;
+	val = (snd_soc_component_read(component, reg) >> shift) & 0xf;
 	switch (val) {
 	case 1:
 	case 2:
@@ -1454,7 +1453,7 @@ static int rt5670_spk_event(struct snd_soc_dapm_widget *w,
 	struct snd_soc_component *component = snd_soc_dapm_to_component(w->dapm);
 	struct rt5670_priv *rt5670 = snd_soc_component_get_drvdata(component);
 
-	if (!rt5670->pdata.gpio1_is_ext_spk_en)
+	if (!rt5670->gpio1_is_ext_spk_en)
 		return 0;
 
 	switch (event) {
@@ -2624,7 +2623,7 @@ static int rt5670_set_bias_level(struct snd_soc_component *component,
 				RT5670_LDO_SEL_MASK, 0x3);
 		break;
 	case SND_SOC_BIAS_OFF:
-		if (rt5670->pdata.jd_mode)
+		if (rt5670->jd_mode)
 			snd_soc_component_update_bits(component, RT5670_PWR_ANLG1,
 				RT5670_PWR_VREF1 | RT5670_PWR_MB |
 				RT5670_PWR_BG | RT5670_PWR_VREF2 |
@@ -2651,7 +2650,7 @@ static int rt5670_probe(struct snd_soc_component *component)
 	struct snd_soc_dapm_context *dapm = snd_soc_component_get_dapm(component);
 	struct rt5670_priv *rt5670 = snd_soc_component_get_drvdata(component);
 
-	switch (snd_soc_component_read32(component, RT5670_RESET) & RT5670_ID_MASK) {
+	switch (snd_soc_component_read(component, RT5670_RESET) & RT5670_ID_MASK) {
 	case RT5670_ID_5670:
 	case RT5670_ID_5671:
 		snd_soc_dapm_new_controls(dapm,
@@ -2834,7 +2833,7 @@ static const struct dmi_system_id dmi_platform_intel_quirks[] = {
 		},
 		.driver_data = (unsigned long *)(RT5670_DMIC_EN |
 						 RT5670_DMIC1_IN2P |
-						 RT5670_DEV_GPIO |
+						 RT5670_GPIO1_IS_IRQ |
 						 RT5670_JD_MODE1),
 	},
 	{
@@ -2846,7 +2845,7 @@ static const struct dmi_system_id dmi_platform_intel_quirks[] = {
 		},
 		.driver_data = (unsigned long *)(RT5670_DMIC_EN |
 						 RT5670_DMIC1_IN2P |
-						 RT5670_DEV_GPIO |
+						 RT5670_GPIO1_IS_IRQ |
 						 RT5670_JD_MODE1),
 	},
 	{
@@ -2858,7 +2857,7 @@ static const struct dmi_system_id dmi_platform_intel_quirks[] = {
 		},
 		.driver_data = (unsigned long *)(RT5670_DMIC_EN |
 						 RT5670_DMIC2_INR |
-						 RT5670_DEV_GPIO |
+						 RT5670_GPIO1_IS_IRQ |
 						 RT5670_JD_MODE1),
 	},
 	{
@@ -2870,7 +2869,7 @@ static const struct dmi_system_id dmi_platform_intel_quirks[] = {
 		},
 		.driver_data = (unsigned long *)(RT5670_DMIC_EN |
 						 RT5670_DMIC1_IN2P |
-						 RT5670_DEV_GPIO |
+						 RT5670_GPIO1_IS_IRQ |
 						 RT5670_JD_MODE1),
 	},
 	{
@@ -2882,7 +2881,7 @@ static const struct dmi_system_id dmi_platform_intel_quirks[] = {
 		},
 		.driver_data = (unsigned long *)(RT5670_DMIC_EN |
 						 RT5670_DMIC1_IN2P |
-						 RT5670_DEV_GPIO |
+						 RT5670_GPIO1_IS_IRQ |
 						 RT5670_JD_MODE1),
 	},
 	{
@@ -2906,7 +2905,7 @@ static const struct dmi_system_id dmi_platform_intel_quirks[] = {
 		},
 		.driver_data = (unsigned long *)(RT5670_DMIC_EN |
 						 RT5670_DMIC2_INR |
-						 RT5670_DEV_GPIO |
+						 RT5670_GPIO1_IS_IRQ |
 						 RT5670_JD_MODE3),
 	},
 	{
@@ -2918,7 +2917,7 @@ static const struct dmi_system_id dmi_platform_intel_quirks[] = {
 		},
 		.driver_data = (unsigned long *)(RT5670_DMIC_EN |
 						 RT5670_DMIC2_INR |
-						 RT5670_DEV_GPIO |
+						 RT5670_GPIO1_IS_IRQ |
 						 RT5670_JD_MODE3),
 	},
 	{}
@@ -2927,7 +2926,6 @@ static const struct dmi_system_id dmi_platform_intel_quirks[] = {
 static int rt5670_i2c_probe(struct i2c_client *i2c,
 		    const struct i2c_device_id *id)
 {
-	struct rt5670_platform_data *pdata = dev_get_platdata(&i2c->dev);
 	struct rt5670_priv *rt5670;
 	int ret;
 	unsigned int val;
@@ -2940,9 +2938,6 @@ static int rt5670_i2c_probe(struct i2c_client *i2c,
 
 	i2c_set_clientdata(i2c, rt5670);
 
-	if (pdata)
-		rt5670->pdata = *pdata;
-
 	dmi_check_system(dmi_platform_intel_quirks);
 	if (quirk_override) {
 		dev_info(&i2c->dev, "Overriding quirk 0x%x => 0x%x\n",
@@ -2950,57 +2945,57 @@ static int rt5670_i2c_probe(struct i2c_client *i2c,
 		rt5670_quirk = quirk_override;
 	}
 
-	if (rt5670_quirk & RT5670_DEV_GPIO) {
-		rt5670->pdata.dev_gpio = true;
-		dev_info(&i2c->dev, "quirk dev_gpio\n");
+	if (rt5670_quirk & RT5670_GPIO1_IS_IRQ) {
+		rt5670->gpio1_is_irq = true;
+		dev_info(&i2c->dev, "quirk GPIO1 is IRQ\n");
 	}
 	if (rt5670_quirk & RT5670_GPIO1_IS_EXT_SPK_EN) {
-		rt5670->pdata.gpio1_is_ext_spk_en = true;
+		rt5670->gpio1_is_ext_spk_en = true;
 		dev_info(&i2c->dev, "quirk GPIO1 is external speaker enable\n");
 	}
 	if (rt5670_quirk & RT5670_IN2_DIFF) {
-		rt5670->pdata.in2_diff = true;
+		rt5670->in2_diff = true;
 		dev_info(&i2c->dev, "quirk IN2_DIFF\n");
 	}
 	if (rt5670_quirk & RT5670_DMIC_EN) {
-		rt5670->pdata.dmic_en = true;
+		rt5670->dmic_en = true;
 		dev_info(&i2c->dev, "quirk DMIC enabled\n");
 	}
 	if (rt5670_quirk & RT5670_DMIC1_IN2P) {
-		rt5670->pdata.dmic1_data_pin = RT5670_DMIC_DATA_IN2P;
+		rt5670->dmic1_data_pin = RT5670_DMIC_DATA_IN2P;
 		dev_info(&i2c->dev, "quirk DMIC1 on IN2P pin\n");
 	}
 	if (rt5670_quirk & RT5670_DMIC1_GPIO6) {
-		rt5670->pdata.dmic1_data_pin = RT5670_DMIC_DATA_GPIO6;
+		rt5670->dmic1_data_pin = RT5670_DMIC_DATA_GPIO6;
 		dev_info(&i2c->dev, "quirk DMIC1 on GPIO6 pin\n");
 	}
 	if (rt5670_quirk & RT5670_DMIC1_GPIO7) {
-		rt5670->pdata.dmic1_data_pin = RT5670_DMIC_DATA_GPIO7;
+		rt5670->dmic1_data_pin = RT5670_DMIC_DATA_GPIO7;
 		dev_info(&i2c->dev, "quirk DMIC1 on GPIO7 pin\n");
 	}
 	if (rt5670_quirk & RT5670_DMIC2_INR) {
-		rt5670->pdata.dmic2_data_pin = RT5670_DMIC_DATA_IN3N;
+		rt5670->dmic2_data_pin = RT5670_DMIC_DATA_IN3N;
 		dev_info(&i2c->dev, "quirk DMIC2 on INR pin\n");
 	}
 	if (rt5670_quirk & RT5670_DMIC2_GPIO8) {
-		rt5670->pdata.dmic2_data_pin = RT5670_DMIC_DATA_GPIO8;
+		rt5670->dmic2_data_pin = RT5670_DMIC_DATA_GPIO8;
 		dev_info(&i2c->dev, "quirk DMIC2 on GPIO8 pin\n");
 	}
 	if (rt5670_quirk & RT5670_DMIC3_GPIO5) {
-		rt5670->pdata.dmic3_data_pin = RT5670_DMIC_DATA_GPIO5;
+		rt5670->dmic3_data_pin = RT5670_DMIC_DATA_GPIO5;
 		dev_info(&i2c->dev, "quirk DMIC3 on GPIO5 pin\n");
 	}
 
 	if (rt5670_quirk & RT5670_JD_MODE1) {
-		rt5670->pdata.jd_mode = 1;
+		rt5670->jd_mode = 1;
 		dev_info(&i2c->dev, "quirk JD mode 1\n");
 	}
 	if (rt5670_quirk & RT5670_JD_MODE2) {
-		rt5670->pdata.jd_mode = 2;
+		rt5670->jd_mode = 2;
 		dev_info(&i2c->dev, "quirk JD mode 2\n");
 	}
 	if (rt5670_quirk & RT5670_JD_MODE3) {
-		rt5670->pdata.jd_mode = 3;
+		rt5670->jd_mode = 3;
 		dev_info(&i2c->dev, "quirk JD mode 3\n");
 	}
 
@@ -3041,11 +3036,11 @@ static int rt5670_i2c_probe(struct i2c_client *i2c,
 	regmap_update_bits(rt5670->regmap, RT5670_DIG_MISC,
 				 RT5670_MCLK_DET, RT5670_MCLK_DET);
 
-	if (rt5670->pdata.in2_diff)
+	if (rt5670->in2_diff)
 		regmap_update_bits(rt5670->regmap, RT5670_IN2,
 					RT5670_IN_DF2, RT5670_IN_DF2);
 
-	if (rt5670->pdata.dev_gpio) {
+	if (rt5670->gpio1_is_irq) {
 		/* for push button */
 		regmap_write(rt5670->regmap, RT5670_IL_CMD, 0x0000);
 		regmap_write(rt5670->regmap, RT5670_IL_CMD2, 0x0010);
@@ -3057,14 +3052,14 @@ static int rt5670_i2c_probe(struct i2c_client *i2c,
 				   RT5670_GP1_PF_MASK, RT5670_GP1_PF_OUT);
 	}
 
-	if (rt5670->pdata.gpio1_is_ext_spk_en) {
+	if (rt5670->gpio1_is_ext_spk_en) {
 		regmap_update_bits(rt5670->regmap, RT5670_GPIO_CTRL1,
 				   RT5670_GP1_PIN_MASK, RT5670_GP1_PIN_GPIO1);
 		regmap_update_bits(rt5670->regmap, RT5670_GPIO_CTRL2,
 				   RT5670_GP1_PF_MASK, RT5670_GP1_PF_OUT);
 	}
 
-	if (rt5670->pdata.jd_mode) {
+	if (rt5670->jd_mode) {
 		regmap_update_bits(rt5670->regmap, RT5670_GLB_CLK,
 				   RT5670_SCLK_SRC_MASK, RT5670_SCLK_SRC_RCCLK);
 		rt5670->sysclk = 0;
@@ -3079,7 +3074,7 @@ static int rt5670_i2c_probe(struct i2c_client *i2c,
 				   RT5670_JD_TRI_CBJ_SEL_MASK |
 				   RT5670_JD_TRI_HPO_SEL_MASK,
 				   RT5670_JD_CBJ_JD1_1 | RT5670_JD_HPO_JD1_1);
-		switch (rt5670->pdata.jd_mode) {
+		switch (rt5670->jd_mode) {
 		case 1:
 			regmap_update_bits(rt5670->regmap, RT5670_A_JD_CTRL1,
 					   RT5670_JD1_MODE_MASK,
@@ -3100,12 +3095,12 @@ static int rt5670_i2c_probe(struct i2c_client *i2c,
 		}
 	}
 
-	if (rt5670->pdata.dmic_en) {
+	if (rt5670->dmic_en) {
 		regmap_update_bits(rt5670->regmap, RT5670_GPIO_CTRL1,
 				   RT5670_GP2_PIN_MASK,
 				   RT5670_GP2_PIN_DMIC1_SCL);
 
-		switch (rt5670->pdata.dmic1_data_pin) {
+		switch (rt5670->dmic1_data_pin) {
 		case RT5670_DMIC_DATA_IN2P:
 			regmap_update_bits(rt5670->regmap, RT5670_DMIC_CTRL1,
 					   RT5670_DMIC_1_DP_MASK,
@@ -3134,7 +3129,7 @@ static int rt5670_i2c_probe(struct i2c_client *i2c,
 			break;
 		}
 
-		switch (rt5670->pdata.dmic2_data_pin) {
+		switch (rt5670->dmic2_data_pin) {
 		case RT5670_DMIC_DATA_IN3N:
 			regmap_update_bits(rt5670->regmap, RT5670_DMIC_CTRL1,
 					   RT5670_DMIC_2_DP_MASK,
@@ -3154,7 +3149,7 @@ static int rt5670_i2c_probe(struct i2c_client *i2c,
 			break;
 		}
 
-		switch (rt5670->pdata.dmic3_data_pin) {
+		switch (rt5670->dmic3_data_pin) {
 		case RT5670_DMIC_DATA_GPIO5:
 			regmap_update_bits(rt5670->regmap, RT5670_DMIC_CTRL2,
 					   RT5670_DMIC_3_DP_MASK,

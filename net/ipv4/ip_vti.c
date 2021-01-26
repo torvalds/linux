@@ -490,12 +490,14 @@ static struct xfrm_tunnel vti_ipip_handler __read_mostly = {
 	.priority	=	0,
 };
 
+#if IS_ENABLED(CONFIG_IPV6)
 static struct xfrm_tunnel vti_ipip6_handler __read_mostly = {
 	.handler	=	vti_rcv_tunnel,
 	.cb_handler	=	vti_rcv_cb,
 	.err_handler	=	vti4_err,
 	.priority	=	0,
 };
+#endif
 #endif
 
 static int __net_init vti_init_net(struct net *net)

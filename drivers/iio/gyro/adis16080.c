@@ -38,7 +38,7 @@ struct adis16080_chip_info {
  * @us:			actual spi_device to write data
  * @info:		chip specific parameters
  * @buf:		transmit or receive buffer
- * @lock		lock to protect buffer during reads
+ * @lock:		lock to protect buffer during reads
  **/
 struct adis16080_state {
 	struct spi_device		*us;
@@ -207,7 +207,6 @@ static int adis16080_probe(struct spi_device *spi)
 	indio_dev->name = spi->dev.driver->name;
 	indio_dev->channels = adis16080_channels;
 	indio_dev->num_channels = ARRAY_SIZE(adis16080_channels);
-	indio_dev->dev.parent = &spi->dev;
 	indio_dev->info = &adis16080_info;
 	indio_dev->modes = INDIO_DIRECT_MODE;
 

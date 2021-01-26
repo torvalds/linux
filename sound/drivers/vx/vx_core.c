@@ -511,8 +511,9 @@ irqreturn_t snd_vx_threaded_irq_handler(int irq, void *dev)
 	/* The start on time code conditions are filled (ie the time code
 	 * received by the board is equal to one of those given to it).
 	 */
-	if (events & TIME_CODE_EVENT_PENDING)
+	if (events & TIME_CODE_EVENT_PENDING) {
 		; /* so far, nothing to do yet */
+	}
 
 	/* The frequency has changed on the board (UER mode). */
 	if (events & FREQUENCY_CHANGE_EVENT_PENDING)
@@ -596,9 +597,9 @@ static void vx_proc_read(struct snd_info_entry *entry, struct snd_info_buffer *b
 	
 	snd_iprintf(buffer, "%s\n", chip->card->longname);
 	snd_iprintf(buffer, "Xilinx Firmware: %s\n",
-		    chip->chip_status & VX_STAT_XILINX_LOADED ? "Loaded" : "No");
+		    (chip->chip_status & VX_STAT_XILINX_LOADED) ? "Loaded" : "No");
 	snd_iprintf(buffer, "Device Initialized: %s\n",
-		    chip->chip_status & VX_STAT_DEVICE_INIT ? "Yes" : "No");
+		    (chip->chip_status & VX_STAT_DEVICE_INIT) ? "Yes" : "No");
 	snd_iprintf(buffer, "DSP audio info:");
 	if (chip->audio_info & VX_AUDIO_INFO_REAL_TIME)
 		snd_iprintf(buffer, " realtime");

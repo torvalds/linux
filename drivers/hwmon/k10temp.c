@@ -21,7 +21,6 @@
  */
 
 #include <linux/bitops.h>
-#include <linux/debugfs.h>
 #include <linux/err.h>
 #include <linux/hwmon.h>
 #include <linux/init.h>
@@ -73,22 +72,35 @@ static DEFINE_MUTEX(nb_smu_ind_mutex);
 #define F15H_M60H_HARDWARE_TEMP_CTRL_OFFSET	0xd8200c64
 #define F15H_M60H_REPORTED_TEMP_CTRL_OFFSET	0xd8200ca4
 
-/* F17h M01h Access througn SMN */
-#define F17H_M01H_REPORTED_TEMP_CTRL_OFFSET	0x00059800
+/* Common for Zen CPU families (Family 17h and 18h) */
+#define ZEN_REPORTED_TEMP_CTRL_OFFSET		0x00059800
 
-#define F17H_M70H_CCD_TEMP(x)			(0x00059954 + ((x) * 4))
-#define F17H_M70H_CCD_TEMP_VALID		BIT(11)
-#define F17H_M70H_CCD_TEMP_MASK			GENMASK(10, 0)
+#define ZEN_CCD_TEMP(x)				(0x00059954 + ((x) * 4))
+#define ZEN_CCD_TEMP_VALID			BIT(11)
+#define ZEN_CCD_TEMP_MASK			GENMASK(10, 0)
 
-#define F17H_M01H_SVI				0x0005A000
-#define F17H_M01H_SVI_TEL_PLANE0		(F17H_M01H_SVI + 0xc)
-#define F17H_M01H_SVI_TEL_PLANE1		(F17H_M01H_SVI + 0x10)
+#define ZEN_CUR_TEMP_SHIFT			21
+#define ZEN_CUR_TEMP_RANGE_SEL_MASK		BIT(19)
 
-#define CUR_TEMP_SHIFT				21
-#define CUR_TEMP_RANGE_SEL_MASK			BIT(19)
+#define ZEN_SVI_BASE				0x0005A000
 
-#define CFACTOR_ICORE				1000000	/* 1A / LSB	*/
-#define CFACTOR_ISOC				250000	/* 0.25A / LSB	*/
+/* F17h thermal registers through SMN */
+#define F17H_M01H_SVI_TEL_PLANE0		(ZEN_SVI_BASE + 0xc)
+#define F17H_M01H_SVI_TEL_PLANE1		(ZEN_SVI_BASE + 0x10)
+#define F17H_M31H_SVI_TEL_PLANE0		(ZEN_SVI_BASE + 0x14)
+#define F17H_M31H_SVI_TEL_PLANE1		(ZEN_SVI_BASE + 0x10)
+
+#define F17H_M01H_CFACTOR_ICORE			1000000	/* 1A / LSB	*/
+#define F17H_M01H_CFACTOR_ISOC			250000	/* 0.25A / LSB	*/
+#define F17H_M31H_CFACTOR_ICORE			1000000	/* 1A / LSB	*/
+#define F17H_M31H_CFACTOR_ISOC			310000	/* 0.31A / LSB	*/
+
+/* F19h thermal registers through SMN */
+#define F19H_M01_SVI_TEL_PLANE0			(ZEN_SVI_BASE + 0x14)
+#define F19H_M01_SVI_TEL_PLANE1			(ZEN_SVI_BASE + 0x10)
+
+#define F19H_M01H_CFACTOR_ICORE			1000000	/* 1A / LSB	*/
+#define F19H_M01H_CFACTOR_ISOC			310000	/* 0.31A / LSB	*/
 
 struct k10temp_data {
 	struct pci_dev *pdev;
@@ -168,10 +180,10 @@ static void read_tempreg_nb_f15(struct pci_dev *pdev, u32 *regval)
 			  F15H_M60H_REPORTED_TEMP_CTRL_OFFSET, regval);
 }
 
-static void read_tempreg_nb_f17(struct pci_dev *pdev, u32 *regval)
+static void read_tempreg_nb_zen(struct pci_dev *pdev, u32 *regval)
 {
 	amd_smn_read(amd_pci_dev_to_node_id(pdev),
-		     F17H_M01H_REPORTED_TEMP_CTRL_OFFSET, regval);
+		     ZEN_REPORTED_TEMP_CTRL_OFFSET, regval);
 }
 
 static long get_raw_temp(struct k10temp_data *data)
@@ -180,7 +192,7 @@ static long get_raw_temp(struct k10temp_data *data)
 	long temp;
 
 	data->read_tempreg(data->pdev, &regval);
-	temp = (regval >> CUR_TEMP_SHIFT) * 125;
+	temp = (regval >> ZEN_CUR_TEMP_SHIFT) * 125;
 	if (regval & data->temp_adjust_mask)
 		temp -= 49000;
 	return temp;
@@ -288,8 +300,8 @@ static int k10temp_read_temp(struct device *dev, u32 attr, int channel,
 			break;
 		case 2 ... 9:		/* Tccd{1-8} */
 			amd_smn_read(amd_pci_dev_to_node_id(data->pdev),
-				     F17H_M70H_CCD_TEMP(channel - 2), &regval);
-			*val = (regval & F17H_M70H_CCD_TEMP_MASK) * 125 - 49000;
+				     ZEN_CCD_TEMP(channel - 2), &regval);
+			*val = (regval & ZEN_CCD_TEMP_MASK) * 125 - 49000;
 			break;
 		default:
 			return -EOPNOTSUPP;
@@ -416,76 +428,6 @@ static bool has_erratum_319(struct pci_dev *pdev)
 	       (boot_cpu_data.x86_model == 4 && boot_cpu_data.x86_stepping <= 2);
 }
 
-#ifdef CONFIG_DEBUG_FS
-
-static void k10temp_smn_regs_show(struct seq_file *s, struct pci_dev *pdev,
-				  u32 addr, int count)
-{
-	u32 reg;
-	int i;
-
-	for (i = 0; i < count; i++) {
-		if (!(i & 3))
-			seq_printf(s, "0x%06x: ", addr + i * 4);
-		amd_smn_read(amd_pci_dev_to_node_id(pdev), addr + i * 4, &reg);
-		seq_printf(s, "%08x ", reg);
-		if ((i & 3) == 3)
-			seq_puts(s, "\n");
-	}
-}
-
-static int svi_show(struct seq_file *s, void *unused)
-{
-	struct k10temp_data *data = s->private;
-
-	k10temp_smn_regs_show(s, data->pdev, F17H_M01H_SVI, 32);
-	return 0;
-}
-DEFINE_SHOW_ATTRIBUTE(svi);
-
-static int thm_show(struct seq_file *s, void *unused)
-{
-	struct k10temp_data *data = s->private;
-
-	k10temp_smn_regs_show(s, data->pdev,
-			      F17H_M01H_REPORTED_TEMP_CTRL_OFFSET, 256);
-	return 0;
-}
-DEFINE_SHOW_ATTRIBUTE(thm);
-
-static void k10temp_debugfs_cleanup(void *ddir)
-{
-	debugfs_remove_recursive(ddir);
-}
-
-static void k10temp_init_debugfs(struct k10temp_data *data)
-{
-	struct dentry *debugfs;
-	char name[32];
-
-	/* Only show debugfs data for Family 17h/18h CPUs */
-	if (!data->is_zen)
-		return;
-
-	scnprintf(name, sizeof(name), "k10temp-%s", pci_name(data->pdev));
-
-	debugfs = debugfs_create_dir(name, NULL);
-	if (debugfs) {
-		debugfs_create_file("svi", 0444, debugfs, data, &svi_fops);
-		debugfs_create_file("thm", 0444, debugfs, data, &thm_fops);
-		devm_add_action_or_reset(&data->pdev->dev,
-					 k10temp_debugfs_cleanup, debugfs);
-	}
-}
-
-#else
-
-static void k10temp_init_debugfs(struct k10temp_data *data)
-{
-}
-
-#endif
-
 static const struct hwmon_channel_info *k10temp_info[] = {
 	HWMON_CHANNEL_INFO(temp,
 			   HWMON_T_INPUT | HWMON_T_MAX |
@@ -528,8 +470,8 @@ static void k10temp_get_ccd_support(struct pci_dev *pdev,
 
 	for (i = 0; i < limit; i++) {
 		amd_smn_read(amd_pci_dev_to_node_id(pdev),
-			     F17H_M70H_CCD_TEMP(i), &regval);
-		if (regval & F17H_M70H_CCD_TEMP_VALID)
+			     ZEN_CCD_TEMP(i), &regval);
+		if (regval & ZEN_CCD_TEMP_VALID)
 			data->show_temp |= BIT(TCCD_BIT(i));
 	}
 }
@@ -565,8 +507,8 @@ static int k10temp_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 		data->read_htcreg = read_htcreg_nb_f15;
 		data->read_tempreg = read_tempreg_nb_f15;
 	} else if (boot_cpu_data.x86 == 0x17 || boot_cpu_data.x86 == 0x18) {
-		data->temp_adjust_mask = CUR_TEMP_RANGE_SEL_MASK;
-		data->read_tempreg = read_tempreg_nb_f17;
+		data->temp_adjust_mask = ZEN_CUR_TEMP_RANGE_SEL_MASK;
+		data->read_tempreg = read_tempreg_nb_zen;
 		data->show_temp |= BIT(TDIE_BIT);	/* show Tdie */
 		data->is_zen = true;
 
@@ -578,17 +520,33 @@ static int k10temp_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 			data->show_current = !is_threadripper() && !is_epyc();
 			data->svi_addr[0] = F17H_M01H_SVI_TEL_PLANE0;
 			data->svi_addr[1] = F17H_M01H_SVI_TEL_PLANE1;
-			data->cfactor[0] = CFACTOR_ICORE;
-			data->cfactor[1] = CFACTOR_ISOC;
+			data->cfactor[0] = F17H_M01H_CFACTOR_ICORE;
+			data->cfactor[1] = F17H_M01H_CFACTOR_ISOC;
 			k10temp_get_ccd_support(pdev, data, 4);
 			break;
 		case 0x31:	/* Zen2 Threadripper */
 		case 0x71:	/* Zen2 */
 			data->show_current = !is_threadripper() && !is_epyc();
-			data->cfactor[0] = CFACTOR_ICORE;
-			data->cfactor[1] = CFACTOR_ISOC;
-			data->svi_addr[0] = F17H_M01H_SVI_TEL_PLANE1;
-			data->svi_addr[1] = F17H_M01H_SVI_TEL_PLANE0;
+			data->cfactor[0] = F17H_M31H_CFACTOR_ICORE;
+			data->cfactor[1] = F17H_M31H_CFACTOR_ISOC;
+			data->svi_addr[0] = F17H_M31H_SVI_TEL_PLANE0;
+			data->svi_addr[1] = F17H_M31H_SVI_TEL_PLANE1;
+			k10temp_get_ccd_support(pdev, data, 8);
+			break;
+		}
+	} else if (boot_cpu_data.x86 == 0x19) {
+		data->temp_adjust_mask = ZEN_CUR_TEMP_RANGE_SEL_MASK;
+		data->read_tempreg = read_tempreg_nb_zen;
+		data->show_temp |= BIT(TDIE_BIT);
+		data->is_zen = true;
+
+		switch (boot_cpu_data.x86_model) {
+		case 0x0 ... 0x1:	/* Zen3 */
+			data->show_current = true;
+			data->svi_addr[0] = F19H_M01_SVI_TEL_PLANE0;
+			data->svi_addr[1] = F19H_M01_SVI_TEL_PLANE1;
+			data->cfactor[0] = F19H_M01H_CFACTOR_ICORE;
+			data->cfactor[1] = F19H_M01H_CFACTOR_ISOC;
 			k10temp_get_ccd_support(pdev, data, 8);
 			break;
 		}
@@ -610,12 +568,7 @@ static int k10temp_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 	hwmon_dev = devm_hwmon_device_register_with_info(dev, "k10temp", data,
 							 &k10temp_chip_info,
 							 NULL);
-	if (IS_ERR(hwmon_dev))
-		return PTR_ERR(hwmon_dev);
-
-	k10temp_init_debugfs(data);
-
-	return 0;
+	return PTR_ERR_OR_ZERO(hwmon_dev);
 }
 
 static const struct pci_device_id k10temp_id_table[] = {
@@ -634,6 +587,7 @@ static const struct pci_device_id k10temp_id_table[] = {
 	{ PCI_VDEVICE(AMD, PCI_DEVICE_ID_AMD_17H_M30H_DF_F3) },
 	{ PCI_VDEVICE(AMD, PCI_DEVICE_ID_AMD_17H_M60H_DF_F3) },
 	{ PCI_VDEVICE(AMD, PCI_DEVICE_ID_AMD_17H_M70H_DF_F3) },
+	{ PCI_VDEVICE(AMD, PCI_DEVICE_ID_AMD_19H_DF_F3) },
 	{ PCI_VDEVICE(HYGON, PCI_DEVICE_ID_AMD_17H_DF_F3) },
 	{}
 };

@@ -33,8 +33,8 @@
  * has not requested planar formats, we should allow 8 pixel
  * alignment.
  */
-#define MIN_W       176
-#define MIN_H       144
+#define MIN_W       32
+#define MIN_H       32
 #define MAX_W      4096
 #define MAX_H      4096
 #define W_ALIGN    1 /* multiple of 2 pixels */
@@ -488,7 +488,7 @@ static int csi_idmac_setup_channel(struct csi_priv *priv)
 			passthrough_cycles = incc->cycles;
 			break;
 		}
-		/* fallthrough - non-passthrough RGB565 (CSI-2 bus) */
+		fallthrough;	/* non-passthrough RGB565 (CSI-2 bus) */
 	default:
 		burst_size = (image.pix.width & 0xf) ? 8 : 16;
 		passthrough_bits = 16;

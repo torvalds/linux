@@ -289,7 +289,6 @@ static const struct ib_device_ops siw_device_ops = {
 	.post_srq_recv = siw_post_srq_recv,
 	.query_device = siw_query_device,
 	.query_gid = siw_query_gid,
-	.query_pkey = siw_query_pkey,
 	.query_port = siw_query_port,
 	.query_qp = siw_query_qp,
 	.query_srq = siw_query_srq,

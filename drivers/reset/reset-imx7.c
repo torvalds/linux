@@ -222,7 +222,7 @@ static int imx8mq_reset_set(struct reset_controller_dev *rcdev,
 
 	switch (id) {
 	case IMX8MQ_RESET_PCIEPHY:
-	case IMX8MQ_RESET_PCIEPHY2: /* fallthrough */
+	case IMX8MQ_RESET_PCIEPHY2:
 		/*
 		 * wait for more than 10us to release phy g_rst and
 		 * btnrst
@@ -232,12 +232,12 @@ static int imx8mq_reset_set(struct reset_controller_dev *rcdev,
 		break;
 
 	case IMX8MQ_RESET_PCIE_CTRL_APPS_EN:
-	case IMX8MQ_RESET_PCIE2_CTRL_APPS_EN:	/* fallthrough */
-	case IMX8MQ_RESET_MIPI_DSI_PCLK_RESET_N:	/* fallthrough */
-	case IMX8MQ_RESET_MIPI_DSI_ESC_RESET_N:	/* fallthrough */
-	case IMX8MQ_RESET_MIPI_DSI_DPI_RESET_N:	/* fallthrough */
-	case IMX8MQ_RESET_MIPI_DSI_RESET_N:	/* fallthrough */
-	case IMX8MQ_RESET_MIPI_DSI_RESET_BYTE_N:	/* fallthrough */
+	case IMX8MQ_RESET_PCIE2_CTRL_APPS_EN:
+	case IMX8MQ_RESET_MIPI_DSI_PCLK_RESET_N:
+	case IMX8MQ_RESET_MIPI_DSI_ESC_RESET_N:
+	case IMX8MQ_RESET_MIPI_DSI_DPI_RESET_N:
+	case IMX8MQ_RESET_MIPI_DSI_RESET_N:
+	case IMX8MQ_RESET_MIPI_DSI_RESET_BYTE_N:
 		value = assert ? 0 : bit;
 		break;
 	}

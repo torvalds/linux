@@ -26,6 +26,12 @@ properties:
   reg:
     maxItems: 1
 
+  '#address-cells':
+    const: 1
+
+  '#size-cells':
+    const: 1
+
 select:
   properties:
     compatible:
@@ -36,15 +42,19 @@ select:
   required:
     - compatible
 
+patternProperties:
+  "^gpio@[0-9a-f]+$":
+    $ref: /schemas/gpio/xylon,logicvc-gpio.yaml#
+
 required:
   - compatible
   - reg
+
+additionalProperties: false
 
 examples:
   - |
     logicvc: logicvc@43c00000 {
       compatible = "xylon,logicvc-3.02.a", "syscon", "simple-mfd";
       reg = <0x43c00000 0x6000>;
-      #address-cells = <1>;
-      #size-cells = <1>;
     };

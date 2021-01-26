@@ -18,14 +18,15 @@ static int test(struct expr_parse_ctx *ctx, const char *e, double val2)
 
 int test__expr(struct test *t __maybe_unused, int subtest __maybe_unused)
 {
+	struct expr_id_data *val_ptr;
 	const char *p;
-	double val, *val_ptr;
+	double val;
 	int ret;
 	struct expr_parse_ctx ctx;
 
 	expr__ctx_init(&ctx);
-	expr__add_id(&ctx, strdup("FOO"), 1);
-	expr__add_id(&ctx, strdup("BAR"), 2);
+	expr__add_id_val(&ctx, strdup("FOO"), 1);
+	expr__add_id_val(&ctx, strdup("BAR"), 2);
 
 	ret = test(&ctx, "1+1", 2);
 	ret |= test(&ctx, "FOO+BAR", 3);
@@ -39,6 +40,14 @@ int test__expr(struct test *t __maybe_unused, int subtest __maybe_unused)
 	ret |= test(&ctx, "1+1 if 3*4 else 0", 2);
 	ret |= test(&ctx, "1.1 + 2.1", 3.2);
 	ret |= test(&ctx, ".1 + 2.", 2.1);
+	ret |= test(&ctx, "d_ratio(1, 2)", 0.5);
+	ret |= test(&ctx, "d_ratio(2.5, 0)", 0);
+	ret |= test(&ctx, "1.1 < 2.2", 1);
+	ret |= test(&ctx, "2.2 > 1.1", 1);
+	ret |= test(&ctx, "1.1 < 1.1", 0);
+	ret |= test(&ctx, "2.2 > 2.2", 0);
+	ret |= test(&ctx, "2.2 < 1.1", 0);
+	ret |= test(&ctx, "1.1 > 2.2", 0);
 
 	if (ret)
 		return ret;

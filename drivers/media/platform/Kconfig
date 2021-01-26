@@ -256,13 +256,14 @@ config VIDEO_MEDIATEK_VCODEC
 	select VIDEOBUF2_DMA_CONTIG
 	select V4L2_MEM2MEM_DEV
 	select VIDEO_MEDIATEK_VPU
+	select MTK_SCP
 	help
 	    Mediatek video codec driver provides HW capability to
 	    encode and decode in a range of video formats
 	    This driver rely on VPU driver to communicate with VPU.
 
-	    To compile this driver as a module, choose M here: the
-	    module will be called mtk-vcodec
+	    To compile this driver as modules, choose M here: the
+	    modules will be called mtk-vcodec-dec and mtk-vcodec-enc.
 
 config VIDEO_MEM2MEM_DEINTERLACE
 	tristate "Deinterlace support"
@@ -426,8 +427,8 @@ config VIDEO_RENESAS_FCP
 	help
 	  This is a driver for the Renesas Frame Compression Processor (FCP).
 	  The FCP is a companion module of video processing modules in the
-	  Renesas R-Car Gen3 SoCs. It handles memory access for the codec,
-	  VSP and FDP modules.
+	  Renesas R-Car Gen3 and RZ/G2 SoCs. It handles memory access for
+	  the codec, VSP and FDP modules.
 
 	  To compile this driver as a module, choose M here: the module
 	  will be called rcar-fcp.

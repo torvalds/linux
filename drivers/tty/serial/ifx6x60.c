@@ -257,7 +257,7 @@ static void mrdy_assert(struct ifx_spi_device *ifx_dev)
 
 /**
  *	ifx_spi_timeout		-	SPI timeout
- *	@arg: our SPI device
+ *	@t: timer in our SPI device
  *
  *	The SPI has timed out: hang up the tty. Users will then see a hangup
  *	and error events.
@@ -277,7 +277,6 @@ static void ifx_spi_timeout(struct timer_list *t)
 /**
  *	ifx_spi_tiocmget	-	get modem lines
  *	@tty: our tty device
- *	@filp: file handle issuing the request
  *
  *	Map the signal state into Linux modem flags and report the value
  *	in Linux terms
@@ -531,7 +530,7 @@ static int ifx_spi_chars_in_buffer(struct tty_struct *tty)
 
 /**
  *	ifx_port_hangup
- *	@port: our tty port
+ *	@tty: our tty
  *
  *	tty port hang up. Called when tty_hangup processing is invoked either
  *	by loss of carrier, or by software (eg vhangup). Serialized against
@@ -611,7 +610,7 @@ static const struct tty_operations ifx_spi_serial_ops = {
 
 /**
  *	ifx_spi_insert_fip_string	-	queue received data
- *	@ifx_ser: our SPI device
+ *	@ifx_dev: our SPI device
  *	@chars: buffer we have received
  *	@size: number of chars reeived
  *
@@ -725,10 +724,11 @@ complete_exit:
  *	Queue data for transmission if possible and then kick off the
  *	transfer.
  */
-static void ifx_spi_io(unsigned long data)
+static void ifx_spi_io(struct tasklet_struct *t)
 {
 	int retval;
-	struct ifx_spi_device *ifx_dev = (struct ifx_spi_device *) data;
+	struct ifx_spi_device *ifx_dev = from_tasklet(ifx_dev, t,
+						      io_work_tasklet);
 
 	if (!test_and_set_bit(IFX_SPI_STATE_IO_IN_PROGRESS, &ifx_dev->flags) &&
 		test_bit(IFX_SPI_STATE_IO_AVAILABLE, &ifx_dev->flags)) {
@@ -1067,8 +1067,7 @@ static int ifx_spi_spi_probe(struct spi_device *spi)
 	init_waitqueue_head(&ifx_dev->mdm_reset_wait);
 
 	spi_set_drvdata(spi, ifx_dev);
-	tasklet_init(&ifx_dev->io_work_tasklet, ifx_spi_io,
-						(unsigned long)ifx_dev);
+	tasklet_setup(&ifx_dev->io_work_tasklet, ifx_spi_io);
 
 	set_bit(IFX_SPI_STATE_PRESENT, &ifx_dev->flags);
 

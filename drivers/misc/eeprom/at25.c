@@ -90,10 +90,10 @@ static int at25_ee_read(void *priv, unsigned int offset,
 	switch (at25->addrlen) {
 	default:	/* case 3 */
 		*cp++ = offset >> 16;
-		/* fall through */
+		fallthrough;
 	case 2:
 		*cp++ = offset >> 8;
-		/* fall through */
+		fallthrough;
 	case 1:
 	case 0:	/* can't happen: for better codegen */
 		*cp++ = offset >> 0;
@@ -178,10 +178,10 @@ static int at25_ee_write(void *priv, unsigned int off, void *val, size_t count)
 		switch (at25->addrlen) {
 		default:	/* case 3 */
 			*cp++ = offset >> 16;
-			/* fall through */
+			fallthrough;
 		case 2:
 			*cp++ = offset >> 8;
-			/* fall through */
+			fallthrough;
 		case 1:
 		case 0:	/* can't happen: for better codegen */
 			*cp++ = offset >> 0;
@@ -261,7 +261,7 @@ static int at25_fw_to_chip(struct device *dev, struct spi_eeprom *chip)
 
 	if (device_property_read_u32(dev, "pagesize", &val) == 0 ||
 	    device_property_read_u32(dev, "at25,page-size", &val) == 0) {
-		chip->page_size = (u16)val;
+		chip->page_size = val;
 	} else {
 		dev_err(dev, "Error: missing \"pagesize\" property\n");
 		return -ENODEV;
@@ -278,7 +278,7 @@ static int at25_fw_to_chip(struct device *dev, struct spi_eeprom *chip)
 		switch (val) {
 		case 9:
 			chip->flags |= EE_INSTR_BIT3_IS_ADDR;
-			/* fall through */
+			fallthrough;
 		case 8:
 			chip->flags |= EE_ADDR1;
 			break;
@@ -348,6 +348,7 @@ static int at25_probe(struct spi_device *spi)
 	spi_set_drvdata(spi, at25);
 	at25->addrlen = addrlen;
 
+	at25->nvmem_config.type = NVMEM_TYPE_EEPROM;
 	at25->nvmem_config.name = dev_name(&spi->dev);
 	at25->nvmem_config.dev = &spi->dev;
 	at25->nvmem_config.read_only = chip.flags & EE_READONLY;
@@ -358,7 +359,7 @@ static int at25_probe(struct spi_device *spi)
 	at25->nvmem_config.reg_read = at25_ee_read;
 	at25->nvmem_config.reg_write = at25_ee_write;
 	at25->nvmem_config.priv = at25;
-	at25->nvmem_config.stride = 4;
+	at25->nvmem_config.stride = 1;
 	at25->nvmem_config.word_size = 1;
 	at25->nvmem_config.size = chip.byte_len;
 

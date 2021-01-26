@@ -40,7 +40,6 @@
 #include <asm/elf.h>
 #include <asm/irq.h>
 #include <asm/kexec.h>
-#include <asm/pgalloc.h>
 #include <asm/processor.h>
 #include <asm/sal.h>
 #include <asm/switch_to.h>
@@ -48,12 +47,9 @@
 #include <linux/uaccess.h>
 #include <asm/unwind.h>
 #include <asm/user.h>
+#include <asm/xtp.h>
 
 #include "entry.h"
-
-#ifdef CONFIG_PERFMON
-# include <asm/perfmon.h>
-#endif
 
 #include "sigframe.h"
 
@@ -174,15 +170,6 @@ do_notify_resume_user(sigset_t *unused, struct sigscratch *scr, long in_syscall)
 		return;
 	}
 
-#ifdef CONFIG_PERFMON
-	if (current->thread.pfm_needs_checking)
-		/*
-		 * Note: pfm_handle_work() allow us to call it with interrupts
-		 * disabled, and may enable interrupts within the function.
-		 */
-		pfm_handle_work();
-#endif
-
 	/* deal with pending signal delivery */
 	if (test_thread_flag(TIF_SIGPENDING)) {
 		local_irq_enable();	/* force interrupt enable */
@@ -264,41 +251,15 @@ void arch_cpu_idle(void)
 void
 ia64_save_extra (struct task_struct *task)
 {
-#ifdef CONFIG_PERFMON
-	unsigned long info;
-#endif
-
 	if ((task->thread.flags & IA64_THREAD_DBG_VALID) != 0)
 		ia64_save_debug_regs(&task->thread.dbr[0]);
-
-#ifdef CONFIG_PERFMON
-	if ((task->thread.flags & IA64_THREAD_PM_VALID) != 0)
-		pfm_save_regs(task);
-
-	info = __this_cpu_read(pfm_syst_info);
-	if (info & PFM_CPUINFO_SYST_WIDE)
-		pfm_syst_wide_update_task(task, info, 0);
-#endif
 }
 
 void
 ia64_load_extra (struct task_struct *task)
 {
-#ifdef CONFIG_PERFMON
-	unsigned long info;
-#endif
-
 	if ((task->thread.flags & IA64_THREAD_DBG_VALID) != 0)
 		ia64_load_debug_regs(&task->thread.dbr[0]);
-
-#ifdef CONFIG_PERFMON
-	if ((task->thread.flags & IA64_THREAD_PM_VALID) != 0)
-		pfm_load_regs(task);
-
-	info = __this_cpu_read(pfm_syst_info);
-	if (info & PFM_CPUINFO_SYST_WIDE)
-		pfm_syst_wide_update_task(task, info, 1);
-#endif
 }
 
 /*
@@ -310,7 +271,7 @@ ia64_load_extra (struct task_struct *task)
  *
  *	<clone syscall>	        <some kernel call frames>
  *	sys_clone		   :
- *	_do_fork		_do_fork
+ *	kernel_clone		kernel_clone
  *	copy_thread		copy_thread
  *
  * This means that the stack layout is as follows:
@@ -432,11 +393,6 @@ copy_thread(unsigned long clone_flags, unsigned long user_stack_base,
 	 */
 	child_ptregs->cr_ipsr = ((child_ptregs->cr_ipsr | IA64_PSR_BITS_TO_SET)
 				 & ~(IA64_PSR_BITS_TO_CLEAR | IA64_PSR_PP | IA64_PSR_UP));
-
-#ifdef CONFIG_PERFMON
-	if (current->thread.pfm_context)
-		pfm_inherit(p, child_ptregs);
-#endif
 	return retval;
 }
 
@@ -455,7 +411,7 @@ asmlinkage long ia64_clone(unsigned long clone_flags, unsigned long stack_start,
 		.tls		= tls,
 	};
 
-	return _do_fork(&args);
+	return kernel_clone(&args);
 }
 
 static void
@@ -532,49 +488,15 @@ do_copy_task_regs (struct task_struct *task, struct unw_frame_info *info, void *
 }
 
 void
-do_dump_task_fpu (struct task_struct *task, struct unw_frame_info *info, void *arg)
-{
-	elf_fpreg_t *dst = arg;
-	int i;
-
-	memset(dst, 0, sizeof(elf_fpregset_t));	/* don't leak any "random" bits */
-
-	if (unw_unwind_to_user(info) < 0)
-		return;
-
-	/* f0 is 0.0, f1 is 1.0 */
-
-	for (i = 2; i < 32; ++i)
-		unw_get_fr(info, i, dst + i);
-
-	ia64_flush_fph(task);
-	if ((task->thread.flags & IA64_THREAD_FPH_VALID) != 0)
-		memcpy(dst + 32, task->thread.fph, 96*16);
-}
-
-void
 do_copy_regs (struct unw_frame_info *info, void *arg)
 {
 	do_copy_task_regs(current, info, arg);
 }
 
 void
-do_dump_fpu (struct unw_frame_info *info, void *arg)
-{
-	do_dump_task_fpu(current, info, arg);
-}
-
-void
 ia64_elf_core_copy_regs (struct pt_regs *pt, elf_gregset_t dst)
 {
 	unw_init_running(do_copy_regs, dst);
-}
-
-int
-dump_fpu (struct pt_regs *pt, elf_fpregset_t dst)
-{
-	unw_init_running(do_dump_fpu, dst);
-	return 1;	/* f0-f31 are always valid so we always return 1 */
 }
 
 /*
@@ -597,15 +519,6 @@ exit_thread (struct task_struct *tsk)
 {
 
 	ia64_drop_fpu(tsk);
-#ifdef CONFIG_PERFMON
-       /* if needed, stop monitoring and flush state to perfmon context */
-	if (tsk->thread.pfm_context)
-		pfm_exit_thread(tsk);
-
-	/* free debug register resources */
-	if (tsk->thread.flags & IA64_THREAD_DBG_VALID)
-		pfm_release_debug_registers(tsk);
-#endif
 }
 
 unsigned long

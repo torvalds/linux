@@ -6,11 +6,13 @@ static __u64 read_perf_max_sample_freq(void)
 {
 	__u64 sample_freq = 5000; /* fallback to 5000 on error */
 	FILE *f;
+	__u32 duration = 0;
 
 	f = fopen("/proc/sys/kernel/perf_event_max_sample_rate", "r");
 	if (f == NULL)
 		return sample_freq;
-	fscanf(f, "%llu", &sample_freq);
+	CHECK(fscanf(f, "%llu", &sample_freq) != 1, "Get max sample rate",
+		  "return default value: 5000,err %d\n", -errno);
 	fclose(f);
 	return sample_freq;
 }

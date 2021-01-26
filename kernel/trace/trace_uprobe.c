@@ -1456,7 +1456,6 @@ trace_uprobe_register(struct trace_event_call *event, enum trace_reg type,
 	default:
 		return 0;
 	}
-	return 0;
 }
 
 static int uprobe_dispatcher(struct uprobe_consumer *con, struct pt_regs *regs)

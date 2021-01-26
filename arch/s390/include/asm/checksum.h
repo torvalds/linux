@@ -39,13 +39,6 @@ csum_partial(const void *buff, int len, __wsum sum)
 	return sum;
 }
 
-static inline __wsum
-csum_partial_copy_nocheck (const void *src, void *dst, int len, __wsum sum)
-{
-        memcpy(dst,src,len);
-	return csum_partial(dst, len, sum);
-}
-
 /*
  *      Fold a partial checksum without adding pseudo headers
  */

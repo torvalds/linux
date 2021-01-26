@@ -5,6 +5,7 @@
 struct perf_data_convert_opts {
 	bool force;
 	bool all;
+	bool tod;
 };
 
 #endif /* __DATA_CONVERT_H */

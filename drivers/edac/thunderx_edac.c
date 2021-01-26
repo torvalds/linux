@@ -454,7 +454,7 @@ DEBUGFS_STRUCT(inject_int, 0200, thunderx_lmc_inject_int_write, NULL);
 DEBUGFS_STRUCT(inject_ecc, 0200, thunderx_lmc_inject_ecc_write, NULL);
 DEBUGFS_STRUCT(int_w1c, 0400, NULL, thunderx_lmc_int_read);
 
-struct debugfs_entry *lmc_dfs_ents[] = {
+static struct debugfs_entry *lmc_dfs_ents[] = {
 	&debugfs_mask0,
 	&debugfs_mask2,
 	&debugfs_parity_test,

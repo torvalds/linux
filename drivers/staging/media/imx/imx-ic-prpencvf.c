@@ -35,8 +35,8 @@
  * has not requested a planar format, we should allow 8 pixel
  * alignment at the source pad.
  */
-#define MIN_W_SINK  176
-#define MIN_H_SINK  144
+#define MIN_W_SINK   32
+#define MIN_H_SINK   32
 #define MAX_W_SINK 4096
 #define MAX_H_SINK 4096
 #define W_ALIGN_SINK  3 /* multiple of 8 pixels */

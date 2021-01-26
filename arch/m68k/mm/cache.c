@@ -8,7 +8,7 @@
  */
 
 #include <linux/module.h>
-#include <asm/pgalloc.h>
+#include <asm/cacheflush.h>
 #include <asm/traps.h>
 
 

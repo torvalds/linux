@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0-only
-/**
+/*
  * Copyright (c) 2011 Jonathan Cameron
  *
  * Companion module to the iio simple dummy example driver.
@@ -27,11 +27,13 @@
 #define IIO_EVENTGEN_NO 10
 
 /**
+ * struct iio_dummy_eventgen - event generator specific state
  * @regs: irq regs we are faking
  * @lock: protect the evgen state
  * @inuse: mask of which irqs are connected
  * @irq_sim: interrupt simulator
  * @base: base of irq range
+ * @irq_sim_domain: irq simulator domain
  */
 struct iio_dummy_eventgen {
 	struct iio_dummy_regs regs[IIO_EVENTGEN_NO];

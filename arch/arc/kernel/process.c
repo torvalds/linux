@@ -91,7 +91,7 @@ fault:
 		 goto fail;
 
 	mmap_read_lock(current->mm);
-	ret = fixup_user_fault(current, current->mm, (unsigned long) uaddr,
+	ret = fixup_user_fault(current->mm, (unsigned long) uaddr,
 			       FAULT_FLAG_WRITE, NULL);
 	mmap_read_unlock(current->mm);
 
@@ -294,11 +294,6 @@ void start_thread(struct pt_regs *regs, unsigned long pc, unsigned long usp)
  */
 void flush_thread(void)
 {
-}
-
-int dump_fpu(struct pt_regs *regs, elf_fpregset_t *fpu)
-{
-	return 0;
 }
 
 int elf_check_arch(const struct elf32_hdr *x)

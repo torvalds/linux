@@ -79,7 +79,7 @@ static struct sms_board sms_boards[] = {
 		.board_cfg.rf_switch_uhf = 17,
 	},
 	[SMS1XXX_BOARD_HAUPPAUGE_TIGER_MINICARD_R2] = {
-		.name	= "Hauppauge WinTV MiniCard",
+		.name	= "Hauppauge WinTV MiniCard Rev 2",
 		.type	= SMS_NOVA_B0,
 		.fw[DEVICE_MODE_DVBT_BDA] = SMS_FW_DVBT_HCW_55XXX,
 		.default_mode = DEVICE_MODE_DVBT_BDA,

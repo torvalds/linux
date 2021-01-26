@@ -71,8 +71,9 @@ enum dentist_divider_range {
 
 #define CTX \
 	clk_mgr->base.ctx
+
 #define DC_LOGGER \
-	clk_mgr->ctx->logger
+	clk_mgr->base.ctx->logger
 
 
 
@@ -87,6 +88,11 @@ enum dentist_divider_range {
 #define CLK_COMMON_REG_LIST_DCE_BASE() \
 	.DPREFCLK_CNTL = mmDPREFCLK_CNTL, \
 	.DENTIST_DISPCLK_CNTL = mmDENTIST_DISPCLK_CNTL
+
+#if defined(CONFIG_DRM_AMD_DC_SI)
+#define CLK_COMMON_REG_LIST_DCE60_BASE() \
+	SR(DENTIST_DISPCLK_CNTL)
+#endif
 
 #define CLK_COMMON_REG_LIST_DCN_BASE() \
 	SR(DENTIST_DISPCLK_CNTL)
@@ -113,6 +119,12 @@ enum dentist_divider_range {
 #define CLK_COMMON_MASK_SH_LIST_DCE_COMMON_BASE(mask_sh) \
 	CLK_SF(DPREFCLK_CNTL, DPREFCLK_SRC_SEL, mask_sh), \
 	CLK_SF(DENTIST_DISPCLK_CNTL, DENTIST_DPREFCLK_WDIVIDER, mask_sh)
+
+#if defined(CONFIG_DRM_AMD_DC_SI)
+#define CLK_COMMON_MASK_SH_LIST_DCE60_COMMON_BASE(mask_sh) \
+	CLK_SF(DENTIST_DISPCLK_CNTL, DENTIST_DISPCLK_WDIVIDER, mask_sh),\
+	CLK_SF(DENTIST_DISPCLK_CNTL, DENTIST_DISPCLK_CHG_DONE, mask_sh)
+#endif
 
 #define CLK_COMMON_MASK_SH_LIST_DCN_COMMON_BASE(mask_sh) \
 	CLK_SF(DENTIST_DISPCLK_CNTL, DENTIST_DISPCLK_WDIVIDER, mask_sh),\

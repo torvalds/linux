@@ -669,7 +669,7 @@ static const char *phy_event_name(u32 event_code)
 		phy_state_name(state), phy_event_name(code), code)
 
 
-void scu_link_layer_set_txcomsas_timeout(struct isci_phy *iphy, u32 timeout)
+static void scu_link_layer_set_txcomsas_timeout(struct isci_phy *iphy, u32 timeout)
 {
 	u32 val;
 
@@ -778,7 +778,7 @@ enum sci_status sci_phy_event_handler(struct isci_phy *iphy, u32 event_code)
 			break;
 		case SCU_EVENT_LINK_FAILURE:
 			scu_link_layer_set_txcomsas_timeout(iphy, SCU_SAS_LINK_LAYER_TXCOMSAS_NEGTIME_DEFAULT);
-			/* fall through */
+			fallthrough;
 		case SCU_EVENT_HARD_RESET_RECEIVED:
 			/* Start the oob/sn state machine over again */
 			sci_change_state(&iphy->sm, SCI_PHY_STARTING);

@@ -4,15 +4,16 @@
  *
  * Driver for Texas Instruments' ADC128S052, ADC122S021 and ADC124S021 ADC chip.
  * Datasheets can be found here:
- * http://www.ti.com/lit/ds/symlink/adc128s052.pdf
- * http://www.ti.com/lit/ds/symlink/adc122s021.pdf
- * http://www.ti.com/lit/ds/symlink/adc124s021.pdf
+ * https://www.ti.com/lit/ds/symlink/adc128s052.pdf
+ * https://www.ti.com/lit/ds/symlink/adc122s021.pdf
+ * https://www.ti.com/lit/ds/symlink/adc124s021.pdf
  */
 
 #include <linux/acpi.h>
 #include <linux/err.h>
 #include <linux/spi/spi.h>
 #include <linux/module.h>
+#include <linux/mod_devicetable.h>
 #include <linux/iio/iio.h>
 #include <linux/property.h>
 #include <linux/regulator/consumer.h>
@@ -152,8 +153,6 @@ static int adc128_probe(struct spi_device *spi)
 
 	spi_set_drvdata(spi, indio_dev);
 
-	indio_dev->dev.parent = &spi->dev;
-	indio_dev->dev.of_node = spi->dev.of_node;
 	indio_dev->name = spi_get_device_id(spi)->name;
 	indio_dev->modes = INDIO_DIRECT_MODE;
 	indio_dev->info = &adc128_info;
@@ -222,7 +221,7 @@ MODULE_DEVICE_TABLE(acpi, adc128_acpi_match);
 static struct spi_driver adc128_driver = {
 	.driver = {
 		.name = "adc128s052",
-		.of_match_table = of_match_ptr(adc128_of_match),
+		.of_match_table = adc128_of_match,
 		.acpi_match_table = ACPI_PTR(adc128_acpi_match),
 	},
 	.probe = adc128_probe,

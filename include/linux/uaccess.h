@@ -6,9 +6,25 @@
 #include <linux/sched.h>
 #include <linux/thread_info.h>
 
-#define uaccess_kernel() segment_eq(get_fs(), KERNEL_DS)
-
 #include <asm/uaccess.h>
+
+/*
+ * Force the uaccess routines to be wired up for actual userspace access,
+ * overriding any possible set_fs(KERNEL_DS) still lingering around.  Undone
+ * using force_uaccess_end below.
+ */
+static inline mm_segment_t force_uaccess_begin(void)
+{
+	mm_segment_t fs = get_fs();
+
+	set_fs(USER_DS);
+	return fs;
+}
+
+static inline void force_uaccess_end(mm_segment_t oldfs)
+{
+	set_fs(oldfs);
+}
 
 /*
  * Architectures should provide two primitives (raw_copy_{to,from}_user())
@@ -160,6 +176,19 @@ copy_in_user(void __user *to, const void __user *from, unsigned long n)
 	if (access_ok(to, n) && access_ok(from, n))
 		n = raw_copy_in_user(to, from, n);
 	return n;
+}
+#endif
+
+#ifndef copy_mc_to_kernel
+/*
+ * Without arch opt-in this generic copy_mc_to_kernel() will not handle
+ * #MC (or arch equivalent) during source read.
+ */
+static inline unsigned long __must_check
+copy_mc_to_kernel(void *dst, const void *src, size_t cnt)
+{
+	memcpy(dst, src, cnt);
+	return 0;
 }
 #endif
 

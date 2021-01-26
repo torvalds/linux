@@ -21,7 +21,6 @@
 #include <linux/oom.h>
 #include <linux/uaccess.h>
 
-#include <asm/pgalloc.h>
 #include <asm/diag.h>
 
 #ifdef CONFIG_CMM_IUCV

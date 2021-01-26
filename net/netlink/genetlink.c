@@ -1079,7 +1079,7 @@ static int ctrl_dumppolicy(struct sk_buff *skb, struct netlink_callback *cb)
 	if (err)
 		return err;
 
-	while (netlink_policy_dump_loop(&cb->args[1])) {
+	while (netlink_policy_dump_loop(cb->args[1])) {
 		void *hdr;
 		struct nlattr *nest;
 
@@ -1113,6 +1113,12 @@ nla_put_failure:
 	return skb->len;
 }
 
+static int ctrl_dumppolicy_done(struct netlink_callback *cb)
+{
+	netlink_policy_dump_free(cb->args[1]);
+	return 0;
+}
+
 static const struct genl_ops genl_ctrl_ops[] = {
 	{
 		.cmd		= CTRL_CMD_GETFAMILY,
@@ -1123,6 +1129,7 @@ static const struct genl_ops genl_ctrl_ops[] = {
 	{
 		.cmd		= CTRL_CMD_GETPOLICY,
 		.dumpit		= ctrl_dumppolicy,
+		.done		= ctrl_dumppolicy_done,
 	},
 };
 
@@ -1192,7 +1199,7 @@ problem:
 	panic("GENL: Cannot register controller: %d\n", err);
 }
 
-subsys_initcall(genl_init);
+core_initcall(genl_init);
 
 static int genlmsg_mcast(struct sk_buff *skb, u32 portid, unsigned long group,
 			 gfp_t flags)

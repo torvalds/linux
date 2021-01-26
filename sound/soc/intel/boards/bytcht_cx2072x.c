@@ -99,7 +99,7 @@ static int byt_cht_cx2072x_init(struct snd_soc_pcm_runtime *rtd)
 
 	snd_soc_dai_set_bclk_ratio(asoc_rtd_to_codec(rtd, 0), 50);
 
-	return ret;
+	return 0;
 }
 
 static int byt_cht_cx2072x_fixup(struct snd_soc_pcm_runtime *rtd,
@@ -205,9 +205,19 @@ static struct snd_soc_dai_link byt_cht_cx2072x_dais[] = {
 	},
 };
 
+#if IS_ENABLED(CONFIG_SND_SOC_SOF_BAYTRAIL)
+/* use space before codec name to simplify card ID, and simplify driver name */
+#define CARD_NAME "bytcht cx2072x" /* card name will be 'sof-bytcht cx2072x' */
+#define DRIVER_NAME "SOF"
+#else
+#define CARD_NAME "bytcht-cx2072x"
+#define DRIVER_NAME NULL /* card name will be used for driver name */
+#endif
+
 /* SoC card */
 static struct snd_soc_card byt_cht_cx2072x_card = {
-	.name = "bytcht-cx2072x",
+	.name = CARD_NAME,
+	.driver_name = DRIVER_NAME,
 	.owner = THIS_MODULE,
 	.dai_link = byt_cht_cx2072x_dais,
 	.num_links = ARRAY_SIZE(byt_cht_cx2072x_dais),

@@ -162,7 +162,6 @@ struct cc_crypto_alg {
 	int cipher_mode;
 	int flow_mode; /* Note: currently, refers to the cipher mode only. */
 	int auth_mode;
-	unsigned int data_unit;
 	struct cc_drvdata *drvdata;
 	struct skcipher_alg skcipher_alg;
 	struct aead_alg aead_alg;

@@ -23,6 +23,7 @@
 DECLARE_EWMA(runtime, 3, 8);
 
 struct i915_gem_context;
+struct i915_gem_ww_ctx;
 struct i915_vma;
 struct intel_context;
 struct intel_ring;
@@ -30,8 +31,10 @@ struct intel_ring;
 struct intel_context_ops {
 	int (*alloc)(struct intel_context *ce);
 
-	int (*pin)(struct intel_context *ce);
+	int (*pre_pin)(struct intel_context *ce, struct i915_gem_ww_ctx *ww, void **vaddr);
+	int (*pin)(struct intel_context *ce, void *vaddr);
 	void (*unpin)(struct intel_context *ce);
+	void (*post_unpin)(struct intel_context *ce);
 
 	void (*enter)(struct intel_context *ce);
 	void (*exit)(struct intel_context *ce);

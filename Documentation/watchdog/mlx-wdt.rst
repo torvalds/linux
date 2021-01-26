@@ -24,9 +24,18 @@ Type 2:
   Maximum timeout is 255 sec.
   Get time-left is supported.
 
+Type 3:
+  Same as Type 2 with extended maximum timeout period.
+  Maximum timeout is 65535 sec.
+
 Type 1 HW watchdog implementation exist in old systems and
 all new systems have type 2 HW watchdog.
 Two types of HW implementation have also different register map.
+
+Type 3 HW watchdog implementation can exist on all Mellanox systems
+with new programmer logic device.
+It's differentiated by WD capability bit.
+Old systems still have only one main watchdog.
 
 Mellanox system can have 2 watchdogs: main and auxiliary.
 Main and auxiliary watchdog devices can be enabled together
@@ -54,3 +63,4 @@ The driver checks during initialization if the previous system reset
 was done by the watchdog. If yes, it makes a notification about this event.
 
 Access to HW registers is performed through a generic regmap interface.
+Programmable logic device registers have little-endian order.

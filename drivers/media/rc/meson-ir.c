@@ -86,7 +86,7 @@ static irqreturn_t meson_ir_irq(int irqno, void *dev_id)
 
 	duration = readl_relaxed(ir->reg + IR_DEC_REG1);
 	duration = FIELD_GET(REG1_TIME_IV_MASK, duration);
-	rawir.duration = US_TO_NS(duration * MESON_TRATE);
+	rawir.duration = duration * MESON_TRATE;
 
 	status = readl_relaxed(ir->reg + IR_DEC_STATUS);
 	rawir.pulse = !!(status & STATUS_IR_DEC_IN);
@@ -133,7 +133,7 @@ static int meson_ir_probe(struct platform_device *pdev)
 	map_name = of_get_property(node, "linux,rc-map-name", NULL);
 	ir->rc->map_name = map_name ? map_name : RC_MAP_EMPTY;
 	ir->rc->allowed_protocols = RC_PROTO_BIT_ALL_IR_DECODER;
-	ir->rc->rx_resolution = US_TO_NS(MESON_TRATE);
+	ir->rc->rx_resolution = MESON_TRATE;
 	ir->rc->min_timeout = 1;
 	ir->rc->timeout = IR_DEFAULT_TIMEOUT;
 	ir->rc->max_timeout = 10 * IR_DEFAULT_TIMEOUT;

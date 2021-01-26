@@ -338,7 +338,7 @@ static int speaker_mode_get(struct snd_kcontrol *kcontrol,
 	struct snd_soc_component *component = snd_soc_kcontrol_component(kcontrol);
 	unsigned int reg;
 
-	reg = snd_soc_component_read32(component, WM9081_ANALOGUE_SPEAKER_2);
+	reg = snd_soc_component_read(component, WM9081_ANALOGUE_SPEAKER_2);
 	if (reg & WM9081_SPK_MODE)
 		ucontrol->value.enumerated.item[0] = 1;
 	else
@@ -357,8 +357,8 @@ static int speaker_mode_put(struct snd_kcontrol *kcontrol,
 			    struct snd_ctl_elem_value *ucontrol)
 {
 	struct snd_soc_component *component = snd_soc_kcontrol_component(kcontrol);
-	unsigned int reg_pwr = snd_soc_component_read32(component, WM9081_POWER_MANAGEMENT);
-	unsigned int reg2 = snd_soc_component_read32(component, WM9081_ANALOGUE_SPEAKER_2);
+	unsigned int reg_pwr = snd_soc_component_read(component, WM9081_POWER_MANAGEMENT);
+	unsigned int reg2 = snd_soc_component_read(component, WM9081_ANALOGUE_SPEAKER_2);
 
 	/* Are we changing anything? */
 	if (ucontrol->value.enumerated.item[0] ==
@@ -568,7 +568,7 @@ static int wm9081_set_fll(struct snd_soc_component *component, int fll_id,
 	if (ret != 0)
 		return ret;
 
-	reg5 = snd_soc_component_read32(component, WM9081_FLL_CONTROL_5);
+	reg5 = snd_soc_component_read(component, WM9081_FLL_CONTROL_5);
 	reg5 &= ~WM9081_FLL_CLK_SRC_MASK;
 
 	switch (fll_id) {
@@ -582,14 +582,14 @@ static int wm9081_set_fll(struct snd_soc_component *component, int fll_id,
 	}
 
 	/* Disable CLK_SYS while we reconfigure */
-	clk_sys_reg = snd_soc_component_read32(component, WM9081_CLOCK_CONTROL_3);
+	clk_sys_reg = snd_soc_component_read(component, WM9081_CLOCK_CONTROL_3);
 	if (clk_sys_reg & WM9081_CLK_SYS_ENA)
 		snd_soc_component_write(component, WM9081_CLOCK_CONTROL_3,
 			     clk_sys_reg & ~WM9081_CLK_SYS_ENA);
 
 	/* Any FLL configuration change requires that the FLL be
 	 * disabled first. */
-	reg1 = snd_soc_component_read32(component, WM9081_FLL_CONTROL_1);
+	reg1 = snd_soc_component_read(component, WM9081_FLL_CONTROL_1);
 	reg1 &= ~WM9081_FLL_ENA;
 	snd_soc_component_write(component, WM9081_FLL_CONTROL_1, reg1);
 
@@ -605,7 +605,7 @@ static int wm9081_set_fll(struct snd_soc_component *component, int fll_id,
 		     (fll_div.fll_fratio << WM9081_FLL_FRATIO_SHIFT));
 	snd_soc_component_write(component, WM9081_FLL_CONTROL_3, fll_div.k);
 
-	reg4 = snd_soc_component_read32(component, WM9081_FLL_CONTROL_4);
+	reg4 = snd_soc_component_read(component, WM9081_FLL_CONTROL_4);
 	reg4 &= ~WM9081_FLL_N_MASK;
 	reg4 |= fll_div.n << WM9081_FLL_N_SHIFT;
 	snd_soc_component_write(component, WM9081_FLL_CONTROL_4, reg4);
@@ -707,14 +707,14 @@ static int configure_clock(struct snd_soc_component *component)
 		return -EINVAL;
 	}
 
-	reg = snd_soc_component_read32(component, WM9081_CLOCK_CONTROL_1);
+	reg = snd_soc_component_read(component, WM9081_CLOCK_CONTROL_1);
 	if (mclkdiv)
 		reg |= WM9081_MCLKDIV2;
 	else
 		reg &= ~WM9081_MCLKDIV2;
 	snd_soc_component_write(component, WM9081_CLOCK_CONTROL_1, reg);
 
-	reg = snd_soc_component_read32(component, WM9081_CLOCK_CONTROL_3);
+	reg = snd_soc_component_read(component, WM9081_CLOCK_CONTROL_3);
 	if (fll)
 		reg |= WM9081_CLK_SRC_SEL;
 	else
@@ -901,7 +901,7 @@ static int wm9081_set_dai_fmt(struct snd_soc_dai *dai,
 {
 	struct snd_soc_component *component = dai->component;
 	struct wm9081_priv *wm9081 = snd_soc_component_get_drvdata(component);
-	unsigned int aif2 = snd_soc_component_read32(component, WM9081_AUDIO_INTERFACE_2);
+	unsigned int aif2 = snd_soc_component_read(component, WM9081_AUDIO_INTERFACE_2);
 
 	aif2 &= ~(WM9081_AIF_BCLK_INV | WM9081_AIF_LRCLK_INV |
 		  WM9081_BCLK_DIR | WM9081_LRCLK_DIR | WM9081_AIF_FMT_MASK);
@@ -929,7 +929,7 @@ static int wm9081_set_dai_fmt(struct snd_soc_dai *dai,
 	switch (fmt & SND_SOC_DAIFMT_FORMAT_MASK) {
 	case SND_SOC_DAIFMT_DSP_B:
 		aif2 |= WM9081_AIF_LRCLK_INV;
-		/* fall through */
+		fallthrough;
 	case SND_SOC_DAIFMT_DSP_A:
 		aif2 |= 0x3;
 		break;
@@ -997,18 +997,18 @@ static int wm9081_hw_params(struct snd_pcm_substream *substream,
 	int ret, i, best, best_val, cur_val;
 	unsigned int clk_ctrl2, aif1, aif2, aif3, aif4;
 
-	clk_ctrl2 = snd_soc_component_read32(component, WM9081_CLOCK_CONTROL_2);
+	clk_ctrl2 = snd_soc_component_read(component, WM9081_CLOCK_CONTROL_2);
 	clk_ctrl2 &= ~(WM9081_CLK_SYS_RATE_MASK | WM9081_SAMPLE_RATE_MASK);
 
-	aif1 = snd_soc_component_read32(component, WM9081_AUDIO_INTERFACE_1);
+	aif1 = snd_soc_component_read(component, WM9081_AUDIO_INTERFACE_1);
 
-	aif2 = snd_soc_component_read32(component, WM9081_AUDIO_INTERFACE_2);
+	aif2 = snd_soc_component_read(component, WM9081_AUDIO_INTERFACE_2);
 	aif2 &= ~WM9081_AIF_WL_MASK;
 
-	aif3 = snd_soc_component_read32(component, WM9081_AUDIO_INTERFACE_3);
+	aif3 = snd_soc_component_read(component, WM9081_AUDIO_INTERFACE_3);
 	aif3 &= ~WM9081_BCLK_DIV_MASK;
 
-	aif4 = snd_soc_component_read32(component, WM9081_AUDIO_INTERFACE_4);
+	aif4 = snd_soc_component_read(component, WM9081_AUDIO_INTERFACE_4);
 	aif4 &= ~WM9081_LRCLK_RATE_MASK;
 
 	wm9081->fs = params_rate(params);
@@ -1127,7 +1127,7 @@ static int wm9081_hw_params(struct snd_pcm_substream *substream,
 			s->name, s->rate);
 
 		/* If the EQ is enabled then disable it while we write out */
-		eq1 = snd_soc_component_read32(component, WM9081_EQ_1) & WM9081_EQ_ENA;
+		eq1 = snd_soc_component_read(component, WM9081_EQ_1) & WM9081_EQ_ENA;
 		if (eq1 & WM9081_EQ_ENA)
 			snd_soc_component_write(component, WM9081_EQ_1, 0);
 
@@ -1147,12 +1147,12 @@ static int wm9081_hw_params(struct snd_pcm_substream *substream,
 	return 0;
 }
 
-static int wm9081_digital_mute(struct snd_soc_dai *codec_dai, int mute)
+static int wm9081_mute(struct snd_soc_dai *codec_dai, int mute, int direction)
 {
 	struct snd_soc_component *component = codec_dai->component;
 	unsigned int reg;
 
-	reg = snd_soc_component_read32(component, WM9081_DAC_DIGITAL_2);
+	reg = snd_soc_component_read(component, WM9081_DAC_DIGITAL_2);
 
 	if (mute)
 		reg |= WM9081_DAC_MUTE;
@@ -1188,7 +1188,7 @@ static int wm9081_set_tdm_slot(struct snd_soc_dai *dai,
 {
 	struct snd_soc_component *component = dai->component;
 	struct wm9081_priv *wm9081 = snd_soc_component_get_drvdata(component);
-	unsigned int aif1 = snd_soc_component_read32(component, WM9081_AUDIO_INTERFACE_1);
+	unsigned int aif1 = snd_soc_component_read(component, WM9081_AUDIO_INTERFACE_1);
 
 	aif1 &= ~(WM9081_AIFDAC_TDM_SLOT_MASK | WM9081_AIFDAC_TDM_MODE_MASK);
 
@@ -1232,8 +1232,9 @@ static int wm9081_set_tdm_slot(struct snd_soc_dai *dai,
 static const struct snd_soc_dai_ops wm9081_dai_ops = {
 	.hw_params = wm9081_hw_params,
 	.set_fmt = wm9081_set_dai_fmt,
-	.digital_mute = wm9081_digital_mute,
+	.mute_stream = wm9081_mute,
 	.set_tdm_slot = wm9081_set_tdm_slot,
+	.no_capture_mute = 1,
 };
 
 /* We report two channels because the CODEC processes a stereo signal, even

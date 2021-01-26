@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0
-/**
+/*
  * PCI Endpoint *Function* (EPF) library
  *
  * Copyright (C) 2017 Texas Instruments
@@ -71,6 +71,7 @@ EXPORT_SYMBOL_GPL(pci_epf_bind);
 
 /**
  * pci_epf_free_space() - free the allocated PCI EPF register space
+ * @epf: the EPF device from whom to free the memory
  * @addr: the virtual address of the PCI EPF register space
  * @bar: the BAR number corresponding to the register space
  *
@@ -96,6 +97,7 @@ EXPORT_SYMBOL_GPL(pci_epf_free_space);
 
 /**
  * pci_epf_alloc_space() - allocate memory for the PCI EPF register space
+ * @epf: the EPF device to whom allocate the memory
  * @size: the size of the memory that has to be allocated
  * @bar: the BAR number corresponding to the allocated register space
  * @align: alignment size for the allocation region

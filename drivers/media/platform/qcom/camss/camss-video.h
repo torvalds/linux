@@ -52,8 +52,6 @@ struct camss_video {
 	unsigned int nformats;
 };
 
-void msm_video_stop_streaming(struct camss_video *video);
-
 int msm_video_register(struct camss_video *video, struct v4l2_device *v4l2_dev,
 		       const char *name, int is_pix);
 

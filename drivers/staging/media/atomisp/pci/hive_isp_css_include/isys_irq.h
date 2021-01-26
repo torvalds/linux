@@ -19,22 +19,10 @@
 #include <type_support.h>
 #include <system_local.h>
 
-#if defined(USE_INPUT_SYSTEM_VERSION_2401)
+#if defined(ISP2401)
 
-#ifndef __INLINE_ISYS2401_IRQ__
-
-#define STORAGE_CLASS_ISYS2401_IRQ_H extern
-#define STORAGE_CLASS_ISYS2401_IRQ_C extern
 #include "isys_irq_public.h"
 
-#else  /* __INLINE_ISYS2401_IRQ__ */
-
-#define STORAGE_CLASS_ISYS2401_IRQ_H static inline
-#define STORAGE_CLASS_ISYS2401_IRQ_C static inline
-#include "isys_irq_private.h"
-
-#endif /* __INLINE_ISYS2401_IRQ__ */
-
-#endif /* defined(USE_INPUT_SYSTEM_VERSION_2401) */
+#endif /* defined(ISP2401) */
 
 #endif	/* __IA_CSS_ISYS_IRQ_H__ */

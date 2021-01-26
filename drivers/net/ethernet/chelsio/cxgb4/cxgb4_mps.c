@@ -229,7 +229,7 @@ void cxgb4_free_mps_ref_entries(struct adapter *adap)
 {
 	struct mps_entries_ref *mps_entry, *tmp;
 
-	if (!list_empty(&adap->mps_ref))
+	if (list_empty(&adap->mps_ref))
 		return;
 
 	spin_lock(&adap->mps_ref_lock);

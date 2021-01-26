@@ -279,7 +279,7 @@ static int pwm_regulator_init_table(struct platform_device *pdev,
 		return ret;
 	}
 
-	drvdata->state			= -EINVAL;
+	drvdata->state			= -ENOTRECOVERABLE;
 	drvdata->duty_cycle_table	= duty_cycle_table;
 	drvdata->desc.ops = &pwm_regulator_voltage_table_ops;
 	drvdata->desc.n_voltages	= length / sizeof(*duty_cycle_table);
@@ -390,7 +390,7 @@ static int pwm_regulator_probe(struct platform_device *pdev)
 	return 0;
 }
 
-static const struct of_device_id pwm_of_match[] = {
+static const struct of_device_id __maybe_unused pwm_of_match[] = {
 	{ .compatible = "pwm-regulator" },
 	{ },
 };

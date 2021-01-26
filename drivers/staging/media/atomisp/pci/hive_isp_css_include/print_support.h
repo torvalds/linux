@@ -20,7 +20,7 @@
 
 extern int (*sh_css_printf)(const char *fmt, va_list args);
 /* depends on host supplied print function in ia_css_init() */
-static inline void ia_css_print(const char *fmt, ...)
+static inline  __printf(1, 2) void ia_css_print(const char *fmt, ...)
 {
 	va_list ap;
 

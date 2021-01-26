@@ -2189,10 +2189,8 @@ static int tegra_pcie_dw_probe(struct platform_device *pdev)
 	}
 
 	pp->irq = platform_get_irq_byname(pdev, "intr");
-	if (pp->irq < 0) {
-		dev_err(dev, "Failed to get \"intr\" interrupt\n");
+	if (pp->irq < 0)
 		return pp->irq;
-	}
 
 	pcie->bpmp = tegra_bpmp_get(dev);
 	if (IS_ERR(pcie->bpmp))

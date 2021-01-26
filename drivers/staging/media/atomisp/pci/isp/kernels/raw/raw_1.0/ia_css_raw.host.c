@@ -81,7 +81,7 @@ ia_css_raw_config(
 	const struct ia_css_frame_info *internal_info = from->internal_info;
 
 	(void)size;
-#if !defined(USE_INPUT_SYSTEM_VERSION_2401)
+#if !defined(ISP2401)
 	/* 2401 input system uses input width width */
 	in_info = internal_info;
 #else
@@ -105,7 +105,7 @@ ia_css_raw_config(
 	to->two_ppc             = from->two_ppc;
 	to->stream_format       = css2isp_stream_format(from->stream_format);
 	to->deinterleaved       = from->deinterleaved;
-#if (defined(USE_INPUT_SYSTEM_VERSION_2401) || defined(CONFIG_CSI2_PLUS))
+#if defined(ISP2401)
 	to->start_column        = in_info->crop_info.start_column;
 	to->start_line          = in_info->crop_info.start_line;
 	to->enable_left_padding = from->enable_left_padding;

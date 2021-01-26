@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 /*
- * Copyright (C) 2010-2013 Bluecherry, LLC <http://www.bluecherrydvr.com>
+ * Copyright (C) 2010-2013 Bluecherry, LLC <https://www.bluecherrydvr.com>
  *
  * Original author:
  * Ben Collins <bcollins@ubuntu.com>
@@ -183,7 +183,7 @@ int solo_i2c_isr(struct solo_dev *solo_dev)
 		}
 
 		solo_dev->i2c_state = IIC_STATE_WRITE;
-		/* fall through */
+		fallthrough;
 	case IIC_STATE_WRITE:
 		ret = solo_i2c_handle_write(solo_dev);
 		break;

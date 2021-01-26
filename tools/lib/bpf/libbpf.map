@@ -295,5 +295,7 @@ LIBBPF_0.1.0 {
 		bpf_program__set_sk_lookup;
 		btf__parse;
 		btf__parse_raw;
+		btf__pointer_size;
 		btf__set_fd;
+		btf__set_pointer_size;
 } LIBBPF_0.0.9;

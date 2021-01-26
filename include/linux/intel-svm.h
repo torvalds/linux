@@ -11,7 +11,7 @@
 struct device;
 
 struct svm_dev_ops {
-	void (*fault_cb)(struct device *dev, int pasid, u64 address,
+	void (*fault_cb)(struct device *dev, u32 pasid, u64 address,
 			 void *private, int rwxp, int response);
 };
 

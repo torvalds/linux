@@ -19,9 +19,9 @@
  * These registers are modified under the irq bus lock and cached to avoid
  * unnecessary writes in bus_sync_unlock.
  */
-enum { REG_IBE, REG_IEV, REG_IS, REG_IE };
+enum { REG_IBE, REG_IEV, REG_IS, REG_IE, REG_DIRECT };
 
-#define CACHE_NR_REGS	4
+#define CACHE_NR_REGS	5
 #define CACHE_NR_BANKS	3
 
 struct tc3589x_gpio {
@@ -200,6 +200,7 @@ static void tc3589x_gpio_irq_sync_unlock(struct irq_data *d)
 		[REG_IEV]	= TC3589x_GPIOIEV0,
 		[REG_IS]	= TC3589x_GPIOIS0,
 		[REG_IE]	= TC3589x_GPIOIE0,
+		[REG_DIRECT]	= TC3589x_DIRECT0,
 	};
 	int i, j;
 
@@ -212,7 +213,7 @@ static void tc3589x_gpio_irq_sync_unlock(struct irq_data *d)
 				continue;
 
 			tc3589x_gpio->oldregs[i][j] = new;
-			tc3589x_reg_write(tc3589x, regmap[i] + j * 8, new);
+			tc3589x_reg_write(tc3589x, regmap[i] + j, new);
 		}
 	}
 
@@ -228,6 +229,7 @@ static void tc3589x_gpio_irq_mask(struct irq_data *d)
 	int mask = BIT(offset % 8);
 
 	tc3589x_gpio->regs[REG_IE][regoffset] &= ~mask;
+	tc3589x_gpio->regs[REG_DIRECT][regoffset] |= mask;
 }
 
 static void tc3589x_gpio_irq_unmask(struct irq_data *d)
@@ -239,6 +241,7 @@ static void tc3589x_gpio_irq_unmask(struct irq_data *d)
 	int mask = BIT(offset % 8);
 
 	tc3589x_gpio->regs[REG_IE][regoffset] |= mask;
+	tc3589x_gpio->regs[REG_DIRECT][regoffset] &= ~mask;
 }
 
 static struct irq_chip tc3589x_gpio_irq_chip = {
@@ -331,6 +334,17 @@ static int tc3589x_gpio_probe(struct platform_device *pdev)
 	/* Bring the GPIO module out of reset */
 	ret = tc3589x_set_bits(tc3589x, TC3589x_RSTCTRL,
 			       TC3589x_RSTCTRL_GPIRST, 0);
+	if (ret < 0)
+		return ret;
+
+	 /* For tc35894, have to disable Direct KBD interrupts,
+	  * else IRQST will always be 0x20, IRQN low level, can't
+	  * clear the irq status.
+	  * TODO: need more test on other tc3589x chip.
+	  *
+	  */
+	ret = tc3589x_reg_write(tc3589x, TC3589x_DKBDMSK,
+			TC3589x_DKBDMSK_ELINT | TC3589x_DKBDMSK_EINT);
 	if (ret < 0)
 		return ret;
 

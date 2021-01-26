@@ -8,7 +8,7 @@ title: ARM Mali Utgard GPU
 
 maintainers:
   - Rob Herring <robh@kernel.org>
-  - Maxime Ripard <maxime.ripard@free-electrons.com>
+  - Maxime Ripard <mripard@kernel.org>
   - Heiko Stuebner <heiko@sntech.de>
 
 properties:
@@ -99,6 +99,8 @@ properties:
   memory-region: true
 
   mali-supply: true
+
+  opp-table: true
 
   power-domains:
     maxItems: 1

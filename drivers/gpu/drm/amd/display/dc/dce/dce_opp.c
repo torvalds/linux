@@ -141,6 +141,47 @@ static void set_truncation(
 				params->flags.TRUNCATE_MODE);
 }
 
+#if defined(CONFIG_DRM_AMD_DC_SI)
+/**
+ *	dce60_set_truncation
+ *	1) set truncation depth: 0 for 18 bpp or 1 for 24 bpp
+ *	2) enable truncation
+ *	3) HW remove 12bit FMT support for DCE11 power saving reason.
+ */
+static void dce60_set_truncation(
+		struct dce110_opp *opp110,
+		const struct bit_depth_reduction_params *params)
+{
+	/* DCE6 has no FMT_TRUNCATE_MODE bit in FMT_BIT_DEPTH_CONTROL reg */
+
+	/*Disable truncation*/
+	REG_UPDATE_2(FMT_BIT_DEPTH_CONTROL,
+			FMT_TRUNCATE_EN, 0,
+			FMT_TRUNCATE_DEPTH, 0);
+
+	if (params->pixel_encoding == PIXEL_ENCODING_YCBCR422) {
+		/*  8bpc trunc on YCbCr422*/
+		if (params->flags.TRUNCATE_DEPTH == 1)
+			REG_UPDATE_2(FMT_BIT_DEPTH_CONTROL,
+					FMT_TRUNCATE_EN, 1,
+					FMT_TRUNCATE_DEPTH, 1);
+		else if (params->flags.TRUNCATE_DEPTH == 2)
+			/*  10bpc trunc on YCbCr422*/
+			REG_UPDATE_2(FMT_BIT_DEPTH_CONTROL,
+					FMT_TRUNCATE_EN, 1,
+					FMT_TRUNCATE_DEPTH, 2);
+		return;
+	}
+	/* on other format-to do */
+	if (params->flags.TRUNCATE_ENABLED == 0)
+		return;
+	/*Set truncation depth and Enable truncation*/
+	REG_UPDATE_2(FMT_BIT_DEPTH_CONTROL,
+				FMT_TRUNCATE_EN, 1,
+				FMT_TRUNCATE_DEPTH,
+				params->flags.TRUNCATE_DEPTH);
+}
+#endif
 
 /**
  *	set_spatial_dither
@@ -373,6 +414,57 @@ void dce110_opp_set_clamping(
 	}
 }
 
+#if defined(CONFIG_DRM_AMD_DC_SI)
+/**
+ *	Set Clamping for DCE6 parts
+ *	1) Set clamping format based on bpc - 0 for 6bpc (No clamping)
+ *		1 for 8 bpc
+ *		2 for 10 bpc
+ *		3 for 12 bpc
+ *		7 for programable
+ *	2) Enable clamp if Limited range requested
+ */
+void dce60_opp_set_clamping(
+	struct dce110_opp *opp110,
+	const struct clamping_and_pixel_encoding_params *params)
+{
+	REG_SET_2(FMT_CLAMP_CNTL, 0,
+		FMT_CLAMP_DATA_EN, 0,
+		FMT_CLAMP_COLOR_FORMAT, 0);
+
+	switch (params->clamping_level) {
+	case CLAMPING_FULL_RANGE:
+		break;
+	case CLAMPING_LIMITED_RANGE_8BPC:
+		REG_SET_2(FMT_CLAMP_CNTL, 0,
+			FMT_CLAMP_DATA_EN, 1,
+			FMT_CLAMP_COLOR_FORMAT, 1);
+		break;
+	case CLAMPING_LIMITED_RANGE_10BPC:
+		REG_SET_2(FMT_CLAMP_CNTL, 0,
+			FMT_CLAMP_DATA_EN, 1,
+			FMT_CLAMP_COLOR_FORMAT, 2);
+		break;
+	case CLAMPING_LIMITED_RANGE_12BPC:
+		REG_SET_2(FMT_CLAMP_CNTL, 0,
+			FMT_CLAMP_DATA_EN, 1,
+			FMT_CLAMP_COLOR_FORMAT, 3);
+		break;
+	case CLAMPING_LIMITED_RANGE_PROGRAMMABLE:
+		/*Set clamp control*/
+		REG_SET_2(FMT_CLAMP_CNTL, 0,
+			FMT_CLAMP_DATA_EN, 1,
+			FMT_CLAMP_COLOR_FORMAT, 7);
+
+		/* DCE6 does have FMT_CLAMP_COMPONENT_{R,G,B} registers */
+
+		break;
+	default:
+		break;
+	}
+}
+#endif
+
 /**
  *	set_pixel_encoding
  *
@@ -408,6 +500,39 @@ static void set_pixel_encoding(
 
 }
 
+#if defined(CONFIG_DRM_AMD_DC_SI)
+/**
+ *	dce60_set_pixel_encoding
+ *	DCE6 has no FMT_SUBSAMPLING_{MODE,ORDER} bits in FMT_CONTROL reg
+ *	Set Pixel Encoding
+ *		0: RGB 4:4:4 or YCbCr 4:4:4 or YOnly
+ *		1: YCbCr 4:2:2
+ */
+static void dce60_set_pixel_encoding(
+	struct dce110_opp *opp110,
+	const struct clamping_and_pixel_encoding_params *params)
+{
+	if (opp110->opp_mask->FMT_CBCR_BIT_REDUCTION_BYPASS)
+		REG_UPDATE_2(FMT_CONTROL,
+				FMT_PIXEL_ENCODING, 0,
+				FMT_CBCR_BIT_REDUCTION_BYPASS, 0);
+	else
+		REG_UPDATE(FMT_CONTROL,
+				FMT_PIXEL_ENCODING, 0);
+
+	if (params->pixel_encoding == PIXEL_ENCODING_YCBCR422) {
+		REG_UPDATE(FMT_CONTROL,
+				FMT_PIXEL_ENCODING, 1);
+	}
+	if (params->pixel_encoding == PIXEL_ENCODING_YCBCR420) {
+		REG_UPDATE_2(FMT_CONTROL,
+				FMT_PIXEL_ENCODING, 2,
+				FMT_CBCR_BIT_REDUCTION_BYPASS, 1);
+	}
+
+}
+#endif
+
 void dce110_opp_program_bit_depth_reduction(
 	struct output_pixel_processor *opp,
 	const struct bit_depth_reduction_params *params)
@@ -419,6 +544,19 @@ void dce110_opp_program_bit_depth_reduction(
 	set_temporal_dither(opp110, params);
 }
 
+#if defined(CONFIG_DRM_AMD_DC_SI)
+void dce60_opp_program_bit_depth_reduction(
+	struct output_pixel_processor *opp,
+	const struct bit_depth_reduction_params *params)
+{
+	struct dce110_opp *opp110 = TO_DCE110_OPP(opp);
+
+	dce60_set_truncation(opp110, params);
+	set_spatial_dither(opp110, params);
+	set_temporal_dither(opp110, params);
+}
+#endif
+
 void dce110_opp_program_clamping_and_pixel_encoding(
 	struct output_pixel_processor *opp,
 	const struct clamping_and_pixel_encoding_params *params)
@@ -428,6 +566,19 @@ void dce110_opp_program_clamping_and_pixel_encoding(
 	dce110_opp_set_clamping(opp110, params);
 	set_pixel_encoding(opp110, params);
 }
+
+#if defined(CONFIG_DRM_AMD_DC_SI)
+void dce60_opp_program_clamping_and_pixel_encoding(
+	struct output_pixel_processor *opp,
+	const struct clamping_and_pixel_encoding_params *params)
+{
+	struct dce110_opp *opp110 = TO_DCE110_OPP(opp);
+
+	dce60_opp_set_clamping(opp110, params);
+	dce60_set_pixel_encoding(opp110, params);
+}
+#endif
+
 
 static void program_formatter_420_memory(struct output_pixel_processor *opp)
 {
@@ -526,7 +677,32 @@ void dce110_opp_program_fmt(
 	return;
 }
 
+#if defined(CONFIG_DRM_AMD_DC_SI)
+void dce60_opp_program_fmt(
+	struct output_pixel_processor *opp,
+	struct bit_depth_reduction_params *fmt_bit_depth,
+	struct clamping_and_pixel_encoding_params *clamping)
+{
+	/* dithering is affected by <CrtcSourceSelect>, hence should be
+	 * programmed afterwards */
 
+	if (clamping->pixel_encoding == PIXEL_ENCODING_YCBCR420)
+		program_formatter_420_memory(opp);
+
+	dce60_opp_program_bit_depth_reduction(
+		opp,
+		fmt_bit_depth);
+
+	dce60_opp_program_clamping_and_pixel_encoding(
+		opp,
+		clamping);
+
+	if (clamping->pixel_encoding == PIXEL_ENCODING_YCBCR420)
+		program_formatter_reset_dig_resync_fifo(opp);
+
+	return;
+}
+#endif
 
 
 
@@ -540,6 +716,15 @@ static const struct opp_funcs funcs = {
 	.opp_program_fmt = dce110_opp_program_fmt,
 	.opp_program_bit_depth_reduction = dce110_opp_program_bit_depth_reduction
 };
+
+#if defined(CONFIG_DRM_AMD_DC_SI)
+static const struct opp_funcs dce60_opp_funcs = {
+	.opp_set_dyn_expansion = dce110_opp_set_dyn_expansion,
+	.opp_destroy = dce110_opp_destroy,
+	.opp_program_fmt = dce60_opp_program_fmt,
+	.opp_program_bit_depth_reduction = dce60_opp_program_bit_depth_reduction
+};
+#endif
 
 void dce110_opp_construct(struct dce110_opp *opp110,
 	struct dc_context *ctx,
@@ -558,6 +743,26 @@ void dce110_opp_construct(struct dce110_opp *opp110,
 	opp110->opp_shift = opp_shift;
 	opp110->opp_mask = opp_mask;
 }
+
+#if defined(CONFIG_DRM_AMD_DC_SI)
+void dce60_opp_construct(struct dce110_opp *opp110,
+	struct dc_context *ctx,
+	uint32_t inst,
+	const struct dce_opp_registers *regs,
+	const struct dce_opp_shift *opp_shift,
+	const struct dce_opp_mask *opp_mask)
+{
+	opp110->base.funcs = &dce60_opp_funcs;
+
+	opp110->base.ctx = ctx;
+
+	opp110->base.inst = inst;
+
+	opp110->regs = regs;
+	opp110->opp_shift = opp_shift;
+	opp110->opp_mask = opp_mask;
+}
+#endif
 
 void dce110_opp_destroy(struct output_pixel_processor **opp)
 {

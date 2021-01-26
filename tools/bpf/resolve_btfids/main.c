@@ -233,6 +233,39 @@ static struct btf_id *add_symbol(struct rb_root *root, char *name, size_t size)
 	return btf_id__add(root, id, false);
 }
 
+/*
+ * The data of compressed section should be aligned to 4
+ * (for 32bit) or 8 (for 64 bit) bytes. The binutils ld
+ * sets sh_addralign to 1, which makes libelf fail with
+ * misaligned section error during the update:
+ *    FAILED elf_update(WRITE): invalid section alignment
+ *
+ * While waiting for ld fix, we fix the compressed sections
+ * sh_addralign value manualy.
+ */
+static int compressed_section_fix(Elf *elf, Elf_Scn *scn, GElf_Shdr *sh)
+{
+	int expected = gelf_getclass(elf) == ELFCLASS32 ? 4 : 8;
+
+	if (!(sh->sh_flags & SHF_COMPRESSED))
+		return 0;
+
+	if (sh->sh_addralign == expected)
+		return 0;
+
+	pr_debug2(" - fixing wrong alignment sh_addralign %u, expected %u\n",
+		  sh->sh_addralign, expected);
+
+	sh->sh_addralign = expected;
+
+	if (gelf_update_shdr(scn, sh) == 0) {
+		printf("FAILED cannot update section header: %s\n",
+			elf_errmsg(-1));
+		return -1;
+	}
+	return 0;
+}
+
 static int elf_collect(struct object *obj)
 {
 	Elf_Scn *scn = NULL;
@@ -309,6 +342,9 @@ static int elf_collect(struct object *obj)
 			obj->efile.idlist_shndx = idx;
 			obj->efile.idlist_addr  = sh.sh_addr;
 		}
+
+		if (compressed_section_fix(elf, scn, &sh))
+			return -1;
 	}
 
 	return 0;
@@ -566,6 +602,7 @@ static int sets_patch(struct object *obj)
 
 		next = rb_next(next);
 	}
+	return 0;
 }
 
 static int symbols_patch(struct object *obj)

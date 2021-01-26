@@ -69,12 +69,33 @@ static bool dmtimer_systimer_revision1(struct dmtimer_systimer *t)
 	return !(tidr >> 16);
 }
 
+static void dmtimer_systimer_enable(struct dmtimer_systimer *t)
+{
+	u32 val;
+
+	if (dmtimer_systimer_revision1(t))
+		val = DMTIMER_TYPE1_ENABLE;
+	else
+		val = DMTIMER_TYPE2_ENABLE;
+
+	writel_relaxed(val, t->base + t->sysc);
+}
+
+static void dmtimer_systimer_disable(struct dmtimer_systimer *t)
+{
+	if (!dmtimer_systimer_revision1(t))
+		return;
+
+	writel_relaxed(DMTIMER_TYPE1_DISABLE, t->base + t->sysc);
+}
+
 static int __init dmtimer_systimer_type1_reset(struct dmtimer_systimer *t)
 {
 	void __iomem *syss = t->base + OMAP_TIMER_V1_SYS_STAT_OFFSET;
 	int ret;
 	u32 l;
 
+	dmtimer_systimer_enable(t);
 	writel_relaxed(BIT(1) | BIT(2), t->base + t->ifctrl);
 	ret = readl_poll_timeout_atomic(syss, l, l & BIT(0), 100,
 					DMTIMER_RESET_WAIT);
@@ -88,6 +109,7 @@ static int __init dmtimer_systimer_type2_reset(struct dmtimer_systimer *t)
 	void __iomem *sysc = t->base + t->sysc;
 	u32 l;
 
+	dmtimer_systimer_enable(t);
 	l = readl_relaxed(sysc);
 	l |= BIT(0);
 	writel_relaxed(l, sysc);
@@ -336,26 +358,6 @@ static int __init dmtimer_systimer_init_clock(struct dmtimer_systimer *t,
 	return 0;
 }
 
-static void dmtimer_systimer_enable(struct dmtimer_systimer *t)
-{
-	u32 val;
-
-	if (dmtimer_systimer_revision1(t))
-		val = DMTIMER_TYPE1_ENABLE;
-	else
-		val = DMTIMER_TYPE2_ENABLE;
-
-	writel_relaxed(val, t->base + t->sysc);
-}
-
-static void dmtimer_systimer_disable(struct dmtimer_systimer *t)
-{
-	if (!dmtimer_systimer_revision1(t))
-		return;
-
-	writel_relaxed(DMTIMER_TYPE1_DISABLE, t->base + t->sysc);
-}
-
 static int __init dmtimer_systimer_setup(struct device_node *np,
 					 struct dmtimer_systimer *t)
 {
@@ -409,8 +411,8 @@ static int __init dmtimer_systimer_setup(struct device_node *np,
 	t->wakeup = regbase + _OMAP_TIMER_WAKEUP_EN_OFFSET;
 	t->ifctrl = regbase + _OMAP_TIMER_IF_CTRL_OFFSET;
 
-	dmtimer_systimer_enable(t);
 	dmtimer_systimer_reset(t);
+	dmtimer_systimer_enable(t);
 	pr_debug("dmtimer rev %08x sysc %08x\n", readl_relaxed(t->base),
 		 readl_relaxed(t->base + t->sysc));
 

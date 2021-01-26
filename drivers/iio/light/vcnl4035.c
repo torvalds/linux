@@ -564,7 +564,6 @@ static int vcnl4035_probe(struct i2c_client *client,
 	data->client = client;
 	data->regmap = regmap;
 
-	indio_dev->dev.parent = &client->dev;
 	indio_dev->info = &vcnl4035_info;
 	indio_dev->name = VCNL4035_DRV_NAME;
 	indio_dev->channels = vcnl4035_channels;

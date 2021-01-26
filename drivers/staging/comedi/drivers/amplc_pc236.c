@@ -3,7 +3,7 @@
  * comedi/drivers/amplc_pc236.c
  * Driver for Amplicon PC36AT DIO boards.
  *
- * Copyright (C) 2002 MEV Ltd. <http://www.mev.co.uk/>
+ * Copyright (C) 2002 MEV Ltd. <https://www.mev.co.uk/>
  *
  * COMEDI - Linux Control and Measurement Device Interface
  * Copyright (C) 2000 David A. Schleef <ds@schleef.org>
@@ -71,6 +71,6 @@ static struct comedi_driver amplc_pc236_driver = {
 
 module_comedi_driver(amplc_pc236_driver);
 
-MODULE_AUTHOR("Comedi http://www.comedi.org");
+MODULE_AUTHOR("Comedi https://www.comedi.org");
 MODULE_DESCRIPTION("Comedi driver for Amplicon PC36AT DIO boards");
 MODULE_LICENSE("GPL");

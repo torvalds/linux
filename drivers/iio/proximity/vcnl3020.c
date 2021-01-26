@@ -226,7 +226,6 @@ static int vcnl3020_probe(struct i2c_client *client)
 	if (rc)
 		return rc;
 
-	indio_dev->dev.parent = &client->dev;
 	indio_dev->info = &vcnl3020_info;
 	indio_dev->channels = vcnl3020_channels;
 	indio_dev->num_channels = ARRAY_SIZE(vcnl3020_channels);

@@ -283,7 +283,6 @@ static int hid_press_probe(struct platform_device *pdev)
 
 	indio_dev->num_channels =
 				ARRAY_SIZE(press_channels);
-	indio_dev->dev.parent = &pdev->dev;
 	indio_dev->info = &press_info;
 	indio_dev->name = name;
 	indio_dev->modes = INDIO_DIRECT_MODE;

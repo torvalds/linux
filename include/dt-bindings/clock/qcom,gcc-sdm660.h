@@ -152,5 +152,6 @@
 #define GCC_USB_20_BCR                  6
 #define GCC_USB_30_BCR			7
 #define GCC_USB_PHY_CFG_AHB2PHY_BCR	8
+#define GCC_MSS_RESTART			9
 
 #endif

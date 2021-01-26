@@ -318,7 +318,7 @@ static inline void prepare_inbound_urb(struct snd_usb_endpoint *ep,
 
 /*
  * Send output urbs that have been prepared previously. URBs are dequeued
- * from ep->ready_playback_urbs and in case there there aren't any available
+ * from ep->ready_playback_urbs and in case there aren't any available
  * or there are no packets that have been prepared, this function does
  * nothing.
  *
@@ -615,9 +615,8 @@ static void release_urbs(struct snd_usb_endpoint *ep, int force)
 	for (i = 0; i < ep->nurbs; i++)
 		release_urb_ctx(&ep->urb[i]);
 
-	if (ep->syncbuf)
-		usb_free_coherent(ep->chip->dev, SYNC_URBS * 4,
-				  ep->syncbuf, ep->sync_dma);
+	usb_free_coherent(ep->chip->dev, SYNC_URBS * 4,
+			  ep->syncbuf, ep->sync_dma);
 
 	ep->syncbuf = NULL;
 	ep->nurbs = 0;

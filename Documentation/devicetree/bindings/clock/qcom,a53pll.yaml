@@ -15,13 +15,23 @@ description:
 
 properties:
   compatible:
-    const: qcom,msm8916-a53pll
+    enum:
+      - qcom,ipq6018-a53pll
+      - qcom,msm8916-a53pll
 
   reg:
     maxItems: 1
 
   '#clock-cells':
     const: 0
+
+  clocks:
+    items:
+      - description: board XO clock
+
+  clock-names:
+    items:
+      - const: xo
 
 required:
   - compatible
@@ -37,4 +47,13 @@ examples:
         compatible = "qcom,msm8916-a53pll";
         reg = <0xb016000 0x40>;
         #clock-cells = <0>;
+    };
+  #Example 2 - A53 PLL found on IPQ6018 devices
+  - |
+    a53pll_ipq: clock-controller@b116000 {
+        compatible = "qcom,ipq6018-a53pll";
+        reg = <0x0b116000 0x40>;
+        #clock-cells = <0>;
+        clocks = <&xo>;
+        clock-names = "xo";
     };

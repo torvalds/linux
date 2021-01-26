@@ -491,7 +491,7 @@ void bpf_jit_compile(struct bpf_prog *fp)
 				} else {
 					emit_loadimm(K, r_A);
 				}
-				/* Fallthrough */
+				fallthrough;
 			case BPF_RET | BPF_A:
 				if (seen_or_pass0) {
 					if (i != flen - 1) {

@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0
 /*
- * Copyright (C) 2013 - 2014 Texas Instruments Incorporated - http://www.ti.com
+ * Copyright (C) 2013 - 2014 Texas Instruments Incorporated - https://www.ti.com
  *
  * Authors:
  *    Jyri Sarha <jsarha@ti.com>

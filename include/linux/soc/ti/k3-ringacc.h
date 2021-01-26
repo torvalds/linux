@@ -2,7 +2,7 @@
 /*
  * K3 Ring Accelerator (RA) subsystem interface
  *
- * Copyright (C) 2019 Texas Instruments Incorporated - http://www.ti.com
+ * Copyright (C) 2019 Texas Instruments Incorporated - https://www.ti.com
  */
 
 #ifndef __SOC_TI_K3_RINGACC_API_H_

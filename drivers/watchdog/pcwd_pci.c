@@ -542,7 +542,7 @@ static long pcipcwd_ioctl(struct file *file, unsigned int cmd,
 
 		pcipcwd_keepalive();
 	}
-		/* fall through */
+		fallthrough;
 
 	case WDIOC_GETTIMEOUT:
 		return put_user(heartbeat, p);

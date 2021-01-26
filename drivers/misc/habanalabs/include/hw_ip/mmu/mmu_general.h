@@ -29,6 +29,8 @@
 #define HOP3_SHIFT			21
 #define HOP4_SHIFT			12
 
+#define MMU_ARCH_5_HOPS			5
+
 #define HOP_PHYS_ADDR_MASK		(~FLAGS_MASK)
 
 #define HL_PTE_SIZE			sizeof(u64)

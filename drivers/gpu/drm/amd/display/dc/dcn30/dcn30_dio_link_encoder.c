@@ -62,7 +62,7 @@ static const struct link_encoder_funcs dcn30_link_enc_funcs = {
 	.read_state = link_enc2_read_state,
 	.validate_output_with_stream =
 			dcn30_link_encoder_validate_output_with_stream,
-	.hw_init = enc2_hw_init,
+	.hw_init = enc3_hw_init,
 	.setup = dcn10_link_encoder_setup,
 	.enable_tmds_output = dcn10_link_encoder_enable_tmds_output,
 	.enable_dp_output = dcn20_link_encoder_enable_dp_output,
@@ -202,4 +202,55 @@ void dcn30_link_encoder_construct(
 	if (enc10->base.ctx->dc->debug.hdmi20_disable) {
 		enc10->base.features.flags.bits.HDMI_6GB_EN = 0;
 	}
+}
+
+#define AUX_REG(reg)\
+	(enc10->aux_regs->reg)
+
+#define AUX_REG_READ(reg_name) \
+		dm_read_reg(CTX, AUX_REG(reg_name))
+
+#define AUX_REG_WRITE(reg_name, val) \
+			dm_write_reg(CTX, AUX_REG(reg_name), val)
+void enc3_hw_init(struct link_encoder *enc)
+{
+	struct dcn10_link_encoder *enc10 = TO_DCN10_LINK_ENC(enc);
+
+/*
+	00 - DP_AUX_DPHY_RX_DETECTION_THRESHOLD__1to2 : 1/2
+	01 - DP_AUX_DPHY_RX_DETECTION_THRESHOLD__3to4 : 3/4
+	02 - DP_AUX_DPHY_RX_DETECTION_THRESHOLD__7to8 : 7/8
+	03 - DP_AUX_DPHY_RX_DETECTION_THRESHOLD__15to16 : 15/16
+	04 - DP_AUX_DPHY_RX_DETECTION_THRESHOLD__31to32 : 31/32
+	05 - DP_AUX_DPHY_RX_DETECTION_THRESHOLD__63to64 : 63/64
+	06 - DP_AUX_DPHY_RX_DETECTION_THRESHOLD__127to128 : 127/128
+	07 - DP_AUX_DPHY_RX_DETECTION_THRESHOLD__255to256 : 255/256
+*/
+
+/*
+	AUX_REG_UPDATE_5(AUX_DPHY_RX_CONTROL0,
+	AUX_RX_START_WINDOW = 1 [6:4]
+	AUX_RX_RECEIVE_WINDOW = 1 default is 2 [10:8]
+	AUX_RX_HALF_SYM_DETECT_LEN  = 1 [13:12] default is 1
+	AUX_RX_TRANSITION_FILTER_EN = 1 [16] default is 1
+	AUX_RX_ALLOW_BELOW_THRESHOLD_PHASE_DETECT [17] is 0  default is 0
+	AUX_RX_ALLOW_BELOW_THRESHOLD_START [18] is 1  default is 1
+	AUX_RX_ALLOW_BELOW_THRESHOLD_STOP [19] is 1  default is 1
+	AUX_RX_PHASE_DETECT_LEN,  [21,20] = 0x3 default is 3
+	AUX_RX_DETECTION_THRESHOLD [30:28] = 1
+*/
+	AUX_REG_WRITE(AUX_DPHY_RX_CONTROL0, 0x103d1110);
+
+	AUX_REG_WRITE(AUX_DPHY_TX_CONTROL, 0x21c7a);
+
+	//AUX_DPHY_TX_REF_CONTROL'AUX_TX_REF_DIV HW default is 0x32;
+	// Set AUX_TX_REF_DIV Divider to generate 2 MHz reference from refclk
+	// 27MHz -> 0xd
+	// 100MHz -> 0x32
+	// 48MHz -> 0x18
+
+	// Set TMDS_CTL0 to 1.  This is a legacy setting.
+	REG_UPDATE(TMDS_CTL_BITS, TMDS_CTL0, 1);
+
+	dcn10_aux_initialize(enc10);
 }

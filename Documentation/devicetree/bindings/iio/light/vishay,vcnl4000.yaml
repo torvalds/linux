@@ -24,6 +24,10 @@ properties:
       - vishay,vcnl4020
       - vishay,vcnl4040
       - vishay,vcnl4200
+
+  interrupts:
+    maxItems: 1
+
   reg:
     maxItems: 1
 
@@ -36,15 +40,15 @@ required:
 additionalProperties: false
 
 examples:
-- |
-  i2c {
-      #address-cells = <1>;
-      #size-cells = <0>;
+  - |
+    i2c {
+        #address-cells = <1>;
+        #size-cells = <0>;
 
-      light-sensor@51 {
-              compatible = "vishay,vcnl4200";
-              reg = <0x51>;
-              proximity-near-level = <220>;
-      };
-  };
+        light-sensor@51 {
+            compatible = "vishay,vcnl4200";
+            reg = <0x51>;
+            proximity-near-level = <220>;
+        };
+    };
 ...

@@ -43,7 +43,7 @@ struct txx9aclc_dmadata {
 	struct resource *dma_res;
 	struct txx9dmac_slave dma_slave;
 	struct dma_chan *dma_chan;
-	struct tasklet_struct tasklet;
+	struct work_struct work;
 	spinlock_t dma_lock;
 	int stream; /* SNDRV_PCM_STREAM_PLAYBACK or SNDRV_PCM_STREAM_CAPTURE */
 	struct snd_pcm_substream *substream;

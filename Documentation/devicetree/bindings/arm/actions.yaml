@@ -11,6 +11,8 @@ maintainers:
   - Manivannan Sadhasivam <manivannan.sadhasivam@linaro.org>
 
 properties:
+  $nodename:
+    const: "/"
   compatible:
     oneOf:
       # The Actions Semi S500 is a quad-core ARM Cortex-A9 SoC.

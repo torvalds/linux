@@ -32,20 +32,6 @@
 
 #define UMC_6_INST_DIST			0x40000
 
-/*
- * (addr / 256) * 8192, the higher 26 bits in ErrorAddr
- * is the index of 8KB block
- */
-#define ADDR_OF_8KB_BLOCK(addr)			(((addr) & ~0xffULL) << 5)
-/* channel index is the index of 256B block */
-#define ADDR_OF_256B_BLOCK(channel_index)	((channel_index) << 8)
-/* offset in 256B block */
-#define OFFSET_IN_256B_BLOCK(addr)		((addr) & 0xffULL)
-
-#define LOOP_UMC_INST(umc_inst) for ((umc_inst) = 0; (umc_inst) < adev->umc.umc_inst_num; (umc_inst)++)
-#define LOOP_UMC_CH_INST(ch_inst) for ((ch_inst) = 0; (ch_inst) < adev->umc.channel_inst_num; (ch_inst)++)
-#define LOOP_UMC_INST_AND_CH(umc_inst, ch_inst) LOOP_UMC_INST((umc_inst)) LOOP_UMC_CH_INST((ch_inst))
-
 const uint32_t
 	umc_v6_1_channel_idx_tbl[UMC_V6_1_UMC_INSTANCE_NUM][UMC_V6_1_CHANNEL_INSTANCE_NUM] = {
 		{2, 18, 11, 27},	{4, 20, 13, 29},

@@ -92,7 +92,7 @@ static int slave_alloc (struct scsi_device *sdev)
 static int slave_configure(struct scsi_device *sdev)
 {
 	struct us_data *us = host_to_us(sdev->host);
-	struct device *dev = us->pusb_dev->bus->sysdev;
+	struct device *dev = sdev->host->dma_dev;
 
 	/*
 	 * Many devices have trouble transferring more than 32KB at a time,

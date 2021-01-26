@@ -286,7 +286,7 @@ static void *alloc_dma_buffer(struct vio_dev *vdev, size_t size,
 
 	if (dma_mapping_error(&vdev->dev, *dma_handle)) {
 		*dma_handle = 0;
-		kzfree(buffer);
+		kfree_sensitive(buffer);
 		return NULL;
 	}
 
@@ -310,7 +310,7 @@ static void free_dma_buffer(struct vio_dev *vdev, size_t size, void *vaddr,
 	dma_unmap_single(&vdev->dev, dma_handle, size, DMA_BIDIRECTIONAL);
 
 	/* deallocate memory */
-	kzfree(vaddr);
+	kfree_sensitive(vaddr);
 }
 
 /**
@@ -883,7 +883,7 @@ static int ibmvmc_close(struct inode *inode, struct file *file)
 		spin_unlock_irqrestore(&hmc->lock, flags);
 	}
 
-	kzfree(session);
+	kfree_sensitive(session);
 
 	return rc;
 }

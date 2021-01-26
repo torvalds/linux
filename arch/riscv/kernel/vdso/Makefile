@@ -16,6 +16,8 @@ vdso-syms += flush_icache
 # Files to link into the vdso
 obj-vdso = $(patsubst %, %.o, $(vdso-syms)) note.o
 
+ccflags-y := -fno-stack-protector
+
 ifneq ($(c-gettimeofday-y),)
   CFLAGS_vgettimeofday.o += -fPIC -include $(c-gettimeofday-y)
 endif
@@ -32,6 +34,7 @@ CFLAGS_REMOVE_vgettimeofday.o = $(CC_FLAGS_FTRACE) -Os
 
 # Disable gcov profiling for VDSO code
 GCOV_PROFILE := n
+KCOV_INSTRUMENT := n
 
 # Force dependency
 $(obj)/vdso.o: $(obj)/vdso.so

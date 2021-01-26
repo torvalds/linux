@@ -90,7 +90,7 @@ static int mfld_setup(struct pci_dev *pdev, struct dw_pci_controller *c)
 	switch (pdev->device) {
 	case 0x0817:
 		dev->timings.bus_freq_hz = I2C_MAX_STANDARD_MODE_FREQ;
-		/* fall through */
+		fallthrough;
 	case 0x0818:
 	case 0x0819:
 		c->bus_num = pdev->device - 0x817 + 3;

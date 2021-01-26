@@ -1015,7 +1015,6 @@ static int si1133_probe(struct i2c_client *client,
 	i2c_set_clientdata(client, iio_dev);
 	data->client = client;
 
-	iio_dev->dev.parent = &client->dev;
 	iio_dev->name = id->name;
 	iio_dev->channels = si1133_channels;
 	iio_dev->num_channels = ARRAY_SIZE(si1133_channels);

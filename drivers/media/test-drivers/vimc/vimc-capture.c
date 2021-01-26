@@ -351,8 +351,7 @@ static void vimc_cap_unregister(struct vimc_ent_device *ved)
 	struct vimc_cap_device *vcap =
 		container_of(ved, struct vimc_cap_device, ved);
 
-	vb2_queue_release(&vcap->queue);
-	video_unregister_device(&vcap->vdev);
+	vb2_video_unregister_device(&vcap->vdev);
 }
 
 static void *vimc_cap_process_frame(struct vimc_ent_device *ved,
@@ -477,13 +476,11 @@ static struct vimc_ent_device *vimc_cap_add(struct vimc_device *vimc,
 	if (ret) {
 		dev_err(vimc->mdev.dev, "%s: video register failed (err=%d)\n",
 			vcap->vdev.name, ret);
-		goto err_release_queue;
+		goto err_clean_m_ent;
 	}
 
 	return &vcap->ved;
 
-err_release_queue:
-	vb2_queue_release(q);
 err_clean_m_ent:
 	media_entity_cleanup(&vcap->vdev.entity);
 err_free_vcap:

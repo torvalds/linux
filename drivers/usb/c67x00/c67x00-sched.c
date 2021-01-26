@@ -710,7 +710,8 @@ static int c67x00_add_ctrl_urb(struct c67x00_hcd *c67x00, struct urb *urb)
 			if (ret)
 				return ret;
 			break;
-		}		/* else fallthrough */
+		}
+		fallthrough;
 	case STATUS_STAGE:
 		pid = !usb_pipeout(urb->pipe) ? USB_PID_OUT : USB_PID_IN;
 		ret = c67x00_create_td(c67x00, urb, NULL, 0, pid, 1,
@@ -1122,9 +1123,9 @@ static void c67x00_do_work(struct c67x00_hcd *c67x00)
 
 /* -------------------------------------------------------------------------- */
 
-static void c67x00_sched_tasklet(unsigned long __c67x00)
+static void c67x00_sched_tasklet(struct tasklet_struct *t)
 {
-	struct c67x00_hcd *c67x00 = (struct c67x00_hcd *)__c67x00;
+	struct c67x00_hcd *c67x00 = from_tasklet(c67x00, t, tasklet);
 	c67x00_do_work(c67x00);
 }
 
@@ -1135,8 +1136,7 @@ void c67x00_sched_kick(struct c67x00_hcd *c67x00)
 
 int c67x00_sched_start_scheduler(struct c67x00_hcd *c67x00)
 {
-	tasklet_init(&c67x00->tasklet, c67x00_sched_tasklet,
-		     (unsigned long)c67x00);
+	tasklet_setup(&c67x00->tasklet, c67x00_sched_tasklet);
 	return 0;
 }
 

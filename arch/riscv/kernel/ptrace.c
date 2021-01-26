@@ -30,13 +30,10 @@ enum riscv_regset {
 
 static int riscv_gpr_get(struct task_struct *target,
 			 const struct user_regset *regset,
-			 unsigned int pos, unsigned int count,
-			 void *kbuf, void __user *ubuf)
+			 struct membuf to)
 {
-	struct pt_regs *regs;
-
-	regs = task_pt_regs(target);
-	return user_regset_copyout(&pos, &count, &kbuf, &ubuf, regs, 0, -1);
+	return membuf_write(&to, task_pt_regs(target),
+			    sizeof(struct user_regs_struct));
 }
 
 static int riscv_gpr_set(struct task_struct *target,
@@ -55,21 +52,13 @@ static int riscv_gpr_set(struct task_struct *target,
 #ifdef CONFIG_FPU
 static int riscv_fpr_get(struct task_struct *target,
 			 const struct user_regset *regset,
-			 unsigned int pos, unsigned int count,
-			 void *kbuf, void __user *ubuf)
+			 struct membuf to)
 {
-	int ret;
 	struct __riscv_d_ext_state *fstate = &target->thread.fstate;
 
-	ret = user_regset_copyout(&pos, &count, &kbuf, &ubuf, fstate, 0,
-				  offsetof(struct __riscv_d_ext_state, fcsr));
-	if (!ret) {
-		ret = user_regset_copyout(&pos, &count, &kbuf, &ubuf, fstate, 0,
-					  offsetof(struct __riscv_d_ext_state, fcsr) +
-					  sizeof(fstate->fcsr));
-	}
-
-	return ret;
+	membuf_write(&to, fstate, offsetof(struct __riscv_d_ext_state, fcsr));
+	membuf_store(&to, fstate->fcsr);
+	return membuf_zero(&to, 4);	// explicitly pad
 }
 
 static int riscv_fpr_set(struct task_struct *target,
@@ -98,8 +87,8 @@ static const struct user_regset riscv_user_regset[] = {
 		.n = ELF_NGREG,
 		.size = sizeof(elf_greg_t),
 		.align = sizeof(elf_greg_t),
-		.get = &riscv_gpr_get,
-		.set = &riscv_gpr_set,
+		.regset_get = riscv_gpr_get,
+		.set = riscv_gpr_set,
 	},
 #ifdef CONFIG_FPU
 	[REGSET_F] = {
@@ -107,8 +96,8 @@ static const struct user_regset riscv_user_regset[] = {
 		.n = ELF_NFPREG,
 		.size = sizeof(elf_fpreg_t),
 		.align = sizeof(elf_fpreg_t),
-		.get = &riscv_fpr_get,
-		.set = &riscv_fpr_set,
+		.regset_get = riscv_fpr_get,
+		.set = riscv_fpr_set,
 	},
 #endif
 };

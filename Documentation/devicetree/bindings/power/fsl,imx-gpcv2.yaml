@@ -33,6 +33,10 @@ properties:
   interrupts:
     maxItems: 1
 
+  interrupt-controller: true
+  '#interrupt-cells':
+    const: 3
+
   pgc:
     type: object
     description: list of power domains provided by this controller.

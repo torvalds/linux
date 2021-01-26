@@ -5,7 +5,6 @@
 #include <linux/kasan.h>
 #include <linux/memblock.h>
 #include <linux/hugetlb.h>
-#include <asm/pgalloc.h>
 
 static int __init
 kasan_init_shadow_8M(unsigned long k_start, unsigned long k_end, void *block)

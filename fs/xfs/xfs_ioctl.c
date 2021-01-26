@@ -404,7 +404,7 @@ xfs_ioc_attr_list(
 	     context.cursor.offset))
 		return -EINVAL;
 
-	buffer = kmem_zalloc_large(bufsize, 0);
+	buffer = kvzalloc(bufsize, GFP_KERNEL);
 	if (!buffer)
 		return -ENOMEM;
 
@@ -1075,13 +1075,18 @@ xfs_merge_ioc_xflags(
 		xflags |= FS_XFLAG_NODUMP;
 	else
 		xflags &= ~FS_XFLAG_NODUMP;
+	if (flags & FS_DAX_FL)
+		xflags |= FS_XFLAG_DAX;
+	else
+		xflags &= ~FS_XFLAG_DAX;
 
 	return xflags;
 }
 
 STATIC unsigned int
 xfs_di2lxflags(
-	uint16_t	di_flags)
+	uint16_t	di_flags,
+	uint64_t	di_flags2)
 {
 	unsigned int	flags = 0;
 
@@ -1095,6 +1100,9 @@ xfs_di2lxflags(
 		flags |= FS_NOATIME_FL;
 	if (di_flags & XFS_DIFLAG_NODUMP)
 		flags |= FS_NODUMP_FL;
+	if (di_flags2 & XFS_DIFLAG2_DAX) {
+		flags |= FS_DAX_FL;
+	}
 	return flags;
 }
 
@@ -1182,7 +1190,8 @@ xfs_flags2diflags2(
 	unsigned int		xflags)
 {
 	uint64_t		di_flags2 =
-		(ip->i_d.di_flags2 & XFS_DIFLAG2_REFLINK);
+		(ip->i_d.di_flags2 & (XFS_DIFLAG2_REFLINK |
+				      XFS_DIFLAG2_BIGTIME));
 
 	if (xflags & FS_XFLAG_DAX)
 		di_flags2 |= XFS_DIFLAG2_DAX;
@@ -1565,7 +1574,7 @@ xfs_ioc_getxflags(
 {
 	unsigned int		flags;
 
-	flags = xfs_di2lxflags(ip->i_d.di_flags);
+	flags = xfs_di2lxflags(ip->i_d.di_flags, ip->i_d.di_flags2);
 	if (copy_to_user(arg, &flags, sizeof(flags)))
 		return -EFAULT;
 	return 0;
@@ -1588,7 +1597,7 @@ xfs_ioc_setxflags(
 
 	if (flags & ~(FS_IMMUTABLE_FL | FS_APPEND_FL | \
 		      FS_NOATIME_FL | FS_NODUMP_FL | \
-		      FS_SYNC_FL))
+		      FS_SYNC_FL | FS_DAX_FL))
 		return -EOPNOTSUPP;
 
 	fa.fsx_xflags = xfs_merge_ioc_xflags(flags, xfs_ip2xflags(ip));
@@ -1682,7 +1691,7 @@ xfs_ioc_getbmap(
 	if (bmx.bmv_count > ULONG_MAX / recsize)
 		return -ENOMEM;
 
-	buf = kmem_zalloc_large(bmx.bmv_count * sizeof(*buf), 0);
+	buf = kvzalloc(bmx.bmv_count * sizeof(*buf), GFP_KERNEL);
 	if (!buf)
 		return -ENOMEM;
 

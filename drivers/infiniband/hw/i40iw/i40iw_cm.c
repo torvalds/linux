@@ -2443,7 +2443,7 @@ static void i40iw_handle_rst_pkt(struct i40iw_cm_node *cm_node,
 	case I40IW_CM_STATE_FIN_WAIT1:
 	case I40IW_CM_STATE_LAST_ACK:
 		cm_node->cm_id->rem_ref(cm_node->cm_id);
-		/* fall through */
+		fallthrough;
 	case I40IW_CM_STATE_TIME_WAIT:
 		cm_node->state = I40IW_CM_STATE_CLOSED;
 		i40iw_rem_ref_cm_node(cm_node);

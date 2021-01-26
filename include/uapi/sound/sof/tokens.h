@@ -24,6 +24,9 @@
 #define SOF_TPLG_KCTL_ENUM_ID	257
 #define SOF_TPLG_KCTL_BYTES_ID	258
 #define SOF_TPLG_KCTL_SWITCH_ID	259
+#define SOF_TPLG_KCTL_BYTES_VOLATILE_RO 260
+#define SOF_TPLG_KCTL_BYTES_VOLATILE_RW 261
+#define SOF_TPLG_KCTL_BYTES_WO_ID 262
 
 /*
  * Tokens - must match values in topology configurations
@@ -73,6 +76,8 @@
 /* Token retired with ABI 3.2, do not use for new capabilities
  * #define SOF_TKN_COMP_PRELOAD_COUNT		403
  */
+#define SOF_TKN_COMP_CORE_ID			404
+#define SOF_TKN_COMP_UUID                       405
 
 /* SSP */
 #define SOF_TKN_INTEL_SSP_CLKS_CONTROL		500

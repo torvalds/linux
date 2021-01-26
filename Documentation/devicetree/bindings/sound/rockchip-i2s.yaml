@@ -19,16 +19,16 @@ properties:
       - const: rockchip,rk3066-i2s
       - items:
           - enum:
-            - rockchip,px30-i2s
-            - rockchip,rk3036-i2s
-            - rockchip,rk3188-i2s
-            - rockchip,rk3228-i2s
-            - rockchip,rk3288-i2s
-            - rockchip,rk3308-i2s
-            - rockchip,rk3328-i2s
-            - rockchip,rk3366-i2s
-            - rockchip,rk3368-i2s
-            - rockchip,rk3399-i2s
+              - rockchip,px30-i2s
+              - rockchip,rk3036-i2s
+              - rockchip,rk3188-i2s
+              - rockchip,rk3228-i2s
+              - rockchip,rk3288-i2s
+              - rockchip,rk3308-i2s
+              - rockchip,rk3328-i2s
+              - rockchip,rk3366-i2s
+              - rockchip,rk3368-i2s
+              - rockchip,rk3399-i2s
           - const: rockchip,rk3066-i2s
 
   reg:
@@ -55,8 +55,8 @@ properties:
     oneOf:
       - const: rx
       - items:
-        - const: tx
-        - const: rx
+          - const: tx
+          - const: rx
 
   power-domains:
     maxItems: 1

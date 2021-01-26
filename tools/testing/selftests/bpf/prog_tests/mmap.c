@@ -21,7 +21,7 @@ void test_mmap(void)
 	const long page_size = sysconf(_SC_PAGE_SIZE);
 	int err, duration = 0, i, data_map_fd, data_map_id, tmp_fd, rdmap_fd;
 	struct bpf_map *data_map, *bss_map;
-	void *bss_mmaped = NULL, *map_mmaped = NULL, *tmp1, *tmp2;
+	void *bss_mmaped = NULL, *map_mmaped = NULL, *tmp0, *tmp1, *tmp2;
 	struct test_mmap__bss *bss_data;
 	struct bpf_map_info map_info;
 	__u32 map_info_sz = sizeof(map_info);
@@ -183,16 +183,23 @@ void test_mmap(void)
 
 	/* check some more advanced mmap() manipulations */
 
-	/* map all but last page: pages 1-3 mapped */
-	tmp1 = mmap(NULL, 3 * page_size, PROT_READ, MAP_SHARED,
-			  data_map_fd, 0);
-	if (CHECK(tmp1 == MAP_FAILED, "adv_mmap1", "errno %d\n", errno))
+	tmp0 = mmap(NULL, 4 * page_size, PROT_READ, MAP_SHARED | MAP_ANONYMOUS,
+			  -1, 0);
+	if (CHECK(tmp0 == MAP_FAILED, "adv_mmap0", "errno %d\n", errno))
 		goto cleanup;
+
+	/* map all but last page: pages 1-3 mapped */
+	tmp1 = mmap(tmp0, 3 * page_size, PROT_READ, MAP_SHARED | MAP_FIXED,
+			  data_map_fd, 0);
+	if (CHECK(tmp0 != tmp1, "adv_mmap1", "tmp0: %p, tmp1: %p\n", tmp0, tmp1)) {
+		munmap(tmp0, 4 * page_size);
+		goto cleanup;
+	}
 
 	/* unmap second page: pages 1, 3 mapped */
 	err = munmap(tmp1 + page_size, page_size);
 	if (CHECK(err, "adv_mmap2", "errno %d\n", errno)) {
-		munmap(tmp1, map_sz);
+		munmap(tmp1, 4 * page_size);
 		goto cleanup;
 	}
 
@@ -201,7 +208,7 @@ void test_mmap(void)
 		    MAP_SHARED | MAP_FIXED, data_map_fd, 0);
 	if (CHECK(tmp2 == MAP_FAILED, "adv_mmap3", "errno %d\n", errno)) {
 		munmap(tmp1, page_size);
-		munmap(tmp1 + 2*page_size, page_size);
+		munmap(tmp1 + 2*page_size, 2 * page_size);
 		goto cleanup;
 	}
 	CHECK(tmp1 + page_size != tmp2, "adv_mmap4",
@@ -211,7 +218,7 @@ void test_mmap(void)
 	tmp2 = mmap(tmp1, 4 * page_size, PROT_READ, MAP_SHARED | MAP_FIXED,
 		    data_map_fd, 0);
 	if (CHECK(tmp2 == MAP_FAILED, "adv_mmap5", "errno %d\n", errno)) {
-		munmap(tmp1, 3 * page_size); /* unmap page 1 */
+		munmap(tmp1, 4 * page_size); /* unmap page 1 */
 		goto cleanup;
 	}
 	CHECK(tmp1 != tmp2, "adv_mmap6", "tmp1: %p, tmp2: %p\n", tmp1, tmp2);

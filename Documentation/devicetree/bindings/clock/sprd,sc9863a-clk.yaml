@@ -16,7 +16,7 @@ properties:
   "#clock-cells":
     const: 1
 
-  compatible :
+  compatible:
     enum:
       - sprd,sc9863a-ap-clk
       - sprd,sc9863a-aon-clk
@@ -72,6 +72,8 @@ else:
 
     The 'reg' property for the clock node is also required if there is a sub
     range of registers for the clocks.
+
+additionalProperties: false
 
 examples:
   - |

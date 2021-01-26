@@ -389,7 +389,7 @@ u64 vgic_sanitise_outer_cacheability(u64 field)
 	case GIC_BASER_CACHE_nC:
 		return field;
 	default:
-		return GIC_BASER_CACHE_nC;
+		return GIC_BASER_CACHE_SameAsInner;
 	}
 }
 
@@ -1001,8 +1001,8 @@ void vgic_v3_dispatch_sgi(struct kvm_vcpu *vcpu, u64 reg, bool allow_group1)
 		raw_spin_lock_irqsave(&irq->irq_lock, flags);
 
 		/*
-		 * An access targetting Group0 SGIs can only generate
-		 * those, while an access targetting Group1 SGIs can
+		 * An access targeting Group0 SGIs can only generate
+		 * those, while an access targeting Group1 SGIs can
 		 * generate interrupts of either group.
 		 */
 		if (!irq->group || allow_group1) {

@@ -251,5 +251,11 @@ static inline void dqm_unlock(struct device_queue_manager *dqm)
 	mutex_unlock(&dqm->lock_hidden);
 }
 
-int read_sdma_queue_counter(uint64_t q_rptr, uint64_t *val);
+static inline int read_sdma_queue_counter(uint64_t __user *q_rptr, uint64_t *val)
+{
+        /*
+         * SDMA activity counter is stored at queue's RPTR + 0x8 location.
+         */
+	return get_user(*val, q_rptr + 1);
+}
 #endif /* KFD_DEVICE_QUEUE_MANAGER_H_ */

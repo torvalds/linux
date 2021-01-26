@@ -110,7 +110,6 @@ static int qedr_iw_port_immutable(struct ib_device *ibdev, u8 port_num,
 	if (err)
 		return err;
 
-	immutable->pkey_tbl_len = 1;
 	immutable->gid_tbl_len = 1;
 	immutable->core_cap_flags = RDMA_CORE_PORT_IWARP;
 	immutable->max_mad_size = 0;
@@ -179,6 +178,7 @@ static int qedr_iw_register_device(struct qedr_dev *dev)
 
 static const struct ib_device_ops qedr_roce_dev_ops = {
 	.get_port_immutable = qedr_roce_port_immutable,
+	.query_pkey = qedr_query_pkey,
 };
 
 static void qedr_roce_register_device(struct qedr_dev *dev)
@@ -221,7 +221,6 @@ static const struct ib_device_ops qedr_dev_ops = {
 	.post_srq_recv = qedr_post_srq_recv,
 	.process_mad = qedr_process_mad,
 	.query_device = qedr_query_device,
-	.query_pkey = qedr_query_pkey,
 	.query_port = qedr_query_port,
 	.query_qp = qedr_query_qp,
 	.query_srq = qedr_query_srq,

@@ -30,6 +30,8 @@
 #define KSV_READ_SIZE 0xf	/* 0x6803b - 0x6802c */
 #define HDCP_MAX_AUX_TRANSACTION_SIZE 16
 
+#define DP_CP_IRQ (1 << 2)
+
 enum mod_hdcp_ddc_message_id {
 	MOD_HDCP_MESSAGE_ID_INVALID = -1,
 
@@ -644,4 +646,19 @@ enum mod_hdcp_status mod_hdcp_write_content_type(struct mod_hdcp *hdcp)
 	else
 		status = MOD_HDCP_STATUS_INVALID_OPERATION;
 	return status;
+}
+
+enum mod_hdcp_status mod_hdcp_clear_cp_irq_status(struct mod_hdcp *hdcp)
+{
+	uint8_t clear_cp_irq_bit = DP_CP_IRQ;
+	uint32_t size = 1;
+
+	if (is_dp_hdcp(hdcp)) {
+		uint32_t cp_irq_addrs = (hdcp->connection.link.dp.rev >= 0x14)
+				? DP_DEVICE_SERVICE_IRQ_VECTOR_ESI0:DP_DEVICE_SERVICE_IRQ_VECTOR;
+		return hdcp->config.ddc.funcs.write_dpcd(hdcp->config.ddc.handle, cp_irq_addrs,
+				&clear_cp_irq_bit, size) ? MOD_HDCP_STATUS_SUCCESS : MOD_HDCP_STATUS_DDC_FAILURE;
+	}
+
+	return MOD_HDCP_STATUS_INVALID_OPERATION;
 }

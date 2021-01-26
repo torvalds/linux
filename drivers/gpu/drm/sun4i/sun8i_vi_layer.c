@@ -211,7 +211,7 @@ static int sun8i_vi_layer_update_coord(struct sun8i_mixer *mixer, int channel,
 	return 0;
 }
 
-static bool sun8i_vi_layer_get_csc_mode(const struct drm_format_info *format)
+static u32 sun8i_vi_layer_get_csc_mode(const struct drm_format_info *format)
 {
 	if (!format->is_yuv)
 		return SUN8I_CSC_MODE_OFF;
@@ -401,7 +401,7 @@ static void sun8i_vi_layer_atomic_update(struct drm_plane *plane,
 			      true, zpos, old_zpos);
 }
 
-static struct drm_plane_helper_funcs sun8i_vi_layer_helper_funcs = {
+static const struct drm_plane_helper_funcs sun8i_vi_layer_helper_funcs = {
 	.prepare_fb	= drm_gem_fb_prepare_fb,
 	.atomic_check	= sun8i_vi_layer_atomic_check,
 	.atomic_disable	= sun8i_vi_layer_atomic_disable,

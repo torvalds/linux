@@ -141,14 +141,12 @@ enum sgn_alg {
 	SGN_ALG_MD2_5 = 0x0001,
 	SGN_ALG_DES_MAC = 0x0002,
 	SGN_ALG_3 = 0x0003,		/* not published */
-	SGN_ALG_HMAC_MD5 = 0x0011,	/* microsoft w2k; no support */
 	SGN_ALG_HMAC_SHA1_DES3_KD = 0x0004
 };
 enum seal_alg {
 	SEAL_ALG_NONE = 0xffff,
 	SEAL_ALG_DES = 0x0000,
 	SEAL_ALG_1 = 0x0001,		/* not published */
-	SEAL_ALG_MICROSOFT_RC4 = 0x0010,/* microsoft w2k; no support */
 	SEAL_ALG_DES3KD = 0x0002
 };
 
@@ -316,14 +314,5 @@ gss_krb5_aes_decrypt(struct krb5_ctx *kctx, u32 offset, u32 len,
 		     struct xdr_buf *buf, u32 *plainoffset,
 		     u32 *plainlen);
 
-int
-krb5_rc4_setup_seq_key(struct krb5_ctx *kctx,
-		       struct crypto_sync_skcipher *cipher,
-		       unsigned char *cksum);
-
-int
-krb5_rc4_setup_enc_key(struct krb5_ctx *kctx,
-		       struct crypto_sync_skcipher *cipher,
-		       s32 seqnum);
 void
 gss_krb5_make_confounder(char *p, u32 conflen);

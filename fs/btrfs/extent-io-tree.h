@@ -34,10 +34,13 @@ struct io_failure_record;
  */
 #define CHUNK_ALLOCATED				EXTENT_DIRTY
 #define CHUNK_TRIMMED				EXTENT_DEFRAG
+#define CHUNK_STATE_MASK			(CHUNK_ALLOCATED |		\
+						 CHUNK_TRIMMED)
 
 enum {
 	IO_TREE_FS_PINNED_EXTENTS,
 	IO_TREE_FS_EXCLUDED_EXTENTS,
+	IO_TREE_BTREE_INODE_IO,
 	IO_TREE_INODE_IO,
 	IO_TREE_INODE_IO_FAILURE,
 	IO_TREE_RELOC_BLOCKS,
@@ -46,6 +49,7 @@ enum {
 	IO_TREE_INODE_FILE_EXTENT,
 	IO_TREE_LOG_CSUM_RANGE,
 	IO_TREE_SELFTEST,
+	IO_TREE_DEVICE_ALLOC_STATE,
 };
 
 struct extent_io_tree {
@@ -59,7 +63,6 @@ struct extent_io_tree {
 	u8 owner;
 
 	spinlock_t lock;
-	const struct extent_io_ops *ops;
 };
 
 struct extent_state {

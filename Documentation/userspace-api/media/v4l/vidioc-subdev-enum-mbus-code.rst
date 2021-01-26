@@ -1,11 +1,4 @@
-.. Permission is granted to copy, distribute and/or modify this
-.. document under the terms of the GNU Free Documentation License,
-.. Version 1.1 or any later version published by the Free Software
-.. Foundation, with no Invariant Sections, no Front-Cover Texts
-.. and no Back-Cover Texts. A copy of the license is included at
-.. Documentation/userspace-api/media/fdl-appendix.rst.
-..
-.. TODO: replace it to GFDL-1.1-or-later WITH no-invariant-sections
+.. SPDX-License-Identifier: GFDL-1.1-no-invariants-or-later
 
 .. _VIDIOC_SUBDEV_ENUM_MBUS_CODE:
 
@@ -79,10 +72,59 @@ information about the try formats.
       - Media bus format codes to be enumerated, from enum
 	:ref:`v4l2_subdev_format_whence <v4l2-subdev-format-whence>`.
     * - __u32
-      - ``reserved``\ [8]
+      - ``flags``
+      - See :ref:`v4l2-subdev-mbus-code-flags`
+    * - __u32
+      - ``reserved``\ [7]
       - Reserved for future extensions. Applications and drivers must set
 	the array to zero.
 
+
+
+.. tabularcolumns:: |p{4.4cm}|p{4.4cm}|p{7.7cm}|
+
+.. _v4l2-subdev-mbus-code-flags:
+
+.. flat-table:: Subdev Media Bus Code Enumerate Flags
+    :header-rows:  0
+    :stub-columns: 0
+    :widths:       1 1 2
+
+    * - V4L2_SUBDEV_MBUS_CODE_CSC_COLORSPACE
+      - 0x00000001
+      - The driver allows the application to try to change the default colorspace
+	encoding. The application can ask to configure the colorspace of the
+	subdevice when calling the :ref:`VIDIOC_SUBDEV_S_FMT <VIDIOC_SUBDEV_G_FMT>`
+	ioctl with :ref:`V4L2_MBUS_FRAMEFMT_SET_CSC <mbus-framefmt-set-csc>` set.
+	See :ref:`v4l2-mbus-format` on how to do this.
+    * - V4L2_SUBDEV_MBUS_CODE_CSC_XFER_FUNC
+      - 0x00000002
+      - The driver allows the application to try to change the default transform function.
+	The application can ask to configure the transform function of
+	the subdevice when calling the :ref:`VIDIOC_SUBDEV_S_FMT <VIDIOC_SUBDEV_G_FMT>`
+	ioctl with :ref:`V4L2_MBUS_FRAMEFMT_SET_CSC <mbus-framefmt-set-csc>` set.
+	See :ref:`v4l2-mbus-format` on how to do this.
+    * - V4L2_SUBDEV_MBUS_CODE_CSC_YCBCR_ENC
+      - 0x00000004
+      - The driver allows the application to try to change the default Y'CbCr
+	encoding. The application can ask to configure the Y'CbCr encoding of the
+	subdevice when calling the :ref:`VIDIOC_SUBDEV_S_FMT <VIDIOC_SUBDEV_G_FMT>`
+	ioctl with :ref:`V4L2_MBUS_FRAMEFMT_SET_CSC <mbus-framefmt-set-csc>` set.
+	See :ref:`v4l2-mbus-format` on how to do this.
+    * - V4L2_SUBDEV_MBUS_CODE_CSC_HSV_ENC
+      - 0x00000004
+      - The driver allows the application to try to change the default HSV
+	encoding. The application can ask to configure the HSV encoding of the
+	subdevice when calling the :ref:`VIDIOC_SUBDEV_S_FMT <VIDIOC_SUBDEV_G_FMT>`
+	ioctl with :ref:`V4L2_MBUS_FRAMEFMT_SET_CSC <mbus-framefmt-set-csc>` set.
+	See :ref:`v4l2-mbus-format` on how to do this.
+    * - V4L2_SUBDEV_MBUS_CODE_CSC_QUANTIZATION
+      - 0x00000008
+      - The driver allows the application to try to change the default
+	quantization. The application can ask to configure the quantization of
+	the subdevice when calling the :ref:`VIDIOC_SUBDEV_S_FMT <VIDIOC_SUBDEV_G_FMT>`
+	ioctl with :ref:`V4L2_MBUS_FRAMEFMT_SET_CSC <mbus-framefmt-set-csc>` set.
+	See :ref:`v4l2-mbus-format` on how to do this.
 
 Return Value
 ============

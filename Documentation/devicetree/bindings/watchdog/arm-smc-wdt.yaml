@@ -25,6 +25,8 @@ properties:
 required:
   - compatible
 
+unevaluatedProperties: false
+
 examples:
   - |
     watchdog {

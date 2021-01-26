@@ -106,6 +106,8 @@ struct atmel_pin {
  * @irq_domain: irq domain for the gpio controller.
  * @irqs: table containing the hw irq number of the bank. The index of the
  *     table is the bank id.
+ * @pm_wakeup_sources: bitmap of wakeup sources (lines)
+ * @pm_suspend_backup: backup/restore register values on suspend/resume
  * @dev: device entry for the Atmel PIO controller.
  * @node: node of the Atmel PIO controller.
  */
@@ -981,10 +983,17 @@ static const struct atmel_pioctrl_data atmel_sama5d2_pioctrl_data = {
 	.nbanks		= 4,
 };
 
+static const struct atmel_pioctrl_data microchip_sama7g5_pioctrl_data = {
+	.nbanks		= 5,
+};
+
 static const struct of_device_id atmel_pctrl_of_match[] = {
 	{
 		.compatible = "atmel,sama5d2-pinctrl",
 		.data = &atmel_sama5d2_pioctrl_data,
+	}, {
+		.compatible = "microchip,sama7g5-pinctrl",
+		.data = &microchip_sama7g5_pioctrl_data,
 	}, {
 		/* sentinel */
 	}

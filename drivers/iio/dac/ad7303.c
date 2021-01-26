@@ -7,6 +7,7 @@
 
 #include <linux/err.h>
 #include <linux/module.h>
+#include <linux/mod_devicetable.h>
 #include <linux/kernel.h>
 #include <linux/spi/spi.h>
 #include <linux/slab.h>
@@ -29,6 +30,9 @@
  * @spi:		the device for this driver instance
  * @config:		cached config register value
  * @dac_cache:		current DAC raw value (chip does not support readback)
+ * @vdd_reg:		reference to VDD regulator
+ * @vref_reg:		reference to VREF regulator
+ * @lock:		protect writes and cache updates
  * @data:		spi transfer buffer
  */
 
@@ -238,7 +242,6 @@ static int ad7303_probe(struct spi_device *spi)
 		st->config |= AD7303_CFG_EXTERNAL_VREF;
 	}
 
-	indio_dev->dev.parent = &spi->dev;
 	indio_dev->name = id->name;
 	indio_dev->info = &ad7303_info;
 	indio_dev->modes = INDIO_DIRECT_MODE;
@@ -288,7 +291,7 @@ MODULE_DEVICE_TABLE(spi, ad7303_spi_ids);
 static struct spi_driver ad7303_driver = {
 	.driver = {
 		.name = "ad7303",
-		.of_match_table = of_match_ptr(ad7303_spi_of_match),
+		.of_match_table = ad7303_spi_of_match,
 	},
 	.probe = ad7303_probe,
 	.remove = ad7303_remove,

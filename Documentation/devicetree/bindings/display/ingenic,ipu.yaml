@@ -13,11 +13,11 @@ properties:
   compatible:
     oneOf:
       - enum:
-        - ingenic,jz4725b-ipu
-        - ingenic,jz4760-ipu
+          - ingenic,jz4725b-ipu
+          - ingenic,jz4760-ipu
       - items:
-        - const: ingenic,jz4770-ipu
-        - const: ingenic,jz4760-ipu
+          - const: ingenic,jz4770-ipu
+          - const: ingenic,jz4760-ipu
 
   reg:
     maxItems: 1

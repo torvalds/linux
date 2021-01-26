@@ -115,7 +115,7 @@ static int request_irqs(struct mlx5_core_dev *dev, int nvec)
 	return 0;
 
 err_request_irq:
-	for (; i >= 0; i--) {
+	while (i--) {
 		struct mlx5_irq *irq = mlx5_irq_get(dev, i);
 		int irqn = pci_irq_vector(dev->pdev, i);
 

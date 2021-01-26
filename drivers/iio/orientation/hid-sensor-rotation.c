@@ -281,7 +281,6 @@ static int hid_dev_rot_probe(struct platform_device *pdev)
 	}
 
 	indio_dev->num_channels = ARRAY_SIZE(dev_rot_channels);
-	indio_dev->dev.parent = &pdev->dev;
 	indio_dev->info = &dev_rot_info;
 	indio_dev->name = name;
 	indio_dev->modes = INDIO_DIRECT_MODE;

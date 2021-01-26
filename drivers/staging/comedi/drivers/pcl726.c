@@ -389,7 +389,7 @@ static int pcl726_attach(struct comedi_device *dev,
 	}
 
 	if (dev->irq) {
-		/* Digial Input subdevice - Interrupt support */
+		/* Digital Input subdevice - Interrupt support */
 		s = &dev->subdevices[subdev++];
 		dev->read_subdev = s;
 		s->type		= COMEDI_SUBD_DI;
@@ -418,6 +418,6 @@ static struct comedi_driver pcl726_driver = {
 };
 module_comedi_driver(pcl726_driver);
 
-MODULE_AUTHOR("Comedi http://www.comedi.org");
+MODULE_AUTHOR("Comedi https://www.comedi.org");
 MODULE_DESCRIPTION("Comedi driver for Advantech PCL-726 & compatibles");
 MODULE_LICENSE("GPL");

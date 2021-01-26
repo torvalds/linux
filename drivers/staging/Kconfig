@@ -56,8 +56,6 @@ source "drivers/staging/sm750fb/Kconfig"
 
 source "drivers/staging/emxx_udc/Kconfig"
 
-source "drivers/staging/speakup/Kconfig"
-
 source "drivers/staging/nvec/Kconfig"
 
 source "drivers/staging/media/Kconfig"
@@ -117,5 +115,7 @@ source "drivers/staging/kpc2000/Kconfig"
 source "drivers/staging/qlge/Kconfig"
 
 source "drivers/staging/wfx/Kconfig"
+
+source "drivers/staging/hikey9xx/Kconfig"
 
 endif # STAGING

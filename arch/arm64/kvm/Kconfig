@@ -57,9 +57,6 @@ config KVM_ARM_PMU
 	  Adds support for a virtual Performance Monitoring Unit (PMU) in
 	  virtual machines.
 
-config KVM_INDIRECT_VECTORS
-	def_bool HARDEN_BRANCH_PREDICTOR || HARDEN_EL2_VECTORS
-
 endif # KVM
 
 endif # VIRTUALIZATION

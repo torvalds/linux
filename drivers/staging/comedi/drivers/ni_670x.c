@@ -277,6 +277,6 @@ static struct pci_driver ni_670x_pci_driver = {
 };
 module_comedi_pci_driver(ni_670x_driver, ni_670x_pci_driver);
 
-MODULE_AUTHOR("Comedi http://www.comedi.org");
+MODULE_AUTHOR("Comedi https://www.comedi.org");
 MODULE_DESCRIPTION("Comedi low-level driver");
 MODULE_LICENSE("GPL");

@@ -116,13 +116,9 @@ static int fsl_audmix_put_mix_clk_src(struct snd_kcontrol *kcontrol,
 	struct soc_enum *e = (struct soc_enum *)kcontrol->private_value;
 	unsigned int *item = ucontrol->value.enumerated.item;
 	unsigned int reg_val, val, mix_clk;
-	int ret;
 
 	/* Get current state */
-	ret = snd_soc_component_read(comp, FSL_AUDMIX_CTR, &reg_val);
-	if (ret)
-		return ret;
-
+	reg_val = snd_soc_component_read(comp, FSL_AUDMIX_CTR);
 	mix_clk = ((reg_val & FSL_AUDMIX_CTR_MIXCLK_MASK)
 			>> FSL_AUDMIX_CTR_MIXCLK_SHIFT);
 	val = snd_soc_enum_item_to_val(e, item[0]);
@@ -162,9 +158,7 @@ static int fsl_audmix_put_out_src(struct snd_kcontrol *kcontrol,
 	int ret;
 
 	/* Get current state */
-	ret = snd_soc_component_read(comp, FSL_AUDMIX_CTR, &reg_val);
-	if (ret)
-		return ret;
+	reg_val = snd_soc_component_read(comp, FSL_AUDMIX_CTR);
 
 	/* "From" state */
 	out_src = ((reg_val & FSL_AUDMIX_CTR_OUTSRC_MASK)
@@ -205,10 +199,18 @@ static int fsl_audmix_put_out_src(struct snd_kcontrol *kcontrol,
 
 static const struct snd_kcontrol_new fsl_audmix_snd_controls[] = {
 	/* FSL_AUDMIX_CTR controls */
-	SOC_ENUM_EXT("Mixing Clock Source", fsl_audmix_enum[0],
-		     snd_soc_get_enum_double, fsl_audmix_put_mix_clk_src),
-	SOC_ENUM_EXT("Output Source", fsl_audmix_enum[1],
-		     snd_soc_get_enum_double, fsl_audmix_put_out_src),
+	{	.iface = SNDRV_CTL_ELEM_IFACE_MIXER,
+		.name = "Mixing Clock Source",
+		.info = snd_soc_info_enum_double,
+		.access = SNDRV_CTL_ELEM_ACCESS_WRITE,
+		.put = fsl_audmix_put_mix_clk_src,
+		.private_value = (unsigned long)&fsl_audmix_enum[0] },
+	{	.iface = SNDRV_CTL_ELEM_IFACE_MIXER,
+		.name = "Output Source",
+		.info = snd_soc_info_enum_double,
+		.access = SNDRV_CTL_ELEM_ACCESS_WRITE,
+		.put = fsl_audmix_put_out_src,
+		.private_value = (unsigned long)&fsl_audmix_enum[1] },
 	SOC_ENUM("Output Width", fsl_audmix_enum[2]),
 	SOC_ENUM("Frame Rate Diff Error", fsl_audmix_enum[3]),
 	SOC_ENUM("Clock Freq Diff Error", fsl_audmix_enum[4]),

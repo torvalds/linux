@@ -103,8 +103,10 @@ watch that specific key).
 
 To manage a watch list, the following functions are provided:
 
-  * ``void init_watch_list(struct watch_list *wlist,
-			   void (*release_watch)(struct watch *wlist));``
+  * ::
+
+	void init_watch_list(struct watch_list *wlist,
+			     void (*release_watch)(struct watch *wlist));
 
     Initialise a watch list.  If ``release_watch`` is not NULL, then this
     indicates a function that should be called when the watch_list object is
@@ -179,9 +181,11 @@ The following functions are provided to manage watches:
     driver-settable fields in the watch struct must have been set before this
     is called.
 
-  * ``int remove_watch_from_object(struct watch_list *wlist,
-				   struct watch_queue *wqueue,
-				   u64 id, false);``
+  * ::
+
+	int remove_watch_from_object(struct watch_list *wlist,
+				     struct watch_queue *wqueue,
+				     u64 id, false);
 
     Remove a watch from a watch list, where the watch must match the specified
     watch queue (``wqueue``) and object identifier (``id``).  A notification

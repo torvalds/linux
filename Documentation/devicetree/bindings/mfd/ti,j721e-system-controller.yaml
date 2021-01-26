@@ -24,12 +24,14 @@ maintainers:
 
 properties:
   compatible:
-    anyOf:
-      - items:
-        - enum:
-           - ti,j721e-system-controller
-        - const: syscon
-        - const: simple-mfd
+    items:
+      - enum:
+          - ti,j721e-system-controller
+      - const: syscon
+      - const: simple-mfd
+
+  reg:
+    maxItems: 1
 
   "#address-cells":
     const: 1
@@ -39,8 +41,8 @@ properties:
 
   ranges: true
 
-# Optional children
-
+patternProperties:
+  # Optional children
   "^serdes-ln-ctrl@[0-9a-f]+$":
     type: object
     description: |
@@ -55,7 +57,7 @@ required:
   - "#size-cells"
   - ranges
 
-unevaluatedProperties: false
+additionalProperties: false
 
 examples:
   - |

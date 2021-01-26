@@ -35,10 +35,9 @@
 #include <asm/fpu.h>
 #include <linux/uaccess.h>
 #include <asm/traps.h>
-#include <asm/pgalloc.h>
 #include <asm/machdep.h>
 #include <asm/siginfo.h>
-
+#include <asm/tlbflush.h>
 
 static const char *vec_names[] = {
 	[VEC_RESETSP]	= "RESET SP",
@@ -846,7 +845,6 @@ static void show_trace(unsigned long *stack, const char *loglvl)
 void show_registers(struct pt_regs *regs)
 {
 	struct frame *fp = (struct frame *)regs;
-	mm_segment_t old_fs = get_fs();
 	u16 c, *cp;
 	unsigned long addr;
 	int i;
@@ -919,10 +917,9 @@ void show_registers(struct pt_regs *regs)
 	show_stack(NULL, (unsigned long *)addr, KERN_INFO);
 
 	pr_info("Code:");
-	set_fs(KERNEL_DS);
 	cp = (u16 *)regs->pc;
 	for (i = -8; i < 16; i++) {
-		if (get_user(c, cp + i) && i >= 0) {
+		if (get_kernel_nofault(c, cp + i) && i >= 0) {
 			pr_cont(" Bad PC value.");
 			break;
 		}
@@ -931,7 +928,6 @@ void show_registers(struct pt_regs *regs)
 		else
 			pr_cont(" <%04x>", c);
 	}
-	set_fs(old_fs);
 	pr_cont("\n");
 }
 

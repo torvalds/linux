@@ -19,6 +19,8 @@ properties:
     enum:
       - qcom,sc7180-osm-l3
       - qcom,sdm845-osm-l3
+      - qcom,sm8150-osm-l3
+      - qcom,sm8250-epss-l3
 
   reg:
     maxItems: 1

@@ -43,7 +43,7 @@ static inline void *iscsit_priv_cmd(struct iscsi_cmd *cmd)
  * From iscsi_target_transport.c
  */
 
-extern int iscsit_register_transport(struct iscsit_transport *);
+extern void iscsit_register_transport(struct iscsit_transport *);
 extern void iscsit_unregister_transport(struct iscsit_transport *);
 extern struct iscsit_transport *iscsit_get_transport(int);
 extern void iscsit_put_transport(struct iscsit_transport *);

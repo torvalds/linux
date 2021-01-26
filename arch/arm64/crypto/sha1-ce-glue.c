@@ -25,6 +25,9 @@ struct sha1_ce_state {
 	u32			finalize;
 };
 
+extern const u32 sha1_ce_offsetof_count;
+extern const u32 sha1_ce_offsetof_finalize;
+
 asmlinkage void sha1_ce_transform(struct sha1_ce_state *sst, u8 const *src,
 				  int blocks);
 

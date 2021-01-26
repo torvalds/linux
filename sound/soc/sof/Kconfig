@@ -73,7 +73,7 @@ config SND_SOC_SOF_NOCODEC_SUPPORT
 	  option if no known codec is detected. This is typically only
 	  enabled for developers or devices where the sound card is
 	  controlled externally
-	  This option is mutually exclusive with the Intel HDaudio support,
+	  This option is mutually exclusive with the Intel HDAudio support,
 	  selecting it may have negative impacts and prevent e.g. microphone
 	  functionality from being enabled on Intel CoffeeLake and later
 	  platforms.

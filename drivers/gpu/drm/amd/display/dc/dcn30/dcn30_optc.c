@@ -179,8 +179,7 @@ void optc3_set_dsc_config(struct timing_generator *optc,
 
 }
 
-
-static void optc3_set_odm_bypass(struct timing_generator *optc,
+void optc3_set_odm_bypass(struct timing_generator *optc,
 		const struct dc_crtc_timing *dc_crtc_timing)
 {
 	struct optc *optc1 = DCN10TG_FROM_TG(optc);
@@ -210,7 +209,6 @@ static void optc3_set_odm_combine(struct timing_generator *optc, int *opp_id, in
 	int mpcc_hactive = (timing->h_addressable + timing->h_border_left + timing->h_border_right)
 			/ opp_cnt;
 	uint32_t memory_mask = 0;
-	uint32_t data_fmt = 0;
 
 	/* TODO: In pseudocode but does not affect maximus, delete comment if we dont need on asic
 	 * REG_SET(OTG_GLOBAL_CONTROL2, 0, GLOBAL_UPDATE_LOCK_EN, 1);
@@ -241,13 +239,6 @@ static void optc3_set_odm_combine(struct timing_generator *optc, int *opp_id, in
 		REG_SET(OPTC_MEMORY_CONFIG, 0,
 			OPTC_MEM_SEL, memory_mask);
 
-	if (timing->pixel_encoding == PIXEL_ENCODING_YCBCR422)
-		data_fmt = 1;
-	else if (timing->pixel_encoding == PIXEL_ENCODING_YCBCR420)
-		data_fmt = 2;
-
-	REG_UPDATE(OPTC_DATA_FORMAT_CONTROL, OPTC_DATA_FORMAT, data_fmt);
-
 	if (opp_cnt == 2) {
 		REG_SET_3(OPTC_DATA_SOURCE_SELECT, 0,
 				OPTC_NUM_OF_INPUT_SEGMENT, 1,
@@ -277,7 +268,7 @@ static void optc3_set_odm_combine(struct timing_generator *optc, int *opp_id, in
  *
  * Options: any time,  start of frame, dp start of frame (range timing)
  */
-void optc3_set_timing_double_buffer(struct timing_generator *optc, bool enable)
+static void optc3_set_timing_double_buffer(struct timing_generator *optc, bool enable)
 {
 	struct optc *optc1 = DCN10TG_FROM_TG(optc);
 	uint32_t mode = enable ? 2 : 0;

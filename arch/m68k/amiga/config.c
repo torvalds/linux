@@ -214,7 +214,7 @@ static void __init amiga_identify(void)
 
 	switch (amiga_model) {
 	case AMI_UNKNOWN:
-		goto Generic;
+		break;
 
 	case AMI_600:
 	case AMI_1200:
@@ -227,7 +227,7 @@ static void __init amiga_identify(void)
 	case AMI_2000:
 	case AMI_2500:
 		AMIGAHW_SET(A2000_CLK);	/* Is this correct for all models? */
-		goto Generic;
+		break;
 
 	case AMI_3000:
 	case AMI_3000T:
@@ -238,7 +238,7 @@ static void __init amiga_identify(void)
 		AMIGAHW_SET(A3000_SCSI);
 		AMIGAHW_SET(A3000_CLK);
 		AMIGAHW_SET(ZORRO3);
-		goto Generic;
+		break;
 
 	case AMI_4000T:
 		AMIGAHW_SET(A4000_SCSI);
@@ -247,68 +247,12 @@ static void __init amiga_identify(void)
 		AMIGAHW_SET(A4000_IDE);
 		AMIGAHW_SET(A3000_CLK);
 		AMIGAHW_SET(ZORRO3);
-		goto Generic;
+		break;
 
 	case AMI_CDTV:
 	case AMI_CD32:
 		AMIGAHW_SET(CD_ROM);
 		AMIGAHW_SET(A2000_CLK);             /* Is this correct? */
-		goto Generic;
-
-	Generic:
-		AMIGAHW_SET(AMI_VIDEO);
-		AMIGAHW_SET(AMI_BLITTER);
-		AMIGAHW_SET(AMI_AUDIO);
-		AMIGAHW_SET(AMI_FLOPPY);
-		AMIGAHW_SET(AMI_KEYBOARD);
-		AMIGAHW_SET(AMI_MOUSE);
-		AMIGAHW_SET(AMI_SERIAL);
-		AMIGAHW_SET(AMI_PARALLEL);
-		AMIGAHW_SET(CHIP_RAM);
-		AMIGAHW_SET(PAULA);
-
-		switch (amiga_chipset) {
-		case CS_OCS:
-		case CS_ECS:
-		case CS_AGA:
-			switch (amiga_custom.deniseid & 0xf) {
-			case 0x0c:
-				AMIGAHW_SET(DENISE_HR);
-				break;
-			case 0x08:
-				AMIGAHW_SET(LISA);
-				break;
-			}
-			break;
-		default:
-			AMIGAHW_SET(DENISE);
-			break;
-		}
-		switch ((amiga_custom.vposr>>8) & 0x7f) {
-		case 0x00:
-			AMIGAHW_SET(AGNUS_PAL);
-			break;
-		case 0x10:
-			AMIGAHW_SET(AGNUS_NTSC);
-			break;
-		case 0x20:
-		case 0x21:
-			AMIGAHW_SET(AGNUS_HR_PAL);
-			break;
-		case 0x30:
-		case 0x31:
-			AMIGAHW_SET(AGNUS_HR_NTSC);
-			break;
-		case 0x22:
-		case 0x23:
-			AMIGAHW_SET(ALICE_PAL);
-			break;
-		case 0x32:
-		case 0x33:
-			AMIGAHW_SET(ALICE_NTSC);
-			break;
-		}
-		AMIGAHW_SET(ZORRO);
 		break;
 
 	case AMI_DRACO:
@@ -317,6 +261,60 @@ static void __init amiga_identify(void)
 	default:
 		panic("Unknown Amiga Model");
 	}
+
+	AMIGAHW_SET(AMI_VIDEO);
+	AMIGAHW_SET(AMI_BLITTER);
+	AMIGAHW_SET(AMI_AUDIO);
+	AMIGAHW_SET(AMI_FLOPPY);
+	AMIGAHW_SET(AMI_KEYBOARD);
+	AMIGAHW_SET(AMI_MOUSE);
+	AMIGAHW_SET(AMI_SERIAL);
+	AMIGAHW_SET(AMI_PARALLEL);
+	AMIGAHW_SET(CHIP_RAM);
+	AMIGAHW_SET(PAULA);
+
+	switch (amiga_chipset) {
+	case CS_OCS:
+	case CS_ECS:
+	case CS_AGA:
+		switch (amiga_custom.deniseid & 0xf) {
+		case 0x0c:
+			AMIGAHW_SET(DENISE_HR);
+			break;
+		case 0x08:
+			AMIGAHW_SET(LISA);
+			break;
+		default:
+			AMIGAHW_SET(DENISE);
+			break;
+		}
+		break;
+	}
+	switch ((amiga_custom.vposr>>8) & 0x7f) {
+	case 0x00:
+		AMIGAHW_SET(AGNUS_PAL);
+		break;
+	case 0x10:
+		AMIGAHW_SET(AGNUS_NTSC);
+		break;
+	case 0x20:
+	case 0x21:
+		AMIGAHW_SET(AGNUS_HR_PAL);
+		break;
+	case 0x30:
+	case 0x31:
+		AMIGAHW_SET(AGNUS_HR_NTSC);
+		break;
+	case 0x22:
+	case 0x23:
+		AMIGAHW_SET(ALICE_PAL);
+		break;
+	case 0x32:
+	case 0x33:
+		AMIGAHW_SET(ALICE_NTSC);
+		break;
+	}
+	AMIGAHW_SET(ZORRO);
 
 #define AMIGAHW_ANNOUNCE(name, str)		\
 	if (AMIGAHW_PRESENT(name))		\

@@ -19,6 +19,7 @@
 #include <linux/kernel.h>
 #include <linux/stat.h>
 #include <linux/module.h>
+#include <linux/mod_devicetable.h>
 #include <linux/iio/iio.h>
 #include <linux/iio/sysfs.h>
 
@@ -204,7 +205,6 @@ static int htu21_probe(struct i2c_client *client,
 
 	indio_dev->info = &htu21_info;
 	indio_dev->name = id->name;
-	indio_dev->dev.parent = &client->dev;
 	indio_dev->modes = INDIO_DIRECT_MODE;
 
 	if (id->driver_data == MS8607) {
@@ -248,7 +248,7 @@ static struct i2c_driver htu21_driver = {
 	.id_table = htu21_id,
 	.driver = {
 		   .name = "htu21",
-		   .of_match_table = of_match_ptr(htu21_of_match),
+		   .of_match_table = htu21_of_match,
 		   },
 };
 

@@ -363,6 +363,12 @@ static int pkg_temp_thermal_device_add(unsigned int cpu)
 		kfree(zonedev);
 		return err;
 	}
+	err = thermal_zone_device_enable(zonedev->tzone);
+	if (err) {
+		thermal_zone_device_unregister(zonedev->tzone);
+		kfree(zonedev);
+		return err;
+	}
 	/* Store MSR value for package thermal interrupt, to restore at exit */
 	rdmsr(MSR_IA32_PACKAGE_THERM_INTERRUPT, zonedev->msr_pkg_therm_low,
 	      zonedev->msr_pkg_therm_high);

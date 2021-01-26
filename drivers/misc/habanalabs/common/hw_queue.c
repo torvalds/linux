@@ -288,10 +288,10 @@ static void ext_queue_schedule_job(struct hl_cs_job *job)
 	ptr = cb->bus_address;
 
 	cq_pkt.data = cpu_to_le32(
-				((q->pi << CQ_ENTRY_SHADOW_INDEX_SHIFT)
-					& CQ_ENTRY_SHADOW_INDEX_MASK) |
-				(1 << CQ_ENTRY_SHADOW_INDEX_VALID_SHIFT) |
-				(1 << CQ_ENTRY_READY_SHIFT));
+			((q->pi << CQ_ENTRY_SHADOW_INDEX_SHIFT)
+				& CQ_ENTRY_SHADOW_INDEX_MASK) |
+			FIELD_PREP(CQ_ENTRY_SHADOW_INDEX_VALID_MASK, 1) |
+			FIELD_PREP(CQ_ENTRY_READY_MASK, 1));
 
 	/*
 	 * No need to protect pi_offset because scheduling to the
@@ -474,7 +474,7 @@ static void init_signal_wait_cs(struct hl_cs *cs)
 		 * wait CS was submitted.
 		 */
 		mb();
-		dma_fence_put(cs->signal_fence);
+		hl_fence_put(cs->signal_fence);
 		cs->signal_fence = NULL;
 	}
 }

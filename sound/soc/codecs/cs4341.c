@@ -116,7 +116,7 @@ static int cs4341_hw_params(struct snd_pcm_substream *substream,
 					     CS4341_MODE2_DIF, mode);
 }
 
-static int cs4341_digital_mute(struct snd_soc_dai *dai, int mute)
+static int cs4341_mute(struct snd_soc_dai *dai, int mute, int direction)
 {
 	struct snd_soc_component *component = dai->component;
 	int ret;
@@ -174,7 +174,8 @@ static const struct snd_kcontrol_new cs4341_controls[] = {
 static const struct snd_soc_dai_ops cs4341_dai_ops = {
 	.set_fmt	= cs4341_set_fmt,
 	.hw_params	= cs4341_hw_params,
-	.digital_mute	= cs4341_digital_mute,
+	.mute_stream	= cs4341_mute,
+	.no_capture_mute = 1,
 };
 
 static struct snd_soc_dai_driver cs4341_dai = {

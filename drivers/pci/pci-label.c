@@ -18,7 +18,7 @@
  * the instance number and string from the type 41 record and exports
  * it to sysfs.
  *
- * Please see http://linux.dell.com/files/biosdevname/ for more
+ * Please see https://linux.dell.com/files/biosdevname/ for more
  * information.
  */
 

@@ -215,9 +215,9 @@ int ptrace_put_reg(struct task_struct *task, int regno, unsigned long data)
 }
 
 static int gpr_get(struct task_struct *target, const struct user_regset *regset,
-		   unsigned int pos, unsigned int count, void *kbuf, void __user *ubuf)
+		   struct membuf to)
 {
-	int i, ret;
+	int i;
 
 	if (target->thread.regs == NULL)
 		return -EIO;
@@ -228,30 +228,17 @@ static int gpr_get(struct task_struct *target, const struct user_regset *regset,
 			target->thread.regs->gpr[i] = NV_REG_POISON;
 	}
 
-	ret = user_regset_copyout(&pos, &count, &kbuf, &ubuf,
-				  target->thread.regs,
-				  0, offsetof(struct pt_regs, msr));
-	if (!ret) {
-		unsigned long msr = get_user_msr(target);
-		ret = user_regset_copyout(&pos, &count, &kbuf, &ubuf, &msr,
-					  offsetof(struct pt_regs, msr),
-					  offsetof(struct pt_regs, msr) +
-					  sizeof(msr));
-	}
+	membuf_write(&to, target->thread.regs, offsetof(struct pt_regs, msr));
+	membuf_store(&to, get_user_msr(target));
 
 	BUILD_BUG_ON(offsetof(struct pt_regs, orig_gpr3) !=
 		     offsetof(struct pt_regs, msr) + sizeof(long));
 
-	if (!ret)
-		ret = user_regset_copyout(&pos, &count, &kbuf, &ubuf,
-					  &target->thread.regs->orig_gpr3,
-					  offsetof(struct pt_regs, orig_gpr3),
-					  sizeof(struct user_pt_regs));
-	if (!ret)
-		ret = user_regset_copyout_zero(&pos, &count, &kbuf, &ubuf,
-					       sizeof(struct user_pt_regs), -1);
-
-	return ret;
+	membuf_write(&to, &target->thread.regs->orig_gpr3,
+			sizeof(struct user_pt_regs) -
+			offsetof(struct pt_regs, orig_gpr3));
+	return membuf_zero(&to, ELF_NGREG * sizeof(unsigned long) -
+				 sizeof(struct user_pt_regs));
 }
 
 static int gpr_set(struct task_struct *target, const struct user_regset *regset,
@@ -309,10 +296,9 @@ static int gpr_set(struct task_struct *target, const struct user_regset *regset,
 
 #ifdef CONFIG_PPC64
 static int ppr_get(struct task_struct *target, const struct user_regset *regset,
-		   unsigned int pos, unsigned int count, void *kbuf, void __user *ubuf)
+		   struct membuf to)
 {
-	return user_regset_copyout(&pos, &count, &kbuf, &ubuf,
-				   &target->thread.regs->ppr, 0, sizeof(u64));
+	return membuf_write(&to, &target->thread.regs->ppr, sizeof(u64));
 }
 
 static int ppr_set(struct task_struct *target, const struct user_regset *regset,
@@ -324,10 +310,9 @@ static int ppr_set(struct task_struct *target, const struct user_regset *regset,
 }
 
 static int dscr_get(struct task_struct *target, const struct user_regset *regset,
-		    unsigned int pos, unsigned int count, void *kbuf, void __user *ubuf)
+		    struct membuf to)
 {
-	return user_regset_copyout(&pos, &count, &kbuf, &ubuf,
-				   &target->thread.dscr, 0, sizeof(u64));
+	return membuf_write(&to, &target->thread.dscr, sizeof(u64));
 }
 static int dscr_set(struct task_struct *target, const struct user_regset *regset,
 		    unsigned int pos, unsigned int count, const void *kbuf,
@@ -339,10 +324,9 @@ static int dscr_set(struct task_struct *target, const struct user_regset *regset
 #endif
 #ifdef CONFIG_PPC_BOOK3S_64
 static int tar_get(struct task_struct *target, const struct user_regset *regset,
-		   unsigned int pos, unsigned int count, void *kbuf, void __user *ubuf)
+		   struct membuf to)
 {
-	return user_regset_copyout(&pos, &count, &kbuf, &ubuf,
-				   &target->thread.tar, 0, sizeof(u64));
+	return membuf_write(&to, &target->thread.tar, sizeof(u64));
 }
 static int tar_set(struct task_struct *target, const struct user_regset *regset,
 		   unsigned int pos, unsigned int count, const void *kbuf,
@@ -364,7 +348,7 @@ static int ebb_active(struct task_struct *target, const struct user_regset *regs
 }
 
 static int ebb_get(struct task_struct *target, const struct user_regset *regset,
-		   unsigned int pos, unsigned int count, void *kbuf, void __user *ubuf)
+		   struct membuf to)
 {
 	/* Build tests */
 	BUILD_BUG_ON(TSO(ebbrr) + sizeof(unsigned long) != TSO(ebbhr));
@@ -376,8 +360,7 @@ static int ebb_get(struct task_struct *target, const struct user_regset *regset,
 	if (!target->thread.used_ebb)
 		return -ENODATA;
 
-	return user_regset_copyout(&pos, &count, &kbuf, &ubuf, &target->thread.ebbrr,
-				   0, 3 * sizeof(unsigned long));
+	return membuf_write(&to, &target->thread.ebbrr, 3 * sizeof(unsigned long));
 }
 
 static int ebb_set(struct task_struct *target, const struct user_regset *regset,
@@ -420,7 +403,7 @@ static int pmu_active(struct task_struct *target, const struct user_regset *regs
 }
 
 static int pmu_get(struct task_struct *target, const struct user_regset *regset,
-		   unsigned int pos, unsigned int count, void *kbuf, void __user *ubuf)
+		   struct membuf to)
 {
 	/* Build tests */
 	BUILD_BUG_ON(TSO(siar) + sizeof(unsigned long) != TSO(sdar));
@@ -431,8 +414,7 @@ static int pmu_get(struct task_struct *target, const struct user_regset *regset,
 	if (!cpu_has_feature(CPU_FTR_ARCH_207S))
 		return -ENODEV;
 
-	return user_regset_copyout(&pos, &count, &kbuf, &ubuf, &target->thread.siar,
-				   0, 5 * sizeof(unsigned long));
+	return membuf_write(&to, &target->thread.siar, 5 * sizeof(unsigned long));
 }
 
 static int pmu_set(struct task_struct *target, const struct user_regset *regset,
@@ -486,16 +468,15 @@ static int pkey_active(struct task_struct *target, const struct user_regset *reg
 }
 
 static int pkey_get(struct task_struct *target, const struct user_regset *regset,
-		    unsigned int pos, unsigned int count, void *kbuf, void __user *ubuf)
+		    struct membuf to)
 {
 	BUILD_BUG_ON(TSO(amr) + sizeof(unsigned long) != TSO(iamr));
-	BUILD_BUG_ON(TSO(iamr) + sizeof(unsigned long) != TSO(uamor));
 
 	if (!arch_pkeys_enabled())
 		return -ENODEV;
 
-	return user_regset_copyout(&pos, &count, &kbuf, &ubuf, &target->thread.amr,
-				   0, ELF_NPKEY * sizeof(unsigned long));
+	membuf_write(&to, &target->thread.amr, 2 * sizeof(unsigned long));
+	return membuf_store(&to, default_uamor);
 }
 
 static int pkey_set(struct task_struct *target, const struct user_regset *regset,
@@ -517,9 +498,17 @@ static int pkey_set(struct task_struct *target, const struct user_regset *regset
 	if (ret)
 		return ret;
 
-	/* UAMOR determines which bits of the AMR can be set from userspace. */
-	target->thread.amr = (new_amr & target->thread.uamor) |
-			     (target->thread.amr & ~target->thread.uamor);
+	/*
+	 * UAMOR determines which bits of the AMR can be set from userspace.
+	 * UAMOR value 0b11 indicates that the AMR value can be modified
+	 * from userspace. If the kernel is using a specific key, we avoid
+	 * userspace modifying the AMR value for that key by masking them
+	 * via UAMOR 0b00.
+	 *
+	 * Pick the AMR values for the keys that kernel is using. This
+	 * will be indicated by the ~default_uamor bits.
+	 */
+	target->thread.amr = (new_amr & default_uamor) | (target->thread.amr & ~default_uamor);
 
 	return 0;
 }
@@ -529,110 +518,110 @@ static const struct user_regset native_regsets[] = {
 	[REGSET_GPR] = {
 		.core_note_type = NT_PRSTATUS, .n = ELF_NGREG,
 		.size = sizeof(long), .align = sizeof(long),
-		.get = gpr_get, .set = gpr_set
+		.regset_get = gpr_get, .set = gpr_set
 	},
 	[REGSET_FPR] = {
 		.core_note_type = NT_PRFPREG, .n = ELF_NFPREG,
 		.size = sizeof(double), .align = sizeof(double),
-		.get = fpr_get, .set = fpr_set
+		.regset_get = fpr_get, .set = fpr_set
 	},
 #ifdef CONFIG_ALTIVEC
 	[REGSET_VMX] = {
 		.core_note_type = NT_PPC_VMX, .n = 34,
 		.size = sizeof(vector128), .align = sizeof(vector128),
-		.active = vr_active, .get = vr_get, .set = vr_set
+		.active = vr_active, .regset_get = vr_get, .set = vr_set
 	},
 #endif
 #ifdef CONFIG_VSX
 	[REGSET_VSX] = {
 		.core_note_type = NT_PPC_VSX, .n = 32,
 		.size = sizeof(double), .align = sizeof(double),
-		.active = vsr_active, .get = vsr_get, .set = vsr_set
+		.active = vsr_active, .regset_get = vsr_get, .set = vsr_set
 	},
 #endif
 #ifdef CONFIG_SPE
 	[REGSET_SPE] = {
 		.core_note_type = NT_PPC_SPE, .n = 35,
 		.size = sizeof(u32), .align = sizeof(u32),
-		.active = evr_active, .get = evr_get, .set = evr_set
+		.active = evr_active, .regset_get = evr_get, .set = evr_set
 	},
 #endif
 #ifdef CONFIG_PPC_TRANSACTIONAL_MEM
 	[REGSET_TM_CGPR] = {
 		.core_note_type = NT_PPC_TM_CGPR, .n = ELF_NGREG,
 		.size = sizeof(long), .align = sizeof(long),
-		.active = tm_cgpr_active, .get = tm_cgpr_get, .set = tm_cgpr_set
+		.active = tm_cgpr_active, .regset_get = tm_cgpr_get, .set = tm_cgpr_set
 	},
 	[REGSET_TM_CFPR] = {
 		.core_note_type = NT_PPC_TM_CFPR, .n = ELF_NFPREG,
 		.size = sizeof(double), .align = sizeof(double),
-		.active = tm_cfpr_active, .get = tm_cfpr_get, .set = tm_cfpr_set
+		.active = tm_cfpr_active, .regset_get = tm_cfpr_get, .set = tm_cfpr_set
 	},
 	[REGSET_TM_CVMX] = {
 		.core_note_type = NT_PPC_TM_CVMX, .n = ELF_NVMX,
 		.size = sizeof(vector128), .align = sizeof(vector128),
-		.active = tm_cvmx_active, .get = tm_cvmx_get, .set = tm_cvmx_set
+		.active = tm_cvmx_active, .regset_get = tm_cvmx_get, .set = tm_cvmx_set
 	},
 	[REGSET_TM_CVSX] = {
 		.core_note_type = NT_PPC_TM_CVSX, .n = ELF_NVSX,
 		.size = sizeof(double), .align = sizeof(double),
-		.active = tm_cvsx_active, .get = tm_cvsx_get, .set = tm_cvsx_set
+		.active = tm_cvsx_active, .regset_get = tm_cvsx_get, .set = tm_cvsx_set
 	},
 	[REGSET_TM_SPR] = {
 		.core_note_type = NT_PPC_TM_SPR, .n = ELF_NTMSPRREG,
 		.size = sizeof(u64), .align = sizeof(u64),
-		.active = tm_spr_active, .get = tm_spr_get, .set = tm_spr_set
+		.active = tm_spr_active, .regset_get = tm_spr_get, .set = tm_spr_set
 	},
 	[REGSET_TM_CTAR] = {
 		.core_note_type = NT_PPC_TM_CTAR, .n = 1,
 		.size = sizeof(u64), .align = sizeof(u64),
-		.active = tm_tar_active, .get = tm_tar_get, .set = tm_tar_set
+		.active = tm_tar_active, .regset_get = tm_tar_get, .set = tm_tar_set
 	},
 	[REGSET_TM_CPPR] = {
 		.core_note_type = NT_PPC_TM_CPPR, .n = 1,
 		.size = sizeof(u64), .align = sizeof(u64),
-		.active = tm_ppr_active, .get = tm_ppr_get, .set = tm_ppr_set
+		.active = tm_ppr_active, .regset_get = tm_ppr_get, .set = tm_ppr_set
 	},
 	[REGSET_TM_CDSCR] = {
 		.core_note_type = NT_PPC_TM_CDSCR, .n = 1,
 		.size = sizeof(u64), .align = sizeof(u64),
-		.active = tm_dscr_active, .get = tm_dscr_get, .set = tm_dscr_set
+		.active = tm_dscr_active, .regset_get = tm_dscr_get, .set = tm_dscr_set
 	},
 #endif
 #ifdef CONFIG_PPC64
 	[REGSET_PPR] = {
 		.core_note_type = NT_PPC_PPR, .n = 1,
 		.size = sizeof(u64), .align = sizeof(u64),
-		.get = ppr_get, .set = ppr_set
+		.regset_get = ppr_get, .set = ppr_set
 	},
 	[REGSET_DSCR] = {
 		.core_note_type = NT_PPC_DSCR, .n = 1,
 		.size = sizeof(u64), .align = sizeof(u64),
-		.get = dscr_get, .set = dscr_set
+		.regset_get = dscr_get, .set = dscr_set
 	},
 #endif
 #ifdef CONFIG_PPC_BOOK3S_64
 	[REGSET_TAR] = {
 		.core_note_type = NT_PPC_TAR, .n = 1,
 		.size = sizeof(u64), .align = sizeof(u64),
-		.get = tar_get, .set = tar_set
+		.regset_get = tar_get, .set = tar_set
 	},
 	[REGSET_EBB] = {
 		.core_note_type = NT_PPC_EBB, .n = ELF_NEBB,
 		.size = sizeof(u64), .align = sizeof(u64),
-		.active = ebb_active, .get = ebb_get, .set = ebb_set
+		.active = ebb_active, .regset_get = ebb_get, .set = ebb_set
 	},
 	[REGSET_PMR] = {
 		.core_note_type = NT_PPC_PMU, .n = ELF_NPMU,
 		.size = sizeof(u64), .align = sizeof(u64),
-		.active = pmu_active, .get = pmu_get, .set = pmu_set
+		.active = pmu_active, .regset_get = pmu_get, .set = pmu_set
 	},
 #endif
 #ifdef CONFIG_PPC_MEM_KEYS
 	[REGSET_PKEY] = {
 		.core_note_type = NT_PPC_PKEY, .n = ELF_NPKEY,
 		.size = sizeof(u64), .align = sizeof(u64),
-		.active = pkey_active, .get = pkey_get, .set = pkey_set
+		.active = pkey_active, .regset_get = pkey_get, .set = pkey_set
 	},
 #endif
 };
@@ -646,49 +635,16 @@ const struct user_regset_view user_ppc_native_view = {
 
 int gpr32_get_common(struct task_struct *target,
 		     const struct user_regset *regset,
-		     unsigned int pos, unsigned int count,
-			    void *kbuf, void __user *ubuf,
-			    unsigned long *regs)
+		     struct membuf to, unsigned long *regs)
 {
-	compat_ulong_t *k = kbuf;
-	compat_ulong_t __user *u = ubuf;
-	compat_ulong_t reg;
+	int i;
 
-	pos /= sizeof(reg);
-	count /= sizeof(reg);
-
-	if (kbuf)
-		for (; count > 0 && pos < PT_MSR; --count)
-			*k++ = regs[pos++];
-	else
-		for (; count > 0 && pos < PT_MSR; --count)
-			if (__put_user((compat_ulong_t)regs[pos++], u++))
-				return -EFAULT;
-
-	if (count > 0 && pos == PT_MSR) {
-		reg = get_user_msr(target);
-		if (kbuf)
-			*k++ = reg;
-		else if (__put_user(reg, u++))
-			return -EFAULT;
-		++pos;
-		--count;
-	}
-
-	if (kbuf)
-		for (; count > 0 && pos < PT_REGS_COUNT; --count)
-			*k++ = regs[pos++];
-	else
-		for (; count > 0 && pos < PT_REGS_COUNT; --count)
-			if (__put_user((compat_ulong_t)regs[pos++], u++))
-				return -EFAULT;
-
-	kbuf = k;
-	ubuf = u;
-	pos *= sizeof(reg);
-	count *= sizeof(reg);
-	return user_regset_copyout_zero(&pos, &count, &kbuf, &ubuf,
-					PT_REGS_COUNT * sizeof(reg), -1);
+	for (i = 0; i < PT_MSR; i++)
+		membuf_store(&to, (u32)regs[i]);
+	membuf_store(&to, (u32)get_user_msr(target));
+	for (i++ ; i < PT_REGS_COUNT; i++)
+		membuf_store(&to, (u32)regs[i]);
+	return membuf_zero(&to, (ELF_NGREG - PT_REGS_COUNT) * sizeof(u32));
 }
 
 int gpr32_set_common(struct task_struct *target,
@@ -761,8 +717,7 @@ int gpr32_set_common(struct task_struct *target,
 
 static int gpr32_get(struct task_struct *target,
 		     const struct user_regset *regset,
-		     unsigned int pos, unsigned int count,
-		     void *kbuf, void __user *ubuf)
+		     struct membuf to)
 {
 	int i;
 
@@ -777,7 +732,7 @@ static int gpr32_get(struct task_struct *target,
 		for (i = 14; i < 32; i++)
 			target->thread.regs->gpr[i] = NV_REG_POISON;
 	}
-	return gpr32_get_common(target, regset, pos, count, kbuf, ubuf,
+	return gpr32_get_common(target, regset, to,
 			&target->thread.regs->gpr[0]);
 }
 
@@ -801,25 +756,25 @@ static const struct user_regset compat_regsets[] = {
 	[REGSET_GPR] = {
 		.core_note_type = NT_PRSTATUS, .n = ELF_NGREG,
 		.size = sizeof(compat_long_t), .align = sizeof(compat_long_t),
-		.get = gpr32_get, .set = gpr32_set
+		.regset_get = gpr32_get, .set = gpr32_set
 	},
 	[REGSET_FPR] = {
 		.core_note_type = NT_PRFPREG, .n = ELF_NFPREG,
 		.size = sizeof(double), .align = sizeof(double),
-		.get = fpr_get, .set = fpr_set
+		.regset_get = fpr_get, .set = fpr_set
 	},
 #ifdef CONFIG_ALTIVEC
 	[REGSET_VMX] = {
 		.core_note_type = NT_PPC_VMX, .n = 34,
 		.size = sizeof(vector128), .align = sizeof(vector128),
-		.active = vr_active, .get = vr_get, .set = vr_set
+		.active = vr_active, .regset_get = vr_get, .set = vr_set
 	},
 #endif
 #ifdef CONFIG_SPE
 	[REGSET_SPE] = {
 		.core_note_type = NT_PPC_SPE, .n = 35,
 		.size = sizeof(u32), .align = sizeof(u32),
-		.active = evr_active, .get = evr_get, .set = evr_set
+		.active = evr_active, .regset_get = evr_get, .set = evr_set
 	},
 #endif
 #ifdef CONFIG_PPC_TRANSACTIONAL_MEM
@@ -827,66 +782,66 @@ static const struct user_regset compat_regsets[] = {
 		.core_note_type = NT_PPC_TM_CGPR, .n = ELF_NGREG,
 		.size = sizeof(long), .align = sizeof(long),
 		.active = tm_cgpr_active,
-		.get = tm_cgpr32_get, .set = tm_cgpr32_set
+		.regset_get = tm_cgpr32_get, .set = tm_cgpr32_set
 	},
 	[REGSET_TM_CFPR] = {
 		.core_note_type = NT_PPC_TM_CFPR, .n = ELF_NFPREG,
 		.size = sizeof(double), .align = sizeof(double),
-		.active = tm_cfpr_active, .get = tm_cfpr_get, .set = tm_cfpr_set
+		.active = tm_cfpr_active, .regset_get = tm_cfpr_get, .set = tm_cfpr_set
 	},
 	[REGSET_TM_CVMX] = {
 		.core_note_type = NT_PPC_TM_CVMX, .n = ELF_NVMX,
 		.size = sizeof(vector128), .align = sizeof(vector128),
-		.active = tm_cvmx_active, .get = tm_cvmx_get, .set = tm_cvmx_set
+		.active = tm_cvmx_active, .regset_get = tm_cvmx_get, .set = tm_cvmx_set
 	},
 	[REGSET_TM_CVSX] = {
 		.core_note_type = NT_PPC_TM_CVSX, .n = ELF_NVSX,
 		.size = sizeof(double), .align = sizeof(double),
-		.active = tm_cvsx_active, .get = tm_cvsx_get, .set = tm_cvsx_set
+		.active = tm_cvsx_active, .regset_get = tm_cvsx_get, .set = tm_cvsx_set
 	},
 	[REGSET_TM_SPR] = {
 		.core_note_type = NT_PPC_TM_SPR, .n = ELF_NTMSPRREG,
 		.size = sizeof(u64), .align = sizeof(u64),
-		.active = tm_spr_active, .get = tm_spr_get, .set = tm_spr_set
+		.active = tm_spr_active, .regset_get = tm_spr_get, .set = tm_spr_set
 	},
 	[REGSET_TM_CTAR] = {
 		.core_note_type = NT_PPC_TM_CTAR, .n = 1,
 		.size = sizeof(u64), .align = sizeof(u64),
-		.active = tm_tar_active, .get = tm_tar_get, .set = tm_tar_set
+		.active = tm_tar_active, .regset_get = tm_tar_get, .set = tm_tar_set
 	},
 	[REGSET_TM_CPPR] = {
 		.core_note_type = NT_PPC_TM_CPPR, .n = 1,
 		.size = sizeof(u64), .align = sizeof(u64),
-		.active = tm_ppr_active, .get = tm_ppr_get, .set = tm_ppr_set
+		.active = tm_ppr_active, .regset_get = tm_ppr_get, .set = tm_ppr_set
 	},
 	[REGSET_TM_CDSCR] = {
 		.core_note_type = NT_PPC_TM_CDSCR, .n = 1,
 		.size = sizeof(u64), .align = sizeof(u64),
-		.active = tm_dscr_active, .get = tm_dscr_get, .set = tm_dscr_set
+		.active = tm_dscr_active, .regset_get = tm_dscr_get, .set = tm_dscr_set
 	},
 #endif
 #ifdef CONFIG_PPC64
 	[REGSET_PPR] = {
 		.core_note_type = NT_PPC_PPR, .n = 1,
 		.size = sizeof(u64), .align = sizeof(u64),
-		.get = ppr_get, .set = ppr_set
+		.regset_get = ppr_get, .set = ppr_set
 	},
 	[REGSET_DSCR] = {
 		.core_note_type = NT_PPC_DSCR, .n = 1,
 		.size = sizeof(u64), .align = sizeof(u64),
-		.get = dscr_get, .set = dscr_set
+		.regset_get = dscr_get, .set = dscr_set
 	},
 #endif
 #ifdef CONFIG_PPC_BOOK3S_64
 	[REGSET_TAR] = {
 		.core_note_type = NT_PPC_TAR, .n = 1,
 		.size = sizeof(u64), .align = sizeof(u64),
-		.get = tar_get, .set = tar_set
+		.regset_get = tar_get, .set = tar_set
 	},
 	[REGSET_EBB] = {
 		.core_note_type = NT_PPC_EBB, .n = ELF_NEBB,
 		.size = sizeof(u64), .align = sizeof(u64),
-		.active = ebb_active, .get = ebb_get, .set = ebb_set
+		.active = ebb_active, .regset_get = ebb_get, .set = ebb_set
 	},
 #endif
 };

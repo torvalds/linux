@@ -554,11 +554,11 @@ int snd_sc1810_init_mixer(struct usb_mixer_interface *mixer)
 	dev_info(&dev->dev,
 		 "Presonus Studio 1810c, device_setup: %u\n", chip->setup);
 	if (chip->setup == 1)
-		dev_info(&dev->dev, "(8out/18in @ 48KHz)\n");
+		dev_info(&dev->dev, "(8out/18in @ 48kHz)\n");
 	else if (chip->setup == 2)
-		dev_info(&dev->dev, "(6out/8in @ 192KHz)\n");
+		dev_info(&dev->dev, "(6out/8in @ 192kHz)\n");
 	else
-		dev_info(&dev->dev, "(8out/14in @ 96KHz)\n");
+		dev_info(&dev->dev, "(8out/14in @ 96kHz)\n");
 
 	ret = snd_s1810c_init_mixer_maps(chip);
 	if (ret < 0)

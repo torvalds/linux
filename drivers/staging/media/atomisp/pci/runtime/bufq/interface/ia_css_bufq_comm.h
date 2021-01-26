@@ -27,19 +27,9 @@ enum sh_css_queue_id {
 	SH_CSS_QUEUE_E_ID,
 	SH_CSS_QUEUE_F_ID,
 	SH_CSS_QUEUE_G_ID,
-#if defined(HAS_NO_INPUT_SYSTEM)
-	/* input frame queue for skycam */
-	SH_CSS_QUEUE_H_ID,
-#endif
-#if defined(USE_INPUT_SYSTEM_VERSION_2) || defined(USE_INPUT_SYSTEM_VERSION_2401)
 	SH_CSS_QUEUE_H_ID, /* for metadata */
-#endif
 
-#if defined(HAS_NO_INPUT_SYSTEM) || defined(USE_INPUT_SYSTEM_VERSION_2) || defined(USE_INPUT_SYSTEM_VERSION_2401)
 #define SH_CSS_MAX_NUM_QUEUES (SH_CSS_QUEUE_H_ID + 1)
-#else
-#define SH_CSS_MAX_NUM_QUEUES (SH_CSS_QUEUE_G_ID + 1)
-#endif
 
 };
 

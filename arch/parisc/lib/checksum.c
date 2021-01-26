@@ -106,20 +106,3 @@ __wsum csum_partial(const void *buff, int len, __wsum sum)
 }
 
 EXPORT_SYMBOL(csum_partial);
-
-/*
- * copy while checksumming, otherwise like csum_partial
- */
-__wsum csum_partial_copy_nocheck(const void *src, void *dst,
-				       int len, __wsum sum)
-{
-	/*
-	 * It's 2:30 am and I don't feel like doing it real ...
-	 * This is lots slower than the real thing (tm)
-	 */
-	sum = csum_partial(src, len, sum);
-	memcpy(dst, src, len);
-
-	return sum;
-}
-EXPORT_SYMBOL(csum_partial_copy_nocheck);

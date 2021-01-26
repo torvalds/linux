@@ -300,11 +300,6 @@ static int set_input_clock(struct echoaudio *chip, u16 clock)
 	u32 control_reg, clocks_from_dsp;
 	int err;
 
-
-	/* Prevent two simultaneous calls to switch_asic() */
-	if (atomic_read(&chip->opencount))
-		return -EAGAIN;
-
 	/* Mask off the clock select bits */
 	control_reg = le32_to_cpu(chip->comm_page->control_register) &
 		GML_CLOCK_CLEAR_MASK;

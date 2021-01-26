@@ -1164,7 +1164,7 @@ mlxsw_sp_router_ip2me_fib_entry_find(struct mlxsw_sp *mlxsw_sp, u32 tb_id,
 		addr_len = 4;
 		addr_prefix_len = 32;
 		break;
-	case MLXSW_SP_L3_PROTO_IPV6: /* fall through */
+	case MLXSW_SP_L3_PROTO_IPV6:
 	default:
 		WARN_ON(1);
 		return NULL;
@@ -4555,14 +4555,14 @@ mlxsw_sp_fib4_entry_type_set(struct mlxsw_sp *mlxsw_sp,
 			fib_entry->type = MLXSW_SP_FIB_ENTRY_TYPE_NVE_DECAP;
 			return 0;
 		}
-		/* fall through */
+		fallthrough;
 	case RTN_BROADCAST:
 		fib_entry->type = MLXSW_SP_FIB_ENTRY_TYPE_TRAP;
 		return 0;
 	case RTN_BLACKHOLE:
 		fib_entry->type = MLXSW_SP_FIB_ENTRY_TYPE_BLACKHOLE;
 		return 0;
-	case RTN_UNREACHABLE: /* fall through */
+	case RTN_UNREACHABLE:
 	case RTN_PROHIBIT:
 		/* Packets hitting these routes need to be trapped, but
 		 * can do so with a lower priority than packets directed
@@ -5990,7 +5990,7 @@ static void mlxsw_sp_router_fib4_event_work(struct work_struct *work)
 		mlxsw_sp_router_fib4_del(mlxsw_sp, &fib_work->fen_info);
 		fib_info_put(fib_work->fen_info.fi);
 		break;
-	case FIB_EVENT_NH_ADD: /* fall through */
+	case FIB_EVENT_NH_ADD:
 	case FIB_EVENT_NH_DEL:
 		mlxsw_sp_nexthop4_event(mlxsw_sp, fib_work->event,
 					fib_work->fnh_info.fib_nh);
@@ -6050,7 +6050,7 @@ static void mlxsw_sp_router_fibmr_event_work(struct work_struct *work)
 	rtnl_lock();
 	mutex_lock(&mlxsw_sp->router->lock);
 	switch (fib_work->event) {
-	case FIB_EVENT_ENTRY_REPLACE: /* fall through */
+	case FIB_EVENT_ENTRY_REPLACE:
 	case FIB_EVENT_ENTRY_ADD:
 		replace = fib_work->event == FIB_EVENT_ENTRY_REPLACE;
 
@@ -6089,7 +6089,7 @@ static void mlxsw_sp_router_fib4_event(struct mlxsw_sp_fib_event_work *fib_work,
 	struct fib_nh_notifier_info *fnh_info;
 
 	switch (fib_work->event) {
-	case FIB_EVENT_ENTRY_REPLACE: /* fall through */
+	case FIB_EVENT_ENTRY_REPLACE:
 	case FIB_EVENT_ENTRY_DEL:
 		fen_info = container_of(info, struct fib_entry_notifier_info,
 					info);
@@ -6099,7 +6099,7 @@ static void mlxsw_sp_router_fib4_event(struct mlxsw_sp_fib_event_work *fib_work,
 		 */
 		fib_info_hold(fib_work->fen_info.fi);
 		break;
-	case FIB_EVENT_NH_ADD: /* fall through */
+	case FIB_EVENT_NH_ADD:
 	case FIB_EVENT_NH_DEL:
 		fnh_info = container_of(info, struct fib_nh_notifier_info,
 					info);
@@ -6116,8 +6116,8 @@ static int mlxsw_sp_router_fib6_event(struct mlxsw_sp_fib_event_work *fib_work,
 	int err;
 
 	switch (fib_work->event) {
-	case FIB_EVENT_ENTRY_REPLACE: /* fall through */
-	case FIB_EVENT_ENTRY_APPEND: /* fall through */
+	case FIB_EVENT_ENTRY_REPLACE:
+	case FIB_EVENT_ENTRY_APPEND:
 	case FIB_EVENT_ENTRY_DEL:
 		fen6_info = container_of(info, struct fib6_entry_notifier_info,
 					 info);
@@ -6136,13 +6136,13 @@ mlxsw_sp_router_fibmr_event(struct mlxsw_sp_fib_event_work *fib_work,
 			    struct fib_notifier_info *info)
 {
 	switch (fib_work->event) {
-	case FIB_EVENT_ENTRY_REPLACE: /* fall through */
-	case FIB_EVENT_ENTRY_ADD: /* fall through */
+	case FIB_EVENT_ENTRY_REPLACE:
+	case FIB_EVENT_ENTRY_ADD:
 	case FIB_EVENT_ENTRY_DEL:
 		memcpy(&fib_work->men_info, info, sizeof(fib_work->men_info));
 		mr_cache_hold(fib_work->men_info.mfc);
 		break;
-	case FIB_EVENT_VIF_ADD: /* fall through */
+	case FIB_EVENT_VIF_ADD:
 	case FIB_EVENT_VIF_DEL:
 		memcpy(&fib_work->ven_info, info, sizeof(fib_work->ven_info));
 		dev_hold(fib_work->ven_info.dev);
@@ -6215,13 +6215,13 @@ static int mlxsw_sp_router_fib_event(struct notifier_block *nb,
 	router = container_of(nb, struct mlxsw_sp_router, fib_nb);
 
 	switch (event) {
-	case FIB_EVENT_RULE_ADD: /* fall through */
+	case FIB_EVENT_RULE_ADD:
 	case FIB_EVENT_RULE_DEL:
 		err = mlxsw_sp_router_fib_rule_event(event, info,
 						     router->mlxsw_sp);
 		return notifier_from_errno(err);
-	case FIB_EVENT_ENTRY_ADD: /* fall through */
-	case FIB_EVENT_ENTRY_REPLACE: /* fall through */
+	case FIB_EVENT_ENTRY_ADD:
+	case FIB_EVENT_ENTRY_REPLACE:
 	case FIB_EVENT_ENTRY_APPEND:
 		if (router->aborted) {
 			NL_SET_ERR_MSG_MOD(info->extack, "FIB offload was aborted. Not configuring route");
@@ -7277,7 +7277,7 @@ int mlxsw_sp_netdevice_router_port_event(struct net_device *dev,
 		goto out;
 
 	switch (event) {
-	case NETDEV_CHANGEMTU: /* fall through */
+	case NETDEV_CHANGEMTU:
 	case NETDEV_CHANGEADDR:
 		err = mlxsw_sp_router_port_change_event(mlxsw_sp, rif);
 		break;
@@ -7351,9 +7351,10 @@ int mlxsw_sp_netdevice_vrf_event(struct net_device *l3_dev, unsigned long event,
 	return err;
 }
 
-static int __mlxsw_sp_rif_macvlan_flush(struct net_device *dev, void *data)
+static int __mlxsw_sp_rif_macvlan_flush(struct net_device *dev,
+					struct netdev_nested_priv *priv)
 {
-	struct mlxsw_sp_rif *rif = data;
+	struct mlxsw_sp_rif *rif = (struct mlxsw_sp_rif *)priv->data;
 
 	if (!netif_is_macvlan(dev))
 		return 0;
@@ -7364,12 +7365,16 @@ static int __mlxsw_sp_rif_macvlan_flush(struct net_device *dev, void *data)
 
 static int mlxsw_sp_rif_macvlan_flush(struct mlxsw_sp_rif *rif)
 {
+	struct netdev_nested_priv priv = {
+		.data = (void *)rif,
+	};
+
 	if (!netif_is_macvlan_port(rif->dev))
 		return 0;
 
 	netdev_warn(rif->dev, "Router interface is deleted. Upper macvlans will not work\n");
 	return netdev_walk_all_upper_dev_rcu(rif->dev,
-					     __mlxsw_sp_rif_macvlan_flush, rif);
+					     __mlxsw_sp_rif_macvlan_flush, &priv);
 }
 
 static void mlxsw_sp_rif_subport_setup(struct mlxsw_sp_rif *rif,

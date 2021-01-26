@@ -208,42 +208,12 @@ config PINCTRL_OXNAS
 
 config PINCTRL_ROCKCHIP
 	bool
+	depends on OF
 	select PINMUX
 	select GENERIC_PINCONF
 	select GENERIC_IRQ_CHIP
 	select MFD_SYSCON
-
-config PINCTRL_RZA1
-	bool "Renesas RZ/A1 gpio and pinctrl driver"
-	depends on OF
-	depends on ARCH_R7S72100 || COMPILE_TEST
-	select GPIOLIB
-	select GENERIC_PINCTRL_GROUPS
-	select GENERIC_PINMUX_FUNCTIONS
-	select GENERIC_PINCONF
-	help
-	  This selects pinctrl driver for Renesas RZ/A1 platforms.
-
-config PINCTRL_RZA2
-	bool "Renesas RZ/A2 gpio and pinctrl driver"
-	depends on OF
-	depends on ARCH_R7S9210 || COMPILE_TEST
-	select GPIOLIB
-	select GENERIC_PINCTRL_GROUPS
-	select GENERIC_PINMUX_FUNCTIONS
-	select GENERIC_PINCONF
-	help
-	  This selects GPIO and pinctrl driver for Renesas RZ/A2 platforms.
-
-config PINCTRL_RZN1
-	bool "Renesas RZ/N1 pinctrl driver"
-	depends on OF
-	depends on ARCH_RZN1 || COMPILE_TEST
-	select GENERIC_PINCTRL_GROUPS
-	select GENERIC_PINMUX_FUNCTIONS
-	select GENERIC_PINCONF
-	help
-	  This selects pinctrl driver for Renesas RZ/N1 devices.
+	select OF_GPIO
 
 config PINCTRL_SINGLE
 	tristate "One-register-per-pin type device tree based pinctrl driver"
@@ -415,8 +385,8 @@ source "drivers/pinctrl/nomadik/Kconfig"
 source "drivers/pinctrl/nuvoton/Kconfig"
 source "drivers/pinctrl/pxa/Kconfig"
 source "drivers/pinctrl/qcom/Kconfig"
+source "drivers/pinctrl/renesas/Kconfig"
 source "drivers/pinctrl/samsung/Kconfig"
-source "drivers/pinctrl/sh-pfc/Kconfig"
 source "drivers/pinctrl/spear/Kconfig"
 source "drivers/pinctrl/sprd/Kconfig"
 source "drivers/pinctrl/stm32/Kconfig"
@@ -429,6 +399,7 @@ source "drivers/pinctrl/mediatek/Kconfig"
 source "drivers/pinctrl/zte/Kconfig"
 source "drivers/pinctrl/meson/Kconfig"
 source "drivers/pinctrl/cirrus/Kconfig"
+source "drivers/pinctrl/visconti/Kconfig"
 
 config PINCTRL_XWAY
 	bool

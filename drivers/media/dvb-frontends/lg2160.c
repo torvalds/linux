@@ -1408,7 +1408,7 @@ struct dvb_frontend *lg2160_attach(const struct lg2160_config *config,
 	switch (config->lg_chip) {
 	default:
 		lg_warn("invalid chip requested, defaulting to LG2160");
-		/* fall-thru */
+		fallthrough;
 	case LG2160:
 		memcpy(&state->frontend.ops, &lg2160_ops,
 		       sizeof(struct dvb_frontend_ops));

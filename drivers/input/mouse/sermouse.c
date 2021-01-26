@@ -128,7 +128,7 @@ static void sermouse_process_ms(struct sermouse *sermouse, signed char data)
 
 				case SERIO_MS:
 					sermouse->type = SERIO_MP;
-					/* fall through */
+					fallthrough;
 
 				case SERIO_MP:
 					if ((data >> 2) & 3) break;	/* M++ Wireless Extension packet. */
@@ -139,7 +139,7 @@ static void sermouse_process_ms(struct sermouse *sermouse, signed char data)
 				case SERIO_MZP:
 				case SERIO_MZPP:
 					input_report_key(dev, BTN_SIDE,   (data >> 5) & 1);
-					/* fall through */
+					fallthrough;
 
 				case SERIO_MZ:
 					input_report_key(dev, BTN_MIDDLE, (data >> 4) & 1);

@@ -34,6 +34,12 @@ The compatible list for this generic sound card currently:
 
  "fsl,imx-audio-wm8960"
 
+ "fsl,imx-audio-mqs"
+
+ "fsl,imx-audio-wm8524"
+
+ "fsl,imx-audio-tlv320aic32x4"
+
 Required properties:
 
   - compatible		: Contains one of entries in the compatible list.
@@ -43,6 +49,11 @@ Required properties:
   - audio-cpu		: The phandle of an CPU DAI controller
 
   - audio-codec		: The phandle of an audio codec
+
+Optional properties:
+
+  - audio-asrc		: The phandle of ASRC. It can be absent if there's no
+			  need to add ASRC support via DPCM.
 
   - audio-routing	: A list of the connections between audio components.
 			  Each entry is a pair of strings, the first being the
@@ -60,10 +71,13 @@ Required properties:
 			        coexisting in order to support the old bindings
 				of wm8962 and sgtl5000.
 
-Optional properties:
-
-  - audio-asrc		: The phandle of ASRC. It can be absent if there's no
-			  need to add ASRC support via DPCM.
+  - hp-det-gpio		: The GPIO that detect headphones are plugged in
+  - mic-det-gpio	: The GPIO that detect microphones are plugged in
+  - bitclock-master	: Indicates dai-link bit clock master; for details see simple-card.yaml.
+  - frame-master	: Indicates dai-link frame master; for details see simple-card.yaml.
+  - dai-format		: audio format, for details see simple-card.yaml.
+  - frame-inversion	: dai-link uses frame clock inversion, for details see simple-card.yaml.
+  - bitclock-inversion	: dai-link uses bit clock inversion, for details see simple-card.yaml.
 
 Optional unless SSI is selected as a CPU DAI:
 

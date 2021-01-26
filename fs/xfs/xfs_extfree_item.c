@@ -161,7 +161,8 @@ xfs_efi_init(
 			((nextents - 1) * sizeof(xfs_extent_t)));
 		efip = kmem_zalloc(size, 0);
 	} else {
-		efip = kmem_zone_zalloc(xfs_efi_zone, 0);
+		efip = kmem_cache_zalloc(xfs_efi_zone,
+					 GFP_KERNEL | __GFP_NOFAIL);
 	}
 
 	xfs_log_item_init(mp, &efip->efi_item, XFS_LI_EFI, &xfs_efi_item_ops);
@@ -332,7 +333,8 @@ xfs_trans_get_efd(
 				(nextents - 1) * sizeof(struct xfs_extent),
 				0);
 	} else {
-		efdp = kmem_zone_zalloc(xfs_efd_zone, 0);
+		efdp = kmem_cache_zalloc(xfs_efd_zone,
+					GFP_KERNEL | __GFP_NOFAIL);
 	}
 
 	xfs_log_item_init(tp->t_mountp, &efdp->efd_item, XFS_LI_EFD,

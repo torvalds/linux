@@ -1668,6 +1668,8 @@ static const struct watchdog_ops ds1388_wdt_ops = {
 static void ds1307_wdt_register(struct ds1307 *ds1307)
 {
 	struct watchdog_device	*wdt;
+	int err;
+	int val;
 
 	if (ds1307->type != ds_1388)
 		return;
@@ -1675,6 +1677,10 @@ static void ds1307_wdt_register(struct ds1307 *ds1307)
 	wdt = devm_kzalloc(ds1307->dev, sizeof(*wdt), GFP_KERNEL);
 	if (!wdt)
 		return;
+
+	err = regmap_read(ds1307->regmap, DS1388_REG_FLAG, &val);
+	if (!err && val & DS1388_BIT_WF)
+		wdt->bootstatus = WDIOF_CARDRESET;
 
 	wdt->info = &ds1388_wdt_info;
 	wdt->ops = &ds1388_wdt_ops;

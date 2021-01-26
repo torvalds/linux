@@ -8,6 +8,7 @@
 #include <uapi/misc/habanalabs.h>
 #include "habanalabs.h"
 
+#include <linux/kernel.h>
 #include <linux/fs.h>
 #include <linux/uaccess.h>
 #include <linux/slab.h>
@@ -64,14 +65,14 @@ static int hw_ip_info(struct hl_device *hdev, struct hl_info_args *args)
 		hw_ip.dram_enabled = 1;
 	hw_ip.num_of_events = prop->num_of_events;
 
-	memcpy(hw_ip.armcp_version, prop->armcp_info.armcp_version,
+	memcpy(hw_ip.cpucp_version, prop->cpucp_info.cpucp_version,
 		min(VERSION_MAX_LEN, HL_INFO_VERSION_MAX_LEN));
 
-	memcpy(hw_ip.card_name, prop->armcp_info.card_name,
+	memcpy(hw_ip.card_name, prop->cpucp_info.card_name,
 		min(CARD_NAME_MAX_LEN, HL_INFO_CARD_NAME_MAX_LEN));
 
-	hw_ip.armcp_cpld_version = le32_to_cpu(prop->armcp_info.cpld_version);
-	hw_ip.module_id = le32_to_cpu(prop->armcp_info.card_location);
+	hw_ip.cpld_version = le32_to_cpu(prop->cpucp_info.cpld_version);
+	hw_ip.module_id = le32_to_cpu(prop->cpucp_info.card_location);
 
 	hw_ip.psoc_pci_pll_nr = prop->psoc_pci_pll_nr;
 	hw_ip.psoc_pci_pll_nf = prop->psoc_pci_pll_nf;
@@ -131,7 +132,7 @@ static int hw_idle(struct hl_device *hdev, struct hl_info_args *args)
 		return -EINVAL;
 
 	hw_idle.is_idle = hdev->asic_funcs->is_device_idle(hdev,
-					&hw_idle.busy_engines_mask, NULL);
+					&hw_idle.busy_engines_mask_ext, NULL);
 
 	return copy_to_user(out, &hw_idle,
 		min((size_t) max_size, sizeof(hw_idle))) ? -EFAULT : 0;
@@ -276,10 +277,45 @@ static int time_sync_info(struct hl_device *hdev, struct hl_info_args *args)
 		min((size_t) max_size, sizeof(time_sync))) ? -EFAULT : 0;
 }
 
+static int pci_counters_info(struct hl_fpriv *hpriv, struct hl_info_args *args)
+{
+	struct hl_device *hdev = hpriv->hdev;
+	struct hl_info_pci_counters pci_counters = {0};
+	u32 max_size = args->return_size;
+	void __user *out = (void __user *) (uintptr_t) args->return_pointer;
+	int rc;
+
+	if ((!max_size) || (!out))
+		return -EINVAL;
+
+	rc = hl_fw_cpucp_pci_counters_get(hdev, &pci_counters);
+	if (rc)
+		return rc;
+
+	return copy_to_user(out, &pci_counters,
+		min((size_t) max_size, sizeof(pci_counters))) ? -EFAULT : 0;
+}
+
+static int clk_throttle_info(struct hl_fpriv *hpriv, struct hl_info_args *args)
+{
+	struct hl_device *hdev = hpriv->hdev;
+	struct hl_info_clk_throttle clk_throttle = {0};
+	u32 max_size = args->return_size;
+	void __user *out = (void __user *) (uintptr_t) args->return_pointer;
+
+	if ((!max_size) || (!out))
+		return -EINVAL;
+
+	clk_throttle.clk_throttling_reason = hdev->clk_throttling_reason;
+
+	return copy_to_user(out, &clk_throttle,
+		min((size_t) max_size, sizeof(clk_throttle))) ? -EFAULT : 0;
+}
+
 static int cs_counters_info(struct hl_fpriv *hpriv, struct hl_info_args *args)
 {
 	struct hl_device *hdev = hpriv->hdev;
-	struct hl_info_cs_counters cs_counters = {0};
+	struct hl_info_cs_counters cs_counters = { {0} };
 	u32 max_size = args->return_size;
 	void __user *out = (void __user *) (uintptr_t) args->return_pointer;
 
@@ -295,6 +331,51 @@ static int cs_counters_info(struct hl_fpriv *hpriv, struct hl_info_args *args)
 
 	return copy_to_user(out, &cs_counters,
 		min((size_t) max_size, sizeof(cs_counters))) ? -EFAULT : 0;
+}
+
+static int sync_manager_info(struct hl_fpriv *hpriv, struct hl_info_args *args)
+{
+	struct hl_device *hdev = hpriv->hdev;
+	struct asic_fixed_properties *prop = &hdev->asic_prop;
+	struct hl_info_sync_manager sm_info = {0};
+	u32 max_size = args->return_size;
+	void __user *out = (void __user *) (uintptr_t) args->return_pointer;
+
+	if ((!max_size) || (!out))
+		return -EINVAL;
+
+	if (args->dcore_id >= HL_MAX_DCORES)
+		return -EINVAL;
+
+	sm_info.first_available_sync_object =
+			prop->first_available_user_sob[args->dcore_id];
+	sm_info.first_available_monitor =
+			prop->first_available_user_mon[args->dcore_id];
+
+
+	return copy_to_user(out, &sm_info, min_t(size_t, (size_t) max_size,
+			sizeof(sm_info))) ? -EFAULT : 0;
+}
+
+static int total_energy_consumption_info(struct hl_fpriv *hpriv,
+			struct hl_info_args *args)
+{
+	struct hl_device *hdev = hpriv->hdev;
+	struct hl_info_energy total_energy = {0};
+	u32 max_size = args->return_size;
+	void __user *out = (void __user *) (uintptr_t) args->return_pointer;
+	int rc;
+
+	if ((!max_size) || (!out))
+		return -EINVAL;
+
+	rc = hl_fw_cpucp_total_energy_get(hdev,
+			&total_energy.total_energy_consumption);
+	if (rc)
+		return rc;
+
+	return copy_to_user(out, &total_energy,
+		min((size_t) max_size, sizeof(total_energy))) ? -EFAULT : 0;
 }
 
 static int _hl_info_ioctl(struct hl_fpriv *hpriv, void *data,
@@ -359,6 +440,18 @@ static int _hl_info_ioctl(struct hl_fpriv *hpriv, void *data,
 
 	case HL_INFO_CS_COUNTERS:
 		return cs_counters_info(hpriv, args);
+
+	case HL_INFO_PCI_COUNTERS:
+		return pci_counters_info(hpriv, args);
+
+	case HL_INFO_CLK_THROTTLE_REASON:
+		return clk_throttle_info(hpriv, args);
+
+	case HL_INFO_SYNC_MANAGER:
+		return sync_manager_info(hpriv, args);
+
+	case HL_INFO_TOTAL_ENERGY:
+		return total_energy_consumption_info(hpriv, args);
 
 	default:
 		dev_err(dev, "Invalid request %d\n", args->op);

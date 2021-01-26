@@ -246,11 +246,16 @@ int st_thermal_register(struct platform_device *pdev,
 		ret = PTR_ERR(sensor->thermal_dev);
 		goto sensor_off;
 	}
+	ret = thermal_zone_device_enable(sensor->thermal_dev);
+	if (ret)
+		goto tzd_unregister;
 
 	platform_set_drvdata(pdev, sensor);
 
 	return 0;
 
+tzd_unregister:
+	thermal_zone_device_unregister(sensor->thermal_dev);
 sensor_off:
 	st_thermal_sensor_off(sensor);
 

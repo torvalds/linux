@@ -336,7 +336,6 @@ static int spear_adc_probe(struct platform_device *pdev)
 	init_completion(&st->completion);
 
 	indio_dev->name = SPEAR_ADC_MOD_NAME;
-	indio_dev->dev.parent = dev;
 	indio_dev->info = &spear_adc_info;
 	indio_dev->modes = INDIO_DIRECT_MODE;
 	indio_dev->channels = spear_adc_iio_channels;

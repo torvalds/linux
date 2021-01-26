@@ -90,11 +90,11 @@ static int setup_sgio_components(struct cpt_vf *cptvf, struct buf_ptr *list,
 	case 3:
 		sg_ptr->u.s.len2 = cpu_to_be16(list[i * 4 + 2].size);
 		sg_ptr->ptr2 = cpu_to_be64(list[i * 4 + 2].dma_addr);
-		/* Fall through */
+		fallthrough;
 	case 2:
 		sg_ptr->u.s.len1 = cpu_to_be16(list[i * 4 + 1].size);
 		sg_ptr->ptr1 = cpu_to_be64(list[i * 4 + 1].dma_addr);
-		/* Fall through */
+		fallthrough;
 	case 1:
 		sg_ptr->u.s.len0 = cpu_to_be16(list[i * 4 + 0].size);
 		sg_ptr->ptr0 = cpu_to_be64(list[i * 4 + 0].dma_addr);
@@ -305,12 +305,12 @@ static void do_request_cleanup(struct cpt_vf *cptvf,
 		}
 	}
 
-	kzfree(info->scatter_components);
-	kzfree(info->gather_components);
-	kzfree(info->out_buffer);
-	kzfree(info->in_buffer);
-	kzfree((void *)info->completion_addr);
-	kzfree(info);
+	kfree_sensitive(info->scatter_components);
+	kfree_sensitive(info->gather_components);
+	kfree_sensitive(info->out_buffer);
+	kfree_sensitive(info->in_buffer);
+	kfree_sensitive((void *)info->completion_addr);
+	kfree_sensitive(info);
 }
 
 static void do_post_process(struct cpt_vf *cptvf, struct cpt_info_buffer *info)

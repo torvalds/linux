@@ -206,7 +206,9 @@ static int wuxga_nt_panel_add(struct wuxga_nt_panel *wuxga_nt)
 	if (ret)
 		return ret;
 
-	return drm_panel_add(&wuxga_nt->base);
+	drm_panel_add(&wuxga_nt->base);
+
+	return 0;
 }
 
 static void wuxga_nt_panel_del(struct wuxga_nt_panel *wuxga_nt)

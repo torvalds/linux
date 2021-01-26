@@ -68,7 +68,7 @@ static void zfcp_erp_action_ready(struct zfcp_erp_action *act)
 {
 	struct zfcp_adapter *adapter = act->adapter;
 
-	list_move(&act->list, &act->adapter->erp_ready_head);
+	list_move(&act->list, &adapter->erp_ready_head);
 	zfcp_dbf_rec_run("erardy1", act);
 	wake_up(&adapter->erp_ready_wq);
 	zfcp_dbf_rec_run("erardy2", act);
@@ -1607,7 +1607,6 @@ check_target:
 static int zfcp_erp_thread(void *data)
 {
 	struct zfcp_adapter *adapter = (struct zfcp_adapter *) data;
-	struct list_head *next;
 	struct zfcp_erp_action *act;
 	unsigned long flags;
 
@@ -1620,12 +1619,11 @@ static int zfcp_erp_thread(void *data)
 			break;
 
 		write_lock_irqsave(&adapter->erp_lock, flags);
-		next = adapter->erp_ready_head.next;
+		act = list_first_entry_or_null(&adapter->erp_ready_head,
+					       struct zfcp_erp_action, list);
 		write_unlock_irqrestore(&adapter->erp_lock, flags);
 
-		if (next != &adapter->erp_ready_head) {
-			act = list_entry(next, struct zfcp_erp_action, list);
-
+		if (act) {
 			/* there is more to come after dismission, no notify */
 			if (zfcp_erp_strategy(act) != ZFCP_ERP_DISMISSED)
 				zfcp_erp_wakeup(adapter);

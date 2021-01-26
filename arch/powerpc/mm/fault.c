@@ -42,39 +42,7 @@
 #include <asm/kup.h>
 #include <asm/inst.h>
 
-/*
- * Check whether the instruction inst is a store using
- * an update addressing form which will update r1.
- */
-static bool store_updates_sp(struct ppc_inst inst)
-{
-	/* check for 1 in the rA field */
-	if (((ppc_inst_val(inst) >> 16) & 0x1f) != 1)
-		return false;
-	/* check major opcode */
-	switch (ppc_inst_primary_opcode(inst)) {
-	case OP_STWU:
-	case OP_STBU:
-	case OP_STHU:
-	case OP_STFSU:
-	case OP_STFDU:
-		return true;
-	case OP_STD:	/* std or stdu */
-		return (ppc_inst_val(inst) & 3) == 1;
-	case OP_31:
-		/* check minor opcode */
-		switch ((ppc_inst_val(inst) >> 1) & 0x3ff) {
-		case OP_31_XOP_STDUX:
-		case OP_31_XOP_STWUX:
-		case OP_31_XOP_STBUX:
-		case OP_31_XOP_STHUX:
-		case OP_31_XOP_STFSUX:
-		case OP_31_XOP_STFDUX:
-			return true;
-		}
-	}
-	return false;
-}
+
 /*
  * do_page_fault error handling helpers
  */
@@ -267,54 +235,6 @@ static bool bad_kernel_fault(struct pt_regs *regs, unsigned long error_code,
 	return false;
 }
 
-static bool bad_stack_expansion(struct pt_regs *regs, unsigned long address,
-				struct vm_area_struct *vma, unsigned int flags,
-				bool *must_retry)
-{
-	/*
-	 * N.B. The POWER/Open ABI allows programs to access up to
-	 * 288 bytes below the stack pointer.
-	 * The kernel signal delivery code writes up to about 1.5kB
-	 * below the stack pointer (r1) before decrementing it.
-	 * The exec code can write slightly over 640kB to the stack
-	 * before setting the user r1.  Thus we allow the stack to
-	 * expand to 1MB without further checks.
-	 */
-	if (address + 0x100000 < vma->vm_end) {
-		struct ppc_inst __user *nip = (struct ppc_inst __user *)regs->nip;
-		/* get user regs even if this fault is in kernel mode */
-		struct pt_regs *uregs = current->thread.regs;
-		if (uregs == NULL)
-			return true;
-
-		/*
-		 * A user-mode access to an address a long way below
-		 * the stack pointer is only valid if the instruction
-		 * is one which would update the stack pointer to the
-		 * address accessed if the instruction completed,
-		 * i.e. either stwu rs,n(r1) or stwux rs,r1,rb
-		 * (or the byte, halfword, float or double forms).
-		 *
-		 * If we don't check this then any write to the area
-		 * between the last mapped region and the stack will
-		 * expand the stack rather than segfaulting.
-		 */
-		if (address + 2048 >= uregs->gpr[1])
-			return false;
-
-		if ((flags & FAULT_FLAG_WRITE) && (flags & FAULT_FLAG_USER) &&
-		    access_ok(nip, sizeof(*nip))) {
-			struct ppc_inst inst;
-
-			if (!probe_user_read_inst(&inst, nip))
-				return !store_updates_sp(inst);
-			*must_retry = true;
-		}
-		return true;
-	}
-	return false;
-}
-
 #ifdef CONFIG_PPC_MEM_KEYS
 static bool access_pkey_error(bool is_write, bool is_exec, bool is_pkey,
 			      struct vm_area_struct *vma)
@@ -480,7 +400,6 @@ static int __do_page_fault(struct pt_regs *regs, unsigned long address,
 	int is_user = user_mode(regs);
 	int is_write = page_fault_is_write(error_code);
 	vm_fault_t fault, major = 0;
-	bool must_retry = false;
 	bool kprobe_fault = kprobe_page_fault(regs, 11);
 
 	if (unlikely(debugger_fault_handler(regs) || kprobe_fault))
@@ -569,29 +488,14 @@ retry:
 	vma = find_vma(mm, address);
 	if (unlikely(!vma))
 		return bad_area(regs, address);
-	if (likely(vma->vm_start <= address))
-		goto good_area;
-	if (unlikely(!(vma->vm_flags & VM_GROWSDOWN)))
-		return bad_area(regs, address);
 
-	/* The stack is being expanded, check if it's valid */
-	if (unlikely(bad_stack_expansion(regs, address, vma, flags,
-					 &must_retry))) {
-		if (!must_retry)
+	if (unlikely(vma->vm_start > address)) {
+		if (unlikely(!(vma->vm_flags & VM_GROWSDOWN)))
 			return bad_area(regs, address);
 
-		mmap_read_unlock(mm);
-		if (fault_in_pages_readable((const char __user *)regs->nip,
-					    sizeof(unsigned int)))
-			return bad_area_nosemaphore(regs, address);
-		goto retry;
+		if (unlikely(expand_stack(vma, address)))
+			return bad_area(regs, address);
 	}
-
-	/* Try to expand it */
-	if (unlikely(expand_stack(vma, address)))
-		return bad_area(regs, address);
-
-good_area:
 
 #ifdef CONFIG_PPC_MEM_KEYS
 	if (unlikely(access_pkey_error(is_write, is_exec,
@@ -607,7 +511,7 @@ good_area:
 	 * make sure we exit gracefully rather than endlessly redo
 	 * the fault.
 	 */
-	fault = handle_mm_fault(vma, address, flags);
+	fault = handle_mm_fault(vma, address, flags, regs);
 
 	major |= fault & VM_FAULT_MAJOR;
 
@@ -633,14 +537,9 @@ good_area:
 	/*
 	 * Major/minor page fault accounting.
 	 */
-	if (major) {
-		current->maj_flt++;
-		perf_sw_event(PERF_COUNT_SW_PAGE_FAULTS_MAJ, 1, regs, address);
+	if (major)
 		cmo_account_page_fault();
-	} else {
-		current->min_flt++;
-		perf_sw_event(PERF_COUNT_SW_PAGE_FAULTS_MIN, 1, regs, address);
-	}
+
 	return 0;
 }
 NOKPROBE_SYMBOL(__do_page_fault);

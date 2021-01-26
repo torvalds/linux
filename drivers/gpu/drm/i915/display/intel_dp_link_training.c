@@ -410,10 +410,17 @@ intel_dp_start_link_train(struct intel_dp *intel_dp)
 		    intel_connector->base.base.id,
 		    intel_connector->base.name,
 		    intel_dp->link_rate, intel_dp->lane_count);
-	if (!intel_dp_get_link_train_fallback_values(intel_dp,
-						     intel_dp->link_rate,
-						     intel_dp->lane_count))
-		/* Schedule a Hotplug Uevent to userspace to start modeset */
-		schedule_work(&intel_connector->modeset_retry_work);
-	return;
+
+	if (intel_dp->hobl_active) {
+		drm_dbg_kms(&dp_to_i915(intel_dp)->drm,
+			    "Link Training failed with HOBL active, not enabling it from now on");
+		intel_dp->hobl_failed = true;
+	} else if (intel_dp_get_link_train_fallback_values(intel_dp,
+							   intel_dp->link_rate,
+							   intel_dp->lane_count)) {
+		return;
+	}
+
+	/* Schedule a Hotplug Uevent to userspace to start modeset */
+	schedule_work(&intel_connector->modeset_retry_work);
 }

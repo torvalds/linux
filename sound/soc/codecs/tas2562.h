@@ -2,7 +2,7 @@
 /*
  * tas2562.h - ALSA SoC Texas Instruments TAS2562 Mono Audio Amplifier
  *
- * Copyright (C) 2019 Texas Instruments Incorporated -  http://www.ti.com
+ * Copyright (C) 2019 Texas Instruments Incorporated -  https://www.ti.com
  *
  * Author: Dan Murphy <dmurphy@ti.com>
  */
@@ -34,6 +34,10 @@
 #define TAS2562_TDM_DET		TAS2562_REG(0, 0x11)
 #define TAS2562_REV_ID		TAS2562_REG(0, 0x7d)
 
+#define TAS2562_RX_OFF_MASK	GENMASK(5, 1)
+#define TAS2562_TX_OFF_MASK	GENMASK(3, 1)
+#define TAS2562_RIGHT_SLOT_SHIFT 4
+
 /* Page 2 */
 #define TAS2562_DVC_CFG1	TAS2562_REG(2, 0x0c)
 #define TAS2562_DVC_CFG2	TAS2562_REG(2, 0x0d)
@@ -49,7 +53,6 @@
 
 #define TAS2562_TDM_CFG1_RX_EDGE_MASK	BIT(0)
 #define TAS2562_TDM_CFG1_RX_FALLING	1
-#define TAS2562_TDM_CFG1_RX_OFFSET_MASK	GENMASK(4, 0)
 
 #define TAS2562_TDM_CFG0_RAMPRATE_MASK		BIT(5)
 #define TAS2562_TDM_CFG0_RAMPRATE_44_1		BIT(5)

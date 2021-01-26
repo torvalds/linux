@@ -32,6 +32,8 @@
 
 #include "aacraid.h"
 
+# define AAC_DEBUG_PREAMBLE	KERN_INFO
+# define AAC_DEBUG_POSTAMBLE
 /**
  *	ioctl_send_fib	-	send a FIB from userspace
  *	@dev:	adapter is being processed
@@ -40,9 +42,6 @@
  *	This routine sends a fib to the adapter on behalf of a user level
  *	program.
  */
-# define AAC_DEBUG_PREAMBLE	KERN_INFO
-# define AAC_DEBUG_POSTAMBLE
-
 static int ioctl_send_fib(struct aac_dev * dev, void __user *arg)
 {
 	struct hw_fib * kfib;
@@ -158,11 +157,12 @@ cleanup:
 
 /**
  *	open_getadapter_fib	-	Get the next fib
+ *	@dev:	adapter is being processed
+ *	@arg:	arguments to the open call
  *
  *	This routine will get the next Fib, if available, from the AdapterFibContext
  *	passed in from the user.
  */
-
 static int open_getadapter_fib(struct aac_dev * dev, void __user *arg)
 {
 	struct aac_fib_context * fibctx;
@@ -234,7 +234,6 @@ static int open_getadapter_fib(struct aac_dev * dev, void __user *arg)
  *	This routine will get the next Fib, if available, from the AdapterFibContext
  *	passed in from the user.
  */
-
 static int next_getadapter_fib(struct aac_dev * dev, void __user *arg)
 {
 	struct fib_ioctl f;
@@ -455,11 +454,10 @@ static int check_revision(struct aac_dev *dev, void __user *arg)
 
 
 /**
- *
  * aac_send_raw_scb
- *
+ *	@dev:	adapter is being processed
+ *	@arg:	arguments to the send call
  */
-
 static int aac_send_raw_srb(struct aac_dev* dev, void __user * arg)
 {
 	struct fib* srbfib;
@@ -672,8 +670,8 @@ static int aac_send_raw_srb(struct aac_dev* dev, void __user * arg)
 					goto cleanup;
 				}
 			}
-			addr = pci_map_single(dev->pdev, p, sg_count[i],
-						data_dir);
+			addr = dma_map_single(&dev->pdev->dev, p, sg_count[i],
+					      data_dir);
 			hbacmd->sge[i].addr_hi = cpu_to_le32((u32)(addr>>32));
 			hbacmd->sge[i].addr_lo = cpu_to_le32(
 						(u32)(addr & 0xffffffff));
@@ -734,8 +732,8 @@ static int aac_send_raw_srb(struct aac_dev* dev, void __user * arg)
 						goto cleanup;
 					}
 				}
-				addr = pci_map_single(dev->pdev, p,
-							sg_count[i], data_dir);
+				addr = dma_map_single(&dev->pdev->dev, p,
+						      sg_count[i], data_dir);
 
 				psg->sg[i].addr[0] = cpu_to_le32(addr & 0xffffffff);
 				psg->sg[i].addr[1] = cpu_to_le32(addr>>32);
@@ -790,8 +788,8 @@ static int aac_send_raw_srb(struct aac_dev* dev, void __user * arg)
 						goto cleanup;
 					}
 				}
-				addr = pci_map_single(dev->pdev, p,
-							sg_count[i], data_dir);
+				addr = dma_map_single(&dev->pdev->dev, p,
+						      sg_count[i], data_dir);
 
 				psg->sg[i].addr[0] = cpu_to_le32(addr & 0xffffffff);
 				psg->sg[i].addr[1] = cpu_to_le32(addr>>32);
@@ -846,7 +844,9 @@ static int aac_send_raw_srb(struct aac_dev* dev, void __user * arg)
 						goto cleanup;
 					}
 				}
-				addr = pci_map_single(dev->pdev, p, usg->sg[i].count, data_dir);
+				addr = dma_map_single(&dev->pdev->dev, p,
+						      usg->sg[i].count,
+						      data_dir);
 
 				psg->sg[i].addr = cpu_to_le32(addr & 0xffffffff);
 				byte_count += usg->sg[i].count;
@@ -885,8 +885,8 @@ static int aac_send_raw_srb(struct aac_dev* dev, void __user * arg)
 						goto cleanup;
 					}
 				}
-				addr = pci_map_single(dev->pdev, p,
-					sg_count[i], data_dir);
+				addr = dma_map_single(&dev->pdev->dev, p,
+						      sg_count[i], data_dir);
 
 				psg->sg[i].addr = cpu_to_le32(addr);
 				byte_count += sg_count[i];

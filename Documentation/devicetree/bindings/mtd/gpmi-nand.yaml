@@ -4,7 +4,7 @@
 $id: http://devicetree.org/schemas/mtd/gpmi-nand.yaml#
 $schema: http://devicetree.org/meta-schemas/core.yaml#
 
-title:  Freescale General-Purpose Media Interface (GPMI) binding
+title: Freescale General-Purpose Media Interface (GPMI) binding
 
 maintainers:
   - Han Xu <han.xu@nxp.com>
@@ -20,12 +20,18 @@ description: |
 
 properties:
   compatible:
-    enum:
-      - fsl,imx23-gpmi-nand
-      - fsl,imx28-gpmi-nand
-      - fsl,imx6q-gpmi-nand
-      - fsl,imx6sx-gpmi-nand
-      - fsl,imx7d-gpmi-nand
+    oneOf:
+      - enum:
+          - fsl,imx23-gpmi-nand
+          - fsl,imx28-gpmi-nand
+          - fsl,imx6q-gpmi-nand
+          - fsl,imx6sx-gpmi-nand
+          - fsl,imx7d-gpmi-nand
+      - items:
+          - enum:
+              - fsl,imx8mm-gpmi-nand
+              - fsl,imx8mn-gpmi-nand
+          - const: fsl,imx7d-gpmi-nand
 
   reg:
     items:

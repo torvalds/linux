@@ -13,7 +13,7 @@
  * DMA mapping callbacks...
  */
 
-#include <linux/dma-noncoherent.h>
+#include <linux/dma-map-ops.h>
 #include <linux/pagewalk.h>
 
 #include <asm/cpuinfo.h>

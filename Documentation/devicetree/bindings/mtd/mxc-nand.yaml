@@ -4,7 +4,7 @@
 $id: http://devicetree.org/schemas/mtd/mxc-nand.yaml#
 $schema: http://devicetree.org/meta-schemas/core.yaml#
 
-title:  Freescale's mxc_nand binding
+title: Freescale's mxc_nand binding
 
 maintainers:
   - Uwe Kleine-König <u.kleine-koenig@pengutronix.de>

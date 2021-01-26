@@ -1217,8 +1217,7 @@ static void adt7470_init_client(struct i2c_client *client)
 	}
 }
 
-static int adt7470_probe(struct i2c_client *client,
-			 const struct i2c_device_id *id)
+static int adt7470_probe(struct i2c_client *client)
 {
 	struct device *dev = &client->dev;
 	struct adt7470_data *data;
@@ -1276,7 +1275,7 @@ static struct i2c_driver adt7470_driver = {
 	.driver = {
 		.name	= "adt7470",
 	},
-	.probe		= adt7470_probe,
+	.probe_new	= adt7470_probe,
 	.remove		= adt7470_remove,
 	.id_table	= adt7470_id,
 	.detect		= adt7470_detect,

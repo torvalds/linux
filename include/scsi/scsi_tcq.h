@@ -34,7 +34,7 @@ static inline struct scsi_cmnd *scsi_host_find_tag(struct Scsi_Host *shost,
 					blk_mq_unique_tag_to_tag(tag));
 	}
 
-	if (!req)
+	if (!req || !blk_mq_request_started(req))
 		return NULL;
 	return blk_mq_rq_to_pdu(req);
 }

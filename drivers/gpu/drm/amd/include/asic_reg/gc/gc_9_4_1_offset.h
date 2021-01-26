@@ -205,6 +205,8 @@
 #define mmGCEA_EDC_CNT2_BASE_IDX                                                                       0
 #define mmGCEA_EDC_CNT3                                                                                0x071b
 #define mmGCEA_EDC_CNT3_BASE_IDX                                                                       0
+#define mmGCEA_ERR_STATUS                                                                              0x0712
+#define mmGCEA_ERR_STATUS_BASE_IDX                                                                     0
 
 // addressBlock: gc_gfxudec
 // base address: 0x30000

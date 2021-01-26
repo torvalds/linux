@@ -543,18 +543,25 @@ static int rx_request_irq(struct hinic_rxq *rxq)
 	if (err) {
 		netif_err(nic_dev, drv, rxq->netdev,
 			  "Failed to set RX interrupt coalescing attribute\n");
-		rx_del_napi(rxq);
-		return err;
+		goto err_req_irq;
 	}
 
 	err = request_irq(rq->irq, rx_irq, 0, rxq->irq_name, rxq);
-	if (err) {
-		rx_del_napi(rxq);
-		return err;
-	}
+	if (err)
+		goto err_req_irq;
 
 	cpumask_set_cpu(qp->q_id % num_online_cpus(), &rq->affinity_mask);
-	return irq_set_affinity_hint(rq->irq, &rq->affinity_mask);
+	err = irq_set_affinity_hint(rq->irq, &rq->affinity_mask);
+	if (err)
+		goto err_irq_affinity;
+
+	return 0;
+
+err_irq_affinity:
+	free_irq(rq->irq, rxq);
+err_req_irq:
+	rx_del_napi(rxq);
+	return err;
 }
 
 static void rx_free_irq(struct hinic_rxq *rxq)

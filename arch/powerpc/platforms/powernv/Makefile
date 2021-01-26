@@ -11,6 +11,7 @@ obj-$(CONFIG_FA_DUMP)	+= opal-fadump.o
 obj-$(CONFIG_PRESERVE_FA_DUMP)	+= opal-fadump.o
 obj-$(CONFIG_OPAL_CORE)	+= opal-core.o
 obj-$(CONFIG_PCI)	+= pci.o pci-ioda.o npu-dma.o pci-ioda-tce.o
+obj-$(CONFIG_PCI_IOV)   += pci-sriov.o
 obj-$(CONFIG_CXL_BASE)	+= pci-cxl.o
 obj-$(CONFIG_EEH)	+= eeh-powernv.o
 obj-$(CONFIG_MEMORY_FAILURE)	+= opal-memory-errors.o

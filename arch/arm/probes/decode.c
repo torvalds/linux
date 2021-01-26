@@ -307,7 +307,7 @@ static bool __kprobes decode_regs(probes_opcode_t *pinsn, u32 regs, bool modify)
 		case REG_TYPE_NOPCWB:
 			if (!is_writeback(insn))
 				break; /* No writeback, so any register is OK */
-			/* fall through... */
+			fallthrough;
 		case REG_TYPE_NOPC:
 		case REG_TYPE_NOPCX:
 			/* Reject PC (R15) */

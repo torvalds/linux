@@ -1,11 +1,4 @@
-.. Permission is granted to copy, distribute and/or modify this
-.. document under the terms of the GNU Free Documentation License,
-.. Version 1.1 or any later version published by the Free Software
-.. Foundation, with no Invariant Sections, no Front-Cover Texts
-.. and no Back-Cover Texts. A copy of the license is included at
-.. Documentation/userspace-api/media/fdl-appendix.rst.
-..
-.. TODO: replace it to GFDL-1.1-or-later WITH no-invariant-sections
+.. SPDX-License-Identifier: GFDL-1.1-no-invariants-or-later
 
 .. _VIDIOC_ENUM_FMT:
 
@@ -167,17 +160,72 @@ the ``mbus_code`` field is handled differently:
       - The hardware decoder for this compressed bytestream format (aka coded
 	format) is capable of parsing a continuous bytestream. Applications do
 	not need to parse the bytestream themselves to find the boundaries
-	between frames/fields. This flag can only be used in combination with
-	the ``V4L2_FMT_FLAG_COMPRESSED`` flag, since this applies to compressed
+	between frames/fields.
+
+	This flag can only be used in combination with the
+	``V4L2_FMT_FLAG_COMPRESSED`` flag, since this applies to compressed
 	formats only. This flag is valid for stateful decoders only.
     * - ``V4L2_FMT_FLAG_DYN_RESOLUTION``
       - 0x0008
       - Dynamic resolution switching is supported by the device for this
 	compressed bytestream format (aka coded format). It will notify the user
 	via the event ``V4L2_EVENT_SOURCE_CHANGE`` when changes in the video
-	parameters are detected. This flag can only be used in combination
-	with the ``V4L2_FMT_FLAG_COMPRESSED`` flag, since this applies to
-	compressed formats only. It is also only applies to stateful codecs.
+	parameters are detected.
+
+	This flag can only be used in combination with the
+	``V4L2_FMT_FLAG_COMPRESSED`` flag, since this applies to
+	compressed formats only. This flag is valid for stateful codecs only.
+    * - ``V4L2_FMT_FLAG_ENC_CAP_FRAME_INTERVAL``
+      - 0x0010
+      - The hardware encoder supports setting the ``CAPTURE`` coded frame
+	interval separately from the ``OUTPUT`` raw frame interval.
+	Setting the ``OUTPUT`` raw frame interval with :ref:`VIDIOC_S_PARM <VIDIOC_G_PARM>`
+	also sets the ``CAPTURE`` coded frame interval to the same value.
+	If this flag is set, then the ``CAPTURE`` coded frame interval can be
+	set to a different value afterwards. This is typically used for
+	offline encoding where the ``OUTPUT`` raw frame interval is used as
+	a hint for reserving hardware encoder resources and the ``CAPTURE`` coded
+	frame interval is the actual frame rate embedded in the encoded video
+	stream.
+
+	This flag can only be used in combination with the
+	``V4L2_FMT_FLAG_COMPRESSED`` flag, since this applies to
+        compressed formats only. This flag is valid for stateful encoders only.
+    * - ``V4L2_FMT_FLAG_CSC_COLORSPACE``
+      - 0x0020
+      - The driver allows the application to try to change the default
+	colorspace. This flag is relevant only for capture devices.
+	The application can ask to configure the colorspace of the capture device
+	when calling the :ref:`VIDIOC_S_FMT <VIDIOC_G_FMT>` ioctl with
+	:ref:`V4L2_PIX_FMT_FLAG_SET_CSC <v4l2-pix-fmt-flag-set-csc>` set.
+    * - ``V4L2_FMT_FLAG_CSC_XFER_FUNC``
+      - 0x0040
+      - The driver allows the application to try to change the default
+	transfer function. This flag is relevant only for capture devices.
+	The application can ask to configure the transfer function of the capture
+	device when calling the :ref:`VIDIOC_S_FMT <VIDIOC_G_FMT>` ioctl with
+	:ref:`V4L2_PIX_FMT_FLAG_SET_CSC <v4l2-pix-fmt-flag-set-csc>` set.
+    * - ``V4L2_FMT_FLAG_CSC_YCBCR_ENC``
+      - 0x0080
+      - The driver allows the application to try to change the default
+	Y'CbCr encoding. This flag is relevant only for capture devices.
+	The application can ask to configure the Y'CbCr encoding of the capture device
+	when calling the :ref:`VIDIOC_S_FMT <VIDIOC_G_FMT>` ioctl with
+	:ref:`V4L2_PIX_FMT_FLAG_SET_CSC <v4l2-pix-fmt-flag-set-csc>` set.
+    * - ``V4L2_FMT_FLAG_CSC_HSV_ENC``
+      - 0x0080
+      - The driver allows the application to try to change the default
+	HSV encoding. This flag is relevant only for capture devices.
+	The application can ask to configure the HSV encoding of the capture device
+	when calling the :ref:`VIDIOC_S_FMT <VIDIOC_G_FMT>` ioctl with
+	:ref:`V4L2_PIX_FMT_FLAG_SET_CSC <v4l2-pix-fmt-flag-set-csc>` set.
+    * - ``V4L2_FMT_FLAG_CSC_QUANTIZATION``
+      - 0x0100
+      - The driver allows the application to try to change the default
+	quantization. This flag is relevant only for capture devices.
+	The application can ask to configure the quantization of the capture
+	device when calling the :ref:`VIDIOC_S_FMT <VIDIOC_G_FMT>` ioctl with
+	:ref:`V4L2_PIX_FMT_FLAG_SET_CSC <v4l2-pix-fmt-flag-set-csc>` set.
 
 
 Return Value

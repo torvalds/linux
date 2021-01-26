@@ -703,7 +703,7 @@ static struct dso *machine__findnew_module_dso(struct machine *machine,
 
 		dso__set_module_info(dso, m, machine);
 		dso__set_long_name(dso, strdup(filename), true);
-		dso->kernel = DSO_TYPE_KERNEL;
+		dso->kernel = DSO_SPACE__KERNEL;
 	}
 
 	dso__get(dso);
@@ -736,12 +736,6 @@ int machine__process_switch_event(struct machine *machine __maybe_unused,
 	return 0;
 }
 
-static int is_bpf_image(const char *name)
-{
-	return strncmp(name, "bpf_trampoline_", sizeof("bpf_trampoline_") - 1) == 0 ||
-	       strncmp(name, "bpf_dispatcher_", sizeof("bpf_dispatcher_") - 1) == 0;
-}
-
 static int machine__process_ksymbol_register(struct machine *machine,
 					     union perf_event *event,
 					     struct perf_sample *sample __maybe_unused)
@@ -753,13 +747,19 @@ static int machine__process_ksymbol_register(struct machine *machine,
 		struct dso *dso = dso__new(event->ksymbol.name);
 
 		if (dso) {
-			dso->kernel = DSO_TYPE_KERNEL;
+			dso->kernel = DSO_SPACE__KERNEL;
 			map = map__new2(0, dso);
 		}
 
 		if (!dso || !map) {
 			dso__put(dso);
 			return -ENOMEM;
+		}
+
+		if (event->ksymbol.ksym_type == PERF_RECORD_KSYMBOL_TYPE_OOL) {
+			map->dso->binary_type = DSO_BINARY_TYPE__OOL;
+			map->dso->data.file_size = event->ksymbol.len;
+			dso__set_loaded(map->dso);
 		}
 
 		map->start = event->ksymbol.addr;
@@ -806,6 +806,47 @@ int machine__process_ksymbol(struct machine *machine __maybe_unused,
 		return machine__process_ksymbol_unregister(machine, event,
 							   sample);
 	return machine__process_ksymbol_register(machine, event, sample);
+}
+
+int machine__process_text_poke(struct machine *machine, union perf_event *event,
+			       struct perf_sample *sample __maybe_unused)
+{
+	struct map *map = maps__find(&machine->kmaps, event->text_poke.addr);
+	u8 cpumode = event->header.misc & PERF_RECORD_MISC_CPUMODE_MASK;
+
+	if (dump_trace)
+		perf_event__fprintf_text_poke(event, machine, stdout);
+
+	if (!event->text_poke.new_len)
+		return 0;
+
+	if (cpumode != PERF_RECORD_MISC_KERNEL) {
+		pr_debug("%s: unsupported cpumode - ignoring\n", __func__);
+		return 0;
+	}
+
+	if (map && map->dso) {
+		u8 *new_bytes = event->text_poke.bytes + event->text_poke.old_len;
+		int ret;
+
+		/*
+		 * Kernel maps might be changed when loading symbols so loading
+		 * must be done prior to using kernel maps.
+		 */
+		map__load(map);
+		ret = dso__data_write_cache_addr(map->dso, map, machine,
+						 event->text_poke.addr,
+						 new_bytes,
+						 event->text_poke.new_len);
+		if (ret != event->text_poke.new_len)
+			pr_debug("Failed to write kernel text poke at %#" PRI_lx64 "\n",
+				 event->text_poke.addr);
+	} else {
+		pr_debug("Failed to find kernel text poke address map for %#" PRI_lx64 "\n",
+			 event->text_poke.addr);
+	}
+
+	return 0;
 }
 
 static struct map *machine__addnew_module_map(struct machine *machine, u64 start,
@@ -924,14 +965,14 @@ static struct dso *machine__get_kernel(struct machine *machine)
 			vmlinux_name = symbol_conf.vmlinux_name;
 
 		kernel = machine__findnew_kernel(machine, vmlinux_name,
-						 "[kernel]", DSO_TYPE_KERNEL);
+						 "[kernel]", DSO_SPACE__KERNEL);
 	} else {
 		if (symbol_conf.default_guest_vmlinux_name)
 			vmlinux_name = symbol_conf.default_guest_vmlinux_name;
 
 		kernel = machine__findnew_kernel(machine, vmlinux_name,
 						 "[guest.kernel]",
-						 DSO_TYPE_GUEST_KERNEL);
+						 DSO_SPACE__KERNEL_GUEST);
 	}
 
 	if (kernel != NULL && (!kernel->has_build_id))
@@ -1559,7 +1600,7 @@ static int machine__process_kernel_mmap_event(struct machine *machine,
 					      union perf_event *event)
 {
 	struct map *map;
-	enum dso_kernel_type kernel_type;
+	enum dso_space_type dso_space;
 	bool is_kernel_mmap;
 
 	/* If we have maps from kcore then we do not need or want any others */
@@ -1567,9 +1608,9 @@ static int machine__process_kernel_mmap_event(struct machine *machine,
 		return 0;
 
 	if (machine__is_host(machine))
-		kernel_type = DSO_TYPE_KERNEL;
+		dso_space = DSO_SPACE__KERNEL;
 	else
-		kernel_type = DSO_TYPE_GUEST_KERNEL;
+		dso_space = DSO_SPACE__KERNEL_GUEST;
 
 	is_kernel_mmap = memcmp(event->mmap.filename,
 				machine->mmap_name,
@@ -1629,7 +1670,7 @@ static int machine__process_kernel_mmap_event(struct machine *machine,
 		if (kernel == NULL)
 			goto out_problem;
 
-		kernel->kernel = kernel_type;
+		kernel->kernel = dso_space;
 		if (__machine__create_kernel_maps(machine, kernel) < 0) {
 			dso__put(kernel);
 			goto out_problem;
@@ -1930,6 +1971,8 @@ int machine__process_event(struct machine *machine, union perf_event *event,
 		ret = machine__process_ksymbol(machine, event, sample); break;
 	case PERF_RECORD_BPF_EVENT:
 		ret = machine__process_bpf(machine, event, sample); break;
+	case PERF_RECORD_TEXT_POKE:
+		ret = machine__process_text_poke(machine, event, sample); break;
 	default:
 		ret = -1;
 		break;

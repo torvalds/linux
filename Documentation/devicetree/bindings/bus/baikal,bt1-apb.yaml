@@ -19,7 +19,7 @@ description: |
   reported to the APB terminator (APB Errors Handler Block).
 
 allOf:
- - $ref: /schemas/simple-bus.yaml#
+  - $ref: /schemas/simple-bus.yaml#
 
 properties:
   compatible:

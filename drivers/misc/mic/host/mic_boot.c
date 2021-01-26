@@ -10,6 +10,7 @@
 #include <linux/firmware.h>
 #include <linux/pci.h>
 #include <linux/kmod.h>
+#include <linux/dma-map-ops.h>
 #include <linux/mic_common.h>
 #include <linux/mic_bus.h>
 #include "../bus/scif_bus.h"

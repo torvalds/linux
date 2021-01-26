@@ -21,6 +21,8 @@
  * 2001 Hewlett-Packard Company
  */
 
+#define DEBUG /* So dev_dbg() is always available. */
+
 #include <linux/kernel.h> /* For printk. */
 #include <linux/string.h>
 #include <linux/module.h>
@@ -126,11 +128,14 @@ static int start_smic_transaction(struct si_sm_data *smic,
 	if (size > MAX_SMIC_WRITE_SIZE)
 		return IPMI_REQ_LEN_EXCEEDED_ERR;
 
-	if ((smic->state != SMIC_IDLE) && (smic->state != SMIC_HOSED))
+	if ((smic->state != SMIC_IDLE) && (smic->state != SMIC_HOSED)) {
+		dev_warn(smic->io->dev,
+			 "SMIC in invalid state %d\n", smic->state);
 		return IPMI_NOT_IN_MY_STATE_ERR;
+	}
 
 	if (smic_debug & SMIC_DEBUG_MSG) {
-		printk(KERN_DEBUG "start_smic_transaction -");
+		dev_dbg(smic->io->dev, "%s -", __func__);
 		for (i = 0; i < size; i++)
 			pr_cont(" %02x", data[i]);
 		pr_cont("\n");
@@ -152,7 +157,7 @@ static int smic_get_result(struct si_sm_data *smic,
 	int i;
 
 	if (smic_debug & SMIC_DEBUG_MSG) {
-		printk(KERN_DEBUG "smic_get result -");
+		dev_dbg(smic->io->dev, "smic_get result -");
 		for (i = 0; i < smic->read_pos; i++)
 			pr_cont(" %02x", smic->read_data[i]);
 		pr_cont("\n");
@@ -324,9 +329,9 @@ static enum si_sm_result smic_event(struct si_sm_data *smic, long time)
 	}
 	if (smic->state != SMIC_IDLE) {
 		if (smic_debug & SMIC_DEBUG_STATES)
-			printk(KERN_DEBUG
-			       "smic_event - smic->smic_timeout = %ld, time = %ld\n",
-			       smic->smic_timeout, time);
+			dev_dbg(smic->io->dev,
+				"%s - smic->smic_timeout = %ld, time = %ld\n",
+				__func__, smic->smic_timeout, time);
 		/*
 		 * FIXME: smic_event is sometimes called with time >
 		 * SMIC_RETRY_TIMEOUT
@@ -345,8 +350,9 @@ static enum si_sm_result smic_event(struct si_sm_data *smic, long time)
 
 	status = read_smic_status(smic);
 	if (smic_debug & SMIC_DEBUG_STATES)
-		printk(KERN_DEBUG "smic_event - state = %d, flags = 0x%02x, status = 0x%02x\n",
-		       smic->state, flags, status);
+		dev_dbg(smic->io->dev,
+			"%s - state = %d, flags = 0x%02x, status = 0x%02x\n",
+			__func__, smic->state, flags, status);
 
 	switch (smic->state) {
 	case SMIC_IDLE:
@@ -436,8 +442,9 @@ static enum si_sm_result smic_event(struct si_sm_data *smic, long time)
 		data = read_smic_data(smic);
 		if (data != 0) {
 			if (smic_debug & SMIC_DEBUG_ENABLE)
-				printk(KERN_DEBUG "SMIC_WRITE_END: data = %02x\n",
-				       data);
+				dev_dbg(smic->io->dev,
+					"SMIC_WRITE_END: data = %02x\n",
+					data);
 			start_error_recovery(smic,
 					     "state = SMIC_WRITE_END, "
 					     "data != SUCCESS");
@@ -516,8 +523,9 @@ static enum si_sm_result smic_event(struct si_sm_data *smic, long time)
 		/* data register holds an error code */
 		if (data != 0) {
 			if (smic_debug & SMIC_DEBUG_ENABLE)
-				printk(KERN_DEBUG "SMIC_READ_END: data = %02x\n",
-				       data);
+				dev_dbg(smic->io->dev,
+					"SMIC_READ_END: data = %02x\n",
+					data);
 			start_error_recovery(smic,
 					     "state = SMIC_READ_END, "
 					     "data != SUCCESS");
@@ -533,7 +541,8 @@ static enum si_sm_result smic_event(struct si_sm_data *smic, long time)
 
 	default:
 		if (smic_debug & SMIC_DEBUG_ENABLE) {
-			printk(KERN_DEBUG "smic->state = %d\n", smic->state);
+			dev_dbg(smic->io->dev,
+				"smic->state = %d\n", smic->state);
 			start_error_recovery(smic, "state = UNKNOWN");
 			return SI_SM_CALL_WITH_DELAY;
 		}

@@ -38,6 +38,8 @@
 #define RREG32(reg) ioread32(((void __iomem *)mdev->rmmio) + (reg))
 #define WREG32(reg, v) iowrite32(v, ((void __iomem *)mdev->rmmio) + (reg))
 
+#define MGA_BIOS_OFFSET		0x7ffc
+
 #define ATTR_INDEX 0x1fc0
 #define ATTR_DATA 0x1fc1
 
@@ -129,6 +131,8 @@ struct mga_mc {
 };
 
 enum mga_type {
+	G200_PCI,
+	G200_AGP,
 	G200_SE_A,
 	G200_SE_B,
 	G200_WB,
@@ -161,14 +165,23 @@ struct mga_device {
 	size_t				vram_fb_available;
 
 	enum mga_type			type;
-	int				has_sdram;
 
 	int bpp_shifts[4];
 
 	int fb_mtrr;
 
-	/* SE model number stored in reg 0x1e24 */
-	u32 unique_rev_id;
+	union {
+		struct {
+			long ref_clk;
+			long pclk_min;
+			long pclk_max;
+		} g200;
+		struct {
+			/* SE model number stored in reg 0x1e24 */
+			u32 unique_rev_id;
+		} g200se;
+	} model;
+
 
 	struct mga_connector connector;
 	struct drm_simple_display_pipe display_pipe;

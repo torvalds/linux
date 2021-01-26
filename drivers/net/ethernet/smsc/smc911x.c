@@ -712,7 +712,7 @@ static void smc911x_phy_detect(struct net_device *dev)
 					/* Found an external PHY */
 					break;
 			}
-			/* Else, fall through */
+			fallthrough;
 		default:
 			/* Internal media only */
 			SMC_GET_PHY_ID1(lp, 1, id1);

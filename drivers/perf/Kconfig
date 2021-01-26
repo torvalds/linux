@@ -41,6 +41,13 @@ config ARM_CCN
 	  PMU (perf) driver supporting the ARM CCN (Cache Coherent Network)
 	  interconnect.
 
+config ARM_CMN
+	tristate "Arm CMN-600 PMU support"
+	depends on ARM64 || (COMPILE_TEST && 64BIT)
+	help
+	  Support for PMU events monitoring on the Arm CMN-600 Coherent Mesh
+	  Network interconnect.
+
 config ARM_PMU
 	depends on ARM || ARM64
 	bool "ARM PMU framework"
@@ -82,6 +89,7 @@ config FSL_IMX8_DDR_PMU
 config QCOM_L2_PMU
 	bool "Qualcomm Technologies L2-cache PMU"
 	depends on ARCH_QCOM && ARM64 && ACPI
+	select QCOM_KRYO_L2_ACCESSORS
 	  help
 	  Provides support for the L2 cache performance monitor unit (PMU)
 	  in Qualcomm Technologies processors.

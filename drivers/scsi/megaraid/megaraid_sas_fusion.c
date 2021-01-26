@@ -48,9 +48,6 @@
 #include "megaraid_sas.h"
 
 
-extern void megasas_free_cmds(struct megasas_instance *instance);
-extern struct megasas_cmd *megasas_get_cmd(struct megasas_instance
-					   *instance);
 extern void
 megasas_complete_cmd(struct megasas_instance *instance,
 		     struct megasas_cmd *cmd, u8 alt_status);
@@ -58,24 +55,14 @@ int
 wait_and_poll(struct megasas_instance *instance, struct megasas_cmd *cmd,
 	      int seconds);
 
-void
-megasas_return_cmd(struct megasas_instance *instance, struct megasas_cmd *cmd);
-int megasas_alloc_cmds(struct megasas_instance *instance);
 int
 megasas_clear_intr_fusion(struct megasas_instance *instance);
-int
-megasas_issue_polled(struct megasas_instance *instance,
-		     struct megasas_cmd *cmd);
-void
-megasas_check_and_restore_queue_depth(struct megasas_instance *instance);
 
 int megasas_transition_to_ready(struct megasas_instance *instance, int ocr);
-void megaraid_sas_kill_hba(struct megasas_instance *instance);
 
 extern u32 megasas_dbg_lvl;
 int megasas_sriov_start_heartbeat(struct megasas_instance *instance,
 				  int initial);
-void megasas_start_timer(struct megasas_instance *instance);
 extern struct megasas_mgmt_info megasas_mgmt_info;
 extern unsigned int resetwaittime;
 extern unsigned int dual_qdepth_disable;
@@ -84,15 +71,13 @@ static void megasas_free_reply_fusion(struct megasas_instance *instance);
 static inline
 void megasas_configure_queue_sizes(struct megasas_instance *instance);
 static void megasas_fusion_crash_dump(struct megasas_instance *instance);
-extern u32 megasas_readl(struct megasas_instance *instance,
-			 const volatile void __iomem *addr);
 
 /**
  * megasas_adp_reset_wait_for_ready -	initiate chip reset and wait for
  *					controller to come to ready state
- * @instance -				adapter's soft state
- * @do_adp_reset -			If true, do a chip reset
- * @ocr_context -			If called from OCR context this will
+ * @instance:				adapter's soft state
+ * @do_adp_reset:			If true, do a chip reset
+ * @ocr_context:			If called from OCR context this will
  *					be set to 1, else 0
  *
  * This function initates a chip reset followed by a wait for controller to
@@ -146,10 +131,10 @@ out:
 /**
  * megasas_check_same_4gb_region -	check if allocation
  *					crosses same 4GB boundary or not
- * @instance -				adapter's soft instance
- * start_addr -			start address of DMA allocation
- * size -				size of allocation in bytes
- * return -				true : allocation does not cross same
+ * @instance:				adapter's soft instance
+ * @start_addr:				start address of DMA allocation
+ * @size:				size of allocation in bytes
+ * @return:				true : allocation does not cross same
  *					4GB boundary
  *					false: allocation crosses same
  *					4GB boundary
@@ -174,7 +159,7 @@ static inline bool megasas_check_same_4gb_region
 
 /**
  * megasas_enable_intr_fusion -	Enables interrupts
- * @regs:			MFI register set
+ * @instance:	adapter's soft instance
  */
 static void
 megasas_enable_intr_fusion(struct megasas_instance *instance)
@@ -196,7 +181,7 @@ megasas_enable_intr_fusion(struct megasas_instance *instance)
 
 /**
  * megasas_disable_intr_fusion - Disables interrupt
- * @regs:			 MFI register set
+ * @instance:	adapter's soft instance
  */
 static void
 megasas_disable_intr_fusion(struct megasas_instance *instance)
@@ -238,6 +223,7 @@ megasas_clear_intr_fusion(struct megasas_instance *instance)
 /**
  * megasas_get_cmd_fusion -	Get a command from the free pool
  * @instance:		Adapter soft state
+ * @blk_tag:		Command tag
  *
  * Returns a blk_tag indexed mpt frame
  */
@@ -309,8 +295,8 @@ megasas_fire_cmd_fusion(struct megasas_instance *instance,
 
 /**
  * megasas_fusion_update_can_queue -	Do all Adapter Queue depth related calculations here
- * @instance:							Adapter soft state
- * fw_boot_context:						Whether this function called during probe or after OCR
+ * @instance:		Adapter soft state
+ * @fw_boot_context:	Whether this function called during probe or after OCR
  *
  * This function is only for fusion controllers.
  * Update host can queue, if firmware downgrade max supported firmware commands.
@@ -373,24 +359,29 @@ megasas_get_msix_index(struct megasas_instance *instance,
 {
 	int sdev_busy;
 
-	/* nr_hw_queue = 1 for MegaRAID */
-	struct blk_mq_hw_ctx *hctx =
-		scmd->device->request_queue->queue_hw_ctx[0];
-
-	sdev_busy = atomic_read(&hctx->nr_active);
+	/* TBD - if sml remove device_busy in future, driver
+	 * should track counter in internal structure.
+	 */
+	sdev_busy = atomic_read(&scmd->device->device_busy);
 
 	if (instance->perf_mode == MR_BALANCED_PERF_MODE &&
-	    sdev_busy > (data_arms * MR_DEVICE_HIGH_IOPS_DEPTH))
+	    sdev_busy > (data_arms * MR_DEVICE_HIGH_IOPS_DEPTH)) {
 		cmd->request_desc->SCSIIO.MSIxIndex =
 			mega_mod64((atomic64_add_return(1, &instance->high_iops_outstanding) /
 					MR_HIGH_IOPS_BATCH_COUNT), instance->low_latency_index_start);
-	else if (instance->msix_load_balance)
+	} else if (instance->msix_load_balance) {
 		cmd->request_desc->SCSIIO.MSIxIndex =
 			(mega_mod64(atomic64_add_return(1, &instance->total_io_count),
 				instance->msix_vectors));
-	else
+	} else if (instance->host->nr_hw_queues > 1) {
+		u32 tag = blk_mq_unique_tag(scmd->request);
+
+		cmd->request_desc->SCSIIO.MSIxIndex = blk_mq_unique_tag_to_hwq(tag) +
+			instance->low_latency_index_start;
+	} else {
 		cmd->request_desc->SCSIIO.MSIxIndex =
 			instance->reply_map[raw_smp_processor_id()];
+	}
 }
 
 /**
@@ -970,9 +961,6 @@ megasas_alloc_cmds_fusion(struct megasas_instance *instance)
 	if (megasas_alloc_cmdlist_fusion(instance))
 		goto fail_exit;
 
-	dev_info(&instance->pdev->dev, "Configured max firmware commands: %d\n",
-		 instance->max_fw_cmds);
-
 	/* The first 256 bytes (SMID 0) is not used. Don't add to the cmd list */
 	io_req_base = fusion->io_request_frames + MEGA_MPI2_RAID_DEFAULT_IO_FRAME_SIZE;
 	io_req_base_phys = fusion->io_request_frames_phys + MEGA_MPI2_RAID_DEFAULT_IO_FRAME_SIZE;
@@ -1016,6 +1004,7 @@ fail_exit:
  * wait_and_poll -	Issues a polling command
  * @instance:			Adapter soft state
  * @cmd:			Command packet to be issued
+ * @seconds:			Maximum poll time
  *
  * For polling, MFI requires the cmd_status to be set to 0xFF before posting.
  */
@@ -1115,8 +1104,9 @@ megasas_ioc_init_fusion(struct megasas_instance *instance)
 		MR_HIGH_IOPS_QUEUE_COUNT) && cur_intr_coalescing)
 		instance->perf_mode = MR_BALANCED_PERF_MODE;
 
-	dev_info(&instance->pdev->dev, "Performance mode :%s\n",
-		MEGASAS_PERF_MODE_2STR(instance->perf_mode));
+	dev_info(&instance->pdev->dev, "Performance mode :%s (latency index = %d)\n",
+		MEGASAS_PERF_MODE_2STR(instance->perf_mode),
+		instance->low_latency_index_start);
 
 	instance->fw_sync_cache_support = (scratch_pad_1 &
 		MR_CAN_HANDLE_SYNC_CACHE_OFFSET) ? 1 : 0;
@@ -1906,6 +1896,7 @@ fail_alloc_mfi_cmds:
 /**
  * megasas_fault_detect_work	-	Worker function of
  *					FW fault handling workqueue.
+ * @work:	FW fault work struct
  */
 static void
 megasas_fault_detect_work(struct work_struct *work)
@@ -1989,11 +1980,13 @@ megasas_fusion_stop_watchdog(struct megasas_instance *instance)
 
 /**
  * map_cmd_status -	Maps FW cmd status to OS cmd status
- * @cmd :		Pointer to cmd
- * @status :		status of cmd returned by FW
- * @ext_status :	ext status of cmd returned by FW
+ * @fusion:		fusion context
+ * @scmd:		Pointer to cmd
+ * @status:		status of cmd returned by FW
+ * @ext_status:		ext status of cmd returned by FW
+ * @data_length:	command data length
+ * @sense:		command sense data
  */
-
 static void
 map_cmd_status(struct fusion_context *fusion,
 		struct scsi_cmnd *scmd, u8 status, u8 ext_status,
@@ -2234,7 +2227,7 @@ megasas_make_prp_nvme(struct megasas_instance *instance, struct scsi_cmnd *scmd,
  * @scp:		SCSI command from the mid-layer
  * @sgl_ptr:		SGL to be filled in
  * @cmd:		cmd we are working on
- * @sge_count		sge count
+ * @sge_count:		sge count
  *
  */
 static void
@@ -2343,9 +2336,12 @@ int megasas_make_sgl(struct megasas_instance *instance, struct scsi_cmnd *scp,
 
 /**
  * megasas_set_pd_lba -	Sets PD LBA
- * @cdb:		CDB
+ * @io_request:		IO request
  * @cdb_len:		cdb length
- * @start_blk:		Start block of IO
+ * @io_info:		IO information
+ * @scp:		SCSI command
+ * @local_map_ptr:	Raid map
+ * @ref_tag:		Primary reference tag
  *
  * Used to set the PD LBA in CDB for FP IOs
  */
@@ -2603,10 +2599,12 @@ static void megasas_stream_detect(struct megasas_instance *instance,
  * affinity (cpu of the controller) and raid_flags in the raid context
  * based on IO type.
  *
+ * @fusion:		Fusion context
  * @praid_context:	IO RAID context
  * @raid:		LD raid map
  * @fp_possible:	Is fast path possible?
  * @is_read:		Is read IO?
+ * @scsi_buff_len:	SCSI command buffer length
  *
  */
 static void
@@ -2940,7 +2938,7 @@ megasas_build_ldio_fusion(struct megasas_instance *instance,
 /**
  * megasas_build_ld_nonrw_fusion - prepares non rw ios for virtual disk
  * @instance:		Adapter soft state
- * @scp:		SCSI command
+ * @scmd:		SCSI command
  * @cmd:		Command to be prepared
  *
  * Prepares the io_request frame for non-rw io cmds for vd.
@@ -3028,7 +3026,7 @@ static void megasas_build_ld_nonrw_fusion(struct megasas_instance *instance,
 /**
  * megasas_build_syspd_fusion - prepares rw/non-rw ios for syspd
  * @instance:		Adapter soft state
- * @scp:		SCSI command
+ * @scmd:		SCSI command
  * @cmd:		Command to be prepared
  * @fp_possible:	parameter to detect fast path or firmware path io.
  *
@@ -3405,7 +3403,7 @@ megasas_build_and_issue_cmd_fusion(struct megasas_instance *instance,
  * megasas_complete_r1_command -
  * completes R1 FP write commands which has valid peer smid
  * @instance:			Adapter soft state
- * @cmd_fusion:			MPT command frame
+ * @cmd:			MPT command frame
  *
  */
 static inline void
@@ -3459,6 +3457,9 @@ megasas_complete_r1_command(struct megasas_instance *instance,
 /**
  * complete_cmd_fusion -	Completes command
  * @instance:			Adapter soft state
+ * @MSIxIndex:			MSI number
+ * @irq_context:		IRQ context
+ *
  * Completes all commands that is in reply descriptor queue
  */
 static int
@@ -3536,7 +3537,7 @@ complete_cmd_fusion(struct megasas_instance *instance, u32 MSIxIndex,
 				atomic_dec(&lbinfo->scsi_pending_cmds[cmd_fusion->pd_r1_lb]);
 				cmd_fusion->scmd->SCp.Status &= ~MEGASAS_LOAD_BALANCE_FLAG;
 			}
-			/* Fall through - and complete IO */
+			fallthrough;	/* and complete IO */
 		case MEGASAS_MPI2_FUNCTION_LD_IO_REQUEST: /* LD-IO Path */
 			atomic_dec(&instance->fw_outstanding);
 			if (cmd_fusion->r1_alt_dev_handle == MR_DEVHANDLE_INVALID) {
@@ -3634,6 +3635,7 @@ complete_cmd_fusion(struct megasas_instance *instance, u32 MSIxIndex,
 
 /**
  * megasas_enable_irq_poll() - enable irqpoll
+ * @instance:			Adapter soft state
  */
 static void megasas_enable_irq_poll(struct megasas_instance *instance)
 {
@@ -3650,7 +3652,7 @@ static void megasas_enable_irq_poll(struct megasas_instance *instance)
 
 /**
  * megasas_sync_irqs -	Synchronizes all IRQs owned by adapter
- * @instance:			Adapter soft state
+ * @instance_addr:			Adapter soft state address
  */
 static void megasas_sync_irqs(unsigned long instance_addr)
 {
@@ -3690,7 +3692,7 @@ int megasas_irqpoll(struct irq_poll *irqpoll, int budget)
 	instance = irq_ctx->instance;
 
 	if (irq_ctx->irq_line_enable) {
-		disable_irq(irq_ctx->os_irq);
+		disable_irq_nosync(irq_ctx->os_irq);
 		irq_ctx->irq_line_enable = false;
 	}
 
@@ -3706,7 +3708,7 @@ int megasas_irqpoll(struct irq_poll *irqpoll, int budget)
 
 /**
  * megasas_complete_cmd_dpc_fusion -	Completes command
- * @instance:			Adapter soft state
+ * @instance_addr:			Adapter soft state address
  *
  * Tasklet to complete cmds
  */
@@ -3729,6 +3731,8 @@ megasas_complete_cmd_dpc_fusion(unsigned long instance_addr)
 
 /**
  * megasas_isr_fusion - isr entry point
+ * @irq:	IRQ number
+ * @devp:	IRQ context
  */
 static irqreturn_t megasas_isr_fusion(int irq, void *devp)
 {
@@ -3761,7 +3765,7 @@ static irqreturn_t megasas_isr_fusion(int irq, void *devp)
 /**
  * build_mpt_mfi_pass_thru - builds a cmd fo MFI Pass thru
  * @instance:			Adapter soft state
- * mfi_cmd:			megasas_cmd pointer
+ * @mfi_cmd:			megasas_cmd pointer
  *
  */
 static void
@@ -3878,7 +3882,7 @@ megasas_release_fusion(struct megasas_instance *instance)
 
 /**
  * megasas_read_fw_status_reg_fusion - returns the current FW status value
- * @regs:			MFI register set
+ * @instance:			Adapter soft state
  */
 static u32
 megasas_read_fw_status_reg_fusion(struct megasas_instance *instance)
@@ -3889,7 +3893,7 @@ megasas_read_fw_status_reg_fusion(struct megasas_instance *instance)
 /**
  * megasas_alloc_host_crash_buffer -	Host buffers for Crash dump collection from Firmware
  * @instance:				Controller's soft instance
- * return:			        Number of allocated host crash buffers
+ * @return:			        Number of allocated host crash buffers
  */
 static void
 megasas_alloc_host_crash_buffer(struct megasas_instance *instance)
@@ -3927,6 +3931,7 @@ megasas_free_host_crash_buffer(struct megasas_instance *instance)
 
 /**
  * megasas_adp_reset_fusion -	For controller reset
+ * @instance:				Controller's soft instance
  * @regs:				MFI register set
  */
 static int
@@ -4004,6 +4009,7 @@ megasas_adp_reset_fusion(struct megasas_instance *instance,
 
 /**
  * megasas_check_reset_fusion -	For controller reset check
+ * @instance:				Controller's soft instance
  * @regs:				MFI register set
  */
 static int
@@ -4333,8 +4339,8 @@ static int megasas_track_scsiio(struct megasas_instance *instance,
 
 /**
  * megasas_tm_response_code - translation of device response code
- * @ioc: per adapter object
- * @mpi_reply: MPI reply returned by firmware
+ * @instance:	Controller's soft instance
+ * @mpi_reply:	MPI reply returned by firmware
  *
  * Return nothing.
  */
@@ -4389,9 +4395,9 @@ megasas_tm_response_code(struct megasas_instance *instance,
  * @device_handle: device handle
  * @channel: the channel assigned by the OS
  * @id: the id assigned by the OS
- * @type: MPI2_SCSITASKMGMT_TASKTYPE__XXX (defined in megaraid_sas_fusion.c)
  * @smid_task: smid assigned to the task
- * @m_type: TM_MUTEX_ON or TM_MUTEX_OFF
+ * @type: MPI2_SCSITASKMGMT_TASKTYPE__XXX (defined in megaraid_sas_fusion.c)
+ * @mr_device_priv_data: private data
  * Context: user
  *
  * MegaRaid use MPT interface for Task Magement request.

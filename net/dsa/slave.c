@@ -1799,15 +1799,27 @@ int dsa_slave_create(struct dsa_port *port)
 
 	dsa_slave_notify(slave_dev, DSA_PORT_REGISTER);
 
-	ret = register_netdev(slave_dev);
+	rtnl_lock();
+
+	ret = register_netdevice(slave_dev);
 	if (ret) {
 		netdev_err(master, "error %d registering interface %s\n",
 			   ret, slave_dev->name);
+		rtnl_unlock();
 		goto out_phy;
 	}
 
+	ret = netdev_upper_dev_link(master, slave_dev, NULL);
+
+	rtnl_unlock();
+
+	if (ret)
+		goto out_unregister;
+
 	return 0;
 
+out_unregister:
+	unregister_netdev(slave_dev);
 out_phy:
 	rtnl_lock();
 	phylink_disconnect_phy(p->dp->pl);
@@ -1824,16 +1836,18 @@ out_free:
 
 void dsa_slave_destroy(struct net_device *slave_dev)
 {
+	struct net_device *master = dsa_slave_to_master(slave_dev);
 	struct dsa_port *dp = dsa_slave_to_port(slave_dev);
 	struct dsa_slave_priv *p = netdev_priv(slave_dev);
 
 	netif_carrier_off(slave_dev);
 	rtnl_lock();
+	netdev_upper_dev_unlink(master, slave_dev);
+	unregister_netdevice(slave_dev);
 	phylink_disconnect_phy(dp->pl);
 	rtnl_unlock();
 
 	dsa_slave_notify(slave_dev, DSA_PORT_UNREGISTER);
-	unregister_netdev(slave_dev);
 	phylink_destroy(dp->pl);
 	gro_cells_destroy(&p->gcells);
 	free_percpu(p->stats64);
@@ -2009,7 +2023,7 @@ static int dsa_slave_switchdev_event(struct notifier_block *unused,
 	switchdev_work->event = event;
 
 	switch (event) {
-	case SWITCHDEV_FDB_ADD_TO_DEVICE: /* fall through */
+	case SWITCHDEV_FDB_ADD_TO_DEVICE:
 	case SWITCHDEV_FDB_DEL_TO_DEVICE:
 		if (dsa_slave_switchdev_fdb_work_init(switchdev_work, ptr))
 			goto err_fdb_work_init;

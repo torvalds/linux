@@ -226,7 +226,7 @@ int vboxsf_getattr(const struct path *path, struct kstat *kstat,
 		break;
 	case AT_STATX_FORCE_SYNC:
 		sf_i->force_restat = 1;
-		/* fall-through */
+		fallthrough;
 	default:
 		err = vboxsf_inode_revalidate(dentry);
 	}

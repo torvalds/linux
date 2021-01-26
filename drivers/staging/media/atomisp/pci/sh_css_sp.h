@@ -18,7 +18,7 @@
 
 #include <system_global.h>
 #include <type_support.h>
-#if !defined(HAS_NO_INPUT_FORMATTER)
+#if !defined(ISP2401)
 #include "input_formatter.h"
 #endif
 
@@ -66,9 +66,7 @@ sh_css_sp_init_pipeline(struct ia_css_pipeline *me,
 			enum ia_css_input_mode input_mode,
 			const struct ia_css_metadata_config *md_config,
 			const struct ia_css_metadata_info *md_info,
-#if !defined(HAS_NO_INPUT_SYSTEM)
 			const enum mipi_port_id port_id,
-#endif
 			const struct ia_css_coordinate
 			*internal_frame_origin_bqs_on_sctbl, /* Origin of internal frame
 							positioned on shading table at shading correction in ISP. */
@@ -98,7 +96,6 @@ sh_css_update_host2sp_offline_frame(
     struct ia_css_frame *frame,
     struct ia_css_metadata *metadata);
 
-#if defined(USE_INPUT_SYSTEM_VERSION_2) || defined(USE_INPUT_SYSTEM_VERSION_2401)
 /**
  * @brief Update the mipi frame information in host_sp_communication.
  *
@@ -128,7 +125,6 @@ sh_css_update_host2sp_mipi_metadata(
  */
 void
 sh_css_update_host2sp_num_mipi_frames(unsigned int num_frames);
-#endif
 
 /**
  * @brief Update the nr of offline frames to use in host_sp_communication.
@@ -158,7 +154,7 @@ sh_css_sp_get_debug_state(struct sh_css_sp_debug_state *state);
 
 #endif
 
-#if !defined(HAS_NO_INPUT_FORMATTER)
+#if !defined(ISP2401)
 void
 sh_css_sp_set_if_configs(
     const input_formatter_cfg_t	*config_a,

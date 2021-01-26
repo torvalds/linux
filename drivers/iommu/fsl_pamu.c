@@ -1174,10 +1174,7 @@ error:
 	if (irq != NO_IRQ)
 		free_irq(irq, data);
 
-	if (data) {
-		memset(data, 0, sizeof(struct pamu_isr_data));
-		kfree(data);
-	}
+	kfree_sensitive(data);
 
 	if (pamu_regs)
 		iounmap(pamu_regs);

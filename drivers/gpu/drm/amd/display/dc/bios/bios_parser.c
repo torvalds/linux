@@ -2834,6 +2834,8 @@ static const struct dc_vbios_funcs vbios_funcs = {
 	.bios_parser_destroy = bios_parser_destroy,
 
 	.get_board_layout_info = bios_get_board_layout_info,
+
+	.get_atom_dc_golden_table = NULL
 };
 
 static bool bios_parser_construct(

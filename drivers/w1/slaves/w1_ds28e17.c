@@ -741,7 +741,7 @@ static void w1_f19_remove_slave(struct w1_slave *sl)
 
 
 /* Declarations within the w1 subsystem. */
-static struct w1_family_ops w1_f19_fops = {
+static const struct w1_family_ops w1_f19_fops = {
 	.add_slave = w1_f19_add_slave,
 	.remove_slave = w1_f19_remove_slave,
 	.groups = w1_f19_groups,

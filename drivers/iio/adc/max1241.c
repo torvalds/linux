@@ -192,7 +192,6 @@ static int max1241_probe(struct spi_device *spi)
 		dev_dbg(dev, "no shutdown pin passed, low-power mode disabled");
 
 	indio_dev->name = spi_get_device_id(spi)->name;
-	indio_dev->dev.parent = dev;
 	indio_dev->info = &max1241_info;
 	indio_dev->modes = INDIO_DIRECT_MODE;
 	indio_dev->channels = max1241_channels;

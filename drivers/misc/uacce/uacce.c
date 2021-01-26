@@ -4,6 +4,7 @@
 #include <linux/iommu.h>
 #include <linux/module.h>
 #include <linux/poll.h>
+#include <linux/slab.h>
 #include <linux/uacce.h>
 
 static struct class *uacce_class;
@@ -92,7 +93,7 @@ static long uacce_fops_compat_ioctl(struct file *filep,
 
 static int uacce_bind_queue(struct uacce_device *uacce, struct uacce_queue *q)
 {
-	int pasid;
+	u32 pasid;
 	struct iommu_sva *handle;
 
 	if (!(uacce->flags & UACCE_DEV_SVA))
@@ -369,7 +370,7 @@ static struct attribute *uacce_dev_attrs[] = {
 static umode_t uacce_dev_is_visible(struct kobject *kobj,
 				    struct attribute *attr, int n)
 {
-	struct device *dev = container_of(kobj, struct device, kobj);
+	struct device *dev = kobj_to_dev(kobj);
 	struct uacce_device *uacce = to_uacce_device(dev);
 
 	if (((attr == &dev_attr_region_mmio_size.attr) &&

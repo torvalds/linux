@@ -4,7 +4,6 @@
 
 #include <linux/swap.h>
 #include <linux/pagemap.h>
-#include <asm/pgalloc.h>
 #include <asm/tlbflush.h>
 #include <asm/mmu_context.h>
 

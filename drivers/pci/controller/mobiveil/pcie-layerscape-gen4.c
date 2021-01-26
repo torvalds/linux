@@ -170,10 +170,9 @@ static int ls_pcie_g4_interrupt_init(struct mobiveil_pcie *mv_pci)
 	int ret;
 
 	pcie->irq = platform_get_irq_byname(pdev, "intr");
-	if (pcie->irq < 0) {
-		dev_err(dev, "Can't get 'intr' IRQ, errno = %d\n", pcie->irq);
+	if (pcie->irq < 0)
 		return pcie->irq;
-	}
+
 	ret = devm_request_irq(dev, pcie->irq, ls_pcie_g4_isr,
 			       IRQF_SHARED, pdev->name, pcie);
 	if (ret) {

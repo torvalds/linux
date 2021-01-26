@@ -542,7 +542,7 @@ nv50_wndw_prepare_fb(struct drm_plane *plane, struct drm_plane_state *state)
 		return 0;
 
 	nvbo = nouveau_gem_object(fb->obj[0]);
-	ret = nouveau_bo_pin(nvbo, TTM_PL_FLAG_VRAM, true);
+	ret = nouveau_bo_pin(nvbo, NOUVEAU_GEM_DOMAIN_VRAM, true);
 	if (ret)
 		return ret;
 

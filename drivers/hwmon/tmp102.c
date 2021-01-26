@@ -189,8 +189,7 @@ static const struct regmap_config tmp102_regmap_config = {
 	.use_single_write = true,
 };
 
-static int tmp102_probe(struct i2c_client *client,
-			const struct i2c_device_id *id)
+static int tmp102_probe(struct i2c_client *client)
 {
 	struct device *dev = &client->dev;
 	struct device *hwmon_dev;
@@ -304,7 +303,7 @@ static struct i2c_driver tmp102_driver = {
 	.driver.name	= DRIVER_NAME,
 	.driver.of_match_table = of_match_ptr(tmp102_of_match),
 	.driver.pm	= &tmp102_dev_pm_ops,
-	.probe		= tmp102_probe,
+	.probe_new	= tmp102_probe,
 	.id_table	= tmp102_id,
 };
 

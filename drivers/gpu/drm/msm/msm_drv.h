@@ -57,6 +57,7 @@ struct msm_file_private {
 	struct list_head submitqueues;
 	int queueid;
 	struct msm_gem_address_space *aspace;
+	struct kref ref;
 };
 
 enum msm_mdp_plane_property {
@@ -159,6 +160,8 @@ struct msm_drm_private {
 	/* DSI is shared by mdp4 and mdp5 */
 	struct msm_dsi *dsi[2];
 
+	struct msm_dp *dp;
+
 	/* when we have more than one 'msm_gpu' these need to be an array: */
 	struct msm_gpu *gpu;
 	struct msm_file_private *lastctx;
@@ -248,6 +251,10 @@ int msm_gem_map_vma(struct msm_gem_address_space *aspace,
 void msm_gem_close_vma(struct msm_gem_address_space *aspace,
 		struct msm_gem_vma *vma);
 
+
+struct msm_gem_address_space *
+msm_gem_address_space_get(struct msm_gem_address_space *aspace);
+
 void msm_gem_address_space_put(struct msm_gem_address_space *aspace);
 
 struct msm_gem_address_space *
@@ -302,9 +309,8 @@ void msm_gem_put_vaddr(struct drm_gem_object *obj);
 int msm_gem_madvise(struct drm_gem_object *obj, unsigned madv);
 int msm_gem_sync_object(struct drm_gem_object *obj,
 		struct msm_fence_context *fctx, bool exclusive);
-void msm_gem_move_to_active(struct drm_gem_object *obj,
-		struct msm_gpu *gpu, bool exclusive, struct dma_fence *fence);
-void msm_gem_move_to_inactive(struct drm_gem_object *obj);
+void msm_gem_active_get(struct drm_gem_object *obj, struct msm_gpu *gpu);
+void msm_gem_active_put(struct drm_gem_object *obj);
 int msm_gem_cpu_prep(struct drm_gem_object *obj, uint32_t op, ktime_t *timeout);
 int msm_gem_cpu_fini(struct drm_gem_object *obj);
 void msm_gem_free_object(struct drm_gem_object *obj);
@@ -378,6 +384,63 @@ static inline int msm_dsi_modeset_init(struct msm_dsi *msm_dsi,
 }
 #endif
 
+#ifdef CONFIG_DRM_MSM_DP
+int __init msm_dp_register(void);
+void __exit msm_dp_unregister(void);
+int msm_dp_modeset_init(struct msm_dp *dp_display, struct drm_device *dev,
+			 struct drm_encoder *encoder);
+int msm_dp_display_enable(struct msm_dp *dp, struct drm_encoder *encoder);
+int msm_dp_display_disable(struct msm_dp *dp, struct drm_encoder *encoder);
+int msm_dp_display_pre_disable(struct msm_dp *dp, struct drm_encoder *encoder);
+void msm_dp_display_mode_set(struct msm_dp *dp, struct drm_encoder *encoder,
+				struct drm_display_mode *mode,
+				struct drm_display_mode *adjusted_mode);
+void msm_dp_irq_postinstall(struct msm_dp *dp_display);
+
+void msm_dp_debugfs_init(struct msm_dp *dp_display, struct drm_minor *minor);
+
+#else
+static inline int __init msm_dp_register(void)
+{
+	return -EINVAL;
+}
+static inline void __exit msm_dp_unregister(void)
+{
+}
+static inline int msm_dp_modeset_init(struct msm_dp *dp_display,
+				       struct drm_device *dev,
+				       struct drm_encoder *encoder)
+{
+	return -EINVAL;
+}
+static inline int msm_dp_display_enable(struct msm_dp *dp,
+					struct drm_encoder *encoder)
+{
+	return -EINVAL;
+}
+static inline int msm_dp_display_disable(struct msm_dp *dp,
+					struct drm_encoder *encoder)
+{
+	return -EINVAL;
+}
+static inline void msm_dp_display_mode_set(struct msm_dp *dp,
+				struct drm_encoder *encoder,
+				struct drm_display_mode *mode,
+				struct drm_display_mode *adjusted_mode)
+{
+}
+
+static inline void msm_dp_irq_postinstall(struct msm_dp *dp_display)
+{
+}
+
+static inline void msm_dp_debugfs_init(struct msm_dp *dp_display,
+		struct drm_minor *minor)
+{
+}
+
+#endif
+
 void __init msm_mdp_register(void);
 void __exit msm_mdp_unregister(void);
 void __init msm_dpu_register(void);
@@ -398,8 +461,9 @@ void msm_perf_debugfs_cleanup(struct msm_drm_private *priv);
 #else
 static inline int msm_debugfs_late_init(struct drm_device *dev) { return 0; }
 __printf(3, 4)
-static inline void msm_rd_dump_submit(struct msm_rd_state *rd, struct msm_gem_submit *submit,
-		const char *fmt, ...) {}
+static inline void msm_rd_dump_submit(struct msm_rd_state *rd,
+			struct msm_gem_submit *submit,
+			const char *fmt, ...) {}
 static inline void msm_rd_debugfs_cleanup(struct msm_drm_private *priv) {}
 static inline void msm_perf_debugfs_cleanup(struct msm_drm_private *priv) {}
 #endif
@@ -419,7 +483,8 @@ struct msm_gpu_submitqueue;
 int msm_submitqueue_init(struct drm_device *drm, struct msm_file_private *ctx);
 struct msm_gpu_submitqueue *msm_submitqueue_get(struct msm_file_private *ctx,
 		u32 id);
-int msm_submitqueue_create(struct drm_device *drm, struct msm_file_private *ctx,
+int msm_submitqueue_create(struct drm_device *drm,
+		struct msm_file_private *ctx,
 		u32 prio, u32 flags, u32 *id);
 int msm_submitqueue_query(struct drm_device *drm, struct msm_file_private *ctx,
 		struct drm_msm_submitqueue_query *args);
@@ -428,6 +493,26 @@ void msm_submitqueue_close(struct msm_file_private *ctx);
 
 void msm_submitqueue_destroy(struct kref *kref);
 
+static inline void __msm_file_private_destroy(struct kref *kref)
+{
+	struct msm_file_private *ctx = container_of(kref,
+		struct msm_file_private, ref);
+
+	msm_gem_address_space_put(ctx->aspace);
+	kfree(ctx);
+}
+
+static inline void msm_file_private_put(struct msm_file_private *ctx)
+{
+	kref_put(&ctx->ref, __msm_file_private_destroy);
+}
+
+static inline struct msm_file_private *msm_file_private_get(
+	struct msm_file_private *ctx)
+{
+	kref_get(&ctx->ref);
+	return ctx;
+}
 
 #define DBG(fmt, ...) DRM_DEBUG_DRIVER(fmt"\n", ##__VA_ARGS__)
 #define VERB(fmt, ...) if (0) DRM_DEBUG_DRIVER(fmt"\n", ##__VA_ARGS__)

@@ -71,7 +71,7 @@ static LIST_HEAD(sysmon_list);
 /**
  * sysmon_send_event() - send notification of other remote's SSR event
  * @sysmon:	sysmon context
- * @name:	other remote's name
+ * @event:	sysmon event context
  */
 static void sysmon_send_event(struct qcom_sysmon *sysmon,
 			      const struct sysmon_event *event)
@@ -343,7 +343,7 @@ static void ssctl_request_shutdown(struct qcom_sysmon *sysmon)
 /**
  * ssctl_send_event() - send notification of other remote's SSR event
  * @sysmon:	sysmon context
- * @name:	other remote's name
+ * @event:	sysmon event context
  */
 static void ssctl_send_event(struct qcom_sysmon *sysmon,
 			     const struct sysmon_event *event)

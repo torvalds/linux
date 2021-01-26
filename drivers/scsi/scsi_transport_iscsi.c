@@ -1623,7 +1623,6 @@ static DEFINE_MUTEX(rx_queue_mutex);
 static DEFINE_MUTEX(conn_mutex);
 
 static LIST_HEAD(sesslist);
-static LIST_HEAD(sessdestroylist);
 static DEFINE_SPINLOCK(sesslock);
 static LIST_HEAD(connlist);
 static LIST_HEAD(connlist_err);
@@ -1978,10 +1977,11 @@ void iscsi_unblock_session(struct iscsi_cls_session *session)
 {
 	queue_work(iscsi_eh_timer_workq, &session->unblock_work);
 	/*
-	 * make sure all the events have completed before tell the driver
-	 * it is safe
+	 * Blocking the session can be done from any context so we only
+	 * queue the block work. Make sure the unblock work has completed
+	 * because it flushes/cancels the other works and updates the state.
 	 */
-	flush_workqueue(iscsi_eh_timer_workq);
+	flush_work(&session->unblock_work);
 }
 EXPORT_SYMBOL_GPL(iscsi_unblock_session);
 
@@ -2036,10 +2036,10 @@ static void __iscsi_unbind_session(struct work_struct *work)
 	spin_unlock_irqrestore(&session->lock, flags);
 	mutex_unlock(&ihost->mutex);
 
+	scsi_remove_target(&session->dev);
+
 	if (session->ida_used)
 		ida_simple_remove(&iscsi_sess_ida, target_id);
-
-	scsi_remove_target(&session->dev);
 
 unbind_session_exit:
 	iscsi_session_event(session, ISCSI_KEVENT_UNBIND_SESSION);
@@ -2202,14 +2202,13 @@ void iscsi_remove_session(struct iscsi_cls_session *session)
 	ISCSI_DBG_TRANS_SESSION(session, "Removing session\n");
 
 	spin_lock_irqsave(&sesslock, flags);
-	list_del(&session->sess_list);
+	if (!list_empty(&session->sess_list))
+		list_del(&session->sess_list);
 	spin_unlock_irqrestore(&sesslock, flags);
 
-	/* make sure there are no blocks/unblocks queued */
-	flush_workqueue(iscsi_eh_timer_workq);
-	/* make sure the timedout callout is not running */
-	if (!cancel_delayed_work(&session->recovery_work))
-		flush_workqueue(iscsi_eh_timer_workq);
+	flush_work(&session->block_work);
+	flush_work(&session->unblock_work);
+	cancel_delayed_work_sync(&session->recovery_work);
 	/*
 	 * If we are blocked let commands flow again. The lld or iscsi
 	 * layer should set up the queuecommand to fail commands.
@@ -3291,7 +3290,7 @@ static int iscsi_set_flashnode_param(struct iscsi_transport *transport,
 		pr_err("%s could not find host no %u\n",
 		       __func__, ev->u.set_flashnode.host_no);
 		err = -ENODEV;
-		goto put_host;
+		goto exit_set_fnode;
 	}
 
 	idx = ev->u.set_flashnode.flashnode_idx;
@@ -3679,7 +3678,7 @@ iscsi_if_recv_msg(struct sk_buff *skb, struct nlmsghdr *nlh, uint32_t *group)
 
 			/* Prevent this session from being found again */
 			spin_lock_irqsave(&sesslock, flags);
-			list_move(&session->sess_list, &sessdestroylist);
+			list_del_init(&session->sess_list);
 			spin_unlock_irqrestore(&sesslock, flags);
 
 			queue_work(iscsi_destroy_workq, &session->destroy_work);
@@ -4766,7 +4765,9 @@ static __init int iscsi_transport_init(void)
 		goto release_nls;
 	}
 
-	iscsi_destroy_workq = create_singlethread_workqueue("iscsi_destroy");
+	iscsi_destroy_workq = alloc_workqueue("%s",
+			WQ_SYSFS | __WQ_LEGACY | WQ_MEM_RECLAIM | WQ_UNBOUND,
+			1, "iscsi_destroy");
 	if (!iscsi_destroy_workq) {
 		err = -ENOMEM;
 		goto destroy_wq;

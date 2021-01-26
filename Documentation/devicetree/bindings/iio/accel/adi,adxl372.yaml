@@ -25,10 +25,14 @@ properties:
   interrupts:
     maxItems: 1
 
+  spi-max-frequency: true
+
 required:
   - compatible
   - reg
   - interrupts
+
+additionalProperties: false
 
 examples:
   - |

@@ -5,6 +5,8 @@ ifdef CONFIG_FTRACE
 CFLAGS_REMOVE_init.o = -pg
 endif
 
+KCOV_INSTRUMENT_init.o := n
+
 obj-y += init.o
 obj-y += extable.o
 obj-$(CONFIG_MMU) += fault.o pageattr.o

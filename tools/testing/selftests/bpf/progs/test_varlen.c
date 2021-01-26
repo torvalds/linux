@@ -15,9 +15,9 @@ int test_pid = 0;
 bool capture = false;
 
 /* .bss */
-long payload1_len1 = 0;
-long payload1_len2 = 0;
-long total1 = 0;
+__u64 payload1_len1 = 0;
+__u64 payload1_len2 = 0;
+__u64 total1 = 0;
 char payload1[MAX_LEN + MAX_LEN] = {};
 
 /* .data */

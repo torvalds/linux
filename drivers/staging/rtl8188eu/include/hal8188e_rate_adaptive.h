@@ -28,24 +28,24 @@
 #define GET_TX_RPT2_DESC_PKT_LEN_88E(__pRxStatusDesc)		\
 	LE_BITS_TO_4BYTE(__pRxStatusDesc, 0, 9)
 #define GET_TX_RPT2_DESC_MACID_VALID_1_88E(__pRxStatusDesc)	\
-	LE_BITS_TO_4BYTE(__pRxStatusDesc+16, 0, 32)
+	LE_BITS_TO_4BYTE(__pRxStatusDesc + 16, 0, 32)
 #define GET_TX_RPT2_DESC_MACID_VALID_2_88E(__pRxStatusDesc)	\
-	LE_BITS_TO_4BYTE(__pRxStatusDesc+20, 0, 32)
+	LE_BITS_TO_4BYTE(__pRxStatusDesc + 20, 0, 32)
 
 #define GET_TX_REPORT_TYPE1_RERTY_0(__pAddr)			\
 	LE_BITS_TO_4BYTE(__pAddr, 0, 16)
 #define GET_TX_REPORT_TYPE1_RERTY_1(__pAddr)			\
-	LE_BITS_TO_1BYTE(__pAddr+2, 0, 8)
+	LE_BITS_TO_1BYTE(__pAddr + 2, 0, 8)
 #define GET_TX_REPORT_TYPE1_RERTY_2(__pAddr)			\
-	LE_BITS_TO_1BYTE(__pAddr+3, 0, 8)
+	LE_BITS_TO_1BYTE(__pAddr + 3, 0, 8)
 #define GET_TX_REPORT_TYPE1_RERTY_3(__pAddr)			\
-	LE_BITS_TO_1BYTE(__pAddr+4, 0, 8)
+	LE_BITS_TO_1BYTE(__pAddr + 4, 0, 8)
 #define GET_TX_REPORT_TYPE1_RERTY_4(__pAddr)			\
-	LE_BITS_TO_1BYTE(__pAddr+4+1, 0, 8)
+	LE_BITS_TO_1BYTE(__pAddr + 4 + 1, 0, 8)
 #define GET_TX_REPORT_TYPE1_DROP_0(__pAddr)			\
-	LE_BITS_TO_1BYTE(__pAddr+4+2, 0, 8)
+	LE_BITS_TO_1BYTE(__pAddr + 4 + 2, 0, 8)
 #define GET_TX_REPORT_TYPE1_DROP_1(__pAddr)			\
-	LE_BITS_TO_1BYTE(__pAddr+4+3, 0, 8)
+	LE_BITS_TO_1BYTE(__pAddr + 4 + 3, 0, 8)
 
 /*  End rate adaptive define */
 

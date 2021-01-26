@@ -7,7 +7,7 @@
 #include <linux/of.h>
 #include <linux/of_fdt.h>
 #include <linux/start_kernel.h>
-#include <linux/dma-contiguous.h>
+#include <linux/dma-map-ops.h>
 #include <linux/screen_info.h>
 #include <asm/sections.h>
 #include <asm/mmu_context.h>

@@ -288,7 +288,7 @@ static void w1_f23_remove_slave(struct w1_slave *sl)
 #endif	/* CONFIG_W1_SLAVE_DS2433_CRC */
 }
 
-static struct w1_family_ops w1_f23_fops = {
+static const struct w1_family_ops w1_f23_fops = {
 	.add_slave      = w1_f23_add_slave,
 	.remove_slave   = w1_f23_remove_slave,
 	.groups		= w1_f23_groups,

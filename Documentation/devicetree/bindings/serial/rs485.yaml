@@ -45,4 +45,7 @@ properties:
   rs485-term-gpios:
     description: GPIO pin to enable RS485 bus termination.
     maxItems: 1
+
+additionalProperties: true
+
 ...

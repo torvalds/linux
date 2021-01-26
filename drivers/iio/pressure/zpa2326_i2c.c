@@ -10,7 +10,7 @@
 #include <linux/module.h>
 #include <linux/regmap.h>
 #include <linux/i2c.h>
-#include <linux/of_device.h>
+#include <linux/mod_devicetable.h>
 #include "zpa2326.h"
 
 /*
@@ -66,18 +66,16 @@ static const struct i2c_device_id zpa2326_i2c_ids[] = {
 };
 MODULE_DEVICE_TABLE(i2c, zpa2326_i2c_ids);
 
-#if defined(CONFIG_OF)
 static const struct of_device_id zpa2326_i2c_matches[] = {
 	{ .compatible = "murata,zpa2326" },
 	{ }
 };
 MODULE_DEVICE_TABLE(of, zpa2326_i2c_matches);
-#endif
 
 static struct i2c_driver zpa2326_i2c_driver = {
 	.driver = {
 		.name           = "zpa2326-i2c",
-		.of_match_table = of_match_ptr(zpa2326_i2c_matches),
+		.of_match_table = zpa2326_i2c_matches,
 		.pm             = ZPA2326_PM_OPS,
 	},
 	.probe    = zpa2326_probe_i2c,

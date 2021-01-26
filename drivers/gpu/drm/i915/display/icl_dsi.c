@@ -712,7 +712,7 @@ gen11_dsi_configure_transcoder(struct intel_encoder *encoder,
 			switch (intel_dsi->pixel_format) {
 			default:
 				MISSING_CASE(intel_dsi->pixel_format);
-				/* fallthrough */
+				fallthrough;
 			case MIPI_DSI_FMT_RGB565:
 				tmp |= PIX_FMT_RGB565;
 				break;
@@ -739,7 +739,7 @@ gen11_dsi_configure_transcoder(struct intel_encoder *encoder,
 			switch (intel_dsi->video_mode_format) {
 			default:
 				MISSING_CASE(intel_dsi->video_mode_format);
-				/* fallthrough */
+				fallthrough;
 			case VIDEO_MODE_NON_BURST_WITH_SYNC_EVENTS:
 				tmp |= VIDEO_MODE_SYNC_EVENT;
 				break;
@@ -792,7 +792,7 @@ gen11_dsi_configure_transcoder(struct intel_encoder *encoder,
 		switch (pipe) {
 		default:
 			MISSING_CASE(pipe);
-			/* fallthrough */
+			fallthrough;
 		case PIPE_A:
 			tmp |= TRANS_DDI_EDP_INPUT_A_ON;
 			break;
@@ -1646,6 +1646,7 @@ static const struct drm_encoder_funcs gen11_dsi_encoder_funcs = {
 };
 
 static const struct drm_connector_funcs gen11_dsi_connector_funcs = {
+	.detect = intel_panel_detect,
 	.late_register = intel_connector_register,
 	.early_unregister = intel_connector_unregister,
 	.destroy = intel_connector_destroy,

@@ -12,6 +12,7 @@
  * Author: Linus Walleij <linus.walleij@linaro.org>
  */
 #include <linux/module.h>
+#include <linux/mod_devicetable.h>
 #include <linux/kernel.h>
 #include <linux/i2c.h>
 #include <linux/interrupt.h>
@@ -180,6 +181,7 @@
  * @drdy_irq: uses the DRDY IRQ line
  * @drdy_complete: completion for DRDY
  * @drdy_active_low: the DRDY IRQ is active low
+ * @scan: timestamps
  */
 struct ak8974 {
 	struct i2c_client *i2c;
@@ -498,7 +500,7 @@ static int ak8974_detect(struct ak8974 *ak8974)
 	switch (whoami) {
 	case AK8974_WHOAMI_VALUE_AMI306:
 		name = "ami306";
-		/* fall-through */
+		fallthrough;
 	case AK8974_WHOAMI_VALUE_AMI305:
 		ret = regmap_read(ak8974->map, AMI305_VER, &fw);
 		if (ret)
@@ -842,15 +844,8 @@ static int ak8974_probe(struct i2c_client *i2c,
 	ret = devm_regulator_bulk_get(&i2c->dev,
 				      ARRAY_SIZE(ak8974->regs),
 				      ak8974->regs);
-	if (ret < 0) {
-		if (ret != -EPROBE_DEFER)
-			dev_err(&i2c->dev, "cannot get regulators: %d\n", ret);
-		else
-			dev_dbg(&i2c->dev,
-				"regulators unavailable, deferring probe\n");
-
-		return ret;
-	}
+	if (ret < 0)
+		return dev_err_probe(&i2c->dev, ret, "cannot get regulators\n");
 
 	ret = regulator_bulk_enable(ARRAY_SIZE(ak8974->regs), ak8974->regs);
 	if (ret < 0) {
@@ -893,7 +888,6 @@ static int ak8974_probe(struct i2c_client *i2c,
 		goto disable_pm;
 	}
 
-	indio_dev->dev.parent = &i2c->dev;
 	switch (ak8974->variant) {
 	case AK8974_WHOAMI_VALUE_AMI306:
 	case AK8974_WHOAMI_VALUE_AMI305:
@@ -1058,7 +1052,7 @@ static struct i2c_driver ak8974_driver = {
 	.driver	 = {
 		.name	= "ak8974",
 		.pm = &ak8974_dev_pm_ops,
-		.of_match_table = of_match_ptr(ak8974_of_match),
+		.of_match_table = ak8974_of_match,
 	},
 	.probe	  = ak8974_probe,
 	.remove	  = ak8974_remove,

@@ -9,6 +9,7 @@
 
 #include <linux/err.h>
 #include <linux/delay.h>
+#include <linux/device.h>
 #include <crypto/engine.h>
 #include <uapi/linux/sched/types.h>
 #include "internal.h"
@@ -465,7 +466,7 @@ EXPORT_SYMBOL_GPL(crypto_engine_stop);
  * crypto-engine queue.
  * @dev: the device attached with one hardware engine
  * @retry_support: whether hardware has support for retry mechanism
- * @cbk_do_batch: pointer to a callback function to be invoked when executing a
+ * @cbk_do_batch: pointer to a callback function to be invoked when executing
  *                a batch of requests.
  *                This has the form:
  *                callback(struct crypto_engine *engine)
@@ -482,7 +483,6 @@ struct crypto_engine *crypto_engine_alloc_init_and_set(struct device *dev,
 						       int (*cbk_do_batch)(struct crypto_engine *engine),
 						       bool rt, int qlen)
 {
-	struct sched_param param = { .sched_priority = MAX_RT_PRIO / 2 };
 	struct crypto_engine *engine;
 
 	if (!dev)
@@ -520,7 +520,7 @@ struct crypto_engine *crypto_engine_alloc_init_and_set(struct device *dev,
 
 	if (engine->rt) {
 		dev_info(dev, "will run requests pump with realtime priority\n");
-		sched_setscheduler(engine->kworker->task, SCHED_FIFO, &param);
+		sched_set_fifo(engine->kworker->task);
 	}
 
 	return engine;

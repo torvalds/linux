@@ -161,7 +161,6 @@ static int dmard06_probe(struct i2c_client *client,
 	dmard06->chip_id = ret;
 
 	i2c_set_clientdata(client, indio_dev);
-	indio_dev->dev.parent = &client->dev;
 	indio_dev->name = DMARD06_DRV_NAME;
 	indio_dev->modes = INDIO_DIRECT_MODE;
 	indio_dev->channels = dmard06_channels;

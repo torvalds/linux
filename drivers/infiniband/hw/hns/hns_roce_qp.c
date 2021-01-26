@@ -386,8 +386,7 @@ static int set_rq_size(struct hns_roce_dev *hr_dev, struct ib_qp_cap *cap,
 		return -EINVAL;
 	}
 
-	hr_qp->rq.max_gs = roundup_pow_of_two(max(1U, cap->max_recv_sge) +
-					      HNS_ROCE_RESERVED_SGE);
+	hr_qp->rq.max_gs = roundup_pow_of_two(max(1U, cap->max_recv_sge));
 
 	if (hr_dev->caps.max_rq_sg <= HNS_ROCE_SGE_IN_WQE)
 		hr_qp->rq.wqe_shift = ilog2(hr_dev->caps.max_rq_desc_sz);
@@ -402,7 +401,7 @@ static int set_rq_size(struct hns_roce_dev *hr_dev, struct ib_qp_cap *cap,
 		hr_qp->rq_inl_buf.wqe_cnt = 0;
 
 	cap->max_recv_wr = cnt;
-	cap->max_recv_sge = hr_qp->rq.max_gs - HNS_ROCE_RESERVED_SGE;
+	cap->max_recv_sge = hr_qp->rq.max_gs;
 
 	return 0;
 }
@@ -411,7 +410,6 @@ static int set_extend_sge_param(struct hns_roce_dev *hr_dev, u32 sq_wqe_cnt,
 				struct hns_roce_qp *hr_qp,
 				struct ib_qp_cap *cap)
 {
-	struct ib_device *ibdev = &hr_dev->ib_dev;
 	u32 cnt;
 
 	cnt = max(1U, cap->max_send_sge);
@@ -431,15 +429,6 @@ static int set_extend_sge_param(struct hns_roce_dev *hr_dev, u32 sq_wqe_cnt,
 	} else if (hr_qp->sq.max_gs > HNS_ROCE_SGE_IN_WQE) {
 		cnt = roundup_pow_of_two(sq_wqe_cnt *
 				     (hr_qp->sq.max_gs - HNS_ROCE_SGE_IN_WQE));
-
-		if (hr_dev->pci_dev->revision == PCI_REVISION_ID_HIP08_A) {
-			if (cnt > hr_dev->caps.max_extend_sg) {
-				ibdev_err(ibdev,
-					  "failed to check exSGE num, exSGE num = %d.\n",
-					  cnt);
-				return -EINVAL;
-			}
-		}
 	} else {
 		cnt = 0;
 	}

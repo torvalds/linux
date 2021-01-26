@@ -46,19 +46,14 @@ DECLARE_PER_CPU_READ_MOSTLY(int, cpu_number);
  * Logical CPU mapping.
  */
 extern u64 __cpu_logical_map[NR_CPUS];
-#define cpu_logical_map(cpu)    __cpu_logical_map[cpu]
+extern u64 cpu_logical_map(int cpu);
+
+static inline void set_cpu_logical_map(int cpu, u64 hwid)
+{
+	__cpu_logical_map[cpu] = hwid;
+}
 
 struct seq_file;
-
-/*
- * generate IPI list text
- */
-extern void show_ipi_list(struct seq_file *p, int prec);
-
-/*
- * Called from C code, this handles an IPI.
- */
-extern void handle_IPI(int ipinr, struct pt_regs *regs);
 
 /*
  * Discover the set of possible CPUs and determine their
@@ -67,11 +62,9 @@ extern void handle_IPI(int ipinr, struct pt_regs *regs);
 extern void smp_init_cpus(void);
 
 /*
- * Provide a function to raise an IPI cross call on CPUs in callmap.
+ * Register IPI interrupts with the arch SMP code
  */
-extern void set_smp_cross_call(void (*)(const struct cpumask *, unsigned int));
-
-extern void (*__smp_cross_call)(const struct cpumask *, unsigned int);
+extern void set_smp_ipi_range(int ipi_base, int nr_ipi);
 
 /*
  * Called from the secondary holding pen, this is the secondary CPU entry point.

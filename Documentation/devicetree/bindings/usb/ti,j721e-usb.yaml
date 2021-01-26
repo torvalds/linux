@@ -19,9 +19,9 @@ properties:
 
   power-domains:
     description:
-       PM domain provider node and an args specifier containing
-       the USB device id value. See,
-       Documentation/devicetree/bindings/soc/ti/sci-pm-domain.txt
+      PM domain provider node and an args specifier containing
+      the USB device id value. See,
+      Documentation/devicetree/bindings/soc/ti/sci-pm-domain.txt
 
   clocks:
     description: Clock phandles to usb2_refclk and lpm_clk
@@ -46,12 +46,30 @@ properties:
       VBUS pin of the SoC via a 1/3 voltage divider.
     type: boolean
 
+  assigned-clocks:
+    maxItems: 1
+
+  assigned-clock-parents:
+    maxItems: 1
+
+  '#address-cells':
+    const: 2
+
+  '#size-cells':
+    const: 2
+
+patternProperties:
+  "^usb@":
+    type: object
+
 required:
   - compatible
   - reg
   - power-domains
   - clocks
   - clock-names
+
+additionalProperties: false
 
 examples:
   - |

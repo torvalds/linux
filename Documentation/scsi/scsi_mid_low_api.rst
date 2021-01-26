@@ -271,12 +271,6 @@ Conventions
 First, Linus Torvalds's thoughts on C coding style can be found in the
 Documentation/process/coding-style.rst file.
 
-Next, there is a movement to "outlaw" typedefs introducing synonyms for
-struct tags. Both can be still found in the SCSI subsystem, but
-the typedefs have been moved to a single file, scsi_typedefs.h to
-make their future removal easier, for example:
-"typedef struct scsi_cmnd Scsi_Cmnd;"
-
 Also, most C99 enhancements are encouraged to the extent they are supported
 by the relevant gcc compilers. So C99 style structure and array
 initializers are encouraged where appropriate. Don't go too far,

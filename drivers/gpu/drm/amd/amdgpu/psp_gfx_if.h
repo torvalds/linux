@@ -83,19 +83,6 @@ struct psp_gfx_ctrl
 */
 #define GFX_FLAG_RESPONSE               0x80000000
 
-/* Gbr IH registers ID */
-enum ih_reg_id {
-	IH_RB		= 0,		// IH_RB_CNTL
-	IH_RB_RNG1	= 1,		// IH_RB_CNTL_RING1
-	IH_RB_RNG2	= 2,		// IH_RB_CNTL_RING2
-};
-
-/* Command to setup Gibraltar IH register */
-struct psp_gfx_cmd_gbr_ih_reg {
-	uint32_t		reg_value;	/* Value to be set to the IH_RB_CNTL... register*/
-	enum ih_reg_id		reg_id;		/* ID of the register */
-};
-
 /* TEE Gfx Command IDs for the ring buffer interface. */
 enum psp_gfx_cmd_id
 {

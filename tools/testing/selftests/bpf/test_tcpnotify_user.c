@@ -124,17 +124,24 @@ int main(int argc, char **argv)
 	sprintf(test_script,
 		"iptables -A INPUT -p tcp --dport %d -j DROP",
 		TESTPORT);
-	system(test_script);
+	if (system(test_script)) {
+		printf("FAILED: execute command: %s, err %d\n", test_script, -errno);
+		goto err;
+	}
 
 	sprintf(test_script,
 		"nc 127.0.0.1 %d < /etc/passwd > /dev/null 2>&1 ",
 		TESTPORT);
-	system(test_script);
+	if (system(test_script))
+		printf("execute command: %s, err %d\n", test_script, -errno);
 
 	sprintf(test_script,
 		"iptables -D INPUT -p tcp --dport %d -j DROP",
 		TESTPORT);
-	system(test_script);
+	if (system(test_script)) {
+		printf("FAILED: execute command: %s, err %d\n", test_script, -errno);
+		goto err;
+	}
 
 	rv = bpf_map_lookup_elem(bpf_map__fd(global_map), &key, &g);
 	if (rv != 0) {

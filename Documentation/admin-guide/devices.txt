@@ -1662,7 +1662,7 @@
 
   98 block	User-mode virtual block device
 		  0 = /dev/ubda		First user-mode block device
-		 16 = /dev/udbb		Second user-mode block device
+		 16 = /dev/ubdb		Second user-mode block device
 		    ...
 
 		Partitions are handled in the same way as for IDE

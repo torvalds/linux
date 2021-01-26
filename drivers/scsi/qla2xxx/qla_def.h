@@ -1,8 +1,7 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * QLogic Fibre Channel HBA Driver
  * Copyright (c)  2003-2014 QLogic Corporation
- *
- * See LICENSE.qla2xxx for copyright and licensing details.
  */
 #ifndef __QLA_DEF_H
 #define __QLA_DEF_H
@@ -33,6 +32,8 @@
 #include <scsi/scsi_cmnd.h>
 #include <scsi/scsi_transport_fc.h>
 #include <scsi/scsi_bsg_fc.h>
+
+#include <uapi/scsi/fc/fc_els.h>
 
 /* Big endian Fibre Channel S_ID (source ID) or D_ID (destination ID). */
 typedef struct {
@@ -622,6 +623,12 @@ enum {
 	TYPE_TGT_TMCMD,		/* task management */
 };
 
+struct iocb_resource {
+	u8 res_type;
+	u8 pad;
+	u16 iocb_cnt;
+};
+
 typedef struct srb {
 	/*
 	 * Do not move cmd_type field, it needs to
@@ -629,6 +636,7 @@ typedef struct srb {
 	 */
 	uint8_t cmd_type;
 	uint8_t pad[3];
+	struct iocb_resource iores;
 	struct kref cmd_kref;	/* need to migrate ref_count over to this */
 	void *priv;
 	wait_queue_head_t nvme_ls_waitq;
@@ -1053,6 +1061,7 @@ static inline bool qla2xxx_is_valid_mbs(unsigned int mbs)
 #define MBA_LIP_F8		0x8016	/* Received a LIP F8. */
 #define MBA_LOOP_INIT_ERR	0x8017	/* Loop Initialization Error. */
 #define MBA_FABRIC_AUTH_REQ	0x801b	/* Fabric Authentication Required. */
+#define MBA_CONGN_NOTI_RECV	0x801e	/* Congestion Notification Received */
 #define MBA_SCSI_COMPLETION	0x8020	/* SCSI Command Complete. */
 #define MBA_CTIO_COMPLETION	0x8021	/* CTIO Complete. */
 #define MBA_IP_COMPLETION	0x8022	/* IP Transmit Command Complete. */
@@ -1304,7 +1313,6 @@ static inline bool qla2xxx_is_valid_mbs(unsigned int mbs)
 #define RNID_TYPE_ASIC_TEMP	0xC
 
 #define ELS_CMD_MAP_SIZE	32
-#define ELS_COMMAND_RDP		0x18
 
 /*
  * Firmware state codes from get firmware state mailbox command
@@ -1509,6 +1517,25 @@ typedef struct {
 	uint8_t  reserved_3[26];
 } init_cb_t;
 
+/* Special Features Control Block */
+struct init_sf_cb {
+	uint8_t	format;
+	uint8_t	reserved0;
+	/*
+	 * BIT 15-14 = Reserved
+	 * BIT_13 = SAN Congestion Management (1 - Enabled, 0 - Disabled)
+	 * BIT_12 = Remote Write Optimization (1 - Enabled, 0 - Disabled)
+	 * BIT 11-0 = Reserved
+	 */
+	uint16_t flags;
+	uint8_t	reserved1[32];
+	uint16_t discard_OHRB_timeout_value;
+	uint16_t remote_write_opt_queue_num;
+	uint8_t	reserved2[40];
+	uint8_t scm_related_parameter[16];
+	uint8_t reserved3[32];
+};
+
 /*
  * Get Link Status mailbox command return buffer.
  */
@@ -1605,7 +1632,7 @@ typedef struct {
 	 */
 	uint8_t	 firmware_options[2];
 
-	uint16_t frame_payload_size;
+	__le16	frame_payload_size;
 	__le16	max_iocb_allocation;
 	__le16	execution_throttle;
 	uint8_t	 retry_count;
@@ -2182,6 +2209,8 @@ typedef struct {
 	struct dsd64 rsp_dsd;
 } ms_iocb_entry_t;
 
+#define SCM_EDC_ACC_RECEIVED		BIT_6
+#define SCM_RDF_ACC_RECEIVED		BIT_7
 
 /*
  * ISP queue - Mailbox Command entry structure definition.
@@ -2420,12 +2449,6 @@ typedef struct fc_port {
 	struct list_head list;
 	struct scsi_qla_host *vha;
 
-	uint8_t node_name[WWN_SIZE];
-	uint8_t port_name[WWN_SIZE];
-	port_id_t d_id;
-	uint16_t loop_id;
-	uint16_t old_loop_id;
-
 	unsigned int conf_compl_supported:1;
 	unsigned int deleted:2;
 	unsigned int free_pending:1;
@@ -2442,15 +2465,24 @@ typedef struct fc_port {
 	unsigned int n2n_flag:1;
 	unsigned int explicit_logout:1;
 	unsigned int prli_pend_timer:1;
+	uint8_t nvme_flag;
+
+	uint8_t node_name[WWN_SIZE];
+	uint8_t port_name[WWN_SIZE];
+	port_id_t d_id;
+	uint16_t loop_id;
+	uint16_t old_loop_id;
 
 	struct completion nvme_del_done;
 	uint32_t nvme_prli_service_param;
+#define NVME_PRLI_SP_PI_CTRL	BIT_9
+#define NVME_PRLI_SP_SLER	BIT_8
 #define NVME_PRLI_SP_CONF       BIT_7
 #define NVME_PRLI_SP_INITIATOR  BIT_5
 #define NVME_PRLI_SP_TARGET     BIT_4
 #define NVME_PRLI_SP_DISCOVERY  BIT_3
 #define NVME_PRLI_SP_FIRST_BURST	BIT_0
-	uint8_t nvme_flag;
+
 	uint32_t nvme_first_burst_size;
 #define NVME_FLAG_REGISTERED 4
 #define NVME_FLAG_DELETING 2
@@ -2521,6 +2553,8 @@ typedef struct fc_port {
 	u8 last_login_state;
 	u16 n2n_link_reset_cnt;
 	u16 n2n_chip_reset;
+
+	struct dentry *dfs_rport_dir;
 } fc_port_t;
 
 enum {
@@ -3485,6 +3519,14 @@ struct qla_tgt_counters {
 	uint64_t num_term_xchg_sent;
 };
 
+struct qla_counters {
+	uint64_t input_bytes;
+	uint64_t input_requests;
+	uint64_t output_bytes;
+	uint64_t output_requests;
+
+};
+
 struct qla_qpair;
 
 /* Response queue data structure */
@@ -3543,6 +3585,15 @@ struct req_que {
 	uint8_t req_pkt[REQUEST_ENTRY_SIZE];
 };
 
+struct qla_fw_resources {
+	u16 iocbs_total;
+	u16 iocbs_limit;
+	u16 iocbs_qp_limit;
+	u16 iocbs_used;
+};
+
+#define QLA_IOCB_PCT_LIMIT 95
+
 /*Queue pair data structure */
 struct qla_qpair {
 	spinlock_t qp_lock;
@@ -3569,6 +3620,7 @@ struct qla_qpair {
 	uint32_t enable_class_2:1;
 	uint32_t enable_explicit_conf:1;
 	uint32_t use_shadow_reg:1;
+	uint32_t rcv_intr:1;
 
 	uint16_t id;			/* qp number used with FW */
 	uint16_t vp_idx;		/* vport ID */
@@ -3584,13 +3636,17 @@ struct qla_qpair {
 	struct qla_msix_entry *msix; /* point to &ha->msix_entries[x] */
 	struct qla_hw_data *hw;
 	struct work_struct q_work;
+	struct qla_counters counters;
+
 	struct list_head qp_list_elem; /* vha->qp_list */
 	struct list_head hints_list;
-	uint16_t cpuid;
+
 	uint16_t retry_term_cnt;
 	__le32	retry_term_exchg_addr;
 	uint64_t retry_term_jiff;
 	struct qla_tgt_counters tgt_counters;
+	uint16_t cpuid;
+	struct qla_fw_resources fwres ____cacheline_aligned;
 };
 
 /* Place holder for FW buffer parameters */
@@ -3851,6 +3907,14 @@ struct qla_hw_data {
 		uint32_t        n2n_bigger:1;
 		uint32_t	secure_adapter:1;
 		uint32_t	secure_fw:1;
+				/* Supported by Adapter */
+		uint32_t	scm_supported_a:1;
+				/* Supported by Firmware */
+		uint32_t	scm_supported_f:1;
+				/* Enabled in Driver */
+		uint32_t	scm_enabled:1;
+		uint32_t	max_req_queue_warned:1;
+		uint32_t	plogi_template_valid:1;
 	} flags;
 
 	uint16_t max_exchg;
@@ -4097,6 +4161,10 @@ struct qla_hw_data {
 #define USE_ASYNC_SCAN(ha) (IS_QLA25XX(ha) || IS_QLA81XX(ha) ||\
 	IS_QLA83XX(ha) || IS_QLA27XX(ha) || IS_QLA28XX(ha))
 
+#define IS_ZIO_THRESHOLD_CAPABLE(ha) \
+	((IS_QLA83XX(ha) || IS_QLA27XX(ha) || IS_QLA28XX(ha)) &&\
+	 (ha->zio_mode == QLA_ZIO_MODE_6))
+
 	/* HBA serial number */
 	uint8_t		serial0;
 	uint8_t		serial1;
@@ -4168,6 +4236,13 @@ struct qla_hw_data {
 	int		init_cb_size;
 	dma_addr_t	ex_init_cb_dma;
 	struct ex_init_cb_81xx *ex_init_cb;
+	dma_addr_t	sf_init_cb_dma;
+	struct init_sf_cb *sf_init_cb;
+
+	void		*scm_fpin_els_buff;
+	uint64_t	scm_fpin_els_buff_size;
+	bool		scm_fpin_valid;
+	bool		scm_fpin_payload_size;
 
 	void		*async_pd;
 	dma_addr_t	async_pd_dma;
@@ -4177,7 +4252,7 @@ struct qla_hw_data {
 	/* Extended Logins  */
 	void		*exlogin_buf;
 	dma_addr_t	exlogin_buf_dma;
-	int		exlogin_size;
+	uint32_t	exlogin_size;
 
 #define ENABLE_EXCHANGE_OFFLD	BIT_2
 
@@ -4188,7 +4263,8 @@ struct qla_hw_data {
 	int 		exchoffld_count;
 
 	/* n2n */
-	struct els_plogi_payload plogi_els_payld;
+	struct fc_els_flogi plogi_els_payld;
+#define LOGIN_TEMPLATE_SIZE (sizeof(struct fc_els_flogi) - 4)
 
 	void            *swl;
 
@@ -4230,6 +4306,13 @@ struct qla_hw_data {
 #define FW_ATTR_H_NVME		BIT_10
 #define FW_ATTR_H_NVME_UPDATED  BIT_14
 
+	/* About firmware SCM support */
+#define FW_ATTR_EXT0_SCM_SUPPORTED	BIT_12
+	/* Brocade fabric attached */
+#define FW_ATTR_EXT0_SCM_BROCADE	0x00001000
+	/* Cisco fabric attached */
+#define FW_ATTR_EXT0_SCM_CISCO		0x00002000
+#define FW_ATTR_EXT0_NVME2	BIT_13
 	uint16_t	fw_attributes_ext[2];
 	uint32_t	fw_memory_size;
 	uint32_t	fw_transfer_size;
@@ -4522,14 +4605,30 @@ struct active_regions {
 #define QLA_SET_DATA_RATE_NOLR	1
 #define QLA_SET_DATA_RATE_LR	2 /* Set speed and initiate LR */
 
+#define QLA_DEFAULT_PAYLOAD_SIZE	64
+/*
+ * This item might be allocated with a size > sizeof(struct purex_item).
+ * The "size" variable gives the size of the payload (which
+ * is variable) starting at "iocb".
+ */
 struct purex_item {
 	struct list_head list;
 	struct scsi_qla_host *vha;
-	void (*process_item)(struct scsi_qla_host *vha, void *pkt);
+	void (*process_item)(struct scsi_qla_host *vha,
+			     struct purex_item *pkt);
+	atomic_t in_use;
+	uint16_t size;
 	struct {
 		uint8_t iocb[64];
 	} iocb;
 };
+
+#define SCM_FLAG_RDF_REJECT		0x00
+#define SCM_FLAG_RDF_COMPLETED		0x01
+
+#define QLA_CON_PRIMITIVE_RECEIVED	0x1
+#define QLA_CONGESTION_ARB_WARNING	0x1
+#define QLA_CONGESTION_ARB_ALARM	0X2
 
 /*
  * Qlogic scsi host structure
@@ -4563,6 +4662,7 @@ typedef struct scsi_qla_host {
 		uint32_t	qpairs_rsp_created:1;
 		uint32_t	nvme_enabled:1;
 		uint32_t        nvme_first_burst:1;
+		uint32_t        nvme2_enabled:1;
 	} flags;
 
 	atomic_t	loop_state;
@@ -4721,10 +4821,13 @@ typedef struct scsi_qla_host {
 	uint16_t ql2xexchoffld;
 	uint16_t ql2xiniexchg;
 
+	struct dentry *dfs_rport_root;
+
 	struct purex_list {
 		struct list_head head;
 		spinlock_t lock;
 	} purex_list;
+	struct purex_item default_item;
 
 	struct name_list_extended gnl;
 	/* Count of active session/fcport */
@@ -4738,6 +4841,7 @@ typedef struct scsi_qla_host {
 	__le16 dport_data[4];
 	struct list_head gpnid_list;
 	struct fab_scan scan;
+	uint8_t	scm_fabric_connection_flags;
 
 	unsigned int irq_offset;
 } scsi_qla_host_t;
@@ -5041,6 +5145,8 @@ struct sff_8247_a0 {
 	((ha->prev_topology == ISP_CFG_N && !ha->current_topology) || \
 	 ha->current_topology == ISP_CFG_N || \
 	 !ha->current_topology)
+
+#define QLA_N2N_WAIT_TIME	5 /* 2 * ra_tov(n2n) + 1 */
 
 #define NVME_TYPE(fcport) \
 	(fcport->fc4_type & FS_FC4TYPE_NVME) \

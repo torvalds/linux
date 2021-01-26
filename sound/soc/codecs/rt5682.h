@@ -1080,6 +1080,10 @@
 #define RT5682_PLL2F_N_SFT			8
 
 /* PLL2 M/N/K Code Control 2 (0x009e) */
+#define RT5682_PLL2B_SEL_PS_MASK		(0x1 << 13)
+#define RT5682_PLL2B_SEL_PS_SFT			13
+#define RT5682_PLL2B_PS_BYP_MASK		(0x1 << 12)
+#define RT5682_PLL2B_PS_BYP_SFT			12
 #define RT5682_PLL2B_M_BP_MASK			(0x1 << 11)
 #define RT5682_PLL2B_M_BP_SFT			11
 #define RT5682_PLL2F_M_BP_MASK			(0x1 << 7)
@@ -1407,8 +1411,6 @@ struct rt5682_priv {
 
 #ifdef CONFIG_COMMON_CLK
 	struct clk_hw dai_clks_hw[RT5682_DAI_NUM_CLKS];
-	struct clk_lookup *dai_clks_lookup[RT5682_DAI_NUM_CLKS];
-	struct clk *dai_clks[RT5682_DAI_NUM_CLKS];
 	struct clk *mclk;
 #endif
 

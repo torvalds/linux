@@ -60,13 +60,11 @@ struct stadel_event {
  int mac_id;
 };
 
-struct addba_event
-{
+struct addba_event {
 	unsigned int tid;
 };
 
-struct wmm_event
-{
+struct wmm_event {
 	unsigned char wmm;
 };
 

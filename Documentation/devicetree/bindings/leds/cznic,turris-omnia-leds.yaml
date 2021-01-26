@@ -30,7 +30,7 @@ properties:
     const: 0
 
 patternProperties:
-  "^multi-led[0-9a-f]$":
+  "^multi-led@[0-9a-b]$":
     type: object
     allOf:
       - $ref: leds-class-multicolor.yaml#

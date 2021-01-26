@@ -1187,7 +1187,6 @@ csio_lns_online(struct csio_lnode *ln, enum csio_ln_ev evt)
 		break;
 
 	case CSIO_LNE_LINK_DOWN:
-		/* Fall through */
 	case CSIO_LNE_DOWN_LINK:
 		csio_set_state(&ln->sm, csio_lns_uninit);
 		if (csio_is_phys_ln(ln)) {
@@ -2068,10 +2067,9 @@ csio_ln_exit(struct csio_lnode *ln)
 	ln->fcfinfo = NULL;
 }
 
-/**
+/*
  * csio_lnode_init - Initialize the members of an lnode.
  * @ln:		lnode
- *
  */
 int
 csio_lnode_init(struct csio_lnode *ln, struct csio_hw *hw,

@@ -20,11 +20,11 @@ maintainers:
 allOf:
   - $ref: touchscreen.yaml#
   - if:
-     properties:
-       compatible:
-         contains:
-           enum:
-             - evervision,ev-ft5726
+      properties:
+        compatible:
+          contains:
+            enum:
+              - evervision,ev-ft5726
 
     then:
       properties:

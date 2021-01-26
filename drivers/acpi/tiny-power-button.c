@@ -4,7 +4,6 @@
 #include <linux/acpi.h>
 #include <acpi/button.h>
 
-ACPI_MODULE_NAME("tiny-power-button");
 MODULE_AUTHOR("Josh Triplett");
 MODULE_DESCRIPTION("ACPI Tiny Power Button Driver");
 MODULE_LICENSE("GPL");

@@ -26,8 +26,6 @@ static DEFINE_MUTEX(acpi_wakeup_handler_mutex);
  * suspend/resume and isn't really required as this is called in S-state. At
  * that time, there is no device hotplug
  **/
-#define _COMPONENT		ACPI_SYSTEM_COMPONENT
-ACPI_MODULE_NAME("wakeup_devices")
 
 /**
  * acpi_enable_wakeup_devices - Enable wake-up device GPEs.

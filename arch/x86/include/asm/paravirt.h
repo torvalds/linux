@@ -160,8 +160,6 @@ static inline void wbinvd(void)
 	PVOP_VCALL0(cpu.wbinvd);
 }
 
-#define get_kernel_rpl()  (pv_info.kernel_rpl)
-
 static inline u64 paravirt_read_msr(unsigned msr)
 {
 	return PVOP_CALL1(u64, cpu.read_msr, msr);
@@ -277,12 +275,10 @@ static inline void load_TLS(struct thread_struct *t, unsigned cpu)
 	PVOP_VCALL2(cpu.load_tls, t, cpu);
 }
 
-#ifdef CONFIG_X86_64
 static inline void load_gs_index(unsigned int gs)
 {
 	PVOP_VCALL1(cpu.load_gs_index, gs);
 }
-#endif
 
 static inline void write_ldt_entry(struct desc_struct *dt, int entry,
 				   const void *desc)
@@ -375,52 +371,22 @@ static inline void paravirt_release_p4d(unsigned long pfn)
 
 static inline pte_t __pte(pteval_t val)
 {
-	pteval_t ret;
-
-	if (sizeof(pteval_t) > sizeof(long))
-		ret = PVOP_CALLEE2(pteval_t, mmu.make_pte, val, (u64)val >> 32);
-	else
-		ret = PVOP_CALLEE1(pteval_t, mmu.make_pte, val);
-
-	return (pte_t) { .pte = ret };
+	return (pte_t) { PVOP_CALLEE1(pteval_t, mmu.make_pte, val) };
 }
 
 static inline pteval_t pte_val(pte_t pte)
 {
-	pteval_t ret;
-
-	if (sizeof(pteval_t) > sizeof(long))
-		ret = PVOP_CALLEE2(pteval_t, mmu.pte_val,
-				   pte.pte, (u64)pte.pte >> 32);
-	else
-		ret = PVOP_CALLEE1(pteval_t, mmu.pte_val, pte.pte);
-
-	return ret;
+	return PVOP_CALLEE1(pteval_t, mmu.pte_val, pte.pte);
 }
 
 static inline pgd_t __pgd(pgdval_t val)
 {
-	pgdval_t ret;
-
-	if (sizeof(pgdval_t) > sizeof(long))
-		ret = PVOP_CALLEE2(pgdval_t, mmu.make_pgd, val, (u64)val >> 32);
-	else
-		ret = PVOP_CALLEE1(pgdval_t, mmu.make_pgd, val);
-
-	return (pgd_t) { ret };
+	return (pgd_t) { PVOP_CALLEE1(pgdval_t, mmu.make_pgd, val) };
 }
 
 static inline pgdval_t pgd_val(pgd_t pgd)
 {
-	pgdval_t ret;
-
-	if (sizeof(pgdval_t) > sizeof(long))
-		ret =  PVOP_CALLEE2(pgdval_t, mmu.pgd_val,
-				    pgd.pgd, (u64)pgd.pgd >> 32);
-	else
-		ret =  PVOP_CALLEE1(pgdval_t, mmu.pgd_val, pgd.pgd);
-
-	return ret;
+	return PVOP_CALLEE1(pgdval_t, mmu.pgd_val, pgd.pgd);
 }
 
 #define  __HAVE_ARCH_PTEP_MODIFY_PROT_TRANSACTION
@@ -438,78 +404,34 @@ static inline void ptep_modify_prot_commit(struct vm_area_struct *vma, unsigned 
 					   pte_t *ptep, pte_t old_pte, pte_t pte)
 {
 
-	if (sizeof(pteval_t) > sizeof(long))
-		/* 5 arg words */
-		pv_ops.mmu.ptep_modify_prot_commit(vma, addr, ptep, pte);
-	else
-		PVOP_VCALL4(mmu.ptep_modify_prot_commit,
-			    vma, addr, ptep, pte.pte);
+	PVOP_VCALL4(mmu.ptep_modify_prot_commit, vma, addr, ptep, pte.pte);
 }
 
 static inline void set_pte(pte_t *ptep, pte_t pte)
 {
-	if (sizeof(pteval_t) > sizeof(long))
-		PVOP_VCALL3(mmu.set_pte, ptep, pte.pte, (u64)pte.pte >> 32);
-	else
-		PVOP_VCALL2(mmu.set_pte, ptep, pte.pte);
-}
-
-static inline void set_pte_at(struct mm_struct *mm, unsigned long addr,
-			      pte_t *ptep, pte_t pte)
-{
-	if (sizeof(pteval_t) > sizeof(long))
-		/* 5 arg words */
-		pv_ops.mmu.set_pte_at(mm, addr, ptep, pte);
-	else
-		PVOP_VCALL4(mmu.set_pte_at, mm, addr, ptep, pte.pte);
+	PVOP_VCALL2(mmu.set_pte, ptep, pte.pte);
 }
 
 static inline void set_pmd(pmd_t *pmdp, pmd_t pmd)
 {
-	pmdval_t val = native_pmd_val(pmd);
-
-	if (sizeof(pmdval_t) > sizeof(long))
-		PVOP_VCALL3(mmu.set_pmd, pmdp, val, (u64)val >> 32);
-	else
-		PVOP_VCALL2(mmu.set_pmd, pmdp, val);
+	PVOP_VCALL2(mmu.set_pmd, pmdp, native_pmd_val(pmd));
 }
 
-#if CONFIG_PGTABLE_LEVELS >= 3
 static inline pmd_t __pmd(pmdval_t val)
 {
-	pmdval_t ret;
-
-	if (sizeof(pmdval_t) > sizeof(long))
-		ret = PVOP_CALLEE2(pmdval_t, mmu.make_pmd, val, (u64)val >> 32);
-	else
-		ret = PVOP_CALLEE1(pmdval_t, mmu.make_pmd, val);
-
-	return (pmd_t) { ret };
+	return (pmd_t) { PVOP_CALLEE1(pmdval_t, mmu.make_pmd, val) };
 }
 
 static inline pmdval_t pmd_val(pmd_t pmd)
 {
-	pmdval_t ret;
-
-	if (sizeof(pmdval_t) > sizeof(long))
-		ret =  PVOP_CALLEE2(pmdval_t, mmu.pmd_val,
-				    pmd.pmd, (u64)pmd.pmd >> 32);
-	else
-		ret =  PVOP_CALLEE1(pmdval_t, mmu.pmd_val, pmd.pmd);
-
-	return ret;
+	return PVOP_CALLEE1(pmdval_t, mmu.pmd_val, pmd.pmd);
 }
 
 static inline void set_pud(pud_t *pudp, pud_t pud)
 {
-	pudval_t val = native_pud_val(pud);
-
-	if (sizeof(pudval_t) > sizeof(long))
-		PVOP_VCALL3(mmu.set_pud, pudp, val, (u64)val >> 32);
-	else
-		PVOP_VCALL2(mmu.set_pud, pudp, val);
+	PVOP_VCALL2(mmu.set_pud, pudp, native_pud_val(pud));
 }
-#if CONFIG_PGTABLE_LEVELS >= 4
+
 static inline pud_t __pud(pudval_t val)
 {
 	pudval_t ret;
@@ -526,7 +448,7 @@ static inline pudval_t pud_val(pud_t pud)
 
 static inline void pud_clear(pud_t *pudp)
 {
-	set_pud(pudp, __pud(0));
+	set_pud(pudp, native_make_pud(0));
 }
 
 static inline void set_p4d(p4d_t *p4dp, p4d_t p4d)
@@ -563,40 +485,17 @@ static inline void __set_pgd(pgd_t *pgdp, pgd_t pgd)
 } while (0)
 
 #define pgd_clear(pgdp) do {						\
-	if (pgtable_l5_enabled())						\
-		set_pgd(pgdp, __pgd(0));				\
+	if (pgtable_l5_enabled())					\
+		set_pgd(pgdp, native_make_pgd(0));			\
 } while (0)
 
 #endif  /* CONFIG_PGTABLE_LEVELS == 5 */
 
 static inline void p4d_clear(p4d_t *p4dp)
 {
-	set_p4d(p4dp, __p4d(0));
+	set_p4d(p4dp, native_make_p4d(0));
 }
 
-#endif	/* CONFIG_PGTABLE_LEVELS == 4 */
-
-#endif	/* CONFIG_PGTABLE_LEVELS >= 3 */
-
-#ifdef CONFIG_X86_PAE
-/* Special-case pte-setting operations for PAE, which can't update a
-   64-bit pte atomically */
-static inline void set_pte_atomic(pte_t *ptep, pte_t pte)
-{
-	PVOP_VCALL3(mmu.set_pte_atomic, ptep, pte.pte, pte.pte >> 32);
-}
-
-static inline void pte_clear(struct mm_struct *mm, unsigned long addr,
-			     pte_t *ptep)
-{
-	PVOP_VCALL3(mmu.pte_clear, mm, addr, ptep);
-}
-
-static inline void pmd_clear(pmd_t *pmdp)
-{
-	PVOP_VCALL1(mmu.pmd_clear, pmdp);
-}
-#else  /* !CONFIG_X86_PAE */
 static inline void set_pte_atomic(pte_t *ptep, pte_t pte)
 {
 	set_pte(ptep, pte);
@@ -605,14 +504,13 @@ static inline void set_pte_atomic(pte_t *ptep, pte_t pte)
 static inline void pte_clear(struct mm_struct *mm, unsigned long addr,
 			     pte_t *ptep)
 {
-	set_pte_at(mm, addr, ptep, __pte(0));
+	set_pte(ptep, native_make_pte(0));
 }
 
 static inline void pmd_clear(pmd_t *pmdp)
 {
-	set_pmd(pmdp, __pmd(0));
+	set_pmd(pmdp, native_make_pmd(0));
 }
-#endif	/* CONFIG_X86_PAE */
 
 #define  __HAVE_ARCH_START_CONTEXT_SWITCH
 static inline void arch_start_context_switch(struct task_struct *prev)
@@ -682,16 +580,9 @@ bool __raw_callee_save___native_vcpu_is_preempted(long cpu);
 #endif /* SMP && PARAVIRT_SPINLOCKS */
 
 #ifdef CONFIG_X86_32
-#define PV_SAVE_REGS "pushl %ecx; pushl %edx;"
-#define PV_RESTORE_REGS "popl %edx; popl %ecx;"
-
 /* save and restore all caller-save registers, except return value */
 #define PV_SAVE_ALL_CALLER_REGS		"pushl %ecx;"
 #define PV_RESTORE_ALL_CALLER_REGS	"popl  %ecx;"
-
-#define PV_FLAGS_ARG "0"
-#define PV_EXTRA_CLOBBERS
-#define PV_VEXTRA_CLOBBERS
 #else
 /* save and restore all caller-save registers, except return value */
 #define PV_SAVE_ALL_CALLER_REGS						\
@@ -712,14 +603,6 @@ bool __raw_callee_save___native_vcpu_is_preempted(long cpu);
 	"pop %rsi;"							\
 	"pop %rdx;"							\
 	"pop %rcx;"
-
-/* We save some registers, but all of them, that's too much. We clobber all
- * caller saved registers but the argument parameter */
-#define PV_SAVE_REGS "pushq %%rdi;"
-#define PV_RESTORE_REGS "popq %%rdi;"
-#define PV_EXTRA_CLOBBERS EXTRA_CLOBBERS, "rcx" , "rdx", "rsi"
-#define PV_VEXTRA_CLOBBERS EXTRA_CLOBBERS, "rdi", "rcx" , "rdx", "rsi"
-#define PV_FLAGS_ARG "D"
 #endif
 
 /*

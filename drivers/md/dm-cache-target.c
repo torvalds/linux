@@ -925,7 +925,7 @@ static enum cache_metadata_mode get_cache_mode(struct cache *cache)
 
 static const char *cache_device_name(struct cache *cache)
 {
-	return dm_device_name(dm_table_get_md(cache->ti->table));
+	return dm_table_device_name(cache->ti->table);
 }
 
 static void notify_mode_switch(struct cache *cache, enum cache_metadata_mode mode)

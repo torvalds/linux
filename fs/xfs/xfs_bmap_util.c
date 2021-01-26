@@ -946,6 +946,14 @@ xfs_free_file_space(
 	startoffset_fsb = XFS_B_TO_FSB(mp, offset);
 	endoffset_fsb = XFS_B_TO_FSBT(mp, offset + len);
 
+	/* We can only free complete realtime extents. */
+	if (XFS_IS_REALTIME_INODE(ip)) {
+		xfs_extlen_t	extsz = xfs_get_extsz_hint(ip);
+
+		if ((startoffset_fsb | endoffset_fsb) & (extsz - 1))
+			return -EINVAL;
+	}
+
 	/*
 	 * Need to zero the stuff we're not freeing, on disk.
 	 */
@@ -1139,6 +1147,14 @@ xfs_insert_file_space(
 
 	trace_xfs_insert_file_space(ip);
 
+	/* We can only insert complete realtime extents. */
+	if (XFS_IS_REALTIME_INODE(ip)) {
+		xfs_extlen_t	extsz = xfs_get_extsz_hint(ip);
+
+		if ((stop_fsb | shift_fsb) & (extsz - 1))
+			return -EINVAL;
+	}
+
 	error = xfs_bmap_can_insert_extents(ip, stop_fsb, shift_fsb);
 	if (error)
 		return error;
@@ -1165,7 +1181,7 @@ xfs_insert_file_space(
 		goto out_trans_cancel;
 
 	do {
-		error = xfs_trans_roll_inode(&tp, ip);
+		error = xfs_defer_finish(&tp);
 		if (error)
 			goto out_trans_cancel;
 
@@ -1567,6 +1583,7 @@ xfs_swap_extents(
 	int			lock_flags;
 	uint64_t		f;
 	int			resblks = 0;
+	unsigned int		flags = 0;
 
 	/*
 	 * Lock the inodes against other IO, page faults and truncate to
@@ -1630,17 +1647,16 @@ xfs_swap_extents(
 		resblks +=  XFS_SWAP_RMAP_SPACE_RES(mp, tipnext, w);
 
 		/*
-		 * Handle the corner case where either inode might straddle the
-		 * btree format boundary. If so, the inode could bounce between
-		 * btree <-> extent format on unmap -> remap cycles, freeing and
-		 * allocating a bmapbt block each time.
+		 * If either inode straddles a bmapbt block allocation boundary,
+		 * the rmapbt algorithm triggers repeated allocs and frees as
+		 * extents are remapped. This can exhaust the block reservation
+		 * prematurely and cause shutdown. Return freed blocks to the
+		 * transaction reservation to counter this behavior.
 		 */
-		if (ipnext == (XFS_IFORK_MAXEXT(ip, w) + 1))
-			resblks += XFS_IFORK_MAXEXT(ip, w);
-		if (tipnext == (XFS_IFORK_MAXEXT(tip, w) + 1))
-			resblks += XFS_IFORK_MAXEXT(tip, w);
+		flags |= XFS_TRANS_RES_FDBLKS;
 	}
-	error = xfs_trans_alloc(mp, &M_RES(mp)->tr_write, resblks, 0, 0, &tp);
+	error = xfs_trans_alloc(mp, &M_RES(mp)->tr_write, resblks, 0, flags,
+				&tp);
 	if (error)
 		goto out_unlock;
 

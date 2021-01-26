@@ -1,4 +1,0 @@
-The SoC camera framework is obsolete and scheduled for removal in the near
-future. Developers are encouraged to convert the drivers to use the
-regular V4L2 API if these drivers are still needed (and if someone has the
-hardware).

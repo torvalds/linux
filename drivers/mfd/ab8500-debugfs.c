@@ -1801,7 +1801,7 @@ static ssize_t ab8500_hwreg_write(struct file *file,
 	int buf_size, ret;
 
 	/* Get userspace string and assure termination */
-	buf_size = min(count, (sizeof(buf)-1));
+	buf_size = min((int)count, (int)(sizeof(buf)-1));
 	if (copy_from_user(buf, user_buf, buf_size))
 		return -EFAULT;
 	buf[buf_size] = 0;

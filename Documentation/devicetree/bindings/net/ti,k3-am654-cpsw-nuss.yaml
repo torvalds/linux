@@ -55,7 +55,7 @@ properties:
   reg:
     maxItems: 1
     description:
-       The physical base address and size of full the CPSW2G NUSS IO range
+      The physical base address and size of full the CPSW2G NUSS IO range
 
   reg-names:
     items:
@@ -100,38 +100,38 @@ properties:
 
     patternProperties:
       port@1:
-       type: object
-       description: CPSW2G NUSS external ports
+        type: object
+        description: CPSW2G NUSS external ports
 
-       $ref: ethernet-controller.yaml#
+        $ref: ethernet-controller.yaml#
 
-       properties:
-         reg:
-           items:
-             - const: 1
-           description: CPSW port number
+        properties:
+          reg:
+            items:
+              - const: 1
+            description: CPSW port number
 
-         phys:
-           maxItems: 1
-           description:  phandle on phy-gmii-sel PHY
+          phys:
+            maxItems: 1
+            description: phandle on phy-gmii-sel PHY
 
-         label:
-           description: label associated with this port
+          label:
+            description: label associated with this port
 
-         ti,mac-only:
-           $ref: /schemas/types.yaml#definitions/flag
-           description:
-             Specifies the port works in mac-only mode.
+          ti,mac-only:
+            $ref: /schemas/types.yaml#definitions/flag
+            description:
+              Specifies the port works in mac-only mode.
 
-         ti,syscon-efuse:
-           $ref: /schemas/types.yaml#definitions/phandle-array
-           description:
-             Phandle to the system control device node which provides access
-             to efuse IO range with MAC addresses
+          ti,syscon-efuse:
+            $ref: /schemas/types.yaml#definitions/phandle-array
+            description:
+              Phandle to the system control device node which provides access
+              to efuse IO range with MAC addresses
 
-       required:
-         - reg
-         - phys
+        required:
+          - reg
+          - phys
 
     additionalProperties: false
 

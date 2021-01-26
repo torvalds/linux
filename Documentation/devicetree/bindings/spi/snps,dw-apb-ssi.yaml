@@ -22,6 +22,21 @@ allOf:
       properties:
         reg:
           minItems: 2
+  - if:
+      properties:
+        compatible:
+          contains:
+            enum:
+              - baikal,bt1-sys-ssi
+    then:
+      properties:
+        mux-controls:
+          maxItems: 1
+      required:
+        - mux-controls
+    else:
+      required:
+        - interrupts
 
 properties:
   compatible:
@@ -36,6 +51,8 @@ properties:
               - mscc,ocelot-spi
               - mscc,jaguar2-spi
           - const: snps,dw-apb-ssi
+      - description: Microchip Sparx5 SoC SPI Controller
+        const: microchip,sparx5-spi
       - description: Amazon Alpine SPI Controller
         const: amazon,alpine-dw-apb-ssi
       - description: Renesas RZ/N1 SPI Controller
@@ -44,12 +61,16 @@ properties:
           - const: snps,dw-apb-ssi
       - description: Intel Keem Bay SPI Controller
         const: intel,keembay-ssi
+      - description: Baikal-T1 SPI Controller
+        const: baikal,bt1-ssi
+      - description: Baikal-T1 System Boot SPI Controller
+        const: baikal,bt1-sys-ssi
 
   reg:
     minItems: 1
     items:
       - description: DW APB SSI controller memory mapped registers
-      - description: SPI MST region map
+      - description: SPI MST region map or directly mapped SPI ROM
 
   interrupts:
     maxItems: 1
@@ -93,6 +114,12 @@ properties:
       - const: tx
       - const: rx
 
+  rx-sample-delay-ns:
+    default: 0
+    description: Default value of the rx-sample-delay-ns property.
+      This value will be used if the property is not explicitly defined
+      for a SPI slave device. See below.
+
 patternProperties:
   "^.*@[0-9a-f]+$":
     type: object
@@ -107,6 +134,13 @@ patternProperties:
       spi-tx-bus-width:
         const: 1
 
+      rx-sample-delay-ns:
+        description: SPI Rx sample delay offset, unit is nanoseconds.
+          The delay from the default sample time before the actual
+          sample of the rxd input signal occurs. The "rx_sample_delay"
+          is an optional feature of the designware controller, and the
+          upper limit is also subject to controller configuration.
+
 unevaluatedProperties: false
 
 required:
@@ -114,7 +148,6 @@ required:
   - reg
   - "#address-cells"
   - "#size-cells"
-  - interrupts
   - clocks
 
 examples:
@@ -129,5 +162,22 @@ examples:
       num-cs = <2>;
       cs-gpios = <&gpio0 13 0>,
                  <&gpio0 14 0>;
+      rx-sample-delay-ns = <3>;
+      spi-flash@1 {
+        compatible = "spi-nand";
+        reg = <1>;
+        rx-sample-delay-ns = <7>;
+      };
+    };
+  - |
+    spi@1f040100 {
+      compatible = "baikal,bt1-sys-ssi";
+      reg = <0x1f040100 0x900>,
+            <0x1c000000 0x1000000>;
+      #address-cells = <1>;
+      #size-cells = <0>;
+      mux-controls = <&boot_mux>;
+      clocks = <&ccu_sys>;
+      clock-names = "ssi_clk";
     };
 ...

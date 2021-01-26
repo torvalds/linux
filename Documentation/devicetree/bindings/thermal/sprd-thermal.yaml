@@ -68,6 +68,8 @@ patternProperties:
       - nvmem-cells
       - nvmem-cell-names
 
+    additionalProperties: false
+
 required:
   - compatible
   - reg
@@ -78,6 +80,8 @@ required:
   - "#thermal-sensor-cells"
   - "#address-cells"
   - "#size-cells"
+
+additionalProperties: false
 
 examples:
   - |

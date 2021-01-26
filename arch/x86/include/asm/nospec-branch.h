@@ -4,7 +4,7 @@
 #define _ASM_X86_NOSPEC_BRANCH_H_
 
 #include <linux/static_key.h>
-#include <linux/frame.h>
+#include <linux/objtool.h>
 
 #include <asm/alternative.h>
 #include <asm/alternative-asm.h>

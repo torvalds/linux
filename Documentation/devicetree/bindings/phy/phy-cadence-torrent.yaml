@@ -4,11 +4,13 @@
 $id: "http://devicetree.org/schemas/phy/phy-cadence-torrent.yaml#"
 $schema: "http://devicetree.org/meta-schemas/core.yaml#"
 
-title: Cadence Torrent SD0801 PHY binding for DisplayPort
+title: Cadence Torrent SD0801 PHY binding
 
 description:
   This binding describes the Cadence SD0801 PHY (also known as Torrent PHY)
-  hardware included with the Cadence MHDP DisplayPort controller.
+  hardware included with the Cadence MHDP DisplayPort controller. Torrent
+  PHY also supports multilink multiprotocol combinations including protocols
+  such as PCIe, USB, SGMII, QSGMII etc.
 
 maintainers:
   - Swapnil Jakhade <sjakhade@cadence.com>
@@ -49,13 +51,21 @@ properties:
       - const: dptx_phy
 
   resets:
-    maxItems: 1
-    description:
-      Torrent PHY reset.
-      See Documentation/devicetree/bindings/reset/reset.txt
+    minItems: 1
+    maxItems: 2
+    items:
+      - description: Torrent PHY reset.
+      - description: Torrent APB reset. This is optional.
+
+  reset-names:
+    minItems: 1
+    maxItems: 2
+    items:
+      - const: torrent_reset
+      - const: torrent_apb
 
 patternProperties:
-  '^phy@[0-7]+$':
+  '^phy@[0-3]$':
     type: object
     description:
       Each group of PHY lanes with a single master lane should be represented as a sub-node.
@@ -63,6 +73,8 @@ patternProperties:
       reg:
         description:
           The master lane number. This is the lowest numbered lane in the lane group.
+        minimum: 0
+        maximum: 3
 
       resets:
         minItems: 1
@@ -78,14 +90,24 @@ patternProperties:
           Specifies the type of PHY for which the group of PHY lanes is used.
           Refer include/dt-bindings/phy/phy.h. Constants from the header should be used.
         $ref: /schemas/types.yaml#/definitions/uint32
-        enum: [1, 2, 3, 4, 5, 6]
+        minimum: 1
+        maximum: 9
 
       cdns,num-lanes:
         description:
-          Number of DisplayPort lanes.
+          Number of lanes.
         $ref: /schemas/types.yaml#/definitions/uint32
-        enum: [1, 2, 4]
+        enum: [1, 2, 3, 4]
         default: 4
+
+      cdns,ssc-mode:
+        description:
+          Specifies the Spread Spectrum Clocking mode used. It can be NO_SSC,
+          EXTERNAL_SSC or INTERNAL_SSC.
+          Refer include/dt-bindings/phy/phy-cadence-torrent.h for the constants to be used.
+        $ref: /schemas/types.yaml#/definitions/uint32
+        enum: [0, 1, 2]
+        default: 0
 
       cdns,max-bit-rate:
         description:
@@ -99,6 +121,7 @@ patternProperties:
       - resets
       - "#phy-cells"
       - cdns,phy-type
+      - cdns,num-lanes
 
     additionalProperties: false
 
@@ -111,6 +134,7 @@ required:
   - reg
   - reg-names
   - resets
+  - reset-names
 
 additionalProperties: false
 
@@ -128,18 +152,56 @@ examples:
                   <0xf0 0xfb030a00 0x0 0x00000040>;
             reg-names = "torrent_phy", "dptx_phy";
             resets = <&phyrst 0>;
+            reset-names = "torrent_reset";
             clocks = <&ref_clk>;
             clock-names = "refclk";
             #address-cells = <1>;
             #size-cells = <0>;
             phy@0 {
-                      reg = <0>;
-                      resets = <&phyrst 1>, <&phyrst 2>,
-                               <&phyrst 3>, <&phyrst 4>;
-                      #phy-cells = <0>;
-                      cdns,phy-type = <PHY_TYPE_DP>;
-                      cdns,num-lanes = <4>;
-                      cdns,max-bit-rate = <8100>;
+                reg = <0>;
+                resets = <&phyrst 1>, <&phyrst 2>,
+                         <&phyrst 3>, <&phyrst 4>;
+                #phy-cells = <0>;
+                cdns,phy-type = <PHY_TYPE_DP>;
+                cdns,num-lanes = <4>;
+                cdns,max-bit-rate = <8100>;
+            };
+        };
+    };
+  - |
+    #include <dt-bindings/phy/phy.h>
+    #include <dt-bindings/phy/phy-cadence-torrent.h>
+
+    bus {
+        #address-cells = <2>;
+        #size-cells = <2>;
+
+        torrent-phy@f0fb500000 {
+            compatible = "cdns,torrent-phy";
+            reg = <0xf0 0xfb500000 0x0 0x00100000>;
+            reg-names = "torrent_phy";
+            resets = <&phyrst 0>, <&phyrst 1>;
+            reset-names = "torrent_reset", "torrent_apb";
+            clocks = <&ref_clk>;
+            clock-names = "refclk";
+            #address-cells = <1>;
+            #size-cells = <0>;
+            phy@0 {
+                reg = <0>;
+                resets = <&phyrst 2>, <&phyrst 3>;
+                #phy-cells = <0>;
+                cdns,phy-type = <PHY_TYPE_PCIE>;
+                cdns,num-lanes = <2>;
+                cdns,ssc-mode = <TORRENT_SERDES_NO_SSC>;
+            };
+
+            phy@2 {
+                reg = <2>;
+                resets = <&phyrst 4>;
+                #phy-cells = <0>;
+                cdns,phy-type = <PHY_TYPE_SGMII>;
+                cdns,num-lanes = <1>;
+                cdns,ssc-mode = <TORRENT_SERDES_NO_SSC>;
             };
         };
     };

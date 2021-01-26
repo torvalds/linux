@@ -205,15 +205,14 @@ long strncpy_from_kernel_nofault(char *dst, const void *unsafe_addr, long count)
 long copy_from_user_nofault(void *dst, const void __user *src, size_t size)
 {
 	long ret = -EFAULT;
-	mm_segment_t old_fs = get_fs();
+	mm_segment_t old_fs = force_uaccess_begin();
 
-	set_fs(USER_DS);
 	if (access_ok(src, size)) {
 		pagefault_disable();
 		ret = __copy_from_user_inatomic(dst, src, size);
 		pagefault_enable();
 	}
-	set_fs(old_fs);
+	force_uaccess_end(old_fs);
 
 	if (ret)
 		return -EFAULT;
@@ -233,15 +232,14 @@ EXPORT_SYMBOL_GPL(copy_from_user_nofault);
 long copy_to_user_nofault(void __user *dst, const void *src, size_t size)
 {
 	long ret = -EFAULT;
-	mm_segment_t old_fs = get_fs();
+	mm_segment_t old_fs = force_uaccess_begin();
 
-	set_fs(USER_DS);
 	if (access_ok(dst, size)) {
 		pagefault_disable();
 		ret = __copy_to_user_inatomic(dst, src, size);
 		pagefault_enable();
 	}
-	set_fs(old_fs);
+	force_uaccess_end(old_fs);
 
 	if (ret)
 		return -EFAULT;
@@ -270,17 +268,17 @@ EXPORT_SYMBOL_GPL(copy_to_user_nofault);
 long strncpy_from_user_nofault(char *dst, const void __user *unsafe_addr,
 			      long count)
 {
-	mm_segment_t old_fs = get_fs();
+	mm_segment_t old_fs;
 	long ret;
 
 	if (unlikely(count <= 0))
 		return 0;
 
-	set_fs(USER_DS);
+	old_fs = force_uaccess_begin();
 	pagefault_disable();
 	ret = strncpy_from_user(dst, unsafe_addr, count);
 	pagefault_enable();
-	set_fs(old_fs);
+	force_uaccess_end(old_fs);
 
 	if (ret >= count) {
 		ret = count;
@@ -310,14 +308,14 @@ long strncpy_from_user_nofault(char *dst, const void __user *unsafe_addr,
  */
 long strnlen_user_nofault(const void __user *unsafe_addr, long count)
 {
-	mm_segment_t old_fs = get_fs();
+	mm_segment_t old_fs;
 	int ret;
 
-	set_fs(USER_DS);
+	old_fs = force_uaccess_begin();
 	pagefault_disable();
 	ret = strnlen_user(unsafe_addr, count);
 	pagefault_enable();
-	set_fs(old_fs);
+	force_uaccess_end(old_fs);
 
 	return ret;
 }

@@ -10,6 +10,8 @@ maintainers:
   - Dinh Nguyen <dinguyen@kernel.org>
 
 properties:
+  $nodename:
+    const: "/"
   compatible:
     items:
       - enum:

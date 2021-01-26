@@ -445,8 +445,6 @@ static void i915_pmu_event_destroy(struct perf_event *event)
 		container_of(event->pmu, typeof(*i915), pmu.base);
 
 	drm_WARN_ON(&i915->drm, event->parent);
-
-	module_put(THIS_MODULE);
 }
 
 static int
@@ -476,7 +474,7 @@ config_status(struct drm_i915_private *i915, u64 config)
 		if (IS_VALLEYVIEW(i915) || IS_CHERRYVIEW(i915))
 			/* Requires a mutex for sampling! */
 			return -ENODEV;
-		/* Fall-through. */
+		fallthrough;
 	case I915_PMU_REQUESTED_FREQUENCY:
 		if (INTEL_GEN(i915) < 6)
 			return -ENODEV;
@@ -538,10 +536,8 @@ static int i915_pmu_event_init(struct perf_event *event)
 	if (ret)
 		return ret;
 
-	if (!event->parent) {
-		__module_get(THIS_MODULE);
+	if (!event->parent)
 		event->destroy = i915_pmu_event_destroy;
-	}
 
 	return 0;
 }
@@ -1130,6 +1126,7 @@ void i915_pmu_register(struct drm_i915_private *i915)
 	if (!pmu->base.attr_groups)
 		goto err_attr;
 
+	pmu->base.module	= THIS_MODULE;
 	pmu->base.task_ctx_nr	= perf_invalid_context;
 	pmu->base.event_init	= i915_pmu_event_init;
 	pmu->base.add		= i915_pmu_event_add;

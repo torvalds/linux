@@ -110,6 +110,12 @@
 	SR(BLNDV_CONTROL),\
 	HWSEQ_PIXEL_RATE_REG_LIST(CRTC)
 
+#if defined(CONFIG_DRM_AMD_DC_SI)
+#define HWSEQ_DCE6_REG_LIST() \
+	HWSEQ_DCEF_REG_LIST_DCE8(), \
+	HWSEQ_PIXEL_RATE_REG_LIST(CRTC)
+#endif
+
 #define HWSEQ_DCE8_REG_LIST() \
 	HWSEQ_DCEF_REG_LIST_DCE8(), \
 	HWSEQ_BLND_REG_LIST(), \
@@ -488,6 +494,12 @@ struct dce_hwseq_registers {
 	HWS_SF1(blk, PHYPLL_PIXEL_RATE_CNTL, PHYPLL_PIXEL_RATE_SOURCE, mask_sh),\
 	HWS_SF1(blk, PHYPLL_PIXEL_RATE_CNTL, PIXEL_RATE_PLL_SOURCE, mask_sh)
 
+#if defined(CONFIG_DRM_AMD_DC_SI)
+#define HWSEQ_DCE6_MASK_SH_LIST(mask_sh)\
+	.DCFE_CLOCK_ENABLE = CRTC_DCFE_CLOCK_CONTROL__CRTC_DCFE_CLOCK_ENABLE ## mask_sh, \
+	HWSEQ_PIXEL_RATE_MASK_SH_LIST(mask_sh, CRTC0_)
+#endif
+
 #define HWSEQ_DCE8_MASK_SH_LIST(mask_sh)\
 	.DCFE_CLOCK_ENABLE = CRTC_DCFE_CLOCK_CONTROL__CRTC_DCFE_CLOCK_ENABLE ## mask_sh, \
 	HWS_SF(BLND_, V_UPDATE_LOCK, BLND_DCP_GRPH_V_UPDATE_LOCK, mask_sh),\
@@ -835,6 +847,12 @@ void dce_pipe_control_lock(struct dc *dc,
 
 void dce_set_blender_mode(struct dce_hwseq *hws,
 	unsigned int blnd_inst, enum blnd_mode mode);
+
+#if defined(CONFIG_DRM_AMD_DC_SI)
+void dce60_pipe_control_lock(struct dc *dc,
+		struct pipe_ctx *pipe,
+		bool lock);
+#endif
 
 void dce_clock_gating_power_up(struct dce_hwseq *hws,
 		bool enable);

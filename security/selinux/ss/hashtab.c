@@ -122,6 +122,59 @@ void hashtab_stat(struct hashtab *h, struct hashtab_info *info)
 	info->max_chain_len = max_chain_len;
 }
 
+int hashtab_duplicate(struct hashtab *new, struct hashtab *orig,
+		int (*copy)(struct hashtab_node *new,
+			struct hashtab_node *orig, void *args),
+		int (*destroy)(void *k, void *d, void *args),
+		void *args)
+{
+	struct hashtab_node *cur, *tmp, *tail;
+	int i, rc;
+
+	memset(new, 0, sizeof(*new));
+
+	new->htable = kcalloc(orig->size, sizeof(*new->htable), GFP_KERNEL);
+	if (!new->htable)
+		return -ENOMEM;
+
+	new->size = orig->size;
+
+	for (i = 0; i < orig->size; i++) {
+		tail = NULL;
+		for (cur = orig->htable[i]; cur; cur = cur->next) {
+			tmp = kmem_cache_zalloc(hashtab_node_cachep,
+						GFP_KERNEL);
+			if (!tmp)
+				goto error;
+			rc = copy(tmp, cur, args);
+			if (rc) {
+				kmem_cache_free(hashtab_node_cachep, tmp);
+				goto error;
+			}
+			tmp->next = NULL;
+			if (!tail)
+				new->htable[i] = tmp;
+			else
+				tail->next = tmp;
+			tail = tmp;
+			new->nel++;
+		}
+	}
+
+	return 0;
+
+ error:
+	for (i = 0; i < new->size; i++) {
+		for (cur = new->htable[i]; cur; cur = tmp) {
+			tmp = cur->next;
+			destroy(cur->key, cur->datum, args);
+			kmem_cache_free(hashtab_node_cachep, cur);
+		}
+	}
+	kmem_cache_free(hashtab_node_cachep, new);
+	return -ENOMEM;
+}
+
 void __init hashtab_cache_init(void)
 {
 		hashtab_node_cachep = kmem_cache_create("hashtab_node",

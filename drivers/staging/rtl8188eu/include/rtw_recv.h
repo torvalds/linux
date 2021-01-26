@@ -10,11 +10,10 @@
 #include <osdep_service.h>
 #include <drv_types.h>
 
-
 #define NR_RECVFRAME 256
 
 #define RXFRAME_ALIGN	8
-#define RXFRAME_ALIGN_SZ	(1<<RXFRAME_ALIGN)
+#define RXFRAME_ALIGN_SZ	(1 << RXFRAME_ALIGN)
 
 #define MAX_RXFRAME_CNT	512
 #define MAX_RX_NUMBLKS		(32)
@@ -63,7 +62,9 @@ struct signal_stat {
 	u32	total_num;		/* num of valid elements */
 	u32	total_val;		/* sum of valid elements */
 };
+
 #define MAX_PATH_NUM_92CS		3
+
 struct phy_info {
 	u8	RxPWDBAll;
 	u8	SignalQuality;	 /*  in 0-100 index. */
@@ -126,7 +127,6 @@ struct rx_pkt_attrib {
 
 	struct phy_info phy_info;
 };
-
 
 /* These definition is used for Rx packet reordering. */
 #define SN_LESS(a, b)		(((a - b) & 0x800) != 0)
@@ -253,7 +253,6 @@ static inline s32 translate_percentage_to_dbm(u32 sig_stren_index)
 
 	return power;
 }
-
 
 struct sta_info;
 

@@ -310,7 +310,7 @@ static void isci_remote_device_not_ready(struct isci_host *ihost,
 		/* Kill all outstanding requests for the device. */
 		sci_remote_device_terminate_requests(idev);
 
-		/* Fall through - into the default case... */
+		fallthrough;	/* into the default case */
 	default:
 		clear_bit(IDEV_IO_READY, &idev->flags);
 		break;
@@ -593,7 +593,7 @@ enum sci_status sci_remote_device_event_handler(struct isci_remote_device *idev,
 
 			break;
 		}
-		/* fall through - and treat as unhandled... */
+		fallthrough;	/* and treat as unhandled */
 	default:
 		dev_dbg(scirdev_to_dev(idev),
 			"%s: device: %p event code: %x: %s\n",

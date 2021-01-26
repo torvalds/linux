@@ -1,0 +1,59 @@
+# SPDX-License-Identifier: (GPL-2.0 OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/iio/adc/cosmic,10001-adc.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: Cosmic Circuits CC-10001 ADC
+
+maintainers:
+  - Jonathan Cameron <jic23@kernel.org>
+
+description:
+  Cosmic Circuits 10001 10-bit ADC device.
+
+properties:
+  compatible:
+    const: cosmic,10001-adc
+
+  reg:
+    maxItems: 1
+
+  adc-reserved-channels:
+    $ref: /schemas/types.yaml#/definitions/uint32
+    description:
+       Bitmask of reserved channels, i.e. channels that cannot be
+       used by the OS.
+
+  clocks:
+    maxItems: 1
+
+  clock-names:
+    const: adc
+
+  vref-supply: true
+
+  "#io-channel-cells":
+    const: 1
+
+
+required:
+  - compatible
+  - reg
+  - clocks
+  - clock-names
+  - vref-supply
+
+additionalProperties: false
+
+examples:
+  - |
+    adc@18101600 {
+        compatible = "cosmic,10001-adc";
+        reg = <0x18101600 0x24>;
+        adc-reserved-channels = <0x2>;
+        clocks = <&adc_clk>;
+        clock-names = "adc";
+        vref-supply = <&reg_1v8>;
+    };
+...

@@ -59,7 +59,7 @@ static int icl_nhi_force_power(struct tb_nhi *nhi, bool power)
 	pci_write_config_dword(nhi->pdev, VS_CAP_22, vs_cap);
 
 	if (power) {
-		unsigned int retries = 10;
+		unsigned int retries = 350;
 		u32 val;
 
 		/* Wait until the firmware tells it is up and running */
@@ -67,7 +67,7 @@ static int icl_nhi_force_power(struct tb_nhi *nhi, bool power)
 			pci_read_config_dword(nhi->pdev, VS_CAP_9, &val);
 			if (val & VS_CAP_9_FW_READY)
 				return 0;
-			msleep(250);
+			usleep_range(3000, 3100);
 		} while (--retries);
 
 		return -ETIMEDOUT;
@@ -97,7 +97,7 @@ static int icl_nhi_lc_mailbox_cmd_complete(struct tb_nhi *nhi, int timeout)
 		pci_read_config_dword(nhi->pdev, VS_CAP_18, &data);
 		if (data & VS_CAP_18_DONE)
 			goto clear;
-		msleep(100);
+		usleep_range(1000, 1100);
 	} while (time_before(jiffies, end));
 
 	return -ETIMEDOUT;
@@ -121,30 +121,37 @@ static void icl_nhi_set_ltr(struct tb_nhi *nhi)
 
 static int icl_nhi_suspend(struct tb_nhi *nhi)
 {
+	struct tb *tb = pci_get_drvdata(nhi->pdev);
 	int ret;
 
 	if (icl_nhi_is_device_connected(nhi))
 		return 0;
 
-	/*
-	 * If there is no device connected we need to perform both: a
-	 * handshake through LC mailbox and force power down before
-	 * entering D3.
-	 */
-	icl_nhi_lc_mailbox_cmd(nhi, ICL_LC_PREPARE_FOR_RESET);
-	ret = icl_nhi_lc_mailbox_cmd_complete(nhi, ICL_LC_MAILBOX_TIMEOUT);
-	if (ret)
-		return ret;
+	if (tb_switch_is_icm(tb->root_switch)) {
+		/*
+		 * If there is no device connected we need to perform
+		 * both: a handshake through LC mailbox and force power
+		 * down before entering D3.
+		 */
+		icl_nhi_lc_mailbox_cmd(nhi, ICL_LC_PREPARE_FOR_RESET);
+		ret = icl_nhi_lc_mailbox_cmd_complete(nhi, ICL_LC_MAILBOX_TIMEOUT);
+		if (ret)
+			return ret;
+	}
 
 	return icl_nhi_force_power(nhi, false);
 }
 
 static int icl_nhi_suspend_noirq(struct tb_nhi *nhi, bool wakeup)
 {
+	struct tb *tb = pci_get_drvdata(nhi->pdev);
 	enum icl_lc_mailbox_cmd cmd;
 
 	if (!pm_suspend_via_firmware())
 		return icl_nhi_suspend(nhi);
+
+	if (!tb_switch_is_icm(tb->root_switch))
+		return 0;
 
 	cmd = wakeup ? ICL_LC_GO2SX : ICL_LC_GO2SX_NO_WAKE;
 	icl_nhi_lc_mailbox_cmd(nhi, cmd);

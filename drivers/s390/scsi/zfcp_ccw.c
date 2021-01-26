@@ -124,13 +124,12 @@ static void zfcp_ccw_remove(struct ccw_device *cdev)
 		return;
 
 	write_lock_irq(&adapter->port_list_lock);
-	list_for_each_entry_safe(port, p, &adapter->port_list, list) {
+	list_for_each_entry(port, &adapter->port_list, list) {
 		write_lock(&port->unit_list_lock);
-		list_for_each_entry_safe(unit, u, &port->unit_list, list)
-			list_move(&unit->list, &unit_remove_lh);
+		list_splice_init(&port->unit_list, &unit_remove_lh);
 		write_unlock(&port->unit_list_lock);
-		list_move(&port->list, &port_remove_lh);
 	}
+	list_splice_init(&adapter->port_list, &port_remove_lh);
 	write_unlock_irq(&adapter->port_list_lock);
 	zfcp_ccw_adapter_put(adapter); /* put from zfcp_ccw_adapter_by_cdev */
 

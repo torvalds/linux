@@ -17,6 +17,7 @@
 #include <linux/phy.h>
 #include <linux/phy/phy.h>
 #include <linux/delay.h>
+#include <linux/pinctrl/consumer.h>
 #include <linux/pm_runtime.h>
 #include <linux/gpio/consumer.h>
 #include <linux/of.h>
@@ -1032,19 +1033,34 @@ static int cpsw_ndo_vlan_rx_kill_vid(struct net_device *ndev,
 		return ret;
 	}
 
+	/* reset the return code as pm_runtime_get_sync() can return
+	 * non zero values as well.
+	 */
+	ret = 0;
 	for (i = 0; i < cpsw->data.slaves; i++) {
 		if (cpsw->slaves[i].ndev &&
-		    vid == cpsw->slaves[i].port_vlan)
+		    vid == cpsw->slaves[i].port_vlan) {
+			ret = -EINVAL;
 			goto err;
+		}
 	}
 
 	dev_dbg(priv->dev, "removing vlanid %d from vlan filter\n", vid);
-	cpsw_ale_del_vlan(cpsw->ale, vid, 0);
-	cpsw_ale_del_ucast(cpsw->ale, priv->mac_addr,
-			   HOST_PORT_NUM, ALE_VLAN, vid);
-	cpsw_ale_del_mcast(cpsw->ale, priv->ndev->broadcast,
-			   0, ALE_VLAN, vid);
-	cpsw_ale_flush_multicast(cpsw->ale, 0, vid);
+	ret = cpsw_ale_del_vlan(cpsw->ale, vid, 0);
+	if (ret)
+		dev_err(priv->dev, "cpsw_ale_del_vlan() failed: ret %d\n", ret);
+	ret = cpsw_ale_del_ucast(cpsw->ale, priv->mac_addr,
+				 HOST_PORT_NUM, ALE_VLAN, vid);
+	if (ret)
+		dev_err(priv->dev, "cpsw_ale_del_ucast() failed: ret %d\n",
+			ret);
+	ret = cpsw_ale_del_mcast(cpsw->ale, priv->ndev->broadcast,
+				 0, ALE_VLAN, vid);
+	if (ret)
+		dev_err(priv->dev, "cpsw_ale_del_mcast failed. ret %d\n",
+			ret);
+	cpsw_ale_flush_multicast(cpsw->ale, ALE_PORT_HOST, vid);
+	ret = 0;
 err:
 	pm_runtime_put(cpsw->dev);
 	return ret;
@@ -2055,9 +2071,61 @@ static int cpsw_remove(struct platform_device *pdev)
 	return 0;
 }
 
+static int __maybe_unused cpsw_suspend(struct device *dev)
+{
+	struct cpsw_common *cpsw = dev_get_drvdata(dev);
+	int i;
+
+	rtnl_lock();
+
+	for (i = 0; i < cpsw->data.slaves; i++) {
+		struct net_device *ndev = cpsw->slaves[i].ndev;
+
+		if (!(ndev && netif_running(ndev)))
+			continue;
+
+		cpsw_ndo_stop(ndev);
+	}
+
+	rtnl_unlock();
+
+	/* Select sleep pin state */
+	pinctrl_pm_select_sleep_state(dev);
+
+	return 0;
+}
+
+static int __maybe_unused cpsw_resume(struct device *dev)
+{
+	struct cpsw_common *cpsw = dev_get_drvdata(dev);
+	int i;
+
+	/* Select default pin state */
+	pinctrl_pm_select_default_state(dev);
+
+	/* shut up ASSERT_RTNL() warning in netif_set_real_num_tx/rx_queues */
+	rtnl_lock();
+
+	for (i = 0; i < cpsw->data.slaves; i++) {
+		struct net_device *ndev = cpsw->slaves[i].ndev;
+
+		if (!(ndev && netif_running(ndev)))
+			continue;
+
+		cpsw_ndo_open(ndev);
+	}
+
+	rtnl_unlock();
+
+	return 0;
+}
+
+static SIMPLE_DEV_PM_OPS(cpsw_pm_ops, cpsw_suspend, cpsw_resume);
+
 static struct platform_driver cpsw_driver = {
 	.driver = {
 		.name	 = "cpsw-switch",
+		.pm	 = &cpsw_pm_ops,
 		.of_match_table = cpsw_of_mtable,
 	},
 	.probe = cpsw_probe,

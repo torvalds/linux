@@ -1904,7 +1904,7 @@ static struct platform_driver omap_dma_driver = {
 	.remove	= omap_dma_remove,
 	.driver = {
 		.name = "omap-dma-engine",
-		.of_match_table = of_match_ptr(omap_dma_match),
+		.of_match_table = omap_dma_match,
 	},
 };
 

@@ -9,6 +9,7 @@
 
 #include <asm/page.h>
 #include <asm/memory.h>
+#include <asm/mmu.h>
 #include <asm/cpufeature.h>
 
 /*
@@ -134,12 +135,12 @@ int create_hyp_exec_mappings(phys_addr_t phys_addr, size_t size,
 void free_hyp_pgds(void);
 
 void stage2_unmap_vm(struct kvm *kvm);
-int kvm_alloc_stage2_pgd(struct kvm *kvm);
-void kvm_free_stage2_pgd(struct kvm *kvm);
+int kvm_init_stage2_mmu(struct kvm *kvm, struct kvm_s2_mmu *mmu);
+void kvm_free_stage2_pgd(struct kvm_s2_mmu *mmu);
 int kvm_phys_addr_ioremap(struct kvm *kvm, phys_addr_t guest_ipa,
 			  phys_addr_t pa, unsigned long size, bool writable);
 
-int kvm_handle_guest_abort(struct kvm_vcpu *vcpu, struct kvm_run *run);
+int kvm_handle_guest_abort(struct kvm_vcpu *vcpu);
 
 void kvm_mmu_free_memory_caches(struct kvm_vcpu *vcpu);
 
@@ -430,19 +431,17 @@ static inline int kvm_write_guest_lock(struct kvm *kvm, gpa_t gpa,
 	return ret;
 }
 
-#ifdef CONFIG_KVM_INDIRECT_VECTORS
 /*
  * EL2 vectors can be mapped and rerouted in a number of ways,
  * depending on the kernel configuration and CPU present:
  *
- * - If the CPU has the ARM64_HARDEN_BRANCH_PREDICTOR cap, the
- *   hardening sequence is placed in one of the vector slots, which is
- *   executed before jumping to the real vectors.
+ * - If the CPU is affected by Spectre-v2, the hardening sequence is
+ *   placed in one of the vector slots, which is executed before jumping
+ *   to the real vectors.
  *
- * - If the CPU has both the ARM64_HARDEN_EL2_VECTORS cap and the
- *   ARM64_HARDEN_BRANCH_PREDICTOR cap, the slot containing the
- *   hardening sequence is mapped next to the idmap page, and executed
- *   before jumping to the real vectors.
+ * - If the CPU also has the ARM64_HARDEN_EL2_VECTORS cap, the slot
+ *   containing the hardening sequence is mapped next to the idmap page,
+ *   and executed before jumping to the real vectors.
  *
  * - If the CPU only has the ARM64_HARDEN_EL2_VECTORS cap, then an
  *   empty slot is selected, mapped next to the idmap page, and
@@ -452,19 +451,16 @@ static inline int kvm_write_guest_lock(struct kvm *kvm, gpa_t gpa,
  * VHE, as we don't have hypervisor-specific mappings. If the system
  * is VHE and yet selects this capability, it will be ignored.
  */
-#include <asm/mmu.h>
-
 extern void *__kvm_bp_vect_base;
 extern int __kvm_harden_el2_vector_slot;
 
-/*  This is called on both VHE and !VHE systems */
 static inline void *kvm_get_hyp_vector(void)
 {
 	struct bp_hardening_data *data = arm64_get_bp_hardening_data();
 	void *vect = kern_hyp_va(kvm_ksym_ref(__kvm_hyp_vector));
 	int slot = -1;
 
-	if (cpus_have_const_cap(ARM64_HARDEN_BRANCH_PREDICTOR) && data->fn) {
+	if (cpus_have_const_cap(ARM64_SPECTRE_V2) && data->fn) {
 		vect = kern_hyp_va(kvm_ksym_ref(__bp_harden_hyp_vecs));
 		slot = data->hyp_vectors_slot;
 	}
@@ -480,76 +476,6 @@ static inline void *kvm_get_hyp_vector(void)
 
 	return vect;
 }
-
-/*  This is only called on a !VHE system */
-static inline int kvm_map_vectors(void)
-{
-	/*
-	 * HBP  = ARM64_HARDEN_BRANCH_PREDICTOR
-	 * HEL2 = ARM64_HARDEN_EL2_VECTORS
-	 *
-	 * !HBP + !HEL2 -> use direct vectors
-	 *  HBP + !HEL2 -> use hardened vectors in place
-	 * !HBP +  HEL2 -> allocate one vector slot and use exec mapping
-	 *  HBP +  HEL2 -> use hardened vertors and use exec mapping
-	 */
-	if (cpus_have_const_cap(ARM64_HARDEN_BRANCH_PREDICTOR)) {
-		__kvm_bp_vect_base = kvm_ksym_ref(__bp_harden_hyp_vecs);
-		__kvm_bp_vect_base = kern_hyp_va(__kvm_bp_vect_base);
-	}
-
-	if (cpus_have_const_cap(ARM64_HARDEN_EL2_VECTORS)) {
-		phys_addr_t vect_pa = __pa_symbol(__bp_harden_hyp_vecs);
-		unsigned long size = __BP_HARDEN_HYP_VECS_SZ;
-
-		/*
-		 * Always allocate a spare vector slot, as we don't
-		 * know yet which CPUs have a BP hardening slot that
-		 * we can reuse.
-		 */
-		__kvm_harden_el2_vector_slot = atomic_inc_return(&arm64_el2_vector_last_slot);
-		BUG_ON(__kvm_harden_el2_vector_slot >= BP_HARDEN_EL2_SLOTS);
-		return create_hyp_exec_mappings(vect_pa, size,
-						&__kvm_bp_vect_base);
-	}
-
-	return 0;
-}
-#else
-static inline void *kvm_get_hyp_vector(void)
-{
-	return kern_hyp_va(kvm_ksym_ref(__kvm_hyp_vector));
-}
-
-static inline int kvm_map_vectors(void)
-{
-	return 0;
-}
-#endif
-
-#ifdef CONFIG_ARM64_SSBD
-DECLARE_PER_CPU_READ_MOSTLY(u64, arm64_ssbd_callback_required);
-
-static inline int hyp_map_aux_data(void)
-{
-	int cpu, err;
-
-	for_each_possible_cpu(cpu) {
-		u64 *ptr;
-
-		ptr = per_cpu_ptr(&arm64_ssbd_callback_required, cpu);
-		err = create_hyp_mappings(ptr, ptr + 1, PAGE_HYP);
-		if (err)
-			return err;
-	}
-	return 0;
-}
-#else
-static inline int hyp_map_aux_data(void)
-{
-	return 0;
-}
-#endif
 
 #define kvm_phys_to_vttbr(addr)		phys_to_ttbr(addr)
 
@@ -577,13 +503,13 @@ static inline u64 kvm_vttbr_baddr_mask(struct kvm *kvm)
 	return vttbr_baddr_mask(kvm_phys_shift(kvm), kvm_stage2_levels(kvm));
 }
 
-static __always_inline u64 kvm_get_vttbr(struct kvm *kvm)
+static __always_inline u64 kvm_get_vttbr(struct kvm_s2_mmu *mmu)
 {
-	struct kvm_vmid *vmid = &kvm->arch.vmid;
+	struct kvm_vmid *vmid = &mmu->vmid;
 	u64 vmid_field, baddr;
 	u64 cnp = system_supports_cnp() ? VTTBR_CNP_BIT : 0;
 
-	baddr = kvm->arch.pgd_phys;
+	baddr = mmu->pgd_phys;
 	vmid_field = (u64)vmid->vmid << VTTBR_VMID_SHIFT;
 	return kvm_phys_to_vttbr(baddr) | vmid_field | cnp;
 }
@@ -592,10 +518,10 @@ static __always_inline u64 kvm_get_vttbr(struct kvm *kvm)
  * Must be called from hyp code running at EL2 with an updated VTTBR
  * and interrupts disabled.
  */
-static __always_inline void __load_guest_stage2(struct kvm *kvm)
+static __always_inline void __load_guest_stage2(struct kvm_s2_mmu *mmu)
 {
-	write_sysreg(kvm->arch.vtcr, vtcr_el2);
-	write_sysreg(kvm_get_vttbr(kvm), vttbr_el2);
+	write_sysreg(kern_hyp_va(mmu->kvm)->arch.vtcr, vtcr_el2);
+	write_sysreg(kvm_get_vttbr(mmu), vttbr_el2);
 
 	/*
 	 * ARM errata 1165522 and 1530923 require the actual execution of the

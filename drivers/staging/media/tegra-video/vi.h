@@ -14,6 +14,7 @@
 #include <linux/wait.h>
 
 #include <media/media-entity.h>
+#include <media/v4l2-async.h>
 #include <media/v4l2-ctrls.h>
 #include <media/v4l2-device.h>
 #include <media/v4l2-dev.h>
@@ -93,6 +94,19 @@ struct tegra_vi {
 };
 
 /**
+ * struct tegra_vi_graph_entity - Entity in the video graph
+ *
+ * @asd: subdev asynchronous registration information
+ * @entity: media entity from the corresponding V4L2 subdev
+ * @subdev: V4L2 subdev
+ */
+struct tegra_vi_graph_entity {
+	struct v4l2_async_subdev asd;
+	struct media_entity *entity;
+	struct v4l2_subdev *subdev;
+};
+
+/**
  * struct tegra_vi_channel - Tegra video channel
  *
  * @list: list head for this entry
@@ -138,10 +152,13 @@ struct tegra_vi {
  * @done_lock: protects the capture done queue list
  *
  * @portno: VI channel port number
+ * @of_node: device node of VI channel
  *
  * @ctrl_handler: V4L2 control handler of this video channel
+ * @fmts_bitmap: a bitmap for supported formats matching v4l2 subdev formats
  * @tpg_fmts_bitmap: a bitmap for supported TPG formats
  * @pg_mode: test pattern generator mode (disabled/direct/patch)
+ * @notifier: V4L2 asynchronous subdevs notifier
  */
 struct tegra_vi_channel {
 	struct list_head list;
@@ -174,10 +191,14 @@ struct tegra_vi_channel {
 	spinlock_t done_lock;
 
 	unsigned char portno;
+	struct device_node *of_node;
 
 	struct v4l2_ctrl_handler ctrl_handler;
+	DECLARE_BITMAP(fmts_bitmap, MAX_FORMAT_NUM);
 	DECLARE_BITMAP(tpg_fmts_bitmap, MAX_FORMAT_NUM);
 	enum tegra_vi_pg_mode pg_mode;
+
+	struct v4l2_async_notifier notifier;
 };
 
 /**
@@ -249,7 +270,9 @@ extern const struct tegra_vi_soc tegra210_vi_soc;
 #endif
 
 struct v4l2_subdev *
-tegra_channel_get_remote_subdev(struct tegra_vi_channel *chan);
+tegra_channel_get_remote_csi_subdev(struct tegra_vi_channel *chan);
+struct v4l2_subdev *
+tegra_channel_get_remote_source_subdev(struct tegra_vi_channel *chan);
 int tegra_channel_set_stream(struct tegra_vi_channel *chan, bool on);
 void tegra_channel_release_buffers(struct tegra_vi_channel *chan,
 				   enum vb2_buffer_state state);

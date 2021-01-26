@@ -145,7 +145,7 @@ static int metric_show(struct seq_file *s, void *p)
 	struct ceph_fs_client *fsc = s->private;
 	struct ceph_mds_client *mdsc = fsc->mdsc;
 	struct ceph_client_metric *m = &mdsc->metric;
-	int i, nr_caps = 0;
+	int nr_caps = 0;
 	s64 total, sum, avg, min, max, sq;
 
 	seq_printf(s, "item          total       avg_lat(us)     min_lat(us)     max_lat(us)     stdev(us)\n");
@@ -190,17 +190,7 @@ static int metric_show(struct seq_file *s, void *p)
 		   percpu_counter_sum(&m->d_lease_mis),
 		   percpu_counter_sum(&m->d_lease_hit));
 
-	mutex_lock(&mdsc->mutex);
-	for (i = 0; i < mdsc->max_sessions; i++) {
-		struct ceph_mds_session *s;
-
-		s = __ceph_lookup_mds_session(mdsc, i);
-		if (!s)
-			continue;
-		nr_caps += s->s_nr_caps;
-		ceph_put_mds_session(s);
-	}
-	mutex_unlock(&mdsc->mutex);
+	nr_caps = atomic64_read(&m->total_caps);
 	seq_printf(s, "%-14s%-16d%-16lld%lld\n", "caps", nr_caps,
 		   percpu_counter_sum(&m->i_caps_mis),
 		   percpu_counter_sum(&m->i_caps_hit));
@@ -212,7 +202,7 @@ static int caps_show_cb(struct inode *inode, struct ceph_cap *cap, void *p)
 {
 	struct seq_file *s = p;
 
-	seq_printf(s, "0x%-17lx%-17s%-17s\n", inode->i_ino,
+	seq_printf(s, "0x%-17llx%-17s%-17s\n", ceph_ino(inode),
 		   ceph_cap_string(cap->issued),
 		   ceph_cap_string(cap->implemented));
 	return 0;
@@ -257,7 +247,7 @@ static int caps_show(struct seq_file *s, void *p)
 
 	spin_lock(&mdsc->caps_list_lock);
 	list_for_each_entry(cw, &mdsc->cap_wait_list, list) {
-		seq_printf(s, "%-13d0x%-17lx%-17s%-17s\n", cw->tgid, cw->ino,
+		seq_printf(s, "%-13d0x%-17llx%-17s%-17s\n", cw->tgid, cw->ino,
 				ceph_cap_string(cw->need),
 				ceph_cap_string(cw->want));
 	}
@@ -272,7 +262,7 @@ static int mds_sessions_show(struct seq_file *s, void *ptr)
 	struct ceph_mds_client *mdsc = fsc->mdsc;
 	struct ceph_auth_client *ac = fsc->client->monc.auth;
 	struct ceph_options *opt = fsc->client->options;
-	int mds = -1;
+	int mds;
 
 	mutex_lock(&mdsc->mutex);
 

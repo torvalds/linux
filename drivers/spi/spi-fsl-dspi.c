@@ -53,7 +53,6 @@
 
 #define SPI_SR				0x2c
 #define SPI_SR_TCFQF			BIT(31)
-#define SPI_SR_EOQF			BIT(28)
 #define SPI_SR_TFUF			BIT(27)
 #define SPI_SR_TFFF			BIT(25)
 #define SPI_SR_CMDTCF			BIT(23)
@@ -62,7 +61,7 @@
 #define SPI_SR_TFIWF			BIT(18)
 #define SPI_SR_RFDF			BIT(17)
 #define SPI_SR_CMDFFF			BIT(16)
-#define SPI_SR_CLEAR			(SPI_SR_TCFQF | SPI_SR_EOQF | \
+#define SPI_SR_CLEAR			(SPI_SR_TCFQF | \
 					SPI_SR_TFUF | SPI_SR_TFFF | \
 					SPI_SR_CMDTCF | SPI_SR_SPEF | \
 					SPI_SR_RFOF | SPI_SR_TFIWF | \
@@ -75,7 +74,6 @@
 
 #define SPI_RSER			0x30
 #define SPI_RSER_TCFQE			BIT(31)
-#define SPI_RSER_EOQFE			BIT(28)
 #define SPI_RSER_CMDTCFE		BIT(23)
 
 #define SPI_PUSHR			0x34
@@ -114,7 +112,6 @@ struct chip_data {
 };
 
 enum dspi_trans_mode {
-	DSPI_EOQ_MODE = 0,
 	DSPI_XSPI_MODE,
 	DSPI_DMA_MODE,
 };
@@ -174,22 +171,22 @@ static const struct fsl_dspi_devtype_data devtype_data[] = {
 		.fifo_size		= 16,
 	},
 	[LS2080A] = {
-		.trans_mode		= DSPI_DMA_MODE,
+		.trans_mode		= DSPI_XSPI_MODE,
 		.max_clock_factor	= 8,
 		.fifo_size		= 4,
 	},
 	[LS2085A] = {
-		.trans_mode		= DSPI_DMA_MODE,
+		.trans_mode		= DSPI_XSPI_MODE,
 		.max_clock_factor	= 8,
 		.fifo_size		= 4,
 	},
 	[LX2160A] = {
-		.trans_mode		= DSPI_DMA_MODE,
+		.trans_mode		= DSPI_XSPI_MODE,
 		.max_clock_factor	= 8,
 		.fifo_size		= 4,
 	},
 	[MCF5441X] = {
-		.trans_mode		= DSPI_EOQ_MODE,
+		.trans_mode		= DSPI_DMA_MODE,
 		.max_clock_factor	= 8,
 		.fifo_size		= 16,
 	},
@@ -671,11 +668,6 @@ static void ns_delay_scale(char *psc, char *sc, int delay_ns,
 	}
 }
 
-static void dspi_pushr_write(struct fsl_dspi *dspi)
-{
-	regmap_write(dspi->regmap, SPI_PUSHR, dspi_pop_tx_pushr(dspi));
-}
-
 static void dspi_pushr_cmd_write(struct fsl_dspi *dspi, u16 cmd)
 {
 	/*
@@ -732,21 +724,6 @@ static void dspi_xspi_fifo_write(struct fsl_dspi *dspi, int num_words)
 		dspi_pushr_txdata_write(dspi, data & 0xFFFF);
 		if (dspi->oper_bits_per_word > 16)
 			dspi_pushr_txdata_write(dspi, data >> 16);
-	}
-}
-
-static void dspi_eoq_fifo_write(struct fsl_dspi *dspi, int num_words)
-{
-	u16 xfer_cmd = dspi->tx_cmd;
-
-	/* Fill TX FIFO with as many transfers as possible */
-	while (num_words--) {
-		dspi->tx_cmd = xfer_cmd;
-		/* Request EOQF for last transfer in FIFO */
-		if (num_words == 0)
-			dspi->tx_cmd |= SPI_PUSHR_CMD_EOQ;
-		/* Write combined TX FIFO and CMD FIFO entry */
-		dspi_pushr_write(dspi);
 	}
 }
 
@@ -818,7 +795,7 @@ no_accel:
 	dspi->oper_word_size = DIV_ROUND_UP(dspi->oper_bits_per_word, 8);
 
 	/*
-	 * Update CTAR here (code is common for EOQ, XSPI and DMA modes).
+	 * Update CTAR here (code is common for XSPI and DMA modes).
 	 * We will update CTARE in the portion specific to XSPI, when we
 	 * also know the preload value (DTCP).
 	 */
@@ -862,10 +839,7 @@ static void dspi_fifo_write(struct fsl_dspi *dspi)
 
 	spi_take_timestamp_pre(dspi->ctlr, xfer, dspi->progress, !dspi->irq);
 
-	if (dspi->devtype_data->trans_mode == DSPI_EOQ_MODE)
-		dspi_eoq_fifo_write(dspi, num_words);
-	else
-		dspi_xspi_fifo_write(dspi, num_words);
+	dspi_xspi_fifo_write(dspi, num_words);
 	/*
 	 * Everything after this point is in a potential race with the next
 	 * interrupt, so we must never use dspi->words_in_flight again since it
@@ -898,7 +872,7 @@ static int dspi_poll(struct fsl_dspi *dspi)
 		regmap_read(dspi->regmap, SPI_SR, &spi_sr);
 		regmap_write(dspi->regmap, SPI_SR, spi_sr);
 
-		if (spi_sr & (SPI_SR_EOQF | SPI_SR_CMDTCF))
+		if (spi_sr & SPI_SR_CMDTCF)
 			break;
 	} while (--tries);
 
@@ -916,7 +890,7 @@ static irqreturn_t dspi_interrupt(int irq, void *dev_id)
 	regmap_read(dspi->regmap, SPI_SR, &spi_sr);
 	regmap_write(dspi->regmap, SPI_SR, spi_sr);
 
-	if (!(spi_sr & (SPI_SR_EOQF | SPI_SR_CMDTCF)))
+	if (!(spi_sr & SPI_SR_CMDTCF))
 		return IRQ_NONE;
 
 	if (dspi_rxtx(dspi) == 0)
@@ -1204,9 +1178,6 @@ static int dspi_init(struct fsl_dspi *dspi)
 	regmap_write(dspi->regmap, SPI_SR, SPI_SR_CLEAR);
 
 	switch (dspi->devtype_data->trans_mode) {
-	case DSPI_EOQ_MODE:
-		regmap_write(dspi->regmap, SPI_RSER, SPI_RSER_EOQFE);
-		break;
 	case DSPI_XSPI_MODE:
 		regmap_write(dspi->regmap, SPI_RSER, SPI_RSER_CMDTCFE);
 		break;
@@ -1245,22 +1216,6 @@ static int dspi_slave_abort(struct spi_master *master)
 	return 0;
 }
 
-/*
- * EOQ mode will inevitably deassert its PCS signal on last word in a queue
- * (hardware limitation), so we need to inform the spi_device that larger
- * buffers than the FIFO size are going to have the chip select randomly
- * toggling, so it has a chance to adapt its message sizes.
- */
-static size_t dspi_max_message_size(struct spi_device *spi)
-{
-	struct fsl_dspi *dspi = spi_controller_get_devdata(spi->controller);
-
-	if (dspi->devtype_data->trans_mode == DSPI_EOQ_MODE)
-		return dspi->devtype_data->fifo_size;
-
-	return SIZE_MAX;
-}
-
 static int dspi_probe(struct platform_device *pdev)
 {
 	struct device_node *np = pdev->dev.of_node;
@@ -1273,17 +1228,22 @@ static int dspi_probe(struct platform_device *pdev)
 	void __iomem *base;
 	bool big_endian;
 
-	ctlr = spi_alloc_master(&pdev->dev, sizeof(struct fsl_dspi));
+	dspi = devm_kzalloc(&pdev->dev, sizeof(*dspi), GFP_KERNEL);
+	if (!dspi)
+		return -ENOMEM;
+
+	ctlr = spi_alloc_master(&pdev->dev, 0);
 	if (!ctlr)
 		return -ENOMEM;
 
-	dspi = spi_controller_get_devdata(ctlr);
+	spi_controller_set_devdata(ctlr, dspi);
+	platform_set_drvdata(pdev, dspi);
+
 	dspi->pdev = pdev;
 	dspi->ctlr = ctlr;
 
 	ctlr->setup = dspi_setup;
 	ctlr->transfer_one_message = dspi_transfer_one_message;
-	ctlr->max_message_size = dspi_max_message_size;
 	ctlr->dev.of_node = pdev->dev.of_node;
 
 	ctlr->cleanup = dspi_cleanup;
@@ -1414,8 +1374,6 @@ poll_mode:
 	if (dspi->devtype_data->trans_mode != DSPI_DMA_MODE)
 		ctlr->ptp_sts_supported = true;
 
-	platform_set_drvdata(pdev, ctlr);
-
 	ret = spi_register_controller(ctlr);
 	if (ret != 0) {
 		dev_err(&pdev->dev, "Problem registering DSPI ctlr\n");
@@ -1437,8 +1395,7 @@ out_ctlr_put:
 
 static int dspi_remove(struct platform_device *pdev)
 {
-	struct spi_controller *ctlr = platform_get_drvdata(pdev);
-	struct fsl_dspi *dspi = spi_controller_get_devdata(ctlr);
+	struct fsl_dspi *dspi = platform_get_drvdata(pdev);
 
 	/* Disconnect from the SPI framework */
 	spi_unregister_controller(dspi->ctlr);

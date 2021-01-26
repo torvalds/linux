@@ -127,7 +127,7 @@ static long sa1100dog_ioctl(struct file *file, unsigned int cmd,
 
 		pre_margin = oscr_freq * time;
 		writel_relaxed(readl_relaxed(OSCR) + pre_margin, OSMR3);
-		/*fall through*/
+		fallthrough;
 
 	case WDIOC_GETTIMEOUT:
 		ret = put_user(pre_margin / oscr_freq, p);

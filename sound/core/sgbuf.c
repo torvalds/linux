@@ -142,6 +142,9 @@ unsigned int snd_sgbuf_get_chunk_size(struct snd_dma_buffer *dmab,
 	struct snd_sg_buf *sg = dmab->private_data;
 	unsigned int start, end, pg;
 
+	if (!sg)
+		return size;
+
 	start = ofs >> PAGE_SHIFT;
 	end = (ofs + size - 1) >> PAGE_SHIFT;
 	/* check page continuity */

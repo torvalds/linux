@@ -43,6 +43,7 @@
 #include <linux/sched.h>
 #include <linux/slab.h>
 #include <linux/smpboot.h>
+#include <linux/idle_inject.h>
 
 #include <uapi/linux/sched/types.h>
 
@@ -268,9 +269,7 @@ void idle_inject_stop(struct idle_inject_device *ii_dev)
  */
 static void idle_inject_setup(unsigned int cpu)
 {
-	struct sched_param param = { .sched_priority = MAX_USER_RT_PRIO / 2 };
-
-	sched_setscheduler(current, SCHED_FIFO, &param);
+	sched_set_fifo(current);
 }
 
 /**

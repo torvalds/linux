@@ -57,6 +57,7 @@ int huge_ptep_set_access_flags(struct vm_area_struct *vma,
 			       unsigned long addr, pte_t *ptep,
 			       pte_t pte, int dirty);
 
+void gigantic_hugetlb_cma_reserve(void) __init;
 #include <asm-generic/hugetlb.h>
 
 #else /* ! CONFIG_HUGETLB_PAGE */
@@ -71,6 +72,12 @@ static inline pte_t *hugepte_offset(hugepd_t hpd, unsigned long addr,
 {
 	return NULL;
 }
+
+
+static inline void __init gigantic_hugetlb_cma_reserve(void)
+{
+}
+
 #endif /* CONFIG_HUGETLB_PAGE */
 
 #endif /* _ASM_POWERPC_HUGETLB_H */

@@ -63,6 +63,9 @@ void evlist__init(struct evlist *evlist, struct perf_cpu_map *cpus,
 	perf_evlist__set_maps(&evlist->core, cpus, threads);
 	evlist->workload.pid = -1;
 	evlist->bkw_mmap_state = BKW_MMAP_NOTREADY;
+	evlist->ctl_fd.fd = -1;
+	evlist->ctl_fd.ack = -1;
+	evlist->ctl_fd.pos = -1;
 }
 
 struct evlist *evlist__new(void)
@@ -79,7 +82,7 @@ struct evlist *perf_evlist__new_default(void)
 {
 	struct evlist *evlist = evlist__new();
 
-	if (evlist && perf_evlist__add_default(evlist)) {
+	if (evlist && evlist__add_default(evlist)) {
 		evlist__delete(evlist);
 		evlist = NULL;
 	}
@@ -91,7 +94,7 @@ struct evlist *perf_evlist__new_dummy(void)
 {
 	struct evlist *evlist = evlist__new();
 
-	if (evlist && perf_evlist__add_dummy(evlist)) {
+	if (evlist && evlist__add_dummy(evlist)) {
 		evlist__delete(evlist);
 		evlist = NULL;
 	}
@@ -231,7 +234,7 @@ void perf_evlist__set_leader(struct evlist *evlist)
 	}
 }
 
-int __perf_evlist__add_default(struct evlist *evlist, bool precise)
+int __evlist__add_default(struct evlist *evlist, bool precise)
 {
 	struct evsel *evsel = evsel__new_cycles(precise);
 
@@ -242,7 +245,7 @@ int __perf_evlist__add_default(struct evlist *evlist, bool precise)
 	return 0;
 }
 
-int perf_evlist__add_dummy(struct evlist *evlist)
+int evlist__add_dummy(struct evlist *evlist)
 {
 	struct perf_event_attr attr = {
 		.type	= PERF_TYPE_SOFTWARE,
@@ -258,8 +261,7 @@ int perf_evlist__add_dummy(struct evlist *evlist)
 	return 0;
 }
 
-static int evlist__add_attrs(struct evlist *evlist,
-				  struct perf_event_attr *attrs, size_t nr_attrs)
+static int evlist__add_attrs(struct evlist *evlist, struct perf_event_attr *attrs, size_t nr_attrs)
 {
 	struct evsel *evsel, *n;
 	LIST_HEAD(head);
@@ -282,8 +284,7 @@ out_delete_partial_list:
 	return -1;
 }
 
-int __perf_evlist__add_default_attrs(struct evlist *evlist,
-				     struct perf_event_attr *attrs, size_t nr_attrs)
+int __evlist__add_default_attrs(struct evlist *evlist, struct perf_event_attr *attrs, size_t nr_attrs)
 {
 	size_t i;
 
@@ -322,8 +323,7 @@ perf_evlist__find_tracepoint_by_name(struct evlist *evlist,
 	return NULL;
 }
 
-int perf_evlist__add_newtp(struct evlist *evlist,
-			   const char *sys, const char *name, void *handler)
+int evlist__add_newtp(struct evlist *evlist, const char *sys, const char *name, void *handler)
 {
 	struct evsel *evsel = evsel__newtp(sys, name);
 
@@ -500,7 +500,7 @@ int perf_evlist__enable_event_idx(struct evlist *evlist,
 
 int evlist__add_pollfd(struct evlist *evlist, int fd)
 {
-	return perf_evlist__add_pollfd(&evlist->core, fd, NULL, POLLIN);
+	return perf_evlist__add_pollfd(&evlist->core, fd, NULL, POLLIN, fdarray_flag__default);
 }
 
 int evlist__filter_pollfd(struct evlist *evlist, short revents_and_mask)
@@ -540,7 +540,7 @@ struct evsel *perf_evlist__id2evsel(struct evlist *evlist, u64 id)
 	if (sid)
 		return container_of(sid->evsel, struct evsel, core);
 
-	if (!perf_evlist__sample_id_all(evlist))
+	if (!evlist__sample_id_all(evlist))
 		return evlist__first(evlist);
 
 	return NULL;
@@ -946,6 +946,10 @@ int perf_evlist__create_maps(struct evlist *evlist, struct target *target)
 
 	perf_evlist__set_maps(&evlist->core, cpus, threads);
 
+	/* as evlist now has references, put count here */
+	perf_cpu_map__put(cpus);
+	perf_thread_map__put(threads);
+
 	return 0;
 
 out_delete_threads:
@@ -1088,7 +1092,7 @@ int perf_evlist__append_tp_filter_pid(struct evlist *evlist, pid_t pid)
 	return perf_evlist__append_tp_filter_pids(evlist, 1, &pid);
 }
 
-bool perf_evlist__valid_sample_type(struct evlist *evlist)
+bool evlist__valid_sample_type(struct evlist *evlist)
 {
 	struct evsel *pos;
 
@@ -1107,7 +1111,7 @@ bool perf_evlist__valid_sample_type(struct evlist *evlist)
 	return true;
 }
 
-u64 __perf_evlist__combined_sample_type(struct evlist *evlist)
+u64 __evlist__combined_sample_type(struct evlist *evlist)
 {
 	struct evsel *evsel;
 
@@ -1120,13 +1124,13 @@ u64 __perf_evlist__combined_sample_type(struct evlist *evlist)
 	return evlist->combined_sample_type;
 }
 
-u64 perf_evlist__combined_sample_type(struct evlist *evlist)
+u64 evlist__combined_sample_type(struct evlist *evlist)
 {
 	evlist->combined_sample_type = 0;
-	return __perf_evlist__combined_sample_type(evlist);
+	return __evlist__combined_sample_type(evlist);
 }
 
-u64 perf_evlist__combined_branch_type(struct evlist *evlist)
+u64 evlist__combined_branch_type(struct evlist *evlist)
 {
 	struct evsel *evsel;
 	u64 branch_type = 0;
@@ -1191,7 +1195,7 @@ out:
 	return size;
 }
 
-bool perf_evlist__valid_sample_id_all(struct evlist *evlist)
+bool evlist__valid_sample_id_all(struct evlist *evlist)
 {
 	struct evsel *first = evlist__first(evlist), *pos = first;
 
@@ -1203,7 +1207,7 @@ bool perf_evlist__valid_sample_id_all(struct evlist *evlist)
 	return true;
 }
 
-bool perf_evlist__sample_id_all(struct evlist *evlist)
+bool evlist__sample_id_all(struct evlist *evlist)
 {
 	struct evsel *first = evlist__first(evlist);
 	return first->core.attr.sample_id_all;
@@ -1273,11 +1277,12 @@ static int perf_evlist__create_syswide_maps(struct evlist *evlist)
 		goto out_put;
 
 	perf_evlist__set_maps(&evlist->core, cpus, threads);
-out:
-	return err;
+
+	perf_thread_map__put(threads);
 out_put:
 	perf_cpu_map__put(cpus);
-	goto out;
+out:
+	return err;
 }
 
 int evlist__open(struct evlist *evlist)
@@ -1464,8 +1469,7 @@ int perf_evlist__parse_sample_timestamp(struct evlist *evlist,
 	return evsel__parse_sample_timestamp(evsel, event, timestamp);
 }
 
-int perf_evlist__strerror_open(struct evlist *evlist,
-			       int err, char *buf, size_t size)
+int evlist__strerror_open(struct evlist *evlist, int err, char *buf, size_t size)
 {
 	int printed, value;
 	char sbuf[STRERR_BUFSIZE], *emsg = str_error_r(err, sbuf, sizeof(sbuf));
@@ -1518,7 +1522,7 @@ out_default:
 	return 0;
 }
 
-int perf_evlist__strerror_mmap(struct evlist *evlist, int err, char *buf, size_t size)
+int evlist__strerror_mmap(struct evlist *evlist, int err, char *buf, size_t size)
 {
 	char sbuf[STRERR_BUFSIZE], *emsg = str_error_r(err, sbuf, sizeof(sbuf));
 	int pages_attempted = evlist->core.mmap_len / 1024, pages_max_per_user, printed = 0;
@@ -1726,4 +1730,144 @@ struct evsel *perf_evlist__reset_weak_group(struct evlist *evsel_list,
 		}
 	}
 	return leader;
+}
+
+int evlist__initialize_ctlfd(struct evlist *evlist, int fd, int ack)
+{
+	if (fd == -1) {
+		pr_debug("Control descriptor is not initialized\n");
+		return 0;
+	}
+
+	evlist->ctl_fd.pos = perf_evlist__add_pollfd(&evlist->core, fd, NULL, POLLIN,
+						     fdarray_flag__nonfilterable);
+	if (evlist->ctl_fd.pos < 0) {
+		evlist->ctl_fd.pos = -1;
+		pr_err("Failed to add ctl fd entry: %m\n");
+		return -1;
+	}
+
+	evlist->ctl_fd.fd = fd;
+	evlist->ctl_fd.ack = ack;
+
+	return 0;
+}
+
+bool evlist__ctlfd_initialized(struct evlist *evlist)
+{
+	return evlist->ctl_fd.pos >= 0;
+}
+
+int evlist__finalize_ctlfd(struct evlist *evlist)
+{
+	struct pollfd *entries = evlist->core.pollfd.entries;
+
+	if (!evlist__ctlfd_initialized(evlist))
+		return 0;
+
+	entries[evlist->ctl_fd.pos].fd = -1;
+	entries[evlist->ctl_fd.pos].events = 0;
+	entries[evlist->ctl_fd.pos].revents = 0;
+
+	evlist->ctl_fd.pos = -1;
+	evlist->ctl_fd.ack = -1;
+	evlist->ctl_fd.fd = -1;
+
+	return 0;
+}
+
+static int evlist__ctlfd_recv(struct evlist *evlist, enum evlist_ctl_cmd *cmd,
+			      char *cmd_data, size_t data_size)
+{
+	int err;
+	char c;
+	size_t bytes_read = 0;
+
+	memset(cmd_data, 0, data_size);
+	data_size--;
+
+	do {
+		err = read(evlist->ctl_fd.fd, &c, 1);
+		if (err > 0) {
+			if (c == '\n' || c == '\0')
+				break;
+			cmd_data[bytes_read++] = c;
+			if (bytes_read == data_size)
+				break;
+		} else {
+			if (err == -1)
+				pr_err("Failed to read from ctlfd %d: %m\n", evlist->ctl_fd.fd);
+			break;
+		}
+	} while (1);
+
+	pr_debug("Message from ctl_fd: \"%s%s\"\n", cmd_data,
+		 bytes_read == data_size ? "" : c == '\n' ? "\\n" : "\\0");
+
+	if (err > 0) {
+		if (!strncmp(cmd_data, EVLIST_CTL_CMD_ENABLE_TAG,
+			     (sizeof(EVLIST_CTL_CMD_ENABLE_TAG)-1))) {
+			*cmd = EVLIST_CTL_CMD_ENABLE;
+		} else if (!strncmp(cmd_data, EVLIST_CTL_CMD_DISABLE_TAG,
+				    (sizeof(EVLIST_CTL_CMD_DISABLE_TAG)-1))) {
+			*cmd = EVLIST_CTL_CMD_DISABLE;
+		}
+	}
+
+	return err;
+}
+
+static int evlist__ctlfd_ack(struct evlist *evlist)
+{
+	int err;
+
+	if (evlist->ctl_fd.ack == -1)
+		return 0;
+
+	err = write(evlist->ctl_fd.ack, EVLIST_CTL_CMD_ACK_TAG,
+		    sizeof(EVLIST_CTL_CMD_ACK_TAG));
+	if (err == -1)
+		pr_err("failed to write to ctl_ack_fd %d: %m\n", evlist->ctl_fd.ack);
+
+	return err;
+}
+
+int evlist__ctlfd_process(struct evlist *evlist, enum evlist_ctl_cmd *cmd)
+{
+	int err = 0;
+	char cmd_data[EVLIST_CTL_CMD_MAX_LEN];
+	int ctlfd_pos = evlist->ctl_fd.pos;
+	struct pollfd *entries = evlist->core.pollfd.entries;
+
+	if (!evlist__ctlfd_initialized(evlist) || !entries[ctlfd_pos].revents)
+		return 0;
+
+	if (entries[ctlfd_pos].revents & POLLIN) {
+		err = evlist__ctlfd_recv(evlist, cmd, cmd_data,
+					 EVLIST_CTL_CMD_MAX_LEN);
+		if (err > 0) {
+			switch (*cmd) {
+			case EVLIST_CTL_CMD_ENABLE:
+				evlist__enable(evlist);
+				break;
+			case EVLIST_CTL_CMD_DISABLE:
+				evlist__disable(evlist);
+				break;
+			case EVLIST_CTL_CMD_ACK:
+			case EVLIST_CTL_CMD_UNSUPPORTED:
+			default:
+				pr_debug("ctlfd: unsupported %d\n", *cmd);
+				break;
+			}
+			if (!(*cmd == EVLIST_CTL_CMD_ACK || *cmd == EVLIST_CTL_CMD_UNSUPPORTED))
+				evlist__ctlfd_ack(evlist);
+		}
+	}
+
+	if (entries[ctlfd_pos].revents & (POLLHUP | POLLERR))
+		evlist__finalize_ctlfd(evlist);
+	else
+		entries[ctlfd_pos].revents = 0;
+
+	return err;
 }

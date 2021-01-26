@@ -755,6 +755,8 @@ END_FTR_SECTION_NESTED(CPU_FTR_CELL_TB_BUG, CPU_FTR_CELL_TB_BUG, 96)
 #define N_SLINE	68
 #define N_SO	100
 
+#define RFSCV	.long 0x4c0000a4
+
 /*
  * Create an endian fixup trampoline
  *
@@ -774,7 +776,7 @@ END_FTR_SECTION_NESTED(CPU_FTR_CELL_TB_BUG, CPU_FTR_CELL_TB_BUG, 96)
 #define FIXUP_ENDIAN
 #else
 /*
- * This version may be used in in HV or non-HV context.
+ * This version may be used in HV or non-HV context.
  * MSR[EE] must be disabled.
  */
 #define FIXUP_ENDIAN						   \

@@ -382,15 +382,17 @@ void afs_dynroot_depopulate(struct super_block *sb)
 		net->dynroot_sb = NULL;
 	mutex_unlock(&net->proc_cells_lock);
 
-	inode_lock(root->d_inode);
+	if (root) {
+		inode_lock(root->d_inode);
 
-	/* Remove all the pins for dirs created for manually added cells */
-	list_for_each_entry_safe(subdir, tmp, &root->d_subdirs, d_child) {
-		if (subdir->d_fsdata) {
-			subdir->d_fsdata = NULL;
-			dput(subdir);
+		/* Remove all the pins for dirs created for manually added cells */
+		list_for_each_entry_safe(subdir, tmp, &root->d_subdirs, d_child) {
+			if (subdir->d_fsdata) {
+				subdir->d_fsdata = NULL;
+				dput(subdir);
+			}
 		}
-	}
 
-	inode_unlock(root->d_inode);
+		inode_unlock(root->d_inode);
+	}
 }

@@ -3640,7 +3640,7 @@ ncr_script_copy_and_bind (struct ncb *np, ncrcmd *src, ncrcmd *dst, int len)
 						new = old;
 						break;
 					}
-					/* fall through */
+					fallthrough;
 				default:
 					panic("ncr_script_copy_and_bind: weird relocation %x\n", old);
 					break;
@@ -3910,14 +3910,14 @@ static void __init ncr_prepare_setting(struct ncb *np)
 					np->scsi_mode = SMODE_HVD;
 				break;
 			}
-			/* fall through */
+			fallthrough;
 		case 3:	/* SYMBIOS controllers report HVD through GPIO3 */
 			if (INB(nc_gpreg) & 0x08)
 				break;
-			/* fall through */
+			fallthrough;
 		case 2:	/* Set HVD unconditionally */
 			np->scsi_mode = SMODE_HVD;
-			/* fall through */
+			fallthrough;
 		case 1:	/* Trust previous settings for HVD */
 			if (np->sv_stest2 & 0x20)
 				np->scsi_mode = SMODE_HVD;
@@ -4296,7 +4296,7 @@ static int ncr_queue_command (struct ncb *np, struct scsi_cmnd *cmd)
 			break;
 		cp->phys.header.wgoalp	= cpu_to_scr(goalp);
 		cp->phys.header.wlastp	= cpu_to_scr(lastp);
-		/* fall through */
+		fallthrough;
 	case DMA_FROM_DEVICE:
 		goalp = NCB_SCRIPT_PHYS (np, data_in2) + 8;
 		if (segments <= MAX_SCATTERL)
@@ -6717,7 +6717,7 @@ void ncr_int_sir (struct ncb *np)
 			OUTL_DSP (scr_to_cpu(tp->lp[0]->jump_ccb[0]));
 			return;
 		}
-		/* fall through */
+		fallthrough;
 	case SIR_RESEL_BAD_TARGET:	/* Will send a TARGET RESET message */
 	case SIR_RESEL_BAD_LUN:		/* Will send a TARGET RESET message */
 	case SIR_RESEL_BAD_I_T_L_Q:	/* Will send an ABORT TAG message   */
@@ -6825,7 +6825,7 @@ void ncr_int_sir (struct ncb *np)
 		*/
 		OUTB (HS_PRT, HS_BUSY);
 
-		/* fall through */
+		fallthrough;
 
 	case SIR_NEGO_PROTO:
 		/*-------------------------------------------------------

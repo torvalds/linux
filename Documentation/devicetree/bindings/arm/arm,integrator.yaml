@@ -67,9 +67,9 @@ patternProperties:
       compatible:
         items:
           - enum:
-            - arm,integrator-ap-syscon
-            - arm,integrator-cp-syscon
-            - arm,integrator-sp-syscon
+              - arm,integrator-ap-syscon
+              - arm,integrator-cp-syscon
+              - arm,integrator-sp-syscon
           - const: syscon
       reg:
         maxItems: 1

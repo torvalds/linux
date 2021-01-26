@@ -751,6 +751,9 @@ int cec_transmit_msg_fh(struct cec_adapter *adap, struct cec_msg *msg,
 	struct cec_data *data;
 	bool is_raw = msg_is_raw(msg);
 
+	if (adap->devnode.unregistered)
+		return -ENODEV;
+
 	msg->rx_ts = 0;
 	msg->tx_ts = 0;
 	msg->rx_status = 0;
@@ -1049,6 +1052,9 @@ void cec_received_msg_ts(struct cec_adapter *adap,
 	if (WARN_ON(!msg->len || msg->len > CEC_MAX_MSG_SIZE))
 		return;
 
+	if (adap->devnode.unregistered)
+		return;
+
 	/*
 	 * Some CEC adapters will receive the messages that they transmitted.
 	 * This test filters out those messages by checking if we are the
@@ -1199,7 +1205,7 @@ void cec_received_msg_ts(struct cec_adapter *adap,
 			/* Cancel the pending timeout work */
 			if (!cancel_delayed_work(&data->work)) {
 				mutex_unlock(&adap->lock);
-				flush_scheduled_work();
+				cancel_delayed_work_sync(&data->work);
 				mutex_lock(&adap->lock);
 			}
 			/*
@@ -1306,7 +1312,6 @@ static int cec_config_log_addr(struct cec_adapter *adap,
 
 	las->log_addr[idx] = log_addr;
 	las->log_addr_mask |= 1 << log_addr;
-	adap->phys_addrs[log_addr] = adap->phys_addr;
 	return 1;
 }
 
@@ -1324,7 +1329,6 @@ static void cec_adap_unconfigure(struct cec_adapter *adap)
 	adap->log_addrs.log_addr_mask = 0;
 	adap->is_configuring = false;
 	adap->is_configured = false;
-	memset(adap->phys_addrs, 0xff, sizeof(adap->phys_addrs));
 	cec_flush(adap);
 	wake_up_interruptible(&adap->kthread_waitq);
 	cec_post_state_event(adap);
@@ -1930,7 +1934,7 @@ static int cec_receive_notify(struct cec_adapter *adap, struct cec_msg *msg,
 		 */
 		if (!adap->passthrough && from_unregistered)
 			return 0;
-		/* Fall through */
+		fallthrough;
 	case CEC_MSG_GIVE_DEVICE_VENDOR_ID:
 	case CEC_MSG_GIVE_FEATURES:
 	case CEC_MSG_GIVE_PHYSICAL_ADDR:
@@ -1974,8 +1978,6 @@ static int cec_receive_notify(struct cec_adapter *adap, struct cec_msg *msg,
 	case CEC_MSG_REPORT_PHYSICAL_ADDR: {
 		u16 pa = (msg->msg[2] << 8) | msg->msg[3];
 
-		if (!from_unregistered)
-			adap->phys_addrs[init_laddr] = pa;
 		dprintk(1, "reported physical address %x.%x.%x.%x for logical address %d\n",
 			cec_phys_addr_exp(pa), init_laddr);
 		break;

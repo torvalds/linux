@@ -26,11 +26,11 @@
 
 #include "../dmaengine.h"
 
-int completion_timeout = 200;
+static int completion_timeout = 200;
 module_param(completion_timeout, int, 0644);
 MODULE_PARM_DESC(completion_timeout,
 		"set ioat completion timeout [msec] (default 200 [msec])");
-int idle_timeout = 2000;
+static int idle_timeout = 2000;
 module_param(idle_timeout, int, 0644);
 MODULE_PARM_DESC(idle_timeout,
 		"set ioat idel timeout [msec] (default 2000 [msec])");
@@ -165,7 +165,7 @@ void ioat_stop(struct ioatdma_chan *ioat_chan)
 	tasklet_kill(&ioat_chan->cleanup_task);
 
 	/* final cleanup now that everything is quiesced and can't re-arm */
-	ioat_cleanup_event((unsigned long)&ioat_chan->dma_chan);
+	ioat_cleanup_event(&ioat_chan->cleanup_task);
 }
 
 static void __ioat_issue_pending(struct ioatdma_chan *ioat_chan)
@@ -193,7 +193,7 @@ void ioat_issue_pending(struct dma_chan *c)
 
 /**
  * ioat_update_pending - log pending descriptors
- * @ioat: ioat+ channel
+ * @ioat_chan: ioat+ channel
  *
  * Check if the number of unsubmitted descriptors has exceeded the
  * watermark.  Called with prep_lock held
@@ -389,7 +389,7 @@ ioat_alloc_ring(struct dma_chan *c, int order, gfp_t flags)
 		struct ioat_descs *descs = &ioat_chan->descs[i];
 
 		descs->virt = dma_alloc_coherent(to_dev(ioat_chan),
-						 SZ_2M, &descs->hw, flags);
+					IOAT_CHUNK_SIZE, &descs->hw, flags);
 		if (!descs->virt) {
 			int idx;
 
@@ -457,7 +457,7 @@ ioat_alloc_ring(struct dma_chan *c, int order, gfp_t flags)
 
 /**
  * ioat_check_space_lock - verify space and grab ring producer lock
- * @ioat: ioat,3 channel (ring) to operate on
+ * @ioat_chan: ioat,3 channel (ring) to operate on
  * @num_descs: allocation length
  */
 int ioat_check_space_lock(struct ioatdma_chan *ioat_chan, int num_descs)
@@ -585,7 +585,8 @@ desc_get_errstat(struct ioatdma_chan *ioat_chan, struct ioat_ring_ent *desc)
 
 /**
  * __cleanup - reclaim used descriptors
- * @ioat: channel (ring) to clean
+ * @ioat_chan: channel (ring) to clean
+ * @phys_complete: zeroed (or not) completion address (from status)
  */
 static void __cleanup(struct ioatdma_chan *ioat_chan, dma_addr_t phys_complete)
 {
@@ -689,9 +690,9 @@ static void ioat_cleanup(struct ioatdma_chan *ioat_chan)
 	spin_unlock_bh(&ioat_chan->cleanup_lock);
 }
 
-void ioat_cleanup_event(unsigned long data)
+void ioat_cleanup_event(struct tasklet_struct *t)
 {
-	struct ioatdma_chan *ioat_chan = to_ioat_chan((void *)data);
+	struct ioatdma_chan *ioat_chan = from_tasklet(ioat_chan, t, cleanup_task);
 
 	ioat_cleanup(ioat_chan);
 	if (!test_bit(IOAT_RUN, &ioat_chan->state))

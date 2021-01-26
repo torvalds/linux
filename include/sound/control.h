@@ -188,20 +188,21 @@ int snd_ctl_enum_info(struct snd_ctl_elem_info *info, unsigned int channels,
  */
 struct snd_kcontrol *snd_ctl_make_virtual_master(char *name,
 						 const unsigned int *tlv);
-int _snd_ctl_add_slave(struct snd_kcontrol *master, struct snd_kcontrol *slave,
-		       unsigned int flags);
-/* optional flags for slave */
-#define SND_CTL_SLAVE_NEED_UPDATE	(1 << 0)
+int _snd_ctl_add_follower(struct snd_kcontrol *master,
+			  struct snd_kcontrol *follower,
+			  unsigned int flags);
+/* optional flags for follower */
+#define SND_CTL_FOLLOWER_NEED_UPDATE	(1 << 0)
 
 /**
- * snd_ctl_add_slave - Add a virtual slave control
+ * snd_ctl_add_follower - Add a virtual follower control
  * @master: vmaster element
- * @slave: slave element to add
+ * @follower: follower element to add
  *
- * Add a virtual slave control to the given master element created via
+ * Add a virtual follower control to the given master element created via
  * snd_ctl_create_virtual_master() beforehand.
  *
- * All slaves must be the same type (returning the same information
+ * All followers must be the same type (returning the same information
  * via info callback).  The function doesn't check it, so it's your
  * responsibility.
  *
@@ -213,18 +214,18 @@ int _snd_ctl_add_slave(struct snd_kcontrol *master, struct snd_kcontrol *slave,
  * Return: Zero if successful or a negative error code.
  */
 static inline int
-snd_ctl_add_slave(struct snd_kcontrol *master, struct snd_kcontrol *slave)
+snd_ctl_add_follower(struct snd_kcontrol *master, struct snd_kcontrol *follower)
 {
-	return _snd_ctl_add_slave(master, slave, 0);
+	return _snd_ctl_add_follower(master, follower, 0);
 }
 
 /**
- * snd_ctl_add_slave_uncached - Add a virtual slave control
+ * snd_ctl_add_follower_uncached - Add a virtual follower control
  * @master: vmaster element
- * @slave: slave element to add
+ * @follower: follower element to add
  *
- * Add a virtual slave control to the given master.
- * Unlike snd_ctl_add_slave(), the element added via this function
+ * Add a virtual follower control to the given master.
+ * Unlike snd_ctl_add_follower(), the element added via this function
  * is supposed to have volatile values, and get callback is called
  * at each time queried from the master.
  *
@@ -235,10 +236,10 @@ snd_ctl_add_slave(struct snd_kcontrol *master, struct snd_kcontrol *slave)
  * Return: Zero if successful or a negative error code.
  */
 static inline int
-snd_ctl_add_slave_uncached(struct snd_kcontrol *master,
-			   struct snd_kcontrol *slave)
+snd_ctl_add_follower_uncached(struct snd_kcontrol *master,
+			      struct snd_kcontrol *follower)
 {
-	return _snd_ctl_add_slave(master, slave, SND_CTL_SLAVE_NEED_UPDATE);
+	return _snd_ctl_add_follower(master, follower, SND_CTL_FOLLOWER_NEED_UPDATE);
 }
 
 int snd_ctl_add_vmaster_hook(struct snd_kcontrol *kctl,
@@ -246,11 +247,11 @@ int snd_ctl_add_vmaster_hook(struct snd_kcontrol *kctl,
 			     void *private_data);
 void snd_ctl_sync_vmaster(struct snd_kcontrol *kctl, bool hook_only);
 #define snd_ctl_sync_vmaster_hook(kctl)	snd_ctl_sync_vmaster(kctl, true)
-int snd_ctl_apply_vmaster_slaves(struct snd_kcontrol *kctl,
-				 int (*func)(struct snd_kcontrol *vslave,
-					     struct snd_kcontrol *slave,
-					     void *arg),
-				 void *arg);
+int snd_ctl_apply_vmaster_followers(struct snd_kcontrol *kctl,
+				    int (*func)(struct snd_kcontrol *vfollower,
+						struct snd_kcontrol *follower,
+						void *arg),
+				    void *arg);
 
 /*
  * Helper functions for jack-detection controls

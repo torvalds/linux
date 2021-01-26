@@ -11,6 +11,8 @@ maintainers:
   - Jonathan Hunter <jonathanh@nvidia.com>
 
 properties:
+  $nodename:
+    const: "/"
   compatible:
     oneOf:
       - items:

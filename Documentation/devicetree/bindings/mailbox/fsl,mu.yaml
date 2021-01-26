@@ -29,17 +29,18 @@ properties:
       - const: fsl,imx8-mu-scu
       - items:
           - enum:
-            - fsl,imx7s-mu
-            - fsl,imx8mq-mu
-            - fsl,imx8mm-mu
-            - fsl,imx8mn-mu
-            - fsl,imx8mp-mu
-            - fsl,imx8qxp-mu
+              - fsl,imx7s-mu
+              - fsl,imx8mq-mu
+              - fsl,imx8mm-mu
+              - fsl,imx8mn-mu
+              - fsl,imx8mp-mu
+              - fsl,imx8qxp-mu
           - const: fsl,imx6sx-mu
       - description: To communicate with i.MX8 SCU with fast IPC
         items:
-          - const: fsl,imx8qxp-mu
           - const: fsl,imx8-mu-scu
+          - const: fsl,imx8qxp-mu
+          - const: fsl,imx6sx-mu
 
   reg:
     maxItems: 1
@@ -70,6 +71,9 @@ properties:
   fsl,mu-side-b:
     description: boolean, if present, means it is for side B MU.
     type: boolean
+
+  power-domains:
+    maxItems: 1
 
 required:
   - compatible

@@ -19,7 +19,7 @@ description: |+
 properties:
   compatible:
     enum:
-        - adi,axi-fan-control-1.00.a
+      - adi,axi-fan-control-1.00.a
 
   reg:
     maxItems: 1
@@ -43,6 +43,8 @@ required:
   - clocks
   - interrupts
   - pulses-per-revolution
+
+additionalProperties: false
 
 examples:
   - |

@@ -508,7 +508,7 @@ static inline struct skcipher_request *skcipher_request_alloc(
  */
 static inline void skcipher_request_free(struct skcipher_request *req)
 {
-	kzfree(req);
+	kfree_sensitive(req);
 }
 
 static inline void skcipher_request_zero(struct skcipher_request *req)

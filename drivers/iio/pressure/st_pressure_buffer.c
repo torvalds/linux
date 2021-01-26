@@ -31,34 +31,12 @@ int st_press_trig_set_state(struct iio_trigger *trig, bool state)
 
 static int st_press_buffer_postenable(struct iio_dev *indio_dev)
 {
-	int err;
-
-	err = iio_triggered_buffer_postenable(indio_dev);
-	if (err < 0)
-		return err;
-
-	err = st_sensors_set_enable(indio_dev, true);
-	if (err < 0)
-		goto st_press_buffer_predisable;
-
-	return 0;
-
-st_press_buffer_predisable:
-	iio_triggered_buffer_predisable(indio_dev);
-	return err;
+	return st_sensors_set_enable(indio_dev, true);
 }
 
 static int st_press_buffer_predisable(struct iio_dev *indio_dev)
 {
-	int err, err2;
-
-	err = st_sensors_set_enable(indio_dev, false);
-
-	err2 = iio_triggered_buffer_predisable(indio_dev);
-	if (!err)
-		err = err2;
-
-	return err;
+	return st_sensors_set_enable(indio_dev, false);
 }
 
 static const struct iio_buffer_setup_ops st_press_buffer_setup_ops = {

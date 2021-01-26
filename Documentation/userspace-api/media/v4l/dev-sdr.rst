@@ -1,11 +1,4 @@
-.. Permission is granted to copy, distribute and/or modify this
-.. document under the terms of the GNU Free Documentation License,
-.. Version 1.1 or any later version published by the Free Software
-.. Foundation, with no Invariant Sections, no Front-Cover Texts
-.. and no Back-Cover Texts. A copy of the license is included at
-.. Documentation/userspace-api/media/fdl-appendix.rst.
-..
-.. TODO: replace it to GFDL-1.1-or-later WITH no-invariant-sections
+.. SPDX-License-Identifier: GFDL-1.1-no-invariants-or-later
 
 .. _sdr:
 
@@ -78,7 +71,7 @@ field of a struct :c:type:`v4l2_format` to
 ``V4L2_BUF_TYPE_SDR_CAPTURE`` or ``V4L2_BUF_TYPE_SDR_OUTPUT`` and use
 the struct :c:type:`v4l2_sdr_format` ``sdr`` member
 of the ``fmt`` union as needed per the desired operation. Currently
-there is two fields, ``pixelformat`` and ``buffersize``, of struct
+there are two fields, ``pixelformat`` and ``buffersize``, of
 struct :c:type:`v4l2_sdr_format` which are used.
 Content of the ``pixelformat`` is V4L2 FourCC code of the data format.
 The ``buffersize`` field is maximum buffer size in bytes required for

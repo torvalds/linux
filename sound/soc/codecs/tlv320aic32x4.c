@@ -50,6 +50,28 @@ struct aic32x4_priv {
 	struct device *dev;
 };
 
+static int aic32x4_reset_adc(struct snd_soc_dapm_widget *w,
+			     struct snd_kcontrol *kcontrol, int event)
+{
+	struct snd_soc_component *component = snd_soc_dapm_to_component(w->dapm);
+	u32 adc_reg;
+
+	/*
+	 * Workaround: the datasheet does not mention a required programming
+	 * sequence but experiments show the ADC needs to be reset after each
+	 * capture to avoid audible artifacts.
+	 */
+	switch (event) {
+	case SND_SOC_DAPM_POST_PMD:
+		adc_reg = snd_soc_component_read(component, AIC32X4_ADCSETUP);
+		snd_soc_component_write(component, AIC32X4_ADCSETUP, adc_reg |
+					AIC32X4_LADC_EN | AIC32X4_RADC_EN);
+		snd_soc_component_write(component, AIC32X4_ADCSETUP, adc_reg);
+		break;
+	}
+	return 0;
+};
+
 static int mic_bias_event(struct snd_soc_dapm_widget *w,
 	struct snd_kcontrol *kcontrol, int event)
 {
@@ -82,7 +104,7 @@ static int aic32x4_get_mfp1_gpio(struct snd_kcontrol *kcontrol,
 	struct snd_soc_component *component = snd_kcontrol_chip(kcontrol);
 	u8 val;
 
-	val = snd_soc_component_read32(component, AIC32X4_DINCTL);
+	val = snd_soc_component_read(component, AIC32X4_DINCTL);
 
 	ucontrol->value.integer.value[0] = (val & 0x01);
 
@@ -96,7 +118,7 @@ static int aic32x4_set_mfp2_gpio(struct snd_kcontrol *kcontrol,
 	u8 val;
 	u8 gpio_check;
 
-	val = snd_soc_component_read32(component, AIC32X4_DOUTCTL);
+	val = snd_soc_component_read(component, AIC32X4_DOUTCTL);
 	gpio_check = (val & AIC32X4_MFP_GPIO_ENABLED);
 	if (gpio_check != AIC32X4_MFP_GPIO_ENABLED) {
 		printk(KERN_ERR "%s: MFP2 is not configure as a GPIO output\n",
@@ -123,7 +145,7 @@ static int aic32x4_get_mfp3_gpio(struct snd_kcontrol *kcontrol,
 	struct snd_soc_component *component = snd_kcontrol_chip(kcontrol);
 	u8 val;
 
-	val = snd_soc_component_read32(component, AIC32X4_SCLKCTL);
+	val = snd_soc_component_read(component, AIC32X4_SCLKCTL);
 
 	ucontrol->value.integer.value[0] = (val & 0x01);
 
@@ -137,7 +159,7 @@ static int aic32x4_set_mfp4_gpio(struct snd_kcontrol *kcontrol,
 	u8 val;
 	u8 gpio_check;
 
-	val = snd_soc_component_read32(component, AIC32X4_MISOCTL);
+	val = snd_soc_component_read(component, AIC32X4_MISOCTL);
 	gpio_check = (val & AIC32X4_MFP_GPIO_ENABLED);
 	if (gpio_check != AIC32X4_MFP_GPIO_ENABLED) {
 		printk(KERN_ERR "%s: MFP4 is not configure as a GPIO output\n",
@@ -164,7 +186,7 @@ static int aic32x4_get_mfp5_gpio(struct snd_kcontrol *kcontrol,
 	struct snd_soc_component *component = snd_kcontrol_chip(kcontrol);
 	u8 val;
 
-	val = snd_soc_component_read32(component, AIC32X4_GPIOCTL);
+	val = snd_soc_component_read(component, AIC32X4_GPIOCTL);
 	ucontrol->value.integer.value[0] = ((val & 0x2) >> 1);
 
 	return 0;
@@ -177,7 +199,7 @@ static int aic32x4_set_mfp5_gpio(struct snd_kcontrol *kcontrol,
 	u8 val;
 	u8 gpio_check;
 
-	val = snd_soc_component_read32(component, AIC32X4_GPIOCTL);
+	val = snd_soc_component_read(component, AIC32X4_GPIOCTL);
 	gpio_check = (val & AIC32X4_MFP5_GPIO_OUTPUT);
 	if (gpio_check != AIC32X4_MFP5_GPIO_OUTPUT) {
 		printk(KERN_ERR "%s: MFP5 is not configure as a GPIO output\n",
@@ -434,6 +456,7 @@ static const struct snd_soc_dapm_widget aic32x4_dapm_widgets[] = {
 	SND_SOC_DAPM_SUPPLY("Mic Bias", AIC32X4_MICBIAS, 6, 0, mic_bias_event,
 			SND_SOC_DAPM_POST_PMU | SND_SOC_DAPM_PRE_PMD),
 
+	SND_SOC_DAPM_POST("ADC Reset", aic32x4_reset_adc),
 
 	SND_SOC_DAPM_OUTPUT("HPL"),
 	SND_SOC_DAPM_OUTPUT("HPR"),
@@ -665,7 +688,8 @@ static int aic32x4_set_processing_blocks(struct snd_soc_component *component,
 }
 
 static int aic32x4_setup_clocks(struct snd_soc_component *component,
-				unsigned int sample_rate)
+				unsigned int sample_rate, unsigned int channels,
+				unsigned int bit_depth)
 {
 	u8 aosr;
 	u16 dosr;
@@ -753,7 +777,9 @@ static int aic32x4_setup_clocks(struct snd_soc_component *component,
 							dosr);
 
 						clk_set_rate(clocks[5].clk,
-							sample_rate * 32);
+							sample_rate * channels *
+							bit_depth);
+
 						return 0;
 					}
 				}
@@ -775,9 +801,11 @@ static int aic32x4_hw_params(struct snd_pcm_substream *substream,
 	u8 iface1_reg = 0;
 	u8 dacsetup_reg = 0;
 
-	aic32x4_setup_clocks(component, params_rate(params));
+	aic32x4_setup_clocks(component, params_rate(params),
+			     params_channels(params),
+			     params_physical_width(params));
 
-	switch (params_width(params)) {
+	switch (params_physical_width(params)) {
 	case 16:
 		iface1_reg |= (AIC32X4_WORD_LEN_16BITS <<
 				   AIC32X4_IFACE1_DATALEN_SHIFT);
@@ -812,7 +840,7 @@ static int aic32x4_hw_params(struct snd_pcm_substream *substream,
 	return 0;
 }
 
-static int aic32x4_mute(struct snd_soc_dai *dai, int mute)
+static int aic32x4_mute(struct snd_soc_dai *dai, int mute, int direction)
 {
 	struct snd_soc_component *component = dai->component;
 
@@ -862,13 +890,15 @@ static int aic32x4_set_bias_level(struct snd_soc_component *component,
 
 #define AIC32X4_RATES	SNDRV_PCM_RATE_8000_192000
 #define AIC32X4_FORMATS (SNDRV_PCM_FMTBIT_S16_LE | SNDRV_PCM_FMTBIT_S20_3LE \
-			 | SNDRV_PCM_FMTBIT_S24_3LE | SNDRV_PCM_FMTBIT_S32_LE)
+			 | SNDRV_PCM_FMTBIT_S24_LE | SNDRV_PCM_FMTBIT_S24_3LE \
+			 | SNDRV_PCM_FMTBIT_S32_LE)
 
 static const struct snd_soc_dai_ops aic32x4_ops = {
 	.hw_params = aic32x4_hw_params,
-	.digital_mute = aic32x4_mute,
+	.mute_stream = aic32x4_mute,
 	.set_fmt = aic32x4_set_dai_fmt,
 	.set_sysclk = aic32x4_set_dai_sysclk,
+	.no_capture_mute = 1,
 };
 
 static struct snd_soc_dai_driver aic32x4_dai = {
@@ -882,7 +912,7 @@ static struct snd_soc_dai_driver aic32x4_dai = {
 	.capture = {
 			.stream_name = "Capture",
 			.channels_min = 1,
-			.channels_max = 2,
+			.channels_max = 8,
 			.rates = AIC32X4_RATES,
 			.formats = AIC32X4_FORMATS,},
 	.ops = &aic32x4_ops,
@@ -952,14 +982,6 @@ static int aic32x4_component_probe(struct snd_soc_component *component)
 	if (ret)
 		return ret;
 
-	if (gpio_is_valid(aic32x4->rstn_gpio)) {
-		ndelay(10);
-		gpio_set_value(aic32x4->rstn_gpio, 1);
-		mdelay(1);
-	}
-
-	snd_soc_component_write(component, AIC32X4_RESET, 0x01);
-
 	if (aic32x4->setup)
 		aic32x4_setup_gpios(component);
 
@@ -978,7 +1000,7 @@ static int aic32x4_component_probe(struct snd_soc_component *component)
 			AIC32X4_LDOCTLEN : 0;
 	snd_soc_component_write(component, AIC32X4_LDOCTL, tmp_reg);
 
-	tmp_reg = snd_soc_component_read32(component, AIC32X4_CMMODE);
+	tmp_reg = snd_soc_component_read(component, AIC32X4_CMMODE);
 	if (aic32x4->power_cfg & AIC32X4_PWR_CMMODE_LDOIN_RANGE_18_36)
 		tmp_reg |= AIC32X4_LDOIN_18_36;
 	if (aic32x4->power_cfg & AIC32X4_PWR_CMMODE_HP_LDOIN_POWERED)
@@ -1004,10 +1026,18 @@ static int aic32x4_component_probe(struct snd_soc_component *component)
 	 * and down for the first capture to work properly. It seems related to
 	 * a HW BUG or some kind of behavior not documented in the datasheet.
 	 */
-	tmp_reg = snd_soc_component_read32(component, AIC32X4_ADCSETUP);
+	tmp_reg = snd_soc_component_read(component, AIC32X4_ADCSETUP);
 	snd_soc_component_write(component, AIC32X4_ADCSETUP, tmp_reg |
 				AIC32X4_LADC_EN | AIC32X4_RADC_EN);
 	snd_soc_component_write(component, AIC32X4_ADCSETUP, tmp_reg);
+
+	/*
+	 * Enable the fast charging feature and ensure the needed 40ms ellapsed
+	 * before using the analog circuits.
+	 */
+	snd_soc_component_write(component, AIC32X4_REFPOWERUP,
+				AIC32X4_REFPOWERUP_40MS);
+	msleep(40);
 
 	return 0;
 }
@@ -1190,10 +1220,6 @@ int aic32x4_probe(struct device *dev, struct regmap *regmap)
 		aic32x4->mclk_name = "mclk";
 	}
 
-	ret = aic32x4_register_clocks(dev, aic32x4->mclk_name);
-	if (ret)
-		return ret;
-
 	if (gpio_is_valid(aic32x4->rstn_gpio)) {
 		ret = devm_gpio_request_one(dev, aic32x4->rstn_gpio,
 				GPIOF_OUT_INIT_LOW, "tlv320aic32x4 rstn");
@@ -1207,15 +1233,33 @@ int aic32x4_probe(struct device *dev, struct regmap *regmap)
 		return ret;
 	}
 
+	if (gpio_is_valid(aic32x4->rstn_gpio)) {
+		ndelay(10);
+		gpio_set_value_cansleep(aic32x4->rstn_gpio, 1);
+		mdelay(1);
+	}
+
+	ret = regmap_write(regmap, AIC32X4_RESET, 0x01);
+	if (ret)
+		goto err_disable_regulators;
+
 	ret = devm_snd_soc_register_component(dev,
 			&soc_component_dev_aic32x4, &aic32x4_dai, 1);
 	if (ret) {
 		dev_err(dev, "Failed to register component\n");
-		aic32x4_disable_regulators(aic32x4);
-		return ret;
+		goto err_disable_regulators;
 	}
 
+	ret = aic32x4_register_clocks(dev, aic32x4->mclk_name);
+	if (ret)
+		goto err_disable_regulators;
+
 	return 0;
+
+err_disable_regulators:
+	aic32x4_disable_regulators(aic32x4);
+
+	return ret;
 }
 EXPORT_SYMBOL(aic32x4_probe);
 

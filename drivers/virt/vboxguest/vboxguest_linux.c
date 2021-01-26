@@ -35,7 +35,7 @@ static u32 vbg_misc_device_requestor(struct inode *inode)
 			VMMDEV_REQUESTOR_CON_DONT_KNOW |
 			VMMDEV_REQUESTOR_TRUST_NOT_GIVEN;
 
-	if (from_kuid(current_user_ns(), current->cred->uid) == 0)
+	if (from_kuid(current_user_ns(), current_uid()) == 0)
 		requestor |= VMMDEV_REQUESTOR_USR_ROOT;
 	else
 		requestor |= VMMDEV_REQUESTOR_USR_USER;
@@ -202,13 +202,8 @@ static int vbg_input_open(struct input_dev *input)
 {
 	struct vbg_dev *gdev = input_get_drvdata(input);
 	u32 feat = VMMDEV_MOUSE_GUEST_CAN_ABSOLUTE | VMMDEV_MOUSE_NEW_PROTOCOL;
-	int ret;
 
-	ret = vbg_core_set_mouse_status(gdev, feat);
-	if (ret)
-		return ret;
-
-	return 0;
+	return vbg_core_set_mouse_status(gdev, feat);
 }
 
 /**

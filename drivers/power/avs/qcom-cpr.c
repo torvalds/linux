@@ -665,8 +665,6 @@ static int cpr_enable(struct cpr_drv *drv)
 
 static int cpr_disable(struct cpr_drv *drv)
 {
-	int ret;
-
 	mutex_lock(&drv->lock);
 
 	if (cpr_is_allowed(drv)) {
@@ -676,11 +674,7 @@ static int cpr_disable(struct cpr_drv *drv)
 
 	mutex_unlock(&drv->lock);
 
-	ret = regulator_disable(drv->vdd_apc);
-	if (ret)
-		return ret;
-
-	return 0;
+	return regulator_disable(drv->vdd_apc);
 }
 
 static int cpr_config(struct cpr_drv *drv)

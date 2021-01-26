@@ -132,21 +132,21 @@ static void sticon_cursor(struct vc_data *conp, int mode)
 {
     unsigned short car1;
 
-    car1 = conp->vc_screenbuf[conp->vc_x + conp->vc_y * conp->vc_cols];
+    car1 = conp->vc_screenbuf[conp->state.x + conp->state.y * conp->vc_cols];
     switch (mode) {
     case CM_ERASE:
-	sti_putc(sticon_sti, car1, conp->vc_y, conp->vc_x);
+	sti_putc(sticon_sti, car1, conp->state.y, conp->state.x);
 	break;
     case CM_MOVE:
     case CM_DRAW:
-	switch (conp->vc_cursor_type & 0x0f) {
+	switch (CUR_SIZE(conp->vc_cursor_type)) {
 	case CUR_UNDERLINE:
 	case CUR_LOWER_THIRD:
 	case CUR_LOWER_HALF:
 	case CUR_TWO_THIRDS:
 	case CUR_BLOCK:
 	    sti_putc(sticon_sti, (car1 & 255) + (0 << 8) + (7 << 11),
-		     conp->vc_y, conp->vc_x);
+		     conp->state.y, conp->state.x);
 	    break;
 	}
 	break;
@@ -217,11 +217,6 @@ static int sticon_switch(struct vc_data *conp)
     return 1;	/* needs refreshing */
 }
 
-static int sticon_set_origin(struct vc_data *conp)
-{
-    return 0;
-}
-
 static int sticon_blank(struct vc_data *c, int blank, int mode_switch)
 {
     if (blank == 0) {
@@ -229,14 +224,13 @@ static int sticon_blank(struct vc_data *c, int blank, int mode_switch)
 	    vga_is_gfx = 0;
 	return 1;
     }
-    sticon_set_origin(c);
     sti_clear(sticon_sti, 0,0, c->vc_rows, c->vc_cols, BLANK);
     if (mode_switch)
 	vga_is_gfx = 1;
     return 1;
 }
 
-static u16 *sticon_screen_pos(struct vc_data *conp, int offset)
+static u16 *sticon_screen_pos(const struct vc_data *conp, int offset)
 {
     int line;
     unsigned long p;
@@ -288,8 +282,10 @@ static unsigned long sticon_getxy(struct vc_data *conp, unsigned long pos,
     return ret;
 }
 
-static u8 sticon_build_attr(struct vc_data *conp, u8 color, u8 intens,
-			    u8 blink, u8 underline, u8 reverse, u8 italic)
+static u8 sticon_build_attr(struct vc_data *conp, u8 color,
+			    enum vc_intensity intens,
+			    bool blink, bool underline, bool reverse,
+			    bool italic)
 {
     u8 attr = ((color & 0x70) >> 1) | ((color & 7));
 
@@ -332,7 +328,6 @@ static const struct consw sti_con = {
 	.con_scroll		= sticon_scroll,
 	.con_switch		= sticon_switch,
 	.con_blank		= sticon_blank,
-	.con_set_origin		= sticon_set_origin,
 	.con_save_screen	= sticon_save_screen, 
 	.con_build_attr		= sticon_build_attr,
 	.con_invert_region	= sticon_invert_region, 

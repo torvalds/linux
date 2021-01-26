@@ -68,7 +68,7 @@ static int lt3593_led_probe(struct platform_device *pdev)
 	struct led_init_data init_data = {};
 	const char *tmp;
 
-	if (!dev->of_node)
+	if (!dev_of_node(dev))
 		return -ENODEV;
 
 	led_data = devm_kzalloc(dev, sizeof(*led_data), GFP_KERNEL);
@@ -85,9 +85,6 @@ static int lt3593_led_probe(struct platform_device *pdev)
 		return PTR_ERR(led_data->gpiod);
 
 	child = device_get_next_child_node(dev, NULL);
-
-	fwnode_property_read_string(child, "linux,default-trigger",
-				    &led_data->cdev.default_trigger);
 
 	if (!fwnode_property_read_string(child, "default-state", &tmp)) {
 		if (!strcmp(tmp, "on"))
@@ -107,7 +104,6 @@ static int lt3593_led_probe(struct platform_device *pdev)
 		return ret;
 	}
 
-	led_data->cdev.dev->of_node = dev->of_node;
 	platform_set_drvdata(pdev, led_data);
 
 	return 0;

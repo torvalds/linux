@@ -268,7 +268,7 @@ static int samsung_ufs_phy_exit(struct phy *phy)
 	return 0;
 }
 
-static struct phy_ops samsung_ufs_phy_ops = {
+static const struct phy_ops samsung_ufs_phy_ops = {
 	.init		= samsung_ufs_phy_init,
 	.exit		= samsung_ufs_phy_exit,
 	.power_on	= samsung_ufs_phy_power_on,

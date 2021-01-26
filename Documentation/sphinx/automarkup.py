@@ -13,6 +13,7 @@ if sphinx.version_info[0] < 2 or \
 else:
     from sphinx.errors import NoUri
 import re
+from itertools import chain
 
 #
 # Regex nastiness.  Of course.
@@ -21,7 +22,13 @@ import re
 # :c:func: block (i.e. ":c:func:`mmap()`s" flakes out), so the last
 # bit tries to restrict matches to things that won't create trouble.
 #
-RE_function = re.compile(r'([\w_][\w\d_]+\(\))')
+RE_function = re.compile(r'(([\w_][\w\d_]+)\(\))')
+RE_type = re.compile(r'(struct|union|enum|typedef)\s+([\w_][\w\d_]+)')
+#
+# Detects a reference to a documentation page of the form Documentation/... with
+# an optional extension
+#
+RE_doc = re.compile(r'Documentation(/[\w\-_/]+)(\.\w+)*')
 
 #
 # Many places in the docs refer to common system calls.  It is
@@ -34,55 +41,109 @@ Skipfuncs = [ 'open', 'close', 'read', 'write', 'fcntl', 'mmap',
               'select', 'poll', 'fork', 'execve', 'clone', 'ioctl',
               'socket' ]
 
-#
-# Find all occurrences of function() and try to replace them with
-# appropriate cross references.
-#
-def markup_funcs(docname, app, node):
-    cdom = app.env.domains['c']
+def markup_refs(docname, app, node):
     t = node.astext()
     done = 0
     repl = [ ]
-    for m in RE_function.finditer(t):
+    #
+    # Associate each regex with the function that will markup its matches
+    #
+    markup_func = {RE_type: markup_c_ref,
+                   RE_function: markup_c_ref,
+                   RE_doc: markup_doc_ref}
+    match_iterators = [regex.finditer(t) for regex in markup_func]
+    #
+    # Sort all references by the starting position in text
+    #
+    sorted_matches = sorted(chain(*match_iterators), key=lambda m: m.start())
+    for m in sorted_matches:
         #
-        # Include any text prior to function() as a normal text node.
+        # Include any text prior to match as a normal text node.
         #
         if m.start() > done:
             repl.append(nodes.Text(t[done:m.start()]))
+
         #
-        # Go through the dance of getting an xref out of the C domain
+        # Call the function associated with the regex that matched this text and
+        # append its return to the text
         #
-        target = m.group(1)[:-2]
-        target_text = nodes.Text(target + '()')
-        xref = None
-        if target not in Skipfuncs:
-            lit_text = nodes.literal(classes=['xref', 'c', 'c-func'])
-            lit_text += target_text
-            pxref = addnodes.pending_xref('', refdomain = 'c',
-                                          reftype = 'function',
-                                          reftarget = target, modname = None,
-                                          classname = None)
-            #
-            # XXX The Latex builder will throw NoUri exceptions here,
-            # work around that by ignoring them.
-            #
-            try:
-                xref = cdom.resolve_xref(app.env, docname, app.builder,
-                                         'function', target, pxref, lit_text)
-            except NoUri:
-                xref = None
-        #
-        # Toss the xref into the list if we got it; otherwise just put
-        # the function text.
-        #
-        if xref:
-            repl.append(xref)
-        else:
-            repl.append(target_text)
+        repl.append(markup_func[m.re](docname, app, m))
+
         done = m.end()
     if done < len(t):
         repl.append(nodes.Text(t[done:]))
     return repl
+
+#
+# Try to replace a C reference (function() or struct/union/enum/typedef
+# type_name) with an appropriate cross reference.
+#
+def markup_c_ref(docname, app, match):
+    class_str = {RE_function: 'c-func', RE_type: 'c-type'}
+    reftype_str = {RE_function: 'function', RE_type: 'type'}
+
+    cdom = app.env.domains['c']
+    #
+    # Go through the dance of getting an xref out of the C domain
+    #
+    target = match.group(2)
+    target_text = nodes.Text(match.group(0))
+    xref = None
+    if not (match.re == RE_function and target in Skipfuncs):
+        lit_text = nodes.literal(classes=['xref', 'c', class_str[match.re]])
+        lit_text += target_text
+        pxref = addnodes.pending_xref('', refdomain = 'c',
+                                      reftype = reftype_str[match.re],
+                                      reftarget = target, modname = None,
+                                      classname = None)
+        #
+        # XXX The Latex builder will throw NoUri exceptions here,
+        # work around that by ignoring them.
+        #
+        try:
+            xref = cdom.resolve_xref(app.env, docname, app.builder,
+                                     reftype_str[match.re], target, pxref,
+                                     lit_text)
+        except NoUri:
+            xref = None
+    #
+    # Return the xref if we got it; otherwise just return the plain text.
+    #
+    if xref:
+        return xref
+    else:
+        return target_text
+
+#
+# Try to replace a documentation reference of the form Documentation/... with a
+# cross reference to that page
+#
+def markup_doc_ref(docname, app, match):
+    stddom = app.env.domains['std']
+    #
+    # Go through the dance of getting an xref out of the std domain
+    #
+    target = match.group(1)
+    xref = None
+    pxref = addnodes.pending_xref('', refdomain = 'std', reftype = 'doc',
+                                  reftarget = target, modname = None,
+                                  classname = None, refexplicit = False)
+    #
+    # XXX The Latex builder will throw NoUri exceptions here,
+    # work around that by ignoring them.
+    #
+    try:
+        xref = stddom.resolve_xref(app.env, docname, app.builder, 'doc',
+                                   target, pxref, None)
+    except NoUri:
+        xref = None
+    #
+    # Return the xref if we got it; otherwise just return the plain text.
+    #
+    if xref:
+        return xref
+    else:
+        return nodes.Text(match.group(0))
 
 def auto_markup(app, doctree, name):
     #
@@ -97,7 +158,7 @@ def auto_markup(app, doctree, name):
     for para in doctree.traverse(nodes.paragraph):
         for node in para.traverse(nodes.Text):
             if not isinstance(node.parent, nodes.literal):
-                node.parent.replace(node, markup_funcs(name, app, node))
+                node.parent.replace(node, markup_refs(name, app, node))
 
 def setup(app):
     app.connect('doctree-resolved', auto_markup)

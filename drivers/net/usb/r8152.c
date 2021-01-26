@@ -1504,7 +1504,7 @@ static int determine_ethernet_addr(struct r8152 *tp, struct sockaddr *sa)
 
 	sa->sa_family = dev->type;
 
-	ret = eth_platform_get_mac_address(&dev->dev, sa->sa_data);
+	ret = eth_platform_get_mac_address(&tp->udev->dev, sa->sa_data);
 	if (ret < 0) {
 		if (tp->version == RTL_VER_01) {
 			ret = pla_ocp_read(tp, PLA_IDR, 8, sa->sa_data);
@@ -1682,7 +1682,7 @@ static void intr_callback(struct urb *urb)
 	case -ECONNRESET:	/* unlink */
 	case -ESHUTDOWN:
 		netif_device_detach(tp->netdev);
-		/* fall through */
+		fallthrough;
 	case -ENOENT:
 	case -EPROTO:
 		netif_info(tp, intr, tp->netdev,
@@ -3251,7 +3251,7 @@ static void r8153b_ups_en(struct r8152 *tp, bool enable)
 			r8152_mdio_write(tp, MII_BMCR, data);
 
 			data = r8153_phy_status(tp, PHY_STAT_LAN_ON);
-			/* fall through */
+			fallthrough;
 
 		default:
 			if (data != PHY_STAT_LAN_ON)
@@ -4849,7 +4849,7 @@ static int rtl8152_set_speed(struct r8152 *tp, u8 autoneg, u32 speed, u8 duplex,
 				tp->ups_info.speed_duplex = NWAY_1000M_FULL;
 				break;
 			}
-			/* fall through */
+			fallthrough;
 		default:
 			ret = -EINVAL;
 			goto out;

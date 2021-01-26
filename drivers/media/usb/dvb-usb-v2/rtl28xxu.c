@@ -1781,7 +1781,7 @@ static int rtl2832u_rc_query(struct dvb_usb_device *d)
 	/* pass data to Kernel IR decoder */
 	for (i = 0; i < len; i++) {
 		ev.pulse = buf[i] >> 7;
-		ev.duration = 50800 * (buf[i] & 0x7f);
+		ev.duration = 51 * (buf[i] & 0x7f);
 		ir_raw_event_store_with_filter(d->rc_dev, &ev);
 	}
 
@@ -1809,7 +1809,7 @@ static int rtl2832u_get_rc_config(struct dvb_usb_device *d,
 	rc->query = rtl2832u_rc_query;
 	rc->interval = 200;
 	/* we program idle len to 0xc0, set timeout to one less */
-	rc->timeout = 0xbf * 50800;
+	rc->timeout = 0xbf * 51;
 
 	return 0;
 }

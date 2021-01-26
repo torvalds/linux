@@ -72,6 +72,16 @@ wants to support one of the below features, it should adapt these bindings.
 	this information to adapt power management to keep the arbitration awake
 	all the time, for example. Can not be combined with 'single-master'.
 
+- pinctrl
+	add extra pinctrl to configure SCL/SDA pins to GPIO function for bus
+	recovery, call it "gpio" or "recovery" (deprecated) state
+
+- scl-gpios
+	specify the gpio related to SCL pin. Used for GPIO bus recovery.
+
+- sda-gpios
+	specify the gpio related to SDA pin. Optional for GPIO bus recovery.
+
 - single-master
 	states that there is no other master active on this bus. The OS can use
 	this information to detect a stalled bus more reliably, for example.

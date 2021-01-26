@@ -80,9 +80,9 @@ xfs_uuid_mount(
 	}
 
 	if (hole < 0) {
-		xfs_uuid_table = kmem_realloc(xfs_uuid_table,
+		xfs_uuid_table = krealloc(xfs_uuid_table,
 			(xfs_uuid_table_size + 1) * sizeof(*xfs_uuid_table),
-			0);
+			GFP_KERNEL | __GFP_NOFAIL);
 		hole = xfs_uuid_table_size++;
 	}
 	xfs_uuid_table[hole] = *uuid;
@@ -148,7 +148,6 @@ xfs_free_perag(
 		ASSERT(atomic_read(&pag->pag_ref) == 0);
 		xfs_iunlink_destroy(pag);
 		xfs_buf_hash_destroy(pag);
-		mutex_destroy(&pag->pag_ici_reclaim_lock);
 		call_rcu(&pag->rcu_head, __xfs_free_perag);
 	}
 }
@@ -200,7 +199,6 @@ xfs_initialize_perag(
 		pag->pag_agno = index;
 		pag->pag_mount = mp;
 		spin_lock_init(&pag->pag_ici_lock);
-		mutex_init(&pag->pag_ici_reclaim_lock);
 		INIT_RADIX_TREE(&pag->pag_ici_root, GFP_ATOMIC);
 		if (xfs_buf_hash_init(pag))
 			goto out_free_pag;
@@ -242,7 +240,6 @@ xfs_initialize_perag(
 out_hash_destroy:
 	xfs_buf_hash_destroy(pag);
 out_free_pag:
-	mutex_destroy(&pag->pag_ici_reclaim_lock);
 	kmem_free(pag);
 out_unwind_new_pags:
 	/* unwind any prior newly initialized pags */
@@ -252,7 +249,6 @@ out_unwind_new_pags:
 			break;
 		xfs_buf_hash_destroy(pag);
 		xfs_iunlink_destroy(pag);
-		mutex_destroy(&pag->pag_ici_reclaim_lock);
 		kmem_free(pag);
 	}
 	return error;
@@ -1015,7 +1011,7 @@ xfs_mountfs(
 	 * quota inodes.
 	 */
 	cancel_delayed_work_sync(&mp->m_reclaim_work);
-	xfs_reclaim_inodes(mp, SYNC_WAIT);
+	xfs_reclaim_inodes(mp);
 	xfs_health_unmount(mp);
  out_log_dealloc:
 	mp->m_flags |= XFS_MOUNT_UNMOUNTING;
@@ -1063,11 +1059,12 @@ xfs_unmountfs(
 	 * We can potentially deadlock here if we have an inode cluster
 	 * that has been freed has its buffer still pinned in memory because
 	 * the transaction is still sitting in a iclog. The stale inodes
-	 * on that buffer will have their flush locks held until the
-	 * transaction hits the disk and the callbacks run. the inode
-	 * flush takes the flush lock unconditionally and with nothing to
-	 * push out the iclog we will never get that unlocked. hence we
-	 * need to force the log first.
+	 * on that buffer will be pinned to the buffer until the
+	 * transaction hits the disk and the callbacks run. Pushing the AIL will
+	 * skip the stale inodes and may never see the pinned buffer, so
+	 * nothing will push out the iclog and unpin the buffer. Hence we
+	 * need to force the log here to ensure all items are flushed into the
+	 * AIL before we go any further.
 	 */
 	xfs_log_force(mp, XFS_LOG_SYNC);
 
@@ -1092,13 +1089,12 @@ xfs_unmountfs(
 	xfs_ail_push_all_sync(mp->m_ail);
 
 	/*
-	 * And reclaim all inodes.  At this point there should be no dirty
-	 * inodes and none should be pinned or locked, but use synchronous
-	 * reclaim just to be sure. We can stop background inode reclaim
-	 * here as well if it is still running.
+	 * Reclaim all inodes. At this point there should be no dirty inodes and
+	 * none should be pinned or locked. Stop background inode reclaim here
+	 * if it is still running.
 	 */
 	cancel_delayed_work_sync(&mp->m_reclaim_work);
-	xfs_reclaim_inodes(mp, SYNC_WAIT);
+	xfs_reclaim_inodes(mp);
 	xfs_health_unmount(mp);
 
 	xfs_qm_unmount(mp);
@@ -1291,23 +1287,6 @@ xfs_mod_frextents(
 		mp->m_sb.sb_frextents = lcounter;
 	spin_unlock(&mp->m_sb_lock);
 	return ret;
-}
-
-/*
- * xfs_getsb() is called to obtain the buffer for the superblock.
- * The buffer is returned locked and read in from disk.
- * The buffer should be released with a call to xfs_brelse().
- */
-struct xfs_buf *
-xfs_getsb(
-	struct xfs_mount	*mp)
-{
-	struct xfs_buf		*bp = mp->m_sb_bp;
-
-	xfs_buf_lock(bp);
-	xfs_buf_hold(bp);
-	ASSERT(bp->b_flags & XBF_DONE);
-	return bp;
 }
 
 /*

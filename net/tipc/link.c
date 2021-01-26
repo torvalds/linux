@@ -532,7 +532,8 @@ bool tipc_link_create(struct net *net, char *if_name, int bearer_id,
  * tipc_link_bc_create - create new link to be used for broadcast
  * @net: pointer to associated network namespace
  * @mtu: mtu to be used initially if no peers
- * @window: send window to be used
+ * @min_win: minimal send window to be used by link
+ * @max_win: maximal send window to be used by link
  * @inputq: queue to put messages ready for delivery
  * @namedq: queue to put binding table update messages ready for delivery
  * @link: return value, pointer to put the created link
@@ -1239,7 +1240,7 @@ static bool tipc_data_input(struct tipc_link *l, struct sk_buff *skb,
 			skb_queue_tail(mc_inputq, skb);
 			return true;
 		}
-		/* fall through */
+		fallthrough;
 	case CONN_MANAGER:
 		skb_queue_tail(inputq, skb);
 		return true;

@@ -25,7 +25,7 @@
 #include <linux/moduleloader.h>
 #include <linux/bpf.h>
 #include <linux/btf.h>
-#include <linux/frame.h>
+#include <linux/objtool.h>
 #include <linux/rbtree_latch.h>
 #include <linux/kallsyms.h>
 #include <linux/rcupdate.h>
@@ -1966,7 +1966,7 @@ void bpf_prog_array_delete_safe(struct bpf_prog_array *array,
  * @index: the index of the program to replace
  *
  * Skips over dummy programs, by not counting them, when calculating
- * the the position of the program to replace.
+ * the position of the program to replace.
  *
  * Return:
  * * 0		- Success

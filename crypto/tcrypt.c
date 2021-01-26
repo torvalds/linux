@@ -63,6 +63,7 @@ static u32 type;
 static u32 mask;
 static int mode;
 static u32 num_mb = 8;
+static unsigned int klen;
 static char *tvmem[TVMEMSIZE];
 
 static const char *check[] = {
@@ -398,7 +399,7 @@ static void test_mb_aead_speed(const char *algo, int enc, int secs,
 					ret = do_one_aead_op(cur->req, ret);
 
 					if (ret) {
-						pr_err("calculating auth failed failed (%d)\n",
+						pr_err("calculating auth failed (%d)\n",
 						       ret);
 						break;
 					}
@@ -648,7 +649,7 @@ static void test_aead_speed(const char *algo, int enc, unsigned int secs,
 						     crypto_aead_encrypt(req));
 
 				if (ret) {
-					pr_err("calculating auth failed failed (%d)\n",
+					pr_err("calculating auth failed (%d)\n",
 					       ret);
 					break;
 				}
@@ -864,8 +865,8 @@ static void test_mb_ahash_speed(const char *algo, unsigned int secs,
 			goto out;
 		}
 
-		if (speed[i].klen)
-			crypto_ahash_setkey(tfm, tvmem[0], speed[i].klen);
+		if (klen)
+			crypto_ahash_setkey(tfm, tvmem[0], klen);
 
 		for (k = 0; k < num_mb; k++)
 			ahash_request_set_crypt(data[k].req, data[k].sg,
@@ -1099,8 +1100,8 @@ static void test_ahash_speed_common(const char *algo, unsigned int secs,
 			break;
 		}
 
-		if (speed[i].klen)
-			crypto_ahash_setkey(tfm, tvmem[0], speed[i].klen);
+		if (klen)
+			crypto_ahash_setkey(tfm, tvmem[0], klen);
 
 		pr_info("test%3u "
 			"(%5u byte blocks,%5u bytes per update,%4u updates): ",
@@ -2348,121 +2349,122 @@ static int do_test(const char *alg, u32 type, u32 mask, int m, u32 num_mb)
 			test_hash_speed(alg, sec, generic_hash_speed_template);
 			break;
 		}
-		/* fall through */
+		fallthrough;
 	case 301:
 		test_hash_speed("md4", sec, generic_hash_speed_template);
 		if (mode > 300 && mode < 400) break;
-		/* fall through */
+		fallthrough;
 	case 302:
 		test_hash_speed("md5", sec, generic_hash_speed_template);
 		if (mode > 300 && mode < 400) break;
-		/* fall through */
+		fallthrough;
 	case 303:
 		test_hash_speed("sha1", sec, generic_hash_speed_template);
 		if (mode > 300 && mode < 400) break;
-		/* fall through */
+		fallthrough;
 	case 304:
 		test_hash_speed("sha256", sec, generic_hash_speed_template);
 		if (mode > 300 && mode < 400) break;
-		/* fall through */
+		fallthrough;
 	case 305:
 		test_hash_speed("sha384", sec, generic_hash_speed_template);
 		if (mode > 300 && mode < 400) break;
-		/* fall through */
+		fallthrough;
 	case 306:
 		test_hash_speed("sha512", sec, generic_hash_speed_template);
 		if (mode > 300 && mode < 400) break;
-		/* fall through */
+		fallthrough;
 	case 307:
 		test_hash_speed("wp256", sec, generic_hash_speed_template);
 		if (mode > 300 && mode < 400) break;
-		/* fall through */
+		fallthrough;
 	case 308:
 		test_hash_speed("wp384", sec, generic_hash_speed_template);
 		if (mode > 300 && mode < 400) break;
-		/* fall through */
+		fallthrough;
 	case 309:
 		test_hash_speed("wp512", sec, generic_hash_speed_template);
 		if (mode > 300 && mode < 400) break;
-		/* fall through */
+		fallthrough;
 	case 310:
 		test_hash_speed("tgr128", sec, generic_hash_speed_template);
 		if (mode > 300 && mode < 400) break;
-		/* fall through */
+		fallthrough;
 	case 311:
 		test_hash_speed("tgr160", sec, generic_hash_speed_template);
 		if (mode > 300 && mode < 400) break;
-		/* fall through */
+		fallthrough;
 	case 312:
 		test_hash_speed("tgr192", sec, generic_hash_speed_template);
 		if (mode > 300 && mode < 400) break;
-		/* fall through */
+		fallthrough;
 	case 313:
 		test_hash_speed("sha224", sec, generic_hash_speed_template);
 		if (mode > 300 && mode < 400) break;
-		/* fall through */
+		fallthrough;
 	case 314:
 		test_hash_speed("rmd128", sec, generic_hash_speed_template);
 		if (mode > 300 && mode < 400) break;
-		/* fall through */
+		fallthrough;
 	case 315:
 		test_hash_speed("rmd160", sec, generic_hash_speed_template);
 		if (mode > 300 && mode < 400) break;
-		/* fall through */
+		fallthrough;
 	case 316:
 		test_hash_speed("rmd256", sec, generic_hash_speed_template);
 		if (mode > 300 && mode < 400) break;
-		/* fall through */
+		fallthrough;
 	case 317:
 		test_hash_speed("rmd320", sec, generic_hash_speed_template);
 		if (mode > 300 && mode < 400) break;
-		/* fall through */
+		fallthrough;
 	case 318:
-		test_hash_speed("ghash-generic", sec, hash_speed_template_16);
+		klen = 16;
+		test_hash_speed("ghash", sec, generic_hash_speed_template);
 		if (mode > 300 && mode < 400) break;
-		/* fall through */
+		fallthrough;
 	case 319:
 		test_hash_speed("crc32c", sec, generic_hash_speed_template);
 		if (mode > 300 && mode < 400) break;
-		/* fall through */
+		fallthrough;
 	case 320:
 		test_hash_speed("crct10dif", sec, generic_hash_speed_template);
 		if (mode > 300 && mode < 400) break;
-		/* fall through */
+		fallthrough;
 	case 321:
 		test_hash_speed("poly1305", sec, poly1305_speed_template);
 		if (mode > 300 && mode < 400) break;
-		/* fall through */
+		fallthrough;
 	case 322:
 		test_hash_speed("sha3-224", sec, generic_hash_speed_template);
 		if (mode > 300 && mode < 400) break;
-		/* fall through */
+		fallthrough;
 	case 323:
 		test_hash_speed("sha3-256", sec, generic_hash_speed_template);
 		if (mode > 300 && mode < 400) break;
-		/* fall through */
+		fallthrough;
 	case 324:
 		test_hash_speed("sha3-384", sec, generic_hash_speed_template);
 		if (mode > 300 && mode < 400) break;
-		/* fall through */
+		fallthrough;
 	case 325:
 		test_hash_speed("sha3-512", sec, generic_hash_speed_template);
 		if (mode > 300 && mode < 400) break;
-		/* fall through */
+		fallthrough;
 	case 326:
 		test_hash_speed("sm3", sec, generic_hash_speed_template);
 		if (mode > 300 && mode < 400) break;
-		/* fall through */
+		fallthrough;
 	case 327:
 		test_hash_speed("streebog256", sec,
 				generic_hash_speed_template);
 		if (mode > 300 && mode < 400) break;
-		/* fall through */
+		fallthrough;
 	case 328:
 		test_hash_speed("streebog512", sec,
 				generic_hash_speed_template);
 		if (mode > 300 && mode < 400) break;
-		/* fall through */
+		fallthrough;
 	case 399:
 		break;
 
@@ -2471,121 +2473,121 @@ static int do_test(const char *alg, u32 type, u32 mask, int m, u32 num_mb)
 			test_ahash_speed(alg, sec, generic_hash_speed_template);
 			break;
 		}
-		/* fall through */
+		fallthrough;
 	case 401:
 		test_ahash_speed("md4", sec, generic_hash_speed_template);
 		if (mode > 400 && mode < 500) break;
-		/* fall through */
+		fallthrough;
 	case 402:
 		test_ahash_speed("md5", sec, generic_hash_speed_template);
 		if (mode > 400 && mode < 500) break;
-		/* fall through */
+		fallthrough;
 	case 403:
 		test_ahash_speed("sha1", sec, generic_hash_speed_template);
 		if (mode > 400 && mode < 500) break;
-		/* fall through */
+		fallthrough;
 	case 404:
 		test_ahash_speed("sha256", sec, generic_hash_speed_template);
 		if (mode > 400 && mode < 500) break;
-		/* fall through */
+		fallthrough;
 	case 405:
 		test_ahash_speed("sha384", sec, generic_hash_speed_template);
 		if (mode > 400 && mode < 500) break;
-		/* fall through */
+		fallthrough;
 	case 406:
 		test_ahash_speed("sha512", sec, generic_hash_speed_template);
 		if (mode > 400 && mode < 500) break;
-		/* fall through */
+		fallthrough;
 	case 407:
 		test_ahash_speed("wp256", sec, generic_hash_speed_template);
 		if (mode > 400 && mode < 500) break;
-		/* fall through */
+		fallthrough;
 	case 408:
 		test_ahash_speed("wp384", sec, generic_hash_speed_template);
 		if (mode > 400 && mode < 500) break;
-		/* fall through */
+		fallthrough;
 	case 409:
 		test_ahash_speed("wp512", sec, generic_hash_speed_template);
 		if (mode > 400 && mode < 500) break;
-		/* fall through */
+		fallthrough;
 	case 410:
 		test_ahash_speed("tgr128", sec, generic_hash_speed_template);
 		if (mode > 400 && mode < 500) break;
-		/* fall through */
+		fallthrough;
 	case 411:
 		test_ahash_speed("tgr160", sec, generic_hash_speed_template);
 		if (mode > 400 && mode < 500) break;
-		/* fall through */
+		fallthrough;
 	case 412:
 		test_ahash_speed("tgr192", sec, generic_hash_speed_template);
 		if (mode > 400 && mode < 500) break;
-		/* fall through */
+		fallthrough;
 	case 413:
 		test_ahash_speed("sha224", sec, generic_hash_speed_template);
 		if (mode > 400 && mode < 500) break;
-		/* fall through */
+		fallthrough;
 	case 414:
 		test_ahash_speed("rmd128", sec, generic_hash_speed_template);
 		if (mode > 400 && mode < 500) break;
-		/* fall through */
+		fallthrough;
 	case 415:
 		test_ahash_speed("rmd160", sec, generic_hash_speed_template);
 		if (mode > 400 && mode < 500) break;
-		/* fall through */
+		fallthrough;
 	case 416:
 		test_ahash_speed("rmd256", sec, generic_hash_speed_template);
 		if (mode > 400 && mode < 500) break;
-		/* fall through */
+		fallthrough;
 	case 417:
 		test_ahash_speed("rmd320", sec, generic_hash_speed_template);
 		if (mode > 400 && mode < 500) break;
-		/* fall through */
+		fallthrough;
 	case 418:
 		test_ahash_speed("sha3-224", sec, generic_hash_speed_template);
 		if (mode > 400 && mode < 500) break;
-		/* fall through */
+		fallthrough;
 	case 419:
 		test_ahash_speed("sha3-256", sec, generic_hash_speed_template);
 		if (mode > 400 && mode < 500) break;
-		/* fall through */
+		fallthrough;
 	case 420:
 		test_ahash_speed("sha3-384", sec, generic_hash_speed_template);
 		if (mode > 400 && mode < 500) break;
-		/* fall through */
+		fallthrough;
 	case 421:
 		test_ahash_speed("sha3-512", sec, generic_hash_speed_template);
 		if (mode > 400 && mode < 500) break;
-		/* fall through */
+		fallthrough;
 	case 422:
 		test_mb_ahash_speed("sha1", sec, generic_hash_speed_template,
 				    num_mb);
 		if (mode > 400 && mode < 500) break;
-		/* fall through */
+		fallthrough;
 	case 423:
 		test_mb_ahash_speed("sha256", sec, generic_hash_speed_template,
 				    num_mb);
 		if (mode > 400 && mode < 500) break;
-		/* fall through */
+		fallthrough;
 	case 424:
 		test_mb_ahash_speed("sha512", sec, generic_hash_speed_template,
 				    num_mb);
 		if (mode > 400 && mode < 500) break;
-		/* fall through */
+		fallthrough;
 	case 425:
 		test_mb_ahash_speed("sm3", sec, generic_hash_speed_template,
 				    num_mb);
 		if (mode > 400 && mode < 500) break;
-		/* fall through */
+		fallthrough;
 	case 426:
 		test_mb_ahash_speed("streebog256", sec,
 				    generic_hash_speed_template, num_mb);
 		if (mode > 400 && mode < 500) break;
-		/* fall through */
+		fallthrough;
 	case 427:
 		test_mb_ahash_speed("streebog512", sec,
 				    generic_hash_speed_template, num_mb);
 		if (mode > 400 && mode < 500) break;
-		/* fall through */
+		fallthrough;
 	case 499:
 		break;
 
@@ -3076,6 +3078,8 @@ MODULE_PARM_DESC(sec, "Length in seconds of speed tests "
 		      "(defaults to zero which uses CPU cycles instead)");
 module_param(num_mb, uint, 0000);
 MODULE_PARM_DESC(num_mb, "Number of concurrent requests to be used in mb speed tests (defaults to 8)");
+module_param(klen, uint, 0);
+MODULE_PARM_DESC(klen, "Key length (defaults to 0)");
 
 MODULE_LICENSE("GPL");
 MODULE_DESCRIPTION("Quick & dirty crypto testing module");

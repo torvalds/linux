@@ -9,7 +9,6 @@
 #include "../include/hw_ip/pci/pci_general.h"
 
 #include <linux/pci.h>
-#include <linux/bitfield.h>
 
 #define HL_PLDM_PCI_ELBI_TIMEOUT_MSEC	(HL_PCI_ELBI_TIMEOUT_MSEC * 10)
 
@@ -227,7 +226,7 @@ int hl_pci_set_inbound_region(struct hl_device *hdev, u8 region,
 	}
 
 	/* Point to the specified address */
-	rc = hl_pci_iatu_write(hdev, offset + 0x14,
+	rc |= hl_pci_iatu_write(hdev, offset + 0x14,
 			lower_32_bits(pci_region->addr));
 	rc |= hl_pci_iatu_write(hdev, offset + 0x18,
 			upper_32_bits(pci_region->addr));
@@ -339,12 +338,17 @@ static int hl_pci_set_dma_mask(struct hl_device *hdev)
 /**
  * hl_pci_init() - PCI initialization code.
  * @hdev: Pointer to hl_device structure.
+ * @cpu_boot_status_reg: status register of the device's CPU
+ * @boot_err0_reg: boot error register of the device's CPU
+ * @preboot_ver_timeout: how much to wait before bailing out on reading
+ *                       the preboot version
  *
  * Set DMA masks, initialize the PCI controller and map the PCI BARs.
  *
  * Return: 0 on success, non-zero for failure.
  */
-int hl_pci_init(struct hl_device *hdev)
+int hl_pci_init(struct hl_device *hdev, u32 cpu_boot_status_reg,
+		u32 boot_err0_reg, u32 preboot_ver_timeout)
 {
 	struct pci_dev *pdev = hdev->pdev;
 	int rc;
@@ -369,15 +373,26 @@ int hl_pci_init(struct hl_device *hdev)
 	rc = hdev->asic_funcs->init_iatu(hdev);
 	if (rc) {
 		dev_err(hdev->dev, "Failed to initialize iATU\n");
-		goto disable_device;
+		goto unmap_pci_bars;
 	}
 
 	rc = hl_pci_set_dma_mask(hdev);
 	if (rc)
-		goto disable_device;
+		goto unmap_pci_bars;
+
+	/* Before continuing in the initialization, we need to read the preboot
+	 * version to determine whether we run with a security-enabled firmware
+	 * The check will be done in each ASIC's specific code
+	 */
+	rc = hl_fw_read_preboot_ver(hdev, cpu_boot_status_reg, boot_err0_reg,
+					preboot_ver_timeout);
+	if (rc)
+		goto unmap_pci_bars;
 
 	return 0;
 
+unmap_pci_bars:
+	hl_pci_bars_unmap(hdev);
 disable_device:
 	pci_clear_master(pdev);
 	pci_disable_device(pdev);

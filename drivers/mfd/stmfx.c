@@ -331,11 +331,9 @@ static int stmfx_chip_init(struct i2c_client *client)
 	ret = PTR_ERR_OR_ZERO(stmfx->vdd);
 	if (ret == -ENODEV) {
 		stmfx->vdd = NULL;
-	} else if (ret == -EPROBE_DEFER) {
-		return ret;
-	} else if (ret) {
-		dev_err(&client->dev, "Failed to get VDD regulator: %d\n", ret);
-		return ret;
+	} else {
+		return dev_err_probe(&client->dev, ret,
+				     "Failed to get VDD regulator\n");
 	}
 
 	if (stmfx->vdd) {

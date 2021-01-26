@@ -1087,7 +1087,7 @@ static void hva_stop_streaming(struct vb2_queue *vq)
 
 	if ((V4L2_TYPE_IS_OUTPUT(vq->type) &&
 	     vb2_is_streaming(&ctx->fh.m2m_ctx->cap_q_ctx.q)) ||
-	    (!V4L2_TYPE_IS_OUTPUT(vq->type) &&
+	    (V4L2_TYPE_IS_CAPTURE(vq->type) &&
 	     vb2_is_streaming(&ctx->fh.m2m_ctx->out_q_ctx.q))) {
 		dev_dbg(dev, "%s %s out=%d cap=%d\n",
 			ctx->name, to_type_str(vq->type),

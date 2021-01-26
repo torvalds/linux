@@ -66,6 +66,8 @@ struct sof_dev_desc {
 	/* alternate list of machines using this configuration */
 	struct snd_soc_acpi_mach *alt_machines;
 
+	bool use_acpi_target_states;
+
 	/* Platform resource indexes in BAR / ACPI resources. */
 	/* Must set to -1 if not used - add new items to end */
 	int resindex_lpe_base;

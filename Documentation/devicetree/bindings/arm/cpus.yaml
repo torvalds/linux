@@ -330,8 +330,8 @@ if:
     - enable-method
 
 then:
-   required:
-     - secondary-boot-reg
+  required:
+    - secondary-boot-reg
 
 required:
   - device_type
@@ -340,6 +340,8 @@ required:
 
 dependencies:
   rockchip,pmu: [enable-method]
+
+additionalProperties: true
 
 examples:
   - |

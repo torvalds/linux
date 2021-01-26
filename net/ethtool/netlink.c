@@ -866,7 +866,7 @@ static const struct genl_multicast_group ethtool_nl_mcgrps[] = {
 	[ETHNL_MCGRP_MONITOR] = { .name = ETHTOOL_MCGRP_MONITOR_NAME },
 };
 
-static struct genl_family ethtool_genl_family = {
+static struct genl_family ethtool_genl_family __ro_after_init = {
 	.name		= ETHTOOL_GENL_NAME,
 	.version	= ETHTOOL_GENL_VERSION,
 	.netnsok	= true,

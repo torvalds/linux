@@ -91,13 +91,8 @@ static int bcove_ipc_byte_reg_write(void *context, unsigned int reg,
 {
 	struct intel_soc_pmic *pmic = context;
 	u8 ipc_in = val;
-	int ret;
 
-	ret = intel_scu_ipc_dev_iowrite8(pmic->scu, reg, ipc_in);
-	if (ret)
-		return ret;
-
-	return 0;
+	return intel_scu_ipc_dev_iowrite8(pmic->scu, reg, ipc_in);
 }
 
 static const struct regmap_config bcove_regmap_config = {

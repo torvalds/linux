@@ -591,7 +591,7 @@ void test_flow_dissector(void)
 		CHECK_ATTR(tattr.data_size_out != sizeof(flow_keys) ||
 			   err || tattr.retval != 1,
 			   tests[i].name,
-			   "err %d errno %d retval %d duration %d size %u/%lu\n",
+			   "err %d errno %d retval %d duration %d size %u/%zu\n",
 			   err, errno, tattr.retval, tattr.duration,
 			   tattr.data_size_out, sizeof(flow_keys));
 		CHECK_FLOW_KEYS(tests[i].name, flow_keys, tests[i].keys);

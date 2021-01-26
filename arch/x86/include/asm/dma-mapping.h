@@ -8,10 +8,8 @@
  */
 
 #include <linux/scatterlist.h>
-#include <linux/dma-debug.h>
 #include <asm/io.h>
 #include <asm/swiotlb.h>
-#include <linux/dma-contiguous.h>
 
 extern int iommu_merge;
 extern int panic_on_overflow;

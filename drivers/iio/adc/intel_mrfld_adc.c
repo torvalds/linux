@@ -207,7 +207,6 @@ static int mrfld_adc_probe(struct platform_device *pdev)
 
 	platform_set_drvdata(pdev, indio_dev);
 
-	indio_dev->dev.parent = dev;
 	indio_dev->name = pdev->name;
 
 	indio_dev->channels = mrfld_adc_channels;

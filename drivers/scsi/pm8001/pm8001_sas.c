@@ -129,6 +129,7 @@ int pm8001_mem_alloc(struct pci_dev *pdev, void **virt_addr,
 	*pphys_addr_lo = lower_32_bits(phys_align);
 	return 0;
 }
+
 /**
   * pm8001_find_ha_by_dev - from domain device which come from sas layer to
   * find out our hba struct.
@@ -366,17 +367,15 @@ static int sas_find_local_port_id(struct domain_device *dev)
 	return 0;
 }
 
+#define DEV_IS_GONE(pm8001_dev)	\
+	((!pm8001_dev || (pm8001_dev->dev_type == SAS_PHY_UNUSED)))
 /**
   * pm8001_task_exec - queue the task(ssp, smp && ata) to the hardware.
   * @task: the task to be execute.
-  * @num: if can_queue great than 1, the task can be queued up. for SMP task,
-  * we always execute one one time.
   * @gfp_flags: gfp_flags.
   * @is_tmf: if it is task management task.
   * @tmf: the task management IU
   */
-#define DEV_IS_GONE(pm8001_dev)	\
-	((!pm8001_dev || (pm8001_dev->dev_type == SAS_PHY_UNUSED)))
 static int pm8001_task_exec(struct sas_task *task,
 	gfp_t gfp_flags, int is_tmf, struct pm8001_tmf_task *tmf)
 {
@@ -577,6 +576,7 @@ static struct pm8001_device *pm8001_alloc_dev(struct pm8001_hba_info *pm8001_ha)
 /**
   * pm8001_find_dev - find a matching pm8001_device
   * @pm8001_ha: our hba card information
+  * @device_id: device ID to match against
   */
 struct pm8001_device *pm8001_find_dev(struct pm8001_hba_info *pm8001_ha,
 					u32 device_id)
@@ -818,7 +818,7 @@ pm8001_exec_internal_task_abort(struct pm8001_hba_info *pm8001_ha,
 
 		res = pm8001_tag_alloc(pm8001_ha, &ccb_tag);
 		if (res)
-			return res;
+			goto ex_err;
 		ccb = &pm8001_ha->ccb_info[ccb_tag];
 		ccb->device = pm8001_dev;
 		ccb->ccb_tag = ccb_tag;
@@ -995,6 +995,7 @@ void pm8001_open_reject_retry(
 /**
   * Standard mandates link reset for ATA  (type 0) and hard reset for
   * SSP (type 1) , only for RECOVERY
+  * @dev: the device structure for the device to reset.
   */
 int pm8001_I_T_nexus_reset(struct domain_device *dev)
 {

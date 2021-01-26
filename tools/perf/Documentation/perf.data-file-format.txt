@@ -389,6 +389,19 @@ struct {
 Example:
  cpu pmu capabilities: branches=32, max_precise=3, pmu_name=icelake
 
+	HEADER_CLOCK_DATA = 29,
+
+	Contains clock id and its reference time together with wall clock
+	time taken at the 'same time', both values are in nanoseconds.
+	The format of data is as below.
+
+struct {
+	u32 version;  /* version = 1 */
+	u32 clockid;
+	u64 wall_clock_ns;
+	u64 clockid_time_ns;
+};
+
 	other bits are reserved and should ignored for now
 	HEADER_FEAT_BITS	= 256,
 

@@ -17,6 +17,15 @@ menuconfig THERMAL
 
 if THERMAL
 
+config THERMAL_NETLINK
+	bool "Thermal netlink management"
+	depends on NET
+	help
+	  The thermal framework has a netlink interface to do thermal
+	  zones discovery, temperature readings and events such as
+	  trip point crossed, cooling device update or governor
+	  change. It is recommended to enable the feature.
+
 config THERMAL_STATISTICS
 	bool "Thermal state transition statistics"
 	help
@@ -179,16 +188,6 @@ config CPU_IDLE_THERMAL
 	  idle injection. This will throttle the CPU by injecting
 	  idle cycle.
 endif
-
-config CLOCK_THERMAL
-	bool "Generic clock cooling support"
-	depends on COMMON_CLK
-	depends on PM_OPP
-	help
-	  This entry implements the generic clock cooling mechanism through
-	  frequency clipping. Typically used to cool off co-processors. The
-	  device that is configured to use this cooling mechanism will be
-	  controlled to reduce clock frequency whenever temperature is high.
 
 config DEVFREQ_THERMAL
 	bool "Generic device cooling support"
@@ -500,4 +499,15 @@ config SPRD_THERMAL
 	help
 	  Support for the Spreadtrum thermal sensor driver in the Linux thermal
 	  framework.
+
+config KHADAS_MCU_FAN_THERMAL
+	tristate "Khadas MCU controller FAN cooling support"
+	depends on OF || COMPILE_TEST
+	depends on MFD_KHADAS_MCU
+	select MFD_CORE
+	select REGMAP
+	help
+	  If you say yes here you get support for the FAN controlled
+	  by the Microcontroller found on the Khadas VIM boards.
+
 endif

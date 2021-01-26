@@ -11,6 +11,7 @@ config TYPEC_MUX_PI3USB30532
 
 config TYPEC_MUX_INTEL_PMC
 	tristate "Intel PMC mux control"
+	depends on ACPI
 	depends on INTEL_SCU_IPC
 	select USB_ROLE_SWITCH
 	help

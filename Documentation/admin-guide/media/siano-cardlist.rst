@@ -20,7 +20,7 @@ Siano cards list
      - 2040:1801
    * - Hauppauge WinTV MiniCard
      - 2040:2000, 2040:200a, 2040:2010, 2040:2011, 2040:2019
-   * - Hauppauge WinTV MiniCard
+   * - Hauppauge WinTV MiniCard Rev 2
      - 2040:2009
    * - Hauppauge WinTV MiniStick
      - 2040:5500, 2040:5510, 2040:5520, 2040:5530, 2040:5580, 2040:5590, 2040:b900, 2040:b910, 2040:b980, 2040:b990, 2040:c000, 2040:c010, 2040:c080, 2040:c090, 2040:c0a0, 2040:f5a0

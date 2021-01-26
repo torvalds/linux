@@ -25,23 +25,6 @@
  * N.B. the 3 input formatters are of 2 different classess
  */
 
-#define HAS_MMU_VERSION_2
-#define HAS_DMA_VERSION_2
-#define HAS_GDC_VERSION_2
-#define HAS_VAMEM_VERSION_2
-#define HAS_HMEM_VERSION_1
-#define HAS_BAMEM_VERSION_2
-#define HAS_IRQ_VERSION_2
-#define HAS_IRQ_MAP_VERSION_2
-#define HAS_INPUT_FORMATTER_VERSION_2
-#define HAS_INPUT_SYSTEM_VERSION_2
-#define HAS_BUFFERED_SENSOR
-#define HAS_FIFO_MONITORS_VERSION_2
-#define HAS_GP_DEVICE_VERSION_2
-#define HAS_GPIO_VERSION_1
-#define HAS_TIMED_CTRL_VERSION_1
-#define HAS_RX_VERSION_2
-
 /* per-frame parameter handling support */
 #define SH_CSS_ENABLE_PER_FRAME_PARAMS
 
@@ -63,12 +46,6 @@
  */
 #define ISP2400_DMA_MAX_BURST_LENGTH	128
 #define ISP2401_DMA_MAX_BURST_LENGTH	2
-
-#ifdef ISP2401
-#  include "isp2401_system_global.h"
-#else
-#  include "isp2400_system_global.h"
-#endif
 
 #include <hive_isp_css_defs.h>
 #include <type_support.h>

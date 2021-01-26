@@ -135,12 +135,6 @@ struct mlx5e_neigh_hash_entry {
 	/* encap list sharing the same neigh */
 	struct list_head encap_list;
 
-	/* valid only when the neigh reference is taken during
-	 * neigh_update_work workqueue callback.
-	 */
-	struct neighbour *n;
-	struct work_struct neigh_update_work;
-
 	/* neigh hash entry can be deleted only when the refcount is zero.
 	 * refcount is needed to avoid neigh hash entry removal by TC, while
 	 * it's used by the neigh notification call.

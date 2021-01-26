@@ -566,6 +566,7 @@ struct ocelot_port {
 	u8				ptp_cmd;
 	struct sk_buff_head		tx_skbs;
 	u8				ts_id;
+	spinlock_t			ts_id_lock;
 
 	phy_interface_t			phy_mode;
 
@@ -677,6 +678,7 @@ void ocelot_configure_cpu(struct ocelot *ocelot, int npi,
 int ocelot_init(struct ocelot *ocelot);
 void ocelot_deinit(struct ocelot *ocelot);
 void ocelot_init_port(struct ocelot *ocelot, int port);
+void ocelot_deinit_port(struct ocelot *ocelot, int port);
 
 /* DSA callbacks */
 void ocelot_port_enable(struct ocelot *ocelot, int port,

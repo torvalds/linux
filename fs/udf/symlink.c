@@ -52,7 +52,7 @@ static int udf_pc_to_char(struct super_block *sb, unsigned char *from,
 				elen += pc->lengthComponentIdent;
 				break;
 			}
-			/* Fall through */
+			fallthrough;
 		case 2:
 			if (tolen == 0)
 				return -ENAMETOOLONG;
@@ -122,7 +122,7 @@ static int udf_symlink_filler(struct file *file, struct page *page)
 
 	down_read(&iinfo->i_data_sem);
 	if (iinfo->i_alloc_type == ICBTAG_FLAG_AD_IN_ICB) {
-		symlink = iinfo->i_ext.i_data + iinfo->i_lenEAttr;
+		symlink = iinfo->i_data + iinfo->i_lenEAttr;
 	} else {
 		bh = sb_bread(inode->i_sb, pos);
 

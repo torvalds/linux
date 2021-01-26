@@ -15,7 +15,7 @@ config QUOTA
 	  Ext3, ext4 and reiserfs also support journaled quotas for which
 	  you don't need to run quotacheck(8) after an unclean shutdown.
 	  For further details, read the Quota mini-HOWTO, available from
-	  <http://www.tldp.org/docs.html#howto>, or the documentation provided
+	  <https://www.tldp.org/docs.html#howto>, or the documentation provided
 	  with the quota tools. Probably the quota support is only useful for
 	  multi user systems. If unsure, say N.
 
@@ -70,8 +70,3 @@ config QFMT_V2
 config QUOTACTL
 	bool
 	default n
-
-config QUOTACTL_COMPAT
-	bool
-	depends on QUOTACTL && COMPAT_FOR_U64_ALIGNMENT
-	default y

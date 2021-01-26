@@ -207,7 +207,9 @@ static int nl8048_probe(struct spi_device *spi)
 	drm_panel_init(&lcd->panel, &lcd->spi->dev, &nl8048_funcs,
 		       DRM_MODE_CONNECTOR_DPI);
 
-	return drm_panel_add(&lcd->panel);
+	drm_panel_add(&lcd->panel);
+
+	return 0;
 }
 
 static int nl8048_remove(struct spi_device *spi)

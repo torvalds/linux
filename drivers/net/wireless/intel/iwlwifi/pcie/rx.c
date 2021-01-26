@@ -1369,7 +1369,7 @@ static void iwl_pcie_rx_handle_rb(struct iwl_trans *trans,
 					   &rxcb, rxq->id);
 
 		if (reclaim) {
-			kzfree(txq->entries[cmd_index].free_buf);
+			kfree_sensitive(txq->entries[cmd_index].free_buf);
 			txq->entries[cmd_index].free_buf = NULL;
 		}
 

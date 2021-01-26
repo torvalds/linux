@@ -1,0 +1,34 @@
+# SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/leds/backlight/common.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: Common backlight properties
+
+maintainers:
+  - Lee Jones <lee.jones@linaro.org>
+  - Daniel Thompson <daniel.thompson@linaro.org>
+  - Jingoo Han <jingoohan1@gmail.com>
+
+description:
+  Backlight devices provide backlight for different types of graphical
+  displays. They are typically but not necessarily implemented using a white
+  LED powered by a boost converter.
+
+properties:
+  default-brightness:
+    description:
+      The default brightness that should be applied to the LED by the operating
+      system on start-up. The brightness should not exceed the brightness the
+      LED can provide.
+    $ref: /schemas/types.yaml#definitions/uint32
+
+  max-brightness:
+    description:
+      Normally the maximum brightness is determined by the hardware and this
+      property is not required. This property is used to put a software limit
+      on the brightness apart from what the driver says, as it could happen
+      that a LED can be made so bright that it gets damaged or causes damage
+      due to restrictions in a specific system, such as mounting conditions.
+    $ref: /schemas/types.yaml#definitions/uint32

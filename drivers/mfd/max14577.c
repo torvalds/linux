@@ -61,7 +61,7 @@ EXPORT_SYMBOL_GPL(maxim_charger_currents);
 int maxim_charger_calc_reg_current(const struct maxim_charger_current *limits,
 		unsigned int min_ua, unsigned int max_ua, u8 *dst)
 {
-	unsigned int current_bits = 0xf;
+	unsigned int current_bits;
 
 	if (min_ua > max_ua)
 		return -EINVAL;

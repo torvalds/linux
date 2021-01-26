@@ -129,7 +129,7 @@ static int rkisp1_create_links(struct rkisp1_device *rkisp1)
 		ret = media_entity_get_fwnode_pad(&sd->entity, sd->fwnode,
 						  MEDIA_PAD_FL_SOURCE);
 		if (ret < 0) {
-			dev_err(sd->dev, "failed to find src pad for %s\n",
+			dev_err(rkisp1->dev, "failed to find src pad for %s\n",
 				sd->name);
 			return ret;
 		}
@@ -345,7 +345,7 @@ static int rkisp1_entities_register(struct rkisp1_device *rkisp1)
 {
 	int ret;
 
-	ret = rkisp1_isp_register(rkisp1, &rkisp1->v4l2_dev);
+	ret = rkisp1_isp_register(rkisp1);
 	if (ret)
 		return ret;
 
@@ -357,12 +357,11 @@ static int rkisp1_entities_register(struct rkisp1_device *rkisp1)
 	if (ret)
 		goto err_unreg_resizer_devs;
 
-	ret = rkisp1_stats_register(&rkisp1->stats, &rkisp1->v4l2_dev, rkisp1);
+	ret = rkisp1_stats_register(rkisp1);
 	if (ret)
 		goto err_unreg_capture_devs;
 
-	ret = rkisp1_params_register(&rkisp1->params,
-				     &rkisp1->v4l2_dev, rkisp1);
+	ret = rkisp1_params_register(rkisp1);
 	if (ret)
 		goto err_unreg_stats;
 
@@ -375,9 +374,9 @@ static int rkisp1_entities_register(struct rkisp1_device *rkisp1)
 
 	return 0;
 err_unreg_params:
-	rkisp1_params_unregister(&rkisp1->params);
+	rkisp1_params_unregister(rkisp1);
 err_unreg_stats:
-	rkisp1_stats_unregister(&rkisp1->stats);
+	rkisp1_stats_unregister(rkisp1);
 err_unreg_capture_devs:
 	rkisp1_capture_devs_unregister(rkisp1);
 err_unreg_resizer_devs:
@@ -438,8 +437,15 @@ static void rkisp1_debug_init(struct rkisp1_device *rkisp1)
 	}
 	debugfs_create_ulong("data_loss", 0444, debug->debugfs_dir,
 			     &debug->data_loss);
-	debugfs_create_ulong("pic_size_error", 0444,  debug->debugfs_dir,
-			     &debug->pic_size_error);
+	debugfs_create_ulong("outform_size_err", 0444,  debug->debugfs_dir,
+			     &debug->outform_size_error);
+	debugfs_create_ulong("img_stabilization_size_error", 0444,
+			     debug->debugfs_dir,
+			     &debug->img_stabilization_size_error);
+	debugfs_create_ulong("inform_size_error", 0444,  debug->debugfs_dir,
+			     &debug->inform_size_error);
+	debugfs_create_ulong("irq_delay", 0444,  debug->debugfs_dir,
+			     &debug->irq_delay);
 	debugfs_create_ulong("mipi_error", 0444, debug->debugfs_dir,
 			     &debug->mipi_error);
 	debugfs_create_ulong("stats_error", 0444, debug->debugfs_dir,
@@ -546,8 +552,8 @@ static int rkisp1_remove(struct platform_device *pdev)
 	v4l2_async_notifier_unregister(&rkisp1->notifier);
 	v4l2_async_notifier_cleanup(&rkisp1->notifier);
 
-	rkisp1_params_unregister(&rkisp1->params);
-	rkisp1_stats_unregister(&rkisp1->stats);
+	rkisp1_params_unregister(rkisp1);
+	rkisp1_stats_unregister(rkisp1);
 	rkisp1_capture_devs_unregister(rkisp1);
 	rkisp1_resizer_devs_unregister(rkisp1);
 	rkisp1_isp_unregister(rkisp1);

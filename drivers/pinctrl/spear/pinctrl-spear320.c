@@ -3418,8 +3418,6 @@ static const struct of_device_id spear320_pinctrl_of_match[] = {
 
 static int spear320_pinctrl_probe(struct platform_device *pdev)
 {
-	int ret;
-
 	spear3xx_machdata.groups = spear320_pingroups;
 	spear3xx_machdata.ngroups = ARRAY_SIZE(spear320_pingroups);
 	spear3xx_machdata.functions = spear320_functions;
@@ -3433,11 +3431,7 @@ static int spear320_pinctrl_probe(struct platform_device *pdev)
 	pmx_init_gpio_pingroup_addr(spear3xx_machdata.gpio_pingroups,
 			spear3xx_machdata.ngpio_pingroups, PMX_CONFIG_REG);
 
-	ret = spear_pinctrl_probe(pdev, &spear3xx_machdata);
-	if (ret)
-		return ret;
-
-	return 0;
+	return spear_pinctrl_probe(pdev, &spear3xx_machdata);
 }
 
 static struct platform_driver spear320_pinctrl_driver = {

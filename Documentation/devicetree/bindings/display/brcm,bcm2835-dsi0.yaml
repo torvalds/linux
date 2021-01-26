@@ -9,6 +9,9 @@ title: Broadcom VC4 (VideoCore4) DSI Controller
 maintainers:
   - Eric Anholt <eric@anholt.net>
 
+allOf:
+  - $ref: dsi-controller.yaml#
+
 properties:
   "#clock-cells":
     const: 1

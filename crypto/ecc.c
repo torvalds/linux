@@ -67,7 +67,7 @@ static u64 *ecc_alloc_digits_space(unsigned int ndigits)
 
 static void ecc_free_digits_space(u64 *space)
 {
-	kzfree(space);
+	kfree_sensitive(space);
 }
 
 static struct ecc_point *ecc_alloc_point(unsigned int ndigits)
@@ -101,9 +101,9 @@ static void ecc_free_point(struct ecc_point *p)
 	if (!p)
 		return;
 
-	kzfree(p->x);
-	kzfree(p->y);
-	kzfree(p);
+	kfree_sensitive(p->x);
+	kfree_sensitive(p->y);
+	kfree_sensitive(p);
 }
 
 static void vli_clear(u64 *vli, unsigned int ndigits)

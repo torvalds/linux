@@ -36,9 +36,22 @@ needs_sphinx = '1.3'
 # Add any Sphinx extension module names here, as strings. They can be
 # extensions coming with Sphinx (named 'sphinx.ext.*') or your custom
 # ones.
-extensions = ['kerneldoc', 'rstFlatTable', 'kernel_include', 'cdomain',
+extensions = ['kerneldoc', 'rstFlatTable', 'kernel_include',
               'kfigure', 'sphinx.ext.ifconfig', 'automarkup',
               'maintainers_include', 'sphinx.ext.autosectionlabel' ]
+
+#
+# cdomain is badly broken in Sphinx 3+.  Leaving it out generates *most*
+# of the docs correctly, but not all.  Scream bloody murder but allow
+# the process to proceed; hopefully somebody will fix this properly soon.
+#
+if major >= 3:
+    sys.stderr.write('''WARNING: The kernel documentation build process
+	does not work correctly with Sphinx v3.0 and above.  Expect errors
+	in the generated output.
+	''')
+else:
+    extensions.append('cdomain')
 
 # Ensure that autosectionlabel will produce unique names
 autosectionlabel_prefix_document = True

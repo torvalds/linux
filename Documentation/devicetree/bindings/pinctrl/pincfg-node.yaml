@@ -138,3 +138,5 @@ properties:
       and the delay before latching a value to an output
       pin. Typically indicates how many double-inverters are
       used to delay the signal.
+
+additionalProperties: true

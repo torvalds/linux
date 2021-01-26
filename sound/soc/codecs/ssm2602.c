@@ -338,7 +338,7 @@ static int ssm2602_startup(struct snd_pcm_substream *substream,
 	return 0;
 }
 
-static int ssm2602_mute(struct snd_soc_dai *dai, int mute)
+static int ssm2602_mute(struct snd_soc_dai *dai, int mute, int direction)
 {
 	struct ssm2602_priv *ssm2602 = snd_soc_component_get_drvdata(dai->component);
 
@@ -505,9 +505,10 @@ static int ssm2602_set_bias_level(struct snd_soc_component *component,
 static const struct snd_soc_dai_ops ssm2602_dai_ops = {
 	.startup	= ssm2602_startup,
 	.hw_params	= ssm2602_hw_params,
-	.digital_mute	= ssm2602_mute,
+	.mute_stream	= ssm2602_mute,
 	.set_sysclk	= ssm2602_set_dai_sysclk,
 	.set_fmt	= ssm2602_set_dai_fmt,
+	.no_capture_mute = 1,
 };
 
 static struct snd_soc_dai_driver ssm2602_dai = {

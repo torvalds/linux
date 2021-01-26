@@ -1034,11 +1034,14 @@ static int FlashPoint_ProbeHostAdapter(struct sccb_mgr_info *pCardInfo)
 			temp6 >>= 1;
 			switch (temp & 0x3) {
 			case AUTO_RATE_20:	/* Synchronous, 20 mega-transfers/second */
-				temp6 |= 0x8000;	/* Fall through */
+				temp6 |= 0x8000;
+				fallthrough;
 			case AUTO_RATE_10:	/* Synchronous, 10 mega-transfers/second */
-				temp5 |= 0x8000;	/* Fall through */
+				temp5 |= 0x8000;
+				fallthrough;
 			case AUTO_RATE_05:	/* Synchronous, 5 mega-transfers/second */
-				temp2 |= 0x8000;	/* Fall through */
+				temp2 |= 0x8000;
+				fallthrough;
 			case AUTO_RATE_00:	/* Asynchronous */
 				break;
 			}

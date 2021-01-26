@@ -262,7 +262,7 @@ struct mtd_ecc_stats {
  * @MTD_FILE_MODE_OTP_USER:	OTP enabled in user mode
  * @MTD_FILE_MODE_RAW:		OTP disabled, ECC disabled
  *
- * These modes can be set via ioctl(MTDFILEMODE). The mode mode will be retained
+ * These modes can be set via ioctl(MTDFILEMODE). The mode will be retained
  * separately for each open file descriptor.
  *
  * Note: %MTD_FILE_MODE_RAW provides the same functionality as %MTD_OPS_RAW -

@@ -152,6 +152,7 @@ EXPORT_SYMBOL(ib_umem_odp_alloc_implicit);
  *        ib_alloc_implicit_odp_umem()
  * @addr: The starting userspace VA
  * @size: The length of the userspace VA
+ * @ops: MMU interval ops, currently only @invalidate
  */
 struct ib_umem_odp *
 ib_umem_odp_alloc_child(struct ib_umem_odp *root, unsigned long addr,
@@ -213,6 +214,7 @@ EXPORT_SYMBOL(ib_umem_odp_alloc_child);
  * @addr: userspace virtual address to start at
  * @size: length of region to pin
  * @access: IB_ACCESS_xxx flags for memory being pinned
+ * @ops: MMU interval ops, currently only @invalidate
  *
  * The driver should use when the access flags indicate ODP memory. It avoids
  * pinning, instead, stores the mm for future page fault handling in
@@ -437,7 +439,7 @@ int ib_umem_odp_map_dma_pages(struct ib_umem_odp *umem_odp, u64 user_virt,
 		 * complex (and doesn't gain us much performance in most use
 		 * cases).
 		 */
-		npages = get_user_pages_remote(owning_process, owning_mm,
+		npages = get_user_pages_remote(owning_mm,
 				user_virt, gup_num_pages,
 				flags, local_page_list, NULL, NULL);
 		mmap_read_unlock(owning_mm);

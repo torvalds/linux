@@ -224,7 +224,6 @@ static int hp03_probe(struct i2c_client *client,
 	priv->client = client;
 	mutex_init(&priv->lock);
 
-	indio_dev->dev.parent = dev;
 	indio_dev->name = id->name;
 	indio_dev->channels = hp03_channels;
 	indio_dev->num_channels = ARRAY_SIZE(hp03_channels);

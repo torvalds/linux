@@ -27,8 +27,8 @@ properties:
   clocks:
     minItems: 1
     items:
-       - description: Timer ticks reference clock source
-       - description: APB interface clock source
+      - description: Timer ticks reference clock source
+      - description: APB interface clock source
 
   clock-names:
     minItems: 1
@@ -45,7 +45,7 @@ properties:
       frequency in HZ, but is defined only for the backwards compatibility
       with the picoxcell platform.
 
-unevaluatedProperties: false
+additionalProperties: false
 
 required:
   - compatible

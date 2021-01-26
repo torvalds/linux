@@ -672,8 +672,8 @@ static void sii902x_audio_shutdown(struct device *dev, void *data)
 	clk_disable_unprepare(sii902x->audio.mclk);
 }
 
-static int sii902x_audio_digital_mute(struct device *dev,
-				      void *data, bool enable)
+static int sii902x_audio_mute(struct device *dev, void *data,
+			      bool enable, int direction)
 {
 	struct sii902x *sii902x = dev_get_drvdata(dev);
 
@@ -724,9 +724,10 @@ static int sii902x_audio_get_dai_id(struct snd_soc_component *component,
 static const struct hdmi_codec_ops sii902x_audio_codec_ops = {
 	.hw_params = sii902x_audio_hw_params,
 	.audio_shutdown = sii902x_audio_shutdown,
-	.digital_mute = sii902x_audio_digital_mute,
+	.mute_stream = sii902x_audio_mute,
 	.get_eld = sii902x_audio_get_eld,
 	.get_dai_id = sii902x_audio_get_dai_id,
+	.no_capture_mute = 1,
 };
 
 static int sii902x_audio_codec_init(struct sii902x *sii902x,

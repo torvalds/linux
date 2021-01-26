@@ -902,7 +902,7 @@ static void build_srb(struct scsi_cmnd *cmd, struct DeviceCtlBlk *dcb,
 	nseg = scsi_dma_map(cmd);
 	BUG_ON(nseg < 0);
 
-	if (dir == PCI_DMA_NONE || !nseg) {
+	if (dir == DMA_NONE || !nseg) {
 		dprintkdbg(DBG_0,
 			"build_srb: [0] len=%d buf=%p use_sg=%d !MAP=%08x\n",
 			   cmd->bufflen, scsi_sglist(cmd), scsi_sg_count(cmd),
@@ -3135,7 +3135,7 @@ static void pci_unmap_srb(struct AdapterCtlBlk *acb, struct ScsiReqBlk *srb)
 	struct scsi_cmnd *cmd = srb->cmd;
 	enum dma_data_direction dir = cmd->sc_data_direction;
 
-	if (scsi_sg_count(cmd) && dir != PCI_DMA_NONE) {
+	if (scsi_sg_count(cmd) && dir != DMA_NONE) {
 		/* unmap DC395x SG list */
 		dprintkdbg(DBG_SG, "pci_unmap_srb: list=%08x(%05x)\n",
 			srb->sg_bus_addr, SEGMENTX_LEN);
@@ -3333,7 +3333,7 @@ static void srb_done(struct AdapterCtlBlk *acb, struct DeviceCtlBlk *dcb,
 
 		if (!ckc_only && (cmd->result & RES_DID) == 0
 		    && cmd->cmnd[2] == 0 && scsi_bufflen(cmd) >= 8
-		    && dir != PCI_DMA_NONE && ptr && (ptr->Vers & 0x07) >= 2)
+		    && dir != DMA_NONE && ptr && (ptr->Vers & 0x07) >= 2)
 			dcb->inquiry7 = ptr->Flags;
 
 	/*if( srb->cmd->cmnd[0] == INQUIRY && */
@@ -4504,14 +4504,8 @@ static int dc395x_show_info(struct seq_file *m, struct Scsi_Host *host)
 	/*seq_printf(m, "\n"); */
 
 	seq_printf(m, "Nr of DCBs: %i\n", list_size(&acb->dcb_list));
-	seq_printf(m, "Map of attached LUNs: %02x %02x %02x %02x %02x %02x %02x %02x\n",
-	     acb->dcb_map[0], acb->dcb_map[1], acb->dcb_map[2],
-	     acb->dcb_map[3], acb->dcb_map[4], acb->dcb_map[5],
-	     acb->dcb_map[6], acb->dcb_map[7]);
-	seq_printf(m, "                      %02x %02x %02x %02x %02x %02x %02x %02x\n",
-	     acb->dcb_map[8], acb->dcb_map[9], acb->dcb_map[10],
-	     acb->dcb_map[11], acb->dcb_map[12], acb->dcb_map[13],
-	     acb->dcb_map[14], acb->dcb_map[15]);
+	seq_printf(m, "Map of attached LUNs: %8ph\n", &acb->dcb_map[0]);
+	seq_printf(m, "                      %8ph\n", &acb->dcb_map[8]);
 
 	seq_puts(m,
 		 "Un ID LUN Prty Sync Wide DsCn SndS TagQ nego_period SyncFreq SyncOffs MaxCmd\n");

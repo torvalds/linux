@@ -841,7 +841,7 @@ mt7915_tx_complete_status(struct mt76_dev *mdev, struct sk_buff *skb,
 	if (sta || !(info->flags & IEEE80211_TX_CTL_NO_ACK))
 		mt7915_tx_status(sta, hw, info, NULL);
 
-	dev_kfree_skb(skb);
+	ieee80211_free_txskb(hw, skb);
 }
 
 void mt7915_txp_skb_unmap(struct mt76_dev *dev,

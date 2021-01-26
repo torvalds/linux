@@ -1049,10 +1049,10 @@ ef4_farch_handle_rx_event(struct ef4_channel *channel, const ef4_qword_t *event)
 		switch (rx_ev_hdr_type) {
 		case FSE_CZ_RX_EV_HDR_TYPE_IPV4V6_TCP:
 			flags |= EF4_RX_PKT_TCP;
-			/* fall through */
+			fallthrough;
 		case FSE_CZ_RX_EV_HDR_TYPE_IPV4V6_UDP:
 			flags |= EF4_RX_PKT_CSUMMED;
-			/* fall through */
+			fallthrough;
 		case FSE_CZ_RX_EV_HDR_TYPE_IPV4V6_OTHER:
 		case FSE_AZ_RX_EV_HDR_TYPE_OTHER:
 			break;
@@ -1310,7 +1310,7 @@ int ef4_farch_ev_process(struct ef4_channel *channel, int budget)
 			if (efx->type->handle_global_event &&
 			    efx->type->handle_global_event(channel, &event))
 				break;
-			/* else fall through */
+			fallthrough;
 		default:
 			netif_err(channel->efx, hw, channel->efx->net_dev,
 				  "channel %d unknown event type %d (data "
@@ -1983,7 +1983,7 @@ ef4_farch_filter_from_gen_spec(struct ef4_farch_filter_spec *spec,
 	      EF4_FILTER_MATCH_LOC_HOST | EF4_FILTER_MATCH_LOC_PORT |
 	      EF4_FILTER_MATCH_REM_HOST | EF4_FILTER_MATCH_REM_PORT):
 		is_full = true;
-		/* fall through */
+		fallthrough;
 	case (EF4_FILTER_MATCH_ETHER_TYPE | EF4_FILTER_MATCH_IP_PROTO |
 	      EF4_FILTER_MATCH_LOC_HOST | EF4_FILTER_MATCH_LOC_PORT): {
 		__be32 rhost, host1, host2;
@@ -2034,7 +2034,7 @@ ef4_farch_filter_from_gen_spec(struct ef4_farch_filter_spec *spec,
 
 	case EF4_FILTER_MATCH_LOC_MAC | EF4_FILTER_MATCH_OUTER_VID:
 		is_full = true;
-		/* fall through */
+		fallthrough;
 	case EF4_FILTER_MATCH_LOC_MAC:
 		spec->type = (is_full ? EF4_FARCH_FILTER_MAC_FULL :
 			      EF4_FARCH_FILTER_MAC_WILD);
@@ -2081,7 +2081,7 @@ ef4_farch_filter_to_gen_spec(struct ef4_filter_spec *gen_spec,
 	case EF4_FARCH_FILTER_TCP_FULL:
 	case EF4_FARCH_FILTER_UDP_FULL:
 		is_full = true;
-		/* fall through */
+		fallthrough;
 	case EF4_FARCH_FILTER_TCP_WILD:
 	case EF4_FARCH_FILTER_UDP_WILD: {
 		__be32 host1, host2;
@@ -2125,7 +2125,7 @@ ef4_farch_filter_to_gen_spec(struct ef4_filter_spec *gen_spec,
 
 	case EF4_FARCH_FILTER_MAC_FULL:
 		is_full = true;
-		/* fall through */
+		fallthrough;
 	case EF4_FARCH_FILTER_MAC_WILD:
 		gen_spec->match_flags = EF4_FILTER_MATCH_LOC_MAC;
 		if (is_full)

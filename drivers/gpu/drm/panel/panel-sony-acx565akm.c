@@ -650,12 +650,7 @@ static int acx565akm_probe(struct spi_device *spi)
 	drm_panel_init(&lcd->panel, &lcd->spi->dev, &acx565akm_funcs,
 		       DRM_MODE_CONNECTOR_DPI);
 
-	ret = drm_panel_add(&lcd->panel);
-	if (ret < 0) {
-		if (lcd->has_bc)
-			acx565akm_backlight_cleanup(lcd);
-		return ret;
-	}
+	drm_panel_add(&lcd->panel);
 
 	return 0;
 }

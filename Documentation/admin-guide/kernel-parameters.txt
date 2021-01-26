@@ -577,7 +577,7 @@
 			loops can be debugged more effectively on production
 			systems.
 
-	clearcpuid=BITNUM [X86]
+	clearcpuid=BITNUM[,BITNUM...] [X86]
 			Disable CPUID feature X for the kernel. See
 			arch/x86/include/asm/cpufeatures.h for the valid bit
 			numbers. Note the Linux specific bits are not necessarily
@@ -591,13 +591,24 @@
 			some critical bits.
 
 	cma=nn[MG]@[start[MG][-end[MG]]]
-			[ARM,X86,KNL]
+			[KNL,CMA]
 			Sets the size of kernel global memory area for
 			contiguous memory allocations and optionally the
 			placement constraint by the physical address range of
 			memory allocations. A value of 0 disables CMA
 			altogether. For more information, see
-			include/linux/dma-contiguous.h
+			kernel/dma/contiguous.c
+
+	cma_pernuma=nn[MG]
+			[ARM64,KNL]
+			Sets the size of kernel per-numa memory area for
+			contiguous memory allocations. A value of 0 disables
+			per-numa CMA altogether. And If this option is not
+			specificed, the default value is 0.
+			With per-numa CMA enabled, DMA users on node nid will
+			first try to allocate buffer from the pernuma area
+			which is located in node nid, if the allocation fails,
+			they will fallback to the global default memory area.
 
 	cmo_free_hint=	[PPC] Format: { yes | no }
 			Specify whether pages are marked as being inactive
@@ -724,7 +735,7 @@
 			memory region [offset, offset + size] for that kernel
 			image. If '@offset' is omitted, then a suitable offset
 			is selected automatically.
-			[KNL, x86_64] select a region under 4G first, and
+			[KNL, X86-64] Select a region under 4G first, and
 			fall back to reserve region above 4G when '@offset'
 			hasn't been specified.
 			See Documentation/admin-guide/kdump/kdump.rst for further details.
@@ -737,14 +748,14 @@
 			Documentation/admin-guide/kdump/kdump.rst for an example.
 
 	crashkernel=size[KMG],high
-			[KNL, x86_64] range could be above 4G. Allow kernel
+			[KNL, X86-64] range could be above 4G. Allow kernel
 			to allocate physical memory region from top, so could
 			be above 4G if system have more than 4G ram installed.
 			Otherwise memory region will be allocated below 4G, if
 			available.
 			It will be ignored if crashkernel=X is specified.
 	crashkernel=size[KMG],low
-			[KNL, x86_64] range under 4G. When crashkernel=X,high
+			[KNL, X86-64] range under 4G. When crashkernel=X,high
 			is passed, kernel could allocate physical memory region
 			above 4G, that cause second kernel crash on system
 			that require some amount of low memory, e.g. swiotlb
@@ -916,6 +927,10 @@
 	disable_radix	[PPC]
 			Disable RADIX MMU mode on POWER9
 
+	radix_hcall_invalidate=on  [PPC/PSERIES]
+			Disable RADIX GTSE feature and use hcall for TLB
+			invalidate.
+
 	disable_tlbie	[PPC]
 			Disable TLBIE instruction. Currently does not work
 			with KVM, with HASH MMU, or with coherent accelerators.
@@ -936,7 +951,7 @@
 			Arch Perfmon v4 (Skylake and newer).
 
 	disable_ddw	[PPC/PSERIES]
-			Disable Dynamic DMA Window support. Use this if
+			Disable Dynamic DMA Window support. Use this
 			to workaround buggy firmware.
 
 	disable_ipv6=	[IPV6]
@@ -1015,7 +1030,7 @@
 			what data is available or for reverse-engineering.
 
 	dyndbg[="val"]		[KNL,DYNAMIC_DEBUG]
-	module.dyndbg[="val"]
+	<module>.dyndbg[="val"]
 			Enable debug messages at boot time.  See
 			Documentation/admin-guide/dynamic-debug-howto.rst
 			for details.
@@ -1023,7 +1038,7 @@
 	nopku		[X86] Disable Memory Protection Keys CPU feature found
 			in some Intel CPUs.
 
-	module.async_probe [KNL]
+	<module>.async_probe [KNL]
 			Enable asynchronous probe on this module.
 
 	early_ioremap_debug [KNL]
@@ -1229,8 +1244,7 @@
 	efi=		[EFI]
 			Format: { "debug", "disable_early_pci_dma",
 				  "nochunk", "noruntime", "nosoftreserve",
-				  "novamap", "no_disable_early_pci_dma",
-				  "old_map" }
+				  "novamap", "no_disable_early_pci_dma" }
 			debug: enable misc debug output.
 			disable_early_pci_dma: disable the busmaster bit on all
 			PCI bridges while in the EFI boot stub.
@@ -1247,8 +1261,6 @@
 			novamap: do not call SetVirtualAddressMap().
 			no_disable_early_pci_dma: Leave the busmaster bit set
 			on all PCI bridges while in the EFI boot stub
-			old_map [X86-64]: switch to the old ioremap-based EFI
-			runtime services mapping. [Needs CONFIG_X86_UV=y]
 
 	efi_no_storage_paranoia [EFI; X86]
 			Using this parameter you can use more than 50% of
@@ -1423,7 +1435,7 @@
 
 	gamma=		[HW,DRM]
 
-	gart_fix_e820=	[X86_64] disable the fix e820 for K8 GART
+	gart_fix_e820=	[X86-64] disable the fix e820 for K8 GART
 			Format: off | on
 			default: on
 
@@ -1810,7 +1822,7 @@
 			Format: 0 | 1
 			Default set by CONFIG_INIT_ON_FREE_DEFAULT_ON.
 
-	init_pkru=	[x86] Specify the default memory protection keys rights
+	init_pkru=	[X86] Specify the default memory protection keys rights
 			register contents for all processes.  0x55555554 by
 			default (disallow access to all but pkey 0).  Can
 			override in debugfs after boot.
@@ -1818,7 +1830,7 @@
 	inport.irq=	[HW] Inport (ATI XL and Microsoft) busmouse driver
 			Format: <irq>
 
-	int_pln_enable	[x86] Enable power limit notification interrupt
+	int_pln_enable	[X86] Enable power limit notification interrupt
 
 	integrity_audit=[IMA]
 			Format: { "0" | "1" }
@@ -1836,7 +1848,7 @@
 			bypassed by not enabling DMAR with this option. In
 			this case, gfx device will use physical address for
 			DMA.
-		forcedac [x86_64]
+		forcedac [X86-64]
 			With this option iommu will not optimize to look
 			for io virtual address below 32-bit forcing dual
 			address cycle on pci bus for cards supporting greater
@@ -1921,7 +1933,7 @@
 		strict	regions from userspace.
 		relaxed
 
-	iommu=		[x86]
+	iommu=		[X86]
 		off
 		force
 		noforce
@@ -1931,8 +1943,8 @@
 		merge
 		nomerge
 		soft
-		pt		[x86]
-		nopt		[x86]
+		pt		[X86]
+		nopt		[X86]
 		nobypass	[PPC/POWERNV]
 			Disable IOMMU bypass, using IOMMU for PCI devices.
 
@@ -1955,7 +1967,7 @@
 			1 - Bypass the IOMMU for DMA.
 			unset - Use value of CONFIG_IOMMU_DEFAULT_PASSTHROUGH.
 
-	io7=		[HW] IO7 for Marvel based alpha systems
+	io7=		[HW] IO7 for Marvel-based Alpha systems
 			See comment before marvel_specify_io7 in
 			arch/alpha/kernel/core_marvel.c.
 
@@ -2075,21 +2087,21 @@
 
 	iucv=		[HW,NET]
 
-	ivrs_ioapic	[HW,X86_64]
+	ivrs_ioapic	[HW,X86-64]
 			Provide an override to the IOAPIC-ID<->DEVICE-ID
 			mapping provided in the IVRS ACPI table. For
 			example, to map IOAPIC-ID decimal 10 to
 			PCI device 00:14.0 write the parameter as:
 				ivrs_ioapic[10]=00:14.0
 
-	ivrs_hpet	[HW,X86_64]
+	ivrs_hpet	[HW,X86-64]
 			Provide an override to the HPET-ID<->DEVICE-ID
 			mapping provided in the IVRS ACPI table. For
 			example, to map HPET-ID decimal 0 to
 			PCI device 00:14.0 write the parameter as:
 				ivrs_hpet[0]=00:14.0
 
-	ivrs_acpihid	[HW,X86_64]
+	ivrs_acpihid	[HW,X86-64]
 			Provide an override to the ACPI-HID:UID<->DEVICE-ID
 			mapping provided in the IVRS ACPI table. For
 			example, to map UART-HID:UID AMD0020:0 to
@@ -2176,7 +2188,7 @@
 	kgdbwait	[KGDB] Stop kernel execution and enter the
 			kernel debugger at the earliest opportunity.
 
-	kmac=		[MIPS] korina ethernet MAC address.
+	kmac=		[MIPS] Korina ethernet MAC address.
 			Configure the RouterBoard 532 series on-chip
 			Ethernet adapter MAC address.
 
@@ -2256,6 +2268,14 @@
 	kvm-arm.vgic_v4_enable=
 			[KVM,ARM] Allow use of GICv4 for direct injection of
 			LPIs.
+
+	kvm_cma_resv_ratio=n [PPC]
+			Reserves given percentage from system memory area for
+			contiguous memory allocation for KVM hash pagetable
+			allocation.
+			By default it reserves 5% of total system memory.
+			Format: <integer>
+			Default: 5
 
 	kvm-intel.ept=	[KVM,Intel] Disable extended page tables
 			(virtualized MMU) support on capable Intel chips.
@@ -2366,9 +2386,10 @@
 	lapic		[X86-32,APIC] Enable the local APIC even if BIOS
 			disabled it.
 
-	lapic=		[x86,APIC] "notscdeadline" Do not use TSC deadline
+	lapic=		[X86,APIC] Do not use TSC deadline
 			value for LAPIC timer one-shot implementation. Default
 			back to the programmable timer unit in the LAPIC.
+			Format: notscdeadline
 
 	lapic_timer_c2_ok	[X86,APIC] trust the local apic timer
 			in C2 power state.
@@ -2440,8 +2461,7 @@
 
 	memblock=debug	[KNL] Enable memblock debug messages.
 
-	load_ramdisk=	[RAM] List of ramdisks to load from floppy
-			See Documentation/admin-guide/blockdev/ramdisk.rst.
+	load_ramdisk=	[RAM] [Deprecated]
 
 	lockd.nlm_grace_period=P  [NFS] Assign grace period.
 			Format: <integer>
@@ -2578,8 +2598,8 @@
 			(machvec) in a generic kernel.
 			Example: machvec=hpzx1
 
-	machtype=	[Loongson] Share the same kernel image file between different
-			 yeeloong laptop.
+	machtype=	[Loongson] Share the same kernel image file between
+			different yeeloong laptops.
 			Example: machtype=lemote-yeeloong-2f-7inch
 
 	max_addr=nn[KMG]	[KNL,BOOT,ia64] All physical memory greater
@@ -3184,12 +3204,12 @@
 			register save and restore. The kernel will only save
 			legacy floating-point registers on task switch.
 
-	nohugeiomap	[KNL,x86,PPC] Disable kernel huge I/O mappings.
+	nohugeiomap	[KNL,X86,PPC,ARM64] Disable kernel huge I/O mappings.
 
 	nosmt		[KNL,S390] Disable symmetric multithreading (SMT).
 			Equivalent to smt=1.
 
-			[KNL,x86] Disable symmetric multithreading (SMT).
+			[KNL,X86] Disable symmetric multithreading (SMT).
 			nosmt=force: Force disable SMT, cannot be undone
 				     via the sysfs control file.
 
@@ -3920,9 +3940,7 @@
 			Param: <number> - step/bucket size as a power of 2 for
 				statistical time based profiling.
 
-	prompt_ramdisk=	[RAM] List of RAM disks to prompt for floppy disk
-			before loading.
-			See Documentation/admin-guide/blockdev/ramdisk.rst.
+	prompt_ramdisk=	[RAM] [Deprecated]
 
 	prot_virt=	[S390] enable hosting protected virtual machines
 			isolated from the hypervisor (if hardware supports
@@ -3951,7 +3969,7 @@
 	pt.		[PARIDE]
 			See Documentation/admin-guide/blockdev/paride.rst.
 
-	pti=		[X86_64] Control Page Table Isolation of user and
+	pti=		[X86-64] Control Page Table Isolation of user and
 			kernel address spaces.  Disabling this feature
 			removes hardening, but improves performance of
 			system calls and interrupts.
@@ -3963,7 +3981,7 @@
 
 			Not specifying this option is equivalent to pti=auto.
 
-	nopti		[X86_64]
+	nopti		[X86-64]
 			Equivalent to pti=off
 
 	pty.legacy_count=
@@ -3979,6 +3997,8 @@
 
 	ramdisk_size=	[RAM] Sizes of RAM disks in kilobytes
 			See Documentation/admin-guide/blockdev/ramdisk.rst.
+
+	ramdisk_start=	[RAM] RAM disk image start address
 
 	random.trust_cpu={on,off}
 			[KNL] Enable or disable trusting the use of the
@@ -4689,7 +4709,7 @@
 			fragmentation.  Defaults to 1 for systems with
 			more than 32MB of RAM, 0 otherwise.
 
-	slub_debug[=options[,slabs]]	[MM, SLUB]
+	slub_debug[=options[,slabs][;[options[,slabs]]...]	[MM, SLUB]
 			Enabling slub_debug allows one to determine the
 			culprit if slab objects become corrupted. Enabling
 			slub_debug can create guard zones around objects and
@@ -5804,8 +5824,9 @@
 			panic() code such as dumping handler.
 
 	xen_nopvspin	[X86,XEN]
-			Disables the ticketlock slowpath using Xen PV
-			optimizations.
+			Disables the qspinlock slowpath using Xen PV optimizations.
+			This parameter is obsoleted by "nopvspin" parameter, which
+			has equivalent effect for XEN platform.
 
 	xen_nopv	[X86]
 			Disables the PV optimizations forcing the HVM guest to
@@ -5830,6 +5851,11 @@
 			Disables the PV optimizations forcing the guest to run
 			as generic guest with no PV drivers. Currently support
 			XEN HVM, KVM, HYPER_V and VMWARE guest.
+
+	nopvspin	[X86,XEN,KVM]
+			Disables the qspinlock slow path using PV optimizations
+			which allow the hypervisor to 'idle' the guest on lock
+			contention.
 
 	xirc2ps_cs=	[NET,PCMCIA]
 			Format:

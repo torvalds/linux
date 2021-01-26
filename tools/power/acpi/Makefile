@@ -7,6 +7,8 @@
 
 include ../../scripts/Makefile.include
 
+.NOTPARALLEL:
+
 all: acpidbg acpidump ec
 clean: acpidbg_clean acpidump_clean ec_clean
 install: acpidbg_install acpidump_install ec_install

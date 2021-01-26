@@ -444,6 +444,8 @@ int qed_fill_dev_info(struct qed_dev *cdev,
 		dev_info->fw_eng = FW_ENGINEERING_VERSION;
 		dev_info->b_inter_pf_switch = test_bit(QED_MF_INTER_PF_SWITCH,
 						       &cdev->mf_bits);
+		if (!test_bit(QED_MF_DISABLE_ARFS, &cdev->mf_bits))
+			dev_info->b_arfs_capable = true;
 		dev_info->tx_switching = true;
 
 		if (hw_info->b_wol_support == QED_WOL_SUPPORT_PME)
@@ -761,7 +763,7 @@ static int qed_set_int_mode(struct qed_dev *cdev, bool force_mode)
 		kfree(int_params->msix_table);
 		if (force_mode)
 			goto out;
-		/* Fallthrough */
+		fallthrough;
 
 	case QED_INT_MODE_MSI:
 		if (cdev->num_hwfns == 1) {
@@ -775,7 +777,7 @@ static int qed_set_int_mode(struct qed_dev *cdev, bool force_mode)
 			if (force_mode)
 				goto out;
 		}
-		/* Fallthrough */
+		fallthrough;
 
 	case QED_INT_MODE_INTA:
 			int_params->out.int_mode = QED_INT_MODE_INTA;

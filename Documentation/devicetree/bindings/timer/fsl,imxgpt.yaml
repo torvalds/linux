@@ -20,17 +20,17 @@ properties:
       - const: fsl,imx31-gpt
       - items:
           - enum:
-            - fsl,imx25-gpt
-            - fsl,imx50-gpt
-            - fsl,imx51-gpt
-            - fsl,imx53-gpt
-            - fsl,imx6q-gpt
+              - fsl,imx25-gpt
+              - fsl,imx50-gpt
+              - fsl,imx51-gpt
+              - fsl,imx53-gpt
+              - fsl,imx6q-gpt
           - const: fsl,imx31-gpt
       - const: fsl,imx6dl-gpt
       - items:
           - enum:
-            - fsl,imx6sl-gpt
-            - fsl,imx6sx-gpt
+              - fsl,imx6sl-gpt
+              - fsl,imx6sx-gpt
           - const: fsl,imx6dl-gpt
 
   reg:

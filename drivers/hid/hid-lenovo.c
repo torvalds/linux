@@ -29,28 +29,66 @@
 #include <linux/hid.h>
 #include <linux/input.h>
 #include <linux/leds.h>
+#include <linux/workqueue.h>
 
 #include "hid-ids.h"
 
-struct lenovo_drvdata_tpkbd {
+struct lenovo_drvdata {
+	u8 led_report[3]; /* Must be first for proper alignment */
 	int led_state;
+	struct mutex led_report_mutex;
 	struct led_classdev led_mute;
 	struct led_classdev led_micmute;
+	struct work_struct fn_lock_sync_work;
+	struct hid_device *hdev;
 	int press_to_select;
 	int dragging;
 	int release_to_select;
 	int select_right;
 	int sensitivity;
 	int press_speed;
-};
-
-struct lenovo_drvdata_cptkbd {
 	u8 middlebutton_state; /* 0:Up, 1:Down (undecided), 2:Scrolling */
 	bool fn_lock;
-	int sensitivity;
 };
 
 #define map_key_clear(c) hid_map_usage_clear(hi, usage, bit, max, EV_KEY, (c))
+
+#define TP10UBKBD_LED_OUTPUT_REPORT	9
+
+#define TP10UBKBD_FN_LOCK_LED		0x54
+#define TP10UBKBD_MUTE_LED		0x64
+#define TP10UBKBD_MICMUTE_LED		0x74
+
+#define TP10UBKBD_LED_OFF		1
+#define TP10UBKBD_LED_ON		2
+
+static void lenovo_led_set_tp10ubkbd(struct hid_device *hdev, u8 led_code,
+				     enum led_brightness value)
+{
+	struct lenovo_drvdata *data = hid_get_drvdata(hdev);
+	int ret;
+
+	mutex_lock(&data->led_report_mutex);
+
+	data->led_report[0] = TP10UBKBD_LED_OUTPUT_REPORT;
+	data->led_report[1] = led_code;
+	data->led_report[2] = value ? TP10UBKBD_LED_ON : TP10UBKBD_LED_OFF;
+	ret = hid_hw_raw_request(hdev, data->led_report[0], data->led_report, 3,
+				 HID_OUTPUT_REPORT, HID_REQ_SET_REPORT);
+	if (ret)
+		hid_err(hdev, "Set LED output report error: %d\n", ret);
+
+	mutex_unlock(&data->led_report_mutex);
+}
+
+static void lenovo_tp10ubkbd_sync_fn_lock(struct work_struct *work)
+{
+	struct lenovo_drvdata *data =
+		container_of(work, struct lenovo_drvdata, fn_lock_sync_work);
+
+	lenovo_led_set_tp10ubkbd(data->hdev, TP10UBKBD_FN_LOCK_LED,
+				 data->fn_lock);
+}
 
 static const __u8 lenovo_pro_dock_need_fixup_collection[] = {
 	0x05, 0x88,		/* Usage Page (Vendor Usage Page 0x88)	*/
@@ -179,6 +217,44 @@ static int lenovo_input_mapping_scrollpoint(struct hid_device *hdev,
 	return 0;
 }
 
+static int lenovo_input_mapping_tp10_ultrabook_kbd(struct hid_device *hdev,
+		struct hid_input *hi, struct hid_field *field,
+		struct hid_usage *usage, unsigned long **bit, int *max)
+{
+	/*
+	 * The ThinkPad 10 Ultrabook Keyboard uses 0x000c0001 usage for
+	 * a bunch of keys which have no standard consumer page code.
+	 */
+	if (usage->hid == 0x000c0001) {
+		switch (usage->usage_index) {
+		case 8: /* Fn-Esc: Fn-lock toggle */
+			map_key_clear(KEY_FN_ESC);
+			return 1;
+		case 9: /* Fn-F4: Mic mute */
+			map_key_clear(KEY_MICMUTE);
+			return 1;
+		case 10: /* Fn-F7: Control panel */
+			map_key_clear(KEY_CONFIG);
+			return 1;
+		case 11: /* Fn-F8: Search (magnifier glass) */
+			map_key_clear(KEY_SEARCH);
+			return 1;
+		case 12: /* Fn-F10: Open My computer (6 boxes) */
+			map_key_clear(KEY_FILE);
+			return 1;
+		}
+	}
+
+	/*
+	 * The Ultrabook Keyboard sends a spurious F23 key-press when resuming
+	 * from suspend and it does not actually have a F23 key, ignore it.
+	 */
+	if (usage->hid == 0x00070072)
+		return -1;
+
+	return 0;
+}
+
 static int lenovo_input_mapping(struct hid_device *hdev,
 		struct hid_input *hi, struct hid_field *field,
 		struct hid_usage *usage, unsigned long **bit, int *max)
@@ -199,6 +275,9 @@ static int lenovo_input_mapping(struct hid_device *hdev,
 	case USB_DEVICE_ID_LENOVO_SCROLLPOINT_OPTICAL:
 		return lenovo_input_mapping_scrollpoint(hdev, hi, field,
 							usage, bit, max);
+	case USB_DEVICE_ID_LENOVO_TP10UBKBD:
+		return lenovo_input_mapping_tp10_ultrabook_kbd(hdev, hi, field,
+							       usage, bit, max);
 	default:
 		return 0;
 	}
@@ -242,7 +321,7 @@ static int lenovo_send_cmd_cptkbd(struct hid_device *hdev,
 static void lenovo_features_set_cptkbd(struct hid_device *hdev)
 {
 	int ret;
-	struct lenovo_drvdata_cptkbd *cptkbd_data = hid_get_drvdata(hdev);
+	struct lenovo_drvdata *cptkbd_data = hid_get_drvdata(hdev);
 
 	ret = lenovo_send_cmd_cptkbd(hdev, 0x05, cptkbd_data->fn_lock);
 	if (ret)
@@ -253,23 +332,23 @@ static void lenovo_features_set_cptkbd(struct hid_device *hdev)
 		hid_err(hdev, "Sensitivity setting failed: %d\n", ret);
 }
 
-static ssize_t attr_fn_lock_show_cptkbd(struct device *dev,
+static ssize_t attr_fn_lock_show(struct device *dev,
 		struct device_attribute *attr,
 		char *buf)
 {
 	struct hid_device *hdev = to_hid_device(dev);
-	struct lenovo_drvdata_cptkbd *cptkbd_data = hid_get_drvdata(hdev);
+	struct lenovo_drvdata *data = hid_get_drvdata(hdev);
 
-	return snprintf(buf, PAGE_SIZE, "%u\n", cptkbd_data->fn_lock);
+	return snprintf(buf, PAGE_SIZE, "%u\n", data->fn_lock);
 }
 
-static ssize_t attr_fn_lock_store_cptkbd(struct device *dev,
+static ssize_t attr_fn_lock_store(struct device *dev,
 		struct device_attribute *attr,
 		const char *buf,
 		size_t count)
 {
 	struct hid_device *hdev = to_hid_device(dev);
-	struct lenovo_drvdata_cptkbd *cptkbd_data = hid_get_drvdata(hdev);
+	struct lenovo_drvdata *data = hid_get_drvdata(hdev);
 	int value;
 
 	if (kstrtoint(buf, 10, &value))
@@ -277,8 +356,17 @@ static ssize_t attr_fn_lock_store_cptkbd(struct device *dev,
 	if (value < 0 || value > 1)
 		return -EINVAL;
 
-	cptkbd_data->fn_lock = !!value;
-	lenovo_features_set_cptkbd(hdev);
+	data->fn_lock = !!value;
+
+	switch (hdev->product) {
+	case USB_DEVICE_ID_LENOVO_CUSBKBD:
+	case USB_DEVICE_ID_LENOVO_CBTKBD:
+		lenovo_features_set_cptkbd(hdev);
+		break;
+	case USB_DEVICE_ID_LENOVO_TP10UBKBD:
+		lenovo_led_set_tp10ubkbd(hdev, TP10UBKBD_FN_LOCK_LED, value);
+		break;
+	}
 
 	return count;
 }
@@ -288,7 +376,7 @@ static ssize_t attr_sensitivity_show_cptkbd(struct device *dev,
 		char *buf)
 {
 	struct hid_device *hdev = to_hid_device(dev);
-	struct lenovo_drvdata_cptkbd *cptkbd_data = hid_get_drvdata(hdev);
+	struct lenovo_drvdata *cptkbd_data = hid_get_drvdata(hdev);
 
 	return snprintf(buf, PAGE_SIZE, "%u\n",
 		cptkbd_data->sensitivity);
@@ -300,7 +388,7 @@ static ssize_t attr_sensitivity_store_cptkbd(struct device *dev,
 		size_t count)
 {
 	struct hid_device *hdev = to_hid_device(dev);
-	struct lenovo_drvdata_cptkbd *cptkbd_data = hid_get_drvdata(hdev);
+	struct lenovo_drvdata *cptkbd_data = hid_get_drvdata(hdev);
 	int value;
 
 	if (kstrtoint(buf, 10, &value) || value < 1 || value > 255)
@@ -313,10 +401,10 @@ static ssize_t attr_sensitivity_store_cptkbd(struct device *dev,
 }
 
 
-static struct device_attribute dev_attr_fn_lock_cptkbd =
+static struct device_attribute dev_attr_fn_lock =
 	__ATTR(fn_lock, S_IWUSR | S_IRUGO,
-			attr_fn_lock_show_cptkbd,
-			attr_fn_lock_store_cptkbd);
+			attr_fn_lock_show,
+			attr_fn_lock_store);
 
 static struct device_attribute dev_attr_sensitivity_cptkbd =
 	__ATTR(sensitivity, S_IWUSR | S_IRUGO,
@@ -325,7 +413,7 @@ static struct device_attribute dev_attr_sensitivity_cptkbd =
 
 
 static struct attribute *lenovo_attributes_cptkbd[] = {
-	&dev_attr_fn_lock_cptkbd.attr,
+	&dev_attr_fn_lock.attr,
 	&dev_attr_sensitivity_cptkbd.attr,
 	NULL
 };
@@ -354,10 +442,28 @@ static int lenovo_raw_event(struct hid_device *hdev,
 	return 0;
 }
 
+static int lenovo_event_tp10ubkbd(struct hid_device *hdev,
+		struct hid_field *field, struct hid_usage *usage, __s32 value)
+{
+	struct lenovo_drvdata *data = hid_get_drvdata(hdev);
+
+	if (usage->type == EV_KEY && usage->code == KEY_FN_ESC && value == 1) {
+		/*
+		 * The user has toggled the Fn-lock state. Toggle our own
+		 * cached value of it and sync our value to the keyboard to
+		 * ensure things are in sync (the sycning should be a no-op).
+		 */
+		data->fn_lock = !data->fn_lock;
+		schedule_work(&data->fn_lock_sync_work);
+	}
+
+	return 0;
+}
+
 static int lenovo_event_cptkbd(struct hid_device *hdev,
 		struct hid_field *field, struct hid_usage *usage, __s32 value)
 {
-	struct lenovo_drvdata_cptkbd *cptkbd_data = hid_get_drvdata(hdev);
+	struct lenovo_drvdata *cptkbd_data = hid_get_drvdata(hdev);
 
 	/* "wheel" scroll events */
 	if (usage->type == EV_REL && (usage->code == REL_WHEEL ||
@@ -396,6 +502,8 @@ static int lenovo_event(struct hid_device *hdev, struct hid_field *field,
 	case USB_DEVICE_ID_LENOVO_CUSBKBD:
 	case USB_DEVICE_ID_LENOVO_CBTKBD:
 		return lenovo_event_cptkbd(hdev, field, usage, value);
+	case USB_DEVICE_ID_LENOVO_TP10UBKBD:
+		return lenovo_event_tp10ubkbd(hdev, field, usage, value);
 	default:
 		return 0;
 	}
@@ -404,7 +512,7 @@ static int lenovo_event(struct hid_device *hdev, struct hid_field *field,
 static int lenovo_features_set_tpkbd(struct hid_device *hdev)
 {
 	struct hid_report *report;
-	struct lenovo_drvdata_tpkbd *data_pointer = hid_get_drvdata(hdev);
+	struct lenovo_drvdata *data_pointer = hid_get_drvdata(hdev);
 
 	report = hdev->report_enum[HID_FEATURE_REPORT].report_id_hash[4];
 
@@ -425,7 +533,7 @@ static ssize_t attr_press_to_select_show_tpkbd(struct device *dev,
 		char *buf)
 {
 	struct hid_device *hdev = to_hid_device(dev);
-	struct lenovo_drvdata_tpkbd *data_pointer = hid_get_drvdata(hdev);
+	struct lenovo_drvdata *data_pointer = hid_get_drvdata(hdev);
 
 	return snprintf(buf, PAGE_SIZE, "%u\n", data_pointer->press_to_select);
 }
@@ -436,7 +544,7 @@ static ssize_t attr_press_to_select_store_tpkbd(struct device *dev,
 		size_t count)
 {
 	struct hid_device *hdev = to_hid_device(dev);
-	struct lenovo_drvdata_tpkbd *data_pointer = hid_get_drvdata(hdev);
+	struct lenovo_drvdata *data_pointer = hid_get_drvdata(hdev);
 	int value;
 
 	if (kstrtoint(buf, 10, &value))
@@ -455,7 +563,7 @@ static ssize_t attr_dragging_show_tpkbd(struct device *dev,
 		char *buf)
 {
 	struct hid_device *hdev = to_hid_device(dev);
-	struct lenovo_drvdata_tpkbd *data_pointer = hid_get_drvdata(hdev);
+	struct lenovo_drvdata *data_pointer = hid_get_drvdata(hdev);
 
 	return snprintf(buf, PAGE_SIZE, "%u\n", data_pointer->dragging);
 }
@@ -466,7 +574,7 @@ static ssize_t attr_dragging_store_tpkbd(struct device *dev,
 		size_t count)
 {
 	struct hid_device *hdev = to_hid_device(dev);
-	struct lenovo_drvdata_tpkbd *data_pointer = hid_get_drvdata(hdev);
+	struct lenovo_drvdata *data_pointer = hid_get_drvdata(hdev);
 	int value;
 
 	if (kstrtoint(buf, 10, &value))
@@ -485,7 +593,7 @@ static ssize_t attr_release_to_select_show_tpkbd(struct device *dev,
 		char *buf)
 {
 	struct hid_device *hdev = to_hid_device(dev);
-	struct lenovo_drvdata_tpkbd *data_pointer = hid_get_drvdata(hdev);
+	struct lenovo_drvdata *data_pointer = hid_get_drvdata(hdev);
 
 	return snprintf(buf, PAGE_SIZE, "%u\n", data_pointer->release_to_select);
 }
@@ -496,7 +604,7 @@ static ssize_t attr_release_to_select_store_tpkbd(struct device *dev,
 		size_t count)
 {
 	struct hid_device *hdev = to_hid_device(dev);
-	struct lenovo_drvdata_tpkbd *data_pointer = hid_get_drvdata(hdev);
+	struct lenovo_drvdata *data_pointer = hid_get_drvdata(hdev);
 	int value;
 
 	if (kstrtoint(buf, 10, &value))
@@ -515,7 +623,7 @@ static ssize_t attr_select_right_show_tpkbd(struct device *dev,
 		char *buf)
 {
 	struct hid_device *hdev = to_hid_device(dev);
-	struct lenovo_drvdata_tpkbd *data_pointer = hid_get_drvdata(hdev);
+	struct lenovo_drvdata *data_pointer = hid_get_drvdata(hdev);
 
 	return snprintf(buf, PAGE_SIZE, "%u\n", data_pointer->select_right);
 }
@@ -526,7 +634,7 @@ static ssize_t attr_select_right_store_tpkbd(struct device *dev,
 		size_t count)
 {
 	struct hid_device *hdev = to_hid_device(dev);
-	struct lenovo_drvdata_tpkbd *data_pointer = hid_get_drvdata(hdev);
+	struct lenovo_drvdata *data_pointer = hid_get_drvdata(hdev);
 	int value;
 
 	if (kstrtoint(buf, 10, &value))
@@ -545,7 +653,7 @@ static ssize_t attr_sensitivity_show_tpkbd(struct device *dev,
 		char *buf)
 {
 	struct hid_device *hdev = to_hid_device(dev);
-	struct lenovo_drvdata_tpkbd *data_pointer = hid_get_drvdata(hdev);
+	struct lenovo_drvdata *data_pointer = hid_get_drvdata(hdev);
 
 	return snprintf(buf, PAGE_SIZE, "%u\n",
 		data_pointer->sensitivity);
@@ -557,7 +665,7 @@ static ssize_t attr_sensitivity_store_tpkbd(struct device *dev,
 		size_t count)
 {
 	struct hid_device *hdev = to_hid_device(dev);
-	struct lenovo_drvdata_tpkbd *data_pointer = hid_get_drvdata(hdev);
+	struct lenovo_drvdata *data_pointer = hid_get_drvdata(hdev);
 	int value;
 
 	if (kstrtoint(buf, 10, &value) || value < 1 || value > 255)
@@ -574,7 +682,7 @@ static ssize_t attr_press_speed_show_tpkbd(struct device *dev,
 		char *buf)
 {
 	struct hid_device *hdev = to_hid_device(dev);
-	struct lenovo_drvdata_tpkbd *data_pointer = hid_get_drvdata(hdev);
+	struct lenovo_drvdata *data_pointer = hid_get_drvdata(hdev);
 
 	return snprintf(buf, PAGE_SIZE, "%u\n",
 		data_pointer->press_speed);
@@ -586,7 +694,7 @@ static ssize_t attr_press_speed_store_tpkbd(struct device *dev,
 		size_t count)
 {
 	struct hid_device *hdev = to_hid_device(dev);
-	struct lenovo_drvdata_tpkbd *data_pointer = hid_get_drvdata(hdev);
+	struct lenovo_drvdata *data_pointer = hid_get_drvdata(hdev);
 	int value;
 
 	if (kstrtoint(buf, 10, &value) || value < 1 || value > 255)
@@ -642,12 +750,23 @@ static const struct attribute_group lenovo_attr_group_tpkbd = {
 	.attrs = lenovo_attributes_tpkbd,
 };
 
-static enum led_brightness lenovo_led_brightness_get_tpkbd(
+static void lenovo_led_set_tpkbd(struct hid_device *hdev)
+{
+	struct lenovo_drvdata *data_pointer = hid_get_drvdata(hdev);
+	struct hid_report *report;
+
+	report = hdev->report_enum[HID_OUTPUT_REPORT].report_id_hash[3];
+	report->field[0]->value[0] = (data_pointer->led_state >> 0) & 1;
+	report->field[0]->value[1] = (data_pointer->led_state >> 1) & 1;
+	hid_hw_request(hdev, report, HID_REQ_SET_REPORT);
+}
+
+static enum led_brightness lenovo_led_brightness_get(
 			struct led_classdev *led_cdev)
 {
 	struct device *dev = led_cdev->dev->parent;
 	struct hid_device *hdev = to_hid_device(dev);
-	struct lenovo_drvdata_tpkbd *data_pointer = hid_get_drvdata(hdev);
+	struct lenovo_drvdata *data_pointer = hid_get_drvdata(hdev);
 	int led_nr = 0;
 
 	if (led_cdev == &data_pointer->led_micmute)
@@ -658,13 +777,13 @@ static enum led_brightness lenovo_led_brightness_get_tpkbd(
 				: LED_OFF;
 }
 
-static void lenovo_led_brightness_set_tpkbd(struct led_classdev *led_cdev,
+static void lenovo_led_brightness_set(struct led_classdev *led_cdev,
 			enum led_brightness value)
 {
 	struct device *dev = led_cdev->dev->parent;
 	struct hid_device *hdev = to_hid_device(dev);
-	struct lenovo_drvdata_tpkbd *data_pointer = hid_get_drvdata(hdev);
-	struct hid_report *report;
+	struct lenovo_drvdata *data_pointer = hid_get_drvdata(hdev);
+	u8 tp10ubkbd_led[] = { TP10UBKBD_MUTE_LED, TP10UBKBD_MICMUTE_LED };
 	int led_nr = 0;
 
 	if (led_cdev == &data_pointer->led_micmute)
@@ -675,20 +794,57 @@ static void lenovo_led_brightness_set_tpkbd(struct led_classdev *led_cdev,
 	else
 		data_pointer->led_state |= 1 << led_nr;
 
-	report = hdev->report_enum[HID_OUTPUT_REPORT].report_id_hash[3];
-	report->field[0]->value[0] = (data_pointer->led_state >> 0) & 1;
-	report->field[0]->value[1] = (data_pointer->led_state >> 1) & 1;
-	hid_hw_request(hdev, report, HID_REQ_SET_REPORT);
+	switch (hdev->product) {
+	case USB_DEVICE_ID_LENOVO_TPKBD:
+		lenovo_led_set_tpkbd(hdev);
+		break;
+	case USB_DEVICE_ID_LENOVO_TP10UBKBD:
+		lenovo_led_set_tp10ubkbd(hdev, tp10ubkbd_led[led_nr], value);
+		break;
+	}
+}
+
+static int lenovo_register_leds(struct hid_device *hdev)
+{
+	struct lenovo_drvdata *data = hid_get_drvdata(hdev);
+	size_t name_sz = strlen(dev_name(&hdev->dev)) + 16;
+	char *name_mute, *name_micm;
+	int ret;
+
+	name_mute = devm_kzalloc(&hdev->dev, name_sz, GFP_KERNEL);
+	name_micm = devm_kzalloc(&hdev->dev, name_sz, GFP_KERNEL);
+	if (name_mute == NULL || name_micm == NULL) {
+		hid_err(hdev, "Could not allocate memory for led data\n");
+		return -ENOMEM;
+	}
+	snprintf(name_mute, name_sz, "%s:amber:mute", dev_name(&hdev->dev));
+	snprintf(name_micm, name_sz, "%s:amber:micmute", dev_name(&hdev->dev));
+
+	data->led_mute.name = name_mute;
+	data->led_mute.brightness_get = lenovo_led_brightness_get;
+	data->led_mute.brightness_set = lenovo_led_brightness_set;
+	data->led_mute.dev = &hdev->dev;
+	ret = led_classdev_register(&hdev->dev, &data->led_mute);
+	if (ret < 0)
+		return ret;
+
+	data->led_micmute.name = name_micm;
+	data->led_micmute.brightness_get = lenovo_led_brightness_get;
+	data->led_micmute.brightness_set = lenovo_led_brightness_set;
+	data->led_micmute.dev = &hdev->dev;
+	ret = led_classdev_register(&hdev->dev, &data->led_micmute);
+	if (ret < 0) {
+		led_classdev_unregister(&data->led_mute);
+		return ret;
+	}
+
+	return 0;
 }
 
 static int lenovo_probe_tpkbd(struct hid_device *hdev)
 {
-	struct device *dev = &hdev->dev;
-	struct lenovo_drvdata_tpkbd *data_pointer;
-	size_t name_sz = strlen(dev_name(dev)) + 16;
-	char *name_mute, *name_micmute;
-	int i;
-	int ret;
+	struct lenovo_drvdata *data_pointer;
+	int i, ret;
 
 	/*
 	 * Only register extra settings against subdevice where input_mapping
@@ -712,7 +868,7 @@ static int lenovo_probe_tpkbd(struct hid_device *hdev)
 		hid_warn(hdev, "Could not create sysfs group: %d\n", ret);
 
 	data_pointer = devm_kzalloc(&hdev->dev,
-				    sizeof(struct lenovo_drvdata_tpkbd),
+				    sizeof(struct lenovo_drvdata),
 				    GFP_KERNEL);
 	if (data_pointer == NULL) {
 		hid_err(hdev, "Could not allocate memory for driver data\n");
@@ -724,37 +880,11 @@ static int lenovo_probe_tpkbd(struct hid_device *hdev)
 	data_pointer->sensitivity = 0xa0;
 	data_pointer->press_speed = 0x38;
 
-	name_mute = devm_kzalloc(&hdev->dev, name_sz, GFP_KERNEL);
-	name_micmute = devm_kzalloc(&hdev->dev, name_sz, GFP_KERNEL);
-	if (name_mute == NULL || name_micmute == NULL) {
-		hid_err(hdev, "Could not allocate memory for led data\n");
-		ret = -ENOMEM;
-		goto err;
-	}
-	snprintf(name_mute, name_sz, "%s:amber:mute", dev_name(dev));
-	snprintf(name_micmute, name_sz, "%s:amber:micmute", dev_name(dev));
-
 	hid_set_drvdata(hdev, data_pointer);
 
-	data_pointer->led_mute.name = name_mute;
-	data_pointer->led_mute.brightness_get = lenovo_led_brightness_get_tpkbd;
-	data_pointer->led_mute.brightness_set = lenovo_led_brightness_set_tpkbd;
-	data_pointer->led_mute.dev = dev;
-	ret = led_classdev_register(dev, &data_pointer->led_mute);
-	if (ret < 0)
+	ret = lenovo_register_leds(hdev);
+	if (ret)
 		goto err;
-
-	data_pointer->led_micmute.name = name_micmute;
-	data_pointer->led_micmute.brightness_get =
-		lenovo_led_brightness_get_tpkbd;
-	data_pointer->led_micmute.brightness_set =
-		lenovo_led_brightness_set_tpkbd;
-	data_pointer->led_micmute.dev = dev;
-	ret = led_classdev_register(dev, &data_pointer->led_micmute);
-	if (ret < 0) {
-		led_classdev_unregister(&data_pointer->led_mute);
-		goto err;
-	}
 
 	lenovo_features_set_tpkbd(hdev);
 
@@ -767,7 +897,7 @@ err:
 static int lenovo_probe_cptkbd(struct hid_device *hdev)
 {
 	int ret;
-	struct lenovo_drvdata_cptkbd *cptkbd_data;
+	struct lenovo_drvdata *cptkbd_data;
 
 	/* All the custom action happens on the USBMOUSE device for USB */
 	if (hdev->product == USB_DEVICE_ID_LENOVO_CUSBKBD
@@ -811,6 +941,57 @@ static int lenovo_probe_cptkbd(struct hid_device *hdev)
 	return 0;
 }
 
+static struct attribute *lenovo_attributes_tp10ubkbd[] = {
+	&dev_attr_fn_lock.attr,
+	NULL
+};
+
+static const struct attribute_group lenovo_attr_group_tp10ubkbd = {
+	.attrs = lenovo_attributes_tp10ubkbd,
+};
+
+static int lenovo_probe_tp10ubkbd(struct hid_device *hdev)
+{
+	struct lenovo_drvdata *data;
+	int ret;
+
+	/* All the custom action happens on the USBMOUSE device for USB */
+	if (hdev->type != HID_TYPE_USBMOUSE)
+		return 0;
+
+	data = devm_kzalloc(&hdev->dev, sizeof(*data), GFP_KERNEL);
+	if (!data)
+		return -ENOMEM;
+
+	mutex_init(&data->led_report_mutex);
+	INIT_WORK(&data->fn_lock_sync_work, lenovo_tp10ubkbd_sync_fn_lock);
+	data->hdev = hdev;
+
+	hid_set_drvdata(hdev, data);
+
+	/*
+	 * The Thinkpad 10 ultrabook USB kbd dock's Fn-lock defaults to on.
+	 * We cannot read the state, only set it, so we force it to on here
+	 * (which should be a no-op) to make sure that our state matches the
+	 * keyboard's FN-lock state. This is the same as what Windows does.
+	 */
+	data->fn_lock = true;
+	lenovo_led_set_tp10ubkbd(hdev, TP10UBKBD_FN_LOCK_LED, data->fn_lock);
+
+	ret = sysfs_create_group(&hdev->dev.kobj, &lenovo_attr_group_tp10ubkbd);
+	if (ret)
+		return ret;
+
+	ret = lenovo_register_leds(hdev);
+	if (ret)
+		goto err;
+
+	return 0;
+err:
+	sysfs_remove_group(&hdev->dev.kobj, &lenovo_attr_group_tp10ubkbd);
+	return ret;
+}
+
 static int lenovo_probe(struct hid_device *hdev,
 		const struct hid_device_id *id)
 {
@@ -836,6 +1017,9 @@ static int lenovo_probe(struct hid_device *hdev,
 	case USB_DEVICE_ID_LENOVO_CBTKBD:
 		ret = lenovo_probe_cptkbd(hdev);
 		break;
+	case USB_DEVICE_ID_LENOVO_TP10UBKBD:
+		ret = lenovo_probe_tp10ubkbd(hdev);
+		break;
 	default:
 		ret = 0;
 		break;
@@ -852,7 +1036,7 @@ err:
 
 static void lenovo_remove_tpkbd(struct hid_device *hdev)
 {
-	struct lenovo_drvdata_tpkbd *data_pointer = hid_get_drvdata(hdev);
+	struct lenovo_drvdata *data_pointer = hid_get_drvdata(hdev);
 
 	/*
 	 * Only the trackpoint half of the keyboard has drvdata and stuff that
@@ -874,6 +1058,20 @@ static void lenovo_remove_cptkbd(struct hid_device *hdev)
 			&lenovo_attr_group_cptkbd);
 }
 
+static void lenovo_remove_tp10ubkbd(struct hid_device *hdev)
+{
+	struct lenovo_drvdata *data = hid_get_drvdata(hdev);
+
+	if (data == NULL)
+		return;
+
+	led_classdev_unregister(&data->led_micmute);
+	led_classdev_unregister(&data->led_mute);
+
+	sysfs_remove_group(&hdev->dev.kobj, &lenovo_attr_group_tp10ubkbd);
+	cancel_work_sync(&data->fn_lock_sync_work);
+}
+
 static void lenovo_remove(struct hid_device *hdev)
 {
 	switch (hdev->product) {
@@ -883,6 +1081,9 @@ static void lenovo_remove(struct hid_device *hdev)
 	case USB_DEVICE_ID_LENOVO_CUSBKBD:
 	case USB_DEVICE_ID_LENOVO_CBTKBD:
 		lenovo_remove_cptkbd(hdev);
+		break;
+	case USB_DEVICE_ID_LENOVO_TP10UBKBD:
+		lenovo_remove_tp10ubkbd(hdev);
 		break;
 	}
 
@@ -920,6 +1121,7 @@ static const struct hid_device_id lenovo_devices[] = {
 	{ HID_USB_DEVICE(USB_VENDOR_ID_IBM, USB_DEVICE_ID_IBM_SCROLLPOINT_800DPI_OPTICAL) },
 	{ HID_USB_DEVICE(USB_VENDOR_ID_IBM, USB_DEVICE_ID_IBM_SCROLLPOINT_800DPI_OPTICAL_PRO) },
 	{ HID_USB_DEVICE(USB_VENDOR_ID_LENOVO, USB_DEVICE_ID_LENOVO_SCROLLPOINT_OPTICAL) },
+	{ HID_USB_DEVICE(USB_VENDOR_ID_LENOVO, USB_DEVICE_ID_LENOVO_TP10UBKBD) },
 	{ }
 };
 

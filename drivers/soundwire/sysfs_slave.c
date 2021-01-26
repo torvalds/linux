@@ -16,9 +16,13 @@
 
 /*
  * The sysfs for Slave reflects the MIPI description as given
- * in the MIPI DisCo spec
+ * in the MIPI DisCo spec.
+ * status and device_number come directly from the MIPI SoundWire
+ * 1.x specification.
  *
  * Base file is device
+ *	|---- status
+ *	|---- device_number
  *	|---- modalias
  *	|---- dev-properties
  *		|---- mipi_revision
@@ -212,3 +216,55 @@ int sdw_slave_sysfs_init(struct sdw_slave *slave)
 
 	return 0;
 }
+
+/*
+ * the status is shown in capital letters for UNATTACHED and RESERVED
+ * on purpose, to highligh users to the fact that these status values
+ * are not expected.
+ */
+static const char *const slave_status[] = {
+	[SDW_SLAVE_UNATTACHED] =  "UNATTACHED",
+	[SDW_SLAVE_ATTACHED] = "Attached",
+	[SDW_SLAVE_ALERT] = "Alert",
+	[SDW_SLAVE_RESERVED] = "RESERVED",
+};
+
+static ssize_t status_show(struct device *dev,
+			   struct device_attribute *attr, char *buf)
+{
+	struct sdw_slave *slave = dev_to_sdw_dev(dev);
+
+	return sprintf(buf, "%s\n", slave_status[slave->status]);
+}
+static DEVICE_ATTR_RO(status);
+
+static ssize_t device_number_show(struct device *dev,
+				  struct device_attribute *attr, char *buf)
+{
+	struct sdw_slave *slave = dev_to_sdw_dev(dev);
+
+	if (slave->status == SDW_SLAVE_UNATTACHED)
+		return sprintf(buf, "%s", "N/A");
+	else
+		return sprintf(buf, "%d", slave->dev_num);
+}
+static DEVICE_ATTR_RO(device_number);
+
+static struct attribute *slave_status_attrs[] = {
+	&dev_attr_status.attr,
+	&dev_attr_device_number.attr,
+	NULL,
+};
+
+/*
+ * we don't use ATTRIBUTES_GROUP here since the group is used in a
+ * separate file and can't be handled as a static.
+ */
+static const struct attribute_group sdw_slave_status_attr_group = {
+	.attrs	= slave_status_attrs,
+};
+
+const struct attribute_group *sdw_slave_status_attr_groups[] = {
+	&sdw_slave_status_attr_group,
+	NULL
+};

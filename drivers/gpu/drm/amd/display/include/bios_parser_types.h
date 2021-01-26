@@ -101,6 +101,13 @@ enum bp_pipe_control_action {
 	ASIC_PIPE_INIT
 };
 
+enum bp_lvtma_control_action {
+	LVTMA_CONTROL_LCD_BLOFF = 2,
+	LVTMA_CONTROL_LCD_BLON = 3,
+	LVTMA_CONTROL_POWER_ON = 12,
+	LVTMA_CONTROL_POWER_OFF = 13
+};
+
 struct bp_encoder_control {
 	enum bp_encoder_control_action action;
 	enum engine_id engine_id;
@@ -309,6 +316,12 @@ struct bp_encoder_cap_info {
 	uint32_t HDMI_6GB_EN:1;
 	uint32_t DP_IS_USB_C:1;
 	uint32_t RESERVED:27;
+};
+
+struct bp_soc_bb_info {
+	uint32_t dram_clock_change_latency_100ns;
+	uint32_t dram_sr_exit_latency_100ns;
+	uint32_t dram_sr_enter_exit_latency_100ns;
 };
 
 #endif /*__DAL_BIOS_PARSER_TYPES_H__ */

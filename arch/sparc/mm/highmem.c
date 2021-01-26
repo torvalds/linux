@@ -29,7 +29,6 @@
 
 #include <asm/cacheflush.h>
 #include <asm/tlbflush.h>
-#include <asm/pgalloc.h>
 #include <asm/vaddrs.h>
 
 static pte_t *kmap_pte;

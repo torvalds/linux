@@ -66,8 +66,8 @@ struct dpmac_cmd_get_counter {
 };
 
 struct dpmac_rsp_get_counter {
-	u64 pad;
-	u64 counter;
+	__le64 pad;
+	__le64 counter;
 };
 
 #endif /* _FSL_DPMAC_CMD_H */

@@ -1495,7 +1495,7 @@ Extended error information
     #
 
     { stacktrace:
-             _do_fork+0x18e/0x330
+             kernel_clone+0x18e/0x330
              kernel_thread+0x29/0x30
              kthreadd+0x154/0x1b0
              ret_from_fork+0x3f/0x70
@@ -1588,7 +1588,7 @@ Extended error information
              SYSC_sendto+0xef/0x170
     } hitcount:         88
     { stacktrace:
-             _do_fork+0x18e/0x330
+             kernel_clone+0x18e/0x330
              SyS_clone+0x19/0x20
              entry_SYSCALL_64_fastpath+0x12/0x6a
     } hitcount:        244

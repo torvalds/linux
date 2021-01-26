@@ -93,6 +93,7 @@ struct mbox_msghdr {
 };
 
 void otx2_mbox_reset(struct otx2_mbox *mbox, int devid);
+void __otx2_mbox_reset(struct otx2_mbox *mbox, int devid);
 void otx2_mbox_destroy(struct otx2_mbox *mbox);
 int otx2_mbox_init(struct otx2_mbox *mbox, void __force *hwbase,
 		   struct pci_dev *pdev, void __force *reg_base,

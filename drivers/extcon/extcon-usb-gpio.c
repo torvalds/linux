@@ -2,7 +2,7 @@
 /**
  * drivers/extcon/extcon-usb-gpio.c - USB GPIO extcon driver
  *
- * Copyright (C) 2015 Texas Instruments Incorporated - http://www.ti.com
+ * Copyright (C) 2015 Texas Instruments Incorporated - https://www.ti.com
  * Author: Roger Quadros <rogerq@ti.com>
  */
 

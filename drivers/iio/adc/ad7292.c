@@ -304,15 +304,16 @@ static int ad7292_probe(struct spi_device *spi)
 		st->vref_mv = 1250;
 	}
 
-	indio_dev->dev.parent = &spi->dev;
 	indio_dev->name = spi_get_device_id(spi)->name;
 	indio_dev->modes = INDIO_DIRECT_MODE;
 	indio_dev->info = &ad7292_info;
 
 	for_each_available_child_of_node(spi->dev.of_node, child) {
 		diff_channels = of_property_read_bool(child, "diff-channels");
-		if (diff_channels)
+		if (diff_channels) {
+			of_node_put(child);
 			break;
+		}
 	}
 
 	if (diff_channels) {

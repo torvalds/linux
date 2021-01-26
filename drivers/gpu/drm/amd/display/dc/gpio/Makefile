@@ -31,6 +31,18 @@ AMD_DAL_GPIO = $(addprefix $(AMDDALPATH)/dc/gpio/,$(GPIO))
 AMD_DISPLAY_FILES += $(AMD_DAL_GPIO)
 
 ###############################################################################
+# DCE 6x
+###############################################################################
+# all DCE6.x are derived from DCE6.0
+ifdef CONFIG_DRM_AMD_DC_SI
+GPIO_DCE60 = hw_translate_dce60.o hw_factory_dce60.o
+
+AMD_DAL_GPIO_DCE60 = $(addprefix $(AMDDALPATH)/dc/gpio/dce60/,$(GPIO_DCE60))
+
+AMD_DISPLAY_FILES += $(AMD_DAL_GPIO_DCE60)
+endif
+
+###############################################################################
 # DCE 8x
 ###############################################################################
 # all DCE8.x are derived from DCE8.0

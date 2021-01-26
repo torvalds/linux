@@ -16,7 +16,7 @@ static void test_fexit_bpf2bpf_common(const char *obj_file,
 	__u32 duration = 0, retval;
 	struct bpf_map *data_map;
 	const int zero = 0;
-	u64 *result = NULL;
+	__u64 *result = NULL;
 
 	err = bpf_prog_load(target_obj_file, BPF_PROG_TYPE_UNSPEC,
 			    &pkt_obj, &pkt_fd);
@@ -29,7 +29,7 @@ static void test_fexit_bpf2bpf_common(const char *obj_file,
 
 	link = calloc(sizeof(struct bpf_link *), prog_cnt);
 	prog = calloc(sizeof(struct bpf_program *), prog_cnt);
-	result = malloc((prog_cnt + 32 /* spare */) * sizeof(u64));
+	result = malloc((prog_cnt + 32 /* spare */) * sizeof(__u64));
 	if (CHECK(!link || !prog || !result, "alloc_memory",
 		  "failed to alloc memory"))
 		goto close_prog;
@@ -72,7 +72,7 @@ static void test_fexit_bpf2bpf_common(const char *obj_file,
 		goto close_prog;
 
 	for (i = 0; i < prog_cnt; i++)
-		if (CHECK(result[i] != 1, "result", "fexit_bpf2bpf failed err %ld\n",
+		if (CHECK(result[i] != 1, "result", "fexit_bpf2bpf failed err %llu\n",
 			  result[i]))
 			goto close_prog;
 
