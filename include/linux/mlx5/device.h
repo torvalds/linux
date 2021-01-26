@@ -359,6 +359,10 @@ enum mlx5_event {
 	MLX5_EVENT_TYPE_MAX                = 0x100,
 };
 
+enum mlx5_driver_event {
+	MLX5_DRIVER_EVENT_TYPE_TRAP = 0,
+};
+
 enum {
 	MLX5_TRACER_SUBTYPE_OWNERSHIP_CHANGE = 0x0,
 	MLX5_TRACER_SUBTYPE_TRACES_AVAILABLE = 0x1,

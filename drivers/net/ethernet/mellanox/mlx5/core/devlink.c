@@ -218,6 +218,41 @@ static void mlx5_devlink_trap_fini(struct devlink *devlink, const struct devlink
 	kfree(dl_trap);
 }
 
+static int mlx5_devlink_trap_action_set(struct devlink *devlink,
+					const struct devlink_trap *trap,
+					enum devlink_trap_action action,
+					struct netlink_ext_ack *extack)
+{
+	struct mlx5_core_dev *dev = devlink_priv(devlink);
+	enum devlink_trap_action action_orig;
+	struct mlx5_devlink_trap *dl_trap;
+	int err = 0;
+
+	dl_trap = mlx5_find_trap_by_id(dev, trap->id);
+	if (!dl_trap) {
+		mlx5_core_err(dev, "Devlink trap: Set action on invalid trap id 0x%x", trap->id);
+		err = -EINVAL;
+		goto out;
+	}
+
+	if (action != DEVLINK_TRAP_ACTION_DROP && action != DEVLINK_TRAP_ACTION_TRAP) {
+		err = -EOPNOTSUPP;
+		goto out;
+	}
+
+	if (action == dl_trap->trap.action)
+		goto out;
+
+	action_orig = dl_trap->trap.action;
+	dl_trap->trap.action = action;
+	err = mlx5_blocking_notifier_call_chain(dev, MLX5_DRIVER_EVENT_TYPE_TRAP,
+						&dl_trap->trap);
+	if (err)
+		dl_trap->trap.action = action_orig;
+out:
+	return err;
+}
+
 static const struct devlink_ops mlx5_devlink_ops = {
 #ifdef CONFIG_MLX5_ESWITCH
 	.eswitch_mode_set = mlx5_devlink_eswitch_mode_set,
@@ -238,6 +273,7 @@ static const struct devlink_ops mlx5_devlink_ops = {
 	.reload_up = mlx5_devlink_reload_up,
 	.trap_init = mlx5_devlink_trap_init,
 	.trap_fini = mlx5_devlink_trap_fini,
+	.trap_action_set = mlx5_devlink_trap_action_set,
 };
 
 void mlx5_devlink_trap_report(struct mlx5_core_dev *dev, int trap_id, struct sk_buff *skb,
