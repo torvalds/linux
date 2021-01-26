@@ -233,7 +233,8 @@ int incfs_write_file_header_flags(struct backing_file_context *bfc, u32 flags)
 		return -EFAULT;
 
 	return write_to_bf(bfc, &flags, sizeof(flags),
-			   offsetof(struct incfs_file_header, fh_flags));
+			   offsetof(struct incfs_file_header,
+				    fh_file_header_flags));
 }
 
 /*
@@ -384,7 +385,7 @@ err:
 /*
  * Write a backing file header
  * It should always be called only on empty file.
- * fh.fh_first_md_offset is 0 for now, but will be updated
+ * incfs_super_block.s_first_md_offset is 0 for now, but will be updated
  * once first metadata record is added.
  */
 int incfs_write_fh_to_backing_file(struct backing_file_context *bfc,
@@ -404,38 +405,6 @@ int incfs_write_fh_to_backing_file(struct backing_file_context *bfc,
 
 	fh.fh_file_size = cpu_to_le64(file_size);
 	fh.fh_uuid = *uuid;
-
-	LOCK_REQUIRED(bfc->bc_mutex);
-
-	file_pos = incfs_get_end_offset(bfc->bc_file);
-	if (file_pos != 0)
-		return -EEXIST;
-
-	return write_to_bf(bfc, &fh, sizeof(fh), file_pos);
-}
-
-/*
- * Write a backing file header for a mapping file
- * It should always be called only on empty file.
- */
-int incfs_write_mapping_fh_to_backing_file(struct backing_file_context *bfc,
-				incfs_uuid_t *uuid, u64 file_size, u64 offset)
-{
-	struct incfs_file_header fh = {};
-	loff_t file_pos = 0;
-
-	if (!bfc)
-		return -EFAULT;
-
-	fh.fh_magic = cpu_to_le64(INCFS_MAGIC_NUMBER);
-	fh.fh_version = cpu_to_le64(INCFS_FORMAT_CURRENT_VER);
-	fh.fh_header_size = cpu_to_le16(sizeof(fh));
-	fh.fh_original_offset = cpu_to_le64(offset);
-	fh.fh_data_block_size = cpu_to_le16(INCFS_DATA_FILE_BLOCK_SIZE);
-
-	fh.fh_mapped_file_size = cpu_to_le64(file_size);
-	fh.fh_original_uuid = *uuid;
-	fh.fh_flags = INCFS_FILE_MAPPED;
 
 	LOCK_REQUIRED(bfc->bc_mutex);
 
@@ -629,7 +598,7 @@ int incfs_read_file_header(struct backing_file_context *bfc,
 	if (file_size)
 		*file_size = le64_to_cpu(fh.fh_file_size);
 	if (flags)
-		*flags = le32_to_cpu(fh.fh_flags);
+		*flags = le32_to_cpu(fh.fh_file_header_flags);
 	return 0;
 }
 
