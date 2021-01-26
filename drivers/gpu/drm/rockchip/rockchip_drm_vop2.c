@@ -2178,7 +2178,6 @@ static void vop2_crtc_atomic_disable(struct drm_crtc *crtc,
 	int sys_status = vp->id ? SYS_STATUS_LCDC1 : SYS_STATUS_LCDC0;
 
 	WARN_ON(vp->event);
-
 	vop2_lock(vop2);
 	drm_crtc_vblank_off(crtc);
 	vop2_disable_all_planes_for_crtc(crtc);
@@ -3531,7 +3530,6 @@ static void vop2_crtc_atomic_enable(struct drm_crtc *crtc, struct drm_crtc_state
 		     hdisplay, vdisplay, interlaced ? "i" : "p",
 		     adjusted_mode->vrefresh, vcstate->output_type, vp->id);
 	vop2_initial(crtc);
-	VOP_MODULE_SET(vop2, vp, standby, 0);
 	vcstate->vdisplay = vdisplay;
 	vcstate->mode_update = vop2_crtc_mode_update(crtc);
 	if (vcstate->mode_update)
@@ -3719,6 +3717,23 @@ static void vop2_crtc_atomic_enable(struct drm_crtc *crtc, struct drm_crtc_state
 	vop2_post_config(crtc);
 
 	vop2_cfg_done(crtc);
+
+	/*
+	 * when clear standby bits, it will take effect immediately,
+	 * This means the vp will start scan out immediately with
+	 * the timing it been configured before.
+	 * So we must make sure release standby after the display
+	 * timing is correctly configured.
+	 * This is important when switch resolution, such as
+	 * 4K-->720P:
+	 * if we release standby before 720P timing is configured,
+	 * the VP will start scan out immediately with 4K timing,
+	 * when we switch dclk to 74.25MHZ, VP timing is still 4K,
+	 * so VP scan out with 4K timing at 74.25MHZ dclk, this is
+	 * very slow, than this will trigger vblank timeout.
+	 *
+	 */
+	VOP_MODULE_SET(vop2, vp, standby, 0);
 
 	drm_crtc_vblank_on(crtc);
 
