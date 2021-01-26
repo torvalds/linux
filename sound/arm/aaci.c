@@ -1055,7 +1055,7 @@ static int aaci_probe(struct amba_device *dev,
 	return ret;
 }
 
-static int aaci_remove(struct amba_device *dev)
+static void aaci_remove(struct amba_device *dev)
 {
 	struct snd_card *card = amba_get_drvdata(dev);
 
@@ -1066,8 +1066,6 @@ static int aaci_remove(struct amba_device *dev)
 		snd_card_free(card);
 		amba_release_regions(dev);
 	}
-
-	return 0;
 }
 
 static struct amba_id aaci_ids[] = {

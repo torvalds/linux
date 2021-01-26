@@ -567,12 +567,11 @@ out:
 	return ret;
 }
 
-static int catu_remove(struct amba_device *adev)
+static void catu_remove(struct amba_device *adev)
 {
 	struct catu_drvdata *drvdata = dev_get_drvdata(&adev->dev);
 
 	coresight_unregister(drvdata->csdev);
-	return 0;
 }
 
 static struct amba_id catu_ids[] = {

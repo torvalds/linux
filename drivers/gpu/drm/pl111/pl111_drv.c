@@ -324,7 +324,7 @@ dev_put:
 	return ret;
 }
 
-static int pl111_amba_remove(struct amba_device *amba_dev)
+static void pl111_amba_remove(struct amba_device *amba_dev)
 {
 	struct device *dev = &amba_dev->dev;
 	struct drm_device *drm = amba_get_drvdata(amba_dev);
@@ -335,8 +335,6 @@ static int pl111_amba_remove(struct amba_device *amba_dev)
 		drm_panel_bridge_remove(priv->bridge);
 	drm_dev_put(drm);
 	of_reserved_mem_device_release(dev);
-
-	return 0;
 }
 
 /*

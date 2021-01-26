@@ -2203,7 +2203,7 @@ static int mmci_probe(struct amba_device *dev,
 	return ret;
 }
 
-static int mmci_remove(struct amba_device *dev)
+static void mmci_remove(struct amba_device *dev)
 {
 	struct mmc_host *mmc = amba_get_drvdata(dev);
 
@@ -2231,8 +2231,6 @@ static int mmci_remove(struct amba_device *dev)
 		clk_disable_unprepare(host->clk);
 		mmc_free_host(mmc);
 	}
-
-	return 0;
 }
 
 #ifdef CONFIG_PM

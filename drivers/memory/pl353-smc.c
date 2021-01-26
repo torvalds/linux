@@ -427,14 +427,12 @@ out_clk_dis_aper:
 	return err;
 }
 
-static int pl353_smc_remove(struct amba_device *adev)
+static void pl353_smc_remove(struct amba_device *adev)
 {
 	struct pl353_smc_data *pl353_smc = amba_get_drvdata(adev);
 
 	clk_disable_unprepare(pl353_smc->memclk);
 	clk_disable_unprepare(pl353_smc->aclk);
-
-	return 0;
 }
 
 static const struct amba_id pl353_ids[] = {
