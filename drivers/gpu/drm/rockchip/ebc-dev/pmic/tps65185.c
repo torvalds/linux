@@ -122,6 +122,8 @@ struct papyrus_sess {
 	struct gpio_desc *wake_up_pin;
 	struct gpio_desc *vcom_ctl_pin;
 	struct mutex power_lock;
+	struct workqueue_struct *tmp_monitor_wq;
+	struct delayed_work tmp_delay_work;
 };
 
 struct papyrus_hw_state {
@@ -202,7 +204,7 @@ static void papyrus_hw_get_int_state(struct papyrus_sess *sess, struct papyrus_h
 	if (stat)
 		dev_err(&sess->client->dev, "i2c error: %d\n", stat);
 }
-
+#if 0
 static bool papyrus_hw_power_ack(struct papyrus_sess *sess, int up)
 {
 	struct papyrus_hw_state hwst;
@@ -235,7 +237,7 @@ static bool papyrus_hw_power_ack(struct papyrus_sess *sess, int up)
 
 	return (st == up);
 }
-
+#endif
 static void papyrus_hw_send_powerup(struct papyrus_sess *sess)
 {
 	int stat = 0;
@@ -252,7 +254,7 @@ static void papyrus_hw_send_powerup(struct papyrus_sess *sess)
 
 	sess->enable_reg_shadow |= V3P3_EN_MASK;
 	stat |= papyrus_hw_setreg(sess, PAPYRUS_ADDR_ENABLE, sess->enable_reg_shadow);
-	msleep(PAPYRUS_V3P3OFF_DELAY_MS);
+	usleep_range(2 * 1000, 3 * 1000);
 
 	sess->enable_reg_shadow = (0x80 | 0x30 | 0x0F);
 	stat |= papyrus_hw_setreg(sess, PAPYRUS_ADDR_ENABLE, sess->enable_reg_shadow);
@@ -270,8 +272,7 @@ static void papyrus_hw_send_powerdown(struct papyrus_sess *sess)
 
 	sess->enable_reg_shadow = (0x40 | 0x20 | 0x0F);
 	stat = papyrus_hw_setreg(sess, PAPYRUS_ADDR_ENABLE, sess->enable_reg_shadow);
-
-	msleep(PAPYRUS_V3P3OFF_DELAY_MS);
+	usleep_range(2 * 1000, 3 * 1000);
 	sess->enable_reg_shadow &= ~V3P3_EN_MASK;
 	stat |= papyrus_hw_setreg(sess, PAPYRUS_ADDR_ENABLE, sess->enable_reg_shadow);
 	if (stat)
@@ -329,7 +330,7 @@ static int papyrus_hw_init(struct papyrus_sess *sess)
 
 	if (!IS_ERR_OR_NULL(sess->pwr_en_pin)) {
 		gpiod_direction_output(sess->pwr_en_pin, 1);
-		usleep_range(10 * 1000, 11 * 1000);
+		usleep_range(2 * 1000, 3 * 1000);
 	}
 	gpiod_direction_output(sess->wake_up_pin, 0);
 	/* wait to reset papyrus */
@@ -363,8 +364,9 @@ static int papyrus_hw_read_temperature(struct ebc_pmic *pmic, int *t)
 {
 	struct papyrus_sess *sess = (struct papyrus_sess *)pmic->drvpar;
 	int stat;
-	int ntries = 50;
 	uint8_t tb;
+#if 0
+	int ntries = 50;
 
 	stat = papyrus_hw_setreg(sess, PAPYRUS_ADDR_TMST1, 0x80);
 	if (stat)
@@ -377,6 +379,7 @@ static int papyrus_hw_read_temperature(struct ebc_pmic *pmic, int *t)
 		return stat;
 
 	msleep(PAPYRUS_TEMP_READ_TIME_MS);
+#endif
 	stat = papyrus_hw_getreg(sess, PAPYRUS_ADDR_TMST_VALUE, &tb);
 	*t = (int)(int8_t)tb;
 
@@ -392,12 +395,12 @@ static void papyrus_hw_power_req(struct ebc_pmic *pmic, bool up)
 	if (papyrus_need_reconfig) {
 		if (up) {
 			papyrus_hw_send_powerup(sess);
-			papyrus_hw_power_ack(sess, up);
+			//papyrus_hw_power_ack(sess, up);
 			enable_irq(sess->irq);
 		} else {
 			disable_irq(sess->irq);
 			papyrus_hw_send_powerdown(sess);
-			papyrus_hw_power_ack(sess, up);
+			//papyrus_hw_power_ack(sess, up);
 		}
 		papyrus_need_reconfig = false;
 	} else {
@@ -477,8 +480,10 @@ static int papyrus_hw_vcom_set(struct ebc_pmic *pmic, int vcom_mv)
 static void papyrus_pm_sleep(struct ebc_pmic *pmic)
 {
 	struct papyrus_sess *s = (struct papyrus_sess *)pmic->drvpar;
-	mutex_lock(&s->power_lock);
 
+	cancel_delayed_work_sync(&s->tmp_delay_work);
+
+	mutex_lock(&s->power_lock);
 	gpiod_direction_output(s->vcom_ctl_pin, 0);
 	gpiod_direction_output(s->wake_up_pin, 0);
 	if (!IS_ERR_OR_NULL(s->pwr_en_pin))
@@ -494,12 +499,29 @@ static void papyrus_pm_resume(struct ebc_pmic *pmic)
 	mutex_lock(&s->power_lock);
 	if (!IS_ERR_OR_NULL(s->pwr_en_pin)) {
 		gpiod_direction_output(s->pwr_en_pin, 1);
-		usleep_range(10 * 1000, 11 * 1000);
+		usleep_range(2 * 1000, 3 * 1000);
 	}
 	gpiod_direction_output(s->wake_up_pin, 1);
 	gpiod_direction_output(s->vcom_ctl_pin, 1);
+	usleep_range(2 * 1000, 3 * 1000);
 	mutex_unlock(&s->power_lock);
 
+	//trigger temperature measurement
+	papyrus_hw_setreg(s, PAPYRUS_ADDR_TMST1, 0x80);
+	queue_delayed_work(s->tmp_monitor_wq, &s->tmp_delay_work,
+			   msecs_to_jiffies(10000));
+}
+
+static void papyrus_tmp_work(struct work_struct *work)
+{
+	struct papyrus_sess *s =
+		container_of(work, struct papyrus_sess, tmp_delay_work.work);
+
+	//trigger temperature measurement
+	papyrus_hw_setreg(s, PAPYRUS_ADDR_TMST1, 0x80);
+
+	queue_delayed_work(s->tmp_monitor_wq, &s->tmp_delay_work,
+			   msecs_to_jiffies(10000));
 }
 
 static int papyrus_probe(struct ebc_pmic *pmic, struct i2c_client *client)
@@ -558,6 +580,12 @@ static int papyrus_probe(struct ebc_pmic *pmic, struct i2c_client *client)
 		return stat;
 	}
 
+	sess->tmp_monitor_wq = alloc_ordered_workqueue("%s",
+			WQ_MEM_RECLAIM | WQ_FREEZABLE, "tps-tmp-monitor-wq");
+	INIT_DELAYED_WORK(&sess->tmp_delay_work, papyrus_tmp_work);
+	queue_delayed_work(sess->tmp_monitor_wq, &sess->tmp_delay_work,
+			   msecs_to_jiffies(10000));
+
 	stat = papyrus_hw_init(sess);
 	if (stat)
 		return stat;
@@ -566,6 +594,9 @@ static int papyrus_probe(struct ebc_pmic *pmic, struct i2c_client *client)
 	stat = papyrus_hw_setreg(sess, PAPYRUS_ADDR_ENABLE, sess->enable_reg_shadow);
 	if (stat)
 		return stat;
+
+	//trigger temperature measurement
+	papyrus_hw_setreg(sess, PAPYRUS_ADDR_TMST1, 0x80);
 
 	pmic->drvpar = sess;
 
