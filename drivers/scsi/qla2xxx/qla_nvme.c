@@ -291,7 +291,7 @@ static int qla_nvme_ls_req(struct nvme_fc_local_port *lport,
 	struct qla_hw_data *ha;
 	srb_t           *sp;
 
-	if (!fcport || (fcport && fcport->deleted))
+	if (!fcport || fcport->deleted)
 		return rval;
 
 	vha = fcport->vha;
