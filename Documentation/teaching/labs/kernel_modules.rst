@@ -10,8 +10,11 @@ Lab objectives
 * presenting how a module can be used with a kernel
 * simple kernel debugging methods
 
-Overview
-========
+..
+  _[SECTION-OVERVIEW-BEGIN]
+
+Kernel Modules Overview
+=======================
 
 A monolithic kernel, though faster than a microkernel, has the disadvantage of
 lack of modularity and extensibility. On modern monolithic kernels, this has
@@ -24,6 +27,12 @@ modules.
 For the development of Linux device drivers, it is recommended to download the
 kernel sources, configure and compile them and then install the compiled version
 on the test /development tool machine.
+
+..
+  _[SECTION-OVERVIEW-END]
+
+..
+  _[SECTION-MODULE-EXAMPLE-BEGIN]
 
 An example of a kernel module
 =============================
@@ -71,6 +80,12 @@ by the logging daemon (syslog). To display kernel messages, you can use the
    # dmesg | tail -2
    Hi
    Bye
+
+..
+  _[SECTION-MODULE-EXAMPLE-END]
+
+..
+  _[SECTION-COMPILE-MODULES-BEGIN]
 
 Compiling kernel modules
 ========================
@@ -173,6 +188,11 @@ follows:
 For more details, see the :file:`Documentation/kbuild/makefiles.txt` and
 :file:`Documentation/kbuild/modules.txt` files within the kernel sources.
 
+..
+  _[SECTION-COMPILE-MODULES-END]
+
+..
+  _[SECTION-LOAD-MODULES-BEGIN]
 
 Loading/unloading a kernel module
 =================================
@@ -230,8 +250,14 @@ Information about modules loaded into the kernel can be found using the
 :command:`lsmod` command or by inspecting the :file:`/proc/modules`,
 :file:`/sys/module` directories.
 
-Debugging
-=========
+..
+  _[SECTION-LOAD-MODULES-END]
+
+..
+  _[SECTION-DEBUG-MODULES-BEGIN]
+
+Kernel Module Debugging
+=======================
 
 Troubleshooting a kernel module is much more complicated than debugging a
 regular program. First, a mistake in a kernel module can lead to blocking the
@@ -908,6 +934,9 @@ breakpoint to monitor the changes of the ``mVar`` variable.
   # return from KDB
   kdb> go
 
+..
+  _[SECTION-DEBUG-MODULES-END]
+
 Exercises
 =========
 
@@ -958,6 +987,9 @@ in the Linux kernel source code:
   For more info on using :command:`cscope`, read the
   :ref:`cscope section <cscope_intro>` in the previous lab.
 
+..
+  _[EXERCISE1-BEGIN]
+
 1. Kernel module
 ----------------
 
@@ -999,6 +1031,13 @@ using `minicom -D serial.pts` and perform the following tasks:
           a kernel module, you can specify only the module name
           (without extension).
 
+..
+  _[EXERCISE1-END]
+
+..
+  _[EXERCISE2-BEGIN]
+
+
 2. Printk
 ---------
 
@@ -1017,6 +1056,12 @@ Load/unload the module again.
 The messages should not be printed to the virtual machine console,
 but they should be visible when running ``dmesg``.
 
+..
+  _[EXERCISE2-END]
+
+..
+  _[EXERCISE3-BEGIN]
+
 3. Error
 --------
 
@@ -1028,6 +1073,12 @@ errors occurred? **Hint:** How does this module differ from the previous module?
 
 Modify the module to solve the cause of those errors, then compile and test
 the module.
+
+..
+  _[EXERCISE3-END]
+
+..
+  _[EXERCISE4-BEGIN]
 
 4. Sub-modules
 --------------
@@ -1042,6 +1093,12 @@ two C source files.
 
 Compile, copy, boot the VM, load and unload the kernel module. Make sure messages
 are properly displayed on the console.
+
+..
+  _[EXERCISE4-END]
+
+..
+  _[EXERCISE5-BEGIN]
 
 5. Kernel oops
 --------------
@@ -1073,6 +1130,12 @@ kernel since the oops; Until the release of those references (which is
 almost impossible in the case of an oops), the module can not be
 unloaded.
 
+..
+  _[EXERCISE5-END]
+
+..
+  _[EXERCISE6-BEGIN]
+
 6. Module parameters
 --------------------
 
@@ -1089,6 +1152,12 @@ message shown is ``Early bird gets tired``.
           <http://tldp.org/LDP/lkmpg/2.6/html/x323.html>`_.
 
 .. _proc-info:
+
+..
+  _[EXERCISE6-END]
+
+..
+  _[EXERCISE7-BEGIN]
 
 7. Proc info
 ------------
@@ -1125,6 +1194,12 @@ displayed processes differ. This is because a process is created
 from the executable :file:`/sbin/insmod` when the module is loaded and
 when the module is unloaded a process is created from the executable
 :file:`/sbin/rmmod`.
+
+..
+  _[EXERCISE7-END]
+
+..
+  _[EXTRA-EXERCISE-BEGIN]
 
 Extra Exercises
 ===============
@@ -1268,3 +1343,6 @@ Without unloading the module, deactivate :c:func:`pr_debug` calls.
 
 .. hint::
     You can delete the set flags. Unload the kernel module.
+
+..
+  _[EXTRA-EXERCISE-END]

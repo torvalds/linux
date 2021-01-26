@@ -41,9 +41,12 @@ tools/labs/docs/Dockerfile for dependencies):
    cd tools/labs && make docs
 
 .. toctree::
+
+   so2/index.rst
+
+.. toctree::
    :caption: Lectures
 
-   lectures/so2.cs.pub.ro.rst
    lectures/intro.rst
    lectures/syscalls.rst
    lectures/interrupts.rst

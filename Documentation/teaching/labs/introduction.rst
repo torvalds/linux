@@ -17,6 +17,9 @@ Keywords
 *  cscope, LXR
 *  gdb, /proc/kcore, addr2line, dump\_stack
 
+..
+  _[SECTION-ABOUT-BEGIN]
+
 About this laboratory
 =====================
 
@@ -38,8 +41,14 @@ For best laboratory performance, we recommend that you read the related slides.
 To fully understand a laboratory, we recommend going through the lab support. For
 in-depth study, use the supporting documentation.
 
-Documentation
-=============
+..
+  _[SECTION-ABOUT-END]
+
+..
+  _[SECTION-REFERENCES-BEGIN]
+
+References
+==========
 
 -  Linux
 
@@ -54,6 +63,12 @@ Documentation
 
    -  `mailing list <http://cursuri.cs.pub.ro/cgi-bin/mailman/listinfo/pso>`__
       (`searching the mailing list <http://blog.gmane.org/gmane.education.region.romania.operating-systems-design>`__)
+
+..
+  _[SECTION-REFERENCES-END]
+
+..
+  _[SECTION-CODE-NAVIGATION-BEGIN]
 
 Source code navigation
 ======================
@@ -248,8 +263,14 @@ a copy, because SourceWeb doesn't have, at this moment, the capability
 to regenerate the index for a single file and you will have to regenerate
 the complete index.
 
-Debugging
-=========
+..
+  _[SECTION-CODE-NAVIGATION-END]
+
+..
+  _[SECTION-DEBUGGING-BEGIN]
+
+Kernel Debugging
+================
 
 Debugging a kernel is a much more difficult process than the debugging
 of a program, because there is no support from the operating system.
@@ -402,6 +423,12 @@ execution paths, which makes this method difficult.
 In these situations, it is useful to get a stack trace, which can be
 simply done using the function :code:`dump_stack()`.
 
+..
+  _[SECTION-DEBUGGING-END]
+
+..
+  _[SECTION-DOCUMENTATION-BEGIN]
+
 Documentation
 =============
 
@@ -426,8 +453,14 @@ A few links related to the Linux kernel are shown bellow:
 The links are not comprehensive. Using  `The Internet <http://www.google.com>`__ and
 `kernel source code <http://lxr.free-electrons.com/>`__ is essential.
 
+..
+  _[SECTION-DOCUMENTATION-END]
+
 Exercises
 =========
+
+..
+  _[SECTION-EXERCISES-REMARKS-BEGIN]
 
 Remarks
 -------
@@ -455,8 +488,14 @@ Remarks
 .. important::
     Before solving an exercice, **carefully** read all its bullets.
 
-1. Booting the virtual machine
-------------------------------
+..
+  _[SECTION-EXERCISES-REMARKS-END]
+
+..
+  _[EXERCISE1-BEGIN]
+
+Booting the virtual machine
+---------------------------
 
 A summary of the virtual machine infrastructure:
 
@@ -495,8 +534,14 @@ the :command:`QEMU_DISPLAY=sdl make boot`.
     The virtual machine will start with the permissions of the
     root account.
 
-2. Adding and using a virtual disk
-----------------------------------
+..
+  _[EXERCISE1-END]
+
+..
+  _[EXERCISE2-BEGIN]
+
+Adding and using a virtual disk
+-------------------------------
 
 .. note:: If you don't have the file :file:`mydisk.img`, you can download
           it from the address http://elf.cs.pub.ro/so2/res/laboratoare/mydisk.img.
@@ -579,8 +624,14 @@ With support for the :command:`btrfs` filesystem, now :command:`mount` will fini
           you to return to the initial setup in order to have an environment
           identical to the one used by vmchecker.
 
-3. GDB and QEMU
----------------
+..
+  _[EXERCISE2-END]
+
+..
+  _[EXERCISE3-BEGIN]
+
+GDB and QEMU
+------------
 
 We can investigate and troubleshoot the QEMU virtual machine in real time.
 
@@ -636,6 +687,12 @@ such as :command:`list` and :command:`backtrace` to trace the execution.
 .. hint:: At the :command:`gdb` prompt, you can press :command:`Enter`
           (without anything else) to rerun the last command.
 
+..
+  _[EXERCISE3-END]
+
+..
+  _[EXERCISE4-BEGIN]
+
 4. GDB spelunking
 -----------------
 
@@ -680,6 +737,13 @@ The :code:`jiffies` variable holds the number of ticks (clock beats) since the s
           ::
 
               x/wx & jiffies
+
+..
+  _[EXERCISE4-END]
+
+..
+  _[EXERCISE5-BEGIN]
+
 
 5. Cscope spelunking
 --------------------
