@@ -2742,9 +2742,8 @@ static int navi10_i2c_xfer(struct i2c_adapter *i2c_adap,
 	struct smu_table_context *smu_table = &adev->smu.smu_table;
 	struct smu_table *table = &smu_table->driver_table;
 	SwI2cRequest_t *req, *res = (SwI2cRequest_t *)table->cpu_addr;
-	u16 bytes_to_transfer, remaining_bytes, msg_bytes;
-	u16 available_bytes = MAX_SW_I2C_COMMANDS;
-	int i, j, r, c;
+	short available_bytes = MAX_SW_I2C_COMMANDS;
+	int i, j, r, c, num_done = 0;
 	u8 slave;
 
 	/* only support a single slave addr per transaction */
@@ -2752,8 +2751,15 @@ static int navi10_i2c_xfer(struct i2c_adapter *i2c_adap,
 	for (i = 0; i < num; i++) {
 		if (slave != msgs[i].addr)
 			return -EINVAL;
-		bytes_to_transfer += min(msgs[i].len, available_bytes);
-		available_bytes -= bytes_to_transfer;
+
+		available_bytes -= msgs[i].len;
+		if (available_bytes >= 0) {
+			num_done++;
+		} else {
+			/* This message and all the follwing won't be processed */
+			available_bytes += msgs[i].len;
+			break;
+		}
 	}
 
 	req = kzalloc(sizeof(*req), GFP_KERNEL);
@@ -2763,24 +2769,28 @@ static int navi10_i2c_xfer(struct i2c_adapter *i2c_adap,
 	req->I2CcontrollerPort = 0;
 	req->I2CSpeed = I2C_SPEED_FAST_400K;
 	req->SlaveAddress = slave << 1; /* 8 bit addresses */
-	req->NumCmds = bytes_to_transfer;
+	req->NumCmds = MAX_SW_I2C_COMMANDS - available_bytes;;
 
-	remaining_bytes = bytes_to_transfer;
 	c = 0;
-	for (i = 0; i < num; i++) {
+	for (i = 0; i < num_done; i++) {
 		struct i2c_msg *msg = &msgs[i];
 
-		msg_bytes = min(msg->len, remaining_bytes);
-		for (j = 0; j < msg_bytes; j++) {
+		for (j = 0; j < msg->len; j++) {
 			SwI2cCmd_t *cmd = &req->SwI2cCmds[c++];
 
-			remaining_bytes--;
 			if (!(msg[i].flags & I2C_M_RD)) {
 				/* write */
 				cmd->CmdConfig |= I2C_CMD_WRITE;
 				cmd->RegisterAddr = msg->buf[j];
 			}
-			if (!remaining_bytes)
+
+			/*
+			 * Insert STOP if we are at the last byte of either last
+			 * message for the transaction or the client explicitly
+			 * requires a STOP at this particular message.
+			 */
+			if ((j == msg->len -1 ) &&
+			    ((i == num_done - 1) || (msg[i].flags & I2C_M_STOP)))
 				cmd->CmdConfig |= CMDCONFIG_STOP_MASK;
 
 			if ((j == 0) && !(msg[i].flags & I2C_M_NOSTART))
@@ -2793,21 +2803,18 @@ static int navi10_i2c_xfer(struct i2c_adapter *i2c_adap,
 	if (r)
 		goto fail;
 
-	remaining_bytes = bytes_to_transfer;
 	c = 0;
-	for (i = 0; i < num; i++) {
+	for (i = 0; i < num_done; i++) {
 		struct i2c_msg *msg = &msgs[i];
 
-		msg_bytes = min(msg->len, remaining_bytes);
-		for (j = 0; j < msg_bytes; j++) {
+		for (j = 0; j < msg->len; j++) {
 			SwI2cCmd_t *cmd = &res->SwI2cCmds[c++];
 
-			remaining_bytes--;
 			if (msg[i].flags & I2C_M_RD)
 				msg->buf[j] = cmd->Data;
 		}
 	}
-	r = bytes_to_transfer;
+	r = num_done;
 
 fail:
 	kfree(req);
