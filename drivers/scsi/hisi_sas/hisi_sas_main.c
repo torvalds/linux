@@ -445,21 +445,19 @@ static int hisi_sas_task_prep(struct sas_task *task,
 		}
 	}
 
-	if (scmd && hisi_hba->shost->nr_hw_queues) {
+	if (scmd) {
 		unsigned int dq_index;
 		u32 blk_tag;
 
 		blk_tag = blk_mq_unique_tag(scmd->request);
 		dq_index = blk_mq_unique_tag_to_hwq(blk_tag);
 		*dq_pointer = dq = &hisi_hba->dq[dq_index];
-	} else if (hisi_hba->shost->nr_hw_queues)  {
+	} else {
 		struct Scsi_Host *shost = hisi_hba->shost;
 		struct blk_mq_queue_map *qmap = &shost->tag_set.map[HCTX_TYPE_DEFAULT];
 		int queue = qmap->mq_map[raw_smp_processor_id()];
 
 		*dq_pointer = dq = &hisi_hba->dq[queue];
-	} else {
-		*dq_pointer = dq = sas_dev->dq;
 	}
 
 	port = to_hisi_sas_port(sas_port);
