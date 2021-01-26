@@ -319,7 +319,7 @@ struct dma_buf *chunk_heap_allocate(struct dma_heap *heap, unsigned long len,
 
 	buffer = kzalloc(sizeof(*buffer), GFP_KERNEL);
 	if (!buffer)
-		return ret;
+		return ERR_PTR(ret);
 
 	INIT_LIST_HEAD(&buffer->attachments);
 	mutex_init(&buffer->lock);
@@ -383,7 +383,7 @@ struct dma_buf *chunk_heap_allocate(struct dma_heap *heap, unsigned long len,
 	ret = dma_buf_fd(dmabuf, fd_flags);
 	if (ret < 0) {
 		dma_buf_put(dmabuf);
-		return ret;
+		return ERR_PTR(ret);
 	}
 
 	return dmabuf;
