@@ -923,7 +923,7 @@ static int ofdpa_flow_tbl_bridge(struct ofdpa_port *ofdpa_port,
 	struct ofdpa_flow_tbl_entry *entry;
 	u32 priority;
 	bool vlan_bridging = !!vlan_id;
-	bool dflt = !eth_dst || (eth_dst && eth_dst_mask);
+	bool dflt = !eth_dst || eth_dst_mask;
 	bool wild = false;
 
 	entry = kzalloc(sizeof(*entry), GFP_ATOMIC);
