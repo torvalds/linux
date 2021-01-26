@@ -8835,23 +8835,6 @@ static void io_uring_del_task_file(struct file *file)
 		fput(file);
 }
 
-/*
- * Drop task note for this file if we're the only ones that hold it after
- * pending fput()
- */
-static void io_uring_attempt_task_drop(struct file *file)
-{
-	if (!current->io_uring)
-		return;
-	/*
-	 * fput() is pending, will be 2 if the only other ref is our potential
-	 * task file note. If the task is exiting, drop regardless of count.
-	 */
-	if (fatal_signal_pending(current) || (current->flags & PF_EXITING) ||
-	    atomic_long_read(&file->f_count) == 2)
-		io_uring_del_task_file(file);
-}
-
 static void io_uring_remove_task_files(struct io_uring_task *tctx)
 {
 	struct file *file;
@@ -8943,7 +8926,17 @@ void __io_uring_task_cancel(void)
 
 static int io_uring_flush(struct file *file, void *data)
 {
-	io_uring_attempt_task_drop(file);
+	if (!current->io_uring)
+		return 0;
+
+	/*
+	 * fput() is pending, will be 2 if the only other ref is our potential
+	 * task file note. If the task is exiting, drop regardless of count.
+	 */
+	if (fatal_signal_pending(current) || (current->flags & PF_EXITING) ||
+	    atomic_long_read(&file->f_count) == 2)
+		io_uring_del_task_file(file);
+
 	return 0;
 }
 
