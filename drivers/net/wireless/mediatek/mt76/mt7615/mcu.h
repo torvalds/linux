@@ -254,96 +254,6 @@ struct mt7615_mcu_reg_event {
 	__le32 val;
 } __packed;
 
-enum {
-	WOW_USB = 1,
-	WOW_PCIE = 2,
-	WOW_GPIO = 3,
-};
-
-struct mt7615_wow_ctrl_tlv {
-	__le16 tag;
-	__le16 len;
-	u8 cmd; /* 0x1: PM_WOWLAN_REQ_START
-		 * 0x2: PM_WOWLAN_REQ_STOP
-		 * 0x3: PM_WOWLAN_PARAM_CLEAR
-		 */
-	u8 trigger; /* 0: NONE
-		     * BIT(0): NL80211_WOWLAN_TRIG_MAGIC_PKT
-		     * BIT(1): NL80211_WOWLAN_TRIG_ANY
-		     * BIT(2): NL80211_WOWLAN_TRIG_DISCONNECT
-		     * BIT(3): NL80211_WOWLAN_TRIG_GTK_REKEY_FAILURE
-		     * BIT(4): BEACON_LOST
-		     * BIT(5): NL80211_WOWLAN_TRIG_NET_DETECT
-		     */
-	u8 wakeup_hif; /* 0x0: HIF_SDIO
-			* 0x1: HIF_USB
-			* 0x2: HIF_PCIE
-			* 0x3: HIF_GPIO
-			*/
-	u8 pad;
-	u8 rsv[4];
-} __packed;
-
-struct mt7615_wow_gpio_param_tlv {
-	__le16 tag;
-	__le16 len;
-	u8 gpio_pin;
-	u8 trigger_lvl;
-	u8 pad[2];
-	__le32 gpio_interval;
-	u8 rsv[4];
-} __packed;
-
-#define MT7615_WOW_MASK_MAX_LEN		16
-#define MT7615_WOW_PATTEN_MAX_LEN	128
-struct mt7615_wow_pattern_tlv {
-	__le16 tag;
-	__le16 len;
-	u8 index; /* pattern index */
-	u8 enable; /* 0: disable
-		    * 1: enable
-		    */
-	u8 data_len; /* pattern length */
-	u8 pad;
-	u8 mask[MT7615_WOW_MASK_MAX_LEN];
-	u8 pattern[MT7615_WOW_PATTEN_MAX_LEN];
-	u8 rsv[4];
-} __packed;
-
-struct mt7615_suspend_tlv {
-	__le16 tag;
-	__le16 len;
-	u8 enable; /* 0: suspend mode disabled
-		    * 1: suspend mode enabled
-		    */
-	u8 mdtim; /* LP parameter */
-	u8 wow_suspend; /* 0: update by origin policy
-			 * 1: update by wow dtim
-			 */
-	u8 pad[5];
-} __packed;
-
-struct mt7615_gtk_rekey_tlv {
-	__le16 tag;
-	__le16 len;
-	u8 kek[NL80211_KEK_LEN];
-	u8 kck[NL80211_KCK_LEN];
-	u8 replay_ctr[NL80211_REPLAY_CTR_LEN];
-	u8 rekey_mode; /* 0: rekey offload enable
-			* 1: rekey offload disable
-			* 2: rekey update
-			*/
-	u8 keyid;
-	u8 pad[2];
-	__le32 proto; /* WPA-RSN-WAPI-OPSN */
-	__le32 pairwise_cipher;
-	__le32 group_cipher;
-	__le32 key_mgmt; /* NONE-PSK-IEEE802.1X */
-	__le32 mgmt_group_cipher;
-	u8 option; /* 1: rekey data update without enabling offload */
-	u8 reserverd[3];
-} __packed;
-
 struct mt7615_roc_tlv {
 	u8 bss_idx;
 	u8 token;
@@ -360,30 +270,6 @@ struct mt7615_roc_tlv {
 	__le32 max_interval;	/* ms */
 	u8 rsv1[8];
 } __packed;
-
-struct mt7615_arpns_tlv {
-	__le16 tag;
-	__le16 len;
-	u8 mode;
-	u8 ips_num;
-	u8 option;
-	u8 pad[1];
-} __packed;
-
-enum {
-	UNI_SUSPEND_MODE_SETTING,
-	UNI_SUSPEND_WOW_CTRL,
-	UNI_SUSPEND_WOW_GPIO_PARAM,
-	UNI_SUSPEND_WOW_WAKEUP_PORT,
-	UNI_SUSPEND_WOW_PATTERN,
-};
-
-enum {
-	UNI_OFFLOAD_OFFLOAD_ARP,
-	UNI_OFFLOAD_OFFLOAD_ND,
-	UNI_OFFLOAD_OFFLOAD_GTK_REKEY,
-	UNI_OFFLOAD_OFFLOAD_BMC_RPY_DETECT,
-};
 
 enum {
 	PATCH_NOT_DL_SEM_FAIL	 = 0x0,

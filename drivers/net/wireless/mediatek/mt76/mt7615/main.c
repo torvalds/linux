@@ -1115,8 +1115,8 @@ static int mt7615_cancel_remain_on_channel(struct ieee80211_hw *hw,
 static int mt7615_suspend(struct ieee80211_hw *hw,
 			  struct cfg80211_wowlan *wowlan)
 {
-	struct mt7615_dev *dev = mt7615_hw_dev(hw);
 	struct mt7615_phy *phy = mt7615_hw_phy(hw);
+	struct mt7615_dev *dev = mt7615_hw_dev(hw);
 	int err = 0;
 
 	cancel_delayed_work_sync(&dev->pm.ps_work);
@@ -1131,10 +1131,11 @@ static int mt7615_suspend(struct ieee80211_hw *hw,
 	set_bit(MT76_STATE_SUSPEND, &phy->mt76->state);
 	ieee80211_iterate_active_interfaces(hw,
 					    IEEE80211_IFACE_ITER_RESUME_ALL,
-					    mt7615_mcu_set_suspend_iter, phy);
+					    mt76_connac_mcu_set_suspend_iter,
+					    phy->mt76);
 
 	if (!mt7615_dev_running(dev))
-		err = mt7615_mcu_set_hif_suspend(dev, true);
+		err = mt76_connac_mcu_set_hif_suspend(&dev->mt76, true);
 
 	mt7615_mutex_release(dev);
 
@@ -1143,8 +1144,8 @@ static int mt7615_suspend(struct ieee80211_hw *hw,
 
 static int mt7615_resume(struct ieee80211_hw *hw)
 {
-	struct mt7615_dev *dev = mt7615_hw_dev(hw);
 	struct mt7615_phy *phy = mt7615_hw_phy(hw);
+	struct mt7615_dev *dev = mt7615_hw_dev(hw);
 	bool running;
 
 	mt7615_mutex_acquire(dev);
@@ -1155,7 +1156,7 @@ static int mt7615_resume(struct ieee80211_hw *hw)
 	if (!running) {
 		int err;
 
-		err = mt7615_mcu_set_hif_suspend(dev, false);
+		err = mt76_connac_mcu_set_hif_suspend(&dev->mt76, false);
 		if (err < 0) {
 			mt7615_mutex_release(dev);
 			return err;
@@ -1165,7 +1166,8 @@ static int mt7615_resume(struct ieee80211_hw *hw)
 	clear_bit(MT76_STATE_SUSPEND, &phy->mt76->state);
 	ieee80211_iterate_active_interfaces(hw,
 					    IEEE80211_IFACE_ITER_RESUME_ALL,
-					    mt7615_mcu_set_suspend_iter, phy);
+					    mt76_connac_mcu_set_suspend_iter,
+					    phy->mt76);
 
 	ieee80211_queue_delayed_work(hw, &phy->mt76->mac_work,
 				     MT7615_WATCHDOG_TIME);
@@ -1190,7 +1192,7 @@ static void mt7615_set_rekey_data(struct ieee80211_hw *hw,
 	struct mt7615_dev *dev = mt7615_hw_dev(hw);
 
 	mt7615_mutex_acquire(dev);
-	mt7615_mcu_update_gtk_rekey(hw, vif, data);
+	mt76_connac_mcu_update_gtk_rekey(hw, vif, data);
 	mt7615_mutex_release(dev);
 }
 #endif /* CONFIG_PM */
