@@ -305,6 +305,53 @@ static int mlx5e_add_any_vid_rules(struct mlx5e_priv *priv)
 	return mlx5e_add_vlan_rule(priv, MLX5E_VLAN_RULE_TYPE_ANY_STAG_VID, 0);
 }
 
+static struct mlx5_flow_handle *
+mlx5e_add_trap_rule(struct mlx5_flow_table *ft, int trap_id, int tir_num)
+{
+	struct mlx5_flow_destination dest = {};
+	MLX5_DECLARE_FLOW_ACT(flow_act);
+	struct mlx5_flow_handle *rule;
+	struct mlx5_flow_spec *spec;
+
+	spec = kvzalloc(sizeof(*spec), GFP_KERNEL);
+	if (!spec)
+		return ERR_PTR(-ENOMEM);
+	spec->flow_context.flags |= FLOW_CONTEXT_HAS_TAG;
+	spec->flow_context.flow_tag = trap_id;
+	dest.type = MLX5_FLOW_DESTINATION_TYPE_TIR;
+	dest.tir_num = tir_num;
+
+	rule = mlx5_add_flow_rules(ft, spec, &flow_act, &dest, 1);
+	kvfree(spec);
+	return rule;
+}
+
+int mlx5e_add_vlan_trap(struct mlx5e_priv *priv, int trap_id, int tir_num)
+{
+	struct mlx5_flow_table *ft = priv->fs.vlan.ft.t;
+	struct mlx5_flow_handle *rule;
+	int err;
+
+	rule = mlx5e_add_trap_rule(ft, trap_id, tir_num);
+	if (IS_ERR(rule)) {
+		err = PTR_ERR(rule);
+		priv->fs.vlan.trap_rule = NULL;
+		netdev_err(priv->netdev, "%s: add VLAN trap rule failed, err %d\n",
+			   __func__, err);
+		return err;
+	}
+	priv->fs.vlan.trap_rule = rule;
+	return 0;
+}
+
+void mlx5e_remove_vlan_trap(struct mlx5e_priv *priv)
+{
+	if (priv->fs.vlan.trap_rule) {
+		mlx5_del_flow_rules(priv->fs.vlan.trap_rule);
+		priv->fs.vlan.trap_rule = NULL;
+	}
+}
+
 void mlx5e_enable_cvlan_filter(struct mlx5e_priv *priv)
 {
 	if (!priv->fs.vlan.cvlan_filter_disabled)
@@ -417,6 +464,8 @@ static void mlx5e_del_vlan_rules(struct mlx5e_priv *priv)
 		mlx5e_del_vlan_rule(priv, MLX5E_VLAN_RULE_TYPE_MATCH_STAG_VID, i);
 
 	WARN_ON_ONCE(!(test_bit(MLX5E_STATE_DESTROYING, &priv->state)));
+
+	mlx5e_remove_vlan_trap(priv);
 
 	/* must be called after DESTROY bit is set and
 	 * set_rx_mode is called and flushed
@@ -1495,15 +1544,17 @@ err_destroy_flow_table:
 	return err;
 }
 
-#define MLX5E_NUM_VLAN_GROUPS	4
+#define MLX5E_NUM_VLAN_GROUPS	5
 #define MLX5E_VLAN_GROUP0_SIZE	BIT(12)
 #define MLX5E_VLAN_GROUP1_SIZE	BIT(12)
 #define MLX5E_VLAN_GROUP2_SIZE	BIT(1)
 #define MLX5E_VLAN_GROUP3_SIZE	BIT(0)
+#define MLX5E_VLAN_GROUP_TRAP_SIZE BIT(0) /* must be last */
 #define MLX5E_VLAN_TABLE_SIZE	(MLX5E_VLAN_GROUP0_SIZE +\
 				 MLX5E_VLAN_GROUP1_SIZE +\
 				 MLX5E_VLAN_GROUP2_SIZE +\
-				 MLX5E_VLAN_GROUP3_SIZE)
+				 MLX5E_VLAN_GROUP3_SIZE +\
+				 MLX5E_VLAN_GROUP_TRAP_SIZE)
 
 static int __mlx5e_create_vlan_table_groups(struct mlx5e_flow_table *ft, u32 *in,
 					    int inlen)
@@ -1552,6 +1603,15 @@ static int __mlx5e_create_vlan_table_groups(struct mlx5e_flow_table *ft, u32 *in
 	MLX5_SET_TO_ONES(fte_match_param, mc, outer_headers.svlan_tag);
 	MLX5_SET_CFG(in, start_flow_index, ix);
 	ix += MLX5E_VLAN_GROUP3_SIZE;
+	MLX5_SET_CFG(in, end_flow_index, ix - 1);
+	ft->g[ft->num_groups] = mlx5_create_flow_group(ft->t, in);
+	if (IS_ERR(ft->g[ft->num_groups]))
+		goto err_destroy_groups;
+	ft->num_groups++;
+
+	memset(in, 0, inlen);
+	MLX5_SET_CFG(in, start_flow_index, ix);
+	ix += MLX5E_VLAN_GROUP_TRAP_SIZE;
 	MLX5_SET_CFG(in, end_flow_index, ix - 1);
 	ft->g[ft->num_groups] = mlx5_create_flow_group(ft->t, in);
 	if (IS_ERR(ft->g[ft->num_groups]))

@@ -58,6 +58,7 @@ struct mlx5e_vlan_table {
 	struct mlx5_flow_handle	*untagged_rule;
 	struct mlx5_flow_handle	*any_cvlan_rule;
 	struct mlx5_flow_handle	*any_svlan_rule;
+	struct mlx5_flow_handle	*trap_rule;
 	bool			cvlan_filter_disabled;
 };
 
@@ -294,6 +295,8 @@ int mlx5e_create_flow_steering(struct mlx5e_priv *priv);
 void mlx5e_destroy_flow_steering(struct mlx5e_priv *priv);
 
 u8 mlx5e_get_proto_by_tunnel_type(enum mlx5e_tunnel_types tt);
+int mlx5e_add_vlan_trap(struct mlx5e_priv *priv, int  trap_id, int tir_num);
+void mlx5e_remove_vlan_trap(struct mlx5e_priv *priv);
 
 #endif /* __MLX5E_FLOW_STEER_H__ */
 
