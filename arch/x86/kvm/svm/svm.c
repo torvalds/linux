@@ -933,6 +933,9 @@ static __init void svm_set_cpu_caps(void)
 
 		if (npt_enabled)
 			kvm_cpu_cap_set(X86_FEATURE_NPT);
+
+		/* Nested VM can receive #VMEXIT instead of triggering #GP */
+		kvm_cpu_cap_set(X86_FEATURE_SVME_ADDR_CHK);
 	}
 
 	/* CPUID 0x80000008 */
@@ -2202,6 +2205,11 @@ static int svm_instr_opcode(struct kvm_vcpu *vcpu)
 
 static int emulate_svm_instr(struct kvm_vcpu *vcpu, int opcode)
 {
+	const int guest_mode_exit_codes[] = {
+		[SVM_INSTR_VMRUN] = SVM_EXIT_VMRUN,
+		[SVM_INSTR_VMLOAD] = SVM_EXIT_VMLOAD,
+		[SVM_INSTR_VMSAVE] = SVM_EXIT_VMSAVE,
+	};
 	int (*const svm_instr_handlers[])(struct vcpu_svm *svm) = {
 		[SVM_INSTR_VMRUN] = vmrun_interception,
 		[SVM_INSTR_VMLOAD] = vmload_interception,
@@ -2209,7 +2217,14 @@ static int emulate_svm_instr(struct kvm_vcpu *vcpu, int opcode)
 	};
 	struct vcpu_svm *svm = to_svm(vcpu);
 
-	return svm_instr_handlers[opcode](svm);
+	if (is_guest_mode(vcpu)) {
+		svm->vmcb->control.exit_code = guest_mode_exit_codes[opcode];
+		svm->vmcb->control.exit_info_1 = 0;
+		svm->vmcb->control.exit_info_2 = 0;
+
+		return nested_svm_vmexit(svm);
+	} else
+		return svm_instr_handlers[opcode](svm);
 }
 
 /*
@@ -2244,7 +2259,8 @@ static int gp_interception(struct vcpu_svm *svm)
 		 * VMware backdoor emulation on #GP interception only handles
 		 * IN{S}, OUT{S}, and RDPMC.
 		 */
-		return kvm_emulate_instruction(vcpu,
+		if (!is_guest_mode(vcpu))
+			return kvm_emulate_instruction(vcpu,
 				EMULTYPE_VMWARE_GP | EMULTYPE_NO_DECODE);
 	} else
 		return emulate_svm_instr(vcpu, opcode);
