@@ -5163,11 +5163,10 @@ struct extent_buffer *btrfs_clone_extent_buffer(const struct extent_buffer *src)
 			return NULL;
 		}
 		WARN_ON(PageDirty(p));
-		SetPageUptodate(p);
 		new->pages[i] = p;
 		copy_page(page_address(p), page_address(src->pages[i]));
 	}
-	set_bit(EXTENT_BUFFER_UPTODATE, &new->bflags);
+	set_extent_buffer_uptodate(new);
 
 	return new;
 }
