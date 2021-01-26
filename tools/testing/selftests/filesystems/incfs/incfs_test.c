@@ -227,7 +227,8 @@ int open_file_by_id(const char *mnt_dir, incfs_uuid_t id, bool use_ioctl)
 		goto out;
 	}
 
-	if (ioctl(fd, INCFS_IOC_PERMIT_FILL, &permit_fill) != -1) {
+	if (ioctl(fd, INCFS_IOC_PERMIT_FILL, &permit_fill) != -1 ||
+	    errno != EPERM) {
 		print_error(
 			"Successfully called PERMIT_FILL on non pending_read file");
 		return -errno;
