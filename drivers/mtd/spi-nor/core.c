@@ -3453,8 +3453,8 @@ static void spi_nor_shutdown(struct spi_mem *spimem)
  * encourage new users to add support to the spi-nor library, and simply bind
  * against a generic string here (e.g., "jedec,spi-nor").
  *
- * Many flash names are kept here in this list (as well as in spi-nor.c) to
- * keep them available as module aliases for existing platforms.
+ * Many flash names are kept here in this list to keep them available
+ * as module aliases for existing platforms.
  */
 static const struct spi_device_id spi_nor_dev_ids[] = {
 	/*
