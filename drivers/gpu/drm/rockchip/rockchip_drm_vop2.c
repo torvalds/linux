@@ -770,14 +770,17 @@ static inline void vop2_cfg_done(struct drm_crtc *crtc)
 	/* we have some vp wait for config done take effect */
 	if (done_bits) {
 		vp_id = ffs(done_bits) - 1;
-		done_vp = &vop2->vps[vp_id];
-		vcstate = to_rockchip_crtc_state(done_vp->crtc.state);
-		vcnt = vop2_readl(vop2, RK3568_SYS_STATUS0 + (vp_id << 2));
-		vcnt >>= 16;
-		/* if close to the last 1/4 frame, wait to next frame */
-		if (vcnt > (vcstate->vdisplay * 3 >> 2)) {
-			vop2_wait_for_irq_fs(done_vp);
-			done_bits = 0;
+		/* no need to wait for same vp */
+		if (vp_id != vp->id) {
+			done_vp = &vop2->vps[vp_id];
+			vcstate = to_rockchip_crtc_state(done_vp->crtc.state);
+			vcnt = vop2_readl(vop2, RK3568_SYS_STATUS0 + (vp_id << 2));
+			vcnt >>= 16;
+			/* if close to the last 1/4 frame, wait to next frame */
+			if (vcnt > (vcstate->vdisplay * 3 >> 2)) {
+				vop2_wait_for_irq_fs(done_vp);
+				done_bits = 0;
+			}
 		}
 	}
 	val = RK3568_VOP2_GLB_CFG_DONE_EN | BIT(vp->id) | done_bits;
