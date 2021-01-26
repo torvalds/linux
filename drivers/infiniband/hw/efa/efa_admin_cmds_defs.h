@@ -563,12 +563,8 @@ struct efa_admin_acq_get_stats_resp {
 };
 
 struct efa_admin_get_set_feature_common_desc {
-	/*
-	 * 1:0 : select - 0x1 - current value; 0x3 - default
-	 *    value
-	 * 7:3 : reserved3 - MBZ
-	 */
-	u8 flags;
+	/* MBZ */
+	u8 reserved0;
 
 	/* as appears in efa_admin_aq_feature_id */
 	u8 feature_id;
@@ -908,9 +904,6 @@ struct efa_admin_host_info {
 #define EFA_ADMIN_CREATE_CQ_CMD_INTERRUPT_MODE_ENABLED_MASK BIT(5)
 #define EFA_ADMIN_CREATE_CQ_CMD_VIRT_MASK                   BIT(6)
 #define EFA_ADMIN_CREATE_CQ_CMD_CQ_ENTRY_SIZE_WORDS_MASK    GENMASK(4, 0)
-
-/* get_set_feature_common_desc */
-#define EFA_ADMIN_GET_SET_FEATURE_COMMON_DESC_SELECT_MASK   GENMASK(1, 0)
 
 /* feature_device_attr_desc */
 #define EFA_ADMIN_FEATURE_DEVICE_ATTR_DESC_RDMA_READ_MASK   BIT(0)
