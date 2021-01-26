@@ -10083,12 +10083,9 @@ int kvm_arch_vcpu_create(struct kvm_vcpu *vcpu)
 	vcpu->arch.pending_external_vector = -1;
 	vcpu->arch.preempted_in_kernel = false;
 
-	if (kvm_hv_vcpu_init(vcpu))
-		goto free_guest_fpu;
-
 	r = static_call(kvm_x86_vcpu_create)(vcpu);
 	if (r)
-		goto free_hv_vcpu;
+		goto free_guest_fpu;
 
 	vcpu->arch.arch_capabilities = kvm_get_arch_capabilities();
 	vcpu->arch.msr_platform_info = MSR_PLATFORM_INFO_CPUID_FAULT;
@@ -10099,8 +10096,6 @@ int kvm_arch_vcpu_create(struct kvm_vcpu *vcpu)
 	vcpu_put(vcpu);
 	return 0;
 
-free_hv_vcpu:
-	kvm_hv_vcpu_uninit(vcpu);
 free_guest_fpu:
 	kvm_free_guest_fpu(vcpu);
 free_user_fpu:
@@ -10123,8 +10118,6 @@ fail_mmu_destroy:
 void kvm_arch_vcpu_postcreate(struct kvm_vcpu *vcpu)
 {
 	struct kvm *kvm = vcpu->kvm;
-
-	kvm_hv_vcpu_postcreate(vcpu);
 
 	if (mutex_lock_killable(&vcpu->mutex))
 		return;

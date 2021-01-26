@@ -838,6 +838,9 @@ void kvm_hv_vcpu_uninit(struct kvm_vcpu *vcpu)
 	struct kvm_vcpu_hv *hv_vcpu = to_hv_vcpu(vcpu);
 	int i;
 
+	if (!hv_vcpu)
+		return;
+
 	for (i = 0; i < ARRAY_SIZE(hv_vcpu->stimer); i++)
 		stimer_cleanup(&hv_vcpu->stimer[i]);
 
@@ -892,7 +895,7 @@ static void stimer_init(struct kvm_vcpu_hv_stimer *stimer, int timer_index)
 	stimer_prepare_msg(stimer);
 }
 
-int kvm_hv_vcpu_init(struct kvm_vcpu *vcpu)
+static int kvm_hv_vcpu_init(struct kvm_vcpu *vcpu)
 {
 	struct kvm_vcpu_hv *hv_vcpu;
 	int i;
@@ -910,19 +913,23 @@ int kvm_hv_vcpu_init(struct kvm_vcpu *vcpu)
 	for (i = 0; i < ARRAY_SIZE(hv_vcpu->stimer); i++)
 		stimer_init(&hv_vcpu->stimer[i], i);
 
-	return 0;
-}
-
-void kvm_hv_vcpu_postcreate(struct kvm_vcpu *vcpu)
-{
-	struct kvm_vcpu_hv *hv_vcpu = to_hv_vcpu(vcpu);
-
 	hv_vcpu->vp_index = kvm_vcpu_get_idx(vcpu);
+
+	return 0;
 }
 
 int kvm_hv_activate_synic(struct kvm_vcpu *vcpu, bool dont_zero_synic_pages)
 {
-	struct kvm_vcpu_hv_synic *synic = to_hv_synic(vcpu);
+	struct kvm_vcpu_hv_synic *synic;
+	int r;
+
+	if (!to_hv_vcpu(vcpu)) {
+		r = kvm_hv_vcpu_init(vcpu);
+		if (r)
+			return r;
+	}
+
+	synic = to_hv_synic(vcpu);
 
 	/*
 	 * Hyper-V SynIC auto EOI SINT's are
@@ -1479,6 +1486,11 @@ int kvm_hv_set_msr_common(struct kvm_vcpu *vcpu, u32 msr, u64 data, bool host)
 	if (!host && !vcpu->arch.hyperv_enabled)
 		return 1;
 
+	if (!to_hv_vcpu(vcpu)) {
+		if (kvm_hv_vcpu_init(vcpu))
+			return 1;
+	}
+
 	if (kvm_hv_msr_partition_wide(msr)) {
 		int r;
 
@@ -1496,6 +1508,11 @@ int kvm_hv_get_msr_common(struct kvm_vcpu *vcpu, u32 msr, u64 *pdata, bool host)
 
 	if (!host && !vcpu->arch.hyperv_enabled)
 		return 1;
+
+	if (!to_hv_vcpu(vcpu)) {
+		if (kvm_hv_vcpu_init(vcpu))
+			return 1;
+	}
 
 	if (kvm_hv_msr_partition_wide(msr)) {
 		int r;
