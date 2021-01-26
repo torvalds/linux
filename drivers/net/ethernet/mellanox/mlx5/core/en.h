@@ -1072,6 +1072,8 @@ void mlx5e_destroy_q_counters(struct mlx5e_priv *priv);
 int mlx5e_open_drop_rq(struct mlx5e_priv *priv,
 		       struct mlx5e_rq *drop_rq);
 void mlx5e_close_drop_rq(struct mlx5e_rq *drop_rq);
+int mlx5e_init_di_list(struct mlx5e_rq *rq, int wq_sz, int node);
+void mlx5e_free_di_list(struct mlx5e_rq *rq);
 
 int mlx5e_create_indirect_rqt(struct mlx5e_priv *priv);
 
