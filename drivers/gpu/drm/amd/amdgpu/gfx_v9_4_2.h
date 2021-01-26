@@ -29,4 +29,10 @@ void gfx_v9_4_2_debug_trap_config_init(struct amdgpu_device *adev,
 void gfx_v9_4_2_init_golden_registers(struct amdgpu_device *adev,
 				      uint32_t die_id);
 void gfx_v9_4_2_set_power_brake_sequence(struct amdgpu_device *adev);
+
+void gfx_v9_4_2_reset_ras_error_count(struct amdgpu_device *adev);
+int gfx_v9_4_2_ras_error_inject(struct amdgpu_device *adev, void *inject_if);
+void gfx_v9_4_2_query_ras_error_status(struct amdgpu_device *adev);
+int gfx_v9_4_2_query_ras_error_count(struct amdgpu_device *adev,
+				   void *ras_error_status);
 #endif /* __GFX_V9_4_2_H__ */

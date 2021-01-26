@@ -49,6 +49,13 @@ struct soc15_reg_rlcg {
 	u32	reg;
 };
 
+struct soc15_reg {
+	uint32_t hwip;
+	uint32_t inst;
+	uint32_t seg;
+	uint32_t reg_offset;
+};
+
 struct soc15_reg_entry {
 	uint32_t hwip;
 	uint32_t inst;
@@ -87,6 +94,10 @@ struct soc15_ras_field_entry {
 	{ ip##_HWIP, inst, reg##_BASE_IDX, reg, and_mask, or_mask }
 
 #define SOC15_REG_FIELD(reg, field) reg##__##field##_MASK, reg##__##field##__SHIFT
+
+#define SOC15_REG_FIELD_VAL(val, mask, shift)	(((val) & mask) >> shift)
+
+#define SOC15_RAS_REG_FIELD_VAL(val, entry, field) SOC15_REG_FIELD_VAL(val, entry.field##_count_mask, entry.field##_count_shift)
 
 void soc15_grbm_select(struct amdgpu_device *adev,
 		    u32 me, u32 pipe, u32 queue, u32 vmid);
