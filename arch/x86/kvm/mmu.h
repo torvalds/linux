@@ -44,8 +44,15 @@
 #define PT32_ROOT_LEVEL 2
 #define PT32E_ROOT_LEVEL 3
 
-static inline u64 rsvd_bits(int s, int e)
+static __always_inline u64 rsvd_bits(int s, int e)
 {
+	BUILD_BUG_ON(__builtin_constant_p(e) && __builtin_constant_p(s) && e < s);
+
+	if (__builtin_constant_p(e))
+		BUILD_BUG_ON(e > 63);
+	else
+		e &= 63;
+
 	if (e < s)
 		return 0;
 

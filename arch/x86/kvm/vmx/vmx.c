@@ -6653,6 +6653,8 @@ reenter_guest:
 	if (vmx->emulation_required)
 		return EXIT_FASTPATH_NONE;
 
+	trace_kvm_entry(vcpu);
+
 	if (vmx->ple_window_dirty) {
 		vmx->ple_window_dirty = false;
 		vmcs_write32(PLE_WINDOW, vmx->ple_window);
