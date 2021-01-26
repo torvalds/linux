@@ -1010,13 +1010,19 @@ int bch2_fs_journal_start(struct journal *j, u64 cur_seq,
 	}
 
 	list_for_each_entry(i, journal_entries, list) {
+		unsigned ptr;
+
 		seq = le64_to_cpu(i->j.seq);
 		BUG_ON(seq >= cur_seq);
 
 		if (seq < last_seq)
 			continue;
 
-		journal_seq_pin(j, seq)->devs = i->devs;
+		p = journal_seq_pin(j, seq);
+
+		p->devs.nr = 0;
+		for (ptr = 0; ptr < i->nr_ptrs; ptr++)
+			bch2_dev_list_add_dev(&p->devs, i->ptrs[ptr].dev);
 	}
 
 	spin_lock(&j->lock);

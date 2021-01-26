@@ -8,7 +8,9 @@
  */
 struct journal_replay {
 	struct list_head	list;
-	struct bch_devs_list	devs;
+	struct bch_extent_ptr	ptrs[BCH_REPLICAS_MAX];
+	unsigned		nr_ptrs;
+
 	/* checksum error, but we may want to try using it anyways: */
 	bool			bad;
 	bool			ignore;

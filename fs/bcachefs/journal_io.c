@@ -45,15 +45,16 @@ struct journal_list {
  * be replayed:
  */
 static int journal_entry_add(struct bch_fs *c, struct bch_dev *ca,
+			     struct bch_extent_ptr entry_ptr,
 			     struct journal_list *jlist, struct jset *j,
 			     bool bad)
 {
-	struct journal_replay *i, *pos;
-	struct bch_devs_list devs = { .nr = 0 };
+	struct journal_replay *i, *pos, *dup = NULL;
+	struct bch_extent_ptr *ptr;
 	struct list_head *where;
 	size_t bytes = vstruct_bytes(j);
 	u64 last_seq = 0;
-	int ret;
+	int ret = JOURNAL_ENTRY_ADD_OK;
 
 	list_for_each_entry_reverse(i, jlist->head, list) {
 		if (!JSET_NO_FLUSH(&i->j)) {
@@ -87,28 +88,31 @@ static int journal_entry_add(struct bch_fs *c, struct bch_dev *ca,
 
 	where = jlist->head;
 add:
-	i = where->next != jlist->head
+	dup = where->next != jlist->head
 		? container_of(where->next, struct journal_replay, list)
 		: NULL;
+
+	if (dup && le64_to_cpu(j->seq) != le64_to_cpu(dup->j.seq))
+		dup = NULL;
 
 	/*
 	 * Duplicate journal entries? If so we want the one that didn't have a
 	 * checksum error:
 	 */
-	if (i && le64_to_cpu(j->seq) == le64_to_cpu(i->j.seq)) {
-		if (i->bad) {
-			devs = i->devs;
-			__journal_replay_free(i);
+	if (dup) {
+		if (dup->bad) {
+			/* we'll replace @dup: */
 		} else if (bad) {
+			i = dup;
 			goto found;
 		} else {
-			fsck_err_on(bytes != vstruct_bytes(&i->j) ||
-				    memcmp(j, &i->j, bytes), c,
+			fsck_err_on(bytes != vstruct_bytes(&dup->j) ||
+				    memcmp(j, &dup->j, bytes), c,
 				    "found duplicate but non identical journal entries (seq %llu)",
 				    le64_to_cpu(j->seq));
+			i = dup;
 			goto found;
 		}
-
 	}
 
 	i = kvpmalloc(offsetof(struct journal_replay, j) + bytes, GFP_KERNEL);
@@ -117,17 +121,34 @@ add:
 		goto out;
 	}
 
-	list_add(&i->list, where);
-	i->devs = devs;
-	i->bad	= bad;
-	i->ignore = false;
+	i->nr_ptrs	 = 0;
+	i->bad		= bad;
+	i->ignore	= false;
 	unsafe_memcpy(&i->j, j, bytes, "embedded variable length struct");
+
+	if (dup) {
+		i->nr_ptrs = dup->nr_ptrs;
+		memcpy(i->ptrs, dup->ptrs, sizeof(dup->ptrs));
+		__journal_replay_free(dup);
+	}
+
+	list_add(&i->list, where);
 found:
-	if (!bch2_dev_list_has_dev(i->devs, ca->dev_idx))
-		bch2_dev_list_add_dev(&i->devs, ca->dev_idx);
-	else
-		fsck_err_on(1, c, "duplicate journal entries on same device");
-	ret = JOURNAL_ENTRY_ADD_OK;
+	for (ptr = i->ptrs; ptr < i->ptrs + i->nr_ptrs; ptr++) {
+		if (ptr->dev == ca->dev_idx) {
+			bch_err(c, "duplicate journal entry %llu on same device",
+				le64_to_cpu(i->j.seq));
+			goto out;
+		}
+	}
+
+	if (i->nr_ptrs >= ARRAY_SIZE(i->ptrs)) {
+		bch_err(c, "found too many copies of journal entry %llu",
+			le64_to_cpu(i->j.seq));
+		goto out;
+	}
+
+	i->ptrs[i->nr_ptrs++] = entry_ptr;
 out:
 fsck_err:
 	return ret;
@@ -653,7 +674,10 @@ reread:
 		ja->bucket_seq[bucket] = le64_to_cpu(j->seq);
 
 		mutex_lock(&jlist->lock);
-		ret = journal_entry_add(c, ca, jlist, j, ret != 0);
+		ret = journal_entry_add(c, ca, (struct bch_extent_ptr) {
+					.dev = ca->dev_idx,
+					.offset	= offset,
+					}, jlist, j, ret != 0);
 		mutex_unlock(&jlist->lock);
 
 		switch (ret) {
@@ -739,6 +763,23 @@ err:
 	jlist->ret = ret;
 	mutex_unlock(&jlist->lock);
 	goto out;
+}
+
+static void bch2_journal_ptrs_to_text(struct printbuf *out, struct bch_fs *c,
+				      struct journal_replay *j)
+{
+	unsigned i;
+
+	for (i = 0; i < j->nr_ptrs; i++) {
+		struct bch_dev *ca = c->devs[j->ptrs[i].dev];
+
+		if (i)
+			pr_buf(out, " ");
+		pr_buf(out, "%u:%llu (offset %llu)",
+		       j->ptrs[i].dev,
+		       (u64) j->ptrs[i].offset,
+		       (u64) j->ptrs[i].offset % ca->mi.bucket_size);
+	}
 }
 
 int bch2_journal_read(struct bch_fs *c, struct list_head *list,
@@ -838,6 +879,7 @@ int bch2_journal_read(struct bch_fs *c, struct list_head *list,
 
 		while (seq < le64_to_cpu(i->j.seq)) {
 			u64 missing_start, missing_end;
+			char buf1[200], buf2[200];
 
 			while (seq < le64_to_cpu(i->j.seq) &&
 			       bch2_journal_seq_is_blacklisted(c, seq, false))
@@ -852,10 +894,23 @@ int bch2_journal_read(struct bch_fs *c, struct list_head *list,
 			       !bch2_journal_seq_is_blacklisted(c, seq, false))
 				seq++;
 
+			if (i->list.prev != list) {
+				struct printbuf out = PBUF(buf1);
+				struct journal_replay *p = list_prev_entry(i, list);
+
+				bch2_journal_ptrs_to_text(&out, c, p);
+				pr_buf(&out, " size %llu", vstruct_sectors(&p->j, c->block_bits));
+			} else
+				sprintf(buf1, "(none)");
+			bch2_journal_ptrs_to_text(&PBUF(buf2), c, i);
+
 			missing_end = seq - 1;
-			fsck_err(c, "journal entries %llu-%llu missing! (replaying %llu-%llu)",
+			fsck_err(c, "journal entries %llu-%llu missing! (replaying %llu-%llu)\n"
+				 "  prev at %s\n"
+				 "  next at %s",
 				 missing_start, missing_end,
-				 last_seq, *blacklist_seq - 1);
+				 last_seq, *blacklist_seq - 1,
+				 buf1, buf2);
 		}
 
 		seq++;
@@ -864,7 +919,11 @@ int bch2_journal_read(struct bch_fs *c, struct list_head *list,
 	list_for_each_entry(i, list, list) {
 		struct jset_entry *entry;
 		struct bkey_i *k, *_n;
-		struct bch_replicas_padded replicas;
+		struct bch_replicas_padded replicas = {
+			.e.data_type = BCH_DATA_journal,
+			.e.nr_required = 1,
+		};
+		unsigned ptr;
 		char buf[80];
 
 		if (i->ignore)
@@ -874,12 +933,13 @@ int bch2_journal_read(struct bch_fs *c, struct list_head *list,
 		if (ret)
 			goto fsck_err;
 
+		for (ptr = 0; ptr < i->nr_ptrs; ptr++)
+			replicas.e.devs[replicas.e.nr_devs++] = i->ptrs[ptr].dev;
+
 		/*
 		 * If we're mounting in degraded mode - if we didn't read all
 		 * the devices - this is wrong:
 		 */
-
-		bch2_devlist_to_replicas(&replicas.e, BCH_DATA_journal, i->devs);
 
 		if (!degraded &&
 		    (test_bit(BCH_FS_REBUILD_REPLICAS, &c->flags) ||
