@@ -27,11 +27,11 @@ static const struct old_serial_port *serstate;
 static int timeouts;
 
 static int spk_serial_out(struct spk_synth *in_synth, const char ch);
-static void spk_serial_send_xchar(char ch);
-static void spk_serial_tiocmset(unsigned int set, unsigned int clear);
-static unsigned char spk_serial_in(void);
-static unsigned char spk_serial_in_nowait(void);
-static void spk_serial_flush_buffer(void);
+static void spk_serial_send_xchar(struct spk_synth *in_synth, char ch);
+static void spk_serial_tiocmset(struct spk_synth *in_synth, unsigned int set, unsigned int clear);
+static unsigned char spk_serial_in(struct spk_synth *in_synth);
+static unsigned char spk_serial_in_nowait(struct spk_synth *in_synth);
+static void spk_serial_flush_buffer(struct spk_synth *in_synth);
 static int spk_serial_wait_for_xmitr(struct spk_synth *in_synth);
 
 struct spk_io_ops spk_serial_io_ops = {
@@ -150,7 +150,7 @@ static void start_serial_interrupt(int irq)
 	outb(1, speakup_info.port_tts + UART_FCR);	/* Turn FIFO On */
 }
 
-static void spk_serial_send_xchar(char ch)
+static void spk_serial_send_xchar(struct spk_synth *synth, char ch)
 {
 	int timeout = SPK_XMITR_TIMEOUT;
 
@@ -162,7 +162,7 @@ static void spk_serial_send_xchar(char ch)
 	outb(ch, speakup_info.port_tts);
 }
 
-static void spk_serial_tiocmset(unsigned int set, unsigned int clear)
+static void spk_serial_tiocmset(struct spk_synth *in_synth, unsigned int set, unsigned int clear)
 {
 	int old = inb(speakup_info.port_tts + UART_MCR);
 
@@ -251,7 +251,7 @@ static int spk_serial_wait_for_xmitr(struct spk_synth *in_synth)
 	return 1;
 }
 
-static unsigned char spk_serial_in(void)
+static unsigned char spk_serial_in(struct spk_synth *in_synth)
 {
 	int tmout = SPK_SERIAL_TIMEOUT;
 
@@ -265,7 +265,7 @@ static unsigned char spk_serial_in(void)
 	return inb_p(speakup_info.port_tts + UART_RX);
 }
 
-static unsigned char spk_serial_in_nowait(void)
+static unsigned char spk_serial_in_nowait(struct spk_synth *in_synth)
 {
 	unsigned char lsr;
 
@@ -275,7 +275,7 @@ static unsigned char spk_serial_in_nowait(void)
 	return inb_p(speakup_info.port_tts + UART_RX);
 }
 
-static void spk_serial_flush_buffer(void)
+static void spk_serial_flush_buffer(struct spk_synth *in_synth)
 {
 	/* TODO: flush the UART 16550 buffer */
 }
@@ -307,7 +307,7 @@ const char *spk_serial_synth_immediate(struct spk_synth *synth,
 }
 EXPORT_SYMBOL_GPL(spk_serial_synth_immediate);
 
-void spk_serial_release(void)
+void spk_serial_release(struct spk_synth *synth)
 {
 	spk_stop_serial_interrupt();
 	if (speakup_info.port_tts == 0)

@@ -114,11 +114,11 @@ static struct tty_ldisc_ops spk_ttyio_ldisc_ops = {
 
 static int spk_ttyio_out(struct spk_synth *in_synth, const char ch);
 static int spk_ttyio_out_unicode(struct spk_synth *in_synth, u16 ch);
-static void spk_ttyio_send_xchar(char ch);
-static void spk_ttyio_tiocmset(unsigned int set, unsigned int clear);
-static unsigned char spk_ttyio_in(void);
-static unsigned char spk_ttyio_in_nowait(void);
-static void spk_ttyio_flush_buffer(void);
+static void spk_ttyio_send_xchar(struct spk_synth *in_synth, char ch);
+static void spk_ttyio_tiocmset(struct spk_synth *in_synth, unsigned int set, unsigned int clear);
+static unsigned char spk_ttyio_in(struct spk_synth *in_synth);
+static unsigned char spk_ttyio_in_nowait(struct spk_synth *in_synth);
+static void spk_ttyio_flush_buffer(struct spk_synth *in_synth);
 static int spk_ttyio_wait_for_xmitr(struct spk_synth *in_synth);
 
 struct spk_io_ops spk_ttyio_ops = {
@@ -281,7 +281,7 @@ static int check_tty(struct tty_struct *tty)
 	return 0;
 }
 
-static void spk_ttyio_send_xchar(char ch)
+static void spk_ttyio_send_xchar(struct spk_synth *in_synth, char ch)
 {
 	mutex_lock(&speakup_tty_mutex);
 	if (check_tty(speakup_tty)) {
@@ -294,7 +294,7 @@ static void spk_ttyio_send_xchar(char ch)
 	mutex_unlock(&speakup_tty_mutex);
 }
 
-static void spk_ttyio_tiocmset(unsigned int set, unsigned int clear)
+static void spk_ttyio_tiocmset(struct spk_synth *in_synth, unsigned int set, unsigned int clear)
 {
 	mutex_lock(&speakup_tty_mutex);
 	if (check_tty(speakup_tty)) {
@@ -312,7 +312,7 @@ static int spk_ttyio_wait_for_xmitr(struct spk_synth *in_synth)
 	return 1;
 }
 
-static unsigned char ttyio_in(int timeout)
+static unsigned char ttyio_in(struct spk_synth *in_synth, int timeout)
 {
 	struct spk_ldisc_data *ldisc_data = speakup_tty->disc_data;
 	char rv;
@@ -339,19 +339,19 @@ static unsigned char ttyio_in(int timeout)
 	return rv;
 }
 
-static unsigned char spk_ttyio_in(void)
+static unsigned char spk_ttyio_in(struct spk_synth *in_synth)
 {
-	return ttyio_in(SPK_SYNTH_TIMEOUT);
+	return ttyio_in(in_synth, SPK_SYNTH_TIMEOUT);
 }
 
-static unsigned char spk_ttyio_in_nowait(void)
+static unsigned char spk_ttyio_in_nowait(struct spk_synth *in_synth)
 {
-	u8 rv = ttyio_in(0);
+	u8 rv = ttyio_in(in_synth, 0);
 
 	return (rv == 0xff) ? 0 : rv;
 }
 
-static void spk_ttyio_flush_buffer(void)
+static void spk_ttyio_flush_buffer(struct spk_synth *in_synth)
 {
 	mutex_lock(&speakup_tty_mutex);
 	if (check_tty(speakup_tty)) {
@@ -379,7 +379,7 @@ int spk_ttyio_synth_probe(struct spk_synth *synth)
 }
 EXPORT_SYMBOL_GPL(spk_ttyio_synth_probe);
 
-void spk_ttyio_release(void)
+void spk_ttyio_release(struct spk_synth *in_synth)
 {
 	if (!speakup_tty)
 		return;
@@ -395,15 +395,15 @@ void spk_ttyio_release(void)
 }
 EXPORT_SYMBOL_GPL(spk_ttyio_release);
 
-const char *spk_ttyio_synth_immediate(struct spk_synth *synth, const char *buff)
+const char *spk_ttyio_synth_immediate(struct spk_synth *in_synth, const char *buff)
 {
 	u_char ch;
 
 	while ((ch = *buff)) {
 		if (ch == '\n')
-			ch = synth->procspeech;
+			ch = in_synth->procspeech;
 		if (tty_write_room(speakup_tty) < 1 ||
-		    !synth->io_ops->synth_out(synth, ch))
+		    !in_synth->io_ops->synth_out(in_synth, ch))
 			return buff;
 		buff++;
 	}

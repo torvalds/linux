@@ -119,8 +119,8 @@ static struct spk_synth synth_audptr = {
 
 static void synth_flush(struct spk_synth *synth)
 {
-	synth->io_ops->flush_buffer();
-	synth->io_ops->send_xchar(SYNTH_CLEAR);
+	synth->io_ops->flush_buffer(synth);
+	synth->io_ops->send_xchar(synth, SYNTH_CLEAR);
 	synth->io_ops->synth_out(synth, PROCSPEECH);
 }
 
@@ -130,11 +130,11 @@ static void synth_version(struct spk_synth *synth)
 	char synth_id[40] = "";
 
 	synth->synth_immediate(synth, "\x05[Q]");
-	synth_id[test] = synth->io_ops->synth_in();
+	synth_id[test] = synth->io_ops->synth_in(synth);
 	if (synth_id[test] == 'A') {
 		do {
 			/* read version string from synth */
-			synth_id[++test] = synth->io_ops->synth_in();
+			synth_id[++test] = synth->io_ops->synth_in(synth);
 		} while (synth_id[test] != '\n' && test < 32);
 		synth_id[++test] = 0x00;
 	}
