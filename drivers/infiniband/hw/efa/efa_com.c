@@ -20,9 +20,6 @@
 #define EFA_CTRL_MINOR          0
 #define EFA_CTRL_SUB_MINOR      1
 
-#define EFA_DMA_ADDR_TO_UINT32_LOW(x)   ((u32)((u64)(x)))
-#define EFA_DMA_ADDR_TO_UINT32_HIGH(x)  ((u32)(((u64)(x)) >> 32))
-
 enum efa_cmd_status {
 	EFA_CMD_SUBMITTED,
 	EFA_CMD_COMPLETED,
@@ -138,8 +135,8 @@ static int efa_com_admin_init_sq(struct efa_com_dev *edev)
 
 	sq->db_addr = (u32 __iomem *)(edev->reg_bar + EFA_REGS_AQ_PROD_DB_OFF);
 
-	addr_high = EFA_DMA_ADDR_TO_UINT32_HIGH(sq->dma_addr);
-	addr_low = EFA_DMA_ADDR_TO_UINT32_LOW(sq->dma_addr);
+	addr_high = upper_32_bits(sq->dma_addr);
+	addr_low = lower_32_bits(sq->dma_addr);
 
 	writel(addr_low, edev->reg_bar + EFA_REGS_AQ_BASE_LO_OFF);
 	writel(addr_high, edev->reg_bar + EFA_REGS_AQ_BASE_HI_OFF);
@@ -172,8 +169,8 @@ static int efa_com_admin_init_cq(struct efa_com_dev *edev)
 	cq->cc = 0;
 	cq->phase = 1;
 
-	addr_high = EFA_DMA_ADDR_TO_UINT32_HIGH(cq->dma_addr);
-	addr_low = EFA_DMA_ADDR_TO_UINT32_LOW(cq->dma_addr);
+	addr_high = upper_32_bits(cq->dma_addr);
+	addr_low = lower_32_bits(cq->dma_addr);
 
 	writel(addr_low, edev->reg_bar + EFA_REGS_ACQ_BASE_LO_OFF);
 	writel(addr_high, edev->reg_bar + EFA_REGS_ACQ_BASE_HI_OFF);
@@ -213,8 +210,8 @@ static int efa_com_admin_init_aenq(struct efa_com_dev *edev,
 	aenq->cc = 0;
 	aenq->phase = 1;
 
-	addr_low = EFA_DMA_ADDR_TO_UINT32_LOW(aenq->dma_addr);
-	addr_high = EFA_DMA_ADDR_TO_UINT32_HIGH(aenq->dma_addr);
+	addr_low = lower_32_bits(aenq->dma_addr);
+	addr_high = upper_32_bits(aenq->dma_addr);
 
 	writel(addr_low, edev->reg_bar + EFA_REGS_AENQ_BASE_LO_OFF);
 	writel(addr_high, edev->reg_bar + EFA_REGS_AENQ_BASE_HI_OFF);
