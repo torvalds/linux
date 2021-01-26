@@ -275,6 +275,15 @@ struct drm_crtc_state {
 	struct drm_property_blob *gamma_lut;
 
 	/**
+	 * @cubic_lut:
+	 *
+	 * Cubic Lookup table for converting pixel data. See
+	 * drm_crtc_enable_color_mgmt(). The blob (if not NULL) is a 3D array
+	 * of &struct drm_color_lut.
+	 */
+	struct drm_property_blob *cubic_lut;
+
+	/**
 	 * @target_vblank:
 	 *
 	 * Target vertical blank period when a page flip

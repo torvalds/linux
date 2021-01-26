@@ -35,6 +35,8 @@ void drm_crtc_enable_color_mgmt(struct drm_crtc *crtc,
 				bool has_ctm,
 				uint gamma_lut_size);
 
+void drm_crtc_enable_cubic_lut(struct drm_crtc *crtc, unsigned int cubic_lut_size);
+
 int drm_mode_crtc_set_gamma_size(struct drm_crtc *crtc,
 				 int gamma_size);
 
