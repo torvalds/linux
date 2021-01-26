@@ -110,24 +110,9 @@ void __init mem_init(void)
 	mem_init_print_info(NULL);
 }
 
-extern char __init_begin[], __init_end[];
-
 void free_initmem(void)
 {
-	unsigned long addr;
-
-	addr = (unsigned long) &__init_begin;
-
-	while (addr < (unsigned long) &__init_end) {
-		ClearPageReserved(virt_to_page(addr));
-		init_page_count(virt_to_page(addr));
-		free_page(addr);
-		totalram_pages_inc();
-		addr += PAGE_SIZE;
-	}
-
-	pr_info("Freeing unused kernel memory: %dk freed\n",
-	((unsigned int)&__init_end - (unsigned int)&__init_begin) >> 10);
+	free_initmem_default(-1);
 }
 
 void pgd_init(unsigned long *p)
