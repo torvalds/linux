@@ -31,7 +31,7 @@ static void mt7615_free_pending_tx_skbs(struct mt7615_dev *dev,
 
 	spin_lock_bh(&dev->pm.txq_lock);
 	for (i = 0; i < IEEE80211_NUM_ACS; i++) {
-		if (msta && dev->pm.tx_q[i].msta != msta)
+		if (msta && dev->pm.tx_q[i].wcid != &msta->wcid)
 			continue;
 
 		dev_kfree_skb(dev->pm.tx_q[i].skb);
@@ -726,7 +726,7 @@ static void mt7615_tx(struct ieee80211_hw *hw,
 	spin_lock_bh(&dev->pm.txq_lock);
 	if (!dev->pm.tx_q[qid].skb) {
 		ieee80211_stop_queues(hw);
-		dev->pm.tx_q[qid].msta = msta;
+		dev->pm.tx_q[qid].wcid = wcid;
 		dev->pm.tx_q[qid].skb = skb;
 		queue_work(dev->mt76.wq, &dev->pm.wake_work);
 	} else {

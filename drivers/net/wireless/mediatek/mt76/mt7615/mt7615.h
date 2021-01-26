@@ -8,7 +8,7 @@
 #include <linux/interrupt.h>
 #include <linux/ktime.h>
 #include <linux/regmap.h>
-#include "../mt76.h"
+#include "../mt76_connac.h"
 #include "regs.h"
 
 #define MT7615_MAX_INTERFACES		16
@@ -276,22 +276,7 @@ struct mt7615_dev {
 
 	u32 muar_mask;
 
-	struct {
-		bool enable;
-
-		spinlock_t txq_lock;
-		struct {
-			struct mt7615_sta *msta;
-			struct sk_buff *skb;
-		} tx_q[IEEE80211_NUM_ACS];
-
-		struct work_struct wake_work;
-		struct completion wake_cmpl;
-
-		struct delayed_work ps_work;
-		unsigned long last_activity;
-		unsigned long idle_timeout;
-	} pm;
+	struct mt76_connac_pm pm;
 };
 
 enum tx_pkt_queue_idx {
