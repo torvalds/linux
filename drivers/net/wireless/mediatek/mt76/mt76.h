@@ -561,6 +561,14 @@ struct mt76_testmode_data {
 	} rx_stats;
 };
 
+struct mt76_vif {
+	u8 idx;
+	u8 omac_idx;
+	u8 band_idx;
+	u8 wmm_idx;
+	u8 scan_seq_num;
+};
+
 struct mt76_phy {
 	struct ieee80211_hw *hw;
 	struct mt76_dev *dev;

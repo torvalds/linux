@@ -133,12 +133,7 @@ struct mt7615_sta {
 };
 
 struct mt7615_vif {
-	u8 idx;
-	u8 omac_idx;
-	u8 band_idx;
-	u8 wmm_idx;
-	u8 scan_seq_num;
-
+	struct mt76_vif mt76; /* must be first */
 	struct mt7615_sta sta;
 };
 

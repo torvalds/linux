@@ -187,8 +187,8 @@ static int mt7615_add_interface(struct ieee80211_hw *hw,
 	    is_zero_ether_addr(vif->addr))
 		phy->monitor_vif = vif;
 
-	mvif->idx = ffs(~dev->mt76.vif_mask) - 1;
-	if (mvif->idx >= MT7615_MAX_INTERFACES) {
+	mvif->mt76.idx = ffs(~dev->mt76.vif_mask) - 1;
+	if (mvif->mt76.idx >= MT7615_MAX_INTERFACES) {
 		ret = -ENOSPC;
 		goto out;
 	}
@@ -198,26 +198,26 @@ static int mt7615_add_interface(struct ieee80211_hw *hw,
 		ret = -ENOSPC;
 		goto out;
 	}
-	mvif->omac_idx = idx;
+	mvif->mt76.omac_idx = idx;
 
-	mvif->band_idx = ext_phy;
+	mvif->mt76.band_idx = ext_phy;
 	if (mt7615_ext_phy(dev))
-		mvif->wmm_idx = ext_phy * (MT7615_MAX_WMM_SETS / 2) +
-				mvif->idx % (MT7615_MAX_WMM_SETS / 2);
+		mvif->mt76.wmm_idx = ext_phy * (MT7615_MAX_WMM_SETS / 2) +
+				mvif->mt76.idx % (MT7615_MAX_WMM_SETS / 2);
 	else
-		mvif->wmm_idx = mvif->idx % MT7615_MAX_WMM_SETS;
+		mvif->mt76.wmm_idx = mvif->mt76.idx % MT7615_MAX_WMM_SETS;
 
-	dev->mt76.vif_mask |= BIT(mvif->idx);
-	dev->omac_mask |= BIT_ULL(mvif->omac_idx);
-	phy->omac_mask |= BIT_ULL(mvif->omac_idx);
+	dev->mt76.vif_mask |= BIT(mvif->mt76.idx);
+	dev->omac_mask |= BIT_ULL(mvif->mt76.omac_idx);
+	phy->omac_mask |= BIT_ULL(mvif->mt76.omac_idx);
 
 	mt7615_mcu_set_dbdc(dev);
 
-	idx = MT7615_WTBL_RESERVED - mvif->idx;
+	idx = MT7615_WTBL_RESERVED - mvif->mt76.idx;
 
 	INIT_LIST_HEAD(&mvif->sta.poll_list);
 	mvif->sta.wcid.idx = idx;
-	mvif->sta.wcid.ext_phy = mvif->band_idx;
+	mvif->sta.wcid.ext_phy = mvif->mt76.band_idx;
 	mvif->sta.wcid.hw_key_idx = -1;
 	mt7615_mac_wtbl_update(dev, idx,
 			       MT_WTBL_UPDATE_ADM_COUNT_CLEAR);
@@ -263,9 +263,9 @@ static void mt7615_remove_interface(struct ieee80211_hw *hw,
 
 	rcu_assign_pointer(dev->mt76.wcid[idx], NULL);
 
-	dev->mt76.vif_mask &= ~BIT(mvif->idx);
-	dev->omac_mask &= ~BIT_ULL(mvif->omac_idx);
-	phy->omac_mask &= ~BIT_ULL(mvif->omac_idx);
+	dev->mt76.vif_mask &= ~BIT(mvif->mt76.idx);
+	dev->omac_mask &= ~BIT_ULL(mvif->mt76.omac_idx);
+	phy->omac_mask &= ~BIT_ULL(mvif->mt76.omac_idx);
 
 	mt7615_mutex_release(dev);
 
@@ -445,7 +445,7 @@ static int
 mt7615_conf_tx(struct ieee80211_hw *hw, struct ieee80211_vif *vif, u16 queue,
 	       const struct ieee80211_tx_queue_params *params)
 {
-	struct mt7615_vif *mvif = (struct mt7615_vif *)vif->drv_priv;
+	struct mt76_vif *mvif = (struct mt76_vif *)vif->drv_priv;
 	struct mt7615_dev *dev = mt7615_hw_dev(hw);
 	int err;
 
@@ -589,7 +589,7 @@ int mt7615_mac_sta_add(struct mt76_dev *mdev, struct ieee80211_vif *vif,
 	msta->vif = mvif;
 	msta->wcid.sta = 1;
 	msta->wcid.idx = idx;
-	msta->wcid.ext_phy = mvif->band_idx;
+	msta->wcid.ext_phy = mvif->mt76.band_idx;
 
 	err = mt7615_pm_wake(dev);
 	if (err)
@@ -598,7 +598,7 @@ int mt7615_mac_sta_add(struct mt76_dev *mdev, struct ieee80211_vif *vif,
 	if (vif->type == NL80211_IFTYPE_STATION && !sta->tdls) {
 		struct mt7615_phy *phy;
 
-		phy = mvif->band_idx ? mt7615_ext_phy(dev) : &dev->phy;
+		phy = mvif->mt76.band_idx ? mt7615_ext_phy(dev) : &dev->phy;
 		mt7615_mcu_add_bss_info(phy, vif, sta, true);
 	}
 	mt7615_mac_wtbl_update(dev, idx,
@@ -627,7 +627,7 @@ void mt7615_mac_sta_remove(struct mt76_dev *mdev, struct ieee80211_vif *vif,
 		struct mt7615_vif *mvif = (struct mt7615_vif *)vif->drv_priv;
 		struct mt7615_phy *phy;
 
-		phy = mvif->band_idx ? mt7615_ext_phy(dev) : &dev->phy;
+		phy = mvif->mt76.band_idx ? mt7615_ext_phy(dev) : &dev->phy;
 		mt7615_mcu_add_bss_info(phy, vif, sta, false);
 	}
 
