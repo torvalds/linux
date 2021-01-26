@@ -19,7 +19,13 @@ struct btrfs_subpage {
 	/* Common members for both data and metadata pages */
 	spinlock_t lock;
 	union {
-		/* Structures only used by metadata */
+		/*
+		 * Structures only used by metadata
+		 *
+		 * @eb_refs should only be operated under private_lock, as it
+		 * manages whether the subpage can be detached.
+		 */
+		atomic_t eb_refs;
 		/* Structures only used by data */
 	};
 };
@@ -39,5 +45,10 @@ int btrfs_alloc_subpage(const struct btrfs_fs_info *fs_info,
 			struct btrfs_subpage **ret,
 			enum btrfs_subpage_type type);
 void btrfs_free_subpage(struct btrfs_subpage *subpage);
+
+void btrfs_page_inc_eb_refs(const struct btrfs_fs_info *fs_info,
+			    struct page *page);
+void btrfs_page_dec_eb_refs(const struct btrfs_fs_info *fs_info,
+			    struct page *page);
 
 #endif

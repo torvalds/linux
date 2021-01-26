@@ -4995,25 +4995,39 @@ int extent_buffer_under_io(const struct extent_buffer *eb)
 		test_bit(EXTENT_BUFFER_DIRTY, &eb->bflags));
 }
 
-/*
- * Release all pages attached to the extent buffer.
- */
-static void btrfs_release_extent_buffer_pages(struct extent_buffer *eb)
+static bool page_range_has_eb(struct btrfs_fs_info *fs_info, struct page *page)
 {
-	int i;
-	int num_pages;
-	int mapped = !test_bit(EXTENT_BUFFER_UNMAPPED, &eb->bflags);
+	struct btrfs_subpage *subpage;
 
-	BUG_ON(extent_buffer_under_io(eb));
+	lockdep_assert_held(&page->mapping->private_lock);
 
-	num_pages = num_extent_pages(eb);
-	for (i = 0; i < num_pages; i++) {
-		struct page *page = eb->pages[i];
+	if (PagePrivate(page)) {
+		subpage = (struct btrfs_subpage *)page->private;
+		if (atomic_read(&subpage->eb_refs))
+			return true;
+	}
+	return false;
+}
 
-		if (!page)
-			continue;
+static void detach_extent_buffer_page(struct extent_buffer *eb, struct page *page)
+{
+	struct btrfs_fs_info *fs_info = eb->fs_info;
+	const bool mapped = !test_bit(EXTENT_BUFFER_UNMAPPED, &eb->bflags);
+
+	/*
+	 * For mapped eb, we're going to change the page private, which should
+	 * be done under the private_lock.
+	 */
+	if (mapped)
+		spin_lock(&page->mapping->private_lock);
+
+	if (!PagePrivate(page)) {
 		if (mapped)
-			spin_lock(&page->mapping->private_lock);
+			spin_unlock(&page->mapping->private_lock);
+		return;
+	}
+
+	if (fs_info->sectorsize == PAGE_SIZE) {
 		/*
 		 * We do this since we'll remove the pages after we've
 		 * removed the eb from the radix tree, so we could race
@@ -5032,9 +5046,49 @@ static void btrfs_release_extent_buffer_pages(struct extent_buffer *eb)
 			 */
 			detach_page_private(page);
 		}
-
 		if (mapped)
 			spin_unlock(&page->mapping->private_lock);
+		return;
+	}
+
+	/*
+	 * For subpage, we can have dummy eb with page private.  In this case,
+	 * we can directly detach the private as such page is only attached to
+	 * one dummy eb, no sharing.
+	 */
+	if (!mapped) {
+		btrfs_detach_subpage(fs_info, page);
+		return;
+	}
+
+	btrfs_page_dec_eb_refs(fs_info, page);
+
+	/*
+	 * We can only detach the page private if there are no other ebs in the
+	 * page range.
+	 */
+	if (!page_range_has_eb(fs_info, page))
+		btrfs_detach_subpage(fs_info, page);
+
+	spin_unlock(&page->mapping->private_lock);
+}
+
+/* Release all pages attached to the extent buffer */
+static void btrfs_release_extent_buffer_pages(struct extent_buffer *eb)
+{
+	int i;
+	int num_pages;
+
+	ASSERT(!extent_buffer_under_io(eb));
+
+	num_pages = num_extent_pages(eb);
+	for (i = 0; i < num_pages; i++) {
+		struct page *page = eb->pages[i];
+
+		if (!page)
+			continue;
+
+		detach_extent_buffer_page(eb, page);
 
 		/* One for when we allocated the page */
 		put_page(page);
@@ -5394,6 +5448,16 @@ struct extent_buffer *alloc_extent_buffer(struct btrfs_fs_info *fs_info,
 		/* Should not fail, as we have preallocated the memory */
 		ret = attach_extent_buffer_page(eb, p, prealloc);
 		ASSERT(!ret);
+		/*
+		 * To inform we have extra eb under allocation, so that
+		 * detach_extent_buffer_page() won't release the page private
+		 * when the eb hasn't yet been inserted into radix tree.
+		 *
+		 * The ref will be decreased when the eb released the page, in
+		 * detach_extent_buffer_page().
+		 * Thus needs no special handling in error path.
+		 */
+		btrfs_page_inc_eb_refs(fs_info, p);
 		spin_unlock(&mapping->private_lock);
 
 		WARN_ON(PageDirty(p));

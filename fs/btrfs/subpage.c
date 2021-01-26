@@ -52,10 +52,52 @@ int btrfs_alloc_subpage(const struct btrfs_fs_info *fs_info,
 	if (!*ret)
 		return -ENOMEM;
 	spin_lock_init(&(*ret)->lock);
+	if (type == BTRFS_SUBPAGE_METADATA)
+		atomic_set(&(*ret)->eb_refs, 0);
 	return 0;
 }
 
 void btrfs_free_subpage(struct btrfs_subpage *subpage)
 {
 	kfree(subpage);
+}
+
+/*
+ * Increase the eb_refs of current subpage.
+ *
+ * This is important for eb allocation, to prevent race with last eb freeing
+ * of the same page.
+ * With the eb_refs increased before the eb inserted into radix tree,
+ * detach_extent_buffer_page() won't detach the page private while we're still
+ * allocating the extent buffer.
+ */
+void btrfs_page_inc_eb_refs(const struct btrfs_fs_info *fs_info,
+			    struct page *page)
+{
+	struct btrfs_subpage *subpage;
+
+	if (fs_info->sectorsize == PAGE_SIZE)
+		return;
+
+	ASSERT(PagePrivate(page) && page->mapping);
+	lockdep_assert_held(&page->mapping->private_lock);
+
+	subpage = (struct btrfs_subpage *)page->private;
+	atomic_inc(&subpage->eb_refs);
+}
+
+void btrfs_page_dec_eb_refs(const struct btrfs_fs_info *fs_info,
+			    struct page *page)
+{
+	struct btrfs_subpage *subpage;
+
+	if (fs_info->sectorsize == PAGE_SIZE)
+		return;
+
+	ASSERT(PagePrivate(page) && page->mapping);
+	lockdep_assert_held(&page->mapping->private_lock);
+
+	subpage = (struct btrfs_subpage *)page->private;
+	ASSERT(atomic_read(&subpage->eb_refs));
+	atomic_dec(&subpage->eb_refs);
 }
