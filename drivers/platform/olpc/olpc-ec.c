@@ -37,7 +37,6 @@ struct olpc_ec_priv {
 	struct mutex cmd_lock;
 
 	/* DCON regulator */
-	struct regulator_dev *dcon_rdev;
 	bool dcon_enabled;
 
 	/* Pending EC commands */
@@ -405,6 +404,7 @@ static int olpc_ec_probe(struct platform_device *pdev)
 {
 	struct olpc_ec_priv *ec;
 	struct regulator_config config = { };
+	struct regulator_dev *regulator;
 	int err;
 
 	if (!ec_driver)
@@ -432,11 +432,10 @@ static int olpc_ec_probe(struct platform_device *pdev)
 	config.dev = pdev->dev.parent;
 	config.driver_data = ec;
 	ec->dcon_enabled = true;
-	ec->dcon_rdev = devm_regulator_register(&pdev->dev, &dcon_desc,
-								&config);
-	if (IS_ERR(ec->dcon_rdev)) {
+	regulator = devm_regulator_register(&pdev->dev, &dcon_desc, &config);
+	if (IS_ERR(regulator)) {
 		dev_err(&pdev->dev, "failed to register DCON regulator\n");
-		err = PTR_ERR(ec->dcon_rdev);
+		err = PTR_ERR(regulator);
 		goto error;
 	}
 
