@@ -2448,11 +2448,11 @@ nodesc:
  * @sde: sdma engine to use
  * @wait: SE wait structure to use when full (may be NULL)
  * @tx_list: list of sdma_txreqs to submit
- * @count: pointer to a u16 which, after return will contain the total number of
- *         sdma_txreqs removed from the tx_list. This will include sdma_txreqs
- *         whose SDMA descriptors are submitted to the ring and the sdma_txreqs
- *         which are added to SDMA engine flush list if the SDMA engine state is
- *         not running.
+ * @count_out: pointer to a u16 which, after return will contain the total number of
+ *             sdma_txreqs removed from the tx_list. This will include sdma_txreqs
+ *             whose SDMA descriptors are submitted to the ring and the sdma_txreqs
+ *             which are added to SDMA engine flush list if the SDMA engine state is
+ *             not running.
  *
  * The call submits the list into the ring.
  *
