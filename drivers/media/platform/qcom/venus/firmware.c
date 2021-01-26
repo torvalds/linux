@@ -187,6 +187,7 @@ int venus_boot(struct venus_core *core)
 {
 	struct device *dev = core->dev;
 	const struct venus_resources *res = core->res;
+	const char *fwpath = NULL;
 	phys_addr_t mem_phys;
 	size_t mem_size;
 	int ret;
@@ -195,7 +196,12 @@ int venus_boot(struct venus_core *core)
 	    (core->use_tz && !qcom_scm_is_available()))
 		return -EPROBE_DEFER;
 
-	ret = venus_load_fw(core, core->res->fwname, &mem_phys, &mem_size);
+	ret = of_property_read_string_index(dev->of_node, "firmware-name", 0,
+					    &fwpath);
+	if (ret)
+		fwpath = core->res->fwname;
+
+	ret = venus_load_fw(core, fwpath, &mem_phys, &mem_size);
 	if (ret) {
 		dev_err(dev, "fail to load video firmware\n");
 		return -EINVAL;
