@@ -294,7 +294,7 @@ static int kvm_hv_syndbg_complete_userspace(struct kvm_vcpu *vcpu)
 
 static void syndbg_exit(struct kvm_vcpu *vcpu, u32 msr)
 {
-	struct kvm_hv_syndbg *syndbg = vcpu_to_hv_syndbg(vcpu);
+	struct kvm_hv_syndbg *syndbg = to_hv_syndbg(vcpu);
 	struct kvm_vcpu_hv *hv_vcpu = &vcpu->arch.hyperv;
 
 	hv_vcpu->exit.type = KVM_EXIT_HYPERV_SYNDBG;
@@ -311,7 +311,7 @@ static void syndbg_exit(struct kvm_vcpu *vcpu, u32 msr)
 
 static int syndbg_set_msr(struct kvm_vcpu *vcpu, u32 msr, u64 data, bool host)
 {
-	struct kvm_hv_syndbg *syndbg = vcpu_to_hv_syndbg(vcpu);
+	struct kvm_hv_syndbg *syndbg = to_hv_syndbg(vcpu);
 
 	if (!kvm_hv_is_syndbg_enabled(vcpu) && !host)
 		return 1;
@@ -350,7 +350,7 @@ static int syndbg_set_msr(struct kvm_vcpu *vcpu, u32 msr, u64 data, bool host)
 
 static int syndbg_get_msr(struct kvm_vcpu *vcpu, u32 msr, u64 *pdata, bool host)
 {
-	struct kvm_hv_syndbg *syndbg = vcpu_to_hv_syndbg(vcpu);
+	struct kvm_hv_syndbg *syndbg = to_hv_syndbg(vcpu);
 
 	if (!kvm_hv_is_syndbg_enabled(vcpu) && !host)
 		return 1;
@@ -1873,7 +1873,7 @@ int kvm_hv_hypercall(struct kvm_vcpu *vcpu)
 		}
 		fallthrough;
 	case HVCALL_RESET_DEBUG_SESSION: {
-		struct kvm_hv_syndbg *syndbg = vcpu_to_hv_syndbg(vcpu);
+		struct kvm_hv_syndbg *syndbg = to_hv_syndbg(vcpu);
 
 		if (!kvm_hv_is_syndbg_enabled(vcpu)) {
 			ret = HV_STATUS_INVALID_HYPERCALL_CODE;
