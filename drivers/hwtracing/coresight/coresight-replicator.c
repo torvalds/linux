@@ -388,9 +388,9 @@ static int dynamic_replicator_probe(struct amba_device *adev,
 	return replicator_probe(&adev->dev, &adev->res);
 }
 
-static int dynamic_replicator_remove(struct amba_device *adev)
+static void dynamic_replicator_remove(struct amba_device *adev)
 {
-	return replicator_remove(&adev->dev);
+	replicator_remove(&adev->dev);
 }
 
 static const struct amba_id dynamic_replicator_ids[] = {

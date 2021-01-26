@@ -2679,13 +2679,12 @@ static int pl011_probe(struct amba_device *dev, const struct amba_id *id)
 	return pl011_register_port(uap);
 }
 
-static int pl011_remove(struct amba_device *dev)
+static void pl011_remove(struct amba_device *dev)
 {
 	struct uart_amba_port *uap = amba_get_drvdata(dev);
 
 	uart_remove_one_port(&amba_reg, &uap->port);
 	pl011_unregister_port(uap);
-	return 0;
 }
 
 #ifdef CONFIG_PM_SLEEP
