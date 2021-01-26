@@ -1907,7 +1907,7 @@ int rvt_post_recv(struct ib_qp *ibqp, const struct ib_recv_wr *wr,
 /**
  * rvt_qp_valid_operation - validate post send wr request
  * @qp: the qp
- * @post_parms_ the post send table for the driver
+ * @post_parms: the post send table for the driver
  * @wr: the work request
  *
  * The routine validates the operation based on the
