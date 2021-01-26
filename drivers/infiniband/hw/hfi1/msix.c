@@ -103,8 +103,8 @@ int msix_initialize(struct hfi1_devdata *dd)
  * @arg: context information for the IRQ
  * @handler: IRQ handler
  * @thread: IRQ thread handler (could be NULL)
- * @idx: zero base idx if multiple devices are needed
  * @type: affinty IRQ type
+ * @name: IRQ name
  *
  * Allocated an MSIx vector if available, and then create the appropriate
  * meta data needed to keep track of the pci IRQ request.
