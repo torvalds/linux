@@ -37,6 +37,7 @@
 
 #include "core.h"
 #include "card.h"
+#include "crypto.h"
 #include "bus.h"
 #include "host.h"
 #include "sdio_bus.h"
@@ -992,6 +993,8 @@ void mmc_set_initial_state(struct mmc_host *host)
 		host->ops->hs400_enhanced_strobe(host, &host->ios);
 
 	mmc_set_ios(host);
+
+	mmc_crypto_set_initial_state(host);
 }
 
 /**
