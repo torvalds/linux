@@ -27,8 +27,6 @@ struct rockchip_p3phy_priv {
 	int mode;
 	struct regmap *phy_grf;
 	struct reset_control *p30phy;
-	struct reset_control *p30x1;
-	struct reset_control *p30x2;
 	struct clk *ref_clk_m;
 	struct clk *ref_clk_n;
 	struct clk *pclk;
@@ -91,12 +89,6 @@ static int rochchip_p3phy_init(struct phy *phy)
 	}
 
 	reset_control_deassert(priv->p30phy);
-	udelay(1);
-	reset_control_assert(priv->p30x1);
-	reset_control_assert(priv->p30x2);
-	udelay(1);
-	reset_control_deassert(priv->p30x1);
-	reset_control_deassert(priv->p30x2);
 
 	return 0;
 err_pclk:
@@ -112,8 +104,6 @@ static int rochchip_p3phy_exit(struct phy *phy)
 	clk_disable_unprepare(priv->ref_clk_m);
 	clk_disable_unprepare(priv->ref_clk_n);
 	clk_disable_unprepare(priv->pclk);
-	reset_control_assert(priv->p30x1);
-	reset_control_assert(priv->p30x2);
 	reset_control_assert(priv->p30phy);
 	return 0;
 }
@@ -161,18 +151,6 @@ static int rockchip_p3phy_probe(struct platform_device *pdev)
 	if (IS_ERR(priv->p30phy)) {
 		dev_warn(dev, "no phy reset control specified\n");
 		priv->p30phy = NULL;
-	}
-
-	priv->p30x1 = devm_reset_control_get(dev, "p30x1");
-	if (IS_ERR(priv->p30x1)) {
-		dev_warn(dev, "no p30x1 reset control specified\n");
-		priv->p30x1 = NULL;
-	}
-
-	priv->p30x2 = devm_reset_control_get(dev, "p30x2");
-	if (IS_ERR(priv->p30x2)) {
-		dev_warn(dev, "no p30x2 reset control specified\n");
-		priv->p30x2 = NULL;
 	}
 
 	priv->ref_clk_m = devm_clk_get(dev, "refclk_m");
