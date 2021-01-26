@@ -529,7 +529,7 @@ void ipa_cmd_dma_shared_mem_add(struct gsi_trans *trans, u32 offset, u16 size,
 			  direction, opcode);
 }
 
-static void ipa_cmd_ip_tag_status_add(struct gsi_trans *trans, u64 tag)
+static void ipa_cmd_ip_tag_status_add(struct gsi_trans *trans)
 {
 	struct ipa *ipa = container_of(trans->gsi, struct ipa, gsi);
 	enum ipa_cmd_opcode opcode = IPA_CMD_IP_PACKET_TAG_STATUS;
@@ -543,7 +543,7 @@ static void ipa_cmd_ip_tag_status_add(struct gsi_trans *trans, u64 tag)
 	cmd_payload = ipa_cmd_payload_alloc(ipa, &payload_addr);
 	payload = &cmd_payload->ip_packet_tag_status;
 
-	payload->tag = u64_encode_bits(tag, IP_PACKET_TAG_STATUS_TAG_FMASK);
+	payload->tag = le64_encode_bits(0, IP_PACKET_TAG_STATUS_TAG_FMASK);
 
 	gsi_trans_cmd_add(trans, payload, sizeof(*payload), payload_addr,
 			  direction, opcode);
@@ -583,13 +583,13 @@ void ipa_cmd_pipeline_clear_add(struct gsi_trans *trans)
 	 * command says to send the next packet directly to the exception
 	 * endpoint without any other IPA processing.  The tag_status
 	 * command requests that status be generated on completion of
-	 * that transfer, and that it will contain the given tag value.
+	 * that transfer, and that it will be tagged with a value.
 	 * Finally, the transfer command sends a small packet of data
 	 * (instead of a command) using the command endpoint.
 	 */
 	endpoint = ipa->name_map[IPA_ENDPOINT_AP_LAN_RX];
 	ipa_cmd_ip_packet_init_add(trans, endpoint->endpoint_id);
-	ipa_cmd_ip_tag_status_add(trans, 0xcba987654321);
+	ipa_cmd_ip_tag_status_add(trans);
 	ipa_cmd_transfer_add(trans, 4);
 }
 
