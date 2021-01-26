@@ -254,7 +254,8 @@ static int altera_spi_probe(struct platform_device *pdev)
 			dev_err(&pdev->dev,
 				"Invalid number of chipselect: %hu\n",
 				pdata->num_chipselect);
-			return -EINVAL;
+			err = -EINVAL;
+			goto exit;
 		}
 
 		master->num_chipselect = pdata->num_chipselect;
