@@ -57,7 +57,7 @@
  * @in_wc: the work completion entry for this packet
  * @in_grh: the global route header for this packet
  * @in: the incoming MAD
- * @out_mad_size: size of the incoming MAD reply
+ * @in_mad_size: size of the incoming MAD reply
  * @out: any outgoing MAD reply
  * @out_mad_size: size of the outgoing MAD reply
  * @out_mad_pkey_index: unused
