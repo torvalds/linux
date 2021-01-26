@@ -1941,6 +1941,10 @@ int ceph_pool_perm_check(struct inode *inode, int need)
 	s64 pool;
 	int ret, flags;
 
+	/* Only need to do this for regular files */
+	if (!S_ISREG(inode->i_mode))
+		return 0;
+
 	if (ci->i_vino.snap != CEPH_NOSNAP) {
 		/*
 		 * Pool permission check needs to write to the first object.
