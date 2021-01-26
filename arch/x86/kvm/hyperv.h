@@ -97,13 +97,13 @@ bool kvm_hv_assist_page_enabled(struct kvm_vcpu *vcpu);
 bool kvm_hv_get_assist_page(struct kvm_vcpu *vcpu,
 			    struct hv_vp_assist_page *assist_page);
 
-static inline struct kvm_vcpu_hv_stimer *vcpu_to_stimer(struct kvm_vcpu *vcpu,
-							int timer_index)
+static inline struct kvm_vcpu_hv_stimer *to_hv_stimer(struct kvm_vcpu *vcpu,
+						      int timer_index)
 {
 	return &to_hv_vcpu(vcpu)->stimer[timer_index];
 }
 
-static inline struct kvm_vcpu *stimer_to_vcpu(struct kvm_vcpu_hv_stimer *stimer)
+static inline struct kvm_vcpu *hv_stimer_to_vcpu(struct kvm_vcpu_hv_stimer *stimer)
 {
 	struct kvm_vcpu_hv *hv_vcpu;
 
