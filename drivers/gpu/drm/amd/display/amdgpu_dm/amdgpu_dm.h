@@ -336,32 +336,6 @@ struct amdgpu_display_manager {
 	 */
 	const struct gpu_info_soc_bounding_box_v1_0 *soc_bounding_box;
 
-#ifdef CONFIG_DEBUG_FS
-	/**
-	 * @crc_win_x_start_property:
-	 *
-	 * X start of the crc calculation window
-	 */
-	struct drm_property *crc_win_x_start_property;
-	/**
-	 * @crc_win_y_start_property:
-	 *
-	 * Y start of the crc calculation window
-	 */
-	struct drm_property *crc_win_y_start_property;
-	/**
-	 * @crc_win_x_end_property:
-	 *
-	 * X end of the crc calculation window
-	 */
-	struct drm_property *crc_win_x_end_property;
-	/**
-	 * @crc_win_y_end_property:
-	 *
-	 * Y end of the crc calculation window
-	 */
-	struct drm_property *crc_win_y_end_property;
-#endif
 	/**
 	 * @mst_encoders:
 	 *
@@ -448,15 +422,6 @@ struct dm_plane_state {
 	struct dc_plane_state *dc_state;
 };
 
-#ifdef CONFIG_DEBUG_FS
-struct crc_rec {
-	uint16_t x_start;
-	uint16_t y_start;
-	uint16_t x_end;
-	uint16_t y_end;
-	};
-#endif
-
 struct dm_crtc_state {
 	struct drm_crtc_state base;
 	struct dc_stream_state *stream;
@@ -479,9 +444,6 @@ struct dm_crtc_state {
 	struct dc_info_packet vrr_infopacket;
 
 	int abm_level;
-#ifdef CONFIG_DEBUG_FS
-	struct crc_rec crc_window;
-#endif
 };
 
 #define to_dm_crtc_state(x) container_of(x, struct dm_crtc_state, base)

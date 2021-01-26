@@ -3854,6 +3854,9 @@ static int irq_remapping_select(struct irq_domain *d, struct irq_fwspec *fwspec,
 	struct amd_iommu *iommu;
 	int devid = -1;
 
+	if (!amd_iommu_irq_remap)
+		return 0;
+
 	if (x86_fwspec_is_ioapic(fwspec))
 		devid = get_ioapic_devid(fwspec->param[0]);
 	else if (x86_fwspec_is_hpet(fwspec))

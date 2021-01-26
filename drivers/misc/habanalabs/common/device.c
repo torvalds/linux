@@ -17,12 +17,12 @@ enum hl_device_status hl_device_status(struct hl_device *hdev)
 {
 	enum hl_device_status status;
 
-	if (hdev->disabled)
-		status = HL_DEVICE_STATUS_MALFUNCTION;
-	else if (atomic_read(&hdev->in_reset))
+	if (atomic_read(&hdev->in_reset))
 		status = HL_DEVICE_STATUS_IN_RESET;
 	else if (hdev->needs_reset)
 		status = HL_DEVICE_STATUS_NEEDS_RESET;
+	else if (hdev->disabled)
+		status = HL_DEVICE_STATUS_MALFUNCTION;
 	else
 		status = HL_DEVICE_STATUS_OPERATIONAL;
 
@@ -1092,6 +1092,7 @@ kill_processes:
 						GFP_KERNEL);
 		if (!hdev->kernel_ctx) {
 			rc = -ENOMEM;
+			hl_mmu_fini(hdev);
 			goto out_err;
 		}
 
@@ -1103,6 +1104,7 @@ kill_processes:
 				"failed to init kernel ctx in hard reset\n");
 			kfree(hdev->kernel_ctx);
 			hdev->kernel_ctx = NULL;
+			hl_mmu_fini(hdev);
 			goto out_err;
 		}
 	}

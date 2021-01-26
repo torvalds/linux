@@ -604,13 +604,13 @@ void ext4_fc_track_range(handle_t *handle, struct inode *inode, ext4_lblk_t star
 	trace_ext4_fc_track_range(inode, start, end, ret);
 }
 
-static void ext4_fc_submit_bh(struct super_block *sb)
+static void ext4_fc_submit_bh(struct super_block *sb, bool is_tail)
 {
 	int write_flags = REQ_SYNC;
 	struct buffer_head *bh = EXT4_SB(sb)->s_fc_bh;
 
-	/* TODO: REQ_FUA | REQ_PREFLUSH is unnecessarily expensive. */
-	if (test_opt(sb, BARRIER))
+	/* Add REQ_FUA | REQ_PREFLUSH only its tail */
+	if (test_opt(sb, BARRIER) && is_tail)
 		write_flags |= REQ_FUA | REQ_PREFLUSH;
 	lock_buffer(bh);
 	set_buffer_dirty(bh);
@@ -684,7 +684,7 @@ static u8 *ext4_fc_reserve_space(struct super_block *sb, int len, u32 *crc)
 		*crc = ext4_chksum(sbi, *crc, tl, sizeof(*tl));
 	if (pad_len > 0)
 		ext4_fc_memzero(sb, tl + 1, pad_len, crc);
-	ext4_fc_submit_bh(sb);
+	ext4_fc_submit_bh(sb, false);
 
 	ret = jbd2_fc_get_buf(EXT4_SB(sb)->s_journal, &bh);
 	if (ret)
@@ -741,7 +741,7 @@ static int ext4_fc_write_tail(struct super_block *sb, u32 crc)
 	tail.fc_crc = cpu_to_le32(crc);
 	ext4_fc_memcpy(sb, dst, &tail.fc_crc, sizeof(tail.fc_crc), NULL);
 
-	ext4_fc_submit_bh(sb);
+	ext4_fc_submit_bh(sb, true);
 
 	return 0;
 }
@@ -1268,7 +1268,7 @@ static void ext4_fc_cleanup(journal_t *journal, int full)
 	list_splice_init(&sbi->s_fc_dentry_q[FC_Q_STAGING],
 				&sbi->s_fc_dentry_q[FC_Q_MAIN]);
 	list_splice_init(&sbi->s_fc_q[FC_Q_STAGING],
-				&sbi->s_fc_q[FC_Q_STAGING]);
+				&sbi->s_fc_q[FC_Q_MAIN]);
 
 	ext4_clear_mount_flag(sb, EXT4_MF_FC_COMMITTING);
 	ext4_clear_mount_flag(sb, EXT4_MF_FC_INELIGIBLE);
@@ -1318,14 +1318,14 @@ static int ext4_fc_replay_unlink(struct super_block *sb, struct ext4_fc_tl *tl)
 	entry.len = darg.dname_len;
 	inode = ext4_iget(sb, darg.ino, EXT4_IGET_NORMAL);
 
-	if (IS_ERR_OR_NULL(inode)) {
+	if (IS_ERR(inode)) {
 		jbd_debug(1, "Inode %d not found", darg.ino);
 		return 0;
 	}
 
 	old_parent = ext4_iget(sb, darg.parent_ino,
 				EXT4_IGET_NORMAL);
-	if (IS_ERR_OR_NULL(old_parent)) {
+	if (IS_ERR(old_parent)) {
 		jbd_debug(1, "Dir with inode  %d not found", darg.parent_ino);
 		iput(inode);
 		return 0;
@@ -1410,7 +1410,7 @@ static int ext4_fc_replay_link(struct super_block *sb, struct ext4_fc_tl *tl)
 			darg.parent_ino, darg.dname_len);
 
 	inode = ext4_iget(sb, darg.ino, EXT4_IGET_NORMAL);
-	if (IS_ERR_OR_NULL(inode)) {
+	if (IS_ERR(inode)) {
 		jbd_debug(1, "Inode not found.");
 		return 0;
 	}
@@ -1466,10 +1466,11 @@ static int ext4_fc_replay_inode(struct super_block *sb, struct ext4_fc_tl *tl)
 	trace_ext4_fc_replay(sb, tag, ino, 0, 0);
 
 	inode = ext4_iget(sb, ino, EXT4_IGET_NORMAL);
-	if (!IS_ERR_OR_NULL(inode)) {
+	if (!IS_ERR(inode)) {
 		ext4_ext_clear_bb(inode);
 		iput(inode);
 	}
+	inode = NULL;
 
 	ext4_fc_record_modified_inode(sb, ino);
 
@@ -1512,7 +1513,7 @@ static int ext4_fc_replay_inode(struct super_block *sb, struct ext4_fc_tl *tl)
 
 	/* Given that we just wrote the inode on disk, this SHOULD succeed. */
 	inode = ext4_iget(sb, ino, EXT4_IGET_NORMAL);
-	if (IS_ERR_OR_NULL(inode)) {
+	if (IS_ERR(inode)) {
 		jbd_debug(1, "Inode not found.");
 		return -EFSCORRUPTED;
 	}
@@ -1564,7 +1565,7 @@ static int ext4_fc_replay_create(struct super_block *sb, struct ext4_fc_tl *tl)
 		goto out;
 
 	inode = ext4_iget(sb, darg.ino, EXT4_IGET_NORMAL);
-	if (IS_ERR_OR_NULL(inode)) {
+	if (IS_ERR(inode)) {
 		jbd_debug(1, "inode %d not found.", darg.ino);
 		inode = NULL;
 		ret = -EINVAL;
@@ -1577,7 +1578,7 @@ static int ext4_fc_replay_create(struct super_block *sb, struct ext4_fc_tl *tl)
 		 * dot and dot dot dirents are setup properly.
 		 */
 		dir = ext4_iget(sb, darg.parent_ino, EXT4_IGET_NORMAL);
-		if (IS_ERR_OR_NULL(dir)) {
+		if (IS_ERR(dir)) {
 			jbd_debug(1, "Dir %d not found.", darg.ino);
 			goto out;
 		}
@@ -1653,7 +1654,7 @@ static int ext4_fc_replay_add_range(struct super_block *sb,
 
 	inode = ext4_iget(sb, le32_to_cpu(fc_add_ex->fc_ino),
 				EXT4_IGET_NORMAL);
-	if (IS_ERR_OR_NULL(inode)) {
+	if (IS_ERR(inode)) {
 		jbd_debug(1, "Inode not found.");
 		return 0;
 	}
@@ -1777,7 +1778,7 @@ ext4_fc_replay_del_range(struct super_block *sb, struct ext4_fc_tl *tl)
 		le32_to_cpu(lrange->fc_ino), cur, remaining);
 
 	inode = ext4_iget(sb, le32_to_cpu(lrange->fc_ino), EXT4_IGET_NORMAL);
-	if (IS_ERR_OR_NULL(inode)) {
+	if (IS_ERR(inode)) {
 		jbd_debug(1, "Inode %d not found", le32_to_cpu(lrange->fc_ino));
 		return 0;
 	}
@@ -1832,7 +1833,7 @@ static void ext4_fc_set_bitmaps_and_counters(struct super_block *sb)
 	for (i = 0; i < state->fc_modified_inodes_used; i++) {
 		inode = ext4_iget(sb, state->fc_modified_inodes[i],
 			EXT4_IGET_NORMAL);
-		if (IS_ERR_OR_NULL(inode)) {
+		if (IS_ERR(inode)) {
 			jbd_debug(1, "Inode %d not found.",
 				state->fc_modified_inodes[i]);
 			continue;
@@ -1849,7 +1850,7 @@ static void ext4_fc_set_bitmaps_and_counters(struct super_block *sb)
 
 			if (ret > 0) {
 				path = ext4_find_extent(inode, map.m_lblk, NULL, 0);
-				if (!IS_ERR_OR_NULL(path)) {
+				if (!IS_ERR(path)) {
 					for (j = 0; j < path->p_depth; j++)
 						ext4_mb_mark_bb(inode->i_sb,
 							path[j].p_block, 1, 1);
