@@ -78,6 +78,42 @@ void guest_code(struct vmx_pages *vmx_pages)
 	GUEST_ASSERT(vmlaunch());
 }
 
+struct kvm_cpuid2 *guest_get_cpuid(void)
+{
+	static struct kvm_cpuid2 *cpuid_full;
+	struct kvm_cpuid2 *cpuid_sys, *cpuid_hv;
+	int i, nent = 0;
+
+	if (cpuid_full)
+		return cpuid_full;
+
+	cpuid_sys = kvm_get_supported_cpuid();
+	cpuid_hv = kvm_get_supported_hv_cpuid();
+
+	cpuid_full = malloc(sizeof(*cpuid_full) +
+			    (cpuid_sys->nent + cpuid_hv->nent) *
+			    sizeof(struct kvm_cpuid_entry2));
+	if (!cpuid_full) {
+		perror("malloc");
+		abort();
+	}
+
+	/* Need to skip KVM CPUID leaves 0x400000xx */
+	for (i = 0; i < cpuid_sys->nent; i++) {
+		if (cpuid_sys->entries[i].function >= 0x40000000 &&
+		    cpuid_sys->entries[i].function < 0x40000100)
+			continue;
+		cpuid_full->entries[nent] = cpuid_sys->entries[i];
+		nent++;
+	}
+
+	memcpy(&cpuid_full->entries[nent], cpuid_hv->entries,
+	       cpuid_hv->nent * sizeof(struct kvm_cpuid_entry2));
+	cpuid_full->nent = nent + cpuid_hv->nent;
+
+	return cpuid_full;
+}
+
 int main(int argc, char *argv[])
 {
 	vm_vaddr_t vmx_pages_gva = 0;
@@ -99,6 +135,7 @@ int main(int argc, char *argv[])
 		exit(KSFT_SKIP);
 	}
 
+	vcpu_set_cpuid(vm, VCPU_ID, guest_get_cpuid());
 	vcpu_enable_evmcs(vm, VCPU_ID);
 
 	run = vcpu_state(vm, VCPU_ID);
@@ -142,7 +179,7 @@ int main(int argc, char *argv[])
 		/* Restore state in a new VM.  */
 		kvm_vm_restart(vm, O_RDWR);
 		vm_vcpu_add(vm, VCPU_ID);
-		vcpu_set_cpuid(vm, VCPU_ID, kvm_get_supported_cpuid());
+		vcpu_set_cpuid(vm, VCPU_ID, guest_get_cpuid());
 		vcpu_enable_evmcs(vm, VCPU_ID);
 		vcpu_load_state(vm, VCPU_ID, state);
 		run = vcpu_state(vm, VCPU_ID);
