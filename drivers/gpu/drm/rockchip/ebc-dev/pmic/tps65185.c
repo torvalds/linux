@@ -130,6 +130,7 @@ struct papyrus_hw_state {
 	uint8_t int_status2;
 	uint8_t pg_status;
 };
+static bool papyrus_need_reconfig = true;
 
 static int papyrus_hw_setreg(struct papyrus_sess *sess, uint8_t regaddr, uint8_t val)
 {
@@ -239,8 +240,6 @@ static void papyrus_hw_send_powerup(struct papyrus_sess *sess)
 {
 	int stat = 0;
 
-	mutex_lock(&sess->power_lock);
-
 	stat |= papyrus_hw_setreg(sess, PAPYRUS_ADDR_VADJ, sess->vadj);
 
 	stat |= papyrus_hw_setreg(sess, PAPYRUS_ADDR_UPSEQ0, sess->upseq0);
@@ -259,6 +258,8 @@ static void papyrus_hw_send_powerup(struct papyrus_sess *sess)
 	stat |= papyrus_hw_setreg(sess, PAPYRUS_ADDR_ENABLE, sess->enable_reg_shadow);
 	if (stat)
 		dev_err(&sess->client->dev, "i2c error: %d\n", stat);
+	if (!IS_ERR_OR_NULL(sess->pwr_up_pin))
+		gpiod_direction_output(sess->pwr_up_pin, 1);
 
 	return;
 }
@@ -276,7 +277,6 @@ static void papyrus_hw_send_powerdown(struct papyrus_sess *sess)
 	if (stat)
 		dev_err(&sess->client->dev, "i2c error: %d\n", stat);
 
-	mutex_unlock(&sess->power_lock);
 
 	return;
 }
@@ -387,16 +387,32 @@ static void papyrus_hw_power_req(struct ebc_pmic *pmic, bool up)
 {
 	struct papyrus_sess *sess = (struct papyrus_sess *)pmic->drvpar;
 
-	if (up) {
-		papyrus_hw_send_powerup(sess);
-		papyrus_hw_power_ack(sess, up);
-		enable_irq(sess->irq);
+	if (up)
+		mutex_lock(&sess->power_lock);
+	if (papyrus_need_reconfig) {
+		if (up) {
+			papyrus_hw_send_powerup(sess);
+			papyrus_hw_power_ack(sess, up);
+			enable_irq(sess->irq);
+		} else {
+			disable_irq(sess->irq);
+			papyrus_hw_send_powerdown(sess);
+			papyrus_hw_power_ack(sess, up);
+		}
+		papyrus_need_reconfig = false;
 	} else {
-		disable_irq(sess->irq);
-		papyrus_hw_send_powerdown(sess);
-		papyrus_hw_power_ack(sess, up);
+		if (up) {
+			if (!IS_ERR_OR_NULL(sess->pwr_up_pin))
+				gpiod_direction_output(sess->pwr_up_pin, 1);
+			enable_irq(sess->irq);
+		} else {
+			disable_irq(sess->irq);
+			if (!IS_ERR_OR_NULL(sess->pwr_up_pin))
+				gpiod_direction_output(sess->pwr_up_pin, 0);
+		}
 	}
-
+	if (!up)
+		mutex_unlock(&sess->power_lock);
 	return;
 }
 
@@ -461,23 +477,29 @@ static int papyrus_hw_vcom_set(struct ebc_pmic *pmic, int vcom_mv)
 static void papyrus_pm_sleep(struct ebc_pmic *pmic)
 {
 	struct papyrus_sess *s = (struct papyrus_sess *)pmic->drvpar;
+	mutex_lock(&s->power_lock);
 
 	gpiod_direction_output(s->vcom_ctl_pin, 0);
 	gpiod_direction_output(s->wake_up_pin, 0);
 	if (!IS_ERR_OR_NULL(s->pwr_en_pin))
 		gpiod_direction_output(s->pwr_en_pin, 0);
+	papyrus_need_reconfig = true;
+	mutex_unlock(&s->power_lock);
 }
 
 static void papyrus_pm_resume(struct ebc_pmic *pmic)
 {
 	struct papyrus_sess *s = (struct papyrus_sess *)pmic->drvpar;
 
+	mutex_lock(&s->power_lock);
 	if (!IS_ERR_OR_NULL(s->pwr_en_pin)) {
 		gpiod_direction_output(s->pwr_en_pin, 1);
 		usleep_range(10 * 1000, 11 * 1000);
 	}
 	gpiod_direction_output(s->wake_up_pin, 1);
 	gpiod_direction_output(s->vcom_ctl_pin, 1);
+	mutex_unlock(&s->power_lock);
+
 }
 
 static int papyrus_probe(struct ebc_pmic *pmic, struct i2c_client *client)
