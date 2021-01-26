@@ -196,7 +196,8 @@ static void ddc_service_construct(
 	ddc_service->link = init_data->link;
 	ddc_service->ctx = init_data->ctx;
 
-	if (BP_RESULT_OK != dcb->funcs->get_i2c_info(dcb, init_data->id, &i2c_info)) {
+	if (init_data->is_dpia_link ||
+	    dcb->funcs->get_i2c_info(dcb, init_data->id, &i2c_info) != BP_RESULT_OK) {
 		ddc_service->ddc_pin = NULL;
 	} else {
 		DC_LOGGER_INIT(ddc_service->ctx->logger);

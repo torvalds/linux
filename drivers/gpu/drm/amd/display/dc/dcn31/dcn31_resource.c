@@ -2427,6 +2427,12 @@ static bool dcn31_resource_construct(
 		pool->base.sw_i2cs[i] = NULL;
 	}
 
+	if (dc->ctx->asic_id.chip_family == FAMILY_YELLOW_CARP &&
+	    dc->ctx->asic_id.hw_internal_rev == YELLOW_CARP_B0) {
+		/* YELLOW CARP B0 has 4 DPIA's */
+		pool->base.usb4_dpia_count = 4;
+	}
+
 	/* Audio, Stream Encoders including HPO and virtual, MPC 3D LUTs */
 	if (!resource_construct(num_virtual_links, dc, &pool->base,
 			(!IS_FPGA_MAXIMUS_DC(dc->ctx->dce_environment) ?

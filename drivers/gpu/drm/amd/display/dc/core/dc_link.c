@@ -1425,8 +1425,8 @@ static enum transmitter translate_encoder_to_transmitter(struct graphics_object_
 	}
 }
 
-static bool dc_link_construct(struct dc_link *link,
-			      const struct link_init_data *init_params)
+static bool dc_link_construct_legacy(struct dc_link *link,
+				     const struct link_init_data *init_params)
 {
 	uint8_t i;
 	struct ddc_service_init_data ddc_service_init_data = { { 0 } };
@@ -1701,6 +1701,73 @@ create_fail:
 	return false;
 }
 
+static bool dc_link_construct_dpia(struct dc_link *link,
+				   const struct link_init_data *init_params)
+{
+	struct ddc_service_init_data ddc_service_init_data = { { 0 } };
+	struct dc_context *dc_ctx = init_params->ctx;
+
+	DC_LOGGER_INIT(dc_ctx->logger);
+
+	/* Initialized dummy hpd and hpd rx */
+	link->irq_source_hpd = DC_IRQ_SOURCE_USB4_DMUB_HPD;
+	link->irq_source_hpd_rx = DC_IRQ_SOURCE_USB4_DMUB_HPDRX;
+	link->link_status.dpcd_caps = &link->dpcd_caps;
+
+	link->dc = init_params->dc;
+	link->ctx = dc_ctx;
+	link->link_index = init_params->link_index;
+
+	memset(&link->preferred_training_settings, 0,
+	       sizeof(struct dc_link_training_overrides));
+	memset(&link->preferred_link_setting, 0,
+	       sizeof(struct dc_link_settings));
+
+	/* Dummy Init for linkid */
+	link->link_id.type = OBJECT_TYPE_CONNECTOR;
+	link->link_id.id = CONNECTOR_ID_DISPLAY_PORT;
+	link->is_internal_display = false;
+	link->connector_signal = SIGNAL_TYPE_DISPLAY_PORT;
+	LINK_INFO("Connector[%d] description:signal %d\n",
+		  init_params->connector_index,
+		  link->connector_signal);
+
+	/* TODO: Initialize link : funcs->link_init */
+
+	ddc_service_init_data.ctx = link->ctx;
+	ddc_service_init_data.id = link->link_id;
+	ddc_service_init_data.link = link;
+	/* Set indicator for dpia link so that ddc won't be created */
+	ddc_service_init_data.is_dpia_link = true;
+
+	link->ddc = dal_ddc_service_create(&ddc_service_init_data);
+	if (!link->ddc) {
+		DC_ERROR("Failed to create ddc_service!\n");
+		goto ddc_create_fail;
+	}
+
+	/* Set dpia port index : 0 to number of dpia ports */
+	link->ddc_hw_inst = init_params->connector_index;
+
+	/* TODO: Create link encoder */
+
+	link->psr_settings.psr_version = DC_PSR_VERSION_UNSUPPORTED;
+
+	return true;
+
+ddc_create_fail:
+	return false;
+}
+
+static bool dc_link_construct(struct dc_link *link,
+			      const struct link_init_data *init_params)
+{
+	/* Handle dpia case */
+	if (init_params->is_dpia_link)
+		return dc_link_construct_dpia(link, init_params);
+	else
+		return dc_link_construct_legacy(link, init_params);
+}
 /*******************************************************************************
  * Public functions
  ******************************************************************************/

@@ -62,6 +62,7 @@ struct link_init_data {
 	uint32_t connector_index; /* this will be mapped to the HPD pins */
 	uint32_t link_index; /* this is mapped to DAL display_index
 				TODO: remove it when DC is complete. */
+	bool is_dpia_link;
 };
 
 struct dc_link *link_create(const struct link_init_data *init_params);
