@@ -32,4 +32,6 @@ struct mlx5e_trap {
 void mlx5e_close_trap(struct mlx5e_trap *trap);
 void mlx5e_deactivate_trap(struct mlx5e_priv *priv);
 int mlx5e_handle_trap_event(struct mlx5e_priv *priv, struct mlx5_trap_ctx *trap_ctx);
+int mlx5e_apply_traps(struct mlx5e_priv *priv, bool enable);
+
 #endif

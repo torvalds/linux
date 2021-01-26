@@ -308,6 +308,22 @@ int mlx5_devlink_trap_get_num_active(struct mlx5_core_dev *dev)
 	return count;
 }
 
+int mlx5_devlink_traps_get_action(struct mlx5_core_dev *dev, int trap_id,
+				  enum devlink_trap_action *action)
+{
+	struct mlx5_devlink_trap *dl_trap;
+
+	dl_trap = mlx5_find_trap_by_id(dev, trap_id);
+	if (!dl_trap) {
+		mlx5_core_err(dev, "Devlink trap: Get action on invalid trap id 0x%x",
+			      trap_id);
+		return -EINVAL;
+	}
+
+	*action = dl_trap->trap.action;
+	return 0;
+}
+
 struct devlink *mlx5_devlink_alloc(void)
 {
 	return devlink_alloc(&mlx5_devlink_ops, sizeof(struct mlx5_core_dev));

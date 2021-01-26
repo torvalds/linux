@@ -401,6 +401,14 @@ int mlx5e_handle_trap_event(struct mlx5e_priv *priv, struct mlx5_trap_ctx *trap_
 {
 	int err = 0;
 
+	/* Traps are unarmed when interface is down, no need to update
+	 * them. The configuration is saved in the core driver,
+	 * queried and applied upon interface up operation in
+	 * mlx5e_open_locked().
+	 */
+	if (!test_bit(MLX5E_STATE_OPENED, &priv->state))
+		return 0;
+
 	switch (trap_ctx->action) {
 	case DEVLINK_TRAP_ACTION_TRAP:
 		err = mlx5e_handle_action_trap(priv, trap_ctx->id);
@@ -414,4 +422,36 @@ int mlx5e_handle_trap_event(struct mlx5e_priv *priv, struct mlx5_trap_ctx *trap_
 		err = -EINVAL;
 	}
 	return err;
+}
+
+static int mlx5e_apply_trap(struct mlx5e_priv *priv, int trap_id, bool enable)
+{
+	enum devlink_trap_action action;
+	int err;
+
+	err = mlx5_devlink_traps_get_action(priv->mdev, trap_id, &action);
+	if (err)
+		return err;
+	if (action == DEVLINK_TRAP_ACTION_TRAP)
+		err = enable ? mlx5e_handle_action_trap(priv, trap_id) :
+			       mlx5e_handle_action_drop(priv, trap_id);
+	return err;
+}
+
+static const int mlx5e_traps_arr[] = {
+	DEVLINK_TRAP_GENERIC_ID_INGRESS_VLAN_FILTER,
+	DEVLINK_TRAP_GENERIC_ID_DMAC_FILTER,
+};
+
+int mlx5e_apply_traps(struct mlx5e_priv *priv, bool enable)
+{
+	int err;
+	int i;
+
+	for (i = 0; i < ARRAY_SIZE(mlx5e_traps_arr); i++) {
+		err = mlx5e_apply_trap(priv, mlx5e_traps_arr[i], enable);
+		if (err)
+			return err;
+	}
+	return 0;
 }
