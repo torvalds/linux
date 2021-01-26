@@ -168,6 +168,56 @@ static int mlx5_devlink_reload_up(struct devlink *devlink, enum devlink_reload_a
 	return 0;
 }
 
+static struct mlx5_devlink_trap *mlx5_find_trap_by_id(struct mlx5_core_dev *dev, int trap_id)
+{
+	struct mlx5_devlink_trap *dl_trap;
+
+	list_for_each_entry(dl_trap, &dev->priv.traps, list)
+		if (dl_trap->trap.id == trap_id)
+			return dl_trap;
+
+	return NULL;
+}
+
+static int mlx5_devlink_trap_init(struct devlink *devlink, const struct devlink_trap *trap,
+				  void *trap_ctx)
+{
+	struct mlx5_core_dev *dev = devlink_priv(devlink);
+	struct mlx5_devlink_trap *dl_trap;
+
+	dl_trap = kzalloc(sizeof(*dl_trap), GFP_KERNEL);
+	if (!dl_trap)
+		return -ENOMEM;
+
+	dl_trap->trap.id = trap->id;
+	dl_trap->trap.action = DEVLINK_TRAP_ACTION_DROP;
+	dl_trap->item = trap_ctx;
+
+	if (mlx5_find_trap_by_id(dev, trap->id)) {
+		kfree(dl_trap);
+		mlx5_core_err(dev, "Devlink trap: Trap 0x%x already found", trap->id);
+		return -EEXIST;
+	}
+
+	list_add_tail(&dl_trap->list, &dev->priv.traps);
+	return 0;
+}
+
+static void mlx5_devlink_trap_fini(struct devlink *devlink, const struct devlink_trap *trap,
+				   void *trap_ctx)
+{
+	struct mlx5_core_dev *dev = devlink_priv(devlink);
+	struct mlx5_devlink_trap *dl_trap;
+
+	dl_trap = mlx5_find_trap_by_id(dev, trap->id);
+	if (!dl_trap) {
+		mlx5_core_err(dev, "Devlink trap: Missing trap id 0x%x", trap->id);
+		return;
+	}
+	list_del(&dl_trap->list);
+	kfree(dl_trap);
+}
+
 static const struct devlink_ops mlx5_devlink_ops = {
 #ifdef CONFIG_MLX5_ESWITCH
 	.eswitch_mode_set = mlx5_devlink_eswitch_mode_set,
@@ -186,7 +236,41 @@ static const struct devlink_ops mlx5_devlink_ops = {
 	.reload_limits = BIT(DEVLINK_RELOAD_LIMIT_NO_RESET),
 	.reload_down = mlx5_devlink_reload_down,
 	.reload_up = mlx5_devlink_reload_up,
+	.trap_init = mlx5_devlink_trap_init,
+	.trap_fini = mlx5_devlink_trap_fini,
 };
+
+void mlx5_devlink_trap_report(struct mlx5_core_dev *dev, int trap_id, struct sk_buff *skb,
+			      struct devlink_port *dl_port)
+{
+	struct devlink *devlink = priv_to_devlink(dev);
+	struct mlx5_devlink_trap *dl_trap;
+
+	dl_trap = mlx5_find_trap_by_id(dev, trap_id);
+	if (!dl_trap) {
+		mlx5_core_err(dev, "Devlink trap: Report on invalid trap id 0x%x", trap_id);
+		return;
+	}
+
+	if (dl_trap->trap.action != DEVLINK_TRAP_ACTION_TRAP) {
+		mlx5_core_dbg(dev, "Devlink trap: Trap id %d has action %d", trap_id,
+			      dl_trap->trap.action);
+		return;
+	}
+	devlink_trap_report(devlink, skb, dl_trap->item, dl_port, NULL);
+}
+
+int mlx5_devlink_trap_get_num_active(struct mlx5_core_dev *dev)
+{
+	struct mlx5_devlink_trap *dl_trap;
+	int count = 0;
+
+	list_for_each_entry(dl_trap, &dev->priv.traps, list)
+		if (dl_trap->trap.action == DEVLINK_TRAP_ACTION_TRAP)
+			count++;
+
+	return count;
+}
 
 struct devlink *mlx5_devlink_alloc(void)
 {
