@@ -1338,6 +1338,30 @@ mt7921_mac_update_mib_stats(struct mt7921_phy *phy)
 	}
 }
 
+static void
+mt7921_mac_sta_stats_work(struct mt7921_phy *phy)
+{
+	struct mt7921_dev *dev = phy->dev;
+	struct mt7921_sta *msta;
+	LIST_HEAD(list);
+
+	spin_lock_bh(&dev->sta_poll_lock);
+	list_splice_init(&phy->stats_list, &list);
+
+	while (!list_empty(&list)) {
+		msta = list_first_entry(&list, struct mt7921_sta, stats_list);
+		list_del_init(&msta->stats_list);
+		spin_unlock_bh(&dev->sta_poll_lock);
+
+		/* query wtbl info to report tx rate for further devices */
+		mt7921_get_wtbl_info(dev, msta->wcid.idx);
+
+		spin_lock_bh(&dev->sta_poll_lock);
+	}
+
+	spin_unlock_bh(&dev->sta_poll_lock);
+}
+
 void mt7921_mac_work(struct work_struct *work)
 {
 	struct mt7921_phy *phy;
@@ -1355,6 +1379,10 @@ void mt7921_mac_work(struct work_struct *work)
 
 		mt7921_mac_update_mib_stats(phy);
 	}
+	if (++phy->sta_work_count == 10) {
+		phy->sta_work_count = 0;
+		mt7921_mac_sta_stats_work(phy);
+	};
 
 	mutex_unlock(&mphy->dev->mutex);
 

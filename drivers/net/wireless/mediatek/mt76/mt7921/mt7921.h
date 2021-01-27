@@ -130,6 +130,8 @@ struct mt7921_phy {
 	struct mib_stats mib;
 	struct list_head stats_list;
 
+	u8 sta_work_count;
+
 	struct sk_buff_head scan_event_list;
 	struct delayed_work scan_work;
 };
