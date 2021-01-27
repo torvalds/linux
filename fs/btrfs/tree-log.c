@@ -5266,6 +5266,21 @@ static int btrfs_log_inode(struct btrfs_trans_handle *trans,
 	}
 
 	/*
+	 * This is for cases where logging a directory could result in losing a
+	 * a file after replaying the log. For example, if we move a file from a
+	 * directory A to a directory B, then fsync directory A, we have no way
+	 * to known the file was moved from A to B, so logging just A would
+	 * result in losing the file after a log replay.
+	 */
+	if (S_ISDIR(inode->vfs_inode.i_mode) &&
+	    inode_only == LOG_INODE_ALL &&
+	    inode->last_unlink_trans >= trans->transid) {
+		btrfs_set_log_full_commit(trans);
+		err = 1;
+		goto out_unlock;
+	}
+
+	/*
 	 * a brute force approach to making sure we get the most uptodate
 	 * copies of everything.
 	 */
@@ -5426,99 +5441,6 @@ out_unlock:
 	btrfs_free_path(path);
 	btrfs_free_path(dst_path);
 	return err;
-}
-
-/*
- * Check if we must fallback to a transaction commit when logging an inode.
- * This must be called after logging the inode and is used only in the context
- * when fsyncing an inode requires the need to log some other inode - in which
- * case we can't lock the i_mutex of each other inode we need to log as that
- * can lead to deadlocks with concurrent fsync against other inodes (as we can
- * log inodes up or down in the hierarchy) or rename operations for example. So
- * we take the log_mutex of the inode after we have logged it and then check for
- * its last_unlink_trans value - this is safe because any task setting
- * last_unlink_trans must take the log_mutex and it must do this before it does
- * the actual unlink operation, so if we do this check before a concurrent task
- * sets last_unlink_trans it means we've logged a consistent version/state of
- * all the inode items, otherwise we are not sure and must do a transaction
- * commit (the concurrent task might have only updated last_unlink_trans before
- * we logged the inode or it might have also done the unlink).
- */
-static bool btrfs_must_commit_transaction(struct btrfs_trans_handle *trans,
-					  struct btrfs_inode *inode)
-{
-	bool ret = false;
-
-	mutex_lock(&inode->log_mutex);
-	if (inode->last_unlink_trans >= trans->transid) {
-		/*
-		 * Make sure any commits to the log are forced to be full
-		 * commits.
-		 */
-		btrfs_set_log_full_commit(trans);
-		ret = true;
-	}
-	mutex_unlock(&inode->log_mutex);
-
-	return ret;
-}
-
-/*
- * follow the dentry parent pointers up the chain and see if any
- * of the directories in it require a full commit before they can
- * be logged.  Returns zero if nothing special needs to be done or 1 if
- * a full commit is required.
- */
-static noinline int check_parent_dirs_for_sync(struct btrfs_trans_handle *trans,
-					       struct btrfs_inode *inode,
-					       struct dentry *parent,
-					       struct super_block *sb)
-{
-	int ret = 0;
-	struct dentry *old_parent = NULL;
-
-	/*
-	 * for regular files, if its inode is already on disk, we don't
-	 * have to worry about the parents at all.  This is because
-	 * we can use the last_unlink_trans field to record renames
-	 * and other fun in this file.
-	 */
-	if (S_ISREG(inode->vfs_inode.i_mode) &&
-	    inode->generation < trans->transid &&
-	    inode->last_unlink_trans < trans->transid)
-		goto out;
-
-	if (!S_ISDIR(inode->vfs_inode.i_mode)) {
-		if (!parent || d_really_is_negative(parent) || sb != parent->d_sb)
-			goto out;
-		inode = BTRFS_I(d_inode(parent));
-	}
-
-	while (1) {
-		if (btrfs_must_commit_transaction(trans, inode)) {
-			ret = 1;
-			break;
-		}
-
-		if (!parent || d_really_is_negative(parent) || sb != parent->d_sb)
-			break;
-
-		if (IS_ROOT(parent)) {
-			inode = BTRFS_I(d_inode(parent));
-			if (btrfs_must_commit_transaction(trans, inode))
-				ret = 1;
-			break;
-		}
-
-		parent = dget_parent(parent);
-		dput(old_parent);
-		old_parent = parent;
-		inode = BTRFS_I(d_inode(parent));
-
-	}
-	dput(old_parent);
-out:
-	return ret;
 }
 
 /*
@@ -5686,9 +5608,6 @@ process_leaf:
 				log_mode = LOG_INODE_ALL;
 			ret = btrfs_log_inode(trans, root, BTRFS_I(di_inode),
 					      log_mode, ctx);
-			if (!ret &&
-			    btrfs_must_commit_transaction(trans, BTRFS_I(di_inode)))
-				ret = 1;
 			btrfs_add_delayed_iput(di_inode);
 			if (ret)
 				goto next_dir_inode;
@@ -5835,9 +5754,6 @@ static int btrfs_log_all_parents(struct btrfs_trans_handle *trans,
 				ctx->log_new_dentries = false;
 			ret = btrfs_log_inode(trans, root, BTRFS_I(dir_inode),
 					      LOG_INODE_ALL, ctx);
-			if (!ret &&
-			    btrfs_must_commit_transaction(trans, BTRFS_I(dir_inode)))
-				ret = 1;
 			if (!ret && ctx && ctx->log_new_dentries)
 				ret = log_new_dir_dentries(trans, root,
 						   BTRFS_I(dir_inode), ctx);
@@ -6053,11 +5969,8 @@ static int btrfs_log_inode_parent(struct btrfs_trans_handle *trans,
 {
 	struct btrfs_root *root = inode->root;
 	struct btrfs_fs_info *fs_info = root->fs_info;
-	struct super_block *sb;
 	int ret = 0;
 	bool log_dentries = false;
-
-	sb = inode->vfs_inode.i_sb;
 
 	if (btrfs_test_opt(fs_info, NOTREELOG)) {
 		ret = 1;
@@ -6068,10 +5981,6 @@ static int btrfs_log_inode_parent(struct btrfs_trans_handle *trans,
 		ret = 1;
 		goto end_no_trans;
 	}
-
-	ret = check_parent_dirs_for_sync(trans, inode, parent, sb);
-	if (ret)
-		goto end_no_trans;
 
 	/*
 	 * Skip already logged inodes or inodes corresponding to tmpfiles
