@@ -2,6 +2,7 @@
 
 config MT7615_COMMON
 	tristate
+	select WANT_DEV_COREDUMP
 	select MT76_CONNAC_LIB
 
 config MT7615E
