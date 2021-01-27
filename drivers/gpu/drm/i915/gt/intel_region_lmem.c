@@ -142,3 +142,39 @@ intel_gt_setup_fake_lmem(struct intel_gt *gt)
 
 	return mem;
 }
+
+static struct intel_memory_region *setup_lmem(struct intel_gt *gt)
+{
+	struct drm_i915_private *i915 = gt->i915;
+	struct pci_dev *pdev = i915->drm.pdev;
+	struct intel_memory_region *mem;
+	resource_size_t io_start;
+	resource_size_t size;
+
+	if (!IS_DGFX(i915))
+		return ERR_PTR(-ENODEV);
+
+	io_start = pci_resource_start(pdev, 2);
+	size = pci_resource_len(pdev, 2);
+
+	mem = intel_memory_region_create(i915,
+					 0,
+					 size,
+					 I915_GTT_PAGE_SIZE_4K,
+					 io_start,
+					 &intel_region_lmem_ops);
+	if (IS_ERR(mem))
+		return mem;
+
+	drm_dbg(&i915->drm, "Local memory: %pR\n", &mem->region);
+	drm_dbg(&i915->drm, "Local memory IO start: %pa\n",
+		&mem->io_start);
+	drm_info(&i915->drm, "Local memory available: %pa\n", &size);
+
+	return mem;
+}
+
+struct intel_memory_region *intel_gt_setup_lmem(struct intel_gt *gt)
+{
+	return setup_lmem(gt);
+}

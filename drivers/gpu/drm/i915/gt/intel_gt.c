@@ -46,7 +46,9 @@ int intel_gt_probe_lmem(struct intel_gt *gt)
 	int id;
 	int err;
 
-	mem = intel_gt_setup_fake_lmem(gt);
+	mem = intel_gt_setup_lmem(gt);
+	if (mem == ERR_PTR(-ENODEV))
+		mem = intel_gt_setup_fake_lmem(gt);
 	if (IS_ERR(mem)) {
 		err = PTR_ERR(mem);
 		if (err == -ENODEV)
