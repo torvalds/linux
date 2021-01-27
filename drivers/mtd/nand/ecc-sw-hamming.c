@@ -513,6 +513,7 @@ int nand_ecc_sw_hamming_init_ctx(struct nand_device *nand)
 	}
 
 	nand->ecc.ctx.priv = engine_conf;
+	nand->ecc.ctx.nsteps = mtd->writesize / conf->step_size;
 	nand->ecc.ctx.total = engine_conf->nsteps * engine_conf->code_size;
 
 	return 0;
