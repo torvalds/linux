@@ -389,11 +389,7 @@ static int pppoatm_assign_vcc(struct atm_vcc *atmvcc, void __user *arg)
 	struct atm_backend_ppp be;
 	struct pppoatm_vcc *pvcc;
 	int err;
-	/*
-	 * Each PPPoATM instance has its own tasklet - this is just a
-	 * prototypical one used to initialize them
-	 */
-	static const DECLARE_TASKLET_OLD(tasklet_proto, pppoatm_wakeup_sender);
+
 	if (copy_from_user(&be, arg, sizeof be))
 		return -EFAULT;
 	if (be.encaps != PPPOATM_ENCAPS_AUTODETECT &&
@@ -415,8 +411,8 @@ static int pppoatm_assign_vcc(struct atm_vcc *atmvcc, void __user *arg)
 	pvcc->chan.ops = &pppoatm_ops;
 	pvcc->chan.mtu = atmvcc->qos.txtp.max_sdu - PPP_HDRLEN -
 	    (be.encaps == e_vc ? 0 : LLC_LEN);
-	pvcc->wakeup_tasklet = tasklet_proto;
-	pvcc->wakeup_tasklet.data = (unsigned long) &pvcc->chan;
+	tasklet_init(&pvcc->wakeup_tasklet, pppoatm_wakeup_sender,
+		     (unsigned long)&pvcc->chan);
 	err = ppp_register_channel(&pvcc->chan);
 	if (err != 0) {
 		kfree(pvcc);
