@@ -7,6 +7,7 @@
 #include "btree_iter.h"
 #include "btree_locking.h"
 #include "debug.h"
+#include "error.h"
 #include "trace.h"
 
 #include <linux/prefetch.h>
@@ -813,9 +814,12 @@ lock_node:
 		return ERR_PTR(-EIO);
 	}
 
-	EBUG_ON(b->c.btree_id != iter->btree_id ||
-		BTREE_NODE_LEVEL(b->data) != level ||
-		bkey_cmp(b->data->max_key, k->k.p));
+	EBUG_ON(b->c.btree_id != iter->btree_id);
+	EBUG_ON(BTREE_NODE_LEVEL(b->data) != level);
+	EBUG_ON(bkey_cmp(b->data->max_key, k->k.p));
+	EBUG_ON(b->key.k.type == KEY_TYPE_btree_ptr_v2 &&
+		bkey_cmp(b->data->min_key,
+			 bkey_i_to_btree_ptr_v2(&b->key)->v.min_key));
 
 	return b;
 }
@@ -823,7 +827,8 @@ lock_node:
 struct btree *bch2_btree_node_get_noiter(struct bch_fs *c,
 					 const struct bkey_i *k,
 					 enum btree_id btree_id,
-					 unsigned level)
+					 unsigned level,
+					 bool nofill)
 {
 	struct btree_cache *bc = &c->btree_cache;
 	struct btree *b;
@@ -838,6 +843,9 @@ struct btree *bch2_btree_node_get_noiter(struct bch_fs *c,
 retry:
 	b = btree_cache_find(bc, k);
 	if (unlikely(!b)) {
+		if (nofill)
+			return NULL;
+
 		b = bch2_btree_node_fill(c, NULL, k, btree_id,
 					 level, SIX_LOCK_read, true);
 
@@ -884,9 +892,12 @@ lock_node:
 		return ERR_PTR(-EIO);
 	}
 
-	EBUG_ON(b->c.btree_id != btree_id ||
-		BTREE_NODE_LEVEL(b->data) != level ||
-		bkey_cmp(b->data->max_key, k->k.p));
+	EBUG_ON(b->c.btree_id != btree_id);
+	EBUG_ON(BTREE_NODE_LEVEL(b->data) != level);
+	EBUG_ON(bkey_cmp(b->data->max_key, k->k.p));
+	EBUG_ON(b->key.k.type == KEY_TYPE_btree_ptr_v2 &&
+		bkey_cmp(b->data->min_key,
+			 bkey_i_to_btree_ptr_v2(&b->key)->v.min_key));
 
 	return b;
 }
@@ -996,8 +1007,22 @@ out:
 		if (sib != btree_prev_sib)
 			swap(n1, n2);
 
-		BUG_ON(bkey_cmp(bkey_successor(n1->key.k.p),
-				n2->data->min_key));
+		if (bkey_cmp(bkey_successor(n1->key.k.p),
+			     n2->data->min_key)) {
+			char buf1[200], buf2[200];
+
+			bch2_bkey_val_to_text(&PBUF(buf1), c, bkey_i_to_s_c(&n1->key));
+			bch2_bkey_val_to_text(&PBUF(buf2), c, bkey_i_to_s_c(&n2->key));
+
+			bch2_fs_inconsistent(c, "btree topology error at btree %s level %u:\n"
+					     "prev: %s\n"
+					     "next: %s\n",
+					     bch2_btree_ids[iter->btree_id], level,
+					     buf1, buf2);
+
+			six_unlock_intent(&ret->c.lock);
+			ret = NULL;
+		}
 	}
 
 	bch2_btree_trans_verify_locks(trans);

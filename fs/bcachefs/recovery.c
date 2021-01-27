@@ -342,7 +342,8 @@ static int bch2_btree_and_journal_walk_recurse(struct bch_fs *c, struct btree *b
 			bch2_btree_and_journal_iter_advance(&iter);
 
 			child = bch2_btree_node_get_noiter(c, tmp.k,
-						b->c.btree_id, b->c.level - 1);
+						b->c.btree_id, b->c.level - 1,
+						false);
 
 			ret = PTR_ERR_OR_ZERO(child);
 			if (ret)
@@ -766,7 +767,8 @@ static int bch2_journal_replay(struct bch_fs *c,
 	bch2_journal_flush_all_pins(j);
 	return bch2_journal_error(j);
 err:
-	bch_err(c, "journal replay: error %d while replaying key", ret);
+	bch_err(c, "journal replay: error %d while replaying key at btree %s level %u",
+		ret, bch2_btree_ids[i->btree_id], i->level);
 	return ret;
 }
 

@@ -26,7 +26,7 @@ struct btree *bch2_btree_node_get(struct bch_fs *, struct btree_iter *,
 				  enum six_lock_type, unsigned long);
 
 struct btree *bch2_btree_node_get_noiter(struct bch_fs *, const struct bkey_i *,
-					 enum btree_id, unsigned);
+					 enum btree_id, unsigned, bool);
 
 struct btree *bch2_btree_node_get_sibling(struct bch_fs *, struct btree_iter *,
 				struct btree *, enum btree_node_sibling);

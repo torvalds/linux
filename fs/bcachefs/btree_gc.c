@@ -50,6 +50,10 @@ static inline void gc_pos_set(struct bch_fs *c, struct gc_pos new_pos)
 	__gc_pos_set(c, new_pos);
 }
 
+/*
+ * Missing: if an interior btree node is empty, we need to do something -
+ * perhaps just kill it
+ */
 static int bch2_gc_check_topology(struct bch_fs *c,
 				  struct btree *b,
 				  struct bkey_buf *prev,
@@ -62,6 +66,8 @@ static int bch2_gc_check_topology(struct bch_fs *c,
 		? node_start
 		: bkey_successor(prev->k->k.p);
 	char buf1[200], buf2[200];
+	bool update_min = false;
+	bool update_max = false;
 	int ret = 0;
 
 	if (cur.k->k.type == KEY_TYPE_btree_ptr_v2) {
@@ -75,22 +81,79 @@ static int bch2_gc_check_topology(struct bch_fs *c,
 			bch2_bkey_val_to_text(&PBUF(buf1), c, bkey_i_to_s_c(prev->k));
 
 		if (fsck_err_on(bkey_cmp(expected_start, bp->v.min_key), c,
-				"btree node with incorrect min_key:\n  prev %s\n  cur %s",
+				"btree node with incorrect min_key at btree %s level %u:\n"
+				"  prev %s\n"
+				"  cur %s",
+				bch2_btree_ids[b->c.btree_id], b->c.level,
 				buf1,
-				(bch2_bkey_val_to_text(&PBUF(buf2), c, bkey_i_to_s_c(cur.k)), buf2))) {
-			BUG();
-		}
+				(bch2_bkey_val_to_text(&PBUF(buf2), c, bkey_i_to_s_c(cur.k)), buf2)))
+			update_min = true;
 	}
 
 	if (fsck_err_on(is_last &&
 			bkey_cmp(cur.k->k.p, node_end), c,
-			"btree node with incorrect max_key:\n  %s\n  expected %s",
+			"btree node with incorrect max_key at btree %s level %u:\n"
+			"  %s\n"
+			"  expected %s",
+			bch2_btree_ids[b->c.btree_id], b->c.level,
 			(bch2_bkey_val_to_text(&PBUF(buf1), c, bkey_i_to_s_c(cur.k)), buf1),
-			(bch2_bpos_to_text(&PBUF(buf2), node_end), buf2))) {
-		BUG();
-	}
+			(bch2_bpos_to_text(&PBUF(buf2), node_end), buf2)))
+		update_max = true;
 
 	bch2_bkey_buf_copy(prev, c, cur.k);
+
+	if (update_min || update_max) {
+		struct bkey_i *new;
+		struct bkey_i_btree_ptr_v2 *bp = NULL;
+		struct btree *n;
+
+		if (update_max) {
+			ret = bch2_journal_key_delete(c, b->c.btree_id,
+						      b->c.level, cur.k->k.p);
+			if (ret)
+				return ret;
+		}
+
+		new = kmalloc(bkey_bytes(&cur.k->k), GFP_KERNEL);
+		if (!new)
+			return -ENOMEM;
+
+		bkey_copy(new, cur.k);
+
+		if (new->k.type == KEY_TYPE_btree_ptr_v2)
+			bp = bkey_i_to_btree_ptr_v2(new);
+
+		if (update_min)
+			bp->v.min_key = expected_start;
+		if (update_max)
+			new->k.p = node_end;
+		if (bp)
+			SET_BTREE_PTR_RANGE_UPDATED(&bp->v, true);
+
+		ret = bch2_journal_key_insert(c, b->c.btree_id, b->c.level, new);
+		if (ret) {
+			kfree(new);
+			return ret;
+		}
+
+		n = bch2_btree_node_get_noiter(c, cur.k, b->c.btree_id,
+					       b->c.level - 1, true);
+		if (n) {
+			mutex_lock(&c->btree_cache.lock);
+			bch2_btree_node_hash_remove(&c->btree_cache, n);
+
+			bkey_copy(&n->key, new);
+			if (update_min)
+				n->data->min_key = expected_start;
+			if (update_max)
+				n->data->max_key = node_end;
+
+			ret = __bch2_btree_node_hash_insert(&c->btree_cache, n);
+			BUG_ON(ret);
+			mutex_unlock(&c->btree_cache.lock);
+			six_unlock_read(&n->c.lock);
+		}
+	}
 fsck_err:
 	return ret;
 }
@@ -147,12 +210,13 @@ static int bch2_gc_mark_key(struct bch_fs *c, struct bkey_s_c k,
 					ptr->dev, PTR_BUCKET_NR(ca, ptr),
 					bch2_data_types[ptr_data_type(k.k, ptr)],
 					ptr->gen, g->mark.gen)) {
+				/* XXX if it's a cached ptr, drop it */
 				g2->_mark.gen	= g->_mark.gen		= ptr->gen;
 				g2->gen_valid	= g->gen_valid		= true;
 				g2->_mark.data_type		= 0;
 				g2->_mark.dirty_sectors		= 0;
 				g2->_mark.cached_sectors	= 0;
-				set_bit(BCH_FS_FIXED_GENS, &c->flags);
+				set_bit(BCH_FS_NEED_ANOTHER_GC, &c->flags);
 				set_bit(BCH_FS_NEED_ALLOC_WRITE, &c->flags);
 			}
 		}
@@ -298,8 +362,6 @@ static int bch2_gc_btree_init_recurse(struct bch_fs *c, struct btree *b,
 			break;
 
 		if (b->c.level) {
-			struct btree *child;
-
 			bch2_bkey_buf_reassemble(&cur, c, k);
 			k = bkey_i_to_s_c(cur.k);
 
@@ -310,26 +372,49 @@ static int bch2_gc_btree_init_recurse(struct bch_fs *c, struct btree *b,
 					!bch2_btree_and_journal_iter_peek(&iter).k);
 			if (ret)
 				break;
-
-			if (b->c.level > target_depth) {
-				child = bch2_btree_node_get_noiter(c, cur.k,
-							b->c.btree_id, b->c.level - 1);
-				ret = PTR_ERR_OR_ZERO(child);
-				if (ret)
-					break;
-
-				ret = bch2_gc_btree_init_recurse(c, child,
-						target_depth);
-				six_unlock_read(&child->c.lock);
-
-				if (ret)
-					break;
-			}
 		} else {
 			bch2_btree_and_journal_iter_advance(&iter);
 		}
 	}
 
+	if (b->c.level > target_depth) {
+		bch2_btree_and_journal_iter_exit(&iter);
+		bch2_btree_and_journal_iter_init_node_iter(&iter, c, b);
+
+		while ((k = bch2_btree_and_journal_iter_peek(&iter)).k) {
+			struct btree *child;
+
+			bch2_bkey_buf_reassemble(&cur, c, k);
+			bch2_btree_and_journal_iter_advance(&iter);
+
+			child = bch2_btree_node_get_noiter(c, cur.k,
+						b->c.btree_id, b->c.level - 1,
+						false);
+			ret = PTR_ERR_OR_ZERO(child);
+
+			if (fsck_err_on(ret == -EIO, c,
+					"unreadable btree node")) {
+				ret = bch2_journal_key_delete(c, b->c.btree_id,
+							      b->c.level, cur.k->k.p);
+				if (ret)
+					return ret;
+
+				set_bit(BCH_FS_NEED_ANOTHER_GC, &c->flags);
+				continue;
+			}
+
+			if (ret)
+				break;
+
+			ret = bch2_gc_btree_init_recurse(c, child,
+							 target_depth);
+			six_unlock_read(&child->c.lock);
+
+			if (ret)
+				break;
+		}
+	}
+fsck_err:
 	bch2_bkey_buf_exit(&cur, c);
 	bch2_bkey_buf_exit(&prev, c);
 	bch2_btree_and_journal_iter_exit(&iter);
@@ -816,16 +901,15 @@ again:
 	bch2_mark_allocator_buckets(c);
 
 	c->gc_count++;
-out:
-	if (!ret &&
-	    (test_bit(BCH_FS_FIXED_GENS, &c->flags) ||
-	     (!iter && bch2_test_restart_gc))) {
+
+	if (test_bit(BCH_FS_NEED_ANOTHER_GC, &c->flags) ||
+	    (!iter && bch2_test_restart_gc)) {
 		/*
 		 * XXX: make sure gens we fixed got saved
 		 */
 		if (iter++ <= 2) {
-			bch_info(c, "Fixed gens, restarting mark and sweep:");
-			clear_bit(BCH_FS_FIXED_GENS, &c->flags);
+			bch_info(c, "Second GC pass needed, restarting:");
+			clear_bit(BCH_FS_NEED_ANOTHER_GC, &c->flags);
 			__gc_pos_set(c, gc_phase(GC_PHASE_NOT_RUNNING));
 
 			percpu_down_write(&c->mark_lock);
@@ -840,7 +924,7 @@ out:
 		bch_info(c, "Unable to fix bucket gens, looping");
 		ret = -EINVAL;
 	}
-
+out:
 	if (!ret) {
 		bch2_journal_block(&c->journal);
 
