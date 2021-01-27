@@ -3740,6 +3740,8 @@ int snd_sof_load_topology(struct snd_soc_component *scomp, const char *file)
 	if (ret < 0) {
 		dev_err(scomp->dev, "error: tplg request firmware %s failed err: %d\n",
 			file, ret);
+		dev_err(scomp->dev,
+			"you may need to download the firmware from https://github.com/thesofproject/sof-bin/\n");
 		return ret;
 	}
 
