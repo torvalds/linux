@@ -167,11 +167,106 @@ static void mt7921_pci_remove(struct pci_dev *pdev)
 	pci_free_irq_vectors(pdev);
 }
 
+#ifdef CONFIG_PM
+static int mt7921_pci_suspend(struct pci_dev *pdev, pm_message_t state)
+{
+	struct mt76_dev *mdev = pci_get_drvdata(pdev);
+	struct mt7921_dev *dev = container_of(mdev, struct mt7921_dev, mt76);
+	bool hif_suspend;
+	int i, err;
+
+	hif_suspend = !test_bit(MT76_STATE_SUSPEND, &dev->mphy.state);
+	if (hif_suspend) {
+		err = mt7921_mcu_set_hif_suspend(dev, true);
+		if (err)
+			return err;
+	}
+
+	napi_disable(&mdev->tx_napi);
+	mt76_worker_disable(&mdev->tx_worker);
+
+	mt76_for_each_q_rx(mdev, i) {
+		napi_disable(&mdev->napi[i]);
+	}
+	tasklet_kill(&dev->irq_tasklet);
+
+	pci_enable_wake(pdev, pci_choose_state(pdev, state), true);
+
+	/* wait until dma is idle  */
+	mt76_poll(dev, MT_WFDMA0_GLO_CFG,
+		  MT_WFDMA0_GLO_CFG_TX_DMA_BUSY |
+		  MT_WFDMA0_GLO_CFG_RX_DMA_BUSY, 0, 1000);
+
+	/* put dma disabled */
+	mt76_clear(dev, MT_WFDMA0_GLO_CFG,
+		   MT_WFDMA0_GLO_CFG_TX_DMA_EN | MT_WFDMA0_GLO_CFG_RX_DMA_EN);
+
+	/* disable interrupt */
+	mt76_wr(dev, MT_WFDMA0_HOST_INT_ENA, 0);
+
+	pci_save_state(pdev);
+	err = pci_set_power_state(pdev, pci_choose_state(pdev, state));
+	if (err)
+		goto restore;
+
+	return 0;
+
+restore:
+	mt76_for_each_q_rx(mdev, i) {
+		napi_enable(&mdev->napi[i]);
+	}
+	napi_enable(&mdev->tx_napi);
+	if (hif_suspend)
+		mt7921_mcu_set_hif_suspend(dev, false);
+
+	return err;
+}
+
+static int mt7921_pci_resume(struct pci_dev *pdev)
+{
+	struct mt76_dev *mdev = pci_get_drvdata(pdev);
+	struct mt7921_dev *dev = container_of(mdev, struct mt7921_dev, mt76);
+	int i, err;
+
+	err = pci_set_power_state(pdev, PCI_D0);
+	if (err)
+		return err;
+
+	pci_restore_state(pdev);
+
+	/* enable interrupt */
+	mt7921_l1_wr(dev, MT_PCIE_MAC_INT_ENABLE, 0xff);
+	mt7921_irq_enable(dev, MT_INT_RX_DONE_ALL | MT_INT_TX_DONE_ALL |
+			  MT_INT_MCU_CMD);
+
+	/* put dma enabled */
+	mt76_set(dev, MT_WFDMA0_GLO_CFG,
+		 MT_WFDMA0_GLO_CFG_TX_DMA_EN | MT_WFDMA0_GLO_CFG_RX_DMA_EN);
+
+	mt76_worker_enable(&mdev->tx_worker);
+	mt76_for_each_q_rx(mdev, i) {
+		napi_enable(&mdev->napi[i]);
+		napi_schedule(&mdev->napi[i]);
+	}
+	napi_enable(&mdev->tx_napi);
+	napi_schedule(&mdev->tx_napi);
+
+	if (!test_bit(MT76_STATE_SUSPEND, &dev->mphy.state))
+		err = mt7921_mcu_set_hif_suspend(dev, false);
+
+	return err;
+}
+#endif /* CONFIG_PM */
+
 struct pci_driver mt7921_pci_driver = {
 	.name		= KBUILD_MODNAME,
 	.id_table	= mt7921_pci_device_table,
 	.probe		= mt7921_pci_probe,
 	.remove		= mt7921_pci_remove,
+#ifdef CONFIG_PM
+	.suspend	= mt7921_pci_suspend,
+	.resume		= mt7921_pci_resume,
+#endif /* CONFIG_PM */
 };
 
 module_pci_driver(mt7921_pci_driver);
