@@ -5,6 +5,7 @@
  * Copyright (C) 2012 ARM Ltd.
  */
 
+#include <linux/io.h>
 #include <linux/memblock.h>
 #include <linux/types.h>
 
