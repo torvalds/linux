@@ -48,6 +48,7 @@ config GKI_HIDDEN_SND_SOC_CONFIGS
 	select SND_SOC_GENERIC_DMAENGINE_PCM if (SND_SOC && SND)
 	select SND_PCM_IEC958
 	select SND_SOC_COMPRESS if (SND_SOC && SND)
+	select DMADEVICES
 	select DMA_VIRTUAL_CHANNELS
 	help
 	  Dummy config option used to enable hidden SND_SOC configs.
