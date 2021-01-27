@@ -234,6 +234,10 @@ DECLARE_HOOK(android_vh_em_cpu_energy,
 		unsigned long *energy),
 	TP_ARGS(pd, max_util, sum_util, energy));
 
+DECLARE_RESTRICTED_HOOK(android_rvh_sched_balance_rt,
+	TP_PROTO(struct rq *rq, struct task_struct *p, int *done),
+	TP_ARGS(rq, p, done), 1);
+
 /* macro versions of hooks are no longer required */
 
 #endif /* _TRACE_HOOK_SCHED_H */
