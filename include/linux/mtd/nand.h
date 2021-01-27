@@ -231,12 +231,14 @@ struct nand_ops {
 /**
  * struct nand_ecc_context - Context for the ECC engine
  * @conf: basic ECC engine parameters
+ * @nsteps: number of ECC steps
  * @total: total number of bytes used for storing ECC codes, this is used by
  *         generic OOB layouts
  * @priv: ECC engine driver private data
  */
 struct nand_ecc_context {
 	struct nand_ecc_props conf;
+	unsigned int nsteps;
 	unsigned int total;
 	void *priv;
 };
