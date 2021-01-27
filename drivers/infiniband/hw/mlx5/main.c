@@ -3998,8 +3998,7 @@ static int mlx5_ib_stage_init_init(struct mlx5_ib_dev *dev)
 
 err_mp:
 	mlx5_ib_cleanup_multiport_master(dev);
-
-	return -ENOMEM;
+	return err;
 }
 
 static int mlx5_ib_enable_driver(struct ib_device *dev)
