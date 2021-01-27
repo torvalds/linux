@@ -156,7 +156,20 @@ int intel_memory_region_init_buddy(struct intel_memory_region *mem)
 
 void intel_memory_region_release_buddy(struct intel_memory_region *mem)
 {
+	i915_buddy_free_list(&mem->mm, &mem->reserved);
 	i915_buddy_fini(&mem->mm);
+}
+
+int intel_memory_region_reserve(struct intel_memory_region *mem,
+				u64 offset, u64 size)
+{
+	int ret;
+
+	mutex_lock(&mem->mm_lock);
+	ret = i915_buddy_alloc_range(&mem->mm, &mem->reserved, offset, size);
+	mutex_unlock(&mem->mm_lock);
+
+	return ret;
 }
 
 struct intel_memory_region *
@@ -185,6 +198,7 @@ intel_memory_region_create(struct drm_i915_private *i915,
 	mutex_init(&mem->objects.lock);
 	INIT_LIST_HEAD(&mem->objects.list);
 	INIT_LIST_HEAD(&mem->objects.purgeable);
+	INIT_LIST_HEAD(&mem->reserved);
 
 	mutex_init(&mem->mm_lock);
 

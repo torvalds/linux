@@ -89,6 +89,8 @@ struct intel_memory_region {
 	unsigned int id;
 	char name[8];
 
+	struct list_head reserved;
+
 	dma_addr_t remap_addr;
 
 	struct {
@@ -112,6 +114,9 @@ __intel_memory_region_get_block_buddy(struct intel_memory_region *mem,
 void __intel_memory_region_put_pages_buddy(struct intel_memory_region *mem,
 					   struct list_head *blocks);
 void __intel_memory_region_put_block_buddy(struct i915_buddy_block *block);
+
+int intel_memory_region_reserve(struct intel_memory_region *mem,
+				u64 offset, u64 size);
 
 struct intel_memory_region *
 intel_memory_region_create(struct drm_i915_private *i915,
