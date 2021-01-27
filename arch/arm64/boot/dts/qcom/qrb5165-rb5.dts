@@ -655,6 +655,48 @@
 	};
 };
 
+&pcie0 {
+	status = "okay";
+	perst-gpio = <&tlmm 79 GPIO_ACTIVE_LOW>;
+	wake-gpio = <&tlmm 81 GPIO_ACTIVE_HIGH>;
+	pinctrl-names = "default";
+	pinctrl-0 = <&pcie0_default_state>;
+};
+
+&pcie0_phy {
+	status = "okay";
+	vdda-phy-supply = <&vreg_l5a_0p88>;
+	vdda-pll-supply = <&vreg_l9a_1p2>;
+};
+
+&pcie1 {
+	status = "okay";
+	perst-gpio = <&tlmm 82 GPIO_ACTIVE_LOW>;
+	wake-gpio = <&tlmm 84 GPIO_ACTIVE_HIGH>;
+	pinctrl-names = "default";
+	pinctrl-0 = <&pcie1_default_state>;
+};
+
+&pcie1_phy {
+	status = "okay";
+	vdda-phy-supply = <&vreg_l5a_0p88>;
+	vdda-pll-supply = <&vreg_l9a_1p2>;
+};
+
+&pcie2 {
+	status = "okay";
+	perst-gpio = <&tlmm 85 GPIO_ACTIVE_LOW>;
+	wake-gpio = <&tlmm 87 GPIO_ACTIVE_HIGH>;
+	pinctrl-names = "default";
+	pinctrl-0 = <&pcie2_default_state>;
+};
+
+&pcie2_phy {
+	status = "okay";
+	vdda-phy-supply = <&vreg_l5a_0p88>;
+	vdda-pll-supply = <&vreg_l9a_1p2>;
+};
+
 &pm8150_gpios {
 	gpio-reserved-ranges = <1 1>, <3 2>, <7 1>;
 	gpio-line-names =
@@ -1123,6 +1165,81 @@
 		pins = "gpio63";
 		function = "gpio";
 		bias-disable;
+	};
+
+	pcie0_default_state: pcie0-default {
+		clkreq {
+			pins = "gpio80";
+			function = "pci_e0";
+			bias-pull-up;
+		};
+
+		reset-n {
+			pins = "gpio79";
+			function = "gpio";
+
+			drive-strength = <2>;
+			output-low;
+			bias-pull-down;
+		};
+
+		wake-n {
+			pins = "gpio81";
+			function = "gpio";
+
+			drive-strength = <2>;
+			bias-pull-up;
+		};
+	};
+
+	pcie1_default_state: pcie1-default {
+		clkreq {
+			pins = "gpio83";
+			function = "pci_e1";
+			bias-pull-up;
+		};
+
+		reset-n {
+			pins = "gpio82";
+			function = "gpio";
+
+			drive-strength = <2>;
+			output-low;
+			bias-pull-down;
+		};
+
+		wake-n {
+			pins = "gpio84";
+			function = "gpio";
+
+			drive-strength = <2>;
+			bias-pull-up;
+		};
+	};
+
+	pcie2_default_state: pcie2-default {
+		clkreq {
+			pins = "gpio86";
+			function = "pci_e2";
+			bias-pull-up;
+		};
+
+		reset-n {
+			pins = "gpio85";
+			function = "gpio";
+
+			drive-strength = <2>;
+			output-low;
+			bias-pull-down;
+		};
+
+		wake-n {
+			pins = "gpio87";
+			function = "gpio";
+
+			drive-strength = <2>;
+			bias-pull-up;
+		};
 	};
 
 	sdc2_default_state: sdc2-default {
