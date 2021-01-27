@@ -507,7 +507,7 @@ static void heartbeat_onchannelcallback(void *context)
 
 		/* Ensure recvlen is big enough to read header data */
 		if (recvlen < ICMSG_HDR) {
-			pr_err_ratelimited("Hearbeat request received. Packet length too small: %d\n",
+			pr_err_ratelimited("Heartbeat request received. Packet length too small: %d\n",
 					   recvlen);
 			break;
 		}
