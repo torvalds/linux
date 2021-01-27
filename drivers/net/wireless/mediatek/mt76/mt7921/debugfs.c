@@ -159,6 +159,60 @@ mt7921_queues_read(struct seq_file *s, void *data)
 	return 0;
 }
 
+static int
+mt7921_pm_set(void *data, u64 val)
+{
+	struct mt7921_dev *dev = data;
+	struct mt76_phy *mphy = dev->phy.mt76;
+	int ret = 0;
+
+	mt7921_mutex_acquire(dev);
+
+	dev->pm.enable = val;
+
+	ieee80211_iterate_active_interfaces(mphy->hw,
+					    IEEE80211_IFACE_ITER_RESUME_ALL,
+					    mt7921_pm_interface_iter, mphy->priv);
+	mt7921_mutex_release(dev);
+
+	return ret;
+}
+
+static int
+mt7921_pm_get(void *data, u64 *val)
+{
+	struct mt7921_dev *dev = data;
+
+	*val = dev->pm.enable;
+
+	return 0;
+}
+
+DEFINE_DEBUGFS_ATTRIBUTE(fops_pm, mt7921_pm_get, mt7921_pm_set, "%lld\n");
+
+static int
+mt7921_pm_idle_timeout_set(void *data, u64 val)
+{
+	struct mt7921_dev *dev = data;
+
+	dev->pm.idle_timeout = msecs_to_jiffies(val);
+
+	return 0;
+}
+
+static int
+mt7921_pm_idle_timeout_get(void *data, u64 *val)
+{
+	struct mt7921_dev *dev = data;
+
+	*val = jiffies_to_msecs(dev->pm.idle_timeout);
+
+	return 0;
+}
+
+DEFINE_DEBUGFS_ATTRIBUTE(fops_pm_idle_timeout, mt7921_pm_idle_timeout_get,
+			 mt7921_pm_idle_timeout_set, "%lld\n");
+
 int mt7921_init_debugfs(struct mt7921_dev *dev)
 {
 	struct dentry *dir;
@@ -173,6 +227,9 @@ int mt7921_init_debugfs(struct mt7921_dev *dev)
 				    mt7921_queues_acq);
 	debugfs_create_file("tx_stats", 0400, dir, dev, &fops_tx_stats);
 	debugfs_create_file("fw_debug", 0600, dir, dev, &fops_fw_debug);
+	debugfs_create_file("runtime-pm", 0600, dir, dev, &fops_pm);
+	debugfs_create_file("idle-timeout", 0600, dir, dev,
+			    &fops_pm_idle_timeout);
 
 	return 0;
 }

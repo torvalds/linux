@@ -1001,15 +1001,11 @@ void mt7921_mac_tx_free(struct mt7921_dev *dev, struct sk_buff *skb)
 		mt76_put_txwi(mdev, txwi);
 	}
 
-	mt7921_mac_sta_poll(dev);
-
 	if (wake) {
 		spin_lock_bh(&dev->token_lock);
 		mt7921_set_tx_blocked(dev, false);
 		spin_unlock_bh(&dev->token_lock);
 	}
-
-	mt76_worker_schedule(&dev->mt76.tx_worker);
 
 	napi_consume_skb(skb, 1);
 
@@ -1017,6 +1013,15 @@ void mt7921_mac_tx_free(struct mt7921_dev *dev, struct sk_buff *skb)
 		skb_list_del_init(skb);
 		napi_consume_skb(skb, 1);
 	}
+
+	if (test_bit(MT76_STATE_PM, &dev->phy.mt76->state))
+		return;
+
+	mt7921_mac_sta_poll(dev);
+
+	mt76_connac_power_save_sched(&dev->mphy, &dev->pm);
+
+	mt76_worker_schedule(&dev->mt76.tx_worker);
 }
 
 void mt7921_tx_complete_skb(struct mt76_dev *mdev, struct mt76_queue_entry *e)
@@ -1166,9 +1171,14 @@ void mt7921_update_channel(struct mt76_dev *mdev)
 {
 	struct mt7921_dev *dev = container_of(mdev, struct mt7921_dev, mt76);
 
+	if (mt76_connac_pm_wake(&dev->mphy, &dev->pm))
+		return;
+
 	mt7921_phy_update_channel(&mdev->phy, 0);
 	/* reset obss airtime */
 	mt76_set(dev, MT_WF_RMAC_MIB_TIME0(0), MT_WF_RMAC_MIB_RXTIME_CLR);
+
+	mt76_connac_power_save_sched(&dev->mphy, &dev->pm);
 }
 
 static bool
@@ -1257,7 +1267,7 @@ void mt7921_mac_reset_work(struct work_struct *work)
 	napi_disable(&dev->mt76.napi[2]);
 	napi_disable(&dev->mt76.tx_napi);
 
-	mutex_lock(&dev->mt76.mutex);
+	mt7921_mutex_acquire(dev);
 
 	mt76_wr(dev, MT_MCU_INT_EVENT, MT_MCU_INT_EVENT_DMA_STOPPED);
 
@@ -1292,7 +1302,7 @@ void mt7921_mac_reset_work(struct work_struct *work)
 	mt76_wr(dev, MT_MCU_INT_EVENT, MT_MCU_INT_EVENT_RESET_DONE);
 	mt7921_wait_reset_state(dev, MT_MCU_CMD_NORMAL_STATE);
 
-	mutex_unlock(&dev->mt76.mutex);
+	mt7921_mutex_release(dev);
 
 	ieee80211_queue_delayed_work(mt76_hw(dev), &dev->mphy.mac_work,
 				     MT7921_WATCHDOG_TIME);
@@ -1373,7 +1383,10 @@ void mt7921_mac_work(struct work_struct *work)
 					       mac_work.work);
 	phy = mphy->priv;
 
-	mutex_lock(&mphy->dev->mutex);
+	if (test_bit(MT76_STATE_PM, &mphy->state))
+		goto out;
+
+	mt7921_mutex_acquire(phy->dev);
 
 	mt76_update_survey(mphy->dev);
 	if (++mphy->mac_work_count == 5) {
@@ -1386,8 +1399,75 @@ void mt7921_mac_work(struct work_struct *work)
 		mt7921_mac_sta_stats_work(phy);
 	};
 
-	mutex_unlock(&mphy->dev->mutex);
+	mt7921_mutex_release(phy->dev);
 
-	ieee80211_queue_delayed_work(mphy->hw, &mphy->mac_work,
+out:
+	ieee80211_queue_delayed_work(phy->mt76->hw, &mphy->mac_work,
 				     MT7921_WATCHDOG_TIME);
+}
+
+void mt7921_pm_wake_work(struct work_struct *work)
+{
+	struct mt7921_dev *dev;
+	struct mt76_phy *mphy;
+
+	dev = (struct mt7921_dev *)container_of(work, struct mt7921_dev,
+						pm.wake_work);
+	mphy = dev->phy.mt76;
+
+	if (!mt7921_mcu_drv_pmctrl(dev))
+		mt76_connac_pm_dequeue_skbs(mphy, &dev->pm);
+	else
+		dev_err(mphy->dev->dev, "failed to wake device\n");
+
+	ieee80211_wake_queues(mphy->hw);
+	complete_all(&dev->pm.wake_cmpl);
+}
+
+void mt7921_pm_power_save_work(struct work_struct *work)
+{
+	struct mt7921_dev *dev;
+	unsigned long delta;
+
+	dev = (struct mt7921_dev *)container_of(work, struct mt7921_dev,
+						pm.ps_work.work);
+
+	delta = dev->pm.idle_timeout;
+	if (time_is_after_jiffies(dev->pm.last_activity + delta)) {
+		delta = dev->pm.last_activity + delta - jiffies;
+		goto out;
+	}
+
+	if (!mt7921_mcu_fw_pmctrl(dev))
+		return;
+out:
+	queue_delayed_work(dev->mt76.wq, &dev->pm.ps_work, delta);
+}
+
+int mt7921_mac_set_beacon_filter(struct mt7921_phy *phy,
+				 struct ieee80211_vif *vif,
+				 bool enable)
+{
+	struct mt7921_dev *dev = phy->dev;
+	bool ext_phy = phy != &dev->phy;
+	int err;
+
+	if (!dev->pm.enable)
+		return -EOPNOTSUPP;
+
+	err = mt7921_mcu_set_bss_pm(dev, vif, enable);
+	if (err)
+		return err;
+
+	if (enable) {
+		vif->driver_flags |= IEEE80211_VIF_BEACON_FILTER;
+		mt76_set(dev, MT_WF_RFCR(ext_phy),
+			 MT_WF_RFCR_DROP_OTHER_BEACON);
+	} else {
+		vif->driver_flags &= ~IEEE80211_VIF_BEACON_FILTER;
+		mt76_clear(dev, MT_WF_RFCR(ext_phy),
+			   MT_WF_RFCR_DROP_OTHER_BEACON);
+	}
+
+	return 0;
 }

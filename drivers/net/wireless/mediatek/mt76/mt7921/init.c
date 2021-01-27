@@ -201,6 +201,12 @@ int mt7921_register_device(struct mt7921_dev *dev)
 	dev->phy.dev = dev;
 	dev->phy.mt76 = &dev->mt76.phy;
 	dev->mt76.phy.priv = &dev->phy;
+
+	INIT_DELAYED_WORK(&dev->pm.ps_work, mt7921_pm_power_save_work);
+	INIT_WORK(&dev->pm.wake_work, mt7921_pm_wake_work);
+	init_completion(&dev->pm.wake_cmpl);
+	spin_lock_init(&dev->pm.txq_lock);
+	set_bit(MT76_STATE_PM, &dev->mphy.state);
 	INIT_LIST_HEAD(&dev->phy.stats_list);
 	INIT_DELAYED_WORK(&dev->mphy.mac_work, mt7921_mac_work);
 	INIT_DELAYED_WORK(&dev->phy.scan_work, mt7921_scan_work);
@@ -216,6 +222,7 @@ int mt7921_register_device(struct mt7921_dev *dev)
 		return ret;
 
 	mt7921_init_wiphy(hw);
+	dev->pm.idle_timeout = MT7921_PM_TIMEOUT;
 	dev->mphy.sband_2g.sband.ht_cap.cap |=
 			IEEE80211_HT_CAP_LDPC_CODING |
 			IEEE80211_HT_CAP_MAX_AMSDU;
