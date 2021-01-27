@@ -5676,7 +5676,7 @@ process_leaf:
 				goto next_dir_inode;
 			}
 
-			if (btrfs_inode_in_log(BTRFS_I(di_inode), trans->transid)) {
+			if (!need_log_inode(trans, BTRFS_I(di_inode))) {
 				btrfs_add_delayed_iput(di_inode);
 				break;
 			}
