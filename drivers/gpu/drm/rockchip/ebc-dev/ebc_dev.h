@@ -42,6 +42,8 @@
 #define EBC_SET_FULL_MODE_NUM	(0x7003)
 #define EBC_ENABLE_OVERLAY	(0x7004)
 #define EBC_DISABLE_OVERLAY	(0x7005)
+#define EBC_GET_OSD_BUFFER	(0x7006)
+#define EBC_SEND_OSD_BUFFER	(0x7007)
 
 /*
  * IMPORTANT: Those values is corresponding to android hardware program,

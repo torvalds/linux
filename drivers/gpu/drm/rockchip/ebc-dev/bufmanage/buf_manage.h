@@ -15,7 +15,8 @@ enum ebc_buf_status {
 	buf_idle = 0,		//empty buf can be used
 	buf_user = 1,		//buf get by user
 	buf_dsp = 2,		//buf on dsp list
-	buf_error = 3,
+	buf_osd = 3,		//buf is osd buf
+	buf_error = 4,
 };
 
 struct ebc_buf_s {
@@ -31,6 +32,8 @@ struct ebc_buf_s {
 	int win_y2;
 };
 
+struct ebc_buf_s *ebc_osd_buf_get(void);
+struct ebc_buf_s *ebc_osd_buf_clone(void);
 int ebc_buf_release(struct ebc_buf_s *release_buf);
 int ebc_remove_from_dsp_buf_list(struct ebc_buf_s *remove_buf);
 int ebc_add_to_dsp_buf_list(struct ebc_buf_s *dsp_buf);

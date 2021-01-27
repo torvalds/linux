@@ -27,6 +27,7 @@ struct buf_info_s {
 
 	struct buf_list_s *dsp_buf_list; /* dispplay buffer list. */
 	int dsp_buf_list_status;
+	struct ebc_buf_s *osd_buf;
 
 	struct mutex dsp_lock;
 };
@@ -39,10 +40,14 @@ int ebc_buf_release(struct ebc_buf_s  *release_buf)
 	struct ebc_buf_s *temp_buf = release_buf;
 
 	if (temp_buf) {
-		temp_buf->status = buf_idle;
-		if (1 == ebc_buf_info.use_buf_is_empty) {
-			ebc_buf_info.use_buf_is_empty = 0;
-			wake_up_interruptible_sync(&ebc_buf_wq);
+		if (temp_buf->status == buf_osd) {
+			kfree(temp_buf);
+		} else {
+			temp_buf->status = buf_idle;
+			if (1 == ebc_buf_info.use_buf_is_empty) {
+				ebc_buf_info.use_buf_is_empty = 0;
+				wake_up_interruptible_sync(&ebc_buf_wq);
+			}
 		}
 	}
 
@@ -158,6 +163,28 @@ struct ebc_buf_s *ebc_dsp_buf_get(void)
 	return buf;
 }
 
+struct ebc_buf_s *ebc_osd_buf_get(void)
+{
+	if (ebc_buf_info.osd_buf)
+		return ebc_buf_info.osd_buf;
+	return NULL;
+}
+
+struct ebc_buf_s *ebc_osd_buf_clone(void)
+{
+	struct ebc_buf_s *temp_buf;
+
+	temp_buf = kzalloc(sizeof(*temp_buf), GFP_KERNEL);
+	if (NULL == temp_buf)
+		return NULL;
+
+	temp_buf->virt_addr = ebc_buf_info.osd_buf->virt_addr;
+	temp_buf->phy_addr = ebc_buf_info.osd_buf->phy_addr;
+	temp_buf->status = buf_osd;
+
+	return temp_buf;
+}
+
 struct ebc_buf_s *ebc_empty_buf_get(void)
 {
 	struct ebc_buf_s *temp_buf;
@@ -251,7 +278,7 @@ int ebc_buf_init(unsigned long phy_start, char *mem_start, int men_len, int dest
 	ebc_buf_info.phy_mem_base = phy_start;
 	use_len += dest_buf_len;
 	while (use_len <= men_len) {
-		temp_buf = kmalloc(sizeof(struct ebc_buf_s), GFP_KERNEL);
+		temp_buf = kzalloc(sizeof(*temp_buf), GFP_KERNEL);
 		if (NULL == temp_buf) {
 			res = BUF_ERROR;
 			goto exit;
@@ -276,6 +303,18 @@ int ebc_buf_init(unsigned long phy_start, char *mem_start, int men_len, int dest
 	}
 
 	ebc_buf_info.buf_total_num = ebc_buf_info.buf_list->nb_elt;
+	if (use_len <= men_len) {
+		temp_buf = kzalloc(sizeof(*temp_buf), GFP_KERNEL);
+		if (NULL == temp_buf) {
+			res = BUF_ERROR;
+			goto exit;
+		}
+		temp_buf->virt_addr = temp_addr;
+		temp_buf->phy_addr = phy_start;
+		temp_buf->len = dest_buf_len;
+		temp_buf->status = buf_osd;
+		ebc_buf_info.osd_buf = temp_buf;
+	}
 
 	return BUF_SUCCESS;
 exit:
