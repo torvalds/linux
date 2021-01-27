@@ -2342,6 +2342,15 @@ static int psr_get(void *data, u64 *val)
 
 DEFINE_DEBUGFS_ATTRIBUTE(psr_fops, psr_get, NULL, "%llu\n");
 
+static const struct {
+	char *name;
+	const struct file_operations *fops;
+} connector_debugfs_entries[] = {
+		{"force_yuv420_output", &force_yuv420_output_fops},
+		{"output_bpc", &output_bpc_fops},
+		{"trigger_hotplug", &trigger_hotplug_debugfs_fops}
+};
+
 void connector_debugfs_init(struct amdgpu_dm_connector *connector)
 {
 	int i;
@@ -2358,14 +2367,11 @@ void connector_debugfs_init(struct amdgpu_dm_connector *connector)
 	if (connector->base.connector_type == DRM_MODE_CONNECTOR_eDP)
 		debugfs_create_file_unsafe("psr_state", 0444, dir, connector, &psr_fops);
 
-	debugfs_create_file_unsafe("force_yuv420_output", 0644, dir, connector,
-				   &force_yuv420_output_fops);
-
-	debugfs_create_file("output_bpc", 0644, dir, connector,
-			    &output_bpc_fops);
-
-	debugfs_create_file("trigger_hotplug", 0644, dir, connector,
-			    &trigger_hotplug_debugfs_fops);
+	for (i = 0; i < ARRAY_SIZE(connector_debugfs_entries); i++) {
+		debugfs_create_file(connector_debugfs_entries[i].name,
+				    0644, dir, connector,
+				    connector_debugfs_entries[i].fops);
+	}
 
 	connector->debugfs_dpcd_address = 0;
 	connector->debugfs_dpcd_size = 0;
