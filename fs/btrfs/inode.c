@@ -7105,9 +7105,6 @@ static struct extent_map *btrfs_new_extent_direct(struct btrfs_inode *inode,
  * @strict:	if true, omit optimizations that might force us into unnecessary
  *		cow. e.g., don't trust generation number.
  *
- * This function will flush ordered extents in the range to ensure proper
- * nocow checks for (nowait == false) case.
- *
  * Return:
  * >0	and update @len if we can do nocow write
  *  0	if we can't do nocow write
