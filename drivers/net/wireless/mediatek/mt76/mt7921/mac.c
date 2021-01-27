@@ -1204,6 +1204,9 @@ mt7921_dma_reset(struct mt7921_phy *phy)
 		mt76_queue_rx_reset(dev, i);
 	}
 
+	/* re-init prefetch settings after reset */
+	mt7921_dma_prefetch(dev);
+
 	mt76_set(dev, MT_WFDMA0_GLO_CFG,
 		 MT_WFDMA0_GLO_CFG_TX_DMA_EN | MT_WFDMA0_GLO_CFG_RX_DMA_EN);
 }
