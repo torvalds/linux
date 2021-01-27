@@ -27,6 +27,7 @@
 #define MLX5_CT_STATE_ESTABLISHED_BIT BIT(1)
 #define MLX5_CT_STATE_TRK_BIT BIT(2)
 #define MLX5_CT_STATE_NAT_BIT BIT(3)
+#define MLX5_CT_STATE_REPLY_BIT BIT(4)
 
 #define MLX5_FTE_ID_BITS (mlx5e_tc_attr_to_reg_mappings[FTEID_TO_REG].mlen * 8)
 #define MLX5_FTE_ID_MAX GENMASK(MLX5_FTE_ID_BITS - 1, 0)
@@ -641,6 +642,7 @@ mlx5_tc_ct_entry_create_mod_hdr(struct mlx5_tc_ct_priv *ct_priv,
 	}
 
 	ct_state |= MLX5_CT_STATE_ESTABLISHED_BIT | MLX5_CT_STATE_TRK_BIT;
+	ct_state |= meta->ct_metadata.orig_dir ? 0 : MLX5_CT_STATE_REPLY_BIT;
 	err = mlx5_tc_ct_entry_set_registers(ct_priv, &mod_acts,
 					     ct_state,
 					     meta->ct_metadata.mark,
@@ -1086,8 +1088,8 @@ mlx5_tc_ct_match_add(struct mlx5_tc_ct_priv *priv,
 		     struct netlink_ext_ack *extack)
 {
 	struct flow_rule *rule = flow_cls_offload_flow_rule(f);
+	bool trk, est, untrk, unest, new, rpl, unrpl;
 	struct flow_dissector_key_ct *mask, *key;
-	bool trk, est, untrk, unest, new;
 	u32 ctstate = 0, ctstate_mask = 0;
 	u16 ct_state_on, ct_state_off;
 	u16 ct_state, ct_state_mask;
@@ -1113,9 +1115,10 @@ mlx5_tc_ct_match_add(struct mlx5_tc_ct_priv *priv,
 
 	if (ct_state_mask & ~(TCA_FLOWER_KEY_CT_FLAGS_TRACKED |
 			      TCA_FLOWER_KEY_CT_FLAGS_ESTABLISHED |
-			      TCA_FLOWER_KEY_CT_FLAGS_NEW)) {
+			      TCA_FLOWER_KEY_CT_FLAGS_NEW |
+			      TCA_FLOWER_KEY_CT_FLAGS_REPLY)) {
 		NL_SET_ERR_MSG_MOD(extack,
-				   "only ct_state trk, est and new are supported for offload");
+				   "only ct_state trk, est, new and rpl are supported for offload");
 		return -EOPNOTSUPP;
 	}
 
@@ -1124,13 +1127,17 @@ mlx5_tc_ct_match_add(struct mlx5_tc_ct_priv *priv,
 	trk = ct_state_on & TCA_FLOWER_KEY_CT_FLAGS_TRACKED;
 	new = ct_state_on & TCA_FLOWER_KEY_CT_FLAGS_NEW;
 	est = ct_state_on & TCA_FLOWER_KEY_CT_FLAGS_ESTABLISHED;
+	rpl = ct_state_on & TCA_FLOWER_KEY_CT_FLAGS_REPLY;
 	untrk = ct_state_off & TCA_FLOWER_KEY_CT_FLAGS_TRACKED;
 	unest = ct_state_off & TCA_FLOWER_KEY_CT_FLAGS_ESTABLISHED;
+	unrpl = ct_state_off & TCA_FLOWER_KEY_CT_FLAGS_REPLY;
 
 	ctstate |= trk ? MLX5_CT_STATE_TRK_BIT : 0;
 	ctstate |= est ? MLX5_CT_STATE_ESTABLISHED_BIT : 0;
+	ctstate |= rpl ? MLX5_CT_STATE_REPLY_BIT : 0;
 	ctstate_mask |= (untrk || trk) ? MLX5_CT_STATE_TRK_BIT : 0;
 	ctstate_mask |= (unest || est) ? MLX5_CT_STATE_ESTABLISHED_BIT : 0;
+	ctstate_mask |= (unrpl || rpl) ? MLX5_CT_STATE_REPLY_BIT : 0;
 
 	if (new) {
 		NL_SET_ERR_MSG_MOD(extack,
