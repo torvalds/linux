@@ -9,8 +9,8 @@
 
 #define TEMP_TYPE_PECI			6 /* Sensor type 6: Intel PECI */
 #define UPDATE_INTERVAL_DEFAULT		HZ
-#define UPDATE_INTERVAL_100MS			(HZ / 10)
-#define UPDATE_INTERVAL_10S			(HZ * 10)
+#define UPDATE_INTERVAL_100MS		(HZ / 10)
+#define UPDATE_INTERVAL_10S		(HZ * 10)
 
 #define PECI_HWMON_LABEL_STR_LEN	10
 
@@ -21,8 +21,11 @@
  * @last_updated: time of the last update in jiffies
  */
 struct peci_sensor_data {
-	uint  valid;
-	s32   value;
+	uint valid;
+	union {
+		s32 value;
+		u32 uvalue;
+	};
 	ulong last_updated;
 };
 
@@ -35,8 +38,8 @@ struct peci_sensor_data {
 static inline bool peci_sensor_need_update(struct peci_sensor_data *sensor)
 {
 	return !sensor->valid ||
-	       time_after(jiffies, sensor->last_updated +
-			  UPDATE_INTERVAL_DEFAULT);
+	       time_after(jiffies,
+			  sensor->last_updated + UPDATE_INTERVAL_DEFAULT);
 }
 
 /**
@@ -71,8 +74,7 @@ static inline void peci_sensor_mark_updated(struct peci_sensor_data *sensor)
  * @jif: jiffies value to update with
  */
 static inline void
-peci_sensor_mark_updated_with_time(struct peci_sensor_data *sensor,
-				   ulong jif)
+peci_sensor_mark_updated_with_time(struct peci_sensor_data *sensor, ulong jif)
 {
 	sensor->valid = 1;
 	sensor->last_updated = jif;
@@ -108,8 +110,7 @@ struct peci_sensor_conf {
 	int (*const read)(void *priv, struct peci_sensor_conf *sensor_conf,
 			  struct peci_sensor_data *sensor_data);
 	int (*const write)(void *priv, struct peci_sensor_conf *sensor_conf,
-			   struct peci_sensor_data *sensor_data,
-			   s32 val);
+			   struct peci_sensor_data *sensor_data, s32 val);
 };
 
 /**
@@ -144,14 +145,12 @@ static inline u32 peci_sensor_get_config(struct peci_sensor_conf sensors[],
  *
  * Return: 0 on success or -EOPNOTSUPP in case sensor attribute not found
  */
-static inline int peci_sensor_get_ctx(s32 attribute,
-				      struct peci_sensor_conf
-				      sensor_conf_list[],
-				      struct peci_sensor_conf **sensor_conf,
-				      struct peci_sensor_data
-				      sensor_data_list[],
-				      struct peci_sensor_data **sensor_data,
-				      const u8 sensor_count)
+static inline int
+peci_sensor_get_ctx(s32 attribute, struct peci_sensor_conf sensor_conf_list[],
+		    struct peci_sensor_conf **sensor_conf,
+		    struct peci_sensor_data sensor_data_list[],
+		    struct peci_sensor_data **sensor_data,
+		    const u8 sensor_count)
 {
 	int iter;
 
@@ -195,12 +194,12 @@ static inline int peci_sensor_get_ctx(s32 attribute,
 union peci_pkg_power_sku_unit {
 	u32 value;
 	struct {
-		u32 pwr_unit : 4;
-		u32 rsvd0    : 4;
-		u32 eng_unit : 5;
-		u32 rsvd1    : 3;
-		u32 tim_unit : 4;
-		u32 rsvd2    : 12;
+		u32 pwr_unit	: 4;
+		u32 rsvd0	: 4;
+		u32 eng_unit	: 5;
+		u32 rsvd1	: 3;
+		u32 tim_unit	: 4;
+		u32 rsvd2	: 12;
 	} __attribute__((__packed__)) bits;
 } __attribute__((__packed__));
 
@@ -220,10 +219,10 @@ static_assert(sizeof(union peci_pkg_power_sku_unit) == PECI_PCS_REGISTER_SIZE);
 union peci_package_power_info_low {
 	u32 value;
 	struct {
-		u32 pkg_tdp         : 15;
-		u32 rsvd0           : 1;
-		u32 pkg_min_pwr     : 15;
-		u32 rsvd1           : 1;
+		u32 pkg_tdp	: 15;
+		u32 rsvd0	: 1;
+		u32 pkg_min_pwr	: 15;
+		u32 rsvd1	: 1;
 	} __attribute__((__packed__)) bits;
 } __attribute__((__packed__));
 
@@ -245,11 +244,11 @@ static_assert(sizeof(union peci_package_power_info_low) ==
 union peci_package_power_limit_high {
 	u32 value;
 	struct {
-		u32 pwr_lim_2       : 15;
-		u32 pwr_lim_2_en    : 1;
-		u32 pwr_clmp_lim_2  : 1;
-		u32 pwr_lim_2_time  : 7;
-		u32 rsvd0           : 8;
+		u32 pwr_lim_2		: 15;
+		u32 pwr_lim_2_en	: 1;
+		u32 pwr_clmp_lim_2	: 1;
+		u32 pwr_lim_2_time	: 7;
+		u32 rsvd0		: 8;
 	} __attribute__((__packed__)) bits;
 } __attribute__((__packed__));
 
@@ -271,11 +270,11 @@ static_assert(sizeof(union peci_package_power_limit_high) ==
 union peci_package_power_limit_low {
 	u32 value;
 	struct {
-		u32 pwr_lim_1       : 15;
-		u32 pwr_lim_1_en    : 1;
-		u32 pwr_clmp_lim_1  : 1;
-		u32 pwr_lim_1_time  : 7;
-		u32 rsvd0           : 8;
+		u32 pwr_lim_1		: 15;
+		u32 pwr_lim_1_en	: 1;
+		u32 pwr_clmp_lim_1	: 1;
+		u32 pwr_lim_1_time	: 7;
+		u32 rsvd0		: 8;
 	} __attribute__((__packed__)) bits;
 } __attribute__((__packed__));
 
@@ -297,11 +296,11 @@ static_assert(sizeof(union peci_package_power_limit_low) ==
 union peci_dram_power_info_high {
 	u32 value;
 	struct {
-		u32 max_pwr  : 15;
-		u32 rsvd0    : 1;
-		u32 max_win  : 7;
-		u32 rsvd1    : 8;
-		u32 lock     : 1;
+		u32 max_pwr	: 15;
+		u32 rsvd0	: 1;
+		u32 max_win	: 7;
+		u32 rsvd1	: 8;
+		u32 lock	: 1;
 	} __attribute__((__packed__)) bits;
 } __attribute__((__packed__));
 
@@ -322,10 +321,10 @@ static_assert(sizeof(union peci_dram_power_info_high) ==
 union peci_dram_power_info_low {
 	u32 value;
 	struct {
-		u32 tdp      : 15;
-		u32 rsvd0    : 1;
-		u32 min_pwr  : 15;
-		u32 rsvd1    : 1;
+		u32 tdp		: 15;
+		u32 rsvd0	: 1;
+		u32 min_pwr	: 15;
+		u32 rsvd1	: 1;
 	} __attribute__((__packed__)) bits;
 } __attribute__((__packed__));
 
@@ -349,11 +348,11 @@ static_assert(sizeof(union peci_dram_power_info_low) == PECI_PCS_REGISTER_SIZE);
 union peci_dram_power_limit {
 	u32 value;
 	struct {
-		u32 pp_pwr_lim      : 15;
-		u32 pwr_lim_ctrl_en : 1;
-		u32 rsvd0           : 1;
-		u32 ctrl_time_win   : 7;
-		u32 rsvd1           : 8;
+		u32 pp_pwr_lim		: 15;
+		u32 pwr_lim_ctrl_en	: 1;
+		u32 rsvd0		: 1;
+		u32 ctrl_time_win	: 7;
+		u32 rsvd1		: 8;
 	} __attribute__((__packed__)) bits;
 } __attribute__((__packed__));
 
@@ -483,8 +482,7 @@ static inline int peci_pcs_write(struct peci_client_manager *peci_mgr, u8 index,
 static inline int peci_pcs_calc_pwr_from_eng(struct device *dev,
 					     struct peci_sensor_data *prev_energy,
 					     struct peci_sensor_data *energy,
-					     u32 unit,
-					     s32 *power_in_mW)
+					     u32 unit, s32 *power_in_mW)
 {
 	ulong elapsed;
 	int ret;
@@ -540,6 +538,72 @@ static inline int peci_pcs_calc_pwr_from_eng(struct device *dev,
 	/* Update previous energy sensor context with current value */
 	prev_energy->value = energy->value;
 	peci_sensor_mark_updated_with_time(prev_energy, energy->last_updated);
+
+	return ret;
+}
+
+/**
+ * peci_pcs_calc_acc_eng - calculate accumulated energy (in microjoules) based
+ * on two energy readings
+ * @dev: Device handle
+ * @prev_energy: Previous energy reading context with raw energy counter value
+ * @energy: Current energy reading context with raw energy counter value
+ * @unit: Calculation factor
+ * @acc_energy_in_uJ: Pointer to the variable with cumulative energy counter
+ *
+ * Return: 0 if succeeded,
+ *	-EINVAL if there are null pointers among arguments,
+ *	-EAGAIN if calculation is skipped.
+ */
+static inline int peci_pcs_calc_acc_eng(struct device *dev,
+					struct peci_sensor_data *prev_energy,
+					struct peci_sensor_data *curr_energy,
+					u32 unit, u32 *acc_energy_in_uJ)
+{
+	ulong elapsed;
+	int ret;
+
+	elapsed = curr_energy->last_updated - prev_energy->last_updated;
+
+	dev_dbg(dev, "raw energy before %u, raw energy now %u, unit %u, jiffies elapsed %lu\n",
+		prev_energy->uvalue, curr_energy->value, unit, elapsed);
+
+	/*
+	 * Don't calculate cumulative energy for first counter read - last counter
+	 * read was more than 17 minutes ago (jiffies and energy raw counter did not wrap
+	 * and power calculation does not overflow or underflow).
+	 */
+	if (prev_energy->last_updated > 0 && elapsed < (HZ * 17 * 60)) {
+		u32 energy_consumed;
+		u64 energy_consumed_in_uJ;
+
+		if (curr_energy->uvalue >= prev_energy->uvalue)
+			energy_consumed = curr_energy->uvalue -
+					prev_energy->uvalue;
+		else
+			energy_consumed = (U32_MAX - prev_energy->uvalue) +
+					curr_energy->uvalue + 1u;
+
+		energy_consumed_in_uJ =
+				peci_pcs_xn_to_uunits(energy_consumed, unit);
+		*acc_energy_in_uJ = S32_MAX &
+				(*acc_energy_in_uJ + (u32)energy_consumed_in_uJ);
+
+		dev_dbg(dev, "raw energy %u, scaled energy %llumJ, cumulative energy %dmJ\n",
+			energy_consumed, energy_consumed_in_uJ,
+			*acc_energy_in_uJ);
+
+		ret = 0;
+	} else {
+		dev_dbg(dev, "skipping calculate cumulative energy, try again\n");
+
+		*acc_energy_in_uJ = 0;
+		ret = -EAGAIN;
+	}
+
+	prev_energy->uvalue = curr_energy->uvalue;
+	peci_sensor_mark_updated_with_time(prev_energy,
+					   curr_energy->last_updated);
 
 	return ret;
 }

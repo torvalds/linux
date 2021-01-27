@@ -41,18 +41,10 @@ struct peci_cpupower {
 		energy_sensor_data_list[PECI_CPUPOWER_ENERGY_CHANNEL_COUNT]
 				       [PECI_CPUPOWER_ENERGY_SENSOR_COUNT];
 
-	/*
-	 * Not exposed to any sensor directly - just used to limit PECI
-	 * communication for energy/power_average which are derived from the
-	 * same underlying data
-	 */
-	struct peci_sensor_data energy_cache;
-
-	/*
-	 * Not exposed to any sensor directly - just used to store previous raw
-	 * energy counter value that is required to calculate average power
-	 */
+	/* Below structs are not exposed to any sensor directly */
+	struct peci_sensor_data energy_cache; /* used to limit PECI communication */
 	struct peci_sensor_data power_sensor_prev_energy;
+	struct peci_sensor_data energy_sensor_prev_energy;
 
 	union peci_pkg_power_sku_unit units;
 	bool units_valid;
@@ -414,14 +406,22 @@ peci_cpupower_read_energy(void *ctx, struct peci_sensor_conf *sensor_conf,
 		return ret;
 	}
 
-	/* Energy consumed in microjoules - adjusted to 31 bits counter */
-	sensor_data->value = S32_MAX & (u32)peci_pcs_xn_to_uunits(priv->energy_cache.value,
-							priv->units.bits.eng_unit);
+	ret = peci_pcs_calc_acc_eng(priv->dev,
+				    &priv->energy_sensor_prev_energy,
+				    &priv->energy_cache,
+				    priv->units.bits.eng_unit,
+				    &sensor_data->uvalue);
+
+	if (ret) {
+		dev_dbg(priv->dev, "cumulative energy calculation failed\n");
+		return ret;
+	}
+
 	peci_sensor_mark_updated_with_time(sensor_data,
 					   priv->energy_cache.last_updated);
 
 	dev_dbg(priv->dev, "energy %duJ, jif %lu, HZ is %d jiffies\n",
-		sensor_data->value, sensor_data->last_updated, HZ);
+		sensor_data->uvalue, sensor_data->last_updated, HZ);
 
 	return 0;
 }
