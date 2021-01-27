@@ -3858,7 +3858,14 @@ static void fill_inode_item(struct btrfs_trans_handle *trans,
 	btrfs_set_token_timespec_nsec(&token, &item->ctime,
 				      inode->i_ctime.tv_nsec);
 
-	btrfs_set_token_inode_nbytes(&token, item, inode_get_bytes(inode));
+	/*
+	 * We do not need to set the nbytes field, in fact during a fast fsync
+	 * its value may not even be correct, since a fast fsync does not wait
+	 * for ordered extent completion, which is where we update nbytes, it
+	 * only waits for writeback to complete. During log replay as we find
+	 * file extent items and replay them, we adjust the nbytes field of the
+	 * inode item in subvolume tree as needed (see overwrite_item()).
+	 */
 
 	btrfs_set_token_inode_sequence(&token, item, inode_peek_iversion(inode));
 	btrfs_set_token_inode_transid(&token, item, trans->transid);
