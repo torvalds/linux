@@ -5940,23 +5940,24 @@ static bool need_full_stripe(enum btrfs_map_op op)
 }
 
 /*
- * btrfs_get_io_geometry - calculates the geomery of a particular (address, len)
- *		       tuple. This information is used to calculate how big a
- *		       particular bio can get before it straddles a stripe.
+ * Calculate the geometry of a particular (address, len) tuple. This
+ * information is used to calculate how big a particular bio can get before it
+ * straddles a stripe.
  *
- * @fs_info - the filesystem
- * @logical - address that we want to figure out the geometry of
- * @len	    - the length of IO we are going to perform, starting at @logical
- * @op      - type of operation - write or read
- * @io_geom - pointer used to return values
+ * @fs_info: the filesystem
+ * @em:      mapping containing the logical extent
+ * @op:      type of operation - write or read
+ * @logical: address that we want to figure out the geometry of
+ * @len:     the length of IO we are going to perform, starting at @logical
+ * @io_geom: pointer used to return values
  *
  * Returns < 0 in case a chunk for the given logical address cannot be found,
  * usually shouldn't happen unless @logical is corrupted, 0 otherwise.
  */
-int btrfs_get_io_geometry(struct btrfs_fs_info *fs_info, enum btrfs_map_op op,
-			u64 logical, u64 len, struct btrfs_io_geometry *io_geom)
+int btrfs_get_io_geometry(struct btrfs_fs_info *fs_info, struct extent_map *em,
+			  enum btrfs_map_op op, u64 logical, u64 len,
+			  struct btrfs_io_geometry *io_geom)
 {
-	struct extent_map *em;
 	struct map_lookup *map;
 	u64 offset;
 	u64 stripe_offset;
@@ -5964,13 +5965,8 @@ int btrfs_get_io_geometry(struct btrfs_fs_info *fs_info, enum btrfs_map_op op,
 	u64 stripe_len;
 	u64 raid56_full_stripe_start = (u64)-1;
 	int data_stripes;
-	int ret = 0;
 
 	ASSERT(op != BTRFS_MAP_DISCARD);
-
-	em = btrfs_get_chunk_map(fs_info, logical, len);
-	if (IS_ERR(em))
-		return PTR_ERR(em);
 
 	map = em->map_lookup;
 	/* Offset of this logical address in the chunk */
@@ -5985,8 +5981,7 @@ int btrfs_get_io_geometry(struct btrfs_fs_info *fs_info, enum btrfs_map_op op,
 		btrfs_crit(fs_info,
 "stripe math has gone wrong, stripe_offset=%llu offset=%llu start=%llu logical=%llu stripe_len=%llu",
 			stripe_offset, offset, em->start, logical, stripe_len);
-		ret = -EINVAL;
-		goto out;
+		return -EINVAL;
 	}
 
 	/* stripe_offset is the offset of this block in its stripe */
@@ -6033,10 +6028,7 @@ int btrfs_get_io_geometry(struct btrfs_fs_info *fs_info, enum btrfs_map_op op,
 	io_geom->stripe_offset = stripe_offset;
 	io_geom->raid56_stripe_offset = raid56_full_stripe_start;
 
-out:
-	/* once for us */
-	free_extent_map(em);
-	return ret;
+	return 0;
 }
 
 static int __btrfs_map_block(struct btrfs_fs_info *fs_info,
@@ -6069,12 +6061,13 @@ static int __btrfs_map_block(struct btrfs_fs_info *fs_info,
 	ASSERT(bbio_ret);
 	ASSERT(op != BTRFS_MAP_DISCARD);
 
-	ret = btrfs_get_io_geometry(fs_info, op, logical, *length, &geom);
+	em = btrfs_get_chunk_map(fs_info, logical, *length);
+	ASSERT(!IS_ERR(em));
+
+	ret = btrfs_get_io_geometry(fs_info, em, op, logical, *length, &geom);
 	if (ret < 0)
 		return ret;
 
-	em = btrfs_get_chunk_map(fs_info, logical, *length);
-	ASSERT(!IS_ERR(em));
 	map = em->map_lookup;
 
 	*length = geom.len;

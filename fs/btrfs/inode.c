@@ -2183,9 +2183,10 @@ int btrfs_bio_fits_in_stripe(struct page *page, size_t size, struct bio *bio,
 	struct inode *inode = page->mapping->host;
 	struct btrfs_fs_info *fs_info = btrfs_sb(inode->i_sb);
 	u64 logical = bio->bi_iter.bi_sector << 9;
+	struct extent_map *em;
 	u64 length = 0;
 	u64 map_length;
-	int ret;
+	int ret = 0;
 	struct btrfs_io_geometry geom;
 
 	if (bio_flags & EXTENT_BIO_COMPRESSED)
@@ -2193,14 +2194,19 @@ int btrfs_bio_fits_in_stripe(struct page *page, size_t size, struct bio *bio,
 
 	length = bio->bi_iter.bi_size;
 	map_length = length;
-	ret = btrfs_get_io_geometry(fs_info, btrfs_op(bio), logical, map_length,
-				    &geom);
+	em = btrfs_get_chunk_map(fs_info, logical, map_length);
+	if (IS_ERR(em))
+		return PTR_ERR(em);
+	ret = btrfs_get_io_geometry(fs_info, em, btrfs_op(bio), logical,
+				    map_length, &geom);
 	if (ret < 0)
-		return ret;
+		goto out;
 
 	if (geom.len < length + size)
-		return 1;
-	return 0;
+		ret = 1;
+out:
+	free_extent_map(em);
+	return ret;
 }
 
 /*
@@ -7938,10 +7944,12 @@ static blk_qc_t btrfs_submit_direct(struct inode *inode, struct iomap *iomap,
 	u64 submit_len;
 	int clone_offset = 0;
 	int clone_len;
+	u64 logical;
 	int ret;
 	blk_status_t status;
 	struct btrfs_io_geometry geom;
 	struct btrfs_dio_data *dio_data = iomap->private;
+	struct extent_map *em = NULL;
 
 	dip = btrfs_create_dio_private(dio_bio, inode, file_offset);
 	if (!dip) {
@@ -7970,12 +7978,18 @@ static blk_qc_t btrfs_submit_direct(struct inode *inode, struct iomap *iomap,
 	submit_len = dio_bio->bi_iter.bi_size;
 
 	do {
-		ret = btrfs_get_io_geometry(fs_info, btrfs_op(dio_bio),
-					    start_sector << 9, submit_len,
-					    &geom);
+		logical = start_sector << 9;
+		em = btrfs_get_chunk_map(fs_info, logical, submit_len);
+		if (IS_ERR(em)) {
+			status = errno_to_blk_status(PTR_ERR(em));
+			em = NULL;
+			goto out_err_em;
+		}
+		ret = btrfs_get_io_geometry(fs_info, em, btrfs_op(dio_bio),
+					    logical, submit_len, &geom);
 		if (ret) {
 			status = errno_to_blk_status(ret);
-			goto out_err;
+			goto out_err_em;
 		}
 		ASSERT(geom.len <= INT_MAX);
 
@@ -8020,19 +8034,24 @@ static blk_qc_t btrfs_submit_direct(struct inode *inode, struct iomap *iomap,
 			bio_put(bio);
 			if (submit_len > 0)
 				refcount_dec(&dip->refs);
-			goto out_err;
+			goto out_err_em;
 		}
 
 		dio_data->submitted += clone_len;
 		clone_offset += clone_len;
 		start_sector += clone_len >> 9;
 		file_offset += clone_len;
+
+		free_extent_map(em);
 	} while (submit_len > 0);
 	return BLK_QC_T_NONE;
 
+out_err_em:
+	free_extent_map(em);
 out_err:
 	dip->dio_bio->bi_status = status;
 	btrfs_dio_private_put(dip);
+
 	return BLK_QC_T_NONE;
 }
 
