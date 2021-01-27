@@ -283,19 +283,19 @@ const char *bch2_sb_validate(struct bch_sb_handle *disk_sb)
 		return "Bad number of member devices";
 
 	if (!BCH_SB_META_REPLICAS_WANT(sb) ||
-	    BCH_SB_META_REPLICAS_WANT(sb) >= BCH_REPLICAS_MAX)
+	    BCH_SB_META_REPLICAS_WANT(sb) > BCH_REPLICAS_MAX)
 		return "Invalid number of metadata replicas";
 
 	if (!BCH_SB_META_REPLICAS_REQ(sb) ||
-	    BCH_SB_META_REPLICAS_REQ(sb) >= BCH_REPLICAS_MAX)
+	    BCH_SB_META_REPLICAS_REQ(sb) > BCH_REPLICAS_MAX)
 		return "Invalid number of metadata replicas";
 
 	if (!BCH_SB_DATA_REPLICAS_WANT(sb) ||
-	    BCH_SB_DATA_REPLICAS_WANT(sb) >= BCH_REPLICAS_MAX)
+	    BCH_SB_DATA_REPLICAS_WANT(sb) > BCH_REPLICAS_MAX)
 		return "Invalid number of data replicas";
 
 	if (!BCH_SB_DATA_REPLICAS_REQ(sb) ||
-	    BCH_SB_DATA_REPLICAS_REQ(sb) >= BCH_REPLICAS_MAX)
+	    BCH_SB_DATA_REPLICAS_REQ(sb) > BCH_REPLICAS_MAX)
 		return "Invalid number of data replicas";
 
 	if (BCH_SB_META_CSUM_TYPE(sb) >= BCH_CSUM_OPT_NR)
