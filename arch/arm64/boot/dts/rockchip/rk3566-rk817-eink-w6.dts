@@ -555,12 +555,16 @@
 		reg = <0x36>;
 		clocks = <&cru CLK_CAM0_OUT>;
 		clock-names = "xvclk";
+		/* avdd-supply = <&vcc2v8_dvp>; */
+		dovdd-supply = <&vcc1v8_dvp>;
+		/* dvdd-supply = <&vcc1v8_dvp>; */
+
 		power-domains = <&power RK3568_PD_VI>;
 		pinctrl-names = "default";
 		pinctrl-0 = <&cam_clkout0>;
 		//reset pin control by hardware,used this pin switch to mipi input
 		//1->2LANE(LANE 0&1) FRONT camera, 0->4LANE REAR camera
-		reset-gpios = <&gpio4 RK_PC3 GPIO_ACTIVE_LOW>;
+		//reset-gpios = <&gpio4 RK_PC3 GPIO_ACTIVE_LOW>;
 		pwdn-gpios = <&gpio4 RK_PC2 GPIO_ACTIVE_HIGH>;
 		rockchip,camera-module-index = <0>;
 		rockchip,camera-module-facing = "back";
