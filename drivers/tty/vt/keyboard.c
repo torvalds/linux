@@ -131,8 +131,8 @@ static const unsigned char max_vals[] = {
 
 static const int NR_TYPES = ARRAY_SIZE(max_vals);
 
-static void kbd_bh(unsigned long dummy);
-static DECLARE_TASKLET_DISABLED_OLD(keyboard_tasklet, kbd_bh);
+static void kbd_bh(struct tasklet_struct *unused);
+static DECLARE_TASKLET_DISABLED(keyboard_tasklet, kbd_bh);
 
 static struct input_handler kbd_handler;
 static DEFINE_SPINLOCK(kbd_event_lock);
@@ -1245,7 +1245,7 @@ void vt_kbd_con_stop(int console)
  * handle the scenario when keyboard handler is not registered yet
  * but we already getting updates from the VT to update led state.
  */
-static void kbd_bh(unsigned long dummy)
+static void kbd_bh(struct tasklet_struct *unused)
 {
 	unsigned int leds;
 	unsigned long flags;
