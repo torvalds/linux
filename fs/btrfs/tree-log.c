@@ -5826,6 +5826,11 @@ static int btrfs_log_all_parents(struct btrfs_trans_handle *trans,
 				goto out;
 			}
 
+			if (!need_log_inode(trans, BTRFS_I(dir_inode))) {
+				btrfs_add_delayed_iput(dir_inode);
+				continue;
+			}
+
 			if (ctx)
 				ctx->log_new_dentries = false;
 			ret = btrfs_log_inode(trans, root, BTRFS_I(dir_inode),
