@@ -47,7 +47,6 @@
 static bool swap_count_continued(struct swap_info_struct *, pgoff_t,
 				 unsigned char);
 static void free_swap_count_continuations(struct swap_info_struct *);
-static sector_t map_swap_entry(swp_entry_t, struct block_device**);
 
 DEFINE_SPINLOCK(swap_lock);
 static unsigned int nr_swapfiles;
@@ -1791,6 +1790,9 @@ int free_swap_and_cache(swp_entry_t entry)
 }
 
 #ifdef CONFIG_HIBERNATION
+
+static sector_t map_swap_entry(swp_entry_t, struct block_device**);
+
 /*
  * Find the swap type that corresponds to given device (if any).
  *
@@ -2281,6 +2283,7 @@ static void drain_mmlist(void)
 	spin_unlock(&mmlist_lock);
 }
 
+#ifdef CONFIG_HIBERNATION
 /*
  * Use this swapdev's extent info to locate the (PAGE_SIZE) block which
  * corresponds to page offset for the specified swap entry.
@@ -2300,6 +2303,7 @@ static sector_t map_swap_entry(swp_entry_t entry, struct block_device **bdev)
 	se = offset_to_swap_extent(sis, offset);
 	return se->start_block + (offset - se->start_page);
 }
+#endif
 
 /*
  * Free all of a swapdev's extent information
