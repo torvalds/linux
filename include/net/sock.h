@@ -1903,10 +1903,13 @@ static inline void sk_set_txhash(struct sock *sk)
 	sk->sk_txhash = net_tx_rndhash();
 }
 
-static inline void sk_rethink_txhash(struct sock *sk)
+static inline bool sk_rethink_txhash(struct sock *sk)
 {
-	if (sk->sk_txhash)
+	if (sk->sk_txhash) {
 		sk_set_txhash(sk);
+		return true;
+	}
+	return false;
 }
 
 static inline struct dst_entry *
@@ -1929,11 +1932,9 @@ sk_dst_get(struct sock *sk)
 	return dst;
 }
 
-static inline void dst_negative_advice(struct sock *sk)
+static inline void __dst_negative_advice(struct sock *sk)
 {
 	struct dst_entry *ndst, *dst = __sk_dst_get(sk);
-
-	sk_rethink_txhash(sk);
 
 	if (dst && dst->ops->negative_advice) {
 		ndst = dst->ops->negative_advice(dst);
@@ -1944,6 +1945,12 @@ static inline void dst_negative_advice(struct sock *sk)
 			sk->sk_dst_pending_confirm = 0;
 		}
 	}
+}
+
+static inline void dst_negative_advice(struct sock *sk)
+{
+	sk_rethink_txhash(sk);
+	__dst_negative_advice(sk);
 }
 
 static inline void

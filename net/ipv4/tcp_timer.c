@@ -219,14 +219,8 @@ static int tcp_write_timeout(struct sock *sk)
 	int retry_until;
 
 	if ((1 << sk->sk_state) & (TCPF_SYN_SENT | TCPF_SYN_RECV)) {
-		if (icsk->icsk_retransmits) {
-			dst_negative_advice(sk);
-		} else {
-			sk_rethink_txhash(sk);
-			tp->timeout_rehash++;
-			__NET_INC_STATS(sock_net(sk),
-					LINUX_MIB_TCPTIMEOUTREHASH);
-		}
+		if (icsk->icsk_retransmits)
+			__dst_negative_advice(sk);
 		retry_until = icsk->icsk_syn_retries ? : net->ipv4.sysctl_tcp_syn_retries;
 		expired = icsk->icsk_retransmits >= retry_until;
 	} else {
@@ -234,12 +228,7 @@ static int tcp_write_timeout(struct sock *sk)
 			/* Black hole detection */
 			tcp_mtu_probing(icsk, sk);
 
-			dst_negative_advice(sk);
-		} else {
-			sk_rethink_txhash(sk);
-			tp->timeout_rehash++;
-			__NET_INC_STATS(sock_net(sk),
-					LINUX_MIB_TCPTIMEOUTREHASH);
+			__dst_negative_advice(sk);
 		}
 
 		retry_until = net->ipv4.sysctl_tcp_retries2;
@@ -268,6 +257,11 @@ static int tcp_write_timeout(struct sock *sk)
 		/* Has it gone just too far? */
 		tcp_write_err(sk);
 		return 1;
+	}
+
+	if (sk_rethink_txhash(sk)) {
+		tp->timeout_rehash++;
+		__NET_INC_STATS(sock_net(sk), LINUX_MIB_TCPTIMEOUTREHASH);
 	}
 
 	return 0;
@@ -349,6 +343,7 @@ static void tcp_probe_timer(struct sock *sk)
 
 	if (tp->packets_out || !skb) {
 		icsk->icsk_probes_out = 0;
+		icsk->icsk_probes_tstamp = 0;
 		return;
 	}
 
@@ -360,13 +355,12 @@ static void tcp_probe_timer(struct sock *sk)
 	 * corresponding system limit. We also implement similar policy when
 	 * we use RTO to probe window in tcp_retransmit_timer().
 	 */
-	if (icsk->icsk_user_timeout) {
-		u32 elapsed = tcp_model_timeout(sk, icsk->icsk_probes_out,
-						tcp_probe0_base(sk));
-
-		if (elapsed >= icsk->icsk_user_timeout)
-			goto abort;
-	}
+	if (!icsk->icsk_probes_tstamp)
+		icsk->icsk_probes_tstamp = tcp_jiffies32;
+	else if (icsk->icsk_user_timeout &&
+		 (s32)(tcp_jiffies32 - icsk->icsk_probes_tstamp) >=
+		 msecs_to_jiffies(icsk->icsk_user_timeout))
+		goto abort;
 
 	max_probes = sock_net(sk)->ipv4.sysctl_tcp_retries2;
 	if (sock_flag(sk, SOCK_DEAD)) {

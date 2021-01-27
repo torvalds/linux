@@ -184,7 +184,11 @@ static int cdns_imx_probe(struct platform_device *pdev)
 	}
 
 	data->num_clks = ARRAY_SIZE(imx_cdns3_core_clks);
-	data->clks = (struct clk_bulk_data *)imx_cdns3_core_clks;
+	data->clks = devm_kmemdup(dev, imx_cdns3_core_clks,
+				sizeof(imx_cdns3_core_clks), GFP_KERNEL);
+	if (!data->clks)
+		return -ENOMEM;
+
 	ret = devm_clk_bulk_get(dev, data->num_clks, data->clks);
 	if (ret)
 		return ret;
@@ -214,20 +218,11 @@ err:
 	return ret;
 }
 
-static int cdns_imx_remove_core(struct device *dev, void *data)
-{
-	struct platform_device *pdev = to_platform_device(dev);
-
-	platform_device_unregister(pdev);
-
-	return 0;
-}
-
 static int cdns_imx_remove(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
 
-	device_for_each_child(dev, NULL, cdns_imx_remove_core);
+	of_platform_depopulate(dev);
 	platform_set_drvdata(pdev, NULL);
 
 	return 0;

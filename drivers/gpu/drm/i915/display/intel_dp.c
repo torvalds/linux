@@ -3496,22 +3496,22 @@ void intel_dp_sink_set_decompression_state(struct intel_dp *intel_dp,
 			    enable ? "enable" : "disable");
 }
 
-/* If the sink supports it, try to set the power state appropriately */
-void intel_dp_sink_dpms(struct intel_dp *intel_dp, int mode)
+/* If the device supports it, try to set the power state appropriately */
+void intel_dp_set_power(struct intel_dp *intel_dp, u8 mode)
 {
-	struct drm_i915_private *i915 = dp_to_i915(intel_dp);
+	struct intel_encoder *encoder = &dp_to_dig_port(intel_dp)->base;
+	struct drm_i915_private *i915 = to_i915(encoder->base.dev);
 	int ret, i;
 
 	/* Should have a valid DPCD by this point */
 	if (intel_dp->dpcd[DP_DPCD_REV] < 0x11)
 		return;
 
-	if (mode != DRM_MODE_DPMS_ON) {
+	if (mode != DP_SET_POWER_D0) {
 		if (downstream_hpd_needs_d0(intel_dp))
 			return;
 
-		ret = drm_dp_dpcd_writeb(&intel_dp->aux, DP_SET_POWER,
-					 DP_SET_POWER_D3);
+		ret = drm_dp_dpcd_writeb(&intel_dp->aux, DP_SET_POWER, mode);
 	} else {
 		struct intel_lspcon *lspcon = dp_to_lspcon(intel_dp);
 
@@ -3520,8 +3520,7 @@ void intel_dp_sink_dpms(struct intel_dp *intel_dp, int mode)
 		 * time to wake up.
 		 */
 		for (i = 0; i < 3; i++) {
-			ret = drm_dp_dpcd_writeb(&intel_dp->aux, DP_SET_POWER,
-						 DP_SET_POWER_D0);
+			ret = drm_dp_dpcd_writeb(&intel_dp->aux, DP_SET_POWER, mode);
 			if (ret == 1)
 				break;
 			msleep(1);
@@ -3532,8 +3531,9 @@ void intel_dp_sink_dpms(struct intel_dp *intel_dp, int mode)
 	}
 
 	if (ret != 1)
-		drm_dbg_kms(&i915->drm, "failed to %s sink power state\n",
-			    mode == DRM_MODE_DPMS_ON ? "enable" : "disable");
+		drm_dbg_kms(&i915->drm, "[ENCODER:%d:%s] Set power to %s failed\n",
+			    encoder->base.base.id, encoder->base.name,
+			    mode == DP_SET_POWER_D0 ? "D0" : "D3");
 }
 
 static bool cpt_dp_port_selected(struct drm_i915_private *dev_priv,
@@ -3707,7 +3707,7 @@ static void intel_disable_dp(struct intel_atomic_state *state,
 	 * ensure that we have vdd while we switch off the panel. */
 	intel_edp_panel_vdd_on(intel_dp);
 	intel_edp_backlight_off(old_conn_state);
-	intel_dp_sink_dpms(intel_dp, DRM_MODE_DPMS_OFF);
+	intel_dp_set_power(intel_dp, DP_SET_POWER_D3);
 	intel_edp_panel_off(intel_dp);
 }
 
@@ -3856,7 +3856,8 @@ static void intel_dp_enable_port(struct intel_dp *intel_dp,
 	intel_de_posting_read(dev_priv, intel_dp->output_reg);
 }
 
-void intel_dp_configure_protocol_converter(struct intel_dp *intel_dp)
+void intel_dp_configure_protocol_converter(struct intel_dp *intel_dp,
+					   const struct intel_crtc_state *crtc_state)
 {
 	struct drm_i915_private *i915 = dp_to_i915(intel_dp);
 	u8 tmp;
@@ -3875,8 +3876,8 @@ void intel_dp_configure_protocol_converter(struct intel_dp *intel_dp)
 		drm_dbg_kms(&i915->drm, "Failed to set protocol converter HDMI mode to %s\n",
 			    enableddisabled(intel_dp->has_hdmi_sink));
 
-	tmp = intel_dp->dfp.ycbcr_444_to_420 ?
-		DP_CONVERSION_TO_YCBCR420_ENABLE : 0;
+	tmp = crtc_state->output_format == INTEL_OUTPUT_FORMAT_YCBCR444 &&
+		intel_dp->dfp.ycbcr_444_to_420 ? DP_CONVERSION_TO_YCBCR420_ENABLE : 0;
 
 	if (drm_dp_dpcd_writeb(&intel_dp->aux,
 			       DP_PROTOCOL_CONVERTER_CONTROL_1, tmp) != 1)
@@ -3929,8 +3930,8 @@ static void intel_enable_dp(struct intel_atomic_state *state,
 				    lane_mask);
 	}
 
-	intel_dp_sink_dpms(intel_dp, DRM_MODE_DPMS_ON);
-	intel_dp_configure_protocol_converter(intel_dp);
+	intel_dp_set_power(intel_dp, DP_SET_POWER_D0);
+	intel_dp_configure_protocol_converter(intel_dp, pipe_config);
 	intel_dp_start_link_train(intel_dp);
 	intel_dp_stop_link_train(intel_dp);
 

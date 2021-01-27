@@ -95,8 +95,6 @@ struct ucma_context {
 	u64			uid;
 
 	struct list_head	list;
-	/* sync between removal event and id destroy, protected by file mut */
-	int			destroying;
 	struct work_struct	close_work;
 };
 
@@ -122,7 +120,7 @@ static DEFINE_XARRAY_ALLOC(ctx_table);
 static DEFINE_XARRAY_ALLOC(multicast_table);
 
 static const struct file_operations ucma_fops;
-static int __destroy_id(struct ucma_context *ctx);
+static int ucma_destroy_private_ctx(struct ucma_context *ctx);
 
 static inline struct ucma_context *_ucma_find_context(int id,
 						      struct ucma_file *file)
@@ -179,19 +177,14 @@ static void ucma_close_id(struct work_struct *work)
 
 	/* once all inflight tasks are finished, we close all underlying
 	 * resources. The context is still alive till its explicit destryoing
-	 * by its creator.
+	 * by its creator. This puts back the xarray's reference.
 	 */
 	ucma_put_ctx(ctx);
 	wait_for_completion(&ctx->comp);
 	/* No new events will be generated after destroying the id. */
 	rdma_destroy_id(ctx->cm_id);
 
-	/*
-	 * At this point ctx->ref is zero so the only place the ctx can be is in
-	 * a uevent or in __destroy_id(). Since the former doesn't touch
-	 * ctx->cm_id and the latter sync cancels this, there is no races with
-	 * this store.
-	 */
+	/* Reading the cm_id without holding a positive ref is not allowed */
 	ctx->cm_id = NULL;
 }
 
@@ -204,7 +197,6 @@ static struct ucma_context *ucma_alloc_ctx(struct ucma_file *file)
 		return NULL;
 
 	INIT_WORK(&ctx->close_work, ucma_close_id);
-	refcount_set(&ctx->ref, 1);
 	init_completion(&ctx->comp);
 	/* So list_del() will work if we don't do ucma_finish_ctx() */
 	INIT_LIST_HEAD(&ctx->list);
@@ -216,6 +208,13 @@ static struct ucma_context *ucma_alloc_ctx(struct ucma_file *file)
 		return NULL;
 	}
 	return ctx;
+}
+
+static void ucma_set_ctx_cm_id(struct ucma_context *ctx,
+			       struct rdma_cm_id *cm_id)
+{
+	refcount_set(&ctx->ref, 1);
+	ctx->cm_id = cm_id;
 }
 
 static void ucma_finish_ctx(struct ucma_context *ctx)
@@ -303,7 +302,7 @@ static int ucma_connect_event_handler(struct rdma_cm_id *cm_id,
 	ctx = ucma_alloc_ctx(listen_ctx->file);
 	if (!ctx)
 		goto err_backlog;
-	ctx->cm_id = cm_id;
+	ucma_set_ctx_cm_id(ctx, cm_id);
 
 	uevent = ucma_create_uevent(listen_ctx, event);
 	if (!uevent)
@@ -321,8 +320,7 @@ static int ucma_connect_event_handler(struct rdma_cm_id *cm_id,
 	return 0;
 
 err_alloc:
-	xa_erase(&ctx_table, ctx->id);
-	kfree(ctx);
+	ucma_destroy_private_ctx(ctx);
 err_backlog:
 	atomic_inc(&listen_ctx->backlog);
 	/* Returning error causes the new ID to be destroyed */
@@ -356,8 +354,12 @@ static int ucma_event_handler(struct rdma_cm_id *cm_id,
 		wake_up_interruptible(&ctx->file->poll_wait);
 	}
 
-	if (event->event == RDMA_CM_EVENT_DEVICE_REMOVAL && !ctx->destroying)
-		queue_work(system_unbound_wq, &ctx->close_work);
+	if (event->event == RDMA_CM_EVENT_DEVICE_REMOVAL) {
+		xa_lock(&ctx_table);
+		if (xa_load(&ctx_table, ctx->id) == ctx)
+			queue_work(system_unbound_wq, &ctx->close_work);
+		xa_unlock(&ctx_table);
+	}
 	return 0;
 }
 
@@ -461,13 +463,12 @@ static ssize_t ucma_create_id(struct ucma_file *file, const char __user *inbuf,
 		ret = PTR_ERR(cm_id);
 		goto err1;
 	}
-	ctx->cm_id = cm_id;
+	ucma_set_ctx_cm_id(ctx, cm_id);
 
 	resp.id = ctx->id;
 	if (copy_to_user(u64_to_user_ptr(cmd.response),
 			 &resp, sizeof(resp))) {
-		xa_erase(&ctx_table, ctx->id);
-		__destroy_id(ctx);
+		ucma_destroy_private_ctx(ctx);
 		return -EFAULT;
 	}
 
@@ -477,8 +478,7 @@ static ssize_t ucma_create_id(struct ucma_file *file, const char __user *inbuf,
 	return 0;
 
 err1:
-	xa_erase(&ctx_table, ctx->id);
-	kfree(ctx);
+	ucma_destroy_private_ctx(ctx);
 	return ret;
 }
 
@@ -516,68 +516,73 @@ static void ucma_cleanup_mc_events(struct ucma_multicast *mc)
 	rdma_unlock_handler(mc->ctx->cm_id);
 }
 
-/*
- * ucma_free_ctx is called after the underlying rdma CM-ID is destroyed. At
- * this point, no new events will be reported from the hardware. However, we
- * still need to cleanup the UCMA context for this ID. Specifically, there
- * might be events that have not yet been consumed by the user space software.
- * mutex. After that we release them as needed.
- */
-static int ucma_free_ctx(struct ucma_context *ctx)
+static int ucma_cleanup_ctx_events(struct ucma_context *ctx)
 {
 	int events_reported;
 	struct ucma_event *uevent, *tmp;
 	LIST_HEAD(list);
 
-	ucma_cleanup_multicast(ctx);
-
-	/* Cleanup events not yet reported to the user. */
+	/* Cleanup events not yet reported to the user.*/
 	mutex_lock(&ctx->file->mut);
 	list_for_each_entry_safe(uevent, tmp, &ctx->file->event_list, list) {
-		if (uevent->ctx == ctx || uevent->conn_req_ctx == ctx)
+		if (uevent->ctx != ctx)
+			continue;
+
+		if (uevent->resp.event == RDMA_CM_EVENT_CONNECT_REQUEST &&
+		    xa_cmpxchg(&ctx_table, uevent->conn_req_ctx->id,
+			       uevent->conn_req_ctx, XA_ZERO_ENTRY,
+			       GFP_KERNEL) == uevent->conn_req_ctx) {
 			list_move_tail(&uevent->list, &list);
+			continue;
+		}
+		list_del(&uevent->list);
+		kfree(uevent);
 	}
 	list_del(&ctx->list);
 	events_reported = ctx->events_reported;
 	mutex_unlock(&ctx->file->mut);
 
 	/*
-	 * If this was a listening ID then any connections spawned from it
-	 * that have not been delivered to userspace are cleaned up too.
-	 * Must be done outside any locks.
+	 * If this was a listening ID then any connections spawned from it that
+	 * have not been delivered to userspace are cleaned up too. Must be done
+	 * outside any locks.
 	 */
 	list_for_each_entry_safe(uevent, tmp, &list, list) {
-		list_del(&uevent->list);
-		if (uevent->resp.event == RDMA_CM_EVENT_CONNECT_REQUEST &&
-		    uevent->conn_req_ctx != ctx)
-			__destroy_id(uevent->conn_req_ctx);
+		ucma_destroy_private_ctx(uevent->conn_req_ctx);
 		kfree(uevent);
 	}
-
-	mutex_destroy(&ctx->mutex);
-	kfree(ctx);
 	return events_reported;
 }
 
-static int __destroy_id(struct ucma_context *ctx)
+/*
+ * When this is called the xarray must have a XA_ZERO_ENTRY in the ctx->id (ie
+ * the ctx is not public to the user). This either because:
+ *  - ucma_finish_ctx() hasn't been called
+ *  - xa_cmpxchg() succeed to remove the entry (only one thread can succeed)
+ */
+static int ucma_destroy_private_ctx(struct ucma_context *ctx)
 {
-	/*
-	 * If the refcount is already 0 then ucma_close_id() has already
-	 * destroyed the cm_id, otherwise holding the refcount keeps cm_id
-	 * valid. Prevent queue_work() from being called.
-	 */
-	if (refcount_inc_not_zero(&ctx->ref)) {
-		rdma_lock_handler(ctx->cm_id);
-		ctx->destroying = 1;
-		rdma_unlock_handler(ctx->cm_id);
-		ucma_put_ctx(ctx);
-	}
+	int events_reported;
 
+	/*
+	 * Destroy the underlying cm_id. New work queuing is prevented now by
+	 * the removal from the xarray. Once the work is cancled ref will either
+	 * be 0 because the work ran to completion and consumed the ref from the
+	 * xarray, or it will be positive because we still have the ref from the
+	 * xarray. This can also be 0 in cases where cm_id was never set
+	 */
 	cancel_work_sync(&ctx->close_work);
-	/* At this point it's guaranteed that there is no inflight closing task */
-	if (ctx->cm_id)
+	if (refcount_read(&ctx->ref))
 		ucma_close_id(&ctx->close_work);
-	return ucma_free_ctx(ctx);
+
+	events_reported = ucma_cleanup_ctx_events(ctx);
+	ucma_cleanup_multicast(ctx);
+
+	WARN_ON(xa_cmpxchg(&ctx_table, ctx->id, XA_ZERO_ENTRY, NULL,
+			   GFP_KERNEL) != NULL);
+	mutex_destroy(&ctx->mutex);
+	kfree(ctx);
+	return events_reported;
 }
 
 static ssize_t ucma_destroy_id(struct ucma_file *file, const char __user *inbuf,
@@ -596,14 +601,17 @@ static ssize_t ucma_destroy_id(struct ucma_file *file, const char __user *inbuf,
 
 	xa_lock(&ctx_table);
 	ctx = _ucma_find_context(cmd.id, file);
-	if (!IS_ERR(ctx))
-		__xa_erase(&ctx_table, ctx->id);
+	if (!IS_ERR(ctx)) {
+		if (__xa_cmpxchg(&ctx_table, ctx->id, ctx, XA_ZERO_ENTRY,
+				 GFP_KERNEL) != ctx)
+			ctx = ERR_PTR(-ENOENT);
+	}
 	xa_unlock(&ctx_table);
 
 	if (IS_ERR(ctx))
 		return PTR_ERR(ctx);
 
-	resp.events_reported = __destroy_id(ctx);
+	resp.events_reported = ucma_destroy_private_ctx(ctx);
 	if (copy_to_user(u64_to_user_ptr(cmd.response),
 			 &resp, sizeof(resp)))
 		ret = -EFAULT;
@@ -1777,15 +1785,16 @@ static int ucma_close(struct inode *inode, struct file *filp)
 	 * prevented by this being a FD release function. The list_add_tail() in
 	 * ucma_connect_event_handler() can run concurrently, however it only
 	 * adds to the list *after* a listening ID. By only reading the first of
-	 * the list, and relying on __destroy_id() to block
+	 * the list, and relying on ucma_destroy_private_ctx() to block
 	 * ucma_connect_event_handler(), no additional locking is needed.
 	 */
 	while (!list_empty(&file->ctx_list)) {
 		struct ucma_context *ctx = list_first_entry(
 			&file->ctx_list, struct ucma_context, list);
 
-		xa_erase(&ctx_table, ctx->id);
-		__destroy_id(ctx);
+		WARN_ON(xa_cmpxchg(&ctx_table, ctx->id, ctx, XA_ZERO_ENTRY,
+				   GFP_KERNEL) != ctx);
+		ucma_destroy_private_ctx(ctx);
 	}
 	kfree(file);
 	return 0;

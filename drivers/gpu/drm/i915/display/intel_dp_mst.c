@@ -488,7 +488,7 @@ static void intel_mst_pre_enable_dp(struct intel_atomic_state *state,
 		    intel_dp->active_mst_links);
 
 	if (first_mst_stream)
-		intel_dp_sink_dpms(intel_dp, DRM_MODE_DPMS_ON);
+		intel_dp_set_power(intel_dp, DP_SET_POWER_D0);
 
 	drm_dp_send_power_updown_phy(&intel_dp->mst_mgr, connector->port, true);
 

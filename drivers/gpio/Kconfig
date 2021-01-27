@@ -508,7 +508,8 @@ config GPIO_SAMA5D2_PIOBU
 
 config GPIO_SIFIVE
 	bool "SiFive GPIO support"
-	depends on OF_GPIO && IRQ_DOMAIN_HIERARCHY
+	depends on OF_GPIO
+	select IRQ_DOMAIN_HIERARCHY
 	select GPIO_GENERIC
 	select GPIOLIB_IRQCHIP
 	select REGMAP_MMIO

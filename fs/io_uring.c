@@ -353,6 +353,7 @@ struct io_ring_ctx {
 		unsigned		cq_entries;
 		unsigned		cq_mask;
 		atomic_t		cq_timeouts;
+		unsigned		cq_last_tm_flush;
 		unsigned long		cq_check_overflow;
 		struct wait_queue_head	cq_wait;
 		struct fasync_struct	*cq_fasync;
@@ -1521,19 +1522,38 @@ static void __io_queue_deferred(struct io_ring_ctx *ctx)
 
 static void io_flush_timeouts(struct io_ring_ctx *ctx)
 {
-	while (!list_empty(&ctx->timeout_list)) {
+	u32 seq;
+
+	if (list_empty(&ctx->timeout_list))
+		return;
+
+	seq = ctx->cached_cq_tail - atomic_read(&ctx->cq_timeouts);
+
+	do {
+		u32 events_needed, events_got;
 		struct io_kiocb *req = list_first_entry(&ctx->timeout_list,
 						struct io_kiocb, timeout.list);
 
 		if (io_is_timeout_noseq(req))
 			break;
-		if (req->timeout.target_seq != ctx->cached_cq_tail
-					- atomic_read(&ctx->cq_timeouts))
+
+		/*
+		 * Since seq can easily wrap around over time, subtract
+		 * the last seq at which timeouts were flushed before comparing.
+		 * Assuming not more than 2^31-1 events have happened since,
+		 * these subtractions won't have wrapped, so we can check if
+		 * target is in [last_seq, current_seq] by comparing the two.
+		 */
+		events_needed = req->timeout.target_seq - ctx->cq_last_tm_flush;
+		events_got = seq - ctx->cq_last_tm_flush;
+		if (events_got < events_needed)
 			break;
 
 		list_del_init(&req->timeout.list);
 		io_kill_timeout(req);
-	}
+	} while (!list_empty(&ctx->timeout_list));
+
+	ctx->cq_last_tm_flush = seq;
 }
 
 static void io_commit_cqring(struct io_ring_ctx *ctx)
@@ -2147,6 +2167,8 @@ static void io_req_free_batch_finish(struct io_ring_ctx *ctx,
 		struct io_uring_task *tctx = rb->task->io_uring;
 
 		percpu_counter_sub(&tctx->inflight, rb->task_refs);
+		if (atomic_read(&tctx->in_idle))
+			wake_up(&tctx->wait);
 		put_task_struct_many(rb->task, rb->task_refs);
 		rb->task = NULL;
 	}
@@ -2166,6 +2188,8 @@ static void io_req_free_batch(struct req_batch *rb, struct io_kiocb *req)
 			struct io_uring_task *tctx = rb->task->io_uring;
 
 			percpu_counter_sub(&tctx->inflight, rb->task_refs);
+			if (atomic_read(&tctx->in_idle))
+				wake_up(&tctx->wait);
 			put_task_struct_many(rb->task, rb->task_refs);
 		}
 		rb->task = req->task;
@@ -3437,7 +3461,7 @@ static int io_read(struct io_kiocb *req, bool force_nonblock,
 
 	/* read it all, or we did blocking attempt. no retry. */
 	if (!iov_iter_count(iter) || !force_nonblock ||
-	    (req->file->f_flags & O_NONBLOCK))
+	    (req->file->f_flags & O_NONBLOCK) || !(req->flags & REQ_F_ISREG))
 		goto done;
 
 	io_size -= ret;
@@ -4226,7 +4250,6 @@ static int io_close_prep(struct io_kiocb *req, const struct io_uring_sqe *sqe)
 	 * io_wq_work.flags, so initialize io_wq_work firstly.
 	 */
 	io_req_init_async(req);
-	req->work.flags |= IO_WQ_WORK_NO_CANCEL;
 
 	if (unlikely(req->ctx->flags & (IORING_SETUP_IOPOLL|IORING_SETUP_SQPOLL)))
 		return -EINVAL;
@@ -4259,6 +4282,8 @@ static int io_close(struct io_kiocb *req, bool force_nonblock,
 
 	/* if the file has a flush method, be safe and punt to async */
 	if (close->put_file->f_op->flush && force_nonblock) {
+		/* not safe to cancel at this point */
+		req->work.flags |= IO_WQ_WORK_NO_CANCEL;
 		/* was never set, but play safe */
 		req->flags &= ~REQ_F_NOWAIT;
 		/* avoid grabbing files - we don't need the files */
@@ -5581,6 +5606,12 @@ static int io_timeout(struct io_kiocb *req)
 
 	tail = ctx->cached_cq_tail - atomic_read(&ctx->cq_timeouts);
 	req->timeout.target_seq = tail + off;
+
+	/* Update the last seq here in case io_flush_timeouts() hasn't.
+	 * This is safe because ->completion_lock is held, and submissions
+	 * and completions are never mixed in the same ->completion_lock section.
+	 */
+	ctx->cq_last_tm_flush = tail;
 
 	/*
 	 * Insertion sort, ensuring the first entry in the list is always

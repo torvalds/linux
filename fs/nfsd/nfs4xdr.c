@@ -4632,6 +4632,7 @@ nfsd4_encode_read_plus_data(struct nfsd4_compoundres *resp,
 			    resp->rqstp->rq_vec, read->rd_vlen, maxcount, eof);
 	if (nfserr)
 		return nfserr;
+	xdr_truncate_encode(xdr, starting_len + 16 + xdr_align_size(*maxcount));
 
 	tmp = htonl(NFS4_CONTENT_DATA);
 	write_bytes_to_xdr_buf(xdr->buf, starting_len,      &tmp,   4);
@@ -4639,6 +4640,10 @@ nfsd4_encode_read_plus_data(struct nfsd4_compoundres *resp,
 	write_bytes_to_xdr_buf(xdr->buf, starting_len + 4,  &tmp64, 8);
 	tmp = htonl(*maxcount);
 	write_bytes_to_xdr_buf(xdr->buf, starting_len + 12, &tmp,   4);
+
+	tmp = xdr_zero;
+	write_bytes_to_xdr_buf(xdr->buf, starting_len + 16 + *maxcount, &tmp,
+			       xdr_pad_size(*maxcount));
 	return nfs_ok;
 }
 
@@ -4731,14 +4736,15 @@ out:
 	if (nfserr && segments == 0)
 		xdr_truncate_encode(xdr, starting_len);
 	else {
+		if (nfserr) {
+			xdr_truncate_encode(xdr, last_segment);
+			nfserr = nfs_ok;
+			eof = 0;
+		}
 		tmp = htonl(eof);
 		write_bytes_to_xdr_buf(xdr->buf, starting_len,     &tmp, 4);
 		tmp = htonl(segments);
 		write_bytes_to_xdr_buf(xdr->buf, starting_len + 4, &tmp, 4);
-		if (nfserr) {
-			xdr_truncate_encode(xdr, last_segment);
-			nfserr = nfs_ok;
-		}
 	}
 
 	return nfserr;

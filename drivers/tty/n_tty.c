@@ -2079,9 +2079,6 @@ static int canon_copy_from_read_buf(struct tty_struct *tty,
 	return 0;
 }
 
-extern ssize_t redirected_tty_write(struct file *, const char __user *,
-							size_t, loff_t *);
-
 /**
  *	job_control		-	check job control
  *	@tty: tty
@@ -2103,7 +2100,7 @@ static int job_control(struct tty_struct *tty, struct file *file)
 	/* NOTE: not yet done after every sleep pending a thorough
 	   check of the logic of this change. -- jlc */
 	/* don't stop on /dev/console */
-	if (file->f_op->write == redirected_tty_write)
+	if (file->f_op->write_iter == redirected_tty_write)
 		return 0;
 
 	return __tty_check_change(tty, SIGTTIN);
@@ -2307,7 +2304,7 @@ static ssize_t n_tty_write(struct tty_struct *tty, struct file *file,
 	ssize_t retval = 0;
 
 	/* Job control check -- must be done at start (POSIX.1 7.1.1.4). */
-	if (L_TOSTOP(tty) && file->f_op->write != redirected_tty_write) {
+	if (L_TOSTOP(tty) && file->f_op->write_iter != redirected_tty_write) {
 		retval = tty_check_change(tty);
 		if (retval)
 			return retval;
