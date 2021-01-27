@@ -338,7 +338,7 @@ static void tb_ctl_tx_callback(struct tb_ring *ring, struct ring_frame *frame,
 	tb_ctl_pkg_free(pkg);
 }
 
-/**
+/*
  * tb_cfg_tx() - transmit a packet on the control channel
  *
  * len must be a multiple of four.
@@ -375,7 +375,7 @@ static int tb_ctl_tx(struct tb_ctl *ctl, const void *data, size_t len,
 	return res;
 }
 
-/**
+/*
  * tb_ctl_handle_event() - acknowledge a plug event, invoke ctl->callback
  */
 static bool tb_ctl_handle_event(struct tb_ctl *ctl, enum tb_cfg_pkg_type type,
