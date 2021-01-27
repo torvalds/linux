@@ -5162,8 +5162,8 @@ int rawnand_sw_hamming_init(struct nand_chip *chip)
 	chip->ecc.size = base->ecc.ctx.conf.step_size;
 	chip->ecc.strength = base->ecc.ctx.conf.strength;
 	chip->ecc.total = base->ecc.ctx.total;
-	chip->ecc.steps = engine_conf->nsteps;
-	chip->ecc.bytes = engine_conf->code_size;
+	chip->ecc.steps = nanddev_get_ecc_nsteps(base);
+	chip->ecc.bytes = base->ecc.ctx.total / nanddev_get_ecc_nsteps(base);
 
 	return 0;
 }
@@ -5201,7 +5201,7 @@ EXPORT_SYMBOL(rawnand_sw_hamming_cleanup);
 int rawnand_sw_bch_init(struct nand_chip *chip)
 {
 	struct nand_device *base = &chip->base;
-	struct nand_ecc_sw_bch_conf *engine_conf;
+	const struct nand_ecc_props *ecc_conf = nanddev_get_ecc_conf(base);
 	int ret;
 
 	base->ecc.user_conf.engine_type = NAND_ECC_ENGINE_TYPE_SOFT;
@@ -5213,13 +5213,11 @@ int rawnand_sw_bch_init(struct nand_chip *chip)
 	if (ret)
 		return ret;
 
-	engine_conf = base->ecc.ctx.priv;
-
-	chip->ecc.size = base->ecc.ctx.conf.step_size;
-	chip->ecc.strength = base->ecc.ctx.conf.strength;
+	chip->ecc.size = ecc_conf->step_size;
+	chip->ecc.strength = ecc_conf->strength;
 	chip->ecc.total = base->ecc.ctx.total;
-	chip->ecc.steps = engine_conf->nsteps;
-	chip->ecc.bytes = engine_conf->code_size;
+	chip->ecc.steps = nanddev_get_ecc_nsteps(base);
+	chip->ecc.bytes = base->ecc.ctx.total / nanddev_get_ecc_nsteps(base);
 
 	return 0;
 }
