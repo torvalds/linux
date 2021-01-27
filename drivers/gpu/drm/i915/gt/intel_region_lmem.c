@@ -143,6 +143,38 @@ intel_gt_setup_fake_lmem(struct intel_gt *gt)
 	return mem;
 }
 
+static bool get_legacy_lowmem_region(struct intel_uncore *uncore,
+				     u64 *start, u32 *size)
+{
+	if (!IS_DG1_REVID(uncore->i915, DG1_REVID_A0, DG1_REVID_B0))
+		return false;
+
+	*start = 0;
+	*size = SZ_1M;
+
+	drm_dbg(&uncore->i915->drm, "LMEM: reserved legacy low-memory [0x%llx-0x%llx]\n",
+		*start, *start + *size);
+
+	return true;
+}
+
+static int reserve_lowmem_region(struct intel_uncore *uncore,
+				 struct intel_memory_region *mem)
+{
+	u64 reserve_start;
+	u32 reserve_size;
+	int ret;
+
+	if (!get_legacy_lowmem_region(uncore, &reserve_start, &reserve_size))
+		return 0;
+
+	ret = intel_memory_region_reserve(mem, reserve_start, reserve_size);
+	if (ret)
+		drm_err(&uncore->i915->drm, "LMEM: reserving low memory region failed\n");
+
+	return ret;
+}
+
 static struct intel_memory_region *setup_lmem(struct intel_gt *gt)
 {
 	struct drm_i915_private *i915 = gt->i915;
@@ -151,6 +183,7 @@ static struct intel_memory_region *setup_lmem(struct intel_gt *gt)
 	struct intel_memory_region *mem;
 	resource_size_t io_start;
 	resource_size_t lmem_size;
+	int err;
 
 	if (!IS_DGFX(i915))
 		return ERR_PTR(-ENODEV);
@@ -171,6 +204,10 @@ static struct intel_memory_region *setup_lmem(struct intel_gt *gt)
 	if (IS_ERR(mem))
 		return mem;
 
+	err = reserve_lowmem_region(uncore, mem);
+	if (err)
+		goto err_region_put;
+
 	drm_dbg(&i915->drm, "Local memory: %pR\n", &mem->region);
 	drm_dbg(&i915->drm, "Local memory IO start: %pa\n",
 		&mem->io_start);
@@ -178,6 +215,10 @@ static struct intel_memory_region *setup_lmem(struct intel_gt *gt)
 		 &lmem_size);
 
 	return mem;
+
+err_region_put:
+	intel_memory_region_put(mem);
+	return ERR_PTR(err);
 }
 
 struct intel_memory_region *intel_gt_setup_lmem(struct intel_gt *gt)
