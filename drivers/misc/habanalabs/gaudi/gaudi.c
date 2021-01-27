@@ -7105,7 +7105,9 @@ static int gaudi_hbm_read_interrupts(struct hl_device *hdev, int device,
 	u32 base, val, val2, wr_par, rd_par, ca_par, derr, serr, type, ch;
 	int err = 0;
 
-	if (!hdev->asic_prop.fw_security_disabled) {
+	if (hdev->asic_prop.fw_security_status_valid &&
+			(hdev->asic_prop.fw_app_security_map &
+				CPU_BOOT_DEV_STS0_HBM_ECC_EN)) {
 		if (!hbm_ecc_data) {
 			dev_err(hdev->dev, "No FW ECC data");
 			return 0;
@@ -7127,11 +7129,21 @@ static int gaudi_hbm_read_interrupts(struct hl_device *hdev, int device,
 				le32_to_cpu(hbm_ecc_data->hbm_ecc_info));
 
 		dev_err(hdev->dev,
-			"HBM%d pc%d ECC: TYPE=%d, WR_PAR=%d, RD_PAR=%d, CA_PAR=%d, SERR=%d, DERR=%d\n",
-			device, ch, type, wr_par, rd_par, ca_par, serr, derr);
+			"HBM%d pc%d interrupts info: WR_PAR=%d, RD_PAR=%d, CA_PAR=%d, SERR=%d, DERR=%d\n",
+			device, ch, wr_par, rd_par, ca_par, serr, derr);
+		dev_err(hdev->dev,
+			"HBM%d pc%d ECC info: 1ST_ERR_ADDR=0x%x, 1ST_ERR_TYPE=%d, SEC_CONT_CNT=%u, SEC_CNT=%d, DEC_CNT=%d\n",
+			device, ch, hbm_ecc_data->first_addr, type,
+			hbm_ecc_data->sec_cont_cnt, hbm_ecc_data->sec_cnt,
+			hbm_ecc_data->dec_cnt);
 
 		err = 1;
 
+		return 0;
+	}
+
+	if (!hdev->asic_prop.fw_security_disabled) {
+		dev_info(hdev->dev, "Cannot access MC regs for ECC data while security is enabled\n");
 		return 0;
 	}
 
