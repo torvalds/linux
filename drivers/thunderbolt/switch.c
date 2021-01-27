@@ -718,7 +718,7 @@ int tb_port_disable(struct tb_port *port)
 	return __tb_port_enable(port, false);
 }
 
-/**
+/*
  * tb_init_port() - initialize a port
  *
  * This is a helper method for tb_switch_alloc. Does not check or initialize
@@ -1337,7 +1337,7 @@ int tb_switch_reset(struct tb_switch *sw)
 	return res.err;
 }
 
-/**
+/*
  * tb_plug_events_active() - enable/disable plug events on a switch
  *
  * Also configures a sane plug_events_delay of 255ms.
