@@ -1975,14 +1975,14 @@ static int flexcan_setup_stop_mode_scfw(struct platform_device *pdev)
 	priv = netdev_priv(dev);
 	priv->scu_idx = scu_idx;
 
-	/* this function could be defered probe, return -EPROBE_DEFER */
+	/* this function could be deferred probe, return -EPROBE_DEFER */
 	return imx_scu_get_handle(&priv->sc_ipc_handle);
 }
 
 /* flexcan_setup_stop_mode - Setup stop mode for wakeup
  *
  * Return: = 0 setup stop mode successfully or doesn't support this feature
- *         < 0 fail to setup stop mode (could be defered probe)
+ *         < 0 fail to setup stop mode (could be deferred probe)
  */
 static int flexcan_setup_stop_mode(struct platform_device *pdev)
 {
