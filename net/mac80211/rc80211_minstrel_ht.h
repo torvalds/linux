@@ -69,6 +69,8 @@
 #define MI_RATE_IDX(_rate) FIELD_GET(MI_RATE_IDX_MASK, _rate)
 #define MI_RATE_GROUP(_rate) FIELD_GET(MI_RATE_GROUP_MASK, _rate)
 
+#define MINSTREL_SAMPLE_RATES		5 /* rates per sample type */
+#define MINSTREL_SAMPLE_INTERVAL	(HZ / 50)
 
 struct minstrel_priv {
 	struct ieee80211_hw *hw;
@@ -126,6 +128,13 @@ struct minstrel_rate_stats {
 	bool retry_updated;
 };
 
+enum minstrel_sample_type {
+	MINSTREL_SAMPLE_TYPE_INC,
+	MINSTREL_SAMPLE_TYPE_JUMP,
+	MINSTREL_SAMPLE_TYPE_SLOW,
+	__MINSTREL_SAMPLE_TYPE_MAX
+};
+
 struct minstrel_mcs_group_data {
 	u8 index;
 	u8 column;
@@ -142,6 +151,12 @@ enum minstrel_sample_mode {
 	MINSTREL_SAMPLE_IDLE,
 	MINSTREL_SAMPLE_ACTIVE,
 	MINSTREL_SAMPLE_PENDING,
+};
+
+struct minstrel_sample_category {
+	u8 sample_group;
+	u16 sample_rates[MINSTREL_SAMPLE_RATES];
+	u16 cur_sample_rates[MINSTREL_SAMPLE_RATES];
 };
 
 struct minstrel_ht_sta {
@@ -175,15 +190,13 @@ struct minstrel_ht_sta {
 	/* tx flags to add for frames for this sta */
 	u32 tx_flags;
 
-	u8 sample_wait;
-	u8 sample_tries;
-	u8 sample_count;
+	unsigned long sample_time;
+	struct minstrel_sample_category sample[__MINSTREL_SAMPLE_TYPE_MAX];
+
+	u8 sample_seq;
 
 	enum minstrel_sample_mode sample_mode;
 	u16 sample_rate;
-
-	/* current MCS group to be sampled */
-	u8 sample_group;
 
 	u8 band;
 
