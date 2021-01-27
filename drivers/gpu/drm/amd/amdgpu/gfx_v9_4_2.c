@@ -40,8 +40,11 @@ enum gfx_v9_4_2_utc_type {
 	ATC_L2_CACHE_4K
 };
 
-struct gfx_v9_4_2_utc_reg {
+struct gfx_v9_4_2_utc_block {
 	enum gfx_v9_4_2_utc_type type;
+	uint32_t num_banks;
+	uint32_t num_ways;
+	uint32_t num_mem_blocks;
 	struct soc15_reg idx_reg;
 	struct soc15_reg data_reg;
 	uint32_t sec_count_mask;
@@ -49,12 +52,6 @@ struct gfx_v9_4_2_utc_reg {
 	uint32_t ded_count_mask;
 	uint32_t ded_count_shift;
 	uint32_t clear;
-};
-
-struct gfx_v9_4_2_utc_info_map {
-	enum gfx_v9_4_2_utc_type type;
-	const char *name;
-	uint32_t index;
 };
 
 static const struct soc15_reg_golden golden_settings_gc_9_4_2_alde_die_0[] = {
@@ -756,169 +753,56 @@ static const struct soc15_ras_field_entry gfx_v9_4_2_ras_fields[] = {
 	  SOC15_REG_FIELD(GCEA_EDC_CNT3, MAM_AFMEM_DED_COUNT) },
 };
 
-static struct gfx_v9_4_2_utc_reg gfx_v9_4_2_utc_regs[] = {
-	{ VML2_MEM,
+static const char * const vml2_walker_mems[] = {
+	"UTC_VML2_CACHE_PDE0_MEM0",
+	"UTC_VML2_CACHE_PDE0_MEM1",
+	"UTC_VML2_CACHE_PDE1_MEM0",
+	"UTC_VML2_CACHE_PDE1_MEM1",
+	"UTC_VML2_CACHE_PDE2_MEM0",
+	"UTC_VML2_CACHE_PDE2_MEM1",
+	"UTC_VML2_RDIF_ARADDRS",
+	"UTC_VML2_RDIF_LOG_FIFO",
+	"UTC_VML2_QUEUE_REQ",
+	"UTC_VML2_QUEUE_RET",
+};
+
+static struct gfx_v9_4_2_utc_block gfx_v9_4_2_utc_blocks[] = {
+	{ VML2_MEM, 8, 2, 2,
 	  { SOC15_REG_ENTRY(GC, 0, regVML2_MEM_ECC_INDEX) },
 	  { SOC15_REG_ENTRY(GC, 0, regVML2_MEM_ECC_CNTL) },
 	  SOC15_REG_FIELD(VML2_MEM_ECC_CNTL, SEC_COUNT),
 	  SOC15_REG_FIELD(VML2_MEM_ECC_CNTL, DED_COUNT),
 	  REG_SET_FIELD(0, VML2_MEM_ECC_CNTL, WRITE_COUNTERS, 1) },
-	{ VML2_WALKER_MEM,
+	{ VML2_WALKER_MEM, ARRAY_SIZE(vml2_walker_mems), 1, 1,
 	  { SOC15_REG_ENTRY(GC, 0, regVML2_WALKER_MEM_ECC_INDEX) },
 	  { SOC15_REG_ENTRY(GC, 0, regVML2_WALKER_MEM_ECC_CNTL) },
 	  SOC15_REG_FIELD(VML2_WALKER_MEM_ECC_CNTL, SEC_COUNT),
 	  SOC15_REG_FIELD(VML2_WALKER_MEM_ECC_CNTL, DED_COUNT),
 	  REG_SET_FIELD(0, VML2_WALKER_MEM_ECC_CNTL, WRITE_COUNTERS, 1) },
-	{ UTCL2_MEM,
+	{ UTCL2_MEM, 18, 1, 2,
 	  { SOC15_REG_ENTRY(GC, 0, regUTCL2_MEM_ECC_INDEX) },
 	  { SOC15_REG_ENTRY(GC, 0, regUTCL2_MEM_ECC_CNTL) },
 	  SOC15_REG_FIELD(UTCL2_MEM_ECC_CNTL, SEC_COUNT),
 	  SOC15_REG_FIELD(UTCL2_MEM_ECC_CNTL, DED_COUNT),
 	  REG_SET_FIELD(0, UTCL2_MEM_ECC_CNTL, WRITE_COUNTERS, 1) },
-	{ ATC_L2_CACHE_2M,
+	{ ATC_L2_CACHE_2M, 8, 2, 1,
 	  { SOC15_REG_ENTRY(GC, 0, regATC_L2_CACHE_2M_DSM_INDEX) },
 	  { SOC15_REG_ENTRY(GC, 0, regATC_L2_CACHE_2M_DSM_CNTL) },
 	  SOC15_REG_FIELD(ATC_L2_CACHE_2M_DSM_CNTL, SEC_COUNT),
 	  SOC15_REG_FIELD(ATC_L2_CACHE_2M_DSM_CNTL, DED_COUNT),
 	  REG_SET_FIELD(0, ATC_L2_CACHE_2M_DSM_CNTL, WRITE_COUNTERS, 1) },
-	{ ATC_L2_CACHE_32K,
+	{ ATC_L2_CACHE_32K, 8, 2, 2,
 	  { SOC15_REG_ENTRY(GC, 0, regATC_L2_CACHE_32K_DSM_INDEX) },
 	  { SOC15_REG_ENTRY(GC, 0, regATC_L2_CACHE_32K_DSM_CNTL) },
 	  SOC15_REG_FIELD(ATC_L2_CACHE_32K_DSM_CNTL, SEC_COUNT),
 	  SOC15_REG_FIELD(ATC_L2_CACHE_32K_DSM_CNTL, DED_COUNT),
 	  REG_SET_FIELD(0, ATC_L2_CACHE_32K_DSM_CNTL, WRITE_COUNTERS, 1) },
-	{ ATC_L2_CACHE_4K,
+	{ ATC_L2_CACHE_4K, 8, 2, 8,
 	  { SOC15_REG_ENTRY(GC, 0, regATC_L2_CACHE_4K_DSM_INDEX) },
 	  { SOC15_REG_ENTRY(GC, 0, regATC_L2_CACHE_4K_DSM_CNTL) },
 	  SOC15_REG_FIELD(ATC_L2_CACHE_4K_DSM_CNTL, SEC_COUNT),
 	  SOC15_REG_FIELD(ATC_L2_CACHE_4K_DSM_CNTL, DED_COUNT),
 	  REG_SET_FIELD(0, ATC_L2_CACHE_4K_DSM_CNTL, WRITE_COUNTERS, 1) },
-};
-
-static const struct gfx_v9_4_2_utc_info_map gfx_v9_4_2_utc_map[] = {
-	/* GPU VM */
-	{ VML2_MEM, "UTC_VML2_BANK_CACHE_0_BIGK_MEM0", 0 },
-	{ VML2_MEM, "UTC_VML2_BANK_CACHE_0_BIGK_MEM1", 1 },
-	{ VML2_MEM, "UTC_VML2_BANK_CACHE_0_4K_MEM0", 2 },
-	{ VML2_MEM, "UTC_VML2_BANK_CACHE_0_4K_MEM1", 3 },
-	{ VML2_MEM, "UTC_VML2_BANK_CACHE_1_BIGK_MEM0", 4 },
-	{ VML2_MEM, "UTC_VML2_BANK_CACHE_1_BIGK_MEM1", 5 },
-	{ VML2_MEM, "UTC_VML2_BANK_CACHE_1_4K_MEM0", 6 },
-	{ VML2_MEM, "UTC_VML2_BANK_CACHE_1_4K_MEM1", 7 },
-	{ VML2_MEM, "UTC_VML2_BANK_CACHE_2_BIGK_MEM0", 8 },
-	{ VML2_MEM, "UTC_VML2_BANK_CACHE_2_BIGK_MEM1", 9 },
-	{ VML2_MEM, "UTC_VML2_BANK_CACHE_2_4K_MEM0", 10 },
-	{ VML2_MEM, "UTC_VML2_BANK_CACHE_2_4K_MEM1", 11 },
-	{ VML2_MEM, "UTC_VML2_BANK_CACHE_3_BIGK_MEM0", 12 },
-	{ VML2_MEM, "UTC_VML2_BANK_CACHE_3_BIGK_MEM1", 13 },
-	{ VML2_MEM, "UTC_VML2_BANK_CACHE_3_4K_MEM0", 14 },
-	{ VML2_MEM, "UTC_VML2_BANK_CACHE_3_4K_MEM1", 15 },
-	{ VML2_MEM, "UTC_VML2_BANK_CACHE_4_BIGK_MEM0", 16 },
-	{ VML2_MEM, "UTC_VML2_BANK_CACHE_4_BIGK_MEM1", 17 },
-	{ VML2_MEM, "UTC_VML2_BANK_CACHE_4_4K_MEM0", 18 },
-	{ VML2_MEM, "UTC_VML2_BANK_CACHE_4_4K_MEM1", 19 },
-	{ VML2_MEM, "UTC_VML2_BANK_CACHE_5_BIGK_MEM0", 20 },
-	{ VML2_MEM, "UTC_VML2_BANK_CACHE_5_BIGK_MEM1", 21 },
-	{ VML2_MEM, "UTC_VML2_BANK_CACHE_5_4K_MEM0", 22 },
-	{ VML2_MEM, "UTC_VML2_BANK_CACHE_5_4K_MEM1", 23 },
-	{ VML2_MEM, "UTC_VML2_BANK_CACHE_6_BIGK_MEM0", 24 },
-	{ VML2_MEM, "UTC_VML2_BANK_CACHE_6_BIGK_MEM1", 25 },
-	{ VML2_MEM, "UTC_VML2_BANK_CACHE_6_4K_MEM0", 26 },
-	{ VML2_MEM, "UTC_VML2_BANK_CACHE_6_4K_MEM1", 27 },
-	{ VML2_MEM, "UTC_VML2_BANK_CACHE_7_BIGK_MEM0", 28 },
-	{ VML2_MEM, "UTC_VML2_BANK_CACHE_7_BIGK_MEM1", 29 },
-	{ VML2_MEM, "UTC_VML2_BANK_CACHE_7_4K_MEM0", 30 },
-	{ VML2_MEM, "UTC_VML2_BANK_CACHE_7_4K_MEM1", 31 },
-
-	/* WALER */
-	{ VML2_WALKER_MEM, "UTC_VML2_CACHE_PDE0_MEM0", 0 },
-	{ VML2_WALKER_MEM, "UTC_VML2_CACHE_PDE0_MEM1", 1 },
-	{ VML2_WALKER_MEM, "UTC_VML2_CACHE_PDE1_MEM0", 2 },
-	{ VML2_WALKER_MEM, "UTC_VML2_CACHE_PDE1_MEM1", 3 },
-	{ VML2_WALKER_MEM, "UTC_VML2_CACHE_PDE2_MEM0", 4 },
-	{ VML2_WALKER_MEM, "UTC_VML2_CACHE_PDE2_MEM1", 5 },
-	{ VML2_WALKER_MEM, "UTC_VML2_RDIF_ARADDRS", 6 },
-	{ VML2_WALKER_MEM, "UTC_VML2_RDIF_LOG_FIFO", 7 },
-	{ VML2_WALKER_MEM, "UTC_VML2_QUEUE_REQ", 8 },
-	{ VML2_WALKER_MEM, "UTC_VML2_QUEUE_RET", 9 },
-
-	/* SRAM_BLOCK_ROUTER */
-	{ UTCL2_MEM, "UTCL2_ROUTER_IFIFO_GROUP0_VMC", 0 },
-	{ UTCL2_MEM, "UTCL2_ROUTER_IFIFO_GROUP0_APT", 1 },
-	{ UTCL2_MEM, "UTCL2_ROUTER_IFIFO_GROUP1_VMC", 2 },
-	{ UTCL2_MEM, "UTCL2_ROUTER_IFIFO_GROUP1_APT", 3 },
-	{ UTCL2_MEM, "UTCL2_ROUTER_IFIFO_GROUP2_VMC", 4 },
-	{ UTCL2_MEM, "UTCL2_ROUTER_IFIFO_GROUP2_APT", 5 },
-	{ UTCL2_MEM, "UTCL2_ROUTER_IFIFO_GROUP3_VMC", 6 },
-	{ UTCL2_MEM, "UTCL2_ROUTER_IFIFO_GROUP3_APT", 7 },
-	{ UTCL2_MEM, "UTCL2_ROUTER_IFIFO_GROUP4_VMC", 8 },
-	{ UTCL2_MEM, "UTCL2_ROUTER_IFIFO_GROUP4_APT", 9 },
-	{ UTCL2_MEM, "UTCL2_ROUTER_IFIFO_GROUP5_VMC", 10 },
-	{ UTCL2_MEM, "UTCL2_ROUTER_IFIFO_GROUP5_APT", 11 },
-	{ UTCL2_MEM, "UTCL2_ROUTER_IFIFO_GROUP6_VMC", 12 },
-	{ UTCL2_MEM, "UTCL2_ROUTER_IFIFO_GROUP6_APT", 13 },
-	{ UTCL2_MEM, "UTCL2_ROUTER_IFIFO_GROUP7_VMC", 14 },
-	{ UTCL2_MEM, "UTCL2_ROUTER_IFIFO_GROUP7_APT", 15 },
-	{ UTCL2_MEM, "UTCL2_ROUTER_IFIFO_GROUP8_VMC", 16 },
-	{ UTCL2_MEM, "UTCL2_ROUTER_IFIFO_GROUP8_APT", 17 },
-	{ UTCL2_MEM, "UTCL2_ROUTER_IFIFO_GROUP9_VMC", 18 },
-	{ UTCL2_MEM, "UTCL2_ROUTER_IFIFO_GROUP9_APT", 19 },
-	{ UTCL2_MEM, "UTCL2_ROUTER_IFIFO_GROUP10_VMC", 20 },
-	{ UTCL2_MEM, "UTCL2_ROUTER_IFIFO_GROUP10_APT", 21 },
-	{ UTCL2_MEM, "UTCL2_ROUTER_IFIFO_GROUP11_VMC", 22 },
-	{ UTCL2_MEM, "UTCL2_ROUTER_IFIFO_GROUP11_APT", 23 },
-	{ UTCL2_MEM, "UTCL2_ROUTER_IFIFO_GROUP12_VMC", 24 },
-	{ UTCL2_MEM, "UTCL2_ROUTER_IFIFO_GROUP12_APT", 25 },
-	{ UTCL2_MEM, "UTCL2_ROUTER_IFIFO_GROUP13_VMC", 26 },
-	{ UTCL2_MEM, "UTCL2_ROUTER_IFIFO_GROUP13_APT", 27 },
-	{ UTCL2_MEM, "UTCL2_ROUTER_IFIFO_GROUP14_VMC", 28 },
-	{ UTCL2_MEM, "UTCL2_ROUTER_IFIFO_GROUP14_APT", 29 },
-	{ UTCL2_MEM, "UTCL2_ROUTER_IFIFO_GROUP15_VMC", 30 },
-	{ UTCL2_MEM, "UTCL2_ROUTER_IFIFO_GROUP15_APT", 31 },
-	{ UTCL2_MEM, "UTCL2_ROUTER_IFIFO_GROUP16_VMC", 32 },
-	{ UTCL2_MEM, "UTCL2_ROUTER_IFIFO_GROUP16_APT", 33 },
-	{ UTCL2_MEM, "UTCL2_ROUTER_IFIFO_GROUP17_VMC", 34 },
-	{ UTCL2_MEM, "UTCL2_ROUTER_IFIFO_GROUP17_APT", 35 },
-
-	/* ATCL2-2m */
-	{ ATC_L2_CACHE_2M, "UTC_ATCL2_CACHE_2M_BANK0_WAY0_MEM", 0 },
-	{ ATC_L2_CACHE_2M, "UTC_ATCL2_CACHE_2M_BANK0_WAY1_MEM", 1 },
-	{ ATC_L2_CACHE_2M, "UTC_ATCL2_CACHE_2M_BANK1_WAY0_MEM", 2 },
-	{ ATC_L2_CACHE_2M, "UTC_ATCL2_CACHE_2M_BANK1_WAY1_MEM", 3 },
-
-	/* ATCL2-4k */
-	{ ATC_L2_CACHE_4K, "UTC_ATCL2_CACHE_4K_BANK0_WAY0_MEM0", 0 },
-	{ ATC_L2_CACHE_4K, "UTC_ATCL2_CACHE_4K_BANK0_WAY0_MEM1", 1 },
-	{ ATC_L2_CACHE_4K, "UTC_ATCL2_CACHE_4K_BANK0_WAY0_MEM2", 2 },
-	{ ATC_L2_CACHE_4K, "UTC_ATCL2_CACHE_4K_BANK0_WAY0_MEM3", 3 },
-	{ ATC_L2_CACHE_4K, "UTC_ATCL2_CACHE_4K_BANK0_WAY0_MEM4", 4 },
-	{ ATC_L2_CACHE_4K, "UTC_ATCL2_CACHE_4K_BANK0_WAY0_MEM5", 5 },
-	{ ATC_L2_CACHE_4K, "UTC_ATCL2_CACHE_4K_BANK0_WAY0_MEM6", 6 },
-	{ ATC_L2_CACHE_4K, "UTC_ATCL2_CACHE_4K_BANK0_WAY0_MEM7", 7 },
-	{ ATC_L2_CACHE_4K, "UTC_ATCL2_CACHE_4K_BANK0_WAY1_MEM0", 8 },
-	{ ATC_L2_CACHE_4K, "UTC_ATCL2_CACHE_4K_BANK0_WAY1_MEM1", 9 },
-	{ ATC_L2_CACHE_4K, "UTC_ATCL2_CACHE_4K_BANK0_WAY1_MEM2", 10 },
-	{ ATC_L2_CACHE_4K, "UTC_ATCL2_CACHE_4K_BANK0_WAY1_MEM3", 11 },
-	{ ATC_L2_CACHE_4K, "UTC_ATCL2_CACHE_4K_BANK0_WAY1_MEM4", 12 },
-	{ ATC_L2_CACHE_4K, "UTC_ATCL2_CACHE_4K_BANK0_WAY1_MEM5", 13 },
-	{ ATC_L2_CACHE_4K, "UTC_ATCL2_CACHE_4K_BANK0_WAY1_MEM6", 14 },
-	{ ATC_L2_CACHE_4K, "UTC_ATCL2_CACHE_4K_BANK0_WAY1_MEM7", 15 },
-	{ ATC_L2_CACHE_4K, "UTC_ATCL2_CACHE_4K_BANK1_WAY0_MEM0", 16 },
-	{ ATC_L2_CACHE_4K, "UTC_ATCL2_CACHE_4K_BANK1_WAY0_MEM1", 17 },
-	{ ATC_L2_CACHE_4K, "UTC_ATCL2_CACHE_4K_BANK1_WAY0_MEM2", 18 },
-	{ ATC_L2_CACHE_4K, "UTC_ATCL2_CACHE_4K_BANK1_WAY0_MEM3", 19 },
-	{ ATC_L2_CACHE_4K, "UTC_ATCL2_CACHE_4K_BANK1_WAY0_MEM4", 20 },
-	{ ATC_L2_CACHE_4K, "UTC_ATCL2_CACHE_4K_BANK1_WAY0_MEM5", 21 },
-	{ ATC_L2_CACHE_4K, "UTC_ATCL2_CACHE_4K_BANK1_WAY0_MEM6", 22 },
-	{ ATC_L2_CACHE_4K, "UTC_ATCL2_CACHE_4K_BANK1_WAY0_MEM7", 23 },
-	{ ATC_L2_CACHE_4K, "UTC_ATCL2_CACHE_4K_BANK1_WAY1_MEM0", 24 },
-	{ ATC_L2_CACHE_4K, "UTC_ATCL2_CACHE_4K_BANK1_WAY1_MEM1", 25 },
-	{ ATC_L2_CACHE_4K, "UTC_ATCL2_CACHE_4K_BANK1_WAY1_MEM2", 26 },
-	{ ATC_L2_CACHE_4K, "UTC_ATCL2_CACHE_4K_BANK1_WAY1_MEM3", 27 },
-	{ ATC_L2_CACHE_4K, "UTC_ATCL2_CACHE_4K_BANK1_WAY1_MEM4", 28 },
-	{ ATC_L2_CACHE_4K, "UTC_ATCL2_CACHE_4K_BANK1_WAY1_MEM5", 29 },
-	{ ATC_L2_CACHE_4K, "UTC_ATCL2_CACHE_4K_BANK1_WAY1_MEM6", 30 },
-	{ ATC_L2_CACHE_4K, "UTC_ATCL2_CACHE_4K_BANK1_WAY1_MEM7", 31 },
 };
 
 static const struct soc15_reg_entry gfx_v9_4_2_rdrsp_status_regs =
@@ -1017,62 +901,101 @@ static int gfx_v9_4_2_query_sram_edc_count(struct amdgpu_device *adev,
 	return 0;
 }
 
+static void gfx_v9_4_2_log_utc_edc_count(struct amdgpu_device *adev,
+					 struct gfx_v9_4_2_utc_block *blk,
+					 uint32_t instance, uint32_t sec_cnt,
+					 uint32_t ded_cnt)
+{
+	uint32_t bank, way, mem;
+	static const char *vml2_way_str[] = { "BIGK", "4K" };
+	static const char *utcl2_rounter_str[] = { "VMC", "APT" };
+
+	mem = instance % blk->num_mem_blocks;
+	way = (instance / blk->num_mem_blocks) % blk->num_ways;
+	bank = instance / (blk->num_mem_blocks * blk->num_ways);
+
+	switch (blk->type) {
+	case VML2_MEM:
+		dev_info(
+			adev->dev,
+			"GFX SubBlock UTC_VML2_BANK_CACHE_%d_%s_MEM%d, SED %d, DED %d\n",
+			bank, vml2_way_str[way], mem, sec_cnt, ded_cnt);
+		break;
+	case VML2_WALKER_MEM:
+		dev_info(adev->dev, "GFX SubBlock %s, SED %d, DED %d\n",
+			 vml2_walker_mems[bank], sec_cnt, ded_cnt);
+		break;
+	case UTCL2_MEM:
+		dev_info(
+			adev->dev,
+			"GFX SubBlock UTCL2_ROUTER_IFIF%d_GROUP0_%s, SED %d, DED %d\n",
+			bank, utcl2_rounter_str[mem], sec_cnt, ded_cnt);
+		break;
+	case ATC_L2_CACHE_2M:
+		dev_info(
+			adev->dev,
+			"GFX SubBlock UTC_ATCL2_CACHE_2M_BANK%d_WAY%d_MEM, SED %d, DED %d\n",
+			bank, way, sec_cnt, ded_cnt);
+		break;
+	case ATC_L2_CACHE_32K:
+		dev_info(
+			adev->dev,
+			"GFX SubBlock UTC_ATCL2_CACHE_32K_BANK%d_WAY%d_MEM%d, SED %d, DED %d\n",
+			bank, way, mem, sec_cnt, ded_cnt);
+		break;
+	case ATC_L2_CACHE_4K:
+		dev_info(
+			adev->dev,
+			"GFX SubBlock UTC_ATCL2_CACHE_4K_BANK%d_WAY%d_MEM%d, SED %d, DED %d\n",
+			bank, way, mem, sec_cnt, ded_cnt);
+		break;
+	}
+}
+
 static int gfx_v9_4_2_query_utc_edc_count(struct amdgpu_device *adev,
 					  uint32_t *sec_count,
 					  uint32_t *ded_count)
 {
 	uint32_t i, j, data;
 	uint32_t sec_cnt, ded_cnt;
+	uint32_t num_instances;
+	struct gfx_v9_4_2_utc_block *blk;
 
 	if (sec_count && ded_count) {
 		*sec_count = 0;
 		*ded_count = 0;
 	}
 
-	for (i = 0; i < ARRAY_SIZE(gfx_v9_4_2_utc_regs); i++) {
-		for (j = 0; j < ARRAY_SIZE(gfx_v9_4_2_utc_map); j++) {
-			if (gfx_v9_4_2_utc_regs[i].type !=
-			    gfx_v9_4_2_utc_map[j].type)
-				continue;
-
-			WREG32(SOC15_REG_ENTRY_OFFSET(
-				       gfx_v9_4_2_utc_regs[i].idx_reg),
-			       gfx_v9_4_2_utc_map[j].index);
+	for (i = 0; i < ARRAY_SIZE(gfx_v9_4_2_utc_blocks); i++) {
+		blk = &gfx_v9_4_2_utc_blocks[i];
+		num_instances =
+			blk->num_banks * blk->num_ways * blk->num_mem_blocks;
+		for (j = 0; j < num_instances; j++) {
+			WREG32(SOC15_REG_ENTRY_OFFSET(blk->idx_reg), j);
 
 			/* if sec/ded_count is NULL, just clear counter */
 			if (!sec_count || !ded_count) {
-				WREG32(SOC15_REG_ENTRY_OFFSET(
-					       gfx_v9_4_2_utc_regs[i].data_reg),
-				       gfx_v9_4_2_utc_regs[i].clear);
+				WREG32(SOC15_REG_ENTRY_OFFSET(blk->data_reg),
+				       blk->clear);
 				continue;
 			}
 
-			data = RREG32(SOC15_REG_ENTRY_OFFSET(
-				gfx_v9_4_2_utc_regs[i].data_reg));
-
+			data = RREG32(SOC15_REG_ENTRY_OFFSET(blk->data_reg));
 			if (!data)
 				continue;
 
-			sec_cnt = SOC15_RAS_REG_FIELD_VAL(
-				data, gfx_v9_4_2_utc_regs[i], sec);
-			if (sec_cnt) {
-				dev_info(adev->dev, "GFX SubBlock %s, SEC %d\n",
-					 gfx_v9_4_2_utc_map[j].name, sec_cnt);
-				*sec_count += sec_cnt;
-			}
-
-			ded_cnt = SOC15_RAS_REG_FIELD_VAL(
-				data, gfx_v9_4_2_utc_regs[i], ded);
-			if (ded_cnt) {
-				dev_info(adev->dev, "GFX SubBlock %s, DED %d\n",
-					 gfx_v9_4_2_utc_map[j].name, ded_cnt);
-				*ded_count += ded_cnt;
-			}
+			sec_cnt = SOC15_RAS_REG_FIELD_VAL(data, *blk, sec);
+			*sec_count += sec_cnt;
+			ded_cnt = SOC15_RAS_REG_FIELD_VAL(data, *blk, ded);
+			*ded_count += ded_cnt;
 
 			/* clear counter after read */
-			WREG32(SOC15_REG_ENTRY_OFFSET(
-				       gfx_v9_4_2_utc_regs[i].data_reg),
-			       gfx_v9_4_2_utc_regs[i].clear);
+			WREG32(SOC15_REG_ENTRY_OFFSET(blk->data_reg),
+			       blk->clear);
+
+			/* print the edc count */
+			gfx_v9_4_2_log_utc_edc_count(adev, blk, j, sec_cnt,
+						     ded_cnt);
 		}
 	}
 

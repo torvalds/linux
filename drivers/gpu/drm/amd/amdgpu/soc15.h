@@ -97,7 +97,7 @@ struct soc15_ras_field_entry {
 
 #define SOC15_REG_FIELD_VAL(val, mask, shift)	(((val) & mask) >> shift)
 
-#define SOC15_RAS_REG_FIELD_VAL(val, entry, field) SOC15_REG_FIELD_VAL(val, entry.field##_count_mask, entry.field##_count_shift)
+#define SOC15_RAS_REG_FIELD_VAL(val, entry, field) SOC15_REG_FIELD_VAL((val), (entry).field##_count_mask, (entry).field##_count_shift)
 
 void soc15_grbm_select(struct amdgpu_device *adev,
 		    u32 me, u32 pipe, u32 queue, u32 vmid);
