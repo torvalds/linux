@@ -480,6 +480,14 @@ config SM_GCC_8250
 	  Say Y if you want to use peripheral devices such as UART,
 	  SPI, I2C, USB, SD/UFS, PCIe etc.
 
+config SM_GCC_8350
+	tristate "SM8350 Global Clock Controller"
+	select QCOM_GDSC
+	help
+	  Support for the global clock controller on SM8350 devices.
+	  Say Y if you want to use peripheral devices such as UART,
+	  SPI, I2C, USB, SD/UFS, PCIe etc.
+
 config SM_GPUCC_8150
 	tristate "SM8150 Graphics Clock Controller"
 	select SM_GCC_8150
