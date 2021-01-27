@@ -2852,12 +2852,16 @@ static int mlx5e_switch_priv_channels(struct mlx5e_priv *priv,
 	struct net_device *netdev = priv->netdev;
 	struct mlx5e_channels old_chs;
 	int carrier_ok;
+	bool opened;
 	int err = 0;
 
-	carrier_ok = netif_carrier_ok(netdev);
-	netif_carrier_off(netdev);
+	opened = test_bit(MLX5E_STATE_OPENED, &priv->state);
+	if (opened) {
+		carrier_ok = netif_carrier_ok(netdev);
+		netif_carrier_off(netdev);
 
-	mlx5e_deactivate_priv_channels(priv);
+		mlx5e_deactivate_priv_channels(priv);
+	}
 
 	old_chs = priv->channels;
 	priv->channels = *new_chs;
@@ -2873,15 +2877,19 @@ static int mlx5e_switch_priv_channels(struct mlx5e_priv *priv,
 		}
 	}
 
-	mlx5e_close_channels(&old_chs);
-	priv->profile->update_rx(priv);
+	if (opened) {
+		mlx5e_close_channels(&old_chs);
+		priv->profile->update_rx(priv);
+	}
 
 out:
-	mlx5e_activate_priv_channels(priv);
+	if (opened) {
+		mlx5e_activate_priv_channels(priv);
 
-	/* return carrier back if needed */
-	if (carrier_ok)
-		netif_carrier_on(netdev);
+		/* return carrier back if needed */
+		if (carrier_ok)
+			netif_carrier_on(netdev);
+	}
 
 	return err;
 }
@@ -2891,11 +2899,16 @@ int mlx5e_safe_switch_channels(struct mlx5e_priv *priv,
 			       mlx5e_fp_preactivate preactivate,
 			       void *context)
 {
+	bool opened;
 	int err;
 
-	err = mlx5e_open_channels(priv, new_chs);
-	if (err)
-		return err;
+	opened = test_bit(MLX5E_STATE_OPENED, &priv->state);
+
+	if (opened) {
+		err = mlx5e_open_channels(priv, new_chs);
+		if (err)
+			return err;
+	}
 
 	err = mlx5e_switch_priv_channels(priv, new_chs, preactivate, context);
 	if (err)
@@ -2904,7 +2917,8 @@ int mlx5e_safe_switch_channels(struct mlx5e_priv *priv,
 	return 0;
 
 err_close:
-	mlx5e_close_channels(new_chs);
+	if (opened)
+		mlx5e_close_channels(new_chs);
 
 	return err;
 }
