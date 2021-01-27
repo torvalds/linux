@@ -342,7 +342,7 @@ struct vop2_wb {
 
 enum vop2_wb_format {
 	VOP2_WB_ARGB8888,
-	VOP2_WB_RGB888,
+	VOP2_WB_BGR888,
 	VOP2_WB_RGB565,
 	VOP2_WB_YUV420SP = 4,
 	VOP2_WB_INVALID = -1,
@@ -891,8 +891,8 @@ static enum vop2_wb_format vop2_convert_wb_format(uint32_t format)
 	switch (format) {
 	case DRM_FORMAT_ARGB8888:
 		return VOP2_WB_ARGB8888;
-	case DRM_FORMAT_RGB888:
-		return VOP2_WB_RGB888;
+	case DRM_FORMAT_BGR888:
+		return VOP2_WB_BGR888;
 	case DRM_FORMAT_RGB565:
 		return VOP2_WB_RGB565;
 	case DRM_FORMAT_NV12:

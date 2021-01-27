@@ -54,7 +54,7 @@ static const uint32_t formats_win_lite[] = {
 };
 
 static const u32 formats_wb[] = {
-	DRM_FORMAT_RGB888,
+	DRM_FORMAT_BGR888,
 	DRM_FORMAT_ARGB8888,
 	DRM_FORMAT_RGB565,
 	DRM_FORMAT_NV12,
