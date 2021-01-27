@@ -9,7 +9,8 @@
 
 #define VIRTIO_VSOCK_DEFAULT_RX_BUF_SIZE	(1024 * 4)
 #define VIRTIO_VSOCK_MAX_BUF_SIZE		0xFFFFFFFFUL
-#define VIRTIO_VSOCK_MAX_PKT_BUF_SIZE		(1024 * 64)
+#define VIRTIO_VSOCK_MAX_PKT_BUF_SIZE		virtio_transport_max_vsock_pkt_buf_size
+extern uint virtio_transport_max_vsock_pkt_buf_size;
 
 enum {
 	VSOCK_VQ_RX     = 0, /* for host to guest data */
