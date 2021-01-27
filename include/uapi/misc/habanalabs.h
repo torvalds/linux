@@ -414,10 +414,13 @@ struct hl_pll_frequency_info {
  * struct hl_info_sync_manager - sync manager information
  * @first_available_sync_object: first available sob
  * @first_available_monitor: first available monitor
+ * @first_available_cq: first available cq
  */
 struct hl_info_sync_manager {
 	__u32 first_available_sync_object;
 	__u32 first_available_monitor;
+	__u32 first_available_cq;
+	__u32 reserved;
 };
 
 /**

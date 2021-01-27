@@ -529,6 +529,9 @@ static int gaudi_get_fixed_properties(struct hl_device *hdev)
 
 	prop->first_available_user_msix_interrupt = USHRT_MAX;
 
+	for (i = 0 ; i < HL_MAX_DCORES ; i++)
+		prop->first_available_cq[i] = USHRT_MAX;
+
 	/* disable fw security for now, set it in a later stage */
 	prop->fw_security_disabled = true;
 	prop->fw_security_status_valid = false;
