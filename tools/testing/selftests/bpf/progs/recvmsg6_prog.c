@@ -8,6 +8,8 @@
 #include <bpf/bpf_helpers.h>
 #include <bpf/bpf_endian.h>
 
+#include <bpf_sockopt_helpers.h>
+
 #define SERV6_IP_0		0xfaceb00c /* face:b00c:1234:5678::abcd */
 #define SERV6_IP_1		0x12345678
 #define SERV6_IP_2		0x00000000
@@ -29,6 +31,9 @@ int recvmsg6_prog(struct bpf_sock_addr *ctx)
 		return 1;
 
 	if (ctx->type != SOCK_STREAM && ctx->type != SOCK_DGRAM)
+		return 1;
+
+	if (!get_set_sk_priority(ctx))
 		return 1;
 
 	ctx->user_ip6[0] = bpf_htonl(SERV6_IP_0);

@@ -8,6 +8,8 @@
 #include <bpf/bpf_helpers.h>
 #include <bpf/bpf_endian.h>
 
+#include <bpf_sockopt_helpers.h>
+
 #define SERV4_IP		0xc0a801feU /* 192.168.1.254 */
 #define SERV4_PORT		4040
 
@@ -26,6 +28,9 @@ int recvmsg4_prog(struct bpf_sock_addr *ctx)
 		return 1;
 
 	if (ctx->type != SOCK_STREAM && ctx->type != SOCK_DGRAM)
+		return 1;
+
+	if (!get_set_sk_priority(ctx))
 		return 1;
 
 	ctx->user_ip4 = bpf_htonl(SERV4_IP);
