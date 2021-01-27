@@ -75,7 +75,6 @@
 struct minstrel_priv {
 	struct ieee80211_hw *hw;
 	bool has_mrr;
-	u32 sample_switch;
 	unsigned int cw_min;
 	unsigned int cw_max;
 	unsigned int max_retry;
@@ -147,12 +146,6 @@ struct minstrel_mcs_group_data {
 	struct minstrel_rate_stats rates[MCS_GROUP_RATES];
 };
 
-enum minstrel_sample_mode {
-	MINSTREL_SAMPLE_IDLE,
-	MINSTREL_SAMPLE_ACTIVE,
-	MINSTREL_SAMPLE_PENDING,
-};
-
 struct minstrel_sample_category {
 	u8 sample_group;
 	u16 sample_rates[MINSTREL_SAMPLE_RATES];
@@ -182,23 +175,19 @@ struct minstrel_ht_sta {
 	unsigned int overhead_legacy;
 	unsigned int overhead_legacy_rtscts;
 
-	unsigned int total_packets_last;
-	unsigned int total_packets_cur;
 	unsigned int total_packets;
 	unsigned int sample_packets;
 
 	/* tx flags to add for frames for this sta */
 	u32 tx_flags;
 
-	unsigned long sample_time;
-	struct minstrel_sample_category sample[__MINSTREL_SAMPLE_TYPE_MAX];
+	u8 band;
 
 	u8 sample_seq;
-
-	enum minstrel_sample_mode sample_mode;
 	u16 sample_rate;
 
-	u8 band;
+	unsigned long sample_time;
+	struct minstrel_sample_category sample[__MINSTREL_SAMPLE_TYPE_MAX];
 
 	/* Bitfield of supported MCS rates of all groups */
 	u16 supported[MINSTREL_GROUPS_NB];

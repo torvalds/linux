@@ -648,27 +648,6 @@ __minstrel_ht_get_sample_rate(struct minstrel_ht_sta *mi,
 	return 0;
 }
 
-static void
-minstrel_ht_rate_sample_switch(struct minstrel_priv *mp,
-			       struct minstrel_ht_sta *mi)
-{
-	u16 rate;
-
-	/*
-	 * Use rate switching instead of probing packets for devices with
-	 * little control over retry fallback behavior
-	 */
-	if (mp->hw->max_rates > 1)
-		return;
-
-	rate = __minstrel_ht_get_sample_rate(mi, MINSTREL_SAMPLE_TYPE_INC);
-	if (!rate)
-		return;
-
-	mi->sample_rate = rate;
-	mi->sample_mode = MINSTREL_SAMPLE_ACTIVE;
-}
-
 static inline int
 minstrel_ewma(int old, int new, int weight)
 {
@@ -1012,8 +991,7 @@ minstrel_ht_refill_sample_rates(struct minstrel_ht_sta *mi)
  *    higher throughput rates, even if the probablity is a bit lower
  */
 static void
-minstrel_ht_update_stats(struct minstrel_priv *mp, struct minstrel_ht_sta *mi,
-			 bool sample)
+minstrel_ht_update_stats(struct minstrel_priv *mp, struct minstrel_ht_sta *mi)
 {
 	struct minstrel_mcs_group_data *mg;
 	struct minstrel_rate_stats *mrs;
@@ -1022,18 +1000,6 @@ minstrel_ht_update_stats(struct minstrel_priv *mp, struct minstrel_ht_sta *mi,
 	u16 tmp_legacy_tp_rate[MAX_THR_RATES], tmp_max_prob_rate;
 	u16 index;
 	bool ht_supported = mi->sta->ht_cap.ht_supported;
-
-	mi->sample_mode = MINSTREL_SAMPLE_IDLE;
-
-	if (sample) {
-		mi->total_packets_cur = mi->total_packets -
-					mi->total_packets_last;
-		mi->total_packets_last = mi->total_packets;
-	}
-	if (!mp->sample_switch)
-		sample = false;
-	if (mi->total_packets_cur < SAMPLE_SWITCH_THR && mp->sample_switch != 1)
-	    sample = false;
 
 	if (mi->ampdu_packets > 0) {
 		if (!ieee80211_hw_check(mp->hw, TX_STATUS_NO_AMPDU_LEN))
@@ -1148,16 +1114,12 @@ minstrel_ht_update_stats(struct minstrel_priv *mp, struct minstrel_ht_sta *mi,
 	minstrel_ht_prob_rate_reduce_streams(mi);
 	minstrel_ht_refill_sample_rates(mi);
 
-	if (sample)
-		minstrel_ht_rate_sample_switch(mp, mi);
-
 #ifdef CONFIG_MAC80211_DEBUGFS
 	/* use fixed index if set */
 	if (mp->fixed_rate_idx != -1) {
 		for (i = 0; i < 4; i++)
 			mi->max_tp_rate[i] = mp->fixed_rate_idx;
 		mi->max_prob_rate = mp->fixed_rate_idx;
-		mi->sample_mode = MINSTREL_SAMPLE_IDLE;
 	}
 #endif
 
@@ -1247,11 +1209,10 @@ minstrel_ht_tx_status(void *priv, struct ieee80211_supported_band *sband,
 	struct ieee80211_tx_info *info = st->info;
 	struct minstrel_ht_sta *mi = priv_sta;
 	struct ieee80211_tx_rate *ar = info->status.rates;
-	struct minstrel_rate_stats *rate, *rate2, *rate_sample = NULL;
+	struct minstrel_rate_stats *rate, *rate2;
 	struct minstrel_priv *mp = priv;
 	u32 update_interval = mp->update_interval;
 	bool last, update = false;
-	bool sample_status = false;
 	int i;
 
 	/* This packet was aggregated but doesn't carry status info */
@@ -1278,48 +1239,17 @@ minstrel_ht_tx_status(void *priv, struct ieee80211_supported_band *sband,
 	mi->ampdu_packets++;
 	mi->ampdu_len += info->status.ampdu_len;
 
-	if (mi->sample_mode != MINSTREL_SAMPLE_IDLE)
-		rate_sample = minstrel_get_ratestats(mi, mi->sample_rate);
-
 	last = !minstrel_ht_txstat_valid(mp, mi, &ar[0]);
 	for (i = 0; !last; i++) {
 		last = (i == IEEE80211_TX_MAX_RATES - 1) ||
 		       !minstrel_ht_txstat_valid(mp, mi, &ar[i + 1]);
 
 		rate = minstrel_ht_get_stats(mp, mi, &ar[i]);
-		if (rate == rate_sample)
-			sample_status = true;
-
 		if (last)
 			rate->success += info->status.ampdu_ack_len;
 
 		rate->attempts += ar[i].count * info->status.ampdu_len;
 	}
-
-	switch (mi->sample_mode) {
-	case MINSTREL_SAMPLE_IDLE:
-		if (mp->hw->max_rates > 1 ||
-		     mi->total_packets_cur < SAMPLE_SWITCH_THR)
-			update_interval /= 2;
-		break;
-
-	case MINSTREL_SAMPLE_ACTIVE:
-		if (!sample_status)
-			break;
-
-		mi->sample_mode = MINSTREL_SAMPLE_PENDING;
-		update = true;
-		break;
-
-	case MINSTREL_SAMPLE_PENDING:
-		if (sample_status)
-			break;
-
-		update = true;
-		minstrel_ht_update_stats(mp, mi, false);
-		break;
-	}
-
 
 	if (mp->hw->max_rates > 1) {
 		/*
@@ -1343,7 +1273,7 @@ minstrel_ht_tx_status(void *priv, struct ieee80211_supported_band *sband,
 
 	if (time_after(jiffies, mi->last_stats_update + update_interval)) {
 		update = true;
-		minstrel_ht_update_stats(mp, mi, true);
+		minstrel_ht_update_stats(mp, mi);
 	}
 
 	if (update)
@@ -1522,18 +1452,14 @@ static void
 minstrel_ht_update_rates(struct minstrel_priv *mp, struct minstrel_ht_sta *mi)
 {
 	struct ieee80211_sta_rates *rates;
-	u16 first_rate = mi->max_tp_rate[0];
 	int i = 0;
-
-	if (mi->sample_mode == MINSTREL_SAMPLE_ACTIVE)
-		first_rate = mi->sample_rate;
 
 	rates = kzalloc(sizeof(*rates), GFP_ATOMIC);
 	if (!rates)
 		return;
 
 	/* Start with max_tp_rate[0] */
-	minstrel_ht_set_rate(mp, mi, rates, i++, first_rate);
+	minstrel_ht_set_rate(mp, mi, rates, i++, mi->max_tp_rate[0]);
 
 	if (mp->hw->max_rates >= 3) {
 		/* At least 3 tx rates supported, use max_tp_rate[1] next */
@@ -1590,11 +1516,6 @@ minstrel_ht_get_rate(void *priv, struct ieee80211_sta *sta, void *priv_sta,
 	/* Don't use EAPOL frames for sampling on non-mrr hw */
 	if (mp->hw->max_rates == 1 &&
 	    (info->control.flags & IEEE80211_TX_CTRL_PORT_CTRL_PROTO))
-		return;
-
-	if (mp->hw->max_rates == 1 && mp->sample_switch &&
-	    (mi->total_packets_cur >= SAMPLE_SWITCH_THR ||
-	     mp->sample_switch == 1))
 		return;
 
 	if (time_is_before_jiffies(mi->sample_time))
@@ -1810,7 +1731,7 @@ minstrel_ht_update_caps(void *priv, struct ieee80211_supported_band *sband,
 	minstrel_ht_update_ofdm(mp, mi, sband, sta);
 
 	/* create an initial rate table with the lowest supported rates */
-	minstrel_ht_update_stats(mp, mi, true);
+	minstrel_ht_update_stats(mp, mi);
 	minstrel_ht_update_rates(mp, mi);
 }
 
@@ -1926,8 +1847,6 @@ minstrel_ht_alloc(struct ieee80211_hw *hw)
 	if (!mp)
 		return NULL;
 
-	mp->sample_switch = -1;
-
 	/* contention window settings
 	 * Just an approximation. Using the per-queue values would complicate
 	 * the calculations and is probably unnecessary */
@@ -1947,7 +1866,7 @@ minstrel_ht_alloc(struct ieee80211_hw *hw)
 		mp->has_mrr = true;
 
 	mp->hw = hw;
-	mp->update_interval = HZ / 10;
+	mp->update_interval = HZ / 20;
 
 	minstrel_ht_init_cck_rates(mp);
 	for (i = 0; i < ARRAY_SIZE(mp->hw->wiphy->bands); i++)
@@ -1965,8 +1884,6 @@ static void minstrel_ht_add_debugfs(struct ieee80211_hw *hw, void *priv,
 	mp->fixed_rate_idx = (u32) -1;
 	debugfs_create_u32("fixed_rate_idx", S_IRUGO | S_IWUGO, debugfsdir,
 			   &mp->fixed_rate_idx);
-	debugfs_create_u32("sample_switch", S_IRUGO | S_IWUSR, debugfsdir,
-			   &mp->sample_switch);
 }
 #endif
 
