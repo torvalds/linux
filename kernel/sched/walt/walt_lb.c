@@ -8,7 +8,6 @@
 #include "walt.h"
 #include "trace.h"
 
-extern u64 sched_ktime_clock(void); // TODO
 static void walt_detach_task(struct task_struct *p, struct rq *src_rq,
 			     struct rq *dst_rq)
 {
@@ -772,12 +771,5 @@ void walt_lb_init(void)
 	register_trace_android_rvh_can_migrate_task(walt_can_migrate_task, NULL);
 	register_trace_android_rvh_find_busiest_queue(walt_find_busiest_queue, NULL);
 	register_trace_android_rvh_sched_newidle_balance(walt_newidle_balance, NULL);
-
-	/*
-	 * TODO:
-	 * scheduler tick is not a restricted hook so multiple entities
-	 * can register for it. but from WALT, we will have only 1 hook
-	 * and it will call our load balancer function later.
-	 */
 	register_trace_android_vh_scheduler_tick(walt_lb_tick, NULL);
 }
