@@ -873,9 +873,11 @@ static struct rga2_reg * rga2_reg_init(rga2_session *session, struct rga2_req *r
 	reg->sg_src0 = req->sg_src0;
 	reg->sg_dst = req->sg_dst;
 	reg->sg_src1 = req->sg_src1;
+	reg->sg_els = req->sg_els;
 	reg->attach_src0 = req->attach_src0;
 	reg->attach_dst = req->attach_dst;
 	reg->attach_src1 = req->attach_src1;
+	reg->attach_els = req->attach_els;
 #endif
 
     mutex_lock(&rga2_service.lock);
@@ -1004,8 +1006,8 @@ static int rga2_put_dma_buf(struct rga2_req *req, struct rga2_reg *reg)
 	if (!req && !reg)
 		return -EINVAL;
 
-	attach = (!reg) ? req->attach_src0 : reg->attach_src0;
-	sgt = (!reg) ? req->sg_src0 : reg->sg_src0;
+	attach = reg ? reg->attach_src0 : req->attach_src0;
+	sgt = reg ? reg->sg_src0 : req->sg_src0;
 	if (attach && sgt)
 		dma_buf_unmap_attachment(attach, sgt, DMA_BIDIRECTIONAL);
 	if (attach) {
@@ -1014,8 +1016,8 @@ static int rga2_put_dma_buf(struct rga2_req *req, struct rga2_reg *reg)
 		dma_buf_put(dma_buf);
 	}
 
-	attach = (!reg) ? req->attach_dst : reg->attach_dst;
-	sgt = (!reg) ? req->sg_dst : reg->sg_dst;
+	attach = reg ? reg->attach_dst : req->attach_dst;
+	sgt = reg ? reg->sg_dst : req->sg_dst;
 	if (attach && sgt)
 		dma_buf_unmap_attachment(attach, sgt, DMA_BIDIRECTIONAL);
 	if (attach) {
@@ -1024,8 +1026,18 @@ static int rga2_put_dma_buf(struct rga2_req *req, struct rga2_reg *reg)
 		dma_buf_put(dma_buf);
 	}
 
-	attach = (!reg) ? req->attach_src1 : reg->attach_src1;
-	sgt = (!reg) ? req->sg_src1 : reg->sg_src1;
+	attach = reg ? reg->attach_src1 : req->attach_src1;
+	sgt = reg ? reg->sg_src1 : req->sg_src1;
+	if (attach && sgt)
+		dma_buf_unmap_attachment(attach, sgt, DMA_BIDIRECTIONAL);
+	if (attach) {
+		dma_buf = attach->dmabuf;
+		dma_buf_detach(dma_buf, attach);
+		dma_buf_put(dma_buf);
+	}
+
+	attach = reg ? reg->attach_els : req->attach_els;
+	sgt = reg ? reg->sg_els : req->sg_els;
 	if (attach && sgt)
 		dma_buf_unmap_attachment(attach, sgt, DMA_BIDIRECTIONAL);
 	if (attach) {

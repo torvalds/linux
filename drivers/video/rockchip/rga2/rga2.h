@@ -693,10 +693,12 @@ struct rga2_reg {
 	struct sg_table *sg_src0;
 	struct sg_table *sg_src1;
 	struct sg_table *sg_dst;
+	struct sg_table *sg_els;
 
 	struct dma_buf_attachment *attach_src0;
 	struct dma_buf_attachment *attach_src1;
 	struct dma_buf_attachment *attach_dst;
+	struct dma_buf_attachment *attach_els;
 };
 
 struct rga2_service_info {

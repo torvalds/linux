@@ -1091,8 +1091,12 @@ void RGA_MSG_2_RGA2_MSG(struct rga_req *req_rga, struct rga2_req *req)
 
     memcpy(&req->src, &req_rga->src, sizeof(req_rga->src));
     memcpy(&req->dst, &req_rga->dst, sizeof(req_rga->dst));
-    memcpy(&req->pat, &req_rga->pat, sizeof(req_rga->pat));
-    memcpy(&req->src1,&req_rga->pat, sizeof(req_rga->pat));
+    /* The application will only import pat or src1. */
+    if (req->render_mode == update_palette_table_mode) {
+        memcpy(&req->pat, &req_rga->pat, sizeof(req_rga->pat));
+    } else {
+        memcpy(&req->src1, &req_rga->pat, sizeof(req_rga->pat));
+    }
 
     format_name_convert(&req->src.format, req_rga->src.format);
     format_name_convert(&req->dst.format, req_rga->dst.format);
