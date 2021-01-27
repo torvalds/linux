@@ -5272,6 +5272,7 @@ static int btrfs_log_inode(struct btrfs_trans_handle *trans,
 	if (S_ISDIR(inode->vfs_inode.i_mode)) {
 		int max_key_type = BTRFS_DIR_LOG_INDEX_KEY;
 
+		clear_bit(BTRFS_INODE_COPY_EVERYTHING, &inode->runtime_flags);
 		if (inode_only == LOG_INODE_EXISTS)
 			max_key_type = BTRFS_XATTR_ITEM_KEY;
 		ret = drop_objectid_items(trans, log, path, ino, max_key_type);
@@ -5518,6 +5519,34 @@ static noinline int check_parent_dirs_for_sync(struct btrfs_trans_handle *trans,
 	dput(old_parent);
 out:
 	return ret;
+}
+
+/*
+ * Check if we need to log an inode. This is used in contexts where while
+ * logging an inode we need to log another inode (either that it exists or in
+ * full mode). This is used instead of btrfs_inode_in_log() because the later
+ * requires the inode to be in the log and have the log transaction committed,
+ * while here we do not care if the log transaction was already committed - our
+ * caller will commit the log later - and we want to avoid logging an inode
+ * multiple times when multiple tasks have joined the same log transaction.
+ */
+static bool need_log_inode(struct btrfs_trans_handle *trans,
+			   struct btrfs_inode *inode)
+{
+	/*
+	 * If this inode does not have new/updated/deleted xattrs since the last
+	 * time it was logged and is flagged as logged in the current transaction,
+	 * we can skip logging it. As for new/deleted names, those are updated in
+	 * the log by link/unlink/rename operations.
+	 * In case the inode was logged and then evicted and reloaded, its
+	 * logged_trans will be 0, in which case we have to fully log it since
+	 * logged_trans is a transient field, not persisted.
+	 */
+	if (inode->logged_trans == trans->transid &&
+	    !test_bit(BTRFS_INODE_COPY_EVERYTHING, &inode->runtime_flags))
+		return false;
+
+	return true;
 }
 
 struct btrfs_dir_list {
@@ -5848,7 +5877,8 @@ static int log_new_ancestors(struct btrfs_trans_handle *trans,
 		if (IS_ERR(inode))
 			return PTR_ERR(inode);
 
-		if (BTRFS_I(inode)->generation >= trans->transid)
+		if (BTRFS_I(inode)->generation >= trans->transid &&
+		    need_log_inode(trans, BTRFS_I(inode)))
 			ret = btrfs_log_inode(trans, root, BTRFS_I(inode),
 					      LOG_INODE_EXISTS, ctx);
 		btrfs_add_delayed_iput(inode);
@@ -5902,7 +5932,8 @@ static int log_new_ancestors_fast(struct btrfs_trans_handle *trans,
 		if (root != inode->root)
 			break;
 
-		if (inode->generation >= trans->transid) {
+		if (inode->generation >= trans->transid &&
+		    need_log_inode(trans, inode)) {
 			ret = btrfs_log_inode(trans, root, inode,
 					      LOG_INODE_EXISTS, ctx);
 			if (ret)
