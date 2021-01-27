@@ -244,6 +244,9 @@ DECLARE_RESTRICTED_HOOK(android_rvh_replace_next_task_fair,
 	TP_PROTO(struct rq *rq, struct task_struct **p, struct sched_entity **se,
 		 bool *repick, bool simple),
 	TP_ARGS(rq, p, se, repick, simple), 1);
+DECLARE_RESTRICTED_HOOK(android_rvh_sched_balance_rt,
+	TP_PROTO(struct rq *rq, struct task_struct *p, int *done),
+	TP_ARGS(rq, p, done), 1);
 
 #endif /* _TRACE_HOOK_SCHED_H */
 /* This part must be outside protection */
