@@ -1153,13 +1153,13 @@ static unsigned short int ftdi_232am_baud_base_to_divisor(int baud, int base)
 	divisor = divisor3 >> 3;
 	divisor3 &= 0x7;
 	if (divisor3 == 1)
-		divisor |= 0xc000;
+		divisor |= 0xc000;	/* +0.125 */
 	else if (divisor3 >= 4)
-		divisor |= 0x4000;
+		divisor |= 0x4000;	/* +0.5 */
 	else if (divisor3 != 0)
-		divisor |= 0x8000;
+		divisor |= 0x8000;	/* +0.25 */
 	else if (divisor == 1)
-		divisor = 0;	/* special case for maximum baud rate */
+		divisor = 0;		/* special case for maximum baud rate */
 	return divisor;
 }
 
@@ -1177,9 +1177,9 @@ static u32 ftdi_232bm_baud_base_to_divisor(int baud, int base)
 	divisor = divisor3 >> 3;
 	divisor |= (u32)divfrac[divisor3 & 0x7] << 14;
 	/* Deal with special cases for highest baud rates. */
-	if (divisor == 1)
+	if (divisor == 1)		/* 1.0 */
 		divisor = 0;
-	else if (divisor == 0x4001)
+	else if (divisor == 0x4001)	/* 1.5 */
 		divisor = 1;
 	return divisor;
 }
@@ -1201,9 +1201,9 @@ static u32 ftdi_2232h_baud_base_to_divisor(int baud, int base)
 	divisor = divisor3 >> 3;
 	divisor |= (u32)divfrac[divisor3 & 0x7] << 14;
 	/* Deal with special cases for highest baud rates. */
-	if (divisor == 1)
+	if (divisor == 1)		/* 1.0 */
 		divisor = 0;
-	else if (divisor == 0x4001)
+	else if (divisor == 0x4001)	/* 1.5 */
 		divisor = 1;
 	/*
 	 * Set this bit to turn off a divide by 2.5 on baud rate generator
