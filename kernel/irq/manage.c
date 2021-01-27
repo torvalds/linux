@@ -2859,3 +2859,4 @@ bool irq_check_status_bit(unsigned int irq, unsigned int bitmask)
 	rcu_read_unlock();
 	return res;
 }
+EXPORT_SYMBOL_GPL(irq_check_status_bit);

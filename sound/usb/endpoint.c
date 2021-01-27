@@ -1252,6 +1252,15 @@ int snd_usb_endpoint_configure(struct snd_usb_audio *chip,
 
 	/* If the interface has been already set up, just set EP parameters */
 	if (!ep->iface_ref->need_setup) {
+		/* sample rate setup of UAC1 is per endpoint, and we need
+		 * to update at each EP configuration
+		 */
+		if (ep->cur_audiofmt->protocol == UAC_VERSION_1) {
+			err = snd_usb_init_sample_rate(chip, ep->cur_audiofmt,
+						       ep->cur_rate);
+			if (err < 0)
+				goto unlock;
+		}
 		err = snd_usb_endpoint_set_params(chip, ep);
 		if (err < 0)
 			goto unlock;

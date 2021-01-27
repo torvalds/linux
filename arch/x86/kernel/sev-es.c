@@ -225,7 +225,7 @@ static inline u64 sev_es_rd_ghcb_msr(void)
 	return __rdmsr(MSR_AMD64_SEV_ES_GHCB);
 }
 
-static inline void sev_es_wr_ghcb_msr(u64 val)
+static __always_inline void sev_es_wr_ghcb_msr(u64 val)
 {
 	u32 low, high;
 
@@ -286,6 +286,12 @@ static enum es_result vc_write_mem(struct es_em_ctxt *ctxt,
 	u16 d2;
 	u8  d1;
 
+	/* If instruction ran in kernel mode and the I/O buffer is in kernel space */
+	if (!user_mode(ctxt->regs) && !access_ok(target, size)) {
+		memcpy(dst, buf, size);
+		return ES_OK;
+	}
+
 	switch (size) {
 	case 1:
 		memcpy(&d1, buf, 1);
@@ -334,6 +340,12 @@ static enum es_result vc_read_mem(struct es_em_ctxt *ctxt,
 	u32 d4;
 	u16 d2;
 	u8  d1;
+
+	/* If instruction ran in kernel mode and the I/O buffer is in kernel space */
+	if (!user_mode(ctxt->regs) && !access_ok(s, size)) {
+		memcpy(buf, src, size);
+		return ES_OK;
+	}
 
 	switch (size) {
 	case 1:

@@ -188,6 +188,7 @@ struct output_option {
 
 enum {
 	OUTPUT_TYPE_SYNTH = PERF_TYPE_MAX,
+	OUTPUT_TYPE_OTHER,
 	OUTPUT_TYPE_MAX
 };
 
@@ -285,6 +286,18 @@ static struct {
 
 		.invalid_fields = PERF_OUTPUT_TRACE | PERF_OUTPUT_BPF_OUTPUT,
 	},
+
+	[OUTPUT_TYPE_OTHER] = {
+		.user_set = false,
+
+		.fields = PERF_OUTPUT_COMM | PERF_OUTPUT_TID |
+			      PERF_OUTPUT_CPU | PERF_OUTPUT_TIME |
+			      PERF_OUTPUT_EVNAME | PERF_OUTPUT_IP |
+			      PERF_OUTPUT_SYM | PERF_OUTPUT_SYMOFFSET |
+			      PERF_OUTPUT_DSO | PERF_OUTPUT_PERIOD,
+
+		.invalid_fields = PERF_OUTPUT_TRACE | PERF_OUTPUT_BPF_OUTPUT,
+	},
 };
 
 struct evsel_script {
@@ -345,8 +358,11 @@ static inline int output_type(unsigned int type)
 	case PERF_TYPE_SYNTH:
 		return OUTPUT_TYPE_SYNTH;
 	default:
-		return type;
+		if (type < PERF_TYPE_MAX)
+			return type;
 	}
+
+	return OUTPUT_TYPE_OTHER;
 }
 
 static inline unsigned int attr_type(unsigned int type)
