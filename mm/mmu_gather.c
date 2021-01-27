@@ -261,8 +261,8 @@ void tlb_flush_mmu(struct mmu_gather *tlb)
  * respectively when @mm is without users and we're going to destroy
  * the full address space (exit/execve).
  */
-void tlb_gather_mmu(struct mmu_gather *tlb, struct mm_struct *mm,
-			unsigned long start, unsigned long end)
+static void __tlb_gather_mmu(struct mmu_gather *tlb, struct mm_struct *mm,
+			     unsigned long start, unsigned long end)
 {
 	tlb->mm = mm;
 
@@ -285,6 +285,18 @@ void tlb_gather_mmu(struct mmu_gather *tlb, struct mm_struct *mm,
 
 	__tlb_reset_range(tlb);
 	inc_tlb_flush_pending(tlb->mm);
+}
+
+void tlb_gather_mmu(struct mmu_gather *tlb, struct mm_struct *mm,
+		    unsigned long start, unsigned long end)
+{
+	WARN_ON(!(start | (end + 1))); /* Use _fullmm() instead */
+	__tlb_gather_mmu(tlb, mm, start, end);
+}
+
+void tlb_gather_mmu_fullmm(struct mmu_gather *tlb, struct mm_struct *mm)
+{
+	__tlb_gather_mmu(tlb, mm, 0, -1);
 }
 
 /**
