@@ -245,6 +245,7 @@ int nand_ecc_sw_bch_init_ctx(struct nand_device *nand)
 	}
 
 	nand->ecc.ctx.priv = engine_conf;
+	nand->ecc.ctx.nsteps = nsteps;
 	nand->ecc.ctx.total = nsteps * code_size;
 
 	ret = nand_ecc_sw_bch_init(nand);
