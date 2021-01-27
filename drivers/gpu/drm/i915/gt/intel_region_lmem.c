@@ -146,20 +146,25 @@ intel_gt_setup_fake_lmem(struct intel_gt *gt)
 static struct intel_memory_region *setup_lmem(struct intel_gt *gt)
 {
 	struct drm_i915_private *i915 = gt->i915;
+	struct intel_uncore *uncore = gt->uncore;
 	struct pci_dev *pdev = i915->drm.pdev;
 	struct intel_memory_region *mem;
 	resource_size_t io_start;
-	resource_size_t size;
+	resource_size_t lmem_size;
 
 	if (!IS_DGFX(i915))
 		return ERR_PTR(-ENODEV);
 
+	/* Stolen starts from GSMBASE on DG1 */
+	lmem_size = intel_uncore_read64(uncore, GEN12_GSMBASE);
+
 	io_start = pci_resource_start(pdev, 2);
-	size = pci_resource_len(pdev, 2);
+	if (GEM_WARN_ON(lmem_size > pci_resource_len(pdev, 2)))
+		return ERR_PTR(-ENODEV);
 
 	mem = intel_memory_region_create(i915,
 					 0,
-					 size,
+					 lmem_size,
 					 I915_GTT_PAGE_SIZE_4K,
 					 io_start,
 					 &intel_region_lmem_ops);
@@ -169,7 +174,8 @@ static struct intel_memory_region *setup_lmem(struct intel_gt *gt)
 	drm_dbg(&i915->drm, "Local memory: %pR\n", &mem->region);
 	drm_dbg(&i915->drm, "Local memory IO start: %pa\n",
 		&mem->io_start);
-	drm_info(&i915->drm, "Local memory available: %pa\n", &size);
+	drm_info(&i915->drm, "Local memory available: %pa\n",
+		 &lmem_size);
 
 	return mem;
 }
