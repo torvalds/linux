@@ -1313,7 +1313,7 @@ static void tb_dump_switch(const struct tb *tb, const struct tb_switch *sw)
 }
 
 /**
- * reset_switch() - reconfigure route, enable and send TB_CFG_PKG_RESET
+ * tb_switch_reset() - reconfigure route, enable and send TB_CFG_PKG_RESET
  * @sw: Switch to reset
  *
  * Return: Returns 0 on success or an error code on failure.
