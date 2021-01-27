@@ -34,7 +34,7 @@ static void cptvf_disable_pfvf_mbox_intrs(struct otx2_cptvf_dev *cptvf)
 static int cptvf_register_interrupts(struct otx2_cptvf_dev *cptvf)
 {
 	int ret, irq;
-	u32 num_vec;
+	int num_vec;
 
 	num_vec = pci_msix_vec_count(cptvf->pdev);
 	if (num_vec <= 0)
