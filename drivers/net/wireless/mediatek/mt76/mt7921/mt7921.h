@@ -43,11 +43,6 @@
 #define MT7921_SKU_MAX_DELTA_IDX	MT7921_SKU_RATE_NUM
 #define MT7921_SKU_TABLE_SIZE		(MT7921_SKU_RATE_NUM + 1)
 
-#define MT7921_SCAN_IE_LEN		600
-#define MT7921_MAX_SCHED_SCAN_INTERVAL	10
-#define MT7921_MAX_SCHED_SCAN_SSID	10
-#define MT7921_MAX_SCAN_MATCH		16
-
 struct mt7921_vif;
 struct mt7921_sta;
 
@@ -314,17 +309,7 @@ int mt7921_mcu_uni_rx_ba(struct mt7921_dev *dev,
 			 struct ieee80211_ampdu_params *params,
 			 bool enable);
 void mt7921_scan_work(struct work_struct *work);
-int mt7921_mcu_hw_scan(struct mt7921_phy *phy, struct ieee80211_vif *vif,
-		       struct ieee80211_scan_request *scan_req);
-int mt7921_mcu_sched_scan_req(struct mt7921_phy *phy,
-			      struct ieee80211_vif *vif,
-			      struct cfg80211_sched_scan_request *sreq);
-int mt7921_mcu_sched_scan_enable(struct mt7921_phy *phy,
-				 struct ieee80211_vif *vif,
-				 bool enable);
-int mt7921_mcu_cancel_hw_scan(struct mt7921_phy *phy,
-			      struct ieee80211_vif *vif);
-u32 mt7921_get_wtbl_info(struct mt7921_dev *dev, u16 wlan_idx);
+u32 mt7921_get_wtbl_info(struct mt7921_dev *dev, u32 wlan_idx);
 int mt7921_mcu_uni_bss_ps(struct mt7921_dev *dev, struct ieee80211_vif *vif);
 int mt7921_mcu_uni_bss_bcnft(struct mt7921_dev *dev, struct ieee80211_vif *vif,
 			     bool enable);

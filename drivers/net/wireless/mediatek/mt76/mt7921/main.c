@@ -864,7 +864,7 @@ mt7921_hw_scan(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 	int err;
 
 	mutex_lock(&dev->mt76.mutex);
-	err = mt7921_mcu_hw_scan(mphy->priv, vif, req);
+	err = mt76_connac_mcu_hw_scan(mphy, vif, req);
 	mutex_unlock(&dev->mt76.mutex);
 
 	return err;
@@ -877,7 +877,7 @@ mt7921_cancel_hw_scan(struct ieee80211_hw *hw, struct ieee80211_vif *vif)
 	struct mt76_phy *mphy = hw->priv;
 
 	mutex_lock(&dev->mt76.mutex);
-	mt7921_mcu_cancel_hw_scan(mphy->priv, vif);
+	mt76_connac_mcu_cancel_hw_scan(mphy, vif);
 	mutex_unlock(&dev->mt76.mutex);
 }
 
@@ -892,11 +892,11 @@ mt7921_start_sched_scan(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 
 	mutex_lock(&dev->mt76.mutex);
 
-	err = mt7921_mcu_sched_scan_req(mphy->priv, vif, req);
+	err = mt76_connac_mcu_sched_scan_req(mphy, vif, req);
 	if (err < 0)
 		goto out;
 
-	err = mt7921_mcu_sched_scan_enable(mphy->priv, vif, true);
+	err = mt76_connac_mcu_sched_scan_enable(mphy, vif, true);
 out:
 	mutex_unlock(&dev->mt76.mutex);
 
@@ -911,7 +911,7 @@ mt7921_stop_sched_scan(struct ieee80211_hw *hw, struct ieee80211_vif *vif)
 	int err;
 
 	mutex_lock(&dev->mt76.mutex);
-	err = mt7921_mcu_sched_scan_enable(mphy->priv, vif, false);
+	err = mt76_connac_mcu_sched_scan_enable(mphy, vif, false);
 	mutex_unlock(&dev->mt76.mutex);
 
 	return err;
