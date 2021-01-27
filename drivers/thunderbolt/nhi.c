@@ -44,7 +44,7 @@ static int ring_interrupt_index(struct tb_ring *ring)
 	return bit;
 }
 
-/**
+/*
  * ring_interrupt_active() - activate/deactivate interrupts for a single ring
  *
  * ring->nhi->lock must be held.
@@ -105,7 +105,7 @@ static void ring_interrupt_active(struct tb_ring *ring, bool active)
 	iowrite32(new, ring->nhi->iobase + reg);
 }
 
-/**
+/*
  * nhi_disable_interrupts() - disable interrupts for all rings
  *
  * Use only during init and shutdown.
@@ -182,7 +182,7 @@ static bool ring_empty(struct tb_ring *ring)
 	return ring->head == ring->tail;
 }
 
-/**
+/*
  * ring_write_descriptors() - post frames from ring->queue to the controller
  *
  * ring->lock is held.
@@ -212,7 +212,7 @@ static void ring_write_descriptors(struct tb_ring *ring)
 	}
 }
 
-/**
+/*
  * ring_work() - progress completed frames
  *
  * If the ring is shutting down then all frames are marked as canceled and
@@ -754,7 +754,7 @@ void tb_ring_free(struct tb_ring *ring)
 	dev_dbg(&ring->nhi->pdev->dev, "freeing %s %d\n", RING_TYPE(ring),
 		ring->hop);
 
-	/**
+	/*
 	 * ring->work can no longer be scheduled (it is scheduled only
 	 * by nhi_interrupt_work, ring_stop and ring_msix). Wait for it
 	 * to finish before freeing the ring.
