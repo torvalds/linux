@@ -138,8 +138,10 @@ static int aht10_read_values(struct aht10_data *data)
 	mutex_lock(&data->lock);
 	if (aht10_polltime_expired(data)) {
 		res = i2c_master_send(client, cmd_meas, sizeof(cmd_meas));
-		if (res < 0)
+		if (res < 0) {
+			mutex_unlock(&data->lock);
 			return res;
+		}
 
 		usleep_range(AHT10_MEAS_DELAY,
 			     AHT10_MEAS_DELAY + AHT10_DELAY_EXTRA);
