@@ -1800,7 +1800,7 @@ static void parse_ddi_port(struct drm_i915_private *dev_priv,
 		/* The VBT HDMI level shift values match the table we have. */
 		u8 hdmi_level_shift = child->hdmi_level_shifter_value;
 		drm_dbg_kms(&dev_priv->drm,
-			    "VBT HDMI level shift for port %c: %d\n",
+			    "Port %c VBT HDMI level shift: %d\n",
 			    port_name(port),
 			    hdmi_level_shift);
 		info->hdmi_level_shift = hdmi_level_shift;
@@ -1827,7 +1827,7 @@ static void parse_ddi_port(struct drm_i915_private *dev_priv,
 
 		if (max_tmds_clock)
 			drm_dbg_kms(&dev_priv->drm,
-				    "VBT HDMI max TMDS clock for port %c: %d kHz\n",
+				    "Port %c VBT HDMI max TMDS clock: %d kHz\n",
 				    port_name(port), max_tmds_clock);
 		info->max_tmds_clock = max_tmds_clock;
 	}
@@ -1836,11 +1836,11 @@ static void parse_ddi_port(struct drm_i915_private *dev_priv,
 	if (bdb_version >= 196 && child->iboost) {
 		info->dp_boost_level = translate_iboost(child->dp_iboost_level);
 		drm_dbg_kms(&dev_priv->drm,
-			    "VBT (e)DP boost level for port %c: %d\n",
+			    "Port %c VBT (e)DP boost level: %d\n",
 			    port_name(port), info->dp_boost_level);
 		info->hdmi_boost_level = translate_iboost(child->hdmi_iboost_level);
 		drm_dbg_kms(&dev_priv->drm,
-			    "VBT HDMI boost level for port %c: %d\n",
+			    "Port %c VBT HDMI boost level: %d\n",
 			    port_name(port), info->hdmi_boost_level);
 	}
 
@@ -1862,7 +1862,7 @@ static void parse_ddi_port(struct drm_i915_private *dev_priv,
 			break;
 		}
 		drm_dbg_kms(&dev_priv->drm,
-			    "VBT DP max link rate for port %c: %d\n",
+			    "Port %c VBT DP max link rate: %d\n",
 			    port_name(port), info->dp_max_link_rate);
 	}
 
