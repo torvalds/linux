@@ -9,6 +9,7 @@
 
 #include "mt7921.h"
 #include "mac.h"
+#include "mcu.h"
 #include "../trace.h"
 
 static const struct pci_device_id mt7921_pci_device_table[] = {

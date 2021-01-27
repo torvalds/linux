@@ -59,6 +59,11 @@ struct mt76_connac_pm {
 
 extern const struct wiphy_wowlan_support mt76_connac_wowlan_support;
 
+static inline bool is_mt7921(struct mt76_dev *dev)
+{
+	return mt76_chip(dev) == 0x7961;
+}
+
 int mt76_connac_pm_wake(struct mt76_phy *phy, struct mt76_connac_pm *pm);
 void mt76_connac_power_save_sched(struct mt76_phy *phy,
 				  struct mt76_connac_pm *pm);

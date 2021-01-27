@@ -167,20 +167,6 @@ struct mt7921_dev {
 };
 
 enum {
-	HW_BSSID_0 = 0x0,
-	HW_BSSID_1,
-	HW_BSSID_2,
-	HW_BSSID_3,
-	HW_BSSID_MAX = HW_BSSID_3,
-	EXT_BSSID_START = 0x10,
-	EXT_BSSID_1,
-	EXT_BSSID_15 = 0x1f,
-	EXT_BSSID_MAX = EXT_BSSID_15,
-	REPEATER_BSSID_START = 0x20,
-	REPEATER_BSSID_MAX = 0x3f,
-};
-
-enum {
 	MT_LMAC_AC00,
 	MT_LMAC_AC01,
 	MT_LMAC_AC02,
@@ -239,17 +225,11 @@ int mt7921_mcu_set_chan_info(struct mt7921_phy *phy, int cmd);
 int mt7921_mcu_set_tx(struct mt7921_dev *dev, struct ieee80211_vif *vif);
 int mt7921_mcu_set_eeprom(struct mt7921_dev *dev);
 int mt7921_mcu_get_eeprom(struct mt7921_dev *dev, u32 offset);
-int mt7921_mcu_set_mac(struct mt7921_dev *dev, int band, bool enable,
-		       bool hdr_trans);
-int mt7921_mcu_set_rts_thresh(struct mt7921_phy *phy, u32 val);
+int mt7921_mcu_get_rx_rate(struct mt7921_phy *phy, struct ieee80211_vif *vif,
+			   struct ieee80211_sta *sta, struct rate_info *rate);
 int mt7921_mcu_fw_log_2_host(struct mt7921_dev *dev, u8 ctrl);
 void mt7921_mcu_rx_event(struct mt7921_dev *dev, struct sk_buff *skb);
 void mt7921_mcu_exit(struct mt7921_dev *dev);
-
-static inline bool is_mt7921(struct mt76_dev *dev)
-{
-	return mt76_chip(dev) == 0x7961;
-}
 
 static inline void mt7921_irq_enable(struct mt7921_dev *dev, u32 mask)
 {
@@ -326,16 +306,7 @@ void mt7921_txp_skb_unmap(struct mt76_dev *dev,
 void mt7921_set_stream_he_caps(struct mt7921_phy *phy);
 void mt7921_update_channel(struct mt76_dev *mdev);
 int mt7921_init_debugfs(struct mt7921_dev *dev);
-int
-mt7921_mcu_uni_add_dev(struct mt7921_dev *dev,
-		       struct ieee80211_vif *vif, bool enable);
-int
-mt7921_mcu_uni_add_bss(struct mt7921_phy *phy, struct ieee80211_vif *vif,
-		       bool enable);
 
-int
-mt7921_mcu_uni_add_sta(struct mt7921_dev *dev, struct ieee80211_vif *vif,
-		       struct ieee80211_sta *sta, bool enable);
 int mt7921_mcu_uni_tx_ba(struct mt7921_dev *dev,
 			 struct ieee80211_ampdu_params *params,
 			 bool enable);
@@ -343,7 +314,6 @@ int mt7921_mcu_uni_rx_ba(struct mt7921_dev *dev,
 			 struct ieee80211_ampdu_params *params,
 			 bool enable);
 void mt7921_scan_work(struct work_struct *work);
-int mt7921_mcu_set_channel_domain(struct mt7921_phy *phy);
 int mt7921_mcu_hw_scan(struct mt7921_phy *phy, struct ieee80211_vif *vif,
 		       struct ieee80211_scan_request *scan_req);
 int mt7921_mcu_sched_scan_req(struct mt7921_phy *phy,

@@ -561,6 +561,8 @@ enum {
 	MCU_CMD_SCHED_SCAN_REQ = MCU_CE_PREFIX | 0x62,
 	MCU_CMD_REG_WRITE = MCU_CE_PREFIX | 0xc0,
 	MCU_CMD_REG_READ = MCU_CE_PREFIX | MCU_QUERY_MASK | 0xc0,
+	MCU_CMD_FWLOG_2_HOST = MCU_CE_PREFIX | 0xc5,
+	MCU_CMD_GET_WTBL = MCU_CE_PREFIX | 0xcd,
 };
 
 enum {
@@ -575,6 +577,8 @@ enum {
 	UNI_BSS_INFO_BCN_CONTENT = 7,
 	UNI_BSS_INFO_QBSS = 15,
 	UNI_BSS_INFO_UAPSD = 19,
+	UNI_BSS_INFO_PS = 21,
+	UNI_BSS_INFO_BCNFT = 22,
 };
 
 enum {
@@ -870,6 +874,23 @@ struct mt76_connac_suspend_tlv {
 			 */
 	u8 pad[5];
 } __packed;
+
+#define to_wcid_lo(id)		FIELD_GET(GENMASK(7, 0), (u16)id)
+#define to_wcid_hi(id)		FIELD_GET(GENMASK(9, 8), (u16)id)
+
+static inline void
+mt76_connac_mcu_get_wlan_idx(struct mt76_dev *dev, struct mt76_wcid *wcid,
+			     u8 *wlan_idx_lo, u8 *wlan_idx_hi)
+{
+	*wlan_idx_hi = 0;
+
+	if (is_mt7921(dev)) {
+		*wlan_idx_lo = wcid ? to_wcid_lo(wcid->idx) : 0;
+		*wlan_idx_hi = wcid ? to_wcid_hi(wcid->idx) : 0;
+	} else {
+		*wlan_idx_lo = wcid ? wcid->idx : 0;
+	}
+}
 
 struct sk_buff *
 mt76_connac_mcu_alloc_sta_req(struct mt76_dev *dev, struct mt76_vif *mvif,
