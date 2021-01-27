@@ -692,6 +692,7 @@ static struct bch_fs *bch2_fs_alloc(struct bch_sb *sb, struct bch_opts opts)
 		  bch2_blacklist_entries_gc);
 
 	INIT_LIST_HEAD(&c->journal_entries);
+	INIT_LIST_HEAD(&c->journal_iters);
 
 	INIT_LIST_HEAD(&c->fsck_errors);
 	mutex_init(&c->fsck_error_lock);

@@ -274,7 +274,6 @@ static int bch2_gc_btree(struct bch_fs *c, enum btree_id btree_id,
 }
 
 static int bch2_gc_btree_init_recurse(struct bch_fs *c, struct btree *b,
-				      struct journal_keys *journal_keys,
 				      unsigned target_depth)
 {
 	struct btree_and_journal_iter iter;
@@ -283,7 +282,7 @@ static int bch2_gc_btree_init_recurse(struct bch_fs *c, struct btree *b,
 	u8 max_stale = 0;
 	int ret = 0;
 
-	bch2_btree_and_journal_iter_init_node_iter(&iter, journal_keys, b);
+	bch2_btree_and_journal_iter_init_node_iter(&iter, c, b);
 	bch2_bkey_buf_init(&prev);
 	bch2_bkey_buf_init(&cur);
 	bkey_init(&prev.k->k);
@@ -320,7 +319,7 @@ static int bch2_gc_btree_init_recurse(struct bch_fs *c, struct btree *b,
 					break;
 
 				ret = bch2_gc_btree_init_recurse(c, child,
-						journal_keys, target_depth);
+						target_depth);
 				six_unlock_read(&child->c.lock);
 
 				if (ret)
@@ -333,11 +332,11 @@ static int bch2_gc_btree_init_recurse(struct bch_fs *c, struct btree *b,
 
 	bch2_bkey_buf_exit(&cur, c);
 	bch2_bkey_buf_exit(&prev, c);
+	bch2_btree_and_journal_iter_exit(&iter);
 	return ret;
 }
 
 static int bch2_gc_btree_init(struct bch_fs *c,
-			      struct journal_keys *journal_keys,
 			      enum btree_id btree_id)
 {
 	struct btree *b;
@@ -368,8 +367,7 @@ static int bch2_gc_btree_init(struct bch_fs *c,
 	}
 
 	if (b->c.level >= target_depth)
-		ret = bch2_gc_btree_init_recurse(c, b,
-					journal_keys, target_depth);
+		ret = bch2_gc_btree_init_recurse(c, b, target_depth);
 
 	if (!ret)
 		ret = bch2_gc_mark_key(c, bkey_i_to_s_c(&b->key),
@@ -386,8 +384,7 @@ static inline int btree_id_gc_phase_cmp(enum btree_id l, enum btree_id r)
 		(int) btree_id_to_gc_phase(r);
 }
 
-static int bch2_gc_btrees(struct bch_fs *c, struct journal_keys *journal_keys,
-			  bool initial)
+static int bch2_gc_btrees(struct bch_fs *c, bool initial)
 {
 	enum btree_id ids[BTREE_ID_NR];
 	unsigned i;
@@ -399,8 +396,7 @@ static int bch2_gc_btrees(struct bch_fs *c, struct journal_keys *journal_keys,
 	for (i = 0; i < BTREE_ID_NR; i++) {
 		enum btree_id id = ids[i];
 		int ret = initial
-			? bch2_gc_btree_init(c, journal_keys,
-					     id)
+			? bch2_gc_btree_init(c, id)
 			: bch2_gc_btree(c, id, initial);
 		if (ret)
 			return ret;
@@ -788,8 +784,7 @@ static int bch2_gc_start(struct bch_fs *c)
  *    move around - if references move backwards in the ordering GC
  *    uses, GC could skip past them
  */
-int bch2_gc(struct bch_fs *c, struct journal_keys *journal_keys,
-	    bool initial)
+int bch2_gc(struct bch_fs *c, bool initial)
 {
 	struct bch_dev *ca;
 	u64 start_time = local_clock();
@@ -811,7 +806,7 @@ again:
 
 	bch2_mark_superblocks(c);
 
-	ret = bch2_gc_btrees(c, journal_keys, initial);
+	ret = bch2_gc_btrees(c, initial);
 	if (ret)
 		goto out;
 
@@ -1384,7 +1379,7 @@ static int bch2_gc_thread(void *arg)
 		 * Full gc is currently incompatible with btree key cache:
 		 */
 #if 0
-		ret = bch2_gc(c, NULL, false, false);
+		ret = bch2_gc(c, false, false);
 #else
 		ret = bch2_gc_gens(c);
 #endif

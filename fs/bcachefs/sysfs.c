@@ -475,7 +475,7 @@ STORE(bch2_fs)
 		 */
 #if 0
 		down_read(&c->state_lock);
-		bch2_gc(c, NULL, false, false);
+		bch2_gc(c, false, false);
 		up_read(&c->state_lock);
 #else
 		bch2_gc_gens(c);

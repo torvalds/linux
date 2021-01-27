@@ -539,11 +539,13 @@ struct journal_keys {
 	struct journal_key {
 		enum btree_id	btree_id:8;
 		unsigned	level:8;
+		bool		allocated;
 		struct bkey_i	*k;
 		u32		journal_seq;
 		u32		journal_offset;
 	}			*d;
 	size_t			nr;
+	size_t			size;
 	u64			journal_seq_base;
 };
 
@@ -840,6 +842,7 @@ mempool_t		bio_bounce_pages;
 	struct journal		journal;
 	struct list_head	journal_entries;
 	struct journal_keys	journal_keys;
+	struct list_head	journal_iters;
 
 	u64			last_bucket_seq_cleanup;
 
