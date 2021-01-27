@@ -2238,6 +2238,7 @@ int btrfs_sync_file(struct file *file, loff_t start, loff_t end, int datasync)
 		ret = PTR_ERR(trans);
 		goto out_release_extents;
 	}
+	trans->in_fsync = true;
 
 	ret = btrfs_log_dentry_safe(trans, dentry, &ctx);
 	btrfs_release_log_ctx_extents(&ctx);

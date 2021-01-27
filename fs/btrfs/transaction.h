@@ -16,6 +16,7 @@ enum btrfs_trans_state {
 	TRANS_STATE_COMMIT_START,
 	TRANS_STATE_COMMIT_DOING,
 	TRANS_STATE_UNBLOCKED,
+	TRANS_STATE_SUPER_COMMITTED,
 	TRANS_STATE_COMPLETED,
 	TRANS_STATE_MAX,
 };
@@ -133,6 +134,7 @@ struct btrfs_trans_handle {
 	bool can_flush_pending_bgs;
 	bool reloc_reserved;
 	bool dirty;
+	bool in_fsync;
 	struct btrfs_root *root;
 	struct btrfs_fs_info *fs_info;
 	struct list_head new_bgs;

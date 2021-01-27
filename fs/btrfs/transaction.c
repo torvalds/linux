@@ -107,6 +107,11 @@ static const unsigned int btrfs_blocked_trans_types[TRANS_STATE_MAX] = {
 					   __TRANS_JOIN |
 					   __TRANS_JOIN_NOLOCK |
 					   __TRANS_JOIN_NOSTART),
+	[TRANS_STATE_SUPER_COMMITTED]	= (__TRANS_START |
+					   __TRANS_ATTACH |
+					   __TRANS_JOIN |
+					   __TRANS_JOIN_NOLOCK |
+					   __TRANS_JOIN_NOSTART),
 	[TRANS_STATE_COMPLETED]		= (__TRANS_START |
 					   __TRANS_ATTACH |
 					   __TRANS_JOIN |
@@ -826,10 +831,11 @@ btrfs_attach_transaction_barrier(struct btrfs_root *root)
 	return trans;
 }
 
-/* wait for a transaction commit to be fully complete */
-static noinline void wait_for_commit(struct btrfs_transaction *commit)
+/* Wait for a transaction commit to reach at least the given state. */
+static noinline void wait_for_commit(struct btrfs_transaction *commit,
+				     const enum btrfs_trans_state min_state)
 {
-	wait_event(commit->commit_wait, commit->state == TRANS_STATE_COMPLETED);
+	wait_event(commit->commit_wait, commit->state >= min_state);
 }
 
 int btrfs_wait_for_commit(struct btrfs_fs_info *fs_info, u64 transid)
@@ -884,7 +890,7 @@ int btrfs_wait_for_commit(struct btrfs_fs_info *fs_info, u64 transid)
 			goto out;  /* nothing committing|committed */
 	}
 
-	wait_for_commit(cur_trans);
+	wait_for_commit(cur_trans, TRANS_STATE_COMPLETED);
 	btrfs_put_transaction(cur_trans);
 out:
 	return ret;
@@ -2100,11 +2106,15 @@ int btrfs_commit_transaction(struct btrfs_trans_handle *trans)
 
 	spin_lock(&fs_info->trans_lock);
 	if (cur_trans->state >= TRANS_STATE_COMMIT_START) {
+		enum btrfs_trans_state want_state = TRANS_STATE_COMPLETED;
+
 		spin_unlock(&fs_info->trans_lock);
 		refcount_inc(&cur_trans->use_count);
-		ret = btrfs_end_transaction(trans);
 
-		wait_for_commit(cur_trans);
+		if (trans->in_fsync)
+			want_state = TRANS_STATE_SUPER_COMMITTED;
+		ret = btrfs_end_transaction(trans);
+		wait_for_commit(cur_trans, want_state);
 
 		if (TRANS_ABORTED(cur_trans))
 			ret = cur_trans->aborted;
@@ -2118,13 +2128,19 @@ int btrfs_commit_transaction(struct btrfs_trans_handle *trans)
 	wake_up(&fs_info->transaction_blocked_wait);
 
 	if (cur_trans->list.prev != &fs_info->trans_list) {
+		enum btrfs_trans_state want_state = TRANS_STATE_COMPLETED;
+
+		if (trans->in_fsync)
+			want_state = TRANS_STATE_SUPER_COMMITTED;
+
 		prev_trans = list_entry(cur_trans->list.prev,
 					struct btrfs_transaction, list);
-		if (prev_trans->state != TRANS_STATE_COMPLETED) {
+		if (prev_trans->state < want_state) {
 			refcount_inc(&prev_trans->use_count);
 			spin_unlock(&fs_info->trans_lock);
 
-			wait_for_commit(prev_trans);
+			wait_for_commit(prev_trans, want_state);
+
 			ret = READ_ONCE(prev_trans->aborted);
 
 			btrfs_put_transaction(prev_trans);
@@ -2342,6 +2358,13 @@ int btrfs_commit_transaction(struct btrfs_trans_handle *trans)
 	mutex_unlock(&fs_info->tree_log_mutex);
 	if (ret)
 		goto scrub_continue;
+
+	/*
+	 * We needn't acquire the lock here because there is no other task
+	 * which can change it.
+	 */
+	cur_trans->state = TRANS_STATE_SUPER_COMMITTED;
+	wake_up(&cur_trans->commit_wait);
 
 	btrfs_finish_extent_commit(trans);
 
