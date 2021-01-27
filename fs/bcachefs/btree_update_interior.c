@@ -297,7 +297,6 @@ static struct btree *bch2_btree_node_alloc(struct btree_update *as, unsigned lev
 		bp->v.mem_ptr		= 0;
 		bp->v.seq		= b->data->keys.seq;
 		bp->v.sectors_written	= 0;
-		bp->v.sectors		= cpu_to_le16(c->opts.btree_node_size);
 	}
 
 	if (c->sb.features & (1ULL << BCH_FEATURE_new_extent_overwrite))

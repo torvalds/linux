@@ -214,9 +214,8 @@ void bch2_btree_ptr_v2_to_text(struct printbuf *out, struct bch_fs *c,
 {
 	struct bkey_s_c_btree_ptr_v2 bp = bkey_s_c_to_btree_ptr_v2(k);
 
-	pr_buf(out, "seq %llx sectors %u written %u min_key ",
+	pr_buf(out, "seq %llx written %u min_key ",
 	       le64_to_cpu(bp.v->seq),
-	       le16_to_cpu(bp.v->sectors),
 	       le16_to_cpu(bp.v->sectors_written));
 
 	bch2_bpos_to_text(out, bp.v->min_key);
@@ -1081,10 +1080,9 @@ const char *bch2_bkey_ptrs_invalid(const struct bch_fs *c, struct bkey_s_c k)
 	unsigned nonce = UINT_MAX;
 	unsigned i;
 
-	if (k.k->type == KEY_TYPE_btree_ptr)
+	if (k.k->type == KEY_TYPE_btree_ptr ||
+	    k.k->type == KEY_TYPE_btree_ptr_v2)
 		size_ondisk = c->opts.btree_node_size;
-	if (k.k->type == KEY_TYPE_btree_ptr_v2)
-		size_ondisk = le16_to_cpu(bkey_s_c_to_btree_ptr_v2(k).v->sectors);
 
 	bkey_extent_entry_for_each(ptrs, entry) {
 		if (__extent_entry_type(entry) >= BCH_EXTENT_ENTRY_MAX)

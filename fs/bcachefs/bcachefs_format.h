@@ -607,12 +607,13 @@ struct bch_btree_ptr_v2 {
 	__u64			mem_ptr;
 	__le64			seq;
 	__le16			sectors_written;
-	/* In case we ever decide to do variable size btree nodes: */
-	__le16			sectors;
+	__le16			flags;
 	struct bpos		min_key;
 	__u64			_data[0];
 	struct bch_extent_ptr	start[];
 } __attribute__((packed, aligned(8)));
+
+LE16_BITMASK(BTREE_PTR_RANGE_UPDATED,	struct bch_btree_ptr_v2, flags, 0, 1);
 
 struct bch_extent {
 	struct bch_val		v;

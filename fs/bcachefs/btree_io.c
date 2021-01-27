@@ -753,6 +753,11 @@ static int validate_bset(struct bch_fs *c, struct btree *b,
 			struct bch_btree_ptr_v2 *bp =
 				&bkey_i_to_btree_ptr_v2(&b->key)->v;
 
+			if (BTREE_PTR_RANGE_UPDATED(bp)) {
+				b->data->min_key = bp->min_key;
+				b->data->max_key = b->key.k.p;
+			}
+
 			btree_err_on(bkey_cmp(b->data->min_key, bp->min_key),
 				     BTREE_ERR_MUST_RETRY, c, b, NULL,
 				     "incorrect min_key: got %llu:%llu should be %llu:%llu",
