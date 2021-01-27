@@ -6,7 +6,7 @@
 
 #include <linux/interrupt.h>
 #include <linux/ktime.h>
-#include "../mt76_connac.h"
+#include "../mt76_connac_mcu.h"
 #include "regs.h"
 
 #define MT7921_MAX_INTERFACES		4
@@ -164,6 +164,7 @@ struct mt7921_dev {
 	u8 fw_debug;
 
 	struct mt76_connac_pm pm;
+	struct mt76_connac_coredump coredump;
 };
 
 enum {
@@ -337,4 +338,5 @@ int mt7921_mac_set_beacon_filter(struct mt7921_phy *phy,
 				 struct ieee80211_vif *vif,
 				 bool enable);
 void mt7921_pm_interface_iter(void *priv, u8 *mac, struct ieee80211_vif *vif);
+void mt7921_coredump_work(struct work_struct *work);
 #endif

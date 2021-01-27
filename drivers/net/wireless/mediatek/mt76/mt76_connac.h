@@ -11,6 +11,9 @@
 #define MT76_CONNAC_MAX_SCHED_SCAN_SSID		10
 #define MT76_CONNAC_MAX_SCAN_MATCH		16
 
+#define MT76_CONNAC_COREDUMP_TIMEOUT		(HZ / 20)
+#define MT76_CONNAC_COREDUMP_SZ			(128 * 1024)
+
 enum {
 	CMD_CBW_20MHZ = IEEE80211_STA_RX_BW_20,
 	CMD_CBW_40MHZ = IEEE80211_STA_RX_BW_40,
@@ -55,6 +58,12 @@ struct mt76_connac_pm {
 	struct delayed_work ps_work;
 	unsigned long last_activity;
 	unsigned long idle_timeout;
+};
+
+struct mt76_connac_coredump {
+	struct sk_buff_head msg_list;
+	struct delayed_work work;
+	unsigned long last_activity;
 };
 
 extern const struct wiphy_wowlan_support mt76_connac_wowlan_support;

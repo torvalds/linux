@@ -1497,6 +1497,40 @@ int mt76_connac_mcu_sched_scan_enable(struct mt76_phy *phy,
 }
 EXPORT_SYMBOL_GPL(mt76_connac_mcu_sched_scan_enable);
 
+int mt76_connac_mcu_chip_config(struct mt76_dev *dev)
+{
+	struct {
+		__le16 id;
+		u8 type;
+		u8 resp_type;
+		__le16 data_size;
+		__le16 resv;
+		u8 data[320];
+	} req = {
+		.resp_type = 0,
+	};
+
+	memcpy(req.data, "assert", 7);
+
+	return mt76_mcu_send_msg(dev, MCU_CMD_CHIP_CONFIG, &req, sizeof(req),
+				 false);
+}
+EXPORT_SYMBOL_GPL(mt76_connac_mcu_chip_config);
+
+void mt76_connac_mcu_coredump_event(struct mt76_dev *dev, struct sk_buff *skb,
+				    struct mt76_connac_coredump *coredump)
+{
+	spin_lock_bh(&dev->lock);
+	__skb_queue_tail(&coredump->msg_list, skb);
+	spin_unlock_bh(&dev->lock);
+
+	coredump->last_activity = jiffies;
+
+	queue_delayed_work(dev->wq, &coredump->work,
+			   MT76_CONNAC_COREDUMP_TIMEOUT);
+}
+EXPORT_SYMBOL_GPL(mt76_connac_mcu_coredump_event);
+
 #ifdef CONFIG_PM
 
 const struct wiphy_wowlan_support mt76_connac_wowlan_support = {

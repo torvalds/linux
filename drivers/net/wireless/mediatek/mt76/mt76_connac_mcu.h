@@ -561,6 +561,7 @@ enum {
 	MCU_CMD_SCHED_SCAN_REQ = MCU_CE_PREFIX | 0x62,
 	MCU_CMD_REG_WRITE = MCU_CE_PREFIX | 0xc0,
 	MCU_CMD_REG_READ = MCU_CE_PREFIX | MCU_QUERY_MASK | 0xc0,
+	MCU_CMD_CHIP_CONFIG = MCU_CE_PREFIX | 0xca,
 	MCU_CMD_FWLOG_2_HOST = MCU_CE_PREFIX | 0xc5,
 	MCU_CMD_GET_WTBL = MCU_CE_PREFIX | 0xcd,
 };
@@ -972,4 +973,7 @@ int mt76_connac_mcu_update_gtk_rekey(struct ieee80211_hw *hw,
 int mt76_connac_mcu_set_hif_suspend(struct mt76_dev *dev, bool suspend);
 void mt76_connac_mcu_set_suspend_iter(void *priv, u8 *mac,
 				      struct ieee80211_vif *vif);
+int mt76_connac_mcu_chip_config(struct mt76_dev *dev);
+void mt76_connac_mcu_coredump_event(struct mt76_dev *dev, struct sk_buff *skb,
+				    struct mt76_connac_coredump *coredump);
 #endif /* __MT76_CONNAC_MCU_H */

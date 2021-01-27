@@ -213,6 +213,20 @@ mt7921_pm_idle_timeout_get(void *data, u64 *val)
 DEFINE_DEBUGFS_ATTRIBUTE(fops_pm_idle_timeout, mt7921_pm_idle_timeout_get,
 			 mt7921_pm_idle_timeout_set, "%lld\n");
 
+static int mt7921_config(void *data, u64 val)
+{
+	struct mt7921_dev *dev = data;
+	int ret;
+
+	mt7921_mutex_acquire(dev);
+	ret = mt76_connac_mcu_chip_config(&dev->mt76);
+	mt7921_mutex_release(dev);
+
+	return ret;
+}
+
+DEFINE_DEBUGFS_ATTRIBUTE(fops_config, NULL, mt7921_config, "%lld\n");
+
 int mt7921_init_debugfs(struct mt7921_dev *dev)
 {
 	struct dentry *dir;
@@ -230,6 +244,7 @@ int mt7921_init_debugfs(struct mt7921_dev *dev)
 	debugfs_create_file("runtime-pm", 0600, dir, dev, &fops_pm);
 	debugfs_create_file("idle-timeout", 0600, dir, dev,
 			    &fops_pm_idle_timeout);
+	debugfs_create_file("chip_config", 0600, dir, dev, &fops_config);
 
 	return 0;
 }
