@@ -25,7 +25,7 @@ int hda_probe_compr_assign(struct snd_sof_dev *sdev,
 {
 	struct hdac_ext_stream *stream;
 
-	stream = hda_dsp_stream_get(sdev, cstream->direction);
+	stream = hda_dsp_stream_get(sdev, cstream->direction, 0);
 	if (!stream)
 		return -EBUSY;
 
