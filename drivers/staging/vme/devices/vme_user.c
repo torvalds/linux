@@ -689,7 +689,7 @@ err_dev:
 	return err;
 }
 
-static int vme_user_remove(struct vme_dev *dev)
+static void vme_user_remove(struct vme_dev *dev)
 {
 	int i;
 
@@ -717,8 +717,6 @@ static int vme_user_remove(struct vme_dev *dev)
 
 	/* Unregister the major and minor device numbers */
 	unregister_chrdev_region(MKDEV(VME_MAJOR, 0), VME_DEVS);
-
-	return 0;
 }
 
 static struct vme_driver vme_user_driver = {
