@@ -123,7 +123,6 @@ struct minstrel_rate_stats {
 	u8 retry_count;
 	u8 retry_count_rtscts;
 
-	u8 sample_skipped;
 	bool retry_updated;
 };
 
@@ -179,7 +178,6 @@ struct minstrel_ht_sta {
 	u8 sample_wait;
 	u8 sample_tries;
 	u8 sample_count;
-	u8 sample_slow;
 
 	enum minstrel_sample_mode sample_mode;
 	u16 sample_rate;

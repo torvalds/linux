@@ -791,14 +791,11 @@ minstrel_ht_calc_rate_stats(struct minstrel_priv *mp,
 	unsigned int cur_prob;
 
 	if (unlikely(mrs->attempts > 0)) {
-		mrs->sample_skipped = 0;
 		cur_prob = MINSTREL_FRAC(mrs->success, mrs->attempts);
 		minstrel_filter_avg_add(&mrs->prob_avg,
 					&mrs->prob_avg_1, cur_prob);
 		mrs->att_hist += mrs->attempts;
 		mrs->succ_hist += mrs->success;
-	} else {
-		mrs->sample_skipped++;
 	}
 
 	mrs->last_success = mrs->success;
@@ -851,7 +848,6 @@ minstrel_ht_update_stats(struct minstrel_priv *mp, struct minstrel_ht_sta *mi,
 		mi->ampdu_packets = 0;
 	}
 
-	mi->sample_slow = 0;
 	mi->sample_count = 0;
 
 	if (mi->supported[MINSTREL_CCK_GROUP])
@@ -882,6 +878,7 @@ minstrel_ht_update_stats(struct minstrel_priv *mp, struct minstrel_ht_sta *mi,
 	/* Find best rate sets within all MCS groups*/
 	for (group = 0; group < ARRAY_SIZE(minstrel_mcs_groups); group++) {
 		u16 *tp_rate = tmp_mcs_tp_rate;
+		u16 last_prob = 0;
 
 		mg = &mi->groups[group];
 		if (!mi->supported[group])
@@ -896,7 +893,7 @@ minstrel_ht_update_stats(struct minstrel_priv *mp, struct minstrel_ht_sta *mi,
 		if (group == MINSTREL_CCK_GROUP && ht_supported)
 			tp_rate = tmp_legacy_tp_rate;
 
-		for (i = 0; i < MCS_GROUP_RATES; i++) {
+		for (i = MCS_GROUP_RATES - 1; i >= 0; i--) {
 			if (!(mi->supported[group] & BIT(i)))
 				continue;
 
@@ -905,6 +902,11 @@ minstrel_ht_update_stats(struct minstrel_priv *mp, struct minstrel_ht_sta *mi,
 			mrs = &mg->rates[i];
 			mrs->retry_updated = false;
 			minstrel_ht_calc_rate_stats(mp, mrs);
+
+			if (mrs->att_hist)
+				last_prob = max(last_prob, mrs->prob_avg);
+			else
+				mrs->prob_avg = max(last_prob, mrs->prob_avg);
 			cur_prob = mrs->prob_avg;
 
 			if (minstrel_ht_get_tp_avg(mi, group, i, cur_prob) == 0)
@@ -1469,13 +1471,9 @@ minstrel_get_sample_rate(struct minstrel_priv *mp, struct minstrel_ht_sta *mi)
 	if (sample_dur >= minstrel_get_duration(tp_rate2) &&
 	    (cur_max_tp_streams - 1 <
 	     minstrel_mcs_groups[sample_group].streams ||
-	     sample_dur >= minstrel_get_duration(mi->max_prob_rate))) {
-		if (mrs->sample_skipped < 20)
+	     sample_dur >= minstrel_get_duration(mi->max_prob_rate)))
 			return -1;
 
-		if (mi->sample_slow++ > 2)
-			return -1;
-	}
 	mi->sample_tries--;
 
 	return sample_idx;
