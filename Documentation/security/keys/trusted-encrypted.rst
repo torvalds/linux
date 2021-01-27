@@ -207,3 +207,61 @@ about the usage can be found in the file
 Another new format 'enc32' has been defined in order to support encrypted keys
 with payload size of 32 bytes. This will initially be used for nvdimm security
 but may expand to other usages that require 32 bytes payload.
+
+
+TPM 2.0 ASN.1 Key Format
+------------------------
+
+The TPM 2.0 ASN.1 key format is designed to be easily recognisable,
+even in binary form (fixing a problem we had with the TPM 1.2 ASN.1
+format) and to be extensible for additions like importable keys and
+policy::
+
+    TPMKey ::= SEQUENCE {
+        type		OBJECT IDENTIFIER
+        emptyAuth	[0] EXPLICIT BOOLEAN OPTIONAL
+        parent		INTEGER
+        pubkey		OCTET STRING
+        privkey		OCTET STRING
+    }
+
+type is what distinguishes the key even in binary form since the OID
+is provided by the TCG to be unique and thus forms a recognizable
+binary pattern at offset 3 in the key.  The OIDs currently made
+available are::
+
+    2.23.133.10.1.3 TPM Loadable key.  This is an asymmetric key (Usually
+                    RSA2048 or Elliptic Curve) which can be imported by a
+                    TPM2_Load() operation.
+
+    2.23.133.10.1.4 TPM Importable Key.  This is an asymmetric key (Usually
+                    RSA2048 or Elliptic Curve) which can be imported by a
+                    TPM2_Import() operation.
+
+    2.23.133.10.1.5 TPM Sealed Data.  This is a set of data (up to 128
+                    bytes) which is sealed by the TPM.  It usually
+                    represents a symmetric key and must be unsealed before
+                    use.
+
+The trusted key code only uses the TPM Sealed Data OID.
+
+emptyAuth is true if the key has well known authorization "".  If it
+is false or not present, the key requires an explicit authorization
+phrase.  This is used by most user space consumers to decide whether
+to prompt for a password.
+
+parent represents the parent key handle, either in the 0x81 MSO space,
+like 0x81000001 for the RSA primary storage key.  Userspace programmes
+also support specifying the primary handle in the 0x40 MSO space.  If
+this happens the Elliptic Curve variant of the primary key using the
+TCG defined template will be generated on the fly into a volatile
+object and used as the parent.  The current kernel code only supports
+the 0x81 MSO form.
+
+pubkey is the binary representation of TPM2B_PRIVATE excluding the
+initial TPM2B header, which can be reconstructed from the ASN.1 octet
+string length.
+
+privkey is the binary representation of TPM2B_PUBLIC excluding the
+initial TPM2B header which can be reconstructed from the ASN.1 octed
+string length.
