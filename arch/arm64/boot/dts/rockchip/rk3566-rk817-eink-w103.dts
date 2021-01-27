@@ -259,7 +259,6 @@
 	panel,panel_color = <0>;
 	panel,width-mm = <157>;
 	panel,height-mm = <210>;
-	panel,direct_mode = <1>;
 #endif
 };
 
