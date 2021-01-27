@@ -81,6 +81,7 @@ static int lima_devfreq_get_dev_status(struct device *dev,
 }
 
 static struct devfreq_dev_profile lima_devfreq_profile = {
+	.timer = DEVFREQ_TIMER_DELAYED,
 	.polling_ms = 50, /* ~3 frames */
 	.target = lima_devfreq_target,
 	.get_dev_status = lima_devfreq_get_dev_status,
