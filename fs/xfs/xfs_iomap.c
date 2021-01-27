@@ -831,7 +831,8 @@ out_found_cow:
 	return xfs_bmbt_to_iomap(ip, iomap, &cmap, IOMAP_F_SHARED);
 
 out_unlock:
-	xfs_iunlock(ip, lockmode);
+	if (lockmode)
+		xfs_iunlock(ip, lockmode);
 	return error;
 }
 
