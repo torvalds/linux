@@ -21,24 +21,11 @@ const char *get_system_type(void)
 	return "PIC32MZDA";
 }
 
-static ulong get_fdtaddr(void)
-{
-	ulong ftaddr = 0;
-
-	if (fw_passed_dtb && !fw_arg2 && !fw_arg3)
-		return (ulong)fw_passed_dtb;
-
-	if (&__dtb_start < &__dtb_end)
-		ftaddr = (ulong)__dtb_start;
-
-	return ftaddr;
-}
-
 void __init plat_mem_setup(void)
 {
 	void *dtb;
 
-	dtb = (void *)get_fdtaddr();
+	dtb = get_fdt();
 	if (!dtb) {
 		pr_err("pic32: no DTB found.\n");
 		return;
