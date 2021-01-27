@@ -12,7 +12,6 @@
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <unistd.h>
-#include "../perf.h"
 #include "parse-events.h"
 #include "parse-events-bison.h"
 #include "evsel.h"

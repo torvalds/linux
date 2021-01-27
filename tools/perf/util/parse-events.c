@@ -19,8 +19,6 @@
 #include <subcmd/exec-cmd.h>
 #include "string2.h"
 #include "strlist.h"
-#include "symbol.h"
-#include "header.h"
 #include "bpf-loader.h"
 #include "debug.h"
 #include <api/fs/tracing_path.h>
