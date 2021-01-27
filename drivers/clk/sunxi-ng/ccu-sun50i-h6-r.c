@@ -139,6 +139,16 @@ static struct ccu_common *sun50i_h6_r_ccu_clks[] = {
 	&w1_clk.common,
 };
 
+static struct ccu_common *sun50i_h616_r_ccu_clks[] = {
+	&r_apb1_clk.common,
+	&r_apb2_clk.common,
+	&r_apb1_twd_clk.common,
+	&r_apb2_i2c_clk.common,
+	&r_apb2_rsb_clk.common,
+	&r_apb1_ir_clk.common,
+	&ir_clk.common,
+};
+
 static struct clk_hw_onecell_data sun50i_h6_r_hw_clks = {
 	.hws	= {
 		[CLK_AR100]		= &ar100_clk.common.hw,
@@ -159,6 +169,20 @@ static struct clk_hw_onecell_data sun50i_h6_r_hw_clks = {
 	.num	= CLK_NUMBER,
 };
 
+static struct clk_hw_onecell_data sun50i_h616_r_hw_clks = {
+	.hws	= {
+		[CLK_R_AHB]		= &r_ahb_clk.hw,
+		[CLK_R_APB1]		= &r_apb1_clk.common.hw,
+		[CLK_R_APB2]		= &r_apb2_clk.common.hw,
+		[CLK_R_APB1_TWD]	= &r_apb1_twd_clk.common.hw,
+		[CLK_R_APB2_I2C]	= &r_apb2_i2c_clk.common.hw,
+		[CLK_R_APB2_RSB]	= &r_apb2_rsb_clk.common.hw,
+		[CLK_R_APB1_IR]		= &r_apb1_ir_clk.common.hw,
+		[CLK_IR]		= &ir_clk.common.hw,
+	},
+	.num	= CLK_NUMBER,
+};
+
 static struct ccu_reset_map sun50i_h6_r_ccu_resets[] = {
 	[RST_R_APB1_TIMER]	=  { 0x11c, BIT(16) },
 	[RST_R_APB1_TWD]	=  { 0x12c, BIT(16) },
@@ -170,6 +194,13 @@ static struct ccu_reset_map sun50i_h6_r_ccu_resets[] = {
 	[RST_R_APB1_W1]		=  { 0x1ec, BIT(16) },
 };
 
+static struct ccu_reset_map sun50i_h616_r_ccu_resets[] = {
+	[RST_R_APB1_TWD]	=  { 0x12c, BIT(16) },
+	[RST_R_APB2_I2C]	=  { 0x19c, BIT(16) },
+	[RST_R_APB2_RSB]	=  { 0x1bc, BIT(16) },
+	[RST_R_APB1_IR]		=  { 0x1cc, BIT(16) },
+};
+
 static const struct sunxi_ccu_desc sun50i_h6_r_ccu_desc = {
 	.ccu_clks	= sun50i_h6_r_ccu_clks,
 	.num_ccu_clks	= ARRAY_SIZE(sun50i_h6_r_ccu_clks),
@@ -178,6 +209,16 @@ static const struct sunxi_ccu_desc sun50i_h6_r_ccu_desc = {
 
 	.resets		= sun50i_h6_r_ccu_resets,
 	.num_resets	= ARRAY_SIZE(sun50i_h6_r_ccu_resets),
+};
+
+static const struct sunxi_ccu_desc sun50i_h616_r_ccu_desc = {
+	.ccu_clks	= sun50i_h616_r_ccu_clks,
+	.num_ccu_clks	= ARRAY_SIZE(sun50i_h616_r_ccu_clks),
+
+	.hw_clks	= &sun50i_h616_r_hw_clks,
+
+	.resets		= sun50i_h616_r_ccu_resets,
+	.num_resets	= ARRAY_SIZE(sun50i_h616_r_ccu_resets),
 };
 
 static void __init sunxi_r_ccu_init(struct device_node *node,
@@ -200,3 +241,10 @@ static void __init sun50i_h6_r_ccu_setup(struct device_node *node)
 }
 CLK_OF_DECLARE(sun50i_h6_r_ccu, "allwinner,sun50i-h6-r-ccu",
 	       sun50i_h6_r_ccu_setup);
+
+static void __init sun50i_h616_r_ccu_setup(struct device_node *node)
+{
+	sunxi_r_ccu_init(node, &sun50i_h616_r_ccu_desc);
+}
+CLK_OF_DECLARE(sun50i_h616_r_ccu, "allwinner,sun50i-h616-r-ccu",
+	       sun50i_h616_r_ccu_setup);
