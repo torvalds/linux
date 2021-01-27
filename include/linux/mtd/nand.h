@@ -598,6 +598,16 @@ nanddev_get_ecc_nsteps(struct nand_device *nand)
 }
 
 /**
+ * nanddev_get_ecc_bytes_per_step() - Extract the number of ECC bytes per step
+ * @nand: NAND device
+ */
+static inline unsigned int
+nanddev_get_ecc_bytes_per_step(struct nand_device *nand)
+{
+	return nand->ecc.ctx.total / nand->ecc.ctx.nsteps;
+}
+
+/**
  * nanddev_get_ecc_requirements() - Extract the ECC requirements from a NAND
  *                                  device
  * @nand: NAND device
