@@ -9551,7 +9551,7 @@ static int ath10k_wmi_mgmt_tx_clean_up_pending(int msdu_id, void *ptr,
 	struct sk_buff *msdu;
 
 	ath10k_dbg(ar, ATH10K_DBG_WMI,
-		   "force cleanup mgmt msdu_id %hu\n", msdu_id);
+		   "force cleanup mgmt msdu_id %u\n", msdu_id);
 
 	msdu = pkt_addr->vaddr;
 	dma_unmap_single(ar->dev, pkt_addr->paddr,
