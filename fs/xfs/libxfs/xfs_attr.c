@@ -458,13 +458,9 @@ xfs_attr_set(
 	 * Root fork attributes can use reserved data blocks for this
 	 * operation if necessary
 	 */
-	error = xfs_trans_alloc(mp, &tres, total, 0,
-			rsvd ? XFS_TRANS_RESERVE : 0, &args->trans);
+	error = xfs_trans_alloc_inode(dp, &tres, total, rsvd, &args->trans);
 	if (error)
 		return error;
-
-	xfs_ilock(dp, XFS_ILOCK_EXCL);
-	xfs_trans_ijoin(args->trans, dp, 0);
 
 	if (args->value || xfs_inode_hasattr(dp)) {
 		error = xfs_iext_count_may_overflow(dp, XFS_ATTR_FORK,
@@ -474,11 +470,6 @@ xfs_attr_set(
 	}
 
 	if (args->value) {
-		error = xfs_trans_reserve_quota_nblks(args->trans, dp,
-				args->total, 0, rsvd);
-		if (error)
-			goto out_trans_cancel;
-
 		error = xfs_has_attr(args);
 		if (error == -EEXIST && (args->attr_flags & XATTR_CREATE))
 			goto out_trans_cancel;
