@@ -184,6 +184,13 @@ static long msr_ioctl(struct file *file, unsigned int ioc, unsigned long arg)
 		err = security_locked_down(LOCKDOWN_MSR);
 		if (err)
 			break;
+
+		err = filter_write(regs[1]);
+		if (err)
+			return err;
+
+		add_taint(TAINT_CPU_OUT_OF_SPEC, LOCKDEP_STILL_OK);
+
 		err = wrmsr_safe_regs_on_cpu(cpu, regs);
 		if (err)
 			break;
