@@ -56,7 +56,7 @@ minstrel_ht_stats_dump(struct minstrel_ht_sta *mi, int i, char *p)
 
 	for (j = 0; j < MCS_GROUP_RATES; j++) {
 		struct minstrel_rate_stats *mrs = &mi->groups[i].rates[j];
-		int idx = i * MCS_GROUP_RATES + j;
+		int idx = MI_RATE(i, j);
 		unsigned int duration;
 
 		if (!(mi->supported[i] & BIT(j)))
@@ -201,7 +201,7 @@ minstrel_ht_stats_csv_dump(struct minstrel_ht_sta *mi, int i, char *p)
 
 	for (j = 0; j < MCS_GROUP_RATES; j++) {
 		struct minstrel_rate_stats *mrs = &mi->groups[i].rates[j];
-		int idx = i * MCS_GROUP_RATES + j;
+		int idx = MI_RATE(i, j);
 		unsigned int duration;
 
 		if (!(mi->supported[i] & BIT(j)))

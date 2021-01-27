@@ -6,6 +6,8 @@
 #ifndef __RC_MINSTREL_HT_H
 #define __RC_MINSTREL_HT_H
 
+#include <linux/bitfield.h>
+
 /* number of highest throughput rates to consider*/
 #define MAX_THR_RATES 4
 #define SAMPLE_COLUMNS	10	/* number of columns in sample table */
@@ -56,6 +58,17 @@
 #define MINSTREL_VHT_GROUP_0	(MINSTREL_OFDM_GROUP + 1)
 
 #define MCS_GROUP_RATES		10
+
+#define MI_RATE_IDX_MASK	GENMASK(3, 0)
+#define MI_RATE_GROUP_MASK	GENMASK(15, 4)
+
+#define MI_RATE(_group, _idx)				\
+	(FIELD_PREP(MI_RATE_GROUP_MASK, _group) |	\
+	 FIELD_PREP(MI_RATE_IDX_MASK, _idx))
+
+#define MI_RATE_IDX(_rate) FIELD_GET(MI_RATE_IDX_MASK, _rate)
+#define MI_RATE_GROUP(_rate) FIELD_GET(MI_RATE_GROUP_MASK, _rate)
+
 
 struct minstrel_priv {
 	struct ieee80211_hw *hw;
