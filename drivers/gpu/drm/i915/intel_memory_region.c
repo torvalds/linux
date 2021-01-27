@@ -258,9 +258,8 @@ int intel_memory_regions_hw_probe(struct drm_i915_private *i915)
 		case INTEL_MEMORY_STOLEN:
 			mem = i915_gem_stolen_setup(i915);
 			break;
-		case INTEL_MEMORY_LOCAL:
-			mem = intel_setup_fake_lmem(i915);
-			break;
+		default:
+			continue;
 		}
 
 		if (IS_ERR(mem)) {

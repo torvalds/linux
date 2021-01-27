@@ -39,6 +39,38 @@ void intel_gt_init_early(struct intel_gt *gt, struct drm_i915_private *i915)
 	intel_uc_init_early(&gt->uc);
 }
 
+int intel_gt_probe_lmem(struct intel_gt *gt)
+{
+	struct drm_i915_private *i915 = gt->i915;
+	struct intel_memory_region *mem;
+	int id;
+	int err;
+
+	mem = intel_gt_setup_fake_lmem(gt);
+	if (IS_ERR(mem)) {
+		err = PTR_ERR(mem);
+		if (err == -ENODEV)
+			return 0;
+
+		drm_err(&i915->drm,
+			"Failed to setup region(%d) type=%d\n",
+			err, INTEL_MEMORY_LOCAL);
+		return err;
+	}
+
+	id = INTEL_REGION_LMEM;
+
+	mem->id = id;
+	mem->type = INTEL_MEMORY_LOCAL;
+	mem->instance = 0;
+
+	GEM_BUG_ON(!HAS_REGION(i915, id));
+	GEM_BUG_ON(i915->mm.regions[id]);
+	i915->mm.regions[id] = mem;
+
+	return 0;
+}
+
 void intel_gt_init_hw_early(struct intel_gt *gt, struct i915_ggtt *ggtt)
 {
 	gt->ggtt = ggtt;

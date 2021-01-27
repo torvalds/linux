@@ -566,6 +566,10 @@ static int i915_driver_hw_probe(struct drm_i915_private *dev_priv)
 
 	intel_gt_init_hw_early(&dev_priv->gt, &dev_priv->ggtt);
 
+	ret = intel_gt_probe_lmem(&dev_priv->gt);
+	if (ret)
+		goto err_mem_regions;
+
 	ret = i915_ggtt_enable_hw(dev_priv);
 	if (ret) {
 		drm_err(&dev_priv->drm, "failed to enable GGTT\n");

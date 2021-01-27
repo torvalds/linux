@@ -102,16 +102,22 @@ static const struct intel_memory_region_ops intel_region_lmem_ops = {
 };
 
 struct intel_memory_region *
-intel_setup_fake_lmem(struct drm_i915_private *i915)
+intel_gt_setup_fake_lmem(struct intel_gt *gt)
 {
+	struct drm_i915_private *i915 = gt->i915;
 	struct pci_dev *pdev = to_pci_dev(i915->drm.dev);
 	struct intel_memory_region *mem;
 	resource_size_t mappable_end;
 	resource_size_t io_start;
 	resource_size_t start;
 
+	if (!HAS_LMEM(i915))
+		return ERR_PTR(-ENODEV);
+
+	if (!i915->params.fake_lmem_start)
+		return ERR_PTR(-ENODEV);
+
 	GEM_BUG_ON(i915_ggtt_has_aperture(&i915->ggtt));
-	GEM_BUG_ON(!i915->params.fake_lmem_start);
 
 	/* Your mappable aperture belongs to me now! */
 	mappable_end = pci_resource_len(pdev, 2);
