@@ -36,6 +36,7 @@
 #define		ATMEL_PIO_DIR_MASK		BIT(8)
 #define		ATMEL_PIO_PUEN_MASK		BIT(9)
 #define		ATMEL_PIO_PDEN_MASK		BIT(10)
+#define		ATMEL_PIO_SR_MASK		BIT(11)
 #define		ATMEL_PIO_IFEN_MASK		BIT(12)
 #define		ATMEL_PIO_IFSCEN_MASK		BIT(13)
 #define		ATMEL_PIO_OPD_MASK		BIT(14)
@@ -76,10 +77,12 @@
  * @nbanks: number of PIO banks
  * @last_bank_count: number of lines in the last bank (can be less than
  *	the rest of the banks).
+ * @slew_rate_support: slew rate support
  */
 struct atmel_pioctrl_data {
 	unsigned nbanks;
 	unsigned last_bank_count;
+	unsigned int slew_rate_support;
 };
 
 struct atmel_group {
@@ -117,6 +120,7 @@ struct atmel_pin {
  * @pm_suspend_backup: backup/restore register values on suspend/resume
  * @dev: device entry for the Atmel PIO controller.
  * @node: node of the Atmel PIO controller.
+ * @slew_rate_support: slew rate support
  */
 struct atmel_pioctrl {
 	void __iomem		*reg_base;
@@ -138,6 +142,7 @@ struct atmel_pioctrl {
 	} *pm_suspend_backup;
 	struct device		*dev;
 	struct device_node	*node;
+	unsigned int		slew_rate_support;
 };
 
 static const char * const atmel_functions[] = {
@@ -760,6 +765,13 @@ static int atmel_conf_pin_config_group_get(struct pinctrl_dev *pctldev,
 			return -EINVAL;
 		arg = 1;
 		break;
+	case PIN_CONFIG_SLEW_RATE:
+		if (!atmel_pioctrl->slew_rate_support)
+			return -EOPNOTSUPP;
+		if (!(res & ATMEL_PIO_SR_MASK))
+			return -EINVAL;
+		arg = 1;
+		break;
 	case ATMEL_PIN_CONFIG_DRIVE_STRENGTH:
 		if (!(res & ATMEL_PIO_DRVSTR_MASK))
 			return -EINVAL;
@@ -792,6 +804,10 @@ static int atmel_conf_pin_config_group_set(struct pinctrl_dev *pctldev,
 
 		dev_dbg(pctldev->dev, "%s: pin=%u, config=0x%lx\n",
 			__func__, pin_id, configs[i]);
+
+		/* Keep slew rate enabled by default. */
+		if (atmel_pioctrl->slew_rate_support)
+			conf |= ATMEL_PIO_SR_MASK;
 
 		switch (param) {
 		case PIN_CONFIG_BIAS_DISABLE:
@@ -850,6 +866,13 @@ static int atmel_conf_pin_config_group_set(struct pinctrl_dev *pctldev,
 					ATMEL_PIO_SODR);
 			}
 			break;
+		case PIN_CONFIG_SLEW_RATE:
+			if (!atmel_pioctrl->slew_rate_support)
+				break;
+			/* And remove it if explicitly requested. */
+			if (arg == 0)
+				conf &= ~ATMEL_PIO_SR_MASK;
+			break;
 		case ATMEL_PIN_CONFIG_DRIVE_STRENGTH:
 			switch (arg) {
 			case ATMEL_PIO_DRVSTR_LO:
@@ -901,6 +924,8 @@ static void atmel_conf_pin_config_dbg_show(struct pinctrl_dev *pctldev,
 		seq_printf(s, "%s ", "open-drain");
 	if (conf & ATMEL_PIO_SCHMITT_MASK)
 		seq_printf(s, "%s ", "schmitt");
+	if (atmel_pioctrl->slew_rate_support && (conf & ATMEL_PIO_SR_MASK))
+		seq_printf(s, "%s ", "slew-rate");
 	if (conf & ATMEL_PIO_DRVSTR_MASK) {
 		switch ((conf & ATMEL_PIO_DRVSTR_MASK) >> ATMEL_PIO_DRVSTR_OFFSET) {
 		case ATMEL_PIO_DRVSTR_ME:
@@ -994,6 +1019,7 @@ static const struct atmel_pioctrl_data atmel_sama5d2_pioctrl_data = {
 static const struct atmel_pioctrl_data microchip_sama7g5_pioctrl_data = {
 	.nbanks			= 5,
 	.last_bank_count	= 8, /* sama7g5 has only PE0 to PE7 */
+	.slew_rate_support	= 1,
 };
 
 static const struct of_device_id atmel_pctrl_of_match[] = {
@@ -1039,6 +1065,7 @@ static int atmel_pinctrl_probe(struct platform_device *pdev)
 		atmel_pioctrl->npins -= ATMEL_PIO_NPINS_PER_BANK;
 		atmel_pioctrl->npins += atmel_pioctrl_data->last_bank_count;
 	}
+	atmel_pioctrl->slew_rate_support = atmel_pioctrl_data->slew_rate_support;
 
 	atmel_pioctrl->reg_base = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(atmel_pioctrl->reg_base))
