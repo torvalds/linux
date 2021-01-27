@@ -76,6 +76,17 @@ enum dmub_status dmub_srv_stat_get_notification(struct dmub_srv *dmub,
 		dmub_memcpy((void *)&notify->aux_reply,
 			(void *)&cmd.dp_aux_reply.reply_data, sizeof(struct aux_reply_data));
 		break;
+	case DMUB_OUT_CMD__DP_HPD_NOTIFY:
+		if (cmd.dp_hpd_notify.hpd_data.hpd_type == DP_HPD) {
+			notify->type = DMUB_NOTIFICATION_HPD;
+			notify->hpd_status = cmd.dp_hpd_notify.hpd_data.hpd_status;
+		} else {
+			notify->type = DMUB_NOTIFICATION_HPD_IRQ;
+		}
+
+		notify->link_index = cmd.dp_hpd_notify.hpd_data.instance;
+		notify->result = AUX_RET_SUCCESS;
+		break;
 	default:
 		notify->type = DMUB_NOTIFICATION_NO_DATA;
 		break;
