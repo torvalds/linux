@@ -3239,6 +3239,7 @@ L:	netdev@vger.kernel.org
 S:	Supported
 W:	http://sourceforge.net/projects/bonding/
 F:	drivers/net/bonding/
+F:	include/net/bonding.h
 F:	include/uapi/linux/if_bonding.h
 
 BOSCH SENSORTEC BMA400 ACCELEROMETER IIO DRIVER
