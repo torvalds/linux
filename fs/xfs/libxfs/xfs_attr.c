@@ -474,12 +474,8 @@ xfs_attr_set(
 	}
 
 	if (args->value) {
-		unsigned int	quota_flags = XFS_QMOPT_RES_REGBLKS;
-
-		if (rsvd)
-			quota_flags |= XFS_QMOPT_FORCE_RES;
 		error = xfs_trans_reserve_quota_nblks(args->trans, dp,
-				args->total, 0, quota_flags);
+				args->total, 0, rsvd);
 		if (error)
 			goto out_trans_cancel;
 

@@ -780,28 +780,42 @@ int
 xfs_trans_reserve_quota_nblks(
 	struct xfs_trans	*tp,
 	struct xfs_inode	*ip,
-	int64_t			nblks,
-	long			ninos,
-	uint			flags)
+	int64_t			dblocks,
+	int64_t			rblocks,
+	bool			force)
 {
 	struct xfs_mount	*mp = ip->i_mount;
+	unsigned int		qflags = 0;
+	int			error;
 
 	if (!XFS_IS_QUOTA_RUNNING(mp) || !XFS_IS_QUOTA_ON(mp))
 		return 0;
 
 	ASSERT(!xfs_is_quota_inode(&mp->m_sb, ip->i_ino));
-
 	ASSERT(xfs_isilocked(ip, XFS_ILOCK_EXCL));
-	ASSERT((flags & ~(XFS_QMOPT_FORCE_RES)) == XFS_TRANS_DQ_RES_RTBLKS ||
-	       (flags & ~(XFS_QMOPT_FORCE_RES)) == XFS_TRANS_DQ_RES_BLKS);
 
-	/*
-	 * Reserve nblks against these dquots, with trans as the mediator.
-	 */
-	return xfs_trans_reserve_quota_bydquots(tp, mp,
-						ip->i_udquot, ip->i_gdquot,
-						ip->i_pdquot,
-						nblks, ninos, flags);
+	if (force)
+		qflags |= XFS_QMOPT_FORCE_RES;
+
+	/* Reserve data device quota against the inode's dquots. */
+	error = xfs_trans_reserve_quota_bydquots(tp, mp, ip->i_udquot,
+			ip->i_gdquot, ip->i_pdquot, dblocks, 0,
+			XFS_QMOPT_RES_REGBLKS | qflags);
+	if (error)
+		return error;
+
+	/* Do the same but for realtime blocks. */
+	error = xfs_trans_reserve_quota_bydquots(tp, mp, ip->i_udquot,
+			ip->i_gdquot, ip->i_pdquot, rblocks, 0,
+			XFS_QMOPT_RES_RTBLKS | qflags);
+	if (error) {
+		xfs_trans_reserve_quota_bydquots(tp, mp, ip->i_udquot,
+				ip->i_gdquot, ip->i_pdquot, -dblocks, 0,
+				XFS_QMOPT_RES_REGBLKS);
+		return error;
+	}
+
+	return 0;
 }
 
 /* Change the quota reservations for an inode creation activity. */

@@ -194,25 +194,25 @@ xfs_iomap_write_direct(
 	struct xfs_trans	*tp;
 	xfs_filblks_t		resaligned;
 	int			nimaps;
-	int			quota_flag;
-	uint			qblocks, resblks;
+	unsigned int		dblocks, rblocks;
 	unsigned int		resrtextents = 0;
 	int			error;
 	int			bmapi_flags = XFS_BMAPI_PREALLOC;
-	uint			tflags = 0;
+	int			tflags = 0;
+	bool			force = false;
 
 	ASSERT(count_fsb > 0);
 
 	resaligned = xfs_aligned_fsb_count(offset_fsb, count_fsb,
 					   xfs_get_extsz_hint(ip));
 	if (unlikely(XFS_IS_REALTIME_INODE(ip))) {
-		resrtextents = qblocks = resaligned;
+		resrtextents = resaligned;
 		resrtextents /= mp->m_sb.sb_rextsize;
-		resblks = XFS_DIOSTRAT_SPACE_RES(mp, 0);
-		quota_flag = XFS_QMOPT_RES_RTBLKS;
+		dblocks = XFS_DIOSTRAT_SPACE_RES(mp, 0);
+		rblocks = resaligned;
 	} else {
-		resblks = qblocks = XFS_DIOSTRAT_SPACE_RES(mp, resaligned);
-		quota_flag = XFS_QMOPT_RES_REGBLKS;
+		dblocks = XFS_DIOSTRAT_SPACE_RES(mp, resaligned);
+		rblocks = 0;
 	}
 
 	error = xfs_qm_dqattach(ip);
@@ -235,18 +235,19 @@ xfs_iomap_write_direct(
 	if (IS_DAX(VFS_I(ip))) {
 		bmapi_flags = XFS_BMAPI_CONVERT | XFS_BMAPI_ZERO;
 		if (imap->br_state == XFS_EXT_UNWRITTEN) {
+			force = true;
 			tflags |= XFS_TRANS_RESERVE;
-			resblks = qblocks = XFS_DIOSTRAT_SPACE_RES(mp, 0) << 1;
+			dblocks = XFS_DIOSTRAT_SPACE_RES(mp, 0) << 1;
 		}
 	}
-	error = xfs_trans_alloc(mp, &M_RES(mp)->tr_write, resblks, resrtextents,
+	error = xfs_trans_alloc(mp, &M_RES(mp)->tr_write, dblocks, resrtextents,
 			tflags, &tp);
 	if (error)
 		return error;
 
 	xfs_ilock(ip, XFS_ILOCK_EXCL);
 
-	error = xfs_trans_reserve_quota_nblks(tp, ip, qblocks, 0, quota_flag);
+	error = xfs_trans_reserve_quota_nblks(tp, ip, dblocks, rblocks, force);
 	if (error)
 		goto out_trans_cancel;
 
@@ -559,8 +560,7 @@ xfs_iomap_write_unwritten(
 		xfs_ilock(ip, XFS_ILOCK_EXCL);
 		xfs_trans_ijoin(tp, ip, 0);
 
-		error = xfs_trans_reserve_quota_nblks(tp, ip, resblks, 0,
-				XFS_QMOPT_RES_REGBLKS | XFS_QMOPT_FORCE_RES);
+		error = xfs_trans_reserve_quota_nblks(tp, ip, resblks, 0, true);
 		if (error)
 			goto error_on_bmapi_transaction;
 

@@ -727,11 +727,10 @@ xfs_alloc_file_space(
 	xfs_fileoff_t		startoffset_fsb;
 	xfs_fileoff_t		endoffset_fsb;
 	int			nimaps;
-	int			quota_flag;
 	int			rt;
 	xfs_trans_t		*tp;
 	xfs_bmbt_irec_t		imaps[1], *imapp;
-	uint			qblocks, resblks, resrtextents;
+	uint			resblks, resrtextents;
 	int			error;
 
 	trace_xfs_alloc_file_space(ip);
@@ -761,6 +760,7 @@ xfs_alloc_file_space(
 	 */
 	while (allocatesize_fsb && !error) {
 		xfs_fileoff_t	s, e;
+		unsigned int	dblocks, rblocks;
 
 		/*
 		 * Determine space reservations for data/realtime.
@@ -790,20 +790,19 @@ xfs_alloc_file_space(
 		 */
 		resblks = min_t(xfs_fileoff_t, (e - s), (MAXEXTLEN * nimaps));
 		if (unlikely(rt)) {
-			resrtextents = qblocks = resblks;
+			resrtextents = resblks;
 			resrtextents /= mp->m_sb.sb_rextsize;
-			resblks = XFS_DIOSTRAT_SPACE_RES(mp, 0);
-			quota_flag = XFS_QMOPT_RES_RTBLKS;
+			dblocks = XFS_DIOSTRAT_SPACE_RES(mp, 0);
+			rblocks = resblks;
 		} else {
-			resrtextents = 0;
-			resblks = qblocks = XFS_DIOSTRAT_SPACE_RES(mp, resblks);
-			quota_flag = XFS_QMOPT_RES_REGBLKS;
+			dblocks = XFS_DIOSTRAT_SPACE_RES(mp, resblks);
+			rblocks = 0;
 		}
 
 		/*
 		 * Allocate and setup the transaction.
 		 */
-		error = xfs_trans_alloc(mp, &M_RES(mp)->tr_write, resblks,
+		error = xfs_trans_alloc(mp, &M_RES(mp)->tr_write, dblocks,
 				resrtextents, 0, &tp);
 
 		/*
@@ -817,8 +816,8 @@ xfs_alloc_file_space(
 			break;
 		}
 		xfs_ilock(ip, XFS_ILOCK_EXCL);
-		error = xfs_trans_reserve_quota_nblks(tp, ip, qblocks,
-						      0, quota_flag);
+		error = xfs_trans_reserve_quota_nblks(tp, ip, dblocks, rblocks,
+				false);
 		if (error)
 			goto error;
 
@@ -881,8 +880,7 @@ xfs_unmap_extent(
 	}
 
 	xfs_ilock(ip, XFS_ILOCK_EXCL);
-	error = xfs_trans_reserve_quota_nblks(tp, ip, resblks, 0,
-			XFS_QMOPT_RES_REGBLKS);
+	error = xfs_trans_reserve_quota_nblks(tp, ip, resblks, 0, false);
 	if (error)
 		goto out_trans_cancel;
 

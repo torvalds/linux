@@ -1085,9 +1085,7 @@ xfs_bmap_add_attrfork(
 		return error;
 
 	xfs_ilock(ip, XFS_ILOCK_EXCL);
-	error = xfs_trans_reserve_quota_nblks(tp, ip, blks, 0, rsvd ?
-			XFS_QMOPT_RES_REGBLKS | XFS_QMOPT_FORCE_RES :
-			XFS_QMOPT_RES_REGBLKS);
+	error = xfs_trans_reserve_quota_nblks(tp, ip, blks, 0, rsvd);
 	if (error)
 		goto trans_cancel;
 	if (XFS_IFORK_Q(ip))
