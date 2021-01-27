@@ -1092,6 +1092,16 @@ minstrel_ht_tx_status(void *priv, struct ieee80211_supported_band *sband,
 		info->status.ampdu_len = 1;
 	}
 
+	/* wraparound */
+	if (mi->total_packets >= ~0 - info->status.ampdu_len) {
+		mi->total_packets = 0;
+		mi->sample_packets = 0;
+	}
+
+	mi->total_packets += info->status.ampdu_len;
+	if (info->flags & IEEE80211_TX_CTL_RATE_CTRL_PROBE)
+		mi->sample_packets += info->status.ampdu_len;
+
 	mi->ampdu_packets++;
 	mi->ampdu_len += info->status.ampdu_len;
 
@@ -1102,9 +1112,6 @@ minstrel_ht_tx_status(void *priv, struct ieee80211_supported_band *sband,
 		mi->sample_tries = 1;
 		mi->sample_count--;
 	}
-
-	if (info->flags & IEEE80211_TX_CTL_RATE_CTRL_PROBE)
-		mi->sample_packets += info->status.ampdu_len;
 
 	if (mi->sample_mode != MINSTREL_SAMPLE_IDLE)
 		rate_sample = minstrel_get_ratestats(mi, mi->sample_rate);
@@ -1502,14 +1509,6 @@ minstrel_ht_get_rate(void *priv, struct ieee80211_sta *sta, void *priv_sta,
 		sample_idx = -1;
 	else
 		sample_idx = minstrel_get_sample_rate(mp, mi);
-
-	mi->total_packets++;
-
-	/* wraparound */
-	if (mi->total_packets == ~0) {
-		mi->total_packets = 0;
-		mi->sample_packets = 0;
-	}
 
 	if (sample_idx < 0)
 		return;
