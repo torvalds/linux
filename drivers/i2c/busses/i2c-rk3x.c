@@ -196,6 +196,7 @@ struct rk3x_i2c_soc_data {
  * @processed: byte length which has been send or received
  * @error: error code for i2c transfer
  * @i2c_restart_nb: make sure the i2c transfer to be finished
+ * @system_restarting: true if system is restarting
  */
 struct rk3x_i2c {
 	struct i2c_adapter adap;
@@ -229,10 +230,17 @@ struct rk3x_i2c {
 	unsigned int suspended:1;
 
 	struct notifier_block i2c_restart_nb;
+	bool system_restarting;
 };
 
 static int rk3x_i2c_fill_transmit_buf(struct rk3x_i2c *i2c, bool sended);
 static void rk3x_i2c_prepare_read(struct rk3x_i2c *i2c);
+
+static inline void rk3x_i2c_wake_up(struct rk3x_i2c *i2c)
+{
+	if (!i2c->system_restarting)
+		wake_up(&i2c->wait);
+}
 
 static inline void i2c_writel(struct rk3x_i2c *i2c, u32 value,
 			      unsigned int offset)
@@ -335,7 +343,7 @@ static void rk3x_i2c_stop(struct rk3x_i2c *i2c, int error)
 		i2c_writel(i2c, ctrl, REG_CON);
 
 		/* signal that we are finished with the current msg */
-		wake_up(&i2c->wait);
+		rk3x_i2c_wake_up(i2c);
 	}
 }
 
@@ -488,7 +496,7 @@ static void rk3x_i2c_handle_stop(struct rk3x_i2c *i2c, unsigned int ipd)
 	i2c->state = STATE_IDLE;
 
 	/* signal rk3x_i2c_xfer that we are finished */
-	wake_up(&i2c->wait);
+	rk3x_i2c_wake_up(i2c);
 }
 
 static irqreturn_t rk3x_i2c_irq(int irqno, void *dev_id)
@@ -1145,6 +1153,7 @@ static int rk3x_i2c_restart_notify(struct notifier_block *this,
 	u32 val;
 
 	if (i2c->state != STATE_IDLE) {
+		i2c->system_restarting = true;
 		/* complete the unfinished job */
 		while (tmo-- && i2c->busy) {
 			udelay(1);
