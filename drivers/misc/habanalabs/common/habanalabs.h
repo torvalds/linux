@@ -419,6 +419,8 @@ struct hl_mmu_properties {
  *                            from BOOT_DEV_STS0
  * @dram_supports_virtual_memory: is there an MMU towards the DRAM
  * @hard_reset_done_by_fw: true if firmware is handling hard reset flow
+ * @fw_cpucp_ack_with_pi: true if cpucp is acking messages with the PQ PI
+ *                        instead of a magic number
  * @num_functional_hbms: number of functional HBMs in each DCORE.
  */
 struct asic_fixed_properties {
@@ -479,6 +481,7 @@ struct asic_fixed_properties {
 	u8				fw_security_status_valid;
 	u8				dram_supports_virtual_memory;
 	u8				hard_reset_done_by_fw;
+	u8				fw_cpucp_ack_with_pi;
 	u8				num_functional_hbms;
 };
 

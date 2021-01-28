@@ -461,6 +461,7 @@ int goya_get_fixed_properties(struct hl_device *hdev)
 	prop->fw_security_disabled = true;
 	prop->fw_security_status_valid = false;
 	prop->hard_reset_done_by_fw = false;
+	prop->fw_cpucp_ack_with_pi = false;
 
 	return 0;
 }
@@ -2806,9 +2807,12 @@ void goya_ring_doorbell(struct hl_device *hdev, u32 hw_queue_id, u32 pi)
 	/* ring the doorbell */
 	WREG32(db_reg_offset, db_value);
 
-	if (hw_queue_id == GOYA_QUEUE_ID_CPU_PQ)
+	if (hw_queue_id == GOYA_QUEUE_ID_CPU_PQ) {
+		/* make sure device CPU will read latest data from host */
+		mb();
 		WREG32(mmGIC_DISTRIBUTOR__5_GICD_SETSPI_NSR,
 				GOYA_ASYNC_EVENT_ID_PI_UPDATE);
+	}
 }
 
 void goya_pqe_write(struct hl_device *hdev, __le64 *pqe, struct hl_bd *bd)

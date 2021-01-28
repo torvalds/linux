@@ -90,9 +90,10 @@ int hl_fw_send_pci_access_msg(struct hl_device *hdev, u32 opcode)
 int hl_fw_send_cpu_message(struct hl_device *hdev, u32 hw_queue_id, u32 *msg,
 				u16 len, u32 timeout, u64 *result)
 {
+	struct hl_hw_queue *queue = &hdev->kernel_queues[hw_queue_id];
 	struct cpucp_packet *pkt;
 	dma_addr_t pkt_dma_addr;
-	u32 tmp;
+	u32 tmp, expected_ack_val;
 	int rc = 0;
 
 	pkt = hdev->asic_funcs->cpu_accessible_dma_pool_alloc(hdev, len,
@@ -115,14 +116,22 @@ int hl_fw_send_cpu_message(struct hl_device *hdev, u32 hw_queue_id, u32 *msg,
 		goto out;
 	}
 
+	/* set fence to a non valid value */
+	pkt->fence = UINT_MAX;
+
 	rc = hl_hw_queue_send_cb_no_cmpl(hdev, hw_queue_id, len, pkt_dma_addr);
 	if (rc) {
 		dev_err(hdev->dev, "Failed to send CB on CPU PQ (%d)\n", rc);
 		goto out;
 	}
 
+	if (hdev->asic_prop.fw_cpucp_ack_with_pi)
+		expected_ack_val = queue->pi;
+	else
+		expected_ack_val = CPUCP_PACKET_FENCE_VAL;
+
 	rc = hl_poll_timeout_memory(hdev, &pkt->fence, tmp,
-				(tmp == CPUCP_PACKET_FENCE_VAL), 1000,
+				(tmp == expected_ack_val), 1000,
 				timeout, true);
 
 	hl_hw_queue_inc_ci_kernel(hdev, hw_queue_id);
@@ -776,6 +785,10 @@ int hl_fw_init_cpu(struct hl_device *hdev, u32 cpu_boot_status_reg,
 		if (prop->fw_boot_cpu_security_map &
 				CPU_BOOT_DEV_STS0_FW_HARD_RST_EN)
 			prop->hard_reset_done_by_fw = true;
+
+		if (prop->fw_boot_cpu_security_map &
+				CPU_BOOT_DEV_STS0_PKT_PI_ACK_EN)
+			prop->fw_cpucp_ack_with_pi = true;
 
 		dev_dbg(hdev->dev,
 			"Firmware boot CPU security status %#x\n",
