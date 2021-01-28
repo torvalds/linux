@@ -674,6 +674,7 @@ struct vop2_video_port_data {
 	char id;
 	uint32_t feature;
 	uint64_t soc_id[VOP2_SOC_VARIANT];
+	uint16_t gamma_lut_len;
 	struct vop_rect max_output;
 	const u8 pre_scan_max_dly[4];
 	const struct vop_intr *intr;

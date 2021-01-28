@@ -606,6 +606,7 @@ static const struct vop2_video_port_data rk3568_vop_video_ports[] = {
 	 .id = 0,
 	 .soc_id = { 0x3568, 0x3566 },
 	 .feature = VOP_FEATURE_OUTPUT_10BIT,
+	 .gamma_lut_len = 1024,
 	 .max_output = { 4096, 2304 },
 	 .pre_scan_max_dly = { 69, 53, 53, 42 },
 	 .intr = &rk3568_vp0_intr,
@@ -615,6 +616,7 @@ static const struct vop2_video_port_data rk3568_vop_video_ports[] = {
 	{
 	 .id = 1,
 	 .soc_id = { 0x3568, 0x3566 },
+	 .gamma_lut_len = 1024,
 	 .max_output = { 2048, 1536 },
 	 .pre_scan_max_dly = { 40, 40, 40, 40 },
 	 .intr = &rk3568_vp1_intr,
@@ -623,6 +625,7 @@ static const struct vop2_video_port_data rk3568_vop_video_ports[] = {
 	{
 	 .id = 2,
 	 .soc_id = { 0x3568, 0x3566 },
+	 .gamma_lut_len = 1024,
 	 .max_output = { 1920, 1080 },
 	 .pre_scan_max_dly = { 40, 40, 40, 40 },
 	 .intr = &rk3568_vp2_intr,
