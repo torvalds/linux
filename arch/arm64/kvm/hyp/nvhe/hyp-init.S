@@ -47,6 +47,8 @@ __invalid:
 	b	.
 
 	/*
+	 * Only uses x0..x3 so as to not clobber callee-saved SMCCC registers.
+	 *
 	 * x0: SMCCC function ID
 	 * x1: struct kvm_nvhe_init_params PA
 	 */
@@ -70,9 +72,9 @@ __do_hyp_init:
 	eret
 
 1:	mov	x0, x1
-	mov	x4, lr
-	bl	___kvm_hyp_init
-	mov	lr, x4
+	mov	x3, lr
+	bl	___kvm_hyp_init			// Clobbers x0..x2
+	mov	lr, x3
 
 	/* Hello, World! */
 	mov	x0, #SMCCC_RET_SUCCESS
@@ -82,8 +84,8 @@ SYM_CODE_END(__kvm_hyp_init)
 /*
  * Initialize the hypervisor in EL2.
  *
- * Only uses x0..x3 so as to not clobber callee-saved SMCCC registers
- * and leave x4 for the caller.
+ * Only uses x0..x2 so as to not clobber callee-saved SMCCC registers
+ * and leave x3 for the caller.
  *
  * x0: struct kvm_nvhe_init_params PA
  */
@@ -112,9 +114,9 @@ alternative_else_nop_endif
 	/*
 	 * Set the PS bits in TCR_EL2.
 	 */
-	ldr	x1, [x0, #NVHE_INIT_TCR_EL2]
-	tcr_compute_pa_size x1, #TCR_EL2_PS_SHIFT, x2, x3
-	msr	tcr_el2, x1
+	ldr	x0, [x0, #NVHE_INIT_TCR_EL2]
+	tcr_compute_pa_size x0, #TCR_EL2_PS_SHIFT, x1, x2
+	msr	tcr_el2, x0
 
 	isb
 
@@ -193,7 +195,7 @@ SYM_CODE_START_LOCAL(__kvm_hyp_init_cpu)
 
 	/* Enable MMU, set vectors and stack. */
 	mov	x0, x28
-	bl	___kvm_hyp_init			// Clobbers x0..x3
+	bl	___kvm_hyp_init			// Clobbers x0..x2
 
 	/* Leave idmap. */
 	mov	x0, x29
