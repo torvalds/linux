@@ -425,16 +425,13 @@ static int aldebaran_setup_pptable(struct smu_context *smu)
 
 static int aldebaran_run_btc(struct smu_context *smu)
 {
-	/* int ret = 0; */
+	int ret;
 
-	/* ret = smu_cmn_send_smc_msg(smu, SMU_MSG_RunAfllBtc, NULL); */
-	/* if (ret) { */
-	/* dev_err(smu->adev->dev, "RunAfllBtc failed!\n"); */
-	/* return ret; */
-	/* } */
+	ret = smu_cmn_send_smc_msg(smu, SMU_MSG_RunDcBtc, NULL);
+	if (ret)
+		dev_err(smu->adev->dev, "RunDcBtc failed!\n");
 
-	/* return smu_cmn_send_smc_msg(smu, SMU_MSG_RunDcBtc, NULL); */
-	return 0;
+	return ret;
 }
 
 static int aldebaran_populate_umd_state_clk(struct smu_context *smu)
@@ -1092,6 +1089,17 @@ static int aldebaran_get_power_limit(struct smu_context *smu)
 	return 0;
 }
 
+static int aldebaran_system_features_control(struct  smu_context *smu, bool enable)
+{
+	int ret;
+
+	ret = smu_v13_0_system_features_control(smu, enable);
+	if (!ret && enable)
+		ret = aldebaran_run_btc(smu);
+
+	return ret;
+}
+
 static int aldebaran_set_performance_level(struct smu_context *smu,
 					   enum amd_dpm_forced_level level)
 {
@@ -1300,8 +1308,6 @@ static bool aldebaran_is_mode2_reset_supported(struct smu_context *smu)
 static const struct pptable_funcs aldebaran_ppt_funcs = {
 	/* init dpm */
 	.get_allowed_feature_mask = aldebaran_get_allowed_feature_mask,
-	/* btc */
-	.run_btc = aldebaran_run_btc,
 	/* dpm/clk tables */
 	.set_default_dpm_table = aldebaran_set_default_dpm_table,
 	.populate_umd_state_clk = aldebaran_populate_umd_state_clk,
@@ -1329,7 +1335,7 @@ static const struct pptable_funcs aldebaran_ppt_funcs = {
 	.set_driver_table_location = smu_v13_0_set_driver_table_location,
 	.set_tool_table_location = smu_v13_0_set_tool_table_location,
 	.notify_memory_pool_location = smu_v13_0_notify_memory_pool_location,
-	.system_features_control = smu_v13_0_system_features_control,
+	.system_features_control = aldebaran_system_features_control,
 	.send_smc_msg_with_param = smu_cmn_send_smc_msg_with_param,
 	.send_smc_msg = smu_cmn_send_smc_msg,
 	.get_enabled_mask = smu_cmn_get_enabled_mask,
