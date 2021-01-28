@@ -373,11 +373,6 @@ int mlx5e_ethtool_set_ringparam(struct mlx5e_priv *priv,
 	if (err)
 		goto unlock;
 
-	if (!test_bit(MLX5E_STATE_OPENED, &priv->state)) {
-		priv->channels.params = new_channels.params;
-		goto unlock;
-	}
-
 	err = mlx5e_safe_switch_channels(priv, &new_channels, NULL, NULL);
 
 unlock:
@@ -425,6 +420,7 @@ int mlx5e_ethtool_set_channels(struct mlx5e_priv *priv,
 	unsigned int count = ch->combined_count;
 	struct mlx5e_channels new_channels = {};
 	bool arfs_enabled;
+	bool opened;
 	int err = 0;
 
 	if (!count) {
@@ -462,19 +458,9 @@ int mlx5e_ethtool_set_channels(struct mlx5e_priv *priv,
 	new_channels.params = *cur_params;
 	new_channels.params.num_channels = count;
 
-	if (!test_bit(MLX5E_STATE_OPENED, &priv->state)) {
-		struct mlx5e_params old_params;
+	opened = test_bit(MLX5E_STATE_OPENED, &priv->state);
 
-		old_params = *cur_params;
-		*cur_params = new_channels.params;
-		err = mlx5e_num_channels_changed(priv);
-		if (err)
-			*cur_params = old_params;
-
-		goto out;
-	}
-
-	arfs_enabled = priv->netdev->features & NETIF_F_NTUPLE;
+	arfs_enabled = opened && (priv->netdev->features & NETIF_F_NTUPLE);
 	if (arfs_enabled)
 		mlx5e_arfs_disable(priv);
 
@@ -625,12 +611,10 @@ int mlx5e_ethtool_set_coalesce(struct mlx5e_priv *priv,
 		mlx5e_reset_tx_moderation(&new_channels.params, mode);
 	}
 
-	if (!test_bit(MLX5E_STATE_OPENED, &priv->state)) {
-		priv->channels.params = new_channels.params;
-		goto out;
-	}
-
-	if (!reset_rx && !reset_tx) {
+	/* If DIM state hasn't changed, it's possible to modify interrupt
+	 * moderation parameters on the fly, even if the channels are open.
+	 */
+	if (!reset_rx && !reset_tx && test_bit(MLX5E_STATE_OPENED, &priv->state)) {
 		if (!coal->use_adaptive_rx_coalesce)
 			mlx5e_set_priv_channels_rx_coalesce(priv, coal);
 		if (!coal->use_adaptive_tx_coalesce)
@@ -1885,11 +1869,6 @@ static int set_pflag_cqe_based_moder(struct net_device *netdev, bool enable,
 	else
 		mlx5e_set_tx_cq_mode_params(&new_channels.params, cq_period_mode);
 
-	if (!test_bit(MLX5E_STATE_OPENED, &priv->state)) {
-		priv->channels.params = new_channels.params;
-		return 0;
-	}
-
 	return mlx5e_safe_switch_channels(priv, &new_channels, NULL, NULL);
 }
 
@@ -1920,10 +1899,6 @@ int mlx5e_modify_rx_cqe_compression_locked(struct mlx5e_priv *priv, bool new_val
 	if (priv->tstamp.rx_filter != HWTSTAMP_FILTER_NONE)
 		new_channels.params.ptp_rx = new_val;
 
-	if (!test_bit(MLX5E_STATE_OPENED, &priv->state)) {
-		priv->channels.params = new_channels.params;
-		return 0;
-	}
 
 	if (new_channels.params.ptp_rx == priv->channels.params.ptp_rx)
 		err = mlx5e_safe_switch_channels(priv, &new_channels, NULL, NULL);
@@ -1980,11 +1955,6 @@ static int set_pflag_rx_striding_rq(struct net_device *netdev, bool enable)
 	MLX5E_SET_PFLAG(&new_channels.params, MLX5E_PFLAG_RX_STRIDING_RQ, enable);
 	mlx5e_set_rq_type(mdev, &new_channels.params);
 
-	if (!test_bit(MLX5E_STATE_OPENED, &priv->state)) {
-		priv->channels.params = new_channels.params;
-		return 0;
-	}
-
 	return mlx5e_safe_switch_channels(priv, &new_channels, NULL, NULL);
 }
 
@@ -2015,7 +1985,6 @@ static int set_pflag_tx_mpwqe_common(struct net_device *netdev, u32 flag, bool e
 	struct mlx5e_priv *priv = netdev_priv(netdev);
 	struct mlx5_core_dev *mdev = priv->mdev;
 	struct mlx5e_channels new_channels = {};
-	int err;
 
 	if (enable && !MLX5_CAP_ETH(mdev, enhanced_multi_pkt_send_wqe))
 		return -EOPNOTSUPP;
@@ -2024,13 +1993,7 @@ static int set_pflag_tx_mpwqe_common(struct net_device *netdev, u32 flag, bool e
 
 	MLX5E_SET_PFLAG(&new_channels.params, flag, enable);
 
-	if (!test_bit(MLX5E_STATE_OPENED, &priv->state)) {
-		priv->channels.params = new_channels.params;
-		return 0;
-	}
-
-	err = mlx5e_safe_switch_channels(priv, &new_channels, NULL, NULL);
-	return err;
+	return mlx5e_safe_switch_channels(priv, &new_channels, NULL, NULL);
 }
 
 static int set_pflag_xdp_tx_mpwqe(struct net_device *netdev, bool enable)
@@ -2070,20 +2033,8 @@ static int set_pflag_tx_port_ts(struct net_device *netdev, bool enable)
 	 * has the same log_sq_size.
 	 */
 
-	if (!test_bit(MLX5E_STATE_OPENED, &priv->state)) {
-		struct mlx5e_params old_params;
-
-		old_params = priv->channels.params;
-		priv->channels.params = new_channels.params;
-		err = mlx5e_num_channels_changed(priv);
-		if (err)
-			priv->channels.params = old_params;
-		goto out;
-	}
-
 	err = mlx5e_safe_switch_channels(priv, &new_channels,
 					 mlx5e_num_channels_changed_ctx, NULL);
-out:
 	if (!err)
 		priv->tx_ptp_opened = true;
 

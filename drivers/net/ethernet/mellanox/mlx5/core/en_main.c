@@ -3407,18 +3407,6 @@ static int mlx5e_setup_tc_mqprio(struct mlx5e_priv *priv,
 	new_channels.params = priv->channels.params;
 	new_channels.params.num_tc = tc ? tc : 1;
 
-	if (!test_bit(MLX5E_STATE_OPENED, &priv->state)) {
-		struct mlx5e_params old_params;
-
-		old_params = priv->channels.params;
-		priv->channels.params = new_channels.params;
-		err = mlx5e_num_channels_changed(priv);
-		if (err)
-			priv->channels.params = old_params;
-
-		goto out;
-	}
-
 	err = mlx5e_safe_switch_channels(priv, &new_channels,
 					 mlx5e_num_channels_changed_ctx, NULL);
 
@@ -3647,8 +3635,8 @@ static int set_feature_lro(struct net_device *netdev, bool enable)
 	struct mlx5_core_dev *mdev = priv->mdev;
 	struct mlx5e_channels new_channels = {};
 	struct mlx5e_params *cur_params;
+	bool skip_reset = false;
 	int err = 0;
-	bool reset;
 
 	mutex_lock(&priv->state_lock);
 
@@ -3666,18 +3654,16 @@ static int set_feature_lro(struct net_device *netdev, bool enable)
 		goto out;
 	}
 
-	reset = test_bit(MLX5E_STATE_OPENED, &priv->state);
-
 	new_channels.params = *cur_params;
 	new_channels.params.lro_en = enable;
 
-	if (cur_params->rq_wq_type != MLX5_WQ_TYPE_CYCLIC) {
+	if (cur_params->rq_wq_type == MLX5_WQ_TYPE_LINKED_LIST_STRIDING_RQ) {
 		if (mlx5e_rx_mpwqe_is_linear_skb(mdev, cur_params, NULL) ==
 		    mlx5e_rx_mpwqe_is_linear_skb(mdev, &new_channels.params, NULL))
-			reset = false;
+			skip_reset = true;
 	}
 
-	if (!reset) {
+	if (skip_reset) {
 		struct mlx5e_params old_params;
 
 		old_params = *cur_params;
@@ -3920,15 +3906,12 @@ int mlx5e_change_mtu(struct net_device *netdev, int new_mtu,
 	struct mlx5e_priv *priv = netdev_priv(netdev);
 	struct mlx5e_channels new_channels = {};
 	struct mlx5e_params *params;
+	bool skip_reset = false;
 	int err = 0;
-	bool reset;
 
 	mutex_lock(&priv->state_lock);
 
 	params = &priv->channels.params;
-
-	reset = !params->lro_en;
-	reset = reset && test_bit(MLX5E_STATE_OPENED, &priv->state);
 
 	new_channels.params = *params;
 	new_channels.params.sw_mtu = new_mtu;
@@ -3951,21 +3934,26 @@ int mlx5e_change_mtu(struct net_device *netdev, int new_mtu,
 		goto out;
 	}
 
+	if (params->lro_en)
+		skip_reset = true;
+
 	if (params->rq_wq_type == MLX5_WQ_TYPE_LINKED_LIST_STRIDING_RQ) {
-		bool is_linear = mlx5e_rx_mpwqe_is_linear_skb(priv->mdev,
-							      &new_channels.params,
-							      NULL);
+		bool is_linear_old = mlx5e_rx_mpwqe_is_linear_skb(priv->mdev, params, NULL);
+		bool is_linear_new = mlx5e_rx_mpwqe_is_linear_skb(priv->mdev,
+								  &new_channels.params, NULL);
 		u8 ppw_old = mlx5e_mpwqe_log_pkts_per_wqe(params, NULL);
 		u8 ppw_new = mlx5e_mpwqe_log_pkts_per_wqe(&new_channels.params, NULL);
 
-		/* If XSK is active, XSK RQs are linear. */
-		is_linear |= priv->xsk.refcnt;
-
-		/* Always reset in linear mode - hw_mtu is used in data path. */
-		reset = reset && (is_linear || (ppw_old != ppw_new));
+		/* Always reset in linear mode - hw_mtu is used in data path.
+		 * Check that the mode was non-linear and didn't change.
+		 * If XSK is active, XSK RQs are linear.
+		 */
+		if (!is_linear_old && !is_linear_new && !priv->xsk.refcnt &&
+		    ppw_old == ppw_new)
+			skip_reset = true;
 	}
 
-	if (!reset) {
+	if (skip_reset) {
 		unsigned int old_mtu = params->sw_mtu;
 
 		params->sw_mtu = new_mtu;
@@ -3976,17 +3964,13 @@ int mlx5e_change_mtu(struct net_device *netdev, int new_mtu,
 				goto out;
 			}
 		}
-		netdev->mtu = params->sw_mtu;
 		goto out;
 	}
 
 	err = mlx5e_safe_switch_channels(priv, &new_channels, preactivate, NULL);
-	if (err)
-		goto out;
-
-	netdev->mtu = new_channels.params.sw_mtu;
 
 out:
+	netdev->mtu = params->sw_mtu;
 	mutex_unlock(&priv->state_lock);
 	return err;
 }
@@ -4061,10 +4045,6 @@ int mlx5e_hwstamp_set(struct mlx5e_priv *priv, struct ifreq *ifr)
 	if (new_channels.params.ptp_rx == priv->channels.params.ptp_rx)
 		goto out;
 
-	if (!test_bit(MLX5E_STATE_OPENED, &priv->state)) {
-		priv->channels.params = new_channels.params;
-		goto out;
-	}
 	err = mlx5e_safe_switch_channels(priv, &new_channels, mlx5e_ptp_rx_manage_fs_ctx,
 					 &new_channels.params.ptp_rx);
 	if (err) {
@@ -4449,7 +4429,7 @@ static int mlx5e_xdp_set(struct net_device *netdev, struct bpf_prog *prog)
 		 */
 		bpf_prog_add(prog, priv->channels.num);
 
-	if (was_opened && reset) {
+	if (reset) {
 		struct mlx5e_channels new_channels = {};
 
 		new_channels.params = priv->channels.params;
@@ -4469,9 +4449,6 @@ static int mlx5e_xdp_set(struct net_device *netdev, struct bpf_prog *prog)
 
 	if (old_prog)
 		bpf_prog_put(old_prog);
-
-	if (!was_opened && reset) /* change RQ type according to priv->xdp_prog */
-		mlx5e_set_rq_type(priv->mdev, &priv->channels.params);
 
 	if (!was_opened || reset)
 		goto unlock;

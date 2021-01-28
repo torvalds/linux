@@ -482,20 +482,11 @@ static int mlx5i_change_mtu(struct net_device *netdev, int new_mtu)
 {
 	struct mlx5e_priv *priv = mlx5i_epriv(netdev);
 	struct mlx5e_channels new_channels = {};
-	struct mlx5e_params *params;
 	int err = 0;
 
 	mutex_lock(&priv->state_lock);
 
-	params = &priv->channels.params;
-
-	if (!test_bit(MLX5E_STATE_OPENED, &priv->state)) {
-		params->sw_mtu = new_mtu;
-		netdev->mtu = params->sw_mtu;
-		goto out;
-	}
-
-	new_channels.params = *params;
+	new_channels.params = priv->channels.params;
 	new_channels.params.sw_mtu = new_mtu;
 
 	err = mlx5e_safe_switch_channels(priv, &new_channels, NULL, NULL);
