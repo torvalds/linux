@@ -717,7 +717,7 @@ static int vmw_driver_load(struct vmw_private *dev_priv, u32 pci_id)
 		return ret;
 	ret = vmw_detect_version(dev_priv);
 	if (ret)
-		return ret;
+		goto out_no_pci_or_version;
 
 	mutex_init(&dev_priv->cmdbuf_mutex);
 	mutex_init(&dev_priv->release_mutex);
@@ -1014,7 +1014,6 @@ out_no_fman:
 	if (dev_priv->capabilities & SVGA_CAP_IRQMASK)
 		vmw_irq_uninstall(&dev_priv->drm);
 out_no_irq:
-	pci_release_regions(pdev);
 	ttm_object_device_release(&dev_priv->tdev);
 out_err0:
 	for (i = vmw_res_context; i < vmw_res_max; ++i)
@@ -1022,7 +1021,8 @@ out_err0:
 
 	if (dev_priv->ctx.staged_bindings)
 		vmw_binding_state_free(dev_priv->ctx.staged_bindings);
-	kfree(dev_priv);
+out_no_pci_or_version:
+	pci_release_regions(pdev);
 	return ret;
 }
 
@@ -1060,7 +1060,6 @@ static void vmw_driver_unload(struct drm_device *dev)
 	vmw_fence_manager_takedown(dev_priv->fman);
 	if (dev_priv->capabilities & SVGA_CAP_IRQMASK)
 		vmw_irq_uninstall(&dev_priv->drm);
-	pci_release_regions(pdev);
 
 	ttm_object_device_release(&dev_priv->tdev);
 	if (dev_priv->ctx.staged_bindings)
@@ -1069,7 +1068,7 @@ static void vmw_driver_unload(struct drm_device *dev)
 	for (i = vmw_res_context; i < vmw_res_max; ++i)
 		idr_destroy(&dev_priv->res_idr[i]);
 
-	kfree(dev_priv);
+	pci_release_regions(pdev);
 }
 
 static void vmw_postclose(struct drm_device *dev,
