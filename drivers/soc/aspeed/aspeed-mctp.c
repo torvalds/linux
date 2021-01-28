@@ -995,6 +995,25 @@ aspeed_mctp_get_mtu(struct aspeed_mctp *priv, void __user *userbuf)
 	return 0;
 }
 
+int aspeed_mctp_get_eid_bdf(struct mctp_client *client, u8 eid, u16 *bdf)
+{
+	struct aspeed_mctp_endpoint *endpoint;
+	int ret = -ENOENT;
+
+	mutex_lock(&client->priv->endpoints_lock);
+	list_for_each_entry(endpoint, &client->priv->endpoints, link) {
+		if (endpoint->data.eid == eid) {
+			*bdf = endpoint->data.bdf;
+			ret = 0;
+			break;
+		}
+	}
+	mutex_unlock(&client->priv->endpoints_lock);
+
+	return ret;
+}
+EXPORT_SYMBOL_GPL(aspeed_mctp_get_eid_bdf);
+
 static int
 aspeed_mctp_get_eid_info(struct aspeed_mctp *priv, void __user *userbuf)
 {

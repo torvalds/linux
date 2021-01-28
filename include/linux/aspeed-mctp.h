@@ -117,6 +117,18 @@ struct mctp_pcie_packet *aspeed_mctp_receive_packet(struct mctp_client *client,
  */
 void aspeed_mctp_flush_rx_queue(struct mctp_client *client);
 
+/**
+ * aspeed_mctp_get_eid_bdf() - return PCIe address for requested endpoint ID
+ * @client: pointer to existing mctp_client context
+ * @eid: requested eid
+ * @bdf: pointer to store BDF value
+ *
+ * Return:
+ * * 0 - success,
+ * * -ENOENT - there is no record for requested endpoint id.
+ */
+int aspeed_mctp_get_eid_bdf(struct mctp_client *client, u8 eid, u16 *bdf);
+
 void *aspeed_mctp_packet_alloc(gfp_t flags);
 void aspeed_mctp_packet_free(void *packet);
 
