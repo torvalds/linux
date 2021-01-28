@@ -1158,21 +1158,11 @@ static struct opp_table *_allocate_opp_table(struct device *dev, int index)
 
 	_of_init_opp_table(opp_table, dev, index);
 
-	/* Find clk for the device */
-	opp_table->clk = clk_get(dev, NULL);
-	if (IS_ERR(opp_table->clk)) {
-		ret = PTR_ERR(opp_table->clk);
-		if (ret == -EPROBE_DEFER)
-			goto remove_opp_dev;
-
-		dev_dbg(dev, "%s: Couldn't find clock: %d\n", __func__, ret);
-	}
-
 	/* Find interconnect path(s) for the device */
 	ret = dev_pm_opp_of_find_icc_paths(dev, opp_table);
 	if (ret) {
 		if (ret == -EPROBE_DEFER)
-			goto put_clk;
+			goto remove_opp_dev;
 
 		dev_warn(dev, "%s: Error finding interconnect paths: %d\n",
 			 __func__, ret);
@@ -1184,9 +1174,6 @@ static struct opp_table *_allocate_opp_table(struct device *dev, int index)
 
 	return opp_table;
 
-put_clk:
-	if (!IS_ERR(opp_table->clk))
-		clk_put(opp_table->clk);
 remove_opp_dev:
 	_remove_opp_dev(opp_dev, opp_table);
 err:
@@ -1197,6 +1184,33 @@ err:
 void _get_opp_table_kref(struct opp_table *opp_table)
 {
 	kref_get(&opp_table->kref);
+}
+
+static struct opp_table *_update_opp_table_clk(struct device *dev,
+					       struct opp_table *opp_table,
+					       bool getclk)
+{
+	/*
+	 * Return early if we don't need to get clk or we have already tried it
+	 * earlier.
+	 */
+	if (!getclk || IS_ERR(opp_table) || opp_table->clk)
+		return opp_table;
+
+	/* Find clk for the device */
+	opp_table->clk = clk_get(dev, NULL);
+	if (IS_ERR(opp_table->clk)) {
+		int ret = PTR_ERR(opp_table->clk);
+
+		if (ret == -EPROBE_DEFER) {
+			dev_pm_opp_put_opp_table(opp_table);
+			return ERR_PTR(ret);
+		}
+
+		dev_dbg(dev, "%s: Couldn't find clock: %d\n", __func__, ret);
+	}
+
+	return opp_table;
 }
 
 /*
@@ -1214,7 +1228,8 @@ void _get_opp_table_kref(struct opp_table *opp_table)
  * uses the opp_tables_busy flag to indicate if another creator is in the middle
  * of adding an OPP table and others should wait for it to finish.
  */
-struct opp_table *_add_opp_table_indexed(struct device *dev, int index)
+struct opp_table *_add_opp_table_indexed(struct device *dev, int index,
+					 bool getclk)
 {
 	struct opp_table *opp_table;
 
@@ -1261,12 +1276,12 @@ again:
 unlock:
 	mutex_unlock(&opp_table_lock);
 
-	return opp_table;
+	return _update_opp_table_clk(dev, opp_table, getclk);
 }
 
-static struct opp_table *_add_opp_table(struct device *dev)
+static struct opp_table *_add_opp_table(struct device *dev, bool getclk)
 {
-	return _add_opp_table_indexed(dev, 0);
+	return _add_opp_table_indexed(dev, 0, getclk);
 }
 
 struct opp_table *dev_pm_opp_get_opp_table(struct device *dev)
@@ -1711,7 +1726,7 @@ struct opp_table *dev_pm_opp_set_supported_hw(struct device *dev,
 {
 	struct opp_table *opp_table;
 
-	opp_table = _add_opp_table(dev);
+	opp_table = _add_opp_table(dev, false);
 	if (IS_ERR(opp_table))
 		return opp_table;
 
@@ -1773,7 +1788,7 @@ struct opp_table *dev_pm_opp_set_prop_name(struct device *dev, const char *name)
 {
 	struct opp_table *opp_table;
 
-	opp_table = _add_opp_table(dev);
+	opp_table = _add_opp_table(dev, false);
 	if (IS_ERR(opp_table))
 		return opp_table;
 
@@ -1869,7 +1884,7 @@ struct opp_table *dev_pm_opp_set_regulators(struct device *dev,
 	struct regulator *reg;
 	int ret, i;
 
-	opp_table = _add_opp_table(dev);
+	opp_table = _add_opp_table(dev, false);
 	if (IS_ERR(opp_table))
 		return opp_table;
 
@@ -1980,7 +1995,7 @@ struct opp_table *dev_pm_opp_set_clkname(struct device *dev, const char *name)
 	struct opp_table *opp_table;
 	int ret;
 
-	opp_table = _add_opp_table(dev);
+	opp_table = _add_opp_table(dev, false);
 	if (IS_ERR(opp_table))
 		return opp_table;
 
@@ -1990,9 +2005,11 @@ struct opp_table *dev_pm_opp_set_clkname(struct device *dev, const char *name)
 		goto err;
 	}
 
-	/* Already have default clk set, free it */
-	if (!IS_ERR(opp_table->clk))
-		clk_put(opp_table->clk);
+	/* clk shouldn't be initialized at this point */
+	if (WARN_ON(opp_table->clk)) {
+		ret = -EBUSY;
+		goto err;
+	}
 
 	/* Find clk for the device */
 	opp_table->clk = clk_get(dev, name);
@@ -2051,7 +2068,7 @@ struct opp_table *dev_pm_opp_register_set_opp_helper(struct device *dev,
 	if (!set_opp)
 		return ERR_PTR(-EINVAL);
 
-	opp_table = _add_opp_table(dev);
+	opp_table = _add_opp_table(dev, false);
 	if (IS_ERR(opp_table))
 		return opp_table;
 
@@ -2138,7 +2155,7 @@ struct opp_table *dev_pm_opp_attach_genpd(struct device *dev,
 	int index = 0, ret = -EINVAL;
 	const char **name = names;
 
-	opp_table = _add_opp_table(dev);
+	opp_table = _add_opp_table(dev, false);
 	if (IS_ERR(opp_table))
 		return opp_table;
 
@@ -2306,7 +2323,7 @@ int dev_pm_opp_add(struct device *dev, unsigned long freq, unsigned long u_volt)
 	struct opp_table *opp_table;
 	int ret;
 
-	opp_table = _add_opp_table(dev);
+	opp_table = _add_opp_table(dev, true);
 	if (IS_ERR(opp_table))
 		return PTR_ERR(opp_table);
 
