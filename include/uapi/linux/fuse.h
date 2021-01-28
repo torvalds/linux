@@ -830,6 +830,7 @@ struct fuse_in_header {
 	uint32_t	padding;
 };
 
+/* fuse_passthrough_out for passthrough V1 */
 struct fuse_passthrough_out {
 	uint32_t	fd;
 	/* For future implementation */
@@ -914,7 +915,8 @@ struct fuse_notify_retrieve_in {
 /* Device ioctls: */
 #define FUSE_DEV_IOC_MAGIC		229
 #define FUSE_DEV_IOC_CLONE		_IOR(FUSE_DEV_IOC_MAGIC, 0, uint32_t)
-#define FUSE_DEV_IOC_PASSTHROUGH_OPEN	_IOW(FUSE_DEV_IOC_MAGIC, 1, struct fuse_passthrough_out)
+/* 127 is reserved for the V1 interface implementation in Android */
+#define FUSE_DEV_IOC_PASSTHROUGH_OPEN	_IOW(FUSE_DEV_IOC_MAGIC, 127, struct fuse_passthrough_out)
 
 struct fuse_lseek_in {
 	uint64_t	fh;
