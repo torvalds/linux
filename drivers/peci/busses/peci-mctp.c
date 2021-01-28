@@ -61,6 +61,12 @@ static const struct mctp_peci_vdm_hdr peci_hdr_template = {
 #define PECI_VDM_TYPE	0x0200
 #define PECI_VDM_MASK	0xff00
 
+#define CPUNODEID_CFG_LCLNODEID_MASK	GENMASK(2, 0)
+#define CPUNODEID_CFG_OFFSET	0xc0
+#define CPUNODEID_CFG_BUS	0x1e
+#define CPUNODEID_CFG_DEV	0
+#define CPUNODEID_CFG_FUNC	0
+
 struct node_cfg {
 	u8 eid;
 	u16 bdf;
@@ -70,6 +76,7 @@ struct mctp_peci {
 	struct peci_adapter *adapter;
 	struct device *dev;
 	struct mctp_client *peci_client;
+	struct node_cfg cpus[PECI_OFFSET_MAX];
 	u8 tag;
 };
 
@@ -220,28 +227,74 @@ retry:
 	return rx_packet;
 }
 
+static void mctp_peci_cpu_discovery(struct peci_adapter *adapter)
+{
+	const u8 eids[] = { 0x1d, 0x3d, 0x5d, 0x7d, 0x9d, 0xbd, 0xdd, 0xfd };
+	struct mctp_peci *priv = peci_get_adapdata(adapter);
+	u8 tx_buf[PECI_RDENDPTCFG_PCI_WRITE_LEN];
+	struct mctp_pcie_packet *rx_packet;
+	struct node_cfg cpu;
+	int i, node_id, ret;
+	u8 *rx_buf;
+	u32 addr;
+
+	addr = CPUNODEID_CFG_OFFSET;     /* [11:0] offset */
+	addr |= CPUNODEID_CFG_FUNC << 12;/* [14:12] function */
+	addr |= CPUNODEID_CFG_DEV << 15; /* [19:15] device */
+	addr |= CPUNODEID_CFG_BUS << 20; /* [27:20] bus, [31:28] reserved */
+
+	tx_buf[0] = PECI_RDENDPTCFG_CMD;
+	tx_buf[1] = 0;
+	tx_buf[2] = PECI_ENDPTCFG_TYPE_LOCAL_PCI;
+	tx_buf[3] = 0; /* Endpoint ID */
+	tx_buf[4] = 0; /* Reserved */
+	tx_buf[5] = 0; /* Reserved */
+	tx_buf[6] = PECI_ENDPTCFG_ADDR_TYPE_PCI;
+	tx_buf[7] = 0; /* PCI Segment */
+	tx_buf[8] = (u8)addr;
+	tx_buf[9] = (u8)(addr >> 8);
+	tx_buf[10] = (u8)(addr >> 16);
+	tx_buf[11] = (u8)(addr >> 24);
+
+	for (i = 0; i < PECI_OFFSET_MAX; i++) {
+		cpu.eid = eids[i];
+
+		ret = aspeed_mctp_get_eid_bdf(priv->peci_client, cpu.eid, &cpu.bdf);
+		if (ret)
+			continue;
+
+		rx_packet = mctp_peci_send_receive(adapter, &cpu,
+						   PECI_RDENDPTCFG_PCI_WRITE_LEN,
+						   PECI_RDENDPTCFG_READ_LEN_BASE + 4,
+						   tx_buf);
+		if (IS_ERR(rx_packet))
+			continue;
+
+		rx_buf = (u8 *)(rx_packet->data.payload) + sizeof(struct mctp_peci_vdm_hdr);
+		node_id = rx_buf[1] & CPUNODEID_CFG_LCLNODEID_MASK;
+
+		priv->cpus[node_id] = cpu;
+		aspeed_mctp_packet_free(rx_packet);
+	}
+}
+
 static int
 mctp_peci_get_address(struct peci_adapter *adapter, u8 peci_addr, struct node_cfg *cpu)
 {
+	struct mctp_peci *priv = peci_get_adapdata(adapter);
+	int node_id = peci_addr - 0x30;
+
 	/*
-	 * TODO: This is just a temporary hack to enable PECI over MCTP on
-	 * platforms with 2 sockets.
-	 * We are only able to hardcode MCTP endpoints and BDFs for CPU 0 and
-	 * CPU 1. To support all CPUs, we need to add resolving CPU ID and
-	 * endpoint ID.
+	 * XXX: Is it possible we're able to communicate with CPU 0 before other
+	 * CPUs are up? Make sure we're always discovering all CPUs.
 	 */
-	switch (peci_addr) {
-	case 0x30:
-		cpu->eid = 0x1d;
-		cpu->bdf = 0x6a18;
-	break;
-	case 0x31:
-		cpu->eid = 0x3d;
-		cpu->bdf = 0xe818;
-	break;
-	default:
+	if (!priv->cpus[0].eid)
+		mctp_peci_cpu_discovery(adapter);
+
+	if (!priv->cpus[node_id].eid)
 		return -EINVAL;
-	}
+
+	*cpu = priv->cpus[node_id];
 
 	return 0;
 }
