@@ -256,7 +256,6 @@ static void rxe_rcv_mcast_pkt(struct rxe_dev *rxe, struct sk_buff *skb)
 
 	list_for_each_entry(mce, &mcg->qp_list, qp_list) {
 		qp = mce->qp;
-		pkt = SKB_TO_PKT(skb);
 
 		/* validate qp for incoming packet */
 		err = check_type_state(rxe, pkt, qp);
@@ -268,12 +267,18 @@ static void rxe_rcv_mcast_pkt(struct rxe_dev *rxe, struct sk_buff *skb)
 			continue;
 
 		/* for all but the last qp create a new clone of the
-		 * skb and pass to the qp.
+		 * skb and pass to the qp. If an error occurs in the
+		 * checks for the last qp in the list we need to
+		 * free the skb since it hasn't been passed on to
+		 * rxe_rcv_pkt() which would free it later.
 		 */
-		if (mce->qp_list.next != &mcg->qp_list)
+		if (mce->qp_list.next != &mcg->qp_list) {
 			per_qp_skb = skb_clone(skb, GFP_ATOMIC);
-		else
+		} else {
 			per_qp_skb = skb;
+			/* show we have consumed the skb */
+			skb = NULL;
+		}
 
 		if (unlikely(!per_qp_skb))
 			continue;
@@ -288,9 +293,8 @@ static void rxe_rcv_mcast_pkt(struct rxe_dev *rxe, struct sk_buff *skb)
 
 	rxe_drop_ref(mcg);	/* drop ref from rxe_pool_get_key. */
 
-	return;
-
 err1:
+	/* free skb if not consumed */
 	kfree_skb(skb);
 }
 
