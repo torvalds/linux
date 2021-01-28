@@ -27,15 +27,6 @@
 #define PRIO_TO_NICE(prio)	((prio) - DEFAULT_PRIO)
 
 /*
- * 'User priority' is the nice value converted to something we
- * can work with better when scaling various scheduler parameters,
- * it's a [ 0 ... 39 ] range.
- */
-#define USER_PRIO(p)		((p)-MAX_RT_PRIO)
-#define TASK_USER_PRIO(p)	USER_PRIO((p)->static_prio)
-#define MAX_USER_PRIO		(USER_PRIO(MAX_PRIO))
-
-/*
  * Convert nice value [19,-20] to rlimit style value [1,40].
  */
 static inline long nice_to_rlimit(long nice)
