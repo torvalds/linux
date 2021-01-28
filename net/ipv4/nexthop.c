@@ -680,16 +680,11 @@ static bool ipv4_good_nh(const struct fib_nh *nh)
 	return !!(state & NUD_VALID);
 }
 
-struct nexthop *nexthop_select_path(struct nexthop *nh, int hash)
+static struct nexthop *nexthop_select_path_mp(struct nh_group *nhg, int hash)
 {
 	struct nexthop *rc = NULL;
-	struct nh_group *nhg;
 	int i;
 
-	if (!nh->is_group)
-		return nh;
-
-	nhg = rcu_dereference(nh->nh_grp);
 	for (i = 0; i < nhg->num_nh; ++i) {
 		struct nh_grp_entry *nhge = &nhg->nh_entries[i];
 		struct nh_info *nhi;
@@ -720,6 +715,21 @@ struct nexthop *nexthop_select_path(struct nexthop *nh, int hash)
 	}
 
 	return rc;
+}
+
+struct nexthop *nexthop_select_path(struct nexthop *nh, int hash)
+{
+	struct nh_group *nhg;
+
+	if (!nh->is_group)
+		return nh;
+
+	nhg = rcu_dereference(nh->nh_grp);
+	if (nhg->mpath)
+		return nexthop_select_path_mp(nhg, hash);
+
+	/* Unreachable. */
+	return NULL;
 }
 EXPORT_SYMBOL_GPL(nexthop_select_path);
 
