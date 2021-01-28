@@ -74,7 +74,7 @@ few:
 Enabling "nested" (x86)
 -----------------------
 
-From Linux kernel v4.19 onwards, the ``nested`` KVM parameter is enabled
+From Linux kernel v4.20 onwards, the ``nested`` KVM parameter is enabled
 by default for Intel and AMD.  (Though your Linux distribution might
 override this default.)
 
