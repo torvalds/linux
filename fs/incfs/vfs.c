@@ -624,15 +624,14 @@ static void maybe_delete_incomplete_file(struct file *f,
 
 	vfs_fsync(df->df_backing_file_context->bc_file, 0);
 	error = incfs_unlink(incomplete_file_dentry);
-	if (error)
+	if (error) {
+		pr_warn("incfs: Deleting incomplete file failed: %d\n", error);
 		goto out;
+	}
 
 	notify_unlink(f->f_path.dentry, file_id_str, INCFS_INCOMPLETE_NAME);
 
 out:
-	if (error)
-		pr_warn("incfs: Deleting incomplete file failed: %d\n", error);
-
 	dput(incomplete_file_dentry);
 	kfree(file_id_str);
 	revert_creds(old_cred);

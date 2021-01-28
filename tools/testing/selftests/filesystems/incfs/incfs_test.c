@@ -3476,6 +3476,7 @@ out:
 #define DIRS 3
 static int inotify_test(const char *mount_dir)
 {
+	const char *mapped_file_name = "mapped_name";
 	struct test_file file = {
 		.name = "file",
 		.size = 16 * INCFS_DATA_FILE_BLOCK_SIZE
@@ -3494,6 +3495,7 @@ static int inotify_test(const char *mount_dir)
 	const char *names[DIRS] = {};
 	int res;
 	char id[sizeof(incfs_uuid_t) * 2 + 1];
+	struct incfs_create_mapped_file_args mfa;
 
 	/* File creation triggers inotify events in .index and .incomplete? */
 	TEST(backing_dir = create_backing_dir(mount_dir), backing_dir);
@@ -3547,6 +3549,23 @@ static int inotify_test(const char *mount_dir)
 	TESTEQUAL(strcmp(names[0], file.name), 0);
 	TESTEQUAL(strcmp(names[1], id), 0);
 	TESTEQUAL(strcmp(names[2], id), 0);
+
+	/* Creating a mapped file triggers inotify event */
+	mfa = (struct incfs_create_mapped_file_args) {
+		.size = INCFS_DATA_FILE_BLOCK_SIZE,
+		.mode = 0664,
+		.file_name = ptr_to_u64(mapped_file_name),
+		.source_file_id = file.id,
+		.source_offset = INCFS_DATA_FILE_BLOCK_SIZE,
+	};
+
+	TEST(res = ioctl(cmd_fd, INCFS_IOC_CREATE_MAPPED_FILE, &mfa),
+	     res != -1);
+	TEST(res = read(notify_fd, buffer, sizeof(buffer)), res != -1);
+	event = (struct inotify_event *) buffer;
+	TESTEQUAL(event->wd, wds[0]);
+	TESTEQUAL(event->mask, IN_CREATE);
+	TESTEQUAL(strcmp(event->name, mapped_file_name), 0);
 
 	/* File completion triggers inotify event in .incomplete? */
 	TESTEQUAL(emit_test_file_data(mount_dir, &file), 0);
