@@ -273,9 +273,6 @@ static int mhi_net_probe(struct mhi_device *mhi_dev,
 	SET_NETDEV_DEV(ndev, &mhi_dev->dev);
 	SET_NETDEV_DEVTYPE(ndev, &wwan_type);
 
-	/* All MHI net channels have 128 ring elements (at least for now) */
-	mhi_netdev->rx_queue_sz = 128;
-
 	INIT_DELAYED_WORK(&mhi_netdev->rx_refill, mhi_net_rx_refill_work);
 	u64_stats_init(&mhi_netdev->stats.rx_syncp);
 	u64_stats_init(&mhi_netdev->stats.tx_syncp);
@@ -284,6 +281,9 @@ static int mhi_net_probe(struct mhi_device *mhi_dev,
 	err = mhi_prepare_for_transfer(mhi_dev);
 	if (err)
 		goto out_err;
+
+	/* Number of transfer descriptors determines size of the queue */
+	mhi_netdev->rx_queue_sz = mhi_get_free_desc_count(mhi_dev, DMA_FROM_DEVICE);
 
 	err = register_netdev(ndev);
 	if (err)
