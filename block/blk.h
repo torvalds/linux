@@ -334,8 +334,10 @@ struct bio *blk_next_bio(struct bio *bio, unsigned int nr_pages, gfp_t gfp);
 
 #ifdef CONFIG_BLK_DEV_ZONED
 void blk_queue_free_zone_bitmaps(struct request_queue *q);
+void blk_queue_clear_zone_settings(struct request_queue *q);
 #else
 static inline void blk_queue_free_zone_bitmaps(struct request_queue *q) {}
+static inline void blk_queue_clear_zone_settings(struct request_queue *q) {}
 #endif
 
 int blk_alloc_devt(struct block_device *part, dev_t *devt);

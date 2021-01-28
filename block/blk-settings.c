@@ -910,6 +910,8 @@ void blk_queue_set_zoned(struct gendisk *disk, enum blk_zoned_model model)
 		 */
 		blk_queue_zone_write_granularity(q,
 						queue_logical_block_size(q));
+	} else {
+		blk_queue_clear_zone_settings(q);
 	}
 }
 EXPORT_SYMBOL_GPL(blk_queue_set_zoned);
