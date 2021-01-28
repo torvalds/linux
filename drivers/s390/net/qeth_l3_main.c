@@ -1604,8 +1604,10 @@ static int qeth_l3_get_cast_type_rcu(struct sk_buff *skb, struct dst_entry *dst,
 	case htons(ETH_P_IPV6):
 		return ipv6_addr_is_multicast(&ipv6_hdr(skb)->daddr) ?
 				RTN_MULTICAST : RTN_UNICAST;
+	case htons(ETH_P_AF_IUCV):
+		return RTN_UNICAST;
 	default:
-		/* ... and MAC address */
+		/* OSA only: ... and MAC address */
 		return qeth_get_ether_cast_type(skb);
 	}
 }
@@ -1651,14 +1653,6 @@ static void qeth_l3_fill_header(struct qeth_qdio_out_q *queue,
 	} else {
 		hdr->hdr.l3.id = QETH_HEADER_TYPE_LAYER3;
 
-		if (proto == htons(ETH_P_AF_IUCV)) {
-			l3_hdr->flags = QETH_HDR_IPV6 | QETH_CAST_UNICAST;
-			l3_hdr->next_hop.addr.s6_addr16[0] = htons(0xfe80);
-			memcpy(&l3_hdr->next_hop.addr.s6_addr32[2],
-			       iucv_trans_hdr(skb)->destUserID, 8);
-			return;
-		}
-
 		if (skb->ip_summed == CHECKSUM_PARTIAL) {
 			qeth_tx_csum(skb, &hdr->hdr.l3.ext_flags, proto);
 			/* some HW requires combined L3+L4 csum offload: */
@@ -1687,16 +1681,25 @@ static void qeth_l3_fill_header(struct qeth_qdio_out_q *queue,
 		cast_type = qeth_l3_get_cast_type_rcu(skb, dst, proto);
 	l3_hdr->flags |= qeth_l3_cast_type_to_flag(cast_type);
 
-	if (proto == htons(ETH_P_IP)) {
+	switch (proto) {
+	case htons(ETH_P_IP):
 		l3_hdr->next_hop.addr.s6_addr32[3] =
 					qeth_next_hop_v4_rcu(skb, dst);
-	} else if (proto == htons(ETH_P_IPV6)) {
+		break;
+	case htons(ETH_P_IPV6):
 		l3_hdr->next_hop.addr = *qeth_next_hop_v6_rcu(skb, dst);
 
 		hdr->hdr.l3.flags |= QETH_HDR_IPV6;
 		if (!IS_IQD(card))
 			hdr->hdr.l3.flags |= QETH_HDR_PASSTHRU;
-	} else {
+		break;
+	case htons(ETH_P_AF_IUCV):
+		l3_hdr->next_hop.addr.s6_addr16[0] = htons(0xfe80);
+		memcpy(&l3_hdr->next_hop.addr.s6_addr32[2],
+		       iucv_trans_hdr(skb)->destUserID, 8);
+		l3_hdr->flags |= QETH_HDR_IPV6;
+		break;
+	default:
 		/* OSA only: */
 		l3_hdr->flags |= QETH_HDR_PASSTHRU;
 	}
