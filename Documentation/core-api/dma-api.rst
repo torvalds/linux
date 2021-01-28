@@ -565,6 +565,16 @@ dma_alloc_pages().  page must be the pointer returned by dma_alloc_pages().
 
 ::
 
+	int
+	dma_mmap_pages(struct device *dev, struct vm_area_struct *vma,
+		       size_t size, struct page *page)
+
+Map an allocation returned from dma_alloc_pages() into a user address space.
+dev and size must be the same as those passed into dma_alloc_pages().
+page must be the pointer returned by dma_alloc_pages().
+
+::
+
 	void *
 	dma_alloc_noncoherent(struct device *dev, size_t size,
 			dma_addr_t *dma_handle, enum dma_data_direction dir,
