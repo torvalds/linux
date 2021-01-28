@@ -182,7 +182,7 @@ static inline int iucv_below_msglim(struct sock *sk)
 	if (sk->sk_state != IUCV_CONNECTED)
 		return 1;
 	if (iucv->transport == AF_IUCV_TRANS_IUCV)
-		return (skb_queue_len(&iucv->send_skb_q) < iucv->path->msglim);
+		return (atomic_read(&iucv->skbs_in_xmit) < iucv->path->msglim);
 	else
 		return ((atomic_read(&iucv->msg_sent) < iucv->msglimit_peer) &&
 			(atomic_read(&iucv->pendings) <= 0));
@@ -269,8 +269,10 @@ static int afiucv_hs_send(struct iucv_message *imsg, struct sock *sock,
 	}
 
 	skb_queue_tail(&iucv->send_skb_q, nskb);
+	atomic_inc(&iucv->skbs_in_xmit);
 	err = dev_queue_xmit(skb);
 	if (net_xmit_eval(err)) {
+		atomic_dec(&iucv->skbs_in_xmit);
 		skb_unlink(nskb, &iucv->send_skb_q);
 		kfree_skb(nskb);
 	} else {
@@ -424,7 +426,7 @@ static void iucv_sock_close(struct sock *sk)
 		sk->sk_state = IUCV_CLOSING;
 		sk->sk_state_change(sk);
 
-		if (!err && !skb_queue_empty(&iucv->send_skb_q)) {
+		if (!err && atomic_read(&iucv->skbs_in_xmit) > 0) {
 			if (sock_flag(sk, SOCK_LINGER) && sk->sk_lingertime)
 				timeo = sk->sk_lingertime;
 			else
@@ -491,6 +493,7 @@ static struct sock *iucv_sock_alloc(struct socket *sock, int proto, gfp_t prio, 
 	atomic_set(&iucv->pendings, 0);
 	iucv->flags = 0;
 	iucv->msglimit = 0;
+	atomic_set(&iucv->skbs_in_xmit, 0);
 	atomic_set(&iucv->msg_sent, 0);
 	atomic_set(&iucv->msg_recv, 0);
 	iucv->path = NULL;
@@ -1055,6 +1058,7 @@ static int iucv_sock_sendmsg(struct socket *sock, struct msghdr *msg,
 		}
 	} else { /* Classic VM IUCV transport */
 		skb_queue_tail(&iucv->send_skb_q, skb);
+		atomic_inc(&iucv->skbs_in_xmit);
 
 		if (((iucv->path->flags & IUCV_IPRMDATA) & iucv->flags) &&
 		    skb->len <= 7) {
@@ -1063,6 +1067,7 @@ static int iucv_sock_sendmsg(struct socket *sock, struct msghdr *msg,
 			/* on success: there is no message_complete callback */
 			/* for an IPRMDATA msg; remove skb from send queue   */
 			if (err == 0) {
+				atomic_dec(&iucv->skbs_in_xmit);
 				skb_unlink(skb, &iucv->send_skb_q);
 				kfree_skb(skb);
 			}
@@ -1071,6 +1076,7 @@ static int iucv_sock_sendmsg(struct socket *sock, struct msghdr *msg,
 			/* IUCV_IPRMDATA path flag is set... sever path */
 			if (err == 0x15) {
 				pr_iucv->path_sever(iucv->path, NULL);
+				atomic_dec(&iucv->skbs_in_xmit);
 				skb_unlink(skb, &iucv->send_skb_q);
 				err = -EPIPE;
 				goto fail;
@@ -1109,6 +1115,8 @@ static int iucv_sock_sendmsg(struct socket *sock, struct msghdr *msg,
 			} else {
 				err = -EPIPE;
 			}
+
+			atomic_dec(&iucv->skbs_in_xmit);
 			skb_unlink(skb, &iucv->send_skb_q);
 			goto fail;
 		}
@@ -1748,9 +1756,13 @@ static void iucv_callback_txdone(struct iucv_path *path,
 {
 	struct sock *sk = path->private;
 	struct sk_buff *this = NULL;
-	struct sk_buff_head *list = &iucv_sk(sk)->send_skb_q;
+	struct sk_buff_head *list;
 	struct sk_buff *list_skb;
+	struct iucv_sock *iucv;
 	unsigned long flags;
+
+	iucv = iucv_sk(sk);
+	list = &iucv->send_skb_q;
 
 	bh_lock_sock(sk);
 
@@ -1761,8 +1773,11 @@ static void iucv_callback_txdone(struct iucv_path *path,
 			break;
 		}
 	}
-	if (this)
+	if (this) {
+		atomic_dec(&iucv->skbs_in_xmit);
 		__skb_unlink(this, list);
+	}
+
 	spin_unlock_irqrestore(&list->lock, flags);
 
 	if (this) {
@@ -1772,7 +1787,7 @@ static void iucv_callback_txdone(struct iucv_path *path,
 	}
 
 	if (sk->sk_state == IUCV_CLOSING) {
-		if (skb_queue_empty(&iucv_sk(sk)->send_skb_q)) {
+		if (atomic_read(&iucv->skbs_in_xmit) == 0) {
 			sk->sk_state = IUCV_CLOSED;
 			sk->sk_state_change(sk);
 		}
@@ -2150,6 +2165,7 @@ static void afiucv_hs_callback_txnotify(struct sk_buff *skb,
 		if (skb_shinfo(list_skb) == skb_shinfo(skb)) {
 			switch (n) {
 			case TX_NOTIFY_OK:
+				atomic_dec(&iucv->skbs_in_xmit);
 				__skb_unlink(list_skb, list);
 				kfree_skb(list_skb);
 				iucv_sock_wake_msglim(sk);
@@ -2158,6 +2174,7 @@ static void afiucv_hs_callback_txnotify(struct sk_buff *skb,
 				atomic_inc(&iucv->pendings);
 				break;
 			case TX_NOTIFY_DELAYED_OK:
+				atomic_dec(&iucv->skbs_in_xmit);
 				__skb_unlink(list_skb, list);
 				atomic_dec(&iucv->pendings);
 				if (atomic_read(&iucv->pendings) <= 0)
@@ -2169,6 +2186,7 @@ static void afiucv_hs_callback_txnotify(struct sk_buff *skb,
 			case TX_NOTIFY_TPQFULL: /* not yet used */
 			case TX_NOTIFY_GENERALERROR:
 			case TX_NOTIFY_DELAYED_GENERALERROR:
+				atomic_dec(&iucv->skbs_in_xmit);
 				__skb_unlink(list_skb, list);
 				kfree_skb(list_skb);
 				if (sk->sk_state == IUCV_CONNECTED) {
@@ -2183,7 +2201,7 @@ static void afiucv_hs_callback_txnotify(struct sk_buff *skb,
 	spin_unlock_irqrestore(&list->lock, flags);
 
 	if (sk->sk_state == IUCV_CLOSING) {
-		if (skb_queue_empty(&iucv_sk(sk)->send_skb_q)) {
+		if (atomic_read(&iucv->skbs_in_xmit) == 0) {
 			sk->sk_state = IUCV_CLOSED;
 			sk->sk_state_change(sk);
 		}
