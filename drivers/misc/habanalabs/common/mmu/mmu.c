@@ -507,7 +507,7 @@ static void hl_mmu_pa_page_with_offset(struct hl_ctx *ctx, u64 virt_addr,
 	p = (char *)p + hop0_shift_off;
 	p = (char *)p + ((hops->used_hops - 1) * sizeof(u64));
 	hop_shift = *(u64 *)p;
-	offset_mask = (1 << hop_shift) - 1;
+	offset_mask = (1ull << hop_shift) - 1;
 	addr_mask = ~(offset_mask);
 	*phys_addr = (tmp_phys_addr & addr_mask) |
 					(virt_addr & offset_mask);
