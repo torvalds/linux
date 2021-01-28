@@ -279,7 +279,9 @@ struct tb_drom_entry_port {
 
 
 /**
- * tb_drom_read_uid_only - read uid directly from drom
+ * tb_drom_read_uid_only() - Read UID directly from DROM
+ * @sw: Router whose UID to read
+ * @uid: UID is placed here
  *
  * Does not use the cached copy in sw->drom. Used during resume to check switch
  * identity.
@@ -520,7 +522,14 @@ static int tb_drom_read_n(struct tb_switch *sw, u16 offset, u8 *val,
 }
 
 /**
- * tb_drom_read - copy drom to sw->drom and parse it
+ * tb_drom_read() - Copy DROM to sw->drom and parse it
+ * @sw: Router whose DROM to read and parse
+ *
+ * This function reads router DROM and if successful parses the entries and
+ * populates the fields in @sw accordingly. Can be called for any router
+ * generation.
+ *
+ * Returns %0 in case of success and negative errno otherwise.
  */
 int tb_drom_read(struct tb_switch *sw)
 {
