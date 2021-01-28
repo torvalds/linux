@@ -886,6 +886,10 @@ config PREEMPTIRQ_DELAY_TEST
 	  irq-disabled critical sections for 500us:
 	  modprobe preemptirq_delay_test test_mode=irq delay=500 burst_size=3
 
+	  What's more, if you want to attach the test on the cpu which the latency
+	  tracer is running on, specify cpu_affinity=cpu_num at the end of the
+	  command.
+
 	  If unsure, say N
 
 config SYNTH_EVENT_GEN_TEST
