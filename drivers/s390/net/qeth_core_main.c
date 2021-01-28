@@ -6349,9 +6349,11 @@ static int qeth_register_dbf_views(void)
 
 static DEFINE_MUTEX(qeth_mod_mutex);	/* for synchronized module loading */
 
-int qeth_core_load_discipline(struct qeth_card *card,
-		enum qeth_discipline_id discipline)
+int qeth_setup_discipline(struct qeth_card *card,
+			  enum qeth_discipline_id discipline)
 {
+	int rc;
+
 	mutex_lock(&qeth_mod_mutex);
 	switch (discipline) {
 	case QETH_DISCIPLINE_LAYER3:
@@ -6373,12 +6375,25 @@ int qeth_core_load_discipline(struct qeth_card *card,
 		return -EINVAL;
 	}
 
+	rc = card->discipline->setup(card->gdev);
+	if (rc) {
+		if (discipline == QETH_DISCIPLINE_LAYER2)
+			symbol_put(qeth_l2_discipline);
+		else
+			symbol_put(qeth_l3_discipline);
+		card->discipline = NULL;
+
+		return rc;
+	}
+
 	card->options.layer = discipline;
 	return 0;
 }
 
-void qeth_core_free_discipline(struct qeth_card *card)
+void qeth_remove_discipline(struct qeth_card *card)
 {
+	card->discipline->remove(card->gdev);
+
 	if (IS_LAYER2(card))
 		symbol_put(qeth_l2_discipline);
 	else
@@ -6586,23 +6601,18 @@ static int qeth_core_probe_device(struct ccwgroup_device *gdev)
 	default:
 		card->info.layer_enforced = true;
 		/* It's so early that we don't need the discipline_mutex yet. */
-		rc = qeth_core_load_discipline(card, enforced_disc);
+		rc = qeth_setup_discipline(card, enforced_disc);
 		if (rc)
-			goto err_load;
+			goto err_setup_disc;
 
 		gdev->dev.type = IS_OSN(card) ? &qeth_osn_devtype :
 						card->discipline->devtype;
-		rc = card->discipline->setup(card->gdev);
-		if (rc)
-			goto err_disc;
 		break;
 	}
 
 	return 0;
 
-err_disc:
-	qeth_core_free_discipline(card);
-err_load:
+err_setup_disc:
 err_chp_desc:
 	free_netdev(card->dev);
 err_card:
@@ -6619,10 +6629,8 @@ static void qeth_core_remove_device(struct ccwgroup_device *gdev)
 	QETH_CARD_TEXT(card, 2, "removedv");
 
 	mutex_lock(&card->discipline_mutex);
-	if (card->discipline) {
-		card->discipline->remove(gdev);
-		qeth_core_free_discipline(card);
-	}
+	if (card->discipline)
+		qeth_remove_discipline(card);
 	mutex_unlock(&card->discipline_mutex);
 
 	qeth_free_qdio_queues(card);
@@ -6642,14 +6650,9 @@ static int qeth_core_set_online(struct ccwgroup_device *gdev)
 	if (!card->discipline) {
 		def_discipline = IS_IQD(card) ? QETH_DISCIPLINE_LAYER3 :
 						QETH_DISCIPLINE_LAYER2;
-		rc = qeth_core_load_discipline(card, def_discipline);
+		rc = qeth_setup_discipline(card, def_discipline);
 		if (rc)
 			goto err;
-		rc = card->discipline->setup(card->gdev);
-		if (rc) {
-			qeth_core_free_discipline(card);
-			goto err;
-		}
 	}
 
 	rc = qeth_set_online(card, card->discipline);
