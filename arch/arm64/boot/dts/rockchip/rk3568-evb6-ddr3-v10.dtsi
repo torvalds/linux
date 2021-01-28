@@ -253,6 +253,10 @@
 	/delete-node/ mxc6655xa@15;
 };
 
+&csi2_dphy_hw {
+	status = "okay";
+};
+
 &csi2_dphy0 {
 	status = "okay";
 
