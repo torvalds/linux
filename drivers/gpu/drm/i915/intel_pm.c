@@ -2930,7 +2930,7 @@ static void intel_read_wm_latency(struct drm_i915_private *dev_priv,
 		 * any underrun. If not able to get Dimm info assume 16GB dimm
 		 * to avoid any underrun.
 		 */
-		if (dev_priv->dram_info.is_16gb_dimm)
+		if (dev_priv->dram_info.wm_lv_0_adjust_needed)
 			wm[0] += 1;
 
 	} else if (IS_HASWELL(dev_priv) || IS_BROADWELL(dev_priv)) {

@@ -207,7 +207,7 @@ skl_dram_get_channels_info(struct drm_i915_private *i915)
 		return -EINVAL;
 	}
 
-	dram_info->is_16gb_dimm = ch0.is_16gb_dimm || ch1.is_16gb_dimm;
+	dram_info->wm_lv_0_adjust_needed = ch0.is_16gb_dimm || ch1.is_16gb_dimm;
 
 	dram_info->symmetric_memory = intel_is_dram_symmetric(&ch0, &ch1);
 
@@ -479,7 +479,7 @@ static int gen11_get_dram_info(struct drm_i915_private *i915)
 static int gen12_get_dram_info(struct drm_i915_private *i915)
 {
 	/* Always needed for GEN12+ */
-	i915->dram_info.is_16gb_dimm = true;
+	i915->dram_info.wm_lv_0_adjust_needed = true;
 
 	return icl_pcode_read_mem_global_info(i915);
 }
@@ -490,11 +490,10 @@ void intel_dram_detect(struct drm_i915_private *i915)
 	int ret;
 
 	/*
-	 * Assume 16Gb DIMMs are present until proven otherwise.
-	 * This is only used for the level 0 watermark latency
-	 * w/a which does not apply to bxt/glk.
+	 * Assume level 0 watermark latency adjustment is needed until proven
+	 * otherwise, this w/a is not needed by bxt/glk.
 	 */
-	dram_info->is_16gb_dimm = !IS_GEN9_LP(i915);
+	dram_info->wm_lv_0_adjust_needed = !IS_GEN9_LP(i915);
 
 	if (INTEL_GEN(i915) < 9 || !HAS_DISPLAY(i915))
 		return;
@@ -512,8 +511,8 @@ void intel_dram_detect(struct drm_i915_private *i915)
 
 	drm_dbg_kms(&i915->drm, "DRAM channels: %u\n", dram_info->num_channels);
 
-	drm_dbg_kms(&i915->drm, "DRAM 16Gb DIMMs: %s\n",
-		    yesno(dram_info->is_16gb_dimm));
+	drm_dbg_kms(&i915->drm, "Watermark level 0 adjustment needed: %s\n",
+		    yesno(dram_info->wm_lv_0_adjust_needed));
 }
 
 static u32 gen9_edram_size_mb(struct drm_i915_private *i915, u32 cap)
