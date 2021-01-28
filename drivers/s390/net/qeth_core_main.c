@@ -3692,24 +3692,27 @@ static void qeth_flush_buffers(struct qeth_qdio_out_q *queue, int index,
 	rc = do_QDIO(CARD_DDEV(queue->card), qdio_flags,
 		     queue->queue_no, index, count);
 
-	/* Fake the TX completion interrupt: */
-	if (IS_IQD(card)) {
-		unsigned int frames = READ_ONCE(queue->max_coalesced_frames);
-		unsigned int usecs = READ_ONCE(queue->coalesce_usecs);
-
-		if (frames && queue->coalesced_frames >= frames) {
-			napi_schedule(&queue->napi);
-			queue->coalesced_frames = 0;
-			QETH_TXQ_STAT_INC(queue, coal_frames);
-		} else if (usecs) {
-			qeth_tx_arm_timer(queue, usecs);
-		}
-	}
-
-	if (rc) {
+	switch (rc) {
+	case 0:
+	case -ENOBUFS:
 		/* ignore temporary SIGA errors without busy condition */
-		if (rc == -ENOBUFS)
-			return;
+
+		/* Fake the TX completion interrupt: */
+		if (IS_IQD(card)) {
+			unsigned int frames = READ_ONCE(queue->max_coalesced_frames);
+			unsigned int usecs = READ_ONCE(queue->coalesce_usecs);
+
+			if (frames && queue->coalesced_frames >= frames) {
+				napi_schedule(&queue->napi);
+				queue->coalesced_frames = 0;
+				QETH_TXQ_STAT_INC(queue, coal_frames);
+			} else if (usecs) {
+				qeth_tx_arm_timer(queue, usecs);
+			}
+		}
+
+		break;
+	default:
 		QETH_CARD_TEXT(queue->card, 2, "flushbuf");
 		QETH_CARD_TEXT_(queue->card, 2, " q%d", queue->queue_no);
 		QETH_CARD_TEXT_(queue->card, 2, " idx%d", index);
@@ -3719,7 +3722,6 @@ static void qeth_flush_buffers(struct qeth_qdio_out_q *queue, int index,
 		/* this must not happen under normal circumstances. if it
 		 * happens something is really wrong -> recover */
 		qeth_schedule_recovery(queue->card);
-		return;
 	}
 }
 
