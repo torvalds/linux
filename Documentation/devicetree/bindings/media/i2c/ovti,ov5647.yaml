@@ -31,27 +31,15 @@ properties:
     maxItems: 1
 
   port:
-    type: object
-    description: |-
-      Should contain one endpoint sub-node used to model connection to the
-      video receiver according to the specification defined in
-      Documentation/devicetree/bindings/media/video-interfaces.txt.
+    $ref: /schemas/graph.yaml#/$defs/port-base
 
     properties:
       endpoint:
-        type: object
+        $ref: /schemas/media/video-interfaces.yaml#
+        unevaluatedProperties: false
 
         properties:
-          remote-endpoint:
-            description: |-
-              phandle to the video receiver input port.
-
-          clock-noncontinuous:
-            type: boolean
-            description: |-
-              Set to true to allow MIPI CSI-2 non-continuous clock operations.
-
-        additionalProperties: false
+          clock-noncontinuous: true
 
     additionalProperties: false
 
