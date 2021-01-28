@@ -5853,6 +5853,13 @@ int read_extent_buffer_pages(struct extent_buffer *eb, int wait, int mirror_num)
 	for (i = 0; i < num_pages; i++) {
 		page = eb->pages[i];
 		if (wait == WAIT_NONE) {
+			/*
+			 * WAIT_NONE is only utilized by readahead. If we can't
+			 * acquire the lock atomically it means either the eb
+			 * is being read out or under modification.
+			 * Either way the eb will be or has been cached,
+			 * readahead can exit safely.
+			 */
 			if (!trylock_page(page))
 				goto unlock_exit;
 		} else {
