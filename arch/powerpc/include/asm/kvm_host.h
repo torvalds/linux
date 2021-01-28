@@ -28,7 +28,6 @@
 
 #define KVM_MAX_VCPUS		NR_CPUS
 #define KVM_MAX_VCORES		NR_CPUS
-#define KVM_USER_MEM_SLOTS	512
 
 #include <asm/cputhreads.h>
 
