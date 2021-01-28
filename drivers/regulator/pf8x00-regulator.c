@@ -399,7 +399,7 @@ static int pf8x00_identify(struct pf8x00_chip *chip)
 		name = "PF8121A";
 		break;
 	case PF8200:
-		name = "PF8100";
+		name = "PF8200";
 		break;
 	default:
 		dev_err(chip->dev, "Unknown pf8x00 device id 0x%x\n", dev_id);
