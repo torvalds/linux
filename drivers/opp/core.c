@@ -1015,8 +1015,16 @@ static int _set_opp(struct device *dev, struct opp_table *opp_table,
 	/* Scaling up? Configure required OPPs before frequency */
 	if (!scaling_down) {
 		ret = _set_required_opps(dev, opp_table, opp, true);
-		if (ret)
+		if (ret) {
+			dev_err(dev, "Failed to set required opps: %d\n", ret);
 			return ret;
+		}
+
+		ret = _set_opp_bw(opp_table, opp, dev);
+		if (ret) {
+			dev_err(dev, "Failed to set bw: %d\n", ret);
+			return ret;
+		}
 	}
 
 	if (opp_table->set_opp) {
@@ -1029,24 +1037,30 @@ static int _set_opp(struct device *dev, struct opp_table *opp_table,
 		ret = _generic_set_opp_clk_only(dev, opp_table->clk, freq);
 	}
 
+	if (ret)
+		return ret;
+
 	/* Scaling down? Configure required OPPs after frequency */
-	if (!ret && scaling_down) {
-		ret = _set_required_opps(dev, opp_table, opp, false);
-		if (ret)
-			dev_err(dev, "Failed to set required opps: %d\n", ret);
-	}
-
-	if (!ret) {
+	if (scaling_down) {
 		ret = _set_opp_bw(opp_table, opp, dev);
-		if (!ret) {
-			opp_table->enabled = true;
-			dev_pm_opp_put(old_opp);
+		if (ret) {
+			dev_err(dev, "Failed to set bw: %d\n", ret);
+			return ret;
+		}
 
-			/* Make sure current_opp doesn't get freed */
-			dev_pm_opp_get(opp);
-			opp_table->current_opp = opp;
+		ret = _set_required_opps(dev, opp_table, opp, false);
+		if (ret) {
+			dev_err(dev, "Failed to set required opps: %d\n", ret);
+			return ret;
 		}
 	}
+
+	opp_table->enabled = true;
+	dev_pm_opp_put(old_opp);
+
+	/* Make sure current_opp doesn't get freed */
+	dev_pm_opp_get(opp);
+	opp_table->current_opp = opp;
 
 	return ret;
 }
