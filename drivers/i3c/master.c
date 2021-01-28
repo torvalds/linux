@@ -326,11 +326,13 @@ static int i3c_device_remove(struct device *dev)
 {
 	struct i3c_device *i3cdev = dev_to_i3cdev(dev);
 	struct i3c_driver *driver = drv_to_i3cdrv(dev->driver);
-	int ret;
+	int ret = 0;
 
-	ret = driver->remove(i3cdev);
-	if (ret)
-		return ret;
+	if (driver->remove) {
+		ret = driver->remove(i3cdev);
+		if (ret)
+			return ret;
+	}
 
 	i3c_device_free_ibi(i3cdev);
 

@@ -262,6 +262,11 @@ int i3c_driver_register_with_owner(struct i3c_driver *drv, struct module *owner)
 	drv->driver.owner = owner;
 	drv->driver.bus = &i3c_bus_type;
 
+	if (!drv->probe) {
+		pr_err("Trying to register an i3c driver without probe callback\n");
+		return -EINVAL;
+	}
+
 	return driver_register(&drv->driver);
 }
 EXPORT_SYMBOL_GPL(i3c_driver_register_with_owner);
