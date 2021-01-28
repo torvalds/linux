@@ -3873,7 +3873,6 @@ static void intel_ddi_pre_enable_hdmi(struct intel_atomic_state *state,
 	struct intel_digital_port *dig_port = enc_to_dig_port(encoder);
 	struct intel_hdmi *intel_hdmi = &dig_port->hdmi;
 	struct drm_i915_private *dev_priv = to_i915(encoder->base.dev);
-	int level = intel_ddi_hdmi_level(encoder, crtc_state);
 
 	intel_dp_dual_mode_set_tmds_output(intel_hdmi, true);
 	intel_ddi_clk_select(encoder, crtc_state);
@@ -3883,20 +3882,6 @@ static void intel_ddi_pre_enable_hdmi(struct intel_atomic_state *state,
 							   dig_port->ddi_io_power_domain);
 
 	icl_program_mg_dp_mode(dig_port, crtc_state);
-
-	if (INTEL_GEN(dev_priv) >= 12)
-		tgl_ddi_vswing_sequence(encoder, crtc_state, level);
-	else if (INTEL_GEN(dev_priv) == 11)
-		icl_ddi_vswing_sequence(encoder, crtc_state, level);
-	else if (IS_CANNONLAKE(dev_priv))
-		cnl_ddi_vswing_sequence(encoder, crtc_state, level);
-	else if (IS_GEN9_LP(dev_priv))
-		bxt_ddi_vswing_sequence(encoder, crtc_state, level);
-	else
-		intel_prepare_hdmi_ddi_buffers(encoder, level);
-
-	if (IS_GEN9_BC(dev_priv))
-		skl_ddi_set_iboost(encoder, crtc_state, level);
 
 	intel_ddi_enable_pipe_clock(encoder, crtc_state);
 
@@ -4273,6 +4258,7 @@ static void intel_enable_ddi_hdmi(struct intel_atomic_state *state,
 	struct drm_i915_private *dev_priv = to_i915(encoder->base.dev);
 	struct intel_digital_port *dig_port = enc_to_dig_port(encoder);
 	struct drm_connector *connector = conn_state->connector;
+	int level = intel_ddi_hdmi_level(encoder, crtc_state);
 	enum port port = encoder->port;
 
 	if (!intel_hdmi_handle_sink_scrambling(encoder, connector,
@@ -4281,6 +4267,20 @@ static void intel_enable_ddi_hdmi(struct intel_atomic_state *state,
 		drm_dbg_kms(&dev_priv->drm,
 			    "[CONNECTOR:%d:%s] Failed to configure sink scrambling/TMDS bit clock ratio\n",
 			    connector->base.id, connector->name);
+
+	if (INTEL_GEN(dev_priv) >= 12)
+		tgl_ddi_vswing_sequence(encoder, crtc_state, level);
+	else if (INTEL_GEN(dev_priv) == 11)
+		icl_ddi_vswing_sequence(encoder, crtc_state, level);
+	else if (IS_CANNONLAKE(dev_priv))
+		cnl_ddi_vswing_sequence(encoder, crtc_state, level);
+	else if (IS_GEN9_LP(dev_priv))
+		bxt_ddi_vswing_sequence(encoder, crtc_state, level);
+	else
+		intel_prepare_hdmi_ddi_buffers(encoder, level);
+
+	if (IS_GEN9_BC(dev_priv))
+		skl_ddi_set_iboost(encoder, crtc_state, level);
 
 	/* Display WA #1143: skl,kbl,cfl */
 	if (IS_GEN9_BC(dev_priv)) {
