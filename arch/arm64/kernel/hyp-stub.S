@@ -85,6 +85,8 @@ SYM_CODE_END(\label)
 	invalid_vector	el1_fiq_invalid
 	invalid_vector	el1_error_invalid
 
+	.popsection
+
 /*
  * __hyp_set_vectors: Call this after boot to set the initial hypervisor
  * vectors as part of hypervisor installation.  On an SMP system, this should
