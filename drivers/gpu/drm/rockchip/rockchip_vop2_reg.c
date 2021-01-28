@@ -945,6 +945,8 @@ static const struct vop2_win_regs rk3568_esmart_win_data = {
 	.r2y_en = VOP_REG(RK3568_ESMART0_CTRL0, 0x1, 1),
 	.csc_mode = VOP_REG(RK3568_ESMART0_CTRL0, 0x3, 2),
 	.ymirror = VOP_REG(RK3568_ESMART0_CTRL1, 0x1, 31),
+	.color_key = VOP_REG(RK3568_ESMART0_COLOR_KEY_CTRL, 0x3fffffff, 0),
+	.color_key_en = VOP_REG(RK3366_LIT_WIN0_COLOR_KEY, 0x1, 31),
 };
 
 /*

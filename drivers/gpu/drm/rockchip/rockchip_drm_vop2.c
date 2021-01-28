@@ -132,6 +132,10 @@
 
 #define VOP2_CLUSTER_YUV444_10 0x12
 
+#define VOP2_COLOR_KEY_NONE		(0 << 31)
+#define VOP2_COLOR_KEY_MASK		(1 << 31)
+
+
 enum vop2_data_format {
 	VOP2_FMT_ARGB8888 = 0,
 	VOP2_FMT_RGB888,
@@ -238,6 +242,7 @@ struct vop2_plane_state {
 	int color_space;
 	int global_alpha;
 	int blend_mode;
+	int color_key;
 	void *yrgb_kvaddr;
 	unsigned long offset;
 	int pdaf_data_type;
@@ -314,6 +319,7 @@ struct vop2_win {
 	struct drm_property *input_height_prop;
 	struct drm_property *output_width_prop;
 	struct drm_property *output_height_prop;
+	struct drm_property *color_key_prop;
 	struct drm_property *scale_prop;
 	struct drm_property *name_prop;
 };
@@ -2380,6 +2386,60 @@ static void vop2_plane_atomic_disable(struct drm_plane *plane, struct drm_plane_
 	spin_unlock(&vop2->reg_lock);
 }
 
+/*
+ * The color key is 10 bit, so all format should
+ * convert to 10 bit here.
+ */
+static void vop2_plane_setup_color_key(struct drm_plane *plane)
+{
+	struct drm_plane_state *pstate = plane->state;
+	struct vop2_plane_state *vpstate = to_vop2_plane_state(pstate);
+	struct drm_framebuffer *fb = pstate->fb;
+	struct vop2_win *win = to_vop2_win(plane);
+	struct vop2 *vop2 = win->vop2;
+	uint32_t color_key_en = 0;
+	uint32_t color_key;
+	uint32_t r = 0;
+	uint32_t g = 0;
+	uint32_t b = 0;
+
+	if (!(vpstate->color_key & VOP2_COLOR_KEY_MASK) || fb->format->is_yuv) {
+		VOP_WIN_SET(vop2, win, color_key_en, 0);
+		return;
+	}
+
+	switch (fb->format->format) {
+	case DRM_FORMAT_RGB565:
+	case DRM_FORMAT_BGR565:
+		r = (vpstate->color_key & 0xf800) >> 11;
+		g = (vpstate->color_key & 0x7e0) >> 5;
+		b = (vpstate->color_key & 0x1f);
+		r <<= 5;
+		g <<= 4;
+		b <<= 5;
+		color_key_en = 1;
+		break;
+	case DRM_FORMAT_XRGB8888:
+	case DRM_FORMAT_ARGB8888:
+	case DRM_FORMAT_XBGR8888:
+	case DRM_FORMAT_ABGR8888:
+	case DRM_FORMAT_RGB888:
+	case DRM_FORMAT_BGR888:
+		r = (vpstate->color_key & 0xff0000) >> 16;
+		g = (vpstate->color_key & 0xff00) >> 8;
+		b = (vpstate->color_key & 0xff);
+		r <<= 2;
+		g <<= 2;
+		b <<= 2;
+		color_key_en = 1;
+		break;
+	}
+
+	color_key = (r << 20) || (g << 10) || b;
+	VOP_WIN_SET(vop2, win, color_key_en, color_key_en);
+	VOP_WIN_SET(vop2, win, color_key, color_key);
+}
+
 static void vop2_plane_atomic_update(struct drm_plane *plane, struct drm_plane_state *old_state)
 {
 	struct drm_plane_state *pstate = plane->state;
@@ -2559,7 +2619,7 @@ static void vop2_plane_atomic_update(struct drm_plane *plane, struct drm_plane_s
 	}
 
 	vop2_setup_scale(vop2, win, actual_w, actual_h, dsp_w, dsp_h, fb->format->format);
-
+	vop2_plane_setup_color_key(plane);
 	VOP_WIN_SET(vop2, win, act_info, act_info);
 	VOP_WIN_SET(vop2, win, dsp_info, dsp_info);
 	VOP_WIN_SET(vop2, win, dsp_st, dsp_st);
@@ -2794,6 +2854,7 @@ static int vop2_atomic_plane_set_property(struct drm_plane *plane,
 {
 	struct rockchip_drm_private *private = plane->dev->dev_private;
 	struct vop2_plane_state *vpstate = to_vop2_plane_state(state);
+	struct vop2_win *win = to_vop2_win(plane);
 
 	if (property == private->eotf_prop) {
 		vpstate->eotf = val;
@@ -2810,6 +2871,11 @@ static int vop2_atomic_plane_set_property(struct drm_plane *plane,
 		return 0;
 	}
 
+	if (property == win->color_key_prop) {
+		vpstate->color_key = val;
+		return 0;
+	}
+
 	DRM_ERROR("failed to set vop2 plane property id:%d, name:%s\n",
 		  property->base.id, property->name);
 
@@ -2823,6 +2889,7 @@ static int vop2_atomic_plane_get_property(struct drm_plane *plane,
 {
 	struct rockchip_drm_private *private = plane->dev->dev_private;
 	struct vop2_plane_state *vpstate = to_vop2_plane_state(state);
+	struct vop2_win *win = to_vop2_win(plane);
 
 	if (property == private->eotf_prop) {
 		*val = vpstate->eotf;
@@ -2849,6 +2916,11 @@ static int vop2_atomic_plane_get_property(struct drm_plane *plane,
 				return 0;
 			}
 		}
+	}
+
+	if (property == win->color_key_prop) {
+		*val = vpstate->color_key;
+		return 0;
 	}
 
 	DRM_ERROR("failed to get vop2 plane property id:%d, name:%s\n",
@@ -5038,11 +5110,19 @@ static int vop2_plane_init(struct vop2 *vop2, struct vop2_win *win, unsigned lon
 	win->scale_prop = drm_property_create_range(vop2->drm_dev, DRM_MODE_PROP_IMMUTABLE,
 						    "SCALE_RATE", win->max_downscale_factor,
 						    win->max_upscale_factor);
+	/*
+	 * Support 24 bit(RGB888) or 16 bit(rgb565) color key.
+	 * Bit 31 is used as a flag to disable (0) or enable
+	 * color keying (1).
+	 */
+	win->color_key_prop = drm_property_create_range(vop2->drm_dev, 0, "colorkey", 0,
+							0x80ffffff);
+
 	if (!win->input_width_prop || !win->input_height_prop ||
 	    !win->output_width_prop || !win->output_height_prop ||
-	    !win->scale_prop) {
-		DRM_ERROR("failed to create max_input/output property\n");
-		return -EINVAL;
+	    !win->scale_prop || !win->color_key_prop) {
+		DRM_ERROR("failed to create property\n");
+		return -ENOMEM;
 	}
 
 	drm_object_attach_property(&win->base.base, win->input_width_prop, 0);
@@ -5050,6 +5130,7 @@ static int vop2_plane_init(struct vop2 *vop2, struct vop2_win *win, unsigned lon
 	drm_object_attach_property(&win->base.base, win->output_width_prop, 0);
 	drm_object_attach_property(&win->base.base, win->output_height_prop, 0);
 	drm_object_attach_property(&win->base.base, win->scale_prop, 0);
+	drm_object_attach_property(&win->base.base, win->color_key_prop, 0);
 
 	return 0;
 }

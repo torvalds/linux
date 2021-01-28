@@ -515,8 +515,8 @@ struct vop2_win_regs {
 	struct vop_reg alpha_mode;
 	struct vop_reg alpha_en;
 	struct vop_reg global_alpha_val;
-	struct vop_reg key_color;
-	struct vop_reg key_en;
+	struct vop_reg color_key;
+	struct vop_reg color_key_en;
 };
 
 struct vop2_video_port_regs {
