@@ -334,6 +334,7 @@ void cfg80211_destroy_ifaces(struct cfg80211_registered_device *rdev)
 	struct wireless_dev *wdev, *tmp;
 
 	ASSERT_RTNL();
+	lockdep_assert_wiphy(&rdev->wiphy);
 
 	list_for_each_entry_safe(wdev, tmp, &rdev->wiphy.wdev_list, list) {
 		if (wdev->nl_owner_dead)
@@ -349,7 +350,9 @@ static void cfg80211_destroy_iface_wk(struct work_struct *work)
 			    destroy_work);
 
 	rtnl_lock();
+	wiphy_lock(&rdev->wiphy);
 	cfg80211_destroy_ifaces(rdev);
+	wiphy_unlock(&rdev->wiphy);
 	rtnl_unlock();
 }
 
