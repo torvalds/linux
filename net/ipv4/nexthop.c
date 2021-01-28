@@ -1971,16 +1971,23 @@ errout_free:
 	goto out;
 }
 
-static bool nh_dump_filtered(struct nexthop *nh, int dev_idx, int master_idx,
-			     bool group_filter, u8 family)
+struct nh_dump_filter {
+	int dev_idx;
+	int master_idx;
+	bool group_filter;
+	bool fdb_filter;
+};
+
+static bool nh_dump_filtered(struct nexthop *nh,
+			     struct nh_dump_filter *filter, u8 family)
 {
 	const struct net_device *dev;
 	const struct nh_info *nhi;
 
-	if (group_filter && !nh->is_group)
+	if (filter->group_filter && !nh->is_group)
 		return true;
 
-	if (!dev_idx && !master_idx && !family)
+	if (!filter->dev_idx && !filter->master_idx && !family)
 		return false;
 
 	if (nh->is_group)
@@ -1991,26 +1998,26 @@ static bool nh_dump_filtered(struct nexthop *nh, int dev_idx, int master_idx,
 		return true;
 
 	dev = nhi->fib_nhc.nhc_dev;
-	if (dev_idx && (!dev || dev->ifindex != dev_idx))
+	if (filter->dev_idx && (!dev || dev->ifindex != filter->dev_idx))
 		return true;
 
-	if (master_idx) {
+	if (filter->master_idx) {
 		struct net_device *master;
 
 		if (!dev)
 			return true;
 
 		master = netdev_master_upper_dev_get((struct net_device *)dev);
-		if (!master || master->ifindex != master_idx)
+		if (!master || master->ifindex != filter->master_idx)
 			return true;
 	}
 
 	return false;
 }
 
-static int nh_valid_dump_req(const struct nlmsghdr *nlh, int *dev_idx,
-			     int *master_idx, bool *group_filter,
-			     bool *fdb_filter, struct netlink_callback *cb)
+static int nh_valid_dump_req(const struct nlmsghdr *nlh,
+			     struct nh_dump_filter *filter,
+			     struct netlink_callback *cb)
 {
 	struct netlink_ext_ack *extack = cb->extack;
 	struct nlattr *tb[ARRAY_SIZE(rtm_nh_policy_dump)];
@@ -2030,7 +2037,7 @@ static int nh_valid_dump_req(const struct nlmsghdr *nlh, int *dev_idx,
 			NL_SET_ERR_MSG(extack, "Invalid device index");
 			return -EINVAL;
 		}
-		*dev_idx = idx;
+		filter->dev_idx = idx;
 	}
 	if (tb[NHA_MASTER]) {
 		idx = nla_get_u32(tb[NHA_MASTER]);
@@ -2038,10 +2045,10 @@ static int nh_valid_dump_req(const struct nlmsghdr *nlh, int *dev_idx,
 			NL_SET_ERR_MSG(extack, "Invalid master device index");
 			return -EINVAL;
 		}
-		*master_idx = idx;
+		filter->master_idx = idx;
 	}
-	*group_filter = nla_get_flag(tb[NHA_GROUPS]);
-	*fdb_filter = nla_get_flag(tb[NHA_FDB]);
+	filter->group_filter = nla_get_flag(tb[NHA_GROUPS]);
+	filter->fdb_filter = nla_get_flag(tb[NHA_FDB]);
 
 	nhm = nlmsg_data(nlh);
 	if (nhm->nh_protocol || nhm->resvd || nhm->nh_scope || nhm->nh_flags) {
@@ -2055,17 +2062,15 @@ static int nh_valid_dump_req(const struct nlmsghdr *nlh, int *dev_idx,
 /* rtnl */
 static int rtm_dump_nexthop(struct sk_buff *skb, struct netlink_callback *cb)
 {
-	bool group_filter = false, fdb_filter = false;
 	struct nhmsg *nhm = nlmsg_data(cb->nlh);
-	int dev_filter_idx = 0, master_idx = 0;
 	struct net *net = sock_net(skb->sk);
 	struct rb_root *root = &net->nexthop.rb_root;
+	struct nh_dump_filter filter = {};
 	struct rb_node *node;
 	int idx = 0, s_idx;
 	int err;
 
-	err = nh_valid_dump_req(cb->nlh, &dev_filter_idx, &master_idx,
-				&group_filter, &fdb_filter, cb);
+	err = nh_valid_dump_req(cb->nlh, &filter, cb);
 	if (err < 0)
 		return err;
 
@@ -2077,8 +2082,7 @@ static int rtm_dump_nexthop(struct sk_buff *skb, struct netlink_callback *cb)
 			goto cont;
 
 		nh = rb_entry(node, struct nexthop, rb_node);
-		if (nh_dump_filtered(nh, dev_filter_idx, master_idx,
-				     group_filter, nhm->nh_family))
+		if (nh_dump_filtered(nh, &filter, nhm->nh_family))
 			goto cont;
 
 		err = nh_fill_node(skb, nh, RTM_NEWNEXTHOP,
