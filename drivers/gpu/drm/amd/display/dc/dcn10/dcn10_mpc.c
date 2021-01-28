@@ -470,7 +470,7 @@ void mpc1_cursor_lock(struct mpc *mpc, int opp_id, bool lock)
 unsigned int mpc1_get_mpc_out_mux(struct mpc *mpc, int opp_id)
 {
 	struct dcn10_mpc *mpc10 = TO_DCN10_MPC(mpc);
-	uint32_t val = 0;
+	uint32_t val = 0xf;
 
 	if (opp_id < MAX_OPP && REG(MUX[opp_id]))
 		REG_GET(MUX[opp_id], MPC_OUT_MUX, &val);

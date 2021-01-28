@@ -241,6 +241,19 @@ static struct imx_i2c_hwdata vf610_i2c_hwdata = {
 
 };
 
+static const struct platform_device_id imx_i2c_devtype[] = {
+	{
+		.name = "imx1-i2c",
+		.driver_data = (kernel_ulong_t)&imx1_i2c_hwdata,
+	}, {
+		.name = "imx21-i2c",
+		.driver_data = (kernel_ulong_t)&imx21_i2c_hwdata,
+	}, {
+		/* sentinel */
+	}
+};
+MODULE_DEVICE_TABLE(platform, imx_i2c_devtype);
+
 static const struct of_device_id i2c_imx_dt_ids[] = {
 	{ .compatible = "fsl,imx1-i2c", .data = &imx1_i2c_hwdata, },
 	{ .compatible = "fsl,imx21-i2c", .data = &imx21_i2c_hwdata, },
@@ -1330,7 +1343,11 @@ static int i2c_imx_probe(struct platform_device *pdev)
 		return -ENOMEM;
 
 	match = device_get_match_data(&pdev->dev);
-	i2c_imx->hwdata = match;
+	if (match)
+		i2c_imx->hwdata = match;
+	else
+		i2c_imx->hwdata = (struct imx_i2c_hwdata *)
+				platform_get_device_id(pdev)->driver_data;
 
 	/* Setup i2c_imx driver structure */
 	strlcpy(i2c_imx->adapter.name, pdev->name, sizeof(i2c_imx->adapter.name));
@@ -1498,6 +1515,7 @@ static struct platform_driver i2c_imx_driver = {
 		.of_match_table = i2c_imx_dt_ids,
 		.acpi_match_table = i2c_imx_acpi_ids,
 	},
+	.id_table = imx_i2c_devtype,
 };
 
 static int __init i2c_adap_imx_init(void)

@@ -140,12 +140,13 @@ struct litex_soc_ctrl_device {
 	void __iomem *base;
 };
 
+#ifdef CONFIG_OF
 static const struct of_device_id litex_soc_ctrl_of_match[] = {
 	{.compatible = "litex,soc-controller"},
 	{},
 };
-
 MODULE_DEVICE_TABLE(of, litex_soc_ctrl_of_match);
+#endif /* CONFIG_OF */
 
 static int litex_soc_ctrl_probe(struct platform_device *pdev)
 {

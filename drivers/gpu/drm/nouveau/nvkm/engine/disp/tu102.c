@@ -28,7 +28,7 @@
 #include <core/gpuobj.h>
 #include <subdev/timer.h>
 
-static int
+int
 tu102_disp_init(struct nv50_disp *disp)
 {
 	struct nvkm_device *device = disp->base.engine.subdev.device;

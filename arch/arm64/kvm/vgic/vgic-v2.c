@@ -306,20 +306,15 @@ int vgic_v2_map_resources(struct kvm *kvm)
 	struct vgic_dist *dist = &kvm->arch.vgic;
 	int ret = 0;
 
-	if (vgic_ready(kvm))
-		goto out;
-
 	if (IS_VGIC_ADDR_UNDEF(dist->vgic_dist_base) ||
 	    IS_VGIC_ADDR_UNDEF(dist->vgic_cpu_base)) {
 		kvm_err("Need to set vgic cpu and dist addresses first\n");
-		ret = -ENXIO;
-		goto out;
+		return -ENXIO;
 	}
 
 	if (!vgic_v2_check_base(dist->vgic_dist_base, dist->vgic_cpu_base)) {
 		kvm_err("VGIC CPU and dist frames overlap\n");
-		ret = -EINVAL;
-		goto out;
+		return -EINVAL;
 	}
 
 	/*
@@ -329,13 +324,13 @@ int vgic_v2_map_resources(struct kvm *kvm)
 	ret = vgic_init(kvm);
 	if (ret) {
 		kvm_err("Unable to initialize VGIC dynamic data structures\n");
-		goto out;
+		return ret;
 	}
 
 	ret = vgic_register_dist_iodev(kvm, dist->vgic_dist_base, VGIC_V2);
 	if (ret) {
 		kvm_err("Unable to register VGIC MMIO regions\n");
-		goto out;
+		return ret;
 	}
 
 	if (!static_branch_unlikely(&vgic_v2_cpuif_trap)) {
@@ -344,14 +339,11 @@ int vgic_v2_map_resources(struct kvm *kvm)
 					    KVM_VGIC_V2_CPU_SIZE, true);
 		if (ret) {
 			kvm_err("Unable to remap VGIC CPU to VCPU\n");
-			goto out;
+			return ret;
 		}
 	}
 
-	dist->ready = true;
-
-out:
-	return ret;
+	return 0;
 }
 
 DEFINE_STATIC_KEY_FALSE(vgic_v2_cpuif_trap);

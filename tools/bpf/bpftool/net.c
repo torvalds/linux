@@ -11,7 +11,6 @@
 #include <bpf/bpf.h>
 #include <bpf/libbpf.h>
 #include <net/if.h>
-#include <linux/if.h>
 #include <linux/rtnetlink.h>
 #include <linux/socket.h>
 #include <linux/tc_act/tc_bpf.h>

@@ -598,7 +598,7 @@ more details, with real examples.
 	explicitly added to $(targets).
 
 	Assignments to $(targets) are without $(obj)/ prefix. if_changed may be
-	used in conjunction with custom rules as defined in "3.9 Custom Rules".
+	used in conjunction with custom rules as defined in "3.11 Custom Rules".
 
 	Note: It is a typical mistake to forget the FORCE prerequisite.
 	Another common pitfall is that whitespace is sometimes significant; for

@@ -184,7 +184,7 @@ pages either asynchronously or synchronously, depending on the state
 of the system. When the system is not loaded, most of the memory is free
 and allocation requests will be satisfied immediately from the free
 pages supply. As the load increases, the amount of the free pages goes
-down and when it reaches a certain threshold (high watermark), an
+down and when it reaches a certain threshold (low watermark), an
 allocation request will awaken the ``kswapd`` daemon. It will
 asynchronously scan memory pages and either just free them if the data
 they contain is available elsewhere, or evict to the backing storage

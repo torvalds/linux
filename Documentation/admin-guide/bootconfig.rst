@@ -154,7 +154,7 @@ get the boot configuration data.
 Because of this "piggyback" method, there is no need to change or
 update the boot loader and the kernel image itself as long as the boot
 loader passes the correct initrd file size. If by any chance, the boot
-loader passes a longer size, the kernel feils to find the bootconfig data.
+loader passes a longer size, the kernel fails to find the bootconfig data.
 
 To do this operation, Linux kernel provides "bootconfig" command under
 tools/bootconfig, which allows admin to apply or delete the config file
