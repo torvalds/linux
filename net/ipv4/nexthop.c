@@ -209,7 +209,7 @@ static void nexthop_devhash_add(struct net *net, struct nh_info *nhi)
 	hlist_add_head(&nhi->dev_hash, head);
 }
 
-static void nexthop_free_mpath(struct nexthop *nh)
+static void nexthop_free_group(struct nexthop *nh)
 {
 	struct nh_group *nhg;
 	int i;
@@ -249,7 +249,7 @@ void nexthop_free_rcu(struct rcu_head *head)
 	struct nexthop *nh = container_of(head, struct nexthop, rcu);
 
 	if (nh->is_group)
-		nexthop_free_mpath(nh);
+		nexthop_free_group(nh);
 	else
 		nexthop_free_single(nh);
 
