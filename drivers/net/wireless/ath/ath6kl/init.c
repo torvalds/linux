@@ -1904,7 +1904,9 @@ void ath6kl_stop_txrx(struct ath6kl *ar)
 		spin_unlock_bh(&ar->list_lock);
 		ath6kl_cfg80211_vif_stop(vif, test_bit(WMI_READY, &ar->flag));
 		rtnl_lock();
+		wiphy_lock(ar->wiphy);
 		ath6kl_cfg80211_vif_cleanup(vif);
+		wiphy_unlock(ar->wiphy);
 		rtnl_unlock();
 		spin_lock_bh(&ar->list_lock);
 	}

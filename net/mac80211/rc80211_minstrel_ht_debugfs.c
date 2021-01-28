@@ -9,8 +9,12 @@
 #include <linux/ieee80211.h>
 #include <linux/export.h>
 #include <net/mac80211.h>
-#include "rc80211_minstrel.h"
 #include "rc80211_minstrel_ht.h"
+
+struct minstrel_debugfs_info {
+	size_t len;
+	char buf[];
+};
 
 static ssize_t
 minstrel_stats_read(struct file *file, char __user *buf, size_t len, loff_t *ppos)
@@ -52,7 +56,6 @@ minstrel_ht_stats_dump(struct minstrel_ht_sta *mi, int i, char *p)
 
 	for (j = 0; j < MCS_GROUP_RATES; j++) {
 		struct minstrel_rate_stats *mrs = &mi->groups[i].rates[j];
-		static const int bitrates[4] = { 10, 20, 55, 110 };
 		int idx = i * MCS_GROUP_RATES + j;
 		unsigned int duration;
 
@@ -67,6 +70,9 @@ minstrel_ht_stats_dump(struct minstrel_ht_sta *mi, int i, char *p)
 			p += sprintf(p, "VHT%c0 ", htmode);
 			p += sprintf(p, "%cGI ", gimode);
 			p += sprintf(p, "%d  ", mg->streams);
+		} else if (i == MINSTREL_OFDM_GROUP) {
+			p += sprintf(p, "OFDM       ");
+			p += sprintf(p, "1 ");
 		} else {
 			p += sprintf(p, "CCK    ");
 			p += sprintf(p, "%cP  ", j < 4 ? 'L' : 'S');
@@ -84,7 +90,12 @@ minstrel_ht_stats_dump(struct minstrel_ht_sta *mi, int i, char *p)
 		} else if (gflags & IEEE80211_TX_RC_VHT_MCS) {
 			p += sprintf(p, "  MCS%-1u/%1u", j, mg->streams);
 		} else {
-			int r = bitrates[j % 4];
+			int r;
+
+			if (i == MINSTREL_OFDM_GROUP)
+				r = minstrel_ofdm_bitrates[j % 8];
+			else
+				r = minstrel_cck_bitrates[j % 4];
 
 			p += sprintf(p, "   %2u.%1uM", r / 10, r % 10);
 		}
@@ -120,19 +131,10 @@ minstrel_ht_stats_dump(struct minstrel_ht_sta *mi, int i, char *p)
 static int
 minstrel_ht_stats_open(struct inode *inode, struct file *file)
 {
-	struct minstrel_ht_sta_priv *msp = inode->i_private;
-	struct minstrel_ht_sta *mi = &msp->ht;
+	struct minstrel_ht_sta *mi = inode->i_private;
 	struct minstrel_debugfs_info *ms;
 	unsigned int i;
-	int ret;
 	char *p;
-
-	if (!msp->is_ht) {
-		inode->i_private = &msp->legacy;
-		ret = minstrel_stats_open(inode, file);
-		inode->i_private = msp;
-		return ret;
-	}
 
 	ms = kmalloc(32768, GFP_KERNEL);
 	if (!ms)
@@ -199,7 +201,6 @@ minstrel_ht_stats_csv_dump(struct minstrel_ht_sta *mi, int i, char *p)
 
 	for (j = 0; j < MCS_GROUP_RATES; j++) {
 		struct minstrel_rate_stats *mrs = &mi->groups[i].rates[j];
-		static const int bitrates[4] = { 10, 20, 55, 110 };
 		int idx = i * MCS_GROUP_RATES + j;
 		unsigned int duration;
 
@@ -214,6 +215,8 @@ minstrel_ht_stats_csv_dump(struct minstrel_ht_sta *mi, int i, char *p)
 			p += sprintf(p, "VHT%c0,", htmode);
 			p += sprintf(p, "%cGI,", gimode);
 			p += sprintf(p, "%d,", mg->streams);
+		} else if (i == MINSTREL_OFDM_GROUP) {
+			p += sprintf(p, "OFDM,,1,");
 		} else {
 			p += sprintf(p, "CCK,");
 			p += sprintf(p, "%cP,", j < 4 ? 'L' : 'S');
@@ -231,7 +234,13 @@ minstrel_ht_stats_csv_dump(struct minstrel_ht_sta *mi, int i, char *p)
 		} else if (gflags & IEEE80211_TX_RC_VHT_MCS) {
 			p += sprintf(p, ",MCS%-1u/%1u,", j, mg->streams);
 		} else {
-			int r = bitrates[j % 4];
+			int r;
+
+			if (i == MINSTREL_OFDM_GROUP)
+				r = minstrel_ofdm_bitrates[j % 8];
+			else
+				r = minstrel_cck_bitrates[j % 4];
+
 			p += sprintf(p, ",%2u.%1uM,", r / 10, r % 10);
 		}
 
@@ -270,22 +279,12 @@ minstrel_ht_stats_csv_dump(struct minstrel_ht_sta *mi, int i, char *p)
 static int
 minstrel_ht_stats_csv_open(struct inode *inode, struct file *file)
 {
-	struct minstrel_ht_sta_priv *msp = inode->i_private;
-	struct minstrel_ht_sta *mi = &msp->ht;
+	struct minstrel_ht_sta *mi = inode->i_private;
 	struct minstrel_debugfs_info *ms;
 	unsigned int i;
-	int ret;
 	char *p;
 
-	if (!msp->is_ht) {
-		inode->i_private = &msp->legacy;
-		ret = minstrel_stats_csv_open(inode, file);
-		inode->i_private = msp;
-		return ret;
-	}
-
 	ms = kmalloc(32768, GFP_KERNEL);
-
 	if (!ms)
 		return -ENOMEM;
 
@@ -316,10 +315,8 @@ static const struct file_operations minstrel_ht_stat_csv_fops = {
 void
 minstrel_ht_add_sta_debugfs(void *priv, void *priv_sta, struct dentry *dir)
 {
-	struct minstrel_ht_sta_priv *msp = priv_sta;
-
-	debugfs_create_file("rc_stats", 0444, dir, msp,
+	debugfs_create_file("rc_stats", 0444, dir, priv_sta,
 			    &minstrel_ht_stat_fops);
-	debugfs_create_file("rc_stats_csv", 0444, dir, msp,
+	debugfs_create_file("rc_stats_csv", 0444, dir, priv_sta,
 			    &minstrel_ht_stat_csv_fops);
 }
