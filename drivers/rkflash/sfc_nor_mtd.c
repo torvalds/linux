@@ -51,7 +51,7 @@ static int sfc_erase_mtd(struct mtd_info *mtd, struct erase_info *instr)
 	mutex_lock(p_dev->lock);
 
 	if (len == p_dev->mtd.size) {
-		ret = snor_erase(p_dev->snor, 0, CMD_CHIP_ERASE);
+		ret = snor_erase(p_dev->snor, 0, ERASE_CHIP);
 		if (ret) {
 			rkflash_print_error("snor_erase CHIP 0x%x ret=%d\n",
 					    addr, ret);
