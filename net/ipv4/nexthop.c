@@ -2066,9 +2066,23 @@ static int nh_valid_dump_req(const struct nlmsghdr *nlh,
 	return __nh_valid_dump_req(nlh, tb, filter, cb->extack);
 }
 
+struct rtm_dump_nh_ctx {
+	u32 idx;
+};
+
+static struct rtm_dump_nh_ctx *
+rtm_dump_nh_ctx(struct netlink_callback *cb)
+{
+	struct rtm_dump_nh_ctx *ctx = (void *)cb->ctx;
+
+	BUILD_BUG_ON(sizeof(*ctx) > sizeof(cb->ctx));
+	return ctx;
+}
+
 /* rtnl */
 static int rtm_dump_nexthop(struct sk_buff *skb, struct netlink_callback *cb)
 {
+	struct rtm_dump_nh_ctx *ctx = rtm_dump_nh_ctx(cb);
 	struct nhmsg *nhm = nlmsg_data(cb->nlh);
 	struct net *net = sock_net(skb->sk);
 	struct rb_root *root = &net->nexthop.rb_root;
@@ -2081,7 +2095,7 @@ static int rtm_dump_nexthop(struct sk_buff *skb, struct netlink_callback *cb)
 	if (err < 0)
 		return err;
 
-	s_idx = cb->args[0];
+	s_idx = ctx->idx;
 	for (node = rb_first(root); node; node = rb_next(node)) {
 		struct nexthop *nh;
 
@@ -2108,7 +2122,7 @@ cont:
 out:
 	err = skb->len;
 out_err:
-	cb->args[0] = idx;
+	ctx->idx = idx;
 	cb->seq = net->nexthop.seq;
 	nl_dump_check_consistent(cb, nlmsg_hdr(skb));
 
