@@ -152,7 +152,7 @@ static int ccs_data_parse_version(struct bin_container *bin,
 	vv->version_major = ((u16)v->static_data_version_major[0] << 8) +
 		v->static_data_version_major[1];
 	vv->version_minor = ((u16)v->static_data_version_minor[0] << 8) +
-		v->static_data_version_major[1];
+		v->static_data_version_minor[1];
 	vv->date_year =  ((u16)v->year[0] << 8) + v->year[1];
 	vv->date_month = v->month;
 	vv->date_day = v->day;
