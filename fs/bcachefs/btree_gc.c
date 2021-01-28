@@ -158,9 +158,101 @@ fsck_err:
 	return ret;
 }
 
+static int bch2_check_fix_ptrs(struct bch_fs *c, enum btree_id btree_id,
+			       unsigned level, bool is_root,
+			       struct bkey_s_c *k)
+{
+	struct bkey_ptrs_c ptrs = bch2_bkey_ptrs_c(*k);
+	const struct bch_extent_ptr *ptr;
+	bool do_update = false;
+	int ret = 0;
+
+	bkey_for_each_ptr(ptrs, ptr) {
+		struct bch_dev *ca = bch_dev_bkey_exists(c, ptr->dev);
+		struct bucket *g = PTR_BUCKET(ca, ptr, true);
+		struct bucket *g2 = PTR_BUCKET(ca, ptr, false);
+
+		if (fsck_err_on(!g->gen_valid, c,
+				"bucket %u:%zu data type %s ptr gen %u missing in alloc btree",
+				ptr->dev, PTR_BUCKET_NR(ca, ptr),
+				bch2_data_types[ptr_data_type(k->k, ptr)],
+				ptr->gen)) {
+			if (!ptr->cached) {
+				g2->_mark.gen	= g->_mark.gen		= ptr->gen;
+				g2->gen_valid	= g->gen_valid		= true;
+				set_bit(BCH_FS_NEED_ALLOC_WRITE, &c->flags);
+			} else {
+				do_update = true;
+			}
+		}
+
+		if (fsck_err_on(gen_cmp(ptr->gen, g->mark.gen) > 0, c,
+				"bucket %u:%zu data type %s ptr gen in the future: %u > %u",
+				ptr->dev, PTR_BUCKET_NR(ca, ptr),
+				bch2_data_types[ptr_data_type(k->k, ptr)],
+				ptr->gen, g->mark.gen)) {
+			if (!ptr->cached) {
+				g2->_mark.gen	= g->_mark.gen	= ptr->gen;
+				g2->gen_valid	= g->gen_valid	= true;
+				g2->_mark.data_type		= 0;
+				g2->_mark.dirty_sectors		= 0;
+				g2->_mark.cached_sectors	= 0;
+				set_bit(BCH_FS_NEED_ANOTHER_GC, &c->flags);
+				set_bit(BCH_FS_NEED_ALLOC_WRITE, &c->flags);
+			} else {
+				do_update = true;
+			}
+		}
+
+		if (fsck_err_on(!ptr->cached &&
+				gen_cmp(ptr->gen, g->mark.gen) < 0, c,
+				"bucket %u:%zu data type %s stale dirty ptr: %u < %u",
+				ptr->dev, PTR_BUCKET_NR(ca, ptr),
+				bch2_data_types[ptr_data_type(k->k, ptr)],
+				ptr->gen, g->mark.gen))
+			do_update = true;
+	}
+
+	if (do_update) {
+		struct bch_extent_ptr *ptr;
+		struct bkey_i *new;
+
+		if (is_root) {
+			bch_err(c, "cannot update btree roots yet");
+			return -EINVAL;
+		}
+
+		new = kmalloc(bkey_bytes(k->k), GFP_KERNEL);
+		if (!new)
+			return -ENOMEM;
+
+		bkey_reassemble(new, *k);
+
+		bch2_bkey_drop_ptrs(bkey_i_to_s(new), ptr, ({
+			struct bch_dev *ca = bch_dev_bkey_exists(c, ptr->dev);
+			struct bucket *g = PTR_BUCKET(ca, ptr, true);
+
+			(ptr->cached &&
+			 (!g->gen_valid || gen_cmp(ptr->gen, g->mark.gen) > 0)) ||
+			(!ptr->cached &&
+			 gen_cmp(ptr->gen, g->mark.gen) < 0);
+		}));
+
+		ret = bch2_journal_key_insert(c, btree_id, level, new);
+		if (ret)
+			kfree(new);
+		else
+			*k = bkey_i_to_s_c(new);
+	}
+fsck_err:
+	return ret;
+}
+
 /* marking of btree keys/nodes: */
 
-static int bch2_gc_mark_key(struct bch_fs *c, struct bkey_s_c k,
+static int bch2_gc_mark_key(struct bch_fs *c, enum btree_id btree_id,
+			    unsigned level, bool is_root,
+			    struct bkey_s_c k,
 			    u8 *max_stale, bool initial)
 {
 	struct bkey_ptrs_c ptrs = bch2_bkey_ptrs_c(k);
@@ -174,7 +266,6 @@ static int bch2_gc_mark_key(struct bch_fs *c, struct bkey_s_c k,
 		BUG_ON(bch2_journal_seq_verify &&
 		       k.k->version.lo > journal_cur_seq(&c->journal));
 
-		/* XXX change to fsck check */
 		if (fsck_err_on(k.k->version.lo > atomic64_read(&c->key_version), c,
 				"key version number higher than recorded: %llu > %llu",
 				k.k->version.lo,
@@ -190,36 +281,7 @@ static int bch2_gc_mark_key(struct bch_fs *c, struct bkey_s_c k,
 				return ret;
 		}
 
-		bkey_for_each_ptr(ptrs, ptr) {
-			struct bch_dev *ca = bch_dev_bkey_exists(c, ptr->dev);
-			struct bucket *g = PTR_BUCKET(ca, ptr, true);
-			struct bucket *g2 = PTR_BUCKET(ca, ptr, false);
-
-			if (mustfix_fsck_err_on(!g->gen_valid, c,
-					"bucket %u:%zu data type %s ptr gen %u missing in alloc btree",
-					ptr->dev, PTR_BUCKET_NR(ca, ptr),
-					bch2_data_types[ptr_data_type(k.k, ptr)],
-					ptr->gen)) {
-				g2->_mark.gen	= g->_mark.gen		= ptr->gen;
-				g2->gen_valid	= g->gen_valid		= true;
-				set_bit(BCH_FS_NEED_ALLOC_WRITE, &c->flags);
-			}
-
-			if (mustfix_fsck_err_on(gen_cmp(ptr->gen, g->mark.gen) > 0, c,
-					"bucket %u:%zu data type %s ptr gen in the future: %u > %u",
-					ptr->dev, PTR_BUCKET_NR(ca, ptr),
-					bch2_data_types[ptr_data_type(k.k, ptr)],
-					ptr->gen, g->mark.gen)) {
-				/* XXX if it's a cached ptr, drop it */
-				g2->_mark.gen	= g->_mark.gen		= ptr->gen;
-				g2->gen_valid	= g->gen_valid		= true;
-				g2->_mark.data_type		= 0;
-				g2->_mark.dirty_sectors		= 0;
-				g2->_mark.cached_sectors	= 0;
-				set_bit(BCH_FS_NEED_ANOTHER_GC, &c->flags);
-				set_bit(BCH_FS_NEED_ALLOC_WRITE, &c->flags);
-			}
-		}
+		ret = bch2_check_fix_ptrs(c, btree_id, level, is_root, &k);
 	}
 
 	bkey_for_each_ptr(ptrs, ptr) {
@@ -259,7 +321,8 @@ static int btree_gc_mark_node(struct bch_fs *c, struct btree *b, u8 *max_stale,
 	while ((k = bch2_btree_node_iter_peek_unpack(&iter, b, &unpacked)).k) {
 		bch2_bkey_debugcheck(c, b, k);
 
-		ret = bch2_gc_mark_key(c, k, max_stale, initial);
+		ret = bch2_gc_mark_key(c, b->c.btree_id, b->c.level, false,
+				       k, max_stale, initial);
 		if (ret)
 			break;
 
@@ -329,7 +392,8 @@ static int bch2_gc_btree(struct bch_fs *c, enum btree_id btree_id,
 	mutex_lock(&c->btree_root_lock);
 	b = c->btree_roots[btree_id].b;
 	if (!btree_node_fake(b))
-		ret = bch2_gc_mark_key(c, bkey_i_to_s_c(&b->key),
+		ret = bch2_gc_mark_key(c, b->c.btree_id, b->c.level, true,
+				       bkey_i_to_s_c(&b->key),
 				       &max_stale, initial);
 	gc_pos_set(c, gc_pos_btree_root(b->c.btree_id));
 	mutex_unlock(&c->btree_root_lock);
@@ -357,7 +421,8 @@ static int bch2_gc_btree_init_recurse(struct bch_fs *c, struct btree *b,
 		BUG_ON(bkey_cmp(k.k->p, b->data->min_key) < 0);
 		BUG_ON(bkey_cmp(k.k->p, b->data->max_key) > 0);
 
-		ret = bch2_gc_mark_key(c, k, &max_stale, true);
+		ret = bch2_gc_mark_key(c, b->c.btree_id, b->c.level, false,
+				       k, &max_stale, true);
 		if (ret)
 			break;
 
@@ -455,7 +520,8 @@ static int bch2_gc_btree_init(struct bch_fs *c,
 		ret = bch2_gc_btree_init_recurse(c, b, target_depth);
 
 	if (!ret)
-		ret = bch2_gc_mark_key(c, bkey_i_to_s_c(&b->key),
+		ret = bch2_gc_mark_key(c, b->c.btree_id, b->c.level, true,
+				       bkey_i_to_s_c(&b->key),
 				       &max_stale, true);
 fsck_err:
 	six_unlock_read(&b->c.lock);
