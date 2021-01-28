@@ -4086,8 +4086,7 @@ int rcutree_prepare_cpu(unsigned int cpu)
 	raw_spin_unlock_rcu_node(rnp);		/* irqs remain disabled. */
 	/*
 	 * Lock in case the CB/GP kthreads are still around handling
-	 * old callbacks (longer term we should flush all callbacks
-	 * before completing CPU offline)
+	 * old callbacks.
 	 */
 	rcu_nocb_lock(rdp);
 	if (rcu_segcblist_empty(&rdp->cblist)) /* No early-boot CBs? */

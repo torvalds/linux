@@ -2399,23 +2399,18 @@ static int rdp_offload_toggle(struct rcu_data *rdp,
 	return 0;
 }
 
-static int __rcu_nocb_rdp_deoffload(struct rcu_data *rdp)
+static long rcu_nocb_rdp_deoffload(void *arg)
 {
+	struct rcu_data *rdp = arg;
 	struct rcu_segcblist *cblist = &rdp->cblist;
 	unsigned long flags;
 	int ret;
 
+	WARN_ON_ONCE(rdp->cpu != raw_smp_processor_id());
+
 	pr_info("De-offloading %d\n", rdp->cpu);
 
 	rcu_nocb_lock_irqsave(rdp, flags);
-	/*
-	 * If there are still pending work offloaded, the offline
-	 * CPU won't help much handling them.
-	 */
-	if (cpu_is_offline(rdp->cpu) && !rcu_segcblist_empty(&rdp->cblist)) {
-		rcu_nocb_unlock_irqrestore(rdp, flags);
-		return -EBUSY;
-	}
 
 	ret = rdp_offload_toggle(rdp, false, flags);
 	swait_event_exclusive(rdp->nocb_state_wq,
@@ -2446,14 +2441,6 @@ static int __rcu_nocb_rdp_deoffload(struct rcu_data *rdp)
 	return ret;
 }
 
-static long rcu_nocb_rdp_deoffload(void *arg)
-{
-	struct rcu_data *rdp = arg;
-
-	WARN_ON_ONCE(rdp->cpu != raw_smp_processor_id());
-	return __rcu_nocb_rdp_deoffload(rdp);
-}
-
 int rcu_nocb_cpu_deoffload(int cpu)
 {
 	struct rcu_data *rdp = per_cpu_ptr(&rcu_data, cpu);
@@ -2466,12 +2453,14 @@ int rcu_nocb_cpu_deoffload(int cpu)
 	mutex_lock(&rcu_state.barrier_mutex);
 	cpus_read_lock();
 	if (rcu_rdp_is_offloaded(rdp)) {
-		if (cpu_online(cpu))
+		if (cpu_online(cpu)) {
 			ret = work_on_cpu(cpu, rcu_nocb_rdp_deoffload, rdp);
-		else
-			ret = __rcu_nocb_rdp_deoffload(rdp);
-		if (!ret)
-			cpumask_clear_cpu(cpu, rcu_nocb_mask);
+			if (!ret)
+				cpumask_clear_cpu(cpu, rcu_nocb_mask);
+		} else {
+			pr_info("NOCB: Can't CB-deoffload an offline CPU\n");
+			ret = -EINVAL;
+		}
 	}
 	cpus_read_unlock();
 	mutex_unlock(&rcu_state.barrier_mutex);
@@ -2480,12 +2469,14 @@ int rcu_nocb_cpu_deoffload(int cpu)
 }
 EXPORT_SYMBOL_GPL(rcu_nocb_cpu_deoffload);
 
-static int __rcu_nocb_rdp_offload(struct rcu_data *rdp)
+static long rcu_nocb_rdp_offload(void *arg)
 {
+	struct rcu_data *rdp = arg;
 	struct rcu_segcblist *cblist = &rdp->cblist;
 	unsigned long flags;
 	int ret;
 
+	WARN_ON_ONCE(rdp->cpu != raw_smp_processor_id());
 	/*
 	 * For now we only support re-offload, ie: the rdp must have been
 	 * offloaded on boot first.
@@ -2525,14 +2516,6 @@ static int __rcu_nocb_rdp_offload(struct rcu_data *rdp)
 	return ret;
 }
 
-static long rcu_nocb_rdp_offload(void *arg)
-{
-	struct rcu_data *rdp = arg;
-
-	WARN_ON_ONCE(rdp->cpu != raw_smp_processor_id());
-	return __rcu_nocb_rdp_offload(rdp);
-}
-
 int rcu_nocb_cpu_offload(int cpu)
 {
 	struct rcu_data *rdp = per_cpu_ptr(&rcu_data, cpu);
@@ -2541,12 +2524,14 @@ int rcu_nocb_cpu_offload(int cpu)
 	mutex_lock(&rcu_state.barrier_mutex);
 	cpus_read_lock();
 	if (!rcu_rdp_is_offloaded(rdp)) {
-		if (cpu_online(cpu))
+		if (cpu_online(cpu)) {
 			ret = work_on_cpu(cpu, rcu_nocb_rdp_offload, rdp);
-		else
-			ret = __rcu_nocb_rdp_offload(rdp);
-		if (!ret)
-			cpumask_set_cpu(cpu, rcu_nocb_mask);
+			if (!ret)
+				cpumask_set_cpu(cpu, rcu_nocb_mask);
+		} else {
+			pr_info("NOCB: Can't CB-offload an offline CPU\n");
+			ret = -EINVAL;
+		}
 	}
 	cpus_read_unlock();
 	mutex_unlock(&rcu_state.barrier_mutex);
