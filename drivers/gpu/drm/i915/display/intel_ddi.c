@@ -3443,10 +3443,12 @@ icl_program_mg_dp_mode(struct intel_digital_port *dig_port,
 {
 	struct drm_i915_private *dev_priv = to_i915(dig_port->base.base.dev);
 	enum tc_port tc_port = intel_port_to_tc(dev_priv, dig_port->base.port);
+	enum phy phy = intel_port_to_phy(dev_priv, dig_port->base.port);
 	u32 ln0, ln1, pin_assignment;
 	u8 width;
 
-	if (dig_port->tc_mode == TC_PORT_TBT_ALT)
+	if (!intel_phy_is_tc(dev_priv, phy) ||
+	    dig_port->tc_mode == TC_PORT_TBT_ALT)
 		return;
 
 	if (INTEL_GEN(dev_priv) >= 12) {
