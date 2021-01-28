@@ -44,6 +44,11 @@ struct mlx5e_l2_rule {
 
 #define MLX5E_L2_ADDR_HASH_SIZE BIT(BITS_PER_BYTE)
 
+struct mlx5e_promisc_table {
+	struct mlx5e_flow_table	ft;
+	struct mlx5_flow_handle	*rule;
+};
+
 struct mlx5e_vlan_table {
 	struct mlx5e_flow_table		ft;
 	DECLARE_BITMAP(active_cvlans, VLAN_N_VID);
@@ -53,6 +58,7 @@ struct mlx5e_vlan_table {
 	struct mlx5_flow_handle	*untagged_rule;
 	struct mlx5_flow_handle	*any_cvlan_rule;
 	struct mlx5_flow_handle	*any_svlan_rule;
+	struct mlx5_flow_handle	*trap_rule;
 	bool			cvlan_filter_disabled;
 };
 
@@ -62,7 +68,7 @@ struct mlx5e_l2_table {
 	struct hlist_head          netdev_mc[MLX5E_L2_ADDR_HASH_SIZE];
 	struct mlx5e_l2_rule	   broadcast;
 	struct mlx5e_l2_rule	   allmulti;
-	struct mlx5e_l2_rule	   promisc;
+	struct mlx5_flow_handle    *trap_rule;
 	bool                       broadcast_enabled;
 	bool                       allmulti_enabled;
 	bool                       promisc_enabled;
@@ -126,7 +132,8 @@ struct mlx5e_ttc_table {
 
 /* NIC prio FTS */
 enum {
-	MLX5E_VLAN_FT_LEVEL = 0,
+	MLX5E_PROMISC_FT_LEVEL,
+	MLX5E_VLAN_FT_LEVEL,
 	MLX5E_L2_FT_LEVEL,
 	MLX5E_TTC_FT_LEVEL,
 	MLX5E_INNER_TTC_FT_LEVEL,
@@ -241,6 +248,7 @@ struct mlx5e_flow_steering {
 	struct mlx5e_ethtool_steering   ethtool;
 #endif
 	struct mlx5e_tc_table           tc;
+	struct mlx5e_promisc_table      promisc;
 	struct mlx5e_vlan_table         vlan;
 	struct mlx5e_l2_table           l2;
 	struct mlx5e_ttc_table          ttc;
@@ -288,6 +296,10 @@ int mlx5e_create_flow_steering(struct mlx5e_priv *priv);
 void mlx5e_destroy_flow_steering(struct mlx5e_priv *priv);
 
 u8 mlx5e_get_proto_by_tunnel_type(enum mlx5e_tunnel_types tt);
+int mlx5e_add_vlan_trap(struct mlx5e_priv *priv, int  trap_id, int tir_num);
+void mlx5e_remove_vlan_trap(struct mlx5e_priv *priv);
+int mlx5e_add_mac_trap(struct mlx5e_priv *priv, int  trap_id, int tir_num);
+void mlx5e_remove_mac_trap(struct mlx5e_priv *priv);
 
 #endif /* __MLX5E_FLOW_STEER_H__ */
 

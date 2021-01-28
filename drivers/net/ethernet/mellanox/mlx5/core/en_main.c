@@ -66,6 +66,7 @@
 #include "lib/mlx5.h"
 #include "en/ptp.h"
 #include "qos.h"
+#include "en/trap.h"
 
 bool mlx5e_check_fragmented_striding_rq_cap(struct mlx5_core_dev *mdev)
 {
@@ -212,6 +213,33 @@ static void mlx5e_disable_async_events(struct mlx5e_priv *priv)
 	mlx5_notifier_unregister(priv->mdev, &priv->events_nb);
 }
 
+static int blocking_event(struct notifier_block *nb, unsigned long event, void *data)
+{
+	struct mlx5e_priv *priv = container_of(nb, struct mlx5e_priv, blocking_events_nb);
+	int err;
+
+	switch (event) {
+	case MLX5_DRIVER_EVENT_TYPE_TRAP:
+		err = mlx5e_handle_trap_event(priv, data);
+		break;
+	default:
+		netdev_warn(priv->netdev, "Sync event: Unknouwn event %ld\n", event);
+		err = -EINVAL;
+	}
+	return err;
+}
+
+static void mlx5e_enable_blocking_events(struct mlx5e_priv *priv)
+{
+	priv->blocking_events_nb.notifier_call = blocking_event;
+	mlx5_blocking_notifier_register(priv->mdev, &priv->blocking_events_nb);
+}
+
+static void mlx5e_disable_blocking_events(struct mlx5e_priv *priv)
+{
+	mlx5_blocking_notifier_unregister(priv->mdev, &priv->blocking_events_nb);
+}
+
 static inline void mlx5e_build_umr_wqe(struct mlx5e_rq *rq,
 				       struct mlx5e_icosq *sq,
 				       struct mlx5e_umr_wqe *wqe)
@@ -343,13 +371,11 @@ static void mlx5e_init_frags_partition(struct mlx5e_rq *rq)
 		prev->last_in_page = true;
 }
 
-static int mlx5e_init_di_list(struct mlx5e_rq *rq,
-			      int wq_sz, int cpu)
+int mlx5e_init_di_list(struct mlx5e_rq *rq, int wq_sz, int node)
 {
 	int len = wq_sz << rq->wqe.info.log_num_frags;
 
-	rq->wqe.di = kvzalloc_node(array_size(len, sizeof(*rq->wqe.di)),
-				   GFP_KERNEL, cpu_to_node(cpu));
+	rq->wqe.di = kvzalloc_node(array_size(len, sizeof(*rq->wqe.di)), GFP_KERNEL, node);
 	if (!rq->wqe.di)
 		return -ENOMEM;
 
@@ -358,7 +384,7 @@ static int mlx5e_init_di_list(struct mlx5e_rq *rq,
 	return 0;
 }
 
-static void mlx5e_free_di_list(struct mlx5e_rq *rq)
+void mlx5e_free_di_list(struct mlx5e_rq *rq)
 {
 	kvfree(rq->wqe.di);
 }
@@ -500,7 +526,7 @@ static int mlx5e_alloc_rq(struct mlx5e_channel *c,
 			goto err_rq_wq_destroy;
 		}
 
-		err = mlx5e_init_di_list(rq, wq_sz, c->cpu);
+		err = mlx5e_init_di_list(rq, wq_sz, cpu_to_node(c->cpu));
 		if (err)
 			goto err_rq_frags;
 
@@ -651,8 +677,7 @@ static void mlx5e_free_rq(struct mlx5e_rq *rq)
 	mlx5_wq_destroy(&rq->wq_ctrl);
 }
 
-static int mlx5e_create_rq(struct mlx5e_rq *rq,
-			   struct mlx5e_rq_param *param)
+int mlx5e_create_rq(struct mlx5e_rq *rq, struct mlx5e_rq_param *param)
 {
 	struct mlx5_core_dev *mdev = rq->mdev;
 
@@ -775,7 +800,7 @@ static int mlx5e_modify_rq_vsd(struct mlx5e_rq *rq, bool vsd)
 	return err;
 }
 
-static void mlx5e_destroy_rq(struct mlx5e_rq *rq)
+void mlx5e_destroy_rq(struct mlx5e_rq *rq)
 {
 	mlx5_core_destroy_rq(rq->mdev, rq->rqn);
 }
@@ -3222,6 +3247,7 @@ int mlx5e_open_locked(struct net_device *netdev)
 
 	priv->profile->update_rx(priv);
 	mlx5e_activate_priv_channels(priv);
+	mlx5e_apply_traps(priv, true);
 	if (priv->profile->update_carrier)
 		priv->profile->update_carrier(priv);
 
@@ -3257,6 +3283,7 @@ int mlx5e_close_locked(struct net_device *netdev)
 	if (!test_bit(MLX5E_STATE_OPENED, &priv->state))
 		return 0;
 
+	mlx5e_apply_traps(priv, false);
 	clear_bit(MLX5E_STATE_OPENED, &priv->state);
 
 	netif_carrier_off(priv->netdev);
@@ -5344,6 +5371,7 @@ static void mlx5e_nic_enable(struct mlx5e_priv *priv)
 	mlx5_lag_add(mdev, netdev);
 
 	mlx5e_enable_async_events(priv);
+	mlx5e_enable_blocking_events(priv);
 	if (mlx5e_monitor_counter_supported(priv))
 		mlx5e_monitor_counter_init(priv);
 
@@ -5381,6 +5409,12 @@ static void mlx5e_nic_disable(struct mlx5e_priv *priv)
 	if (mlx5e_monitor_counter_supported(priv))
 		mlx5e_monitor_counter_cleanup(priv);
 
+	mlx5e_disable_blocking_events(priv);
+	if (priv->en_trap) {
+		mlx5e_deactivate_trap(priv);
+		mlx5e_close_trap(priv->en_trap);
+		priv->en_trap = NULL;
+	}
 	mlx5e_disable_async_events(priv);
 	mlx5_lag_remove(mdev);
 	mlx5_vxlan_reset_to_default(mdev->vxlan);

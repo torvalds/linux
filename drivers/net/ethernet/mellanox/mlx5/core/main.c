@@ -1305,6 +1305,8 @@ static int mlx5_mdev_init(struct mlx5_core_dev *dev, int profile_idx)
 
 	priv->dbg_root = debugfs_create_dir(dev_name(dev->device),
 					    mlx5_debugfs_root);
+	INIT_LIST_HEAD(&priv->traps);
+
 	err = mlx5_health_init(dev);
 	if (err)
 		goto err_health_init;

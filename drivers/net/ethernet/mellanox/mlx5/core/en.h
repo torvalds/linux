@@ -564,6 +564,7 @@ typedef bool (*mlx5e_fp_post_rx_wqes)(struct mlx5e_rq *rq);
 typedef void (*mlx5e_fp_dealloc_wqe)(struct mlx5e_rq*, u16);
 
 int mlx5e_rq_set_handlers(struct mlx5e_rq *rq, struct mlx5e_params *params, bool xsk);
+void mlx5e_rq_set_trap_handlers(struct mlx5e_rq *rq, struct mlx5e_params *params);
 
 enum mlx5e_rq_flag {
 	MLX5E_RQ_FLAG_XDP_XMIT,
@@ -805,6 +806,8 @@ struct mlx5e_htb {
 	u16 defcls;
 };
 
+struct mlx5e_trap;
+
 struct mlx5e_priv {
 	/* priv data path fields - start */
 	/* +1 for port ptp ts */
@@ -844,8 +847,10 @@ struct mlx5e_priv {
 
 	struct mlx5_core_dev      *mdev;
 	struct net_device         *netdev;
+	struct mlx5e_trap         *en_trap;
 	struct mlx5e_stats         stats;
 	struct mlx5e_channel_stats channel_stats[MLX5E_MAX_NUM_CHANNELS];
+	struct mlx5e_channel_stats trap_stats;
 	struct mlx5e_port_ptp_stats port_ptp_stats;
 	u16                        max_nch;
 	u8                         max_opened_tc;
@@ -854,6 +859,7 @@ struct mlx5e_priv {
 	u16                        q_counter;
 	u16                        drop_rq_q_counter;
 	struct notifier_block      events_nb;
+	struct notifier_block      blocking_events_nb;
 	int                        num_tc_x_num_ch;
 
 	struct udp_tunnel_nic_info nic_info;
@@ -961,6 +967,8 @@ int mlx5e_open_rq(struct mlx5e_channel *c, struct mlx5e_params *params,
 int mlx5e_wait_for_min_rx_wqes(struct mlx5e_rq *rq, int wait_time);
 void mlx5e_deactivate_rq(struct mlx5e_rq *rq);
 void mlx5e_close_rq(struct mlx5e_rq *rq);
+int mlx5e_create_rq(struct mlx5e_rq *rq, struct mlx5e_rq_param *param);
+void mlx5e_destroy_rq(struct mlx5e_rq *rq);
 
 struct mlx5e_sq_param;
 int mlx5e_open_icosq(struct mlx5e_channel *c, struct mlx5e_params *params,
@@ -1072,6 +1080,8 @@ void mlx5e_destroy_q_counters(struct mlx5e_priv *priv);
 int mlx5e_open_drop_rq(struct mlx5e_priv *priv,
 		       struct mlx5e_rq *drop_rq);
 void mlx5e_close_drop_rq(struct mlx5e_rq *drop_rq);
+int mlx5e_init_di_list(struct mlx5e_rq *rq, int wq_sz, int node);
+void mlx5e_free_di_list(struct mlx5e_rq *rq);
 
 int mlx5e_create_indirect_rqt(struct mlx5e_priv *priv);
 
