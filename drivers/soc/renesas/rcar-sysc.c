@@ -434,6 +434,8 @@ static int __init rcar_sysc_pd_init(void)
 	}
 
 	error = of_genpd_add_provider_onecell(np, &domains->onecell_data);
+	if (!error)
+		of_node_set_flag(np, OF_POPULATED);
 
 out_put:
 	of_node_put(np);
