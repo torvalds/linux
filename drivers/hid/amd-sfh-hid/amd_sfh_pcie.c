@@ -76,9 +76,11 @@ void amd_stop_all_sensors(struct amd_mp2_dev *privdata)
 int amd_mp2_get_sensor_num(struct amd_mp2_dev *privdata, u8 *sensor_id)
 {
 	int activestatus, num_of_sensors = 0;
+	u32 activecontrolstatus;
 
-	privdata->activecontrolstatus = readl(privdata->mmio + AMD_P2C_MSG3);
-	activestatus = privdata->activecontrolstatus >> 4;
+	activecontrolstatus = readl(privdata->mmio + AMD_P2C_MSG3);
+	activestatus = activecontrolstatus >> 4;
+
 	if (ACEL_EN  & activestatus)
 		sensor_id[num_of_sensors++] = accel_idx;
 
