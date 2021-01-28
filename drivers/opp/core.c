@@ -1193,7 +1193,7 @@ unlock:
 	return opp_table;
 }
 
-struct opp_table *_add_opp_table(struct device *dev)
+static struct opp_table *_add_opp_table(struct device *dev)
 {
 	return _add_opp_table_indexed(dev, 0);
 }
