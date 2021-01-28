@@ -1923,6 +1923,10 @@ static int ovl_fill_super(struct super_block *sb, void *data, int silent)
 	unsigned int numlower;
 	int err;
 
+	err = -EIO;
+	if (WARN_ON(sb->s_user_ns != current_user_ns()))
+		goto out;
+
 	sb->s_d_op = &ovl_dentry_operations;
 
 	err = -ENOMEM;
