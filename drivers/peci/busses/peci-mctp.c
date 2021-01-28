@@ -61,6 +61,11 @@ static const struct mctp_peci_vdm_hdr peci_hdr_template = {
 #define PECI_VDM_TYPE	0x0200
 #define PECI_VDM_MASK	0xff00
 
+struct node_cfg {
+	u8 eid;
+	u16 bdf;
+};
+
 struct mctp_peci {
 	struct peci_adapter *adapter;
 	struct device *dev;
@@ -68,34 +73,9 @@ struct mctp_peci {
 	u8 tag;
 };
 
-static int mctp_peci_get_address(u8 peci_addr, u8 *eid, u16 *bdf)
-{
-	/*
-	 * TODO: This is just a temporary hack to enable PECI over MCTP on
-	 * platforms with 2 sockets.
-	 * We are only able to hardcode MCTP endpoints and BDFs for CPU 0 and
-	 * CPU 1. To support all CPUs, we need to add resolving CPU ID and
-	 * endpoint ID.
-	 */
-	switch (peci_addr) {
-	case 0x30:
-		*eid = 0x1d;
-		*bdf = 0x6a18;
-	break;
-	case 0x31:
-		*eid = 0x3d;
-		*bdf = 0xe818;
-	break;
-	default:
-		return -EINVAL;
-	}
-
-	return 0;
-}
-
-static void prepare_tx_packet(struct mctp_pcie_packet *tx_packet,
-			      struct peci_xfer_msg *msg, u8 eid,
-			      u16 bdf, u8 tag)
+static void
+prepare_tx_packet(struct mctp_pcie_packet *tx_packet, struct node_cfg *cpu,
+		  u8 tx_len, u8 rx_len, u8 *tx_buf, u8 tag)
 {
 	struct pcie_transport_hdr *pcie_hdr;
 	struct mctp_protocol_hdr *mctp_hdr;
@@ -116,29 +96,29 @@ static void prepare_tx_packet(struct mctp_pcie_packet *tx_packet,
 	*peci_hdr = peci_hdr_template;
 
 	peci_payload = (u8 *)(tx_packet->data.payload) + sizeof(struct mctp_peci_vdm_hdr);
-	peci_payload[0] = msg->tx_len;
-	peci_payload[1] = msg->rx_len;
-	memcpy(&peci_payload[2], msg->tx_buf, msg->tx_len);
+	peci_payload[0] = tx_len;
+	peci_payload[1] = rx_len;
+	memcpy(&peci_payload[2], tx_buf, tx_len);
 
 	/*
 	 * MCTP packet payload consists of PECI VDM header, WL, RL and actual
 	 * PECI payload
 	 */
-	payload_len = sizeof(struct mctp_peci_vdm_hdr) + 2 + msg->tx_len;
+	payload_len = sizeof(struct mctp_peci_vdm_hdr) + 2 + tx_len;
 	payload_len_dw = PCIE_PKT_ALIGN(payload_len) / sizeof(u32);
 
 	PCIE_SET_DATA_LEN(pcie_hdr, payload_len_dw);
 
 	tx_packet->size = PCIE_PKT_ALIGN(payload_len) + PCIE_VDM_HDR_SIZE;
 
-	mctp_hdr->dest = eid;
-	PCIE_SET_TARGET_ID(pcie_hdr, bdf);
+	mctp_hdr->dest = cpu->eid;
+	PCIE_SET_TARGET_ID(pcie_hdr, cpu->bdf);
 	MCTP_SET_MSG_TAG(mctp_hdr, tag);
 }
 
 static int
 verify_rx_packet(struct peci_adapter *adapter, struct mctp_pcie_packet *rx_packet,
-		 u8 eid, u16 bdf, u8 tag)
+		 struct node_cfg *cpu, u8 tag)
 {
 	struct mctp_peci *priv = peci_get_adapdata(adapter);
 	bool invalid_packet = false;
@@ -156,16 +136,16 @@ verify_rx_packet(struct peci_adapter *adapter, struct mctp_pcie_packet *rx_packe
 
 	requester_id = PCIE_GET_REQUESTER_ID(pcie_hdr);
 
-	if (requester_id != bdf) {
+	if (requester_id != cpu->bdf) {
 		dev_dbg(priv->dev,
 			"mismatch in src bdf: expected: 0x%.4x, got: 0x%.4x",
-			bdf, requester_id);
+			cpu->bdf, requester_id);
 		invalid_packet = true;
 	}
-	if (mctp_hdr->src != eid) {
+	if (mctp_hdr->src != cpu->eid) {
 		dev_dbg(priv->dev,
 			"mismatch in src eid: expected: 0x%.2x, got: 0x%.2x",
-			eid, mctp_hdr->src);
+			cpu->eid, mctp_hdr->src);
 		invalid_packet = true;
 	}
 	if (mctp_hdr->flags_seq_tag != expected_flags) {
@@ -189,33 +169,23 @@ verify_rx_packet(struct peci_adapter *adapter, struct mctp_pcie_packet *rx_packe
 	return 0;
 }
 
-static int
-mctp_peci_xfer(struct peci_adapter *adapter, struct peci_xfer_msg *msg)
+static struct mctp_pcie_packet *
+mctp_peci_send_receive(struct peci_adapter *adapter, struct node_cfg *cpu,
+		       u8 tx_len, u8 rx_len, u8 *tx_buf)
 {
 	struct mctp_peci *priv = peci_get_adapdata(adapter);
 	/* XXX: Sporadically it can take up to 1100 ms for response to arrive */
 	unsigned long timeout = msecs_to_jiffies(1100);
-	u32 max_len = sizeof(struct mctp_pcie_packet_data) -
-		PCIE_VDM_HDR_SIZE - sizeof(struct mctp_peci_vdm_hdr);
 	u8 tag = priv->tag;
 	struct mctp_pcie_packet *tx_packet, *rx_packet;
 	unsigned long current_time, end_time;
 	int ret;
-	u16 bdf;
-	u8 eid;
-
-	if (msg->tx_len > max_len || msg->rx_len > max_len)
-		return -EINVAL;
-
-	ret = mctp_peci_get_address(msg->addr, &eid, &bdf);
-	if (ret)
-		return ret;
 
 	tx_packet = aspeed_mctp_packet_alloc(GFP_KERNEL);
 	if (!tx_packet)
-		return -ENOMEM;
+		return ERR_PTR(-ENOMEM);
 
-	prepare_tx_packet(tx_packet, msg, eid, bdf, tag);
+	prepare_tx_packet(tx_packet, cpu, tx_len, rx_len, tx_buf, tag);
 
 	aspeed_mctp_flush_rx_queue(priv->peci_client);
 
@@ -223,7 +193,7 @@ mctp_peci_xfer(struct peci_adapter *adapter, struct peci_xfer_msg *msg)
 	if (ret) {
 		dev_dbg_ratelimited(priv->dev, "failed to send mctp packet: %d\n", ret);
 		aspeed_mctp_packet_free(tx_packet);
-		return ret;
+		return ERR_PTR(ret);
 	}
 	priv->tag++;
 
@@ -235,11 +205,11 @@ retry:
 			dev_err_ratelimited(priv->dev, "failed to receive mctp packet: %ld\n",
 					    PTR_ERR(rx_packet));
 
-		return PTR_ERR(rx_packet);
+		return rx_packet;
 	}
 	WARN_ON(!rx_packet);
 
-	ret = verify_rx_packet(adapter, rx_packet, eid, bdf, tag);
+	ret = verify_rx_packet(adapter, rx_packet, cpu, tag);
 	current_time = jiffies;
 	if (ret && time_before(current_time, end_time)) {
 		aspeed_mctp_packet_free(rx_packet);
@@ -247,14 +217,62 @@ retry:
 		goto retry;
 	}
 
-	if (!ret)
-		memcpy(msg->rx_buf,
-		       (u8 *)(rx_packet->data.payload) + sizeof(struct mctp_peci_vdm_hdr),
-		       msg->rx_len);
+	return rx_packet;
+}
+
+static int
+mctp_peci_get_address(struct peci_adapter *adapter, u8 peci_addr, struct node_cfg *cpu)
+{
+	/*
+	 * TODO: This is just a temporary hack to enable PECI over MCTP on
+	 * platforms with 2 sockets.
+	 * We are only able to hardcode MCTP endpoints and BDFs for CPU 0 and
+	 * CPU 1. To support all CPUs, we need to add resolving CPU ID and
+	 * endpoint ID.
+	 */
+	switch (peci_addr) {
+	case 0x30:
+		cpu->eid = 0x1d;
+		cpu->bdf = 0x6a18;
+	break;
+	case 0x31:
+		cpu->eid = 0x3d;
+		cpu->bdf = 0xe818;
+	break;
+	default:
+		return -EINVAL;
+	}
+
+	return 0;
+}
+
+static int
+mctp_peci_xfer(struct peci_adapter *adapter, struct peci_xfer_msg *msg)
+{
+	u32 max_len = sizeof(struct mctp_pcie_packet_data) -
+		PCIE_VDM_HDR_SIZE - sizeof(struct mctp_peci_vdm_hdr);
+	struct mctp_pcie_packet *rx_packet;
+	struct node_cfg cpu;
+	int ret;
+
+	if (msg->tx_len > max_len || msg->rx_len > max_len)
+		return -EINVAL;
+
+	ret = mctp_peci_get_address(adapter, msg->addr, &cpu);
+	if (ret)
+		return ret;
+
+	rx_packet = mctp_peci_send_receive(adapter, &cpu, msg->tx_len, msg->rx_len, msg->tx_buf);
+	if (IS_ERR(rx_packet))
+		return PTR_ERR(rx_packet);
+
+	memcpy(msg->rx_buf,
+	       (u8 *)(rx_packet->data.payload) + sizeof(struct mctp_peci_vdm_hdr),
+	       msg->rx_len);
 
 	aspeed_mctp_packet_free(rx_packet);
 
-	return ret;
+	return 0;
 }
 
 static int mctp_peci_init_peci_client(struct mctp_peci *priv)
