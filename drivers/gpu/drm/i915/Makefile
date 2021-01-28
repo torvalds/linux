@@ -139,7 +139,6 @@ gem-y += \
 	gem/i915_gem_dmabuf.o \
 	gem/i915_gem_domain.o \
 	gem/i915_gem_execbuffer.o \
-	gem/i915_gem_fence.o \
 	gem/i915_gem_internal.o \
 	gem/i915_gem_object.o \
 	gem/i915_gem_object_blt.o \
