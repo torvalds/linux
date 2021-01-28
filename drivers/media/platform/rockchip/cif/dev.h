@@ -506,6 +506,7 @@ struct rkcif_device {
 	unsigned int			buf_wake_up_cnt;
 
 	bool				iommu_en;
+	unsigned int			dvp_sof_in_oneframe;
 };
 
 extern struct platform_driver rkcif_plat_drv;

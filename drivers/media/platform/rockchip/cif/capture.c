@@ -262,6 +262,12 @@ static const struct cif_output_fmt out_fmts[] = {
 		.mplanes = 1,
 		.bpp = { 16 },
 		.fmt_type = CIF_FMT_TYPE_RAW,
+	}, {
+		.fourcc = V4L2_PIX_FMT_GREY,
+		.cplanes = 1,
+		.mplanes = 1,
+		.bpp = {8},
+		.fmt_type = CIF_FMT_TYPE_RAW,
 	}
 
 	/* TODO: We can support NV12M/NV21M/NV16M/NV61M too */
@@ -2007,6 +2013,7 @@ static u32 rkcif_align_bits_per_pixel(const struct cif_output_fmt *fmt,
 		case V4L2_PIX_FMT_YVYU:
 		case V4L2_PIX_FMT_UYVY:
 		case V4L2_PIX_FMT_VYUY:
+		case V4L2_PIX_FMT_GREY:
 		case V4L2_PIX_FMT_Y16:
 			bpp = fmt->bpp[plane_index];
 			break;
@@ -2016,6 +2023,7 @@ static u32 rkcif_align_bits_per_pixel(const struct cif_output_fmt *fmt,
 		case V4L2_PIX_FMT_SRGGB8:
 		case V4L2_PIX_FMT_SGRBG8:
 		case V4L2_PIX_FMT_SGBRG8:
+		case V4L2_PIX_FMT_SBGGR8:
 		case V4L2_PIX_FMT_SRGGB10:
 		case V4L2_PIX_FMT_SGRBG10:
 		case V4L2_PIX_FMT_SGBRG10:
@@ -2335,6 +2343,7 @@ static int rkcif_stream_start(struct rkcif_stream *stream)
 
 	atomic_set(&sof_sd->frm_sync_seq, 0);
 	stream->state = RKCIF_STATE_STREAMING;
+	stream->cifdev->dvp_sof_in_oneframe = 0;
 
 	return 0;
 }
@@ -4698,14 +4707,21 @@ void rkcif_irq_pingpong(struct rkcif_device *cif_dev)
 		lastpix =  CIF_FETCH_Y_LAST_LINE(lastpix);
 		ctl = rkcif_read_register(cif_dev, CIF_REG_DVP_CTRL);
 
+		rkcif_write_register(cif_dev, CIF_REG_DVP_INTSTAT, intstat);
+
 		stream = &cif_dev->stream[RKCIF_STREAM_CIF];
 
-		if ((intstat & LINE_INT_END) && !(intstat & (FRAME_END))) {
-			rkcif_dvp_event_inc_sof(cif_dev);
-			rkcif_write_register(cif_dev, CIF_REG_DVP_INTSTAT, intstat);
-			int_en = rkcif_read_register(cif_dev, CIF_REG_DVP_INTEN);
-			int_en &= ~LINE_INT_EN;
-			rkcif_write_register(cif_dev, CIF_REG_DVP_INTEN, int_en);
+		if ((intstat & LINE_INT_END) && !(intstat & FRAME_END) &&
+		    (cif_dev->dvp_sof_in_oneframe == 0)) {
+			if ((intstat & (PRE_INF_FRAME_END | PST_INF_FRAME_END)) == 0x0) {
+				if ((intstat & INTSTAT_ERR) == 0x0) {
+					rkcif_dvp_event_inc_sof(cif_dev);
+					int_en = rkcif_read_register(cif_dev, CIF_REG_DVP_INTEN);
+					int_en &= ~LINE_INT_EN;
+					rkcif_write_register(cif_dev, CIF_REG_DVP_INTEN, int_en);
+					cif_dev->dvp_sof_in_oneframe = 1;
+				}
+			}
 		}
 
 		if (intstat & BUS_ERR) {
@@ -4741,8 +4757,6 @@ void rkcif_irq_pingpong(struct rkcif_device *cif_dev)
 		 *    a frame ready
 		 */
 		if ((intstat & PST_INF_FRAME_END)) {
-			rkcif_write_register(cif_dev, CIF_REG_DVP_INTSTAT,
-					     PST_INF_FRAME_END_CLR);
 
 			if (stream->stopping)
 				/* To stop CIF ASAP, before FRAME_END irq */
@@ -4753,12 +4767,10 @@ void rkcif_irq_pingpong(struct rkcif_device *cif_dev)
 		if ((intstat & FRAME_END)) {
 			struct vb2_v4l2_buffer *vb_done = NULL;
 
-			rkcif_write_register(cif_dev, CIF_REG_DVP_INTSTAT,
-					     FRAME_END_CLR);
-
 			int_en = rkcif_read_register(cif_dev, CIF_REG_DVP_INTEN);
 			int_en |= LINE_INT_EN;
 			rkcif_write_register(cif_dev, CIF_REG_DVP_INTEN, int_en);
+			cif_dev->dvp_sof_in_oneframe = 0;
 
 			if (stream->stopping) {
 				rkcif_stream_stop(stream);
@@ -4778,6 +4790,8 @@ void rkcif_irq_pingpong(struct rkcif_device *cif_dev)
 			if (lastline != stream->pixm.height ||
 			    (!(cif_frmst & CIF_F0_READY) &&
 			     !(cif_frmst & CIF_F1_READY))) {
+
+				cif_dev->dvp_sof_in_oneframe = 1;
 				v4l2_err(&cif_dev->v4l2_dev,
 					 "Bad frame, pp irq:0x%x frmst:0x%x size:%dx%d\n",
 					 intstat, cif_frmst, lastpix, lastline);
