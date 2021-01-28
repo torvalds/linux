@@ -583,7 +583,7 @@ ssize_t i2400m_bm_cmd(struct i2400m *i2400m,
 		      struct i2400m_bootrom_header *ack, size_t ack_size,
 		      int flags)
 {
-	ssize_t result = -ENOMEM, rx_bytes;
+	ssize_t result, rx_bytes;
 	struct device *dev = i2400m_dev(i2400m);
 	int opcode = cmd == NULL ? -1 : i2400m_brh_get_opcode(cmd);
 
