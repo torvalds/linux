@@ -3936,6 +3936,8 @@ static void intel_enable_ddi_hdmi(struct intel_atomic_state *state,
 		intel_de_write(dev_priv, reg, val);
 	}
 
+	intel_ddi_power_up_lanes(encoder, crtc_state);
+
 	/* In HDMI/DVI mode, the port width, and swing/emphasis values
 	 * are ignored so nothing special needs to be done besides
 	 * enabling the port.
