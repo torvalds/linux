@@ -1125,11 +1125,8 @@ struct drm_i915_private {
 	} wm;
 
 	struct dram_info {
-		bool valid;
 		bool is_16gb_dimm;
 		u8 num_channels;
-		u8 ranks;
-		u32 bandwidth_kbps;
 		bool symmetric_memory;
 		enum intel_dram_type {
 			INTEL_DRAM_UNKNOWN,

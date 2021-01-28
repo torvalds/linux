@@ -610,8 +610,8 @@ static int i915_driver_hw_probe(struct drm_i915_private *dev_priv)
 
 	intel_opregion_setup(dev_priv);
 	/*
-	 * Fill the dram structure to get the system raw bandwidth and
-	 * dram info. This will be used for memory latency calculation.
+	 * Fill the dram structure to get the system dram info. This will be
+	 * used for memory latency calculation.
 	 */
 	intel_dram_detect(dev_priv);
 
