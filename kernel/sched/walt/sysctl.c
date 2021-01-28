@@ -262,7 +262,8 @@ static int sched_task_handler(struct ctl_table *table, int write,
 					 1000000UL);
 			break;
 		case LOW_LATENCY:
-			pid_and_val[1] = wts->low_latency;
+			pid_and_val[1] = wts->low_latency &
+					 WALT_LOW_LATENCY_PROCFS;
 			break;
 		default:
 			ret = -EINVAL;
@@ -323,7 +324,10 @@ static int sched_task_handler(struct ctl_table *table, int write,
 		wts->boost_expires = sched_clock() + wts->boost_period;
 		break;
 	case LOW_LATENCY:
-		wts->low_latency = val;
+		if (val)
+			wts->low_latency |= WALT_LOW_LATENCY_PROCFS;
+		else
+			wts->low_latency &= ~WALT_LOW_LATENCY_PROCFS;
 		break;
 	default:
 		ret = -EINVAL;

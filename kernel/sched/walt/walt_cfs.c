@@ -784,7 +784,7 @@ static void walt_binder_low_latency_set(void *unused, struct task_struct *task)
 	if (task && current->signal &&
 			(current->signal->oom_score_adj == 0) &&
 			(current->prio < DEFAULT_PRIO))
-		wts->low_latency = true;
+		wts->low_latency |= WALT_LOW_LATENCY_BINDER;
 }
 
 static void walt_binder_low_latency_clear(void *unused, struct binder_transaction *t)
@@ -793,8 +793,8 @@ static void walt_binder_low_latency_clear(void *unused, struct binder_transactio
 
 	if (static_branch_unlikely(&walt_disabled))
 		return;
-	if (wts->low_latency)
-		wts->low_latency = false;
+	if (wts->low_latency & WALT_LOW_LATENCY_BINDER)
+		wts->low_latency &= ~WALT_LOW_LATENCY_BINDER;
 }
 
 void walt_cfs_init(void)
