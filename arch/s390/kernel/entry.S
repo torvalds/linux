@@ -81,32 +81,6 @@ _LPP_OFFSET	= __LC_LPP
 #endif
 	.endm
 
-	.macro	SWITCH_KERNEL savearea
-	tmhh	%r8,0x0001		# interrupting from user ?
-	jnz	1f
-#if IS_ENABLED(CONFIG_KVM)
-	lgr	%r14,%r9
-	larl	%r13,.Lsie_gmap
-	slgr	%r14,%r13
-	lghi	%r13,.Lsie_done - .Lsie_gmap
-	clgr	%r14,%r13
-	jhe	0f
-	lghi	%r11,\savearea		# inside critical section, do cleanup
-	brasl	%r14,.Lcleanup_sie
-#endif
-0:	CHECK_STACK \savearea
-	lgr	%r11,%r15
-	aghi	%r15,-(STACK_FRAME_OVERHEAD + __PT_SIZE)
-	stg	%r11,__SF_BACKCHAIN(%r15)
-	j	2f
-1:	BPENTER __TI_flags(%r12),_TIF_ISOLATE_BP
-	lctlg	%c1,%c1,__LC_KERNEL_ASCE
-	lg	%r15,__LC_KERNEL_STACK
-	xc	__SF_BACKCHAIN(8,%r15),__SF_BACKCHAIN(%r15)
-2:	la	%r11,STACK_FRAME_OVERHEAD(%r15)
-	.endm
-
-	# Use STORE CLOCK by default, switch to STORE CLOCK FAST if available.
 	.macro STCK savearea
 	ALTERNATIVE ".insn	s,0xb2050000,\savearea", \
 		    ".insn	s,0xb27c0000,\savearea", 25
@@ -413,7 +387,28 @@ ENTRY(\name)
 	stmg	%r8,%r15,__LC_SAVE_AREA_ASYNC
 	lg	%r12,__LC_CURRENT
 	lmg	%r8,%r9,\lc_old_psw
-	SWITCH_KERNEL __LC_SAVE_AREA_ASYNC
+	tmhh	%r8,0x0001			# interrupting from user ?
+	jnz	1f
+#if IS_ENABLED(CONFIG_KVM)
+	lgr	%r14,%r9
+	larl	%r13,.Lsie_gmap
+	slgr	%r14,%r13
+	lghi	%r13,.Lsie_done - .Lsie_gmap
+	clgr	%r14,%r13
+	jhe	0f
+	lghi	%r11,__LC_SAVE_AREA_ASYNC	# inside critical section, do cleanup
+	brasl	%r14,.Lcleanup_sie
+#endif
+0:	CHECK_STACK __LC_SAVE_AREA_ASYNC
+	lgr	%r11,%r15
+	aghi	%r15,-(STACK_FRAME_OVERHEAD + __PT_SIZE)
+	stg	%r11,__SF_BACKCHAIN(%r15)
+	j	2f
+1:	BPENTER __TI_flags(%r12),_TIF_ISOLATE_BP
+	lctlg	%c1,%c1,__LC_KERNEL_ASCE
+	lg	%r15,__LC_KERNEL_STACK
+	xc	__SF_BACKCHAIN(8,%r15),__SF_BACKCHAIN(%r15)
+2:	la	%r11,STACK_FRAME_OVERHEAD(%r15)
 	stmg	%r0,%r7,__PT_R0(%r11)
 	# clear user controlled registers to prevent speculative use
 	xgr	%r0,%r0
@@ -542,7 +537,30 @@ ENTRY(mcck_int_handler)
 	TSTMSK	__LC_MCCK_CODE,MCCK_CODE_PSW_IA_VALID
 	jno	.Lmcck_panic
 4:	ssm	__LC_PGM_NEW_PSW	# turn dat on, keep irqs off
-	SWITCH_KERNEL __LC_GPREGS_SAVE_AREA+64
+	tmhh	%r8,0x0001			# interrupting from user ?
+	jnz	.Lmcck_user
+#if IS_ENABLED(CONFIG_KVM)
+	lgr	%r14,%r9
+	larl	%r13,.Lsie_gmap
+	slgr	%r14,%r13
+	lghi	%r13,.Lsie_done - .Lsie_gmap
+	clgr	%r14,%r13
+	jhe	.Lmcck_stack
+	lghi	%r11,__LC_GPREGS_SAVE_AREA+64	# inside critical section, do cleanup
+	brasl	%r14,.Lcleanup_sie
+.Lmcck_stack:
+#endif
+	CHECK_STACK __LC_GPREGS_SAVE_AREA+64
+	lgr	%r11,%r15
+	aghi	%r15,-(STACK_FRAME_OVERHEAD + __PT_SIZE)
+	stg	%r11,__SF_BACKCHAIN(%r15)
+	j	5f
+.Lmcck_user:
+	BPENTER __TI_flags(%r12),_TIF_ISOLATE_BP
+	lctlg	%c1,%c1,__LC_KERNEL_ASCE
+	lg	%r15,__LC_KERNEL_STACK
+	xc	__SF_BACKCHAIN(8,%r15),__SF_BACKCHAIN(%r15)
+5:	la	%r11,STACK_FRAME_OVERHEAD(%r15)
 .Lmcck_skip:
 	lghi	%r14,__LC_GPREGS_SAVE_AREA+64
 	stmg	%r0,%r7,__PT_R0(%r11)
