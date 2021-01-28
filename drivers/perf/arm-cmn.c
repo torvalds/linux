@@ -1502,7 +1502,7 @@ static int arm_cmn_probe(struct platform_device *pdev)
 	struct arm_cmn *cmn;
 	const char *name;
 	static atomic_t id;
-	int err, rootnode, this_id;
+	int err, rootnode;
 
 	cmn = devm_kzalloc(&pdev->dev, sizeof(*cmn), GFP_KERNEL);
 	if (!cmn)
@@ -1549,14 +1549,9 @@ static int arm_cmn_probe(struct platform_device *pdev)
 		.cancel_txn = arm_cmn_end_txn,
 	};
 
-	this_id = atomic_fetch_inc(&id);
-	if (this_id == 0) {
-		name = "arm_cmn";
-	} else {
-		name = devm_kasprintf(cmn->dev, GFP_KERNEL, "arm_cmn_%d", this_id);
-		if (!name)
-			return -ENOMEM;
-	}
+	name = devm_kasprintf(cmn->dev, GFP_KERNEL, "arm_cmn_%d", atomic_fetch_inc(&id));
+	if (!name)
+		return -ENOMEM;
 
 	err = cpuhp_state_add_instance(arm_cmn_hp_state, &cmn->cpuhp_node);
 	if (err)

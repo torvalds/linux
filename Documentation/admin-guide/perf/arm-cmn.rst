@@ -17,7 +17,7 @@ PMU events
 ----------
 
 The PMU driver registers a single PMU device for the whole interconnect,
-see /sys/bus/event_source/devices/arm_cmn. Multi-chip systems may link
+see /sys/bus/event_source/devices/arm_cmn_0. Multi-chip systems may link
 more than one CMN together via external CCIX links - in this situation,
 each mesh counts its own events entirely independently, and additional
 PMU devices will be named arm_cmn_{1..n}.
