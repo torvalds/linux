@@ -4542,17 +4542,6 @@ static int cma_join_ib_multicast(struct rdma_id_private *id_priv,
 	rec.pkey = cpu_to_be16(ib_addr_get_pkey(dev_addr));
 	rec.join_state = mc->join_state;
 
-	if ((rec.join_state == BIT(SENDONLY_FULLMEMBER_JOIN)) &&
-	    (!ib_sa_sendonly_fullmem_support(&sa_client,
-					     id_priv->id.device,
-					     id_priv->id.port_num))) {
-		dev_warn(
-			&id_priv->id.device->dev,
-			"RDMA CM: port %u Unable to multicast join: SM doesn't support Send Only Full Member option\n",
-			id_priv->id.port_num);
-		return -EOPNOTSUPP;
-	}
-
 	comp_mask = IB_SA_MCMEMBER_REC_MGID | IB_SA_MCMEMBER_REC_PORT_GID |
 		    IB_SA_MCMEMBER_REC_PKEY | IB_SA_MCMEMBER_REC_JOIN_STATE |
 		    IB_SA_MCMEMBER_REC_QKEY | IB_SA_MCMEMBER_REC_SL |
