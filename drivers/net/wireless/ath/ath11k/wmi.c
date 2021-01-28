@@ -169,7 +169,7 @@ ath11k_wmi_tlv_iter(struct ath11k_base *ab, const void *ptr, size_t len,
 		len -= sizeof(*tlv);
 
 		if (tlv_len > len) {
-			ath11k_err(ab, "wmi tlv parse failure of tag %hhu at byte %zd (%zu bytes left, %hhu expected)\n",
+			ath11k_err(ab, "wmi tlv parse failure of tag %u at byte %zd (%zu bytes left, %u expected)\n",
 				   tlv_tag, ptr - begin, len, tlv_len);
 			return -EINVAL;
 		}
@@ -177,7 +177,7 @@ ath11k_wmi_tlv_iter(struct ath11k_base *ab, const void *ptr, size_t len,
 		if (tlv_tag < ARRAY_SIZE(wmi_tlv_policies) &&
 		    wmi_tlv_policies[tlv_tag].min_len &&
 		    wmi_tlv_policies[tlv_tag].min_len > tlv_len) {
-			ath11k_err(ab, "wmi tlv parse failure of tag %hhu at byte %zd (%hhu bytes is less than min length %zu)\n",
+			ath11k_err(ab, "wmi tlv parse failure of tag %u at byte %zd (%u bytes is less than min length %zu)\n",
 				   tlv_tag, ptr - begin, tlv_len,
 				   wmi_tlv_policies[tlv_tag].min_len);
 			return -EINVAL;
