@@ -53,12 +53,14 @@ unsigned int sysctl_sched_walt_rotate_big_tasks;
 unsigned int sysctl_sched_task_unfilter_period;
 unsigned int __read_mostly sysctl_sched_asym_cap_sibling_freq_match_pct;
 unsigned int sysctl_walt_low_latency_task_threshold; /* disabled by default */
-unsigned int sysctl_task_read_pid;
 unsigned int sysctl_sched_conservative_pl;
 unsigned int sysctl_sched_min_task_util_for_boost = 51;
 unsigned int sysctl_sched_min_task_util_for_colocation = 35;
 unsigned int sysctl_sched_many_wakeup_threshold = WALT_MANY_WAKEUP_DEFAULT;
 const int sched_user_hint_max = 1000;
+
+/* range is [1 .. INT_MAX] */
+static int sysctl_task_read_pid = 1;
 
 static void init_tg_pointers(void)
 {
@@ -200,6 +202,20 @@ unlock:
 	return ret;
 }
 
+static DEFINE_MUTEX(sysctl_pid_mutex);
+static int sched_task_read_pid_handler(struct ctl_table *table, int write,
+				       void __user *buffer, size_t *lenp,
+				       loff_t *ppos)
+{
+	int ret;
+
+	mutex_lock(&sysctl_pid_mutex);
+	ret = proc_dointvec_minmax(table, write, buffer, lenp, ppos);
+	mutex_unlock(&sysctl_pid_mutex);
+
+	return ret;
+}
+
 enum {
 	TASK_BEGIN = 0,
 	WAKE_UP_IDLE,
@@ -225,20 +241,15 @@ static int sched_task_handler(struct ctl_table *table, int write,
 		.maxlen	= sizeof(pid_and_val),
 		.mode	= table->mode,
 	};
-	static DEFINE_MUTEX(mutex);
 
-	mutex_lock(&mutex);
+	mutex_lock(&sysctl_pid_mutex);
 
 	if (!write) {
-		if (sysctl_task_read_pid <= 0) {
-			ret = -ENOENT;
-			goto unlock_mutex;
-		}
 		task = get_pid_task(find_vpid(sysctl_task_read_pid),
 				PIDTYPE_PID);
 		if (!task) {
 			ret = -ENOENT;
-			goto put_task;
+			goto unlock_mutex;
 		}
 		wts = (struct walt_task_struct *) task->android_vendor_data1;
 		pid_and_val[0] = sysctl_task_read_pid;
@@ -336,7 +347,7 @@ static int sched_task_handler(struct ctl_table *table, int write,
 put_task:
 	put_task_struct(task);
 unlock_mutex:
-	mutex_unlock(&mutex);
+	mutex_unlock(&sysctl_pid_mutex);
 
 	return ret;
 }
@@ -832,9 +843,11 @@ struct ctl_table walt_table[] = {
 	{
 		.procname	= "sched_task_read_pid",
 		.data		= &sysctl_task_read_pid,
-		.maxlen		= sizeof(unsigned int),
+		.maxlen		= sizeof(int),
 		.mode		= 0644,
-		.proc_handler	= proc_dointvec,
+		.proc_handler	= sched_task_read_pid_handler,
+		.extra1		= SYSCTL_ONE,
+		.extra2		= SYSCTL_INT_MAX,
 	},
 	{
 		.procname	= "sched_load_boost",
