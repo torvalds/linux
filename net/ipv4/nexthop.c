@@ -689,7 +689,7 @@ static struct nexthop *nexthop_select_path_mp(struct nh_group *nhg, int hash)
 		struct nh_grp_entry *nhge = &nhg->nh_entries[i];
 		struct nh_info *nhi;
 
-		if (hash > atomic_read(&nhge->upper_bound))
+		if (hash > atomic_read(&nhge->mpath.upper_bound))
 			continue;
 
 		nhi = rcu_dereference(nhge->nh->nh_info);
@@ -924,7 +924,7 @@ static void nh_group_rebalance(struct nh_group *nhg)
 
 		w += nhge->weight;
 		upper_bound = DIV_ROUND_CLOSEST_ULL((u64)w << 31, total) - 1;
-		atomic_set(&nhge->upper_bound, upper_bound);
+		atomic_set(&nhge->mpath.upper_bound, upper_bound);
 	}
 }
 

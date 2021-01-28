@@ -66,7 +66,12 @@ struct nh_info {
 struct nh_grp_entry {
 	struct nexthop	*nh;
 	u8		weight;
-	atomic_t	upper_bound;
+
+	union {
+		struct {
+			atomic_t	upper_bound;
+		} mpath;
+	};
 
 	struct list_head nh_list;
 	struct nexthop	*nh_parent;  /* nexthop of group with this entry */
