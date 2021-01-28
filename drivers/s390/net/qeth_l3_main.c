@@ -1576,7 +1576,7 @@ static int qeth_l3_do_ioctl(struct net_device *dev, struct ifreq *rq, int cmd)
 }
 
 static int qeth_l3_get_cast_type_rcu(struct sk_buff *skb, struct dst_entry *dst,
-				     int ipv)
+				     __be16 proto)
 {
 	struct neighbour *n = NULL;
 
@@ -1595,13 +1595,13 @@ static int qeth_l3_get_cast_type_rcu(struct sk_buff *skb, struct dst_entry *dst,
 	}
 
 	/* no neighbour (eg AF_PACKET), fall back to target's IP address ... */
-	switch (ipv) {
-	case 4:
+	switch (proto) {
+	case htons(ETH_P_IP):
 		if (ipv4_is_lbcast(ip_hdr(skb)->daddr))
 			return RTN_BROADCAST;
 		return ipv4_is_multicast(ip_hdr(skb)->daddr) ?
 				RTN_MULTICAST : RTN_UNICAST;
-	case 6:
+	case htons(ETH_P_IPV6):
 		return ipv6_addr_is_multicast(&ipv6_hdr(skb)->daddr) ?
 				RTN_MULTICAST : RTN_UNICAST;
 	default:
@@ -1612,13 +1612,13 @@ static int qeth_l3_get_cast_type_rcu(struct sk_buff *skb, struct dst_entry *dst,
 
 static int qeth_l3_get_cast_type(struct sk_buff *skb)
 {
-	int ipv = qeth_get_ip_version(skb);
+	__be16 proto = vlan_get_protocol(skb);
 	struct dst_entry *dst;
 	int cast_type;
 
 	rcu_read_lock();
-	dst = qeth_dst_check_rcu(skb, ipv);
-	cast_type = qeth_l3_get_cast_type_rcu(skb, dst, ipv);
+	dst = qeth_dst_check_rcu(skb, proto);
+	cast_type = qeth_l3_get_cast_type_rcu(skb, dst, proto);
 	rcu_read_unlock();
 
 	return cast_type;
@@ -1637,7 +1637,7 @@ static u8 qeth_l3_cast_type_to_flag(int cast_type)
 
 static void qeth_l3_fill_header(struct qeth_qdio_out_q *queue,
 				struct qeth_hdr *hdr, struct sk_buff *skb,
-				int ipv, unsigned int data_len)
+				__be16 proto, unsigned int data_len)
 {
 	struct qeth_hdr_layer3 *l3_hdr = &hdr->hdr.l3;
 	struct vlan_ethhdr *veth = vlan_eth_hdr(skb);
@@ -1652,7 +1652,7 @@ static void qeth_l3_fill_header(struct qeth_qdio_out_q *queue,
 	} else {
 		hdr->hdr.l3.id = QETH_HEADER_TYPE_LAYER3;
 
-		if (skb->protocol == htons(ETH_P_AF_IUCV)) {
+		if (proto == htons(ETH_P_AF_IUCV)) {
 			l3_hdr->flags = QETH_HDR_IPV6 | QETH_CAST_UNICAST;
 			l3_hdr->next_hop.addr.s6_addr16[0] = htons(0xfe80);
 			memcpy(&l3_hdr->next_hop.addr.s6_addr32[2],
@@ -1661,14 +1661,14 @@ static void qeth_l3_fill_header(struct qeth_qdio_out_q *queue,
 		}
 
 		if (skb->ip_summed == CHECKSUM_PARTIAL) {
-			qeth_tx_csum(skb, &hdr->hdr.l3.ext_flags, ipv);
+			qeth_tx_csum(skb, &hdr->hdr.l3.ext_flags, proto);
 			/* some HW requires combined L3+L4 csum offload: */
-			if (ipv == 4)
+			if (proto == htons(ETH_P_IP))
 				hdr->hdr.l3.ext_flags |= QETH_HDR_EXT_CSUM_HDR_REQ;
 		}
 	}
 
-	if (ipv == 4 || IS_IQD(card)) {
+	if (proto == htons(ETH_P_IP) || IS_IQD(card)) {
 		/* NETIF_F_HW_VLAN_CTAG_TX */
 		if (skb_vlan_tag_present(skb)) {
 			hdr->hdr.l3.ext_flags |= QETH_HDR_EXT_VLAN_FRAME;
@@ -1680,18 +1680,18 @@ static void qeth_l3_fill_header(struct qeth_qdio_out_q *queue,
 	}
 
 	rcu_read_lock();
-	dst = qeth_dst_check_rcu(skb, ipv);
+	dst = qeth_dst_check_rcu(skb, proto);
 
 	if (IS_IQD(card) && skb_get_queue_mapping(skb) != QETH_IQD_MCAST_TXQ)
 		cast_type = RTN_UNICAST;
 	else
-		cast_type = qeth_l3_get_cast_type_rcu(skb, dst, ipv);
+		cast_type = qeth_l3_get_cast_type_rcu(skb, dst, proto);
 	l3_hdr->flags |= qeth_l3_cast_type_to_flag(cast_type);
 
-	if (ipv == 4) {
+	if (proto == htons(ETH_P_IP)) {
 		l3_hdr->next_hop.addr.s6_addr32[3] =
 					qeth_next_hop_v4_rcu(skb, dst);
-	} else if (ipv == 6) {
+	} else if (proto == htons(ETH_P_IPV6)) {
 		l3_hdr->next_hop.addr = *qeth_next_hop_v6_rcu(skb, dst);
 
 		hdr->hdr.l3.flags |= QETH_HDR_IPV6;
@@ -1719,7 +1719,7 @@ static void qeth_l3_fixup_headers(struct sk_buff *skb)
 }
 
 static int qeth_l3_xmit(struct qeth_card *card, struct sk_buff *skb,
-			struct qeth_qdio_out_q *queue, int ipv)
+			struct qeth_qdio_out_q *queue, __be16 proto)
 {
 	unsigned int hw_hdr_len;
 	int rc;
@@ -1733,15 +1733,15 @@ static int qeth_l3_xmit(struct qeth_card *card, struct sk_buff *skb,
 	skb_pull(skb, ETH_HLEN);
 
 	qeth_l3_fixup_headers(skb);
-	return qeth_xmit(card, skb, queue, ipv, qeth_l3_fill_header);
+	return qeth_xmit(card, skb, queue, proto, qeth_l3_fill_header);
 }
 
 static netdev_tx_t qeth_l3_hard_start_xmit(struct sk_buff *skb,
 					   struct net_device *dev)
 {
 	struct qeth_card *card = dev->ml_priv;
+	__be16 proto = vlan_get_protocol(skb);
 	u16 txq = skb_get_queue_mapping(skb);
-	int ipv = qeth_get_ip_version(skb);
 	struct qeth_qdio_out_q *queue;
 	int rc;
 
@@ -1752,10 +1752,20 @@ static netdev_tx_t qeth_l3_hard_start_xmit(struct sk_buff *skb,
 
 		if (card->options.sniffer)
 			goto tx_drop;
-		if ((card->options.cq != QETH_CQ_ENABLED && !ipv) ||
-		    (card->options.cq == QETH_CQ_ENABLED &&
-		     skb->protocol != htons(ETH_P_AF_IUCV)))
+
+		switch (proto) {
+		case htons(ETH_P_AF_IUCV):
+			if (card->options.cq != QETH_CQ_ENABLED)
+				goto tx_drop;
+			break;
+		case htons(ETH_P_IP):
+		case htons(ETH_P_IPV6):
+			if (card->options.cq == QETH_CQ_ENABLED)
+				goto tx_drop;
+			break;
+		default:
 			goto tx_drop;
+		}
 	} else {
 		queue = card->qdio.out_qs[txq];
 	}
@@ -1764,10 +1774,10 @@ static netdev_tx_t qeth_l3_hard_start_xmit(struct sk_buff *skb,
 	    qeth_l3_get_cast_type(skb) == RTN_BROADCAST)
 		goto tx_drop;
 
-	if (ipv == 4 || IS_IQD(card))
-		rc = qeth_l3_xmit(card, skb, queue, ipv);
+	if (proto == htons(ETH_P_IP) || IS_IQD(card))
+		rc = qeth_l3_xmit(card, skb, queue, proto);
 	else
-		rc = qeth_xmit(card, skb, queue, ipv, qeth_l3_fill_header);
+		rc = qeth_xmit(card, skb, queue, proto, qeth_l3_fill_header);
 
 	if (!rc)
 		return NETDEV_TX_OK;
