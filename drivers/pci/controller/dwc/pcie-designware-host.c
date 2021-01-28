@@ -404,7 +404,7 @@ int dw_pcie_host_init(struct pcie_port *pp)
 	dw_pcie_setup_rc(pp);
 	dw_pcie_msi_init(pp);
 
-	if (!dw_pcie_link_up(pci) && pci->ops->start_link) {
+	if (!dw_pcie_link_up(pci) && pci->ops && pci->ops->start_link) {
 		ret = pci->ops->start_link(pci);
 		if (ret)
 			goto err_free_msi;
