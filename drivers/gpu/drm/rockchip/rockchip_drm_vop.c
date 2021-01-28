@@ -260,6 +260,8 @@ struct vop {
 	u32 *lut;
 	u32 lut_len;
 	bool lut_active;
+	/* gamma look up table */
+	struct drm_color_lut *gamma_lut;
 	bool dual_channel_swap;
 	/* one time only one process allowed to config the register */
 	spinlock_t reg_lock;
@@ -1410,6 +1412,40 @@ static void rockchip_vop_crtc_fb_gamma_get(struct drm_crtc *crtc, u16 *red,
 	*red = r * 0xffff / (lut_len - 1);
 	*green = g * 0xffff / (lut_len - 1);
 	*blue = b * 0xffff / (lut_len - 1);
+}
+
+static int vop_crtc_legacy_gamma_set(struct drm_crtc *crtc, u16 *red, u16 *green,
+				     u16 *blue, uint32_t size,
+				     struct drm_modeset_acquire_ctx *ctx)
+{
+	struct vop *vop = to_vop(crtc);
+	int len = min(size, vop->lut_len);
+	int i;
+
+	if (!vop->lut)
+		return -EINVAL;
+
+	for (i = 0; i < len; i++)
+		rockchip_vop_crtc_fb_gamma_set(crtc, red[i], green[i], blue[i], i);
+
+	vop_crtc_load_lut(crtc);
+
+	return 0;
+}
+
+static int vop_crtc_atomic_gamma_set(struct drm_crtc *crtc,
+				     struct drm_crtc_state *old_state)
+{
+	struct vop *vop = to_vop(crtc);
+	struct drm_color_lut *lut = vop->gamma_lut;
+	unsigned int i;
+
+	for (i = 0; i < vop->lut_len; i++)
+		rockchip_vop_crtc_fb_gamma_set(crtc, lut[i].red, lut[i].green,
+					       lut[i].blue, i);
+	vop_crtc_load_lut(crtc);
+
+	return 0;
 }
 
 static void vop_power_enable(struct drm_crtc *crtc)
@@ -3604,6 +3640,13 @@ static void vop_crtc_atomic_flush(struct drm_crtc *crtc,
 	}
 
 	vop_update_hdr(crtc, old_crtc_state);
+	if (old_crtc_state->color_mgmt_changed || old_crtc_state->active_changed) {
+		if (crtc->state->gamma_lut || vop->gamma_lut) {
+			if (old_crtc_state->gamma_lut)
+				vop->gamma_lut = old_crtc_state->gamma_lut->data;
+			vop_crtc_atomic_gamma_set(crtc, old_crtc_state);
+		}
+	}
 
 	spin_lock_irqsave(&vop->irq_lock, flags);
 	vop->pre_overlay = s->hdr.pre_overlay;
@@ -3866,28 +3909,8 @@ static int vop_crtc_atomic_set_property(struct drm_crtc *crtc,
 	return -EINVAL;
 }
 
-static int vop_crtc_gamma_set(struct drm_crtc *crtc, u16 *red, u16 *green,
-			       u16 *blue, uint32_t size,
-			       struct drm_modeset_acquire_ctx *ctx)
-{
-	struct vop *vop = to_vop(crtc);
-	int len = min(size, vop->lut_len);
-	int i;
-
-	if (!vop->lut)
-		return -EINVAL;
-
-	for (i = 0; i < len; i++)
-		rockchip_vop_crtc_fb_gamma_set(crtc, red[i], green[i],
-					       blue[i], i);
-
-	vop_crtc_load_lut(crtc);
-
-	return 0;
-}
-
 static const struct drm_crtc_funcs vop_crtc_funcs = {
-	.gamma_set = vop_crtc_gamma_set,
+	.gamma_set = vop_crtc_legacy_gamma_set,
 	.set_config = drm_atomic_helper_set_config,
 	.page_flip = drm_atomic_helper_page_flip,
 	.destroy = vop_crtc_destroy,
@@ -4255,6 +4278,7 @@ static int vop_create_crtc(struct vop *vop)
 		}
 
 		drm_mode_crtc_set_gamma_size(crtc, lut_len);
+		drm_crtc_enable_color_mgmt(crtc, 0, false, lut_len);
 		r_base = crtc->gamma_store;
 		g_base = r_base + crtc->gamma_size;
 		b_base = g_base + crtc->gamma_size;
