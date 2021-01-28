@@ -655,6 +655,7 @@ static int cfg80211_wext_siwencodeext(struct net_device *dev,
 	bool remove = false;
 	struct key_params params;
 	u32 cipher;
+	int ret;
 
 	if (wdev->iftype != NL80211_IFTYPE_STATION &&
 	    wdev->iftype != NL80211_IFTYPE_ADHOC)
@@ -726,12 +727,16 @@ static int cfg80211_wext_siwencodeext(struct net_device *dev,
 		params.seq_len = 6;
 	}
 
-	return cfg80211_set_encryption(
+	wiphy_lock(wdev->wiphy);
+	ret = cfg80211_set_encryption(
 			rdev, dev,
 			!(ext->ext_flags & IW_ENCODE_EXT_GROUP_KEY),
 			addr, remove,
 			ext->ext_flags & IW_ENCODE_EXT_SET_TX_KEY,
 			idx, &params);
+	wiphy_unlock(wdev->wiphy);
+
+	return ret;
 }
 
 static int cfg80211_wext_giwencode(struct net_device *dev,
