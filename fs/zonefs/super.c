@@ -1581,12 +1581,11 @@ static int zonefs_fill_super(struct super_block *sb, void *data, int silent)
 	sb->s_time_gran	= 1;
 
 	/*
-	 * The block size is set to the device physical sector size to ensure
-	 * that write operations on 512e devices (512B logical block and 4KB
-	 * physical block) are always aligned to the device physical blocks,
-	 * as mandated by the ZBC/ZAC specifications.
+	 * The block size is set to the device zone write granularity to ensure
+	 * that write operations are always aligned according to the device
+	 * interface constraints.
 	 */
-	sb_set_blocksize(sb, bdev_physical_block_size(sb->s_bdev));
+	sb_set_blocksize(sb, bdev_zone_write_granularity(sb->s_bdev));
 	sbi->s_zone_sectors_shift = ilog2(bdev_zone_sectors(sb->s_bdev));
 	sbi->s_uid = GLOBAL_ROOT_UID;
 	sbi->s_gid = GLOBAL_ROOT_GID;
