@@ -36,3 +36,4 @@ util/symbol_fprintf.c
 util/units.c
 util/affinity.c
 util/rwsem.c
+util/hashmap.c
