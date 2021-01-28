@@ -48,7 +48,7 @@ enum var_id_t {
 	ATTRIB_BLEEP, BLEEPS,
 	RATE, PITCH, VOL, TONE, PUNCT, VOICE, FREQUENCY, LANG,
 	DIRECT, PAUSE,
-	CAPS_START, CAPS_STOP, CHARTAB, INFLECTION,
+	CAPS_START, CAPS_STOP, CHARTAB, INFLECTION, FLUSH,
 	MAXVARS
 };
 
@@ -178,6 +178,7 @@ struct spk_synth {
 	int trigger;
 	int jiffies;
 	int full;
+	int flush_time;
 	int ser;
 	char *dev_name;
 	short flags;

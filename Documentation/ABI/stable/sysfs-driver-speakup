@@ -312,6 +312,13 @@ Contact:	speakup@linux-speakup.org
 Description:	Gets or sets the frequency of the speech synthesizer. Range is
 		0-9.
 
+What:		/sys/accessibility/speakup/<synth-name>/flush_time
+KernelVersion:	5.12
+Contact:	speakup@linux-speakup.org
+Description:	Gets or sets the timeout to wait for the synthesizer flush to
+		complete. This can be used when the cable gets faulty and flush
+		notifications are getting lost.
+
 What:		/sys/accessibility/speakup/<synth-name>/full_time
 KernelVersion:	2.6
 Contact:	speakup@linux-speakup.org
