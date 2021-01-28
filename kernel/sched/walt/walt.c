@@ -4219,8 +4219,17 @@ static void walt_wq_cpufreq_policy_update(struct work_struct *work)
 	cpufreq_unregister_notifier(&walt_cpufreq_notifier_block, CPUFREQ_POLICY_NOTIFIER);
 }
 
+#define WALT_VENDOR_DATA_SIZE_TEST(wstruct, kstruct)		\
+	BUILD_BUG_ON(sizeof(wstruct) > (sizeof(u64) *		\
+		ARRAY_SIZE(((kstruct *)0)->android_vendor_data1)))
+
 static int walt_module_init(void)
 {
+	/* compile time checks for vendor data size */
+	WALT_VENDOR_DATA_SIZE_TEST(struct walt_task_struct, struct task_struct);
+	WALT_VENDOR_DATA_SIZE_TEST(struct walt_rq, struct rq);
+	WALT_VENDOR_DATA_SIZE_TEST(struct walt_task_group, struct task_group);
+
 	INIT_WORK(&walt_cpufreq_policy_work, walt_wq_cpufreq_policy_update);
 	cpufreq_register_notifier(&walt_cpufreq_notifier_block,
 					CPUFREQ_POLICY_NOTIFIER);
