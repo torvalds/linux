@@ -336,6 +336,17 @@ static void rcar_dmac_chan_write(struct rcar_dmac_chan *chan, u32 reg, u32 data)
 		writel(data, chan->iomem + reg);
 }
 
+static void rcar_dmac_chan_clear(struct rcar_dmac *dmac,
+				 struct rcar_dmac_chan *chan)
+{
+	rcar_dmac_write(dmac, RCAR_DMACHCLR, BIT(chan->index));
+}
+
+static void rcar_dmac_chan_clear_all(struct rcar_dmac *dmac)
+{
+	rcar_dmac_write(dmac, RCAR_DMACHCLR, dmac->channels_mask);
+}
+
 /* -----------------------------------------------------------------------------
  * Initialization and configuration
  */
@@ -451,7 +462,7 @@ static int rcar_dmac_init(struct rcar_dmac *dmac)
 	u16 dmaor;
 
 	/* Clear all channels and enable the DMAC globally. */
-	rcar_dmac_write(dmac, RCAR_DMACHCLR, dmac->channels_mask);
+	rcar_dmac_chan_clear_all(dmac);
 	rcar_dmac_write(dmac, RCAR_DMAOR,
 			RCAR_DMAOR_PRI_FIXED | RCAR_DMAOR_DME);
 
@@ -1566,7 +1577,7 @@ static irqreturn_t rcar_dmac_isr_channel(int irq, void *dev)
 		 * because channel is already stopped in error case.
 		 * We need to clear register and check DE bit as recovery.
 		 */
-		rcar_dmac_write(dmac, RCAR_DMACHCLR, 1 << chan->index);
+		rcar_dmac_chan_clear(dmac, chan);
 		rcar_dmac_chcr_de_barrier(chan);
 		reinit = true;
 		goto spin_lock_end;
