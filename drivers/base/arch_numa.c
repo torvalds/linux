@@ -355,11 +355,12 @@ static int __init numa_register_nodes(void)
 	/* Check that valid nid is set to memblks */
 	for_each_mem_region(mblk) {
 		int mblk_nid = memblock_get_region_node(mblk);
+		phys_addr_t start = mblk->base;
+		phys_addr_t end = mblk->base + mblk->size - 1;
 
 		if (mblk_nid == NUMA_NO_NODE || mblk_nid >= MAX_NUMNODES) {
-			pr_warn("Warning: invalid memblk node %d [mem %#010Lx-%#010Lx]\n",
-				mblk_nid, mblk->base,
-				mblk->base + mblk->size - 1);
+			pr_warn("Warning: invalid memblk node %d [mem %pap-%pap]\n",
+				mblk_nid, &start, &end);
 			return -EINVAL;
 		}
 	}
@@ -427,14 +428,14 @@ out_free_distance:
 static int __init dummy_numa_init(void)
 {
 	phys_addr_t start = memblock_start_of_DRAM();
-	phys_addr_t end = memblock_end_of_DRAM();
+	phys_addr_t end = memblock_end_of_DRAM() - 1;
 	int ret;
 
 	if (numa_off)
 		pr_info("NUMA disabled\n"); /* Forced off on command line. */
-	pr_info("Faking a node at [mem %#018Lx-%#018Lx]\n", start, end - 1);
+	pr_info("Faking a node at [mem %pap-%pap]\n", &start, &end);
 
-	ret = numa_add_memblk(0, start, end);
+	ret = numa_add_memblk(0, start, end + 1);
 	if (ret) {
 		pr_err("NUMA init failed\n");
 		return ret;
