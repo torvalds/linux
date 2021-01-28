@@ -22,8 +22,12 @@
 
 #define ACEL_EN		BIT(0)
 #define GYRO_EN		BIT(1)
-#define MAGNO_EN		BIT(2)
+#define MAGNO_EN	BIT(2)
 #define ALS_EN		BIT(19)
+
+static int sensor_mask_override = -1;
+module_param_named(sensor_mask, sensor_mask_override, int, 0444);
+MODULE_PARM_DESC(sensor_mask, "override the detected sensors mask");
 
 void amd_start_sensor(struct amd_mp2_dev *privdata, struct amd_mp2_sensor_info info)
 {
@@ -78,8 +82,12 @@ int amd_mp2_get_sensor_num(struct amd_mp2_dev *privdata, u8 *sensor_id)
 	int activestatus, num_of_sensors = 0;
 	u32 activecontrolstatus;
 
-	activecontrolstatus = readl(privdata->mmio + AMD_P2C_MSG3);
-	activestatus = activecontrolstatus >> 4;
+	if (sensor_mask_override >= 0) {
+		activestatus = sensor_mask_override;
+	} else {
+		activecontrolstatus = readl(privdata->mmio + AMD_P2C_MSG3);
+		activestatus = activecontrolstatus >> 4;
+	}
 
 	if (ACEL_EN  & activestatus)
 		sensor_id[num_of_sensors++] = accel_idx;
