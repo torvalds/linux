@@ -1576,7 +1576,13 @@ ice_set_fdir_input_set(struct ice_vsi *vsi, struct ethtool_rx_flow_spec *fsp,
 		       sizeof(struct in6_addr));
 		input->ip.v6.l4_header = fsp->h_u.usr_ip6_spec.l4_4_bytes;
 		input->ip.v6.tc = fsp->h_u.usr_ip6_spec.tclass;
-		input->ip.v6.proto = fsp->h_u.usr_ip6_spec.l4_proto;
+
+		/* if no protocol requested, use IPPROTO_NONE */
+		if (!fsp->m_u.usr_ip6_spec.l4_proto)
+			input->ip.v6.proto = IPPROTO_NONE;
+		else
+			input->ip.v6.proto = fsp->h_u.usr_ip6_spec.l4_proto;
+
 		memcpy(input->mask.v6.dst_ip, fsp->m_u.usr_ip6_spec.ip6dst,
 		       sizeof(struct in6_addr));
 		memcpy(input->mask.v6.src_ip, fsp->m_u.usr_ip6_spec.ip6src,

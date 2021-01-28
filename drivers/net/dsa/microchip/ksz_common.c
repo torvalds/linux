@@ -400,7 +400,7 @@ int ksz_switch_register(struct ksz_device *dev,
 		gpiod_set_value_cansleep(dev->reset_gpio, 1);
 		usleep_range(10000, 12000);
 		gpiod_set_value_cansleep(dev->reset_gpio, 0);
-		usleep_range(100, 1000);
+		msleep(100);
 	}
 
 	mutex_init(&dev->dev_mutex);
@@ -434,7 +434,7 @@ int ksz_switch_register(struct ksz_device *dev,
 				if (of_property_read_u32(port, "reg",
 							 &port_num))
 					continue;
-				if (port_num >= dev->port_cnt)
+				if (!(dev->port_mask & BIT(port_num)))
 					return -EINVAL;
 				of_get_phy_mode(port,
 						&dev->ports[port_num].interface);
