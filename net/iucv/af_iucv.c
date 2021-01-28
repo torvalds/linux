@@ -256,7 +256,9 @@ static int afiucv_hs_send(struct iucv_message *imsg, struct sock *sock,
 			err = -EMSGSIZE;
 			goto err_free;
 		}
-		skb_trim(skb, skb->dev->mtu);
+		err = pskb_trim(skb, skb->dev->mtu);
+		if (err)
+			goto err_free;
 	}
 	skb->protocol = cpu_to_be16(ETH_P_AF_IUCV);
 
@@ -996,7 +998,7 @@ static int iucv_sock_sendmsg(struct socket *sock, struct msghdr *msg,
 	if (iucv->transport == AF_IUCV_TRANS_HIPER) {
 		headroom = sizeof(struct af_iucv_trans_hdr) +
 			   LL_RESERVED_SPACE(iucv->hs_dev);
-		linear = len;
+		linear = min(len, PAGE_SIZE - headroom);
 	} else {
 		if (len < PAGE_SIZE) {
 			linear = len;
