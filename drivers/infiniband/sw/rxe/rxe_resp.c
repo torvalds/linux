@@ -99,6 +99,7 @@ static inline enum resp_states get_req(struct rxe_qp *qp,
 		while ((skb = skb_dequeue(&qp->req_pkts))) {
 			rxe_drop_ref(qp);
 			kfree_skb(skb);
+			ib_device_put(qp->ibqp.device);
 		}
 
 		/* go drain recv wr queue */
@@ -1012,6 +1013,7 @@ static enum resp_states cleanup(struct rxe_qp *qp,
 		skb = skb_dequeue(&qp->req_pkts);
 		rxe_drop_ref(qp);
 		kfree_skb(skb);
+		ib_device_put(qp->ibqp.device);
 	}
 
 	if (qp->resp.mr) {
@@ -1176,6 +1178,7 @@ static void rxe_drain_req_pkts(struct rxe_qp *qp, bool notify)
 	while ((skb = skb_dequeue(&qp->req_pkts))) {
 		rxe_drop_ref(qp);
 		kfree_skb(skb);
+		ib_device_put(qp->ibqp.device);
 	}
 
 	if (notify)
