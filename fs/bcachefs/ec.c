@@ -744,7 +744,6 @@ err:
 static int ec_stripe_bkey_update(struct btree_trans *trans,
 				 struct bkey_i_stripe *new)
 {
-	struct bch_fs *c = trans->c;
 	struct btree_iter *iter;
 	struct bkey_s_c k;
 	const struct bch_stripe *existing;
@@ -759,7 +758,7 @@ static int ec_stripe_bkey_update(struct btree_trans *trans,
 		goto err;
 
 	if (!k.k || k.k->type != KEY_TYPE_stripe) {
-		bch_err(c, "error updating stripe: not found");
+		bch_err(trans->c, "error updating stripe: not found");
 		ret = -ENOENT;
 		goto err;
 	}
@@ -767,7 +766,7 @@ static int ec_stripe_bkey_update(struct btree_trans *trans,
 	existing = bkey_s_c_to_stripe(k).v;
 
 	if (existing->nr_blocks != new->v.nr_blocks) {
-		bch_err(c, "error updating stripe: nr_blocks does not match");
+		bch_err(trans->c, "error updating stripe: nr_blocks does not match");
 		ret = -EINVAL;
 		goto err;
 	}
