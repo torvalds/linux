@@ -400,6 +400,18 @@ err_unpin:
 	goto out_unlock;
 }
 
+void *i915_gem_object_pin_map_unlocked(struct drm_i915_gem_object *obj,
+				       enum i915_map_type type)
+{
+	void *ret;
+
+	i915_gem_object_lock(obj, NULL);
+	ret = i915_gem_object_pin_map(obj, type);
+	i915_gem_object_unlock(obj);
+
+	return ret;
+}
+
 void __i915_gem_object_flush_map(struct drm_i915_gem_object *obj,
 				 unsigned long offset,
 				 unsigned long size)
