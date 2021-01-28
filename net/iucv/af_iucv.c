@@ -2134,23 +2134,14 @@ static int afiucv_hs_rcv(struct sk_buff *skb, struct net_device *dev,
 static void afiucv_hs_callback_txnotify(struct sk_buff *skb,
 					enum iucv_tx_notify n)
 {
-	struct sock *isk = skb->sk;
-	struct sock *sk = NULL;
-	struct iucv_sock *iucv = NULL;
+	struct iucv_sock *iucv = iucv_sk(skb->sk);
+	struct sock *sk = skb->sk;
 	struct sk_buff_head *list;
 	struct sk_buff *list_skb;
 	struct sk_buff *nskb;
 	unsigned long flags;
 
-	read_lock_irqsave(&iucv_sk_list.lock, flags);
-	sk_for_each(sk, &iucv_sk_list.head)
-		if (sk == isk) {
-			iucv = iucv_sk(sk);
-			break;
-		}
-	read_unlock_irqrestore(&iucv_sk_list.lock, flags);
-
-	if (!iucv || sock_flag(sk, SOCK_ZAPPED))
+	if (sock_flag(sk, SOCK_ZAPPED))
 		return;
 
 	list = &iucv->send_skb_q;
