@@ -800,6 +800,140 @@ err_tm_map_cmd_send:
 		cmd, ret);
 }
 
+static int hclge_dbg_dump_tm_nodes(struct hclge_dev *hdev, char *buf, int len)
+{
+	struct hclge_tm_nodes_cmd *nodes;
+	struct hclge_desc desc;
+	int pos = 0;
+	int ret;
+
+	hclge_cmd_setup_basic_desc(&desc, HCLGE_OPC_TM_NODES, true);
+	ret = hclge_cmd_send(&hdev->hw, &desc, 1);
+	if (ret) {
+		dev_err(&hdev->pdev->dev,
+			"failed to dump tm nodes, ret = %d\n", ret);
+		return ret;
+	}
+
+	nodes = (struct hclge_tm_nodes_cmd *)desc.data;
+
+	pos += scnprintf(buf + pos, len - pos, "       BASE_ID  MAX_NUM\n");
+	pos += scnprintf(buf + pos, len - pos, "PG      %4u      %4u\n",
+			 nodes->pg_base_id, nodes->pg_num);
+	pos += scnprintf(buf + pos, len - pos, "PRI     %4u      %4u\n",
+			 nodes->pri_base_id, nodes->pri_num);
+	pos += scnprintf(buf + pos, len - pos, "QSET    %4u      %4u\n",
+			 le16_to_cpu(nodes->qset_base_id),
+			 le16_to_cpu(nodes->qset_num));
+	pos += scnprintf(buf + pos, len - pos, "QUEUE   %4u      %4u\n",
+			 le16_to_cpu(nodes->queue_base_id),
+			 le16_to_cpu(nodes->queue_num));
+
+	return 0;
+}
+
+static int hclge_dbg_dump_tm_pri(struct hclge_dev *hdev, char *buf, int len)
+{
+	struct hclge_pri_shaper_para c_shaper_para;
+	struct hclge_pri_shaper_para p_shaper_para;
+	u8 pri_num, sch_mode, weight;
+	char *sch_mode_str;
+	int pos = 0;
+	int ret;
+	u8 i;
+
+	ret = hclge_tm_get_pri_num(hdev, &pri_num);
+	if (ret)
+		return ret;
+
+	pos += scnprintf(buf + pos, len - pos,
+			 "ID    MODE  DWRR  C_IR_B  C_IR_U  C_IR_S  C_BS_B  ");
+	pos += scnprintf(buf + pos, len - pos,
+			 "C_BS_S  C_FLAG  C_RATE(Mbps)  P_IR_B  P_IR_U  ");
+	pos += scnprintf(buf + pos, len - pos,
+			 "P_IR_S  P_BS_B  P_BS_S  P_FLAG  P_RATE(Mbps)\n");
+
+	for (i = 0; i < pri_num; i++) {
+		ret = hclge_tm_get_pri_sch_mode(hdev, i, &sch_mode);
+		if (ret)
+			return ret;
+
+		ret = hclge_tm_get_pri_weight(hdev, i, &weight);
+		if (ret)
+			return ret;
+
+		ret = hclge_tm_get_pri_shaper(hdev, i,
+					      HCLGE_OPC_TM_PRI_C_SHAPPING,
+					      &c_shaper_para);
+		if (ret)
+			return ret;
+
+		ret = hclge_tm_get_pri_shaper(hdev, i,
+					      HCLGE_OPC_TM_PRI_P_SHAPPING,
+					      &p_shaper_para);
+		if (ret)
+			return ret;
+
+		sch_mode_str = sch_mode & HCLGE_TM_TX_SCHD_DWRR_MSK ? "dwrr" :
+			       "sp";
+
+		pos += scnprintf(buf + pos, len - pos,
+				 "%04u  %4s  %3u   %3u     %3u     %3u     ",
+				 i, sch_mode_str, weight, c_shaper_para.ir_b,
+				 c_shaper_para.ir_u, c_shaper_para.ir_s);
+		pos += scnprintf(buf + pos, len - pos,
+				 "%3u     %3u       %1u     %6u        ",
+				 c_shaper_para.bs_b, c_shaper_para.bs_s,
+				 c_shaper_para.flag, c_shaper_para.rate);
+		pos += scnprintf(buf + pos, len - pos,
+				 "%3u     %3u     %3u     %3u     %3u       ",
+				 p_shaper_para.ir_b, p_shaper_para.ir_u,
+				 p_shaper_para.ir_s, p_shaper_para.bs_b,
+				 p_shaper_para.bs_s);
+		pos += scnprintf(buf + pos, len - pos, "%1u     %6u\n",
+				 p_shaper_para.flag, p_shaper_para.rate);
+	}
+
+	return 0;
+}
+
+static int hclge_dbg_dump_tm_qset(struct hclge_dev *hdev, char *buf, int len)
+{
+	u8 priority, link_vld, sch_mode, weight;
+	char *sch_mode_str;
+	int ret, pos;
+	u16 qset_num;
+	u16 i;
+
+	ret = hclge_tm_get_qset_num(hdev, &qset_num);
+	if (ret)
+		return ret;
+
+	pos = scnprintf(buf, len, "ID    MAP_PRI  LINK_VLD  MODE  DWRR\n");
+
+	for (i = 0; i < qset_num; i++) {
+		ret = hclge_tm_get_qset_map_pri(hdev, i, &priority, &link_vld);
+		if (ret)
+			return ret;
+
+		ret = hclge_tm_get_qset_sch_mode(hdev, i, &sch_mode);
+		if (ret)
+			return ret;
+
+		ret = hclge_tm_get_qset_weight(hdev, i, &weight);
+		if (ret)
+			return ret;
+
+		sch_mode_str = sch_mode & HCLGE_TM_TX_SCHD_DWRR_MSK ? "dwrr" :
+			       "sp";
+		pos += scnprintf(buf + pos, len - pos,
+				 "%04u  %4u        %1u      %4s  %3u\n",
+				 i, priority, link_vld, sch_mode_str, weight);
+	}
+
+	return 0;
+}
+
 static void hclge_dbg_dump_qos_pause_cfg(struct hclge_dev *hdev)
 {
 	struct hclge_cfg_pause_param_cmd *pause_param;
@@ -1590,4 +1724,23 @@ int hclge_dbg_run_cmd(struct hnae3_handle *handle, const char *cmd_buf)
 	}
 
 	return 0;
+}
+
+int hclge_dbg_read_cmd(struct hnae3_handle *handle, const char *cmd_buf,
+		       char *buf, int len)
+{
+	struct hclge_vport *vport = hclge_get_vport(handle);
+	struct hclge_dev *hdev = vport->back;
+
+	if (strncmp(cmd_buf, HNAE3_DBG_TM_NODES,
+		    strlen(HNAE3_DBG_TM_NODES)) == 0)
+		return hclge_dbg_dump_tm_nodes(hdev, buf, len);
+	else if (strncmp(cmd_buf, HNAE3_DBG_TM_PRI,
+			 strlen(HNAE3_DBG_TM_PRI)) == 0)
+		return hclge_dbg_dump_tm_pri(hdev, buf, len);
+	else if (strncmp(cmd_buf, HNAE3_DBG_TM_QSET,
+			 strlen(HNAE3_DBG_TM_QSET)) == 0)
+		return hclge_dbg_dump_tm_qset(hdev, buf, len);
+
+	return -EINVAL;
 }
