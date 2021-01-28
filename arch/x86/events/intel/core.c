@@ -2410,7 +2410,8 @@ static u64 intel_update_topdown_event(struct perf_event *event, int metric_end)
 
 static u64 icl_update_topdown_event(struct perf_event *event)
 {
-	return intel_update_topdown_event(event, INTEL_PMC_IDX_TD_BE_BOUND);
+	return intel_update_topdown_event(event, INTEL_PMC_IDX_METRIC_BASE +
+						 x86_pmu.num_topdown_events - 1);
 }
 
 static void intel_pmu_read_topdown_event(struct perf_event *event)
@@ -3468,6 +3469,15 @@ static int core_pmu_hw_config(struct perf_event *event)
 	return intel_pmu_bts_config(event);
 }
 
+#define INTEL_TD_METRIC_AVAILABLE_MAX	(INTEL_TD_METRIC_RETIRING + \
+					 ((x86_pmu.num_topdown_events - 1) << 8))
+
+static bool is_available_metric_event(struct perf_event *event)
+{
+	return is_metric_event(event) &&
+		event->attr.config <= INTEL_TD_METRIC_AVAILABLE_MAX;
+}
+
 static int intel_pmu_hw_config(struct perf_event *event)
 {
 	int ret = x86_pmu_hw_config(event);
@@ -3541,7 +3551,7 @@ static int intel_pmu_hw_config(struct perf_event *event)
 		if (event->attr.config & X86_ALL_EVENT_FLAGS)
 			return -EINVAL;
 
-		if (is_metric_event(event)) {
+		if (is_available_metric_event(event)) {
 			struct perf_event *leader = event->group_leader;
 
 			/* The metric events don't support sampling. */
@@ -5324,6 +5334,7 @@ __init int intel_pmu_init(void)
 		x86_pmu.rtm_abort_event = X86_CONFIG(.event=0xc9, .umask=0x04);
 		x86_pmu.lbr_pt_coexist = true;
 		intel_pmu_pebs_data_source_skl(pmem);
+		x86_pmu.num_topdown_events = 4;
 		x86_pmu.update_topdown_event = icl_update_topdown_event;
 		x86_pmu.set_topdown_event_period = icl_set_topdown_event_period;
 		pr_cont("Icelake events, ");
