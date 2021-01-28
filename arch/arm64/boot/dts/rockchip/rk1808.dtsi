@@ -407,7 +407,7 @@
 				reg = <2>;
 				clocks = <&cru SCLK_PVTM_NPU>;
 				clock-names = "clk";
-			}
+			};
 		};
 
 		rgb: rgb {
