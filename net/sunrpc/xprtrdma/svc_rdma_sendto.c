@@ -219,7 +219,6 @@ out:
 
 	ctxt->sc_send_wr.num_sge = 0;
 	ctxt->sc_cur_sge_no = 0;
-	ctxt->sc_page_count = 0;
 	return ctxt;
 
 out_empty:
@@ -234,8 +233,6 @@ out_empty:
  * svc_rdma_send_ctxt_put - Return send_ctxt to free list
  * @rdma: controlling svcxprt_rdma
  * @ctxt: object to return to the free list
- *
- * Pages left in sc_pages are DMA unmapped and released.
  */
 void svc_rdma_send_ctxt_put(struct svcxprt_rdma *rdma,
 			    struct svc_rdma_send_ctxt *ctxt)
@@ -255,9 +252,6 @@ void svc_rdma_send_ctxt_put(struct svcxprt_rdma *rdma,
 					     ctxt->sc_sges[i].addr,
 					     ctxt->sc_sges[i].length);
 	}
-
-	for (i = 0; i < ctxt->sc_page_count; ++i)
-		put_page(ctxt->sc_pages[i]);
 
 	spin_lock(&rdma->sc_send_lock);
 	list_add(&ctxt->sc_list, &rdma->sc_send_ctxts);
@@ -790,25 +784,6 @@ int svc_rdma_map_reply_msg(struct svcxprt_rdma *rdma,
 
 	return pcl_process_nonpayloads(&rctxt->rc_write_pcl, xdr,
 				       svc_rdma_xb_dma_map, &args);
-}
-
-/* The svc_rqst and all resources it owns are released as soon as
- * svc_rdma_sendto returns. Transfer pages under I/O to the ctxt
- * so they are released by the Send completion handler.
- */
-static inline void svc_rdma_save_io_pages(struct svc_rqst *rqstp,
-				   struct svc_rdma_send_ctxt *ctxt)
-{
-	int i, pages = rqstp->rq_next_page - rqstp->rq_respages;
-
-	ctxt->sc_page_count += pages;
-	for (i = 0; i < pages; i++) {
-		ctxt->sc_pages[i] = rqstp->rq_respages[i];
-		rqstp->rq_respages[i] = NULL;
-	}
-
-	/* Prevent svc_xprt_release from releasing pages in rq_pages */
-	rqstp->rq_next_page = rqstp->rq_respages;
 }
 
 /* Prepare the portion of the RPC Reply that will be transmitted
