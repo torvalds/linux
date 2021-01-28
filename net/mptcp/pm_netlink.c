@@ -60,15 +60,20 @@ static bool addresses_equal(const struct mptcp_addr_info *a,
 {
 	bool addr_equals = false;
 
-	if (a->family != b->family)
-		return false;
-
-	if (a->family == AF_INET)
-		addr_equals = a->addr.s_addr == b->addr.s_addr;
+	if (a->family == b->family) {
+		if (a->family == AF_INET)
+			addr_equals = a->addr.s_addr == b->addr.s_addr;
 #if IS_ENABLED(CONFIG_MPTCP_IPV6)
-	else
-		addr_equals = !ipv6_addr_cmp(&a->addr6, &b->addr6);
+		else
+			addr_equals = !ipv6_addr_cmp(&a->addr6, &b->addr6);
+	} else if (a->family == AF_INET) {
+		if (ipv6_addr_v4mapped(&b->addr6))
+			addr_equals = a->addr.s_addr == b->addr6.s6_addr32[3];
+	} else if (b->family == AF_INET) {
+		if (ipv6_addr_v4mapped(&a->addr6))
+			addr_equals = a->addr6.s6_addr32[3] == b->addr.s_addr;
 #endif
+	}
 
 	if (!addr_equals)
 		return false;
@@ -137,6 +142,7 @@ select_local_address(const struct pm_nl_pernet *pernet,
 		     struct mptcp_sock *msk)
 {
 	struct mptcp_pm_addr_entry *entry, *ret = NULL;
+	struct sock *sk = (struct sock *)msk;
 
 	rcu_read_lock();
 	__mptcp_flush_join_list(msk);
@@ -144,11 +150,20 @@ select_local_address(const struct pm_nl_pernet *pernet,
 		if (!(entry->addr.flags & MPTCP_PM_ADDR_FLAG_SUBFLOW))
 			continue;
 
+		if (entry->addr.family != sk->sk_family) {
+#if IS_ENABLED(CONFIG_MPTCP_IPV6)
+			if ((entry->addr.family == AF_INET &&
+			     !ipv6_addr_v4mapped(&sk->sk_v6_daddr)) ||
+			    (sk->sk_family == AF_INET &&
+			     !ipv6_addr_v4mapped(&entry->addr.addr6)))
+#endif
+				continue;
+		}
+
 		/* avoid any address already in use by subflows and
 		 * pending join
 		 */
-		if (entry->addr.family == ((struct sock *)msk)->sk_family &&
-		    !lookup_subflow_by_saddr(&msk->conn_list, &entry->addr)) {
+		if (!lookup_subflow_by_saddr(&msk->conn_list, &entry->addr)) {
 			ret = entry;
 			break;
 		}
@@ -310,7 +325,6 @@ void mptcp_pm_free_anno_list(struct mptcp_sock *msk)
 
 static void mptcp_pm_create_subflow_or_signal_addr(struct mptcp_sock *msk)
 {
-	struct mptcp_addr_info remote = { 0 };
 	struct sock *sk = (struct sock *)msk;
 	struct mptcp_pm_addr_entry *local;
 	struct pm_nl_pernet *pernet;
@@ -344,13 +358,14 @@ static void mptcp_pm_create_subflow_or_signal_addr(struct mptcp_sock *msk)
 	/* check if should create a new subflow */
 	if (msk->pm.local_addr_used < msk->pm.local_addr_max &&
 	    msk->pm.subflows < msk->pm.subflows_max) {
-		remote_address((struct sock_common *)sk, &remote);
-
 		local = select_local_address(pernet, msk);
 		if (local) {
+			struct mptcp_addr_info remote = { 0 };
+
 			msk->pm.local_addr_used++;
 			msk->pm.subflows++;
 			check_work_pending(msk);
+			remote_address((struct sock_common *)sk, &remote);
 			spin_unlock_bh(&msk->pm.lock);
 			__mptcp_subflow_connect(sk, &local->addr, &remote);
 			spin_lock_bh(&msk->pm.lock);
