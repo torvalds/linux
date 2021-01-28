@@ -374,6 +374,26 @@ static void dr_ste_v1_set_encap(u8 *hw_ste_p, u8 *d_action,
 	dr_ste_v1_set_reparse(hw_ste_p);
 }
 
+static void dr_ste_v1_set_insert_hdr(u8 *hw_ste_p, u8 *d_action,
+				     u32 reformat_id,
+				     u8 anchor, u8 offset,
+				     int size)
+{
+	MLX5_SET(ste_double_action_insert_with_ptr_v1, d_action,
+		 action_id, DR_STE_V1_ACTION_ID_INSERT_POINTER);
+	MLX5_SET(ste_double_action_insert_with_ptr_v1, d_action, start_anchor, anchor);
+
+	/* The hardware expects here size and offset in words (2 byte) */
+	MLX5_SET(ste_double_action_insert_with_ptr_v1, d_action, size, size / 2);
+	MLX5_SET(ste_double_action_insert_with_ptr_v1, d_action, start_offset, offset / 2);
+
+	MLX5_SET(ste_double_action_insert_with_ptr_v1, d_action, pointer, reformat_id);
+	MLX5_SET(ste_double_action_insert_with_ptr_v1, d_action, attributes,
+		 DR_STE_V1_ACTION_INSERT_PTR_ATTR_NONE);
+
+	dr_ste_v1_set_reparse(hw_ste_p);
+}
+
 static void dr_ste_v1_set_tx_push_vlan(u8 *hw_ste_p, u8 *d_action,
 				       u32 vlan_hdr)
 {
@@ -520,8 +540,8 @@ static void dr_ste_v1_set_actions_tx(struct mlx5dr_domain *dmn,
 			allow_encap = true;
 		}
 		dr_ste_v1_set_encap(last_ste, action,
-				    attr->reformat_id,
-				    attr->reformat_size);
+				    attr->reformat.id,
+				    attr->reformat.size);
 		action_sz -= DR_STE_ACTION_DOUBLE_SZ;
 		action += DR_STE_ACTION_DOUBLE_SZ;
 	} else if (action_type_set[DR_ACTION_TYP_L2_TO_TNL_L3]) {
@@ -534,10 +554,23 @@ static void dr_ste_v1_set_actions_tx(struct mlx5dr_domain *dmn,
 
 		dr_ste_v1_set_encap_l3(last_ste,
 				       action, d_action,
-				       attr->reformat_id,
-				       attr->reformat_size);
+				       attr->reformat.id,
+				       attr->reformat.size);
 		action_sz -= DR_STE_ACTION_TRIPLE_SZ;
 		action += DR_STE_ACTION_TRIPLE_SZ;
+	} else if (action_type_set[DR_ACTION_TYP_INSERT_HDR]) {
+		if (!allow_encap || action_sz < DR_STE_ACTION_DOUBLE_SZ) {
+			dr_ste_v1_arr_init_next_match(&last_ste, added_stes, attr->gvmi);
+			action = MLX5_ADDR_OF(ste_mask_and_match_v1, last_ste, action);
+			action_sz = DR_STE_ACTION_TRIPLE_SZ;
+		}
+		dr_ste_v1_set_insert_hdr(last_ste, action,
+					 attr->reformat.id,
+					 attr->reformat.param_0,
+					 attr->reformat.param_1,
+					 attr->reformat.size);
+		action_sz -= DR_STE_ACTION_DOUBLE_SZ;
+		action += DR_STE_ACTION_DOUBLE_SZ;
 	}
 
 	dr_ste_v1_set_hit_gvmi(last_ste, attr->hit_gvmi);
@@ -616,7 +649,9 @@ static void dr_ste_v1_set_actions_rx(struct mlx5dr_domain *dmn,
 	}
 
 	if (action_type_set[DR_ACTION_TYP_CTR]) {
-		/* Counter action set after decap to exclude decaped header */
+		/* Counter action set after decap and before insert_hdr
+		 * to exclude decaped / encaped header respectively.
+		 */
 		if (!allow_ctr) {
 			dr_ste_v1_arr_init_next_match(&last_ste, added_stes, attr->gvmi);
 			action = MLX5_ADDR_OF(ste_mask_and_match_v1, last_ste, action);
@@ -634,8 +669,8 @@ static void dr_ste_v1_set_actions_rx(struct mlx5dr_domain *dmn,
 			action_sz = DR_STE_ACTION_TRIPLE_SZ;
 		}
 		dr_ste_v1_set_encap(last_ste, action,
-				    attr->reformat_id,
-				    attr->reformat_size);
+				    attr->reformat.id,
+				    attr->reformat.size);
 		action_sz -= DR_STE_ACTION_DOUBLE_SZ;
 		action += DR_STE_ACTION_DOUBLE_SZ;
 		allow_modify_hdr = false;
@@ -652,9 +687,24 @@ static void dr_ste_v1_set_actions_rx(struct mlx5dr_domain *dmn,
 
 		dr_ste_v1_set_encap_l3(last_ste,
 				       action, d_action,
-				       attr->reformat_id,
-				       attr->reformat_size);
+				       attr->reformat.id,
+				       attr->reformat.size);
 		action_sz -= DR_STE_ACTION_TRIPLE_SZ;
+		allow_modify_hdr = false;
+	} else if (action_type_set[DR_ACTION_TYP_INSERT_HDR]) {
+		/* Modify header, decap, and encap must use different STEs */
+		if (!allow_modify_hdr || action_sz < DR_STE_ACTION_DOUBLE_SZ) {
+			dr_ste_v1_arr_init_next_match(&last_ste, added_stes, attr->gvmi);
+			action = MLX5_ADDR_OF(ste_mask_and_match_v1, last_ste, action);
+			action_sz = DR_STE_ACTION_TRIPLE_SZ;
+		}
+		dr_ste_v1_set_insert_hdr(last_ste, action,
+					 attr->reformat.id,
+					 attr->reformat.param_0,
+					 attr->reformat.param_1,
+					 attr->reformat.size);
+		action_sz -= DR_STE_ACTION_DOUBLE_SZ;
+		action += DR_STE_ACTION_DOUBLE_SZ;
 		allow_modify_hdr = false;
 	}
 

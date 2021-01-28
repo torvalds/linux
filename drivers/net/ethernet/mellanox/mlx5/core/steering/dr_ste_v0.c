@@ -437,8 +437,8 @@ dr_ste_v0_set_actions_tx(struct mlx5dr_domain *dmn,
 						attr->gvmi);
 
 		dr_ste_v0_set_tx_encap(last_ste,
-				       attr->reformat_id,
-				       attr->reformat_size,
+				       attr->reformat.id,
+				       attr->reformat.size,
 				       action_type_set[DR_ACTION_TYP_L2_TO_TNL_L3]);
 		/* Whenever prio_tag_required enabled, we can be sure that the
 		 * previous table (ACL) already push vlan to our packet,

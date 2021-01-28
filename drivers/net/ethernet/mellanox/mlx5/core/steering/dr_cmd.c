@@ -460,6 +460,8 @@ int mlx5dr_cmd_destroy_flow_table(struct mlx5_core_dev *mdev,
 
 int mlx5dr_cmd_create_reformat_ctx(struct mlx5_core_dev *mdev,
 				   enum mlx5_reformat_ctx_type rt,
+				   u8 reformat_param_0,
+				   u8 reformat_param_1,
 				   size_t reformat_size,
 				   void *reformat_data,
 				   u32 *reformat_id)
@@ -486,8 +488,11 @@ int mlx5dr_cmd_create_reformat_ctx(struct mlx5_core_dev *mdev,
 	pdata = MLX5_ADDR_OF(packet_reformat_context_in, prctx, reformat_data);
 
 	MLX5_SET(packet_reformat_context_in, prctx, reformat_type, rt);
+	MLX5_SET(packet_reformat_context_in, prctx, reformat_param_0, reformat_param_0);
+	MLX5_SET(packet_reformat_context_in, prctx, reformat_param_1, reformat_param_1);
 	MLX5_SET(packet_reformat_context_in, prctx, reformat_data_size, reformat_size);
-	memcpy(pdata, reformat_data, reformat_size);
+	if (reformat_data && reformat_size)
+		memcpy(pdata, reformat_data, reformat_size);
 
 	err = mlx5_cmd_exec(mdev, in, inlen, out, sizeof(out));
 	if (err)
