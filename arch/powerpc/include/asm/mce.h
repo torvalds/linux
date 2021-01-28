@@ -204,7 +204,7 @@ struct mce_error_info {
 	bool			ignore_event;
 };
 
-#define MAX_MC_EVT	100
+#define MAX_MC_EVT	10
 
 /* Release flags for get_mce_event() */
 #define MCE_EVENT_RELEASE	true
