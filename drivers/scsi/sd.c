@@ -3379,10 +3379,12 @@ static int sd_probe(struct device *dev)
 	    sdp->type != TYPE_RBC)
 		goto out;
 
-#ifndef CONFIG_BLK_DEV_ZONED
-	if (sdp->type == TYPE_ZBC)
+	if (!IS_ENABLED(CONFIG_BLK_DEV_ZONED) && sdp->type == TYPE_ZBC) {
+		sdev_printk(KERN_WARNING, sdp,
+			    "Unsupported ZBC host-managed device.\n");
 		goto out;
-#endif
+	}
+
 	SCSI_LOG_HLQUEUE(3, sdev_printk(KERN_INFO, sdp,
 					"sd_probe\n"));
 
