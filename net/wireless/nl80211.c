@@ -3220,7 +3220,6 @@ static int nl80211_set_wiphy(struct sk_buff *skb, struct genl_info *info)
 		wdev = netdev->ieee80211_ptr;
 
 	wiphy_lock(&rdev->wiphy);
-	rtnl_unlock();
 
 	/*
 	 * end workaround code, by now the rdev is available
@@ -3230,6 +3229,7 @@ static int nl80211_set_wiphy(struct sk_buff *skb, struct genl_info *info)
 	if (info->attrs[NL80211_ATTR_WIPHY_NAME])
 		result = cfg80211_dev_rename(
 			rdev, nla_data(info->attrs[NL80211_ATTR_WIPHY_NAME]));
+	rtnl_unlock();
 
 	if (result)
 		goto out;
