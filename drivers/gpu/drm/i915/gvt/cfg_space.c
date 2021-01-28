@@ -374,6 +374,7 @@ void intel_vgpu_init_cfg_space(struct intel_vgpu *vgpu,
 			       bool primary)
 {
 	struct intel_gvt *gvt = vgpu->gvt;
+	struct pci_dev *pdev = to_pci_dev(gvt->gt->i915->drm.dev);
 	const struct intel_gvt_device_info *info = &gvt->device_info;
 	u16 *gmch_ctl;
 	u8 next;
@@ -407,9 +408,9 @@ void intel_vgpu_init_cfg_space(struct intel_vgpu *vgpu,
 	memset(vgpu_cfg_space(vgpu) + INTEL_GVT_PCI_OPREGION, 0, 4);
 
 	vgpu->cfg_space.bar[INTEL_GVT_PCI_BAR_GTTMMIO].size =
-		pci_resource_len(gvt->gt->i915->drm.pdev, 0);
+		pci_resource_len(pdev, 0);
 	vgpu->cfg_space.bar[INTEL_GVT_PCI_BAR_APERTURE].size =
-		pci_resource_len(gvt->gt->i915->drm.pdev, 2);
+		pci_resource_len(pdev, 2);
 
 	memset(vgpu_cfg_space(vgpu) + PCI_ROM_ADDRESS, 0, 4);
 
