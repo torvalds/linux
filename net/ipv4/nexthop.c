@@ -2079,21 +2079,16 @@ rtm_dump_nh_ctx(struct netlink_callback *cb)
 	return ctx;
 }
 
-/* rtnl */
-static int rtm_dump_nexthop(struct sk_buff *skb, struct netlink_callback *cb)
+static int rtm_dump_walk_nexthops(struct sk_buff *skb,
+				  struct netlink_callback *cb,
+				  struct rb_root *root,
+				  struct rtm_dump_nh_ctx *ctx,
+				  struct nh_dump_filter *filter)
 {
-	struct rtm_dump_nh_ctx *ctx = rtm_dump_nh_ctx(cb);
 	struct nhmsg *nhm = nlmsg_data(cb->nlh);
-	struct net *net = sock_net(skb->sk);
-	struct rb_root *root = &net->nexthop.rb_root;
-	struct nh_dump_filter filter = {};
 	struct rb_node *node;
 	int idx = 0, s_idx;
 	int err;
-
-	err = nh_valid_dump_req(cb->nlh, &filter, cb);
-	if (err < 0)
-		return err;
 
 	s_idx = ctx->idx;
 	for (node = rb_first(root); node; node = rb_next(node)) {
@@ -2103,29 +2098,48 @@ static int rtm_dump_nexthop(struct sk_buff *skb, struct netlink_callback *cb)
 			goto cont;
 
 		nh = rb_entry(node, struct nexthop, rb_node);
-		if (nh_dump_filtered(nh, &filter, nhm->nh_family))
+		if (nh_dump_filtered(nh, filter, nhm->nh_family))
 			goto cont;
 
+		ctx->idx = idx;
 		err = nh_fill_node(skb, nh, RTM_NEWNEXTHOP,
 				   NETLINK_CB(cb->skb).portid,
 				   cb->nlh->nlmsg_seq, NLM_F_MULTI);
-		if (err < 0) {
-			if (likely(skb->len))
-				goto out;
-
-			goto out_err;
-		}
+		if (err < 0)
+			return err;
 cont:
 		idx++;
+	}
+
+	ctx->idx = idx;
+	return 0;
+}
+
+/* rtnl */
+static int rtm_dump_nexthop(struct sk_buff *skb, struct netlink_callback *cb)
+{
+	struct rtm_dump_nh_ctx *ctx = rtm_dump_nh_ctx(cb);
+	struct net *net = sock_net(skb->sk);
+	struct rb_root *root = &net->nexthop.rb_root;
+	struct nh_dump_filter filter = {};
+	int err;
+
+	err = nh_valid_dump_req(cb->nlh, &filter, cb);
+	if (err < 0)
+		return err;
+
+	err = rtm_dump_walk_nexthops(skb, cb, root, ctx, &filter);
+	if (err < 0) {
+		if (likely(skb->len))
+			goto out;
+		goto out_err;
 	}
 
 out:
 	err = skb->len;
 out_err:
-	ctx->idx = idx;
 	cb->seq = net->nexthop.seq;
 	nl_dump_check_consistent(cb, nlmsg_hdr(skb));
-
 	return err;
 }
 
