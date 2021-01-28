@@ -501,6 +501,10 @@ static const struct vop2_video_port_regs rk3568_vop_vp0_regs = {
 	.bcsh_y2r_csc_mode = VOP_REG(RK3568_VP0_BCSH_CTRL, 0x3, 2),
 	.bcsh_y2r_en = VOP_REG(RK3568_VP0_BCSH_CTRL, 0x1, 0),
 	.bcsh_en = VOP_REG(RK3568_VP0_BCSH_COLOR_BAR, 0x1, 31),
+
+	.cubic_lut_en = VOP_REG(RK3568_VP0_3D_LUT_CTRL, 0x1, 0),
+	.cubic_lut_update_en = VOP_REG(RK3568_VP0_3D_LUT_CTRL, 0x1, 2),
+	.cubic_lut_mst = VOP_REG(RK3568_VP0_3D_LUT_MST, 0xffffffff, 0),
 };
 
 static const struct vop2_video_port_regs rk3568_vop_vp1_regs = {
@@ -607,6 +611,7 @@ static const struct vop2_video_port_data rk3568_vop_video_ports[] = {
 	 .soc_id = { 0x3568, 0x3566 },
 	 .feature = VOP_FEATURE_OUTPUT_10BIT,
 	 .gamma_lut_len = 1024,
+	 .cubic_lut_len = 729, /* 9x9x9 */
 	 .max_output = { 4096, 2304 },
 	 .pre_scan_max_dly = { 69, 53, 53, 42 },
 	 .intr = &rk3568_vp0_intr,
@@ -1157,6 +1162,7 @@ static const struct vop2_ctrl rk3568_vop_ctrl = {
 	.ovl_port_mux_cfg_done_imd = VOP_REG(RK3568_OVL_CTRL, 0x1, 28),
 	.if_ctrl_cfg_done_imd = VOP_REG(RK3568_DSP_IF_POL, 0x1, 28),
 	.version = VOP_REG(RK3568_VERSION_INFO, 0xffff, 16),
+	.lut_dma_en = VOP_REG(RK3568_SYS_AXI_LUT_CTRL, 0x1, 0),
 	.cluster0_src_color_ctrl = VOP_REG(RK3568_CLUSTER0_MIX_SRC_COLOR_CTRL, 0xffffffff, 0),
 	.cluster0_dst_color_ctrl = VOP_REG(RK3568_CLUSTER0_MIX_DST_COLOR_CTRL, 0xffffffff, 0),
 	.cluster0_src_alpha_ctrl = VOP_REG(RK3568_CLUSTER0_MIX_SRC_ALPHA_CTRL, 0xffffffff, 0),

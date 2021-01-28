@@ -454,6 +454,21 @@ struct vop2_video_port {
 	 * @gamma_lut: atomic gamma look up table
 	 */
 	struct drm_color_lut *gamma_lut;
+
+	/**
+	 * @cubic_lut_len: cubic look up table size
+	 */
+	u32 cubic_lut_len;
+
+	/**
+	 * @cubic_lut_gem_obj: gem obj to store cubic lut
+	 */
+	struct rockchip_gem_object *cubic_lut_gem_obj;
+
+	/**
+	 * @cubic_lut: cubic look up table
+	 */
+	struct drm_color_lut *cubic_lut;
 };
 
 struct vop2 {
@@ -2058,6 +2073,60 @@ static int vop2_crtc_atomic_gamma_set(struct drm_crtc *crtc,
 	return 0;
 }
 
+static int vop2_crtc_atomic_cubic_lut_set(struct drm_crtc *crtc,
+					  struct drm_crtc_state *old_state)
+{
+	struct vop2_video_port *vp = to_vop2_video_port(crtc);
+	struct drm_color_lut *lut = vp->cubic_lut;
+	struct vop2 *vop2 = vp->vop2;
+	u32 *cubic_lut_kvaddr;
+	dma_addr_t cubic_lut_mst;
+	unsigned int i;
+
+	if (!vp->cubic_lut_len) {
+		DRM_ERROR("Video Port%d unsupported 3D lut\n", vp->id);
+		return -ENODEV;
+	}
+
+	if (!vp->cubic_lut_gem_obj) {
+		size_t size = (vp->cubic_lut_len + 1) / 2 * 16;
+
+		vp->cubic_lut_gem_obj = rockchip_gem_create_object(crtc->dev, size, true, 0);
+		if (IS_ERR(vp->cubic_lut_gem_obj))
+			return -ENOMEM;
+	}
+
+	cubic_lut_kvaddr = (u32 *)vp->cubic_lut_gem_obj->kvaddr;
+	cubic_lut_mst = vp->cubic_lut_gem_obj->dma_addr;
+	for (i = 0; i < vp->cubic_lut_len / 2; i++) {
+		*cubic_lut_kvaddr++ = (lut[2 * i].red & 0xfff) +
+					((lut[2 * i].green & 0xfff) << 12) +
+					((lut[2 * i].blue & 0xff) << 24);
+		*cubic_lut_kvaddr++ = ((lut[2 * i].blue & 0xf00) >> 8) +
+					((lut[2 * i + 1].red & 0xfff) << 4) +
+					((lut[2 * i + 1].green & 0xfff) << 16) +
+					((lut[2 * i + 1].blue & 0xf) << 28);
+		*cubic_lut_kvaddr++ = (lut[2 * i + 1].blue & 0xff0) >> 4;
+		*cubic_lut_kvaddr++ = 0;
+	}
+
+	if (vp->cubic_lut_len % 2) {
+		*cubic_lut_kvaddr++ = (lut[2 * i].red & 0xfff) +
+					((lut[2 * i].green & 0xfff) << 12) +
+					((lut[2 * i].blue & 0xff) << 24);
+		*cubic_lut_kvaddr++ = (lut[2 * i].blue & 0xf00) >> 8;
+		*cubic_lut_kvaddr++ = 0;
+		*cubic_lut_kvaddr = 0;
+	}
+
+	VOP_MODULE_SET(vop2, vp, cubic_lut_mst, cubic_lut_mst);
+	VOP_MODULE_SET(vop2, vp, cubic_lut_update_en, 1);
+	VOP_MODULE_SET(vop2, vp, cubic_lut_en, 1);
+	VOP_CTRL_SET(vop2, lut_dma_en, 1);
+
+	return 0;
+}
+
 static int vop2_core_clks_prepare_enable(struct vop2 *vop2)
 {
 	int ret;
@@ -3303,10 +3372,37 @@ static int vop2_gamma_show(struct seq_file *s, void *data)
 	return 0;
 }
 
+static int vop2_cubic_lut_show(struct seq_file *s, void *data)
+{
+	struct drm_info_node *node = s->private;
+	struct vop2 *vop2 = node->info_ent->data;
+	int i, j;
+
+	for (i = 0; i < vop2->data->nr_vps; i++) {
+		struct vop2_video_port *vp = &vop2->vps[i];
+
+		if (!vp->cubic_lut_gem_obj || !vp->cubic_lut || !vp->crtc.state->enable) {
+			DEBUG_PRINT("Video port%d cubic lut disabled\n", vp->id);
+			continue;
+		}
+		DEBUG_PRINT("Video port%d cubic lut:\n", vp->id);
+		for (j = 0; j < vp->cubic_lut_len; j++) {
+			DEBUG_PRINT("%04d: 0x%04x 0x%04x 0x%04x\n", j,
+				    vp->cubic_lut[j].red,
+				    vp->cubic_lut[j].green,
+				    vp->cubic_lut[j].blue);
+		}
+		DEBUG_PRINT("\n");
+	}
+
+	return 0;
+}
+
 #undef DEBUG_PRINT
 
 static struct drm_info_list vop2_debugfs_files[] = {
 	{ "gamma_lut", vop2_gamma_show, 0, NULL },
+	{ "cubic_lut", vop2_cubic_lut_show, 0, NULL },
 };
 
 static int vop2_crtc_debugfs_init(struct drm_minor *minor, struct drm_crtc *crtc)
@@ -4707,6 +4803,14 @@ static void vop2_crtc_atomic_flush(struct drm_crtc *crtc, struct drm_crtc_state 
 				vp->gamma_lut = crtc->state->gamma_lut->data;
 			vop2_crtc_atomic_gamma_set(crtc, crtc->state);
 		}
+
+		if (crtc->state->cubic_lut || vp->cubic_lut) {
+			if (crtc->state->cubic_lut)
+				vp->cubic_lut = crtc->state->cubic_lut->data;
+			vop2_crtc_atomic_cubic_lut_set(crtc, crtc->state);
+		}
+	} else {
+		VOP_MODULE_SET(vop2, vp, cubic_lut_update_en, 0);
 	}
 
 	spin_lock_irqsave(&vop2->irq_lock, flags);
@@ -5312,6 +5416,25 @@ static int vop2_gamma_init(struct vop2 *vop2)
 	return 0;
 }
 
+static void vop2_cubic_lut_init(struct vop2 *vop2)
+{
+	const struct vop2_data *vop2_data = vop2->data;
+	const struct vop2_video_port_data *vp_data;
+	struct vop2_video_port *vp;
+	struct drm_crtc *crtc;
+	int i;
+
+	for (i = 0; i < vop2_data->nr_vps; i++) {
+		vp = &vop2->vps[i];
+		crtc = &vp->crtc;
+		vp_data = &vop2_data->vp[vp->id];
+		vp->cubic_lut_len = vp_data->cubic_lut_len;
+
+		if (vp->cubic_lut_len)
+			drm_crtc_enable_cubic_lut(crtc, vp->cubic_lut_len);
+	}
+}
+
 static int vop2_create_crtc(struct vop2 *vop2)
 {
 	const struct vop2_data *vop2_data = vop2->data;
@@ -5672,6 +5795,7 @@ static int vop2_bind(struct device *dev, struct device *master, void *data)
 	ret = vop2_gamma_init(vop2);
 	if (ret)
 		return ret;
+	vop2_cubic_lut_init(vop2);
 	vop2_wb_connector_init(vop2);
 	pm_runtime_enable(&pdev->dev);
 
