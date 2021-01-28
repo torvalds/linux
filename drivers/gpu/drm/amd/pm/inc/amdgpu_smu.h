@@ -173,7 +173,7 @@ enum smu_memory_pool_size
 struct smu_user_dpm_profile {
 	uint32_t fan_mode;
 	uint32_t power_limit;
-	uint32_t fan_speed_rpm;
+	uint32_t fan_speed_percent;
 	uint32_t flags;
 
 	/* user clock state information */
@@ -472,7 +472,7 @@ struct smu_context
 	struct work_struct interrupt_work;
 
 	unsigned fan_max_rpm;
-	unsigned manual_fan_speed_rpm;
+	unsigned manual_fan_speed_percent;
 
 	uint32_t gfx_default_hard_min_freq;
 	uint32_t gfx_default_soft_max_freq;
@@ -648,9 +648,9 @@ struct pptable_funcs {
 	bool (*is_dpm_running)(struct smu_context *smu);
 
 	/**
-	 * @get_fan_speed_rpm: Get the current fan speed in RPM.
+	 * @get_fan_speed_percent: Get the current fan speed in percent.
 	 */
-	int (*get_fan_speed_rpm)(struct smu_context *smu, uint32_t *speed);
+	int (*get_fan_speed_percent)(struct smu_context *smu, uint32_t *speed);
 
 	/**
 	 * @set_watermarks_table: Configure and upload the watermarks tables to
@@ -951,10 +951,10 @@ struct pptable_funcs {
 	int (*set_fan_control_mode)(struct smu_context *smu, uint32_t mode);
 
 	/**
-	 * @set_fan_speed_rpm: Set a static fan speed in RPM.
+	 * @set_fan_speed_percent: Set a static fan speed in percent.
 	 */
-	int (*set_fan_speed_rpm)(struct smu_context *smu, uint32_t speed);
 	int (*set_fan_speed_percent)(struct smu_context *smu, uint32_t speed);
+
 	/**
 	 * @set_xgmi_pstate: Set inter-chip global memory interconnect pstate.
 	 * &pstate: Pstate to set. D0 if Nonzero, D3 otherwise.

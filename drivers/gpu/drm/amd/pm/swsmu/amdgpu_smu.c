@@ -368,8 +368,8 @@ static void smu_restore_dpm_user_profile(struct smu_context *smu)
 			return;
 		}
 
-		if (!ret && smu->user_dpm_profile.fan_speed_rpm) {
-			ret = smu_set_fan_speed_rpm(smu, smu->user_dpm_profile.fan_speed_rpm);
+		if (!ret && smu->user_dpm_profile.fan_speed_percent) {
+			ret = smu_set_fan_speed_percent(smu, smu->user_dpm_profile.fan_speed_percent);
 			if (ret)
 				dev_err(smu->adev->dev, "Failed to set manual fan speed\n");
 		}
@@ -2025,6 +2025,7 @@ int smu_set_gfx_cgpg(struct smu_context *smu, bool enabled)
 
 int smu_set_fan_speed_rpm(struct smu_context *smu, uint32_t speed)
 {
+	u32 percent;
 	int ret = 0;
 
 	if (!smu->pm_enabled || !smu->adev->pm.dpm_enabled)
@@ -2032,10 +2033,11 @@ int smu_set_fan_speed_rpm(struct smu_context *smu, uint32_t speed)
 
 	mutex_lock(&smu->mutex);
 
-	if (smu->ppt_funcs->set_fan_speed_rpm) {
-		ret = smu->ppt_funcs->set_fan_speed_rpm(smu, speed);
+	if (smu->ppt_funcs->set_fan_speed_percent) {
+		percent = speed * 100 / smu->fan_max_rpm;
+		ret = smu->ppt_funcs->set_fan_speed_percent(smu, percent);
 		if (!ret && smu->user_dpm_profile.flags != SMU_DPM_USER_PROFILE_RESTORE)
-			smu->user_dpm_profile.fan_speed_rpm = speed;
+			smu->user_dpm_profile.fan_speed_percent = percent;
 	}
 
 	mutex_unlock(&smu->mutex);
@@ -2270,7 +2272,7 @@ int smu_set_fan_control_mode(struct smu_context *smu, int value)
 	/* reset user dpm fan speed */
 	if (!ret && value != AMD_FAN_CTRL_MANUAL &&
 			smu->user_dpm_profile.flags != SMU_DPM_USER_PROFILE_RESTORE)
-		smu->user_dpm_profile.fan_speed_rpm = 0;
+		smu->user_dpm_profile.fan_speed_percent = 0;
 
 	return ret;
 }
@@ -2279,17 +2281,15 @@ int smu_get_fan_speed_percent(struct smu_context *smu, uint32_t *speed)
 {
 	int ret = 0;
 	uint32_t percent;
-	uint32_t current_rpm;
 
 	if (!smu->pm_enabled || !smu->adev->pm.dpm_enabled)
 		return -EOPNOTSUPP;
 
 	mutex_lock(&smu->mutex);
 
-	if (smu->ppt_funcs->get_fan_speed_rpm) {
-		ret = smu->ppt_funcs->get_fan_speed_rpm(smu, &current_rpm);
+	if (smu->ppt_funcs->get_fan_speed_percent) {
+		ret = smu->ppt_funcs->get_fan_speed_percent(smu, &percent);
 		if (!ret) {
-			percent = current_rpm * 100 / smu->fan_max_rpm;
 			*speed = percent > 100 ? 100 : percent;
 		}
 	}
@@ -2309,8 +2309,13 @@ int smu_set_fan_speed_percent(struct smu_context *smu, uint32_t speed)
 
 	mutex_lock(&smu->mutex);
 
-	if (smu->ppt_funcs->set_fan_speed_percent)
+	if (smu->ppt_funcs->set_fan_speed_percent) {
+		if (speed > 100)
+			speed = 100;
 		ret = smu->ppt_funcs->set_fan_speed_percent(smu, speed);
+		if (!ret && smu->user_dpm_profile.flags != SMU_DPM_USER_PROFILE_RESTORE)
+			smu->user_dpm_profile.fan_speed_percent = speed;
+	}
 
 	mutex_unlock(&smu->mutex);
 
@@ -2320,14 +2325,17 @@ int smu_set_fan_speed_percent(struct smu_context *smu, uint32_t speed)
 int smu_get_fan_speed_rpm(struct smu_context *smu, uint32_t *speed)
 {
 	int ret = 0;
+	u32 percent;
 
 	if (!smu->pm_enabled || !smu->adev->pm.dpm_enabled)
 		return -EOPNOTSUPP;
 
 	mutex_lock(&smu->mutex);
 
-	if (smu->ppt_funcs->get_fan_speed_rpm)
-		ret = smu->ppt_funcs->get_fan_speed_rpm(smu, speed);
+	if (smu->ppt_funcs->get_fan_speed_percent) {
+		ret = smu->ppt_funcs->get_fan_speed_percent(smu, &percent);
+		*speed = percent * smu->fan_max_rpm / 100;
+	}
 
 	mutex_unlock(&smu->mutex);
 
