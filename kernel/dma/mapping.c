@@ -539,6 +539,112 @@ int dma_mmap_pages(struct device *dev, struct vm_area_struct *vma,
 }
 EXPORT_SYMBOL_GPL(dma_mmap_pages);
 
+static struct sg_table *alloc_single_sgt(struct device *dev, size_t size,
+		enum dma_data_direction dir, gfp_t gfp)
+{
+	struct sg_table *sgt;
+	struct page *page;
+
+	sgt = kmalloc(sizeof(*sgt), gfp);
+	if (!sgt)
+		return NULL;
+	if (sg_alloc_table(sgt, 1, gfp))
+		goto out_free_sgt;
+	page = __dma_alloc_pages(dev, size, &sgt->sgl->dma_address, dir, gfp);
+	if (!page)
+		goto out_free_table;
+	sg_set_page(sgt->sgl, page, PAGE_ALIGN(size), 0);
+	sg_dma_len(sgt->sgl) = sgt->sgl->length;
+	return sgt;
+out_free_table:
+	sg_free_table(sgt);
+out_free_sgt:
+	kfree(sgt);
+	return NULL;
+}
+
+struct sg_table *dma_alloc_noncontiguous(struct device *dev, size_t size,
+		enum dma_data_direction dir, gfp_t gfp, unsigned long attrs)
+{
+	const struct dma_map_ops *ops = get_dma_ops(dev);
+	struct sg_table *sgt;
+
+	if (WARN_ON_ONCE(attrs & ~DMA_ATTR_ALLOC_SINGLE_PAGES))
+		return NULL;
+
+	if (ops && ops->alloc_noncontiguous)
+		sgt = ops->alloc_noncontiguous(dev, size, dir, gfp, attrs);
+	else
+		sgt = alloc_single_sgt(dev, size, dir, gfp);
+
+	if (sgt) {
+		sgt->nents = 1;
+		debug_dma_map_sg(dev, sgt->sgl, sgt->orig_nents, 1, dir);
+	}
+	return sgt;
+}
+EXPORT_SYMBOL_GPL(dma_alloc_noncontiguous);
+
+static void free_single_sgt(struct device *dev, size_t size,
+		struct sg_table *sgt, enum dma_data_direction dir)
+{
+	__dma_free_pages(dev, size, sg_page(sgt->sgl), sgt->sgl->dma_address,
+			 dir);
+	sg_free_table(sgt);
+	kfree(sgt);
+}
+
+void dma_free_noncontiguous(struct device *dev, size_t size,
+		struct sg_table *sgt, enum dma_data_direction dir)
+{
+	const struct dma_map_ops *ops = get_dma_ops(dev);
+
+	debug_dma_unmap_sg(dev, sgt->sgl, sgt->orig_nents, dir);
+	if (ops && ops->free_noncontiguous)
+		ops->free_noncontiguous(dev, size, sgt, dir);
+	else
+		free_single_sgt(dev, size, sgt, dir);
+}
+EXPORT_SYMBOL_GPL(dma_free_noncontiguous);
+
+void *dma_vmap_noncontiguous(struct device *dev, size_t size,
+		struct sg_table *sgt)
+{
+	const struct dma_map_ops *ops = get_dma_ops(dev);
+	unsigned long count = PAGE_ALIGN(size) >> PAGE_SHIFT;
+
+	if (ops && ops->alloc_noncontiguous)
+		return vmap(sgt_handle(sgt)->pages, count, VM_MAP, PAGE_KERNEL);
+	return page_address(sg_page(sgt->sgl));
+}
+EXPORT_SYMBOL_GPL(dma_vmap_noncontiguous);
+
+void dma_vunmap_noncontiguous(struct device *dev, void *vaddr)
+{
+	const struct dma_map_ops *ops = get_dma_ops(dev);
+
+	if (ops && ops->alloc_noncontiguous)
+		vunmap(vaddr);
+}
+EXPORT_SYMBOL_GPL(dma_vunmap_noncontiguous);
+
+int dma_mmap_noncontiguous(struct device *dev, struct vm_area_struct *vma,
+		size_t size, struct sg_table *sgt)
+{
+	const struct dma_map_ops *ops = get_dma_ops(dev);
+
+	if (ops && ops->alloc_noncontiguous) {
+		unsigned long count = PAGE_ALIGN(size) >> PAGE_SHIFT;
+
+		if (vma->vm_pgoff >= count ||
+		    vma_pages(vma) > count - vma->vm_pgoff)
+			return -ENXIO;
+		return vm_map_pages(vma, sgt_handle(sgt)->pages, count);
+	}
+	return dma_mmap_pages(dev, vma, size, sg_page(sgt->sgl));
+}
+EXPORT_SYMBOL_GPL(dma_mmap_noncontiguous);
+
 int dma_supported(struct device *dev, u64 mask)
 {
 	const struct dma_map_ops *ops = get_dma_ops(dev);
