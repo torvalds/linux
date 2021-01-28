@@ -93,7 +93,7 @@ static int cl_dsp_init(struct snd_sof_dev *sdev, int stream_tag)
 	int i;
 
 	/* step 1: power up corex */
-	ret = hda_dsp_core_power_up(sdev, chip->host_managed_cores_mask);
+	ret = snd_sof_dsp_core_power_up(sdev, chip->host_managed_cores_mask);
 	if (ret < 0) {
 		if (hda->boot_iteration == HDA_FW_BOOT_ATTEMPTS)
 			dev_err(sdev->dev, "error: dsp core 0/1 power up failed\n");
@@ -148,8 +148,8 @@ static int cl_dsp_init(struct snd_sof_dev *sdev, int stream_tag)
 				       chip->ipc_ack_mask);
 
 	/* step 5: power down cores that are no longer needed */
-	ret = hda_dsp_core_power_down(sdev, chip->host_managed_cores_mask &
-				      ~(chip->init_core_mask));
+	ret = snd_sof_dsp_core_power_down(sdev, chip->host_managed_cores_mask &
+					  ~(chip->init_core_mask));
 	if (ret < 0) {
 		if (hda->boot_iteration == HDA_FW_BOOT_ATTEMPTS)
 			dev_err(sdev->dev,
