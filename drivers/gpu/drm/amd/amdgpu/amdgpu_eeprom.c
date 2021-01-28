@@ -32,20 +32,9 @@
 
 #define EEPROM_OFFSET_SIZE 2
 
-/**
- * amdgpu_eeprom_xfer -- Read/write from/to an I2C EEPROM device
- * @i2c_adap: pointer to the I2C adapter to use
- * @slave_addr: I2C address of the slave device
- * @eeprom_addr: EEPROM address from which to read/write
- * @eeprom_buf: pointer to data buffer to read into/write from
- * @buf_size: the size of @eeprom_buf
- * @read: True if reading from the EEPROM, false if writing
- *
- * Returns the number of bytes read/written; -errno on error.
- */
-int amdgpu_eeprom_xfer(struct i2c_adapter *i2c_adap,
-		       u16 slave_addr, u16 eeprom_addr,
-		       u8 *eeprom_buf, u16 buf_size, bool read)
+static int __amdgpu_eeprom_xfer(struct i2c_adapter *i2c_adap,
+				u16 slave_addr, u16 eeprom_addr,
+				u8 *eeprom_buf, u16 buf_size, bool read)
 {
 	u8 eeprom_offset_buf[EEPROM_OFFSET_SIZE];
 	struct i2c_msg msgs[] = {
@@ -65,8 +54,8 @@ int amdgpu_eeprom_xfer(struct i2c_adapter *i2c_adap,
 	u16 len;
 
 	r = 0;
-	for (len = 0; buf_size > 0;
-	     buf_size -= len, eeprom_addr += len, eeprom_buf += len) {
+	for ( ; buf_size > 0;
+	      buf_size -= len, eeprom_addr += len, eeprom_buf += len) {
 		/* Set the EEPROM address we want to write to/read from.
 		 */
 		msgs[0].buf[0] = (eeprom_addr >> 8) & 0xff;
@@ -119,4 +108,63 @@ int amdgpu_eeprom_xfer(struct i2c_adapter *i2c_adap,
 	}
 
 	return r < 0 ? r : eeprom_buf - p;
+}
+
+/**
+ * amdgpu_eeprom_xfer -- Read/write from/to an I2C EEPROM device
+ * @i2c_adap: pointer to the I2C adapter to use
+ * @slave_addr: I2C address of the slave device
+ * @eeprom_addr: EEPROM address from which to read/write
+ * @eeprom_buf: pointer to data buffer to read into/write from
+ * @buf_size: the size of @eeprom_buf
+ * @read: True if reading from the EEPROM, false if writing
+ *
+ * Returns the number of bytes read/written; -errno on error.
+ */
+int amdgpu_eeprom_xfer(struct i2c_adapter *i2c_adap,
+		       u16 slave_addr, u16 eeprom_addr,
+		       u8 *eeprom_buf, u16 buf_size, bool read)
+{
+	const struct i2c_adapter_quirks *quirks = i2c_adap->quirks;
+	u16 limit;
+
+	if (!quirks)
+		limit = 0;
+	else if (read)
+		limit = quirks->max_read_len;
+	else
+		limit = quirks->max_write_len;
+
+	if (limit == 0) {
+		return __amdgpu_eeprom_xfer(i2c_adap, slave_addr, eeprom_addr,
+					    eeprom_buf, buf_size, read);
+	} else if (limit <= EEPROM_OFFSET_SIZE) {
+		dev_err_ratelimited(&i2c_adap->dev,
+				    "maddr:0x%04X size:0x%02X:quirk max_%s_len must be > %d",
+				    eeprom_addr, buf_size,
+				    read ? "read" : "write", EEPROM_OFFSET_SIZE);
+		return -EINVAL;
+	} else {
+		u16 ps; /* Partial size */
+		int res = 0, r;
+
+		/* The "limit" includes all data bytes sent/received,
+		 * which would include the EEPROM_OFFSET_SIZE bytes.
+		 * Account for them here.
+		 */
+		limit -= EEPROM_OFFSET_SIZE;
+		for ( ; buf_size > 0;
+		      buf_size -= ps, eeprom_addr += ps, eeprom_buf += ps) {
+			ps = min(limit, buf_size);
+
+			r = __amdgpu_eeprom_xfer(i2c_adap,
+						 slave_addr, eeprom_addr,
+						 eeprom_buf, ps, read);
+			if (r < 0)
+				return r;
+			res += r;
+		}
+
+		return res;
+	}
 }
