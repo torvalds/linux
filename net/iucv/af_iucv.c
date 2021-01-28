@@ -89,7 +89,7 @@ static struct sock *iucv_accept_dequeue(struct sock *parent,
 static void iucv_sock_kill(struct sock *sk);
 static void iucv_sock_close(struct sock *sk);
 
-static void afiucv_hs_callback_txnotify(struct sk_buff *, enum iucv_tx_notify);
+static void afiucv_hs_callback_txnotify(struct sock *sk, enum iucv_tx_notify);
 
 /* Call Back functions */
 static void iucv_callback_rx(struct iucv_path *, struct iucv_message *);
@@ -211,7 +211,6 @@ static int afiucv_hs_send(struct iucv_message *imsg, struct sock *sock,
 {
 	struct iucv_sock *iucv = iucv_sk(sock);
 	struct af_iucv_trans_hdr *phs_hdr;
-	struct sk_buff *nskb;
 	int err, confirm_recv = 0;
 
 	phs_hdr = skb_push(skb, sizeof(*phs_hdr));
@@ -261,20 +260,10 @@ static int afiucv_hs_send(struct iucv_message *imsg, struct sock *sock,
 	}
 	skb->protocol = cpu_to_be16(ETH_P_AF_IUCV);
 
-	__skb_header_release(skb);
-	nskb = skb_clone(skb, GFP_ATOMIC);
-	if (!nskb) {
-		err = -ENOMEM;
-		goto err_free;
-	}
-
-	skb_queue_tail(&iucv->send_skb_q, nskb);
 	atomic_inc(&iucv->skbs_in_xmit);
 	err = dev_queue_xmit(skb);
 	if (net_xmit_eval(err)) {
 		atomic_dec(&iucv->skbs_in_xmit);
-		skb_unlink(nskb, &iucv->send_skb_q);
-		kfree_skb(nskb);
 	} else {
 		atomic_sub(confirm_recv, &iucv->msg_recv);
 		WARN_ON(atomic_read(&iucv->msg_recv) < 0);
@@ -2146,59 +2135,33 @@ static int afiucv_hs_rcv(struct sk_buff *skb, struct net_device *dev,
  * afiucv_hs_callback_txnotify() - handle send notifcations from HiperSockets
  *                                 transport
  **/
-static void afiucv_hs_callback_txnotify(struct sk_buff *skb,
-					enum iucv_tx_notify n)
+static void afiucv_hs_callback_txnotify(struct sock *sk, enum iucv_tx_notify n)
 {
-	struct iucv_sock *iucv = iucv_sk(skb->sk);
-	struct sock *sk = skb->sk;
-	struct sk_buff_head *list;
-	struct sk_buff *list_skb;
-	struct sk_buff *nskb;
-	unsigned long flags;
+	struct iucv_sock *iucv = iucv_sk(sk);
 
 	if (sock_flag(sk, SOCK_ZAPPED))
 		return;
 
-	list = &iucv->send_skb_q;
-	spin_lock_irqsave(&list->lock, flags);
-	skb_queue_walk_safe(list, list_skb, nskb) {
-		if (skb_shinfo(list_skb) == skb_shinfo(skb)) {
-			switch (n) {
-			case TX_NOTIFY_OK:
-				atomic_dec(&iucv->skbs_in_xmit);
-				__skb_unlink(list_skb, list);
-				kfree_skb(list_skb);
-				iucv_sock_wake_msglim(sk);
-				break;
-			case TX_NOTIFY_PENDING:
-				atomic_inc(&iucv->pendings);
-				break;
-			case TX_NOTIFY_DELAYED_OK:
-				atomic_dec(&iucv->skbs_in_xmit);
-				__skb_unlink(list_skb, list);
-				atomic_dec(&iucv->pendings);
-				if (atomic_read(&iucv->pendings) <= 0)
-					iucv_sock_wake_msglim(sk);
-				kfree_skb(list_skb);
-				break;
-			case TX_NOTIFY_UNREACHABLE:
-			case TX_NOTIFY_DELAYED_UNREACHABLE:
-			case TX_NOTIFY_TPQFULL: /* not yet used */
-			case TX_NOTIFY_GENERALERROR:
-			case TX_NOTIFY_DELAYED_GENERALERROR:
-				atomic_dec(&iucv->skbs_in_xmit);
-				__skb_unlink(list_skb, list);
-				kfree_skb(list_skb);
-				if (sk->sk_state == IUCV_CONNECTED) {
-					sk->sk_state = IUCV_DISCONN;
-					sk->sk_state_change(sk);
-				}
-				break;
-			}
-			break;
+	switch (n) {
+	case TX_NOTIFY_OK:
+		atomic_dec(&iucv->skbs_in_xmit);
+		iucv_sock_wake_msglim(sk);
+		break;
+	case TX_NOTIFY_PENDING:
+		atomic_inc(&iucv->pendings);
+		break;
+	case TX_NOTIFY_DELAYED_OK:
+		atomic_dec(&iucv->skbs_in_xmit);
+		if (atomic_dec_return(&iucv->pendings) <= 0)
+			iucv_sock_wake_msglim(sk);
+		break;
+	default:
+		atomic_dec(&iucv->skbs_in_xmit);
+		if (sk->sk_state == IUCV_CONNECTED) {
+			sk->sk_state = IUCV_DISCONN;
+			sk->sk_state_change(sk);
 		}
 	}
-	spin_unlock_irqrestore(&list->lock, flags);
 
 	if (sk->sk_state == IUCV_CLOSING) {
 		if (atomic_read(&iucv->skbs_in_xmit) == 0) {
@@ -2206,7 +2169,6 @@ static void afiucv_hs_callback_txnotify(struct sk_buff *skb,
 			sk->sk_state_change(sk);
 		}
 	}
-
 }
 
 /*

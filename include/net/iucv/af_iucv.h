@@ -133,7 +133,7 @@ struct iucv_sock {
 	atomic_t		msg_recv;
 	atomic_t		pendings;
 	int			transport;
-	void                    (*sk_txnotify)(struct sk_buff *skb,
+	void			(*sk_txnotify)(struct sock *sk,
 					       enum iucv_tx_notify n);
 };
 

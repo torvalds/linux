@@ -1409,10 +1409,12 @@ static void qeth_notify_skbs(struct qeth_qdio_out_q *q,
 	struct sk_buff *skb;
 
 	skb_queue_walk(&buf->skb_list, skb) {
+		struct sock *sk = skb->sk;
+
 		QETH_CARD_TEXT_(q->card, 5, "skbn%d", notification);
 		QETH_CARD_TEXT_(q->card, 5, "%lx", (long) skb);
-		if (skb->sk && skb->sk->sk_family == PF_IUCV)
-			iucv_sk(skb->sk)->sk_txnotify(skb, notification);
+		if (sk && sk->sk_family == PF_IUCV)
+			iucv_sk(sk)->sk_txnotify(sk, notification);
 	}
 }
 
