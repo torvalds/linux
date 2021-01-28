@@ -171,29 +171,34 @@ void vtime_account_hardirq(struct task_struct *tsk)
 static irqreturn_t
 timer_interrupt (int irq, void *dev_id)
 {
-	unsigned long cur_itm, new_itm, ticks;
+	unsigned long new_itm;
 
 	if (cpu_is_offline(smp_processor_id())) {
 		return IRQ_HANDLED;
 	}
 
 	new_itm = local_cpu_data->itm_next;
-	cur_itm = ia64_get_itc();
 
-	if (!time_after(cur_itm, new_itm)) {
+	if (!time_after(ia64_get_itc(), new_itm))
 		printk(KERN_ERR "Oops: timer tick before it's due (itc=%lx,itm=%lx)\n",
-		       cur_itm, new_itm);
-		ticks = 1;
-	} else {
-		ticks = DIV_ROUND_UP(cur_itm - new_itm,
-				     local_cpu_data->itm_delta);
-		new_itm += ticks * local_cpu_data->itm_delta;
+		       ia64_get_itc(), new_itm);
+
+	while (1) {
+		new_itm += local_cpu_data->itm_delta;
+
+		legacy_timer_tick(smp_processor_id() == time_keeper_id);
+
+		local_cpu_data->itm_next = new_itm;
+
+		if (time_after(new_itm, ia64_get_itc()))
+			break;
+
+		/*
+		 * Allow IPIs to interrupt the timer loop.
+		 */
+		local_irq_enable();
+		local_irq_disable();
 	}
-
-	if (smp_processor_id() != time_keeper_id)
-		ticks = 0;
-
-	legacy_timer_tick(ticks);
 
 	do {
 		/*
