@@ -71,6 +71,7 @@ __nh_notifier_single_info_init(struct nh_notifier_single_info *nh_info,
 static int nh_notifier_single_info_init(struct nh_notifier_info *info,
 					const struct nexthop *nh)
 {
+	info->type = NH_NOTIFIER_INFO_TYPE_SINGLE;
 	info->nh = kzalloc(sizeof(*info->nh), GFP_KERNEL);
 	if (!info->nh)
 		return -ENOMEM;
@@ -92,6 +93,7 @@ static int nh_notifier_grp_info_init(struct nh_notifier_info *info,
 	u16 num_nh = nhg->num_nh;
 	int i;
 
+	info->type = NH_NOTIFIER_INFO_TYPE_GRP;
 	info->nh_grp = kzalloc(struct_size(info->nh_grp, nh_entries, num_nh),
 			       GFP_KERNEL);
 	if (!info->nh_grp)
@@ -121,17 +123,17 @@ static int nh_notifier_info_init(struct nh_notifier_info *info,
 				 const struct nexthop *nh)
 {
 	info->id = nh->id;
-	info->is_grp = nh->is_group;
 
-	if (info->is_grp)
+	if (nh->is_group)
 		return nh_notifier_grp_info_init(info, nh);
 	else
 		return nh_notifier_single_info_init(info, nh);
 }
 
-static void nh_notifier_info_fini(struct nh_notifier_info *info)
+static void nh_notifier_info_fini(struct nh_notifier_info *info,
+				  const struct nexthop *nh)
 {
-	if (info->is_grp)
+	if (nh->is_group)
 		nh_notifier_grp_info_fini(info);
 	else
 		nh_notifier_single_info_fini(info);
@@ -161,7 +163,7 @@ static int call_nexthop_notifiers(struct net *net,
 
 	err = blocking_notifier_call_chain(&net->nexthop.notifier_chain,
 					   event_type, &info);
-	nh_notifier_info_fini(&info);
+	nh_notifier_info_fini(&info, nh);
 
 	return notifier_to_errno(err);
 }
@@ -182,7 +184,7 @@ static int call_nexthop_notifier(struct notifier_block *nb, struct net *net,
 		return err;
 
 	err = nb->notifier_call(nb, event_type, &info);
-	nh_notifier_info_fini(&info);
+	nh_notifier_info_fini(&info, nh);
 
 	return notifier_to_errno(err);
 }
