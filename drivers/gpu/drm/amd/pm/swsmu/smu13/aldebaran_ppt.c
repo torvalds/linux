@@ -1066,30 +1066,28 @@ static int aldebaran_read_sensor(struct smu_context *smu,
 
 static int aldebaran_get_power_limit(struct smu_context *smu)
 {
-	struct smu_13_0_powerplay_table *powerplay_table =
-		(struct smu_13_0_powerplay_table *)smu->smu_table.power_play_table;
 	PPTable_t *pptable = smu->smu_table.driver_pptable;
-	uint32_t power_limit, od_percent;
+	uint32_t power_limit = 0;
+	int ret;
 
-	if (smu_v13_0_get_current_power_limit(smu, &power_limit)) {
+	if (!smu_cmn_feature_is_enabled(smu, SMU_FEATURE_PPT_BIT))
+		return -EINVAL;
+
+	ret = smu_cmn_send_smc_msg(smu, SMU_MSG_GetPptLimit, &power_limit);
+
+	if (!ret) {
 		/* the last hope to figure out the ppt limit */
 		if (!pptable) {
 			dev_err(smu->adev->dev, "Cannot get PPT limit due to pptable missing!");
 			return -EINVAL;
 		}
+
+		power_limit = pptable->PptLimit;
 	}
+
 	smu->current_power_limit = power_limit;
-
-	if (smu->od_enabled) {
-		od_percent = le32_to_cpu(powerplay_table->overdrive_table.max[SMU_13_0_ODSETTING_POWERPERCENTAGE]);
-
-
-		dev_dbg(smu->adev->dev, "ODSETTING_POWERPERCENTAGE: %d (default: %d)\n", od_percent, power_limit);
-
-		power_limit *= (100 + od_percent);
-		power_limit /= 100;
-	}
-	smu->max_power_limit = power_limit;
+	if (pptable)
+		smu->max_power_limit = pptable->PptLimit;
 
 	return 0;
 }
