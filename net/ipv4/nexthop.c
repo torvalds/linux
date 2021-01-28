@@ -2083,9 +2083,11 @@ static int rtm_dump_walk_nexthops(struct sk_buff *skb,
 				  struct netlink_callback *cb,
 				  struct rb_root *root,
 				  struct rtm_dump_nh_ctx *ctx,
-				  struct nh_dump_filter *filter)
+				  int (*nh_cb)(struct sk_buff *skb,
+					       struct netlink_callback *cb,
+					       struct nexthop *nh, void *data),
+				  void *data)
 {
-	struct nhmsg *nhm = nlmsg_data(cb->nlh);
 	struct rb_node *node;
 	int idx = 0, s_idx;
 	int err;
@@ -2098,14 +2100,9 @@ static int rtm_dump_walk_nexthops(struct sk_buff *skb,
 			goto cont;
 
 		nh = rb_entry(node, struct nexthop, rb_node);
-		if (nh_dump_filtered(nh, filter, nhm->nh_family))
-			goto cont;
-
 		ctx->idx = idx;
-		err = nh_fill_node(skb, nh, RTM_NEWNEXTHOP,
-				   NETLINK_CB(cb->skb).portid,
-				   cb->nlh->nlmsg_seq, NLM_F_MULTI);
-		if (err < 0)
+		err = nh_cb(skb, cb, nh, data);
+		if (err)
 			return err;
 cont:
 		idx++;
@@ -2113,6 +2110,20 @@ cont:
 
 	ctx->idx = idx;
 	return 0;
+}
+
+static int rtm_dump_nexthop_cb(struct sk_buff *skb, struct netlink_callback *cb,
+			       struct nexthop *nh, void *data)
+{
+	struct nhmsg *nhm = nlmsg_data(cb->nlh);
+	struct nh_dump_filter *filter = data;
+
+	if (nh_dump_filtered(nh, filter, nhm->nh_family))
+		return 0;
+
+	return nh_fill_node(skb, nh, RTM_NEWNEXTHOP,
+			    NETLINK_CB(cb->skb).portid,
+			    cb->nlh->nlmsg_seq, NLM_F_MULTI);
 }
 
 /* rtnl */
@@ -2128,7 +2139,8 @@ static int rtm_dump_nexthop(struct sk_buff *skb, struct netlink_callback *cb)
 	if (err < 0)
 		return err;
 
-	err = rtm_dump_walk_nexthops(skb, cb, root, ctx, &filter);
+	err = rtm_dump_walk_nexthops(skb, cb, root, ctx,
+				     &rtm_dump_nexthop_cb, &filter);
 	if (err < 0) {
 		if (likely(skb->len))
 			goto out;
