@@ -183,7 +183,7 @@ err:
 		flags |= SOF_DBG_DUMP_FORCE_ERR_LEVEL;
 
 	hda_dsp_dump(sdev, flags);
-	hda_dsp_core_reset_power_down(sdev, chip->host_managed_cores_mask);
+	snd_sof_dsp_core_power_down(sdev, chip->host_managed_cores_mask);
 
 	return ret;
 }
