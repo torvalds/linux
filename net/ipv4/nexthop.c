@@ -2015,21 +2015,12 @@ static bool nh_dump_filtered(struct nexthop *nh,
 	return false;
 }
 
-static int nh_valid_dump_req(const struct nlmsghdr *nlh,
-			     struct nh_dump_filter *filter,
-			     struct netlink_callback *cb)
+static int __nh_valid_dump_req(const struct nlmsghdr *nlh, struct nlattr **tb,
+			       struct nh_dump_filter *filter,
+			       struct netlink_ext_ack *extack)
 {
-	struct netlink_ext_ack *extack = cb->extack;
-	struct nlattr *tb[ARRAY_SIZE(rtm_nh_policy_dump)];
 	struct nhmsg *nhm;
-	int err;
 	u32 idx;
-
-	err = nlmsg_parse(nlh, sizeof(*nhm), tb,
-			  ARRAY_SIZE(rtm_nh_policy_dump) - 1,
-			  rtm_nh_policy_dump, NULL);
-	if (err < 0)
-		return err;
 
 	if (tb[NHA_OIF]) {
 		idx = nla_get_u32(tb[NHA_OIF]);
@@ -2057,6 +2048,22 @@ static int nh_valid_dump_req(const struct nlmsghdr *nlh,
 	}
 
 	return 0;
+}
+
+static int nh_valid_dump_req(const struct nlmsghdr *nlh,
+			     struct nh_dump_filter *filter,
+			     struct netlink_callback *cb)
+{
+	struct nlattr *tb[ARRAY_SIZE(rtm_nh_policy_dump)];
+	int err;
+
+	err = nlmsg_parse(nlh, sizeof(struct nhmsg), tb,
+			  ARRAY_SIZE(rtm_nh_policy_dump) - 1,
+			  rtm_nh_policy_dump, cb->extack);
+	if (err < 0)
+		return err;
+
+	return __nh_valid_dump_req(nlh, tb, filter, cb->extack);
 }
 
 /* rtnl */
