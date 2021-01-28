@@ -1150,7 +1150,7 @@ static int arm_cmn_commit_txn(struct pmu *pmu)
 static int arm_cmn_pmu_offline_cpu(unsigned int cpu, struct hlist_node *node)
 {
 	struct arm_cmn *cmn;
-	unsigned int target;
+	unsigned int i, target;
 
 	cmn = hlist_entry_safe(node, struct arm_cmn, cpuhp_node);
 	if (cpu != cmn->cpu)
@@ -1161,6 +1161,8 @@ static int arm_cmn_pmu_offline_cpu(unsigned int cpu, struct hlist_node *node)
 		return 0;
 
 	perf_pmu_migrate_context(&cmn->pmu, cpu, target);
+	for (i = 0; i < cmn->num_dtcs; i++)
+		irq_set_affinity_hint(cmn->dtc[i].irq, cpumask_of(target));
 	cmn->cpu = target;
 	return 0;
 }
