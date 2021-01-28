@@ -252,7 +252,7 @@
 						regulator-boot-on;
 					};
 
-					ldo3 {
+					vdd_emmc_3v3: ldo3 {
 						regulator-name = "VDD_EMMC_3V3";
 						regulator-min-microvolt = <3300000>;
 						regulator-max-microvolt = <3300000>;
