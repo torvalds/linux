@@ -78,7 +78,8 @@ static inline int snd_sof_dsp_core_power_up(struct snd_sof_dev *sdev,
 {
 	int ret = 0;
 
-	if (sof_ops(sdev)->core_power_up) {
+	core_mask &= ~sdev->enabled_cores_mask;
+	if (sof_ops(sdev)->core_power_up && core_mask) {
 		ret = sof_ops(sdev)->core_power_up(sdev, core_mask);
 		if (!ret)
 			sdev->enabled_cores_mask |= core_mask;
@@ -92,7 +93,8 @@ static inline int snd_sof_dsp_core_power_down(struct snd_sof_dev *sdev,
 {
 	int ret = 0;
 
-	if (sof_ops(sdev)->core_power_down) {
+	core_mask &= sdev->enabled_cores_mask;
+	if (sof_ops(sdev)->core_power_down && core_mask) {
 		ret = sof_ops(sdev)->core_power_down(sdev, core_mask);
 		if (!ret)
 			sdev->enabled_cores_mask &= ~core_mask;
