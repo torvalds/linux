@@ -27,6 +27,7 @@ struct typec_cable {
 	enum typec_plug_type		type;
 	struct usb_pd_identity		*identity;
 	unsigned int			active:1;
+	u16				pd_revision; /* 0300H = "3.0" */
 };
 
 struct typec_partner {
@@ -36,6 +37,7 @@ struct typec_partner {
 	enum typec_accessory		accessory;
 	struct ida			mode_ids;
 	int				num_altmodes;
+	u16				pd_revision; /* 0300H = "3.0" */
 };
 
 struct typec_port {
@@ -263,6 +265,11 @@ type_show(struct device *dev, struct device_attribute *attr, char *buf)
 	return sysfs_emit(buf, "%s\n", ptype);
 }
 static DEVICE_ATTR_RO(type);
+
+static ssize_t usb_power_delivery_revision_show(struct device *dev,
+						struct device_attribute *attr,
+						char *buf);
+static DEVICE_ATTR_RO(usb_power_delivery_revision);
 
 /* ------------------------------------------------------------------------- */
 /* Alternate Modes */
@@ -680,6 +687,7 @@ static struct attribute *typec_partner_attrs[] = {
 	&dev_attr_supports_usb_power_delivery.attr,
 	&dev_attr_number_of_alternate_modes.attr,
 	&dev_attr_type.attr,
+	&dev_attr_usb_power_delivery_revision.attr,
 	NULL
 };
 
@@ -815,6 +823,7 @@ struct typec_partner *typec_register_partner(struct typec_port *port,
 	partner->usb_pd = desc->usb_pd;
 	partner->accessory = desc->accessory;
 	partner->num_altmodes = -1;
+	partner->pd_revision = desc->pd_revision;
 
 	if (desc->identity) {
 		/*
@@ -1028,6 +1037,7 @@ static DEVICE_ATTR_RO(plug_type);
 static struct attribute *typec_cable_attrs[] = {
 	&dev_attr_type.attr,
 	&dev_attr_plug_type.attr,
+	&dev_attr_usb_power_delivery_revision.attr,
 	NULL
 };
 ATTRIBUTE_GROUPS(typec_cable);
@@ -1130,6 +1140,7 @@ struct typec_cable *typec_register_cable(struct typec_port *port,
 
 	cable->type = desc->type;
 	cable->active = desc->active;
+	cable->pd_revision = desc->pd_revision;
 
 	if (desc->identity) {
 		/*
@@ -1499,12 +1510,23 @@ static ssize_t usb_power_delivery_revision_show(struct device *dev,
 						struct device_attribute *attr,
 						char *buf)
 {
-	struct typec_port *p = to_typec_port(dev);
-	u16 rev = p->cap->pd_revision;
+	u16 rev = 0;
 
-	return sprintf(buf, "%d.%d\n", (rev >> 8) & 0xff, (rev >> 4) & 0xf);
+	if (is_typec_partner(dev)) {
+		struct typec_partner *partner = to_typec_partner(dev);
+
+		rev = partner->pd_revision;
+	} else if (is_typec_cable(dev)) {
+		struct typec_cable *cable = to_typec_cable(dev);
+
+		rev = cable->pd_revision;
+	} else if (is_typec_port(dev)) {
+		struct typec_port *p = to_typec_port(dev);
+
+		rev = p->cap->pd_revision;
+	}
+	return sysfs_emit(buf, "%d.%d\n", (rev >> 8) & 0xff, (rev >> 4) & 0xf);
 }
-static DEVICE_ATTR_RO(usb_power_delivery_revision);
 
 static ssize_t orientation_show(struct device *dev,
 				   struct device_attribute *attr,
