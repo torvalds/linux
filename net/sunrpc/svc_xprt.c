@@ -247,20 +247,24 @@ static struct svc_xprt *__svc_xpo_create(struct svc_xprt_class *xcl,
 	return xprt;
 }
 
-/*
- * svc_xprt_received conditionally queues the transport for processing
- * by another thread. The caller must hold the XPT_BUSY bit and must
+/**
+ * svc_xprt_received - start next receiver thread
+ * @xprt: controlling transport
+ *
+ * The caller must hold the XPT_BUSY bit and must
  * not thereafter touch transport data.
  *
  * Note: XPT_DATA only gets cleared when a read-attempt finds no (or
  * insufficient) data.
  */
-static void svc_xprt_received(struct svc_xprt *xprt)
+void svc_xprt_received(struct svc_xprt *xprt)
 {
 	if (!test_bit(XPT_BUSY, &xprt->xpt_flags)) {
 		WARN_ONCE(1, "xprt=0x%p already busy!", xprt);
 		return;
 	}
+
+	trace_svc_xprt_received(xprt);
 
 	/* As soon as we clear busy, the xprt could be closed and
 	 * 'put', so we need a reference to call svc_enqueue_xprt with:
@@ -271,6 +275,7 @@ static void svc_xprt_received(struct svc_xprt *xprt)
 	xprt->xpt_server->sv_ops->svo_enqueue_xprt(xprt);
 	svc_xprt_put(xprt);
 }
+EXPORT_SYMBOL_GPL(svc_xprt_received);
 
 void svc_add_new_perm_xprt(struct svc_serv *serv, struct svc_xprt *new)
 {
