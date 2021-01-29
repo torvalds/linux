@@ -46,8 +46,7 @@ required:
 if:
   properties:
     compatible:
-      items:
-        const: allwinner,sun5i-a13-hstimer
+      const: allwinner,sun5i-a13-hstimer
 
 then:
   properties:
