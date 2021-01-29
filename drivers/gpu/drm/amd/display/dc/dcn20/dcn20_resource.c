@@ -2097,6 +2097,7 @@ int dcn20_populate_dml_pipes_from_context(
 			pipes[pipe_cnt].pipe.dest.pixel_rate_mhz *= 2;
 		pipes[pipe_cnt].pipe.dest.otg_inst = res_ctx->pipe_ctx[i].stream_res.tg->inst;
 		pipes[pipe_cnt].dout.dp_lanes = 4;
+		pipes[pipe_cnt].dout.is_virtual = 0;
 		pipes[pipe_cnt].pipe.dest.vtotal_min = res_ctx->pipe_ctx[i].stream->adjust.v_total_min;
 		pipes[pipe_cnt].pipe.dest.vtotal_max = res_ctx->pipe_ctx[i].stream->adjust.v_total_max;
 		switch (get_num_odm_splits(&res_ctx->pipe_ctx[i])) {
@@ -2150,6 +2151,7 @@ int dcn20_populate_dml_pipes_from_context(
 			break;
 		default:
 			/* In case there is no signal, set dp with 4 lanes to allow max config */
+			pipes[pipe_cnt].dout.is_virtual = 1;
 			pipes[pipe_cnt].dout.output_type = dm_dp;
 			pipes[pipe_cnt].dout.dp_lanes = 4;
 		}
