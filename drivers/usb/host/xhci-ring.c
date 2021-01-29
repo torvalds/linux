@@ -429,9 +429,8 @@ void xhci_ring_ep_doorbell(struct xhci_hcd *xhci,
 	trace_xhci_ring_ep_doorbell(slot_id, DB_VALUE(ep_index, stream_id));
 
 	writel(DB_VALUE(ep_index, stream_id), db_addr);
-	/* The CPU has better things to do at this point than wait for a
-	 * write-posting flush.  It'll get there soon enough.
-	 */
+	/* flush the write */
+	readl(db_addr);
 }
 
 /* Ring the doorbell for any rings with pending URBs */
