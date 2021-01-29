@@ -1107,3 +1107,65 @@ xfs_trans_alloc_icreate(
 	*tpp = tp;
 	return 0;
 }
+
+/*
+ * Allocate an transaction, lock and join the inode to it, and reserve quota
+ * in preparation for inode attribute changes that include uid, gid, or prid
+ * changes.
+ *
+ * The caller must ensure that the on-disk dquots attached to this inode have
+ * already been allocated and initialized.  The ILOCK will be dropped when the
+ * transaction is committed or cancelled.
+ */
+int
+xfs_trans_alloc_ichange(
+	struct xfs_inode	*ip,
+	struct xfs_dquot	*udqp,
+	struct xfs_dquot	*gdqp,
+	struct xfs_dquot	*pdqp,
+	bool			force,
+	struct xfs_trans	**tpp)
+{
+	struct xfs_trans	*tp;
+	struct xfs_mount	*mp = ip->i_mount;
+	int			error;
+
+	error = xfs_trans_alloc(mp, &M_RES(mp)->tr_ichange, 0, 0, 0, &tp);
+	if (error)
+		return error;
+
+	xfs_ilock(ip, XFS_ILOCK_EXCL);
+	xfs_trans_ijoin(tp, ip, XFS_ILOCK_EXCL);
+
+	error = xfs_qm_dqattach_locked(ip, false);
+	if (error) {
+		/* Caller should have allocated the dquots! */
+		ASSERT(error != -ENOENT);
+		goto out_cancel;
+	}
+
+	/*
+	 * For each quota type, skip quota reservations if the inode's dquots
+	 * now match the ones that came from the caller, or the caller didn't
+	 * pass one in.
+	 */
+	if (udqp == ip->i_udquot)
+		udqp = NULL;
+	if (gdqp == ip->i_gdquot)
+		gdqp = NULL;
+	if (pdqp == ip->i_pdquot)
+		pdqp = NULL;
+	if (udqp || gdqp || pdqp) {
+		error = xfs_qm_vop_chown_reserve(tp, ip, udqp, gdqp, pdqp,
+				force ? XFS_QMOPT_FORCE_RES : 0);
+		if (error)
+			goto out_cancel;
+	}
+
+	*tpp = tp;
+	return 0;
+
+out_cancel:
+	xfs_trans_cancel(tp);
+	return error;
+}

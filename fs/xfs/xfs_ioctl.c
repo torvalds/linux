@@ -1275,24 +1275,23 @@ xfs_ioctl_setattr_prepare_dax(
  */
 static struct xfs_trans *
 xfs_ioctl_setattr_get_trans(
-	struct xfs_inode	*ip)
+	struct xfs_inode	*ip,
+	struct xfs_dquot	*pdqp)
 {
 	struct xfs_mount	*mp = ip->i_mount;
 	struct xfs_trans	*tp;
 	int			error = -EROFS;
 
 	if (mp->m_flags & XFS_MOUNT_RDONLY)
-		goto out_unlock;
+		goto out_error;
 	error = -EIO;
 	if (XFS_FORCED_SHUTDOWN(mp))
-		goto out_unlock;
+		goto out_error;
 
-	error = xfs_trans_alloc(mp, &M_RES(mp)->tr_ichange, 0, 0, 0, &tp);
+	error = xfs_trans_alloc_ichange(ip, NULL, NULL, pdqp,
+			capable(CAP_FOWNER), &tp);
 	if (error)
-		goto out_unlock;
-
-	xfs_ilock(ip, XFS_ILOCK_EXCL);
-	xfs_trans_ijoin(tp, ip, XFS_ILOCK_EXCL);
+		goto out_error;
 
 	/*
 	 * CAP_FOWNER overrides the following restrictions:
@@ -1312,7 +1311,7 @@ xfs_ioctl_setattr_get_trans(
 
 out_cancel:
 	xfs_trans_cancel(tp);
-out_unlock:
+out_error:
 	return ERR_PTR(error);
 }
 
@@ -1462,18 +1461,10 @@ xfs_ioctl_setattr(
 
 	xfs_ioctl_setattr_prepare_dax(ip, fa);
 
-	tp = xfs_ioctl_setattr_get_trans(ip);
+	tp = xfs_ioctl_setattr_get_trans(ip, pdqp);
 	if (IS_ERR(tp)) {
 		code = PTR_ERR(tp);
 		goto error_free_dquots;
-	}
-
-	if (XFS_IS_QUOTA_RUNNING(mp) && XFS_IS_PQUOTA_ON(mp) &&
-	    ip->i_d.di_projid != fa->fsx_projid) {
-		code = xfs_qm_vop_chown_reserve(tp, ip, NULL, NULL, pdqp,
-				capable(CAP_FOWNER) ?  XFS_QMOPT_FORCE_RES : 0);
-		if (code)	/* out of quota */
-			goto error_trans_cancel;
 	}
 
 	xfs_fill_fsxattr(ip, false, &old_fa);
@@ -1608,7 +1599,7 @@ xfs_ioc_setxflags(
 
 	xfs_ioctl_setattr_prepare_dax(ip, &fa);
 
-	tp = xfs_ioctl_setattr_get_trans(ip);
+	tp = xfs_ioctl_setattr_get_trans(ip, NULL);
 	if (IS_ERR(tp)) {
 		error = PTR_ERR(tp);
 		goto out_drop_write;
