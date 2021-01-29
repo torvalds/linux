@@ -1546,9 +1546,11 @@ struct xhci_td {
 	struct xhci_segment	*start_seg;
 	union xhci_trb		*first_trb;
 	union xhci_trb		*last_trb;
+	struct xhci_segment	*last_trb_seg;
 	struct xhci_segment	*bounce_seg;
 	/* actual_length of the URB has already been set */
 	bool			urb_length_set;
+	unsigned int		num_trbs;
 };
 
 /* xHCI command default timeout value */
