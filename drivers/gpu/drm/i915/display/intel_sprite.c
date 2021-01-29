@@ -367,7 +367,7 @@ int intel_plane_check_src_coordinates(struct intel_plane_state *plane_state)
 
 static u8 icl_nv12_y_plane_mask(struct drm_i915_private *i915)
 {
-	if (IS_ROCKETLAKE(i915))
+	if (HAS_D12_PLANE_MINIMIZATION(i915))
 		return BIT(PLANE_SPRITE2) | BIT(PLANE_SPRITE3);
 	else
 		return BIT(PLANE_SPRITE4) | BIT(PLANE_SPRITE5);
