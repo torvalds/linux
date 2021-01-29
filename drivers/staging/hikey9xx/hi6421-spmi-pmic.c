@@ -1,11 +1,11 @@
 // SPDX-License-Identifier: GPL-2.0
-//
-// Device driver for regulators in HISI PMIC IC
-//
-// Copyright (c) 2013 Linaro Ltd.
-// Copyright (c) 2011 Hisilicon.
-//
-// Copyright (c) 2020-2021 Huawei Technologies Co., Ltd
+/*
+ * Device driver for regulators in HISI PMIC IC
+ *
+ * Copyright (c) 2013 Linaro Ltd.
+ * Copyright (c) 2011 Hisilicon.
+ * Copyright (c) 2020-2021 Huawei Technologies Co., Ltd
+ */
 
 #include <linux/bitops.h>
 #include <linux/interrupt.h>

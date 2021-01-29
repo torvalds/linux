@@ -4,6 +4,7 @@
  *
  * Copyright (c) 2013 Linaro Ltd.
  * Copyright (C) 2011 Hisilicon.
+ * Copyright (c) 2020-2021 Huawei Technologies Co., Ltd
  *
  * Guodong Xu <guodong.xu@linaro.org>
  */
