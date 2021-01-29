@@ -831,6 +831,7 @@ static int ipa_probe(struct platform_device *pdev)
 	dev_set_drvdata(dev, ipa);
 	ipa->clock = clock;
 	ipa->version = data->version;
+	init_completion(&ipa->completion);
 
 	ret = ipa_reg_init(ipa);
 	if (ret)

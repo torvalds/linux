@@ -69,8 +69,11 @@ struct ipa_status {
 };
 
 /* Field masks for struct ipa_status structure fields */
+#define IPA_STATUS_MASK_TAG_VALID_FMASK		GENMASK(4, 4)
+#define IPA_STATUS_SRC_IDX_FMASK		GENMASK(4, 0)
 #define IPA_STATUS_DST_IDX_FMASK		GENMASK(4, 0)
 #define IPA_STATUS_FLAGS1_RT_RULE_ID_FMASK	GENMASK(31, 22)
+#define IPA_STATUS_FLAGS2_TAG_FMASK		GENMASK_ULL(63, 16)
 
 #ifdef IPA_VALIDATE
 
@@ -399,7 +402,7 @@ int ipa_endpoint_modem_exception_reset_all(struct ipa *ipa)
 	 * That won't happen, and we could be more precise, but this is fine
 	 * for now.  We need to end the transaction with a "tag process."
 	 */
-	count = hweight32(initialized) + ipa_cmd_tag_process_count();
+	count = hweight32(initialized) + ipa_cmd_pipeline_clear_count();
 	trans = ipa_cmd_trans_alloc(ipa, count);
 	if (!trans) {
 		dev_err(&ipa->pdev->dev,
@@ -428,10 +431,12 @@ int ipa_endpoint_modem_exception_reset_all(struct ipa *ipa)
 		ipa_cmd_register_write_add(trans, offset, 0, ~0, false);
 	}
 
-	ipa_cmd_tag_process_add(trans);
+	ipa_cmd_pipeline_clear_add(trans);
 
 	/* XXX This should have a 1 second timeout */
 	gsi_trans_commit_wait(trans);
+
+	ipa_cmd_pipeline_clear_wait(ipa);
 
 	return 0;
 }
@@ -1172,10 +1177,44 @@ static bool ipa_endpoint_status_skip(struct ipa_endpoint *endpoint,
 	return false;	/* Don't skip this packet, process it */
 }
 
+static bool ipa_endpoint_status_tag(struct ipa_endpoint *endpoint,
+				    const struct ipa_status *status)
+{
+	struct ipa_endpoint *command_endpoint;
+	struct ipa *ipa = endpoint->ipa;
+	u32 endpoint_id;
+
+	if (!le16_get_bits(status->mask, IPA_STATUS_MASK_TAG_VALID_FMASK))
+		return false;	/* No valid tag */
+
+	/* The status contains a valid tag.  We know the packet was sent to
+	 * this endpoint (already verified by ipa_endpoint_status_skip()).
+	 * If the packet came from the AP->command TX endpoint we know
+	 * this packet was sent as part of the pipeline clear process.
+	 */
+	endpoint_id = u8_get_bits(status->endp_src_idx,
+				  IPA_STATUS_SRC_IDX_FMASK);
+	command_endpoint = ipa->name_map[IPA_ENDPOINT_AP_COMMAND_TX];
+	if (endpoint_id == command_endpoint->endpoint_id) {
+		complete(&ipa->completion);
+	} else {
+		dev_err(&ipa->pdev->dev,
+			"unexpected tagged packet from endpoint %u\n",
+			endpoint_id);
+	}
+
+	return true;
+}
+
 /* Return whether the status indicates the packet should be dropped */
-static bool ipa_status_drop_packet(const struct ipa_status *status)
+static bool ipa_endpoint_status_drop(struct ipa_endpoint *endpoint,
+				     const struct ipa_status *status)
 {
 	u32 val;
+
+	/* If the status indicates a tagged transfer, we'll drop the packet */
+	if (ipa_endpoint_status_tag(endpoint, status))
+		return true;
 
 	/* Deaggregation exceptions we drop; all other types we consume */
 	if (status->exception)
@@ -1213,12 +1252,11 @@ static void ipa_endpoint_status_parse(struct ipa_endpoint *endpoint,
 			continue;
 		}
 
-		/* Compute the amount of buffer space consumed by the
-		 * packet, including the status element.  If the hardware
-		 * is configured to pad packet data to an aligned boundary,
-		 * account for that.  And if checksum offload is is enabled
-		 * a trailer containing computed checksum information will
-		 * be appended.
+		/* Compute the amount of buffer space consumed by the packet,
+		 * including the status element.  If the hardware is configured
+		 * to pad packet data to an aligned boundary, account for that.
+		 * And if checksum offload is enabled a trailer containing
+		 * computed checksum information will be appended.
 		 */
 		align = endpoint->data->rx.pad_align ? : 1;
 		len = le16_to_cpu(status->pkt_len);
@@ -1226,16 +1264,21 @@ static void ipa_endpoint_status_parse(struct ipa_endpoint *endpoint,
 		if (endpoint->data->checksum)
 			len += sizeof(struct rmnet_map_dl_csum_trailer);
 
-		/* Charge the new packet with a proportional fraction of
-		 * the unused space in the original receive buffer.
-		 * XXX Charge a proportion of the *whole* receive buffer?
-		 */
-		if (!ipa_status_drop_packet(status)) {
-			u32 extra = unused * len / total_len;
-			void *data2 = data + sizeof(*status);
-			u32 len2 = le16_to_cpu(status->pkt_len);
+		if (!ipa_endpoint_status_drop(endpoint, status)) {
+			void *data2;
+			u32 extra;
+			u32 len2;
 
 			/* Client receives only packet data (no status) */
+			data2 = data + sizeof(*status);
+			len2 = le16_to_cpu(status->pkt_len);
+
+			/* Have the true size reflect the extra unused space in
+			 * the original receive buffer.  Distribute the "cost"
+			 * proportionately across all aggregated packets in the
+			 * buffer.
+			 */
+			extra = DIV_ROUND_CLOSEST(unused * len, total_len);
 			ipa_endpoint_skb_copy(endpoint, data2, len2, extra);
 		}
 
@@ -1564,7 +1607,7 @@ void ipa_endpoint_suspend(struct ipa *ipa)
 	if (ipa->modem_netdev)
 		ipa_modem_suspend(ipa->modem_netdev);
 
-	ipa_cmd_tag_process(ipa);
+	ipa_cmd_pipeline_clear(ipa);
 
 	ipa_endpoint_suspend_one(ipa->name_map[IPA_ENDPOINT_AP_LAN_RX]);
 	ipa_endpoint_suspend_one(ipa->name_map[IPA_ENDPOINT_AP_COMMAND_TX]);
