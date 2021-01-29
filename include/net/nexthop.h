@@ -66,7 +66,12 @@ struct nh_info {
 struct nh_grp_entry {
 	struct nexthop	*nh;
 	u8		weight;
-	atomic_t	upper_bound;
+
+	union {
+		struct {
+			atomic_t	upper_bound;
+		} mpath;
+	};
 
 	struct list_head nh_list;
 	struct nexthop	*nh_parent;  /* nexthop of group with this entry */
@@ -109,6 +114,11 @@ enum nexthop_event_type {
 	NEXTHOP_EVENT_REPLACE,
 };
 
+enum nh_notifier_info_type {
+	NH_NOTIFIER_INFO_TYPE_SINGLE,
+	NH_NOTIFIER_INFO_TYPE_GRP,
+};
+
 struct nh_notifier_single_info {
 	struct net_device *dev;
 	u8 gw_family;
@@ -137,7 +147,7 @@ struct nh_notifier_info {
 	struct net *net;
 	struct netlink_ext_ack *extack;
 	u32 id;
-	bool is_grp;
+	enum nh_notifier_info_type type;
 	union {
 		struct nh_notifier_single_info *nh;
 		struct nh_notifier_grp_info *nh_grp;

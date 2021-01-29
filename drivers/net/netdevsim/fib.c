@@ -860,7 +860,7 @@ static struct nsim_nexthop *nsim_nexthop_create(struct nsim_fib_data *data,
 
 	nexthop = kzalloc(sizeof(*nexthop), GFP_KERNEL);
 	if (!nexthop)
-		return NULL;
+		return ERR_PTR(-ENOMEM);
 
 	nexthop->id = info->id;
 
@@ -868,15 +868,20 @@ static struct nsim_nexthop *nsim_nexthop_create(struct nsim_fib_data *data,
 	 * occupy.
 	 */
 
-	if (!info->is_grp) {
+	switch (info->type) {
+	case NH_NOTIFIER_INFO_TYPE_SINGLE:
 		occ = 1;
-		goto out;
+		break;
+	case NH_NOTIFIER_INFO_TYPE_GRP:
+		for (i = 0; i < info->nh_grp->num_nh; i++)
+			occ += info->nh_grp->nh_entries[i].weight;
+		break;
+	default:
+		NL_SET_ERR_MSG_MOD(info->extack, "Unsupported nexthop type");
+		kfree(nexthop);
+		return ERR_PTR(-EOPNOTSUPP);
 	}
 
-	for (i = 0; i < info->nh_grp->num_nh; i++)
-		occ += info->nh_grp->nh_entries[i].weight;
-
-out:
 	nexthop->occ = occ;
 	return nexthop;
 }
@@ -972,8 +977,8 @@ static int nsim_nexthop_insert(struct nsim_fib_data *data,
 	int err;
 
 	nexthop = nsim_nexthop_create(data, info);
-	if (!nexthop)
-		return -ENOMEM;
+	if (IS_ERR(nexthop))
+		return PTR_ERR(nexthop);
 
 	nexthop_old = rhashtable_lookup_fast(&data->nexthop_ht, &info->id,
 					     nsim_nexthop_ht_params);
