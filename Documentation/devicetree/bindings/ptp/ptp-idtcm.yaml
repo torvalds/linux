@@ -59,9 +59,7 @@ additionalProperties: false
 
 examples:
   - |
-    i2c@1 {
-        compatible = "abc,acme-1234";
-        reg = <0x01 0x400>;
+    i2c {
         #address-cells = <1>;
         #size-cells = <0>;
         phc@5b {

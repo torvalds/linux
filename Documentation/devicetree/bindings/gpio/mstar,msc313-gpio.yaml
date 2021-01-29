@@ -46,7 +46,7 @@ examples:
     #include <dt-bindings/gpio/msc313-gpio.h>
 
     gpio: gpio@207800 {
-      compatible = "mstar,msc313e-gpio";
+      compatible = "mstar,msc313-gpio";
       #gpio-cells = <2>;
       reg = <0x207800 0x200>;
       gpio-controller;

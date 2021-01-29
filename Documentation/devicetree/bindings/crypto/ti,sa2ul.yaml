@@ -66,7 +66,7 @@ examples:
     #include <dt-bindings/soc/ti,sci_pm_domain.h>
 
     main_crypto: crypto@4e00000 {
-        compatible = "ti,j721-sa2ul";
+        compatible = "ti,j721e-sa2ul";
         reg = <0x4e00000 0x1200>;
         power-domains = <&k3_pds 264 TI_SCI_PD_EXCLUSIVE>;
         dmas = <&main_udmap 0xc000>, <&main_udmap 0x4000>,

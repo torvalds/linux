@@ -1,7 +1,7 @@
 # SPDX-License-Identifier: GPL-2.0+
 %YAML 1.2
 ---
-$id: http://devicetree.org/schemas/clock/allwinner,sun9i-a80-usb-clocks.yaml#
+$id: http://devicetree.org/schemas/clock/allwinner,sun9i-a80-usb-clks.yaml#
 $schema: http://devicetree.org/meta-schemas/core.yaml#
 
 title: Allwinner A80 USB Clock Controller Device Tree Bindings
@@ -18,7 +18,7 @@ properties:
     const: 1
 
   compatible:
-    const: allwinner,sun9i-a80-usb-clocks
+    const: allwinner,sun9i-a80-usb-clks
 
   reg:
     maxItems: 1
