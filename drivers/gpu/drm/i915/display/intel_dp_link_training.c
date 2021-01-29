@@ -334,6 +334,27 @@ intel_dp_set_link_train(struct intel_dp *intel_dp,
 	return drm_dp_dpcd_write(&intel_dp->aux, reg, buf, len) == len;
 }
 
+void intel_dp_set_signal_levels(struct intel_dp *intel_dp,
+				const struct intel_crtc_state *crtc_state,
+				enum drm_dp_phy dp_phy)
+{
+	struct drm_i915_private *dev_priv = dp_to_i915(intel_dp);
+	u8 train_set = intel_dp->train_set[0];
+	char phy_name[10];
+
+	drm_dbg_kms(&dev_priv->drm, "Using vswing level %d%s, pre-emphasis level %d%s, at %s\n",
+		    train_set & DP_TRAIN_VOLTAGE_SWING_MASK,
+		    train_set & DP_TRAIN_MAX_SWING_REACHED ? " (max)" : "",
+		    (train_set & DP_TRAIN_PRE_EMPHASIS_MASK) >>
+		    DP_TRAIN_PRE_EMPHASIS_SHIFT,
+		    train_set & DP_TRAIN_MAX_PRE_EMPHASIS_REACHED ?
+		    " (max)" : "",
+		    intel_dp_phy_name(dp_phy, phy_name, sizeof(phy_name)));
+
+	if (intel_dp_phy_is_downstream_of_source(intel_dp, dp_phy))
+		intel_dp->set_signal_levels(intel_dp, crtc_state);
+}
+
 static bool
 intel_dp_reset_link_train(struct intel_dp *intel_dp,
 			  const struct intel_crtc_state *crtc_state,
@@ -341,7 +362,7 @@ intel_dp_reset_link_train(struct intel_dp *intel_dp,
 			  u8 dp_train_pat)
 {
 	memset(intel_dp->train_set, 0, sizeof(intel_dp->train_set));
-	intel_dp_set_signal_levels(intel_dp, crtc_state);
+	intel_dp_set_signal_levels(intel_dp, crtc_state, dp_phy);
 	return intel_dp_set_link_train(intel_dp, crtc_state, dp_phy, dp_train_pat);
 }
 
@@ -355,7 +376,7 @@ intel_dp_update_link_train(struct intel_dp *intel_dp,
 			    DP_TRAINING_LANE0_SET_PHY_REPEATER(dp_phy);
 	int ret;
 
-	intel_dp_set_signal_levels(intel_dp, crtc_state);
+	intel_dp_set_signal_levels(intel_dp, crtc_state, dp_phy);
 
 	ret = drm_dp_dpcd_write(&intel_dp->aux, reg,
 				intel_dp->train_set, crtc_state->lane_count);
@@ -413,7 +434,7 @@ intel_dp_prepare_link_train(struct intel_dp *intel_dp,
 		drm_dp_dpcd_write(&intel_dp->aux, DP_LINK_RATE_SET,
 				  &rate_select, 1);
 
-	link_config[0] = 0;
+	link_config[0] = crtc_state->vrr.enable ? DP_MSA_TIMING_PAR_IGNORE_EN : 0;
 	link_config[1] = DP_SET_ANSI_8B10B;
 	drm_dp_dpcd_write(&intel_dp->aux, DP_DOWNSPREAD_CTRL, link_config, 2);
 
@@ -676,9 +697,9 @@ static bool intel_dp_disable_dpcd_training_pattern(struct intel_dp *intel_dp,
  * @intel_dp: DP struct
  * @crtc_state: state for CRTC attached to the encoder
  *
- * Stop the link training of the @intel_dp port, disabling the test pattern
- * symbol generation on the port and disabling the training pattern in
- * the sink's DPCD.
+ * Stop the link training of the @intel_dp port, disabling the training
+ * pattern in the sink's DPCD, and disabling the test pattern symbol
+ * generation on the port.
  *
  * What symbols are output on the port after this point is
  * platform specific: On DDI/VLV/CHV platforms it will be the idle pattern
@@ -692,10 +713,9 @@ void intel_dp_stop_link_train(struct intel_dp *intel_dp,
 {
 	intel_dp->link_trained = true;
 
-	intel_dp_program_link_training_pattern(intel_dp,
-					       crtc_state,
-					       DP_TRAINING_PATTERN_DISABLE);
 	intel_dp_disable_dpcd_training_pattern(intel_dp, DP_PHY_DPRX);
+	intel_dp_program_link_training_pattern(intel_dp, crtc_state,
+					       DP_TRAINING_PATTERN_DISABLE);
 }
 
 static bool

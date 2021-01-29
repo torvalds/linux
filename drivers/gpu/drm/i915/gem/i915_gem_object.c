@@ -31,6 +31,7 @@
 #include "i915_gem_mman.h"
 #include "i915_gem_object.h"
 #include "i915_globals.h"
+#include "i915_memcpy.h"
 #include "i915_trace.h"
 
 static struct i915_global_object {
@@ -334,6 +335,70 @@ void __i915_gem_object_invalidate_frontbuffer(struct drm_i915_gem_object *obj,
 		intel_frontbuffer_invalidate(front, origin);
 		intel_frontbuffer_put(front);
 	}
+}
+
+static void
+i915_gem_object_read_from_page_kmap(struct drm_i915_gem_object *obj, u64 offset, void *dst, int size)
+{
+	void *src_map;
+	void *src_ptr;
+
+	src_map = kmap_atomic(i915_gem_object_get_page(obj, offset >> PAGE_SHIFT));
+
+	src_ptr = src_map + offset_in_page(offset);
+	if (!(obj->cache_coherent & I915_BO_CACHE_COHERENT_FOR_READ))
+		drm_clflush_virt_range(src_ptr, size);
+	memcpy(dst, src_ptr, size);
+
+	kunmap_atomic(src_map);
+}
+
+static void
+i915_gem_object_read_from_page_iomap(struct drm_i915_gem_object *obj, u64 offset, void *dst, int size)
+{
+	void __iomem *src_map;
+	void __iomem *src_ptr;
+	dma_addr_t dma = i915_gem_object_get_dma_address(obj, offset >> PAGE_SHIFT);
+
+	src_map = io_mapping_map_wc(&obj->mm.region->iomap,
+				    dma - obj->mm.region->region.start,
+				    PAGE_SIZE);
+
+	src_ptr = src_map + offset_in_page(offset);
+	if (!i915_memcpy_from_wc(dst, (void __force *)src_ptr, size))
+		memcpy_fromio(dst, src_ptr, size);
+
+	io_mapping_unmap(src_map);
+}
+
+/**
+ * i915_gem_object_read_from_page - read data from the page of a GEM object
+ * @obj: GEM object to read from
+ * @offset: offset within the object
+ * @dst: buffer to store the read data
+ * @size: size to read
+ *
+ * Reads data from @obj at the specified offset. The requested region to read
+ * from can't cross a page boundary. The caller must ensure that @obj pages
+ * are pinned and that @obj is synced wrt. any related writes.
+ *
+ * Returns 0 on success or -ENODEV if the type of @obj's backing store is
+ * unsupported.
+ */
+int i915_gem_object_read_from_page(struct drm_i915_gem_object *obj, u64 offset, void *dst, int size)
+{
+	GEM_BUG_ON(offset >= obj->base.size);
+	GEM_BUG_ON(offset_in_page(offset) > PAGE_SIZE - size);
+	GEM_BUG_ON(!i915_gem_object_has_pinned_pages(obj));
+
+	if (i915_gem_object_has_struct_page(obj))
+		i915_gem_object_read_from_page_kmap(obj, offset, dst, size);
+	else if (i915_gem_object_has_iomem(obj))
+		i915_gem_object_read_from_page_iomap(obj, offset, dst, size);
+	else
+		return -ENODEV;
+
+	return 0;
 }
 
 void i915_gem_init__objects(struct drm_i915_private *i915)

@@ -228,7 +228,7 @@ struct intel_encoder {
 struct intel_panel_bl_funcs {
 	/* Connector and platform specific backlight functions */
 	int (*setup)(struct intel_connector *connector, enum pipe pipe);
-	u32 (*get)(struct intel_connector *connector);
+	u32 (*get)(struct intel_connector *connector, enum pipe pipe);
 	void (*set)(const struct drm_connector_state *conn_state, u32 level);
 	void (*disable)(const struct drm_connector_state *conn_state, u32 level);
 	void (*enable)(const struct intel_crtc_state *crtc_state,
@@ -252,17 +252,28 @@ struct intel_panel {
 		bool alternate_pwm_increment;	/* lpt+ */
 
 		/* PWM chip */
+		u32 pwm_level_min;
+		u32 pwm_level_max;
+		bool pwm_enabled;
 		bool util_pin_active_low;	/* bxt+ */
 		u8 controller;		/* bxt+ only */
 		struct pwm_device *pwm;
 		struct pwm_state pwm_state;
 
 		/* DPCD backlight */
-		u8 pwmgen_bit_count;
+		union {
+			struct {
+				u8 pwmgen_bit_count;
+			} vesa;
+			struct {
+				bool sdr_uses_aux;
+			} intel;
+		} edp;
 
 		struct backlight_device *device;
 
 		const struct intel_panel_bl_funcs *funcs;
+		const struct intel_panel_bl_funcs *pwm_funcs;
 		void (*power)(struct intel_connector *, bool enable);
 	} backlight;
 };
@@ -343,6 +354,10 @@ struct intel_hdcp_shim {
 				 enum transcoder cpu_transcoder,
 				 bool enable);
 
+	/* Enable/Disable stream encryption on DP MST Transport Link */
+	int (*stream_encryption)(struct intel_connector *connector,
+				 bool enable);
+
 	/* Ensures the link is still protected */
 	bool (*check_link)(struct intel_digital_port *dig_port,
 			   struct intel_connector *connector);
@@ -374,8 +389,13 @@ struct intel_hdcp_shim {
 	int (*config_stream_type)(struct intel_digital_port *dig_port,
 				  bool is_repeater, u8 type);
 
+	/* Enable/Disable HDCP 2.2 stream encryption on DP MST Transport Link */
+	int (*stream_2_2_encryption)(struct intel_connector *connector,
+				     bool enable);
+
 	/* HDCP2.2 Link Integrity Check */
-	int (*check_2_2_link)(struct intel_digital_port *dig_port);
+	int (*check_2_2_link)(struct intel_digital_port *dig_port,
+			      struct intel_connector *connector);
 };
 
 struct intel_hdcp {
@@ -402,7 +422,6 @@ struct intel_hdcp {
 	 * content can flow only through a link protected by HDCP2.2.
 	 */
 	u8 content_type;
-	struct hdcp_port_data port_data;
 
 	bool is_paired;
 	bool is_repeater;
@@ -436,6 +455,8 @@ struct intel_hdcp {
 	 * Hence caching the transcoder here.
 	 */
 	enum transcoder cpu_transcoder;
+	/* Only used for DP MST stream encryption */
+	enum transcoder stream_transcoder;
 };
 
 struct intel_connector {
@@ -535,7 +556,7 @@ struct intel_plane_state {
 		struct drm_framebuffer *fb;
 
 		u16 alpha;
-		uint16_t pixel_blend_mode;
+		u16 pixel_blend_mode;
 		unsigned int rotation;
 		enum drm_color_encoding color_encoding;
 		enum drm_color_range color_range;
@@ -610,6 +631,9 @@ struct intel_plane_state {
 	struct drm_intel_sprite_colorkey ckey;
 
 	struct drm_rect psr2_sel_fetch_area;
+
+	/* Clear Color Value */
+	u64 ccval;
 };
 
 struct intel_initial_plane_config {
@@ -669,6 +693,8 @@ struct intel_crtc_scaler_state {
 #define I915_MODE_FLAG_DSI_USE_TE1 (1<<4)
 /* Flag to indicate mipi dsi periodic command mode where we do not get TE */
 #define I915_MODE_FLAG_DSI_PERIODIC_CMD_MODE (1<<5)
+/* Do tricks to make vblank timestamps sane with VRR? */
+#define I915_MODE_FLAG_VRR (1<<6)
 
 struct intel_wm_level {
 	bool enable;
@@ -1127,6 +1153,13 @@ struct intel_crtc_state {
 	struct intel_dsb *dsb;
 
 	u32 psr2_man_track_ctl;
+
+	/* Variable Refresh Rate state */
+	struct {
+		bool enable;
+		u8 pipeline_full;
+		u16 flipline, vmin, vmax;
+	} vrr;
 };
 
 enum intel_pipe_crc_source {
@@ -1168,6 +1201,8 @@ struct intel_crtc {
 
 	/* I915_MODE_FLAG_* */
 	u8 mode_flags;
+
+	u16 vmax_vblank_start;
 
 	struct intel_display_power_domain_set enabled_power_domains;
 	struct intel_overlay *overlay;
@@ -1221,6 +1256,7 @@ struct intel_plane {
 	enum pipe pipe;
 	bool has_fbc;
 	bool has_ccs;
+	bool need_async_flip_disable_wa;
 	u32 frontbuffer_bit;
 
 	struct {
@@ -1257,7 +1293,10 @@ struct intel_plane {
 			 const struct intel_plane_state *plane_state);
 	void (*async_flip)(struct intel_plane *plane,
 			   const struct intel_crtc_state *crtc_state,
-			   const struct intel_plane_state *plane_state);
+			   const struct intel_plane_state *plane_state,
+			   bool async_flip);
+	void (*enable_flip_done)(struct intel_plane *plane);
+	void (*disable_flip_done)(struct intel_plane *plane);
 };
 
 struct intel_watermark_params {
@@ -1344,6 +1383,38 @@ struct intel_dp_pcon_frl {
 	int trained_rate_gbps;
 };
 
+struct intel_pps {
+	int panel_power_up_delay;
+	int panel_power_down_delay;
+	int panel_power_cycle_delay;
+	int backlight_on_delay;
+	int backlight_off_delay;
+	struct delayed_work panel_vdd_work;
+	bool want_panel_vdd;
+	unsigned long last_power_on;
+	unsigned long last_backlight_off;
+	ktime_t panel_power_off_time;
+	intel_wakeref_t vdd_wakeref;
+
+	/*
+	 * Pipe whose power sequencer is currently locked into
+	 * this port. Only relevant on VLV/CHV.
+	 */
+	enum pipe pps_pipe;
+	/*
+	 * Pipe currently driving the port. Used for preventing
+	 * the use of the PPS for any pipe currentrly driving
+	 * external DP as that will mess things up on VLV.
+	 */
+	enum pipe active_pipe;
+	/*
+	 * Set if the sequencer may be reset due to a power transition,
+	 * requiring a reinitialization. Only relevant on BXT.
+	 */
+	bool pps_reset;
+	struct edp_power_seq pps_delays;
+};
+
 struct intel_dp {
 	i915_reg_t output_reg;
 	u32 DP;
@@ -1380,39 +1451,11 @@ struct intel_dp {
 	int max_link_rate;
 	/* sink or branch descriptor */
 	struct drm_dp_desc desc;
-	u32 edid_quirks;
 	struct drm_dp_aux aux;
 	u32 aux_busy_last_status;
 	u8 train_set[4];
-	int panel_power_up_delay;
-	int panel_power_down_delay;
-	int panel_power_cycle_delay;
-	int backlight_on_delay;
-	int backlight_off_delay;
-	struct delayed_work panel_vdd_work;
-	bool want_panel_vdd;
-	unsigned long last_power_on;
-	unsigned long last_backlight_off;
-	ktime_t panel_power_off_time;
-	intel_wakeref_t vdd_wakeref;
 
-	/*
-	 * Pipe whose power sequencer is currently locked into
-	 * this port. Only relevant on VLV/CHV.
-	 */
-	enum pipe pps_pipe;
-	/*
-	 * Pipe currently driving the port. Used for preventing
-	 * the use of the PPS for any pipe currentrly driving
-	 * external DP as that will mess things up on VLV.
-	 */
-	enum pipe active_pipe;
-	/*
-	 * Set if the sequencer may be reset due to a power transition,
-	 * requiring a reinitialization. Only relevant on BXT.
-	 */
-	bool pps_reset;
-	struct edp_power_seq pps_delays;
+	struct intel_pps pps;
 
 	bool can_mst; /* this port supports mst */
 	bool is_mst;
@@ -1511,10 +1554,14 @@ struct intel_digital_port {
 	enum phy_fia tc_phy_fia;
 	u8 tc_phy_fia_idx;
 
-	/* protects num_hdcp_streams reference count */
+	/* protects num_hdcp_streams reference count, hdcp_port_data and hdcp_auth_status */
 	struct mutex hdcp_mutex;
 	/* the number of pipes using HDCP signalling out of this port */
 	unsigned int num_hdcp_streams;
+	/* port HDCP auth status */
+	bool hdcp_auth_status;
+	/* HDCP port data need to pass to security f/w */
+	struct hdcp_port_data hdcp_port_data;
 
 	void (*write_infoframe)(struct intel_encoder *encoder,
 				const struct intel_crtc_state *crtc_state,
@@ -1823,6 +1870,28 @@ static inline struct intel_frontbuffer *
 to_intel_frontbuffer(struct drm_framebuffer *fb)
 {
 	return fb ? to_intel_framebuffer(fb)->frontbuffer : NULL;
+}
+
+static inline bool intel_panel_use_ssc(struct drm_i915_private *dev_priv)
+{
+	if (dev_priv->params.panel_use_ssc >= 0)
+		return dev_priv->params.panel_use_ssc != 0;
+	return dev_priv->vbt.lvds_use_ssc
+		&& !(dev_priv->quirks & QUIRK_LVDS_SSC_DISABLE);
+}
+
+static inline u32 i9xx_dpll_compute_fp(struct dpll *dpll)
+{
+	return dpll->n << 16 | dpll->m1 << 8 | dpll->m2;
+}
+
+static inline u32 intel_fdi_link_freq(struct drm_i915_private *dev_priv,
+				      const struct intel_crtc_state *pipe_config)
+{
+	if (HAS_DDI(dev_priv))
+		return pipe_config->port_clock; /* SPLL */
+	else
+		return dev_priv->fdi_pll_freq;
 }
 
 #endif /*  __INTEL_DISPLAY_TYPES_H__ */

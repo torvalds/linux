@@ -28,9 +28,10 @@
 #include "i915_drv.h"
 #include "intel_atomic.h"
 #include "intel_display_types.h"
+#include "intel_dp_aux.h"
+#include "intel_hdmi.h"
 #include "intel_psr.h"
 #include "intel_sprite.h"
-#include "intel_hdmi.h"
 
 /**
  * DOC: Panel Self Refresh (PSR/SRD)
@@ -305,7 +306,7 @@ void intel_psr_init_dpcd(struct intel_dp *intel_dp)
 	drm_dbg_kms(&dev_priv->drm, "eDP panel supports PSR version %x\n",
 		    intel_dp->psr_dpcd[0]);
 
-	if (drm_dp_has_quirk(&intel_dp->desc, 0, DP_DPCD_QUIRK_NO_PSR)) {
+	if (drm_dp_has_quirk(&intel_dp->desc, DP_DPCD_QUIRK_NO_PSR)) {
 		drm_dbg_kms(&dev_priv->drm,
 			    "PSR support not currently available for this panel\n");
 		return;
@@ -810,6 +811,13 @@ void intel_psr_compute_config(struct intel_dp *intel_dp,
 	const struct drm_display_mode *adjusted_mode =
 		&crtc_state->hw.adjusted_mode;
 	int psr_setup_time;
+
+	/*
+	 * Current PSR panels dont work reliably with VRR enabled
+	 * So if VRR is enabled, do not enable PSR.
+	 */
+	if (crtc_state->vrr.enable)
+		return;
 
 	if (!CAN_PSR(dev_priv))
 		return;

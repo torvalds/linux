@@ -546,7 +546,6 @@ unsigned int intel_rotation_info_size(const struct intel_rotation_info *rot_info
 unsigned int intel_remapped_info_size(const struct intel_remapped_info *rem_info);
 bool intel_has_pending_fb_unpin(struct drm_i915_private *dev_priv);
 int intel_display_suspend(struct drm_device *dev);
-void intel_pps_unlock_regs_wa(struct drm_i915_private *dev_priv);
 void intel_encoder_destroy(struct drm_encoder *encoder);
 struct drm_display_mode *
 intel_encoder_current_mode(struct intel_encoder *encoder);
@@ -643,7 +642,7 @@ void intel_display_print_error_state(struct drm_i915_error_state_buf *e,
 
 bool
 intel_format_info_is_yuv_semiplanar(const struct drm_format_info *info,
-				    uint64_t modifier);
+				    u64 modifier);
 
 int intel_plane_compute_gtt(struct intel_plane_state *plane_state);
 u32 intel_plane_compute_aligned_offset(int *x, int *y,
@@ -651,6 +650,9 @@ u32 intel_plane_compute_aligned_offset(int *x, int *y,
 				       int color_plane);
 int intel_plane_pin_fb(struct intel_plane_state *plane_state);
 void intel_plane_unpin_fb(struct intel_plane_state *old_plane_state);
+struct intel_encoder *
+intel_get_crtc_new_encoder(const struct intel_atomic_state *state,
+			   const struct intel_crtc_state *crtc_state);
 
 /* modesetting */
 void intel_modeset_init_hw(struct drm_i915_private *i915);

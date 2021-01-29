@@ -452,7 +452,7 @@ void intel_update_plane(struct intel_plane *plane,
 	trace_intel_update_plane(&plane->base, crtc);
 
 	if (crtc_state->uapi.async_flip && plane->async_flip)
-		plane->async_flip(plane, crtc_state, plane_state);
+		plane->async_flip(plane, crtc_state, plane_state, true);
 	else
 		plane->update_plane(plane, crtc_state, plane_state);
 }

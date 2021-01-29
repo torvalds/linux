@@ -201,14 +201,17 @@ i915-y += \
 	display/intel_color.o \
 	display/intel_combo_phy.o \
 	display/intel_connector.o \
+	display/intel_crtc.o \
 	display/intel_csr.o \
 	display/intel_cursor.o \
 	display/intel_display.o \
 	display/intel_display_power.o \
 	display/intel_dpio_phy.o \
+	display/intel_dpll.o \
 	display/intel_dpll_mgr.o \
 	display/intel_dsb.o \
 	display/intel_fbc.o \
+	display/intel_fdi.o \
 	display/intel_fifo_underrun.o \
 	display/intel_frontbuffer.o \
 	display/intel_global_state.o \
@@ -240,6 +243,7 @@ i915-y += \
 	display/intel_crt.o \
 	display/intel_ddi.o \
 	display/intel_dp.o \
+	display/intel_dp_aux.o \
 	display/intel_dp_aux_backlight.o \
 	display/intel_dp_hdcp.o \
 	display/intel_dp_link_training.o \
@@ -253,9 +257,11 @@ i915-y += \
 	display/intel_lspcon.o \
 	display/intel_lvds.o \
 	display/intel_panel.o \
+	display/intel_pps.o \
 	display/intel_sdvo.o \
 	display/intel_tv.o \
 	display/intel_vdsc.o \
+	display/intel_vrr.o \
 	display/vlv_dsi.o \
 	display/vlv_dsi_pll.o
 

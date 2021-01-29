@@ -1122,15 +1122,6 @@ struct drm_i915_private {
 		 * crtc_state->wm.need_postvbl_update.
 		 */
 		struct mutex wm_mutex;
-
-		/*
-		 * Set during HW readout of watermarks/DDB.  Some platforms
-		 * need to know when we're still using BIOS-provided values
-		 * (which we don't fully trust).
-		 *
-		 * FIXME get rid of this.
-		 */
-		bool distrust_bios_wm;
 	} wm;
 
 	struct dram_info {
@@ -1181,6 +1172,8 @@ struct drm_i915_private {
 		 */
 		struct file *mmap_singleton;
 	} gem;
+
+	u8 framestart_delay;
 
 	u8 pch_ssc_use;
 
@@ -1758,9 +1751,16 @@ tgl_revids_get(struct drm_i915_private *dev_priv)
 
 #define HAS_DISPLAY(dev_priv) (INTEL_INFO(dev_priv)->pipe_mask != 0)
 
+#define HAS_VRR(i915)	(INTEL_GEN(i915) >= 12)
+
 /* Only valid when HAS_DISPLAY() is true */
 #define INTEL_DISPLAY_ENABLED(dev_priv) \
 	(drm_WARN_ON(&(dev_priv)->drm, !HAS_DISPLAY(dev_priv)), !(dev_priv)->params.disable_display)
+
+static inline bool run_as_guest(void)
+{
+	return !hypervisor_is_type(X86_HYPER_NATIVE);
+}
 
 static inline bool intel_vtd_active(void)
 {
@@ -1770,7 +1770,7 @@ static inline bool intel_vtd_active(void)
 #endif
 
 	/* Running as a guest, we assume the host is enforcing VT'd */
-	return !hypervisor_is_type(X86_HYPER_NATIVE);
+	return run_as_guest();
 }
 
 static inline bool intel_scanout_needs_vtd_wa(struct drm_i915_private *dev_priv)

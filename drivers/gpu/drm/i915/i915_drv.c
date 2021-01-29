@@ -58,6 +58,7 @@
 #include "display/intel_hotplug.h"
 #include "display/intel_overlay.h"
 #include "display/intel_pipe_crc.h"
+#include "display/intel_pps.h"
 #include "display/intel_sprite.h"
 #include "display/intel_vga.h"
 
