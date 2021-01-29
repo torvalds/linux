@@ -2134,7 +2134,6 @@ static int process_isoc_td(struct xhci_hcd *xhci, struct xhci_td *td,
 	union xhci_trb *ep_trb, struct xhci_transfer_event *event,
 	struct xhci_virt_ep *ep, int *status)
 {
-	struct xhci_ring *ep_ring;
 	struct urb_priv *urb_priv;
 	int idx;
 	struct usb_iso_packet_descriptor *frame;
@@ -2143,7 +2142,6 @@ static int process_isoc_td(struct xhci_hcd *xhci, struct xhci_td *td,
 	u32 remaining, requested, ep_trb_len;
 	int short_framestatus;
 
-	ep_ring = xhci_dma_to_transfer_ring(ep, le64_to_cpu(event->buffer));
 	trb_comp_code = GET_COMP_CODE(le32_to_cpu(event->transfer_len));
 	urb_priv = td->urb->hcpriv;
 	idx = urb_priv->num_tds_done;
@@ -2204,7 +2202,7 @@ static int process_isoc_td(struct xhci_hcd *xhci, struct xhci_td *td,
 	}
 
 	if (sum_trbs_for_length)
-		frame->actual_length = sum_trb_lengths(xhci, ep_ring, ep_trb) +
+		frame->actual_length = sum_trb_lengths(xhci, ep->ring, ep_trb) +
 			ep_trb_len - remaining;
 	else
 		frame->actual_length = requested;
@@ -2215,15 +2213,12 @@ static int process_isoc_td(struct xhci_hcd *xhci, struct xhci_td *td,
 }
 
 static int skip_isoc_td(struct xhci_hcd *xhci, struct xhci_td *td,
-			struct xhci_transfer_event *event,
 			struct xhci_virt_ep *ep, int *status)
 {
-	struct xhci_ring *ep_ring;
 	struct urb_priv *urb_priv;
 	struct usb_iso_packet_descriptor *frame;
 	int idx;
 
-	ep_ring = xhci_dma_to_transfer_ring(ep, le64_to_cpu(event->buffer));
 	urb_priv = td->urb->hcpriv;
 	idx = urb_priv->num_tds_done;
 	frame = &td->urb->iso_frame_desc[idx];
@@ -2235,11 +2230,11 @@ static int skip_isoc_td(struct xhci_hcd *xhci, struct xhci_td *td,
 	frame->actual_length = 0;
 
 	/* Update ring dequeue pointer */
-	while (ep_ring->dequeue != td->last_trb)
-		inc_deq(xhci, ep_ring);
-	inc_deq(xhci, ep_ring);
+	while (ep->ring->dequeue != td->last_trb)
+		inc_deq(xhci, ep->ring);
+	inc_deq(xhci, ep->ring);
 
-	return xhci_td_cleanup(xhci, td, ep_ring, status);
+	return xhci_td_cleanup(xhci, td, ep->ring, status);
 }
 
 /*
@@ -2619,7 +2614,7 @@ static int handle_tx_event(struct xhci_hcd *xhci,
 				return -ESHUTDOWN;
 			}
 
-			skip_isoc_td(xhci, td, event, ep, &status);
+			skip_isoc_td(xhci, td, ep, &status);
 			goto cleanup;
 		}
 		if (trb_comp_code == COMP_SHORT_PACKET)
