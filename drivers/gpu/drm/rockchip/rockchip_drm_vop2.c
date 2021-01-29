@@ -789,8 +789,8 @@ static inline void vop2_cfg_done(struct drm_crtc *crtc)
 			done_vp = &vop2->vps[vp_id];
 			adjusted_mode = &done_vp->crtc.state->adjusted_mode;
 			vcnt = vop2_read_vcnt(done_vp);
-			/* if close to the last 1/4 frame, wait to next frame */
-			if (vcnt > (adjusted_mode->crtc_vtotal * 3 >> 2)) {
+			/* if close to the last 1/8 frame, wait to next frame */
+			if (vcnt > (adjusted_mode->crtc_vtotal * 7 >> 3)) {
 				vop2_wait_for_fs_by_vcnt(done_vp, vcnt);
 				done_bits = 0;
 			}
