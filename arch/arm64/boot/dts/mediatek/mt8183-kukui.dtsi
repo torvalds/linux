@@ -709,6 +709,10 @@
 	};
 };
 
+&mfg {
+	domain-supply = <&mt6358_vgpu_reg>;
+};
+
 &soc_data {
 	status = "okay";
 };
