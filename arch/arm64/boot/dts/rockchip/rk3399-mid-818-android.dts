@@ -285,7 +285,7 @@
 		//wifi-bt-power-toggle;
 		uart_rts_gpios = <&gpio2 19 GPIO_ACTIVE_LOW>; /* GPIO2_C3 */
 		pinctrl-names = "default", "rts_gpio";
-		pinctrl-0 = <&uart0_rts>;
+		pinctrl-0 = <&uart0_rts>, <&bt_reset_gpio>, <&bt_wake_gpio>, <&bt_irq_gpio>;
 		pinctrl-1 = <&uart0_gpios>;
 		//BT,power_gpio  = <&gpio3 19 GPIO_ACTIVE_HIGH>; /* GPIOx_xx */
 		BT,reset_gpio    = <&gpio0 9 GPIO_ACTIVE_HIGH>; /* GPIO0_B1 */
@@ -965,6 +965,18 @@
 	wireless-bluetooth {
 		uart0_gpios: uart0-gpios {
 			rockchip,pins = <2 19 RK_FUNC_GPIO &pcfg_pull_none>;
+		};
+
+		bt_reset_gpio: bt-reset-gpio {
+			rockchip,pins = <0 9 RK_FUNC_GPIO &pcfg_pull_none>;
+		};
+
+		bt_wake_gpio: bt-wake-gpio {
+			rockchip,pins = <2 26 RK_FUNC_GPIO &pcfg_pull_none>;
+		};
+
+		bt_irq_gpio: bt-irq-gpio {
+			rockchip,pins = <0 4 RK_FUNC_GPIO &pcfg_pull_down>;
 		};
 	};
 
