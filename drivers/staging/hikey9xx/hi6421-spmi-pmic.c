@@ -7,6 +7,7 @@
 //
 // Copyright (c) 2020-2021 Huawei Technologies Co., Ltd
 
+#include <linux/bitops.h>
 #include <linux/interrupt.h>
 #include <linux/irq.h>
 #include <linux/mfd/core.h>
@@ -34,25 +35,19 @@ enum hi6421_spmi_pmic_irq_list {
 	SIM1_HPD_F,
 	PMIC_IRQ_LIST_MAX,
 };
-/* 8-bit register offset in PMIC */
-#define HISI_MASK_STATE			0xff
 
 #define HISI_IRQ_ARRAY			2
 #define HISI_IRQ_NUM			(HISI_IRQ_ARRAY * 8)
+#define HISI_IRQ_MASK			GENMASK(1, 0)
 
 #define SOC_PMIC_IRQ_MASK_0_ADDR	0x0202
 #define SOC_PMIC_IRQ0_ADDR		0x0212
 
 #define HISI_IRQ_KEY_NUM		0
-#define HISI_IRQ_KEY_VALUE		0xc0
-#define HISI_IRQ_KEY_DOWN		7
-#define HISI_IRQ_KEY_UP			6
 
-#define HISI_MASK_FIELD			0xFF
 #define HISI_BITS			8
-
-/*define the first group interrupt register number*/
-#define HISI_PMIC_FIRST_GROUP_INT_NUM	2
+#define HISI_IRQ_KEY_VALUE		(BIT(POWERKEY_DOWN) | BIT(POWERKEY_UP))
+#define HISI_MASK			GENMASK(HISI_BITS - 1, 0)
 
 static const struct mfd_cell hi6421v600_devs[] = {
 	{ .name = "hi6421v600-regulator", },
@@ -62,31 +57,26 @@ static irqreturn_t hi6421_spmi_irq_handler(int irq, void *priv)
 {
 	struct hi6421_spmi_pmic *ddata = (struct hi6421_spmi_pmic *)priv;
 	unsigned long pending;
-	unsigned int data;
+	unsigned int in;
 	int i, offset;
 
 	for (i = 0; i < HISI_IRQ_ARRAY; i++) {
-		regmap_read(ddata->regmap, SOC_PMIC_IRQ0_ADDR + i, &data);
-		data &= HISI_MASK_FIELD;
-		if (data != 0)
-			pr_debug("data[%d]=0x%d\n\r", i, data);
-		regmap_write(ddata->regmap, i + SOC_PMIC_IRQ0_ADDR, data);
+		regmap_read(ddata->regmap, SOC_PMIC_IRQ0_ADDR + i, &in);
+		pending = HISI_MASK & in;
+		regmap_write(ddata->regmap, SOC_PMIC_IRQ0_ADDR + i, pending);
 
-		/* for_each_set_bit() macro requires unsigned long */
-		pending = data;
-
-		/* solve powerkey order */
-		if ((i == HISI_IRQ_KEY_NUM) &&
-		    ((pending & HISI_IRQ_KEY_VALUE) == HISI_IRQ_KEY_VALUE)) {
-			generic_handle_irq(ddata->irqs[HISI_IRQ_KEY_DOWN]);
-			generic_handle_irq(ddata->irqs[HISI_IRQ_KEY_UP]);
+		if (i == HISI_IRQ_KEY_NUM &&
+		    (pending & HISI_IRQ_KEY_VALUE) == HISI_IRQ_KEY_VALUE) {
+			generic_handle_irq(ddata->irqs[POWERKEY_DOWN]);
+			generic_handle_irq(ddata->irqs[POWERKEY_UP]);
 			pending &= (~HISI_IRQ_KEY_VALUE);
 		}
 
-		if (pending) {
-			for_each_set_bit(offset, &pending, HISI_BITS)
-				generic_handle_irq(ddata->irqs[offset + i * HISI_BITS]);
-		}
+		if (!pending)
+			continue;
+
+		for_each_set_bit(offset, &pending, HISI_BITS)
+			generic_handle_irq(ddata->irqs[offset + i * HISI_BITS]);
 	}
 
 	return IRQ_HANDLED;
@@ -99,7 +89,7 @@ static void hi6421_spmi_irq_mask(struct irq_data *d)
 	unsigned int data;
 	u32 offset;
 
-	offset = (irqd_to_hwirq(d) >> 3);
+	offset = (irqd_to_hwirq(d) >> HISI_IRQ_MASK);
 	offset += SOC_PMIC_IRQ_MASK_0_ADDR;
 
 	spin_lock_irqsave(&ddata->lock, flags);
@@ -107,6 +97,7 @@ static void hi6421_spmi_irq_mask(struct irq_data *d)
 	regmap_read(ddata->regmap, offset, &data);
 	data |= (1 << (irqd_to_hwirq(d) & 0x07));
 	regmap_write(ddata->regmap, offset, data);
+
 	spin_unlock_irqrestore(&ddata->lock, flags);
 }
 
@@ -120,9 +111,11 @@ static void hi6421_spmi_irq_unmask(struct irq_data *d)
 	offset += SOC_PMIC_IRQ_MASK_0_ADDR;
 
 	spin_lock_irqsave(&ddata->lock, flags);
+
 	regmap_read(ddata->regmap, offset, &data);
 	data &= ~(1 << (irqd_to_hwirq(d) & 0x07));
 	regmap_write(ddata->regmap, offset, data);
+
 	spin_unlock_irqrestore(&ddata->lock, flags);
 }
 
@@ -152,28 +145,25 @@ static const struct irq_domain_ops hi6421_spmi_domain_ops = {
 	.xlate	= irq_domain_xlate_twocell,
 };
 
-static void hi6421_spmi_pmic_irq_prc(struct hi6421_spmi_pmic *ddata)
+static void hi6421_spmi_pmic_irq_init(struct hi6421_spmi_pmic *ddata)
 {
 	int i;
 	unsigned int pending;
 
-	for (i = 0 ; i < HISI_IRQ_ARRAY; i++)
+	for (i = 0; i < HISI_IRQ_ARRAY; i++)
 		regmap_write(ddata->regmap, SOC_PMIC_IRQ_MASK_0_ADDR + i,
-				       HISI_MASK_STATE);
+				        HISI_MASK);
 
-	for (i = 0 ; i < HISI_IRQ_ARRAY; i++) {
+	for (i = 0; i < HISI_IRQ_ARRAY; i++) {
 		regmap_read(ddata->regmap, SOC_PMIC_IRQ0_ADDR + i, &pending);
-
-		pr_debug("PMU IRQ address value:irq[0x%x] = 0x%x\n",
-			 SOC_PMIC_IRQ0_ADDR + i, pending);
 		regmap_write(ddata->regmap, SOC_PMIC_IRQ0_ADDR + i,
-			     HISI_MASK_STATE);
+			     HISI_MASK);
 	}
 }
 
 static const struct regmap_config regmap_config = {
 	.reg_bits		= 16,
-	.val_bits		= 8,
+	.val_bits		= HISI_BITS,
 	.max_register		= 0xffff,
 	.fast_io		= true
 };
@@ -213,7 +203,7 @@ static int hi6421_spmi_pmic_probe(struct spmi_device *pdev)
 
 	ddata->irq = gpio_to_irq(ddata->gpio);
 
-	hi6421_spmi_pmic_irq_prc(ddata);
+	hi6421_spmi_pmic_irq_init(ddata);
 
 	ddata->irqs = devm_kzalloc(dev, HISI_IRQ_NUM * sizeof(int), GFP_KERNEL);
 	if (!ddata->irqs)
