@@ -10,7 +10,9 @@
 #include <linux/errno.h>
 #include <linux/gpio/driver.h>
 #include <linux/init.h>
+#include <linux/interrupt.h>
 #include <linux/io.h>
+#include <linux/irq.h>
 #include <linux/module.h>
 #include <linux/of_device.h>
 #include <linux/of_platform.h>
@@ -21,6 +23,11 @@
 #define XGPIO_TRI_OFFSET    (0x4)	/* I/O direction register  */
 
 #define XGPIO_CHANNEL_OFFSET	0x8
+
+#define XGPIO_GIER_OFFSET	0x11c /* Global Interrupt Enable */
+#define XGPIO_GIER_IE		BIT(31)
+#define XGPIO_IPISR_OFFSET	0x120 /* IP Interrupt Status */
+#define XGPIO_IPIER_OFFSET	0x128 /* IP Interrupt Enable */
 
 /* Read/Write access to the GPIO registers */
 #if defined(CONFIG_ARCH_ZYNQ) || defined(CONFIG_X86)
@@ -36,9 +43,15 @@
  * @gc: GPIO chip
  * @regs: register block
  * @gpio_width: GPIO width for every channel
- * @gpio_state: GPIO state shadow register
+ * @gpio_state: GPIO write state shadow register
+ * @gpio_last_irq_read: GPIO read state register from last interrupt
  * @gpio_dir: GPIO direction shadow register
  * @gpio_lock: Lock used for synchronization
+ * @irq: IRQ used by GPIO device
+ * @irqchip: IRQ chip
+ * @irq_enable: GPIO IRQ enable/disable bitfield
+ * @irq_rising_edge: GPIO IRQ rising edge enable/disable bitfield
+ * @irq_falling_edge: GPIO IRQ falling edge enable/disable bitfield
  * @clk: clock resource for this driver
  */
 struct xgpio_instance {
@@ -46,8 +59,14 @@ struct xgpio_instance {
 	void __iomem *regs;
 	unsigned int gpio_width[2];
 	u32 gpio_state[2];
+	u32 gpio_last_irq_read[2];
 	u32 gpio_dir[2];
 	spinlock_t gpio_lock;	/* For serializing operations */
+	int irq;
+	struct irq_chip irqchip;
+	u32 irq_enable[2];
+	u32 irq_rising_edge[2];
+	u32 irq_falling_edge[2];
 	struct clk *clk;
 };
 
@@ -277,6 +296,175 @@ static int xgpio_remove(struct platform_device *pdev)
 }
 
 /**
+ * xgpio_irq_ack - Acknowledge a child GPIO interrupt.
+ * @irq_data: per IRQ and chip data passed down to chip functions
+ * This currently does nothing, but irq_ack is unconditionally called by
+ * handle_edge_irq and therefore must be defined.
+ */
+static void xgpio_irq_ack(struct irq_data *irq_data)
+{
+}
+
+/**
+ * xgpio_irq_mask - Write the specified signal of the GPIO device.
+ * @irq_data: per IRQ and chip data passed down to chip functions
+ */
+static void xgpio_irq_mask(struct irq_data *irq_data)
+{
+	unsigned long flags;
+	struct xgpio_instance *chip = irq_data_get_irq_chip_data(irq_data);
+	int irq_offset = irqd_to_hwirq(irq_data);
+	int index = xgpio_index(chip, irq_offset);
+	int offset = xgpio_offset(chip, irq_offset);
+
+	spin_lock_irqsave(&chip->gpio_lock, flags);
+
+	chip->irq_enable[index] &= ~BIT(offset);
+
+	if (!chip->irq_enable[index]) {
+		/* Disable per channel interrupt */
+		u32 temp = xgpio_readreg(chip->regs + XGPIO_IPIER_OFFSET);
+
+		temp &= ~BIT(index);
+		xgpio_writereg(chip->regs + XGPIO_IPIER_OFFSET, temp);
+	}
+	spin_unlock_irqrestore(&chip->gpio_lock, flags);
+}
+
+/**
+ * xgpio_irq_unmask - Write the specified signal of the GPIO device.
+ * @irq_data: per IRQ and chip data passed down to chip functions
+ */
+static void xgpio_irq_unmask(struct irq_data *irq_data)
+{
+	unsigned long flags;
+	struct xgpio_instance *chip = irq_data_get_irq_chip_data(irq_data);
+	int irq_offset = irqd_to_hwirq(irq_data);
+	int index = xgpio_index(chip, irq_offset);
+	int offset = xgpio_offset(chip, irq_offset);
+	u32 old_enable = chip->irq_enable[index];
+
+	spin_lock_irqsave(&chip->gpio_lock, flags);
+
+	chip->irq_enable[index] |= BIT(offset);
+
+	if (!old_enable) {
+		/* Clear any existing per-channel interrupts */
+		u32 val = xgpio_readreg(chip->regs + XGPIO_IPISR_OFFSET) &
+			BIT(index);
+
+		if (val)
+			xgpio_writereg(chip->regs + XGPIO_IPISR_OFFSET, val);
+
+		/* Update GPIO IRQ read data before enabling interrupt*/
+		val = xgpio_readreg(chip->regs + XGPIO_DATA_OFFSET +
+				    index * XGPIO_CHANNEL_OFFSET);
+		chip->gpio_last_irq_read[index] = val;
+
+		/* Enable per channel interrupt */
+		val = xgpio_readreg(chip->regs + XGPIO_IPIER_OFFSET);
+		val |= BIT(index);
+		xgpio_writereg(chip->regs + XGPIO_IPIER_OFFSET, val);
+	}
+
+	spin_unlock_irqrestore(&chip->gpio_lock, flags);
+}
+
+/**
+ * xgpio_set_irq_type - Write the specified signal of the GPIO device.
+ * @irq_data: Per IRQ and chip data passed down to chip functions
+ * @type: Interrupt type that is to be set for the gpio pin
+ *
+ * Return:
+ * 0 if interrupt type is supported otherwise -EINVAL
+ */
+static int xgpio_set_irq_type(struct irq_data *irq_data, unsigned int type)
+{
+	struct xgpio_instance *chip = irq_data_get_irq_chip_data(irq_data);
+	int irq_offset = irqd_to_hwirq(irq_data);
+	int index = xgpio_index(chip, irq_offset);
+	int offset = xgpio_offset(chip, irq_offset);
+
+	/*
+	 * The Xilinx GPIO hardware provides a single interrupt status
+	 * indication for any state change in a given GPIO channel (bank).
+	 * Therefore, only rising edge or falling edge triggers are
+	 * supported.
+	 */
+	switch (type & IRQ_TYPE_SENSE_MASK) {
+	case IRQ_TYPE_EDGE_BOTH:
+		chip->irq_rising_edge[index] |= BIT(offset);
+		chip->irq_falling_edge[index] |= BIT(offset);
+		break;
+	case IRQ_TYPE_EDGE_RISING:
+		chip->irq_rising_edge[index] |= BIT(offset);
+		chip->irq_falling_edge[index] &= ~BIT(offset);
+		break;
+	case IRQ_TYPE_EDGE_FALLING:
+		chip->irq_rising_edge[index] &= ~BIT(offset);
+		chip->irq_falling_edge[index] |= BIT(offset);
+		break;
+	default:
+		return -EINVAL;
+	}
+
+	irq_set_handler_locked(irq_data, handle_edge_irq);
+	return 0;
+}
+
+/**
+ * xgpio_irqhandler - Gpio interrupt service routine
+ * @desc: Pointer to interrupt description
+ */
+static void xgpio_irqhandler(struct irq_desc *desc)
+{
+	struct xgpio_instance *chip = irq_desc_get_handler_data(desc);
+	struct irq_chip *irqchip = irq_desc_get_chip(desc);
+	u32 num_channels = chip->gpio_width[1] ? 2 : 1;
+	u32 offset = 0, index;
+	u32 status = xgpio_readreg(chip->regs + XGPIO_IPISR_OFFSET);
+
+	xgpio_writereg(chip->regs + XGPIO_IPISR_OFFSET, status);
+
+	chained_irq_enter(irqchip, desc);
+	for (index = 0; index < num_channels; index++) {
+		if ((status & BIT(index))) {
+			unsigned long rising_events, falling_events, all_events;
+			unsigned long flags;
+			u32 data, bit;
+			unsigned int irq;
+
+			spin_lock_irqsave(&chip->gpio_lock, flags);
+			data = xgpio_readreg(chip->regs + XGPIO_DATA_OFFSET +
+					     index * XGPIO_CHANNEL_OFFSET);
+			rising_events = data &
+					~chip->gpio_last_irq_read[index] &
+					chip->irq_enable[index] &
+					chip->irq_rising_edge[index];
+			falling_events = ~data &
+					 chip->gpio_last_irq_read[index] &
+					 chip->irq_enable[index] &
+					 chip->irq_falling_edge[index];
+			dev_dbg(chip->gc.parent,
+				"IRQ chan %u rising 0x%lx falling 0x%lx\n",
+				index, rising_events, falling_events);
+			all_events = rising_events | falling_events;
+			chip->gpio_last_irq_read[index] = data;
+			spin_unlock_irqrestore(&chip->gpio_lock, flags);
+
+			for_each_set_bit(bit, &all_events, 32) {
+				irq = irq_find_mapping(chip->gc.irq.domain,
+						       offset + bit);
+				generic_handle_irq(irq);
+			}
+		}
+		offset += chip->gpio_width[index];
+	}
+
+	chained_irq_exit(irqchip, desc);
+}
+
+/**
  * xgpio_of_probe - Probe method for the GPIO device.
  * @pdev: pointer to the platform device
  *
@@ -289,7 +477,10 @@ static int xgpio_probe(struct platform_device *pdev)
 	struct xgpio_instance *chip;
 	int status = 0;
 	struct device_node *np = pdev->dev.of_node;
-	u32 is_dual;
+	u32 is_dual = 0;
+	u32 cells = 2;
+	struct gpio_irq_chip *girq;
+	u32 temp;
 
 	chip = devm_kzalloc(&pdev->dev, sizeof(*chip), GFP_KERNEL);
 	if (!chip)
@@ -304,6 +495,15 @@ static int xgpio_probe(struct platform_device *pdev)
 	/* Update GPIO direction shadow register with default value */
 	if (of_property_read_u32(np, "xlnx,tri-default", &chip->gpio_dir[0]))
 		chip->gpio_dir[0] = 0xFFFFFFFF;
+
+	/* Update cells with gpio-cells value */
+	if (of_property_read_u32(np, "#gpio-cells", &cells))
+		dev_dbg(&pdev->dev, "Missing gpio-cells property\n");
+
+	if (cells != 2) {
+		dev_err(&pdev->dev, "#gpio-cells mismatch\n");
+		return -EINVAL;
+	}
 
 	/*
 	 * Check device node and parent device node for device width
@@ -343,6 +543,7 @@ static int xgpio_probe(struct platform_device *pdev)
 	chip->gc.parent = &pdev->dev;
 	chip->gc.direction_input = xgpio_dir_in;
 	chip->gc.direction_output = xgpio_dir_out;
+	chip->gc.of_gpio_n_cells = cells;
 	chip->gc.get = xgpio_get;
 	chip->gc.set = xgpio_set;
 	chip->gc.set_multiple = xgpio_set_multiple;
@@ -367,14 +568,51 @@ static int xgpio_probe(struct platform_device *pdev)
 
 	xgpio_save_regs(chip);
 
+	chip->irq = platform_get_irq_optional(pdev, 0);
+	if (chip->irq <= 0)
+		goto skip_irq;
+
+	chip->irqchip.name = "gpio-xilinx";
+	chip->irqchip.irq_ack = xgpio_irq_ack;
+	chip->irqchip.irq_mask = xgpio_irq_mask;
+	chip->irqchip.irq_unmask = xgpio_irq_unmask;
+	chip->irqchip.irq_set_type = xgpio_set_irq_type;
+
+	/* Disable per-channel interrupts */
+	xgpio_writereg(chip->regs + XGPIO_IPIER_OFFSET, 0);
+	/* Clear any existing per-channel interrupts */
+	temp = xgpio_readreg(chip->regs + XGPIO_IPISR_OFFSET);
+	xgpio_writereg(chip->regs + XGPIO_IPISR_OFFSET, temp);
+	/* Enable global interrupts */
+	xgpio_writereg(chip->regs + XGPIO_GIER_OFFSET, XGPIO_GIER_IE);
+
+	girq = &chip->gc.irq;
+	girq->chip = &chip->irqchip;
+	girq->parent_handler = xgpio_irqhandler;
+	girq->num_parents = 1;
+	girq->parents = devm_kcalloc(&pdev->dev, 1,
+				     sizeof(*girq->parents),
+				     GFP_KERNEL);
+	if (!girq->parents) {
+		status = -ENOMEM;
+		goto err_unprepare_clk;
+	}
+	girq->parents[0] = chip->irq;
+	girq->default_type = IRQ_TYPE_NONE;
+	girq->handler = handle_bad_irq;
+
+skip_irq:
 	status = devm_gpiochip_add_data(&pdev->dev, &chip->gc, chip);
 	if (status) {
 		dev_err(&pdev->dev, "failed to add GPIO chip\n");
-		clk_disable_unprepare(chip->clk);
-		return status;
+		goto err_unprepare_clk;
 	}
 
 	return 0;
+
+err_unprepare_clk:
+	clk_disable_unprepare(chip->clk);
+	return status;
 }
 
 static const struct of_device_id xgpio_of_match[] = {

@@ -704,6 +704,8 @@ config GPIO_XGENE_SB
 
 config GPIO_XILINX
 	tristate "Xilinx GPIO support"
+	select GPIOLIB_IRQCHIP
+	depends on OF_GPIO
 	help
 	  Say yes here to support the Xilinx FPGA GPIO device
 
