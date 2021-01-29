@@ -983,6 +983,7 @@ static void xhci_handle_cmd_stop_ep(struct xhci_hcd *xhci, int slot_id,
 	struct xhci_ep_ctx *ep_ctx;
 	struct xhci_td *td = NULL;
 	enum xhci_ep_reset_type reset_type;
+	struct xhci_command *command;
 
 	if (unlikely(TRB_TO_SUSPEND_PORT(le32_to_cpu(trb->generic.field[3])))) {
 		if (!xhci->devs[slot_id])
@@ -1029,6 +1030,18 @@ static void xhci_handle_cmd_stop_ep(struct xhci_hcd *xhci, int slot_id,
 			/* reset ep, reset handler cleans up cancelled tds */
 			xhci_handle_halted_endpoint(xhci, ep, 0, td, reset_type);
 			xhci_stop_watchdog_timer_in_irq(xhci, ep);
+			return;
+		case EP_STATE_RUNNING:
+			/* Race, HW handled stop ep cmd before ep was running */
+			command = xhci_alloc_command(xhci, false, GFP_ATOMIC);
+			if (!command)
+				xhci_stop_watchdog_timer_in_irq(xhci, ep);
+
+			mod_timer(&ep->stop_cmd_timer,
+				  jiffies + XHCI_STOP_EP_CMD_TIMEOUT * HZ);
+			xhci_queue_stop_endpoint(xhci, command, slot_id, ep_index, 0);
+			xhci_ring_cmd_db(xhci);
+
 			return;
 		default:
 			break;
