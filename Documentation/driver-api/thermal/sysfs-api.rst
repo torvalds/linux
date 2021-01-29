@@ -54,7 +54,7 @@ temperature) and throttle appropriate devices.
     trips:
 	the total number of trip points this thermal zone supports.
     mask:
-	Bit string: If 'n'th bit is set, then trip point 'n' is writeable.
+	Bit string: If 'n'th bit is set, then trip point 'n' is writable.
     devdata:
 	device private data
     ops:
@@ -406,7 +406,7 @@ Thermal cooling device sys I/F, created once it's registered::
     |---stats/reset:		Writing any value resets the statistics
     |---stats/time_in_state_ms:	Time (msec) spent in various cooling states
     |---stats/total_trans:	Total number of times cooling state is changed
-    |---stats/trans_table:	Cooing state transition table
+    |---stats/trans_table:	Cooling state transition table
 
 
 Then next two dynamic attributes are created/removed in pairs. They represent
@@ -779,5 +779,5 @@ emergency poweroff kicks in after the delay has elapsed and shuts down
 the system.
 
 If set to 0 emergency poweroff will not be supported. So a carefully
-profiled non-zero positive value is a must for emergerncy poweroff to be
+profiled non-zero positive value is a must for emergency poweroff to be
 triggered.
