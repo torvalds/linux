@@ -24,6 +24,7 @@
 #define DISP_REG_OVL_RST			0x0014
 #define DISP_REG_OVL_ROI_SIZE			0x0020
 #define DISP_REG_OVL_DATAPATH_CON		0x0024
+#define OVL_LAYER_SMI_ID_EN				BIT(0)
 #define OVL_BGCLR_SEL_IN				BIT(2)
 #define DISP_REG_OVL_ROI_BGCLR			0x0028
 #define DISP_REG_OVL_SRC_CON			0x002c
@@ -62,6 +63,7 @@ struct mtk_disp_ovl_data {
 	unsigned int gmc_bits;
 	unsigned int layer_nr;
 	bool fmt_rgb565_is_0;
+	bool smi_id_en;
 };
 
 /**
@@ -134,6 +136,13 @@ void mtk_ovl_start(struct device *dev)
 {
 	struct mtk_disp_ovl *ovl = dev_get_drvdata(dev);
 
+	if (ovl->data->smi_id_en) {
+		unsigned int reg;
+
+		reg = readl(ovl->regs + DISP_REG_OVL_DATAPATH_CON);
+		reg = reg | OVL_LAYER_SMI_ID_EN;
+		writel_relaxed(reg, ovl->regs + DISP_REG_OVL_DATAPATH_CON);
+	}
 	writel_relaxed(0x1, ovl->regs + DISP_REG_OVL_EN);
 }
 
@@ -142,6 +151,14 @@ void mtk_ovl_stop(struct device *dev)
 	struct mtk_disp_ovl *ovl = dev_get_drvdata(dev);
 
 	writel_relaxed(0x0, ovl->regs + DISP_REG_OVL_EN);
+	if (ovl->data->smi_id_en) {
+		unsigned int reg;
+
+		reg = readl(ovl->regs + DISP_REG_OVL_DATAPATH_CON);
+		reg = reg & ~OVL_LAYER_SMI_ID_EN;
+		writel_relaxed(reg, ovl->regs + DISP_REG_OVL_DATAPATH_CON);
+	}
+
 }
 
 void mtk_ovl_config(struct device *dev, unsigned int w,
