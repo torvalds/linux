@@ -25,13 +25,13 @@ static unsigned int events;
 static ssize_t capability_show(struct device *dev,
 			       struct device_attribute *attr, char *buf)
 {
-	return sysfs_emit(buf, "%x", capability);
+	return sysfs_emit(buf, "%x\n", capability);
 }
 static DEVICE_ATTR_RO(capability);
 
 static ssize_t events_show(struct device *dev,  struct device_attribute *attr, char *buf)
 {
-	return sysfs_emit(buf, "%x", events);
+	return sysfs_emit(buf, "%x\n", events);
 }
 
 static ssize_t events_store(struct device *dev,  struct device_attribute *attr,
