@@ -473,6 +473,7 @@ struct bch_dev {
 	atomic64_t		rebalance_work;
 
 	struct journal_device	journal;
+	u64			prev_journal_sector;
 
 	struct work_struct	io_error_work;
 
