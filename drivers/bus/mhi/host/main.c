@@ -812,6 +812,12 @@ static void mhi_process_cmd_completion(struct mhi_controller *mhi_cntrl,
 
 	cmd_pkt = mhi_to_virtual(mhi_ring, ptr);
 
+	if (MHI_TRE_GET_CMD_TYPE(cmd_pkt) == MHI_CMD_SFR_CFG) {
+		mhi_misc_cmd_completion(mhi_cntrl, MHI_CMD_SFR_CFG,
+					MHI_TRE_GET_EV_CODE(tre));
+		return;
+	}
+
 	chan = MHI_TRE_GET_CMD_CHID(cmd_pkt);
 
 	if (chan < mhi_cntrl->max_chan &&
@@ -1348,6 +1354,11 @@ int mhi_send_cmd(struct mhi_controller *mhi_cntrl,
 		cmd_tre->ptr = MHI_TRE_CMD_START_PTR;
 		cmd_tre->dword[0] = MHI_TRE_CMD_START_DWORD0;
 		cmd_tre->dword[1] = MHI_TRE_CMD_START_DWORD1(chan);
+		break;
+	case MHI_CMD_SFR_CFG:
+		mhi_misc_cmd_configure(mhi_cntrl, MHI_CMD_SFR_CFG,
+							&cmd_tre->ptr, &cmd_tre->dword[0],
+							&cmd_tre->dword[1]);
 		break;
 	default:
 		dev_err(dev, "Command not supported\n");

@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0
 /*
- * Copyright (c) 2018-2020, The Linux Foundation. All rights reserved.
+ * Copyright (c) 2018-2021, The Linux Foundation. All rights reserved.
  *
  */
 
@@ -432,6 +432,7 @@ static int mhi_pm_mission_mode_transition(struct mhi_controller *mhi_cntrl)
 
 	read_unlock_bh(&mhi_cntrl->pm_lock);
 
+	mhi_misc_mission_mode(mhi_cntrl);
 	mhi_process_sleeping_events(mhi_cntrl);
 
 	/*
@@ -507,6 +508,7 @@ static void mhi_pm_disable_transition(struct mhi_controller *mhi_cntrl)
 
 	/* Release lock and wait for all pending threads to complete */
 	mutex_unlock(&mhi_cntrl->pm_mutex);
+	mhi_misc_disable(mhi_cntrl);
 	dev_dbg(dev, "Waiting for all pending threads to complete\n");
 	wake_up_all(&mhi_cntrl->state_event);
 
@@ -643,6 +645,7 @@ static void mhi_pm_sys_error_transition(struct mhi_controller *mhi_cntrl)
 
 	/* Release lock and wait for all pending threads to complete */
 	mutex_unlock(&mhi_cntrl->pm_mutex);
+	mhi_misc_disable(mhi_cntrl);
 	dev_dbg(dev, "Waiting for all pending threads to complete\n");
 	wake_up_all(&mhi_cntrl->state_event);
 
