@@ -84,6 +84,9 @@ patternProperties:
           be specified by order, adding first the BASIC clocks followed by the
           SUSBSYS clocks.
 
+      domain-supply:
+        description: domain regulator supply.
+
       mediatek,infracfg:
         $ref: /schemas/types.yaml#/definitions/phandle
         description: phandle to the device containing the INFRACFG register range.
@@ -132,6 +135,9 @@ patternProperties:
               be specified by order, adding first the BASIC clocks followed by the
               SUSBSYS clocks.
 
+          domain-supply:
+            description: domain regulator supply.
+
           mediatek,infracfg:
             $ref: /schemas/types.yaml#/definitions/phandle
             description: phandle to the device containing the INFRACFG register range.
@@ -179,6 +185,9 @@ patternProperties:
                   In order to follow properly the power-up sequencing, the clocks must
                   be specified by order, adding first the BASIC clocks followed by the
                   SUSBSYS clocks.
+
+              domain-supply:
+                description: domain regulator supply.
 
               mediatek,infracfg:
                 $ref: /schemas/types.yaml#/definitions/phandle
