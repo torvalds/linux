@@ -730,7 +730,8 @@ __intel_engine_init_ctx_wa(struct intel_engine_cs *engine,
 
 	if (IS_DG1(i915))
 		dg1_ctx_workarounds_init(engine, wal);
-	else if (IS_ROCKETLAKE(i915) || IS_TIGERLAKE(i915))
+	else if (IS_ALDERLAKE_S(i915) || IS_ROCKETLAKE(i915) ||
+		 IS_TIGERLAKE(i915))
 		tgl_ctx_workarounds_init(engine, wal);
 	else if (IS_GEN(i915, 12))
 		gen12_ctx_workarounds_init(engine, wal);
@@ -1641,45 +1642,45 @@ rcs_engine_wa_init(struct intel_engine_cs *engine, struct i915_wa_list *wal)
 			    GEN7_DISABLE_SAMPLER_PREFETCH);
 	}
 
-	if (IS_DG1(i915) || IS_ROCKETLAKE(i915) || IS_TIGERLAKE(i915)) {
-		/* Wa_1606931601:tgl,rkl,dg1 */
+	if (IS_ALDERLAKE_S(i915) || IS_DG1(i915) ||
+	    IS_ROCKETLAKE(i915) || IS_TIGERLAKE(i915)) {
+		/* Wa_1606931601:tgl,rkl,dg1,adl-s */
 		wa_masked_en(wal, GEN7_ROW_CHICKEN2, GEN12_DISABLE_EARLY_READ);
 
 		/*
 		 * Wa_1407928979:tgl A*
 		 * Wa_18011464164:tgl[B0+],dg1[B0+]
 		 * Wa_22010931296:tgl[B0+],dg1[B0+]
-		 * Wa_14010919138:rkl, dg1
+		 * Wa_14010919138:rkl,dg1,adl-s
 		 */
 		wa_write_or(wal, GEN7_FF_THREAD_MODE,
 			    GEN12_FF_TESSELATION_DOP_GATE_DISABLE);
 
 		/*
 		 * Wa_1606700617:tgl,dg1
-		 * Wa_22010271021:tgl,rkl,dg1
+		 * Wa_22010271021:tgl,rkl,dg1, adl-s
 		 */
 		wa_masked_en(wal,
 			     GEN9_CS_DEBUG_MODE1,
 			     FF_DOP_CLOCK_GATE_DISABLE);
-
-		/* Wa_1406941453:tgl,rkl,dg1 */
-		wa_masked_en(wal,
-			     GEN10_SAMPLER_MODE,
-			     ENABLE_SMALLPL);
 	}
 
-	if (IS_DG1_REVID(i915, DG1_REVID_A0, DG1_REVID_A0) ||
+	if (IS_ALDERLAKE_S(i915) || IS_DG1_REVID(i915, DG1_REVID_A0, DG1_REVID_A0) ||
 	    IS_ROCKETLAKE(i915) || IS_TIGERLAKE(i915)) {
-		/* Wa_1409804808:tgl,rkl,dg1[a0] */
+		/* Wa_1409804808:tgl,rkl,dg1[a0],adl-s */
 		wa_masked_en(wal, GEN7_ROW_CHICKEN2,
 			     GEN12_PUSH_CONST_DEREF_HOLD_DIS);
 
 		/*
 		 * Wa_1409085225:tgl
-		 * Wa_14010229206:tgl,rkl,dg1[a0]
+		 * Wa_14010229206:tgl,rkl,dg1[a0],adl-s
 		 */
 		wa_masked_en(wal, GEN9_ROW_CHICKEN4, GEN12_DISABLE_TDL_PUSH);
+	}
 
+
+	if (IS_DG1_REVID(i915, DG1_REVID_A0, DG1_REVID_A0) ||
+	    IS_ROCKETLAKE(i915) || IS_TIGERLAKE(i915)) {
 		/*
 		 * Wa_1607030317:tgl
 		 * Wa_1607186500:tgl
@@ -1694,6 +1695,13 @@ rcs_engine_wa_init(struct intel_engine_cs *engine, struct i915_wa_list *wal)
 			     GEN6_RC_SLEEP_PSMI_CONTROL,
 			     GEN12_WAIT_FOR_EVENT_POWER_DOWN_DISABLE |
 			     GEN8_RC_SEMA_IDLE_MSG_DISABLE);
+	}
+
+	if (IS_DG1(i915) || IS_ROCKETLAKE(i915) || IS_TIGERLAKE(i915)) {
+		/* Wa_1406941453:tgl,rkl,dg1 */
+		wa_masked_en(wal,
+			     GEN10_SAMPLER_MODE,
+			     ENABLE_SMALLPL);
 	}
 
 	if (IS_GEN(i915, 11)) {
