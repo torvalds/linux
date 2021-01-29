@@ -12,6 +12,7 @@
 #include <linux/sunrpc/svc.h>
 #include <uapi/linux/nfsd/nfsfh.h>
 #include <linux/iversion.h>
+#include <linux/exportfs.h>
 
 static inline __u32 ino_t_to_u32(ino_t ino)
 {
@@ -264,7 +265,9 @@ fh_clear_wcc(struct svc_fh *fhp)
 static inline u64 nfsd4_change_attribute(struct kstat *stat,
 					 struct inode *inode)
 {
-	if (IS_I_VERSION(inode)) {
+	if (inode->i_sb->s_export_op->fetch_iversion)
+		return inode->i_sb->s_export_op->fetch_iversion(inode);
+	else if (IS_I_VERSION(inode)) {
 		u64 chattr;
 
 		chattr =  stat->ctime.tv_sec;
