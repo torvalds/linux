@@ -250,7 +250,11 @@ void intel_device_info_runtime_init(struct drm_i915_private *dev_priv)
 	struct intel_runtime_info *runtime = RUNTIME_INFO(dev_priv);
 	enum pipe pipe;
 
-	if (INTEL_GEN(dev_priv) >= 10) {
+	/* Wa_14011765242: adl-s A0 */
+	if (IS_ADLS_DISP_STEPPING(dev_priv, STEP_A0, STEP_A0))
+		for_each_pipe(dev_priv, pipe)
+			runtime->num_scalers[pipe] = 0;
+	else if (INTEL_GEN(dev_priv) >= 10) {
 		for_each_pipe(dev_priv, pipe)
 			runtime->num_scalers[pipe] = 2;
 	} else if (IS_GEN(dev_priv, 9)) {

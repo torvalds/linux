@@ -5339,9 +5339,10 @@ static void tgl_bw_buddy_init(struct drm_i915_private *dev_priv)
 	unsigned long abox_mask = INTEL_INFO(dev_priv)->abox_mask;
 	int config, i;
 
-	if (IS_DG1_REVID(dev_priv, DG1_REVID_A0, DG1_REVID_A0) ||
+	if (IS_ALDERLAKE_S(dev_priv) ||
+	    IS_DG1_REVID(dev_priv, DG1_REVID_A0, DG1_REVID_A0) ||
 	    IS_TGL_DISP_STEPPING(dev_priv, STEP_A0, STEP_B0))
-		/* Wa_1409767108:tgl,dg1 */
+		/* Wa_1409767108:tgl,dg1,adl-s */
 		table = wa_1409767108_buddy_page_masks;
 	else
 		table = tgl_buddy_page_masks;
@@ -5379,7 +5380,7 @@ static void icl_display_core_init(struct drm_i915_private *dev_priv,
 
 	gen9_set_dc_state(dev_priv, DC_STATE_DISABLE);
 
-	/* Wa_14011294188:ehl,jsl,tgl,rkl */
+	/* Wa_14011294188:ehl,jsl,tgl,rkl,adl-s */
 	if (INTEL_PCH_TYPE(dev_priv) >= PCH_JSP &&
 	    INTEL_PCH_TYPE(dev_priv) < PCH_DG1)
 		intel_de_rmw(dev_priv, SOUTH_DSPCLK_GATE_D, 0,
