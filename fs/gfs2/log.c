@@ -546,17 +546,14 @@ static inline unsigned int log_distance(struct gfs2_sbd *sdp, unsigned int newer
 static unsigned int calc_reserved(struct gfs2_sbd *sdp)
 {
 	unsigned int reserved = 0;
-	unsigned int mbuf;
-	unsigned int dbuf;
+	unsigned int blocks;
 	struct gfs2_trans *tr = sdp->sd_log_tr;
 
 	if (tr) {
-		mbuf = tr->tr_num_buf_new - tr->tr_num_buf_rm;
-		dbuf = tr->tr_num_databuf_new - tr->tr_num_databuf_rm;
-		reserved = mbuf + dbuf;
-		/* Account for header blocks */
-		reserved += DIV_ROUND_UP(mbuf, buf_limit(sdp));
-		reserved += DIV_ROUND_UP(dbuf, databuf_limit(sdp));
+		blocks = tr->tr_num_buf_new - tr->tr_num_buf_rm;
+		reserved += blocks + DIV_ROUND_UP(blocks, buf_limit(sdp));
+		blocks = tr->tr_num_databuf_new - tr->tr_num_databuf_rm;
+		reserved += blocks + DIV_ROUND_UP(blocks, databuf_limit(sdp));
 	}
 
 	if (sdp->sd_log_committed_revoke > 0)
