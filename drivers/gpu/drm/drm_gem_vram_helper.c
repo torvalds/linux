@@ -387,9 +387,16 @@ static int drm_gem_vram_kmap_locked(struct drm_gem_vram_object *gbo,
 	if (gbo->vmap_use_count > 0)
 		goto out;
 
-	ret = ttm_bo_vmap(&gbo->bo, &gbo->map);
-	if (ret)
-		return ret;
+	/*
+	 * VRAM helpers unmap the BO only on demand. So the previous
+	 * page mapping might still be around. Only vmap if the there's
+	 * no mapping present.
+	 */
+	if (dma_buf_map_is_null(&gbo->map)) {
+		ret = ttm_bo_vmap(&gbo->bo, &gbo->map);
+		if (ret)
+			return ret;
+	}
 
 out:
 	++gbo->vmap_use_count;
@@ -577,6 +584,7 @@ static void drm_gem_vram_bo_driver_move_notify(struct drm_gem_vram_object *gbo,
 		return;
 
 	ttm_bo_vunmap(bo, &gbo->map);
+	dma_buf_map_clear(&gbo->map); /* explicitly clear mapping for next vmap call */
 }
 
 static int drm_gem_vram_bo_driver_move(struct drm_gem_vram_object *gbo,

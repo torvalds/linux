@@ -9,9 +9,6 @@
 #
 # Please keep this list dictionary sorted.
 #
-# This comment is parsed by git-shortlog:
-# repo-abbrev: /pub/scm/linux/kernel/git/
-#
 Aaron Durbin <adurbin@google.com>
 Adam Oldham <oldhamca@gmail.com>
 Adam Radford <aradford@gmail.com>

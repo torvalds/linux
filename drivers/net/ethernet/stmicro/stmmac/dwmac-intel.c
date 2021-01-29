@@ -375,6 +375,7 @@ static int ehl_pse0_common_data(struct pci_dev *pdev,
 				struct plat_stmmacenet_data *plat)
 {
 	plat->bus_id = 2;
+	plat->addr64 = 32;
 	return ehl_common_data(pdev, plat);
 }
 
@@ -406,6 +407,7 @@ static int ehl_pse1_common_data(struct pci_dev *pdev,
 				struct plat_stmmacenet_data *plat)
 {
 	plat->bus_id = 3;
+	plat->addr64 = 32;
 	return ehl_common_data(pdev, plat);
 }
 

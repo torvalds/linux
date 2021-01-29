@@ -442,7 +442,7 @@ int v4l2_fill_pixfmt(struct v4l2_pix_format *pixfmt, u32 pixelformat,
 }
 EXPORT_SYMBOL_GPL(v4l2_fill_pixfmt);
 
-s64 v4l2_get_link_rate(struct v4l2_ctrl_handler *handler, unsigned int mul,
+s64 v4l2_get_link_freq(struct v4l2_ctrl_handler *handler, unsigned int mul,
 		       unsigned int div)
 {
 	struct v4l2_ctrl *ctrl;
@@ -473,4 +473,4 @@ s64 v4l2_get_link_rate(struct v4l2_ctrl_handler *handler, unsigned int mul,
 
 	return freq > 0 ? freq : -EINVAL;
 }
-EXPORT_SYMBOL_GPL(v4l2_get_link_rate);
+EXPORT_SYMBOL_GPL(v4l2_get_link_freq);
