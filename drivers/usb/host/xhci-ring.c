@@ -466,6 +466,26 @@ static struct xhci_virt_ep *xhci_get_virt_ep(struct xhci_hcd *xhci,
 	return &xhci->devs[slot_id]->eps[ep_index];
 }
 
+static struct xhci_ring *xhci_virt_ep_to_ring(struct xhci_hcd *xhci,
+					      struct xhci_virt_ep *ep,
+					      unsigned int stream_id)
+{
+	/* common case, no streams */
+	if (!(ep->ep_state & EP_HAS_STREAMS))
+		return ep->ring;
+
+	if (!ep->stream_info)
+		return NULL;
+
+	if (stream_id == 0 || stream_id >= ep->stream_info->num_streams) {
+		xhci_warn(xhci, "Invalid stream_id %u request for slot_id %u ep_index %u\n",
+			  stream_id, ep->vdev->slot_id, ep->ep_index);
+		return NULL;
+	}
+
+	return ep->stream_info->stream_rings[stream_id];
+}
+
 /* Get the right ring for the given slot_id, ep_index and stream_id.
  * If the endpoint supports streams, boundary check the URB's stream ID.
  * If the endpoint doesn't support streams, return the singular endpoint ring.
@@ -480,29 +500,7 @@ struct xhci_ring *xhci_triad_to_transfer_ring(struct xhci_hcd *xhci,
 	if (!ep)
 		return NULL;
 
-	/* Common case: no streams */
-	if (!(ep->ep_state & EP_HAS_STREAMS))
-		return ep->ring;
-
-	if (stream_id == 0) {
-		xhci_warn(xhci,
-				"WARN: Slot ID %u, ep index %u has streams, "
-				"but URB has no stream ID.\n",
-				slot_id, ep_index);
-		return NULL;
-	}
-
-	if (stream_id < ep->stream_info->num_streams)
-		return ep->stream_info->stream_rings[stream_id];
-
-	xhci_warn(xhci,
-			"WARN: Slot ID %u, ep index %u has "
-			"stream IDs 1 to %u allocated, "
-			"but stream ID %u is requested.\n",
-			slot_id, ep_index,
-			ep->stream_info->num_streams - 1,
-			stream_id);
-	return NULL;
+	return xhci_virt_ep_to_ring(xhci, ep, stream_id);
 }
 
 
@@ -1100,7 +1098,7 @@ static void xhci_handle_cmd_set_deq(struct xhci_hcd *xhci, int slot_id,
 	if (!ep)
 		return;
 
-	ep_ring = xhci_stream_id_to_ring(ep->vdev, ep_index, stream_id);
+	ep_ring = xhci_virt_ep_to_ring(xhci, ep, stream_id);
 	if (!ep_ring) {
 		xhci_warn(xhci, "WARN Set TR deq ptr command for freed stream ID %u\n",
 				stream_id);
