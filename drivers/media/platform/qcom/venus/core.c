@@ -349,8 +349,10 @@ static void venus_core_shutdown(struct platform_device *pdev)
 {
 	struct venus_core *core = platform_get_drvdata(pdev);
 
+	pm_runtime_get_sync(core->dev);
 	venus_shutdown(core);
 	venus_firmware_deinit(core);
+	pm_runtime_put_sync(core->dev);
 }
 
 static __maybe_unused int venus_runtime_suspend(struct device *dev)

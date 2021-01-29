@@ -466,6 +466,17 @@ static int validate_sample_rate_table_v2v3(struct snd_usb_audio *chip,
 	unsigned int nr_rates;
 	int i, err;
 
+	/* performing the rate verification may lead to unexpected USB bus
+	 * behavior afterwards by some unknown reason.  Do this only for the
+	 * known devices.
+	 */
+	switch (USB_ID_VENDOR(chip->usb_id)) {
+	case 0x07fd: /* MOTU */
+		break;
+	default:
+		return 0; /* don't perform the validation as default */
+	}
+
 	table = kcalloc(fp->nr_rates, sizeof(*table), GFP_KERNEL);
 	if (!table)
 		return -ENOMEM;

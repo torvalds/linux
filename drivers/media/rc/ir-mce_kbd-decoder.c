@@ -320,7 +320,7 @@ again:
 				data->body);
 			spin_lock(&data->keylock);
 			if (scancode) {
-				delay = nsecs_to_jiffies(dev->timeout) +
+				delay = usecs_to_jiffies(dev->timeout) +
 					msecs_to_jiffies(100);
 				mod_timer(&data->rx_timeout, jiffies + delay);
 			} else {
