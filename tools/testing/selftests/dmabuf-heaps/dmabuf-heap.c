@@ -184,15 +184,14 @@ static int test_alloc_and_import(char *heap_name)
 	if (importer_fd < 0) {
 		ret = importer_fd;
 		printf("Failed to open vgem\n");
-		goto out;
+	} else {
+		ret = import_vgem_fd(importer_fd, dmabuf_fd, &handle);
+		if (ret < 0) {
+			printf("Failed to import buffer\n");
+			goto out;
+		}
+		printf("import passed\n");
 	}
-
-	ret = import_vgem_fd(importer_fd, dmabuf_fd, &handle);
-	if (ret < 0) {
-		printf("Failed to import buffer\n");
-		goto out;
-	}
-	printf("import passed\n");
 
 	ret = dmabuf_sync(dmabuf_fd, DMA_BUF_SYNC_START);
 	if (ret < 0) {
