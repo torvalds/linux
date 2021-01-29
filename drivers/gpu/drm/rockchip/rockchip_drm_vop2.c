@@ -757,7 +757,7 @@ static inline void vop2_cfg_done(struct drm_crtc *crtc)
 {
 	struct vop2_video_port *vp = to_vop2_video_port(crtc);
 	struct vop2_video_port *done_vp;
-	struct rockchip_crtc_state *vcstate;
+	struct drm_display_mode *adjusted_mode;
 	struct vop2 *vop2 = vp->vop2;
 	uint32_t done_bits;
 	uint32_t vp_id;
@@ -787,10 +787,10 @@ static inline void vop2_cfg_done(struct drm_crtc *crtc)
 		/* no need to wait for same vp */
 		if (vp_id != vp->id) {
 			done_vp = &vop2->vps[vp_id];
-			vcstate = to_rockchip_crtc_state(done_vp->crtc.state);
+			adjusted_mode = &done_vp->crtc.state->adjusted_mode;
 			vcnt = vop2_read_vcnt(done_vp);
 			/* if close to the last 1/4 frame, wait to next frame */
-			if (vcnt > (vcstate->vdisplay * 3 >> 2)) {
+			if (vcnt > (adjusted_mode->crtc_vtotal * 3 >> 2)) {
 				vop2_wait_for_fs_by_vcnt(done_vp, vcnt);
 				done_bits = 0;
 			}
