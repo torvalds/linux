@@ -1431,7 +1431,7 @@ static void set_disk_ro_uevent(struct gendisk *gd, int ro)
 /**
  * set_disk_ro - set a gendisk read-only
  * @disk:	gendisk to operate on
- * @ready_only:	%true to set the disk read-only, %false set the disk read/write
+ * @read_only:	%true to set the disk read-only, %false set the disk read/write
  *
  * This function is used to indicate whether a given disk device should have its
  * read-only flag set. set_disk_ro() is typically used by device drivers to
