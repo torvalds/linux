@@ -179,6 +179,8 @@ static struct dsa_switch_tree *dsa_tree_alloc(int index)
 
 static void dsa_tree_free(struct dsa_switch_tree *dst)
 {
+	if (dst->tag_ops)
+		dsa_tag_driver_put(dst->tag_ops);
 	list_del(&dst->list);
 	kfree(dst);
 }
@@ -467,7 +469,6 @@ static void dsa_port_teardown(struct dsa_port *dp)
 		break;
 	case DSA_PORT_TYPE_CPU:
 		dsa_port_disable(dp);
-		dsa_tag_driver_put(dp->tag_ops);
 		dsa_port_link_unregister_of(dp);
 		break;
 	case DSA_PORT_TYPE_DSA:
@@ -1011,24 +1012,35 @@ static int dsa_port_parse_cpu(struct dsa_port *dp, struct net_device *master)
 {
 	struct dsa_switch *ds = dp->ds;
 	struct dsa_switch_tree *dst = ds->dst;
-	const struct dsa_device_ops *tag_ops;
 	enum dsa_tag_protocol tag_protocol;
 
 	tag_protocol = dsa_get_tag_protocol(dp, master);
-	tag_ops = dsa_tag_driver_get(tag_protocol);
-	if (IS_ERR(tag_ops)) {
-		if (PTR_ERR(tag_ops) == -ENOPROTOOPT)
-			return -EPROBE_DEFER;
-		dev_warn(ds->dev, "No tagger for this switch\n");
-		dp->master = NULL;
-		return PTR_ERR(tag_ops);
+	if (dst->tag_ops) {
+		if (dst->tag_ops->proto != tag_protocol) {
+			dev_err(ds->dev,
+				"A DSA switch tree can have only one tagging protocol\n");
+			return -EINVAL;
+		}
+		/* In the case of multiple CPU ports per switch, the tagging
+		 * protocol is still reference-counted only per switch tree, so
+		 * nothing to do here.
+		 */
+	} else {
+		dst->tag_ops = dsa_tag_driver_get(tag_protocol);
+		if (IS_ERR(dst->tag_ops)) {
+			if (PTR_ERR(dst->tag_ops) == -ENOPROTOOPT)
+				return -EPROBE_DEFER;
+			dev_warn(ds->dev, "No tagger for this switch\n");
+			dp->master = NULL;
+			return PTR_ERR(dst->tag_ops);
+		}
 	}
 
 	dp->master = master;
 	dp->type = DSA_PORT_TYPE_CPU;
-	dp->filter = tag_ops->filter;
-	dp->rcv = tag_ops->rcv;
-	dp->tag_ops = tag_ops;
+	dp->filter = dst->tag_ops->filter;
+	dp->rcv = dst->tag_ops->rcv;
+	dp->tag_ops = dst->tag_ops;
 	dp->dst = dst;
 
 	return 0;

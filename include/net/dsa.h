@@ -140,6 +140,9 @@ struct dsa_switch_tree {
 	/* Has this tree been applied to the hardware? */
 	bool setup;
 
+	/* Tagging protocol operations */
+	const struct dsa_device_ops *tag_ops;
+
 	/*
 	 * Configuration data for the platform device that owns
 	 * this dsa switch tree instance.
@@ -225,7 +228,9 @@ struct dsa_port {
 		struct net_device *slave;
 	};
 
-	/* CPU port tagging operations used by master or slave devices */
+	/* Copy of the tagging protocol operations, for quicker access
+	 * in the data path. Valid only for the CPU ports.
+	 */
 	const struct dsa_device_ops *tag_ops;
 
 	/* Copies for faster access in master receive hot path */
