@@ -942,6 +942,57 @@ static void dsa_tree_teardown(struct dsa_switch_tree *dst)
 	dst->setup = false;
 }
 
+/* Since the dsa/tagging sysfs device attribute is per master, the assumption
+ * is that all DSA switches within a tree share the same tagger, otherwise
+ * they would have formed disjoint trees (different "dsa,member" values).
+ */
+int dsa_tree_change_tag_proto(struct dsa_switch_tree *dst,
+			      struct net_device *master,
+			      const struct dsa_device_ops *tag_ops,
+			      const struct dsa_device_ops *old_tag_ops)
+{
+	struct dsa_notifier_tag_proto_info info;
+	struct dsa_port *dp;
+	int err = -EBUSY;
+
+	if (!rtnl_trylock())
+		return restart_syscall();
+
+	/* At the moment we don't allow changing the tag protocol under
+	 * traffic. The rtnl_mutex also happens to serialize concurrent
+	 * attempts to change the tagging protocol. If we ever lift the IFF_UP
+	 * restriction, there needs to be another mutex which serializes this.
+	 */
+	if (master->flags & IFF_UP)
+		goto out_unlock;
+
+	list_for_each_entry(dp, &dst->ports, list) {
+		if (!dsa_is_user_port(dp->ds, dp->index))
+			continue;
+
+		if (dp->slave->flags & IFF_UP)
+			goto out_unlock;
+	}
+
+	info.tag_ops = tag_ops;
+	err = dsa_tree_notify(dst, DSA_NOTIFIER_TAG_PROTO, &info);
+	if (err)
+		goto out_unwind_tagger;
+
+	dst->tag_ops = tag_ops;
+
+	rtnl_unlock();
+
+	return 0;
+
+out_unwind_tagger:
+	info.tag_ops = old_tag_ops;
+	dsa_tree_notify(dst, DSA_NOTIFIER_TAG_PROTO, &info);
+out_unlock:
+	rtnl_unlock();
+	return err;
+}
+
 static struct dsa_port *dsa_port_touch(struct dsa_switch *ds, int index)
 {
 	struct dsa_switch_tree *dst = ds->dst;
@@ -1038,9 +1089,7 @@ static int dsa_port_parse_cpu(struct dsa_port *dp, struct net_device *master)
 
 	dp->master = master;
 	dp->type = DSA_PORT_TYPE_CPU;
-	dp->filter = dst->tag_ops->filter;
-	dp->rcv = dst->tag_ops->rcv;
-	dp->tag_ops = dst->tag_ops;
+	dsa_port_set_tag_protocol(dp, dst->tag_ops);
 	dp->dst = dst;
 
 	return 0;

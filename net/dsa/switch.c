@@ -297,6 +297,58 @@ static int dsa_switch_vlan_del(struct dsa_switch *ds,
 	return 0;
 }
 
+static bool dsa_switch_tag_proto_match(struct dsa_switch *ds, int port,
+				       struct dsa_notifier_tag_proto_info *info)
+{
+	if (dsa_is_cpu_port(ds, port) || dsa_is_dsa_port(ds, port))
+		return true;
+
+	return false;
+}
+
+static int dsa_switch_change_tag_proto(struct dsa_switch *ds,
+				       struct dsa_notifier_tag_proto_info *info)
+{
+	const struct dsa_device_ops *tag_ops = info->tag_ops;
+	int port, err;
+
+	if (!ds->ops->change_tag_protocol)
+		return -EOPNOTSUPP;
+
+	ASSERT_RTNL();
+
+	for (port = 0; port < ds->num_ports; port++) {
+		if (dsa_switch_tag_proto_match(ds, port, info)) {
+			err = ds->ops->change_tag_protocol(ds, port,
+							   tag_ops->proto);
+			if (err)
+				return err;
+
+			if (dsa_is_cpu_port(ds, port))
+				dsa_port_set_tag_protocol(dsa_to_port(ds, port),
+							  tag_ops);
+		}
+	}
+
+	/* Now that changing the tag protocol can no longer fail, let's update
+	 * the remaining bits which are "duplicated for faster access", and the
+	 * bits that depend on the tagger, such as the MTU.
+	 */
+	for (port = 0; port < ds->num_ports; port++) {
+		if (dsa_is_user_port(ds, port)) {
+			struct net_device *slave;
+
+			slave = dsa_to_port(ds, port)->slave;
+			dsa_slave_setup_tagger(slave);
+
+			/* rtnl_mutex is held in dsa_tree_change_tag_proto */
+			dsa_slave_change_mtu(slave, slave->mtu);
+		}
+	}
+
+	return 0;
+}
+
 static int dsa_switch_event(struct notifier_block *nb,
 			    unsigned long event, void *info)
 {
@@ -342,6 +394,9 @@ static int dsa_switch_event(struct notifier_block *nb,
 		break;
 	case DSA_NOTIFIER_MTU:
 		err = dsa_switch_mtu(ds, info);
+		break;
+	case DSA_NOTIFIER_TAG_PROTO:
+		err = dsa_switch_change_tag_proto(ds, info);
 		break;
 	default:
 		err = -EOPNOTSUPP;
