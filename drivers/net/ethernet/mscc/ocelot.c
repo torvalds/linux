@@ -889,17 +889,59 @@ int ocelot_get_ts_info(struct ocelot *ocelot, int port,
 }
 EXPORT_SYMBOL(ocelot_get_ts_info);
 
-static void ocelot_apply_bridge_fwd_mask(struct ocelot *ocelot)
+static u32 ocelot_get_dsa_8021q_cpu_mask(struct ocelot *ocelot)
 {
+	u32 mask = 0;
 	int port;
+
+	for (port = 0; port < ocelot->num_phys_ports; port++) {
+		struct ocelot_port *ocelot_port = ocelot->ports[port];
+
+		if (!ocelot_port)
+			continue;
+
+		if (ocelot_port->is_dsa_8021q_cpu)
+			mask |= BIT(port);
+	}
+
+	return mask;
+}
+
+void ocelot_apply_bridge_fwd_mask(struct ocelot *ocelot)
+{
+	unsigned long cpu_fwd_mask;
+	int port;
+
+	/* If a DSA tag_8021q CPU exists, it needs to be included in the
+	 * regular forwarding path of the front ports regardless of whether
+	 * those are bridged or standalone.
+	 * If DSA tag_8021q is not used, this returns 0, which is fine because
+	 * the hardware-based CPU port module can be a destination for packets
+	 * even if it isn't part of PGID_SRC.
+	 */
+	cpu_fwd_mask = ocelot_get_dsa_8021q_cpu_mask(ocelot);
 
 	/* Apply FWD mask. The loop is needed to add/remove the current port as
 	 * a source for the other ports.
 	 */
 	for (port = 0; port < ocelot->num_phys_ports; port++) {
-		if (ocelot->bridge_fwd_mask & BIT(port)) {
-			unsigned long mask = ocelot->bridge_fwd_mask & ~BIT(port);
+		struct ocelot_port *ocelot_port = ocelot->ports[port];
+		unsigned long mask;
+
+		if (!ocelot_port) {
+			/* Unused ports can't send anywhere */
+			mask = 0;
+		} else if (ocelot_port->is_dsa_8021q_cpu) {
+			/* The DSA tag_8021q CPU ports need to be able to
+			 * forward packets to all other ports except for
+			 * themselves
+			 */
+			mask = GENMASK(ocelot->num_phys_ports - 1, 0);
+			mask &= ~cpu_fwd_mask;
+		} else if (ocelot->bridge_fwd_mask & BIT(port)) {
 			int lag;
+
+			mask = ocelot->bridge_fwd_mask & ~BIT(port);
 
 			for (lag = 0; lag < ocelot->num_phys_ports; lag++) {
 				unsigned long bond_mask = ocelot->lags[lag];
@@ -912,15 +954,18 @@ static void ocelot_apply_bridge_fwd_mask(struct ocelot *ocelot)
 					break;
 				}
 			}
-
-			ocelot_write_rix(ocelot, mask,
-					 ANA_PGID_PGID, PGID_SRC + port);
 		} else {
-			ocelot_write_rix(ocelot, 0,
-					 ANA_PGID_PGID, PGID_SRC + port);
+			/* Standalone ports forward only to DSA tag_8021q CPU
+			 * ports (if those exist), or to the hardware CPU port
+			 * module otherwise.
+			 */
+			mask = cpu_fwd_mask;
 		}
+
+		ocelot_write_rix(ocelot, mask, ANA_PGID_PGID, PGID_SRC + port);
 	}
 }
+EXPORT_SYMBOL(ocelot_apply_bridge_fwd_mask);
 
 void ocelot_bridge_stp_state_set(struct ocelot *ocelot, int port, u8 state)
 {
