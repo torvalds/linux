@@ -105,7 +105,12 @@ Date:		April 2017
 Contact:	Heikki Krogerus <heikki.krogerus@linux.intel.com>
 Description:
 		Revision number of the supported USB Power Delivery
-		specification, or 0 when USB Power Delivery is not supported.
+		specification, or 0.0 when USB Power Delivery is not supported.
+
+		Example values:
+		- "2.0": USB Power Delivery Release 2.0
+		- "3.0": USB Power Delivery Release 3.0
+		- "3.1": USB Power Delivery Release 3.1
 
 What:		/sys/class/typec/<port>/usb_typec_revision
 Date:		April 2017

@@ -1500,8 +1500,9 @@ static ssize_t usb_power_delivery_revision_show(struct device *dev,
 						char *buf)
 {
 	struct typec_port *p = to_typec_port(dev);
+	u16 rev = p->cap->pd_revision;
 
-	return sprintf(buf, "%d\n", (p->cap->pd_revision >> 8) & 0xff);
+	return sprintf(buf, "%d.%d\n", (rev >> 8) & 0xff, (rev >> 4) & 0xf);
 }
 static DEVICE_ATTR_RO(usb_power_delivery_revision);
 
