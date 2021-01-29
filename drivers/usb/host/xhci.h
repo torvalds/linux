@@ -1419,7 +1419,7 @@ union xhci_trb {
 /* MFINDEX Wrap Event - microframe counter wrapped */
 #define TRB_MFINDEX_WRAP	39
 /* TRB IDs 40-47 reserved, 48-63 is vendor-defined */
-
+#define TRB_VENDOR_DEFINED_LOW	48
 /* Nec vendor-specific command completion event. */
 #define	TRB_NEC_CMD_COMP	48
 /* Get NEC firmware revision. */

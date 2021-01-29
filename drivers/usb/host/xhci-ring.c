@@ -1564,11 +1564,8 @@ event_handled:
 }
 
 static void handle_vendor_event(struct xhci_hcd *xhci,
-		union xhci_trb *event)
+				union xhci_trb *event, u32 trb_type)
 {
-	u32 trb_type;
-
-	trb_type = TRB_FIELD_TO_TYPE(le32_to_cpu(event->generic.field[3]));
 	xhci_dbg(xhci, "Vendor specific event TRB type = %u\n", trb_type);
 	if (trb_type == TRB_NEC_CMD_COMP && (xhci->quirks & XHCI_NEC_HOST))
 		handle_cmd_completion(xhci, &event->event_cmd);
@@ -2733,6 +2730,7 @@ static int xhci_handle_event(struct xhci_hcd *xhci)
 {
 	union xhci_trb *event;
 	int update_ptrs = 1;
+	u32 trb_type;
 	int ret;
 
 	/* Event ring hasn't been allocated yet. */
@@ -2754,31 +2752,30 @@ static int xhci_handle_event(struct xhci_hcd *xhci)
 	 * speculative reads of the event's flags/data below.
 	 */
 	rmb();
+	trb_type = TRB_FIELD_TO_TYPE(le32_to_cpu(event->event_cmd.flags));
 	/* FIXME: Handle more event types. */
-	switch (le32_to_cpu(event->event_cmd.flags) & TRB_TYPE_BITMASK) {
-	case TRB_TYPE(TRB_COMPLETION):
+
+	switch (trb_type) {
+	case TRB_COMPLETION:
 		handle_cmd_completion(xhci, &event->event_cmd);
 		break;
-	case TRB_TYPE(TRB_PORT_STATUS):
+	case TRB_PORT_STATUS:
 		handle_port_status(xhci, event);
 		update_ptrs = 0;
 		break;
-	case TRB_TYPE(TRB_TRANSFER):
+	case TRB_TRANSFER:
 		ret = handle_tx_event(xhci, &event->trans_event);
 		if (ret >= 0)
 			update_ptrs = 0;
 		break;
-	case TRB_TYPE(TRB_DEV_NOTE):
+	case TRB_DEV_NOTE:
 		handle_device_notification(xhci, event);
 		break;
 	default:
-		if ((le32_to_cpu(event->event_cmd.flags) & TRB_TYPE_BITMASK) >=
-		    TRB_TYPE(48))
-			handle_vendor_event(xhci, event);
+		if (trb_type >= TRB_VENDOR_DEFINED_LOW)
+			handle_vendor_event(xhci, event, trb_type);
 		else
-			xhci_warn(xhci, "ERROR unknown event type %d\n",
-				  TRB_FIELD_TO_TYPE(
-				  le32_to_cpu(event->event_cmd.flags)));
+			xhci_warn(xhci, "ERROR unknown event type %d\n", trb_type);
 	}
 	/* Any of the above functions may drop and re-acquire the lock, so check
 	 * to make sure a watchdog timer didn't mark the host as non-responsive.
