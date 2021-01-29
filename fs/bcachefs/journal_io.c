@@ -5,6 +5,7 @@
 #include "btree_update_interior.h"
 #include "buckets.h"
 #include "checksum.h"
+#include "disk_groups.h"
 #include "error.h"
 #include "io.h"
 #include "journal.h"
@@ -1031,16 +1032,20 @@ static int journal_write_alloc(struct journal *j, struct journal_buf *w,
 			       unsigned sectors)
 {
 	struct bch_fs *c = container_of(j, struct bch_fs, journal);
+	struct bch_devs_mask devs;
 	struct journal_device *ja;
 	struct bch_dev *ca;
 	struct dev_alloc_list devs_sorted;
+	unsigned target = c->opts.metadata_target ?:
+		c->opts.foreground_target;
 	unsigned i, replicas = 0, replicas_want =
 		READ_ONCE(c->opts.metadata_replicas);
 
 	rcu_read_lock();
+retry:
+	devs = target_rw_devs(c, BCH_DATA_journal, target);
 
-	devs_sorted = bch2_dev_alloc_list(c, &j->wp.stripe,
-					  &c->rw_devs[BCH_DATA_journal]);
+	devs_sorted = bch2_dev_alloc_list(c, &j->wp.stripe, &devs);
 
 	__journal_write_alloc(j, w, &devs_sorted,
 			      sectors, &replicas, replicas_want);
@@ -1072,6 +1077,12 @@ static int journal_write_alloc(struct journal *j, struct journal_buf *w,
 
 	__journal_write_alloc(j, w, &devs_sorted,
 			      sectors, &replicas, replicas_want);
+
+	if (replicas < replicas_want && target) {
+		/* Retry from all devices: */
+		target = 0;
+		goto retry;
+	}
 done:
 	rcu_read_unlock();
 

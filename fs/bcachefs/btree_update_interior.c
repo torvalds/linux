@@ -222,7 +222,10 @@ static struct btree *__bch2_btree_node_alloc(struct bch_fs *c,
 	mutex_unlock(&c->btree_reserve_cache_lock);
 
 retry:
-	wp = bch2_alloc_sectors_start(c, c->opts.foreground_target, 0,
+	wp = bch2_alloc_sectors_start(c,
+				      c->opts.metadata_target ?:
+				      c->opts.foreground_target,
+				      0,
 				      writepoint_ptr(&c->btree_write_point),
 				      &devs_have,
 				      res->nr_replicas,

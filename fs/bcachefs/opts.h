@@ -136,6 +136,11 @@ enum opt_type {
 	  OPT_STR(bch2_str_hash_types),					\
 	  BCH_SB_STR_HASH_TYPE,		BCH_STR_HASH_OPT_SIPHASH,	\
 	  NULL,		"Hash function for directory entries and xattrs")\
+	x(metadata_target,		u16,				\
+	  OPT_FORMAT|OPT_MOUNT|OPT_RUNTIME|OPT_INODE,			\
+	  OPT_FN(bch2_opt_target),					\
+	  BCH_SB_METADATA_TARGET,	0,				\
+	  "(target)",	"Device or disk group for metadata writes")	\
 	x(foreground_target,		u16,				\
 	  OPT_FORMAT|OPT_MOUNT|OPT_RUNTIME|OPT_INODE,			\
 	  OPT_FN(bch2_opt_target),					\
