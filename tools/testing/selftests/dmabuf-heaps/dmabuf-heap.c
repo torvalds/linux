@@ -148,16 +148,14 @@ static int test_alloc_and_import(char *heap_name)
 	void *p = NULL;
 	int ret;
 
-	printf("Testing heap: %s\n", heap_name);
-
 	heap_fd = dmabuf_heap_open(heap_name);
 	if (heap_fd < 0)
 		return -1;
 
-	printf("Allocating 1 MEG\n");
+	printf("  Testing allocation and importing:  ");
 	ret = dmabuf_heap_alloc(heap_fd, ONE_MEG, 0, &dmabuf_fd);
 	if (ret) {
-		printf("Allocation Failed!\n");
+		printf("FAIL (Allocation Failed!)\n");
 		ret = -1;
 		goto out;
 	}
@@ -169,11 +167,10 @@ static int test_alloc_and_import(char *heap_name)
 		 dmabuf_fd,
 		 0);
 	if (p == MAP_FAILED) {
-		printf("mmap() failed: %m\n");
+		printf("FAIL (mmap() failed)\n");
 		ret = -1;
 		goto out;
 	}
-	printf("mmap passed\n");
 
 	dmabuf_sync(dmabuf_fd, DMA_BUF_SYNC_START);
 	memset(p, 1, ONE_MEG / 2);
@@ -183,33 +180,31 @@ static int test_alloc_and_import(char *heap_name)
 	importer_fd = open_vgem();
 	if (importer_fd < 0) {
 		ret = importer_fd;
-		printf("Failed to open vgem\n");
+		printf("(Could not open vgem - skipping):  ");
 	} else {
 		ret = import_vgem_fd(importer_fd, dmabuf_fd, &handle);
 		if (ret < 0) {
-			printf("Failed to import buffer\n");
+			printf("FAIL (Failed to import buffer)\n");
 			goto out;
 		}
-		printf("import passed\n");
 	}
 
 	ret = dmabuf_sync(dmabuf_fd, DMA_BUF_SYNC_START);
 	if (ret < 0) {
-		printf("Sync start failed!\n");
+		printf("FAIL (DMA_BUF_SYNC_START failed!)\n");
 		goto out;
 	}
 
 	memset(p, 0xff, ONE_MEG);
 	ret = dmabuf_sync(dmabuf_fd, DMA_BUF_SYNC_END);
 	if (ret < 0) {
-		printf("Sync end failed!\n");
+		printf("FAIL (DMA_BUF_SYNC_END failed!)\n");
 		goto out;
 	}
-	printf("syncs passed\n");
 
 	close_handle(importer_fd, handle);
 	ret = 0;
-
+	printf(" OK\n");
 out:
 	if (p)
 		munmap(p, ONE_MEG);
@@ -297,23 +292,24 @@ static int test_alloc_compat(char *heap_name)
 	if (heap_fd < 0)
 		return -1;
 
-	printf("Testing (theoretical)older alloc compat\n");
+	printf("  Testing (theoretical)older alloc compat:  ");
 	ret = dmabuf_heap_alloc_older(heap_fd, ONE_MEG, 0, &dmabuf_fd);
 	if (ret) {
-		printf("Older compat allocation failed!\n");
+		printf("FAIL (Older compat allocation failed!)\n");
 		ret = -1;
 		goto out;
 	}
 	close(dmabuf_fd);
+	printf("OK\n");
 
-	printf("Testing (theoretical)newer alloc compat\n");
+	printf("  Testing (theoretical)newer alloc compat:  ");
 	ret = dmabuf_heap_alloc_newer(heap_fd, ONE_MEG, 0, &dmabuf_fd);
 	if (ret) {
-		printf("Newer compat allocation failed!\n");
+		printf("FAIL (Newer compat allocation failed!)\n");
 		ret = -1;
 		goto out;
 	}
-	printf("Ioctl compatibility tests passed\n");
+	printf("OK\n");
 out:
 	if (dmabuf_fd >= 0)
 		close(dmabuf_fd);
@@ -332,17 +328,17 @@ static int test_alloc_errors(char *heap_name)
 	if (heap_fd < 0)
 		return -1;
 
-	printf("Testing expected error cases\n");
+	printf("  Testing expected error cases:  ");
 	ret = dmabuf_heap_alloc(0, ONE_MEG, 0x111111, &dmabuf_fd);
 	if (!ret) {
-		printf("Did not see expected error (invalid fd)!\n");
+		printf("FAIL (Did not see expected error (invalid fd)!)\n");
 		ret = -1;
 		goto out;
 	}
 
 	ret = dmabuf_heap_alloc(heap_fd, ONE_MEG, 0x111111, &dmabuf_fd);
 	if (!ret) {
-		printf("Did not see expected error (invalid heap flags)!\n");
+		printf("FAIL (Did not see expected error (invalid heap flags)!)\n");
 		ret = -1;
 		goto out;
 	}
@@ -350,12 +346,12 @@ static int test_alloc_errors(char *heap_name)
 	ret = dmabuf_heap_alloc_fdflags(heap_fd, ONE_MEG,
 					~(O_RDWR | O_CLOEXEC), 0, &dmabuf_fd);
 	if (!ret) {
-		printf("Did not see expected error (invalid fd flags)!\n");
+		printf("FAIL (Did not see expected error (invalid fd flags)!)\n");
 		ret = -1;
 		goto out;
 	}
 
-	printf("Expected error checking passed\n");
+	printf("OK\n");
 	ret = 0;
 out:
 	if (dmabuf_fd >= 0)
@@ -384,6 +380,8 @@ int main(void)
 		if (!strncmp(dir->d_name, "..", 3))
 			continue;
 
+		printf("Testing heap: %s\n", dir->d_name);
+		printf("=======================================\n");
 		ret = test_alloc_and_import(dir->d_name);
 		if (ret)
 			break;
