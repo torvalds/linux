@@ -82,6 +82,11 @@
  * 2. fix panic for vmap at interrupt
  * 3. add virtual video for iqtool
  *
+ * v1.5.1
+ * 1. add vb2_rdma_sg_memops to support contiguous page
+ * 2. fix config of clk_dbg
+ * 3. check frame id when apply params
+ *
  */
 
 #define RKISPP_DRIVER_VERSION ISPP_API_VERSION
