@@ -59,6 +59,10 @@
 #include "xhci-trace.h"
 #include "xhci-mtk.h"
 
+static int queue_command(struct xhci_hcd *xhci, struct xhci_command *cmd,
+			 u32 field1, u32 field2,
+			 u32 field3, u32 field4, bool command_must_succeed);
+
 /*
  * Returns zero if the TRB isn't in this segment, otherwise it returns the DMA
  * address of the TRB.
@@ -664,6 +668,136 @@ done:
 			(unsigned long long) addr);
 }
 
+static int xhci_move_dequeue_past_td(struct xhci_hcd *xhci,
+				unsigned int slot_id, unsigned int ep_index,
+				unsigned int stream_id, struct xhci_td *td)
+{
+	struct xhci_virt_device *dev = xhci->devs[slot_id];
+	struct xhci_virt_ep *ep = &dev->eps[ep_index];
+	struct xhci_ring *ep_ring;
+	struct xhci_command *cmd;
+	struct xhci_segment *new_seg;
+	union xhci_trb *new_deq;
+	int new_cycle;
+	dma_addr_t addr;
+	u64 hw_dequeue;
+	bool cycle_found = false;
+	bool td_last_trb_found = false;
+	u32 trb_sct = 0;
+	int ret;
+
+	ep_ring = xhci_triad_to_transfer_ring(xhci, slot_id,
+			ep_index, stream_id);
+	if (!ep_ring) {
+		xhci_warn(xhci, "WARN can't find new dequeue, invalid stream ID %u\n",
+			  stream_id);
+		return -ENODEV;
+	}
+	/*
+	 * A cancelled TD can complete with a stall if HW cached the trb.
+	 * In this case driver can't find td, but if the ring is empty we
+	 * can move the dequeue pointer to the current enqueue position.
+	 * We shouldn't hit this anymore as cached cancelled TRBs are given back
+	 * after clearing the cache, but be on the safe side and keep it anyway
+	 */
+	if (!td) {
+		if (list_empty(&ep_ring->td_list)) {
+			new_seg = ep_ring->enq_seg;
+			new_deq = ep_ring->enqueue;
+			new_cycle = ep_ring->cycle_state;
+			xhci_dbg(xhci, "ep ring empty, Set new dequeue = enqueue");
+			goto deq_found;
+		} else {
+			xhci_warn(xhci, "Can't find new dequeue state, missing td\n");
+			return -EINVAL;
+		}
+	}
+
+	hw_dequeue = xhci_get_hw_deq(xhci, dev, ep_index, stream_id);
+	new_seg = ep_ring->deq_seg;
+	new_deq = ep_ring->dequeue;
+	new_cycle = hw_dequeue & 0x1;
+
+	/*
+	 * We want to find the pointer, segment and cycle state of the new trb
+	 * (the one after current TD's last_trb). We know the cycle state at
+	 * hw_dequeue, so walk the ring until both hw_dequeue and last_trb are
+	 * found.
+	 */
+	do {
+		if (!cycle_found && xhci_trb_virt_to_dma(new_seg, new_deq)
+		    == (dma_addr_t)(hw_dequeue & ~0xf)) {
+			cycle_found = true;
+			if (td_last_trb_found)
+				break;
+		}
+		if (new_deq == td->last_trb)
+			td_last_trb_found = true;
+
+		if (cycle_found && trb_is_link(new_deq) &&
+		    link_trb_toggles_cycle(new_deq))
+			new_cycle ^= 0x1;
+
+		next_trb(xhci, ep_ring, &new_seg, &new_deq);
+
+		/* Search wrapped around, bail out */
+		if (new_deq == ep->ring->dequeue) {
+			xhci_err(xhci, "Error: Failed finding new dequeue state\n");
+			return -EINVAL;
+		}
+
+	} while (!cycle_found || !td_last_trb_found);
+
+deq_found:
+
+	/* Don't update the ring cycle state for the producer (us). */
+	addr = xhci_trb_virt_to_dma(new_seg, new_deq);
+	if (addr == 0) {
+		xhci_warn(xhci, "Can't find dma of new dequeue ptr\n");
+		xhci_warn(xhci, "deq seg = %p, deq ptr = %p\n", new_seg, new_deq);
+		return -EINVAL;
+	}
+
+	if ((ep->ep_state & SET_DEQ_PENDING)) {
+		xhci_warn(xhci, "Set TR Deq already pending, don't submit for 0x%pad\n",
+			  &addr);
+		return -EBUSY;
+	}
+
+	/* This function gets called from contexts where it cannot sleep */
+	cmd = xhci_alloc_command(xhci, false, GFP_ATOMIC);
+	if (!cmd) {
+		xhci_warn(xhci, "Can't alloc Set TR Deq cmd 0x%pad\n", &addr);
+		return -ENOMEM;
+	}
+
+	if (stream_id)
+		trb_sct = SCT_FOR_TRB(SCT_PRI_TR);
+	ret = queue_command(xhci, cmd,
+		lower_32_bits(addr) | trb_sct | new_cycle,
+		upper_32_bits(addr),
+		STREAM_ID_FOR_TRB(stream_id), SLOT_ID_FOR_TRB(slot_id) |
+		EP_ID_FOR_TRB(ep_index) | TRB_TYPE(TRB_SET_DEQ), false);
+	if (ret < 0) {
+		xhci_free_command(xhci, cmd);
+		return ret;
+	}
+	ep->queued_deq_seg = new_seg;
+	ep->queued_deq_ptr = new_deq;
+
+	xhci_dbg_trace(xhci, trace_xhci_dbg_cancel_urb,
+		       "Set TR Deq ptr 0x%llx, cycle %u\n", addr, new_cycle);
+
+	/* Stop the TD queueing code from ringing the doorbell until
+	 * this command completes.  The HC won't set the dequeue pointer
+	 * if the ring is running, and ringing the doorbell starts the
+	 * ring running.
+	 */
+	ep->ep_state |= SET_DEQ_PENDING;
+	xhci_ring_cmd_db(xhci);
+	return 0;
+}
+
 /* flip_cycle means flip the cycle bit of all but the first and last TRB.
  * (The last TRB actually points to the ring enqueue pointer, which is not part
  * of this TD.)  This is used to remove partially enqueued isoc TDs from a ring.
@@ -890,9 +1024,9 @@ static int xhci_invalidate_cancelled_tds(struct xhci_virt_ep *ep)
 	struct xhci_td		*tmp_td = NULL;
 	struct xhci_td		*cached_td = NULL;
 	struct xhci_ring	*ring;
-	struct xhci_dequeue_state deq_state;
 	u64			hw_deq;
 	unsigned int		slot_id = ep->vdev->slot_id;
+	int			err;
 
 	xhci = ep->xhci;
 
@@ -935,15 +1069,19 @@ static int xhci_invalidate_cancelled_tds(struct xhci_virt_ep *ep)
 	}
 	if (cached_td) {
 		cached_td->cancel_status = TD_CLEARING_CACHE;
-		xhci_find_new_dequeue_state(xhci, slot_id, ep->ep_index,
-					    cached_td->urb->stream_id,
-					    cached_td, &deq_state);
-		xhci_queue_new_dequeue_state(xhci, slot_id, ep->ep_index,
-					     &deq_state);
+
+		err = xhci_move_dequeue_past_td(xhci, slot_id, ep->ep_index,
+						cached_td->urb->stream_id,
+						cached_td);
+		/* Failed to move past cached td, try just setting it noop */
+		if (err) {
+			td_to_noop(xhci, ring, cached_td, false);
+			cached_td->cancel_status = TD_CLEARED;
+		}
+		cached_td = NULL;
 	}
 	return 0;
 }
-
 
 /*
  * Returns the TD the endpoint ring halted on.
