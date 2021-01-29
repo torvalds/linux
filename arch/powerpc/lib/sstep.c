@@ -818,13 +818,15 @@ void emulate_vsx_store(struct instruction_op *op, const union vsx_reg *reg,
 			break;
 		if (rev) {
 			/* reverse 32 bytes */
-			buf.d[0] = byterev_8(reg->d[3]);
-			buf.d[1] = byterev_8(reg->d[2]);
-			buf.d[2] = byterev_8(reg->d[1]);
-			buf.d[3] = byterev_8(reg->d[0]);
-			reg = &buf;
+			union vsx_reg buf32[2];
+			buf32[0].d[0] = byterev_8(reg[1].d[1]);
+			buf32[0].d[1] = byterev_8(reg[1].d[0]);
+			buf32[1].d[0] = byterev_8(reg[0].d[1]);
+			buf32[1].d[1] = byterev_8(reg[0].d[0]);
+			memcpy(mem, buf32, size);
+		} else {
+			memcpy(mem, reg, size);
 		}
-		memcpy(mem, reg, size);
 		break;
 	case 16:
 		/* stxv, stxvx, stxvl, stxvll */
