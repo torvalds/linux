@@ -1539,10 +1539,18 @@ struct xhci_segment {
 	unsigned int		bounce_len;
 };
 
+enum xhci_cancelled_td_status {
+	TD_DIRTY = 0,
+	TD_HALTED,
+	TD_CLEARING_CACHE,
+	TD_CLEARED,
+};
+
 struct xhci_td {
 	struct list_head	td_list;
 	struct list_head	cancelled_td_list;
 	int			status;
+	enum xhci_cancelled_td_status	cancel_status;
 	struct urb		*urb;
 	struct xhci_segment	*start_seg;
 	union xhci_trb		*first_trb;
