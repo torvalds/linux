@@ -2952,6 +2952,7 @@ static int prepare_ring(struct xhci_hcd *xhci, struct xhci_ring *ep_ring,
 		u32 ep_state, unsigned int num_trbs, gfp_t mem_flags)
 {
 	unsigned int num_trbs_needed;
+	unsigned int link_trb_count = 0;
 
 	/* Make sure the endpoint has been added to xHC schedule */
 	switch (ep_state) {
@@ -3023,6 +3024,12 @@ static int prepare_ring(struct xhci_hcd *xhci, struct xhci_ring *ep_ring,
 
 		ep_ring->enq_seg = ep_ring->enq_seg->next;
 		ep_ring->enqueue = ep_ring->enq_seg->trbs;
+
+		/* prevent infinite loop if all first trbs are link trbs */
+		if (link_trb_count++ > ep_ring->num_segs) {
+			xhci_warn(xhci, "Ring is an endless link TRB loop\n");
+			return -EINVAL;
+		}
 	}
 	return 0;
 }
