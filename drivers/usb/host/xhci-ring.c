@@ -944,6 +944,27 @@ static int xhci_invalidate_cancelled_tds(struct xhci_virt_ep *ep)
 	return 0;
 }
 
+
+/*
+ * Returns the TD the endpoint ring halted on.
+ * Only call for non-running rings without streams.
+ */
+static struct xhci_td *find_halted_td(struct xhci_virt_ep *ep)
+{
+	struct xhci_td	*td;
+	u64		hw_deq;
+
+	if (!list_empty(&ep->ring->td_list)) { /* Not streams compatible */
+		hw_deq = xhci_get_hw_deq(ep->xhci, ep->vdev, ep->ep_index, 0);
+		hw_deq &= ~0xf;
+		td = list_first_entry(&ep->ring->td_list, struct xhci_td, td_list);
+		if (trb_in_td(ep->xhci, td->start_seg, td->first_trb,
+				td->last_trb, hw_deq, false))
+			return td;
+	}
+	return NULL;
+}
+
 /*
  * When we get a command completion for a Stop Endpoint Command, we need to
  * unlink any cancelled TDs from the ring.  There are two ways to do that:
@@ -955,11 +976,13 @@ static int xhci_invalidate_cancelled_tds(struct xhci_virt_ep *ep)
  *     bit cleared) so that the HW will skip over them.
  */
 static void xhci_handle_cmd_stop_ep(struct xhci_hcd *xhci, int slot_id,
-		union xhci_trb *trb)
+				    union xhci_trb *trb, u32 comp_code)
 {
 	unsigned int ep_index;
 	struct xhci_virt_ep *ep;
 	struct xhci_ep_ctx *ep_ctx;
+	struct xhci_td *td = NULL;
+	enum xhci_ep_reset_type reset_type;
 
 	if (unlikely(TRB_TO_SUSPEND_PORT(le32_to_cpu(trb->generic.field[3])))) {
 		if (!xhci->devs[slot_id])
@@ -977,6 +1000,40 @@ static void xhci_handle_cmd_stop_ep(struct xhci_hcd *xhci, int slot_id,
 
 	trace_xhci_handle_cmd_stop_ep(ep_ctx);
 
+	if (comp_code == COMP_CONTEXT_STATE_ERROR) {
+	/*
+	 * If stop endpoint command raced with a halting endpoint we need to
+	 * reset the host side endpoint first.
+	 * If the TD we halted on isn't cancelled the TD should be given back
+	 * with a proper error code, and the ring dequeue moved past the TD.
+	 * If streams case we can't find hw_deq, or the TD we halted on so do a
+	 * soft reset.
+	 *
+	 * Proper error code is unknown here, it would be -EPIPE if device side
+	 * of enadpoit halted (aka STALL), and -EPROTO if not (transaction error)
+	 * We use -EPROTO, if device is stalled it should return a stall error on
+	 * next transfer, which then will return -EPIPE, and device side stall is
+	 * noted and cleared by class driver.
+	 */
+		switch (GET_EP_CTX_STATE(ep_ctx)) {
+		case EP_STATE_HALTED:
+			xhci_dbg(xhci, "Stop ep completion raced with stall, reset ep\n");
+			if (ep->ep_state & EP_HAS_STREAMS) {
+				reset_type = EP_SOFT_RESET;
+			} else {
+				reset_type = EP_HARD_RESET;
+				td = find_halted_td(ep);
+				if (td)
+					td->status = -EPROTO;
+			}
+			/* reset ep, reset handler cleans up cancelled tds */
+			xhci_handle_halted_endpoint(xhci, ep, 0, td, reset_type);
+			xhci_stop_watchdog_timer_in_irq(xhci, ep);
+			return;
+		default:
+			break;
+		}
+	}
 	/* will queue a set TR deq if stopped on a cancelled, uncleared TD */
 	xhci_invalidate_cancelled_tds(ep);
 	xhci_stop_watchdog_timer_in_irq(xhci, ep);
@@ -1619,7 +1676,8 @@ static void handle_cmd_completion(struct xhci_hcd *xhci,
 		WARN_ON(slot_id != TRB_TO_SLOT_ID(
 				le32_to_cpu(cmd_trb->generic.field[3])));
 		if (!cmd->completion)
-			xhci_handle_cmd_stop_ep(xhci, slot_id, cmd_trb);
+			xhci_handle_cmd_stop_ep(xhci, slot_id, cmd_trb,
+						cmd_comp_code);
 		break;
 	case TRB_SET_DEQ:
 		WARN_ON(slot_id != TRB_TO_SLOT_ID(
