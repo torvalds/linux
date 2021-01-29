@@ -1072,7 +1072,7 @@ static int aldebaran_get_power_limit(struct smu_context *smu)
 
 	ret = smu_cmn_send_smc_msg(smu, SMU_MSG_GetPptLimit, &power_limit);
 
-	if (!ret) {
+	if (ret) {
 		/* the last hope to figure out the ppt limit */
 		if (!pptable) {
 			dev_err(smu->adev->dev, "Cannot get PPT limit due to pptable missing!");
