@@ -26,7 +26,7 @@ struct hi6421_spmi_pmic {
 	int					irq;
 	int					gpio;
 	unsigned int				*irqs;
-	struct regmap				*map;
+	struct regmap				*regmap;
 };
 
 enum hi6421_spmi_pmic_irq_list {

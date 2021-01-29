@@ -104,7 +104,7 @@ static int hi6421_spmi_regulator_enable(struct regulator_dev *rdev)
 	/* cannot enable more than one regulator at one time */
 	mutex_lock(&sreg->enable_mutex);
 
-	ret = regmap_update_bits(pmic->map, rdev->desc->enable_reg,
+	ret = regmap_update_bits(pmic->regmap, rdev->desc->enable_reg,
 				 rdev->desc->enable_mask,
 			         rdev->desc->enable_mask);
 
@@ -121,7 +121,7 @@ static int hi6421_spmi_regulator_disable(struct regulator_dev *rdev)
 	struct hi6421_spmi_reg_info *sreg = rdev_get_drvdata(rdev);
 	struct hi6421_spmi_pmic *pmic = sreg->pmic;
 
-	return regmap_update_bits(pmic->map, rdev->desc->enable_reg,
+	return regmap_update_bits(pmic->regmap, rdev->desc->enable_reg,
 				  rdev->desc->enable_mask, 0);
 }
 
@@ -131,7 +131,7 @@ static unsigned int hi6421_spmi_regulator_get_mode(struct regulator_dev *rdev)
 	struct hi6421_spmi_pmic *pmic = sreg->pmic;
 	u32 reg_val;
 
-	regmap_read(pmic->map, rdev->desc->enable_reg, &reg_val);
+	regmap_read(pmic->regmap, rdev->desc->enable_reg, &reg_val);
 
 	if (reg_val & sreg->eco_mode_mask)
 		return REGULATOR_MODE_IDLE;
@@ -157,7 +157,7 @@ static int hi6421_spmi_regulator_set_mode(struct regulator_dev *rdev,
 		return -EINVAL;
 	}
 
-	return regmap_update_bits(pmic->map, rdev->desc->enable_reg,
+	return regmap_update_bits(pmic->regmap, rdev->desc->enable_reg,
 				  sreg->eco_mode_mask, val);
 }
 
@@ -266,7 +266,7 @@ static int hi6421_spmi_regulator_probe(struct platform_device *pdev)
 
 		config.dev = pdev->dev.parent;
 		config.driver_data = sreg;
-		config.regmap = pmic->map;
+		config.regmap = pmic->regmap;
 
 		rdev = devm_regulator_register(dev, &info->desc, &config);
 		if (IS_ERR(rdev)) {
