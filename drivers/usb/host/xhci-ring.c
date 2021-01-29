@@ -797,6 +797,30 @@ static int xhci_td_cleanup(struct xhci_hcd *xhci, struct xhci_td *td,
 	return 0;
 }
 
+
+/* Complete the cancelled URBs we unlinked from td_list. */
+static void xhci_giveback_invalidated_tds(struct xhci_virt_ep *ep)
+{
+	struct xhci_ring *ring;
+	struct xhci_td *td, *tmp_td;
+
+	list_for_each_entry_safe(td, tmp_td, &ep->cancelled_td_list,
+				 cancelled_td_list) {
+
+		/*
+		 * Doesn't matter what we pass for status, since the core will
+		 * just overwrite it (because the URB has been unlinked).
+		 */
+		ring = xhci_urb_to_transfer_ring(ep->xhci, td->urb);
+
+		if (td->cancel_status == TD_CLEARED)
+			xhci_td_cleanup(ep->xhci, td, ring, 0);
+
+		if (ep->xhci->xhc_state & XHCI_STATE_DYING)
+			return;
+	}
+}
+
 static int xhci_reset_halted_ep(struct xhci_hcd *xhci, unsigned int slot_id,
 				unsigned int ep_index, enum xhci_ep_reset_type reset_type)
 {
@@ -834,15 +858,19 @@ static void xhci_handle_halted_endpoint(struct xhci_hcd *xhci,
 
 	ep->ep_state |= EP_HALTED;
 
+	/* add td to cancelled list and let reset ep handler take care of it */
+	if (reset_type == EP_HARD_RESET) {
+		ep->ep_state |= EP_HARD_CLEAR_TOGGLE;
+		if (td && list_empty(&td->cancelled_td_list)) {
+			list_add_tail(&td->cancelled_td_list, &ep->cancelled_td_list);
+			td->cancel_status = TD_HALTED;
+		}
+	}
+
 	err = xhci_reset_halted_ep(xhci, slot_id, ep->ep_index, reset_type);
 	if (err)
 		return;
 
-	if (reset_type == EP_HARD_RESET) {
-		ep->ep_state |= EP_HARD_CLEAR_TOGGLE;
-		xhci_cleanup_stalled_ring(xhci, slot_id, ep->ep_index, stream_id,
-					  td);
-	}
 	xhci_ring_cmd_db(xhci);
 }
 
@@ -851,16 +879,20 @@ static void xhci_handle_halted_endpoint(struct xhci_hcd *xhci,
  * We have the xHCI lock, so nothing can modify this list until we drop it.
  * We're also in the event handler, so we can't get re-interrupted if another
  * Stop Endpoint command completes.
+ *
+ * only call this when ring is not in a running state
  */
 
-static int xhci_invalidate_cancelled_tds(struct xhci_virt_ep *ep,
-					 struct xhci_dequeue_state *deq_state)
+static int xhci_invalidate_cancelled_tds(struct xhci_virt_ep *ep)
 {
 	struct xhci_hcd		*xhci;
 	struct xhci_td		*td = NULL;
 	struct xhci_td		*tmp_td = NULL;
+	struct xhci_td		*cached_td = NULL;
 	struct xhci_ring	*ring;
+	struct xhci_dequeue_state deq_state;
 	u64			hw_deq;
+	unsigned int		slot_id = ep->vdev->slot_id;
 
 	xhci = ep->xhci;
 
@@ -886,14 +918,28 @@ static int xhci_invalidate_cancelled_tds(struct xhci_virt_ep *ep,
 
 		if (trb_in_td(xhci, td->start_seg, td->first_trb,
 			      td->last_trb, hw_deq, false)) {
-			xhci_find_new_dequeue_state(xhci, ep->vdev->slot_id,
-						    ep->ep_index,
-						    td->urb->stream_id,
-						    td, deq_state);
+			switch (td->cancel_status) {
+			case TD_CLEARED: /* TD is already no-op */
+			case TD_CLEARING_CACHE: /* set TR deq command already queued */
+				break;
+			case TD_DIRTY: /* TD is cached, clear it */
+			case TD_HALTED:
+				/* FIXME  stream case, several stopped rings */
+				cached_td = td;
+				break;
+			}
 		} else {
 			td_to_noop(xhci, ring, td, false);
+			td->cancel_status = TD_CLEARED;
 		}
-
+	}
+	if (cached_td) {
+		cached_td->cancel_status = TD_CLEARING_CACHE;
+		xhci_find_new_dequeue_state(xhci, slot_id, ep->ep_index,
+					    cached_td->urb->stream_id,
+					    cached_td, &deq_state);
+		xhci_queue_new_dequeue_state(xhci, slot_id, ep->ep_index,
+					     &deq_state);
 	}
 	return 0;
 }
@@ -912,81 +958,32 @@ static void xhci_handle_cmd_stop_ep(struct xhci_hcd *xhci, int slot_id,
 		union xhci_trb *trb)
 {
 	unsigned int ep_index;
-	struct xhci_ring *ep_ring;
 	struct xhci_virt_ep *ep;
-	struct xhci_td *cur_td = NULL;
-	struct xhci_td *last_unlinked_td;
 	struct xhci_ep_ctx *ep_ctx;
-	struct xhci_virt_device *vdev;
-	struct xhci_dequeue_state deq_state;
 
 	if (unlikely(TRB_TO_SUSPEND_PORT(le32_to_cpu(trb->generic.field[3])))) {
 		if (!xhci->devs[slot_id])
-			xhci_warn(xhci, "Stop endpoint command "
-				"completion for disabled slot %u\n",
-				slot_id);
+			xhci_warn(xhci, "Stop endpoint command completion for disabled slot %u\n",
+				  slot_id);
 		return;
 	}
 
-	memset(&deq_state, 0, sizeof(deq_state));
 	ep_index = TRB_TO_EP_INDEX(le32_to_cpu(trb->generic.field[3]));
-
 	ep = xhci_get_virt_ep(xhci, slot_id, ep_index);
 	if (!ep)
 		return;
 
-	vdev = ep->vdev;
-	ep_ctx = xhci_get_ep_ctx(xhci, vdev->out_ctx, ep_index);
+	ep_ctx = xhci_get_ep_ctx(xhci, ep->vdev->out_ctx, ep_index);
+
 	trace_xhci_handle_cmd_stop_ep(ep_ctx);
 
-	last_unlinked_td = list_last_entry(&ep->cancelled_td_list,
-			struct xhci_td, cancelled_td_list);
-
-	if (list_empty(&ep->cancelled_td_list)) {
-		xhci_stop_watchdog_timer_in_irq(xhci, ep);
-		ring_doorbell_for_active_rings(xhci, slot_id, ep_index);
-		return;
-	}
-
-	xhci_invalidate_cancelled_tds(ep, &deq_state);
-
+	/* will queue a set TR deq if stopped on a cancelled, uncleared TD */
+	xhci_invalidate_cancelled_tds(ep);
 	xhci_stop_watchdog_timer_in_irq(xhci, ep);
 
-	/* If necessary, queue a Set Transfer Ring Dequeue Pointer command */
-	if (deq_state.new_deq_ptr && deq_state.new_deq_seg) {
-		xhci_queue_new_dequeue_state(xhci, slot_id, ep_index,
-					     &deq_state);
-		xhci_ring_cmd_db(xhci);
-	} else {
-		/* Otherwise ring the doorbell(s) to restart queued transfers */
-		ring_doorbell_for_active_rings(xhci, slot_id, ep_index);
-	}
-
-	/*
-	 * Drop the lock and complete the URBs in the cancelled TD list.
-	 * New TDs to be cancelled might be added to the end of the list before
-	 * we can complete all the URBs for the TDs we already unlinked.
-	 * So stop when we've completed the URB for the last TD we unlinked.
-	 */
-	do {
-		cur_td = list_first_entry(&ep->cancelled_td_list,
-				struct xhci_td, cancelled_td_list);
-		list_del_init(&cur_td->cancelled_td_list);
-
-		/* Doesn't matter what we pass for status, since the core will
-		 * just overwrite it (because the URB has been unlinked).
-		 */
-		ep_ring = xhci_urb_to_transfer_ring(xhci, cur_td->urb);
-		xhci_td_cleanup(xhci, cur_td, ep_ring, 0);
-
-		/* Stop processing the cancelled list if the watchdog timer is
-		 * running.
-		 */
-		if (xhci->xhc_state & XHCI_STATE_DYING)
-			return;
-	} while (cur_td != last_unlinked_td);
-
-	/* Return to the event handler with xhci->lock re-acquired */
+	/* Otherwise ring the doorbell(s) to restart queued transfers */
+	xhci_giveback_invalidated_tds(ep);
+	ring_doorbell_for_active_rings(xhci, slot_id, ep_index);
 }
 
 static void xhci_kill_ring_urbs(struct xhci_hcd *xhci, struct xhci_ring *ring)
@@ -1202,6 +1199,7 @@ static void xhci_handle_cmd_set_deq(struct xhci_hcd *xhci, int slot_id,
 	struct xhci_virt_ep *ep;
 	struct xhci_ep_ctx *ep_ctx;
 	struct xhci_slot_ctx *slot_ctx;
+	struct xhci_td *td, *tmp_td;
 
 	ep_index = TRB_TO_EP_INDEX(le32_to_cpu(trb->generic.field[3]));
 	stream_id = TRB_TO_STREAM_ID(le32_to_cpu(trb->generic.field[2]));
@@ -1279,7 +1277,15 @@ static void xhci_handle_cmd_set_deq(struct xhci_hcd *xhci, int slot_id,
 				  ep->queued_deq_seg, ep->queued_deq_ptr);
 		}
 	}
-
+	/* HW cached TDs cleared from cache, give them back */
+	list_for_each_entry_safe(td, tmp_td, &ep->cancelled_td_list,
+				 cancelled_td_list) {
+		ep_ring = xhci_urb_to_transfer_ring(ep->xhci, td->urb);
+		if (td->cancel_status == TD_CLEARING_CACHE) {
+			td->cancel_status = TD_CLEARED;
+			xhci_td_cleanup(ep->xhci, td, ep_ring, td->status);
+		}
+	}
 cleanup:
 	ep->ep_state &= ~SET_DEQ_PENDING;
 	ep->queued_deq_seg = NULL;
@@ -1309,27 +1315,15 @@ static void xhci_handle_cmd_reset_ep(struct xhci_hcd *xhci, int slot_id,
 	xhci_dbg_trace(xhci, trace_xhci_dbg_reset_ep,
 		"Ignoring reset ep completion code of %u", cmd_comp_code);
 
-	/* HW with the reset endpoint quirk needs to have a configure endpoint
-	 * command complete before the endpoint can be used.  Queue that here
-	 * because the HW can't handle two commands being queued in a row.
-	 */
-	if (xhci->quirks & XHCI_RESET_EP_QUIRK) {
-		struct xhci_command *command;
+	/* Cleanup cancelled TDs as ep is stopped. May queue a Set TR Deq cmd */
+	xhci_invalidate_cancelled_tds(ep);
 
-		command = xhci_alloc_command(xhci, false, GFP_ATOMIC);
-		if (!command)
-			return;
+	if (xhci->quirks & XHCI_RESET_EP_QUIRK)
+		xhci_dbg(xhci, "Note: Removed workaround to queue config ep for this hw");
+	/* Clear our internal halted state */
+	ep->ep_state &= ~EP_HALTED;
 
-		xhci_dbg_trace(xhci, trace_xhci_dbg_quirks,
-				"Queueing configure endpoint command");
-		xhci_queue_configure_endpoint(xhci, command,
-				xhci->devs[slot_id]->in_ctx->dma, slot_id,
-				false);
-		xhci_ring_cmd_db(xhci);
-	} else {
-		/* Clear our internal halted state */
-		ep->ep_state &= ~EP_HALTED;
-	}
+	xhci_giveback_invalidated_tds(ep);
 
 	/* if this was a soft reset, then restart */
 	if ((le32_to_cpu(trb->generic.field[3])) & TRB_TSP)
@@ -2070,7 +2064,9 @@ static int finish_td(struct xhci_hcd *xhci, struct xhci_td *td,
 			xhci_clear_hub_tt_buffer(xhci, td, ep);
 
 		xhci_handle_halted_endpoint(xhci, ep, ep_ring->stream_id, td,
-					     EP_HARD_RESET);
+					    EP_HARD_RESET);
+
+		return 0; /* xhci_handle_halted_endpoint marked td cancelled */
 	} else {
 		/* Update ring dequeue pointer */
 		ep_ring->dequeue = td->last_trb;
