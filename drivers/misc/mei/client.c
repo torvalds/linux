@@ -1737,7 +1737,7 @@ static inline u8 mei_ext_hdr_set_vtag(struct mei_ext_hdr *ext, u8 vtag)
  *
  * @cb: message callback structure
  *
- * Return: a pointer to initialized header
+ * Return: a pointer to initialized header or ERR_PTR on failure
  */
 static struct mei_msg_hdr *mei_msg_hdr_init(const struct mei_cl_cb *cb)
 {
