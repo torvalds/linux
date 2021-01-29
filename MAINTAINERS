@@ -7378,13 +7378,6 @@ M:	Kieran Bingham <kbingham@kernel.org>
 S:	Supported
 F:	scripts/gdb/
 
-GDT SCSI DISK ARRAY CONTROLLER DRIVER
-M:	Achim Leubner <achim_leubner@adaptec.com>
-L:	linux-scsi@vger.kernel.org
-S:	Supported
-W:	http://www.icp-vortex.com/
-F:	drivers/scsi/gdt*
-
 GEMTEK FM RADIO RECEIVER DRIVER
 M:	Hans Verkuil <hverkuil@xs4all.nl>
 L:	linux-media@vger.kernel.org
