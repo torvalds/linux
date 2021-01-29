@@ -154,7 +154,7 @@ static void hi6421_spmi_pmic_irq_prc(struct hi6421_spmi_pmic *ddata)
 	}
 }
 
-static const struct regmap_config spmi_regmap_config = {
+static const struct regmap_config regmap_config = {
 	.reg_bits		= 16,
 	.val_bits		= 8,
 	.max_register		= 0xffff,
@@ -166,7 +166,6 @@ static int hi6421_spmi_pmic_probe(struct spmi_device *pdev)
 	struct device *dev = &pdev->dev;
 	struct device_node *np = dev->of_node;
 	struct hi6421_spmi_pmic *ddata;
-	struct regmap *map;
 	unsigned int virq;
 	int ret, i;
 
@@ -174,14 +173,13 @@ static int hi6421_spmi_pmic_probe(struct spmi_device *pdev)
 	if (!ddata)
 		return -ENOMEM;
 
-	map = devm_regmap_init_spmi_ext(pdev, &spmi_regmap_config);
-	if (IS_ERR(map))
-		return PTR_ERR(map);
+	ddata->regmap = devm_regmap_init_spmi_ext(pdev, &regmap_config);
+	if (IS_ERR(ddata->regmap))
+		return PTR_ERR(ddata->regmap);
 
 	spin_lock_init(&ddata->lock);
 
 	ddata->dev = dev;
-	ddata->regmap = map;
 
 	ddata->gpio = of_get_gpio(np, 0);
 	if (ddata->gpio < 0)
@@ -192,7 +190,7 @@ static int hi6421_spmi_pmic_probe(struct spmi_device *pdev)
 
 	ret = devm_gpio_request_one(dev, ddata->gpio, GPIOF_IN, "pmic");
 	if (ret < 0) {
-		dev_err(dev, "failed to request gpio%d\n", ddata->gpio);
+		dev_err(dev, "Failed to request gpio%d\n", ddata->gpio);
 		return ret;
 	}
 
@@ -201,57 +199,41 @@ static int hi6421_spmi_pmic_probe(struct spmi_device *pdev)
 	hi6421_spmi_pmic_irq_prc(ddata);
 
 	ddata->irqs = devm_kzalloc(dev, HISI_IRQ_NUM * sizeof(int), GFP_KERNEL);
-	if (!ddata->irqs) {
-		ret = -ENOMEM;
-		goto irq_malloc;
-	}
+	if (!ddata->irqs)
+		return -ENOMEM;
 
 	ddata->domain = irq_domain_add_simple(np, HISI_IRQ_NUM, 0,
 					     &hi6421_spmi_domain_ops, ddata);
 	if (!ddata->domain) {
-		dev_err(dev, "failed irq domain add simple!\n");
-		ret = -ENODEV;
-		goto irq_malloc;
+		dev_err(dev, "Failed to create IRQ domain\n");
+		return -ENODEV;
 	}
 
 	for (i = 0; i < HISI_IRQ_NUM; i++) {
 		virq = irq_create_mapping(ddata->domain, i);
 		if (!virq) {
-			dev_err(dev, "Failed mapping hwirq\n");
-			ret = -ENOSPC;
-			goto irq_malloc;
+			dev_err(dev, "Failed to map H/W IRQ\n");
+			return -ENOSPC;
 		}
 		ddata->irqs[i] = virq;
-		dev_dbg(dev, "%s: ddata->irqs[%d] = %d\n",
-			__func__, i, ddata->irqs[i]);
 	}
 
 	ret = request_threaded_irq(ddata->irq, hi6421_spmi_irq_handler, NULL,
 				   IRQF_TRIGGER_LOW | IRQF_SHARED | IRQF_NO_SUSPEND,
 				   "pmic", ddata);
 	if (ret < 0) {
-		dev_err(dev, "could not claim pmic IRQ: error %d\n", ret);
-		goto irq_malloc;
+		dev_err(dev, "Failed to start IRQ handling thread: error %d\n",
+			ret);
+		return ret;
 	}
 
 	dev_set_drvdata(&pdev->dev, ddata);
 
-	/*
-	 * The logic below will rely that the ddata is already stored at
-	 * drvdata.
-	 */
-	dev_dbg(&pdev->dev, "SPMI-PMIC: adding children for %pOF\n",
-		pdev->dev.of_node);
 	ret = devm_mfd_add_devices(&pdev->dev, PLATFORM_DEVID_NONE,
 				   hi6421v600_devs, ARRAY_SIZE(hi6421v600_devs),
 				   NULL, 0, NULL);
-	if (!ret)
-		return 0;
-
-	dev_err(dev, "Failed to add child devices: %d\n", ret);
-
-irq_malloc:
-	free_irq(ddata->irq, ddata);
+	if (ret < 0)
+		dev_err(dev, "Failed to add child devices: %d\n", ret);
 
 	return ret;
 }
