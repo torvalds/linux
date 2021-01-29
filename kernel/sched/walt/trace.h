@@ -589,43 +589,6 @@ TRACE_EVENT(sched_get_nr_running_avg,
 		__entry->nr_scaled)
 );
 
-/*
- * sched_pause - called when cores are paused/unpaused
- *
- * @start: 1 if start of pause/resume op, 0 otherwise
- * @requested_cpus: mask of cpus requested in this op
- * @active_cpus: mask of currently active cpus
- * @start_time: time of the start of the operation
- * @pause: 1 if pausing, 0 if resuming
- */
-TRACE_EVENT(sched_pause,
-
-	TP_PROTO(unsigned int start, unsigned int requested_cpus, unsigned int active_cpus,
-		     u64 start_time, unsigned char pause),
-
-	TP_ARGS(start, requested_cpus, active_cpus, start_time, pause),
-
-	TP_STRUCT__entry(
-		    __field(u32, start)
-		    __field(u32, requested_cpus)
-		    __field(u32, active_cpus)
-		    __field(u32, time)
-		    __field(unsigned char, pause)
-		    ),
-
-	TP_fast_assign(
-		    __entry->start		= start;
-		    __entry->requested_cpus	= requested_cpus;
-		    __entry->active_cpus	= active_cpus;
-		    __entry->time		= div64_u64(sched_clock() - start_time, 1000);
-		    __entry->pause		= pause;
-		    ),
-
-	TP_printk("start=%d req cpus=0x%x act cpus=0x%x time=%u us paused=%d",
-		      __entry->start, __entry->requested_cpus, __entry->active_cpus,
-		      __entry->time, __entry->pause)
-);
-
 TRACE_EVENT(sched_ravg_window_change,
 
 	TP_PROTO(unsigned int sched_ravg_window, unsigned int new_sched_ravg_window
