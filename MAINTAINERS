@@ -12892,7 +12892,7 @@ S:	Orphan
 F:	drivers/video/fbdev/omap/
 
 OMAP GENERAL PURPOSE MEMORY CONTROLLER SUPPORT
-M:	Roger Quadros <rogerq@ti.com>
+M:	Roger Quadros <rogerq@kernel.org>
 M:	Tony Lindgren <tony@atomide.com>
 L:	linux-omap@vger.kernel.org
 S:	Maintained
