@@ -66,7 +66,7 @@ static irqreturn_t hi6421_spmi_irq_handler(int irq, void *priv)
 	int i, offset;
 
 	for (i = 0; i < HISI_IRQ_ARRAY; i++) {
-		regmap_read(ddata->regmap, offset, &data);
+		regmap_read(ddata->regmap, SOC_PMIC_IRQ0_ADDR + i, &data);
 		data &= HISI_MASK_FIELD;
 		if (data != 0)
 			pr_debug("data[%d]=0x%d\n\r", i, data);
