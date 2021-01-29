@@ -704,6 +704,48 @@ uint64_t kvm_get_feature_msr(uint64_t msr_index)
 }
 
 /*
+ * VM VCPU CPUID Set
+ *
+ * Input Args:
+ *   vm - Virtual Machine
+ *   vcpuid - VCPU id
+ *
+ * Output Args: None
+ *
+ * Return: KVM CPUID (KVM_GET_CPUID2)
+ *
+ * Set the VCPU's CPUID.
+ */
+struct kvm_cpuid2 *vcpu_get_cpuid(struct kvm_vm *vm, uint32_t vcpuid)
+{
+	struct vcpu *vcpu = vcpu_find(vm, vcpuid);
+	struct kvm_cpuid2 *cpuid;
+	int rc, max_ent;
+
+	TEST_ASSERT(vcpu != NULL, "vcpu not found, vcpuid: %u", vcpuid);
+
+	cpuid = allocate_kvm_cpuid2();
+	max_ent = cpuid->nent;
+
+	for (cpuid->nent = 1; cpuid->nent <= max_ent; cpuid->nent++) {
+		rc = ioctl(vcpu->fd, KVM_GET_CPUID2, cpuid);
+		if (!rc)
+			break;
+
+		TEST_ASSERT(rc == -1 && errno == E2BIG,
+			    "KVM_GET_CPUID2 should either succeed or give E2BIG: %d %d",
+			    rc, errno);
+	}
+
+	TEST_ASSERT(rc == 0, "KVM_GET_CPUID2 failed, rc: %i errno: %i",
+		    rc, errno);
+
+	return cpuid;
+}
+
+
+
+/*
  * Locate a cpuid entry.
  *
  * Input Args:
