@@ -589,6 +589,9 @@ static int xgpio_probe(struct platform_device *pdev)
 	if (of_property_read_u32(np, "xlnx,gpio-width", &chip->gpio_width[0]))
 		chip->gpio_width[0] = 32;
 
+	if (chip->gpio_width[0] > 32)
+		return -EINVAL;
+
 	spin_lock_init(&chip->gpio_lock);
 
 	if (of_property_read_u32(np, "xlnx,is-dual", &is_dual))
@@ -613,6 +616,8 @@ static int xgpio_probe(struct platform_device *pdev)
 					 &chip->gpio_width[1]))
 			chip->gpio_width[1] = 32;
 
+		if (chip->gpio_width[1] > 32)
+			return -EINVAL;
 	}
 
 	chip->gc.base = -1;
