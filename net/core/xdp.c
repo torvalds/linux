@@ -514,6 +514,17 @@ void xdp_warn(const char *msg, const char *func, const int line)
 };
 EXPORT_SYMBOL_GPL(xdp_warn);
 
+int xdp_alloc_skb_bulk(void **skbs, int n_skb, gfp_t gfp)
+{
+	n_skb = kmem_cache_alloc_bulk(skbuff_head_cache, gfp,
+				      n_skb, skbs);
+	if (unlikely(!n_skb))
+		return -ENOMEM;
+
+	return 0;
+}
+EXPORT_SYMBOL_GPL(xdp_alloc_skb_bulk);
+
 struct sk_buff *__xdp_build_skb_from_frame(struct xdp_frame *xdpf,
 					   struct sk_buff *skb,
 					   struct net_device *dev)
