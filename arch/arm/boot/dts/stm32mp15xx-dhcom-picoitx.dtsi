@@ -36,6 +36,10 @@
 	status = "disabled";
 };
 
+&fmc {
+	status = "disabled";
+};
+
 &gpioa {
 	/*
 	 * NOTE: The USB Port on the PicoITX needs a PWR_EN signal to enable
@@ -43,9 +47,9 @@
 	 * in order to turn on port power when USB bus is powered up, but so
 	 * far there is no such functionality.
 	 */
-	usb-port-power {
+	usb-port-power-hog {
 		gpio-hog;
-		gpios = <13 GPIO_ACTIVE_LOW>;
+		gpios = <13 0>;
 		output-low;
 		line-name = "usb-port-power";
 	};
@@ -94,6 +98,10 @@
 	/delete-property/dma-names;
 };
 
+&ksz8851 {
+	status = "disabled";
+};
+
 &usart3 {
 	pinctrl-names = "default";
 	pinctrl-0 = <&usart3_pins_a>;
@@ -132,12 +140,8 @@
 
 &usbphyc_port0 {
 	phy-supply = <&vdd_usb>;
-	vdda1v1-supply = <&reg11>;
-	vdda1v8-supply = <&reg18>;
 };
 
 &usbphyc_port1 {
 	phy-supply = <&vdd_usb>;
-	vdda1v1-supply = <&reg11>;
-	vdda1v8-supply = <&reg18>;
 };
