@@ -798,7 +798,7 @@ void rkcif_hw_soft_reset(struct rkcif_hw *cif_hw, bool is_rst_iommu)
 			reset_control_deassert(cif_hw->cif_rst[i]);
 }
 
-static int rkcif_plat_probe(struct platform_device *pdev)
+static int rkcif_plat_hw_probe(struct platform_device *pdev)
 {
 	const struct of_device_id *match;
 	struct device_node *node = pdev->dev.of_node;
@@ -924,9 +924,9 @@ static int rkcif_plat_probe(struct platform_device *pdev)
 			return ret;
 	}
 
-	pm_runtime_enable(&pdev->dev);
-
 	rkcif_hw_soft_reset(cif_hw, true);
+
+	pm_runtime_enable(&pdev->dev);
 
 	if (data->chip_id == CHIP_RK1808_CIF ||
 	    data->chip_id == CHIP_RV1126_CIF ||
@@ -989,7 +989,7 @@ static struct platform_driver rkcif_hw_plat_drv = {
 		.of_match_table = of_match_ptr(rkcif_plat_of_match),
 		.pm = &rkcif_plat_pm_ops,
 	},
-	.probe = rkcif_plat_probe,
+	.probe = rkcif_plat_hw_probe,
 	.remove = rkcif_plat_remove,
 };
 

@@ -248,24 +248,6 @@ void rkcif_config_dvp_clk_sampling_edge(struct rkcif_device *dev,
 	}
 }
 
-static bool is_iommu_enable(struct device *dev)
-{
-	struct device_node *iommu;
-
-	iommu = of_parse_phandle(dev->of_node, "iommus", 0);
-	if (!iommu) {
-		dev_info(dev, "no iommu attached, using non-iommu buffers\n");
-		return false;
-	} else if (!of_device_is_available(iommu)) {
-		dev_info(dev, "iommu is disabled, using non-iommu buffers\n");
-		of_node_put(iommu);
-		return false;
-	}
-	of_node_put(iommu);
-
-	return true;
-}
-
 /**************************** pipeline operations *****************************/
 static int __cif_pipeline_prepare(struct rkcif_pipeline *p,
 				  struct media_entity *me)
@@ -603,7 +585,9 @@ static int subdev_notifier_complete(struct v4l2_async_notifier *notifier)
 	ret = _set_pipeline_default_fmt(dev);
 	if (ret < 0)
 		goto unregister_lvds;
+
 	v4l2_info(&dev->v4l2_dev, "Async subdev notifier completed\n");
+
 	return ret;
 
 unregister_lvds:
@@ -691,7 +675,9 @@ static int cif_subdev_notifier(struct rkcif_device *cif_dev)
 
 	ntf->ops = &subdev_notifier_ops;
 
-	return v4l2_async_notifier_register(&cif_dev->v4l2_dev, ntf);
+	ret = v4l2_async_notifier_register(&cif_dev->v4l2_dev, ntf);
+
+	return ret;
 }
 
 /***************************** platform deive *******************************/
@@ -826,7 +812,7 @@ static int rkcif_detach_hw(struct rkcif_device *cif_dev)
 	return 0;
 }
 
-static char* rkcif_get_monitor_mode(enum rkcif_monitor_mode mode)
+static char *rkcif_get_monitor_mode(enum rkcif_monitor_mode mode)
 {
 	switch (mode) {
 	case RKCIF_MONITOR_MODE_IDLE:
@@ -890,8 +876,7 @@ static void rkcif_init_reset_monitor(struct rkcif_device *dev)
 					  timer->csi2_err_ref_cnt);
 			}
 		}
-
-	}else {
+	} else {
 		timer->monitor_mode = RKCIF_MONITOR_MODE_IDLE;
 		timer->err_time_interval = 0xffffffff;
 		timer->frm_num_of_monitor_cycle = 0xffffffff;
@@ -1072,13 +1057,6 @@ static int rkcif_plat_probe(struct platform_device *pdev)
 
 	rkcif_attach_hw(cif_dev);
 
-	cif_dev->iommu_en = is_iommu_enable(dev);
-	if (!cif_dev->iommu_en) {
-		ret = of_reserved_mem_device_init(dev);
-		if (ret)
-			dev_info(dev, "No reserved memory region assign to CIF\n");
-	}
-
 	ret = rkcif_plat_init(cif_dev, node, data->inf_id);
 	if (ret) {
 		rkcif_detach_hw(cif_dev);
@@ -1089,8 +1067,7 @@ static int rkcif_plat_probe(struct platform_device *pdev)
 		dev_warn(dev, "dev:%s create proc failed\n", dev_name(dev));
 
 	rkcif_init_reset_monitor(cif_dev);
-
-	rkcif_soft_reset(cif_dev, true);
+	rkcif_soft_reset(cif_dev, false);
 	pm_runtime_enable(&pdev->dev);
 
 	return 0;

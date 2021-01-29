@@ -55,6 +55,7 @@
  *3. add dvp sof
  *4. add extended lines to out image for normal & hdr short frame
  *5. modify reset mechanism drivered by real-time frame rate
+ *6. support rk356x iommu uses vb2 sg type
  */
 
 #define RKCIF_DRIVER_VERSION RKCIF_API_VERSION

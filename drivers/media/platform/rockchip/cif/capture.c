@@ -1661,6 +1661,7 @@ static void rkcif_buf_queue(struct vb2_buffer *vb)
 	struct rkcif_stream *stream = queue->drv_priv;
 	struct v4l2_pix_format_mplane *pixm = &stream->pixm;
 	const struct cif_output_fmt *fmt = stream->cif_fmt_out;
+	struct rkcif_hw *hw_dev = stream->cifdev->hw_dev;
 	unsigned long lock_flags = 0;
 	int i;
 
@@ -1671,14 +1672,14 @@ static void rkcif_buf_queue(struct vb2_buffer *vb)
 	for (i = 0; i < fmt->mplanes; i++) {
 		void *addr = vb2_plane_vaddr(vb, i);
 
-		if (stream->cifdev->iommu_en) {
+		if (hw_dev->iommu_en) {
 			struct sg_table *sgt = vb2_dma_sg_plane_desc(vb, i);
 
 			cifbuf->buff_addr[i] = sg_dma_address(sgt->sgl);
 		} else {
 			cifbuf->buff_addr[i] = vb2_dma_contig_plane_dma_addr(vb, i);
 		}
-		if (rkcif_debug && addr && !stream->cifdev->hw_dev->iommu_en) {
+		if (rkcif_debug && addr && !hw_dev->iommu_en) {
 			memset(addr, 0, pixm->plane_fmt[i].sizeimage);
 			v4l2_dbg(1, rkcif_debug, &stream->cifdev->v4l2_dev,
 				 "Clear buffer, size: 0x%08x\n",
@@ -1702,6 +1703,7 @@ static int rkcif_create_dummy_buf(struct rkcif_stream *stream)
 	u32 fourcc;
 	struct rkcif_dummy_buffer *dummy_buf = &stream->dummy_buf;
 	struct rkcif_device *dev = stream->cifdev;
+	struct rkcif_hw *hw_dev = dev->hw_dev;
 
 	/* get a maximum plane size */
 	dummy_buf->size = max3(stream->pixm.plane_fmt[0].bytesperline *
@@ -1719,7 +1721,7 @@ static int rkcif_create_dummy_buf(struct rkcif_stream *stream)
 	    fourcc == V4L2_PIX_FMT_UYVY || fourcc == V4L2_PIX_FMT_VYUY)
 		dummy_buf->size *= 2;
 
-	dummy_buf->vaddr = dma_alloc_coherent(dev->dev, dummy_buf->size,
+	dummy_buf->vaddr = dma_alloc_coherent(hw_dev->dev, dummy_buf->size,
 					      &dummy_buf->dma_addr,
 					      GFP_KERNEL);
 	if (!dummy_buf->vaddr) {
@@ -1738,9 +1740,10 @@ static void rkcif_destroy_dummy_buf(struct rkcif_stream *stream)
 {
 	struct rkcif_dummy_buffer *dummy_buf = &stream->dummy_buf;
 	struct rkcif_device *dev = stream->cifdev;
+	struct rkcif_hw *hw_dev = dev->hw_dev;
 
 	if (dummy_buf->vaddr)
-		dma_free_coherent(dev->dev, dummy_buf->size,
+		dma_free_coherent(hw_dev->dev, dummy_buf->size,
 				  dummy_buf->vaddr, dummy_buf->dma_addr);
 }
 
@@ -2522,11 +2525,13 @@ static int rkcif_init_vb2_queue(struct vb2_queue *q,
 				struct rkcif_stream *stream,
 				enum v4l2_buf_type buf_type)
 {
+	struct rkcif_hw *hw_dev = stream->cifdev->hw_dev;
+
 	q->type = buf_type;
 	q->io_modes = VB2_MMAP | VB2_DMABUF;
 	q->drv_priv = stream;
 	q->ops = &rkcif_vb2_ops;
-	if (stream->cifdev->iommu_en)
+	if (hw_dev->iommu_en)
 		q->mem_ops = &vb2_dma_sg_memops;
 	else
 		q->mem_ops = &vb2_dma_contig_memops;
@@ -2534,8 +2539,9 @@ static int rkcif_init_vb2_queue(struct vb2_queue *q,
 	q->min_buffers_needed = CIF_REQ_BUFS_MIN;
 	q->timestamp_flags = V4L2_BUF_FLAG_TIMESTAMP_MONOTONIC;
 	q->lock = &stream->vnode.vlock;
-	q->dev = stream->cifdev->dev;
+	q->dev = hw_dev->dev;
 	q->allow_cache_hints = 1;
+	q->bidirectional = 1;
 
 	return vb2_queue_init(q);
 }
