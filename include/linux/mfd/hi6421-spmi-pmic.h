@@ -12,6 +12,7 @@
 #define	__HISI_PMIC_H
 
 #include <linux/irqdomain.h>
+#include <linux/regmap.h>
 
 #define HISI_ECO_MODE_ENABLE		(1)
 #define HISI_ECO_MODE_DISABLE		(0)
@@ -25,12 +26,8 @@ struct hi6421_spmi_pmic {
 	int					irq;
 	int					gpio;
 	unsigned int				*irqs;
+	struct regmap				*map;
 };
-
-int hi6421_spmi_pmic_read(struct hi6421_spmi_pmic *pmic, int reg);
-int hi6421_spmi_pmic_write(struct hi6421_spmi_pmic *pmic, int reg, u32 val);
-int hi6421_spmi_pmic_rmw(struct hi6421_spmi_pmic *pmic, int reg,
-			 u32 mask, u32 bits);
 
 enum hi6421_spmi_pmic_irq_list {
 	OTMP = 0,
