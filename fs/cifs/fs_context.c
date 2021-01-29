@@ -401,6 +401,37 @@ cifs_parse_smb_version(char *value, struct smb3_fs_context *ctx, bool is_smb3)
 	return 0;
 }
 
+int smb3_parse_opt(const char *options, const char *key, char **val)
+{
+	int rc = -ENOENT;
+	char *opts, *orig, *p;
+
+	orig = opts = kstrdup(options, GFP_KERNEL);
+	if (!opts)
+		return -ENOMEM;
+
+	while ((p = strsep(&opts, ","))) {
+		char *nval;
+
+		if (!*p)
+			continue;
+		if (strncasecmp(p, key, strlen(key)))
+			continue;
+		nval = strchr(p, '=');
+		if (nval) {
+			if (nval == p)
+				continue;
+			*nval++ = 0;
+			*val = kstrndup(nval, strlen(nval), GFP_KERNEL);
+			rc = !*val ? -ENOMEM : 0;
+			goto out;
+		}
+	}
+out:
+	kfree(orig);
+	return rc;
+}
+
 /*
  * Parse a devname into substrings and populate the ctx->UNC and ctx->prepath
  * fields with the result. Returns 0 on success and an error otherwise
