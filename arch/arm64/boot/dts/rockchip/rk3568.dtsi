@@ -1421,22 +1421,21 @@
 	};
 
 	rkcif_mmu: iommu@fdfe0800 {
-		compatible = "rockchip,iommu";
+		compatible = "rockchip,iommu-v2";
 		reg = <0x0 0xfdfe0800 0x0 0x100>;
 		interrupts = <GIC_SPI 146 IRQ_TYPE_LEVEL_HIGH>;
 		interrupt-names = "cif_mmu";
 		clocks = <&cru ACLK_VICAP>, <&cru HCLK_VICAP>;
 		clock-names = "aclk", "iface";
 		power-domains = <&power RK3568_PD_VI>;
-		#iommu-cells = <0>;
 		rockchip,disable-mmu-reset;
+		#iommu-cells = <0>;
 		status = "disabled";
 	};
 
 	rkcif_dvp: rkcif_dvp {
 		compatible = "rockchip,rkcif-dvp";
 		rockchip,hw = <&rkcif>;
-		iommus = <&rkcif_mmu>;
 		status = "disabled";
 	};
 
@@ -1449,7 +1448,6 @@
 	rkcif_mipi_lvds: rkcif_mipi_lvds {
 		compatible = "rockchip,rkcif-mipi-lvds";
 		rockchip,hw = <&rkcif>;
-		iommus = <&rkcif_mmu>;
 		status = "disabled";
 	};
 
