@@ -59,7 +59,6 @@
   crc32_le
   debugfs_create_dir
   debugfs_create_file
-  debugfs_create_regset32
   debugfs_create_u32
   debugfs_create_x32
   debugfs_remove
@@ -119,13 +118,11 @@
   devm_regulator_get
   devm_regulator_register
   devm_request_threaded_irq
-  devm_reset_control_array_get
   __devm_reset_control_get
   devm_reset_controller_register
   devm_snd_soc_register_component
   __devm_spi_alloc_controller
   devm_spi_register_controller
-  devm_usb_get_phy_by_phandle
   devm_watchdog_register_device
   _dev_notice
   dev_pm_domain_attach_by_name
@@ -147,7 +144,6 @@
   dev_set_name
   _dev_warn
   disable_irq
-  disable_irq_nosync
   divider_get_val
   divider_recalc_rate
   divider_round_rate_parent
@@ -189,10 +185,6 @@
   eth_platform_get_mac_address
   eth_validate_addr
   event_triggers_call
-  extcon_get_edev_by_phandle
-  extcon_get_state
-  extcon_register_notifier
-  extcon_unregister_notifier
   find_next_bit
   find_next_zero_bit
   finish_wait
@@ -313,6 +305,9 @@
   ktime_get_real_ts64
   __list_add_valid
   __list_del_entry_valid
+  __log_post_read_mmio
+  __log_read_mmio
+  __log_write_mmio
   mbox_client_txdone
   mbox_free_channel
   mbox_request_channel
@@ -354,7 +349,6 @@
   of_alias_get_id
   of_clk_add_hw_provider
   of_clk_del_provider
-  of_clk_get
   of_clk_hw_simple_get
   of_clk_set_defaults
   of_device_get_match_data
@@ -375,7 +369,6 @@
   of_get_regulator_init_data
   of_graph_get_remote_node
   of_graph_parse_endpoint
-  of_icc_get
   of_icc_xlate_onecell
   of_iomap
   of_irq_find_parent
@@ -410,7 +403,6 @@
   phy_init
   phy_power_off
   phy_power_on
-  phy_set_mode_ext
   pinconf_generic_dt_node_to_map
   pinctrl_dev_get_drvdata
   pinctrl_pm_select_default_state
@@ -418,10 +410,7 @@
   pinctrl_utils_free_map
   platform_bus_type
   platform_device_add
-  platform_device_add_properties
-  platform_device_add_resources
   platform_device_alloc
-  platform_device_put
   platform_device_register_full
   platform_device_unregister
   __platform_driver_register
@@ -600,6 +589,9 @@
   trace_event_raw_init
   trace_event_reg
   trace_handle_return
+  __tracepoint_rwmmio_post_read
+  __tracepoint_rwmmio_read
+  __tracepoint_rwmmio_write
   trace_raw_output_prep
   trace_seq_printf
   tty_flip_buffer_push
@@ -626,8 +618,6 @@
   usb_debug_root
   usb_deregister
   usb_disabled
-  usb_get_dr_mode
-  usb_get_maximum_speed
   usb_hcd_check_unlink_urb
   usb_hcd_giveback_urb
   usb_hc_died
@@ -884,36 +874,6 @@
 # required by cqhci.ko
   dmam_free_coherent
   mmc_cqe_request_done
-
-# required by dwc3-qcom.ko
-  devm_extcon_register_notifier
-  of_clk_get_parent_count
-
-# required by dwc3.ko
-  dev_fwnode
-  device_property_read_string
-  device_property_read_u8_array
-  devm_usb_get_phy
-  extcon_find_edev_by_node
-  extcon_get_extcon_dev
-  of_usb_get_phy_mode
-  phy_pm_runtime_get_sync
-  phy_pm_runtime_put_sync
-  platform_get_irq_byname_optional
-  system_freezable_wq
-  usb_add_gadget
-  usb_decode_ctrl
-  usb_del_gadget_udc
-  usb_ep_set_maxpacket_limit
-  usb_gadget_giveback_request
-  usb_gadget_map_request_by_dev
-  usb_gadget_set_state
-  usb_gadget_udc_reset
-  usb_gadget_unmap_request_by_dev
-  usb_initialize_gadget
-  usb_role_switch_get_drvdata
-  usb_role_switch_register
-  usb_role_switch_unregister
 
 # required by extcon-usb-gpio.ko
   devm_extcon_dev_allocate
@@ -1281,6 +1241,7 @@
   of_graph_get_endpoint_by_regs
   of_graph_get_next_endpoint
   of_graph_get_remote_port_parent
+  of_icc_get
   param_ops_charp
   phy_calibrate
   phy_configure
@@ -1351,6 +1312,8 @@
   usb_amd_prefetch_quirk
 
 # required by ohci-platform.ko
+  devm_reset_control_array_get
+  of_clk_get
   usb_create_hcd
 
 # required by pdr_interface.ko
@@ -1363,6 +1326,12 @@
 # required by phy-qcom-qusb2.ko
   devm_nvmem_cell_get
 
+# required by phy-qcom-usb-hs.ko
+  extcon_get_edev_by_phandle
+  extcon_get_state
+  extcon_register_notifier
+  extcon_unregister_notifier
+
 # required by pinctrl-msm.ko
   device_property_read_u16_array
   gpiochip_line_is_valid
@@ -1371,6 +1340,7 @@
   handle_bad_irq
   handle_fasteoi_ack_irq
   handle_fasteoi_irq
+  irq_get_irq_data
   module_put
   pinctrl_force_default
   pinctrl_force_sleep
@@ -1704,6 +1674,7 @@
   __sg_page_iter_next
 
 # required by ufs_qcom.ko
+  phy_set_mode_ext
   ufshcd_dme_get_attr
   ufshcd_dme_set_attr
   ufshcd_dump_regs
@@ -1731,12 +1702,16 @@
 
 # required by xhci-hcd.ko
   add_timer
+  debugfs_create_regset32
   kstrtou16_from_user
   mod_delayed_work_on
   param_ops_ullong
   pci_alloc_irq_vectors_affinity
   pci_free_irq_vectors
   pci_irq_vector
+  platform_device_add_properties
+  platform_device_add_resources
+  platform_device_put
   preempt_schedule
   radix_tree_maybe_preload
   sg_pcopy_from_buffer
@@ -1763,5 +1738,6 @@
 
 # required by xhci-plat-hcd.ko
   devm_platform_get_and_ioremap_resource
+  devm_usb_get_phy_by_phandle
   of_usb_host_tpl_support
   __usb_create_hcd
