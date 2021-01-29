@@ -592,23 +592,6 @@ struct xhci_ring *xhci_dma_to_transfer_ring(
 	return ep->ring;
 }
 
-struct xhci_ring *xhci_stream_id_to_ring(
-		struct xhci_virt_device *dev,
-		unsigned int ep_index,
-		unsigned int stream_id)
-{
-	struct xhci_virt_ep *ep = &dev->eps[ep_index];
-
-	if (stream_id == 0)
-		return ep->ring;
-	if (!ep->stream_info)
-		return NULL;
-
-	if (stream_id >= ep->stream_info->num_streams)
-		return NULL;
-	return ep->stream_info->stream_rings[stream_id];
-}
-
 /*
  * Change an endpoint's internal structure so it supports stream IDs.  The
  * number of requested streams includes stream 0, which cannot be used by device
