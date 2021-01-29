@@ -14,9 +14,6 @@
 #include <linux/irqdomain.h>
 #include <linux/regmap.h>
 
-#define HISI_ECO_MODE_ENABLE		(1)
-#define HISI_ECO_MODE_DISABLE		(0)
-
 struct hi6421_spmi_pmic {
 	struct resource				*res;
 	struct device				*dev;
@@ -29,21 +26,4 @@ struct hi6421_spmi_pmic {
 	struct regmap				*regmap;
 };
 
-enum hi6421_spmi_pmic_irq_list {
-	OTMP = 0,
-	VBUS_CONNECT,
-	VBUS_DISCONNECT,
-	ALARMON_R,
-	HOLD_6S,
-	HOLD_1S,
-	POWERKEY_UP,
-	POWERKEY_DOWN,
-	OCP_SCP_R,
-	COUL_R,
-	SIM0_HPD_R,
-	SIM0_HPD_F,
-	SIM1_HPD_R,
-	SIM1_HPD_F,
-	PMIC_IRQ_LIST_MAX,
-};
 #endif		/* __HISI_PMIC_H */
