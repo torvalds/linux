@@ -1,6 +1,6 @@
 # SPDX-License-Identifier: GPL-2.0-only
 config DRM_GMA500
-	tristate "Intel GMA5/600 KMS Framebuffer"
+	tristate "Intel GMA500/600/3600/3650 KMS Framebuffer"
 	depends on DRM && PCI && X86 && MMU
 	select DRM_KMS_HELPER
 	select DRM_TTM
@@ -19,10 +19,3 @@ config DRM_GMA600
 	help
 	  Say yes to include support for GMA600 (Intel Moorestown/Oaktrail)
 	  platforms with LVDS ports. MIPI is not currently supported.
-
-config DRM_GMA3600
-	bool "Intel GMA3600/3650 support (Experimental)"
-	depends on DRM_GMA500
-	help
-	  Say yes to include basic support for Intel GMA3600/3650 (Intel
-	  Cedar Trail) platforms.
