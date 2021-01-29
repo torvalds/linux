@@ -1861,7 +1861,7 @@ static void xhci_cleanup_halted_endpoint(struct xhci_hcd *xhci,
 	 * Avoid resetting endpoint if link is inactive. Can cause host hang.
 	 * Device will be reset soon to recover the link so don't do anything
 	 */
-	if (xhci->devs[slot_id]->flags & VDEV_PORT_ERROR)
+	if (ep->vdev->flags & VDEV_PORT_ERROR)
 		return;
 
 	command = xhci_alloc_command(xhci, false, GFP_ATOMIC);
@@ -1970,18 +1970,14 @@ static int finish_td(struct xhci_hcd *xhci, struct xhci_td *td,
 	struct xhci_transfer_event *event,
 	struct xhci_virt_ep *ep, int *status)
 {
-	struct xhci_virt_device *xdev;
 	struct xhci_ep_ctx *ep_ctx;
 	struct xhci_ring *ep_ring;
 	unsigned int slot_id;
 	u32 trb_comp_code;
-	int ep_index;
 
 	slot_id = TRB_TO_SLOT_ID(le32_to_cpu(event->flags));
-	xdev = xhci->devs[slot_id];
-	ep_index = TRB_TO_EP_ID(le32_to_cpu(event->flags)) - 1;
 	ep_ring = xhci_dma_to_transfer_ring(ep, le64_to_cpu(event->buffer));
-	ep_ctx = xhci_get_ep_ctx(xhci, xdev->out_ctx, ep_index);
+	ep_ctx = xhci_get_ep_ctx(xhci, ep->vdev->out_ctx, ep->ep_index);
 	trb_comp_code = GET_COMP_CODE(le32_to_cpu(event->transfer_len));
 
 	if (trb_comp_code == COMP_STOPPED_LENGTH_INVALID ||
@@ -2006,9 +2002,9 @@ static int finish_td(struct xhci_hcd *xhci, struct xhci_td *td,
 		 * stall later. Hub TT buffer should only be cleared for FS/LS
 		 * devices behind HS hubs for functional stalls.
 		 */
-		if ((ep_index != 0) || (trb_comp_code != COMP_STALL_ERROR))
+		if ((ep->ep_index != 0) || (trb_comp_code != COMP_STALL_ERROR))
 			xhci_clear_hub_tt_buffer(xhci, td, ep);
-		xhci_cleanup_halted_endpoint(xhci, slot_id, ep_index,
+		xhci_cleanup_halted_endpoint(xhci, slot_id, ep->ep_index,
 					ep_ring->stream_id, td, EP_HARD_RESET);
 	} else {
 		/* Update ring dequeue pointer */
@@ -2042,19 +2038,13 @@ static int process_ctrl_td(struct xhci_hcd *xhci, struct xhci_td *td,
 	union xhci_trb *ep_trb, struct xhci_transfer_event *event,
 	struct xhci_virt_ep *ep, int *status)
 {
-	struct xhci_virt_device *xdev;
-	unsigned int slot_id;
-	int ep_index;
 	struct xhci_ep_ctx *ep_ctx;
 	u32 trb_comp_code;
 	u32 remaining, requested;
 	u32 trb_type;
 
 	trb_type = TRB_FIELD_TO_TYPE(le32_to_cpu(ep_trb->generic.field[3]));
-	slot_id = TRB_TO_SLOT_ID(le32_to_cpu(event->flags));
-	xdev = xhci->devs[slot_id];
-	ep_index = TRB_TO_EP_ID(le32_to_cpu(event->flags)) - 1;
-	ep_ctx = xhci_get_ep_ctx(xhci, xdev->out_ctx, ep_index);
+	ep_ctx = xhci_get_ep_ctx(xhci, ep->vdev->out_ctx, ep->ep_index);
 	trb_comp_code = GET_COMP_CODE(le32_to_cpu(event->transfer_len));
 	requested = td->urb->transfer_buffer_length;
 	remaining = EVENT_TRB_LEN(le32_to_cpu(event->transfer_len));
@@ -2102,7 +2092,7 @@ static int process_ctrl_td(struct xhci_hcd *xhci, struct xhci_td *td,
 						       ep_ctx, trb_comp_code))
 			break;
 		xhci_dbg(xhci, "TRB error %u, halted endpoint index = %u\n",
-			 trb_comp_code, ep_index);
+			 trb_comp_code, ep->ep_index);
 		fallthrough;
 	case COMP_STALL_ERROR:
 		/* Did we transfer part of the data (middle) phase? */
@@ -2264,11 +2254,9 @@ static int process_bulk_intr_td(struct xhci_hcd *xhci, struct xhci_td *td,
 	u32 trb_comp_code;
 	u32 remaining, requested, ep_trb_len;
 	unsigned int slot_id;
-	int ep_index;
 
 	slot_id = TRB_TO_SLOT_ID(le32_to_cpu(event->flags));
-	slot_ctx = xhci_get_slot_ctx(xhci, xhci->devs[slot_id]->out_ctx);
-	ep_index = TRB_TO_EP_ID(le32_to_cpu(event->flags)) - 1;
+	slot_ctx = xhci_get_slot_ctx(xhci, ep->vdev->out_ctx);
 	ep_ring = xhci_dma_to_transfer_ring(ep, le64_to_cpu(event->buffer));
 	trb_comp_code = GET_COMP_CODE(le32_to_cpu(event->transfer_len));
 	remaining = EVENT_TRB_LEN(le32_to_cpu(event->transfer_len));
@@ -2306,7 +2294,7 @@ static int process_bulk_intr_td(struct xhci_hcd *xhci, struct xhci_td *td,
 		    le32_to_cpu(slot_ctx->tt_info) & TT_SLOT)
 			break;
 		*status = 0;
-		xhci_cleanup_halted_endpoint(xhci, slot_id, ep_index,
+		xhci_cleanup_halted_endpoint(xhci, slot_id, ep->ep_index,
 					ep_ring->stream_id, td, EP_SOFT_RESET);
 		return 0;
 	default:

@@ -918,6 +918,8 @@ struct xhci_bw_info {
 #define SS_BW_RESERVED		10
 
 struct xhci_virt_ep {
+	struct xhci_virt_device		*vdev;	/* parent */
+	unsigned int			ep_index;
 	struct xhci_ring		*ring;
 	/* Related to endpoints that are configured to use stream IDs only */
 	struct xhci_stream_info		*stream_info;
