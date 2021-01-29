@@ -946,6 +946,7 @@ void core_ctl_check(u64 window_start)
 	struct cluster_data *cluster;
 	unsigned int index = 0;
 	unsigned long flags;
+	unsigned int wakeup = 0;
 
 	if (unlikely(!initialized))
 		return;
@@ -970,11 +971,11 @@ void core_ctl_check(u64 window_start)
 
 	update_running_avg();
 
-	for_each_cluster(cluster, index) {
-		if (eval_need(cluster))
-			wake_up_core_ctl_thread();
-	}
+	for_each_cluster(cluster, index)
+		wakeup |= eval_need(cluster);
 
+	if (wakeup)
+		wake_up_core_ctl_thread();
 	core_ctl_call_notifier();
 }
 
