@@ -254,9 +254,6 @@ extern int sched_set_init_task_load(struct task_struct *p, int init_load_pct);
 extern u32 sched_get_init_task_load(struct task_struct *p);
 extern void core_ctl_check(u64 wallclock);
 extern int sched_set_boost(int enable);
-extern int sched_pause_count(const cpumask_t *mask, bool include_offline);
-extern void sched_pause_pending(int cpu);
-extern void sched_unpause_pending(int cpu);
 extern int sched_wake_up_idle_show(struct seq_file *m, void *v);
 extern ssize_t sched_wake_up_idle_write(struct file *file,
 		const char __user *buf, size_t count, loff_t *offset);
