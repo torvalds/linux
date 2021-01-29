@@ -1252,6 +1252,8 @@ static struct opp_table *_update_opp_table_clk(struct device *dev,
 					       struct opp_table *opp_table,
 					       bool getclk)
 {
+	int ret;
+
 	/*
 	 * Return early if we don't need to get clk or we have already tried it
 	 * earlier.
@@ -1261,18 +1263,20 @@ static struct opp_table *_update_opp_table_clk(struct device *dev,
 
 	/* Find clk for the device */
 	opp_table->clk = clk_get(dev, NULL);
-	if (IS_ERR(opp_table->clk)) {
-		int ret = PTR_ERR(opp_table->clk);
 
-		if (ret == -EPROBE_DEFER) {
-			dev_pm_opp_put_opp_table(opp_table);
-			return ERR_PTR(ret);
-		}
+	ret = PTR_ERR_OR_ZERO(opp_table->clk);
+	if (!ret)
+		return opp_table;
 
+	if (ret == -ENOENT) {
 		dev_dbg(dev, "%s: Couldn't find clock: %d\n", __func__, ret);
+		return opp_table;
 	}
 
-	return opp_table;
+	dev_pm_opp_put_opp_table(opp_table);
+	dev_err_probe(dev, ret, "Couldn't find clock\n");
+
+	return ERR_PTR(ret);
 }
 
 /*
