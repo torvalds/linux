@@ -989,11 +989,6 @@ static void move_cpu_lru(struct cpu_data *cpu_data)
 	spin_unlock_irqrestore(&state_lock, flags);
 }
 
-static bool should_we_pause(int cpu, struct cluster_data *cluster)
-{
-	return true;
-}
-
 static void try_to_pause(struct cluster_data *cluster, unsigned int need,
 			 struct cpumask *pause_cpus)
 {
@@ -1025,9 +1020,6 @@ static void try_to_pause(struct cluster_data *cluster, unsigned int need,
 		 * all CPUs are eligible for pausing.
 		 */
 		if (cluster->nr_not_preferred_cpus && !c->not_preferred)
-			continue;
-
-		if (!should_we_pause(c->cpu, cluster))
 			continue;
 
 		spin_unlock_irqrestore(&state_lock, flags);
