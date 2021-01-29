@@ -52,8 +52,14 @@ static u32 get_q_num(const struct vk_msg_blk *msg)
 
 static void set_q_num(struct vk_msg_blk *msg, u32 q_num)
 {
-	msg->trans_id = (msg->trans_id & ~BCM_VK_MSG_Q_MASK) |
-		(q_num >= VK_MSGQ_PER_CHAN_MAX) ? VK_MSGQ_NUM_DEFAULT : q_num;
+	u32 trans_q;
+
+	if (q_num >= VK_MSGQ_PER_CHAN_MAX)
+		trans_q = VK_MSGQ_NUM_DEFAULT;
+	else
+		trans_q = q_num;
+
+	msg->trans_id = (msg->trans_id & ~BCM_VK_MSG_Q_MASK) | trans_q;
 }
 
 static u32 get_msg_id(const struct vk_msg_blk *msg)
