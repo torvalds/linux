@@ -125,9 +125,9 @@ static void wcove_update_irq_mask(struct wcove_gpio *wg, int gpio)
 	}
 
 	if (wg->set_irq_mask)
-		regmap_update_bits(wg->regmap, reg, mask, mask);
+		regmap_set_bits(wg->regmap, reg, mask);
 	else
-		regmap_update_bits(wg->regmap, reg, mask, 0);
+		regmap_clear_bits(wg->regmap, reg, mask);
 }
 
 static void wcove_update_irq_ctrl(struct wcove_gpio *wg, int gpio)
@@ -207,9 +207,9 @@ static void wcove_gpio_set(struct gpio_chip *chip, unsigned int gpio, int value)
 		return;
 
 	if (value)
-		regmap_update_bits(wg->regmap, reg, 1, 1);
+		regmap_set_bits(wg->regmap, reg, 1);
 	else
-		regmap_update_bits(wg->regmap, reg, 1, 0);
+		regmap_clear_bits(wg->regmap, reg, 1);
 }
 
 static int wcove_gpio_set_config(struct gpio_chip *chip, unsigned int gpio,
@@ -346,8 +346,7 @@ static irqreturn_t wcove_gpio_irq_handler(int irq, void *data)
 								BIT(gpio);
 			virq = irq_find_mapping(wg->chip.irq.domain, gpio);
 			handle_nested_irq(virq);
-			regmap_update_bits(wg->regmap, IRQ_STATUS_BASE + offset,
-								mask, mask);
+			regmap_set_bits(wg->regmap, IRQ_STATUS_BASE + offset, mask);
 		}
 
 		/* Next iteration */
@@ -473,14 +472,12 @@ static int wcove_gpio_probe(struct platform_device *pdev)
 	}
 
 	/* Enable GPIO0 interrupts */
-	ret = regmap_update_bits(wg->regmap, IRQ_MASK_BASE, GPIO_IRQ0_MASK,
-				 0x00);
+	ret = regmap_clear_bits(wg->regmap, IRQ_MASK_BASE + 0, GPIO_IRQ0_MASK);
 	if (ret)
 		return ret;
 
 	/* Enable GPIO1 interrupts */
-	ret = regmap_update_bits(wg->regmap, IRQ_MASK_BASE + 1, GPIO_IRQ1_MASK,
-				 0x00);
+	ret = regmap_clear_bits(wg->regmap, IRQ_MASK_BASE + 1, GPIO_IRQ1_MASK);
 	if (ret)
 		return ret;
 
