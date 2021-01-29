@@ -1469,7 +1469,7 @@ Sysfs notes
 
 
 Setting keyboard language
--------------------
+-------------------------
 
 sysfs: keyboard_lang
 
