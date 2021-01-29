@@ -41,6 +41,7 @@ config CRYPTO_DEV_OCTEONTX2_CPT
 	depends on ARM64 || COMPILE_TEST
 	depends on PCI_MSI && 64BIT
 	depends on CRYPTO_LIB_AES
+	depends on NET_VENDOR_MARVELL
 	select OCTEONTX2_MBOX
 	select CRYPTO_DEV_MARVELL
 	select CRYPTO_SKCIPHER
