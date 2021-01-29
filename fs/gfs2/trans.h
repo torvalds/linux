@@ -34,6 +34,9 @@ static inline unsigned int gfs2_rg_blocks(const struct gfs2_inode *ip, unsigned 
 	return rgd->rd_length;
 }
 
+extern int __gfs2_trans_begin(struct gfs2_trans *tr, struct gfs2_sbd *sdp,
+			      unsigned int blocks, unsigned int revokes,
+			      unsigned long ip);
 extern int gfs2_trans_begin(struct gfs2_sbd *sdp, unsigned int blocks,
 			    unsigned int revokes);
 

@@ -490,7 +490,7 @@ struct gfs2_quota_data {
 enum {
 	TR_TOUCHED = 1,
 	TR_ATTACHED = 2,
-	TR_ALLOCED = 3,
+	TR_ONSTACK = 3,
 };
 
 struct gfs2_trans {

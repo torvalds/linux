@@ -86,16 +86,12 @@ static int gfs2_ail_empty_gl(struct gfs2_glock *gl)
 {
 	struct gfs2_sbd *sdp = gl->gl_name.ln_sbd;
 	struct gfs2_trans tr;
+	unsigned int revokes;
 	int ret;
 
-	memset(&tr, 0, sizeof(tr));
-	INIT_LIST_HEAD(&tr.tr_buf);
-	INIT_LIST_HEAD(&tr.tr_databuf);
-	INIT_LIST_HEAD(&tr.tr_ail1_list);
-	INIT_LIST_HEAD(&tr.tr_ail2_list);
-	tr.tr_revokes = atomic_read(&gl->gl_ail_count);
+	revokes = atomic_read(&gl->gl_ail_count);
 
-	if (!tr.tr_revokes) {
+	if (!revokes) {
 		bool have_revokes;
 		bool log_in_flight;
 
@@ -122,23 +118,14 @@ static int gfs2_ail_empty_gl(struct gfs2_glock *gl)
 		return 0;
 	}
 
-	/* A shortened, inline version of gfs2_trans_begin()
-         * tr->alloced is not set since the transaction structure is
-         * on the stack */
-	tr.tr_reserved = 1 + gfs2_struct2blk(sdp, tr.tr_revokes);
-	tr.tr_ip = _RET_IP_;
-	sb_start_intwrite(sdp->sd_vfs);
-	ret = gfs2_log_reserve(sdp, tr.tr_reserved);
-	if (ret < 0) {
-		sb_end_intwrite(sdp->sd_vfs);
-		return ret;
-	}
-	WARN_ON_ONCE(current->journal_info);
-	current->journal_info = &tr;
-
-	__gfs2_ail_flush(gl, 0, tr.tr_revokes);
-
+	memset(&tr, 0, sizeof(tr));
+	set_bit(TR_ONSTACK, &tr.tr_flags);
+	ret = __gfs2_trans_begin(&tr, sdp, 0, revokes, _RET_IP_);
+	if (ret)
+		goto flush;
+	__gfs2_ail_flush(gl, 0, revokes);
 	gfs2_trans_end(sdp);
+
 flush:
 	gfs2_log_flush(sdp, NULL, GFS2_LOG_HEAD_FLUSH_NORMAL |
 		       GFS2_LFC_AIL_EMPTY_GL);

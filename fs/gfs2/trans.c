@@ -37,10 +37,10 @@ static void gfs2_print_trans(struct gfs2_sbd *sdp, const struct gfs2_trans *tr)
 		tr->tr_num_revoke, tr->tr_num_revoke_rm);
 }
 
-int gfs2_trans_begin(struct gfs2_sbd *sdp, unsigned int blocks,
-		     unsigned int revokes)
+int __gfs2_trans_begin(struct gfs2_trans *tr, struct gfs2_sbd *sdp,
+		       unsigned int blocks, unsigned int revokes,
+		       unsigned long ip)
 {
-	struct gfs2_trans *tr;
 	int error;
 
 	if (current->journal_info) {
@@ -52,15 +52,10 @@ int gfs2_trans_begin(struct gfs2_sbd *sdp, unsigned int blocks,
 	if (!test_bit(SDF_JOURNAL_LIVE, &sdp->sd_flags))
 		return -EROFS;
 
-	tr = kmem_cache_zalloc(gfs2_trans_cachep, GFP_NOFS);
-	if (!tr)
-		return -ENOMEM;
-
-	tr->tr_ip = _RET_IP_;
+	tr->tr_ip = ip;
 	tr->tr_blocks = blocks;
 	tr->tr_revokes = revokes;
 	tr->tr_reserved = 1;
-	set_bit(TR_ALLOCED, &tr->tr_flags);
 	if (blocks)
 		tr->tr_reserved += 6 + blocks;
 	if (revokes)
@@ -74,17 +69,28 @@ int gfs2_trans_begin(struct gfs2_sbd *sdp, unsigned int blocks,
 	sb_start_intwrite(sdp->sd_vfs);
 
 	error = gfs2_log_reserve(sdp, tr->tr_reserved);
-	if (error)
-		goto fail;
+	if (error) {
+		sb_end_intwrite(sdp->sd_vfs);
+		return error;
+	}
 
 	current->journal_info = tr;
 
 	return 0;
+}
 
-fail:
-	sb_end_intwrite(sdp->sd_vfs);
-	kmem_cache_free(gfs2_trans_cachep, tr);
+int gfs2_trans_begin(struct gfs2_sbd *sdp, unsigned int blocks,
+		     unsigned int revokes)
+{
+	struct gfs2_trans *tr;
+	int error;
 
+	tr = kmem_cache_zalloc(gfs2_trans_cachep, GFP_NOFS);
+	if (!tr)
+		return -ENOMEM;
+	error = __gfs2_trans_begin(tr, sdp, blocks, revokes, _RET_IP_);
+	if (error)
+		kmem_cache_free(gfs2_trans_cachep, tr);
 	return error;
 }
 
@@ -92,13 +98,12 @@ void gfs2_trans_end(struct gfs2_sbd *sdp)
 {
 	struct gfs2_trans *tr = current->journal_info;
 	s64 nbuf;
-	int alloced = test_bit(TR_ALLOCED, &tr->tr_flags);
 
 	current->journal_info = NULL;
 
 	if (!test_bit(TR_TOUCHED, &tr->tr_flags)) {
 		gfs2_log_release(sdp, tr->tr_reserved);
-		if (alloced)
+		if (!test_bit(TR_ONSTACK, &tr->tr_flags))
 			gfs2_trans_free(sdp, tr);
 		sb_end_intwrite(sdp->sd_vfs);
 		return;
@@ -113,7 +118,8 @@ void gfs2_trans_end(struct gfs2_sbd *sdp)
 		gfs2_print_trans(sdp, tr);
 
 	gfs2_log_commit(sdp, tr);
-	if (alloced && !test_bit(TR_ATTACHED, &tr->tr_flags))
+	if (!test_bit(TR_ONSTACK, &tr->tr_flags) &&
+	    !test_bit(TR_ATTACHED, &tr->tr_flags))
 		gfs2_trans_free(sdp, tr);
 	up_read(&sdp->sd_log_flush_lock);
 
