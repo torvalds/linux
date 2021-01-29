@@ -1850,13 +1850,12 @@ static void xhci_clear_hub_tt_buffer(struct xhci_hcd *xhci, struct xhci_td *td,
 }
 
 static void xhci_cleanup_halted_endpoint(struct xhci_hcd *xhci,
-		unsigned int slot_id, unsigned int ep_index,
-		unsigned int stream_id, struct xhci_td *td,
-		enum xhci_ep_reset_type reset_type)
+				struct xhci_virt_ep *ep, unsigned int stream_id,
+				struct xhci_td *td,
+				enum xhci_ep_reset_type reset_type)
 {
-	struct xhci_virt_ep *ep = &xhci->devs[slot_id]->eps[ep_index];
 	struct xhci_command *command;
-
+	unsigned int slot_id = ep->vdev->slot_id;
 	/*
 	 * Avoid resetting endpoint if link is inactive. Can cause host hang.
 	 * Device will be reset soon to recover the link so don't do anything
@@ -1870,11 +1869,11 @@ static void xhci_cleanup_halted_endpoint(struct xhci_hcd *xhci,
 
 	ep->ep_state |= EP_HALTED;
 
-	xhci_queue_reset_ep(xhci, command, slot_id, ep_index, reset_type);
+	xhci_queue_reset_ep(xhci, command, slot_id, ep->ep_index, reset_type);
 
 	if (reset_type == EP_HARD_RESET) {
 		ep->ep_state |= EP_HARD_CLEAR_TOGGLE;
-		xhci_cleanup_stalled_ring(xhci, slot_id, ep_index, stream_id,
+		xhci_cleanup_stalled_ring(xhci, slot_id, ep->ep_index, stream_id,
 					  td);
 	}
 	xhci_ring_cmd_db(xhci);
@@ -1972,10 +1971,8 @@ static int finish_td(struct xhci_hcd *xhci, struct xhci_td *td,
 {
 	struct xhci_ep_ctx *ep_ctx;
 	struct xhci_ring *ep_ring;
-	unsigned int slot_id;
 	u32 trb_comp_code;
 
-	slot_id = TRB_TO_SLOT_ID(le32_to_cpu(event->flags));
 	ep_ring = xhci_dma_to_transfer_ring(ep, le64_to_cpu(event->buffer));
 	ep_ctx = xhci_get_ep_ctx(xhci, ep->vdev->out_ctx, ep->ep_index);
 	trb_comp_code = GET_COMP_CODE(le32_to_cpu(event->transfer_len));
@@ -2004,8 +2001,8 @@ static int finish_td(struct xhci_hcd *xhci, struct xhci_td *td,
 		 */
 		if ((ep->ep_index != 0) || (trb_comp_code != COMP_STALL_ERROR))
 			xhci_clear_hub_tt_buffer(xhci, td, ep);
-		xhci_cleanup_halted_endpoint(xhci, slot_id, ep->ep_index,
-					ep_ring->stream_id, td, EP_HARD_RESET);
+		xhci_cleanup_halted_endpoint(xhci, ep, ep_ring->stream_id, td,
+					     EP_HARD_RESET);
 	} else {
 		/* Update ring dequeue pointer */
 		while (ep_ring->dequeue != td->last_trb)
@@ -2248,9 +2245,7 @@ static int process_bulk_intr_td(struct xhci_hcd *xhci, struct xhci_td *td,
 	struct xhci_ring *ep_ring;
 	u32 trb_comp_code;
 	u32 remaining, requested, ep_trb_len;
-	unsigned int slot_id;
 
-	slot_id = TRB_TO_SLOT_ID(le32_to_cpu(event->flags));
 	slot_ctx = xhci_get_slot_ctx(xhci, ep->vdev->out_ctx);
 	ep_ring = xhci_dma_to_transfer_ring(ep, le64_to_cpu(event->buffer));
 	trb_comp_code = GET_COMP_CODE(le32_to_cpu(event->transfer_len));
@@ -2289,8 +2284,8 @@ static int process_bulk_intr_td(struct xhci_hcd *xhci, struct xhci_td *td,
 		    le32_to_cpu(slot_ctx->tt_info) & TT_SLOT)
 			break;
 		*status = 0;
-		xhci_cleanup_halted_endpoint(xhci, slot_id, ep->ep_index,
-					ep_ring->stream_id, td, EP_SOFT_RESET);
+		xhci_cleanup_halted_endpoint(xhci, ep, ep_ring->stream_id, td,
+					     EP_SOFT_RESET);
 		return 0;
 	default:
 		/* do nothing */
@@ -2366,8 +2361,8 @@ static int handle_tx_event(struct xhci_hcd *xhci,
 		case COMP_USB_TRANSACTION_ERROR:
 		case COMP_INVALID_STREAM_TYPE_ERROR:
 		case COMP_INVALID_STREAM_ID_ERROR:
-			xhci_cleanup_halted_endpoint(xhci, slot_id, ep_index, 0,
-						     NULL, EP_SOFT_RESET);
+			xhci_cleanup_halted_endpoint(xhci, ep, 0, NULL,
+						     EP_SOFT_RESET);
 			goto cleanup;
 		case COMP_RING_UNDERRUN:
 		case COMP_RING_OVERRUN:
@@ -2551,8 +2546,7 @@ static int handle_tx_event(struct xhci_hcd *xhci,
 			if (trb_comp_code == COMP_STALL_ERROR ||
 			    xhci_requires_manual_halt_cleanup(xhci, ep_ctx,
 							      trb_comp_code)) {
-				xhci_cleanup_halted_endpoint(xhci, slot_id,
-							     ep_index,
+				xhci_cleanup_halted_endpoint(xhci, ep,
 							     ep_ring->stream_id,
 							     NULL,
 							     EP_HARD_RESET);
@@ -2646,8 +2640,7 @@ static int handle_tx_event(struct xhci_hcd *xhci,
 			if (trb_comp_code == COMP_STALL_ERROR ||
 			    xhci_requires_manual_halt_cleanup(xhci, ep_ctx,
 							      trb_comp_code))
-				xhci_cleanup_halted_endpoint(xhci, slot_id,
-							     ep_index,
+				xhci_cleanup_halted_endpoint(xhci, ep,
 							     ep_ring->stream_id,
 							     td, EP_HARD_RESET);
 			goto cleanup;

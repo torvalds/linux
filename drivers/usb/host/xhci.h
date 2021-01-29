@@ -997,6 +997,7 @@ struct xhci_interval_bw_table {
 
 
 struct xhci_virt_device {
+	int				slot_id;
 	struct usb_device		*udev;
 	/*
 	 * Commands to the hardware are passed an "input context" that
