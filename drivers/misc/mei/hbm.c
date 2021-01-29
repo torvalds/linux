@@ -1177,6 +1177,10 @@ int mei_hbm_dispatch(struct mei_device *dev, struct mei_msg_hdr *hdr)
 
 		if (dev->dev_state != MEI_DEV_INIT_CLIENTS ||
 		    dev->hbm_state != MEI_HBM_STARTING) {
+			if (dev->dev_state == MEI_DEV_POWER_DOWN) {
+				dev_dbg(dev->dev, "hbm: start: on shutdown, ignoring\n");
+				return 0;
+			}
 			dev_err(dev->dev, "hbm: start: state mismatch, [%d, %d]\n",
 				dev->dev_state, dev->hbm_state);
 			return -EPROTO;
@@ -1215,7 +1219,12 @@ int mei_hbm_dispatch(struct mei_device *dev, struct mei_msg_hdr *hdr)
 
 		dev->init_clients_timer = 0;
 
-		if (dev->hbm_state != MEI_HBM_CAP_SETUP) {
+		if (dev->dev_state != MEI_DEV_INIT_CLIENTS ||
+		    dev->hbm_state != MEI_HBM_CAP_SETUP) {
+			if (dev->dev_state == MEI_DEV_POWER_DOWN) {
+				dev_dbg(dev->dev, "hbm: capabilities response: on shutdown, ignoring\n");
+				return 0;
+			}
 			dev_err(dev->dev, "hbm: capabilities response: state mismatch, [%d, %d]\n",
 				dev->dev_state, dev->hbm_state);
 			return -EPROTO;
@@ -1247,7 +1256,12 @@ int mei_hbm_dispatch(struct mei_device *dev, struct mei_msg_hdr *hdr)
 
 		dev->init_clients_timer = 0;
 
-		if (dev->hbm_state != MEI_HBM_DR_SETUP) {
+		if (dev->dev_state != MEI_DEV_INIT_CLIENTS ||
+		    dev->hbm_state != MEI_HBM_DR_SETUP) {
+			if (dev->dev_state == MEI_DEV_POWER_DOWN) {
+				dev_dbg(dev->dev, "hbm: dma setup response: on shutdown, ignoring\n");
+				return 0;
+			}
 			dev_err(dev->dev, "hbm: dma setup response: state mismatch, [%d, %d]\n",
 				dev->dev_state, dev->hbm_state);
 			return -EPROTO;
@@ -1311,6 +1325,10 @@ int mei_hbm_dispatch(struct mei_device *dev, struct mei_msg_hdr *hdr)
 
 		if (dev->dev_state != MEI_DEV_INIT_CLIENTS ||
 		    dev->hbm_state != MEI_HBM_CLIENT_PROPERTIES) {
+			if (dev->dev_state == MEI_DEV_POWER_DOWN) {
+				dev_dbg(dev->dev, "hbm: properties response: on shutdown, ignoring\n");
+				return 0;
+			}
 			dev_err(dev->dev, "hbm: properties response: state mismatch, [%d, %d]\n",
 				dev->dev_state, dev->hbm_state);
 			return -EPROTO;
@@ -1349,6 +1367,10 @@ int mei_hbm_dispatch(struct mei_device *dev, struct mei_msg_hdr *hdr)
 
 		if (dev->dev_state != MEI_DEV_INIT_CLIENTS ||
 		    dev->hbm_state != MEI_HBM_ENUM_CLIENTS) {
+			if (dev->dev_state == MEI_DEV_POWER_DOWN) {
+				dev_dbg(dev->dev, "hbm: enumeration response: on shutdown, ignoring\n");
+				return 0;
+			}
 			dev_err(dev->dev, "hbm: enumeration response: state mismatch, [%d, %d]\n",
 				dev->dev_state, dev->hbm_state);
 			return -EPROTO;
