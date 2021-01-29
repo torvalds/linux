@@ -1159,8 +1159,6 @@ static void __ref do_core_ctl(void)
 
 	for_each_cluster(cluster, index) {
 
-		eval_need(cluster);
-
 		need = apply_limits(cluster, cluster->need_cpus);
 
 		if (adjustment_possible(cluster, need)) {
