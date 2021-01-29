@@ -771,8 +771,10 @@ static int xhci_td_cleanup(struct xhci_hcd *xhci, struct xhci_td *td,
 		urb->actual_length = 0;
 		*status = 0;
 	}
-	list_del_init(&td->td_list);
-	/* Was this TD slated to be cancelled but completed anyway? */
+	/* TD might be removed from td_list if we are giving back a cancelled URB */
+	if (!list_empty(&td->td_list))
+		list_del_init(&td->td_list);
+	/* Giving back a cancelled URB, or if a slated TD completed anyway */
 	if (!list_empty(&td->cancelled_td_list))
 		list_del_init(&td->cancelled_td_list);
 
@@ -944,15 +946,11 @@ remove_finished_td:
 				struct xhci_td, cancelled_td_list);
 		list_del_init(&cur_td->cancelled_td_list);
 
-		/* Clean up the cancelled URB */
 		/* Doesn't matter what we pass for status, since the core will
 		 * just overwrite it (because the URB has been unlinked).
 		 */
 		ep_ring = xhci_urb_to_transfer_ring(xhci, cur_td->urb);
-		xhci_unmap_td_bounce_buffer(xhci, ep_ring, cur_td);
-		inc_td_cnt(cur_td->urb);
-		if (last_td_in_urb(cur_td))
-			xhci_giveback_urb_in_irq(xhci, cur_td, 0);
+		xhci_td_cleanup(xhci, cur_td, ep_ring, 0);
 
 		/* Stop processing the cancelled list if the watchdog timer is
 		 * running.
