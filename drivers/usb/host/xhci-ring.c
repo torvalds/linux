@@ -818,6 +818,58 @@ done:
 }
 
 /*
+ * Fix up the ep ring first, so HW stops executing cancelled TDs.
+ * We have the xHCI lock, so nothing can modify this list until we drop it.
+ * We're also in the event handler, so we can't get re-interrupted if another
+ * Stop Endpoint command completes.
+ */
+
+static int xhci_invalidate_cancelled_tds(struct xhci_virt_ep *ep,
+					 struct xhci_dequeue_state *deq_state)
+{
+	struct xhci_hcd		*xhci;
+	struct xhci_td		*td = NULL;
+	struct xhci_td		*tmp_td = NULL;
+	struct xhci_ring	*ring;
+	u64			hw_deq;
+
+	xhci = ep->xhci;
+
+	list_for_each_entry_safe(td, tmp_td, &ep->cancelled_td_list, cancelled_td_list) {
+		xhci_dbg_trace(xhci, trace_xhci_dbg_cancel_urb,
+				"Removing canceled TD starting at 0x%llx (dma).",
+				(unsigned long long)xhci_trb_virt_to_dma(
+					td->start_seg, td->first_trb));
+		list_del_init(&td->td_list);
+		ring = xhci_urb_to_transfer_ring(xhci, td->urb);
+		if (!ring) {
+			xhci_warn(xhci, "WARN Cancelled URB %p has invalid stream ID %u.\n",
+				  td->urb, td->urb->stream_id);
+			continue;
+		}
+		/*
+		 * If ring stopped on the TD we need to cancel, then we have to
+		 * move the xHC endpoint ring dequeue pointer past this TD.
+		 */
+		hw_deq = xhci_get_hw_deq(xhci, ep->vdev, ep->ep_index,
+					 td->urb->stream_id);
+		hw_deq &= ~0xf;
+
+		if (trb_in_td(xhci, td->start_seg, td->first_trb,
+			      td->last_trb, hw_deq, false)) {
+			xhci_find_new_dequeue_state(xhci, ep->vdev->slot_id,
+						    ep->ep_index,
+						    td->urb->stream_id,
+						    td, deq_state);
+		} else {
+			td_to_noop(xhci, ring, td, false);
+		}
+
+	}
+	return 0;
+}
+
+/*
  * When we get a command completion for a Stop Endpoint Command, we need to
  * unlink any cancelled TDs from the ring.  There are two ways to do that:
  *
@@ -837,7 +889,6 @@ static void xhci_handle_cmd_stop_ep(struct xhci_hcd *xhci, int slot_id,
 	struct xhci_td *last_unlinked_td;
 	struct xhci_ep_ctx *ep_ctx;
 	struct xhci_virt_device *vdev;
-	u64 hw_deq;
 	struct xhci_dequeue_state deq_state;
 
 	if (unlikely(TRB_TO_SUSPEND_PORT(le32_to_cpu(trb->generic.field[3])))) {
@@ -868,60 +919,7 @@ static void xhci_handle_cmd_stop_ep(struct xhci_hcd *xhci, int slot_id,
 		return;
 	}
 
-	/* Fix up the ep ring first, so HW stops executing cancelled TDs.
-	 * We have the xHCI lock, so nothing can modify this list until we drop
-	 * it.  We're also in the event handler, so we can't get re-interrupted
-	 * if another Stop Endpoint command completes
-	 */
-	list_for_each_entry(cur_td, &ep->cancelled_td_list, cancelled_td_list) {
-		xhci_dbg_trace(xhci, trace_xhci_dbg_cancel_urb,
-				"Removing canceled TD starting at 0x%llx (dma).",
-				(unsigned long long)xhci_trb_virt_to_dma(
-					cur_td->start_seg, cur_td->first_trb));
-		ep_ring = xhci_urb_to_transfer_ring(xhci, cur_td->urb);
-		if (!ep_ring) {
-			/* This shouldn't happen unless a driver is mucking
-			 * with the stream ID after submission.  This will
-			 * leave the TD on the hardware ring, and the hardware
-			 * will try to execute it, and may access a buffer
-			 * that has already been freed.  In the best case, the
-			 * hardware will execute it, and the event handler will
-			 * ignore the completion event for that TD, since it was
-			 * removed from the td_list for that endpoint.  In
-			 * short, don't muck with the stream ID after
-			 * submission.
-			 */
-			xhci_warn(xhci, "WARN Cancelled URB %p "
-					"has invalid stream ID %u.\n",
-					cur_td->urb,
-					cur_td->urb->stream_id);
-			goto remove_finished_td;
-		}
-		/*
-		 * If we stopped on the TD we need to cancel, then we have to
-		 * move the xHC endpoint ring dequeue pointer past this TD.
-		 */
-		hw_deq = xhci_get_hw_deq(xhci, vdev, ep_index,
-					 cur_td->urb->stream_id);
-		hw_deq &= ~0xf;
-
-		if (trb_in_td(xhci, cur_td->start_seg, cur_td->first_trb,
-			      cur_td->last_trb, hw_deq, false)) {
-			xhci_find_new_dequeue_state(xhci, slot_id, ep_index,
-						    cur_td->urb->stream_id,
-						    cur_td, &deq_state);
-		} else {
-			td_to_noop(xhci, ep_ring, cur_td, false);
-		}
-
-remove_finished_td:
-		/*
-		 * The event handler won't see a completion for this TD anymore,
-		 * so remove it from the endpoint ring's TD list.  Keep it in
-		 * the cancelled TD list for URB completion later.
-		 */
-		list_del_init(&cur_td->td_list);
-	}
+	xhci_invalidate_cancelled_tds(ep, &deq_state);
 
 	xhci_stop_watchdog_timer_in_irq(xhci, ep);
 
