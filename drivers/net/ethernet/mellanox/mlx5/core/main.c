@@ -73,6 +73,9 @@
 #include "ecpf.h"
 #include "lib/hv_vhca.h"
 #include "diag/rsc_dump.h"
+#include "sf/vhca_event.h"
+#include "sf/dev/dev.h"
+#include "sf/sf.h"
 
 MODULE_AUTHOR("Eli Cohen <eli@mellanox.com>");
 MODULE_DESCRIPTION("Mellanox 5th generation network adapters (ConnectX series) core driver");
@@ -82,7 +85,6 @@ unsigned int mlx5_core_debug_mask;
 module_param_named(debug_mask, mlx5_core_debug_mask, uint, 0644);
 MODULE_PARM_DESC(debug_mask, "debug mask: 1 = dump cmd data, 2 = dump cmd exec time, 3 = both. Default=0");
 
-#define MLX5_DEFAULT_PROF	2
 static unsigned int prof_sel = MLX5_DEFAULT_PROF;
 module_param_named(prof_sel, prof_sel, uint, 0444);
 MODULE_PARM_DESC(prof_sel, "profile selector. Valid range 0 - 2");
@@ -567,6 +569,8 @@ static int handle_hca_cap(struct mlx5_core_dev *dev, void *set_ctx)
 	if (MLX5_CAP_GEN_MAX(dev, mkey_by_name))
 		MLX5_SET(cmd_hca_cap, set_hca_cap, mkey_by_name, 1);
 
+	mlx5_vhca_state_cap_handle(dev, set_hca_cap);
+
 	return set_caps(dev, set_ctx, MLX5_SET_HCA_CAP_OP_MOD_GENERAL_DEVICE);
 }
 
@@ -884,6 +888,24 @@ static int mlx5_init_once(struct mlx5_core_dev *dev)
 		goto err_eswitch_cleanup;
 	}
 
+	err = mlx5_vhca_event_init(dev);
+	if (err) {
+		mlx5_core_err(dev, "Failed to init vhca event notifier %d\n", err);
+		goto err_fpga_cleanup;
+	}
+
+	err = mlx5_sf_hw_table_init(dev);
+	if (err) {
+		mlx5_core_err(dev, "Failed to init SF HW table %d\n", err);
+		goto err_sf_hw_table_cleanup;
+	}
+
+	err = mlx5_sf_table_init(dev);
+	if (err) {
+		mlx5_core_err(dev, "Failed to init SF table %d\n", err);
+		goto err_sf_table_cleanup;
+	}
+
 	dev->dm = mlx5_dm_create(dev);
 	if (IS_ERR(dev->dm))
 		mlx5_core_warn(dev, "Failed to init device memory%d\n", err);
@@ -894,6 +916,12 @@ static int mlx5_init_once(struct mlx5_core_dev *dev)
 
 	return 0;
 
+err_sf_table_cleanup:
+	mlx5_sf_hw_table_cleanup(dev);
+err_sf_hw_table_cleanup:
+	mlx5_vhca_event_cleanup(dev);
+err_fpga_cleanup:
+	mlx5_fpga_cleanup(dev);
 err_eswitch_cleanup:
 	mlx5_eswitch_cleanup(dev->priv.eswitch);
 err_sriov_cleanup:
@@ -925,6 +953,9 @@ static void mlx5_cleanup_once(struct mlx5_core_dev *dev)
 	mlx5_hv_vhca_destroy(dev->hv_vhca);
 	mlx5_fw_tracer_destroy(dev->tracer);
 	mlx5_dm_cleanup(dev);
+	mlx5_sf_table_cleanup(dev);
+	mlx5_sf_hw_table_cleanup(dev);
+	mlx5_vhca_event_cleanup(dev);
 	mlx5_fpga_cleanup(dev);
 	mlx5_eswitch_cleanup(dev->priv.eswitch);
 	mlx5_sriov_cleanup(dev);
@@ -1129,6 +1160,14 @@ static int mlx5_load(struct mlx5_core_dev *dev)
 		goto err_sriov;
 	}
 
+	mlx5_vhca_event_start(dev);
+
+	err = mlx5_sf_hw_table_create(dev);
+	if (err) {
+		mlx5_core_err(dev, "sf table create failed %d\n", err);
+		goto err_vhca;
+	}
+
 	err = mlx5_ec_init(dev);
 	if (err) {
 		mlx5_core_err(dev, "Failed to init embedded CPU\n");
@@ -1141,11 +1180,16 @@ static int mlx5_load(struct mlx5_core_dev *dev)
 		goto err_sriov;
 	}
 
+	mlx5_sf_dev_table_create(dev);
+
 	return 0;
 
 err_sriov:
 	mlx5_ec_cleanup(dev);
 err_ec:
+	mlx5_sf_hw_table_destroy(dev);
+err_vhca:
+	mlx5_vhca_event_stop(dev);
 	mlx5_cleanup_fs(dev);
 err_fs:
 	mlx5_accel_tls_cleanup(dev);
@@ -1171,8 +1215,11 @@ err_irq_table:
 
 static void mlx5_unload(struct mlx5_core_dev *dev)
 {
+	mlx5_sf_dev_table_destroy(dev);
 	mlx5_sriov_detach(dev);
 	mlx5_ec_cleanup(dev);
+	mlx5_sf_hw_table_destroy(dev);
+	mlx5_vhca_event_stop(dev);
 	mlx5_cleanup_fs(dev);
 	mlx5_accel_ipsec_cleanup(dev);
 	mlx5_accel_tls_cleanup(dev);
@@ -1283,7 +1330,7 @@ out:
 	mutex_unlock(&dev->intf_state_mutex);
 }
 
-static int mlx5_mdev_init(struct mlx5_core_dev *dev, int profile_idx)
+int mlx5_mdev_init(struct mlx5_core_dev *dev, int profile_idx)
 {
 	struct mlx5_priv *priv = &dev->priv;
 	int err;
@@ -1335,7 +1382,7 @@ err_health_init:
 	return err;
 }
 
-static void mlx5_mdev_uninit(struct mlx5_core_dev *dev)
+void mlx5_mdev_uninit(struct mlx5_core_dev *dev)
 {
 	struct mlx5_priv *priv = &dev->priv;
 
@@ -1678,6 +1725,10 @@ static int __init init(void)
 	if (err)
 		goto err_debug;
 
+	err = mlx5_sf_driver_register();
+	if (err)
+		goto err_sf;
+
 #ifdef CONFIG_MLX5_CORE_EN
 	err = mlx5e_init();
 	if (err) {
@@ -1688,6 +1739,8 @@ static int __init init(void)
 
 	return 0;
 
+err_sf:
+	pci_unregister_driver(&mlx5_core_driver);
 err_debug:
 	mlx5_unregister_debugfs();
 	return err;
@@ -1698,6 +1751,7 @@ static void __exit cleanup(void)
 #ifdef CONFIG_MLX5_CORE_EN
 	mlx5e_cleanup();
 #endif
+	mlx5_sf_driver_unregister();
 	pci_unregister_driver(&mlx5_core_driver);
 	mlx5_unregister_debugfs();
 }

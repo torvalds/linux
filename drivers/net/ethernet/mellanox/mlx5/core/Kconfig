@@ -203,3 +203,22 @@ config MLX5_SW_STEERING
 	default y
 	help
 	Build support for software-managed steering in the NIC.
+
+config MLX5_SF
+	bool "Mellanox Technologies subfunction device support using auxiliary device"
+	depends on MLX5_CORE && MLX5_CORE_EN
+	default n
+	help
+	Build support for subfuction device in the NIC. A Mellanox subfunction
+	device can support RDMA, netdevice and vdpa device.
+	It is similar to a SRIOV VF but it doesn't require SRIOV support.
+
+config MLX5_SF_MANAGER
+	bool
+	depends on MLX5_SF && MLX5_ESWITCH
+	default y
+	help
+	Build support for subfuction port in the NIC. A Mellanox subfunction
+	port is managed through devlink.  A subfunction supports RDMA, netdevice
+	and vdpa device. It is similar to a SRIOV VF but it doesn't require
+	SRIOV support.
