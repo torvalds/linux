@@ -6,6 +6,7 @@
  * V0.0X01.0X03 add enum_frame_interval function.
  * V0.0X01.0X04 support lvds interface.
  * V0.0X01.0X05 add quick stream on/off
+ * V0.0X01.0X06 fixed linear mode exp calc
  */
 
 #include <linux/clk.h>
@@ -30,7 +31,7 @@
 #include <linux/pinctrl/consumer.h>
 #include <linux/rk-preisp.h>
 
-#define DRIVER_VERSION			KERNEL_VERSION(0, 0x01, 0x05)
+#define DRIVER_VERSION			KERNEL_VERSION(0, 0x01, 0x06)
 #ifndef V4L2_CID_DIGITAL_GAIN
 #define V4L2_CID_DIGITAL_GAIN		V4L2_CID_GAIN
 #endif
@@ -1626,7 +1627,7 @@ static int imx327_set_ctrl(struct v4l2_ctrl *ctrl)
 	switch (ctrl->id) {
 	case V4L2_CID_VBLANK:
 		/* Update max exposure while meeting expected vblanking */
-		max = imx327->cur_mode->height + ctrl->val - 4;
+		max = imx327->cur_mode->height + ctrl->val - 2;
 		__v4l2_ctrl_modify_range(imx327->exposure,
 					 imx327->exposure->minimum, max,
 					 imx327->exposure->step,
@@ -1639,7 +1640,7 @@ static int imx327_set_ctrl(struct v4l2_ctrl *ctrl)
 
 	switch (ctrl->id) {
 	case V4L2_CID_EXPOSURE:
-		shs1 = imx327->cur_vts - ctrl->val;
+		shs1 = imx327->cur_vts - ctrl->val - 1;
 		ret = imx327_write_reg(imx327->client,
 			IMX327_REG_SHS1_H,
 			IMX327_REG_VALUE_08BIT,
@@ -1781,7 +1782,7 @@ static int imx327_initialize_controls(struct imx327 *imx327)
 				IMX327_VTS_MAX - mode->height,
 				1, vblank_def);
 
-	exposure_max = mode->vts_def - 4;
+	exposure_max = mode->vts_def - 2;
 
 	imx327->exposure = v4l2_ctrl_new_std(handler, &imx327_ctrl_ops,
 				V4L2_CID_EXPOSURE, IMX327_EXPOSURE_MIN,
