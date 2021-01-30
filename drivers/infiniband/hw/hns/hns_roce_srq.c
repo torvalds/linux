@@ -336,6 +336,7 @@ int hns_roce_create_srq(struct ib_srq *ib_srq,
 		roundup_pow_of_two(init_attr->attr.max_sge + srq->rsv_sge);
 	init_attr->attr.max_wr = srq->wqe_cnt;
 	init_attr->attr.max_sge = srq->max_gs;
+	init_attr->attr.srq_limit = 0;
 
 	if (udata) {
 		ret = ib_copy_from_udata(&ucmd, udata,
