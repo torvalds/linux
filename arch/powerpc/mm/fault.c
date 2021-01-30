@@ -545,19 +545,24 @@ NOKPROBE_SYMBOL(__do_page_fault);
 long do_page_fault(struct pt_regs *regs)
 {
 	const struct exception_table_entry *entry;
-	enum ctx_state prev_state = exception_enter();
-	int rc = __do_page_fault(regs, regs->dar, regs->dsisr);
-	exception_exit(prev_state);
-	if (likely(!rc))
-		return 0;
+	enum ctx_state prev_state;
+	long err;
+
+	prev_state = exception_enter();
+	err = __do_page_fault(regs, regs->dar, regs->dsisr);
+	if (likely(!err))
+		goto out;
 
 	entry = search_exception_tables(regs->nip);
-	if (unlikely(!entry))
-		return rc;
+	if (likely(entry)) {
+		instruction_pointer_set(regs, extable_fixup(entry));
+		err = 0;
+	}
 
-	instruction_pointer_set(regs, extable_fixup(entry));
+out:
+	exception_exit(prev_state);
 
-	return 0;
+	return err;
 }
 NOKPROBE_SYMBOL(do_page_fault);
 
