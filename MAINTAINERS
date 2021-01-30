@@ -12540,6 +12540,14 @@ F:	include/net/nfc/
 F:	include/uapi/linux/nfc.h
 F:	net/nfc/
 
+NFC VIRTUAL NCI DEVICE DRIVER
+M:	Bongsu Jeon <bongsu.jeon@samsung.com>
+L:	netdev@vger.kernel.org
+L:	linux-nfc@lists.01.org (moderated for non-subscribers)
+S:	Supported
+F:	drivers/nfc/virtual_ncidev.c
+F:	tools/testing/selftests/nci/
+
 NFS, SUNRPC, AND LOCKD CLIENTS
 M:	Trond Myklebust <trond.myklebust@hammerspace.com>
 M:	Anna Schumaker <anna.schumaker@netapp.com>
