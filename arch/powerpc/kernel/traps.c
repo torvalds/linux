@@ -789,6 +789,19 @@ int machine_check_generic(struct pt_regs *regs)
 }
 #endif /* everything else */
 
+void die_mce(const char *str, struct pt_regs *regs, long err)
+{
+	/*
+	 * The machine check wants to kill the interrupted context, but
+	 * do_exit() checks for in_interrupt() and panics in that case, so
+	 * exit the irq/nmi before calling die.
+	 */
+	if (!IS_ENABLED(CONFIG_PPC_BOOK3S_64))
+		nmi_exit();
+	die(str, regs, err);
+}
+NOKPROBE_SYMBOL(die_mce);
+
 void machine_check_exception(struct pt_regs *regs)
 {
 	int recover = 0;
@@ -831,15 +844,11 @@ void machine_check_exception(struct pt_regs *regs)
 	if (check_io_access(regs))
 		goto bail;
 
-	if (nmi) nmi_exit();
-
-	die("Machine check", regs, SIGBUS);
+	die_mce("Machine check", regs, SIGBUS);
 
 	/* Must die if the interrupt is not recoverable */
 	if (!(regs->msr & MSR_RI))
-		die("Unrecoverable Machine check", regs, SIGBUS);
-
-	return;
+		die_mce("Unrecoverable Machine check", regs, SIGBUS);
 
 bail:
 	if (nmi) nmi_exit();

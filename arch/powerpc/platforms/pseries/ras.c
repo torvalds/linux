@@ -808,7 +808,7 @@ static int recover_mce(struct pt_regs *regs, struct machine_check_event *evt)
 			 */
 			recovered = 0;
 		} else {
-			die("Machine check", regs, SIGBUS);
+			die_mce("Machine check", regs, SIGBUS);
 			recovered = 1;
 		}
 	}
