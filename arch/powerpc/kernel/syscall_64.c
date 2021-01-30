@@ -1,9 +1,11 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 
+#include <linux/context_tracking.h>
 #include <linux/err.h>
 #include <asm/asm-prototypes.h>
 #include <asm/kup.h>
 #include <asm/cputime.h>
+#include <asm/interrupt.h>
 #include <asm/hw_irq.h>
 #include <asm/interrupt.h>
 #include <asm/kprobes.h>
@@ -27,6 +29,9 @@ notrace long system_call_exception(long r3, long r4, long r5,
 
 	if (IS_ENABLED(CONFIG_PPC_IRQ_SOFT_MASK_DEBUG))
 		BUG_ON(irq_soft_mask_return() != IRQS_ALL_DISABLED);
+
+	CT_WARN_ON(ct_state() == CONTEXT_KERNEL);
+	user_exit_irqoff();
 
 	trace_hardirqs_off(); /* finish reconciling */
 
@@ -144,7 +149,7 @@ notrace long system_call_exception(long r3, long r4, long r5,
  * enabled when the interrupt handler returns (indicating a process-context /
  * synchronous interrupt) then irqs_enabled should be true.
  */
-static notrace inline bool prep_irq_for_enabled_exit(bool clear_ri, bool irqs_enabled)
+static notrace inline bool __prep_irq_for_enabled_exit(bool clear_ri)
 {
 	/* This must be done with RI=1 because tracing may touch vmaps */
 	trace_hardirqs_on();
@@ -161,35 +166,43 @@ static notrace inline bool prep_irq_for_enabled_exit(bool clear_ri, bool irqs_en
 		trace_hardirqs_off();
 		local_paca->irq_happened |= PACA_IRQ_HARD_DIS;
 
-		/*
-		 * Must replay pending soft-masked interrupts now. Don't just
-		 * local_irq_enabe(); local_irq_disable(); because if we are
-		 * returning from an asynchronous interrupt here, another one
-		 * might hit after irqs are enabled, and it would exit via this
-		 * same path allowing another to fire, and so on unbounded.
-		 *
-		 * If interrupts were enabled when this interrupt exited,
-		 * indicating a process context (synchronous) interrupt,
-		 * local_irq_enable/disable can be used, which will enable
-		 * interrupts rather than keeping them masked (unclear how
-		 * much benefit this is over just replaying for all cases,
-		 * because we immediately disable again, so all we're really
-		 * doing is allowing hard interrupts to execute directly for
-		 * a very small time, rather than being masked and replayed).
-		 */
-		if (irqs_enabled) {
-			local_irq_enable();
-			local_irq_disable();
-		} else {
-			replay_soft_interrupts();
-		}
-
 		return false;
 	}
 	local_paca->irq_happened = 0;
 	irq_soft_mask_set(IRQS_ENABLED);
 
 	return true;
+}
+
+static notrace inline bool prep_irq_for_enabled_exit(bool clear_ri, bool irqs_enabled)
+{
+	if (__prep_irq_for_enabled_exit(clear_ri))
+		return true;
+
+	/*
+	 * Must replay pending soft-masked interrupts now. Don't just
+	 * local_irq_enabe(); local_irq_disable(); because if we are
+	 * returning from an asynchronous interrupt here, another one
+	 * might hit after irqs are enabled, and it would exit via this
+	 * same path allowing another to fire, and so on unbounded.
+	 *
+	 * If interrupts were enabled when this interrupt exited,
+	 * indicating a process context (synchronous) interrupt,
+	 * local_irq_enable/disable can be used, which will enable
+	 * interrupts rather than keeping them masked (unclear how
+	 * much benefit this is over just replaying for all cases,
+	 * because we immediately disable again, so all we're really
+	 * doing is allowing hard interrupts to execute directly for
+	 * a very small time, rather than being masked and replayed).
+	 */
+	if (irqs_enabled) {
+		local_irq_enable();
+		local_irq_disable();
+	} else {
+		replay_soft_interrupts();
+	}
+
+	return false;
 }
 
 /*
@@ -208,6 +221,8 @@ notrace unsigned long syscall_exit_prepare(unsigned long r3,
 	unsigned long *ti_flagsp = &current_thread_info()->flags;
 	unsigned long ti_flags;
 	unsigned long ret = 0;
+
+	CT_WARN_ON(ct_state() == CONTEXT_USER);
 
 	kuap_check_amr();
 
@@ -240,9 +255,9 @@ notrace unsigned long syscall_exit_prepare(unsigned long r3,
 		ret |= _TIF_RESTOREALL;
 	}
 
+again:
 	local_irq_disable();
 
-again:
 	ti_flags = READ_ONCE(*ti_flagsp);
 	while (unlikely(ti_flags & (_TIF_USER_WORK_MASK & ~_TIF_RESTORE_TM))) {
 		local_irq_enable();
@@ -286,9 +301,14 @@ again:
 		}
 	}
 
+	user_enter_irqoff();
+
 	/* scv need not set RI=0 because SRRs are not used */
-	if (unlikely(!prep_irq_for_enabled_exit(!scv, true)))
+	if (unlikely(!__prep_irq_for_enabled_exit(!scv))) {
+		user_exit_irqoff();
+		local_irq_enable();
 		goto again;
+	}
 
 #ifdef CONFIG_PPC_TRANSACTIONAL_MEM
 	local_paca->tm_scratch = regs->msr;
