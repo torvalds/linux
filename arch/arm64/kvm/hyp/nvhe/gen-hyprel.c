@@ -25,6 +25,7 @@
  */
 
 #include <elf.h>
+#include <endian.h>
 #include <errno.h>
 #include <fcntl.h>
 #include <stdbool.h>
@@ -35,6 +36,8 @@
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <unistd.h>
+
+#include <generated/autoconf.h>
 
 #define HYP_SECTION_PREFIX		".hyp"
 #define HYP_RELOC_SECTION		".hyp.reloc"
@@ -121,6 +124,28 @@ static struct {
 	const char	*sh_string;
 } elf;
 
+#if defined(CONFIG_CPU_LITTLE_ENDIAN)
+
+#define elf16toh(x)	le16toh(x)
+#define elf32toh(x)	le32toh(x)
+#define elf64toh(x)	le64toh(x)
+
+#define ELFENDIAN	ELFDATA2LSB
+
+#elif defined(CONFIG_CPU_BIG_ENDIAN)
+
+#define elf16toh(x)	be16toh(x)
+#define elf32toh(x)	be32toh(x)
+#define elf64toh(x)	be64toh(x)
+
+#define ELFENDIAN	ELFDATA2MSB
+
+#else
+
+#error PDP-endian sadly unsupported...
+
+#endif
+
 #define fatal_error(fmt, ...)						\
 	({								\
 		fprintf(stderr, "error: %s: " fmt "\n",			\
@@ -162,12 +187,12 @@ static struct {
 
 /* Iterate over all sections in the ELF. */
 #define for_each_section(var) \
-	for (var = elf.sh_table; var < elf.sh_table + elf.ehdr->e_shnum; ++var)
+	for (var = elf.sh_table; var < elf.sh_table + elf16toh(elf.ehdr->e_shnum); ++var)
 
 /* Iterate over all Elf64_Rela relocations in a given section. */
 #define for_each_rela(shdr, var)					\
-	for (var = elf_ptr(Elf64_Rela, shdr->sh_offset);		\
-	     var < elf_ptr(Elf64_Rela, shdr->sh_offset + shdr->sh_size); var++)
+	for (var = elf_ptr(Elf64_Rela, elf64toh(shdr->sh_offset));	\
+	     var < elf_ptr(Elf64_Rela, elf64toh(shdr->sh_offset) + elf64toh(shdr->sh_size)); var++)
 
 /* True if a string starts with a given prefix. */
 static inline bool starts_with(const char *str, const char *prefix)
@@ -178,13 +203,13 @@ static inline bool starts_with(const char *str, const char *prefix)
 /* Returns a string containing the name of a given section. */
 static inline const char *section_name(Elf64_Shdr *shdr)
 {
-	return elf.sh_string + shdr->sh_name;
+	return elf.sh_string + elf32toh(shdr->sh_name);
 }
 
 /* Returns a pointer to the first byte of section data. */
 static inline const char *section_begin(Elf64_Shdr *shdr)
 {
-	return elf_ptr(char, shdr->sh_offset);
+	return elf_ptr(char, elf64toh(shdr->sh_offset));
 }
 
 /* Find a section by its offset from the beginning of the file. */
@@ -247,13 +272,13 @@ static void init_elf(const char *path)
 
 	/* Sanity check that this is an ELF64 relocatable object for AArch64. */
 	assert_eq(elf.ehdr->e_ident[EI_CLASS], ELFCLASS64, "%u");
-	assert_eq(elf.ehdr->e_ident[EI_DATA], ELFDATA2LSB, "%u");
-	assert_eq(elf.ehdr->e_type, ET_REL, "%u");
-	assert_eq(elf.ehdr->e_machine, EM_AARCH64, "%u");
+	assert_eq(elf.ehdr->e_ident[EI_DATA], ELFENDIAN, "%u");
+	assert_eq(elf16toh(elf.ehdr->e_type), ET_REL, "%u");
+	assert_eq(elf16toh(elf.ehdr->e_machine), EM_AARCH64, "%u");
 
 	/* Populate fields of the global struct. */
-	elf.sh_table = section_by_off(elf.ehdr->e_shoff);
-	elf.sh_string = section_begin(section_by_idx(elf.ehdr->e_shstrndx));
+	elf.sh_table = section_by_off(elf64toh(elf.ehdr->e_shoff));
+	elf.sh_string = section_begin(section_by_idx(elf16toh(elf.ehdr->e_shstrndx)));
 }
 
 /* Print the prologue of the output ASM file. */
@@ -301,8 +326,8 @@ static void emit_rela_abs64(Elf64_Rela *rela, const char *sh_orig_name)
 	 * is `rela->r_offset`.
 	 */
 	printf(".reloc %lu, R_AARCH64_PREL32, %s%s + 0x%lx\n",
-		reloc_offset, HYP_SECTION_SYMBOL_PREFIX, sh_orig_name,
-		rela->r_offset);
+	       reloc_offset, HYP_SECTION_SYMBOL_PREFIX, sh_orig_name,
+	       elf64toh(rela->r_offset));
 
 	reloc_offset += 4;
 }
@@ -322,7 +347,7 @@ static void emit_epilogue(void)
  */
 static void emit_rela_section(Elf64_Shdr *sh_rela)
 {
-	Elf64_Shdr *sh_orig = &elf.sh_table[sh_rela->sh_info];
+	Elf64_Shdr *sh_orig = &elf.sh_table[elf32toh(sh_rela->sh_info)];
 	const char *sh_orig_name = section_name(sh_orig);
 	Elf64_Rela *rela;
 
@@ -333,10 +358,10 @@ static void emit_rela_section(Elf64_Shdr *sh_rela)
 	emit_section_prologue(sh_orig_name);
 
 	for_each_rela(sh_rela, rela) {
-		uint32_t type = (uint32_t)rela->r_info;
+		uint32_t type = (uint32_t)elf64toh(rela->r_info);
 
 		/* Check that rela points inside the relocated section. */
-		assert_lt(rela->r_offset, sh_orig->sh_size, "0x%lx");
+		assert_lt(elf64toh(rela->r_offset), elf64toh(sh_orig->sh_size), "0x%lx");
 
 		switch (type) {
 		/*
@@ -385,7 +410,7 @@ static void emit_all_relocs(void)
 	Elf64_Shdr *shdr;
 
 	for_each_section(shdr) {
-		switch (shdr->sh_type) {
+		switch (elf32toh(shdr->sh_type)) {
 		case SHT_REL:
 			fatal_error("Unexpected SHT_REL section \"%s\"",
 				section_name(shdr));
