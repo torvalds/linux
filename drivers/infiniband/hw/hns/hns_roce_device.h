@@ -65,6 +65,8 @@
 #define HNS_ROCE_CQE_WCMD_EMPTY_BIT		0x2
 #define HNS_ROCE_MIN_CQE_CNT			16
 
+#define HNS_ROCE_RESERVED_SGE			1
+
 #define HNS_ROCE_MAX_IRQ_NUM			128
 
 #define HNS_ROCE_SGE_IN_WQE			2
@@ -395,6 +397,7 @@ struct hns_roce_wq {
 	spinlock_t	lock;
 	u32		wqe_cnt;  /* WQE num */
 	u32		max_gs;
+	u32		rsv_sge;
 	int		offset;
 	int		wqe_shift;	/* WQE size */
 	u32		head;
@@ -498,6 +501,7 @@ struct hns_roce_srq {
 	unsigned long		srqn;
 	u32			wqe_cnt;
 	int			max_gs;
+	u32			rsv_sge;
 	int			wqe_shift;
 	void __iomem		*db_reg_l;
 

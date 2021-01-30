@@ -741,6 +741,7 @@ static int hns_roce_v2_post_recv(struct ib_qp *ibqp,
 	unsigned long flags;
 	void *wqe = NULL;
 	u32 wqe_idx;
+	u32 max_sge;
 	int nreq;
 	int ret;
 	int i;
@@ -754,6 +755,7 @@ static int hns_roce_v2_post_recv(struct ib_qp *ibqp,
 		goto out;
 	}
 
+	max_sge = hr_qp->rq.max_gs - hr_qp->rq.rsv_sge;
 	for (nreq = 0; wr; ++nreq, wr = wr->next) {
 		if (unlikely(hns_roce_wq_overflow(&hr_qp->rq, nreq,
 						  hr_qp->ibqp.recv_cq))) {
@@ -764,9 +766,9 @@ static int hns_roce_v2_post_recv(struct ib_qp *ibqp,
 
 		wqe_idx = (hr_qp->rq.head + nreq) & (hr_qp->rq.wqe_cnt - 1);
 
-		if (unlikely(wr->num_sge > hr_qp->rq.max_gs)) {
+		if (unlikely(wr->num_sge > max_sge)) {
 			ibdev_err(ibdev, "num_sge = %d >= max_sge = %u.\n",
-				  wr->num_sge, hr_qp->rq.max_gs);
+				  wr->num_sge, max_sge);
 			ret = -EINVAL;
 			*bad_wr = wr;
 			goto out;
@@ -781,9 +783,10 @@ static int hns_roce_v2_post_recv(struct ib_qp *ibqp,
 			dseg++;
 		}
 
-		if (wr->num_sge < hr_qp->rq.max_gs) {
+		if (hr_qp->rq.rsv_sge) {
 			dseg->lkey = cpu_to_le32(HNS_ROCE_INVALID_LKEY);
 			dseg->addr = 0;
+			dseg->len = cpu_to_le32(HNS_ROCE_INVALID_SGE_LENGTH);
 		}
 
 		/* rq support inline data */
@@ -879,6 +882,7 @@ static int hns_roce_v2_post_srq_recv(struct ib_srq *ibsrq,
 	__le32 *srq_idx;
 	int ret = 0;
 	int wqe_idx;
+	u32 max_sge;
 	void *wqe;
 	int nreq;
 	int i;
@@ -886,9 +890,13 @@ static int hns_roce_v2_post_srq_recv(struct ib_srq *ibsrq,
 	spin_lock_irqsave(&srq->lock, flags);
 
 	ind = srq->head & (srq->wqe_cnt - 1);
+	max_sge = srq->max_gs - srq->rsv_sge;
 
 	for (nreq = 0; wr; ++nreq, wr = wr->next) {
-		if (unlikely(wr->num_sge >= srq->max_gs)) {
+		if (unlikely(wr->num_sge > max_sge)) {
+			ibdev_err(&hr_dev->ib_dev,
+				  "srq: num_sge = %d, max_sge = %u.\n",
+				  wr->num_sge, max_sge);
 			ret = -EINVAL;
 			*bad_wr = wr;
 			break;
@@ -916,9 +924,9 @@ static int hns_roce_v2_post_srq_recv(struct ib_srq *ibsrq,
 			dseg[i].addr = cpu_to_le64(wr->sg_list[i].addr);
 		}
 
-		if (wr->num_sge < srq->max_gs) {
-			dseg[i].len = 0;
-			dseg[i].lkey = cpu_to_le32(0x100);
+		if (srq->rsv_sge) {
+			dseg[i].len = cpu_to_le32(HNS_ROCE_INVALID_SGE_LENGTH);
+			dseg[i].lkey = cpu_to_le32(HNS_ROCE_INVALID_LKEY);
 			dseg[i].addr = 0;
 		}
 
@@ -1999,10 +2007,12 @@ static int hns_roce_query_pf_caps(struct hns_roce_dev *hr_dev)
 	caps->max_sq_sg		     = le16_to_cpu(resp_a->max_sq_sg);
 	caps->max_sq_inline	     = le16_to_cpu(resp_a->max_sq_inline);
 	caps->max_rq_sg		     = le16_to_cpu(resp_a->max_rq_sg);
+	caps->max_rq_sg = roundup_pow_of_two(caps->max_rq_sg);
 	caps->max_extend_sg	     = le32_to_cpu(resp_a->max_extend_sg);
 	caps->num_qpc_timer	     = le16_to_cpu(resp_a->num_qpc_timer);
 	caps->num_cqc_timer	     = le16_to_cpu(resp_a->num_cqc_timer);
 	caps->max_srq_sges	     = le16_to_cpu(resp_a->max_srq_sges);
+	caps->max_srq_sges = roundup_pow_of_two(caps->max_srq_sges);
 	caps->num_aeq_vectors	     = resp_a->num_aeq_vectors;
 	caps->num_other_vectors	     = resp_a->num_other_vectors;
 	caps->max_sq_desc_sz	     = resp_a->max_sq_desc_sz;
@@ -5071,7 +5081,7 @@ static int hns_roce_v2_query_qp(struct ib_qp *ibqp, struct ib_qp_attr *qp_attr,
 done:
 	qp_attr->cur_qp_state = qp_attr->qp_state;
 	qp_attr->cap.max_recv_wr = hr_qp->rq.wqe_cnt;
-	qp_attr->cap.max_recv_sge = hr_qp->rq.max_gs;
+	qp_attr->cap.max_recv_sge = hr_qp->rq.max_gs - hr_qp->rq.rsv_sge;
 
 	if (!ibqp->uobject) {
 		qp_attr->cap.max_send_wr = hr_qp->sq.wqe_cnt;
@@ -5383,7 +5393,7 @@ static int hns_roce_v2_query_srq(struct ib_srq *ibsrq, struct ib_srq_attr *attr)
 
 	attr->srq_limit = limit_wl;
 	attr->max_wr = srq->wqe_cnt - 1;
-	attr->max_sge = srq->max_gs;
+	attr->max_sge = srq->max_gs - srq->rsv_sge;
 
 out:
 	hns_roce_free_cmd_mailbox(hr_dev, mailbox);
