@@ -517,6 +517,7 @@ out:
 
 	/* What should we do here? We could issue a shutdown or hard reset. */
 }
+NOKPROBE_SYMBOL(system_reset_exception);
 
 /*
  * I/O accesses can cause machine checks on powermacs.
@@ -843,6 +844,7 @@ void machine_check_exception(struct pt_regs *regs)
 bail:
 	if (nmi) nmi_exit();
 }
+NOKPROBE_SYMBOL(machine_check_exception);
 
 void SMIException(struct pt_regs *regs)
 {
