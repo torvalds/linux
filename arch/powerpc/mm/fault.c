@@ -564,14 +564,7 @@ NOKPROBE_SYMBOL(__do_page_fault);
 
 DEFINE_INTERRUPT_HANDLER_RET(do_page_fault)
 {
-	enum ctx_state prev_state = exception_enter();
-	long err;
-
-	err = __do_page_fault(regs);
-
-	exception_exit(prev_state);
-
-	return err;
+	return __do_page_fault(regs);
 }
 NOKPROBE_SYMBOL(do_page_fault);
 
