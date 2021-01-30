@@ -19,6 +19,10 @@
 
 #include "br_private.h"
 
+/* IMPORTANT: new bridge options must be added with netlink support only
+ *            please do not add new sysfs entries
+ */
+
 #define to_bridge(cd)	((struct net_bridge *)netdev_priv(to_net_dev(cd)))
 
 /*
