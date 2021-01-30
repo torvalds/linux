@@ -39,11 +39,9 @@ properties:
 
   i2c-gpio,delay-us:
     description: delay between GPIO operations (may depend on each platform)
-    $ref: /schemas/types.yaml#/definitions/uint32
 
   i2c-gpio,timeout-ms:
     description: timeout to get data
-    $ref: /schemas/types.yaml#/definitions/uint32
 
   # Deprecated properties, do not use in new device tree sources:
   gpios:
