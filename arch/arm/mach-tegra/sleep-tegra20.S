@@ -43,11 +43,34 @@
 #define APB_MISC_XM2CFGCPADCTRL2	0x8e4
 #define APB_MISC_XM2CFGDPADCTRL2	0x8e8
 
-.macro pll_enable, rd, r_car_base, pll_base
+#define PLLC_STORE_MASK			(1 << 0)
+#define PLLM_STORE_MASK			(1 << 1)
+#define PLLP_STORE_MASK			(1 << 2)
+
+.macro test_pll_state, rd, test_mask
+	ldr	\rd, tegra_pll_state
+	tst	\rd, #\test_mask
+.endm
+
+.macro store_pll_state, rd, tmp, r_car_base, pll_base, pll_mask
+	ldr	\rd, [\r_car_base, #\pll_base]
+	tst	\rd, #(1 << 30)
+	ldr	\rd, tegra_pll_state
+	biceq	\rd, \rd, #\pll_mask
+	orrne	\rd, \rd, #\pll_mask
+	adr	\tmp, tegra_pll_state
+	str	\rd, [\tmp]
+.endm
+
+.macro pll_enable, rd, r_car_base, pll_base, test_mask
+	test_pll_state \rd, \test_mask
+	beq	1f
+
 	ldr	\rd, [\r_car_base, #\pll_base]
 	tst	\rd, #(1 << 30)
 	orreq	\rd, \rd, #(1 << 30)
 	streq	\rd, [\r_car_base, #\pll_base]
+1:
 .endm
 
 .macro emc_device_mask, rd, base
@@ -177,9 +200,9 @@ ENTRY(tegra20_lp1_reset)
 	str	r1, [r0, #CLK_RESET_CCLK_DIVIDER]
 	str	r1, [r0, #CLK_RESET_SCLK_DIVIDER]
 
-	pll_enable r1, r0, CLK_RESET_PLLM_BASE
-	pll_enable r1, r0, CLK_RESET_PLLP_BASE
-	pll_enable r1, r0, CLK_RESET_PLLC_BASE
+	pll_enable r1, r0, CLK_RESET_PLLM_BASE, PLLM_STORE_MASK
+	pll_enable r1, r0, CLK_RESET_PLLP_BASE, PLLP_STORE_MASK
+	pll_enable r1, r0, CLK_RESET_PLLC_BASE, PLLC_STORE_MASK
 
 	adr	r2, tegra20_sdram_pad_address
 	adr	r4, tegra20_sdram_pad_save
@@ -269,6 +292,10 @@ tegra20_switch_cpu_to_clk32k:
 	ldr	r1, [r7]
 	add	r1, r1, #2
 	wait_until r1, r7, r9
+
+	store_pll_state r0, r1, r5, CLK_RESET_PLLC_BASE, PLLC_STORE_MASK
+	store_pll_state r0, r1, r5, CLK_RESET_PLLM_BASE, PLLM_STORE_MASK
+	store_pll_state r0, r1, r5, CLK_RESET_PLLP_BASE, PLLP_STORE_MASK
 
 	/* disable PLLM, PLLP and PLLC */
 	ldr	r0, [r5, #CLK_RESET_PLLM_BASE]
@@ -395,6 +422,9 @@ tegra20_sdram_pad_save:
 	.rept (tegra20_sdram_pad_size - tegra20_sdram_pad_address) / 4
 	.long	0
 	.endr
+
+tegra_pll_state:
+	.word	0x0
 
 	.ltorg
 /* dummy symbol for end of IRAM */
