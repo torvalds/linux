@@ -606,6 +606,8 @@
 };
 
 &mmc3 {
+	#address-cells = <1>;
+	#size-cells = <0>;
 	status = "okay";
 	bus-width = <4>;
 	pinctrl-names = "default";
@@ -615,6 +617,11 @@
 	mmc-pwrseq = <&sdio_pwrseq>;
 	vmmc-supply = <&vcc3v3>;
 	vqmmc-supply = <&vcc1v8>;
+	atheros@0 {
+		compatible = "atheros,ath6kl";
+		reg = <0>;
+		bus-width = <4>;
+	};
 };
 
 &tps {
