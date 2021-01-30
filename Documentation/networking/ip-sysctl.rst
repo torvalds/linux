@@ -1196,7 +1196,7 @@ icmp_errors_use_inbound_ifaddr - BOOLEAN
 
 	If non-zero, the message will be sent with the primary address of
 	the interface that received the packet that caused the icmp error.
-	This is the behaviour network many administrators will expect from
+	This is the behaviour many network administrators will expect from
 	a router. And it can make debugging complicated network layouts
 	much easier.
 
