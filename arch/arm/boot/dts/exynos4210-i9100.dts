@@ -384,6 +384,8 @@
 		pinctrl-0 = <&max8997_irq>, <&otg_gp>, <&usb_sel>;
 		pinctrl-names = "default";
 
+		charger-supply = <&charger_reg>;
+
 		regulators {
 			vadc_reg: LDO1 {
 				regulator-name = "VADC_3.3V_C210";
