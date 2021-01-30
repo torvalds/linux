@@ -3,6 +3,7 @@
 #define _ASM_POWERPC_INTERRUPT_H
 
 #include <linux/context_tracking.h>
+#include <linux/hardirq.h>
 #include <asm/ftrace.h>
 
 struct interrupt_state {
@@ -297,5 +298,11 @@ DECLARE_INTERRUPT_HANDLER_ASYNC(TAUException);
 
 void replay_system_reset(void);
 void replay_soft_interrupts(void);
+
+static inline void interrupt_cond_local_irq_enable(struct pt_regs *regs)
+{
+	if (!arch_irq_disabled_regs(regs))
+		local_irq_enable();
+}
 
 #endif /* _ASM_POWERPC_INTERRUPT_H */
