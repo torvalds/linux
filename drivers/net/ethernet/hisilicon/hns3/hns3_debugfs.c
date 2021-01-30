@@ -7,7 +7,7 @@
 #include "hnae3.h"
 #include "hns3_enet.h"
 
-#define HNS3_DBG_READ_LEN 256
+#define HNS3_DBG_READ_LEN 65536
 #define HNS3_DBG_WRITE_LEN 1024
 
 static struct dentry *hns3_dbgfs_root;
@@ -484,6 +484,42 @@ static ssize_t hns3_dbg_cmd_write(struct file *filp, const char __user *buffer,
 	return count;
 }
 
+static ssize_t hns3_dbg_read(struct file *filp, char __user *buffer,
+			     size_t count, loff_t *ppos)
+{
+	struct hnae3_handle *handle = filp->private_data;
+	const struct hnae3_ae_ops *ops = handle->ae_algo->ops;
+	struct hns3_nic_priv *priv = handle->priv;
+	char *cmd_buf, *read_buf;
+	ssize_t size = 0;
+	int ret = 0;
+
+	if (!filp->f_path.dentry->d_iname)
+		return -EINVAL;
+
+	read_buf = kzalloc(HNS3_DBG_READ_LEN, GFP_KERNEL);
+	if (!read_buf)
+		return -ENOMEM;
+
+	cmd_buf = filp->f_path.dentry->d_iname;
+
+	if (ops->dbg_read_cmd)
+		ret = ops->dbg_read_cmd(handle, cmd_buf, read_buf,
+					HNS3_DBG_READ_LEN);
+
+	if (ret) {
+		dev_info(priv->dev, "unknown command\n");
+		goto out;
+	}
+
+	size = simple_read_from_buffer(buffer, count, ppos, read_buf,
+				       strlen(read_buf));
+
+out:
+	kfree(read_buf);
+	return size;
+}
+
 static const struct file_operations hns3_dbg_cmd_fops = {
 	.owner = THIS_MODULE,
 	.open  = simple_open,
@@ -491,14 +527,31 @@ static const struct file_operations hns3_dbg_cmd_fops = {
 	.write = hns3_dbg_cmd_write,
 };
 
+static const struct file_operations hns3_dbg_fops = {
+	.owner = THIS_MODULE,
+	.open  = simple_open,
+	.read  = hns3_dbg_read,
+};
+
 void hns3_dbg_init(struct hnae3_handle *handle)
 {
+	struct hnae3_ae_dev *ae_dev = pci_get_drvdata(handle->pdev);
 	const char *name = pci_name(handle->pdev);
+	struct dentry *entry_dir;
 
 	handle->hnae3_dbgfs = debugfs_create_dir(name, hns3_dbgfs_root);
 
 	debugfs_create_file("cmd", 0600, handle->hnae3_dbgfs, handle,
 			    &hns3_dbg_cmd_fops);
+
+	entry_dir = debugfs_create_dir("tm", handle->hnae3_dbgfs);
+	if (ae_dev->dev_version > HNAE3_DEVICE_VERSION_V2)
+		debugfs_create_file(HNAE3_DBG_TM_NODES, 0600, entry_dir, handle,
+				    &hns3_dbg_fops);
+	debugfs_create_file(HNAE3_DBG_TM_PRI, 0600, entry_dir, handle,
+			    &hns3_dbg_fops);
+	debugfs_create_file(HNAE3_DBG_TM_QSET, 0600, entry_dir, handle,
+			    &hns3_dbg_fops);
 }
 
 void hns3_dbg_uninit(struct hnae3_handle *handle)
