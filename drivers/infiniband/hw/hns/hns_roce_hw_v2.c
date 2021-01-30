@@ -860,7 +860,7 @@ int hns_roce_srqwq_overflow(struct hns_roce_srq *srq, int nreq)
 	unsigned int cur;
 
 	cur = idx_que->head - idx_que->tail;
-	return cur + nreq >= srq->wqe_cnt - 1;
+	return cur + nreq >= srq->wqe_cnt;
 }
 
 static int find_empty_entry(struct hns_roce_idx_que *idx_que,
@@ -5338,7 +5338,7 @@ static int hns_roce_v2_modify_srq(struct ib_srq *ibsrq,
 		return -EINVAL;
 
 	if (srq_attr_mask & IB_SRQ_LIMIT) {
-		if (srq_attr->srq_limit >= srq->wqe_cnt)
+		if (srq_attr->srq_limit > srq->wqe_cnt)
 			return -EINVAL;
 
 		mailbox = hns_roce_alloc_cmd_mailbox(hr_dev);
@@ -5401,7 +5401,7 @@ static int hns_roce_v2_query_srq(struct ib_srq *ibsrq, struct ib_srq_attr *attr)
 				  SRQC_BYTE_8_SRQ_LIMIT_WL_S);
 
 	attr->srq_limit = limit_wl;
-	attr->max_wr = srq->wqe_cnt - 1;
+	attr->max_wr = srq->wqe_cnt;
 	attr->max_sge = srq->max_gs - srq->rsv_sge;
 
 out:

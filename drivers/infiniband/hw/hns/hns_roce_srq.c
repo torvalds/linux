@@ -320,7 +320,7 @@ int hns_roce_create_srq(struct ib_srq *ib_srq,
 
 	max_sge = proc_srq_sge(hr_dev, srq, !!udata);
 
-	if (init_attr->attr.max_wr >= hr_dev->caps.max_srq_wrs ||
+	if (init_attr->attr.max_wr > hr_dev->caps.max_srq_wrs ||
 	    init_attr->attr.max_sge > max_sge) {
 		ibdev_err(&hr_dev->ib_dev,
 			  "SRQ config error, depth = %u, sge = %d\n",
@@ -331,7 +331,9 @@ int hns_roce_create_srq(struct ib_srq *ib_srq,
 	mutex_init(&srq->mutex);
 	spin_lock_init(&srq->lock);
 
-	srq->wqe_cnt = roundup_pow_of_two(init_attr->attr.max_wr + 1);
+	init_attr->attr.max_wr = max_t(u32, init_attr->attr.max_wr,
+				       HNS_ROCE_MIN_SRQ_WQE_NUM);
+	srq->wqe_cnt = roundup_pow_of_two(init_attr->attr.max_wr);
 	srq->max_gs =
 		roundup_pow_of_two(init_attr->attr.max_sge + srq->rsv_sge);
 	init_attr->attr.max_wr = srq->wqe_cnt;
