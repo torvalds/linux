@@ -963,16 +963,15 @@ void rkisp_rawrd_set_pic_size(struct rkisp_device *dev,
 {
 	struct rkisp_isp_subdev *sdev = &dev->isp_sdev;
 
-	/* 1. isp20 extend line for normal read back mode to fix internal bug
-	 * 2. rx height should equal to isp height + offset for read back mode
-	 */
+	/* rx height should equal to isp height + offset for read back mode */
+	height = sdev->in_crop.top + sdev->in_crop.height;
+
+	/* isp20 extend line for normal read back mode to fix internal bug */
 	if (dev->isp_ver == ISP_V20 &&
 	    sdev->in_fmt.fmt_type == FMT_BAYER &&
 	    sdev->out_fmt.fmt_type != FMT_BAYER &&
 	    dev->csi_dev.rd_mode == HDR_RDBK_FRAME1)
 		height += RKMODULE_EXTEND_LINE;
-	else if (IS_HDR_RDBK(dev->hdr.op_mode))
-		height = sdev->in_crop.top + sdev->in_crop.height;
 
 	rkisp_write(dev, CSI2RX_RAW_RD_PIC_SIZE, height << 16 | width, false);
 }
