@@ -662,10 +662,43 @@ struct ubifs_scan_leb *ubifs_recover_leb(struct ubifs_info *c, int lnum,
 			offs += ret;
 			buf += ret;
 			len -= ret;
-		} else if (ret == SCANNED_EMPTY_SPACE ||
-			   ret == SCANNED_GARBAGE     ||
-			   ret == SCANNED_A_BAD_PAD_NODE ||
-			   ret == SCANNED_A_CORRUPT_NODE) {
+		} else if (ret == SCANNED_A_CORRUPT_NODE) {
+			dbg_rcvry("found corruption (%d) at %d:%d",
+				  ret, lnum, offs);
+			if (ubifs_check_node(c, buf, lnum, offs, 1, 1) == -EUCLEAN &&
+			    !no_more_nodes(c, buf, len, lnum, offs)) {
+				int skip;
+				struct ubifs_ch *ch = buf;
+
+				/*
+				 * If the flash voltage power down suddenly in the programming
+				 * process, it may lead to abnormal data written by the flash
+				 * in the low-voltage operation process, and the last data
+				 * should be discarded.
+				 */
+				ubifs_msg(c, "recovery corrupt node\n");
+				skip = ALIGN(offs + le32_to_cpu(ch->len), c->max_write_size) - offs;
+				memset(buf + skip, 0xff, len - skip);
+			}
+
+			break;
+		} else if (ret == SCANNED_EMPTY_SPACE) {
+			dbg_rcvry("found corruption (%d) at %d:%d",
+				  ret, lnum, offs);
+			if (!is_empty(buf, len) && !is_last_write(c, buf, offs)) {
+				/*
+				 * If the flash voltage power down suddenly in the programming
+				 * process, it may lead to the data was programmed to the wroge
+				 * page written by the flash in the low-voltage operation process,
+				 * and the data should be discarded.
+				 */
+				ubifs_msg(c, "recovery empty space\n");
+				memset(buf, 0xff, len);
+			}
+
+			break;
+		} else if (ret == SCANNED_GARBAGE     ||
+			   ret == SCANNED_A_BAD_PAD_NODE) {
 			dbg_rcvry("found corruption (%d) at %d:%d",
 				  ret, lnum, offs);
 			break;
