@@ -846,11 +846,11 @@ void machine_check_exception(struct pt_regs *regs)
 
 	die_mce("Machine check", regs, SIGBUS);
 
+bail:
 	/* Must die if the interrupt is not recoverable */
 	if (!(regs->msr & MSR_RI))
 		die_mce("Unrecoverable Machine check", regs, SIGBUS);
 
-bail:
 	if (nmi) nmi_exit();
 }
 NOKPROBE_SYMBOL(machine_check_exception);
