@@ -203,7 +203,6 @@ static char *qperf_names[] = {
 	"SIGA write",
 	"SIGA sync",
 	"Inbound calls",
-	"Inbound handler",
 	"Inbound stop_polling",
 	"Inbound queue full",
 	"Outbound calls",

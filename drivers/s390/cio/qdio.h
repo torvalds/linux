@@ -146,7 +146,6 @@ struct qdio_dev_perf_stat {
 	unsigned int siga_sync;
 
 	unsigned int inbound_call;
-	unsigned int inbound_handler;
 	unsigned int stop_polling;
 	unsigned int inbound_queue_full;
 	unsigned int outbound_call;

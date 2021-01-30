@@ -545,28 +545,6 @@ static inline unsigned long qdio_aob_for_buffer(struct qdio_output_q *q,
 	return phys_aob;
 }
 
-static void qdio_kick_handler(struct qdio_q *q, unsigned int start,
-			      unsigned int count)
-{
-	if (unlikely(q->irq_ptr->state != QDIO_IRQ_STATE_ACTIVE))
-		return;
-
-	if (q->is_input_q) {
-		qperf_inc(q, inbound_handler);
-		DBF_DEV_EVENT(DBF_INFO, q->irq_ptr, "kih s:%02x c:%02x", start, count);
-	} else {
-		qperf_inc(q, outbound_handler);
-		DBF_DEV_EVENT(DBF_INFO, q->irq_ptr, "koh: s:%02x c:%02x",
-			      start, count);
-	}
-
-	q->handler(q->irq_ptr->cdev, q->qdio_error, q->nr, start, count,
-		   q->irq_ptr->int_parm);
-
-	/* for the next time */
-	q->qdio_error = 0;
-}
-
 static inline int qdio_tasklet_schedule(struct qdio_q *q)
 {
 	if (likely(q->irq_ptr->state == QDIO_IRQ_STATE_ACTIVE)) {
@@ -729,7 +707,18 @@ void qdio_outbound_tasklet(struct tasklet_struct *t)
 	count = qdio_outbound_q_moved(q, start);
 	if (count) {
 		q->first_to_check = add_buf(start, count);
-		qdio_kick_handler(q, start, count);
+
+		if (q->irq_ptr->state == QDIO_IRQ_STATE_ACTIVE) {
+			qperf_inc(q, outbound_handler);
+			DBF_DEV_EVENT(DBF_INFO, q->irq_ptr, "koh: s:%02x c:%02x",
+				      start, count);
+
+			q->handler(q->irq_ptr->cdev, q->qdio_error, q->nr,
+				   start, count, q->irq_ptr->int_parm);
+
+			/* for the next time */
+			q->qdio_error = 0;
+		}
 	}
 
 	if (queue_type(q) == QDIO_ZFCP_QFMT && !pci_out_supported(q->irq_ptr) &&
