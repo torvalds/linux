@@ -367,23 +367,60 @@ struct hns_roce_v2_cq_context {
 #define CQC_STASH CQC_FIELD_LOC(63, 63)
 
 struct hns_roce_srq_context {
-	__le32	byte_4_srqn_srqst;
-	__le32	byte_8_limit_wl;
-	__le32	byte_12_xrcd;
-	__le32	byte_16_pi_ci;
-	__le32	wqe_bt_ba;
-	__le32	byte_24_wqe_bt_ba;
-	__le32	byte_28_rqws_pd;
-	__le32	idx_bt_ba;
-	__le32	rsv_idx_bt_ba;
-	__le32	idx_cur_blk_addr;
-	__le32	byte_44_idxbufpgsz_addr;
-	__le32	idx_nxt_blk_addr;
-	__le32	rsv_idxnxtblkaddr;
-	__le32	byte_56_xrc_cqn;
-	__le32	db_record_addr_record_en;
-	__le32	db_record_addr;
+	__le32 byte_4_srqn_srqst;
+	__le32 byte_8_limit_wl;
+	__le32 byte_12_xrcd;
+	__le32 byte_16_pi_ci;
+	__le32 wqe_bt_ba;
+	__le32 byte_24_wqe_bt_ba;
+	__le32 byte_28_rqws_pd;
+	__le32 idx_bt_ba;
+	__le32 rsv_idx_bt_ba;
+	__le32 idx_cur_blk_addr;
+	__le32 byte_44_idxbufpgsz_addr;
+	__le32 idx_nxt_blk_addr;
+	__le32 rsv_idxnxtblkaddr;
+	__le32 byte_56_xrc_cqn;
+	__le32 db_record_addr_record_en;
+	__le32 db_record_addr;
 };
+
+#define SRQC_FIELD_LOC(h, l) FIELD_LOC(struct hns_roce_srq_context, h, l)
+
+#define SRQC_SRQ_ST SRQC_FIELD_LOC(1, 0)
+#define SRQC_WQE_HOP_NUM SRQC_FIELD_LOC(3, 2)
+#define SRQC_SHIFT SRQC_FIELD_LOC(7, 4)
+#define SRQC_SRQN SRQC_FIELD_LOC(31, 8)
+#define SRQC_LIMIT_WL SRQC_FIELD_LOC(47, 32)
+#define SRQC_RSV0 SRQC_FIELD_LOC(63, 48)
+#define SRQC_XRCD SRQC_FIELD_LOC(87, 64)
+#define SRQC_RSV1 SRQC_FIELD_LOC(95, 88)
+#define SRQC_PRODUCER_IDX SRQC_FIELD_LOC(111, 96)
+#define SRQC_CONSUMER_IDX SRQC_FIELD_LOC(127, 112)
+#define SRQC_WQE_BT_BA_L SRQC_FIELD_LOC(159, 128)
+#define SRQC_WQE_BT_BA_H SRQC_FIELD_LOC(188, 160)
+#define SRQC_RSV2 SRQC_FIELD_LOC(191, 189)
+#define SRQC_PD SRQC_FIELD_LOC(215, 192)
+#define SRQC_RQWS SRQC_FIELD_LOC(219, 216)
+#define SRQC_RSV3 SRQC_FIELD_LOC(223, 220)
+#define SRQC_IDX_BT_BA_L SRQC_FIELD_LOC(255, 224)
+#define SRQC_IDX_BT_BA_H SRQC_FIELD_LOC(284, 256)
+#define SRQC_RSV4 SRQC_FIELD_LOC(287, 285)
+#define SRQC_IDX_CUR_BLK_ADDR_L SRQC_FIELD_LOC(319, 288)
+#define SRQC_IDX_CUR_BLK_ADDR_H SRQC_FIELD_LOC(339, 320)
+#define SRQC_RSV5 SRQC_FIELD_LOC(341, 340)
+#define SRQC_IDX_HOP_NUM SRQC_FIELD_LOC(343, 342)
+#define SRQC_IDX_BA_PG_SZ SRQC_FIELD_LOC(347, 344)
+#define SRQC_IDX_BUF_PG_SZ SRQC_FIELD_LOC(351, 348)
+#define SRQC_IDX_NXT_BLK_ADDR_L SRQC_FIELD_LOC(383, 352)
+#define SRQC_IDX_NXT_BLK_ADDR_H SRQC_FIELD_LOC(403, 384)
+#define SRQC_RSV6 SRQC_FIELD_LOC(415, 404)
+#define SRQC_XRC_CQN SRQC_FIELD_LOC(439, 416)
+#define SRQC_WQE_BA_PG_SZ SRQC_FIELD_LOC(443, 440)
+#define SRQC_WQE_BUF_PG_SZ SRQC_FIELD_LOC(447, 444)
+#define SRQC_DB_RECORD_EN SRQC_FIELD_LOC(448, 448)
+#define SRQC_DB_RECORD_ADDR_L SRQC_FIELD_LOC(479, 449)
+#define SRQC_DB_RECORD_ADDR_H SRQC_FIELD_LOC(511, 480)
 
 #define SRQC_BYTE_4_SRQ_ST_S 0
 #define SRQC_BYTE_4_SRQ_ST_M GENMASK(1, 0)
