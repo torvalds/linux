@@ -1000,6 +1000,51 @@ out:
 	return ret;
 }
 
+static u64 hellcreek_devlink_vlan_table_get(void *priv)
+{
+	struct hellcreek *hellcreek = priv;
+	u64 count = 0;
+	int i;
+
+	mutex_lock(&hellcreek->reg_lock);
+	for (i = 0; i < VLAN_N_VID; ++i)
+		if (hellcreek->vidmbrcfg[i])
+			count++;
+	mutex_unlock(&hellcreek->reg_lock);
+
+	return count;
+}
+
+static int hellcreek_setup_devlink_resources(struct dsa_switch *ds)
+{
+	struct devlink_resource_size_params size_params;
+	struct hellcreek *hellcreek = ds->priv;
+	int err;
+
+	devlink_resource_size_params_init(&size_params, VLAN_N_VID,
+					  VLAN_N_VID,
+					  1, DEVLINK_RESOURCE_UNIT_ENTRY);
+
+	err = dsa_devlink_resource_register(ds, "VLAN", VLAN_N_VID,
+					    HELLCREEK_DEVLINK_PARAM_ID_VLAN_TABLE,
+					    DEVLINK_RESOURCE_ID_PARENT_TOP,
+					    &size_params);
+	if (err)
+		goto out;
+
+	dsa_devlink_resource_occ_get_register(ds,
+					      HELLCREEK_DEVLINK_PARAM_ID_VLAN_TABLE,
+					      hellcreek_devlink_vlan_table_get,
+					      hellcreek);
+
+	return 0;
+
+out:
+	dsa_devlink_resources_unregister(ds);
+
+	return err;
+}
+
 static int hellcreek_setup(struct dsa_switch *ds)
 {
 	struct hellcreek *hellcreek = ds->priv;
@@ -1053,7 +1098,20 @@ static int hellcreek_setup(struct dsa_switch *ds)
 		return ret;
 	}
 
+	/* Register devlink resources with DSA */
+	ret = hellcreek_setup_devlink_resources(ds);
+	if (ret) {
+		dev_err(hellcreek->dev,
+			"Failed to setup devlink resources!\n");
+		return ret;
+	}
+
 	return 0;
+}
+
+static void hellcreek_teardown(struct dsa_switch *ds)
+{
+	dsa_devlink_resources_unregister(ds);
 }
 
 static void hellcreek_phylink_validate(struct dsa_switch *ds, int port,
@@ -1447,6 +1505,7 @@ static const struct dsa_switch_ops hellcreek_ds_ops = {
 	.port_vlan_del	     = hellcreek_vlan_del,
 	.port_vlan_filtering = hellcreek_vlan_filtering,
 	.setup		     = hellcreek_setup,
+	.teardown	     = hellcreek_teardown,
 };
 
 static int hellcreek_probe(struct platform_device *pdev)
