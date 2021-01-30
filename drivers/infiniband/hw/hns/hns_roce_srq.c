@@ -77,8 +77,7 @@ static int hns_roce_hw_destroy_srq(struct hns_roce_dev *dev,
 				 HNS_ROCE_CMD_TIMEOUT_MSECS);
 }
 
-static int alloc_srqc(struct hns_roce_dev *hr_dev, struct hns_roce_srq *srq,
-		      u32 pdn, u32 cqn, u16 xrcd, u64 db_rec_addr)
+static int alloc_srqc(struct hns_roce_dev *hr_dev, struct hns_roce_srq *srq)
 {
 	struct hns_roce_srq_table *srq_table = &hr_dev->srq_table;
 	struct ib_device *ibdev = &hr_dev->ib_dev;
@@ -133,9 +132,8 @@ static int alloc_srqc(struct hns_roce_dev *hr_dev, struct hns_roce_srq *srq,
 		goto err_xa;
 	}
 
-	hr_dev->hw->write_srqc(hr_dev, srq, pdn, xrcd, cqn, mailbox->buf,
-			       mtts_wqe, mtts_idx, dma_handle_wqe,
-			       dma_handle_idx);
+	hr_dev->hw->write_srqc(hr_dev, srq, mailbox->buf, mtts_wqe, mtts_idx,
+			       dma_handle_wqe, dma_handle_idx);
 
 	ret = hns_roce_hw_create_srq(hr_dev, mailbox, srq->srqn);
 	hns_roce_free_cmd_mailbox(hr_dev, mailbox);
@@ -144,9 +142,7 @@ static int alloc_srqc(struct hns_roce_dev *hr_dev, struct hns_roce_srq *srq,
 		goto err_xa;
 	}
 
-	atomic_set(&srq->refcount, 1);
-	init_completion(&srq->free);
-	return ret;
+	return 0;
 
 err_xa:
 	xa_erase(&srq_table->xa, srq->srqn);
@@ -179,45 +175,13 @@ static void free_srqc(struct hns_roce_dev *hr_dev, struct hns_roce_srq *srq)
 	hns_roce_bitmap_free(&srq_table->bitmap, srq->srqn, BITMAP_NO_RR);
 }
 
-static int alloc_srq_buf(struct hns_roce_dev *hr_dev, struct hns_roce_srq *srq,
-			 struct ib_udata *udata, unsigned long addr)
-{
-	struct ib_device *ibdev = &hr_dev->ib_dev;
-	struct hns_roce_buf_attr buf_attr = {};
-	int err;
-
-	srq->wqe_shift = ilog2(roundup_pow_of_two(max(HNS_ROCE_SGE_SIZE,
-						      HNS_ROCE_SGE_SIZE *
-						      srq->max_gs)));
-
-	buf_attr.page_shift = hr_dev->caps.srqwqe_buf_pg_sz + HNS_HW_PAGE_SHIFT;
-	buf_attr.region[0].size = to_hr_hem_entries_size(srq->wqe_cnt,
-							 srq->wqe_shift);
-	buf_attr.region[0].hopnum = hr_dev->caps.srqwqe_hop_num;
-	buf_attr.region_count = 1;
-
-	err = hns_roce_mtr_create(hr_dev, &srq->buf_mtr, &buf_attr,
-				  hr_dev->caps.srqwqe_ba_pg_sz +
-				  HNS_HW_PAGE_SHIFT, udata, addr);
-	if (err)
-		ibdev_err(ibdev,
-			  "failed to alloc SRQ buf mtr, ret = %d.\n", err);
-
-	return err;
-}
-
-static void free_srq_buf(struct hns_roce_dev *hr_dev, struct hns_roce_srq *srq)
-{
-	hns_roce_mtr_destroy(hr_dev, &srq->buf_mtr);
-}
-
 static int alloc_srq_idx(struct hns_roce_dev *hr_dev, struct hns_roce_srq *srq,
 			 struct ib_udata *udata, unsigned long addr)
 {
 	struct hns_roce_idx_que *idx_que = &srq->idx_que;
 	struct ib_device *ibdev = &hr_dev->ib_dev;
 	struct hns_roce_buf_attr buf_attr = {};
-	int err;
+	int ret;
 
 	srq->idx_que.entry_shift = ilog2(HNS_ROCE_IDX_QUE_ENTRY_SZ);
 
@@ -227,20 +191,20 @@ static int alloc_srq_idx(struct hns_roce_dev *hr_dev, struct hns_roce_srq *srq,
 	buf_attr.region[0].hopnum = hr_dev->caps.idx_hop_num;
 	buf_attr.region_count = 1;
 
-	err = hns_roce_mtr_create(hr_dev, &idx_que->mtr, &buf_attr,
+	ret = hns_roce_mtr_create(hr_dev, &idx_que->mtr, &buf_attr,
 				  hr_dev->caps.idx_ba_pg_sz + HNS_HW_PAGE_SHIFT,
 				  udata, addr);
-	if (err) {
+	if (ret) {
 		ibdev_err(ibdev,
-			  "failed to alloc SRQ idx mtr, ret = %d.\n", err);
-		return err;
+			  "failed to alloc SRQ idx mtr, ret = %d.\n", ret);
+		return ret;
 	}
 
 	if (!udata) {
 		idx_que->bitmap = bitmap_zalloc(srq->wqe_cnt, GFP_KERNEL);
 		if (!idx_que->bitmap) {
 			ibdev_err(ibdev, "failed to alloc SRQ idx bitmap.\n");
-			err = -ENOMEM;
+			ret = -ENOMEM;
 			goto err_idx_mtr;
 		}
 	}
@@ -252,7 +216,7 @@ static int alloc_srq_idx(struct hns_roce_dev *hr_dev, struct hns_roce_srq *srq,
 err_idx_mtr:
 	hns_roce_mtr_destroy(hr_dev, &idx_que->mtr);
 
-	return err;
+	return ret;
 }
 
 static void free_srq_idx(struct hns_roce_dev *hr_dev, struct hns_roce_srq *srq)
@@ -262,6 +226,40 @@ static void free_srq_idx(struct hns_roce_dev *hr_dev, struct hns_roce_srq *srq)
 	bitmap_free(idx_que->bitmap);
 	idx_que->bitmap = NULL;
 	hns_roce_mtr_destroy(hr_dev, &idx_que->mtr);
+}
+
+static int alloc_srq_wqe_buf(struct hns_roce_dev *hr_dev,
+			     struct hns_roce_srq *srq,
+			     struct ib_udata *udata, unsigned long addr)
+{
+	struct ib_device *ibdev = &hr_dev->ib_dev;
+	struct hns_roce_buf_attr buf_attr = {};
+	int ret;
+
+	srq->wqe_shift = ilog2(roundup_pow_of_two(max(HNS_ROCE_SGE_SIZE,
+						      HNS_ROCE_SGE_SIZE *
+						      srq->max_gs)));
+
+	buf_attr.page_shift = hr_dev->caps.srqwqe_buf_pg_sz + HNS_HW_PAGE_SHIFT;
+	buf_attr.region[0].size = to_hr_hem_entries_size(srq->wqe_cnt,
+							 srq->wqe_shift);
+	buf_attr.region[0].hopnum = hr_dev->caps.srqwqe_hop_num;
+	buf_attr.region_count = 1;
+
+	ret = hns_roce_mtr_create(hr_dev, &srq->buf_mtr, &buf_attr,
+				  hr_dev->caps.srqwqe_ba_pg_sz +
+				  HNS_HW_PAGE_SHIFT, udata, addr);
+	if (ret)
+		ibdev_err(ibdev,
+			  "failed to alloc SRQ buf mtr, ret = %d.\n", ret);
+
+	return ret;
+}
+
+static void free_srq_wqe_buf(struct hns_roce_dev *hr_dev,
+			     struct hns_roce_srq *srq)
+{
+	hns_roce_mtr_destroy(hr_dev, &srq->buf_mtr);
 }
 
 static int alloc_srq_wrid(struct hns_roce_dev *hr_dev, struct hns_roce_srq *srq)
@@ -301,6 +299,104 @@ static u32 proc_srq_sge(struct hns_roce_dev *dev, struct hns_roce_srq *hr_srq,
 	return max_sge;
 }
 
+static int set_srq_basic_param(struct hns_roce_srq *srq,
+			       struct ib_srq_init_attr *init_attr,
+			       struct ib_udata *udata)
+{
+	struct hns_roce_dev *hr_dev = to_hr_dev(srq->ibsrq.device);
+	struct ib_srq_attr *attr = &init_attr->attr;
+	u32 max_sge;
+
+	max_sge = proc_srq_sge(hr_dev, srq, !!udata);
+	if (attr->max_wr > hr_dev->caps.max_srq_wrs ||
+	    attr->max_sge > max_sge) {
+		ibdev_err(&hr_dev->ib_dev,
+			  "invalid SRQ attr, depth = %u, sge = %u.\n",
+			  attr->max_wr, attr->max_sge);
+		return -EINVAL;
+	}
+
+	attr->max_wr = max_t(u32, attr->max_wr, HNS_ROCE_MIN_SRQ_WQE_NUM);
+	srq->wqe_cnt = roundup_pow_of_two(attr->max_wr);
+	srq->max_gs = roundup_pow_of_two(attr->max_sge + srq->rsv_sge);
+
+	attr->max_wr = srq->wqe_cnt;
+	attr->max_sge = srq->max_gs - srq->rsv_sge;
+	attr->srq_limit = 0;
+
+	return 0;
+}
+
+static void set_srq_ext_param(struct hns_roce_srq *srq,
+			      struct ib_srq_init_attr *init_attr)
+{
+	srq->cqn = ib_srq_has_cq(init_attr->srq_type) ?
+		   to_hr_cq(init_attr->ext.cq)->cqn : 0;
+}
+
+static int set_srq_param(struct hns_roce_srq *srq,
+			 struct ib_srq_init_attr *init_attr,
+			 struct ib_udata *udata)
+{
+	int ret;
+
+	ret = set_srq_basic_param(srq, init_attr, udata);
+	if (ret)
+		return ret;
+
+	set_srq_ext_param(srq, init_attr);
+
+	return 0;
+}
+
+static int alloc_srq_buf(struct hns_roce_dev *hr_dev, struct hns_roce_srq *srq,
+			 struct ib_udata *udata)
+{
+	struct hns_roce_ib_create_srq ucmd = {};
+	int ret;
+
+	if (udata) {
+		ret = ib_copy_from_udata(&ucmd, udata,
+					 min(udata->inlen, sizeof(ucmd)));
+		if (ret) {
+			ibdev_err(&hr_dev->ib_dev,
+				  "failed to copy SRQ udata, ret = %d.\n",
+				  ret);
+			return ret;
+		}
+	}
+
+	ret = alloc_srq_idx(hr_dev, srq, udata, ucmd.que_addr);
+	if (ret)
+		return ret;
+
+	ret = alloc_srq_wqe_buf(hr_dev, srq, udata, ucmd.buf_addr);
+	if (ret)
+		goto err_idx;
+
+	if (!udata) {
+		ret = alloc_srq_wrid(hr_dev, srq);
+		if (ret)
+			goto err_wqe_buf;
+	}
+
+	return 0;
+
+err_wqe_buf:
+	free_srq_wqe_buf(hr_dev, srq);
+err_idx:
+	free_srq_idx(hr_dev, srq);
+
+	return ret;
+}
+
+static void free_srq_buf(struct hns_roce_dev *hr_dev, struct hns_roce_srq *srq)
+{
+	free_srq_wrid(srq);
+	free_srq_wqe_buf(hr_dev, srq);
+	free_srq_idx(hr_dev, srq);
+}
+
 int hns_roce_create_srq(struct ib_srq *ib_srq,
 			struct ib_srq_init_attr *init_attr,
 			struct ib_udata *udata)
@@ -308,103 +404,44 @@ int hns_roce_create_srq(struct ib_srq *ib_srq,
 	struct hns_roce_dev *hr_dev = to_hr_dev(ib_srq->device);
 	struct hns_roce_ib_create_srq_resp resp = {};
 	struct hns_roce_srq *srq = to_hr_srq(ib_srq);
-	struct ib_device *ibdev = &hr_dev->ib_dev;
-	struct hns_roce_ib_create_srq ucmd = {};
-	u32 max_sge;
 	int ret;
-	u32 cqn;
-
-	if (init_attr->srq_type != IB_SRQT_BASIC &&
-	    init_attr->srq_type != IB_SRQT_XRC)
-		return -EOPNOTSUPP;
-
-	max_sge = proc_srq_sge(hr_dev, srq, !!udata);
-
-	if (init_attr->attr.max_wr > hr_dev->caps.max_srq_wrs ||
-	    init_attr->attr.max_sge > max_sge) {
-		ibdev_err(&hr_dev->ib_dev,
-			  "SRQ config error, depth = %u, sge = %d\n",
-			  init_attr->attr.max_wr, init_attr->attr.max_sge);
-		return -EINVAL;
-	}
 
 	mutex_init(&srq->mutex);
 	spin_lock_init(&srq->lock);
 
-	init_attr->attr.max_wr = max_t(u32, init_attr->attr.max_wr,
-				       HNS_ROCE_MIN_SRQ_WQE_NUM);
-	srq->wqe_cnt = roundup_pow_of_two(init_attr->attr.max_wr);
-	srq->max_gs =
-		roundup_pow_of_two(init_attr->attr.max_sge + srq->rsv_sge);
-	init_attr->attr.max_wr = srq->wqe_cnt;
-	init_attr->attr.max_sge = srq->max_gs;
-	init_attr->attr.srq_limit = 0;
-
-	if (udata) {
-		ret = ib_copy_from_udata(&ucmd, udata,
-					 min(udata->inlen, sizeof(ucmd)));
-		if (ret) {
-			ibdev_err(ibdev, "failed to copy SRQ udata, ret = %d.\n",
-				  ret);
-			return ret;
-		}
-	}
-
-	ret = alloc_srq_buf(hr_dev, srq, udata, ucmd.buf_addr);
-	if (ret) {
-		ibdev_err(ibdev,
-			  "failed to alloc SRQ buffer, ret = %d.\n", ret);
+	ret = set_srq_param(srq, init_attr, udata);
+	if (ret)
 		return ret;
-	}
 
-	ret = alloc_srq_idx(hr_dev, srq, udata, ucmd.que_addr);
-	if (ret) {
-		ibdev_err(ibdev, "failed to alloc SRQ idx, ret = %d.\n", ret);
-		goto err_buf_alloc;
-	}
+	ret = alloc_srq_buf(hr_dev, srq, udata);
+	if (ret)
+		return ret;
 
-	if (!udata) {
-		ret = alloc_srq_wrid(hr_dev, srq);
-		if (ret) {
-			ibdev_err(ibdev, "failed to alloc SRQ wrid, ret = %d.\n",
-				  ret);
-			goto err_idx_alloc;
+	ret = alloc_srqc(hr_dev, srq);
+	if (ret)
+		goto err_srq_buf;
+
+	if (udata) {
+		resp.srqn = srq->srqn;
+		if (ib_copy_to_udata(udata, &resp,
+				     min(udata->outlen, sizeof(resp)))) {
+			ret = -EFAULT;
+			goto err_srqc;
 		}
 	}
 
-	cqn = ib_srq_has_cq(init_attr->srq_type) ?
-	      to_hr_cq(init_attr->ext.cq)->cqn : 0;
 	srq->db_reg_l = hr_dev->reg_base + SRQ_DB_REG;
-
-	ret = alloc_srqc(hr_dev, srq, to_hr_pd(ib_srq->pd)->pdn, cqn, 0, 0);
-	if (ret) {
-		ibdev_err(ibdev,
-			  "failed to alloc SRQ context, ret = %d.\n", ret);
-		goto err_wrid_alloc;
-	}
-
 	srq->event = hns_roce_ib_srq_event;
-	resp.srqn = srq->srqn;
-	srq->max_gs = init_attr->attr.max_sge;
-	init_attr->attr.max_sge = srq->max_gs - srq->rsv_sge;
-
-	if (udata) {
-		ret = ib_copy_to_udata(udata, &resp,
-				       min(udata->outlen, sizeof(resp)));
-		if (ret)
-			goto err_srqc_alloc;
-	}
+	atomic_set(&srq->refcount, 1);
+	init_completion(&srq->free);
 
 	return 0;
 
-err_srqc_alloc:
+err_srqc:
 	free_srqc(hr_dev, srq);
-err_wrid_alloc:
-	free_srq_wrid(srq);
-err_idx_alloc:
-	free_srq_idx(hr_dev, srq);
-err_buf_alloc:
+err_srq_buf:
 	free_srq_buf(hr_dev, srq);
+
 	return ret;
 }
 
@@ -414,8 +451,6 @@ int hns_roce_destroy_srq(struct ib_srq *ibsrq, struct ib_udata *udata)
 	struct hns_roce_srq *srq = to_hr_srq(ibsrq);
 
 	free_srqc(hr_dev, srq);
-	free_srq_idx(hr_dev, srq);
-	free_srq_wrid(srq);
 	free_srq_buf(hr_dev, srq);
 	return 0;
 }

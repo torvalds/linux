@@ -5228,9 +5228,9 @@ out:
 }
 
 static void hns_roce_v2_write_srqc(struct hns_roce_dev *hr_dev,
-				   struct hns_roce_srq *srq, u32 pdn, u16 xrcd,
-				   u32 cqn, void *mb_buf, u64 *mtts_wqe,
-				   u64 *mtts_idx, dma_addr_t dma_handle_wqe,
+				   struct hns_roce_srq *srq, void *mb_buf,
+				   u64 *mtts_wqe, u64 *mtts_idx,
+				   dma_addr_t dma_handle_wqe,
 				   dma_addr_t dma_handle_idx)
 {
 	struct hns_roce_srq_context *srq_context;
@@ -5257,7 +5257,7 @@ static void hns_roce_v2_write_srqc(struct hns_roce_dev *hr_dev,
 		       SRQC_BYTE_8_SRQ_LIMIT_WL_S, 0);
 
 	roce_set_field(srq_context->byte_12_xrcd, SRQC_BYTE_12_SRQ_XRCD_M,
-		       SRQC_BYTE_12_SRQ_XRCD_S, xrcd);
+		       SRQC_BYTE_12_SRQ_XRCD_S, 0);
 
 	srq_context->wqe_bt_ba = cpu_to_le32((u32)(dma_handle_wqe >> 3));
 
@@ -5267,7 +5267,7 @@ static void hns_roce_v2_write_srqc(struct hns_roce_dev *hr_dev,
 		       dma_handle_wqe >> 35);
 
 	roce_set_field(srq_context->byte_28_rqws_pd, SRQC_BYTE_28_PD_M,
-		       SRQC_BYTE_28_PD_S, pdn);
+		       SRQC_BYTE_28_PD_S, to_hr_pd(srq->ibsrq.pd)->pdn);
 	roce_set_field(srq_context->byte_28_rqws_pd, SRQC_BYTE_28_RQWS_M,
 		       SRQC_BYTE_28_RQWS_S, srq->max_gs <= 0 ? 0 :
 		       fls(srq->max_gs - 1));
@@ -5307,7 +5307,7 @@ static void hns_roce_v2_write_srqc(struct hns_roce_dev *hr_dev,
 		       upper_32_bits(to_hr_hw_page_addr(mtts_idx[1])));
 	roce_set_field(srq_context->byte_56_xrc_cqn,
 		       SRQC_BYTE_56_SRQ_XRC_CQN_M, SRQC_BYTE_56_SRQ_XRC_CQN_S,
-		       cqn);
+		       srq->cqn);
 	roce_set_field(srq_context->byte_56_xrc_cqn,
 		       SRQC_BYTE_56_SRQ_WQE_BA_PG_SZ_M,
 		       SRQC_BYTE_56_SRQ_WQE_BA_PG_SZ_S,

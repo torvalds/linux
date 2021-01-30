@@ -506,6 +506,7 @@ struct hns_roce_srq {
 	int			max_gs;
 	u32			rsv_sge;
 	int			wqe_shift;
+	u32			cqn;
 	void __iomem		*db_reg_l;
 
 	atomic_t		refcount;
@@ -953,8 +954,8 @@ struct hns_roce_hw {
 	int (*init_eq)(struct hns_roce_dev *hr_dev);
 	void (*cleanup_eq)(struct hns_roce_dev *hr_dev);
 	void (*write_srqc)(struct hns_roce_dev *hr_dev,
-			   struct hns_roce_srq *srq, u32 pdn, u16 xrcd, u32 cqn,
-			   void *mb_buf, u64 *mtts_wqe, u64 *mtts_idx,
+			   struct hns_roce_srq *srq, void *mb_buf,
+			   u64 *mtts_wqe, u64 *mtts_idx,
 			   dma_addr_t dma_handle_wqe,
 			   dma_addr_t dma_handle_idx);
 	int (*modify_srq)(struct ib_srq *ibsrq, struct ib_srq_attr *srq_attr,
