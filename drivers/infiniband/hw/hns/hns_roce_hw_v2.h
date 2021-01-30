@@ -1136,6 +1136,8 @@ struct hns_roce_v2_mpt_entry {
 #define	V2_DB_BYTE_4_CMD_S 24
 #define V2_DB_BYTE_4_CMD_M GENMASK(27, 24)
 
+#define V2_DB_FLAG_S 31
+
 #define V2_DB_PARAMETER_IDX_S 0
 #define V2_DB_PARAMETER_IDX_M GENMASK(15, 0)
 
@@ -1232,6 +1234,15 @@ struct hns_roce_v2_rc_send_wqe {
 #define	V2_RC_SEND_WQE_BYTE_4_OPCODE_S 0
 #define V2_RC_SEND_WQE_BYTE_4_OPCODE_M GENMASK(4, 0)
 
+#define V2_RC_SEND_WQE_BYTE_4_DB_SL_L_S 5
+#define V2_RC_SEND_WQE_BYTE_4_DB_SL_L_M GENMASK(6, 5)
+
+#define V2_RC_SEND_WQE_BYTE_4_DB_SL_H_S 13
+#define V2_RC_SEND_WQE_BYTE_4_DB_SL_H_M GENMASK(14, 13)
+
+#define V2_RC_SEND_WQE_BYTE_4_WQE_INDEX_S 15
+#define V2_RC_SEND_WQE_BYTE_4_WQE_INDEX_M GENMASK(30, 15)
+
 #define V2_RC_SEND_WQE_BYTE_4_OWNER_S 7
 
 #define V2_RC_SEND_WQE_BYTE_4_CQE_S 8
@@ -1253,6 +1264,8 @@ struct hns_roce_v2_rc_send_wqe {
 #define V2_RC_FRMR_WQE_BYTE_4_RW_S 22
 
 #define V2_RC_FRMR_WQE_BYTE_4_LW_S 23
+
+#define V2_RC_SEND_WQE_BYTE_4_FLAG_S 31
 
 #define	V2_RC_SEND_WQE_BYTE_16_XRC_SRQN_S 0
 #define V2_RC_SEND_WQE_BYTE_16_XRC_SRQN_M GENMASK(23, 0)

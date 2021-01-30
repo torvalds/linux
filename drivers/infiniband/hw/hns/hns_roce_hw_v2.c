@@ -503,6 +503,8 @@ static inline int set_ud_wqe(struct hns_roce_qp *qp,
 	if (ret)
 		return ret;
 
+	qp->sl = to_hr_ah(ud_wr(wr)->ah)->av.sl;
+
 	set_extend_sge(qp, wr->sg_list, &curr_idx, valid_num_sge);
 
 	/*
@@ -635,6 +637,8 @@ static inline void update_sq_db(struct hns_roce_dev *hr_dev,
 			       V2_DB_BYTE_4_TAG_S, qp->doorbell_qpn);
 		roce_set_field(sq_db.byte_4, V2_DB_BYTE_4_CMD_M,
 			       V2_DB_BYTE_4_CMD_S, HNS_ROCE_V2_SQ_DB);
+		/* indicates data on new BAR, 0 : SQ doorbell, 1 : DWQE */
+		roce_set_bit(sq_db.byte_4, V2_DB_FLAG_S, 0);
 		roce_set_field(sq_db.parameter, V2_DB_PARAMETER_IDX_M,
 			       V2_DB_PARAMETER_IDX_S, qp->sq.head);
 		roce_set_field(sq_db.parameter, V2_DB_PARAMETER_SL_M,
@@ -642,6 +646,38 @@ static inline void update_sq_db(struct hns_roce_dev *hr_dev,
 
 		hns_roce_write64(hr_dev, (__le32 *)&sq_db, qp->sq.db_reg_l);
 	}
+}
+
+static void hns_roce_write512(struct hns_roce_dev *hr_dev, u64 *val,
+			      u64 __iomem *dest)
+{
+#define HNS_ROCE_WRITE_TIMES 8
+	struct hns_roce_v2_priv *priv = (struct hns_roce_v2_priv *)hr_dev->priv;
+	struct hnae3_handle *handle = priv->handle;
+	const struct hnae3_ae_ops *ops = handle->ae_algo->ops;
+	int i;
+
+	if (!hr_dev->dis_db && !ops->get_hw_reset_stat(handle))
+		for (i = 0; i < HNS_ROCE_WRITE_TIMES; i++)
+			writeq_relaxed(*(val + i), dest + i);
+}
+
+static void write_dwqe(struct hns_roce_dev *hr_dev, struct hns_roce_qp *qp,
+		       void *wqe)
+{
+	struct hns_roce_v2_rc_send_wqe *rc_sq_wqe = wqe;
+
+	/* All kinds of DirectWQE have the same header field layout */
+	roce_set_bit(rc_sq_wqe->byte_4, V2_RC_SEND_WQE_BYTE_4_FLAG_S, 1);
+	roce_set_field(rc_sq_wqe->byte_4, V2_RC_SEND_WQE_BYTE_4_DB_SL_L_M,
+		       V2_RC_SEND_WQE_BYTE_4_DB_SL_L_S, qp->sl);
+	roce_set_field(rc_sq_wqe->byte_4, V2_RC_SEND_WQE_BYTE_4_DB_SL_H_M,
+		       V2_RC_SEND_WQE_BYTE_4_DB_SL_H_S, qp->sl >> 2);
+	roce_set_field(rc_sq_wqe->byte_4, V2_RC_SEND_WQE_BYTE_4_WQE_INDEX_M,
+		       V2_RC_SEND_WQE_BYTE_4_WQE_INDEX_S, qp->sq.head);
+
+	hns_roce_write512(hr_dev, wqe, hr_dev->mem_base +
+			  HNS_ROCE_DWQE_SIZE * qp->ibqp.qp_num);
 }
 
 static int hns_roce_v2_post_send(struct ib_qp *ibqp,
@@ -710,7 +746,12 @@ out:
 		qp->next_sge = sge_idx;
 		/* Memory barrier */
 		wmb();
-		update_sq_db(hr_dev, qp);
+
+		if (nreq == 1 && qp->sq.head == qp->sq.tail + 1 &&
+		    (qp->en_flags & HNS_ROCE_QP_CAP_DIRECT_WQE))
+			write_dwqe(hr_dev, qp, wqe);
+		else
+			update_sq_db(hr_dev, qp);
 	}
 
 	spin_unlock_irqrestore(&qp->sq.lock, flags);
@@ -6310,6 +6351,7 @@ static void hns_roce_hw_v2_get_cfg(struct hns_roce_dev *hr_dev,
 
 	/* Get info from NIC driver. */
 	hr_dev->reg_base = handle->rinfo.roce_io_base;
+	hr_dev->mem_base = handle->rinfo.roce_mem_base;
 	hr_dev->caps.num_ports = 1;
 	hr_dev->iboe.netdevs[0] = handle->rinfo.netdev;
 	hr_dev->iboe.phy_port[0] = 0;

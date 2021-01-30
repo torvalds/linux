@@ -93,6 +93,7 @@
 #define HNS_ROCE_MAX_PORTS			6
 #define HNS_ROCE_GID_SIZE			16
 #define HNS_ROCE_SGE_SIZE			16
+#define HNS_ROCE_DWQE_SIZE			65536
 
 #define HNS_ROCE_HOP_NUM_0			0xff
 
@@ -649,6 +650,10 @@ struct hns_roce_work {
 	u32 queue_num;
 };
 
+enum {
+	HNS_ROCE_QP_CAP_DIRECT_WQE = BIT(5),
+};
+
 struct hns_roce_qp {
 	struct ib_qp		ibqp;
 	struct hns_roce_wq	rq;
@@ -986,6 +991,7 @@ struct hns_roce_dev {
 	struct mutex            pgdir_mutex;
 	int			irq[HNS_ROCE_MAX_IRQ_NUM];
 	u8 __iomem		*reg_base;
+	void __iomem		*mem_base;
 	struct hns_roce_caps	caps;
 	struct xarray		qp_table_xa;
 
