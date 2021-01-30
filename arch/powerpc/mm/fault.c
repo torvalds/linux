@@ -377,13 +377,11 @@ static void sanity_check_fault(bool is_write, bool is_user,
 
 /*
  * For 600- and 800-family processors, the error_code parameter is DSISR
- * for a data fault, SRR1 for an instruction fault. For 400-family processors
- * the error_code parameter is ESR for a data fault, 0 for an instruction
- * fault.
- * For 64-bit processors, the error_code parameter is
- *  - DSISR for a non-SLB data access fault,
- *  - SRR1 & 0x08000000 for a non-SLB instruction access fault
- *  - 0 any SLB fault.
+ * for a data fault, SRR1 for an instruction fault.
+ * For 400-family processors the error_code parameter is ESR for a data fault,
+ * 0 for an instruction fault.
+ * For 64-bit processors, the error_code parameter is DSISR for a data access
+ * fault, SRR1 & 0x08000000 for an instruction access fault.
  *
  * The return value is 0 if the fault was handled, or the signal
  * number if this is a kernel fault that can't be handled here.
