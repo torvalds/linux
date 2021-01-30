@@ -721,9 +721,21 @@ out:
 static int check_recv_valid(struct hns_roce_dev *hr_dev,
 			    struct hns_roce_qp *hr_qp)
 {
+	struct ib_device *ibdev = &hr_dev->ib_dev;
+	struct ib_qp *ibqp = &hr_qp->ibqp;
+
+	if (unlikely(ibqp->qp_type != IB_QPT_RC &&
+		     ibqp->qp_type != IB_QPT_GSI &&
+		     ibqp->qp_type != IB_QPT_UD)) {
+		ibdev_err(ibdev, "unsupported qp type, qp_type = %d.\n",
+			  ibqp->qp_type);
+		return -EOPNOTSUPP;
+	}
+
 	if (unlikely(hr_dev->state >= HNS_ROCE_DEVICE_STATE_RST_DOWN))
 		return -EIO;
-	else if (hr_qp->state == IB_QPS_RESET)
+
+	if (hr_qp->state == IB_QPS_RESET)
 		return -EINVAL;
 
 	return 0;
