@@ -542,12 +542,11 @@ retry:
 }
 NOKPROBE_SYMBOL(__do_page_fault);
 
-int do_page_fault(struct pt_regs *regs, unsigned long address,
-		  unsigned long error_code)
+long do_page_fault(struct pt_regs *regs)
 {
 	const struct exception_table_entry *entry;
 	enum ctx_state prev_state = exception_enter();
-	int rc = __do_page_fault(regs, address, error_code);
+	int rc = __do_page_fault(regs, regs->dar, regs->dsisr);
 	exception_exit(prev_state);
 	if (likely(!rc))
 		return 0;

@@ -456,7 +456,7 @@ static inline unsigned long hpt_hash(unsigned long vpn,
 
 long hpte_insert_repeating(unsigned long hash, unsigned long vpn, unsigned long pa,
 			   unsigned long rlags, unsigned long vflags, int psize, int ssize);
-int do_hash_fault(struct pt_regs *regs, unsigned long ea, unsigned long dsisr);
+long do_hash_fault(struct pt_regs *regs);
 extern int __hash_page_4K(unsigned long ea, unsigned long access,
 			  unsigned long vsid, pte_t *ptep, unsigned long trap,
 			  unsigned long flags, int ssize, int subpage_prot);
