@@ -82,34 +82,11 @@ static int alloc_srqc(struct hns_roce_dev *hr_dev, struct hns_roce_srq *srq)
 	struct hns_roce_srq_table *srq_table = &hr_dev->srq_table;
 	struct ib_device *ibdev = &hr_dev->ib_dev;
 	struct hns_roce_cmd_mailbox *mailbox;
-	u64 mtts_wqe[MTT_MIN_COUNT] = { 0 };
-	u64 mtts_idx[MTT_MIN_COUNT] = { 0 };
-	dma_addr_t dma_handle_wqe = 0;
-	dma_addr_t dma_handle_idx = 0;
 	int ret;
-
-	/* Get the physical address of srq buf */
-	ret = hns_roce_mtr_find(hr_dev, &srq->buf_mtr, 0, mtts_wqe,
-				ARRAY_SIZE(mtts_wqe), &dma_handle_wqe);
-	if (ret < 1) {
-		ibdev_err(ibdev, "failed to find mtr for SRQ WQE, ret = %d.\n",
-			  ret);
-		return -ENOBUFS;
-	}
-
-	/* Get physical address of idx que buf */
-	ret = hns_roce_mtr_find(hr_dev, &srq->idx_que.mtr, 0, mtts_idx,
-				ARRAY_SIZE(mtts_idx), &dma_handle_idx);
-	if (ret < 1) {
-		ibdev_err(ibdev, "failed to find mtr for SRQ idx, ret = %d.\n",
-			  ret);
-		return -ENOBUFS;
-	}
 
 	ret = hns_roce_bitmap_alloc(&srq_table->bitmap, &srq->srqn);
 	if (ret) {
-		ibdev_err(ibdev,
-			  "failed to alloc SRQ number, ret = %d.\n", ret);
+		ibdev_err(ibdev, "failed to alloc SRQ number.\n");
 		return -ENOMEM;
 	}
 
@@ -127,31 +104,36 @@ static int alloc_srqc(struct hns_roce_dev *hr_dev, struct hns_roce_srq *srq)
 
 	mailbox = hns_roce_alloc_cmd_mailbox(hr_dev);
 	if (IS_ERR_OR_NULL(mailbox)) {
-		ret = -ENOMEM;
 		ibdev_err(ibdev, "failed to alloc mailbox for SRQC.\n");
+		ret = -ENOMEM;
 		goto err_xa;
 	}
 
-	hr_dev->hw->write_srqc(hr_dev, srq, mailbox->buf, mtts_wqe, mtts_idx,
-			       dma_handle_wqe, dma_handle_idx);
+	ret = hr_dev->hw->write_srqc(srq, mailbox->buf);
+	if (ret) {
+		ibdev_err(ibdev, "failed to write SRQC.\n");
+		goto err_mbox;
+	}
 
 	ret = hns_roce_hw_create_srq(hr_dev, mailbox, srq->srqn);
-	hns_roce_free_cmd_mailbox(hr_dev, mailbox);
 	if (ret) {
 		ibdev_err(ibdev, "failed to config SRQC, ret = %d.\n", ret);
-		goto err_xa;
+		goto err_mbox;
 	}
+
+	hns_roce_free_cmd_mailbox(hr_dev, mailbox);
 
 	return 0;
 
+err_mbox:
+	hns_roce_free_cmd_mailbox(hr_dev, mailbox);
 err_xa:
 	xa_erase(&srq_table->xa, srq->srqn);
-
 err_put:
 	hns_roce_table_put(hr_dev, &srq_table->table, srq->srqn);
-
 err_out:
 	hns_roce_bitmap_free(&srq_table->bitmap, srq->srqn, BITMAP_NO_RR);
+
 	return ret;
 }
 

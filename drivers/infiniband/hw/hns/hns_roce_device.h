@@ -953,11 +953,7 @@ struct hns_roce_hw {
 	int (*modify_cq)(struct ib_cq *cq, u16 cq_count, u16 cq_period);
 	int (*init_eq)(struct hns_roce_dev *hr_dev);
 	void (*cleanup_eq)(struct hns_roce_dev *hr_dev);
-	void (*write_srqc)(struct hns_roce_dev *hr_dev,
-			   struct hns_roce_srq *srq, void *mb_buf,
-			   u64 *mtts_wqe, u64 *mtts_idx,
-			   dma_addr_t dma_handle_wqe,
-			   dma_addr_t dma_handle_idx);
+	int (*write_srqc)(struct hns_roce_srq *srq, void *mb_buf);
 	int (*modify_srq)(struct ib_srq *ibsrq, struct ib_srq_attr *srq_attr,
 		       enum ib_srq_attr_mask srq_attr_mask,
 		       struct ib_udata *udata);

@@ -5227,16 +5227,37 @@ out:
 	return ret;
 }
 
-static void hns_roce_v2_write_srqc(struct hns_roce_dev *hr_dev,
-				   struct hns_roce_srq *srq, void *mb_buf,
-				   u64 *mtts_wqe, u64 *mtts_idx,
-				   dma_addr_t dma_handle_wqe,
-				   dma_addr_t dma_handle_idx)
+static int hns_roce_v2_write_srqc(struct hns_roce_srq *srq, void *mb_buf)
 {
+	struct ib_device *ibdev = srq->ibsrq.device;
+	struct hns_roce_dev *hr_dev = to_hr_dev(ibdev);
 	struct hns_roce_srq_context *srq_context;
+	u64 mtts_wqe[MTT_MIN_COUNT] = {};
+	u64 mtts_idx[MTT_MIN_COUNT] = {};
+	dma_addr_t dma_handle_wqe = 0;
+	dma_addr_t dma_handle_idx = 0;
+	int ret;
 
 	srq_context = mb_buf;
 	memset(srq_context, 0, sizeof(*srq_context));
+
+	/* Get the physical address of srq buf */
+	ret = hns_roce_mtr_find(hr_dev, &srq->buf_mtr, 0, mtts_wqe,
+				ARRAY_SIZE(mtts_wqe), &dma_handle_wqe);
+	if (ret < 1) {
+		ibdev_err(ibdev, "failed to find mtr for SRQ WQE, ret = %d.\n",
+			  ret);
+		return -ENOBUFS;
+	}
+
+	/* Get physical address of idx que buf */
+	ret = hns_roce_mtr_find(hr_dev, &srq->idx_que.mtr, 0, mtts_idx,
+				ARRAY_SIZE(mtts_idx), &dma_handle_idx);
+	if (ret < 1) {
+		ibdev_err(ibdev, "failed to find mtr for SRQ idx, ret = %d.\n",
+			  ret);
+		return -ENOBUFS;
+	}
 
 	roce_set_field(srq_context->byte_4_srqn_srqst, SRQC_BYTE_4_SRQ_ST_M,
 		       SRQC_BYTE_4_SRQ_ST_S, 1);
@@ -5319,6 +5340,8 @@ static void hns_roce_v2_write_srqc(struct hns_roce_dev *hr_dev,
 
 	roce_set_bit(srq_context->db_record_addr_record_en,
 		     SRQC_BYTE_60_SRQ_RECORD_EN_S, 0);
+
+	return 0;
 }
 
 static int hns_roce_v2_modify_srq(struct ib_srq *ibsrq,
