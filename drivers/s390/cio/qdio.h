@@ -214,9 +214,6 @@ struct qdio_q {
 	/* number of buffers in use by the adapter */
 	atomic_t nr_buf_used;
 
-	/* error condition during a data transfer */
-	unsigned int qdio_error;
-
 	/* last scan of the queue */
 	u64 timestamp;
 

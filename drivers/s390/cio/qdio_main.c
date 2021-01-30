@@ -420,8 +420,6 @@ static inline void account_sbals(struct qdio_q *q, unsigned int count)
 static void process_buffer_error(struct qdio_q *q, unsigned int start,
 				 int count)
 {
-	q->qdio_error = QDIO_ERROR_SLSB_STATE;
-
 	/* special handling for no target buffer empty */
 	if (queue_type(q) == QDIO_IQDIO_QFMT && !q->is_input_q &&
 	    q->sbal[start]->element[15].sflags == 0x10) {
@@ -450,7 +448,8 @@ static inline void inbound_handle_work(struct qdio_q *q, unsigned int start,
 	q->u.in.batch_count += count;
 }
 
-static int get_inbound_buffer_frontier(struct qdio_q *q, unsigned int start)
+static int get_inbound_buffer_frontier(struct qdio_q *q, unsigned int start,
+				       unsigned int *error)
 {
 	unsigned char state = 0;
 	int count;
@@ -484,6 +483,7 @@ static int get_inbound_buffer_frontier(struct qdio_q *q, unsigned int start)
 		DBF_DEV_EVENT(DBF_INFO, q->irq_ptr, "in err:%1d %02x", q->nr,
 			      count);
 
+		*error = QDIO_ERROR_SLSB_STATE;
 		process_buffer_error(q, start, count);
 		inbound_handle_work(q, start, count, false);
 		if (atomic_sub_return(count, &q->nr_buf_used) == 0)
@@ -567,7 +567,8 @@ static void qdio_check_pending(struct qdio_q *q, unsigned int index)
 	}
 }
 
-static int get_outbound_buffer_frontier(struct qdio_q *q, unsigned int start)
+static int get_outbound_buffer_frontier(struct qdio_q *q, unsigned int start,
+					unsigned int *error)
 {
 	unsigned char state = 0;
 	int count;
@@ -601,6 +602,7 @@ static int get_outbound_buffer_frontier(struct qdio_q *q, unsigned int start)
 			account_sbals(q, count);
 		return count;
 	case SLSB_P_OUTPUT_ERROR:
+		*error = QDIO_ERROR_SLSB_STATE;
 		process_buffer_error(q, start, count);
 		atomic_sub(count, &q->nr_buf_used);
 		if (q->irq_ptr->perf_stat_enabled)
@@ -631,11 +633,12 @@ static inline int qdio_outbound_q_done(struct qdio_q *q)
 	return atomic_read(&q->nr_buf_used) == 0;
 }
 
-static inline int qdio_outbound_q_moved(struct qdio_q *q, unsigned int start)
+static inline int qdio_outbound_q_moved(struct qdio_q *q, unsigned int start,
+					unsigned int *error)
 {
 	int count;
 
-	count = get_outbound_buffer_frontier(q, start);
+	count = get_outbound_buffer_frontier(q, start, error);
 
 	if (count) {
 		DBF_DEV_EVENT(DBF_INFO, q->irq_ptr, "out moved:%1d", q->nr);
@@ -699,12 +702,13 @@ void qdio_outbound_tasklet(struct tasklet_struct *t)
 	struct qdio_output_q *out_q = from_tasklet(out_q, t, tasklet);
 	struct qdio_q *q = container_of(out_q, struct qdio_q, u.out);
 	unsigned int start = q->first_to_check;
+	unsigned int error = 0;
 	int count;
 
 	qperf_inc(q, tasklet_outbound);
 	WARN_ON_ONCE(atomic_read(&q->nr_buf_used) < 0);
 
-	count = qdio_outbound_q_moved(q, start);
+	count = qdio_outbound_q_moved(q, start, &error);
 	if (count) {
 		q->first_to_check = add_buf(start, count);
 
@@ -713,11 +717,8 @@ void qdio_outbound_tasklet(struct tasklet_struct *t)
 			DBF_DEV_EVENT(DBF_INFO, q->irq_ptr, "koh: s:%02x c:%02x",
 				      start, count);
 
-			q->handler(q->irq_ptr->cdev, q->qdio_error, q->nr,
-				   start, count, q->irq_ptr->int_parm);
-
-			/* for the next time */
-			q->qdio_error = 0;
+			q->handler(q->irq_ptr->cdev, error, q->nr, start,
+				   count, q->irq_ptr->int_parm);
 		}
 	}
 
@@ -1472,17 +1473,16 @@ static int __qdio_inspect_queue(struct qdio_q *q, unsigned int *bufnr,
 	unsigned int start = q->first_to_check;
 	int count;
 
-	count = q->is_input_q ? get_inbound_buffer_frontier(q, start) :
-				qdio_outbound_q_moved(q, start);
+	*error = 0;
+	count = q->is_input_q ? get_inbound_buffer_frontier(q, start, error) :
+				qdio_outbound_q_moved(q, start, error);
 	if (count == 0)
 		return 0;
 
 	*bufnr = start;
-	*error = q->qdio_error;
 
 	/* for the next time */
 	q->first_to_check = add_buf(start, count);
-	q->qdio_error = 0;
 
 	return count;
 }
