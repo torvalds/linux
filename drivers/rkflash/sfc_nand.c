@@ -594,6 +594,30 @@ u32 sfc_nand_erase_block(u8 cs, u32 addr)
 	return ret;
 }
 
+static u32 sfc_nand_read_cache(u32 row, u32 *p_page_buf, u32 column, u32 len)
+{
+	int ret;
+	u32 plane;
+	struct rk_sfc_op op;
+
+	op.sfcmd.d32 = 0;
+	op.sfcmd.b.cmd = sfc_nand_dev.page_read_cmd;
+	op.sfcmd.b.addrbits = SFC_ADDR_XBITS;
+	op.sfcmd.b.dummybits = 8;
+
+	op.sfctrl.d32 = 0;
+	op.sfctrl.b.datalines = sfc_nand_dev.read_lines;
+	op.sfctrl.b.addrbits = 16;
+
+	plane = p_nand_info->plane_per_die == 2 ? ((row >> 6) & 0x1) << 12 : 0;
+
+	ret = sfc_request(&op, plane | column, p_page_buf, len);
+	if (ret != SFC_OK)
+		return SFC_NAND_HW_ERROR;
+
+	return ret;
+}
+
 u32 sfc_nand_prog_page_raw(u8 cs, u32 addr, u32 *p_page_buf)
 {
 	int ret;
@@ -601,6 +625,7 @@ u32 sfc_nand_prog_page_raw(u8 cs, u32 addr, u32 *p_page_buf)
 	struct rk_sfc_op op;
 	u8 status;
 	u32 page_size = SFC_NAND_SECTOR_FULL_SIZE * p_nand_info->sec_per_page;
+	u32 data_area_size = SFC_NAND_SECTOR_SIZE * p_nand_info->sec_per_page;
 
 	rkflash_print_dio("%s %x %x\n", __func__, addr, p_page_buf[0]);
 	sfc_nand_write_en();
@@ -621,6 +646,18 @@ u32 sfc_nand_prog_page_raw(u8 cs, u32 addr, u32 *p_page_buf)
 	plane = p_nand_info->plane_per_die == 2 ? ((addr >> 6) & 0x1) << 12 : 0;
 	sfc_request(&op, plane, p_page_buf, page_size);
 
+	/*
+	 * At the moment of power lost, flash maybe work in a unkonw state
+	 * and result in bit flip, when this situation is detected by cache
+	 * recheck, it's better to wait a second for a reliable hardware
+	 * environment to avoid abnormal data written to flash array.
+	 */
+	sfc_nand_read_cache(addr, (u32 *)sfc_nand_dev.recheck_buffer, 0, data_area_size);
+	if (memcmp(sfc_nand_dev.recheck_buffer, p_page_buf, data_area_size)) {
+		rkflash_print_error("%s cache bitflip1\n", __func__);
+		msleep(1000);
+	}
+
 	op.sfcmd.d32 = 0;
 	op.sfcmd.b.cmd = 0x10;
 	op.sfcmd.b.addrbits = SFC_ADDR_24BITS;
@@ -633,6 +670,17 @@ u32 sfc_nand_prog_page_raw(u8 cs, u32 addr, u32 *p_page_buf)
 		return ret;
 
 	ret = sfc_nand_wait_busy(&status, 1000 * 1000);
+	/*
+	 * At the moment of power lost, flash maybe work in a unkonw state
+	 * and result in bit flip, when this situation is detected by cache
+	 * recheck, it's better to wait a second for a reliable hardware
+	 * environment to reduce error behavior.
+	 */
+	sfc_nand_read_cache(addr, (u32 *)sfc_nand_dev.recheck_buffer, 0, data_area_size);
+	if (memcmp(sfc_nand_dev.recheck_buffer, p_page_buf, data_area_size)) {
+		rkflash_print_error("%s cache bitflip2\n", __func__);
+		msleep(1000);
+	}
 
 	if (status & (1 << 3))
 		return SFC_NAND_PROG_ERASE_ERROR;
@@ -903,6 +951,11 @@ u32 sfc_nand_init(void)
 	sfc_nand_dev.prog_lines = DATA_LINES_X1;
 	sfc_nand_dev.page_read_cmd = 0x03;
 	sfc_nand_dev.page_prog_cmd = 0x02;
+	sfc_nand_dev.recheck_buffer = kmalloc(SFC_NAND_PAGE_MAX_SIZE, GFP_KERNEL | GFP_DMA);
+	if (!sfc_nand_dev.recheck_buffer) {
+		pr_err("%s recheck_buffer alloc failed\n", __func__);
+		return -ENOMEM;
+	}
 
 	if (p_nand_info->feature & FEA_4BIT_READ) {
 		if ((p_nand_info->has_qe_bits && sfc_nand_enable_QE() == SFC_OK) ||
@@ -933,6 +986,7 @@ u32 sfc_nand_init(void)
 void sfc_nand_deinit(void)
 {
 	/* to-do */
+	kfree(sfc_nand_dev.recheck_buffer);
 }
 
 struct SFNAND_DEV *sfc_nand_get_private_dev(void)
