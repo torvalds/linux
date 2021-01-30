@@ -57,6 +57,7 @@ extern void timer_interrupt(struct pt_regs *);
 extern void performance_monitor_exception(struct pt_regs *regs);
 extern void WatchdogException(struct pt_regs *regs);
 extern void unknown_exception(struct pt_regs *regs);
+void unknown_async_exception(struct pt_regs *regs);
 
 #ifdef CONFIG_PPC64
 #include <asm/paca.h>

@@ -1073,6 +1073,18 @@ void unknown_exception(struct pt_regs *regs)
 	exception_exit(prev_state);
 }
 
+void unknown_async_exception(struct pt_regs *regs)
+{
+	enum ctx_state prev_state = exception_enter();
+
+	printk("Bad trap at PC: %lx, SR: %lx, vector=%lx\n",
+	       regs->nip, regs->msr, regs->trap);
+
+	_exception(SIGTRAP, regs, TRAP_UNK, 0);
+
+	exception_exit(prev_state);
+}
+
 void instruction_breakpoint_exception(struct pt_regs *regs)
 {
 	enum ctx_state prev_state = exception_enter();
