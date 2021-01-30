@@ -875,8 +875,8 @@ struct reset_control *__devm_reset_control_get(struct device *dev,
 EXPORT_SYMBOL_GPL(__devm_reset_control_get);
 
 /**
- * device_reset - find reset controller associated with the device
- *                and perform reset
+ * __device_reset - find reset controller associated with the device
+ *                  and perform reset
  * @dev: device to be reset by the controller
  * @optional: whether it is optional to reset the device
  *
