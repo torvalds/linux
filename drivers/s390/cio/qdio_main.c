@@ -202,7 +202,7 @@ again:
  */
 static inline int get_buf_states(struct qdio_q *q, unsigned int bufnr,
 				 unsigned char *state, unsigned int count,
-				 int auto_ack, int merge_pending)
+				 int auto_ack)
 {
 	unsigned char __state = 0;
 	int i = 1;
@@ -217,17 +217,8 @@ static inline int get_buf_states(struct qdio_q *q, unsigned int bufnr,
 	if (__state & SLSB_OWNER_CU)
 		goto out;
 
-	if (merge_pending && __state == SLSB_P_OUTPUT_PENDING)
-		__state = SLSB_P_OUTPUT_EMPTY;
-
 	for (; i < count; i++) {
 		bufnr = next_buf(bufnr);
-
-		/* merge PENDING into EMPTY: */
-		if (merge_pending &&
-		    q->slsb.val[bufnr] == SLSB_P_OUTPUT_PENDING &&
-		    __state == SLSB_P_OUTPUT_EMPTY)
-			continue;
 
 		/* stop if next state differs from initial state: */
 		if (q->slsb.val[bufnr] != __state)
@@ -242,7 +233,7 @@ out:
 static inline int get_buf_state(struct qdio_q *q, unsigned int bufnr,
 				unsigned char *state, int auto_ack)
 {
-	return get_buf_states(q, bufnr, state, 1, auto_ack, 0);
+	return get_buf_states(q, bufnr, state, 1, auto_ack);
 }
 
 /* wrap-around safe setting of slsb states, returns number of changed buffers */
@@ -464,7 +455,7 @@ static int get_inbound_buffer_frontier(struct qdio_q *q, unsigned int start,
 	 * No siga sync here, as a PCI or we after a thin interrupt
 	 * already sync'ed the queues.
 	 */
-	count = get_buf_states(q, start, &state, count, 1, 0);
+	count = get_buf_states(q, start, &state, count, 1);
 	if (!count)
 		return 0;
 
@@ -541,7 +532,6 @@ static inline unsigned long qdio_aob_for_buffer(struct qdio_output_q *q,
 		WARN_ON_ONCE(phys_aob & 0xFF);
 	}
 
-	q->sbal_state[bufnr].flags = 0;
 	return phys_aob;
 }
 
@@ -552,19 +542,6 @@ static inline int qdio_tasklet_schedule(struct qdio_q *q)
 		return 0;
 	}
 	return -EPERM;
-}
-
-static void qdio_check_pending(struct qdio_q *q, unsigned int index)
-{
-	unsigned char state;
-
-	if (get_buf_state(q, index, &state, 0) > 0 &&
-	    state == SLSB_P_OUTPUT_PENDING &&
-	    q->u.out.aobs[index]) {
-		q->u.out.sbal_state[index].flags |=
-			QDIO_OUTBUF_STATE_FLAG_PENDING;
-		q->u.out.aobs[index] = NULL;
-	}
 }
 
 static int get_outbound_buffer_frontier(struct qdio_q *q, unsigned int start,
@@ -587,7 +564,7 @@ static int get_outbound_buffer_frontier(struct qdio_q *q, unsigned int start,
 	if (!count)
 		return 0;
 
-	count = get_buf_states(q, start, &state, count, 0, q->u.out.use_cq);
+	count = get_buf_states(q, start, &state, count, 0);
 	if (!count)
 		return 0;
 
@@ -609,6 +586,9 @@ static int get_outbound_buffer_frontier(struct qdio_q *q, unsigned int start,
 			account_sbals(q, count);
 		return count;
 	case SLSB_P_OUTPUT_ERROR:
+		DBF_DEV_EVENT(DBF_INFO, q->irq_ptr, "out error:%1d %02x",
+			      q->nr, count);
+
 		*error = QDIO_ERROR_SLSB_STATE;
 		process_buffer_error(q, start, count);
 		atomic_sub(count, &q->nr_buf_used);
@@ -638,27 +618,6 @@ static int get_outbound_buffer_frontier(struct qdio_q *q, unsigned int start,
 static inline int qdio_outbound_q_done(struct qdio_q *q)
 {
 	return atomic_read(&q->nr_buf_used) == 0;
-}
-
-static inline int qdio_outbound_q_moved(struct qdio_q *q, unsigned int start,
-					unsigned int *error)
-{
-	int count;
-
-	count = get_outbound_buffer_frontier(q, start, error);
-
-	if (count) {
-		DBF_DEV_EVENT(DBF_INFO, q->irq_ptr, "out moved:%1d", q->nr);
-
-		if (q->u.out.use_cq && *error != QDIO_ERROR_SLSB_PENDING) {
-			unsigned int i;
-
-			for (i = 0; i < count; i++)
-				qdio_check_pending(q, QDIO_BUFNR(start + i));
-		}
-	}
-
-	return count;
 }
 
 static int qdio_kick_outbound_q(struct qdio_q *q, unsigned int count,
@@ -715,7 +674,7 @@ void qdio_outbound_tasklet(struct tasklet_struct *t)
 	qperf_inc(q, tasklet_outbound);
 	WARN_ON_ONCE(atomic_read(&q->nr_buf_used) < 0);
 
-	count = qdio_outbound_q_moved(q, start, &error);
+	count = get_outbound_buffer_frontier(q, start, &error);
 	if (count) {
 		q->first_to_check = add_buf(start, count);
 
@@ -1482,7 +1441,7 @@ static int __qdio_inspect_queue(struct qdio_q *q, unsigned int *bufnr,
 
 	*error = 0;
 	count = q->is_input_q ? get_inbound_buffer_frontier(q, start, error) :
-				qdio_outbound_q_moved(q, start, error);
+				get_outbound_buffer_frontier(q, start, error);
 	if (count == 0)
 		return 0;
 
