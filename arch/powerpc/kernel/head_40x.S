@@ -476,6 +476,7 @@ _ENTRY(saved_ksp_limit)
 
 	/* continue normal handling for a critical exception... */
 2:	mfspr	r4,SPRN_DBSR
+	stw	r4,_ESR(r11)		/* DebugException takes DBSR in _ESR */
 	addi	r3,r1,STACK_FRAME_OVERHEAD
 	EXC_XFER_TEMPLATE(DebugException, 0x2002, \
 		(MSR_KERNEL & ~(MSR_ME|MSR_DE|MSR_CE)), \

@@ -791,7 +791,6 @@ END_FTR_SECTION_IFSET(CPU_FTR_ALTIVEC)
 	EXCEPTION_COMMON_CRIT(0xd00)
 	std	r14,_DSISR(r1)
 	addi	r3,r1,STACK_FRAME_OVERHEAD
-	mr	r4,r14
 	ld	r14,PACA_EXCRIT+EX_R14(r13)
 	ld	r15,PACA_EXCRIT+EX_R15(r13)
 	bl	save_nvgprs
@@ -864,7 +863,6 @@ kernel_dbg_exc:
 	INTS_DISABLE
 	std	r14,_DSISR(r1)
 	addi	r3,r1,STACK_FRAME_OVERHEAD
-	mr	r4,r14
 	ld	r14,PACA_EXDBG+EX_R14(r13)
 	ld	r15,PACA_EXDBG+EX_R15(r13)
 	bl	save_nvgprs

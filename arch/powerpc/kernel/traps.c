@@ -1957,8 +1957,10 @@ static void handle_debug(struct pt_regs *regs, unsigned long debug_status)
 		mtspr(SPRN_DBCR0, current->thread.debug.dbcr0);
 }
 
-void DebugException(struct pt_regs *regs, unsigned long debug_status)
+void DebugException(struct pt_regs *regs)
 {
+	unsigned long debug_status = regs->dsisr;
+
 	current->thread.debug.dbsr = debug_status;
 
 	/* Hack alert: On BookE, Branch Taken stops on the branch itself, while
