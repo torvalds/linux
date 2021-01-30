@@ -146,6 +146,13 @@ block_size:number
 	Supported values are 512, 1024, 2048 and 4096 bytes.  If not
 	specified the default block size is 512 bytes.
 
+legacy_recalculate
+	Allow recalculating of volumes with HMAC keys. This is disabled by
+	default for security reasons - an attacker could modify the volume,
+	set recalc_sector to zero, and the kernel would not detect the
+	modification.
+
+
 The journal mode (D/J), buffer_sectors, journal_watermark, commit_time can
 be changed when reloading the target (load an inactive table and swap the
 tables with suspend and resume). The other arguments should not be changed
