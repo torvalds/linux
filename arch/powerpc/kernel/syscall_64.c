@@ -138,8 +138,12 @@ notrace long system_call_exception(long r3, long r4, long r5,
 /*
  * local irqs must be disabled. Returns false if the caller must re-enable
  * them, check for new work, and try again.
+ *
+ * This should be called with local irqs disabled, but if they were previously
+ * enabled when the interrupt handler returns (indicating a process-context /
+ * synchronous interrupt) then irqs_enabled should be true.
  */
-static notrace inline bool prep_irq_for_enabled_exit(bool clear_ri)
+static notrace inline bool prep_irq_for_enabled_exit(bool clear_ri, bool irqs_enabled)
 {
 	/* This must be done with RI=1 because tracing may touch vmaps */
 	trace_hardirqs_on();
@@ -155,6 +159,29 @@ static notrace inline bool prep_irq_for_enabled_exit(bool clear_ri)
 			__hard_RI_enable();
 		trace_hardirqs_off();
 		local_paca->irq_happened |= PACA_IRQ_HARD_DIS;
+
+		/*
+		 * Must replay pending soft-masked interrupts now. Don't just
+		 * local_irq_enabe(); local_irq_disable(); because if we are
+		 * returning from an asynchronous interrupt here, another one
+		 * might hit after irqs are enabled, and it would exit via this
+		 * same path allowing another to fire, and so on unbounded.
+		 *
+		 * If interrupts were enabled when this interrupt exited,
+		 * indicating a process context (synchronous) interrupt,
+		 * local_irq_enable/disable can be used, which will enable
+		 * interrupts rather than keeping them masked (unclear how
+		 * much benefit this is over just replaying for all cases,
+		 * because we immediately disable again, so all we're really
+		 * doing is allowing hard interrupts to execute directly for
+		 * a very small time, rather than being masked and replayed).
+		 */
+		if (irqs_enabled) {
+			local_irq_enable();
+			local_irq_disable();
+		} else {
+			replay_soft_interrupts();
+		}
 
 		return false;
 	}
@@ -212,8 +239,9 @@ notrace unsigned long syscall_exit_prepare(unsigned long r3,
 		ret |= _TIF_RESTOREALL;
 	}
 
-again:
 	local_irq_disable();
+
+again:
 	ti_flags = READ_ONCE(*ti_flagsp);
 	while (unlikely(ti_flags & (_TIF_USER_WORK_MASK & ~_TIF_RESTORE_TM))) {
 		local_irq_enable();
@@ -258,10 +286,8 @@ again:
 	}
 
 	/* scv need not set RI=0 because SRRs are not used */
-	if (unlikely(!prep_irq_for_enabled_exit(!scv))) {
-		local_irq_enable();
+	if (unlikely(!prep_irq_for_enabled_exit(!scv, true)))
 		goto again;
-	}
 
 #ifdef CONFIG_PPC_TRANSACTIONAL_MEM
 	local_paca->tm_scratch = regs->msr;
@@ -336,11 +362,8 @@ again:
 		}
 	}
 
-	if (unlikely(!prep_irq_for_enabled_exit(true))) {
-		local_irq_enable();
-		local_irq_disable();
+	if (unlikely(!prep_irq_for_enabled_exit(true, !irqs_disabled_flags(flags))))
 		goto again;
-	}
 
 #ifdef CONFIG_PPC_BOOK3E
 	if (unlikely(ts->debug.dbcr0 & DBCR0_IDM)) {
@@ -403,20 +426,8 @@ again:
 			}
 		}
 
-		if (unlikely(!prep_irq_for_enabled_exit(true))) {
-			/*
-			 * Can't local_irq_restore to replay if we were in
-			 * interrupt context. Must replay directly.
-			 */
-			if (irqs_disabled_flags(flags)) {
-				replay_soft_interrupts();
-			} else {
-				local_irq_restore(flags);
-				local_irq_save(flags);
-			}
-			/* Took an interrupt, may have more exit work to do. */
+		if (unlikely(!prep_irq_for_enabled_exit(true, !irqs_disabled_flags(flags))))
 			goto again;
-		}
 	} else {
 		/* Returning to a kernel context with local irqs disabled. */
 		__hard_EE_RI_disable();
