@@ -494,6 +494,8 @@ struct hns_roce_idx_que {
 	struct hns_roce_mtr		mtr;
 	int				entry_shift;
 	unsigned long			*bitmap;
+	u32				head;
+	u32				tail;
 };
 
 struct hns_roce_srq {
@@ -513,8 +515,6 @@ struct hns_roce_srq {
 	u64		       *wrid;
 	struct hns_roce_idx_que idx_que;
 	spinlock_t		lock;
-	u16			head;
-	u16			tail;
 	struct mutex		mutex;
 	void (*event)(struct hns_roce_srq *srq, enum hns_roce_event event);
 };
