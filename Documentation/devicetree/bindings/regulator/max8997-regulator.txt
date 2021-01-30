@@ -35,6 +35,7 @@ Optional properties:
 - interrupts: Interrupt specifiers for two interrupt sources.
   - First interrupt specifier is for 'irq1' interrupt.
   - Second interrupt specifier is for 'alert' interrupt.
+- charger-supply: regulator node for charging current.
 - max8997,pmic-buck1-uses-gpio-dvs: 'buck1' can be controlled by gpio dvs.
 - max8997,pmic-buck2-uses-gpio-dvs: 'buck2' can be controlled by gpio dvs.
 - max8997,pmic-buck5-uses-gpio-dvs: 'buck5' can be controlled by gpio dvs.
