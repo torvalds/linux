@@ -71,15 +71,11 @@ static int vfio_ap_queue_dev_probe(struct ap_device *apdev)
 static void vfio_ap_queue_dev_remove(struct ap_device *apdev)
 {
 	struct vfio_ap_queue *q;
-	int apid, apqi;
 
 	mutex_lock(&matrix_dev->lock);
 	q = dev_get_drvdata(&apdev->device);
+	vfio_ap_mdev_reset_queue(q, 1);
 	dev_set_drvdata(&apdev->device, NULL);
-	apid = AP_QID_CARD(q->apqn);
-	apqi = AP_QID_QUEUE(q->apqn);
-	vfio_ap_mdev_reset_queue(apid, apqi, 1);
-	vfio_ap_irq_disable(q);
 	kfree(q);
 	mutex_unlock(&matrix_dev->lock);
 }
