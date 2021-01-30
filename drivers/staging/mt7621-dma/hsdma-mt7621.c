@@ -749,7 +749,7 @@ static struct platform_driver mtk_hsdma_driver = {
 	.probe = mtk_hsdma_probe,
 	.remove = mtk_hsdma_remove,
 	.driver = {
-		.name = "hsdma-mt7621",
+		.name = KBUILD_MODNAME,
 		.of_match_table = mtk_hsdma_of_match,
 	},
 };
