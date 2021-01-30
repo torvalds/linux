@@ -274,16 +274,16 @@ static int rkisp_pipeline_set_stream(struct rkisp_pipeline *p, bool on)
 			enable_irq(dev->vs_irq);
 		rockchip_set_system_status(SYS_STATUS_ISP);
 		v4l2_subdev_call(&dev->isp_sdev.sd, video, s_stream, true);
-	}
-
-	/* phy -> sensor */
-	for (i = 0; i < p->num_subdevs; ++i) {
-		ret = v4l2_subdev_call(p->subdevs[i], video, s_stream, on);
-		if (on && ret < 0 && ret != -ENOIOCTLCMD && ret != -ENODEV)
-			goto err_stream_off;
-	}
-
-	if (!on) {
+		/* phy -> sensor */
+		for (i = 0; i < p->num_subdevs; ++i) {
+			ret = v4l2_subdev_call(p->subdevs[i], video, s_stream, on);
+			if (on && ret < 0 && ret != -ENOIOCTLCMD && ret != -ENODEV)
+				goto err_stream_off;
+		}
+	} else {
+		/* sensor -> phy */
+		for (i = p->num_subdevs - 1; i >= 0; --i)
+			v4l2_subdev_call(p->subdevs[i], video, s_stream, on);
 		if (dev->vs_irq >= 0)
 			disable_irq(dev->vs_irq);
 		v4l2_subdev_call(&dev->isp_sdev.sd, video, s_stream, false);
