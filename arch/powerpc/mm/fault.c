@@ -387,7 +387,7 @@ static void sanity_check_fault(bool is_write, bool is_user,
  * The return value is 0 if the fault was handled, or the signal
  * number if this is a kernel fault that can't be handled here.
  */
-static int __do_page_fault(struct pt_regs *regs, unsigned long address,
+static int ___do_page_fault(struct pt_regs *regs, unsigned long address,
 			   unsigned long error_code)
 {
 	struct vm_area_struct * vma;
@@ -537,35 +537,52 @@ retry:
 
 	return 0;
 }
-NOKPROBE_SYMBOL(__do_page_fault);
+NOKPROBE_SYMBOL(___do_page_fault);
 
-DEFINE_INTERRUPT_HANDLER_RET(do_page_fault)
+static long __do_page_fault(struct pt_regs *regs)
 {
 	const struct exception_table_entry *entry;
-	enum ctx_state prev_state;
 	long err;
 
-	prev_state = exception_enter();
-	err = __do_page_fault(regs, regs->dar, regs->dsisr);
+	err = ___do_page_fault(regs, regs->dar, regs->dsisr);
 	if (likely(!err))
-		goto out;
+		return err;
 
 	entry = search_exception_tables(regs->nip);
 	if (likely(entry)) {
 		instruction_pointer_set(regs, extable_fixup(entry));
-		err = 0;
+		return 0;
 	} else if (IS_ENABLED(CONFIG_PPC_BOOK3S_64)) {
-		/* 32 and 64e handle this in asm */
 		__bad_page_fault(regs, err);
-		err = 0;
+		return 0;
+	} else {
+		/* 32 and 64e handle the bad page fault in asm */
+		return err;
 	}
+}
+NOKPROBE_SYMBOL(__do_page_fault);
 
-out:
+DEFINE_INTERRUPT_HANDLER_RET(do_page_fault)
+{
+	enum ctx_state prev_state = exception_enter();
+	long err;
+
+	err = __do_page_fault(regs);
+
 	exception_exit(prev_state);
 
 	return err;
 }
 NOKPROBE_SYMBOL(do_page_fault);
+
+#ifdef CONFIG_PPC_BOOK3S_64
+/* Same as do_page_fault but interrupt entry has already run in do_hash_fault */
+long hash__do_page_fault(struct pt_regs *regs)
+{
+	return __do_page_fault(regs);
+}
+NOKPROBE_SYMBOL(hash__do_page_fault);
+#endif
 
 /*
  * bad_page_fault is called when we have a bad access from the kernel.

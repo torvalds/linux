@@ -1289,7 +1289,6 @@ int hash_page_mm(struct mm_struct *mm, unsigned long ea,
 		 unsigned long flags)
 {
 	bool is_thp;
-	enum ctx_state prev_state = exception_enter();
 	pgd_t *pgdir;
 	unsigned long vsid;
 	pte_t *ptep;
@@ -1491,7 +1490,6 @@ int hash_page_mm(struct mm_struct *mm, unsigned long ea,
 	DBG_LOW(" -> rc=%d\n", rc);
 
 bail:
-	exception_exit(prev_state);
 	return rc;
 }
 EXPORT_SYMBOL_GPL(hash_page_mm);
@@ -1516,6 +1514,7 @@ EXPORT_SYMBOL_GPL(hash_page);
 DECLARE_INTERRUPT_HANDLER_RET(__do_hash_fault);
 DEFINE_INTERRUPT_HANDLER_RET(__do_hash_fault)
 {
+	enum ctx_state prev_state = exception_enter();
 	unsigned long ea = regs->dar;
 	unsigned long dsisr = regs->dsisr;
 	unsigned long access = _PAGE_PRESENT | _PAGE_READ;
@@ -1564,6 +1563,8 @@ DEFINE_INTERRUPT_HANDLER_RET(__do_hash_fault)
 		err = 0;
 	}
 
+	exception_exit(prev_state);
+
 	return err;
 }
 
@@ -1600,7 +1601,7 @@ DEFINE_INTERRUPT_HANDLER_RAW(do_hash_fault)
 	err = __do_hash_fault(regs);
 	if (err) {
 page_fault:
-		err = do_page_fault(regs);
+		err = hash__do_page_fault(regs);
 	}
 
 	return err;
