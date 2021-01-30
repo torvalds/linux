@@ -132,6 +132,10 @@
 	pinctrl-1 = <&mdss_sleep>;
 };
 
+&mdss {
+	status = "okay";
+};
+
 &pm8916_resin {
 	status = "okay";
 	linux,code = <KEY_VOLUMEDOWN>;
