@@ -712,6 +712,9 @@ static int parse_ev_cfg(struct mhi_controller *mhi_cntrl,
 		case MHI_ER_BW_SCALE:
 			mhi_event->process_event = mhi_process_misc_bw_ev_ring;
 			break;
+		case MHI_ER_TIMESYNC:
+			mhi_event->process_event = mhi_process_misc_tsync_ev_ring;
+			break;
 		default:
 			dev_err(dev, "Event Ring type not supported\n");
 			goto error_ev_cfg;

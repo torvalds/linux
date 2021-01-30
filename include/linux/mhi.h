@@ -193,11 +193,13 @@ enum mhi_ch_ee_mask {
  * @MHI_ER_DATA: Only client data over this ring
  * @MHI_ER_CTRL: MHI control data and client data
  * @MHI_ER_BW_SCALE: MHI controller bandwidth scale functionality
+ * @MHI_ER_TIMESYNC: MHI controller time synchronization DB mode functionality
  */
 enum mhi_er_data_type {
 	MHI_ER_DATA,
 	MHI_ER_CTRL,
 	MHI_ER_BW_SCALE,
+	MHI_ER_TIMESYNC,
 };
 
 /**
