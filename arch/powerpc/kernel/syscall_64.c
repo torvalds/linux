@@ -255,9 +255,9 @@ notrace unsigned long syscall_exit_prepare(unsigned long r3,
 		ret |= _TIF_RESTOREALL;
 	}
 
-again:
 	local_irq_disable();
 
+again:
 	ti_flags = READ_ONCE(*ti_flagsp);
 	while (unlikely(ti_flags & (_TIF_USER_WORK_MASK & ~_TIF_RESTORE_TM))) {
 		local_irq_enable();
@@ -307,6 +307,7 @@ again:
 	if (unlikely(!__prep_irq_for_enabled_exit(!scv))) {
 		user_exit_irqoff();
 		local_irq_enable();
+		local_irq_disable();
 		goto again;
 	}
 
@@ -341,6 +342,7 @@ notrace unsigned long interrupt_exit_user_prepare(struct pt_regs *regs, unsigned
 	BUG_ON(!(regs->msr & MSR_PR));
 	BUG_ON(!FULL_REGS(regs));
 	BUG_ON(regs->softe != IRQS_ENABLED);
+	CT_WARN_ON(ct_state() == CONTEXT_USER);
 
 	/*
 	 * We don't need to restore AMR on the way back to userspace for KUAP.
@@ -383,8 +385,14 @@ again:
 		}
 	}
 
-	if (unlikely(!prep_irq_for_enabled_exit(true, !irqs_disabled_flags(flags))))
+	user_enter_irqoff();
+
+	if (unlikely(!__prep_irq_for_enabled_exit(true))) {
+		user_exit_irqoff();
+		local_irq_enable();
+		local_irq_disable();
 		goto again;
+	}
 
 #ifdef CONFIG_PPC_BOOK3E
 	if (unlikely(ts->debug.dbcr0 & DBCR0_IDM)) {
@@ -425,6 +433,12 @@ notrace unsigned long interrupt_exit_kernel_prepare(struct pt_regs *regs, unsign
 		unrecoverable_exception(regs);
 	BUG_ON(regs->msr & MSR_PR);
 	BUG_ON(!FULL_REGS(regs));
+	/*
+	 * CT_WARN_ON comes here via program_check_exception,
+	 * so avoid recursion.
+	 */
+	if (TRAP(regs) != 0x700)
+		CT_WARN_ON(ct_state() == CONTEXT_USER);
 
 	amr = kuap_get_and_check_amr();
 
