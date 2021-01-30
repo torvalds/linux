@@ -20,6 +20,7 @@
 
 #include <asm/cputable.h>
 #include <linux/uaccess.h>
+#include <asm/interrupt.h>
 #include <asm/kvm_ppc.h>
 #include <asm/cacheflush.h>
 #include <asm/dbell.h>

@@ -12,13 +12,14 @@
 #include <linux/hardirq.h>
 
 #include <asm/dbell.h>
+#include <asm/interrupt.h>
 #include <asm/irq_regs.h>
 #include <asm/kvm_ppc.h>
 #include <asm/trace.h>
 
 #ifdef CONFIG_SMP
 
-void doorbell_exception(struct pt_regs *regs)
+DEFINE_INTERRUPT_HANDLER_ASYNC(doorbell_exception)
 {
 	struct pt_regs *old_regs = set_irq_regs(regs);
 
@@ -39,9 +40,8 @@ void doorbell_exception(struct pt_regs *regs)
 	set_irq_regs(old_regs);
 }
 #else /* CONFIG_SMP */
-void doorbell_exception(struct pt_regs *regs)
+DEFINE_INTERRUPT_HANDLER_ASYNC(doorbell_exception)
 {
 	printk(KERN_WARNING "Received doorbell on non-smp system\n");
 }
 #endif /* CONFIG_SMP */
-

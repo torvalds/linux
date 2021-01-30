@@ -41,6 +41,7 @@
 #include <linux/pkeys.h>
 #include <linux/seq_buf.h>
 
+#include <asm/interrupt.h>
 #include <asm/io.h>
 #include <asm/processor.h>
 #include <asm/mmu.h>
@@ -659,7 +660,7 @@ static void do_break_handler(struct pt_regs *regs)
 	}
 }
 
-void do_break(struct pt_regs *regs)
+DEFINE_INTERRUPT_HANDLER(do_break)
 {
 	current->thread.trap_nr = TRAP_HWBKPT;
 	if (notify_die(DIE_DABR_MATCH, "dabr_match", regs, regs->dsisr,

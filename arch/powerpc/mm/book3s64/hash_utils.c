@@ -38,6 +38,7 @@
 #include <linux/pgtable.h>
 
 #include <asm/debugfs.h>
+#include <asm/interrupt.h>
 #include <asm/processor.h>
 #include <asm/mmu.h>
 #include <asm/mmu_context.h>
@@ -1512,7 +1513,8 @@ int hash_page(unsigned long ea, unsigned long access, unsigned long trap,
 }
 EXPORT_SYMBOL_GPL(hash_page);
 
-static long __do_hash_fault(struct pt_regs *regs)
+DECLARE_INTERRUPT_HANDLER_RET(__do_hash_fault);
+DEFINE_INTERRUPT_HANDLER_RET(__do_hash_fault)
 {
 	unsigned long ea = regs->dar;
 	unsigned long dsisr = regs->dsisr;
@@ -1565,7 +1567,11 @@ static long __do_hash_fault(struct pt_regs *regs)
 	return err;
 }
 
-long do_hash_fault(struct pt_regs *regs)
+/*
+ * The _RAW interrupt entry checks for the in_nmi() case before
+ * running the full handler.
+ */
+DEFINE_INTERRUPT_HANDLER_RAW(do_hash_fault)
 {
 	unsigned long dsisr = regs->dsisr;
 	long err;
@@ -1587,7 +1593,7 @@ long do_hash_fault(struct pt_regs *regs)
 	 * the access, or panic if there isn't a handler.
 	 */
 	if (unlikely(in_nmi())) {
-		bad_page_fault(regs, SIGSEGV);
+		do_bad_page_fault_segv(regs);
 		return 0;
 	}
 

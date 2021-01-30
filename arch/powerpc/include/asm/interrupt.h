@@ -232,4 +232,70 @@ __visible noinstr long func(struct pt_regs *regs)			\
 									\
 static __always_inline long ____##func(struct pt_regs *regs)
 
+
+/* Interrupt handlers */
+/* kernel/traps.c */
+DECLARE_INTERRUPT_HANDLER_NMI(system_reset_exception);
+#ifdef CONFIG_PPC_BOOK3S_64
+DECLARE_INTERRUPT_HANDLER_ASYNC(machine_check_exception);
+#else
+DECLARE_INTERRUPT_HANDLER_NMI(machine_check_exception);
+#endif
+DECLARE_INTERRUPT_HANDLER(SMIException);
+DECLARE_INTERRUPT_HANDLER(handle_hmi_exception);
+DECLARE_INTERRUPT_HANDLER(unknown_exception);
+DECLARE_INTERRUPT_HANDLER_ASYNC(unknown_async_exception);
+DECLARE_INTERRUPT_HANDLER(instruction_breakpoint_exception);
+DECLARE_INTERRUPT_HANDLER(RunModeException);
+DECLARE_INTERRUPT_HANDLER(single_step_exception);
+DECLARE_INTERRUPT_HANDLER(program_check_exception);
+DECLARE_INTERRUPT_HANDLER(emulation_assist_interrupt);
+DECLARE_INTERRUPT_HANDLER(alignment_exception);
+DECLARE_INTERRUPT_HANDLER(StackOverflow);
+DECLARE_INTERRUPT_HANDLER(stack_overflow_exception);
+DECLARE_INTERRUPT_HANDLER(kernel_fp_unavailable_exception);
+DECLARE_INTERRUPT_HANDLER(altivec_unavailable_exception);
+DECLARE_INTERRUPT_HANDLER(vsx_unavailable_exception);
+DECLARE_INTERRUPT_HANDLER(facility_unavailable_exception);
+DECLARE_INTERRUPT_HANDLER(fp_unavailable_tm);
+DECLARE_INTERRUPT_HANDLER(altivec_unavailable_tm);
+DECLARE_INTERRUPT_HANDLER(vsx_unavailable_tm);
+DECLARE_INTERRUPT_HANDLER_NMI(performance_monitor_exception_nmi);
+DECLARE_INTERRUPT_HANDLER_ASYNC(performance_monitor_exception_async);
+DECLARE_INTERRUPT_HANDLER_RAW(performance_monitor_exception);
+DECLARE_INTERRUPT_HANDLER(DebugException);
+DECLARE_INTERRUPT_HANDLER(altivec_assist_exception);
+DECLARE_INTERRUPT_HANDLER(CacheLockingException);
+DECLARE_INTERRUPT_HANDLER(SPEFloatingPointException);
+DECLARE_INTERRUPT_HANDLER(SPEFloatingPointRoundException);
+DECLARE_INTERRUPT_HANDLER(unrecoverable_exception);
+DECLARE_INTERRUPT_HANDLER(WatchdogException);
+DECLARE_INTERRUPT_HANDLER(kernel_bad_stack);
+
+/* slb.c */
+DECLARE_INTERRUPT_HANDLER_RAW(do_slb_fault);
+DECLARE_INTERRUPT_HANDLER(do_bad_slb_fault);
+
+/* hash_utils.c */
+DECLARE_INTERRUPT_HANDLER_RAW(do_hash_fault);
+
+/* fault.c */
+DECLARE_INTERRUPT_HANDLER_RET(do_page_fault);
+DECLARE_INTERRUPT_HANDLER(do_bad_page_fault_segv);
+
+/* process.c */
+DECLARE_INTERRUPT_HANDLER(do_break);
+
+/* time.c */
+DECLARE_INTERRUPT_HANDLER_ASYNC(timer_interrupt);
+
+/* mce.c */
+DECLARE_INTERRUPT_HANDLER_NMI(machine_check_early);
+DECLARE_INTERRUPT_HANDLER_NMI(hmi_exception_realmode);
+
+DECLARE_INTERRUPT_HANDLER_ASYNC(TAUException);
+
+void replay_system_reset(void);
+void replay_soft_interrupts(void);
+
 #endif /* _ASM_POWERPC_INTERRUPT_H */

@@ -34,6 +34,7 @@
 #include <linux/uaccess.h>
 
 #include <asm/firmware.h>
+#include <asm/interrupt.h>
 #include <asm/page.h>
 #include <asm/mmu.h>
 #include <asm/mmu_context.h>
@@ -540,7 +541,7 @@ retry:
 }
 NOKPROBE_SYMBOL(__do_page_fault);
 
-long do_page_fault(struct pt_regs *regs)
+DEFINE_INTERRUPT_HANDLER_RET(do_page_fault)
 {
 	const struct exception_table_entry *entry;
 	enum ctx_state prev_state;
@@ -624,7 +625,7 @@ void bad_page_fault(struct pt_regs *regs, int sig)
 }
 
 #ifdef CONFIG_PPC_BOOK3S_64
-void do_bad_page_fault_segv(struct pt_regs *regs)
+DEFINE_INTERRUPT_HANDLER(do_bad_page_fault_segv)
 {
 	bad_page_fault(regs, SIGSEGV);
 }
