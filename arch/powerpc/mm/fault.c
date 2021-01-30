@@ -615,3 +615,10 @@ void bad_page_fault(struct pt_regs *regs, int sig)
 	else
 		__bad_page_fault(regs, sig);
 }
+
+#ifdef CONFIG_PPC_BOOK3S_64
+void do_bad_page_fault_segv(struct pt_regs *regs)
+{
+	bad_page_fault(regs, SIGSEGV);
+}
+#endif
