@@ -6,7 +6,6 @@
  *
  * Author: Lu Baolu <baolu.lu@linux.intel.com>
  */
-#ifdef CONFIG_INTEL_IOMMU
 #undef TRACE_SYSTEM
 #define TRACE_SYSTEM intel_iommu
 
@@ -176,4 +175,3 @@ TRACE_EVENT(qi_submit,
 
 /* This part must be outside protection */
 #include <trace/define_trace.h>
-#endif /* CONFIG_INTEL_IOMMU */

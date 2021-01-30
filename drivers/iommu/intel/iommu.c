@@ -44,7 +44,6 @@
 #include <asm/irq_remapping.h>
 #include <asm/cacheflush.h>
 #include <asm/iommu.h>
-#include <trace/events/intel_iommu.h>
 
 #include "../irq_remapping.h"
 #include "pasid.h"
