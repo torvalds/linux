@@ -571,6 +571,7 @@ static int get_outbound_buffer_frontier(struct qdio_q *q, unsigned int start,
 					unsigned int *error)
 {
 	unsigned char state = 0;
+	unsigned int i;
 	int count;
 
 	q->timestamp = get_tod_clock_fast();
@@ -591,8 +592,14 @@ static int get_outbound_buffer_frontier(struct qdio_q *q, unsigned int start,
 		return 0;
 
 	switch (state) {
-	case SLSB_P_OUTPUT_EMPTY:
 	case SLSB_P_OUTPUT_PENDING:
+		/* detach the utilized QAOBs: */
+		for (i = 0; i < count; i++)
+			q->u.out.aobs[QDIO_BUFNR(start + i)] = NULL;
+
+		*error = QDIO_ERROR_SLSB_PENDING;
+		fallthrough;
+	case SLSB_P_OUTPUT_EMPTY:
 		/* the adapter got it */
 		DBF_DEV_EVENT(DBF_INFO, q->irq_ptr,
 			"out empty:%1d %02x", q->nr, count);
@@ -643,7 +650,7 @@ static inline int qdio_outbound_q_moved(struct qdio_q *q, unsigned int start,
 	if (count) {
 		DBF_DEV_EVENT(DBF_INFO, q->irq_ptr, "out moved:%1d", q->nr);
 
-		if (q->u.out.use_cq) {
+		if (q->u.out.use_cq && *error != QDIO_ERROR_SLSB_PENDING) {
 			unsigned int i;
 
 			for (i = 0; i < count; i++)

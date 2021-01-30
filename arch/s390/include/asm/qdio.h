@@ -315,6 +315,7 @@ typedef void qdio_handler_t(struct ccw_device *, unsigned int, int,
 #define QDIO_ERROR_GET_BUF_STATE		0x0002
 #define QDIO_ERROR_SET_BUF_STATE		0x0004
 #define QDIO_ERROR_SLSB_STATE			0x0100
+#define QDIO_ERROR_SLSB_PENDING			0x0200
 
 #define QDIO_ERROR_FATAL			0x00ff
 #define QDIO_ERROR_TEMPORARY			0xff00
