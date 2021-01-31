@@ -300,6 +300,26 @@
 	};
 };
 
+&blsp1_i2c2 {
+	status = "okay";
+
+	/*
+	 * This device uses the Texas Instruments TAS2553, however the TAS2552 driver
+	 * seems to work here. In the future a proper driver might need to
+	 * be written for this device.
+	 */
+	tas2553: tas2553@40 {
+		compatible = "ti,tas2552";
+		reg = <0x40>;
+
+		vbat-supply = <&vph_pwr>;
+		iovdd-supply = <&vreg_s4a_1p8>;
+		avdd-supply = <&vreg_s4a_1p8>;
+
+		enable-gpio = <&pm8994_gpios 12 GPIO_ACTIVE_HIGH>;
+	};
+};
+
 &blsp1_i2c5 {
 	status = "okay";
 
