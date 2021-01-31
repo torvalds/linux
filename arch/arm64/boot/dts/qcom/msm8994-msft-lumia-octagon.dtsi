@@ -300,6 +300,22 @@
 	};
 };
 
+&blsp1_i2c6 {
+	status = "okay";
+
+	pn547: pn547@28 {
+		compatible = "nxp,pn544-i2c";
+
+		reg = <0x28>;
+
+		interrupt-parent = <&tlmm>;
+		interrupts = <29 IRQ_TYPE_EDGE_RISING>;
+
+		enable-gpios = <&tlmm 30 GPIO_ACTIVE_HIGH>;
+		firmware-gpios = <&tlmm 94 GPIO_ACTIVE_HIGH>;
+	};
+};
+
 &blsp1_uart2 {
 	status = "okay";
 };
