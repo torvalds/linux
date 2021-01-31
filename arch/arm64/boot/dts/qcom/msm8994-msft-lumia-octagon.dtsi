@@ -684,6 +684,27 @@
 
 &sdhc1 {
 	status = "okay";
+
+	/*
+	 * This device is shipped with HS400 capabable eMMCs
+	 * However various brands have been used in various product batches,
+	 * including a Samsung eMMC (BGND3R) which features a quirk with HS400.
+	 * Set the speed to HS200 as a safety measure.
+	 */
+	mmc-hs200-1_8v;
+};
+
+&sdhc2 {
+	status = "okay";
+
+	pinctrl-names = "default", "sleep";
+	pinctrl-0 = <&sdc2_clk_on &sdc2_cmd_on &sdc2_data_on>;
+	pinctrl-1 = <&sdc2_clk_off &sdc2_cmd_off &sdc2_data_off>;
+
+	vmmc-supply = <&vreg_l21a_2p95>;
+	vqmmc-supply = <&vreg_l13a_2p95>;
+
+	cd-gpios = <&pm8994_gpios 8 GPIO_ACTIVE_LOW>;
 };
 
 &tlmm {
