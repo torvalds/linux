@@ -66,7 +66,7 @@ static struct attribute *hdac_dev_attrs[] = {
 	NULL
 };
 
-static struct attribute_group hdac_dev_attr_group = {
+static const struct attribute_group hdac_dev_attr_group = {
 	.attrs	= hdac_dev_attrs,
 };
 
