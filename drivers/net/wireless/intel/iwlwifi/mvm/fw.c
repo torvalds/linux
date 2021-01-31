@@ -1045,6 +1045,11 @@ int iwl_mvm_ppag_send_cmd(struct iwl_mvm *mvm)
 }
 
 static const struct dmi_system_id dmi_ppag_approved_list[] = {
+	{ .ident = "HP",
+	  .matches = {
+			DMI_MATCH(DMI_SYS_VENDOR, "HP"),
+		},
+	},
 };
 
 static int iwl_mvm_ppag_init(struct iwl_mvm *mvm)
