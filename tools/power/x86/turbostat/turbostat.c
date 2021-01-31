@@ -33,10 +33,13 @@
 #include <sys/capability.h>
 #include <errno.h>
 #include <math.h>
+#include <linux/perf_event.h>
+#include <asm/unistd.h>
 
 char *proc_stat = "/proc/stat";
 FILE *outf;
 int *fd_percpu;
+int *fd_instr_count_percpu;
 struct timeval interval_tv = {5, 0};
 struct timespec interval_ts = {5, 0};
 unsigned int num_iterations;
@@ -75,6 +78,7 @@ char *output_buffer, *outp;
 unsigned int do_rapl;
 unsigned int do_dts;
 unsigned int do_ptm;
+unsigned int do_ipc;
 unsigned long long  gfx_cur_rc6_ms;
 unsigned long long cpuidle_cur_cpu_lpi_us;
 unsigned long long cpuidle_cur_sys_lpi_us;
@@ -173,6 +177,7 @@ struct thread_data {
 	unsigned long long aperf;
 	unsigned long long mperf;
 	unsigned long long c1;
+	unsigned long long instr_count;
 	unsigned long long  irq_count;
 	unsigned int smi_count;
 	unsigned int cpu_id;
@@ -490,6 +495,39 @@ int get_msr_fd(int cpu)
 	return fd;
 }
 
+static long perf_event_open(struct perf_event_attr *hw_event, pid_t pid, int cpu, int group_fd, unsigned long flags)
+{
+	return syscall(__NR_perf_event_open, hw_event, pid, cpu, group_fd, flags);
+}
+
+static int perf_instr_count_open(int cpu_num)
+{
+	struct perf_event_attr pea;
+	int fd;
+
+	memset(&pea, 0, sizeof(struct perf_event_attr));
+	pea.type = PERF_TYPE_HARDWARE;
+	pea.size = sizeof(struct perf_event_attr);
+	pea.config = PERF_COUNT_HW_INSTRUCTIONS;
+
+	/* counter for cpu_num, including user + kernel and all processes */
+	fd = perf_event_open(&pea, -1, cpu_num, -1, 0);
+	if (fd == -1) 
+		err(-1, "cpu%d: perf instruction counter\n", cpu_num);
+
+	return fd;
+}
+
+int get_instr_count_fd(int cpu)
+{
+	if (fd_instr_count_percpu[cpu])
+		return fd_instr_count_percpu[cpu];
+
+	fd_instr_count_percpu[cpu] = perf_instr_count_open(cpu);
+
+	return fd_instr_count_percpu[cpu];
+}
+
 int get_msr(int cpu, off_t offset, unsigned long long *msr)
 {
 	ssize_t retval;
@@ -561,6 +599,7 @@ struct msr_counter bic[] = {
 	{ 0x0, "X2APIC" },
 	{ 0x0, "Die" },
 	{ 0x0, "GFXAMHz" },
+	{ 0x0, "IPC" },
 };
 
 #define MAX_BIC (sizeof(bic) / sizeof(struct msr_counter))
@@ -616,6 +655,7 @@ struct msr_counter bic[] = {
 #define	BIC_X2APIC	(1ULL << 49)
 #define	BIC_Die		(1ULL << 50)
 #define	BIC_GFXACTMHz	(1ULL << 51)
+#define	BIC_IPC		(1ULL << 52)
 
 #define BIC_DISABLED_BY_DEFAULT	(BIC_USEC | BIC_TOD | BIC_APIC | BIC_X2APIC)
 
@@ -627,6 +667,7 @@ unsigned long long bic_present = BIC_USEC | BIC_TOD | BIC_sysfs | BIC_APIC | BIC
 #define ENABLE_BIC(COUNTER_NAME) (bic_enabled |= COUNTER_NAME)
 #define BIC_PRESENT(COUNTER_BIT) (bic_present |= COUNTER_BIT)
 #define BIC_NOT_PRESENT(COUNTER_BIT) (bic_present &= ~COUNTER_BIT)
+#define BIC_IS_ENABLED(COUNTER_BIT) (bic_enabled & COUNTER_BIT)
 
 
 #define MAX_DEFERRED 16
@@ -763,6 +804,9 @@ void print_header(char *delim)
 		outp += sprintf(outp, "%sBzy_MHz", (printed++ ? delim : ""));
 	if (DO_BIC(BIC_TSC_MHz))
 		outp += sprintf(outp, "%sTSC_MHz", (printed++ ? delim : ""));
+
+	if (DO_BIC(BIC_IPC))
+		outp += sprintf(outp, "%sIPC", (printed++ ? delim : ""));
 
 	if (DO_BIC(BIC_IRQ)) {
 		if (sums_need_wide_columns)
@@ -925,6 +969,9 @@ int dump_counters(struct thread_data *t, struct core_data *c,
 		outp += sprintf(outp, "aperf: %016llX\n", t->aperf);
 		outp += sprintf(outp, "mperf: %016llX\n", t->mperf);
 		outp += sprintf(outp, "c1: %016llX\n", t->c1);
+
+		if (DO_BIC(BIC_IPC))
+			outp += sprintf(outp, "IPC: %lld\n", t->instr_count);
 
 		if (DO_BIC(BIC_IRQ))
 			outp += sprintf(outp, "IRQ: %lld\n", t->irq_count);
@@ -1104,6 +1151,9 @@ int format_counters(struct thread_data *t, struct core_data *c,
 
 	if (DO_BIC(BIC_TSC_MHz))
 		outp += sprintf(outp, "%s%.0f", (printed++ ? delim : ""), 1.0 * t->tsc/units/interval_float);
+
+	if (DO_BIC(BIC_IPC))
+		outp += sprintf(outp, "%s%.2f", (printed++ ? delim : ""), 1.0 * t->instr_count / t->aperf);
 
 	/* IRQ */
 	if (DO_BIC(BIC_IRQ)) {
@@ -1482,6 +1532,9 @@ delta_thread(struct thread_data *new, struct thread_data *old,
 		old->mperf = 1;	/* divide by 0 protection */
 	}
 
+	if (DO_BIC(BIC_IPC))
+		old->instr_count = new->instr_count - old->instr_count;
+
 	if (DO_BIC(BIC_IRQ))
 		old->irq_count = new->irq_count - old->irq_count;
 
@@ -1535,6 +1588,8 @@ void clear_counters(struct thread_data *t, struct core_data *c, struct pkg_data 
 	t->aperf = 0;
 	t->mperf = 0;
 	t->c1 = 0;
+
+	t->instr_count = 0;
 
 	t->irq_count = 0;
 	t->smi_count = 0;
@@ -1610,6 +1665,8 @@ int sum_counters(struct thread_data *t, struct core_data *c,
 	average.threads.aperf += t->aperf;
 	average.threads.mperf += t->mperf;
 	average.threads.c1 += t->c1;
+
+	average.threads.instr_count += t->instr_count;
 
 	average.threads.irq_count += t->irq_count;
 	average.threads.smi_count += t->smi_count;
@@ -1707,6 +1764,7 @@ void compute_average(struct thread_data *t, struct core_data *c,
 	average.threads.tsc /= topo.num_cpus;
 	average.threads.aperf /= topo.num_cpus;
 	average.threads.mperf /= topo.num_cpus;
+	average.threads.instr_count /= topo.num_cpus;
 	average.threads.c1 /= topo.num_cpus;
 
 	if (average.threads.irq_count > 9999999)
@@ -1988,6 +2046,10 @@ retry:
 		t->aperf = t->aperf * aperf_mperf_multiplier;
 		t->mperf = t->mperf * aperf_mperf_multiplier;
 	}
+
+	if (DO_BIC(BIC_IPC))
+		if (read(get_instr_count_fd(cpu), &t->instr_count, sizeof(long long)) != sizeof(long long))
+			return -4;
 
 	if (DO_BIC(BIC_IRQ))
 		t->irq_count = irqs_per_cpu[cpu];
@@ -5031,6 +5093,26 @@ void print_dev_latency(void)
 	close(fd);
 }
 
+
+/*
+ * Linux-perf manages the the HW instructions-retired counter
+ * by enabling when requested, and hiding rollover
+ */
+void linux_perf_init(void)
+{
+	if (!BIC_IS_ENABLED(BIC_IPC))
+		return;
+
+	if (access("/proc/sys/kernel/perf_event_paranoid", F_OK))
+		return;
+
+	fd_instr_count_percpu = calloc(topo.max_cpu_num + 1, sizeof(int));
+	if (fd_instr_count_percpu == NULL)
+		err(-1, "calloc fd_instr_count_percpu");
+
+	BIC_PRESENT(BIC_IPC);
+}
+
 void process_cpuid()
 {
 	unsigned int eax, ebx, ecx, edx;
@@ -5642,6 +5724,7 @@ void turbostat_init()
 	check_dev_msr();
 	check_permissions();
 	process_cpuid();
+	linux_perf_init();
 
 
 	if (!quiet)
@@ -6087,6 +6170,7 @@ void cmdline(int argc, char **argv)
 		{"debug",	no_argument,		0, 'd'},	/* internal, not documented */
 		{"enable",	required_argument,	0, 'e'},
 		{"interval",	required_argument,	0, 'i'},
+		{"IPC",	no_argument,			0, 'I'},
 		{"num_iterations",	required_argument,	0, 'n'},
 		{"help",	no_argument,		0, 'h'},
 		{"hide",	required_argument,	0, 'H'},	// meh, -h taken by --help
