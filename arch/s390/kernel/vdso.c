@@ -105,14 +105,23 @@ static vm_fault_t vvar_fault(const struct vm_special_mapping *sm,
 			     struct vm_area_struct *vma, struct vm_fault *vmf)
 {
 	struct page *timens_page = find_timens_vvar_page(vma);
-	unsigned long pfn;
+	unsigned long addr, pfn;
+	vm_fault_t err;
 
 	switch (vmf->pgoff) {
 	case VVAR_DATA_PAGE_OFFSET:
-		if (timens_page)
+		pfn = virt_to_pfn(vdso_data);
+		if (timens_page) {
+			/*
+			 * Fault in VVAR page too, since it will be accessed
+			 * to get clock data anyway.
+			 */
+			addr = vmf->address + VVAR_TIMENS_PAGE_OFFSET * PAGE_SIZE;
+			err = vmf_insert_pfn(vma, addr, pfn);
+			if (unlikely(err & VM_FAULT_ERROR))
+				return err;
 			pfn = page_to_pfn(timens_page);
-		else
-			pfn = virt_to_pfn(vdso_data);
+		}
 		break;
 #ifdef CONFIG_TIME_NS
 	case VVAR_TIMENS_PAGE_OFFSET:
