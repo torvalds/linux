@@ -304,6 +304,27 @@
 	status = "okay";
 };
 
+&blsp2_spi4 {
+	status = "okay";
+
+	/*
+	 * This device is a Lattice UC120 USB-C PD PHY.
+	 * It is actually a Lattice iCE40 FPGA pre-programmed by
+	 * the device firmware with a specific bitstream
+	 * enabling USB Type C PHY functionality.
+	 * Communication is done via a proprietary protocol over SPI.
+	 *
+	 * TODO: Once a proper driver is available, replace this.
+	 */
+	uc120: ice5lp2k@0 {
+		compatible = "lattice,ice40-fpga-mgr";
+		reg = <0>;
+		spi-max-frequency = <5000000>;
+		cdone-gpios = <&tlmm 95 GPIO_ACTIVE_HIGH>;
+		reset-gpios = <&pmi8994_gpios 4 GPIO_ACTIVE_LOW>;
+	};
+};
+
 &blsp2_uart2 {
 	status = "okay";
 
