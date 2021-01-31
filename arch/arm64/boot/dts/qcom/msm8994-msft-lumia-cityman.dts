@@ -32,7 +32,7 @@
 	};
 };
 
-&blsp_i2c1 {
+&blsp1_i2c1 {
 	status = "okay";
 
 	rmi4-i2c-dev@4b {

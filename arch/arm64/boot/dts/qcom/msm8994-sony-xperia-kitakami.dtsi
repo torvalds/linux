@@ -94,7 +94,7 @@
 	};
 };
 
-&blsp_spi0 {
+&blsp1_spi1 {
 	status = "okay";
 
 	/* FPC fingerprint reader */
@@ -102,26 +102,23 @@
 
 /* I2C1 is disabled on this board */
 
-&blsp_i2c2 {
+&blsp1_i2c2 {
 	status = "okay";
+	clock-frequency = <355000>;
 
 	/* NXP PN547 NFC */
 };
 
-&blsp_i2c4 {
+&blsp1_i2c4 {
 	status = "okay";
+	clock-frequency = <355000>;
 
 	/* Empty but active */
 };
 
-&blsp_i2c5 {
+&blsp1_i2c6 {
 	status = "okay";
-
-	/* sii8620 HDMI/MHL bridge */
-};
-
-&blsp_i2c6 {
-	status = "okay";
+	clock-frequency = <355000>;
 
 	touchscreen: rmi4-i2c-dev@2c {
 		compatible = "syna,rmi4-i2c";
@@ -155,6 +152,13 @@
 
 &blsp1_uart2 {
 	status = "okay";
+};
+
+&blsp2_i2c5 {
+	status = "okay";
+	clock-frequency = <355000>;
+
+	/* sii8620 HDMI/MHL bridge */
 };
 
 &blsp2_uart2 {
