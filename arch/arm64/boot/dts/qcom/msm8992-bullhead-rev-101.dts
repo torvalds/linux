@@ -283,7 +283,7 @@
 	};
 };
 
-&sdhc_1 {
+&sdhc1 {
 	status = "okay";
 
 	mmc-hs400-1_8v;

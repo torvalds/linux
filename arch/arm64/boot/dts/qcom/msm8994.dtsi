@@ -132,11 +132,11 @@
 					cpu = <&CPU5>;
 				};
 
-				core2 {
+				cpu6_map: core2 {
 					cpu = <&CPU6>;
 				};
 
-				core3 {
+				cpu7_map: core3 {
 					cpu = <&CPU7>;
 				};
 			};
@@ -1009,7 +1009,7 @@
 		};
 	};
 
-	timer {
+	timer: timer {
 		compatible = "arm,armv8-timer";
 		interrupts = <GIC_PPI 2 0xff08>,
 			     <GIC_PPI 3 0xff08>,
