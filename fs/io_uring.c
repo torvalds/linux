@@ -7117,9 +7117,6 @@ static int io_sq_thread(void *data)
 			continue;
 		}
 
-		if (kthread_should_park())
-			continue;
-
 		needs_sched = true;
 		prepare_to_wait(&sqd->wait, &wait, TASK_INTERRUPTIBLE);
 		list_for_each_entry(ctx, &sqd->ctx_list, sqd_list) {
@@ -7134,7 +7131,7 @@ static int io_sq_thread(void *data)
 			}
 		}
 
-		if (needs_sched) {
+		if (needs_sched && !kthread_should_park()) {
 			list_for_each_entry(ctx, &sqd->ctx_list, sqd_list)
 				io_ring_set_wakeup_flag(ctx);
 
