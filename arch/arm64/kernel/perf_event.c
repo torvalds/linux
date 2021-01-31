@@ -280,7 +280,7 @@ armv8pmu_event_attr_is_visible(struct kobject *kobj,
 	return 0;
 }
 
-static struct attribute_group armv8_pmuv3_events_attr_group = {
+static const struct attribute_group armv8_pmuv3_events_attr_group = {
 	.name = "events",
 	.attrs = armv8_pmuv3_event_attrs,
 	.is_visible = armv8pmu_event_attr_is_visible,
@@ -300,7 +300,7 @@ static struct attribute *armv8_pmuv3_format_attrs[] = {
 	NULL,
 };
 
-static struct attribute_group armv8_pmuv3_format_attr_group = {
+static const struct attribute_group armv8_pmuv3_format_attr_group = {
 	.name = "format",
 	.attrs = armv8_pmuv3_format_attrs,
 };
@@ -322,7 +322,7 @@ static struct attribute *armv8_pmuv3_caps_attrs[] = {
 	NULL,
 };
 
-static struct attribute_group armv8_pmuv3_caps_attr_group = {
+static const struct attribute_group armv8_pmuv3_caps_attr_group = {
 	.name = "caps",
 	.attrs = armv8_pmuv3_caps_attrs,
 };
