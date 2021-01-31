@@ -304,6 +304,32 @@
 	status = "okay";
 };
 
+&blsp2_i2c5 {
+	status = "okay";
+
+	fm_radio: si4705@11 {
+		compatible = "silabs,si470x";
+		reg = <0x11>;
+
+		interrupt-parent = <&tlmm>;
+		interrupts = <9 IRQ_TYPE_EDGE_FALLING>;
+		reset-gpios = <&tlmm 93 GPIO_ACTIVE_HIGH>;
+	};
+
+	vreg_lpddr_1p1: fan53526a@6c {
+		compatible = "fcs,fan53526";
+		reg = <0x6c>;
+
+		regulator-min-microvolt = <1100000>;
+		regulator-max-microvolt = <1100000>;
+		vin-supply = <&vph_pwr>;
+		fcs,suspend-voltage-selector = <1>;
+		regulator-always-on; /* Turning off DDR power doesn't sound good. */
+	};
+
+	/* ANX7816 HDMI bridge (needs MDSS HDMI) */
+};
+
 &blsp2_spi4 {
 	status = "okay";
 
