@@ -6,7 +6,7 @@
  */
 
 #include <dt-bindings/clock/mt8183-clk.h>
-#include <dt-bindings/gce/mt8173-gce.h>
+#include <dt-bindings/gce/mt8183-gce.h>
 #include <dt-bindings/interrupt-controller/arm-gic.h>
 #include <dt-bindings/interrupt-controller/irq.h>
 #include <dt-bindings/memory/mt8183-larb-port.h>
