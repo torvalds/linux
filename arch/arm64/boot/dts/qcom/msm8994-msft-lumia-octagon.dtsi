@@ -376,6 +376,42 @@
 	status = "okay";
 };
 
+&blsp2_i2c1 {
+	status = "okay";
+
+	sideinteraction: ad7147_captouch@2c {
+		compatible = "ad,ad7147_captouch";
+		reg = <0x2c>;
+
+		pinctrl-names = "default", "sleep";
+		pinctrl-0 = <&grip_default>;
+		pinctrl-1 = <&grip_sleep>;
+
+		interrupts = <&tlmm 96 IRQ_TYPE_EDGE_FALLING>;
+
+		button_num = <8>;
+		touchpad_num = <0>;
+		wheel_num = <0>;
+		slider_num = <0>;
+
+		vcc-supply = <&vreg_l18a_2p85>;
+	};
+
+	/*
+	 * The QPDS-T900/QPDS-T930 is a customized part built for Nokia
+	 * by Avago. It is very similar to the Avago APDS-9930 with some
+	 * minor differences. In the future a proper driver might need to
+	 * be written for this device. For now this works fine.
+	 */
+	qpdst900: qpdst900@39 {
+		compatible = "avago,apds9930";
+		reg = <0x39>;
+
+		interrupt-parent = <&tlmm>;
+		interrupts = <40 IRQ_TYPE_EDGE_FALLING>;
+	};
+};
+
 &blsp2_i2c5 {
 	status = "okay";
 
@@ -843,6 +879,20 @@
 };
 
 &tlmm {
+	grip_default: grip-default {
+		pins = "gpio39";
+		function = "gpio";
+		drive-strength = <6>;
+		bias-pull-down;
+	};
+
+	grip_sleep: grip-sleep {
+		pins = "gpio39";
+		function = "gpio";
+		drive-strength = <2>;
+		bias-pull-down;
+	};
+
 	hall_front_default: hall-front-default {
 		pins = "gpio42";
 		function = "gpio";
