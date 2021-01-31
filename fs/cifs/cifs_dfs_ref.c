@@ -133,8 +133,9 @@ cifs_build_devname(char *nodename, const char *prepath)
  * Caller is responsible for freeing returned value if it is not error.
  */
 char *cifs_compose_mount_options(const char *sb_mountdata,
-				   const char *fullpath,
-				   const struct dfs_info3_param *ref)
+				 const char *fullpath,
+				 const struct dfs_info3_param *ref,
+				 char **devname)
 {
 	int rc;
 	char *name;
@@ -231,7 +232,10 @@ char *cifs_compose_mount_options(const char *sb_mountdata,
 	strcat(mountdata, "ip=");
 	strcat(mountdata, srvIP);
 
-	kfree(name);
+	if (devname)
+		*devname = name;
+	else
+		kfree(name);
 
 	/*cifs_dbg(FYI, "%s: parent mountdata: %s\n", __func__, sb_mountdata);*/
 	/*cifs_dbg(FYI, "%s: submount mountdata: %s\n", __func__, mountdata );*/
@@ -278,7 +282,7 @@ static struct vfsmount *cifs_dfs_do_mount(struct dentry *mntpt,
 
 	/* strip first '\' from fullpath */
 	mountdata = cifs_compose_mount_options(cifs_sb->ctx->mount_options,
-					       fullpath + 1, NULL);
+					       fullpath + 1, NULL, NULL);
 	if (IS_ERR(mountdata)) {
 		kfree(devname);
 		return (struct vfsmount *)mountdata;

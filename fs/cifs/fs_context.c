@@ -175,8 +175,10 @@ const struct fs_parameter_spec smb3_fs_parameters[] = {
 	fsparam_flag_no("exec", Opt_ignore),
 	fsparam_flag_no("dev", Opt_ignore),
 	fsparam_flag_no("mand", Opt_ignore),
+	fsparam_flag_no("auto", Opt_ignore),
 	fsparam_string("cred", Opt_ignore),
 	fsparam_string("credentials", Opt_ignore),
+	fsparam_string("prefixpath", Opt_ignore),
 	{}
 };
 
@@ -399,6 +401,37 @@ cifs_parse_smb_version(char *value, struct smb3_fs_context *ctx, bool is_smb3)
 	return 0;
 }
 
+int smb3_parse_opt(const char *options, const char *key, char **val)
+{
+	int rc = -ENOENT;
+	char *opts, *orig, *p;
+
+	orig = opts = kstrdup(options, GFP_KERNEL);
+	if (!opts)
+		return -ENOMEM;
+
+	while ((p = strsep(&opts, ","))) {
+		char *nval;
+
+		if (!*p)
+			continue;
+		if (strncasecmp(p, key, strlen(key)))
+			continue;
+		nval = strchr(p, '=');
+		if (nval) {
+			if (nval == p)
+				continue;
+			*nval++ = 0;
+			*val = kstrndup(nval, strlen(nval), GFP_KERNEL);
+			rc = !*val ? -ENOMEM : 0;
+			goto out;
+		}
+	}
+out:
+	kfree(orig);
+	return rc;
+}
+
 /*
  * Parse a devname into substrings and populate the ctx->UNC and ctx->prepath
  * fields with the result. Returns 0 on success and an error otherwise
@@ -531,7 +564,7 @@ static int smb3_fs_context_validate(struct fs_context *fc)
 
 	if (ctx->rdma && ctx->vals->protocol_id < SMB30_PROT_ID) {
 		cifs_dbg(VFS, "SMB Direct requires Version >=3.0\n");
-		return -1;
+		return -EOPNOTSUPP;
 	}
 
 #ifndef CONFIG_KEYS
@@ -554,7 +587,7 @@ static int smb3_fs_context_validate(struct fs_context *fc)
 	/* make sure UNC has a share name */
 	if (strlen(ctx->UNC) < 3 || !strchr(ctx->UNC + 3, '\\')) {
 		cifs_dbg(VFS, "Malformed UNC. Unable to find share name.\n");
-		return -1;
+		return -ENOENT;
 	}
 
 	if (!ctx->got_ip) {
@@ -568,7 +601,7 @@ static int smb3_fs_context_validate(struct fs_context *fc)
 		if (!cifs_convert_address((struct sockaddr *)&ctx->dstaddr,
 					  &ctx->UNC[2], len)) {
 			pr_err("Unable to determine destination address\n");
-			return -1;
+			return -EHOSTUNREACH;
 		}
 	}
 
@@ -1263,7 +1296,7 @@ static int smb3_fs_context_parse_param(struct fs_context *fc,
 	return 0;
 
  cifs_parse_mount_err:
-	return 1;
+	return -EINVAL;
 }
 
 int smb3_init_fs_context(struct fs_context *fc)
