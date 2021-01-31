@@ -382,6 +382,16 @@ struct hl_mmu_properties {
 };
 
 /**
+ * struct hl_hints_range - hint addresses reserved va range.
+ * @start_addr: start address of the va range.
+ * @end_addr: end address of the va range.
+ */
+struct hl_hints_range {
+	u64 start_addr;
+	u64 end_addr;
+};
+
+/**
  * struct asic_fixed_properties - ASIC specific immutable properties.
  * @hw_queues_props: H/W queues properties.
  * @cpucp_info: received various information from CPU-CP regarding the H/W, e.g.
@@ -392,6 +402,10 @@ struct hl_mmu_properties {
  * @pmmu: PCI (host) MMU address translation properties.
  * @pmmu_huge: PCI (host) MMU address translation properties for memory
  *              allocated with huge pages.
+ * @hints_dram_reserved_va_range: dram hint addresses reserved range.
+ * @hints_host_reserved_va_range: host hint addresses reserved range.
+ * @hints_host_hpage_reserved_va_range: host huge page hint addresses reserved
+ *                                      range.
  * @sram_base_address: SRAM physical start address.
  * @sram_end_address: SRAM physical end address.
  * @sram_user_base_address - SRAM physical start address for user access.
@@ -412,6 +426,8 @@ struct hl_mmu_properties {
  *                    to the device's MMU.
  * @cb_va_end_addr: virtual end address of command buffers which are mapped to
  *                  the device's MMU.
+ * @dram_hints_align_mask: dram va hint addresses alignment mask which is used
+ *                  for hints validity check.
  * @mmu_pgt_size: MMU page tables total size.
  * @mmu_pte_size: PTE size in MMU page tables.
  * @mmu_hop_table_size: MMU hop table size.
@@ -470,6 +486,7 @@ struct hl_mmu_properties {
  * @dram_supports_virtual_memory: is there an MMU towards the DRAM
  * @hard_reset_done_by_fw: true if firmware is handling hard reset flow
  * @num_functional_hbms: number of functional HBMs in each DCORE.
+ * @hints_range_reservation: device support hint addresses range reservation.
  * @iatu_done_by_fw: true if iATU configuration is being done by FW.
  * @dynamic_fw_load: is dynamic FW load is supported.
  * @gic_interrupts_enable: true if FW is not blocking GIC controller,
@@ -483,6 +500,9 @@ struct asic_fixed_properties {
 	struct hl_mmu_properties	dmmu;
 	struct hl_mmu_properties	pmmu;
 	struct hl_mmu_properties	pmmu_huge;
+	struct hl_hints_range		hints_dram_reserved_va_range;
+	struct hl_hints_range		hints_host_reserved_va_range;
+	struct hl_hints_range		hints_host_hpage_reserved_va_range;
 	u64				sram_base_address;
 	u64				sram_end_address;
 	u64				sram_user_base_address;
@@ -500,6 +520,7 @@ struct asic_fixed_properties {
 	u64				mmu_dram_default_page_addr;
 	u64				cb_va_start_addr;
 	u64				cb_va_end_addr;
+	u64				dram_hints_align_mask;
 	u32				mmu_pgt_size;
 	u32				mmu_pte_size;
 	u32				mmu_hop_table_size;
@@ -542,6 +563,7 @@ struct asic_fixed_properties {
 	u8				dram_supports_virtual_memory;
 	u8				hard_reset_done_by_fw;
 	u8				num_functional_hbms;
+	u8				hints_range_reservation;
 	u8				iatu_done_by_fw;
 	u8				dynamic_fw_load;
 	u8				gic_interrupts_enable;
