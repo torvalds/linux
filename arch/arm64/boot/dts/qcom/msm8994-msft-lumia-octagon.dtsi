@@ -337,6 +337,37 @@
 	};
 };
 
+&pmi8994_gpios {
+	pinctrl-0 = <&hd3ss460_pol &hd3ss460_amsel &hd3ss460_en>;
+	pinctrl-names = "default";
+
+	/*
+	 * This device uses a TI HD3SS460 Type-C MUX
+	 * As this device has no driver currently,
+	 * the configuration for USB Face Up is set-up here.
+	 *
+	 * TODO: remove once a driver is available
+	 * TODO: add VBUS GPIO 5
+	 */
+	hd3ss460_pol: pol_low {
+		pins = "gpio8";
+		drive-strength = <3>;
+		bias-pull-down;
+	};
+
+	hd3ss460_amsel: amsel_high {
+		pins = "gpio9";
+		drive-strength = <1>;
+		bias-pull-up;
+	};
+
+	hd3ss460_en: en_high {
+		pins = "gpio10";
+		drive-strength = <1>;
+		bias-pull-up;
+	};
+};
+
 &pmi8994_spmi_regulators {
 	vdd_gfx: s2@1700 {
 		reg = <0x1700 0x100>;
