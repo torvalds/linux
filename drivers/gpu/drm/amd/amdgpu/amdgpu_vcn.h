@@ -155,6 +155,7 @@
 		}										\
 	} while (0)
 
+#define AMDGPU_VCN_FW_SHARED_FLAG_0_RB	(1 << 6)
 #define AMDGPU_VCN_MULTI_QUEUE_FLAG	(1 << 8)
 #define AMDGPU_VCN_SW_RING_FLAG		(1 << 9)
 
@@ -243,6 +244,12 @@ struct amdgpu_vcn {
 		int inst_idx, struct dpg_pause_state *new_state);
 };
 
+struct amdgpu_fw_shared_rb_ptrs_struct {
+	/* to WA DPG R/W ptr issues.*/
+	uint32_t  rptr;
+	uint32_t  wptr;
+};
+
 struct amdgpu_fw_shared_multi_queue {
 	uint8_t decode_queue_mode;
 	uint8_t encode_generalpurpose_queue_mode;
@@ -258,10 +265,12 @@ struct amdgpu_fw_shared_sw_ring {
 
 struct amdgpu_fw_shared {
 	uint32_t present_flag_0;
-	uint8_t pad[53];
+	uint8_t pad[44];
+	struct amdgpu_fw_shared_rb_ptrs_struct rb;
+	uint8_t pad1[1];
 	struct amdgpu_fw_shared_multi_queue multi_queue;
 	struct amdgpu_fw_shared_sw_ring sw_ring;
-} __attribute__((__packed__));
+};
 
 struct amdgpu_vcn_decode_buffer {
 	uint32_t valid_buf_flag;
