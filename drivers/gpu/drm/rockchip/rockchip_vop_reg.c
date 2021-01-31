@@ -327,6 +327,7 @@ static const struct vop_win_data px30_vop_big_win_data[] = {
 };
 
 static const struct vop_data px30_vop_big = {
+	.version = VOP_VERSION(2, 6),
 	.intr = &px30_intr,
 	.feature = VOP_FEATURE_INTERNAL_RGB,
 	.common = &px30_common,
@@ -342,6 +343,7 @@ static const struct vop_win_data px30_vop_lit_win_data[] = {
 };
 
 static const struct vop_data px30_vop_lit = {
+	.version = VOP_VERSION(2, 5),
 	.intr = &px30_intr,
 	.feature = VOP_FEATURE_INTERNAL_RGB,
 	.common = &px30_common,
