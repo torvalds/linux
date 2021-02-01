@@ -19,6 +19,7 @@
 #include <linux/mutex.h>
 #include <linux/kvm_host.h>
 #include <linux/vfio.h>
+#include <linux/hashtable.h>
 
 #include "ap_bus.h"
 
@@ -75,6 +76,15 @@ struct ap_matrix {
 };
 
 /**
+ * struct ap_queue_table - a table of queue objects.
+ *
+ * @queues: a hashtable of queues (struct vfio_ap_queue).
+ */
+struct ap_queue_table {
+	DECLARE_HASHTABLE(queues, 8);
+};
+
+/**
  * struct ap_matrix_mdev - Contains the data associated with a matrix mediated
  *			   device.
  * @vdev:	the vfio device
@@ -87,6 +97,7 @@ struct ap_matrix {
  * @pqap_hook:	the function pointer to the interception handler for the
  *		PQAP(AQIC) instruction.
  * @mdev:	the mediated device
+ * @qtable:	table of queues (struct vfio_ap_queue) assigned to the mdev
  */
 struct ap_matrix_mdev {
 	struct vfio_device vdev;
@@ -96,6 +107,7 @@ struct ap_matrix_mdev {
 	struct kvm *kvm;
 	crypto_hook pqap_hook;
 	struct mdev_device *mdev;
+	struct ap_queue_table qtable;
 };
 
 /**
@@ -105,6 +117,7 @@ struct ap_matrix_mdev {
  * @saved_pfn: the guest PFN pinned for the guest
  * @apqn: the APQN of the AP queue device
  * @saved_isc: the guest ISC registered with the GIB interface
+ * @mdev_qnode: allows the vfio_ap_queue struct to be added to a hashtable
  */
 struct vfio_ap_queue {
 	struct ap_matrix_mdev *matrix_mdev;
@@ -112,6 +125,7 @@ struct vfio_ap_queue {
 	int	apqn;
 #define VFIO_AP_ISC_INVALID 0xff
 	unsigned char saved_isc;
+	struct hlist_node mdev_qnode;
 };
 
 int vfio_ap_mdev_register(void);
