@@ -697,6 +697,10 @@
 			pinctrl-0 = <&fuelgauge_pin>;
 		};
 	};
+
+	adreno@fdb00000 {
+		status = "ok";
+	};
 };
 
 &spmi_bus {
