@@ -1553,7 +1553,7 @@ static int uvc_gpio_parse(struct uvc_device *dev)
 	unit->gpio.bmControls[0] = 1;
 	unit->get_cur = uvc_gpio_get_cur;
 	unit->get_info = uvc_gpio_get_info;
-	strncpy(unit->name, "GPIO", sizeof(unit->name) - 1);
+	strscpy(unit->name, "GPIO", sizeof(unit->name));
 
 	list_add_tail(&unit->list, &dev->entities);
 
