@@ -788,8 +788,6 @@ struct io_submit_state {
 struct io_op_def {
 	/* needs req->file assigned */
 	unsigned		needs_file : 1;
-	/* don't fail if file grab fails */
-	unsigned		needs_file_no_error : 1;
 	/* hash wq insertion if file is a regular file */
 	unsigned		hash_reg_file : 1;
 	/* unbound wq insertion if file is a non-regular file */
@@ -6896,8 +6894,7 @@ static int io_init_req(struct io_ring_ctx *ctx, struct io_kiocb *req,
 		bool fixed = req->flags & REQ_F_FIXED_FILE;
 
 		req->file = io_file_get(state, req, READ_ONCE(sqe->fd), fixed);
-		if (unlikely(!req->file &&
-		    !io_op_defs[req->opcode].needs_file_no_error))
+		if (unlikely(!req->file))
 			ret = -EBADF;
 	}
 
