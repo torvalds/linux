@@ -1156,8 +1156,20 @@ xfs_trans_alloc_ichange(
 	if (pdqp == ip->i_pdquot)
 		pdqp = NULL;
 	if (udqp || gdqp || pdqp) {
-		error = xfs_qm_vop_chown_reserve(tp, ip, udqp, gdqp, pdqp,
-				force ? XFS_QMOPT_FORCE_RES : 0);
+		unsigned int	qflags = XFS_QMOPT_RES_REGBLKS;
+
+		if (force)
+			qflags |= XFS_QMOPT_FORCE_RES;
+
+		/*
+		 * Reserve enough quota to handle blocks on disk and reserved
+		 * for a delayed allocation.  We'll actually transfer the
+		 * delalloc reservation between dquots at chown time, even
+		 * though that part is only semi-transactional.
+		 */
+		error = xfs_trans_reserve_quota_bydquots(tp, mp, udqp, gdqp,
+				pdqp, ip->i_d.di_nblocks + ip->i_delayed_blks,
+				1, qflags);
 		if (error)
 			goto out_cancel;
 	}
