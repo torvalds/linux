@@ -31,7 +31,7 @@
 
 struct nsim_fib_entry {
 	u64 max;
-	u64 num;
+	atomic64_t num;
 };
 
 struct nsim_per_fib_data {
@@ -46,7 +46,7 @@ struct nsim_fib_data {
 	struct nsim_fib_entry nexthops;
 	struct rhashtable fib_rt_ht;
 	struct list_head fib_rt_list;
-	spinlock_t fib_lock;	/* Protects hashtable, list and accounting */
+	spinlock_t fib_lock;	/* Protects hashtable and list */
 	struct notifier_block nexthop_nb;
 	struct rhashtable nexthop_ht;
 	struct devlink *devlink;
@@ -128,7 +128,7 @@ u64 nsim_fib_get_val(struct nsim_fib_data *fib_data,
 		return 0;
 	}
 
-	return max ? entry->max : entry->num;
+	return max ? entry->max : atomic64_read(&entry->num);
 }
 
 static void nsim_fib_set_max(struct nsim_fib_data *fib_data,
@@ -165,14 +165,12 @@ static int nsim_fib_rule_account(struct nsim_fib_entry *entry, bool add,
 	int err = 0;
 
 	if (add) {
-		if (entry->num < entry->max) {
-			entry->num++;
-		} else {
+		if (!atomic64_add_unless(&entry->num, 1, entry->max)) {
 			err = -ENOSPC;
 			NL_SET_ERR_MSG_MOD(extack, "Exceeded number of supported fib rule entries");
 		}
 	} else {
-		entry->num--;
+		atomic64_dec_if_positive(&entry->num);
 	}
 
 	return err;
@@ -202,14 +200,12 @@ static int nsim_fib_account(struct nsim_fib_entry *entry, bool add,
 	int err = 0;
 
 	if (add) {
-		if (entry->num < entry->max) {
-			entry->num++;
-		} else {
+		if (!atomic64_add_unless(&entry->num, 1, entry->max)) {
 			err = -ENOSPC;
 			NL_SET_ERR_MSG_MOD(extack, "Exceeded number of supported fib entries");
 		}
 	} else {
-		entry->num--;
+		atomic64_dec_if_positive(&entry->num);
 	}
 
 	return err;
@@ -769,24 +765,21 @@ static int nsim_fib_event_nb(struct notifier_block *nb, unsigned long event,
 	struct fib_notifier_info *info = ptr;
 	int err = 0;
 
-	/* IPv6 routes can be added via RAs from softIRQ. */
-	spin_lock_bh(&data->fib_lock);
-
 	switch (event) {
 	case FIB_EVENT_RULE_ADD:
 	case FIB_EVENT_RULE_DEL:
 		err = nsim_fib_rule_event(data, info,
 					  event == FIB_EVENT_RULE_ADD);
 		break;
-
 	case FIB_EVENT_ENTRY_REPLACE:
 	case FIB_EVENT_ENTRY_APPEND:
 	case FIB_EVENT_ENTRY_DEL:
+		/* IPv6 routes can be added via RAs from softIRQ. */
+		spin_lock_bh(&data->fib_lock);
 		err = nsim_fib_event(data, info, event);
+		spin_unlock_bh(&data->fib_lock);
 		break;
 	}
-
-	spin_unlock_bh(&data->fib_lock);
 
 	return notifier_from_errno(err);
 }
@@ -847,8 +840,8 @@ static void nsim_fib_dump_inconsistent(struct notifier_block *nb)
 		nsim_fib_rt_free(fib_rt, data);
 	}
 
-	data->ipv4.rules.num = 0ULL;
-	data->ipv6.rules.num = 0ULL;
+	atomic64_set(&data->ipv4.rules.num, 0ULL);
+	atomic64_set(&data->ipv6.rules.num, 0ULL);
 }
 
 static struct nsim_nexthop *nsim_nexthop_create(struct nsim_fib_data *data,
@@ -894,22 +887,28 @@ static void nsim_nexthop_destroy(struct nsim_nexthop *nexthop)
 static int nsim_nexthop_account(struct nsim_fib_data *data, u64 occ,
 				bool add, struct netlink_ext_ack *extack)
 {
-	int err = 0;
+	int i, err = 0;
 
 	if (add) {
-		if (data->nexthops.num + occ <= data->nexthops.max) {
-			data->nexthops.num += occ;
-		} else {
-			err = -ENOSPC;
-			NL_SET_ERR_MSG_MOD(extack, "Exceeded number of supported nexthops");
-		}
+		for (i = 0; i < occ; i++)
+			if (!atomic64_add_unless(&data->nexthops.num, 1,
+						 data->nexthops.max)) {
+				err = -ENOSPC;
+				NL_SET_ERR_MSG_MOD(extack, "Exceeded number of supported nexthops");
+				goto err_num_decrease;
+			}
 	} else {
-		if (WARN_ON(occ > data->nexthops.num))
+		if (WARN_ON(occ > atomic64_read(&data->nexthops.num)))
 			return -EINVAL;
-		data->nexthops.num -= occ;
+		atomic64_sub(occ, &data->nexthops.num);
 	}
 
 	return err;
+
+err_num_decrease:
+	atomic64_sub(i, &data->nexthops.num);
+	return err;
+
 }
 
 static int nsim_nexthop_add(struct nsim_fib_data *data,
