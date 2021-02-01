@@ -860,19 +860,14 @@ static int __gsi_channel_start(struct gsi_channel *channel, bool start)
 	struct gsi *gsi = channel->gsi;
 	int ret;
 
-	napi_enable(&channel->napi);
-	gsi_irq_ieob_enable_one(gsi, channel->evt_ring_id);
+	if (!start)
+		return 0;
 
 	mutex_lock(&gsi->mutex);
 
-	ret = start ? gsi_channel_start_command(channel) : 0;
+	ret = gsi_channel_start_command(channel);
 
 	mutex_unlock(&gsi->mutex);
-
-	if (ret) {
-		gsi_irq_ieob_disable_one(gsi, channel->evt_ring_id);
-		napi_disable(&channel->napi);
-	}
 
 	return ret;
 }
@@ -881,8 +876,19 @@ static int __gsi_channel_start(struct gsi_channel *channel, bool start)
 int gsi_channel_start(struct gsi *gsi, u32 channel_id)
 {
 	struct gsi_channel *channel = &gsi->channel[channel_id];
+	int ret;
 
-	return __gsi_channel_start(channel, true);
+	/* Enable NAPI and the completion interrupt */
+	napi_enable(&channel->napi);
+	gsi_irq_ieob_enable_one(gsi, channel->evt_ring_id);
+
+	ret = __gsi_channel_start(channel, true);
+	if (ret) {
+		gsi_irq_ieob_disable_one(gsi, channel->evt_ring_id);
+		napi_disable(&channel->napi);
+	}
+
+	return ret;
 }
 
 static int gsi_channel_stop_retry(struct gsi_channel *channel)
@@ -907,16 +913,15 @@ static int gsi_channel_stop_retry(struct gsi_channel *channel)
 
 static int __gsi_channel_stop(struct gsi_channel *channel, bool stop)
 {
-	struct gsi *gsi = channel->gsi;
 	int ret;
 
+	/* Wait for any underway transactions to complete before stopping. */
 	gsi_channel_trans_quiesce(channel);
 
 	ret = stop ? gsi_channel_stop_retry(channel) : 0;
-	if (!ret) {
-		gsi_irq_ieob_disable_one(gsi, channel->evt_ring_id);
-		napi_disable(&channel->napi);
-	}
+	/* Finally, ensure NAPI polling has finished. */
+	if (!ret)
+		napi_synchronize(&channel->napi);
 
 	return ret;
 }
@@ -925,8 +930,17 @@ static int __gsi_channel_stop(struct gsi_channel *channel, bool stop)
 int gsi_channel_stop(struct gsi *gsi, u32 channel_id)
 {
 	struct gsi_channel *channel = &gsi->channel[channel_id];
+	int ret;
 
-	return __gsi_channel_stop(channel, true);
+	/* Only disable the completion interrupt if stop is successful */
+	ret = __gsi_channel_stop(channel, true);
+	if (ret)
+		return ret;
+
+	gsi_irq_ieob_disable_one(gsi, channel->evt_ring_id);
+	napi_disable(&channel->napi);
+
+	return 0;
 }
 
 /* Reset and reconfigure a channel, (possibly) enabling the doorbell engine */
