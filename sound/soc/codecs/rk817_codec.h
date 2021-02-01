@@ -104,6 +104,9 @@
 #define RK817_I2S_MODE_MST		(0x1 << 0)
 #define RK817_I2S_MODE_SLV		(0x0 << 0)
 
+/* RK817_CODEC_DDAC_SR_LMT0 */
+#define DACSRT_MASK			(0x7 << 0)
+
 /* RK817_CODEC_DDAC_MUTE_MIXCTL */
 #define DACMT_ENABLE			(0x1 << 0)
 #define DACMT_DISABLE			(0x0 << 0)

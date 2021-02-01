@@ -268,13 +268,10 @@ static int rk817_reset(struct snd_soc_component *component)
 static struct rk817_reg_val_typ playback_power_up_list[] = {
 	{RK817_CODEC_AREF_RTCFG1, 0x40},
 	{RK817_CODEC_DDAC_POPD_DACST, 0x02},
-	{RK817_CODEC_DDAC_SR_LMT0, 0x02},
-	/* {RK817_CODEC_DTOP_DIGEN_CLKE, 0x0f}, */
 	/* APLL */
 	{RK817_CODEC_APLL_CFG0, 0x04},
 	{RK817_CODEC_APLL_CFG1, 0x58},
 	{RK817_CODEC_APLL_CFG2, 0x2d},
-	{RK817_CODEC_APLL_CFG3, 0x0c},
 	{RK817_CODEC_APLL_CFG4, 0xa5},
 	{RK817_CODEC_APLL_CFG5, 0x00},
 
@@ -308,13 +305,11 @@ static struct rk817_reg_val_typ playback_power_down_list[] = {
 
 static struct rk817_reg_val_typ capture_power_up_list[] = {
 	{RK817_CODEC_AREF_RTCFG1, 0x40},
-	{RK817_CODEC_DDAC_SR_LMT0, 0x02},
 	{RK817_CODEC_DADC_SR_ACL0, 0x02},
 	/* {RK817_CODEC_DTOP_DIGEN_CLKE, 0xff}, */
 	{RK817_CODEC_APLL_CFG0, 0x04},
 	{RK817_CODEC_APLL_CFG1, 0x58},
 	{RK817_CODEC_APLL_CFG2, 0x2d},
-	{RK817_CODEC_APLL_CFG3, 0x0c},
 	{RK817_CODEC_APLL_CFG4, 0xa5},
 	{RK817_CODEC_APLL_CFG5, 0x00},
 
@@ -837,9 +832,55 @@ static int rk817_hw_params(struct snd_pcm_substream *substream,
 	struct snd_soc_component *component = rtd->codec_dai->component;
 	struct rk817_codec_priv *rk817 = snd_soc_component_get_drvdata(component);
 	unsigned int rate = params_rate(params);
+	unsigned char apll_cfg3_val;
+	unsigned char dtop_digen_sr_lmt0;
+	unsigned char dtop_digen_clke;
 
 	DBG("%s : MCLK = %dHz, sample rate = %dHz\n",
 	    __func__, rk817->stereo_sysclk, rate);
+
+	if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK)
+		dtop_digen_clke = DAC_DIG_CLK_EN;
+	else
+		dtop_digen_clke = ADC_DIG_CLK_EN;
+
+	switch (rate) {
+	case 8000:
+		apll_cfg3_val = 0x03;
+		dtop_digen_sr_lmt0 = 0x00;
+		break;
+	case 16000:
+		apll_cfg3_val = 0x06;
+		dtop_digen_sr_lmt0 = 0x01;
+		break;
+	case 96000:
+		apll_cfg3_val = 0x18;
+		dtop_digen_sr_lmt0 = 0x03;
+		break;
+	case 32000:
+	case 44100:
+	case 48000:
+		apll_cfg3_val = 0x0c;
+		dtop_digen_sr_lmt0 = 0x02;
+		break;
+	default:
+		pr_err("Unsupported rate: %d\n", rate);
+		return -EINVAL;
+	}
+
+	/**
+	 * Note that: If you use the ALSA hooks plugin, entering hw_params()
+	 * is before playback/capture_path_put, therefore, we need to configure
+	 * APLL_CFG3/DTOP_DIGEN_CLKE/DDAC_SR_LMT0 for different sample rates.
+	 */
+	snd_soc_component_write(component, RK817_CODEC_APLL_CFG3, apll_cfg3_val);
+	/* The 0x00 contains ADC_DIG_CLK_DIS and DAC_DIG_CLK_DIS */
+	snd_soc_component_update_bits(component, RK817_CODEC_DTOP_DIGEN_CLKE,
+				      dtop_digen_clke, 0x00);
+	snd_soc_component_update_bits(component, RK817_CODEC_DDAC_SR_LMT0,
+				      DACSRT_MASK, dtop_digen_sr_lmt0);
+	snd_soc_component_update_bits(component, RK817_CODEC_DTOP_DIGEN_CLKE,
+				      dtop_digen_clke, dtop_digen_clke);
 
 	switch (params_format(params)) {
 	case SNDRV_PCM_FORMAT_S16_LE:
@@ -868,14 +909,21 @@ static int rk817_digital_mute(struct snd_soc_dai *dai, int mute)
 	struct rk817_codec_priv *rk817 = snd_soc_component_get_drvdata(component);
 
 	DBG("%s %d\n", __func__, mute);
-	if (mute)
+	if (mute) {
 		snd_soc_component_update_bits(component,
 					      RK817_CODEC_DDAC_MUTE_MIXCTL,
 					      DACMT_ENABLE, DACMT_ENABLE);
-	else
+		/* Reset DAC DTOP_DIGEN_CLKE for playback stopped */
+		snd_soc_component_update_bits(component, RK817_CODEC_DTOP_DIGEN_CLKE,
+					      DAC_DIG_CLK_EN, DAC_DIG_CLK_DIS);
+		snd_soc_component_update_bits(component, RK817_CODEC_DTOP_DIGEN_CLKE,
+					      DAC_DIG_CLK_EN, DAC_DIG_CLK_EN);
+
+	} else {
 		snd_soc_component_update_bits(component,
 					      RK817_CODEC_DDAC_MUTE_MIXCTL,
 					      DACMT_ENABLE, DACMT_DISABLE);
+	}
 
 	if (mute) {
 		rk817_codec_ctl_gpio(rk817, CODEC_SET_SPK, 0);
