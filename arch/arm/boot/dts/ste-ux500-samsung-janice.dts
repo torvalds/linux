@@ -8,6 +8,7 @@
 #include "ste-ab8500.dtsi"
 #include "ste-dbx5x0-pinctrl.dtsi"
 #include <dt-bindings/gpio/gpio.h>
+#include <dt-bindings/leds/common.h>
 #include <dt-bindings/input/input.h>
 #include <dt-bindings/interrupt-controller/irq.h>
 
@@ -177,6 +178,32 @@
 			label = "VOL-";
 			/* GPIO92 */
 			gpios = <&gpio2 28 GPIO_ACTIVE_LOW>;
+		};
+	};
+
+	/* Richtek RT8515GQW Flash LED Driver IC */
+	flash {
+		compatible = "richtek,rt8515";
+		/* GPIO 140 */
+		enf-gpios = <&gpio4 12 GPIO_ACTIVE_HIGH>;
+		/* GPIO 141 */
+		ent-gpios = <&gpio4 13 GPIO_ACTIVE_HIGH>;
+		/*
+		 * RFS is 16 kOhm and RTS is 100 kOhm giving
+		 * the flash max current 343mA and torch max
+		 * current 55 mA.
+		 */
+		richtek,rfs-ohms = <16000>;
+		richtek,rts-ohms = <100000>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&gpio_flash_default_mode>;
+
+		led {
+			function = LED_FUNCTION_FLASH;
+			color = <LED_COLOR_ID_WHITE>;
+			flash-max-timeout-us = <250000>;
+			flash-max-microamp = <343750>;
+			led-max-microamp = <55000>;
 		};
 	};
 
@@ -735,6 +762,15 @@
 			/* GPIO222 BT_VREG_ON */
 			janice_cfg1 {
 				pins = "GPIO222_AJ9";
+				ste,config = <&gpio_out_lo>;
+			};
+		};
+	};
+	/* Flash and torch */
+	flash {
+		gpio_flash_default_mode: flash_default {
+			janice_cfg1 {
+				pins = "GPIO140_B11", "GPIO141_C12";
 				ste,config = <&gpio_out_lo>;
 			};
 		};
