@@ -49,6 +49,7 @@ static const u32 incl_3d_addresses[INCLI_3D_CHANNEL_MAX] = {
 
 static const u32 incl_3d_sensitivity_addresses[] = {
 	HID_USAGE_SENSOR_DATA_ORIENTATION,
+	HID_USAGE_SENSOR_ORIENT_TILT,
 };
 
 /* Channel definitions */

@@ -41,6 +41,7 @@ struct als_state {
 
 static const u32 als_sensitivity_addresses[] = {
 	HID_USAGE_SENSOR_DATA_LIGHT,
+	HID_USAGE_SENSOR_LIGHT_ILLUM,
 };
 
 /* Channel definitions */

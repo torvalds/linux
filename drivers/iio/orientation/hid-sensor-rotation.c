@@ -33,6 +33,7 @@ struct dev_rot_state {
 
 static const u32 rotation_sensitivity_addresses[] = {
 	HID_USAGE_SENSOR_DATA_ORIENTATION,
+	HID_USAGE_SENSOR_ORIENT_QUATERNION,
 };
 
 /* Channel definitions */

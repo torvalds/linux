@@ -31,6 +31,7 @@ struct press_state {
 
 static const u32 press_sensitivity_addresses[] = {
 	HID_USAGE_SENSOR_DATA_ATMOSPHERIC_PRESSURE,
+	HID_USAGE_SENSOR_ATMOSPHERIC_PRESSURE
 };
 
 /* Channel definitions */
