@@ -487,6 +487,12 @@ chk_add_nr()
 {
 	local add_nr=$1
 	local echo_nr=$2
+	local port_nr=${3:-0}
+	local syn_nr=${4:-$port_nr}
+	local syn_ack_nr=${5:-$port_nr}
+	local ack_nr=${6:-$port_nr}
+	local mis_syn_nr=${7:-0}
+	local mis_ack_nr=${8:-0}
 	local count
 	local dump_stats
 
@@ -509,7 +515,87 @@ chk_add_nr()
 		ret=1
 		dump_stats=1
 	else
-		echo "[ ok ]"
+		echo -n "[ ok ]"
+	fi
+
+	if [ $port_nr -gt 0 ]; then
+		echo -n " - pt "
+		count=`ip netns exec $ns2 nstat -as | grep MPTcpExtPortAdd | awk '{print $2}'`
+		[ -z "$count" ] && count=0
+		if [ "$count" != "$port_nr" ]; then
+			echo "[fail] got $count ADD_ADDR[s] with a port-number expected $port_nr"
+			ret=1
+			dump_stats=1
+		else
+			echo "[ ok ]"
+		fi
+
+		printf "%-39s %s" " " "syn"
+		count=`ip netns exec $ns1 nstat -as | grep MPTcpExtMPJoinPortSynRx |
+			awk '{print $2}'`
+		[ -z "$count" ] && count=0
+		if [ "$count" != "$syn_nr" ]; then
+			echo "[fail] got $count JOIN[s] syn with a different \
+				port-number expected $syn_nr"
+			ret=1
+			dump_stats=1
+		else
+			echo -n "[ ok ]"
+		fi
+
+		echo -n " - synack"
+		count=`ip netns exec $ns2 nstat -as | grep MPTcpExtMPJoinPortSynAckRx |
+			awk '{print $2}'`
+		[ -z "$count" ] && count=0
+		if [ "$count" != "$syn_ack_nr" ]; then
+			echo "[fail] got $count JOIN[s] synack with a different \
+				port-number expected $syn_ack_nr"
+			ret=1
+			dump_stats=1
+		else
+			echo -n "[ ok ]"
+		fi
+
+		echo -n " - ack"
+		count=`ip netns exec $ns1 nstat -as | grep MPTcpExtMPJoinPortAckRx |
+			awk '{print $2}'`
+		[ -z "$count" ] && count=0
+		if [ "$count" != "$ack_nr" ]; then
+			echo "[fail] got $count JOIN[s] ack with a different \
+				port-number expected $ack_nr"
+			ret=1
+			dump_stats=1
+		else
+			echo "[ ok ]"
+		fi
+
+		printf "%-39s %s" " " "syn"
+		count=`ip netns exec $ns1 nstat -as | grep MPTcpExtMismatchPortSynRx |
+			awk '{print $2}'`
+		[ -z "$count" ] && count=0
+		if [ "$count" != "$mis_syn_nr" ]; then
+			echo "[fail] got $count JOIN[s] syn with a mismatched \
+				port-number expected $mis_syn_nr"
+			ret=1
+			dump_stats=1
+		else
+			echo -n "[ ok ]"
+		fi
+
+		echo -n " - ack   "
+		count=`ip netns exec $ns1 nstat -as | grep MPTcpExtMismatchPortAckRx |
+			awk '{print $2}'`
+		[ -z "$count" ] && count=0
+		if [ "$count" != "$mis_ack_nr" ]; then
+			echo "[fail] got $count JOIN[s] ack with a mismatched \
+				port-number expected $mis_ack_nr"
+			ret=1
+			dump_stats=1
+		else
+			echo "[ ok ]"
+		fi
+	else
+		echo ""
 	fi
 
 	if [ "${dump_stats}" = 1 ]; then
@@ -954,6 +1040,78 @@ run_tests $ns1 $ns2 10.0.1.1 0 0 0 slow backup
 chk_join_nr "single address, backup" 1 1 1
 chk_add_nr 1 1
 chk_prio_nr 1 0
+
+# signal address with port
+reset
+ip netns exec $ns1 ./pm_nl_ctl limits 0 1
+ip netns exec $ns2 ./pm_nl_ctl limits 1 1
+ip netns exec $ns1 ./pm_nl_ctl add 10.0.2.1 flags signal port 10100
+run_tests $ns1 $ns2 10.0.1.1
+chk_join_nr "signal address with port" 1 1 1
+chk_add_nr 1 1 1
+
+# subflow and signal with port
+reset
+ip netns exec $ns1 ./pm_nl_ctl add 10.0.2.1 flags signal port 10100
+ip netns exec $ns1 ./pm_nl_ctl limits 0 2
+ip netns exec $ns2 ./pm_nl_ctl limits 1 2
+ip netns exec $ns2 ./pm_nl_ctl add 10.0.3.2 flags subflow
+run_tests $ns1 $ns2 10.0.1.1
+chk_join_nr "subflow and signal with port" 2 2 2
+chk_add_nr 1 1 1
+
+# single address with port, remove
+reset
+ip netns exec $ns1 ./pm_nl_ctl limits 0 1
+ip netns exec $ns1 ./pm_nl_ctl add 10.0.2.1 flags signal port 10100
+ip netns exec $ns2 ./pm_nl_ctl limits 1 1
+run_tests $ns1 $ns2 10.0.1.1 0 -1 0 slow
+chk_join_nr "remove single address with port" 1 1 1
+chk_add_nr 1 1 1
+chk_rm_nr 0 0
+
+# subflow and signal with port, remove
+reset
+ip netns exec $ns1 ./pm_nl_ctl limits 0 2
+ip netns exec $ns1 ./pm_nl_ctl add 10.0.2.1 flags signal port 10100
+ip netns exec $ns2 ./pm_nl_ctl limits 1 2
+ip netns exec $ns2 ./pm_nl_ctl add 10.0.3.2 flags subflow
+run_tests $ns1 $ns2 10.0.1.1 0 -1 -1 slow
+chk_join_nr "remove subflow and signal with port" 2 2 2
+chk_add_nr 1 1 1
+chk_rm_nr 1 1
+
+# subflows and signal with port, flush
+reset
+ip netns exec $ns1 ./pm_nl_ctl limits 0 3
+ip netns exec $ns1 ./pm_nl_ctl add 10.0.2.1 flags signal port 10100
+ip netns exec $ns2 ./pm_nl_ctl limits 1 3
+ip netns exec $ns2 ./pm_nl_ctl add 10.0.3.2 flags subflow
+ip netns exec $ns2 ./pm_nl_ctl add 10.0.4.2 flags subflow
+run_tests $ns1 $ns2 10.0.1.1 0 -8 -8 slow
+chk_join_nr "flush subflows and signal with port" 3 3 3
+chk_add_nr 1 1
+chk_rm_nr 2 2
+
+# multiple addresses with port
+reset
+ip netns exec $ns1 ./pm_nl_ctl limits 2 2
+ip netns exec $ns1 ./pm_nl_ctl add 10.0.2.1 flags signal port 10100
+ip netns exec $ns1 ./pm_nl_ctl add 10.0.3.1 flags signal port 10100
+ip netns exec $ns2 ./pm_nl_ctl limits 2 2
+run_tests $ns1 $ns2 10.0.1.1
+chk_join_nr "multiple addresses with port" 2 2 2
+chk_add_nr 2 2 2
+
+# multiple addresses with ports
+reset
+ip netns exec $ns1 ./pm_nl_ctl limits 2 2
+ip netns exec $ns1 ./pm_nl_ctl add 10.0.2.1 flags signal port 10100
+ip netns exec $ns1 ./pm_nl_ctl add 10.0.3.1 flags signal port 10101
+ip netns exec $ns2 ./pm_nl_ctl limits 2 2
+run_tests $ns1 $ns2 10.0.1.1
+chk_join_nr "multiple addresses with ports" 2 2 2
+chk_add_nr 2 2 2
 
 # single subflow, syncookies
 reset_with_cookies
