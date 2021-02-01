@@ -2370,6 +2370,56 @@ static ssize_t coresight_etm4x_reg_show(struct device *dev,
 	return scnprintf(buf, PAGE_SIZE, "0x%x\n", val);
 }
 
+static inline bool
+etm4x_register_implemented(struct etmv4_drvdata *drvdata, u32 offset)
+{
+	switch (offset) {
+	ETM4x_SYSREG_LIST_CASES
+		/*
+		 * Registers accessible via system instructions are always
+		 * implemented.
+		 */
+		return true;
+	ETM4x_MMAP_LIST_CASES
+		/*
+		 * Registers accessible only via memory-mapped registers
+		 * must not be accessed via system instructions.
+		 * We cannot access the drvdata->csdev here, as this
+		 * function is called during the device creation, via
+		 * coresight_register() and the csdev is not initialized
+		 * until that is done. So rely on the drvdata->base to
+		 * detect if we have a memory mapped access.
+		 */
+		return !!drvdata->base;
+	}
+
+	return false;
+}
+
+/*
+ * Hide the ETM4x registers that may not be available on the
+ * hardware.
+ * There are certain management registers unavailable via system
+ * instructions. Make those sysfs attributes hidden on such
+ * systems.
+ */
+static umode_t
+coresight_etm4x_attr_reg_implemented(struct kobject *kobj,
+				     struct attribute *attr, int unused)
+{
+	struct device *dev = kobj_to_dev(kobj);
+	struct etmv4_drvdata *drvdata = dev_get_drvdata(dev->parent);
+	struct device_attribute *d_attr;
+	u32 offset;
+
+	d_attr = container_of(attr, struct device_attribute, attr);
+	offset = coresight_etm4x_attr_to_offset(d_attr);
+
+	if (etm4x_register_implemented(drvdata, offset))
+		return attr->mode;
+	return 0;
+}
+
 #define coresight_etm4x_reg(name, offset)				\
 	&((struct dev_ext_attribute[]) {				\
 	   {								\
@@ -2417,6 +2467,7 @@ static const struct attribute_group coresight_etmv4_group = {
 };
 
 static const struct attribute_group coresight_etmv4_mgmt_group = {
+	.is_visible = coresight_etm4x_attr_reg_implemented,
 	.attrs = coresight_etmv4_mgmt_attrs,
 	.name = "mgmt",
 };

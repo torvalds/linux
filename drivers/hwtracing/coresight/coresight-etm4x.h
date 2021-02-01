@@ -157,6 +157,9 @@
 #define CASE_WRITE(val, x)					\
 	case (x): { write_etm4x_sysreg_const_offset((val), (x)); break; }
 
+#define CASE_NOP(__unused, x)					\
+	case (x):	/* fall through */
+
 /* List of registers accessible via System instructions */
 #define ETM_SYSREG_LIST(op, val)		\
 	CASE_##op((val), TRCPRGCTLR)		\
@@ -368,6 +371,9 @@
 
 #define ETM4x_READ_SYSREG_CASES(res)	ETM_SYSREG_LIST(READ, (res))
 #define ETM4x_WRITE_SYSREG_CASES(val)	ETM_SYSREG_LIST(WRITE, (val))
+
+#define ETM4x_SYSREG_LIST_CASES		ETM_SYSREG_LIST(NOP, __unused)
+#define ETM4x_MMAP_LIST_CASES		ETM_MMAP_LIST(NOP, __unused)
 
 #define read_etm4x_sysreg_offset(offset, _64bit)				\
 	({									\
