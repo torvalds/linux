@@ -10,7 +10,7 @@ DT_SCHEMA_MIN_VERSION = 2020.8.1
 PHONY += check_dtschema_version
 check_dtschema_version:
 	@{ echo $(DT_SCHEMA_MIN_VERSION); \
-	$(DT_DOC_CHECKER) --version 2>/dev/null || echo 0; } | sort -VC || \
+	$(DT_DOC_CHECKER) --version 2>/dev/null || echo 0; } | sort -Vc >/dev/null || \
 	{ echo "ERROR: dtschema minimum version is v$(DT_SCHEMA_MIN_VERSION)" >&2; false; }
 
 quiet_cmd_extract_ex = DTEX    $@
