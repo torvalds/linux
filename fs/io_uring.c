@@ -1036,7 +1036,6 @@ static ssize_t io_import_iovec(int rw, struct io_kiocb *req,
 static int io_setup_async_rw(struct io_kiocb *req, const struct iovec *iovec,
 			     const struct iovec *fast_iov,
 			     struct iov_iter *iter, bool force);
-static void io_req_drop_files(struct io_kiocb *req);
 static void io_req_task_queue(struct io_kiocb *req);
 
 static struct kmem_cache *req_cachep;
@@ -1402,8 +1401,23 @@ static void io_req_clean_work(struct io_kiocb *req)
 			free_fs_struct(fs);
 		req->work.flags &= ~IO_WQ_WORK_FS;
 	}
-	if (req->flags & REQ_F_INFLIGHT)
-		io_req_drop_files(req);
+	if (req->work.flags & IO_WQ_WORK_FILES) {
+		put_files_struct(req->work.identity->files);
+		put_nsproxy(req->work.identity->nsproxy);
+		req->work.flags &= ~IO_WQ_WORK_FILES;
+	}
+	if (req->flags & REQ_F_INFLIGHT) {
+		struct io_ring_ctx *ctx = req->ctx;
+		struct io_uring_task *tctx = req->task->io_uring;
+		unsigned long flags;
+
+		spin_lock_irqsave(&ctx->inflight_lock, flags);
+		list_del(&req->inflight_entry);
+		spin_unlock_irqrestore(&ctx->inflight_lock, flags);
+		req->flags &= ~REQ_F_INFLIGHT;
+		if (atomic_read(&tctx->in_idle))
+			wake_up(&tctx->wait);
+	}
 
 	io_put_identity(req->task->io_uring, req);
 }
@@ -6162,25 +6176,6 @@ static int io_req_defer(struct io_kiocb *req, const struct io_uring_sqe *sqe)
 	list_add_tail(&de->list, &ctx->defer_list);
 	spin_unlock_irq(&ctx->completion_lock);
 	return -EIOCBQUEUED;
-}
-
-static void io_req_drop_files(struct io_kiocb *req)
-{
-	struct io_ring_ctx *ctx = req->ctx;
-	struct io_uring_task *tctx = req->task->io_uring;
-	unsigned long flags;
-
-	if (req->work.flags & IO_WQ_WORK_FILES) {
-		put_files_struct(req->work.identity->files);
-		put_nsproxy(req->work.identity->nsproxy);
-	}
-	spin_lock_irqsave(&ctx->inflight_lock, flags);
-	list_del(&req->inflight_entry);
-	spin_unlock_irqrestore(&ctx->inflight_lock, flags);
-	req->flags &= ~REQ_F_INFLIGHT;
-	req->work.flags &= ~IO_WQ_WORK_FILES;
-	if (atomic_read(&tctx->in_idle))
-		wake_up(&tctx->wait);
 }
 
 static void __io_clean_op(struct io_kiocb *req)
