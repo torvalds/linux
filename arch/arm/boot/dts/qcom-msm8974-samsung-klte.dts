@@ -298,6 +298,20 @@
 		enable-active-high;
 	};
 
+	vreg_panel: panel-regulator {
+		compatible = "regulator-fixed";
+
+		pinctrl-names = "default";
+		pinctrl-0 = <&panel_en_pin>;
+
+		regulator-name = "panel-vddr-reg";
+		regulator-min-microvolt = <1500000>;
+		regulator-max-microvolt = <1500000>;
+
+		gpio = <&pma8084_gpios 14 GPIO_ACTIVE_HIGH>;
+		enable-active-high;
+	};
+
 	/delete-node/ vreg-boost;
 };
 
@@ -451,6 +465,16 @@
 
 				input-enable;
 				bias-pull-down;
+			};
+		};
+
+		panel_te_pin: panel {
+			te {
+				pins = "gpio12";
+				function = "mdp_vsync";
+
+				drive-strength = <2>;
+				bias-disable;
 			};
 		};
 	};
@@ -701,6 +725,60 @@
 	adreno@fdb00000 {
 		status = "ok";
 	};
+
+	mdss@fd900000 {
+		status = "ok";
+
+		mdp@fd900000 {
+			status = "ok";
+		};
+
+		dsi@fd922800 {
+			status = "ok";
+
+			vdda-supply = <&pma8084_l2>;
+			vdd-supply = <&pma8084_l22>;
+			vddio-supply = <&pma8084_l12>;
+
+			#address-cells = <1>;
+			#size-cells = <0>;
+
+			ports {
+				port@1 {
+					endpoint {
+						remote-endpoint = <&panel_in>;
+						data-lanes = <0 1 2 3>;
+					};
+				};
+			};
+
+			panel: panel@0 {
+				reg = <0>;
+				compatible = "samsung,s6e3fa2";
+
+				pinctrl-names = "default";
+				pinctrl-0 = <&panel_te_pin &panel_rst_pin>;
+
+				iovdd-supply = <&pma8084_lvs4>;
+				vddr-supply = <&vreg_panel>;
+
+				reset-gpios = <&pma8084_gpios 17 GPIO_ACTIVE_LOW>;
+				te-gpios = <&msmgpio 12 GPIO_ACTIVE_HIGH>;
+
+				port {
+					panel_in: endpoint {
+						remote-endpoint = <&dsi0_out>;
+					};
+				};
+			};
+		};
+
+		dsi-phy@fd922a00 {
+			status = "ok";
+
+			vddio-supply = <&pma8084_l12>;
+		};
+	};
 };
 
 &spmi_bus {
@@ -730,6 +808,14 @@
 				power-source = <PMA8084_GPIO_S4>;
 			};
 
+			panel_en_pin: panel-en-pin {
+				pins = "gpio14";
+				function = "normal";
+				bias-pull-up;
+				power-source = <PMA8084_GPIO_S4>;
+				qcom,drive-strength = <PMIC_GPIO_STRENGTH_LOW>;
+			};
+
 			wlan_sleep_clk_pin: wlan-sleep-clk-pin {
 				pins = "gpio16";
 				function = "func2";
@@ -738,6 +824,15 @@
 				power-source = <PMA8084_GPIO_S4>;
 				qcom,drive-strength = <PMIC_GPIO_STRENGTH_HIGH>;
 			};
+
+			panel_rst_pin: panel-rst-pin {
+				pins = "gpio17";
+				function = "normal";
+				bias-disable;
+				power-source = <PMA8084_GPIO_S4>;
+				qcom,drive-strength = <PMIC_GPIO_STRENGTH_LOW>;
+			};
+
 
 			fuelgauge_pin: fuelgauge-int-pin {
 				pins = "gpio21";
