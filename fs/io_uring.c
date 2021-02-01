@@ -3526,7 +3526,6 @@ static int io_read(struct io_kiocb *req, bool force_nonblock,
 	else
 		kiocb->ki_flags |= IOCB_NOWAIT;
 
-
 	/* If the file doesn't support async, just async punt */
 	no_async = force_nonblock && !io_file_supports_async(req->file, READ);
 	if (no_async)
@@ -3538,9 +3537,7 @@ static int io_read(struct io_kiocb *req, bool force_nonblock,
 
 	ret = io_iter_do_read(req, iter);
 
-	if (!ret) {
-		goto done;
-	} else if (ret == -EIOCBQUEUED) {
+	if (ret == -EIOCBQUEUED) {
 		ret = 0;
 		goto out_free;
 	} else if (ret == -EAGAIN) {
@@ -3554,7 +3551,7 @@ static int io_read(struct io_kiocb *req, bool force_nonblock,
 		iov_iter_revert(iter, io_size - iov_iter_count(iter));
 		ret = 0;
 		goto copy_iov;
-	} else if (ret < 0) {
+	} else if (ret <= 0) {
 		/* make sure -ERESTARTSYS -> -EINTR is done */
 		goto done;
 	}
