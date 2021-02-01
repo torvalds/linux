@@ -131,7 +131,8 @@ static int etm4_enable_hw(struct etmv4_drvdata *drvdata)
 	writel_relaxed(0x0, drvdata->base + TRCAUXCTLR);
 	writel_relaxed(config->eventctrl0, drvdata->base + TRCEVENTCTL0R);
 	writel_relaxed(config->eventctrl1, drvdata->base + TRCEVENTCTL1R);
-	writel_relaxed(config->stall_ctrl, drvdata->base + TRCSTALLCTLR);
+	if (drvdata->stallctl)
+		writel_relaxed(config->stall_ctrl, drvdata->base + TRCSTALLCTLR);
 	writel_relaxed(config->ts_ctrl, drvdata->base + TRCTSCTLR);
 	writel_relaxed(config->syncfreq, drvdata->base + TRCSYNCPR);
 	writel_relaxed(config->ccctlr, drvdata->base + TRCCCCTLR);
@@ -1187,7 +1188,8 @@ static int etm4_cpu_save(struct etmv4_drvdata *drvdata)
 	state->trcauxctlr = readl(drvdata->base + TRCAUXCTLR);
 	state->trceventctl0r = readl(drvdata->base + TRCEVENTCTL0R);
 	state->trceventctl1r = readl(drvdata->base + TRCEVENTCTL1R);
-	state->trcstallctlr = readl(drvdata->base + TRCSTALLCTLR);
+	if (drvdata->stallctl)
+		state->trcstallctlr = readl(drvdata->base + TRCSTALLCTLR);
 	state->trctsctlr = readl(drvdata->base + TRCTSCTLR);
 	state->trcsyncpr = readl(drvdata->base + TRCSYNCPR);
 	state->trcccctlr = readl(drvdata->base + TRCCCCTLR);
@@ -1297,7 +1299,8 @@ static void etm4_cpu_restore(struct etmv4_drvdata *drvdata)
 	writel_relaxed(state->trcauxctlr, drvdata->base + TRCAUXCTLR);
 	writel_relaxed(state->trceventctl0r, drvdata->base + TRCEVENTCTL0R);
 	writel_relaxed(state->trceventctl1r, drvdata->base + TRCEVENTCTL1R);
-	writel_relaxed(state->trcstallctlr, drvdata->base + TRCSTALLCTLR);
+	if (drvdata->stallctl)
+		writel_relaxed(state->trcstallctlr, drvdata->base + TRCSTALLCTLR);
 	writel_relaxed(state->trctsctlr, drvdata->base + TRCTSCTLR);
 	writel_relaxed(state->trcsyncpr, drvdata->base + TRCSYNCPR);
 	writel_relaxed(state->trcccctlr, drvdata->base + TRCCCCTLR);
