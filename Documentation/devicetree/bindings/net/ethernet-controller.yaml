@@ -206,6 +206,11 @@ properties:
                 Indicates that full-duplex is used. When absent, half
                 duplex is assumed.
 
+            pause:
+              $ref: /schemas/types.yaml#definitions/flag
+              description:
+                Indicates that pause should be enabled.
+
             asym-pause:
               $ref: /schemas/types.yaml#definitions/flag
               description:
