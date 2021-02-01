@@ -43,7 +43,30 @@
 	};
 };
 
+&gpio0 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_gpio0_default>;
+};
+
 &pinctrl0 {
+	pinctrl_gpio0_default: gpio0-default {
+		mux {
+			groups = "gpio0_20_grp", "gpio0_32_grp";
+			function = "gpio0";
+		};
+
+		conf {
+			groups = "gpio0_20_grp", "gpio0_32_grp";
+			io-standard = <3>;
+			slew-rate = <0>;
+		};
+
+		conf-pull-up {
+			pins = "MIO20", "MIO32";
+			bias-disable;
+		};
+	};
+
 	pinctrl_sdhci0_default: sdhci0-default {
 		mux {
 			groups = "sdio0_2_grp";
