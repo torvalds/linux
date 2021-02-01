@@ -254,6 +254,7 @@ static int replicator_probe(struct device *dev, struct resource *res)
 		}
 		drvdata->base = base;
 		desc.groups = replicator_groups;
+		desc.access = CSDEV_ACCESS_IOMEM(base);
 	}
 
 	if (fwnode_property_present(dev_fwnode(dev),
