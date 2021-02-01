@@ -764,24 +764,6 @@ static void gsi_channel_trans_quiesce(struct gsi_channel *channel)
 	}
 }
 
-/* Stop channel activity.  Transactions may not be allocated until thawed. */
-static void gsi_channel_freeze(struct gsi_channel *channel)
-{
-	gsi_channel_trans_quiesce(channel);
-
-	napi_disable(&channel->napi);
-
-	gsi_irq_ieob_disable_one(channel->gsi, channel->evt_ring_id);
-}
-
-/* Allow transactions to be used on the channel again. */
-static void gsi_channel_thaw(struct gsi_channel *channel)
-{
-	gsi_irq_ieob_enable_one(channel->gsi, channel->evt_ring_id);
-
-	napi_enable(&channel->napi);
-}
-
 /* Program a channel for use */
 static void gsi_channel_program(struct gsi_channel *channel, bool doorbell)
 {
@@ -884,9 +866,10 @@ static int __gsi_channel_start(struct gsi_channel *channel, bool start)
 
 	mutex_unlock(&gsi->mutex);
 
-	/* Thaw the channel if successful */
-	if (!ret)
-		gsi_channel_thaw(channel);
+	if (!ret) {
+		gsi_irq_ieob_enable_one(gsi, channel->evt_ring_id);
+		napi_enable(&channel->napi);
+	}
 
 	return ret;
 }
@@ -921,15 +904,19 @@ static int gsi_channel_stop_retry(struct gsi_channel *channel)
 
 static int __gsi_channel_stop(struct gsi_channel *channel, bool stop)
 {
+	struct gsi *gsi = channel->gsi;
 	int ret;
 
-	gsi_channel_freeze(channel);
+	gsi_channel_trans_quiesce(channel);
+	napi_disable(&channel->napi);
+	gsi_irq_ieob_disable_one(gsi, channel->evt_ring_id);
 
 	ret = stop ? gsi_channel_stop_retry(channel) : 0;
 
-	/* Re-thaw the channel if an error occurred while stopping */
-	if (ret)
-		gsi_channel_thaw(channel);
+	if (ret) {
+		gsi_irq_ieob_enable_one(gsi, channel->evt_ring_id);
+		napi_enable(&channel->napi);
+	}
 
 	return ret;
 }
