@@ -7865,6 +7865,7 @@ static int io_sqe_files_register(struct io_ring_ctx *ctx, void __user *arg,
 	file_data = alloc_fixed_rsrc_data(ctx);
 	if (!file_data)
 		return -ENOMEM;
+	ctx->file_data = file_data;
 
 	nr_tables = DIV_ROUND_UP(nr_args, IORING_MAX_FILES_TABLE);
 	file_data->table = kcalloc(nr_tables, sizeof(*file_data->table),
@@ -7874,7 +7875,6 @@ static int io_sqe_files_register(struct io_ring_ctx *ctx, void __user *arg,
 
 	if (io_sqe_alloc_file_tables(file_data, nr_tables, nr_args))
 		goto out_free;
-	ctx->file_data = file_data;
 
 	for (i = 0; i < nr_args; i++, ctx->nr_user_files++) {
 		struct fixed_rsrc_table *table;
