@@ -670,6 +670,40 @@ struct kvm_cpuid2 *kvm_get_supported_cpuid(void)
 }
 
 /*
+ * KVM Get MSR
+ *
+ * Input Args:
+ *   msr_index - Index of MSR
+ *
+ * Output Args: None
+ *
+ * Return: On success, value of the MSR. On failure a TEST_ASSERT is produced.
+ *
+ * Get value of MSR for VCPU.
+ */
+uint64_t kvm_get_feature_msr(uint64_t msr_index)
+{
+	struct {
+		struct kvm_msrs header;
+		struct kvm_msr_entry entry;
+	} buffer = {};
+	int r, kvm_fd;
+
+	buffer.header.nmsrs = 1;
+	buffer.entry.index = msr_index;
+	kvm_fd = open(KVM_DEV_PATH, O_RDONLY);
+	if (kvm_fd < 0)
+		exit(KSFT_SKIP);
+
+	r = ioctl(kvm_fd, KVM_GET_MSRS, &buffer.header);
+	TEST_ASSERT(r == 1, "KVM_GET_MSRS IOCTL failed,\n"
+		"  rc: %i errno: %i", r, errno);
+
+	close(kvm_fd);
+	return buffer.entry.data;
+}
+
+/*
  * Locate a cpuid entry.
  *
  * Input Args:
