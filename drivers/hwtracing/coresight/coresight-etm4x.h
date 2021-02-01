@@ -121,6 +121,30 @@
 #define TRCCIDR2			0xFF8
 #define TRCCIDR3			0xFFC
 
+#define etm4x_relaxed_read32(csa, offset)		\
+	readl_relaxed((csa)->base + (offset))
+
+#define etm4x_read32(csa, offset)			\
+	readl((csa)->base + (offset))
+
+#define etm4x_relaxed_write32(csa, val, offset)		\
+	writel_relaxed((val), (csa)->base + (offset))
+
+#define etm4x_write32(csa, val, offset)			\
+	writel((val), (csa)->base + (offset))
+
+#define etm4x_relaxed_read64(csa, offset)		\
+	readq_relaxed((csa)->base + (offset))
+
+#define etm4x_read64(csa, offset)			\
+	readq((csa)->base + (offset))
+
+#define etm4x_relaxed_write64(csa, val, offset)		\
+	writeq_relaxed((val), (csa)->base + (offset))
+
+#define etm4x_write64(csa, val, offset)			\
+	writeq((val), (csa)->base + (offset))
+
 /* ETMv4 resources */
 #define ETM_MAX_NR_PE			8
 #define ETMv4_MAX_CNTR			4
