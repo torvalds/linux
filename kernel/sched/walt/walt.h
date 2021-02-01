@@ -137,10 +137,6 @@ struct walt_task_struct {
 	bool				iowaited;
 };
 
-/*End linux/sched.h port */
-/*SCHED.H PORT*/
-extern __read_mostly bool sched_predl;
-
 struct walt_cpu_load {
 	unsigned long	nl;
 	unsigned long	pl;
@@ -299,8 +295,6 @@ extern void acquire_rq_locks_irqsave(const cpumask_t *cpus,
 extern void release_rq_locks_irqrestore(const cpumask_t *cpus,
 		unsigned long *flags);
 extern struct list_head cluster_head;
-extern int set_sched_ravg_window(char *str);
-extern int set_sched_predl(char *str);
 extern int input_boost_init(void);
 extern int core_ctl_init(void);
 

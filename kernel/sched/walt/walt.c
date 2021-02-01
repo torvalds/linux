@@ -80,7 +80,6 @@ unsigned int __read_mostly sched_init_task_load_windows;
  * sched_load_granule.
  */
 unsigned int __read_mostly sched_load_granule;
-__read_mostly bool sched_predl = true;
 
 /*
  *@boost:should be 0,1,2.
@@ -1261,9 +1260,6 @@ static void update_task_pred_demand(struct rq *rq, struct task_struct *p, int ev
 	u16 new_scaled;
 	struct walt_task_struct *wts = (struct walt_task_struct *) p->android_vendor_data1;
 
-	if (!sched_predl)
-		return;
-
 	if (is_idle_task(p))
 		return;
 
@@ -1808,9 +1804,6 @@ static inline u32 predict_and_update_buckets(
 	int bidx;
 	u32 pred_demand;
 	struct walt_task_struct *wts = (struct walt_task_struct *) p->android_vendor_data1;
-
-	if (!sched_predl)
-		return 0;
 
 	bidx = busy_to_bucket(runtime);
 	pred_demand = get_pred_busy(p, bidx, runtime);
@@ -3946,8 +3939,6 @@ static void android_rvh_try_to_wake_up_success(void *unused, struct task_struct 
 	int cpu = p->cpu;
 
 	if (static_branch_unlikely(&walt_disabled))
-		return;
-	if (!sched_predl)
 		return;
 
 	raw_spin_lock_irqsave(&cpu_rq(cpu)->lock, flags);
