@@ -585,6 +585,7 @@ err_fib6_rt_nh_del:
 	return err;
 }
 
+#if IS_ENABLED(CONFIG_IPV6)
 static void nsim_fib6_rt_hw_flags_set(struct nsim_fib_data *data,
 				      const struct nsim_fib6_rt *fib6_rt,
 				      bool trap)
@@ -595,6 +596,13 @@ static void nsim_fib6_rt_hw_flags_set(struct nsim_fib_data *data,
 	list_for_each_entry(fib6_rt_nh, &fib6_rt->nh_list, list)
 		fib6_info_hw_flags_set(net, fib6_rt_nh->rt, false, trap);
 }
+#else
+static void nsim_fib6_rt_hw_flags_set(struct nsim_fib_data *data,
+				      const struct nsim_fib6_rt *fib6_rt,
+				      bool trap)
+{
+}
+#endif
 
 static int nsim_fib6_rt_add(struct nsim_fib_data *data,
 			    struct nsim_fib6_rt *fib6_rt)
