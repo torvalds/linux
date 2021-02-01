@@ -219,6 +219,12 @@ static __net_init int loopback_net_init(struct net *net)
 
 	BUG_ON(dev->ifindex != LOOPBACK_IFINDEX);
 	net->loopback_dev = dev;
+
+	/* bring loopback device UP */
+	rtnl_lock();
+	dev_open(dev, NULL);
+	rtnl_unlock();
+
 	return 0;
 
 out_free_netdev:
