@@ -892,14 +892,11 @@ int gsi_channel_start(struct gsi *gsi, u32 channel_id)
 	return ret;
 }
 
-/* Stop a started channel */
-int gsi_channel_stop(struct gsi *gsi, u32 channel_id)
+static int gsi_channel_stop_retry(struct gsi_channel *channel)
 {
-	struct gsi_channel *channel = &gsi->channel[channel_id];
 	u32 retries = GSI_CHANNEL_STOP_RETRIES;
+	struct gsi *gsi = channel->gsi;
 	int ret;
-
-	gsi_channel_freeze(channel);
 
 	mutex_lock(&gsi->mutex);
 
@@ -911,6 +908,19 @@ int gsi_channel_stop(struct gsi *gsi, u32 channel_id)
 	} while (retries--);
 
 	mutex_unlock(&gsi->mutex);
+
+	return ret;
+}
+
+/* Stop a started channel */
+int gsi_channel_stop(struct gsi *gsi, u32 channel_id)
+{
+	struct gsi_channel *channel = &gsi->channel[channel_id];
+	int ret;
+
+	gsi_channel_freeze(channel);
+
+	ret = gsi_channel_stop_retry(channel);
 
 	/* Re-thaw the channel if an error occurred while stopping */
 	if (ret)
