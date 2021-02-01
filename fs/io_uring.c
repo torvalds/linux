@@ -1374,22 +1374,14 @@ static void io_req_clean_work(struct io_kiocb *req)
 	if (!(req->flags & REQ_F_WORK_INITIALIZED))
 		return;
 
-	req->flags &= ~REQ_F_WORK_INITIALIZED;
-
-	if (req->work.flags & IO_WQ_WORK_MM) {
+	if (req->work.flags & IO_WQ_WORK_MM)
 		mmdrop(req->work.identity->mm);
-		req->work.flags &= ~IO_WQ_WORK_MM;
-	}
 #ifdef CONFIG_BLK_CGROUP
-	if (req->work.flags & IO_WQ_WORK_BLKCG) {
+	if (req->work.flags & IO_WQ_WORK_BLKCG)
 		css_put(req->work.identity->blkcg_css);
-		req->work.flags &= ~IO_WQ_WORK_BLKCG;
-	}
 #endif
-	if (req->work.flags & IO_WQ_WORK_CREDS) {
+	if (req->work.flags & IO_WQ_WORK_CREDS)
 		put_cred(req->work.identity->creds);
-		req->work.flags &= ~IO_WQ_WORK_CREDS;
-	}
 	if (req->work.flags & IO_WQ_WORK_FS) {
 		struct fs_struct *fs = req->work.identity->fs;
 
@@ -1399,12 +1391,10 @@ static void io_req_clean_work(struct io_kiocb *req)
 		spin_unlock(&req->work.identity->fs->lock);
 		if (fs)
 			free_fs_struct(fs);
-		req->work.flags &= ~IO_WQ_WORK_FS;
 	}
 	if (req->work.flags & IO_WQ_WORK_FILES) {
 		put_files_struct(req->work.identity->files);
 		put_nsproxy(req->work.identity->nsproxy);
-		req->work.flags &= ~IO_WQ_WORK_FILES;
 	}
 	if (req->flags & REQ_F_INFLIGHT) {
 		struct io_ring_ctx *ctx = req->ctx;
@@ -1419,6 +1409,9 @@ static void io_req_clean_work(struct io_kiocb *req)
 			wake_up(&tctx->wait);
 	}
 
+	req->flags &= ~REQ_F_WORK_INITIALIZED;
+	req->work.flags &= ~(IO_WQ_WORK_MM | IO_WQ_WORK_BLKCG | IO_WQ_WORK_FS |
+			     IO_WQ_WORK_CREDS | IO_WQ_WORK_FILES);
 	io_put_identity(req->task->io_uring, req);
 }
 
