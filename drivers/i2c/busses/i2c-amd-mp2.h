@@ -185,9 +185,6 @@ struct amd_mp2_dev {
 	unsigned int probed;
 };
 
-#define work_amd_i2c_common(__work) \
-	container_of(__work, struct amd_i2c_common, work.work)
-
 /* PCIe communication driver */
 
 int amd_mp2_rw(struct amd_i2c_common *i2c_common, enum i2c_cmd reqcmd);
