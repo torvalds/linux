@@ -1799,7 +1799,6 @@ static int rtsx_pci_runtime_resume(struct device *device)
 	struct pci_dev *pcidev = to_pci_dev(device);
 	struct pcr_handle *handle;
 	struct rtsx_pcr *pcr;
-	int ret = 0;
 
 	handle = pci_get_drvdata(pcidev);
 	pcr = handle->pcr;
@@ -1824,7 +1823,7 @@ static int rtsx_pci_runtime_resume(struct device *device)
 	schedule_delayed_work(&pcr->idle_work, msecs_to_jiffies(200));
 
 	mutex_unlock(&pcr->pcr_mutex);
-	return ret;
+	return 0;
 }
 
 #else /* CONFIG_PM */
