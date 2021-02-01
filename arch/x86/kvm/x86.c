@@ -10502,7 +10502,7 @@ void __user * __x86_set_memory_region(struct kvm *kvm, int id, gpa_t gpa,
 			return 0;
 
 		old_npages = slot->npages;
-		hva = 0;
+		hva = slot->userspace_addr;
 	}
 
 	for (i = 0; i < KVM_ADDRESS_SPACE_NUM; i++) {
