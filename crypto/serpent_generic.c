@@ -10,7 +10,7 @@
 #include <linux/init.h>
 #include <linux/module.h>
 #include <linux/errno.h>
-#include <asm/byteorder.h>
+#include <asm/unaligned.h>
 #include <linux/crypto.h>
 #include <linux/types.h>
 #include <crypto/serpent.h>
@@ -448,19 +448,12 @@ void __serpent_encrypt(const void *c, u8 *dst, const u8 *src)
 {
 	const struct serpent_ctx *ctx = c;
 	const u32 *k = ctx->expkey;
-	const __le32 *s = (const __le32 *)src;
-	__le32	*d = (__le32 *)dst;
 	u32	r0, r1, r2, r3, r4;
 
-/*
- * Note: The conversions between u8* and u32* might cause trouble
- * on architectures with stricter alignment rules than x86
- */
-
-	r0 = le32_to_cpu(s[0]);
-	r1 = le32_to_cpu(s[1]);
-	r2 = le32_to_cpu(s[2]);
-	r3 = le32_to_cpu(s[3]);
+	r0 = get_unaligned_le32(src);
+	r1 = get_unaligned_le32(src + 4);
+	r2 = get_unaligned_le32(src + 8);
+	r3 = get_unaligned_le32(src + 12);
 
 					K(r0, r1, r2, r3, 0);
 	S0(r0, r1, r2, r3, r4);		LK(r2, r1, r3, r0, r4, 1);
@@ -496,10 +489,10 @@ void __serpent_encrypt(const void *c, u8 *dst, const u8 *src)
 	S6(r0, r1, r3, r2, r4);		LK(r3, r4, r1, r2, r0, 31);
 	S7(r3, r4, r1, r2, r0);		K(r0, r1, r2, r3, 32);
 
-	d[0] = cpu_to_le32(r0);
-	d[1] = cpu_to_le32(r1);
-	d[2] = cpu_to_le32(r2);
-	d[3] = cpu_to_le32(r3);
+	put_unaligned_le32(r0, dst);
+	put_unaligned_le32(r1, dst + 4);
+	put_unaligned_le32(r2, dst + 8);
+	put_unaligned_le32(r3, dst + 12);
 }
 EXPORT_SYMBOL_GPL(__serpent_encrypt);
 
@@ -514,14 +507,12 @@ void __serpent_decrypt(const void *c, u8 *dst, const u8 *src)
 {
 	const struct serpent_ctx *ctx = c;
 	const u32 *k = ctx->expkey;
-	const __le32 *s = (const __le32 *)src;
-	__le32	*d = (__le32 *)dst;
 	u32	r0, r1, r2, r3, r4;
 
-	r0 = le32_to_cpu(s[0]);
-	r1 = le32_to_cpu(s[1]);
-	r2 = le32_to_cpu(s[2]);
-	r3 = le32_to_cpu(s[3]);
+	r0 = get_unaligned_le32(src);
+	r1 = get_unaligned_le32(src + 4);
+	r2 = get_unaligned_le32(src + 8);
+	r3 = get_unaligned_le32(src + 12);
 
 					K(r0, r1, r2, r3, 32);
 	SI7(r0, r1, r2, r3, r4);	KL(r1, r3, r0, r4, r2, 31);
@@ -557,10 +548,10 @@ void __serpent_decrypt(const void *c, u8 *dst, const u8 *src)
 	SI1(r3, r1, r2, r0, r4);	KL(r4, r1, r2, r0, r3, 1);
 	SI0(r4, r1, r2, r0, r3);	K(r2, r3, r1, r4, 0);
 
-	d[0] = cpu_to_le32(r2);
-	d[1] = cpu_to_le32(r3);
-	d[2] = cpu_to_le32(r1);
-	d[3] = cpu_to_le32(r4);
+	put_unaligned_le32(r2, dst);
+	put_unaligned_le32(r3, dst + 4);
+	put_unaligned_le32(r1, dst + 8);
+	put_unaligned_le32(r4, dst + 12);
 }
 EXPORT_SYMBOL_GPL(__serpent_decrypt);
 
@@ -578,7 +569,6 @@ static struct crypto_alg srp_alg = {
 	.cra_flags		=	CRYPTO_ALG_TYPE_CIPHER,
 	.cra_blocksize		=	SERPENT_BLOCK_SIZE,
 	.cra_ctxsize		=	sizeof(struct serpent_ctx),
-	.cra_alignmask		=	3,
 	.cra_module		=	THIS_MODULE,
 	.cra_u			=	{ .cipher = {
 	.cia_min_keysize	=	SERPENT_MIN_KEY_SIZE,
