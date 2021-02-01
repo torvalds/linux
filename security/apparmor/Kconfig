@@ -25,7 +25,10 @@ config SECURITY_APPARMOR_HASH
 	default y
 	help
 	  This option selects whether introspection of loaded policy
-	  is available to userspace via the apparmor filesystem.
+	  hashes is available to userspace via the apparmor
+	  filesystem. This option provides a light weight means of
+	  checking loaded policy.  This option adds to policy load
+	  time and can be disabled for small embedded systems.
 
 config SECURITY_APPARMOR_HASH_DEFAULT
        bool "Enable policy hash introspection by default"
