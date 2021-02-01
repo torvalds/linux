@@ -71,12 +71,11 @@ struct xsk_buff_pool *xp_create_and_assign_umem(struct xdp_sock *xs,
 	INIT_LIST_HEAD(&pool->free_list);
 	INIT_LIST_HEAD(&pool->xsk_tx_list);
 	spin_lock_init(&pool->xsk_tx_list_lock);
+	spin_lock_init(&pool->cq_lock);
 	refcount_set(&pool->users, 1);
 
 	pool->fq = xs->fq_tmp;
 	pool->cq = xs->cq_tmp;
-	xs->fq_tmp = NULL;
-	xs->cq_tmp = NULL;
 
 	for (i = 0; i < pool->free_heads_cnt; i++) {
 		xskb = &pool->heads[i];

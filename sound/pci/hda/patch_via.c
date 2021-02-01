@@ -1002,6 +1002,7 @@ static const struct hda_verb vt1802_init_verbs[] = {
 enum {
 	VIA_FIXUP_INTMIC_BOOST,
 	VIA_FIXUP_ASUS_G75,
+	VIA_FIXUP_POWER_SAVE,
 };
 
 static void via_fixup_intmic_boost(struct hda_codec *codec,
@@ -1009,6 +1010,13 @@ static void via_fixup_intmic_boost(struct hda_codec *codec,
 {
 	if (action == HDA_FIXUP_ACT_PRE_PROBE)
 		override_mic_boost(codec, 0x30, 0, 2, 40);
+}
+
+static void via_fixup_power_save(struct hda_codec *codec,
+				 const struct hda_fixup *fix, int action)
+{
+	if (action == HDA_FIXUP_ACT_PRE_PROBE)
+		codec->power_save_node = 0;
 }
 
 static const struct hda_fixup via_fixups[] = {
@@ -1025,11 +1033,16 @@ static const struct hda_fixup via_fixups[] = {
 			{ }
 		}
 	},
+	[VIA_FIXUP_POWER_SAVE] = {
+		.type = HDA_FIXUP_FUNC,
+		.v.func = via_fixup_power_save,
+	},
 };
 
 static const struct snd_pci_quirk vt2002p_fixups[] = {
 	SND_PCI_QUIRK(0x1043, 0x1487, "Asus G75", VIA_FIXUP_ASUS_G75),
 	SND_PCI_QUIRK(0x1043, 0x8532, "Asus X202E", VIA_FIXUP_INTMIC_BOOST),
+	SND_PCI_QUIRK(0x1558, 0x3501, "Clevo W35xSS_370SS", VIA_FIXUP_POWER_SAVE),
 	{}
 };
 

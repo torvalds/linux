@@ -44,6 +44,7 @@ First Level Nodes - PMIC
 	Definition: Must be one of below:
 		    "qcom,pm8005-rpmh-regulators"
 		    "qcom,pm8009-rpmh-regulators"
+		    "qcom,pm8009-1-rpmh-regulators"
 		    "qcom,pm8150-rpmh-regulators"
 		    "qcom,pm8150l-rpmh-regulators"
 		    "qcom,pm8350-rpmh-regulators"

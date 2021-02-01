@@ -1729,7 +1729,7 @@ static int cleaner_kthread(void *arg)
 		 */
 		btrfs_delete_unused_bgs(fs_info);
 sleep:
-		clear_bit(BTRFS_FS_CLEANER_RUNNING, &fs_info->flags);
+		clear_and_wake_up_bit(BTRFS_FS_CLEANER_RUNNING, &fs_info->flags);
 		if (kthread_should_park())
 			kthread_parkme();
 		if (kthread_should_stop())
@@ -2830,6 +2830,9 @@ static int init_mount_fs_info(struct btrfs_fs_info *fs_info, struct super_block 
 		return -ENOMEM;
 	btrfs_init_delayed_root(fs_info->delayed_root);
 
+	if (sb_rdonly(sb))
+		set_bit(BTRFS_FS_STATE_RO, &fs_info->fs_state);
+
 	return btrfs_alloc_stripe_hash_table(fs_info);
 }
 
@@ -2969,6 +2972,7 @@ int btrfs_start_pre_rw_mount(struct btrfs_fs_info *fs_info)
 		}
 	}
 
+	ret = btrfs_find_orphan_roots(fs_info);
 out:
 	return ret;
 }
@@ -3382,10 +3386,6 @@ int __cold open_ctree(struct super_block *sb, struct btrfs_fs_devices *fs_device
 			goto fail_qgroup;
 		}
 	}
-
-	ret = btrfs_find_orphan_roots(fs_info);
-	if (ret)
-		goto fail_qgroup;
 
 	fs_info->fs_root = btrfs_get_fs_root(fs_info, BTRFS_FS_TREE_OBJECTID, true);
 	if (IS_ERR(fs_info->fs_root)) {
@@ -4180,6 +4180,9 @@ void __cold close_ctree(struct btrfs_fs_info *fs_info)
 	 */
 	invalidate_inode_pages2(fs_info->btree_inode->i_mapping);
 	btrfs_stop_all_workers(fs_info);
+
+	/* We shouldn't have any transaction open at this point */
+	ASSERT(list_empty(&fs_info->trans_list));
 
 	clear_bit(BTRFS_FS_OPEN, &fs_info->flags);
 	free_root_pointers(fs_info, true);
