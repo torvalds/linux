@@ -364,6 +364,8 @@ void pt_update_intercept_for_msr(struct kvm_vcpu *vcpu);
 void vmx_update_host_rsp(struct vcpu_vmx *vmx, unsigned long host_rsp);
 int vmx_find_loadstore_msr_slot(struct vmx_msrs *m, u32 msr);
 void vmx_ept_load_pdptrs(struct kvm_vcpu *vcpu);
+void vmx_set_intercept_for_msr(struct kvm_vcpu *vcpu,
+	u32 msr, int type, bool value);
 
 static inline u8 vmx_get_rvi(void)
 {

@@ -3790,7 +3790,7 @@ static __always_inline void vmx_enable_intercept_for_msr(struct kvm_vcpu *vcpu,
 		vmx_set_msr_bitmap_write(msr_bitmap, msr);
 }
 
-static __always_inline void vmx_set_intercept_for_msr(struct kvm_vcpu *vcpu,
+void vmx_set_intercept_for_msr(struct kvm_vcpu *vcpu,
 						      u32 msr, int type, bool value)
 {
 	if (value)
