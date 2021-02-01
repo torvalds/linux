@@ -248,7 +248,9 @@ static inline int hid_sensor_convert_exponent(int unit_expo)
 
 int hid_sensor_parse_common_attributes(struct hid_sensor_hub_device *hsdev,
 					u32 usage_id,
-					struct hid_sensor_common *st);
+					struct hid_sensor_common *st,
+					const u32 *sensitivity_addresses,
+					u32 sensitivity_addresses_len);
 int hid_sensor_write_raw_hyst_value(struct hid_sensor_common *st,
 					int val1, int val2);
 int hid_sensor_read_raw_hyst_value(struct hid_sensor_common *st,

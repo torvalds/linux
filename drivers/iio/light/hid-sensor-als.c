@@ -39,6 +39,10 @@ struct als_state {
 	s64 timestamp;
 };
 
+static const u32 als_sensitivity_addresses[] = {
+	HID_USAGE_SENSOR_DATA_LIGHT,
+};
+
 /* Channel definitions */
 static const struct iio_chan_spec als_channels[] = {
 	{
@@ -252,17 +256,6 @@ static int als_parse_report(struct platform_device *pdev,
 				&st->als_illum,
 				&st->scale_pre_decml, &st->scale_post_decml);
 
-	/* Set Sensitivity field ids, when there is no individual modifier */
-	if (st->common_attributes.sensitivity.index < 0) {
-		sensor_hub_input_get_attribute_info(hsdev,
-			HID_FEATURE_REPORT, usage_id,
-			HID_USAGE_SENSOR_DATA_MOD_CHANGE_SENSITIVITY_ABS |
-			HID_USAGE_SENSOR_DATA_LIGHT,
-			&st->common_attributes.sensitivity);
-		dev_dbg(&pdev->dev, "Sensitivity index:report %d:%d\n",
-			st->common_attributes.sensitivity.index,
-			st->common_attributes.sensitivity.report_id);
-	}
 	return ret;
 }
 
@@ -285,7 +278,9 @@ static int hid_als_probe(struct platform_device *pdev)
 	als_state->common_attributes.pdev = pdev;
 
 	ret = hid_sensor_parse_common_attributes(hsdev, HID_USAGE_SENSOR_ALS,
-					&als_state->common_attributes);
+					&als_state->common_attributes,
+					als_sensitivity_addresses,
+					ARRAY_SIZE(als_sensitivity_addresses));
 	if (ret) {
 		dev_err(&pdev->dev, "failed to setup common attributes\n");
 		return ret;
