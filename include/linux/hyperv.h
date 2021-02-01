@@ -1529,14 +1529,14 @@ struct icmsg_hdr {
 #define IC_VERSION_NEGOTIATION_MAX_VER_COUNT 100
 #define ICMSG_HDR (sizeof(struct vmbuspipe_hdr) + sizeof(struct icmsg_hdr))
 #define ICMSG_NEGOTIATE_PKT_SIZE(icframe_vercnt, icmsg_vercnt) \
-	(ICMSG_HDR + offsetof(struct icmsg_negotiate, icversion_data) + \
+	(ICMSG_HDR + sizeof(struct icmsg_negotiate) + \
 	 (((icframe_vercnt) + (icmsg_vercnt)) * sizeof(struct ic_version)))
 
 struct icmsg_negotiate {
 	u16 icframe_vercnt;
 	u16 icmsg_vercnt;
 	u32 reserved;
-	struct ic_version icversion_data[1]; /* any size array */
+	struct ic_version icversion_data[]; /* any size array */
 } __packed;
 
 struct shutdown_msg_data {
