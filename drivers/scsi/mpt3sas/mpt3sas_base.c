@@ -5641,7 +5641,8 @@ _base_allocate_memory_pools(struct MPT3SAS_ADAPTER *ioc)
 	reply_post_free_sz = ioc->reply_post_queue_depth *
 	    sizeof(Mpi2DefaultReplyDescriptor_t);
 	rdpq_sz = reply_post_free_sz * RDPQ_MAX_INDEX_IN_ONE_CHUNK;
-	if (_base_is_controller_msix_enabled(ioc) && !ioc->rdpq_array_enable)
+	if ((_base_is_controller_msix_enabled(ioc) && !ioc->rdpq_array_enable)
+	    || (ioc->reply_queue_count < RDPQ_MAX_INDEX_IN_ONE_CHUNK))
 		rdpq_sz = reply_post_free_sz * ioc->reply_queue_count;
 	ret = base_alloc_rdpq_dma_pool(ioc, rdpq_sz);
 	if (ret == -EAGAIN) {
