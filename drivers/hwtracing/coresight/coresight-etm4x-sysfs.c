@@ -2331,9 +2331,8 @@ static void do_smp_cross_read(void *data)
 	reg->data = etm4x_relaxed_read32(&reg->csdev->access, reg->offset);
 }
 
-static u32 etmv4_cross_read(const struct device *dev, u32 offset)
+static u32 etmv4_cross_read(const struct etmv4_drvdata *drvdata, u32 offset)
 {
-	struct etmv4_drvdata *drvdata = dev_get_drvdata(dev);
 	struct etmv4_reg reg;
 
 	reg.offset = offset;
@@ -2347,69 +2346,69 @@ static u32 etmv4_cross_read(const struct device *dev, u32 offset)
 	return reg.data;
 }
 
-#define coresight_etm4x_cross_read(name, offset)			\
-	coresight_simple_func(struct etmv4_drvdata, etmv4_cross_read,	\
-			      name, offset)
+static inline u32 coresight_etm4x_attr_to_offset(struct device_attribute *attr)
+{
+	struct dev_ext_attribute *eattr;
 
-coresight_etm4x_cross_read(trcpdcr, TRCPDCR);
-coresight_etm4x_cross_read(trcpdsr, TRCPDSR);
-coresight_etm4x_cross_read(trclsr, TRCLSR);
-coresight_etm4x_cross_read(trcauthstatus, TRCAUTHSTATUS);
-coresight_etm4x_cross_read(trcdevid, TRCDEVID);
-coresight_etm4x_cross_read(trcdevtype, TRCDEVTYPE);
-coresight_etm4x_cross_read(trcpidr0, TRCPIDR0);
-coresight_etm4x_cross_read(trcpidr1, TRCPIDR1);
-coresight_etm4x_cross_read(trcpidr2, TRCPIDR2);
-coresight_etm4x_cross_read(trcpidr3, TRCPIDR3);
-coresight_etm4x_cross_read(trcoslsr, TRCOSLSR);
-coresight_etm4x_cross_read(trcconfig, TRCCONFIGR);
-coresight_etm4x_cross_read(trctraceid, TRCTRACEIDR);
+	eattr = container_of(attr, struct dev_ext_attribute, attr);
+	return (u32)(unsigned long)eattr->var;
+}
+
+static ssize_t coresight_etm4x_reg_show(struct device *dev,
+					struct device_attribute *d_attr,
+					char *buf)
+{
+	u32 val, offset;
+	struct etmv4_drvdata *drvdata = dev_get_drvdata(dev->parent);
+
+	offset = coresight_etm4x_attr_to_offset(d_attr);
+
+	pm_runtime_get_sync(dev->parent);
+	val = etmv4_cross_read(drvdata, offset);
+	pm_runtime_put_sync(dev->parent);
+
+	return scnprintf(buf, PAGE_SIZE, "0x%x\n", val);
+}
+
+#define coresight_etm4x_reg(name, offset)				\
+	&((struct dev_ext_attribute[]) {				\
+	   {								\
+		__ATTR(name, 0444, coresight_etm4x_reg_show, NULL),	\
+		(void *)(unsigned long)offset				\
+	   }								\
+	})[0].attr.attr
 
 static struct attribute *coresight_etmv4_mgmt_attrs[] = {
-	&dev_attr_trcoslsr.attr,
-	&dev_attr_trcpdcr.attr,
-	&dev_attr_trcpdsr.attr,
-	&dev_attr_trclsr.attr,
-	&dev_attr_trcconfig.attr,
-	&dev_attr_trctraceid.attr,
-	&dev_attr_trcauthstatus.attr,
-	&dev_attr_trcdevid.attr,
-	&dev_attr_trcdevtype.attr,
-	&dev_attr_trcpidr0.attr,
-	&dev_attr_trcpidr1.attr,
-	&dev_attr_trcpidr2.attr,
-	&dev_attr_trcpidr3.attr,
+	coresight_etm4x_reg(trcpdcr, TRCPDCR),
+	coresight_etm4x_reg(trcpdsr, TRCPDSR),
+	coresight_etm4x_reg(trclsr, TRCLSR),
+	coresight_etm4x_reg(trcauthstatus, TRCAUTHSTATUS),
+	coresight_etm4x_reg(trcdevid, TRCDEVID),
+	coresight_etm4x_reg(trcdevtype, TRCDEVTYPE),
+	coresight_etm4x_reg(trcpidr0, TRCPIDR0),
+	coresight_etm4x_reg(trcpidr1, TRCPIDR1),
+	coresight_etm4x_reg(trcpidr2, TRCPIDR2),
+	coresight_etm4x_reg(trcpidr3, TRCPIDR3),
+	coresight_etm4x_reg(trcoslsr, TRCOSLSR),
+	coresight_etm4x_reg(trcconfig, TRCCONFIGR),
+	coresight_etm4x_reg(trctraceid, TRCTRACEIDR),
 	NULL,
 };
 
-coresight_etm4x_cross_read(trcidr0, TRCIDR0);
-coresight_etm4x_cross_read(trcidr1, TRCIDR1);
-coresight_etm4x_cross_read(trcidr2, TRCIDR2);
-coresight_etm4x_cross_read(trcidr3, TRCIDR3);
-coresight_etm4x_cross_read(trcidr4, TRCIDR4);
-coresight_etm4x_cross_read(trcidr5, TRCIDR5);
-/* trcidr[6,7] are reserved */
-coresight_etm4x_cross_read(trcidr8, TRCIDR8);
-coresight_etm4x_cross_read(trcidr9, TRCIDR9);
-coresight_etm4x_cross_read(trcidr10, TRCIDR10);
-coresight_etm4x_cross_read(trcidr11, TRCIDR11);
-coresight_etm4x_cross_read(trcidr12, TRCIDR12);
-coresight_etm4x_cross_read(trcidr13, TRCIDR13);
-
 static struct attribute *coresight_etmv4_trcidr_attrs[] = {
-	&dev_attr_trcidr0.attr,
-	&dev_attr_trcidr1.attr,
-	&dev_attr_trcidr2.attr,
-	&dev_attr_trcidr3.attr,
-	&dev_attr_trcidr4.attr,
-	&dev_attr_trcidr5.attr,
+	coresight_etm4x_reg(trcidr0, TRCIDR0),
+	coresight_etm4x_reg(trcidr1, TRCIDR1),
+	coresight_etm4x_reg(trcidr2, TRCIDR2),
+	coresight_etm4x_reg(trcidr3, TRCIDR3),
+	coresight_etm4x_reg(trcidr4, TRCIDR4),
+	coresight_etm4x_reg(trcidr5, TRCIDR5),
 	/* trcidr[6,7] are reserved */
-	&dev_attr_trcidr8.attr,
-	&dev_attr_trcidr9.attr,
-	&dev_attr_trcidr10.attr,
-	&dev_attr_trcidr11.attr,
-	&dev_attr_trcidr12.attr,
-	&dev_attr_trcidr13.attr,
+	coresight_etm4x_reg(trcidr8, TRCIDR8),
+	coresight_etm4x_reg(trcidr9, TRCIDR9),
+	coresight_etm4x_reg(trcidr10, TRCIDR10),
+	coresight_etm4x_reg(trcidr11, TRCIDR11),
+	coresight_etm4x_reg(trcidr12, TRCIDR12),
+	coresight_etm4x_reg(trcidr13, TRCIDR13),
 	NULL,
 };
 
