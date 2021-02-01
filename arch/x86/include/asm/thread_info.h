@@ -217,18 +217,10 @@ static inline int arch_within_stack_frames(const void * const stack,
 #ifndef __ASSEMBLY__
 #ifdef CONFIG_COMPAT
 #define TS_I386_REGS_POKED	0x0004	/* regs poked by 32-bit ptracer */
-#define TS_COMPAT_RESTART	0x0008
 
-#define arch_set_restart_data	arch_set_restart_data
+#define arch_set_restart_data(restart)	\
+	do { restart->arch_data = current_thread_info()->status; } while (0)
 
-static inline void arch_set_restart_data(struct restart_block *restart)
-{
-	struct thread_info *ti = current_thread_info();
-	if (ti->status & TS_COMPAT)
-		ti->status |= TS_COMPAT_RESTART;
-	else
-		ti->status &= ~TS_COMPAT_RESTART;
-}
 #endif
 
 #ifdef CONFIG_X86_32

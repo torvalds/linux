@@ -767,7 +767,7 @@ handle_signal(struct ksignal *ksig, struct pt_regs *regs)
 static inline unsigned long get_nr_restart_syscall(const struct pt_regs *regs)
 {
 #ifdef CONFIG_IA32_EMULATION
-	if (current_thread_info()->status & TS_COMPAT_RESTART)
+	if (current->restart_block.arch_data & TS_COMPAT)
 		return __NR_ia32_restart_syscall;
 #endif
 #ifdef CONFIG_X86_X32_ABI
