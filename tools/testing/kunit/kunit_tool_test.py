@@ -12,6 +12,7 @@ from unittest import mock
 import tempfile, shutil # Handling test_tmpdir
 
 import json
+import signal
 import os
 
 import kunit_config
@@ -236,6 +237,23 @@ class KUnitParserTest(unittest.TestCase):
 				result.status)
 			self.assertEqual('kunit-resource-test', result.suites[0].name)
 
+class LinuxSourceTreeTest(unittest.TestCase):
+
+	def setUp(self):
+		mock.patch.object(signal, 'signal').start()
+		self.addCleanup(mock.patch.stopall)
+
+	def test_invalid_kunitconfig(self):
+		with self.assertRaisesRegex(kunit_kernel.ConfigError, 'nonexistent.* does not exist'):
+			kunit_kernel.LinuxSourceTree('', kunitconfig_path='/nonexistent_file')
+
+	def test_valid_kunitconfig(self):
+		with tempfile.NamedTemporaryFile('wt') as kunitconfig:
+			tree = kunit_kernel.LinuxSourceTree('', kunitconfig_path=kunitconfig.name)
+
+	# TODO: add more test cases.
+
+
 class KUnitJsonTest(unittest.TestCase):
 
 	def _json_for(self, log_file):
@@ -377,6 +395,20 @@ class KUnitMainTest(unittest.TestCase):
 		kunit.main(['exec', '--build_dir', build_dir], self.linux_source_mock)
 		self.linux_source_mock.run_kernel.assert_called_once_with(build_dir=build_dir, timeout=300)
 		self.print_mock.assert_any_call(StrContains('Testing complete.'))
+
+	@mock.patch.object(kunit_kernel, 'LinuxSourceTree')
+	def test_run_kunitconfig(self, mock_linux_init):
+		mock_linux_init.return_value = self.linux_source_mock
+		kunit.main(['run', '--kunitconfig=mykunitconfig'])
+		# Just verify that we parsed and initialized it correctly here.
+		mock_linux_init.assert_called_once_with('.kunit', kunitconfig_path='mykunitconfig')
+
+	@mock.patch.object(kunit_kernel, 'LinuxSourceTree')
+	def test_config_kunitconfig(self, mock_linux_init):
+		mock_linux_init.return_value = self.linux_source_mock
+		kunit.main(['config', '--kunitconfig=mykunitconfig'])
+		# Just verify that we parsed and initialized it correctly here.
+		mock_linux_init.assert_called_once_with('.kunit', kunitconfig_path='mykunitconfig')
 
 if __name__ == '__main__':
 	unittest.main()
