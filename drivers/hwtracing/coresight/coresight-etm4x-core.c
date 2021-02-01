@@ -226,7 +226,7 @@ static int etm4_enable_hw(struct etmv4_drvdata *drvdata)
 
 	etm4_os_unlock(drvdata);
 
-	rc = coresight_claim_device_unlocked(drvdata->base);
+	rc = coresight_claim_device_unlocked(csdev);
 	if (rc)
 		goto done;
 
@@ -635,7 +635,7 @@ static void etm4_disable_hw(void *info)
 			readl_relaxed(drvdata->base + TRCCNTVRn(i));
 	}
 
-	coresight_disclaim_device_unlocked(drvdata->base);
+	coresight_disclaim_device_unlocked(csdev);
 
 	CS_LOCK(drvdata->base);
 
