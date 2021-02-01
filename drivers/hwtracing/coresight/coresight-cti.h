@@ -185,6 +185,11 @@ struct cti_config {
 	u32 asicctl;
 };
 
+struct cti_pctrl {
+	struct pinctrl			*pctrl;
+	int				trig;
+};
+
 /**
  * struct cti_drvdata - specifics for the CTI device
  * @base:	Memory mapped base address for this component..
@@ -204,6 +209,8 @@ struct cti_drvdata {
 	struct list_head node;
 	void (*csdev_release)(struct device *dev);
 	bool	extended_cti;
+	struct cti_pctrl		*gpio_trigin;
+	struct cti_pctrl		*gpio_trigout;
 };
 
 /*
@@ -242,6 +249,8 @@ struct cti_trig_con *cti_allocate_trig_con(struct device *dev, int in_sigs,
 					   int out_sigs);
 int cti_enable(struct coresight_device *csdev);
 int cti_disable(struct coresight_device *csdev);
+void cti_trigin_gpio_disable(struct cti_drvdata *drvdata);
+void cti_trigout_gpio_disable(struct cti_drvdata *drvdata);
 void cti_write_all_hw_regs(struct cti_drvdata *drvdata);
 void cti_write_intack(struct device *dev, u32 ackval);
 void cti_write_single_reg(struct cti_drvdata *drvdata, int offset, u32 value);

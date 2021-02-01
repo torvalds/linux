@@ -987,6 +987,11 @@ static ssize_t chan_xtrigs_reset_store(struct device *dev,
 	for (i = 0; i < config->nr_trig_max; i++) {
 		config->ctiinen[i] = 0;
 		config->ctiouten[i] = 0;
+
+		if (drvdata->gpio_trigin->trig == i)
+			cti_trigin_gpio_disable(drvdata);
+		if (drvdata->gpio_trigout->trig == i)
+			cti_trigout_gpio_disable(drvdata);
 	}
 
 	/* clear the other regs */
