@@ -2954,7 +2954,7 @@ static void execlists_reset_cancel(struct intel_engine_cs *engine)
 
 	/* Mark all executing requests as skipped. */
 	list_for_each_entry(rq, &engine->active.requests, sched.link)
-		i915_request_mark_eio(rq);
+		i915_request_put(i915_request_mark_eio(rq));
 	intel_engine_signal_breadcrumbs(engine);
 
 	/* Flush the queued requests to the timeline list (for retiring). */
@@ -2962,8 +2962,10 @@ static void execlists_reset_cancel(struct intel_engine_cs *engine)
 		struct i915_priolist *p = to_priolist(rb);
 
 		priolist_for_each_request_consume(rq, rn, p) {
-			i915_request_mark_eio(rq);
-			__i915_request_submit(rq);
+			if (i915_request_mark_eio(rq)) {
+				__i915_request_submit(rq);
+				i915_request_put(rq);
+			}
 		}
 
 		rb_erase_cached(&p->node, &execlists->queue);
@@ -2972,7 +2974,7 @@ static void execlists_reset_cancel(struct intel_engine_cs *engine)
 
 	/* On-hold requests will be flushed to timeline upon their release */
 	list_for_each_entry(rq, &engine->active.hold, sched.link)
-		i915_request_mark_eio(rq);
+		i915_request_put(i915_request_mark_eio(rq));
 
 	/* Cancel all attached virtual engines */
 	while ((rb = rb_first_cached(&execlists->virtual))) {
@@ -2985,10 +2987,11 @@ static void execlists_reset_cancel(struct intel_engine_cs *engine)
 		spin_lock(&ve->base.active.lock);
 		rq = fetch_and_zero(&ve->request);
 		if (rq) {
-			i915_request_mark_eio(rq);
-
-			rq->engine = engine;
-			__i915_request_submit(rq);
+			if (i915_request_mark_eio(rq)) {
+				rq->engine = engine;
+				__i915_request_submit(rq);
+				i915_request_put(rq);
+			}
 			i915_request_put(rq);
 
 			ve->base.execlists.queue_priority_hint = INT_MIN;

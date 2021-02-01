@@ -239,13 +239,15 @@ static void mock_reset_cancel(struct intel_engine_cs *engine)
 
 	/* Mark all submitted requests as skipped. */
 	list_for_each_entry(rq, &engine->active.requests, sched.link)
-		i915_request_mark_eio(rq);
+		i915_request_put(i915_request_mark_eio(rq));
 	intel_engine_signal_breadcrumbs(engine);
 
 	/* Cancel and submit all pending requests. */
 	list_for_each_entry(rq, &mock->hw_queue, mock.link) {
-		i915_request_mark_eio(rq);
-		__i915_request_submit(rq);
+		if (i915_request_mark_eio(rq)) {
+			__i915_request_submit(rq);
+			i915_request_put(rq);
+		}
 	}
 	INIT_LIST_HEAD(&mock->hw_queue);
 
