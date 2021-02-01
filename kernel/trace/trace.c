@@ -9412,30 +9412,11 @@ void ftrace_dump(enum ftrace_dump_mode oops_dump_mode)
 }
 EXPORT_SYMBOL_GPL(ftrace_dump);
 
-int trace_run_command(const char *buf, int (*createfn)(int, char **))
-{
-	char **argv;
-	int argc, ret;
-
-	argc = 0;
-	ret = 0;
-	argv = argv_split(GFP_KERNEL, buf, &argc);
-	if (!argv)
-		return -ENOMEM;
-
-	if (argc)
-		ret = createfn(argc, argv);
-
-	argv_free(argv);
-
-	return ret;
-}
-
 #define WRITE_BUFSIZE  4096
 
 ssize_t trace_parse_run_command(struct file *file, const char __user *buffer,
 				size_t count, loff_t *ppos,
-				int (*createfn)(int, char **))
+				int (*createfn)(const char *))
 {
 	char *kbuf, *buf, *tmp;
 	int ret = 0;
@@ -9483,7 +9464,7 @@ ssize_t trace_parse_run_command(struct file *file, const char __user *buffer,
 			if (tmp)
 				*tmp = '\0';
 
-			ret = trace_run_command(buf, createfn);
+			ret = createfn(buf);
 			if (ret)
 				goto out;
 			buf += size;

@@ -34,7 +34,7 @@ struct uprobe_trace_entry_head {
 #define DATAOF_TRACE_ENTRY(entry, is_return)		\
 	((void*)(entry) + SIZEOF_TRACE_ENTRY(is_return))
 
-static int trace_uprobe_create(int argc, const char **argv);
+static int trace_uprobe_create(const char *raw_command);
 static int trace_uprobe_show(struct seq_file *m, struct dyn_event *ev);
 static int trace_uprobe_release(struct dyn_event *ev);
 static bool trace_uprobe_is_busy(struct dyn_event *ev);
@@ -530,7 +530,7 @@ end:
  * Argument syntax:
  *  - Add uprobe: p|r[:[GRP/]EVENT] PATH:OFFSET[%return][(REF)] [FETCHARGS]
  */
-static int trace_uprobe_create(int argc, const char **argv)
+static int __trace_uprobe_create(int argc, const char **argv)
 {
 	struct trace_uprobe *tu;
 	const char *event = NULL, *group = UPROBE_EVENT_SYSTEM;
@@ -716,14 +716,19 @@ fail_address_parse:
 	return ret;
 }
 
-static int create_or_delete_trace_uprobe(int argc, char **argv)
+int trace_uprobe_create(const char *raw_command)
+{
+	return trace_probe_create(raw_command, __trace_uprobe_create);
+}
+
+static int create_or_delete_trace_uprobe(const char *raw_command)
 {
 	int ret;
 
-	if (argv[0][0] == '-')
-		return dyn_event_release(argc, argv, &trace_uprobe_ops);
+	if (raw_command[0] == '-')
+		return dyn_event_release(raw_command, &trace_uprobe_ops);
 
-	ret = trace_uprobe_create(argc, (const char **)argv);
+	ret = trace_uprobe_create(raw_command);
 	return ret == -ECANCELED ? -EINVAL : ret;
 }
 

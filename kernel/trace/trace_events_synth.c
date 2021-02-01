@@ -62,7 +62,7 @@ static void synth_err(u8 err_type, u8 err_pos)
 			err_type, err_pos);
 }
 
-static int create_synth_event(int argc, const char **argv);
+static int create_synth_event(const char *raw_command);
 static int synth_event_show(struct seq_file *m, struct dyn_event *ev);
 static int synth_event_release(struct dyn_event *ev);
 static bool synth_event_is_busy(struct dyn_event *ev);
@@ -1383,18 +1383,30 @@ int synth_event_delete(const char *event_name)
 }
 EXPORT_SYMBOL_GPL(synth_event_delete);
 
-static int create_or_delete_synth_event(int argc, char **argv)
+static int create_or_delete_synth_event(const char *raw_command)
 {
-	const char *name = argv[0];
-	int ret;
+	char **argv, *name = NULL;
+	int argc = 0, ret = 0;
+
+	argv = argv_split(GFP_KERNEL, raw_command, &argc);
+	if (!argv)
+		return -ENOMEM;
+
+	if (!argc)
+		goto free;
+
+	name = argv[0];
 
 	/* trace_run_command() ensures argc != 0 */
 	if (name[0] == '!') {
 		ret = synth_event_delete(name + 1);
-		return ret;
+		goto free;
 	}
 
 	ret = __create_synth_event(argc - 1, name, (const char **)argv + 1);
+free:
+	argv_free(argv);
+
 	return ret == -ECANCELED ? -EINVAL : ret;
 }
 
@@ -1403,7 +1415,7 @@ static int synth_event_run_command(struct dynevent_cmd *cmd)
 	struct synth_event *se;
 	int ret;
 
-	ret = trace_run_command(cmd->seq.buffer, create_or_delete_synth_event);
+	ret = create_or_delete_synth_event(cmd->seq.buffer);
 	if (ret)
 		return ret;
 
@@ -1939,23 +1951,43 @@ int synth_event_trace_end(struct synth_event_trace_state *trace_state)
 }
 EXPORT_SYMBOL_GPL(synth_event_trace_end);
 
-static int create_synth_event(int argc, const char **argv)
+static int create_synth_event(const char *raw_command)
 {
-	const char *name = argv[0];
-	int len;
+	char **argv, *name;
+	int len, argc = 0, ret = 0;
 
-	if (name[0] != 's' || name[1] != ':')
-		return -ECANCELED;
+	argv = argv_split(GFP_KERNEL, raw_command, &argc);
+	if (!argv) {
+		ret = -ENOMEM;
+		return ret;
+	}
+
+	if (!argc)
+		goto free;
+
+	name = argv[0];
+
+	if (name[0] != 's' || name[1] != ':') {
+		ret = -ECANCELED;
+		goto free;
+	}
 	name += 2;
 
 	/* This interface accepts group name prefix */
 	if (strchr(name, '/')) {
 		len = str_has_prefix(name, SYNTH_SYSTEM "/");
-		if (len == 0)
-			return -EINVAL;
+		if (len == 0) {
+			ret = -EINVAL;
+			goto free;
+		}
 		name += len;
 	}
-	return __create_synth_event(argc - 1, name, argv + 1);
+
+	ret = __create_synth_event(argc - 1, name, (const char **)argv + 1);
+free:
+	argv_free(argv);
+
+	return ret;
 }
 
 static int synth_event_release(struct dyn_event *ev)
