@@ -5,11 +5,6 @@
  * Serpent Cipher Algorithm.
  *
  * Copyright (C) 2002 Dag Arne Osvik <osvik@ii.uib.no>
- *               2003 Herbert Valerio Riedel <hvr@gnu.org>
- *
- * Added tnepres support:
- *		Ruben Jesus Garcia Hernandez <ruben@ugr.es>, 18.10.2004
- *              Based on code by hvr
  */
 
 #include <linux/init.h>
@@ -576,59 +571,7 @@ static void serpent_decrypt(struct crypto_tfm *tfm, u8 *dst, const u8 *src)
 	__serpent_decrypt(ctx, dst, src);
 }
 
-static int tnepres_setkey(struct crypto_tfm *tfm, const u8 *key,
-			  unsigned int keylen)
-{
-	u8 rev_key[SERPENT_MAX_KEY_SIZE];
-	int i;
-
-	for (i = 0; i < keylen; ++i)
-		rev_key[keylen - i - 1] = key[i];
-
-	return serpent_setkey(tfm, rev_key, keylen);
-}
-
-static void tnepres_encrypt(struct crypto_tfm *tfm, u8 *dst, const u8 *src)
-{
-	const u32 * const s = (const u32 * const)src;
-	u32 * const d = (u32 * const)dst;
-
-	u32 rs[4], rd[4];
-
-	rs[0] = swab32(s[3]);
-	rs[1] = swab32(s[2]);
-	rs[2] = swab32(s[1]);
-	rs[3] = swab32(s[0]);
-
-	serpent_encrypt(tfm, (u8 *)rd, (u8 *)rs);
-
-	d[0] = swab32(rd[3]);
-	d[1] = swab32(rd[2]);
-	d[2] = swab32(rd[1]);
-	d[3] = swab32(rd[0]);
-}
-
-static void tnepres_decrypt(struct crypto_tfm *tfm, u8 *dst, const u8 *src)
-{
-	const u32 * const s = (const u32 * const)src;
-	u32 * const d = (u32 * const)dst;
-
-	u32 rs[4], rd[4];
-
-	rs[0] = swab32(s[3]);
-	rs[1] = swab32(s[2]);
-	rs[2] = swab32(s[1]);
-	rs[3] = swab32(s[0]);
-
-	serpent_decrypt(tfm, (u8 *)rd, (u8 *)rs);
-
-	d[0] = swab32(rd[3]);
-	d[1] = swab32(rd[2]);
-	d[2] = swab32(rd[1]);
-	d[3] = swab32(rd[0]);
-}
-
-static struct crypto_alg srp_algs[2] = { {
+static struct crypto_alg srp_alg = {
 	.cra_name		=	"serpent",
 	.cra_driver_name	=	"serpent-generic",
 	.cra_priority		=	100,
@@ -643,38 +586,23 @@ static struct crypto_alg srp_algs[2] = { {
 	.cia_setkey		=	serpent_setkey,
 	.cia_encrypt		=	serpent_encrypt,
 	.cia_decrypt		=	serpent_decrypt } }
-}, {
-	.cra_name		=	"tnepres",
-	.cra_driver_name	=	"tnepres-generic",
-	.cra_flags		=	CRYPTO_ALG_TYPE_CIPHER,
-	.cra_blocksize		=	SERPENT_BLOCK_SIZE,
-	.cra_ctxsize		=	sizeof(struct serpent_ctx),
-	.cra_alignmask		=	3,
-	.cra_module		=	THIS_MODULE,
-	.cra_u			=	{ .cipher = {
-	.cia_min_keysize	=	SERPENT_MIN_KEY_SIZE,
-	.cia_max_keysize	=	SERPENT_MAX_KEY_SIZE,
-	.cia_setkey		=	tnepres_setkey,
-	.cia_encrypt		=	tnepres_encrypt,
-	.cia_decrypt		=	tnepres_decrypt } }
-} };
+};
 
 static int __init serpent_mod_init(void)
 {
-	return crypto_register_algs(srp_algs, ARRAY_SIZE(srp_algs));
+	return crypto_register_alg(&srp_alg);
 }
 
 static void __exit serpent_mod_fini(void)
 {
-	crypto_unregister_algs(srp_algs, ARRAY_SIZE(srp_algs));
+	crypto_unregister_alg(&srp_alg);
 }
 
 subsys_initcall(serpent_mod_init);
 module_exit(serpent_mod_fini);
 
 MODULE_LICENSE("GPL");
-MODULE_DESCRIPTION("Serpent and tnepres (kerneli compatible serpent reversed) Cipher Algorithm");
+MODULE_DESCRIPTION("Serpent Cipher Algorithm");
 MODULE_AUTHOR("Dag Arne Osvik <osvik@ii.uib.no>");
-MODULE_ALIAS_CRYPTO("tnepres");
 MODULE_ALIAS_CRYPTO("serpent");
 MODULE_ALIAS_CRYPTO("serpent-generic");

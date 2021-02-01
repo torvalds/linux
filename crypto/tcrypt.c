@@ -70,7 +70,7 @@ static const char *check[] = {
 	"des", "md5", "des3_ede", "rot13", "sha1", "sha224", "sha256", "sm3",
 	"blowfish", "twofish", "serpent", "sha384", "sha512", "md4", "aes",
 	"cast6", "arc4", "michael_mic", "deflate", "crc32c", "tea", "xtea",
-	"khazad", "wp512", "wp384", "wp256", "tnepres", "xeta",  "fcrypt",
+	"khazad", "wp512", "wp384", "wp256", "xeta",  "fcrypt",
 	"camellia", "seed", "rmd160",
 	"lzo", "lzo-rle", "cts", "sha3-224", "sha3-256", "sha3-384",
 	"sha3-512", "streebog256", "streebog512",
@@ -1804,10 +1804,6 @@ static int do_test(const char *alg, u32 type, u32 mask, int m, u32 num_mb)
 
 	case 24:
 		ret += tcrypt_test("wp256");
-		break;
-
-	case 25:
-		ret += tcrypt_test("ecb(tnepres)");
 		break;
 
 	case 26:
