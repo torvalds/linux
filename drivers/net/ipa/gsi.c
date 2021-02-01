@@ -725,22 +725,38 @@ static void gsi_evt_ring_program(struct gsi *gsi, u32 evt_ring_id)
 	gsi_evt_ring_doorbell(gsi, evt_ring_id, 0);
 }
 
-/* Return the last (most recent) transaction completed on a channel. */
+/* Find the transaction whose completion indicates a channel is quiesced */
 static struct gsi_trans *gsi_channel_trans_last(struct gsi_channel *channel)
 {
 	struct gsi_trans_info *trans_info = &channel->trans_info;
+	const struct list_head *list;
 	struct gsi_trans *trans;
 
 	spin_lock_bh(&trans_info->spinlock);
 
-	if (!list_empty(&trans_info->complete))
-		trans = list_last_entry(&trans_info->complete,
-					struct gsi_trans, links);
-	else if (!list_empty(&trans_info->polled))
-		trans = list_last_entry(&trans_info->polled,
-					struct gsi_trans, links);
-	else
-		trans = NULL;
+	/* There is a small chance a TX transaction got allocated just
+	 * before we disabled transmits, so check for that.
+	 */
+	if (channel->toward_ipa) {
+		list = &trans_info->alloc;
+		if (!list_empty(list))
+			goto done;
+		list = &trans_info->pending;
+		if (!list_empty(list))
+			goto done;
+	}
+
+	/* Otherwise (TX or RX) we want to wait for anything that
+	 * has completed, or has been polled but not released yet.
+	 */
+	list = &trans_info->complete;
+	if (!list_empty(list))
+		goto done;
+	list = &trans_info->polled;
+	if (list_empty(list))
+		list = NULL;
+done:
+	trans = list ? list_last_entry(list, struct gsi_trans, links) : NULL;
 
 	/* Caller will wait for this, so take a reference */
 	if (trans)
