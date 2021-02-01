@@ -325,16 +325,30 @@ static inline bool idxd_is_enabled(struct idxd_device *idxd)
 	return false;
 }
 
+static inline bool idxd_device_is_halted(struct idxd_device *idxd)
+{
+	union gensts_reg gensts;
+
+	gensts.bits = ioread32(idxd->reg_base + IDXD_GENSTATS_OFFSET);
+
+	return (gensts.state == IDXD_DEVICE_STATE_HALT);
+}
+
 /*
  * This is function is only used for reset during probe and will
  * poll for completion. Once the device is setup with interrupts,
  * all commands will be done via interrupt completion.
  */
-void idxd_device_init_reset(struct idxd_device *idxd)
+int idxd_device_init_reset(struct idxd_device *idxd)
 {
 	struct device *dev = &idxd->pdev->dev;
 	union idxd_command_reg cmd;
 	unsigned long flags;
+
+	if (idxd_device_is_halted(idxd)) {
+		dev_warn(&idxd->pdev->dev, "Device is HALTED!\n");
+		return -ENXIO;
+	}
 
 	memset(&cmd, 0, sizeof(cmd));
 	cmd.cmd = IDXD_CMD_RESET_DEVICE;
@@ -346,6 +360,7 @@ void idxd_device_init_reset(struct idxd_device *idxd)
 	       IDXD_CMDSTS_ACTIVE)
 		cpu_relax();
 	spin_unlock_irqrestore(&idxd->dev_lock, flags);
+	return 0;
 }
 
 static void idxd_cmd_exec(struct idxd_device *idxd, int cmd_code, u32 operand,
@@ -354,6 +369,12 @@ static void idxd_cmd_exec(struct idxd_device *idxd, int cmd_code, u32 operand,
 	union idxd_command_reg cmd;
 	DECLARE_COMPLETION_ONSTACK(done);
 	unsigned long flags;
+
+	if (idxd_device_is_halted(idxd)) {
+		dev_warn(&idxd->pdev->dev, "Device is HALTED!\n");
+		*status = IDXD_CMDSTS_HW_ERR;
+		return;
+	}
 
 	memset(&cmd, 0, sizeof(cmd));
 	cmd.cmd = cmd_code;
