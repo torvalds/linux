@@ -468,11 +468,14 @@ static void nv_pcie_gen3_enable(struct amdgpu_device *adev)
 
 static void nv_program_aspm(struct amdgpu_device *adev)
 {
-
-	if (amdgpu_aspm == 0)
+	if (amdgpu_aspm != 1)
 		return;
 
-	/* todo */
+	if ((adev->asic_type >= CHIP_SIENNA_CICHLID) &&
+	    !(adev->flags & AMD_IS_APU) &&
+	    (adev->nbio.funcs->program_aspm))
+		adev->nbio.funcs->program_aspm(adev);
+
 }
 
 static void nv_enable_doorbell_aperture(struct amdgpu_device *adev,
@@ -798,10 +801,10 @@ static int nv_update_umd_stable_pstate(struct amdgpu_device *adev,
 	 * The ASPM function is not fully enabled and verified on
 	 * Navi yet. Temporarily skip this until ASPM enabled.
 	 */
-#if 0
-	if (adev->nbio.funcs->enable_aspm)
+	if ((adev->asic_type >= CHIP_SIENNA_CICHLID) &&
+	    !(adev->flags & AMD_IS_APU) &&
+	    (adev->nbio.funcs->enable_aspm))
 		adev->nbio.funcs->enable_aspm(adev, !enter);
-#endif
 
 	return 0;
 }
