@@ -628,7 +628,6 @@ struct dc {
 #endif
 
 	/* Require to maintain clocks and bandwidth for UEFI enabled HW */
-	int optimize_seamless_boot_streams;
 
 	/* FBC compressor */
 	struct compressor *fbc_compressor;
