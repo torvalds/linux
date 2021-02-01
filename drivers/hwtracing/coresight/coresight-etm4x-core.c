@@ -917,7 +917,7 @@ static void etm4_init_arch_data(void *info)
 	 * Otherwise for values 0x1 and above the number is N + 1 as per v4.2.
 	 */
 	drvdata->nr_resource = BMVAL(etmidr4, 16, 19);
-	if ((drvdata->arch < ETM4X_ARCH_4V3) || (drvdata->nr_resource > 0))
+	if ((drvdata->arch < ETM_ARCH_V4_3) || (drvdata->nr_resource > 0))
 		drvdata->nr_resource += 1;
 	/*
 	 * NUMSSCC, bits[23:20] the number of single-shot
