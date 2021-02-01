@@ -580,11 +580,29 @@ static void free_synth_field(struct synth_field *field)
 	kfree(field);
 }
 
-static struct synth_field *parse_synth_field(int argc, char **argv)
+static int check_field_version(const char *prefix, const char *field_type,
+			       const char *field_name)
+{
+	/*
+	 * For backward compatibility, the old synthetic event command
+	 * format did not require semicolons, and in order to not
+	 * break user space, that old format must still work. If a new
+	 * feature is added, then the format that uses the new feature
+	 * will be required to have semicolons, as nothing that uses
+	 * the old format would be using the new, yet to be created,
+	 * feature. When a new feature is added, this will detect it,
+	 * and return a number greater than 1, and require the format
+	 * to use semicolons.
+	 */
+	return 1;
+}
+
+static struct synth_field *parse_synth_field(int argc, char **argv,
+					     int *consumed, int *field_version)
 {
 	const char *prefix = NULL, *field_type = argv[0], *field_name, *array;
-	int len, consumed, ret = -ENOMEM;
 	struct synth_field *field;
+	int len, ret = -ENOMEM;
 	struct seq_buf s;
 	ssize_t size;
 
@@ -596,21 +614,18 @@ static struct synth_field *parse_synth_field(int argc, char **argv)
 		prefix = "unsigned ";
 		field_type = argv[1];
 		field_name = argv[2];
-		consumed = 3;
+		*consumed += 3;
 	} else {
 		field_name = argv[1];
-		consumed = 2;
-	}
-
-	if (consumed < argc) {
-		synth_err(SYNTH_ERR_INVALID_FIELD, errpos(field_type));
-		return ERR_PTR(-EINVAL);
+		*consumed += 2;
 	}
 
 	if (!field_name) {
 		synth_err(SYNTH_ERR_INVALID_FIELD, errpos(field_type));
 		return ERR_PTR(-EINVAL);
 	}
+
+	*field_version = check_field_version(prefix, field_type, field_name);
 
 	field = kzalloc(sizeof(*field), GFP_KERNEL);
 	if (!field)
@@ -1167,6 +1182,7 @@ static int __create_synth_event(const char *name, const char *raw_fields)
 {
 	char **argv, *field_str, *tmp_fields, *saved_fields = NULL;
 	struct synth_field *field, *fields[SYNTH_FIELDS_MAX];
+	int consumed, cmd_version = 1, n_fields_this_loop;
 	int i, argc, n_fields = 0, ret = 0;
 	struct synth_event *event = NULL;
 
@@ -1212,21 +1228,60 @@ static int __create_synth_event(const char *name, const char *raw_fields)
 		if (!argc)
 			continue;
 
-		field = parse_synth_field(argc, argv);
-		if (IS_ERR(field)) {
-			argv_free(argv);
-			ret = PTR_ERR(field);
+		n_fields_this_loop = 0;
+		consumed = 0;
+		while (argc > consumed) {
+			int field_version;
+
+			field = parse_synth_field(argc - consumed,
+						  argv + consumed, &consumed,
+						  &field_version);
+			if (IS_ERR(field)) {
+				argv_free(argv);
+				ret = PTR_ERR(field);
+				goto err;
+			}
+
+			/*
+			 * Track the highest version of any field we
+			 * found in the command.
+			 */
+			if (field_version > cmd_version)
+				cmd_version = field_version;
+
+			/*
+			 * Now sort out what is and isn't valid for
+			 * each supported version.
+			 *
+			 * If we see more than 1 field per loop, it
+			 * means we have multiple fields between
+			 * semicolons, and that's something we no
+			 * longer support in a version 2 or greater
+			 * command.
+			 */
+			if (cmd_version > 1 && n_fields_this_loop >= 1) {
+				synth_err(SYNTH_ERR_INVALID_CMD, errpos(field_str));
+				ret = -EINVAL;
+				goto err;
+			}
+
+			fields[n_fields++] = field;
+			if (n_fields == SYNTH_FIELDS_MAX) {
+				synth_err(SYNTH_ERR_TOO_MANY_FIELDS, 0);
+				ret = -EINVAL;
+				goto err;
+			}
+
+			n_fields_this_loop++;
+		}
+
+		if (consumed < argc) {
+			synth_err(SYNTH_ERR_INVALID_CMD, 0);
+			ret = -EINVAL;
 			goto err;
 		}
 
 		argv_free(argv);
-
-		fields[n_fields++] = field;
-		if (n_fields == SYNTH_FIELDS_MAX) {
-			synth_err(SYNTH_ERR_TOO_MANY_FIELDS, 0);
-			ret = -EINVAL;
-			goto err;
-		}
 	}
 
 	if (n_fields == 0) {
