@@ -9,6 +9,7 @@
 #include <linux/module.h>
 #include <linux/kernel.h>
 #include <net/genetlink.h>
+#include <trace/hooks/thermal.h>
 #include <uapi/linux/thermal.h>
 
 #include "thermal_core.h"
@@ -274,6 +275,11 @@ static int thermal_genl_send_event(enum thermal_genl_event event,
 	struct sk_buff *msg;
 	int ret = -EMSGSIZE;
 	void *hdr;
+	int enable_thermal_genl = 1;
+
+	trace_android_vh_enable_thermal_genl_check(event, p->tz_id, &enable_thermal_genl);
+	if (!enable_thermal_genl)
+		return 0;
 
 	msg = genlmsg_new(NLMSG_GOODSIZE, GFP_KERNEL);
 	if (!msg)
