@@ -27,6 +27,7 @@
 #include <linux/seq_file.h>
 #include <linux/uaccess.h>
 #include <linux/perf_event.h>
+#include <linux/platform_device.h>
 #include <linux/pm_runtime.h>
 #include <linux/property.h>
 
@@ -1736,9 +1737,6 @@ static int etm4_probe(struct device *dev, void __iomem *base, u32 etm_pid)
 			return -ENOMEM;
 	}
 
-	if (fwnode_property_present(dev_fwnode(dev), "qcom,skip-power-up"))
-		drvdata->skip_power_up = true;
-
 	drvdata->base = base;
 
 	spin_lock_init(&drvdata->spinlock);
@@ -1761,6 +1759,11 @@ static int etm4_probe(struct device *dev, void __iomem *base, u32 etm_pid)
 
 	if (!drvdata->arch)
 		return -EINVAL;
+
+	/* TRCPDCR is not accessible with system instructions. */
+	if (!desc.access.io_mem ||
+	    fwnode_property_present(dev_fwnode(dev), "qcom,skip-power-up"))
+		drvdata->skip_power_up = true;
 
 	etm4_init_trace_id(drvdata);
 	etm4_set_default(&drvdata->config);
@@ -1820,6 +1823,25 @@ static int etm4_probe_amba(struct amba_device *adev, const struct amba_id *id)
 	return ret;
 }
 
+static int etm4_probe_platform_dev(struct platform_device *pdev)
+{
+	int ret;
+
+	pm_runtime_get_noresume(&pdev->dev);
+	pm_runtime_set_active(&pdev->dev);
+	pm_runtime_enable(&pdev->dev);
+
+	/*
+	 * System register based devices could match the
+	 * HW by reading appropriate registers on the HW
+	 * and thus we could skip the PID.
+	 */
+	ret = etm4_probe(&pdev->dev, NULL, 0);
+
+	pm_runtime_put(&pdev->dev);
+	return ret;
+}
+
 static struct amba_cs_uci_id uci_id_etm4[] = {
 	{
 		/*  ETMv4 UCI data */
@@ -1869,6 +1891,17 @@ static int __exit etm4_remove_amba(struct amba_device *adev)
 	return 0;
 }
 
+static int __exit etm4_remove_platform_dev(struct platform_device *pdev)
+{
+	int ret = 0;
+	struct etmv4_drvdata *drvdata = dev_get_drvdata(&pdev->dev);
+
+	if (drvdata)
+		ret = etm4_remove_dev(drvdata);
+	pm_runtime_disable(&pdev->dev);
+	return ret;
+}
+
 static const struct amba_id etm4_ids[] = {
 	CS_AMBA_ID(0x000bb95d),			/* Cortex-A53 */
 	CS_AMBA_ID(0x000bb95e),			/* Cortex-A57 */
@@ -1903,6 +1936,21 @@ static struct amba_driver etm4x_amba_driver = {
 	.id_table	= etm4_ids,
 };
 
+static const struct of_device_id etm4_sysreg_match[] = {
+	{ .compatible	= "arm,coresight-etm4x-sysreg" },
+	{}
+};
+
+static struct platform_driver etm4_platform_driver = {
+	.probe		= etm4_probe_platform_dev,
+	.remove		= etm4_remove_platform_dev,
+	.driver			= {
+		.name			= "coresight-etm4x",
+		.of_match_table		= etm4_sysreg_match,
+		.suppress_bind_attrs	= true,
+	},
+};
+
 static int __init etm4x_init(void)
 {
 	int ret;
@@ -1915,16 +1963,26 @@ static int __init etm4x_init(void)
 
 	ret = amba_driver_register(&etm4x_amba_driver);
 	if (ret) {
-		pr_err("Error registering etm4x driver\n");
-		etm4_pm_clear();
+		pr_err("Error registering etm4x AMBA driver\n");
+		goto clear_pm;
 	}
 
+	ret = platform_driver_register(&etm4_platform_driver);
+	if (!ret)
+		return 0;
+
+	pr_err("Error registering etm4x platform driver\n");
+	amba_driver_unregister(&etm4x_amba_driver);
+
+clear_pm:
+	etm4_pm_clear();
 	return ret;
 }
 
 static void __exit etm4x_exit(void)
 {
 	amba_driver_unregister(&etm4x_amba_driver);
+	platform_driver_unregister(&etm4_platform_driver);
 	etm4_pm_clear();
 }
 
