@@ -336,8 +336,9 @@ static inline void fib6_info_release(struct fib6_info *f6i)
 		call_rcu(&f6i->rcu, fib6_info_destroy_rcu);
 }
 
-static inline void fib6_info_hw_flags_set(struct fib6_info *f6i, bool offload,
-					  bool trap)
+static inline void
+fib6_info_hw_flags_set(struct net *net, struct fib6_info *f6i, bool offload,
+		       bool trap)
 {
 	f6i->offload = offload;
 	f6i->trap = trap;
