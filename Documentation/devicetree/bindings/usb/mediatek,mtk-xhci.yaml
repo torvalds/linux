@@ -23,8 +23,10 @@ properties:
   compatible:
     items:
       - enum:
+          - mediatek,mt2701-xhci
           - mediatek,mt2712-xhci
           - mediatek,mt7622-xhci
+          - mediatek,mt7623-xhci
           - mediatek,mt7629-xhci
           - mediatek,mt8173-xhci
           - mediatek,mt8183-xhci
