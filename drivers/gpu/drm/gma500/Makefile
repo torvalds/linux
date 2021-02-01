@@ -5,7 +5,6 @@
 
 gma500_gfx-y += \
 	  backlight.o \
-	  blitter.o \
 	  cdv_device.o \
 	  cdv_intel_crt.o \
 	  cdv_intel_display.o \
