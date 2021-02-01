@@ -1452,6 +1452,48 @@ int coresight_timeout(void __iomem *addr, u32 offset, int position, int value)
 }
 EXPORT_SYMBOL_GPL(coresight_timeout);
 
+u32 coresight_relaxed_read32(struct coresight_device *csdev, u32 offset)
+{
+	return csdev_access_relaxed_read32(&csdev->access, offset);
+}
+
+u32 coresight_read32(struct coresight_device *csdev, u32 offset)
+{
+	return csdev_access_read32(&csdev->access, offset);
+}
+
+void coresight_relaxed_write32(struct coresight_device *csdev,
+			       u32 val, u32 offset)
+{
+	csdev_access_relaxed_write32(&csdev->access, val, offset);
+}
+
+void coresight_write32(struct coresight_device *csdev, u32 val, u32 offset)
+{
+	csdev_access_write32(&csdev->access, val, offset);
+}
+
+u64 coresight_relaxed_read64(struct coresight_device *csdev, u32 offset)
+{
+	return csdev_access_relaxed_read64(&csdev->access, offset);
+}
+
+u64 coresight_read64(struct coresight_device *csdev, u32 offset)
+{
+	return csdev_access_read64(&csdev->access, offset);
+}
+
+void coresight_relaxed_write64(struct coresight_device *csdev,
+			       u64 val, u32 offset)
+{
+	csdev_access_relaxed_write64(&csdev->access, val, offset);
+}
+
+void coresight_write64(struct coresight_device *csdev, u64 val, u32 offset)
+{
+	csdev_access_write64(&csdev->access, val, offset);
+}
+
 /*
  * coresight_release_platform_data: Release references to the devices connected
  * to the output port of this device.
@@ -1516,6 +1558,7 @@ struct coresight_device *coresight_register(struct coresight_desc *desc)
 	csdev->type = desc->type;
 	csdev->subtype = desc->subtype;
 	csdev->ops = desc->ops;
+	csdev->access = desc->access;
 	csdev->orphan = false;
 
 	csdev->dev.type = &coresight_dev_type[desc->type];
