@@ -264,7 +264,23 @@ do_transfer()
 	fi
 	cpid=$!
 
-	if [ $addr_nr_ns1 -lt 0 ]; then
+	if [ $addr_nr_ns1 -gt 0 ]; then
+		let add_nr_ns1=addr_nr_ns1
+		counter=2
+		sleep 1
+		while [ $add_nr_ns1 -gt 0 ]; do
+			local addr
+			if is_v6 "${connect_addr}"; then
+				addr="dead:beef:$counter::1"
+			else
+				addr="10.0.$counter.1"
+			fi
+			ip netns exec $ns1 ./pm_nl_ctl add $addr flags signal
+			let counter+=1
+			let add_nr_ns1-=1
+		done
+		sleep 1
+	elif [ $addr_nr_ns1 -lt 0 ]; then
 		let rm_nr_ns1=-addr_nr_ns1
 		if [ $rm_nr_ns1 -lt 8 ]; then
 			counter=1
@@ -282,7 +298,23 @@ do_transfer()
 		fi
 	fi
 
-	if [ $addr_nr_ns2 -lt 0 ]; then
+	if [ $addr_nr_ns2 -gt 0 ]; then
+		let add_nr_ns2=addr_nr_ns2
+		counter=3
+		sleep 1
+		while [ $add_nr_ns2 -gt 0 ]; do
+			local addr
+			if is_v6 "${connect_addr}"; then
+				addr="dead:beef:$counter::2"
+			else
+				addr="10.0.$counter.2"
+			fi
+			ip netns exec $ns2 ./pm_nl_ctl add $addr flags subflow
+			let counter+=1
+			let add_nr_ns2-=1
+		done
+		sleep 1
+	elif [ $addr_nr_ns2 -lt 0 ]; then
 		let rm_nr_ns2=-addr_nr_ns2
 		if [ $rm_nr_ns2 -lt 8 ]; then
 			counter=1
@@ -737,6 +769,43 @@ run_tests $ns1 $ns2 10.0.1.1 0 -8 -8 slow
 chk_join_nr "flush subflows and signal" 3 3 3
 chk_add_nr 1 1
 chk_rm_nr 2 2
+
+# add single subflow
+reset
+ip netns exec $ns1 ./pm_nl_ctl limits 0 1
+ip netns exec $ns2 ./pm_nl_ctl limits 0 1
+run_tests $ns1 $ns2 10.0.1.1 0 0 1 slow
+chk_join_nr "add single subflow" 1 1 1
+
+# add signal address
+reset
+ip netns exec $ns1 ./pm_nl_ctl limits 0 1
+ip netns exec $ns2 ./pm_nl_ctl limits 1 1
+run_tests $ns1 $ns2 10.0.1.1 0 1 0 slow
+chk_join_nr "add signal address" 1 1 1
+chk_add_nr 1 1
+
+# add multiple subflows
+reset
+ip netns exec $ns1 ./pm_nl_ctl limits 0 2
+ip netns exec $ns2 ./pm_nl_ctl limits 0 2
+run_tests $ns1 $ns2 10.0.1.1 0 0 2 slow
+chk_join_nr "add multiple subflows" 2 2 2
+
+# add multiple subflows IPv6
+reset
+ip netns exec $ns1 ./pm_nl_ctl limits 0 2
+ip netns exec $ns2 ./pm_nl_ctl limits 0 2
+run_tests $ns1 $ns2 dead:beef:1::1 0 0 2 slow
+chk_join_nr "add multiple subflows IPv6" 2 2 2
+
+# add multiple addresses IPv6
+reset
+ip netns exec $ns1 ./pm_nl_ctl limits 0 2
+ip netns exec $ns2 ./pm_nl_ctl limits 2 2
+run_tests $ns1 $ns2 dead:beef:1::1 0 2 0 slow
+chk_join_nr "add multiple addresses IPv6" 2 2 2
+chk_add_nr 2 2
 
 # subflow IPv6
 reset
