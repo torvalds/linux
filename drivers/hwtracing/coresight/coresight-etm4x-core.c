@@ -60,6 +60,7 @@ static u64 etm4_get_access_type(struct etmv4_config *config);
 static enum cpuhp_state hp_online;
 
 struct etm4_init_arg {
+	unsigned int		pid;
 	struct etmv4_drvdata	*drvdata;
 	struct csdev_access	*csa;
 };
@@ -883,6 +884,8 @@ static void etm4_init_arch_data(void *info)
 	/* Make sure all registers are accessible */
 	etm4_os_unlock_csa(drvdata, csa);
 	etm4_cs_unlock(drvdata, csa);
+
+	etm4_check_arch_features(drvdata, init_arg->pid);
 
 	/* find all capabilities of the tracing unit */
 	etmidr0 = etm4x_relaxed_read32(csa, TRCIDR0);
@@ -1750,6 +1753,7 @@ static int etm4_probe(struct device *dev, void __iomem *base, u32 etm_pid)
 
 	init_arg.drvdata = drvdata;
 	init_arg.csa = &desc.access;
+	init_arg.pid = etm_pid;
 
 	if (smp_call_function_single(drvdata->cpu,
 				etm4_init_arch_data,  &init_arg, 1))
@@ -1793,8 +1797,6 @@ static int etm4_probe(struct device *dev, void __iomem *base, u32 etm_pid)
 		coresight_enable(drvdata->csdev);
 		drvdata->boot_enable = true;
 	}
-
-	etm4_check_arch_features(drvdata, etm_pid);
 
 	return 0;
 }
