@@ -1055,7 +1055,7 @@
 	};
 
 	gpu: gpu@fde60000 {
-		compatible = "arm,malit602", "arm,malit60x", "arm,malit6xx", "arm,mali-midgard";
+		compatible = "arm,mali-bifrost";
 		reg = <0x0 0xfde60000 0x0 0x4000>;
 
 		interrupts = <GIC_SPI 39 IRQ_TYPE_LEVEL_HIGH>,
