@@ -2303,11 +2303,9 @@ drm_dp_mst_port_add_connector(struct drm_dp_mst_branch *mstb,
 
 	if (port->pdt != DP_PEER_DEVICE_NONE &&
 	    drm_dp_mst_is_end_device(port->pdt, port->mcs) &&
-	    port->port_num >= DP_MST_LOGICAL_PORT_0) {
+	    port->port_num >= DP_MST_LOGICAL_PORT_0)
 		port->cached_edid = drm_get_edid(port->connector,
 						 &port->aux.ddc);
-		drm_connector_set_tile_property(port->connector);
-	}
 
 	drm_connector_register(port->connector);
 	return;
