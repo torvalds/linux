@@ -1383,8 +1383,6 @@ static int gaudi_late_init(struct hl_device *hdev)
 		return rc;
 	}
 
-	WREG32(mmGIC_DISTRIBUTOR__5_GICD_SETSPI_NSR, GAUDI_EVENT_INTS_REGISTER);
-
 	rc = gaudi_fetch_psoc_frequency(hdev);
 	if (rc) {
 		dev_err(hdev->dev, "Failed to fetch psoc frequency\n");
@@ -8500,6 +8498,11 @@ static int gaudi_block_mmap(struct hl_device *hdev,
 	return -EPERM;
 }
 
+static void gaudi_enable_events_from_fw(struct hl_device *hdev)
+{
+	WREG32(mmGIC_DISTRIBUTOR__5_GICD_SETSPI_NSR, GAUDI_EVENT_INTS_REGISTER);
+}
+
 static const struct hl_asic_funcs gaudi_funcs = {
 	.early_init = gaudi_early_init,
 	.early_fini = gaudi_early_fini,
@@ -8581,7 +8584,8 @@ static const struct hl_asic_funcs gaudi_funcs = {
 	.descramble_addr = hl_mmu_descramble_addr,
 	.ack_protection_bits_errors = gaudi_ack_protection_bits_errors,
 	.get_hw_block_id = gaudi_get_hw_block_id,
-	.hw_block_mmap = gaudi_block_mmap
+	.hw_block_mmap = gaudi_block_mmap,
+	.enable_events_from_fw = gaudi_enable_events_from_fw
 };
 
 /**

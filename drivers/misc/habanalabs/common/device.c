@@ -1159,12 +1159,20 @@ kill_processes:
 	atomic_set(&hdev->in_reset, 0);
 	hdev->needs_reset = false;
 
-	if (hard_reset)
-		hdev->hard_reset_cnt++;
-	else
-		hdev->soft_reset_cnt++;
+	dev_notice(hdev->dev, "Successfully finished resetting the device\n");
 
-	dev_warn(hdev->dev, "Successfully finished resetting the device\n");
+	if (hard_reset) {
+		hdev->hard_reset_cnt++;
+
+		/* After reset is done, we are ready to receive events from
+		 * the F/W. We can't do it before because we will ignore events
+		 * and if those events are fatal, we won't know about it and
+		 * the device will be operational although it shouldn't be
+		 */
+		hdev->asic_funcs->enable_events_from_fw(hdev);
+	} else {
+		hdev->soft_reset_cnt++;
+	}
 
 	return 0;
 
@@ -1414,6 +1422,13 @@ int hl_device_init(struct hl_device *hdev, struct class *hclass)
 		"Successfully added device to habanalabs driver\n");
 
 	hdev->init_done = true;
+
+	/* After initialization is done, we are ready to receive events from
+	 * the F/W. We can't do it before because we will ignore events and if
+	 * those events are fatal, we won't know about it and the device will
+	 * be operational although it shouldn't be
+	 */
+	hdev->asic_funcs->enable_events_from_fw(hdev);
 
 	return 0;
 

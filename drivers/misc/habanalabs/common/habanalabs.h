@@ -860,12 +860,16 @@ enum div_select_defs {
  *                           and place them in the relevant cs jobs
  * @collective_wait_create_jobs: allocate collective wait cs jobs
  * @scramble_addr: Routine to scramble the address prior of mapping it
- *                  in the MMU.
+ *                 in the MMU.
  * @descramble_addr: Routine to de-scramble the address prior of
- *                  showing it to users.
+ *                   showing it to users.
  * @ack_protection_bits_errors: ack and dump all security violations
  * @get_hw_block_id: retrieve a HW block id to be used by the user to mmap it.
  * @hw_block_mmap: mmap a HW block with a given id.
+ * @enable_events_from_fw: send interrupt to firmware to notify them the
+ *                         driver is ready to receive asynchronous events. This
+ *                         function should be called during the first init and
+ *                         after every hard-reset of the device
  */
 struct hl_asic_funcs {
 	int (*early_init)(struct hl_device *hdev);
@@ -982,6 +986,7 @@ struct hl_asic_funcs {
 			u32 *block_id);
 	int (*hw_block_mmap)(struct hl_device *hdev, struct vm_area_struct *vma,
 			u32 block_id, u32 block_size);
+	void (*enable_events_from_fw)(struct hl_device *hdev);
 };
 
 

@@ -798,9 +798,6 @@ int goya_late_init(struct hl_device *hdev)
 		return rc;
 	}
 
-	WREG32(mmGIC_DISTRIBUTOR__5_GICD_SETSPI_NSR,
-			GOYA_ASYNC_EVENT_ID_INTS_REGISTER);
-
 	return 0;
 }
 
@@ -5400,6 +5397,12 @@ static int goya_block_mmap(struct hl_device *hdev, struct vm_area_struct *vma,
 	return -EPERM;
 }
 
+static void goya_enable_events_from_fw(struct hl_device *hdev)
+{
+	WREG32(mmGIC_DISTRIBUTOR__5_GICD_SETSPI_NSR,
+			GOYA_ASYNC_EVENT_ID_INTS_REGISTER);
+}
+
 static const struct hl_asic_funcs goya_funcs = {
 	.early_init = goya_early_init,
 	.early_fini = goya_early_fini,
@@ -5481,7 +5484,8 @@ static const struct hl_asic_funcs goya_funcs = {
 	.descramble_addr = hl_mmu_descramble_addr,
 	.ack_protection_bits_errors = goya_ack_protection_bits_errors,
 	.get_hw_block_id = goya_get_hw_block_id,
-	.hw_block_mmap = goya_block_mmap
+	.hw_block_mmap = goya_block_mmap,
+	.enable_events_from_fw = goya_enable_events_from_fw
 };
 
 /*
