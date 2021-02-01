@@ -557,6 +557,8 @@
 /* PowerDown Control Register bits */
 #define TRCPDCR_PU			BIT(3)
 
+#define TRCACATR_EXLEVEL_SHIFT		8
+
 /* secure state access levels - TRCACATRn */
 #define ETM_EXLEVEL_S_APP		BIT(8)
 #define ETM_EXLEVEL_S_OS		BIT(9)
@@ -631,7 +633,7 @@ enum etm_impdef_type {
  * @vmid_mask0:	VM ID comparator mask for comparator 0-3.
  * @vmid_mask1:	VM ID comparator mask for comparator 4-7.
  * @ext_inp:	External input selection.
- * @arch:	ETM architecture version (for arch dependent config).
+ * @s_ex_level: Secure ELs where tracing is supported.
  */
 struct etmv4_config {
 	u32				mode;
@@ -675,7 +677,7 @@ struct etmv4_config {
 	u32				vmid_mask0;
 	u32				vmid_mask1;
 	u32				ext_inp;
-	u8				arch;
+	u8				s_ex_level;
 };
 
 /**
