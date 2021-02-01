@@ -138,6 +138,8 @@ struct tb_switch_tmu {
  *
  * When the switch is being added or removed to the domain (other
  * switches) you need to have domain lock held.
+ *
+ * In USB4 terminology this structure represents a router.
  */
 struct tb_switch {
 	struct device dev;
@@ -196,6 +198,9 @@ struct tb_switch {
  * @in_hopids: Currently allocated input HopIDs
  * @out_hopids: Currently allocated output HopIDs
  * @list: Used to link ports to DP resources list
+ *
+ * In USB4 terminology this structure represents an adapter (protocol or
+ * lane adapter).
  */
 struct tb_port {
 	struct tb_regs_port_header config;
