@@ -119,7 +119,7 @@ static void cf_diag_trailer(struct cf_trailer_entry *te)
 		te->speed = 1;
 	te->clock_base = 1;			/* Save clock base */
 	memcpy(&te->tod_base, &tod_clock_base[1], 8);
-	store_tod_clock((__u64 *)&te->timestamp);
+	te->timestamp = get_tod_clock_fast();
 }
 
 /*
