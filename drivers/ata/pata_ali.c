@@ -109,7 +109,7 @@ static int ali_c2_cable_detect(struct ata_port *ap)
 /**
  *	ali_20_filter		-	filter for earlier ALI DMA
  *	@adev: ATA device
- *	@adev: attached device
+ *	@mask: received mask to manipulate and pass back
  *
  *	Ensure that we do not do DMA on CD devices. We may be able to
  *	fix that later on. Also ensure we do not do UDMA on WDC drives
