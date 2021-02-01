@@ -821,6 +821,8 @@ static void rk817_shutdown_prepare(void)
 				 RK817_SLPPIN_FUNC_MSK, SLPPIN_DN_FUN);
 	if (ret)
 		dev_err(&rk808_i2c_client->dev, "Failed to shutdown device!\n");
+	/* pmic need the SCL clock to synchronize register */
+	mdelay(2);
 }
 
 static void rk818_device_shutdown(void)
