@@ -961,18 +961,6 @@ const struct drm_crtc_helper_funcs cdv_intel_helper_funcs = {
 	.disable = gma_crtc_disable,
 };
 
-const struct drm_crtc_funcs cdv_intel_crtc_funcs = {
-	.cursor_set = gma_crtc_cursor_set,
-	.cursor_move = gma_crtc_cursor_move,
-	.gamma_set = gma_crtc_gamma_set,
-	.set_config = gma_crtc_set_config,
-	.destroy = gma_crtc_destroy,
-	.page_flip = gma_crtc_page_flip,
-	.enable_vblank = psb_enable_vblank,
-	.disable_vblank = psb_disable_vblank,
-	.get_vblank_counter = psb_get_vblank_counter,
-};
-
 const struct gma_clock_funcs cdv_clock_funcs = {
 	.clock = cdv_intel_clock,
 	.limit = cdv_intel_limit,

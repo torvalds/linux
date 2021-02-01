@@ -329,7 +329,7 @@ const struct psb_ops psb_chip_ops = {
 	.chip_teardown = psb_chip_teardown,
 
 	.crtc_helper = &psb_intel_helper_funcs,
-	.crtc_funcs = &psb_intel_crtc_funcs,
+	.crtc_funcs = &gma_intel_crtc_funcs,
 	.clock_funcs = &psb_clock_funcs,
 
 	.output_init = psb_output_init,

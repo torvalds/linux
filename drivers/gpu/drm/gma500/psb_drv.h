@@ -672,7 +672,7 @@ extern void oaktrail_lvds_init(struct drm_device *dev,
 
 /* psb_intel_display.c */
 extern const struct drm_crtc_helper_funcs psb_intel_helper_funcs;
-extern const struct drm_crtc_funcs psb_intel_crtc_funcs;
+extern const struct drm_crtc_funcs gma_intel_crtc_funcs;
 
 /* psb_intel_lvds.c */
 extern const struct drm_connector_helper_funcs
