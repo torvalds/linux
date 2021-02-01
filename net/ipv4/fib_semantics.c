@@ -1733,7 +1733,7 @@ static int fib_add_multipath(struct sk_buff *skb, struct fib_info *fi)
 #endif
 
 int fib_dump_info(struct sk_buff *skb, u32 portid, u32 seq, int event,
-		  struct fib_rt_info *fri, unsigned int flags)
+		  const struct fib_rt_info *fri, unsigned int flags)
 {
 	unsigned int nhs = fib_info_num_path(fri->fi);
 	struct fib_info *fi = fri->fi;
