@@ -4753,9 +4753,9 @@ static int rtl8169_close(struct net_device *dev)
 
 	cancel_work_sync(&tp->wk.work);
 
-	phy_disconnect(tp->phydev);
-
 	free_irq(pci_irq_vector(pdev, 0), tp);
+
+	phy_disconnect(tp->phydev);
 
 	dma_free_coherent(&pdev->dev, R8169_RX_RING_BYTES, tp->RxDescArray,
 			  tp->RxPhyAddr);
