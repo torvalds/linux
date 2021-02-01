@@ -4219,9 +4219,8 @@ drm_dp_mst_detect_port(struct drm_connector *connector,
 	case DP_PEER_DEVICE_SST_SINK:
 		ret = connector_status_connected;
 		/* for logical ports - cache the EDID */
-		if (port->port_num >= 8 && !port->cached_edid) {
+		if (port->port_num >= DP_MST_LOGICAL_PORT_0 && !port->cached_edid)
 			port->cached_edid = drm_get_edid(connector, &port->aux.ddc);
-		}
 		break;
 	case DP_PEER_DEVICE_DP_LEGACY_CONV:
 		if (port->ldps)
