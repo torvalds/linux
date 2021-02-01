@@ -559,24 +559,39 @@
 
 #define TRCACATR_EXLEVEL_SHIFT		8
 
-/* secure state access levels - TRCACATRn */
-#define ETM_EXLEVEL_S_APP		BIT(8)
-#define ETM_EXLEVEL_S_OS		BIT(9)
-#define ETM_EXLEVEL_S_HYP		BIT(10)
-#define ETM_EXLEVEL_S_MON		BIT(11)
-/* non-secure state access levels - TRCACATRn */
-#define ETM_EXLEVEL_NS_APP		BIT(12)
-#define ETM_EXLEVEL_NS_OS		BIT(13)
-#define ETM_EXLEVEL_NS_HYP		BIT(14)
-#define ETM_EXLEVEL_NS_NA		BIT(15)
+/*
+ * Exception level mask for Secure and Non-Secure ELs.
+ * ETM defines the bits for EL control (e.g, TRVICTLR, TRCACTRn).
+ * The Secure and Non-Secure ELs are always to gether.
+ * Non-secure EL3 is never implemented.
+ * We use the following generic mask as they appear in different
+ * registers and this can be shifted for the appropriate
+ * fields.
+ */
+#define ETM_EXLEVEL_S_APP		BIT(0)	/* Secure EL0		*/
+#define ETM_EXLEVEL_S_OS		BIT(1)	/* Secure EL1		*/
+#define ETM_EXLEVEL_S_HYP		BIT(2)	/* Secure EL2		*/
+#define ETM_EXLEVEL_S_MON		BIT(3)	/* Secure EL3/Monitor	*/
+#define ETM_EXLEVEL_NS_APP		BIT(4)	/* NonSecure EL0	*/
+#define ETM_EXLEVEL_NS_OS		BIT(5)	/* NonSecure EL1	*/
+#define ETM_EXLEVEL_NS_HYP		BIT(6)	/* NonSecure EL2	*/
 
-/* access level control in TRCVICTLR - same bits as TRCACATRn but shifted */
-#define ETM_EXLEVEL_LSHIFT_TRCVICTLR	8
+#define ETM_EXLEVEL_MASK		(GENMASK(6, 0))
+#define ETM_EXLEVEL_S_MASK		(GENMASK(3, 0))
+#define ETM_EXLEVEL_NS_MASK		(GENMASK(6, 4))
+
+/* access level controls in TRCACATRn */
+#define TRCACATR_EXLEVEL_SHIFT		8
+
+/* access level control in TRCVICTLR */
+#define TRCVICTLR_EXLEVEL_SHIFT		16
+#define TRCVICTLR_EXLEVEL_S_SHIFT	16
+#define TRCVICTLR_EXLEVEL_NS_SHIFT	20
 
 /* secure / non secure masks - TRCVICTLR, IDR3 */
-#define ETM_EXLEVEL_S_VICTLR_MASK	GENMASK(19, 16)
-/* NS MON (EL3) mode never implemented */
-#define ETM_EXLEVEL_NS_VICTLR_MASK	GENMASK(22, 20)
+#define TRCVICTLR_EXLEVEL_MASK		(ETM_EXLEVEL_MASK << TRCVICTLR_EXLEVEL_SHIFT)
+#define TRCVICTLR_EXLEVEL_S_MASK	(ETM_EXLEVEL_S_MASK << TRCVICTLR_EXLEVEL_SHIFT)
+#define TRCVICTLR_EXLEVEL_NS_MASK	(ETM_EXLEVEL_NS_MASK << TRCVICTLR_EXLEVEL_SHIFT)
 
 /* Interpretation of resource numbers change at ETM v4.3 architecture */
 #define ETM4X_ARCH_4V3	0x43
