@@ -43,6 +43,7 @@
 #define SCHEDULE_DELAY		(60 * HZ)
 #define OTG_SCHEDULE_DELAY	(1 * HZ)
 #define BYPASS_SCHEDULE_DELAY	(2 * HZ)
+#define FILTER_COUNTER		0xF4240
 
 struct rockchip_usb2phy;
 
@@ -2232,12 +2233,27 @@ static int rk3399_usb2phy_tuning(struct rockchip_usb2phy *rphy)
 static int rk3568_usb2phy_tuning(struct rockchip_usb2phy *rphy)
 {
 	u32 reg;
+	int ret = 0;
 
 	reg = readl(rphy->phy_base + 0x30);
 	/* turn off differential reciver in suspend mode */
 	writel(reg & ~BIT(2), rphy->phy_base + 0x30);
 
-	return 0;
+	if (rphy->phy_cfg->reg == 0xfe8a0000) {
+		/*
+		 * Set the bvalid filter time to 10ms
+		 * based on the usb2 phy grf pclk 100MHz.
+		 */
+		ret |= regmap_write(rphy->grf, 0x0048, FILTER_COUNTER);
+
+		/*
+		 * Set the id filter time to 10ms based
+		 * on the usb2 phy grf pclk 100MHz.
+		 */
+		ret |= regmap_write(rphy->grf, 0x004c, FILTER_COUNTER);
+	}
+
+	return ret;
 }
 
 static int rk3568_vbus_detect_control(struct rockchip_usb2phy *rphy, bool en)
