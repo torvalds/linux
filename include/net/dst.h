@@ -194,9 +194,11 @@ dst_feature(const struct dst_entry *dst, u32 feature)
 	return dst_metric(dst, RTAX_FEATURES) & feature;
 }
 
+INDIRECT_CALLABLE_DECLARE(unsigned int ip6_mtu(const struct dst_entry *));
+INDIRECT_CALLABLE_DECLARE(unsigned int ipv4_mtu(const struct dst_entry *));
 static inline u32 dst_mtu(const struct dst_entry *dst)
 {
-	return dst->ops->mtu(dst);
+	return INDIRECT_CALL_INET(dst->ops->mtu, ip6_mtu, ipv4_mtu, dst);
 }
 
 /* RTT metrics are stored in milliseconds for user ABI, but used as jiffies */
