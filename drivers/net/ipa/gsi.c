@@ -873,15 +873,14 @@ static void gsi_channel_deprogram(struct gsi_channel *channel)
 	/* Nothing to do */
 }
 
-/* Start an allocated GSI channel */
-int gsi_channel_start(struct gsi *gsi, u32 channel_id)
+static int __gsi_channel_start(struct gsi_channel *channel, bool start)
 {
-	struct gsi_channel *channel = &gsi->channel[channel_id];
+	struct gsi *gsi = channel->gsi;
 	int ret;
 
 	mutex_lock(&gsi->mutex);
 
-	ret = gsi_channel_start_command(channel);
+	ret = start ? gsi_channel_start_command(channel) : 0;
 
 	mutex_unlock(&gsi->mutex);
 
@@ -890,6 +889,14 @@ int gsi_channel_start(struct gsi *gsi, u32 channel_id)
 		gsi_channel_thaw(channel);
 
 	return ret;
+}
+
+/* Start an allocated GSI channel */
+int gsi_channel_start(struct gsi *gsi, u32 channel_id)
+{
+	struct gsi_channel *channel = &gsi->channel[channel_id];
+
+	return __gsi_channel_start(channel, true);
 }
 
 static int gsi_channel_stop_retry(struct gsi_channel *channel)
@@ -912,21 +919,27 @@ static int gsi_channel_stop_retry(struct gsi_channel *channel)
 	return ret;
 }
 
-/* Stop a started channel */
-int gsi_channel_stop(struct gsi *gsi, u32 channel_id)
+static int __gsi_channel_stop(struct gsi_channel *channel, bool stop)
 {
-	struct gsi_channel *channel = &gsi->channel[channel_id];
 	int ret;
 
 	gsi_channel_freeze(channel);
 
-	ret = gsi_channel_stop_retry(channel);
+	ret = stop ? gsi_channel_stop_retry(channel) : 0;
 
 	/* Re-thaw the channel if an error occurred while stopping */
 	if (ret)
 		gsi_channel_thaw(channel);
 
 	return ret;
+}
+
+/* Stop a started channel */
+int gsi_channel_stop(struct gsi *gsi, u32 channel_id)
+{
+	struct gsi_channel *channel = &gsi->channel[channel_id];
+
+	return __gsi_channel_stop(channel, true);
 }
 
 /* Reset and reconfigure a channel, (possibly) enabling the doorbell engine */
@@ -952,12 +965,7 @@ int gsi_channel_suspend(struct gsi *gsi, u32 channel_id, bool stop)
 {
 	struct gsi_channel *channel = &gsi->channel[channel_id];
 
-	if (stop)
-		return gsi_channel_stop(gsi, channel_id);
-
-	gsi_channel_freeze(channel);
-
-	return 0;
+	return __gsi_channel_stop(channel, stop);
 }
 
 /* Resume a suspended channel (starting will be requested if STOPPED) */
@@ -965,12 +973,7 @@ int gsi_channel_resume(struct gsi *gsi, u32 channel_id, bool start)
 {
 	struct gsi_channel *channel = &gsi->channel[channel_id];
 
-	if (start)
-		return gsi_channel_start(gsi, channel_id);
-
-	gsi_channel_thaw(channel);
-
-	return 0;
+	return __gsi_channel_start(channel, start);
 }
 
 /**
