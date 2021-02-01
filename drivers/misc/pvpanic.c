@@ -55,12 +55,23 @@ static int pvpanic_mmio_probe(struct platform_device *pdev)
 	struct resource *res;
 
 	res = platform_get_mem_or_io(pdev, 0);
-	if (res && resource_type(res) == IORESOURCE_IO)
+	if (!res)
+		return -EINVAL;
+
+	switch (resource_type(res)) {
+	case IORESOURCE_IO:
 		base = devm_ioport_map(dev, res->start, resource_size(res));
-	else
+		if (!base)
+			return -ENOMEM;
+		break;
+	case IORESOURCE_MEM:
 		base = devm_ioremap_resource(dev, res);
-	if (IS_ERR(base))
-		return PTR_ERR(base);
+		if (IS_ERR(base))
+			return PTR_ERR(base);
+		break;
+	default:
+		return -EINVAL;
+	}
 
 	atomic_notifier_chain_register(&panic_notifier_list,
 				       &pvpanic_panic_nb);

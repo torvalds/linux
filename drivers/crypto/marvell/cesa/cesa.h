@@ -300,11 +300,11 @@ struct mv_cesa_tdma_desc {
 	__le32 byte_cnt;
 	union {
 		__le32 src;
-		dma_addr_t src_dma;
+		u32 src_dma;
 	};
 	union {
 		__le32 dst;
-		dma_addr_t dst_dma;
+		u32 dst_dma;
 	};
 	__le32 next_dma;
 

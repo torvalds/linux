@@ -872,6 +872,11 @@ static enum resp_states do_complete(struct rxe_qp *qp,
 			else
 				wc->network_hdr_type = RDMA_NETWORK_IPV6;
 
+			if (is_vlan_dev(skb->dev)) {
+				wc->wc_flags |= IB_WC_WITH_VLAN;
+				wc->vlan_id = vlan_dev_vlan_id(skb->dev);
+			}
+
 			if (pkt->mask & RXE_IMMDT_MASK) {
 				wc->wc_flags |= IB_WC_WITH_IMM;
 				wc->ex.imm_data = immdt_imm(pkt);

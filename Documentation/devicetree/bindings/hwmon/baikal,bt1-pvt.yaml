@@ -73,11 +73,9 @@ properties:
     description: |
       Temperature sensor trimming factor. It can be used to manually adjust the
       temperature measurements within 7.130 degrees Celsius.
-    maxItems: 1
-    items:
-      default: 0
-      minimum: 0
-      maximum: 7130
+    default: 0
+    minimum: 0
+    maximum: 7130
 
 additionalProperties: false
 

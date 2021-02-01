@@ -623,6 +623,7 @@ static int ppp_bridge_channels(struct channel *pch, struct channel *pchb)
 		write_unlock_bh(&pch->upl);
 		return -EALREADY;
 	}
+	refcount_inc(&pchb->file.refcnt);
 	rcu_assign_pointer(pch->bridge, pchb);
 	write_unlock_bh(&pch->upl);
 
@@ -632,19 +633,24 @@ static int ppp_bridge_channels(struct channel *pch, struct channel *pchb)
 		write_unlock_bh(&pchb->upl);
 		goto err_unset;
 	}
+	refcount_inc(&pch->file.refcnt);
 	rcu_assign_pointer(pchb->bridge, pch);
 	write_unlock_bh(&pchb->upl);
-
-	refcount_inc(&pch->file.refcnt);
-	refcount_inc(&pchb->file.refcnt);
 
 	return 0;
 
 err_unset:
 	write_lock_bh(&pch->upl);
+	/* Re-read pch->bridge with upl held in case it was modified concurrently */
+	pchb = rcu_dereference_protected(pch->bridge, lockdep_is_held(&pch->upl));
 	RCU_INIT_POINTER(pch->bridge, NULL);
 	write_unlock_bh(&pch->upl);
 	synchronize_rcu();
+
+	if (pchb)
+		if (refcount_dec_and_test(&pchb->file.refcnt))
+			ppp_destroy_channel(pchb);
+
 	return -EALREADY;
 }
 
