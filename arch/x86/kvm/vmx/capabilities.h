@@ -380,11 +380,18 @@ static inline bool vmx_pt_mode_is_host_guest(void)
 
 static inline u64 vmx_get_perf_capabilities(void)
 {
+	u64 perf_cap = 0;
+
+	if (boot_cpu_has(X86_FEATURE_PDCM))
+		rdmsrl(MSR_IA32_PERF_CAPABILITIES, perf_cap);
+
+	perf_cap &= PMU_CAP_LBR_FMT;
+
 	/*
 	 * Since counters are virtualized, KVM would support full
 	 * width counting unconditionally, even if the host lacks it.
 	 */
-	return PMU_CAP_FW_WRITES;
+	return PMU_CAP_FW_WRITES | perf_cap;
 }
 
 static inline u64 vmx_supported_debugctl(void)
