@@ -379,7 +379,7 @@ static int metricgroup__setup_events(struct list_head *groups,
 				metric_refs[i].metric_expr = ref->metric_expr;
 				i++;
 			}
-		};
+		}
 
 		expr->metric_refs = metric_refs;
 		expr->metric_expr = m->metric_expr;
