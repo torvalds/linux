@@ -1357,6 +1357,12 @@ bool aa_g_hash_policy = IS_ENABLED(CONFIG_SECURITY_APPARMOR_HASH_DEFAULT);
 module_param_named(hash_policy, aa_g_hash_policy, aabool, S_IRUSR | S_IWUSR);
 #endif
 
+/* whether policy exactly as loaded is retained for debug and checkpointing */
+bool aa_g_export_binary = IS_ENABLED(CONFIG_SECURITY_APPARMOR_EXPORT_BINARY);
+#ifdef CONFIG_SECURITY_APPARMOR_EXPORT_BINARY
+module_param_named(export_binary, aa_g_export_binary, aabool, 0600);
+#endif
+
 /* policy loaddata compression level */
 int aa_g_rawdata_compression_level = Z_DEFAULT_COMPRESSION;
 module_param_named(rawdata_compression_level, aa_g_rawdata_compression_level,
