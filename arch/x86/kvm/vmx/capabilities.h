@@ -387,7 +387,12 @@ static inline u64 vmx_get_perf_capabilities(void)
 
 static inline u64 vmx_supported_debugctl(void)
 {
-	return 0;
+	u64 debugctl = 0;
+
+	if (vmx_get_perf_capabilities() & PMU_CAP_LBR_FMT)
+		debugctl |= DEBUGCTLMSR_LBR;
+
+	return debugctl;
 }
 
 #endif /* __KVM_X86_VMX_CAPS_H */
