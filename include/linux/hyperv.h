@@ -789,6 +789,7 @@ struct vmbus_device {
 	u16  dev_type;
 	guid_t guid;
 	bool perf_device;
+	bool allowed_in_isolated;
 };
 
 #define VMBUS_DEFAULT_MAX_PKT_SIZE 4096
