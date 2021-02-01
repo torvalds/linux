@@ -468,7 +468,6 @@
 #define ETM_MAX_RES_SEL			32
 #define ETM_MAX_SS_CMP			8
 
-#define ETM_ARCH_V4			0x40
 #define ETMv4_SYNC_MASK			0x1F
 #define ETM_CYC_THRESHOLD_MASK		0xFFF
 #define ETM_CYC_THRESHOLD_DEFAULT       0x100
@@ -593,8 +592,63 @@
 #define TRCVICTLR_EXLEVEL_S_MASK	(ETM_EXLEVEL_S_MASK << TRCVICTLR_EXLEVEL_SHIFT)
 #define TRCVICTLR_EXLEVEL_NS_MASK	(ETM_EXLEVEL_NS_MASK << TRCVICTLR_EXLEVEL_SHIFT)
 
+#define ETM_TRCIDR1_ARCH_MAJOR_SHIFT	8
+#define ETM_TRCIDR1_ARCH_MAJOR_MASK	(0xfU << ETM_TRCIDR1_ARCH_MAJOR_SHIFT)
+#define ETM_TRCIDR1_ARCH_MAJOR(x)	\
+	(((x) & ETM_TRCIDR1_ARCH_MAJOR_MASK) >> ETM_TRCIDR1_ARCH_MAJOR_SHIFT)
+#define ETM_TRCIDR1_ARCH_MINOR_SHIFT	4
+#define ETM_TRCIDR1_ARCH_MINOR_MASK	(0xfU << ETM_TRCIDR1_ARCH_MINOR_SHIFT)
+#define ETM_TRCIDR1_ARCH_MINOR(x)	\
+	(((x) & ETM_TRCIDR1_ARCH_MINOR_MASK) >> ETM_TRCIDR1_ARCH_MINOR_SHIFT)
+#define ETM_TRCIDR1_ARCH_SHIFT		ETM_TRCIDR1_ARCH_MINOR_SHIFT
+#define ETM_TRCIDR1_ARCH_MASK		\
+	(ETM_TRCIDR1_ARCH_MAJOR_MASK | ETM_TRCIDR1_ARCH_MINOR_MASK)
+
+#define ETM_TRCIDR1_ARCH_ETMv4		0x4
+
+/*
+ * Driver representation of the ETM architecture.
+ * The version of an ETM component can be detected from
+ *
+ * TRCDEVARCH	- CoreSight architected register
+ *                - Bits[15:12] - Major version
+ *                - Bits[19:16] - Minor version
+ * TRCIDR1	- ETM architected register
+ *                - Bits[11:8] - Major version
+ *                - Bits[7:4]  - Minor version
+ * We must rely on TRCDEVARCH for the version information,
+ * however we don't want to break the support for potential
+ * old implementations which might not implement it. Thus
+ * we fall back to TRCIDR1 if TRCDEVARCH is not implemented
+ * for memory mapped components.
+ * Now to make certain decisions easier based on the version
+ * we use an internal representation of the version in the
+ * driver, as follows :
+ *
+ * ETM_ARCH_VERSION[7:0], where :
+ *      Bits[7:4] - Major version
+ *      Bits[3:0] - Minro version
+ */
+#define ETM_ARCH_VERSION(major, minor)		\
+	((((major) & 0xfU) << 4) | (((minor) & 0xfU)))
+#define ETM_ARCH_MAJOR_VERSION(arch)	(((arch) >> 4) & 0xfU)
+#define ETM_ARCH_MINOR_VERSION(arch)	((arch) & 0xfU)
+
+#define ETM_ARCH_V4	ETM_ARCH_VERSION(4, 0)
 /* Interpretation of resource numbers change at ETM v4.3 architecture */
-#define ETM4X_ARCH_4V3	0x43
+#define ETM_ARCH_V4_3	ETM_ARCH_VERSION(4, 3)
+
+static inline u8 etm_devarch_to_arch(u32 devarch)
+{
+	return ETM_ARCH_VERSION(ETM_DEVARCH_ARCHID_ARCH_VER(devarch),
+				ETM_DEVARCH_REVISION(devarch));
+}
+
+static inline u8 etm_trcidr_to_arch(u32 trcidr1)
+{
+	return ETM_ARCH_VERSION(ETM_TRCIDR1_ARCH_MAJOR(trcidr1),
+				ETM_TRCIDR1_ARCH_MINOR(trcidr1));
+}
 
 enum etm_impdef_type {
 	ETM4_IMPDEF_HISI_CORE_COMMIT,
@@ -761,7 +815,7 @@ struct etmv4_save_state {
  * @spinlock:   Only one at a time pls.
  * @mode:	This tracer's mode, i.e sysFS, Perf or disabled.
  * @cpu:        The cpu this component is affined to.
- * @arch:       ETM version number.
+ * @arch:       ETM architecture version.
  * @nr_pe:	The number of processing entity available for tracing.
  * @nr_pe_cmp:	The number of processing entity comparator inputs that are
  *		available for tracing.
