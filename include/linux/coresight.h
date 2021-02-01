@@ -463,11 +463,11 @@ extern void coresight_disable(struct coresight_device *csdev);
 extern int coresight_timeout(struct csdev_access *csa, u32 offset,
 			     int position, int value);
 
-extern int coresight_claim_device(void __iomem *base);
-extern int coresight_claim_device_unlocked(void __iomem *base);
+extern int coresight_claim_device(struct coresight_device *csdev);
+extern int coresight_claim_device_unlocked(struct coresight_device *csdev);
 
-extern void coresight_disclaim_device(void __iomem *base);
-extern void coresight_disclaim_device_unlocked(void __iomem *base);
+extern void coresight_disclaim_device(struct coresight_device *csdev);
+extern void coresight_disclaim_device_unlocked(struct coresight_device *csdev);
 extern char *coresight_alloc_device_name(struct coresight_dev_list *devs,
 					 struct device *dev);
 
@@ -498,18 +498,18 @@ static inline int coresight_timeout(struct csdev_access *csa, u32 offset,
 	return 1;
 }
 
-static inline int coresight_claim_device_unlocked(void __iomem *base)
+static inline int coresight_claim_device_unlocked(struct coresight_device *csdev)
 {
 	return -EINVAL;
 }
 
-static inline int coresight_claim_device(void __iomem *base)
+static inline int coresight_claim_device(struct coresight_device *csdev)
 {
 	return -EINVAL;
 }
 
-static inline void coresight_disclaim_device(void __iomem *base) {}
-static inline void coresight_disclaim_device_unlocked(void __iomem *base) {}
+static inline void coresight_disclaim_device(struct coresight_device *csdev) {}
+static inline void coresight_disclaim_device_unlocked(struct coresight_device *csdev) {}
 
 static inline bool coresight_loses_context_with_cpu(struct device *dev)
 {
