@@ -97,8 +97,8 @@ static bool address_zero(const struct mptcp_addr_info *addr)
 static void local_address(const struct sock_common *skc,
 			  struct mptcp_addr_info *addr)
 {
-	addr->port = 0;
 	addr->family = skc->skc_family;
+	addr->port = htons(skc->skc_num);
 	if (addr->family == AF_INET)
 		addr->addr.s_addr = skc->skc_rcv_saddr;
 #if IS_ENABLED(CONFIG_MPTCP_IPV6)
@@ -252,6 +252,27 @@ lookup_anno_list_by_saddr(struct mptcp_sock *msk,
 	}
 
 	return NULL;
+}
+
+bool mptcp_pm_sport_in_anno_list(struct mptcp_sock *msk, const struct sock *sk)
+{
+	struct mptcp_pm_add_entry *entry;
+	struct mptcp_addr_info saddr;
+	bool ret = false;
+
+	local_address((struct sock_common *)sk, &saddr);
+
+	spin_lock_bh(&msk->pm.lock);
+	list_for_each_entry(entry, &msk->pm.anno_list, list) {
+		if (addresses_equal(&entry->addr, &saddr, true)) {
+			ret = true;
+			goto out;
+		}
+	}
+
+out:
+	spin_unlock_bh(&msk->pm.lock);
+	return ret;
 }
 
 static void mptcp_pm_add_timer(struct timer_list *timer)
