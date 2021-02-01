@@ -259,7 +259,7 @@ v3d_cache_clean_job_run(struct drm_sched_job *sched_job)
 	return NULL;
 }
 
-static enum drm_gpu_sched_status
+static enum drm_gpu_sched_stat
 v3d_gpu_reset_for_timeout(struct v3d_dev *v3d, struct drm_sched_job *sched_job)
 {
 	enum v3d_queue q;
@@ -294,7 +294,7 @@ v3d_gpu_reset_for_timeout(struct v3d_dev *v3d, struct drm_sched_job *sched_job)
  * could fail if the GPU got in an infinite loop in the CL, but that
  * is pretty unlikely outside of an i-g-t testcase.
  */
-static enum drm_task_status
+static enum drm_gpu_sched_stat
 v3d_cl_job_timedout(struct drm_sched_job *sched_job, enum v3d_queue q,
 		    u32 *timedout_ctca, u32 *timedout_ctra)
 {
@@ -312,7 +312,7 @@ v3d_cl_job_timedout(struct drm_sched_job *sched_job, enum v3d_queue q,
 	return v3d_gpu_reset_for_timeout(v3d, sched_job);
 }
 
-static enum drm_task_status
+static enum drm_gpu_sched_stat
 v3d_bin_job_timedout(struct drm_sched_job *sched_job)
 {
 	struct v3d_bin_job *job = to_bin_job(sched_job);
@@ -321,7 +321,7 @@ v3d_bin_job_timedout(struct drm_sched_job *sched_job)
 				   &job->timedout_ctca, &job->timedout_ctra);
 }
 
-static enum drm_task_status
+static enum drm_gpu_sched_stat
 v3d_render_job_timedout(struct drm_sched_job *sched_job)
 {
 	struct v3d_render_job *job = to_render_job(sched_job);
@@ -330,7 +330,7 @@ v3d_render_job_timedout(struct drm_sched_job *sched_job)
 				   &job->timedout_ctca, &job->timedout_ctra);
 }
 
-static enum drm_task_status
+static enum drm_gpu_sched_stat
 v3d_generic_job_timedout(struct drm_sched_job *sched_job)
 {
 	struct v3d_job *job = to_v3d_job(sched_job);
@@ -338,7 +338,7 @@ v3d_generic_job_timedout(struct drm_sched_job *sched_job)
 	return v3d_gpu_reset_for_timeout(job->v3d, sched_job);
 }
 
-static enum drm_task_status
+static enum drm_gpu_sched_stat
 v3d_csd_job_timedout(struct drm_sched_job *sched_job)
 {
 	struct v3d_csd_job *job = to_csd_job(sched_job);
