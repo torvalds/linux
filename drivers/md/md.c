@@ -2399,6 +2399,12 @@ int md_integrity_add_rdev(struct md_rdev *rdev, struct mddev *mddev)
 }
 EXPORT_SYMBOL(md_integrity_add_rdev);
 
+static bool rdev_read_only(struct md_rdev *rdev)
+{
+	return bdev_read_only(rdev->bdev) ||
+		(rdev->meta_bdev && bdev_read_only(rdev->meta_bdev));
+}
+
 static int bind_rdev_to_array(struct md_rdev *rdev, struct mddev *mddev)
 {
 	char b[BDEVNAME_SIZE];
@@ -2408,8 +2414,7 @@ static int bind_rdev_to_array(struct md_rdev *rdev, struct mddev *mddev)
 	if (find_rdev(mddev, rdev->bdev->bd_dev))
 		return -EEXIST;
 
-	if ((bdev_read_only(rdev->bdev) || bdev_read_only(rdev->meta_bdev)) &&
-	    mddev->pers)
+	if (rdev_read_only(rdev) && mddev->pers)
 		return -EROFS;
 
 	/* make sure rdev->sectors exceeds mddev->dev_sectors */
@@ -5843,9 +5848,7 @@ int md_run(struct mddev *mddev)
 			continue;
 		sync_blockdev(rdev->bdev);
 		invalidate_bdev(rdev->bdev);
-		if (mddev->ro != 1 &&
-		    (bdev_read_only(rdev->bdev) ||
-		     bdev_read_only(rdev->meta_bdev))) {
+		if (mddev->ro != 1 && rdev_read_only(rdev)) {
 			mddev->ro = 1;
 			if (mddev->gendisk)
 				set_disk_ro(mddev->gendisk, 1);
