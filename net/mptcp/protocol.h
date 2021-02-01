@@ -203,10 +203,6 @@ struct mptcp_pm_data {
 	u8		add_addr_accepted;
 	u8		local_addr_used;
 	u8		subflows;
-	u8		add_addr_signal_max;
-	u8		add_addr_accept_max;
-	u8		local_addr_max;
-	u8		subflows_max;
 	u8		status;
 	u8		rm_id;
 };
@@ -714,6 +710,9 @@ void mptcp_pm_nl_add_addr_send_ack(struct mptcp_sock *msk);
 void mptcp_pm_nl_rm_addr_received(struct mptcp_sock *msk);
 void mptcp_pm_nl_rm_subflow_received(struct mptcp_sock *msk, u8 rm_id);
 int mptcp_pm_nl_get_local_id(struct mptcp_sock *msk, struct sock_common *skc);
+unsigned int mptcp_pm_get_add_addr_signal_max(struct mptcp_sock *msk);
+unsigned int mptcp_pm_get_add_addr_accept_max(struct mptcp_sock *msk);
+unsigned int mptcp_pm_get_subflows_max(struct mptcp_sock *msk);
 
 static inline struct mptcp_ext *mptcp_get_ext(struct sk_buff *skb)
 {
