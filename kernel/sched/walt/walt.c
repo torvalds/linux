@@ -4174,8 +4174,10 @@ static void walt_init(void)
 	waltgov_register();
 
 	i = match_string(sched_feat_names, __SCHED_FEAT_NR, "TTWU_QUEUE");
-	static_key_disable_cpuslocked(&sched_feat_keys[i]);
-	sysctl_sched_features &= ~(1UL << i);
+	if (i >= 0) {
+		static_key_disable(&sched_feat_keys[i]);
+		sysctl_sched_features &= ~(1UL << i);
+	}
 }
 
 static bool are_cpufreq_policies_available(void)
