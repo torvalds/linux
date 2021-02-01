@@ -1460,11 +1460,24 @@ static bool io_identity_cow(struct io_kiocb *req)
 	return true;
 }
 
+static void io_req_track_inflight(struct io_kiocb *req)
+{
+	struct io_ring_ctx *ctx = req->ctx;
+
+	if (!(req->flags & REQ_F_INFLIGHT)) {
+		io_req_init_async(req);
+		req->flags |= REQ_F_INFLIGHT;
+
+		spin_lock_irq(&ctx->inflight_lock);
+		list_add(&req->inflight_entry, &ctx->inflight_list);
+		spin_unlock_irq(&ctx->inflight_lock);
+	}
+}
+
 static bool io_grab_identity(struct io_kiocb *req)
 {
 	const struct io_op_def *def = &io_op_defs[req->opcode];
 	struct io_identity *id = req->work.identity;
-	struct io_ring_ctx *ctx = req->ctx;
 
 	if (def->work_flags & IO_WQ_WORK_FSIZE) {
 		if (id->fsize != rlimit(RLIMIT_FSIZE))
@@ -1520,15 +1533,8 @@ static bool io_grab_identity(struct io_kiocb *req)
 			return false;
 		atomic_inc(&id->files->count);
 		get_nsproxy(id->nsproxy);
-
-		if (!(req->flags & REQ_F_INFLIGHT)) {
-			req->flags |= REQ_F_INFLIGHT;
-
-			spin_lock_irq(&ctx->inflight_lock);
-			list_add(&req->inflight_entry, &ctx->inflight_list);
-			spin_unlock_irq(&ctx->inflight_lock);
-		}
 		req->work.flags |= IO_WQ_WORK_FILES;
+		io_req_track_inflight(req);
 	}
 	if (!(req->work.flags & IO_WQ_WORK_MM) &&
 	    (def->work_flags & IO_WQ_WORK_MM)) {
@@ -6443,16 +6449,8 @@ static struct file *io_file_get(struct io_submit_state *state,
 		file = __io_file_get(state, fd);
 	}
 
-	if (file && file->f_op == &io_uring_fops &&
-	    !(req->flags & REQ_F_INFLIGHT)) {
-		io_req_init_async(req);
-		req->flags |= REQ_F_INFLIGHT;
-
-		spin_lock_irq(&ctx->inflight_lock);
-		list_add(&req->inflight_entry, &ctx->inflight_list);
-		spin_unlock_irq(&ctx->inflight_lock);
-	}
-
+	if (file && unlikely(file->f_op == &io_uring_fops))
+		io_req_track_inflight(req);
 	return file;
 }
 
