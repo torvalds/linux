@@ -64,10 +64,23 @@ static bool mptcp_can_accept_new_subflow(const struct mptcp_sock *msk)
 }
 
 /* validate received token and create truncated hmac and nonce for SYN-ACK */
+static void subflow_req_create_thmac(struct mptcp_subflow_request_sock *subflow_req)
+{
+	struct mptcp_sock *msk = subflow_req->msk;
+	u8 hmac[SHA256_DIGEST_SIZE];
+
+	get_random_bytes(&subflow_req->local_nonce, sizeof(u32));
+
+	subflow_generate_hmac(msk->local_key, msk->remote_key,
+			      subflow_req->local_nonce,
+			      subflow_req->remote_nonce, hmac);
+
+	subflow_req->thmac = get_unaligned_be64(hmac);
+}
+
 static struct mptcp_sock *subflow_token_join_request(struct request_sock *req)
 {
 	struct mptcp_subflow_request_sock *subflow_req = mptcp_subflow_rsk(req);
-	u8 hmac[SHA256_DIGEST_SIZE];
 	struct mptcp_sock *msk;
 	int local_id;
 
@@ -84,13 +97,6 @@ static struct mptcp_sock *subflow_token_join_request(struct request_sock *req)
 	}
 	subflow_req->local_id = local_id;
 
-	get_random_bytes(&subflow_req->local_nonce, sizeof(u32));
-
-	subflow_generate_hmac(msk->local_key, msk->remote_key,
-			      subflow_req->local_nonce,
-			      subflow_req->remote_nonce, hmac);
-
-	subflow_req->thmac = get_unaligned_be64(hmac);
 	return msk;
 }
 
@@ -185,6 +191,8 @@ again:
 		/* Can't fall back to TCP in this case. */
 		if (!subflow_req->msk)
 			return -EPERM;
+
+		subflow_req_create_thmac(subflow_req);
 
 		if (unlikely(req->syncookie)) {
 			if (mptcp_can_accept_new_subflow(subflow_req->msk))
