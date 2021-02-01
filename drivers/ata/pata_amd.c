@@ -319,7 +319,7 @@ static unsigned long nv_mode_filter(struct ata_device *dev,
 }
 
 /**
- *	nv_probe_init	-	cable detection
+ *	nv_pre_reset	-	cable detection
  *	@link: ATA link
  *	@deadline: deadline jiffies for the operation
  *
