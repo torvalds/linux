@@ -1164,8 +1164,8 @@ static bool ipa_endpoint_status_skip(struct ipa_endpoint *endpoint,
 		return true;
 	if (!status->pkt_len)
 		return true;
-	endpoint_id = u32_get_bits(status->endp_dst_idx,
-				   IPA_STATUS_DST_IDX_FMASK);
+	endpoint_id = u8_get_bits(status->endp_dst_idx,
+				  IPA_STATUS_DST_IDX_FMASK);
 	if (endpoint_id != endpoint->endpoint_id)
 		return true;
 
