@@ -17,6 +17,7 @@ properties:
   compatible:
     items:
       - enum:
+          - mediatek,mt8516-musb
           - mediatek,mt2701-musb
       - const: mediatek,mtk-musb
 
