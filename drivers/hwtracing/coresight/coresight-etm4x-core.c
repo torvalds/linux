@@ -959,20 +959,16 @@ static void etm4_init_arch_data(void *info)
 	etm4_cs_lock(drvdata, csa);
 }
 
+static inline u32 etm4_get_victlr_access_type(struct etmv4_config *config)
+{
+	return etm4_get_access_type(config) << TRCVICTLR_EXLEVEL_SHIFT;
+}
+
 /* Set ELx trace filter access in the TRCVICTLR register */
 static void etm4_set_victlr_access(struct etmv4_config *config)
 {
-	u64 access_type;
-
-	config->vinst_ctrl &= ~(ETM_EXLEVEL_S_VICTLR_MASK | ETM_EXLEVEL_NS_VICTLR_MASK);
-
-	/*
-	 * TRCVICTLR::EXLEVEL_NS:EXLEVELS: Set kernel / user filtering
-	 * bits in vinst_ctrl, same bit pattern as TRCACATRn values returned by
-	 * etm4_get_access_type() but with a relative shift in this register.
-	 */
-	access_type = etm4_get_access_type(config) << ETM_EXLEVEL_LSHIFT_TRCVICTLR;
-	config->vinst_ctrl |= (u32)access_type;
+	config->vinst_ctrl &= ~TRCVICTLR_EXLEVEL_MASK;
+	config->vinst_ctrl |= etm4_get_victlr_access_type(config);
 }
 
 static void etm4_set_default_config(struct etmv4_config *config)
@@ -1002,12 +998,9 @@ static u64 etm4_get_ns_access_type(struct etmv4_config *config)
 	u64 access_type = 0;
 
 	/*
-	 * EXLEVEL_NS, bits[15:12]
-	 * The Exception levels are:
-	 *   Bit[12] Exception level 0 - Application
-	 *   Bit[13] Exception level 1 - OS
-	 *   Bit[14] Exception level 2 - Hypervisor
-	 *   Bit[15] Never implemented
+	 * EXLEVEL_NS, for NonSecure Exception levels.
+	 * The mask here is a generic value and must be
+	 * shifted to the corresponding field for the registers
 	 */
 	if (!is_kernel_in_hyp_mode()) {
 		/* Stay away from hypervisor mode for non-VHE */
@@ -1024,20 +1017,26 @@ static u64 etm4_get_ns_access_type(struct etmv4_config *config)
 	return access_type;
 }
 
+/*
+ * Construct the exception level masks for a given config.
+ * This must be shifted to the corresponding register field
+ * for usage.
+ */
 static u64 etm4_get_access_type(struct etmv4_config *config)
 {
-	u64 access_type = etm4_get_ns_access_type(config);
+	/* All Secure exception levels are excluded from the trace */
+	return etm4_get_ns_access_type(config) | (u64)config->s_ex_level;
+}
 
-	/* All supported secure ELs are excluded */
-	access_type |= (u64)config->s_ex_level << TRCACATR_EXLEVEL_SHIFT;
-
-	return access_type;
+static u64 etm4_get_comparator_access_type(struct etmv4_config *config)
+{
+	return etm4_get_access_type(config) << TRCACATR_EXLEVEL_SHIFT;
 }
 
 static void etm4_set_comparator_filter(struct etmv4_config *config,
 				       u64 start, u64 stop, int comparator)
 {
-	u64 access_type = etm4_get_access_type(config);
+	u64 access_type = etm4_get_comparator_access_type(config);
 
 	/* First half of default address comparator */
 	config->addr_val[comparator] = start;
@@ -1072,7 +1071,7 @@ static void etm4_set_start_stop_filter(struct etmv4_config *config,
 				       enum etm_addr_type type)
 {
 	int shift;
-	u64 access_type = etm4_get_access_type(config);
+	u64 access_type = etm4_get_comparator_access_type(config);
 
 	/* Configure the comparator */
 	config->addr_val[comparator] = address;
