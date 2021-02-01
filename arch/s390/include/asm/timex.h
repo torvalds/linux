@@ -17,6 +17,8 @@
 /* The value of the TOD clock for 1.1.1970. */
 #define TOD_UNIX_EPOCH 0x7d91048bca000000ULL
 
+#define STORE_CLOCK_EXT_SIZE	16	/* stcke writes 16 bytes */
+
 extern u64 clock_comparator_max;
 
 /* Inline functions for clock register access. */
@@ -32,15 +34,16 @@ static inline int set_tod_clock(__u64 time)
 	return cc;
 }
 
-static inline int store_tod_clock(__u64 *time)
+static inline int store_tod_clock_ext(char *time)
 {
+	typedef struct { char _[STORE_CLOCK_EXT_SIZE]; } addrtype;
 	int cc;
 
 	asm volatile(
-		"   stck  %1\n"
+		"   stcke  %1\n"
 		"   ipm   %0\n"
 		"   srl   %0,28\n"
-		: "=d" (cc), "=Q" (*time) : : "cc");
+		: "=d" (cc), "=Q" (*(addrtype *)time) : : "cc");
 	return cc;
 }
 
@@ -144,7 +147,6 @@ static inline void local_tick_enable(unsigned long long comp)
 }
 
 #define CLOCK_TICK_RATE		1193180 /* Underlying HZ */
-#define STORE_CLOCK_EXT_SIZE	16	/* stcke writes 16 bytes */
 
 typedef unsigned long long cycles_t;
 

@@ -35,12 +35,12 @@
 
 static void __init reset_tod_clock(void)
 {
-	u64 time;
+	char time[STORE_CLOCK_EXT_SIZE];
 
-	if (store_tod_clock(&time) == 0)
+	if (store_tod_clock_ext(time) == 0)
 		return;
 	/* TOD clock not running. Set the clock to Unix Epoch. */
-	if (set_tod_clock(TOD_UNIX_EPOCH) != 0 || store_tod_clock(&time) != 0)
+	if (set_tod_clock(TOD_UNIX_EPOCH) != 0 || store_tod_clock_ext(time) != 0)
 		disabled_wait();
 
 	memset(tod_clock_base, 0, 16);
