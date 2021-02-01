@@ -860,15 +860,18 @@ static int __gsi_channel_start(struct gsi_channel *channel, bool start)
 	struct gsi *gsi = channel->gsi;
 	int ret;
 
+	napi_enable(&channel->napi);
+	gsi_irq_ieob_enable_one(gsi, channel->evt_ring_id);
+
 	mutex_lock(&gsi->mutex);
 
 	ret = start ? gsi_channel_start_command(channel) : 0;
 
 	mutex_unlock(&gsi->mutex);
 
-	if (!ret) {
-		gsi_irq_ieob_enable_one(gsi, channel->evt_ring_id);
-		napi_enable(&channel->napi);
+	if (ret) {
+		gsi_irq_ieob_disable_one(gsi, channel->evt_ring_id);
+		napi_disable(&channel->napi);
 	}
 
 	return ret;
@@ -908,14 +911,11 @@ static int __gsi_channel_stop(struct gsi_channel *channel, bool stop)
 	int ret;
 
 	gsi_channel_trans_quiesce(channel);
-	napi_disable(&channel->napi);
-	gsi_irq_ieob_disable_one(gsi, channel->evt_ring_id);
 
 	ret = stop ? gsi_channel_stop_retry(channel) : 0;
-
-	if (ret) {
-		gsi_irq_ieob_enable_one(gsi, channel->evt_ring_id);
-		napi_enable(&channel->napi);
+	if (!ret) {
+		gsi_irq_ieob_disable_one(gsi, channel->evt_ring_id);
+		napi_disable(&channel->napi);
 	}
 
 	return ret;
