@@ -178,7 +178,7 @@ EXPORT_SYMBOL(arch_hibernation_header_restore);
 
 static void *hibernate_page_alloc(void *arg)
 {
-	return (void *)get_safe_page((gfp_t)(unsigned long)arg);
+	return (void *)get_safe_page((__force gfp_t)(unsigned long)arg);
 }
 
 /*
@@ -198,7 +198,7 @@ static int create_safe_exec_page(void *src_start, size_t length,
 {
 	struct trans_pgd_info trans_info = {
 		.trans_alloc_page	= hibernate_page_alloc,
-		.trans_alloc_arg	= (void *)GFP_ATOMIC,
+		.trans_alloc_arg	= (__force void *)GFP_ATOMIC,
 	};
 
 	void *page = (void *)get_safe_page(GFP_ATOMIC);
