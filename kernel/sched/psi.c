@@ -743,7 +743,7 @@ static void psi_group_change(struct psi_group *group, int cpu,
 
 static struct psi_group *iterate_groups(struct task_struct *task, void **iter)
 {
-#ifdef CONFIG_CGROUPS
+#if defined CONFIG_CGROUPS && defined CONFIG_PSI_PER_CGROUP_ACCT
 	struct cgroup *cgroup = NULL;
 
 	if (!*iter)
