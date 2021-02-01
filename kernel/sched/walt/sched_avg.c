@@ -237,14 +237,21 @@ unsigned int sched_get_cpu_util(int cpu)
 	return busy;
 }
 
-u64 sched_lpm_disallowed_time(int cpu)
+int sched_lpm_disallowed_time(int cpu, u64 *timeout)
 {
 	u64 now = sched_clock();
 	u64 bias_end_time = atomic64_read(&per_cpu(busy_hyst_end_time, cpu));
 
-	if (now < bias_end_time)
-		return bias_end_time - now;
+	if (unlikely(is_reserved(cpu))) {
+		*timeout = 10 * NSEC_PER_MSEC;
+		return 0; /* shallowest c-state */
+	}
 
-	return 0;
+	if (now < bias_end_time) {
+		*timeout = bias_end_time - now;
+		return 0; /* shallowest c-state */
+	}
+
+	return INT_MAX; /* don't care */
 }
 EXPORT_SYMBOL(sched_lpm_disallowed_time);

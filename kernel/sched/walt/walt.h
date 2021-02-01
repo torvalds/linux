@@ -278,7 +278,6 @@ extern int sched_unpause_cpus(struct cpumask *unpause_cpus);
 
 extern unsigned int sched_get_cpu_util(int cpu);
 extern void sched_update_hyst_times(void);
-extern u64 sched_lpm_disallowed_time(int cpu);
 extern int
 sched_updown_migrate_handler(struct ctl_table *table, int write,
 			void __user *buffer, size_t *lenp, loff_t *ppos);
