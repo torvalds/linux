@@ -12,6 +12,7 @@
 #
 #
 
+KBUILD_CFLAGS += -include rename.h
 
 # Driver version string which is returned to userspace via an ioctl
 MALI_RELEASE_NAME ?= "r18p0-01rel0"
