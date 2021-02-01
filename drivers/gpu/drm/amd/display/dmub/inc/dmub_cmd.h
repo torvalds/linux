@@ -47,10 +47,10 @@
 
 /* Firmware versioning. */
 #ifdef DMUB_EXPOSE_VERSION
-#define DMUB_FW_VERSION_GIT_HASH 0xca1cd48c9
+#define DMUB_FW_VERSION_GIT_HASH 0x6444c02e7
 #define DMUB_FW_VERSION_MAJOR 0
 #define DMUB_FW_VERSION_MINOR 0
-#define DMUB_FW_VERSION_REVISION 50
+#define DMUB_FW_VERSION_REVISION 51
 #define DMUB_FW_VERSION_TEST 0
 #define DMUB_FW_VERSION_VBIOS 0
 #define DMUB_FW_VERSION_HOTFIX 0
@@ -491,13 +491,34 @@ struct dmub_rb_cmd_enable_disp_power_gating {
 	struct dmub_cmd_enable_disp_power_gating_data power_gating;
 };
 
-struct dmub_cmd_dig1_transmitter_control_data {
+struct dmub_dig_transmitter_control_data_v1_7 {
+	uint8_t phyid; /**< 0=UNIPHYA, 1=UNIPHYB, 2=UNIPHYC, 3=UNIPHYD, 4=UNIPHYE, 5=UNIPHYF */
+	uint8_t action; /**< Defined as ATOM_TRANSMITER_ACTION_xxx */
+	union {
+		uint8_t digmode; /**< enum atom_encode_mode_def */
+		uint8_t dplaneset; /**< DP voltage swing and pre-emphasis value, "DP_LANE_SET__xDB_y_zV" */
+	} mode_laneset;
+	uint8_t lanenum; /**< Number of lanes */
+	union {
+		uint32_t symclk_10khz; /**< Symbol Clock in 10Khz */
+	} symclk_units;
+	uint8_t hpdsel; /**< =1: HPD1, =2: HPD2, ..., =6: HPD6, =0: HPD is not assigned */
+	uint8_t digfe_sel; /**< DIG front-end selection, bit0 means DIG0 FE is enabled */
+	uint8_t connobj_id; /**< Connector Object Id defined in ObjectId.h */
+	uint8_t reserved0; /**< For future use */
+	uint8_t reserved1; /**< For future use */
+	uint8_t reserved2[3]; /**< For future use */
+	uint32_t reserved3[11]; /**< For future use */
+};
+
+union dmub_cmd_dig1_transmitter_control_data {
 	struct dig_transmitter_control_parameters_v1_6 dig;
+	struct dmub_dig_transmitter_control_data_v1_7 dig_v1_7;
 };
 
 struct dmub_rb_cmd_dig1_transmitter_control {
 	struct dmub_cmd_header header;
-	struct dmub_cmd_dig1_transmitter_control_data transmitter_control;
+	union dmub_cmd_dig1_transmitter_control_data transmitter_control;
 };
 
 struct dmub_rb_cmd_dpphy_init {
