@@ -1346,6 +1346,7 @@ int cfg80211_register_netdevice(struct net_device *dev)
 
 	/* we'll take care of this */
 	wdev->registered = true;
+	wdev->registering = true;
 	ret = register_netdevice(dev);
 	if (ret)
 		goto out;
@@ -1361,6 +1362,7 @@ int cfg80211_register_netdevice(struct net_device *dev)
 	cfg80211_register_wdev(rdev, wdev);
 	ret = 0;
 out:
+	wdev->registering = false;
 	if (ret)
 		wdev->registered = false;
 	return ret;
@@ -1403,7 +1405,7 @@ static int cfg80211_netdev_notifier_call(struct notifier_block *nb,
 		 * It is possible to get NETDEV_UNREGISTER multiple times,
 		 * so check wdev->registered.
 		 */
-		if (wdev->registered) {
+		if (wdev->registered && !wdev->registering) {
 			wiphy_lock(&rdev->wiphy);
 			_cfg80211_unregister_wdev(wdev, false);
 			wiphy_unlock(&rdev->wiphy);

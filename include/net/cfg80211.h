@@ -5299,6 +5299,8 @@ static inline void wiphy_unlock(struct wiphy *wiphy)
  * @wiphy: pointer to hardware description
  * @iftype: interface type
  * @registered: is this wdev already registered with cfg80211
+ * @registering: indicates we're doing registration under wiphy lock
+ *	for the notifier
  * @list: (private) Used to collect the interfaces
  * @netdev: (private) Used to reference back to the netdev, may be %NULL
  * @identifier: (private) Identifier used in nl80211 to identify this
@@ -5382,7 +5384,7 @@ struct wireless_dev {
 
 	struct mutex mtx;
 
-	bool use_4addr, is_running, registered;
+	bool use_4addr, is_running, registered, registering;
 
 	u8 address[ETH_ALEN] __aligned(sizeof(u16));
 
