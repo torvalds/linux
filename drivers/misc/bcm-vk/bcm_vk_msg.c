@@ -855,7 +855,8 @@ s32 bcm_to_h_msg_dequeue(struct bcm_vk *vk)
 				 * that is fatal.
 				 */
 				dev_crit(dev, "Kernel mem allocation failure.\n");
-				return -ENOMEM;
+				total = -ENOMEM;
+				goto idx_err;
 			}
 
 			/* flush rd pointer after a message is dequeued */
