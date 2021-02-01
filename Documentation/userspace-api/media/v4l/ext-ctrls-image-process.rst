@@ -20,6 +20,8 @@ Image Process Control IDs
 ``V4L2_CID_IMAGE_PROC_CLASS (class)``
     The IMAGE_PROC class descriptor.
 
+.. _v4l2-cid-link-freq:
+
 ``V4L2_CID_LINK_FREQ (integer menu)``
     Data bus frequency. Together with the media bus pixel code, bus type
     (clock cycles per sample), the data bus frequency defines the pixel
