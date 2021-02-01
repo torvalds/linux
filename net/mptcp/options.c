@@ -699,10 +699,11 @@ static bool mptcp_established_options_mp_prio(struct sock *sk,
 	if (!subflow->send_mp_prio)
 		return false;
 
-	if (remaining < TCPOLEN_MPTCP_PRIO)
+	/* account for the trailing 'nop' option */
+	if (remaining < TCPOLEN_MPTCP_PRIO_ALIGN)
 		return false;
 
-	*size = TCPOLEN_MPTCP_PRIO;
+	*size = TCPOLEN_MPTCP_PRIO_ALIGN;
 	opts->suboptions |= OPTION_MPTCP_PRIO;
 	opts->backup = subflow->request_bkup;
 
