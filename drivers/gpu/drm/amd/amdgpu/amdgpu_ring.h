@@ -242,11 +242,7 @@ struct amdgpu_ring {
 	struct dma_fence	*vmid_wait;
 	bool			has_compute_vm_bug;
 	bool			no_scheduler;
-
-	atomic_t		num_jobs[DRM_SCHED_PRIORITY_COUNT];
-	struct mutex		priority_mutex;
-	/* protected by priority_mutex */
-	int			priority;
+	int			hw_prio;
 
 #if defined(CONFIG_DEBUG_FS)
 	struct dentry *ent;
