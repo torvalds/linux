@@ -4,7 +4,6 @@
 #
 
 gma500_gfx-y += \
-	  accel_2d.o \
 	  backlight.o \
 	  blitter.o \
 	  cdv_device.o \
