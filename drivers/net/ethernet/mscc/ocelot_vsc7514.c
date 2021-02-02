@@ -1064,7 +1064,6 @@ static void mscc_ocelot_release_ports(struct ocelot *ocelot)
 	int port;
 
 	for (port = 0; port < ocelot->num_phys_ports; port++) {
-		struct ocelot_port_private *priv;
 		struct ocelot_port *ocelot_port;
 
 		ocelot_port = ocelot->ports[port];
@@ -1072,12 +1071,7 @@ static void mscc_ocelot_release_ports(struct ocelot *ocelot)
 			continue;
 
 		ocelot_deinit_port(ocelot, port);
-
-		priv = container_of(ocelot_port, struct ocelot_port_private,
-				    port);
-
-		unregister_netdev(priv->dev);
-		free_netdev(priv->dev);
+		ocelot_release_port(ocelot_port);
 	}
 }
 
@@ -1085,8 +1079,8 @@ static int mscc_ocelot_init_ports(struct platform_device *pdev,
 				  struct device_node *ports)
 {
 	struct ocelot *ocelot = platform_get_drvdata(pdev);
+	u32 devlink_ports_registered = 0;
 	struct device_node *portnp;
-	bool *registered_ports;
 	int port, err;
 	u32 reg;
 
@@ -1100,11 +1094,6 @@ static int mscc_ocelot_init_ports(struct platform_device *pdev,
 					     sizeof(*ocelot->devlink_ports),
 					     GFP_KERNEL);
 	if (!ocelot->devlink_ports)
-		return -ENOMEM;
-
-	registered_ports = kcalloc(ocelot->num_phys_ports, sizeof(bool),
-				   GFP_KERNEL);
-	if (!registered_ports)
 		return -ENOMEM;
 
 	for_each_available_child_of_node(ports, portnp) {
@@ -1123,14 +1112,22 @@ static int mscc_ocelot_init_ports(struct platform_device *pdev,
 			continue;
 
 		port = reg;
+		if (port < 0 || port >= ocelot->num_phys_ports) {
+			dev_err(ocelot->dev,
+				"invalid port number: %d >= %d\n", port,
+				ocelot->num_phys_ports);
+			continue;
+		}
 
 		snprintf(res_name, sizeof(res_name), "port%d", port);
 
 		res = platform_get_resource_byname(pdev, IORESOURCE_MEM,
 						   res_name);
 		target = ocelot_regmap_init(ocelot, res);
-		if (IS_ERR(target))
-			continue;
+		if (IS_ERR(target)) {
+			err = PTR_ERR(target);
+			goto out_teardown;
+		}
 
 		phy_node = of_parse_phandle(portnp, "phy-handle", 0);
 		if (!phy_node)
@@ -1147,14 +1144,13 @@ static int mscc_ocelot_init_ports(struct platform_device *pdev,
 			of_node_put(portnp);
 			goto out_teardown;
 		}
+		devlink_ports_registered |= BIT(port);
 
 		err = ocelot_probe_port(ocelot, port, target, phy);
 		if (err) {
 			of_node_put(portnp);
 			goto out_teardown;
 		}
-
-		registered_ports[port] = true;
 
 		ocelot_port = ocelot->ports[port];
 		priv = container_of(ocelot_port, struct ocelot_port_private,
@@ -1208,23 +1204,16 @@ static int mscc_ocelot_init_ports(struct platform_device *pdev,
 
 	/* Initialize unused devlink ports at the end */
 	for (port = 0; port < ocelot->num_phys_ports; port++) {
-		if (registered_ports[port])
+		if (devlink_ports_registered & BIT(port))
 			continue;
 
 		err = ocelot_port_devlink_init(ocelot, port,
 					       DEVLINK_PORT_FLAVOUR_UNUSED);
-		if (err) {
-			while (port-- >= 0) {
-				if (!registered_ports[port])
-					continue;
-				ocelot_port_devlink_teardown(ocelot, port);
-			}
-
+		if (err)
 			goto out_teardown;
-		}
-	}
 
-	kfree(registered_ports);
+		devlink_ports_registered |= BIT(port);
+	}
 
 	return 0;
 
@@ -1233,12 +1222,9 @@ out_teardown:
 	mscc_ocelot_release_ports(ocelot);
 	/* Tear down devlink ports for the registered network interfaces */
 	for (port = 0; port < ocelot->num_phys_ports; port++) {
-		if (!registered_ports[port])
-			continue;
-
-		ocelot_port_devlink_teardown(ocelot, port);
+		if (devlink_ports_registered & BIT(port))
+			ocelot_port_devlink_teardown(ocelot, port);
 	}
-	kfree(registered_ports);
 	return err;
 }
 
