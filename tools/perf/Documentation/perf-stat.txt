@@ -376,7 +376,7 @@ See perf list output for the possble metrics and metricgroups.
 Do not aggregate counts across all monitored CPUs.
 
 --topdown::
-Print top down level 1 metrics if supported by the CPU. This allows to
+Print complete top-down metrics supported by the CPU. This allows to
 determine bottle necks in the CPU pipeline for CPU bound workloads,
 by breaking the cycles consumed down into frontend bound, backend bound,
 bad speculation and retiring.
@@ -410,6 +410,18 @@ on workload with changing phases.
 To interpret the results it is usually needed to know on which
 CPUs the workload runs on. If needed the CPUs can be forced using
 taskset.
+
+--td-level::
+Print the top-down statistics that equal to or lower than the input level.
+It allows users to print the interested top-down metrics level instead of
+the complete top-down metrics.
+
+The availability of the top-down metrics level depends on the hardware. For
+example, Ice Lake only supports L1 top-down metrics. The Sapphire Rapids
+supports both L1 and L2 top-down metrics.
+
+Default: 0 means the max level that the current hardware support.
+Error out if the input is higher than the supported max level.
 
 --no-merge::
 Do not merge results from same PMUs.

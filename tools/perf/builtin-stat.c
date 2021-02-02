@@ -138,6 +138,19 @@ static const char *topdown_metric_attrs[] = {
 	NULL,
 };
 
+static const char *topdown_metric_L2_attrs[] = {
+	"slots",
+	"topdown-retiring",
+	"topdown-bad-spec",
+	"topdown-fe-bound",
+	"topdown-be-bound",
+	"topdown-heavy-ops",
+	"topdown-br-mispredict",
+	"topdown-fetch-lat",
+	"topdown-mem-bound",
+	NULL,
+};
+
 static const char *smi_cost_attrs = {
 	"{"
 	"msr/aperf/,"
@@ -1202,7 +1215,9 @@ static struct option stat_options[] = {
 	OPT_BOOLEAN(0, "metric-no-merge", &stat_config.metric_no_merge,
 		       "don't try to share events between metrics in a group"),
 	OPT_BOOLEAN(0, "topdown", &topdown_run,
-			"measure topdown level 1 statistics"),
+			"measure top-down statistics"),
+	OPT_UINTEGER(0, "td-level", &stat_config.topdown_level,
+			"Set the metrics level for the top-down statistics (0: max level)"),
 	OPT_BOOLEAN(0, "smi-cost", &smi_cost,
 			"measure SMI cost"),
 	OPT_CALLBACK('M', "metrics", &evsel_list, "metric/metric group list",
@@ -1755,17 +1770,30 @@ static int add_default_attributes(void)
 	}
 
 	if (topdown_run) {
+		const char **metric_attrs = topdown_metric_attrs;
+		unsigned int max_level = 1;
 		char *str = NULL;
 		bool warn = false;
 
 		if (!force_metric_only)
 			stat_config.metric_only = true;
 
-		if (topdown_filter_events(topdown_metric_attrs, &str, 1) < 0) {
+		if (pmu_have_event("cpu", topdown_metric_L2_attrs[5])) {
+			metric_attrs = topdown_metric_L2_attrs;
+			max_level = 2;
+		}
+
+		if (stat_config.topdown_level > max_level) {
+			pr_err("Invalid top-down metrics level. The max level is %u.\n", max_level);
+			return -1;
+		} else if (!stat_config.topdown_level)
+			stat_config.topdown_level = max_level;
+
+		if (topdown_filter_events(metric_attrs, &str, 1) < 0) {
 			pr_err("Out of memory\n");
 			return -1;
 		}
-		if (topdown_metric_attrs[0] && str) {
+		if (metric_attrs[0] && str) {
 			if (!stat_config.interval && !stat_config.metric_only) {
 				fprintf(stat_config.output,
 					"Topdown accuracy may decrease when measuring long periods.\n"
