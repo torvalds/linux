@@ -15,6 +15,10 @@
 #include "debug.h"
 #include "bf.h"
 
+static const s8 lna_gain_table_0[8] = {22, 8, -6, -22, -31, -40, -46, -52};
+static const s8 lna_gain_table_1[16] = {10, 6, 2, -2, -6, -10, -14, -17,
+					-20, -24, -28, -31, -34, -37, -40, -44};
+
 static void rtw8821ce_efuse_parsing(struct rtw_efuse *efuse,
 				    struct rtw8821c_efuse *map)
 {
@@ -426,17 +430,49 @@ static void rtw8821c_set_channel(struct rtw_dev *rtwdev, u8 channel, u8 bw,
 	rtw8821c_set_channel_rxdfir(rtwdev, bw);
 }
 
+static s8 get_cck_rx_pwr(struct rtw_dev *rtwdev, u8 lna_idx, u8 vga_idx)
+{
+	struct rtw_efuse *efuse = &rtwdev->efuse;
+	const s8 *lna_gain_table;
+	int lna_gain_table_size;
+	s8 rx_pwr_all = 0;
+	s8 lna_gain = 0;
+
+	if (efuse->rfe_option == 0) {
+		lna_gain_table = lna_gain_table_0;
+		lna_gain_table_size = ARRAY_SIZE(lna_gain_table_0);
+	} else {
+		lna_gain_table = lna_gain_table_1;
+		lna_gain_table_size = ARRAY_SIZE(lna_gain_table_1);
+	}
+
+	if (lna_idx >= lna_gain_table_size) {
+		rtw_info(rtwdev, "incorrect lna index (%d)\n", lna_idx);
+		return -120;
+	}
+
+	lna_gain = lna_gain_table[lna_idx];
+	rx_pwr_all = lna_gain - 2 * vga_idx;
+
+	return rx_pwr_all;
+}
+
 static void query_phy_status_page0(struct rtw_dev *rtwdev, u8 *phy_status,
 				   struct rtw_rx_pkt_stat *pkt_stat)
 {
-	s8 min_rx_power = -120;
-	u8 pwdb = GET_PHY_STAT_P0_PWDB(phy_status);
+	s8 rx_power;
+	u8 lna_idx = 0;
+	u8 vga_idx = 0;
 
-	pkt_stat->rx_power[RF_PATH_A] = pwdb - 100;
+	vga_idx = GET_PHY_STAT_P0_VGA(phy_status);
+	lna_idx = FIELD_PREP(BIT_LNA_H_MASK, GET_PHY_STAT_P0_LNA_H(phy_status)) |
+		  FIELD_PREP(BIT_LNA_L_MASK, GET_PHY_STAT_P0_LNA_L(phy_status));
+	rx_power = get_cck_rx_pwr(rtwdev, lna_idx, vga_idx);
+
+	pkt_stat->rx_power[RF_PATH_A] = rx_power;
 	pkt_stat->rssi = rtw_phy_rf_power_2_rssi(pkt_stat->rx_power, 1);
 	pkt_stat->bw = RTW_CHANNEL_WIDTH_20;
-	pkt_stat->signal_power = max(pkt_stat->rx_power[RF_PATH_A],
-				     min_rx_power);
+	pkt_stat->signal_power = rx_power;
 }
 
 static void query_phy_status_page1(struct rtw_dev *rtwdev, u8 *phy_status,

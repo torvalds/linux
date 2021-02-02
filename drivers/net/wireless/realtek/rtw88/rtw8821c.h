@@ -148,6 +148,14 @@ _rtw_write32s_mask(struct rtw_dev *rtwdev, u32 addr, u32 mask, u32 data)
 /* phy status page0 */
 #define GET_PHY_STAT_P0_PWDB(phy_stat)                                         \
 	le32_get_bits(*((__le32 *)(phy_stat) + 0x00), GENMASK(15, 8))
+#define GET_PHY_STAT_P0_VGA(phy_stat)                                          \
+	le32_get_bits(*((__le32 *)(phy_stat) + 0x03), GENMASK(12, 8))
+#define GET_PHY_STAT_P0_LNA_L(phy_stat)                                        \
+	le32_get_bits(*((__le32 *)(phy_stat) + 0x03), GENMASK(15, 13))
+#define GET_PHY_STAT_P0_LNA_H(phy_stat)                                        \
+	le32_get_bits(*((__le32 *)(phy_stat) + 0x03), BIT(23))
+#define BIT_LNA_H_MASK BIT(3)
+#define BIT_LNA_L_MASK GENMASK(2, 0)
 
 /* phy status page1 */
 #define GET_PHY_STAT_P1_PWDB_A(phy_stat)                                       \
