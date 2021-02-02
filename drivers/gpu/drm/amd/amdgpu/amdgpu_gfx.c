@@ -310,9 +310,8 @@ int amdgpu_gfx_kiq_init_ring(struct amdgpu_device *adev,
 	ring->eop_gpu_addr = kiq->eop_gpu_addr;
 	ring->no_scheduler = true;
 	sprintf(ring->name, "kiq_%d.%d.%d", ring->me, ring->pipe, ring->queue);
-	r = amdgpu_ring_init(adev, ring, 1024,
-			     irq, AMDGPU_CP_KIQ_IRQ_DRIVER0,
-			     AMDGPU_RING_PRIO_DEFAULT);
+	r = amdgpu_ring_init(adev, ring, 1024, irq, AMDGPU_CP_KIQ_IRQ_DRIVER0,
+			     AMDGPU_RING_PRIO_DEFAULT, NULL);
 	if (r)
 		dev_warn(adev->dev, "(%d) failed to init kiq ring\n", r);
 

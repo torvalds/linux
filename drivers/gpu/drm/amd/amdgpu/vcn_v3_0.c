@@ -209,7 +209,7 @@ static int vcn_v3_0_sw_init(void *handle)
 			ring->no_scheduler = true;
 		sprintf(ring->name, "vcn_dec_%d", i);
 		r = amdgpu_ring_init(adev, ring, 512, &adev->vcn.inst[i].irq, 0,
-				     AMDGPU_RING_PRIO_DEFAULT);
+				     AMDGPU_RING_PRIO_DEFAULT, NULL);
 		if (r)
 			return r;
 
@@ -231,7 +231,7 @@ static int vcn_v3_0_sw_init(void *handle)
 				ring->no_scheduler = true;
 			sprintf(ring->name, "vcn_enc_%d.%d", i, j);
 			r = amdgpu_ring_init(adev, ring, 512, &adev->vcn.inst[i].irq, 0,
-					     AMDGPU_RING_PRIO_DEFAULT);
+					     AMDGPU_RING_PRIO_DEFAULT, NULL);
 			if (r)
 				return r;
 		}
