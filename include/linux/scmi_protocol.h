@@ -483,15 +483,6 @@ struct scmi_reset_proto_ops {
 	int (*deassert)(const struct scmi_protocol_handle *ph, u32 domain);
 };
 
-struct scmi_reset_ops {
-	int (*num_domains_get)(const struct scmi_handle *handle);
-	char *(*name_get)(const struct scmi_handle *handle, u32 domain);
-	int (*latency_get)(const struct scmi_handle *handle, u32 domain);
-	int (*reset)(const struct scmi_handle *handle, u32 domain);
-	int (*assert)(const struct scmi_handle *handle, u32 domain);
-	int (*deassert)(const struct scmi_handle *handle, u32 domain);
-};
-
 /**
  * struct scmi_voltage_info - describe one available SCMI Voltage Domain
  *
@@ -612,7 +603,6 @@ struct scmi_notify_ops {
  * @dev: pointer to the SCMI device
  * @version: pointer to the structure containing SCMI version information
  * @sensor_ops: pointer to set of sensor protocol operations
- * @reset_ops: pointer to set of reset protocol operations
  * @voltage_ops: pointer to set of voltage protocol operations
  * @devm_acquire_protocol: devres managed method to get hold of a protocol,
  *			   causing its initialization and related resource
@@ -635,7 +625,6 @@ struct scmi_handle {
 	struct device *dev;
 	struct scmi_revision_info *version;
 	const struct scmi_sensor_ops *sensor_ops;
-	const struct scmi_reset_ops *reset_ops;
 	const struct scmi_voltage_ops *voltage_ops;
 
 	int __must_check (*devm_acquire_protocol)(struct scmi_device *sdev,
