@@ -325,6 +325,21 @@ static bool ethnl_validate_master_slave_cfg(u8 cfg)
 	return false;
 }
 
+static int ethnl_check_linkmodes(struct genl_info *info, struct nlattr **tb)
+{
+	const struct nlattr *master_slave_cfg;
+
+	master_slave_cfg = tb[ETHTOOL_A_LINKMODES_MASTER_SLAVE_CFG];
+	if (master_slave_cfg &&
+	    !ethnl_validate_master_slave_cfg(nla_get_u8(master_slave_cfg))) {
+		NL_SET_ERR_MSG_ATTR(info->extack, master_slave_cfg,
+				    "master/slave value is invalid");
+		return -EOPNOTSUPP;
+	}
+
+	return 0;
+}
+
 static int ethnl_update_linkmodes(struct genl_info *info, struct nlattr **tb,
 				  struct ethtool_link_ksettings *ksettings,
 				  bool *mod)
@@ -336,17 +351,9 @@ static int ethnl_update_linkmodes(struct genl_info *info, struct nlattr **tb,
 
 	master_slave_cfg = tb[ETHTOOL_A_LINKMODES_MASTER_SLAVE_CFG];
 	if (master_slave_cfg) {
-		u8 cfg = nla_get_u8(master_slave_cfg);
-
 		if (lsettings->master_slave_cfg == MASTER_SLAVE_CFG_UNSUPPORTED) {
 			NL_SET_ERR_MSG_ATTR(info->extack, master_slave_cfg,
 					    "master/slave configuration not supported by device");
-			return -EOPNOTSUPP;
-		}
-
-		if (!ethnl_validate_master_slave_cfg(cfg)) {
-			NL_SET_ERR_MSG_ATTR(info->extack, master_slave_cfg,
-					    "master/slave value is invalid");
 			return -EOPNOTSUPP;
 		}
 	}
@@ -385,6 +392,10 @@ int ethnl_set_linkmodes(struct sk_buff *skb, struct genl_info *info)
 	struct net_device *dev;
 	bool mod = false;
 	int ret;
+
+	ret = ethnl_check_linkmodes(info, tb);
+	if (ret < 0)
+		return ret;
 
 	ret = ethnl_parse_header_dev_get(&req_info,
 					 tb[ETHTOOL_A_LINKMODES_HEADER],
