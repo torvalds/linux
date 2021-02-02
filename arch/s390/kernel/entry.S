@@ -106,12 +106,10 @@ _LPP_OFFSET	= __LC_LPP
 2:	la	%r11,STACK_FRAME_OVERHEAD(%r15)
 	.endm
 
+	# Use STORE CLOCK by default, switch to STORE CLOCK FAST if available.
 	.macro STCK savearea
-#ifdef CONFIG_HAVE_MARCH_Z9_109_FEATURES
-	.insn	s,0xb27c0000,\savearea		# store clock fast
-#else
-	.insn	s,0xb2050000,\savearea		# store clock
-#endif
+	ALTERNATIVE ".insn	s,0xb2050000,\savearea", \
+		    ".insn	s,0xb27c0000,\savearea", 25
 	.endm
 
 	/*
