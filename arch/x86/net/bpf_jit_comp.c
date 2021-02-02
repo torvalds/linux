@@ -930,6 +930,7 @@ static int do_jit(struct bpf_prog *bpf_prog, int *addrs, u8 *image,
 		u32 dst_reg = insn->dst_reg;
 		u32 src_reg = insn->src_reg;
 		u8 b2 = 0, b3 = 0;
+		u8 *start_of_ldx;
 		s64 jmp_offset;
 		u8 jmp_cond;
 		u8 *func;
@@ -1278,11 +1279,29 @@ st:			if (is_imm8(insn->off))
 		case BPF_LDX | BPF_PROBE_MEM | BPF_W:
 		case BPF_LDX | BPF_MEM | BPF_DW:
 		case BPF_LDX | BPF_PROBE_MEM | BPF_DW:
+			if (BPF_MODE(insn->code) == BPF_PROBE_MEM) {
+				/* test src_reg, src_reg */
+				maybe_emit_mod(&prog, src_reg, src_reg, true); /* always 1 byte */
+				EMIT2(0x85, add_2reg(0xC0, src_reg, src_reg));
+				/* jne start_of_ldx */
+				EMIT2(X86_JNE, 0);
+				/* xor dst_reg, dst_reg */
+				emit_mov_imm32(&prog, false, dst_reg, 0);
+				/* jmp byte_after_ldx */
+				EMIT2(0xEB, 0);
+
+				/* populate jmp_offset for JNE above */
+				temp[4] = prog - temp - 5 /* sizeof(test + jne) */;
+				start_of_ldx = prog;
+			}
 			emit_ldx(&prog, BPF_SIZE(insn->code), dst_reg, src_reg, insn->off);
 			if (BPF_MODE(insn->code) == BPF_PROBE_MEM) {
 				struct exception_table_entry *ex;
 				u8 *_insn = image + proglen;
 				s64 delta;
+
+				/* populate jmp_offset for JMP above */
+				start_of_ldx[-1] = prog - start_of_ldx;
 
 				if (!bpf_prog->aux->extable)
 					break;
