@@ -56,9 +56,9 @@ void blk_free_flush_queue(struct blk_flush_queue *q);
 void blk_freeze_queue(struct request_queue *q);
 
 #define BIO_INLINE_VECS 4
-struct bio_vec *bvec_alloc(gfp_t, int, unsigned long *, mempool_t *);
-void bvec_free(mempool_t *, struct bio_vec *, unsigned int);
-unsigned int bvec_nr_vecs(unsigned short idx);
+struct bio_vec *bvec_alloc(mempool_t *pool, unsigned short *nr_vecs,
+		gfp_t gfp_mask);
+void bvec_free(mempool_t *pool, struct bio_vec *bv, unsigned short nr_vecs);
 
 static inline bool biovec_phys_mergeable(struct request_queue *q,
 		struct bio_vec *vec1, struct bio_vec *vec2)

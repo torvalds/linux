@@ -36,6 +36,24 @@ static struct biovec_slab {
 	{ .nr_vecs = BIO_MAX_PAGES, .name = "biovec-max" },
 };
 
+static struct biovec_slab *biovec_slab(unsigned short nr_vecs)
+{
+	switch (nr_vecs) {
+	/* smaller bios use inline vecs */
+	case 5 ... 16:
+		return &bvec_slabs[0];
+	case 17 ... 64:
+		return &bvec_slabs[1];
+	case 65 ... 128:
+		return &bvec_slabs[2];
+	case 129 ... BIO_MAX_PAGES:
+		return &bvec_slabs[3];
+	default:
+		BUG();
+		return NULL;
+	}
+}
+
 /*
  * fs_bio_set is the bio_set containing bio and iovec memory pools used by
  * IO code that does not need private memory pools.
@@ -131,26 +149,14 @@ out:
 	mutex_unlock(&bio_slab_lock);
 }
 
-unsigned int bvec_nr_vecs(unsigned short idx)
+void bvec_free(mempool_t *pool, struct bio_vec *bv, unsigned short nr_vecs)
 {
-	return bvec_slabs[--idx].nr_vecs;
-}
+	BIO_BUG_ON(nr_vecs > BIO_MAX_PAGES);
 
-void bvec_free(mempool_t *pool, struct bio_vec *bv, unsigned int idx)
-{
-	if (!idx)
-		return;
-	idx--;
-
-	BIO_BUG_ON(idx >= BVEC_POOL_NR);
-
-	if (idx == BVEC_POOL_MAX) {
+	if (nr_vecs == BIO_MAX_PAGES)
 		mempool_free(bv, pool);
-	} else {
-		struct biovec_slab *bvs = bvec_slabs + idx;
-
-		kmem_cache_free(bvs->slab, bv);
-	}
+	else if (nr_vecs > BIO_INLINE_VECS)
+		kmem_cache_free(biovec_slab(nr_vecs)->slab, bv);
 }
 
 /*
@@ -163,48 +169,34 @@ static inline gfp_t bvec_alloc_gfp(gfp_t gfp)
 		__GFP_NOMEMALLOC | __GFP_NORETRY | __GFP_NOWARN;
 }
 
-struct bio_vec *bvec_alloc(gfp_t gfp_mask, int nr, unsigned long *idx,
-			   mempool_t *pool)
+struct bio_vec *bvec_alloc(mempool_t *pool, unsigned short *nr_vecs,
+		gfp_t gfp_mask)
 {
-	/*
-	 * see comment near bvec_array define!
-	 */
-	switch (nr) {
-	/* smaller bios use inline vecs */
-	case 5 ... 16:
-		*idx = 2;
-		break;
-	case 17 ... 64:
-		*idx = 3;
-		break;
-	case 65 ... 128:
-		*idx = 4;
-		break;
-	case 129 ... BIO_MAX_PAGES:
-		*idx = 5;
-		break;
-	default:
+	struct biovec_slab *bvs = biovec_slab(*nr_vecs);
+
+	if (WARN_ON_ONCE(!bvs))
 		return NULL;
-	}
+
+	/*
+	 * Upgrade the nr_vecs request to take full advantage of the allocation.
+	 * We also rely on this in the bvec_free path.
+	 */
+	*nr_vecs = bvs->nr_vecs;
 
 	/*
 	 * Try a slab allocation first for all smaller allocations.  If that
 	 * fails and __GFP_DIRECT_RECLAIM is set retry with the mempool.
 	 * The mempool is sized to handle up to BIO_MAX_PAGES entries.
 	 */
-	if (*idx < BVEC_POOL_MAX) {
-		struct biovec_slab *bvs = bvec_slabs + *idx;
+	if (*nr_vecs < BIO_MAX_PAGES) {
 		struct bio_vec *bvl;
 
 		bvl = kmem_cache_alloc(bvs->slab, bvec_alloc_gfp(gfp_mask));
-		if (likely(bvl) || !(gfp_mask & __GFP_DIRECT_RECLAIM)) {
-			(*idx)++;
+		if (likely(bvl) || !(gfp_mask & __GFP_DIRECT_RECLAIM))
 			return bvl;
-		}
-		*idx = BVEC_POOL_MAX;
+		*nr_vecs = BIO_MAX_PAGES;
 	}
 
-	(*idx)++;
 	return mempool_alloc(pool, gfp_mask);
 }
 
@@ -231,7 +223,7 @@ static void bio_free(struct bio *bio)
 	bio_uninit(bio);
 
 	if (bs) {
-		bvec_free(&bs->bvec_pool, bio->bi_io_vec, BVEC_POOL_IDX(bio));
+		bvec_free(&bs->bvec_pool, bio->bi_io_vec, bio->bi_max_vecs);
 
 		/*
 		 * If we have front padding, adjust the bio pointer before freeing
@@ -275,12 +267,8 @@ EXPORT_SYMBOL(bio_init);
  */
 void bio_reset(struct bio *bio)
 {
-	unsigned long flags = bio->bi_flags & (~0UL << BIO_RESET_BITS);
-
 	bio_uninit(bio);
-
 	memset(bio, 0, BIO_RESET_BYTES);
-	bio->bi_flags = flags;
 	atomic_set(&bio->__bi_remaining, 1);
 }
 EXPORT_SYMBOL(bio_reset);
@@ -453,22 +441,18 @@ struct bio *bio_alloc_bioset(gfp_t gfp_mask, unsigned short nr_iovecs,
 
 	bio = p + bs->front_pad;
 	if (nr_iovecs > BIO_INLINE_VECS) {
-		unsigned long idx = 0;
 		struct bio_vec *bvl = NULL;
 
-		bvl = bvec_alloc(gfp_mask, nr_iovecs, &idx, &bs->bvec_pool);
+		bvl = bvec_alloc(&bs->bvec_pool, &nr_iovecs, gfp_mask);
 		if (!bvl && gfp_mask != saved_gfp) {
 			punt_bios_to_rescuer(bs);
 			gfp_mask = saved_gfp;
-			bvl = bvec_alloc(gfp_mask, nr_iovecs, &idx,
-					 &bs->bvec_pool);
+			bvl = bvec_alloc(&bs->bvec_pool, &nr_iovecs, gfp_mask);
 		}
-
 		if (unlikely(!bvl))
 			goto err_free;
 
-		bio_init(bio, bvl, bvec_nr_vecs(idx));
-		bio->bi_flags |= idx << BVEC_POOL_OFFSET;
+		bio_init(bio, bvl, nr_iovecs);
 	} else if (nr_iovecs) {
 		bio_init(bio, bio->bi_inline_vecs, BIO_INLINE_VECS);
 	} else {
@@ -644,7 +628,7 @@ EXPORT_SYMBOL(bio_put);
  */
 void __bio_clone_fast(struct bio *bio, struct bio *bio_src)
 {
-	BUG_ON(bio->bi_pool && BVEC_POOL_IDX(bio));
+	WARN_ON_ONCE(bio->bi_pool && bio->bi_max_vecs);
 
 	/*
 	 * most users will be overriding ->bi_bdev with a new target,
@@ -934,7 +918,7 @@ EXPORT_SYMBOL_GPL(bio_release_pages);
 
 static int bio_iov_bvec_set(struct bio *bio, struct iov_iter *iter)
 {
-	WARN_ON_ONCE(BVEC_POOL_IDX(bio) != 0);
+	WARN_ON_ONCE(bio->bi_max_vecs);
 
 	bio->bi_vcnt = iter->nr_segs;
 	bio->bi_io_vec = (struct bio_vec *)iter->bvec;
@@ -1495,7 +1479,7 @@ EXPORT_SYMBOL_GPL(bio_trim);
  */
 int biovec_init_pool(mempool_t *pool, int pool_entries)
 {
-	struct biovec_slab *bp = bvec_slabs + BVEC_POOL_MAX;
+	struct biovec_slab *bp = bvec_slabs + ARRAY_SIZE(bvec_slabs) - 1;
 
 	return mempool_init_slab_pool(pool, pool_entries, bp->slab);
 }
@@ -1604,8 +1588,6 @@ EXPORT_SYMBOL(bioset_init_from_src);
 static int __init init_bio(void)
 {
 	int i;
-
-	BUILD_BUG_ON(BIO_FLAG_LAST > BVEC_POOL_OFFSET);
 
 	bio_integrity_init();
 
