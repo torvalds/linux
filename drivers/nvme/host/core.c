@@ -279,14 +279,13 @@ static blk_status_t nvme_error_status(u16 status)
 
 static void nvme_retry_req(struct request *req)
 {
-	struct nvme_ns *ns = req->q->queuedata;
 	unsigned long delay = 0;
 	u16 crd;
 
 	/* The mask and shift result must be <= 3 */
 	crd = (nvme_req(req)->status & NVME_SC_CRD) >> 11;
-	if (ns && crd)
-		delay = ns->ctrl->crdt[crd - 1] * 100;
+	if (crd)
+		delay = nvme_req(req)->ctrl->crdt[crd - 1] * 100;
 
 	nvme_req(req)->retries++;
 	blk_mq_requeue_request(req, false);
@@ -370,6 +369,26 @@ bool nvme_cancel_request(struct request *req, void *data, bool reserved)
 	return true;
 }
 EXPORT_SYMBOL_GPL(nvme_cancel_request);
+
+void nvme_cancel_tagset(struct nvme_ctrl *ctrl)
+{
+	if (ctrl->tagset) {
+		blk_mq_tagset_busy_iter(ctrl->tagset,
+				nvme_cancel_request, ctrl);
+		blk_mq_tagset_wait_completed_request(ctrl->tagset);
+	}
+}
+EXPORT_SYMBOL_GPL(nvme_cancel_tagset);
+
+void nvme_cancel_admin_tagset(struct nvme_ctrl *ctrl)
+{
+	if (ctrl->admin_tagset) {
+		blk_mq_tagset_busy_iter(ctrl->admin_tagset,
+				nvme_cancel_request, ctrl);
+		blk_mq_tagset_wait_completed_request(ctrl->admin_tagset);
+	}
+}
+EXPORT_SYMBOL_GPL(nvme_cancel_admin_tagset);
 
 bool nvme_change_ctrl_state(struct nvme_ctrl *ctrl,
 		enum nvme_ctrl_state new_state)
@@ -842,11 +861,11 @@ static inline blk_status_t nvme_setup_rw(struct nvme_ns *ns,
 void nvme_cleanup_cmd(struct request *req)
 {
 	if (req->rq_flags & RQF_SPECIAL_PAYLOAD) {
-		struct nvme_ns *ns = req->rq_disk->private_data;
+		struct nvme_ctrl *ctrl = nvme_req(req)->ctrl;
 		struct page *page = req->special_vec.bv_page;
 
-		if (page == ns->ctrl->discard_page)
-			clear_bit_unlock(0, &ns->ctrl->discard_page_busy);
+		if (page == ctrl->discard_page)
+			clear_bit_unlock(0, &ctrl->discard_page_busy);
 		else
 			kfree(page_address(page) + req->special_vec.bv_offset);
 	}
@@ -2859,7 +2878,7 @@ static struct attribute *nvme_subsys_attrs[] = {
 	NULL,
 };
 
-static struct attribute_group nvme_subsys_attrs_group = {
+static const struct attribute_group nvme_subsys_attrs_group = {
 	.attrs = nvme_subsys_attrs,
 };
 
@@ -3694,7 +3713,7 @@ static umode_t nvme_dev_attrs_are_visible(struct kobject *kobj,
 	return a->mode;
 }
 
-static struct attribute_group nvme_dev_attrs_group = {
+static const struct attribute_group nvme_dev_attrs_group = {
 	.attrs		= nvme_dev_attrs,
 	.is_visible	= nvme_dev_attrs_are_visible,
 };
@@ -4449,7 +4468,7 @@ static void nvme_free_cels(struct nvme_ctrl *ctrl)
 	struct nvme_effects_log	*cel;
 	unsigned long i;
 
-	xa_for_each (&ctrl->cels, i, cel) {
+	xa_for_each(&ctrl->cels, i, cel) {
 		xa_erase(&ctrl->cels, i);
 		kfree(cel);
 	}

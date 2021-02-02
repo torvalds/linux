@@ -45,7 +45,7 @@ static bool nvmet_is_port_enabled(struct nvmet_port *p, const char *caller)
 {
 	if (p->enabled)
 		pr_err("Disable port '%u' before changing attribute in %s\n",
-				le16_to_cpu(p->disc_addr.portid), caller);
+		       le16_to_cpu(p->disc_addr.portid), caller);
 	return p->enabled;
 }
 
@@ -266,10 +266,8 @@ static ssize_t nvmet_param_pi_enable_store(struct config_item *item,
 	if (strtobool(page, &val))
 		return -EINVAL;
 
-	if (port->enabled) {
-		pr_err("Disable port before setting pi_enable value.\n");
+	if (nvmet_is_port_enabled(port, __func__))
 		return -EACCES;
-	}
 
 	port->pi_enable = val;
 	return count;

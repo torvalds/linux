@@ -102,6 +102,23 @@ static const char *nvme_trace_get_lba_status(struct trace_seq *p,
 	return ret;
 }
 
+static const char *nvme_trace_admin_format_nvm(struct trace_seq *p, u8 *cdw10)
+{
+	const char *ret = trace_seq_buffer_ptr(p);
+	u8 lbaf = cdw10[0] & 0xF;
+	u8 mset = (cdw10[0] >> 4) & 0x1;
+	u8 pi = (cdw10[0] >> 5) & 0x7;
+	u8 pil = cdw10[1] & 0x1;
+	u8 ses = (cdw10[1] >> 1) & 0x7;
+
+	trace_seq_printf(p, "lbaf=%u, mset=%u, pi=%u, pil=%u, ses=%u",
+			lbaf, mset, pi, pil, ses);
+
+	trace_seq_putc(p, 0);
+
+	return ret;
+}
+
 static const char *nvme_trace_read_write(struct trace_seq *p, u8 *cdw10)
 {
 	const char *ret = trace_seq_buffer_ptr(p);
@@ -126,6 +143,35 @@ static const char *nvme_trace_dsm(struct trace_seq *p, u8 *cdw10)
 	trace_seq_printf(p, "nr=%u, attributes=%u",
 			 get_unaligned_le32(cdw10),
 			 get_unaligned_le32(cdw10 + 4));
+	trace_seq_putc(p, 0);
+
+	return ret;
+}
+
+static const char *nvme_trace_zone_mgmt_send(struct trace_seq *p, u8 *cdw10)
+{
+	const char *ret = trace_seq_buffer_ptr(p);
+	u64 slba = get_unaligned_le64(cdw10);
+	u8 zsa = cdw10[12];
+	u8 all = cdw10[13];
+
+	trace_seq_printf(p, "slba=%llu, zsa=%u, all=%u", slba, zsa, all);
+	trace_seq_putc(p, 0);
+
+	return ret;
+}
+
+static const char *nvme_trace_zone_mgmt_recv(struct trace_seq *p, u8 *cdw10)
+{
+	const char *ret = trace_seq_buffer_ptr(p);
+	u64 slba = get_unaligned_le64(cdw10);
+	u32 numd = get_unaligned_le32(cdw10 + 8);
+	u8 zra = cdw10[12];
+	u8 zrasf = cdw10[13];
+	u8 pr = cdw10[14];
+
+	trace_seq_printf(p, "slba=%llu, numd=%u, zra=%u, zrasf=%u, pr=%u",
+			 slba, numd, zra, zrasf, pr);
 	trace_seq_putc(p, 0);
 
 	return ret;
@@ -159,6 +205,8 @@ const char *nvme_trace_parse_admin_cmd(struct trace_seq *p,
 		return nvme_trace_admin_get_features(p, cdw10);
 	case nvme_admin_get_lba_status:
 		return nvme_trace_get_lba_status(p, cdw10);
+	case nvme_admin_format_nvm:
+		return nvme_trace_admin_format_nvm(p, cdw10);
 	default:
 		return nvme_trace_common(p, cdw10);
 	}
@@ -171,9 +219,14 @@ const char *nvme_trace_parse_nvm_cmd(struct trace_seq *p,
 	case nvme_cmd_read:
 	case nvme_cmd_write:
 	case nvme_cmd_write_zeroes:
+	case nvme_cmd_zone_append:
 		return nvme_trace_read_write(p, cdw10);
 	case nvme_cmd_dsm:
 		return nvme_trace_dsm(p, cdw10);
+	case nvme_cmd_zone_mgmt_send:
+		return nvme_trace_zone_mgmt_send(p, cdw10);
+	case nvme_cmd_zone_mgmt_recv:
+		return nvme_trace_zone_mgmt_recv(p, cdw10);
 	default:
 		return nvme_trace_common(p, cdw10);
 	}
