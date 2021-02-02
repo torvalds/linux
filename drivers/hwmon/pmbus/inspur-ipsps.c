@@ -216,7 +216,6 @@ static struct i2c_driver ipsps_driver = {
 		.of_match_table = of_match_ptr(ipsps_of_match),
 	},
 	.probe_new = ipsps_probe,
-	.remove = pmbus_do_remove,
 	.id_table = ipsps_id,
 };
 

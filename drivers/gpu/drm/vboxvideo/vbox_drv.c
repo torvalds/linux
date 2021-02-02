@@ -26,7 +26,7 @@ static int vbox_modeset = -1;
 MODULE_PARM_DESC(modeset, "Disable/Enable modesetting");
 module_param_named(modeset, vbox_modeset, int, 0400);
 
-static struct drm_driver driver;
+static const struct drm_driver driver;
 
 static const struct pci_device_id pciidlist[] = {
 	{ PCI_DEVICE(0x80ee, 0xbeef) },
@@ -175,7 +175,7 @@ static struct pci_driver vbox_pci_driver = {
 
 DEFINE_DRM_GEM_FOPS(vbox_fops);
 
-static struct drm_driver driver = {
+static const struct drm_driver driver = {
 	.driver_features =
 	    DRIVER_MODESET | DRIVER_GEM | DRIVER_ATOMIC,
 

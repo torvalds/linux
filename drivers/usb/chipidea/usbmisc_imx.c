@@ -1134,11 +1134,6 @@ MODULE_DEVICE_TABLE(of, usbmisc_imx_dt_ids);
 static int usbmisc_imx_probe(struct platform_device *pdev)
 {
 	struct imx_usbmisc *data;
-	const struct of_device_id *of_id;
-
-	of_id = of_match_device(usbmisc_imx_dt_ids, &pdev->dev);
-	if (!of_id)
-		return -ENODEV;
 
 	data = devm_kzalloc(&pdev->dev, sizeof(*data), GFP_KERNEL);
 	if (!data)
@@ -1150,7 +1145,7 @@ static int usbmisc_imx_probe(struct platform_device *pdev)
 	if (IS_ERR(data->base))
 		return PTR_ERR(data->base);
 
-	data->ops = (const struct usbmisc_ops *)of_id->data;
+	data->ops = of_device_get_match_data(&pdev->dev);
 	platform_set_drvdata(pdev, data);
 
 	return 0;

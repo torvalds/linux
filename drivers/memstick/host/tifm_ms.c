@@ -528,7 +528,7 @@ static int tifm_ms_set_param(struct memstick_host *msh,
 		} else
 			return -EINVAL;
 		break;
-	};
+	}
 
 	return 0;
 }

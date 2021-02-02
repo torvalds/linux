@@ -3,7 +3,7 @@
  *
  * Based on the CEC code from hdmi_ti_4xxx_ip.c from Android.
  *
- * Copyright (C) 2010-2011 Texas Instruments Incorporated - http://www.ti.com/
+ * Copyright (C) 2010-2011 Texas Instruments Incorporated - https://www.ti.com/
  * Authors: Yong Zhi
  *	Mythri pk <mythripk@ti.com>
  *

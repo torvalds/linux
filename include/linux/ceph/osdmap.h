@@ -251,8 +251,8 @@ static inline int ceph_decode_pgid(void **p, void *end, struct ceph_pg *pgid)
 }
 
 struct ceph_osdmap *ceph_osdmap_alloc(void);
-extern struct ceph_osdmap *ceph_osdmap_decode(void **p, void *end);
-struct ceph_osdmap *osdmap_apply_incremental(void **p, void *end,
+struct ceph_osdmap *ceph_osdmap_decode(void **p, void *end, bool msgr2);
+struct ceph_osdmap *osdmap_apply_incremental(void **p, void *end, bool msgr2,
 					     struct ceph_osdmap *map);
 extern void ceph_osdmap_destroy(struct ceph_osdmap *map);
 

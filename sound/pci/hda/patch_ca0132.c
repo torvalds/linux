@@ -95,7 +95,7 @@ enum {
 };
 
 /* Strings for Input Source Enum Control */
-static const char *const in_src_str[3] = {"Rear Mic", "Line", "Front Mic" };
+static const char *const in_src_str[3] = { "Microphone", "Line In", "Front Microphone" };
 #define IN_SRC_NUM_OF_INPUTS 3
 enum {
 	REAR_MIC,
@@ -788,6 +788,40 @@ static const struct ae5_filter_set ae5_filter_presets[] = {
 	}
 };
 
+/*
+ * Data structures for storing audio router remapping data. These are used to
+ * remap a currently active streams ports.
+ */
+struct chipio_stream_remap_data {
+	unsigned int stream_id;
+	unsigned int count;
+
+	unsigned int offset[16];
+	unsigned int value[16];
+};
+
+static const struct chipio_stream_remap_data stream_remap_data[] = {
+	{ .stream_id = 0x14,
+	  .count     = 0x04,
+	  .offset    = { 0x00, 0x04, 0x08, 0x0c },
+	  .value     = { 0x0001f8c0, 0x0001f9c1, 0x0001fac6, 0x0001fbc7 },
+	},
+	{ .stream_id = 0x0c,
+	  .count     = 0x0c,
+	  .offset    = { 0x00, 0x04, 0x08, 0x0c, 0x10, 0x14, 0x18, 0x1c,
+			 0x20, 0x24, 0x28, 0x2c },
+	  .value     = { 0x0001e0c0, 0x0001e1c1, 0x0001e4c2, 0x0001e5c3,
+			 0x0001e2c4, 0x0001e3c5, 0x0001e8c6, 0x0001e9c7,
+			 0x0001ecc8, 0x0001edc9, 0x0001eaca, 0x0001ebcb },
+	},
+	{ .stream_id = 0x0c,
+	  .count     = 0x08,
+	  .offset    = { 0x08, 0x0c, 0x10, 0x14, 0x20, 0x24, 0x28, 0x2c },
+	  .value     = { 0x000140c2, 0x000141c3, 0x000150c4, 0x000151c5,
+			 0x000142c8, 0x000143c9, 0x000152ca, 0x000153cb },
+	}
+};
+
 enum hda_cmd_vendor_io {
 	/* for DspIO node */
 	VENDOR_DSPIO_SCP_WRITE_DATA_LOW      = 0x000,
@@ -1223,7 +1257,7 @@ static const struct hda_pintbl ae5_pincfgs[] = {
 	{ 0x0e, 0x01c510f0 }, /* SPDIF In */
 	{ 0x0f, 0x01017114 }, /* Port A -- Rear L/R. */
 	{ 0x10, 0x01017012 }, /* Port D -- Center/LFE or FP Hp */
-	{ 0x11, 0x01a170ff }, /* Port B -- LineMicIn2 / Rear Headphone */
+	{ 0x11, 0x012170ff }, /* Port B -- LineMicIn2 / Rear Headphone */
 	{ 0x12, 0x01a170f0 }, /* Port C -- LineIn1 */
 	{ 0x13, 0x908700f0 }, /* What U Hear In*/
 	{ 0x18, 0x50d000f0 }, /* N/A */
@@ -1829,6 +1863,18 @@ static void chipio_set_stream_control(struct hda_codec *codec,
 			CONTROL_PARAM_STREAM_CONTROL, enable);
 }
 
+/*
+ * Get ChipIO audio stream's status.
+ */
+static void chipio_get_stream_control(struct hda_codec *codec,
+				int streamid, unsigned int *enable)
+{
+	chipio_set_control_param_no_mutex(codec,
+			CONTROL_PARAM_STREAM_ID, streamid);
+	*enable = snd_hda_codec_read(codec, WIDGET_CHIP_CTRL, 0,
+			   VENDOR_CHIPIO_PARAM_GET,
+			   CONTROL_PARAM_STREAM_CONTROL);
+}
 
 /*
  * Set sampling rate of the connection point. NO MUTEX.
@@ -1868,6 +1914,98 @@ static void chipio_8051_write_direct(struct hda_codec *codec,
 }
 
 /*
+ * Writes to the 8051's exram, which has 16-bits of address space.
+ * Data at addresses 0x2000-0x7fff is mirrored to 0x8000-0xdfff.
+ * Data at 0x8000-0xdfff can also be used as program memory for the 8051 by
+ * setting the pmem bank selection SFR.
+ * 0xe000-0xffff is always mapped as program memory, with only 0xf000-0xffff
+ * being writable.
+ */
+static void chipio_8051_set_address(struct hda_codec *codec, unsigned int addr)
+{
+	unsigned int tmp;
+
+	/* Lower 8-bits. */
+	tmp = addr & 0xff;
+	snd_hda_codec_write(codec, WIDGET_CHIP_CTRL, 0,
+			    VENDOR_CHIPIO_8051_ADDRESS_LOW, tmp);
+
+	/* Upper 8-bits. */
+	tmp = (addr >> 8) & 0xff;
+	snd_hda_codec_write(codec, WIDGET_CHIP_CTRL, 0,
+			    VENDOR_CHIPIO_8051_ADDRESS_HIGH, tmp);
+}
+
+static void chipio_8051_set_data(struct hda_codec *codec, unsigned int data)
+{
+	/* 8-bits of data. */
+	snd_hda_codec_write(codec, WIDGET_CHIP_CTRL, 0,
+			    VENDOR_CHIPIO_8051_DATA_WRITE, data & 0xff);
+}
+
+static unsigned int chipio_8051_get_data(struct hda_codec *codec)
+{
+	return snd_hda_codec_read(codec, WIDGET_CHIP_CTRL, 0,
+				   VENDOR_CHIPIO_8051_DATA_READ, 0);
+}
+
+/* PLL_PMU writes share the lower address register of the 8051 exram writes. */
+static void chipio_8051_set_data_pll(struct hda_codec *codec, unsigned int data)
+{
+	/* 8-bits of data. */
+	snd_hda_codec_write(codec, WIDGET_CHIP_CTRL, 0,
+			    VENDOR_CHIPIO_PLL_PMU_WRITE, data & 0xff);
+}
+
+static void chipio_8051_write_exram(struct hda_codec *codec,
+		unsigned int addr, unsigned int data)
+{
+	struct ca0132_spec *spec = codec->spec;
+
+	mutex_lock(&spec->chipio_mutex);
+
+	chipio_8051_set_address(codec, addr);
+	chipio_8051_set_data(codec, data);
+
+	mutex_unlock(&spec->chipio_mutex);
+}
+
+static void chipio_8051_write_exram_no_mutex(struct hda_codec *codec,
+		unsigned int addr, unsigned int data)
+{
+	chipio_8051_set_address(codec, addr);
+	chipio_8051_set_data(codec, data);
+}
+
+/* Readback data from the 8051's exram. No mutex. */
+static void chipio_8051_read_exram(struct hda_codec *codec,
+		unsigned int addr, unsigned int *data)
+{
+	chipio_8051_set_address(codec, addr);
+	*data = chipio_8051_get_data(codec);
+}
+
+static void chipio_8051_write_pll_pmu(struct hda_codec *codec,
+		unsigned int addr, unsigned int data)
+{
+	struct ca0132_spec *spec = codec->spec;
+
+	mutex_lock(&spec->chipio_mutex);
+
+	chipio_8051_set_address(codec, addr & 0xff);
+	chipio_8051_set_data_pll(codec, data);
+
+	mutex_unlock(&spec->chipio_mutex);
+}
+
+static void chipio_8051_write_pll_pmu_no_mutex(struct hda_codec *codec,
+		unsigned int addr, unsigned int data)
+{
+	chipio_8051_set_address(codec, addr & 0xff);
+	chipio_8051_set_data_pll(codec, data);
+}
+
+/*
  * Enable clocks.
  */
 static void chipio_enable_clocks(struct hda_codec *codec)
@@ -1875,18 +2013,11 @@ static void chipio_enable_clocks(struct hda_codec *codec)
 	struct ca0132_spec *spec = codec->spec;
 
 	mutex_lock(&spec->chipio_mutex);
-	snd_hda_codec_write(codec, WIDGET_CHIP_CTRL, 0,
-			    VENDOR_CHIPIO_8051_ADDRESS_LOW, 0);
-	snd_hda_codec_write(codec, WIDGET_CHIP_CTRL, 0,
-			    VENDOR_CHIPIO_PLL_PMU_WRITE, 0xff);
-	snd_hda_codec_write(codec, WIDGET_CHIP_CTRL, 0,
-			    VENDOR_CHIPIO_8051_ADDRESS_LOW, 5);
-	snd_hda_codec_write(codec, WIDGET_CHIP_CTRL, 0,
-			    VENDOR_CHIPIO_PLL_PMU_WRITE, 0x0b);
-	snd_hda_codec_write(codec, WIDGET_CHIP_CTRL, 0,
-			    VENDOR_CHIPIO_8051_ADDRESS_LOW, 6);
-	snd_hda_codec_write(codec, WIDGET_CHIP_CTRL, 0,
-			    VENDOR_CHIPIO_PLL_PMU_WRITE, 0xff);
+
+	chipio_8051_write_pll_pmu_no_mutex(codec, 0x00, 0xff);
+	chipio_8051_write_pll_pmu_no_mutex(codec, 0x05, 0x0b);
+	chipio_8051_write_pll_pmu_no_mutex(codec, 0x06, 0xff);
+
 	mutex_unlock(&spec->chipio_mutex);
 }
 
@@ -2313,13 +2444,6 @@ static int dspio_set_uint_param(struct hda_codec *codec, int mod_id,
 			int req, const unsigned int data)
 {
 	return dspio_set_param(codec, mod_id, 0x20, req, &data,
-			sizeof(unsigned int));
-}
-
-static int dspio_set_uint_param_no_source(struct hda_codec *codec, int mod_id,
-			int req, const unsigned int data)
-{
-	return dspio_set_param(codec, mod_id, 0x00, req, &data,
 			sizeof(unsigned int));
 }
 
@@ -7388,18 +7512,10 @@ static void ca0132_init_analog_mic2(struct hda_codec *codec)
 	struct ca0132_spec *spec = codec->spec;
 
 	mutex_lock(&spec->chipio_mutex);
-	snd_hda_codec_write(codec, WIDGET_CHIP_CTRL, 0,
-			    VENDOR_CHIPIO_8051_ADDRESS_LOW, 0x20);
-	snd_hda_codec_write(codec, WIDGET_CHIP_CTRL, 0,
-			    VENDOR_CHIPIO_8051_ADDRESS_HIGH, 0x19);
-	snd_hda_codec_write(codec, WIDGET_CHIP_CTRL, 0,
-			    VENDOR_CHIPIO_8051_DATA_WRITE, 0x00);
-	snd_hda_codec_write(codec, WIDGET_CHIP_CTRL, 0,
-			    VENDOR_CHIPIO_8051_ADDRESS_LOW, 0x2D);
-	snd_hda_codec_write(codec, WIDGET_CHIP_CTRL, 0,
-			    VENDOR_CHIPIO_8051_ADDRESS_HIGH, 0x19);
-	snd_hda_codec_write(codec, WIDGET_CHIP_CTRL, 0,
-			    VENDOR_CHIPIO_8051_DATA_WRITE, 0x00);
+
+	chipio_8051_write_exram_no_mutex(codec, 0x1920, 0x00);
+	chipio_8051_write_exram_no_mutex(codec, 0x192d, 0x00);
+
 	mutex_unlock(&spec->chipio_mutex);
 }
 
@@ -7421,6 +7537,199 @@ static void ca0132_refresh_widget_caps(struct hda_codec *codec)
 		refresh_amp_caps(codec, spec->adcs[i], HDA_INPUT);
 		refresh_amp_caps(codec, spec->input_pins[i], HDA_INPUT);
 	}
+}
+
+
+/* If there is an active channel for some reason, find it and free it. */
+static void ca0132_alt_free_active_dma_channels(struct hda_codec *codec)
+{
+	unsigned int i, tmp;
+	int status;
+
+	/* Read active DSPDMAC channel register. */
+	status = chipio_read(codec, DSPDMAC_CHNLSTART_MODULE_OFFSET, &tmp);
+	if (status >= 0) {
+		/* AND against 0xfff to get the active channel bits. */
+		tmp = tmp & 0xfff;
+
+		/* If there are no active channels, nothing to free. */
+		if (!tmp)
+			return;
+	} else {
+		codec_dbg(codec, "%s: Failed to read active DSP DMA channel register.\n",
+				__func__);
+		return;
+	}
+
+	/*
+	 * Check each DSP DMA channel for activity, and if the channel is
+	 * active, free it.
+	 */
+	for (i = 0; i < DSPDMAC_DMA_CFG_CHANNEL_COUNT; i++) {
+		if (dsp_is_dma_active(codec, i)) {
+			status = dspio_free_dma_chan(codec, i);
+			if (status < 0)
+				codec_dbg(codec, "%s: Failed to free active DSP DMA channel %d.\n",
+						__func__, i);
+		}
+	}
+}
+
+/*
+ * In the case of CT_EXTENSIONS_ENABLE being set to 1, and the DSP being in
+ * use, audio is no longer routed directly to the DAC/ADC from the HDA stream.
+ * Instead, audio is now routed through the DSP's DMA controllers, which
+ * the DSP is tasked with setting up itself. Through debugging, it seems the
+ * cause of most of the no-audio on startup issues were due to improperly
+ * configured DSP DMA channels.
+ *
+ * Normally, the DSP configures these the first time an HDA audio stream is
+ * started post DSP firmware download. That is why creating a 'dummy' stream
+ * worked in fixing the audio in some cases. This works most of the time, but
+ * sometimes if a stream is started/stopped before the DSP can setup the DMA
+ * configuration registers, it ends up in a broken state. Issues can also
+ * arise if streams are started in an unusual order, i.e the audio output dma
+ * channel being sandwiched between the mic1 and mic2 dma channels.
+ *
+ * The solution to this is to make sure that the DSP has no DMA channels
+ * in use post DSP firmware download, and then to manually start each default
+ * DSP stream that uses the DMA channels. These are 0x0c, the audio output
+ * stream, 0x03, analog mic 1, and 0x04, analog mic 2.
+ */
+static void ca0132_alt_start_dsp_audio_streams(struct hda_codec *codec)
+{
+	const unsigned int dsp_dma_stream_ids[] = { 0x0c, 0x03, 0x04 };
+	struct ca0132_spec *spec = codec->spec;
+	unsigned int i, tmp;
+
+	/*
+	 * Check if any of the default streams are active, and if they are,
+	 * stop them.
+	 */
+	mutex_lock(&spec->chipio_mutex);
+
+	for (i = 0; i < ARRAY_SIZE(dsp_dma_stream_ids); i++) {
+		chipio_get_stream_control(codec, dsp_dma_stream_ids[i], &tmp);
+
+		if (tmp) {
+			chipio_set_stream_control(codec,
+					dsp_dma_stream_ids[i], 0);
+		}
+	}
+
+	mutex_unlock(&spec->chipio_mutex);
+
+	/*
+	 * If all DSP streams are inactive, there should be no active DSP DMA
+	 * channels. Check and make sure this is the case, and if it isn't,
+	 * free any active channels.
+	 */
+	ca0132_alt_free_active_dma_channels(codec);
+
+	mutex_lock(&spec->chipio_mutex);
+
+	/* Make sure stream 0x0c is six channels. */
+	chipio_set_stream_channels(codec, 0x0c, 6);
+
+	for (i = 0; i < ARRAY_SIZE(dsp_dma_stream_ids); i++) {
+		chipio_set_stream_control(codec,
+				dsp_dma_stream_ids[i], 1);
+
+		/* Give the DSP some time to setup the DMA channel. */
+		msleep(75);
+	}
+
+	mutex_unlock(&spec->chipio_mutex);
+}
+
+/*
+ * The region of ChipIO memory from 0x190000-0x1903fc is a sort of 'audio
+ * router', where each entry represents a 48khz audio channel, with a format
+ * of an 8-bit destination, an 8-bit source, and an unknown 2-bit number
+ * value. The 2-bit number value is seemingly 0 if inactive, 1 if active,
+ * and 3 if it's using Sample Rate Converter ports.
+ * An example is:
+ * 0x0001f8c0
+ * In this case, f8 is the destination, and c0 is the source. The number value
+ * is 1.
+ * This region of memory is normally managed internally by the 8051, where
+ * the region of exram memory from 0x1477-0x1575 has each byte represent an
+ * entry within the 0x190000 range, and when a range of entries is in use, the
+ * ending value is overwritten with 0xff.
+ * 0x1578 in exram is a table of 0x25 entries, corresponding to the ChipIO
+ * streamID's, where each entry is a starting 0x190000 port offset.
+ * 0x159d in exram is the same as 0x1578, except it contains the ending port
+ * offset for the corresponding streamID.
+ *
+ * On certain cards, such as the SBZ/ZxR/AE7, these are originally setup by
+ * the 8051, then manually overwritten to remap the ports to work with the
+ * new DACs.
+ *
+ * Currently known portID's:
+ * 0x00-0x1f: HDA audio stream input/output ports.
+ * 0x80-0xbf: Sample rate converter input/outputs. Only valid ports seem to
+ *            have the lower-nibble set to 0x1, 0x2, and 0x9.
+ * 0xc0-0xdf: DSP DMA input/output ports. Dynamically assigned.
+ * 0xe0-0xff: DAC/ADC audio input/output ports.
+ *
+ * Currently known streamID's:
+ * 0x03: Mic1 ADC to DSP.
+ * 0x04: Mic2 ADC to DSP.
+ * 0x05: HDA node 0x02 audio stream to DSP.
+ * 0x0f: DSP Mic exit to HDA node 0x07.
+ * 0x0c: DSP processed audio to DACs.
+ * 0x14: DAC0, front L/R.
+ *
+ * It is possible to route the HDA audio streams directly to the DAC and
+ * bypass the DSP entirely, with the only downside being that since the DSP
+ * does volume control, the only volume control you'll get is through PCM on
+ * the PC side, in the same way volume is handled for optical out. This may be
+ * useful for debugging.
+ */
+static void chipio_remap_stream(struct hda_codec *codec,
+		const struct chipio_stream_remap_data *remap_data)
+{
+	unsigned int i, stream_offset;
+
+	/* Get the starting port for the stream to be remapped. */
+	chipio_8051_read_exram(codec, 0x1578 + remap_data->stream_id,
+			&stream_offset);
+
+	/*
+	 * Check if the stream's port value is 0xff, because the 8051 may not
+	 * have gotten around to setting up the stream yet. Wait until it's
+	 * setup to remap it's ports.
+	 */
+	if (stream_offset == 0xff) {
+		for (i = 0; i < 5; i++) {
+			msleep(25);
+
+			chipio_8051_read_exram(codec, 0x1578 + remap_data->stream_id,
+					&stream_offset);
+
+			if (stream_offset != 0xff)
+				break;
+		}
+	}
+
+	if (stream_offset == 0xff) {
+		codec_info(codec, "%s: Stream 0x%02x ports aren't allocated, remap failed!\n",
+				__func__, remap_data->stream_id);
+		return;
+	}
+
+	/* Offset isn't in bytes, its in 32-bit words, so multiply it by 4. */
+	stream_offset *= 0x04;
+	stream_offset += 0x190000;
+
+	for (i = 0; i < remap_data->count; i++) {
+		chipio_write_no_mutex(codec,
+				stream_offset + remap_data->offset[i],
+				remap_data->value[i]);
+	}
+
+	/* Update stream map configuration. */
+	chipio_write_no_mutex(codec, 0x19042c, 0x00000001);
 }
 
 /*
@@ -7486,24 +7795,6 @@ static void ca0132_alt_init_speaker_tuning(struct hda_codec *codec)
 }
 
 /*
- * Creates a dummy stream to bind the output to. This seems to have to be done
- * after changing the main outputs source and destination streams.
- */
-static void ca0132_alt_create_dummy_stream(struct hda_codec *codec)
-{
-	struct ca0132_spec *spec = codec->spec;
-	unsigned int stream_format;
-
-	stream_format = snd_hdac_calc_stream_format(48000, 2,
-			SNDRV_PCM_FORMAT_S32_LE, 32, 0);
-
-	snd_hda_codec_setup_stream(codec, spec->dacs[0], spec->dsp_stream_id,
-					0, stream_format);
-
-	snd_hda_codec_cleanup_stream(codec, spec->dacs[0]);
-}
-
-/*
  * Initialize mic for non-chromebook ca0132 implementations.
  */
 static void ca0132_alt_init_analog_mics(struct hda_codec *codec)
@@ -7544,9 +7835,6 @@ static void sbz_connect_streams(struct hda_codec *codec)
 
 	codec_dbg(codec, "Connect Streams entered, mutex locked and loaded.\n");
 
-	chipio_set_stream_channels(codec, 0x0C, 6);
-	chipio_set_stream_control(codec, 0x0C, 1);
-
 	/* This value is 0x43 for 96khz, and 0x83 for 192khz. */
 	chipio_write_no_mutex(codec, 0x18a020, 0x00000043);
 
@@ -7570,100 +7858,35 @@ static void sbz_connect_streams(struct hda_codec *codec)
  */
 static void sbz_chipio_startup_data(struct hda_codec *codec)
 {
+	const struct chipio_stream_remap_data *dsp_out_remap_data;
 	struct ca0132_spec *spec = codec->spec;
 
 	mutex_lock(&spec->chipio_mutex);
 	codec_dbg(codec, "Startup Data entered, mutex locked and loaded.\n");
 
-	/* These control audio output */
-	chipio_write_no_mutex(codec, 0x190060, 0x0001f8c0);
-	chipio_write_no_mutex(codec, 0x190064, 0x0001f9c1);
-	chipio_write_no_mutex(codec, 0x190068, 0x0001fac6);
-	chipio_write_no_mutex(codec, 0x19006c, 0x0001fbc7);
-	/* Signal to update I think */
-	chipio_write_no_mutex(codec, 0x19042c, 0x00000001);
+	/* Remap DAC0's output ports. */
+	chipio_remap_stream(codec, &stream_remap_data[0]);
 
-	chipio_set_stream_channels(codec, 0x0C, 6);
-	chipio_set_stream_control(codec, 0x0C, 1);
-	/* No clue what these control */
-	if (ca0132_quirk(spec) == QUIRK_SBZ) {
-		chipio_write_no_mutex(codec, 0x190030, 0x0001e0c0);
-		chipio_write_no_mutex(codec, 0x190034, 0x0001e1c1);
-		chipio_write_no_mutex(codec, 0x190038, 0x0001e4c2);
-		chipio_write_no_mutex(codec, 0x19003c, 0x0001e5c3);
-		chipio_write_no_mutex(codec, 0x190040, 0x0001e2c4);
-		chipio_write_no_mutex(codec, 0x190044, 0x0001e3c5);
-		chipio_write_no_mutex(codec, 0x190048, 0x0001e8c6);
-		chipio_write_no_mutex(codec, 0x19004c, 0x0001e9c7);
-		chipio_write_no_mutex(codec, 0x190050, 0x0001ecc8);
-		chipio_write_no_mutex(codec, 0x190054, 0x0001edc9);
-		chipio_write_no_mutex(codec, 0x190058, 0x0001eaca);
-		chipio_write_no_mutex(codec, 0x19005c, 0x0001ebcb);
-	} else if (ca0132_quirk(spec) == QUIRK_ZXR) {
-		chipio_write_no_mutex(codec, 0x190038, 0x000140c2);
-		chipio_write_no_mutex(codec, 0x19003c, 0x000141c3);
-		chipio_write_no_mutex(codec, 0x190040, 0x000150c4);
-		chipio_write_no_mutex(codec, 0x190044, 0x000151c5);
-		chipio_write_no_mutex(codec, 0x190050, 0x000142c8);
-		chipio_write_no_mutex(codec, 0x190054, 0x000143c9);
-		chipio_write_no_mutex(codec, 0x190058, 0x000152ca);
-		chipio_write_no_mutex(codec, 0x19005c, 0x000153cb);
+	/* Remap DSP audio output stream ports. */
+	switch (ca0132_quirk(spec)) {
+	case QUIRK_SBZ:
+		dsp_out_remap_data = &stream_remap_data[1];
+		break;
+
+	case QUIRK_ZXR:
+		dsp_out_remap_data = &stream_remap_data[2];
+		break;
+
+	default:
+		dsp_out_remap_data = NULL;
+		break;
 	}
-	chipio_write_no_mutex(codec, 0x19042c, 0x00000001);
+
+	if (dsp_out_remap_data)
+		chipio_remap_stream(codec, dsp_out_remap_data);
 
 	codec_dbg(codec, "Startup Data exited, mutex released.\n");
 	mutex_unlock(&spec->chipio_mutex);
-}
-
-/*
- * Custom DSP SCP commands where the src value is 0x00 instead of 0x20. This is
- * done after the DSP is loaded.
- */
-static void ca0132_alt_dsp_scp_startup(struct hda_codec *codec)
-{
-	struct ca0132_spec *spec = codec->spec;
-	unsigned int tmp, i;
-
-	/*
-	 * Gotta run these twice, or else mic works inconsistently. Not clear
-	 * why this is, but multiple tests have confirmed it.
-	 */
-	for (i = 0; i < 2; i++) {
-		switch (ca0132_quirk(spec)) {
-		case QUIRK_SBZ:
-		case QUIRK_AE5:
-		case QUIRK_AE7:
-			tmp = 0x00000003;
-			dspio_set_uint_param_no_source(codec, 0x80, 0x0C, tmp);
-			tmp = 0x00000000;
-			dspio_set_uint_param_no_source(codec, 0x80, 0x0A, tmp);
-			tmp = 0x00000001;
-			dspio_set_uint_param_no_source(codec, 0x80, 0x0B, tmp);
-			tmp = 0x00000004;
-			dspio_set_uint_param_no_source(codec, 0x80, 0x0C, tmp);
-			tmp = 0x00000005;
-			dspio_set_uint_param_no_source(codec, 0x80, 0x0C, tmp);
-			tmp = 0x00000000;
-			dspio_set_uint_param_no_source(codec, 0x80, 0x0C, tmp);
-			break;
-		case QUIRK_R3D:
-		case QUIRK_R3DI:
-			tmp = 0x00000000;
-			dspio_set_uint_param_no_source(codec, 0x80, 0x0A, tmp);
-			tmp = 0x00000001;
-			dspio_set_uint_param_no_source(codec, 0x80, 0x0B, tmp);
-			tmp = 0x00000004;
-			dspio_set_uint_param_no_source(codec, 0x80, 0x0C, tmp);
-			tmp = 0x00000005;
-			dspio_set_uint_param_no_source(codec, 0x80, 0x0C, tmp);
-			tmp = 0x00000000;
-			dspio_set_uint_param_no_source(codec, 0x80, 0x0C, tmp);
-			break;
-		default:
-			break;
-		}
-		msleep(100);
-	}
 }
 
 static void ca0132_alt_dsp_initial_mic_setup(struct hda_codec *codec)
@@ -7702,10 +7925,7 @@ static void ae5_post_dsp_register_set(struct hda_codec *codec)
 	struct ca0132_spec *spec = codec->spec;
 
 	chipio_8051_write_direct(codec, 0x93, 0x10);
-	snd_hda_codec_write(codec, WIDGET_CHIP_CTRL, 0,
-			    VENDOR_CHIPIO_8051_ADDRESS_LOW, 0x44);
-	snd_hda_codec_write(codec, WIDGET_CHIP_CTRL, 0,
-			    VENDOR_CHIPIO_PLL_PMU_WRITE, 0xc2);
+	chipio_8051_write_pll_pmu(codec, 0x44, 0xc2);
 
 	writeb(0xff, spec->mem_base + 0x304);
 	writeb(0xff, spec->mem_base + 0x304);
@@ -7742,40 +7962,16 @@ static void ae5_post_dsp_param_setup(struct hda_codec *codec)
 	snd_hda_codec_write(codec, WIDGET_CHIP_CTRL, 0, 0x724, 0x83);
 	chipio_set_control_param(codec, CONTROL_PARAM_ASI, 0);
 
-	snd_hda_codec_write(codec, WIDGET_CHIP_CTRL, 0,
-			    VENDOR_CHIPIO_8051_ADDRESS_LOW, 0x92);
-	snd_hda_codec_write(codec, WIDGET_CHIP_CTRL, 0,
-			    VENDOR_CHIPIO_8051_ADDRESS_HIGH, 0xfa);
-	snd_hda_codec_write(codec, WIDGET_CHIP_CTRL, 0,
-			    VENDOR_CHIPIO_8051_DATA_WRITE, 0x22);
+	chipio_8051_write_exram(codec, 0xfa92, 0x22);
 }
 
 static void ae5_post_dsp_pll_setup(struct hda_codec *codec)
 {
-	snd_hda_codec_write(codec, WIDGET_CHIP_CTRL, 0,
-			    VENDOR_CHIPIO_8051_ADDRESS_LOW, 0x41);
-	snd_hda_codec_write(codec, WIDGET_CHIP_CTRL, 0,
-			    VENDOR_CHIPIO_PLL_PMU_WRITE, 0xc8);
-
-	snd_hda_codec_write(codec, WIDGET_CHIP_CTRL, 0,
-			    VENDOR_CHIPIO_8051_ADDRESS_LOW, 0x45);
-	snd_hda_codec_write(codec, WIDGET_CHIP_CTRL, 0,
-			    VENDOR_CHIPIO_PLL_PMU_WRITE, 0xcc);
-
-	snd_hda_codec_write(codec, WIDGET_CHIP_CTRL, 0,
-			    VENDOR_CHIPIO_8051_ADDRESS_LOW, 0x40);
-	snd_hda_codec_write(codec, WIDGET_CHIP_CTRL, 0,
-			    VENDOR_CHIPIO_PLL_PMU_WRITE, 0xcb);
-
-	snd_hda_codec_write(codec, WIDGET_CHIP_CTRL, 0,
-			    VENDOR_CHIPIO_8051_ADDRESS_LOW, 0x43);
-	snd_hda_codec_write(codec, WIDGET_CHIP_CTRL, 0,
-			    VENDOR_CHIPIO_PLL_PMU_WRITE, 0xc7);
-
-	snd_hda_codec_write(codec, WIDGET_CHIP_CTRL, 0,
-			    VENDOR_CHIPIO_8051_ADDRESS_LOW, 0x51);
-	snd_hda_codec_write(codec, WIDGET_CHIP_CTRL, 0,
-			    VENDOR_CHIPIO_PLL_PMU_WRITE, 0x8d);
+	chipio_8051_write_pll_pmu(codec, 0x41, 0xc8);
+	chipio_8051_write_pll_pmu(codec, 0x45, 0xcc);
+	chipio_8051_write_pll_pmu(codec, 0x40, 0xcb);
+	chipio_8051_write_pll_pmu(codec, 0x43, 0xc7);
+	chipio_8051_write_pll_pmu(codec, 0x51, 0x8d);
 }
 
 static void ae5_post_dsp_stream_setup(struct hda_codec *codec)
@@ -7788,9 +7984,6 @@ static void ae5_post_dsp_stream_setup(struct hda_codec *codec)
 
 	chipio_set_conn_rate_no_mutex(codec, 0x70, SR_96_000);
 
-	chipio_set_stream_channels(codec, 0x0C, 6);
-	chipio_set_stream_control(codec, 0x0C, 1);
-
 	chipio_set_stream_source_dest(codec, 0x5, 0x43, 0x0);
 
 	chipio_set_stream_source_dest(codec, 0x18, 0x9, 0xd0);
@@ -7800,10 +7993,7 @@ static void ae5_post_dsp_stream_setup(struct hda_codec *codec)
 
 	chipio_set_control_param_no_mutex(codec, CONTROL_PARAM_ASI, 4);
 
-	snd_hda_codec_write(codec, WIDGET_CHIP_CTRL, 0,
-			    VENDOR_CHIPIO_8051_ADDRESS_LOW, 0x43);
-	snd_hda_codec_write(codec, WIDGET_CHIP_CTRL, 0,
-			    VENDOR_CHIPIO_PLL_PMU_WRITE, 0xc7);
+	chipio_8051_write_pll_pmu_no_mutex(codec, 0x43, 0xc7);
 
 	ca0113_mmio_command_set(codec, 0x48, 0x01, 0x80);
 
@@ -7842,34 +8032,14 @@ static void ae5_post_dsp_startup_data(struct hda_codec *codec)
 	mutex_unlock(&spec->chipio_mutex);
 }
 
-static const unsigned int ae7_port_set_data[] = {
-	0x0001e0c0, 0x0001e1c1, 0x0001e4c2, 0x0001e5c3, 0x0001e2c4, 0x0001e3c5,
-	0x0001e8c6, 0x0001e9c7, 0x0001ecc8, 0x0001edc9, 0x0001eaca, 0x0001ebcb
-};
-
 static void ae7_post_dsp_setup_ports(struct hda_codec *codec)
 {
 	struct ca0132_spec *spec = codec->spec;
-	unsigned int i, count, addr;
 
 	mutex_lock(&spec->chipio_mutex);
 
-	chipio_set_stream_channels(codec, 0x0c, 6);
-	chipio_set_stream_control(codec, 0x0c, 1);
-
-	count = ARRAY_SIZE(ae7_port_set_data);
-	addr = 0x190030;
-	for (i = 0; i < count; i++) {
-		chipio_write_no_mutex(codec, addr, ae7_port_set_data[i]);
-
-		/* Addresses are incremented by 4-bytes. */
-		addr += 0x04;
-	}
-
-	/*
-	 * Port setting always ends with a write of 0x1 to address 0x19042c.
-	 */
-	chipio_write_no_mutex(codec, 0x19042c, 0x00000001);
+	/* Seems to share the same port remapping as the SBZ. */
+	chipio_remap_stream(codec, &stream_remap_data[1]);
 
 	ca0113_mmio_command_set(codec, 0x30, 0x30, 0x00);
 	ca0113_mmio_command_set(codec, 0x48, 0x0d, 0x40);
@@ -7893,8 +8063,6 @@ static void ae7_post_dsp_asi_stream_setup(struct hda_codec *codec)
 	ca0113_mmio_command_set(codec, 0x30, 0x2b, 0x00);
 
 	chipio_set_conn_rate_no_mutex(codec, 0x70, SR_96_000);
-	chipio_set_stream_channels(codec, 0x0c, 6);
-	chipio_set_stream_control(codec, 0x0c, 1);
 
 	chipio_set_stream_source_dest(codec, 0x05, 0x43, 0x00);
 	chipio_set_stream_source_dest(codec, 0x18, 0x09, 0xd0);
@@ -7918,12 +8086,8 @@ static void ae7_post_dsp_pll_setup(struct hda_codec *codec)
 	};
 	unsigned int i;
 
-	for (i = 0; i < ARRAY_SIZE(addr); i++) {
-		snd_hda_codec_write(codec, WIDGET_CHIP_CTRL, 0,
-				    VENDOR_CHIPIO_8051_ADDRESS_LOW, addr[i]);
-		snd_hda_codec_write(codec, WIDGET_CHIP_CTRL, 0,
-				    VENDOR_CHIPIO_PLL_PMU_WRITE, data[i]);
-	}
+	for (i = 0; i < ARRAY_SIZE(addr); i++)
+		chipio_8051_write_pll_pmu_no_mutex(codec, addr[i], data[i]);
 }
 
 static void ae7_post_dsp_asi_setup_ports(struct hda_codec *codec)
@@ -7939,10 +8103,7 @@ static void ae7_post_dsp_asi_setup_ports(struct hda_codec *codec)
 
 	mutex_lock(&spec->chipio_mutex);
 
-	snd_hda_codec_write(codec, WIDGET_CHIP_CTRL, 0,
-			    VENDOR_CHIPIO_8051_ADDRESS_LOW, 0x43);
-	snd_hda_codec_write(codec, WIDGET_CHIP_CTRL, 0,
-			    VENDOR_CHIPIO_PLL_PMU_WRITE, 0xc7);
+	chipio_8051_write_pll_pmu_no_mutex(codec, 0x43, 0xc7);
 
 	chipio_write_no_mutex(codec, 0x189000, 0x0001f101);
 	chipio_write_no_mutex(codec, 0x189004, 0x0001f101);
@@ -8015,10 +8176,7 @@ static void ae7_post_dsp_asi_setup(struct hda_codec *codec)
 {
 	chipio_8051_write_direct(codec, 0x93, 0x10);
 
-	snd_hda_codec_write(codec, WIDGET_CHIP_CTRL, 0,
-			    VENDOR_CHIPIO_8051_ADDRESS_LOW, 0x44);
-	snd_hda_codec_write(codec, WIDGET_CHIP_CTRL, 0,
-			    VENDOR_CHIPIO_PLL_PMU_WRITE, 0xc2);
+	chipio_8051_write_pll_pmu(codec, 0x44, 0xc2);
 
 	ca0113_mmio_command_set_type2(codec, 0x48, 0x07, 0x83);
 	ca0113_mmio_command_set(codec, 0x30, 0x2e, 0x3f);
@@ -8030,20 +8188,12 @@ static void ae7_post_dsp_asi_setup(struct hda_codec *codec)
 	chipio_set_control_param(codec, CONTROL_PARAM_ASI, 0);
 	snd_hda_codec_write(codec, 0x17, 0, 0x794, 0x00);
 
-	snd_hda_codec_write(codec, WIDGET_CHIP_CTRL, 0,
-			    VENDOR_CHIPIO_8051_ADDRESS_LOW, 0x92);
-	snd_hda_codec_write(codec, WIDGET_CHIP_CTRL, 0,
-			    VENDOR_CHIPIO_8051_ADDRESS_HIGH, 0xfa);
-	snd_hda_codec_write(codec, WIDGET_CHIP_CTRL, 0,
-			    VENDOR_CHIPIO_8051_DATA_WRITE, 0x22);
+	chipio_8051_write_exram(codec, 0xfa92, 0x22);
 
 	ae7_post_dsp_pll_setup(codec);
 	ae7_post_dsp_asi_stream_setup(codec);
 
-	snd_hda_codec_write(codec, WIDGET_CHIP_CTRL, 0,
-			    VENDOR_CHIPIO_8051_ADDRESS_LOW, 0x43);
-	snd_hda_codec_write(codec, WIDGET_CHIP_CTRL, 0,
-			    VENDOR_CHIPIO_PLL_PMU_WRITE, 0xc7);
+	chipio_8051_write_pll_pmu(codec, 0x43, 0xc7);
 
 	ae7_post_dsp_asi_setup_ports(codec);
 }
@@ -8106,8 +8256,8 @@ static void r3d_setup_defaults(struct hda_codec *codec)
 	if (spec->dsp_state != DSP_DOWNLOADED)
 		return;
 
-	ca0132_alt_dsp_scp_startup(codec);
 	ca0132_alt_init_analog_mics(codec);
+	ca0132_alt_start_dsp_audio_streams(codec);
 
 	/*remove DSP headroom*/
 	tmp = FLOAT_ZERO;
@@ -8156,13 +8306,10 @@ static void sbz_setup_defaults(struct hda_codec *codec)
 	if (spec->dsp_state != DSP_DOWNLOADED)
 		return;
 
-	ca0132_alt_dsp_scp_startup(codec);
 	ca0132_alt_init_analog_mics(codec);
+	ca0132_alt_start_dsp_audio_streams(codec);
 	sbz_connect_streams(codec);
 	sbz_chipio_startup_data(codec);
-
-	chipio_set_stream_control(codec, 0x03, 1);
-	chipio_set_stream_control(codec, 0x04, 1);
 
 	/*
 	 * Sets internal input loopback to off, used to have a switch to
@@ -8198,8 +8345,6 @@ static void sbz_setup_defaults(struct hda_codec *codec)
 	}
 
 	ca0132_alt_init_speaker_tuning(codec);
-
-	ca0132_alt_create_dummy_stream(codec);
 }
 
 /*
@@ -8215,10 +8360,8 @@ static void ae5_setup_defaults(struct hda_codec *codec)
 	if (spec->dsp_state != DSP_DOWNLOADED)
 		return;
 
-	ca0132_alt_dsp_scp_startup(codec);
 	ca0132_alt_init_analog_mics(codec);
-	chipio_set_stream_control(codec, 0x03, 1);
-	chipio_set_stream_control(codec, 0x04, 1);
+	ca0132_alt_start_dsp_audio_streams(codec);
 
 	/* New, unknown SCP req's */
 	tmp = FLOAT_ZERO;
@@ -8267,8 +8410,6 @@ static void ae5_setup_defaults(struct hda_codec *codec)
 	}
 
 	ca0132_alt_init_speaker_tuning(codec);
-
-	ca0132_alt_create_dummy_stream(codec);
 }
 
 /*
@@ -8284,8 +8425,8 @@ static void ae7_setup_defaults(struct hda_codec *codec)
 	if (spec->dsp_state != DSP_DOWNLOADED)
 		return;
 
-	ca0132_alt_dsp_scp_startup(codec);
 	ca0132_alt_init_analog_mics(codec);
+	ca0132_alt_start_dsp_audio_streams(codec);
 	ae7_post_dsp_setup_ports(codec);
 
 	tmp = FLOAT_ZERO;
@@ -8352,8 +8493,6 @@ static void ae7_setup_defaults(struct hda_codec *codec)
 	}
 
 	ca0132_alt_init_speaker_tuning(codec);
-
-	ca0132_alt_create_dummy_stream(codec);
 }
 
 /*
@@ -8544,7 +8683,7 @@ static void amic_callback(struct hda_codec *codec, struct hda_jack_callback *cb)
 		ca0132_select_mic(codec);
 }
 
-static void ca0132_init_unsol(struct hda_codec *codec)
+static void ca0132_setup_unsol(struct hda_codec *codec)
 {
 	struct ca0132_spec *spec = codec->spec;
 	snd_hda_jack_detect_enable_callback(codec, spec->unsol_tag_hp, hp_callback);
@@ -8641,6 +8780,22 @@ static void ca0132_init_chip(struct hda_codec *codec)
 	unsigned int on;
 
 	mutex_init(&spec->chipio_mutex);
+
+	/*
+	 * The Windows driver always does this upon startup, which seems to
+	 * clear out any previous configuration. This should help issues where
+	 * a boot into Windows prior to a boot into Linux breaks things. Also,
+	 * Windows always sends the reset twice.
+	 */
+	if (ca0132_use_alt_functions(spec)) {
+		chipio_set_control_flag(codec, CONTROL_FLAG_IDLE_ENABLE, 0);
+		chipio_write_no_mutex(codec, 0x18b0a4, 0x000000c2);
+
+		snd_hda_codec_write(codec, codec->core.afg, 0,
+			    AC_VERB_SET_CODEC_RESET, 0);
+		snd_hda_codec_write(codec, codec->core.afg, 0,
+			    AC_VERB_SET_CODEC_RESET, 0);
+	}
 
 	spec->cur_out_type = SPEAKER_OUT;
 	if (!ca0132_use_alt_functions(spec))
@@ -9013,12 +9168,7 @@ static void r3d_pre_dsp_setup(struct hda_codec *codec)
 {
 	chipio_write(codec, 0x18b0a4, 0x000000c2);
 
-	snd_hda_codec_write(codec, WIDGET_CHIP_CTRL, 0,
-			    VENDOR_CHIPIO_8051_ADDRESS_LOW, 0x1E);
-	snd_hda_codec_write(codec, WIDGET_CHIP_CTRL, 0,
-			    VENDOR_CHIPIO_8051_ADDRESS_HIGH, 0x1C);
-	snd_hda_codec_write(codec, WIDGET_CHIP_CTRL, 0,
-			    VENDOR_CHIPIO_8051_DATA_WRITE, 0x5B);
+	chipio_8051_write_exram(codec, 0x1c1e, 0x5b);
 
 	snd_hda_codec_write(codec, 0x11, 0,
 			AC_VERB_SET_PIN_WIDGET_CONTROL, 0x44);
@@ -9028,24 +9178,50 @@ static void r3di_pre_dsp_setup(struct hda_codec *codec)
 {
 	chipio_write(codec, 0x18b0a4, 0x000000c2);
 
-	snd_hda_codec_write(codec, WIDGET_CHIP_CTRL, 0,
-			    VENDOR_CHIPIO_8051_ADDRESS_LOW, 0x1E);
-	snd_hda_codec_write(codec, WIDGET_CHIP_CTRL, 0,
-			    VENDOR_CHIPIO_8051_ADDRESS_HIGH, 0x1C);
-	snd_hda_codec_write(codec, WIDGET_CHIP_CTRL, 0,
-			    VENDOR_CHIPIO_8051_DATA_WRITE, 0x5B);
-
-	snd_hda_codec_write(codec, WIDGET_CHIP_CTRL, 0,
-			    VENDOR_CHIPIO_8051_ADDRESS_LOW, 0x20);
-	snd_hda_codec_write(codec, WIDGET_CHIP_CTRL, 0,
-			    VENDOR_CHIPIO_8051_ADDRESS_HIGH, 0x19);
-	snd_hda_codec_write(codec, WIDGET_CHIP_CTRL, 0,
-			    VENDOR_CHIPIO_8051_DATA_WRITE, 0x00);
-	snd_hda_codec_write(codec, WIDGET_CHIP_CTRL, 0,
-			    VENDOR_CHIPIO_8051_DATA_WRITE, 0x40);
+	chipio_8051_write_exram(codec, 0x1c1e, 0x5b);
+	chipio_8051_write_exram(codec, 0x1920, 0x00);
+	chipio_8051_write_exram(codec, 0x1921, 0x40);
 
 	snd_hda_codec_write(codec, 0x11, 0,
 			AC_VERB_SET_PIN_WIDGET_CONTROL, 0x04);
+}
+
+/*
+ * The ZxR seems to use alternative DAC's for the surround channels, which
+ * require PLL PMU setup for the clock rate, I'm guessing. Without setting
+ * this up, we get no audio out of the surround jacks.
+ */
+static void zxr_pre_dsp_setup(struct hda_codec *codec)
+{
+	static const unsigned int addr[] = { 0x43, 0x40, 0x41, 0x42, 0x45 };
+	static const unsigned int data[] = { 0x08, 0x0c, 0x0b, 0x07, 0x0d };
+	unsigned int i;
+
+	chipio_write(codec, 0x189000, 0x0001f100);
+	msleep(50);
+	chipio_write(codec, 0x18900c, 0x0001f100);
+	msleep(50);
+
+	/*
+	 * This writes a RET instruction at the entry point of the function at
+	 * 0xfa92 in exram. This function seems to have something to do with
+	 * ASI. Might be some way to prevent the card from reconfiguring the
+	 * ASI stuff itself.
+	 */
+	chipio_8051_write_exram(codec, 0xfa92, 0x22);
+
+	chipio_8051_write_pll_pmu(codec, 0x51, 0x98);
+
+	snd_hda_codec_write(codec, WIDGET_CHIP_CTRL, 0, 0x725, 0x82);
+	chipio_set_control_param(codec, CONTROL_PARAM_ASI, 3);
+
+	chipio_write(codec, 0x18902c, 0x00000000);
+	msleep(50);
+	chipio_write(codec, 0x18902c, 0x00000003);
+	msleep(50);
+
+	for (i = 0; i < ARRAY_SIZE(addr); i++)
+		chipio_8051_write_pll_pmu(codec, addr[i], data[i]);
 }
 
 /*
@@ -9212,18 +9388,11 @@ static void ae5_register_set(struct hda_codec *codec)
 	unsigned int i, cur_addr;
 	unsigned char tmp[3];
 
-	if (ca0132_quirk(spec) == QUIRK_AE7) {
-		snd_hda_codec_write(codec, WIDGET_CHIP_CTRL, 0,
-				    VENDOR_CHIPIO_8051_ADDRESS_LOW, 0x41);
-		snd_hda_codec_write(codec, WIDGET_CHIP_CTRL, 0,
-				    VENDOR_CHIPIO_PLL_PMU_WRITE, 0xc8);
-	}
+	if (ca0132_quirk(spec) == QUIRK_AE7)
+		chipio_8051_write_pll_pmu(codec, 0x41, 0xc8);
 
 	chipio_8051_write_direct(codec, 0x93, 0x10);
-	snd_hda_codec_write(codec, WIDGET_CHIP_CTRL, 0,
-			    VENDOR_CHIPIO_8051_ADDRESS_LOW, 0x44);
-	snd_hda_codec_write(codec, WIDGET_CHIP_CTRL, 0,
-			    VENDOR_CHIPIO_PLL_PMU_WRITE, 0xc2);
+	chipio_8051_write_pll_pmu(codec, 0x44, 0xc2);
 
 	if (ca0132_quirk(spec) == QUIRK_AE7) {
 		tmp[0] = 0x03;
@@ -9262,11 +9431,6 @@ static void ae5_register_set(struct hda_codec *codec)
 
 	if (ca0132_quirk(spec) == QUIRK_AE5)
 		ca0113_mmio_command_set(codec, 0x48, 0x07, 0x83);
-
-	chipio_write(codec, 0x18b0a4, 0x000000c2);
-
-	snd_hda_codec_write(codec, 0x01, 0, 0x7ff, 0x00);
-	snd_hda_codec_write(codec, 0x01, 0, 0x7ff, 0x00);
 }
 
 /*
@@ -9304,10 +9468,7 @@ static void ca0132_alt_init(struct hda_codec *codec)
 		break;
 	case QUIRK_AE5:
 		ca0132_gpio_init(codec);
-		snd_hda_codec_write(codec, WIDGET_CHIP_CTRL, 0,
-				VENDOR_CHIPIO_8051_ADDRESS_LOW, 0x49);
-		snd_hda_codec_write(codec, WIDGET_CHIP_CTRL, 0,
-				VENDOR_CHIPIO_PLL_PMU_WRITE, 0x88);
+		chipio_8051_write_pll_pmu(codec, 0x49, 0x88);
 		chipio_write(codec, 0x18b030, 0x00000020);
 		snd_hda_sequence_write(codec, spec->chip_init_verbs);
 		snd_hda_sequence_write(codec, spec->desktop_init_verbs);
@@ -9315,10 +9476,7 @@ static void ca0132_alt_init(struct hda_codec *codec)
 		break;
 	case QUIRK_AE7:
 		ca0132_gpio_init(codec);
-		snd_hda_codec_write(codec, WIDGET_CHIP_CTRL, 0,
-				VENDOR_CHIPIO_8051_ADDRESS_LOW, 0x49);
-		snd_hda_codec_write(codec, WIDGET_CHIP_CTRL, 0,
-				VENDOR_CHIPIO_PLL_PMU_WRITE, 0x88);
+		chipio_8051_write_pll_pmu(codec, 0x49, 0x88);
 		snd_hda_sequence_write(codec, spec->chip_init_verbs);
 		snd_hda_sequence_write(codec, spec->desktop_init_verbs);
 		chipio_write(codec, 0x18b008, 0x000000f8);
@@ -9327,8 +9485,10 @@ static void ca0132_alt_init(struct hda_codec *codec)
 		ca0113_mmio_command_set(codec, 0x30, 0x32, 0x3f);
 		break;
 	case QUIRK_ZXR:
+		chipio_8051_write_pll_pmu(codec, 0x49, 0x88);
 		snd_hda_sequence_write(codec, spec->chip_init_verbs);
 		snd_hda_sequence_write(codec, spec->desktop_init_verbs);
+		zxr_pre_dsp_setup(codec);
 		break;
 	default:
 		break;
@@ -9376,7 +9536,6 @@ static int ca0132_init(struct hda_codec *codec)
 	if (ca0132_quirk(spec) == QUIRK_AE5 || ca0132_quirk(spec) == QUIRK_AE7)
 		ae5_register_set(codec);
 
-	ca0132_init_unsol(codec);
 	ca0132_init_params(codec);
 	ca0132_init_flags(codec);
 
@@ -9940,6 +10099,8 @@ static int patch_ca0132(struct hda_codec *codec)
 	err = snd_hda_parse_pin_def_config(codec, &spec->autocfg, NULL);
 	if (err < 0)
 		goto error;
+
+	ca0132_setup_unsol(codec);
 
 	return 0;
 

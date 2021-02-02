@@ -21,13 +21,6 @@ extern int lv1_get_logical_ppe_id(u64 *out_1);
 extern int lv1_get_repository_node_value(u64 in_1, u64 in_2, u64 in_3,
 	u64 in_4, u64 in_5, u64 *out_1, u64 *out_2);
 
-#ifdef DEBUG
-#define DBG(fmt...) printf(fmt)
-#else
-static inline int __attribute__ ((format (printf, 1, 2))) DBG(
-	const char *fmt, ...) {return 0;}
-#endif
-
 BSS_STACK(4096);
 
 /* A buffer that may be edited by tools operating on a zImage binary so as to

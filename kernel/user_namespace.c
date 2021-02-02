@@ -111,7 +111,7 @@ int create_user_ns(struct cred *new)
 		goto fail_free;
 	ns->ns.ops = &userns_operations;
 
-	atomic_set(&ns->count, 1);
+	refcount_set(&ns->ns.count, 1);
 	/* Leave the new->user_ns reference with the new user namespace. */
 	ns->parent = parent_ns;
 	ns->level = parent_ns->level + 1;
@@ -197,7 +197,7 @@ static void free_user_ns(struct work_struct *work)
 		kmem_cache_free(user_ns_cachep, ns);
 		dec_user_namespaces(ucounts);
 		ns = parent;
-	} while (atomic_dec_and_test(&parent->count));
+	} while (refcount_dec_and_test(&parent->ns.count));
 }
 
 void __put_user_ns(struct user_namespace *ns)

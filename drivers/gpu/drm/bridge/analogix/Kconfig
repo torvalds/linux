@@ -25,3 +25,12 @@ config DRM_ANALOGIX_ANX78XX
 config DRM_ANALOGIX_DP
 	tristate
 	depends on DRM
+
+config DRM_ANALOGIX_ANX7625
+	tristate "Analogix Anx7625 MIPI to DP interface support"
+	depends on DRM
+	depends on OF
+	help
+	  ANX7625 is an ultra-low power 4K mobile HD transmitter
+	  designed for portable devices. It converts MIPI/DPI to
+	  DisplayPort1.3 4K.

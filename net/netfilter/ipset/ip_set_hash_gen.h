@@ -37,18 +37,18 @@
  */
 
 /* Number of elements to store in an initial array block */
-#define AHASH_INIT_SIZE			4
+#define AHASH_INIT_SIZE			2
 /* Max number of elements to store in an array block */
-#define AHASH_MAX_SIZE			(3 * AHASH_INIT_SIZE)
+#define AHASH_MAX_SIZE			(6 * AHASH_INIT_SIZE)
 /* Max muber of elements in the array block when tuned */
 #define AHASH_MAX_TUNED			64
 
+#define AHASH_MAX(h)			((h)->bucketsize)
+
 /* Max number of elements can be tuned */
 #ifdef IP_SET_HASH_WITH_MULTI
-#define AHASH_MAX(h)			((h)->ahash_max)
-
 static u8
-tune_ahash_max(u8 curr, u32 multi)
+tune_bucketsize(u8 curr, u32 multi)
 {
 	u32 n;
 
@@ -61,12 +61,10 @@ tune_ahash_max(u8 curr, u32 multi)
 	 */
 	return n > curr && n <= AHASH_MAX_TUNED ? n : curr;
 }
-
-#define TUNE_AHASH_MAX(h, multi)	\
-	((h)->ahash_max = tune_ahash_max((h)->ahash_max, multi))
+#define TUNE_BUCKETSIZE(h, multi)	\
+	((h)->bucketsize = tune_bucketsize((h)->bucketsize, multi))
 #else
-#define AHASH_MAX(h)			AHASH_MAX_SIZE
-#define TUNE_AHASH_MAX(h, multi)
+#define TUNE_BUCKETSIZE(h, multi)
 #endif
 
 /* A hash bucket */
@@ -321,9 +319,7 @@ struct htype {
 #ifdef IP_SET_HASH_WITH_MARKMASK
 	u32 markmask;		/* markmask value for mark mask to store */
 #endif
-#ifdef IP_SET_HASH_WITH_MULTI
-	u8 ahash_max;		/* max elements in an array block */
-#endif
+	u8 bucketsize;		/* max elements in an array block */
 #ifdef IP_SET_HASH_WITH_NETMASK
 	u8 netmask;		/* netmask value for subnets to store */
 #endif
@@ -950,7 +946,7 @@ mtype_add(struct ip_set *set, void *value, const struct ip_set_ext *ext,
 		goto set_full;
 	/* Create a new slot */
 	if (n->pos >= n->size) {
-		TUNE_AHASH_MAX(h, multi);
+		TUNE_BUCKETSIZE(h, multi);
 		if (n->size >= AHASH_MAX(h)) {
 			/* Trigger rehashing */
 			mtype_data_next(&h->next, d);
@@ -1305,6 +1301,11 @@ mtype_head(struct ip_set *set, struct sk_buff *skb)
 	if (nla_put_u32(skb, IPSET_ATTR_MARKMASK, h->markmask))
 		goto nla_put_failure;
 #endif
+	if (set->flags & IPSET_CREATE_FLAG_BUCKETSIZE) {
+		if (nla_put_u8(skb, IPSET_ATTR_BUCKETSIZE, h->bucketsize) ||
+		    nla_put_net32(skb, IPSET_ATTR_INITVAL, htonl(h->initval)))
+			goto nla_put_failure;
+	}
 	if (nla_put_net32(skb, IPSET_ATTR_REFERENCES, htonl(set->ref)) ||
 	    nla_put_net32(skb, IPSET_ATTR_MEMSIZE, htonl(memsize)) ||
 	    nla_put_net32(skb, IPSET_ATTR_ELEMENTS, htonl(elements)))
@@ -1547,8 +1548,20 @@ IPSET_TOKEN(HTYPE, _create)(struct net *net, struct ip_set *set,
 #ifdef IP_SET_HASH_WITH_MARKMASK
 	h->markmask = markmask;
 #endif
-	get_random_bytes(&h->initval, sizeof(h->initval));
-
+	if (tb[IPSET_ATTR_INITVAL])
+		h->initval = ntohl(nla_get_be32(tb[IPSET_ATTR_INITVAL]));
+	else
+		get_random_bytes(&h->initval, sizeof(h->initval));
+	h->bucketsize = AHASH_MAX_SIZE;
+	if (tb[IPSET_ATTR_BUCKETSIZE]) {
+		h->bucketsize = nla_get_u8(tb[IPSET_ATTR_BUCKETSIZE]);
+		if (h->bucketsize < AHASH_INIT_SIZE)
+			h->bucketsize = AHASH_INIT_SIZE;
+		else if (h->bucketsize > AHASH_MAX_SIZE)
+			h->bucketsize = AHASH_MAX_SIZE;
+		else if (h->bucketsize % 2)
+			h->bucketsize += 1;
+	}
 	t->htable_bits = hbits;
 	t->maxelem = h->maxelem / ahash_numof_locks(hbits);
 	RCU_INIT_POINTER(h->table, t);

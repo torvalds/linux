@@ -102,8 +102,6 @@ int main(int argc, char *argv[])
 	/* Create VM */
 	vm = vm_create_default(VCPU_ID, 0, guest_code);
 
-	vcpu_set_cpuid(vm, VCPU_ID, kvm_get_supported_cpuid());
-
 	run = vcpu_state(vm, VCPU_ID);
 
 	vm_userspace_mem_region_add(vm, VM_MEM_SRC_ANONYMOUS, SMRAM_GPA,

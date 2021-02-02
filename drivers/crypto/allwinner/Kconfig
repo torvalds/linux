@@ -43,7 +43,7 @@ config CRYPTO_DEV_SUN8I_CE
 	depends on CRYPTO_DEV_ALLWINNER
 	depends on PM
 	help
-	  Select y here to have support for the crypto Engine availlable on
+	  Select y here to have support for the crypto Engine available on
 	  Allwinner SoC H2+, H3, H5, H6, R40 and A64.
 	  The Crypto Engine handle AES/3DES ciphers in ECB/CBC mode.
 

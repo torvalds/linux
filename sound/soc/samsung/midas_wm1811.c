@@ -531,7 +531,6 @@ static struct platform_driver midas_driver = {
 	.driver = {
 		.name = "midas-audio",
 		.of_match_table = midas_of_match,
-		.owner = THIS_MODULE,
 		.pm = &snd_soc_pm_ops,
 	},
 	.probe = midas_probe,

@@ -2148,11 +2148,13 @@ static const struct i2c_device_id max98095_i2c_id[] = {
 };
 MODULE_DEVICE_TABLE(i2c, max98095_i2c_id);
 
+#ifdef CONFIG_OF
 static const struct of_device_id max98095_of_match[] = {
 	{ .compatible = "maxim,max98095", },
 	{ }
 };
 MODULE_DEVICE_TABLE(of, max98095_of_match);
+#endif
 
 static struct i2c_driver max98095_i2c_driver = {
 	.driver = {

@@ -234,6 +234,8 @@ struct dc_panel_patch {
 	unsigned int delay_ignore_msa;
 	unsigned int disable_fec;
 	unsigned int extra_t3_ms;
+	unsigned int max_dsc_target_bpp_limit;
+	unsigned int skip_avmute;
 };
 
 struct dc_edid_caps {
@@ -479,7 +481,6 @@ enum display_content_type {
 	DISPLAY_CONTENT_TYPE_GAME = 8
 };
 
-#if defined(CONFIG_DRM_AMD_DC_DCN3_0)
 enum cm_gamut_adjust_type {
 	CM_GAMUT_ADJUST_TYPE_BYPASS = 0,
 	CM_GAMUT_ADJUST_TYPE_HW, /* without adjustments */
@@ -491,7 +492,7 @@ struct cm_grph_csc_adjustment {
 	enum cm_gamut_adjust_type gamut_adjust_type;
 	enum cm_gamut_coef_format gamut_coef_format;
 };
-#endif
+
 /* writeback */
 struct dwb_stereo_params {
 	bool				stereo_enabled;		/* false: normal mode, true: 3D stereo */
@@ -509,21 +510,17 @@ struct dc_dwb_cnv_params {
 	unsigned int		crop_x;		/* cropped window start x value at cnv output */
 	unsigned int		crop_y;		/* cropped window start y value at cnv output */
 	enum dwb_cnv_out_bpc cnv_out_bpc;	/* cnv output pixel depth - 8bpc or 10bpc */
-#if defined(CONFIG_DRM_AMD_DC_DCN3_0)
 	enum dwb_out_format	fc_out_format;	/* dwb output pixel format - 2101010 or 16161616 and ARGB or RGBA */
 	enum dwb_out_denorm	out_denorm_mode;/* dwb output denormalization mode */
 	unsigned int		out_max_pix_val;/* pixel values greater than out_max_pix_val are clamped to out_max_pix_val */
 	unsigned int		out_min_pix_val;/* pixel values less than out_min_pix_val are clamped to out_min_pix_val */
-#endif
 };
 
 struct dc_dwb_params {
-#if defined(CONFIG_DRM_AMD_DC_DCN3_0)
 	unsigned int			dwbscl_black_color; /* must be in FP1.5.10 */
 	unsigned int			hdr_mult;	/* must be in FP1.6.12 */
 	struct cm_grph_csc_adjustment	csc_params;
 	struct dwb_stereo_params	stereo_params;
-#endif
 	struct dc_dwb_cnv_params	cnv_params;	/* CNV source size and cropping window parameters */
 	unsigned int			dest_width;	/* Destination width */
 	unsigned int			dest_height;	/* Destination height */
@@ -674,6 +671,25 @@ struct dc_plane_flip_time {
 	unsigned int prev_update_time_in_us;
 };
 
+enum dc_psr_state {
+	PSR_STATE0 = 0x0,
+	PSR_STATE1,
+	PSR_STATE1a,
+	PSR_STATE2,
+	PSR_STATE2a,
+	PSR_STATE3,
+	PSR_STATE3Init,
+	PSR_STATE4,
+	PSR_STATE4a,
+	PSR_STATE4b,
+	PSR_STATE4c,
+	PSR_STATE4d,
+	PSR_STATE5,
+	PSR_STATE5a,
+	PSR_STATE5b,
+	PSR_STATE5c
+};
+
 struct psr_config {
 	unsigned char psr_version;
 	unsigned int psr_rfb_setup_time;
@@ -681,6 +697,7 @@ struct psr_config {
 	bool psr_frame_capture_indication_req;
 	unsigned int psr_sdp_transmit_line_num_deadline;
 	bool allow_smu_optimizations;
+	bool allow_multi_disp_optimizations;
 };
 
 union dmcu_psr_level {
@@ -783,6 +800,7 @@ struct psr_context {
 	 */
 	unsigned int frame_delay;
 	bool allow_smu_optimizations;
+	bool allow_multi_disp_optimizations;
 };
 
 struct colorspace_transform {
@@ -904,8 +922,6 @@ struct dc_golden_table {
 	uint32_t dc_gpio_aux_ctrl_5_val;
 };
 
-
-#if defined(CONFIG_DRM_AMD_DC_DCN3_0)
 enum dc_gpu_mem_alloc_type {
 	DC_MEM_ALLOC_TYPE_GART,
 	DC_MEM_ALLOC_TYPE_FRAME_BUFFER,
@@ -913,7 +929,6 @@ enum dc_gpu_mem_alloc_type {
 	DC_MEM_ALLOC_TYPE_AGP
 };
 
-#endif
 enum dc_psr_version {
 	DC_PSR_VERSION_1			= 0,
 	DC_PSR_VERSION_UNSUPPORTED		= 0xFFFFFFFF,

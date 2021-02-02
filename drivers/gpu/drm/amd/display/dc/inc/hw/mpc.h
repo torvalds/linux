@@ -32,11 +32,7 @@
 #define MAX_MPCC 6
 #define MAX_OPP 6
 
-#if defined(CONFIG_DRM_AMD_DC_DCN3_0)
 #define MAX_DWB		2
-#else
-#define MAX_DWB		1
-#endif
 
 enum mpc_output_csc_mode {
 	MPC_OUTPUT_CSC_DISABLE = 0,
@@ -77,12 +73,11 @@ struct mpcc_blnd_cfg {
 	int bottom_outside_gain;
 };
 
-#if defined(CONFIG_DRM_AMD_DC_DCN3_0)
 struct mpc_grph_gamut_adjustment {
 	struct fixed31_32 temperature_matrix[CSC_TEMPERATURE_MATRIX_SIZE];
 	enum graphics_gamut_adjust_type gamut_adjust_type;
 };
-#endif
+
 struct mpcc_sm_cfg {
 	bool enable;
 	/* 0-single plane,2-row subsampling,4-column subsampling,6-checkboard subsampling */
@@ -106,13 +101,12 @@ struct mpc_denorm_clamp {
 	int clamp_min_b_cb;
 };
 
-#if defined(CONFIG_DRM_AMD_DC_DCN3_0)
 struct mpc_dwb_flow_control {
 	int flow_ctrl_mode;
 	int flow_ctrl_cnt0;
 	int flow_ctrl_cnt1;
 };
-#endif
+
 /*
  * MPCC connection and blending configuration for a single MPCC instance.
  * This struct is used as a node in an MPC tree.
@@ -123,9 +117,7 @@ struct mpcc {
 	struct mpcc *mpcc_bot;		/* pointer to bottom layer MPCC.  NULL when not connected */
 	struct mpcc_blnd_cfg blnd_cfg;	/* The blending configuration for this MPCC */
 	struct mpcc_sm_cfg sm_cfg;	/* stereo mix setting for this MPCC */
-#if defined(CONFIG_DRM_AMD_DC_DCN3_0)
 	bool shared_bottom;		/* TRUE if MPCC output to both OPP and DWB endpoints, else FALSE */
-#endif
 };
 
 /*
@@ -247,7 +239,6 @@ struct mpc_funcs {
 			int opp_id,
 			bool lock);
 
-#if defined(CONFIG_DRM_AMD_DC_DCN3_0)
 	/*
 	 * Add DPP into 'secondary' MPC tree based on specified blending position.
 	 * Only used for planes that are part of blending chain for DWB output
@@ -290,7 +281,6 @@ struct mpc_funcs {
 	struct mpcc* (*get_mpcc_for_dpp_from_secondary)(
 			struct mpc_tree *tree,
 			int dpp_id);
-#endif
 	struct mpcc* (*get_mpcc_for_dpp)(
 			struct mpc_tree *tree,
 			int dpp_id);
@@ -330,7 +320,6 @@ struct mpc_funcs {
 			struct mpc *mpc,
 			int mpcc_id,
 			bool power_on);
-#if defined(CONFIG_DRM_AMD_DC_DCN3_0)
 	void (*set_dwb_mux)(
 			struct mpc *mpc,
 			int dwb_id,
@@ -350,9 +339,7 @@ struct mpc_funcs {
 		bool enable,
 		bool rate_2x_mode,
 		struct mpc_dwb_flow_control *flow_control);
-#endif
 
-#if defined(CONFIG_DRM_AMD_DC_DCN3_0)
 	void (*set_gamut_remap)(
 			struct mpc *mpc,
 			int mpcc_id,
@@ -372,7 +359,9 @@ struct mpc_funcs {
 
 	int (*release_rmu)(struct mpc *mpc, int mpcc_id);
 
-#endif
+	unsigned int (*get_mpc_out_mux)(
+			struct mpc *mpc,
+			int opp_id);
 
 };
 

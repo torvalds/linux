@@ -54,7 +54,7 @@ static const unsigned char scan_rate_list[] = { 2, 4, 11, 22,
 
 /**
  * prism54_mib_mode_helper - MIB change mode helper function
- * @mib: the &struct islpci_mib object to modify
+ * @priv: the &struct islpci_private object to modify
  * @iw_mode: new mode (%IW_MODE_*)
  *
  *  This is a helper function, hence it does not lock. Make sure
@@ -114,14 +114,13 @@ prism54_mib_mode_helper(islpci_private *priv, u32 iw_mode)
 	return 0;
 }
 
-/**
+/*
  * prism54_mib_init - fill MIB cache with defaults
  *
  *  this function initializes the struct given as @mib with defaults,
  *  of which many are retrieved from the global module parameter
  *  variables.
  */
-
 void
 prism54_mib_init(islpci_private *priv)
 {

@@ -906,7 +906,7 @@ static void uio_device_release(struct device *dev)
 }
 
 /**
- * uio_register_device - register a new userspace IO device
+ * __uio_register_device - register a new userspace IO device
  * @owner:	module that creates the new device
  * @parent:	parent device
  * @info:	UIO device capabilities
@@ -1002,7 +1002,7 @@ static void devm_uio_unregister_device(struct device *dev, void *res)
 }
 
 /**
- * devm_uio_register_device - Resource managed uio_register_device()
+ * __devm_uio_register_device - Resource managed uio_register_device()
  * @owner:	module that creates the new device
  * @parent:	parent device
  * @info:	UIO device capabilities

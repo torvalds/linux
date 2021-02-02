@@ -46,15 +46,6 @@ patternProperties:
         description:
           Contains the native Ready/Busy IDs.
 
-      nand-ecc-mode:
-        description:
-          Desired ECC engine, either hardware (most of the time
-          embedded in the NAND controller) or software correction
-          (Linux will handle the calculations). soft_bch is deprecated
-          and should be replaced by soft and nand-ecc-algo.
-        $ref: /schemas/types.yaml#/definitions/string
-        enum: [none, soft, hw, hw_syndrome, hw_oob_first, on-die]
-
       nand-ecc-engine:
         allOf:
           - $ref: /schemas/types.yaml#/definitions/phandle
@@ -171,7 +162,7 @@ examples:
 
       nand@0 {
         reg = <0>;
-        nand-ecc-mode = "soft";
+        nand-use-soft-ecc-engine;
         nand-ecc-algo = "bch";
 
         /* controller specific properties */

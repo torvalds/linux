@@ -113,7 +113,7 @@ static void arm_spe_dump(struct arm_spe *spe __maybe_unused,
 		if (ret > 0) {
 			ret = arm_spe_pkt_desc(&packet, desc,
 					       ARM_SPE_PKT_DESC_MAX);
-			if (ret > 0)
+			if (!ret)
 				color_fprintf(stdout, color, " %s\n", desc);
 		} else {
 			color_fprintf(stdout, color, " Bad packet!\n");

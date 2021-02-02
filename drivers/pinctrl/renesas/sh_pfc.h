@@ -34,10 +34,10 @@ enum {
 #define SH_PFC_PIN_CFG_NO_GPIO		(1 << 31)
 
 struct sh_pfc_pin {
-	u16 pin;
-	u16 enum_id;
 	const char *name;
 	unsigned int configs;
+	u16 pin;
+	u16 enum_id;
 };
 
 #define SH_PFC_PIN_GROUP_ALIAS(alias, n)		\
@@ -270,8 +270,13 @@ struct sh_pfc_soc_info {
 	const char *name;
 	const struct sh_pfc_soc_operations *ops;
 
+#ifdef CONFIG_PINCTRL_SH_PFC_GPIO
 	struct pinmux_range input;
 	struct pinmux_range output;
+	const struct pinmux_irq *gpio_irq;
+	unsigned int gpio_irq_size;
+#endif
+
 	struct pinmux_range function;
 
 	const struct sh_pfc_pin *pins;
@@ -294,9 +299,6 @@ struct sh_pfc_soc_info {
 
 	const u16 *pinmux_data;
 	unsigned int pinmux_data_size;
-
-	const struct pinmux_irq *gpio_irq;
-	unsigned int gpio_irq_size;
 
 	u32 unlock_reg;
 };

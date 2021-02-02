@@ -1383,6 +1383,7 @@ static long check_bp_loc(unsigned long addr)
 	return 1;
 }
 
+#ifndef CONFIG_PPC_8xx
 static int find_free_data_bpt(void)
 {
 	int i;
@@ -1394,6 +1395,7 @@ static int find_free_data_bpt(void)
 	printf("Couldn't find free breakpoint register\n");
 	return -1;
 }
+#endif
 
 static void print_data_bpts(void)
 {
@@ -1745,9 +1747,9 @@ static void print_bug_trap(struct pt_regs *regs)
 
 #ifdef CONFIG_DEBUG_BUGVERBOSE
 	printf("kernel BUG at %s:%u!\n",
-	       bug->file, bug->line);
+	       (char *)bug + bug->file_disp, bug->line);
 #else
-	printf("kernel BUG at %px!\n", (void *)bug->bug_addr);
+	printf("kernel BUG at %px!\n", (void *)bug + bug->bug_addr_disp);
 #endif
 #endif /* CONFIG_BUG */
 }

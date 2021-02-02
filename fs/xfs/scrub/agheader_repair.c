@@ -829,8 +829,6 @@ xrep_agi_calc_from_btrees(
 
 		cur = xfs_inobt_init_cursor(mp, sc->tp, agi_bp, sc->sa.agno,
 				XFS_BTNUM_FINO);
-		if (error)
-			goto err;
 		error = xfs_btree_count_blocks(cur, &blocks);
 		if (error)
 			goto err;

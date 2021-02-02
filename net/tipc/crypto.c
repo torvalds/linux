@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0
-/**
+/*
  * net/tipc/crypto.c: TIPC crypto for key handling & packet en/decryption
  *
  * Copyright (c) 2019, Ericsson AB
@@ -51,7 +51,7 @@
 
 #define TIPC_REKEYING_INTV_DEF	(60 * 24) /* default: 1 day */
 
-/**
+/*
  * TIPC Key ids
  */
 enum {
@@ -63,7 +63,7 @@ enum {
 	KEY_MAX = KEY_3,
 };
 
-/**
+/*
  * TIPC Crypto statistics
  */
 enum {
@@ -90,7 +90,7 @@ int sysctl_tipc_max_tfms __read_mostly = TIPC_MAX_TFMS_DEF;
 /* Key exchange switch, default: on */
 int sysctl_tipc_key_exchange_enabled __read_mostly = 1;
 
-/**
+/*
  * struct tipc_key - TIPC keys' status indicator
  *
  *         7     6     5     4     3     2     1     0
@@ -123,6 +123,8 @@ struct tipc_key {
 
 /**
  * struct tipc_tfm - TIPC TFM structure to form a list of TFMs
+ * @tfm: cipher handle/key
+ * @list: linked list of TFMs
  */
 struct tipc_tfm {
 	struct crypto_aead *tfm;
@@ -138,7 +140,7 @@ struct tipc_tfm {
  * @salt: the key's SALT value
  * @authsize: authentication tag size (max = 16)
  * @mode: crypto mode is applied to the key
- * @hint[]: a hint for user key
+ * @hint: a hint for user key
  * @rcu: struct rcu_head
  * @key: the aead key
  * @gen: the key's generation
@@ -166,6 +168,7 @@ struct tipc_aead {
 
 /**
  * struct tipc_crypto_stats - TIPC Crypto statistics
+ * @stat: array of crypto statistics
  */
 struct tipc_crypto_stats {
 	unsigned int stat[MAX_STATS];
@@ -194,6 +197,7 @@ struct tipc_crypto_stats {
  * @key_master: flag indicates if master key exists
  * @legacy_user: flag indicates if a peer joins w/o master key (for bwd comp.)
  * @nokey: no key indication
+ * @flags: combined flags field
  * @lock: tipc_key lock
  */
 struct tipc_crypto {
@@ -324,6 +328,8 @@ do {									\
 
 /**
  * tipc_aead_key_validate - Validate a AEAD user key
+ * @ukey: pointer to user key data
+ * @info: netlink info pointer
  */
 int tipc_aead_key_validate(struct tipc_aead_key *ukey, struct genl_info *info)
 {
@@ -477,6 +483,7 @@ static void tipc_aead_users_set(struct tipc_aead __rcu *aead, int val)
 
 /**
  * tipc_aead_tfm_next - Move TFM entry to the next one in list and return it
+ * @aead: the AEAD key pointer
  */
 static struct crypto_aead *tipc_aead_tfm_next(struct tipc_aead *aead)
 {
@@ -714,9 +721,9 @@ static void *tipc_aead_mem_alloc(struct crypto_aead *tfm,
  * @__dnode: TIPC dest node if "known"
  *
  * Return:
- * 0                   : if the encryption has completed
- * -EINPROGRESS/-EBUSY : if a callback will be performed
- * < 0                 : the encryption has failed
+ * * 0                   : if the encryption has completed
+ * * -EINPROGRESS/-EBUSY : if a callback will be performed
+ * * < 0                 : the encryption has failed
  */
 static int tipc_aead_encrypt(struct tipc_aead *aead, struct sk_buff *skb,
 			     struct tipc_bearer *b,
@@ -870,9 +877,9 @@ static void tipc_aead_encrypt_done(struct crypto_async_request *base, int err)
  * @b: TIPC bearer where the message has been received
  *
  * Return:
- * 0                   : if the decryption has completed
- * -EINPROGRESS/-EBUSY : if a callback will be performed
- * < 0                 : the decryption has failed
+ * * 0                   : if the decryption has completed
+ * * -EINPROGRESS/-EBUSY : if a callback will be performed
+ * * < 0                 : the decryption has failed
  */
 static int tipc_aead_decrypt(struct net *net, struct tipc_aead *aead,
 			     struct sk_buff *skb, struct tipc_bearer *b)
@@ -1001,7 +1008,7 @@ static inline int tipc_ehdr_size(struct tipc_ehdr *ehdr)
  * tipc_ehdr_validate - Validate an encryption message
  * @skb: the message buffer
  *
- * Returns "true" if this is a valid encryption message, otherwise "false"
+ * Return: "true" if this is a valid encryption message, otherwise "false"
  */
 bool tipc_ehdr_validate(struct sk_buff *skb)
 {
@@ -1674,12 +1681,12 @@ static inline void tipc_crypto_clone_msg(struct net *net, struct sk_buff *_skb,
  * Otherwise, the skb is freed!
  *
  * Return:
- * 0                   : the encryption has succeeded (or no encryption)
- * -EINPROGRESS/-EBUSY : the encryption is ongoing, a callback will be made
- * -ENOKEK             : the encryption has failed due to no key
- * -EKEYREVOKED        : the encryption has failed due to key revoked
- * -ENOMEM             : the encryption has failed due to no memory
- * < 0                 : the encryption has failed due to other reasons
+ * * 0                   : the encryption has succeeded (or no encryption)
+ * * -EINPROGRESS/-EBUSY : the encryption is ongoing, a callback will be made
+ * * -ENOKEK             : the encryption has failed due to no key
+ * * -EKEYREVOKED        : the encryption has failed due to key revoked
+ * * -ENOMEM             : the encryption has failed due to no memory
+ * * < 0                 : the encryption has failed due to other reasons
  */
 int tipc_crypto_xmit(struct net *net, struct sk_buff **skb,
 		     struct tipc_bearer *b, struct tipc_media_addr *dst,
@@ -1799,12 +1806,12 @@ exit:
  * cluster key(s) can be taken for decryption (- recursive).
  *
  * Return:
- * 0                   : the decryption has successfully completed
- * -EINPROGRESS/-EBUSY : the decryption is ongoing, a callback will be made
- * -ENOKEY             : the decryption has failed due to no key
- * -EBADMSG            : the decryption has failed due to bad message
- * -ENOMEM             : the decryption has failed due to no memory
- * < 0                 : the decryption has failed due to other reasons
+ * * 0                   : the decryption has successfully completed
+ * * -EINPROGRESS/-EBUSY : the decryption is ongoing, a callback will be made
+ * * -ENOKEY             : the decryption has failed due to no key
+ * * -EBADMSG            : the decryption has failed due to bad message
+ * * -ENOMEM             : the decryption has failed due to no memory
+ * * < 0                 : the decryption has failed due to other reasons
  */
 int tipc_crypto_rcv(struct net *net, struct tipc_crypto *rx,
 		    struct sk_buff **skb, struct tipc_bearer *b)

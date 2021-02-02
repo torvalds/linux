@@ -221,10 +221,13 @@ void rdma_restrack_add(struct rdma_restrack_entry *res)
 {
 	struct ib_device *dev = res_to_dev(res);
 	struct rdma_restrack_root *rt;
-	int ret;
+	int ret = 0;
 
 	if (!dev)
 		return;
+
+	if (res->no_track)
+		goto out;
 
 	rt = &dev->res[res->type];
 
@@ -232,8 +235,15 @@ void rdma_restrack_add(struct rdma_restrack_entry *res)
 		/* Special case to ensure that LQPN points to right QP */
 		struct ib_qp *qp = container_of(res, struct ib_qp, res);
 
-		ret = xa_insert(&rt->xa, qp->qp_num, res, GFP_KERNEL);
-		res->id = ret ? 0 : qp->qp_num;
+		WARN_ONCE(qp->qp_num >> 24 || qp->port >> 8,
+			  "QP number 0x%0X and port 0x%0X", qp->qp_num,
+			  qp->port);
+		res->id = qp->qp_num;
+		if (qp->qp_type == IB_QPT_SMI || qp->qp_type == IB_QPT_GSI)
+			res->id |= qp->port << 24;
+		ret = xa_insert(&rt->xa, res->id, res, GFP_KERNEL);
+		if (ret)
+			res->id = 0;
 	} else if (res->type == RDMA_RESTRACK_COUNTER) {
 		/* Special case to ensure that cntn points to right counter */
 		struct rdma_counter *counter;
@@ -246,6 +256,7 @@ void rdma_restrack_add(struct rdma_restrack_entry *res)
 				      &rt->next_id, GFP_KERNEL);
 	}
 
+out:
 	if (!ret)
 		res->valid = true;
 }
@@ -318,6 +329,9 @@ void rdma_restrack_del(struct rdma_restrack_entry *res)
 		return;
 	}
 
+	if (res->no_track)
+		goto out;
+
 	dev = res_to_dev(res);
 	if (WARN_ON(!dev))
 		return;
@@ -328,8 +342,9 @@ void rdma_restrack_del(struct rdma_restrack_entry *res)
 	if (res->type == RDMA_RESTRACK_MR || res->type == RDMA_RESTRACK_QP)
 		return;
 	WARN_ON(old != res);
-	res->valid = false;
 
+out:
+	res->valid = false;
 	rdma_restrack_put(res);
 	wait_for_completion(&res->comp);
 }

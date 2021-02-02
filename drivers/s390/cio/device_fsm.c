@@ -224,12 +224,6 @@ ccw_device_recog_done(struct ccw_device *cdev, int state)
 		wake_up(&cdev->private->wait_q);
 		return;
 	}
-	if (cdev->private->flags.resuming) {
-		cdev->private->state = state;
-		cdev->private->flags.recog_done = 1;
-		wake_up(&cdev->private->wait_q);
-		return;
-	}
 	switch (state) {
 	case DEV_STATE_NOT_OPER:
 		break;

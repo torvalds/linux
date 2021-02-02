@@ -36,7 +36,7 @@ bool siox_device_connected(struct siox_device *sdevice);
 
 struct siox_driver {
 	int (*probe)(struct siox_device *sdevice);
-	int (*remove)(struct siox_device *sdevice);
+	void (*remove)(struct siox_device *sdevice);
 	void (*shutdown)(struct siox_device *sdevice);
 
 	/*

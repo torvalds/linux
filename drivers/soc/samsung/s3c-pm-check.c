@@ -151,7 +151,7 @@ static inline int in_region(void *ptr, int size, void *what, size_t whatsz)
 /**
  * s3c_pm_runcheck() - helper to check a resource on restore.
  * @res: The resource to check
- * @vak: Pointer to list of CRC32 values to check.
+ * @val: Pointer to list of CRC32 values to check.
  *
  * Called from the s3c_pm_check_restore() via s3c_pm_run_sysram(), this
  * function runs the given memory resource checking it against the stored

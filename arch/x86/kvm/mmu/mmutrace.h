@@ -381,6 +381,35 @@ TRACE_EVENT(
 	)
 );
 
+TRACE_EVENT(
+	kvm_tdp_mmu_spte_changed,
+	TP_PROTO(int as_id, gfn_t gfn, int level, u64 old_spte, u64 new_spte),
+	TP_ARGS(as_id, gfn, level, old_spte, new_spte),
+
+	TP_STRUCT__entry(
+		__field(u64, gfn)
+		__field(u64, old_spte)
+		__field(u64, new_spte)
+		/* Level cannot be larger than 5 on x86, so it fits in a u8. */
+		__field(u8, level)
+		/* as_id can only be 0 or 1 x86, so it fits in a u8. */
+		__field(u8, as_id)
+	),
+
+	TP_fast_assign(
+		__entry->gfn = gfn;
+		__entry->old_spte = old_spte;
+		__entry->new_spte = new_spte;
+		__entry->level = level;
+		__entry->as_id = as_id;
+	),
+
+	TP_printk("as id %d gfn %llx level %d old_spte %llx new_spte %llx",
+		  __entry->as_id, __entry->gfn, __entry->level,
+		  __entry->old_spte, __entry->new_spte
+	)
+);
+
 #endif /* _TRACE_KVMMMU_H */
 
 #undef TRACE_INCLUDE_PATH

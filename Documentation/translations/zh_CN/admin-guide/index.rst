@@ -114,7 +114,6 @@ Todolist:
    unicode
    vga-softcursor
    video-output
-   wimax/index
    xfs
 
 .. only::  subproject and html

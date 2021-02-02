@@ -26,8 +26,7 @@ properties:
 
   drive-open-drain: true
 
-  vdd-supply:
-    maxItems: 1
+  vdd-supply: true
 
   pinctrl:
     type: object

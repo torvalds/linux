@@ -307,6 +307,9 @@ struct ib_qp *siw_create_qp(struct ib_pd *pd,
 
 	siw_dbg(base_dev, "create new QP\n");
 
+	if (attrs->create_flags)
+		return ERR_PTR(-EOPNOTSUPP);
+
 	if (atomic_inc_return(&sdev->num_qp) > SIW_MAX_QP) {
 		siw_dbg(base_dev, "too many QP's\n");
 		rv = -ENOMEM;
@@ -543,6 +546,9 @@ int siw_verbs_modify_qp(struct ib_qp *base_qp, struct ib_qp_attr *attr,
 
 	if (!attr_mask)
 		return 0;
+
+	if (attr_mask & ~IB_QP_ATTR_STANDARD_BITS)
+		return -EOPNOTSUPP;
 
 	memset(&new_attrs, 0, sizeof(new_attrs));
 
@@ -1094,6 +1100,9 @@ int siw_create_cq(struct ib_cq *base_cq, const struct ib_cq_init_attr *attr,
 	struct siw_cq *cq = to_siw_cq(base_cq);
 	int rv, size = attr->cqe;
 
+	if (attr->flags)
+		return -EOPNOTSUPP;
+
 	if (atomic_inc_return(&sdev->num_cq) > SIW_MAX_CQ) {
 		siw_dbg(base_cq->device, "too many CQ's\n");
 		rv = -ENOMEM;
@@ -1554,6 +1563,9 @@ int siw_create_srq(struct ib_srq *base_srq,
 		rdma_udata_to_drv_context(udata, struct siw_ucontext,
 					  base_ucontext);
 	int rv;
+
+	if (init_attrs->srq_type != IB_SRQT_BASIC)
+		return -EOPNOTSUPP;
 
 	if (atomic_inc_return(&sdev->num_srq) > SIW_MAX_SRQ) {
 		siw_dbg_pd(base_srq->pd, "too many SRQ's\n");

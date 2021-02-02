@@ -22,6 +22,7 @@
  */
 
 #include "smumgr.h"
+#include "smu9_smumgr.h"
 #include "vega10_inc.h"
 #include "soc15_common.h"
 #include "pp_debug.h"

@@ -35,6 +35,7 @@
 #ifdef CONFIG_CIFS_DFS_UPCALL
 #include "dns_resolve.h"
 #endif
+#include "fs_context.h"
 
 extern mempool_t *cifs_sm_req_poolp;
 extern mempool_t *cifs_req_poolp;
@@ -632,11 +633,11 @@ bool
 backup_cred(struct cifs_sb_info *cifs_sb)
 {
 	if (cifs_sb->mnt_cifs_flags & CIFS_MOUNT_CIFS_BACKUPUID) {
-		if (uid_eq(cifs_sb->mnt_backupuid, current_fsuid()))
+		if (uid_eq(cifs_sb->ctx->backupuid, current_fsuid()))
 			return true;
 	}
 	if (cifs_sb->mnt_cifs_flags & CIFS_MOUNT_CIFS_BACKUPGID) {
-		if (in_group_p(cifs_sb->mnt_backupgid))
+		if (in_group_p(cifs_sb->ctx->backupgid))
 			return true;
 	}
 

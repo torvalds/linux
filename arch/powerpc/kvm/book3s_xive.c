@@ -219,7 +219,7 @@ int kvmppc_xive_attach_escalation(struct kvm_vcpu *vcpu, u8 prio,
 	/* In single escalation mode, we grab the ESB MMIO of the
 	 * interrupt and mask it. Also populate the VCPU v/raddr
 	 * of the ESB page for use by asm entry/exit code. Finally
-	 * set the XIVE_IRQ_NO_EOI flag which will prevent the
+	 * set the XIVE_IRQ_FLAG_NO_EOI flag which will prevent the
 	 * core code from performing an EOI on the escalation
 	 * interrupt, thus leaving it effectively masked after
 	 * it fires once.
@@ -231,7 +231,7 @@ int kvmppc_xive_attach_escalation(struct kvm_vcpu *vcpu, u8 prio,
 		xive_vm_esb_load(xd, XIVE_ESB_SET_PQ_01);
 		vcpu->arch.xive_esc_raddr = xd->eoi_page;
 		vcpu->arch.xive_esc_vaddr = (__force u64)xd->eoi_mmio;
-		xd->flags |= XIVE_IRQ_NO_EOI;
+		xd->flags |= XIVE_IRQ_FLAG_NO_EOI;
 	}
 
 	return 0;
@@ -419,37 +419,16 @@ static u8 xive_lock_and_mask(struct kvmppc_xive *xive,
 	/* Get the right irq */
 	kvmppc_xive_select_irq(state, &hw_num, &xd);
 
-	/*
-	 * If the interrupt is marked as needing masking via
-	 * firmware, we do it here. Firmware masking however
-	 * is "lossy", it won't return the old p and q bits
-	 * and won't set the interrupt to a state where it will
-	 * record queued ones. If this is an issue we should do
-	 * lazy masking instead.
-	 *
-	 * For now, we work around this in unmask by forcing
-	 * an interrupt whenever we unmask a non-LSI via FW
-	 * (if ever).
-	 */
-	if (xd->flags & OPAL_XIVE_IRQ_MASK_VIA_FW) {
-		xive_native_configure_irq(hw_num,
-				kvmppc_xive_vp(xive, state->act_server),
-				MASKED, state->number);
-		/* set old_p so we can track if an H_EOI was done */
-		state->old_p = true;
-		state->old_q = false;
-	} else {
-		/* Set PQ to 10, return old P and old Q and remember them */
-		val = xive_vm_esb_load(xd, XIVE_ESB_SET_PQ_10);
-		state->old_p = !!(val & 2);
-		state->old_q = !!(val & 1);
+	/* Set PQ to 10, return old P and old Q and remember them */
+	val = xive_vm_esb_load(xd, XIVE_ESB_SET_PQ_10);
+	state->old_p = !!(val & 2);
+	state->old_q = !!(val & 1);
 
-		/*
-		 * Synchronize hardware to sensure the queues are updated
-		 * when masking
-		 */
-		xive_native_sync_source(hw_num);
-	}
+	/*
+	 * Synchronize hardware to sensure the queues are updated when
+	 * masking
+	 */
+	xive_native_sync_source(hw_num);
 
 	return old_prio;
 }
@@ -482,23 +461,6 @@ static void xive_finish_unmask(struct kvmppc_xive *xive,
 
 	/* Get the right irq */
 	kvmppc_xive_select_irq(state, &hw_num, &xd);
-
-	/*
-	 * See comment in xive_lock_and_mask() concerning masking
-	 * via firmware.
-	 */
-	if (xd->flags & OPAL_XIVE_IRQ_MASK_VIA_FW) {
-		xive_native_configure_irq(hw_num,
-				kvmppc_xive_vp(xive, state->act_server),
-				state->act_priority, state->number);
-		/* If an EOI is needed, do it here */
-		if (!state->old_p)
-			xive_vm_source_eoi(hw_num, xd);
-		/* If this is not an LSI, force a trigger */
-		if (!(xd->flags & OPAL_XIVE_IRQ_LSI))
-			xive_irq_trigger(xd);
-		goto bail;
-	}
 
 	/* Old Q set, set PQ to 11 */
 	if (state->old_q)
@@ -2125,9 +2087,8 @@ int kvmppc_xive_debug_show_queues(struct seq_file *m, struct kvm_vcpu *vcpu)
 		if (!q->qpage && !xc->esc_virq[i])
 			continue;
 
-		seq_printf(m, " [q%d]: ", i);
-
 		if (q->qpage) {
+			seq_printf(m, "    q[%d]: ", i);
 			idx = q->idx;
 			i0 = be32_to_cpup(q->qpage + idx);
 			idx = (idx + 1) & q->msk;
@@ -2141,14 +2102,52 @@ int kvmppc_xive_debug_show_queues(struct seq_file *m, struct kvm_vcpu *vcpu)
 				irq_data_get_irq_handler_data(d);
 			u64 pq = xive_vm_esb_load(xd, XIVE_ESB_GET);
 
-			seq_printf(m, "E:%c%c I(%d:%llx:%llx)",
-				   (pq & XIVE_ESB_VAL_P) ? 'P' : 'p',
-				   (pq & XIVE_ESB_VAL_Q) ? 'Q' : 'q',
-				   xc->esc_virq[i], pq, xd->eoi_page);
+			seq_printf(m, "    ESC %d %c%c EOI @%llx",
+				   xc->esc_virq[i],
+				   (pq & XIVE_ESB_VAL_P) ? 'P' : '-',
+				   (pq & XIVE_ESB_VAL_Q) ? 'Q' : '-',
+				   xd->eoi_page);
 			seq_puts(m, "\n");
 		}
 	}
 	return 0;
+}
+
+void kvmppc_xive_debug_show_sources(struct seq_file *m,
+				    struct kvmppc_xive_src_block *sb)
+{
+	int i;
+
+	seq_puts(m, "    LISN      HW/CHIP   TYPE    PQ      EISN    CPU/PRIO\n");
+	for (i = 0; i < KVMPPC_XICS_IRQ_PER_ICS; i++) {
+		struct kvmppc_xive_irq_state *state = &sb->irq_state[i];
+		struct xive_irq_data *xd;
+		u64 pq;
+		u32 hw_num;
+
+		if (!state->valid)
+			continue;
+
+		kvmppc_xive_select_irq(state, &hw_num, &xd);
+
+		pq = xive_vm_esb_load(xd, XIVE_ESB_GET);
+
+		seq_printf(m, "%08x  %08x/%02x", state->number, hw_num,
+			   xd->src_chip);
+		if (state->lsi)
+			seq_printf(m, " %cLSI", state->asserted ? '^' : ' ');
+		else
+			seq_puts(m, "  MSI");
+
+		seq_printf(m, " %s  %c%c  %08x   % 4d/%d",
+			   state->ipi_number == hw_num ? "IPI" : " PT",
+			   pq & XIVE_ESB_VAL_P ? 'P' : '-',
+			   pq & XIVE_ESB_VAL_Q ? 'Q' : '-',
+			   state->eisn, state->act_server,
+			   state->act_priority);
+
+		seq_puts(m, "\n");
+	}
 }
 
 static int xive_debug_show(struct seq_file *m, void *private)
@@ -2171,7 +2170,7 @@ static int xive_debug_show(struct seq_file *m, void *private)
 	if (!kvm)
 		return 0;
 
-	seq_printf(m, "=========\nVCPU state\n=========\n");
+	seq_puts(m, "=========\nVCPU state\n=========\n");
 
 	kvm_for_each_vcpu(i, vcpu, kvm) {
 		struct kvmppc_xive_vcpu *xc = vcpu->arch.xive_vcpu;
@@ -2179,11 +2178,12 @@ static int xive_debug_show(struct seq_file *m, void *private)
 		if (!xc)
 			continue;
 
-		seq_printf(m, "cpu server %#x VP:%#x CPPR:%#x HWCPPR:%#x"
-			   " MFRR:%#x PEND:%#x h_xirr: R=%lld V=%lld\n",
-			   xc->server_num, xc->vp_id, xc->cppr, xc->hw_cppr,
-			   xc->mfrr, xc->pending,
-			   xc->stat_rm_h_xirr, xc->stat_vm_h_xirr);
+		seq_printf(m, "VCPU %d: VP:%#x/%02x\n"
+			 "    CPPR:%#x HWCPPR:%#x MFRR:%#x PEND:%#x h_xirr: R=%lld V=%lld\n",
+			 xc->server_num, xc->vp_id, xc->vp_chip_id,
+			 xc->cppr, xc->hw_cppr,
+			 xc->mfrr, xc->pending,
+			 xc->stat_rm_h_xirr, xc->stat_vm_h_xirr);
 
 		kvmppc_xive_debug_show_queues(m, vcpu);
 
@@ -2199,12 +2199,24 @@ static int xive_debug_show(struct seq_file *m, void *private)
 		t_vm_h_ipi += xc->stat_vm_h_ipi;
 	}
 
-	seq_printf(m, "Hcalls totals\n");
+	seq_puts(m, "Hcalls totals\n");
 	seq_printf(m, " H_XIRR  R=%10lld V=%10lld\n", t_rm_h_xirr, t_vm_h_xirr);
 	seq_printf(m, " H_IPOLL R=%10lld V=%10lld\n", t_rm_h_ipoll, t_vm_h_ipoll);
 	seq_printf(m, " H_CPPR  R=%10lld V=%10lld\n", t_rm_h_cppr, t_vm_h_cppr);
 	seq_printf(m, " H_EOI   R=%10lld V=%10lld\n", t_rm_h_eoi, t_vm_h_eoi);
 	seq_printf(m, " H_IPI   R=%10lld V=%10lld\n", t_rm_h_ipi, t_vm_h_ipi);
+
+	seq_puts(m, "=========\nSources\n=========\n");
+
+	for (i = 0; i <= xive->max_sbid; i++) {
+		struct kvmppc_xive_src_block *sb = xive->src_blocks[i];
+
+		if (sb) {
+			arch_spin_lock(&sb->lock);
+			kvmppc_xive_debug_show_sources(m, sb);
+			arch_spin_unlock(&sb->lock);
+		}
+	}
 
 	return 0;
 }

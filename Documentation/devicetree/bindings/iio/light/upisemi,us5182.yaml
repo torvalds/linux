@@ -1,0 +1,78 @@
+# SPDX-License-Identifier: (GPL-2.0 OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/iio/light/upisemi,us5182.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: UPISEMI us5182d I2C ALS and Proximity sensor
+
+maintainers:
+  - Jonathan Cameron <jic23@kernel.org>
+
+properties:
+  compatible:
+    const: upisemi,asd5182
+
+  reg:
+    maxItems: 1
+
+  upsemi,glass-coef:
+    $ref: /schemas/types.yaml#/definitions/uint32
+    description: |
+      glass attenuation factor - compensation factor of resolution 1000
+      for material transmittance.
+    default: 1000
+
+  upisemi,dark-ths:
+    $ref: /schemas/types.yaml#/definitions/uint16-array
+    minItems: 8
+    maxItems: 8
+    description:
+      16-bit thresholds (adc counts) corresponding to every scale.
+
+  upisemi,upper-dark-gain:
+    $ref: /schemas/types.yaml#/definitions/uint8
+    description: |
+      8-bit dark gain compensation factor(4 int and 4 fractional bits - Q4.4)
+      applied when light > threshold.
+    default: 0
+
+  upisemi,lower-dark-gain:
+    $ref: /schemas/types.yaml#/definitions/uint8
+    description: |
+      8-bit dark gain compensation factor(4 int and 4 fractional bits - Q4.4)
+      applied when light < threshold.
+    default: 0x16
+
+  upisemi,continuous:
+    $ref: /schemas/types.yaml#/definitions/flag
+    description: |
+      This chip has two power modes: one-shot (chip takes one measurement and
+      then shuts itself down) and continuous (chip takes continuous
+      measurements). The one-shot mode is more power-friendly but the
+      continuous mode may be more reliable. If this property is specified
+      the continuous mode will be used instead of the default one-shot one for
+      raw reads.
+
+additionalProperties: false
+
+required:
+  - compatible
+  - reg
+
+examples:
+  - |
+    i2c {
+        #address-cells = <1>;
+        #size-cells = <0>;
+
+        light-sensor@39 {
+            compatible = "upisemi,usd5182";
+            reg = <0x39>;
+            upisemi,glass-coef = < 1000 >;
+            upisemi,dark-ths = /bits/ 16 <170 200 512 512 800 2000 4000 8000>;
+            upisemi,upper-dark-gain = /bits/ 8 <0x00>;
+            upisemi,lower-dark-gain = /bits/ 8 <0x16>;
+        };
+    };
+...

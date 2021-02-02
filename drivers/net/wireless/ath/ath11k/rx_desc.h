@@ -170,7 +170,7 @@ struct rx_attention {
  *
  * ast_index_not_found
  *		Only valid when first_msdu is set. Indicates no AST matching
- *		entries within the the max search count.
+ *		entries within the max search count.
  *
  * ast_index_timeout
  *		Only valid when first_msdu is set. Indicates an unsuccessful

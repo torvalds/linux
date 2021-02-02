@@ -7,6 +7,7 @@
  */
 
 #include <linux/of.h>
+#include <linux/platform_device.h>
 
 #include "pcie-designware.h"
 #include <linux/pci-epc.h>
@@ -160,8 +161,8 @@ static int dw_pcie_ep_inbound_atu(struct dw_pcie_ep *ep, u8 func_no,
 	u32 free_win;
 	struct dw_pcie *pci = to_dw_pcie_from_ep(ep);
 
-	free_win = find_first_zero_bit(ep->ib_window_map, ep->num_ib_windows);
-	if (free_win >= ep->num_ib_windows) {
+	free_win = find_first_zero_bit(ep->ib_window_map, pci->num_ib_windows);
+	if (free_win >= pci->num_ib_windows) {
 		dev_err(pci->dev, "No free inbound window\n");
 		return -EINVAL;
 	}
@@ -186,8 +187,8 @@ static int dw_pcie_ep_outbound_atu(struct dw_pcie_ep *ep, u8 func_no,
 	u32 free_win;
 	struct dw_pcie *pci = to_dw_pcie_from_ep(ep);
 
-	free_win = find_first_zero_bit(ep->ob_window_map, ep->num_ob_windows);
-	if (free_win >= ep->num_ob_windows) {
+	free_win = find_first_zero_bit(ep->ob_window_map, pci->num_ob_windows);
+	if (free_win >= pci->num_ob_windows) {
 		dev_err(pci->dev, "No free outbound window\n");
 		return -EINVAL;
 	}
@@ -263,8 +264,9 @@ static int dw_pcie_find_index(struct dw_pcie_ep *ep, phys_addr_t addr,
 			      u32 *atu_index)
 {
 	u32 index;
+	struct dw_pcie *pci = to_dw_pcie_from_ep(ep);
 
-	for (index = 0; index < ep->num_ob_windows; index++) {
+	for (index = 0; index < pci->num_ob_windows; index++) {
 		if (ep->outbound_addr[index] != addr)
 			continue;
 		*atu_index = index;
@@ -676,55 +678,57 @@ int dw_pcie_ep_init(struct dw_pcie_ep *ep)
 	int ret;
 	void *addr;
 	u8 func_no;
+	struct resource *res;
 	struct pci_epc *epc;
 	struct dw_pcie *pci = to_dw_pcie_from_ep(ep);
 	struct device *dev = pci->dev;
+	struct platform_device *pdev = to_platform_device(dev);
 	struct device_node *np = dev->of_node;
 	const struct pci_epc_features *epc_features;
 	struct dw_pcie_ep_func *ep_func;
 
 	INIT_LIST_HEAD(&ep->func_list);
 
-	if (!pci->dbi_base || !pci->dbi_base2) {
-		dev_err(dev, "dbi_base/dbi_base2 is not populated\n");
-		return -EINVAL;
+	if (!pci->dbi_base) {
+		res = platform_get_resource_byname(pdev, IORESOURCE_MEM, "dbi");
+		pci->dbi_base = devm_pci_remap_cfg_resource(dev, res);
+		if (IS_ERR(pci->dbi_base))
+			return PTR_ERR(pci->dbi_base);
 	}
 
-	ret = of_property_read_u32(np, "num-ib-windows", &ep->num_ib_windows);
-	if (ret < 0) {
-		dev_err(dev, "Unable to read *num-ib-windows* property\n");
-		return ret;
-	}
-	if (ep->num_ib_windows > MAX_IATU_IN) {
-		dev_err(dev, "Invalid *num-ib-windows*\n");
-		return -EINVAL;
+	if (!pci->dbi_base2) {
+		res = platform_get_resource_byname(pdev, IORESOURCE_MEM, "dbi2");
+		if (!res)
+			pci->dbi_base2 = pci->dbi_base + SZ_4K;
+		else {
+			pci->dbi_base2 = devm_pci_remap_cfg_resource(dev, res);
+			if (IS_ERR(pci->dbi_base2))
+				return PTR_ERR(pci->dbi_base2);
+		}
 	}
 
-	ret = of_property_read_u32(np, "num-ob-windows", &ep->num_ob_windows);
-	if (ret < 0) {
-		dev_err(dev, "Unable to read *num-ob-windows* property\n");
-		return ret;
-	}
-	if (ep->num_ob_windows > MAX_IATU_OUT) {
-		dev_err(dev, "Invalid *num-ob-windows*\n");
+	res = platform_get_resource_byname(pdev, IORESOURCE_MEM, "addr_space");
+	if (!res)
 		return -EINVAL;
-	}
+
+	ep->phys_base = res->start;
+	ep->addr_size = resource_size(res);
 
 	ep->ib_window_map = devm_kcalloc(dev,
-					 BITS_TO_LONGS(ep->num_ib_windows),
+					 BITS_TO_LONGS(pci->num_ib_windows),
 					 sizeof(long),
 					 GFP_KERNEL);
 	if (!ep->ib_window_map)
 		return -ENOMEM;
 
 	ep->ob_window_map = devm_kcalloc(dev,
-					 BITS_TO_LONGS(ep->num_ob_windows),
+					 BITS_TO_LONGS(pci->num_ob_windows),
 					 sizeof(long),
 					 GFP_KERNEL);
 	if (!ep->ob_window_map)
 		return -ENOMEM;
 
-	addr = devm_kcalloc(dev, ep->num_ob_windows, sizeof(phys_addr_t),
+	addr = devm_kcalloc(dev, pci->num_ob_windows, sizeof(phys_addr_t),
 			    GFP_KERNEL);
 	if (!addr)
 		return -ENOMEM;

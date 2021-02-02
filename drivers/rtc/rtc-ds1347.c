@@ -166,7 +166,7 @@ static int ds1347_probe(struct spi_device *spi)
 	rtc->range_min = RTC_TIMESTAMP_BEGIN_0000;
 	rtc->range_max = RTC_TIMESTAMP_END_9999;
 
-	return rtc_register_device(rtc);
+	return devm_rtc_register_device(rtc);
 }
 
 static struct spi_driver ds1347_driver = {

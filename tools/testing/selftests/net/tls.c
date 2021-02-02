@@ -103,32 +103,58 @@ FIXTURE(tls)
 
 FIXTURE_VARIANT(tls)
 {
-	unsigned int tls_version;
+	u16 tls_version;
+	u16 cipher_type;
 };
 
-FIXTURE_VARIANT_ADD(tls, 12)
+FIXTURE_VARIANT_ADD(tls, 12_gcm)
 {
 	.tls_version = TLS_1_2_VERSION,
+	.cipher_type = TLS_CIPHER_AES_GCM_128,
 };
 
-FIXTURE_VARIANT_ADD(tls, 13)
+FIXTURE_VARIANT_ADD(tls, 13_gcm)
 {
 	.tls_version = TLS_1_3_VERSION,
+	.cipher_type = TLS_CIPHER_AES_GCM_128,
+};
+
+FIXTURE_VARIANT_ADD(tls, 12_chacha)
+{
+	.tls_version = TLS_1_2_VERSION,
+	.cipher_type = TLS_CIPHER_CHACHA20_POLY1305,
+};
+
+FIXTURE_VARIANT_ADD(tls, 13_chacha)
+{
+	.tls_version = TLS_1_3_VERSION,
+	.cipher_type = TLS_CIPHER_CHACHA20_POLY1305,
 };
 
 FIXTURE_SETUP(tls)
 {
-	struct tls12_crypto_info_aes_gcm_128 tls12;
+	union tls_crypto_context tls12;
 	struct sockaddr_in addr;
 	socklen_t len;
 	int sfd, ret;
+	size_t tls12_sz;
 
 	self->notls = false;
 	len = sizeof(addr);
 
 	memset(&tls12, 0, sizeof(tls12));
 	tls12.info.version = variant->tls_version;
-	tls12.info.cipher_type = TLS_CIPHER_AES_GCM_128;
+	tls12.info.cipher_type = variant->cipher_type;
+	switch (variant->cipher_type) {
+	case TLS_CIPHER_CHACHA20_POLY1305:
+		tls12_sz = sizeof(tls12_crypto_info_chacha20_poly1305);
+		break;
+	case TLS_CIPHER_AES_GCM_128:
+		tls12_sz = sizeof(tls12_crypto_info_aes_gcm_128);
+		break;
+	default:
+		tls12_sz = 0;
+	}
 
 	addr.sin_family = AF_INET;
 	addr.sin_addr.s_addr = htonl(INADDR_ANY);
@@ -156,7 +182,7 @@ FIXTURE_SETUP(tls)
 
 	if (!self->notls) {
 		ret = setsockopt(self->fd, SOL_TLS, TLS_TX, &tls12,
-				 sizeof(tls12));
+				 tls12_sz);
 		ASSERT_EQ(ret, 0);
 	}
 
@@ -169,7 +195,7 @@ FIXTURE_SETUP(tls)
 		ASSERT_EQ(ret, 0);
 
 		ret = setsockopt(self->cfd, SOL_TLS, TLS_RX, &tls12,
-				 sizeof(tls12));
+				 tls12_sz);
 		ASSERT_EQ(ret, 0);
 	}
 

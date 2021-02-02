@@ -47,6 +47,10 @@
 #define MII_DM9161_INTR_STOP	\
 (MII_DM9161_INTR_DPLX_MASK | MII_DM9161_INTR_SPD_MASK \
  | MII_DM9161_INTR_LINK_MASK | MII_DM9161_INTR_MASK)
+#define MII_DM9161_INTR_CHANGE	\
+	(MII_DM9161_INTR_DPLX_CHANGE | \
+	 MII_DM9161_INTR_SPD_CHANGE | \
+	 MII_DM9161_INTR_LINK_CHANGE)
 
 /* DM9161 10BT Configuration/Status */
 #define MII_DM9161_10BTCSR	0x12
@@ -57,24 +61,58 @@ MODULE_AUTHOR("Andy Fleming");
 MODULE_LICENSE("GPL");
 
 
+static int dm9161_ack_interrupt(struct phy_device *phydev)
+{
+	int err = phy_read(phydev, MII_DM9161_INTR);
+
+	return (err < 0) ? err : 0;
+}
+
 #define DM9161_DELAY 1
 static int dm9161_config_intr(struct phy_device *phydev)
 {
-	int temp;
+	int temp, err;
 
 	temp = phy_read(phydev, MII_DM9161_INTR);
 
 	if (temp < 0)
 		return temp;
 
-	if (PHY_INTERRUPT_ENABLED == phydev->interrupts)
+	if (phydev->interrupts == PHY_INTERRUPT_ENABLED) {
+		err = dm9161_ack_interrupt(phydev);
+		if (err)
+			return err;
+
 		temp &= ~(MII_DM9161_INTR_STOP);
-	else
+		err = phy_write(phydev, MII_DM9161_INTR, temp);
+	} else {
 		temp |= MII_DM9161_INTR_STOP;
+		err = phy_write(phydev, MII_DM9161_INTR, temp);
+		if (err)
+			return err;
 
-	temp = phy_write(phydev, MII_DM9161_INTR, temp);
+		err = dm9161_ack_interrupt(phydev);
+	}
 
-	return temp;
+	return err;
+}
+
+static irqreturn_t dm9161_handle_interrupt(struct phy_device *phydev)
+{
+	int irq_status;
+
+	irq_status = phy_read(phydev, MII_DM9161_INTR);
+	if (irq_status < 0) {
+		phy_error(phydev);
+		return IRQ_NONE;
+	}
+
+	if (!(irq_status & MII_DM9161_INTR_CHANGE))
+		return IRQ_NONE;
+
+	phy_trigger_machine(phydev);
+
+	return IRQ_HANDLED;
 }
 
 static int dm9161_config_aneg(struct phy_device *phydev)
@@ -132,13 +170,6 @@ static int dm9161_config_init(struct phy_device *phydev)
 	return phy_write(phydev, MII_BMCR, BMCR_ANENABLE);
 }
 
-static int dm9161_ack_interrupt(struct phy_device *phydev)
-{
-	int err = phy_read(phydev, MII_DM9161_INTR);
-
-	return (err < 0) ? err : 0;
-}
-
 static struct phy_driver dm91xx_driver[] = {
 {
 	.phy_id		= 0x0181b880,
@@ -147,8 +178,8 @@ static struct phy_driver dm91xx_driver[] = {
 	/* PHY_BASIC_FEATURES */
 	.config_init	= dm9161_config_init,
 	.config_aneg	= dm9161_config_aneg,
-	.ack_interrupt	= dm9161_ack_interrupt,
 	.config_intr	= dm9161_config_intr,
+	.handle_interrupt = dm9161_handle_interrupt,
 }, {
 	.phy_id		= 0x0181b8b0,
 	.name		= "Davicom DM9161B/C",
@@ -156,8 +187,8 @@ static struct phy_driver dm91xx_driver[] = {
 	/* PHY_BASIC_FEATURES */
 	.config_init	= dm9161_config_init,
 	.config_aneg	= dm9161_config_aneg,
-	.ack_interrupt	= dm9161_ack_interrupt,
 	.config_intr	= dm9161_config_intr,
+	.handle_interrupt = dm9161_handle_interrupt,
 }, {
 	.phy_id		= 0x0181b8a0,
 	.name		= "Davicom DM9161A",
@@ -165,15 +196,15 @@ static struct phy_driver dm91xx_driver[] = {
 	/* PHY_BASIC_FEATURES */
 	.config_init	= dm9161_config_init,
 	.config_aneg	= dm9161_config_aneg,
-	.ack_interrupt	= dm9161_ack_interrupt,
 	.config_intr	= dm9161_config_intr,
+	.handle_interrupt = dm9161_handle_interrupt,
 }, {
 	.phy_id		= 0x00181b80,
 	.name		= "Davicom DM9131",
 	.phy_id_mask	= 0x0ffffff0,
 	/* PHY_BASIC_FEATURES */
-	.ack_interrupt	= dm9161_ack_interrupt,
 	.config_intr	= dm9161_config_intr,
+	.handle_interrupt = dm9161_handle_interrupt,
 } };
 
 module_phy_driver(dm91xx_driver);

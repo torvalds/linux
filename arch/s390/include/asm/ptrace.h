@@ -87,6 +87,7 @@ struct pt_regs
 	unsigned int int_parm;
 	unsigned long int_parm_long;
 	unsigned long flags;
+	unsigned long cr1;
 };
 
 /*

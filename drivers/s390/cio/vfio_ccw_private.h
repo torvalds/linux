@@ -84,7 +84,10 @@ struct vfio_ccw_crw {
  * @irb: irb info received from interrupt
  * @scsw: scsw info
  * @io_trigger: eventfd ctx for signaling userspace I/O results
+ * @crw_trigger: eventfd ctx for signaling userspace CRW information
+ * @req_trigger: eventfd ctx for signaling userspace to return device
  * @io_work: work for deferral process of I/O handling
+ * @crw_work: work for deferral process of CRW handling
  */
 struct vfio_ccw_private {
 	struct subchannel	*sch;
@@ -108,6 +111,7 @@ struct vfio_ccw_private {
 
 	struct eventfd_ctx	*io_trigger;
 	struct eventfd_ctx	*crw_trigger;
+	struct eventfd_ctx	*req_trigger;
 	struct work_struct	io_work;
 	struct work_struct	crw_work;
 } __aligned(8);

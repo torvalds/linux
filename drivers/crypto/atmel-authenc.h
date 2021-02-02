@@ -16,7 +16,8 @@
 
 #include <crypto/authenc.h>
 #include <crypto/hash.h>
-#include <crypto/sha.h>
+#include <crypto/sha1.h>
+#include <crypto/sha2.h>
 #include "atmel-sha-regs.h"
 
 struct atmel_aes_dev;

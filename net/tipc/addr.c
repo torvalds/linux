@@ -55,12 +55,11 @@ bool tipc_in_scope(bool legacy_format, u32 domain, u32 addr)
 void tipc_set_node_id(struct net *net, u8 *id)
 {
 	struct tipc_net *tn = tipc_net(net);
-	u32 *tmp = (u32 *)id;
 
 	memcpy(tn->node_id, id, NODE_ID_LEN);
 	tipc_nodeid2string(tn->node_id_string, id);
-	tn->trial_addr = tmp[0] ^ tmp[1] ^ tmp[2] ^ tmp[3];
-	pr_info("Own node identity %s, cluster identity %u\n",
+	tn->trial_addr = hash128to32(id);
+	pr_info("Node identity %s, cluster identity %u\n",
 		tipc_own_id_string(net), tn->net_id);
 }
 
@@ -76,7 +75,7 @@ void tipc_set_node_addr(struct net *net, u32 addr)
 	}
 	tn->trial_addr = addr;
 	tn->addr_trial_end = jiffies;
-	pr_info("32-bit node address hash set to %x\n", addr);
+	pr_info("Node number set to %u\n", addr);
 }
 
 char *tipc_nodeid2string(char *str, u8 *id)

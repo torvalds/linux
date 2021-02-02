@@ -5,6 +5,7 @@
 
 #include <stdarg.h>
 #include <stdbool.h>
+#include <stdio.h>
 #include <linux/compiler.h>
 
 extern int verbose;
@@ -62,6 +63,7 @@ int eprintf_time(int level, int var, u64 t, const char *fmt, ...) __printf(4, 5)
 int veprintf(int level, int var, const char *fmt, va_list args);
 
 int perf_debug_option(const char *str);
+void debug_set_file(FILE *file);
 void perf_debug_setup(void);
 int perf_quiet_option(void);
 

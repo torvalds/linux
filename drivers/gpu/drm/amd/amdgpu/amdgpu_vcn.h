@@ -44,6 +44,17 @@
 #define VCN_DEC_CMD_PACKET_START	0x0000000a
 #define VCN_DEC_CMD_PACKET_END		0x0000000b
 
+#define VCN_DEC_SW_CMD_NO_OP		0x00000000
+#define VCN_DEC_SW_CMD_END		0x00000001
+#define VCN_DEC_SW_CMD_IB		0x00000002
+#define VCN_DEC_SW_CMD_FENCE		0x00000003
+#define VCN_DEC_SW_CMD_TRAP		0x00000004
+#define VCN_DEC_SW_CMD_IB_AUTO		0x00000005
+#define VCN_DEC_SW_CMD_SEMAPHORE	0x00000006
+#define VCN_DEC_SW_CMD_PREEMPT_FENCE	0x00000009
+#define VCN_DEC_SW_CMD_REG_WRITE	0x0000000b
+#define VCN_DEC_SW_CMD_REG_WAIT		0x0000000c
+
 #define VCN_ENC_CMD_NO_OP		0x00000000
 #define VCN_ENC_CMD_END 		0x00000001
 #define VCN_ENC_CMD_IB			0x00000002
@@ -145,6 +156,10 @@
 	} while (0)
 
 #define AMDGPU_VCN_MULTI_QUEUE_FLAG	(1 << 8)
+#define AMDGPU_VCN_SW_RING_FLAG		(1 << 9)
+
+#define AMDGPU_VCN_IB_FLAG_DECODE_BUFFER	0x00000001
+#define AMDGPU_VCN_CMD_FLAG_MSG_BUFFER		0x00000001
 
 enum fw_queue_mode {
 	FW_QUEUE_RING_RESET = 1,
@@ -236,11 +251,24 @@ struct amdgpu_fw_shared_multi_queue {
 	uint8_t padding[4];
 };
 
+struct amdgpu_fw_shared_sw_ring {
+	uint8_t is_enabled;
+	uint8_t padding[3];
+};
+
 struct amdgpu_fw_shared {
 	uint32_t present_flag_0;
 	uint8_t pad[53];
 	struct amdgpu_fw_shared_multi_queue multi_queue;
+	struct amdgpu_fw_shared_sw_ring sw_ring;
 } __attribute__((__packed__));
+
+struct amdgpu_vcn_decode_buffer {
+	uint32_t valid_buf_flag;
+	uint32_t msg_buffer_address_hi;
+	uint32_t msg_buffer_address_lo;
+	uint32_t pad[30];
+};
 
 int amdgpu_vcn_sw_init(struct amdgpu_device *adev);
 int amdgpu_vcn_sw_fini(struct amdgpu_device *adev);
@@ -251,6 +279,8 @@ void amdgpu_vcn_ring_end_use(struct amdgpu_ring *ring);
 
 int amdgpu_vcn_dec_ring_test_ring(struct amdgpu_ring *ring);
 int amdgpu_vcn_dec_ring_test_ib(struct amdgpu_ring *ring, long timeout);
+int amdgpu_vcn_dec_sw_ring_test_ring(struct amdgpu_ring *ring);
+int amdgpu_vcn_dec_sw_ring_test_ib(struct amdgpu_ring *ring, long timeout);
 
 int amdgpu_vcn_enc_ring_test_ring(struct amdgpu_ring *ring);
 int amdgpu_vcn_enc_ring_test_ib(struct amdgpu_ring *ring, long timeout);

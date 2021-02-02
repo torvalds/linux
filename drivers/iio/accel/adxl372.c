@@ -1211,14 +1211,13 @@ int adxl372_probe(struct device *dev, struct regmap *regmap,
 		return ret;
 	}
 
-	ret = devm_iio_triggered_buffer_setup(dev,
-					      indio_dev, NULL,
-					      adxl372_trigger_handler,
-					      &adxl372_buffer_ops);
+	ret = devm_iio_triggered_buffer_setup_ext(dev,
+						  indio_dev, NULL,
+						  adxl372_trigger_handler,
+						  &adxl372_buffer_ops,
+						  adxl372_fifo_attributes);
 	if (ret < 0)
 		return ret;
-
-	iio_buffer_set_attrs(indio_dev->buffer, adxl372_fifo_attributes);
 
 	if (st->irq) {
 		st->dready_trig = devm_iio_trigger_alloc(dev,

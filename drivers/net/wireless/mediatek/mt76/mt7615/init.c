@@ -221,7 +221,7 @@ static const struct ieee80211_iface_combination if_comb_radar[] = {
 	{
 		.limits = if_limits,
 		.n_limits = ARRAY_SIZE(if_limits),
-		.max_interfaces = 4,
+		.max_interfaces = MT7615_MAX_INTERFACES,
 		.num_different_channels = 1,
 		.beacon_int_infra_match = true,
 		.radar_detect_widths = BIT(NL80211_CHAN_WIDTH_20_NOHT) |
@@ -237,7 +237,7 @@ static const struct ieee80211_iface_combination if_comb[] = {
 	{
 		.limits = if_limits,
 		.n_limits = ARRAY_SIZE(if_limits),
-		.max_interfaces = 4,
+		.max_interfaces = MT7615_MAX_INTERFACES,
 		.num_different_channels = 1,
 		.beacon_int_infra_match = true,
 	}
@@ -385,7 +385,7 @@ int mt7615_register_ext_phy(struct mt7615_dev *dev)
 {
 	struct mt7615_phy *phy = mt7615_ext_phy(dev);
 	struct mt76_phy *mphy;
-	int ret;
+	int i, ret;
 
 	if (!is_mt7615(&dev->mt76))
 		return -EOPNOTSUPP;
@@ -422,14 +422,21 @@ int mt7615_register_ext_phy(struct mt7615_dev *dev)
 	 * Make the secondary PHY MAC address local without overlapping with
 	 * the usual MAC address allocation scheme on multiple virtual interfaces
 	 */
-	mphy->hw->wiphy->perm_addr[0] |= 2;
-	mphy->hw->wiphy->perm_addr[0] ^= BIT(7);
+	memcpy(mphy->macaddr, dev->mt76.eeprom.data + MT_EE_MAC_ADDR,
+	       ETH_ALEN);
+	mphy->macaddr[0] |= 2;
+	mphy->macaddr[0] ^= BIT(7);
+	mt76_eeprom_override(mphy);
 
 	/* second phy can only handle 5 GHz */
-	mphy->sband_2g.sband.n_channels = 0;
-	mphy->hw->wiphy->bands[NL80211_BAND_2GHZ] = NULL;
+	mphy->cap.has_5ghz = true;
 
-	ret = mt76_register_phy(mphy);
+	/* mt7615 second phy shares the same hw queues with the primary one */
+	for (i = 0; i <= MT_TXQ_PSD ; i++)
+		mphy->q_tx[i] = dev->mphy.q_tx[i];
+
+	ret = mt76_register_phy(mphy, true, mt7615_rates,
+				ARRAY_SIZE(mt7615_rates));
 	if (ret)
 		ieee80211_free_hw(mphy->hw);
 

@@ -379,41 +379,6 @@ static const uint32_t ecc_umc_mcumc_ctrl_mask_addrs[] = {
 	(0x001d43e0 + 0x00001800),
 };
 
-static const uint32_t ecc_umc_mcumc_status_addrs[] = {
-	(0x000143c2 + 0x00000000),
-	(0x000143c2 + 0x00000800),
-	(0x000143c2 + 0x00001000),
-	(0x000143c2 + 0x00001800),
-	(0x000543c2 + 0x00000000),
-	(0x000543c2 + 0x00000800),
-	(0x000543c2 + 0x00001000),
-	(0x000543c2 + 0x00001800),
-	(0x000943c2 + 0x00000000),
-	(0x000943c2 + 0x00000800),
-	(0x000943c2 + 0x00001000),
-	(0x000943c2 + 0x00001800),
-	(0x000d43c2 + 0x00000000),
-	(0x000d43c2 + 0x00000800),
-	(0x000d43c2 + 0x00001000),
-	(0x000d43c2 + 0x00001800),
-	(0x001143c2 + 0x00000000),
-	(0x001143c2 + 0x00000800),
-	(0x001143c2 + 0x00001000),
-	(0x001143c2 + 0x00001800),
-	(0x001543c2 + 0x00000000),
-	(0x001543c2 + 0x00000800),
-	(0x001543c2 + 0x00001000),
-	(0x001543c2 + 0x00001800),
-	(0x001943c2 + 0x00000000),
-	(0x001943c2 + 0x00000800),
-	(0x001943c2 + 0x00001000),
-	(0x001943c2 + 0x00001800),
-	(0x001d43c2 + 0x00000000),
-	(0x001d43c2 + 0x00000800),
-	(0x001d43c2 + 0x00001000),
-	(0x001d43c2 + 0x00001800),
-};
-
 static int gmc_v9_0_ecc_interrupt_state(struct amdgpu_device *adev,
 		struct amdgpu_irq_src *src,
 		unsigned type,
@@ -502,6 +467,7 @@ static int gmc_v9_0_vm_fault_interrupt_state(struct amdgpu_device *adev,
 				WREG32(reg, tmp);
 			}
 		}
+		break;
 	default:
 		break;
 	}
@@ -510,122 +476,136 @@ static int gmc_v9_0_vm_fault_interrupt_state(struct amdgpu_device *adev,
 }
 
 static int gmc_v9_0_process_interrupt(struct amdgpu_device *adev,
-				struct amdgpu_irq_src *source,
-				struct amdgpu_iv_entry *entry)
+				      struct amdgpu_irq_src *source,
+				      struct amdgpu_iv_entry *entry)
 {
-	struct amdgpu_vmhub *hub;
 	bool retry_fault = !!(entry->src_data[1] & 0x80);
 	uint32_t status = 0, cid = 0, rw = 0;
-	u64 addr;
-	char hub_name[10];
+	struct amdgpu_task_info task_info;
+	struct amdgpu_vmhub *hub;
 	const char *mmhub_cid;
+	const char *hub_name;
+	u64 addr;
 
 	addr = (u64)entry->src_data[0] << 12;
 	addr |= ((u64)entry->src_data[1] & 0xf) << 44;
 
-	if (retry_fault && amdgpu_gmc_filter_faults(adev, addr, entry->pasid,
-						    entry->timestamp))
-		return 1; /* This also prevents sending it to KFD */
+	if (retry_fault) {
+		/* Returning 1 here also prevents sending the IV to the KFD */
+
+		/* Process it onyl if it's the first fault for this address */
+		if (entry->ih != &adev->irq.ih_soft &&
+		    amdgpu_gmc_filter_faults(adev, addr, entry->pasid,
+					     entry->timestamp))
+			return 1;
+
+		/* Delegate it to a different ring if the hardware hasn't
+		 * already done it.
+		 */
+		if (in_interrupt()) {
+			amdgpu_irq_delegate(adev, entry, 8);
+			return 1;
+		}
+
+		/* Try to handle the recoverable page faults by filling page
+		 * tables
+		 */
+		if (amdgpu_vm_handle_fault(adev, entry->pasid, addr))
+			return 1;
+	}
+
+	if (!printk_ratelimit())
+		return 0;
 
 	if (entry->client_id == SOC15_IH_CLIENTID_VMC) {
-		snprintf(hub_name, sizeof(hub_name), "mmhub0");
+		hub_name = "mmhub0";
 		hub = &adev->vmhub[AMDGPU_MMHUB_0];
 	} else if (entry->client_id == SOC15_IH_CLIENTID_VMC1) {
-		snprintf(hub_name, sizeof(hub_name), "mmhub1");
+		hub_name = "mmhub1";
 		hub = &adev->vmhub[AMDGPU_MMHUB_1];
 	} else {
-		snprintf(hub_name, sizeof(hub_name), "gfxhub0");
+		hub_name = "gfxhub0";
 		hub = &adev->vmhub[AMDGPU_GFXHUB_0];
 	}
 
-	/* If it's the first fault for this address, process it normally */
-	if (retry_fault && !in_interrupt() &&
-	    amdgpu_vm_handle_fault(adev, entry->pasid, addr))
-		return 1; /* This also prevents sending it to KFD */
+	memset(&task_info, 0, sizeof(struct amdgpu_task_info));
+	amdgpu_vm_get_task_info(adev, entry->pasid, &task_info);
 
-	if (!amdgpu_sriov_vf(adev)) {
-		/*
-		 * Issue a dummy read to wait for the status register to
-		 * be updated to avoid reading an incorrect value due to
-		 * the new fast GRBM interface.
-		 */
-		if (entry->vmid_src == AMDGPU_GFXHUB_0)
-			RREG32(hub->vm_l2_pro_fault_status);
+	dev_err(adev->dev,
+		"[%s] %s page fault (src_id:%u ring:%u vmid:%u "
+		"pasid:%u, for process %s pid %d thread %s pid %d)\n",
+		hub_name, retry_fault ? "retry" : "no-retry",
+		entry->src_id, entry->ring_id, entry->vmid,
+		entry->pasid, task_info.process_name, task_info.tgid,
+		task_info.task_name, task_info.pid);
+	dev_err(adev->dev, "  in page starting at address 0x%012llx from client %d\n",
+		addr, entry->client_id);
 
-		status = RREG32(hub->vm_l2_pro_fault_status);
-		cid = REG_GET_FIELD(status,
-				    VM_L2_PROTECTION_FAULT_STATUS, CID);
-		rw = REG_GET_FIELD(status,
-				   VM_L2_PROTECTION_FAULT_STATUS, RW);
-		WREG32_P(hub->vm_l2_pro_fault_cntl, 1, ~1);
-	}
+	if (amdgpu_sriov_vf(adev))
+		return 0;
 
-	if (printk_ratelimit()) {
-		struct amdgpu_task_info task_info;
+	/*
+	 * Issue a dummy read to wait for the status register to
+	 * be updated to avoid reading an incorrect value due to
+	 * the new fast GRBM interface.
+	 */
+	if (entry->vmid_src == AMDGPU_GFXHUB_0)
+		RREG32(hub->vm_l2_pro_fault_status);
 
-		memset(&task_info, 0, sizeof(struct amdgpu_task_info));
-		amdgpu_vm_get_task_info(adev, entry->pasid, &task_info);
+	status = RREG32(hub->vm_l2_pro_fault_status);
+	cid = REG_GET_FIELD(status, VM_L2_PROTECTION_FAULT_STATUS, CID);
+	rw = REG_GET_FIELD(status, VM_L2_PROTECTION_FAULT_STATUS, RW);
+	WREG32_P(hub->vm_l2_pro_fault_cntl, 1, ~1);
 
-		dev_err(adev->dev,
-			"[%s] %s page fault (src_id:%u ring:%u vmid:%u "
-			"pasid:%u, for process %s pid %d thread %s pid %d)\n",
-			hub_name, retry_fault ? "retry" : "no-retry",
-			entry->src_id, entry->ring_id, entry->vmid,
-			entry->pasid, task_info.process_name, task_info.tgid,
-			task_info.task_name, task_info.pid);
-		dev_err(adev->dev, "  in page starting at address 0x%016llx from client %d\n",
-			addr, entry->client_id);
-		if (!amdgpu_sriov_vf(adev)) {
-			dev_err(adev->dev,
-				"VM_L2_PROTECTION_FAULT_STATUS:0x%08X\n",
-				status);
-			if (hub == &adev->vmhub[AMDGPU_GFXHUB_0]) {
-				dev_err(adev->dev, "\t Faulty UTCL2 client ID: %s (0x%x)\n",
-					cid >= ARRAY_SIZE(gfxhub_client_ids) ? "unknown" : gfxhub_client_ids[cid],
-					cid);
-			} else {
-				switch (adev->asic_type) {
-				case CHIP_VEGA10:
-					mmhub_cid = mmhub_client_ids_vega10[cid][rw];
-					break;
-				case CHIP_VEGA12:
-					mmhub_cid = mmhub_client_ids_vega12[cid][rw];
-					break;
-				case CHIP_VEGA20:
-					mmhub_cid = mmhub_client_ids_vega20[cid][rw];
-					break;
-				case CHIP_ARCTURUS:
-					mmhub_cid = mmhub_client_ids_arcturus[cid][rw];
-					break;
-				case CHIP_RAVEN:
-					mmhub_cid = mmhub_client_ids_raven[cid][rw];
-					break;
-				case CHIP_RENOIR:
-					mmhub_cid = mmhub_client_ids_renoir[cid][rw];
-					break;
-				default:
-					mmhub_cid = NULL;
-					break;
-				}
-				dev_err(adev->dev, "\t Faulty UTCL2 client ID: %s (0x%x)\n",
-					mmhub_cid ? mmhub_cid : "unknown", cid);
-			}
-			dev_err(adev->dev, "\t MORE_FAULTS: 0x%lx\n",
-				REG_GET_FIELD(status,
-				VM_L2_PROTECTION_FAULT_STATUS, MORE_FAULTS));
-			dev_err(adev->dev, "\t WALKER_ERROR: 0x%lx\n",
-				REG_GET_FIELD(status,
-				VM_L2_PROTECTION_FAULT_STATUS, WALKER_ERROR));
-			dev_err(adev->dev, "\t PERMISSION_FAULTS: 0x%lx\n",
-				REG_GET_FIELD(status,
-				VM_L2_PROTECTION_FAULT_STATUS, PERMISSION_FAULTS));
-			dev_err(adev->dev, "\t MAPPING_ERROR: 0x%lx\n",
-				REG_GET_FIELD(status,
-				VM_L2_PROTECTION_FAULT_STATUS, MAPPING_ERROR));
-			dev_err(adev->dev, "\t RW: 0x%x\n", rw);
+
+	dev_err(adev->dev,
+		"VM_L2_PROTECTION_FAULT_STATUS:0x%08X\n",
+		status);
+	if (hub == &adev->vmhub[AMDGPU_GFXHUB_0]) {
+		dev_err(adev->dev, "\t Faulty UTCL2 client ID: %s (0x%x)\n",
+			cid >= ARRAY_SIZE(gfxhub_client_ids) ? "unknown" :
+			gfxhub_client_ids[cid],
+			cid);
+	} else {
+		switch (adev->asic_type) {
+		case CHIP_VEGA10:
+			mmhub_cid = mmhub_client_ids_vega10[cid][rw];
+			break;
+		case CHIP_VEGA12:
+			mmhub_cid = mmhub_client_ids_vega12[cid][rw];
+			break;
+		case CHIP_VEGA20:
+			mmhub_cid = mmhub_client_ids_vega20[cid][rw];
+			break;
+		case CHIP_ARCTURUS:
+			mmhub_cid = mmhub_client_ids_arcturus[cid][rw];
+			break;
+		case CHIP_RAVEN:
+			mmhub_cid = mmhub_client_ids_raven[cid][rw];
+			break;
+		case CHIP_RENOIR:
+			mmhub_cid = mmhub_client_ids_renoir[cid][rw];
+			break;
+		default:
+			mmhub_cid = NULL;
+			break;
 		}
+		dev_err(adev->dev, "\t Faulty UTCL2 client ID: %s (0x%x)\n",
+			mmhub_cid ? mmhub_cid : "unknown", cid);
 	}
-
+	dev_err(adev->dev, "\t MORE_FAULTS: 0x%lx\n",
+		REG_GET_FIELD(status,
+		VM_L2_PROTECTION_FAULT_STATUS, MORE_FAULTS));
+	dev_err(adev->dev, "\t WALKER_ERROR: 0x%lx\n",
+		REG_GET_FIELD(status,
+		VM_L2_PROTECTION_FAULT_STATUS, WALKER_ERROR));
+	dev_err(adev->dev, "\t PERMISSION_FAULTS: 0x%lx\n",
+		REG_GET_FIELD(status,
+		VM_L2_PROTECTION_FAULT_STATUS, PERMISSION_FAULTS));
+	dev_err(adev->dev, "\t MAPPING_ERROR: 0x%lx\n",
+		REG_GET_FIELD(status,
+		VM_L2_PROTECTION_FAULT_STATUS, MAPPING_ERROR));
+	dev_err(adev->dev, "\t RW: 0x%x\n", rw);
 	return 0;
 }
 
@@ -711,6 +691,7 @@ static bool gmc_v9_0_get_atc_vmid_pasid_mapping_info(struct amdgpu_device *adev,
  *
  * @adev: amdgpu_device pointer
  * @vmid: vm instance to flush
+ * @vmhub: which hub to flush
  * @flush_type: the flush type
  *
  * Flush the TLB for the requested page table using certain type.
@@ -827,6 +808,8 @@ static void gmc_v9_0_flush_gpu_tlb(struct amdgpu_device *adev, uint32_t vmid,
  *
  * @adev: amdgpu_device pointer
  * @pasid: pasid to be flush
+ * @flush_type: the flush type
+ * @all_hub: flush all hubs
  *
  * Flush the TLB for the requested pasid.
  */
@@ -1166,15 +1149,7 @@ static void gmc_v9_0_set_mmhub_funcs(struct amdgpu_device *adev)
 
 static void gmc_v9_0_set_gfxhub_funcs(struct amdgpu_device *adev)
 {
-	switch (adev->asic_type) {
-	case CHIP_ARCTURUS:
-	case CHIP_VEGA20:
-		adev->gfxhub.funcs = &gfxhub_v1_1_funcs;
-		break;
-	default:
-		adev->gfxhub.funcs = &gfxhub_v1_0_funcs;
-		break;
-	}
+	adev->gfxhub.funcs = &gfxhub_v1_0_funcs;
 }
 
 static int gmc_v9_0_early_init(void *handle)
@@ -1201,8 +1176,6 @@ static int gmc_v9_0_late_init(void *handle)
 {
 	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
 	int r;
-
-	amdgpu_bo_late_init(adev);
 
 	r = amdgpu_gmc_allocate_vm_inv_eng(adev);
 	if (r)
@@ -1604,13 +1577,10 @@ static int gmc_v9_0_hw_init(void *handle)
 	gmc_v9_0_init_golden_registers(adev);
 
 	if (adev->mode_info.num_crtc) {
-		if (adev->asic_type != CHIP_ARCTURUS) {
-			/* Lockout access through VGA aperture*/
-			WREG32_FIELD15(DCE, 0, VGA_HDP_CONTROL, VGA_MEMORY_DISABLE, 1);
-
-			/* disable VGA render */
-			WREG32_FIELD15(DCE, 0, VGA_RENDER_CONTROL, VGA_VSTATUS_CNTL, 0);
-		}
+		/* Lockout access through VGA aperture*/
+		WREG32_FIELD15(DCE, 0, VGA_HDP_CONTROL, VGA_MEMORY_DISABLE, 1);
+		/* disable VGA render */
+		WREG32_FIELD15(DCE, 0, VGA_RENDER_CONTROL, VGA_VSTATUS_CNTL, 0);
 	}
 
 	amdgpu_device_program_register_sequence(adev,

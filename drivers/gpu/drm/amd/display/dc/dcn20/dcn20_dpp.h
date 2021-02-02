@@ -632,8 +632,7 @@
 	type CUR0_PIX_INV_MODE; \
 	type CUR0_PIXEL_ALPHA_MOD_EN; \
 	type CUR0_ROM_EN;\
-	type OBUF_MEM_PWR_FORCE;\
-	type LUT_MEM_PWR_FORCE
+	type OBUF_MEM_PWR_FORCE
 
 
 struct dcn2_dpp_shift {
@@ -659,8 +658,7 @@ struct dcn2_dpp_mask {
 	uint32_t COLOR_KEYER_RED; \
 	uint32_t COLOR_KEYER_GREEN; \
 	uint32_t COLOR_KEYER_BLUE; \
-	uint32_t OBUF_MEM_PWR_CTRL; \
-	uint32_t DSCL_MEM_PWR_CTRL
+	uint32_t OBUF_MEM_PWR_CTRL
 
 #define DPP_DCN2_REG_VARIABLE_LIST_CM_APPEND \
 	uint32_t CM_GAMUT_REMAP_B_C11_C12; \

@@ -27,9 +27,9 @@
 // *** IMPORTANT ***
 // SMU TEAM: Always increment the interface version if 
 // any structure is changed in this file
-#define SMU11_DRIVER_IF_VERSION 0x39
+#define SMU11_DRIVER_IF_VERSION 0x3B
 
-#define PPTABLE_Sienna_Cichlid_SMU_VERSION 6
+#define PPTABLE_Sienna_Cichlid_SMU_VERSION 7
 
 #define NUM_GFXCLK_DPM_LEVELS  16
 #define NUM_SMNCLK_DPM_LEVELS  2
@@ -226,6 +226,8 @@ typedef enum {
 #define FW_DSTATE_MEM_PLL_PWRDN_BIT         9   
 #define FW_DSTATE_OPTIMIZE_MALL_REFRESH_BIT 10
 #define FW_DSTATE_MEM_PSI_BIT               11
+#define FW_DSTATE_HSR_NON_STROBE_BIT        12
+#define FW_DSTATE_MP0_ENTER_WFI_BIT         13
 
 #define FW_DSTATE_SOC_ULV_MASK                    (1 << FW_DSTATE_SOC_ULV_BIT          )
 #define FW_DSTATE_G6_HSR_MASK                     (1 << FW_DSTATE_G6_HSR_BIT           )
@@ -239,6 +241,8 @@ typedef enum {
 #define FW_DSTATE_MEM_PLL_PWRDN_MASK              (1 << FW_DSTATE_MEM_PLL_PWRDN_BIT    )
 #define FW_DSTATE_OPTIMIZE_MALL_REFRESH_MASK      (1 << FW_DSTATE_OPTIMIZE_MALL_REFRESH_BIT    )
 #define FW_DSTATE_MEM_PSI_MASK                    (1 << FW_DSTATE_MEM_PSI_BIT    )
+#define FW_DSTATE_HSR_NON_STROBE_MASK             (1 << FW_DSTATE_HSR_NON_STROBE_BIT    )
+#define FW_DSTATE_MP0_ENTER_WFI_MASK              (1 << FW_DSTATE_MP0_ENTER_WFI_BIT    )
 
 // GFX GPO Feature Contains PACE and DEM sub features
 #define GFX_GPO_PACE_BIT                   0
@@ -433,6 +437,7 @@ typedef enum {
   PIECEWISE_LINEAR_FUSED_MODEL = 0,
   PIECEWISE_LINEAR_PP_MODEL,
   QUADRATIC_PP_MODEL,
+  PERPART_PIECEWISE_LINEAR_PP_MODEL,  
 } DfllDroopModelSelect_e;
 
 typedef struct {
@@ -608,7 +613,9 @@ typedef struct {
   uint16_t       SmnclkDpmFreq        [NUM_SMNCLK_DPM_LEVELS];       // in MHz
   uint16_t       SmnclkDpmVoltage     [NUM_SMNCLK_DPM_LEVELS];       // mV(Q2)
 
-  uint32_t     PaddingAPCC[4];
+  uint32_t       PaddingAPCC;
+  uint16_t       PerPartDroopVsetGfxDfll[NUM_PIECE_WISE_LINEAR_DROOP_MODEL_VF_POINTS];  //In mV(Q2)
+  uint16_t       PaddingPerPartDroop;
 
   // SECTION: Throttler settings
   uint32_t ThrottlerControlMask;   // See Throtter masks defines
@@ -663,7 +670,9 @@ typedef struct {
   uint16_t       FreqTablePhyclk   [NUM_PHYCLK_DPM_LEVELS  ];     // In MHz
   uint16_t       FreqTableDtbclk   [NUM_DTBCLK_DPM_LEVELS  ];     // In MHz
   uint16_t       FreqTableFclk     [NUM_FCLK_DPM_LEVELS    ];     // In MHz
-  uint32_t       Paddingclks[16];
+  uint32_t       Paddingclks;
+
+  DroopInt_t     PerPartDroopModelGfxDfll[NUM_PIECE_WISE_LINEAR_DROOP_MODEL_VF_POINTS]; //GHz ->Vstore in IEEE float format
 
   uint32_t       DcModeMaxFreq     [PPCLK_COUNT            ];     // In MHz
   
@@ -804,7 +813,11 @@ typedef struct {
   uint32_t         VcBtcVminA;                  // A_VMIN
   uint32_t         VcBtcVminB;                  // B_VMIN  
   
-  uint32_t         SkuReserved[9];
+  //GPIO Board feature
+  uint16_t         LedGpio;            //GeneriA GPIO flag used to control the radeon LEDs
+  uint16_t         GfxPowerStagesGpio; //Genlk_vsync GPIO flag used to control gfx power stages 
+  
+  uint32_t         SkuReserved[8];
 
 
   // MAJOR SECTION: BOARD PARAMETERS
@@ -1026,6 +1039,8 @@ typedef struct {
   uint16_t VcnActivityPercentage  ; //place holder, David N. to provide full sequence
   uint8_t  PcieRate               ;
   uint8_t  PcieWidth              ;
+  uint16_t AverageGfxclkFrequencyTarget;
+  uint16_t Padding16_2;
 
 } SmuMetrics_t;
 
@@ -1211,7 +1226,8 @@ typedef struct {
 #define WORKLOAD_PPLIB_VR_BIT             4 
 #define WORKLOAD_PPLIB_COMPUTE_BIT        5 
 #define WORKLOAD_PPLIB_CUSTOM_BIT         6 
-#define WORKLOAD_PPLIB_COUNT              7 
+#define WORKLOAD_PPLIB_W3D_BIT            7 
+#define WORKLOAD_PPLIB_COUNT              8 
 
 
 // These defines are used with the following messages:

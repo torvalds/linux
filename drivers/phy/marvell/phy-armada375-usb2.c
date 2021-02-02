@@ -105,15 +105,13 @@ static int armada375_usb_phy_probe(struct platform_device *pdev)
 	struct phy *phy;
 	struct phy_provider *phy_provider;
 	void __iomem *usb_cluster_base;
-	struct resource *res;
 	struct armada375_cluster_phy *cluster_phy;
 
 	cluster_phy = devm_kzalloc(dev, sizeof(*cluster_phy), GFP_KERNEL);
 	if (!cluster_phy)
 		return  -ENOMEM;
 
-	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	usb_cluster_base = devm_ioremap_resource(&pdev->dev, res);
+	usb_cluster_base = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(usb_cluster_base))
 		return PTR_ERR(usb_cluster_base);
 

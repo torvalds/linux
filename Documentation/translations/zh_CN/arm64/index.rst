@@ -15,3 +15,5 @@ ARM64 架构
 
     amu
     hugetlbpage
+    perf
+    elf_hwcaps

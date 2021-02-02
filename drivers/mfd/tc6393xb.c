@@ -133,7 +133,7 @@ static int tc6393xb_nand_enable(struct platform_device *nand)
 	return 0;
 }
 
-static struct resource tc6393xb_nand_resources[] = {
+static const struct resource tc6393xb_nand_resources[] = {
 	{
 		.start	= 0x1000,
 		.end	= 0x1007,
@@ -151,7 +151,7 @@ static struct resource tc6393xb_nand_resources[] = {
 	},
 };
 
-static struct resource tc6393xb_mmc_resources[] = {
+static const struct resource tc6393xb_mmc_resources[] = {
 	{
 		.start	= 0x800,
 		.end	= 0x9ff,
@@ -192,7 +192,7 @@ static const struct resource tc6393xb_ohci_resources[] = {
 	},
 };
 
-static struct resource tc6393xb_fb_resources[] = {
+static const struct resource tc6393xb_fb_resources[] = {
 	{
 		.start	= 0x5000,
 		.end	= 0x51ff,

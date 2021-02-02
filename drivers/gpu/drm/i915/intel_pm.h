@@ -49,8 +49,6 @@ void g4x_wm_sanitize(struct drm_i915_private *dev_priv);
 void vlv_wm_sanitize(struct drm_i915_private *dev_priv);
 bool intel_can_enable_sagv(struct drm_i915_private *dev_priv,
 			   const struct intel_bw_state *bw_state);
-int intel_enable_sagv(struct drm_i915_private *dev_priv);
-int intel_disable_sagv(struct drm_i915_private *dev_priv);
 void intel_sagv_pre_plane_update(struct intel_atomic_state *state);
 void intel_sagv_post_plane_update(struct intel_atomic_state *state);
 bool skl_wm_level_equals(const struct skl_wm_level *l1,

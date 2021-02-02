@@ -5,7 +5,7 @@
  *  Copyright (C) 2013-2017 Matthias Schwarzott <zzam@gentoo.org>
  *
  *  References:
- *  http://www.silabs.com/Support%20Documents/TechnicalDocs/Si2165-short.pdf
+ *  https://www.silabs.com/Support%20Documents/TechnicalDocs/Si2165-short.pdf
  */
 
 #include <linux/delay.h>

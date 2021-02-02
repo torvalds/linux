@@ -3,45 +3,82 @@
  * Copyright (C) 2018 Spreadtrum Communications Inc.
  */
 
-#include <linux/module.h>
-#include <linux/of_address.h>
-#include <linux/platform_device.h>
-#include <linux/regmap.h>
+#include <linux/device.h>
 #include <linux/input.h>
+#include <linux/mod_devicetable.h>
+#include <linux/module.h>
+#include <linux/platform_device.h>
+#include <linux/property.h>
+#include <linux/regmap.h>
 #include <linux/workqueue.h>
 
-#define CUR_DRV_CAL_SEL		GENMASK(13, 12)
-#define SLP_LDOVIBR_PD_EN	BIT(9)
-#define LDO_VIBR_PD		BIT(8)
+#define CUR_DRV_CAL_SEL			GENMASK(13, 12)
+#define SLP_LDOVIBR_PD_EN		BIT(9)
+#define LDO_VIBR_PD			BIT(8)
+#define SC2730_CUR_DRV_CAL_SEL		0
+#define SC2730_SLP_LDOVIBR_PD_EN	BIT(14)
+#define SC2730_LDO_VIBR_PD		BIT(13)
+
+struct sc27xx_vibra_data {
+	u32 cur_drv_cal_sel;
+	u32 slp_pd_en;
+	u32 ldo_pd;
+};
 
 struct vibra_info {
 	struct input_dev	*input_dev;
 	struct work_struct	play_work;
 	struct regmap		*regmap;
+	const struct sc27xx_vibra_data *data;
 	u32			base;
 	u32			strength;
 	bool			enabled;
 };
 
+static const struct sc27xx_vibra_data sc2731_data = {
+	.cur_drv_cal_sel = CUR_DRV_CAL_SEL,
+	.slp_pd_en = SLP_LDOVIBR_PD_EN,
+	.ldo_pd = LDO_VIBR_PD,
+};
+
+static const struct sc27xx_vibra_data sc2730_data = {
+	.cur_drv_cal_sel = SC2730_CUR_DRV_CAL_SEL,
+	.slp_pd_en = SC2730_SLP_LDOVIBR_PD_EN,
+	.ldo_pd = SC2730_LDO_VIBR_PD,
+};
+
+static const struct sc27xx_vibra_data sc2721_data = {
+	.cur_drv_cal_sel = CUR_DRV_CAL_SEL,
+	.slp_pd_en = SLP_LDOVIBR_PD_EN,
+	.ldo_pd = LDO_VIBR_PD,
+};
+
 static void sc27xx_vibra_set(struct vibra_info *info, bool on)
 {
+	const struct sc27xx_vibra_data *data = info->data;
 	if (on) {
-		regmap_update_bits(info->regmap, info->base, LDO_VIBR_PD, 0);
+		regmap_update_bits(info->regmap, info->base, data->ldo_pd, 0);
 		regmap_update_bits(info->regmap, info->base,
-				   SLP_LDOVIBR_PD_EN, 0);
+				   data->slp_pd_en, 0);
 		info->enabled = true;
 	} else {
-		regmap_update_bits(info->regmap, info->base, LDO_VIBR_PD,
-				   LDO_VIBR_PD);
+		regmap_update_bits(info->regmap, info->base, data->ldo_pd,
+				   data->ldo_pd);
 		regmap_update_bits(info->regmap, info->base,
-				   SLP_LDOVIBR_PD_EN, SLP_LDOVIBR_PD_EN);
+				   data->slp_pd_en, data->slp_pd_en);
 		info->enabled = false;
 	}
 }
 
 static int sc27xx_vibra_hw_init(struct vibra_info *info)
 {
-	return regmap_update_bits(info->regmap, info->base, CUR_DRV_CAL_SEL, 0);
+	const struct sc27xx_vibra_data *data = info->data;
+
+	if (!data->cur_drv_cal_sel)
+		return 0;
+
+	return regmap_update_bits(info->regmap, info->base,
+				  data->cur_drv_cal_sel, 0);
 }
 
 static void sc27xx_vibra_play_work(struct work_struct *work)
@@ -78,7 +115,14 @@ static void sc27xx_vibra_close(struct input_dev *input)
 static int sc27xx_vibra_probe(struct platform_device *pdev)
 {
 	struct vibra_info *info;
+	const struct sc27xx_vibra_data *data;
 	int error;
+
+	data = device_get_match_data(&pdev->dev);
+	if (!data) {
+		dev_err(&pdev->dev, "no matching driver data found\n");
+		return -EINVAL;
+	}
 
 	info = devm_kzalloc(&pdev->dev, sizeof(*info), GFP_KERNEL);
 	if (!info)
@@ -105,6 +149,7 @@ static int sc27xx_vibra_probe(struct platform_device *pdev)
 	info->input_dev->name = "sc27xx:vibrator";
 	info->input_dev->id.version = 0;
 	info->input_dev->close = sc27xx_vibra_close;
+	info->data = data;
 
 	input_set_drvdata(info->input_dev, info);
 	input_set_capability(info->input_dev, EV_FF, FF_RUMBLE);
@@ -134,7 +179,9 @@ static int sc27xx_vibra_probe(struct platform_device *pdev)
 }
 
 static const struct of_device_id sc27xx_vibra_of_match[] = {
-	{ .compatible = "sprd,sc2731-vibrator", },
+	{ .compatible = "sprd,sc2721-vibrator", .data = &sc2721_data },
+	{ .compatible = "sprd,sc2730-vibrator", .data = &sc2730_data },
+	{ .compatible = "sprd,sc2731-vibrator", .data = &sc2731_data },
 	{}
 };
 MODULE_DEVICE_TABLE(of, sc27xx_vibra_of_match);

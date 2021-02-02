@@ -28,10 +28,12 @@
 #include "nbio/nbio_2_3_offset.h"
 #include "nbio/nbio_2_3_sh_mask.h"
 #include <uapi/linux/kfd_ioctl.h>
+#include <linux/pci.h>
 
 #define smnPCIE_CONFIG_CNTL	0x11180044
 #define smnCPM_CONTROL		0x11180460
 #define smnPCIE_CNTL2		0x11180070
+#define smnPCIE_LC_CNTL		0x11140280
 
 #define mmBIF_SDMA2_DOORBELL_RANGE		0x01d6
 #define mmBIF_SDMA2_DOORBELL_RANGE_BASE_IDX	2
@@ -51,8 +53,17 @@ static void nbio_v2_3_remap_hdp_registers(struct amdgpu_device *adev)
 
 static u32 nbio_v2_3_get_rev_id(struct amdgpu_device *adev)
 {
-	u32 tmp = RREG32_SOC15(NBIO, 0, mmRCC_DEV0_EPF0_STRAP0);
+	u32 tmp;
 
+	/*
+	 * guest vm gets 0xffffffff when reading RCC_DEV0_EPF0_STRAP0,
+	 * therefore we force rev_id to 0 (which is the default value)
+	 */
+	if (amdgpu_sriov_vf(adev)) {
+		return 0;
+	}
+
+	tmp = RREG32_SOC15(NBIO, 0, mmRCC_DEV0_EPF0_STRAP0);
 	tmp &= RCC_DEV0_EPF0_STRAP0__STRAP_ATI_REV_ID_DEV0_F0_MASK;
 	tmp >>= RCC_DEV0_EPF0_STRAP0__STRAP_ATI_REV_ID_DEV0_F0__SHIFT;
 
@@ -312,6 +323,42 @@ static void nbio_v2_3_init_registers(struct amdgpu_device *adev)
 		WREG32_PCIE(smnPCIE_CONFIG_CNTL, data);
 }
 
+#define NAVI10_PCIE__LC_L0S_INACTIVITY_DEFAULT		0x00000000 // off by default, no gains over L1
+#define NAVI10_PCIE__LC_L1_INACTIVITY_DEFAULT		0x00000009 // 1=1us, 9=1ms
+#define NAVI10_PCIE__LC_L1_INACTIVITY_TBT_DEFAULT	0x0000000E // 4ms
+
+static void nbio_v2_3_enable_aspm(struct amdgpu_device *adev,
+				  bool enable)
+{
+	uint32_t def, data;
+
+	def = data = RREG32_PCIE(smnPCIE_LC_CNTL);
+
+	if (enable) {
+		/* Disable ASPM L0s/L1 first */
+		data &= ~(PCIE_LC_CNTL__LC_L0S_INACTIVITY_MASK | PCIE_LC_CNTL__LC_L1_INACTIVITY_MASK);
+
+		data |= NAVI10_PCIE__LC_L0S_INACTIVITY_DEFAULT << PCIE_LC_CNTL__LC_L0S_INACTIVITY__SHIFT;
+
+		if (pci_is_thunderbolt_attached(adev->pdev))
+			data |= NAVI10_PCIE__LC_L1_INACTIVITY_TBT_DEFAULT  << PCIE_LC_CNTL__LC_L1_INACTIVITY__SHIFT;
+		else
+			data |= NAVI10_PCIE__LC_L1_INACTIVITY_DEFAULT << PCIE_LC_CNTL__LC_L1_INACTIVITY__SHIFT;
+
+		data &= ~PCIE_LC_CNTL__LC_PMI_TO_L1_DIS_MASK;
+	} else {
+		/* Disbale ASPM L1 */
+		data &= ~PCIE_LC_CNTL__LC_L1_INACTIVITY_MASK;
+		/* Disable ASPM TxL0s */
+		data &= ~PCIE_LC_CNTL__LC_L0S_INACTIVITY_MASK;
+		/* Disable ACPI L1 */
+		data |= PCIE_LC_CNTL__LC_PMI_TO_L1_DIS_MASK;
+	}
+
+	if (def != data)
+		WREG32_PCIE(smnPCIE_LC_CNTL, data);
+}
+
 const struct amdgpu_nbio_funcs nbio_v2_3_funcs = {
 	.get_hdp_flush_req_offset = nbio_v2_3_get_hdp_flush_req_offset,
 	.get_hdp_flush_done_offset = nbio_v2_3_get_hdp_flush_done_offset,
@@ -332,4 +379,5 @@ const struct amdgpu_nbio_funcs nbio_v2_3_funcs = {
 	.ih_control = nbio_v2_3_ih_control,
 	.init_registers = nbio_v2_3_init_registers,
 	.remap_hdp_registers = nbio_v2_3_remap_hdp_registers,
+	.enable_aspm = nbio_v2_3_enable_aspm,
 };

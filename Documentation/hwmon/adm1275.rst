@@ -83,7 +83,7 @@ or current scaling. Reported voltages, currents, and power are raw measurements,
 and will typically have to be scaled.
 
 The shunt value in micro-ohms can be set via device tree at compile-time. Please
-refer to the Documentation/devicetree/bindings/hwmon/adm1275.txt for bindings
+refer to the Documentation/devicetree/bindings/hwmon/adi,adm1275.yaml for bindings
 if the device tree is used.
 
 Platform data support

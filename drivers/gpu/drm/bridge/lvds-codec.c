@@ -80,7 +80,6 @@ static int lvds_codec_probe(struct platform_device *pdev)
 	struct device_node *panel_node;
 	struct drm_panel *panel;
 	struct lvds_codec *lvds_codec;
-	int ret;
 
 	lvds_codec = devm_kzalloc(dev, sizeof(*lvds_codec), GFP_KERNEL);
 	if (!lvds_codec)
@@ -90,13 +89,9 @@ static int lvds_codec_probe(struct platform_device *pdev)
 	lvds_codec->connector_type = (uintptr_t)of_device_get_match_data(dev);
 
 	lvds_codec->vcc = devm_regulator_get(lvds_codec->dev, "power");
-	if (IS_ERR(lvds_codec->vcc)) {
-		ret = PTR_ERR(lvds_codec->vcc);
-		if (ret != -EPROBE_DEFER)
-			dev_err(lvds_codec->dev,
-				"Unable to get \"vcc\" supply: %d\n", ret);
-		return ret;
-	}
+	if (IS_ERR(lvds_codec->vcc))
+		return dev_err_probe(dev, PTR_ERR(lvds_codec->vcc),
+				     "Unable to get \"vcc\" supply\n");
 
 	lvds_codec->powerdown_gpio = devm_gpiod_get_optional(dev, "powerdown",
 							     GPIOD_OUT_HIGH);

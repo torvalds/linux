@@ -8,15 +8,16 @@ Required properties:
 
 Optional properties:
 - fan-supply		: phandle to the regulator that provides power to the fan
-- interrupts		: This contains a single interrupt specifier which
-			  describes the tachometer output of the fan as an
-			  interrupt source. The output signal must generate a
-			  defined number of interrupts per fan revolution, which
-			  require that it must be self resetting edge interrupts.
-			  See interrupt-controller/interrupts.txt for the format.
-- pulses-per-revolution : define the tachometer pulses per fan revolution as
-			  an integer (default is 2 interrupts per revolution).
-			  The value must be greater than zero.
+- interrupts		: This contains an interrupt specifier for each fan
+			  tachometer output connected to an interrupt source.
+			  The output signal must generate a defined number of
+			  interrupts per fan revolution, which require that
+			  it must be self resetting edge interrupts. See
+			  interrupt-controller/interrupts.txt for the format.
+- pulses-per-revolution : define the number of pulses per fan revolution for
+			  each tachometer input as an integer (default is 2
+			  interrupts per revolution). The value must be
+			  greater than zero.
 
 Example:
 	fan0: pwm-fan {
@@ -54,4 +55,13 @@ Example 2:
 		interrupt-parent = <&gpio5>;
 		interrupts = <1 IRQ_TYPE_EDGE_FALLING>;
 		pulses-per-revolution = <2>;
+	};
+
+Example 3:
+	fan0: pwm-fan {
+		compatible = "pwm-fan";
+		pwms = <&pwm1 0 25000 0>;
+		interrupts-extended = <&gpio1 1 IRQ_TYPE_EDGE_FALLING>,
+			<&gpio2 5 IRQ_TYPE_EDGE_FALLING>;
+		pulses-per-revolution = <2>, <1>;
 	};

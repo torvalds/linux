@@ -21,10 +21,17 @@ enum {
 #if IS_ENABLED(CONFIG_SND_INTEL_DSP_CONFIG)
 
 int snd_intel_dsp_driver_probe(struct pci_dev *pci);
+int snd_intel_acpi_dsp_driver_probe(struct device *dev, const u8 acpi_hid[ACPI_ID_LEN]);
 
 #else
 
 static inline int snd_intel_dsp_driver_probe(struct pci_dev *pci)
+{
+	return SND_INTEL_DSP_DRIVER_ANY;
+}
+
+static inline
+int snd_intel_acpi_dsp_driver_probe(struct device *dev, const u8 acpi_hid[ACPI_ID_LEN])
 {
 	return SND_INTEL_DSP_DRIVER_ANY;
 }

@@ -119,6 +119,9 @@ int pvrdma_create_cq(struct ib_cq *ibcq, const struct ib_cq_init_attr *attr,
 
 	BUILD_BUG_ON(sizeof(struct pvrdma_cqe) != 64);
 
+	if (attr->flags)
+		return -EOPNOTSUPP;
+
 	entries = roundup_pow_of_two(entries);
 	if (entries < 1 || entries > dev->dsr->caps.max_cqe)
 		return -EINVAL;

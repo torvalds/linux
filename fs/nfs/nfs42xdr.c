@@ -191,7 +191,7 @@
 
 #define encode_getxattr_maxsz   (op_encode_hdr_maxsz + 1 + \
 				 nfs4_xattr_name_maxsz)
-#define decode_getxattr_maxsz   (op_decode_hdr_maxsz + 1 + 1)
+#define decode_getxattr_maxsz   (op_decode_hdr_maxsz + 1 + pagepad_maxsz)
 #define encode_setxattr_maxsz   (op_encode_hdr_maxsz + \
 				 1 + nfs4_xattr_name_maxsz + 1)
 #define decode_setxattr_maxsz   (op_decode_hdr_maxsz + decode_change_info_maxsz)
@@ -489,6 +489,12 @@ static int decode_getxattr(struct xdr_stream *xdr,
 		return -EIO;
 
 	len = be32_to_cpup(p);
+
+	/*
+	 * Only check against the page length here. The actual
+	 * requested length may be smaller, but that is only
+	 * checked against after possibly caching a valid reply.
+	 */
 	if (len > req->rq_rcv_buf.page_len)
 		return -ERANGE;
 
@@ -1019,56 +1025,80 @@ static int decode_deallocate(struct xdr_stream *xdr, struct nfs42_falloc_res *re
 	return decode_op_hdr(xdr, OP_DEALLOCATE);
 }
 
-static int decode_read_plus_data(struct xdr_stream *xdr, struct nfs_pgio_res *res,
-				 uint32_t *eof)
+static int decode_read_plus_data(struct xdr_stream *xdr,
+				 struct nfs_pgio_args *args,
+				 struct nfs_pgio_res *res)
 {
 	uint32_t count, recvd;
 	uint64_t offset;
 	__be32 *p;
 
 	p = xdr_inline_decode(xdr, 8 + 4);
-	if (unlikely(!p))
-		return -EIO;
+	if (!p)
+		return 1;
 
 	p = xdr_decode_hyper(p, &offset);
 	count = be32_to_cpup(p);
-	recvd = xdr_align_data(xdr, res->count, count);
-	res->count += recvd;
-
-	if (count > recvd) {
-		dprintk("NFS: server cheating in read reply: "
-				"count %u > recvd %u\n", count, recvd);
-		*eof = 0;
+	recvd = xdr_align_data(xdr, res->count, xdr_align_size(count));
+	if (recvd > count)
+		recvd = count;
+	if (res->count + recvd > args->count) {
+		if (args->count > res->count)
+			res->count += args->count - res->count;
 		return 1;
 	}
-
+	res->count += recvd;
+	if (count > recvd)
+		return 1;
 	return 0;
 }
 
-static int decode_read_plus_hole(struct xdr_stream *xdr, struct nfs_pgio_res *res,
-				 uint32_t *eof)
+static int decode_read_plus_hole(struct xdr_stream *xdr,
+				 struct nfs_pgio_args *args,
+				 struct nfs_pgio_res *res, uint32_t *eof)
 {
 	uint64_t offset, length, recvd;
 	__be32 *p;
 
 	p = xdr_inline_decode(xdr, 8 + 8);
-	if (unlikely(!p))
-		return -EIO;
+	if (!p)
+		return 1;
 
 	p = xdr_decode_hyper(p, &offset);
 	p = xdr_decode_hyper(p, &length);
+	if (offset != args->offset + res->count) {
+		/* Server returned an out-of-sequence extent */
+		if (offset > args->offset + res->count ||
+		    offset + length < args->offset + res->count) {
+			dprintk("NFS: server returned out of sequence extent: "
+				"offset/size = %llu/%llu != expected %llu\n",
+				(unsigned long long)offset,
+				(unsigned long long)length,
+				(unsigned long long)(args->offset +
+						     res->count));
+			return 1;
+		}
+		length -= args->offset + res->count - offset;
+	}
+	if (length + res->count > args->count) {
+		*eof = 0;
+		if (unlikely(res->count >= args->count))
+			return 1;
+		length = args->count - res->count;
+	}
 	recvd = xdr_expand_hole(xdr, res->count, length);
 	res->count += recvd;
 
-	if (recvd < length) {
-		*eof = 0;
+	if (recvd < length)
 		return 1;
-	}
 	return 0;
 }
 
 static int decode_read_plus(struct xdr_stream *xdr, struct nfs_pgio_res *res)
 {
+	struct nfs_pgio_header *hdr =
+		container_of(res, struct nfs_pgio_header, res);
+	struct nfs_pgio_args *args = &hdr->args;
 	uint32_t eof, segments, type;
 	int status, i;
 	__be32 *p;
@@ -1081,6 +1111,7 @@ static int decode_read_plus(struct xdr_stream *xdr, struct nfs_pgio_res *res)
 	if (unlikely(!p))
 		return -EIO;
 
+	res->count = 0;
 	eof = be32_to_cpup(p++);
 	segments = be32_to_cpup(p++);
 	if (segments == 0)
@@ -1088,25 +1119,30 @@ static int decode_read_plus(struct xdr_stream *xdr, struct nfs_pgio_res *res)
 
 	for (i = 0; i < segments; i++) {
 		p = xdr_inline_decode(xdr, 4);
-		if (unlikely(!p))
-			return -EIO;
+		if (!p)
+			goto early_out;
 
 		type = be32_to_cpup(p++);
 		if (type == NFS4_CONTENT_DATA)
-			status = decode_read_plus_data(xdr, res, &eof);
+			status = decode_read_plus_data(xdr, args, res);
 		else if (type == NFS4_CONTENT_HOLE)
-			status = decode_read_plus_hole(xdr, res, &eof);
+			status = decode_read_plus_hole(xdr, args, res, &eof);
 		else
 			return -EINVAL;
 
 		if (status < 0)
 			return status;
 		if (status > 0)
-			break;
+			goto early_out;
 	}
 
 out:
 	res->eof = eof;
+	return 0;
+early_out:
+	if (unlikely(!i))
+		return -EIO;
+	res->eof = 0;
 	return 0;
 }
 
@@ -1476,18 +1512,16 @@ static void nfs4_xdr_enc_getxattr(struct rpc_rqst *req, struct xdr_stream *xdr,
 	struct compound_hdr hdr = {
 		.minorversion = nfs4_xdr_minorversion(&args->seq_args),
 	};
-	size_t plen;
+	uint32_t replen;
 
 	encode_compound_hdr(xdr, req, &hdr);
 	encode_sequence(xdr, &args->seq_args, &hdr);
 	encode_putfh(xdr, args->fh, &hdr);
+	replen = hdr.replen + op_decode_hdr_maxsz + 1;
 	encode_getxattr(xdr, args->xattr_name, &hdr);
 
-	plen = args->xattr_len ? args->xattr_len : XATTR_SIZE_MAX;
-
-	rpc_prepare_reply_pages(req, args->xattr_pages, 0, plen,
-	    hdr.replen);
-	req->rq_rcv_buf.flags |= XDRBUF_SPARSE_PAGES;
+	rpc_prepare_reply_pages(req, args->xattr_pages, 0, args->xattr_len,
+				replen);
 
 	encode_nops(&hdr);
 }
@@ -1520,14 +1554,15 @@ static void nfs4_xdr_enc_listxattrs(struct rpc_rqst *req,
 	struct compound_hdr hdr = {
 		.minorversion = nfs4_xdr_minorversion(&args->seq_args),
 	};
+	uint32_t replen;
 
 	encode_compound_hdr(xdr, req, &hdr);
 	encode_sequence(xdr, &args->seq_args, &hdr);
 	encode_putfh(xdr, args->fh, &hdr);
+	replen = hdr.replen + op_decode_hdr_maxsz + 2 + 1;
 	encode_listxattrs(xdr, args, &hdr);
 
-	rpc_prepare_reply_pages(req, args->xattr_pages, 0, args->count,
-	    hdr.replen);
+	rpc_prepare_reply_pages(req, args->xattr_pages, 0, args->count, replen);
 
 	encode_nops(&hdr);
 }
@@ -1539,7 +1574,7 @@ static int nfs4_xdr_dec_listxattrs(struct rpc_rqst *rqstp,
 	struct compound_hdr hdr;
 	int status;
 
-	xdr_set_scratch_buffer(xdr, page_address(res->scratch), PAGE_SIZE);
+	xdr_set_scratch_page(xdr, res->scratch);
 
 	status = decode_compound_hdr(xdr, &hdr);
 	if (status)

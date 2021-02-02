@@ -536,7 +536,6 @@ static void oaktrail_teardown(struct drm_device *dev)
 
 const struct psb_ops oaktrail_chip_ops = {
 	.name = "Oaktrail",
-	.accel_2d = 1,
 	.pipes = 2,
 	.crtcs = 2,
 	.hdmi_mask = (1 << 1),

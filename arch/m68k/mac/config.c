@@ -55,10 +55,9 @@ struct mac_booter_data mac_bi_data;
 static unsigned long mac_orig_videoaddr;
 
 extern int mac_hwclk(int, struct rtc_time *);
-extern void iop_preinit(void);
 extern void iop_init(void);
 extern void via_init(void);
-extern void via_init_clock(irq_handler_t func);
+extern void via_init_clock(void);
 extern void oss_init(void);
 extern void psc_init(void);
 extern void baboon_init(void);
@@ -69,9 +68,9 @@ static void mac_get_model(char *str);
 static void mac_identify(void);
 static void mac_report_hardware(void);
 
-static void __init mac_sched_init(irq_handler_t vector)
+static void __init mac_sched_init(void)
 {
-	via_init_clock(vector);
+	via_init_clock();
 }
 
 /*
@@ -141,7 +140,6 @@ void __init config_mac(void)
 	mach_reset = mac_reset;
 	mach_halt = mac_poweroff;
 	mach_power_off = mac_poweroff;
-	mach_max_dma_address = 0xffffffff;
 #if IS_ENABLED(CONFIG_INPUT_M68K_BEEP)
 	mach_beep = mac_mksound;
 #endif
@@ -777,16 +775,12 @@ static struct resource scc_b_rsrcs[] = {
 struct platform_device scc_a_pdev = {
 	.name           = "scc",
 	.id             = 0,
-	.num_resources  = ARRAY_SIZE(scc_a_rsrcs),
-	.resource       = scc_a_rsrcs,
 };
 EXPORT_SYMBOL(scc_a_pdev);
 
 struct platform_device scc_b_pdev = {
 	.name           = "scc",
 	.id             = 1,
-	.num_resources  = ARRAY_SIZE(scc_b_rsrcs),
-	.resource       = scc_b_rsrcs,
 };
 EXPORT_SYMBOL(scc_b_pdev);
 
@@ -813,10 +807,15 @@ static void __init mac_identify(void)
 
 	/* Set up serial port resources for the console initcall. */
 
-	scc_a_rsrcs[0].start = (resource_size_t) mac_bi_data.sccbase + 2;
-	scc_a_rsrcs[0].end   = scc_a_rsrcs[0].start;
-	scc_b_rsrcs[0].start = (resource_size_t) mac_bi_data.sccbase;
-	scc_b_rsrcs[0].end   = scc_b_rsrcs[0].start;
+	scc_a_rsrcs[0].start     = (resource_size_t)mac_bi_data.sccbase + 2;
+	scc_a_rsrcs[0].end       = scc_a_rsrcs[0].start;
+	scc_a_pdev.num_resources = ARRAY_SIZE(scc_a_rsrcs);
+	scc_a_pdev.resource      = scc_a_rsrcs;
+
+	scc_b_rsrcs[0].start     = (resource_size_t)mac_bi_data.sccbase;
+	scc_b_rsrcs[0].end       = scc_b_rsrcs[0].start;
+	scc_b_pdev.num_resources = ARRAY_SIZE(scc_b_rsrcs);
+	scc_b_pdev.resource      = scc_b_rsrcs;
 
 	switch (macintosh_config->scc_type) {
 	case MAC_SCC_PSC:
@@ -834,13 +833,6 @@ static void __init mac_identify(void)
 		}
 		break;
 	}
-
-	/*
-	 * We need to pre-init the IOPs, if any. Otherwise
-	 * the serial console won't work if the user had
-	 * the serial ports set to "Faster" mode in MacOS.
-	 */
-	iop_preinit();
 
 	pr_info("Detected Macintosh model: %d\n", model);
 

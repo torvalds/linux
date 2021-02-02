@@ -260,6 +260,11 @@
 				interrupt-parent = <&gpio6>;
 				interrupts = <26 IRQ_TYPE_EDGE_FALLING>;
 
+				/* VDDA is "analog supply", 2.57-3.47 V */
+				vdda-supply = <&ab8500_ldo_aux2_reg>;
+				/* VDD is "digital supply" 1.71-3.47V */
+				vdd-supply = <&ab8500_ldo_aux5_reg>;
+
 				pinctrl-names = "default";
 				pinctrl-0 = <&tsp_default>;
 			};
@@ -284,7 +289,6 @@
 						regulator-name = "vreg_tsp_a3v3";
 						regulator-min-microvolt = <3300000>;
 						regulator-max-microvolt = <3300000>;
-						regulator-always-on; /* FIXME */
 					};
 
 					ab8500_ldo_aux3 {
@@ -301,7 +305,6 @@
 						regulator-name = "vreg_tsp_1v8";
 						regulator-min-microvolt = <1800000>;
 						regulator-max-microvolt = <1800000>;
-						regulator-always-on; /* FIXME */
 					};
 
 					ab8500_ldo_aux6 {
@@ -322,7 +325,7 @@
 			pinctrl-names = "default";
 			pinctrl-0 = <&dsi_default_mode>;
 
-			dsi-controller@a0351000 {
+			dsi@a0351000 {
 				panel@0 {
 					compatible = "samsung,s6e63m0";
 					reg = <0>;

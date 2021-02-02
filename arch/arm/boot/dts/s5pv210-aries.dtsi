@@ -54,7 +54,7 @@
 		clock-frequency = <32768>;
 	};
 
-	bt_codec: bt_sco {
+	bt_codec: bt-sco {
 		compatible = "linux,bt-sco";
 		#sound-dai-cells = <0>;
 	};
@@ -113,7 +113,7 @@
 		pinctrl-names = "default";
 		pinctrl-0 = <&sound_i2c_pins>;
 
-		wm8994: wm8994@1a {
+		wm8994: audio-codec@1a {
 			compatible = "wlf,wm8994";
 			reg = <0x1a>;
 
@@ -589,7 +589,6 @@
 		io-channels = <&adc 9>;
 		shunt-resistor-micro-ohms = <47000000>; /* 47 ohms */
 		#io-channel-cells = <0>;
-		io-channel-ranges;
 	};
 };
 
@@ -632,7 +631,7 @@
 		interrupts = <5 IRQ_TYPE_EDGE_FALLING>;
 		pinctrl-names = "default";
 		pinctrl-0 = <&ts_irq>;
-		reset-gpios = <&gpj1 3 GPIO_ACTIVE_HIGH>;
+		reset-gpios = <&gpj1 3 GPIO_ACTIVE_LOW>;
 	};
 };
 

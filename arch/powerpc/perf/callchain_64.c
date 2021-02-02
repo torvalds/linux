@@ -21,7 +21,8 @@
 /*
  * On 64-bit we don't want to invoke hash_page on user addresses from
  * interrupt context, so if the access faults, we read the page tables
- * to find which page (if any) is mapped and access it directly.
+ * to find which page (if any) is mapped and access it directly. Radix
+ * has no need for this so it doesn't use read_user_stack_slow.
  */
 int read_user_stack_slow(const void __user *ptr, void *buf, int nb)
 {
@@ -67,8 +68,8 @@ static int is_sigreturn_64_address(unsigned long nip, unsigned long fp)
 {
 	if (nip == fp + offsetof(struct signal_frame_64, tramp))
 		return 1;
-	if (vdso64_rt_sigtramp && current->mm->context.vdso_base &&
-	    nip == current->mm->context.vdso_base + vdso64_rt_sigtramp)
+	if (current->mm->context.vdso &&
+	    nip == VDSO64_SYMBOL(current->mm->context.vdso, sigtramp_rt64))
 		return 1;
 	return 0;
 }

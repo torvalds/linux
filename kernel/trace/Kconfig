@@ -31,6 +31,15 @@ config HAVE_DYNAMIC_FTRACE_WITH_REGS
 config HAVE_DYNAMIC_FTRACE_WITH_DIRECT_CALLS
 	bool
 
+config HAVE_DYNAMIC_FTRACE_WITH_ARGS
+	bool
+	help
+	 If this is set, then arguments and stack can be found from
+	 the pt_regs passed into the function callback regs parameter
+	 by default, even without setting the REGS flag in the ftrace_ops.
+	 This allows for use of regs_get_kernel_argument() and
+	 kernel_stack_pointer().
+
 config HAVE_FTRACE_MCOUNT_RECORD
 	bool
 	help
@@ -253,7 +262,6 @@ config IRQSOFF_TRACER
 	bool "Interrupts-off Latency Tracer"
 	default n
 	depends on TRACE_IRQFLAGS_SUPPORT
-	depends on !ARCH_USES_GETTIMEOFFSET
 	select TRACE_IRQFLAGS
 	select GENERIC_TRACER
 	select TRACER_MAX_TRACE
@@ -277,7 +285,6 @@ config IRQSOFF_TRACER
 config PREEMPT_TRACER
 	bool "Preemption-off Latency Tracer"
 	default n
-	depends on !ARCH_USES_GETTIMEOFFSET
 	depends on PREEMPTION
 	select GENERIC_TRACER
 	select TRACER_MAX_TRACE
@@ -727,6 +734,45 @@ config TRACE_EVAL_MAP_FILE
 
 	If unsure, say N.
 
+config FTRACE_RECORD_RECURSION
+	bool "Record functions that recurse in function tracing"
+	depends on FUNCTION_TRACER
+	help
+	  All callbacks that attach to the function tracing have some sort
+	  of protection against recursion. Even though the protection exists,
+	  it adds overhead. This option will create a file in the tracefs
+	  file system called "recursed_functions" that will list the functions
+	  that triggered a recursion.
+
+	  This will add more overhead to cases that have recursion.
+
+	  If unsure, say N
+
+config FTRACE_RECORD_RECURSION_SIZE
+	int "Max number of recursed functions to record"
+	default	128
+	depends on FTRACE_RECORD_RECURSION
+	help
+	  This defines the limit of number of functions that can be
+	  listed in the "recursed_functions" file, that lists all
+	  the functions that caused a recursion to happen.
+	  This file can be reset, but the limit can not change in
+	  size at runtime.
+
+config RING_BUFFER_RECORD_RECURSION
+	bool "Record functions that recurse in the ring buffer"
+	depends on FTRACE_RECORD_RECURSION
+	# default y, because it is coupled with FTRACE_RECORD_RECURSION
+	default y
+	help
+	  The ring buffer has its own internal recursion. Although when
+	  recursion happens it wont cause harm because of the protection,
+	  but it does cause an unwanted overhead. Enabling this option will
+	  place where recursion was detected into the ftrace "recursed_functions"
+	  file.
+
+	  This will add more overhead to cases that have recursion.
+
 config GCOV_PROFILE_FTRACE
 	bool "Enable GCOV profiling on ftrace subsystem"
 	depends on GCOV_KERNEL
@@ -796,6 +842,26 @@ config RING_BUFFER_STARTUP_TEST
 	 other similar details.
 
 	 If unsure, say N
+
+config RING_BUFFER_VALIDATE_TIME_DELTAS
+	bool "Verify ring buffer time stamp deltas"
+	depends on RING_BUFFER
+	help
+	  This will audit the time stamps on the ring buffer sub
+	  buffer to make sure that all the time deltas for the
+	  events on a sub buffer matches the current time stamp.
+	  This audit is performed for every event that is not
+	  interrupted, or interrupting another event. A check
+	  is also made when traversing sub buffers to make sure
+	  that all the deltas on the previous sub buffer do not
+	  add up to be greater than the current time stamp.
+
+	  NOTE: This adds significant overhead to recording of events,
+	  and should only be used to test the logic of the ring buffer.
+	  Do not use it on production systems.
+
+	  Only say Y if you understand what this does, and you
+	  still want it enabled. Otherwise say N
 
 config MMIOTRACE_TEST
 	tristate "Test module for mmiotrace"

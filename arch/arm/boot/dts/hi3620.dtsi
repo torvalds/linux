@@ -63,7 +63,7 @@
 		};
 	};
 
-	amba {
+	amba-bus {
 
 		#address-cells = <1>;
 		#size-cells = <1>;
@@ -172,48 +172,48 @@
 			interrupts = <1 13 0xf01>;
 		};
 
-		uart0: uart@b00000 {
+		uart0: serial@b00000 {
 			compatible = "arm,pl011", "arm,primecell";
 			reg = <0xb00000 0x1000>;
 			interrupts = <0 20 4>;
-			clocks = <&clock HI3620_UARTCLK0>;
-			clock-names = "apb_pclk";
+			clocks = <&clock HI3620_UARTCLK0>, <&clock HI3620_UARTCLK0>;
+			clock-names = "uartclk", "apb_pclk";
 			status = "disabled";
 		};
 
-		uart1: uart@b01000 {
+		uart1: serial@b01000 {
 			compatible = "arm,pl011", "arm,primecell";
 			reg = <0xb01000 0x1000>;
 			interrupts = <0 21 4>;
-			clocks = <&clock HI3620_UARTCLK1>;
-			clock-names = "apb_pclk";
+			clocks = <&clock HI3620_UARTCLK1>, <&clock HI3620_UARTCLK1>;
+			clock-names = "uartclk", "apb_pclk";
 			status = "disabled";
 		};
 
-		uart2: uart@b02000 {
+		uart2: serial@b02000 {
 			compatible = "arm,pl011", "arm,primecell";
 			reg = <0xb02000 0x1000>;
 			interrupts = <0 22 4>;
-			clocks = <&clock HI3620_UARTCLK2>;
-			clock-names = "apb_pclk";
+			clocks = <&clock HI3620_UARTCLK2>, <&clock HI3620_UARTCLK2>;
+			clock-names = "uartclk", "apb_pclk";
 			status = "disabled";
 		};
 
-		uart3: uart@b03000 {
+		uart3: serial@b03000 {
 			compatible = "arm,pl011", "arm,primecell";
 			reg = <0xb03000 0x1000>;
 			interrupts = <0 23 4>;
-			clocks = <&clock HI3620_UARTCLK3>;
-			clock-names = "apb_pclk";
+			clocks = <&clock HI3620_UARTCLK3>, <&clock HI3620_UARTCLK3>;
+			clock-names = "uartclk", "apb_pclk";
 			status = "disabled";
 		};
 
-		uart4: uart@b04000 {
+		uart4: serial@b04000 {
 			compatible = "arm,pl011", "arm,primecell";
 			reg = <0xb04000 0x1000>;
 			interrupts = <0 24 4>;
-			clocks = <&clock HI3620_UARTCLK4>;
-			clock-names = "apb_pclk";
+			clocks = <&clock HI3620_UARTCLK4>, <&clock HI3620_UARTCLK4>;
+			clock-names = "uartclk", "apb_pclk";
 			status = "disabled";
 		};
 

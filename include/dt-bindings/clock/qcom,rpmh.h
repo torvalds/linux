@@ -21,5 +21,15 @@
 #define RPMH_IPA_CLK				12
 #define RPMH_LN_BB_CLK1				13
 #define RPMH_LN_BB_CLK1_A			14
+#define RPMH_CE_CLK				15
+#define RPMH_QPIC_CLK				16
+#define RPMH_DIV_CLK1				17
+#define RPMH_DIV_CLK1_A				18
+#define RPMH_RF_CLK4				19
+#define RPMH_RF_CLK4_A				20
+#define RPMH_RF_CLK5				21
+#define RPMH_RF_CLK5_A				22
+#define RPMH_PKA_CLK				23
+#define RPMH_HWKM_CLK				24
 
 #endif

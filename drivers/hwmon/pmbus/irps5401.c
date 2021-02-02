@@ -55,7 +55,6 @@ static struct i2c_driver irps5401_driver = {
 		   .name = "irps5401",
 		   },
 	.probe_new = irps5401_probe,
-	.remove = pmbus_do_remove,
 	.id_table = irps5401_id,
 };
 

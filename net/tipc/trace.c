@@ -36,7 +36,7 @@
 #define CREATE_TRACE_POINTS
 #include "trace.h"
 
-/**
+/*
  * socket tuples for filtering in socket traces:
  * (portid, sock type, name type, name lower, name upper)
  */

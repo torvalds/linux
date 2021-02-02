@@ -1,0 +1,25 @@
+# SPDX-License-Identifier: (GPL-2.0 OR BSD-2-Clause)
+# Copyright 2020 NXP
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/misc/fsl,dpaa2-console.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: DPAA2 console support
+
+maintainers:
+  - Laurentiu Tudor <laurentiu.tudor@nxp.com>
+
+properties:
+  compatible:
+    const: "fsl,dpaa2-console"
+
+  reg:
+    description: A standard property. Specifies the region where the MCFBA
+                (MC firmware base address) register can be found.
+
+required:
+  - compatible
+  - reg
+
+additionalProperties: false

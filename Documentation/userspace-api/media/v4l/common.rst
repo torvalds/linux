@@ -44,6 +44,7 @@ applicable to all devices.
     ext-ctrls-image-source
     ext-ctrls-image-process
     ext-ctrls-codec
+    ext-ctrls-codec-stateless
     ext-ctrls-jpeg
     ext-ctrls-dv
     ext-ctrls-rf-tuner

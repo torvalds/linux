@@ -11,13 +11,6 @@ struct mlxsw_sp;
 struct mlxsw_sp_port;
 struct mlxsw_sp_ptp_clock;
 
-enum {
-	MLXSW_SP_PTP_MESSAGE_TYPE_SYNC,
-	MLXSW_SP_PTP_MESSAGE_TYPE_DELAY_REQ,
-	MLXSW_SP_PTP_MESSAGE_TYPE_PDELAY_REQ,
-	MLXSW_SP_PTP_MESSAGE_TYPE_PDELAY_RESP,
-};
-
 static inline int mlxsw_sp_ptp_get_ts_info_noptp(struct ethtool_ts_info *info)
 {
 	info->so_timestamping = SOF_TIMESTAMPING_RX_SOFTWARE |

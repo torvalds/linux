@@ -98,6 +98,26 @@ static struct mcp_plat_data collie_mcp_data = {
 	.codec_pdata	= &collie_ucb1x00_data,
 };
 
+/* Battery management GPIOs */
+static struct gpiod_lookup_table collie_battery_gpiod_table = {
+	/* the MCP codec mcp0 has the ucb1x00 as attached device */
+	.dev_id = "ucb1x00",
+	.table = {
+		/* This is found on the main GPIO on the SA1100 */
+		GPIO_LOOKUP("gpio", COLLIE_GPIO_CO,
+			    "main battery full", GPIO_ACTIVE_HIGH),
+		GPIO_LOOKUP("gpio", COLLIE_GPIO_MAIN_BAT_LOW,
+			    "main battery low", GPIO_ACTIVE_HIGH),
+		/*
+		 * This is GPIO 0 on the Scoop expander, which is registered
+		 * from common/scoop.c with this gpio chip label.
+		 */
+		GPIO_LOOKUP("sharp-scoop", 0,
+			    "main charge on", GPIO_ACTIVE_HIGH),
+		{ },
+	},
+};
+
 static int collie_ir_startup(struct device *dev)
 {
 	int rc = gpio_request(COLLIE_GPIO_IR_ON, "IrDA");
@@ -395,6 +415,7 @@ static void __init collie_init(void)
 	platform_scoop_config = &collie_pcmcia_config;
 
 	gpiod_add_lookup_table(&collie_power_gpiod_table);
+	gpiod_add_lookup_table(&collie_battery_gpiod_table);
 
 	ret = platform_add_devices(devices, ARRAY_SIZE(devices));
 	if (ret) {

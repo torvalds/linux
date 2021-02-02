@@ -19,7 +19,7 @@ Description:
 		identify removable sections of the memory before attempting
 		potentially expensive hot-remove memory operation
 Users:		hotplug memory remove tools
-		http://www.ibm.com/developerworks/wikis/display/LinuxP/powerpc-utils	
+		http://www.ibm.com/developerworks/wikis/display/LinuxP/powerpc-utils
 
 What:		/sys/devices/system/memory/memoryX/phys_device
 Date:		September 2008

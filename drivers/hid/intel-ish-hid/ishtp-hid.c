@@ -211,10 +211,8 @@ int ishtp_hid_probe(unsigned int cur_hid_dev,
 	struct ishtp_hid_data *hid_data;
 
 	hid = hid_allocate_device();
-	if (IS_ERR(hid)) {
-		rv = PTR_ERR(hid);
-		return	-ENOMEM;
-	}
+	if (IS_ERR(hid))
+		return PTR_ERR(hid);
 
 	hid_data = kzalloc(sizeof(*hid_data), GFP_KERNEL);
 	if (!hid_data) {

@@ -682,6 +682,7 @@ static void lx_restore_display_ctlr(struct lxfb_par *par)
 		case DC_DV_CTL:
 			/* set all ram to dirty */
 			write_dc(par, i, par->dc[i] | DC_DV_CTL_CLEAR_DV_RAM);
+			break;
 
 		case DC_RSVD_1:
 		case DC_RSVD_2:

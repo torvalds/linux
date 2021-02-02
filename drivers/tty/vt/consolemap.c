@@ -728,9 +728,8 @@ int con_copy_unimap(struct vc_data *dst_vc, struct vc_data *src_vc)
 }
 EXPORT_SYMBOL(con_copy_unimap);
 
-/**
+/*
  *	con_get_unimap		-	get the unicode map
- *	@vc: the console to read from
  *
  *	Read the console unicode data for this console. Called from the ioctl
  *	handlers.

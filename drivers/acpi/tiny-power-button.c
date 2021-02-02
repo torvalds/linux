@@ -40,6 +40,4 @@ static struct acpi_driver acpi_tiny_power_button_driver = {
 	},
 };
 
-module_driver(acpi_tiny_power_button_driver,
-		acpi_bus_register_driver,
-		acpi_bus_unregister_driver);
+module_acpi_driver(acpi_tiny_power_button_driver);

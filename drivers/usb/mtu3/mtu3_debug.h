@@ -19,7 +19,6 @@ struct ssusb_mtk;
 struct mtu3_regset {
 	char name[MTU3_DEBUGFS_NAME_LEN];
 	struct debugfs_regset32 regset;
-	size_t nregs;
 };
 
 struct mtu3_file_map {

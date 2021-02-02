@@ -245,6 +245,7 @@ enum mv88e6xxx_region_id {
 	MV88E6XXX_REGION_GLOBAL1 = 0,
 	MV88E6XXX_REGION_GLOBAL2,
 	MV88E6XXX_REGION_ATU,
+	MV88E6XXX_REGION_VTU,
 
 	_MV88E6XXX_REGION_MAX,
 };
@@ -415,6 +416,10 @@ struct mv88e6xxx_ops {
 	 * or LINK_UNFORCED for normal link detection.
 	 */
 	int (*port_set_link)(struct mv88e6xxx_chip *chip, int port, int link);
+
+	/* Synchronise the port link state with that of the SERDES
+	 */
+	int (*port_sync_link)(struct mv88e6xxx_chip *chip, int port, unsigned int mode, bool isup);
 
 #define PAUSE_ON		1
 #define PAUSE_OFF		0
@@ -670,6 +675,11 @@ static inline unsigned int mv88e6xxx_num_macs(struct  mv88e6xxx_chip *chip)
 static inline unsigned int mv88e6xxx_num_ports(struct mv88e6xxx_chip *chip)
 {
 	return chip->info->num_ports;
+}
+
+static inline unsigned int mv88e6xxx_max_vid(struct mv88e6xxx_chip *chip)
+{
+	return chip->info->max_vid;
 }
 
 static inline u16 mv88e6xxx_port_mask(struct mv88e6xxx_chip *chip)

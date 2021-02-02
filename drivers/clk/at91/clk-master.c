@@ -15,7 +15,7 @@
 #define MASTER_PRES_MASK	0x7
 #define MASTER_PRES_MAX		MASTER_PRES_MASK
 #define MASTER_DIV_SHIFT	8
-#define MASTER_DIV_MASK		0x3
+#define MASTER_DIV_MASK		0x7
 
 #define PMC_MCR			0x30
 #define PMC_MCR_ID_MSK		GENMASK(3, 0)
@@ -58,9 +58,14 @@ static inline bool clk_master_ready(struct clk_master *master)
 static int clk_master_prepare(struct clk_hw *hw)
 {
 	struct clk_master *master = to_clk_master(hw);
+	unsigned long flags;
+
+	spin_lock_irqsave(master->lock, flags);
 
 	while (!clk_master_ready(master))
 		cpu_relax();
+
+	spin_unlock_irqrestore(master->lock, flags);
 
 	return 0;
 }
@@ -68,108 +73,137 @@ static int clk_master_prepare(struct clk_hw *hw)
 static int clk_master_is_prepared(struct clk_hw *hw)
 {
 	struct clk_master *master = to_clk_master(hw);
+	unsigned long flags;
+	bool status;
 
-	return clk_master_ready(master);
+	spin_lock_irqsave(master->lock, flags);
+	status = clk_master_ready(master);
+	spin_unlock_irqrestore(master->lock, flags);
+
+	return status;
 }
 
-static unsigned long clk_master_recalc_rate(struct clk_hw *hw,
-					    unsigned long parent_rate)
+static unsigned long clk_master_div_recalc_rate(struct clk_hw *hw,
+						unsigned long parent_rate)
 {
-	u8 pres;
 	u8 div;
-	unsigned long rate = parent_rate;
+	unsigned long flags, rate = parent_rate;
 	struct clk_master *master = to_clk_master(hw);
 	const struct clk_master_layout *layout = master->layout;
 	const struct clk_master_characteristics *characteristics =
 						master->characteristics;
 	unsigned int mckr;
 
+	spin_lock_irqsave(master->lock, flags);
 	regmap_read(master->regmap, master->layout->offset, &mckr);
+	spin_unlock_irqrestore(master->lock, flags);
+
 	mckr &= layout->mask;
 
-	pres = (mckr >> layout->pres_shift) & MASTER_PRES_MASK;
 	div = (mckr >> MASTER_DIV_SHIFT) & MASTER_DIV_MASK;
-
-	if (characteristics->have_div3_pres && pres == MASTER_PRES_MAX)
-		rate /= 3;
-	else
-		rate >>= pres;
 
 	rate /= characteristics->divisors[div];
 
 	if (rate < characteristics->output.min)
-		pr_warn("master clk is underclocked");
+		pr_warn("master clk div is underclocked");
 	else if (rate > characteristics->output.max)
-		pr_warn("master clk is overclocked");
+		pr_warn("master clk div is overclocked");
 
 	return rate;
 }
 
-static u8 clk_master_get_parent(struct clk_hw *hw)
-{
-	struct clk_master *master = to_clk_master(hw);
-	unsigned int mckr;
-
-	regmap_read(master->regmap, master->layout->offset, &mckr);
-
-	return mckr & AT91_PMC_CSS;
-}
-
-static const struct clk_ops master_ops = {
+static const struct clk_ops master_div_ops = {
 	.prepare = clk_master_prepare,
 	.is_prepared = clk_master_is_prepared,
-	.recalc_rate = clk_master_recalc_rate,
-	.get_parent = clk_master_get_parent,
+	.recalc_rate = clk_master_div_recalc_rate,
 };
 
-struct clk_hw * __init
-at91_clk_register_master(struct regmap *regmap,
-		const char *name, int num_parents,
-		const char **parent_names,
-		const struct clk_master_layout *layout,
-		const struct clk_master_characteristics *characteristics)
-{
-	struct clk_master *master;
-	struct clk_init_data init;
-	struct clk_hw *hw;
-	int ret;
-
-	if (!name || !num_parents || !parent_names)
-		return ERR_PTR(-EINVAL);
-
-	master = kzalloc(sizeof(*master), GFP_KERNEL);
-	if (!master)
-		return ERR_PTR(-ENOMEM);
-
-	init.name = name;
-	init.ops = &master_ops;
-	init.parent_names = parent_names;
-	init.num_parents = num_parents;
-	init.flags = 0;
-
-	master->hw.init = &init;
-	master->layout = layout;
-	master->characteristics = characteristics;
-	master->regmap = regmap;
-
-	hw = &master->hw;
-	ret = clk_hw_register(NULL, &master->hw);
-	if (ret) {
-		kfree(master);
-		hw = ERR_PTR(ret);
-	}
-
-	return hw;
-}
-
-static unsigned long
-clk_sama7g5_master_recalc_rate(struct clk_hw *hw,
-			       unsigned long parent_rate)
+static int clk_master_div_set_rate(struct clk_hw *hw, unsigned long rate,
+				   unsigned long parent_rate)
 {
 	struct clk_master *master = to_clk_master(hw);
+	const struct clk_master_characteristics *characteristics =
+						master->characteristics;
+	unsigned long flags;
+	int div, i;
 
-	return DIV_ROUND_CLOSEST_ULL(parent_rate, (1 << master->div));
+	div = DIV_ROUND_CLOSEST(parent_rate, rate);
+	if (div > ARRAY_SIZE(characteristics->divisors))
+		return -EINVAL;
+
+	for (i = 0; i < ARRAY_SIZE(characteristics->divisors); i++) {
+		if (!characteristics->divisors[i])
+			break;
+
+		if (div == characteristics->divisors[i]) {
+			div = i;
+			break;
+		}
+	}
+
+	if (i == ARRAY_SIZE(characteristics->divisors))
+		return -EINVAL;
+
+	spin_lock_irqsave(master->lock, flags);
+	regmap_update_bits(master->regmap, master->layout->offset,
+			   (MASTER_DIV_MASK << MASTER_DIV_SHIFT),
+			   (div << MASTER_DIV_SHIFT));
+	while (!clk_master_ready(master))
+		cpu_relax();
+	spin_unlock_irqrestore(master->lock, flags);
+
+	return 0;
 }
+
+static int clk_master_div_determine_rate(struct clk_hw *hw,
+					 struct clk_rate_request *req)
+{
+	struct clk_master *master = to_clk_master(hw);
+	const struct clk_master_characteristics *characteristics =
+						master->characteristics;
+	struct clk_hw *parent;
+	unsigned long parent_rate, tmp_rate, best_rate = 0;
+	int i, best_diff = INT_MIN, tmp_diff;
+
+	parent = clk_hw_get_parent(hw);
+	if (!parent)
+		return -EINVAL;
+
+	parent_rate = clk_hw_get_rate(parent);
+	if (!parent_rate)
+		return -EINVAL;
+
+	for (i = 0; i < ARRAY_SIZE(characteristics->divisors); i++) {
+		if (!characteristics->divisors[i])
+			break;
+
+		tmp_rate = DIV_ROUND_CLOSEST_ULL(parent_rate,
+						 characteristics->divisors[i]);
+		tmp_diff = abs(tmp_rate - req->rate);
+
+		if (!best_rate || best_diff > tmp_diff) {
+			best_diff = tmp_diff;
+			best_rate = tmp_rate;
+		}
+
+		if (!best_diff)
+			break;
+	}
+
+	req->best_parent_rate = best_rate;
+	req->best_parent_hw = parent;
+	req->rate = best_rate;
+
+	return 0;
+}
+
+static const struct clk_ops master_div_ops_chg = {
+	.prepare = clk_master_prepare,
+	.is_prepared = clk_master_is_prepared,
+	.recalc_rate = clk_master_div_recalc_rate,
+	.determine_rate = clk_master_div_determine_rate,
+	.set_rate = clk_master_div_set_rate,
+};
 
 static void clk_sama7g5_master_best_diff(struct clk_rate_request *req,
 					 struct clk_hw *parent,
@@ -193,6 +227,217 @@ static void clk_sama7g5_master_best_diff(struct clk_rate_request *req,
 		req->best_parent_rate = parent_rate;
 		req->best_parent_hw = parent;
 	}
+}
+
+static int clk_master_pres_determine_rate(struct clk_hw *hw,
+					  struct clk_rate_request *req)
+{
+	struct clk_master *master = to_clk_master(hw);
+	struct clk_rate_request req_parent = *req;
+	const struct clk_master_characteristics *characteristics =
+							master->characteristics;
+	struct clk_hw *parent;
+	long best_rate = LONG_MIN, best_diff = LONG_MIN;
+	u32 pres;
+	int i;
+
+	if (master->chg_pid < 0)
+		return -EOPNOTSUPP;
+
+	parent = clk_hw_get_parent_by_index(hw, master->chg_pid);
+	if (!parent)
+		return -EOPNOTSUPP;
+
+	for (i = 0; i <= MASTER_PRES_MAX; i++) {
+		if (characteristics->have_div3_pres && i == MASTER_PRES_MAX)
+			pres = 3;
+		else
+			pres = 1 << i;
+
+		req_parent.rate = req->rate * pres;
+		if (__clk_determine_rate(parent, &req_parent))
+			continue;
+
+		clk_sama7g5_master_best_diff(req, parent, req_parent.rate,
+					     &best_diff, &best_rate, pres);
+		if (!best_diff)
+			break;
+	}
+
+	return 0;
+}
+
+static int clk_master_pres_set_rate(struct clk_hw *hw, unsigned long rate,
+				    unsigned long parent_rate)
+{
+	struct clk_master *master = to_clk_master(hw);
+	unsigned long flags;
+	unsigned int pres;
+
+	pres = DIV_ROUND_CLOSEST(parent_rate, rate);
+	if (pres > MASTER_PRES_MAX)
+		return -EINVAL;
+
+	else if (pres == 3)
+		pres = MASTER_PRES_MAX;
+	else
+		pres = ffs(pres) - 1;
+
+	spin_lock_irqsave(master->lock, flags);
+	regmap_update_bits(master->regmap, master->layout->offset,
+			   (MASTER_PRES_MASK << master->layout->pres_shift),
+			   (pres << master->layout->pres_shift));
+
+	while (!clk_master_ready(master))
+		cpu_relax();
+	spin_unlock_irqrestore(master->lock, flags);
+
+	return 0;
+}
+
+static unsigned long clk_master_pres_recalc_rate(struct clk_hw *hw,
+						 unsigned long parent_rate)
+{
+	struct clk_master *master = to_clk_master(hw);
+	const struct clk_master_characteristics *characteristics =
+						master->characteristics;
+	unsigned long flags;
+	unsigned int val, pres;
+
+	spin_lock_irqsave(master->lock, flags);
+	regmap_read(master->regmap, master->layout->offset, &val);
+	spin_unlock_irqrestore(master->lock, flags);
+
+	pres = (val >> master->layout->pres_shift) & MASTER_PRES_MASK;
+	if (pres == 3 && characteristics->have_div3_pres)
+		pres = 3;
+	else
+		pres = (1 << pres);
+
+	return DIV_ROUND_CLOSEST_ULL(parent_rate, pres);
+}
+
+static u8 clk_master_pres_get_parent(struct clk_hw *hw)
+{
+	struct clk_master *master = to_clk_master(hw);
+	unsigned long flags;
+	unsigned int mckr;
+
+	spin_lock_irqsave(master->lock, flags);
+	regmap_read(master->regmap, master->layout->offset, &mckr);
+	spin_unlock_irqrestore(master->lock, flags);
+
+	return mckr & AT91_PMC_CSS;
+}
+
+static const struct clk_ops master_pres_ops = {
+	.prepare = clk_master_prepare,
+	.is_prepared = clk_master_is_prepared,
+	.recalc_rate = clk_master_pres_recalc_rate,
+	.get_parent = clk_master_pres_get_parent,
+};
+
+static const struct clk_ops master_pres_ops_chg = {
+	.prepare = clk_master_prepare,
+	.is_prepared = clk_master_is_prepared,
+	.determine_rate = clk_master_pres_determine_rate,
+	.recalc_rate = clk_master_pres_recalc_rate,
+	.get_parent = clk_master_pres_get_parent,
+	.set_rate = clk_master_pres_set_rate,
+};
+
+static struct clk_hw * __init
+at91_clk_register_master_internal(struct regmap *regmap,
+		const char *name, int num_parents,
+		const char **parent_names,
+		const struct clk_master_layout *layout,
+		const struct clk_master_characteristics *characteristics,
+		const struct clk_ops *ops, spinlock_t *lock, u32 flags,
+		int chg_pid)
+{
+	struct clk_master *master;
+	struct clk_init_data init;
+	struct clk_hw *hw;
+	int ret;
+
+	if (!name || !num_parents || !parent_names || !lock)
+		return ERR_PTR(-EINVAL);
+
+	master = kzalloc(sizeof(*master), GFP_KERNEL);
+	if (!master)
+		return ERR_PTR(-ENOMEM);
+
+	init.name = name;
+	init.ops = ops;
+	init.parent_names = parent_names;
+	init.num_parents = num_parents;
+	init.flags = flags;
+
+	master->hw.init = &init;
+	master->layout = layout;
+	master->characteristics = characteristics;
+	master->regmap = regmap;
+	master->chg_pid = chg_pid;
+	master->lock = lock;
+
+	hw = &master->hw;
+	ret = clk_hw_register(NULL, &master->hw);
+	if (ret) {
+		kfree(master);
+		hw = ERR_PTR(ret);
+	}
+
+	return hw;
+}
+
+struct clk_hw * __init
+at91_clk_register_master_pres(struct regmap *regmap,
+		const char *name, int num_parents,
+		const char **parent_names,
+		const struct clk_master_layout *layout,
+		const struct clk_master_characteristics *characteristics,
+		spinlock_t *lock, u32 flags, int chg_pid)
+{
+	const struct clk_ops *ops;
+
+	if (flags & CLK_SET_RATE_GATE)
+		ops = &master_pres_ops;
+	else
+		ops = &master_pres_ops_chg;
+
+	return at91_clk_register_master_internal(regmap, name, num_parents,
+						 parent_names, layout,
+						 characteristics, ops,
+						 lock, flags, chg_pid);
+}
+
+struct clk_hw * __init
+at91_clk_register_master_div(struct regmap *regmap,
+		const char *name, const char *parent_name,
+		const struct clk_master_layout *layout,
+		const struct clk_master_characteristics *characteristics,
+		spinlock_t *lock, u32 flags)
+{
+	const struct clk_ops *ops;
+
+	if (flags & CLK_SET_RATE_GATE)
+		ops = &master_div_ops;
+	else
+		ops = &master_div_ops_chg;
+
+	return at91_clk_register_master_internal(regmap, name, 1,
+						 &parent_name, layout,
+						 characteristics, ops,
+						 lock, flags, -EINVAL);
+}
+
+static unsigned long
+clk_sama7g5_master_recalc_rate(struct clk_hw *hw,
+			       unsigned long parent_rate)
+{
+	struct clk_master *master = to_clk_master(hw);
+
+	return DIV_ROUND_CLOSEST_ULL(parent_rate, (1 << master->div));
 }
 
 static int clk_sama7g5_master_determine_rate(struct clk_hw *hw,

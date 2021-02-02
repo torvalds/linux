@@ -561,7 +561,7 @@ static void malidp_debugfs_init(struct drm_minor *minor)
 
 #endif //CONFIG_DEBUG_FS
 
-static struct drm_driver malidp_driver = {
+static const struct drm_driver malidp_driver = {
 	.driver_features = DRIVER_GEM | DRIVER_MODESET | DRIVER_ATOMIC,
 	DRM_GEM_CMA_DRIVER_OPS_WITH_DUMB_CREATE(malidp_dumb_create),
 #ifdef CONFIG_DEBUG_FS

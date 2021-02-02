@@ -46,7 +46,7 @@
 
 / {
 	model = "aristainetos2 i.MX6 Dual Lite Board 7";
-	compatible = "fsl,imx6dl";
+	compatible = "abb,aristainetos2-imx6dl-7", "fsl,imx6dl";
 
 	memory@10000000 {
 		device_type = "memory";

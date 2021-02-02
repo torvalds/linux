@@ -27,17 +27,17 @@ find_cmd = find $(srctree)/$(src) \( -name '*.yaml' ! \
 		-name '*.example.dt.yaml' \)
 
 quiet_cmd_yamllint = LINT    $(src)
-      cmd_yamllint = $(find_cmd) | \
-                     xargs $(DT_SCHEMA_LINT) -f parsable -c $(srctree)/$(src)/.yamllint
+      cmd_yamllint = ($(find_cmd) | \
+                     xargs $(DT_SCHEMA_LINT) -f parsable -c $(srctree)/$(src)/.yamllint) || true
 
 quiet_cmd_chk_bindings = CHKDT   $@
-      cmd_chk_bindings = $(find_cmd) | \
-                         xargs -n200 -P$$(nproc) $(DT_DOC_CHECKER) -u $(srctree)/$(src)
+      cmd_chk_bindings = ($(find_cmd) | \
+                         xargs -n200 -P$$(nproc) $(DT_DOC_CHECKER) -u $(srctree)/$(src)) || true
 
 quiet_cmd_mk_schema = SCHEMA  $@
       cmd_mk_schema = f=$$(mktemp) ; \
                       $(if $(DT_MK_SCHEMA_FLAGS), \
-                           echo $(real-prereqs), \
+                           printf '%s\n' $(real-prereqs), \
                            $(find_cmd)) > $$f ; \
                       $(DT_MK_SCHEMA) -j $(DT_MK_SCHEMA_FLAGS) @$$f > $@ ; \
 		      rm -f $$f

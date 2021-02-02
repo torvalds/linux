@@ -12,8 +12,6 @@
 
 #include <uapi/misc/habanalabs.h>
 
-#include <linux/coresight.h>
-
 #define GOYA_PLDM_CORESIGHT_TIMEOUT_USEC	(CORESIGHT_TIMEOUT_USEC * 100)
 
 #define SPMU_SECTION_SIZE		DMA_CH_0_CS_SPMU_MAX_OFFSET

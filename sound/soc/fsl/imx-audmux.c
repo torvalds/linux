@@ -170,22 +170,9 @@ static enum imx_audmux_type {
 	IMX31_AUDMUX,
 } audmux_type;
 
-static const struct platform_device_id imx_audmux_ids[] = {
-	{
-		.name = "imx21-audmux",
-		.driver_data = IMX21_AUDMUX,
-	}, {
-		.name = "imx31-audmux",
-		.driver_data = IMX31_AUDMUX,
-	}, {
-		/* sentinel */
-	}
-};
-MODULE_DEVICE_TABLE(platform, imx_audmux_ids);
-
 static const struct of_device_id imx_audmux_dt_ids[] = {
-	{ .compatible = "fsl,imx21-audmux", .data = &imx_audmux_ids[0], },
-	{ .compatible = "fsl,imx31-audmux", .data = &imx_audmux_ids[1], },
+	{ .compatible = "fsl,imx21-audmux", .data = (void *)IMX21_AUDMUX, },
+	{ .compatible = "fsl,imx31-audmux", .data = (void *)IMX31_AUDMUX, },
 	{ /* sentinel */ }
 };
 MODULE_DEVICE_TABLE(of, imx_audmux_dt_ids);
@@ -300,9 +287,6 @@ static int imx_audmux_parse_dt_defaults(struct platform_device *pdev,
 
 static int imx_audmux_probe(struct platform_device *pdev)
 {
-	const struct of_device_id *of_id =
-			of_match_device(imx_audmux_dt_ids, &pdev->dev);
-
 	audmux_base = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(audmux_base))
 		return PTR_ERR(audmux_base);
@@ -314,9 +298,7 @@ static int imx_audmux_probe(struct platform_device *pdev)
 		audmux_clk = NULL;
 	}
 
-	if (of_id)
-		pdev->id_entry = of_id->data;
-	audmux_type = pdev->id_entry->driver_data;
+	audmux_type = (enum imx_audmux_type)of_device_get_match_data(&pdev->dev);
 
 	switch (audmux_type) {
 	case IMX31_AUDMUX:
@@ -335,8 +317,7 @@ static int imx_audmux_probe(struct platform_device *pdev)
 	if (!regcache)
 		return -ENOMEM;
 
-	if (of_id)
-		imx_audmux_parse_dt_defaults(pdev, pdev->dev.of_node);
+	imx_audmux_parse_dt_defaults(pdev, pdev->dev.of_node);
 
 	return 0;
 }
@@ -386,7 +367,6 @@ static const struct dev_pm_ops imx_audmux_pm = {
 static struct platform_driver imx_audmux_driver = {
 	.probe		= imx_audmux_probe,
 	.remove		= imx_audmux_remove,
-	.id_table	= imx_audmux_ids,
 	.driver	= {
 		.name	= DRIVER_NAME,
 		.pm = &imx_audmux_pm,

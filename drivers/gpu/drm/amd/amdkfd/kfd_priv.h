@@ -292,9 +292,6 @@ struct kfd_dev {
 	/* xGMI */
 	uint64_t hive_id;
 
-	/* UUID */
-	uint64_t unique_id;
-
 	bool pci_atomic_requested;
 
 	/* Use IOMMU v2 flag */

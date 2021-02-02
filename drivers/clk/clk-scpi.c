@@ -129,7 +129,7 @@ static const struct clk_ops scpi_dvfs_ops = {
 	.set_rate = scpi_dvfs_set_rate,
 };
 
-static const struct of_device_id scpi_clk_match[] = {
+static const struct of_device_id scpi_clk_match[] __maybe_unused = {
 	{ .compatible = "arm,scpi-dvfs-clocks", .data = &scpi_dvfs_ops, },
 	{ .compatible = "arm,scpi-variable-clocks", .data = &scpi_clk_ops, },
 	{}

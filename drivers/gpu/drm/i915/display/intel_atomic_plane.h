@@ -24,7 +24,10 @@ unsigned int intel_plane_pixel_rate(const struct intel_crtc_state *crtc_state,
 unsigned int intel_plane_data_rate(const struct intel_crtc_state *crtc_state,
 				   const struct intel_plane_state *plane_state);
 void intel_plane_copy_uapi_to_hw_state(struct intel_plane_state *plane_state,
-				       const struct intel_plane_state *from_plane_state);
+				       const struct intel_plane_state *from_plane_state,
+				       struct intel_crtc *crtc);
+void intel_plane_copy_hw_state(struct intel_plane_state *plane_state,
+			       const struct intel_plane_state *from_plane_state);
 void intel_update_plane(struct intel_plane *plane,
 			const struct intel_crtc_state *crtc_state,
 			const struct intel_plane_state *plane_state);
@@ -52,6 +55,10 @@ int intel_plane_atomic_calc_changes(const struct intel_crtc_state *old_crtc_stat
 int intel_plane_calc_min_cdclk(struct intel_atomic_state *state,
 			       struct intel_plane *plane,
 			       bool *need_cdclk_calc);
+int intel_atomic_plane_check_clipping(struct intel_plane_state *plane_state,
+				      struct intel_crtc_state *crtc_state,
+				      int min_scale, int max_scale,
+				      bool can_position);
 void intel_plane_set_invisible(struct intel_crtc_state *crtc_state,
 			       struct intel_plane_state *plane_state);
 

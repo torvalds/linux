@@ -185,7 +185,7 @@ static int xgene_rtc_probe(struct platform_device *pdev)
 	pdata->rtc->ops = &xgene_rtc_ops;
 	pdata->rtc->range_max = U32_MAX;
 
-	ret = rtc_register_device(pdata->rtc);
+	ret = devm_rtc_register_device(pdata->rtc);
 	if (ret) {
 		clk_disable_unprepare(pdata->clk);
 		return ret;

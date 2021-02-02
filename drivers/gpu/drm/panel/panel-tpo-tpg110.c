@@ -76,7 +76,7 @@ struct tpg110 {
 	 */
 	struct drm_panel panel;
 	/**
-	 * @panel_type: the panel mode as detected
+	 * @panel_mode: the panel mode as detected
 	 */
 	const struct tpg110_panel_mode *panel_mode;
 	/**
@@ -362,6 +362,7 @@ static int tpg110_enable(struct drm_panel *panel)
 /**
  * tpg110_get_modes() - return the appropriate mode
  * @panel: the panel to get the mode for
+ * @connector: reference to the central DRM connector control structure
  *
  * This currently does not present a forest of modes, instead it
  * presents the mode that is configured for the system under use,

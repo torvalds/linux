@@ -378,7 +378,7 @@ extern u32 rtw_free_stainfo(struct adapter *padapter, struct sta_info *psta);
 extern void rtw_free_all_stainfo(struct adapter *padapter);
 extern struct sta_info *rtw_get_stainfo(struct sta_priv *pstapriv, u8 *hwaddr);
 extern u32 rtw_init_bcmc_stainfo(struct adapter *padapter);
-extern struct sta_info* rtw_get_bcmc_stainfo(struct adapter *padapter);
+extern struct sta_info *rtw_get_bcmc_stainfo(struct adapter *padapter);
 extern u8 rtw_access_ctrl(struct adapter *padapter, u8 *mac_addr);
 
 #endif /* _STA_INFO_H_ */

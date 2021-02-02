@@ -8,6 +8,7 @@
 
 struct rproc;
 struct qcom_smem_state;
+struct qcom_sysmon;
 
 struct qcom_q6v5 {
 	struct device *dev;
@@ -40,7 +41,7 @@ int qcom_q6v5_init(struct qcom_q6v5 *q6v5, struct platform_device *pdev,
 
 int qcom_q6v5_prepare(struct qcom_q6v5 *q6v5);
 int qcom_q6v5_unprepare(struct qcom_q6v5 *q6v5);
-int qcom_q6v5_request_stop(struct qcom_q6v5 *q6v5);
+int qcom_q6v5_request_stop(struct qcom_q6v5 *q6v5, struct qcom_sysmon *sysmon);
 int qcom_q6v5_wait_for_start(struct qcom_q6v5 *q6v5, int timeout);
 unsigned long qcom_q6v5_panic(struct qcom_q6v5 *q6v5);
 

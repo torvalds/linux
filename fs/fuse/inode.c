@@ -132,7 +132,7 @@ static void fuse_evict_inode(struct inode *inode)
 			fi->forget = NULL;
 		}
 	}
-	if (S_ISREG(inode->i_mode) && !is_bad_inode(inode)) {
+	if (S_ISREG(inode->i_mode) && !fuse_is_bad(inode)) {
 		WARN_ON(!list_empty(&fi->write_files));
 		WARN_ON(!list_empty(&fi->queued_writes));
 	}
@@ -204,6 +204,16 @@ void fuse_change_attributes_common(struct inode *inode, struct fuse_attr *attr,
 		inode->i_mode &= ~S_ISVTX;
 
 	fi->orig_ino = attr->ino;
+
+	/*
+	 * We are refreshing inode data and it is possible that another
+	 * client set suid/sgid or security.capability xattr. So clear
+	 * S_NOSEC. Ideally, we could have cleared it only if suid/sgid
+	 * was set or if security.capability xattr was set. But we don't
+	 * know if security.capability has been set or not. So clear it
+	 * anyway. Its less efficient but should be safe.
+	 */
+	inode->i_flags &= ~S_NOSEC;
 }
 
 void fuse_change_attributes(struct inode *inode, struct fuse_attr *attr,
@@ -342,7 +352,7 @@ retry:
 		unlock_new_inode(inode);
 	} else if ((inode->i_mode ^ attr->mode) & S_IFMT) {
 		/* Inode has changed type, any I/O on the old should fail */
-		make_bad_inode(inode);
+		fuse_make_bad(inode);
 		iput(inode);
 		goto retry;
 	}
@@ -452,7 +462,8 @@ static void fuse_put_super(struct super_block *sb)
 {
 	struct fuse_mount *fm = get_fuse_mount_super(sb);
 
-	fuse_mount_put(fm);
+	fuse_conn_put(fm->fc);
+	kfree(fm);
 }
 
 static void convert_fuse_statfs(struct kstatfs *stbuf, struct fuse_kstatfs *attr)
@@ -705,7 +716,6 @@ void fuse_conn_init(struct fuse_conn *fc, struct fuse_mount *fm,
 	INIT_LIST_HEAD(&fc->mounts);
 	list_add(&fm->fc_entry, &fc->mounts);
 	fm->fc = fc;
-	refcount_set(&fm->count, 1);
 }
 EXPORT_SYMBOL_GPL(fuse_conn_init);
 
@@ -731,23 +741,6 @@ struct fuse_conn *fuse_conn_get(struct fuse_conn *fc)
 	return fc;
 }
 EXPORT_SYMBOL_GPL(fuse_conn_get);
-
-void fuse_mount_put(struct fuse_mount *fm)
-{
-	if (refcount_dec_and_test(&fm->count)) {
-		if (fm->fc)
-			fuse_conn_put(fm->fc);
-		kfree(fm);
-	}
-}
-EXPORT_SYMBOL_GPL(fuse_mount_put);
-
-struct fuse_mount *fuse_mount_get(struct fuse_mount *fm)
-{
-	refcount_inc(&fm->count);
-	return fm;
-}
-EXPORT_SYMBOL_GPL(fuse_mount_get);
 
 static struct inode *fuse_get_root_inode(struct super_block *sb, unsigned mode)
 {
@@ -1055,6 +1048,10 @@ static void process_init_reply(struct fuse_mount *fm, struct fuse_args *args,
 			    !fuse_dax_check_alignment(fc, arg->map_alignment)) {
 				ok = false;
 			}
+			if (arg->flags & FUSE_HANDLE_KILLPRIV_V2) {
+				fc->handle_killpriv_v2 = 1;
+				fm->sb->s_flags |= SB_NOSEC;
+			}
 		} else {
 			ra_pages = fc->max_read / PAGE_SIZE;
 			fc->no_lock = 1;
@@ -1097,7 +1094,8 @@ void fuse_send_init(struct fuse_mount *fm)
 		FUSE_WRITEBACK_CACHE | FUSE_NO_OPEN_SUPPORT |
 		FUSE_PARALLEL_DIROPS | FUSE_HANDLE_KILLPRIV | FUSE_POSIX_ACL |
 		FUSE_ABORT_ERROR | FUSE_MAX_PAGES | FUSE_CACHE_SYMLINKS |
-		FUSE_NO_OPENDIR_SUPPORT | FUSE_EXPLICIT_INVAL_DATA;
+		FUSE_NO_OPENDIR_SUPPORT | FUSE_EXPLICIT_INVAL_DATA |
+		FUSE_HANDLE_KILLPRIV_V2;
 #ifdef CONFIG_FUSE_DAX
 	if (fm->fc->dax)
 		ia->in.flags |= FUSE_MAP_ALIGNMENT;
@@ -1465,7 +1463,8 @@ static int fuse_fill_super(struct super_block *sb, struct fs_context *fsc)
 	return 0;
 
  err_put_conn:
-	fuse_mount_put(fm);
+	fuse_conn_put(fc);
+	kfree(fm);
 	sb->s_fs_info = NULL;
  err_fput:
 	fput(file);
@@ -1557,7 +1556,7 @@ void fuse_conn_destroy(struct fuse_mount *fm)
 }
 EXPORT_SYMBOL_GPL(fuse_conn_destroy);
 
-static void fuse_kill_sb_anon(struct super_block *sb)
+static void fuse_sb_destroy(struct super_block *sb)
 {
 	struct fuse_mount *fm = get_fuse_mount_super(sb);
 	bool last;
@@ -1567,6 +1566,11 @@ static void fuse_kill_sb_anon(struct super_block *sb)
 		if (last)
 			fuse_conn_destroy(fm);
 	}
+}
+
+static void fuse_kill_sb_anon(struct super_block *sb)
+{
+	fuse_sb_destroy(sb);
 	kill_anon_super(sb);
 }
 
@@ -1583,14 +1587,7 @@ MODULE_ALIAS_FS("fuse");
 #ifdef CONFIG_BLOCK
 static void fuse_kill_sb_blk(struct super_block *sb)
 {
-	struct fuse_mount *fm = get_fuse_mount_super(sb);
-	bool last;
-
-	if (fm) {
-		last = fuse_mount_remove(fm);
-		if (last)
-			fuse_conn_destroy(fm);
-	}
+	fuse_sb_destroy(sb);
 	kill_block_super(sb);
 }
 

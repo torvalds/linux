@@ -30,7 +30,7 @@
 		interrupt-parent = <&gic>;
 		ranges = <0 0xf8000000 0x8000000>;
 
-		amba {
+		amba-bus {
 			#address-cells = <1>;
 			#size-cells = <1>;
 			compatible = "simple-bus";
@@ -86,48 +86,48 @@
 				status = "disabled";
 			};
 
-			uart0: uart@b00000 {
+			uart0: serial@b00000 {
 				compatible = "arm,pl011", "arm,primecell";
 				reg = <0x00b00000 0x1000>;
 				interrupts = <0 49 4>;
-				clocks = <&clock HIX5HD2_FIXED_83M>;
-				clock-names = "apb_pclk";
+				clocks = <&clock HIX5HD2_FIXED_83M>, <&clock HIX5HD2_FIXED_83M>;
+				clock-names = "uartclk", "apb_pclk";
 				status = "disabled";
 			};
 
-			uart1: uart@6000 {
+			uart1: serial@6000 {
 				compatible = "arm,pl011", "arm,primecell";
 				reg = <0x00006000 0x1000>;
 				interrupts = <0 50 4>;
-				clocks = <&clock HIX5HD2_FIXED_83M>;
-				clock-names = "apb_pclk";
+				clocks = <&clock HIX5HD2_FIXED_83M>, <&clock HIX5HD2_FIXED_83M>;
+				clock-names = "uartclk", "apb_pclk";
 				status = "disabled";
 			};
 
-			uart2: uart@b02000 {
+			uart2: serial@b02000 {
 				compatible = "arm,pl011", "arm,primecell";
 				reg = <0x00b02000 0x1000>;
 				interrupts = <0 51 4>;
-				clocks = <&clock HIX5HD2_FIXED_83M>;
-				clock-names = "apb_pclk";
+				clocks = <&clock HIX5HD2_FIXED_83M>, <&clock HIX5HD2_FIXED_83M>;
+				clock-names = "uartclk", "apb_pclk";
 				status = "disabled";
 			};
 
-			uart3: uart@b03000 {
+			uart3: serial@b03000 {
 				compatible = "arm,pl011", "arm,primecell";
 				reg = <0x00b03000 0x1000>;
 				interrupts = <0 52 4>;
-				clocks = <&clock HIX5HD2_FIXED_83M>;
-				clock-names = "apb_pclk";
+				clocks = <&clock HIX5HD2_FIXED_83M>, <&clock HIX5HD2_FIXED_83M>;
+				clock-names = "uartclk", "apb_pclk";
 				status = "disabled";
 			};
 
-			uart4: uart@b04000 {
+			uart4: serial@b04000 {
 				compatible = "arm,pl011", "arm,primecell";
 				reg = <0xb04000 0x1000>;
 				interrupts = <0 53 4>;
-				clocks = <&clock HIX5HD2_FIXED_83M>;
-				clock-names = "apb_pclk";
+				clocks = <&clock HIX5HD2_FIXED_83M>, <&clock HIX5HD2_FIXED_83M>;
+				clock-names = "uartclk", "apb_pclk";
 				status = "disabled";
 			};
 
@@ -423,7 +423,7 @@
 			interrupts = <0 35 4>;
 			clocks = <&clock HIX5HD2_MMC_CIU_RST>,
 				 <&clock HIX5HD2_MMC_BIU_CLK>;
-			clock-names = "ciu", "biu";
+			clock-names = "biu", "ciu";
 		};
 
 		sd: mmc@1820000 {
@@ -432,7 +432,7 @@
 			interrupts = <0 34 4>;
 			clocks = <&clock HIX5HD2_SD_CIU_RST>,
 				 <&clock HIX5HD2_SD_BIU_CLK>;
-			clock-names = "ciu","biu";
+			clock-names = "biu", "ciu";
 		};
 
 		gmac0: ethernet@1840000 {
@@ -453,14 +453,14 @@
 			status = "disabled";
 		};
 
-		usb0: ehci@1890000 {
+		usb0: usb@1890000 {
 			compatible = "generic-ehci";
 			reg = <0x1890000 0x1000>;
 			interrupts = <0 66 4>;
 			clocks = <&clock HIX5HD2_USB_CLK>;
 		};
 
-		usb1: ohci@1880000 {
+		usb1: usb@1880000 {
 			compatible = "generic-ohci";
 			reg = <0x1880000 0x1000>;
 			interrupts = <0 67 4>;
@@ -468,7 +468,7 @@
 		};
 
 		peripheral_ctrl: syscon@a20000 {
-			compatible = "syscon";
+			compatible = "hisilicon,peri-subctrl", "syscon";
 			reg = <0xa20000 0x1000>;
 		};
 

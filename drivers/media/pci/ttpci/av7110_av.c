@@ -11,6 +11,7 @@
  * the project's page is at https://linuxtv.org
  */
 
+#include <linux/ethtool.h>
 #include <linux/types.h>
 #include <linux/kernel.h>
 #include <linux/string.h>

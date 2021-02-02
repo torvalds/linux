@@ -855,51 +855,6 @@ out:
 }
 
 /*
- * search the ordered extents for one corresponding to 'offset' and
- * try to find a checksum.  This is used because we allow pages to
- * be reclaimed before their checksum is actually put into the btree
- */
-int btrfs_find_ordered_sum(struct btrfs_inode *inode, u64 offset,
-			   u64 disk_bytenr, u8 *sum, int len)
-{
-	struct btrfs_fs_info *fs_info = inode->root->fs_info;
-	struct btrfs_ordered_sum *ordered_sum;
-	struct btrfs_ordered_extent *ordered;
-	struct btrfs_ordered_inode_tree *tree = &inode->ordered_tree;
-	unsigned long num_sectors;
-	unsigned long i;
-	u32 sectorsize = btrfs_inode_sectorsize(inode);
-	const u8 blocksize_bits = inode->vfs_inode.i_sb->s_blocksize_bits;
-	const u16 csum_size = btrfs_super_csum_size(fs_info->super_copy);
-	int index = 0;
-
-	ordered = btrfs_lookup_ordered_extent(inode, offset);
-	if (!ordered)
-		return 0;
-
-	spin_lock_irq(&tree->lock);
-	list_for_each_entry_reverse(ordered_sum, &ordered->list, list) {
-		if (disk_bytenr >= ordered_sum->bytenr &&
-		    disk_bytenr < ordered_sum->bytenr + ordered_sum->len) {
-			i = (disk_bytenr - ordered_sum->bytenr) >> blocksize_bits;
-			num_sectors = ordered_sum->len >> blocksize_bits;
-			num_sectors = min_t(int, len - index, num_sectors - i);
-			memcpy(sum + index, ordered_sum->sums + i * csum_size,
-			       num_sectors * csum_size);
-
-			index += (int)num_sectors * csum_size;
-			if (index == len)
-				goto out;
-			disk_bytenr += num_sectors * sectorsize;
-		}
-	}
-out:
-	spin_unlock_irq(&tree->lock);
-	btrfs_put_ordered_extent(ordered);
-	return index;
-}
-
-/*
  * btrfs_flush_ordered_range - Lock the passed range and ensures all pending
  * ordered extents in it are run to completion.
  *

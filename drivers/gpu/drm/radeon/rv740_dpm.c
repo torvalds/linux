@@ -25,10 +25,9 @@
 #include "radeon.h"
 #include "rv740d.h"
 #include "r600_dpm.h"
+#include "rv770.h"
 #include "rv770_dpm.h"
 #include "atom.h"
-
-struct rv7xx_power_info *rv770_get_pi(struct radeon_device *rdev);
 
 u32 rv740_get_decoded_reference_divider(u32 encoded_ref)
 {

@@ -210,18 +210,6 @@ void iio_buffer_init(struct iio_buffer *buffer)
 }
 EXPORT_SYMBOL(iio_buffer_init);
 
-/**
- * iio_buffer_set_attrs - Set buffer specific attributes
- * @buffer: The buffer for which we are setting attributes
- * @attrs: Pointer to a null terminated list of pointers to attributes
- */
-void iio_buffer_set_attrs(struct iio_buffer *buffer,
-			 const struct attribute **attrs)
-{
-	buffer->attrs = attrs;
-}
-EXPORT_SYMBOL_GPL(iio_buffer_set_attrs);
-
 static ssize_t iio_show_scan_index(struct device *dev,
 				   struct device_attribute *attr,
 				   char *buf)
@@ -865,12 +853,12 @@ static int iio_buffer_update_demux(struct iio_dev *indio_dev,
 				       indio_dev->masklength,
 				       in_ind + 1);
 		while (in_ind != out_ind) {
-			in_ind = find_next_bit(indio_dev->active_scan_mask,
-					       indio_dev->masklength,
-					       in_ind + 1);
 			length = iio_storage_bytes_for_si(indio_dev, in_ind);
 			/* Make sure we are aligned */
 			in_loc = roundup(in_loc, length) + length;
+			in_ind = find_next_bit(indio_dev->active_scan_mask,
+					       indio_dev->masklength,
+					       in_ind + 1);
 		}
 		length = iio_storage_bytes_for_si(indio_dev, in_ind);
 		out_loc = roundup(out_loc, length);

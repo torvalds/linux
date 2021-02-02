@@ -34,13 +34,13 @@ patternProperties:
 
         linux,code:
           description: Key / Axis code to emit.
-          $ref: /schemas/types.yaml#definitions/uint32
+          $ref: /schemas/types.yaml#/definitions/uint32
 
         linux,input-type:
           description:
             Specify event type this button/key generates. If not specified defaults to
             <1> == EV_KEY.
-          $ref: /schemas/types.yaml#definitions/uint32
+          $ref: /schemas/types.yaml#/definitions/uint32
 
           default: 1
 
@@ -56,12 +56,12 @@ patternProperties:
 
             linux,input-value = <0xffffffff>; /* -1 */
 
-          $ref: /schemas/types.yaml#definitions/uint32
+          $ref: /schemas/types.yaml#/definitions/uint32
 
         debounce-interval:
           description:
             Debouncing interval time in milliseconds. If not specified defaults to 5.
-          $ref: /schemas/types.yaml#definitions/uint32
+          $ref: /schemas/types.yaml#/definitions/uint32
 
           default: 5
 
@@ -79,7 +79,7 @@ patternProperties:
               EV_ACT_ANY        - both asserted and deasserted
               EV_ACT_ASSERTED   - asserted
               EV_ACT_DEASSERTED - deasserted
-          $ref: /schemas/types.yaml#definitions/uint32
+          $ref: /schemas/types.yaml#/definitions/uint32
           enum: [0, 1, 2]
 
         linux,can-disable:
@@ -118,7 +118,7 @@ then:
     poll-interval:
       description:
         Poll interval time in milliseconds
-      $ref: /schemas/types.yaml#definitions/uint32
+      $ref: /schemas/types.yaml#/definitions/uint32
 
   required:
     - poll-interval

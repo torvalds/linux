@@ -134,7 +134,7 @@ static irqreturn_t fsl_dcu_drm_irq(int irq, void *arg)
 
 DEFINE_DRM_GEM_CMA_FOPS(fsl_dcu_drm_fops);
 
-static struct drm_driver fsl_dcu_drm_driver = {
+static const struct drm_driver fsl_dcu_drm_driver = {
 	.driver_features	= DRIVER_GEM | DRIVER_MODESET | DRIVER_ATOMIC,
 	.load			= fsl_dcu_load,
 	.unload			= fsl_dcu_unload,
@@ -234,7 +234,6 @@ static int fsl_dcu_drm_probe(struct platform_device *pdev)
 	struct device *dev = &pdev->dev;
 	struct resource *res;
 	void __iomem *base;
-	struct drm_driver *driver = &fsl_dcu_drm_driver;
 	struct clk *pix_clk_in;
 	char pix_clk_name[32];
 	const char *pix_clk_in_name;
@@ -304,7 +303,7 @@ static int fsl_dcu_drm_probe(struct platform_device *pdev)
 
 	fsl_dev->tcon = fsl_tcon_init(dev);
 
-	drm = drm_dev_alloc(driver, dev);
+	drm = drm_dev_alloc(&fsl_dcu_drm_driver, dev);
 	if (IS_ERR(drm)) {
 		ret = PTR_ERR(drm);
 		goto unregister_pix_clk;

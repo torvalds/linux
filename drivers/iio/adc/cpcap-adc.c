@@ -557,6 +557,7 @@ static void cpcap_adc_setup_bank(struct cpcap_adc *ddata,
 		break;
 	case CPCAP_ADC_BATTP_PI16 ... CPCAP_ADC_BATTI_PI17:
 		value1 |= CPCAP_BIT_RAND1;
+		break;
 	default:
 		break;
 	}

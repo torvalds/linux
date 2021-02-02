@@ -196,7 +196,7 @@ static int adf_cfg_key_val_get(struct adf_accel_dev *accel_dev,
 		memcpy(val, keyval->val, ADF_CFG_MAX_VAL_LEN_IN_BYTES);
 		return 0;
 	}
-	return -1;
+	return -ENODATA;
 }
 
 /**
@@ -243,7 +243,7 @@ int adf_cfg_add_key_value_param(struct adf_accel_dev *accel_dev,
 	} else {
 		dev_err(&GET_DEV(accel_dev), "Unknown type given.\n");
 		kfree(key_val);
-		return -1;
+		return -EINVAL;
 	}
 	key_val->type = type;
 	down_write(&cfg->lock);

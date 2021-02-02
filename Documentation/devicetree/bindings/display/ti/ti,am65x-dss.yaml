@@ -55,12 +55,23 @@ properties:
       - const: vp1
       - const: vp2
 
+  assigned-clocks:
+    minItems: 1
+    maxItems: 3
+
+  assigned-clock-parents:
+    minItems: 1
+    maxItems: 3
+
   interrupts:
     maxItems: 1
 
   power-domains:
     maxItems: 1
     description: phandle to the associated power domain
+
+  dma-coherent:
+    type: boolean
 
   ports:
     type: object

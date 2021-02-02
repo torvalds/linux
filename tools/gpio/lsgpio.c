@@ -65,6 +65,10 @@ struct gpio_flag flagnames[] = {
 		.name = "bias-disabled",
 		.mask = GPIO_V2_LINE_FLAG_BIAS_DISABLED,
 	},
+	{
+		.name = "clock-realtime",
+		.mask = GPIO_V2_LINE_FLAG_EVENT_CLOCK_REALTIME,
+	},
 };
 
 static void print_attributes(struct gpio_v2_line_info *info)

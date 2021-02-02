@@ -14,6 +14,14 @@ config PSTORE
 	   If you don't have a platform persistent store driver,
 	   say N.
 
+config PSTORE_DEFAULT_KMSG_BYTES
+	int "Default kernel log storage space" if EXPERT
+	depends on PSTORE
+	default "10240"
+	help
+	  Defines default size of pstore kernel log storage.
+	  Can be enlarged if needed, not recommended to shrink it.
+
 config PSTORE_DEFLATE_COMPRESS
 	tristate "DEFLATE (ZLIB) compression"
 	default y

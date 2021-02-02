@@ -36,8 +36,7 @@ enum {
 
 enum {
 	IO_WQ_BIT_EXIT		= 0,	/* wq exiting */
-	IO_WQ_BIT_CANCEL	= 1,	/* cancel work on list */
-	IO_WQ_BIT_ERROR		= 2,	/* error on setup */
+	IO_WQ_BIT_ERROR		= 1,	/* error on setup */
 };
 
 enum {
@@ -561,12 +560,6 @@ get_next:
 
 			next_hashed = wq_next_work(work);
 			io_impersonate_work(worker, work);
-			/*
-			 * OK to set IO_WQ_WORK_CANCEL even for uncancellable
-			 * work, the worker function will do the right thing.
-			 */
-			if (test_bit(IO_WQ_BIT_CANCEL, &wq->state))
-				work->flags |= IO_WQ_WORK_CANCEL;
 
 			old_work = work;
 			linked = wq->do_work(work);
@@ -730,12 +723,6 @@ static inline bool io_wqe_need_worker(struct io_wqe *wqe, int index)
 	if (!hlist_nulls_empty(&wqe->free_list) || !io_wqe_run_queue(wqe))
 		return false;
 	return acct->nr_workers < acct->max_workers;
-}
-
-static bool io_wqe_worker_send_sig(struct io_worker *worker, void *data)
-{
-	send_sig(SIGINT, worker->task, 1);
-	return false;
 }
 
 /*
@@ -938,21 +925,6 @@ void io_wq_hash_work(struct io_wq_work *work, void *val)
 	work->flags |= (IO_WQ_WORK_HASHED | (bit << IO_WQ_HASH_SHIFT));
 }
 
-void io_wq_cancel_all(struct io_wq *wq)
-{
-	int node;
-
-	set_bit(IO_WQ_BIT_CANCEL, &wq->state);
-
-	rcu_read_lock();
-	for_each_node(node) {
-		struct io_wqe *wqe = wq->wqes[node];
-
-		io_wq_for_each_worker(wqe, io_wqe_worker_send_sig, NULL);
-	}
-	rcu_read_unlock();
-}
-
 struct io_cb_cancel_data {
 	work_cancel_fn *fn;
 	void *data;
@@ -1076,16 +1048,6 @@ enum io_wq_cancel io_wq_cancel_cb(struct io_wq *wq, work_cancel_fn *cancel,
 	if (match.nr_pending)
 		return IO_WQ_CANCEL_OK;
 	return IO_WQ_CANCEL_NOTFOUND;
-}
-
-static bool io_wq_io_cb_cancel_data(struct io_wq_work *work, void *data)
-{
-	return work == data;
-}
-
-enum io_wq_cancel io_wq_cancel_work(struct io_wq *wq, struct io_wq_work *cwork)
-{
-	return io_wq_cancel_cb(wq, io_wq_io_cb_cancel_data, (void *)cwork, false);
 }
 
 struct io_wq *io_wq_create(unsigned bounded, struct io_wq_data *data)

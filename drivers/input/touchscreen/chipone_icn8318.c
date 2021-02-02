@@ -154,7 +154,7 @@ static int icn8318_suspend(struct device *dev)
 	struct icn8318_data *data = i2c_get_clientdata(to_i2c_client(dev));
 
 	mutex_lock(&data->input->mutex);
-	if (data->input->users)
+	if (input_device_enabled(data->input))
 		icn8318_stop(data->input);
 	mutex_unlock(&data->input->mutex);
 
@@ -166,7 +166,7 @@ static int icn8318_resume(struct device *dev)
 	struct icn8318_data *data = i2c_get_clientdata(to_i2c_client(dev));
 
 	mutex_lock(&data->input->mutex);
-	if (data->input->users)
+	if (input_device_enabled(data->input))
 		icn8318_start(data->input);
 	mutex_unlock(&data->input->mutex);
 

@@ -6,8 +6,9 @@ ARCH_REL_TYPE_ABS := R_390_COPY|R_390_GLOB_DAT|R_390_JMP_SLOT|R_390_RELATIVE
 ARCH_REL_TYPE_ABS += R_390_GOT|R_390_PLT
 
 include $(srctree)/lib/vdso/Makefile
-obj-vdso64 = vdso_user_wrapper.o note.o getcpu.o
-obj-cvdso64 = vdso64_generic.o
+obj-vdso64 = vdso_user_wrapper.o note.o
+obj-cvdso64 = vdso64_generic.o getcpu.o
+CFLAGS_REMOVE_getcpu.o = -pg $(CC_FLAGS_FTRACE) $(CC_FLAGS_EXPOLINE)
 CFLAGS_REMOVE_vdso64_generic.o = -pg $(CC_FLAGS_FTRACE) $(CC_FLAGS_EXPOLINE)
 
 # Build rules

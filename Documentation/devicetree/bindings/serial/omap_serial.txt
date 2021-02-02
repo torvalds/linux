@@ -1,6 +1,7 @@
 OMAP UART controller
 
 Required properties:
+- compatible : should be "ti,am64-uart", "ti,am654-uart" for AM64 controllers
 - compatible : should be "ti,j721e-uart", "ti,am654-uart" for J721E controllers
 - compatible : should be "ti,am654-uart" for AM654 controllers
 - compatible : should be "ti,omap2-uart" for OMAP2 controllers

@@ -70,7 +70,7 @@ int amdgpu_atomfirmware_allocate_fb_scratch(struct amdgpu_device *adev)
 	struct atom_context *ctx = adev->mode_info.atom_context;
 	int index = get_index_into_master_table(atom_master_list_of_data_tables_v2_1,
 						vram_usagebyfirmware);
-	struct vram_usagebyfirmware_v2_1 *	firmware_usage;
+	struct vram_usagebyfirmware_v2_1 *firmware_usage;
 	uint32_t start_addr, size;
 	uint16_t data_offset;
 	int usage_bytes = 0;
@@ -148,6 +148,10 @@ static int convert_atom_mem_type_to_vram_type(struct amdgpu_device *adev,
 		case Ddr4MemType:
 		case LpDdr4MemType:
 			vram_type = AMDGPU_VRAM_TYPE_DDR4;
+			break;
+		case Ddr5MemType:
+		case LpDdr5MemType:
+			vram_type = AMDGPU_VRAM_TYPE_DDR5;
 			break;
 		default:
 			vram_type = AMDGPU_VRAM_TYPE_UNKNOWN;
@@ -544,6 +548,7 @@ int amdgpu_mem_train_support(struct amdgpu_device *adev)
 		case HW_REV(11, 0, 5):
 		case HW_REV(11, 0, 7):
 		case HW_REV(11, 0, 11):
+		case HW_REV(11, 0, 12):
 			ret = 1;
 			break;
 		default:

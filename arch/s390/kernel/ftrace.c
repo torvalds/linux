@@ -22,55 +22,25 @@
 #include "entry.h"
 
 /*
- * The mcount code looks like this:
- *	stg	%r14,8(%r15)		# offset 0
- *	larl	%r1,<&counter>		# offset 6
- *	brasl	%r14,_mcount		# offset 12
- *	lg	%r14,8(%r15)		# offset 18
- * Total length is 24 bytes. Only the first instruction will be patched
- * by ftrace_make_call / ftrace_make_nop.
- * The enabled ftrace code block looks like this:
+ * To generate function prologue either gcc's hotpatch feature (since gcc 4.8)
+ * or a combination of -pg -mrecord-mcount -mnop-mcount -mfentry flags
+ * (since gcc 9 / clang 10) is used.
+ * In both cases the original and also the disabled function prologue contains
+ * only a single six byte instruction and looks like this:
+ * >	brcl	0,0			# offset 0
+ * To enable ftrace the code gets patched like above and afterwards looks
+ * like this:
  * >	brasl	%r0,ftrace_caller	# offset 0
- *	larl	%r1,<&counter>		# offset 6
- *	brasl	%r14,_mcount		# offset 12
- *	lg	%r14,8(%r15)		# offset 18
+ *
+ * The instruction will be patched by ftrace_make_call / ftrace_make_nop.
  * The ftrace function gets called with a non-standard C function call ABI
  * where r0 contains the return address. It is also expected that the called
  * function only clobbers r0 and r1, but restores r2-r15.
  * For module code we can't directly jump to ftrace caller, but need a
  * trampoline (ftrace_plt), which clobbers also r1.
- * The return point of the ftrace function has offset 24, so execution
- * continues behind the mcount block.
- * The disabled ftrace code block looks like this:
- * >	jg	.+24			# offset 0
- *	larl	%r1,<&counter>		# offset 6
- *	brasl	%r14,_mcount		# offset 12
- *	lg	%r14,8(%r15)		# offset 18
- * The jg instruction branches to offset 24 to skip as many instructions
- * as possible.
- * In case we use gcc's hotpatch feature the original and also the disabled
- * function prologue contains only a single six byte instruction and looks
- * like this:
- * >	brcl	0,0			# offset 0
- * To enable ftrace the code gets patched like above and afterwards looks
- * like this:
- * >	brasl	%r0,ftrace_caller	# offset 0
  */
 
 unsigned long ftrace_plt;
-
-static inline void ftrace_generate_orig_insn(struct ftrace_insn *insn)
-{
-#if defined(CC_USING_HOTPATCH) || defined(CC_USING_NOP_MCOUNT)
-	/* brcl 0,0 */
-	insn->opc = 0xc004;
-	insn->disp = 0;
-#else
-	/* stg r14,8(r15) */
-	insn->opc = 0xe3e0;
-	insn->disp = 0xf0080024;
-#endif
-}
 
 int ftrace_modify_call(struct dyn_ftrace *rec, unsigned long old_addr,
 		       unsigned long addr)
@@ -85,15 +55,10 @@ int ftrace_make_nop(struct module *mod, struct dyn_ftrace *rec,
 
 	if (copy_from_kernel_nofault(&old, (void *) rec->ip, sizeof(old)))
 		return -EFAULT;
-	if (addr == MCOUNT_ADDR) {
-		/* Initial code replacement */
-		ftrace_generate_orig_insn(&orig);
-		ftrace_generate_nop_insn(&new);
-	} else {
-		/* Replace ftrace call with a nop. */
-		ftrace_generate_call_insn(&orig, rec->ip);
-		ftrace_generate_nop_insn(&new);
-	}
+	/* Replace ftrace call with a nop. */
+	ftrace_generate_call_insn(&orig, rec->ip);
+	ftrace_generate_nop_insn(&new);
+
 	/* Verify that the to be replaced code matches what we expect. */
 	if (memcmp(&orig, &old, sizeof(old)))
 		return -EINVAL;
@@ -198,17 +163,26 @@ int ftrace_disable_ftrace_graph_caller(void)
 
 #ifdef CONFIG_KPROBES_ON_FTRACE
 void kprobe_ftrace_handler(unsigned long ip, unsigned long parent_ip,
-		struct ftrace_ops *ops, struct pt_regs *regs)
+		struct ftrace_ops *ops, struct ftrace_regs *fregs)
 {
 	struct kprobe_ctlblk *kcb;
-	struct kprobe *p = get_kprobe((kprobe_opcode_t *)ip);
+	struct pt_regs *regs;
+	struct kprobe *p;
+	int bit;
 
-	if (unlikely(!p) || kprobe_disabled(p))
+	bit = ftrace_test_recursion_trylock(ip, parent_ip);
+	if (bit < 0)
 		return;
+
+	regs = ftrace_get_regs(fregs);
+	preempt_disable_notrace();
+	p = get_kprobe((kprobe_opcode_t *)ip);
+	if (unlikely(!p) || kprobe_disabled(p))
+		goto out;
 
 	if (kprobe_running()) {
 		kprobes_inc_nmissed_count(p);
-		return;
+		goto out;
 	}
 
 	__this_cpu_write(current_kprobe, p);
@@ -228,6 +202,9 @@ void kprobe_ftrace_handler(unsigned long ip, unsigned long parent_ip,
 		}
 	}
 	__this_cpu_write(current_kprobe, NULL);
+out:
+	preempt_enable_notrace();
+	ftrace_test_recursion_unlock(bit);
 }
 NOKPROBE_SYMBOL(kprobe_ftrace_handler);
 

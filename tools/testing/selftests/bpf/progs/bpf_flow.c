@@ -368,6 +368,8 @@ PROG(IPV6FR)(struct __sk_buff *skb)
 		 */
 		if (!(keys->flags & BPF_FLOW_DISSECTOR_F_PARSE_1ST_FRAG))
 			return export_flow_keys(keys, BPF_OK);
+	} else {
+		return export_flow_keys(keys, BPF_OK);
 	}
 
 	return parse_ipv6_proto(skb, fragh->nexthdr);

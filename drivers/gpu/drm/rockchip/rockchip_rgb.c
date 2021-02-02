@@ -18,6 +18,7 @@
 
 #include "rockchip_drm_drv.h"
 #include "rockchip_drm_vop.h"
+#include "rockchip_rgb.h"
 
 #define encoder_to_rgb(c) container_of(c, struct rockchip_rgb, encoder)
 

@@ -14,7 +14,7 @@
 
 #include <linux/types.h>
 #include <linux/integrity.h>
-#include <crypto/sha.h>
+#include <crypto/sha1.h>
 #include <linux/key.h>
 #include <linux/audit.h>
 

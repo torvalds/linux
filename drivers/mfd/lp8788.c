@@ -34,7 +34,7 @@
 	.num_resources = num_resource,				\
 }
 
-static struct resource chg_irqs[] = {
+static const struct resource chg_irqs[] = {
 	/* Charger Interrupts */
 	{
 		.start = LP8788_INT_CHG_INPUT_STATE,
@@ -58,7 +58,7 @@ static struct resource chg_irqs[] = {
 	},
 };
 
-static struct resource rtc_irqs[] = {
+static const struct resource rtc_irqs[] = {
 	{
 		.start = LP8788_INT_RTC_ALARM1,
 		.end   = LP8788_INT_RTC_ALARM2,

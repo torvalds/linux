@@ -76,7 +76,7 @@ struct amba_device {
 struct amba_driver {
 	struct device_driver	drv;
 	int			(*probe)(struct amba_device *, const struct amba_id *);
-	int			(*remove)(struct amba_device *);
+	void			(*remove)(struct amba_device *);
 	void			(*shutdown)(struct amba_device *);
 	const struct amba_id	*id_table;
 };

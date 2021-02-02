@@ -2520,11 +2520,10 @@ static int intel_pt_sync_switch(struct intel_pt *pt, int cpu, pid_t tid,
 static int intel_pt_process_switch(struct intel_pt *pt,
 				   struct perf_sample *sample)
 {
-	struct evsel *evsel;
 	pid_t tid;
 	int cpu, ret;
+	struct evsel *evsel = evlist__id2evsel(pt->session->evlist, sample->id);
 
-	evsel = perf_evlist__id2evsel(pt->session->evlist, sample->id);
 	if (evsel != pt->switch_evsel)
 		return 0;
 

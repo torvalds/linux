@@ -133,18 +133,9 @@ Under below explanation, we assume CONFIG_MEM_RES_CTRL_SWAP=y.
 
 8. LRU
 ======
-        Each memcg has its own private LRU. Now, its handling is under global
-	VM's control (means that it's handled under global pgdat->lru_lock).
-	Almost all routines around memcg's LRU is called by global LRU's
-	list management functions under pgdat->lru_lock.
-
-	A special function is mem_cgroup_isolate_pages(). This scans
-	memcg's private LRU and call __isolate_lru_page() to extract a page
-	from LRU.
-
-	(By __isolate_lru_page(), the page is removed from both of global and
-	private LRU.)
-
+	Each memcg has its own vector of LRUs (inactive anon, active anon,
+	inactive file, active file, unevictable) of pages from each node,
+	each LRU handled under a single lru_lock for that memcg and node.
 
 9. Typical Tests.
 =================
@@ -219,13 +210,11 @@ Under below explanation, we assume CONFIG_MEM_RES_CTRL_SWAP=y.
 
 	This is an easy way to test page migration, too.
 
-9.5 mkdir/rmdir
----------------
+9.5 nested cgroups
+------------------
 
-	When using hierarchy, mkdir/rmdir test should be done.
-	Use tests like the following::
+	Use tests like the following for testing nested cgroups::
 
-		echo 1 >/opt/cgroup/01/memory/use_hierarchy
 		mkdir /opt/cgroup/01/child_a
 		mkdir /opt/cgroup/01/child_b
 

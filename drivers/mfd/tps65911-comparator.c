@@ -69,7 +69,7 @@ static int comp_threshold_set(struct tps65910 *tps65910, int id, int voltage)
 		return -EINVAL;
 
 	val = index << 1;
-	ret = tps65910_reg_write(tps65910, tps_comp.reg, val);
+	ret = regmap_write(tps65910->regmap, tps_comp.reg, val);
 
 	return ret;
 }
@@ -80,7 +80,7 @@ static int comp_threshold_get(struct tps65910 *tps65910, int id)
 	unsigned int val;
 	int ret;
 
-	ret = tps65910_reg_read(tps65910, tps_comp.reg, &val);
+	ret = regmap_read(tps65910->regmap, tps_comp.reg, &val);
 	if (ret < 0)
 		return ret;
 

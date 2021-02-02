@@ -59,8 +59,9 @@ config DEBUG_GPIO
 	  that are most common when setting up new platforms or boards.
 
 config GPIO_SYSFS
-	bool "/sys/class/gpio/... (sysfs interface)"
+	bool "/sys/class/gpio/... (sysfs interface)" if EXPERT
 	depends on SYSFS
+	select GPIO_CDEV # We need to encourage the new ABI
 	help
 	  Say Y here to add the legacy sysfs interface for GPIOs.
 
@@ -255,6 +256,7 @@ config GPIO_EP93XX
 config GPIO_EXAR
 	tristate "Support for GPIO pins on XR17V352/354/358"
 	depends on SERIAL_8250_EXAR
+	select REGMAP_MMIO
 	help
 	  Selecting this option will enable handling of GPIO pins present
 	  on Exar XR17V352/354/358 chips.
@@ -295,6 +297,17 @@ config GPIO_GRGPIO
 	help
 	  Select this to support Aeroflex Gaisler GRGPIO cores from the GRLIB
 	  VHDL IP core library.
+
+config GPIO_HISI
+	tristate "HiSilicon GPIO controller driver"
+	depends on (ARM64 && ACPI) || COMPILE_TEST
+	select GPIO_GENERIC
+	select GPIOLIB_IRQCHIP
+	help
+	  Say Y or M here to build support for the HiSilicon GPIO controller
+	  driver GPIO block.
+	  This GPIO controller support double-edge interrupt and multi-core
+	  concurrent access.
 
 config GPIO_HLWD
 	tristate "Nintendo Wii (Hollywood) GPIO"
@@ -737,6 +750,17 @@ config GPIO_AMD_FCH
 	  Note: This driver doesn't registers itself automatically, as it
 	  needs to be provided with platform specific configuration.
 	  (See eg. CONFIG_PCENGINES_APU2.)
+
+config GPIO_MSC313
+	bool "MStar MSC313 GPIO support"
+	depends on ARCH_MSTARV7
+	default ARCH_MSTARV7
+	select GPIOLIB_IRQCHIP
+	select IRQ_DOMAIN_HIERARCHY
+	help
+	  Say Y here to support the main GPIO block on MStar/SigmaStar
+	  ARMv7 based SoCs.
+
 endmenu
 
 menu "Port-mapped I/O GPIO drivers"
@@ -1590,6 +1614,8 @@ config GPIO_VIPERBOARD
 
 endmenu
 
+menu "Virtual GPIO drivers"
+
 config GPIO_AGGREGATOR
 	tristate "GPIO Aggregator"
 	help
@@ -1612,5 +1638,7 @@ config GPIO_MOCKUP
 	  User could use it through the script in
 	  tools/testing/selftests/gpio/gpio-mockup.sh. Reference the usage in
 	  it.
+
+endmenu
 
 endif

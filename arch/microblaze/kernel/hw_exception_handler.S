@@ -80,7 +80,6 @@
 /* Helpful Macros */
 #define NUM_TO_REG(num)		r ## num
 
-#ifdef CONFIG_MMU
 	#define RESTORE_STATE			\
 		lwi	r5, r1, 0;		\
 		mts	rmsr, r5;		\
@@ -92,7 +91,6 @@
 		lwi	r11, r1, PT_R11;	\
 		lwi	r31, r1, PT_R31;	\
 		lwi	r1, r1, PT_R1;
-#endif /* CONFIG_MMU */
 
 #define LWREG_NOP			\
 	bri	ex_handler_unhandled;	\
@@ -101,10 +99,6 @@
 #define SWREG_NOP			\
 	bri	ex_handler_unhandled;	\
 	nop;
-
-/* FIXME this is weird - for noMMU kernel is not possible to use brid
- * instruction which can shorten executed time
- */
 
 /* r3 is the source */
 #define R3_TO_LWREG_V(regnum)				\
@@ -126,7 +120,6 @@
 	or	r3, r0, NUM_TO_REG (regnum);		\
 	bri	ex_sw_tail;
 
-#ifdef CONFIG_MMU
 	#define R3_TO_LWREG_VM_V(regnum)		\
 		brid	ex_lw_end_vm;			\
 		swi	r3, r7, 4 * regnum;
@@ -193,7 +186,6 @@
 	.endm
 	#endif
 
-#endif /* CONFIG_MMU */
 
 .extern other_exception_handler /* Defined in exception.c */
 
@@ -251,7 +243,6 @@
  */
 
 /* wrappers to restore state before coming to entry.S */
-#ifdef CONFIG_MMU
 .section .data
 .align 4
 pt_pool_space:
@@ -316,31 +307,24 @@ _MB_HW_ExceptionVectorTable:
 	.long	TOPHYS(ex_handler_unhandled)
 	.long	TOPHYS(ex_handler_unhandled)
 	.long	TOPHYS(ex_handler_unhandled)
-#endif
 
 .global _hw_exception_handler
 .section .text
 .align 4
 .ent _hw_exception_handler
 _hw_exception_handler:
-#ifndef CONFIG_MMU
-	addik	r1, r1, -(EX_HANDLER_STACK_SIZ); /* Create stack frame */
-#else
 	swi	r1, r0, TOPHYS(pt_pool_space + PT_R1); /* GET_SP */
 	/* Save date to kernel memory. Here is the problem
 	 * when you came from user space */
 	ori	r1, r0, TOPHYS(pt_pool_space);
-#endif
 	swi	r3, r1, PT_R3
 	swi	r4, r1, PT_R4
 	swi	r5, r1, PT_R5
 	swi	r6, r1, PT_R6
 
-#ifdef CONFIG_MMU
 	swi	r11, r1, PT_R11
 	swi	r31, r1, PT_R31
 	lwi	r31, r0, TOPHYS(PER_CPU(CURRENT_SAVE)) /* get saved current */
-#endif
 
 	mfs	r5, rmsr;
 	nop
@@ -350,18 +334,8 @@ _hw_exception_handler:
 	mfs	r3, rear;
 	nop
 
-#ifndef CONFIG_MMU
-	andi	r5, r4, 0x1000;		/* Check ESR[DS] */
-	beqi	r5, not_in_delay_slot;	/* Branch if ESR[DS] not set */
-	mfs	r17, rbtr;	/* ESR[DS] set - return address in BTR */
-	nop
-not_in_delay_slot:
-	swi	r17, r1, PT_R17
-#endif
-
 	andi	r5, r4, 0x1F;		/* Extract ESR[EXC] */
 
-#ifdef CONFIG_MMU
 	/* Calculate exception vector offset = r5 << 2 */
 	addk	r6, r5, r5; /* << 1 */
 	addk	r6, r6, r6; /* << 2 */
@@ -383,73 +357,6 @@ not_in_delay_slot:
 full_exception_trapw:
 	RESTORE_STATE
 	bri	full_exception_trap
-#else
-	/* Exceptions enabled here. This will allow nested exceptions */
-	mfs	r6, rmsr;
-	nop
-	swi	r6, r1, 0; /* RMSR_OFFSET */
-	ori	r6, r6, 0x100; /* Turn ON the EE bit */
-	andi	r6, r6, ~2; /* Disable interrupts */
-	mts	rmsr, r6;
-	nop
-
-	xori	r6, r5, 1; /* 00001 = Unaligned Exception */
-	/* Jump to unalignment exception handler */
-	beqi	r6, handle_unaligned_ex;
-
-handle_other_ex: /* Handle Other exceptions here */
-	/* Save other volatiles before we make procedure calls below */
-	swi	r7, r1, PT_R7
-	swi	r8, r1, PT_R8
-	swi	r9, r1, PT_R9
-	swi	r10, r1, PT_R10
-	swi	r11, r1, PT_R11
-	swi	r12, r1, PT_R12
-	swi	r14, r1, PT_R14
-	swi	r15, r1, PT_R15
-	swi	r18, r1, PT_R18
-
-	or	r5, r1, r0
-	andi	r6, r4, 0x1F; /* Load ESR[EC] */
-	lwi	r7, r0, PER_CPU(KM) /* MS: saving current kernel mode to regs */
-	swi	r7, r1, PT_MODE
-	mfs	r7, rfsr
-	nop
-	addk	r8, r17, r0; /* Load exception address */
-	bralid	r15, full_exception; /* Branch to the handler */
-	nop;
-	mts	rfsr, r0;	/* Clear sticky fsr */
-	nop
-
-	/*
-	 * Trigger execution of the signal handler by enabling
-	 * interrupts and calling an invalid syscall.
-	 */
-	mfs	r5, rmsr;
-	nop
-	ori	r5, r5, 2;
-	mts	rmsr, r5; /* enable interrupt */
-	nop
-	addi	r12, r0, __NR_syscalls;
-	brki	r14, 0x08;
-	mfs	r5, rmsr; /* disable interrupt */
-	nop
-	andi	r5, r5, ~2;
-	mts	rmsr, r5;
-	nop
-
-	lwi	r7, r1, PT_R7
-	lwi	r8, r1, PT_R8
-	lwi	r9, r1, PT_R9
-	lwi	r10, r1, PT_R10
-	lwi	r11, r1, PT_R11
-	lwi	r12, r1, PT_R12
-	lwi	r14, r1, PT_R14
-	lwi	r15, r1, PT_R15
-	lwi	r18, r1, PT_R18
-
-	bri	ex_handler_done; /* Complete exception handling */
-#endif
 
 /* 0x01 - Unaligned data access exception
  * This occurs when a word access is not aligned on a word boundary,
@@ -463,7 +370,6 @@ handle_unaligned_ex:
 	 *  R4 = ESR
 	 *  R3 = EAR
 	 */
-#ifdef CONFIG_MMU
 	andi	r6, r4, 0x1000			/* Check ESR[DS] */
 	beqi	r6, _no_delayslot		/* Branch if ESR[DS] not set */
 	mfs	r17, rbtr;	/* ESR[DS] set - return address in BTR */
@@ -472,7 +378,7 @@ _no_delayslot:
 	/* jump to high level unaligned handler */
 	RESTORE_STATE;
 	bri	unaligned_data_trap
-#endif
+
 	andi	r6, r4, 0x3E0; /* Mask and extract the register operand */
 	srl	r6, r6; /* r6 >> 5 */
 	srl	r6, r6;
@@ -558,25 +464,10 @@ ex_shw:
 ex_sw_end: /* Exception handling of store word, ends. */
 
 ex_handler_done:
-#ifndef CONFIG_MMU
-	lwi	r5, r1, 0 /* RMSR */
-	mts	rmsr, r5
-	nop
-	lwi	r3, r1, PT_R3
-	lwi	r4, r1, PT_R4
-	lwi	r5, r1, PT_R5
-	lwi	r6, r1, PT_R6
-	lwi	r17, r1, PT_R17
-
-	rted	r17, 0
-	addik	r1, r1, (EX_HANDLER_STACK_SIZ); /* Restore stack frame */
-#else
 	RESTORE_STATE;
 	rted	r17, 0
 	nop
-#endif
 
-#ifdef CONFIG_MMU
 	/* Exception vector entry code. This code runs with address translation
 	 * turned off (i.e. using physical addresses). */
 
@@ -882,13 +773,7 @@ ex_handler_done:
 		 * bits 20 and 21 are zero.
 		 */
 		andi	r3, r3, PAGE_MASK
-#ifdef CONFIG_MICROBLAZE_64K_PAGES
-		ori	r3, r3, TLB_VALID | TLB_PAGESZ(PAGESZ_64K)
-#elif CONFIG_MICROBLAZE_16K_PAGES
-		ori	r3, r3, TLB_VALID | TLB_PAGESZ(PAGESZ_16K)
-#else
 		ori	r3, r3, TLB_VALID | TLB_PAGESZ(PAGESZ_4K)
-#endif
 		mts	rtlbhi,	r3		/* Load TLB HI */
 		nop
 
@@ -926,10 +811,8 @@ ex_handler_done:
 		rtsd	r15,8
 		nop
 
-#endif
 .end _hw_exception_handler
 
-#ifdef CONFIG_MMU
 /* Unaligned data access exception last on a 4k page for MMU.
  * When this is called, we are in virtual mode with exceptions enabled
  * and registers 1-13,15,17,18 saved.
@@ -1044,7 +927,6 @@ ex_unaligned_fixup:
 	.word	store6,ex_unaligned_fixup;
 .previous;
 .end _unaligned_data_exception
-#endif /* CONFIG_MMU */
 
 .global ex_handler_unhandled
 ex_handler_unhandled:
@@ -1093,11 +975,7 @@ lw_r27:		R3_TO_LWREG	(27);
 lw_r28:		R3_TO_LWREG	(28);
 lw_r29:		R3_TO_LWREG	(29);
 lw_r30:		R3_TO_LWREG	(30);
-#ifdef CONFIG_MMU
 lw_r31: 	R3_TO_LWREG_V	(31);
-#else
-lw_r31:		R3_TO_LWREG	(31);
-#endif
 
 sw_table:
 sw_r0:		SWREG_TO_R3	(0);
@@ -1131,13 +1009,8 @@ sw_r27:		SWREG_TO_R3	(27);
 sw_r28:		SWREG_TO_R3	(28);
 sw_r29:		SWREG_TO_R3	(29);
 sw_r30:		SWREG_TO_R3	(30);
-#ifdef CONFIG_MMU
 sw_r31:		SWREG_TO_R3_V	(31);
-#else
-sw_r31:		SWREG_TO_R3	(31);
-#endif
 
-#ifdef CONFIG_MMU
 lw_table_vm:
 lw_r0_vm:	R3_TO_LWREG_VM		(0);
 lw_r1_vm:	R3_TO_LWREG_VM_V	(1);
@@ -1205,7 +1078,6 @@ sw_r28_vm:	SWREG_TO_R3_VM_V	(28);
 sw_r29_vm:	SWREG_TO_R3_VM_V	(29);
 sw_r30_vm:	SWREG_TO_R3_VM_V	(30);
 sw_r31_vm:	SWREG_TO_R3_VM_V	(31);
-#endif /* CONFIG_MMU */
 
 /* Temporary data structures used in the handler */
 .section .data

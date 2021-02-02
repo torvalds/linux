@@ -143,6 +143,7 @@
 	gpio_ext: gpio@20 {
 		compatible = "nxp,pca9555";
 		reg = <0x20>;
+		gpio-controller;
 		#gpio-cells = <2>;
 	};
 };

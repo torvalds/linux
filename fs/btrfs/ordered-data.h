@@ -137,9 +137,8 @@ static inline int btrfs_ordered_sum_size(struct btrfs_fs_info *fs_info,
 					 unsigned long bytes)
 {
 	int num_sectors = (int)DIV_ROUND_UP(bytes, fs_info->sectorsize);
-	int csum_size = btrfs_super_csum_size(fs_info->super_copy);
 
-	return sizeof(struct btrfs_ordered_sum) + num_sectors * csum_size;
+	return sizeof(struct btrfs_ordered_sum) + num_sectors * fs_info->csum_size;
 }
 
 static inline void
@@ -184,8 +183,6 @@ struct btrfs_ordered_extent *btrfs_lookup_ordered_range(
 		u64 len);
 void btrfs_get_ordered_extents_for_logging(struct btrfs_inode *inode,
 					   struct list_head *list);
-int btrfs_find_ordered_sum(struct btrfs_inode *inode, u64 offset,
-			   u64 disk_bytenr, u8 *sum, int len);
 u64 btrfs_wait_ordered_extents(struct btrfs_root *root, u64 nr,
 			       const u64 range_start, const u64 range_len);
 void btrfs_wait_ordered_roots(struct btrfs_fs_info *fs_info, u64 nr,

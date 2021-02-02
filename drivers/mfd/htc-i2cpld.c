@@ -346,6 +346,7 @@ static int htcpld_register_chip_i2c(
 	if (!i2c_check_functionality(adapter, I2C_FUNC_SMBUS_READ_BYTE_DATA)) {
 		dev_warn(dev, "i2c adapter %d non-functional\n",
 			 pdata->i2c_adapter_id);
+		i2c_put_adapter(adapter);
 		return -EINVAL;
 	}
 
@@ -360,6 +361,7 @@ static int htcpld_register_chip_i2c(
 		/* I2C device registration failed, contineu with the next */
 		dev_warn(dev, "Unable to add I2C device for 0x%x\n",
 			 plat_chip_data->addr);
+		i2c_put_adapter(adapter);
 		return PTR_ERR(client);
 	}
 

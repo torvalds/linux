@@ -203,7 +203,7 @@ static int __init coh901331_probe(struct platform_device *pdev)
 
 	platform_set_drvdata(pdev, rtap);
 
-	ret = rtc_register_device(rtap->rtc);
+	ret = devm_rtc_register_device(rtap->rtc);
 	if (ret)
 		goto out_no_rtc;
 

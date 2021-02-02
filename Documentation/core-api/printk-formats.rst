@@ -531,7 +531,9 @@ For printing bitmap and its derivatives such as cpumask and nodemask,
 %*pb outputs the bitmap with field width as the number of bits and %*pbl
 output the bitmap as range list with field width as the number of bits.
 
-Passed by reference.
+The field width is passed by value, the bitmap is passed by reference.
+Helper macros cpumask_pr_args() and nodemask_pr_args() are available to ease
+printing cpumask and nodemask.
 
 Flags bitfields such as page flags, gfp_flags
 ---------------------------------------------

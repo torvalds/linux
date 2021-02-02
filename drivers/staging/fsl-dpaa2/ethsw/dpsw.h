@@ -334,9 +334,10 @@ enum dpsw_accepted_frames {
  * @DPSW_CNT_ING_BCAST_FRAME: Counts ingress broadcast frames
  * @DPSW_CNT_ING_BCAST_BYTES: Counts ingress broadcast bytes
  * @DPSW_CNT_EGR_FRAME: Counts egress frames
- * @DPSW_CNT_EGR_BYTE: Counts eEgress bytes
+ * @DPSW_CNT_EGR_BYTE: Counts egress bytes
  * @DPSW_CNT_EGR_FRAME_DISCARD: Counts discarded egress frames
  * @DPSW_CNT_EGR_STP_FRAME_DISCARD: Counts egress STP discarded frames
+ * @DPSW_CNT_ING_NO_BUFF_DISCARD: Counts ingress no buffer discarded frames
  */
 enum dpsw_counter {
 	DPSW_CNT_ING_FRAME = 0x0,
@@ -350,7 +351,8 @@ enum dpsw_counter {
 	DPSW_CNT_EGR_FRAME = 0x8,
 	DPSW_CNT_EGR_BYTE = 0x9,
 	DPSW_CNT_EGR_FRAME_DISCARD = 0xa,
-	DPSW_CNT_EGR_STP_FRAME_DISCARD = 0xb
+	DPSW_CNT_EGR_STP_FRAME_DISCARD = 0xb,
+	DPSW_CNT_ING_NO_BUFF_DISCARD = 0xc,
 };
 
 int dpsw_if_get_counter(struct fsl_mc_io *mc_io,

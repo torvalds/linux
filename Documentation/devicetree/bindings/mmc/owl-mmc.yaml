@@ -17,7 +17,9 @@ properties:
     oneOf:
       - const: actions,owl-mmc
       - items:
-          - const: actions,s700-mmc
+          - enum:
+              - actions,s500-mmc
+              - actions,s700-mmc
           - const: actions,owl-mmc
 
   reg:

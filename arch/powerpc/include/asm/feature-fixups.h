@@ -36,6 +36,24 @@ label##2:						\
 	.align 2;					\
 label##3:
 
+
+#ifndef CONFIG_CC_IS_CLANG
+#define CHECK_ALT_SIZE(else_size, body_size)			\
+	.ifgt (else_size) - (body_size);			\
+	.error "Feature section else case larger than body";	\
+	.endif;
+#else
+/*
+ * If we use the ifgt syntax above, clang's assembler complains about the
+ * expression being non-absolute when the code appears in an inline assembly
+ * statement.
+ * As a workaround use an .org directive that has no effect if the else case
+ * instructions are smaller than the body, but fails otherwise.
+ */
+#define CHECK_ALT_SIZE(else_size, body_size)			\
+	.org . + ((else_size) > (body_size));
+#endif
+
 #define MAKE_FTR_SECTION_ENTRY(msk, val, label, sect)		\
 label##4:							\
 	.popsection;						\
@@ -48,9 +66,7 @@ label##5:							\
 	FTR_ENTRY_OFFSET label##2b-label##5b;			\
 	FTR_ENTRY_OFFSET label##3b-label##5b;			\
 	FTR_ENTRY_OFFSET label##4b-label##5b;			\
-	.ifgt (label##4b- label##3b)-(label##2b- label##1b);	\
-	.error "Feature section else case larger than body";	\
-	.endif;							\
+	CHECK_ALT_SIZE((label##4b-label##3b), (label##2b-label##1b)); \
 	.popsection;
 
 
@@ -99,6 +115,9 @@ label##5:							\
 
 #define END_MMU_FTR_SECTION_NESTED_IFSET(msk, label)	\
 	END_MMU_FTR_SECTION_NESTED((msk), (msk), label)
+
+#define END_MMU_FTR_SECTION_NESTED_IFCLR(msk, label)	\
+	END_MMU_FTR_SECTION_NESTED((msk), 0, label)
 
 #define END_MMU_FTR_SECTION_IFSET(msk)	END_MMU_FTR_SECTION((msk), (msk))
 #define END_MMU_FTR_SECTION_IFCLR(msk)	END_MMU_FTR_SECTION((msk), 0)

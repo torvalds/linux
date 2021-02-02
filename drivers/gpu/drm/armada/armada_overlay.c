@@ -325,7 +325,7 @@ static void armada_overlay_reset(struct drm_plane *plane)
 	}
 }
 
-struct drm_plane_state *
+static struct drm_plane_state *
 armada_overlay_duplicate_state(struct drm_plane *plane)
 {
 	struct armada_overlay_state *state;

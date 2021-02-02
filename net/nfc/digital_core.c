@@ -458,6 +458,9 @@ static void digital_add_poll_tech(struct nfc_digital_dev *ddev, u8 rf_tech,
 
 /**
  * start_poll operation
+ * @nfc_dev: device to be polled
+ * @im_protocols: bitset of nfc initiator protocols to be used for polling
+ * @tm_protocols: bitset of nfc transport protocols to be used for polling
  *
  * For every supported protocol, the corresponding polling function is added
  * to the table of polling technologies (ddev->poll_techs[]) using

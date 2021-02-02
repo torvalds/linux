@@ -201,7 +201,6 @@ static int qcom_apq8064_sata_phy_probe(struct platform_device *pdev)
 {
 	struct qcom_apq8064_sata_phy *phy;
 	struct device *dev = &pdev->dev;
-	struct resource *res;
 	struct phy_provider *phy_provider;
 	struct phy *generic_phy;
 	int ret;
@@ -210,8 +209,7 @@ static int qcom_apq8064_sata_phy_probe(struct platform_device *pdev)
 	if (!phy)
 		return -ENOMEM;
 
-	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	phy->mmio = devm_ioremap_resource(dev, res);
+	phy->mmio = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(phy->mmio))
 		return PTR_ERR(phy->mmio);
 

@@ -478,7 +478,7 @@ static int adxrs290_data_rdy_trigger_set_state(struct iio_trigger *trig,
 	return ret;
 }
 
-static int adxrs290_reset_trig(struct iio_trigger *trig)
+static void adxrs290_reset_trig(struct iio_trigger *trig)
 {
 	struct iio_dev *indio_dev = iio_trigger_get_drvdata(trig);
 	int val;
@@ -491,14 +491,12 @@ static int adxrs290_reset_trig(struct iio_trigger *trig)
 	 */
 	adxrs290_get_rate_data(indio_dev,
 			       ADXRS290_READ_REG(ADXRS290_REG_DATAY0), &val);
-
-	return 0;
 }
 
 static const struct iio_trigger_ops adxrs290_trigger_ops = {
 	.set_trigger_state = &adxrs290_data_rdy_trigger_set_state,
 	.validate_device = &iio_trigger_validate_own_device,
-	.try_reenable = &adxrs290_reset_trig,
+	.reenable = &adxrs290_reset_trig,
 };
 
 static irqreturn_t adxrs290_trigger_handler(int irq, void *p)

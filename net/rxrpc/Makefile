@@ -28,6 +28,7 @@ rxrpc-y := \
 	rtt.o \
 	security.o \
 	sendmsg.o \
+	server_key.o \
 	skbuff.o \
 	utils.o
 

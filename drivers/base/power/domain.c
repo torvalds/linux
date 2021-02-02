@@ -21,6 +21,7 @@
 #include <linux/suspend.h>
 #include <linux/export.h>
 #include <linux/cpu.h>
+#include <linux/debugfs.h>
 
 #include "power.h"
 
@@ -210,6 +211,18 @@ static void genpd_sd_counter_inc(struct generic_pm_domain *genpd)
 }
 
 #ifdef CONFIG_DEBUG_FS
+static struct dentry *genpd_debugfs_dir;
+
+static void genpd_debug_add(struct generic_pm_domain *genpd);
+
+static void genpd_debug_remove(struct generic_pm_domain *genpd)
+{
+	struct dentry *d;
+
+	d = debugfs_lookup(genpd->name, genpd_debugfs_dir);
+	debugfs_remove(d);
+}
+
 static void genpd_update_accounting(struct generic_pm_domain *genpd)
 {
 	ktime_t delta, now;
@@ -234,6 +247,8 @@ static void genpd_update_accounting(struct generic_pm_domain *genpd)
 	genpd->accounting_time = now;
 }
 #else
+static inline void genpd_debug_add(struct generic_pm_domain *genpd) {}
+static inline void genpd_debug_remove(struct generic_pm_domain *genpd) {}
 static inline void genpd_update_accounting(struct generic_pm_domain *genpd) {}
 #endif
 
@@ -1142,7 +1157,7 @@ static int genpd_finish_suspend(struct device *dev, bool poweroff)
 	if (ret)
 		return ret;
 
-	if (dev->power.wakeup_path && genpd_is_active_wakeup(genpd))
+	if (device_wakeup_path(dev) && genpd_is_active_wakeup(genpd))
 		return 0;
 
 	if (genpd->dev_ops.stop && genpd->dev_ops.start &&
@@ -1196,7 +1211,7 @@ static int genpd_resume_noirq(struct device *dev)
 	if (IS_ERR(genpd))
 		return -EINVAL;
 
-	if (dev->power.wakeup_path && genpd_is_active_wakeup(genpd))
+	if (device_wakeup_path(dev) && genpd_is_active_wakeup(genpd))
 		return pm_generic_resume_noirq(dev);
 
 	genpd_lock(genpd);
@@ -1363,41 +1378,60 @@ static void genpd_complete(struct device *dev)
 	genpd_unlock(genpd);
 }
 
-/**
- * genpd_syscore_switch - Switch power during system core suspend or resume.
- * @dev: Device that normally is marked as "always on" to switch power for.
- *
- * This routine may only be called during the system core (syscore) suspend or
- * resume phase for devices whose "always on" flags are set.
- */
-static void genpd_syscore_switch(struct device *dev, bool suspend)
+static void genpd_switch_state(struct device *dev, bool suspend)
 {
 	struct generic_pm_domain *genpd;
+	bool use_lock;
 
 	genpd = dev_to_genpd_safe(dev);
 	if (!genpd)
 		return;
 
+	use_lock = genpd_is_irq_safe(genpd);
+
+	if (use_lock)
+		genpd_lock(genpd);
+
 	if (suspend) {
 		genpd->suspended_count++;
-		genpd_sync_power_off(genpd, false, 0);
+		genpd_sync_power_off(genpd, use_lock, 0);
 	} else {
-		genpd_sync_power_on(genpd, false, 0);
+		genpd_sync_power_on(genpd, use_lock, 0);
 		genpd->suspended_count--;
 	}
+
+	if (use_lock)
+		genpd_unlock(genpd);
 }
 
-void pm_genpd_syscore_poweroff(struct device *dev)
+/**
+ * dev_pm_genpd_suspend - Synchronously try to suspend the genpd for @dev
+ * @dev: The device that is attached to the genpd, that can be suspended.
+ *
+ * This routine should typically be called for a device that needs to be
+ * suspended during the syscore suspend phase. It may also be called during
+ * suspend-to-idle to suspend a corresponding CPU device that is attached to a
+ * genpd.
+ */
+void dev_pm_genpd_suspend(struct device *dev)
 {
-	genpd_syscore_switch(dev, true);
+	genpd_switch_state(dev, true);
 }
-EXPORT_SYMBOL_GPL(pm_genpd_syscore_poweroff);
+EXPORT_SYMBOL_GPL(dev_pm_genpd_suspend);
 
-void pm_genpd_syscore_poweron(struct device *dev)
+/**
+ * dev_pm_genpd_resume - Synchronously try to resume the genpd for @dev
+ * @dev: The device that is attached to the genpd, which needs to be resumed.
+ *
+ * This routine should typically be called for a device that needs to be resumed
+ * during the syscore resume phase. It may also be called during suspend-to-idle
+ * to resume a corresponding CPU device that is attached to a genpd.
+ */
+void dev_pm_genpd_resume(struct device *dev)
 {
-	genpd_syscore_switch(dev, false);
+	genpd_switch_state(dev, false);
 }
-EXPORT_SYMBOL_GPL(pm_genpd_syscore_poweron);
+EXPORT_SYMBOL_GPL(dev_pm_genpd_resume);
 
 #else /* !CONFIG_PM_SLEEP */
 
@@ -1954,6 +1988,7 @@ int pm_genpd_init(struct generic_pm_domain *genpd,
 
 	mutex_lock(&gpd_list_lock);
 	list_add(&genpd->gpd_list_node, &gpd_list);
+	genpd_debug_add(genpd);
 	mutex_unlock(&gpd_list_lock);
 
 	return 0;
@@ -1987,6 +2022,7 @@ static int genpd_remove(struct generic_pm_domain *genpd)
 		kfree(link);
 	}
 
+	genpd_debug_remove(genpd);
 	list_del(&genpd->gpd_list_node);
 	genpd_unlock(genpd);
 	cancel_work_sync(&genpd->power_off_work);
@@ -2249,7 +2285,7 @@ int of_genpd_add_provider_onecell(struct device_node *np,
 			 * Save table for faster processing while setting
 			 * performance state.
 			 */
-			genpd->opp_table = dev_pm_opp_get_opp_table_indexed(&genpd->dev, i);
+			genpd->opp_table = dev_pm_opp_get_opp_table(&genpd->dev);
 			WARN_ON(IS_ERR(genpd->opp_table));
 		}
 
@@ -2893,14 +2929,6 @@ core_initcall(genpd_bus_init);
 /***        debugfs support        ***/
 
 #ifdef CONFIG_DEBUG_FS
-#include <linux/pm.h>
-#include <linux/device.h>
-#include <linux/debugfs.h>
-#include <linux/seq_file.h>
-#include <linux/init.h>
-#include <linux/kobject.h>
-static struct dentry *genpd_debugfs_dir;
-
 /*
  * TODO: This function is a slightly modified version of rtpm_status_show
  * from sysfs.c, so generalize it.
@@ -3177,9 +3205,34 @@ DEFINE_SHOW_ATTRIBUTE(total_idle_time);
 DEFINE_SHOW_ATTRIBUTE(devices);
 DEFINE_SHOW_ATTRIBUTE(perf_state);
 
-static int __init genpd_debug_init(void)
+static void genpd_debug_add(struct generic_pm_domain *genpd)
 {
 	struct dentry *d;
+
+	if (!genpd_debugfs_dir)
+		return;
+
+	d = debugfs_create_dir(genpd->name, genpd_debugfs_dir);
+
+	debugfs_create_file("current_state", 0444,
+			    d, genpd, &status_fops);
+	debugfs_create_file("sub_domains", 0444,
+			    d, genpd, &sub_domains_fops);
+	debugfs_create_file("idle_states", 0444,
+			    d, genpd, &idle_states_fops);
+	debugfs_create_file("active_time", 0444,
+			    d, genpd, &active_time_fops);
+	debugfs_create_file("total_idle_time", 0444,
+			    d, genpd, &total_idle_time_fops);
+	debugfs_create_file("devices", 0444,
+			    d, genpd, &devices_fops);
+	if (genpd->set_performance_state)
+		debugfs_create_file("perf_state", 0444,
+				    d, genpd, &perf_state_fops);
+}
+
+static int __init genpd_debug_init(void)
+{
 	struct generic_pm_domain *genpd;
 
 	genpd_debugfs_dir = debugfs_create_dir("pm_genpd", NULL);
@@ -3187,25 +3240,8 @@ static int __init genpd_debug_init(void)
 	debugfs_create_file("pm_genpd_summary", S_IRUGO, genpd_debugfs_dir,
 			    NULL, &summary_fops);
 
-	list_for_each_entry(genpd, &gpd_list, gpd_list_node) {
-		d = debugfs_create_dir(genpd->name, genpd_debugfs_dir);
-
-		debugfs_create_file("current_state", 0444,
-				d, genpd, &status_fops);
-		debugfs_create_file("sub_domains", 0444,
-				d, genpd, &sub_domains_fops);
-		debugfs_create_file("idle_states", 0444,
-				d, genpd, &idle_states_fops);
-		debugfs_create_file("active_time", 0444,
-				d, genpd, &active_time_fops);
-		debugfs_create_file("total_idle_time", 0444,
-				d, genpd, &total_idle_time_fops);
-		debugfs_create_file("devices", 0444,
-				d, genpd, &devices_fops);
-		if (genpd->set_performance_state)
-			debugfs_create_file("perf_state", 0444,
-					    d, genpd, &perf_state_fops);
-	}
+	list_for_each_entry(genpd, &gpd_list, gpd_list_node)
+		genpd_debug_add(genpd);
 
 	return 0;
 }

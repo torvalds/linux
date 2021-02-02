@@ -84,7 +84,6 @@ int ath11k_dp_tx(struct ath11k *ar, struct ath11k_vif *arvif,
 	struct ath11k_dp *dp = &ab->dp;
 	struct hal_tx_info ti = {0};
 	struct ieee80211_tx_info *info = IEEE80211_SKB_CB(skb);
-	struct ieee80211_key_conf *key = info->control.hw_key;
 	struct ath11k_skb_cb *skb_cb = ATH11K_SKB_CB(skb);
 	struct hal_srng *tcl_ring;
 	struct ieee80211_hdr *hdr = (void *)skb->data;
@@ -105,14 +104,14 @@ int ath11k_dp_tx(struct ath11k *ar, struct ath11k_vif *arvif,
 
 	pool_id = skb_get_queue_mapping(skb) & (ATH11K_HW_MAX_QUEUES - 1);
 
-	/* Let the default ring selection be based on a round robin
-	 * fashion where one of the 3 tcl rings are selected based on
-	 * the tcl_ring_selector counter. In case that ring
+	/* Let the default ring selection be based on current processor
+	 * number, where one of the 3 tcl rings are selected based on
+	 * the smp_processor_id(). In case that ring
 	 * is full/busy, we resort to other available rings.
 	 * If all rings are full, we drop the packet.
 	 * //TODO Add throttling logic when all rings are full
 	 */
-	ring_selector = atomic_inc_return(&ab->tcl_ring_selector);
+	ring_selector = smp_processor_id();
 
 tcl_ring_sel:
 	tcl_ring_retry = false;
@@ -149,9 +148,9 @@ tcl_ring_sel:
 	ti.meta_data_flags = arvif->tcl_metadata;
 
 	if (ti.encap_type == HAL_TCL_ENCAP_TYPE_RAW) {
-		if (key) {
+		if (skb_cb->flags & ATH11K_SKB_CIPHER_SET) {
 			ti.encrypt_type =
-				ath11k_dp_tx_get_encrypt_type(key->cipher);
+				ath11k_dp_tx_get_encrypt_type(skb_cb->cipher);
 
 			if (ieee80211_has_protected(hdr->frame_control))
 				skb_put(skb, IEEE80211_CCMP_MIC_LEN);

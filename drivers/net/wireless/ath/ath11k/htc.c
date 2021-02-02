@@ -60,9 +60,11 @@ static void ath11k_htc_prepare_tx_skb(struct ath11k_htc_ep *ep,
 	memset(hdr, 0, sizeof(*hdr));
 	hdr->htc_info = FIELD_PREP(HTC_HDR_ENDPOINTID, ep->eid) |
 			FIELD_PREP(HTC_HDR_PAYLOADLEN,
-				   (skb->len - sizeof(*hdr))) |
-			FIELD_PREP(HTC_HDR_FLAGS,
-				   ATH11K_HTC_FLAG_NEED_CREDIT_UPDATE);
+				   (skb->len - sizeof(*hdr)));
+
+	if (ep->tx_credit_flow_enabled)
+		hdr->htc_info |= FIELD_PREP(HTC_HDR_FLAGS,
+					    ATH11K_HTC_FLAG_NEED_CREDIT_UPDATE);
 
 	spin_lock_bh(&ep->htc->tx_lock);
 	hdr->ctrl_info = FIELD_PREP(HTC_HDR_CONTROLBYTES1, ep->seq_no++);
@@ -231,6 +233,18 @@ static int ath11k_htc_process_trailer(struct ath11k_htc *htc,
 	return status;
 }
 
+static void ath11k_htc_suspend_complete(struct ath11k_base *ab, bool ack)
+{
+	ath11k_dbg(ab, ATH11K_DBG_BOOT, "boot suspend complete %d\n", ack);
+
+	if (ack)
+		set_bit(ATH11K_FLAG_HTC_SUSPEND_COMPLETE, &ab->dev_flags);
+	else
+		clear_bit(ATH11K_FLAG_HTC_SUSPEND_COMPLETE, &ab->dev_flags);
+
+	complete(&ab->htc_suspend);
+}
+
 void ath11k_htc_rx_completion_handler(struct ath11k_base *ab,
 				      struct sk_buff *skb)
 {
@@ -328,8 +342,17 @@ void ath11k_htc_rx_completion_handler(struct ath11k_base *ab,
 
 			complete(&htc->ctl_resp);
 			break;
+		case ATH11K_HTC_MSG_SEND_SUSPEND_COMPLETE:
+			ath11k_htc_suspend_complete(ab, true);
+			break;
+		case ATH11K_HTC_MSG_NACK_SUSPEND:
+			ath11k_htc_suspend_complete(ab, false);
+			break;
+		case ATH11K_HTC_MSG_WAKEUP_FROM_SUSPEND_ID:
+			break;
 		default:
-			ath11k_warn(ab, "ignoring unsolicited htc ep0 event\n");
+			ath11k_warn(ab, "ignoring unsolicited htc ep0 event %ld\n",
+				    FIELD_GET(HTC_MSG_MESSAGEID, msg->msg_svc_id));
 			break;
 		}
 		goto out;

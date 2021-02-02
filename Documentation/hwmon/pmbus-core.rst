@@ -279,12 +279,6 @@ function.
 
 ::
 
-  void pmbus_do_remove(struct i2c_client *client);
-
-Execute driver remove function. Similar to standard driver remove function.
-
-::
-
   const struct pmbus_driver_info
 	*pmbus_get_driver_info(struct i2c_client *client);
 

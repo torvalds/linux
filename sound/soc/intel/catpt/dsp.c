@@ -344,53 +344,7 @@ static void catpt_dsp_set_regs_defaults(struct catpt_dev *cdev)
 	}
 }
 
-int lpt_dsp_power_down(struct catpt_dev *cdev)
-{
-	catpt_dsp_reset(cdev, true);
-
-	/* set 24Mhz clock for both SSPs */
-	catpt_updatel_shim(cdev, CS1, CATPT_CS_SBCS(0) | CATPT_CS_SBCS(1),
-			   CATPT_CS_SBCS(0) | CATPT_CS_SBCS(1));
-	catpt_dsp_select_lpclock(cdev, true, false);
-
-	/* DRAM power gating all */
-	catpt_dsp_set_srampge(cdev, &cdev->dram, cdev->spec->dram_mask,
-			      cdev->spec->dram_mask);
-	catpt_dsp_set_srampge(cdev, &cdev->iram, cdev->spec->iram_mask,
-			      cdev->spec->iram_mask);
-
-	catpt_updatel_pci(cdev, PMCS, PCI_PM_CTRL_STATE_MASK, PCI_D3hot);
-	/* give hw time to drop off */
-	udelay(50);
-
-	return 0;
-}
-
-int lpt_dsp_power_up(struct catpt_dev *cdev)
-{
-	/* SRAM power gating none */
-	catpt_dsp_set_srampge(cdev, &cdev->dram, cdev->spec->dram_mask, 0);
-	catpt_dsp_set_srampge(cdev, &cdev->iram, cdev->spec->iram_mask, 0);
-
-	catpt_updatel_pci(cdev, PMCS, PCI_PM_CTRL_STATE_MASK, PCI_D0);
-	/* give hw time to wake up */
-	udelay(100);
-
-	catpt_dsp_select_lpclock(cdev, false, false);
-	catpt_updatel_shim(cdev, CS1,
-			   CATPT_CS_SBCS(0) | CATPT_CS_SBCS(1),
-			   CATPT_CS_SBCS(0) | CATPT_CS_SBCS(1));
-	/* stagger DSP reset after clock selection */
-	udelay(50);
-
-	catpt_dsp_reset(cdev, false);
-	/* generate int deassert msg to fix inversed int logic */
-	catpt_updatel_shim(cdev, IMC, CATPT_IMC_IPCDB | CATPT_IMC_IPCCD, 0);
-
-	return 0;
-}
-
-int wpt_dsp_power_down(struct catpt_dev *cdev)
+int catpt_dsp_power_down(struct catpt_dev *cdev)
 {
 	u32 mask, val;
 
@@ -420,8 +374,8 @@ int wpt_dsp_power_down(struct catpt_dev *cdev)
 			      cdev->spec->dram_mask);
 	catpt_dsp_set_srampge(cdev, &cdev->iram, cdev->spec->iram_mask,
 			      cdev->spec->iram_mask);
-	mask = WPT_VDRTCTL0_D3SRAMPGD | WPT_VDRTCTL0_D3PGD;
-	catpt_updatel_pci(cdev, VDRTCTL0, mask, WPT_VDRTCTL0_D3PGD);
+	mask = cdev->spec->d3srampgd_bit | cdev->spec->d3pgd_bit;
+	catpt_updatel_pci(cdev, VDRTCTL0, mask, cdev->spec->d3pgd_bit);
 
 	catpt_updatel_pci(cdev, PMCS, PCI_PM_CTRL_STATE_MASK, PCI_D3hot);
 	/* give hw time to drop off */
@@ -435,7 +389,7 @@ int wpt_dsp_power_down(struct catpt_dev *cdev)
 	return 0;
 }
 
-int wpt_dsp_power_up(struct catpt_dev *cdev)
+int catpt_dsp_power_up(struct catpt_dev *cdev)
 {
 	u32 mask, val;
 
@@ -450,7 +404,7 @@ int wpt_dsp_power_up(struct catpt_dev *cdev)
 	catpt_updatel_pci(cdev, PMCS, PCI_PM_CTRL_STATE_MASK, PCI_D0);
 
 	/* SRAM power gating none */
-	mask = WPT_VDRTCTL0_D3SRAMPGD | WPT_VDRTCTL0_D3PGD;
+	mask = cdev->spec->d3srampgd_bit | cdev->spec->d3pgd_bit;
 	catpt_updatel_pci(cdev, VDRTCTL0, mask, mask);
 	catpt_dsp_set_srampge(cdev, &cdev->dram, cdev->spec->dram_mask, 0);
 	catpt_dsp_set_srampge(cdev, &cdev->iram, cdev->spec->iram_mask, 0);

@@ -584,6 +584,7 @@ static int int3400_thermal_remove(struct platform_device *pdev)
 static const struct acpi_device_id int3400_thermal_match[] = {
 	{"INT3400", 0},
 	{"INTC1040", 0},
+	{"INTC1041", 0},
 	{}
 };
 

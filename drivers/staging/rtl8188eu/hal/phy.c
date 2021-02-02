@@ -1200,7 +1200,6 @@ void rtl88eu_phy_iq_calibrate(struct adapter *adapt, bool recovery)
 	bool pathaok, pathbok;
 	s32 reg_e94, reg_e9c, reg_ea4, reg_eb4, reg_ebc, reg_ec4;
 	bool is12simular, is13simular, is23simular;
-	bool singletone = false, carrier_sup = false;
 	u32 iqk_bb_reg_92c[IQK_BB_REG_NUM] = {
 		rOFDM0_XARxIQImbalance, rOFDM0_XBRxIQImbalance,
 		rOFDM0_ECCAThreshold, rOFDM0_AGCRSSITable,
@@ -1212,9 +1211,6 @@ void rtl88eu_phy_iq_calibrate(struct adapter *adapt, bool recovery)
 	is2t = false;
 
 	if (!(dm_odm->SupportAbility & ODM_RF_CALIBRATION))
-		return;
-
-	if (singletone || carrier_sup)
 		return;
 
 	if (recovery) {
@@ -1312,13 +1308,10 @@ void rtl88eu_phy_iq_calibrate(struct adapter *adapt, bool recovery)
 
 void rtl88eu_phy_lc_calibrate(struct adapter *adapt)
 {
-	bool singletone = false, carrier_sup = false;
 	u32 timeout = 2000, timecount = 0;
 	struct odm_dm_struct *dm_odm = &adapt->HalData->odmpriv;
 
 	if (!(dm_odm->SupportAbility & ODM_RF_CALIBRATION))
-		return;
-	if (singletone || carrier_sup)
 		return;
 
 	while (*dm_odm->pbScanInProcess && timecount < timeout) {

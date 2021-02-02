@@ -268,6 +268,7 @@ static int v9fs_statfs(struct dentry *dentry, struct kstatfs *buf)
 	}
 	res = simple_statfs(dentry, buf);
 done:
+	p9_client_clunk(fid);
 	return res;
 }
 

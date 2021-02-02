@@ -14,9 +14,7 @@ extern char cmd_line[COMMAND_LINE_SIZE];
 
 extern char *klimit;
 
-#   ifdef CONFIG_MMU
 extern void mmu_reset(void);
-#   endif /* CONFIG_MMU */
 
 void time_init(void);
 void init_IRQ(void);

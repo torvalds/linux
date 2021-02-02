@@ -510,13 +510,12 @@ static int nfs_fs_context_parse_param(struct fs_context *fc,
 		ctx->nfs_server.protocol = XPRT_TRANSPORT_UDP;
 		break;
 	case Opt_tcp:
-		ctx->flags |= NFS_MOUNT_TCP;
-		ctx->nfs_server.protocol = XPRT_TRANSPORT_TCP;
-		break;
 	case Opt_rdma:
 		ctx->flags |= NFS_MOUNT_TCP; /* for side protocols */
-		ctx->nfs_server.protocol = XPRT_TRANSPORT_RDMA;
-		xprt_load_transport(param->key);
+		ret = xprt_find_transport_ident(param->key);
+		if (ret < 0)
+			goto out_bad_transport;
+		ctx->nfs_server.protocol = ret;
 		break;
 	case Opt_acl:
 		if (result.negated)
@@ -670,11 +669,13 @@ static int nfs_fs_context_parse_param(struct fs_context *fc,
 		case Opt_xprt_rdma:
 			/* vector side protocols to TCP */
 			ctx->flags |= NFS_MOUNT_TCP;
-			ctx->nfs_server.protocol = XPRT_TRANSPORT_RDMA;
-			xprt_load_transport(param->string);
+			ret = xprt_find_transport_ident(param->string);
+			if (ret < 0)
+				goto out_bad_transport;
+			ctx->nfs_server.protocol = ret;
 			break;
 		default:
-			return nfs_invalf(fc, "NFS: Unrecognized transport protocol");
+			goto out_bad_transport;
 		}
 
 		ctx->protofamily = protofamily;
@@ -697,7 +698,7 @@ static int nfs_fs_context_parse_param(struct fs_context *fc,
 			break;
 		case Opt_xprt_rdma: /* not used for side protocols */
 		default:
-			return nfs_invalf(fc, "NFS: Unrecognized transport protocol");
+			goto out_bad_transport;
 		}
 		ctx->mountfamily = mountfamily;
 		break;
@@ -787,6 +788,8 @@ out_invalid_address:
 	return nfs_invalf(fc, "NFS: Bad IP address specified");
 out_of_bounds:
 	return nfs_invalf(fc, "NFS: Value for '%s' out of range", param->key);
+out_bad_transport:
+	return nfs_invalf(fc, "NFS: Unrecognized transport protocol");
 }
 
 /*

@@ -25,6 +25,7 @@ config SPMI_HISI3670
 # to be placed at drivers/mfd
 config MFD_HI6421_SPMI
 	tristate "HiSilicon Hi6421v600 SPMI PMU/Codec IC"
+	depends on HAS_IOMEM
 	depends on OF
 	depends on SPMI
 	select MFD_CORE

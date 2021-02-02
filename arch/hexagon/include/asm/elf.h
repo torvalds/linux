@@ -181,7 +181,6 @@ do {					\
  */
 #define ELF_PLAT_INIT(regs, load_addr) do { } while (0)
 
-#define USE_ELF_CORE_DUMP
 #define CORE_DUMP_USE_REGSET
 
 /* Hrm is this going to cause problems for changing PAGE_SIZE?  */

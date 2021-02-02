@@ -299,7 +299,7 @@ static int meson8b_init_prg_eth(struct meson8b_dwmac *dwmac)
 		dev_err(dwmac->dev, "unsupported phy-mode %s\n",
 			phy_modes(dwmac->phy_mode));
 		return -EINVAL;
-	};
+	}
 
 	if (rx_dly_config & PRG_ETH0_ADJ_ENABLE) {
 		if (!dwmac->timing_adj_clk) {

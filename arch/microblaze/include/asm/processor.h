@@ -31,42 +31,6 @@ extern void ret_from_kernel_thread(void);
 
 # endif /* __ASSEMBLY__ */
 
-# ifndef CONFIG_MMU
-/*
- * User space process size: memory size
- *
- * TASK_SIZE on MMU cpu is usually 1GB. However, on no-MMU arch, both
- * user processes and the kernel is on the same memory region. They
- * both share the memory space and that is limited by the amount of
- * physical memory. thus, we set TASK_SIZE == amount of total memory.
- */
-# define TASK_SIZE	(0x81000000 - 0x80000000)
-
-/*
- * This decides where the kernel will search for a free chunk of vm
- * space during mmap's. We won't be using it
- */
-# define TASK_UNMAPPED_BASE	0
-
-/* definition in include/linux/sched.h */
-struct task_struct;
-
-/* thread_struct is gone. use thread_info instead. */
-struct thread_struct { };
-# define INIT_THREAD	{ }
-
-/* Free all resources held by a thread. */
-static inline void release_thread(struct task_struct *dead_task)
-{
-}
-
-extern unsigned long get_wchan(struct task_struct *p);
-
-# define KSTK_EIP(tsk)	(0)
-# define KSTK_ESP(tsk)	(0)
-
-# else /* CONFIG_MMU */
-
 /*
  * This is used to define STACK_TOP, and with MMU it must be below
  * kernel base to select the correct PGD when handling MMU exceptions.
@@ -122,9 +86,6 @@ unsigned long get_wchan(struct task_struct *p);
 #  define KSTK_EIP(task)	(task_pc(task))
 #  define KSTK_ESP(task)	(task_sp(task))
 
-/* FIXME */
-#  define deactivate_mm(tsk, mm)	do { } while (0)
-
 #  define STACK_TOP	TASK_SIZE
 #  define STACK_TOP_MAX	STACK_TOP
 
@@ -133,5 +94,4 @@ extern struct dentry *of_debugfs_root;
 #endif
 
 #  endif /* __ASSEMBLY__ */
-# endif /* CONFIG_MMU */
 #endif /* _ASM_MICROBLAZE_PROCESSOR_H */

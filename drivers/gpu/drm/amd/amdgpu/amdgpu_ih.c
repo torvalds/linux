@@ -132,6 +132,35 @@ void amdgpu_ih_ring_fini(struct amdgpu_device *adev, struct amdgpu_ih_ring *ih)
 }
 
 /**
+ * amdgpu_ih_ring_write - write IV to the ring buffer
+ *
+ * @ih: ih ring to write to
+ * @iv: the iv to write
+ * @num_dw: size of the iv in dw
+ *
+ * Writes an IV to the ring buffer using the CPU and increment the wptr.
+ * Used for testing and delegating IVs to a software ring.
+ */
+void amdgpu_ih_ring_write(struct amdgpu_ih_ring *ih, const uint32_t *iv,
+			  unsigned int num_dw)
+{
+	uint32_t wptr = le32_to_cpu(*ih->wptr_cpu) >> 2;
+	unsigned int i;
+
+	for (i = 0; i < num_dw; ++i)
+	        ih->ring[wptr++] = cpu_to_le32(iv[i]);
+
+	wptr <<= 2;
+	wptr &= ih->ptr_mask;
+
+	/* Only commit the new wptr if we don't overflow */
+	if (wptr != READ_ONCE(ih->rptr)) {
+		wmb();
+		WRITE_ONCE(*ih->wptr_cpu, cpu_to_le32(wptr));
+	}
+}
+
+/**
  * amdgpu_ih_process - interrupt handler
  *
  * @adev: amdgpu_device pointer

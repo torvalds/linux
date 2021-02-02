@@ -18,6 +18,7 @@
 #define ADF_C3XXX_SMIAPF1_MASK_OFFSET (0x3A000 + 0x30)
 #define ADF_C3XXX_SMIA0_MASK 0xFFFF
 #define ADF_C3XXX_SMIA1_MASK 0x1
+#define ADF_C3XXX_SOFTSTRAP_CSR_OFFSET 0x2EC
 /* Error detection and correction */
 #define ADF_C3XXX_AE_CTX_ENABLES(i) (i * 0x1000 + 0x20818)
 #define ADF_C3XXX_AE_MISC_CONTROL(i) (i * 0x1000 + 0x20960)
@@ -29,6 +30,10 @@
 
 #define ADF_C3XXX_PF2VF_OFFSET(i)	(0x3A000 + 0x280 + ((i) * 0x04))
 #define ADF_C3XXX_VINTMSK_OFFSET(i)	(0x3A000 + 0x200 + ((i) * 0x04))
+
+/* AE to function mapping */
+#define ADF_C3XXX_AE2FUNC_MAP_GRP_A_NUM_REGS 48
+#define ADF_C3XXX_AE2FUNC_MAP_GRP_B_NUM_REGS 6
 
 /* Firmware Binary */
 #define ADF_C3XXX_FW "qat_c3xxx.bin"

@@ -11,6 +11,9 @@
 #define MT7530_NUM_FDB_RECORDS		2048
 #define MT7530_ALL_MEMBERS		0xff
 
+#define MTK_HDR_LEN	4
+#define MT7530_MAX_MTU	(15 * 1024 - ETH_HLEN - ETH_FCS_LEN - MTK_HDR_LEN)
+
 enum mt753x_id {
 	ID_MT7530 = 0,
 	ID_MT7621 = 1,
@@ -158,6 +161,19 @@ enum mt7530_vlan_egress_attr {
 	MT7530_VLAN_EGRESS_STACK = 3,
 };
 
+/* Register for address age control */
+#define MT7530_AAC			0xa0
+/* Disable ageing */
+#define  AGE_DIS			BIT(20)
+/* Age count */
+#define  AGE_CNT_MASK			GENMASK(19, 12)
+#define  AGE_CNT_MAX			0xff
+#define  AGE_CNT(x)			(AGE_CNT_MASK & ((x) << 12))
+/* Age unit */
+#define  AGE_UNIT_MASK			GENMASK(11, 0)
+#define  AGE_UNIT_MAX			0xfff
+#define  AGE_UNIT(x)			(AGE_UNIT_MASK & (x))
+
 /* Register for port STP state control */
 #define MT7530_SSP_P(x)			(0x2000 + ((x) * 0x100))
 #define  FID_PST(x)			((x) & 0x3)
@@ -288,6 +304,15 @@ enum mt7530_vlan_port_attr {
 /* Register for port debug count */
 #define MT7531_DBG_CNT(x)		(0x3018 + (x) * 0x100)
 #define  MT7531_DIS_CLR			BIT(31)
+
+#define MT7530_GMACCR			0x30e0
+#define  MAX_RX_JUMBO(x)		((x) << 2)
+#define  MAX_RX_JUMBO_MASK		GENMASK(5, 2)
+#define  MAX_RX_PKT_LEN_MASK		GENMASK(1, 0)
+#define  MAX_RX_PKT_LEN_1522		0x0
+#define  MAX_RX_PKT_LEN_1536		0x1
+#define  MAX_RX_PKT_LEN_1552		0x2
+#define  MAX_RX_PKT_LEN_JUMBO		0x3
 
 /* Register for MIB */
 #define MT7530_PORT_MIB_COUNTER(x)	(0x4000 + (x) * 0x100)

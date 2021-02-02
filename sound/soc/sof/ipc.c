@@ -181,6 +181,15 @@ static void ipc_log_header(struct device *dev, u8 *text, u32 cmd)
 			str2 = "unknown type"; break;
 		}
 		break;
+	case SOF_IPC_GLB_DEBUG:
+		str = "GLB_DEBUG";
+		switch (type) {
+		case SOF_IPC_DEBUG_MEM_USAGE:
+			str2 = "MEM_USAGE"; break;
+		default:
+			str2 = "unknown type"; break;
+		}
+		break;
 	default:
 		str = "unknown GLB command"; break;
 	}

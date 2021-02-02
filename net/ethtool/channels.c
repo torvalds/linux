@@ -194,8 +194,9 @@ int ethnl_set_channels(struct sk_buff *skb, struct genl_info *info)
 	if (netif_is_rxfh_configured(dev) &&
 	    !ethtool_get_max_rxfh_channel(dev, &max_rx_in_use) &&
 	    (channels.combined_count + channels.rx_count) <= max_rx_in_use) {
+		ret = -EINVAL;
 		GENL_SET_ERR_MSG(info, "requested channel counts are too low for existing indirection table settings");
-		return -EINVAL;
+		goto out_ops;
 	}
 
 	/* Disabling channels, query zero-copy AF_XDP sockets */
@@ -203,8 +204,9 @@ int ethnl_set_channels(struct sk_buff *skb, struct genl_info *info)
 		       min(channels.rx_count, channels.tx_count);
 	for (i = from_channel; i < old_total; i++)
 		if (xsk_get_pool_from_qid(dev, i)) {
+			ret = -EINVAL;
 			GENL_SET_ERR_MSG(info, "requested channel counts are too low for existing zerocopy AF_XDP sockets");
-			return -EINVAL;
+			goto out_ops;
 		}
 
 	ret = dev->ethtool_ops->set_channels(dev, &channels);

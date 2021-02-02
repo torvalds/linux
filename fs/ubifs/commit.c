@@ -701,13 +701,13 @@ out:
 
 out_dump:
 	ubifs_err(c, "dumping index node (iip=%d)", i->iip);
-	ubifs_dump_node(c, idx);
+	ubifs_dump_node(c, idx, ubifs_idx_node_sz(c, c->fanout));
 	list_del(&i->list);
 	kfree(i);
 	if (!list_empty(&list)) {
 		i = list_entry(list.prev, struct idx_node, list);
 		ubifs_err(c, "dumping parent index node");
-		ubifs_dump_node(c, &i->idx);
+		ubifs_dump_node(c, &i->idx, ubifs_idx_node_sz(c, c->fanout));
 	}
 out_free:
 	while (!list_empty(&list)) {

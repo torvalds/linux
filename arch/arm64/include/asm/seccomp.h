@@ -19,4 +19,13 @@
 
 #include <asm-generic/seccomp.h>
 
+#define SECCOMP_ARCH_NATIVE		AUDIT_ARCH_AARCH64
+#define SECCOMP_ARCH_NATIVE_NR		NR_syscalls
+#define SECCOMP_ARCH_NATIVE_NAME	"aarch64"
+#ifdef CONFIG_COMPAT
+# define SECCOMP_ARCH_COMPAT		AUDIT_ARCH_ARM
+# define SECCOMP_ARCH_COMPAT_NR	__NR_compat_syscalls
+# define SECCOMP_ARCH_COMPAT_NAME	"arm"
+#endif
+
 #endif /* _ASM_SECCOMP_H */

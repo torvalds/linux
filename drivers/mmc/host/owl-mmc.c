@@ -134,10 +134,9 @@ static void owl_mmc_update_reg(void __iomem *reg, unsigned int val, bool state)
 static irqreturn_t owl_irq_handler(int irq, void *devid)
 {
 	struct owl_mmc_host *owl_host = devid;
-	unsigned long flags;
 	u32 state;
 
-	spin_lock_irqsave(&owl_host->lock, flags);
+	spin_lock(&owl_host->lock);
 
 	state = readl(owl_host->base + OWL_REG_SD_STATE);
 	if (state & OWL_SD_STATE_TEI) {
@@ -147,7 +146,7 @@ static irqreturn_t owl_irq_handler(int irq, void *devid)
 		complete(&owl_host->sdc_complete);
 	}
 
-	spin_unlock_irqrestore(&owl_host->lock, flags);
+	spin_unlock(&owl_host->lock);
 
 	return IRQ_HANDLED;
 }
@@ -522,11 +521,11 @@ static void owl_mmc_set_ios(struct mmc_host *mmc, struct mmc_ios *ios)
 
 	/* Enable DDR mode if requested */
 	if (ios->timing == MMC_TIMING_UHS_DDR50) {
-		owl_host->ddr_50 = 1;
+		owl_host->ddr_50 = true;
 		owl_mmc_update_reg(owl_host->base + OWL_REG_SD_EN,
 			       OWL_SD_EN_DDREN, true);
 	} else {
-		owl_host->ddr_50 = 0;
+		owl_host->ddr_50 = false;
 	}
 }
 

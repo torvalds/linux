@@ -22,7 +22,7 @@
  * Authors: AMD
  *
  */
-#if defined(CONFIG_DRM_AMD_DC_DCN3_0)
+#if defined(CONFIG_DRM_AMD_DC_DCN)
 #include "dm_services.h"
 #include "include/gpio_types.h"
 #include "../hw_factory.h"

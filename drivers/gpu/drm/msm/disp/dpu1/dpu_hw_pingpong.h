@@ -119,6 +119,7 @@ struct dpu_hw_pingpong {
 	/* pingpong */
 	enum dpu_pingpong idx;
 	const struct dpu_pingpong_cfg *caps;
+	struct dpu_hw_blk *merge_3d;
 
 	/* ops */
 	struct dpu_hw_pingpong_ops ops;

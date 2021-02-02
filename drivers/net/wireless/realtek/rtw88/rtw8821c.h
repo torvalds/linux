@@ -231,8 +231,6 @@ _rtw_write32s_mask(struct rtw_dev *rtwdev, u32 addr, u32 mask, u32 data)
 #define REG_IQKFAILMSK	0x1bf0
 #define BIT_MASK_R_RFE_SEL_15	GENMASK(31, 28)
 #define BIT_SDIO_INT BIT(18)
-#define SAMPLE_RATE_MASK GENMASK(5, 0)
-#define SAMPLE_RATE	0x5
 #define BT_CNT_ENABLE	0x1
 #define BIT_BCN_QUEUE	BIT(3)
 #define BCN_PRI_EN	0x1

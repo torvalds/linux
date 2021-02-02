@@ -2,6 +2,8 @@
 /* Copyright (c) 2019 Mellanox Technologies. */
 
 #include "en/params.h"
+#include "en/txrx.h"
+#include "en_accel/tls_rxtx.h"
 
 static inline bool mlx5e_rx_is_xdp(struct mlx5e_params *params,
 				   struct mlx5e_xsk_param *xsk)
@@ -151,4 +153,36 @@ u16 mlx5e_get_rq_headroom(struct mlx5_core_dev *mdev,
 		mlx5e_rx_mpwqe_is_linear_skb(mdev, params, xsk);
 
 	return is_linear_skb ? mlx5e_get_linear_rq_headroom(params, xsk) : 0;
+}
+
+u16 mlx5e_calc_sq_stop_room(struct mlx5_core_dev *mdev, struct mlx5e_params *params)
+{
+	bool is_mpwqe = MLX5E_GET_PFLAG(params, MLX5E_PFLAG_SKB_TX_MPWQE);
+	u16 stop_room;
+
+	stop_room  = mlx5e_tls_get_stop_room(mdev, params);
+	stop_room += mlx5e_stop_room_for_wqe(MLX5_SEND_WQE_MAX_WQEBBS);
+	if (is_mpwqe)
+		/* A MPWQE can take up to the maximum-sized WQE + all the normal
+		 * stop room can be taken if a new packet breaks the active
+		 * MPWQE session and allocates its WQEs right away.
+		 */
+		stop_room += mlx5e_stop_room_for_wqe(MLX5_SEND_WQE_MAX_WQEBBS);
+
+	return stop_room;
+}
+
+int mlx5e_validate_params(struct mlx5e_priv *priv, struct mlx5e_params *params)
+{
+	size_t sq_size = 1 << params->log_sq_size;
+	u16 stop_room;
+
+	stop_room = mlx5e_calc_sq_stop_room(priv->mdev, params);
+	if (stop_room >= sq_size) {
+		netdev_err(priv->netdev, "Stop room %hu is bigger than the SQ size %zu\n",
+			   stop_room, sq_size);
+		return -EINVAL;
+	}
+
+	return 0;
 }

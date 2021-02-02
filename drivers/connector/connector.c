@@ -193,7 +193,7 @@ static void cn_rx_skb(struct sk_buff *skb)
  *
  * May sleep.
  */
-int cn_add_callback(struct cb_id *id, const char *name,
+int cn_add_callback(const struct cb_id *id, const char *name,
 		    void (*callback)(struct cn_msg *,
 				     struct netlink_skb_parms *))
 {
@@ -214,7 +214,7 @@ EXPORT_SYMBOL_GPL(cn_add_callback);
  *
  * May sleep while waiting for reference counter to become zero.
  */
-void cn_del_callback(struct cb_id *id)
+void cn_del_callback(const struct cb_id *id)
 {
 	struct cn_dev *dev = &cdev;
 

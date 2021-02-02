@@ -12,6 +12,7 @@
 #include "cifs_debug.h"
 #include "cifspdu.h"
 #include "cifs_unicode.h"
+#include "fs_context.h"
 
 /*
  * An NT cancel request header looks just like the original request except:
@@ -428,15 +429,15 @@ cifs_negotiate(const unsigned int xid, struct cifs_ses *ses)
 }
 
 static unsigned int
-cifs_negotiate_wsize(struct cifs_tcon *tcon, struct smb_vol *volume_info)
+cifs_negotiate_wsize(struct cifs_tcon *tcon, struct smb3_fs_context *ctx)
 {
 	__u64 unix_cap = le64_to_cpu(tcon->fsUnixInfo.Capability);
 	struct TCP_Server_Info *server = tcon->ses->server;
 	unsigned int wsize;
 
 	/* start with specified wsize, or default */
-	if (volume_info->wsize)
-		wsize = volume_info->wsize;
+	if (ctx->wsize)
+		wsize = ctx->wsize;
 	else if (tcon->unix_ext && (unix_cap & CIFS_UNIX_LARGE_WRITE_CAP))
 		wsize = CIFS_DEFAULT_IOSIZE;
 	else
@@ -463,7 +464,7 @@ cifs_negotiate_wsize(struct cifs_tcon *tcon, struct smb_vol *volume_info)
 }
 
 static unsigned int
-cifs_negotiate_rsize(struct cifs_tcon *tcon, struct smb_vol *volume_info)
+cifs_negotiate_rsize(struct cifs_tcon *tcon, struct smb3_fs_context *ctx)
 {
 	__u64 unix_cap = le64_to_cpu(tcon->fsUnixInfo.Capability);
 	struct TCP_Server_Info *server = tcon->ses->server;
@@ -488,7 +489,7 @@ cifs_negotiate_rsize(struct cifs_tcon *tcon, struct smb_vol *volume_info)
 	else
 		defsize = server->maxBuf - sizeof(READ_RSP);
 
-	rsize = volume_info->rsize ? volume_info->rsize : defsize;
+	rsize = ctx->rsize ? ctx->rsize : defsize;
 
 	/*
 	 * no CAP_LARGE_READ_X? Then MS-CIFS states that we must limit this to
@@ -1005,7 +1006,7 @@ cifs_is_read_op(__u32 oplock)
 static unsigned int
 cifs_wp_retry_size(struct inode *inode)
 {
-	return CIFS_SB(inode->i_sb)->wsize;
+	return CIFS_SB(inode->i_sb)->ctx->wsize;
 }
 
 static bool

@@ -20,7 +20,7 @@
 #include <crypto/aead.h>
 #include <crypto/aes.h>
 #include <crypto/gcm.h>
-#include <crypto/sha.h>
+#include <crypto/sha1.h>
 #include <crypto/ctr.h>
 #include <crypto/skcipher.h>
 #include "crypto4xx_reg_def.h"

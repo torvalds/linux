@@ -285,7 +285,7 @@ static inline int macscsi_pread(struct NCR5380_hostdata *hostdata,
 
 	while (!NCR5380_poll_politely(hostdata, BUS_AND_STATUS_REG,
 	                              BASR_DRQ | BASR_PHASE_MATCH,
-	                              BASR_DRQ | BASR_PHASE_MATCH, HZ / 64)) {
+	                              BASR_DRQ | BASR_PHASE_MATCH, 0)) {
 		int bytes;
 
 		if (macintosh_config->ident == MAC_MODEL_IIFX)
@@ -304,7 +304,7 @@ static inline int macscsi_pread(struct NCR5380_hostdata *hostdata,
 
 		if (NCR5380_poll_politely2(hostdata, STATUS_REG, SR_REQ, SR_REQ,
 		                           BUS_AND_STATUS_REG, BASR_ACK,
-		                           BASR_ACK, HZ / 64) < 0)
+		                           BASR_ACK, 0) < 0)
 			scmd_printk(KERN_DEBUG, hostdata->connected,
 			            "%s: !REQ and !ACK\n", __func__);
 		if (!(NCR5380_read(BUS_AND_STATUS_REG) & BASR_PHASE_MATCH))
@@ -344,7 +344,7 @@ static inline int macscsi_pwrite(struct NCR5380_hostdata *hostdata,
 
 	while (!NCR5380_poll_politely(hostdata, BUS_AND_STATUS_REG,
 	                              BASR_DRQ | BASR_PHASE_MATCH,
-	                              BASR_DRQ | BASR_PHASE_MATCH, HZ / 64)) {
+	                              BASR_DRQ | BASR_PHASE_MATCH, 0)) {
 		int bytes;
 
 		if (macintosh_config->ident == MAC_MODEL_IIFX)
@@ -362,7 +362,7 @@ static inline int macscsi_pwrite(struct NCR5380_hostdata *hostdata,
 			if (NCR5380_poll_politely(hostdata, TARGET_COMMAND_REG,
 			                          TCR_LAST_BYTE_SENT,
 			                          TCR_LAST_BYTE_SENT,
-			                          HZ / 64) < 0) {
+			                          0) < 0) {
 				scmd_printk(KERN_ERR, hostdata->connected,
 				            "%s: Last Byte Sent timeout\n", __func__);
 				result = -1;
@@ -372,7 +372,7 @@ static inline int macscsi_pwrite(struct NCR5380_hostdata *hostdata,
 
 		if (NCR5380_poll_politely2(hostdata, STATUS_REG, SR_REQ, SR_REQ,
 		                           BUS_AND_STATUS_REG, BASR_ACK,
-		                           BASR_ACK, HZ / 64) < 0)
+		                           BASR_ACK, 0) < 0)
 			scmd_printk(KERN_DEBUG, hostdata->connected,
 			            "%s: !REQ and !ACK\n", __func__);
 		if (!(NCR5380_read(BUS_AND_STATUS_REG) & BASR_PHASE_MATCH))

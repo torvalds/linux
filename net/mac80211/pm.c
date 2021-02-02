@@ -150,21 +150,6 @@ int __ieee80211_suspend(struct ieee80211_hw *hw, struct cfg80211_wowlan *wowlan)
 		case NL80211_IFTYPE_STATION:
 			ieee80211_mgd_quiesce(sdata);
 			break;
-		case NL80211_IFTYPE_WDS:
-			/* tear down aggregation sessions and remove STAs */
-			mutex_lock(&local->sta_mtx);
-			sta = sdata->u.wds.sta;
-			if (sta && sta->uploaded) {
-				enum ieee80211_sta_state state;
-
-				state = sta->sta_state;
-				for (; state > IEEE80211_STA_NOTEXIST; state--)
-					WARN_ON(drv_sta_state(local, sta->sdata,
-							      sta, state,
-							      state - 1));
-			}
-			mutex_unlock(&local->sta_mtx);
-			break;
 		default:
 			break;
 		}

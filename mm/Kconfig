@@ -713,26 +713,24 @@ config ZSMALLOC_STAT
 	select DEBUG_FS
 	help
 	  This option enables code in the zsmalloc to collect various
-	  statistics about whats happening in zsmalloc and exports that
+	  statistics about what's happening in zsmalloc and exports that
 	  information to userspace via debugfs.
 	  If unsure, say N.
 
 config GENERIC_EARLY_IOREMAP
 	bool
 
-config MAX_STACK_SIZE_MB
-	int "Maximum user stack size for 32-bit processes (MB)"
-	default 80
+config STACK_MAX_DEFAULT_SIZE_MB
+	int "Default maximum user stack size for 32-bit processes (MB)"
+	default 100
 	range 8 2048
 	depends on STACK_GROWSUP && (!64BIT || COMPAT)
 	help
 	  This is the maximum stack size in Megabytes in the VM layout of 32-bit
 	  user processes when the stack grows upwards (currently only on parisc
-	  arch). The stack will be located at the highest memory address minus
-	  the given value, unless the RLIMIT_STACK hard limit is changed to a
-	  smaller value in which case that is used.
+	  arch) when the RLIMIT_STACK hard limit is unlimited.
 
-	  A sane initial value is 80 MB.
+	  A sane initial value is 100 MB.
 
 config DEFERRED_STRUCT_PAGE_INIT
 	bool "Defer initialisation of struct pages to kthreads"
@@ -821,13 +819,28 @@ config PERCPU_STATS
 	  information includes global and per chunk statistics, which can
 	  be used to help understand percpu memory usage.
 
-config GUP_BENCHMARK
-	bool "Enable infrastructure for get_user_pages() and related calls benchmarking"
+config GUP_TEST
+	bool "Enable infrastructure for get_user_pages()-related unit tests"
+	depends on DEBUG_FS
 	help
-	  Provides /sys/kernel/debug/gup_benchmark that helps with testing
-	  performance of get_user_pages() and related calls.
+	  Provides /sys/kernel/debug/gup_test, which in turn provides a way
+	  to make ioctl calls that can launch kernel-based unit tests for
+	  the get_user_pages*() and pin_user_pages*() family of API calls.
 
-	  See tools/testing/selftests/vm/gup_benchmark.c
+	  These tests include benchmark testing of the _fast variants of
+	  get_user_pages*() and pin_user_pages*(), as well as smoke tests of
+	  the non-_fast variants.
+
+	  There is also a sub-test that allows running dump_page() on any
+	  of up to eight pages (selected by command line args) within the
+	  range of user-space addresses. These pages are either pinned via
+	  pin_user_pages*(), or pinned via get_user_pages*(), as specified
+	  by other command line arguments.
+
+	  See tools/testing/selftests/vm/gup_test.c
+
+comment "GUP_TEST needs to have DEBUG_FS enabled"
+	depends on !GUP_TEST && !DEBUG_FS
 
 config GUP_GET_PTE_LOW_HIGH
 	bool
@@ -858,5 +871,8 @@ config ARCH_HAS_HUGEPD
 
 config MAPPING_DIRTY_HELPERS
         bool
+
+config KMAP_LOCAL
+	bool
 
 endmenu

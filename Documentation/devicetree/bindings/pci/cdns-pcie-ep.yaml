@@ -20,7 +20,4 @@ properties:
     maximum: 32
     default: 32
 
-required:
-  - cdns,max-outbound-regions
-
 additionalProperties: true

@@ -14,7 +14,7 @@ Users:		any user space application which wants to communicate with
 		w1_term device
 
 
-What:		/sys/bus/w1/devices/.../eeprom
+What:		/sys/bus/w1/devices/.../eeprom_cmd
 Date:		May 2020
 Contact:	Akira Shimahara <akira215corp@gmail.com>
 Description:

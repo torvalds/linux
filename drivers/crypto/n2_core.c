@@ -15,7 +15,8 @@
 #include <linux/interrupt.h>
 #include <linux/crypto.h>
 #include <crypto/md5.h>
-#include <crypto/sha.h>
+#include <crypto/sha1.h>
+#include <crypto/sha2.h>
 #include <crypto/aes.h>
 #include <crypto/internal/des.h>
 #include <linux/mutex.h>

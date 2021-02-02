@@ -11,7 +11,8 @@
 #define _CRYPTO_ARCH_S390_SHA_H
 
 #include <linux/crypto.h>
-#include <crypto/sha.h>
+#include <crypto/sha1.h>
+#include <crypto/sha2.h>
 #include <crypto/sha3.h>
 
 /* must be big enough for the largest SHA variant */

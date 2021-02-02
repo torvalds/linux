@@ -27,6 +27,7 @@
 #include <linux/hdmi.h>
 
 #include <drm/radeon_drm.h>
+#include "evergreen_hdmi.h"
 #include "radeon.h"
 #include "radeon_asic.h"
 #include "radeon_audio.h"

@@ -22,7 +22,7 @@
 #include <linux/rcupdate.h>
 #include <linux/crypto.h>
 #include <crypto/hash.h>
-#include <crypto/sha.h>
+#include <crypto/sha1.h>
 #include <linux/capability.h>
 #include <linux/tpm.h>
 #include <linux/tpm_command.h>

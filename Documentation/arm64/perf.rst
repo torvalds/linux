@@ -1,5 +1,7 @@
 .. SPDX-License-Identifier: GPL-2.0
 
+.. _perf_index:
+
 =====================
 Perf Event Attributes
 =====================

@@ -1913,10 +1913,9 @@ static int abx500_chargalg_sysfs_init(struct abx500_chargalg *di)
 }
 /* Exposure to the sysfs interface <<END>> */
 
-#if defined(CONFIG_PM)
-static int abx500_chargalg_resume(struct platform_device *pdev)
+static int __maybe_unused abx500_chargalg_resume(struct device *dev)
 {
-	struct abx500_chargalg *di = platform_get_drvdata(pdev);
+	struct abx500_chargalg *di = dev_get_drvdata(dev);
 
 	/* Kick charger watchdog if charging (any charger online) */
 	if (di->chg_info.online_chg)
@@ -1931,10 +1930,9 @@ static int abx500_chargalg_resume(struct platform_device *pdev)
 	return 0;
 }
 
-static int abx500_chargalg_suspend(struct platform_device *pdev,
-	pm_message_t state)
+static int __maybe_unused abx500_chargalg_suspend(struct device *dev)
 {
-	struct abx500_chargalg *di = platform_get_drvdata(pdev);
+	struct abx500_chargalg *di = dev_get_drvdata(dev);
 
 	if (di->chg_info.online_chg)
 		cancel_delayed_work_sync(&di->chargalg_wd_work);
@@ -1943,10 +1941,6 @@ static int abx500_chargalg_suspend(struct platform_device *pdev,
 
 	return 0;
 }
-#else
-#define abx500_chargalg_suspend      NULL
-#define abx500_chargalg_resume       NULL
-#endif
 
 static int abx500_chargalg_remove(struct platform_device *pdev)
 {
@@ -2080,6 +2074,8 @@ free_chargalg_wq:
 	return ret;
 }
 
+static SIMPLE_DEV_PM_OPS(abx500_chargalg_pm_ops, abx500_chargalg_suspend, abx500_chargalg_resume);
+
 static const struct of_device_id ab8500_chargalg_match[] = {
 	{ .compatible = "stericsson,ab8500-chargalg", },
 	{ },
@@ -2088,11 +2084,10 @@ static const struct of_device_id ab8500_chargalg_match[] = {
 static struct platform_driver abx500_chargalg_driver = {
 	.probe = abx500_chargalg_probe,
 	.remove = abx500_chargalg_remove,
-	.suspend = abx500_chargalg_suspend,
-	.resume = abx500_chargalg_resume,
 	.driver = {
 		.name = "ab8500-chargalg",
 		.of_match_table = ab8500_chargalg_match,
+		.pm = &abx500_chargalg_pm_ops,
 	},
 };
 

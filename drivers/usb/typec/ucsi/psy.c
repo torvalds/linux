@@ -220,11 +220,11 @@ int ucsi_register_port_psy(struct ucsi_connector *con)
 		return -ENOMEM;
 
 	con->psy_desc.name = psy_name;
-	con->psy_desc.type = POWER_SUPPLY_TYPE_USB,
+	con->psy_desc.type = POWER_SUPPLY_TYPE_USB;
 	con->psy_desc.usb_types = ucsi_psy_usb_types;
 	con->psy_desc.num_usb_types = ARRAY_SIZE(ucsi_psy_usb_types);
-	con->psy_desc.properties = ucsi_psy_props,
-	con->psy_desc.num_properties = ARRAY_SIZE(ucsi_psy_props),
+	con->psy_desc.properties = ucsi_psy_props;
+	con->psy_desc.num_properties = ARRAY_SIZE(ucsi_psy_props);
 	con->psy_desc.get_property = ucsi_psy_get_prop;
 
 	con->psy = power_supply_register(dev, &con->psy_desc, &psy_cfg);

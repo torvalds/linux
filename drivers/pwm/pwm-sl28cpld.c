@@ -232,14 +232,14 @@ static int sl28cpld_pwm_probe(struct platform_device *pdev)
 	chip->base = -1;
 	chip->npwm = 1;
 
+	platform_set_drvdata(pdev, priv);
+
 	ret = pwmchip_add(&priv->pwm_chip);
 	if (ret) {
 		dev_err(&pdev->dev, "failed to add PWM chip (%pe)",
 			ERR_PTR(ret));
 		return ret;
 	}
-
-	platform_set_drvdata(pdev, priv);
 
 	return 0;
 }

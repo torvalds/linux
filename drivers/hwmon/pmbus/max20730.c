@@ -328,8 +328,6 @@ static int max20730_init_debugfs(struct i2c_client *client,
 		return -ENOENT;
 
 	max20730_dir = debugfs_create_dir(client->name, debugfs);
-	if (!max20730_dir)
-		return -ENOENT;
 
 	for (i = 0; i < MAX20730_DEBUGFS_NUM_ENTRIES; ++i)
 		psu->debugfs_entries[i] = i;
@@ -779,7 +777,6 @@ static struct i2c_driver max20730_driver = {
 		.of_match_table = max20730_of_match,
 	},
 	.probe_new = max20730_probe,
-	.remove = pmbus_do_remove,
 	.id_table = max20730_id,
 };
 

@@ -2826,6 +2826,7 @@ static bool handle_read_kdeth_eflags(struct hfi1_ctxtdata *rcd,
 		default:
 			break;
 		}
+		break;
 	default:
 		break;
 	}
@@ -3005,6 +3006,7 @@ bool hfi1_handle_kdeth_eflags(struct hfi1_ctxtdata *rcd,
 		default:
 			break;
 		}
+		break;
 	default:
 		break;
 	}
@@ -3221,6 +3223,7 @@ bool hfi1_tid_rdma_wqe_interlock(struct rvt_qp *qp, struct rvt_swqe *wqe)
 			req = wqe_to_tid_req(prev);
 			if (req->ack_seg != req->total_segs)
 				goto interlock;
+			break;
 		default:
 			break;
 		}
@@ -3239,9 +3242,11 @@ bool hfi1_tid_rdma_wqe_interlock(struct rvt_qp *qp, struct rvt_swqe *wqe)
 			req = wqe_to_tid_req(prev);
 			if (req->ack_seg != req->total_segs)
 				goto interlock;
+			break;
 		default:
 			break;
 		}
+		break;
 	default:
 		break;
 	}

@@ -366,6 +366,7 @@ static const struct netlbl_calipso_ops *calipso_ops;
 
 /**
  * netlbl_calipso_ops_register - Register the CALIPSO operations
+ * @ops: ops to register
  *
  * Description:
  * Register the CALIPSO packet engine operations.

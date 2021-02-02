@@ -55,9 +55,9 @@ static int adv7511_update_cts_n(struct adv7511 *adv7511)
 	return 0;
 }
 
-int adv7511_hdmi_hw_params(struct device *dev, void *data,
-			   struct hdmi_codec_daifmt *fmt,
-			   struct hdmi_codec_params *hparms)
+static int adv7511_hdmi_hw_params(struct device *dev, void *data,
+				  struct hdmi_codec_daifmt *fmt,
+				  struct hdmi_codec_params *hparms)
 {
 	struct adv7511 *adv7511 = dev_get_drvdata(dev);
 	unsigned int audio_source, i2s_format = 0;

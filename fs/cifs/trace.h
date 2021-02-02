@@ -909,8 +909,12 @@ DEFINE_EVENT(smb3_credit_class, smb3_##name,  \
 	TP_ARGS(currmid, hostname, credits, credits_to_add))
 
 DEFINE_SMB3_CREDIT_EVENT(reconnect_with_invalid_credits);
+DEFINE_SMB3_CREDIT_EVENT(reconnect_detected);
 DEFINE_SMB3_CREDIT_EVENT(credit_timeout);
+DEFINE_SMB3_CREDIT_EVENT(insufficient_credits);
+DEFINE_SMB3_CREDIT_EVENT(too_many_credits);
 DEFINE_SMB3_CREDIT_EVENT(add_credits);
+DEFINE_SMB3_CREDIT_EVENT(set_credits);
 
 #endif /* _CIFS_TRACE_H */
 

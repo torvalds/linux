@@ -14,7 +14,7 @@ struct mlx5e_accel_tx_tls_state {
 	u32 tls_tisn;
 };
 
-u16 mlx5e_ktls_get_stop_room(struct mlx5e_txqsq *sq);
+u16 mlx5e_ktls_get_stop_room(struct mlx5e_params *params);
 
 bool mlx5e_ktls_handle_tx_skb(struct tls_context *tls_ctx, struct mlx5e_txqsq *sq,
 			      struct sk_buff *skb, int datalen,

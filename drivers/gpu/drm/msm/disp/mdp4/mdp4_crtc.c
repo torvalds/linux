@@ -11,6 +11,7 @@
 #include <drm/drm_vblank.h>
 
 #include "mdp4_kms.h"
+#include "msm_gem.h"
 
 struct mdp4_crtc {
 	struct drm_crtc base;
@@ -264,7 +265,7 @@ static void mdp4_crtc_mode_set_nofb(struct drm_crtc *crtc)
 }
 
 static void mdp4_crtc_atomic_disable(struct drm_crtc *crtc,
-				     struct drm_crtc_state *old_state)
+				     struct drm_atomic_state *state)
 {
 	struct mdp4_crtc *mdp4_crtc = to_mdp4_crtc(crtc);
 	struct mdp4_kms *mdp4_kms = get_kms(crtc);
@@ -284,7 +285,7 @@ static void mdp4_crtc_atomic_disable(struct drm_crtc *crtc,
 }
 
 static void mdp4_crtc_atomic_enable(struct drm_crtc *crtc,
-				    struct drm_crtc_state *old_state)
+				    struct drm_atomic_state *state)
 {
 	struct mdp4_crtc *mdp4_crtc = to_mdp4_crtc(crtc);
 	struct mdp4_kms *mdp4_kms = get_kms(crtc);
@@ -307,7 +308,7 @@ static void mdp4_crtc_atomic_enable(struct drm_crtc *crtc,
 }
 
 static int mdp4_crtc_atomic_check(struct drm_crtc *crtc,
-		struct drm_crtc_state *state)
+		struct drm_atomic_state *state)
 {
 	struct mdp4_crtc *mdp4_crtc = to_mdp4_crtc(crtc);
 	DBG("%s: check", mdp4_crtc->name);
@@ -316,14 +317,14 @@ static int mdp4_crtc_atomic_check(struct drm_crtc *crtc,
 }
 
 static void mdp4_crtc_atomic_begin(struct drm_crtc *crtc,
-				   struct drm_crtc_state *old_crtc_state)
+				   struct drm_atomic_state *state)
 {
 	struct mdp4_crtc *mdp4_crtc = to_mdp4_crtc(crtc);
 	DBG("%s: begin", mdp4_crtc->name);
 }
 
 static void mdp4_crtc_atomic_flush(struct drm_crtc *crtc,
-				   struct drm_crtc_state *old_crtc_state)
+				   struct drm_atomic_state *state)
 {
 	struct mdp4_crtc *mdp4_crtc = to_mdp4_crtc(crtc);
 	struct drm_device *dev = crtc->dev;

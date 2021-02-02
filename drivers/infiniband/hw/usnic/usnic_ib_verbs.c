@@ -474,7 +474,7 @@ struct ib_qp *usnic_ib_create_qp(struct ib_pd *pd,
 	us_ibdev = to_usdev(pd->device);
 
 	if (init_attr->create_flags)
-		return ERR_PTR(-EINVAL);
+		return ERR_PTR(-EOPNOTSUPP);
 
 	err = ib_copy_from_udata(&cmd, udata, sizeof(cmd));
 	if (err) {
@@ -557,6 +557,9 @@ int usnic_ib_modify_qp(struct ib_qp *ibqp, struct ib_qp_attr *attr,
 	int status;
 	usnic_dbg("\n");
 
+	if (attr_mask & ~IB_QP_ATTR_STANDARD_BITS)
+		return -EOPNOTSUPP;
+
 	qp_grp = to_uqp_grp(ibqp);
 
 	mutex_lock(&qp_grp->vf->pf->usdev_lock);
@@ -581,7 +584,7 @@ int usnic_ib_create_cq(struct ib_cq *ibcq, const struct ib_cq_init_attr *attr,
 		       struct ib_udata *udata)
 {
 	if (attr->flags)
-		return -EINVAL;
+		return -EOPNOTSUPP;
 
 	return 0;
 }

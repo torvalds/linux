@@ -1112,7 +1112,7 @@ int ks8851_probe_common(struct net_device *netdev, struct device *dev,
 
 	/* setup mii state */
 	ks->mii.dev		= netdev;
-	ks->mii.phy_id		= 1,
+	ks->mii.phy_id		= 1;
 	ks->mii.phy_id_mask	= 1;
 	ks->mii.reg_num_mask	= 0xf;
 	ks->mii.mdio_read	= ks8851_phy_read;

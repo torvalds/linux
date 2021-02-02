@@ -292,15 +292,6 @@ static const struct net_device_ops rtw_netdev_ops = {
 	.ndo_do_ioctl = rtw_ioctl,
 };
 
-int rtw_init_netdev_name(struct net_device *pnetdev, const char *ifname)
-{
-	if (dev_alloc_name(pnetdev, ifname) < 0)
-		RT_TRACE(_module_os_intfs_c_, _drv_err_, ("dev_alloc_name, fail!\n"));
-
-	netif_carrier_off(pnetdev);
-	return 0;
-}
-
 static const struct device_type wlan_type = {
 	.name = "wlan",
 };

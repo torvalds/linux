@@ -34,7 +34,6 @@ static void install_accept_all_seccomp(void)
 
 int main(int ac, char **argv)
 {
-	struct rlimit r = {RLIM_INFINITY, RLIM_INFINITY};
 	struct bpf_link *link = NULL;
 	struct bpf_program *prog;
 	struct bpf_object *obj;
@@ -42,8 +41,6 @@ int main(int ac, char **argv)
 	const char *section;
 	char filename[256];
 	FILE *f;
-
-	setrlimit(RLIMIT_MEMLOCK, &r);
 
 	snprintf(filename, sizeof(filename), "%s_kern.o", argv[0]);
 	obj = bpf_object__open_file(filename, NULL);

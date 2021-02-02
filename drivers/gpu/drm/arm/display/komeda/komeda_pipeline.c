@@ -137,9 +137,10 @@ komeda_pipeline_get_first_component(struct komeda_pipeline *pipe,
 				    u32 comp_mask)
 {
 	struct komeda_component *c = NULL;
+	unsigned long comp_mask_local = (unsigned long)comp_mask;
 	int id;
 
-	id = find_first_bit((unsigned long *)&comp_mask, 32);
+	id = find_first_bit(&comp_mask_local, 32);
 	if (id < 32)
 		c = komeda_pipeline_get_component(pipe, id);
 

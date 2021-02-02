@@ -984,9 +984,16 @@ static int dpaa2_switch_port_vlans_add(struct net_device *netdev,
 	int vid, err = 0, new_vlans = 0;
 
 	if (switchdev_trans_ph_prepare(trans)) {
-		for (vid = vlan->vid_begin; vid <= vlan->vid_end; vid++)
+		for (vid = vlan->vid_begin; vid <= vlan->vid_end; vid++) {
 			if (!port_priv->ethsw_data->vlans[vid])
 				new_vlans++;
+
+			/* Make sure that the VLAN is not already configured
+			 * on the switch port
+			 */
+			if (port_priv->vlans[vid] & ETHSW_VLAN_MEMBER)
+				return -EEXIST;
+		}
 
 		/* Check if there is space for a new VLAN */
 		err = dpsw_get_attributes(ethsw->mc_io, 0, ethsw->dpsw_handle,

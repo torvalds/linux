@@ -12,6 +12,6 @@ Description:
 		- "peripheral" - switching mode from host to peripheral.
 
 		Read the file, then it shows the following strings:
-		
+
 		- "host" - The mode is host now.
 		- "peripheral" - The mode is peripheral now.

@@ -265,6 +265,7 @@ enum {
 	Opt_ip,
 	Opt_crush_location,
 	Opt_read_from_replica,
+	Opt_ms_mode,
 	/* string args above */
 	Opt_share,
 	Opt_crc,
@@ -287,6 +288,23 @@ static const struct constant_table ceph_param_read_from_replica[] = {
 	{}
 };
 
+enum ceph_ms_mode {
+	Opt_ms_mode_legacy,
+	Opt_ms_mode_crc,
+	Opt_ms_mode_secure,
+	Opt_ms_mode_prefer_crc,
+	Opt_ms_mode_prefer_secure
+};
+
+static const struct constant_table ceph_param_ms_mode[] = {
+	{"legacy",		Opt_ms_mode_legacy},
+	{"crc",			Opt_ms_mode_crc},
+	{"secure",		Opt_ms_mode_secure},
+	{"prefer-crc",		Opt_ms_mode_prefer_crc},
+	{"prefer-secure",	Opt_ms_mode_prefer_secure},
+	{}
+};
+
 static const struct fs_parameter_spec ceph_parameters[] = {
 	fsparam_flag	("abort_on_full",		Opt_abort_on_full),
 	fsparam_flag_no ("cephx_require_signatures",	Opt_cephx_require_signatures),
@@ -305,6 +323,8 @@ static const struct fs_parameter_spec ceph_parameters[] = {
 			 fs_param_deprecated, NULL),
 	fsparam_enum	("read_from_replica",		Opt_read_from_replica,
 			 ceph_param_read_from_replica),
+	fsparam_enum	("ms_mode",			Opt_ms_mode,
+			 ceph_param_ms_mode),
 	fsparam_string	("secret",			Opt_secret),
 	fsparam_flag_no ("share",			Opt_share),
 	fsparam_flag_no ("tcp_nodelay",			Opt_tcp_nodelay),
@@ -333,6 +353,8 @@ struct ceph_options *ceph_alloc_options(void)
 	opt->osd_idle_ttl = CEPH_OSD_IDLE_TTL_DEFAULT;
 	opt->osd_request_timeout = CEPH_OSD_REQUEST_TIMEOUT_DEFAULT;
 	opt->read_from_replica = CEPH_READ_FROM_REPLICA_DEFAULT;
+	opt->con_modes[0] = CEPH_CON_MODE_UNKNOWN;
+	opt->con_modes[1] = CEPH_CON_MODE_UNKNOWN;
 	return opt;
 }
 EXPORT_SYMBOL(ceph_alloc_options);
@@ -503,6 +525,32 @@ int ceph_parse_param(struct fs_parameter *param, struct ceph_options *opt,
 			BUG();
 		}
 		break;
+	case Opt_ms_mode:
+		switch (result.uint_32) {
+		case Opt_ms_mode_legacy:
+			opt->con_modes[0] = CEPH_CON_MODE_UNKNOWN;
+			opt->con_modes[1] = CEPH_CON_MODE_UNKNOWN;
+			break;
+		case Opt_ms_mode_crc:
+			opt->con_modes[0] = CEPH_CON_MODE_CRC;
+			opt->con_modes[1] = CEPH_CON_MODE_UNKNOWN;
+			break;
+		case Opt_ms_mode_secure:
+			opt->con_modes[0] = CEPH_CON_MODE_SECURE;
+			opt->con_modes[1] = CEPH_CON_MODE_UNKNOWN;
+			break;
+		case Opt_ms_mode_prefer_crc:
+			opt->con_modes[0] = CEPH_CON_MODE_CRC;
+			opt->con_modes[1] = CEPH_CON_MODE_SECURE;
+			break;
+		case Opt_ms_mode_prefer_secure:
+			opt->con_modes[0] = CEPH_CON_MODE_SECURE;
+			opt->con_modes[1] = CEPH_CON_MODE_CRC;
+			break;
+		default:
+			BUG();
+		}
+		break;
 
 	case Opt_osdtimeout:
 		warn_plog(&log, "Ignoring osdtimeout");
@@ -615,6 +663,21 @@ int ceph_print_client_options(struct seq_file *m, struct ceph_client *client,
 		seq_puts(m, "read_from_replica=balance,");
 	} else if (opt->read_from_replica == CEPH_OSD_FLAG_LOCALIZE_READS) {
 		seq_puts(m, "read_from_replica=localize,");
+	}
+	if (opt->con_modes[0] != CEPH_CON_MODE_UNKNOWN) {
+		if (opt->con_modes[0] == CEPH_CON_MODE_CRC &&
+		    opt->con_modes[1] == CEPH_CON_MODE_UNKNOWN) {
+			seq_puts(m, "ms_mode=crc,");
+		} else if (opt->con_modes[0] == CEPH_CON_MODE_SECURE &&
+			   opt->con_modes[1] == CEPH_CON_MODE_UNKNOWN) {
+			seq_puts(m, "ms_mode=secure,");
+		} else if (opt->con_modes[0] == CEPH_CON_MODE_CRC &&
+			   opt->con_modes[1] == CEPH_CON_MODE_SECURE) {
+			seq_puts(m, "ms_mode=prefer-crc,");
+		} else if (opt->con_modes[0] == CEPH_CON_MODE_SECURE &&
+			   opt->con_modes[1] == CEPH_CON_MODE_CRC) {
+			seq_puts(m, "ms_mode=prefer-secure,");
+		}
 	}
 
 	if (opt->flags & CEPH_OPT_FSID)

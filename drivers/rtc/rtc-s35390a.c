@@ -497,7 +497,7 @@ static int s35390a_probe(struct i2c_client *client,
 	if (status1 & S35390A_FLAG_INT2)
 		rtc_update_irq(s35390a->rtc, 1, RTC_AF);
 
-	return rtc_register_device(s35390a->rtc);
+	return devm_rtc_register_device(s35390a->rtc);
 }
 
 static struct i2c_driver s35390a_driver = {

@@ -63,6 +63,11 @@ properties:
     description:
       Enables wake up of host system on alarm.
 
+  reset-source:
+    $ref: /schemas/types.yaml#/definitions/flag
+    description:
+      The RTC is able to reset the machine.
+
 additionalProperties: true
 
 ...

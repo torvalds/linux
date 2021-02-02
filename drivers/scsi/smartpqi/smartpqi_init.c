@@ -33,11 +33,11 @@
 #define BUILD_TIMESTAMP
 #endif
 
-#define DRIVER_VERSION		"1.2.16-010"
+#define DRIVER_VERSION		"1.2.16-012"
 #define DRIVER_MAJOR		1
 #define DRIVER_MINOR		2
 #define DRIVER_RELEASE		16
-#define DRIVER_REVISION		10
+#define DRIVER_REVISION		12
 
 #define DRIVER_NAME		"Microsemi PQI Driver (v" \
 				DRIVER_VERSION BUILD_TIMESTAMP ")"
@@ -345,10 +345,9 @@ static inline void pqi_device_remove_start(struct pqi_scsi_dev *device)
 	device->in_remove = true;
 }
 
-static inline bool pqi_device_in_remove(struct pqi_ctrl_info *ctrl_info,
-					struct pqi_scsi_dev *device)
+static inline bool pqi_device_in_remove(struct pqi_scsi_dev *device)
 {
-	return device->in_remove && !ctrl_info->in_shutdown;
+	return device->in_remove;
 }
 
 static inline void pqi_ctrl_shutdown_start(struct pqi_ctrl_info *ctrl_info)
@@ -5347,8 +5346,7 @@ static int pqi_scsi_queue_command(struct Scsi_Host *shost,
 
 	atomic_inc(&device->scsi_cmds_outstanding);
 
-	if (pqi_ctrl_offline(ctrl_info) || pqi_device_in_remove(ctrl_info,
-								device)) {
+	if (pqi_ctrl_offline(ctrl_info) || pqi_device_in_remove(device)) {
 		set_host_byte(scmd, DID_NO_CONNECT);
 		pqi_scsi_done(scmd);
 		return 0;
@@ -8030,8 +8028,6 @@ static void pqi_pci_remove(struct pci_dev *pci_dev)
 	ctrl_info = pci_get_drvdata(pci_dev);
 	if (!ctrl_info)
 		return;
-
-	ctrl_info->in_shutdown = true;
 
 	pqi_remove_ctrl(ctrl_info);
 }

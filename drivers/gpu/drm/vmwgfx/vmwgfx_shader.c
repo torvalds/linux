@@ -978,8 +978,8 @@ int vmw_compat_shader_add(struct vmw_private *dev_priv,
 	if (unlikely(!buf))
 		return -ENOMEM;
 
-	ret = vmw_bo_init(dev_priv, buf, size, &vmw_sys_ne_placement,
-			      true, vmw_bo_bo_free);
+	ret = vmw_bo_init(dev_priv, buf, size, &vmw_sys_placement,
+			      true, true, vmw_bo_bo_free);
 	if (unlikely(ret != 0))
 		goto out;
 

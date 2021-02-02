@@ -168,7 +168,7 @@ error_chan_id:
 	return ERR_PTR(ret);
 }
 
-static const struct of_device_id stm32_stm32dma_master_match[] = {
+static const struct of_device_id stm32_stm32dma_master_match[] __maybe_unused = {
 	{ .compatible = "st,stm32-dma", },
 	{},
 };

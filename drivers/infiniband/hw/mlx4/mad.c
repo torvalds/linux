@@ -1523,6 +1523,7 @@ static void mlx4_ib_multiplex_mad(struct mlx4_ib_demux_pv_ctx *ctx, struct ib_wc
 			return;
 		} else
 			*slave_id = slave;
+		break;
 	default:
 		/* nothing */;
 	}

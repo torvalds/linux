@@ -5,6 +5,7 @@
  * Author:
  * Mimi Zohar <zohar@us.ibm.com>
  */
+#include <linux/module.h>
 #include <linux/init.h>
 #include <linux/file.h>
 #include <linux/fs.h>
@@ -16,11 +17,18 @@
 
 #include "ima.h"
 
-static int __init default_appraise_setup(char *str)
-{
 #ifdef CONFIG_IMA_APPRAISE_BOOTPARAM
+static char *ima_appraise_cmdline_default __initdata;
+core_param(ima_appraise, ima_appraise_cmdline_default, charp, 0);
+
+void __init ima_appraise_parse_cmdline(void)
+{
+	const char *str = ima_appraise_cmdline_default;
 	bool sb_state = arch_ima_get_secureboot();
 	int appraisal_state = ima_appraise;
+
+	if (!str)
+		return;
 
 	if (strncmp(str, "off", 3) == 0)
 		appraisal_state = 0;
@@ -42,11 +50,8 @@ static int __init default_appraise_setup(char *str)
 	} else {
 		ima_appraise = appraisal_state;
 	}
-#endif
-	return 1;
 }
-
-__setup("ima_appraise=", default_appraise_setup);
+#endif
 
 /*
  * is_ima_appraise_enabled - return appraise status

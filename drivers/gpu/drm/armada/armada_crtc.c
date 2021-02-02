@@ -413,27 +413,31 @@ static void armada_drm_crtc_mode_set_nofb(struct drm_crtc *crtc)
 }
 
 static int armada_drm_crtc_atomic_check(struct drm_crtc *crtc,
-					struct drm_crtc_state *state)
+					struct drm_atomic_state *state)
 {
+	struct drm_crtc_state *crtc_state = drm_atomic_get_new_crtc_state(state,
+									  crtc);
 	DRM_DEBUG_KMS("[CRTC:%d:%s]\n", crtc->base.id, crtc->name);
 
-	if (state->gamma_lut && drm_color_lut_size(state->gamma_lut) != 256)
+	if (crtc_state->gamma_lut && drm_color_lut_size(crtc_state->gamma_lut) != 256)
 		return -EINVAL;
 
-	if (state->color_mgmt_changed)
-		state->planes_changed = true;
+	if (crtc_state->color_mgmt_changed)
+		crtc_state->planes_changed = true;
 
 	return 0;
 }
 
 static void armada_drm_crtc_atomic_begin(struct drm_crtc *crtc,
-					 struct drm_crtc_state *old_crtc_state)
+					 struct drm_atomic_state *state)
 {
+	struct drm_crtc_state *crtc_state = drm_atomic_get_new_crtc_state(state,
+									  crtc);
 	struct armada_crtc *dcrtc = drm_to_armada_crtc(crtc);
 
 	DRM_DEBUG_KMS("[CRTC:%d:%s]\n", crtc->base.id, crtc->name);
 
-	if (crtc->state->color_mgmt_changed)
+	if (crtc_state->color_mgmt_changed)
 		armada_drm_update_gamma(crtc);
 
 	dcrtc->regs_idx = 0;
@@ -441,8 +445,10 @@ static void armada_drm_crtc_atomic_begin(struct drm_crtc *crtc,
 }
 
 static void armada_drm_crtc_atomic_flush(struct drm_crtc *crtc,
-					 struct drm_crtc_state *old_crtc_state)
+					 struct drm_atomic_state *state)
 {
+	struct drm_crtc_state *crtc_state = drm_atomic_get_new_crtc_state(state,
+									  crtc);
 	struct armada_crtc *dcrtc = drm_to_armada_crtc(crtc);
 
 	DRM_DEBUG_KMS("[CRTC:%d:%s]\n", crtc->base.id, crtc->name);
@@ -453,7 +459,7 @@ static void armada_drm_crtc_atomic_flush(struct drm_crtc *crtc,
 	 * If we aren't doing a full modeset, then we need to queue
 	 * the event here.
 	 */
-	if (!drm_atomic_crtc_needs_modeset(crtc->state)) {
+	if (!drm_atomic_crtc_needs_modeset(crtc_state)) {
 		dcrtc->update_pending = true;
 		armada_drm_crtc_queue_state_event(crtc);
 		spin_lock_irq(&dcrtc->irq_lock);
@@ -467,8 +473,10 @@ static void armada_drm_crtc_atomic_flush(struct drm_crtc *crtc,
 }
 
 static void armada_drm_crtc_atomic_disable(struct drm_crtc *crtc,
-					   struct drm_crtc_state *old_state)
+					   struct drm_atomic_state *state)
 {
+	struct drm_crtc_state *old_state = drm_atomic_get_old_crtc_state(state,
+									 crtc);
 	struct armada_crtc *dcrtc = drm_to_armada_crtc(crtc);
 	struct drm_pending_vblank_event *event;
 
@@ -503,8 +511,10 @@ static void armada_drm_crtc_atomic_disable(struct drm_crtc *crtc,
 }
 
 static void armada_drm_crtc_atomic_enable(struct drm_crtc *crtc,
-					  struct drm_crtc_state *old_state)
+					  struct drm_atomic_state *state)
 {
+	struct drm_crtc_state *old_state = drm_atomic_get_old_crtc_state(state,
+									 crtc);
 	struct armada_crtc *dcrtc = drm_to_armada_crtc(crtc);
 
 	DRM_DEBUG_KMS("[CRTC:%d:%s]\n", crtc->base.id, crtc->name);

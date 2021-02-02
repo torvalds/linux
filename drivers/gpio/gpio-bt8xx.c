@@ -175,13 +175,13 @@ static int bt8xxgpio_probe(struct pci_dev *dev,
 
 	err = pci_enable_device(dev);
 	if (err) {
-		printk(KERN_ERR "bt8xxgpio: Can't enable device.\n");
+		dev_err(&dev->dev, "can't enable device.\n");
 		return err;
 	}
 	if (!devm_request_mem_region(&dev->dev, pci_resource_start(dev, 0),
 				pci_resource_len(dev, 0),
 				"bt8xxgpio")) {
-		printk(KERN_WARNING "bt8xxgpio: Can't request iomem (0x%llx).\n",
+		dev_warn(&dev->dev, "can't request iomem (0x%llx).\n",
 		       (unsigned long long)pci_resource_start(dev, 0));
 		err = -EBUSY;
 		goto err_disable;
@@ -191,7 +191,7 @@ static int bt8xxgpio_probe(struct pci_dev *dev,
 
 	bg->mmio = devm_ioremap(&dev->dev, pci_resource_start(dev, 0), 0x1000);
 	if (!bg->mmio) {
-		printk(KERN_ERR "bt8xxgpio: ioremap() failed\n");
+		dev_err(&dev->dev, "ioremap() failed\n");
 		err = -EIO;
 		goto err_disable;
 	}
@@ -207,7 +207,7 @@ static int bt8xxgpio_probe(struct pci_dev *dev,
 	bt8xxgpio_gpio_setup(bg);
 	err = gpiochip_add_data(&bg->gpio, bg);
 	if (err) {
-		printk(KERN_ERR "bt8xxgpio: Failed to register GPIOs\n");
+		dev_err(&dev->dev, "failed to register GPIOs\n");
 		goto err_disable;
 	}
 

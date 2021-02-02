@@ -273,7 +273,8 @@ struct drm_dsc_config {
 };
 
 /**
- * struct picture_parameter_set - Represents 128 bytes of Picture Parameter Set
+ * struct drm_dsc_picture_parameter_set - Represents 128 bytes of
+ * 	Picture Parameter Set
  *
  * The VESA DSC standard defines picture parameter set (PPS) which display
  * stream compression encoders must communicate to decoders.

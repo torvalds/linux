@@ -299,7 +299,8 @@
  */
 #define BTRFS_STRING_ITEM_KEY	253
 
-
+/* Maximum metadata block size (nodesize) */
+#define BTRFS_MAX_METADATA_BLOCKSIZE			65536
 
 /* 32 bytes in various csum fields */
 #define BTRFS_CSUM_SIZE 32

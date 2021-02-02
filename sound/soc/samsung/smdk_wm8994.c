@@ -136,7 +136,7 @@ static struct snd_soc_card smdk = {
 	.num_links = ARRAY_SIZE(smdk_dai),
 };
 
-static const struct of_device_id samsung_wm8994_of_match[] = {
+static const struct of_device_id samsung_wm8994_of_match[] __maybe_unused = {
 	{ .compatible = "samsung,smdk-wm8994", .data = &smdk_board_data },
 	{},
 };
@@ -170,7 +170,7 @@ static int smdk_audio_probe(struct platform_device *pdev)
 		smdk_dai[0].platforms->of_node = smdk_dai[0].cpus->of_node;
 	}
 
-	id = of_match_device(of_match_ptr(samsung_wm8994_of_match), &pdev->dev);
+	id = of_match_device(samsung_wm8994_of_match, &pdev->dev);
 	if (id)
 		*board = *((struct smdk_wm8994_data *)id->data);
 

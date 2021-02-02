@@ -5,7 +5,7 @@ NAND Error-correction Code
 Introduction
 ============
 
-Having looked at the linux mtd/nand driver and more specific at nand_ecc.c
+Having looked at the linux mtd/nand Hamming software ECC engine driver
 I felt there was room for optimisation. I bashed the code for a few hours
 performing tricks like table lookup removing superfluous code etc.
 After that the speed was increased by 35-40%.

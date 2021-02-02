@@ -24,6 +24,21 @@ struct iio_map_internal {
 static LIST_HEAD(iio_map_list);
 static DEFINE_MUTEX(iio_map_list_lock);
 
+static int iio_map_array_unregister_locked(struct iio_dev *indio_dev)
+{
+	int ret = -ENODEV;
+	struct iio_map_internal *mapi, *next;
+
+	list_for_each_entry_safe(mapi, next, &iio_map_list, l) {
+		if (indio_dev == mapi->indio_dev) {
+			list_del(&mapi->l);
+			kfree(mapi);
+			ret = 0;
+		}
+	}
+	return ret;
+}
+
 int iio_map_array_register(struct iio_dev *indio_dev, struct iio_map *maps)
 {
 	int i = 0, ret = 0;
@@ -45,6 +60,8 @@ int iio_map_array_register(struct iio_dev *indio_dev, struct iio_map *maps)
 		i++;
 	}
 error_ret:
+	if (ret)
+		iio_map_array_unregister_locked(indio_dev);
 	mutex_unlock(&iio_map_list_lock);
 
 	return ret;
@@ -57,18 +74,12 @@ EXPORT_SYMBOL_GPL(iio_map_array_register);
  */
 int iio_map_array_unregister(struct iio_dev *indio_dev)
 {
-	int ret = -ENODEV;
-	struct iio_map_internal *mapi, *next;
+	int ret;
 
 	mutex_lock(&iio_map_list_lock);
-	list_for_each_entry_safe(mapi, next, &iio_map_list, l) {
-		if (indio_dev == mapi->indio_dev) {
-			list_del(&mapi->l);
-			kfree(mapi);
-			ret = 0;
-		}
-	}
+	ret = iio_map_array_unregister_locked(indio_dev);
 	mutex_unlock(&iio_map_list_lock);
+
 	return ret;
 }
 EXPORT_SYMBOL_GPL(iio_map_array_unregister);

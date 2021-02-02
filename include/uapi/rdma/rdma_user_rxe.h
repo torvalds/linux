@@ -181,4 +181,25 @@ struct rxe_modify_srq_cmd {
 	__aligned_u64 mmap_info_addr;
 };
 
+/* This data structure is stored at the base of work and
+ * completion queues shared between user space and kernel space.
+ * It contains the producer and consumer indices. Is also
+ * contains a copy of the queue size parameters for user space
+ * to use but the kernel must use the parameters in the
+ * rxe_queue struct. For performance reasons arrange to have
+ * producer and consumer indices in separate cache lines
+ * the kernel should always mask the indices to avoid accessing
+ * memory outside of the data area
+ */
+struct rxe_queue_buf {
+	__u32			log2_elem_size;
+	__u32			index_mask;
+	__u32			pad_1[30];
+	__u32			producer_index;
+	__u32			pad_2[31];
+	__u32			consumer_index;
+	__u32			pad_3[31];
+	__u8			data[];
+};
+
 #endif /* RDMA_USER_RXE_H */

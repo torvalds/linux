@@ -205,7 +205,7 @@ static int rvin_reset_format(struct rvin_dev *vin)
 {
 	struct v4l2_subdev_format fmt = {
 		.which = V4L2_SUBDEV_FORMAT_ACTIVE,
-		.pad = vin->parallel->source_pad,
+		.pad = vin->parallel.source_pad,
 	};
 	int ret;
 
@@ -246,7 +246,7 @@ static int rvin_try_format(struct rvin_dev *vin, u32 which,
 	struct v4l2_subdev_pad_config *pad_cfg;
 	struct v4l2_subdev_format format = {
 		.which = which,
-		.pad = vin->parallel->source_pad,
+		.pad = vin->parallel.source_pad,
 	};
 	enum v4l2_field field;
 	u32 width, height;
@@ -632,7 +632,7 @@ static int rvin_enum_dv_timings(struct file *file, void *priv_fh,
 	if (timings->pad)
 		return -EINVAL;
 
-	timings->pad = vin->parallel->sink_pad;
+	timings->pad = vin->parallel.sink_pad;
 
 	ret = v4l2_subdev_call(sd, pad, enum_dv_timings, timings);
 
@@ -684,7 +684,7 @@ static int rvin_dv_timings_cap(struct file *file, void *priv_fh,
 	if (cap->pad)
 		return -EINVAL;
 
-	cap->pad = vin->parallel->sink_pad;
+	cap->pad = vin->parallel.sink_pad;
 
 	ret = v4l2_subdev_call(sd, pad, dv_timings_cap, cap);
 
@@ -702,7 +702,7 @@ static int rvin_g_edid(struct file *file, void *fh, struct v4l2_edid *edid)
 	if (edid->pad)
 		return -EINVAL;
 
-	edid->pad = vin->parallel->sink_pad;
+	edid->pad = vin->parallel.sink_pad;
 
 	ret = v4l2_subdev_call(sd, pad, get_edid, edid);
 
@@ -720,7 +720,7 @@ static int rvin_s_edid(struct file *file, void *fh, struct v4l2_edid *edid)
 	if (edid->pad)
 		return -EINVAL;
 
-	edid->pad = vin->parallel->sink_pad;
+	edid->pad = vin->parallel.sink_pad;
 
 	ret = v4l2_subdev_call(sd, pad, set_edid, edid);
 

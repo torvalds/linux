@@ -37,9 +37,12 @@ static int tls_statistics_seq_show(struct seq_file *seq, void *v)
 
 int __net_init tls_proc_init(struct net *net)
 {
+#ifdef CONFIG_PROC_FS
 	if (!proc_create_net_single("tls_stat", 0444, net->proc_net,
 				    tls_statistics_seq_show, NULL))
 		return -ENOMEM;
+#endif /* CONFIG_PROC_FS */
+
 	return 0;
 }
 

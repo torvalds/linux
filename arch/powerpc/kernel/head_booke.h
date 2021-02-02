@@ -176,7 +176,7 @@ ALT_FTR_SECTION_END_IFSET(CPU_FTR_EMB_HV)
 #endif
 	mtspr	SPRN_SRR1,r10
 	mtspr	SPRN_SRR0,r11
-	RFI				/* jump to handler, enable MMU */
+	rfi				/* jump to handler, enable MMU */
 99:	b	ret_from_kernel_syscall
 .endm
 
@@ -185,7 +185,6 @@ ALT_FTR_SECTION_END_IFSET(CPU_FTR_EMB_HV)
  *
  * On 40x critical is the only additional level
  * On 44x/e500 we have critical and machine check
- * On e200 we have critical and debug (machine check occurs via critical)
  *
  * Additionally we reserve a SPRG for each priority level so we can free up a
  * GPR to use as the base for indirect access to the exception stacks.  This
@@ -201,7 +200,7 @@ ALT_FTR_SECTION_END_IFSET(CPU_FTR_EMB_HV)
 #define MC_STACK_BASE		mcheckirq_ctx
 #define CRIT_STACK_BASE		critirq_ctx
 
-/* only on e500mc/e200 */
+/* only on e500mc */
 #define DBG_STACK_BASE		dbgirq_ctx
 
 #define EXC_LVL_FRAME_OVERHEAD	(THREAD_SIZE - INT_FRAME_SIZE - EXC_LVL_SIZE)

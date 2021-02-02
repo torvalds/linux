@@ -126,6 +126,7 @@ static int scmi_cpufreq_init(struct cpufreq_policy *policy)
 	struct scmi_data *priv;
 	struct cpufreq_frequency_table *freq_table;
 	struct em_data_callback em_cb = EM_DATA_CB(scmi_get_cpu_power);
+	bool power_scale_mw;
 
 	cpu_dev = get_cpu_device(policy->cpu);
 	if (!cpu_dev) {
@@ -189,7 +190,9 @@ static int scmi_cpufreq_init(struct cpufreq_policy *policy)
 	policy->fast_switch_possible =
 		handle->perf_ops->fast_switch_possible(handle, cpu_dev);
 
-	em_dev_register_perf_domain(cpu_dev, nr_opp, &em_cb, policy->cpus);
+	power_scale_mw = handle->perf_ops->power_scale_mw_get(handle);
+	em_dev_register_perf_domain(cpu_dev, nr_opp, &em_cb, policy->cpus,
+				    power_scale_mw);
 
 	return 0;
 

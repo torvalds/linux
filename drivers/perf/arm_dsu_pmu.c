@@ -716,9 +716,6 @@ static int dsu_pmu_device_probe(struct platform_device *pdev)
 	if (IS_ERR(dsu_pmu))
 		return PTR_ERR(dsu_pmu);
 
-	if (IS_ERR_OR_NULL(fwnode))
-		return -ENOENT;
-
 	if (is_of_node(fwnode))
 		rc = dsu_pmu_dt_get_cpus(&pdev->dev, &dsu_pmu->associated_cpus);
 	else if (is_acpi_device_node(fwnode))

@@ -2189,6 +2189,81 @@ DEFINE_PNFS_LAYOUT_EVENT(pnfs_mds_fallback_write_done);
 DEFINE_PNFS_LAYOUT_EVENT(pnfs_mds_fallback_read_pagelist);
 DEFINE_PNFS_LAYOUT_EVENT(pnfs_mds_fallback_write_pagelist);
 
+DECLARE_EVENT_CLASS(nfs4_deviceid_event,
+		TP_PROTO(
+			const struct nfs_client *clp,
+			const struct nfs4_deviceid *deviceid
+		),
+
+		TP_ARGS(clp, deviceid),
+
+		TP_STRUCT__entry(
+			__string(dstaddr, clp->cl_hostname)
+			__array(unsigned char, deviceid, NFS4_DEVICEID4_SIZE)
+		),
+
+		TP_fast_assign(
+			__assign_str(dstaddr, clp->cl_hostname);
+			memcpy(__entry->deviceid, deviceid->data,
+			       NFS4_DEVICEID4_SIZE);
+		),
+
+		TP_printk(
+			"deviceid=%s, dstaddr=%s",
+			__print_hex(__entry->deviceid, NFS4_DEVICEID4_SIZE),
+			__get_str(dstaddr)
+		)
+);
+#define DEFINE_PNFS_DEVICEID_EVENT(name) \
+	DEFINE_EVENT(nfs4_deviceid_event, name, \
+			TP_PROTO(const struct nfs_client *clp, \
+				const struct nfs4_deviceid *deviceid \
+			), \
+			TP_ARGS(clp, deviceid))
+DEFINE_PNFS_DEVICEID_EVENT(nfs4_deviceid_free);
+
+DECLARE_EVENT_CLASS(nfs4_deviceid_status,
+		TP_PROTO(
+			const struct nfs_server *server,
+			const struct nfs4_deviceid *deviceid,
+			int status
+		),
+
+		TP_ARGS(server, deviceid, status),
+
+		TP_STRUCT__entry(
+			__field(dev_t, dev)
+			__field(int, status)
+			__string(dstaddr, server->nfs_client->cl_hostname)
+			__array(unsigned char, deviceid, NFS4_DEVICEID4_SIZE)
+		),
+
+		TP_fast_assign(
+			__entry->dev = server->s_dev;
+			__entry->status = status;
+			__assign_str(dstaddr, server->nfs_client->cl_hostname);
+			memcpy(__entry->deviceid, deviceid->data,
+			       NFS4_DEVICEID4_SIZE);
+		),
+
+		TP_printk(
+			"dev=%02x:%02x: deviceid=%s, dstaddr=%s, status=%d",
+			MAJOR(__entry->dev), MINOR(__entry->dev),
+			__print_hex(__entry->deviceid, NFS4_DEVICEID4_SIZE),
+			__get_str(dstaddr),
+			__entry->status
+		)
+);
+#define DEFINE_PNFS_DEVICEID_STATUS(name) \
+	DEFINE_EVENT(nfs4_deviceid_status, name, \
+			TP_PROTO(const struct nfs_server *server, \
+				const struct nfs4_deviceid *deviceid, \
+				int status \
+			), \
+			TP_ARGS(server, deviceid, status))
+DEFINE_PNFS_DEVICEID_STATUS(nfs4_getdeviceinfo);
+DEFINE_PNFS_DEVICEID_STATUS(nfs4_find_deviceid);
+
 DECLARE_EVENT_CLASS(nfs4_flexfiles_io_event,
 		TP_PROTO(
 			const struct nfs_pgio_header *hdr

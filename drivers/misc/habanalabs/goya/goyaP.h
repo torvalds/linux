@@ -192,7 +192,7 @@ int goya_test_queue(struct hl_device *hdev, u32 hw_queue_id);
 int goya_test_queues(struct hl_device *hdev);
 int goya_test_cpu_queue(struct hl_device *hdev);
 int goya_send_cpu_message(struct hl_device *hdev, u32 *msg, u16 len,
-				u32 timeout, long *result);
+				u32 timeout, u64 *result);
 
 long goya_get_temperature(struct hl_device *hdev, int sensor_index, u32 attr);
 long goya_get_voltage(struct hl_device *hdev, int sensor_index, u32 attr);
@@ -221,6 +221,7 @@ void goya_add_end_of_cb_packets(struct hl_device *hdev, void *kernel_address,
 				u32 len, u64 cq_addr, u32 cq_val, u32 msix_vec,
 				bool eb);
 int goya_cs_parser(struct hl_device *hdev, struct hl_cs_parser *parser);
+int goya_scrub_device_mem(struct hl_device *hdev, u64 addr, u64 size);
 void *goya_get_int_queue_base(struct hl_device *hdev, u32 queue_id,
 				dma_addr_t *dma_handle,	u16 *queue_len);
 u32 goya_get_dma_desc_list_size(struct hl_device *hdev, struct sg_table *sgt);

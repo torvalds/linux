@@ -37,9 +37,7 @@ enum dml_project {
 	DML_PROJECT_NAVI10,
 	DML_PROJECT_NAVI10v2,
 	DML_PROJECT_DCN21,
-#ifdef CONFIG_DRM_AMD_DC_DCN3_0
 	DML_PROJECT_DCN30,
-#endif
 };
 
 struct display_mode_lib;
@@ -81,12 +79,10 @@ void dml_init_instance(struct display_mode_lib *lib,
 
 const char *dml_get_status_message(enum dm_validation_status status);
 
-#if defined(CONFIG_DRM_AMD_DC_DCN3_0)
 void dml_log_pipe_params(
 		struct display_mode_lib *mode_lib,
 		display_e2e_pipe_params_st *pipes,
 		int pipe_cnt);
 
 void dml_log_mode_support_params(struct display_mode_lib *mode_lib);
-#endif  // CONFIG_DRM_AMD_DC_DCN3_0
 #endif

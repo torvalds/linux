@@ -228,7 +228,7 @@ static void dw_pcie_writel_ob_unroll(struct dw_pcie *pci, u32 index, u32 reg,
 static void dw_pcie_prog_outbound_atu_unroll(struct dw_pcie *pci, u8 func_no,
 					     int index, int type,
 					     u64 cpu_addr, u64 pci_addr,
-					     u32 size)
+					     u64 size)
 {
 	u32 retries, val;
 	u64 limit_addr = cpu_addr + size - 1;
@@ -245,8 +245,10 @@ static void dw_pcie_prog_outbound_atu_unroll(struct dw_pcie *pci, u8 func_no,
 				 lower_32_bits(pci_addr));
 	dw_pcie_writel_ob_unroll(pci, index, PCIE_ATU_UNR_UPPER_TARGET,
 				 upper_32_bits(pci_addr));
-	dw_pcie_writel_ob_unroll(pci, index, PCIE_ATU_UNR_REGION_CTRL1,
-				 type | PCIE_ATU_FUNC_NUM(func_no));
+	val = type | PCIE_ATU_FUNC_NUM(func_no);
+	val = upper_32_bits(size - 1) ?
+		val | PCIE_ATU_INCREASE_REGION_SIZE : val;
+	dw_pcie_writel_ob_unroll(pci, index, PCIE_ATU_UNR_REGION_CTRL1, val);
 	dw_pcie_writel_ob_unroll(pci, index, PCIE_ATU_UNR_REGION_CTRL2,
 				 PCIE_ATU_ENABLE);
 
@@ -267,7 +269,7 @@ static void dw_pcie_prog_outbound_atu_unroll(struct dw_pcie *pci, u8 func_no,
 
 static void __dw_pcie_prog_outbound_atu(struct dw_pcie *pci, u8 func_no,
 					int index, int type, u64 cpu_addr,
-					u64 pci_addr, u32 size)
+					u64 pci_addr, u64 size)
 {
 	u32 retries, val;
 
@@ -311,7 +313,7 @@ static void __dw_pcie_prog_outbound_atu(struct dw_pcie *pci, u8 func_no,
 }
 
 void dw_pcie_prog_outbound_atu(struct dw_pcie *pci, int index, int type,
-			       u64 cpu_addr, u64 pci_addr, u32 size)
+			       u64 cpu_addr, u64 pci_addr, u64 size)
 {
 	__dw_pcie_prog_outbound_atu(pci, 0, index, type,
 				    cpu_addr, pci_addr, size);
@@ -544,6 +546,70 @@ static u8 dw_pcie_iatu_unroll_enabled(struct dw_pcie *pci)
 	return 0;
 }
 
+static void dw_pcie_iatu_detect_regions_unroll(struct dw_pcie *pci)
+{
+	int max_region, i, ob = 0, ib = 0;
+	u32 val;
+
+	max_region = min((int)pci->atu_size / 512, 256);
+
+	for (i = 0; i < max_region; i++) {
+		dw_pcie_writel_ob_unroll(pci, i, PCIE_ATU_UNR_LOWER_TARGET,
+					0x11110000);
+
+		val = dw_pcie_readl_ob_unroll(pci, i, PCIE_ATU_UNR_LOWER_TARGET);
+		if (val == 0x11110000)
+			ob++;
+		else
+			break;
+	}
+
+	for (i = 0; i < max_region; i++) {
+		dw_pcie_writel_ib_unroll(pci, i, PCIE_ATU_UNR_LOWER_TARGET,
+					0x11110000);
+
+		val = dw_pcie_readl_ib_unroll(pci, i, PCIE_ATU_UNR_LOWER_TARGET);
+		if (val == 0x11110000)
+			ib++;
+		else
+			break;
+	}
+	pci->num_ib_windows = ib;
+	pci->num_ob_windows = ob;
+}
+
+static void dw_pcie_iatu_detect_regions(struct dw_pcie *pci)
+{
+	int max_region, i, ob = 0, ib = 0;
+	u32 val;
+
+	dw_pcie_writel_dbi(pci, PCIE_ATU_VIEWPORT, 0xFF);
+	max_region = dw_pcie_readl_dbi(pci, PCIE_ATU_VIEWPORT) + 1;
+
+	for (i = 0; i < max_region; i++) {
+		dw_pcie_writel_dbi(pci, PCIE_ATU_VIEWPORT, PCIE_ATU_REGION_OUTBOUND | i);
+		dw_pcie_writel_dbi(pci, PCIE_ATU_LOWER_TARGET, 0x11110000);
+		val = dw_pcie_readl_dbi(pci, PCIE_ATU_LOWER_TARGET);
+		if (val == 0x11110000)
+			ob++;
+		else
+			break;
+	}
+
+	for (i = 0; i < max_region; i++) {
+		dw_pcie_writel_dbi(pci, PCIE_ATU_VIEWPORT, PCIE_ATU_REGION_INBOUND | i);
+		dw_pcie_writel_dbi(pci, PCIE_ATU_LOWER_TARGET, 0x11110000);
+		val = dw_pcie_readl_dbi(pci, PCIE_ATU_LOWER_TARGET);
+		if (val == 0x11110000)
+			ib++;
+		else
+			break;
+	}
+
+	pci->num_ib_windows = ib;
+	pci->num_ob_windows = ob;
+}
+
 void dw_pcie_setup(struct dw_pcie *pci)
 {
 	u32 val;
@@ -554,14 +620,29 @@ void dw_pcie_setup(struct dw_pcie *pci)
 	if (pci->version >= 0x480A || (!pci->version &&
 				       dw_pcie_iatu_unroll_enabled(pci))) {
 		pci->iatu_unroll_enabled = true;
-		if (!pci->atu_base)
-			pci->atu_base =
-			    devm_platform_ioremap_resource_byname(pdev, "atu");
-		if (IS_ERR(pci->atu_base))
-			pci->atu_base = pci->dbi_base + DEFAULT_DBI_ATU_OFFSET;
-	}
-	dev_dbg(pci->dev, "iATU unroll: %s\n", pci->iatu_unroll_enabled ?
+		if (!pci->atu_base) {
+			struct resource *res =
+				platform_get_resource_byname(pdev, IORESOURCE_MEM, "atu");
+			if (res)
+				pci->atu_size = resource_size(res);
+			pci->atu_base = devm_ioremap_resource(dev, res);
+			if (IS_ERR(pci->atu_base))
+				pci->atu_base = pci->dbi_base + DEFAULT_DBI_ATU_OFFSET;
+		}
+
+		if (!pci->atu_size)
+			/* Pick a minimal default, enough for 8 in and 8 out windows */
+			pci->atu_size = SZ_4K;
+
+		dw_pcie_iatu_detect_regions_unroll(pci);
+	} else
+		dw_pcie_iatu_detect_regions(pci);
+
+	dev_info(pci->dev, "iATU unroll: %s\n", pci->iatu_unroll_enabled ?
 		"enabled" : "disabled");
+
+	dev_info(pci->dev, "Detected iATU regions: %u outbound, %u inbound",
+		 pci->num_ob_windows, pci->num_ib_windows);
 
 	if (pci->link_gen > 0)
 		dw_pcie_link_set_max_speed(pci, pci->link_gen);

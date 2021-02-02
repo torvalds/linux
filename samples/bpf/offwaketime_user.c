@@ -95,17 +95,11 @@ static void int_exit(int sig)
 
 int main(int argc, char **argv)
 {
-	struct rlimit r = {RLIM_INFINITY, RLIM_INFINITY};
 	struct bpf_object *obj = NULL;
 	struct bpf_link *links[2];
 	struct bpf_program *prog;
 	int delay = 1, i = 0;
 	char filename[256];
-
-	if (setrlimit(RLIMIT_MEMLOCK, &r)) {
-		perror("setrlimit(RLIMIT_MEMLOCK)");
-		return 1;
-	}
 
 	if (load_kallsyms()) {
 		printf("failed to process /proc/kallsyms\n");

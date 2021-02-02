@@ -84,9 +84,9 @@
 #include <scsi/fc/fc_gs.h>
 
 #include <scsi/libfc.h>
-#include <scsi/fc_encode.h>
 #include <linux/scatterlist.h>
 
+#include "fc_encode.h"
 #include "fc_libfc.h"
 
 /* Fabric IDs to use for point-to-point mode, chosen on whims. */

@@ -276,7 +276,7 @@ int dynevent_arg_add(struct dynevent_cmd *cmd,
  * arguments of the form 'type variable_name;' or 'x+y'.
  *
  * The lhs argument string will be appended to the current cmd string,
- * followed by an operator, if applicable, followd by the rhs string,
+ * followed by an operator, if applicable, followed by the rhs string,
  * followed finally by a separator, if applicable.  Before the
  * argument is added, the @check_arg function, if present, will be
  * used to check the sanity of the current arg strings.

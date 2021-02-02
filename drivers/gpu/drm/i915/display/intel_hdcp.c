@@ -1445,10 +1445,9 @@ static int hdcp2_session_key_exchange(struct intel_connector *connector)
 }
 
 static
-int hdcp2_propagate_stream_management_info(struct intel_connector *connector)
+int _hdcp2_propagate_stream_management_info(struct intel_connector *connector)
 {
 	struct intel_digital_port *dig_port = intel_attached_dig_port(connector);
-	struct drm_i915_private *i915 = to_i915(connector->base.dev);
 	struct intel_hdcp *hdcp = &connector->hdcp;
 	union {
 		struct hdcp2_rep_stream_manage stream_manage;
@@ -1456,6 +1455,9 @@ int hdcp2_propagate_stream_management_info(struct intel_connector *connector)
 	} msgs;
 	const struct intel_hdcp_shim *shim = hdcp->shim;
 	int ret;
+
+	if (connector->hdcp.seq_num_m > HDCP_2_2_SEQ_NUM_MAX)
+		return -ERANGE;
 
 	/* Prepare RepeaterAuth_Stream_Manage msg */
 	msgs.stream_manage.msg_id = HDCP_2_2_REP_STREAM_MANAGE;
@@ -1472,28 +1474,21 @@ int hdcp2_propagate_stream_management_info(struct intel_connector *connector)
 	ret = shim->write_2_2_msg(dig_port, &msgs.stream_manage,
 				  sizeof(msgs.stream_manage));
 	if (ret < 0)
-		return ret;
+		goto out;
 
 	ret = shim->read_2_2_msg(dig_port, HDCP_2_2_REP_STREAM_READY,
 				 &msgs.stream_ready, sizeof(msgs.stream_ready));
 	if (ret < 0)
-		return ret;
+		goto out;
 
 	hdcp->port_data.seq_num_m = hdcp->seq_num_m;
 	hdcp->port_data.streams[0].stream_type = hdcp->content_type;
-
 	ret = hdcp2_verify_mprime(connector, &msgs.stream_ready);
-	if (ret < 0)
-		return ret;
 
+out:
 	hdcp->seq_num_m++;
 
-	if (hdcp->seq_num_m > HDCP_2_2_SEQ_NUM_MAX) {
-		drm_dbg_kms(&i915->drm, "seq_num_m roll over.\n");
-		return -1;
-	}
-
-	return 0;
+	return ret;
 }
 
 static
@@ -1564,17 +1559,6 @@ int hdcp2_authenticate_repeater_topology(struct intel_connector *connector)
 	return 0;
 }
 
-static int hdcp2_authenticate_repeater(struct intel_connector *connector)
-{
-	int ret;
-
-	ret = hdcp2_authenticate_repeater_topology(connector);
-	if (ret < 0)
-		return ret;
-
-	return hdcp2_propagate_stream_management_info(connector);
-}
-
 static int hdcp2_authenticate_sink(struct intel_connector *connector)
 {
 	struct intel_digital_port *dig_port = intel_attached_dig_port(connector);
@@ -1611,18 +1595,13 @@ static int hdcp2_authenticate_sink(struct intel_connector *connector)
 	}
 
 	if (hdcp->is_repeater) {
-		ret = hdcp2_authenticate_repeater(connector);
+		ret = hdcp2_authenticate_repeater_topology(connector);
 		if (ret < 0) {
 			drm_dbg_kms(&i915->drm,
 				    "Repeater Auth Failed. Err: %d\n", ret);
 			return ret;
 		}
 	}
-
-	hdcp->port_data.streams[0].stream_type = hdcp->content_type;
-	ret = hdcp2_authenticate_port(connector);
-	if (ret < 0)
-		return ret;
 
 	return ret;
 }
@@ -1704,15 +1683,59 @@ static int hdcp2_disable_encryption(struct intel_connector *connector)
 	return ret;
 }
 
+static int
+hdcp2_propagate_stream_management_info(struct intel_connector *connector)
+{
+	struct drm_i915_private *i915 = to_i915(connector->base.dev);
+	int i, tries = 3, ret;
+
+	if (!connector->hdcp.is_repeater)
+		return 0;
+
+	for (i = 0; i < tries; i++) {
+		ret = _hdcp2_propagate_stream_management_info(connector);
+		if (!ret)
+			break;
+
+		/* Lets restart the auth incase of seq_num_m roll over */
+		if (connector->hdcp.seq_num_m > HDCP_2_2_SEQ_NUM_MAX) {
+			drm_dbg_kms(&i915->drm,
+				    "seq_num_m roll over.(%d)\n", ret);
+			break;
+		}
+
+		drm_dbg_kms(&i915->drm,
+			    "HDCP2 stream management %d of %d Failed.(%d)\n",
+			    i + 1, tries, ret);
+	}
+
+	return ret;
+}
+
 static int hdcp2_authenticate_and_encrypt(struct intel_connector *connector)
 {
 	struct drm_i915_private *i915 = to_i915(connector->base.dev);
+	struct intel_hdcp *hdcp = &connector->hdcp;
 	int ret, i, tries = 3;
 
 	for (i = 0; i < tries; i++) {
 		ret = hdcp2_authenticate_sink(connector);
-		if (!ret)
-			break;
+		if (!ret) {
+			ret = hdcp2_propagate_stream_management_info(connector);
+			if (ret) {
+				drm_dbg_kms(&i915->drm,
+					    "Stream management failed.(%d)\n",
+					    ret);
+				break;
+			}
+			hdcp->port_data.streams[0].stream_type =
+							hdcp->content_type;
+			ret = hdcp2_authenticate_port(connector);
+			if (!ret)
+				break;
+			drm_dbg_kms(&i915->drm, "HDCP2 port auth failed.(%d)\n",
+				    ret);
+		}
 
 		/* Clearing the mei hdcp session */
 		drm_dbg_kms(&i915->drm, "HDCP2.2 Auth %d of %d Failed.(%d)\n",
@@ -1721,7 +1744,7 @@ static int hdcp2_authenticate_and_encrypt(struct intel_connector *connector)
 			drm_dbg_kms(&i915->drm, "Port deauth failed.\n");
 	}
 
-	if (i != tries) {
+	if (!ret) {
 		/*
 		 * Ensuring the required 200mSec min time interval between
 		 * Session Key Exchange and encryption.

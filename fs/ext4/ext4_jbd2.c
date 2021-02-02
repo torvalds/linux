@@ -296,8 +296,8 @@ int __ext4_forget(const char *where, unsigned int line, handle_t *handle,
 	if (err) {
 		ext4_journal_abort_handle(where, line, __func__,
 					  bh, handle, err);
-		__ext4_abort(inode->i_sb, where, line, -err,
-			   "error %d when attempting revoke", err);
+		__ext4_error(inode->i_sb, where, line, true, -err, 0,
+			     "error %d when attempting revoke", err);
 	}
 	BUFFER_TRACE(bh, "exit");
 	return err;

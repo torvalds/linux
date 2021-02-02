@@ -42,6 +42,8 @@
 /**
  * enum rmi_f54_report_type - RMI4 F54 report types
  *
+ * @F54_REPORT_NONE:	No Image Report.
+ *
  * @F54_8BIT_IMAGE:	Normalized 8-Bit Image Report. The capacitance variance
  *			from baseline for each pixel.
  *
@@ -64,6 +66,10 @@
  *			Report. Set Low reference to its minimum value and high
  *			references to its maximum value, then report the raw
  *			capacitance for each pixel.
+ *
+ * @F54_MAX_REPORT_TYPE:
+ *			Maximum number of Report Types.  Used for sanity
+ *			checking.
  */
 enum rmi_f54_report_type {
 	F54_REPORT_NONE = 0,

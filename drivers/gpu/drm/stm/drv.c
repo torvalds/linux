@@ -53,7 +53,7 @@ static int stm_gem_cma_dumb_create(struct drm_file *file,
 
 DEFINE_DRM_GEM_CMA_FOPS(drv_driver_fops);
 
-static struct drm_driver drv_driver = {
+static const struct drm_driver drv_driver = {
 	.driver_features = DRIVER_MODESET | DRIVER_GEM | DRIVER_ATOMIC,
 	.name = "stm",
 	.desc = "STMicroelectronics SoC DRM",

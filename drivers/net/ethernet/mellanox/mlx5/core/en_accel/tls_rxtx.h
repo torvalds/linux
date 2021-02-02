@@ -43,7 +43,7 @@
 #include "en.h"
 #include "en/txrx.h"
 
-u16 mlx5e_tls_get_stop_room(struct mlx5e_txqsq *sq);
+u16 mlx5e_tls_get_stop_room(struct mlx5_core_dev *mdev, struct mlx5e_params *params);
 
 bool mlx5e_tls_handle_tx_skb(struct net_device *netdev, struct mlx5e_txqsq *sq,
 			     struct sk_buff *skb, struct mlx5e_accel_tx_tls_state *state);
@@ -71,7 +71,7 @@ mlx5e_accel_is_tls(struct mlx5_cqe64 *cqe, struct sk_buff *skb) { return false; 
 static inline void
 mlx5e_tls_handle_rx_skb(struct mlx5e_rq *rq, struct sk_buff *skb,
 			struct mlx5_cqe64 *cqe, u32 *cqe_bcnt) {}
-static inline u16 mlx5e_tls_get_stop_room(struct mlx5e_txqsq *sq)
+static inline u16 mlx5e_tls_get_stop_room(struct mlx5_core_dev *mdev, struct mlx5e_params *params)
 {
 	return 0;
 }

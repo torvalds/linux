@@ -573,19 +573,12 @@ int savage_driver_firstopen(struct drm_device *dev)
 {
 	drm_savage_private_t *dev_priv = dev->dev_private;
 	unsigned long mmio_base, fb_base, fb_size, aperture_base;
-	/* fb_rsrc and aper_rsrc aren't really used currently, but still exist
-	 * in case we decide we need information on the BAR for BSD in the
-	 * future.
-	 */
-	unsigned int fb_rsrc, aper_rsrc;
 	int ret = 0;
 
 	if (S3_SAVAGE3D_SERIES(dev_priv->chipset)) {
-		fb_rsrc = 0;
 		fb_base = pci_resource_start(dev->pdev, 0);
 		fb_size = SAVAGE_FB_SIZE_S3;
 		mmio_base = fb_base + SAVAGE_FB_SIZE_S3;
-		aper_rsrc = 0;
 		aperture_base = fb_base + SAVAGE_APERTURE_OFFSET;
 		/* this should always be true */
 		if (pci_resource_len(dev->pdev, 0) == 0x08000000) {
@@ -607,10 +600,8 @@ int savage_driver_firstopen(struct drm_device *dev)
 	} else if (dev_priv->chipset != S3_SUPERSAVAGE &&
 		   dev_priv->chipset != S3_SAVAGE2000) {
 		mmio_base = pci_resource_start(dev->pdev, 0);
-		fb_rsrc = 1;
 		fb_base = pci_resource_start(dev->pdev, 1);
 		fb_size = SAVAGE_FB_SIZE_S4;
-		aper_rsrc = 1;
 		aperture_base = fb_base + SAVAGE_APERTURE_OFFSET;
 		/* this should always be true */
 		if (pci_resource_len(dev->pdev, 1) == 0x08000000) {
@@ -626,10 +617,8 @@ int savage_driver_firstopen(struct drm_device *dev)
 		}
 	} else {
 		mmio_base = pci_resource_start(dev->pdev, 0);
-		fb_rsrc = 1;
 		fb_base = pci_resource_start(dev->pdev, 1);
 		fb_size = pci_resource_len(dev->pdev, 1);
-		aper_rsrc = 2;
 		aperture_base = pci_resource_start(dev->pdev, 2);
 		/* Automatic MTRR setup will do the right thing. */
 	}

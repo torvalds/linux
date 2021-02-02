@@ -186,6 +186,7 @@ static void	tlan_reset_adapter(struct net_device *);
 static void	tlan_finish_reset(struct net_device *);
 static void	tlan_set_mac(struct net_device *, int areg, char *mac);
 
+static void	__tlan_phy_print(struct net_device *);
 static void	tlan_phy_print(struct net_device *);
 static void	tlan_phy_detect(struct net_device *);
 static void	tlan_phy_power_down(struct net_device *);
@@ -201,9 +202,11 @@ static void	tlan_phy_finish_auto_neg(struct net_device *);
   static int	tlan_phy_dp83840a_check(struct net_device *);
 */
 
-static bool	tlan_mii_read_reg(struct net_device *, u16, u16, u16 *);
+static bool	__tlan_mii_read_reg(struct net_device *, u16, u16, u16 *);
+static void	tlan_mii_read_reg(struct net_device *, u16, u16, u16 *);
 static void	tlan_mii_send_data(u16, u32, unsigned);
 static void	tlan_mii_sync(u16);
+static void	__tlan_mii_write_reg(struct net_device *, u16, u16, u16);
 static void	tlan_mii_write_reg(struct net_device *, u16, u16, u16);
 
 static void	tlan_ee_send_start(u16);
@@ -242,23 +245,20 @@ static u32
 	tlan_handle_rx_eoc
 };
 
-static inline void
+static void
 tlan_set_timer(struct net_device *dev, u32 ticks, u32 type)
 {
 	struct tlan_priv *priv = netdev_priv(dev);
 	unsigned long flags = 0;
 
-	if (!in_irq())
-		spin_lock_irqsave(&priv->lock, flags);
+	spin_lock_irqsave(&priv->lock, flags);
 	if (priv->timer.function != NULL &&
 	    priv->timer_type != TLAN_TIMER_ACTIVITY) {
-		if (!in_irq())
-			spin_unlock_irqrestore(&priv->lock, flags);
+		spin_unlock_irqrestore(&priv->lock, flags);
 		return;
 	}
 	priv->timer.function = tlan_timer;
-	if (!in_irq())
-		spin_unlock_irqrestore(&priv->lock, flags);
+	spin_unlock_irqrestore(&priv->lock, flags);
 
 	priv->timer_set_at = jiffies;
 	priv->timer_type = type;
@@ -1703,22 +1703,22 @@ static u32 tlan_handle_status_check(struct net_device *dev, u16 host_int)
 				 dev->name, (unsigned) net_sts);
 		}
 		if ((net_sts & TLAN_NET_STS_MIRQ) &&  (priv->phy_num == 0)) {
-			tlan_mii_read_reg(dev, phy, TLAN_TLPHY_STS, &tlphy_sts);
-			tlan_mii_read_reg(dev, phy, TLAN_TLPHY_CTL, &tlphy_ctl);
+			__tlan_mii_read_reg(dev, phy, TLAN_TLPHY_STS, &tlphy_sts);
+			__tlan_mii_read_reg(dev, phy, TLAN_TLPHY_CTL, &tlphy_ctl);
 			if (!(tlphy_sts & TLAN_TS_POLOK) &&
 			    !(tlphy_ctl & TLAN_TC_SWAPOL)) {
 				tlphy_ctl |= TLAN_TC_SWAPOL;
-				tlan_mii_write_reg(dev, phy, TLAN_TLPHY_CTL,
-						   tlphy_ctl);
+				__tlan_mii_write_reg(dev, phy, TLAN_TLPHY_CTL,
+						     tlphy_ctl);
 			} else if ((tlphy_sts & TLAN_TS_POLOK) &&
 				   (tlphy_ctl & TLAN_TC_SWAPOL)) {
 				tlphy_ctl &= ~TLAN_TC_SWAPOL;
-				tlan_mii_write_reg(dev, phy, TLAN_TLPHY_CTL,
-						   tlphy_ctl);
+				__tlan_mii_write_reg(dev, phy, TLAN_TLPHY_CTL,
+						     tlphy_ctl);
 			}
 
 			if (debug)
-				tlan_phy_print(dev);
+				__tlan_phy_print(dev);
 		}
 	}
 
@@ -2379,7 +2379,7 @@ ThunderLAN driver PHY layer routines
 
 
 /*********************************************************************
- *	tlan_phy_print
+ *	__tlan_phy_print
  *
  *	Returns:
  *		Nothing
@@ -2391,10 +2391,12 @@ ThunderLAN driver PHY layer routines
  *
  ********************************************************************/
 
-static void tlan_phy_print(struct net_device *dev)
+static void __tlan_phy_print(struct net_device *dev)
 {
 	struct tlan_priv *priv = netdev_priv(dev);
 	u16 i, data0, data1, data2, data3, phy;
+
+	lockdep_assert_held(&priv->lock);
 
 	phy = priv->phy[priv->phy_num];
 
@@ -2404,10 +2406,10 @@ static void tlan_phy_print(struct net_device *dev)
 		netdev_info(dev, "PHY 0x%02x\n", phy);
 		pr_info("   Off.  +0     +1     +2     +3\n");
 		for (i = 0; i < 0x20; i += 4) {
-			tlan_mii_read_reg(dev, phy, i, &data0);
-			tlan_mii_read_reg(dev, phy, i + 1, &data1);
-			tlan_mii_read_reg(dev, phy, i + 2, &data2);
-			tlan_mii_read_reg(dev, phy, i + 3, &data3);
+			__tlan_mii_read_reg(dev, phy, i, &data0);
+			__tlan_mii_read_reg(dev, phy, i + 1, &data1);
+			__tlan_mii_read_reg(dev, phy, i + 2, &data2);
+			__tlan_mii_read_reg(dev, phy, i + 3, &data3);
 			pr_info("   0x%02x 0x%04hx 0x%04hx 0x%04hx 0x%04hx\n",
 				i, data0, data1, data2, data3);
 		}
@@ -2417,7 +2419,15 @@ static void tlan_phy_print(struct net_device *dev)
 
 }
 
+static void tlan_phy_print(struct net_device *dev)
+{
+	struct tlan_priv *priv = netdev_priv(dev);
+	unsigned long flags;
 
+	spin_lock_irqsave(&priv->lock, flags);
+	__tlan_phy_print(dev);
+	spin_unlock_irqrestore(&priv->lock, flags);
+}
 
 
 /*********************************************************************
@@ -2795,7 +2805,7 @@ these routines are based on the information in chap. 2 of the
 
 
 /***************************************************************
- *	tlan_mii_read_reg
+ *	__tlan_mii_read_reg
  *
  *	Returns:
  *		false	if ack received ok
@@ -2819,7 +2829,7 @@ these routines are based on the information in chap. 2 of the
  **************************************************************/
 
 static bool
-tlan_mii_read_reg(struct net_device *dev, u16 phy, u16 reg, u16 *val)
+__tlan_mii_read_reg(struct net_device *dev, u16 phy, u16 reg, u16 *val)
 {
 	u8	nack;
 	u16	sio, tmp;
@@ -2827,14 +2837,12 @@ tlan_mii_read_reg(struct net_device *dev, u16 phy, u16 reg, u16 *val)
 	bool	err;
 	int	minten;
 	struct tlan_priv *priv = netdev_priv(dev);
-	unsigned long flags = 0;
+
+	lockdep_assert_held(&priv->lock);
 
 	err = false;
 	outw(TLAN_NET_SIO, dev->base_addr + TLAN_DIO_ADR);
 	sio = dev->base_addr + TLAN_DIO_DATA + TLAN_NET_SIO;
-
-	if (!in_irq())
-		spin_lock_irqsave(&priv->lock, flags);
 
 	tlan_mii_sync(dev->base_addr);
 
@@ -2881,15 +2889,19 @@ tlan_mii_read_reg(struct net_device *dev, u16 phy, u16 reg, u16 *val)
 
 	*val = tmp;
 
-	if (!in_irq())
-		spin_unlock_irqrestore(&priv->lock, flags);
-
 	return err;
-
 }
 
+static void tlan_mii_read_reg(struct net_device *dev, u16 phy, u16 reg,
+			      u16 *val)
+{
+	struct tlan_priv *priv = netdev_priv(dev);
+	unsigned long flags;
 
-
+	spin_lock_irqsave(&priv->lock, flags);
+	__tlan_mii_read_reg(dev, phy, reg, val);
+	spin_unlock_irqrestore(&priv->lock, flags);
+}
 
 /***************************************************************
  *	tlan_mii_send_data
@@ -2971,7 +2983,7 @@ static void tlan_mii_sync(u16 base_port)
 
 
 /***************************************************************
- *	tlan_mii_write_reg
+ *	__tlan_mii_write_reg
  *
  *	Returns:
  *		Nothing
@@ -2991,18 +3003,16 @@ static void tlan_mii_sync(u16 base_port)
  **************************************************************/
 
 static void
-tlan_mii_write_reg(struct net_device *dev, u16 phy, u16 reg, u16 val)
+__tlan_mii_write_reg(struct net_device *dev, u16 phy, u16 reg, u16 val)
 {
 	u16	sio;
 	int	minten;
-	unsigned long flags = 0;
 	struct tlan_priv *priv = netdev_priv(dev);
+
+	lockdep_assert_held(&priv->lock);
 
 	outw(TLAN_NET_SIO, dev->base_addr + TLAN_DIO_ADR);
 	sio = dev->base_addr + TLAN_DIO_DATA + TLAN_NET_SIO;
-
-	if (!in_irq())
-		spin_lock_irqsave(&priv->lock, flags);
 
 	tlan_mii_sync(dev->base_addr);
 
@@ -3024,12 +3034,18 @@ tlan_mii_write_reg(struct net_device *dev, u16 phy, u16 reg, u16 val)
 	if (minten)
 		tlan_set_bit(TLAN_NET_SIO_MINTEN, sio);
 
-	if (!in_irq())
-		spin_unlock_irqrestore(&priv->lock, flags);
-
 }
 
+static void
+tlan_mii_write_reg(struct net_device *dev, u16 phy, u16 reg, u16 val)
+{
+	struct tlan_priv *priv = netdev_priv(dev);
+	unsigned long flags;
 
+	spin_lock_irqsave(&priv->lock, flags);
+	__tlan_mii_write_reg(dev, phy, reg, val);
+	spin_unlock_irqrestore(&priv->lock, flags);
+}
 
 
 /*****************************************************************************

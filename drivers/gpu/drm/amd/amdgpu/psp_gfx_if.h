@@ -86,21 +86,22 @@ struct psp_gfx_ctrl
 /* TEE Gfx Command IDs for the ring buffer interface. */
 enum psp_gfx_cmd_id
 {
-    GFX_CMD_ID_LOAD_TA      = 0x00000001,   /* load TA */
-    GFX_CMD_ID_UNLOAD_TA    = 0x00000002,   /* unload TA */
-    GFX_CMD_ID_INVOKE_CMD   = 0x00000003,   /* send command to TA */
-    GFX_CMD_ID_LOAD_ASD     = 0x00000004,   /* load ASD Driver */
-    GFX_CMD_ID_SETUP_TMR    = 0x00000005,   /* setup TMR region */
-    GFX_CMD_ID_LOAD_IP_FW   = 0x00000006,   /* load HW IP FW */
-    GFX_CMD_ID_DESTROY_TMR  = 0x00000007,   /* destroy TMR region */
-    GFX_CMD_ID_SAVE_RESTORE = 0x00000008,   /* save/restore HW IP FW */
-    GFX_CMD_ID_SETUP_VMR    = 0x00000009,   /* setup VMR region */
-    GFX_CMD_ID_DESTROY_VMR  = 0x0000000A,   /* destroy VMR region */
-    GFX_CMD_ID_PROG_REG     = 0x0000000B,   /* program regs */
-    GFX_CMD_ID_CLEAR_VF_FW  = 0x0000000D,   /* Clear VF FW, to be used on VF shutdown. */
+    GFX_CMD_ID_LOAD_TA            = 0x00000001,   /* load TA */
+    GFX_CMD_ID_UNLOAD_TA          = 0x00000002,   /* unload TA */
+    GFX_CMD_ID_INVOKE_CMD         = 0x00000003,   /* send command to TA */
+    GFX_CMD_ID_LOAD_ASD           = 0x00000004,   /* load ASD Driver */
+    GFX_CMD_ID_SETUP_TMR          = 0x00000005,   /* setup TMR region */
+    GFX_CMD_ID_LOAD_IP_FW         = 0x00000006,   /* load HW IP FW */
+    GFX_CMD_ID_DESTROY_TMR        = 0x00000007,   /* destroy TMR region */
+    GFX_CMD_ID_SAVE_RESTORE       = 0x00000008,   /* save/restore HW IP FW */
+    GFX_CMD_ID_SETUP_VMR          = 0x00000009,   /* setup VMR region */
+    GFX_CMD_ID_DESTROY_VMR        = 0x0000000A,   /* destroy VMR region */
+    GFX_CMD_ID_PROG_REG           = 0x0000000B,   /* program regs */
+    GFX_CMD_ID_CLEAR_VF_FW        = 0x0000000D,   /* Clear VF FW, to be used on VF shutdown. */
+    GFX_CMD_ID_GET_FW_ATTESTATION = 0x0000000F,   /* Query GPUVA of the Fw Attestation DB */
     /* IDs upto 0x1F are reserved for older programs (Raven, Vega 10/12/20) */
-    GFX_CMD_ID_LOAD_TOC     = 0x00000020,   /* Load TOC and obtain TMR size */
-    GFX_CMD_ID_AUTOLOAD_RLC = 0x00000021,   /* Indicates all graphics fw loaded, start RLC autoload */
+    GFX_CMD_ID_LOAD_TOC           = 0x00000020,   /* Load TOC and obtain TMR size */
+    GFX_CMD_ID_AUTOLOAD_RLC       = 0x00000021,   /* Indicates all graphics fw loaded, start RLC autoload */
 };
 
 /* Command to load Trusted Application binary into PSP OS. */
@@ -285,6 +286,25 @@ union psp_gfx_commands
     struct psp_gfx_cmd_load_toc         cmd_load_toc;
 };
 
+struct psp_gfx_uresp_reserved
+{
+    uint32_t reserved[8];
+};
+
+/* Command-specific response for Fw Attestation Db */
+struct psp_gfx_uresp_fwar_db_info
+{
+    uint32_t fwar_db_addr_lo;
+    uint32_t fwar_db_addr_hi;
+};
+
+/* Union of command-specific responses for GPCOM ring. */
+union psp_gfx_uresp
+{
+    struct psp_gfx_uresp_reserved reserved;
+    struct psp_gfx_uresp_fwar_db_info fwar_db_info;
+};
+
 /* Structure of GFX Response buffer.
 * For GPCOM I/F it is part of GFX_CMD_RESP buffer, for RBI
 * it is separate buffer.
@@ -297,9 +317,11 @@ struct psp_gfx_resp
     uint32_t	fw_addr_hi;	/* +12 bits [63:32] of FW address within TMR (in response to cmd_load_ip_fw command) */
     uint32_t	tmr_size;	/* +16 size of the TMR to be reserved including MM fw and Gfx fw in response to cmd_load_toc command */
 
-    uint32_t	reserved[3];
+    uint32_t	reserved[11];
 
-    /* total 32 bytes */
+    union psp_gfx_uresp uresp;      /* +64 response union containing command-specific responses */
+
+    /* total 96 bytes */
 };
 
 /* Structure of Command buffer pointed by psp_gfx_rb_frame.cmd_buf_addr_hi

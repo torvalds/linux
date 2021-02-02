@@ -750,6 +750,20 @@ struct nfs_entry {
 	struct nfs_server *	server;
 };
 
+struct nfs_readdir_arg {
+	struct dentry		*dentry;
+	const struct cred	*cred;
+	__be32			*verf;
+	u64			cookie;
+	struct page		**pages;
+	unsigned int		page_len;
+	bool			plus;
+};
+
+struct nfs_readdir_res {
+	__be32			*verf;
+};
+
 /*
  * The following types are for NFSv2 only.
  */
@@ -1744,8 +1758,7 @@ struct nfs_rpc_ops {
 			    unsigned int, struct iattr *);
 	int	(*mkdir)   (struct inode *, struct dentry *, struct iattr *);
 	int	(*rmdir)   (struct inode *, const struct qstr *);
-	int	(*readdir) (struct dentry *, const struct cred *,
-			    u64, struct page **, unsigned int, bool);
+	int	(*readdir) (struct nfs_readdir_arg *, struct nfs_readdir_res *);
 	int	(*mknod)   (struct inode *, struct dentry *, struct iattr *,
 			    dev_t);
 	int	(*statfs)  (struct nfs_server *, struct nfs_fh *,

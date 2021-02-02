@@ -628,6 +628,43 @@ static struct net_device_stats *mac_stats(struct net_device *dev)
 	return &vif->netstats;
 }
 
+static int wilc_set_mac_addr(struct net_device *dev, void *p)
+{
+	int result;
+	struct wilc_vif *vif = netdev_priv(dev);
+	struct wilc *wilc = vif->wilc;
+	struct sockaddr *addr = (struct sockaddr *)p;
+	unsigned char mac_addr[ETH_ALEN];
+	struct wilc_vif *tmp_vif;
+	int srcu_idx;
+
+	if (!is_valid_ether_addr(addr->sa_data))
+		return -EINVAL;
+
+	srcu_idx = srcu_read_lock(&wilc->srcu);
+	list_for_each_entry_rcu(tmp_vif, &wilc->vif_list, list) {
+		wilc_get_mac_address(tmp_vif, mac_addr);
+		if (ether_addr_equal(addr->sa_data, mac_addr)) {
+			if (vif != tmp_vif) {
+				srcu_read_unlock(&wilc->srcu, srcu_idx);
+				return -EINVAL;
+			}
+			srcu_read_unlock(&wilc->srcu, srcu_idx);
+			return 0;
+		}
+	}
+	srcu_read_unlock(&wilc->srcu, srcu_idx);
+
+	result = wilc_set_mac_address(vif, (u8 *)addr->sa_data);
+	if (result)
+		return result;
+
+	ether_addr_copy(vif->bssid, addr->sa_data);
+	ether_addr_copy(vif->ndev->dev_addr, addr->sa_data);
+
+	return result;
+}
+
 static void wilc_set_multicast_list(struct net_device *dev)
 {
 	struct netdev_hw_addr *ha;
@@ -813,6 +850,7 @@ static const struct net_device_ops wilc_netdev_ops = {
 	.ndo_init = mac_init_fn,
 	.ndo_open = wilc_mac_open,
 	.ndo_stop = wilc_mac_close,
+	.ndo_set_mac_address = wilc_set_mac_addr,
 	.ndo_start_xmit = wilc_mac_xmit,
 	.ndo_get_stats = mac_stats,
 	.ndo_set_rx_mode  = wilc_set_multicast_list,

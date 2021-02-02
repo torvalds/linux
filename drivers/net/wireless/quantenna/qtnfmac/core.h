@@ -70,8 +70,6 @@ struct qtnf_vif {
 	struct qtnf_sta_list sta_list;
 	unsigned long cons_tx_timeout_cnt;
 	int generation;
-
-	struct pcpu_sw_netstats __percpu *stats64;
 };
 
 struct qtnf_mac_info {
@@ -139,8 +137,6 @@ int qtnf_cmd_send_update_phy_params(struct qtnf_wmac *mac, u32 changed);
 struct qtnf_wmac *qtnf_core_get_mac(const struct qtnf_bus *bus, u8 macid);
 struct net_device *qtnf_classify_skb(struct qtnf_bus *bus, struct sk_buff *skb);
 void qtnf_wake_all_queues(struct net_device *ndev);
-void qtnf_update_rx_stats(struct net_device *ndev, const struct sk_buff *skb);
-void qtnf_update_tx_stats(struct net_device *ndev, const struct sk_buff *skb);
 
 void qtnf_virtual_intf_cleanup(struct net_device *ndev);
 

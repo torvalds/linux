@@ -18,7 +18,6 @@
 #include "btrfs_inode.h"
 #include "async-thread.h"
 #include "free-space-cache.h"
-#include "inode-map.h"
 #include "qgroup.h"
 #include "print-tree.h"
 #include "delalloc-space.h"
@@ -783,7 +782,7 @@ static struct btrfs_root *create_reloc_root(struct btrfs_trans_handle *trans,
 		btrfs_set_root_refs(root_item, 0);
 		memset(&root_item->drop_progress, 0,
 		       sizeof(struct btrfs_disk_key));
-		root_item->drop_level = 0;
+		btrfs_set_root_drop_level(root_item, 0);
 	}
 
 	btrfs_tree_unlock(eb);
@@ -1196,7 +1195,6 @@ again:
 	btrfs_node_key_to_cpu(path->nodes[lowest_level], &key, slot);
 
 	eb = btrfs_lock_root_node(dest);
-	btrfs_set_lock_blocking_write(eb);
 	level = btrfs_header_level(eb);
 
 	if (level < lowest_level) {
@@ -1210,7 +1208,6 @@ again:
 				      BTRFS_NESTING_COW);
 		BUG_ON(ret);
 	}
-	btrfs_set_lock_blocking_write(eb);
 
 	if (next_key) {
 		next_key->objectid = (u64)-1;
@@ -1220,8 +1217,6 @@ again:
 
 	parent = eb;
 	while (1) {
-		struct btrfs_key first_key;
-
 		level = btrfs_header_level(parent);
 		BUG_ON(level < lowest_level);
 
@@ -1237,7 +1232,6 @@ again:
 		old_bytenr = btrfs_node_blockptr(parent, slot);
 		blocksize = fs_info->nodesize;
 		old_ptr_gen = btrfs_node_ptr_generation(parent, slot);
-		btrfs_node_key_to_cpu(parent, &first_key, slot);
 
 		if (level <= max_level) {
 			eb = path->nodes[level];
@@ -1262,14 +1256,9 @@ again:
 				break;
 			}
 
-			eb = read_tree_block(fs_info, old_bytenr, old_ptr_gen,
-					     level - 1, &first_key);
+			eb = btrfs_read_node_slot(parent, slot);
 			if (IS_ERR(eb)) {
 				ret = PTR_ERR(eb);
-				break;
-			} else if (!extent_buffer_uptodate(eb)) {
-				ret = -EIO;
-				free_extent_buffer(eb);
 				break;
 			}
 			btrfs_tree_lock(eb);
@@ -1279,7 +1268,6 @@ again:
 						      BTRFS_NESTING_COW);
 				BUG_ON(ret);
 			}
-			btrfs_set_lock_blocking_write(eb);
 
 			btrfs_tree_unlock(parent);
 			free_extent_buffer(parent);
@@ -1418,10 +1406,8 @@ static noinline_for_stack
 int walk_down_reloc_tree(struct btrfs_root *root, struct btrfs_path *path,
 			 int *level)
 {
-	struct btrfs_fs_info *fs_info = root->fs_info;
 	struct extent_buffer *eb = NULL;
 	int i;
-	u64 bytenr;
 	u64 ptr_gen = 0;
 	u64 last_snapshot;
 	u32 nritems;
@@ -1429,8 +1415,6 @@ int walk_down_reloc_tree(struct btrfs_root *root, struct btrfs_path *path,
 	last_snapshot = btrfs_root_last_snapshot(&root->root_item);
 
 	for (i = *level; i > 0; i--) {
-		struct btrfs_key first_key;
-
 		eb = path->nodes[i];
 		nritems = btrfs_header_nritems(eb);
 		while (path->slots[i] < nritems) {
@@ -1450,16 +1434,9 @@ int walk_down_reloc_tree(struct btrfs_root *root, struct btrfs_path *path,
 			return 0;
 		}
 
-		bytenr = btrfs_node_blockptr(eb, path->slots[i]);
-		btrfs_node_key_to_cpu(eb, &first_key, path->slots[i]);
-		eb = read_tree_block(fs_info, bytenr, ptr_gen, i - 1,
-				     &first_key);
-		if (IS_ERR(eb)) {
+		eb = btrfs_read_node_slot(eb, path->slots[i]);
+		if (IS_ERR(eb))
 			return PTR_ERR(eb);
-		} else if (!extent_buffer_uptodate(eb)) {
-			free_extent_buffer(eb);
-			return -EIO;
-		}
 		BUG_ON(btrfs_header_level(eb) != i - 1);
 		path->nodes[i - 1] = eb;
 		path->slots[i - 1] = 0;
@@ -1575,7 +1552,7 @@ static void insert_dirty_subvol(struct btrfs_trans_handle *trans,
 	reloc_root_item = &reloc_root->root_item;
 	memset(&reloc_root_item->drop_progress, 0,
 		sizeof(reloc_root_item->drop_progress));
-	reloc_root_item->drop_level = 0;
+	btrfs_set_root_drop_level(reloc_root_item, 0);
 	btrfs_set_root_refs(reloc_root_item, 0);
 	btrfs_update_reloc_root(trans, root);
 
@@ -1652,8 +1629,7 @@ static noinline_for_stack int merge_reloc_root(struct reloc_control *rc,
 	int level;
 	int max_level;
 	int replaced = 0;
-	int ret;
-	int err = 0;
+	int ret = 0;
 	u32 min_reserved;
 
 	path = btrfs_alloc_path();
@@ -1672,7 +1648,7 @@ static noinline_for_stack int merge_reloc_root(struct reloc_control *rc,
 	} else {
 		btrfs_disk_key_to_cpu(&key, &root_item->drop_progress);
 
-		level = root_item->drop_level;
+		level = btrfs_root_drop_level(root_item);
 		BUG_ON(level == 0);
 		path->lowest_level = level;
 		ret = btrfs_search_slot(NULL, reloc_root, &key, path, 0, 0);
@@ -1704,13 +1680,11 @@ static noinline_for_stack int merge_reloc_root(struct reloc_control *rc,
 	while (1) {
 		ret = btrfs_block_rsv_refill(root, rc->block_rsv, min_reserved,
 					     BTRFS_RESERVE_FLUSH_LIMIT);
-		if (ret) {
-			err = ret;
+		if (ret)
 			goto out;
-		}
 		trans = btrfs_start_transaction(root, 0);
 		if (IS_ERR(trans)) {
-			err = PTR_ERR(trans);
+			ret = PTR_ERR(trans);
 			trans = NULL;
 			goto out;
 		}
@@ -1732,10 +1706,8 @@ static noinline_for_stack int merge_reloc_root(struct reloc_control *rc,
 		max_level = level;
 
 		ret = walk_down_reloc_tree(reloc_root, path, &level);
-		if (ret < 0) {
-			err = ret;
+		if (ret < 0)
 			goto out;
-		}
 		if (ret > 0)
 			break;
 
@@ -1746,11 +1718,8 @@ static noinline_for_stack int merge_reloc_root(struct reloc_control *rc,
 			ret = replace_path(trans, rc, root, reloc_root, path,
 					   &next_key, level, max_level);
 		}
-		if (ret < 0) {
-			err = ret;
+		if (ret < 0)
 			goto out;
-		}
-
 		if (ret > 0) {
 			level = ret;
 			btrfs_node_key_to_cpu(path->nodes[level], &key,
@@ -1769,7 +1738,7 @@ static noinline_for_stack int merge_reloc_root(struct reloc_control *rc,
 		 */
 		btrfs_node_key(path->nodes[level], &root_item->drop_progress,
 			       path->slots[level]);
-		root_item->drop_level = level;
+		btrfs_set_root_drop_level(root_item, level);
 
 		btrfs_end_transaction_throttle(trans);
 		trans = NULL;
@@ -1789,12 +1758,10 @@ static noinline_for_stack int merge_reloc_root(struct reloc_control *rc,
 			      BTRFS_NESTING_COW);
 	btrfs_tree_unlock(leaf);
 	free_extent_buffer(leaf);
-	if (ret < 0)
-		err = ret;
 out:
 	btrfs_free_path(path);
 
-	if (err == 0)
+	if (ret == 0)
 		insert_dirty_subvol(trans, rc, root);
 
 	if (trans)
@@ -1805,7 +1772,7 @@ out:
 	if (replaced && rc->stage == UPDATE_DATA_PTRS)
 		invalidate_extent_cache(root, &key, &next_key);
 
-	return err;
+	return ret;
 }
 
 static noinline_for_stack
@@ -2205,7 +2172,6 @@ static int do_relocation(struct btrfs_trans_handle *trans,
 			 struct btrfs_key *key,
 			 struct btrfs_path *path, int lowest)
 {
-	struct btrfs_fs_info *fs_info = rc->extent_root->fs_info;
 	struct btrfs_backref_node *upper;
 	struct btrfs_backref_edge *edge;
 	struct btrfs_backref_edge *edges[BTRFS_MAX_LEVEL - 1];
@@ -2213,17 +2179,14 @@ static int do_relocation(struct btrfs_trans_handle *trans,
 	struct extent_buffer *eb;
 	u32 blocksize;
 	u64 bytenr;
-	u64 generation;
 	int slot;
-	int ret;
-	int err = 0;
+	int ret = 0;
 
 	BUG_ON(lowest && node->eb);
 
 	path->lowest_level = node->level + 1;
 	rc->backref_cache.path[node->level] = node;
 	list_for_each_entry(edge, &node->upper, list[LOWER]) {
-		struct btrfs_key first_key;
 		struct btrfs_ref ref = { 0 };
 
 		cond_resched();
@@ -2235,10 +2198,8 @@ static int do_relocation(struct btrfs_trans_handle *trans,
 		if (upper->eb && !upper->locked) {
 			if (!lowest) {
 				ret = btrfs_bin_search(upper->eb, key, &slot);
-				if (ret < 0) {
-					err = ret;
+				if (ret < 0)
 					goto next;
-				}
 				BUG_ON(ret);
 				bytenr = btrfs_node_blockptr(upper->eb, slot);
 				if (node->eb->start == bytenr)
@@ -2250,10 +2211,8 @@ static int do_relocation(struct btrfs_trans_handle *trans,
 		if (!upper->eb) {
 			ret = btrfs_search_slot(trans, root, key, path, 0, 1);
 			if (ret) {
-				if (ret < 0)
-					err = ret;
-				else
-					err = -ENOENT;
+				if (ret > 0)
+					ret = -ENOENT;
 
 				btrfs_release_path(path);
 				break;
@@ -2273,10 +2232,8 @@ static int do_relocation(struct btrfs_trans_handle *trans,
 			btrfs_release_path(path);
 		} else {
 			ret = btrfs_bin_search(upper->eb, key, &slot);
-			if (ret < 0) {
-				err = ret;
+			if (ret < 0)
 				goto next;
-			}
 			BUG_ON(ret);
 		}
 
@@ -2287,7 +2244,7 @@ static int do_relocation(struct btrfs_trans_handle *trans,
 		"lowest leaf/node mismatch: bytenr %llu node->bytenr %llu slot %d upper %llu",
 					  bytenr, node->bytenr, slot,
 					  upper->eb->start);
-				err = -EIO;
+				ret = -EIO;
 				goto next;
 			}
 		} else {
@@ -2296,30 +2253,20 @@ static int do_relocation(struct btrfs_trans_handle *trans,
 		}
 
 		blocksize = root->fs_info->nodesize;
-		generation = btrfs_node_ptr_generation(upper->eb, slot);
-		btrfs_node_key_to_cpu(upper->eb, &first_key, slot);
-		eb = read_tree_block(fs_info, bytenr, generation,
-				     upper->level - 1, &first_key);
+		eb = btrfs_read_node_slot(upper->eb, slot);
 		if (IS_ERR(eb)) {
-			err = PTR_ERR(eb);
-			goto next;
-		} else if (!extent_buffer_uptodate(eb)) {
-			free_extent_buffer(eb);
-			err = -EIO;
+			ret = PTR_ERR(eb);
 			goto next;
 		}
 		btrfs_tree_lock(eb);
-		btrfs_set_lock_blocking_write(eb);
 
 		if (!node->eb) {
 			ret = btrfs_cow_block(trans, root, eb, upper->eb,
 					      slot, &eb, BTRFS_NESTING_COW);
 			btrfs_tree_unlock(eb);
 			free_extent_buffer(eb);
-			if (ret < 0) {
-				err = ret;
+			if (ret < 0)
 				goto next;
-			}
 			BUG_ON(node->eb != eb);
 		} else {
 			btrfs_set_node_blockptr(upper->eb, slot,
@@ -2345,19 +2292,19 @@ next:
 			btrfs_backref_drop_node_buffer(upper);
 		else
 			btrfs_backref_unlock_node_buffer(upper);
-		if (err)
+		if (ret)
 			break;
 	}
 
-	if (!err && node->pending) {
+	if (!ret && node->pending) {
 		btrfs_backref_drop_node_buffer(node);
 		list_move_tail(&node->list, &rc->backref_cache.changed);
 		node->pending = 0;
 	}
 
 	path->lowest_level = 0;
-	BUG_ON(err == -ENOSPC);
-	return err;
+	BUG_ON(ret == -ENOSPC);
+	return ret;
 }
 
 static int link_to_upper(struct btrfs_trans_handle *trans,
@@ -2446,7 +2393,7 @@ static int get_tree_block_key(struct btrfs_fs_info *fs_info,
 {
 	struct extent_buffer *eb;
 
-	eb = read_tree_block(fs_info, block->bytenr, block->key.offset,
+	eb = read_tree_block(fs_info, block->bytenr, 0, block->key.offset,
 			     block->level, NULL);
 	if (IS_ERR(eb)) {
 		return PTR_ERR(eb);
@@ -2546,7 +2493,8 @@ int relocate_tree_blocks(struct btrfs_trans_handle *trans,
 	/* Kick in readahead for tree blocks with missing keys */
 	rbtree_postorder_for_each_entry_safe(block, next, blocks, rb_node) {
 		if (!block->key_ready)
-			readahead_tree_block(fs_info, block->bytenr);
+			btrfs_readahead_tree_block(fs_info, block->bytenr, 0, 0,
+						   block->level);
 	}
 
 	/* Get first keys */
@@ -3071,7 +3019,7 @@ int add_data_references(struct reloc_control *rc,
 	while ((ref_node = ulist_next(leaves, &leaf_uiter))) {
 		struct extent_buffer *eb;
 
-		eb = read_tree_block(fs_info, ref_node->val, 0, 0, NULL);
+		eb = read_tree_block(fs_info, ref_node->val, 0, 0, 0, NULL);
 		if (IS_ERR(eb)) {
 			ret = PTR_ERR(eb);
 			break;
@@ -3694,7 +3642,7 @@ static noinline_for_stack int mark_garbage_root(struct btrfs_root *root)
 
 	memset(&root->root_item.drop_progress, 0,
 		sizeof(root->root_item.drop_progress));
-	root->root_item.drop_level = 0;
+	btrfs_set_root_drop_level(&root->root_item, 0);
 	btrfs_set_root_refs(&root->root_item, 0);
 	ret = btrfs_update_root(trans, fs_info->tree_root,
 				&root->root_key, &root->root_item);

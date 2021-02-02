@@ -180,6 +180,8 @@ static const char *error_type_string(int etype)
 		return "ERRNO";
 	case EI_ETYPE_ERRNO_NULL:
 		return "ERRNO_NULL";
+	case EI_ETYPE_TRUE:
+		return "TRUE";
 	default:
 		return "(unknown)";
 	}

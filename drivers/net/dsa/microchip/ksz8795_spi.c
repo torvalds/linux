@@ -49,6 +49,12 @@ static int ksz8795_spi_probe(struct spi_device *spi)
 	if (spi->dev.platform_data)
 		dev->pdata = spi->dev.platform_data;
 
+	/* setup spi */
+	spi->mode = SPI_MODE_3;
+	ret = spi_setup(spi);
+	if (ret)
+		return ret;
+
 	ret = ksz8795_switch_register(dev);
 
 	/* Main DSA driver may not be started yet. */

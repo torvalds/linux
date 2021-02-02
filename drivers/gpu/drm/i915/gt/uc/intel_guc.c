@@ -213,23 +213,6 @@ static u32 guc_ctl_feature_flags(struct intel_guc *guc)
 	return flags;
 }
 
-static u32 guc_ctl_ctxinfo_flags(struct intel_guc *guc)
-{
-	u32 flags = 0;
-
-	if (intel_guc_submission_is_used(guc)) {
-		u32 ctxnum, base;
-
-		base = intel_guc_ggtt_offset(guc, guc->stage_desc_pool);
-		ctxnum = GUC_MAX_STAGE_DESCRIPTORS / 16;
-
-		base >>= PAGE_SHIFT;
-		flags |= (base << GUC_CTL_BASE_ADDR_SHIFT) |
-			(ctxnum << GUC_CTL_CTXNUM_IN16_SHIFT);
-	}
-	return flags;
-}
-
 static u32 guc_ctl_log_params_flags(struct intel_guc *guc)
 {
 	u32 offset = intel_guc_ggtt_offset(guc, guc->log.vma) >> PAGE_SHIFT;
@@ -291,7 +274,6 @@ static void guc_init_params(struct intel_guc *guc)
 
 	BUILD_BUG_ON(sizeof(guc->params) != GUC_CTL_MAX_DWORDS * sizeof(u32));
 
-	params[GUC_CTL_CTXINFO] = guc_ctl_ctxinfo_flags(guc);
 	params[GUC_CTL_LOG_PARAMS] = guc_ctl_log_params_flags(guc);
 	params[GUC_CTL_FEATURE] = guc_ctl_feature_flags(guc);
 	params[GUC_CTL_DEBUG] = guc_ctl_debug_flags(guc);
@@ -312,18 +294,18 @@ void intel_guc_write_params(struct intel_guc *guc)
 	int i;
 
 	/*
-	 * All SOFT_SCRATCH registers are in FORCEWAKE_BLITTER domain and
+	 * All SOFT_SCRATCH registers are in FORCEWAKE_GT domain and
 	 * they are power context saved so it's ok to release forcewake
 	 * when we are done here and take it again at xfer time.
 	 */
-	intel_uncore_forcewake_get(uncore, FORCEWAKE_BLITTER);
+	intel_uncore_forcewake_get(uncore, FORCEWAKE_GT);
 
 	intel_uncore_write(uncore, SOFT_SCRATCH(0), 0);
 
 	for (i = 0; i < GUC_CTL_MAX_DWORDS; i++)
 		intel_uncore_write(uncore, SOFT_SCRATCH(1 + i), guc->params[i]);
 
-	intel_uncore_forcewake_put(uncore, FORCEWAKE_BLITTER);
+	intel_uncore_forcewake_put(uncore, FORCEWAKE_GT);
 }
 
 int intel_guc_init(struct intel_guc *guc)

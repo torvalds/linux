@@ -4373,7 +4373,7 @@ u8 GetHalDefVar8723B(struct adapter *padapter, enum HAL_DEF_VARIABLE variable, v
 		/*  Stanley@BB.SD3 suggests 16K can get stable performance */
 		/*  The experiment was done on SDIO interface */
 		/*  coding by Lucas@20130730 */
-		*(u32 *)pval = MAX_AMPDU_FACTOR_16K;
+		*(u32 *)pval = IEEE80211_HT_MAX_AMPDU_16K;
 		break;
 	case HAL_DEF_TX_LDPC:
 	case HAL_DEF_RX_LDPC:

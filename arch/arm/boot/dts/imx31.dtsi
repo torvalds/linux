@@ -315,10 +315,11 @@
 				clock-names = "ref", "ipg";
 			};
 
-			wdog: wdog@53fdc000 {
+			wdog: watchdog@53fdc000 {
 				compatible = "fsl,imx31-wdt", "fsl,imx21-wdt";
 				reg = <0x53fdc000 0x4000>;
 				clocks = <&clks 41>;
+				interrupts = <55>;
 			};
 
 			pwm: pwm@53fe0000 {

@@ -149,7 +149,7 @@ static struct net_device *ieee802154_nl_get_dev(struct genl_info *info)
 	if (info->attrs[IEEE802154_ATTR_DEV_NAME]) {
 		char name[IFNAMSIZ + 1];
 
-		nla_strlcpy(name, info->attrs[IEEE802154_ATTR_DEV_NAME],
+		nla_strscpy(name, info->attrs[IEEE802154_ATTR_DEV_NAME],
 			    sizeof(name));
 		dev = dev_get_by_name(&init_net, name);
 	} else if (info->attrs[IEEE802154_ATTR_DEV_INDEX]) {

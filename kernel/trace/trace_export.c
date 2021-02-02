@@ -26,7 +26,7 @@ static int ftrace_event_register(struct trace_event_call *call,
 
 /*
  * The FTRACE_ENTRY_REG macro allows ftrace entry to define register
- * function and thus become accesible via perf.
+ * function and thus become accessible via perf.
  */
 #undef FTRACE_ENTRY_REG
 #define FTRACE_ENTRY_REG(name, struct_name, id, tstruct, print, regfn) \

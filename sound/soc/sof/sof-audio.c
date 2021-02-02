@@ -443,11 +443,7 @@ int sof_machine_check(struct snd_sof_dev *sdev)
 	struct snd_soc_acpi_mach *mach;
 	int ret;
 
-	/* force nocodec mode */
-#if IS_ENABLED(CONFIG_SND_SOC_SOF_FORCE_NOCODEC_MODE)
-		dev_warn(sdev->dev, "Force to use nocodec mode\n");
-		goto nocodec;
-#endif
+#if !IS_ENABLED(CONFIG_SND_SOC_SOF_FORCE_NOCODEC_MODE)
 
 	/* find machine */
 	snd_sof_machine_select(sdev);
@@ -460,8 +456,8 @@ int sof_machine_check(struct snd_sof_dev *sdev)
 	dev_err(sdev->dev, "error: no matching ASoC machine driver found - aborting probe\n");
 	return -ENODEV;
 #endif
-#if IS_ENABLED(CONFIG_SND_SOC_SOF_FORCE_NOCODEC_MODE)
-nocodec:
+#else
+	dev_warn(sdev->dev, "Force to use nocodec mode\n");
 #endif
 	/* select nocodec mode */
 	dev_warn(sdev->dev, "Using nocodec machine driver\n");
@@ -472,7 +468,7 @@ nocodec:
 	mach->drv_name = "sof-nocodec";
 	sof_pdata->tplg_filename = desc->nocodec_tplg_filename;
 
-	ret = sof_nocodec_setup(sdev->dev, desc->ops);
+	ret = sof_nocodec_setup(sdev->dev, desc->ops, sof_pcm_dai_link_fixup);
 	if (ret < 0)
 		return ret;
 

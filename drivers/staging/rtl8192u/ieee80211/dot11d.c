@@ -14,8 +14,6 @@ void rtl8192u_dot11d_init(struct ieee80211_device *ieee)
 	memset(dot11d_info->channel_map, 0, MAX_CHANNEL_NUMBER + 1);
 	memset(dot11d_info->max_tx_pwr_dbm_list, 0xFF, MAX_CHANNEL_NUMBER + 1);
 	RESET_CIE_WATCHDOG(ieee);
-
-	netdev_info(ieee->dev, "rtl8192u_dot11d_init()\n");
 }
 EXPORT_SYMBOL(rtl8192u_dot11d_init);
 
@@ -66,14 +64,14 @@ void dot11d_update_country_ie(struct ieee80211_device *dev, u8 *pTaddr,
 			/* It is not in a monotonically increasing order, so
 			 * stop processing.
 			 */
-			netdev_err(dev->dev, "dot11d_update_country_ie(): Invalid country IE, skip it........1\n");
+			netdev_err(dev->dev, "%s: Invalid country IE, skip it 1\n", __func__);
 			return;
 		}
 		if (MAX_CHANNEL_NUMBER < (pTriple->first_channel + pTriple->num_channels)) {
 			/* It is not a valid set of channel id, so stop
 			 * processing.
 			 */
-			netdev_err(dev->dev, "dot11d_update_country_ie(): Invalid country IE, skip it........2\n");
+			netdev_err(dev->dev, "%s: Invalid country IE, skip it 2\n", __func__);
 			return;
 		}
 
@@ -105,7 +103,7 @@ u8 dot11d_get_max_tx_pwr_in_dbm(struct ieee80211_device *dev, u8 Channel)
 	u8 MaxTxPwrInDbm = 255;
 
 	if (Channel > MAX_CHANNEL_NUMBER) {
-		netdev_err(dev->dev, "dot11d_get_max_tx_pwr_in_dbm(): Invalid Channel\n");
+		netdev_err(dev->dev, "%s: Invalid Channel\n", __func__);
 		return MaxTxPwrInDbm;
 	}
 	if (dot11d_info->channel_map[Channel])
@@ -141,7 +139,7 @@ int is_legal_channel(struct ieee80211_device *dev, u8 channel)
 	struct rt_dot11d_info *dot11d_info = GET_DOT11D_INFO(dev);
 
 	if (channel > MAX_CHANNEL_NUMBER) {
-		netdev_err(dev->dev, "is_legal_channel(): Invalid Channel\n");
+		netdev_err(dev->dev, "%s: Invalid Channel\n", __func__);
 		return 0;
 	}
 	if (dot11d_info->channel_map[channel] > 0)
@@ -164,7 +162,7 @@ int to_legal_channel(struct ieee80211_device *dev, u8 channel)
 	}
 
 	if (channel > MAX_CHANNEL_NUMBER) {
-		netdev_err(dev->dev, "is_legal_channel(): Invalid Channel\n");
+		netdev_err(dev->dev, "%s: Invalid Channel\n", __func__);
 		return default_chn;
 	}
 

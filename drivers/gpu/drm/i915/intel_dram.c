@@ -7,7 +7,8 @@
 #include "intel_dram.h"
 
 struct dram_dimm_info {
-	u8 size, width, ranks;
+	u16 size;
+	u8 width, ranks;
 };
 
 struct dram_channel_info {
@@ -41,10 +42,10 @@ static int intel_dimm_num_devices(const struct dram_dimm_info *dimm)
 	return dimm->ranks * 64 / (dimm->width ?: 1);
 }
 
-/* Returns total GB for the whole DIMM */
+/* Returns total Gb for the whole DIMM */
 static int skl_get_dimm_size(u16 val)
 {
-	return val & SKL_DRAM_SIZE_MASK;
+	return (val & SKL_DRAM_SIZE_MASK) * 8;
 }
 
 static int skl_get_dimm_width(u16 val)
@@ -74,10 +75,10 @@ static int skl_get_dimm_ranks(u16 val)
 	return val + 1;
 }
 
-/* Returns total GB for the whole DIMM */
+/* Returns total Gb for the whole DIMM */
 static int cnl_get_dimm_size(u16 val)
 {
-	return (val & CNL_DRAM_SIZE_MASK) / 2;
+	return (val & CNL_DRAM_SIZE_MASK) * 8 / 2;
 }
 
 static int cnl_get_dimm_width(u16 val)
@@ -110,8 +111,8 @@ static int cnl_get_dimm_ranks(u16 val)
 static bool
 skl_is_16gb_dimm(const struct dram_dimm_info *dimm)
 {
-	/* Convert total GB to Gb per DRAM device */
-	return 8 * dimm->size / (intel_dimm_num_devices(dimm) ?: 1) == 16;
+	/* Convert total Gb to Gb per DRAM device */
+	return dimm->size / (intel_dimm_num_devices(dimm) ?: 1) == 16;
 }
 
 static void
@@ -130,7 +131,7 @@ skl_dram_get_dimm_info(struct drm_i915_private *i915,
 	}
 
 	drm_dbg_kms(&i915->drm,
-		    "CH%u DIMM %c size: %u GB, width: X%u, ranks: %u, 16Gb DIMMs: %s\n",
+		    "CH%u DIMM %c size: %u Gb, width: X%u, ranks: %u, 16Gb DIMMs: %s\n",
 		    channel, dimm_name, dimm->size, dimm->width, dimm->ranks,
 		    yesno(skl_is_16gb_dimm(dimm)));
 }
@@ -354,9 +355,9 @@ static void bxt_get_dimm_info(struct dram_dimm_info *dimm, u32 val)
 
 	/*
 	 * Size in register is Gb per DRAM device. Convert to total
-	 * GB to match the way we report this for non-LP platforms.
+	 * Gb to match the way we report this for non-LP platforms.
 	 */
-	dimm->size = bxt_get_dimm_size(val) * intel_dimm_num_devices(dimm) / 8;
+	dimm->size = bxt_get_dimm_size(val) * intel_dimm_num_devices(dimm);
 }
 
 static int bxt_get_dram_info(struct drm_i915_private *i915)
@@ -404,7 +405,7 @@ static int bxt_get_dram_info(struct drm_i915_private *i915)
 			    dram_info->type != type);
 
 		drm_dbg_kms(&i915->drm,
-			    "CH%u DIMM size: %u GB, width: X%u, ranks: %u, type: %s\n",
+			    "CH%u DIMM size: %u Gb, width: X%u, ranks: %u, type: %s\n",
 			    i - BXT_D_CR_DRP0_DUNIT_START,
 			    dimm.size, dimm.width, dimm.ranks,
 			    intel_dram_type_str(type));

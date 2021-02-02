@@ -238,7 +238,6 @@ static struct i2c_driver pmbus_driver = {
 		   .name = "pmbus",
 		   },
 	.probe_new = pmbus_probe,
-	.remove = pmbus_do_remove,
 	.id_table = pmbus_id,
 };
 

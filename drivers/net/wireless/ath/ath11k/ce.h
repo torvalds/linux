@@ -190,4 +190,6 @@ int ath11k_ce_map_service_to_pipe(struct ath11k_base *ab, u16 service_id,
 int ath11k_ce_attr_attach(struct ath11k_base *ab);
 void ath11k_ce_get_shadow_config(struct ath11k_base *ab,
 				 u32 **shadow_cfg, u32 *shadow_cfg_len);
+void ath11k_ce_stop_shadow_timers(struct ath11k_base *ab);
+
 #endif

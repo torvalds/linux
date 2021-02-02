@@ -875,19 +875,8 @@ static void mtk_hdmi_video_set_display_mode(struct mtk_hdmi *hdmi,
 	mtk_hdmi_hw_msic_setting(hdmi, mode);
 }
 
-static int mtk_hdmi_aud_enable_packet(struct mtk_hdmi *hdmi, bool enable)
-{
-	mtk_hdmi_hw_send_aud_packet(hdmi, enable);
-	return 0;
-}
 
-static int mtk_hdmi_aud_on_off_hw_ncts(struct mtk_hdmi *hdmi, bool on)
-{
-	mtk_hdmi_hw_ncts_enable(hdmi, on);
-	return 0;
-}
-
-static int mtk_hdmi_aud_set_input(struct mtk_hdmi *hdmi)
+static void mtk_hdmi_aud_set_input(struct mtk_hdmi *hdmi)
 {
 	enum hdmi_aud_channel_type chan_type;
 	u8 chan_count;
@@ -917,8 +906,6 @@ static int mtk_hdmi_aud_set_input(struct mtk_hdmi *hdmi)
 	chan_count = mtk_hdmi_aud_get_chnl_count(chan_type);
 	mtk_hdmi_hw_aud_set_i2s_chan_num(hdmi, chan_type, chan_count);
 	mtk_hdmi_hw_aud_set_input_type(hdmi, hdmi->aud_param.aud_input_type);
-
-	return 0;
 }
 
 static int mtk_hdmi_aud_set_src(struct mtk_hdmi *hdmi,
@@ -926,7 +913,7 @@ static int mtk_hdmi_aud_set_src(struct mtk_hdmi *hdmi,
 {
 	unsigned int sample_rate = hdmi->aud_param.codec_params.sample_rate;
 
-	mtk_hdmi_aud_on_off_hw_ncts(hdmi, false);
+	mtk_hdmi_hw_ncts_enable(hdmi, false);
 	mtk_hdmi_hw_aud_src_disable(hdmi);
 	mtk_hdmi_clear_bits(hdmi, GRL_CFG2, CFG2_ACLK_INV);
 
@@ -964,7 +951,7 @@ static int mtk_hdmi_aud_output_config(struct mtk_hdmi *hdmi,
 				      struct drm_display_mode *display_mode)
 {
 	mtk_hdmi_hw_aud_mute(hdmi);
-	mtk_hdmi_aud_enable_packet(hdmi, false);
+	mtk_hdmi_hw_send_aud_packet(hdmi, false);
 
 	mtk_hdmi_aud_set_input(hdmi);
 	mtk_hdmi_aud_set_src(hdmi, display_mode);
@@ -973,8 +960,8 @@ static int mtk_hdmi_aud_output_config(struct mtk_hdmi *hdmi,
 
 	usleep_range(50, 100);
 
-	mtk_hdmi_aud_on_off_hw_ncts(hdmi, true);
-	mtk_hdmi_aud_enable_packet(hdmi, true);
+	mtk_hdmi_hw_ncts_enable(hdmi, true);
+	mtk_hdmi_hw_send_aud_packet(hdmi, true);
 	mtk_hdmi_hw_aud_unmute(hdmi);
 	return 0;
 }
@@ -1102,13 +1089,13 @@ static int mtk_hdmi_output_init(struct mtk_hdmi *hdmi)
 
 static void mtk_hdmi_audio_enable(struct mtk_hdmi *hdmi)
 {
-	mtk_hdmi_aud_enable_packet(hdmi, true);
+	mtk_hdmi_hw_send_aud_packet(hdmi, true);
 	hdmi->audio_enable = true;
 }
 
 static void mtk_hdmi_audio_disable(struct mtk_hdmi *hdmi)
 {
-	mtk_hdmi_aud_enable_packet(hdmi, false);
+	mtk_hdmi_hw_send_aud_packet(hdmi, false);
 	hdmi->audio_enable = false;
 }
 

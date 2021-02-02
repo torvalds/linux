@@ -195,7 +195,7 @@ static bool ath11k_ce_need_shadow_fix(int ce_id)
 	return false;
 }
 
-static void ath11k_ce_stop_shadow_timers(struct ath11k_base *ab)
+void ath11k_ce_stop_shadow_timers(struct ath11k_base *ab)
 {
 	int i;
 

@@ -107,9 +107,6 @@ extern int gfs2_open_common(struct inode *inode, struct file *file);
 extern loff_t gfs2_seek_data(struct file *file, loff_t offset);
 extern loff_t gfs2_seek_hole(struct file *file, loff_t offset);
 
-extern const struct inode_operations gfs2_file_iops;
-extern const struct inode_operations gfs2_dir_iops;
-extern const struct inode_operations gfs2_symlink_iops;
 extern const struct file_operations gfs2_file_fops_nolock;
 extern const struct file_operations gfs2_dir_fops_nolock;
 

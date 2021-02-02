@@ -264,7 +264,8 @@ Description:	Discover CPUs in the same CPU frequency coordination domain
 		attribute is useful for user space DVFS controllers to get better
 		power/performance results for platforms using acpi-cpufreq.
 
-		This file is only present if the acpi-cpufreq driver is in use.
+		This file is only present if the acpi-cpufreq or the cppc-cpufreq
+		drivers are in use.
 
 
 What:		/sys/devices/system/cpu/cpu*/cache/index3/cache_disable_{0,1}

@@ -2,7 +2,10 @@
 BPF Selftest Notes
 ==================
 General instructions on running selftests can be found in
-`Documentation/bpf/bpf_devel_QA.rst`_.
+`Documentation/bpf/bpf_devel_QA.rst`__.
+
+__ /Documentation/bpf/bpf_devel_QA.rst#q-how-to-run-bpf-selftests
+
 
 Additional information about selftest failures are
 documented here.
@@ -30,11 +33,12 @@ The verifier will reject such code with above error.
 At insn 18 the r7 is indeed unbounded. The later insn 19 checks the bounds and
 the insn 20 undoes map_value addition. It is currently impossible for the
 verifier to understand such speculative pointer arithmetic.
-Hence
-    https://reviews.llvm.org/D85570
-addresses it on the compiler side. It was committed on llvm 12.
+Hence `this patch`__ addresses it on the compiler side. It was committed on llvm 12.
+
+__ https://reviews.llvm.org/D85570
 
 The corresponding C code
+
 .. code-block:: c
 
   for (int i = 0; i < MAX_CGROUPS_PATH_DEPTH; i++) {
@@ -77,10 +81,11 @@ The symptom for ``bpf_iter/netlink`` looks like
   17: (7b) *(u64 *)(r7 +0) = r2
   only read is supported
 
-This is due to a llvm BPF backend bug. The fix 
-  https://reviews.llvm.org/D78466
+This is due to a llvm BPF backend bug. `The fix`__
 has been pushed to llvm 10.x release branch and will be
-available in 10.0.1. The fix is available in llvm 11.0.0 trunk.
+available in 10.0.1. The patch is available in llvm 11.0.0 trunk.
+
+__  https://reviews.llvm.org/D78466
 
 BPF CO-RE-based tests and Clang version
 =======================================
@@ -94,11 +99,11 @@ them to Clang/LLVM. These sub-tests are going to be skipped if Clang is too
 old to support them, they shouldn't cause build failures or runtime test
 failures:
 
-  - __builtin_btf_type_id() ([0], [1], [2]);
-  - __builtin_preserve_type_info(), __builtin_preserve_enum_value() ([3], [4]).
+- __builtin_btf_type_id() [0_, 1_, 2_];
+- __builtin_preserve_type_info(), __builtin_preserve_enum_value() [3_, 4_].
 
-  [0] https://reviews.llvm.org/D74572
-  [1] https://reviews.llvm.org/D74668
-  [2] https://reviews.llvm.org/D85174
-  [3] https://reviews.llvm.org/D83878
-  [4] https://reviews.llvm.org/D83242
+.. _0: https://reviews.llvm.org/D74572
+.. _1: https://reviews.llvm.org/D74668
+.. _2: https://reviews.llvm.org/D85174
+.. _3: https://reviews.llvm.org/D83878
+.. _4: https://reviews.llvm.org/D83242

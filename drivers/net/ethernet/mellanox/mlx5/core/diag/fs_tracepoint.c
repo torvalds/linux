@@ -247,6 +247,9 @@ const char *parse_fs_dst(struct trace_seq *p,
 	case MLX5_FLOW_DESTINATION_TYPE_TIR:
 		trace_seq_printf(p, "tir=%u\n", dst->tir_num);
 		break;
+	case MLX5_FLOW_DESTINATION_TYPE_FLOW_SAMPLER:
+		trace_seq_printf(p, "sampler_id=%u\n", dst->sampler_id);
+		break;
 	case MLX5_FLOW_DESTINATION_TYPE_COUNTER:
 		trace_seq_printf(p, "counter_id=%u\n", counter_id);
 		break;

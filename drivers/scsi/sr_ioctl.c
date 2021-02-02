@@ -549,6 +549,8 @@ static int sr_read_sector(Scsi_CD *cd, int lba, int blksize, unsigned char *dest
 	cgc.timeout = IOCTL_TIMEOUT;
 	rc = sr_do_ioctl(cd, &cgc);
 
+	if (blksize != CD_FRAMESIZE)
+		rc |= sr_set_blocklength(cd, CD_FRAMESIZE);
 	return rc;
 }
 

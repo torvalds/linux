@@ -11,9 +11,6 @@ config PPC64
 	  This option selects whether a 32-bit or a 64-bit kernel
 	  will be built.
 
-config PPC_BOOK3S_32
-	bool
-
 menu "Processor support"
 choice
 	prompt "Processor Type"
@@ -23,20 +20,19 @@ choice
 	  The most common ones are the desktop and server CPUs (603,
 	  604, 740, 750, 74xx) CPUs from Freescale and IBM, with their
 	  embedded 512x/52xx/82xx/83xx/86xx counterparts.
-	  The other embedded parts, namely 4xx, 8xx, e200 (55xx) and e500
+	  The other embedded parts, namely 4xx, 8xx and e500
 	  (85xx) each form a family of their own that is not compatible
 	  with the others.
 
 	  If unsure, select 52xx/6xx/7xx/74xx/82xx/83xx/86xx.
 
-config PPC_BOOK3S_6xx
+config PPC_BOOK3S_32
 	bool "512x/52xx/6xx/7xx/74xx/82xx/83xx/86xx"
-	select PPC_BOOK3S_32
-	select PPC_FPU
+	imply PPC_FPU
 	select PPC_HAVE_PMU_SUPPORT
 	select PPC_HAVE_KUEP
 	select PPC_HAVE_KUAP
-	select HAVE_ARCH_VMAP_STACK if !ADB_PMU
+	select HAVE_ARCH_VMAP_STACK
 
 config PPC_85xx
 	bool "Freescale 85xx"
@@ -66,10 +62,23 @@ config 44x
 	select HAVE_PCI
 	select PHYS_64BIT
 
-config E200
-	bool "Freescale e200"
-
 endchoice
+
+config PPC_BOOK3S_603
+	bool "Support for 603 SW loaded TLB"
+	depends on PPC_BOOK3S_32
+	default y
+	help
+	  Provide support for processors based on the 603 cores. Those
+	  processors don't have a HASH MMU and provide SW TLB loading.
+
+config PPC_BOOK3S_604
+	bool "Support for 604+ HASH MMU" if PPC_BOOK3S_603
+	depends on PPC_BOOK3S_32
+	default y
+	help
+	  Provide support for processors not based on the 603 cores.
+	  Those processors have a HASH MMU.
 
 choice
 	prompt "Processor Type"
@@ -218,9 +227,20 @@ config PPC_E500MC
 	  such as e5500/e6500), and must be disabled for running on
 	  e500v1 or e500v2.
 
-config PPC_FPU
+config PPC_FPU_REGS
 	bool
+
+config PPC_FPU
+	bool "Support for Floating Point Unit (FPU)" if PPC_MPC832x
 	default y if PPC64
+	select PPC_FPU_REGS
+	help
+	  This must be enabled to support the Floating Point Unit
+	  Most 6xx have an FPU but e300c2 core (mpc832x) don't have
+	  an FPU, so when building an embedded kernel for that target
+	  you can disable FPU support.
+
+	  If unsure say Y.
 
 config FSL_EMB_PERFMON
 	bool "Freescale Embedded Perfmon"
@@ -247,12 +267,12 @@ config 4xx
 
 config BOOKE
 	bool
-	depends on E200 || E500 || 44x || PPC_BOOK3E
+	depends on E500 || 44x || PPC_BOOK3E
 	default y
 
 config FSL_BOOKE
 	bool
-	depends on (E200 || E500) && PPC32
+	depends on E500 && PPC32
 	default y
 
 # this is for common code between PPC32 & PPC64 FSL BOOKE
@@ -317,7 +337,7 @@ config VSX
 
 config SPE_POSSIBLE
 	def_bool y
-	depends on E200 || (E500 && !PPC_E500MC)
+	depends on E500 && !PPC_E500MC
 
 config SPE
 	bool "SPE Support"
@@ -395,6 +415,11 @@ config PPC_KUAP_DEBUG
 	  Add extra debugging for Kernel Userspace Access Protection (KUAP)
 	  If you're unsure, say N.
 
+config PPC_PKEY
+	def_bool y
+	depends on PPC_BOOK3S_64
+	depends on PPC_MEM_KEYS || PPC_KUAP || PPC_KUEP
+
 config ARCH_ENABLE_HUGEPAGE_MIGRATION
 	def_bool y
 	depends on PPC_BOOK3S_64 && HUGETLB_PAGE && MIGRATION
@@ -464,7 +489,7 @@ config NR_CPUS
 
 config NOT_COHERENT_CACHE
 	bool
-	depends on 4xx || PPC_8xx || E200 || PPC_MPC512x || \
+	depends on 4xx || PPC_8xx || PPC_MPC512x || \
 		GAMECUBE_COMMON || AMIGAONE
 	select ARCH_HAS_DMA_PREP_COHERENT
 	select ARCH_HAS_SYNC_DMA_FOR_DEVICE

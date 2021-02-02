@@ -2,7 +2,7 @@
 /*
  * SC7180 SoC device tree source
  *
- * Copyright (c) 2019, The Linux Foundation. All rights reserved.
+ * Copyright (c) 2019-2020, The Linux Foundation. All rights reserved.
  */
 
 #include <dt-bindings/clock/qcom,dispcc-sc7180.h>
@@ -31,6 +31,8 @@
 	chosen { };
 
 	aliases {
+		mmc1 = &sdhc_1;
+		mmc2 = &sdhc_2;
 		i2c0 = &i2c0;
 		i2c1 = &i2c1;
 		i2c2 = &i2c2;
@@ -525,6 +527,11 @@
 			opp-hz = /bits/ 64 <2400000000>;
 			opp-peak-kBps = <8532000 23347200>;
 		};
+
+		cpu6_opp16: opp-2553600000 {
+			opp-hz = /bits/ 64 <2553600000>;
+			opp-peak-kBps = <8532000 23347200>;
+		};
 	};
 
 	memory@80000000 {
@@ -660,7 +667,7 @@
 		};
 
 		qfprom: efuse@784000 {
-			compatible = "qcom,qfprom";
+			compatible = "qcom,sc7180-qfprom", "qcom,qfprom";
 			reg = <0 0x00784000 0 0x8ff>,
 			      <0 0x00780000 0 0x7a0>,
 			      <0 0x00782000 0 0x100>,
@@ -1394,7 +1401,8 @@
 		ipa: ipa@1e40000 {
 			compatible = "qcom,sc7180-ipa";
 
-			iommus = <&apps_smmu 0x440 0x3>;
+			iommus = <&apps_smmu 0x440 0x0>,
+				 <&apps_smmu 0x442 0x0>;
 			reg = <0 0x1e40000 0 0x7000>,
 			      <0 0x1e47000 0 0x2000>,
 			      <0 0x1e04000 0 0x2c000>;
@@ -1402,8 +1410,8 @@
 				    "ipa-shared",
 				    "gsi";
 
-			interrupts-extended = <&intc 0 311 IRQ_TYPE_EDGE_RISING>,
-					      <&intc 0 432 IRQ_TYPE_LEVEL_HIGH>,
+			interrupts-extended = <&intc GIC_SPI 311 IRQ_TYPE_EDGE_RISING>,
+					      <&intc GIC_SPI 432 IRQ_TYPE_LEVEL_HIGH>,
 					      <&ipa_smp2p_in 0 IRQ_TYPE_EDGE_RISING>,
 					      <&ipa_smp2p_in 1 IRQ_TYPE_EDGE_RISING>;
 			interrupt-names = "ipa",
@@ -1595,11 +1603,37 @@
 				};
 			};
 
+			qup_spi0_cs_gpio: qup-spi0-cs-gpio {
+				pinmux {
+					pins = "gpio34", "gpio35",
+					       "gpio36";
+					function = "qup00";
+				};
+
+				pinmux-cs {
+					pins = "gpio37";
+					function = "gpio";
+				};
+			};
+
 			qup_spi1_default: qup-spi1-default {
 				pinmux {
 					pins = "gpio0", "gpio1",
 					       "gpio2", "gpio3";
 					function = "qup01";
+				};
+			};
+
+			qup_spi1_cs_gpio: qup-spi1-cs-gpio {
+				pinmux {
+					pins = "gpio0", "gpio1",
+					       "gpio2";
+					function = "qup01";
+				};
+
+				pinmux-cs {
+					pins = "gpio3";
+					function = "gpio";
 				};
 			};
 
@@ -1611,11 +1645,37 @@
 				};
 			};
 
+			qup_spi3_cs_gpio: qup-spi3-cs-gpio {
+				pinmux {
+					pins = "gpio38", "gpio39",
+					       "gpio40";
+					function = "qup03";
+				};
+
+				pinmux-cs {
+					pins = "gpio41";
+					function = "gpio";
+				};
+			};
+
 			qup_spi5_default: qup-spi5-default {
 				pinmux {
 					pins = "gpio25", "gpio26",
 					       "gpio27", "gpio28";
 					function = "qup05";
+				};
+			};
+
+			qup_spi5_cs_gpio: qup-spi5-cs-gpio {
+				pinmux {
+					pins = "gpio25", "gpio26",
+					       "gpio27";
+					function = "qup05";
+				};
+
+				pinmux-cs {
+					pins = "gpio28";
+					function = "gpio";
 				};
 			};
 
@@ -1627,11 +1687,37 @@
 				};
 			};
 
+			qup_spi6_cs_gpio: qup-spi6-cs-gpio {
+				pinmux {
+					pins = "gpio59", "gpio60",
+					       "gpio61";
+					function = "qup10";
+				};
+
+				pinmux-cs {
+					pins = "gpio62";
+					function = "gpio";
+				};
+			};
+
 			qup_spi8_default: qup-spi8-default {
 				pinmux {
 					pins = "gpio42", "gpio43",
 					       "gpio44", "gpio45";
 					function = "qup12";
+				};
+			};
+
+			qup_spi8_cs_gpio: qup-spi8-cs-gpio {
+				pinmux {
+					pins = "gpio42", "gpio43",
+					       "gpio44";
+					function = "qup12";
+				};
+
+				pinmux-cs {
+					pins = "gpio45";
+					function = "gpio";
 				};
 			};
 
@@ -1643,11 +1729,37 @@
 				};
 			};
 
+			qup_spi10_cs_gpio: qup-spi10-cs-gpio {
+				pinmux {
+					pins = "gpio86", "gpio87",
+					       "gpio88";
+					function = "qup14";
+				};
+
+				pinmux-cs {
+					pins = "gpio89";
+					function = "gpio";
+				};
+			};
+
 			qup_spi11_default: qup-spi11-default {
 				pinmux {
 					pins = "gpio53", "gpio54",
 					       "gpio55", "gpio56";
 					function = "qup15";
+				};
+			};
+
+			qup_spi11_cs_gpio: qup-spi11-cs-gpio {
+				pinmux {
+					pins = "gpio53", "gpio54",
+					       "gpio55";
+					function = "qup15";
+				};
+
+				pinmux-cs {
+					pins = "gpio56";
+					function = "gpio";
 				};
 			};
 
@@ -1739,6 +1851,45 @@
 					pins = "gpio53", "gpio54",
 					       "gpio55", "gpio56";
 					function = "qup15";
+				};
+			};
+
+			sec_mi2s_active: sec-mi2s-active {
+				pinmux {
+					pins = "gpio49", "gpio50", "gpio51";
+					function = "mi2s_1";
+				};
+
+				pinconf {
+					pins = "gpio49", "gpio50", "gpio51";
+					drive-strength = <8>;
+					bias-pull-up;
+				};
+			};
+
+			pri_mi2s_active: pri-mi2s-active {
+				pinmux {
+					pins = "gpio53", "gpio54", "gpio55", "gpio56";
+					function = "mi2s_0";
+				};
+
+				pinconf {
+					pins = "gpio53", "gpio54", "gpio55", "gpio56";
+					drive-strength = <8>;
+					bias-pull-up;
+				};
+			};
+
+			pri_mi2s_mclk_active: pri-mi2s-mclk-active {
+				pinmux {
+					pins = "gpio57";
+					function = "lpass_ext";
+				};
+
+				pinconf {
+					pins = "gpio57";
+					drive-strength = <8>;
+					bias-pull-up;
 				};
 			};
 
@@ -1907,6 +2058,8 @@
 			operating-points-v2 = <&gpu_opp_table>;
 			qcom,gmu = <&gmu>;
 
+			#cooling-cells = <2>;
+
 			interconnects = <&gem_noc MASTER_GFX3D 0 &mc_virt SLAVE_EBI1 0>;
 			interconnect-names = "gfx-mem";
 
@@ -1958,7 +2111,7 @@
 		};
 
 		adreno_smmu: iommu@5040000 {
-			compatible = "qcom,sc7180-smmu-v2", "qcom,smmu-v2";
+			compatible = "qcom,sc7180-smmu-v2", "qcom,adreno-smmu", "qcom,smmu-v2";
 			reg = <0 0x05040000 0 0x10000>;
 			#iommu-cells = <1>;
 			#global-interrupts = <2>;
@@ -2792,6 +2945,18 @@
 			qcom,bcm-voters = <&apps_bcm_voter>;
 		};
 
+		camcc: clock-controller@ad00000 {
+			compatible = "qcom,sc7180-camcc";
+			reg = <0 0x0ad00000 0 0x10000>;
+			clocks = <&rpmhcc RPMH_CXO_CLK>,
+			       <&gcc GCC_CAMERA_AHB_CLK>,
+			       <&gcc GCC_CAMERA_XO_CLK>;
+			clock-names = "bi_tcxo", "iface", "xo";
+			#clock-cells = <1>;
+			#reset-cells = <1>;
+			#power-domain-cells = <1>;
+		};
+
 		mdss: mdss@ae00000 {
 			compatible = "qcom,sc7180-mdss";
 			reg = <0 0x0ae00000 0 0x1000>;
@@ -2811,7 +2976,7 @@
 			interrupt-controller;
 			#interrupt-cells = <1>;
 
-			interconnects = <&mmss_noc MASTER_MDP0 &mc_virt SLAVE_EBI1>;
+			interconnects = <&mmss_noc MASTER_MDP0 0 &mc_virt SLAVE_EBI1 0>;
 			interconnect-names = "mdp0-mem";
 
 			iommus = <&apps_smmu 0x800 0x2>;
@@ -3389,6 +3554,36 @@
 			#power-domain-cells = <1>;
 		};
 
+		lpass_cpu: lpass@62f00000 {
+			compatible = "qcom,sc7180-lpass-cpu";
+
+			reg = <0 0x62f00000 0 0x29000>;
+			reg-names = "lpass-lpaif";
+
+			iommus = <&apps_smmu 0x1020 0>;
+
+			power-domains = <&lpass_hm LPASS_CORE_HM_GDSCR>;
+
+			clocks = <&gcc GCC_LPASS_CFG_NOC_SWAY_CLK>,
+				 <&lpasscc LPASS_AUDIO_CORE_CORE_CLK>,
+				 <&lpasscc LPASS_AUDIO_CORE_EXT_MCLK0_CLK>,
+				 <&lpasscc LPASS_AUDIO_CORE_SYSNOC_MPORT_CORE_CLK>,
+				 <&lpasscc LPASS_AUDIO_CORE_LPAIF_PRI_IBIT_CLK>,
+				 <&lpasscc LPASS_AUDIO_CORE_LPAIF_SEC_IBIT_CLK>;
+
+			clock-names = "pcnoc-sway-clk", "audio-core",
+					"mclk0", "pcnoc-mport-clk",
+					"mi2s-bit-clk0", "mi2s-bit-clk1";
+
+
+			#sound-dai-cells = <1>;
+			#address-cells = <1>;
+			#size-cells = <0>;
+
+			interrupts = <GIC_SPI 160 IRQ_TYPE_LEVEL_HIGH>;
+			interrupt-names = "lpass-irq-lpaif";
+		};
+
 		lpass_hm: clock-controller@63000000 {
 			compatible = "qcom,sc7180-lpasshm";
 			reg = <0 0x63000000 0 0x28>;
@@ -3402,7 +3597,7 @@
 
 	thermal-zones {
 		cpu0-thermal {
-			polling-delay-passive = <0>;
+			polling-delay-passive = <250>;
 			polling-delay = <0>;
 
 			thermal-sensors = <&tsens0 1>;
@@ -3451,7 +3646,7 @@
 		};
 
 		cpu1-thermal {
-			polling-delay-passive = <0>;
+			polling-delay-passive = <250>;
 			polling-delay = <0>;
 
 			thermal-sensors = <&tsens0 2>;
@@ -3500,7 +3695,7 @@
 		};
 
 		cpu2-thermal {
-			polling-delay-passive = <0>;
+			polling-delay-passive = <250>;
 			polling-delay = <0>;
 
 			thermal-sensors = <&tsens0 3>;
@@ -3549,7 +3744,7 @@
 		};
 
 		cpu3-thermal {
-			polling-delay-passive = <0>;
+			polling-delay-passive = <250>;
 			polling-delay = <0>;
 
 			thermal-sensors = <&tsens0 4>;
@@ -3598,7 +3793,7 @@
 		};
 
 		cpu4-thermal {
-			polling-delay-passive = <0>;
+			polling-delay-passive = <250>;
 			polling-delay = <0>;
 
 			thermal-sensors = <&tsens0 5>;
@@ -3647,7 +3842,7 @@
 		};
 
 		cpu5-thermal {
-			polling-delay-passive = <0>;
+			polling-delay-passive = <250>;
 			polling-delay = <0>;
 
 			thermal-sensors = <&tsens0 6>;
@@ -3696,7 +3891,7 @@
 		};
 
 		cpu6-thermal {
-			polling-delay-passive = <0>;
+			polling-delay-passive = <250>;
 			polling-delay = <0>;
 
 			thermal-sensors = <&tsens0 9>;
@@ -3737,7 +3932,7 @@
 		};
 
 		cpu7-thermal {
-			polling-delay-passive = <0>;
+			polling-delay-passive = <250>;
 			polling-delay = <0>;
 
 			thermal-sensors = <&tsens0 10>;
@@ -3778,7 +3973,7 @@
 		};
 
 		cpu8-thermal {
-			polling-delay-passive = <0>;
+			polling-delay-passive = <250>;
 			polling-delay = <0>;
 
 			thermal-sensors = <&tsens0 11>;
@@ -3819,7 +4014,7 @@
 		};
 
 		cpu9-thermal {
-			polling-delay-passive = <0>;
+			polling-delay-passive = <250>;
 			polling-delay = <0>;
 
 			thermal-sensors = <&tsens0 12>;
@@ -3860,7 +4055,7 @@
 		};
 
 		aoss0-thermal {
-			polling-delay-passive = <0>;
+			polling-delay-passive = <250>;
 			polling-delay = <0>;
 
 			thermal-sensors = <&tsens0 0>;
@@ -3881,7 +4076,7 @@
 		};
 
 		cpuss0-thermal {
-			polling-delay-passive = <0>;
+			polling-delay-passive = <250>;
 			polling-delay = <0>;
 
 			thermal-sensors = <&tsens0 7>;
@@ -3901,7 +4096,7 @@
 		};
 
 		cpuss1-thermal {
-			polling-delay-passive = <0>;
+			polling-delay-passive = <250>;
 			polling-delay = <0>;
 
 			thermal-sensors = <&tsens0 8>;
@@ -3921,16 +4116,16 @@
 		};
 
 		gpuss0-thermal {
-			polling-delay-passive = <0>;
+			polling-delay-passive = <250>;
 			polling-delay = <0>;
 
 			thermal-sensors = <&tsens0 13>;
 
 			trips {
 				gpuss0_alert0: trip-point0 {
-					temperature = <90000>;
+					temperature = <95000>;
 					hysteresis = <2000>;
-					type = "hot";
+					type = "passive";
 				};
 
 				gpuss0_crit: gpuss0_crit {
@@ -3939,19 +4134,26 @@
 					type = "critical";
 				};
 			};
+
+			cooling-maps {
+				map0 {
+					trip = <&gpuss0_alert0>;
+					cooling-device = <&gpu THERMAL_NO_LIMIT THERMAL_NO_LIMIT>;
+				};
+			};
 		};
 
 		gpuss1-thermal {
-			polling-delay-passive = <0>;
+			polling-delay-passive = <250>;
 			polling-delay = <0>;
 
 			thermal-sensors = <&tsens0 14>;
 
 			trips {
 				gpuss1_alert0: trip-point0 {
-					temperature = <90000>;
+					temperature = <95000>;
 					hysteresis = <2000>;
-					type = "hot";
+					type = "passive";
 				};
 
 				gpuss1_crit: gpuss1_crit {
@@ -3960,10 +4162,17 @@
 					type = "critical";
 				};
 			};
+
+			cooling-maps {
+				map0 {
+					trip = <&gpuss1_alert0>;
+					cooling-device = <&gpu THERMAL_NO_LIMIT THERMAL_NO_LIMIT>;
+				};
+			};
 		};
 
 		aoss1-thermal {
-			polling-delay-passive = <0>;
+			polling-delay-passive = <250>;
 			polling-delay = <0>;
 
 			thermal-sensors = <&tsens1 0>;
@@ -3984,7 +4193,7 @@
 		};
 
 		cwlan-thermal {
-			polling-delay-passive = <0>;
+			polling-delay-passive = <250>;
 			polling-delay = <0>;
 
 			thermal-sensors = <&tsens1 1>;
@@ -4005,7 +4214,7 @@
 		};
 
 		audio-thermal {
-			polling-delay-passive = <0>;
+			polling-delay-passive = <250>;
 			polling-delay = <0>;
 
 			thermal-sensors = <&tsens1 2>;
@@ -4026,7 +4235,7 @@
 		};
 
 		ddr-thermal {
-			polling-delay-passive = <0>;
+			polling-delay-passive = <250>;
 			polling-delay = <0>;
 
 			thermal-sensors = <&tsens1 3>;
@@ -4047,7 +4256,7 @@
 		};
 
 		q6-hvx-thermal {
-			polling-delay-passive = <0>;
+			polling-delay-passive = <250>;
 			polling-delay = <0>;
 
 			thermal-sensors = <&tsens1 4>;
@@ -4068,7 +4277,7 @@
 		};
 
 		camera-thermal {
-			polling-delay-passive = <0>;
+			polling-delay-passive = <250>;
 			polling-delay = <0>;
 
 			thermal-sensors = <&tsens1 5>;
@@ -4089,7 +4298,7 @@
 		};
 
 		mdm-core-thermal {
-			polling-delay-passive = <0>;
+			polling-delay-passive = <250>;
 			polling-delay = <0>;
 
 			thermal-sensors = <&tsens1 6>;
@@ -4110,7 +4319,7 @@
 		};
 
 		mdm-dsp-thermal {
-			polling-delay-passive = <0>;
+			polling-delay-passive = <250>;
 			polling-delay = <0>;
 
 			thermal-sensors = <&tsens1 7>;
@@ -4131,7 +4340,7 @@
 		};
 
 		npu-thermal {
-			polling-delay-passive = <0>;
+			polling-delay-passive = <250>;
 			polling-delay = <0>;
 
 			thermal-sensors = <&tsens1 8>;
@@ -4152,7 +4361,7 @@
 		};
 
 		video-thermal {
-			polling-delay-passive = <0>;
+			polling-delay-passive = <250>;
 			polling-delay = <0>;
 
 			thermal-sensors = <&tsens1 9>;

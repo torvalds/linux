@@ -37,9 +37,7 @@ static unsigned long adjust_error_retval(unsigned long addr, unsigned long retv)
 {
 	switch (get_injectable_error_type(addr)) {
 	case EI_ETYPE_NULL:
-		if (retv != 0)
-			return 0;
-		break;
+		return 0;
 	case EI_ETYPE_ERRNO:
 		if (retv < (unsigned long)-MAX_ERRNO)
 			return (unsigned long)-EINVAL;
@@ -48,6 +46,8 @@ static unsigned long adjust_error_retval(unsigned long addr, unsigned long retv)
 		if (retv != 0 && retv < (unsigned long)-MAX_ERRNO)
 			return (unsigned long)-EINVAL;
 		break;
+	case EI_ETYPE_TRUE:
+		return 1;
 	}
 
 	return retv;

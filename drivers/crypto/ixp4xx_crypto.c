@@ -20,7 +20,7 @@
 #include <crypto/internal/des.h>
 #include <crypto/aes.h>
 #include <crypto/hmac.h>
-#include <crypto/sha.h>
+#include <crypto/sha1.h>
 #include <crypto/algapi.h>
 #include <crypto/internal/aead.h>
 #include <crypto/internal/skcipher.h>

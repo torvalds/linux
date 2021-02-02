@@ -124,7 +124,7 @@ static void do_stf_entry_barrier_fixups(enum stf_barrier_type types)
 	long *start, *end;
 	int i;
 
-	start = PTRRELOC(&__start___stf_entry_barrier_fixup),
+	start = PTRRELOC(&__start___stf_entry_barrier_fixup);
 	end = PTRRELOC(&__stop___stf_entry_barrier_fixup);
 
 	instrs[0] = 0x60000000; /* nop */
@@ -176,7 +176,7 @@ static void do_stf_exit_barrier_fixups(enum stf_barrier_type types)
 	long *start, *end;
 	int i;
 
-	start = PTRRELOC(&__start___stf_exit_barrier_fixup),
+	start = PTRRELOC(&__start___stf_exit_barrier_fixup);
 	end = PTRRELOC(&__stop___stf_exit_barrier_fixup);
 
 	instrs[0] = 0x60000000; /* nop */
@@ -344,7 +344,7 @@ void do_rfi_flush_fixups(enum l1d_flush_type types)
 	long *start, *end;
 	int i;
 
-	start = PTRRELOC(&__start___rfi_flush_fixup),
+	start = PTRRELOC(&__start___rfi_flush_fixup);
 	end = PTRRELOC(&__stop___rfi_flush_fixup);
 
 	instrs[0] = 0x60000000; /* nop */
@@ -417,7 +417,7 @@ void do_barrier_nospec_fixups(bool enable)
 {
 	void *start, *end;
 
-	start = PTRRELOC(&__start___barrier_nospec_fixup),
+	start = PTRRELOC(&__start___barrier_nospec_fixup);
 	end = PTRRELOC(&__stop___barrier_nospec_fixup);
 
 	do_barrier_nospec_fixups_range(enable, start, end);

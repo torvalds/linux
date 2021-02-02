@@ -278,7 +278,7 @@ frame_size = frame_GPRSAVE + GPRSAVE_SIZE
 # "blocks" is the message length in SHA512 blocks
 ########################################################################
 SYM_FUNC_START(sha512_transform_avx)
-	cmp $0, msglen
+	test msglen, msglen
 	je nowork
 
 	# Allocate Stack Space

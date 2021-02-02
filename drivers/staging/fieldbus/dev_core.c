@@ -134,7 +134,7 @@ static struct attribute *fieldbus_attrs[] = {
 static umode_t fieldbus_is_visible(struct kobject *kobj, struct attribute *attr,
 				   int n)
 {
-	struct device *dev = container_of(kobj, struct device, kobj);
+	struct device *dev = kobj_to_dev(kobj);
 	struct fieldbus_dev *fb = dev_get_drvdata(dev);
 	umode_t mode = attr->mode;
 

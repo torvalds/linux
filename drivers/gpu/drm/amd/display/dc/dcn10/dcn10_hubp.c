@@ -326,7 +326,6 @@ void hubp1_program_pixel_format(
 		REG_UPDATE(DCSURF_SURFACE_CONFIG,
 				SURFACE_PIXEL_FORMAT, 119);
 		break;
-#if defined(CONFIG_DRM_AMD_DC_DCN3_0)
 	case SURFACE_PIXEL_FORMAT_GRPH_RGBE:
 		REG_UPDATE_2(DCSURF_SURFACE_CONFIG,
 				SURFACE_PIXEL_FORMAT, 116,
@@ -337,7 +336,6 @@ void hubp1_program_pixel_format(
 				SURFACE_PIXEL_FORMAT, 116,
 				ALPHA_PLANE_EN, 1);
 		break;
-#endif
 	default:
 		BREAK_TO_DEBUGGER();
 		break;
@@ -1243,6 +1241,22 @@ void hubp1_vtg_sel(struct hubp *hubp, uint32_t otg_inst)
 	REG_UPDATE(DCHUBP_CNTL, HUBP_VTG_SEL, otg_inst);
 }
 
+bool hubp1_in_blank(struct hubp *hubp)
+{
+	uint32_t in_blank;
+	struct dcn10_hubp *hubp1 = TO_DCN10_HUBP(hubp);
+
+	REG_GET(DCHUBP_CNTL, HUBP_IN_BLANK, &in_blank);
+	return in_blank ? true : false;
+}
+
+void hubp1_soft_reset(struct hubp *hubp, bool reset)
+{
+	struct dcn10_hubp *hubp1 = TO_DCN10_HUBP(hubp);
+
+	REG_UPDATE(DCHUBP_CNTL, HUBP_DISABLE, reset ? 1 : 0);
+}
+
 void hubp1_init(struct hubp *hubp)
 {
 	//do nothing
@@ -1274,6 +1288,8 @@ static const struct hubp_funcs dcn10_hubp_funcs = {
 
 	.dmdata_set_attributes = NULL,
 	.dmdata_load = NULL,
+	.hubp_soft_reset = hubp1_soft_reset,
+	.hubp_in_blank = hubp1_in_blank,
 };
 
 /*****************************************/

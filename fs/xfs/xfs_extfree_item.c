@@ -578,6 +578,15 @@ const struct xfs_defer_op_type xfs_agfl_free_defer_type = {
 	.cancel_item	= xfs_extent_free_cancel_item,
 };
 
+/* Is this recovered EFI ok? */
+static inline bool
+xfs_efi_validate_ext(
+	struct xfs_mount		*mp,
+	struct xfs_extent		*extp)
+{
+	return xfs_verify_fsbext(mp, extp->ext_start, extp->ext_len);
+}
+
 /*
  * Process an extent free intent item that was recovered from
  * the log.  We need to free the extents that it describes.
@@ -592,7 +601,6 @@ xfs_efi_item_recover(
 	struct xfs_efd_log_item		*efdp;
 	struct xfs_trans		*tp;
 	struct xfs_extent		*extp;
-	xfs_fsblock_t			startblock_fsb;
 	int				i;
 	int				error = 0;
 
@@ -602,14 +610,13 @@ xfs_efi_item_recover(
 	 * just toss the EFI.
 	 */
 	for (i = 0; i < efip->efi_format.efi_nextents; i++) {
-		extp = &efip->efi_format.efi_extents[i];
-		startblock_fsb = XFS_BB_TO_FSB(mp,
-				   XFS_FSB_TO_DADDR(mp, extp->ext_start));
-		if (startblock_fsb == 0 ||
-		    extp->ext_len == 0 ||
-		    startblock_fsb >= mp->m_sb.sb_dblocks ||
-		    extp->ext_len >= mp->m_sb.sb_agblocks)
+		if (!xfs_efi_validate_ext(mp,
+					&efip->efi_format.efi_extents[i])) {
+			XFS_CORRUPTION_ERROR(__func__, XFS_ERRLEVEL_LOW, mp,
+					&efip->efi_format,
+					sizeof(efip->efi_format));
 			return -EFSCORRUPTED;
+		}
 	}
 
 	error = xfs_trans_alloc(mp, &M_RES(mp)->tr_itruncate, 0, 0, 0, &tp);

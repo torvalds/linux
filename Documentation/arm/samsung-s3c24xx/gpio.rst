@@ -29,7 +29,7 @@ GPIOLIB
 
   The following functions now either have a `s3c_` specific variant
   or are merged into gpiolib. See the definitions in
-  arch/arm/plat-samsung/include/plat/gpio-cfg.h:
+  arch/arm/mach-s3c/gpio-cfg.h:
 
   - s3c2410_gpio_setpin()	gpio_set_value() or gpio_direction_output()
   - s3c2410_gpio_getpin()	gpio_get_value() or gpio_direction_input()
@@ -86,7 +86,7 @@ between the calls.
 Headers
 -------
 
-  See arch/arm/mach-s3c24xx/include/mach/regs-gpio.h for the list
+  See arch/arm/mach-s3c/regs-gpio-s3c24xx.h for the list
   of GPIO pins, and the configuration values for them. This
   is included by using #include <mach/regs-gpio.h>
 

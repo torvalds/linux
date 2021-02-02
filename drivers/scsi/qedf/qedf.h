@@ -11,7 +11,6 @@
 #include <scsi/fc/fc_fip.h>
 #include <scsi/fc/fc_fc2.h>
 #include <scsi/scsi_tcq.h>
-#include <scsi/fc_encode.h>
 #include <linux/version.h>
 
 

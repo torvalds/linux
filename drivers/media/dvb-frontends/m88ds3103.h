@@ -128,7 +128,7 @@ struct m88ds3103_config {
 #if defined(CONFIG_DVB_M88DS3103) || \
 		(defined(CONFIG_DVB_M88DS3103_MODULE) && defined(MODULE))
 /**
- * Attach a m88ds3103 demod
+ * m88ds3103_attach - Attach a m88ds3103 demod
  *
  * @config: pointer to &struct m88ds3103_config with demod configuration.
  * @i2c: i2c adapter to use.

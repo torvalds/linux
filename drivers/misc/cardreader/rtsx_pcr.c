@@ -20,6 +20,8 @@
 #include <linux/rtsx_pci.h>
 #include <linux/mmc/card.h>
 #include <asm/unaligned.h>
+#include <linux/pm.h>
+#include <linux/pm_runtime.h>
 
 #include "rtsx_pcr.h"
 #include "rts5261.h"
@@ -89,9 +91,15 @@ static void rtsx_comm_set_aspm(struct rtsx_pcr *pcr, bool enable)
 	if (pcr->aspm_enabled == enable)
 		return;
 
-	pcie_capability_clear_and_set_word(pcr->pci, PCI_EXP_LNKCTL,
-					   PCI_EXP_LNKCTL_ASPMC,
-					   enable ? pcr->aspm_en : 0);
+	if (pcr->aspm_en & 0x02)
+		rtsx_pci_write_register(pcr, ASPM_FORCE_CTL, FORCE_ASPM_CTL0 |
+			FORCE_ASPM_CTL1, enable ? 0 : FORCE_ASPM_CTL0 | FORCE_ASPM_CTL1);
+	else
+		rtsx_pci_write_register(pcr, ASPM_FORCE_CTL, FORCE_ASPM_CTL0 |
+			FORCE_ASPM_CTL1, FORCE_ASPM_CTL0 | FORCE_ASPM_CTL1);
+
+	if (!enable && (pcr->aspm_en & 0x02))
+		mdelay(10);
 
 	pcr->aspm_enabled = enable;
 }
@@ -143,6 +151,12 @@ void rtsx_pci_start_run(struct rtsx_pcr *pcr)
 	/* If pci device removed, don't queue idle work any more */
 	if (pcr->remove_pci)
 		return;
+
+	if (pcr->rtd3_en)
+		if (pcr->is_runtime_suspended) {
+			pm_runtime_get(&(pcr->pci->dev));
+			pcr->is_runtime_suspended = false;
+		}
 
 	if (pcr->state != PDEV_STAT_RUN) {
 		pcr->state = PDEV_STAT_RUN;
@@ -990,6 +1004,11 @@ static irqreturn_t rtsx_pci_isr(int irq, void *dev_id)
 		} else {
 			pcr->card_removed |= SD_EXIST;
 			pcr->card_inserted &= ~SD_EXIST;
+			if (PCI_PID(pcr) == PID_5261) {
+				rtsx_pci_write_register(pcr, RTS5261_FW_STATUS,
+					RTS5261_EXPRESS_LINK_FAIL_MASK, 0);
+				pcr->extra_caps |= EXTRA_CAPS_SD_EXPRESS;
+			}
 		}
 		pcr->dma_error_count = 0;
 	}
@@ -1075,6 +1094,16 @@ static void rtsx_pm_power_saving(struct rtsx_pcr *pcr)
 	rtsx_comm_pm_power_saving(pcr);
 }
 
+static void rtsx_pci_rtd3_work(struct work_struct *work)
+{
+	struct delayed_work *dwork = to_delayed_work(work);
+	struct rtsx_pcr *pcr = container_of(dwork, struct rtsx_pcr, rtd3_work);
+
+	pcr_dbg(pcr, "--> %s\n", __func__);
+	if (!pcr->is_runtime_suspended)
+		pm_runtime_put(&(pcr->pci->dev));
+}
+
 static void rtsx_pci_idle_work(struct work_struct *work)
 {
 	struct delayed_work *dwork = to_delayed_work(work);
@@ -1094,6 +1123,9 @@ static void rtsx_pci_idle_work(struct work_struct *work)
 	rtsx_pm_power_saving(pcr);
 
 	mutex_unlock(&pcr->pcr_mutex);
+
+	if (pcr->rtd3_en)
+		mod_delayed_work(system_wq, &pcr->rtd3_work, msecs_to_jiffies(10000));
 }
 
 static void rtsx_base_force_power_down(struct rtsx_pcr *pcr, u8 pm_state)
@@ -1283,7 +1315,7 @@ static int rtsx_pci_init_hw(struct rtsx_pcr *pcr)
 	/* Wait SSC power stable */
 	udelay(200);
 
-	rtsx_pci_disable_aspm(pcr);
+	rtsx_disable_aspm(pcr);
 	if (pcr->ops->optimize_phy) {
 		err = pcr->ops->optimize_phy(pcr);
 		if (err < 0)
@@ -1357,8 +1389,8 @@ static int rtsx_pci_init_hw(struct rtsx_pcr *pcr)
 	rtsx_pci_init_ocp(pcr);
 
 	/* Enable clk_request_n to enable clock power management */
-	pcie_capability_write_word(pdev, PCI_EXP_LNKCTL,
-				   PCI_EXP_LNKCTL_CLKREQ_EN);
+	pcie_capability_clear_and_set_word(pcr->pci, PCI_EXP_LNKCTL,
+					0, PCI_EXP_LNKCTL_CLKREQ_EN);
 	/* Enter L1 when host tx idle */
 	pci_write_config_byte(pdev, 0x70F, 0x5B);
 
@@ -1367,6 +1399,8 @@ static int rtsx_pci_init_hw(struct rtsx_pcr *pcr)
 		if (err < 0)
 			return err;
 	}
+
+	rtsx_pci_write_register(pcr, ASPM_FORCE_CTL, 0x30, 0x30);
 
 	/* No CD interrupt if probing driver with card inserted.
 	 * So we need to initialize pcr->card_exist here.
@@ -1571,6 +1605,15 @@ static int rtsx_pci_probe(struct pci_dev *pcidev,
 		rtsx_pcr_cells[i].platform_data = handle;
 		rtsx_pcr_cells[i].pdata_size = sizeof(*handle);
 	}
+
+	if (pcr->rtd3_en) {
+		INIT_DELAYED_WORK(&pcr->rtd3_work, rtsx_pci_rtd3_work);
+		pm_runtime_allow(&pcidev->dev);
+		pm_runtime_enable(&pcidev->dev);
+		pcr->is_runtime_suspended = false;
+	}
+
+
 	ret = mfd_add_devices(&pcidev->dev, pcr->id, rtsx_pcr_cells,
 			ARRAY_SIZE(rtsx_pcr_cells), NULL, 0, NULL);
 	if (ret < 0)
@@ -1608,6 +1651,9 @@ static void rtsx_pci_remove(struct pci_dev *pcidev)
 	struct pcr_handle *handle = pci_get_drvdata(pcidev);
 	struct rtsx_pcr *pcr = handle->pcr;
 
+	if (pcr->rtd3_en)
+		pm_runtime_get_noresume(&pcr->pci->dev);
+
 	pcr->remove_pci = true;
 
 	/* Disable interrupts at the pcr level */
@@ -1618,6 +1664,8 @@ static void rtsx_pci_remove(struct pci_dev *pcidev)
 
 	cancel_delayed_work_sync(&pcr->carddet_work);
 	cancel_delayed_work_sync(&pcr->idle_work);
+	if (pcr->rtd3_en)
+		cancel_delayed_work_sync(&pcr->rtd3_work);
 
 	mfd_remove_devices(&pcidev->dev);
 
@@ -1634,6 +1682,11 @@ static void rtsx_pci_remove(struct pci_dev *pcidev)
 	spin_lock(&rtsx_pci_lock);
 	idr_remove(&rtsx_pci_idr, pcr->id);
 	spin_unlock(&rtsx_pci_lock);
+
+	if (pcr->rtd3_en) {
+		pm_runtime_disable(&pcr->pci->dev);
+		pm_runtime_put_noidle(&pcr->pci->dev);
+	}
 
 	kfree(pcr->slots);
 	kfree(pcr);
@@ -1716,13 +1769,77 @@ static void rtsx_pci_shutdown(struct pci_dev *pcidev)
 		pci_disable_msi(pcr->pci);
 }
 
+static int rtsx_pci_runtime_suspend(struct device *device)
+{
+	struct pci_dev *pcidev = to_pci_dev(device);
+	struct pcr_handle *handle;
+	struct rtsx_pcr *pcr;
+
+	handle = pci_get_drvdata(pcidev);
+	pcr = handle->pcr;
+	dev_dbg(&(pcidev->dev), "--> %s\n", __func__);
+
+	cancel_delayed_work(&pcr->carddet_work);
+	cancel_delayed_work(&pcr->rtd3_work);
+	cancel_delayed_work(&pcr->idle_work);
+
+	mutex_lock(&pcr->pcr_mutex);
+	rtsx_pci_power_off(pcr, HOST_ENTER_S3);
+
+	free_irq(pcr->irq, (void *)pcr);
+
+	mutex_unlock(&pcr->pcr_mutex);
+
+	pcr->is_runtime_suspended = true;
+
+	return 0;
+}
+
+static int rtsx_pci_runtime_resume(struct device *device)
+{
+	struct pci_dev *pcidev = to_pci_dev(device);
+	struct pcr_handle *handle;
+	struct rtsx_pcr *pcr;
+	int ret = 0;
+
+	handle = pci_get_drvdata(pcidev);
+	pcr = handle->pcr;
+	dev_dbg(&(pcidev->dev), "--> %s\n", __func__);
+
+	mutex_lock(&pcr->pcr_mutex);
+
+	rtsx_pci_write_register(pcr, HOST_SLEEP_STATE, 0x03, 0x00);
+	rtsx_pci_acquire_irq(pcr);
+	synchronize_irq(pcr->irq);
+
+	if (pcr->ops->fetch_vendor_settings)
+		pcr->ops->fetch_vendor_settings(pcr);
+
+	rtsx_pci_init_hw(pcr);
+
+	if (pcr->slots[RTSX_SD_CARD].p_dev != NULL) {
+		pcr->slots[RTSX_SD_CARD].card_event(
+				pcr->slots[RTSX_SD_CARD].p_dev);
+	}
+
+	schedule_delayed_work(&pcr->idle_work, msecs_to_jiffies(200));
+
+	mutex_unlock(&pcr->pcr_mutex);
+	return ret;
+}
+
 #else /* CONFIG_PM */
 
 #define rtsx_pci_shutdown NULL
+#define rtsx_pci_runtime_suspend NULL
+#define rtsx_pic_runtime_resume NULL
 
 #endif /* CONFIG_PM */
 
-static SIMPLE_DEV_PM_OPS(rtsx_pci_pm_ops, rtsx_pci_suspend, rtsx_pci_resume);
+static const struct dev_pm_ops rtsx_pci_pm_ops = {
+	SET_SYSTEM_SLEEP_PM_OPS(rtsx_pci_suspend, rtsx_pci_resume)
+	SET_RUNTIME_PM_OPS(rtsx_pci_runtime_suspend, rtsx_pci_runtime_resume, NULL)
+};
 
 static struct pci_driver rtsx_pci_driver = {
 	.name = DRV_NAME_RTSX_PCI,

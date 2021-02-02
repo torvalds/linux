@@ -123,10 +123,10 @@ else
 	echo "[PASS]"
 fi
 
-echo "--------------------------------------------"
-echo "running 'gup_benchmark -U' (normal/slow gup)"
-echo "--------------------------------------------"
-./gup_benchmark -U
+echo "------------------------------------------------------"
+echo "running: gup_test -u # get_user_pages_fast() benchmark"
+echo "------------------------------------------------------"
+./gup_test -u
 if [ $? -ne 0 ]; then
 	echo "[FAIL]"
 	exitcode=1
@@ -134,10 +134,22 @@ else
 	echo "[PASS]"
 fi
 
-echo "------------------------------------------"
-echo "running gup_benchmark -b (pin_user_pages)"
-echo "------------------------------------------"
-./gup_benchmark -b
+echo "------------------------------------------------------"
+echo "running: gup_test -a # pin_user_pages_fast() benchmark"
+echo "------------------------------------------------------"
+./gup_test -a
+if [ $? -ne 0 ]; then
+	echo "[FAIL]"
+	exitcode=1
+else
+	echo "[PASS]"
+fi
+
+echo "------------------------------------------------------------"
+echo "# Dump pages 0, 19, and 4096, using pin_user_pages:"
+echo "running: gup_test -ct -F 0x1 0 19 0x1000 # dump_page() test"
+echo "------------------------------------------------------------"
+./gup_test -ct -F 0x1 0 19 0x1000
 if [ $? -ne 0 ]; then
 	echo "[FAIL]"
 	exitcode=1
@@ -148,7 +160,7 @@ fi
 echo "-------------------"
 echo "running userfaultfd"
 echo "-------------------"
-./userfaultfd anon 128 32
+./userfaultfd anon 20 16
 if [ $? -ne 0 ]; then
 	echo "[FAIL]"
 	exitcode=1
@@ -173,7 +185,7 @@ rm -f $mnt/ufd_test_file
 echo "-------------------------"
 echo "running userfaultfd_shmem"
 echo "-------------------------"
-./userfaultfd shmem 128 32
+./userfaultfd shmem 20 16
 if [ $? -ne 0 ]; then
 	echo "[FAIL]"
 	exitcode=1
@@ -234,6 +246,17 @@ echo "--------------------"
 echo "running mlock2-tests"
 echo "--------------------"
 ./mlock2-tests
+if [ $? -ne 0 ]; then
+	echo "[FAIL]"
+	exitcode=1
+else
+	echo "[PASS]"
+fi
+
+echo "-------------------"
+echo "running mremap_test"
+echo "-------------------"
+./mremap_test
 if [ $? -ne 0 ]; then
 	echo "[FAIL]"
 	exitcode=1

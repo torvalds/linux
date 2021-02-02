@@ -38,9 +38,6 @@ properties:
   st,syscfg-tz:
     description:
       Reference to the system configuration which holds the RCC trust zone mode
-      - Phandle of syscon block.
-      - The offset of the RCC trust zone mode register.
-      - The field mask of the RCC trust zone mode.
     $ref: "/schemas/types.yaml#/definitions/phandle-array"
     maxItems: 1
 
@@ -91,9 +88,19 @@ properties:
     $ref: "/schemas/types.yaml#/definitions/phandle-array"
     description: |
       Reference to the system configuration which holds the remote
-        1st cell: phandle to syscon block
-        2nd cell: register offset containing the deep sleep setting
-        3rd cell: register bitmask for the deep sleep bit
+    maxItems: 1
+
+  st,syscfg-m4-state:
+    $ref: "/schemas/types.yaml#/definitions/phandle-array"
+    description: |
+      Reference to the tamp register which exposes the Cortex-M4 state.
+    maxItems: 1
+
+  st,syscfg-rsc-tbl:
+    $ref: "/schemas/types.yaml#/definitions/phandle-array"
+    description: |
+      Reference to the tamp register which references the Cortex-M4
+      resource table address.
     maxItems: 1
 
   st,auto-boot:
@@ -122,6 +129,8 @@ examples:
       resets = <&rcc MCU_R>;
       st,syscfg-holdboot = <&rcc 0x10C 0x1>;
       st,syscfg-tz = <&rcc 0x000 0x1>;
+      st,syscfg-rsc-tbl = <&tamp 0x144 0xFFFFFFFF>;
+      st,syscfg-m4-state = <&tamp 0x148 0xFFFFFFFF>;
     };
 
 ...

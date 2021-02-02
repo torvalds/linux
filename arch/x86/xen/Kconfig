@@ -26,6 +26,19 @@ config XEN_PV
 	help
 	  Support running as a Xen PV guest.
 
+config XEN_512GB
+	bool "Limit Xen pv-domain memory to 512GB"
+	depends on XEN_PV
+	default y
+	help
+	  Limit paravirtualized user domains to 512GB of RAM.
+
+	  The Xen tools and crash dump analysis tools might not support
+	  pv-domains with more than 512 GB of RAM. This option controls the
+	  default setting of the kernel to use only up to 512 GB or more.
+	  It is always possible to change the default via specifying the
+	  boot parameter "xen_512gb_limit".
+
 config XEN_PV_SMP
 	def_bool y
 	depends on XEN_PV && SMP
@@ -39,28 +52,19 @@ config XEN_DOM0
 	  Support running as a Xen PV Dom0 guest.
 
 config XEN_PVHVM
-	bool "Xen PVHVM guest support"
-	default y
-	depends on XEN && PCI && X86_LOCAL_APIC
-	help
-	  Support running as a Xen PVHVM guest.
+	def_bool y
+	depends on XEN && X86_LOCAL_APIC
 
 config XEN_PVHVM_SMP
 	def_bool y
 	depends on XEN_PVHVM && SMP
 
-config XEN_512GB
-	bool "Limit Xen pv-domain memory to 512GB"
-	depends on XEN_PV
+config XEN_PVHVM_GUEST
+	bool "Xen PVHVM guest support"
 	default y
+	depends on XEN_PVHVM && PCI
 	help
-	  Limit paravirtualized user domains to 512GB of RAM.
-
-	  The Xen tools and crash dump analysis tools might not support
-	  pv-domains with more than 512 GB of RAM. This option controls the
-	  default setting of the kernel to use only up to 512 GB or more.
-	  It is always possible to change the default via specifying the
-	  boot parameter "xen_512gb_limit".
+	  Support running as a Xen PVHVM guest.
 
 config XEN_SAVE_RESTORE
 	bool
@@ -76,7 +80,9 @@ config XEN_DEBUG_FS
 	  Enabling this option may incur a significant performance overhead.
 
 config XEN_PVH
-	bool "Support for running as a Xen PVH guest"
+	bool "Xen PVH guest support"
 	depends on XEN && XEN_PVHVM && ACPI
 	select PVH
 	def_bool n
+	help
+	  Support for running as a Xen PVH guest.

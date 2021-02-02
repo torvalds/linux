@@ -62,6 +62,8 @@ enum mcde_flow_mode {
 	MCDE_VIDEO_TE_FLOW,
 	/* Video mode with the formatter itself as sync source */
 	MCDE_VIDEO_FORMATTER_FLOW,
+	/* DPI video with the formatter itsels as sync source */
+	MCDE_DPI_FORMATTER_FLOW,
 };
 
 struct mcde {
@@ -72,6 +74,7 @@ struct mcde {
 	struct drm_connector *connector;
 	struct drm_simple_display_pipe pipe;
 	struct mipi_dsi_device *mdsi;
+	bool dpi_output;
 	s16 stride;
 	enum mcde_flow_mode flow_mode;
 	unsigned int flow_active;
@@ -82,6 +85,11 @@ struct mcde {
 	struct clk *mcde_clk;
 	struct clk *lcd_clk;
 	struct clk *hdmi_clk;
+	/* Handles to the clock dividers for FIFO A and B */
+	struct clk *fifoa_clk;
+	struct clk *fifob_clk;
+	/* Locks the MCDE FIFO control register A and B */
+	spinlock_t fifo_crx1_lock;
 
 	struct regulator *epod;
 	struct regulator *vana;
@@ -104,5 +112,7 @@ extern struct platform_driver mcde_dsi_driver;
 void mcde_display_irq(struct mcde *mcde);
 void mcde_display_disable_irqs(struct mcde *mcde);
 int mcde_display_init(struct drm_device *drm);
+
+int mcde_init_clock_divider(struct mcde *mcde);
 
 #endif /* _MCDE_DRM_H_ */
