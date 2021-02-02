@@ -108,6 +108,10 @@ enum tcpm_transmit_type {
  *		is supported by TCPC, set this callback for TCPM to query
  *		whether vbus is at VSAFE0V when needed.
  *		Returns true when vbus is at VSAFE0V, false otherwise.
+ * @set_partner_usb_comm_capable:
+ *              Optional; The USB Communications Capable bit indicates if port
+ *              partner is capable of communication over the USB data lines
+ *              (e.g. D+/- or SS Tx/Rx). Called to notify the status of the bit.
  * @check_contaminant:
  *		Optional; The callback is called when CC pins report open status
  *		at the end of the toggling period. Chip level drivers are
@@ -148,6 +152,7 @@ struct tcpc_dev {
 						 bool pps_active, u32 requested_vbus_voltage);
 	int (*check_contaminant)(struct tcpc_dev *dev);
 	bool (*is_vbus_vsafe0v)(struct tcpc_dev *dev);
+	void (*set_partner_usb_comm_capable)(struct tcpc_dev *dev, bool enable);
 };
 
 struct tcpm_port;
