@@ -2352,8 +2352,10 @@ int evsel__parse_sample(struct evsel *evsel, union perf_event *event,
 		weight.full = *array;
 		if (type & PERF_SAMPLE_WEIGHT)
 			data->weight = weight.full;
-		else
+		else {
 			data->weight = weight.var1_dw;
+			data->ins_lat = weight.var2_w;
+		}
 		array++;
 	}
 

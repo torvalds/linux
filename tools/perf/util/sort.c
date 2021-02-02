@@ -36,7 +36,7 @@ const char	default_parent_pattern[] = "^sys_|^do_page_fault";
 const char	*parent_pattern = default_parent_pattern;
 const char	*default_sort_order = "comm,dso,symbol";
 const char	default_branch_sort_order[] = "comm,dso_from,symbol_from,symbol_to,cycles";
-const char	default_mem_sort_order[] = "local_weight,mem,sym,dso,symbol_daddr,dso_daddr,snoop,tlb,locked,blocked";
+const char	default_mem_sort_order[] = "local_weight,mem,sym,dso,symbol_daddr,dso_daddr,snoop,tlb,locked,blocked,local_ins_lat";
 const char	default_top_sort_order[] = "dso,symbol";
 const char	default_diff_sort_order[] = "dso,symbol";
 const char	default_tracepoint_sort_order[] = "trace";
@@ -1365,6 +1365,49 @@ struct sort_entry sort_global_weight = {
 	.se_width_idx	= HISTC_GLOBAL_WEIGHT,
 };
 
+static u64 he_ins_lat(struct hist_entry *he)
+{
+		return he->stat.nr_events ? he->stat.ins_lat / he->stat.nr_events : 0;
+}
+
+static int64_t
+sort__local_ins_lat_cmp(struct hist_entry *left, struct hist_entry *right)
+{
+		return he_ins_lat(left) - he_ins_lat(right);
+}
+
+static int hist_entry__local_ins_lat_snprintf(struct hist_entry *he, char *bf,
+					      size_t size, unsigned int width)
+{
+		return repsep_snprintf(bf, size, "%-*u", width, he_ins_lat(he));
+}
+
+struct sort_entry sort_local_ins_lat = {
+	.se_header	= "Local INSTR Latency",
+	.se_cmp		= sort__local_ins_lat_cmp,
+	.se_snprintf	= hist_entry__local_ins_lat_snprintf,
+	.se_width_idx	= HISTC_LOCAL_INS_LAT,
+};
+
+static int64_t
+sort__global_ins_lat_cmp(struct hist_entry *left, struct hist_entry *right)
+{
+		return left->stat.ins_lat - right->stat.ins_lat;
+}
+
+static int hist_entry__global_ins_lat_snprintf(struct hist_entry *he, char *bf,
+					       size_t size, unsigned int width)
+{
+		return repsep_snprintf(bf, size, "%-*u", width, he->stat.ins_lat);
+}
+
+struct sort_entry sort_global_ins_lat = {
+	.se_header	= "INSTR Latency",
+	.se_cmp		= sort__global_ins_lat_cmp,
+	.se_snprintf	= hist_entry__global_ins_lat_snprintf,
+	.se_width_idx	= HISTC_GLOBAL_INS_LAT,
+};
+
 struct sort_entry sort_mem_daddr_sym = {
 	.se_header	= "Data Symbol",
 	.se_cmp		= sort__daddr_cmp,
@@ -1796,6 +1839,8 @@ static struct sort_dimension common_sort_dimensions[] = {
 	DIM(SORT_SYM_IPC_NULL, "ipc_null", sort_sym_ipc_null),
 	DIM(SORT_TIME, "time", sort_time),
 	DIM(SORT_CODE_PAGE_SIZE, "code_page_size", sort_code_page_size),
+	DIM(SORT_LOCAL_INS_LAT, "local_ins_lat", sort_local_ins_lat),
+	DIM(SORT_GLOBAL_INS_LAT, "ins_lat", sort_global_ins_lat),
 };
 
 #undef DIM

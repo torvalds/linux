@@ -1871,9 +1871,10 @@ static int intel_pt_synth_pebs_sample(struct intel_pt_queue *ptq)
 			 * cycles. Use latency >> 32 to distinguish the
 			 * different format of the mem access latency field.
 			 */
-			if (weight > 0)
+			if (weight > 0) {
 				sample.weight = weight & 0xffff;
-			else
+				sample.ins_lat = items->mem_access_latency & 0xffff;
+			} else
 				sample.weight = items->mem_access_latency;
 		}
 		if (!sample.weight && items->has_tsx_aux_info) {

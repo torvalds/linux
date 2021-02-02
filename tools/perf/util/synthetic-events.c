@@ -1644,8 +1644,10 @@ int perf_event__synthesize_sample(union perf_event *event, u64 type, u64 read_fo
 
 	if (type & PERF_SAMPLE_WEIGHT_TYPE) {
 		*array = sample->weight;
-		if (type & PERF_SAMPLE_WEIGHT_STRUCT)
+		if (type & PERF_SAMPLE_WEIGHT_STRUCT) {
 			*array &= 0xffffffff;
+			*array |= ((u64)sample->ins_lat << 32);
+		}
 		array++;
 	}
 
