@@ -1427,16 +1427,11 @@ static void svm_vcpu_load(struct kvm_vcpu *vcpu, int cpu)
 	if (sev_es_guest(svm->vcpu.kvm)) {
 		sev_es_vcpu_load(svm, cpu);
 	} else {
-#ifdef CONFIG_X86_64
-		rdmsrl(MSR_GS_BASE, to_svm(vcpu)->host.gs_base);
-#endif
-		savesegment(fs, svm->host.fs);
-		savesegment(gs, svm->host.gs);
-		svm->host.ldt = kvm_read_ldt();
-
 		for (i = 0; i < NR_HOST_SAVE_USER_MSRS; i++)
 			rdmsrl(host_save_user_msrs[i].index,
 			       svm->host_user_msrs[i]);
+
+		vmsave(__sme_page_pa(sd->save_area));
 	}
 
 	if (static_cpu_has(X86_FEATURE_TSCRATEMSR)) {
@@ -1468,17 +1463,6 @@ static void svm_vcpu_put(struct kvm_vcpu *vcpu)
 	if (sev_es_guest(svm->vcpu.kvm)) {
 		sev_es_vcpu_put(svm);
 	} else {
-		kvm_load_ldt(svm->host.ldt);
-#ifdef CONFIG_X86_64
-		loadsegment(fs, svm->host.fs);
-		wrmsrl(MSR_KERNEL_GS_BASE, current->thread.gsbase);
-		load_gs_index(svm->host.gs);
-#else
-#ifdef CONFIG_X86_32_LAZY_GS
-		loadsegment(gs, svm->host.gs);
-#endif
-#endif
-
 		for (i = 0; i < NR_HOST_SAVE_USER_MSRS; i++)
 			wrmsrl(host_save_user_msrs[i].index,
 			       svm->host_user_msrs[i]);
@@ -3786,16 +3770,11 @@ static noinstr void svm_vcpu_enter_exit(struct kvm_vcpu *vcpu,
 	if (sev_es_guest(svm->vcpu.kvm)) {
 		__svm_sev_es_vcpu_run(svm->vmcb_pa);
 	} else {
+		struct svm_cpu_data *sd = per_cpu(svm_data, vcpu->cpu);
+
 		__svm_vcpu_run(svm->vmcb_pa, (unsigned long *)&svm->vcpu.arch.regs);
 
-#ifdef CONFIG_X86_64
-		native_wrmsrl(MSR_GS_BASE, svm->host.gs_base);
-#else
-		loadsegment(fs, svm->host.fs);
-#ifndef CONFIG_X86_32_LAZY_GS
-		loadsegment(gs, svm->host.gs);
-#endif
-#endif
+		vmload(__sme_page_pa(sd->save_area));
 	}
 
 	/*

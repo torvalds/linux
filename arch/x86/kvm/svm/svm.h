@@ -27,17 +27,6 @@ static const struct svm_host_save_msrs {
 	u32 index;		/* Index of the MSR */
 	bool sev_es_restored;	/* True if MSR is restored on SEV-ES VMEXIT */
 } host_save_user_msrs[] = {
-#ifdef CONFIG_X86_64
-	{ .index = MSR_STAR,			.sev_es_restored = true },
-	{ .index = MSR_LSTAR,			.sev_es_restored = true },
-	{ .index = MSR_CSTAR,			.sev_es_restored = true },
-	{ .index = MSR_SYSCALL_MASK,		.sev_es_restored = true },
-	{ .index = MSR_KERNEL_GS_BASE,		.sev_es_restored = true },
-	{ .index = MSR_FS_BASE,			.sev_es_restored = true },
-#endif
-	{ .index = MSR_IA32_SYSENTER_CS,	.sev_es_restored = true },
-	{ .index = MSR_IA32_SYSENTER_ESP,	.sev_es_restored = true },
-	{ .index = MSR_IA32_SYSENTER_EIP,	.sev_es_restored = true },
 	{ .index = MSR_TSC_AUX,			.sev_es_restored = false },
 };
 #define NR_HOST_SAVE_USER_MSRS ARRAY_SIZE(host_save_user_msrs)
@@ -130,12 +119,6 @@ struct vcpu_svm {
 	u64 next_rip;
 
 	u64 host_user_msrs[NR_HOST_SAVE_USER_MSRS];
-	struct {
-		u16 fs;
-		u16 gs;
-		u16 ldt;
-		u64 gs_base;
-	} host;
 
 	u64 spec_ctrl;
 	/*
