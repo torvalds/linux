@@ -1366,6 +1366,7 @@ static int svm_create_vcpu(struct kvm_vcpu *vcpu)
 		svm->vmsa = page_address(vmsa_page);
 
 	svm->asid_generation = 0;
+	svm->guest_state_loaded = false;
 	init_vmcb(svm);
 
 	svm_init_osvw(vcpu);
@@ -1413,23 +1414,30 @@ static void svm_free_vcpu(struct kvm_vcpu *vcpu)
 	__free_pages(virt_to_page(svm->msrpm), MSRPM_ALLOC_ORDER);
 }
 
-static void svm_vcpu_load(struct kvm_vcpu *vcpu, int cpu)
+static void svm_prepare_guest_switch(struct kvm_vcpu *vcpu)
 {
 	struct vcpu_svm *svm = to_svm(vcpu);
-	struct svm_cpu_data *sd = per_cpu(svm_data, cpu);
-	int i;
+	struct svm_cpu_data *sd = per_cpu(svm_data, vcpu->cpu);
+	unsigned int i;
 
-	if (unlikely(cpu != vcpu->cpu)) {
-		svm->asid_generation = 0;
-		vmcb_mark_all_dirty(svm->vmcb);
-	}
+	if (svm->guest_state_loaded)
+		return;
 
+	/*
+	 * Certain MSRs are restored on VMEXIT (sev-es), or vmload of host save
+	 * area (non-sev-es). Save ones that aren't so we can restore them
+	 * individually later.
+	 */
+	for (i = 0; i < NR_HOST_SAVE_USER_MSRS; i++)
+		rdmsrl(host_save_user_msrs[i], svm->host_user_msrs[i]);
+
+	/*
+	 * Save additional host state that will be restored on VMEXIT (sev-es)
+	 * or subsequent vmload of host save area.
+	 */
 	if (sev_es_guest(svm->vcpu.kvm)) {
-		sev_es_vcpu_load(svm, cpu);
+		sev_es_prepare_guest_switch(svm, vcpu->cpu);
 	} else {
-		for (i = 0; i < NR_HOST_SAVE_USER_MSRS; i++)
-			rdmsrl(host_save_user_msrs[i], svm->host_user_msrs[i]);
-
 		vmsave(__sme_page_pa(sd->save_area));
 	}
 
@@ -1440,9 +1448,41 @@ static void svm_vcpu_load(struct kvm_vcpu *vcpu, int cpu)
 			wrmsrl(MSR_AMD64_TSC_RATIO, tsc_ratio);
 		}
 	}
+
 	/* This assumes that the kernel never uses MSR_TSC_AUX */
 	if (static_cpu_has(X86_FEATURE_RDTSCP))
 		wrmsrl(MSR_TSC_AUX, svm->tsc_aux);
+
+	svm->guest_state_loaded = true;
+}
+
+static void svm_prepare_host_switch(struct kvm_vcpu *vcpu)
+{
+	struct vcpu_svm *svm = to_svm(vcpu);
+	unsigned int i;
+
+	if (!svm->guest_state_loaded)
+		return;
+
+	/*
+	 * Certain MSRs are restored on VMEXIT (sev-es), or vmload of host save
+	 * area (non-sev-es). Restore the ones that weren't.
+	 */
+	for (i = 0; i < NR_HOST_SAVE_USER_MSRS; i++)
+		wrmsrl(host_save_user_msrs[i], svm->host_user_msrs[i]);
+
+	svm->guest_state_loaded = false;
+}
+
+static void svm_vcpu_load(struct kvm_vcpu *vcpu, int cpu)
+{
+	struct vcpu_svm *svm = to_svm(vcpu);
+	struct svm_cpu_data *sd = per_cpu(svm_data, cpu);
+
+	if (unlikely(cpu != vcpu->cpu)) {
+		svm->asid_generation = 0;
+		vmcb_mark_all_dirty(svm->vmcb);
+	}
 
 	if (sd->current_vmcb != svm->vmcb) {
 		sd->current_vmcb = svm->vmcb;
@@ -1453,18 +1493,10 @@ static void svm_vcpu_load(struct kvm_vcpu *vcpu, int cpu)
 
 static void svm_vcpu_put(struct kvm_vcpu *vcpu)
 {
-	struct vcpu_svm *svm = to_svm(vcpu);
-	int i;
-
 	avic_vcpu_put(vcpu);
+	svm_prepare_host_switch(vcpu);
 
 	++vcpu->stat.host_state_reload;
-	if (sev_es_guest(svm->vcpu.kvm)) {
-		sev_es_vcpu_put(svm);
-	} else {
-		for (i = 0; i < NR_HOST_SAVE_USER_MSRS; i++)
-			wrmsrl(host_save_user_msrs[i], svm->host_user_msrs[i]);
-	}
 }
 
 static unsigned long svm_get_rflags(struct kvm_vcpu *vcpu)
@@ -3618,10 +3650,6 @@ static void svm_flush_tlb_gva(struct kvm_vcpu *vcpu, gva_t gva)
 	struct vcpu_svm *svm = to_svm(vcpu);
 
 	invlpga(gva, svm->vmcb->control.asid);
-}
-
-static void svm_prepare_guest_switch(struct kvm_vcpu *vcpu)
-{
 }
 
 static inline void sync_cr8_to_lapic(struct kvm_vcpu *vcpu)

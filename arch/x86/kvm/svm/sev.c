@@ -2066,11 +2066,10 @@ void sev_es_create_vcpu(struct vcpu_svm *svm)
 					    sev_enc_bit));
 }
 
-void sev_es_vcpu_load(struct vcpu_svm *svm, int cpu)
+void sev_es_prepare_guest_switch(struct vcpu_svm *svm, unsigned int cpu)
 {
 	struct svm_cpu_data *sd = per_cpu(svm_data, cpu);
 	struct vmcb_save_area *hostsa;
-	unsigned int i;
 
 	/*
 	 * As an SEV-ES guest, hardware will restore the host state on VMEXIT,
@@ -2078,13 +2077,6 @@ void sev_es_vcpu_load(struct vcpu_svm *svm, int cpu)
 	 * perform a VMSAVE on VMRUN, the host savearea must be updated.
 	 */
 	vmsave(__sme_page_pa(sd->save_area));
-
-	/*
-	 * Certain MSRs are restored on VMEXIT, only save ones that aren't
-	 * restored.
-	 */
-	for (i = 0; i < NR_HOST_SAVE_USER_MSRS; i++)
-		rdmsrl(host_save_user_msrs[i], svm->host_user_msrs[i]);
 
 	/* XCR0 is restored on VMEXIT, save the current host value */
 	hostsa = (struct vmcb_save_area *)(page_address(sd->save_area) + 0x400);
@@ -2095,18 +2087,6 @@ void sev_es_vcpu_load(struct vcpu_svm *svm, int cpu)
 
 	/* MSR_IA32_XSS is restored on VMEXIT, save the currnet host value */
 	hostsa->xss = host_xss;
-}
-
-void sev_es_vcpu_put(struct vcpu_svm *svm)
-{
-	unsigned int i;
-
-	/*
-	 * Certain MSRs are restored on VMEXIT and were saved with vmsave in
-	 * sev_es_vcpu_load() above. Only restore ones that weren't.
-	 */
-	for (i = 0; i < NR_HOST_SAVE_USER_MSRS; i++)
-		wrmsrl(host_save_user_msrs[i], svm->host_user_msrs[i]);
 }
 
 void sev_vcpu_deliver_sipi_vector(struct kvm_vcpu *vcpu, u8 vector)
