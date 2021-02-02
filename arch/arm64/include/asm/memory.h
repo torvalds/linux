@@ -165,6 +165,12 @@
  */
 #define RESERVED_SWAPPER_OFFSET	(PAGE_SIZE)
 
+/*
+ *  Open-coded (swapper_pg_dir - tramp_pg_dir) as this cannot be calculated
+ *  until link time.
+ */
+#define TRAMP_SWAPPER_OFFSET	(2 * PAGE_SIZE)
+
 #ifndef __ASSEMBLY__
 
 #include <linux/bitops.h>
