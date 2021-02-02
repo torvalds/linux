@@ -17830,6 +17830,7 @@ TI ADS131E0X ADC SERIES DRIVER
 M:	Tomislav Denis <tomislav.denis@avl.com>
 L:	linux-iio@vger.kernel.org
 S:	Maintained
+F:	Documentation/devicetree/bindings/iio/adc/ti,ads131e08.yaml
 F:	drivers/iio/adc/ti-ads131e08.c
 
 TI AM437X VPFE DRIVER
