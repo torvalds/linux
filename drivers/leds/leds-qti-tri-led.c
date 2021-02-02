@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
- * Copyright (c) 2018-2019, The Linux Foundation. All rights reserved.
+ * Copyright (c) 2018-2019, 2021, The Linux Foundation. All rights reserved.
  */
 
 #include <linux/bitops.h>
@@ -577,7 +577,8 @@ static int qpnp_tri_led_probe(struct platform_device *pdev)
 
 	rc = qpnp_tri_led_parse_dt(chip);
 	if (rc < 0) {
-		dev_err(chip->dev, "Devicetree properties parsing failed, rc=%d\n",
+		if (rc != -EPROBE_DEFER)
+			dev_err(chip->dev, "Devicetree properties parsing failed, rc=%d\n",
 								rc);
 		return rc;
 	}
