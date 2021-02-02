@@ -1408,6 +1408,127 @@ static int scmi_unregister_notifier(const struct scmi_handle *handle,
 	return 0;
 }
 
+struct scmi_notifier_devres {
+	const struct scmi_handle *handle;
+	u8 proto_id;
+	u8 evt_id;
+	u32 __src_id;
+	u32 *src_id;
+	struct notifier_block *nb;
+};
+
+static void scmi_devm_release_notifier(struct device *dev, void *res)
+{
+	struct scmi_notifier_devres *dres = res;
+
+	scmi_unregister_notifier(dres->handle, dres->proto_id, dres->evt_id,
+				 dres->src_id, dres->nb);
+}
+
+/**
+ * scmi_devm_register_notifier()  - Managed registration of a notifier_block
+ * for an event
+ * @sdev: A reference to an scmi_device whose embedded struct device is to
+ *	  be used for devres accounting.
+ * @proto_id: Protocol ID
+ * @evt_id: Event ID
+ * @src_id: Source ID, when NULL register for events coming form ALL possible
+ *	    sources
+ * @nb: A standard notifier block to register for the specified event
+ *
+ * Generic devres managed helper to register a notifier_block against a
+ * protocol event.
+ */
+static int scmi_devm_register_notifier(struct scmi_device *sdev,
+				       u8 proto_id, u8 evt_id, u32 *src_id,
+				       struct notifier_block *nb)
+{
+	int ret;
+	struct scmi_notifier_devres *dres;
+
+	dres = devres_alloc(scmi_devm_release_notifier,
+			    sizeof(*dres), GFP_KERNEL);
+	if (!dres)
+		return -ENOMEM;
+
+	ret = scmi_register_notifier(sdev->handle, proto_id,
+				     evt_id, src_id, nb);
+	if (ret) {
+		devres_free(dres);
+		return ret;
+	}
+
+	dres->handle = sdev->handle;
+	dres->proto_id = proto_id;
+	dres->evt_id = evt_id;
+	dres->nb = nb;
+	if (src_id) {
+		dres->__src_id = *src_id;
+		dres->src_id = &dres->__src_id;
+	} else {
+		dres->src_id = NULL;
+	}
+	devres_add(&sdev->dev, dres);
+
+	return ret;
+}
+
+static int scmi_devm_notifier_match(struct device *dev, void *res, void *data)
+{
+	struct scmi_notifier_devres *dres = res;
+	struct scmi_notifier_devres *xres = data;
+
+	if (WARN_ON(!dres || !xres))
+		return 0;
+
+	return dres->proto_id == xres->proto_id &&
+		dres->evt_id == xres->evt_id &&
+		dres->nb == xres->nb &&
+		((!dres->src_id && !xres->src_id) ||
+		  (dres->src_id && xres->src_id &&
+		   dres->__src_id == xres->__src_id));
+}
+
+/**
+ * scmi_devm_unregister_notifier()  - Managed un-registration of a
+ * notifier_block for an event
+ * @sdev: A reference to an scmi_device whose embedded struct device is to
+ *	  be used for devres accounting.
+ * @proto_id: Protocol ID
+ * @evt_id: Event ID
+ * @src_id: Source ID, when NULL register for events coming form ALL possible
+ *	    sources
+ * @nb: A standard notifier block to register for the specified event
+ *
+ * Generic devres managed helper to explicitly un-register a notifier_block
+ * against a protocol event, which was previously registered using the above
+ * @scmi_devm_register_notifier.
+ */
+static int scmi_devm_unregister_notifier(struct scmi_device *sdev,
+					 u8 proto_id, u8 evt_id, u32 *src_id,
+					 struct notifier_block *nb)
+{
+	int ret;
+	struct scmi_notifier_devres dres;
+
+	dres.handle = sdev->handle;
+	dres.proto_id = proto_id;
+	dres.evt_id = evt_id;
+	if (src_id) {
+		dres.__src_id = *src_id;
+		dres.src_id = &dres.__src_id;
+	} else {
+		dres.src_id = NULL;
+	}
+
+	ret = devres_release(&sdev->dev, scmi_devm_release_notifier,
+			     scmi_devm_notifier_match, &dres);
+
+	WARN_ON(ret);
+
+	return ret;
+}
+
 /**
  * scmi_protocols_late_init()  - Worker for late initialization
  * @work: The work item to use associated to the proper SCMI instance
@@ -1465,6 +1586,8 @@ static void scmi_protocols_late_init(struct work_struct *work)
  * directly from an scmi_driver to register its own notifiers.
  */
 static const struct scmi_notify_ops notify_ops = {
+	.devm_register_event_notifier = scmi_devm_register_notifier,
+	.devm_unregister_event_notifier = scmi_devm_unregister_notifier,
 	.register_event_notifier = scmi_register_notifier,
 	.unregister_event_notifier = scmi_unregister_notifier,
 };

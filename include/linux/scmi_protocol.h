@@ -544,6 +544,10 @@ struct scmi_voltage_ops {
 /**
  * struct scmi_notify_ops  - represents notifications' operations provided by
  * SCMI core
+ * @devm_register_event_notifier: Managed registration of a notifier_block for
+ *				  the requested event
+ * @devm_unregister_event_notifier: Managed unregistration of a notifier_block
+ *				    for the requested event
  * @register_event_notifier: Register a notifier_block for the requested event
  * @unregister_event_notifier: Unregister a notifier_block for the requested
  *			       event
@@ -553,7 +557,9 @@ struct scmi_voltage_ops {
  * tuple: (proto_id, evt_id, src_id) using the provided register/unregister
  * interface where:
  *
- * @handle: The handle identifying the platform instance to use
+ * @sdev: The scmi_device to use when calling the devres managed ops devm_
+ * @handle: The handle identifying the platform instance to use, when not
+ *	    calling the managed ops devm_
  * @proto_id: The protocol ID as in SCMI Specification
  * @evt_id: The message ID of the desired event as in SCMI Specification
  * @src_id: A pointer to the desired source ID if different sources are
@@ -576,6 +582,13 @@ struct scmi_voltage_ops {
  * @report: A custom struct describing the specific event delivered
  */
 struct scmi_notify_ops {
+	int (*devm_register_event_notifier)(struct scmi_device *sdev,
+					    u8 proto_id, u8 evt_id, u32 *src_id,
+					    struct notifier_block *nb);
+	int (*devm_unregister_event_notifier)(struct scmi_device *sdev,
+					      u8 proto_id, u8 evt_id,
+					      u32 *src_id,
+					      struct notifier_block *nb);
 	int (*register_event_notifier)(const struct scmi_handle *handle,
 				       u8 proto_id, u8 evt_id, u32 *src_id,
 				       struct notifier_block *nb);
