@@ -427,15 +427,19 @@ static void __handle_changed_spte(struct kvm *kvm, int as_id, gfn_t gfn,
 	 */
 	if (!was_present && !is_present) {
 		/*
-		 * If this change does not involve a MMIO SPTE, it is
-		 * unexpected. Log the change, though it should not impact the
-		 * guest since both the former and current SPTEs are nonpresent.
+		 * If this change does not involve a MMIO SPTE or removed SPTE,
+		 * it is unexpected. Log the change, though it should not
+		 * impact the guest since both the former and current SPTEs
+		 * are nonpresent.
 		 */
-		if (WARN_ON(!is_mmio_spte(old_spte) && !is_mmio_spte(new_spte)))
+		if (WARN_ON(!is_mmio_spte(old_spte) &&
+			    !is_mmio_spte(new_spte) &&
+			    !is_removed_spte(new_spte)))
 			pr_err("Unexpected SPTE change! Nonpresent SPTEs\n"
 			       "should not be replaced with another,\n"
 			       "different nonpresent SPTE, unless one or both\n"
-			       "are MMIO SPTEs.\n"
+			       "are MMIO SPTEs, or the new SPTE is\n"
+			       "a temporary removed SPTE.\n"
 			       "as_id: %d gfn: %llx old_spte: %llx new_spte: %llx level: %d",
 			       as_id, gfn, old_spte, new_spte, level);
 		return;
@@ -486,12 +490,47 @@ static inline bool tdp_mmu_set_spte_atomic(struct kvm *kvm,
 
 	lockdep_assert_held_read(&kvm->mmu_lock);
 
+	/*
+	 * Do not change removed SPTEs. Only the thread that froze the SPTE
+	 * may modify it.
+	 */
+	if (iter->old_spte == REMOVED_SPTE)
+		return false;
+
 	if (cmpxchg64(rcu_dereference(iter->sptep), iter->old_spte,
 		      new_spte) != iter->old_spte)
 		return false;
 
 	handle_changed_spte(kvm, as_id, iter->gfn, iter->old_spte, new_spte,
 			    iter->level, true);
+
+	return true;
+}
+
+static inline bool tdp_mmu_zap_spte_atomic(struct kvm *kvm,
+					   struct tdp_iter *iter)
+{
+	/*
+	 * Freeze the SPTE by setting it to a special,
+	 * non-present value. This will stop other threads from
+	 * immediately installing a present entry in its place
+	 * before the TLBs are flushed.
+	 */
+	if (!tdp_mmu_set_spte_atomic(kvm, iter, REMOVED_SPTE))
+		return false;
+
+	kvm_flush_remote_tlbs_with_address(kvm, iter->gfn,
+					   KVM_PAGES_PER_HPAGE(iter->level));
+
+	/*
+	 * No other thread can overwrite the removed SPTE as they
+	 * must either wait on the MMU lock or use
+	 * tdp_mmu_set_spte_atomic which will not overrite the
+	 * special removed SPTE value. No bookkeeping is needed
+	 * here since the SPTE is going from non-present
+	 * to non-present.
+	 */
+	WRITE_ONCE(*iter->sptep, 0);
 
 	return true;
 }
@@ -522,6 +561,15 @@ static inline void __tdp_mmu_set_spte(struct kvm *kvm, struct tdp_iter *iter,
 	int as_id = kvm_mmu_page_as_id(root);
 
 	lockdep_assert_held_write(&kvm->mmu_lock);
+
+	/*
+	 * No thread should be using this function to set SPTEs to the
+	 * temporary removed SPTE value.
+	 * If operating under the MMU lock in read mode, tdp_mmu_set_spte_atomic
+	 * should be used. If operating under the MMU lock in write mode, the
+	 * use of the removed SPTE should not be necessary.
+	 */
+	WARN_ON(iter->old_spte == REMOVED_SPTE);
 
 	WRITE_ONCE(*rcu_dereference(iter->sptep), new_spte);
 
@@ -790,11 +838,8 @@ int kvm_tdp_mmu_map(struct kvm_vcpu *vcpu, gpa_t gpa, u32 error_code,
 		 */
 		if (is_shadow_present_pte(iter.old_spte) &&
 		    is_large_pte(iter.old_spte)) {
-			if (!tdp_mmu_set_spte_atomic(vcpu->kvm, &iter, 0))
+			if (!tdp_mmu_zap_spte_atomic(vcpu->kvm, &iter))
 				break;
-
-			kvm_flush_remote_tlbs_with_address(vcpu->kvm, iter.gfn,
-					KVM_PAGES_PER_HPAGE(iter.level));
 
 			/*
 			 * The iter must explicitly re-read the spte here
