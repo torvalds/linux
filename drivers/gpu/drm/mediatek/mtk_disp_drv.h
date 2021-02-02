@@ -9,6 +9,15 @@
 #include <linux/soc/mediatek/mtk-cmdq.h>
 #include "mtk_drm_plane.h"
 
+void mtk_ccorr_ctm_set(struct device *dev, struct drm_crtc_state *state);
+int mtk_ccorr_clk_enable(struct device *dev);
+void mtk_ccorr_clk_disable(struct device *dev);
+void mtk_ccorr_config(struct device *dev, unsigned int w,
+		      unsigned int h, unsigned int vrefresh,
+		      unsigned int bpc, struct cmdq_pkt *cmdq_pkt);
+void mtk_ccorr_start(struct device *dev);
+void mtk_ccorr_stop(struct device *dev);
+
 void mtk_color_bypass_shadow(struct device *dev);
 int mtk_color_clk_enable(struct device *dev);
 void mtk_color_clk_disable(struct device *dev);
