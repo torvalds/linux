@@ -2,7 +2,7 @@
 /*
  * ARM System Control and Management Interface (ARM SCMI) reset driver
  *
- * Copyright (C) 2019 ARM Ltd.
+ * Copyright (C) 2019-2020 ARM Ltd.
  */
 
 #include <linux/module.h>
@@ -11,18 +11,20 @@
 #include <linux/reset-controller.h>
 #include <linux/scmi_protocol.h>
 
+static const struct scmi_reset_proto_ops *reset_ops;
+
 /**
  * struct scmi_reset_data - reset controller information structure
  * @rcdev: reset controller entity
- * @handle: ARM SCMI handle used for communication with system controller
+ * @ph: ARM SCMI protocol handle used for communication with system controller
  */
 struct scmi_reset_data {
 	struct reset_controller_dev rcdev;
-	const struct scmi_handle *handle;
+	const struct scmi_protocol_handle *ph;
 };
 
 #define to_scmi_reset_data(p)	container_of((p), struct scmi_reset_data, rcdev)
-#define to_scmi_handle(p)	(to_scmi_reset_data(p)->handle)
+#define to_scmi_handle(p)	(to_scmi_reset_data(p)->ph)
 
 /**
  * scmi_reset_assert() - assert device reset
@@ -37,9 +39,9 @@ struct scmi_reset_data {
 static int
 scmi_reset_assert(struct reset_controller_dev *rcdev, unsigned long id)
 {
-	const struct scmi_handle *handle = to_scmi_handle(rcdev);
+	const struct scmi_protocol_handle *ph = to_scmi_handle(rcdev);
 
-	return handle->reset_ops->assert(handle, id);
+	return reset_ops->assert(ph, id);
 }
 
 /**
@@ -55,9 +57,9 @@ scmi_reset_assert(struct reset_controller_dev *rcdev, unsigned long id)
 static int
 scmi_reset_deassert(struct reset_controller_dev *rcdev, unsigned long id)
 {
-	const struct scmi_handle *handle = to_scmi_handle(rcdev);
+	const struct scmi_protocol_handle *ph = to_scmi_handle(rcdev);
 
-	return handle->reset_ops->deassert(handle, id);
+	return reset_ops->deassert(ph, id);
 }
 
 /**
@@ -73,9 +75,9 @@ scmi_reset_deassert(struct reset_controller_dev *rcdev, unsigned long id)
 static int
 scmi_reset_reset(struct reset_controller_dev *rcdev, unsigned long id)
 {
-	const struct scmi_handle *handle = to_scmi_handle(rcdev);
+	const struct scmi_protocol_handle *ph = to_scmi_handle(rcdev);
 
-	return handle->reset_ops->reset(handle, id);
+	return reset_ops->reset(ph, id);
 }
 
 static const struct reset_control_ops scmi_reset_ops = {
@@ -90,9 +92,14 @@ static int scmi_reset_probe(struct scmi_device *sdev)
 	struct device *dev = &sdev->dev;
 	struct device_node *np = dev->of_node;
 	const struct scmi_handle *handle = sdev->handle;
+	struct scmi_protocol_handle *ph;
 
-	if (!handle || !handle->reset_ops)
+	if (!handle)
 		return -ENODEV;
+
+	reset_ops = handle->devm_get_protocol(sdev, SCMI_PROTOCOL_RESET, &ph);
+	if (IS_ERR(reset_ops))
+		return PTR_ERR(reset_ops);
 
 	data = devm_kzalloc(dev, sizeof(*data), GFP_KERNEL);
 	if (!data)
@@ -101,8 +108,8 @@ static int scmi_reset_probe(struct scmi_device *sdev)
 	data->rcdev.ops = &scmi_reset_ops;
 	data->rcdev.owner = THIS_MODULE;
 	data->rcdev.of_node = np;
-	data->rcdev.nr_resets = handle->reset_ops->num_domains_get(handle);
-	data->handle = handle;
+	data->rcdev.nr_resets = reset_ops->num_domains_get(ph);
+	data->ph = ph;
 
 	return devm_reset_controller_register(dev, &data->rcdev);
 }
