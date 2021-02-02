@@ -1176,6 +1176,9 @@ static u64 kvm_dr6_fixed(struct kvm_vcpu *vcpu)
 
 	if (!guest_cpuid_has(vcpu, X86_FEATURE_RTM))
 		fixed |= DR6_RTM;
+
+	if (!guest_cpuid_has(vcpu, X86_FEATURE_BUS_LOCK_DETECT))
+		fixed |= DR6_BUS_LOCK;
 	return fixed;
 }
 
