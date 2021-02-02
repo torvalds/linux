@@ -3430,6 +3430,14 @@ static void tcpm_unregister_altmodes(struct tcpm_port *port)
 	memset(modep, 0, sizeof(*modep));
 }
 
+static void tcpm_set_partner_usb_comm_capable(struct tcpm_port *port, bool capable)
+{
+	tcpm_log(port, "Setting usb_comm capable %s", capable ? "true" : "false");
+
+	if (port->tcpc->set_partner_usb_comm_capable)
+		port->tcpc->set_partner_usb_comm_capable(port->tcpc, capable);
+}
+
 static void tcpm_reset_port(struct tcpm_port *port)
 {
 	int ret;
@@ -3446,6 +3454,7 @@ static void tcpm_reset_port(struct tcpm_port *port)
 	port->attached = false;
 	port->pd_capable = false;
 	port->pps_data.supported = false;
+	tcpm_set_partner_usb_comm_capable(port, false);
 
 	/*
 	 * First Rx ID should be 0; set this to a sentinel of -1 so that
@@ -3786,6 +3795,8 @@ static void run_state_machine(struct tcpm_port *port)
 			}
 		} else {
 			tcpm_pd_send_control(port, PD_CTRL_ACCEPT);
+			tcpm_set_partner_usb_comm_capable(port,
+							  !!(port->sink_request & RDO_USB_COMM));
 			tcpm_set_state(port, SRC_TRANSITION_SUPPLY,
 				       PD_T_SRC_TRANSITION);
 		}
@@ -4005,6 +4016,8 @@ static void run_state_machine(struct tcpm_port *port)
 		break;
 	case SNK_NEGOTIATE_CAPABILITIES:
 		port->pd_capable = true;
+		tcpm_set_partner_usb_comm_capable(port,
+						  !!(port->source_caps[0] & PDO_FIXED_USB_COMM));
 		port->hard_reset_count = 0;
 		ret = tcpm_pd_send_request(port);
 		if (ret < 0) {
