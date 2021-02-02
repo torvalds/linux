@@ -25,6 +25,12 @@
 #include "blk.h"
 #include "blk-rq-qos.h"
 
+struct biovec_slab {
+	int nr_vecs;
+	char *name;
+	struct kmem_cache *slab;
+};
+
 /*
  * if you change this list, also change bvec_alloc or things will
  * break badly! cannot be bigger than what you can fit into an

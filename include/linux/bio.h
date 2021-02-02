@@ -720,12 +720,6 @@ struct bio_set {
 	struct workqueue_struct	*rescue_workqueue;
 };
 
-struct biovec_slab {
-	int nr_vecs;
-	char *name;
-	struct kmem_cache *slab;
-};
-
 static inline bool bioset_initialized(struct bio_set *bs)
 {
 	return bs->bio_slab != NULL;
