@@ -126,7 +126,7 @@ struct typec_altmode_desc {
 	enum typec_port_data	roles;
 };
 
-int typec_partner_set_pd_revision(struct typec_partner *partner, u16 pd_revision);
+void typec_partner_set_pd_revision(struct typec_partner *partner, u16 pd_revision);
 int typec_partner_set_num_altmodes(struct typec_partner *partner, int num_altmodes);
 struct typec_altmode
 *typec_partner_register_altmode(struct typec_partner *partner,

@@ -755,15 +755,11 @@ EXPORT_SYMBOL_GPL(typec_partner_set_identity);
  *
  * This routine is used to report that the PD revision of the port partner has
  * become available.
- *
- * Returns 0 on success or negative error number on failure.
  */
-int typec_partner_set_pd_revision(struct typec_partner *partner, u16 pd_revision)
+void typec_partner_set_pd_revision(struct typec_partner *partner, u16 pd_revision)
 {
-	int ret;
-
 	if (partner->pd_revision == pd_revision)
-		return 0;
+		return;
 
 	partner->pd_revision = pd_revision;
 	sysfs_notify(&partner->dev.kobj, NULL, "usb_power_delivery_revision");
@@ -773,8 +769,6 @@ int typec_partner_set_pd_revision(struct typec_partner *partner, u16 pd_revision
 			     "supports_usb_power_delivery");
 	}
 	kobject_uevent(&partner->dev.kobj, KOBJ_CHANGE);
-
-	return 0;
 }
 EXPORT_SYMBOL_GPL(typec_partner_set_pd_revision);
 
