@@ -283,7 +283,7 @@ static irqreturn_t qcom_labibb_ocp_isr(int irq, void *chip)
 	 * Disable the interrupt temporarily, or it will fire continuously;
 	 * we will re-enable it in the recovery worker function.
 	 */
-	disable_irq(irq);
+	disable_irq_nosync(irq);
 
 	/* Warn the user for overcurrent */
 	dev_warn(vreg->dev, "Over-Current interrupt fired!\n");
@@ -536,7 +536,7 @@ static irqreturn_t qcom_labibb_sc_isr(int irq, void *chip)
 	 * Disable the interrupt temporarily, or it will fire continuously;
 	 * we will re-enable it in the recovery worker function.
 	 */
-	disable_irq(irq);
+	disable_irq_nosync(irq);
 
 	/* Signal out of regulation event to drivers */
 	regulator_notifier_call_chain(vreg->rdev,
