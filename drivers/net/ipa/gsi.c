@@ -440,7 +440,7 @@ static void gsi_evt_ring_de_alloc_command(struct gsi *gsi, u32 evt_ring_id)
 static enum gsi_channel_state gsi_channel_state(struct gsi_channel *channel)
 {
 	u32 channel_id = gsi_channel_id(channel);
-	void *virt = channel->gsi->virt;
+	void __iomem *virt = channel->gsi->virt;
 	u32 val;
 
 	val = ioread32(virt + GSI_CH_C_CNTXT_0_OFFSET(channel_id));
