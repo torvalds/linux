@@ -391,6 +391,7 @@ void android_vh_show_max_freq(void *unused, struct cpufreq_policy *policy,
 #define WALT_CPUFREQ_IC_MIGRATION	(1U << 2)
 #define WALT_CPUFREQ_PL			(1U << 3)
 #define WALT_CPUFREQ_EARLY_DET		(1U << 4)
+#define WALT_CPUFREQ_BOOST_UPDATE	(1U << 5)
 
 #define NO_BOOST 0
 #define FULL_THROTTLE_BOOST 1
