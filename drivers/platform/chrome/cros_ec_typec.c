@@ -638,9 +638,8 @@ static void cros_typec_set_port_params_v1(struct cros_typec_data *typec,
 				 "Failed to register partner on port: %d\n",
 				 port_num);
 	} else {
-		if (!typec->ports[port_num]->partner)
-			return;
-		cros_typec_remove_partner(typec, port_num);
+		if (typec->ports[port_num]->partner)
+			cros_typec_remove_partner(typec, port_num);
 
 		if (typec->ports[port_num]->cable)
 			cros_typec_remove_cable(typec, port_num);
