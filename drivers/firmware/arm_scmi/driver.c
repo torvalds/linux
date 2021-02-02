@@ -745,6 +745,30 @@ static void scmi_devm_release_protocol(struct device *dev, void *res)
 	scmi_release_protocol(dres->handle, dres->protocol_id);
 }
 
+static struct scmi_protocol_instance __must_check *
+__scmi_devres_get_protocol_instance(struct scmi_device *sdev, u8 protocol_id)
+{
+	struct scmi_protocol_devres *dres;
+	struct scmi_protocol_instance *pi;
+
+	dres = devres_alloc(scmi_devm_release_protocol,
+			    sizeof(*dres), GFP_KERNEL);
+	if (!dres)
+		return ERR_PTR(-ENOMEM);
+
+	pi = scmi_get_protocol_instance(sdev->handle, protocol_id);
+	if (IS_ERR(pi)) {
+		devres_free(dres);
+		return pi;
+	}
+
+	dres->handle = sdev->handle;
+	dres->protocol_id = protocol_id;
+	devres_add(&sdev->dev, dres);
+
+	return pi;
+}
+
 /**
  * scmi_devm_get_protocol  - Devres managed get protocol operations and handle
  * @sdev: A reference to an scmi_device whose embedded struct device is to
@@ -768,30 +792,45 @@ scmi_devm_get_protocol(struct scmi_device *sdev, u8 protocol_id,
 		       struct scmi_protocol_handle **ph)
 {
 	struct scmi_protocol_instance *pi;
-	struct scmi_protocol_devres *dres;
-	struct scmi_handle *handle = sdev->handle;
 
 	if (!ph)
 		return ERR_PTR(-EINVAL);
 
-	dres = devres_alloc(scmi_devm_release_protocol,
-			    sizeof(*dres), GFP_KERNEL);
-	if (!dres)
-		return ERR_PTR(-ENOMEM);
-
-	pi = scmi_get_protocol_instance(handle, protocol_id);
-	if (IS_ERR(pi)) {
-		devres_free(dres);
+	pi = __scmi_devres_get_protocol_instance(sdev, protocol_id);
+	if (IS_ERR(pi))
 		return pi;
-	}
-
-	dres->handle = handle;
-	dres->protocol_id = protocol_id;
-	devres_add(&sdev->dev, dres);
 
 	*ph = &pi->ph;
 
 	return pi->proto->ops;
+}
+
+/**
+ * scmi_devm_acquire_protocol  - Devres managed helper to get hold of a protocol
+ * @sdev: A reference to an scmi_device whose embedded struct device is to
+ *	  be used for devres accounting.
+ * @protocol_id: The protocol being requested.
+ *
+ * Get hold of a protocol accounting for its usage, possibly triggering its
+ * initialization but without getting access to its protocol specific operations
+ * and handle.
+ *
+ * Being a devres based managed method, protocol hold will be automatically
+ * released, and possibly de-initialized on last user, once the SCMI driver
+ * owning the scmi_device is unbound from it.
+ *
+ * Return: 0 on SUCCESS
+ */
+static int __must_check scmi_devm_acquire_protocol(struct scmi_device *sdev,
+						   u8 protocol_id)
+{
+	struct scmi_protocol_instance *pi;
+
+	pi = __scmi_devres_get_protocol_instance(sdev, protocol_id);
+	if (IS_ERR(pi))
+		return PTR_ERR(pi);
+
+	return 0;
 }
 
 static int scmi_devm_protocol_match(struct device *dev, void *res, void *data)
@@ -1076,6 +1115,7 @@ static int scmi_probe(struct platform_device *pdev)
 	handle = &info->handle;
 	handle->dev = info->dev;
 	handle->version = &info->version;
+	handle->devm_acquire_protocol = scmi_devm_acquire_protocol;
 	handle->devm_get_protocol = scmi_devm_get_protocol;
 	handle->devm_put_protocol = scmi_devm_put_protocol;
 

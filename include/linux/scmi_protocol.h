@@ -595,9 +595,15 @@ struct scmi_notify_ops {
  * @sensor_ops: pointer to set of sensor protocol operations
  * @reset_ops: pointer to set of reset protocol operations
  * @voltage_ops: pointer to set of voltage protocol operations
- * @devm_get_protocol: devres managed method to acquire a protocol and get specific
- *		       operations and a dedicated protocol handler
- * @devm_put_protocol: devres managed method to release a protocol
+ * @devm_acquire_protocol: devres managed method to get hold of a protocol,
+ *			   causing its initialization and related resource
+ *			   accounting
+ * @devm_get_protocol: devres managed method to acquire a protocol, causing
+ *		       its initialization and resource accounting, while getting
+ *		       protocol specific operations and a dedicated protocol
+ *		       handler
+ * @devm_put_protocol: devres managed method to release a protocol acquired
+ *		       with devm_acquire/get_protocol
  * @notify_ops: pointer to set of notifications related operations
  * @perf_priv: pointer to private data structure specific to performance
  *	protocol(for internal use only)
@@ -624,6 +630,8 @@ struct scmi_handle {
 	const struct scmi_reset_ops *reset_ops;
 	const struct scmi_voltage_ops *voltage_ops;
 
+	int __must_check (*devm_acquire_protocol)(struct scmi_device *sdev,
+						  u8 proto);
 	const void __must_check *
 		(*devm_get_protocol)(struct scmi_device *sdev, u8 proto,
 				     struct scmi_protocol_handle **ph);
