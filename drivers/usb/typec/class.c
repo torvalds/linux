@@ -88,7 +88,7 @@ static const char * const typec_accessory_modes[] = {
 
 /* Product types defined in USB PD Specification R3.0 V2.0 */
 static const char * const product_type_ufp[8] = {
-	[IDH_PTYPE_UNDEF]		= "undefined",
+	[IDH_PTYPE_NOT_UFP]		= "not_ufp",
 	[IDH_PTYPE_HUB]			= "hub",
 	[IDH_PTYPE_PERIPH]		= "peripheral",
 	[IDH_PTYPE_PSD]			= "psd",
@@ -96,17 +96,17 @@ static const char * const product_type_ufp[8] = {
 };
 
 static const char * const product_type_dfp[8] = {
-	[IDH_PTYPE_DFP_UNDEF]		= "undefined",
+	[IDH_PTYPE_NOT_DFP]		= "not_dfp",
 	[IDH_PTYPE_DFP_HUB]		= "hub",
 	[IDH_PTYPE_DFP_HOST]		= "host",
 	[IDH_PTYPE_DFP_PB]		= "power_brick",
-	[IDH_PTYPE_DFP_AMC]		= "amc",
 };
 
 static const char * const product_type_cable[8] = {
-	[IDH_PTYPE_UNDEF]		= "undefined",
+	[IDH_PTYPE_NOT_CABLE]		= "not_cable",
 	[IDH_PTYPE_PCABLE]		= "passive",
 	[IDH_PTYPE_ACABLE]		= "active",
+	[IDH_PTYPE_VPD]			= "vpd",
 };
 
 static struct usb_pd_identity *get_pd_identity(struct device *dev)
