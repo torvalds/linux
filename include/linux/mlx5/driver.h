@@ -366,6 +366,8 @@ struct mlx5_core_mkey {
 	u32			key;
 	u32			pd;
 	u32			type;
+	struct wait_queue_head wait;
+	refcount_t usecount;
 };
 
 #define MLX5_24BIT_MASK		((1 << 24) - 1)

@@ -684,11 +684,8 @@ struct mlx5_ib_mr {
 	u64			pi_iova;
 
 	/* For ODP and implicit */
-	atomic_t		num_deferred_work;
-	wait_queue_head_t       q_deferred_work;
 	struct xarray		implicit_children;
 	union {
-		struct rcu_head rcu;
 		struct list_head elm;
 		struct work_struct work;
 	} odp_destroy;
@@ -1068,11 +1065,6 @@ struct mlx5_ib_dev {
 	u64			odp_max_size;
 	struct mlx5_ib_pf_eq	odp_pf_eq;
 
-	/*
-	 * Sleepable RCU that prevents destruction of MRs while they are still
-	 * being used by a page fault handler.
-	 */
-	struct srcu_struct      odp_srcu;
 	struct xarray		odp_mkeys;
 
 	u32			null_mkey;
@@ -1597,6 +1589,29 @@ static inline bool mlx5_ib_can_reconfig_with_umr(struct mlx5_ib_dev *dev,
 		return false;
 
 	return true;
+}
+
+static inline int mlx5r_store_odp_mkey(struct mlx5_ib_dev *dev,
+				       struct mlx5_core_mkey *mmkey)
+{
+	refcount_set(&mmkey->usecount, 1);
+
+	return xa_err(xa_store(&dev->odp_mkeys, mlx5_base_mkey(mmkey->key),
+			       mmkey, GFP_KERNEL));
+}
+
+/* deref an mkey that can participate in ODP flow */
+static inline void mlx5r_deref_odp_mkey(struct mlx5_core_mkey *mmkey)
+{
+	if (refcount_dec_and_test(&mmkey->usecount))
+		wake_up(&mmkey->wait);
+}
+
+/* deref an mkey that can participate in ODP flow and wait for relese */
+static inline void mlx5r_deref_wait_odp_mkey(struct mlx5_core_mkey *mmkey)
+{
+	mlx5r_deref_odp_mkey(mmkey);
+	wait_event(mmkey->wait, refcount_read(&mmkey->usecount) == 0);
 }
 
 int mlx5_ib_test_wc(struct mlx5_ib_dev *dev);

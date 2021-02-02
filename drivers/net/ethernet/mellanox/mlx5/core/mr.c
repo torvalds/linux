@@ -56,6 +56,7 @@ int mlx5_core_create_mkey(struct mlx5_core_dev *dev,
 	mkey->size = MLX5_GET64(mkc, mkc, len);
 	mkey->key |= mlx5_idx_to_mkey(mkey_index);
 	mkey->pd = MLX5_GET(mkc, mkc, pd);
+	init_waitqueue_head(&mkey->wait);
 
 	mlx5_core_dbg(dev, "out 0x%x, mkey 0x%x\n", mkey_index, mkey->key);
 	return 0;
