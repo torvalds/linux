@@ -5016,6 +5016,26 @@ long kvm_arch_vcpu_ioctl(struct file *filp,
 	case KVM_GET_SUPPORTED_HV_CPUID:
 		r = kvm_ioctl_get_supported_hv_cpuid(vcpu, argp);
 		break;
+	case KVM_XEN_VCPU_GET_ATTR: {
+		struct kvm_xen_vcpu_attr xva;
+
+		r = -EFAULT;
+		if (copy_from_user(&xva, argp, sizeof(xva)))
+			goto out;
+		r = kvm_xen_vcpu_get_attr(vcpu, &xva);
+		if (!r && copy_to_user(argp, &xva, sizeof(xva)))
+			r = -EFAULT;
+		break;
+	}
+	case KVM_XEN_VCPU_SET_ATTR: {
+		struct kvm_xen_vcpu_attr xva;
+
+		r = -EFAULT;
+		if (copy_from_user(&xva, argp, sizeof(xva)))
+			goto out;
+		r = kvm_xen_vcpu_set_attr(vcpu, &xva);
+		break;
+	}
 	default:
 		r = -EINVAL;
 	}
