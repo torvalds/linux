@@ -56,6 +56,11 @@ char * __weak perf_mem_events__name(int i)
 	return (char *)e->name;
 }
 
+__weak bool is_mem_loads_aux_event(struct evsel *leader __maybe_unused)
+{
+	return false;
+}
+
 int perf_mem_events__parse(const char *str)
 {
 	char *tok, *saveptr = NULL;

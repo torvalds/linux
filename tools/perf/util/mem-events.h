@@ -9,6 +9,7 @@
 #include <linux/refcount.h>
 #include <linux/perf_event.h>
 #include "stat.h"
+#include "evsel.h"
 
 struct perf_mem_event {
 	bool		record;
@@ -39,6 +40,7 @@ int perf_mem_events__init(void);
 
 char *perf_mem_events__name(int i);
 struct perf_mem_event *perf_mem_events__ptr(int i);
+bool is_mem_loads_aux_event(struct evsel *leader);
 
 void perf_mem_events__list(void);
 

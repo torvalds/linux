@@ -2712,6 +2712,9 @@ int evsel__open_strerror(struct evsel *evsel, struct target *target,
 		if (perf_missing_features.aux_output)
 			return scnprintf(msg, size, "The 'aux_output' feature is not supported, update the kernel.");
 		break;
+	case ENODATA:
+		return scnprintf(msg, size, "Cannot collect data source with the load latency event alone. "
+				 "Please add an auxiliary event in front of the load latency event.");
 	default:
 		break;
 	}

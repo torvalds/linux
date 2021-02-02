@@ -15,6 +15,8 @@
 #include "record.h"
 #include "../perf-sys.h"
 #include "topdown.h"
+#include "map_symbol.h"
+#include "mem-events.h"
 
 /*
  * evsel__config_leader_sampling() uses special rules for leader sampling.
@@ -25,7 +27,8 @@ static struct evsel *evsel__read_sampler(struct evsel *evsel, struct evlist *evl
 {
 	struct evsel *leader = evsel->leader;
 
-	if (evsel__is_aux_event(leader) || arch_topdown_sample_read(leader)) {
+	if (evsel__is_aux_event(leader) || arch_topdown_sample_read(leader) ||
+	    is_mem_loads_aux_event(leader)) {
 		evlist__for_each_entry(evlist, evsel) {
 			if (evsel->leader == leader && evsel != evsel->leader)
 				return evsel;
