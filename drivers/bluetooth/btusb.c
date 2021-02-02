@@ -2816,6 +2816,7 @@ enum {
 enum {
 	BTMTK_WMT_INVALID,
 	BTMTK_WMT_PATCH_UNDONE,
+	BTMTK_WMT_PATCH_PROGRESS,
 	BTMTK_WMT_PATCH_DONE,
 	BTMTK_WMT_ON_UNDONE,
 	BTMTK_WMT_ON_DONE,
@@ -2831,7 +2832,7 @@ struct btmtk_wmt_hdr {
 
 struct btmtk_hci_wmt_cmd {
 	struct btmtk_wmt_hdr hdr;
-	u8 data[256];
+	u8 data[1000];
 } __packed;
 
 struct btmtk_hci_wmt_evt {
@@ -2934,7 +2935,7 @@ static void btusb_mtk_wmt_recv(struct urb *urb)
 	 * to generate the event. Otherwise, the WMT event cannot return from
 	 * the device successfully.
 	 */
-	udelay(100);
+	udelay(500);
 
 	usb_anchor_urb(urb, &data->ctrl_anchor);
 	err = usb_submit_urb(urb, GFP_ATOMIC);
@@ -3238,9 +3239,9 @@ err_free_buf:
 	return err;
 }
 
-static int btusb_mtk_id_get(struct btusb_data *data, u32 *id)
+static int btusb_mtk_id_get(struct btusb_data *data, u32 reg, u32 *id)
 {
-	return btusb_mtk_reg_read(data, 0x80000008, id);
+	return btusb_mtk_reg_read(data, reg, id);
 }
 
 static int btusb_mtk_setup(struct hci_dev *hdev)
@@ -3258,7 +3259,7 @@ static int btusb_mtk_setup(struct hci_dev *hdev)
 
 	calltime = ktime_get();
 
-	err = btusb_mtk_id_get(data, &dev_id);
+	err = btusb_mtk_id_get(data, 0x80000008, &dev_id);
 	if (err < 0) {
 		bt_dev_err(hdev, "Failed to get device id (%d)", err);
 		return err;
