@@ -25,22 +25,16 @@
 #include "blk.h"
 #include "blk-rq-qos.h"
 
-struct biovec_slab {
+static struct biovec_slab {
 	int nr_vecs;
 	char *name;
 	struct kmem_cache *slab;
+} bvec_slabs[] __read_mostly = {
+	{ .nr_vecs = 16, .name = "biovec-16" },
+	{ .nr_vecs = 64, .name = "biovec-64" },
+	{ .nr_vecs = 128, .name = "biovec-128" },
+	{ .nr_vecs = BIO_MAX_PAGES, .name = "biovec-max" },
 };
-
-/*
- * if you change this list, also change bvec_alloc or things will
- * break badly! cannot be bigger than what you can fit into an
- * unsigned short
- */
-#define BV(x, n) { .nr_vecs = x, .name = "biovec-"#n }
-static struct biovec_slab bvec_slabs[BVEC_POOL_NR] __read_mostly = {
-	BV(1, 1), BV(4, 4), BV(16, 16), BV(64, 64), BV(128, 128), BV(BIO_MAX_PAGES, max),
-};
-#undef BV
 
 /*
  * fs_bio_set is the bio_set containing bio and iovec memory pools used by
@@ -176,12 +170,7 @@ struct bio_vec *bvec_alloc(gfp_t gfp_mask, int nr, unsigned long *idx,
 	 * see comment near bvec_array define!
 	 */
 	switch (nr) {
-	case 1:
-		*idx = 0;
-		break;
-	case 2 ... 4:
-		*idx = 1;
-		break;
+	/* smaller bios use inline vecs */
 	case 5 ... 16:
 		*idx = 2;
 		break;
@@ -1613,31 +1602,21 @@ int bioset_init_from_src(struct bio_set *bs, struct bio_set *src)
 }
 EXPORT_SYMBOL(bioset_init_from_src);
 
-static void __init biovec_init_slabs(void)
+static int __init init_bio(void)
 {
 	int i;
 
-	for (i = 0; i < BVEC_POOL_NR; i++) {
-		int size;
-		struct biovec_slab *bvs = bvec_slabs + i;
-
-		if (bvs->nr_vecs <= BIO_INLINE_VECS) {
-			bvs->slab = NULL;
-			continue;
-		}
-
-		size = bvs->nr_vecs * sizeof(struct bio_vec);
-		bvs->slab = kmem_cache_create(bvs->name, size, 0,
-                                SLAB_HWCACHE_ALIGN|SLAB_PANIC, NULL);
-	}
-}
-
-static int __init init_bio(void)
-{
 	BUILD_BUG_ON(BIO_FLAG_LAST > BVEC_POOL_OFFSET);
 
 	bio_integrity_init();
-	biovec_init_slabs();
+
+	for (i = 0; i < ARRAY_SIZE(bvec_slabs); i++) {
+		struct biovec_slab *bvs = bvec_slabs + i;
+
+		bvs->slab = kmem_cache_create(bvs->name,
+				bvs->nr_vecs * sizeof(struct bio_vec), 0,
+				SLAB_HWCACHE_ALIGN | SLAB_PANIC, NULL);
+	}
 
 	if (bioset_init(&fs_bio_set, BIO_POOL_SIZE, 0, BIOSET_NEED_BVECS))
 		panic("bio: can't allocate bios\n");
