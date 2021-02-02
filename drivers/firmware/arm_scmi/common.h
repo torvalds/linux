@@ -341,4 +341,8 @@ void shmem_clear_channel(struct scmi_shared_mem __iomem *shmem);
 bool shmem_poll_done(struct scmi_shared_mem __iomem *shmem,
 		     struct scmi_xfer *xfer);
 
+void scmi_set_notification_instance_data(const struct scmi_handle *handle,
+					 void *priv);
+void *scmi_get_notification_instance_data(const struct scmi_handle *handle);
+
 #endif /* _SCMI_COMMON_H */

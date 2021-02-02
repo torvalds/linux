@@ -612,8 +612,6 @@ struct scmi_notify_ops {
  * @devm_put_protocol: devres managed method to release a protocol acquired
  *		       with devm_acquire/get_protocol
  * @notify_ops: pointer to set of notifications related operations
- * @notify_priv: pointer to private data structure specific to notifications
- *	(for internal use only)
  */
 struct scmi_handle {
 	struct device *dev;
@@ -627,7 +625,6 @@ struct scmi_handle {
 	void (*devm_put_protocol)(struct scmi_device *sdev, u8 proto);
 
 	const struct scmi_notify_ops *notify_ops;
-	void *notify_priv;
 };
 
 enum scmi_std_protocol {
