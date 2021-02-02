@@ -47,7 +47,7 @@ static int rockchip_cpuinfo_probe(struct platform_device *pdev)
 		efuse_buf = nvmem_cell_read(cell, &len);
 		nvmem_cell_put(cell);
 
-		if (len == 1)
+		if ((len == 1) && (efuse_buf[0] > rockchip_get_cpu_version()))
 			rockchip_set_cpu_version(efuse_buf[0]);
 		kfree(efuse_buf);
 	}
@@ -159,14 +159,31 @@ static void rk3308_init(void)
 	}
 }
 
+#define RK356X_PMU_GRF_PHYS		0xfdc20000
+#define RK356X_PMU_GRF_SOC_CON0		0x00000100
+#define RK356X_CHIP_VERSION_MASK	0x00008000
+static void rk356x_set_cpu_version(void)
+{
+	void __iomem *base;
+
+	base = ioremap(RK356X_PMU_GRF_PHYS, SZ_4K);
+	if (base) {
+		if (readl_relaxed(base + RK356X_PMU_GRF_SOC_CON0) & RK356X_CHIP_VERSION_MASK)
+			rockchip_set_cpu_version(1);
+		iounmap(base);
+	}
+}
+
 static void rk3566_init(void)
 {
 	rockchip_soc_id = ROCKCHIP_SOC_RK3566;
+	rk356x_set_cpu_version();
 }
 
 static void rk3568_init(void)
 {
 	rockchip_soc_id = ROCKCHIP_SOC_RK3568;
+	rk356x_set_cpu_version();
 }
 
 static int __init rockchip_soc_id_init(void)
