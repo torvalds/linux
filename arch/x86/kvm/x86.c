@@ -2874,8 +2874,8 @@ static int xen_hvm_config(struct kvm_vcpu *vcpu, u64 data)
 {
 	struct kvm *kvm = vcpu->kvm;
 	int lm = is_long_mode(vcpu);
-	u8 *blob_addr = lm ? (u8 *)(long)kvm->arch.xen_hvm_config.blob_addr_64
-		: (u8 *)(long)kvm->arch.xen_hvm_config.blob_addr_32;
+	u64 blob_addr = lm ? kvm->arch.xen_hvm_config.blob_addr_64
+		: kvm->arch.xen_hvm_config.blob_addr_32;
 	u8 blob_size = lm ? kvm->arch.xen_hvm_config.blob_size_64
 		: kvm->arch.xen_hvm_config.blob_size_32;
 	u32 page_num = data & ~PAGE_MASK;
@@ -2885,7 +2885,9 @@ static int xen_hvm_config(struct kvm_vcpu *vcpu, u64 data)
 	if (page_num >= blob_size)
 		return 1;
 
-	page = memdup_user(blob_addr + (page_num * PAGE_SIZE), PAGE_SIZE);
+	blob_addr += page_num * PAGE_SIZE;
+
+	page = memdup_user((u8 __user *)blob_addr, PAGE_SIZE);
 	if (IS_ERR(page))
 		return PTR_ERR(page);
 
