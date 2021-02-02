@@ -1796,12 +1796,11 @@ int kvm_emulate_wrmsr(struct kvm_vcpu *vcpu)
 }
 EXPORT_SYMBOL_GPL(kvm_emulate_wrmsr);
 
-bool kvm_vcpu_exit_request(struct kvm_vcpu *vcpu)
+static inline bool kvm_vcpu_exit_request(struct kvm_vcpu *vcpu)
 {
 	return vcpu->mode == EXITING_GUEST_MODE || kvm_request_pending(vcpu) ||
 		xfer_to_guest_mode_work_pending();
 }
-EXPORT_SYMBOL_GPL(kvm_vcpu_exit_request);
 
 /*
  * The fast path for frequent and performance sensitive wrmsr emulation,
@@ -9044,7 +9043,19 @@ static int vcpu_enter_guest(struct kvm_vcpu *vcpu)
 		vcpu->arch.switch_db_regs &= ~KVM_DEBUGREG_RELOAD;
 	}
 
-	exit_fastpath = static_call(kvm_x86_run)(vcpu);
+	for (;;) {
+		exit_fastpath = static_call(kvm_x86_run)(vcpu);
+		if (likely(exit_fastpath != EXIT_FASTPATH_REENTER_GUEST))
+			break;
+
+                if (unlikely(kvm_vcpu_exit_request(vcpu))) {
+			exit_fastpath = EXIT_FASTPATH_EXIT_HANDLED;
+			break;
+		}
+
+		if (vcpu->arch.apicv_active)
+			static_call(kvm_x86_sync_pir_to_irr)(vcpu);
+        }
 
 	/*
 	 * Do this here before restoring debug registers on the host.  And
