@@ -159,6 +159,12 @@
 #define IOREMAP_MAX_ORDER	(PMD_SHIFT)
 #endif
 
+/*
+ *  Open-coded (swapper_pg_dir - reserved_pg_dir) as this cannot be calculated
+ *  until link time.
+ */
+#define RESERVED_SWAPPER_OFFSET	(PAGE_SIZE)
+
 #ifndef __ASSEMBLY__
 
 #include <linux/bitops.h>

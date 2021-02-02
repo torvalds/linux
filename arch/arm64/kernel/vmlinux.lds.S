@@ -316,3 +316,6 @@ ASSERT((__entry_tramp_text_end - __entry_tramp_text_start) == PAGE_SIZE,
  * If padding is applied before .head.text, virt<->phys conversions will fail.
  */
 ASSERT(_text == KIMAGE_VADDR, "HEAD is misaligned")
+
+ASSERT(swapper_pg_dir - reserved_pg_dir == RESERVED_SWAPPER_OFFSET,
+       "RESERVED_SWAPPER_OFFSET is wrong!")
