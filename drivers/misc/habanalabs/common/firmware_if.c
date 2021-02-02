@@ -125,7 +125,8 @@ int hl_fw_send_cpu_message(struct hl_device *hdev, u32 hw_queue_id, u32 *msg,
 		goto out;
 	}
 
-	if (hdev->asic_prop.fw_cpucp_ack_with_pi)
+	if (hdev->asic_prop.fw_app_security_map &
+			CPU_BOOT_DEV_STS0_PKT_PI_ACK_EN)
 		expected_ack_val = queue->pi;
 	else
 		expected_ack_val = CPUCP_PACKET_FENCE_VAL;
@@ -785,10 +786,6 @@ int hl_fw_init_cpu(struct hl_device *hdev, u32 cpu_boot_status_reg,
 		if (prop->fw_boot_cpu_security_map &
 				CPU_BOOT_DEV_STS0_FW_HARD_RST_EN)
 			prop->hard_reset_done_by_fw = true;
-
-		if (prop->fw_boot_cpu_security_map &
-				CPU_BOOT_DEV_STS0_PKT_PI_ACK_EN)
-			prop->fw_cpucp_ack_with_pi = true;
 
 		dev_dbg(hdev->dev,
 			"Firmware boot CPU security status %#x\n",

@@ -536,7 +536,6 @@ static int gaudi_get_fixed_properties(struct hl_device *hdev)
 	prop->fw_security_disabled = true;
 	prop->fw_security_status_valid = false;
 	prop->hard_reset_done_by_fw = false;
-	prop->fw_cpucp_ack_with_pi = false;
 
 	return 0;
 }
@@ -3727,6 +3726,7 @@ static int gaudi_init_cpu(struct hl_device *hdev)
 static int gaudi_init_cpu_queues(struct hl_device *hdev, u32 cpu_timeout)
 {
 	struct gaudi_device *gaudi = hdev->asic_specific;
+	struct asic_fixed_properties *prop = &hdev->asic_prop;
 	struct hl_eq *eq;
 	u32 status;
 	struct hl_hw_queue *cpu_pq =
@@ -3782,6 +3782,10 @@ static int gaudi_init_cpu_queues(struct hl_device *hdev, u32 cpu_timeout)
 			"Failed to communicate with Device CPU (CPU-CP timeout)\n");
 		return -EIO;
 	}
+
+	/* update FW application security bits */
+	if (prop->fw_security_status_valid)
+		prop->fw_app_security_map = RREG32(mmCPU_BOOT_DEV_STS0);
 
 	gaudi->hw_cap_initialized |= HW_CAP_CPU_Q;
 	return 0;

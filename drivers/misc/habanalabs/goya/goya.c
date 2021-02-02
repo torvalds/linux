@@ -464,7 +464,6 @@ int goya_get_fixed_properties(struct hl_device *hdev)
 	prop->fw_security_disabled = true;
 	prop->fw_security_status_valid = false;
 	prop->hard_reset_done_by_fw = false;
-	prop->fw_cpucp_ack_with_pi = false;
 
 	return 0;
 }
@@ -1189,6 +1188,7 @@ static int goya_stop_external_queues(struct hl_device *hdev)
 int goya_init_cpu_queues(struct hl_device *hdev)
 {
 	struct goya_device *goya = hdev->asic_specific;
+	struct asic_fixed_properties *prop = &hdev->asic_prop;
 	struct hl_eq *eq;
 	u32 status;
 	struct hl_hw_queue *cpu_pq = &hdev->kernel_queues[GOYA_QUEUE_ID_CPU_PQ];
@@ -1240,6 +1240,10 @@ int goya_init_cpu_queues(struct hl_device *hdev)
 			"Failed to setup communication with device CPU\n");
 		return -EIO;
 	}
+
+	/* update FW application security bits */
+	if (prop->fw_security_status_valid)
+		prop->fw_app_security_map = RREG32(mmCPU_BOOT_DEV_STS0);
 
 	goya->hw_cap_initialized |= HW_CAP_CPU_Q;
 	return 0;
