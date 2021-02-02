@@ -2848,7 +2848,7 @@ static ssize_t nvme_subsys_show_nqn(struct device *dev,
 	struct nvme_subsystem *subsys =
 		container_of(dev, struct nvme_subsystem, dev);
 
-	return snprintf(buf, PAGE_SIZE, "%s\n", subsys->subnqn);
+	return sysfs_emit(buf, "%s\n", subsys->subnqn);
 }
 static SUBSYS_ATTR_RO(subsysnqn, S_IRUGO, nvme_subsys_show_nqn);
 
@@ -3541,7 +3541,7 @@ static ssize_t nvme_sysfs_show_transport(struct device *dev,
 {
 	struct nvme_ctrl *ctrl = dev_get_drvdata(dev);
 
-	return snprintf(buf, PAGE_SIZE, "%s\n", ctrl->ops->name);
+	return sysfs_emit(buf, "%s\n", ctrl->ops->name);
 }
 static DEVICE_ATTR(transport, S_IRUGO, nvme_sysfs_show_transport, NULL);
 
@@ -3575,7 +3575,7 @@ static ssize_t nvme_sysfs_show_subsysnqn(struct device *dev,
 {
 	struct nvme_ctrl *ctrl = dev_get_drvdata(dev);
 
-	return snprintf(buf, PAGE_SIZE, "%s\n", ctrl->subsys->subnqn);
+	return sysfs_emit(buf, "%s\n", ctrl->subsys->subnqn);
 }
 static DEVICE_ATTR(subsysnqn, S_IRUGO, nvme_sysfs_show_subsysnqn, NULL);
 
@@ -3585,7 +3585,7 @@ static ssize_t nvme_sysfs_show_hostnqn(struct device *dev,
 {
 	struct nvme_ctrl *ctrl = dev_get_drvdata(dev);
 
-	return snprintf(buf, PAGE_SIZE, "%s\n", ctrl->opts->host->nqn);
+	return sysfs_emit(buf, "%s\n", ctrl->opts->host->nqn);
 }
 static DEVICE_ATTR(hostnqn, S_IRUGO, nvme_sysfs_show_hostnqn, NULL);
 
@@ -3595,7 +3595,7 @@ static ssize_t nvme_sysfs_show_hostid(struct device *dev,
 {
 	struct nvme_ctrl *ctrl = dev_get_drvdata(dev);
 
-	return snprintf(buf, PAGE_SIZE, "%pU\n", &ctrl->opts->host->id);
+	return sysfs_emit(buf, "%pU\n", &ctrl->opts->host->id);
 }
 static DEVICE_ATTR(hostid, S_IRUGO, nvme_sysfs_show_hostid, NULL);
 
