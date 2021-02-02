@@ -49,25 +49,13 @@ import os
 from os import path
 import subprocess
 from hashlib import sha1
-import sys
-
 from docutils import nodes
 from docutils.statemachine import ViewList
 from docutils.parsers.rst import directives
 from docutils.parsers.rst.directives import images
 import sphinx
-
 from sphinx.util.nodes import clean_astext
-from six import iteritems
-
 import kernellog
-
-PY3 = sys.version_info[0] == 3
-
-if PY3:
-    _unicode = str
-else:
-    _unicode = unicode
 
 # Get Sphinx version
 major, minor, patch = sphinx.version_info[:3]
@@ -540,7 +528,7 @@ def add_kernel_figure_to_std_domain(app, doctree):
     docname = app.env.docname
     labels = std.data["labels"]
 
-    for name, explicit in iteritems(doctree.nametypes):
+    for name, explicit in doctree.nametypes.items():
         if not explicit:
             continue
         labelid = doctree.nameids[name]
