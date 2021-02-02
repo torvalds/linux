@@ -407,8 +407,9 @@ extern void bioset_exit(struct bio_set *);
 extern int biovec_init_pool(mempool_t *pool, int pool_entries);
 extern int bioset_init_from_src(struct bio_set *bs, struct bio_set *src);
 
-extern struct bio *bio_alloc_bioset(gfp_t, unsigned int, struct bio_set *);
-struct bio *bio_kmalloc(gfp_t gfp_mask, unsigned int nr_iovecs);
+struct bio *bio_alloc_bioset(gfp_t gfp, unsigned short nr_iovecs,
+		struct bio_set *bs);
+struct bio *bio_kmalloc(gfp_t gfp_mask, unsigned short nr_iovecs);
 extern void bio_put(struct bio *);
 
 extern void __bio_clone_fast(struct bio *, struct bio *);
@@ -416,7 +417,7 @@ extern struct bio *bio_clone_fast(struct bio *, gfp_t, struct bio_set *);
 
 extern struct bio_set fs_bio_set;
 
-static inline struct bio *bio_alloc(gfp_t gfp_mask, unsigned int nr_iovecs)
+static inline struct bio *bio_alloc(gfp_t gfp_mask, unsigned short nr_iovecs)
 {
 	return bio_alloc_bioset(gfp_mask, nr_iovecs, &fs_bio_set);
 }
