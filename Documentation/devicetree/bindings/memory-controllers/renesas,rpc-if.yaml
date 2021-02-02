@@ -26,10 +26,14 @@ properties:
   compatible:
     items:
       - enum:
+          - renesas,r8a774a1-rpc-if       # RZ/G2M
+          - renesas,r8a774b1-rpc-if       # RZ/G2N
+          - renesas,r8a774c0-rpc-if       # RZ/G2E
+          - renesas,r8a774e1-rpc-if       # RZ/G2H
           - renesas,r8a77970-rpc-if       # R-Car V3M
           - renesas,r8a77980-rpc-if       # R-Car V3H
           - renesas,r8a77995-rpc-if       # R-Car D3
-      - const: renesas,rcar-gen3-rpc-if   # a generic R-Car gen3 device
+      - const: renesas,rcar-gen3-rpc-if   # a generic R-Car gen3 or RZ/G2 device
 
   reg:
     items:

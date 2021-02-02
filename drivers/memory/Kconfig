@@ -173,7 +173,7 @@ config JZ4780_NEMC
 	  memory devices such as NAND and SRAM.
 
 config MTK_SMI
-	bool "Mediatek SoC Memory Controller driver" if COMPILE_TEST
+	tristate "MediaTek SoC Memory Controller driver" if COMPILE_TEST
 	depends on ARCH_MEDIATEK || COMPILE_TEST
 	help
 	  This driver is for the Memory Controller module in MediaTek SoCs,
@@ -202,9 +202,9 @@ config RENESAS_RPCIF
 	depends on ARCH_RENESAS || COMPILE_TEST
 	select REGMAP_MMIO
 	help
-	  This supports Renesas R-Car Gen3 RPC-IF which provides either SPI
-	  host or HyperFlash. You'll have to select individual components
-	  under the corresponding menu.
+	  This supports Renesas R-Car Gen3 or RZ/G2 RPC-IF which provides
+	  either SPI host or HyperFlash. You'll have to select individual
+	  components under the corresponding menu.
 
 config STM32_FMC2_EBI
 	tristate "Support for FMC2 External Bus Interface on STM32MP SoCs"
