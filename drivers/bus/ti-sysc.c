@@ -1648,7 +1648,7 @@ static u32 sysc_quirk_dispc(struct sysc *ddata, int dispc_offset,
 	case SOC_UNKNOWN:
 	default:
 		return 0;
-	};
+	}
 
 	/* Remap the whole module range to be able to reset dispc outputs */
 	devm_iounmap(ddata->dev, ddata->module_va);
@@ -2902,7 +2902,7 @@ static int sysc_init_soc(struct sysc *ddata)
 			break;
 		default:
 			break;
-		};
+		}
 	}
 
 	match = soc_device_match(sysc_soc_feat_match);
