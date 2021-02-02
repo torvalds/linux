@@ -67,8 +67,6 @@
 /* J6 */
 &sata {
 	status = "okay";
-	phys = <&comphy2 0>;
-	phy-names = "sata-phy";
 };
 
 /* U11 */
