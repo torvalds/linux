@@ -70,13 +70,13 @@ int perf_tool__process_synth_event(struct perf_tool *tool,
  * the comm, tgid and ppid.
  */
 static int perf_event__get_comm_ids(pid_t pid, pid_t tid, char *comm, size_t len,
-				    pid_t *tgid, pid_t *ppid)
+				    pid_t *tgid, pid_t *ppid, bool *kernel)
 {
 	char bf[4096];
 	int fd;
 	size_t size = 0;
 	ssize_t n;
-	char *name, *tgids, *ppids;
+	char *name, *tgids, *ppids, *vmpeak, *threads;
 
 	*tgid = -1;
 	*ppid = -1;
@@ -102,8 +102,14 @@ static int perf_event__get_comm_ids(pid_t pid, pid_t tid, char *comm, size_t len
 	bf[n] = '\0';
 
 	name = strstr(bf, "Name:");
-	tgids = strstr(bf, "Tgid:");
-	ppids = strstr(bf, "PPid:");
+	tgids = strstr(name ?: bf, "Tgid:");
+	ppids = strstr(tgids ?: bf, "PPid:");
+	vmpeak = strstr(ppids ?: bf, "VmPeak:");
+
+	if (vmpeak)
+		threads = NULL;
+	else
+		threads = strstr(ppids ?: bf, "Threads:");
 
 	if (name) {
 		char *nl;
@@ -136,12 +142,17 @@ static int perf_event__get_comm_ids(pid_t pid, pid_t tid, char *comm, size_t len
 		pr_debug("PPid: string not found for pid %d\n", tid);
 	}
 
+	if (!vmpeak && threads)
+		*kernel = true;
+	else
+		*kernel = false;
+
 	return 0;
 }
 
 static int perf_event__prepare_comm(union perf_event *event, pid_t pid, pid_t tid,
 				    struct machine *machine,
-				    pid_t *tgid, pid_t *ppid)
+				    pid_t *tgid, pid_t *ppid, bool *kernel)
 {
 	size_t size;
 
@@ -152,7 +163,7 @@ static int perf_event__prepare_comm(union perf_event *event, pid_t pid, pid_t ti
 	if (machine__is_host(machine)) {
 		if (perf_event__get_comm_ids(pid, tid, event->comm.comm,
 					     sizeof(event->comm.comm),
-					     tgid, ppid) != 0) {
+					     tgid, ppid, kernel) != 0) {
 			return -1;
 		}
 	} else {
@@ -182,8 +193,10 @@ pid_t perf_event__synthesize_comm(struct perf_tool *tool,
 					 struct machine *machine)
 {
 	pid_t tgid, ppid;
+	bool kernel_thread;
 
-	if (perf_event__prepare_comm(event, 0, pid, machine, &tgid, &ppid) != 0)
+	if (perf_event__prepare_comm(event, 0, pid, machine, &tgid, &ppid,
+				     &kernel_thread) != 0)
 		return -1;
 
 	if (perf_tool__process_synth_event(tool, event, machine, process) != 0)
@@ -743,6 +756,7 @@ static int __event__synthesize_thread(union perf_event *comm_event,
 	while ((dirent = readdir(tasks)) != NULL) {
 		char *end;
 		pid_t _pid;
+		bool kernel_thread;
 
 		_pid = strtol(dirent->d_name, &end, 10);
 		if (*end)
@@ -750,7 +764,7 @@ static int __event__synthesize_thread(union perf_event *comm_event,
 
 		rc = -1;
 		if (perf_event__prepare_comm(comm_event, pid, _pid, machine,
-					     &tgid, &ppid) != 0)
+					     &tgid, &ppid, &kernel_thread) != 0)
 			break;
 
 		if (perf_event__synthesize_fork(tool, fork_event, _pid, tgid,
@@ -768,7 +782,7 @@ static int __event__synthesize_thread(union perf_event *comm_event,
 			break;
 
 		rc = 0;
-		if (_pid == pid) {
+		if (_pid == pid && !kernel_thread) {
 			/* process the parent's maps too */
 			rc = perf_event__synthesize_mmap_events(tool, mmap_event, pid, tgid,
 						process, machine, mmap_data);
