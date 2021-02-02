@@ -346,7 +346,6 @@ int t1_get_board_rev(adapter_t *adapter, const struct board_info *bi,
 int t1_init_hw_modules(adapter_t *adapter);
 int t1_init_sw_modules(adapter_t *adapter, const struct board_info *bi);
 void t1_free_sw_modules(adapter_t *adapter);
-void t1_fatal_err(adapter_t *adapter);
 void t1_link_changed(adapter_t *adapter, int port_id);
 void t1_link_negotiated(adapter_t *adapter, int port_id, int link_stat,
 			    int speed, int duplex, int pause);

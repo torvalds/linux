@@ -170,7 +170,7 @@ void t1_link_changed(adapter_t *adapter, int port_id)
 	t1_link_negotiated(adapter, port_id, link_ok, speed, duplex, fc);
 }
 
-static int t1_pci_intr_handler(adapter_t *adapter)
+static bool t1_pci_intr_handler(adapter_t *adapter)
 {
 	u32 pcix_cause;
 
@@ -179,9 +179,13 @@ static int t1_pci_intr_handler(adapter_t *adapter)
 	if (pcix_cause) {
 		pci_write_config_dword(adapter->pdev, A_PCICFG_INTR_CAUSE,
 				       pcix_cause);
-		t1_fatal_err(adapter);    /* PCI errors are fatal */
+		/* PCI errors are fatal */
+		t1_interrupts_disable(adapter);
+		adapter->pending_thread_intr |= F_PL_INTR_SGE_ERR;
+		pr_alert("%s: PCI error encountered.\n", adapter->name);
+		return true;
 	}
-	return 0;
+	return false;
 }
 
 #ifdef CONFIG_CHELSIO_T1_1G
@@ -213,10 +217,13 @@ static int fpga_phy_intr_handler(adapter_t *adapter)
 static irqreturn_t fpga_slow_intr(adapter_t *adapter)
 {
 	u32 cause = readl(adapter->regs + A_PL_CAUSE);
+	irqreturn_t ret = IRQ_NONE;
 
 	cause &= ~F_PL_INTR_SGE_DATA;
-	if (cause & F_PL_INTR_SGE_ERR)
-		t1_sge_intr_error_handler(adapter->sge);
+	if (cause & F_PL_INTR_SGE_ERR) {
+		if (t1_sge_intr_error_handler(adapter->sge))
+			ret = IRQ_WAKE_THREAD;
+	}
 
 	if (cause & FPGA_PCIX_INTERRUPT_GMAC)
 		fpga_phy_intr_handler(adapter);
@@ -231,12 +238,17 @@ static irqreturn_t fpga_slow_intr(adapter_t *adapter)
 		/* Clear TP interrupt */
 		writel(tp_cause, adapter->regs + FPGA_TP_ADDR_INTERRUPT_CAUSE);
 	}
-	if (cause & FPGA_PCIX_INTERRUPT_PCIX)
-		t1_pci_intr_handler(adapter);
+	if (cause & FPGA_PCIX_INTERRUPT_PCIX) {
+		if (t1_pci_intr_handler(adapter))
+			ret = IRQ_WAKE_THREAD;
+	}
 
 	/* Clear the interrupts just processed. */
 	if (cause)
 		writel(cause, adapter->regs + A_PL_CAUSE);
+
+	if (ret != IRQ_NONE)
+		return ret;
 
 	return cause == 0 ? IRQ_NONE : IRQ_HANDLED;
 }
@@ -850,14 +862,18 @@ static irqreturn_t asic_slow_intr(adapter_t *adapter)
 	cause &= adapter->slow_intr_mask;
 	if (!cause)
 		return IRQ_NONE;
-	if (cause & F_PL_INTR_SGE_ERR)
-		t1_sge_intr_error_handler(adapter->sge);
+	if (cause & F_PL_INTR_SGE_ERR) {
+		if (t1_sge_intr_error_handler(adapter->sge))
+			ret = IRQ_WAKE_THREAD;
+	}
 	if (cause & F_PL_INTR_TP)
 		t1_tp_intr_handler(adapter->tp);
 	if (cause & F_PL_INTR_ESPI)
 		t1_espi_intr_handler(adapter->espi);
-	if (cause & F_PL_INTR_PCIX)
-		t1_pci_intr_handler(adapter);
+	if (cause & F_PL_INTR_PCIX) {
+		if (t1_pci_intr_handler(adapter))
+			ret = IRQ_WAKE_THREAD;
+	}
 	if (cause & F_PL_INTR_EXT) {
 		/* Wake the threaded interrupt to handle external interrupts as
 		 * we require a process context. We disable EXT interrupts in
