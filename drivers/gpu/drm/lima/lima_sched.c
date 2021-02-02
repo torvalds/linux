@@ -509,7 +509,7 @@ int lima_sched_pipe_init(struct lima_sched_pipe *pipe, const char *name)
 
 	return drm_sched_init(&pipe->base, &lima_sched_ops, 1,
 			      lima_job_hang_limit, msecs_to_jiffies(timeout),
-			      name);
+			      NULL, name);
 }
 
 void lima_sched_pipe_fini(struct lima_sched_pipe *pipe)

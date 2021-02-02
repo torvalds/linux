@@ -627,7 +627,7 @@ int panfrost_job_init(struct panfrost_device *pfdev)
 		ret = drm_sched_init(&js->queue[j].sched,
 				     &panfrost_sched_ops,
 				     1, 0, msecs_to_jiffies(JOB_TIMEOUT_MS),
-				     "pan_js");
+				     NULL, "pan_js");
 		if (ret) {
 			dev_err(pfdev->dev, "Failed to create scheduler: %d.", ret);
 			goto err_sched;

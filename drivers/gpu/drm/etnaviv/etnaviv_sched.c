@@ -190,7 +190,7 @@ int etnaviv_sched_init(struct etnaviv_gpu *gpu)
 
 	ret = drm_sched_init(&gpu->sched, &etnaviv_sched_ops,
 			     etnaviv_hw_jobs_limit, etnaviv_job_hang_limit,
-			     msecs_to_jiffies(500), dev_name(gpu->dev));
+			     msecs_to_jiffies(500), NULL, dev_name(gpu->dev));
 	if (ret)
 		return ret;
 

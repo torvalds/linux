@@ -297,7 +297,8 @@ struct drm_gpu_scheduler {
 	struct list_head		pending_list;
 	spinlock_t			job_list_lock;
 	int				hang_limit;
-	atomic_t                        score;
+	atomic_t                        *score;
+	atomic_t                        _score;
 	bool				ready;
 	bool				free_guilty;
 };
@@ -305,7 +306,7 @@ struct drm_gpu_scheduler {
 int drm_sched_init(struct drm_gpu_scheduler *sched,
 		   const struct drm_sched_backend_ops *ops,
 		   uint32_t hw_submission, unsigned hang_limit, long timeout,
-		   const char *name);
+		   atomic_t *score, const char *name);
 
 void drm_sched_fini(struct drm_gpu_scheduler *sched);
 int drm_sched_job_init(struct drm_sched_job *job,
