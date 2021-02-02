@@ -44,7 +44,7 @@ static bool error_occurred;
 
 enum export {
 	export_plain,      export_unused,     export_gpl,
-	export_unused_gpl, export_gpl_future, export_unknown
+	export_unused_gpl, export_unknown
 };
 
 /* In kernel, this size is defined in linux/module.h;
@@ -304,7 +304,6 @@ static const struct {
 	{ .str = "EXPORT_UNUSED_SYMBOL",     .export = export_unused },
 	{ .str = "EXPORT_SYMBOL_GPL",        .export = export_gpl },
 	{ .str = "EXPORT_UNUSED_SYMBOL_GPL", .export = export_unused_gpl },
-	{ .str = "EXPORT_SYMBOL_GPL_FUTURE", .export = export_gpl_future },
 	{ .str = "(unknown)",                .export = export_unknown },
 };
 
@@ -369,8 +368,6 @@ static enum export export_from_secname(struct elf_info *elf, unsigned int sec)
 		return export_gpl;
 	else if (strstarts(secname, "___ksymtab_unused_gpl+"))
 		return export_unused_gpl;
-	else if (strstarts(secname, "___ksymtab_gpl_future+"))
-		return export_gpl_future;
 	else
 		return export_unknown;
 }
@@ -385,8 +382,6 @@ static enum export export_from_sec(struct elf_info *elf, unsigned int sec)
 		return export_gpl;
 	else if (sec == elf->export_unused_gpl_sec)
 		return export_unused_gpl;
-	else if (sec == elf->export_gpl_future_sec)
-		return export_gpl_future;
 	else
 		return export_unknown;
 }
@@ -596,8 +591,6 @@ static int parse_elf(struct elf_info *info, const char *filename)
 			info->export_gpl_sec = i;
 		else if (strcmp(secname, "__ksymtab_unused_gpl") == 0)
 			info->export_unused_gpl_sec = i;
-		else if (strcmp(secname, "__ksymtab_gpl_future") == 0)
-			info->export_gpl_future_sec = i;
 
 		if (sechdrs[i].sh_type == SHT_SYMTAB) {
 			unsigned int sh_link_idx;
@@ -2151,10 +2144,6 @@ static void check_for_gpl_usage(enum export exp, const char *m, const char *s)
 	case export_unused_gpl:
 		error("GPL-incompatible module %s.ko uses GPL-only symbol marked UNUSED '%s'\n",
 		      m, s);
-		break;
-	case export_gpl_future:
-		warn("GPL-incompatible module %s.ko uses future GPL-only symbol '%s'\n",
-		     m, s);
 		break;
 	case export_plain:
 	case export_unused:

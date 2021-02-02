@@ -408,11 +408,8 @@ extern const struct kernel_symbol __start___ksymtab[];
 extern const struct kernel_symbol __stop___ksymtab[];
 extern const struct kernel_symbol __start___ksymtab_gpl[];
 extern const struct kernel_symbol __stop___ksymtab_gpl[];
-extern const struct kernel_symbol __start___ksymtab_gpl_future[];
-extern const struct kernel_symbol __stop___ksymtab_gpl_future[];
 extern const s32 __start___kcrctab[];
 extern const s32 __start___kcrctab_gpl[];
-extern const s32 __start___kcrctab_gpl_future[];
 #ifdef CONFIG_UNUSED_SYMBOLS
 extern const struct kernel_symbol __start___ksymtab_unused[];
 extern const struct kernel_symbol __stop___ksymtab_unused[];
@@ -434,7 +431,6 @@ struct symsearch {
 	enum mod_license {
 		NOT_GPL_ONLY,
 		GPL_ONLY,
-		WILL_BE_GPL_ONLY,
 	} license;
 	bool unused;
 };
@@ -458,15 +454,8 @@ static bool check_exported_symbol(const struct symsearch *syms,
 {
 	struct find_symbol_arg *fsa = data;
 
-	if (!fsa->gplok) {
-		if (syms->license == GPL_ONLY)
-			return false;
-		if (syms->license == WILL_BE_GPL_ONLY && fsa->warn) {
-			pr_warn("Symbol %s is being used by a non-GPL module, "
-				"which will not be allowed in the future\n",
-				fsa->name);
-		}
-	}
+	if (!fsa->gplok && syms->license == GPL_ONLY)
+		return false;
 
 #ifdef CONFIG_UNUSED_SYMBOLS
 	if (syms->unused && fsa->warn) {
@@ -550,9 +539,6 @@ static bool find_symbol(struct find_symbol_arg *fsa)
 		{ __start___ksymtab_gpl, __stop___ksymtab_gpl,
 		  __start___kcrctab_gpl,
 		  GPL_ONLY, false },
-		{ __start___ksymtab_gpl_future, __stop___ksymtab_gpl_future,
-		  __start___kcrctab_gpl_future,
-		  WILL_BE_GPL_ONLY, false },
 #ifdef CONFIG_UNUSED_SYMBOLS
 		{ __start___ksymtab_unused, __stop___ksymtab_unused,
 		  __start___kcrctab_unused,
@@ -579,10 +565,6 @@ static bool find_symbol(struct find_symbol_arg *fsa)
 			{ mod->gpl_syms, mod->gpl_syms + mod->num_gpl_syms,
 			  mod->gpl_crcs,
 			  GPL_ONLY, false },
-			{ mod->gpl_future_syms,
-			  mod->gpl_future_syms + mod->num_gpl_future_syms,
-			  mod->gpl_future_crcs,
-			  WILL_BE_GPL_ONLY, false },
 #ifdef CONFIG_UNUSED_SYMBOLS
 			{ mod->unused_syms,
 			  mod->unused_syms + mod->num_unused_syms,
@@ -2292,7 +2274,6 @@ static int verify_exported_symbols(struct module *mod)
 	} arr[] = {
 		{ mod->syms, mod->num_syms },
 		{ mod->gpl_syms, mod->num_gpl_syms },
-		{ mod->gpl_future_syms, mod->num_gpl_future_syms },
 #ifdef CONFIG_UNUSED_SYMBOLS
 		{ mod->unused_syms, mod->num_unused_syms },
 		{ mod->unused_gpl_syms, mod->num_unused_gpl_syms },
@@ -3308,11 +3289,6 @@ static int find_module_sections(struct module *mod, struct load_info *info)
 				     sizeof(*mod->gpl_syms),
 				     &mod->num_gpl_syms);
 	mod->gpl_crcs = section_addr(info, "__kcrctab_gpl");
-	mod->gpl_future_syms = section_objs(info,
-					    "__ksymtab_gpl_future",
-					    sizeof(*mod->gpl_future_syms),
-					    &mod->num_gpl_future_syms);
-	mod->gpl_future_crcs = section_addr(info, "__kcrctab_gpl_future");
 
 #ifdef CONFIG_UNUSED_SYMBOLS
 	mod->unused_syms = section_objs(info, "__ksymtab_unused",
@@ -3506,7 +3482,6 @@ static int check_module_license_and_versions(struct module *mod)
 #ifdef CONFIG_MODVERSIONS
 	if ((mod->num_syms && !mod->crcs)
 	    || (mod->num_gpl_syms && !mod->gpl_crcs)
-	    || (mod->num_gpl_future_syms && !mod->gpl_future_crcs)
 #ifdef CONFIG_UNUSED_SYMBOLS
 	    || (mod->num_unused_syms && !mod->unused_crcs)
 	    || (mod->num_unused_gpl_syms && !mod->unused_gpl_crcs)
