@@ -203,9 +203,17 @@ enum x86_intercept_stage;
 #define DR6_BS		(1 << 14)
 #define DR6_BT		(1 << 15)
 #define DR6_RTM		(1 << 16)
-#define DR6_FIXED_1	0xfffe0ff0
-#define DR6_INIT	0xffff0ff0
+/*
+ * DR6_ACTIVE_LOW combines fixed-1 and active-low bits.
+ * We can regard all the bits in DR6_FIXED_1 as active_low bits;
+ * they will never be 0 for now, but when they are defined
+ * in the future it will require no code change.
+ *
+ * DR6_ACTIVE_LOW is also used as the init/reset value for DR6.
+ */
+#define DR6_ACTIVE_LOW	0xffff0ff0
 #define DR6_VOLATILE	0x0001e00f
+#define DR6_FIXED_1	(DR6_ACTIVE_LOW & ~DR6_VOLATILE)
 
 #define DR7_BP_EN_MASK	0x000000ff
 #define DR7_GE		(1 << 9)

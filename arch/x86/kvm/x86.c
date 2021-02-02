@@ -486,19 +486,24 @@ void kvm_deliver_exception_payload(struct kvm_vcpu *vcpu)
 		 */
 		vcpu->arch.dr6 &= ~DR_TRAP_BITS;
 		/*
-		 * DR6.RTM is set by all #DB exceptions that don't clear it.
+		 * In order to reflect the #DB exception payload in guest
+		 * dr6, three components need to be considered: active low
+		 * bit, FIXED_1 bits and active high bits (e.g. DR6_BD,
+		 * DR6_BS and DR6_BT)
+		 * DR6_ACTIVE_LOW contains the FIXED_1 and active low bits.
+		 * In the target guest dr6:
+		 * FIXED_1 bits should always be set.
+		 * Active low bits should be cleared if 1-setting in payload.
+		 * Active high bits should be set if 1-setting in payload.
+		 *
+		 * Note, the payload is compatible with the pending debug
+		 * exceptions/exit qualification under VMX, that active_low bits
+		 * are active high in payload.
+		 * So they need to be flipped for DR6.
 		 */
-		vcpu->arch.dr6 |= DR6_RTM;
+		vcpu->arch.dr6 |= DR6_ACTIVE_LOW;
 		vcpu->arch.dr6 |= payload;
-		/*
-		 * Bit 16 should be set in the payload whenever the #DB
-		 * exception should clear DR6.RTM. This makes the payload
-		 * compatible with the pending debug exceptions under VMX.
-		 * Though not currently documented in the SDM, this also
-		 * makes the payload compatible with the exit qualification
-		 * for #DB exceptions under VMX.
-		 */
-		vcpu->arch.dr6 ^= payload & DR6_RTM;
+		vcpu->arch.dr6 ^= payload & DR6_ACTIVE_LOW;
 
 		/*
 		 * The #DB payload is defined as compatible with the 'pending
@@ -7211,7 +7216,7 @@ static int kvm_vcpu_do_singlestep(struct kvm_vcpu *vcpu)
 	struct kvm_run *kvm_run = vcpu->run;
 
 	if (vcpu->guest_debug & KVM_GUESTDBG_SINGLESTEP) {
-		kvm_run->debug.arch.dr6 = DR6_BS | DR6_FIXED_1 | DR6_RTM;
+		kvm_run->debug.arch.dr6 = DR6_BS | DR6_ACTIVE_LOW;
 		kvm_run->debug.arch.pc = kvm_get_linear_rip(vcpu);
 		kvm_run->debug.arch.exception = DB_VECTOR;
 		kvm_run->exit_reason = KVM_EXIT_DEBUG;
@@ -7255,7 +7260,7 @@ static bool kvm_vcpu_check_breakpoint(struct kvm_vcpu *vcpu, int *r)
 					   vcpu->arch.eff_db);
 
 		if (dr6 != 0) {
-			kvm_run->debug.arch.dr6 = dr6 | DR6_FIXED_1 | DR6_RTM;
+			kvm_run->debug.arch.dr6 = dr6 | DR6_ACTIVE_LOW;
 			kvm_run->debug.arch.pc = eip;
 			kvm_run->debug.arch.exception = DB_VECTOR;
 			kvm_run->exit_reason = KVM_EXIT_DEBUG;
@@ -10118,7 +10123,7 @@ void kvm_vcpu_reset(struct kvm_vcpu *vcpu, bool init_event)
 
 	memset(vcpu->arch.db, 0, sizeof(vcpu->arch.db));
 	kvm_update_dr0123(vcpu);
-	vcpu->arch.dr6 = DR6_INIT;
+	vcpu->arch.dr6 = DR6_ACTIVE_LOW;
 	vcpu->arch.dr7 = DR7_FIXED_1;
 	kvm_update_dr7(vcpu);
 

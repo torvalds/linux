@@ -411,8 +411,8 @@ static int nested_vmx_check_exception(struct kvm_vcpu *vcpu, unsigned long *exit
 		if (nr == DB_VECTOR) {
 			if (!has_payload) {
 				payload = vcpu->arch.dr6;
-				payload &= ~(DR6_FIXED_1 | DR6_BT);
-				payload ^= DR6_RTM;
+				payload &= ~DR6_BT;
+				payload ^= DR6_ACTIVE_LOW;
 			}
 			*exit_qual = payload;
 		} else

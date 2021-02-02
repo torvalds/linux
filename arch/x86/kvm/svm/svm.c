@@ -1865,7 +1865,7 @@ static void svm_sync_dirty_debug_regs(struct kvm_vcpu *vcpu)
 	get_debugreg(vcpu->arch.db[2], 2);
 	get_debugreg(vcpu->arch.db[3], 3);
 	/*
-	 * We cannot reset svm->vmcb->save.dr6 to DR6_FIXED_1|DR6_RTM here,
+	 * We cannot reset svm->vmcb->save.dr6 to DR6_ACTIVE_LOW here,
 	 * because db_interception might need it.  We can do it before vmentry.
 	 */
 	vcpu->arch.dr6 = svm->vmcb->save.dr6;
@@ -1916,7 +1916,7 @@ static int db_interception(struct vcpu_svm *svm)
 	if (!(svm->vcpu.guest_debug &
 	      (KVM_GUESTDBG_SINGLESTEP | KVM_GUESTDBG_USE_HW_BP)) &&
 		!svm->nmi_singlestep) {
-		u32 payload = (svm->vmcb->save.dr6 ^ DR6_RTM) & ~DR6_FIXED_1;
+		u32 payload = svm->vmcb->save.dr6 ^ DR6_ACTIVE_LOW;
 		kvm_queue_exception_p(&svm->vcpu, DB_VECTOR, payload);
 		return 1;
 	}
@@ -3783,7 +3783,7 @@ static __no_kcsan fastpath_t svm_vcpu_run(struct kvm_vcpu *vcpu)
 	if (unlikely(svm->vcpu.arch.switch_db_regs & KVM_DEBUGREG_WONT_EXIT))
 		svm_set_dr6(svm, vcpu->arch.dr6);
 	else
-		svm_set_dr6(svm, DR6_FIXED_1 | DR6_RTM);
+		svm_set_dr6(svm, DR6_ACTIVE_LOW);
 
 	clgi();
 	kvm_load_guest_xsave_state(vcpu);
