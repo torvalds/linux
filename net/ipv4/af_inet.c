@@ -1419,7 +1419,6 @@ struct sk_buff *inet_gso_segment(struct sk_buff *skb,
 out:
 	return segs;
 }
-EXPORT_SYMBOL(inet_gso_segment);
 
 static struct sk_buff *ipip_gso_segment(struct sk_buff *skb,
 					netdev_features_t features)
@@ -1550,7 +1549,6 @@ out:
 
 	return pp;
 }
-EXPORT_SYMBOL(inet_gro_receive);
 
 static struct sk_buff *ipip_gro_receive(struct list_head *head,
 					struct sk_buff *skb)
@@ -1636,7 +1634,6 @@ out_unlock:
 
 	return err;
 }
-EXPORT_SYMBOL(inet_gro_complete);
 
 static int ipip_gro_complete(struct sk_buff *skb, int nhoff)
 {
