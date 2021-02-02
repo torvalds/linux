@@ -69,6 +69,15 @@ check_tc_action_hw_stats_support()
 	fi
 }
 
+check_ethtool_lanes_support()
+{
+	ethtool --help 2>&1| grep lanes &> /dev/null
+	if [[ $? -ne 0 ]]; then
+		echo "SKIP: ethtool too old; it is missing lanes support"
+		exit 1
+	fi
+}
+
 if [[ "$(id -u)" -ne 0 ]]; then
 	echo "SKIP: need root privileges"
 	exit 0
@@ -263,6 +272,20 @@ not()
 	[[ $? != 0 ]]
 }
 
+get_max()
+{
+	local arr=("$@")
+
+	max=${arr[0]}
+	for cur in ${arr[@]}; do
+		if [[ $cur -gt $max ]]; then
+			max=$cur
+		fi
+	done
+
+	echo $max
+}
+
 grep_bridge_fdb()
 {
 	local addr=$1; shift
@@ -277,6 +300,11 @@ grep_bridge_fdb()
 	fi
 
 	$@ | grep $addr | grep $flag "$word"
+}
+
+wait_for_port_up()
+{
+	"$@" | grep -q "Link detected: yes"
 }
 
 wait_for_offload()
