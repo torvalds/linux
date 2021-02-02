@@ -1712,10 +1712,16 @@ static int vangogh_post_smu_init(struct smu_context *smu)
 		adev->gfx.config.max_sh_per_se * adev->gfx.config.max_shader_engines;
 
 	/* allow message will be sent after enable message on Vangogh*/
-	ret = smu_cmn_send_smc_msg(smu, SMU_MSG_EnableGfxOff, NULL);
-	if (ret) {
-		dev_err(adev->dev, "Failed to Enable GfxOff!\n");
-		return ret;
+	if (smu_cmn_feature_is_supported(smu, SMU_FEATURE_DPM_GFXCLK_BIT) &&
+			(adev->pg_flags & AMD_PG_SUPPORT_GFX_PG)) {
+		ret = smu_cmn_send_smc_msg(smu, SMU_MSG_EnableGfxOff, NULL);
+		if (ret) {
+			dev_err(adev->dev, "Failed to Enable GfxOff!\n");
+			return ret;
+		}
+	} else {
+		adev->pm.pp_feature &= ~PP_GFXOFF_MASK;
+		dev_info(adev->dev, "If GFX DPM or power gate disabled, disable GFXOFF\n");
 	}
 
 	/* if all CUs are active, no need to power off any WGPs */
