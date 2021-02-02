@@ -5627,19 +5627,7 @@ set_pit2_out:
 		r = -EFAULT;
 		if (copy_from_user(&xhc, argp, sizeof(xhc)))
 			goto out;
-		r = -EINVAL;
-		if (xhc.flags & ~KVM_XEN_HVM_CONFIG_INTERCEPT_HCALL)
-			goto out;
-		/*
-		 * With hypercall interception the kernel generates its own
-		 * hypercall page so it must not be provided.
-		 */
-		if ((xhc.flags & KVM_XEN_HVM_CONFIG_INTERCEPT_HCALL) &&
-		    (xhc.blob_addr_32 || xhc.blob_addr_64 ||
-		     xhc.blob_size_32 || xhc.blob_size_64))
-			goto out;
-		memcpy(&kvm->arch.xen_hvm_config, &xhc, sizeof(xhc));
-		r = 0;
+		r = kvm_xen_hvm_config(kvm, &xhc);
 		break;
 	}
 	case KVM_SET_CLOCK: {

@@ -11,6 +11,7 @@
 
 int kvm_xen_hypercall(struct kvm_vcpu *vcpu);
 int kvm_xen_write_hypercall_page(struct kvm_vcpu *vcpu, u64 data);
+int kvm_xen_hvm_config(struct kvm *kvm, struct kvm_xen_hvm_config *xhc);
 
 static inline bool kvm_xen_hypercall_enabled(struct kvm *kvm)
 {

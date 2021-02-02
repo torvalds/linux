@@ -79,6 +79,24 @@ int kvm_xen_write_hypercall_page(struct kvm_vcpu *vcpu, u64 data)
 	return 0;
 }
 
+int kvm_xen_hvm_config(struct kvm *kvm, struct kvm_xen_hvm_config *xhc)
+{
+	if (xhc->flags & ~KVM_XEN_HVM_CONFIG_INTERCEPT_HCALL)
+		return -EINVAL;
+
+	/*
+	 * With hypercall interception the kernel generates its own
+	 * hypercall page so it must not be provided.
+	 */
+	if ((xhc->flags & KVM_XEN_HVM_CONFIG_INTERCEPT_HCALL) &&
+	    (xhc->blob_addr_32 || xhc->blob_addr_64 ||
+	     xhc->blob_size_32 || xhc->blob_size_64))
+		return -EINVAL;
+
+	memcpy(&kvm->arch.xen_hvm_config, xhc, sizeof(*xhc));
+	return 0;
+}
+
 static int kvm_xen_hypercall_set_result(struct kvm_vcpu *vcpu, u64 result)
 {
 	kvm_rax_write(vcpu, result);
