@@ -1081,14 +1081,14 @@ int bio_iov_iter_get_pages(struct bio *bio, struct iov_iter *iter)
 		bio_iov_bvec_set(bio, iter);
 		bio_set_flag(bio, BIO_NO_PAGE_REF);
 		return 0;
-	} else {
-		do {
-			if (bio_op(bio) == REQ_OP_ZONE_APPEND)
-				ret = __bio_iov_append_get_pages(bio, iter);
-			else
-				ret = __bio_iov_iter_get_pages(bio, iter);
-		} while (!ret && iov_iter_count(iter) && !bio_full(bio, 0));
 	}
+
+	do {
+		if (bio_op(bio) == REQ_OP_ZONE_APPEND)
+			ret = __bio_iov_append_get_pages(bio, iter);
+		else
+			ret = __bio_iov_iter_get_pages(bio, iter);
+	} while (!ret && iov_iter_count(iter) && !bio_full(bio, 0));
 
 	/* don't account direct I/O as memory stall */
 	bio_clear_flag(bio, BIO_WORKINGSET);
