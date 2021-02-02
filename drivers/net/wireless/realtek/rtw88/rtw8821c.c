@@ -720,8 +720,8 @@ static void rtw8821c_coex_cfg_ant_switch(struct rtw_dev *rtwdev, u8 ctrl_type,
 			regval = (!polarity_inverse ? 0x1 : 0x2);
 		}
 
-		rtw_write8_mask(rtwdev, REG_RFE_CTRL8, BIT_MASK_R_RFE_SEL_15,
-				regval);
+		rtw_write32_mask(rtwdev, REG_RFE_CTRL8, BIT_MASK_R_RFE_SEL_15,
+				 regval);
 		break;
 	case COEX_SWITCH_CTRL_BY_PTA:
 		rtw_write32_clr(rtwdev, REG_LED_CFG, BIT_DPDT_SEL_EN);
@@ -731,8 +731,8 @@ static void rtw8821c_coex_cfg_ant_switch(struct rtw_dev *rtwdev, u8 ctrl_type,
 				PTA_CTRL_PIN);
 
 		regval = (!polarity_inverse ? 0x2 : 0x1);
-		rtw_write8_mask(rtwdev, REG_RFE_CTRL8, BIT_MASK_R_RFE_SEL_15,
-				regval);
+		rtw_write32_mask(rtwdev, REG_RFE_CTRL8, BIT_MASK_R_RFE_SEL_15,
+				 regval);
 		break;
 	case COEX_SWITCH_CTRL_BY_ANTDIV:
 		rtw_write32_clr(rtwdev, REG_LED_CFG, BIT_DPDT_SEL_EN);
@@ -758,11 +758,11 @@ static void rtw8821c_coex_cfg_ant_switch(struct rtw_dev *rtwdev, u8 ctrl_type,
 	}
 
 	if (ctrl_type == COEX_SWITCH_CTRL_BY_BT) {
-		rtw_write32_clr(rtwdev, REG_CTRL_TYPE, BIT_CTRL_TYPE1);
-		rtw_write32_clr(rtwdev, REG_CTRL_TYPE, BIT_CTRL_TYPE2);
+		rtw_write8_clr(rtwdev, REG_CTRL_TYPE, BIT_CTRL_TYPE1);
+		rtw_write8_clr(rtwdev, REG_CTRL_TYPE, BIT_CTRL_TYPE2);
 	} else {
-		rtw_write32_set(rtwdev, REG_CTRL_TYPE, BIT_CTRL_TYPE1);
-		rtw_write32_set(rtwdev, REG_CTRL_TYPE, BIT_CTRL_TYPE2);
+		rtw_write8_set(rtwdev, REG_CTRL_TYPE, BIT_CTRL_TYPE1);
+		rtw_write8_set(rtwdev, REG_CTRL_TYPE, BIT_CTRL_TYPE2);
 	}
 }
 
