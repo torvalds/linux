@@ -222,7 +222,7 @@ static inline bool report_single_step(unsigned long work)
  */
 static inline bool report_single_step(unsigned long work)
 {
-	if (!(work & SYSCALL_WORK_SYSCALL_EMU))
+	if (work & SYSCALL_WORK_SYSCALL_EMU)
 		return false;
 
 	return !!(current_thread_info()->flags & _TIF_SINGLESTEP);
