@@ -888,7 +888,8 @@ static bool wrprot_gfn_range(struct kvm *kvm, struct kvm_mmu_page *root,
 			continue;
 
 		if (!is_shadow_present_pte(iter.old_spte) ||
-		    !is_last_spte(iter.old_spte, iter.level))
+		    !is_last_spte(iter.old_spte, iter.level) ||
+		    !(iter.old_spte & PT_WRITABLE_MASK))
 			continue;
 
 		new_spte = iter.old_spte & ~PT_WRITABLE_MASK;
@@ -1065,7 +1066,8 @@ static bool set_dirty_gfn_range(struct kvm *kvm, struct kvm_mmu_page *root,
 		if (tdp_mmu_iter_cond_resched(kvm, &iter, false))
 			continue;
 
-		if (!is_shadow_present_pte(iter.old_spte))
+		if (!is_shadow_present_pte(iter.old_spte) ||
+		    iter.old_spte & shadow_dirty_mask)
 			continue;
 
 		new_spte = iter.old_spte | shadow_dirty_mask;
