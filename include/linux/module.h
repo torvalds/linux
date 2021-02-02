@@ -392,18 +392,6 @@ struct module {
 	const s32 *gpl_crcs;
 	bool using_gplonly_symbols;
 
-#ifdef CONFIG_UNUSED_SYMBOLS
-	/* unused exported symbols. */
-	const struct kernel_symbol *unused_syms;
-	const s32 *unused_crcs;
-	unsigned int num_unused_syms;
-
-	/* GPL-only, unused exported symbols. */
-	unsigned int num_unused_gpl_syms;
-	const struct kernel_symbol *unused_gpl_syms;
-	const s32 *unused_gpl_crcs;
-#endif
-
 #ifdef CONFIG_MODULE_SIG
 	/* Signature was verified. */
 	bool sig_ok;
