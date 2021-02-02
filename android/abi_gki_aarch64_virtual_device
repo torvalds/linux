@@ -1,6 +1,5 @@
 [abi_symbol_list]
 # commonly used symbols
-  add_timer
   __alloc_disk_node
   alloc_etherdev_mqs
   __alloc_pages_nodemask
@@ -25,7 +24,6 @@
   blk_queue_physical_block_size
   blk_queue_write_cache
   blk_status_to_errno
-  bpf_trace_run1
   bpf_trace_run2
   bpf_trace_run3
   bus_register
@@ -39,7 +37,6 @@
   __class_create
   class_destroy
   complete
-  complete_all
   __const_udelay
   consume_skb
   __cpuhp_remove_state
@@ -62,7 +59,6 @@
   debugfs_remove
   delayed_work_timer_fn
   del_gendisk
-  del_timer
   del_timer_sync
   destroy_workqueue
   _dev_err
@@ -74,7 +70,6 @@
   device_unregister
   _dev_info
   __dev_kfree_skb_any
-  devm_add_action
   devm_ioremap
   devm_kfree
   devm_kmalloc
@@ -133,7 +128,6 @@
   input_register_device
   input_unregister_device
   iounmap
-  is_vmalloc_addr
   jiffies
   jiffies_to_msecs
   kfree
@@ -168,6 +162,9 @@
   __list_add_valid
   __list_del_entry_valid
   __local_bh_enable_ip
+  __log_post_read_mmio
+  __log_read_mmio
+  __log_write_mmio
   lzo1x_decompress_safe
   memcpy
   memmove
@@ -208,13 +205,9 @@
   param_ops_int
   param_ops_uint
   passthru_features_check
-  pci_alloc_irq_vectors_affinity
   pci_disable_device
   pci_enable_device
-  pci_free_irq_vectors
   pci_iomap
-  pci_irq_vector
-  pci_match_id
   pci_read_config_byte
   pci_read_config_dword
   pci_read_config_word
@@ -224,7 +217,6 @@
   pci_request_region
   pci_request_regions
   pci_set_master
-  pci_set_power_state
   pci_unregister_driver
   pci_write_config_dword
   __per_cpu_offset
@@ -242,7 +234,6 @@
   pm_runtime_allow
   __pm_runtime_disable
   pm_runtime_enable
-  pm_runtime_forbid
   __pm_runtime_resume
   __pm_runtime_suspend
   __pm_runtime_use_autosuspend
@@ -298,8 +289,6 @@
   sg_init_table
   sg_next
   simple_strtoul
-  single_open
-  single_release
   skb_add_rx_frag
   skb_put
   snd_card_disconnect
@@ -343,9 +332,7 @@
   strsep
   strstr
   submit_bio
-  __sw_hweight32
   sync_file_create
-  synchronize_irq
   synchronize_rcu
   sysfs_create_group
   __sysfs_match_string
@@ -358,6 +345,9 @@
   trace_event_raw_init
   trace_event_reg
   trace_handle_return
+  __tracepoint_rwmmio_post_read
+  __tracepoint_rwmmio_read
+  __tracepoint_rwmmio_write
   trace_raw_output_prep
   trace_seq_printf
   try_module_get
@@ -370,18 +360,6 @@
   unregister_virtio_driver
   up_read
   up_write
-  usb_add_hcd
-  usb_create_shared_hcd
-  usb_disabled
-  usb_hcd_check_unlink_urb
-  usb_hcd_giveback_urb
-  usb_hcd_is_primary_hcd
-  usb_hcd_link_urb_to_ep
-  usb_hcd_poll_rh_status
-  usb_hcd_resume_root_hub
-  usb_hcd_unlink_urb_from_ep
-  usb_put_hcd
-  usb_remove_hcd
   usleep_range
   vabits_actual
   vfree
@@ -407,7 +385,6 @@
   vring_interrupt
   vring_transport_features
   wait_for_completion
-  wait_for_completion_timeout
   __wake_up
   __warn_printk
 
@@ -424,13 +401,25 @@
   sg_miter_start
   sg_miter_stop
   usb_add_gadget_udc
+  usb_add_hcd
   usb_create_hcd
+  usb_create_shared_hcd
   usb_del_gadget_udc
+  usb_disabled
   usb_ep_set_maxpacket_limit
   usb_gadget_giveback_request
   usb_gadget_udc_reset
   usb_get_dev
+  usb_hcd_check_unlink_urb
+  usb_hcd_giveback_urb
+  usb_hcd_is_primary_hcd
+  usb_hcd_link_urb_to_ep
+  usb_hcd_poll_rh_status
+  usb_hcd_resume_root_hub
+  usb_hcd_unlink_urb_from_ep
   usb_put_dev
+  usb_put_hcd
+  usb_remove_hcd
 
 # required by failover.ko
   netdev_master_upper_dev_link
@@ -687,8 +676,11 @@
   __serio_register_driver
   serio_unregister_driver
   strscpy
+  wait_for_completion_timeout
 
 # required by rtc-test.ko
+  add_timer
+  del_timer
   device_init_wakeup
   devm_rtc_allocate_device
   __rtc_register_device
@@ -709,6 +701,7 @@
   snd_ctl_boolean_stereo_info
   strchr
   strlcat
+  __sw_hweight32
 
 # required by snd-hda-codec.ko
   bpf_trace_run4
@@ -719,6 +712,9 @@
   get_device_system_crosststamp
   kvasprintf
   ns_to_timespec64
+  pm_runtime_forbid
+  pm_runtime_force_resume
+  pm_runtime_force_suspend
   pm_runtime_set_autosuspend_delay
   __printk_ratelimit
   regcache_mark_dirty
@@ -758,6 +754,8 @@
   __udelay
 
 # required by snd-hda-intel.ko
+  bpf_trace_run1
+  complete_all
   param_array_ops
   param_get_int
   param_set_int
@@ -767,6 +765,8 @@
   pci_get_device
   pci_intx
   pci_ioremap_bar
+  pci_match_id
+  pci_set_power_state
   pci_write_config_byte
   pci_write_config_word
 
@@ -790,6 +790,7 @@
   cdev_device_del
   cdev_init
   compat_only_sysfs_link_entry_to_kobj
+  devm_add_action
   efi
   efi_tpm_final_log_size
   hash_digest_size
@@ -950,12 +951,15 @@
   drm_universal_plane_init
   __get_task_comm
   iomem_resource
+  is_vmalloc_addr
   kmalloc_order_trace
   memdup_user
   seq_puts
   sync_file_get_fence
   __traceiter_dma_fence_emit
+  __traceiter_gpu_mem_total
   __tracepoint_dma_fence_emit
+  __tracepoint_gpu_mem_total
   vmalloc_to_page
   vmemdup_user
   vm_get_page_prot
@@ -1011,6 +1015,8 @@
   pipe_unlock
   __refrigerator
   __register_chrdev
+  single_open
+  single_release
   __splice_from_pipe
   system_freezing_cnt
   __unregister_chrdev
@@ -1089,13 +1095,17 @@
 
 # required by virtio_pci.ko
   irq_set_affinity_hint
+  pci_alloc_irq_vectors_affinity
   pci_find_capability
   pci_find_ext_capability
   pci_find_next_capability
+  pci_free_irq_vectors
   pci_iomap_range
   pci_irq_get_affinity
+  pci_irq_vector
   pci_release_selected_regions
   pci_request_selected_regions
+  synchronize_irq
   virtio_device_freeze
   virtio_device_restore
 
@@ -1167,58 +1177,6 @@
   vsock_core_register
   vsock_core_unregister
   vsock_for_each_connected_socket
-
-# required by xhci-hcd.ko
-  cancel_delayed_work
-  debugfs_create_regset32
-  dev_driver_string
-  dma_map_page_attrs
-  dma_pool_alloc
-  dma_pool_create
-  dma_pool_destroy
-  dma_pool_free
-  dma_unmap_page_attrs
-  find_next_bit
-  kstrtou16_from_user
-  mod_delayed_work_on
-  param_ops_ullong
-  platform_device_add_properties
-  platform_device_add_resources
-  radix_tree_delete
-  radix_tree_insert
-  radix_tree_lookup
-  radix_tree_maybe_preload
-  sg_pcopy_from_buffer
-  sg_pcopy_to_buffer
-  trace_print_symbols_seq
-  usb_amd_dev_put
-  usb_amd_pt_check_port
-  usb_amd_quirk_pll_disable
-  usb_amd_quirk_pll_enable
-  usb_asmedia_modifyflowcontrol
-  usb_debug_root
-  usb_disable_xhci_ports
-  usb_hcd_end_port_resume
-  usb_hc_died
-  usb_hcd_irq
-  usb_hcd_map_urb_for_dma
-  usb_hcd_start_port_resume
-  usb_hub_clear_tt_buffer
-  usb_root_hub_lost_power
-  usb_wakeup_notification
-  vsnprintf
-
-# required by xhci-pci.ko
-  __devm_reset_control_get
-  pci_d3cold_disable
-  pci_set_mwi
-  reset_control_reset
-  usb_amd_quirk_pll_check
-  usb_enable_intel_xhci_ports
-  usb_hcd_pci_pm_ops
-  usb_hcd_pci_probe
-  usb_hcd_pci_remove
-  usb_hcd_pci_shutdown
 
 # required by zram.ko
   __alloc_percpu
