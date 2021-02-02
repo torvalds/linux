@@ -160,9 +160,9 @@ static struct channel *get_channel(struct most_interface *iface,
 				   int channel_id)
 {
 	struct sound_adapter *adpt = iface->priv;
-	struct channel *channel, *tmp;
+	struct channel *channel;
 
-	list_for_each_entry_safe(channel, tmp, &adpt->dev_list, list) {
+	list_for_each_entry(channel, &adpt->dev_list, list) {
 		if ((channel->iface == iface) && (channel->id == channel_id))
 			return channel;
 	}
