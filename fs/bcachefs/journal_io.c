@@ -937,6 +937,8 @@ int bch2_journal_read(struct bch_fs *c, struct list_head *list,
 		for (ptr = 0; ptr < i->nr_ptrs; ptr++)
 			replicas.e.devs[replicas.e.nr_devs++] = i->ptrs[ptr].dev;
 
+		bch2_replicas_entry_sort(&replicas.e);
+
 		/*
 		 * If we're mounting in degraded mode - if we didn't read all
 		 * the devices - this is wrong:

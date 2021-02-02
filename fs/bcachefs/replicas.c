@@ -26,7 +26,7 @@ static void verify_replicas_entry(struct bch_replicas_entry *e)
 #endif
 }
 
-static void replicas_entry_sort(struct bch_replicas_entry *e)
+void bch2_replicas_entry_sort(struct bch_replicas_entry *e)
 {
 	bubble_sort(e->devs, e->nr_devs, u8_cmp);
 }
@@ -122,7 +122,7 @@ void bch2_bkey_to_replicas(struct bch_replicas_entry *e,
 		break;
 	}
 
-	replicas_entry_sort(e);
+	bch2_replicas_entry_sort(e);
 }
 
 void bch2_devlist_to_replicas(struct bch_replicas_entry *e,
@@ -142,7 +142,7 @@ void bch2_devlist_to_replicas(struct bch_replicas_entry *e,
 	for (i = 0; i < devs.nr; i++)
 		e->devs[e->nr_devs++] = devs.devs[i];
 
-	replicas_entry_sort(e);
+	bch2_replicas_entry_sort(e);
 }
 
 static struct bch_replicas_cpu
@@ -197,7 +197,7 @@ static inline int __replicas_entry_idx(struct bch_replicas_cpu *r,
 int bch2_replicas_entry_idx(struct bch_fs *c,
 			    struct bch_replicas_entry *search)
 {
-	replicas_entry_sort(search);
+	bch2_replicas_entry_sort(search);
 
 	return __replicas_entry_idx(&c->replicas, search);
 }
@@ -690,7 +690,7 @@ __bch2_sb_replicas_to_cpu_replicas(struct bch_sb_field_replicas *sb_r,
 	for_each_replicas_entry(sb_r, e) {
 		dst = cpu_replicas_entry(cpu_r, idx++);
 		memcpy(dst, e, replicas_entry_bytes(e));
-		replicas_entry_sort(dst);
+		bch2_replicas_entry_sort(dst);
 	}
 
 	return 0;
@@ -727,7 +727,7 @@ __bch2_sb_replicas_v0_to_cpu_replicas(struct bch_sb_field_replicas_v0 *sb_r,
 		dst->nr_devs	= e->nr_devs;
 		dst->nr_required = 1;
 		memcpy(dst->devs, e->devs, e->nr_devs);
-		replicas_entry_sort(dst);
+		bch2_replicas_entry_sort(dst);
 	}
 
 	return 0;
