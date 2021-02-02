@@ -181,6 +181,8 @@ _rtw_write32s_mask(struct rtw_dev *rtwdev, u32 addr, u32 mask, u32 data)
 #define GET_PHY_STAT_P1_RXSNR_B(phy_stat)                                      \
 	le32_get_bits(*((__le32 *)(phy_stat) + 0x06), GENMASK(15, 8))
 
+#define REG_SYS_CTRL	0x000
+#define BIT_FEN_EN	BIT(26)
 #define REG_INIRTS_RATE_SEL 0x0480
 #define REG_HTSTFWT	0x800
 #define REG_RXPSEL	0x808
@@ -212,6 +214,11 @@ _rtw_write32s_mask(struct rtw_dev *rtwdev, u32 addr, u32 mask, u32 data)
 #define REG_FA_CCK	0xa5c
 #define REG_RXDESC	0xa2c
 #define REG_ENTXCCK	0xa80
+#define BTG_LNA		0xfc84
+#define WLG_LNA		0x7532
+#define REG_ENRXCCA	0xa84
+#define BTG_CCA		0x0e
+#define WLG_CCA		0x12
 #define REG_PWRTH2	0xaa8
 #define REG_CSRATIO	0xaaa
 #define REG_TXFILTER	0xaac
@@ -225,6 +232,11 @@ _rtw_write32s_mask(struct rtw_dev *rtwdev, u32 addr, u32 mask, u32 data)
 #define REG_RFESEL0	0xcb0
 #define REG_RFESEL8	0xcb4
 #define REG_RFECTL	0xcb8
+#define B_BTG_SWITCH	BIT(16)
+#define B_CTRL_SWITCH	BIT(18)
+#define B_WL_SWITCH	(BIT(20) | BIT(22))
+#define B_WLG_SWITCH	BIT(21)
+#define B_WLA_SWITCH	BIT(23)
 #define REG_RFEINV	0xcbc
 #define REG_AGCTR_B	0xe08
 #define REG_RXIGI_B	0xe50
@@ -235,6 +247,8 @@ _rtw_write32s_mask(struct rtw_dev *rtwdev, u32 addr, u32 mask, u32 data)
 #define REG_CCA_OFDM	0xf08
 #define REG_FA_OFDM	0xf48
 #define REG_CCA_CCK	0xfcc
+#define REG_DMEM_CTRL	0x1080
+#define BIT_WL_RST	BIT(16)
 #define REG_ANTWT	0x1904
 #define REG_IQKFAILMSK	0x1bf0
 #define BIT_MASK_R_RFE_SEL_15	GENMASK(31, 28)
