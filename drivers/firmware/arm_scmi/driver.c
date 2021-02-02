@@ -645,6 +645,10 @@ scmi_get_protocol_instance(struct scmi_handle *handle, u8 protocol_id)
 		if (ret != protocol_id)
 			goto clean;
 
+		if (pi->proto->events)
+			scmi_register_protocol_events(handle, pi->proto->id,
+						      pi->proto->events);
+
 		devres_close_group(handle->dev, pi->gid);
 		dev_dbg(handle->dev, "Initialized protocol: 0x%X\n",
 			protocol_id);
@@ -695,6 +699,9 @@ void scmi_release_protocol(struct scmi_handle *handle, u8 protocol_id)
 
 	if (refcount_dec_and_test(&pi->users)) {
 		void *gid = pi->gid;
+
+		if (pi->proto->events)
+			scmi_deregister_protocol_events(handle, protocol_id);
 
 		if (pi->proto->deinit_instance)
 			pi->proto->deinit_instance(handle);

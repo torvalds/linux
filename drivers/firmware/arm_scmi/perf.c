@@ -837,6 +837,16 @@ static void *scmi_perf_fill_custom_report(const struct scmi_handle *handle,
 	return rep;
 }
 
+static int scmi_perf_get_num_sources(const struct scmi_handle *handle)
+{
+	struct scmi_perf_info *pi = handle->perf_priv;
+
+	if (!pi)
+		return -EINVAL;
+
+	return pi->num_domains;
+}
+
 static const struct scmi_event perf_events[] = {
 	{
 		.id = SCMI_EVENT_PERFORMANCE_LIMITS_CHANGED,
@@ -851,8 +861,16 @@ static const struct scmi_event perf_events[] = {
 };
 
 static const struct scmi_event_ops perf_event_ops = {
+	.get_num_sources = scmi_perf_get_num_sources,
 	.set_notify_enabled = scmi_perf_set_notify_enabled,
 	.fill_custom_report = scmi_perf_fill_custom_report,
+};
+
+static const struct scmi_protocol_events perf_protocol_events = {
+	.queue_sz = SCMI_PROTO_QUEUE_SZ,
+	.ops = &perf_event_ops,
+	.evts = perf_events,
+	.num_events = ARRAY_SIZE(perf_events),
 };
 
 static int scmi_perf_protocol_init(struct scmi_handle *handle)
@@ -887,12 +905,6 @@ static int scmi_perf_protocol_init(struct scmi_handle *handle)
 			scmi_perf_domain_init_fc(handle, domain, &dom->fc_info);
 	}
 
-	scmi_register_protocol_events(handle,
-				      SCMI_PROTOCOL_PERF, SCMI_PROTO_QUEUE_SZ,
-				      &perf_event_ops, perf_events,
-				      ARRAY_SIZE(perf_events),
-				      pinfo->num_domains);
-
 	pinfo->version = version;
 	handle->perf_ops = &perf_ops;
 	handle->perf_priv = pinfo;
@@ -904,6 +916,7 @@ static const struct scmi_protocol scmi_perf = {
 	.id = SCMI_PROTOCOL_PERF,
 	.init = &scmi_perf_protocol_init,
 	.ops = &perf_ops,
+	.events = &perf_protocol_events,
 };
 
 DEFINE_SCMI_PROTOCOL_REGISTER_UNREGISTER(perf, scmi_perf)

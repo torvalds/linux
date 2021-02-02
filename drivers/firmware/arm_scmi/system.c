@@ -101,6 +101,14 @@ static const struct scmi_event_ops system_event_ops = {
 	.fill_custom_report = scmi_system_fill_custom_report,
 };
 
+static const struct scmi_protocol_events system_protocol_events = {
+	.queue_sz = SCMI_PROTO_QUEUE_SZ,
+	.ops = &system_event_ops,
+	.evts = system_events,
+	.num_events = ARRAY_SIZE(system_events),
+	.num_sources = SCMI_SYSTEM_NUM_SOURCES,
+};
+
 static int scmi_system_protocol_init(struct scmi_handle *handle)
 {
 	u32 version;
@@ -115,13 +123,6 @@ static int scmi_system_protocol_init(struct scmi_handle *handle)
 	if (!pinfo)
 		return -ENOMEM;
 
-	scmi_register_protocol_events(handle,
-				      SCMI_PROTOCOL_SYSTEM, SCMI_PROTO_QUEUE_SZ,
-				      &system_event_ops,
-				      system_events,
-				      ARRAY_SIZE(system_events),
-				      SCMI_SYSTEM_NUM_SOURCES);
-
 	pinfo->version = version;
 	handle->system_priv = pinfo;
 
@@ -132,6 +133,7 @@ static const struct scmi_protocol scmi_system = {
 	.id = SCMI_PROTOCOL_SYSTEM,
 	.init = &scmi_system_protocol_init,
 	.ops = NULL,
+	.events = &system_protocol_events,
 };
 
 DEFINE_SCMI_PROTOCOL_REGISTER_UNREGISTER(system, scmi_system)

@@ -318,6 +318,14 @@ static const struct scmi_event_ops base_event_ops = {
 	.fill_custom_report = scmi_base_fill_custom_report,
 };
 
+static const struct scmi_protocol_events base_protocol_events = {
+	.queue_sz = 4 * SCMI_PROTO_QUEUE_SZ,
+	.ops = &base_event_ops,
+	.evts = base_events,
+	.num_events = ARRAY_SIZE(base_events),
+	.num_sources = SCMI_BASE_NUM_SOURCES,
+};
+
 int scmi_base_protocol_init(struct scmi_handle *h)
 {
 	int id, ret;
@@ -352,12 +360,6 @@ int scmi_base_protocol_init(struct scmi_handle *h)
 	dev_dbg(dev, "Found %d protocol(s) %d agent(s)\n", rev->num_protocols,
 		rev->num_agents);
 
-	scmi_register_protocol_events(handle, SCMI_PROTOCOL_BASE,
-				      (4 * SCMI_PROTO_QUEUE_SZ),
-				      &base_event_ops, base_events,
-				      ARRAY_SIZE(base_events),
-				      SCMI_BASE_NUM_SOURCES);
-
 	for (id = 0; id < rev->num_agents; id++) {
 		scmi_base_discover_agent_get(handle, id, name);
 		dev_dbg(dev, "Agent %d: %s\n", id, name);
@@ -370,6 +372,7 @@ static const struct scmi_protocol scmi_base = {
 	.id = SCMI_PROTOCOL_BASE,
 	.init = &scmi_base_protocol_init,
 	.ops = NULL,
+	.events = &base_protocol_events,
 };
 
 DEFINE_SCMI_PROTOCOL_REGISTER_UNREGISTER(base, scmi_base)
