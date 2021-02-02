@@ -1039,6 +1039,19 @@ struct kvm_arch {
 	 * tdp_mmu_page set and a root_count of 0.
 	 */
 	struct list_head tdp_mmu_pages;
+
+	/*
+	 * Protects accesses to the following fields when the MMU lock
+	 * is held in read mode:
+	 *  - tdp_mmu_pages (above)
+	 *  - the link field of struct kvm_mmu_pages used by the TDP MMU
+	 *  - lpage_disallowed_mmu_pages
+	 *  - the lpage_disallowed_link field of struct kvm_mmu_pages used
+	 *    by the TDP MMU
+	 * It is acceptable, but not necessary, to acquire this lock when
+	 * the thread holds the MMU lock in write mode.
+	 */
+	spinlock_t tdp_mmu_pages_lock;
 };
 
 struct kvm_vm_stat {
