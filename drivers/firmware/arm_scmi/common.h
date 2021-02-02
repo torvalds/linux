@@ -157,6 +157,24 @@ void scmi_setup_protocol_implemented(const struct scmi_handle *handle,
 				     u8 *prot_imp);
 
 int scmi_base_protocol_init(struct scmi_handle *h);
+typedef int (*scmi_prot_init_fn_t)(struct scmi_handle *);
+
+/**
+ * struct scmi_protocol  - Protocol descriptor
+ * @id: Protocol ID.
+ * @init: Mandatory protocol initialization function.
+ * @init_instance: Optional protocol instance initialization function.
+ * @deinit_instance: Optional protocol de-initialization function.
+ * @ops: Optional reference to the operations provided by the protocol and
+ *	 exposed in scmi_protocol.h.
+ */
+struct scmi_protocol {
+	const u8				id;
+	const scmi_prot_init_fn_t		init;
+	const scmi_prot_init_fn_t		init_instance;
+	const scmi_prot_init_fn_t		deinit_instance;
+	const void				*ops;
+};
 
 int __init scmi_bus_init(void);
 void __exit scmi_bus_exit(void);
@@ -164,6 +182,7 @@ void __exit scmi_bus_exit(void);
 #define DECLARE_SCMI_REGISTER_UNREGISTER(func)		\
 	int __init scmi_##func##_register(void);	\
 	void __exit scmi_##func##_unregister(void)
+DECLARE_SCMI_REGISTER_UNREGISTER(base);
 DECLARE_SCMI_REGISTER_UNREGISTER(clock);
 DECLARE_SCMI_REGISTER_UNREGISTER(perf);
 DECLARE_SCMI_REGISTER_UNREGISTER(power);
@@ -172,16 +191,21 @@ DECLARE_SCMI_REGISTER_UNREGISTER(sensors);
 DECLARE_SCMI_REGISTER_UNREGISTER(voltage);
 DECLARE_SCMI_REGISTER_UNREGISTER(system);
 
-#define DEFINE_SCMI_PROTOCOL_REGISTER_UNREGISTER(id, name) \
+#define DEFINE_SCMI_PROTOCOL_REGISTER_UNREGISTER(name, proto) \
 int __init scmi_##name##_register(void) \
 { \
-	return scmi_protocol_register((id), &scmi_##name##_protocol_init); \
+	return scmi_protocol_register(&(proto)); \
 } \
 \
 void __exit scmi_##name##_unregister(void) \
 { \
-	scmi_protocol_unregister((id)); \
+	scmi_protocol_unregister(&(proto)); \
 }
+
+const struct scmi_protocol *scmi_get_protocol(int protocol_id);
+
+int scmi_acquire_protocol(struct scmi_handle *handle, u8 protocol_id);
+void scmi_release_protocol(struct scmi_handle *handle, u8 protocol_id);
 
 /* SCMI Transport */
 /**

@@ -377,4 +377,10 @@ static int scmi_voltage_protocol_init(struct scmi_handle *handle)
 	return 0;
 }
 
-DEFINE_SCMI_PROTOCOL_REGISTER_UNREGISTER(SCMI_PROTOCOL_VOLTAGE, voltage)
+static const struct scmi_protocol scmi_voltage = {
+	.id = SCMI_PROTOCOL_VOLTAGE,
+	.init = &scmi_voltage_protocol_init,
+	.ops = &voltage_ops,
+};
+
+DEFINE_SCMI_PROTOCOL_REGISTER_UNREGISTER(voltage, scmi_voltage)

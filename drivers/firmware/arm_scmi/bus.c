@@ -16,7 +16,7 @@
 #include "common.h"
 
 static DEFINE_IDA(scmi_bus_id);
-static DEFINE_IDR(scmi_protocols);
+static DEFINE_IDR(scmi_available_protocols);
 static DEFINE_SPINLOCK(protocol_lock);
 
 static const struct scmi_device_id *
@@ -51,13 +51,29 @@ static int scmi_dev_match(struct device *dev, struct device_driver *drv)
 	return 0;
 }
 
+const struct scmi_protocol *scmi_get_protocol(int protocol_id)
+{
+	const struct scmi_protocol *proto;
+
+	proto = idr_find(&scmi_available_protocols, protocol_id);
+	if (!proto) {
+		pr_warn("SCMI Protocol 0x%x not found!\n", protocol_id);
+		return NULL;
+	}
+
+	pr_debug("GOT SCMI Protocol 0x%x\n", protocol_id);
+
+	return proto;
+}
+
 static int scmi_protocol_init(int protocol_id, struct scmi_handle *handle)
 {
-	scmi_prot_init_fn_t fn = idr_find(&scmi_protocols, protocol_id);
+	const struct scmi_protocol *proto;
 
-	if (unlikely(!fn))
+	proto = scmi_get_protocol(protocol_id);
+	if (!proto)
 		return -EINVAL;
-	return fn(handle);
+	return proto->init(handle);
 }
 
 static int scmi_protocol_dummy_init(struct scmi_handle *handle)
@@ -84,7 +100,7 @@ static int scmi_dev_probe(struct device *dev)
 		return ret;
 
 	/* Skip protocol initialisation for additional devices */
-	idr_replace(&scmi_protocols, &scmi_protocol_dummy_init,
+	idr_replace(&scmi_available_protocols, &scmi_protocol_dummy_init,
 		    scmi_dev->protocol_id);
 
 	return scmi_drv->probe(scmi_dev);
@@ -194,26 +210,45 @@ void scmi_set_handle(struct scmi_device *scmi_dev)
 	scmi_dev->handle = scmi_handle_get(&scmi_dev->dev);
 }
 
-int scmi_protocol_register(int protocol_id, scmi_prot_init_fn_t fn)
+int scmi_protocol_register(const struct scmi_protocol *proto)
 {
 	int ret;
 
-	spin_lock(&protocol_lock);
-	ret = idr_alloc(&scmi_protocols, fn, protocol_id, protocol_id + 1,
-			GFP_ATOMIC);
-	spin_unlock(&protocol_lock);
-	if (ret != protocol_id)
-		pr_err("unable to allocate SCMI idr slot, err %d\n", ret);
+	if (!proto) {
+		pr_err("invalid protocol\n");
+		return -EINVAL;
+	}
 
-	return ret;
+	if (!proto->init && !proto->init_instance) {
+		pr_err("missing .init() for protocol 0x%x\n", proto->id);
+		return -EINVAL;
+	}
+
+	spin_lock(&protocol_lock);
+	ret = idr_alloc(&scmi_available_protocols, (void *)proto,
+			proto->id, proto->id + 1, GFP_ATOMIC);
+	spin_unlock(&protocol_lock);
+	if (ret != proto->id) {
+		pr_err("unable to allocate SCMI idr slot for 0x%x - err %d\n",
+		       proto->id, ret);
+		return ret;
+	}
+
+	pr_debug("Registered SCMI Protocol 0x%x\n", proto->id);
+
+	return 0;
 }
 EXPORT_SYMBOL_GPL(scmi_protocol_register);
 
-void scmi_protocol_unregister(int protocol_id)
+void scmi_protocol_unregister(const struct scmi_protocol *proto)
 {
 	spin_lock(&protocol_lock);
-	idr_remove(&scmi_protocols, protocol_id);
+	idr_remove(&scmi_available_protocols, proto->id);
 	spin_unlock(&protocol_lock);
+
+	pr_debug("Unregistered SCMI Protocol 0x%x\n", proto->id);
+
+	return;
 }
 EXPORT_SYMBOL_GPL(scmi_protocol_unregister);
 
