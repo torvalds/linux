@@ -717,6 +717,7 @@ static struct platform_driver dmc620_pmu_driver = {
 	.driver	= {
 		.name		= DMC620_DRVNAME,
 		.acpi_match_table = dmc620_acpi_match,
+		.suppress_bind_attrs = true,
 	},
 	.probe	= dmc620_pmu_device_probe,
 	.remove	= dmc620_pmu_device_remove,
