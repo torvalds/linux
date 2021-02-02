@@ -397,7 +397,7 @@ cifs_parse_smb_version(char *value, struct smb3_fs_context *ctx, bool is_smb3)
 		ctx->vals = &smb3any_values;
 		break;
 	case Smb_default:
-		ctx->ops = &smb30_operations; /* currently identical with 3.0 */
+		ctx->ops = &smb30_operations;
 		ctx->vals = &smbdefault_values;
 		break;
 	default:
