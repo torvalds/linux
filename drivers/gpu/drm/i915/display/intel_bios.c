@@ -1630,12 +1630,23 @@ static const u8 rkl_pch_tgp_ddc_pin_map[] = {
 	[RKL_DDC_BUS_DDI_E] = GMBUS_PIN_10_TC2_ICP,
 };
 
+static const u8 adls_ddc_pin_map[] = {
+	[ICL_DDC_BUS_DDI_A] = GMBUS_PIN_1_BXT,
+	[ADLS_DDC_BUS_PORT_TC1] = GMBUS_PIN_9_TC1_ICP,
+	[ADLS_DDC_BUS_PORT_TC2] = GMBUS_PIN_10_TC2_ICP,
+	[ADLS_DDC_BUS_PORT_TC3] = GMBUS_PIN_11_TC3_ICP,
+	[ADLS_DDC_BUS_PORT_TC4] = GMBUS_PIN_12_TC4_ICP,
+};
+
 static u8 map_ddc_pin(struct drm_i915_private *dev_priv, u8 vbt_pin)
 {
 	const u8 *ddc_pin_map;
 	int n_entries;
 
-	if (INTEL_PCH_TYPE(dev_priv) >= PCH_DG1) {
+	if (HAS_PCH_ADP(dev_priv)) {
+		ddc_pin_map = adls_ddc_pin_map;
+		n_entries = ARRAY_SIZE(adls_ddc_pin_map);
+	} else if (INTEL_PCH_TYPE(dev_priv) >= PCH_DG1) {
 		return vbt_pin;
 	} else if (IS_ROCKETLAKE(dev_priv) && INTEL_PCH_TYPE(dev_priv) == PCH_TGP) {
 		ddc_pin_map = rkl_pch_tgp_ddc_pin_map;
@@ -1708,8 +1719,26 @@ static enum port dvo_port_to_port(struct drm_i915_private *dev_priv,
 		[PORT_TC1] = { DVO_PORT_HDMIC, DVO_PORT_DPC, -1 },
 		[PORT_TC2] = { DVO_PORT_HDMID, DVO_PORT_DPD, -1 },
 	};
+	/*
+	 * Alderlake S ports used in the driver are PORT_A, PORT_D, PORT_E,
+	 * PORT_F and PORT_G, we need to map that to correct VBT sections.
+	 */
+	static const int adls_port_mapping[][3] = {
+		[PORT_A] = { DVO_PORT_HDMIA, DVO_PORT_DPA, -1 },
+		[PORT_B] = { -1 },
+		[PORT_C] = { -1 },
+		[PORT_TC1] = { DVO_PORT_HDMIB, DVO_PORT_DPB, -1 },
+		[PORT_TC2] = { DVO_PORT_HDMIC, DVO_PORT_DPC, -1 },
+		[PORT_TC3] = { DVO_PORT_HDMID, DVO_PORT_DPD, -1 },
+		[PORT_TC4] = { DVO_PORT_HDMIE, DVO_PORT_DPE, -1 },
+	};
 
-	if (IS_DG1(dev_priv) || IS_ROCKETLAKE(dev_priv))
+	if (IS_ALDERLAKE_S(dev_priv))
+		return __dvo_port_to_port(ARRAY_SIZE(adls_port_mapping),
+					  ARRAY_SIZE(adls_port_mapping[0]),
+					  adls_port_mapping,
+					  dvo_port);
+	else if (IS_DG1(dev_priv) || IS_ROCKETLAKE(dev_priv))
 		return __dvo_port_to_port(ARRAY_SIZE(rkl_port_mapping),
 					  ARRAY_SIZE(rkl_port_mapping[0]),
 					  rkl_port_mapping,
@@ -2661,27 +2690,44 @@ enum aux_ch intel_bios_port_aux_ch(struct drm_i915_private *dev_priv,
 		return aux_ch;
 	}
 
+	/*
+	 * RKL/DG1 VBT uses PHY based mapping. Combo PHYs A,B,C,D
+	 * map to DDI A,B,TC1,TC2 respectively.
+	 *
+	 * ADL-S VBT uses PHY based mapping. Combo PHYs A,B,C,D,E
+	 * map to DDI A,TC1,TC2,TC3,TC4 respectively.
+	 */
 	switch (info->alternate_aux_channel) {
 	case DP_AUX_A:
 		aux_ch = AUX_CH_A;
 		break;
 	case DP_AUX_B:
-		aux_ch = AUX_CH_B;
+		if (IS_ALDERLAKE_S(dev_priv))
+			aux_ch = AUX_CH_USBC1;
+		else
+			aux_ch = AUX_CH_B;
 		break;
 	case DP_AUX_C:
-		/*
-		 * RKL/DG1 VBT uses PHY based mapping. Combo PHYs A,B,C,D
-		 * map to DDI A,B,TC1,TC2 respectively.
-		 */
-		aux_ch = (IS_DG1(dev_priv) || IS_ROCKETLAKE(dev_priv)) ?
-			AUX_CH_USBC1 : AUX_CH_C;
+		if (IS_ALDERLAKE_S(dev_priv))
+			aux_ch = AUX_CH_USBC2;
+		else if (IS_DG1(dev_priv) || IS_ROCKETLAKE(dev_priv))
+			aux_ch = AUX_CH_USBC1;
+		else
+			aux_ch = AUX_CH_C;
 		break;
 	case DP_AUX_D:
-		aux_ch = (IS_DG1(dev_priv) || IS_ROCKETLAKE(dev_priv)) ?
-			AUX_CH_USBC2 : AUX_CH_D;
+		if (IS_ALDERLAKE_S(dev_priv))
+			aux_ch = AUX_CH_USBC3;
+		else if (IS_DG1(dev_priv) || IS_ROCKETLAKE(dev_priv))
+			aux_ch = AUX_CH_USBC2;
+		else
+			aux_ch = AUX_CH_D;
 		break;
 	case DP_AUX_E:
-		aux_ch = AUX_CH_E;
+		if (IS_ALDERLAKE_S(dev_priv))
+			aux_ch = AUX_CH_USBC4;
+		else
+			aux_ch = AUX_CH_E;
 		break;
 	case DP_AUX_F:
 		aux_ch = AUX_CH_F;

@@ -71,17 +71,25 @@ const struct i915_rev_steppings kbl_revids[] = {
 	[7] = { .gt_stepping = KBL_REVID_G0, .disp_stepping = KBL_REVID_C0 },
 };
 
-const struct i915_rev_steppings tgl_uy_revids[] = {
-	[0] = { .gt_stepping = TGL_REVID_A0, .disp_stepping = TGL_REVID_A0 },
-	[1] = { .gt_stepping = TGL_REVID_B0, .disp_stepping = TGL_REVID_C0 },
-	[2] = { .gt_stepping = TGL_REVID_B1, .disp_stepping = TGL_REVID_C0 },
-	[3] = { .gt_stepping = TGL_REVID_C0, .disp_stepping = TGL_REVID_D0 },
+const struct i915_rev_steppings tgl_uy_revid_step_tbl[] = {
+	[0] = { .gt_stepping = STEP_A0, .disp_stepping = STEP_A0 },
+	[1] = { .gt_stepping = STEP_B0, .disp_stepping = STEP_C0 },
+	[2] = { .gt_stepping = STEP_B1, .disp_stepping = STEP_C0 },
+	[3] = { .gt_stepping = STEP_C0, .disp_stepping = STEP_D0 },
 };
 
 /* Same GT stepping between tgl_uy_revids and tgl_revids don't mean the same HW */
-const struct i915_rev_steppings tgl_revids[] = {
-	[0] = { .gt_stepping = TGL_REVID_A0, .disp_stepping = TGL_REVID_B0 },
-	[1] = { .gt_stepping = TGL_REVID_B0, .disp_stepping = TGL_REVID_D0 },
+const struct i915_rev_steppings tgl_revid_step_tbl[] = {
+	[0] = { .gt_stepping = STEP_A0, .disp_stepping = STEP_B0 },
+	[1] = { .gt_stepping = STEP_B0, .disp_stepping = STEP_D0 },
+};
+
+const struct i915_rev_steppings adls_revid_step_tbl[] = {
+	[0x0] = { .gt_stepping = STEP_A0, .disp_stepping = STEP_A0 },
+	[0x1] = { .gt_stepping = STEP_A0, .disp_stepping = STEP_A2 },
+	[0x4] = { .gt_stepping = STEP_B0, .disp_stepping = STEP_B0 },
+	[0x8] = { .gt_stepping = STEP_C0, .disp_stepping = STEP_B0 },
+	[0xC] = { .gt_stepping = STEP_D0, .disp_stepping = STEP_C0 },
 };
 
 static void wa_init_start(struct i915_wa_list *wal, const char *name, const char *engine_name)
@@ -722,7 +730,8 @@ __intel_engine_init_ctx_wa(struct intel_engine_cs *engine,
 
 	if (IS_DG1(i915))
 		dg1_ctx_workarounds_init(engine, wal);
-	else if (IS_ROCKETLAKE(i915) || IS_TIGERLAKE(i915))
+	else if (IS_ALDERLAKE_S(i915) || IS_ROCKETLAKE(i915) ||
+		 IS_TIGERLAKE(i915))
 		tgl_ctx_workarounds_init(engine, wal);
 	else if (IS_GEN(i915, 12))
 		gen12_ctx_workarounds_init(engine, wal);
@@ -1123,19 +1132,19 @@ tgl_gt_workarounds_init(struct drm_i915_private *i915, struct i915_wa_list *wal)
 	gen12_gt_workarounds_init(i915, wal);
 
 	/* Wa_1409420604:tgl */
-	if (IS_TGL_UY_GT_REVID(i915, TGL_REVID_A0, TGL_REVID_A0))
+	if (IS_TGL_UY_GT_STEPPING(i915, STEP_A0, STEP_A0))
 		wa_write_or(wal,
 			    SUBSLICE_UNIT_LEVEL_CLKGATE2,
 			    CPSSUNIT_CLKGATE_DIS);
 
 	/* Wa_1607087056:tgl also know as BUG:1409180338 */
-	if (IS_TGL_UY_GT_REVID(i915, TGL_REVID_A0, TGL_REVID_A0))
+	if (IS_TGL_UY_GT_STEPPING(i915, STEP_A0, STEP_A0))
 		wa_write_or(wal,
 			    SLICE_UNIT_LEVEL_CLKGATE,
 			    L3_CLKGATE_DIS | L3_CR2X_CLKGATE_DIS);
 
 	/* Wa_1408615072:tgl[a0] */
-	if (IS_TGL_UY_GT_REVID(i915, TGL_REVID_A0, TGL_REVID_A0))
+	if (IS_TGL_UY_GT_STEPPING(i915, STEP_A0, STEP_A0))
 		wa_write_or(wal, UNSLICE_UNIT_LEVEL_CLKGATE2,
 			    VSUNIT_CLKGATE_DIS_TGL);
 }
@@ -1613,7 +1622,7 @@ rcs_engine_wa_init(struct intel_engine_cs *engine, struct i915_wa_list *wal)
 	struct drm_i915_private *i915 = engine->i915;
 
 	if (IS_DG1_REVID(i915, DG1_REVID_A0, DG1_REVID_A0) ||
-	    IS_TGL_UY_GT_REVID(i915, TGL_REVID_A0, TGL_REVID_A0)) {
+	    IS_TGL_UY_GT_STEPPING(i915, STEP_A0, STEP_A0)) {
 		/*
 		 * Wa_1607138336:tgl[a0],dg1[a0]
 		 * Wa_1607063988:tgl[a0],dg1[a0]
@@ -1623,7 +1632,7 @@ rcs_engine_wa_init(struct intel_engine_cs *engine, struct i915_wa_list *wal)
 			    GEN12_DISABLE_POSH_BUSY_FF_DOP_CG);
 	}
 
-	if (IS_TGL_UY_GT_REVID(i915, TGL_REVID_A0, TGL_REVID_A0)) {
+	if (IS_TGL_UY_GT_STEPPING(i915, STEP_A0, STEP_A0)) {
 		/*
 		 * Wa_1606679103:tgl
 		 * (see also Wa_1606682166:icl)
@@ -1633,45 +1642,45 @@ rcs_engine_wa_init(struct intel_engine_cs *engine, struct i915_wa_list *wal)
 			    GEN7_DISABLE_SAMPLER_PREFETCH);
 	}
 
-	if (IS_DG1(i915) || IS_ROCKETLAKE(i915) || IS_TIGERLAKE(i915)) {
-		/* Wa_1606931601:tgl,rkl,dg1 */
+	if (IS_ALDERLAKE_S(i915) || IS_DG1(i915) ||
+	    IS_ROCKETLAKE(i915) || IS_TIGERLAKE(i915)) {
+		/* Wa_1606931601:tgl,rkl,dg1,adl-s */
 		wa_masked_en(wal, GEN7_ROW_CHICKEN2, GEN12_DISABLE_EARLY_READ);
 
 		/*
 		 * Wa_1407928979:tgl A*
 		 * Wa_18011464164:tgl[B0+],dg1[B0+]
 		 * Wa_22010931296:tgl[B0+],dg1[B0+]
-		 * Wa_14010919138:rkl, dg1
+		 * Wa_14010919138:rkl,dg1,adl-s
 		 */
 		wa_write_or(wal, GEN7_FF_THREAD_MODE,
 			    GEN12_FF_TESSELATION_DOP_GATE_DISABLE);
 
 		/*
 		 * Wa_1606700617:tgl,dg1
-		 * Wa_22010271021:tgl,rkl,dg1
+		 * Wa_22010271021:tgl,rkl,dg1, adl-s
 		 */
 		wa_masked_en(wal,
 			     GEN9_CS_DEBUG_MODE1,
 			     FF_DOP_CLOCK_GATE_DISABLE);
-
-		/* Wa_1406941453:tgl,rkl,dg1 */
-		wa_masked_en(wal,
-			     GEN10_SAMPLER_MODE,
-			     ENABLE_SMALLPL);
 	}
 
-	if (IS_DG1_REVID(i915, DG1_REVID_A0, DG1_REVID_A0) ||
+	if (IS_ALDERLAKE_S(i915) || IS_DG1_REVID(i915, DG1_REVID_A0, DG1_REVID_A0) ||
 	    IS_ROCKETLAKE(i915) || IS_TIGERLAKE(i915)) {
-		/* Wa_1409804808:tgl,rkl,dg1[a0] */
+		/* Wa_1409804808:tgl,rkl,dg1[a0],adl-s */
 		wa_masked_en(wal, GEN7_ROW_CHICKEN2,
 			     GEN12_PUSH_CONST_DEREF_HOLD_DIS);
 
 		/*
 		 * Wa_1409085225:tgl
-		 * Wa_14010229206:tgl,rkl,dg1[a0]
+		 * Wa_14010229206:tgl,rkl,dg1[a0],adl-s
 		 */
 		wa_masked_en(wal, GEN9_ROW_CHICKEN4, GEN12_DISABLE_TDL_PUSH);
+	}
 
+
+	if (IS_DG1_REVID(i915, DG1_REVID_A0, DG1_REVID_A0) ||
+	    IS_ROCKETLAKE(i915) || IS_TIGERLAKE(i915)) {
 		/*
 		 * Wa_1607030317:tgl
 		 * Wa_1607186500:tgl
@@ -1686,6 +1695,13 @@ rcs_engine_wa_init(struct intel_engine_cs *engine, struct i915_wa_list *wal)
 			     GEN6_RC_SLEEP_PSMI_CONTROL,
 			     GEN12_WAIT_FOR_EVENT_POWER_DOWN_DISABLE |
 			     GEN8_RC_SEMA_IDLE_MSG_DISABLE);
+	}
+
+	if (IS_DG1(i915) || IS_ROCKETLAKE(i915) || IS_TIGERLAKE(i915)) {
+		/* Wa_1406941453:tgl,rkl,dg1 */
+		wa_masked_en(wal,
+			     GEN10_SAMPLER_MODE,
+			     ENABLE_SMALLPL);
 	}
 
 	if (IS_GEN(i915, 11)) {
