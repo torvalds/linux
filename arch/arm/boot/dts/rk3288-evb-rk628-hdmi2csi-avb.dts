@@ -1,0 +1,121 @@
+// SPDX-License-Identifier: (GPL-2.0+ OR MIT)
+// Copyright (c) 2020 Fuzhou Rockchip Electronics Co., Ltd
+
+/dts-v1/;
+#include "rk3288-evb-rk628.dtsi"
+
+/ {
+	model = "Rockchip RK3288 EVB RK628 Board";
+	compatible = "rockchip,rk3288-evb-rk628", "rockchip,rk3288";
+
+	chosen {
+		bootargs = "rootwait earlycon=uart8250,mmio32,0xff690000 vmalloc=496M swiotlb=1 console=ttyFIQ0 androidboot.baseband=N/A androidboot.veritymode=enforcing androidboot.hardware=rk30board androidboot.console=ttyFIQ0 init=/init kpti=0 androidboot.selinux=permissive";
+	};
+
+	hdmiin-sound {
+		compatible = "rockchip,rockchip-rt5651-rk628-sound";
+		rockchip,cpu = <&i2s>;
+		rockchip,codec = <&rt5651>;
+		status = "okay";
+	};
+};
+
+&video_phy {
+	status = "okay";
+};
+
+&hdmi {
+	status = "okay";
+};
+
+&hdmi_in_vopb {
+	status = "disabled";
+};
+
+&hdmi_in_vopl {
+	status = "okay";
+};
+
+&route_hdmi {
+	connect = <&vopl_out_hdmi>;
+	status = "disabled";
+};
+
+&rk628 {
+	reg = <0x51>;
+	interrupt-parent = <&gpio7>;
+	interrupts = <11 IRQ_TYPE_LEVEL_HIGH>;
+	enable-gpios = <&gpio5 RK_PC3 GPIO_ACTIVE_HIGH>;
+	reset-gpios = <&gpio7 RK_PB4 GPIO_ACTIVE_LOW>;
+	status = "okay";
+};
+
+&rk628_combrxphy {
+	status = "okay";
+};
+
+&rk628_combtxphy {
+	status = "okay";
+};
+
+&rk628_csi {
+	status = "okay";
+	plugin-det-gpios = <&gpio0 13 GPIO_ACTIVE_HIGH>;
+	power-gpios = <&gpio0 17 GPIO_ACTIVE_HIGH>;
+	rockchip,camera-module-index = <0>;
+	rockchip,camera-module-facing = "back";
+	rockchip,camera-module-name = "RK628-CSI";
+	rockchip,camera-module-lens-name = "NC";
+
+	port {
+		hdmiin_out0: endpoint {
+			remote-endpoint = <&hdmi2mipi_in>;
+			data-lanes = <1 2 3 4>;
+		};
+	};
+};
+
+&mipi_phy_rx0 {
+	status = "okay";
+
+	ports {
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		port@0 {
+			reg = <0>;
+			#address-cells = <1>;
+			#size-cells = <0>;
+
+			hdmi2mipi_in: endpoint@1 {
+				reg = <1>;
+				remote-endpoint = <&hdmiin_out0>;
+				data-lanes = <1 2 3 4>;
+			};
+		};
+
+		port@1 {
+			reg = <1>;
+			#address-cells = <1>;
+			#size-cells = <0>;
+
+			dphy_rx_out: endpoint@0 {
+				reg = <0>;
+				remote-endpoint = <&isp_mipi_in>;
+			};
+		};
+	};
+};
+
+&rkisp1 {
+	status = "okay";
+	port {
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		isp_mipi_in: endpoint@0 {
+			reg = <0>;
+			remote-endpoint = <&dphy_rx_out>;
+		};
+	};
+};

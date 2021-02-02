@@ -359,4 +359,30 @@
 		phys = <&rk628_combrxphy>;
 		status = "disabled";
 	};
+
+	rk628_csi: csi {
+		compatible = "rockchip,rk628-csi";
+		clocks = <&rk628_cru CGU_PCLK_HDMIRX>,
+			 <&rk628_cru CGU_CLK_IMODET>,
+			 <&rk628_cru CGU_CLK_HDMIRX_AUD>,
+			 <&rk628_cru CGU_CLK_HDMIRX_CEC>,
+			 <&rk628_cru CGU_SCLK_VOP>,
+			 <&rk628_cru CGU_CLK_RX_READ>,
+			 <&rk628_cru CGU_PCLK_CSI>;
+		clock-names = "hdmirx", "imodet", "hdmirx_aud", "hdmirx_cec",
+			      "vop", "rx_read", "csi0";
+		resets = <&rk628_cru RGU_HDMIRX>,
+			 <&rk628_cru RGU_HDMIRX_PON>,
+			 <&rk628_cru RGU_DECODER>,
+			 <&rk628_cru RGU_CLK_RX>,
+			 <&rk628_cru RGU_VOP>,
+			 <&rk628_cru RGU_CSI>;
+		reset-names = "hdmirx", "hdmirx_pon", "decoder", "clk_rx",
+			      "vop", "csi0";
+		phys = <&rk628_combrxphy>, <&rk628_combtxphy>;
+		phy-names = "combrxphy", "combtxphy";
+		pinctrl-names = "default";
+		pinctrl-0 = <&hpdm0_out_pins &ddcm0_rx_pins>;
+		status = "disabled";
+	};
 };
