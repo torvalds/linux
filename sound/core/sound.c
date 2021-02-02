@@ -9,6 +9,7 @@
 #include <linux/time.h>
 #include <linux/device.h>
 #include <linux/module.h>
+#include <linux/debugfs.h>
 #include <sound/core.h>
 #include <sound/minors.h>
 #include <sound/info.h>
@@ -38,6 +39,11 @@ MODULE_ALIAS_CHARDEV_MAJOR(CONFIG_SND_MAJOR);
  */
 int snd_ecards_limit;
 EXPORT_SYMBOL(snd_ecards_limit);
+
+#ifdef CONFIG_SND_DEBUG
+struct dentry *sound_debugfs_root;
+EXPORT_SYMBOL_GPL(sound_debugfs_root);
+#endif
 
 static struct snd_minor *snd_minors[SNDRV_OS_MINORS];
 static DEFINE_MUTEX(sound_mutex);
@@ -395,6 +401,10 @@ static int __init alsa_sound_init(void)
 		unregister_chrdev(major, "alsa");
 		return -ENOMEM;
 	}
+
+#ifdef CONFIG_SND_DEBUG
+	sound_debugfs_root = debugfs_create_dir("sound", NULL);
+#endif
 #ifndef MODULE
 	pr_info("Advanced Linux Sound Architecture Driver Initialized.\n");
 #endif
@@ -403,6 +413,9 @@ static int __init alsa_sound_init(void)
 
 static void __exit alsa_sound_exit(void)
 {
+#ifdef CONFIG_SND_DEBUG
+	debugfs_remove(sound_debugfs_root);
+#endif
 	snd_info_done();
 	unregister_chrdev(major, "alsa");
 }
