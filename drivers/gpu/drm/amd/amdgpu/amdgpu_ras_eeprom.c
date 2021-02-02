@@ -52,12 +52,11 @@
 /* Bad GPU tag ‘BADG’ */
 #define EEPROM_TABLE_HDR_BAD 0x42414447
 
-/* Assume 2 Mbit size */
-#define EEPROM_SIZE_BYTES 256000
-#define EEPROM_PAGE__SIZE_BYTES 256
-#define EEPROM_HDR_START 0
-#define EEPROM_RECORD_START (EEPROM_HDR_START + EEPROM_TABLE_HEADER_SIZE)
-#define EEPROM_MAX_RECORD_NUM ((EEPROM_SIZE_BYTES - EEPROM_TABLE_HEADER_SIZE) / EEPROM_TABLE_RECORD_SIZE)
+/* Assume 2-Mbit size */
+#define EEPROM_SIZE_BYTES       (256 * 1024)
+#define EEPROM_HDR_START        0
+#define EEPROM_RECORD_START     (EEPROM_HDR_START + EEPROM_TABLE_HEADER_SIZE)
+#define EEPROM_MAX_RECORD_NUM   ((EEPROM_SIZE_BYTES - EEPROM_TABLE_HEADER_SIZE) / EEPROM_TABLE_RECORD_SIZE)
 
 #define to_amdgpu_device(x) (container_of(x, struct amdgpu_ras, eeprom_control))->adev
 
@@ -402,9 +401,8 @@ static uint32_t __correct_eeprom_dest_address(uint32_t curr_address)
 	uint32_t next_address = curr_address + EEPROM_TABLE_RECORD_SIZE;
 
 	/* When all EEPROM memory used jump back to 0 address */
-	if (next_address > EEPROM_SIZE_BYTES) {
-		DRM_INFO("Reached end of EEPROM memory, jumping to 0 "
-			 "and overriding old record");
+	if (next_address >= EEPROM_SIZE_BYTES) {
+		DRM_INFO("Reached end of EEPROM memory, wrap around to 0.");
 		return EEPROM_RECORD_START;
 	}
 
@@ -476,7 +474,9 @@ int amdgpu_ras_eeprom_process_recods(struct amdgpu_ras_eeprom_control *control,
 	}
 
 	/* In case of overflow just start from beginning to not lose newest records */
-	if (write && (control->next_addr + EEPROM_TABLE_RECORD_SIZE * num > EEPROM_SIZE_BYTES))
+	if (write &&
+	    (control->next_addr +
+	     EEPROM_TABLE_RECORD_SIZE * num >= EEPROM_SIZE_BYTES))
 		control->next_addr = EEPROM_RECORD_START;
 
 	/*
