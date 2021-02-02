@@ -28,11 +28,11 @@
 #include "atom.h"
 #include "amdgpu_eeprom.h"
 
-#define EEPROM_I2C_TARGET_ADDR_VEGA20		0x50
-#define EEPROM_I2C_TARGET_ADDR_ARCTURUS		0x54
-#define EEPROM_I2C_TARGET_ADDR_ARCTURUS_D342	0x50
-#define EEPROM_I2C_TARGET_ADDR_SIENNA_CICHLID   0x50
-#define EEPROM_I2C_TARGET_ADDR_ALDEBARAN        0x50	       
+#define EEPROM_I2C_MADDR_VEGA20         0x0
+#define EEPROM_I2C_MADDR_ARCTURUS       0x40000
+#define EEPROM_I2C_MADDR_ARCTURUS_D342  0x0
+#define EEPROM_I2C_MADDR_SIENNA_CICHLID 0x0
+#define EEPROM_I2C_MADDR_ALDEBARAN      0x0
 
 /*
  * The 2 macros bellow represent the actual size in bytes that
@@ -58,7 +58,6 @@
 #define EEPROM_HDR_START 0
 #define EEPROM_RECORD_START (EEPROM_HDR_START + EEPROM_TABLE_HEADER_SIZE)
 #define EEPROM_MAX_RECORD_NUM ((EEPROM_SIZE_BYTES - EEPROM_TABLE_HEADER_SIZE) / EEPROM_TABLE_RECORD_SIZE)
-#define EEPROM_ADDR_MSB_MASK GENMASK(17, 8)
 
 #define to_amdgpu_device(x) (container_of(x, struct amdgpu_ras, eeprom_control))->adev
 
@@ -74,43 +73,43 @@ static bool __is_ras_eeprom_supported(struct amdgpu_device *adev)
 }
 
 static bool __get_eeprom_i2c_addr_arct(struct amdgpu_device *adev,
-				       uint16_t *i2c_addr)
+				       struct amdgpu_ras_eeprom_control *control)
 {
 	struct atom_context *atom_ctx = adev->mode_info.atom_context;
 
-	if (!i2c_addr || !atom_ctx)
+	if (!control || !atom_ctx)
 		return false;
 
 	if (strnstr(atom_ctx->vbios_version,
 	            "D342",
 		    sizeof(atom_ctx->vbios_version)))
-		*i2c_addr = EEPROM_I2C_TARGET_ADDR_ARCTURUS_D342;
+		control->i2c_address = EEPROM_I2C_MADDR_ARCTURUS_D342;
 	else
-		*i2c_addr = EEPROM_I2C_TARGET_ADDR_ARCTURUS;
+		control->i2c_address = EEPROM_I2C_MADDR_ARCTURUS;
 
 	return true;
 }
 
 static bool __get_eeprom_i2c_addr(struct amdgpu_device *adev,
-				  uint16_t *i2c_addr)
+				  struct amdgpu_ras_eeprom_control *control)
 {
-	if (!i2c_addr)
+	if (!control)
 		return false;
 
 	switch (adev->asic_type) {
 	case CHIP_VEGA20:
-		*i2c_addr = EEPROM_I2C_TARGET_ADDR_VEGA20;
+		control->i2c_address = EEPROM_I2C_MADDR_VEGA20;
 		break;
 
 	case CHIP_ARCTURUS:
-		return __get_eeprom_i2c_addr_arct(adev, i2c_addr);
+		return __get_eeprom_i2c_addr_arct(adev, control);
 
 	case CHIP_SIENNA_CICHLID:
-		*i2c_addr = EEPROM_I2C_TARGET_ADDR_SIENNA_CICHLID;
+		control->i2c_address = EEPROM_I2C_MADDR_SIENNA_CICHLID;
 		break;
 
 	case CHIP_ALDEBARAN:
-		*i2c_addr = EEPROM_I2C_TARGET_ADDR_ALDEBARAN;
+		control->i2c_address = EEPROM_I2C_MADDR_ALDEBARAN;
 		break;
 
 	default:
@@ -154,8 +153,9 @@ static int __update_table_header(struct amdgpu_ras_eeprom_control *control,
 
 	/* i2c may be unstable in gpu reset */
 	down_read(&adev->reset_sem);
-	ret = amdgpu_eeprom_xfer(&adev->pm.smu_i2c, control->i2c_address,
-				 EEPROM_HDR_START, buff, EEPROM_TABLE_HEADER_SIZE, false);
+	ret = amdgpu_eeprom_xfer(&adev->pm.smu_i2c,
+				 control->i2c_address + EEPROM_HDR_START,
+				 buff, EEPROM_TABLE_HEADER_SIZE, false);
 	up_read(&adev->reset_sem);
 
 	if (ret < 1)
@@ -277,7 +277,7 @@ int amdgpu_ras_eeprom_reset_table(struct amdgpu_ras_eeprom_control *control)
 }
 
 int amdgpu_ras_eeprom_init(struct amdgpu_ras_eeprom_control *control,
-			bool *exceed_err_limit)
+			   bool *exceed_err_limit)
 {
 	int ret = 0;
 	struct amdgpu_device *adev = to_amdgpu_device(control);
@@ -294,14 +294,15 @@ int amdgpu_ras_eeprom_init(struct amdgpu_ras_eeprom_control *control,
 	if (!adev->pm.smu_i2c.algo)
 		return -ENOENT;
 
-	if (!__get_eeprom_i2c_addr(adev, &control->i2c_address))
+	if (!__get_eeprom_i2c_addr(adev, control))
 		return -EINVAL;
 
 	mutex_init(&control->tbl_mutex);
 
 	/* Read/Create table header from EEPROM address 0 */
-	ret = amdgpu_eeprom_xfer(&adev->pm.smu_i2c, control->i2c_address,
-				 EEPROM_HDR_START, buff, EEPROM_TABLE_HEADER_SIZE, true);
+	ret = amdgpu_eeprom_xfer(&adev->pm.smu_i2c,
+				 control->i2c_address + EEPROM_HDR_START,
+				 buff, EEPROM_TABLE_HEADER_SIZE, true);
 	if (ret < 1) {
 		DRM_ERROR("Failed to read EEPROM table header, ret:%d", ret);
 		return ret;
@@ -395,8 +396,6 @@ static void __decode_table_record_from_buff(struct amdgpu_ras_eeprom_control *co
 
 /*
  * When reaching end of EEPROM memory jump back to 0 record address
- * When next record access will go beyond EEPROM page boundary modify bits A17/A8
- * in I2C selector to go to next page
  */
 static uint32_t __correct_eeprom_dest_address(uint32_t curr_address)
 {
@@ -407,20 +406,6 @@ static uint32_t __correct_eeprom_dest_address(uint32_t curr_address)
 		DRM_INFO("Reached end of EEPROM memory, jumping to 0 "
 			 "and overriding old record");
 		return EEPROM_RECORD_START;
-	}
-
-	/*
-	 * To check if we overflow page boundary  compare next address with
-	 * current and see if bits 17/8 of the EEPROM address will change
-	 * If they do start from the next 256b page
-	 *
-	 * https://www.st.com/resource/en/datasheet/m24m02-dr.pdf sec. 5.1.2
-	 */
-	if ((curr_address & EEPROM_ADDR_MSB_MASK) != (next_address & EEPROM_ADDR_MSB_MASK)) {
-		DRM_DEBUG_DRIVER("Reached end of EEPROM memory page, jumping to next: %lx",
-				(next_address & EEPROM_ADDR_MSB_MASK));
-
-		return  (next_address & EEPROM_ADDR_MSB_MASK);
 	}
 
 	return curr_address;
@@ -452,22 +437,20 @@ bool amdgpu_ras_eeprom_check_err_threshold(struct amdgpu_device *adev)
 }
 
 int amdgpu_ras_eeprom_process_recods(struct amdgpu_ras_eeprom_control *control,
-					    struct eeprom_table_record *records,
-					    bool write,
-					    int num)
+				     struct eeprom_table_record *records,
+				     bool write, int num)
 {
 	int i, ret = 0;
 	unsigned char *buffs, *buff;
 	struct eeprom_table_record *record;
 	struct amdgpu_device *adev = to_amdgpu_device(control);
 	struct amdgpu_ras *ras = amdgpu_ras_get_context(adev);
-	u16 slave_addr;
 
 	if (!__is_ras_eeprom_supported(adev))
 		return 0;
 
 	buffs = kcalloc(num, EEPROM_ADDRESS_SIZE + EEPROM_TABLE_RECORD_SIZE,
-			 GFP_KERNEL);
+			GFP_KERNEL);
 	if (!buffs)
 		return -ENOMEM;
 
@@ -507,22 +490,15 @@ int amdgpu_ras_eeprom_process_recods(struct amdgpu_ras_eeprom_control *control,
 
 		control->next_addr = __correct_eeprom_dest_address(control->next_addr);
 
-		/*
-		 * Update bits 16,17 of EEPROM address in I2C address by setting them
-		 * to bits 1,2 of Device address byte
-		 */
-		slave_addr = control->i2c_address |
-			((control->next_addr & EEPROM_ADDR_MSB_MASK) >> 15);
-
 		/* EEPROM table content is stored in LE format */
 		if (write)
 			__encode_table_record_to_buff(control, record, buff);
 
 		/* i2c may be unstable in gpu reset */
 		down_read(&adev->reset_sem);
-		ret = amdgpu_eeprom_xfer(&adev->pm.smu_i2c, slave_addr,
-					 control->next_addr, buff,
-					 EEPROM_TABLE_RECORD_SIZE, write ? false : true);
+		ret = amdgpu_eeprom_xfer(&adev->pm.smu_i2c,
+					 control->i2c_address + control->next_addr,
+					 buff, EEPROM_TABLE_RECORD_SIZE, !write);
 		up_read(&adev->reset_sem);
 
 		if (ret < 1) {

@@ -44,11 +44,11 @@ struct amdgpu_ras_eeprom_table_header {
 
 struct amdgpu_ras_eeprom_control {
 	struct amdgpu_ras_eeprom_table_header tbl_hdr;
+	u32 i2c_address; /* Base I2C 19-bit memory address */
 	uint32_t next_addr;
 	unsigned int num_recs;
 	struct mutex tbl_mutex;
 	uint32_t tbl_byte_sum;
-	uint16_t i2c_address; // 8-bit represented address
 };
 
 /*
