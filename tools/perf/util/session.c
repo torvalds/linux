@@ -1300,7 +1300,7 @@ static void dump_sample(struct evsel *evsel, union perf_event *event,
 	if (sample_type & PERF_SAMPLE_STACK_USER)
 		stack_user__printf(&sample->user_stack);
 
-	if (sample_type & PERF_SAMPLE_WEIGHT)
+	if (sample_type & PERF_SAMPLE_WEIGHT_TYPE)
 		printf("... weight: %" PRIu64 "\n", sample->weight);
 
 	if (sample_type & PERF_SAMPLE_DATA_SRC)

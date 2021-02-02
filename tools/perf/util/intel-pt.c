@@ -1853,13 +1853,29 @@ static int intel_pt_synth_pebs_sample(struct intel_pt_queue *ptq)
 	if (sample_type & PERF_SAMPLE_ADDR && items->has_mem_access_address)
 		sample.addr = items->mem_access_address;
 
-	if (sample_type & PERF_SAMPLE_WEIGHT) {
+	if (sample_type & PERF_SAMPLE_WEIGHT_TYPE) {
 		/*
 		 * Refer kernel's setup_pebs_adaptive_sample_data() and
 		 * intel_hsw_weight().
 		 */
-		if (items->has_mem_access_latency)
-			sample.weight = items->mem_access_latency;
+		if (items->has_mem_access_latency) {
+			u64 weight = items->mem_access_latency >> 32;
+
+			/*
+			 * Starts from SPR, the mem access latency field
+			 * contains both cache latency [47:32] and instruction
+			 * latency [15:0]. The cache latency is the same as the
+			 * mem access latency on previous platforms.
+			 *
+			 * In practice, no memory access could last than 4G
+			 * cycles. Use latency >> 32 to distinguish the
+			 * different format of the mem access latency field.
+			 */
+			if (weight > 0)
+				sample.weight = weight & 0xffff;
+			else
+				sample.weight = items->mem_access_latency;
+		}
 		if (!sample.weight && items->has_tsx_aux_info) {
 			/* Cycles last block */
 			sample.weight = (u32)items->tsx_aux_info;
