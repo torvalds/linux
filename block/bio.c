@@ -941,6 +941,7 @@ static int bio_iov_bvec_set(struct bio *bio, struct iov_iter *iter)
 	bio->bi_io_vec = (struct bio_vec *)iter->bvec;
 	bio->bi_iter.bi_bvec_done = iter->iov_offset;
 	bio->bi_iter.bi_size = iter->count;
+	bio_set_flag(bio, BIO_NO_PAGE_REF);
 
 	iov_iter_advance(iter, iter->count);
 	return 0;
@@ -1078,9 +1079,7 @@ int bio_iov_iter_get_pages(struct bio *bio, struct iov_iter *iter)
 	if (iov_iter_is_bvec(iter)) {
 		if (WARN_ON_ONCE(bio_op(bio) == REQ_OP_ZONE_APPEND))
 			return -EINVAL;
-		bio_iov_bvec_set(bio, iter);
-		bio_set_flag(bio, BIO_NO_PAGE_REF);
-		return 0;
+		return bio_iov_bvec_set(bio, iter);
 	}
 
 	do {
