@@ -424,7 +424,7 @@ static int pcf85363_probe(struct i2c_client *client,
 	return ret;
 }
 
-static const struct of_device_id dev_ids[] = {
+static const __maybe_unused struct of_device_id dev_ids[] = {
 	{ .compatible = "nxp,pcf85263", .data = &pcf_85263_config },
 	{ .compatible = "nxp,pcf85363", .data = &pcf_85363_config },
 	{ /* sentinel */ }
