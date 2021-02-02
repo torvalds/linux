@@ -48,6 +48,7 @@ static struct resource rk628_dsi1_resources[] = {
 
 static struct resource rk628_csi_resources[] = {
 	DEFINE_RES_IRQ(RK628_IRQ_CSI),
+	DEFINE_RES_IRQ(RK628_IRQ_HDMIRX),
 };
 
 static struct resource rk628_gvi_resources[] = {
