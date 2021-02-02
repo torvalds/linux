@@ -327,7 +327,7 @@ static inline void bkey_init(struct bkey *k)
 */
 #define BCH_BKEY_TYPES()				\
 	x(deleted,		0)			\
-	x(discard,		1)			\
+	x(whiteout,		1)			\
 	x(error,		2)			\
 	x(cookie,		3)			\
 	x(hash_whiteout,	4)			\
@@ -361,7 +361,7 @@ struct bch_deleted {
 	struct bch_val		v;
 };
 
-struct bch_discard {
+struct bch_whiteout {
 	struct bch_val		v;
 };
 

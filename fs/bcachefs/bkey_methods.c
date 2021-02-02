@@ -31,7 +31,7 @@ static const char *deleted_key_invalid(const struct bch_fs *c,
 	.key_invalid = deleted_key_invalid,		\
 }
 
-#define bch2_bkey_ops_discard (struct bkey_ops) {	\
+#define bch2_bkey_ops_whiteout (struct bkey_ops) {	\
 	.key_invalid = deleted_key_invalid,		\
 }
 
@@ -101,6 +101,8 @@ const char *bch2_bkey_val_invalid(struct bch_fs *c, struct bkey_s_c k)
 
 static unsigned bch2_key_types_allowed[] = {
 	[BKEY_TYPE_extents] =
+		(1U << KEY_TYPE_deleted)|
+		(1U << KEY_TYPE_whiteout)|
 		(1U << KEY_TYPE_error)|
 		(1U << KEY_TYPE_cookie)|
 		(1U << KEY_TYPE_extent)|
@@ -108,30 +110,43 @@ static unsigned bch2_key_types_allowed[] = {
 		(1U << KEY_TYPE_reflink_p)|
 		(1U << KEY_TYPE_inline_data),
 	[BKEY_TYPE_inodes] =
+		(1U << KEY_TYPE_deleted)|
+		(1U << KEY_TYPE_whiteout)|
 		(1U << KEY_TYPE_inode)|
 		(1U << KEY_TYPE_inode_generation),
 	[BKEY_TYPE_dirents] =
+		(1U << KEY_TYPE_deleted)|
+		(1U << KEY_TYPE_whiteout)|
 		(1U << KEY_TYPE_hash_whiteout)|
 		(1U << KEY_TYPE_dirent),
 	[BKEY_TYPE_xattrs] =
+		(1U << KEY_TYPE_deleted)|
+		(1U << KEY_TYPE_whiteout)|
 		(1U << KEY_TYPE_cookie)|
 		(1U << KEY_TYPE_hash_whiteout)|
 		(1U << KEY_TYPE_xattr),
 	[BKEY_TYPE_alloc] =
+		(1U << KEY_TYPE_deleted)|
 		(1U << KEY_TYPE_alloc)|
 		(1U << KEY_TYPE_alloc_v2),
 	[BKEY_TYPE_quotas] =
+		(1U << KEY_TYPE_deleted)|
 		(1U << KEY_TYPE_quota),
 	[BKEY_TYPE_stripes] =
+		(1U << KEY_TYPE_deleted)|
 		(1U << KEY_TYPE_stripe),
 	[BKEY_TYPE_reflink] =
+		(1U << KEY_TYPE_deleted)|
 		(1U << KEY_TYPE_reflink_v)|
 		(1U << KEY_TYPE_indirect_inline_data),
 	[BKEY_TYPE_subvolumes] =
+		(1U << KEY_TYPE_deleted)|
 		(1U << KEY_TYPE_subvolume),
 	[BKEY_TYPE_snapshots] =
+		(1U << KEY_TYPE_deleted)|
 		(1U << KEY_TYPE_snapshot),
 	[BKEY_TYPE_btree] =
+		(1U << KEY_TYPE_deleted)|
 		(1U << KEY_TYPE_btree_ptr)|
 		(1U << KEY_TYPE_btree_ptr_v2),
 };
@@ -139,21 +154,18 @@ static unsigned bch2_key_types_allowed[] = {
 const char *__bch2_bkey_invalid(struct bch_fs *c, struct bkey_s_c k,
 				enum btree_node_type type)
 {
-	unsigned key_types_allowed = (1U << KEY_TYPE_deleted)|
-		bch2_key_types_allowed[type] ;
-
 	if (k.k->u64s < BKEY_U64s)
 		return "u64s too small";
 
-	if (!(key_types_allowed & (1U << k.k->type)))
+	if (!(bch2_key_types_allowed[type] & (1U << k.k->type)))
 		return "invalid key type for this btree";
 
 	if (type == BKEY_TYPE_btree &&
 	    bkey_val_u64s(k.k) > BKEY_BTREE_PTR_VAL_U64s_MAX)
 		return "value too big";
 
-	if (btree_node_type_is_extents(type)) {
-		if ((k.k->size == 0) != bkey_deleted(k.k))
+	if (btree_node_type_is_extents(type) && !bkey_whiteout(k.k)) {
+		if (k.k->size == 0)
 			return "bad size field";
 
 		if (k.k->size > k.k->p.offset)

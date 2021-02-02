@@ -63,7 +63,7 @@ static inline void set_bkey_val_bytes(struct bkey *k, unsigned bytes)
 #define bkey_deleted(_k)	((_k)->type == KEY_TYPE_deleted)
 
 #define bkey_whiteout(_k)				\
-	((_k)->type == KEY_TYPE_deleted || (_k)->type == KEY_TYPE_discard)
+	((_k)->type == KEY_TYPE_deleted || (_k)->type == KEY_TYPE_whiteout)
 
 enum bkey_lr_packed {
 	BKEY_PACKED_BOTH,

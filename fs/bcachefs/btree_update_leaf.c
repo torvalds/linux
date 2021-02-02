@@ -1002,21 +1002,24 @@ static int bch2_trans_update_extent(struct btree_trans *trans,
 		goto next;
 	}
 
-	if (!bkey_cmp(k.k->p, bkey_start_pos(&insert->k)))
+	if (!bkey_cmp(k.k->p, start))
 		goto next;
 
 	while (bkey_cmp(insert->k.p, bkey_start_pos(k.k)) > 0) {
+		bool front_split = bkey_cmp(bkey_start_pos(k.k), start) < 0;
+		bool back_split  = bkey_cmp(k.k->p, insert->k.p) > 0;
+
 		/*
 		 * If we're going to be splitting a compressed extent, note it
 		 * so that __bch2_trans_commit() can increase our disk
 		 * reservation:
 		 */
-		if (bkey_cmp(bkey_start_pos(k.k), start) < 0 &&
-		    bkey_cmp(k.k->p, insert->k.p) > 0 &&
+		if (((front_split && back_split) ||
+		     ((front_split || back_split) && k.k->p.snapshot != insert->k.p.snapshot)) &&
 		    (compressed_sectors = bch2_bkey_sectors_compressed(k)))
 			trans->extra_journal_res += compressed_sectors;
 
-		if (bkey_cmp(bkey_start_pos(k.k), start) < 0) {
+		if (front_split) {
 			update = bch2_trans_kmalloc(trans, bkey_bytes(k.k));
 			if ((ret = PTR_ERR_OR_ZERO(update)))
 				goto err;
@@ -1027,6 +1030,32 @@ static int bch2_trans_update_extent(struct btree_trans *trans,
 
 			bch2_trans_iter_init(trans, &update_iter, btree_id, update->k.p,
 					     BTREE_ITER_NOT_EXTENTS|
+					     BTREE_ITER_ALL_SNAPSHOTS|
+					     BTREE_ITER_INTENT);
+			ret   = bch2_btree_iter_traverse(&update_iter) ?:
+				bch2_trans_update(trans, &update_iter, update,
+						  BTREE_UPDATE_INTERNAL_SNAPSHOT_NODE|
+						  flags);
+			bch2_trans_iter_exit(trans, &update_iter);
+
+			if (ret)
+				goto err;
+		}
+
+		if (k.k->p.snapshot != insert->k.p.snapshot &&
+		    (front_split || back_split)) {
+			update = bch2_trans_kmalloc(trans, bkey_bytes(k.k));
+			if ((ret = PTR_ERR_OR_ZERO(update)))
+				goto err;
+
+			bkey_reassemble(update, k);
+
+			bch2_cut_front(start, update);
+			bch2_cut_back(insert->k.p, update);
+
+			bch2_trans_iter_init(trans, &update_iter, btree_id, update->k.p,
+					     BTREE_ITER_NOT_EXTENTS|
+					     BTREE_ITER_ALL_SNAPSHOTS|
 					     BTREE_ITER_INTENT);
 			ret   = bch2_btree_iter_traverse(&update_iter) ?:
 				bch2_trans_update(trans, &update_iter, update,
@@ -1038,12 +1067,32 @@ static int bch2_trans_update_extent(struct btree_trans *trans,
 		}
 
 		if (bkey_cmp(k.k->p, insert->k.p) <= 0) {
-			ret = bch2_btree_delete_at(trans, &iter, flags);
+			update = bch2_trans_kmalloc(trans, sizeof(*update));
+			if ((ret = PTR_ERR_OR_ZERO(update)))
+				goto err;
+
+			bkey_init(&update->k);
+			update->k.p = k.k->p;
+
+			if (insert->k.p.snapshot != k.k->p.snapshot) {
+				update->k.p.snapshot = insert->k.p.snapshot;
+				update->k.type = KEY_TYPE_whiteout;
+			}
+
+			bch2_trans_iter_init(trans, &update_iter, btree_id, update->k.p,
+					     BTREE_ITER_NOT_EXTENTS|
+					     BTREE_ITER_INTENT);
+			ret   = bch2_btree_iter_traverse(&update_iter) ?:
+				bch2_trans_update(trans, &update_iter, update,
+						  BTREE_UPDATE_INTERNAL_SNAPSHOT_NODE|
+						  flags);
+			bch2_trans_iter_exit(trans, &update_iter);
+
 			if (ret)
 				goto err;
 		}
 
-		if (bkey_cmp(k.k->p, insert->k.p) > 0) {
+		if (back_split) {
 			update = bch2_trans_kmalloc(trans, bkey_bytes(k.k));
 			if ((ret = PTR_ERR_OR_ZERO(update)))
 				goto err;
@@ -1051,10 +1100,15 @@ static int bch2_trans_update_extent(struct btree_trans *trans,
 			bkey_reassemble(update, k);
 			bch2_cut_front(insert->k.p, update);
 
-			ret = bch2_trans_update(trans, &iter, update, flags);
+			bch2_trans_copy_iter(&update_iter, &iter);
+			update_iter.pos = update->k.p;
+			ret   = bch2_trans_update(trans, &update_iter, update,
+						  BTREE_UPDATE_INTERNAL_SNAPSHOT_NODE|
+						  flags);
+			bch2_trans_iter_exit(trans, &update_iter);
+
 			if (ret)
 				goto err;
-
 			goto out;
 		}
 next:
@@ -1081,6 +1135,39 @@ out:
 			bch2_trans_update(trans, &iter, insert, flags);
 	}
 err:
+	bch2_trans_iter_exit(trans, &iter);
+
+	return ret;
+}
+
+/*
+ * When deleting, check if we need to emit a whiteout (because we're overwriting
+ * something in an ancestor snapshot)
+ */
+static int need_whiteout_for_snapshot(struct btree_trans *trans,
+				      enum btree_id btree_id, struct bpos pos)
+{
+	struct btree_iter iter;
+	struct bkey_s_c k;
+	u32 snapshot = pos.snapshot;
+	int ret;
+
+	if (!bch2_snapshot_parent(trans->c, pos.snapshot))
+		return 0;
+
+	pos.snapshot++;
+
+	for_each_btree_key(trans, iter, btree_id, pos,
+			   BTREE_ITER_ALL_SNAPSHOTS, k, ret) {
+		if (bkey_cmp(k.k->p, pos))
+			break;
+
+		if (bch2_snapshot_is_ancestor(trans->c, snapshot,
+					      k.k->p.snapshot)) {
+			ret = !bkey_whiteout(k.k);
+			break;
+		}
+	}
 	bch2_trans_iter_exit(trans, &iter);
 
 	return ret;
@@ -1117,6 +1204,16 @@ int bch2_trans_update(struct btree_trans *trans, struct btree_iter *iter,
 		BUG_ON(i != trans->updates &&
 		       btree_insert_entry_cmp(i - 1, i) >= 0);
 #endif
+
+	if (bkey_deleted(&n.k->k) &&
+	    (iter->flags & BTREE_ITER_FILTER_SNAPSHOTS)) {
+		int ret = need_whiteout_for_snapshot(trans, n.btree_id, n.k->k.p);
+		if (unlikely(ret < 0))
+			return ret;
+
+		if (ret)
+			n.k->k.type = KEY_TYPE_whiteout;
+	}
 
 	/*
 	 * Pending updates are kept sorted: first, find position of new update,
