@@ -1594,6 +1594,7 @@ config RTC_DRV_MV
 config RTC_DRV_ARMADA38X
 	tristate "Armada 38x Marvell SoC RTC"
 	depends on ARCH_MVEBU || COMPILE_TEST
+	depends on OF
 	help
 	  If you say yes here you will get support for the in-chip RTC
 	  that can be found in the Armada 38x Marvell's SoC device
