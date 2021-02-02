@@ -9992,16 +9992,12 @@ struct keyboard_lang_data {
 	int lang_code;
 };
 
-/*
- * When adding new entries to keyboard_lang_data, please check that
- * the select_lang[] buffer in keyboard_lang_show() is still large enough.
- */
-struct keyboard_lang_data keyboard_lang_data[] = {
-	{"en", 0},
+static const struct keyboard_lang_data keyboard_lang_data[] = {
 	{"be", 0x080c},
 	{"cz", 0x0405},
 	{"da", 0x0406},
 	{"de", 0x0c07},
+	{"en", 0x0000},
 	{"es", 0x2c0a},
 	{"et", 0x0425},
 	{"fr", 0x040c},
@@ -10064,9 +10060,7 @@ static ssize_t keyboard_lang_show(struct device *dev,
 				struct device_attribute *attr,
 				char *buf)
 {
-	int output, err, i;
-	char select_lang[80] = "";
-	char lang[8] = "";
+	int output, err, i, len = 0;
 
 	err = get_keyboard_lang(&output);
 	if (err)
@@ -10074,19 +10068,17 @@ static ssize_t keyboard_lang_show(struct device *dev,
 
 	for (i = 0; i < ARRAY_SIZE(keyboard_lang_data); i++) {
 		if (i)
-			strcat(select_lang, " ");
+			len += sysfs_emit_at(buf, len, "%s", " ");
 
 		if (output == keyboard_lang_data[i].lang_code) {
-			strcat(lang, "[");
-			strcat(lang, keyboard_lang_data[i].lang_str);
-			strcat(lang, "]");
-			strcat(select_lang, lang);
+			len += sysfs_emit_at(buf, len, "[%s]", keyboard_lang_data[i].lang_str);
 		} else {
-			strcat(select_lang, keyboard_lang_data[i].lang_str);
+			len += sysfs_emit_at(buf, len, "%s", keyboard_lang_data[i].lang_str);
 		}
 	}
+	len += sysfs_emit_at(buf, len, "\n");
 
-	return sysfs_emit(buf, "%s\n", select_lang);
+	return len;
 }
 
 static ssize_t keyboard_lang_store(struct device *dev,
@@ -10113,7 +10105,7 @@ static ssize_t keyboard_lang_store(struct device *dev,
 		if (err)
 			return err;
 	} else {
-		pr_err("Unknown Keyboard language. Ignoring\n");
+		dev_err(&tpacpi_pdev->dev, "Unknown Keyboard language. Ignoring\n");
 		return -EINVAL;
 	}
 
@@ -10124,7 +10116,6 @@ static ssize_t keyboard_lang_store(struct device *dev,
 
 	return count;
 }
-
 static DEVICE_ATTR_RW(keyboard_lang);
 
 static struct attribute *kbdlang_attributes[] = {
@@ -10143,7 +10134,7 @@ static int tpacpi_kbdlang_init(struct ibm_init_struct *iibm)
 	err = get_keyboard_lang(&output);
 	/*
 	 * If support isn't available (ENODEV) then don't return an error
-	 * just don't create the sysfs group
+	 * just don't create the sysfs group.
 	 */
 	if (err == -ENODEV)
 		return 0;
@@ -10152,9 +10143,7 @@ static int tpacpi_kbdlang_init(struct ibm_init_struct *iibm)
 		return err;
 
 	/* Platform supports this feature - create the sysfs file */
-	err = sysfs_create_group(&tpacpi_pdev->dev.kobj, &kbdlang_attr_group);
-
-	return err;
+	return sysfs_create_group(&tpacpi_pdev->dev.kobj, &kbdlang_attr_group);
 }
 
 static void kbdlang_exit(void)
