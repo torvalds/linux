@@ -55,6 +55,7 @@ void blk_free_flush_queue(struct blk_flush_queue *q);
 
 void blk_freeze_queue(struct request_queue *q);
 
+#define BIO_INLINE_VECS 4
 struct bio_vec *bvec_alloc(gfp_t, int, unsigned long *, mempool_t *);
 void bvec_free(mempool_t *, struct bio_vec *, unsigned int);
 unsigned int bvec_nr_vecs(unsigned short idx);

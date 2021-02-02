@@ -26,12 +26,6 @@
 #include "blk-rq-qos.h"
 
 /*
- * Test patch to inline a certain number of bi_io_vec's inside the bio
- * itself, to shrink a bio data allocation from two mempool calls to one
- */
-#define BIO_INLINE_VECS		4
-
-/*
  * if you change this list, also change bvec_alloc or things will
  * break badly! cannot be bigger than what you can fit into an
  * unsigned short
