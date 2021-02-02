@@ -7988,6 +7988,7 @@ void kvm_arch_exit(void)
 	kvm_mmu_module_exit();
 	free_percpu(user_return_msrs);
 	kmem_cache_destroy(x86_fpu_cache);
+	WARN_ON(static_branch_unlikely(&kvm_xen_enabled.key));
 }
 
 static int __kvm_vcpu_halt(struct kvm_vcpu *vcpu, int state, int reason)
@@ -10581,6 +10582,7 @@ void kvm_arch_destroy_vm(struct kvm *kvm)
 	kfree(srcu_dereference_check(kvm->arch.pmu_event_filter, &kvm->srcu, 1));
 	kvm_mmu_uninit_vm(kvm);
 	kvm_page_track_cleanup(kvm);
+	kvm_xen_destroy_vm(kvm);
 	kvm_hv_destroy_vm(kvm);
 }
 

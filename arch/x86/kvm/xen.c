@@ -16,6 +16,8 @@
 
 #include "trace.h"
 
+DEFINE_STATIC_KEY_DEFERRED_FALSE(kvm_xen_enabled, HZ);
+
 int kvm_xen_write_hypercall_page(struct kvm_vcpu *vcpu, u64 data)
 {
 	struct kvm *kvm = vcpu->kvm;
@@ -93,8 +95,23 @@ int kvm_xen_hvm_config(struct kvm *kvm, struct kvm_xen_hvm_config *xhc)
 	     xhc->blob_size_32 || xhc->blob_size_64))
 		return -EINVAL;
 
+	mutex_lock(&kvm->lock);
+
+	if (xhc->msr && !kvm->arch.xen_hvm_config.msr)
+		static_branch_inc(&kvm_xen_enabled.key);
+	else if (!xhc->msr && kvm->arch.xen_hvm_config.msr)
+		static_branch_slow_dec_deferred(&kvm_xen_enabled);
+
 	memcpy(&kvm->arch.xen_hvm_config, xhc, sizeof(*xhc));
+
+	mutex_unlock(&kvm->lock);
 	return 0;
+}
+
+void kvm_xen_destroy_vm(struct kvm *kvm)
+{
+	if (kvm->arch.xen_hvm_config.msr)
+		static_branch_slow_dec_deferred(&kvm_xen_enabled);
 }
 
 static int kvm_xen_hypercall_set_result(struct kvm_vcpu *vcpu, u64 result)

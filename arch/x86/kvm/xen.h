@@ -9,14 +9,20 @@
 #ifndef __ARCH_X86_KVM_XEN_H__
 #define __ARCH_X86_KVM_XEN_H__
 
+#include <linux/jump_label_ratelimit.h>
+
+extern struct static_key_false_deferred kvm_xen_enabled;
+
 int kvm_xen_hypercall(struct kvm_vcpu *vcpu);
 int kvm_xen_write_hypercall_page(struct kvm_vcpu *vcpu, u64 data);
 int kvm_xen_hvm_config(struct kvm *kvm, struct kvm_xen_hvm_config *xhc);
+void kvm_xen_destroy_vm(struct kvm *kvm);
 
 static inline bool kvm_xen_hypercall_enabled(struct kvm *kvm)
 {
-	return kvm->arch.xen_hvm_config.flags &
-		KVM_XEN_HVM_CONFIG_INTERCEPT_HCALL;
+	return static_branch_unlikely(&kvm_xen_enabled.key) &&
+		(kvm->arch.xen_hvm_config.flags &
+		 KVM_XEN_HVM_CONFIG_INTERCEPT_HCALL);
 }
 
 #endif /* __ARCH_X86_KVM_XEN_H__ */
