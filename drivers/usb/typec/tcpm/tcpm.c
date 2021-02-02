@@ -2261,6 +2261,7 @@ static void tcpm_pd_data_request(struct tcpm_port *port,
 		 * handled.
 		 */
 			port->ams = POWER_NEGOTIATION;
+			port->in_ams = true;
 			tcpm_set_state(port, SNK_NEGOTIATE_CAPABILITIES, 0);
 		} else {
 			if (port->ams == GET_SOURCE_CAPABILITIES)
