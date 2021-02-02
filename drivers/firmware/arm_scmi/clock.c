@@ -235,16 +235,6 @@ scmi_clock_rate_get(const struct scmi_protocol_handle *ph,
 	return ret;
 }
 
-static int
-__scmi_clock_rate_get(const struct scmi_handle *handle,
-		      u32 clk_id, u64 *value)
-{
-	const struct scmi_protocol_handle *ph =
-		scmi_map_protocol_handle(handle, SCMI_PROTOCOL_CLOCK);
-
-	return scmi_clock_rate_get(ph, clk_id, value);
-}
-
 static int scmi_clock_rate_set(const struct scmi_protocol_handle *ph,
 			       u32 clk_id, u64 rate)
 {
@@ -280,15 +270,6 @@ static int scmi_clock_rate_set(const struct scmi_protocol_handle *ph,
 	return ret;
 }
 
-static int __scmi_clock_rate_set(const struct scmi_handle *handle,
-				 u32 clk_id, u64 rate)
-{
-	const struct scmi_protocol_handle *ph =
-		scmi_map_protocol_handle(handle, SCMI_PROTOCOL_CLOCK);
-
-	return scmi_clock_rate_set(ph, clk_id, rate);
-}
-
 static int
 scmi_clock_config_set(const struct scmi_protocol_handle *ph, u32 clk_id,
 		      u32 config)
@@ -317,25 +298,9 @@ static int scmi_clock_enable(const struct scmi_protocol_handle *ph, u32 clk_id)
 	return scmi_clock_config_set(ph, clk_id, CLOCK_ENABLE);
 }
 
-static int __scmi_clock_enable(const struct scmi_handle *handle, u32 clk_id)
-{
-	const struct scmi_protocol_handle *ph =
-		scmi_map_protocol_handle(handle, SCMI_PROTOCOL_CLOCK);
-
-	return scmi_clock_enable(ph, clk_id);
-}
-
 static int scmi_clock_disable(const struct scmi_protocol_handle *ph, u32 clk_id)
 {
 	return scmi_clock_config_set(ph, clk_id, 0);
-}
-
-static int __scmi_clock_disable(const struct scmi_handle *handle, u32 clk_id)
-{
-	const struct scmi_protocol_handle *ph =
-		scmi_map_protocol_handle(handle, SCMI_PROTOCOL_CLOCK);
-
-	return scmi_clock_disable(ph, clk_id);
 }
 
 static int scmi_clock_count_get(const struct scmi_protocol_handle *ph)
@@ -343,14 +308,6 @@ static int scmi_clock_count_get(const struct scmi_protocol_handle *ph)
 	struct clock_info *ci = ph->get_priv(ph);
 
 	return ci->num_clocks;
-}
-
-static int __scmi_clock_count_get(const struct scmi_handle *handle)
-{
-	const struct scmi_protocol_handle *ph =
-		scmi_map_protocol_handle(handle, SCMI_PROTOCOL_CLOCK);
-
-	return scmi_clock_count_get(ph);
 }
 
 static const struct scmi_clock_info *
@@ -364,24 +321,6 @@ scmi_clock_info_get(const struct scmi_protocol_handle *ph, u32 clk_id)
 
 	return clk;
 }
-
-static const struct scmi_clock_info *
-__scmi_clock_info_get(const struct scmi_handle *handle, u32 clk_id)
-{
-	const struct scmi_protocol_handle *ph =
-		scmi_map_protocol_handle(handle, SCMI_PROTOCOL_CLOCK);
-
-	return scmi_clock_info_get(ph, clk_id);
-}
-
-static const struct scmi_clk_ops clk_ops = {
-	.count_get = __scmi_clock_count_get,
-	.info_get = __scmi_clock_info_get,
-	.rate_get = __scmi_clock_rate_get,
-	.rate_set = __scmi_clock_rate_set,
-	.enable = __scmi_clock_enable,
-	.disable = __scmi_clock_disable,
-};
 
 static const struct scmi_clk_proto_ops clk_proto_ops = {
 	.count_get = scmi_clock_count_get,
@@ -397,7 +336,6 @@ static int scmi_clock_protocol_init(const struct scmi_protocol_handle *ph)
 	u32 version;
 	int clkid, ret;
 	struct clock_info *cinfo;
-	struct scmi_handle *handle;
 
 	ph->xops->version_get(ph, &version);
 
@@ -424,11 +362,6 @@ static int scmi_clock_protocol_init(const struct scmi_protocol_handle *ph)
 	}
 
 	cinfo->version = version;
-
-	/* Transient code for legacy ops interface */
-	handle = scmi_map_scmi_handle(ph);
-	handle->clk_ops = &clk_ops;
-
 	return ph->set_priv(ph, cinfo);
 }
 
