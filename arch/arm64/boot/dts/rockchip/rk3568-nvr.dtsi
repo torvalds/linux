@@ -343,6 +343,8 @@
 };
 
 &rkvdec {
+	/delete-property/ rockchip,sram;
+	/delete-property/ rockchip,rcb-iova;
 	status = "okay";
 };
 
