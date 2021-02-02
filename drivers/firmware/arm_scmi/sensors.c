@@ -624,17 +624,6 @@ scmi_sensor_trip_point_config(const struct scmi_protocol_handle *ph,
 	return ret;
 }
 
-static int
-__scmi_sensor_trip_point_config(const struct scmi_handle *handle,
-				u32 sensor_id, u8 trip_id, u64 trip_value)
-{
-	const struct scmi_protocol_handle *ph =
-		scmi_map_protocol_handle(handle, SCMI_PROTOCOL_SENSOR);
-
-	return scmi_sensor_trip_point_config(ph, sensor_id, trip_id,
-					     trip_value);
-}
-
 static int scmi_sensor_config_get(const struct scmi_protocol_handle *ph,
 				  u32 sensor_id, u32 *sensor_config)
 {
@@ -658,15 +647,6 @@ static int scmi_sensor_config_get(const struct scmi_protocol_handle *ph,
 
 	ph->xops->xfer_put(ph, t);
 	return ret;
-}
-
-static int __scmi_sensor_config_get(const struct scmi_handle *handle,
-				    u32 sensor_id, u32 *sensor_config)
-{
-	const struct scmi_protocol_handle *ph =
-		scmi_map_protocol_handle(handle, SCMI_PROTOCOL_SENSOR);
-
-	return scmi_sensor_config_get(ph, sensor_id, sensor_config);
 }
 
 static int scmi_sensor_config_set(const struct scmi_protocol_handle *ph,
@@ -695,15 +675,6 @@ static int scmi_sensor_config_set(const struct scmi_protocol_handle *ph,
 
 	ph->xops->xfer_put(ph, t);
 	return ret;
-}
-
-static int __scmi_sensor_config_set(const struct scmi_handle *handle,
-				    u32 sensor_id, u32 sensor_config)
-{
-	const struct scmi_protocol_handle *ph =
-		scmi_map_protocol_handle(handle, SCMI_PROTOCOL_SENSOR);
-
-	return scmi_sensor_config_set(ph, sensor_id, sensor_config);
 }
 
 /**
@@ -758,15 +729,6 @@ static int scmi_sensor_reading_get(const struct scmi_protocol_handle *ph,
 
 	ph->xops->xfer_put(ph, t);
 	return ret;
-}
-
-static int __scmi_sensor_reading_get(const struct scmi_handle *handle,
-				     u32 sensor_id, u64 *value)
-{
-	const struct scmi_protocol_handle *ph =
-		scmi_map_protocol_handle(handle, SCMI_PROTOCOL_SENSOR);
-
-	return scmi_sensor_reading_get(ph, sensor_id, value);
 }
 
 static inline void
@@ -847,18 +809,6 @@ scmi_sensor_reading_get_timestamped(const struct scmi_protocol_handle *ph,
 	return ret;
 }
 
-static int
-__scmi_sensor_reading_get_timestamped(const struct scmi_handle *handle,
-				      u32 sensor_id, u8 count,
-				      struct scmi_sensor_reading *readings)
-{
-	const struct scmi_protocol_handle *ph =
-		scmi_map_protocol_handle(handle, SCMI_PROTOCOL_SENSOR);
-
-	return scmi_sensor_reading_get_timestamped(ph, sensor_id, count,
-						   readings);
-}
-
 static const struct scmi_sensor_info *
 scmi_sensor_info_get(const struct scmi_protocol_handle *ph, u32 sensor_id)
 {
@@ -867,39 +817,12 @@ scmi_sensor_info_get(const struct scmi_protocol_handle *ph, u32 sensor_id)
 	return si->sensors + sensor_id;
 }
 
-static const struct scmi_sensor_info *
-__scmi_sensor_info_get(const struct scmi_handle *handle, u32 sensor_id)
-{
-	const struct scmi_protocol_handle *ph =
-		scmi_map_protocol_handle(handle, SCMI_PROTOCOL_SENSOR);
-
-	return scmi_sensor_info_get(ph, sensor_id);
-}
-
 static int scmi_sensor_count_get(const struct scmi_protocol_handle *ph)
 {
 	struct sensors_info *si = ph->get_priv(ph);
 
 	return si->num_sensors;
 }
-
-static int __scmi_sensor_count_get(const struct scmi_handle *handle)
-{
-	const struct scmi_protocol_handle *ph =
-		scmi_map_protocol_handle(handle, SCMI_PROTOCOL_SENSOR);
-
-	return scmi_sensor_count_get(ph);
-}
-
-static const struct scmi_sensor_ops sensor_ops = {
-	.count_get = __scmi_sensor_count_get,
-	.info_get = __scmi_sensor_info_get,
-	.trip_point_config = __scmi_sensor_trip_point_config,
-	.reading_get = __scmi_sensor_reading_get,
-	.reading_get_timestamped = __scmi_sensor_reading_get_timestamped,
-	.config_get = __scmi_sensor_config_get,
-	.config_set = __scmi_sensor_config_set,
-};
 
 static const struct scmi_sensor_proto_ops sensor_proto_ops = {
 	.count_get = scmi_sensor_count_get,
@@ -1040,7 +963,6 @@ static int scmi_sensors_protocol_init(const struct scmi_protocol_handle *ph)
 	u32 version;
 	int ret;
 	struct sensors_info *sinfo;
-	struct scmi_handle *handle;
 
 	ph->xops->version_get(ph, &version);
 
@@ -1063,10 +985,6 @@ static int scmi_sensors_protocol_init(const struct scmi_protocol_handle *ph)
 	ret = scmi_sensor_description_get(ph, sinfo);
 	if (ret)
 		return ret;
-
-	/* Transient code for legacy ops interface */
-	handle = scmi_map_scmi_handle(ph);
-	handle->sensor_ops = &sensor_ops;
 
 	return ph->set_priv(ph, sinfo);
 }
