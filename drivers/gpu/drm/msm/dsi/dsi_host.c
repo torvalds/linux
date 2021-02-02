@@ -1826,8 +1826,6 @@ int msm_dsi_host_init(struct msm_dsi *msm_dsi)
 
 	msm_host = devm_kzalloc(&pdev->dev, sizeof(*msm_host), GFP_KERNEL);
 	if (!msm_host) {
-		pr_err("%s: FAILED: cannot alloc dsi host\n",
-		       __func__);
 		ret = -ENOMEM;
 		goto fail;
 	}
