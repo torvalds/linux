@@ -834,7 +834,7 @@ static const struct scmi_sensor_proto_ops sensor_proto_ops = {
 	.config_set = scmi_sensor_config_set,
 };
 
-static int scmi_sensor_set_notify_enabled(const void *ph,
+static int scmi_sensor_set_notify_enabled(const struct scmi_protocol_handle *ph,
 					  u8 evt_id, u32 src_id, bool enable)
 {
 	int ret;
@@ -858,10 +858,11 @@ static int scmi_sensor_set_notify_enabled(const void *ph,
 	return ret;
 }
 
-static void *scmi_sensor_fill_custom_report(const void *ph,
-					    u8 evt_id, ktime_t timestamp,
-					    const void *payld, size_t payld_sz,
-					    void *report, u32 *src_id)
+static void *
+scmi_sensor_fill_custom_report(const struct scmi_protocol_handle *ph,
+			       u8 evt_id, ktime_t timestamp,
+			       const void *payld, size_t payld_sz,
+			       void *report, u32 *src_id)
 {
 	void *rep = NULL;
 
@@ -888,8 +889,7 @@ static void *scmi_sensor_fill_custom_report(const void *ph,
 		struct scmi_sensor_info *s;
 		const struct scmi_sensor_update_notify_payld *p = payld;
 		struct scmi_sensor_update_report *r = report;
-		struct sensors_info *sinfo =
-			((const struct scmi_protocol_handle *)ph)->get_priv(ph);
+		struct sensors_info *sinfo = ph->get_priv(ph);
 
 		/* payld_sz is variable for this event */
 		r->sensor_id = le32_to_cpu(p->sensor_id);
@@ -919,10 +919,9 @@ static void *scmi_sensor_fill_custom_report(const void *ph,
 	return rep;
 }
 
-static int scmi_sensor_get_num_sources(const void *ph)
+static int scmi_sensor_get_num_sources(const struct scmi_protocol_handle *ph)
 {
-	struct sensors_info *si =
-		((const struct scmi_protocol_handle *)ph)->get_priv(ph);
+	struct sensors_info *si = ph->get_priv(ph);
 
 	return si->num_sensors;
 }

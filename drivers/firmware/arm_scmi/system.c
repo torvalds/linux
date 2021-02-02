@@ -53,7 +53,7 @@ static int scmi_system_request_notify(const struct scmi_protocol_handle *ph,
 	return ret;
 }
 
-static int scmi_system_set_notify_enabled(const void *ph,
+static int scmi_system_set_notify_enabled(const struct scmi_protocol_handle *ph,
 					  u8 evt_id, u32 src_id, bool enable)
 {
 	int ret;
@@ -65,10 +65,11 @@ static int scmi_system_set_notify_enabled(const void *ph,
 	return ret;
 }
 
-static void *scmi_system_fill_custom_report(const void *ph,
-					    u8 evt_id, ktime_t timestamp,
-					    const void *payld, size_t payld_sz,
-					    void *report, u32 *src_id)
+static void *
+scmi_system_fill_custom_report(const struct scmi_protocol_handle *ph,
+			       u8 evt_id, ktime_t timestamp,
+			       const void *payld, size_t payld_sz,
+			       void *report, u32 *src_id)
 {
 	const struct scmi_system_power_state_notifier_payld *p = payld;
 	struct scmi_system_power_state_notifier_report *r = report;

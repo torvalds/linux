@@ -264,7 +264,7 @@ static int scmi_base_error_notify(const struct scmi_protocol_handle *ph,
 	return ret;
 }
 
-static int scmi_base_set_notify_enabled(const void *ph,
+static int scmi_base_set_notify_enabled(const struct scmi_protocol_handle *ph,
 					u8 evt_id, u32 src_id, bool enable)
 {
 	int ret;
@@ -276,7 +276,7 @@ static int scmi_base_set_notify_enabled(const void *ph,
 	return ret;
 }
 
-static void *scmi_base_fill_custom_report(const void *ph,
+static void *scmi_base_fill_custom_report(const struct scmi_protocol_handle *ph,
 					  u8 evt_id, ktime_t timestamp,
 					  const void *payld, size_t payld_sz,
 					  void *report, u32 *src_id)
