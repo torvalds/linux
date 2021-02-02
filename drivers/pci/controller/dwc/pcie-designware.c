@@ -333,11 +333,16 @@ static void __dw_pcie_prog_outbound_atu(struct dw_pcie *pci, u8 func_no,
 			   upper_32_bits(cpu_addr));
 	dw_pcie_writel_dbi(pci, PCIE_ATU_LIMIT,
 			   lower_32_bits(cpu_addr + size - 1));
+	if (pci->version >= 0x460A)
+		dw_pcie_writel_dbi(pci, PCIE_ATU_UPPER_LIMIT,
+				   upper_32_bits(cpu_addr + size - 1));
 	dw_pcie_writel_dbi(pci, PCIE_ATU_LOWER_TARGET,
 			   lower_32_bits(pci_addr));
 	dw_pcie_writel_dbi(pci, PCIE_ATU_UPPER_TARGET,
 			   upper_32_bits(pci_addr));
 	val = type | PCIE_ATU_FUNC_NUM(func_no);
+	val = ((upper_32_bits(size - 1)) && (pci->version >= 0x460A)) ?
+		val | PCIE_ATU_INCREASE_REGION_SIZE : val;
 	if (pci->version == 0x490A)
 		val = dw_pcie_enable_ecrc(val);
 	dw_pcie_writel_dbi(pci, PCIE_ATU_CR1, val);
