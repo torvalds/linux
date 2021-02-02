@@ -224,7 +224,7 @@ static int scmi_reset_notify(const struct scmi_handle *handle, u32 domain_id,
 	return ret;
 }
 
-static int scmi_reset_set_notify_enabled(const struct scmi_handle *handle,
+static int scmi_reset_set_notify_enabled(const void *handle,
 					 u8 evt_id, u32 src_id, bool enable)
 {
 	int ret;
@@ -237,7 +237,7 @@ static int scmi_reset_set_notify_enabled(const struct scmi_handle *handle,
 	return ret;
 }
 
-static void *scmi_reset_fill_custom_report(const struct scmi_handle *handle,
+static void *scmi_reset_fill_custom_report(const void *handle,
 					   u8 evt_id, ktime_t timestamp,
 					   const void *payld, size_t payld_sz,
 					   void *report, u32 *src_id)
@@ -257,9 +257,10 @@ static void *scmi_reset_fill_custom_report(const struct scmi_handle *handle,
 	return r;
 }
 
-static int scmi_reset_get_num_sources(const struct scmi_handle *handle)
+static int scmi_reset_get_num_sources(const void *handle)
 {
-	struct scmi_reset_info *pinfo = handle->reset_priv;
+	struct scmi_reset_info *pinfo =
+		((const struct scmi_handle *)(handle))->reset_priv;
 
 	if (!pinfo)
 		return -EINVAL;

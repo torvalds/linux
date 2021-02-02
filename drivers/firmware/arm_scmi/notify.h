@@ -50,10 +50,10 @@ struct scmi_protocol_handle;
  *	    process context.
  */
 struct scmi_event_ops {
-	int (*get_num_sources)(const struct scmi_handle *handle);
-	int (*set_notify_enabled)(const struct scmi_handle *handle,
+	int (*get_num_sources)(const void *handle);
+	int (*set_notify_enabled)(const void *handle,
 				  u8 evt_id, u32 src_id, bool enabled);
-	void *(*fill_custom_report)(const struct scmi_handle *handle,
+	void *(*fill_custom_report)(const void *handle,
 				    u8 evt_id, ktime_t timestamp,
 				    const void *payld, size_t payld_sz,
 				    void *report, u32 *src_id);
@@ -82,6 +82,7 @@ void scmi_notification_exit(struct scmi_handle *handle);
 
 struct scmi_protocol_handle;
 int scmi_register_protocol_events(const struct scmi_handle *handle, u8 proto_id,
+				  const struct scmi_protocol_handle *ph,
 				  const struct scmi_protocol_events *ee);
 void scmi_deregister_protocol_events(const struct scmi_handle *handle,
 				     u8 proto_id);

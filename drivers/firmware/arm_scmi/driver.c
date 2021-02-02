@@ -647,6 +647,7 @@ scmi_get_protocol_instance(struct scmi_handle *handle, u8 protocol_id)
 
 		if (pi->proto->events)
 			scmi_register_protocol_events(handle, pi->proto->id,
+						      &pi->ph,
 						      pi->proto->events);
 
 		devres_close_group(handle->dev, pi->gid);

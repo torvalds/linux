@@ -213,7 +213,7 @@ static int scmi_power_request_notify(const struct scmi_handle *handle,
 	return ret;
 }
 
-static int scmi_power_set_notify_enabled(const struct scmi_handle *handle,
+static int scmi_power_set_notify_enabled(const void *handle,
 					 u8 evt_id, u32 src_id, bool enable)
 {
 	int ret;
@@ -226,7 +226,7 @@ static int scmi_power_set_notify_enabled(const struct scmi_handle *handle,
 	return ret;
 }
 
-static void *scmi_power_fill_custom_report(const struct scmi_handle *handle,
+static void *scmi_power_fill_custom_report(const void *handle,
 					   u8 evt_id, ktime_t timestamp,
 					   const void *payld, size_t payld_sz,
 					   void *report, u32 *src_id)
@@ -246,9 +246,10 @@ static void *scmi_power_fill_custom_report(const struct scmi_handle *handle,
 	return r;
 }
 
-static int scmi_power_get_num_sources(const struct scmi_handle *handle)
+static int scmi_power_get_num_sources(const void *handle)
 {
-	struct scmi_power_info *pinfo = handle->power_priv;
+	struct scmi_power_info *pinfo =
+		((const struct scmi_handle *)(handle))->power_priv;
 
 	if (!pinfo)
 		return -EINVAL;
