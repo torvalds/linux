@@ -1439,6 +1439,7 @@ struct MPT3SAS_ADAPTER {
 	spinlock_t	scsi_lookup_lock;
 	int		pending_io_count;
 	wait_queue_head_t reset_wq;
+	u16		*io_queue_num;
 
 	/* PCIe SGL */
 	struct dma_pool *pcie_sgl_dma_pool;
