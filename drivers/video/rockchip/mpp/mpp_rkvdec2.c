@@ -859,6 +859,10 @@ static int rkvdec_alloc_rcbbuf(struct platform_device *pdev, struct rkvdec_dev *
 	}
 	iova = PAGE_ALIGN(vals[0]);
 	rcb_size = PAGE_ALIGN(vals[1]);
+	if (!rcb_size) {
+		dev_err(dev, "rcb_size invalid.\n");
+		return -EINVAL;
+	}
 	/* alloc reserve iova for rcb */
 	ret = iommu_dma_reserve_iova(dev, iova, rcb_size);
 	if (ret) {
