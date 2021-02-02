@@ -23,11 +23,8 @@
 
 #define __sme_page_pa(x) __sme_set(page_to_pfn(x) << PAGE_SHIFT)
 
-static const struct svm_host_save_msrs {
-	u32 index;		/* Index of the MSR */
-	bool sev_es_restored;	/* True if MSR is restored on SEV-ES VMEXIT */
-} host_save_user_msrs[] = {
-	{ .index = MSR_TSC_AUX,			.sev_es_restored = false },
+static const u32 host_save_user_msrs[] = {
+	MSR_TSC_AUX,
 };
 #define NR_HOST_SAVE_USER_MSRS ARRAY_SIZE(host_save_user_msrs)
 

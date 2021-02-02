@@ -2083,12 +2083,8 @@ void sev_es_vcpu_load(struct vcpu_svm *svm, int cpu)
 	 * Certain MSRs are restored on VMEXIT, only save ones that aren't
 	 * restored.
 	 */
-	for (i = 0; i < NR_HOST_SAVE_USER_MSRS; i++) {
-		if (host_save_user_msrs[i].sev_es_restored)
-			continue;
-
-		rdmsrl(host_save_user_msrs[i].index, svm->host_user_msrs[i]);
-	}
+	for (i = 0; i < NR_HOST_SAVE_USER_MSRS; i++)
+		rdmsrl(host_save_user_msrs[i], svm->host_user_msrs[i]);
 
 	/* XCR0 is restored on VMEXIT, save the current host value */
 	hostsa = (struct vmcb_save_area *)(page_address(sd->save_area) + 0x400);
@@ -2109,12 +2105,8 @@ void sev_es_vcpu_put(struct vcpu_svm *svm)
 	 * Certain MSRs are restored on VMEXIT and were saved with vmsave in
 	 * sev_es_vcpu_load() above. Only restore ones that weren't.
 	 */
-	for (i = 0; i < NR_HOST_SAVE_USER_MSRS; i++) {
-		if (host_save_user_msrs[i].sev_es_restored)
-			continue;
-
-		wrmsrl(host_save_user_msrs[i].index, svm->host_user_msrs[i]);
-	}
+	for (i = 0; i < NR_HOST_SAVE_USER_MSRS; i++)
+		wrmsrl(host_save_user_msrs[i], svm->host_user_msrs[i]);
 }
 
 void sev_vcpu_deliver_sipi_vector(struct kvm_vcpu *vcpu, u8 vector)
