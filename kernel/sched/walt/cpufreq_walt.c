@@ -180,22 +180,12 @@ static void waltgov_fast_switch(struct waltgov_policy *wg_policy, u64 time,
 			      unsigned int next_freq)
 {
 	struct cpufreq_policy *policy = wg_policy->policy;
-	unsigned int cpu;
 
 	if (!waltgov_update_next_freq(wg_policy, time, next_freq))
 		return;
 
 	waltgov_track_cycles(wg_policy, wg_policy->policy->cur, time);
-	next_freq = cpufreq_driver_fast_switch(policy, next_freq);
-	if (!next_freq)
-		return;
-
-	policy->cur = next_freq;
-
-	if (trace_cpu_frequency_enabled()) {
-		for_each_cpu(cpu, policy->cpus)
-			trace_cpu_frequency(next_freq, cpu);
-	}
+	cpufreq_driver_fast_switch(policy, next_freq);
 }
 
 static void waltgov_deferred_update(struct waltgov_policy *wg_policy, u64 time,
