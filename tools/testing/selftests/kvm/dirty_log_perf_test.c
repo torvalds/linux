@@ -211,17 +211,17 @@ static void run_test(enum vm_guest_mode mode, void *arg)
 		}
 	}
 
-	/* Tell the vcpu thread to quit */
-	host_quit = true;
-	for (vcpu_id = 0; vcpu_id < nr_vcpus; vcpu_id++)
-		pthread_join(vcpu_threads[vcpu_id], NULL);
-
 	/* Disable dirty logging */
 	clock_gettime(CLOCK_MONOTONIC, &start);
 	vm_mem_region_set_flags(vm, PERF_TEST_MEM_SLOT_INDEX, 0);
 	ts_diff = timespec_elapsed(start);
 	pr_info("Disabling dirty logging time: %ld.%.9lds\n",
 		ts_diff.tv_sec, ts_diff.tv_nsec);
+
+	/* Tell the vcpu thread to quit */
+	host_quit = true;
+	for (vcpu_id = 0; vcpu_id < nr_vcpus; vcpu_id++)
+		pthread_join(vcpu_threads[vcpu_id], NULL);
 
 	avg = timespec_div(get_dirty_log_total, p->iterations);
 	pr_info("Get dirty log over %lu iterations took %ld.%.9lds. (Avg %ld.%.9lds/iteration)\n",
