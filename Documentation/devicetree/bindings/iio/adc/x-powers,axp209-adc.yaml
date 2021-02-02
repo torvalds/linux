@@ -46,10 +46,14 @@ description: |
 
 properties:
   compatible:
-    enum:
-      - x-powers,axp209-adc
-      - x-powers,axp221-adc
-      - x-powers,axp813-adc
+    oneOf:
+      - const: x-powers,axp209-adc
+      - const: x-powers,axp221-adc
+      - const: x-powers,axp813-adc
+
+      - items:
+          - const: x-powers,axp803-adc
+          - const: x-powers,axp813-adc
 
   "#io-channel-cells":
     const: 1

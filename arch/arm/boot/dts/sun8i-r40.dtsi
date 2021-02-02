@@ -190,6 +190,25 @@
 			};
 		};
 
+		deinterlace: deinterlace@1400000 {
+			compatible = "allwinner,sun8i-r40-deinterlace",
+				     "allwinner,sun8i-h3-deinterlace";
+			reg = <0x01400000 0x20000>;
+			clocks = <&ccu CLK_BUS_DEINTERLACE>,
+				 <&ccu CLK_DEINTERLACE>,
+				 /*
+				  * NOTE: Contrary to what datasheet claims,
+				  * DRAM deinterlace gate doesn't exist and
+				  * it's shared with CSI1.
+				  */
+				 <&ccu CLK_DRAM_CSI1>;
+			clock-names = "bus", "mod", "ram";
+			resets = <&ccu RST_BUS_DEINTERLACE>;
+			interrupts = <GIC_SPI 93 IRQ_TYPE_LEVEL_HIGH>;
+			interconnects = <&mbus 9>;
+			interconnect-names = "dma-mem";
+		};
+
 		syscon: system-control@1c00000 {
 			compatible = "allwinner,sun8i-r40-system-control",
 				     "allwinner,sun4i-a10-system-control";

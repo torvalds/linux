@@ -75,12 +75,12 @@
 		pinctrl-names = "default";
 		pinctrl-0 = <&led_pins_cubieboard>;
 
-		blue {
+		led-0 {
 			label = "cubieboard:blue:usr";
 			gpios = <&pio 7 21 GPIO_ACTIVE_HIGH>; /* LED1 */
 		};
 
-		green {
+		led-1 {
 			label = "cubieboard:green:usr";
 			gpios = <&pio 7 20 GPIO_ACTIVE_HIGH>; /* LED2 */
 			linux,default-trigger = "heartbeat";

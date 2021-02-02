@@ -128,7 +128,6 @@ required:
   - compatible
   - reg
   - interrupts
-  - clocks
   - clock-output-names
 
 additionalProperties: false

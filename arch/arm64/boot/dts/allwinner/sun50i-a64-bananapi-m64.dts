@@ -36,18 +36,18 @@
 	leds {
 		compatible = "gpio-leds";
 
-		pwr-led {
+		led-0 {
 			label = "bananapi-m64:red:pwr";
 			gpios = <&pio 3 24 GPIO_ACTIVE_HIGH>; /* PD24 */
 			default-state = "on";
 		};
 
-		green {
+		led-1 {
 			label = "bananapi-m64:green:user";
 			gpios = <&pio 4 14 GPIO_ACTIVE_HIGH>; /* PE14 */
 		};
 
-		blue {
+		led-2 {
 			label = "bananapi-m64:blue:user";
 			gpios = <&pio 4 15 GPIO_ACTIVE_HIGH>; /* PE15 */
 		};

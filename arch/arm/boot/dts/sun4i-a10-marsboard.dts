@@ -62,22 +62,22 @@
 	leds {
 		compatible = "gpio-leds";
 
-		red1 {
+		led-0 {
 			label = "marsboard:red1:usr";
 			gpios = <&pio 1 5 GPIO_ACTIVE_HIGH>;
 		};
 
-		red2 {
+		led-1 {
 			label = "marsboard:red2:usr";
 			gpios = <&pio 1 6 GPIO_ACTIVE_HIGH>;
 		};
 
-		red3 {
+		led-2 {
 			label = "marsboard:red3:usr";
 			gpios = <&pio 1 7 GPIO_ACTIVE_HIGH>;
 		};
 
-		red4 {
+		led-3 {
 			label = "marsboard:red4:usr";
 			gpios = <&pio 1 8 GPIO_ACTIVE_HIGH>;
 		};
