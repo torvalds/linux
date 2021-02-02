@@ -842,11 +842,7 @@ static int cros_typec_handle_sop_disc(struct cros_typec_data *typec, int port_nu
 		goto disc_exit;
 	}
 
-	ret = typec_partner_set_pd_revision(port->partner, pd_revision);
-	if (ret < 0) {
-		dev_err(typec->dev, "Failed to update partner PD revision, port: %d\n", port_num);
-		goto disc_exit;
-	}
+	typec_partner_set_pd_revision(port->partner, pd_revision);
 
 	memset(sop_disc, 0, EC_PROTO2_MAX_RESPONSE_SIZE);
 	ret = cros_typec_ec_command(typec, 0, EC_CMD_TYPEC_DISCOVERY, &req, sizeof(req),
