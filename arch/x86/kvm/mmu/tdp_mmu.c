@@ -334,9 +334,10 @@ static void handle_removed_tdp_mmu_page(struct kvm *kvm, u64 *pt,
 {
 	struct kvm_mmu_page *sp = sptep_to_sp(pt);
 	int level = sp->role.level;
-	gfn_t gfn = sp->gfn;
+	gfn_t base_gfn = sp->gfn;
 	u64 old_child_spte;
 	u64 *sptep;
+	gfn_t gfn;
 	int i;
 
 	trace_kvm_mmu_prepare_zap_page(sp);
@@ -345,16 +346,39 @@ static void handle_removed_tdp_mmu_page(struct kvm *kvm, u64 *pt,
 
 	for (i = 0; i < PT64_ENT_PER_PAGE; i++) {
 		sptep = pt + i;
+		gfn = base_gfn + (i * KVM_PAGES_PER_HPAGE(level - 1));
 
 		if (shared) {
-			old_child_spte = xchg(sptep, 0);
+			/*
+			 * Set the SPTE to a nonpresent value that other
+			 * threads will not overwrite. If the SPTE was
+			 * already marked as removed then another thread
+			 * handling a page fault could overwrite it, so
+			 * set the SPTE until it is set from some other
+			 * value to the removed SPTE value.
+			 */
+			for (;;) {
+				old_child_spte = xchg(sptep, REMOVED_SPTE);
+				if (!is_removed_spte(old_child_spte))
+					break;
+				cpu_relax();
+			}
 		} else {
 			old_child_spte = READ_ONCE(*sptep);
-			WRITE_ONCE(*sptep, 0);
+
+			/*
+			 * Marking the SPTE as a removed SPTE is not
+			 * strictly necessary here as the MMU lock will
+			 * stop other threads from concurrently modifying
+			 * this SPTE. Using the removed SPTE value keeps
+			 * the two branches consistent and simplifies
+			 * the function.
+			 */
+			WRITE_ONCE(*sptep, REMOVED_SPTE);
 		}
-		handle_changed_spte(kvm, kvm_mmu_page_as_id(sp),
-			gfn + (i * KVM_PAGES_PER_HPAGE(level - 1)),
-			old_child_spte, 0, level - 1, shared);
+		handle_changed_spte(kvm, kvm_mmu_page_as_id(sp), gfn,
+				    old_child_spte, REMOVED_SPTE, level - 1,
+				    shared);
 	}
 
 	kvm_flush_remote_tlbs_with_address(kvm, gfn,
