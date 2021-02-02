@@ -152,12 +152,47 @@ const struct ethnl_request_ops ethnl_linkmodes_request_ops = {
 
 struct link_mode_info {
 	int				speed;
+	u8				lanes;
 	u8				duplex;
 };
 
-#define __DEFINE_LINK_MODE_PARAMS(_speed, _type, _duplex) \
-	[ETHTOOL_LINK_MODE(_speed, _type, _duplex)] = { \
-		.speed	= SPEED_ ## _speed, \
+#define __LINK_MODE_LANES_CR		1
+#define __LINK_MODE_LANES_CR2		2
+#define __LINK_MODE_LANES_CR4		4
+#define __LINK_MODE_LANES_CR8		8
+#define __LINK_MODE_LANES_DR		1
+#define __LINK_MODE_LANES_DR2		2
+#define __LINK_MODE_LANES_DR4		4
+#define __LINK_MODE_LANES_DR8		8
+#define __LINK_MODE_LANES_KR		1
+#define __LINK_MODE_LANES_KR2		2
+#define __LINK_MODE_LANES_KR4		4
+#define __LINK_MODE_LANES_KR8		8
+#define __LINK_MODE_LANES_SR		1
+#define __LINK_MODE_LANES_SR2		2
+#define __LINK_MODE_LANES_SR4		4
+#define __LINK_MODE_LANES_SR8		8
+#define __LINK_MODE_LANES_ER		1
+#define __LINK_MODE_LANES_KX		1
+#define __LINK_MODE_LANES_KX4		4
+#define __LINK_MODE_LANES_LR		1
+#define __LINK_MODE_LANES_LR4		4
+#define __LINK_MODE_LANES_LR4_ER4	4
+#define __LINK_MODE_LANES_LR_ER_FR	1
+#define __LINK_MODE_LANES_LR2_ER2_FR2	2
+#define __LINK_MODE_LANES_LR4_ER4_FR4	4
+#define __LINK_MODE_LANES_LR8_ER8_FR8	8
+#define __LINK_MODE_LANES_LRM		1
+#define __LINK_MODE_LANES_MLD2		2
+#define __LINK_MODE_LANES_T		1
+#define __LINK_MODE_LANES_T1		1
+#define __LINK_MODE_LANES_X		1
+#define __LINK_MODE_LANES_FX		1
+
+#define __DEFINE_LINK_MODE_PARAMS(_speed, _type, _duplex)	\
+	[ETHTOOL_LINK_MODE(_speed, _type, _duplex)] = {		\
+		.speed  = SPEED_ ## _speed, \
+		.lanes  = __LINK_MODE_LANES_ ## _type, \
 		.duplex	= __DUPLEX_ ## _duplex \
 	}
 #define __DUPLEX_Half DUPLEX_HALF
@@ -165,6 +200,7 @@ struct link_mode_info {
 #define __DEFINE_SPECIAL_MODE_PARAMS(_mode) \
 	[ETHTOOL_LINK_MODE_ ## _mode ## _BIT] = { \
 		.speed	= SPEED_UNKNOWN, \
+		.lanes	= 0, \
 		.duplex	= DUPLEX_UNKNOWN, \
 	}
 
@@ -274,16 +310,17 @@ const struct nla_policy ethnl_linkmodes_set_policy[] = {
 	[ETHTOOL_A_LINKMODES_SPEED]		= { .type = NLA_U32 },
 	[ETHTOOL_A_LINKMODES_DUPLEX]		= { .type = NLA_U8 },
 	[ETHTOOL_A_LINKMODES_MASTER_SLAVE_CFG]	= { .type = NLA_U8 },
+	[ETHTOOL_A_LINKMODES_LANES]		= NLA_POLICY_RANGE(NLA_U32, 1, 8),
 };
 
-/* Set advertised link modes to all supported modes matching requested speed
- * and duplex values. Called when autonegotiation is on, speed or duplex is
- * requested but no link mode change. This is done in userspace with ioctl()
- * interface, move it into kernel for netlink.
+/* Set advertised link modes to all supported modes matching requested speed,
+ * lanes and duplex values. Called when autonegotiation is on, speed, lanes or
+ * duplex is requested but no link mode change. This is done in userspace with
+ * ioctl() interface, move it into kernel for netlink.
  * Returns true if advertised modes bitmap was modified.
  */
 static bool ethnl_auto_linkmodes(struct ethtool_link_ksettings *ksettings,
-				 bool req_speed, bool req_duplex)
+				 bool req_speed, bool req_lanes, bool req_duplex)
 {
 	unsigned long *advertising = ksettings->link_modes.advertising;
 	unsigned long *supported = ksettings->link_modes.supported;
@@ -302,6 +339,7 @@ static bool ethnl_auto_linkmodes(struct ethtool_link_ksettings *ksettings,
 			continue;
 		if (test_bit(i, supported) &&
 		    (!req_speed || info->speed == ksettings->base.speed) &&
+		    (!req_lanes || info->lanes == ksettings->lanes) &&
 		    (!req_duplex || info->duplex == ksettings->base.duplex))
 			set_bit(i, advertising);
 		else
@@ -327,7 +365,7 @@ static bool ethnl_validate_master_slave_cfg(u8 cfg)
 
 static int ethnl_check_linkmodes(struct genl_info *info, struct nlattr **tb)
 {
-	const struct nlattr *master_slave_cfg;
+	const struct nlattr *master_slave_cfg, *lanes_cfg;
 
 	master_slave_cfg = tb[ETHTOOL_A_LINKMODES_MASTER_SLAVE_CFG];
 	if (master_slave_cfg &&
@@ -337,16 +375,23 @@ static int ethnl_check_linkmodes(struct genl_info *info, struct nlattr **tb)
 		return -EOPNOTSUPP;
 	}
 
+	lanes_cfg = tb[ETHTOOL_A_LINKMODES_LANES];
+	if (lanes_cfg && !is_power_of_2(nla_get_u32(lanes_cfg))) {
+		NL_SET_ERR_MSG_ATTR(info->extack, lanes_cfg,
+				    "lanes value is invalid");
+		return -EINVAL;
+	}
+
 	return 0;
 }
 
 static int ethnl_update_linkmodes(struct genl_info *info, struct nlattr **tb,
 				  struct ethtool_link_ksettings *ksettings,
-				  bool *mod)
+				  bool *mod, const struct net_device *dev)
 {
 	struct ethtool_link_settings *lsettings = &ksettings->base;
-	bool req_speed, req_duplex;
-	const struct nlattr *master_slave_cfg;
+	bool req_speed, req_lanes, req_duplex;
+	const struct nlattr *master_slave_cfg, *lanes_cfg;
 	int ret;
 
 	master_slave_cfg = tb[ETHTOOL_A_LINKMODES_MASTER_SLAVE_CFG];
@@ -360,10 +405,30 @@ static int ethnl_update_linkmodes(struct genl_info *info, struct nlattr **tb,
 
 	*mod = false;
 	req_speed = tb[ETHTOOL_A_LINKMODES_SPEED];
+	req_lanes = tb[ETHTOOL_A_LINKMODES_LANES];
 	req_duplex = tb[ETHTOOL_A_LINKMODES_DUPLEX];
 
 	ethnl_update_u8(&lsettings->autoneg, tb[ETHTOOL_A_LINKMODES_AUTONEG],
 			mod);
+
+	lanes_cfg = tb[ETHTOOL_A_LINKMODES_LANES];
+	if (lanes_cfg) {
+		/* If autoneg is off and lanes parameter is not supported by the
+		 * driver, return an error.
+		 */
+		if (!lsettings->autoneg &&
+		    !dev->ethtool_ops->cap_link_lanes_supported) {
+			NL_SET_ERR_MSG_ATTR(info->extack, lanes_cfg,
+					    "lanes configuration not supported by device");
+			return -EOPNOTSUPP;
+		}
+	} else if (!lsettings->autoneg) {
+		/* If autoneg is off and lanes parameter is not passed from user,
+		 * set the lanes parameter to 0.
+		 */
+		ksettings->lanes = 0;
+	}
+
 	ret = ethnl_update_bitset(ksettings->link_modes.advertising,
 				  __ETHTOOL_LINK_MODE_MASK_NBITS,
 				  tb[ETHTOOL_A_LINKMODES_OURS], link_mode_names,
@@ -372,13 +437,14 @@ static int ethnl_update_linkmodes(struct genl_info *info, struct nlattr **tb,
 		return ret;
 	ethnl_update_u32(&lsettings->speed, tb[ETHTOOL_A_LINKMODES_SPEED],
 			 mod);
+	ethnl_update_u32(&ksettings->lanes, lanes_cfg, mod);
 	ethnl_update_u8(&lsettings->duplex, tb[ETHTOOL_A_LINKMODES_DUPLEX],
 			mod);
 	ethnl_update_u8(&lsettings->master_slave_cfg, master_slave_cfg, mod);
 
 	if (!tb[ETHTOOL_A_LINKMODES_OURS] && lsettings->autoneg &&
-	    (req_speed || req_duplex) &&
-	    ethnl_auto_linkmodes(ksettings, req_speed, req_duplex))
+	    (req_speed || req_lanes || req_duplex) &&
+	    ethnl_auto_linkmodes(ksettings, req_speed, req_lanes, req_duplex))
 		*mod = true;
 
 	return 0;
@@ -420,7 +486,7 @@ int ethnl_set_linkmodes(struct sk_buff *skb, struct genl_info *info)
 		goto out_ops;
 	}
 
-	ret = ethnl_update_linkmodes(info, tb, &ksettings, &mod);
+	ret = ethnl_update_linkmodes(info, tb, &ksettings, &mod, dev);
 	if (ret < 0)
 		goto out_ops;
 
