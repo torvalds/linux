@@ -49,7 +49,8 @@ static void guest_code(uint32_t vcpu_id)
 }
 
 struct kvm_vm *perf_test_create_vm(enum vm_guest_mode mode, int vcpus,
-				   uint64_t vcpu_memory_bytes)
+				   uint64_t vcpu_memory_bytes,
+				   enum vm_mem_backing_src_type backing_src)
 {
 	struct kvm_vm *vm;
 	uint64_t guest_num_pages;
@@ -93,8 +94,7 @@ struct kvm_vm *perf_test_create_vm(enum vm_guest_mode mode, int vcpus,
 	pr_info("guest physical test memory offset: 0x%lx\n", guest_test_phys_mem);
 
 	/* Add an extra memory slot for testing */
-	vm_userspace_mem_region_add(vm, VM_MEM_SRC_ANONYMOUS,
-				    guest_test_phys_mem,
+	vm_userspace_mem_region_add(vm, backing_src, guest_test_phys_mem,
 				    PERF_TEST_MEM_SLOT_INDEX,
 				    guest_num_pages, 0);
 

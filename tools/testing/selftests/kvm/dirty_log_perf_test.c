@@ -93,6 +93,7 @@ struct test_params {
 	uint64_t phys_offset;
 	int wr_fract;
 	bool partition_vcpu_memory_access;
+	enum vm_mem_backing_src_type backing_src;
 };
 
 static void run_test(enum vm_guest_mode mode, void *arg)
@@ -112,7 +113,8 @@ static void run_test(enum vm_guest_mode mode, void *arg)
 	struct kvm_enable_cap cap = {};
 	struct timespec clear_dirty_log_total = (struct timespec){0};
 
-	vm = perf_test_create_vm(mode, nr_vcpus, guest_percpu_mem_size);
+	vm = perf_test_create_vm(mode, nr_vcpus, guest_percpu_mem_size,
+				 p->backing_src);
 
 	perf_test_args.wr_fract = p->wr_fract;
 
@@ -242,7 +244,7 @@ static void help(char *name)
 {
 	puts("");
 	printf("usage: %s [-h] [-i iterations] [-p offset] "
-	       "[-m mode] [-b vcpu bytes] [-v vcpus] [-o]\n", name);
+	       "[-m mode] [-b vcpu bytes] [-v vcpus] [-o] [-s mem type]\n", name);
 	puts("");
 	printf(" -i: specify iteration counts (default: %"PRIu64")\n",
 	       TEST_HOST_LOOP_N);
@@ -259,6 +261,9 @@ static void help(char *name)
 	printf(" -v: specify the number of vCPUs to run.\n");
 	printf(" -o: Overlap guest memory accesses instead of partitioning\n"
 	       "     them into a separate region of memory for each vCPU.\n");
+	printf(" -s: specify the type of memory that should be used to\n"
+	       "     back the guest data region.\n\n");
+	backing_src_help();
 	puts("");
 	exit(0);
 }
@@ -270,6 +275,7 @@ int main(int argc, char *argv[])
 		.iterations = TEST_HOST_LOOP_N,
 		.wr_fract = 1,
 		.partition_vcpu_memory_access = true,
+		.backing_src = VM_MEM_SRC_ANONYMOUS,
 	};
 	int opt;
 
@@ -280,7 +286,7 @@ int main(int argc, char *argv[])
 
 	guest_modes_append_default();
 
-	while ((opt = getopt(argc, argv, "hi:p:m:b:f:v:o")) != -1) {
+	while ((opt = getopt(argc, argv, "hi:p:m:b:f:v:os:")) != -1) {
 		switch (opt) {
 		case 'i':
 			p.iterations = atoi(optarg);
@@ -306,6 +312,8 @@ int main(int argc, char *argv[])
 			break;
 		case 'o':
 			p.partition_vcpu_memory_access = false;
+		case 's':
+			p.backing_src = parse_backing_src_type(optarg);
 			break;
 		case 'h':
 		default:
