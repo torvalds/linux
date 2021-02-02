@@ -2556,6 +2556,11 @@ static void vop2_plane_atomic_update(struct drm_plane *plane, struct drm_plane_s
 		 * with WIN_VIR_STRIDE.
 		 */
 		stride = (fb->pitches[0] << 3) / bpp;
+		if ((stride & 0x3f) &&
+		    (vpstate->xmirror_en || vpstate->rotate_90_en || vpstate->rotate_270_en))
+			DRM_ERROR("%s stride[%d] must align as 64 pixel when enable xmirror/rotate_90/rotate_270[0x%x]\n",
+				  win->name, stride, pstate->rotation);
+
 		rb_swap = vop2_afbc_rb_swap(fb->format->format);
 		uv_swap = vop2_afbc_uv_swap(fb->format->format);
 		/*
