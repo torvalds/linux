@@ -221,12 +221,11 @@ static void hellcreek_feature_detect(struct hellcreek *hellcreek)
 
 	features = hellcreek_read(hellcreek, HR_FEABITS0);
 
-	/* Currently we only detect the size of the FDB table */
+	/* Only detect the size of the FDB table. The size and current
+	 * utilization can be queried via devlink.
+	 */
 	hellcreek->fdb_entries = ((features & HR_FEABITS0_FDBBINS_MASK) >>
 			       HR_FEABITS0_FDBBINS_SHIFT) * 32;
-
-	dev_info(hellcreek->dev, "Feature detect: FDB entries=%zu\n",
-		 hellcreek->fdb_entries);
 }
 
 static enum dsa_tag_protocol hellcreek_get_tag_protocol(struct dsa_switch *ds,
@@ -1000,6 +999,84 @@ out:
 	return ret;
 }
 
+static u64 hellcreek_devlink_vlan_table_get(void *priv)
+{
+	struct hellcreek *hellcreek = priv;
+	u64 count = 0;
+	int i;
+
+	mutex_lock(&hellcreek->reg_lock);
+	for (i = 0; i < VLAN_N_VID; ++i)
+		if (hellcreek->vidmbrcfg[i])
+			count++;
+	mutex_unlock(&hellcreek->reg_lock);
+
+	return count;
+}
+
+static u64 hellcreek_devlink_fdb_table_get(void *priv)
+{
+	struct hellcreek *hellcreek = priv;
+	u64 count = 0;
+
+	/* Reading this register has side effects. Synchronize against the other
+	 * FDB operations.
+	 */
+	mutex_lock(&hellcreek->reg_lock);
+	count = hellcreek_read(hellcreek, HR_FDBMAX);
+	mutex_unlock(&hellcreek->reg_lock);
+
+	return count;
+}
+
+static int hellcreek_setup_devlink_resources(struct dsa_switch *ds)
+{
+	struct devlink_resource_size_params size_vlan_params;
+	struct devlink_resource_size_params size_fdb_params;
+	struct hellcreek *hellcreek = ds->priv;
+	int err;
+
+	devlink_resource_size_params_init(&size_vlan_params, VLAN_N_VID,
+					  VLAN_N_VID,
+					  1, DEVLINK_RESOURCE_UNIT_ENTRY);
+
+	devlink_resource_size_params_init(&size_fdb_params,
+					  hellcreek->fdb_entries,
+					  hellcreek->fdb_entries,
+					  1, DEVLINK_RESOURCE_UNIT_ENTRY);
+
+	err = dsa_devlink_resource_register(ds, "VLAN", VLAN_N_VID,
+					    HELLCREEK_DEVLINK_PARAM_ID_VLAN_TABLE,
+					    DEVLINK_RESOURCE_ID_PARENT_TOP,
+					    &size_vlan_params);
+	if (err)
+		goto out;
+
+	err = dsa_devlink_resource_register(ds, "FDB", hellcreek->fdb_entries,
+					    HELLCREEK_DEVLINK_PARAM_ID_FDB_TABLE,
+					    DEVLINK_RESOURCE_ID_PARENT_TOP,
+					    &size_fdb_params);
+	if (err)
+		goto out;
+
+	dsa_devlink_resource_occ_get_register(ds,
+					      HELLCREEK_DEVLINK_PARAM_ID_VLAN_TABLE,
+					      hellcreek_devlink_vlan_table_get,
+					      hellcreek);
+
+	dsa_devlink_resource_occ_get_register(ds,
+					      HELLCREEK_DEVLINK_PARAM_ID_FDB_TABLE,
+					      hellcreek_devlink_fdb_table_get,
+					      hellcreek);
+
+	return 0;
+
+out:
+	dsa_devlink_resources_unregister(ds);
+
+	return err;
+}
+
 static int hellcreek_setup(struct dsa_switch *ds)
 {
 	struct hellcreek *hellcreek = ds->priv;
@@ -1053,7 +1130,20 @@ static int hellcreek_setup(struct dsa_switch *ds)
 		return ret;
 	}
 
+	/* Register devlink resources with DSA */
+	ret = hellcreek_setup_devlink_resources(ds);
+	if (ret) {
+		dev_err(hellcreek->dev,
+			"Failed to setup devlink resources!\n");
+		return ret;
+	}
+
 	return 0;
+}
+
+static void hellcreek_teardown(struct dsa_switch *ds)
+{
+	dsa_devlink_resources_unregister(ds);
 }
 
 static void hellcreek_phylink_validate(struct dsa_switch *ds, int port,
@@ -1447,6 +1537,7 @@ static const struct dsa_switch_ops hellcreek_ds_ops = {
 	.port_vlan_del	     = hellcreek_vlan_del,
 	.port_vlan_filtering = hellcreek_vlan_filtering,
 	.setup		     = hellcreek_setup,
+	.teardown	     = hellcreek_teardown,
 };
 
 static int hellcreek_probe(struct platform_device *pdev)

@@ -298,4 +298,10 @@ struct hellcreek {
 #define dw_to_hellcreek_port(dw)				\
 	container_of(dw, struct hellcreek_port, schedule_work)
 
+/* Devlink resources */
+enum hellcreek_devlink_resource_id {
+	HELLCREEK_DEVLINK_PARAM_ID_VLAN_TABLE,
+	HELLCREEK_DEVLINK_PARAM_ID_FDB_TABLE,
+};
+
 #endif /* _HELLCREEK_H_ */
