@@ -13,7 +13,7 @@
 #include "../trace.h"
 
 static const struct pci_device_id mt7921_pci_device_table[] = {
-	{ PCI_DEVICE(0x14c3, 0x7961) },
+	{ PCI_DEVICE(PCI_VENDOR_ID_MEDIATEK, 0x7961) },
 	{ },
 };
 
