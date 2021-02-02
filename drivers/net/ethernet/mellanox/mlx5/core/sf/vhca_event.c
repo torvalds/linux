@@ -94,6 +94,7 @@ static void mlx5_vhca_state_work_handler(struct work_struct *_work)
 	struct mlx5_core_dev *dev = notifier->dev;
 
 	mlx5_vhca_event_notify(dev, &work->event);
+	kfree(work);
 }
 
 static int
