@@ -337,6 +337,29 @@ int perf_mem__lck_scnprintf(char *out, size_t sz, struct mem_info *mem_info)
 	return l;
 }
 
+int perf_mem__blk_scnprintf(char *out, size_t sz, struct mem_info *mem_info)
+{
+	size_t l = 0;
+	u64 mask = PERF_MEM_BLK_NA;
+
+	sz -= 1; /* -1 for null termination */
+	out[0] = '\0';
+
+	if (mem_info)
+		mask = mem_info->data_src.mem_blk;
+
+	if (!mask || (mask & PERF_MEM_BLK_NA)) {
+		l += scnprintf(out + l, sz - l, " N/A");
+		return l;
+	}
+	if (mask & PERF_MEM_BLK_DATA)
+		l += scnprintf(out + l, sz - l, " Data");
+	if (mask & PERF_MEM_BLK_ADDR)
+		l += scnprintf(out + l, sz - l, " Addr");
+
+	return l;
+}
+
 int perf_script__meminfo_scnprintf(char *out, size_t sz, struct mem_info *mem_info)
 {
 	int i = 0;
@@ -348,6 +371,8 @@ int perf_script__meminfo_scnprintf(char *out, size_t sz, struct mem_info *mem_in
 	i += perf_mem__tlb_scnprintf(out + i, sz - i, mem_info);
 	i += scnprintf(out + i, sz - i, "|LCK ");
 	i += perf_mem__lck_scnprintf(out + i, sz - i, mem_info);
+	i += scnprintf(out + i, sz - i, "|BLK ");
+	i += perf_mem__blk_scnprintf(out + i, sz - i, mem_info);
 
 	return i;
 }

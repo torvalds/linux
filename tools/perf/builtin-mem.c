@@ -309,7 +309,7 @@ static char *get_sort_order(struct perf_mem *mem)
 			     "dso_daddr,tlb,locked");
 	} else if (has_extra_options) {
 		strcpy(sort, "--sort=local_weight,mem,sym,dso,symbol_daddr,"
-			     "dso_daddr,snoop,tlb,locked");
+			     "dso_daddr,snoop,tlb,locked,blocked");
 	} else
 		return NULL;
 
