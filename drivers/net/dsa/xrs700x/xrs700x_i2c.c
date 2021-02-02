@@ -10,33 +10,34 @@
 #include "xrs700x.h"
 #include "xrs700x_reg.h"
 
+struct xrs700x_i2c_cmd {
+	__be32 reg;
+	__be16 val;
+} __packed;
+
 static int xrs700x_i2c_reg_read(void *context, unsigned int reg,
 				unsigned int *val)
 {
 	struct device *dev = context;
 	struct i2c_client *i2c = to_i2c_client(dev);
-	unsigned char buf[4];
+	struct xrs700x_i2c_cmd cmd;
 	int ret;
 
-	buf[0] = reg >> 23 & 0xff;
-	buf[1] = reg >> 15 & 0xff;
-	buf[2] = reg >> 7 & 0xff;
-	buf[3] = (reg & 0x7f) << 1;
+	cmd.reg = cpu_to_be32(reg | 1);
 
-	ret = i2c_master_send(i2c, buf, sizeof(buf));
+	ret = i2c_master_send(i2c, (char *)&cmd.reg, sizeof(cmd.reg));
 	if (ret < 0) {
 		dev_err(dev, "xrs i2c_master_send returned %d\n", ret);
 		return ret;
 	}
 
-	ret = i2c_master_recv(i2c, buf, 2);
+	ret = i2c_master_recv(i2c, (char *)&cmd.val, sizeof(cmd.val));
 	if (ret < 0) {
 		dev_err(dev, "xrs i2c_master_recv returned %d\n", ret);
 		return ret;
 	}
 
-	*val = buf[0] << 8 | buf[1];
-
+	*val = be16_to_cpu(cmd.val);
 	return 0;
 }
 
@@ -45,17 +46,13 @@ static int xrs700x_i2c_reg_write(void *context, unsigned int reg,
 {
 	struct device *dev = context;
 	struct i2c_client *i2c = to_i2c_client(dev);
-	unsigned char buf[6];
+	struct xrs700x_i2c_cmd cmd;
 	int ret;
 
-	buf[0] = reg >> 23 & 0xff;
-	buf[1] = reg >> 15 & 0xff;
-	buf[2] = reg >> 7 & 0xff;
-	buf[3] = (reg & 0x7f) << 1 | 1;
-	buf[4] = val >> 8 & 0xff;
-	buf[5] = val & 0xff;
+	cmd.reg = cpu_to_be32(reg);
+	cmd.val = cpu_to_be16(val);
 
-	ret = i2c_master_send(i2c, buf, sizeof(buf));
+	ret = i2c_master_send(i2c, (char *)&cmd, sizeof(cmd));
 	if (ret < 0) {
 		dev_err(dev, "xrs i2c_master_send returned %d\n", ret);
 		return ret;
