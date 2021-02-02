@@ -42,6 +42,12 @@ void kvm_mmu_uninit_tdp_mmu(struct kvm *kvm)
 		return;
 
 	WARN_ON(!list_empty(&kvm->arch.tdp_mmu_roots));
+
+	/*
+	 * Ensure that all the outstanding RCU callbacks to free shadow pages
+	 * can run before the VM is torn down.
+	 */
+	rcu_barrier();
 }
 
 static void tdp_mmu_put_root(struct kvm *kvm, struct kvm_mmu_page *root)
@@ -196,6 +202,28 @@ hpa_t kvm_tdp_mmu_get_vcpu_root_hpa(struct kvm_vcpu *vcpu)
 	return __pa(root->spt);
 }
 
+static void tdp_mmu_free_sp(struct kvm_mmu_page *sp)
+{
+	free_page((unsigned long)sp->spt);
+	kmem_cache_free(mmu_page_header_cache, sp);
+}
+
+/*
+ * This is called through call_rcu in order to free TDP page table memory
+ * safely with respect to other kernel threads that may be operating on
+ * the memory.
+ * By only accessing TDP MMU page table memory in an RCU read critical
+ * section, and freeing it after a grace period, lockless access to that
+ * memory won't use it after it is freed.
+ */
+static void tdp_mmu_free_sp_rcu_callback(struct rcu_head *head)
+{
+	struct kvm_mmu_page *sp = container_of(head, struct kvm_mmu_page,
+					       rcu_head);
+
+	tdp_mmu_free_sp(sp);
+}
+
 static void handle_changed_spte(struct kvm *kvm, int as_id, gfn_t gfn,
 				u64 old_spte, u64 new_spte, int level);
 
@@ -269,8 +297,7 @@ static void handle_removed_tdp_mmu_page(struct kvm *kvm, u64 *pt)
 	kvm_flush_remote_tlbs_with_address(kvm, gfn,
 					   KVM_PAGES_PER_HPAGE(level));
 
-	free_page((unsigned long)pt);
-	kmem_cache_free(mmu_page_header_cache, sp);
+	call_rcu(&sp->rcu_head, tdp_mmu_free_sp_rcu_callback);
 }
 
 /**
@@ -390,13 +417,13 @@ static inline void __tdp_mmu_set_spte(struct kvm *kvm, struct tdp_iter *iter,
 				      u64 new_spte, bool record_acc_track,
 				      bool record_dirty_log)
 {
-	u64 *root_pt = tdp_iter_root_pt(iter);
+	tdp_ptep_t root_pt = tdp_iter_root_pt(iter);
 	struct kvm_mmu_page *root = sptep_to_sp(root_pt);
 	int as_id = kvm_mmu_page_as_id(root);
 
 	lockdep_assert_held(&kvm->mmu_lock);
 
-	WRITE_ONCE(*iter->sptep, new_spte);
+	WRITE_ONCE(*rcu_dereference(iter->sptep), new_spte);
 
 	__handle_changed_spte(kvm, as_id, iter->gfn, iter->old_spte, new_spte,
 			      iter->level);
@@ -466,10 +493,13 @@ static inline bool tdp_mmu_iter_cond_resched(struct kvm *kvm,
 		return false;
 
 	if (need_resched() || spin_needbreak(&kvm->mmu_lock)) {
+		rcu_read_unlock();
+
 		if (flush)
 			kvm_flush_remote_tlbs(kvm);
 
 		cond_resched_lock(&kvm->mmu_lock);
+		rcu_read_lock();
 
 		WARN_ON(iter->gfn > iter->next_last_level_gfn);
 
@@ -500,6 +530,8 @@ static bool zap_gfn_range(struct kvm *kvm, struct kvm_mmu_page *root,
 	struct tdp_iter iter;
 	bool flush_needed = false;
 
+	rcu_read_lock();
+
 	tdp_root_for_each_pte(iter, root, start, end) {
 		if (can_yield &&
 		    tdp_mmu_iter_cond_resched(kvm, &iter, flush_needed)) {
@@ -523,6 +555,8 @@ static bool zap_gfn_range(struct kvm *kvm, struct kvm_mmu_page *root,
 		tdp_mmu_set_spte(kvm, &iter, 0);
 		flush_needed = true;
 	}
+
+	rcu_read_unlock();
 	return flush_needed;
 }
 
@@ -568,13 +602,15 @@ static int tdp_mmu_map_handle_target_level(struct kvm_vcpu *vcpu, int write,
 
 	if (unlikely(is_noslot_pfn(pfn))) {
 		new_spte = make_mmio_spte(vcpu, iter->gfn, ACC_ALL);
-		trace_mark_mmio_spte(iter->sptep, iter->gfn, new_spte);
+		trace_mark_mmio_spte(rcu_dereference(iter->sptep), iter->gfn,
+				     new_spte);
 	} else {
 		make_spte_ret = make_spte(vcpu, ACC_ALL, iter->level, iter->gfn,
 					 pfn, iter->old_spte, prefault, true,
 					 map_writable, !shadow_accessed_mask,
 					 &new_spte);
-		trace_kvm_mmu_set_spte(iter->level, iter->gfn, iter->sptep);
+		trace_kvm_mmu_set_spte(iter->level, iter->gfn,
+				       rcu_dereference(iter->sptep));
 	}
 
 	if (new_spte == iter->old_spte)
@@ -597,7 +633,8 @@ static int tdp_mmu_map_handle_target_level(struct kvm_vcpu *vcpu, int write,
 	if (unlikely(is_mmio_spte(new_spte)))
 		ret = RET_PF_EMULATE;
 
-	trace_kvm_mmu_set_spte(iter->level, iter->gfn, iter->sptep);
+	trace_kvm_mmu_set_spte(iter->level, iter->gfn,
+			       rcu_dereference(iter->sptep));
 	if (!prefault)
 		vcpu->stat.pf_fixed++;
 
@@ -635,6 +672,9 @@ int kvm_tdp_mmu_map(struct kvm_vcpu *vcpu, gpa_t gpa, u32 error_code,
 					huge_page_disallowed, &req_level);
 
 	trace_kvm_mmu_spte_requested(gpa, level, pfn);
+
+	rcu_read_lock();
+
 	tdp_mmu_for_each_pte(iter, mmu, gfn, gfn + 1) {
 		if (nx_huge_page_workaround_enabled)
 			disallowed_hugepage_adjust(iter.old_spte, gfn,
@@ -660,7 +700,7 @@ int kvm_tdp_mmu_map(struct kvm_vcpu *vcpu, gpa_t gpa, u32 error_code,
 			 * because the new value informs the !present
 			 * path below.
 			 */
-			iter.old_spte = READ_ONCE(*iter.sptep);
+			iter.old_spte = READ_ONCE(*rcu_dereference(iter.sptep));
 		}
 
 		if (!is_shadow_present_pte(iter.old_spte)) {
@@ -678,11 +718,14 @@ int kvm_tdp_mmu_map(struct kvm_vcpu *vcpu, gpa_t gpa, u32 error_code,
 		}
 	}
 
-	if (WARN_ON(iter.level != level))
+	if (WARN_ON(iter.level != level)) {
+		rcu_read_unlock();
 		return RET_PF_RETRY;
+	}
 
 	ret = tdp_mmu_map_handle_target_level(vcpu, write, map_writable, &iter,
 					      pfn, prefault);
+	rcu_read_unlock();
 
 	return ret;
 }
@@ -753,6 +796,8 @@ static int age_gfn_range(struct kvm *kvm, struct kvm_memory_slot *slot,
 	int young = 0;
 	u64 new_spte = 0;
 
+	rcu_read_lock();
+
 	tdp_root_for_each_leaf_pte(iter, root, start, end) {
 		/*
 		 * If we have a non-accessed entry we don't need to change the
@@ -783,6 +828,8 @@ static int age_gfn_range(struct kvm *kvm, struct kvm_memory_slot *slot,
 
 		trace_kvm_age_page(iter.gfn, iter.level, slot, young);
 	}
+
+	rcu_read_unlock();
 
 	return young;
 }
@@ -829,6 +876,8 @@ static int set_tdp_spte(struct kvm *kvm, struct kvm_memory_slot *slot,
 	u64 new_spte;
 	int need_flush = 0;
 
+	rcu_read_lock();
+
 	WARN_ON(pte_huge(*ptep));
 
 	new_pfn = pte_pfn(*ptep);
@@ -857,6 +906,8 @@ static int set_tdp_spte(struct kvm *kvm, struct kvm_memory_slot *slot,
 	if (need_flush)
 		kvm_flush_remote_tlbs_with_address(kvm, gfn, 1);
 
+	rcu_read_unlock();
+
 	return 0;
 }
 
@@ -880,6 +931,8 @@ static bool wrprot_gfn_range(struct kvm *kvm, struct kvm_mmu_page *root,
 	u64 new_spte;
 	bool spte_set = false;
 
+	rcu_read_lock();
+
 	BUG_ON(min_level > KVM_MAX_HUGEPAGE_LEVEL);
 
 	for_each_tdp_pte_min_level(iter, root->spt, root->role.level,
@@ -897,6 +950,8 @@ static bool wrprot_gfn_range(struct kvm *kvm, struct kvm_mmu_page *root,
 		tdp_mmu_set_spte_no_dirty_log(kvm, &iter, new_spte);
 		spte_set = true;
 	}
+
+	rcu_read_unlock();
 	return spte_set;
 }
 
@@ -938,6 +993,8 @@ static bool clear_dirty_gfn_range(struct kvm *kvm, struct kvm_mmu_page *root,
 	u64 new_spte;
 	bool spte_set = false;
 
+	rcu_read_lock();
+
 	tdp_root_for_each_leaf_pte(iter, root, start, end) {
 		if (tdp_mmu_iter_cond_resched(kvm, &iter, false))
 			continue;
@@ -957,6 +1014,8 @@ static bool clear_dirty_gfn_range(struct kvm *kvm, struct kvm_mmu_page *root,
 		tdp_mmu_set_spte_no_dirty_log(kvm, &iter, new_spte);
 		spte_set = true;
 	}
+
+	rcu_read_unlock();
 	return spte_set;
 }
 
@@ -998,6 +1057,8 @@ static void clear_dirty_pt_masked(struct kvm *kvm, struct kvm_mmu_page *root,
 	struct tdp_iter iter;
 	u64 new_spte;
 
+	rcu_read_lock();
+
 	tdp_root_for_each_leaf_pte(iter, root, gfn + __ffs(mask),
 				    gfn + BITS_PER_LONG) {
 		if (!mask)
@@ -1023,6 +1084,8 @@ static void clear_dirty_pt_masked(struct kvm *kvm, struct kvm_mmu_page *root,
 
 		tdp_mmu_set_spte_no_dirty_log(kvm, &iter, new_spte);
 	}
+
+	rcu_read_unlock();
 }
 
 /*
@@ -1062,6 +1125,8 @@ static bool set_dirty_gfn_range(struct kvm *kvm, struct kvm_mmu_page *root,
 	u64 new_spte;
 	bool spte_set = false;
 
+	rcu_read_lock();
+
 	tdp_root_for_each_pte(iter, root, start, end) {
 		if (tdp_mmu_iter_cond_resched(kvm, &iter, false))
 			continue;
@@ -1076,6 +1141,7 @@ static bool set_dirty_gfn_range(struct kvm *kvm, struct kvm_mmu_page *root,
 		spte_set = true;
 	}
 
+	rcu_read_unlock();
 	return spte_set;
 }
 
@@ -1113,6 +1179,8 @@ static void zap_collapsible_spte_range(struct kvm *kvm,
 	kvm_pfn_t pfn;
 	bool spte_set = false;
 
+	rcu_read_lock();
+
 	tdp_root_for_each_pte(iter, root, start, end) {
 		if (tdp_mmu_iter_cond_resched(kvm, &iter, spte_set)) {
 			spte_set = false;
@@ -1133,6 +1201,7 @@ static void zap_collapsible_spte_range(struct kvm *kvm,
 		spte_set = true;
 	}
 
+	rcu_read_unlock();
 	if (spte_set)
 		kvm_flush_remote_tlbs(kvm);
 }
@@ -1169,6 +1238,8 @@ static bool write_protect_gfn(struct kvm *kvm, struct kvm_mmu_page *root,
 	u64 new_spte;
 	bool spte_set = false;
 
+	rcu_read_lock();
+
 	tdp_root_for_each_leaf_pte(iter, root, gfn, gfn + 1) {
 		if (!is_writable_pte(iter.old_spte))
 			break;
@@ -1179,6 +1250,8 @@ static bool write_protect_gfn(struct kvm *kvm, struct kvm_mmu_page *root,
 		tdp_mmu_set_spte(kvm, &iter, new_spte);
 		spte_set = true;
 	}
+
+	rcu_read_unlock();
 
 	return spte_set;
 }
@@ -1220,10 +1293,14 @@ int kvm_tdp_mmu_get_walk(struct kvm_vcpu *vcpu, u64 addr, u64 *sptes,
 
 	*root_level = vcpu->arch.mmu->shadow_root_level;
 
+	rcu_read_lock();
+
 	tdp_mmu_for_each_pte(iter, mmu, gfn, gfn + 1) {
 		leaf = iter.level;
 		sptes[leaf] = iter.old_spte;
 	}
+
+	rcu_read_unlock();
 
 	return leaf;
 }
