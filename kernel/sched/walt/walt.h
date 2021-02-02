@@ -313,7 +313,6 @@ extern enum sched_boost_policy boost_policy;
 extern unsigned int sysctl_input_boost_ms;
 extern unsigned int sysctl_input_boost_freq[8];
 extern unsigned int sysctl_sched_boost_on_input;
-extern unsigned int sysctl_sched_load_boost[WALT_NR_CPUS];
 extern unsigned int sysctl_sched_user_hint;
 extern unsigned int sysctl_sched_conservative_pl;
 #define WALT_MANY_WAKEUP_DEFAULT 1000
@@ -506,18 +505,6 @@ static inline unsigned long cpu_util_cum(int cpu, int delta)
 		return 0;
 
 	return (delta >= capacity) ? capacity : delta;
-}
-
-extern unsigned int capacity_margin_freq;
-
-static inline unsigned long
-add_capacity_margin(unsigned long cpu_capacity, int cpu)
-{
-	cpu_capacity = cpu_capacity * capacity_margin_freq *
-			(100 + sysctl_sched_load_boost[cpu]);
-	cpu_capacity /= 100;
-	cpu_capacity /= SCHED_CAPACITY_SCALE;
-	return cpu_capacity;
 }
 
 static inline enum sched_boost_policy sched_boost_policy(void)

@@ -22,7 +22,6 @@ __read_mostly unsigned int sysctl_sched_prefer_spread;
 unsigned int sysctl_walt_rtg_cfs_boost_prio = 99; /* disabled by default */
 unsigned int sched_small_task_threshold = 102;
 __read_mostly unsigned int sysctl_sched_force_lb_enable = 1;
-unsigned int capacity_margin_freq = 1280; /* ~20% margin */
 
 static inline bool prefer_spread_on_idle(int cpu, bool new_ilb)
 {

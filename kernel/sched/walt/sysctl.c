@@ -40,7 +40,6 @@ unsigned int sysctl_input_boost_ms;
 unsigned int sysctl_input_boost_freq[8];
 unsigned int sysctl_sched_boost_on_input;
 unsigned int sysctl_sched_init_stage;
-unsigned int sysctl_sched_load_boost[WALT_NR_CPUS];
 
 /* sysctl nodes accesed by other files */
 unsigned int __read_mostly sysctl_sched_coloc_downmigrate_ns;
@@ -348,49 +347,6 @@ put_task:
 	put_task_struct(task);
 unlock_mutex:
 	mutex_unlock(&sysctl_pid_mutex);
-
-	return ret;
-}
-
-static int sched_load_boost_handler(struct ctl_table *table, int write,
-				void __user *buffer, size_t *lenp,
-				loff_t *ppos)
-{
-	int ret, i;
-	unsigned int *data = (unsigned int *)table->data;
-	int val[WALT_NR_CPUS];
-
-	struct ctl_table tmp = {
-		.data	= &val,
-		.maxlen	= sizeof(val),
-		.mode	= table->mode,
-	};
-	static DEFINE_MUTEX(mutex);
-
-	mutex_lock(&mutex);
-
-	if (!write) {
-		ret = proc_dointvec(table, write, buffer, lenp, ppos);
-		goto unlock_mutex;
-	}
-
-	ret = proc_dointvec(&tmp, write, buffer, lenp, ppos);
-	if (ret)
-		goto unlock_mutex;
-
-	for (i = 0; i < WALT_NR_CPUS; i++) {
-		if (val[i] < -100 || val[i] > 1000) {
-			ret = -EINVAL;
-			goto unlock_mutex;
-		}
-	}
-
-	/* all things checkout update the value */
-	for (i = 0; i < WALT_NR_CPUS; i++)
-		data[i] = val[i];
-
-unlock_mutex:
-	mutex_unlock(&mutex);
 
 	return ret;
 }
@@ -848,13 +804,6 @@ struct ctl_table walt_table[] = {
 		.proc_handler	= sched_task_read_pid_handler,
 		.extra1		= SYSCTL_ONE,
 		.extra2		= SYSCTL_INT_MAX,
-	},
-	{
-		.procname	= "sched_load_boost",
-		.data		= &sysctl_sched_load_boost,
-		.maxlen		= sizeof(unsigned int) * 8,
-		.mode		= 0644,
-		.proc_handler	= sched_load_boost_handler,
 	},
 	{ }
 };
