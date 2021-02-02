@@ -588,7 +588,7 @@ static void ipa_endpoint_init_hdr_metadata_mask(struct ipa_endpoint *endpoint)
 
 	/* Note that HDR_ENDIANNESS indicates big endian header fields */
 	if (endpoint->data->qmap)
-		val = cpu_to_be32(IPA_ENDPOINT_QMAP_METADATA_MASK);
+		val = (__force u32)cpu_to_be32(IPA_ENDPOINT_QMAP_METADATA_MASK);
 
 	iowrite32(val, endpoint->ipa->reg_virt + offset);
 }
@@ -1164,8 +1164,8 @@ static bool ipa_endpoint_status_skip(struct ipa_endpoint *endpoint,
 		return true;
 	if (!status->pkt_len)
 		return true;
-	endpoint_id = u32_get_bits(status->endp_dst_idx,
-				   IPA_STATUS_DST_IDX_FMASK);
+	endpoint_id = u8_get_bits(status->endp_dst_idx,
+				  IPA_STATUS_DST_IDX_FMASK);
 	if (endpoint_id != endpoint->endpoint_id)
 		return true;
 
