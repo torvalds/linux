@@ -171,6 +171,7 @@ static int vcn_v3_0_sw_init(void *handle)
 
 	for (i = 0; i < adev->vcn.num_vcn_inst; i++) {
 		volatile struct amdgpu_fw_shared *fw_shared;
+
 		if (adev->vcn.harvest_config & (1 << i))
 			continue;
 
@@ -198,6 +199,8 @@ static int vcn_v3_0_sw_init(void *handle)
 		if (r)
 			return r;
 
+		atomic_set(&adev->vcn.inst[i].sched_score, 0);
+
 		ring = &adev->vcn.inst[i].ring_dec;
 		ring->use_doorbell = true;
 		if (amdgpu_sriov_vf(adev)) {
@@ -209,7 +212,8 @@ static int vcn_v3_0_sw_init(void *handle)
 			ring->no_scheduler = true;
 		sprintf(ring->name, "vcn_dec_%d", i);
 		r = amdgpu_ring_init(adev, ring, 512, &adev->vcn.inst[i].irq, 0,
-				     AMDGPU_RING_PRIO_DEFAULT, NULL);
+				     AMDGPU_RING_PRIO_DEFAULT,
+				     &adev->vcn.inst[i].sched_score);
 		if (r)
 			return r;
 
@@ -227,11 +231,10 @@ static int vcn_v3_0_sw_init(void *handle)
 			} else {
 				ring->doorbell_index = (adev->doorbell_index.vcn.vcn_ring0_1 << 1) + 2 + j + 8 * i;
 			}
-			if (adev->asic_type == CHIP_SIENNA_CICHLID && i != 1)
-				ring->no_scheduler = true;
 			sprintf(ring->name, "vcn_enc_%d.%d", i, j);
 			r = amdgpu_ring_init(adev, ring, 512, &adev->vcn.inst[i].irq, 0,
-					     AMDGPU_RING_PRIO_DEFAULT, NULL);
+					     AMDGPU_RING_PRIO_DEFAULT,
+					     &adev->vcn.inst[i].sched_score);
 			if (r)
 				return r;
 		}
