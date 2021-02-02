@@ -1012,14 +1012,14 @@ int amdgpu_info_ioctl(struct drm_device *dev, void *data, struct drm_file *filp)
 			int idx = codecs->codec_array[i].codec_type;
 
 			switch (idx) {
-			case AMDGPU_VIDEO_CODEC_TYPE_MPEG2:
-			case AMDGPU_VIDEO_CODEC_TYPE_MPEG4:
-			case AMDGPU_VIDEO_CODEC_TYPE_MPEG4_AVC:
-			case AMDGPU_VIDEO_CODEC_TYPE_VC1:
-			case AMDGPU_VIDEO_CODEC_TYPE_HEVC:
-			case AMDGPU_VIDEO_CODEC_TYPE_JPEG:
-			case AMDGPU_VIDEO_CODEC_TYPE_VP9:
-			case AMDGPU_VIDEO_CODEC_TYPE_AV1:
+			case AMDGPU_INFO_VIDEO_CAPS_CODEC_IDX_MPEG2:
+			case AMDGPU_INFO_VIDEO_CAPS_CODEC_IDX_MPEG4:
+			case AMDGPU_INFO_VIDEO_CAPS_CODEC_IDX_VC1:
+			case AMDGPU_INFO_VIDEO_CAPS_CODEC_IDX_MPEG4_AVC:
+			case AMDGPU_INFO_VIDEO_CAPS_CODEC_IDX_HEVC:
+			case AMDGPU_INFO_VIDEO_CAPS_CODEC_IDX_JPEG:
+			case AMDGPU_INFO_VIDEO_CAPS_CODEC_IDX_VP9:
+			case AMDGPU_INFO_VIDEO_CAPS_CODEC_IDX_AV1:
 				caps->codec_info[idx].valid = 1;
 				caps->codec_info[idx].max_width =
 					codecs->codec_array[i].max_width;

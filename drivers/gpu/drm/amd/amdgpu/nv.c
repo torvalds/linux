@@ -25,6 +25,8 @@
 #include <linux/module.h>
 #include <linux/pci.h>
 
+#include <drm/amdgpu_drm.h>
+
 #include "amdgpu.h"
 #include "amdgpu_atombios.h"
 #include "amdgpu_ih.h"
@@ -69,14 +71,14 @@ static const struct amd_ip_funcs nv_common_ip_funcs;
 static const struct amdgpu_video_codec_info nv_video_codecs_encode_array[] =
 {
 	{
-		.codec_type = AMDGPU_VIDEO_CODEC_TYPE_MPEG4_AVC,
+		.codec_type = AMDGPU_INFO_VIDEO_CAPS_CODEC_IDX_MPEG4_AVC,
 		.max_width = 4096,
 		.max_height = 2304,
 		.max_pixels_per_frame = 4096 * 2304,
 		.max_level = 0,
 	},
 	{
-		.codec_type = AMDGPU_VIDEO_CODEC_TYPE_HEVC,
+		.codec_type = AMDGPU_INFO_VIDEO_CAPS_CODEC_IDX_HEVC,
 		.max_width = 4096,
 		.max_height = 2304,
 		.max_pixels_per_frame = 4096 * 2304,
@@ -94,49 +96,49 @@ static const struct amdgpu_video_codecs nv_video_codecs_encode =
 static const struct amdgpu_video_codec_info nv_video_codecs_decode_array[] =
 {
 	{
-		.codec_type = AMDGPU_VIDEO_CODEC_TYPE_MPEG2,
+		.codec_type = AMDGPU_INFO_VIDEO_CAPS_CODEC_IDX_MPEG2,
 		.max_width = 4096,
 		.max_height = 4096,
 		.max_pixels_per_frame = 4096 * 4096,
 		.max_level = 3,
 	},
 	{
-		.codec_type = AMDGPU_VIDEO_CODEC_TYPE_MPEG4,
+		.codec_type = AMDGPU_INFO_VIDEO_CAPS_CODEC_IDX_MPEG4,
 		.max_width = 4096,
 		.max_height = 4096,
 		.max_pixels_per_frame = 4096 * 4096,
 		.max_level = 5,
 	},
 	{
-		.codec_type = AMDGPU_VIDEO_CODEC_TYPE_MPEG4_AVC,
+		.codec_type = AMDGPU_INFO_VIDEO_CAPS_CODEC_IDX_MPEG4_AVC,
 		.max_width = 4096,
 		.max_height = 4096,
 		.max_pixels_per_frame = 4096 * 4096,
 		.max_level = 52,
 	},
 	{
-		.codec_type = AMDGPU_VIDEO_CODEC_TYPE_VC1,
+		.codec_type = AMDGPU_INFO_VIDEO_CAPS_CODEC_IDX_VC1,
 		.max_width = 4096,
 		.max_height = 4096,
 		.max_pixels_per_frame = 4096 * 4096,
 		.max_level = 4,
 	},
 	{
-		.codec_type = AMDGPU_VIDEO_CODEC_TYPE_HEVC,
+		.codec_type = AMDGPU_INFO_VIDEO_CAPS_CODEC_IDX_HEVC,
 		.max_width = 8192,
 		.max_height = 4352,
 		.max_pixels_per_frame = 8192 * 4352,
 		.max_level = 186,
 	},
 	{
-		.codec_type = AMDGPU_VIDEO_CODEC_TYPE_JPEG,
+		.codec_type = AMDGPU_INFO_VIDEO_CAPS_CODEC_IDX_JPEG,
 		.max_width = 4096,
 		.max_height = 4096,
 		.max_pixels_per_frame = 4096 * 4096,
 		.max_level = 0,
 	},
 	{
-		.codec_type = AMDGPU_VIDEO_CODEC_TYPE_VP9,
+		.codec_type = AMDGPU_INFO_VIDEO_CAPS_CODEC_IDX_VP9,
 		.max_width = 8192,
 		.max_height = 4352,
 		.max_pixels_per_frame = 8192 * 4352,
@@ -154,56 +156,56 @@ static const struct amdgpu_video_codecs nv_video_codecs_decode =
 static const struct amdgpu_video_codec_info sc_video_codecs_decode_array[] =
 {
 	{
-		.codec_type = AMDGPU_VIDEO_CODEC_TYPE_MPEG2,
+		.codec_type = AMDGPU_INFO_VIDEO_CAPS_CODEC_IDX_MPEG2,
 		.max_width = 4096,
 		.max_height = 4096,
 		.max_pixels_per_frame = 4096 * 4096,
 		.max_level = 3,
 	},
 	{
-		.codec_type = AMDGPU_VIDEO_CODEC_TYPE_MPEG4,
+		.codec_type = AMDGPU_INFO_VIDEO_CAPS_CODEC_IDX_MPEG4,
 		.max_width = 4096,
 		.max_height = 4096,
 		.max_pixels_per_frame = 4096 * 4096,
 		.max_level = 5,
 	},
 	{
-		.codec_type = AMDGPU_VIDEO_CODEC_TYPE_MPEG4_AVC,
+		.codec_type = AMDGPU_INFO_VIDEO_CAPS_CODEC_IDX_MPEG4_AVC,
 		.max_width = 4096,
 		.max_height = 4096,
 		.max_pixels_per_frame = 4096 * 4096,
 		.max_level = 52,
 	},
 	{
-		.codec_type = AMDGPU_VIDEO_CODEC_TYPE_VC1,
+		.codec_type = AMDGPU_INFO_VIDEO_CAPS_CODEC_IDX_VC1,
 		.max_width = 4096,
 		.max_height = 4096,
 		.max_pixels_per_frame = 4096 * 4096,
 		.max_level = 4,
 	},
 	{
-		.codec_type = AMDGPU_VIDEO_CODEC_TYPE_HEVC,
+		.codec_type = AMDGPU_INFO_VIDEO_CAPS_CODEC_IDX_HEVC,
 		.max_width = 8192,
 		.max_height = 4352,
 		.max_pixels_per_frame = 8192 * 4352,
 		.max_level = 186,
 	},
 	{
-		.codec_type = AMDGPU_VIDEO_CODEC_TYPE_JPEG,
+		.codec_type = AMDGPU_INFO_VIDEO_CAPS_CODEC_IDX_JPEG,
 		.max_width = 4096,
 		.max_height = 4096,
 		.max_pixels_per_frame = 4096 * 4096,
 		.max_level = 0,
 	},
 	{
-		.codec_type = AMDGPU_VIDEO_CODEC_TYPE_VP9,
+		.codec_type = AMDGPU_INFO_VIDEO_CAPS_CODEC_IDX_VP9,
 		.max_width = 8192,
 		.max_height = 4352,
 		.max_pixels_per_frame = 8192 * 4352,
 		.max_level = 0,
 	},
 	{
-		.codec_type = AMDGPU_VIDEO_CODEC_TYPE_AV1,
+		.codec_type = AMDGPU_INFO_VIDEO_CAPS_CODEC_IDX_AV1,
 		.max_width = 8192,
 		.max_height = 4352,
 		.max_pixels_per_frame = 8192 * 4352,

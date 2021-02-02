@@ -584,15 +584,6 @@ enum amd_reset_method {
 	AMD_RESET_METHOD_PCI,
 };
 
-#define AMDGPU_VIDEO_CODEC_TYPE_MPEG2			0
-#define AMDGPU_VIDEO_CODEC_TYPE_MPEG4			1
-#define AMDGPU_VIDEO_CODEC_TYPE_VC1			2
-#define AMDGPU_VIDEO_CODEC_TYPE_MPEG4_AVC		3
-#define AMDGPU_VIDEO_CODEC_TYPE_HEVC			4
-#define AMDGPU_VIDEO_CODEC_TYPE_JPEG			5
-#define AMDGPU_VIDEO_CODEC_TYPE_VP9			6
-#define AMDGPU_VIDEO_CODEC_TYPE_AV1			7
-
 struct amdgpu_video_codec_info {
 	u32 codec_type;
 	u32 max_width;

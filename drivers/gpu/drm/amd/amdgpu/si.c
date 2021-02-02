@@ -26,6 +26,8 @@
 #include <linux/module.h>
 #include <linux/pci.h>
 
+#include <drm/amdgpu_drm.h>
+
 #include "amdgpu.h"
 #include "amdgpu_atombios.h"
 #include "amdgpu_ih.h"
@@ -911,7 +913,7 @@ static const u32 hainan_mgcg_cgcg_init[] =
 static const struct amdgpu_video_codec_info tahiti_video_codecs_encode_array[] =
 {
 	{
-		.codec_type = AMDGPU_VIDEO_CODEC_TYPE_MPEG4_AVC,
+		.codec_type = AMDGPU_INFO_VIDEO_CAPS_CODEC_IDX_MPEG4_AVC,
 		.max_width = 2048,
 		.max_height = 1152,
 		.max_pixels_per_frame = 2048 * 1152,
@@ -942,28 +944,28 @@ static const struct amdgpu_video_codecs hainan_video_codecs_encode =
 static const struct amdgpu_video_codec_info tahiti_video_codecs_decode_array[] =
 {
 	{
-		.codec_type = AMDGPU_VIDEO_CODEC_TYPE_MPEG2,
+		.codec_type = AMDGPU_INFO_VIDEO_CAPS_CODEC_IDX_MPEG2,
 		.max_width = 2048,
 		.max_height = 1152,
 		.max_pixels_per_frame = 2048 * 1152,
 		.max_level = 3,
 	},
 	{
-		.codec_type = AMDGPU_VIDEO_CODEC_TYPE_MPEG4,
+		.codec_type = AMDGPU_INFO_VIDEO_CAPS_CODEC_IDX_MPEG4,
 		.max_width = 2048,
 		.max_height = 1152,
 		.max_pixels_per_frame = 2048 * 1152,
 		.max_level = 5,
 	},
 	{
-		.codec_type = AMDGPU_VIDEO_CODEC_TYPE_MPEG4_AVC,
+		.codec_type = AMDGPU_INFO_VIDEO_CAPS_CODEC_IDX_MPEG4_AVC,
 		.max_width = 2048,
 		.max_height = 1152,
 		.max_pixels_per_frame = 2048 * 1152,
 		.max_level = 41,
 	},
 	{
-		.codec_type = AMDGPU_VIDEO_CODEC_TYPE_VC1,
+		.codec_type = AMDGPU_INFO_VIDEO_CAPS_CODEC_IDX_VC1,
 		.max_width = 2048,
 		.max_height = 1152,
 		.max_pixels_per_frame = 2048 * 1152,
