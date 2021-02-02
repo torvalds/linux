@@ -937,11 +937,11 @@ static int bio_iov_bvec_set(struct bio *bio, struct iov_iter *iter)
 	WARN_ON_ONCE(BVEC_POOL_IDX(bio) != 0);
 
 	bio->bi_vcnt = iter->nr_segs;
-	bio->bi_max_vecs = iter->nr_segs;
 	bio->bi_io_vec = (struct bio_vec *)iter->bvec;
 	bio->bi_iter.bi_bvec_done = iter->iov_offset;
 	bio->bi_iter.bi_size = iter->count;
 	bio_set_flag(bio, BIO_NO_PAGE_REF);
+	bio_set_flag(bio, BIO_CLONED);
 
 	iov_iter_advance(iter, iter->count);
 	return 0;
