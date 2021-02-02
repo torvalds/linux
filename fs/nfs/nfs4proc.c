@@ -7250,22 +7250,22 @@ nfs4_retry_setlk_simple(struct nfs4_state *state, int cmd,
 
 #ifdef CONFIG_NFS_V4_1
 struct nfs4_lock_waiter {
-	struct task_struct	*task;
 	struct inode		*inode;
-	struct nfs_lowner	*owner;
+	struct nfs_lowner	owner;
+	wait_queue_entry_t	wait;
 };
 
 static int
 nfs4_wake_lock_waiter(wait_queue_entry_t *wait, unsigned int mode, int flags, void *key)
 {
-	int ret;
-	struct nfs4_lock_waiter	*waiter	= wait->private;
+	struct nfs4_lock_waiter	*waiter	=
+		container_of(wait, struct nfs4_lock_waiter, wait);
 
 	/* NULL key means to wake up everyone */
 	if (key) {
 		struct cb_notify_lock_args	*cbnl = key;
 		struct nfs_lowner		*lowner = &cbnl->cbnl_owner,
-						*wowner = waiter->owner;
+						*wowner = &waiter->owner;
 
 		/* Only wake if the callback was for the same owner. */
 		if (lowner->id != wowner->id || lowner->s_dev != wowner->s_dev)
@@ -7276,53 +7276,45 @@ nfs4_wake_lock_waiter(wait_queue_entry_t *wait, unsigned int mode, int flags, vo
 			return 0;
 	}
 
-	/* override "private" so we can use default_wake_function */
-	wait->private = waiter->task;
-	ret = woken_wake_function(wait, mode, flags, key);
-	if (ret)
-		list_del_init(&wait->entry);
-	wait->private = waiter;
-	return ret;
+	return woken_wake_function(wait, mode, flags, key);
 }
 
 static int
 nfs4_retry_setlk(struct nfs4_state *state, int cmd, struct file_lock *request)
 {
-	int status = -ERESTARTSYS;
 	struct nfs4_lock_state *lsp = request->fl_u.nfs4_fl.owner;
 	struct nfs_server *server = NFS_SERVER(state->inode);
 	struct nfs_client *clp = server->nfs_client;
 	wait_queue_head_t *q = &clp->cl_lock_waitq;
-	struct nfs_lowner owner = { .clientid = clp->cl_clientid,
-				    .id = lsp->ls_seqid.owner_id,
-				    .s_dev = server->s_dev };
-	struct nfs4_lock_waiter waiter = { .task  = current,
-					   .inode = state->inode,
-					   .owner = &owner};
-	wait_queue_entry_t wait;
+	struct nfs4_lock_waiter waiter = {
+		.inode = state->inode,
+		.owner = { .clientid = clp->cl_clientid,
+			   .id = lsp->ls_seqid.owner_id,
+			   .s_dev = server->s_dev },
+	};
+	int status;
 
 	/* Don't bother with waitqueue if we don't expect a callback */
 	if (!test_bit(NFS_STATE_MAY_NOTIFY_LOCK, &state->flags))
 		return nfs4_retry_setlk_simple(state, cmd, request);
 
-	init_wait(&wait);
-	wait.private = &waiter;
-	wait.func = nfs4_wake_lock_waiter;
+	init_wait(&waiter.wait);
+	waiter.wait.func = nfs4_wake_lock_waiter;
+	add_wait_queue(q, &waiter.wait);
 
-	while(!signalled()) {
-		add_wait_queue(q, &wait);
+	do {
 		status = nfs4_proc_setlk(state, cmd, request);
-		if ((status != -EAGAIN) || IS_SETLK(cmd)) {
-			finish_wait(q, &wait);
+		if (status != -EAGAIN || IS_SETLK(cmd))
 			break;
-		}
 
 		status = -ERESTARTSYS;
 		freezer_do_not_count();
-		wait_woken(&wait, TASK_INTERRUPTIBLE, NFS4_LOCK_MAXTIMEOUT);
+		wait_woken(&waiter.wait, TASK_INTERRUPTIBLE,
+			   NFS4_LOCK_MAXTIMEOUT);
 		freezer_count();
-		finish_wait(q, &wait);
-	}
+	} while (!signalled());
+
+	remove_wait_queue(q, &waiter.wait);
 
 	return status;
 }
