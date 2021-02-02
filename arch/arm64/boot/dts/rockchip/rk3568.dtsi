@@ -1983,6 +1983,7 @@
 			SYS_STATUS_BOOST        1560000
 			SYS_STATUS_ISP          1560000
 			SYS_STATUS_PERFORMANCE  1560000
+			SYS_STATUS_DUALVIEW     1560000
 		>;
 		auto-min-freq = <324000>;
 		auto-freq-en = <1>;
