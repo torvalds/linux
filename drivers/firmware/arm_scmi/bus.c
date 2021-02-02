@@ -56,7 +56,7 @@ const struct scmi_protocol *scmi_get_protocol(int protocol_id)
 	const struct scmi_protocol *proto;
 
 	proto = idr_find(&scmi_available_protocols, protocol_id);
-	if (!proto) {
+	if (!proto || !try_module_get(proto->owner)) {
 		pr_warn("SCMI Protocol 0x%x not found!\n", protocol_id);
 		return NULL;
 	}
@@ -64,6 +64,15 @@ const struct scmi_protocol *scmi_get_protocol(int protocol_id)
 	pr_debug("GOT SCMI Protocol 0x%x\n", protocol_id);
 
 	return proto;
+}
+
+void scmi_put_protocol(int protocol_id)
+{
+	const struct scmi_protocol *proto;
+
+	proto = idr_find(&scmi_available_protocols, protocol_id);
+	if (proto)
+		module_put(proto->owner);
 }
 
 static int scmi_dev_probe(struct device *dev)

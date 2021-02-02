@@ -677,7 +677,7 @@ scmi_get_protocol_instance(const struct scmi_handle *handle, u8 protocol_id)
 		/* Fail if protocol not registered on bus */
 		proto = scmi_get_protocol(protocol_id);
 		if (!proto) {
-			ret = -ENODEV;
+			ret = -EPROBE_DEFER;
 			goto out;
 		}
 
@@ -722,6 +722,7 @@ scmi_get_protocol_instance(const struct scmi_handle *handle, u8 protocol_id)
 	return pi;
 
 clean:
+	scmi_put_protocol(protocol_id);
 	devres_release_group(handle->dev, gid);
 out:
 	mutex_unlock(&info->protocols_mtx);
@@ -771,6 +772,8 @@ void scmi_release_protocol(const struct scmi_handle *handle, u8 protocol_id)
 			pi->proto->deinit_instance(&pi->ph);
 
 		idr_remove(&info->protocols, protocol_id);
+
+		scmi_put_protocol(protocol_id);
 
 		devres_release_group(handle->dev, gid);
 		dev_dbg(handle->dev, "De-Initialized protocol: 0x%X\n",
