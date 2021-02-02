@@ -76,7 +76,6 @@ required:
   - compatible
   - reg
   - '#iommu-cells'
-  - power-domains
 
 oneOf:
   - required:
@@ -85,6 +84,17 @@ oneOf:
       - renesas,ipmmu-main
 
 additionalProperties: false
+
+allOf:
+  - if:
+      properties:
+        compatible:
+          not:
+            contains:
+              const: renesas,ipmmu-vmsa
+    then:
+      required:
+        - power-domains
 
 examples:
   - |
