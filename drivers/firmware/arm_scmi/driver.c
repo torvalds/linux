@@ -349,28 +349,6 @@ void scmi_rx_callback(struct scmi_chan_info *cinfo, u32 msg_hdr)
 	}
 }
 
-/* Transient code wrapper to ease API migration */
-const struct scmi_protocol_handle *
-scmi_map_protocol_handle(const struct scmi_handle *handle, u8 prot_id)
-{
-	struct scmi_info *info = handle_to_scmi_info(handle);
-	const struct scmi_protocol_instance *pi;
-
-	mutex_lock(&info->protocols_mtx);
-	pi = idr_find(&info->protocols, prot_id);
-	mutex_unlock(&info->protocols_mtx);
-
-	return pi ? &pi->ph : NULL;
-}
-
-/* Transient code wrapper to ease API migration */
-struct scmi_handle *scmi_map_scmi_handle(const struct scmi_protocol_handle *ph)
-{
-	const struct scmi_protocol_instance *pi = ph_to_pi(ph);
-
-	return (struct scmi_handle *)pi->handle;
-}
-
 /**
  * xfer_put() - Release a transmit message
  *
@@ -384,17 +362,6 @@ static void xfer_put(const struct scmi_protocol_handle *ph,
 	struct scmi_info *info = handle_to_scmi_info(pi->handle);
 
 	__scmi_xfer_put(&info->tx_minfo, xfer);
-}
-
-void scmi_xfer_put(const struct scmi_handle *h, struct scmi_xfer *xfer)
-{
-	const struct scmi_protocol_handle *ph;
-
-	ph = scmi_map_protocol_handle(h, xfer->hdr.protocol_id);
-	if (!ph)
-		return;
-
-	return xfer_put(ph, xfer);
 }
 
 #define SCMI_MAX_POLL_TO_NS	(100 * NSEC_PER_USEC)
@@ -480,17 +447,6 @@ static int do_xfer(const struct scmi_protocol_handle *ph,
 	return ret;
 }
 
-int scmi_do_xfer(const struct scmi_handle *h, struct scmi_xfer *xfer)
-{
-	const struct scmi_protocol_handle *ph;
-
-	ph = scmi_map_protocol_handle(h, xfer->hdr.protocol_id);
-	if (!ph)
-		return -EINVAL;
-
-	return do_xfer(ph, xfer);
-}
-
 static void reset_rx_to_maxsz(const struct scmi_protocol_handle *ph,
 			      struct scmi_xfer *xfer)
 {
@@ -498,18 +454,6 @@ static void reset_rx_to_maxsz(const struct scmi_protocol_handle *ph,
 	struct scmi_info *info = handle_to_scmi_info(pi->handle);
 
 	xfer->rx.len = info->desc->max_msg_size;
-}
-
-void scmi_reset_rx_to_maxsz(const struct scmi_handle *handle,
-			    struct scmi_xfer *xfer)
-{
-	const struct scmi_protocol_handle *ph;
-
-	ph = scmi_map_protocol_handle(handle, xfer->hdr.protocol_id);
-	if (!ph)
-		return;
-
-	return reset_rx_to_maxsz(ph, xfer);
 }
 
 #define SCMI_MAX_RESPONSE_TIMEOUT	(2 * MSEC_PER_SEC)
@@ -541,18 +485,6 @@ static int do_xfer_with_response(const struct scmi_protocol_handle *ph,
 
 	xfer->async_done = NULL;
 	return ret;
-}
-
-int scmi_do_xfer_with_response(const struct scmi_handle *h,
-			       struct scmi_xfer *xfer)
-{
-	const struct scmi_protocol_handle *ph;
-
-	ph = scmi_map_protocol_handle(h, xfer->hdr.protocol_id);
-	if (!ph)
-		return -EINVAL;
-
-	return do_xfer_with_response(ph, xfer);
 }
 
 /**
@@ -604,18 +536,6 @@ static int xfer_get_init(const struct scmi_protocol_handle *ph,
 	return 0;
 }
 
-int scmi_xfer_get_init(const struct scmi_handle *h, u8 msg_id, u8 prot_id,
-		       size_t tx_size, size_t rx_size, struct scmi_xfer **p)
-{
-	const struct scmi_protocol_handle *ph;
-
-	ph = scmi_map_protocol_handle(h, prot_id);
-	if (!ph)
-		return -EINVAL;
-
-	return xfer_get_init(ph, msg_id, tx_size, rx_size, p);
-}
-
 /**
  * version_get() - command to get the revision of the SCMI entity
  *
@@ -644,17 +564,6 @@ static int version_get(const struct scmi_protocol_handle *ph, u32 *version)
 
 	xfer_put(ph, t);
 	return ret;
-}
-
-int scmi_version_get(const struct scmi_handle *h, u8 protocol, u32 *version)
-{
-	const struct scmi_protocol_handle *ph;
-
-	ph = scmi_map_protocol_handle(h, protocol);
-	if (!ph)
-		return -EINVAL;
-
-	return version_get(ph, version);
 }
 
 /**
