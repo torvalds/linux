@@ -172,8 +172,6 @@ static inline gfp_t bvec_alloc_gfp(gfp_t gfp)
 struct bio_vec *bvec_alloc(gfp_t gfp_mask, int nr, unsigned long *idx,
 			   mempool_t *pool)
 {
-	struct bio_vec *bvl;
-
 	/*
 	 * see comment near bvec_array define!
 	 */
@@ -201,28 +199,24 @@ struct bio_vec *bvec_alloc(gfp_t gfp_mask, int nr, unsigned long *idx,
 	}
 
 	/*
-	 * idx now points to the pool we want to allocate from. only the
-	 * 1-vec entry pool is mempool backed.
+	 * Try a slab allocation first for all smaller allocations.  If that
+	 * fails and __GFP_DIRECT_RECLAIM is set retry with the mempool.
+	 * The mempool is sized to handle up to BIO_MAX_PAGES entries.
 	 */
-	if (*idx == BVEC_POOL_MAX) {
-fallback:
-		bvl = mempool_alloc(pool, gfp_mask);
-	} else {
+	if (*idx < BVEC_POOL_MAX) {
 		struct biovec_slab *bvs = bvec_slabs + *idx;
+		struct bio_vec *bvl;
 
-		/*
-		 * Try a slab allocation. If this fails and __GFP_DIRECT_RECLAIM
-		 * is set, retry with the 1-entry mempool
-		 */
 		bvl = kmem_cache_alloc(bvs->slab, bvec_alloc_gfp(gfp_mask));
-		if (unlikely(!bvl && (gfp_mask & __GFP_DIRECT_RECLAIM))) {
-			*idx = BVEC_POOL_MAX;
-			goto fallback;
+		if (likely(bvl) || !(gfp_mask & __GFP_DIRECT_RECLAIM)) {
+			(*idx)++;
+			return bvl;
 		}
+		*idx = BVEC_POOL_MAX;
 	}
 
 	(*idx)++;
-	return bvl;
+	return mempool_alloc(pool, gfp_mask);
 }
 
 void bio_uninit(struct bio *bio)
