@@ -121,19 +121,19 @@ struct tplg_tmpl_001 {
 
 static struct tplg_tmpl_001 tplg_tmpl_empty = {
 	.header = {
-		.magic = SND_SOC_TPLG_MAGIC,
-		.abi = 5,
+		.magic = cpu_to_le32(SND_SOC_TPLG_MAGIC),
+		.abi = cpu_to_le32(5),
 		.version = 0,
-		.type = SND_SOC_TPLG_TYPE_MANIFEST,
-		.size = sizeof(struct snd_soc_tplg_hdr),
+		.type = cpu_to_le32(SND_SOC_TPLG_TYPE_MANIFEST),
+		.size = cpu_to_le32(sizeof(struct snd_soc_tplg_hdr)),
 		.vendor_type = 0,
-		.payload_size = sizeof(struct snd_soc_tplg_manifest),
+		.payload_size = cpu_to_le32(sizeof(struct snd_soc_tplg_manifest)),
 		.index = 0,
-		.count = 1,
+		.count = cpu_to_le32(1),
 	},
 
 	.manifest = {
-		.size = sizeof(struct snd_soc_tplg_manifest),
+		.size = cpu_to_le32(sizeof(struct snd_soc_tplg_manifest)),
 		/* rest of fields is 0 */
 	},
 };
@@ -149,60 +149,60 @@ struct tplg_tmpl_002 {
 
 static struct tplg_tmpl_002 tplg_tmpl_with_pcm = {
 	.header = {
-		.magic = SND_SOC_TPLG_MAGIC,
-		.abi = 5,
+		.magic = cpu_to_le32(SND_SOC_TPLG_MAGIC),
+		.abi = cpu_to_le32(5),
 		.version = 0,
-		.type = SND_SOC_TPLG_TYPE_MANIFEST,
-		.size = sizeof(struct snd_soc_tplg_hdr),
+		.type = cpu_to_le32(SND_SOC_TPLG_TYPE_MANIFEST),
+		.size = cpu_to_le32(sizeof(struct snd_soc_tplg_hdr)),
 		.vendor_type = 0,
-		.payload_size = sizeof(struct snd_soc_tplg_manifest),
+		.payload_size = cpu_to_le32(sizeof(struct snd_soc_tplg_manifest)),
 		.index = 0,
-		.count = 1,
+		.count = cpu_to_le32(1),
 	},
 	.manifest = {
-		.size = sizeof(struct snd_soc_tplg_manifest),
-		.pcm_elems = 1,
+		.size = cpu_to_le32(sizeof(struct snd_soc_tplg_manifest)),
+		.pcm_elems = cpu_to_le32(1),
 		/* rest of fields is 0 */
 	},
 	.pcm_header = {
-		.magic = SND_SOC_TPLG_MAGIC,
-		.abi = 5,
+		.magic = cpu_to_le32(SND_SOC_TPLG_MAGIC),
+		.abi = cpu_to_le32(5),
 		.version = 0,
-		.type = SND_SOC_TPLG_TYPE_PCM,
-		.size = sizeof(struct snd_soc_tplg_hdr),
+		.type = cpu_to_le32(SND_SOC_TPLG_TYPE_PCM),
+		.size = cpu_to_le32(sizeof(struct snd_soc_tplg_hdr)),
 		.vendor_type = 0,
-		.payload_size = sizeof(struct snd_soc_tplg_pcm),
+		.payload_size = cpu_to_le32(sizeof(struct snd_soc_tplg_pcm)),
 		.index = 0,
-		.count = 1,
+		.count = cpu_to_le32(1),
 	},
 	.pcm = {
-		.size = sizeof(struct snd_soc_tplg_pcm),
+		.size = cpu_to_le32(sizeof(struct snd_soc_tplg_pcm)),
 		.pcm_name = "KUNIT Audio",
 		.dai_name = "kunit-audio-dai",
 		.pcm_id = 0,
 		.dai_id = 0,
-		.playback = 1,
-		.capture = 1,
+		.playback = cpu_to_le32(1),
+		.capture = cpu_to_le32(1),
 		.compress = 0,
 		.stream = {
 			[0] = {
-				.channels = 2,
+				.channels = cpu_to_le32(2),
 			},
 			[1] = {
-				.channels = 2,
+				.channels = cpu_to_le32(2),
 			},
 		},
 		.num_streams = 0,
 		.caps = {
 			[0] = {
 				.name = "kunit-audio-playback",
-				.channels_min = 2,
-				.channels_max = 2,
+				.channels_min = cpu_to_le32(2),
+				.channels_max = cpu_to_le32(2),
 			},
 			[1] = {
 				.name = "kunit-audio-capture",
-				.channels_min = 2,
-				.channels_max = 2,
+				.channels_min = cpu_to_le32(2),
+				.channels_max = cpu_to_le32(2),
 			},
 		},
 		.flag_mask = 0,
@@ -460,7 +460,7 @@ static void snd_soc_tplg_test_load_empty_tplg_bad_magic(struct kunit *test)
 	 * override abi
 	 * any value != magic number is wrong
 	 */
-	data->header.magic = SND_SOC_TPLG_MAGIC + 1;
+	data->header.magic = cpu_to_le32(SND_SOC_TPLG_MAGIC + 1);
 
 	kunit_comp->fw.data = (u8 *)data;
 	kunit_comp->fw.size = size;
@@ -516,7 +516,7 @@ static void snd_soc_tplg_test_load_empty_tplg_bad_abi(struct kunit *test)
 	 * override abi
 	 * any value != accepted range is wrong
 	 */
-	data->header.abi = SND_SOC_TPLG_ABI_VERSION + 1;
+	data->header.abi = cpu_to_le32(SND_SOC_TPLG_ABI_VERSION + 1);
 
 	kunit_comp->fw.data = (u8 *)data;
 	kunit_comp->fw.size = size;
@@ -572,7 +572,7 @@ static void snd_soc_tplg_test_load_empty_tplg_bad_size(struct kunit *test)
 	 * override size
 	 * any value != struct size is wrong
 	 */
-	data->header.size = sizeof(struct snd_soc_tplg_hdr) + 1;
+	data->header.size = cpu_to_le32(sizeof(struct snd_soc_tplg_hdr) + 1);
 
 	kunit_comp->fw.data = (u8 *)data;
 	kunit_comp->fw.size = size;
