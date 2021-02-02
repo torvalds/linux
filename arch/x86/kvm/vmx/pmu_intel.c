@@ -173,6 +173,16 @@ static inline struct kvm_pmc *get_fw_gp_pmc(struct kvm_pmu *pmu, u32 msr)
 	return get_gp_pmc(pmu, msr, MSR_IA32_PMC0);
 }
 
+bool intel_pmu_lbr_is_compatible(struct kvm_vcpu *vcpu)
+{
+	/*
+	 * As a first step, a guest could only enable LBR feature if its
+	 * cpu model is the same as the host because the LBR registers
+	 * would be pass-through to the guest and they're model specific.
+	 */
+	return boot_cpu_data.x86_model == guest_cpuid_model(vcpu);
+}
+
 static bool intel_is_valid_msr(struct kvm_vcpu *vcpu, u32 msr)
 {
 	struct kvm_pmu *pmu = vcpu_to_pmu(vcpu);
@@ -321,6 +331,8 @@ static int intel_pmu_set_msr(struct kvm_vcpu *vcpu, struct msr_data *msr_info)
 static void intel_pmu_refresh(struct kvm_vcpu *vcpu)
 {
 	struct kvm_pmu *pmu = vcpu_to_pmu(vcpu);
+	struct lbr_desc *lbr_desc = vcpu_to_lbr_desc(vcpu);
+
 	struct x86_pmu_capability x86_pmu;
 	struct kvm_cpuid_entry2 *entry;
 	union cpuid10_eax eax;
@@ -387,12 +399,18 @@ static void intel_pmu_refresh(struct kvm_vcpu *vcpu)
 		INTEL_PMC_MAX_GENERIC, pmu->nr_arch_fixed_counters);
 
 	nested_vmx_pmu_entry_exit_ctls_update(vcpu);
+
+	if (intel_pmu_lbr_is_compatible(vcpu))
+		x86_perf_get_lbr(&lbr_desc->records);
+	else
+		lbr_desc->records.nr = 0;
 }
 
 static void intel_pmu_init(struct kvm_vcpu *vcpu)
 {
 	int i;
 	struct kvm_pmu *pmu = vcpu_to_pmu(vcpu);
+	struct lbr_desc *lbr_desc = vcpu_to_lbr_desc(vcpu);
 
 	for (i = 0; i < INTEL_PMC_MAX_GENERIC; i++) {
 		pmu->gp_counters[i].type = KVM_PMC_GP;
@@ -409,6 +427,7 @@ static void intel_pmu_init(struct kvm_vcpu *vcpu)
 	}
 
 	vcpu->arch.perf_capabilities = vmx_get_perf_capabilities();
+	lbr_desc->records.nr = 0;
 }
 
 static void intel_pmu_reset(struct kvm_vcpu *vcpu)
