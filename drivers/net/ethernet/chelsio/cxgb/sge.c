@@ -1619,11 +1619,38 @@ int t1_poll(struct napi_struct *napi, int budget)
 	return work_done;
 }
 
+irqreturn_t t1_interrupt_thread(int irq, void *data)
+{
+	struct adapter *adapter = data;
+	u32 pending_thread_intr;
+
+	spin_lock_irq(&adapter->async_lock);
+	pending_thread_intr = adapter->pending_thread_intr;
+	adapter->pending_thread_intr = 0;
+	spin_unlock_irq(&adapter->async_lock);
+
+	if (!pending_thread_intr)
+		return IRQ_NONE;
+
+	if (pending_thread_intr & F_PL_INTR_EXT)
+		t1_elmer0_ext_intr_handler(adapter);
+
+	spin_lock_irq(&adapter->async_lock);
+	adapter->slow_intr_mask |= F_PL_INTR_EXT;
+
+	writel(F_PL_INTR_EXT, adapter->regs + A_PL_CAUSE);
+	writel(adapter->slow_intr_mask | F_PL_INTR_SGE_DATA,
+	       adapter->regs + A_PL_ENABLE);
+	spin_unlock_irq(&adapter->async_lock);
+
+	return IRQ_HANDLED;
+}
+
 irqreturn_t t1_interrupt(int irq, void *data)
 {
 	struct adapter *adapter = data;
 	struct sge *sge = adapter->sge;
-	int handled;
+	irqreturn_t handled;
 
 	if (likely(responses_pending(adapter))) {
 		writel(F_PL_INTR_SGE_DATA, adapter->regs + A_PL_CAUSE);
@@ -1645,10 +1672,10 @@ irqreturn_t t1_interrupt(int irq, void *data)
 	handled = t1_slow_intr_handler(adapter);
 	spin_unlock(&adapter->async_lock);
 
-	if (!handled)
+	if (handled == IRQ_NONE)
 		sge->stats.unhandled_irqs++;
 
-	return IRQ_RETVAL(handled != 0);
+	return handled;
 }
 
 /*

@@ -210,7 +210,7 @@ static int fpga_phy_intr_handler(adapter_t *adapter)
 /*
  * Slow path interrupt handler for FPGAs.
  */
-static int fpga_slow_intr(adapter_t *adapter)
+static irqreturn_t fpga_slow_intr(adapter_t *adapter)
 {
 	u32 cause = readl(adapter->regs + A_PL_CAUSE);
 
@@ -238,7 +238,7 @@ static int fpga_slow_intr(adapter_t *adapter)
 	if (cause)
 		writel(cause, adapter->regs + A_PL_CAUSE);
 
-	return cause != 0;
+	return cause == 0 ? IRQ_NONE : IRQ_HANDLED;
 }
 #endif
 
@@ -842,13 +842,14 @@ void t1_interrupts_clear(adapter_t* adapter)
 /*
  * Slow path interrupt handler for ASICs.
  */
-static int asic_slow_intr(adapter_t *adapter)
+static irqreturn_t asic_slow_intr(adapter_t *adapter)
 {
 	u32 cause = readl(adapter->regs + A_PL_CAUSE);
+	irqreturn_t ret = IRQ_HANDLED;
 
 	cause &= adapter->slow_intr_mask;
 	if (!cause)
-		return 0;
+		return IRQ_NONE;
 	if (cause & F_PL_INTR_SGE_ERR)
 		t1_sge_intr_error_handler(adapter->sge);
 	if (cause & F_PL_INTR_TP)
@@ -857,16 +858,25 @@ static int asic_slow_intr(adapter_t *adapter)
 		t1_espi_intr_handler(adapter->espi);
 	if (cause & F_PL_INTR_PCIX)
 		t1_pci_intr_handler(adapter);
-	if (cause & F_PL_INTR_EXT)
-		t1_elmer0_ext_intr(adapter);
+	if (cause & F_PL_INTR_EXT) {
+		/* Wake the threaded interrupt to handle external interrupts as
+		 * we require a process context. We disable EXT interrupts in
+		 * the interim and let the thread reenable them when it's done.
+		 */
+		adapter->pending_thread_intr |= F_PL_INTR_EXT;
+		adapter->slow_intr_mask &= ~F_PL_INTR_EXT;
+		writel(adapter->slow_intr_mask | F_PL_INTR_SGE_DATA,
+		       adapter->regs + A_PL_ENABLE);
+		ret = IRQ_WAKE_THREAD;
+	}
 
 	/* Clear the interrupts just processed. */
 	writel(cause, adapter->regs + A_PL_CAUSE);
 	readl(adapter->regs + A_PL_CAUSE); /* flush writes */
-	return 1;
+	return ret;
 }
 
-int t1_slow_intr_handler(adapter_t *adapter)
+irqreturn_t t1_slow_intr_handler(adapter_t *adapter)
 {
 #ifdef CONFIG_CHELSIO_T1_1G
 	if (!t1_is_asic(adapter))
