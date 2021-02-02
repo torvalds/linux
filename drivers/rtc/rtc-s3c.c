@@ -382,7 +382,6 @@ static int s3c_rtc_remove(struct platform_device *pdev)
 static int s3c_rtc_probe(struct platform_device *pdev)
 {
 	struct s3c_rtc *info = NULL;
-	struct rtc_time rtc_tm;
 	int ret;
 
 	info = devm_kzalloc(&pdev->dev, sizeof(*info), GFP_KERNEL);
@@ -447,20 +446,6 @@ static int s3c_rtc_probe(struct platform_device *pdev)
 		readw(info->base + S3C2410_RTCCON));
 
 	device_init_wakeup(&pdev->dev, 1);
-
-	/* Check RTC Time */
-	if (s3c_rtc_gettime(&pdev->dev, &rtc_tm)) {
-		rtc_tm.tm_year	= 100;
-		rtc_tm.tm_mon	= 0;
-		rtc_tm.tm_mday	= 1;
-		rtc_tm.tm_hour	= 0;
-		rtc_tm.tm_min	= 0;
-		rtc_tm.tm_sec	= 0;
-
-		s3c_rtc_settime(&pdev->dev, &rtc_tm);
-
-		dev_warn(&pdev->dev, "warning: invalid RTC value so initializing it\n");
-	}
 
 	/* register RTC and exit */
 	info->rtc = devm_rtc_device_register(&pdev->dev, "s3c", &s3c_rtcops,
