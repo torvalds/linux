@@ -59,7 +59,7 @@ static void tdp_mmu_put_root(struct kvm *kvm, struct kvm_mmu_page *root)
 static inline bool tdp_mmu_next_root_valid(struct kvm *kvm,
 					   struct kvm_mmu_page *root)
 {
-	lockdep_assert_held(&kvm->mmu_lock);
+	lockdep_assert_held_write(&kvm->mmu_lock);
 
 	if (list_entry_is_head(root, &kvm->arch.tdp_mmu_roots, link))
 		return false;
@@ -117,7 +117,7 @@ void kvm_tdp_mmu_free_root(struct kvm *kvm, struct kvm_mmu_page *root)
 {
 	gfn_t max_gfn = 1ULL << (shadow_phys_bits - PAGE_SHIFT);
 
-	lockdep_assert_held(&kvm->mmu_lock);
+	lockdep_assert_held_write(&kvm->mmu_lock);
 
 	WARN_ON(root->root_count);
 	WARN_ON(!root->tdp_mmu_page);
@@ -170,13 +170,13 @@ static struct kvm_mmu_page *get_tdp_mmu_vcpu_root(struct kvm_vcpu *vcpu)
 
 	role = page_role_for_level(vcpu, vcpu->arch.mmu->shadow_root_level);
 
-	spin_lock(&kvm->mmu_lock);
+	write_lock(&kvm->mmu_lock);
 
 	/* Check for an existing root before allocating a new one. */
 	for_each_tdp_mmu_root(kvm, root) {
 		if (root->role.word == role.word) {
 			kvm_mmu_get_root(kvm, root);
-			spin_unlock(&kvm->mmu_lock);
+			write_unlock(&kvm->mmu_lock);
 			return root;
 		}
 	}
@@ -186,7 +186,7 @@ static struct kvm_mmu_page *get_tdp_mmu_vcpu_root(struct kvm_vcpu *vcpu)
 
 	list_add(&root->link, &kvm->arch.tdp_mmu_roots);
 
-	spin_unlock(&kvm->mmu_lock);
+	write_unlock(&kvm->mmu_lock);
 
 	return root;
 }
@@ -421,7 +421,7 @@ static inline void __tdp_mmu_set_spte(struct kvm *kvm, struct tdp_iter *iter,
 	struct kvm_mmu_page *root = sptep_to_sp(root_pt);
 	int as_id = kvm_mmu_page_as_id(root);
 
-	lockdep_assert_held(&kvm->mmu_lock);
+	lockdep_assert_held_write(&kvm->mmu_lock);
 
 	WRITE_ONCE(*rcu_dereference(iter->sptep), new_spte);
 
@@ -492,13 +492,13 @@ static inline bool tdp_mmu_iter_cond_resched(struct kvm *kvm,
 	if (iter->next_last_level_gfn == iter->yielded_gfn)
 		return false;
 
-	if (need_resched() || spin_needbreak(&kvm->mmu_lock)) {
+	if (need_resched() || rwlock_needbreak(&kvm->mmu_lock)) {
 		rcu_read_unlock();
 
 		if (flush)
 			kvm_flush_remote_tlbs(kvm);
 
-		cond_resched_lock(&kvm->mmu_lock);
+		cond_resched_rwlock_write(&kvm->mmu_lock);
 		rcu_read_lock();
 
 		WARN_ON(iter->gfn > iter->next_last_level_gfn);
@@ -1103,7 +1103,7 @@ void kvm_tdp_mmu_clear_dirty_pt_masked(struct kvm *kvm,
 	struct kvm_mmu_page *root;
 	int root_as_id;
 
-	lockdep_assert_held(&kvm->mmu_lock);
+	lockdep_assert_held_write(&kvm->mmu_lock);
 	for_each_tdp_mmu_root(kvm, root) {
 		root_as_id = kvm_mmu_page_as_id(root);
 		if (root_as_id != slot->as_id)
@@ -1268,7 +1268,7 @@ bool kvm_tdp_mmu_write_protect_gfn(struct kvm *kvm,
 	int root_as_id;
 	bool spte_set = false;
 
-	lockdep_assert_held(&kvm->mmu_lock);
+	lockdep_assert_held_write(&kvm->mmu_lock);
 	for_each_tdp_mmu_root(kvm, root) {
 		root_as_id = kvm_mmu_page_as_id(root);
 		if (root_as_id != slot->as_id)

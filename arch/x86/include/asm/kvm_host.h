@@ -348,6 +348,8 @@ struct kvm_mmu_root_info {
 
 #define KVM_MMU_NUM_PREV_ROOTS 3
 
+#define KVM_HAVE_MMU_RWLOCK
+
 struct kvm_mmu_page;
 
 /*
