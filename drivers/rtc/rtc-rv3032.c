@@ -906,7 +906,7 @@ static int rv3032_probe(struct i2c_client *client)
 	return 0;
 }
 
-static const struct of_device_id rv3032_of_match[] = {
+static const __maybe_unused struct of_device_id rv3032_of_match[] = {
 	{ .compatible = "microcrystal,rv3032", },
 	{ }
 };
