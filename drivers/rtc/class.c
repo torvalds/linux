@@ -324,11 +324,6 @@ static void rtc_device_get_offset(struct rtc_device *rtc)
 		rtc->offset_secs = 0;
 }
 
-/**
- * rtc_device_unregister - removes the previously registered RTC class device
- *
- * @rtc: the RTC class device to destroy
- */
 static void devm_rtc_unregister_device(void *data)
 {
 	struct rtc_device *rtc = data;
