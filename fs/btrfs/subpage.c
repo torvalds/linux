@@ -54,6 +54,8 @@ int btrfs_alloc_subpage(const struct btrfs_fs_info *fs_info,
 	spin_lock_init(&(*ret)->lock);
 	if (type == BTRFS_SUBPAGE_METADATA)
 		atomic_set(&(*ret)->eb_refs, 0);
+	else
+		atomic_set(&(*ret)->readers, 0);
 	return 0;
 }
 
@@ -102,6 +104,47 @@ void btrfs_page_dec_eb_refs(const struct btrfs_fs_info *fs_info,
 	atomic_dec(&subpage->eb_refs);
 }
 
+static void btrfs_subpage_assert(const struct btrfs_fs_info *fs_info,
+		struct page *page, u64 start, u32 len)
+{
+	/* Basic checks */
+	ASSERT(PagePrivate(page) && page->private);
+	ASSERT(IS_ALIGNED(start, fs_info->sectorsize) &&
+	       IS_ALIGNED(len, fs_info->sectorsize));
+	/*
+	 * The range check only works for mapped page, we can still have
+	 * unmapped page like dummy extent buffer pages.
+	 */
+	if (page->mapping)
+		ASSERT(page_offset(page) <= start &&
+		       start + len <= page_offset(page) + PAGE_SIZE);
+}
+
+void btrfs_subpage_start_reader(const struct btrfs_fs_info *fs_info,
+		struct page *page, u64 start, u32 len)
+{
+	struct btrfs_subpage *subpage = (struct btrfs_subpage *)page->private;
+	const int nbits = len >> fs_info->sectorsize_bits;
+	int ret;
+
+	btrfs_subpage_assert(fs_info, page, start, len);
+
+	ret = atomic_add_return(nbits, &subpage->readers);
+	ASSERT(ret == nbits);
+}
+
+void btrfs_subpage_end_reader(const struct btrfs_fs_info *fs_info,
+		struct page *page, u64 start, u32 len)
+{
+	struct btrfs_subpage *subpage = (struct btrfs_subpage *)page->private;
+	const int nbits = len >> fs_info->sectorsize_bits;
+
+	btrfs_subpage_assert(fs_info, page, start, len);
+	ASSERT(atomic_read(&subpage->readers) >= nbits);
+	if (atomic_sub_and_test(nbits, &subpage->readers))
+		unlock_page(page);
+}
+
 /*
  * Convert the [start, start + len) range into a u16 bitmap
  *
@@ -113,18 +156,8 @@ static u16 btrfs_subpage_calc_bitmap(const struct btrfs_fs_info *fs_info,
 	const int bit_start = offset_in_page(start) >> fs_info->sectorsize_bits;
 	const int nbits = len >> fs_info->sectorsize_bits;
 
-	/* Basic checks */
-	ASSERT(PagePrivate(page) && page->private);
-	ASSERT(IS_ALIGNED(start, fs_info->sectorsize) &&
-	       IS_ALIGNED(len, fs_info->sectorsize));
+	btrfs_subpage_assert(fs_info, page, start, len);
 
-	/*
-	 * The range check only works for mapped page, we can still have
-	 * unmapped page like dummy extent buffer pages.
-	 */
-	if (page->mapping)
-		ASSERT(page_offset(page) <= start &&
-		       start + len <= page_offset(page) + PAGE_SIZE);
 	/*
 	 * Here nbits can be 16, thus can go beyond u16 range. We make the
 	 * first left shift to be calculate in unsigned long (at least u32),
