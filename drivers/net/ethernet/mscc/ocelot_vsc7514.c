@@ -1300,8 +1300,10 @@ static int mscc_ocelot_probe(struct platform_device *pdev)
 		goto out_free_devlink;
 
 	irq_xtr = platform_get_irq_byname(pdev, "xtr");
-	if (irq_xtr < 0)
+	if (irq_xtr < 0) {
+		err = irq_xtr;
 		goto out_free_devlink;
+	}
 
 	err = devm_request_threaded_irq(&pdev->dev, irq_xtr, NULL,
 					ocelot_xtr_irq_handler, IRQF_ONESHOT,
