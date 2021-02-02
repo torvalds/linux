@@ -159,6 +159,16 @@ void bvec_free(mempool_t *pool, struct bio_vec *bv, unsigned int idx)
 	}
 }
 
+/*
+ * Make the first allocation restricted and don't dump info on allocation
+ * failures, since we'll fall back to the mempool in case of failure.
+ */
+static inline gfp_t bvec_alloc_gfp(gfp_t gfp)
+{
+	return (gfp & ~(__GFP_DIRECT_RECLAIM | __GFP_IO)) |
+		__GFP_NOMEMALLOC | __GFP_NORETRY | __GFP_NOWARN;
+}
+
 struct bio_vec *bvec_alloc(gfp_t gfp_mask, int nr, unsigned long *idx,
 			   mempool_t *pool)
 {
@@ -199,20 +209,12 @@ fallback:
 		bvl = mempool_alloc(pool, gfp_mask);
 	} else {
 		struct biovec_slab *bvs = bvec_slabs + *idx;
-		gfp_t __gfp_mask = gfp_mask & ~(__GFP_DIRECT_RECLAIM | __GFP_IO);
-
-		/*
-		 * Make this allocation restricted and don't dump info on
-		 * allocation failures, since we'll fallback to the mempool
-		 * in case of failure.
-		 */
-		__gfp_mask |= __GFP_NOMEMALLOC | __GFP_NORETRY | __GFP_NOWARN;
 
 		/*
 		 * Try a slab allocation. If this fails and __GFP_DIRECT_RECLAIM
 		 * is set, retry with the 1-entry mempool
 		 */
-		bvl = kmem_cache_alloc(bvs->slab, __gfp_mask);
+		bvl = kmem_cache_alloc(bvs->slab, bvec_alloc_gfp(gfp_mask));
 		if (unlikely(!bvl && (gfp_mask & __GFP_DIRECT_RECLAIM))) {
 			*idx = BVEC_POOL_MAX;
 			goto fallback;
