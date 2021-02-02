@@ -7,3 +7,6 @@ config TEGRA_CLK_DFLL
 	depends on ARCH_TEGRA_124_SOC || ARCH_TEGRA_210_SOC
 	select PM_OPP
 	def_bool y
+
+config TEGRA124_CLK_EMC
+	bool
