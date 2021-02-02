@@ -2800,12 +2800,6 @@ static void hns3_nic_alloc_rx_buffers(struct hns3_enet_ring *ring,
 	writel(i, ring->tqp->io_base + HNS3_RING_RX_RING_HEAD_REG);
 }
 
-static bool hns3_page_is_reusable(struct page *page)
-{
-	return page_to_nid(page) == numa_mem_id() &&
-		!page_is_pfmemalloc(page);
-}
-
 static bool hns3_can_reuse_page(struct hns3_desc_cb *cb)
 {
 	return (page_count(cb->priv) - cb->pagecnt_bias) == 1;
@@ -2823,10 +2817,11 @@ static void hns3_nic_reuse_page(struct sk_buff *skb, int i,
 	skb_add_rx_frag(skb, i, desc_cb->priv, desc_cb->page_offset + pull_len,
 			size - pull_len, truesize);
 
-	/* Avoid re-using remote pages, or the stack is still using the page
-	 * when page_offset rollback to zero, flag default unreuse
+	/* Avoid re-using remote and pfmemalloc pages, or the stack is still
+	 * using the page when page_offset rollback to zero, flag default
+	 * unreuse
 	 */
-	if (unlikely(!hns3_page_is_reusable(desc_cb->priv)) ||
+	if (!dev_page_is_reusable(desc_cb->priv) ||
 	    (!desc_cb->page_offset && !hns3_can_reuse_page(desc_cb))) {
 		__page_frag_cache_drain(desc_cb->priv, desc_cb->pagecnt_bias);
 		return;
@@ -3083,8 +3078,8 @@ static int hns3_alloc_skb(struct hns3_enet_ring *ring, unsigned int length,
 	if (length <= HNS3_RX_HEAD_SIZE) {
 		memcpy(__skb_put(skb, length), va, ALIGN(length, sizeof(long)));
 
-		/* We can reuse buffer as-is, just make sure it is local */
-		if (likely(hns3_page_is_reusable(desc_cb->priv)))
+		/* We can reuse buffer as-is, just make sure it is reusable */
+		if (dev_page_is_reusable(desc_cb->priv))
 			desc_cb->reuse_flag = 1;
 		else /* This page cannot be reused so discard it */
 			__page_frag_cache_drain(desc_cb->priv,
