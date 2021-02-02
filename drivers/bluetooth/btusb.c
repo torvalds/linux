@@ -2827,7 +2827,7 @@ static void btusb_mtk_wmt_recv(struct urb *urb)
 		skb = bt_skb_alloc(HCI_WMT_MAX_EVENT_SIZE, GFP_ATOMIC);
 		if (!skb) {
 			hdev->stat.err_rx++;
-			goto err_out;
+			return;
 		}
 
 		hci_skb_pkt_type(skb) = HCI_EVENT_PKT;
@@ -2845,13 +2845,18 @@ static void btusb_mtk_wmt_recv(struct urb *urb)
 		 */
 		if (test_bit(BTUSB_TX_WAIT_VND_EVT, &data->flags)) {
 			data->evt_skb = skb_clone(skb, GFP_ATOMIC);
-			if (!data->evt_skb)
-				goto err_out;
+			if (!data->evt_skb) {
+				kfree_skb(skb);
+				return;
+			}
 		}
 
 		err = hci_recv_frame(hdev, skb);
-		if (err < 0)
-			goto err_free_skb;
+		if (err < 0) {
+			kfree_skb(data->evt_skb);
+			data->evt_skb = NULL;
+			return;
+		}
 
 		if (test_and_clear_bit(BTUSB_TX_WAIT_VND_EVT,
 				       &data->flags)) {
@@ -2860,11 +2865,6 @@ static void btusb_mtk_wmt_recv(struct urb *urb)
 			wake_up_bit(&data->flags,
 				    BTUSB_TX_WAIT_VND_EVT);
 		}
-err_out:
-		return;
-err_free_skb:
-		kfree_skb(data->evt_skb);
-		data->evt_skb = NULL;
 		return;
 	} else if (urb->status == -ENOENT) {
 		/* Avoid suspend failed when usb_kill_urb */
