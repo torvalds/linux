@@ -33,14 +33,6 @@
 
 #define IDEAPAD_RFKILL_DEV_NUM	(3)
 
-#define BM_CONSERVATION_BIT (5)
-#define HA_FNLOCK_BIT       (10)
-
-#define CFG_BT_BIT	(16)
-#define CFG_3G_BIT	(17)
-#define CFG_WIFI_BIT	(18)
-#define CFG_CAMERA_BIT	(19)
-
 #if IS_ENABLED(CONFIG_ACPI_WMI)
 static const char *const ideapad_wmi_fnesc_events[] = {
 	"26CAB2E5-5CF1-46AE-AAC3-4A12B6BA50E6", /* Yoga 3 */
@@ -49,10 +41,28 @@ static const char *const ideapad_wmi_fnesc_events[] = {
 #endif
 
 enum {
-	BMCMD_CONSERVATION_ON = 3,
-	BMCMD_CONSERVATION_OFF = 5,
-	HACMD_FNLOCK_ON = 0xe,
-	HACMD_FNLOCK_OFF = 0xf,
+	CFG_CAP_BT_BIT   = 16,
+	CFG_CAP_3G_BIT   = 17,
+	CFG_CAP_WIFI_BIT = 18,
+	CFG_CAP_CAM_BIT  = 19,
+};
+
+enum {
+	GBMD_CONSERVATION_STATE_BIT = 5,
+};
+
+enum {
+	SMBC_CONSERVATION_ON  = 3,
+	SMBC_CONSERVATION_OFF = 5,
+};
+
+enum {
+	HALS_FNLOCK_STATE_BIT = 10,
+};
+
+enum {
+	SALS_FNLOCK_ON  = 0xe,
+	SALS_FNLOCK_OFF = 0xf,
 };
 
 enum {
@@ -308,7 +318,7 @@ static int debugfs_status_show(struct seq_file *s, void *data)
 
 	if (!method_gbmd(priv->adev->handle, &value)) {
 		seq_printf(s, "Conservation mode:\t%s(%lu)\n",
-			   test_bit(BM_CONSERVATION_BIT, &value) ? "On" : "Off",
+			   test_bit(GBMD_CONSERVATION_STATE_BIT, &value) ? "On" : "Off",
 			   value);
 	}
 
@@ -322,13 +332,13 @@ static int debugfs_cfg_show(struct seq_file *s, void *data)
 
 	seq_printf(s, "cfg: 0x%.8lX\n\nCapability: ",
 		   priv->cfg);
-	if (test_bit(CFG_BT_BIT, &priv->cfg))
+	if (test_bit(CFG_CAP_BT_BIT, &priv->cfg))
 		seq_printf(s, "Bluetooth ");
-	if (test_bit(CFG_3G_BIT, &priv->cfg))
+	if (test_bit(CFG_CAP_3G_BIT, &priv->cfg))
 		seq_printf(s, "3G ");
-	if (test_bit(CFG_WIFI_BIT, &priv->cfg))
+	if (test_bit(CFG_CAP_WIFI_BIT, &priv->cfg))
 		seq_printf(s, "Wireless ");
-	if (test_bit(CFG_CAMERA_BIT, &priv->cfg))
+	if (test_bit(CFG_CAP_CAM_BIT, &priv->cfg))
 		seq_printf(s, "Camera ");
 	seq_printf(s, "\nGraphic: ");
 	switch ((priv->cfg)&0x700) {
@@ -488,7 +498,7 @@ static ssize_t conservation_mode_show(struct device *dev,
 	err = method_gbmd(priv->adev->handle, &result);
 	if (err)
 		return err;
-	return sysfs_emit(buf, "%d\n", !!test_bit(BM_CONSERVATION_BIT, &result));
+	return sysfs_emit(buf, "%d\n", !!test_bit(GBMD_CONSERVATION_STATE_BIT, &result));
 }
 
 static ssize_t conservation_mode_store(struct device *dev,
@@ -504,8 +514,8 @@ static ssize_t conservation_mode_store(struct device *dev,
 		return ret;
 
 	ret = method_int1(priv->adev->handle, "SBMC", state ?
-					      BMCMD_CONSERVATION_ON :
-					      BMCMD_CONSERVATION_OFF);
+					      SMBC_CONSERVATION_ON :
+					      SMBC_CONSERVATION_OFF);
 	if (ret)
 		return ret;
 	return count;
@@ -526,7 +536,7 @@ static ssize_t fn_lock_show(struct device *dev,
 		return fail;
 
 	result = hals;
-	return sysfs_emit(buf, "%d\n", !!test_bit(HA_FNLOCK_BIT, &result));
+	return sysfs_emit(buf, "%d\n", !!test_bit(HALS_FNLOCK_STATE_BIT, &result));
 }
 
 static ssize_t fn_lock_store(struct device *dev,
@@ -542,8 +552,8 @@ static ssize_t fn_lock_store(struct device *dev,
 		return ret;
 
 	ret = method_int1(priv->adev->handle, "SALS", state ?
-			  HACMD_FNLOCK_ON :
-			  HACMD_FNLOCK_OFF);
+			  SALS_FNLOCK_ON :
+			  SALS_FNLOCK_OFF);
 	if (ret)
 		return ret;
 	return count;
@@ -570,7 +580,7 @@ static umode_t ideapad_is_visible(struct kobject *kobj,
 	bool supported;
 
 	if (attr == &dev_attr_camera_power.attr)
-		supported = test_bit(CFG_CAMERA_BIT, &(priv->cfg));
+		supported = test_bit(CFG_CAP_CAM_BIT, &priv->cfg);
 	else if (attr == &dev_attr_fan_mode.attr) {
 		unsigned long value;
 		supported = !read_ec_data(priv->adev->handle, VPCCMD_R_FAN,
@@ -856,9 +866,9 @@ struct ideapad_rfk_data {
 };
 
 static const struct ideapad_rfk_data ideapad_rfk_data[] = {
-	{ "ideapad_wlan",    CFG_WIFI_BIT, VPCCMD_W_WIFI, RFKILL_TYPE_WLAN },
-	{ "ideapad_bluetooth", CFG_BT_BIT, VPCCMD_W_BT, RFKILL_TYPE_BLUETOOTH },
-	{ "ideapad_3g",        CFG_3G_BIT, VPCCMD_W_3G, RFKILL_TYPE_WWAN },
+	{ "ideapad_wlan",      CFG_CAP_WIFI_BIT, VPCCMD_W_WIFI, RFKILL_TYPE_WLAN },
+	{ "ideapad_bluetooth", CFG_CAP_BT_BIT,   VPCCMD_W_BT,   RFKILL_TYPE_BLUETOOTH },
+	{ "ideapad_3g",        CFG_CAP_3G_BIT,   VPCCMD_W_3G,   RFKILL_TYPE_WWAN },
 };
 
 static int ideapad_rfk_set(void *data, bool blocked)
