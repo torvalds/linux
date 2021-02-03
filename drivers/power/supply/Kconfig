@@ -1003,6 +1003,14 @@ config CHARGER_SURFACE
 	  Microsoft Surface devices, i.e. Surface Pro 7, Surface Laptop 3,
 	  Surface Book 3, and Surface Laptop Go.
 
+config BATTERY_QCOM_FG
+	tristate "Qualcomm PMIC fuel gauge driver"
+	depends on MFD_SPMI_PMIC
+	help
+	  Say Y here to enable the Qualcomm PMIC Fuel Gauge driver. This
+	  adds support for battery fuel gauging and state of charge of
+	  battery connected to the fuel gauge.
+
 config BATTERY_UG3105
 	tristate "uPI uG3105 battery monitor driver"
 	depends on I2C
