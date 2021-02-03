@@ -4231,7 +4231,6 @@ int mlx5_ib_modify_qp(struct ib_qp *ibqp, struct ib_qp_attr *attr,
 	enum ib_qp_type qp_type;
 	enum ib_qp_state cur_state, new_state;
 	int err = -EINVAL;
-	int port;
 
 	if (!mlx5_ib_modify_qp_allowed(dev, qp, ibqp->qp_type))
 		return -EOPNOTSUPP;
@@ -4276,10 +4275,6 @@ int mlx5_ib_modify_qp(struct ib_qp *ibqp, struct ib_qp_attr *attr,
 	cur_state = attr_mask & IB_QP_CUR_STATE ? attr->cur_qp_state : qp->state;
 	new_state = attr_mask & IB_QP_STATE ? attr->qp_state : cur_state;
 
-	if (!(cur_state == new_state && cur_state == IB_QPS_RESET)) {
-		port = attr_mask & IB_QP_PORT ? attr->port_num : qp->port;
-	}
-
 	if (qp->flags & IB_QP_CREATE_SOURCE_QPN) {
 		if (attr_mask & ~(IB_QP_STATE | IB_QP_CUR_STATE)) {
 			mlx5_ib_dbg(dev, "invalid attr_mask 0x%x when underlay QP is used\n",
@@ -4308,14 +4303,10 @@ int mlx5_ib_modify_qp(struct ib_qp *ibqp, struct ib_qp_attr *attr,
 		goto out;
 	}
 
-	if (attr_mask & IB_QP_PKEY_INDEX) {
-		port = attr_mask & IB_QP_PORT ? attr->port_num : qp->port;
-		if (attr->pkey_index >=
-		    dev->port_caps[port - 1].pkey_table_len) {
-			mlx5_ib_dbg(dev, "invalid pkey index %d\n",
-				    attr->pkey_index);
-			goto out;
-		}
+	if ((attr_mask & IB_QP_PKEY_INDEX) &&
+	    attr->pkey_index >= dev->pkey_table_len) {
+		mlx5_ib_dbg(dev, "invalid pkey index %d\n", attr->pkey_index);
+		goto out;
 	}
 
 	if (attr_mask & IB_QP_MAX_QP_RD_ATOMIC &&

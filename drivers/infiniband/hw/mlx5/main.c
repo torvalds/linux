@@ -816,9 +816,7 @@ static int mlx5_ib_query_device(struct ib_device *ibdev,
 	if (err)
 		return err;
 
-	err = mlx5_query_max_pkeys(ibdev, &props->max_pkeys);
-	if (err)
-		return err;
+	props->max_pkeys = dev->pkey_table_len;
 
 	err = mlx5_query_vendor_id(ibdev, &props->vendor_id);
 	if (err)
@@ -2979,23 +2977,12 @@ static void get_ext_port_caps(struct mlx5_ib_dev *dev)
 
 static int __get_port_caps(struct mlx5_ib_dev *dev, u8 port)
 {
-	struct ib_device_attr *dprops = NULL;
 	struct ib_port_attr *pprops = NULL;
 	int err = -ENOMEM;
 
 	pprops = kzalloc(sizeof(*pprops), GFP_KERNEL);
 	if (!pprops)
 		goto out;
-
-	dprops = kmalloc(sizeof(*dprops), GFP_KERNEL);
-	if (!dprops)
-		goto out;
-
-	err = mlx5_ib_query_device(&dev->ib_dev, dprops, NULL);
-	if (err) {
-		mlx5_ib_warn(dev, "query_device failed %d\n", err);
-		goto out;
-	}
 
 	err = mlx5_ib_query_port(&dev->ib_dev, port, pprops);
 	if (err) {
@@ -3004,15 +2991,12 @@ static int __get_port_caps(struct mlx5_ib_dev *dev, u8 port)
 		goto out;
 	}
 
-	dev->port_caps[port - 1].pkey_table_len = dprops->max_pkeys;
 	dev->port_caps[port - 1].gid_table_len = pprops->gid_tbl_len;
 	mlx5_ib_dbg(dev, "port %d: pkey_table_len %d, gid_table_len %d\n",
-		    port, dprops->max_pkeys, pprops->gid_tbl_len);
+		    port, dev->pkey_table_len, pprops->gid_tbl_len);
 
 out:
 	kfree(pprops);
-	kfree(dprops);
-
 	return err;
 }
 
@@ -3976,6 +3960,10 @@ static int mlx5_ib_stage_init_init(struct mlx5_ib_dev *dev)
 	} else {
 		err = get_port_caps(dev, mlx5_core_native_port_num(mdev));
 	}
+	if (err)
+		goto err_mp;
+
+	err = mlx5_query_max_pkeys(&dev->ib_dev, &dev->pkey_table_len);
 	if (err)
 		goto err_mp;
 

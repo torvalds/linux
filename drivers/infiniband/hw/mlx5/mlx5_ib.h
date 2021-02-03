@@ -1038,7 +1038,6 @@ struct mlx5_var_table {
 
 struct mlx5_port_caps {
 	int gid_table_len;
-	int pkey_table_len;
 	bool has_smi;
 	u8 ext_port_cap;
 };
@@ -1104,6 +1103,7 @@ struct mlx5_ib_dev {
 
 	struct xarray sig_mrs;
 	struct mlx5_port_caps port_caps[MLX5_MAX_PORTS];
+	u16 pkey_table_len;
 };
 
 static inline struct mlx5_ib_cq *to_mibcq(struct mlx5_core_cq *mcq)
