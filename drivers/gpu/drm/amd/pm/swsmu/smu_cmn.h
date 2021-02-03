@@ -97,5 +97,7 @@ int smu_cmn_get_metrics_table(struct smu_context *smu,
 			      void *metrics_table,
 			      bool bypass_cache);
 
+void smu_cmn_init_soft_gpu_metrics(void *table, uint8_t frev, uint8_t crev);
+
 #endif
 #endif
