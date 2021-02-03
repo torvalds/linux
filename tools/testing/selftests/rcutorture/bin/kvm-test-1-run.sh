@@ -7,15 +7,15 @@
 # Execute this in the source tree.  Do not run it as a background task
 # because qemu does not seem to like that much.
 #
-# Usage: kvm-test-1-run.sh config builddir resdir seconds qemu-args boot_args
+# Usage: kvm-test-1-run.sh config builddir resdir seconds qemu-args boot_args_in
 #
 # qemu-args defaults to "-enable-kvm -nographic", along with arguments
 #			specifying the number of CPUs and other options
 #			generated from the underlying CPU architecture.
-# boot_args defaults to value returned by the per_version_boot_params
+# boot_args_in defaults to value returned by the per_version_boot_params
 #			shell function.
 #
-# Anything you specify for either qemu-args or boot_args is appended to
+# Anything you specify for either qemu-args or boot_args_in is appended to
 # the default values.  The "-smp" value is deduced from the contents of
 # the config fragment.
 #
@@ -134,7 +134,7 @@ do
 done
 seconds=$4
 qemu_args=$5
-boot_args=$6
+boot_args_in=$6
 
 if test -z "$TORTURE_BUILDONLY"
 then
@@ -144,7 +144,7 @@ fi
 # Generate -smp qemu argument.
 qemu_args="-enable-kvm -nographic $qemu_args"
 cpu_count=`configNR_CPUS.sh $resdir/ConfigFragment`
-cpu_count=`configfrag_boot_cpus "$boot_args" "$config_template" "$cpu_count"`
+cpu_count=`configfrag_boot_cpus "$boot_args_in" "$config_template" "$cpu_count"`
 if test "$cpu_count" -gt "$TORTURE_ALLOTED_CPUS"
 then
 	echo CPU count limited from $cpu_count to $TORTURE_ALLOTED_CPUS | tee -a $resdir/Warnings
@@ -160,13 +160,45 @@ qemu_args="$qemu_args `identify_qemu_args "$QEMU" "$resdir/console.log"`"
 qemu_append="`identify_qemu_append "$QEMU"`"
 
 # Pull in Kconfig-fragment boot parameters
-boot_args="`configfrag_boot_params "$boot_args" "$config_template"`"
+boot_args="`configfrag_boot_params "$boot_args_in" "$config_template"`"
 # Generate kernel-version-specific boot parameters
 boot_args="`per_version_boot_params "$boot_args" $resdir/.config $seconds`"
 if test -n "$TORTURE_BOOT_GDB_ARG"
 then
 	boot_args="$boot_args $TORTURE_BOOT_GDB_ARG"
 fi
+
+# Give bare-metal advice
+modprobe_args="`echo $boot_args | tr -s ' ' '\012' | grep "^$TORTURE_MOD\." | sed -e "s/$TORTURE_MOD\.//g"`"
+kboot_args="`echo $boot_args | tr -s ' ' '\012' | grep -v "^$TORTURE_MOD\."`"
+testid_txt="`dirname $resdir`/testid.txt"
+touch $resdir/bare-metal
+echo To run this scenario on bare metal: >> $resdir/bare-metal
+echo >> $resdir/bare-metal
+echo " 1." Set your bare-metal build tree to the state shown in this file: >> $resdir/bare-metal
+echo "   " $testid_txt >> $resdir/bare-metal
+echo " 2." Update your bare-metal build tree"'"s .config based on this file: >> $resdir/bare-metal
+echo "   " $resdir/ConfigFragment >> $resdir/bare-metal
+echo " 3." Make the bare-metal kernel"'"s build system aware of your .config updates: >> $resdir/bare-metal
+echo "   " $ 'yes "" | make oldconfig' >> $resdir/bare-metal
+echo " 4." Build your bare-metal kernel. >> $resdir/bare-metal
+echo " 5." Boot your bare-metal kernel with the following parameters: >> $resdir/bare-metal
+echo "   " $kboot_args >> $resdir/bare-metal
+echo " 6." Start the test with the following command: >> $resdir/bare-metal
+echo "   " $ modprobe $TORTURE_MOD $modprobe_args >> $resdir/bare-metal
+echo " 7." After some time, end the test with the following command: >> $resdir/bare-metal
+echo "   " $ rmmod $TORTURE_MOD >> $resdir/bare-metal
+echo " 8." Copy your bare-metal kernel"'"s .config file, overwriting this file: >> $resdir/bare-metal
+echo "   " $resdir/.config >> $resdir/bare-metal
+echo " 9." Copy the console output from just before the modprobe to just after >> $resdir/bare-metal
+echo "   " the rmmod into this file: >> $resdir/bare-metal
+echo "   " $resdir/console.log >> $resdir/bare-metal
+echo "10." Check for runtime errors using the following command: >> $resdir/bare-metal
+echo "   " $ tools/testing/selftests/rcutorture/bin/kvm-recheck.sh `dirname $resdir` >> $resdir/bare-metal
+echo >> $resdir/bare-metal
+echo Some of the above steps may be skipped if you build your bare-metal >> $resdir/bare-metal
+echo kernel here: `head -n 1 $testid_txt | sed -e 's/^Build directory: //'`  >> $resdir/bare-metal
+
 echo $QEMU $qemu_args -m $TORTURE_QEMU_MEM -kernel $KERNEL -append \"$qemu_append $boot_args\" $TORTURE_QEMU_GDB_ARG > $resdir/qemu-cmd
 echo "# TORTURE_SHUTDOWN_GRACE=$TORTURE_SHUTDOWN_GRACE" >> $resdir/qemu-cmd
 echo "# seconds=$seconds" >> $resdir/qemu-cmd
