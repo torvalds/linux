@@ -462,10 +462,9 @@ static ssize_t touchpad_show(struct device *dev,
 	return sysfs_emit(buf, "%d\n", !!result);
 }
 
-/* Switch to RO for now: It might be revisited in the future */
-static ssize_t __maybe_unused touchpad_store(struct device *dev,
-					     struct device_attribute *attr,
-					     const char *buf, size_t count)
+static ssize_t touchpad_store(struct device *dev,
+			      struct device_attribute *attr,
+			      const char *buf, size_t count)
 {
 	struct ideapad_private *priv = dev_get_drvdata(dev);
 	bool state;
@@ -481,7 +480,7 @@ static ssize_t __maybe_unused touchpad_store(struct device *dev,
 	return count;
 }
 
-static DEVICE_ATTR_RO(touchpad);
+static DEVICE_ATTR_RW(touchpad);
 
 static ssize_t conservation_mode_show(struct device *dev,
 				struct device_attribute *attr,
