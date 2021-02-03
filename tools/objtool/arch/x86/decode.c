@@ -222,15 +222,38 @@ int arch_decode_instruction(const struct elf *elf, const struct section *sec,
 		break;
 
 	case 0x89:
-		if (rex_w && !rex_r && modrm_mod == 3 && modrm_reg == 4) {
+		if (rex_w && !rex_r && modrm_reg == 4) {
 
-			/* mov %rsp, reg */
-			ADD_OP(op) {
-				op->src.type = OP_SRC_REG;
-				op->src.reg = CFI_SP;
-				op->dest.type = OP_DEST_REG;
-				op->dest.reg = op_to_cfi_reg[modrm_rm][rex_b];
+			if (modrm_mod == 3) {
+				/* mov %rsp, reg */
+				ADD_OP(op) {
+					op->src.type = OP_SRC_REG;
+					op->src.reg = CFI_SP;
+					op->dest.type = OP_DEST_REG;
+					op->dest.reg = op_to_cfi_reg[modrm_rm][rex_b];
+				}
+				break;
+
+			} else {
+				/* skip nontrivial SIB */
+				if (modrm_rm == 4 && !(sib == 0x24 && rex_b == rex_x))
+					break;
+
+				/* skip RIP relative displacement */
+				if (modrm_rm == 5 && modrm_mod == 0)
+					break;
+
+				/* mov %rsp, disp(%reg) */
+				ADD_OP(op) {
+					op->src.type = OP_SRC_REG;
+					op->src.reg = CFI_SP;
+					op->dest.type = OP_DEST_REG_INDIRECT;
+					op->dest.reg = op_to_cfi_reg[modrm_rm][rex_b];
+					op->dest.offset = insn.displacement.value;
+				}
+				break;
 			}
+
 			break;
 		}
 
@@ -259,8 +282,10 @@ int arch_decode_instruction(const struct elf *elf, const struct section *sec,
 				op->dest.reg = CFI_BP;
 				op->dest.offset = insn.displacement.value;
 			}
+			break;
+		}
 
-		} else if (rex_w && !rex_b && modrm_rm == 4 && sib == 0x24) {
+		if (rex_w && !rex_b && modrm_rm == 4 && sib == 0x24) {
 
 			/* mov reg, disp(%rsp) */
 			ADD_OP(op) {
@@ -270,6 +295,7 @@ int arch_decode_instruction(const struct elf *elf, const struct section *sec,
 				op->dest.reg = CFI_SP;
 				op->dest.offset = insn.displacement.value;
 			}
+			break;
 		}
 
 		break;
