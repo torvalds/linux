@@ -375,11 +375,11 @@ break_loop:
 		file = NULL;
 
 	backing_file = strsep(&str, ",:");
-	if (*backing_file == '\0')
+	if (backing_file && *backing_file == '\0')
 		backing_file = NULL;
 
 	serial = strsep(&str, ",:");
-	if (*serial == '\0')
+	if (serial && *serial == '\0')
 		serial = NULL;
 
 	if (backing_file && ubd_dev->no_cow) {
@@ -1241,7 +1241,7 @@ static int __init ubd_driver_init(void){
 		/* Letting ubd=sync be like using ubd#s= instead of ubd#= is
 		 * enough. So use anyway the io thread. */
 	}
-	stack = alloc_stack(0);
+	stack = alloc_stack(0, 0);
 	io_pid = start_io_thread(stack + PAGE_SIZE - sizeof(void *),
 				 &thread_fd);
 	if(io_pid < 0){
