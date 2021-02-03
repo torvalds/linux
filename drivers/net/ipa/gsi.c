@@ -725,22 +725,38 @@ static void gsi_evt_ring_program(struct gsi *gsi, u32 evt_ring_id)
 	gsi_evt_ring_doorbell(gsi, evt_ring_id, 0);
 }
 
-/* Return the last (most recent) transaction completed on a channel. */
+/* Find the transaction whose completion indicates a channel is quiesced */
 static struct gsi_trans *gsi_channel_trans_last(struct gsi_channel *channel)
 {
 	struct gsi_trans_info *trans_info = &channel->trans_info;
+	const struct list_head *list;
 	struct gsi_trans *trans;
 
 	spin_lock_bh(&trans_info->spinlock);
 
-	if (!list_empty(&trans_info->complete))
-		trans = list_last_entry(&trans_info->complete,
-					struct gsi_trans, links);
-	else if (!list_empty(&trans_info->polled))
-		trans = list_last_entry(&trans_info->polled,
-					struct gsi_trans, links);
-	else
-		trans = NULL;
+	/* There is a small chance a TX transaction got allocated just
+	 * before we disabled transmits, so check for that.
+	 */
+	if (channel->toward_ipa) {
+		list = &trans_info->alloc;
+		if (!list_empty(list))
+			goto done;
+		list = &trans_info->pending;
+		if (!list_empty(list))
+			goto done;
+	}
+
+	/* Otherwise (TX or RX) we want to wait for anything that
+	 * has completed, or has been polled but not released yet.
+	 */
+	list = &trans_info->complete;
+	if (!list_empty(list))
+		goto done;
+	list = &trans_info->polled;
+	if (list_empty(list))
+		list = NULL;
+done:
+	trans = list ? list_last_entry(list, struct gsi_trans, links) : NULL;
 
 	/* Caller will wait for this, so take a reference */
 	if (trans)
@@ -762,24 +778,6 @@ static void gsi_channel_trans_quiesce(struct gsi_channel *channel)
 		wait_for_completion(&trans->completion);
 		gsi_trans_free(trans);
 	}
-}
-
-/* Stop channel activity.  Transactions may not be allocated until thawed. */
-static void gsi_channel_freeze(struct gsi_channel *channel)
-{
-	gsi_channel_trans_quiesce(channel);
-
-	napi_disable(&channel->napi);
-
-	gsi_irq_ieob_disable_one(channel->gsi, channel->evt_ring_id);
-}
-
-/* Allow transactions to be used on the channel again. */
-static void gsi_channel_thaw(struct gsi_channel *channel)
-{
-	gsi_irq_ieob_enable_one(channel->gsi, channel->evt_ring_id);
-
-	napi_enable(&channel->napi);
 }
 
 /* Program a channel for use */
@@ -873,11 +871,13 @@ static void gsi_channel_deprogram(struct gsi_channel *channel)
 	/* Nothing to do */
 }
 
-/* Start an allocated GSI channel */
-int gsi_channel_start(struct gsi *gsi, u32 channel_id)
+static int __gsi_channel_start(struct gsi_channel *channel, bool start)
 {
-	struct gsi_channel *channel = &gsi->channel[channel_id];
+	struct gsi *gsi = channel->gsi;
 	int ret;
+
+	if (!start)
+		return 0;
 
 	mutex_lock(&gsi->mutex);
 
@@ -885,19 +885,33 @@ int gsi_channel_start(struct gsi *gsi, u32 channel_id)
 
 	mutex_unlock(&gsi->mutex);
 
-	gsi_channel_thaw(channel);
+	return ret;
+}
+
+/* Start an allocated GSI channel */
+int gsi_channel_start(struct gsi *gsi, u32 channel_id)
+{
+	struct gsi_channel *channel = &gsi->channel[channel_id];
+	int ret;
+
+	/* Enable NAPI and the completion interrupt */
+	napi_enable(&channel->napi);
+	gsi_irq_ieob_enable_one(gsi, channel->evt_ring_id);
+
+	ret = __gsi_channel_start(channel, true);
+	if (ret) {
+		gsi_irq_ieob_disable_one(gsi, channel->evt_ring_id);
+		napi_disable(&channel->napi);
+	}
 
 	return ret;
 }
 
-/* Stop a started channel */
-int gsi_channel_stop(struct gsi *gsi, u32 channel_id)
+static int gsi_channel_stop_retry(struct gsi_channel *channel)
 {
-	struct gsi_channel *channel = &gsi->channel[channel_id];
 	u32 retries = GSI_CHANNEL_STOP_RETRIES;
+	struct gsi *gsi = channel->gsi;
 	int ret;
-
-	gsi_channel_freeze(channel);
 
 	mutex_lock(&gsi->mutex);
 
@@ -910,11 +924,39 @@ int gsi_channel_stop(struct gsi *gsi, u32 channel_id)
 
 	mutex_unlock(&gsi->mutex);
 
-	/* Thaw the channel if we need to retry (or on error) */
-	if (ret)
-		gsi_channel_thaw(channel);
+	return ret;
+}
+
+static int __gsi_channel_stop(struct gsi_channel *channel, bool stop)
+{
+	int ret;
+
+	/* Wait for any underway transactions to complete before stopping. */
+	gsi_channel_trans_quiesce(channel);
+
+	ret = stop ? gsi_channel_stop_retry(channel) : 0;
+	/* Finally, ensure NAPI polling has finished. */
+	if (!ret)
+		napi_synchronize(&channel->napi);
 
 	return ret;
+}
+
+/* Stop a started channel */
+int gsi_channel_stop(struct gsi *gsi, u32 channel_id)
+{
+	struct gsi_channel *channel = &gsi->channel[channel_id];
+	int ret;
+
+	/* Only disable the completion interrupt if stop is successful */
+	ret = __gsi_channel_stop(channel, true);
+	if (ret)
+		return ret;
+
+	gsi_irq_ieob_disable_one(gsi, channel->evt_ring_id);
+	napi_disable(&channel->napi);
+
+	return 0;
 }
 
 /* Reset and reconfigure a channel, (possibly) enabling the doorbell engine */
@@ -940,12 +982,7 @@ int gsi_channel_suspend(struct gsi *gsi, u32 channel_id, bool stop)
 {
 	struct gsi_channel *channel = &gsi->channel[channel_id];
 
-	if (stop)
-		return gsi_channel_stop(gsi, channel_id);
-
-	gsi_channel_freeze(channel);
-
-	return 0;
+	return __gsi_channel_stop(channel, stop);
 }
 
 /* Resume a suspended channel (starting will be requested if STOPPED) */
@@ -953,12 +990,7 @@ int gsi_channel_resume(struct gsi *gsi, u32 channel_id, bool start)
 {
 	struct gsi_channel *channel = &gsi->channel[channel_id];
 
-	if (start)
-		return gsi_channel_start(gsi, channel_id);
-
-	gsi_channel_thaw(channel);
-
-	return 0;
+	return __gsi_channel_start(channel, start);
 }
 
 /**
