@@ -146,6 +146,17 @@ bool is_sier_available(void)
 	return false;
 }
 
+/*
+ * Return PMC value corresponding to the
+ * index passed.
+ */
+unsigned long get_pmcs_ext_regs(int idx)
+{
+	struct cpu_hw_events *cpuhw = this_cpu_ptr(&cpu_hw_events);
+
+	return cpuhw->pmcs[idx];
+}
+
 static bool regs_use_siar(struct pt_regs *regs)
 {
 	/*
