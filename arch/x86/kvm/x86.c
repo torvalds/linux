@@ -1181,7 +1181,7 @@ int kvm_set_dr(struct kvm_vcpu *vcpu, int dr, unsigned long val)
 }
 EXPORT_SYMBOL_GPL(kvm_set_dr);
 
-int kvm_get_dr(struct kvm_vcpu *vcpu, int dr, unsigned long *val)
+void kvm_get_dr(struct kvm_vcpu *vcpu, int dr, unsigned long *val)
 {
 	size_t size = ARRAY_SIZE(vcpu->arch.db);
 
@@ -1198,7 +1198,6 @@ int kvm_get_dr(struct kvm_vcpu *vcpu, int dr, unsigned long *val)
 		*val = vcpu->arch.dr7;
 		break;
 	}
-	return 0;
 }
 EXPORT_SYMBOL_GPL(kvm_get_dr);
 
@@ -6610,10 +6609,10 @@ static void emulator_wbinvd(struct x86_emulate_ctxt *ctxt)
 	kvm_emulate_wbinvd_noskip(emul_to_vcpu(ctxt));
 }
 
-static int emulator_get_dr(struct x86_emulate_ctxt *ctxt, int dr,
-			   unsigned long *dest)
+static void emulator_get_dr(struct x86_emulate_ctxt *ctxt, int dr,
+			    unsigned long *dest)
 {
-	return kvm_get_dr(emul_to_vcpu(ctxt), dr, dest);
+	kvm_get_dr(emul_to_vcpu(ctxt), dr, dest);
 }
 
 static int emulator_set_dr(struct x86_emulate_ctxt *ctxt, int dr,

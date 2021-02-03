@@ -5142,8 +5142,7 @@ static int handle_dr(struct kvm_vcpu *vcpu)
 	if (exit_qualification & TYPE_MOV_FROM_DR) {
 		unsigned long val;
 
-		if (kvm_get_dr(vcpu, dr, &val))
-			return 1;
+		kvm_get_dr(vcpu, dr, &val);
 		kvm_register_write(vcpu, reg, val);
 	} else
 		if (kvm_set_dr(vcpu, dr, kvm_register_readl(vcpu, reg)))
