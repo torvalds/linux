@@ -886,7 +886,7 @@ static int bcm_sf2_cfp_rule_insert(struct dsa_switch *ds, int port,
 
 		vid = be16_to_cpu(fs->h_ext.vlan_tci) & VLAN_VID_MASK;
 		vlan.vid = vid;
-		if (cpu_to_be32(fs->h_ext.data[1]) & 1)
+		if (be32_to_cpu(fs->h_ext.data[1]) & 1)
 			vlan.flags = BRIDGE_VLAN_INFO_UNTAGGED;
 		else
 			vlan.flags = 0;
