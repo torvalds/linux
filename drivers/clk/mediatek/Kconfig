@@ -426,66 +426,77 @@ config COMMON_CLK_MT8183
 config COMMON_CLK_MT8183_AUDIOSYS
 	bool "Clock driver for MediaTek MT8183 audiosys"
 	depends on COMMON_CLK_MT8183
+	default COMMON_CLK_MT8183
 	help
 	  This driver supports MediaTek MT8183 audiosys clocks.
 
 config COMMON_CLK_MT8183_CAMSYS
 	bool "Clock driver for MediaTek MT8183 camsys"
 	depends on COMMON_CLK_MT8183
+	default COMMON_CLK_MT8183
 	help
 	  This driver supports MediaTek MT8183 camsys clocks.
 
 config COMMON_CLK_MT8183_IMGSYS
 	bool "Clock driver for MediaTek MT8183 imgsys"
 	depends on COMMON_CLK_MT8183
+	default COMMON_CLK_MT8183
 	help
 	  This driver supports MediaTek MT8183 imgsys clocks.
 
 config COMMON_CLK_MT8183_IPU_CORE0
 	bool "Clock driver for MediaTek MT8183 ipu_core0"
 	depends on COMMON_CLK_MT8183
+	default COMMON_CLK_MT8183
 	help
 	  This driver supports MediaTek MT8183 ipu_core0 clocks.
 
 config COMMON_CLK_MT8183_IPU_CORE1
 	bool "Clock driver for MediaTek MT8183 ipu_core1"
 	depends on COMMON_CLK_MT8183
+	default COMMON_CLK_MT8183
 	help
 	  This driver supports MediaTek MT8183 ipu_core1 clocks.
 
 config COMMON_CLK_MT8183_IPU_ADL
 	bool "Clock driver for MediaTek MT8183 ipu_adl"
 	depends on COMMON_CLK_MT8183
+	default COMMON_CLK_MT8183
 	help
 	  This driver supports MediaTek MT8183 ipu_adl clocks.
 
 config COMMON_CLK_MT8183_IPU_CONN
 	bool "Clock driver for MediaTek MT8183 ipu_conn"
 	depends on COMMON_CLK_MT8183
+	default COMMON_CLK_MT8183
 	help
 	  This driver supports MediaTek MT8183 ipu_conn clocks.
 
 config COMMON_CLK_MT8183_MFGCFG
 	bool "Clock driver for MediaTek MT8183 mfgcfg"
 	depends on COMMON_CLK_MT8183
+	default COMMON_CLK_MT8183
 	help
 	  This driver supports MediaTek MT8183 mfgcfg clocks.
 
 config COMMON_CLK_MT8183_MMSYS
 	bool "Clock driver for MediaTek MT8183 mmsys"
 	depends on COMMON_CLK_MT8183
+	default COMMON_CLK_MT8183
 	help
 	  This driver supports MediaTek MT8183 mmsys clocks.
 
 config COMMON_CLK_MT8183_VDECSYS
 	bool "Clock driver for MediaTek MT8183 vdecsys"
 	depends on COMMON_CLK_MT8183
+	default COMMON_CLK_MT8183
 	help
 	  This driver supports MediaTek MT8183 vdecsys clocks.
 
 config COMMON_CLK_MT8183_VENCSYS
 	bool "Clock driver for MediaTek MT8183 vencsys"
 	depends on COMMON_CLK_MT8183
+	default COMMON_CLK_MT8183
 	help
 	  This driver supports MediaTek MT8183 vencsys clocks.
 
