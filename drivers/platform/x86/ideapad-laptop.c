@@ -547,7 +547,7 @@ static umode_t ideapad_is_visible(struct kobject *kobj,
 				 struct attribute *attr,
 				 int idx)
 {
-	struct device *dev = container_of(kobj, struct device, kobj);
+	struct device *dev = kobj_to_dev(kobj);
 	struct ideapad_private *priv = dev_get_drvdata(dev);
 	bool supported;
 
