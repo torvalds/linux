@@ -235,7 +235,7 @@ static int read_ec_data(acpi_handle handle, int cmd, unsigned long *data)
 			return 0;
 		}
 	}
-	pr_err("timeout in %s\n", __func__);
+	acpi_handle_err(handle, "timeout in %s\n", __func__);
 	return -1;
 }
 
@@ -258,7 +258,7 @@ static int write_ec_cmd(acpi_handle handle, int cmd, unsigned long data)
 		if (val == 0)
 			return 0;
 	}
-	pr_err("timeout in %s\n", __func__);
+	acpi_handle_err(handle, "timeout in %s\n", __func__);
 	return -1;
 }
 
@@ -974,13 +974,15 @@ static int ideapad_input_init(struct ideapad_private *priv)
 
 	error = sparse_keymap_setup(inputdev, ideapad_keymap, NULL);
 	if (error) {
-		pr_err("Unable to setup input device keymap\n");
+		dev_err(&priv->platform_device->dev,
+			"Unable to setup input device keymap\n");
 		goto err_free_dev;
 	}
 
 	error = input_register_device(inputdev);
 	if (error) {
-		pr_err("Unable to register input device\n");
+		dev_err(&priv->platform_device->dev,
+			"Unable to register input device\n");
 		goto err_free_dev;
 	}
 
@@ -1034,7 +1036,8 @@ static void ideapad_check_special_buttons(struct ideapad_private *priv)
 			ideapad_input_report(priv, 64);
 			break;
 		default:
-			pr_info("Unknown special button: %lu\n", bit);
+			dev_info(&priv->platform_device->dev,
+				 "Unknown special button: %lu\n", bit);
 			break;
 		}
 	}
@@ -1094,7 +1097,8 @@ static int ideapad_backlight_init(struct ideapad_private *priv)
 					      &ideapad_backlight_ops,
 					      &props);
 	if (IS_ERR(blightdev)) {
-		pr_err("Could not register backlight device\n");
+		dev_err(&priv->platform_device->dev,
+			"Could not register backlight device\n");
 		return PTR_ERR(blightdev);
 	}
 
@@ -1207,7 +1211,8 @@ static void ideapad_acpi_notify(acpi_handle handle, u32 event, void *data)
 			 */
 			break;
 		default:
-			pr_info("Unknown event: %lu\n", bit);
+			dev_info(&priv->platform_device->dev,
+				 "Unknown event: %lu\n", bit);
 		}
 	}
 }
@@ -1215,12 +1220,15 @@ static void ideapad_acpi_notify(acpi_handle handle, u32 event, void *data)
 #if IS_ENABLED(CONFIG_ACPI_WMI)
 static void ideapad_wmi_notify(u32 value, void *context)
 {
+	struct ideapad_private *priv = context;
+
 	switch (value) {
 	case 128:
-		ideapad_input_report(context, value);
+		ideapad_input_report(priv, value);
 		break;
 	default:
-		pr_info("Unknown WMI event %u\n", value);
+		dev_info(&priv->platform_device->dev,
+			 "Unknown WMI event: %u\n", value);
 	}
 }
 #endif
