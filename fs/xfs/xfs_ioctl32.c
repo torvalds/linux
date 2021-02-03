@@ -438,7 +438,6 @@ xfs_file_compat_ioctl(
 {
 	struct inode		*inode = file_inode(filp);
 	struct xfs_inode	*ip = XFS_I(inode);
-	struct xfs_mount	*mp = ip->i_mount;
 	void			__user *arg = compat_ptr(p);
 	int			error;
 
@@ -458,7 +457,7 @@ xfs_file_compat_ioctl(
 		return xfs_ioc_space(filp, &bf);
 	}
 	case XFS_IOC_FSGEOMETRY_V1_32:
-		return xfs_compat_ioc_fsgeometry_v1(mp, arg);
+		return xfs_compat_ioc_fsgeometry_v1(ip->i_mount, arg);
 	case XFS_IOC_FSGROWFSDATA_32: {
 		struct xfs_growfs_data	in;
 
@@ -467,7 +466,7 @@ xfs_file_compat_ioctl(
 		error = mnt_want_write_file(filp);
 		if (error)
 			return error;
-		error = xfs_growfs_data(mp, &in);
+		error = xfs_growfs_data(ip->i_mount, &in);
 		mnt_drop_write_file(filp);
 		return error;
 	}
@@ -479,7 +478,7 @@ xfs_file_compat_ioctl(
 		error = mnt_want_write_file(filp);
 		if (error)
 			return error;
-		error = xfs_growfs_rt(mp, &in);
+		error = xfs_growfs_rt(ip->i_mount, &in);
 		mnt_drop_write_file(filp);
 		return error;
 	}
