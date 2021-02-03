@@ -43,9 +43,9 @@
 	 * in order to turn on port power when USB bus is powered up, but so
 	 * far there is no such functionality.
 	 */
-	usb-port-power {
+	usb-port-power-hog {
 		gpio-hog;
-		gpios = <13 GPIO_ACTIVE_LOW>;
+		gpios = <13 0>;
 		output-low;
 		line-name = "usb-port-power";
 	};
