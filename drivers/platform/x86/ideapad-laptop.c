@@ -128,84 +128,78 @@ MODULE_PARM_DESC(no_bt_rfkill, "No rfkill for bluetooth.");
  */
 #define IDEAPAD_EC_TIMEOUT (200) /* in ms */
 
-static int read_method_int(acpi_handle handle, const char *method, int *val)
+static int eval_int(acpi_handle handle, const char *name, unsigned long *res)
 {
-	acpi_status status;
 	unsigned long long result;
-
-	status = acpi_evaluate_integer(handle, (char *)method, NULL, &result);
-	if (ACPI_FAILURE(status)) {
-		*val = -1;
-		return -EIO;
-	}
-	*val = result;
-	return 0;
-
-}
-
-static int method_gbmd(acpi_handle handle, unsigned long *ret)
-{
-	int result, val;
-
-	result = read_method_int(handle, "GBMD", &val);
-	*ret = val;
-	return result;
-}
-
-static int method_int1(acpi_handle handle, char *method, int cmd)
-{
 	acpi_status status;
 
-	status = acpi_execute_simple_method(handle, method, cmd);
+	status = acpi_evaluate_integer(handle, (char *)name, NULL, &result);
+	if (ACPI_FAILURE(status))
+		return -EIO;
+	*res = result;
+	return 0;
+}
+
+static int exec_simple_method(acpi_handle handle, const char *name, unsigned long arg)
+{
+	acpi_status status = acpi_execute_simple_method(handle, (char *)name, arg);
+
 	return ACPI_FAILURE(status) ? -EIO : 0;
 }
 
-static int method_dytc(acpi_handle handle, int cmd, int *ret)
+static int eval_gbmd(acpi_handle handle, unsigned long *res)
 {
-	acpi_status status;
-	unsigned long long result;
+	return eval_int(handle, "GBMD", res);
+}
+
+static int exec_smbc(acpi_handle handle, unsigned long arg)
+{
+	return exec_simple_method(handle, "SMBC", arg);
+}
+
+static int eval_hals(acpi_handle handle, unsigned long *res)
+{
+	return eval_int(handle, "HALS", res);
+}
+
+static int exec_sals(acpi_handle handle, unsigned long arg)
+{
+	return exec_simple_method(handle, "SALS", arg);
+}
+
+static int eval_int_with_arg(acpi_handle handle, const char *name, unsigned long arg, unsigned long *res)
+{
 	struct acpi_object_list params;
+	unsigned long long result;
 	union acpi_object in_obj;
+	acpi_status status;
 
 	params.count = 1;
 	params.pointer = &in_obj;
 	in_obj.type = ACPI_TYPE_INTEGER;
-	in_obj.integer.value = cmd;
+	in_obj.integer.value = arg;
 
-	status = acpi_evaluate_integer(handle, "DYTC", &params, &result);
-
-	if (ACPI_FAILURE(status)) {
-		*ret = -1;
+	status = acpi_evaluate_integer(handle, (char *)name, &params, &result);
+	if (ACPI_FAILURE(status))
 		return -EIO;
-	}
-	*ret = result;
+
+	if (res)
+		*res = result;
+
 	return 0;
 }
 
-static int method_vpcr(acpi_handle handle, int cmd, int *ret)
+static int eval_dytc(acpi_handle handle, unsigned long cmd, unsigned long *res)
 {
-	acpi_status status;
-	unsigned long long result;
-	struct acpi_object_list params;
-	union acpi_object in_obj;
-
-	params.count = 1;
-	params.pointer = &in_obj;
-	in_obj.type = ACPI_TYPE_INTEGER;
-	in_obj.integer.value = cmd;
-
-	status = acpi_evaluate_integer(handle, "VPCR", &params, &result);
-
-	if (ACPI_FAILURE(status)) {
-		*ret = -1;
-		return -EIO;
-	}
-	*ret = result;
-	return 0;
-
+	return eval_int_with_arg(handle, "DYTC", cmd, res);
 }
 
-static int method_vpcw(acpi_handle handle, int cmd, int data)
+static int eval_vpcr(acpi_handle handle, unsigned long cmd, unsigned long *res)
+{
+	return eval_int_with_arg(handle, "VPCR", cmd, res);
+}
+
+static int eval_vpcw(acpi_handle handle, unsigned long cmd, unsigned long data)
 {
 	struct acpi_object_list params;
 	union acpi_object in_obj[2];
@@ -219,17 +213,17 @@ static int method_vpcw(acpi_handle handle, int cmd, int data)
 	in_obj[1].integer.value = data;
 
 	status = acpi_evaluate_object(handle, "VPCW", &params, NULL);
-	if (status != AE_OK)
+	if (ACPI_FAILURE(status))
 		return -EIO;
 	return 0;
 }
 
-static int read_ec_data(acpi_handle handle, int cmd, unsigned long *data)
+static int read_ec_data(acpi_handle handle, unsigned long cmd, unsigned long *data)
 {
-	unsigned long int end_jiffies;
-	int val, err;
+	unsigned long end_jiffies, val;
+	int err;
 
-	err = method_vpcw(handle, 1, cmd);
+	err = eval_vpcw(handle, 1, cmd);
 	if (err)
 		return err;
 
@@ -237,30 +231,25 @@ static int read_ec_data(acpi_handle handle, int cmd, unsigned long *data)
 
 	while (time_before(jiffies, end_jiffies)) {
 		schedule();
-		err = method_vpcr(handle, 1, &val);
+		err = eval_vpcr(handle, 1, &val);
 		if (err)
 			return err;
-		if (val == 0) {
-			err = method_vpcr(handle, 0, &val);
-			if (err)
-				return err;
-			*data = val;
-			return 0;
-		}
+		if (val == 0)
+			return eval_vpcr(handle, 0, data);
 	}
 	acpi_handle_err(handle, "timeout in %s\n", __func__);
 	return -ETIMEDOUT;
 }
 
-static int write_ec_cmd(acpi_handle handle, int cmd, unsigned long data)
+static int write_ec_cmd(acpi_handle handle, unsigned long cmd, unsigned long data)
 {
-	unsigned long int end_jiffies;
-	int val, err;
+	unsigned long end_jiffies, val;
+	int err;
 
-	err = method_vpcw(handle, 0, data);
+	err = eval_vpcw(handle, 0, data);
 	if (err)
 		return err;
-	err = method_vpcw(handle, 1, cmd);
+	err = eval_vpcw(handle, 1, cmd);
 	if (err)
 		return err;
 
@@ -268,7 +257,7 @@ static int write_ec_cmd(acpi_handle handle, int cmd, unsigned long data)
 
 	while (time_before(jiffies, end_jiffies)) {
 		schedule();
-		err = method_vpcr(handle, 1, &val);
+		err = eval_vpcr(handle, 1, &val);
 		if (err)
 			return err;
 		if (val == 0)
@@ -316,7 +305,7 @@ static int debugfs_status_show(struct seq_file *s, void *data)
 			   value ? "On" : "Off", value);
 	seq_puts(s, "=====================\n");
 
-	if (!method_gbmd(priv->adev->handle, &value)) {
+	if (!eval_gbmd(priv->adev->handle, &value)) {
 		seq_printf(s, "Conservation mode:\t%s(%lu)\n",
 			   test_bit(GBMD_CONSERVATION_STATE_BIT, &value) ? "On" : "Off",
 			   value);
@@ -495,7 +484,7 @@ static ssize_t conservation_mode_show(struct device *dev,
 	unsigned long result;
 	int err;
 
-	err = method_gbmd(priv->adev->handle, &result);
+	err = eval_gbmd(priv->adev->handle, &result);
 	if (err)
 		return err;
 	return sysfs_emit(buf, "%d\n", !!test_bit(GBMD_CONSERVATION_STATE_BIT, &result));
@@ -513,9 +502,7 @@ static ssize_t conservation_mode_store(struct device *dev,
 	if (ret)
 		return ret;
 
-	ret = method_int1(priv->adev->handle, "SBMC", state ?
-					      SMBC_CONSERVATION_ON :
-					      SMBC_CONSERVATION_OFF);
+	ret = exec_smbc(priv->adev->handle, state ? SMBC_CONSERVATION_ON : SMBC_CONSERVATION_OFF);
 	if (ret)
 		return ret;
 	return count;
@@ -528,15 +515,13 @@ static ssize_t fn_lock_show(struct device *dev,
 			    char *buf)
 {
 	struct ideapad_private *priv = dev_get_drvdata(dev);
-	unsigned long result;
-	int hals;
-	int fail = read_method_int(priv->adev->handle, "HALS", &hals);
+	unsigned long hals;
+	int fail = eval_hals(priv->adev->handle, &hals);
 
 	if (fail)
 		return fail;
 
-	result = hals;
-	return sysfs_emit(buf, "%d\n", !!test_bit(HALS_FNLOCK_STATE_BIT, &result));
+	return sysfs_emit(buf, "%d\n", !!test_bit(HALS_FNLOCK_STATE_BIT, &hals));
 }
 
 static ssize_t fn_lock_store(struct device *dev,
@@ -551,9 +536,7 @@ static ssize_t fn_lock_store(struct device *dev,
 	if (ret)
 		return ret;
 
-	ret = method_int1(priv->adev->handle, "SALS", state ?
-			  SALS_FNLOCK_ON :
-			  SALS_FNLOCK_OFF);
+	ret = exec_sals(priv->adev->handle, state ? SALS_FNLOCK_ON : SALS_FNLOCK_OFF);
 	if (ret)
 		return ret;
 	return count;
@@ -697,32 +680,31 @@ int dytc_profile_get(struct platform_profile_handler *pprof,
  *  - enable CQL
  *  If not in CQL mode, just run the command
  */
-int dytc_cql_command(struct ideapad_private *priv, int command, int *output)
+int dytc_cql_command(struct ideapad_private *priv, unsigned long cmd, unsigned long *output)
 {
-	int err, cmd_err, dummy;
-	int cur_funcmode;
+	int err, cmd_err, cur_funcmode;
 
 	/* Determine if we are in CQL mode. This alters the commands we do */
-	err = method_dytc(priv->adev->handle, DYTC_CMD_GET, output);
+	err = eval_dytc(priv->adev->handle, DYTC_CMD_GET, output);
 	if (err)
 		return err;
 
 	cur_funcmode = (*output >> DYTC_GET_FUNCTION_BIT) & 0xF;
 	/* Check if we're OK to return immediately */
-	if ((command == DYTC_CMD_GET) && (cur_funcmode != DYTC_FUNCTION_CQL))
+	if (cmd == DYTC_CMD_GET && cur_funcmode != DYTC_FUNCTION_CQL)
 		return 0;
 
 	if (cur_funcmode == DYTC_FUNCTION_CQL) {
-		err = method_dytc(priv->adev->handle, DYTC_DISABLE_CQL, &dummy);
+		err = eval_dytc(priv->adev->handle, DYTC_DISABLE_CQL, NULL);
 		if (err)
 			return err;
 	}
 
-	cmd_err = method_dytc(priv->adev->handle, command,	output);
+	cmd_err = eval_dytc(priv->adev->handle, cmd, output);
 	/* Check return condition after we've restored CQL state */
 
 	if (cur_funcmode == DYTC_FUNCTION_CQL) {
-		err = method_dytc(priv->adev->handle, DYTC_ENABLE_CQL, &dummy);
+		err = eval_dytc(priv->adev->handle, DYTC_ENABLE_CQL, NULL);
 		if (err)
 			return err;
 	}
@@ -739,7 +721,6 @@ int dytc_profile_set(struct platform_profile_handler *pprof,
 {
 	struct ideapad_dytc_priv *dytc;
 	struct ideapad_private *priv;
-	int output;
 	int err;
 
 	dytc = container_of(pprof, struct ideapad_dytc_priv, pprof);
@@ -751,7 +732,7 @@ int dytc_profile_set(struct platform_profile_handler *pprof,
 
 	if (profile == PLATFORM_PROFILE_BALANCED) {
 		/* To get back to balanced mode we just issue a reset command */
-		err = method_dytc(priv->adev->handle, DYTC_CMD_RESET, &output);
+		err = eval_dytc(priv->adev->handle, DYTC_CMD_RESET, NULL);
 		if (err)
 			goto unlock;
 	} else {
@@ -764,7 +745,7 @@ int dytc_profile_set(struct platform_profile_handler *pprof,
 		/* Determine if we are in CQL mode. This alters the commands we do */
 		err = dytc_cql_command(priv,
 				DYTC_SET_COMMAND(DYTC_FUNCTION_MMC, perfmode, 1),
-				&output);
+				NULL);
 		if (err)
 			goto unlock;
 	}
@@ -778,8 +759,8 @@ unlock:
 static void dytc_profile_refresh(struct ideapad_private *priv)
 {
 	enum platform_profile_option profile;
-	int output, err;
-	int perfmode;
+	unsigned long output;
+	int err, perfmode;
 
 	mutex_lock(&priv->dytc->mutex);
 	err = dytc_cql_command(priv, DYTC_CMD_GET, &output);
@@ -797,9 +778,10 @@ static void dytc_profile_refresh(struct ideapad_private *priv)
 
 static int ideapad_dytc_profile_init(struct ideapad_private *priv)
 {
-	int err, output, dytc_version;
+	int err, dytc_version;
+	unsigned long output;
 
-	err = method_dytc(priv->adev->handle, DYTC_CMD_QUERY, &output);
+	err = eval_dytc(priv->adev->handle, DYTC_CMD_QUERY, &output);
 	/* For all other errors we can flag the failure */
 	if (err)
 		return err;
@@ -1289,16 +1271,16 @@ static const struct dmi_system_id hw_rfkill_list[] = {
 static int ideapad_acpi_add(struct platform_device *pdev)
 {
 	int ret, i;
-	int cfg;
 	struct ideapad_private *priv;
 	struct acpi_device *adev;
 	acpi_status status;
+	unsigned long cfg;
 
 	ret = acpi_bus_get_device(ACPI_HANDLE(&pdev->dev), &adev);
 	if (ret)
 		return -ENODEV;
 
-	if (read_method_int(adev->handle, "_CFG", &cfg))
+	if (eval_int(adev->handle, "_CFG", &cfg))
 		return -ENODEV;
 
 	priv = devm_kzalloc(&pdev->dev, sizeof(*priv), GFP_KERNEL);
