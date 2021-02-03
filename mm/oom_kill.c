@@ -404,7 +404,8 @@ static void select_bad_process(struct oom_control *oc)
 		 * a postive ADJ to kill, kill the task with the positive ADJ
 		 * instead.
 		 */
-		if (oc->chosen && oc->chosen->signal->oom_score_adj < 0) {
+		if (oc->chosen && oc->chosen != (void *)-1UL &&
+		    oc->chosen->signal->oom_score_adj < 0) {
 			put_task_struct(oc->chosen);
 			oc->chosen = oc->chosen_non_negative_adj;
 			oc->chosen_points = oc->chosen_non_negative_adj_points;
