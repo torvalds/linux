@@ -130,7 +130,7 @@ _LPP_OFFSET	= __LC_LPP
 	.endm
 
 	GEN_BR_THUNK %r14
-	GEN_BR_THUNK %r14,%r11
+	GEN_BR_THUNK %r14,%r13
 
 	.section .kprobes.text, "ax"
 .Ldummy:
@@ -665,7 +665,7 @@ ENDPROC(stack_overflow)
 	ni	__SIE_PROG0C+3(%r9),0xfe	# no longer in SIE
 	lctlg	%c1,%c1,__LC_KERNEL_ASCE
 	larl	%r9,sie_exit			# skip forward to sie_exit
-	BR_EX	%r14,%r11
+	BR_EX	%r14,%r13
 
 #endif
 	.section .rodata, "a"
