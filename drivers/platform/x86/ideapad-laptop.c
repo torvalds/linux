@@ -264,9 +264,6 @@ static int debugfs_status_show(struct seq_file *s, void *data)
 	struct ideapad_private *priv = s->private;
 	unsigned long value;
 
-	if (!priv)
-		return -EINVAL;
-
 	if (!read_ec_data(priv->adev->handle, VPCCMD_R_BL_MAX, &value))
 		seq_printf(s, "Backlight max:\t%lu\n", value);
 	if (!read_ec_data(priv->adev->handle, VPCCMD_R_BL, &value))
@@ -311,39 +308,36 @@ static int debugfs_cfg_show(struct seq_file *s, void *data)
 {
 	struct ideapad_private *priv = s->private;
 
-	if (!priv) {
-		seq_printf(s, "cfg: N/A\n");
-	} else {
-		seq_printf(s, "cfg: 0x%.8lX\n\nCapability: ",
-			   priv->cfg);
-		if (test_bit(CFG_BT_BIT, &priv->cfg))
-			seq_printf(s, "Bluetooth ");
-		if (test_bit(CFG_3G_BIT, &priv->cfg))
-			seq_printf(s, "3G ");
-		if (test_bit(CFG_WIFI_BIT, &priv->cfg))
-			seq_printf(s, "Wireless ");
-		if (test_bit(CFG_CAMERA_BIT, &priv->cfg))
-			seq_printf(s, "Camera ");
-		seq_printf(s, "\nGraphic: ");
-		switch ((priv->cfg)&0x700) {
-		case 0x100:
-			seq_printf(s, "Intel");
-			break;
-		case 0x200:
-			seq_printf(s, "ATI");
-			break;
-		case 0x300:
-			seq_printf(s, "Nvidia");
-			break;
-		case 0x400:
-			seq_printf(s, "Intel and ATI");
-			break;
-		case 0x500:
-			seq_printf(s, "Intel and Nvidia");
-			break;
-		}
-		seq_printf(s, "\n");
+	seq_printf(s, "cfg: 0x%.8lX\n\nCapability: ",
+		   priv->cfg);
+	if (test_bit(CFG_BT_BIT, &priv->cfg))
+		seq_printf(s, "Bluetooth ");
+	if (test_bit(CFG_3G_BIT, &priv->cfg))
+		seq_printf(s, "3G ");
+	if (test_bit(CFG_WIFI_BIT, &priv->cfg))
+		seq_printf(s, "Wireless ");
+	if (test_bit(CFG_CAMERA_BIT, &priv->cfg))
+		seq_printf(s, "Camera ");
+	seq_printf(s, "\nGraphic: ");
+	switch ((priv->cfg)&0x700) {
+	case 0x100:
+		seq_printf(s, "Intel");
+		break;
+	case 0x200:
+		seq_printf(s, "ATI");
+		break;
+	case 0x300:
+		seq_printf(s, "Nvidia");
+		break;
+	case 0x400:
+		seq_printf(s, "Intel and ATI");
+		break;
+	case 0x500:
+		seq_printf(s, "Intel and Nvidia");
+		break;
 	}
+	seq_printf(s, "\n");
+
 	return 0;
 }
 DEFINE_SHOW_ATTRIBUTE(debugfs_cfg);
@@ -1050,9 +1044,6 @@ static int ideapad_backlight_get_brightness(struct backlight_device *blightdev)
 	struct ideapad_private *priv = bl_get_data(blightdev);
 	unsigned long now;
 
-	if (!priv)
-		return -EINVAL;
-
 	if (read_ec_data(priv->adev->handle, VPCCMD_R_BL, &now))
 		return -EIO;
 	return now;
@@ -1061,9 +1052,6 @@ static int ideapad_backlight_get_brightness(struct backlight_device *blightdev)
 static int ideapad_backlight_update_status(struct backlight_device *blightdev)
 {
 	struct ideapad_private *priv = bl_get_data(blightdev);
-
-	if (!priv)
-		return -EINVAL;
 
 	if (write_ec_cmd(priv->adev->handle, VPCCMD_W_BL,
 			 blightdev->props.brightness))
@@ -1374,13 +1362,9 @@ static int ideapad_acpi_remove(struct platform_device *pdev)
 }
 
 #ifdef CONFIG_PM_SLEEP
-static int ideapad_acpi_resume(struct device *device)
+static int ideapad_acpi_resume(struct device *dev)
 {
-	struct ideapad_private *priv;
-
-	if (!device)
-		return -EINVAL;
-	priv = dev_get_drvdata(device);
+	struct ideapad_private *priv = dev_get_drvdata(dev);
 
 	ideapad_sync_rfk_state(priv);
 	ideapad_sync_touchpad_state(priv);
