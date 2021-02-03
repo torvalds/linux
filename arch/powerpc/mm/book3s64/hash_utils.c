@@ -1144,10 +1144,10 @@ unsigned int hash_page_do_lazy_icache(unsigned int pp, pte_t pte, int trap)
 	page = pte_page(pte);
 
 	/* page is dirty */
-	if (!test_bit(PG_arch_1, &page->flags) && !PageReserved(page)) {
+	if (!test_bit(PG_dcache_clean, &page->flags) && !PageReserved(page)) {
 		if (trap == 0x400) {
 			flush_dcache_icache_page(page);
-			set_bit(PG_arch_1, &page->flags);
+			set_bit(PG_dcache_clean, &page->flags);
 		} else
 			pp |= HPTE_R_N;
 	}

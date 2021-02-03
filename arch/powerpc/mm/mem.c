@@ -489,8 +489,8 @@ void flush_dcache_page(struct page *page)
 	if (cpu_has_feature(CPU_FTR_COHERENT_ICACHE))
 		return;
 	/* avoid an atomic op if possible */
-	if (test_bit(PG_arch_1, &page->flags))
-		clear_bit(PG_arch_1, &page->flags);
+	if (test_bit(PG_dcache_clean, &page->flags))
+		clear_bit(PG_dcache_clean, &page->flags);
 }
 EXPORT_SYMBOL(flush_dcache_page);
 
