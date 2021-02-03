@@ -1520,13 +1520,16 @@ valid:
 	return ap;
 }
 
-/* Return error if the kprobe is being re-registered */
-static inline int check_kprobe_rereg(struct kprobe *p)
+/*
+ * Warn and return error if the kprobe is being re-registered since
+ * there must be a software bug.
+ */
+static inline int warn_kprobe_rereg(struct kprobe *p)
 {
 	int ret = 0;
 
 	mutex_lock(&kprobe_mutex);
-	if (__get_valid_kprobe(p))
+	if (WARN_ON_ONCE(__get_valid_kprobe(p)))
 		ret = -EINVAL;
 	mutex_unlock(&kprobe_mutex);
 
@@ -1614,7 +1617,7 @@ int register_kprobe(struct kprobe *p)
 		return PTR_ERR(addr);
 	p->addr = addr;
 
-	ret = check_kprobe_rereg(p);
+	ret = warn_kprobe_rereg(p);
 	if (ret)
 		return ret;
 
@@ -1995,7 +1998,7 @@ int register_kretprobe(struct kretprobe *rp)
 		return ret;
 
 	/* If only rp->kp.addr is specified, check reregistering kprobes */
-	if (rp->kp.addr && check_kprobe_rereg(&rp->kp))
+	if (rp->kp.addr && warn_kprobe_rereg(&rp->kp))
 		return -EINVAL;
 
 	if (kretprobe_blacklist_size) {
