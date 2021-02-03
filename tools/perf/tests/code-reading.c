@@ -26,6 +26,7 @@
 #include "event.h"
 #include "record.h"
 #include "util/mmap.h"
+#include "util/string2.h"
 #include "util/synthetic-events.h"
 #include "thread.h"
 
@@ -40,15 +41,6 @@ struct state {
 	u64 done[1024];
 	size_t done_cnt;
 };
-
-static unsigned int hex(char c)
-{
-	if (c >= '0' && c <= '9')
-		return c - '0';
-	if (c >= 'a' && c <= 'f')
-		return c - 'a' + 10;
-	return c - 'A' + 10;
-}
 
 static size_t read_objdump_chunk(const char **line, unsigned char **buf,
 				 size_t *buf_len)

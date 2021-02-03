@@ -12,6 +12,7 @@
 #include "maps.h"
 #include "symbol.h"
 #include "symsrc.h"
+#include "demangle-ocaml.h"
 #include "demangle-java.h"
 #include "demangle-rust.h"
 #include "machine.h"
@@ -251,8 +252,12 @@ static char *demangle_sym(struct dso *dso, int kmodule, const char *elf_name)
 	    return demangled;
 
 	demangled = bfd_demangle(NULL, elf_name, demangle_flags);
-	if (demangled == NULL)
-		demangled = java_demangle_sym(elf_name, JAVA_DEMANGLE_NORET);
+	if (demangled == NULL) {
+		demangled = ocaml_demangle_sym(elf_name);
+		if (demangled == NULL) {
+			demangled = java_demangle_sym(elf_name, JAVA_DEMANGLE_NORET);
+		}
+	}
 	else if (rust_is_mangled(demangled))
 		/*
 		    * Input to Rust demangling is the BFD-demangled
