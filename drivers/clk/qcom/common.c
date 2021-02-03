@@ -445,6 +445,29 @@ int qcom_clk_get_voltage(struct clk *clk, unsigned long rate)
 }
 EXPORT_SYMBOL(qcom_clk_get_voltage);
 
+int qcom_clk_set_flags(struct clk *clk, unsigned long flags)
+{
+	struct clk_regmap *rclk;
+	struct clk_hw *hw;
+
+	if (IS_ERR_OR_NULL(clk))
+		return 0;
+
+	hw = __clk_get_hw(clk);
+	if (IS_ERR_OR_NULL(hw))
+		return -EINVAL;
+
+	if (!clk_is_regmap_clk(hw))
+		return -EINVAL;
+
+	rclk = to_clk_regmap(hw);
+	if (rclk->ops && rclk->ops->set_flags)
+		return rclk->ops->set_flags(hw, flags);
+
+	return 0;
+}
+EXPORT_SYMBOL(qcom_clk_set_flags);
+
 int qcom_cc_runtime_init(struct platform_device *pdev,
 			 struct qcom_cc_desc *desc)
 {

@@ -19,12 +19,16 @@ struct regmap;
  * @list_rate:  On success, return the nth supported frequency for a given
  *		clock that is below rate_max. Return -ENXIO in case there is
  *		no frequency table.
+ *
+ * @set_flags: Set custom flags which deal with hardware specifics. Returns 0
+ *		on success, error otherwise.
  */
 struct clk_regmap_ops {
 	void	(*list_registers)(struct seq_file *f,
 				  struct clk_hw *hw);
 	long	(*list_rate)(struct clk_hw *hw, unsigned int n,
 			     unsigned long rate_max);
+	int	(*set_flags)(struct clk_hw *clk, unsigned long flags);
 };
 
 /**
