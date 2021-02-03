@@ -494,14 +494,30 @@ void flush_dcache_page(struct page *page)
 }
 EXPORT_SYMBOL(flush_dcache_page);
 
+static void flush_dcache_icache_hugepage(struct page *page)
+{
+	int i;
+	void *start;
+
+	BUG_ON(!PageCompound(page));
+
+	for (i = 0; i < compound_nr(page); i++) {
+		if (!PageHighMem(page)) {
+			__flush_dcache_icache(page_address(page+i));
+		} else {
+			start = kmap_atomic(page+i);
+			__flush_dcache_icache(start);
+			kunmap_atomic(start);
+		}
+	}
+}
+
 void flush_dcache_icache_page(struct page *page)
 {
-#ifdef CONFIG_HUGETLB_PAGE
-	if (PageCompound(page)) {
-		flush_dcache_icache_hugepage(page);
-		return;
-	}
-#endif
+
+	if (PageCompound(page))
+		return flush_dcache_icache_hugepage(page);
+
 #if defined(CONFIG_PPC_8xx) || defined(CONFIG_PPC64)
 	/* On 8xx there is no need to kmap since highmem is not supported */
 	__flush_dcache_icache(page_address(page));
