@@ -1102,7 +1102,7 @@ nv98_chipset = {
 	.msppp    = { 0x00000001, g98_msppp_new },
 	.msvld    = { 0x00000001, g98_msvld_new },
 	.pm       = { 0x00000001, g84_pm_new },
-	.sec = g98_sec_new,
+	.sec      = { 0x00000001, g98_sec_new },
 	.sw = nv50_sw_new,
 };
 
@@ -1266,7 +1266,7 @@ nvaa_chipset = {
 	.msppp    = { 0x00000001, g98_msppp_new },
 	.msvld    = { 0x00000001, g98_msvld_new },
 	.pm       = { 0x00000001, g84_pm_new },
-	.sec = g98_sec_new,
+	.sec      = { 0x00000001, g98_sec_new },
 	.sw = nv50_sw_new,
 };
 
@@ -1298,7 +1298,7 @@ nvac_chipset = {
 	.msppp    = { 0x00000001, g98_msppp_new },
 	.msvld    = { 0x00000001, g98_msvld_new },
 	.pm       = { 0x00000001, g84_pm_new },
-	.sec = g98_sec_new,
+	.sec      = { 0x00000001, g98_sec_new },
 	.sw = nv50_sw_new,
 };
 
@@ -3162,7 +3162,6 @@ nvkm_device_ctor(const struct nvkm_device_func *func,
 #include <core/layout.h>
 #undef NVKM_LAYOUT_INST
 #undef NVKM_LAYOUT_ONCE
-		_(NVKM_ENGINE_SEC     ,      sec);
 		_(NVKM_ENGINE_SEC2    ,     sec2);
 		_(NVKM_ENGINE_SW      ,       sw);
 		_(NVKM_ENGINE_VIC     ,      vic);

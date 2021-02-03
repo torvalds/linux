@@ -63,12 +63,8 @@ void nvkm_falcon_del(struct nvkm_falcon **);
 int nvkm_falcon_get(struct nvkm_falcon *, const struct nvkm_subdev *);
 void nvkm_falcon_put(struct nvkm_falcon *, const struct nvkm_subdev *);
 
-int nvkm_falcon_new__(const struct nvkm_falcon_func *, bool old, struct nvkm_device *,
+int nvkm_falcon_new_(const struct nvkm_falcon_func *, struct nvkm_device *,
 		     enum nvkm_subdev_type, int inst, bool enable, u32 addr, struct nvkm_engine **);
-#define nvkm_falcon_new__o(f,d,i,  e,a,s) nvkm_falcon_new__((f),  true, (d), (i), -1 , (e), (a), (s))
-#define nvkm_falcon_new__n(f,d,t,i,e,a,s) nvkm_falcon_new__((f), false, (d), (t), (i), (e), (a), (s))
-#define nvkm_falcon_new___(_1,_2,_3,_4,_5,_6,_7,IMPL,...) IMPL
-#define nvkm_falcon_new_(A...) nvkm_falcon_new___(A, nvkm_falcon_new__n, nvkm_falcon_new__o)(A)
 
 struct nvkm_falcon_func {
 	struct {

@@ -45,7 +45,7 @@ g98_devinit_disable(struct nvkm_devinit *init)
 	if (!(r00154c & 0x00000020))
 		nvkm_subdev_disable(device, NVKM_ENGINE_MSVLD, 0);
 	if (!(r00154c & 0x00000040))
-		disable |= (1ULL << NVKM_ENGINE_SEC);
+		nvkm_subdev_disable(device, NVKM_ENGINE_SEC, 0);
 
 	return disable;
 }
