@@ -46,7 +46,7 @@ mcp89_devinit_disable(struct nvkm_devinit *init)
 	if (!(r00154c & 0x00000040))
 		disable |= (1ULL << NVKM_ENGINE_VIC);
 	if (!(r00154c & 0x00000200))
-		disable |= (1ULL << NVKM_ENGINE_CE0);
+		nvkm_subdev_disable(device, NVKM_ENGINE_CE, 0);
 
 	return disable;
 }

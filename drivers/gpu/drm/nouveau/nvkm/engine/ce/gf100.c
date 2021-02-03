@@ -63,16 +63,9 @@ gf100_ce1 = {
 };
 
 int
-gf100_ce_new(struct nvkm_device *device, int index,
+gf100_ce_new(struct nvkm_device *device, enum nvkm_subdev_type type, int inst,
 	     struct nvkm_engine **pengine)
 {
-	if (index == NVKM_ENGINE_CE0) {
-		return nvkm_falcon_new_(&gf100_ce0, device, index, true,
-					0x104000, pengine);
-	} else
-	if (index == NVKM_ENGINE_CE1) {
-		return nvkm_falcon_new_(&gf100_ce1, device, index, true,
-					0x105000, pengine);
-	}
-	return -ENODEV;
+	return nvkm_falcon_new_(inst ? &gf100_ce1 : &gf100_ce0, device, type, inst, true,
+				0x104000 + (inst * 0x1000), pengine);
 }

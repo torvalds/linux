@@ -194,11 +194,11 @@ nvkm_engine_ctor_(const struct nvkm_engine_func *func, bool old, struct nvkm_dev
 }
 
 int
-nvkm_engine_new_(const struct nvkm_engine_func *func,
-		 struct nvkm_device *device, int index, bool enable,
+nvkm_engine_new__(const struct nvkm_engine_func *func, bool old, struct nvkm_device *device,
+		 enum nvkm_subdev_type type, int inst, bool enable,
 		 struct nvkm_engine **pengine)
 {
 	if (!(*pengine = kzalloc(sizeof(**pengine), GFP_KERNEL)))
 		return -ENOMEM;
-	return nvkm_engine_ctor(func, device, index, enable, *pengine);
+	return nvkm_engine_ctor_(func, old, device, type, inst, enable, *pengine);
 }

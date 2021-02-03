@@ -35,9 +35,9 @@ gm107_devinit_disable(struct nvkm_devinit *init)
 	u64 disable = 0ULL;
 
 	if (r021c00 & 0x00000001)
-		disable |= (1ULL << NVKM_ENGINE_CE0);
+		nvkm_subdev_disable(device, NVKM_ENGINE_CE, 0);
 	if (r021c00 & 0x00000004)
-		disable |= (1ULL << NVKM_ENGINE_CE2);
+		nvkm_subdev_disable(device, NVKM_ENGINE_CE, 2);
 	if (r021c04 & 0x00000001)
 		disable |= (1ULL << NVKM_ENGINE_DISP);
 

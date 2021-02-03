@@ -335,9 +335,9 @@ nvkm_falcon = {
 };
 
 int
-nvkm_falcon_new_(const struct nvkm_falcon_func *func,
-		 struct nvkm_device *device, int index, bool enable,
-		 u32 addr, struct nvkm_engine **pengine)
+nvkm_falcon_new__(const struct nvkm_falcon_func *func, bool old, struct nvkm_device *device,
+		 enum nvkm_subdev_type type, int inst, bool enable, u32 addr,
+		 struct nvkm_engine **pengine)
 {
 	struct nvkm_falcon *falcon;
 
@@ -351,6 +351,5 @@ nvkm_falcon_new_(const struct nvkm_falcon_func *func,
 	falcon->data.size = func->data.size;
 	*pengine = &falcon->engine;
 
-	return nvkm_engine_ctor(&nvkm_falcon, device, index,
-				enable, &falcon->engine);
+	return nvkm_engine_ctor_(&nvkm_falcon, old, device, type, inst, enable, &falcon->engine);
 }

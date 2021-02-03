@@ -60,7 +60,6 @@ struct nvkm_device {
 		struct notifier_block nb;
 	} acpi;
 
-	struct nvkm_engine *ce[9];
 	struct nvkm_engine *cipher;
 	struct nvkm_disp *disp;
 	struct nvkm_dma *dma;
@@ -121,7 +120,6 @@ struct nvkm_device_chip {
 #undef NVKM_LAYOUT_INST
 #undef NVKM_LAYOUT_ONCE
 
-	int (*ce[9]   )(struct nvkm_device *, int idx, struct nvkm_engine **);
 	int (*cipher  )(struct nvkm_device *, int idx, struct nvkm_engine **);
 	int (*disp    )(struct nvkm_device *, int idx, struct nvkm_disp **);
 	int (*dma     )(struct nvkm_device *, int idx, struct nvkm_dma **);

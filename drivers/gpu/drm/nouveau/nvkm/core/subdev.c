@@ -33,15 +33,6 @@ nvkm_subdev_type[NVKM_SUBDEV_NR] = {
 #include <core/layout.h>
 #undef NVKM_LAYOUT_ONCE
 #undef NVKM_LAYOUT_INST
-	[NVKM_ENGINE_CE0     ] = "ce0",
-	[NVKM_ENGINE_CE1     ] = "ce1",
-	[NVKM_ENGINE_CE2     ] = "ce2",
-	[NVKM_ENGINE_CE3     ] = "ce3",
-	[NVKM_ENGINE_CE4     ] = "ce4",
-	[NVKM_ENGINE_CE5     ] = "ce5",
-	[NVKM_ENGINE_CE6     ] = "ce6",
-	[NVKM_ENGINE_CE7     ] = "ce7",
-	[NVKM_ENGINE_CE8     ] = "ce8",
 	[NVKM_ENGINE_CIPHER  ] = "cipher",
 	[NVKM_ENGINE_DISP    ] = "disp",
 	[NVKM_ENGINE_DMAOBJ  ] = "dma",
@@ -211,10 +202,6 @@ nvkm_subdev_ctor_(const struct nvkm_subdev_func *func, bool old,
 
 	if (old) {
 		switch (subdev->type) {
-		case NVKM_ENGINE_CE0 ... NVKM_ENGINE_CE_LAST:
-			subdev->type = NVKM_ENGINE_CE;
-			subdev->inst = subdev->index - NVKM_ENGINE_CE0;
-			break;
 		case NVKM_ENGINE_NVENC0 ... NVKM_ENGINE_NVENC_LAST:
 			subdev->type = NVKM_ENGINE_NVENC;
 			subdev->inst = subdev->index - NVKM_ENGINE_NVENC0;
