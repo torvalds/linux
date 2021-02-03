@@ -118,13 +118,13 @@ struct mlx5_vport_drop_stats {
 struct mlx5_vport_info {
 	u8                      mac[ETH_ALEN];
 	u16                     vlan;
-	u8                      qos;
 	u64                     node_guid;
 	int                     link_state;
 	u32                     min_rate;
 	u32                     max_rate;
-	bool                    spoofchk;
-	bool                    trusted;
+	u8                      qos;
+	u8                      spoofchk: 1;
+	u8                      trusted: 1;
 };
 
 /* Vport context events */
