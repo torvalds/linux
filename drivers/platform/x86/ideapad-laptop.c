@@ -1337,6 +1337,7 @@ notification_failed_wmi:
 notification_failed:
 	ideapad_backlight_exit(priv);
 backlight_failed:
+	ideapad_dytc_profile_exit(priv);
 	for (i = 0; i < IDEAPAD_RFKILL_DEV_NUM; i++)
 		ideapad_unregister_rfkill(priv, i);
 	ideapad_input_exit(priv);
