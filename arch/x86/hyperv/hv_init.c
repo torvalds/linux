@@ -45,6 +45,9 @@ EXPORT_SYMBOL_GPL(hv_vp_assist_page);
 void  __percpu **hyperv_pcpu_input_arg;
 EXPORT_SYMBOL_GPL(hyperv_pcpu_input_arg);
 
+void  __percpu **hyperv_pcpu_output_arg;
+EXPORT_SYMBOL_GPL(hyperv_pcpu_output_arg);
+
 u32 hv_max_vp_index;
 EXPORT_SYMBOL_GPL(hv_max_vp_index);
 
@@ -77,12 +80,19 @@ static int hv_cpu_init(unsigned int cpu)
 	void **input_arg;
 	struct page *pg;
 
-	input_arg = (void **)this_cpu_ptr(hyperv_pcpu_input_arg);
 	/* hv_cpu_init() can be called with IRQs disabled from hv_resume() */
-	pg = alloc_page(irqs_disabled() ? GFP_ATOMIC : GFP_KERNEL);
+	pg = alloc_pages(irqs_disabled() ? GFP_ATOMIC : GFP_KERNEL, hv_root_partition ? 1 : 0);
 	if (unlikely(!pg))
 		return -ENOMEM;
+
+	input_arg = (void **)this_cpu_ptr(hyperv_pcpu_input_arg);
 	*input_arg = page_address(pg);
+	if (hv_root_partition) {
+		void **output_arg;
+
+		output_arg = (void **)this_cpu_ptr(hyperv_pcpu_output_arg);
+		*output_arg = page_address(pg + 1);
+	}
 
 	hv_get_vp_index(msr_vp_index);
 
@@ -209,14 +219,23 @@ static int hv_cpu_die(unsigned int cpu)
 	unsigned int new_cpu;
 	unsigned long flags;
 	void **input_arg;
-	void *input_pg = NULL;
+	void *pg;
 
 	local_irq_save(flags);
 	input_arg = (void **)this_cpu_ptr(hyperv_pcpu_input_arg);
-	input_pg = *input_arg;
+	pg = *input_arg;
 	*input_arg = NULL;
+
+	if (hv_root_partition) {
+		void **output_arg;
+
+		output_arg = (void **)this_cpu_ptr(hyperv_pcpu_output_arg);
+		*output_arg = NULL;
+	}
+
 	local_irq_restore(flags);
-	free_page((unsigned long)input_pg);
+
+	free_pages((unsigned long)pg, hv_root_partition ? 1 : 0);
 
 	if (hv_vp_assist_page && hv_vp_assist_page[cpu])
 		wrmsrl(HV_X64_MSR_VP_ASSIST_PAGE, 0);
@@ -368,6 +387,12 @@ void __init hyperv_init(void)
 	hyperv_pcpu_input_arg = alloc_percpu(void  *);
 
 	BUG_ON(hyperv_pcpu_input_arg == NULL);
+
+	/* Allocate the per-CPU state for output arg for root */
+	if (hv_root_partition) {
+		hyperv_pcpu_output_arg = alloc_percpu(void *);
+		BUG_ON(hyperv_pcpu_output_arg == NULL);
+	}
 
 	/* Allocate percpu VP index */
 	hv_vp_index = kmalloc_array(num_possible_cpus(), sizeof(*hv_vp_index),
