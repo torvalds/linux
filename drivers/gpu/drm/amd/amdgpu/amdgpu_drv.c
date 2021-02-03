@@ -132,8 +132,12 @@ uint amdgpu_pg_mask = 0xffffffff;
 uint amdgpu_sdma_phase_quantum = 32;
 char *amdgpu_disable_cu = NULL;
 char *amdgpu_virtual_display = NULL;
-/* OverDrive(bit 14) disabled by default*/
-uint amdgpu_pp_feature_mask = 0xffffbfff;
+
+/*
+ * OverDrive(bit 14) disabled by default
+ * GFX DCS(bit 19) disabled by default
+ */
+uint amdgpu_pp_feature_mask = 0xfff7bfff;
 uint amdgpu_force_long_training;
 int amdgpu_job_hang_limit;
 int amdgpu_lbpw = -1;
