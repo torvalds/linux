@@ -41,3 +41,12 @@ Description:
 
 		  # echo "0" >	\
 		  /sys/bus/pci/devices/0000:00:1f.0/PNP0C09:00/VPC2004:00/fn_lock
+
+What:		/sys/bus/platform/devices/VPC2004:*/usb_charging
+Date:		Feb 2021
+KernelVersion:	5.12
+Contact:	platform-driver-x86@vger.kernel.org
+Description:
+		Controls whether the "always on USB charging" feature is
+		enabled or not. This feature enables charging USB devices
+		even if the computer is not turned on.

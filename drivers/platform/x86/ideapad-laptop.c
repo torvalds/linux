@@ -62,18 +62,22 @@ enum {
 };
 
 enum {
-	HALS_KBD_BL_SUPPORT_BIT  = 4,
-	HALS_KBD_BL_STATE_BIT    = 5,
-	HALS_FNLOCK_SUPPORT_BIT  = 9,
-	HALS_FNLOCK_STATE_BIT    = 10,
-	HALS_HOTKEYS_PRIMARY_BIT = 11,
+	HALS_KBD_BL_SUPPORT_BIT       = 4,
+	HALS_KBD_BL_STATE_BIT         = 5,
+	HALS_USB_CHARGING_SUPPORT_BIT = 6,
+	HALS_USB_CHARGING_STATE_BIT   = 7,
+	HALS_FNLOCK_SUPPORT_BIT       = 9,
+	HALS_FNLOCK_STATE_BIT         = 10,
+	HALS_HOTKEYS_PRIMARY_BIT      = 11,
 };
 
 enum {
-	SALS_KBD_BL_ON  = 0x8,
-	SALS_KBD_BL_OFF = 0x9,
-	SALS_FNLOCK_ON  = 0xe,
-	SALS_FNLOCK_OFF = 0xf,
+	SALS_KBD_BL_ON        = 0x8,
+	SALS_KBD_BL_OFF       = 0x9,
+	SALS_USB_CHARGING_ON  = 0xa,
+	SALS_USB_CHARGING_OFF = 0xb,
+	SALS_FNLOCK_ON        = 0xe,
+	SALS_FNLOCK_OFF       = 0xf,
 };
 
 enum {
@@ -134,6 +138,7 @@ struct ideapad_private {
 		bool hw_rfkill_switch     : 1;
 		bool kbd_bl               : 1;
 		bool touchpad_ctrl_via_ec : 1;
+		bool usb_charging         : 1;
 	} features;
 	struct {
 		bool initialized;
@@ -592,12 +597,49 @@ static ssize_t touchpad_store(struct device *dev,
 
 static DEVICE_ATTR_RW(touchpad);
 
+static ssize_t usb_charging_show(struct device *dev,
+				 struct device_attribute *attr,
+				 char *buf)
+{
+	struct ideapad_private *priv = dev_get_drvdata(dev);
+	unsigned long hals;
+	int err;
+
+	err = eval_hals(priv->adev->handle, &hals);
+	if (err)
+		return err;
+
+	return sysfs_emit(buf, "%d\n", !!test_bit(HALS_USB_CHARGING_STATE_BIT, &hals));
+}
+
+static ssize_t usb_charging_store(struct device *dev,
+				  struct device_attribute *attr,
+				  const char *buf, size_t count)
+{
+	struct ideapad_private *priv = dev_get_drvdata(dev);
+	bool state;
+	int err;
+
+	err = kstrtobool(buf, &state);
+	if (err)
+		return err;
+
+	err = exec_sals(priv->adev->handle, state ? SALS_USB_CHARGING_ON : SALS_USB_CHARGING_OFF);
+	if (err)
+		return err;
+
+	return count;
+}
+
+static DEVICE_ATTR_RW(usb_charging);
+
 static struct attribute *ideapad_attributes[] = {
 	&dev_attr_camera_power.attr,
 	&dev_attr_conservation_mode.attr,
 	&dev_attr_fan_mode.attr,
 	&dev_attr_fn_lock.attr,
 	&dev_attr_touchpad.attr,
+	&dev_attr_usb_charging.attr,
 	NULL
 };
 
@@ -620,6 +662,8 @@ static umode_t ideapad_is_visible(struct kobject *kobj,
 	else if (attr == &dev_attr_touchpad.attr)
 		supported = priv->features.touchpad_ctrl_via_ec &&
 			    test_bit(CFG_CAP_TOUCHPAD_BIT, &priv->cfg);
+	else if (attr == &dev_attr_usb_charging.attr)
+		supported = priv->features.usb_charging;
 
 	return supported ? attr->mode : 0;
 }
@@ -1459,6 +1503,9 @@ static void ideapad_check_features(struct ideapad_private *priv)
 
 			if (test_bit(HALS_KBD_BL_SUPPORT_BIT, &val))
 				priv->features.kbd_bl = true;
+
+			if (test_bit(HALS_USB_CHARGING_SUPPORT_BIT, &val))
+				priv->features.usb_charging = true;
 		}
 	}
 }
