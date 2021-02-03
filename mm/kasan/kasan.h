@@ -195,14 +195,14 @@ static inline bool addr_has_metadata(const void *addr)
 }
 
 /**
- * check_memory_region - Check memory region, and report if invalid access.
+ * kasan_check_range - Check memory region, and report if invalid access.
  * @addr: the accessed address
  * @size: the accessed size
  * @write: true if access is a write access
  * @ret_ip: return address
  * @return: true if access was valid, false if invalid
  */
-bool check_memory_region(unsigned long addr, size_t size, bool write,
+bool kasan_check_range(unsigned long addr, size_t size, bool write,
 				unsigned long ret_ip);
 
 #else /* CONFIG_KASAN_GENERIC || CONFIG_KASAN_SW_TAGS */
@@ -215,19 +215,19 @@ static inline bool addr_has_metadata(const void *addr)
 #endif /* CONFIG_KASAN_GENERIC || CONFIG_KASAN_SW_TAGS */
 
 #if defined(CONFIG_KASAN_SW_TAGS) || defined(CONFIG_KASAN_HW_TAGS)
-void print_tags(u8 addr_tag, const void *addr);
+void kasan_print_tags(u8 addr_tag, const void *addr);
 #else
-static inline void print_tags(u8 addr_tag, const void *addr) { }
+static inline void kasan_print_tags(u8 addr_tag, const void *addr) { }
 #endif
 
-void *find_first_bad_addr(void *addr, size_t size);
-const char *get_bug_type(struct kasan_access_info *info);
-void metadata_fetch_row(char *buffer, void *row);
+void *kasan_find_first_bad_addr(void *addr, size_t size);
+const char *kasan_get_bug_type(struct kasan_access_info *info);
+void kasan_metadata_fetch_row(char *buffer, void *row);
 
 #if defined(CONFIG_KASAN_GENERIC) && CONFIG_KASAN_STACK
-void print_address_stack_frame(const void *addr);
+void kasan_print_address_stack_frame(const void *addr);
 #else
-static inline void print_address_stack_frame(const void *addr) { }
+static inline void kasan_print_address_stack_frame(const void *addr) { }
 #endif
 
 bool kasan_report(unsigned long addr, size_t size,
@@ -244,13 +244,13 @@ struct kasan_track *kasan_get_free_track(struct kmem_cache *cache,
 
 #if defined(CONFIG_KASAN_GENERIC) && \
 	(defined(CONFIG_SLAB) || defined(CONFIG_SLUB))
-bool quarantine_put(struct kmem_cache *cache, void *object);
-void quarantine_reduce(void);
-void quarantine_remove_cache(struct kmem_cache *cache);
+bool kasan_quarantine_put(struct kmem_cache *cache, void *object);
+void kasan_quarantine_reduce(void);
+void kasan_quarantine_remove_cache(struct kmem_cache *cache);
 #else
-static inline bool quarantine_put(struct kmem_cache *cache, void *object) { return false; }
-static inline void quarantine_reduce(void) { }
-static inline void quarantine_remove_cache(struct kmem_cache *cache) { }
+static inline bool kasan_quarantine_put(struct kmem_cache *cache, void *object) { return false; }
+static inline void kasan_quarantine_reduce(void) { }
+static inline void kasan_quarantine_remove_cache(struct kmem_cache *cache) { }
 #endif
 
 #ifndef arch_kasan_set_tag
@@ -293,28 +293,28 @@ static inline const void *arch_kasan_set_tag(const void *addr, u8 tag)
 #endif /* CONFIG_KASAN_HW_TAGS */
 
 #ifdef CONFIG_KASAN_SW_TAGS
-u8 random_tag(void);
+u8 kasan_random_tag(void);
 #elif defined(CONFIG_KASAN_HW_TAGS)
-static inline u8 random_tag(void) { return hw_get_random_tag(); }
+static inline u8 kasan_random_tag(void) { return hw_get_random_tag(); }
 #else
-static inline u8 random_tag(void) { return 0; }
+static inline u8 kasan_random_tag(void) { return 0; }
 #endif
 
 #ifdef CONFIG_KASAN_HW_TAGS
 
-static inline void poison_range(const void *address, size_t size, u8 value)
+static inline void kasan_poison(const void *address, size_t size, u8 value)
 {
 	hw_set_mem_tag_range(kasan_reset_tag(address),
 			round_up(size, KASAN_GRANULE_SIZE), value);
 }
 
-static inline void unpoison_range(const void *address, size_t size)
+static inline void kasan_unpoison(const void *address, size_t size)
 {
 	hw_set_mem_tag_range(kasan_reset_tag(address),
 			round_up(size, KASAN_GRANULE_SIZE), get_tag(address));
 }
 
-static inline bool check_invalid_free(void *addr)
+static inline bool kasan_check_invalid_free(void *addr)
 {
 	u8 ptr_tag = get_tag(addr);
 	u8 mem_tag = hw_get_mem_tag(addr);
@@ -325,9 +325,9 @@ static inline bool check_invalid_free(void *addr)
 
 #else /* CONFIG_KASAN_HW_TAGS */
 
-void poison_range(const void *address, size_t size, u8 value);
-void unpoison_range(const void *address, size_t size);
-bool check_invalid_free(void *addr);
+void kasan_poison(const void *address, size_t size, u8 value);
+void kasan_unpoison(const void *address, size_t size);
+bool kasan_check_invalid_free(void *addr);
 
 #endif /* CONFIG_KASAN_HW_TAGS */
 
