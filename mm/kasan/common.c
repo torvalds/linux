@@ -416,7 +416,7 @@ static void *____kasan_kmalloc(struct kmem_cache *cache, const void *object,
 	if (unlikely(object == NULL))
 		return NULL;
 
-	if (is_kfence_address(object))
+	if (is_kfence_address(kasan_reset_tag(object)))
 		return (void *)object;
 
 	redzone_start = round_up((unsigned long)(object + size),
