@@ -16,6 +16,7 @@
 #include <linux/hashtable.h>
 #include <net/sock.h>
 #include <net/udp.h>
+#include <net/udp_tunnel.h>
 #include <net/af_rxrpc.h>
 #include "ar-internal.h"
 
@@ -135,11 +136,7 @@ static int rxrpc_open_socket(struct rxrpc_local *local, struct net *net)
 	udp_sk(usk)->gro_receive = NULL;
 	udp_sk(usk)->gro_complete = NULL;
 
-	udp_encap_enable();
-#if IS_ENABLED(CONFIG_AF_RXRPC_IPV6)
-	if (local->srx.transport.family == AF_INET6)
-		udpv6_encap_enable();
-#endif
+	udp_tunnel_encap_enable(local->socket);
 	usk->sk_error_report = rxrpc_error_report;
 
 	/* if a local address was supplied then bind it */
