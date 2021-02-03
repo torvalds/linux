@@ -328,6 +328,7 @@ void incfs_free_data_file(struct data_file *df)
 
 	incfs_free_mtree(df->df_hash_tree);
 	incfs_free_bfc(df->df_backing_file_context);
+	kfree(df->df_signature);
 	kfree(df);
 }
 
