@@ -385,20 +385,20 @@ static ssize_t show_ideapad_cam(struct device *dev,
 	err = read_ec_data(priv->adev->handle, VPCCMD_R_CAMERA, &result);
 	if (err)
 		return err;
-	return sysfs_emit(buf, "%lu\n", result);
+	return sysfs_emit(buf, "%d\n", !!result);
 }
 
 static ssize_t store_ideapad_cam(struct device *dev,
 				 struct device_attribute *attr,
 				 const char *buf, size_t count)
 {
-	int ret, state;
 	struct ideapad_private *priv = dev_get_drvdata(dev);
+	bool state;
+	int ret;
 
-	if (!count)
-		return 0;
-	if (sscanf(buf, "%i", &state) != 1)
-		return -EINVAL;
+	ret = kstrtobool(buf, &state);
+	if (ret)
+		return ret;
 	ret = write_ec_cmd(priv->adev->handle, VPCCMD_W_CAMERA, state);
 	if (ret)
 		return ret;
@@ -425,14 +425,14 @@ static ssize_t store_ideapad_fan(struct device *dev,
 				 struct device_attribute *attr,
 				 const char *buf, size_t count)
 {
-	int ret, state;
 	struct ideapad_private *priv = dev_get_drvdata(dev);
+	unsigned int state;
+	int ret;
 
-	if (!count)
-		return 0;
-	if (sscanf(buf, "%i", &state) != 1)
-		return -EINVAL;
-	if (state < 0 || state > 4 || state == 3)
+	ret = kstrtouint(buf, 0, &state);
+	if (ret)
+		return ret;
+	if (state > 4 || state == 3)
 		return -EINVAL;
 	ret = write_ec_cmd(priv->adev->handle, VPCCMD_W_FAN, state);
 	if (ret)
@@ -453,7 +453,7 @@ static ssize_t touchpad_show(struct device *dev,
 	err = read_ec_data(priv->adev->handle, VPCCMD_R_TOUCHPAD, &result);
 	if (err)
 		return err;
-	return sysfs_emit(buf, "%lu\n", result);
+	return sysfs_emit(buf, "%d\n", !!result);
 }
 
 /* Switch to RO for now: It might be revisited in the future */
@@ -488,7 +488,7 @@ static ssize_t conservation_mode_show(struct device *dev,
 	err = method_gbmd(priv->adev->handle, &result);
 	if (err)
 		return err;
-	return sysfs_emit(buf, "%u\n", test_bit(BM_CONSERVATION_BIT, &result));
+	return sysfs_emit(buf, "%d\n", !!test_bit(BM_CONSERVATION_BIT, &result));
 }
 
 static ssize_t conservation_mode_store(struct device *dev,
@@ -526,7 +526,7 @@ static ssize_t fn_lock_show(struct device *dev,
 		return fail;
 
 	result = hals;
-	return sysfs_emit(buf, "%u\n", test_bit(HA_FNLOCK_BIT, &result));
+	return sysfs_emit(buf, "%d\n", !!test_bit(HA_FNLOCK_BIT, &result));
 }
 
 static ssize_t fn_lock_store(struct device *dev,
