@@ -85,7 +85,7 @@ nv50_devinit_disable(struct nvkm_devinit *init)
 	u64 disable = 0ULL;
 
 	if (!(r001540 & 0x40000000))
-		disable |= (1ULL << NVKM_ENGINE_MPEG);
+		nvkm_subdev_disable(device, NVKM_ENGINE_MPEG, 0);
 
 	return disable;
 }

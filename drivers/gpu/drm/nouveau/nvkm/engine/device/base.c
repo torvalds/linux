@@ -397,7 +397,7 @@ nv31_chipset = {
 	.dma      = { 0x00000001, nv04_dma_new },
 	.fifo     = { 0x00000001, nv17_fifo_new },
 	.gr       = { 0x00000001, nv30_gr_new },
-	.mpeg = nv31_mpeg_new,
+	.mpeg     = { 0x00000001, nv31_mpeg_new },
 	.sw = nv10_sw_new,
 };
 
@@ -420,7 +420,7 @@ nv34_chipset = {
 	.dma      = { 0x00000001, nv04_dma_new },
 	.fifo     = { 0x00000001, nv17_fifo_new },
 	.gr       = { 0x00000001, nv34_gr_new },
-	.mpeg = nv31_mpeg_new,
+	.mpeg     = { 0x00000001, nv31_mpeg_new },
 	.sw = nv10_sw_new,
 };
 
@@ -465,7 +465,7 @@ nv36_chipset = {
 	.dma      = { 0x00000001, nv04_dma_new },
 	.fifo     = { 0x00000001, nv17_fifo_new },
 	.gr       = { 0x00000001, nv35_gr_new },
-	.mpeg = nv31_mpeg_new,
+	.mpeg     = { 0x00000001, nv31_mpeg_new },
 	.sw = nv10_sw_new,
 };
 
@@ -490,7 +490,7 @@ nv40_chipset = {
 	.dma      = { 0x00000001, nv04_dma_new },
 	.fifo     = { 0x00000001, nv40_fifo_new },
 	.gr       = { 0x00000001, nv40_gr_new },
-	.mpeg = nv40_mpeg_new,
+	.mpeg     = { 0x00000001, nv40_mpeg_new },
 	.pm = nv40_pm_new,
 	.sw = nv10_sw_new,
 };
@@ -516,7 +516,7 @@ nv41_chipset = {
 	.dma      = { 0x00000001, nv04_dma_new },
 	.fifo     = { 0x00000001, nv40_fifo_new },
 	.gr       = { 0x00000001, nv40_gr_new },
-	.mpeg = nv40_mpeg_new,
+	.mpeg     = { 0x00000001, nv40_mpeg_new },
 	.pm = nv40_pm_new,
 	.sw = nv10_sw_new,
 };
@@ -542,7 +542,7 @@ nv42_chipset = {
 	.dma      = { 0x00000001, nv04_dma_new },
 	.fifo     = { 0x00000001, nv40_fifo_new },
 	.gr       = { 0x00000001, nv40_gr_new },
-	.mpeg = nv40_mpeg_new,
+	.mpeg     = { 0x00000001, nv40_mpeg_new },
 	.pm = nv40_pm_new,
 	.sw = nv10_sw_new,
 };
@@ -568,7 +568,7 @@ nv43_chipset = {
 	.dma      = { 0x00000001, nv04_dma_new },
 	.fifo     = { 0x00000001, nv40_fifo_new },
 	.gr       = { 0x00000001, nv40_gr_new },
-	.mpeg = nv40_mpeg_new,
+	.mpeg     = { 0x00000001, nv40_mpeg_new },
 	.pm = nv40_pm_new,
 	.sw = nv10_sw_new,
 };
@@ -594,7 +594,7 @@ nv44_chipset = {
 	.dma      = { 0x00000001, nv04_dma_new },
 	.fifo     = { 0x00000001, nv40_fifo_new },
 	.gr       = { 0x00000001, nv44_gr_new },
-	.mpeg = nv44_mpeg_new,
+	.mpeg     = { 0x00000001, nv44_mpeg_new },
 	.pm = nv40_pm_new,
 	.sw = nv10_sw_new,
 };
@@ -620,7 +620,7 @@ nv45_chipset = {
 	.dma      = { 0x00000001, nv04_dma_new },
 	.fifo     = { 0x00000001, nv40_fifo_new },
 	.gr       = { 0x00000001, nv40_gr_new },
-	.mpeg = nv44_mpeg_new,
+	.mpeg     = { 0x00000001, nv44_mpeg_new },
 	.pm = nv40_pm_new,
 	.sw = nv10_sw_new,
 };
@@ -646,7 +646,7 @@ nv46_chipset = {
 	.dma      = { 0x00000001, nv04_dma_new },
 	.fifo     = { 0x00000001, nv40_fifo_new },
 	.gr       = { 0x00000001, nv44_gr_new },
-	.mpeg = nv44_mpeg_new,
+	.mpeg     = { 0x00000001, nv44_mpeg_new },
 	.pm = nv40_pm_new,
 	.sw = nv10_sw_new,
 };
@@ -672,7 +672,7 @@ nv47_chipset = {
 	.dma      = { 0x00000001, nv04_dma_new },
 	.fifo     = { 0x00000001, nv40_fifo_new },
 	.gr       = { 0x00000001, nv40_gr_new },
-	.mpeg = nv44_mpeg_new,
+	.mpeg     = { 0x00000001, nv44_mpeg_new },
 	.pm = nv40_pm_new,
 	.sw = nv10_sw_new,
 };
@@ -698,7 +698,7 @@ nv49_chipset = {
 	.dma      = { 0x00000001, nv04_dma_new },
 	.fifo     = { 0x00000001, nv40_fifo_new },
 	.gr       = { 0x00000001, nv40_gr_new },
-	.mpeg = nv44_mpeg_new,
+	.mpeg     = { 0x00000001, nv44_mpeg_new },
 	.pm = nv40_pm_new,
 	.sw = nv10_sw_new,
 };
@@ -724,7 +724,7 @@ nv4a_chipset = {
 	.dma      = { 0x00000001, nv04_dma_new },
 	.fifo     = { 0x00000001, nv40_fifo_new },
 	.gr       = { 0x00000001, nv44_gr_new },
-	.mpeg = nv44_mpeg_new,
+	.mpeg     = { 0x00000001, nv44_mpeg_new },
 	.pm = nv40_pm_new,
 	.sw = nv10_sw_new,
 };
@@ -750,7 +750,7 @@ nv4b_chipset = {
 	.dma      = { 0x00000001, nv04_dma_new },
 	.fifo     = { 0x00000001, nv40_fifo_new },
 	.gr       = { 0x00000001, nv40_gr_new },
-	.mpeg = nv44_mpeg_new,
+	.mpeg     = { 0x00000001, nv44_mpeg_new },
 	.pm = nv40_pm_new,
 	.sw = nv10_sw_new,
 };
@@ -776,7 +776,7 @@ nv4c_chipset = {
 	.dma      = { 0x00000001, nv04_dma_new },
 	.fifo     = { 0x00000001, nv40_fifo_new },
 	.gr       = { 0x00000001, nv44_gr_new },
-	.mpeg = nv44_mpeg_new,
+	.mpeg     = { 0x00000001, nv44_mpeg_new },
 	.pm = nv40_pm_new,
 	.sw = nv10_sw_new,
 };
@@ -802,7 +802,7 @@ nv4e_chipset = {
 	.dma      = { 0x00000001, nv04_dma_new },
 	.fifo     = { 0x00000001, nv40_fifo_new },
 	.gr       = { 0x00000001, nv44_gr_new },
-	.mpeg = nv44_mpeg_new,
+	.mpeg     = { 0x00000001, nv44_mpeg_new },
 	.pm = nv40_pm_new,
 	.sw = nv10_sw_new,
 };
@@ -831,7 +831,7 @@ nv50_chipset = {
 	.dma      = { 0x00000001, nv50_dma_new },
 	.fifo     = { 0x00000001, nv50_fifo_new },
 	.gr       = { 0x00000001, nv50_gr_new },
-	.mpeg = nv50_mpeg_new,
+	.mpeg     = { 0x00000001, nv50_mpeg_new },
 	.pm = nv50_pm_new,
 	.sw = nv50_sw_new,
 };
@@ -857,7 +857,7 @@ nv63_chipset = {
 	.dma      = { 0x00000001, nv04_dma_new },
 	.fifo     = { 0x00000001, nv40_fifo_new },
 	.gr       = { 0x00000001, nv44_gr_new },
-	.mpeg = nv44_mpeg_new,
+	.mpeg     = { 0x00000001, nv44_mpeg_new },
 	.pm = nv40_pm_new,
 	.sw = nv10_sw_new,
 };
@@ -883,7 +883,7 @@ nv67_chipset = {
 	.dma      = { 0x00000001, nv04_dma_new },
 	.fifo     = { 0x00000001, nv40_fifo_new },
 	.gr       = { 0x00000001, nv44_gr_new },
-	.mpeg = nv44_mpeg_new,
+	.mpeg     = { 0x00000001, nv44_mpeg_new },
 	.pm = nv40_pm_new,
 	.sw = nv10_sw_new,
 };
@@ -909,7 +909,7 @@ nv68_chipset = {
 	.dma      = { 0x00000001, nv04_dma_new },
 	.fifo     = { 0x00000001, nv40_fifo_new },
 	.gr       = { 0x00000001, nv44_gr_new },
-	.mpeg = nv44_mpeg_new,
+	.mpeg     = { 0x00000001, nv44_mpeg_new },
 	.pm = nv40_pm_new,
 	.sw = nv10_sw_new,
 };
@@ -940,7 +940,7 @@ nv84_chipset = {
 	.dma      = { 0x00000001, nv50_dma_new },
 	.fifo     = { 0x00000001, g84_fifo_new },
 	.gr       = { 0x00000001, g84_gr_new },
-	.mpeg = g84_mpeg_new,
+	.mpeg     = { 0x00000001, g84_mpeg_new },
 	.pm = g84_pm_new,
 	.sw = nv50_sw_new,
 	.vp       = { 0x00000001, g84_vp_new },
@@ -972,7 +972,7 @@ nv86_chipset = {
 	.dma      = { 0x00000001, nv50_dma_new },
 	.fifo     = { 0x00000001, g84_fifo_new },
 	.gr       = { 0x00000001, g84_gr_new },
-	.mpeg = g84_mpeg_new,
+	.mpeg     = { 0x00000001, g84_mpeg_new },
 	.pm = g84_pm_new,
 	.sw = nv50_sw_new,
 	.vp       = { 0x00000001, g84_vp_new },
@@ -1004,7 +1004,7 @@ nv92_chipset = {
 	.dma      = { 0x00000001, nv50_dma_new },
 	.fifo     = { 0x00000001, g84_fifo_new },
 	.gr       = { 0x00000001, g84_gr_new },
-	.mpeg = g84_mpeg_new,
+	.mpeg     = { 0x00000001, g84_mpeg_new },
 	.pm = g84_pm_new,
 	.sw = nv50_sw_new,
 	.vp       = { 0x00000001, g84_vp_new },
@@ -1036,7 +1036,7 @@ nv94_chipset = {
 	.dma      = { 0x00000001, nv50_dma_new },
 	.fifo     = { 0x00000001, g84_fifo_new },
 	.gr       = { 0x00000001, g84_gr_new },
-	.mpeg = g84_mpeg_new,
+	.mpeg     = { 0x00000001, g84_mpeg_new },
 	.pm = g84_pm_new,
 	.sw = nv50_sw_new,
 	.vp       = { 0x00000001, g84_vp_new },
@@ -1068,7 +1068,7 @@ nv96_chipset = {
 	.dma      = { 0x00000001, nv50_dma_new },
 	.fifo     = { 0x00000001, g84_fifo_new },
 	.gr       = { 0x00000001, g84_gr_new },
-	.mpeg = g84_mpeg_new,
+	.mpeg     = { 0x00000001, g84_mpeg_new },
 	.pm = g84_pm_new,
 	.sw = nv50_sw_new,
 	.vp       = { 0x00000001, g84_vp_new },
@@ -1132,7 +1132,7 @@ nva0_chipset = {
 	.dma      = { 0x00000001, nv50_dma_new },
 	.fifo     = { 0x00000001, g84_fifo_new },
 	.gr       = { 0x00000001, gt200_gr_new },
-	.mpeg = g84_mpeg_new,
+	.mpeg     = { 0x00000001, g84_mpeg_new },
 	.pm = gt200_pm_new,
 	.sw = nv50_sw_new,
 	.vp       = { 0x00000001, g84_vp_new },
@@ -1164,7 +1164,7 @@ nva3_chipset = {
 	.dma      = { 0x00000001, nv50_dma_new },
 	.fifo     = { 0x00000001, g84_fifo_new },
 	.gr       = { 0x00000001, gt215_gr_new },
-	.mpeg = g84_mpeg_new,
+	.mpeg     = { 0x00000001, g84_mpeg_new },
 	.mspdec = gt215_mspdec_new,
 	.msppp = gt215_msppp_new,
 	.msvld = gt215_msvld_new,
@@ -3174,7 +3174,6 @@ nvkm_device_ctor(const struct nvkm_device_func *func,
 #include <core/layout.h>
 #undef NVKM_LAYOUT_INST
 #undef NVKM_LAYOUT_ONCE
-		_(NVKM_ENGINE_MPEG    ,     mpeg);
 		_(NVKM_ENGINE_MSENC   ,    msenc);
 		_(NVKM_ENGINE_MSPDEC  ,   mspdec);
 		_(NVKM_ENGINE_MSPPP   ,    msppp);

@@ -53,12 +53,8 @@ int nvkm_engine_ctor_(const struct nvkm_engine_func *, bool old, struct nvkm_dev
 #define nvkm_engine_ctor_n(f,d,t,i,e,s) nvkm_engine_ctor_((f), false, (d), (t), (i), (e), (s))
 #define nvkm_engine_ctor__(_1,_2,_3,_4,_5,_6,IMPL,...) IMPL
 #define nvkm_engine_ctor(A...) nvkm_engine_ctor__(A, nvkm_engine_ctor_n, nvkm_engine_ctor_o)(A)
-int nvkm_engine_new__(const struct nvkm_engine_func *, bool old, struct nvkm_device *,
+int nvkm_engine_new_(const struct nvkm_engine_func *, struct nvkm_device *,
 		     enum nvkm_subdev_type, int, bool enable, struct nvkm_engine **);
-#define nvkm_engine_new__o(f,d,i,  e,s) nvkm_engine_new__((f),  true, (d), (i), -1 , (e), (s))
-#define nvkm_engine_new__n(f,d,t,i,e,s) nvkm_engine_new__((f), false, (d), (t), (i), (e), (s))
-#define nvkm_engine_new___(_1,_2,_3,_4,_5,_6,IMPL,...) IMPL
-#define nvkm_engine_new_(A...) nvkm_engine_new___(A, nvkm_engine_new__n, nvkm_engine_new__o)(A)
 
 struct nvkm_engine *nvkm_engine_ref(struct nvkm_engine *);
 void nvkm_engine_unref(struct nvkm_engine **);
