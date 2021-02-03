@@ -120,8 +120,6 @@ struct mlx5_vport_info {
 	u16                     vlan;
 	u64                     node_guid;
 	int                     link_state;
-	u32                     min_rate;
-	u32                     max_rate;
 	u8                      qos;
 	u8                      spoofchk: 1;
 	u8                      trusted: 1;
@@ -154,6 +152,8 @@ struct mlx5_vport {
 		bool            enabled;
 		u32             esw_tsar_ix;
 		u32             bw_share;
+		u32 min_rate;
+		u32 max_rate;
 	} qos;
 
 	bool                    enabled;
