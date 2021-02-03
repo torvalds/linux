@@ -114,9 +114,15 @@ struct ideapad_private {
 	struct ideapad_dytc_priv *dytc;
 	struct dentry *debug;
 	unsigned long cfg;
-	bool has_hw_rfkill_switch;
-	bool has_touchpad_switch;
 	const char *fnesc_guid;
+	struct {
+		bool conservation_mode    : 1;
+		bool dytc                 : 1;
+		bool fan_mode             : 1;
+		bool fn_lock              : 1;
+		bool hw_rfkill_switch     : 1;
+		bool touchpad_ctrl_via_ec : 1;
+	} features;
 };
 
 static bool no_bt_rfkill;
@@ -560,24 +566,18 @@ static umode_t ideapad_is_visible(struct kobject *kobj,
 {
 	struct device *dev = kobj_to_dev(kobj);
 	struct ideapad_private *priv = dev_get_drvdata(dev);
-	bool supported;
+	bool supported = true;
 
 	if (attr == &dev_attr_camera_power.attr)
 		supported = test_bit(CFG_CAP_CAM_BIT, &priv->cfg);
-	else if (attr == &dev_attr_fan_mode.attr) {
-		unsigned long value;
-		supported = !read_ec_data(priv->adev->handle, VPCCMD_R_FAN,
-					  &value);
-	} else if (attr == &dev_attr_conservation_mode.attr) {
-		supported = acpi_has_method(priv->adev->handle, "GBMD") &&
-			    acpi_has_method(priv->adev->handle, "SBMC");
-	} else if (attr == &dev_attr_fn_lock.attr) {
-		supported = acpi_has_method(priv->adev->handle, "HALS") &&
-			acpi_has_method(priv->adev->handle, "SALS");
-	} else if (attr == &dev_attr_touchpad.attr)
-		supported = priv->has_touchpad_switch;
-	else
-		supported = true;
+	else if (attr == &dev_attr_conservation_mode.attr)
+		supported = priv->features.conservation_mode;
+	else if (attr == &dev_attr_fan_mode.attr)
+		supported = priv->features.fan_mode;
+	else if (attr == &dev_attr_fn_lock.attr)
+		supported = priv->features.fn_lock;
+	else if (attr == &dev_attr_touchpad.attr)
+		supported = priv->features.touchpad_ctrl_via_ec;
 
 	return supported ? attr->mode : 0;
 }
@@ -781,6 +781,9 @@ static int ideapad_dytc_profile_init(struct ideapad_private *priv)
 	int err, dytc_version;
 	unsigned long output;
 
+	if (!priv->features.dytc)
+		return -ENODEV;
+
 	err = eval_dytc(priv->adev->handle, DYTC_CMD_QUERY, &output);
 	/* For all other errors we can flag the failure */
 	if (err)
@@ -870,7 +873,7 @@ static void ideapad_sync_rfk_state(struct ideapad_private *priv)
 	unsigned long hw_blocked = 0;
 	int i;
 
-	if (priv->has_hw_rfkill_switch) {
+	if (priv->features.hw_rfkill_switch) {
 		if (read_ec_data(priv->adev->handle, VPCCMD_R_RF, &hw_blocked))
 			return;
 		hw_blocked = !hw_blocked;
@@ -1164,7 +1167,7 @@ static void ideapad_sync_touchpad_state(struct ideapad_private *priv)
 {
 	unsigned long value;
 
-	if (!priv->has_touchpad_switch)
+	if (!priv->features.touchpad_ctrl_via_ec)
 		return;
 
 	/* Without reading from EC touchpad LED doesn't switch state */
@@ -1268,6 +1271,29 @@ static const struct dmi_system_id hw_rfkill_list[] = {
 	{}
 };
 
+static void ideapad_check_features(struct ideapad_private *priv)
+{
+	acpi_handle handle = priv->adev->handle;
+	unsigned long val;
+
+	priv->features.hw_rfkill_switch = dmi_check_system(hw_rfkill_list);
+
+	/* Most ideapads with ELAN0634 touchpad don't use EC touchpad switch */
+	priv->features.touchpad_ctrl_via_ec = !acpi_dev_present("ELAN0634", NULL, -1);
+
+	if (!read_ec_data(handle, VPCCMD_R_FAN, &val))
+		priv->features.fan_mode = true;
+
+	if (acpi_has_method(handle, "GBMD") && acpi_has_method(handle, "SBMC"))
+		priv->features.conservation_mode = true;
+
+	if (acpi_has_method(handle, "DYTC"))
+		priv->features.dytc = true;
+
+	if (acpi_has_method(handle, "HALS") && acpi_has_method(handle, "SALS"))
+		priv->features.fn_lock = true;
+}
+
 static int ideapad_acpi_add(struct platform_device *pdev)
 {
 	int ret, i;
@@ -1291,10 +1317,8 @@ static int ideapad_acpi_add(struct platform_device *pdev)
 	priv->cfg = cfg;
 	priv->adev = adev;
 	priv->platform_device = pdev;
-	priv->has_hw_rfkill_switch = dmi_check_system(hw_rfkill_list);
 
-	/* Most ideapads with ELAN0634 touchpad don't use EC touchpad switch */
-	priv->has_touchpad_switch = !acpi_dev_present("ELAN0634", NULL, -1);
+	ideapad_check_features(priv);
 
 	ret = ideapad_sysfs_init(priv);
 	if (ret)
@@ -1310,11 +1334,11 @@ static int ideapad_acpi_add(struct platform_device *pdev)
 	 * On some models without a hw-switch (the yoga 2 13 at least)
 	 * VPCCMD_W_RF must be explicitly set to 1 for the wifi to work.
 	 */
-	if (!priv->has_hw_rfkill_switch)
+	if (!priv->features.hw_rfkill_switch)
 		write_ec_cmd(priv->adev->handle, VPCCMD_W_RF, 1);
 
 	/* The same for Touchpad */
-	if (!priv->has_touchpad_switch)
+	if (!priv->features.touchpad_ctrl_via_ec)
 		write_ec_cmd(priv->adev->handle, VPCCMD_W_TOUCHPAD, 1);
 
 	for (i = 0; i < IDEAPAD_RFKILL_DEV_NUM; i++)
@@ -1324,7 +1348,13 @@ static int ideapad_acpi_add(struct platform_device *pdev)
 	ideapad_sync_rfk_state(priv);
 	ideapad_sync_touchpad_state(priv);
 
-	ideapad_dytc_profile_init(priv);
+	ret = ideapad_dytc_profile_init(priv);
+	if (ret) {
+		if (ret != -ENODEV)
+			dev_warn(&pdev->dev, "Could not set up DYTC interface: %d\n", ret);
+		else
+			dev_info(&pdev->dev, "DYTC interface is not available\n");
+	}
 
 	if (acpi_video_get_backlight_type() == acpi_backlight_vendor) {
 		ret = ideapad_backlight_init(priv);
