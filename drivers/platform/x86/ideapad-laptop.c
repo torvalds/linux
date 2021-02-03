@@ -285,40 +285,33 @@ static int debugfs_status_show(struct seq_file *s, void *data)
 	unsigned long value;
 
 	if (!read_ec_data(priv->adev->handle, VPCCMD_R_BL_MAX, &value))
-		seq_printf(s, "Backlight max:\t%lu\n", value);
+		seq_printf(s, "Backlight max:  %lu\n", value);
 	if (!read_ec_data(priv->adev->handle, VPCCMD_R_BL, &value))
-		seq_printf(s, "Backlight now:\t%lu\n", value);
+		seq_printf(s, "Backlight now:  %lu\n", value);
 	if (!read_ec_data(priv->adev->handle, VPCCMD_R_BL_POWER, &value))
-		seq_printf(s, "BL power value:\t%s\n", value ? "On" : "Off");
-	seq_printf(s, "=====================\n");
-
-	if (!read_ec_data(priv->adev->handle, VPCCMD_R_RF, &value))
-		seq_printf(s, "Radio status:\t%s(%lu)\n",
-			   value ? "On" : "Off", value);
-	if (!read_ec_data(priv->adev->handle, VPCCMD_R_WIFI, &value))
-		seq_printf(s, "Wifi status:\t%s(%lu)\n",
-			   value ? "On" : "Off", value);
-	if (!read_ec_data(priv->adev->handle, VPCCMD_R_BT, &value))
-		seq_printf(s, "BT status:\t%s(%lu)\n",
-			   value ? "On" : "Off", value);
-	if (!read_ec_data(priv->adev->handle, VPCCMD_R_3G, &value))
-		seq_printf(s, "3G status:\t%s(%lu)\n",
-			   value ? "On" : "Off", value);
-	seq_printf(s, "=====================\n");
-
-	if (!read_ec_data(priv->adev->handle, VPCCMD_R_TOUCHPAD, &value))
-		seq_printf(s, "Touchpad status:%s(%lu)\n",
-			   value ? "On" : "Off", value);
-	if (!read_ec_data(priv->adev->handle, VPCCMD_R_CAMERA, &value))
-		seq_printf(s, "Camera status:\t%s(%lu)\n",
-			   value ? "On" : "Off", value);
+		seq_printf(s, "BL power value: %s (%lu)\n", value ? "on" : "off", value);
 	seq_puts(s, "=====================\n");
 
-	if (!eval_gbmd(priv->adev->handle, &value)) {
-		seq_printf(s, "Conservation mode:\t%s(%lu)\n",
-			   test_bit(GBMD_CONSERVATION_STATE_BIT, &value) ? "On" : "Off",
-			   value);
-	}
+	if (!read_ec_data(priv->adev->handle, VPCCMD_R_RF, &value))
+		seq_printf(s, "Radio status: %s (%lu)\n", value ? "on" : "off", value);
+	if (!read_ec_data(priv->adev->handle, VPCCMD_R_WIFI, &value))
+		seq_printf(s, "Wifi status:  %s (%lu)\n", value ? "on" : "off", value);
+	if (!read_ec_data(priv->adev->handle, VPCCMD_R_BT, &value))
+		seq_printf(s, "BT status:    %s (%lu)\n", value ? "on" : "off", value);
+	if (!read_ec_data(priv->adev->handle, VPCCMD_R_3G, &value))
+		seq_printf(s, "3G status:    %s (%lu)\n", value ? "on" : "off", value);
+	seq_puts(s, "=====================\n");
+
+	if (!read_ec_data(priv->adev->handle, VPCCMD_R_TOUCHPAD, &value))
+		seq_printf(s, "Touchpad status: %s (%lu)\n", value ? "on" : "off", value);
+	if (!read_ec_data(priv->adev->handle, VPCCMD_R_CAMERA, &value))
+		seq_printf(s, "Camera status:   %s (%lu)\n", value ? "on" : "off", value);
+	seq_puts(s, "=====================\n");
+
+	if (!eval_gbmd(priv->adev->handle, &value))
+		seq_printf(s, "GBMD: %#010lx\n", value);
+	if (!eval_hals(priv->adev->handle, &value))
+		seq_printf(s, "HALS: %#010lx\n", value);
 
 	return 0;
 }
