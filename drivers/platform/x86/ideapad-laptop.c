@@ -57,7 +57,9 @@ enum {
 };
 
 enum {
-	HALS_FNLOCK_STATE_BIT = 10,
+	HALS_FNLOCK_SUPPORT_BIT  = 9,
+	HALS_FNLOCK_STATE_BIT    = 10,
+	HALS_HOTKEYS_PRIMARY_BIT = 11,
 };
 
 enum {
@@ -1290,8 +1292,12 @@ static void ideapad_check_features(struct ideapad_private *priv)
 	if (acpi_has_method(handle, "DYTC"))
 		priv->features.dytc = true;
 
-	if (acpi_has_method(handle, "HALS") && acpi_has_method(handle, "SALS"))
-		priv->features.fn_lock = true;
+	if (acpi_has_method(handle, "HALS") && acpi_has_method(handle, "SALS")) {
+		if (!eval_hals(handle, &val)) {
+			if (test_bit(HALS_FNLOCK_SUPPORT_BIT, &val))
+				priv->features.fn_lock = true;
+		}
+	}
 }
 
 static int ideapad_acpi_add(struct platform_device *pdev)
