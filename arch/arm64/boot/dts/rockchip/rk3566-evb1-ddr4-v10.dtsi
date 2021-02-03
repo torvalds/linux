@@ -41,6 +41,17 @@
 		enable-active-high;
 		vin-supply = <&vcc3v3_sys>;
 	};
+
+	vcc_camera: vcc-camera-regulator {
+		compatible = "regulator-fixed";
+		gpio = <&gpio0 RK_PC1 GPIO_ACTIVE_HIGH>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&camera_pwr>;
+		regulator-name = "vcc_camera";
+		enable-active-high;
+		regulator-always-on;
+		regulator-boot-on;
+	};
 };
 
 &audiopwmout_diff {
@@ -57,6 +68,43 @@
 
 &csi2_dphy_hw {
 	status = "okay";
+};
+
+&csi2_dphy1 {
+	status = "okay";
+
+	/*
+	 * dphy1 only used for split mode,
+	 * can be used  concurrently  with dphy2
+	 * full mode and split mode are mutually exclusive
+	 */
+	ports {
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		port@0 {
+			reg = <0>;
+			#address-cells = <1>;
+			#size-cells = <0>;
+
+			dphy1_in: endpoint@1 {
+				reg = <1>;
+				remote-endpoint = <&ov5695_out>;
+				data-lanes = <1 2>;
+			};
+		};
+
+		port@1 {
+			reg = <1>;
+			#address-cells = <1>;
+			#size-cells = <0>;
+
+			dphy1_out: endpoint@1 {
+				reg = <1>;
+				remote-endpoint = <&isp0_in>;
+			};
+		};
+	};
 };
 
 &csi2_dphy2 {
@@ -193,6 +241,31 @@
 	pinctrl-names = "default";
 	pinctrl-0 = <&i2c2m1_xfer>;
 
+	/* split mode: lane0/1 */
+	ov5695: ov5695@36 {
+		status = "okay";
+		compatible = "ovti,ov5695";
+		reg = <0x36>;
+		clocks = <&cru CLK_CAM0_OUT>;
+		clock-names = "xvclk";
+		power-domains = <&power RK3568_PD_VI>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&cam_clkout0>;
+		reset-gpios = <&gpio4 RK_PC0 GPIO_ACTIVE_HIGH>;
+		pwdn-gpios = <&gpio2 RK_PC5 GPIO_ACTIVE_HIGH>;
+		/*power-gpios = <&gpio0 RK_PC1 GPIO_ACTIVE_HIGH>;*/
+		rockchip,camera-module-index = <0>;
+		rockchip,camera-module-facing = "back";
+		rockchip,camera-module-name = "TongJu";
+		rockchip,camera-module-lens-name = "CHT842-MD";
+		port {
+			ov5695_out: endpoint {
+				remote-endpoint = <&dphy1_in>;
+				data-lanes = <1 2>;
+			};
+		};
+	};
+
 	ov02k10: ov02k10@36 {
 		status = "okay";
 		compatible = "ovti,ov02k10";
@@ -304,6 +377,28 @@
 	status = "okay";
 };
 
+&rkisp {
+	status = "okay";
+};
+
+&rkisp_mmu {
+	status = "okay";
+};
+
+&rkisp_vir0 {
+	status = "okay";
+
+	port {
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		isp0_in: endpoint@0 {
+			reg = <0>;
+			remote-endpoint = <&dphy1_out>;
+		};
+	};
+};
+
 &route_dsi0 {
 	status = "okay";
 };
@@ -358,6 +453,14 @@
 };
 
 &pinctrl {
+	cam {
+		camera_pwr: camera-pwr {
+			rockchip,pins =
+				/* camera power en */
+				<0 RK_PC1 RK_FUNC_GPIO &pcfg_pull_none>;
+		};
+	};
+
 	headphone {
 		hp_det: hp-det {
 			rockchip,pins = <3 RK_PA1 RK_FUNC_GPIO &pcfg_pull_down>;
