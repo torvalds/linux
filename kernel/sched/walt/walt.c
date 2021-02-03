@@ -102,6 +102,7 @@ int set_task_boost(int boost, u64 period)
 	}
 	return 0;
 }
+EXPORT_SYMBOL(set_task_boost);
 
 u64 sched_ktime_clock(void)
 {

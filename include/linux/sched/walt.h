@@ -10,10 +10,15 @@
 
 #if IS_ENABLED(CONFIG_SCHED_WALT)
 extern int sched_lpm_disallowed_time(int cpu, u64 *timeout);
+extern int set_task_boost(int boost, u64 period);
 #else
 static inline int sched_lpm_disallowed_time(int cpu, u64 *timeout)
 {
 	return INT_MAX;
+}
+static inline int set_task_boost(int boost, u64 period)
+{
+	return 0;
 }
 #endif
 

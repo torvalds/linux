@@ -970,8 +970,6 @@ static inline void set_wake_up_idle(bool enabled)
 	wts->wake_up_idle = enabled;
 }
 
-extern int set_task_boost(int boost, u64 period);
-
 static inline struct task_group *css_tg(struct cgroup_subsys_state *css)
 {
 	return css ? container_of(css, struct task_group, css) : NULL;
