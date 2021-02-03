@@ -190,13 +190,13 @@ struct amdgpu_gmc {
 	u64			gart_end;
 	/* Frame buffer aperture of this GPU device. Different from
 	 * fb_start (see below), this only covers the local GPU device.
-	 * If use FB aperture to access FB, driver get fb_start from
+	 * If driver uses FB aperture to access FB, driver get fb_start from
 	 * MC_VM_FB_LOCATION_BASE (set by vbios) and calculate vram_start
 	 * of this local device by adding an offset inside the XGMI hive.
-	 * If use GART table for VMID0 FB access, driver finds a hole in
+	 * If driver uses GART table for VMID0 FB access, driver finds a hole in
 	 * VMID0's virtual address space to place the SYSVM aperture inside
 	 * which the first part is vram and the second part is gart (covering
-	 * sram)
+	 * system ram).
 	 */
 	u64			vram_start;
 	u64			vram_end;
