@@ -289,7 +289,7 @@ static int lpc18xx_pwm_request(struct pwm_chip *chip, struct pwm_device *pwm)
 		dev_err(lpc18xx_pwm->dev,
 			"maximum number of simultaneous channels reached\n");
 		return -EBUSY;
-	};
+	}
 
 	set_bit(event, &lpc18xx_pwm->event_map);
 	lpc18xx_data->duty_event = event;
