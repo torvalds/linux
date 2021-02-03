@@ -460,6 +460,10 @@ struct vop2 {
 	 */
 	uint32_t registered_num_wins;
 	uint8_t used_mixers;
+	/**
+	 * @active_vp_mask: Bitmask of active video ports;
+	 */
+	uint8_t active_vp_mask;
 
 	uint32_t *regsbak;
 	void __iomem *regs;
@@ -907,6 +911,14 @@ static enum vop2_wb_format vop2_convert_wb_format(uint32_t format)
 		DRM_ERROR("unsupported wb format[%08x]\n", format);
 		return VOP2_WB_INVALID;
 	}
+}
+
+static void vop2_set_system_status(struct vop2 *vop2)
+{
+	if (hweight8(vop2->active_vp_mask) > 1)
+		rockchip_set_system_status(SYS_STATUS_DUALVIEW);
+	else
+		rockchip_clear_system_status(SYS_STATUS_DUALVIEW);
 }
 
 static bool vop2_win_rb_swap(uint32_t format)
@@ -2181,7 +2193,6 @@ static void vop2_crtc_atomic_disable(struct drm_crtc *crtc,
 {
 	struct vop2_video_port *vp = to_vop2_video_port(crtc);
 	struct vop2 *vop2 = vp->vop2;
-	int sys_status = vp->id ? SYS_STATUS_LCDC1 : SYS_STATUS_LCDC0;
 
 	WARN_ON(vp->event);
 	vop2_lock(vop2);
@@ -2211,7 +2222,8 @@ static void vop2_crtc_atomic_disable(struct drm_crtc *crtc,
 	vop2_disable(crtc);
 	vop2_unlock(vop2);
 
-	rockchip_clear_system_status(sys_status);
+	vop2->active_vp_mask &= ~BIT(vp->id);
+	vop2_set_system_status(vop2);
 
 	if (crtc->state->event && !crtc->state->active) {
 		spin_lock_irq(&crtc->dev->event_lock);
@@ -3010,13 +3022,13 @@ static int vop2_crtc_loader_protect(struct drm_crtc *crtc, bool on)
 {
 	struct vop2_video_port *vp = to_vop2_video_port(crtc);
 	struct vop2 *vop2 = vp->vop2;
-	int sys_status = vp->id ? SYS_STATUS_LCDC1 : SYS_STATUS_LCDC0;
 
 	if (on == vop2->loader_protect)
 		return 0;
 
 	if (on) {
-		rockchip_set_system_status(sys_status);
+		vop2->active_vp_mask |= BIT(vp->id);
+		vop2_set_system_status(vop2);
 		vop2_initial(crtc);
 		drm_crtc_vblank_on(crtc);
 		vop2->loader_protect = true;
@@ -3594,14 +3606,15 @@ static void vop2_crtc_atomic_enable(struct drm_crtc *crtc, struct drm_crtc_state
 	u16 vact_st = adjusted_mode->crtc_vtotal - adjusted_mode->crtc_vsync_start;
 	u16 vact_end = vact_st + vdisplay;
 	bool interlaced = !!(adjusted_mode->flags & DRM_MODE_FLAG_INTERLACE);
-	int sys_status = vp->id ? SYS_STATUS_LCDC1 : SYS_STATUS_LCDC0;
 	uint8_t out_mode;
 	int for_ddr_freq = 0;
 	bool dclk_inv, yc_swap = false;
 	int act_end;
 	uint32_t val;
 
-	rockchip_set_system_status(sys_status);
+	vop2->active_vp_mask |= BIT(vp->id);
+	vop2_set_system_status(vop2);
+
 	vop2_lock(vop2);
 	DRM_DEV_INFO(vop2->dev, "Update mode to %dx%d%s%d, type: %d for vp%d\n",
 		     hdisplay, vdisplay, interlaced ? "i" : "p",
