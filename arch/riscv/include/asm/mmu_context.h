@@ -23,6 +23,16 @@ static inline void activate_mm(struct mm_struct *prev,
 	switch_mm(prev, next, NULL);
 }
 
+#define init_new_context init_new_context
+static inline int init_new_context(struct task_struct *tsk,
+			struct mm_struct *mm)
+{
+#ifdef CONFIG_MMU
+	atomic_long_set(&mm->context.id, 0);
+#endif
+	return 0;
+}
+
 #include <asm-generic/mmu_context.h>
 
 #endif /* _ASM_RISCV_MMU_CONTEXT_H */
