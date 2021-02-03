@@ -38,7 +38,6 @@
 
 #include "gc/gc_10_1_0_offset.h"
 #include "gc/gc_10_1_0_sh_mask.h"
-#include "smuio/smuio_11_0_0_offset.h"
 #include "mp/mp_11_0_offset.h"
 
 #include "soc15.h"
@@ -61,6 +60,8 @@
 #include "dce_virtual.h"
 #include "mes_v10_1.h"
 #include "mxgpu_nv.h"
+#include "smuio_v11_0.h"
+#include "smuio_v11_0_6.h"
 
 static const struct amd_ip_funcs nv_common_ip_funcs;
 
@@ -202,6 +203,7 @@ static bool nv_read_bios_from_rom(struct amdgpu_device *adev,
 {
 	u32 *dw_ptr;
 	u32 i, length_dw;
+	u32 rom_index_offset, rom_data_offset;
 
 	if (bios == NULL)
 		return false;
@@ -214,11 +216,16 @@ static bool nv_read_bios_from_rom(struct amdgpu_device *adev,
 	dw_ptr = (u32 *)bios;
 	length_dw = ALIGN(length_bytes, 4) / 4;
 
+	rom_index_offset =
+		adev->smuio.funcs->get_rom_index_offset(adev);
+	rom_data_offset =
+		adev->smuio.funcs->get_rom_data_offset(adev);
+
 	/* set rom index to 0 */
-	WREG32(SOC15_REG_OFFSET(SMUIO, 0, mmROM_INDEX), 0);
+	WREG32(rom_index_offset, 0);
 	/* read out the rom data */
 	for (i = 0; i < length_dw; i++)
-		dw_ptr[i] = RREG32(SOC15_REG_OFFSET(SMUIO, 0, mmROM_DATA));
+		dw_ptr[i] = RREG32(rom_data_offset);
 
 	return true;
 }
@@ -563,6 +570,11 @@ int nv_set_ip_blocks(struct amdgpu_device *adev)
 		adev->nbio.hdp_flush_reg = &nbio_v2_3_hdp_flush_reg;
 	}
 	adev->hdp.funcs = &hdp_v5_0_funcs;
+
+	if (adev->asic_type >= CHIP_SIENNA_CICHLID)
+		adev->smuio.funcs = &smuio_v11_0_6_funcs;
+	else
+		adev->smuio.funcs = &smuio_v11_0_funcs;
 
 	if (adev->asic_type == CHIP_SIENNA_CICHLID)
 		adev->gmc.xgmi.supported = true;
