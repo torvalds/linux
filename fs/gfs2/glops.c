@@ -127,9 +127,12 @@ static int gfs2_ail_empty_gl(struct gfs2_glock *gl)
          * on the stack */
 	tr.tr_reserved = 1 + gfs2_struct2blk(sdp, tr.tr_revokes);
 	tr.tr_ip = _RET_IP_;
+	sb_start_intwrite(sdp->sd_vfs);
 	ret = gfs2_log_reserve(sdp, tr.tr_reserved);
-	if (ret < 0)
+	if (ret < 0) {
+		sb_end_intwrite(sdp->sd_vfs);
 		return ret;
+	}
 	WARN_ON_ONCE(current->journal_info);
 	current->journal_info = &tr;
 
