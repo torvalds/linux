@@ -1369,7 +1369,6 @@ static int ideapad_acpi_remove(struct platform_device *pdev)
 	ideapad_input_exit(priv);
 	ideapad_debugfs_exit(priv);
 	ideapad_sysfs_exit(priv);
-	dev_set_drvdata(&pdev->dev, NULL);
 
 	return 0;
 }
