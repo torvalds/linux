@@ -3,8 +3,8 @@
 # Makefile for Kernel-based Virtual Machine module, HYP/nVHE part
 #
 
-asflags-y := -D__KVM_NVHE_HYPERVISOR__
-ccflags-y := -D__KVM_NVHE_HYPERVISOR__
+asflags-y := -D__KVM_NVHE_HYPERVISOR__ -D__DISABLE_EXPORTS
+ccflags-y := -D__KVM_NVHE_HYPERVISOR__ -D__DISABLE_EXPORTS
 
 obj-y := timer-sr.o sysreg-sr.o debug-sr.o switch.o tlb.o hyp-init.o host.o \
 	 hyp-main.o hyp-smp.o psci-relay.o
