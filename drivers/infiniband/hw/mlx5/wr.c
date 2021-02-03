@@ -1369,7 +1369,7 @@ int mlx5_ib_post_send(struct ib_qp *ibqp, const struct ib_send_wr *wr,
 			handle_qpt_uc(wr, &seg, &size);
 			break;
 		case IB_QPT_SMI:
-			if (unlikely(!mdev->port_caps[qp->port - 1].has_smi)) {
+			if (unlikely(!dev->port_caps[qp->port - 1].has_smi)) {
 				mlx5_ib_warn(dev, "Send SMP MADs is not allowed\n");
 				err = -EPERM;
 				*bad_wr = wr;
