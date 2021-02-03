@@ -848,6 +848,20 @@ static int setup_port_data(struct ib_device *device)
 	return 0;
 }
 
+/**
+ * ib_port_immutable_read() - Read rdma port's immutable data
+ * @dev - IB device
+ * @port - port number whose immutable data to read. It starts with index 1 and
+ *         valid upto including rdma_end_port().
+ */
+const struct ib_port_immutable*
+ib_port_immutable_read(struct ib_device *dev, unsigned int port)
+{
+	WARN_ON(!rdma_is_port_valid(dev, port));
+	return &dev->port_data[port].immutable;
+}
+EXPORT_SYMBOL(ib_port_immutable_read);
+
 void ib_get_device_fw_str(struct ib_device *dev, char *str)
 {
 	if (dev->ops.get_dev_fw_str)

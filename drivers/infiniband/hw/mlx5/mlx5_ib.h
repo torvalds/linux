@@ -1037,7 +1037,6 @@ struct mlx5_var_table {
 };
 
 struct mlx5_port_caps {
-	int gid_table_len;
 	bool has_smi;
 	u8 ext_port_cap;
 };

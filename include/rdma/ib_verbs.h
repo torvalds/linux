@@ -4674,4 +4674,7 @@ static inline u32 rdma_calc_flow_label(u32 lqpn, u32 rqpn)
 
 	return (u32)(v & IB_GRH_FLOWLABEL_MASK);
 }
+
+const struct ib_port_immutable*
+ib_port_immutable_read(struct ib_device *dev, unsigned int port);
 #endif /* IB_VERBS_H */
