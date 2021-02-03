@@ -1074,8 +1074,9 @@ unsigned bch2_dev_has_data(struct bch_fs *c, struct bch_dev *ca)
 
 int bch2_fs_replicas_init(struct bch_fs *c)
 {
-	c->journal.entry_u64s_reserved +=
-		reserve_journal_replicas(c, &c->replicas);
+	bch2_journal_entry_res_resize(&c->journal,
+			&c->replicas_journal_res,
+			reserve_journal_replicas(c, &c->replicas));
 
 	return replicas_table_update(c, &c->replicas);
 }

@@ -582,8 +582,9 @@ struct bch_fs {
 	struct bch_replicas_cpu replicas_gc;
 	struct mutex		replicas_gc_lock;
 
+	struct journal_entry_res btree_root_journal_res;
 	struct journal_entry_res replicas_journal_res;
-
+	struct journal_entry_res clock_journal_res;
 	struct journal_entry_res dev_usage_journal_res;
 
 	struct bch_disk_groups_cpu __rcu *disk_groups;

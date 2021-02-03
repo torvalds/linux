@@ -159,8 +159,9 @@ static void bch2_dev_usage_journal_reserve(struct bch_fs *c)
 {
 	struct bch_dev *ca;
 	unsigned i, nr = 0, u64s =
-		(sizeof(struct jset_entry_dev_usage) +
-		 sizeof(struct jset_entry_dev_usage_type) * BCH_DATA_NR);
+		((sizeof(struct jset_entry_dev_usage) +
+		  sizeof(struct jset_entry_dev_usage_type) * BCH_DATA_NR)) /
+		sizeof(u64);
 
 	rcu_read_lock();
 	for_each_member_device_rcu(ca, c, i, NULL)
@@ -796,13 +797,19 @@ static struct bch_fs *bch2_fs_alloc(struct bch_sb *sb, struct bch_opts opts)
 	    bch2_fs_fsio_init(c))
 		goto err;
 
-	bch2_dev_usage_journal_reserve(c);
-
 	mi = bch2_sb_get_members(c->disk_sb.sb);
 	for (i = 0; i < c->sb.nr_devices; i++)
 		if (bch2_dev_exists(c->disk_sb.sb, mi, i) &&
 		    bch2_dev_alloc(c, i))
 			goto err;
+
+	bch2_journal_entry_res_resize(&c->journal,
+			&c->btree_root_journal_res,
+			BTREE_ID_NR * (JSET_KEYS_U64s + BKEY_BTREE_PTR_U64s_MAX));
+	bch2_dev_usage_journal_reserve(c);
+	bch2_journal_entry_res_resize(&c->journal,
+			&c->clock_journal_res,
+			(sizeof(struct jset_entry_clock) / sizeof(u64)) * 2);
 
 	mutex_lock(&bch_fs_list_lock);
 	err = bch2_fs_online(c);
