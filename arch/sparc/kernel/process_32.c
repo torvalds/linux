@@ -184,7 +184,7 @@ void exit_thread(struct task_struct *tsk)
 #ifndef CONFIG_SMP
 	if (last_task_used_math == tsk) {
 #else
-	if (test_ti_thread_flag(task_thread_info(tsk), TIF_USEDFPU)) {
+	if (test_tsk_thread_flag(tsk, TIF_USEDFPU)) {
 #endif
 		/* Keep process from leaving FPU in a bogon state. */
 		put_psr(get_psr() | PSR_EF);
