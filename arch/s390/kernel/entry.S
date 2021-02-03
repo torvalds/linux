@@ -70,6 +70,8 @@ _LPP_OFFSET	= __LC_LPP
 	je	\oklabel
 	clg	%r14,__LC_ASYNC_STACK
 	je	\oklabel
+	clg	%r14,__LC_MCCK_STACK
+	je	\oklabel
 	clg	%r14,__LC_NODAT_STACK
 	je	\oklabel
 	clg	%r14,__LC_RESTART_STACK
@@ -548,20 +550,16 @@ ENTRY(mcck_int_handler)
 	jhe	.Lmcck_stack
 	lghi	%r11,__LC_GPREGS_SAVE_AREA+64	# inside critical section, do cleanup
 	brasl	%r14,.Lcleanup_sie
-.Lmcck_stack:
 #endif
-	CHECK_STACK __LC_GPREGS_SAVE_AREA+64
-	lgr	%r11,%r15
-	aghi	%r15,-(STACK_FRAME_OVERHEAD + __PT_SIZE)
-	stg	%r11,__SF_BACKCHAIN(%r15)
-	j	5f
+	j	.Lmcck_stack
 .Lmcck_user:
 	BPENTER __TI_flags(%r12),_TIF_ISOLATE_BP
-	lctlg	%c1,%c1,__LC_KERNEL_ASCE
-	lg	%r15,__LC_KERNEL_STACK
-	xc	__SF_BACKCHAIN(8,%r15),__SF_BACKCHAIN(%r15)
-5:	la	%r11,STACK_FRAME_OVERHEAD(%r15)
+.Lmcck_stack:
+	lg	%r15,__LC_MCCK_STACK
 .Lmcck_skip:
+	la	%r11,STACK_FRAME_OVERHEAD(%r15)
+	lctlg	%c1,%c1,__LC_KERNEL_ASCE
+	xc	__SF_BACKCHAIN(8,%r15),__SF_BACKCHAIN(%r15)
 	lghi	%r14,__LC_GPREGS_SAVE_AREA+64
 	stmg	%r0,%r7,__PT_R0(%r11)
 	# clear user controlled registers to prevent speculative use
@@ -602,7 +600,6 @@ ENTRY(mcck_int_handler)
 
 .Lmcck_panic:
 	lg	%r15,__LC_NODAT_STACK
-	la	%r11,STACK_FRAME_OVERHEAD(%r15)
 	j	.Lmcck_skip
 ENDPROC(mcck_int_handler)
 
