@@ -331,3 +331,9 @@ void bcm_vk_tty_terminate_tty_user(struct bcm_vk *vk)
 			kill_pid(find_vpid(vktty->pid), SIGKILL, 1);
 	}
 }
+
+void bcm_vk_tty_wq_exit(struct bcm_vk *vk)
+{
+	cancel_work_sync(&vk->tty_wq_work);
+	destroy_workqueue(vk->tty_wq_thread);
+}

@@ -1397,7 +1397,7 @@ static int bcm_vk_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 				pdev->irq + vk->num_irqs, vk->num_irqs + 1);
 			goto err_irq;
 		}
-		vk->tty[i].irq_enabled = true;
+		bcm_vk_tty_set_irq_enabled(vk, i);
 	}
 
 	id = ida_simple_get(&bcm_vk_ida, 0, 0, GFP_KERNEL);
@@ -1582,8 +1582,7 @@ static void bcm_vk_remove(struct pci_dev *pdev)
 
 	cancel_work_sync(&vk->wq_work);
 	destroy_workqueue(vk->wq_thread);
-	cancel_work_sync(&vk->tty_wq_work);
-	destroy_workqueue(vk->tty_wq_thread);
+	bcm_vk_tty_wq_exit(vk);
 
 	for (i = 0; i < MAX_BAR; i++) {
 		if (vk->bar[i])
