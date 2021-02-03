@@ -72,8 +72,7 @@ void tracectr_notifier(void *ignore, bool preempt,
 			per_cpu(hotplug_flag, cpu) = 0;
 			setup_prev_cnts(cpu, cnten_val);
 		} else {
-			trace_sched_switch_with_ctrs(per_cpu(old_pid, cpu),
-						     current_pid);
+			trace_sched_switch_with_ctrs(preempt, prev, next);
 			now = sched_clock();
 			if ((now - per_cpu(prev_time, cpu)) > NSEC_PER_SEC) {
 				trace_sched_switch_ctrs_cfg(cpu);

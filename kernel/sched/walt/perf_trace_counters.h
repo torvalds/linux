@@ -30,15 +30,49 @@ DECLARE_PER_CPU(u32, cntenset_val);
 DECLARE_PER_CPU(unsigned long, previous_ccnt);
 DECLARE_PER_CPU(unsigned long[NUM_L1_CTRS], previous_l1_cnts);
 DECLARE_PER_CPU(unsigned long[NUM_AMU_CTRS], previous_amu_cnts);
+
+#ifdef CREATE_TRACE_POINTS
+static inline long __trace_sched_switch_state(bool preempt, struct task_struct *p)
+{
+	unsigned int state;
+
+#ifdef CONFIG_SCHED_DEBUG
+	BUG_ON(p != current);
+#endif /* CONFIG_SCHED_DEBUG */
+
+	/*
+	 * Preemption ignores task state, therefore preempted tasks are always
+	 * RUNNING (we will not have dequeued if state != RUNNING).
+	 */
+	if (preempt)
+		return TASK_REPORT_MAX;
+
+	/*
+	 * task_state_index() uses fls() and returns a value from 0-8 range.
+	 * Decrement it by 1 (except TASK_RUNNING state i.e 0) before using
+	 * it for left shift operation to get the correct task->state
+	 * mapping.
+	 */
+	state = task_state_index(p);
+
+	return state ? (1 << (state - 1)) : state;
+}
+#endif /* CREATE_TRACE_POINTS */
+
 TRACE_EVENT(sched_switch_with_ctrs,
 
-		TP_PROTO(pid_t prev, pid_t next),
+		TP_PROTO(bool preempt,
+			struct task_struct *prev,
+			struct task_struct *next),
 
-		TP_ARGS(prev, next),
+		TP_ARGS(preempt, prev, next),
 
 		TP_STRUCT__entry(
-			__field(pid_t,	old_pid)
-			__field(pid_t,	new_pid)
+			__field(pid_t, prev_pid)
+			__field(pid_t, next_pid)
+			__array(char, prev_comm, TASK_COMM_LEN)
+			__array(char, next_comm, TASK_COMM_LEN)
+			__field(long, prev_state)
 			__field(unsigned long, cctr)
 			__field(unsigned long, ctr0)
 			__field(unsigned long, ctr1)
@@ -60,8 +94,11 @@ TRACE_EVENT(sched_switch_with_ctrs,
 			unsigned long delta_l1_cnts[NUM_L1_CTRS] = {0};
 			unsigned long delta_amu_cnts[NUM_AMU_CTRS] = {0};
 
-			__entry->old_pid	= prev;
-			__entry->new_pid	= next;
+			memcpy(__entry->prev_comm, prev->comm, TASK_COMM_LEN);
+			memcpy(__entry->next_comm, next->comm, TASK_COMM_LEN);
+			__entry->prev_state	= __trace_sched_switch_state(preempt, prev);
+			__entry->prev_pid	= prev->pid;
+			__entry->next_pid	= next->pid;
 
 			cnten_val = per_cpu(cntenset_val, cpu);
 
@@ -109,13 +146,29 @@ TRACE_EVENT(sched_switch_with_ctrs,
 			__entry->amu1 = delta_amu_cnts[1];
 		),
 
-		TP_printk("prev_pid=%d, next_pid=%d, CCNTR: %lu, CTR0: %lu, CTR1: %lu, CTR2: %lu, CTR3: %lu, CTR4: %lu, CTR5: %lu, CYC: %lu, INST: %lu",
-				__entry->old_pid, __entry->new_pid,
-				__entry->cctr,
-				__entry->ctr0, __entry->ctr1,
-				__entry->ctr2, __entry->ctr3,
-				__entry->ctr4, __entry->ctr5,
-				__entry->amu0, __entry->amu1)
+		TP_printk("prev_comm=%s prev_pid=%d prev_state=%s%s ==> next_comm=%s next_pid=%d CCNTR=%u CTR0=%u CTR1=%u CTR2=%u CTR3=%u CTR4=%u CTR5=%u, CYC: %lu, INST: %lu",
+			__entry->prev_comm, __entry->prev_pid,
+
+			(__entry->prev_state & (TASK_REPORT_MAX - 1)) ?
+			  __print_flags(__entry->prev_state & (TASK_REPORT_MAX - 1), "|",
+					{ TASK_INTERRUPTIBLE, "S" },
+					{ TASK_UNINTERRUPTIBLE, "D" },
+					{ __TASK_STOPPED, "T" },
+					{ __TASK_TRACED, "t" },
+					{ EXIT_DEAD, "X" },
+					{ EXIT_ZOMBIE, "Z" },
+					{ TASK_PARKED, "P" },
+					{ TASK_DEAD, "I" }) :
+			"R",
+
+			__entry->prev_state & TASK_REPORT_MAX ? "+" : "",
+			__entry->next_comm,
+			__entry->next_pid,
+			__entry->cctr,
+			__entry->ctr0, __entry->ctr1,
+			__entry->ctr2, __entry->ctr3,
+			__entry->ctr4, __entry->ctr5,
+			__entry->amu0, __entry->amu1)
 );
 
 TRACE_EVENT(sched_switch_ctrs_cfg,
