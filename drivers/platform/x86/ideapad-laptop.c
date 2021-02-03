@@ -1247,6 +1247,7 @@ static int ideapad_acpi_add(struct platform_device *pdev)
 	int cfg;
 	struct ideapad_private *priv;
 	struct acpi_device *adev;
+	acpi_status status;
 
 	ret = acpi_bus_get_device(ACPI_HANDLE(&pdev->dev), &adev);
 	if (ret)
@@ -1303,22 +1304,27 @@ static int ideapad_acpi_add(struct platform_device *pdev)
 		if (ret && ret != -ENODEV)
 			goto backlight_failed;
 	}
-	ret = acpi_install_notify_handler(adev->handle,
-		ACPI_DEVICE_NOTIFY, ideapad_acpi_notify, priv);
-	if (ret)
+	status = acpi_install_notify_handler(adev->handle,
+					     ACPI_DEVICE_NOTIFY,
+					     ideapad_acpi_notify, priv);
+	if (ACPI_FAILURE(status)) {
+		ret = -EIO;
 		goto notification_failed;
+	}
 
 #if IS_ENABLED(CONFIG_ACPI_WMI)
 	for (i = 0; i < ARRAY_SIZE(ideapad_wmi_fnesc_events); i++) {
-		ret = wmi_install_notify_handler(ideapad_wmi_fnesc_events[i],
-						 ideapad_wmi_notify, priv);
-		if (ret == AE_OK) {
+		status = wmi_install_notify_handler(ideapad_wmi_fnesc_events[i],
+						    ideapad_wmi_notify, priv);
+		if (ACPI_SUCCESS(status)) {
 			priv->fnesc_guid = ideapad_wmi_fnesc_events[i];
 			break;
 		}
 	}
-	if (ret != AE_OK && ret != AE_NOT_EXIST)
+	if (ACPI_FAILURE(status) && status != AE_NOT_EXIST) {
+		ret = -EIO;
 		goto notification_failed_wmi;
+	}
 #endif
 
 	return 0;
