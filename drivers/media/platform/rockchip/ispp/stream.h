@@ -177,6 +177,7 @@ struct rkispp_stream {
 	bool is_upd;
 	bool is_cfg;
 	bool is_end;
+	bool is_reg_withstream;
 };
 
 enum {

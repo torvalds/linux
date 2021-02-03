@@ -51,6 +51,11 @@ bool rkispp_reg_withstream;
 module_param_named(sendreg_withstream, rkispp_reg_withstream, bool, 0644);
 MODULE_PARM_DESC(sendreg_withstream, "rkispp send reg out with stream");
 
+char rkispp_reg_withstream_video_name[RKISPP_VIDEO_NAME_LEN];
+module_param_string(sendreg_withstream_video_name, rkispp_reg_withstream_video_name,
+		    RKISPP_VIDEO_NAME_LEN, 0644);
+MODULE_PARM_DESC(sendreg_withstream, "rkispp video send reg out with stream");
+
 unsigned int rkispp_debug_reg = 0x1F;
 module_param_named(debug_reg, rkispp_debug_reg, uint, 0644);
 MODULE_PARM_DESC(debug_reg, "rkispp debug register");

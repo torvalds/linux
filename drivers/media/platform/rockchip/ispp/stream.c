@@ -408,7 +408,7 @@ static int rkispp_frame_end(struct rkispp_stream *stream)
 {
 	struct rkispp_device *dev = stream->isppdev;
 	struct capture_fmt *fmt = &stream->out_cap_fmt;
-	struct rkisp_ispp_reg *reg_buf;
+	struct rkisp_ispp_reg *reg_buf = NULL;
 	unsigned long lock_flags = 0;
 	int i = 0;
 
@@ -431,7 +431,8 @@ static int rkispp_frame_end(struct rkispp_stream *stream)
 			atomic_read(&dev->ispp_sdev.frm_sync_seq);
 		stream->curr_buf->vb.vb2_buf.timestamp = ns;
 
-		if (rkispp_reg_withstream && (fmt->wr_fmt & FMT_FBC)) {
+		if (stream->is_reg_withstream &&
+		    (fmt->wr_fmt & FMT_FBC || fmt->wr_fmt == FMT_YUV420)) {
 			void *addr = vb2_plane_vaddr(&stream->curr_buf->vb.vb2_buf, i);
 
 			rkispp_find_regbuf_by_id(dev, &reg_buf, dev->dev_id,
@@ -444,6 +445,9 @@ static int rkispp_frame_end(struct rkispp_stream *stream)
 
 				rkispp_release_regbuf(dev, reg_buf);
 				vb2_set_plane_payload(&stream->curr_buf->vb.vb2_buf, 1, cpy_size);
+				v4l2_dbg(3, rkispp_debug, &dev->v4l2_dev,
+					 "stream(0x%x) write reg buf to last plane\n",
+					 stream->id);
 			} else {
 				v4l2_err(&dev->v4l2_dev,
 					 "%s can not find reg buf: dev_id %d, sequence %d\n",
@@ -473,7 +477,8 @@ static int rkispp_frame_end(struct rkispp_stream *stream)
 		stream->dbg.id = stream->curr_buf->vb.sequence;
 
 		stream->curr_buf = NULL;
-	} else if (rkispp_reg_withstream && (fmt->wr_fmt & FMT_FBC)) {
+	} else if (stream->is_reg_withstream &&
+		   (fmt->wr_fmt & FMT_FBC || fmt->wr_fmt == FMT_YUV420)) {
 		u32 frame_id;
 
 		frame_id = atomic_read(&dev->ispp_sdev.frm_sync_seq);
@@ -1469,7 +1474,8 @@ static int rkispp_queue_setup(struct vb2_queue *queue,
 				plane_fmt->sizeimage;
 	}
 
-	if (rkispp_reg_withstream && (cap_fmt->wr_fmt & FMT_FBC)) {
+	if (stream->is_reg_withstream &&
+	    (cap_fmt->wr_fmt & FMT_FBC || cap_fmt->wr_fmt == FMT_YUV420)) {
 		(*num_planes)++;
 		sizes[1] = sizeof(struct rkisp_ispp_reg);
 	}
@@ -1920,7 +1926,9 @@ static int rkispp_set_fmt(struct rkispp_stream *stream,
 	if (fmt->mplanes == 1)
 		pixm->plane_fmt[0].sizeimage = imagsize;
 
-	if ((fmt->wr_fmt & FMT_FBC) && rkispp_reg_withstream)
+	stream->is_reg_withstream = rkispp_is_reg_withstream_local(&stream->vnode.vdev.dev);
+	if (stream->is_reg_withstream &&
+	    (fmt->wr_fmt & FMT_FBC || fmt->wr_fmt == FMT_YUV420))
 		pixm->num_planes++;
 
 	if (!try) {
@@ -2290,7 +2298,7 @@ static void fec_work_event(struct rkispp_device *dev,
 	struct rkispp_dummy_buffer *dummy;
 	unsigned long lock_flags = 0, lock_flags1 = 0;
 	bool is_start = false, is_quick = false;
-	struct rkisp_ispp_reg *reg_buf;
+	struct rkisp_ispp_reg *reg_buf = NULL;
 	u32 val;
 
 	if (!(vdev->module_ens & ISPP_MODULE_FEC))
@@ -2397,7 +2405,8 @@ static void fec_work_event(struct rkispp_device *dev,
 				complete(&monitor->fec.cmpl);
 		}
 
-		rkispp_find_regbuf_by_id(dev, &reg_buf, dev->dev_id, seq);
+		if (stream->is_reg_withstream)
+			rkispp_find_regbuf_by_id(dev, &reg_buf, dev->dev_id, seq);
 		if (reg_buf && (rkispp_debug_reg & ISPP_MODULE_FEC)) {
 			u32 offset, size;
 
@@ -2437,7 +2446,7 @@ static void nr_work_event(struct rkispp_device *dev,
 	bool is_start = false, is_quick = false;
 	bool is_tnr_en = vdev->module_ens & ISPP_MODULE_TNR;
 	bool is_fec_en = (vdev->module_ens & ISPP_MODULE_FEC);
-	struct rkisp_ispp_reg *reg_buf;
+	struct rkisp_ispp_reg *reg_buf = NULL;
 	u32 val;
 
 	if (!(vdev->module_ens & (ISPP_MODULE_NR | ISPP_MODULE_SHP)))
@@ -2613,7 +2622,8 @@ static void nr_work_event(struct rkispp_device *dev,
 				complete(&monitor->nr.cmpl);
 		}
 
-		rkispp_find_regbuf_by_id(dev, &reg_buf, dev->dev_id, seq);
+		if (stream->is_reg_withstream)
+			rkispp_find_regbuf_by_id(dev, &reg_buf, dev->dev_id, seq);
 		if (reg_buf && (rkispp_debug_reg & ISPP_MODULE_NR)) {
 			u32 offset, size;
 
@@ -2685,7 +2695,7 @@ static void tnr_work_event(struct rkispp_device *dev,
 	u32 val, size = sizeof(vdev->tnr.buf) / sizeof(*dummy);
 	bool is_3to1 = vdev->tnr.is_3to1, is_start = false, is_skip = false;
 	bool is_en = rkispp_read(dev, RKISPP_TNR_CORE_CTRL) & SW_TNR_EN;
-	struct rkisp_ispp_reg *reg_buf;
+	struct rkisp_ispp_reg *reg_buf = NULL;
 
 	if (!(vdev->module_ens & ISPP_MODULE_TNR) ||
 	    (dev->inp == INP_ISP && dev->isp_mode & ISP_ISPP_QUICK))
@@ -2894,7 +2904,9 @@ static void tnr_work_event(struct rkispp_device *dev,
 			if (!completion_done(&monitor->tnr.cmpl))
 				complete(&monitor->tnr.cmpl);
 		}
-		rkispp_find_regbuf_by_id(dev, &reg_buf, dev->dev_id, seq);
+
+		if (stream->is_reg_withstream)
+			rkispp_find_regbuf_by_id(dev, &reg_buf, dev->dev_id, seq);
 		if (reg_buf && (rkispp_debug_reg & ISPP_MODULE_TNR)) {
 			u32 offset, size;
 

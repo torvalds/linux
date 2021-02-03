@@ -397,7 +397,7 @@ static long rkispp_ioctl(struct v4l2_subdev *sd, unsigned int cmd, void *arg)
 		break;
 	case RKISP_ISPP_CMD_GET_REG_WITHSTREAM:
 		rkispp_reg_withstream = arg;
-		*rkispp_reg_withstream = rkispp_get_reg_withstream();
+		*rkispp_reg_withstream = rkispp_is_reg_withstream_global();
 		break;
 	case RKISPP_CMD_TRIGGER_YNRRUN:
 		rkispp_sendbuf_to_nr(ispp_dev, (struct rkispp_tnr_inf *)arg);

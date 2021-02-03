@@ -41,6 +41,12 @@ struct rkisp_bridge_buf {
 	struct rkisp_dummy_buffer dummy[GROUP_BUF_MAX];
 };
 
+struct rkisp_bridge_work {
+	struct work_struct work;
+	struct rkisp_bridge_device *dev;
+	void *param;
+};
+
 struct rkisp_bridge_device {
 	struct rkisp_device *ispdev;
 	struct v4l2_subdev sd;
@@ -56,6 +62,7 @@ struct rkisp_bridge_device {
 	bool stopping;
 	bool linked;
 	bool en;
+	struct workqueue_struct *wq;
 };
 
 int rkisp_register_bridge_subdev(struct rkisp_device *dev,

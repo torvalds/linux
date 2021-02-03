@@ -197,7 +197,7 @@ static int rkispp_init_regbuf(struct rkispp_hw_dev *hw)
 	struct rkisp_ispp_reg *reg_buf;
 	u32 i, buf_size;
 
-	if (!rkispp_reg_withstream) {
+	if (!rkispp_is_reg_withstream_global()) {
 		hw->reg_buf = NULL;
 		return 0;
 	}
@@ -564,9 +564,6 @@ void rkispp_release_regbuf(struct rkispp_device *ispp, struct rkisp_ispp_reg *fr
 			reg_buf[i].stat = ISP_ISPP_FREE;
 		}
 	}
-
-	freebuf->frame_id = 0;
-	freebuf->stat = ISP_ISPP_FREE;
 }
 
 void rkispp_request_regbuf(struct rkispp_device *dev, struct rkisp_ispp_reg **free_buf)
@@ -585,7 +582,21 @@ void rkispp_request_regbuf(struct rkispp_device *dev, struct rkisp_ispp_reg **fr
 	}
 }
 
-bool rkispp_get_reg_withstream(void)
+bool rkispp_is_reg_withstream_global(void)
 {
 	return rkispp_reg_withstream;
+}
+
+bool rkispp_is_reg_withstream_local(struct device *dev)
+{
+	const char *node_name = dev_name(dev);
+
+	if (!node_name)
+		return false;
+
+	if (!memcmp(rkispp_reg_withstream_video_name, node_name,
+		    strlen(node_name)))
+		return true;
+	else
+		return false;
 }
