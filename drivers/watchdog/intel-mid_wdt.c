@@ -154,6 +154,10 @@ static int mid_wdt_probe(struct platform_device *pdev)
 	watchdog_set_nowayout(wdt_dev, WATCHDOG_NOWAYOUT);
 	watchdog_set_drvdata(wdt_dev, mid);
 
+	mid->scu = devm_intel_scu_ipc_dev_get(dev);
+	if (!mid->scu)
+		return -EPROBE_DEFER;
+
 	ret = devm_request_irq(dev, pdata->irq, mid_wdt_irq,
 			       IRQF_SHARED | IRQF_NO_SUSPEND, "watchdog",
 			       wdt_dev);
@@ -161,10 +165,6 @@ static int mid_wdt_probe(struct platform_device *pdev)
 		dev_err(dev, "error requesting warning irq %d\n", pdata->irq);
 		return ret;
 	}
-
-	mid->scu = devm_intel_scu_ipc_dev_get(dev);
-	if (!mid->scu)
-		return -EPROBE_DEFER;
 
 	/*
 	 * The firmware followed by U-Boot leaves the watchdog running

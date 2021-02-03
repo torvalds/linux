@@ -30,8 +30,6 @@
 #include <linux/pm_runtime.h>
 #include <linux/gpio/consumer.h>
 
-#include <asm/intel_scu_ipc.h>
-
 #include "mdfld_dsi_dpi.h"
 #include "mdfld_dsi_output.h"
 #include "mdfld_dsi_pkg_sender.h"

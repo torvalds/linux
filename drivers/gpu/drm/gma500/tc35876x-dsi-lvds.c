@@ -444,6 +444,7 @@ static inline u16 calc_clkdiv(unsigned long baseclk, unsigned int f)
 
 static void tc35876x_brightness_init(struct drm_device *dev)
 {
+	struct drm_psb_private *dev_priv = dev->dev_private;
 	int ret;
 	u8 pwmctrl;
 	u16 clkdiv;
@@ -451,23 +452,23 @@ static void tc35876x_brightness_init(struct drm_device *dev)
 	/* Make sure the PWM reference is the 19.2 MHz system clock. Read first
 	 * instead of setting directly to catch potential conflicts between PWM
 	 * users. */
-	ret = intel_scu_ipc_ioread8(GPIOPWMCTRL, &pwmctrl);
+	ret = intel_scu_ipc_dev_ioread8(dev_priv->scu, GPIOPWMCTRL, &pwmctrl);
 	if (ret || pwmctrl != 0x01) {
 		if (ret)
 			dev_err(&dev->pdev->dev, "GPIOPWMCTRL read failed\n");
 		else
 			dev_warn(&dev->pdev->dev, "GPIOPWMCTRL was not set to system clock (pwmctrl = 0x%02x)\n", pwmctrl);
 
-		ret = intel_scu_ipc_iowrite8(GPIOPWMCTRL, 0x01);
+		ret = intel_scu_ipc_dev_iowrite8(dev_priv->scu, GPIOPWMCTRL, 0x01);
 		if (ret)
 			dev_err(&dev->pdev->dev, "GPIOPWMCTRL set failed\n");
 	}
 
 	clkdiv = calc_clkdiv(SYSTEMCLK, PWM_FREQUENCY);
 
-	ret = intel_scu_ipc_iowrite8(PWM0CLKDIV1, (clkdiv >> 8) & 0xff);
+	ret = intel_scu_ipc_dev_iowrite8(dev_priv->scu, PWM0CLKDIV1, (clkdiv >> 8) & 0xff);
 	if (!ret)
-		ret = intel_scu_ipc_iowrite8(PWM0CLKDIV0, clkdiv & 0xff);
+		ret = intel_scu_ipc_dev_iowrite8(dev_priv->scu, PWM0CLKDIV0, clkdiv & 0xff);
 
 	if (ret)
 		dev_err(&dev->pdev->dev, "PWM0CLKDIV set failed\n");
@@ -480,6 +481,7 @@ static void tc35876x_brightness_init(struct drm_device *dev)
 
 void tc35876x_brightness_control(struct drm_device *dev, int level)
 {
+	struct drm_psb_private *dev_priv = dev->dev_private;
 	int ret;
 	u8 duty_val;
 	u8 panel_duty_val;
@@ -495,7 +497,7 @@ void tc35876x_brightness_control(struct drm_device *dev, int level)
 	panel_duty_val = (2 * level - 100) * 0xA9 /
 			 MDFLD_DSI_BRIGHTNESS_MAX_LEVEL + 0x56;
 
-	ret = intel_scu_ipc_iowrite8(PWM0DUTYCYCLE, duty_val);
+	ret = intel_scu_ipc_dev_iowrite8(dev_priv->scu, PWM0DUTYCYCLE, duty_val);
 	if (ret)
 		dev_err(&tc35876x_client->dev, "%s: ipc write fail\n",
 			__func__);
@@ -516,11 +518,9 @@ void tc35876x_toshiba_bridge_panel_off(struct drm_device *dev)
 
 	dev_dbg(&tc35876x_client->dev, "%s\n", __func__);
 
-	if (bridge_bl_enable)
-		gpiod_set_value_cansleep(bridge_bl_enable, 0);
+	gpiod_set_value_cansleep(bridge_bl_enable, 0);
 
-	if (backlight_voltage)
-		gpiod_set_value_cansleep(backlight_voltage, 0);
+	gpiod_set_value_cansleep(backlight_voltage, 0);
 }
 
 void tc35876x_toshiba_bridge_panel_on(struct drm_device *dev)
@@ -565,8 +565,7 @@ void tc35876x_toshiba_bridge_panel_on(struct drm_device *dev)
 				"i2c write failed (%d)\n", ret);
 	}
 
-	if (bridge_bl_enable)
-		gpiod_set_value_cansleep(bridge_bl_enable, 1);
+	gpiod_set_value_cansleep(bridge_bl_enable, 1);
 
 	tc35876x_brightness_control(dev, dev_priv->brightness_adjusted);
 }
@@ -640,20 +639,17 @@ static int tc35876x_bridge_probe(struct i2c_client *client,
 	bridge_reset = devm_gpiod_get_optional(&client->dev, "bridge-reset", GPIOD_OUT_LOW);
 	if (IS_ERR(bridge_reset))
 		return PTR_ERR(bridge_reset);
-	if (bridge_reset)
-		gpiod_set_consumer_name(bridge_reset, "tc35876x bridge reset");
+	gpiod_set_consumer_name(bridge_reset, "tc35876x bridge reset");
 
 	bridge_bl_enable = devm_gpiod_get_optional(&client->dev, "bl-en", GPIOD_OUT_LOW);
 	if (IS_ERR(bridge_bl_enable))
 		return PTR_ERR(bridge_bl_enable);
-	if (bridge_bl_enable)
-		gpiod_set_consumer_name(bridge_bl_enable, "tc35876x panel bl en");
+	gpiod_set_consumer_name(bridge_bl_enable, "tc35876x panel bl en");
 
 	backlight_voltage = devm_gpiod_get_optional(&client->dev, "vadd", GPIOD_OUT_LOW);
 	if (IS_ERR(backlight_voltage))
 		return PTR_ERR(backlight_voltage);
-	if (backlight_voltage)
-		gpiod_set_consumer_name(backlight_voltage, "tc35876x panel vadd");
+	gpiod_set_consumer_name(backlight_voltage, "tc35876x panel vadd");
 
 	tc35876x_client = client;
 
