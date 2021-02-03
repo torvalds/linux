@@ -263,6 +263,8 @@ static inline void hv_set_msi_entry_from_desc(union hv_msi_entry *msi_entry,
 	msi_entry->data.as_uint32 = msi_desc->msg.data;
 }
 
+struct irq_domain *hv_create_pci_msi_domain(void);
+
 #else /* CONFIG_HYPERV */
 static inline void hyperv_init(void) {}
 static inline void hyperv_setup_mmu_ops(void) {}

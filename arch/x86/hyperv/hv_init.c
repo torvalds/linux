@@ -511,6 +511,15 @@ void __init hyperv_init(void)
 
 	BUG_ON(hv_root_partition && hv_current_partition_id == ~0ull);
 
+#ifdef CONFIG_PCI_MSI
+	/*
+	 * If we're running as root, we want to create our own PCI MSI domain.
+	 * We can't set this in hv_pci_init because that would be too late.
+	 */
+	if (hv_root_partition)
+		x86_init.irqs.create_pci_msi_domain = hv_create_pci_msi_domain;
+#endif
+
 	return;
 
 remove_cpuhp_state:
