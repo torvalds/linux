@@ -85,7 +85,9 @@ typedef u64 gen8_pte_t;
 #define BYT_PTE_SNOOPED_BY_CPU_CACHES	REG_BIT(2)
 #define BYT_PTE_WRITEABLE		REG_BIT(1)
 
-#define GEN12_PPGTT_PTE_LM BIT_ULL(11)
+#define GEN12_PPGTT_PTE_LM	BIT_ULL(11)
+
+#define GEN12_GGTT_PTE_LM	BIT_ULL(1)
 
 /*
  * Cacheability Control is a 4-bit value. The low three bits are stored in bits
