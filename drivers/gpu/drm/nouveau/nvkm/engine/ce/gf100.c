@@ -29,9 +29,7 @@
 static void
 gf100_ce_init(struct nvkm_falcon *ce)
 {
-	struct nvkm_device *device = ce->engine.subdev.device;
-	const int index = ce->engine.subdev.index - NVKM_ENGINE_CE0;
-	nvkm_wr32(device, ce->addr + 0x084, index);
+	nvkm_wr32(ce->engine.subdev.device, ce->addr + 0x084, ce->engine.subdev.inst);
 }
 
 static const struct nvkm_falcon_func
