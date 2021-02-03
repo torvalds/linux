@@ -1294,7 +1294,7 @@ static int self_check_write(struct ubi_device *ubi, const void *buf, int pnum,
 	void *buf1;
 	loff_t addr = (loff_t)pnum * ubi->peb_size + offset;
 
-	if (!ubi_dbg_chk_io(ubi))
+	if (false)
 		return 0;
 
 	buf1 = __vmalloc(len, GFP_NOFS);
