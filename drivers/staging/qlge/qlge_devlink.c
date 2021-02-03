@@ -150,7 +150,6 @@ static const struct devlink_health_reporter_ops qlge_reporter_ops = {
 
 void qlge_health_create_reporters(struct qlge_adapter *priv)
 {
-	struct devlink_health_reporter *reporter;
 	struct devlink *devlink;
 
 	devlink = priv_to_devlink(priv);
@@ -160,5 +159,5 @@ void qlge_health_create_reporters(struct qlge_adapter *priv)
 	if (IS_ERR(priv->reporter))
 		netdev_warn(priv->ndev,
 			    "Failed to create reporter, err = %ld\n",
-			    PTR_ERR(reporter));
+			    PTR_ERR(priv->reporter));
 }
