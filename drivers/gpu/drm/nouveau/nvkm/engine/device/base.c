@@ -935,7 +935,7 @@ nv84_chipset = {
 	.timer    = { 0x00000001, nv41_timer_new },
 	.volt     = { 0x00000001, nv40_volt_new },
 	.bsp      = { 0x00000001, g84_bsp_new },
-	.cipher = g84_cipher_new,
+	.cipher   = { 0x00000001, g84_cipher_new },
 	.disp = g84_disp_new,
 	.dma = nv50_dma_new,
 	.fifo = g84_fifo_new,
@@ -967,7 +967,7 @@ nv86_chipset = {
 	.timer    = { 0x00000001, nv41_timer_new },
 	.volt     = { 0x00000001, nv40_volt_new },
 	.bsp      = { 0x00000001, g84_bsp_new },
-	.cipher = g84_cipher_new,
+	.cipher   = { 0x00000001, g84_cipher_new },
 	.disp = g84_disp_new,
 	.dma = nv50_dma_new,
 	.fifo = g84_fifo_new,
@@ -999,7 +999,7 @@ nv92_chipset = {
 	.timer    = { 0x00000001, nv41_timer_new },
 	.volt     = { 0x00000001, nv40_volt_new },
 	.bsp      = { 0x00000001, g84_bsp_new },
-	.cipher = g84_cipher_new,
+	.cipher   = { 0x00000001, g84_cipher_new },
 	.disp = g84_disp_new,
 	.dma = nv50_dma_new,
 	.fifo = g84_fifo_new,
@@ -1031,7 +1031,7 @@ nv94_chipset = {
 	.timer    = { 0x00000001, nv41_timer_new },
 	.volt     = { 0x00000001, nv40_volt_new },
 	.bsp      = { 0x00000001, g84_bsp_new },
-	.cipher = g84_cipher_new,
+	.cipher   = { 0x00000001, g84_cipher_new },
 	.disp = g94_disp_new,
 	.dma = nv50_dma_new,
 	.fifo = g84_fifo_new,
@@ -1063,7 +1063,7 @@ nv96_chipset = {
 	.timer    = { 0x00000001, nv41_timer_new },
 	.volt     = { 0x00000001, nv40_volt_new },
 	.bsp      = { 0x00000001, g84_bsp_new },
-	.cipher = g84_cipher_new,
+	.cipher   = { 0x00000001, g84_cipher_new },
 	.disp = g94_disp_new,
 	.dma = nv50_dma_new,
 	.fifo = g84_fifo_new,
@@ -1127,7 +1127,7 @@ nva0_chipset = {
 	.timer    = { 0x00000001, nv41_timer_new },
 	.volt     = { 0x00000001, nv40_volt_new },
 	.bsp      = { 0x00000001, g84_bsp_new },
-	.cipher = g84_cipher_new,
+	.cipher   = { 0x00000001, g84_cipher_new },
 	.disp = gt200_disp_new,
 	.dma = nv50_dma_new,
 	.fifo = g84_fifo_new,
@@ -3174,7 +3174,6 @@ nvkm_device_ctor(const struct nvkm_device_func *func,
 #include <core/layout.h>
 #undef NVKM_LAYOUT_INST
 #undef NVKM_LAYOUT_ONCE
-		_(NVKM_ENGINE_CIPHER  ,   cipher);
 		_(NVKM_ENGINE_DISP    ,     disp);
 		_(NVKM_ENGINE_DMAOBJ  ,      dma);
 		_(NVKM_ENGINE_FIFO    ,     fifo);

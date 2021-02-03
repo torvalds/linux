@@ -38,7 +38,7 @@ g84_devinit_disable(struct nvkm_devinit *init)
 		disable |= (1ULL << NVKM_ENGINE_MPEG);
 		nvkm_subdev_disable(device, NVKM_ENGINE_VP, 0);
 		nvkm_subdev_disable(device, NVKM_ENGINE_BSP, 0);
-		disable |= (1ULL << NVKM_ENGINE_CIPHER);
+		nvkm_subdev_disable(device, NVKM_ENGINE_CIPHER, 0);
 	}
 
 	if (!(r00154c & 0x00000004))
@@ -46,7 +46,7 @@ g84_devinit_disable(struct nvkm_devinit *init)
 	if (!(r00154c & 0x00000020))
 		nvkm_subdev_disable(device, NVKM_ENGINE_BSP, 0);
 	if (!(r00154c & 0x00000040))
-		disable |= (1ULL << NVKM_ENGINE_CIPHER);
+		nvkm_subdev_disable(device, NVKM_ENGINE_CIPHER, 0);
 
 	return disable;
 }
