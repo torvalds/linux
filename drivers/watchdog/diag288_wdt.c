@@ -118,8 +118,6 @@ static int wdt_start(struct watchdog_device *dev)
 	if (test_and_set_bit(DIAG_WDOG_BUSY, &wdt_status))
 		return -EBUSY;
 
-	ret = -ENODEV;
-
 	if (MACHINE_IS_VM) {
 		ebc_cmd = kmalloc(MAX_CMDLEN, GFP_KERNEL);
 		if (!ebc_cmd) {
@@ -166,8 +164,6 @@ static int wdt_ping(struct watchdog_device *dev)
 	size_t len;
 	int ret;
 	unsigned int func;
-
-	ret = -ENODEV;
 
 	if (MACHINE_IS_VM) {
 		ebc_cmd = kmalloc(MAX_CMDLEN, GFP_KERNEL);
