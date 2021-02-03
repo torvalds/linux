@@ -201,6 +201,7 @@ static const struct of_device_id mtk_hdmi_phy_match[] = {
 	},
 	{},
 };
+MODULE_DEVICE_TABLE(of, mtk_hdmi_phy_match);
 
 static struct platform_driver mtk_hdmi_phy_driver = {
 	.probe = mtk_hdmi_phy_probe,
