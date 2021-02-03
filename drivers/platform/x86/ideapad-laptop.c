@@ -321,37 +321,40 @@ static int debugfs_cfg_show(struct seq_file *s, void *data)
 {
 	struct ideapad_private *priv = s->private;
 
-	seq_printf(s, "cfg: 0x%.8lX\n\nCapability: ",
-		   priv->cfg);
+	seq_printf(s, "_CFG: %#010lx\n\n", priv->cfg);
+
+	seq_puts(s, "Capabilities:");
 	if (test_bit(CFG_CAP_BT_BIT, &priv->cfg))
-		seq_printf(s, "Bluetooth ");
+		seq_puts(s, " bluetooth");
 	if (test_bit(CFG_CAP_3G_BIT, &priv->cfg))
-		seq_printf(s, "3G ");
+		seq_puts(s, " 3G");
 	if (test_bit(CFG_CAP_WIFI_BIT, &priv->cfg))
-		seq_printf(s, "Wireless ");
+		seq_puts(s, " wifi");
 	if (test_bit(CFG_CAP_CAM_BIT, &priv->cfg))
-		seq_printf(s, "Camera ");
+		seq_puts(s, " camera");
 	if (test_bit(CFG_CAP_TOUCHPAD_BIT, &priv->cfg))
-		seq_printf(s, "Touchpad ");
-	seq_printf(s, "\nGraphic: ");
-	switch ((priv->cfg)&0x700) {
+		seq_puts(s, " touchpad");
+	seq_puts(s, "\n");
+
+	seq_puts(s, "Graphics: ");
+	switch (priv->cfg & 0x700) {
 	case 0x100:
-		seq_printf(s, "Intel");
+		seq_puts(s, "Intel");
 		break;
 	case 0x200:
-		seq_printf(s, "ATI");
+		seq_puts(s, "ATI");
 		break;
 	case 0x300:
-		seq_printf(s, "Nvidia");
+		seq_puts(s, "Nvidia");
 		break;
 	case 0x400:
-		seq_printf(s, "Intel and ATI");
+		seq_puts(s, "Intel and ATI");
 		break;
 	case 0x500:
-		seq_printf(s, "Intel and Nvidia");
+		seq_puts(s, "Intel and Nvidia");
 		break;
 	}
-	seq_printf(s, "\n");
+	seq_puts(s, "\n");
 
 	return 0;
 }
