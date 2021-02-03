@@ -101,8 +101,8 @@ nv50_devinit_preinit(struct nvkm_devinit *base)
 	 * missing, assume it's a secondary gpu which requires post
 	 */
 	if (!base->post) {
-		u64 disable = nvkm_devinit_disable(base);
-		if (disable & (1ULL << NVKM_ENGINE_DISP))
+		nvkm_devinit_disable(base);
+		if (!device->disp)
 			base->post = true;
 	}
 

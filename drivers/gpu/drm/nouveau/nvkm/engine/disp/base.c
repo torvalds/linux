@@ -473,7 +473,7 @@ nvkm_disp = {
 
 int
 nvkm_disp_ctor(const struct nvkm_disp_func *func, struct nvkm_device *device,
-	       int index, struct nvkm_disp *disp)
+	       enum nvkm_subdev_type type, int inst, struct nvkm_disp *disp)
 {
 	disp->func = func;
 	INIT_LIST_HEAD(&disp->head);
@@ -481,14 +481,14 @@ nvkm_disp_ctor(const struct nvkm_disp_func *func, struct nvkm_device *device,
 	INIT_LIST_HEAD(&disp->outp);
 	INIT_LIST_HEAD(&disp->conn);
 	spin_lock_init(&disp->client.lock);
-	return nvkm_engine_ctor(&nvkm_disp, device, index, true, &disp->engine);
+	return nvkm_engine_ctor(&nvkm_disp, device, type, inst, true, &disp->engine);
 }
 
 int
 nvkm_disp_new_(const struct nvkm_disp_func *func, struct nvkm_device *device,
-	       int index, struct nvkm_disp **pdisp)
+	       enum nvkm_subdev_type type, int inst, struct nvkm_disp **pdisp)
 {
 	if (!(*pdisp = kzalloc(sizeof(**pdisp), GFP_KERNEL)))
 		return -ENOMEM;
-	return nvkm_disp_ctor(func, device, index, *pdisp);
+	return nvkm_disp_ctor(func, device, type, inst, *pdisp);
 }
