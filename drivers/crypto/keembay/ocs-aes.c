@@ -1080,15 +1080,15 @@ static int ocs_aes_ccm_write_b0(const struct ocs_aes_dev *aes_dev,
 	/*
 	 * q is the octet length of Q.
 	 * q can only be an element of {2, 3, 4, 5, 6, 7, 8} and is encoded as
-	 * q - 1 == iv[0]
+	 * q - 1 == iv[0] & 0x7;
 	 */
 	b0[0] |= iv[0] & 0x7;
 	/*
 	 * Copy the Nonce N from IV to B0; N is located in iv[1]..iv[15 - q]
 	 * and must be copied to b0[1]..b0[15-q].
-	 * q == iv[0] + 1
+	 * q == (iv[0] & 0x7) + 1
 	 */
-	q = iv[0] + 1;
+	q = (iv[0] & 0x7) + 1;
 	for (i = 1; i <= 15 - q; i++)
 		b0[i] = iv[i];
 	/*
