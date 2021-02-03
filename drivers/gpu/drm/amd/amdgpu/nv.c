@@ -1144,6 +1144,8 @@ static int nv_common_set_clockgating_state(void *handle,
 				state == AMD_CG_STATE_GATE);
 		adev->hdp.funcs->update_clock_gating(adev,
 				state == AMD_CG_STATE_GATE);
+		adev->smuio.funcs->update_rom_clock_gating(adev,
+				state == AMD_CG_STATE_GATE);
 		break;
 	default:
 		break;
@@ -1168,6 +1170,8 @@ static void nv_common_get_clockgating_state(void *handle, u32 *flags)
 	adev->nbio.funcs->get_clockgating_state(adev, flags);
 
 	adev->hdp.funcs->get_clock_gating_state(adev, flags);
+
+	adev->smuio.funcs->get_clock_gating_state(adev, flags);
 
 	return;
 }
