@@ -919,10 +919,6 @@ dma_chan_prep_dma_memcpy(struct dma_chan *dchan, dma_addr_t dst_adr,
 		num++;
 	}
 
-	/* Total len of src/dest sg == 0, so no descriptor were allocated */
-	if (unlikely(!desc))
-		return NULL;
-
 	/* Set end-of-link to the last link descriptor of list */
 	set_desc_last(&desc->hw_desc[num - 1]);
 	/* Managed transfer list */
