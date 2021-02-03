@@ -3,8 +3,8 @@
 # Makefile for Kernel-based Virtual Machine module, HYP/nVHE part
 #
 
-asflags-y := -D__KVM_NVHE_HYPERVISOR__
-ccflags-y := -D__KVM_NVHE_HYPERVISOR__
+asflags-y := -D__KVM_NVHE_HYPERVISOR__ -D__DISABLE_EXPORTS
+ccflags-y := -D__KVM_NVHE_HYPERVISOR__ -D__DISABLE_EXPORTS
 
 hostprogs := gen-hyprel
 HOST_EXTRACFLAGS += -I$(objtree)/include
