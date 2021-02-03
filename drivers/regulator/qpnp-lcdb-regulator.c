@@ -148,11 +148,6 @@
 #define SET_OUTPUT_VOLTAGE_MASK		GENMASK(4, 0)
 #define PM7325B_SET_OUTPUT_VOLTAGE_MASK	GENMASK(5, 0)
 
-#define LCDB_LDO_TRAN_CTL_REG	0x72
-#define EN_LDO_TRAN_DET_BIT		BIT(7)
-#define CLR_LDO_UV_TIME_US	0x4
-#define CLR_LDO_UV_TIME_US_SHIFT	4
-
 #define LCDB_LDO_VREG_OK_CTL_REG	0x75
 #define VREG_OK_DEB_MASK		GENMASK(1, 0)
 
@@ -365,7 +360,6 @@ enum lcdb_settings_index {
 enum lcdb_wa_flags {
 	NCP_SCP_DISABLE_WA = BIT(0),
 	FORCE_PD_ENABLE_WA = BIT(1),
-	LDO_UNDERSHOOT_WA = BIT(2),
 };
 
 static const u32 soft_start_us[] = {
@@ -1015,16 +1009,6 @@ static int qpnp_lcdb_enable(struct qpnp_lcdb *lcdb)
 		return 0;
 	}
 
-	if (lcdb->wa_flags & LDO_UNDERSHOOT_WA) {
-		/* Workaround to fix LCDB out of regulation issue */
-		val = CLR_LDO_UV_TIME_US << CLR_LDO_UV_TIME_US_SHIFT;
-		val |= EN_LDO_TRAN_DET_BIT;
-		rc = qpnp_lcdb_write(lcdb, lcdb->base + LCDB_LDO_TRAN_CTL_REG,
-					&val, 1);
-		if (rc < 0)
-			return rc;
-	}
-
 	if (lcdb->ttw_enable) {
 		rc = qpnp_lcdb_ttw_exit(lcdb);
 		if (rc < 0) {
@@ -1119,15 +1103,6 @@ static int qpnp_lcdb_disable(struct qpnp_lcdb *lcdb)
 
 	if (!lcdb->lcdb_enabled)
 		return 0;
-
-	if (lcdb->wa_flags & LDO_UNDERSHOOT_WA) {
-		/* Workaround to fix LCDB out of regulation issue */
-		val = CLR_LDO_UV_TIME_US << CLR_LDO_UV_TIME_US_SHIFT;
-		rc = qpnp_lcdb_write(lcdb, lcdb->base + LCDB_LDO_TRAN_CTL_REG,
-					&val, 1);
-		if (rc < 0)
-			return rc;
-	}
 
 	if (lcdb->ttw_enable) {
 		switch (lcdb->subtype) {
@@ -2410,9 +2385,6 @@ static int qpnp_lcdb_init_bst(struct qpnp_lcdb *lcdb)
 
 static void qpnp_lcdb_pmic_config(struct qpnp_lcdb *lcdb)
 {
-	int rc;
-	u8 val[2];
-
 	switch (lcdb->subtype) {
 	case PMI632:
 	case PM6150L:
@@ -2421,15 +2393,6 @@ static void qpnp_lcdb_pmic_config(struct qpnp_lcdb *lcdb)
 		break;
 	default:
 		break;
-	}
-
-	if (lcdb->subtype == PM7325B) {
-		rc = qpnp_lcdb_read(lcdb, lcdb->base + LCDB_REVISION3_REG,
-								val, 2);
-
-		/* This SW W/A is applicable for PM7325B 1.0 HW only */
-		if (!rc && val[0] == 0 && val[1] == 1)
-			lcdb->wa_flags |= LDO_UNDERSHOOT_WA;
 	}
 
 	pr_debug("LCDB wa_flags = 0x%2x\n", lcdb->wa_flags);
