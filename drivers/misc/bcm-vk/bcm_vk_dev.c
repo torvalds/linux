@@ -1358,6 +1358,7 @@ static int bcm_vk_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 		vk->bar[i] = pci_ioremap_bar(pdev, i * 2);
 		if (!vk->bar[i]) {
 			dev_err(dev, "failed to remap BAR%d\n", i);
+			err = -ENOMEM;
 			goto err_iounmap;
 		}
 	}
@@ -1463,7 +1464,8 @@ static int bcm_vk_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	boot_status = vkread32(vk, BAR_0, BAR_BOOT_STATUS);
 	if (auto_load) {
 		if ((boot_status & BOOT_STATE_MASK) == BROM_RUNNING) {
-			if (bcm_vk_trigger_autoload(vk))
+			err = bcm_vk_trigger_autoload(vk);
+			if (err)
 				goto err_bcm_vk_tty_exit;
 		} else {
 			dev_err(dev,
