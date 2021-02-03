@@ -11,6 +11,7 @@
 #include <linux/acpi.h>
 #include <linux/backlight.h>
 #include <linux/bitops.h>
+#include <linux/bug.h>
 #include <linux/debugfs.h>
 #include <linux/device.h>
 #include <linux/dmi.h>
@@ -21,6 +22,7 @@
 #include <linux/input/sparse-keymap.h>
 #include <linux/jiffies.h>
 #include <linux/kernel.h>
+#include <linux/leds.h>
 #include <linux/module.h>
 #include <linux/platform_device.h>
 #include <linux/platform_profile.h>
@@ -30,6 +32,8 @@
 #include <linux/types.h>
 
 #include <acpi/video.h>
+
+#include <dt-bindings/leds/common.h>
 
 #define IDEAPAD_RFKILL_DEV_NUM	3
 
@@ -58,12 +62,16 @@ enum {
 };
 
 enum {
+	HALS_KBD_BL_SUPPORT_BIT  = 4,
+	HALS_KBD_BL_STATE_BIT    = 5,
 	HALS_FNLOCK_SUPPORT_BIT  = 9,
 	HALS_FNLOCK_STATE_BIT    = 10,
 	HALS_HOTKEYS_PRIMARY_BIT = 11,
 };
 
 enum {
+	SALS_KBD_BL_ON  = 0x8,
+	SALS_KBD_BL_OFF = 0x9,
 	SALS_FNLOCK_ON  = 0xe,
 	SALS_FNLOCK_OFF = 0xf,
 };
@@ -124,8 +132,14 @@ struct ideapad_private {
 		bool fan_mode             : 1;
 		bool fn_lock              : 1;
 		bool hw_rfkill_switch     : 1;
+		bool kbd_bl               : 1;
 		bool touchpad_ctrl_via_ec : 1;
 	} features;
+	struct {
+		bool initialized;
+		struct led_classdev led;
+		unsigned int last_brightness;
+	} kbd_bl;
 };
 
 static bool no_bt_rfkill;
@@ -1201,6 +1215,108 @@ static void ideapad_backlight_notify_brightness(struct ideapad_private *priv)
 }
 
 /*
+ * keyboard backlight
+ */
+static int ideapad_kbd_bl_brightness_get(struct ideapad_private *priv)
+{
+	unsigned long hals;
+	int err;
+
+	err = eval_hals(priv->adev->handle, &hals);
+	if (err)
+		return err;
+
+	return !!test_bit(HALS_KBD_BL_STATE_BIT, &hals);
+}
+
+static enum led_brightness ideapad_kbd_bl_led_cdev_brightness_get(struct led_classdev *led_cdev)
+{
+	struct ideapad_private *priv = container_of(led_cdev, struct ideapad_private, kbd_bl.led);
+
+	return ideapad_kbd_bl_brightness_get(priv);
+}
+
+static int ideapad_kbd_bl_brightness_set(struct ideapad_private *priv, unsigned int brightness)
+{
+	int err = exec_sals(priv->adev->handle, brightness ? SALS_KBD_BL_ON : SALS_KBD_BL_OFF);
+
+	if (err)
+		return err;
+
+	priv->kbd_bl.last_brightness = brightness;
+
+	return 0;
+}
+
+static int ideapad_kbd_bl_led_cdev_brightness_set(struct led_classdev *led_cdev,
+						  enum led_brightness brightness)
+{
+	struct ideapad_private *priv = container_of(led_cdev, struct ideapad_private, kbd_bl.led);
+
+	return ideapad_kbd_bl_brightness_set(priv, brightness);
+}
+
+static void ideapad_kbd_bl_notify(struct ideapad_private *priv)
+{
+	int brightness;
+
+	if (!priv->kbd_bl.initialized)
+		return;
+
+	brightness = ideapad_kbd_bl_brightness_get(priv);
+	if (brightness < 0)
+		return;
+
+	if (brightness == priv->kbd_bl.last_brightness)
+		return;
+
+	priv->kbd_bl.last_brightness = brightness;
+
+	led_classdev_notify_brightness_hw_changed(&priv->kbd_bl.led, brightness);
+}
+
+static int ideapad_kbd_bl_init(struct ideapad_private *priv)
+{
+	int brightness, err;
+
+	if (!priv->features.kbd_bl)
+		return -ENODEV;
+
+	if (WARN_ON(priv->kbd_bl.initialized))
+		return -EEXIST;
+
+	brightness = ideapad_kbd_bl_brightness_get(priv);
+	if (brightness < 0)
+		return brightness;
+
+	priv->kbd_bl.last_brightness = brightness;
+
+	priv->kbd_bl.led.name                    = "platform::" LED_FUNCTION_KBD_BACKLIGHT;
+	priv->kbd_bl.led.max_brightness          = 1;
+	priv->kbd_bl.led.brightness_get          = ideapad_kbd_bl_led_cdev_brightness_get;
+	priv->kbd_bl.led.brightness_set_blocking = ideapad_kbd_bl_led_cdev_brightness_set;
+	priv->kbd_bl.led.flags                   = LED_BRIGHT_HW_CHANGED;
+
+	err = led_classdev_register(&priv->platform_device->dev, &priv->kbd_bl.led);
+	if (err)
+		return err;
+
+	priv->kbd_bl.initialized = true;
+
+	return 0;
+}
+
+static void ideapad_kbd_bl_exit(struct ideapad_private *priv)
+{
+	if (!priv->kbd_bl.initialized)
+		return;
+
+	priv->kbd_bl.initialized = false;
+
+	led_classdev_unregister(&priv->kbd_bl.led);
+}
+
+/*
  * module init/exit
  */
 static void ideapad_sync_touchpad_state(struct ideapad_private *priv)
@@ -1267,8 +1383,10 @@ static void ideapad_acpi_notify(acpi_handle handle, u32 event, void *data)
 			 * Some IdeaPads report event 1 every ~20
 			 * seconds while on battery power; some
 			 * report this when changing to/from tablet
-			 * mode. Squelch this event.
+			 * mode; some report this when the keyboard
+			 * backlight has changed.
 			 */
+			ideapad_kbd_bl_notify(priv);
 			break;
 		case 0:
 			ideapad_check_special_buttons(priv);
@@ -1338,6 +1456,9 @@ static void ideapad_check_features(struct ideapad_private *priv)
 		if (!eval_hals(handle, &val)) {
 			if (test_bit(HALS_FNLOCK_SUPPORT_BIT, &val))
 				priv->features.fn_lock = true;
+
+			if (test_bit(HALS_KBD_BL_SUPPORT_BIT, &val))
+				priv->features.kbd_bl = true;
 		}
 	}
 }
@@ -1378,6 +1499,14 @@ static int ideapad_acpi_add(struct platform_device *pdev)
 	err = ideapad_input_init(priv);
 	if (err)
 		goto input_failed;
+
+	err = ideapad_kbd_bl_init(priv);
+	if (err) {
+		if (err != -ENODEV)
+			dev_warn(&pdev->dev, "Could not set up keyboard backlight LED: %d\n", err);
+		else
+			dev_info(&pdev->dev, "Keyboard backlight control not available\n");
+	}
 
 	/*
 	 * On some models without a hw-switch (the yoga 2 13 at least)
@@ -1453,6 +1582,7 @@ backlight_failed:
 	for (i = 0; i < IDEAPAD_RFKILL_DEV_NUM; i++)
 		ideapad_unregister_rfkill(priv, i);
 
+	ideapad_kbd_bl_exit(priv);
 	ideapad_input_exit(priv);
 
 input_failed:
@@ -1482,6 +1612,7 @@ static int ideapad_acpi_remove(struct platform_device *pdev)
 	for (i = 0; i < IDEAPAD_RFKILL_DEV_NUM; i++)
 		ideapad_unregister_rfkill(priv, i);
 
+	ideapad_kbd_bl_exit(priv);
 	ideapad_input_exit(priv);
 	ideapad_debugfs_exit(priv);
 	ideapad_sysfs_exit(priv);
