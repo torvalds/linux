@@ -68,6 +68,8 @@ int intel_gt_probe_lmem(struct intel_gt *gt)
 	mem->type = INTEL_MEMORY_LOCAL;
 	mem->instance = 0;
 
+	intel_memory_region_set_name(mem, "local%u", mem->instance);
+
 	GEM_BUG_ON(!HAS_REGION(i915, id));
 	GEM_BUG_ON(i915->mm.regions[id]);
 	i915->mm.regions[id] = mem;
