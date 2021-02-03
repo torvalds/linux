@@ -9,6 +9,7 @@
 #include <linux/string.h>
 #include <linux/watchdog.h>
 
+#include "watchdog_core.h"
 #include "watchdog_pretimeout.h"
 
 /* Default watchdog pretimeout governor */
@@ -177,7 +178,7 @@ int watchdog_register_pretimeout(struct watchdog_device *wdd)
 {
 	struct watchdog_pretimeout *p;
 
-	if (!(wdd->info->options & WDIOF_PRETIMEOUT))
+	if (!watchdog_have_pretimeout(wdd))
 		return 0;
 
 	p = kzalloc(sizeof(*p), GFP_KERNEL);
@@ -197,7 +198,7 @@ void watchdog_unregister_pretimeout(struct watchdog_device *wdd)
 {
 	struct watchdog_pretimeout *p, *t;
 
-	if (!(wdd->info->options & WDIOF_PRETIMEOUT))
+	if (!watchdog_have_pretimeout(wdd))
 		return;
 
 	spin_lock_irq(&pretimeout_lock);
