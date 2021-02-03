@@ -380,9 +380,11 @@ static ssize_t show_ideapad_cam(struct device *dev,
 {
 	unsigned long result;
 	struct ideapad_private *priv = dev_get_drvdata(dev);
+	int err;
 
-	if (read_ec_data(priv->adev->handle, VPCCMD_R_CAMERA, &result))
-		return sysfs_emit(buf, "-1\n");
+	err = read_ec_data(priv->adev->handle, VPCCMD_R_CAMERA, &result);
+	if (err)
+		return err;
 	return sysfs_emit(buf, "%lu\n", result);
 }
 
@@ -411,9 +413,11 @@ static ssize_t show_ideapad_fan(struct device *dev,
 {
 	unsigned long result;
 	struct ideapad_private *priv = dev_get_drvdata(dev);
+	int err;
 
-	if (read_ec_data(priv->adev->handle, VPCCMD_R_FAN, &result))
-		return sysfs_emit(buf, "-1\n");
+	err = read_ec_data(priv->adev->handle, VPCCMD_R_FAN, &result);
+	if (err)
+		return err;
 	return sysfs_emit(buf, "%lu\n", result);
 }
 
@@ -444,9 +448,11 @@ static ssize_t touchpad_show(struct device *dev,
 {
 	struct ideapad_private *priv = dev_get_drvdata(dev);
 	unsigned long result;
+	int err;
 
-	if (read_ec_data(priv->adev->handle, VPCCMD_R_TOUCHPAD, &result))
-		return sysfs_emit(buf, "-1\n");
+	err = read_ec_data(priv->adev->handle, VPCCMD_R_TOUCHPAD, &result);
+	if (err)
+		return err;
 	return sysfs_emit(buf, "%lu\n", result);
 }
 
@@ -477,9 +483,11 @@ static ssize_t conservation_mode_show(struct device *dev,
 {
 	struct ideapad_private *priv = dev_get_drvdata(dev);
 	unsigned long result;
+	int err;
 
-	if (method_gbmd(priv->adev->handle, &result))
-		return sysfs_emit(buf, "-1\n");
+	err = method_gbmd(priv->adev->handle, &result);
+	if (err)
+		return err;
 	return sysfs_emit(buf, "%u\n", test_bit(BM_CONSERVATION_BIT, &result));
 }
 
@@ -515,7 +523,7 @@ static ssize_t fn_lock_show(struct device *dev,
 	int fail = read_method_int(priv->adev->handle, "HALS", &hals);
 
 	if (fail)
-		return sysfs_emit(buf, "-1\n");
+		return fail;
 
 	result = hals;
 	return sysfs_emit(buf, "%u\n", test_bit(HA_FNLOCK_BIT, &result));
