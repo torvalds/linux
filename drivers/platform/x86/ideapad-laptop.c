@@ -24,6 +24,7 @@
 #include <linux/platform_profile.h>
 #include <linux/rfkill.h>
 #include <linux/seq_file.h>
+#include <linux/sysfs.h>
 #include <linux/types.h>
 
 #include <acpi/video.h>
@@ -371,8 +372,8 @@ static ssize_t show_ideapad_cam(struct device *dev,
 	struct ideapad_private *priv = dev_get_drvdata(dev);
 
 	if (read_ec_data(priv->adev->handle, VPCCMD_R_CAMERA, &result))
-		return sprintf(buf, "-1\n");
-	return sprintf(buf, "%lu\n", result);
+		return sysfs_emit(buf, "-1\n");
+	return sysfs_emit(buf, "%lu\n", result);
 }
 
 static ssize_t store_ideapad_cam(struct device *dev,
@@ -402,8 +403,8 @@ static ssize_t show_ideapad_fan(struct device *dev,
 	struct ideapad_private *priv = dev_get_drvdata(dev);
 
 	if (read_ec_data(priv->adev->handle, VPCCMD_R_FAN, &result))
-		return sprintf(buf, "-1\n");
-	return sprintf(buf, "%lu\n", result);
+		return sysfs_emit(buf, "-1\n");
+	return sysfs_emit(buf, "%lu\n", result);
 }
 
 static ssize_t store_ideapad_fan(struct device *dev,
@@ -435,8 +436,8 @@ static ssize_t touchpad_show(struct device *dev,
 	unsigned long result;
 
 	if (read_ec_data(priv->adev->handle, VPCCMD_R_TOUCHPAD, &result))
-		return sprintf(buf, "-1\n");
-	return sprintf(buf, "%lu\n", result);
+		return sysfs_emit(buf, "-1\n");
+	return sysfs_emit(buf, "%lu\n", result);
 }
 
 /* Switch to RO for now: It might be revisited in the future */
@@ -468,8 +469,8 @@ static ssize_t conservation_mode_show(struct device *dev,
 	unsigned long result;
 
 	if (method_gbmd(priv->adev->handle, &result))
-		return sprintf(buf, "-1\n");
-	return sprintf(buf, "%u\n", test_bit(BM_CONSERVATION_BIT, &result));
+		return sysfs_emit(buf, "-1\n");
+	return sysfs_emit(buf, "%u\n", test_bit(BM_CONSERVATION_BIT, &result));
 }
 
 static ssize_t conservation_mode_store(struct device *dev,
@@ -504,10 +505,10 @@ static ssize_t fn_lock_show(struct device *dev,
 	int fail = read_method_int(priv->adev->handle, "HALS", &hals);
 
 	if (fail)
-		return sprintf(buf, "-1\n");
+		return sysfs_emit(buf, "-1\n");
 
 	result = hals;
-	return sprintf(buf, "%u\n", test_bit(HA_FNLOCK_BIT, &result));
+	return sysfs_emit(buf, "%u\n", test_bit(HA_FNLOCK_BIT, &result));
 }
 
 static ssize_t fn_lock_store(struct device *dev,
