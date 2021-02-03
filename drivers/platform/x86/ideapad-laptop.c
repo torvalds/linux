@@ -126,7 +126,7 @@ static int read_method_int(acpi_handle handle, const char *method, int *val)
 	status = acpi_evaluate_integer(handle, (char *)method, NULL, &result);
 	if (ACPI_FAILURE(status)) {
 		*val = -1;
-		return -1;
+		return -EIO;
 	}
 	*val = result;
 	return 0;
@@ -147,7 +147,7 @@ static int method_int1(acpi_handle handle, char *method, int cmd)
 	acpi_status status;
 
 	status = acpi_execute_simple_method(handle, method, cmd);
-	return ACPI_FAILURE(status) ? -1 : 0;
+	return ACPI_FAILURE(status) ? -EIO : 0;
 }
 
 static int method_dytc(acpi_handle handle, int cmd, int *ret)
@@ -166,7 +166,7 @@ static int method_dytc(acpi_handle handle, int cmd, int *ret)
 
 	if (ACPI_FAILURE(status)) {
 		*ret = -1;
-		return -1;
+		return -EIO;
 	}
 	*ret = result;
 	return 0;
@@ -188,7 +188,7 @@ static int method_vpcr(acpi_handle handle, int cmd, int *ret)
 
 	if (ACPI_FAILURE(status)) {
 		*ret = -1;
-		return -1;
+		return -EIO;
 	}
 	*ret = result;
 	return 0;
@@ -210,56 +210,62 @@ static int method_vpcw(acpi_handle handle, int cmd, int data)
 
 	status = acpi_evaluate_object(handle, "VPCW", &params, NULL);
 	if (status != AE_OK)
-		return -1;
+		return -EIO;
 	return 0;
 }
 
 static int read_ec_data(acpi_handle handle, int cmd, unsigned long *data)
 {
-	int val;
 	unsigned long int end_jiffies;
+	int val, err;
 
-	if (method_vpcw(handle, 1, cmd))
-		return -1;
+	err = method_vpcw(handle, 1, cmd);
+	if (err)
+		return err;
 
 	end_jiffies = jiffies + msecs_to_jiffies(IDEAPAD_EC_TIMEOUT) + 1;
 
 	while (time_before(jiffies, end_jiffies)) {
 		schedule();
-		if (method_vpcr(handle, 1, &val))
-			return -1;
+		err = method_vpcr(handle, 1, &val);
+		if (err)
+			return err;
 		if (val == 0) {
-			if (method_vpcr(handle, 0, &val))
-				return -1;
+			err = method_vpcr(handle, 0, &val);
+			if (err)
+				return err;
 			*data = val;
 			return 0;
 		}
 	}
 	acpi_handle_err(handle, "timeout in %s\n", __func__);
-	return -1;
+	return -ETIMEDOUT;
 }
 
 static int write_ec_cmd(acpi_handle handle, int cmd, unsigned long data)
 {
-	int val;
 	unsigned long int end_jiffies;
+	int val, err;
 
-	if (method_vpcw(handle, 0, data))
-		return -1;
-	if (method_vpcw(handle, 1, cmd))
-		return -1;
+	err = method_vpcw(handle, 0, data);
+	if (err)
+		return err;
+	err = method_vpcw(handle, 1, cmd);
+	if (err)
+		return err;
 
 	end_jiffies = jiffies + msecs_to_jiffies(IDEAPAD_EC_TIMEOUT) + 1;
 
 	while (time_before(jiffies, end_jiffies)) {
 		schedule();
-		if (method_vpcr(handle, 1, &val))
-			return -1;
+		err = method_vpcr(handle, 1, &val);
+		if (err)
+			return err;
 		if (val == 0)
 			return 0;
 	}
 	acpi_handle_err(handle, "timeout in %s\n", __func__);
-	return -1;
+	return -ETIMEDOUT;
 }
 
 /*
@@ -392,8 +398,8 @@ static ssize_t store_ideapad_cam(struct device *dev,
 	if (sscanf(buf, "%i", &state) != 1)
 		return -EINVAL;
 	ret = write_ec_cmd(priv->adev->handle, VPCCMD_W_CAMERA, state);
-	if (ret < 0)
-		return -EIO;
+	if (ret)
+		return ret;
 	return count;
 }
 
@@ -425,8 +431,8 @@ static ssize_t store_ideapad_fan(struct device *dev,
 	if (state < 0 || state > 4 || state == 3)
 		return -EINVAL;
 	ret = write_ec_cmd(priv->adev->handle, VPCCMD_W_FAN, state);
-	if (ret < 0)
-		return -EIO;
+	if (ret)
+		return ret;
 	return count;
 }
 
@@ -458,8 +464,8 @@ static ssize_t __maybe_unused touchpad_store(struct device *dev,
 		return ret;
 
 	ret = write_ec_cmd(priv->adev->handle, VPCCMD_W_TOUCHPAD, state);
-	if (ret < 0)
-		return -EIO;
+	if (ret)
+		return ret;
 	return count;
 }
 
@@ -492,8 +498,8 @@ static ssize_t conservation_mode_store(struct device *dev,
 	ret = method_int1(priv->adev->handle, "SBMC", state ?
 					      BMCMD_CONSERVATION_ON :
 					      BMCMD_CONSERVATION_OFF);
-	if (ret < 0)
-		return -EIO;
+	if (ret)
+		return ret;
 	return count;
 }
 
@@ -530,8 +536,8 @@ static ssize_t fn_lock_store(struct device *dev,
 	ret = method_int1(priv->adev->handle, "SALS", state ?
 			  HACMD_FNLOCK_ON :
 			  HACMD_FNLOCK_OFF);
-	if (ret < 0)
-		return -EIO;
+	if (ret)
+		return ret;
 	return count;
 }
 
@@ -1022,7 +1028,8 @@ static void ideapad_check_special_buttons(struct ideapad_private *priv)
 {
 	unsigned long bit, value;
 
-	read_ec_data(priv->adev->handle, VPCCMD_R_SPECIAL_BUTTONS, &value);
+	if (read_ec_data(priv->adev->handle, VPCCMD_R_SPECIAL_BUTTONS, &value))
+		return;
 
 	for_each_set_bit (bit, &value, 16) {
 		switch (bit) {
@@ -1050,22 +1057,27 @@ static int ideapad_backlight_get_brightness(struct backlight_device *blightdev)
 {
 	struct ideapad_private *priv = bl_get_data(blightdev);
 	unsigned long now;
+	int err;
 
-	if (read_ec_data(priv->adev->handle, VPCCMD_R_BL, &now))
-		return -EIO;
+	err = read_ec_data(priv->adev->handle, VPCCMD_R_BL, &now);
+	if (err)
+		return err;
 	return now;
 }
 
 static int ideapad_backlight_update_status(struct backlight_device *blightdev)
 {
 	struct ideapad_private *priv = bl_get_data(blightdev);
+	int err;
 
-	if (write_ec_cmd(priv->adev->handle, VPCCMD_W_BL,
-			 blightdev->props.brightness))
-		return -EIO;
-	if (write_ec_cmd(priv->adev->handle, VPCCMD_W_BL_POWER,
-			 blightdev->props.power == FB_BLANK_POWERDOWN ? 0 : 1))
-		return -EIO;
+	err = write_ec_cmd(priv->adev->handle, VPCCMD_W_BL,
+			   blightdev->props.brightness);
+	if (err)
+		return err;
+	err = write_ec_cmd(priv->adev->handle, VPCCMD_W_BL_POWER,
+			   blightdev->props.power != FB_BLANK_POWERDOWN);
+	if (err)
+		return err;
 
 	return 0;
 }
@@ -1080,13 +1092,17 @@ static int ideapad_backlight_init(struct ideapad_private *priv)
 	struct backlight_device *blightdev;
 	struct backlight_properties props;
 	unsigned long max, now, power;
+	int err;
 
-	if (read_ec_data(priv->adev->handle, VPCCMD_R_BL_MAX, &max))
-		return -EIO;
-	if (read_ec_data(priv->adev->handle, VPCCMD_R_BL, &now))
-		return -EIO;
-	if (read_ec_data(priv->adev->handle, VPCCMD_R_BL_POWER, &power))
-		return -EIO;
+	err = read_ec_data(priv->adev->handle, VPCCMD_R_BL_MAX, &max);
+	if (err)
+		return err;
+	err = read_ec_data(priv->adev->handle, VPCCMD_R_BL, &now);
+	if (err)
+		return err;
+	err = read_ec_data(priv->adev->handle, VPCCMD_R_BL_POWER, &power);
+	if (err)
+		return err;
 
 	memset(&props, 0, sizeof(struct backlight_properties));
 	props.max_brightness = max;
