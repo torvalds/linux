@@ -71,7 +71,7 @@ gt215_devinit_disable(struct nvkm_devinit *init)
 	u64 disable = 0ULL;
 
 	if (!(r001540 & 0x40000000)) {
-		disable |= (1ULL << NVKM_ENGINE_MSPDEC);
+		nvkm_subdev_disable(device, NVKM_ENGINE_MSPDEC, 0);
 		disable |= (1ULL << NVKM_ENGINE_MSPPP);
 	}
 

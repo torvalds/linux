@@ -33,7 +33,6 @@ nvkm_subdev_type[NVKM_SUBDEV_NR] = {
 #include <core/layout.h>
 #undef NVKM_LAYOUT_ONCE
 #undef NVKM_LAYOUT_INST
-	[NVKM_ENGINE_MSPDEC  ] = "mspdec",
 	[NVKM_ENGINE_MSPPP   ] = "msppp",
 	[NVKM_ENGINE_MSVLD   ] = "msvld",
 	[NVKM_ENGINE_NVENC0  ] = "nvenc0",
