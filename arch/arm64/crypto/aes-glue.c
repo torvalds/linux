@@ -103,9 +103,9 @@ asmlinkage void aes_essiv_cbc_decrypt(u8 out[], u8 const in[], u32 const rk1[],
 				      int rounds, int blocks, u8 iv[],
 				      u32 const rk2[]);
 
-asmlinkage void aes_mac_update(u8 const in[], u32 const rk[], int rounds,
-			       int blocks, u8 dg[], int enc_before,
-			       int enc_after);
+asmlinkage int aes_mac_update(u8 const in[], u32 const rk[], int rounds,
+			      int blocks, u8 dg[], int enc_before,
+			      int enc_after);
 
 struct crypto_aes_xts_ctx {
 	struct crypto_aes_ctx key1;
@@ -852,10 +852,17 @@ static void mac_do_update(struct crypto_aes_ctx *ctx, u8 const in[], int blocks,
 	int rounds = 6 + ctx->key_length / 4;
 
 	if (crypto_simd_usable()) {
-		kernel_neon_begin();
-		aes_mac_update(in, ctx->key_enc, rounds, blocks, dg, enc_before,
-			       enc_after);
-		kernel_neon_end();
+		int rem;
+
+		do {
+			kernel_neon_begin();
+			rem = aes_mac_update(in, ctx->key_enc, rounds, blocks,
+					     dg, enc_before, enc_after);
+			kernel_neon_end();
+			in += (blocks - rem) * AES_BLOCK_SIZE;
+			blocks = rem;
+			enc_before = 0;
+		} while (blocks);
 	} else {
 		if (enc_before)
 			aes_encrypt(ctx, dg, dg);
