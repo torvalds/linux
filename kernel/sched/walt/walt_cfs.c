@@ -18,26 +18,7 @@ unsigned int sched_capacity_margin_down[WALT_NR_CPUS] = {
 			[0 ... WALT_NR_CPUS-1] = 1205 /* ~15% margin */
 };
 
-__read_mostly unsigned int sysctl_sched_prefer_spread;
-unsigned int sysctl_walt_rtg_cfs_boost_prio = 99; /* disabled by default */
-unsigned int sched_small_task_threshold = 102;
 __read_mostly unsigned int sysctl_sched_force_lb_enable = 1;
-
-static inline bool prefer_spread_on_idle(int cpu, bool new_ilb)
-{
-	switch (sysctl_sched_prefer_spread) {
-	case 1:
-		return is_min_capacity_cpu(cpu);
-	case 2:
-		return true;
-	case 3:
-		return (new_ilb && is_min_capacity_cpu(cpu));
-	case 4:
-		return new_ilb;
-	default:
-		return false;
-	}
-}
 
 static inline bool
 bias_to_this_cpu(struct task_struct *p, int cpu, int start_cpu)

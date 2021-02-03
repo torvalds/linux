@@ -57,6 +57,7 @@ unsigned int sysctl_sched_min_task_util_for_boost = 51;
 unsigned int sysctl_sched_min_task_util_for_colocation = 35;
 unsigned int sysctl_sched_many_wakeup_threshold = WALT_MANY_WAKEUP_DEFAULT;
 const int sched_user_hint_max = 1000;
+unsigned int sysctl_walt_rtg_cfs_boost_prio = 99; /* disabled by default */
 
 /* range is [1 .. INT_MAX] */
 static int sysctl_task_read_pid = 1;
@@ -698,15 +699,6 @@ struct ctl_table walt_table[] = {
 		.proc_handler	= sched_updown_migrate_handler,
 	},
 	{
-		.procname	= "sched_prefer_spread",
-		.data		= &sysctl_sched_prefer_spread,
-		.maxlen		= sizeof(unsigned int),
-		.mode		= 0644,
-		.proc_handler	= proc_dointvec_minmax,
-		.extra1		= SYSCTL_ZERO,
-		.extra2		= &four,
-	},
-	{
 		.procname	= "walt_rtg_cfs_boost_prio",
 		.data		= &sysctl_walt_rtg_cfs_boost_prio,
 		.maxlen		= sizeof(unsigned int),
@@ -842,10 +834,6 @@ void walt_tunables(void)
 
 	sched_load_granule = DEFAULT_SCHED_RAVG_WINDOW / NUM_LOAD_INDICES;
 
-	sysctl_sched_min_task_util_for_boost = 51;
-
-	sysctl_sched_min_task_util_for_colocation = 35;
-
 	for (i = 0; i < WALT_NR_CPUS; i++) {
 		sysctl_sched_coloc_busy_hyst_cpu[i] = 39000000;
 		sysctl_sched_coloc_busy_hyst_cpu_busy_pct[i] = 10;
@@ -854,8 +842,6 @@ void walt_tunables(void)
 	sysctl_sched_coloc_busy_hyst_enable_cpus = 112;
 
 	sysctl_sched_coloc_busy_hyst_max_ms = 5000;
-
-	sysctl_walt_rtg_cfs_boost_prio = 99; /* disabled by default */
 
 	sched_ravg_window = DEFAULT_SCHED_RAVG_WINDOW;
 
