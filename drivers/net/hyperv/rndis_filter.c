@@ -465,7 +465,7 @@ void rsc_add_data(struct netvsc_channel *nvchan,
 		}
 		nvchan->rsc.pktlen = len;
 		if (hash_info != NULL) {
-			nvchan->rsc.csum_info = *csum_info;
+			nvchan->rsc.hash_info = *hash_info;
 			nvchan->rsc.ppi_flags |= NVSC_RSC_HASH_INFO;
 		} else {
 			nvchan->rsc.ppi_flags &= ~NVSC_RSC_HASH_INFO;
