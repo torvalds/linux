@@ -94,6 +94,28 @@ struct walt_task_struct {
 	bool				iowaited;
 };
 
+static inline bool sched_get_wake_up_idle(struct task_struct *p)
+{
+	struct walt_task_struct *wts = (struct walt_task_struct *) p->android_vendor_data1;
+
+	return wts->wake_up_idle;
+}
+
+static inline int sched_set_wake_up_idle(struct task_struct *p, bool wake_up_idle)
+{
+	struct walt_task_struct *wts = (struct walt_task_struct *) p->android_vendor_data1;
+
+	wts->wake_up_idle = wake_up_idle;
+	return 0;
+}
+
+static inline void set_wake_up_idle(bool wake_up_idle)
+{
+	struct walt_task_struct *wts = (struct walt_task_struct *) current->android_vendor_data1;
+
+	wts->wake_up_idle = wake_up_idle;
+}
+
 extern int sched_lpm_disallowed_time(int cpu, u64 *timeout);
 extern int set_task_boost(int boost, u64 period);
 #else
@@ -104,6 +126,20 @@ static inline int sched_lpm_disallowed_time(int cpu, u64 *timeout)
 static inline int set_task_boost(int boost, u64 period)
 {
 	return 0;
+}
+
+static inline bool sched_get_wake_up_idle(struct task_struct *p)
+{
+	return false;
+}
+
+static inline int sched_set_wake_up_idle(struct task_struct *p, bool wake_up_idle)
+{
+	return 0;
+}
+
+static inline void set_wake_up_idle(bool wake_up_idle)
+{
 }
 #endif
 

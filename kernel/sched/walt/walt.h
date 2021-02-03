@@ -865,30 +865,6 @@ static inline void walt_irq_work_queue(struct irq_work *work)
 		irq_work_queue_on(work, cpumask_any(cpu_online_mask));
 }
 
-#define PF_WAKE_UP_IDLE	1
-static inline u32 sched_get_wake_up_idle(struct task_struct *p)
-{
-	struct walt_task_struct *wts = (struct walt_task_struct *) p->android_vendor_data1;
-
-	return wts->wake_up_idle;
-}
-
-static inline int sched_set_wake_up_idle(struct task_struct *p,
-						int wake_up_idle)
-{
-	struct walt_task_struct *wts = (struct walt_task_struct *) p->android_vendor_data1;
-
-	wts->wake_up_idle = !!wake_up_idle;
-	return 0;
-}
-
-static inline void set_wake_up_idle(bool enabled)
-{
-	struct walt_task_struct *wts = (struct walt_task_struct *) current->android_vendor_data1;
-
-	wts->wake_up_idle = enabled;
-}
-
 static inline struct task_group *css_tg(struct cgroup_subsys_state *css)
 {
 	return css ? container_of(css, struct task_group, css) : NULL;
