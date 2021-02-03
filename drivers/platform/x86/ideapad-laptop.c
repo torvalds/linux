@@ -924,14 +924,14 @@ static void ideapad_unregister_rfkill(struct ideapad_private *priv, int dev)
  */
 static int ideapad_sysfs_init(struct ideapad_private *priv)
 {
-	return sysfs_create_group(&priv->platform_device->dev.kobj,
-				    &ideapad_attribute_group);
+	return device_add_group(&priv->platform_device->dev,
+				&ideapad_attribute_group);
 }
 
 static void ideapad_sysfs_exit(struct ideapad_private *priv)
 {
-	sysfs_remove_group(&priv->platform_device->dev.kobj,
-			   &ideapad_attribute_group);
+	device_remove_group(&priv->platform_device->dev,
+			    &ideapad_attribute_group);
 }
 
 /*
