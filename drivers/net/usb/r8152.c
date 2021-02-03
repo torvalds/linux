@@ -3468,59 +3468,76 @@ static void rtl_clear_bp(struct r8152 *tp, u16 type)
 	ocp_write_word(tp, type, PLA_BP_BA, 0);
 }
 
-static int r8153_patch_request(struct r8152 *tp, bool request)
+static int rtl_phy_patch_request(struct r8152 *tp, bool request, bool wait)
 {
-	u16 data;
+	u16 data, check;
 	int i;
 
 	data = ocp_reg_read(tp, OCP_PHY_PATCH_CMD);
-	if (request)
+	if (request) {
 		data |= PATCH_REQUEST;
-	else
+		check = 0;
+	} else {
 		data &= ~PATCH_REQUEST;
+		check = PATCH_READY;
+	}
 	ocp_reg_write(tp, OCP_PHY_PATCH_CMD, data);
 
-	for (i = 0; request && i < 5000; i++) {
+	for (i = 0; wait && i < 5000; i++) {
+		u32 ocp_data;
+
 		usleep_range(1000, 2000);
-		if (ocp_reg_read(tp, OCP_PHY_PATCH_STAT) & PATCH_READY)
+		ocp_data = ocp_reg_read(tp, OCP_PHY_PATCH_STAT);
+		if ((ocp_data & PATCH_READY) ^ check)
 			break;
 	}
 
-	if (request && !(ocp_reg_read(tp, OCP_PHY_PATCH_STAT) & PATCH_READY)) {
-		netif_err(tp, drv, tp->netdev, "patch request fail\n");
-		r8153_patch_request(tp, false);
+	if (request && wait &&
+	    !(ocp_reg_read(tp, OCP_PHY_PATCH_STAT) & PATCH_READY)) {
+		dev_err(&tp->intf->dev, "PHY patch request fail\n");
+		rtl_phy_patch_request(tp, false, false);
 		return -ETIME;
 	} else {
 		return 0;
 	}
 }
 
-static int r8153_pre_ram_code(struct r8152 *tp, u16 key_addr, u16 patch_key)
+static void rtl_patch_key_set(struct r8152 *tp, u16 key_addr, u16 patch_key)
 {
-	if (r8153_patch_request(tp, true)) {
-		dev_err(&tp->intf->dev, "patch request fail\n");
-		return -ETIME;
-	}
+	if (patch_key && key_addr) {
+		sram_write(tp, key_addr, patch_key);
+		sram_write(tp, SRAM_PHY_LOCK, PHY_PATCH_LOCK);
+	} else if (key_addr) {
+		u16 data;
 
-	sram_write(tp, key_addr, patch_key);
-	sram_write(tp, SRAM_PHY_LOCK, PHY_PATCH_LOCK);
+		sram_write(tp, 0x0000, 0x0000);
+
+		data = ocp_reg_read(tp, OCP_PHY_LOCK);
+		data &= ~PATCH_LOCK;
+		ocp_reg_write(tp, OCP_PHY_LOCK, data);
+
+		sram_write(tp, key_addr, 0x0000);
+	} else {
+		WARN_ON_ONCE(1);
+	}
+}
+
+static int
+rtl_pre_ram_code(struct r8152 *tp, u16 key_addr, u16 patch_key, bool wait)
+{
+	if (rtl_phy_patch_request(tp, true, wait))
+		return -ETIME;
+
+	rtl_patch_key_set(tp, key_addr, patch_key);
 
 	return 0;
 }
 
-static int r8153_post_ram_code(struct r8152 *tp, u16 key_addr)
+static int rtl_post_ram_code(struct r8152 *tp, u16 key_addr, bool wait)
 {
-	u16 data;
+	rtl_patch_key_set(tp, key_addr, 0);
 
-	sram_write(tp, 0x0000, 0x0000);
-
-	data = ocp_reg_read(tp, OCP_PHY_LOCK);
-	data &= ~PATCH_LOCK;
-	ocp_reg_write(tp, OCP_PHY_LOCK, data);
-
-	sram_write(tp, key_addr, 0x0000);
-
-	r8153_patch_request(tp, false);
+	rtl_phy_patch_request(tp, false, wait);
 
 	ocp_write_word(tp, MCU_TYPE_PLA, PLA_OCP_GPHY_BASE, tp->ocp_base);
 
@@ -4005,7 +4022,7 @@ static void rtl8152_fw_mac_apply(struct r8152 *tp, struct fw_mac *mac)
 	dev_dbg(&tp->intf->dev, "successfully applied %s\n", mac->info);
 }
 
-static void rtl8152_apply_firmware(struct r8152 *tp)
+static void rtl8152_apply_firmware(struct r8152 *tp, bool power_cut)
 {
 	struct rtl_fw *rtl_fw = &tp->rtl_fw;
 	const struct firmware *fw;
@@ -4036,12 +4053,11 @@ static void rtl8152_apply_firmware(struct r8152 *tp)
 		case RTL_FW_PHY_START:
 			key = (struct fw_phy_patch_key *)block;
 			key_addr = __le16_to_cpu(key->key_reg);
-			r8153_pre_ram_code(tp, key_addr,
-					   __le16_to_cpu(key->key_data));
+			rtl_pre_ram_code(tp, key_addr, __le16_to_cpu(key->key_data), !power_cut);
 			break;
 		case RTL_FW_PHY_STOP:
 			WARN_ON(!key_addr);
-			r8153_post_ram_code(tp, key_addr);
+			rtl_post_ram_code(tp, key_addr, !power_cut);
 			break;
 		case RTL_FW_PHY_NC:
 			rtl8152_fw_phy_nc_apply(tp, (struct fw_phy_nc *)block);
@@ -4246,7 +4262,7 @@ static void rtl8152_disable(struct r8152 *tp)
 
 static void r8152b_hw_phy_cfg(struct r8152 *tp)
 {
-	rtl8152_apply_firmware(tp);
+	rtl8152_apply_firmware(tp, false);
 	rtl_eee_enable(tp, tp->eee_en);
 	r8152_aldps_en(tp, true);
 	r8152b_enable_fc(tp);
@@ -4528,7 +4544,7 @@ static void r8153_hw_phy_cfg(struct r8152 *tp)
 	/* disable EEE before updating the PHY parameters */
 	rtl_eee_enable(tp, false);
 
-	rtl8152_apply_firmware(tp);
+	rtl8152_apply_firmware(tp, false);
 
 	if (tp->version == RTL_VER_03) {
 		data = ocp_reg_read(tp, OCP_EEE_CFG);
@@ -4602,7 +4618,7 @@ static void r8153b_hw_phy_cfg(struct r8152 *tp)
 	/* disable EEE before updating the PHY parameters */
 	rtl_eee_enable(tp, false);
 
-	rtl8152_apply_firmware(tp);
+	rtl8152_apply_firmware(tp, false);
 
 	r8153b_green_en(tp, test_bit(GREEN_ETHERNET, &tp->flags));
 
@@ -4643,7 +4659,7 @@ static void r8153b_hw_phy_cfg(struct r8152 *tp)
 	ocp_write_word(tp, MCU_TYPE_PLA, PLA_PHY_PWR, ocp_data);
 
 	/* Advnace EEE */
-	if (!r8153_patch_request(tp, true)) {
+	if (!rtl_phy_patch_request(tp, true, true)) {
 		data = ocp_reg_read(tp, OCP_POWER_CFG);
 		data |= EEE_CLKDIV_EN;
 		ocp_reg_write(tp, OCP_POWER_CFG, data);
@@ -4660,7 +4676,7 @@ static void r8153b_hw_phy_cfg(struct r8152 *tp)
 		ocp_reg_write(tp, OCP_SYSCLK_CFG, clk_div_expo(5));
 		tp->ups_info._250m_ckdiv = true;
 
-		r8153_patch_request(tp, false);
+		rtl_phy_patch_request(tp, false, true);
 	}
 
 	if (tp->eee_en)
