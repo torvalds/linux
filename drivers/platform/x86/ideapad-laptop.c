@@ -1221,6 +1221,7 @@ static void ideapad_sync_touchpad_state(struct ideapad_private *priv)
 		 */
 		i8042_command(&param, value ? I8042_CMD_AUX_ENABLE : I8042_CMD_AUX_DISABLE);
 		ideapad_input_report(priv, value ? 67 : 66);
+		sysfs_notify(&priv->platform_device->dev.kobj, NULL, "touchpad");
 	}
 }
 
