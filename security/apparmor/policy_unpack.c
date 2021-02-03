@@ -457,7 +457,9 @@ static struct aa_dfa *unpack_dfa(struct aa_ext *e)
 			((e->pos - e->start) & 7);
 		size_t pad = ALIGN(sz, 8) - sz;
 		int flags = TO_ACCEPT1_FLAG(YYTD_DATA32) |
-			TO_ACCEPT2_FLAG(YYTD_DATA32) | DFA_FLAG_VERIFY_STATES;
+			TO_ACCEPT2_FLAG(YYTD_DATA32);
+		if (aa_g_paranoid_load)
+			flags |= DFA_FLAG_VERIFY_STATES;
 		dfa = aa_dfa_unpack(blob + pad, size - pad, flags);
 
 		if (IS_ERR(dfa))

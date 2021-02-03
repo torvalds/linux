@@ -94,6 +94,17 @@ config SECURITY_APPARMOR_EXPORT_BINARY
 	  also increases policy load time. This option is required for
 	  checkpoint and restore support, and debugging of loaded policy.
 
+config SECURITY_APPARMOR_PARANOID_LOAD
+	bool "Perform full verification of loaded policy"
+	depends on SECURITY_APPARMOR
+	default y
+	help
+	  This options allows controlling whether apparmor does a full
+	  verification of loaded policy. This should not be disabled
+	  except for embedded systems where the image is read only,
+	  includes policy, and has some form of integrity check.
+	  Disabling the check will speed up policy loads.
+
 config SECURITY_APPARMOR_KUNIT_TEST
 	bool "Build KUnit tests for policy_unpack.c" if !KUNIT_ALL_TESTS
 	depends on KUNIT=y && SECURITY_APPARMOR
