@@ -1100,7 +1100,7 @@ nv98_chipset = {
 	.gr       = { 0x00000001, g84_gr_new },
 	.mspdec   = { 0x00000001, g98_mspdec_new },
 	.msppp    = { 0x00000001, g98_msppp_new },
-	.msvld = g98_msvld_new,
+	.msvld    = { 0x00000001, g98_msvld_new },
 	.pm = g84_pm_new,
 	.sec = g98_sec_new,
 	.sw = nv50_sw_new,
@@ -1167,7 +1167,7 @@ nva3_chipset = {
 	.mpeg     = { 0x00000001, g84_mpeg_new },
 	.mspdec   = { 0x00000001, gt215_mspdec_new },
 	.msppp    = { 0x00000001, gt215_msppp_new },
-	.msvld = gt215_msvld_new,
+	.msvld    = { 0x00000001, gt215_msvld_new },
 	.pm = gt215_pm_new,
 	.sw = nv50_sw_new,
 };
@@ -1200,7 +1200,7 @@ nva5_chipset = {
 	.gr       = { 0x00000001, gt215_gr_new },
 	.mspdec   = { 0x00000001, gt215_mspdec_new },
 	.msppp    = { 0x00000001, gt215_msppp_new },
-	.msvld = gt215_msvld_new,
+	.msvld    = { 0x00000001, gt215_msvld_new },
 	.pm = gt215_pm_new,
 	.sw = nv50_sw_new,
 };
@@ -1233,7 +1233,7 @@ nva8_chipset = {
 	.gr       = { 0x00000001, gt215_gr_new },
 	.mspdec   = { 0x00000001, gt215_mspdec_new },
 	.msppp    = { 0x00000001, gt215_msppp_new },
-	.msvld = gt215_msvld_new,
+	.msvld    = { 0x00000001, gt215_msvld_new },
 	.pm = gt215_pm_new,
 	.sw = nv50_sw_new,
 };
@@ -1264,7 +1264,7 @@ nvaa_chipset = {
 	.gr       = { 0x00000001, gt200_gr_new },
 	.mspdec   = { 0x00000001, g98_mspdec_new },
 	.msppp    = { 0x00000001, g98_msppp_new },
-	.msvld = g98_msvld_new,
+	.msvld    = { 0x00000001, g98_msvld_new },
 	.pm = g84_pm_new,
 	.sec = g98_sec_new,
 	.sw = nv50_sw_new,
@@ -1296,7 +1296,7 @@ nvac_chipset = {
 	.gr       = { 0x00000001, mcp79_gr_new },
 	.mspdec   = { 0x00000001, g98_mspdec_new },
 	.msppp    = { 0x00000001, g98_msppp_new },
-	.msvld = g98_msvld_new,
+	.msvld    = { 0x00000001, g98_msvld_new },
 	.pm = g84_pm_new,
 	.sec = g98_sec_new,
 	.sw = nv50_sw_new,
@@ -1330,7 +1330,7 @@ nvaf_chipset = {
 	.gr       = { 0x00000001, mcp89_gr_new },
 	.mspdec   = { 0x00000001, gt215_mspdec_new },
 	.msppp    = { 0x00000001, gt215_msppp_new },
-	.msvld = mcp89_msvld_new,
+	.msvld    = { 0x00000001, mcp89_msvld_new },
 	.pm = gt215_pm_new,
 	.sw = nv50_sw_new,
 };
@@ -1366,7 +1366,7 @@ nvc0_chipset = {
 	.gr       = { 0x00000001, gf100_gr_new },
 	.mspdec   = { 0x00000001, gf100_mspdec_new },
 	.msppp    = { 0x00000001, gf100_msppp_new },
-	.msvld = gf100_msvld_new,
+	.msvld    = { 0x00000001, gf100_msvld_new },
 	.pm = gf100_pm_new,
 	.sw = gf100_sw_new,
 };
@@ -1402,7 +1402,7 @@ nvc1_chipset = {
 	.gr       = { 0x00000001, gf108_gr_new },
 	.mspdec   = { 0x00000001, gf100_mspdec_new },
 	.msppp    = { 0x00000001, gf100_msppp_new },
-	.msvld = gf100_msvld_new,
+	.msvld    = { 0x00000001, gf100_msvld_new },
 	.pm = gf108_pm_new,
 	.sw = gf100_sw_new,
 };
@@ -1438,7 +1438,7 @@ nvc3_chipset = {
 	.gr       = { 0x00000001, gf104_gr_new },
 	.mspdec   = { 0x00000001, gf100_mspdec_new },
 	.msppp    = { 0x00000001, gf100_msppp_new },
-	.msvld = gf100_msvld_new,
+	.msvld    = { 0x00000001, gf100_msvld_new },
 	.pm = gf100_pm_new,
 	.sw = gf100_sw_new,
 };
@@ -1474,7 +1474,7 @@ nvc4_chipset = {
 	.gr       = { 0x00000001, gf104_gr_new },
 	.mspdec   = { 0x00000001, gf100_mspdec_new },
 	.msppp    = { 0x00000001, gf100_msppp_new },
-	.msvld = gf100_msvld_new,
+	.msvld    = { 0x00000001, gf100_msvld_new },
 	.pm = gf100_pm_new,
 	.sw = gf100_sw_new,
 };
@@ -1510,7 +1510,7 @@ nvc8_chipset = {
 	.gr       = { 0x00000001, gf110_gr_new },
 	.mspdec   = { 0x00000001, gf100_mspdec_new },
 	.msppp    = { 0x00000001, gf100_msppp_new },
-	.msvld = gf100_msvld_new,
+	.msvld    = { 0x00000001, gf100_msvld_new },
 	.pm = gf100_pm_new,
 	.sw = gf100_sw_new,
 };
@@ -1546,7 +1546,7 @@ nvce_chipset = {
 	.gr       = { 0x00000001, gf104_gr_new },
 	.mspdec   = { 0x00000001, gf100_mspdec_new },
 	.msppp    = { 0x00000001, gf100_msppp_new },
-	.msvld = gf100_msvld_new,
+	.msvld    = { 0x00000001, gf100_msvld_new },
 	.pm = gf100_pm_new,
 	.sw = gf100_sw_new,
 };
@@ -1582,7 +1582,7 @@ nvcf_chipset = {
 	.gr       = { 0x00000001, gf104_gr_new },
 	.mspdec   = { 0x00000001, gf100_mspdec_new },
 	.msppp    = { 0x00000001, gf100_msppp_new },
-	.msvld = gf100_msvld_new,
+	.msvld    = { 0x00000001, gf100_msvld_new },
 	.pm = gf100_pm_new,
 	.sw = gf100_sw_new,
 };
@@ -1617,7 +1617,7 @@ nvd7_chipset = {
 	.gr       = { 0x00000001, gf117_gr_new },
 	.mspdec   = { 0x00000001, gf100_mspdec_new },
 	.msppp    = { 0x00000001, gf100_msppp_new },
-	.msvld = gf100_msvld_new,
+	.msvld    = { 0x00000001, gf100_msvld_new },
 	.pm = gf117_pm_new,
 	.sw = gf100_sw_new,
 };
@@ -1653,7 +1653,7 @@ nvd9_chipset = {
 	.gr       = { 0x00000001, gf119_gr_new },
 	.mspdec   = { 0x00000001, gf100_mspdec_new },
 	.msppp    = { 0x00000001, gf100_msppp_new },
-	.msvld = gf100_msvld_new,
+	.msvld    = { 0x00000001, gf100_msvld_new },
 	.pm = gf117_pm_new,
 	.sw = gf100_sw_new,
 };
@@ -1690,7 +1690,7 @@ nve4_chipset = {
 	.gr       = { 0x00000001, gk104_gr_new },
 	.mspdec   = { 0x00000001, gk104_mspdec_new },
 	.msppp    = { 0x00000001, gf100_msppp_new },
-	.msvld = gk104_msvld_new,
+	.msvld    = { 0x00000001, gk104_msvld_new },
 	.pm = gk104_pm_new,
 	.sw = gf100_sw_new,
 };
@@ -1727,7 +1727,7 @@ nve6_chipset = {
 	.gr       = { 0x00000001, gk104_gr_new },
 	.mspdec   = { 0x00000001, gk104_mspdec_new },
 	.msppp    = { 0x00000001, gf100_msppp_new },
-	.msvld = gk104_msvld_new,
+	.msvld    = { 0x00000001, gk104_msvld_new },
 	.pm = gk104_pm_new,
 	.sw = gf100_sw_new,
 };
@@ -1764,7 +1764,7 @@ nve7_chipset = {
 	.gr       = { 0x00000001, gk104_gr_new },
 	.mspdec   = { 0x00000001, gk104_mspdec_new },
 	.msppp    = { 0x00000001, gf100_msppp_new },
-	.msvld = gk104_msvld_new,
+	.msvld    = { 0x00000001, gk104_msvld_new },
 	.pm = gk104_pm_new,
 	.sw = gf100_sw_new,
 };
@@ -1826,7 +1826,7 @@ nvf0_chipset = {
 	.gr       = { 0x00000001, gk110_gr_new },
 	.mspdec   = { 0x00000001, gk104_mspdec_new },
 	.msppp    = { 0x00000001, gf100_msppp_new },
-	.msvld = gk104_msvld_new,
+	.msvld    = { 0x00000001, gk104_msvld_new },
 	.sw = gf100_sw_new,
 };
 
@@ -1862,7 +1862,7 @@ nvf1_chipset = {
 	.gr       = { 0x00000001, gk110b_gr_new },
 	.mspdec   = { 0x00000001, gk104_mspdec_new },
 	.msppp    = { 0x00000001, gf100_msppp_new },
-	.msvld = gk104_msvld_new,
+	.msvld    = { 0x00000001, gk104_msvld_new },
 	.sw = gf100_sw_new,
 };
 
@@ -1898,7 +1898,7 @@ nv106_chipset = {
 	.gr       = { 0x00000001, gk208_gr_new },
 	.mspdec   = { 0x00000001, gk104_mspdec_new },
 	.msppp    = { 0x00000001, gf100_msppp_new },
-	.msvld = gk104_msvld_new,
+	.msvld    = { 0x00000001, gk104_msvld_new },
 	.sw = gf100_sw_new,
 };
 
@@ -1934,7 +1934,7 @@ nv108_chipset = {
 	.gr       = { 0x00000001, gk208_gr_new },
 	.mspdec   = { 0x00000001, gk104_mspdec_new },
 	.msppp    = { 0x00000001, gf100_msppp_new },
-	.msvld = gk104_msvld_new,
+	.msvld    = { 0x00000001, gk104_msvld_new },
 	.sw = gf100_sw_new,
 };
 
@@ -3174,7 +3174,6 @@ nvkm_device_ctor(const struct nvkm_device_func *func,
 #include <core/layout.h>
 #undef NVKM_LAYOUT_INST
 #undef NVKM_LAYOUT_ONCE
-		_(NVKM_ENGINE_MSVLD   ,    msvld);
 		_(NVKM_ENGINE_NVENC0  , nvenc[0]);
 		_(NVKM_ENGINE_NVENC1  , nvenc[1]);
 		_(NVKM_ENGINE_NVENC2  , nvenc[2]);

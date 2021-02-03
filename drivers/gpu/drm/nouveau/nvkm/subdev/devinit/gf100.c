@@ -79,7 +79,7 @@ gf100_devinit_disable(struct nvkm_devinit *init)
 	}
 
 	if (r022500 & 0x00000004)
-		disable |= (1ULL << NVKM_ENGINE_MSVLD);
+		nvkm_subdev_disable(device, NVKM_ENGINE_MSVLD, 0);
 	if (r022500 & 0x00000008)
 		nvkm_subdev_disable(device, NVKM_ENGINE_MSENC, 0);
 	if (r022500 & 0x00000100)

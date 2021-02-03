@@ -78,7 +78,7 @@ gt215_devinit_disable(struct nvkm_devinit *init)
 	if (!(r00154c & 0x00000004))
 		nvkm_subdev_disable(device, NVKM_ENGINE_DISP, 0);
 	if (!(r00154c & 0x00000020))
-		disable |= (1ULL << NVKM_ENGINE_MSVLD);
+		nvkm_subdev_disable(device, NVKM_ENGINE_MSVLD, 0);
 	if (!(r00154c & 0x00000200))
 		nvkm_subdev_disable(device, NVKM_ENGINE_CE, 0);
 
