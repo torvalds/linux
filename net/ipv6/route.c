@@ -6064,6 +6064,50 @@ errout:
 		rtnl_set_sk_err(net, RTNLGRP_IPV6_ROUTE, err);
 }
 
+void fib6_info_hw_flags_set(struct net *net, struct fib6_info *f6i,
+			    bool offload, bool trap)
+{
+	struct sk_buff *skb;
+	int err;
+
+	if (f6i->offload == offload && f6i->trap == trap)
+		return;
+
+	f6i->offload = offload;
+	f6i->trap = trap;
+
+	if (!rcu_access_pointer(f6i->fib6_node))
+		/* The route was removed from the tree, do not send
+		 * notfication.
+		 */
+		return;
+
+	if (!net->ipv6.sysctl.fib_notify_on_flag_change)
+		return;
+
+	skb = nlmsg_new(rt6_nlmsg_size(f6i), GFP_KERNEL);
+	if (!skb) {
+		err = -ENOBUFS;
+		goto errout;
+	}
+
+	err = rt6_fill_node(net, skb, f6i, NULL, NULL, NULL, 0, RTM_NEWROUTE, 0,
+			    0, 0);
+	if (err < 0) {
+		/* -EMSGSIZE implies BUG in rt6_nlmsg_size() */
+		WARN_ON(err == -EMSGSIZE);
+		kfree_skb(skb);
+		goto errout;
+	}
+
+	rtnl_notify(skb, net, 0, RTNLGRP_IPV6_ROUTE, NULL, GFP_KERNEL);
+	return;
+
+errout:
+	rtnl_set_sk_err(net, RTNLGRP_IPV6_ROUTE, err);
+}
+EXPORT_SYMBOL(fib6_info_hw_flags_set);
+
 static int ip6_route_dev_notify(struct notifier_block *this,
 				unsigned long event, void *ptr)
 {

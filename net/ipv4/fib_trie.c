@@ -1038,6 +1038,8 @@ fib_find_matching_alias(struct net *net, const struct fib_rt_info *fri)
 void fib_alias_hw_flags_set(struct net *net, const struct fib_rt_info *fri)
 {
 	struct fib_alias *fa_match;
+	struct sk_buff *skb;
+	int err;
 
 	rcu_read_lock();
 
@@ -1045,9 +1047,34 @@ void fib_alias_hw_flags_set(struct net *net, const struct fib_rt_info *fri)
 	if (!fa_match)
 		goto out;
 
+	if (fa_match->offload == fri->offload && fa_match->trap == fri->trap)
+		goto out;
+
 	fa_match->offload = fri->offload;
 	fa_match->trap = fri->trap;
 
+	if (!net->ipv4.sysctl_fib_notify_on_flag_change)
+		goto out;
+
+	skb = nlmsg_new(fib_nlmsg_size(fa_match->fa_info), GFP_ATOMIC);
+	if (!skb) {
+		err = -ENOBUFS;
+		goto errout;
+	}
+
+	err = fib_dump_info(skb, 0, 0, RTM_NEWROUTE, fri, 0);
+	if (err < 0) {
+		/* -EMSGSIZE implies BUG in fib_nlmsg_size() */
+		WARN_ON(err == -EMSGSIZE);
+		kfree_skb(skb);
+		goto errout;
+	}
+
+	rtnl_notify(skb, net, 0, RTNLGRP_IPV4_ROUTE, NULL, GFP_ATOMIC);
+	goto out;
+
+errout:
+	rtnl_set_sk_err(net, RTNLGRP_IPV4_ROUTE, err);
 out:
 	rcu_read_unlock();
 }
