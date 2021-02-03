@@ -59,7 +59,6 @@ shows the supported mask values, currently these::
     ACPI_SYSTEM_COMPONENT           0x02000000
     ACPI_THERMAL_COMPONENT          0x04000000
     ACPI_MEMORY_DEVICE_COMPONENT    0x08000000
-    ACPI_VIDEO_COMPONENT            0x10000000
     ACPI_PROCESSOR_COMPONENT        0x20000000
 
 debug_level
