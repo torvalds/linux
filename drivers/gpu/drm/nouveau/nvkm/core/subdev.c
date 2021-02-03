@@ -33,7 +33,6 @@ nvkm_subdev_type[NVKM_SUBDEV_NR] = {
 #include <core/layout.h>
 #undef NVKM_LAYOUT_ONCE
 #undef NVKM_LAYOUT_INST
-	[NVKM_ENGINE_BSP     ] = "bsp",
 	[NVKM_ENGINE_CE0     ] = "ce0",
 	[NVKM_ENGINE_CE1     ] = "ce1",
 	[NVKM_ENGINE_CE2     ] = "ce2",
@@ -66,7 +65,6 @@ nvkm_subdev_type[NVKM_SUBDEV_NR] = {
 	[NVKM_ENGINE_SEC2    ] = "sec2",
 	[NVKM_ENGINE_SW      ] = "sw",
 	[NVKM_ENGINE_VIC     ] = "vic",
-	[NVKM_ENGINE_VP      ] = "vp",
 };
 
 void

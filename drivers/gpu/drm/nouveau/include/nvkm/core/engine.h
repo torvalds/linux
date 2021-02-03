@@ -47,8 +47,12 @@ struct nvkm_engine_func {
 	struct nvkm_sclass sclass[];
 };
 
-int nvkm_engine_ctor(const struct nvkm_engine_func *, struct nvkm_device *,
-		     int index, bool enable, struct nvkm_engine *);
+int nvkm_engine_ctor_(const struct nvkm_engine_func *, bool old, struct nvkm_device *,
+		     enum nvkm_subdev_type, int inst, bool enable, struct nvkm_engine *);
+#define nvkm_engine_ctor_o(f,d,i,  e,s) nvkm_engine_ctor_((f),  true, (d), (i), -1 , (e), (s))
+#define nvkm_engine_ctor_n(f,d,t,i,e,s) nvkm_engine_ctor_((f), false, (d), (t), (i), (e), (s))
+#define nvkm_engine_ctor__(_1,_2,_3,_4,_5,_6,IMPL,...) IMPL
+#define nvkm_engine_ctor(A...) nvkm_engine_ctor__(A, nvkm_engine_ctor_n, nvkm_engine_ctor_o)(A)
 int nvkm_engine_new_(const struct nvkm_engine_func *, struct nvkm_device *,
 		     int index, bool enable, struct nvkm_engine **);
 struct nvkm_engine *nvkm_engine_ref(struct nvkm_engine *);

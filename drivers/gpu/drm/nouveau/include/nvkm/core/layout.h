@@ -24,3 +24,6 @@ NVKM_LAYOUT_ONCE(NVKM_SUBDEV_ICCSENSE, struct nvkm_iccsense, iccsense)
 NVKM_LAYOUT_ONCE(NVKM_SUBDEV_THERM   , struct nvkm_therm   ,    therm)
 NVKM_LAYOUT_ONCE(NVKM_SUBDEV_CLK     , struct nvkm_clk     ,      clk)
 NVKM_LAYOUT_ONCE(NVKM_SUBDEV_GSP     , struct nvkm_gsp     ,      gsp)
+
+NVKM_LAYOUT_ONCE(NVKM_ENGINE_BSP     , struct nvkm_engine  ,      bsp)
+NVKM_LAYOUT_ONCE(NVKM_ENGINE_VP      , struct nvkm_engine  ,       vp)

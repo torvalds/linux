@@ -60,7 +60,6 @@ struct nvkm_device {
 		struct notifier_block nb;
 	} acpi;
 
-	struct nvkm_engine *bsp;
 	struct nvkm_engine *ce[9];
 	struct nvkm_engine *cipher;
 	struct nvkm_disp *disp;
@@ -81,7 +80,6 @@ struct nvkm_device {
 	struct nvkm_sec2 *sec2;
 	struct nvkm_sw *sw;
 	struct nvkm_engine *vic;
-	struct nvkm_engine *vp;
 
 #define NVKM_LAYOUT_ONCE(type,data,ptr) data *ptr;
 #define NVKM_LAYOUT_INST(type,data,ptr,cnt) data *ptr[cnt];
@@ -123,7 +121,6 @@ struct nvkm_device_chip {
 #undef NVKM_LAYOUT_INST
 #undef NVKM_LAYOUT_ONCE
 
-	int (*bsp     )(struct nvkm_device *, int idx, struct nvkm_engine **);
 	int (*ce[9]   )(struct nvkm_device *, int idx, struct nvkm_engine **);
 	int (*cipher  )(struct nvkm_device *, int idx, struct nvkm_engine **);
 	int (*disp    )(struct nvkm_device *, int idx, struct nvkm_disp **);
@@ -144,7 +141,6 @@ struct nvkm_device_chip {
 	int (*sec2    )(struct nvkm_device *, int idx, struct nvkm_sec2 **);
 	int (*sw      )(struct nvkm_device *, int idx, struct nvkm_sw **);
 	int (*vic     )(struct nvkm_device *, int idx, struct nvkm_engine **);
-	int (*vp      )(struct nvkm_device *, int idx, struct nvkm_engine **);
 };
 
 struct nvkm_device *nvkm_device_find(u64 name);
