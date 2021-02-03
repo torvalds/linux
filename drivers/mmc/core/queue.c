@@ -33,8 +33,6 @@ void mmc_cqe_check_busy(struct mmc_queue *mq)
 {
 	if ((mq->cqe_busy & MMC_CQE_DCMD_BUSY) && !mmc_cqe_dcmd_busy(mq))
 		mq->cqe_busy &= ~MMC_CQE_DCMD_BUSY;
-
-	mq->cqe_busy &= ~MMC_CQE_QUEUE_FULL;
 }
 
 static inline bool mmc_cqe_can_dcmd(struct mmc_host *host)
