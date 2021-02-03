@@ -19,6 +19,7 @@
 #include <linux/init.h>
 #include <linux/input.h>
 #include <linux/input/sparse-keymap.h>
+#include <linux/jiffies.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/platform_device.h>
@@ -221,8 +222,9 @@ static int read_ec_data(acpi_handle handle, int cmd, unsigned long *data)
 	if (method_vpcw(handle, 1, cmd))
 		return -1;
 
-	for (end_jiffies = jiffies+(HZ)*IDEAPAD_EC_TIMEOUT/1000+1;
-	     time_before(jiffies, end_jiffies);) {
+	end_jiffies = jiffies + msecs_to_jiffies(IDEAPAD_EC_TIMEOUT) + 1;
+
+	while (time_before(jiffies, end_jiffies)) {
 		schedule();
 		if (method_vpcr(handle, 1, &val))
 			return -1;
@@ -247,8 +249,9 @@ static int write_ec_cmd(acpi_handle handle, int cmd, unsigned long data)
 	if (method_vpcw(handle, 1, cmd))
 		return -1;
 
-	for (end_jiffies = jiffies+(HZ)*IDEAPAD_EC_TIMEOUT/1000+1;
-	     time_before(jiffies, end_jiffies);) {
+	end_jiffies = jiffies + msecs_to_jiffies(IDEAPAD_EC_TIMEOUT) + 1;
+
+	while (time_before(jiffies, end_jiffies)) {
 		schedule();
 		if (method_vpcr(handle, 1, &val))
 			return -1;
