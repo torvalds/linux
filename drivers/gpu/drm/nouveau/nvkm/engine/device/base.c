@@ -3174,7 +3174,6 @@ nvkm_device_ctor(const struct nvkm_device_func *func,
 #include <core/layout.h>
 #undef NVKM_LAYOUT_INST
 #undef NVKM_LAYOUT_ONCE
-		_(NVKM_ENGINE_MSENC   ,    msenc);
 		_(NVKM_ENGINE_MSPDEC  ,   mspdec);
 		_(NVKM_ENGINE_MSPPP   ,    msppp);
 		_(NVKM_ENGINE_MSVLD   ,    msvld);
