@@ -10,6 +10,7 @@
 
 #include <linux/acpi.h>
 #include <linux/backlight.h>
+#include <linux/bitops.h>
 #include <linux/debugfs.h>
 #include <linux/device.h>
 #include <linux/dmi.h>
@@ -1018,22 +1019,20 @@ static void ideapad_check_special_buttons(struct ideapad_private *priv)
 
 	read_ec_data(priv->adev->handle, VPCCMD_R_SPECIAL_BUTTONS, &value);
 
-	for (bit = 0; bit < 16; bit++) {
-		if (test_bit(bit, &value)) {
-			switch (bit) {
-			case 0:	/* Z580 */
-			case 6:	/* Z570 */
-				/* Thermal Management button */
-				ideapad_input_report(priv, 65);
-				break;
-			case 1:
-				/* OneKey Theater button */
-				ideapad_input_report(priv, 64);
-				break;
-			default:
-				pr_info("Unknown special button: %lu\n", bit);
-				break;
-			}
+	for_each_set_bit (bit, &value, 16) {
+		switch (bit) {
+		case 0:	/* Z580 */
+		case 6:	/* Z570 */
+			/* Thermal Management button */
+			ideapad_input_report(priv, 65);
+			break;
+		case 1:
+			/* OneKey Theater button */
+			ideapad_input_report(priv, 64);
+			break;
+		default:
+			pr_info("Unknown special button: %lu\n", bit);
+			break;
 		}
 	}
 }
@@ -1161,7 +1160,7 @@ static void ideapad_sync_touchpad_state(struct ideapad_private *priv)
 static void ideapad_acpi_notify(acpi_handle handle, u32 event, void *data)
 {
 	struct ideapad_private *priv = data;
-	unsigned long vpc1, vpc2, vpc_bit;
+	unsigned long vpc1, vpc2, bit;
 
 	if (read_ec_data(handle, VPCCMD_R_VPC1, &vpc1))
 		return;
@@ -1169,44 +1168,43 @@ static void ideapad_acpi_notify(acpi_handle handle, u32 event, void *data)
 		return;
 
 	vpc1 = (vpc2 << 8) | vpc1;
-	for (vpc_bit = 0; vpc_bit < 16; vpc_bit++) {
-		if (test_bit(vpc_bit, &vpc1)) {
-			switch (vpc_bit) {
-			case 9:
-				ideapad_sync_rfk_state(priv);
-				break;
-			case 13:
-			case 11:
-			case 8:
-			case 7:
-			case 6:
-				ideapad_input_report(priv, vpc_bit);
-				break;
-			case 5:
-				ideapad_sync_touchpad_state(priv);
-				break;
-			case 4:
-				ideapad_backlight_notify_brightness(priv);
-				break;
-			case 3:
-				ideapad_input_novokey(priv);
-				break;
-			case 2:
-				ideapad_backlight_notify_power(priv);
-				break;
-			case 0:
-				ideapad_check_special_buttons(priv);
-				break;
-			case 1:
-				/* Some IdeaPads report event 1 every ~20
-				 * seconds while on battery power; some
-				 * report this when changing to/from tablet
-				 * mode. Squelch this event.
-				 */
-				break;
-			default:
-				pr_info("Unknown event: %lu\n", vpc_bit);
-			}
+
+	for_each_set_bit (bit, &vpc1, 16) {
+		switch (bit) {
+		case 9:
+			ideapad_sync_rfk_state(priv);
+			break;
+		case 13:
+		case 11:
+		case 8:
+		case 7:
+		case 6:
+			ideapad_input_report(priv, bit);
+			break;
+		case 5:
+			ideapad_sync_touchpad_state(priv);
+			break;
+		case 4:
+			ideapad_backlight_notify_brightness(priv);
+			break;
+		case 3:
+			ideapad_input_novokey(priv);
+			break;
+		case 2:
+			ideapad_backlight_notify_power(priv);
+			break;
+		case 0:
+			ideapad_check_special_buttons(priv);
+			break;
+		case 1:
+			/* Some IdeaPads report event 1 every ~20
+			 * seconds while on battery power; some
+			 * report this when changing to/from tablet
+			 * mode. Squelch this event.
+			 */
+			break;
+		default:
+			pr_info("Unknown event: %lu\n", bit);
 		}
 	}
 }
