@@ -275,7 +275,7 @@ int mlx5e_health_rsc_fmsg_dump(struct mlx5e_priv *priv, struct mlx5_rsc_key *key
 
 	err = devlink_fmsg_binary_pair_nest_start(fmsg, "data");
 	if (err)
-		return err;
+		goto free_page;
 
 	cmd = mlx5_rsc_dump_cmd_create(mdev, key);
 	if (IS_ERR(cmd)) {

@@ -991,7 +991,8 @@ static void __team_compute_features(struct team *team)
 	unsigned int dst_release_flag = IFF_XMIT_DST_RELEASE |
 					IFF_XMIT_DST_RELEASE_PERM;
 
-	list_for_each_entry(port, &team->port_list, list) {
+	rcu_read_lock();
+	list_for_each_entry_rcu(port, &team->port_list, list) {
 		vlan_features = netdev_increment_features(vlan_features,
 					port->dev->vlan_features,
 					TEAM_VLAN_FEATURES);
@@ -1005,6 +1006,7 @@ static void __team_compute_features(struct team *team)
 		if (port->dev->hard_header_len > max_hard_header_len)
 			max_hard_header_len = port->dev->hard_header_len;
 	}
+	rcu_read_unlock();
 
 	team->dev->vlan_features = vlan_features;
 	team->dev->hw_enc_features = enc_features | NETIF_F_GSO_ENCAP_ALL |
@@ -1020,9 +1022,7 @@ static void __team_compute_features(struct team *team)
 
 static void team_compute_features(struct team *team)
 {
-	mutex_lock(&team->lock);
 	__team_compute_features(team);
-	mutex_unlock(&team->lock);
 	netdev_change_features(team->dev);
 }
 

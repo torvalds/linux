@@ -197,7 +197,7 @@ multipath4_test()
 	t0_rp12=$(link_stats_tx_packets_get $rp12)
 	t0_rp13=$(link_stats_tx_packets_get $rp13)
 
-	ip vrf exec vrf-h1 $MZ -q -p 64 -A 192.0.2.2 -B 198.51.100.2 \
+	ip vrf exec vrf-h1 $MZ $h1 -q -p 64 -A 192.0.2.2 -B 198.51.100.2 \
 		-d 1msec -t udp "sp=1024,dp=0-32768"
 
 	t1_rp12=$(link_stats_tx_packets_get $rp12)

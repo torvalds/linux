@@ -257,6 +257,9 @@ static int lpass_platform_pcmops_hw_params(struct snd_soc_component *component,
 		break;
 	case MI2S_PRIMARY:
 	case MI2S_SECONDARY:
+	case MI2S_TERTIARY:
+	case MI2S_QUATERNARY:
+	case MI2S_QUINARY:
 		ret = regmap_fields_write(dmactl->intf, id,
 						LPAIF_DMACTL_AUDINTF(dma_port));
 		if (ret) {
@@ -452,7 +455,6 @@ static int lpass_platform_pcmops_trigger(struct snd_soc_component *component,
 	unsigned int reg_irqclr = 0, val_irqclr = 0;
 	unsigned int  reg_irqen = 0, val_irqen = 0, val_mask = 0;
 	unsigned int dai_id = cpu_dai->driver->id;
-	unsigned int dma_ctrl_reg = 0;
 
 	ch = pcm_data->dma_ch;
 	if (dir ==  SNDRV_PCM_STREAM_PLAYBACK) {
@@ -469,17 +471,7 @@ static int lpass_platform_pcmops_trigger(struct snd_soc_component *component,
 		id = pcm_data->dma_ch - v->wrdma_channel_start;
 		map = drvdata->lpaif_map;
 	}
-	ret = regmap_read(map, LPAIF_DMACTL_REG(v, ch, dir, dai_id), &dma_ctrl_reg);
-	if (ret) {
-		dev_err(soc_runtime->dev, "error reading from rdmactl reg: %d\n", ret);
-		return ret;
-	}
 
-	if (dma_ctrl_reg == LPAIF_DMACTL_RESET_STATE ||
-		dma_ctrl_reg == LPAIF_DMACTL_RESET_STATE + 1) {
-		dev_err(soc_runtime->dev, "error in rdmactl register state\n");
-		return -ENOTRECOVERABLE;
-	}
 	switch (cmd) {
 	case SNDRV_PCM_TRIGGER_START:
 	case SNDRV_PCM_TRIGGER_RESUME:
@@ -500,7 +492,6 @@ static int lpass_platform_pcmops_trigger(struct snd_soc_component *component,
 					"error writing to rdmactl reg: %d\n", ret);
 				return ret;
 			}
-			map = drvdata->hdmiif_map;
 			reg_irqclr = LPASS_HDMITX_APP_IRQCLEAR_REG(v);
 			val_irqclr = (LPAIF_IRQ_ALL(ch) |
 					LPAIF_IRQ_HDMI_REQ_ON_PRELOAD(ch) |
@@ -519,7 +510,9 @@ static int lpass_platform_pcmops_trigger(struct snd_soc_component *component,
 			break;
 		case MI2S_PRIMARY:
 		case MI2S_SECONDARY:
-			map = drvdata->lpaif_map;
+		case MI2S_TERTIARY:
+		case MI2S_QUATERNARY:
+		case MI2S_QUINARY:
 			reg_irqclr = LPAIF_IRQCLEAR_REG(v, LPAIF_IRQ_PORT_HOST);
 			val_irqclr = LPAIF_IRQ_ALL(ch);
 
@@ -563,7 +556,6 @@ static int lpass_platform_pcmops_trigger(struct snd_soc_component *component,
 					"error writing to rdmactl reg: %d\n", ret);
 				return ret;
 			}
-			map = drvdata->hdmiif_map;
 			reg_irqen = LPASS_HDMITX_APP_IRQEN_REG(v);
 			val_mask = (LPAIF_IRQ_ALL(ch) |
 					LPAIF_IRQ_HDMI_REQ_ON_PRELOAD(ch) |
@@ -573,7 +565,9 @@ static int lpass_platform_pcmops_trigger(struct snd_soc_component *component,
 			break;
 		case MI2S_PRIMARY:
 		case MI2S_SECONDARY:
-			map = drvdata->lpaif_map;
+		case MI2S_TERTIARY:
+		case MI2S_QUATERNARY:
+		case MI2S_QUINARY:
 			reg_irqen = LPAIF_IRQEN_REG(v, LPAIF_IRQ_PORT_HOST);
 			val_mask = LPAIF_IRQ_ALL(ch);
 			val_irqen = 0;
@@ -670,6 +664,9 @@ static irqreturn_t lpass_dma_interrupt_handler(
 	break;
 	case MI2S_PRIMARY:
 	case MI2S_SECONDARY:
+	case MI2S_TERTIARY:
+	case MI2S_QUATERNARY:
+	case MI2S_QUINARY:
 		map = drvdata->lpaif_map;
 		reg = LPAIF_IRQCLEAR_REG(v, LPAIF_IRQ_PORT_HOST);
 		val = 0;

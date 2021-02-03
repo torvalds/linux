@@ -199,6 +199,10 @@ static bool nested_svm_vmrun_msrpm(struct vcpu_svm *svm)
 static bool svm_get_nested_state_pages(struct kvm_vcpu *vcpu)
 {
 	struct vcpu_svm *svm = to_svm(vcpu);
+
+	if (WARN_ON(!is_guest_mode(vcpu)))
+		return true;
+
 	if (!nested_svm_vmrun_msrpm(svm)) {
 		vcpu->run->exit_reason = KVM_EXIT_INTERNAL_ERROR;
 		vcpu->run->internal.suberror =
@@ -594,6 +598,8 @@ int nested_svm_vmexit(struct vcpu_svm *svm)
 	leave_guest_mode(&svm->vcpu);
 	svm->nested.vmcb12_gpa = 0;
 	WARN_ON_ONCE(svm->nested.nested_run_pending);
+
+	kvm_clear_request(KVM_REQ_GET_NESTED_STATE_PAGES, &svm->vcpu);
 
 	/* in case we halted in L2 */
 	svm->vcpu.arch.mp_state = KVM_MP_STATE_RUNNABLE;

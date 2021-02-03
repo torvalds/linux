@@ -4,7 +4,7 @@
  */
 
 /dts-v1/;
-#include "ste-db8500.dtsi"
+#include "ste-db9500.dtsi"
 #include "ste-href-ab8500.dtsi"
 #include "ste-href-family-pinctrl.dtsi"
 

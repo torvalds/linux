@@ -324,6 +324,21 @@ pnfs_grab_inode_layout_hdr(struct pnfs_layout_hdr *lo)
 	return NULL;
 }
 
+/*
+ * Compare 2 layout stateid sequence ids, to see which is newer,
+ * taking into account wraparound issues.
+ */
+static bool pnfs_seqid_is_newer(u32 s1, u32 s2)
+{
+	return (s32)(s1 - s2) > 0;
+}
+
+static void pnfs_barrier_update(struct pnfs_layout_hdr *lo, u32 newseq)
+{
+	if (pnfs_seqid_is_newer(newseq, lo->plh_barrier))
+		lo->plh_barrier = newseq;
+}
+
 static void
 pnfs_set_plh_return_info(struct pnfs_layout_hdr *lo, enum pnfs_iomode iomode,
 			 u32 seq)
@@ -335,6 +350,7 @@ pnfs_set_plh_return_info(struct pnfs_layout_hdr *lo, enum pnfs_iomode iomode,
 	if (seq != 0) {
 		WARN_ON_ONCE(lo->plh_return_seq != 0 && lo->plh_return_seq != seq);
 		lo->plh_return_seq = seq;
+		pnfs_barrier_update(lo, seq);
 	}
 }
 
@@ -637,15 +653,6 @@ static int mark_lseg_invalid(struct pnfs_layout_segment *lseg,
 			rv = 1;
 	}
 	return rv;
-}
-
-/*
- * Compare 2 layout stateid sequence ids, to see which is newer,
- * taking into account wraparound issues.
- */
-static bool pnfs_seqid_is_newer(u32 s1, u32 s2)
-{
-	return (s32)(s1 - s2) > 0;
 }
 
 static bool
@@ -984,8 +991,7 @@ pnfs_set_layout_stateid(struct pnfs_layout_hdr *lo, const nfs4_stateid *new,
 		new_barrier = be32_to_cpu(new->seqid);
 	else if (new_barrier == 0)
 		return;
-	if (pnfs_seqid_is_newer(new_barrier, lo->plh_barrier))
-		lo->plh_barrier = new_barrier;
+	pnfs_barrier_update(lo, new_barrier);
 }
 
 static bool
@@ -1183,20 +1189,17 @@ pnfs_prepare_layoutreturn(struct pnfs_layout_hdr *lo,
 		return false;
 	set_bit(NFS_LAYOUT_RETURN, &lo->plh_flags);
 	pnfs_get_layout_hdr(lo);
+	nfs4_stateid_copy(stateid, &lo->plh_stateid);
+	*cred = get_cred(lo->plh_lc_cred);
 	if (test_bit(NFS_LAYOUT_RETURN_REQUESTED, &lo->plh_flags)) {
-		nfs4_stateid_copy(stateid, &lo->plh_stateid);
-		*cred = get_cred(lo->plh_lc_cred);
 		if (lo->plh_return_seq != 0)
 			stateid->seqid = cpu_to_be32(lo->plh_return_seq);
 		if (iomode != NULL)
 			*iomode = lo->plh_return_iomode;
 		pnfs_clear_layoutreturn_info(lo);
-		return true;
-	}
-	nfs4_stateid_copy(stateid, &lo->plh_stateid);
-	*cred = get_cred(lo->plh_lc_cred);
-	if (iomode != NULL)
+	} else if (iomode != NULL)
 		*iomode = IOMODE_ANY;
+	pnfs_barrier_update(lo, be32_to_cpu(stateid->seqid));
 	return true;
 }
 
@@ -2418,6 +2421,7 @@ out_forget:
 	spin_unlock(&ino->i_lock);
 	lseg->pls_layout = lo;
 	NFS_SERVER(ino)->pnfs_curr_ld->free_lseg(lseg);
+	pnfs_free_lseg_list(&free_me);
 	return ERR_PTR(-EAGAIN);
 }
 

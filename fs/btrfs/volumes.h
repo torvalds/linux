@@ -39,10 +39,10 @@ struct btrfs_io_geometry {
 #if BITS_PER_LONG==32 && defined(CONFIG_SMP)
 #include <linux/seqlock.h>
 #define __BTRFS_NEED_DEVICE_DATA_ORDERED
-#define btrfs_device_data_ordered_init(device, info)				\
-	seqcount_mutex_init(&device->data_seqcount, &info->chunk_mutex)
+#define btrfs_device_data_ordered_init(device)	\
+	seqcount_init(&device->data_seqcount)
 #else
-#define btrfs_device_data_ordered_init(device, info) do { } while (0)
+#define btrfs_device_data_ordered_init(device) do { } while (0)
 #endif
 
 #define BTRFS_DEV_STATE_WRITEABLE	(0)
@@ -72,8 +72,7 @@ struct btrfs_device {
 	blk_status_t last_flush_error;
 
 #ifdef __BTRFS_NEED_DEVICE_DATA_ORDERED
-	/* A seqcount_t with associated chunk_mutex (for lockdep) */
-	seqcount_mutex_t data_seqcount;
+	seqcount_t data_seqcount;
 #endif
 
 	/* the internal btrfs device id */
@@ -164,9 +163,11 @@ btrfs_device_get_##name(const struct btrfs_device *dev)			\
 static inline void							\
 btrfs_device_set_##name(struct btrfs_device *dev, u64 size)		\
 {									\
+	preempt_disable();						\
 	write_seqcount_begin(&dev->data_seqcount);			\
 	dev->name = size;						\
 	write_seqcount_end(&dev->data_seqcount);			\
+	preempt_enable();						\
 }
 #elif BITS_PER_LONG==32 && defined(CONFIG_PREEMPTION)
 #define BTRFS_DEVICE_GETSET_FUNCS(name)					\

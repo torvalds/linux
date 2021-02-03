@@ -1347,7 +1347,7 @@ intel_subplatform(const struct intel_runtime_info *info, enum intel_platform p)
 {
 	const unsigned int pi = __platform_mask_index(info, p);
 
-	return info->platform_mask[pi] & INTEL_SUBPLATFORM_BITS;
+	return info->platform_mask[pi] & ((1 << INTEL_SUBPLATFORM_BITS) - 1);
 }
 
 static __always_inline bool

@@ -259,7 +259,7 @@
 				#gpio-cells = <2>;
 				interrupt-controller;
 				#interrupt-cells = <2>;
-				gpio-ranges = <&iomuxc 0 56 26>, <&iomuxc 0 144 4>;
+				gpio-ranges = <&iomuxc 0 56 26>, <&iomuxc 26 144 4>;
 			};
 
 			gpio4: gpio@30230000 {

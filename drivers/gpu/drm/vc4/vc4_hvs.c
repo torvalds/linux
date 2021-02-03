@@ -618,11 +618,11 @@ static int vc4_hvs_bind(struct device *dev, struct device *master, void *data)
 	 * for now we just allocate globally.
 	 */
 	if (!hvs->hvs5)
-		/* 96kB */
-		drm_mm_init(&hvs->lbm_mm, 0, 96 * 1024);
+		/* 48k words of 2x12-bit pixels */
+		drm_mm_init(&hvs->lbm_mm, 0, 48 * 1024);
 	else
-		/* 70k words */
-		drm_mm_init(&hvs->lbm_mm, 0, 70 * 2 * 1024);
+		/* 60k words of 4x12-bit pixels */
+		drm_mm_init(&hvs->lbm_mm, 0, 60 * 1024);
 
 	/* Upload filter kernels.  We only have the one for now, so we
 	 * keep it around for the lifetime of the driver.

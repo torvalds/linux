@@ -303,7 +303,7 @@ static inline bool hctx_may_queue(struct blk_mq_hw_ctx *hctx,
 		struct request_queue *q = hctx->queue;
 		struct blk_mq_tag_set *set = q->tag_set;
 
-		if (!test_bit(BLK_MQ_S_TAG_ACTIVE, &q->queue_flags))
+		if (!test_bit(QUEUE_FLAG_HCTX_ACTIVE, &q->queue_flags))
 			return true;
 		users = atomic_read(&set->active_queues_shared_sbitmap);
 	} else {
