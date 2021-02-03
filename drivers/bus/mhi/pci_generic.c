@@ -217,7 +217,17 @@ static void mhi_pci_write_reg(struct mhi_controller *mhi_cntrl,
 static void mhi_pci_status_cb(struct mhi_controller *mhi_cntrl,
 			      enum mhi_callback cb)
 {
+	struct pci_dev *pdev = to_pci_dev(mhi_cntrl->cntrl_dev);
+
 	/* Nothing to do for now */
+	switch (cb) {
+	case MHI_CB_FATAL_ERROR:
+	case MHI_CB_SYS_ERROR:
+		dev_warn(&pdev->dev, "firmware crashed (%u)\n", cb);
+		break;
+	default:
+		break;
+	}
 }
 
 static bool mhi_pci_is_alive(struct mhi_controller *mhi_cntrl)
