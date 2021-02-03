@@ -89,6 +89,7 @@ void kasan_poison(const void *address, size_t size, u8 value)
 
 	__memset(shadow_start, value, shadow_end - shadow_start);
 }
+EXPORT_SYMBOL(kasan_poison);
 
 void kasan_unpoison(const void *address, size_t size)
 {
