@@ -447,7 +447,8 @@ int mlx5dr_actions_build_ste_arr(struct mlx5dr_matcher *matcher,
 		case DR_ACTION_TYP_MODIFY_HDR:
 			attr.modify_index = action->rewrite.index;
 			attr.modify_actions = action->rewrite.num_of_actions;
-			recalc_cs_required = action->rewrite.modify_ttl;
+			recalc_cs_required = action->rewrite.modify_ttl &&
+					     !mlx5dr_ste_supp_ttl_cs_recalc(&dmn->info.caps);
 			break;
 		case DR_ACTION_TYP_L2_TO_TNL_L2:
 		case DR_ACTION_TYP_L2_TO_TNL_L3:
@@ -501,9 +502,9 @@ int mlx5dr_actions_build_ste_arr(struct mlx5dr_matcher *matcher,
 	*new_hw_ste_arr_sz = nic_matcher->num_of_builders;
 	last_ste = ste_arr + DR_STE_SIZE * (nic_matcher->num_of_builders - 1);
 
-	/* Due to a HW bug, modifying TTL on RX flows will cause an incorrect
-	 * checksum calculation. In this case we will use a FW table to
-	 * recalculate.
+	/* Due to a HW bug in some devices, modifying TTL on RX flows will
+	 * cause an incorrect checksum calculation. In this case we will
+	 * use a FW table to recalculate.
 	 */
 	if (dmn->type == MLX5DR_DOMAIN_TYPE_FDB &&
 	    rx_rule && recalc_cs_required && dest_action) {

@@ -428,16 +428,13 @@ static int mlx5e_ptp_open_queues(struct mlx5e_port_ptp *c,
 	if (err)
 		return err;
 
-	napi_enable(&c->napi);
-
 	err = mlx5e_ptp_open_txqsqs(c, cparams);
 	if (err)
-		goto disable_napi;
+		goto close_cqs;
 
 	return 0;
 
-disable_napi:
-	napi_disable(&c->napi);
+close_cqs:
 	mlx5e_ptp_close_cqs(c);
 
 	return err;
@@ -446,7 +443,6 @@ disable_napi:
 static void mlx5e_ptp_close_queues(struct mlx5e_port_ptp *c)
 {
 	mlx5e_ptp_close_txqsqs(c);
-	napi_disable(&c->napi);
 	mlx5e_ptp_close_cqs(c);
 }
 
@@ -515,6 +511,8 @@ void mlx5e_ptp_activate_channel(struct mlx5e_port_ptp *c)
 {
 	int tc;
 
+	napi_enable(&c->napi);
+
 	for (tc = 0; tc < c->num_tc; tc++)
 		mlx5e_activate_txqsq(&c->ptpsq[tc].txqsq);
 }
@@ -525,4 +523,6 @@ void mlx5e_ptp_deactivate_channel(struct mlx5e_port_ptp *c)
 
 	for (tc = 0; tc < c->num_tc; tc++)
 		mlx5e_deactivate_txqsq(&c->ptpsq[tc].txqsq);
+
+	napi_disable(&c->napi);
 }

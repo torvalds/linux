@@ -1211,6 +1211,8 @@ int mlx5dr_cmd_set_fte(struct mlx5_core_dev *dev,
 		       u32 group_id,
 		       struct mlx5dr_cmd_fte_info *fte);
 
+bool mlx5dr_ste_supp_ttl_cs_recalc(struct mlx5dr_cmd_caps *caps);
+
 struct mlx5dr_fw_recalc_cs_ft {
 	u64 rx_icm_addr;
 	u32 table_id;
