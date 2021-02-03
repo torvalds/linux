@@ -602,6 +602,24 @@ static bool vop2_soc_is_rk3566(void)
 	return soc_is_rk3566();
 }
 
+static uint64_t vop2_soc_id_fixup(uint64_t soc_id)
+{
+	switch (soc_id) {
+	case 0x3566:
+		if (rockchip_get_cpu_version())
+			return 0x3566A;
+		else
+			return 0x3566;
+	case 0x3568:
+		if (rockchip_get_cpu_version())
+			return 0x3568A;
+		else
+			return 0x3568;
+	default:
+		return soc_id;
+	}
+}
+
 static inline const struct vop2_win_regs *vop2_get_win_regs(struct vop2_win *win,
 							    const struct vop_reg *reg)
 {
@@ -5306,6 +5324,7 @@ static int vop2_create_crtc(struct vop2 *vop2)
 		init_completion(&vp->dsp_hold_completion);
 		init_completion(&vp->line_flag_completion);
 		rockchip_register_crtc_funcs(crtc, &private_crtc_funcs);
+		soc_id = vop2_soc_id_fixup(soc_id);
 		drm_object_attach_property(&crtc->base, vop2->soc_id_prop, soc_id);
 		drm_object_attach_property(&crtc->base, vop2->vp_id_prop, vp->id);
 		drm_object_attach_property(&crtc->base,
