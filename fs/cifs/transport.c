@@ -567,7 +567,7 @@ wait_for_free_credits(struct TCP_Server_Info *server, const int num_credits,
 					server->hostname, num_credits, 0);
 				cifs_server_dbg(VFS, "wait timed out after %d ms\n",
 					 timeout);
-				return -ENOTSUPP;
+				return -EBUSY;
 			}
 			if (rc == -ERESTARTSYS)
 				return -ERESTARTSYS;
@@ -609,7 +609,7 @@ wait_for_free_credits(struct TCP_Server_Info *server, const int num_credits,
 						0);
 					cifs_server_dbg(VFS, "wait timed out after %d ms\n",
 						 timeout);
-					return -ENOTSUPP;
+					return -EBUSY;
 				}
 				if (rc == -ERESTARTSYS)
 					return -ERESTARTSYS;
@@ -687,7 +687,7 @@ wait_for_compound_request(struct TCP_Server_Info *server, int num,
 					server->hostname, scredits, sin_flight);
 			cifs_dbg(FYI, "%s: %d requests in flight, needed %d total=%d\n",
 					__func__, sin_flight, num, scredits);
-			return -ENOTSUPP;
+			return -EDEADLK;
 		}
 	}
 	spin_unlock(&server->req_lock);
