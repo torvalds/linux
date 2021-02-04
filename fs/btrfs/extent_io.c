@@ -3124,10 +3124,15 @@ static bool btrfs_bio_add_page(struct bio *bio, struct page *page,
 	if (btrfs_bio_fits_in_stripe(page, size, bio, bio_flags))
 		return false;
 
-	if (bio_op(bio) == REQ_OP_ZONE_APPEND)
+	if (bio_op(bio) == REQ_OP_ZONE_APPEND) {
+		struct page *first_page = bio_first_bvec_all(bio)->bv_page;
+
+		if (!btrfs_bio_fits_in_ordered_extent(first_page, bio, size))
+			return false;
 		ret = bio_add_zone_append_page(bio, page, size, pg_offset);
-	else
+	} else {
 		ret = bio_add_page(bio, page, size, pg_offset);
+	}
 
 	return ret == size;
 }
