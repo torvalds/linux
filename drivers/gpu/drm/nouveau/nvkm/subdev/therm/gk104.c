@@ -35,8 +35,8 @@ gk104_clkgate_enable(struct nvkm_therm *base)
 	int i;
 
 	/* Program ENG_MANT, ENG_FILTER */
-	for (i = 0; order[i].engine != NVKM_SUBDEV_NR; i++) {
-		if (!nvkm_device_subdev(dev, order[i].engine, 0))
+	for (i = 0; order[i].type != NVKM_SUBDEV_NR; i++) {
+		if (!nvkm_device_subdev(dev, order[i].type, order[i].inst))
 			continue;
 
 		nvkm_mask(dev, 0x20200 + order[i].offset, 0xff00, 0x4500);
@@ -47,8 +47,8 @@ gk104_clkgate_enable(struct nvkm_therm *base)
 	nvkm_wr32(dev, 0x02028c, therm->idle_filter->hubmmu);
 
 	/* Enable clockgating (ENG_CLK = RUN->AUTO) */
-	for (i = 0; order[i].engine != NVKM_SUBDEV_NR; i++) {
-		if (!nvkm_device_subdev(dev, order[i].engine, 0))
+	for (i = 0; order[i].type != NVKM_SUBDEV_NR; i++) {
+		if (!nvkm_device_subdev(dev, order[i].type, order[i].inst))
 			continue;
 
 		nvkm_mask(dev, 0x20200 + order[i].offset, 0x00ff, 0x0045);
@@ -64,8 +64,8 @@ gk104_clkgate_fini(struct nvkm_therm *base, bool suspend)
 	int i;
 
 	/* ENG_CLK = AUTO->RUN, ENG_PWR = RUN->AUTO */
-	for (i = 0; order[i].engine != NVKM_SUBDEV_NR; i++) {
-		if (!nvkm_device_subdev(dev, order[i].engine, 0))
+	for (i = 0; order[i].type != NVKM_SUBDEV_NR; i++) {
+		if (!nvkm_device_subdev(dev, order[i].type, order[i].inst))
 			continue;
 
 		nvkm_mask(dev, 0x20200 + order[i].offset, 0xff, 0x54);
@@ -73,15 +73,15 @@ gk104_clkgate_fini(struct nvkm_therm *base, bool suspend)
 }
 
 const struct gk104_clkgate_engine_info gk104_clkgate_engine_info[] = {
-	{ NVKM_ENGINE_GR,     0x00 },
-	{ NVKM_ENGINE_MSPDEC, 0x04 },
-	{ NVKM_ENGINE_MSPPP,  0x08 },
-	{ NVKM_ENGINE_MSVLD,  0x0c },
-	{ NVKM_ENGINE_CE0,    0x10 },
-	{ NVKM_ENGINE_CE1,    0x14 },
-	{ NVKM_ENGINE_MSENC,  0x18 },
-	{ NVKM_ENGINE_CE2,    0x1c },
-	{ NVKM_SUBDEV_NR, 0 },
+	{ NVKM_ENGINE_GR,     0, 0x00 },
+	{ NVKM_ENGINE_MSPDEC, 0, 0x04 },
+	{ NVKM_ENGINE_MSPPP,  0, 0x08 },
+	{ NVKM_ENGINE_MSVLD,  0, 0x0c },
+	{ NVKM_ENGINE_CE,     0, 0x10 },
+	{ NVKM_ENGINE_CE,     1, 0x14 },
+	{ NVKM_ENGINE_MSENC,  0, 0x18 },
+	{ NVKM_ENGINE_CE,     2, 0x1c },
+	{ NVKM_SUBDEV_NR },
 };
 
 const struct gf100_idle_filter gk104_idle_filter = {
