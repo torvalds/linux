@@ -14155,8 +14155,6 @@ static void intel_setup_outputs(struct drm_i915_private *dev_priv)
 		intel_dvo_init(dev_priv);
 	}
 
-	intel_psr_init(dev_priv);
-
 	for_each_intel_encoder(&dev_priv->drm, encoder) {
 		encoder->base.possible_crtcs =
 			intel_encoder_possible_crtcs(encoder);

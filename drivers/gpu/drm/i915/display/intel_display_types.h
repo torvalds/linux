@@ -1415,6 +1415,43 @@ struct intel_pps {
 	struct edp_power_seq pps_delays;
 };
 
+struct intel_psr {
+	/* Mutex for PSR state of the transcoder */
+	struct mutex lock;
+
+#define I915_PSR_DEBUG_MODE_MASK	0x0f
+#define I915_PSR_DEBUG_DEFAULT		0x00
+#define I915_PSR_DEBUG_DISABLE		0x01
+#define I915_PSR_DEBUG_ENABLE		0x02
+#define I915_PSR_DEBUG_FORCE_PSR1	0x03
+#define I915_PSR_DEBUG_IRQ		0x10
+
+	u32 debug;
+	bool sink_support;
+	bool source_support;
+	bool enabled;
+	enum pipe pipe;
+	enum transcoder transcoder;
+	bool active;
+	struct work_struct work;
+	unsigned int busy_frontbuffer_bits;
+	bool sink_psr2_support;
+	bool link_standby;
+	bool colorimetry_support;
+	bool psr2_enabled;
+	bool psr2_sel_fetch_enabled;
+	u8 sink_sync_latency;
+	ktime_t last_entry_attempt;
+	ktime_t last_exit;
+	bool sink_not_reliable;
+	bool irq_aux_error;
+	u16 su_x_granularity;
+	bool dc3co_enabled;
+	u32 dc3co_exit_delay;
+	struct delayed_work dc3co_work;
+	struct drm_dp_vsc_sdp vsc;
+};
+
 struct intel_dp {
 	i915_reg_t output_reg;
 	u32 DP;
@@ -1517,6 +1554,8 @@ struct intel_dp {
 	bool hobl_active;
 
 	struct intel_dp_pcon_frl frl;
+
+	struct intel_psr psr;
 };
 
 enum lspcon_vendor {
@@ -1751,6 +1790,18 @@ static inline struct drm_i915_private *
 dp_to_i915(struct intel_dp *intel_dp)
 {
 	return to_i915(dp_to_dig_port(intel_dp)->base.base.dev);
+}
+
+#define CAN_PSR(intel_dp)	(HAS_PSR(dp_to_i915(intel_dp)) && \
+				 (intel_dp)->psr.sink_support && \
+				 (intel_dp)->psr.source_support)
+
+static inline bool intel_encoder_can_psr(struct intel_encoder *encoder)
+{
+	if (!intel_encoder_is_dp(encoder))
+		return false;
+
+	return CAN_PSR(enc_to_intel_dp(encoder));
 }
 
 static inline struct intel_digital_port *
