@@ -241,6 +241,7 @@ i915-y += \
 	display/icl_dsi.o \
 	display/intel_crt.o \
 	display/intel_ddi.o \
+	display/intel_ddi_buf_trans.o \
 	display/intel_dp.o \
 	display/intel_dp_aux.o \
 	display/intel_dp_aux_backlight.o \
