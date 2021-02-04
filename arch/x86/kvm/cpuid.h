@@ -38,7 +38,7 @@ static inline int cpuid_maxphyaddr(struct kvm_vcpu *vcpu)
 
 static inline bool kvm_vcpu_is_legal_gpa(struct kvm_vcpu *vcpu, gpa_t gpa)
 {
-	return !(gpa >> cpuid_maxphyaddr(vcpu));
+	return !(gpa & vcpu->arch.reserved_gpa_bits);
 }
 
 static inline bool kvm_vcpu_is_illegal_gpa(struct kvm_vcpu *vcpu, gpa_t gpa)
