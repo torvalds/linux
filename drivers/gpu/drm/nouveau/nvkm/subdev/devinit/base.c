@@ -56,12 +56,12 @@ nvkm_devinit_disable(struct nvkm_devinit *init)
 }
 
 int
-nvkm_devinit_post(struct nvkm_devinit *init, u64 *disable)
+nvkm_devinit_post(struct nvkm_devinit *init)
 {
 	int ret = 0;
 	if (init && init->func->post)
 		ret = init->func->post(init, init->post);
-	*disable = nvkm_devinit_disable(init);
+	nvkm_devinit_disable(init);
 	return ret;
 }
 

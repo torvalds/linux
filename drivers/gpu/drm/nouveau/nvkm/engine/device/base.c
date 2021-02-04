@@ -2644,9 +2644,6 @@ nvkm_device_subdev(struct nvkm_device *device, int type, int inst)
 {
 	struct nvkm_subdev *subdev;
 
-	if (device->disable_mask & (1ULL << (type + inst)))
-		return NULL;
-
 	list_for_each_entry(subdev, &device->subdev, head) {
 		if (subdev->index == type + inst)
 			return subdev;
@@ -2725,7 +2722,7 @@ nvkm_device_preinit(struct nvkm_device *device)
 			goto fail;
 	}
 
-	ret = nvkm_devinit_post(device->devinit, &device->disable_mask);
+	ret = nvkm_devinit_post(device->devinit);
 	if (ret)
 		goto fail;
 
@@ -2790,7 +2787,6 @@ nvkm_device_del(struct nvkm_device **pdevice)
 	struct nvkm_subdev *subdev, *subtmp;
 	if (device) {
 		mutex_lock(&nv_devices_mutex);
-		device->disable_mask = 0;
 
 		list_for_each_entry_safe_reverse(subdev, subtmp, &device->subdev, head)
 			nvkm_subdev_del(&subdev);
@@ -3104,21 +3100,6 @@ nvkm_device_ctor(const struct nvkm_device_func *func,
 	mutex_init(&device->mutex);
 
 	for (i = 0; i < NVKM_SUBDEV_NR; i++) {
-#define _(s,m) case s:                                                         \
-	if (device->chip->m && (subdev_mask & (1ULL << (s)))) {                \
-		ret = device->chip->m(device, (s), &device->m);                \
-		if (ret) {                                                     \
-			subdev = nvkm_device_subdev(device, (s), 0);           \
-			nvkm_subdev_del(&subdev);                              \
-			device->m = NULL;                                      \
-			if (ret != -ENODEV) {                                  \
-				nvdev_error(device, "%s ctor failed, %d\n",    \
-					    nvkm_subdev_type[(s)], ret);       \
-				goto done;                                     \
-			}                                                      \
-		}                                                              \
-	}                                                                      \
-	break
 		switch (i) {
 #define NVKM_LAYOUT_ONCE(type,data,ptr) case type:                                           \
 	if (device->chip->ptr.inst && (subdev_mask & (BIT_ULL(type)))) {                     \
@@ -3162,7 +3143,6 @@ nvkm_device_ctor(const struct nvkm_device_func *func,
 #include <core/layout.h>
 #undef NVKM_LAYOUT_INST
 #undef NVKM_LAYOUT_ONCE
-		_(NVKM_ENGINE_VIC     ,      vic);
 		case NVKM_ENGINE_CE1:
 		case NVKM_ENGINE_CE2:
 		case NVKM_ENGINE_CE3:
@@ -3180,7 +3160,6 @@ nvkm_device_ctor(const struct nvkm_device_func *func,
 			WARN_ON(1);
 			continue;
 		}
-#undef _
 	}
 
 	ret = 0;

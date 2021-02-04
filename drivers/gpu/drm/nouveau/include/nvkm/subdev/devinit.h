@@ -14,8 +14,7 @@ struct nvkm_devinit {
 u32 nvkm_devinit_mmio(struct nvkm_devinit *, u32 addr);
 int nvkm_devinit_pll_set(struct nvkm_devinit *, u32 type, u32 khz);
 void nvkm_devinit_meminit(struct nvkm_devinit *);
-u64 nvkm_devinit_disable(struct nvkm_devinit *);
-int nvkm_devinit_post(struct nvkm_devinit *, u64 *disable);
+int nvkm_devinit_post(struct nvkm_devinit *);
 
 int nv04_devinit_new(struct nvkm_device *, enum nvkm_subdev_type, int, struct nvkm_devinit **);
 int nv05_devinit_new(struct nvkm_device *, enum nvkm_subdev_type, int, struct nvkm_devinit **);

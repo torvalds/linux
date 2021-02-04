@@ -32,7 +32,6 @@ struct nvkm_device {
 
 	struct nvkm_event event;
 
-	u64 disable_mask;
 	u32 debug;
 
 	const struct nvkm_device_chip *chip;
@@ -59,8 +58,6 @@ struct nvkm_device {
 	struct {
 		struct notifier_block nb;
 	} acpi;
-
-	struct nvkm_engine *vic;
 
 #define NVKM_LAYOUT_ONCE(type,data,ptr) data *ptr;
 #define NVKM_LAYOUT_INST(type,data,ptr,cnt) data *ptr[cnt];
@@ -101,8 +98,6 @@ struct nvkm_device_chip {
 #include <core/layout.h>
 #undef NVKM_LAYOUT_INST
 #undef NVKM_LAYOUT_ONCE
-
-	int (*vic     )(struct nvkm_device *, int idx, struct nvkm_engine **);
 };
 
 struct nvkm_device *nvkm_device_find(u64 name);
