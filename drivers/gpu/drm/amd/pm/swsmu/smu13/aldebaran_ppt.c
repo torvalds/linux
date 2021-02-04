@@ -1143,8 +1143,15 @@ static int aldebaran_set_soft_freq_limited_range(struct smu_context *smu,
 	if (clk_type != SMU_GFXCLK && clk_type != SMU_SCLK)
 		return -EINVAL;
 
-	if (smu_dpm->dpm_level != AMD_DPM_FORCED_LEVEL_PERF_DETERMINISM)
+	if ((smu_dpm->dpm_level != AMD_DPM_FORCED_LEVEL_MANUAL)
+			&& (smu_dpm->dpm_level != AMD_DPM_FORCED_LEVEL_PERF_DETERMINISM))
 		return -EINVAL;
+
+	if (smu_dpm->dpm_level == AMD_DPM_FORCED_LEVEL_MANUAL) {
+		min_clk = max(min, dpm_context->dpm_tables.gfx_table.min);
+		max_clk = min(max, dpm_context->dpm_tables.gfx_table.max);
+		return smu_v13_0_set_soft_freq_limited_range(smu, SMU_GFXCLK, min_clk, max_clk);
+	}
 
 	if (smu_dpm->dpm_level == AMD_DPM_FORCED_LEVEL_PERF_DETERMINISM) {
 		if (!max || (max < dpm_context->dpm_tables.gfx_table.min) ||
