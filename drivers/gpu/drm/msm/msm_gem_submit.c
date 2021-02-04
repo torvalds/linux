@@ -198,6 +198,8 @@ static int submit_lookup_cmds(struct msm_gem_submit *submit,
 		submit->cmd[i].idx  = submit_cmd.submit_idx;
 		submit->cmd[i].nr_relocs = submit_cmd.nr_relocs;
 
+		userptr = u64_to_user_ptr(submit_cmd.relocs);
+
 		sz = array_size(submit_cmd.nr_relocs,
 				sizeof(struct drm_msm_gem_submit_reloc));
 		/* check for overflow: */
