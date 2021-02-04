@@ -929,6 +929,18 @@ void amdgpu_device_pci_config_reset(struct amdgpu_device *adev)
 	pci_write_config_dword(adev->pdev, 0x7c, AMDGPU_ASIC_RESET_DATA);
 }
 
+/**
+ * amdgpu_device_pci_reset - reset the GPU using generic PCI means
+ *
+ * @adev: amdgpu_device pointer
+ *
+ * Resets the GPU using generic pci reset interfaces (FLR, SBR, etc.).
+ */
+int amdgpu_device_pci_reset(struct amdgpu_device *adev)
+{
+	return pci_reset_function(adev->pdev);
+}
+
 /*
  * GPU doorbell aperture helpers function.
  */
