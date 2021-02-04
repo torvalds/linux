@@ -35,6 +35,9 @@ properties:
   compatible:
     items:
       - enum:
+          - renesas,r8a774a1-rcar-usb2-clock-sel # RZ/G2M
+          - renesas,r8a774b1-rcar-usb2-clock-sel # RZ/G2N
+          - renesas,r8a774e1-rcar-usb2-clock-sel # RZ/G2H
           - renesas,r8a7795-rcar-usb2-clock-sel  # R-Car H3
           - renesas,r8a7796-rcar-usb2-clock-sel  # R-Car M3-W
           - renesas,r8a77961-rcar-usb2-clock-sel # R-Car M3-W+
