@@ -452,6 +452,8 @@ config IDEAPAD_LAPTOP
 	depends on ACPI_WMI || ACPI_WMI = n
 	depends on ACPI_PLATFORM_PROFILE
 	select INPUT_SPARSEKMAP
+	select NEW_LEDS
+	select LEDS_CLASS
 	help
 	  This is a driver for Lenovo IdeaPad netbooks contains drivers for
 	  rfkill switch, hotkey, fan control and backlight control.
