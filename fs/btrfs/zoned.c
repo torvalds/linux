@@ -552,7 +552,13 @@ int btrfs_sb_log_location(struct btrfs_device *device, int mirror, int rw,
 	struct btrfs_zoned_device_info *zinfo = device->zone_info;
 	u32 zone_num;
 
-	if (!zinfo) {
+	/*
+	 * For a zoned filesystem on a non-zoned block device, use the same
+	 * super block locations as regular filesystem. Doing so, the super
+	 * block can always be retrieved and the zoned flag of the volume
+	 * detected from the super block information.
+	 */
+	if (!bdev_is_zoned(device->bdev)) {
 		*bytenr_ret = btrfs_sb_offset(mirror);
 		return 0;
 	}
