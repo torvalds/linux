@@ -1576,7 +1576,7 @@ static void dcn20_update_dchubp_dpp(
 
 
 	if (pipe_ctx->update_flags.bits.enable)
-		dc->hwss.set_hubp_blank(dc, pipe_ctx, false);
+		hubp->funcs->set_blank(hubp, false);
 }
 
 
@@ -1772,10 +1772,19 @@ void dcn20_post_unlock_program_front_end(
 
 	for (i = 0; i < dc->res_pool->pipe_count; i++) {
 		struct pipe_ctx *pipe = &context->res_ctx.pipe_ctx[i];
+		struct pipe_ctx *mpcc_pipe;
 
 		if (pipe->vtp_locked) {
-			dc->hwss.set_hubp_blank(dc, pipe, true);
+			dc->hwseq->funcs.wait_for_blank_complete(pipe->stream_res.opp);
+			pipe->plane_res.hubp->funcs->set_blank(pipe->plane_res.hubp, true);
 			pipe->vtp_locked = false;
+
+			for (mpcc_pipe = pipe->bottom_pipe; mpcc_pipe; mpcc_pipe = mpcc_pipe->bottom_pipe)
+				mpcc_pipe->plane_res.hubp->funcs->set_blank(mpcc_pipe->plane_res.hubp, true);
+
+			for (i = 0; i < dc->res_pool->pipe_count; i++)
+				if (context->res_ctx.pipe_ctx[i].update_flags.bits.disable)
+					dc->hwss.disable_plane(dc, &dc->current_state->res_ctx.pipe_ctx[i]);
 		}
 	}
 	/* WA to apply WM setting*/
