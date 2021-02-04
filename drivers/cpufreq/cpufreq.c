@@ -33,6 +33,10 @@
 #include <linux/tick.h>
 #include <trace/events/power.h>
 
+#if IS_ENABLED(CONFIG_ARM_ROCKCHIP_CPUFREQ)
+#include "rockchip-cpufreq.h"
+#endif
+
 static LIST_HEAD(cpufreq_policy_list);
 
 static inline bool policy_is_inactive(struct cpufreq_policy *policy)

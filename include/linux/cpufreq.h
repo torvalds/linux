@@ -975,13 +975,4 @@ unsigned int cpufreq_generic_get(unsigned int cpu);
 int cpufreq_generic_init(struct cpufreq_policy *policy,
 		struct cpufreq_frequency_table *table,
 		unsigned int transition_latency);
-#ifdef CONFIG_ARM_ROCKCHIP_CPUFREQ
-unsigned int rockchip_cpufreq_adjust_target(int cpu, unsigned int freq);
-#else
-static inline unsigned int rockchip_cpufreq_adjust_target(int cpu,
-							  unsigned int freq)
-{
-	return freq;
-}
-#endif
 #endif /* _LINUX_CPUFREQ_H */
