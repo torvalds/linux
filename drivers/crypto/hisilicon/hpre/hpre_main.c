@@ -73,7 +73,8 @@
 #define HPRE_QM_AXI_CFG_MASK		0xffff
 #define HPRE_QM_VFG_AX_MASK		0xff
 #define HPRE_BD_USR_MASK		0x3
-#define HPRE_CLUSTER_CORE_MASK		0xf
+#define HPRE_CLUSTER_CORE_MASK_V2	0xf
+#define HPRE_CLUSTER_CORE_MASK_V3	0xff
 
 #define HPRE_AM_OOO_SHUTDOWN_ENB	0x301044
 #define HPRE_AM_OOO_SHUTDOWN_ENABLE	BIT(0)
@@ -86,6 +87,11 @@
 #define HPRE_QM_PM_FLR			BIT(11)
 #define HPRE_QM_SRIOV_FLR		BIT(12)
 
+#define HPRE_CLUSTERS_NUM(qm)		\
+	(((qm)->ver >= QM_HW_V3) ? HPRE_CLUSTERS_NUM_V3 : HPRE_CLUSTERS_NUM_V2)
+#define HPRE_CLUSTER_CORE_MASK(qm)	\
+	(((qm)->ver >= QM_HW_V3) ? HPRE_CLUSTER_CORE_MASK_V3 :\
+		HPRE_CLUSTER_CORE_MASK_V2)
 #define HPRE_VIA_MSI_DSM		1
 #define HPRE_SQE_MASK_OFFSET		8
 #define HPRE_SQE_MASK_LEN		24
@@ -279,6 +285,38 @@ static int hpre_cfg_by_dsm(struct hisi_qm *qm)
 	return 0;
 }
 
+static int hpre_set_cluster(struct hisi_qm *qm)
+{
+	u32 cluster_core_mask = HPRE_CLUSTER_CORE_MASK(qm);
+	u8 clusters_num = HPRE_CLUSTERS_NUM(qm);
+	struct device *dev = &qm->pdev->dev;
+	unsigned long offset;
+	u32 val = 0;
+	int ret, i;
+
+	for (i = 0; i < clusters_num; i++) {
+		offset = i * HPRE_CLSTR_ADDR_INTRVL;
+
+		/* clusters initiating */
+		writel(cluster_core_mask,
+		       HPRE_ADDR(qm, offset + HPRE_CORE_ENB));
+		writel(0x1, HPRE_ADDR(qm, offset + HPRE_CORE_INI_CFG));
+		ret = readl_relaxed_poll_timeout(HPRE_ADDR(qm, offset +
+					HPRE_CORE_INI_STATUS), val,
+					((val & cluster_core_mask) ==
+					cluster_core_mask),
+					HPRE_REG_RD_INTVRL_US,
+					HPRE_REG_RD_TMOUT_US);
+		if (ret) {
+			dev_err(dev,
+				"cluster %d int st status timeout!\n", i);
+			return -ETIMEDOUT;
+		}
+	}
+
+	return 0;
+}
+
 /*
  * For Hi1620, we shoul disable FLR triggered by hardware (BME/PM/SRIOV).
  * Or it may stay in D3 state when we bind and unbind hpre quickly,
@@ -298,9 +336,8 @@ static void disable_flr_of_bme(struct hisi_qm *qm)
 static int hpre_set_user_domain_and_cache(struct hisi_qm *qm)
 {
 	struct device *dev = &qm->pdev->dev;
-	unsigned long offset;
-	int ret, i;
 	u32 val;
+	int ret;
 
 	writel(HPRE_QM_USR_CFG_MASK, HPRE_ADDR(qm, QM_ARUSER_M_CFG_ENABLE));
 	writel(HPRE_QM_USR_CFG_MASK, HPRE_ADDR(qm, QM_AWUSER_M_CFG_ENABLE));
@@ -335,25 +372,9 @@ static int hpre_set_user_domain_and_cache(struct hisi_qm *qm)
 		return -ETIMEDOUT;
 	}
 
-	for (i = 0; i < HPRE_CLUSTERS_NUM; i++) {
-		offset = i * HPRE_CLSTR_ADDR_INTRVL;
-
-		/* clusters initiating */
-		writel(HPRE_CLUSTER_CORE_MASK,
-		       HPRE_ADDR(qm, offset + HPRE_CORE_ENB));
-		writel(0x1, HPRE_ADDR(qm, offset + HPRE_CORE_INI_CFG));
-		ret = readl_relaxed_poll_timeout(HPRE_ADDR(qm, offset +
-					HPRE_CORE_INI_STATUS), val,
-					((val & HPRE_CLUSTER_CORE_MASK) ==
-					HPRE_CLUSTER_CORE_MASK),
-					HPRE_REG_RD_INTVRL_US,
-					HPRE_REG_RD_TMOUT_US);
-		if (ret) {
-			dev_err(dev,
-				"cluster %d int st status timeout!\n", i);
-			return -ETIMEDOUT;
-		}
-	}
+	ret = hpre_set_cluster(qm);
+	if (ret)
+		return -ETIMEDOUT;
 
 	ret = hpre_cfg_by_dsm(qm);
 	if (ret)
@@ -366,6 +387,7 @@ static int hpre_set_user_domain_and_cache(struct hisi_qm *qm)
 
 static void hpre_cnt_regs_clear(struct hisi_qm *qm)
 {
+	u8 clusters_num = HPRE_CLUSTERS_NUM(qm);
 	unsigned long offset;
 	int i;
 
@@ -374,7 +396,7 @@ static void hpre_cnt_regs_clear(struct hisi_qm *qm)
 	writel(0x0, qm->io_base + QM_DFX_DB_CNT_VF);
 
 	/* clear clusterX/cluster_ctrl */
-	for (i = 0; i < HPRE_CLUSTERS_NUM; i++) {
+	for (i = 0; i < clusters_num; i++) {
 		offset = HPRE_CLSTR_BASE + i * HPRE_CLSTR_ADDR_INTRVL;
 		writel(0x0, qm->io_base + offset + HPRE_CLUSTER_INQURY);
 	}
@@ -673,13 +695,14 @@ static int hpre_pf_comm_regs_debugfs_init(struct hisi_qm *qm)
 
 static int hpre_cluster_debugfs_init(struct hisi_qm *qm)
 {
+	u8 clusters_num = HPRE_CLUSTERS_NUM(qm);
 	struct device *dev = &qm->pdev->dev;
 	char buf[HPRE_DBGFS_VAL_MAX_LEN];
 	struct debugfs_regset32 *regset;
 	struct dentry *tmp_d;
 	int i, ret;
 
-	for (i = 0; i < HPRE_CLUSTERS_NUM; i++) {
+	for (i = 0; i < clusters_num; i++) {
 		ret = snprintf(buf, HPRE_DBGFS_VAL_MAX_LEN, "cluster%d", i);
 		if (ret < 0)
 			return -EINVAL;
