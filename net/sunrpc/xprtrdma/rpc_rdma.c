@@ -255,10 +255,7 @@ rpcrdma_convert_iovs(struct rpcrdma_xprt *r_xprt, struct xdr_buf *xdrbuf,
 		page_base = 0;
 	}
 
-	/* When encoding a Read chunk, the tail iovec contains an
-	 * XDR pad and may be omitted.
-	 */
-	if (type == rpcrdma_readch && r_xprt->rx_ep->re_implicit_roundup)
+	if (type == rpcrdma_readch)
 		goto out;
 
 	/* When encoding a Write chunk, some servers need to see an
