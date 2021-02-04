@@ -1150,7 +1150,8 @@ static int mlx5e_update_trust_state_hw(struct mlx5e_priv *priv, void *context)
 static int mlx5e_set_trust_state(struct mlx5e_priv *priv, u8 trust_state)
 {
 	struct mlx5e_channels new_channels = {};
-	int err = 0;
+	bool reset = true;
+	int err;
 
 	mutex_lock(&priv->state_lock);
 
@@ -1160,16 +1161,13 @@ static int mlx5e_set_trust_state(struct mlx5e_priv *priv, u8 trust_state)
 
 	/* Skip if tx_min_inline is the same */
 	if (new_channels.params.tx_min_inline_mode ==
-	    priv->channels.params.tx_min_inline_mode) {
-		err = mlx5e_update_trust_state_hw(priv, &trust_state);
-		goto out;
-	}
+	    priv->channels.params.tx_min_inline_mode)
+		reset = false;
 
 	err = mlx5e_safe_switch_channels(priv, &new_channels,
 					 mlx5e_update_trust_state_hw,
-					 &trust_state);
+					 &trust_state, reset);
 
-out:
 	mutex_unlock(&priv->state_lock);
 
 	return err;
