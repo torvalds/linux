@@ -2211,6 +2211,16 @@ static int i915_hdcp_sink_capability_show(struct seq_file *m, void *data)
 }
 DEFINE_SHOW_ATTRIBUTE(i915_hdcp_sink_capability);
 
+static int i915_psr_status_show(struct seq_file *m, void *data)
+{
+	struct drm_connector *connector = m->private;
+	struct intel_dp *intel_dp =
+		intel_attached_dp(to_intel_connector(connector));
+
+	return intel_psr_status(m, intel_dp);
+}
+DEFINE_SHOW_ATTRIBUTE(i915_psr_status);
+
 #define LPSP_CAPABLE(COND) (COND ? seq_puts(m, "LPSP: capable\n") : \
 				seq_puts(m, "LPSP: incapable\n"))
 
@@ -2384,6 +2394,12 @@ int intel_connector_debugfs_add(struct drm_connector *connector)
 				    connector, &i915_panel_fops);
 		debugfs_create_file("i915_psr_sink_status", S_IRUGO, root,
 				    connector, &i915_psr_sink_status_fops);
+	}
+
+	if (HAS_PSR(dev_priv) &&
+	    connector->connector_type == DRM_MODE_CONNECTOR_eDP) {
+		debugfs_create_file("i915_psr_status", 0444, root,
+				    connector, &i915_psr_status_fops);
 	}
 
 	if (connector->connector_type == DRM_MODE_CONNECTOR_DisplayPort ||
