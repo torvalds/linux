@@ -7,10 +7,6 @@
 #include <linux/peci.h>
 #include <linux/platform_device.h>
 
-static bool enable_probe;
-module_param_named(enable, enable_probe, bool, 0644);
-MODULE_PARM_DESC(enable, "Enable peci-mctp device (default: false)");
-
 #define PCIE_SET_DATA_LEN(x, val)	((x)->len_lo |= (val))
 #define PCIE_SET_TARGET_ID(x, val)	((x)->target |= (swab16(val)))
 #define PCIE_PKT_ALIGN(x)		ALIGN(x, sizeof(u32))
@@ -351,12 +347,6 @@ static int mctp_peci_probe(struct platform_device *pdev)
 	struct peci_adapter *adapter;
 	struct mctp_peci *priv;
 	int ret;
-
-	if (!enable_probe) {
-		dev_info(&pdev->dev,
-			 "peci-mctp is disabled - use peci-mctp.enable=1 to enable it\n");
-		return 0;
-	}
 
 	adapter = peci_alloc_adapter(&pdev->dev, sizeof(*priv));
 	if (!adapter)
