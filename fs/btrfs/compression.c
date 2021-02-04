@@ -141,6 +141,7 @@ static int check_compressed_csum(struct btrfs_inode *inode, struct bio *bio,
 	struct btrfs_fs_info *fs_info = inode->root->fs_info;
 	SHASH_DESC_ON_STACK(shash, fs_info->csum_shash);
 	const u32 csum_size = fs_info->csum_size;
+	const u32 sectorsize = fs_info->sectorsize;
 	struct page *page;
 	unsigned long i;
 	char *kaddr;
@@ -154,22 +155,34 @@ static int check_compressed_csum(struct btrfs_inode *inode, struct bio *bio,
 	shash->tfm = fs_info->csum_shash;
 
 	for (i = 0; i < cb->nr_pages; i++) {
+		u32 pg_offset;
+		u32 bytes_left = PAGE_SIZE;
 		page = cb->compressed_pages[i];
 
-		kaddr = kmap_atomic(page);
-		crypto_shash_digest(shash, kaddr, PAGE_SIZE, csum);
-		kunmap_atomic(kaddr);
+		/* Determine the remaining bytes inside the page first */
+		if (i == cb->nr_pages - 1)
+			bytes_left = cb->compressed_len - i * PAGE_SIZE;
 
-		if (memcmp(&csum, cb_sum, csum_size)) {
-			btrfs_print_data_csum_error(inode, disk_start,
-					csum, cb_sum, cb->mirror_num);
-			if (btrfs_io_bio(bio)->device)
-				btrfs_dev_stat_inc_and_print(
-					btrfs_io_bio(bio)->device,
-					BTRFS_DEV_STAT_CORRUPTION_ERRS);
-			return -EIO;
+		/* Hash through the page sector by sector */
+		for (pg_offset = 0; pg_offset < bytes_left;
+		     pg_offset += sectorsize) {
+			kaddr = kmap_atomic(page);
+			crypto_shash_digest(shash, kaddr + pg_offset,
+					    sectorsize, csum);
+			kunmap_atomic(kaddr);
+
+			if (memcmp(&csum, cb_sum, csum_size) != 0) {
+				btrfs_print_data_csum_error(inode, disk_start,
+						csum, cb_sum, cb->mirror_num);
+				if (btrfs_io_bio(bio)->device)
+					btrfs_dev_stat_inc_and_print(
+						btrfs_io_bio(bio)->device,
+						BTRFS_DEV_STAT_CORRUPTION_ERRS);
+				return -EIO;
+			}
+			cb_sum += csum_size;
+			disk_start += sectorsize;
 		}
-		cb_sum += csum_size;
 	}
 	return 0;
 }
