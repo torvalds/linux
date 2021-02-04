@@ -647,7 +647,7 @@ static void lg_g15_input_close(struct input_dev *dev)
 
 static int lg_g15_register_led(struct lg_g15_data *g15, int i)
 {
-	const char * const led_names[] = {
+	static const char * const led_names[] = {
 		"g15::kbd_backlight",
 		"g15::lcd_backlight",
 		"g15::macro_preset1",
