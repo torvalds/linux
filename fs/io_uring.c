@@ -3506,7 +3506,6 @@ static int io_read(struct io_kiocb *req, bool force_nonblock,
 	struct iov_iter __iter, *iter = &__iter;
 	struct io_async_rw *rw = req->async_data;
 	ssize_t io_size, ret, ret2;
-	bool no_async;
 
 	if (rw) {
 		iter = &rw->iter;
@@ -3527,9 +3526,12 @@ static int io_read(struct io_kiocb *req, bool force_nonblock,
 		kiocb->ki_flags |= IOCB_NOWAIT;
 
 	/* If the file doesn't support async, just async punt */
-	no_async = force_nonblock && !io_file_supports_async(req->file, READ);
-	if (no_async)
-		goto copy_iov;
+	if (force_nonblock && !io_file_supports_async(req->file, READ)) {
+		ret = io_setup_async_rw(req, iovec, inline_vecs, iter, true);
+		if (!ret)
+			return -EAGAIN;
+		goto out_free;
+	}
 
 	ret = rw_verify_area(READ, req->file, io_kiocb_ppos(kiocb), io_size);
 	if (unlikely(ret))
@@ -3568,8 +3570,6 @@ copy_iov:
 		ret = ret2;
 		goto out_free;
 	}
-	if (no_async)
-		return -EAGAIN;
 	rw = req->async_data;
 	/* it's copied and will be cleaned with ->io */
 	iovec = NULL;
