@@ -181,6 +181,9 @@ struct btrfs_block_group {
 	 */
 	int needs_free_space;
 
+	/* Flag indicating this block group is placed on a sequential zone */
+	bool seq_zone;
+
 	/* Record locked full stripes for RAID5/6 block group */
 	struct btrfs_full_stripe_locks_tree full_stripe_locks_root;
 
