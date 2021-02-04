@@ -5978,7 +5978,7 @@ static bool is_block_group_to_copy(struct btrfs_fs_info *fs_info, u64 logical)
 	struct btrfs_block_group *cache;
 	bool ret;
 
-	/* Non-ZONED mode does not use "to_copy" flag */
+	/* Non zoned filesystem does not use "to_copy" flag */
 	if (!btrfs_is_zoned(fs_info))
 		return false;
 
