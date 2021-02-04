@@ -537,4 +537,11 @@ config EDAC_DMC520
 	  Support for error detection and correction on the
 	  SoCs with ARM DMC-520 DRAM controller.
 
+config EDAC_ROCKCHIP
+	tristate "Rockchip DDR ECC"
+	depends on ARCH_ROCKCHIP && HAVE_ARM_SMCCC
+	help
+	  Support for error detection and correction on the
+	  rockchip family of SOCs.
+
 endif # EDAC
