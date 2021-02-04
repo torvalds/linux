@@ -196,6 +196,7 @@ static void walt_find_best_target(struct sched_domain *sd,
 	cpumask_t visit_cpus;
 	struct walt_task_struct *wts = (struct walt_task_struct *) p->android_vendor_data1;
 	struct cfs_rq *cfs_rq;
+	bool active_task = task_on_rq_queued(p);
 
 	/* Find start CPU based on boost value */
 	start_cpu = fbt_env->start_cpu;
@@ -214,7 +215,7 @@ static void walt_find_best_target(struct sched_domain *sd,
 		most_spare_wake_cap = LONG_MIN;
 	}
 
-	if (p->state == TASK_RUNNING)
+	if (active_task)
 		most_spare_wake_cap = ULONG_MAX;
 
 	/* fast path for prev_cpu */
@@ -340,7 +341,7 @@ static void walt_find_best_target(struct sched_domain *sd,
 			/*
 			 * Consider only idle CPUs for active migration.
 			 */
-			if (p->state == TASK_RUNNING)
+			if (active_task)
 				continue;
 
 			/*
@@ -407,7 +408,7 @@ out:
 	trace_sched_find_best_target(p, min_util, start_cpu,
 			     best_idle_cpu, most_spare_cap_cpu,
 			     target_cpu, order_index, end_index,
-			     fbt_env->skip_cpu, p->state == TASK_RUNNING);
+			     fbt_env->skip_cpu, active_task);
 }
 
 static inline unsigned long
