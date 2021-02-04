@@ -36,9 +36,19 @@ static inline int cpuid_maxphyaddr(struct kvm_vcpu *vcpu)
 	return vcpu->arch.maxphyaddr;
 }
 
+static inline bool kvm_vcpu_is_legal_gpa(struct kvm_vcpu *vcpu, gpa_t gpa)
+{
+	return !(gpa >> cpuid_maxphyaddr(vcpu));
+}
+
 static inline bool kvm_vcpu_is_illegal_gpa(struct kvm_vcpu *vcpu, gpa_t gpa)
 {
-	return (gpa >= BIT_ULL(cpuid_maxphyaddr(vcpu)));
+	return !kvm_vcpu_is_legal_gpa(vcpu, gpa);
+}
+
+static inline bool page_address_valid(struct kvm_vcpu *vcpu, gpa_t gpa)
+{
+	return PAGE_ALIGNED(gpa) && kvm_vcpu_is_legal_gpa(vcpu, gpa);
 }
 
 struct cpuid_reg {
@@ -322,11 +332,6 @@ static __always_inline void kvm_cpu_cap_check_and_set(unsigned int x86_feature)
 {
 	if (boot_cpu_has(x86_feature))
 		kvm_cpu_cap_set(x86_feature);
-}
-
-static inline bool page_address_valid(struct kvm_vcpu *vcpu, gpa_t gpa)
-{
-	return PAGE_ALIGNED(gpa) && !(gpa >> cpuid_maxphyaddr(vcpu));
 }
 
 static __always_inline bool guest_pv_has(struct kvm_vcpu *vcpu,
