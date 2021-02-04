@@ -40,6 +40,7 @@ properties:
       - qcom,sm8250-qmp-modem-pcie-phy
       - qcom,sm8250-qmp-usb3-phy
       - qcom,sm8250-qmp-usb3-uni-phy
+      - qcom,sm8350-qmp-ufs-phy
       - qcom,sm8350-qmp-usb3-phy
       - qcom,sm8350-qmp-usb3-uni-phy
       - qcom,sdx55-qmp-usb3-uni-phy
