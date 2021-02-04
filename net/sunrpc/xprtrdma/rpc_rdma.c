@@ -204,9 +204,7 @@ rpcrdma_alloc_sparse_pages(struct xdr_buf *buf)
 	return 0;
 }
 
-/* Split @vec on page boundaries into SGEs. FMR registers pages, not
- * a byte range. Other modes coalesce these SGEs into a single MR
- * when they can.
+/* Convert @vec to a single SGL element.
  *
  * Returns pointer to next available SGE, and bumps the total number
  * of SGEs consumed.
@@ -215,22 +213,11 @@ static struct rpcrdma_mr_seg *
 rpcrdma_convert_kvec(struct kvec *vec, struct rpcrdma_mr_seg *seg,
 		     unsigned int *n)
 {
-	u32 remaining, page_offset;
-	char *base;
-
-	base = vec->iov_base;
-	page_offset = offset_in_page(base);
-	remaining = vec->iov_len;
-	while (remaining) {
-		seg->mr_page = NULL;
-		seg->mr_offset = base;
-		seg->mr_len = min_t(u32, PAGE_SIZE - page_offset, remaining);
-		remaining -= seg->mr_len;
-		base += seg->mr_len;
-		++seg;
-		++(*n);
-		page_offset = 0;
-	}
+	seg->mr_page = NULL;
+	seg->mr_offset = vec->iov_base;
+	seg->mr_len = vec->iov_len;
+	++seg;
+	++(*n);
 	return seg;
 }
 
@@ -283,7 +270,7 @@ rpcrdma_convert_iovs(struct rpcrdma_xprt *r_xprt, struct xdr_buf *xdrbuf,
 		goto out;
 
 	if (xdrbuf->tail[0].iov_len)
-		seg = rpcrdma_convert_kvec(&xdrbuf->tail[0], seg, &n);
+		rpcrdma_convert_kvec(&xdrbuf->tail[0], seg, &n);
 
 out:
 	if (unlikely(n > RPCRDMA_MAX_SEGS))
