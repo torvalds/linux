@@ -1719,9 +1719,9 @@ static void atmci_detect_change(struct timer_list *t)
 	}
 }
 
-static void atmci_tasklet_func(unsigned long priv)
+static void atmci_tasklet_func(struct tasklet_struct *t)
 {
-	struct atmel_mci	*host = (struct atmel_mci *)priv;
+	struct atmel_mci        *host = from_tasklet(host, t, tasklet);
 	struct mmc_request	*mrq = host->mrq;
 	struct mmc_data		*data = host->data;
 	enum atmel_mci_state	state = host->state;
@@ -2496,7 +2496,7 @@ static int atmci_probe(struct platform_device *pdev)
 
 	host->mapbase = regs->start;
 
-	tasklet_init(&host->tasklet, atmci_tasklet_func, (unsigned long)host);
+	tasklet_setup(&host->tasklet, atmci_tasklet_func);
 
 	ret = request_irq(irq, atmci_interrupt, 0, dev_name(&pdev->dev), host);
 	if (ret) {
