@@ -331,8 +331,7 @@ void otx2_cptlf_free_irqs_affinity(struct otx2_cptlfs_info *lfs)
 			irq_set_affinity_hint(pci_irq_vector(lfs->pdev,
 					      lfs->lf[slot].msix_offset +
 					      offs), NULL);
-		if (lfs->lf[slot].affinity_mask)
-			free_cpumask_var(lfs->lf[slot].affinity_mask);
+		free_cpumask_var(lfs->lf[slot].affinity_mask);
 	}
 }
 
