@@ -1270,7 +1270,7 @@ static int si_gpu_pci_config_reset(struct amdgpu_device *adev)
 	u32 i;
 	int r = -EINVAL;
 
-	dev_info(adev->dev, "GPU pci config reset\n");
+	amdgpu_atombios_scratch_regs_engine_hung(adev, true);
 
 	/* set mclk/sclk to bypass */
 	si_set_clk_bypass_mode(adev);
@@ -1294,6 +1294,7 @@ static int si_gpu_pci_config_reset(struct amdgpu_device *adev)
 		}
 		udelay(1);
 	}
+	amdgpu_atombios_scratch_regs_engine_hung(adev, false);
 
 	return r;
 }
@@ -1304,11 +1305,7 @@ static int si_asic_reset(struct amdgpu_device *adev)
 
 	dev_info(adev->dev, "PCI CONFIG reset\n");
 
-	amdgpu_atombios_scratch_regs_engine_hung(adev, true);
-
 	r = si_gpu_pci_config_reset(adev);
-
-	amdgpu_atombios_scratch_regs_engine_hung(adev, false);
 
 	return r;
 }
