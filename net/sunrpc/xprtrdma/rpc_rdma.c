@@ -214,7 +214,7 @@ rpcrdma_convert_kvec(struct kvec *vec, struct rpcrdma_mr_seg *seg,
 		     unsigned int *n)
 {
 	seg->mr_page = virt_to_page(vec->iov_base);
-	seg->mr_offset = vec->iov_base;
+	seg->mr_offset = offset_in_page(vec->iov_base);
 	seg->mr_len = vec->iov_len;
 	++seg;
 	++(*n);
@@ -246,7 +246,7 @@ rpcrdma_convert_iovs(struct rpcrdma_xprt *r_xprt, struct xdr_buf *xdrbuf,
 	page_base = offset_in_page(xdrbuf->page_base);
 	while (len) {
 		seg->mr_page = *ppages;
-		seg->mr_offset = (char *)page_base;
+		seg->mr_offset = page_base;
 		seg->mr_len = min_t(u32, PAGE_SIZE - page_base, len);
 		len -= seg->mr_len;
 		++ppages;

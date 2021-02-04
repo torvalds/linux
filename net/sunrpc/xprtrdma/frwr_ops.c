@@ -306,16 +306,14 @@ struct rpcrdma_mr_seg *frwr_map(struct rpcrdma_xprt *r_xprt,
 	if (nsegs > ep->re_max_fr_depth)
 		nsegs = ep->re_max_fr_depth;
 	for (i = 0; i < nsegs;) {
-		sg_set_page(&mr->mr_sg[i],
-			    seg->mr_page,
-			    seg->mr_len,
-			    offset_in_page(seg->mr_offset));
+		sg_set_page(&mr->mr_sg[i], seg->mr_page,
+			    seg->mr_len, seg->mr_offset);
 
 		++seg;
 		++i;
 		if (ep->re_mrtype == IB_MR_TYPE_SG_GAPS)
 			continue;
-		if ((i < nsegs && offset_in_page(seg->mr_offset)) ||
+		if ((i < nsegs && seg->mr_offset) ||
 		    offset_in_page((seg-1)->mr_offset + (seg-1)->mr_len))
 			break;
 	}

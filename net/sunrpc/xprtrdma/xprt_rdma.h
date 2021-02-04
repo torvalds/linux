@@ -287,7 +287,7 @@ enum {
 struct rpcrdma_mr_seg {
 	u32		mr_len;		/* length of segment */
 	struct page	*mr_page;	/* underlying struct page */
-	char		*mr_offset;	/* IN: page offset, OUT: iova */
+	u64		mr_offset;	/* IN: page offset, OUT: iova */
 };
 
 /* The Send SGE array is provisioned to send a maximum size
