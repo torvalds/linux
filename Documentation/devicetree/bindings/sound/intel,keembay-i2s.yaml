@@ -18,6 +18,7 @@ properties:
     enum:
       - intel,keembay-i2s
       - intel,keembay-tdm
+      - intel,keembay-hdmi-i2s
 
   "#sound-dai-cells":
     const: 0
