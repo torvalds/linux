@@ -78,7 +78,17 @@ static int icl_get_qgv_points(struct drm_i915_private *dev_priv,
 	qi->num_points = dram_info->num_qgv_points;
 
 	if (IS_GEN(dev_priv, 12))
-		qi->t_bl = dev_priv->dram_info.type == INTEL_DRAM_DDR4 ? 4 : 16;
+		switch (dram_info->type) {
+		case INTEL_DRAM_DDR4:
+			qi->t_bl = 4;
+			break;
+		case INTEL_DRAM_DDR5:
+			qi->t_bl = 8;
+			break;
+		default:
+			qi->t_bl = 16;
+			break;
+		}
 	else if (IS_GEN(dev_priv, 11))
 		qi->t_bl = dev_priv->dram_info.type == INTEL_DRAM_DDR4 ? 4 : 8;
 
