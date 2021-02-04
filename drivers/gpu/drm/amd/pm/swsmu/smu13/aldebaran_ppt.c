@@ -1183,24 +1183,6 @@ static bool aldebaran_is_dpm_running(struct smu_context *smu)
 	return !!(feature_enabled & SMC_DPM_FEATURE);
 }
 
-static void aldebaran_get_unique_id(struct smu_context *smu)
-{
-	struct amdgpu_device *adev = smu->adev;
-	uint32_t top32 = 0, bottom32 = 0;
-	uint64_t id;
-
-	/* Get the SN to turn into a Unique ID */
-	smu_cmn_send_smc_msg(smu, SMU_MSG_ReadSerialNumTop32, &top32);
-	smu_cmn_send_smc_msg(smu, SMU_MSG_ReadSerialNumBottom32, &bottom32);
-
-	id = ((uint64_t)bottom32 << 32) | top32;
-	adev->unique_id = id;
-	/* For aldebaran-and-later, unique_id == serial_number, so convert it to a
-	 * 16-digit HEX string for convenience and backwards-compatibility
-	 */
-	sprintf(adev->serial, "%llx", id);
-}
-
 static bool aldebaran_is_baco_supported(struct smu_context *smu)
 {
 	/* aldebaran is not support baco */
@@ -1373,7 +1355,6 @@ static const struct pptable_funcs aldebaran_ppt_funcs = {
 	.set_performance_level = aldebaran_set_performance_level,
 	.get_power_limit = aldebaran_get_power_limit,
 	.is_dpm_running = aldebaran_is_dpm_running,
-	.get_unique_id = aldebaran_get_unique_id,
 	.init_microcode = smu_v13_0_init_microcode,
 	.load_microcode = smu_v13_0_load_microcode,
 	.fini_microcode = smu_v13_0_fini_microcode,
