@@ -3566,27 +3566,27 @@ static int io_read(struct io_kiocb *req, bool force_nonblock,
 	rw = req->async_data;
 	/* now use our persistent iterator, if we aren't already */
 	iter = &rw->iter;
-retry:
-	io_size -= ret;
-	rw->bytes_done += ret;
-	/* if we can retry, do so with the callbacks armed */
-	if (!io_rw_should_retry(req)) {
-		kiocb->ki_flags &= ~IOCB_WAITQ;
-		return -EAGAIN;
-	}
 
-	/*
-	 * Now retry read with the IOCB_WAITQ parts set in the iocb. If we
-	 * get -EIOCBQUEUED, then we'll get a notification when the desired
-	 * page gets unlocked. We can also get a partial read here, and if we
-	 * do, then just retry at the new offset.
-	 */
-	ret = io_iter_do_read(req, iter);
-	if (ret == -EIOCBQUEUED)
-		return 0;
-	/* we got some bytes, but not all. retry. */
-	if (ret > 0 && ret < io_size)
-		goto retry;
+	do {
+		io_size -= ret;
+		rw->bytes_done += ret;
+		/* if we can retry, do so with the callbacks armed */
+		if (!io_rw_should_retry(req)) {
+			kiocb->ki_flags &= ~IOCB_WAITQ;
+			return -EAGAIN;
+		}
+
+		/*
+		 * Now retry read with the IOCB_WAITQ parts set in the iocb. If
+		 * we get -EIOCBQUEUED, then we'll get a notification when the
+		 * desired page gets unlocked. We can also get a partial read
+		 * here, and if we do, then just retry at the new offset.
+		 */
+		ret = io_iter_do_read(req, iter);
+		if (ret == -EIOCBQUEUED)
+			return 0;
+		/* we got some bytes, but not all. retry. */
+	} while (ret > 0 && ret < io_size);
 done:
 	kiocb_done(kiocb, ret, cs);
 	return 0;
