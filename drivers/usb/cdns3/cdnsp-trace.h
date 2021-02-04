@@ -158,22 +158,12 @@ DEFINE_EVENT(cdnsp_log_simple, cdnsp_slot_id,
 	TP_ARGS(msg)
 );
 
-DEFINE_EVENT(cdnsp_log_simple, cdnsp_cmd_drbl,
-	TP_PROTO(char *msg),
-	TP_ARGS(msg)
-);
-
 DEFINE_EVENT(cdnsp_log_simple, cdnsp_no_room_on_ring,
 	TP_PROTO(char *msg),
 	TP_ARGS(msg)
 );
 
 DEFINE_EVENT(cdnsp_log_simple, cdnsp_ep0_status_stage,
-	TP_PROTO(char *msg),
-	TP_ARGS(msg)
-);
-
-DEFINE_EVENT(cdnsp_log_simple, cdnsp_ep0_data_stage,
 	TP_PROTO(char *msg),
 	TP_ARGS(msg)
 );

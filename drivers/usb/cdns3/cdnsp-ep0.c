@@ -24,13 +24,11 @@ static void cdnsp_ep0_stall(struct cdnsp_device *pdev)
 	preq = next_request(&pep->pending_list);
 
 	if (pdev->three_stage_setup) {
-		trace_cdnsp_ep0_data_stage("send stall");
 		cdnsp_halt_endpoint(pdev, pep, true);
 
 		if (preq)
 			cdnsp_gadget_giveback(pep, preq, -ECONNRESET);
 	} else {
-		trace_cdnsp_ep0_status_stage("send stall");
 		pep->ep_state |= EP0_HALTED_STATUS;
 
 		if (preq)
@@ -44,8 +42,6 @@ static int cdnsp_ep0_delegate_req(struct cdnsp_device *pdev,
 				  struct usb_ctrlrequest *ctrl)
 {
 	int ret;
-
-	trace_cdnsp_ep0_request("delagete");
 
 	spin_unlock(&pdev->lock);
 	ret = pdev->gadget_driver->setup(&pdev->gadget, ctrl);
@@ -130,7 +126,6 @@ static int cdnsp_ep0_set_address(struct cdnsp_device *pdev,
 
 int cdnsp_status_stage(struct cdnsp_device *pdev)
 {
-	trace_cdnsp_ep0_status_stage("preparing");
 	pdev->ep0_stage = CDNSP_STATUS_STAGE;
 	pdev->ep0_preq.request.length = 0;
 

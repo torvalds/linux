@@ -237,8 +237,6 @@ static int cdnsp_start(struct cdnsp_device *pdev)
 	temp |= (CMD_R_S | CMD_DEVEN);
 	writel(temp, &pdev->op_regs->command);
 
-	trace_cdnsp_init("Turn on controller");
-
 	pdev->cdnsp_state = 0;
 
 	/*

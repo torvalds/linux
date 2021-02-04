@@ -266,7 +266,6 @@ static void cdnsp_force_l0_go(struct cdnsp_device *pdev)
 /* Ring the doorbell after placing a command on the ring. */
 void cdnsp_ring_cmd_db(struct cdnsp_device *pdev)
 {
-	trace_cdnsp_cmd_drbl("Ding Dong");
 	writel(DB_VALUE_CMD, &pdev->dba->cmd_db);
 }
 
