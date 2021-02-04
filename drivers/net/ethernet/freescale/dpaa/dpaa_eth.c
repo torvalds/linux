@@ -2192,7 +2192,7 @@ static int dpaa_a050385_wa_xdpf(struct dpaa_priv *priv,
 	 * byte frame headroom. If the XDP program uses all of it, copy the
 	 * data to a new buffer and make room for storing the backpointer.
 	 */
-	if (PTR_IS_ALIGNED(xdpf->data, DPAA_A050385_ALIGN) &&
+	if (PTR_IS_ALIGNED(xdpf->data, DPAA_FD_DATA_ALIGNMENT) &&
 	    xdpf->headroom >= priv->tx_headroom) {
 		xdpf->headroom = priv->tx_headroom;
 		return 0;
