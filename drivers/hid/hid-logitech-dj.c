@@ -1857,23 +1857,27 @@ static void logi_dj_remove(struct hid_device *hdev)
 }
 
 static const struct hid_device_id logi_dj_receivers[] = {
-	{HID_USB_DEVICE(USB_VENDOR_ID_LOGITECH,
+	{ /* Logitech unifying receiver (0xc52b) */
+	  HID_USB_DEVICE(USB_VENDOR_ID_LOGITECH,
 		USB_DEVICE_ID_LOGITECH_UNIFYING_RECEIVER),
 	 .driver_data = recvr_type_dj},
-	{HID_USB_DEVICE(USB_VENDOR_ID_LOGITECH,
+	{ /* Logitech unifying receiver (0xc532) */
+	  HID_USB_DEVICE(USB_VENDOR_ID_LOGITECH,
 		USB_DEVICE_ID_LOGITECH_UNIFYING_RECEIVER_2),
 	 .driver_data = recvr_type_dj},
-	{ /* Logitech Nano mouse only receiver */
+
+	{ /* Logitech Nano mouse only receiver (0xc52f) */
 	  HID_USB_DEVICE(USB_VENDOR_ID_LOGITECH,
 			 USB_DEVICE_ID_LOGITECH_NANO_RECEIVER),
 	 .driver_data = recvr_type_mouse_only},
-	{ /* Logitech Nano (non DJ) receiver */
+	{ /* Logitech Nano (non DJ) receiver (0xc534) */
 	  HID_USB_DEVICE(USB_VENDOR_ID_LOGITECH,
 			 USB_DEVICE_ID_LOGITECH_NANO_RECEIVER_2),
 	 .driver_data = recvr_type_hidpp},
+
 	{ /* Logitech G700(s) receiver (0xc531) */
 	  HID_USB_DEVICE(USB_VENDOR_ID_LOGITECH,
-		0xc531),
+			 USB_DEVICE_ID_LOGITECH_G700_RECEIVER),
 	 .driver_data = recvr_type_gaming_hidpp},
 	{ /* Logitech G602 receiver (0xc537) */
 	  HID_USB_DEVICE(USB_VENDOR_ID_LOGITECH,
@@ -1883,17 +1887,18 @@ static const struct hid_device_id logi_dj_receivers[] = {
 	  HID_USB_DEVICE(USB_VENDOR_ID_LOGITECH,
 		USB_DEVICE_ID_LOGITECH_NANO_RECEIVER_LIGHTSPEED_1),
 	 .driver_data = recvr_type_gaming_hidpp},
-	{ /* Logitech lightspeed receiver (0xc53f) */
-	  HID_USB_DEVICE(USB_VENDOR_ID_LOGITECH,
-		USB_DEVICE_ID_LOGITECH_NANO_RECEIVER_LIGHTSPEED_1_1),
-	 .driver_data = recvr_type_gaming_hidpp},
-	{ /* Logitech 27 MHz HID++ 1.0 receiver (0xc513) */
-	  HID_USB_DEVICE(USB_VENDOR_ID_LOGITECH, USB_DEVICE_ID_MX3000_RECEIVER),
-	 .driver_data = recvr_type_27mhz},
 	{ /* Logitech powerplay receiver (0xc53a) */
 	  HID_USB_DEVICE(USB_VENDOR_ID_LOGITECH,
 		USB_DEVICE_ID_LOGITECH_NANO_RECEIVER_POWERPLAY),
 	 .driver_data = recvr_type_gaming_hidpp},
+	{ /* Logitech lightspeed receiver (0xc53f) */
+	  HID_USB_DEVICE(USB_VENDOR_ID_LOGITECH,
+		USB_DEVICE_ID_LOGITECH_NANO_RECEIVER_LIGHTSPEED_1_1),
+	 .driver_data = recvr_type_gaming_hidpp},
+
+	{ /* Logitech 27 MHz HID++ 1.0 receiver (0xc513) */
+	  HID_USB_DEVICE(USB_VENDOR_ID_LOGITECH, USB_DEVICE_ID_MX3000_RECEIVER),
+	 .driver_data = recvr_type_27mhz},
 	{ /* Logitech 27 MHz HID++ 1.0 receiver (0xc517) */
 	  HID_USB_DEVICE(USB_VENDOR_ID_LOGITECH,
 		USB_DEVICE_ID_S510_RECEIVER_2),
@@ -1902,21 +1907,22 @@ static const struct hid_device_id logi_dj_receivers[] = {
 	  HID_USB_DEVICE(USB_VENDOR_ID_LOGITECH,
 		USB_DEVICE_ID_LOGITECH_27MHZ_MOUSE_RECEIVER),
 	 .driver_data = recvr_type_27mhz},
-	{ /* Logitech MX5000 HID++ / bluetooth receiver keyboard intf. */
+
+	{ /* Logitech MX5000 HID++ / bluetooth receiver keyboard intf. (0xc70e) */
 	  HID_USB_DEVICE(USB_VENDOR_ID_LOGITECH,
-		0xc70e),
+		USB_DEVICE_ID_MX5000_RECEIVER_KBD_DEV),
 	 .driver_data = recvr_type_bluetooth},
-	{ /* Logitech MX5000 HID++ / bluetooth receiver mouse intf. */
+	{ /* Logitech MX5000 HID++ / bluetooth receiver mouse intf. (0xc70a) */
 	  HID_USB_DEVICE(USB_VENDOR_ID_LOGITECH,
-		0xc70a),
+		USB_DEVICE_ID_MX5000_RECEIVER_MOUSE_DEV),
 	 .driver_data = recvr_type_bluetooth},
-	{ /* Logitech MX5500 HID++ / bluetooth receiver keyboard intf. */
+	{ /* Logitech MX5500 HID++ / bluetooth receiver keyboard intf. (0xc71b) */
 	  HID_USB_DEVICE(USB_VENDOR_ID_LOGITECH,
-		0xc71b),
+		USB_DEVICE_ID_MX5500_RECEIVER_KBD_DEV),
 	 .driver_data = recvr_type_bluetooth},
-	{ /* Logitech MX5500 HID++ / bluetooth receiver mouse intf. */
+	{ /* Logitech MX5500 HID++ / bluetooth receiver mouse intf. (0xc71c) */
 	  HID_USB_DEVICE(USB_VENDOR_ID_LOGITECH,
-		0xc71c),
+		USB_DEVICE_ID_MX5500_RECEIVER_MOUSE_DEV),
 	 .driver_data = recvr_type_bluetooth},
 	{}
 };
