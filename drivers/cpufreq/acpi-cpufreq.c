@@ -806,6 +806,14 @@ static int acpi_cpufreq_cpu_init(struct cpufreq_policy *policy)
 		state_count++;
 		valid_states++;
 		data->first_perf_state = valid_states;
+	} else {
+		/*
+		 * If the maximum "boost" frequency is unknown, ask the arch
+		 * scale-invariance code to use the "nominal" performance for
+		 * CPU utilization scaling so as to prevent the schedutil
+		 * governor from selecting inadequate CPU frequencies.
+		 */
+		arch_set_max_freq_ratio(true);
 	}
 
 	freq_table = kcalloc(state_count, sizeof(*freq_table), GFP_KERNEL);
