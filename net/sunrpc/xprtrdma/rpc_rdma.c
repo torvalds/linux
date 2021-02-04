@@ -213,7 +213,7 @@ static struct rpcrdma_mr_seg *
 rpcrdma_convert_kvec(struct kvec *vec, struct rpcrdma_mr_seg *seg,
 		     unsigned int *n)
 {
-	seg->mr_page = NULL;
+	seg->mr_page = virt_to_page(vec->iov_base);
 	seg->mr_offset = vec->iov_base;
 	seg->mr_len = vec->iov_len;
 	++seg;
