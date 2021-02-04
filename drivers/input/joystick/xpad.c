@@ -12,6 +12,7 @@
  *               2007 Jan Kratochvil <honza@jikos.cz>
  *               2010 Christoph Fritz <chf.fritz@googlemail.com>
  *
+ *
  * This driver is based on:
  *  - information from     http://euc.jp/periphs/xbox-controller.ja.html
  *  - the iForce driver    drivers/char/joystick/iforce.c
@@ -218,6 +219,7 @@ static const struct xpad_device {
 	{ 0x0e6f, 0x02ab, "PDP Controller for Xbox One", 0, XTYPE_XBOXONE },
 	{ 0x0e6f, 0x02a4, "PDP Wired Controller for Xbox One - Stealth Series", 0, XTYPE_XBOXONE },
 	{ 0x0e6f, 0x02a6, "PDP Wired Controller for Xbox One - Camo Series", 0, XTYPE_XBOXONE },
+	{ 0x0e6f, 0x02bd, "PDP Wired Controller for Xbox One - Royal Purple", 0, XTYPE_XBOXONE },
 	{ 0x0e6f, 0x0301, "Logic3 Controller", 0, XTYPE_XBOX360 },
 	{ 0x0e6f, 0x0346, "Rock Candy Gamepad for Xbox One 2016", 0, XTYPE_XBOXONE },
 	{ 0x0e6f, 0x0401, "Logic3 Controller", 0, XTYPE_XBOX360 },
@@ -481,26 +483,26 @@ static const u8 xboxone_hori_init[] = {
 };
 
 /*
- * This packet is required for most (all?) of the PDP pads to start
+ * This packet is required for all of the PDP pads to start
  * sending input reports. These pads include: (0x0e6f:0x02ab),
- * (0x0e6f:0x02a4), (0x0e6f:0x02a6).
+ * (0x0e6f:0x02a4), (0x0e6f:0x02bd).
  */
 static const u8 xboxone_pdp_init1[] = {
 	0x0a, 0x20, 0x00, 0x03, 0x00, 0x01, 0x14
 };
 
 /*
- * This packet is required for most (all?) of the PDP pads to start
+ * This packet is required for all of the PDP pads to start
  * sending input reports. These pads include: (0x0e6f:0x02ab),
- * (0x0e6f:0x02a4), (0x0e6f:0x02a6).
+ * (0x0e6f:0x02a4), (0x0e6f:0x02bd).
  */
 static const u8 xboxone_pdp_init2[] = {
 	0x06, 0x20, 0x00, 0x02, 0x01, 0x00
 };
 
 /*
- * A specific rumble packet is required for some PowerA pads to start
- * sending input reports. One of those pads is (0x24c6:0x543a).
+ * A specific rumble packet is required for all PowerA pads to start
+ * sending input reports. Those pads include (0x24c6:0x543a).
  */
 static const u8 xboxone_rumblebegin_init[] = {
 	0x09, 0x00, 0x00, 0x09, 0x00, 0x0F, 0x00, 0x00,
