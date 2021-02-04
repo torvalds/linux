@@ -369,6 +369,7 @@ bch2_trans_commit_write_locked(struct btree_trans *trans,
 	struct bch_fs *c = trans->c;
 	struct bch_fs_usage_online *fs_usage = NULL;
 	struct btree_insert_entry *i;
+	struct btree_trans_commit_hook *h;
 	unsigned u64s = 0;
 	bool marking = false;
 	int ret;
@@ -385,6 +386,14 @@ bch2_trans_commit_write_locked(struct btree_trans *trans,
 	 */
 
 	prefetch(&trans->c->journal.flags);
+
+	h = trans->hooks;
+	while (h) {
+		ret = h->fn(trans, h);
+		if (ret)
+			return ret;
+		h = h->next;
+	}
 
 	trans_for_each_update2(trans, i) {
 		/* Multiple inserts might go to same leaf: */
@@ -1055,6 +1064,13 @@ int bch2_trans_update(struct btree_trans *trans, struct btree_iter *iter,
 	}
 
 	return 0;
+}
+
+void bch2_trans_commit_hook(struct btree_trans *trans,
+			    struct btree_trans_commit_hook *h)
+{
+	h->next = trans->hooks;
+	trans->hooks = h;
 }
 
 int __bch2_btree_insert(struct btree_trans *trans,

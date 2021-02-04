@@ -2144,6 +2144,7 @@ void bch2_trans_reset(struct btree_trans *trans, unsigned flags)
 	trans->nr_updates2		= 0;
 	trans->mem_top			= 0;
 
+	trans->hooks			= NULL;
 	trans->extra_journal_entries	= NULL;
 	trans->extra_journal_entry_u64s	= 0;
 
