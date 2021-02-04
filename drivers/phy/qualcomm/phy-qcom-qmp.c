@@ -3545,7 +3545,7 @@ static int qcom_qmp_phy_configure_dp_phy(struct qmp_phy *qphy)
 static int qcom_qmp_dp_phy_calibrate(struct phy *phy)
 {
 	struct qmp_phy *qphy = phy_get_drvdata(phy);
-	const u8 cfg1_settings[] = { 0x13, 0x23, 0x1d };
+	static const u8 cfg1_settings[] = { 0x13, 0x23, 0x1d };
 	u8 val;
 
 	qphy->dp_aux_cfg++;
