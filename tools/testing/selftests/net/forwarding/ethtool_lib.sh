@@ -22,6 +22,40 @@ ethtool_set()
 	check_err $out "error in configuration. $cmd"
 }
 
+dev_linkmodes_params_get()
+{
+	local dev=$1; shift
+	local adver=$1; shift
+	local -a linkmodes_params
+	local param_count
+	local arr
+
+	if (($adver)); then
+		mode="Advertised link modes"
+	else
+		mode="Supported link modes"
+	fi
+
+	local -a dev_linkmodes=($(dev_speeds_get $dev 1 $adver))
+	for ((i=0; i<${#dev_linkmodes[@]}; i++)); do
+		linkmodes_params[$i]=$(echo -e "${dev_linkmodes[$i]}" | \
+			# Replaces all non numbers with spaces
+			sed -e 's/[^0-9]/ /g' | \
+			# Squeeze spaces in sequence to 1 space
+			tr -s ' ')
+		# Count how many numbers were found in the linkmode
+		param_count=$(echo "${linkmodes_params[$i]}" | wc -w)
+		if [[ $param_count -eq 1 ]]; then
+			linkmodes_params[$i]="${linkmodes_params[$i]} 1"
+		elif [[ $param_count -ge 3 ]]; then
+			arr=(${linkmodes_params[$i]})
+			# Take only first two params
+			linkmodes_params[$i]=$(echo "${arr[@]:0:2}")
+		fi
+	done
+	echo ${linkmodes_params[@]}
+}
+
 dev_speeds_get()
 {
 	local dev=$1; shift
