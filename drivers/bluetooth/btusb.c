@@ -3470,13 +3470,11 @@ err_free_skb:
 static int btusb_mtk_setup_firmware_79xx(struct hci_dev *hdev, const char *fwname)
 {
 	struct btmtk_hci_wmt_params wmt_params;
-	struct btmtk_patch_header *patchhdr = NULL;
 	struct btmtk_global_desc *globaldesc = NULL;
 	struct btmtk_section_map *sectionmap;
 	const struct firmware *fw;
 	const u8 *fw_ptr;
 	const u8 *fw_bin_ptr;
-	size_t fw_size;
 	int err, dlen, i, status;
 	u8 flag, first_block, retry;
 	u32 section_num, dl_size, section_offset;
@@ -3490,8 +3488,6 @@ static int btusb_mtk_setup_firmware_79xx(struct hci_dev *hdev, const char *fwnam
 
 	fw_ptr = fw->data;
 	fw_bin_ptr = fw_ptr;
-	fw_size = fw->size;
-	patchhdr = (struct btmtk_patch_header *)fw_ptr;
 	globaldesc = (struct btmtk_global_desc *)(fw_ptr + MTK_FW_ROM_PATCH_HEADER_SIZE);
 	section_num = globaldesc->section_num;
 
