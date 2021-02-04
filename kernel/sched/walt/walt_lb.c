@@ -508,7 +508,9 @@ static void walt_lb_tick(void *unused, struct rq *rq)
 	new_cpu = walt_find_energy_efficient_cpu(p, prev_cpu, 0, 1);
 	rcu_read_unlock();
 
-	if (new_cpu < 0 || same_cluster(new_cpu, prev_cpu))
+	/* prevent active task migration to busy or same/lower capacity CPU */
+	if (new_cpu < 0 || !available_idle_cpu(new_cpu) ||
+		capacity_orig_of(new_cpu) <= capacity_orig_of(prev_cpu))
 		goto out_unlock;
 
 	raw_spin_lock(&rq->lock);
