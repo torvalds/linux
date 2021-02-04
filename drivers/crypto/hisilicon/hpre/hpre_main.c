@@ -318,7 +318,7 @@ static int hpre_set_cluster(struct hisi_qm *qm)
 }
 
 /*
- * For Hi1620, we shoul disable FLR triggered by hardware (BME/PM/SRIOV).
+ * For Kunpeng 920, we shoul disable FLR triggered by hardware (BME/PM/SRIOV).
  * Or it may stay in D3 state when we bind and unbind hpre quickly,
  * as it does FLR triggered by hardware.
  */
@@ -376,11 +376,14 @@ static int hpre_set_user_domain_and_cache(struct hisi_qm *qm)
 	if (ret)
 		return -ETIMEDOUT;
 
-	ret = hpre_cfg_by_dsm(qm);
-	if (ret)
-		dev_err(dev, "acpi_evaluate_dsm err.\n");
+	/* This setting is only needed by Kunpeng 920. */
+	if (qm->ver == QM_HW_V2) {
+		ret = hpre_cfg_by_dsm(qm);
+		if (ret)
+			dev_err(dev, "acpi_evaluate_dsm err.\n");
 
-	disable_flr_of_bme(qm);
+		disable_flr_of_bme(qm);
+	}
 
 	return ret;
 }
