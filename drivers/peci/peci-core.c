@@ -194,6 +194,7 @@ static int __peci_xfer(struct peci_adapter *adapter, struct peci_xfer_msg *msg,
 		       bool do_retry, bool has_aw_fcs)
 {
 	uint interval_us = PECI_DEV_RETRY_INTERVAL_MIN_USEC;
+	char task_name[TASK_COMM_LEN];
 	ulong timeout = jiffies;
 	u8 aw_fcs;
 	int ret;
@@ -213,6 +214,10 @@ static int __peci_xfer(struct peci_adapter *adapter, struct peci_xfer_msg *msg,
 			return -EAGAIN;
 		}
 	}
+
+	get_task_comm(task_name, current);
+	dev_dbg(&adapter->dev, "%s is called by %s(%d) through %s\n",
+		__func__, task_name, current->pid, adapter->name);
 
 	/*
 	 * For some commands, the PECI originator may need to retry a command if
