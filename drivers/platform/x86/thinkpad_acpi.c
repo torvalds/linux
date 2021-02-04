@@ -9995,8 +9995,6 @@ static struct ibm_struct proxsensor_driver_data = {
 	.exit = proxsensor_exit,
 };
 
-#if IS_ENABLED(CONFIG_ACPI_PLATFORM_PROFILE)
-
 /*************************************************************************
  * DYTC Platform Profile interface
  */
@@ -10251,7 +10249,6 @@ static struct ibm_struct  dytc_profile_driver_data = {
 	.name = "dytc-profile",
 	.exit = dytc_profile_exit,
 };
-#endif /* CONFIG_ACPI_PLATFORM_PROFILE */
 
 /*************************************************************************
  * Keyboard language interface
@@ -10476,11 +10473,9 @@ static void tpacpi_driver_event(const unsigned int hkey_event)
 
 	if (hkey_event == TP_HKEY_EV_THM_CSM_COMPLETED) {
 		lapsensor_refresh();
-#if IS_ENABLED(CONFIG_ACPI_PLATFORM_PROFILE)
 		/* If we are already accessing DYTC then skip dytc update */
 		if (!atomic_add_unless(&dytc_ignore_event, -1, 0))
 			dytc_profile_refresh();
-#endif
 	}
 }
 
@@ -10924,12 +10919,10 @@ static struct ibm_init_struct ibms_init[] __initdata = {
 		.init = tpacpi_proxsensor_init,
 		.data = &proxsensor_driver_data,
 	},
-#if IS_ENABLED(CONFIG_ACPI_PLATFORM_PROFILE)
 	{
 		.init = tpacpi_dytc_profile_init,
 		.data = &dytc_profile_driver_data,
 	},
-#endif
 	{
 		.init = tpacpi_kbdlang_init,
 		.data = &kbdlang_driver_data,
