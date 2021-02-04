@@ -783,7 +783,7 @@ struct d11txh {
 	u8 RTSPhyHeader[D11_PHY_HDR_LEN];	/* 0x2c - 0x2e */
 	struct ieee80211_rts rts_frame;	/* 0x2f - 0x36 */
 	u16 PAD;		/* 0x37 */
-} __packed;
+} __packed __aligned(2);
 
 #define	D11_TXH_LEN		112	/* bytes */
 
