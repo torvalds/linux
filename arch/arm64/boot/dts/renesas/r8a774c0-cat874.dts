@@ -365,7 +365,7 @@
 
 	rcar_sound,dai {
 		dai0 {
-			playback = <&ssi0 &src0 &dvc0>;
+			playback = <&ssi0>, <&src0>, <&dvc0>;
 		};
 	};
 };
