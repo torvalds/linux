@@ -13,7 +13,7 @@ struct drm_i915_private;
 struct intel_plane;
 struct intel_plane_state;
 
-unsigned int i9xx_plane_max_stride(struct intel_plane *plane,
+unsigned int i965_plane_max_stride(struct intel_plane *plane,
 				   u32 pixel_format, u64 modifier,
 				   unsigned int rotation);
 int i9xx_check_plane_surface(struct intel_plane_state *plane_state);

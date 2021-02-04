@@ -649,13 +649,19 @@ skl_program_scaler(struct intel_plane *plane,
 
 /* Preoffset values for YUV to RGB Conversion */
 #define PREOFF_YUV_TO_RGB_HI		0x1800
-#define PREOFF_YUV_TO_RGB_ME		0x1F00
+#define PREOFF_YUV_TO_RGB_ME		0x0000
 #define PREOFF_YUV_TO_RGB_LO		0x1800
 
 #define  ROFF(x)          (((x) & 0xffff) << 16)
 #define  GOFF(x)          (((x) & 0xffff) << 0)
 #define  BOFF(x)          (((x) & 0xffff) << 16)
 
+/*
+ * Programs the input color space conversion stage for ICL HDR planes.
+ * Note that it is assumed that this stage always happens after YUV
+ * range correction. Thus, the input to this stage is assumed to be
+ * in full-range YCbCr.
+ */
 static void
 icl_program_input_csc(struct intel_plane *plane,
 		      const struct intel_crtc_state *crtc_state,
@@ -703,52 +709,7 @@ icl_program_input_csc(struct intel_plane *plane,
 			0x0, 0x7800, 0x7F10,
 		},
 	};
-
-	/* Matrix for Limited Range to Full Range Conversion */
-	static const u16 input_csc_matrix_lr[][9] = {
-		/*
-		 * BT.601 Limted range YCbCr -> full range RGB
-		 * The matrix required is :
-		 * [1.164384, 0.000, 1.596027,
-		 *  1.164384, -0.39175, -0.812813,
-		 *  1.164384, 2.017232, 0.0000]
-		 */
-		[DRM_COLOR_YCBCR_BT601] = {
-			0x7CC8, 0x7950, 0x0,
-			0x8D00, 0x7950, 0x9C88,
-			0x0, 0x7950, 0x6810,
-		},
-		/*
-		 * BT.709 Limited range YCbCr -> full range RGB
-		 * The matrix required is :
-		 * [1.164384, 0.000, 1.792741,
-		 *  1.164384, -0.213249, -0.532909,
-		 *  1.164384, 2.112402, 0.0000]
-		 */
-		[DRM_COLOR_YCBCR_BT709] = {
-			0x7E58, 0x7950, 0x0,
-			0x8888, 0x7950, 0xADA8,
-			0x0, 0x7950,  0x6870,
-		},
-		/*
-		 * BT.2020 Limited range YCbCr -> full range RGB
-		 * The matrix required is :
-		 * [1.164, 0.000, 1.678,
-		 *  1.164, -0.1873, -0.6504,
-		 *  1.164, 2.1417, 0.0000]
-		 */
-		[DRM_COLOR_YCBCR_BT2020] = {
-			0x7D70, 0x7950, 0x0,
-			0x8A68, 0x7950, 0xAC00,
-			0x0, 0x7950, 0x6890,
-		},
-	};
-	const u16 *csc;
-
-	if (plane_state->hw.color_range == DRM_COLOR_YCBCR_FULL_RANGE)
-		csc = input_csc_matrix[plane_state->hw.color_encoding];
-	else
-		csc = input_csc_matrix_lr[plane_state->hw.color_encoding];
+	const u16 *csc = input_csc_matrix[plane_state->hw.color_encoding];
 
 	intel_de_write_fw(dev_priv, PLANE_INPUT_CSC_COEFF(pipe, plane_id, 0),
 			  ROFF(csc[0]) | GOFF(csc[1]));
@@ -765,14 +726,8 @@ icl_program_input_csc(struct intel_plane *plane,
 
 	intel_de_write_fw(dev_priv, PLANE_INPUT_CSC_PREOFF(pipe, plane_id, 0),
 			  PREOFF_YUV_TO_RGB_HI);
-	if (plane_state->hw.color_range == DRM_COLOR_YCBCR_FULL_RANGE)
-		intel_de_write_fw(dev_priv,
-				  PLANE_INPUT_CSC_PREOFF(pipe, plane_id, 1),
-				  0);
-	else
-		intel_de_write_fw(dev_priv,
-				  PLANE_INPUT_CSC_PREOFF(pipe, plane_id, 1),
-				  PREOFF_YUV_TO_RGB_ME);
+	intel_de_write_fw(dev_priv, PLANE_INPUT_CSC_PREOFF(pipe, plane_id, 1),
+			  PREOFF_YUV_TO_RGB_ME);
 	intel_de_write_fw(dev_priv, PLANE_INPUT_CSC_PREOFF(pipe, plane_id, 2),
 			  PREOFF_YUV_TO_RGB_LO);
 	intel_de_write_fw(dev_priv,
@@ -1896,7 +1851,26 @@ g4x_sprite_max_stride(struct intel_plane *plane,
 		      u32 pixel_format, u64 modifier,
 		      unsigned int rotation)
 {
-	return 16384;
+	const struct drm_format_info *info = drm_format_info(pixel_format);
+	int cpp = info->cpp[0];
+
+	/* Limit to 4k pixels to guarantee TILEOFF.x doesn't get too big. */
+	if (modifier == I915_FORMAT_MOD_X_TILED)
+		return min(4096 * cpp, 16 * 1024);
+	else
+		return 16 * 1024;
+}
+
+static unsigned int
+hsw_sprite_max_stride(struct intel_plane *plane,
+		      u32 pixel_format, u64 modifier,
+		      unsigned int rotation)
+{
+	const struct drm_format_info *info = drm_format_info(pixel_format);
+	int cpp = info->cpp[0];
+
+	/* Limit to 8k pixels to guarantee OFFSET.x doesn't get too big. */
+	return min(8192 * cpp, 16 * 1024);
 }
 
 static u32 g4x_sprite_ctl_crtc(const struct intel_crtc_state *crtc_state)
@@ -3453,11 +3427,11 @@ intel_sprite_plane_create(struct drm_i915_private *dev_priv,
 		return plane;
 
 	if (IS_VALLEYVIEW(dev_priv) || IS_CHERRYVIEW(dev_priv)) {
-		plane->max_stride = i9xx_plane_max_stride;
 		plane->update_plane = vlv_update_plane;
 		plane->disable_plane = vlv_disable_plane;
 		plane->get_hw_state = vlv_plane_get_hw_state;
 		plane->check_plane = vlv_sprite_check;
+		plane->max_stride = i965_plane_max_stride;
 		plane->min_cdclk = vlv_plane_min_cdclk;
 
 		if (IS_CHERRYVIEW(dev_priv) && pipe == PIPE_B) {
@@ -3471,16 +3445,18 @@ intel_sprite_plane_create(struct drm_i915_private *dev_priv,
 
 		plane_funcs = &vlv_sprite_funcs;
 	} else if (INTEL_GEN(dev_priv) >= 7) {
-		plane->max_stride = g4x_sprite_max_stride;
 		plane->update_plane = ivb_update_plane;
 		plane->disable_plane = ivb_disable_plane;
 		plane->get_hw_state = ivb_plane_get_hw_state;
 		plane->check_plane = g4x_sprite_check;
 
-		if (IS_BROADWELL(dev_priv) || IS_HASWELL(dev_priv))
+		if (IS_BROADWELL(dev_priv) || IS_HASWELL(dev_priv)) {
+			plane->max_stride = hsw_sprite_max_stride;
 			plane->min_cdclk = hsw_plane_min_cdclk;
-		else
+		} else {
+			plane->max_stride = g4x_sprite_max_stride;
 			plane->min_cdclk = ivb_sprite_min_cdclk;
+		}
 
 		formats = snb_plane_formats;
 		num_formats = ARRAY_SIZE(snb_plane_formats);
@@ -3488,11 +3464,11 @@ intel_sprite_plane_create(struct drm_i915_private *dev_priv,
 
 		plane_funcs = &snb_sprite_funcs;
 	} else {
-		plane->max_stride = g4x_sprite_max_stride;
 		plane->update_plane = g4x_update_plane;
 		plane->disable_plane = g4x_disable_plane;
 		plane->get_hw_state = g4x_plane_get_hw_state;
 		plane->check_plane = g4x_sprite_check;
+		plane->max_stride = g4x_sprite_max_stride;
 		plane->min_cdclk = g4x_sprite_min_cdclk;
 
 		modifiers = i9xx_plane_format_modifiers;
