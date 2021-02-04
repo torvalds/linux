@@ -1747,12 +1747,6 @@ static int qm_sq_ctx_cfg(struct hisi_qp *qp, int qp_id, u32 pasid)
 	sqc = kzalloc(sizeof(struct qm_sqc), GFP_KERNEL);
 	if (!sqc)
 		return -ENOMEM;
-	sqc_dma = dma_map_single(dev, sqc, sizeof(struct qm_sqc),
-				 DMA_TO_DEVICE);
-	if (dma_mapping_error(dev, sqc_dma)) {
-		kfree(sqc);
-		return -ENOMEM;
-	}
 
 	INIT_QC_COMMON(sqc, qp->sqe_dma, pasid);
 	if (ver == QM_HW_V1) {
@@ -1764,6 +1758,13 @@ static int qm_sq_ctx_cfg(struct hisi_qp *qp, int qp_id, u32 pasid)
 	}
 	sqc->cq_num = cpu_to_le16(qp_id);
 	sqc->w13 = cpu_to_le16(QM_MK_SQC_W13(0, 1, qp->alg_type));
+
+	sqc_dma = dma_map_single(dev, sqc, sizeof(struct qm_sqc),
+				 DMA_TO_DEVICE);
+	if (dma_mapping_error(dev, sqc_dma)) {
+		kfree(sqc);
+		return -ENOMEM;
+	}
 
 	ret = qm_mb(qm, QM_MB_CMD_SQC, sqc_dma, qp_id, 0);
 	dma_unmap_single(dev, sqc_dma, sizeof(struct qm_sqc), DMA_TO_DEVICE);
@@ -1784,12 +1785,6 @@ static int qm_cq_ctx_cfg(struct hisi_qp *qp, int qp_id, u32 pasid)
 	cqc = kzalloc(sizeof(struct qm_cqc), GFP_KERNEL);
 	if (!cqc)
 		return -ENOMEM;
-	cqc_dma = dma_map_single(dev, cqc, sizeof(struct qm_cqc),
-				 DMA_TO_DEVICE);
-	if (dma_mapping_error(dev, cqc_dma)) {
-		kfree(cqc);
-		return -ENOMEM;
-	}
 
 	INIT_QC_COMMON(cqc, qp->cqe_dma, pasid);
 	if (ver == QM_HW_V1) {
@@ -1801,6 +1796,13 @@ static int qm_cq_ctx_cfg(struct hisi_qp *qp, int qp_id, u32 pasid)
 		cqc->w8 = 0; /* rand_qc */
 	}
 	cqc->dw6 = cpu_to_le32(1 << QM_CQ_PHASE_SHIFT | 1 << QM_CQ_FLAG_SHIFT);
+
+	cqc_dma = dma_map_single(dev, cqc, sizeof(struct qm_cqc),
+				 DMA_TO_DEVICE);
+	if (dma_mapping_error(dev, cqc_dma)) {
+		kfree(cqc);
+		return -ENOMEM;
+	}
 
 	ret = qm_mb(qm, QM_MB_CMD_CQC, cqc_dma, qp_id, 0);
 	dma_unmap_single(dev, cqc_dma, sizeof(struct qm_cqc), DMA_TO_DEVICE);
@@ -2558,21 +2560,22 @@ static int qm_eq_ctx_cfg(struct hisi_qm *qm)
 	dma_addr_t eqc_dma;
 	int ret;
 
-	eqc = kzalloc(sizeof(struct qm_eqc), GFP_KERNEL); //todo
+	eqc = kzalloc(sizeof(struct qm_eqc), GFP_KERNEL);
 	if (!eqc)
 		return -ENOMEM;
-	eqc_dma = dma_map_single(dev, eqc, sizeof(struct qm_eqc),
-				 DMA_TO_DEVICE);
-	if (dma_mapping_error(dev, eqc_dma)) {
-		kfree(eqc);
-		return -ENOMEM;
-	}
 
 	eqc->base_l = cpu_to_le32(lower_32_bits(qm->eqe_dma));
 	eqc->base_h = cpu_to_le32(upper_32_bits(qm->eqe_dma));
 	if (qm->ver == QM_HW_V1)
 		eqc->dw3 = cpu_to_le32(QM_EQE_AEQE_SIZE);
 	eqc->dw6 = cpu_to_le32((QM_EQ_DEPTH - 1) | (1 << QM_EQC_PHASE_SHIFT));
+
+	eqc_dma = dma_map_single(dev, eqc, sizeof(struct qm_eqc),
+				 DMA_TO_DEVICE);
+	if (dma_mapping_error(dev, eqc_dma)) {
+		kfree(eqc);
+		return -ENOMEM;
+	}
 
 	ret = qm_mb(qm, QM_MB_CMD_EQC, eqc_dma, 0, 0);
 	dma_unmap_single(dev, eqc_dma, sizeof(struct qm_eqc), DMA_TO_DEVICE);
@@ -2591,16 +2594,17 @@ static int qm_aeq_ctx_cfg(struct hisi_qm *qm)
 	aeqc = kzalloc(sizeof(struct qm_aeqc), GFP_KERNEL);
 	if (!aeqc)
 		return -ENOMEM;
+
+	aeqc->base_l = cpu_to_le32(lower_32_bits(qm->aeqe_dma));
+	aeqc->base_h = cpu_to_le32(upper_32_bits(qm->aeqe_dma));
+	aeqc->dw6 = cpu_to_le32((QM_Q_DEPTH - 1) | (1 << QM_EQC_PHASE_SHIFT));
+
 	aeqc_dma = dma_map_single(dev, aeqc, sizeof(struct qm_aeqc),
 				  DMA_TO_DEVICE);
 	if (dma_mapping_error(dev, aeqc_dma)) {
 		kfree(aeqc);
 		return -ENOMEM;
 	}
-
-	aeqc->base_l = cpu_to_le32(lower_32_bits(qm->aeqe_dma));
-	aeqc->base_h = cpu_to_le32(upper_32_bits(qm->aeqe_dma));
-	aeqc->dw6 = cpu_to_le32((QM_Q_DEPTH - 1) | (1 << QM_EQC_PHASE_SHIFT));
 
 	ret = qm_mb(qm, QM_MB_CMD_AEQC, aeqc_dma, 0, 0);
 	dma_unmap_single(dev, aeqc_dma, sizeof(struct qm_aeqc), DMA_TO_DEVICE);
