@@ -802,12 +802,14 @@ static int qxl_plane_prepare_fb(struct drm_plane *plane,
 		}
 		if (user_bo->shadow != qdev->dumb_shadow_bo) {
 			if (user_bo->shadow) {
+				qxl_bo_unpin(user_bo->shadow);
 				drm_gem_object_put
 					(&user_bo->shadow->tbo.base);
 				user_bo->shadow = NULL;
 			}
 			drm_gem_object_get(&qdev->dumb_shadow_bo->tbo.base);
 			user_bo->shadow = qdev->dumb_shadow_bo;
+			qxl_bo_pin(user_bo->shadow);
 		}
 	}
 
@@ -833,6 +835,7 @@ static void qxl_plane_cleanup_fb(struct drm_plane *plane,
 	qxl_bo_unpin(user_bo);
 
 	if (old_state->fb != plane->state->fb && user_bo->shadow) {
+		qxl_bo_unpin(user_bo->shadow);
 		drm_gem_object_put(&user_bo->shadow->tbo.base);
 		user_bo->shadow = NULL;
 	}
@@ -1230,6 +1233,7 @@ int qxl_modeset_init(struct qxl_device *qdev)
 void qxl_modeset_fini(struct qxl_device *qdev)
 {
 	if (qdev->dumb_shadow_bo) {
+		qxl_bo_unpin(qdev->dumb_shadow_bo);
 		drm_gem_object_put(&qdev->dumb_shadow_bo->tbo.base);
 		qdev->dumb_shadow_bo = NULL;
 	}
