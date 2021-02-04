@@ -1629,7 +1629,7 @@ __freq_reg_info(struct wiphy *wiphy, u32 center_freq, u32 min_bw)
 {
 	const struct ieee80211_regdomain *regd = reg_get_regdomain(wiphy);
 	static const u32 bws[] = {0, 1, 2, 4, 5, 8, 10, 16, 20};
-	const struct ieee80211_reg_rule *reg_rule;
+	const struct ieee80211_reg_rule *reg_rule = ERR_PTR(-ERANGE);
 	int i = ARRAY_SIZE(bws) - 1;
 	u32 bw;
 
