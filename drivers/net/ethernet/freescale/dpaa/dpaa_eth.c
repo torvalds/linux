@@ -2182,6 +2182,7 @@ static int dpaa_a050385_wa_xdpf(struct dpaa_priv *priv,
 	struct xdp_frame *new_xdpf, *xdpf = *init_xdpf;
 	void *new_buff;
 	struct page *p;
+	int headroom;
 
 	/* Check the data alignment and make sure the headroom is large
 	 * enough to store the xdpf backpointer. Use an aligned headroom
@@ -2197,19 +2198,34 @@ static int dpaa_a050385_wa_xdpf(struct dpaa_priv *priv,
 		return 0;
 	}
 
+	/* The new xdp_frame is stored in the new buffer. Reserve enough space
+	 * in the headroom for storing it along with the driver's private
+	 * info. The headroom needs to be aligned to DPAA_FD_DATA_ALIGNMENT to
+	 * guarantee the data's alignment in the buffer.
+	 */
+	headroom = ALIGN(sizeof(*new_xdpf) + priv->tx_headroom,
+			 DPAA_FD_DATA_ALIGNMENT);
+
+	/* Assure the extended headroom and data don't overflow the buffer,
+	 * while maintaining the mandatory tailroom.
+	 */
+	if (headroom + xdpf->len > DPAA_BP_RAW_SIZE -
+			SKB_DATA_ALIGN(sizeof(struct skb_shared_info)))
+		return -ENOMEM;
+
 	p = dev_alloc_pages(0);
 	if (unlikely(!p))
 		return -ENOMEM;
 
 	/* Copy the data to the new buffer at a properly aligned offset */
 	new_buff = page_address(p);
-	memcpy(new_buff + priv->tx_headroom, xdpf->data, xdpf->len);
+	memcpy(new_buff + headroom, xdpf->data, xdpf->len);
 
 	/* Create an XDP frame around the new buffer in a similar fashion
 	 * to xdp_convert_buff_to_frame.
 	 */
 	new_xdpf = new_buff;
-	new_xdpf->data = new_buff + priv->tx_headroom;
+	new_xdpf->data = new_buff + headroom;
 	new_xdpf->len = xdpf->len;
 	new_xdpf->headroom = priv->tx_headroom;
 	new_xdpf->frame_sz = DPAA_BP_RAW_SIZE;
