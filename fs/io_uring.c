@@ -2734,7 +2734,9 @@ static bool io_rw_reissue(struct io_kiocb *req, long res)
 	if (res != -EAGAIN && res != -EOPNOTSUPP)
 		return false;
 	mode = file_inode(req->file)->i_mode;
-	if ((!S_ISBLK(mode) && !S_ISREG(mode)) || io_wq_current_is_worker())
+	if (!S_ISBLK(mode) && !S_ISREG(mode))
+		return false;
+	if ((req->flags & REQ_F_NOWAIT) || io_wq_current_is_worker())
 		return false;
 
 	lockdep_assert_held(&req->ctx->uring_lock);
@@ -2907,22 +2909,27 @@ static int io_prep_rw(struct io_kiocb *req, const struct io_uring_sqe *sqe)
 {
 	struct io_ring_ctx *ctx = req->ctx;
 	struct kiocb *kiocb = &req->rw.kiocb;
+	struct file *file = req->file;
 	unsigned ioprio;
 	int ret;
 
-	if (S_ISREG(file_inode(req->file)->i_mode))
+	if (S_ISREG(file_inode(file)->i_mode))
 		req->flags |= REQ_F_ISREG;
 
 	kiocb->ki_pos = READ_ONCE(sqe->off);
-	if (kiocb->ki_pos == -1 && !(req->file->f_mode & FMODE_STREAM)) {
+	if (kiocb->ki_pos == -1 && !(file->f_mode & FMODE_STREAM)) {
 		req->flags |= REQ_F_CUR_POS;
-		kiocb->ki_pos = req->file->f_pos;
+		kiocb->ki_pos = file->f_pos;
 	}
 	kiocb->ki_hint = ki_hint_validate(file_write_hint(kiocb->ki_filp));
 	kiocb->ki_flags = iocb_flags(kiocb->ki_filp);
 	ret = kiocb_set_rw_flags(kiocb, READ_ONCE(sqe->rw_flags));
 	if (unlikely(ret))
 		return ret;
+
+	/* don't allow async punt for O_NONBLOCK or RWF_NOWAIT */
+	if ((kiocb->ki_flags & IOCB_NOWAIT) || (file->f_flags & O_NONBLOCK))
+		req->flags |= REQ_F_NOWAIT;
 
 	ioprio = READ_ONCE(sqe->ioprio);
 	if (ioprio) {
@@ -2933,10 +2940,6 @@ static int io_prep_rw(struct io_kiocb *req, const struct io_uring_sqe *sqe)
 		kiocb->ki_ioprio = ioprio;
 	} else
 		kiocb->ki_ioprio = get_current_ioprio();
-
-	/* don't allow async punt if RWF_NOWAIT was requested */
-	if (kiocb->ki_flags & IOCB_NOWAIT)
-		req->flags |= REQ_F_NOWAIT;
 
 	if (ctx->flags & IORING_SETUP_IOPOLL) {
 		if (!(kiocb->ki_flags & IOCB_DIRECT) ||
@@ -3546,15 +3549,14 @@ static int io_read(struct io_kiocb *req, bool force_nonblock,
 		/* IOPOLL retry should happen for io-wq threads */
 		if (!force_nonblock && !(req->ctx->flags & IORING_SETUP_IOPOLL))
 			goto done;
-		/* no retry on NONBLOCK marked file */
-		if (req->file->f_flags & O_NONBLOCK)
+		/* no retry on NONBLOCK nor RWF_NOWAIT */
+		if (req->flags & REQ_F_NOWAIT)
 			goto done;
 		/* some cases will consume bytes even on error returns */
 		iov_iter_revert(iter, io_size - iov_iter_count(iter));
 		ret = 0;
 	} else if (ret <= 0 || ret == io_size || !force_nonblock ||
-		   (req->file->f_flags & O_NONBLOCK) ||
-		   !(req->flags & REQ_F_ISREG)) {
+		   (req->flags & REQ_F_NOWAIT) || !(req->flags & REQ_F_ISREG)) {
 		/* read all, failed, already did sync or don't want to retry */
 		goto done;
 	}
@@ -3675,8 +3677,8 @@ static int io_write(struct io_kiocb *req, bool force_nonblock,
 	 */
 	if (ret2 == -EOPNOTSUPP && (kiocb->ki_flags & IOCB_NOWAIT))
 		ret2 = -EAGAIN;
-	/* no retry on NONBLOCK marked file */
-	if (ret2 == -EAGAIN && (req->file->f_flags & O_NONBLOCK))
+	/* no retry on NONBLOCK nor RWF_NOWAIT */
+	if (ret2 == -EAGAIN && (req->flags & REQ_F_NOWAIT))
 		goto done;
 	if (!force_nonblock || ret2 != -EAGAIN) {
 		/* IOPOLL retry should happen for io-wq threads */
