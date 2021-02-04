@@ -3552,19 +3552,18 @@ static int io_read(struct io_kiocb *req, bool force_nonblock,
 		/* some cases will consume bytes even on error returns */
 		iov_iter_revert(iter, io_size - iov_iter_count(iter));
 		ret = 0;
-		goto copy_iov;
-	} else if (ret <= 0) {
+	} else if (ret <= 0 || ret == io_size) {
 		/* make sure -ERESTARTSYS -> -EINTR is done */
 		goto done;
+	} else {
+		/* we did blocking attempt. no retry. */
+		if (!force_nonblock || (req->file->f_flags & O_NONBLOCK) ||
+		    !(req->flags & REQ_F_ISREG))
+			goto done;
+
+		io_size -= ret;
 	}
 
-	/* read it all, or we did blocking attempt. no retry. */
-	if (!iov_iter_count(iter) || !force_nonblock ||
-	    (req->file->f_flags & O_NONBLOCK) || !(req->flags & REQ_F_ISREG))
-		goto done;
-
-	io_size -= ret;
-copy_iov:
 	ret2 = io_setup_async_rw(req, iovec, inline_vecs, iter, true);
 	if (ret2) {
 		ret = ret2;
