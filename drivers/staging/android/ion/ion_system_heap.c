@@ -13,6 +13,7 @@
 #include <linux/scatterlist.h>
 #include <linux/seq_file.h>
 #include <linux/slab.h>
+#include <linux/swiotlb.h>
 #include <linux/vmalloc.h>
 #include "ion.h"
 
@@ -21,7 +22,7 @@
 static gfp_t high_order_gfp_flags = (GFP_HIGHUSER | __GFP_ZERO | __GFP_NOWARN |
 				     __GFP_NORETRY) & ~__GFP_RECLAIM;
 static gfp_t low_order_gfp_flags  = GFP_HIGHUSER | __GFP_ZERO | __GFP_NOWARN;
-static const unsigned int orders[] = {8, 4, 0};
+static unsigned int orders[] = {8, 4, 0};
 
 static int order_to_index(unsigned int order)
 {
@@ -346,6 +347,32 @@ free_heap:
 int ion_system_heap_create(void)
 {
 	struct ion_heap *heap;
+
+#ifdef CONFIG_SWIOTLB
+	/*
+	 * Since swiotlb has memory size limitation, this will calculate
+	 * the maximum size locally.
+	 *
+	 * Once swiotlb_max_segment() return not '0', means that the totalram size
+	 * is larger than 4GiB and swiotlb is not force mode, in this case, system
+	 * heap should limit largest allocation.
+	 *
+	 * FIX: fix the orders[] as a workaround.
+	 */
+	if (swiotlb_max_segment()) {
+		unsigned int max_size = (1 << IO_TLB_SHIFT) * IO_TLB_SEGSIZE;
+		int max_order = MAX_ORDER;
+		int i;
+
+		max_size = max_t(unsigned int, max_size, PAGE_SIZE) >> PAGE_SHIFT;
+		max_order = min(max_order, ilog2(max_size));
+		for (i = 0; i < NUM_ORDERS; i++) {
+			if (max_order < orders[i])
+				orders[i] = max_order;
+			pr_info("orders[%d] = %u\n", i, orders[i]);
+		}
+	}
+#endif
 
 	heap = __ion_system_heap_create();
 	if (IS_ERR(heap))
