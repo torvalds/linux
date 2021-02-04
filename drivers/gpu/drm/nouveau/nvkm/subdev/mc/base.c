@@ -42,7 +42,7 @@ nvkm_mc_intr_mask(struct nvkm_device *device, enum nvkm_devidx devidx, bool en)
 	if (likely(mc) && mc->func->intr_mask) {
 		u32 mask = nvkm_top_intr_mask(device, devidx);
 		for (map = mc->func->intr; !mask && map->stat; map++) {
-			if (map->unit == devidx)
+			if (map->type + map->inst == devidx)
 				mask = map->stat;
 		}
 		mc->func->intr_mask(mc, mask, en ? mask : 0);
@@ -98,7 +98,7 @@ nvkm_mc_intr(struct nvkm_device *device, bool *handled)
 
 	for (map = mc->func->intr; map->stat; map++) {
 		if (intr & map->stat) {
-			subdev = nvkm_device_subdev(device, map->unit, 0);
+			subdev = nvkm_device_subdev(device, map->type, map->inst);
 			if (subdev)
 				nvkm_subdev_intr(subdev);
 			stat &= ~map->stat;
@@ -121,7 +121,7 @@ nvkm_mc_reset_mask(struct nvkm_device *device, bool isauto,
 		if (!(pmc_enable = nvkm_top_reset(device, devidx))) {
 			for (map = mc->func->reset; map && map->stat; map++) {
 				if (!isauto || !map->noauto) {
-					if (map->unit == devidx) {
+					if (map->type + map->inst == devidx) {
 						pmc_enable = map->stat;
 						break;
 					}
