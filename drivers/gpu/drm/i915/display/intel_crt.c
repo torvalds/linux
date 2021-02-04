@@ -38,6 +38,7 @@
 #include "intel_crt.h"
 #include "intel_ddi.h"
 #include "intel_display_types.h"
+#include "intel_fdi.h"
 #include "intel_fifo_underrun.h"
 #include "intel_gmbus.h"
 #include "intel_hotplug.h"

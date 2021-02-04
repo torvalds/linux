@@ -17,6 +17,7 @@ struct intel_crtc_state;
 struct intel_dp;
 struct intel_dpll_hw_state;
 struct intel_encoder;
+struct intel_shared_dpll;
 enum transcoder;
 
 i915_reg_t dp_tp_ctl_reg(struct intel_encoder *encoder,
@@ -27,8 +28,11 @@ void intel_ddi_fdi_post_disable(struct intel_atomic_state *state,
 				struct intel_encoder *intel_encoder,
 				const struct intel_crtc_state *old_crtc_state,
 				const struct drm_connector_state *old_conn_state);
-void hsw_fdi_link_train(struct intel_encoder *encoder,
-			const struct intel_crtc_state *crtc_state);
+u32 hsw_pll_to_ddi_pll_sel(const struct intel_shared_dpll *pll);
+void intel_prepare_dp_ddi_buffers(struct intel_encoder *encoder,
+				  const struct intel_crtc_state *crtc_state);
+void intel_wait_ddi_buf_idle(struct drm_i915_private *dev_priv,
+			     enum port port);
 void intel_ddi_init(struct drm_i915_private *dev_priv, enum port port);
 bool intel_ddi_get_hw_state(struct intel_encoder *encoder, enum pipe *pipe);
 void intel_ddi_enable_transcoder_func(struct intel_encoder *encoder,
