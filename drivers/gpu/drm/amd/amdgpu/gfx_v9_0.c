@@ -2124,8 +2124,8 @@ static const struct amdgpu_gfx_funcs gfx_v9_4_2_gfx_funcs = {
 	.query_ras_error_count = &gfx_v9_4_2_query_ras_error_count,
 	.reset_ras_error_count = &gfx_v9_4_2_reset_ras_error_count,
 	.query_ras_error_status = &gfx_v9_4_2_query_ras_error_status,
+	.reset_ras_error_status = &gfx_v9_4_2_reset_ras_error_status,
 	.enable_watchdog_timer = &gfx_v9_4_2_enable_watchdog_timer,
-	.query_sq_timeout_status = &gfx_v9_4_2_query_sq_timeout_status,
 };
 
 static int gfx_v9_0_gpu_early_init(struct amdgpu_device *adev)
@@ -3970,9 +3970,6 @@ static int gfx_v9_0_hw_init(void *handle)
 	if (adev->asic_type == CHIP_ALDEBARAN)
 		gfx_v9_4_2_set_power_brake_sequence(adev);
 
-	if (adev->gfx.funcs->enable_watchdog_timer)
-		adev->gfx.funcs->enable_watchdog_timer(adev);
-
 	return r;
 }
 
@@ -4736,13 +4733,12 @@ static int gfx_v9_0_ecc_late_init(void *handle)
 	if (r)
 		return r;
 
-	if (adev->gfx.funcs &&
-	    adev->gfx.funcs->reset_ras_error_count)
-		adev->gfx.funcs->reset_ras_error_count(adev);
-
 	r = amdgpu_gfx_ras_late_init(adev);
 	if (r)
 		return r;
+
+	if (adev->gfx.funcs->enable_watchdog_timer)
+		adev->gfx.funcs->enable_watchdog_timer(adev);
 
 	return 0;
 }

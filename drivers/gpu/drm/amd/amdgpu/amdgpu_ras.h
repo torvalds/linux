@@ -588,8 +588,11 @@ int amdgpu_ras_sysfs_remove(struct amdgpu_device *adev,
 
 void amdgpu_ras_debugfs_create_all(struct amdgpu_device *adev);
 
-int amdgpu_ras_error_query(struct amdgpu_device *adev,
+int amdgpu_ras_query_error_status(struct amdgpu_device *adev,
 		struct ras_query_if *info);
+
+int amdgpu_ras_reset_error_status(struct amdgpu_device *adev,
+		enum amdgpu_ras_block block);
 
 int amdgpu_ras_error_inject(struct amdgpu_device *adev,
 		struct ras_inject_if *info);

@@ -79,6 +79,9 @@ static const struct soc15_reg_golden golden_settings_gc_9_4_2_alde[] = {
 	SOC15_REG_GOLDEN_VALUE(GC, 0, regTCI_CNTL_3, 0xff, 0x20),
 };
 
+static void gfx_v9_4_2_query_sq_timeout_status(struct amdgpu_device *adev);
+static void gfx_v9_4_2_reset_sq_timeout_status(struct amdgpu_device *adev);
+
 void gfx_v9_4_2_init_golden_registers(struct amdgpu_device *adev,
 				      uint32_t die_id)
 {
@@ -1055,8 +1058,6 @@ void gfx_v9_4_2_reset_ras_error_count(struct amdgpu_device *adev)
 
 	gfx_v9_4_2_query_sram_edc_count(adev, NULL, NULL);
 	gfx_v9_4_2_query_utc_edc_count(adev, NULL, NULL);
-	gfx_v9_4_2_reset_utc_err_status(adev);
-	gfx_v9_4_2_reset_ea_err_status(adev);
 }
 
 int gfx_v9_4_2_ras_error_inject(struct amdgpu_device *adev, void *inject_if)
@@ -1097,6 +1098,8 @@ static void gfx_v9_4_2_query_ea_err_status(struct amdgpu_device *adev)
 			if (reg_value)
 				dev_warn(adev->dev, "GCEA err detected at instance: %d, status: 0x%x!\n",
 						j, reg_value);
+			/* clear after read */
+			WREG32(SOC15_REG_ENTRY_OFFSET(gfx_v9_4_2_rdrsp_status_regs), 0x10);
 		}
 	}
 
@@ -1109,16 +1112,22 @@ static void gfx_v9_4_2_query_utc_err_status(struct amdgpu_device *adev)
 	uint32_t data;
 
 	data = RREG32_SOC15(GC, 0, regUTCL2_MEM_ECC_STATUS);
-	if (!data)
+	if (!data) {
 		dev_warn(adev->dev, "GFX UTCL2 Mem Ecc Status: 0x%x!\n", data);
+		WREG32_SOC15(GC, 0, regUTCL2_MEM_ECC_STATUS, 0x3);
+	}
 
 	data = RREG32_SOC15(GC, 0, regVML2_MEM_ECC_STATUS);
-	if (!data)
+	if (!data) {
 		dev_warn(adev->dev, "GFX VML2 Mem Ecc Status: 0x%x!\n", data);
+		WREG32_SOC15(GC, 0, regVML2_MEM_ECC_STATUS, 0x3);
+	}
 
 	data = RREG32_SOC15(GC, 0, regVML2_WALKER_MEM_ECC_STATUS);
-	if (!data)
+	if (!data) {
 		dev_warn(adev->dev, "GFX VML2 Walker Mem Ecc Status: 0x%x!\n", data);
+		WREG32_SOC15(GC, 0, regVML2_WALKER_MEM_ECC_STATUS, 0x3);
+	}
 }
 
 void gfx_v9_4_2_query_ras_error_status(struct amdgpu_device *adev)
@@ -1128,6 +1137,17 @@ void gfx_v9_4_2_query_ras_error_status(struct amdgpu_device *adev)
 
 	gfx_v9_4_2_query_ea_err_status(adev);
 	gfx_v9_4_2_query_utc_err_status(adev);
+	gfx_v9_4_2_query_sq_timeout_status(adev);
+}
+
+void gfx_v9_4_2_reset_ras_error_status(struct amdgpu_device *adev)
+{
+	if (!amdgpu_ras_is_supported(adev, AMDGPU_RAS_BLOCK__GFX))
+		return;
+
+	gfx_v9_4_2_reset_utc_err_status(adev);
+	gfx_v9_4_2_reset_ea_err_status(adev);
+	gfx_v9_4_2_reset_sq_timeout_status(adev);
 }
 
 void gfx_v9_4_2_enable_watchdog_timer(struct amdgpu_device *adev)
@@ -1209,7 +1229,7 @@ static void gfx_v9_4_2_log_cu_timeout_status(struct amdgpu_device *adev,
 	}
 }
 
-void gfx_v9_4_2_query_sq_timeout_status(struct amdgpu_device *adev)
+static void gfx_v9_4_2_query_sq_timeout_status(struct amdgpu_device *adev)
 {
 	uint32_t se_idx, sh_idx, cu_idx;
 	uint32_t status;
@@ -1235,6 +1255,28 @@ void gfx_v9_4_2_query_sq_timeout_status(struct amdgpu_device *adev)
 						adev, status);
 				}
 				/* clear old status */
+				WREG32_SOC15(GC, 0, regSQ_TIMEOUT_STATUS, 0);
+			}
+		}
+	}
+	gfx_v9_4_2_select_se_sh(adev, 0xffffffff, 0xffffffff, 0xffffffff);
+	mutex_unlock(&adev->grbm_idx_mutex);
+}
+
+static void gfx_v9_4_2_reset_sq_timeout_status(struct amdgpu_device *adev)
+{
+	uint32_t se_idx, sh_idx, cu_idx;
+
+	mutex_lock(&adev->grbm_idx_mutex);
+	for (se_idx = 0; se_idx < adev->gfx.config.max_shader_engines;
+	     se_idx++) {
+		for (sh_idx = 0; sh_idx < adev->gfx.config.max_sh_per_se;
+		     sh_idx++) {
+			for (cu_idx = 0;
+			     cu_idx < adev->gfx.config.max_cu_per_sh;
+			     cu_idx++) {
+				gfx_v9_4_2_select_se_sh(adev, se_idx, sh_idx,
+							cu_idx);
 				WREG32_SOC15(GC, 0, regSQ_TIMEOUT_STATUS, 0);
 			}
 		}
