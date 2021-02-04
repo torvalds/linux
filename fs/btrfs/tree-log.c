@@ -3162,6 +3162,19 @@ int btrfs_sync_log(struct btrfs_trans_handle *trans,
 	list_add_tail(&root_log_ctx.list, &log_root_tree->log_ctxs[index2]);
 	root_log_ctx.log_transid = log_root_tree->log_transid;
 
+	if (btrfs_is_zoned(fs_info)) {
+		mutex_lock(&fs_info->tree_root->log_mutex);
+		if (!log_root_tree->node) {
+			ret = btrfs_alloc_log_tree_node(trans, log_root_tree);
+			if (ret) {
+				mutex_unlock(&fs_info->tree_log_mutex);
+				mutex_unlock(&log_root_tree->log_mutex);
+				goto out;
+			}
+		}
+		mutex_unlock(&fs_info->tree_root->log_mutex);
+	}
+
 	/*
 	 * Now we are safe to update the log_root_tree because we're under the
 	 * log_mutex, and we're a current writer so we're holding the commit
@@ -3320,12 +3333,14 @@ static void free_log_tree(struct btrfs_trans_handle *trans,
 		.process_func = process_one_buffer
 	};
 
-	ret = walk_log_tree(trans, log, &wc);
-	if (ret) {
-		if (trans)
-			btrfs_abort_transaction(trans, ret);
-		else
-			btrfs_handle_fs_error(log->fs_info, ret, NULL);
+	if (log->node) {
+		ret = walk_log_tree(trans, log, &wc);
+		if (ret) {
+			if (trans)
+				btrfs_abort_transaction(trans, ret);
+			else
+				btrfs_handle_fs_error(log->fs_info, ret, NULL);
+		}
 	}
 
 	clear_extent_bits(&log->dirty_log_pages, 0, (u64)-1,
