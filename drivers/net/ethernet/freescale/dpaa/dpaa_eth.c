@@ -2180,8 +2180,9 @@ static int dpaa_a050385_wa_xdpf(struct dpaa_priv *priv,
 				struct xdp_frame **init_xdpf)
 {
 	struct xdp_frame *new_xdpf, *xdpf = *init_xdpf;
-	void *new_buff;
+	void *new_buff, *aligned_data;
 	struct page *p;
+	u32 data_shift;
 	int headroom;
 
 	/* Check the data alignment and make sure the headroom is large
@@ -2194,6 +2195,23 @@ static int dpaa_a050385_wa_xdpf(struct dpaa_priv *priv,
 	 */
 	if (PTR_IS_ALIGNED(xdpf->data, DPAA_FD_DATA_ALIGNMENT) &&
 	    xdpf->headroom >= priv->tx_headroom) {
+		xdpf->headroom = priv->tx_headroom;
+		return 0;
+	}
+
+	/* Try to move the data inside the buffer just enough to align it and
+	 * store the xdpf backpointer. If the available headroom isn't large
+	 * enough, resort to allocating a new buffer and copying the data.
+	 */
+	aligned_data = PTR_ALIGN_DOWN(xdpf->data, DPAA_FD_DATA_ALIGNMENT);
+	data_shift = xdpf->data - aligned_data;
+
+	/* The XDP frame's headroom needs to be large enough to accommodate
+	 * shifting the data as well as storing the xdpf backpointer.
+	 */
+	if (xdpf->headroom  >= data_shift + priv->tx_headroom) {
+		memmove(aligned_data, xdpf->data, xdpf->len);
+		xdpf->data = aligned_data;
 		xdpf->headroom = priv->tx_headroom;
 		return 0;
 	}
