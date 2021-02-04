@@ -2233,6 +2233,16 @@ hdmi_port_clock_valid(struct intel_hdmi *hdmi,
 	return MODE_OK;
 }
 
+static int intel_hdmi_port_clock(int clock, int bpc)
+{
+	/*
+	 * Need to adjust the port link by:
+	 *  1.5x for 12bpc
+	 *  1.25x for 10bpc
+	 */
+	return clock * bpc / 8;
+}
+
 static enum drm_mode_status
 intel_hdmi_mode_valid(struct drm_connector *connector,
 		      struct drm_display_mode *mode)
@@ -2264,17 +2274,18 @@ intel_hdmi_mode_valid(struct drm_connector *connector,
 		clock /= 2;
 
 	/* check if we can do 8bpc */
-	status = hdmi_port_clock_valid(hdmi, clock, true, has_hdmi_sink);
+	status = hdmi_port_clock_valid(hdmi, intel_hdmi_port_clock(clock, 8),
+				       true, has_hdmi_sink);
 
 	if (has_hdmi_sink) {
 		/* if we can't do 8bpc we may still be able to do 12bpc */
 		if (status != MODE_OK && !HAS_GMCH(dev_priv))
-			status = hdmi_port_clock_valid(hdmi, clock * 3 / 2,
+			status = hdmi_port_clock_valid(hdmi, intel_hdmi_port_clock(clock, 12),
 						       true, has_hdmi_sink);
 
 		/* if we can't do 8,12bpc we may still be able to do 10bpc */
 		if (status != MODE_OK && INTEL_GEN(dev_priv) >= 11)
-			status = hdmi_port_clock_valid(hdmi, clock * 5 / 4,
+			status = hdmi_port_clock_valid(hdmi, intel_hdmi_port_clock(clock, 10),
 						       true, has_hdmi_sink);
 	}
 	if (status != MODE_OK)
@@ -2380,16 +2391,6 @@ intel_hdmi_ycbcr420_config(struct intel_crtc_state *crtc_state,
 	crtc_state->output_format = INTEL_OUTPUT_FORMAT_YCBCR420;
 
 	return intel_pch_panel_fitting(crtc_state, conn_state);
-}
-
-static int intel_hdmi_port_clock(int clock, int bpc)
-{
-	/*
-	 * Need to adjust the port link by:
-	 *  1.5x for 12bpc
-	 *  1.25x for 10bpc
-	 */
-	return clock * bpc / 8;
 }
 
 static int intel_hdmi_compute_bpc(struct intel_encoder *encoder,
