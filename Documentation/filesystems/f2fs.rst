@@ -847,7 +847,7 @@ This is the default option. f2fs does automatic compression in the writeback of 
 compression enabled files.
 
 2) compress_mode=user
-This disables the automaic compression and gives the user discretion of choosing the
+This disables the automatic compression and gives the user discretion of choosing the
 target file and the timing. The user can do manual compression/decompression on the
 compression enabled files using F2FS_IOC_DECOMPRESS_FILE and F2FS_IOC_COMPRESS_FILE
 ioctls like the below.
