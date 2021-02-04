@@ -3530,14 +3530,18 @@ static int io_read(struct io_kiocb *req, bool force_nonblock,
 	}
 
 	ret = rw_verify_area(READ, req->file, io_kiocb_ppos(kiocb), io_size);
-	if (unlikely(ret))
-		goto out_free;
+	if (unlikely(ret)) {
+		kfree(iovec);
+		return ret;
+	}
 
 	ret = io_iter_do_read(req, iter);
 
 	if (ret == -EIOCBQUEUED) {
-		ret = 0;
-		goto out_free;
+		/* it's faster to check here then delegate to kfree */
+		if (iovec)
+			kfree(iovec);
+		return 0;
 	} else if (ret == -EAGAIN) {
 		/* IOPOLL retry should happen for io-wq threads */
 		if (!force_nonblock && !(req->ctx->flags & IORING_SETUP_IOPOLL))
@@ -3560,8 +3564,6 @@ static int io_read(struct io_kiocb *req, bool force_nonblock,
 		return ret2;
 
 	rw = req->async_data;
-	/* it's copied and will be cleaned with ->io */
-	iovec = NULL;
 	/* now use our persistent iterator, if we aren't already */
 	iter = &rw->iter;
 retry:
@@ -3580,21 +3582,14 @@ retry:
 	 * do, then just retry at the new offset.
 	 */
 	ret = io_iter_do_read(req, iter);
-	if (ret == -EIOCBQUEUED) {
-		ret = 0;
-		goto out_free;
-	} else if (ret > 0 && ret < io_size) {
-		/* we got some bytes, but not all. retry. */
+	if (ret == -EIOCBQUEUED)
+		return 0;
+	/* we got some bytes, but not all. retry. */
+	if (ret > 0 && ret < io_size)
 		goto retry;
-	}
 done:
 	kiocb_done(kiocb, ret, cs);
-	ret = 0;
-out_free:
-	/* it's reportedly faster than delegating the null check to kfree() */
-	if (iovec)
-		kfree(iovec);
-	return ret;
+	return 0;
 }
 
 static int io_write_prep(struct io_kiocb *req, const struct io_uring_sqe *sqe)
