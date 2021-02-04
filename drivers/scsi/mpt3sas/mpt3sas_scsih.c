@@ -11947,6 +11947,8 @@ _scsih_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 	 * Enable MEMORY MOVE support flag.
 	 */
 	ioc->drv_support_bitmap |= MPT_DRV_SUPPORT_BITMAP_MEMMOVE;
+	/* Enable ADDITIONAL QUERY support flag. */
+	ioc->drv_support_bitmap |= MPT_DRV_SUPPORT_BITMAP_ADDNLQUERY;
 
 	ioc->enable_sdev_max_qd = enable_sdev_max_qd;
 

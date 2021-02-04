@@ -8191,8 +8191,11 @@ mpt3sas_base_hard_reset_handler(struct MPT3SAS_ADAPTER *ioc,
 		ioc_state = mpt3sas_base_get_iocstate(ioc, 0);
 		if ((ioc_state & MPI2_IOC_STATE_MASK) == MPI2_IOC_STATE_FAULT ||
 		    (ioc_state & MPI2_IOC_STATE_MASK) ==
-		    MPI2_IOC_STATE_COREDUMP)
+		    MPI2_IOC_STATE_COREDUMP) {
 			is_fault = 1;
+			ioc->htb_rel.trigger_info_dwords[1] =
+			    (ioc_state & MPI2_DOORBELL_DATA_MASK);
+		}
 	}
 	_base_pre_reset_handler(ioc);
 	mpt3sas_wait_for_commands_to_complete(ioc);

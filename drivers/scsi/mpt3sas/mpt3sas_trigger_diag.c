@@ -132,6 +132,35 @@ mpt3sas_process_trigger_data(struct MPT3SAS_ADAPTER *ioc,
 		    &issue_reset);
 	}
 
+	ioc->htb_rel.buffer_rel_condition = MPT3_DIAG_BUFFER_REL_TRIGGER;
+	if (event_data) {
+		ioc->htb_rel.trigger_type = event_data->trigger_type;
+		switch (event_data->trigger_type) {
+		case MPT3SAS_TRIGGER_SCSI:
+			memcpy(&ioc->htb_rel.trigger_info_dwords,
+			    &event_data->u.scsi,
+			    sizeof(struct SL_WH_SCSI_TRIGGER_T));
+			break;
+		case MPT3SAS_TRIGGER_MPI:
+			memcpy(&ioc->htb_rel.trigger_info_dwords,
+			    &event_data->u.mpi,
+			    sizeof(struct SL_WH_MPI_TRIGGER_T));
+			break;
+		case MPT3SAS_TRIGGER_MASTER:
+			ioc->htb_rel.trigger_info_dwords[0] =
+			    event_data->u.master.MasterData;
+			break;
+		case MPT3SAS_TRIGGER_EVENT:
+			memcpy(&ioc->htb_rel.trigger_info_dwords,
+			    &event_data->u.event,
+			    sizeof(struct SL_WH_EVENT_TRIGGER_T));
+			break;
+		default:
+			ioc_err(ioc, "%d - Is not a valid Trigger type\n",
+			    event_data->trigger_type);
+			break;
+		}
+	}
 	_mpt3sas_raise_sigio(ioc, event_data);
 
 	dTriggerDiagPrintk(ioc, ioc_info(ioc, "%s: exit\n",
@@ -201,9 +230,14 @@ mpt3sas_trigger_master(struct MPT3SAS_ADAPTER *ioc, u32 trigger_bitmask)
 	event_data.u.master.MasterData = trigger_bitmask;
 
 	if (trigger_bitmask & MASTER_TRIGGER_FW_FAULT ||
-	    trigger_bitmask & MASTER_TRIGGER_ADAPTER_RESET)
+	    trigger_bitmask & MASTER_TRIGGER_ADAPTER_RESET) {
+		ioc->htb_rel.trigger_type = MPT3SAS_TRIGGER_MASTER;
+		ioc->htb_rel.trigger_info_dwords[0] = trigger_bitmask;
+		if (ioc->reset_from_user)
+			ioc->htb_rel.trigger_info_dwords[1] =
+			    MPT_DIAG_RESET_ISSUED_BY_USER;
 		_mpt3sas_raise_sigio(ioc, &event_data);
-	else
+	} else
 		mpt3sas_send_trigger_data_event(ioc, &event_data);
 
  out:

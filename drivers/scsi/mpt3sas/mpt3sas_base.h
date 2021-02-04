@@ -1073,6 +1073,50 @@ struct hba_port {
 
 #define MULTIPATH_DISABLED_PORT_ID     0xFF
 
+/**
+ * struct htb_rel_query - diagnostic buffer release reason
+ * @unique_id - unique id associated with this buffer.
+ * @buffer_rel_condition - Release condition ioctl/sysfs/reset
+ * @reserved
+ * @trigger_type - Master/Event/scsi/MPI
+ * @trigger_info_dwords - Data Correspondig to trigger type
+ */
+struct htb_rel_query {
+	u16	buffer_rel_condition;
+	u16	reserved;
+	u32	trigger_type;
+	u32	trigger_info_dwords[2];
+};
+
+/* Buffer_rel_condition bit fields */
+
+/* Bit 0 - Diag Buffer not Released */
+#define MPT3_DIAG_BUFFER_NOT_RELEASED	(0x00)
+/* Bit 0 - Diag Buffer Released */
+#define MPT3_DIAG_BUFFER_RELEASED	(0x01)
+
+/*
+ * Bit 1 - Diag Buffer Released by IOCTL,
+ * This bit is valid only if Bit 0 is one
+ */
+#define MPT3_DIAG_BUFFER_REL_IOCTL	(0x02 | MPT3_DIAG_BUFFER_RELEASED)
+
+/*
+ * Bit 2 - Diag Buffer Released by Trigger,
+ * This bit is valid only if Bit 0 is one
+ */
+#define MPT3_DIAG_BUFFER_REL_TRIGGER	(0x04 | MPT3_DIAG_BUFFER_RELEASED)
+
+/*
+ * Bit 3 - Diag Buffer Released by SysFs,
+ * This bit is valid only if Bit 0 is one
+ */
+#define MPT3_DIAG_BUFFER_REL_SYSFS	(0x08 | MPT3_DIAG_BUFFER_RELEASED)
+
+/* DIAG RESET Master trigger flags */
+#define MPT_DIAG_RESET_ISSUED_BY_DRIVER 0x00000000
+#define MPT_DIAG_RESET_ISSUED_BY_USER	0x00000001
+
 typedef void (*MPT3SAS_FLUSH_RUNNING_CMDS)(struct MPT3SAS_ADAPTER *ioc);
 /**
  * struct MPT3SAS_ADAPTER - per adapter struct
@@ -1530,6 +1574,8 @@ struct MPT3SAS_ADAPTER {
 	u32		diagnostic_flags[MPI2_DIAG_BUF_TYPE_COUNT];
 	u32		ring_buffer_offset;
 	u32		ring_buffer_sz;
+	struct htb_rel_query htb_rel;
+	u8 reset_from_user;
 	u8		is_warpdrive;
 	u8		is_mcpu_endpoint;
 	u8		hide_ir_msg;
@@ -1566,6 +1612,7 @@ struct mpt3sas_debugfs_buffer {
 };
 
 #define MPT_DRV_SUPPORT_BITMAP_MEMMOVE 0x00000001
+#define MPT_DRV_SUPPORT_BITMAP_ADDNLQUERY	0x00000002
 
 typedef u8 (*MPT_CALLBACK)(struct MPT3SAS_ADAPTER *ioc, u16 smid, u8 msix_index,
 	u32 reply);
