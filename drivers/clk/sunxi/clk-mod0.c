@@ -14,7 +14,7 @@
 
 #include "clk-factors.h"
 
-/**
+/*
  * sun4i_a10_get_mod0_factors() - calculates m, n factors for MOD0-style clocks
  * MOD0 rate is calculated as follows
  * rate = (parent_rate >> p) / (m + 1);
