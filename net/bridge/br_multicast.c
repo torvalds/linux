@@ -1251,7 +1251,7 @@ __br_multicast_add_group(struct net_bridge *br,
 
 	mp = br_multicast_new_group(br, group);
 	if (IS_ERR(mp))
-		return ERR_PTR(PTR_ERR(mp));
+		return ERR_CAST(mp);
 
 	if (!port) {
 		br_multicast_host_join(mp, true);
