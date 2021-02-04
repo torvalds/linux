@@ -1329,7 +1329,7 @@ struct v4l2_ctrl_h264_sps {
  * struct v4l2_ctrl_h264_pps - H264 picture parameter set
  *
  * Except where noted, all the members on this picture parameter set
- * structure match the sequence parameter set syntax as specified
+ * structure match the picture parameter set syntax as specified
  * by the H264 specification.
  *
  * In particular, V4L2_H264_PPS_FLAG_SCALING_MATRIX_PRESENT flag
