@@ -7,7 +7,7 @@
 
 #include <linux/slab.h>
 
-#include "habanalabs.h"
+#include "../habanalabs.h"
 
 bool hl_is_dram_va(struct hl_device *hdev, u64 virt_addr)
 {
@@ -166,7 +166,6 @@ int hl_mmu_unmap_page(struct hl_ctx *ctx, u64 virt_addr, u32 page_size,
 		mmu_prop = &prop->pmmu;
 
 	pgt_residency = mmu_prop->host_resident ? MMU_HR_PGT : MMU_DR_PGT;
-
 	/*
 	 * The H/W handles mapping of specific page sizes. Hence if the page
 	 * size is bigger, we break it to sub-pages and unmap them separately.
@@ -174,11 +173,21 @@ int hl_mmu_unmap_page(struct hl_ctx *ctx, u64 virt_addr, u32 page_size,
 	if ((page_size % mmu_prop->page_size) == 0) {
 		real_page_size = mmu_prop->page_size;
 	} else {
-		dev_err(hdev->dev,
-			"page size of %u is not %uKB aligned, can't unmap\n",
-			page_size, mmu_prop->page_size >> 10);
+		/*
+		 * MMU page size may differ from DRAM page size.
+		 * In such case work with the DRAM page size and let the MMU
+		 * scrambling routine to handle this mismatch when
+		 * calculating the address to remove from the MMU page table
+		 */
+		if (is_dram_addr && ((page_size % prop->dram_page_size) == 0)) {
+			real_page_size = prop->dram_page_size;
+		} else {
+			dev_err(hdev->dev,
+				"page size of %u is not %uKB aligned, can't unmap\n",
+				page_size, mmu_prop->page_size >> 10);
 
-		return -EFAULT;
+			return -EFAULT;
+		}
 	}
 
 	npages = page_size / real_page_size;
@@ -253,6 +262,17 @@ int hl_mmu_map_page(struct hl_ctx *ctx, u64 virt_addr, u64 phys_addr,
 	 */
 	if ((page_size % mmu_prop->page_size) == 0) {
 		real_page_size = mmu_prop->page_size;
+	} else if (is_dram_addr && ((page_size % prop->dram_page_size) == 0) &&
+			(prop->dram_page_size < mmu_prop->page_size)) {
+		/*
+		 * MMU page size may differ from DRAM page size.
+		 * In such case work with the DRAM page size and let the MMU
+		 * scrambling routine handle this mismatch when calculating
+		 * the address to place in the MMU page table. (in that case
+		 * also make sure that the dram_page_size smaller than the
+		 * mmu page size)
+		 */
+		real_page_size = prop->dram_page_size;
 	} else {
 		dev_err(hdev->dev,
 			"page size of %u is not %uKB aligned, can't map\n",
@@ -261,9 +281,21 @@ int hl_mmu_map_page(struct hl_ctx *ctx, u64 virt_addr, u64 phys_addr,
 		return -EFAULT;
 	}
 
-	WARN_ONCE((phys_addr & (real_page_size - 1)),
-		"Mapping 0x%llx with page size of 0x%x is erroneous! Address must be divisible by page size",
-		phys_addr, real_page_size);
+	/*
+	 * Verify that the phys and virt addresses are aligned with the
+	 * MMU page size (in dram this means checking the address and MMU
+	 * after scrambling)
+	 */
+	if ((is_dram_addr &&
+			((hdev->asic_funcs->scramble_addr(hdev, phys_addr) &
+				(mmu_prop->page_size - 1)) ||
+			(hdev->asic_funcs->scramble_addr(hdev, virt_addr) &
+				(mmu_prop->page_size - 1)))) ||
+		(!is_dram_addr && ((phys_addr & (real_page_size - 1)) ||
+				(virt_addr & (real_page_size - 1)))))
+		dev_crit(hdev->dev,
+			"Mapping address 0x%llx with virtual address 0x%llx and page size of 0x%x is erroneous! Addresses must be divisible by page size",
+			phys_addr, virt_addr, real_page_size);
 
 	npages = page_size / real_page_size;
 	real_virt_addr = virt_addr;
@@ -444,19 +476,53 @@ void hl_mmu_swap_in(struct hl_ctx *ctx)
 		hdev->mmu_func[MMU_HR_PGT].swap_in(ctx);
 }
 
+static void hl_mmu_pa_page_with_offset(struct hl_ctx *ctx, u64 virt_addr,
+						struct hl_mmu_hop_info *hops,
+						u64 *phys_addr)
+{
+	struct hl_device *hdev = ctx->hdev;
+	struct asic_fixed_properties *prop = &hdev->asic_prop;
+	u64 offset_mask, addr_mask, hop_shift, tmp_phys_addr;
+	u32 hop0_shift_off;
+	void *p;
+
+	/* last hop holds the phys address and flags */
+	if (hops->unscrambled_paddr)
+		tmp_phys_addr = hops->unscrambled_paddr;
+	else
+		tmp_phys_addr = hops->hop_info[hops->used_hops - 1].hop_pte_val;
+
+	if (hops->range_type == HL_VA_RANGE_TYPE_HOST_HUGE)
+		p = &prop->pmmu_huge;
+	else if (hops->range_type == HL_VA_RANGE_TYPE_HOST)
+		p = &prop->pmmu;
+	else /* HL_VA_RANGE_TYPE_DRAM */
+		p = &prop->dmmu;
+
+	/*
+	 * find the correct hop shift field in hl_mmu_properties structure
+	 * in order to determine the right maks for the page offset.
+	 */
+	hop0_shift_off = offsetof(struct hl_mmu_properties, hop0_shift);
+	p = (char *)p + hop0_shift_off;
+	p = (char *)p + ((hops->used_hops - 1) * sizeof(u64));
+	hop_shift = *(u64 *)p;
+	offset_mask = (1 << hop_shift) - 1;
+	addr_mask = ~(offset_mask);
+	*phys_addr = (tmp_phys_addr & addr_mask) |
+					(virt_addr & offset_mask);
+}
+
 int hl_mmu_va_to_pa(struct hl_ctx *ctx, u64 virt_addr, u64 *phys_addr)
 {
 	struct hl_mmu_hop_info hops;
-	u64 tmp_addr;
 	int rc;
 
 	rc = hl_mmu_get_tlb_info(ctx, virt_addr, &hops);
 	if (rc)
 		return rc;
 
-	/* last hop holds the phys address and flags */
-	tmp_addr = hops.hop_info[hops.used_hops - 1].hop_pte_val;
-	*phys_addr = (tmp_addr & HOP_PHYS_ADDR_MASK) | (virt_addr & FLAGS_MASK);
+	hl_mmu_pa_page_with_offset(ctx, virt_addr, &hops,  phys_addr);
 
 	return 0;
 }
@@ -472,6 +538,8 @@ int hl_mmu_get_tlb_info(struct hl_ctx *ctx, u64 virt_addr,
 
 	if (!hdev->mmu_enable)
 		return -EOPNOTSUPP;
+
+	hops->scrambled_vaddr = virt_addr;      /* assume no scrambling */
 
 	is_dram_addr = hl_mem_area_inside_range(virt_addr, prop->dmmu.page_size,
 						prop->dmmu.start_addr,
@@ -490,6 +558,11 @@ int hl_mmu_get_tlb_info(struct hl_ctx *ctx, u64 virt_addr,
 							virt_addr, hops);
 
 	mutex_unlock(&ctx->mmu_lock);
+
+	/* add page offset to physical address */
+	if (hops->unscrambled_paddr)
+		hl_mmu_pa_page_with_offset(ctx, virt_addr, hops,
+					&hops->unscrambled_paddr);
 
 	return rc;
 }
@@ -511,4 +584,29 @@ int hl_mmu_if_set_funcs(struct hl_device *hdev)
 	}
 
 	return 0;
+}
+
+/**
+ * hl_mmu_scramble_addr() - The generic mmu address scrambling routine.
+ * @hdev: pointer to device data.
+ * @addr: The address to scramble.
+ *
+ * Return: The scrambled address.
+ */
+u64 hl_mmu_scramble_addr(struct hl_device *hdev, u64 addr)
+{
+	return addr;
+}
+
+/**
+ * hl_mmu_descramble_addr() - The generic mmu address descrambling
+ * routine.
+ * @hdev: pointer to device data.
+ * @addr: The address to descramble.
+ *
+ * Return: The un-scrambled address.
+ */
+u64 hl_mmu_descramble_addr(struct hl_device *hdev, u64 addr)
+{
+	return addr;
 }

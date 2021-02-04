@@ -455,6 +455,8 @@ int goya_get_fixed_properties(struct hl_device *hdev)
 
 	prop->max_pending_cs = GOYA_MAX_PENDING_CS;
 
+	prop->first_available_user_msix_interrupt = USHRT_MAX;
+
 	/* disable fw security for now, set it in a later stage */
 	prop->fw_security_disabled = true;
 	prop->fw_security_status_valid = false;
@@ -2914,7 +2916,7 @@ static int goya_send_job_on_qman0(struct hl_device *hdev, struct hl_cs_job *job)
 	else
 		timeout = HL_DEVICE_TIMEOUT_USEC;
 
-	if (!hdev->asic_funcs->is_device_idle(hdev, NULL, NULL)) {
+	if (!hdev->asic_funcs->is_device_idle(hdev, NULL, 0, NULL)) {
 		dev_err_ratelimited(hdev->dev,
 			"Can't send driver job on QMAN0 because the device is not idle\n");
 		return -EBUSY;
@@ -3876,10 +3878,10 @@ static int goya_parse_cb_mmu(struct hl_device *hdev,
 	patched_cb_handle >>= PAGE_SHIFT;
 	parser->patched_cb = hl_cb_get(hdev, &hdev->kernel_cb_mgr,
 				(u32) patched_cb_handle);
-	/* hl_cb_get should never fail here so use kernel WARN */
-	WARN(!parser->patched_cb, "DMA CB handle invalid 0x%x\n",
-			(u32) patched_cb_handle);
+	/* hl_cb_get should never fail here */
 	if (!parser->patched_cb) {
+		dev_crit(hdev->dev, "DMA CB handle invalid 0x%x\n",
+			(u32) patched_cb_handle);
 		rc = -EFAULT;
 		goto out;
 	}
@@ -3948,10 +3950,10 @@ static int goya_parse_cb_no_mmu(struct hl_device *hdev,
 	patched_cb_handle >>= PAGE_SHIFT;
 	parser->patched_cb = hl_cb_get(hdev, &hdev->kernel_cb_mgr,
 				(u32) patched_cb_handle);
-	/* hl_cb_get should never fail here so use kernel WARN */
-	WARN(!parser->patched_cb, "DMA CB handle invalid 0x%x\n",
-			(u32) patched_cb_handle);
+	/* hl_cb_get should never fail here */
 	if (!parser->patched_cb) {
+		dev_crit(hdev->dev, "DMA CB handle invalid 0x%x\n",
+			(u32) patched_cb_handle);
 		rc = -EFAULT;
 		goto out;
 	}
@@ -4122,9 +4124,6 @@ static int goya_debugfs_read32(struct hl_device *hdev, u64 addr, u32 *val)
 		if (ddr_bar_addr == U64_MAX)
 			rc = -EIO;
 
-	} else if (addr >= HOST_PHYS_BASE && !iommu_present(&pci_bus_type)) {
-		*val = *(u32 *) phys_to_virt(addr - HOST_PHYS_BASE);
-
 	} else {
 		rc = -EFAULT;
 	}
@@ -4178,9 +4177,6 @@ static int goya_debugfs_write32(struct hl_device *hdev, u64 addr, u32 val)
 		if (ddr_bar_addr == U64_MAX)
 			rc = -EIO;
 
-	} else if (addr >= HOST_PHYS_BASE && !iommu_present(&pci_bus_type)) {
-		*(u32 *) phys_to_virt(addr - HOST_PHYS_BASE) = val;
-
 	} else {
 		rc = -EFAULT;
 	}
@@ -4223,9 +4219,6 @@ static int goya_debugfs_read64(struct hl_device *hdev, u64 addr, u64 *val)
 		if (ddr_bar_addr == U64_MAX)
 			rc = -EIO;
 
-	} else if (addr >= HOST_PHYS_BASE && !iommu_present(&pci_bus_type)) {
-		*val = *(u64 *) phys_to_virt(addr - HOST_PHYS_BASE);
-
 	} else {
 		rc = -EFAULT;
 	}
@@ -4265,9 +4258,6 @@ static int goya_debugfs_write64(struct hl_device *hdev, u64 addr, u64 val)
 		}
 		if (ddr_bar_addr == U64_MAX)
 			rc = -EIO;
-
-	} else if (addr >= HOST_PHYS_BASE && !iommu_present(&pci_bus_type)) {
-		*(u64 *) phys_to_virt(addr - HOST_PHYS_BASE) = val;
 
 	} else {
 		rc = -EFAULT;
@@ -4877,8 +4867,6 @@ int goya_context_switch(struct hl_device *hdev, u32 asid)
 
 	WREG32(mmTPC_PLL_CLK_RLX_0, 0x200020);
 
-	goya_mmu_prepare(hdev, asid);
-
 	goya_clear_sm_regs(hdev);
 
 	return 0;
@@ -5044,7 +5032,7 @@ static void goya_mmu_prepare(struct hl_device *hdev, u32 asid)
 		return;
 
 	if (asid & ~MME_QM_GLBL_SECURE_PROPS_ASID_MASK) {
-		WARN(1, "asid %u is too big\n", asid);
+		dev_crit(hdev->dev, "asid %u is too big\n", asid);
 		return;
 	}
 
@@ -5073,8 +5061,6 @@ static int goya_mmu_invalidate_cache(struct hl_device *hdev, bool is_hard,
 	else
 		timeout_usec = MMU_CONFIG_TIMEOUT_USEC;
 
-	mutex_lock(&hdev->mmu_cache_lock);
-
 	/* L0 & L1 invalidation */
 	WREG32(mmSTLB_INV_ALL_START, 1);
 
@@ -5085,8 +5071,6 @@ static int goya_mmu_invalidate_cache(struct hl_device *hdev, bool is_hard,
 		!status,
 		1000,
 		timeout_usec);
-
-	mutex_unlock(&hdev->mmu_cache_lock);
 
 	if (rc) {
 		dev_err_ratelimited(hdev->dev,
@@ -5117,8 +5101,6 @@ static int goya_mmu_invalidate_cache_range(struct hl_device *hdev,
 	else
 		timeout_usec = MMU_CONFIG_TIMEOUT_USEC;
 
-	mutex_lock(&hdev->mmu_cache_lock);
-
 	/*
 	 * TODO: currently invalidate entire L0 & L1 as in regular hard
 	 * invalidation. Need to apply invalidation of specific cache lines with
@@ -5140,8 +5122,6 @@ static int goya_mmu_invalidate_cache_range(struct hl_device *hdev,
 		status == pi,
 		1000,
 		timeout_usec);
-
-	mutex_unlock(&hdev->mmu_cache_lock);
 
 	if (rc) {
 		dev_err_ratelimited(hdev->dev,
@@ -5172,7 +5152,7 @@ int goya_cpucp_info_get(struct hl_device *hdev)
 	if (!(goya->hw_cap_initialized & HW_CAP_CPU_Q))
 		return 0;
 
-	rc = hl_fw_cpucp_info_get(hdev, mmCPU_BOOT_DEV_STS0);
+	rc = hl_fw_cpucp_info_get(hdev, mmCPU_BOOT_DEV_STS0, mmCPU_BOOT_ERR0);
 	if (rc)
 		return rc;
 
@@ -5207,11 +5187,12 @@ static void goya_disable_clock_gating(struct hl_device *hdev)
 	/* clock gating not supported in Goya */
 }
 
-static bool goya_is_device_idle(struct hl_device *hdev, u64 *mask,
-				struct seq_file *s)
+static bool goya_is_device_idle(struct hl_device *hdev, u64 *mask_arr,
+					u8 mask_len, struct seq_file *s)
 {
 	const char *fmt = "%-5d%-9s%#-14x%#-16x%#x\n";
 	const char *dma_fmt = "%-5d%-9s%#-14x%#x\n";
+	unsigned long *mask = (unsigned long *)mask_arr;
 	u32 qm_glbl_sts0, cmdq_glbl_sts0, dma_core_sts0, tpc_cfg_sts,
 		mme_arch_sts;
 	bool is_idle = true, is_eng_idle;
@@ -5231,9 +5212,8 @@ static bool goya_is_device_idle(struct hl_device *hdev, u64 *mask,
 				IS_DMA_IDLE(dma_core_sts0);
 		is_idle &= is_eng_idle;
 
-		if (mask)
-			*mask |= ((u64) !is_eng_idle) <<
-						(GOYA_ENGINE_ID_DMA_0 + i);
+		if (mask && !is_eng_idle)
+			set_bit(GOYA_ENGINE_ID_DMA_0 + i, mask);
 		if (s)
 			seq_printf(s, dma_fmt, i, is_eng_idle ? "Y" : "N",
 					qm_glbl_sts0, dma_core_sts0);
@@ -5255,9 +5235,8 @@ static bool goya_is_device_idle(struct hl_device *hdev, u64 *mask,
 				IS_TPC_IDLE(tpc_cfg_sts);
 		is_idle &= is_eng_idle;
 
-		if (mask)
-			*mask |= ((u64) !is_eng_idle) <<
-						(GOYA_ENGINE_ID_TPC_0 + i);
+		if (mask && !is_eng_idle)
+			set_bit(GOYA_ENGINE_ID_TPC_0 + i, mask);
 		if (s)
 			seq_printf(s, fmt, i, is_eng_idle ? "Y" : "N",
 				qm_glbl_sts0, cmdq_glbl_sts0, tpc_cfg_sts);
@@ -5276,8 +5255,8 @@ static bool goya_is_device_idle(struct hl_device *hdev, u64 *mask,
 			IS_MME_IDLE(mme_arch_sts);
 	is_idle &= is_eng_idle;
 
-	if (mask)
-		*mask |= ((u64) !is_eng_idle) << GOYA_ENGINE_ID_MME_0;
+	if (mask && !is_eng_idle)
+		set_bit(GOYA_ENGINE_ID_MME_0, mask);
 	if (s) {
 		seq_printf(s, fmt, 0, is_eng_idle ? "Y" : "N", qm_glbl_sts0,
 				cmdq_glbl_sts0, mme_arch_sts);
@@ -5321,6 +5300,9 @@ static int goya_get_eeprom_data(struct hl_device *hdev, void *data,
 
 static int goya_ctx_init(struct hl_ctx *ctx)
 {
+	if (ctx->asid != HL_KERNEL_ASID_ID)
+		goya_mmu_prepare(ctx->hdev, ctx->asid);
+
 	return 0;
 }
 
@@ -5399,6 +5381,18 @@ static void goya_ctx_fini(struct hl_ctx *ctx)
 
 }
 
+static int goya_get_hw_block_id(struct hl_device *hdev, u64 block_addr,
+				u32 *block_id)
+{
+	return -EPERM;
+}
+
+static int goya_block_mmap(struct hl_device *hdev, struct vm_area_struct *vma,
+				u32 block_id, u32 block_size)
+{
+	return -EPERM;
+}
+
 static const struct hl_asic_funcs goya_funcs = {
 	.early_init = goya_early_init,
 	.early_fini = goya_early_fini,
@@ -5475,7 +5469,12 @@ static const struct hl_asic_funcs goya_funcs = {
 	.set_dma_mask_from_fw = goya_set_dma_mask_from_fw,
 	.get_device_time = goya_get_device_time,
 	.collective_wait_init_cs = goya_collective_wait_init_cs,
-	.collective_wait_create_jobs = goya_collective_wait_create_jobs
+	.collective_wait_create_jobs = goya_collective_wait_create_jobs,
+	.scramble_addr = hl_mmu_scramble_addr,
+	.descramble_addr = hl_mmu_descramble_addr,
+	.ack_protection_bits_errors = goya_ack_protection_bits_errors,
+	.get_hw_block_id = goya_get_hw_block_id,
+	.hw_block_mmap = goya_block_mmap
 };
 
 /*
