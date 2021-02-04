@@ -2379,22 +2379,6 @@ static inline void io_put_req_deferred(struct io_kiocb *req, int refs)
 		io_free_req_deferred(req);
 }
 
-static struct io_wq_work *io_steal_work(struct io_kiocb *req)
-{
-	struct io_kiocb *nxt;
-
-	/*
-	 * A ref is owned by io-wq in which context we're. So, if that's the
-	 * last one, it's safe to steal next work. False negatives are Ok,
-	 * it just will be re-punted async in io_put_work()
-	 */
-	if (refcount_read(&req->refs) != 1)
-		return NULL;
-
-	nxt = io_req_find_next(req);
-	return nxt ? &nxt->work : NULL;
-}
-
 static void io_double_put_req(struct io_kiocb *req)
 {
 	/* drop both submit and complete references */
@@ -6343,7 +6327,7 @@ static int io_issue_sqe(struct io_kiocb *req, bool force_nonblock,
 	return 0;
 }
 
-static struct io_wq_work *io_wq_submit_work(struct io_wq_work *work)
+static void io_wq_submit_work(struct io_wq_work *work)
 {
 	struct io_kiocb *req = container_of(work, struct io_kiocb, work);
 	struct io_kiocb *timeout;
@@ -6394,8 +6378,6 @@ static struct io_wq_work *io_wq_submit_work(struct io_wq_work *work)
 		if (lock_ctx)
 			mutex_unlock(&lock_ctx->uring_lock);
 	}
-
-	return io_steal_work(req);
 }
 
 static inline struct file *io_file_from_index(struct io_ring_ctx *ctx,
@@ -8067,12 +8049,12 @@ static int io_sqe_files_update(struct io_ring_ctx *ctx, void __user *arg,
 	return __io_sqe_files_update(ctx, &up, nr_args);
 }
 
-static void io_free_work(struct io_wq_work *work)
+static struct io_wq_work *io_free_work(struct io_wq_work *work)
 {
 	struct io_kiocb *req = container_of(work, struct io_kiocb, work);
 
-	/* Consider that io_steal_work() relies on this ref */
-	io_put_req(req);
+	req = io_put_req_find_next(req);
+	return req ? &req->work : NULL;
 }
 
 static int io_init_wq_offload(struct io_ring_ctx *ctx,
