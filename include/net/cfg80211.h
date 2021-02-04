@@ -2583,12 +2583,14 @@ struct cfg80211_auth_request {
  *	authentication capability. Drivers can offload authentication to
  *	userspace if this flag is set. Only applicable for cfg80211_connect()
  *	request (connect callback).
+ * @ASSOC_REQ_DISABLE_HE:  Disable HE
  */
 enum cfg80211_assoc_req_flags {
 	ASSOC_REQ_DISABLE_HT			= BIT(0),
 	ASSOC_REQ_DISABLE_VHT			= BIT(1),
 	ASSOC_REQ_USE_RRM			= BIT(2),
 	CONNECT_REQ_EXTERNAL_AUTH_SUPPORT	= BIT(3),
+	ASSOC_REQ_DISABLE_HE			= BIT(4),
 };
 
 /**
