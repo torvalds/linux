@@ -63,7 +63,7 @@ static int __init register_mid_wdt(void)
 	if (!id)
 		return -ENODEV;
 
-	wdt_dev.dev.platform_data = (const struct intel_mid_wdt_pdata *)id->driver_data;
+	wdt_dev.dev.platform_data = (struct intel_mid_wdt_pdata *)id->driver_data;
 	return platform_device_register(&wdt_dev);
 }
 arch_initcall(register_mid_wdt);
