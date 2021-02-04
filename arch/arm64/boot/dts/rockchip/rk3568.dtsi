@@ -2927,7 +2927,7 @@
 		rockchip,hw-tshut-polarity = <0>; /* tshut polarity 0:LOW 1:HIGH */
 		pinctrl-names = "gpio", "otpout";
 		pinctrl-0 = <&tsadc_gpio>;
-		pinctrl-1 = <&tsadc_shutorg>;
+		pinctrl-1 = <&tsadcm0_shut>;
 		status = "disabled";
 	};
 
