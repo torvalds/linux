@@ -209,7 +209,7 @@ nvkm_fifo_chan_child_get(struct nvkm_object *object, int index,
 	int ret, i, c;
 
 	for (; c = 0, i = __ffs64(mask), mask; mask &= ~(1ULL << i)) {
-		if (!(engine = nvkm_device_engine(device, i)))
+		if (!(engine = nvkm_device_engine(device, i, 0)))
 			continue;
 		oclass->engine = engine;
 		oclass->base.oclass = 0;

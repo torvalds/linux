@@ -36,7 +36,7 @@ gk104_clkgate_enable(struct nvkm_therm *base)
 
 	/* Program ENG_MANT, ENG_FILTER */
 	for (i = 0; order[i].engine != NVKM_SUBDEV_NR; i++) {
-		if (!nvkm_device_subdev(dev, order[i].engine))
+		if (!nvkm_device_subdev(dev, order[i].engine, 0))
 			continue;
 
 		nvkm_mask(dev, 0x20200 + order[i].offset, 0xff00, 0x4500);
@@ -48,7 +48,7 @@ gk104_clkgate_enable(struct nvkm_therm *base)
 
 	/* Enable clockgating (ENG_CLK = RUN->AUTO) */
 	for (i = 0; order[i].engine != NVKM_SUBDEV_NR; i++) {
-		if (!nvkm_device_subdev(dev, order[i].engine))
+		if (!nvkm_device_subdev(dev, order[i].engine, 0))
 			continue;
 
 		nvkm_mask(dev, 0x20200 + order[i].offset, 0x00ff, 0x0045);
@@ -65,7 +65,7 @@ gk104_clkgate_fini(struct nvkm_therm *base, bool suspend)
 
 	/* ENG_CLK = AUTO->RUN, ENG_PWR = RUN->AUTO */
 	for (i = 0; order[i].engine != NVKM_SUBDEV_NR; i++) {
-		if (!nvkm_device_subdev(dev, order[i].engine))
+		if (!nvkm_device_subdev(dev, order[i].engine, 0))
 			continue;
 
 		nvkm_mask(dev, 0x20200 + order[i].offset, 0xff, 0x54);

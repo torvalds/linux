@@ -90,7 +90,7 @@ nvkm_mc_intr(struct nvkm_device *device, bool *handled)
 	stat = nvkm_top_intr(device, intr, &subdevs);
 	while (subdevs) {
 		enum nvkm_devidx subidx = __ffs64(subdevs);
-		subdev = nvkm_device_subdev(device, subidx);
+		subdev = nvkm_device_subdev(device, subidx, 0);
 		if (subdev)
 			nvkm_subdev_intr(subdev);
 		subdevs &= ~BIT_ULL(subidx);
@@ -98,7 +98,7 @@ nvkm_mc_intr(struct nvkm_device *device, bool *handled)
 
 	for (map = mc->func->intr; map->stat; map++) {
 		if (intr & map->stat) {
-			subdev = nvkm_device_subdev(device, map->unit);
+			subdev = nvkm_device_subdev(device, map->unit, 0);
 			if (subdev)
 				nvkm_subdev_intr(subdev);
 			stat &= ~map->stat;

@@ -111,8 +111,8 @@ struct nvkm_device {
 	struct list_head subdev;
 };
 
-struct nvkm_subdev *nvkm_device_subdev(struct nvkm_device *, int index);
-struct nvkm_engine *nvkm_device_engine(struct nvkm_device *, int index);
+struct nvkm_subdev *nvkm_device_subdev(struct nvkm_device *, int type, int inst);
+struct nvkm_engine *nvkm_device_engine(struct nvkm_device *, int type, int inst);
 
 struct nvkm_device_func {
 	struct nvkm_device_pci *(*pci)(struct nvkm_device *);

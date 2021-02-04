@@ -6,6 +6,8 @@
 struct nvkm_fifo_chan;
 struct nvkm_fb_tile;
 
+extern const struct nvkm_subdev_func nvkm_engine;
+
 struct nvkm_engine {
 	const struct nvkm_engine_func *func;
 	struct nvkm_subdev subdev;

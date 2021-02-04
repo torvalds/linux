@@ -138,7 +138,7 @@ gf100_fifo_engine(struct gf100_fifo *fifo, u32 engn)
 		return NULL;
 	}
 
-	return nvkm_device_engine(device, engn);
+	return nvkm_device_engine(device, engn, 0);
 }
 
 static void
@@ -161,7 +161,7 @@ gf100_fifo_recover_work(struct work_struct *w)
 	nvkm_mask(device, 0x002630, engm, engm);
 
 	for (todo = mask; engn = __ffs64(todo), todo; todo &= ~BIT_ULL(engn)) {
-		if ((engine = nvkm_device_engine(device, engn))) {
+		if ((engine = nvkm_device_engine(device, engn, 0))) {
 			nvkm_subdev_fini(&engine->subdev, false);
 			WARN_ON(nvkm_subdev_init(&engine->subdev));
 		}
@@ -286,7 +286,7 @@ gf100_fifo_fault(struct nvkm_fifo *base, struct nvkm_fault_data *info)
 			nvkm_mask(device, 0x001718, 0x00000000, 0x00000000);
 			break;
 		default:
-			engine = nvkm_device_engine(device, eu->data2);
+			engine = nvkm_device_engine(device, eu->data2, 0);
 			break;
 		}
 	}

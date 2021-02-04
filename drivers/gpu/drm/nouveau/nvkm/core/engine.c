@@ -165,8 +165,8 @@ nvkm_engine_dtor(struct nvkm_subdev *subdev)
 	return engine;
 }
 
-static const struct nvkm_subdev_func
-nvkm_engine_func = {
+const struct nvkm_subdev_func
+nvkm_engine = {
 	.dtor = nvkm_engine_dtor,
 	.preinit = nvkm_engine_preinit,
 	.init = nvkm_engine_init,
@@ -180,7 +180,7 @@ nvkm_engine_ctor(const struct nvkm_engine_func *func,
 		 struct nvkm_device *device, int index, bool enable,
 		 struct nvkm_engine *engine)
 {
-	nvkm_subdev_ctor(&nvkm_engine_func, device, index, &engine->subdev);
+	nvkm_subdev_ctor(&nvkm_engine, device, index, &engine->subdev);
 	engine->func = func;
 	refcount_set(&engine->use.refcount, 0);
 	mutex_init(&engine->use.mutex);

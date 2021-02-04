@@ -51,7 +51,7 @@ nvkm_udevice_info_subdev(struct nvkm_device *device, u64 mthd, u64 *data)
 		return -EINVAL;
 	}
 
-	subdev = nvkm_device_subdev(device, subidx);
+	subdev = nvkm_device_subdev(device, subidx, 0);
 	if (subdev)
 		return nvkm_subdev_info(subdev, mthd, data);
 	return -ENODEV;
@@ -70,7 +70,7 @@ nvkm_udevice_info_v1(struct nvkm_device *device,
 	switch (args->mthd) {
 #define ENGINE__(A,B,C) NV_DEVICE_INFO_ENGINE_##A: { int _i;                   \
 	for (_i = (B), args->data = 0ULL; _i <= (C); _i++) {                   \
-		if (nvkm_device_engine(device, _i))                            \
+		if (nvkm_device_engine(device, _i, 0))                         \
 			args->data |= BIT_ULL(_i);                             \
 	}                                                                      \
 }
@@ -357,7 +357,7 @@ nvkm_udevice_child_get(struct nvkm_object *object, int index,
 	int i;
 
 	for (; i = __ffs64(mask), mask && !sclass; mask &= ~(1ULL << i)) {
-		if (!(engine = nvkm_device_engine(device, i)) ||
+		if (!(engine = nvkm_device_engine(device, i, 0)) ||
 		    !(engine->func->base.sclass))
 			continue;
 		oclass->engine = engine;

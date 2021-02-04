@@ -303,7 +303,7 @@ tu102_fifo_fault(struct nvkm_fifo *base, struct nvkm_fault_data *info)
 			nvkm_mask(device, 0x001718, 0x00000000, 0x00000000);
 			break;
 		default:
-			engine = nvkm_device_engine(device, ee->data2);
+			engine = nvkm_device_engine(device, ee->data2, 0);
 			break;
 		}
 	}
@@ -318,7 +318,7 @@ tu102_fifo_fault(struct nvkm_fifo *base, struct nvkm_fault_data *info)
 			do {
 				*dst++ = toupper(*src++);
 			} while (*src);
-			engine = nvkm_device_engine(device, engidx);
+			engine = nvkm_device_engine(device, engidx, 0);
 		}
 	} else {
 		snprintf(en, sizeof(en), "%s", ee->name);

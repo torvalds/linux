@@ -2726,97 +2726,27 @@ nvkm_device_event_func = {
 };
 
 struct nvkm_subdev *
-nvkm_device_subdev(struct nvkm_device *device, int index)
+nvkm_device_subdev(struct nvkm_device *device, int type, int inst)
 {
-	struct nvkm_engine *engine;
+	struct nvkm_subdev *subdev;
 
-	if (device->disable_mask & (1ULL << index))
+	if (device->disable_mask & (1ULL << (type + inst)))
 		return NULL;
 
-	switch (index) {
-#define _(n,p,m) case NVKM_SUBDEV_##n: if (p) return (m); break
-	_(ACR     , device->acr     , &device->acr->subdev);
-	_(BAR     , device->bar     , &device->bar->subdev);
-	_(VBIOS   , device->bios    , &device->bios->subdev);
-	_(BUS     , device->bus     , &device->bus->subdev);
-	_(CLK     , device->clk     , &device->clk->subdev);
-	_(DEVINIT , device->devinit , &device->devinit->subdev);
-	_(FAULT   , device->fault   , &device->fault->subdev);
-	_(FB      , device->fb      , &device->fb->subdev);
-	_(FUSE    , device->fuse    , &device->fuse->subdev);
-	_(GPIO    , device->gpio    , &device->gpio->subdev);
-	_(GSP     , device->gsp     , &device->gsp->subdev);
-	_(I2C     , device->i2c     , &device->i2c->subdev);
-	_(IBUS    , device->ibus    ,  device->ibus);
-	_(ICCSENSE, device->iccsense, &device->iccsense->subdev);
-	_(INSTMEM , device->imem    , &device->imem->subdev);
-	_(LTC     , device->ltc     , &device->ltc->subdev);
-	_(MC      , device->mc      , &device->mc->subdev);
-	_(MMU     , device->mmu     , &device->mmu->subdev);
-	_(MXM     , device->mxm     ,  device->mxm);
-	_(PCI     , device->pci     , &device->pci->subdev);
-	_(PMU     , device->pmu     , &device->pmu->subdev);
-	_(THERM   , device->therm   , &device->therm->subdev);
-	_(TIMER   , device->timer   , &device->timer->subdev);
-	_(TOP     , device->top     , &device->top->subdev);
-	_(VOLT    , device->volt    , &device->volt->subdev);
-#undef _
-	default:
-		engine = nvkm_device_engine(device, index);
-		if (engine)
-			return &engine->subdev;
-		break;
+	list_for_each_entry(subdev, &device->subdev, head) {
+		if (subdev->index == type + inst)
+			return subdev;
 	}
+
 	return NULL;
 }
 
 struct nvkm_engine *
-nvkm_device_engine(struct nvkm_device *device, int index)
+nvkm_device_engine(struct nvkm_device *device, int type, int inst)
 {
-	if (device->disable_mask & (1ULL << index))
-		return NULL;
-
-	switch (index) {
-#define _(n,p,m) case NVKM_ENGINE_##n: if (p) return (m); break
-	_(BSP    , device->bsp     ,  device->bsp);
-	_(CE0    , device->ce[0]   ,  device->ce[0]);
-	_(CE1    , device->ce[1]   ,  device->ce[1]);
-	_(CE2    , device->ce[2]   ,  device->ce[2]);
-	_(CE3    , device->ce[3]   ,  device->ce[3]);
-	_(CE4    , device->ce[4]   ,  device->ce[4]);
-	_(CE5    , device->ce[5]   ,  device->ce[5]);
-	_(CE6    , device->ce[6]   ,  device->ce[6]);
-	_(CE7    , device->ce[7]   ,  device->ce[7]);
-	_(CE8    , device->ce[8]   ,  device->ce[8]);
-	_(CIPHER , device->cipher  ,  device->cipher);
-	_(DISP   , device->disp    , &device->disp->engine);
-	_(DMAOBJ , device->dma     , &device->dma->engine);
-	_(FIFO   , device->fifo    , &device->fifo->engine);
-	_(GR     , device->gr      , &device->gr->engine);
-	_(IFB    , device->ifb     ,  device->ifb);
-	_(ME     , device->me      ,  device->me);
-	_(MPEG   , device->mpeg    ,  device->mpeg);
-	_(MSENC  , device->msenc   ,  device->msenc);
-	_(MSPDEC , device->mspdec  ,  device->mspdec);
-	_(MSPPP  , device->msppp   ,  device->msppp);
-	_(MSVLD  , device->msvld   ,  device->msvld);
-	_(NVENC0 , device->nvenc[0], &device->nvenc[0]->engine);
-	_(NVENC1 , device->nvenc[1], &device->nvenc[1]->engine);
-	_(NVENC2 , device->nvenc[2], &device->nvenc[2]->engine);
-	_(NVDEC0 , device->nvdec[0], &device->nvdec[0]->engine);
-	_(NVDEC1 , device->nvdec[1], &device->nvdec[1]->engine);
-	_(NVDEC2 , device->nvdec[2], &device->nvdec[2]->engine);
-	_(PM     , device->pm      , &device->pm->engine);
-	_(SEC    , device->sec     ,  device->sec);
-	_(SEC2   , device->sec2    , &device->sec2->engine);
-	_(SW     , device->sw      , &device->sw->engine);
-	_(VIC    , device->vic     ,  device->vic);
-	_(VP     , device->vp      ,  device->vp);
-#undef _
-	default:
-		WARN_ON(1);
-		break;
-	}
+	struct nvkm_subdev *subdev = nvkm_device_subdev(device, type, inst);
+	if (subdev && subdev->func == &nvkm_engine)
+		return container_of(subdev, struct nvkm_engine, subdev);
 	return NULL;
 }
 
@@ -3264,7 +3194,7 @@ nvkm_device_ctor(const struct nvkm_device_func *func,
 	if (device->chip->m && (subdev_mask & (1ULL << (s)))) {                \
 		ret = device->chip->m(device, (s), &device->m);                \
 		if (ret) {                                                     \
-			subdev = nvkm_device_subdev(device, (s));              \
+			subdev = nvkm_device_subdev(device, (s), 0);           \
 			nvkm_subdev_del(&subdev);                              \
 			device->m = NULL;                                      \
 			if (ret != -ENODEV) {                                  \
