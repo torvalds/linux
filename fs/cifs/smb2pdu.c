@@ -1261,7 +1261,7 @@ SMB2_sess_sendreceive(struct SMB2_sess_data *sess_data)
 			    cifs_ses_server(sess_data->ses),
 			    &rqst,
 			    &sess_data->buf0_type,
-			    CIFS_LOG_ERROR | CIFS_NEG_OP, &rsp_iov);
+			    CIFS_LOG_ERROR | CIFS_SESS_OP, &rsp_iov);
 	cifs_small_buf_release(sess_data->iov[0].iov_base);
 	memcpy(&sess_data->iov[0], &rsp_iov, sizeof(struct kvec));
 

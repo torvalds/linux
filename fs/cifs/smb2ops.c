@@ -84,7 +84,9 @@ smb2_add_credits(struct TCP_Server_Info *server,
 		pr_warn_once("server overflowed SMB3 credits\n");
 	}
 	server->in_flight--;
-	if (server->in_flight == 0 && (optype & CIFS_OP_MASK) != CIFS_NEG_OP)
+	if (server->in_flight == 0 &&
+	   ((optype & CIFS_OP_MASK) != CIFS_NEG_OP) &&
+	   ((optype & CIFS_OP_MASK) != CIFS_SESS_OP))
 		rc = change_conf(server);
 	/*
 	 * Sometimes server returns 0 credits on oplock break ack - we need to

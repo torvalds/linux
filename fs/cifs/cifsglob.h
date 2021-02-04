@@ -1704,7 +1704,9 @@ static inline bool is_retryable_error(int error)
 #define   CIFS_ECHO_OP      0x080    /* echo request */
 #define   CIFS_OBREAK_OP   0x0100    /* oplock break request */
 #define   CIFS_NEG_OP      0x0200    /* negotiate request */
-#define   CIFS_OP_MASK     0x0380    /* mask request type */
+/* Lower bitmask values are reserved by others below. */
+#define   CIFS_SESS_OP     0x2000    /* session setup request */
+#define   CIFS_OP_MASK     0x2380    /* mask request type */
 
 #define   CIFS_HAS_CREDITS 0x0400    /* already has credits */
 #define   CIFS_TRANSFORM_REQ 0x0800    /* transform request before sending */
