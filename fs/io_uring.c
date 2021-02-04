@@ -2721,11 +2721,7 @@ static bool io_resubmit_prep(struct io_kiocb *req)
 	ret = io_import_iovec(rw, req, &iovec, &iter, false);
 	if (ret < 0)
 		return false;
-	ret = io_setup_async_rw(req, iovec, inline_vecs, &iter, false);
-	if (!ret)
-		return true;
-	kfree(iovec);
-	return false;
+	return !io_setup_async_rw(req, iovec, inline_vecs, &iter, false);
 }
 #endif
 
@@ -3366,8 +3362,10 @@ static int io_setup_async_rw(struct io_kiocb *req, const struct iovec *iovec,
 	if (!force && !io_op_defs[req->opcode].needs_async_data)
 		return 0;
 	if (!req->async_data) {
-		if (__io_alloc_async_data(req))
+		if (__io_alloc_async_data(req)) {
+			kfree(iovec);
 			return -ENOMEM;
+		}
 
 		io_req_map_rw(req, iovec, fast_iov, iter);
 	}
@@ -3528,9 +3526,7 @@ static int io_read(struct io_kiocb *req, bool force_nonblock,
 	/* If the file doesn't support async, just async punt */
 	if (force_nonblock && !io_file_supports_async(req->file, READ)) {
 		ret = io_setup_async_rw(req, iovec, inline_vecs, iter, true);
-		if (!ret)
-			return -EAGAIN;
-		goto out_free;
+		return ret ?: -EAGAIN;
 	}
 
 	ret = rw_verify_area(READ, req->file, io_kiocb_ppos(kiocb), io_size);
@@ -3565,10 +3561,9 @@ static int io_read(struct io_kiocb *req, bool force_nonblock,
 	}
 
 	ret2 = io_setup_async_rw(req, iovec, inline_vecs, iter, true);
-	if (ret2) {
-		ret = ret2;
-		goto out_free;
-	}
+	if (ret2)
+		return ret2;
+
 	rw = req->async_data;
 	/* it's copied and will be cleaned with ->io */
 	iovec = NULL;
@@ -3703,8 +3698,7 @@ copy_iov:
 		/* some cases will consume bytes even on error returns */
 		iov_iter_revert(iter, io_size - iov_iter_count(iter));
 		ret = io_setup_async_rw(req, iovec, inline_vecs, iter, false);
-		if (!ret)
-			return -EAGAIN;
+		return ret ?: -EAGAIN;
 	}
 out_free:
 	/* it's reportedly faster than delegating the null check to kfree() */
