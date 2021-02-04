@@ -5647,7 +5647,7 @@ int mlx5e_netdev_change_profile(struct mlx5e_priv *priv,
 	/* sanity */
 	if (new_max_nch != priv->max_nch) {
 		netdev_warn(priv->netdev,
-			    "%s: Replacing profile with different max channles\n",
+			    "%s: Replacing profile with different max channels\n",
 			    __func__);
 		return -EINVAL;
 	}
