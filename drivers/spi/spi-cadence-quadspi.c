@@ -1219,64 +1219,10 @@ static int cqspi_exec_mem_op(struct spi_mem *mem, const struct spi_mem_op *op)
 	return ret;
 }
 
-static int cqspi_check_buswidth_req(struct spi_mem *mem, u8 buswidth, bool tx)
-{
-	u32 mode = mem->spi->mode;
-
-	switch (buswidth) {
-	case 1:
-		return 0;
-
-	case 2:
-		if ((tx &&
-		     (mode & (SPI_TX_DUAL | SPI_TX_QUAD | SPI_TX_OCTAL))) ||
-		    (!tx &&
-		     (mode & (SPI_RX_DUAL | SPI_RX_QUAD | SPI_RX_OCTAL))))
-			return 0;
-
-		break;
-
-	case 4:
-		if ((tx && (mode & (SPI_TX_QUAD | SPI_TX_OCTAL))) ||
-		    (!tx && (mode & (SPI_RX_QUAD | SPI_RX_OCTAL))))
-			return 0;
-
-		break;
-
-	case 8:
-		if ((tx && (mode & SPI_TX_OCTAL)) ||
-		    (!tx && (mode & SPI_RX_OCTAL)))
-			return 0;
-
-		break;
-
-	default:
-		break;
-	}
-
-	return -EOPNOTSUPP;
-}
-
 static bool cqspi_supports_mem_op(struct spi_mem *mem,
 				  const struct spi_mem_op *op)
 {
 	bool all_true, all_false;
-
-	if (cqspi_check_buswidth_req(mem, op->cmd.buswidth, true))
-		return false;
-
-	if (op->addr.nbytes &&
-	    cqspi_check_buswidth_req(mem, op->addr.buswidth, true))
-		return false;
-
-	if (op->dummy.nbytes &&
-	    cqspi_check_buswidth_req(mem, op->dummy.buswidth, true))
-		return false;
-
-	if (op->data.nbytes &&
-	    cqspi_check_buswidth_req(mem, op->data.buswidth,
-				     op->data.dir == SPI_MEM_DATA_OUT))
-		return false;
 
 	all_true = op->cmd.dtr && op->addr.dtr && op->dummy.dtr &&
 		   op->data.dtr;
@@ -1287,11 +1233,10 @@ static bool cqspi_supports_mem_op(struct spi_mem *mem,
 	if (!(all_true || all_false))
 		return false;
 
-	/* DTR mode opcodes should be 2 bytes. */
-	if (all_true && op->cmd.nbytes != 2)
-		return false;
-
-	return true;
+	if (all_true)
+		return spi_mem_dtr_supports_op(mem, op);
+	else
+		return spi_mem_default_supports_op(mem, op);
 }
 
 static int cqspi_of_get_flash_pdata(struct platform_device *pdev,
