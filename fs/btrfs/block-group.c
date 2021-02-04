@@ -901,6 +901,8 @@ int btrfs_remove_block_group(struct btrfs_trans_handle *trans,
 	btrfs_return_cluster_to_free_space(block_group, cluster);
 	spin_unlock(&cluster->refill_lock);
 
+	btrfs_clear_treelog_bg(block_group);
+
 	path = btrfs_alloc_path();
 	if (!path) {
 		ret = -ENOMEM;
