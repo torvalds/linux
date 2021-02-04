@@ -2928,6 +2928,8 @@ u64 btrfs_find_space_for_alloc(struct btrfs_block_group *block_group,
 	u64 align_gap_len = 0;
 	enum btrfs_trim_state align_gap_trim_state = BTRFS_TRIM_STATE_UNTRIMMED;
 
+	ASSERT(!btrfs_is_zoned(block_group->fs_info));
+
 	spin_lock(&ctl->tree_lock);
 	entry = find_free_space(ctl, &offset, &bytes_search,
 				block_group->full_stripe_len, max_extent_size);
@@ -3058,6 +3060,8 @@ u64 btrfs_alloc_from_cluster(struct btrfs_block_group *block_group,
 	struct btrfs_free_space *entry = NULL;
 	struct rb_node *node;
 	u64 ret = 0;
+
+	ASSERT(!btrfs_is_zoned(block_group->fs_info));
 
 	spin_lock(&cluster->lock);
 	if (bytes > cluster->max_size)
@@ -3834,6 +3838,8 @@ int btrfs_trim_block_group(struct btrfs_block_group *block_group,
 	struct btrfs_free_space_ctl *ctl = block_group->free_space_ctl;
 	int ret;
 	u64 rem = 0;
+
+	ASSERT(!btrfs_is_zoned(block_group->fs_info));
 
 	*trimmed = 0;
 
