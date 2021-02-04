@@ -601,10 +601,10 @@ static int iep2_run(struct mpp_dev *mpp,
 static int iep2_irq(struct mpp_dev *mpp)
 {
 	mpp->irq_status = mpp_read(mpp, IEP2_REG_INT_STS);
-	if (!(mpp->irq_status))
-		return IRQ_NONE;
-
 	mpp_write(mpp, IEP2_REG_INT_CLR, 0xffffffff);
+
+	if (!IEP2_REG_RO_VALID_INT_STS(mpp->irq_status))
+		return IRQ_NONE;
 
 	return IRQ_WAKE_THREAD;
 }
