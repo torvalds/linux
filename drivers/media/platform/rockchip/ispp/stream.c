@@ -2369,8 +2369,22 @@ static void fec_work_event(struct rkispp_device *dev,
 		if (!dev->hw_dev->is_single)
 			rkispp_update_regs(dev, RKISPP_FEC, RKISPP_FEC_CROP);
 		writel(FEC_FORCE_UPD, base + RKISPP_CTRL_UPDATE);
-		if (vdev->nr.is_end)
+		if (vdev->nr.is_end) {
 			writel(OTHER_FORCE_UPD, base + RKISPP_CTRL_UPDATE);
+			/* check scale stream stop state */
+			for (val = STREAM_S0; val <= STREAM_S2; val++) {
+				stream = &vdev->stream[val];
+				if (stream->streaming && stream->stopping) {
+					if (stream->ops->is_stopped(stream)) {
+						stream->stopping = false;
+						stream->streaming = false;
+						wake_up(&stream->done);
+					} else {
+						stream->ops->stop(stream);
+					}
+				}
+			}
+		}
 		v4l2_dbg(3, rkispp_debug, &dev->v4l2_dev,
 			 "FEC start seq:%d | Y_SHD rd:0x%x\n",
 			 seq, readl(base + RKISPP_FEC_RD_Y_BASE_SHD));
