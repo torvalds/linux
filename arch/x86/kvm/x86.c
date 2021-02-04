@@ -759,8 +759,7 @@ static int kvm_read_nested_guest_page(struct kvm_vcpu *vcpu, gfn_t gfn,
 
 static inline u64 pdptr_rsvd_bits(struct kvm_vcpu *vcpu)
 {
-	return rsvd_bits(cpuid_maxphyaddr(vcpu), 63) | rsvd_bits(5, 8) |
-	       rsvd_bits(1, 2);
+	return vcpu->arch.reserved_gpa_bits | rsvd_bits(5, 8) | rsvd_bits(1, 2);
 }
 
 /*
