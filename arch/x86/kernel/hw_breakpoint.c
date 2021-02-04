@@ -307,6 +307,14 @@ static inline bool within_cpu_entry(unsigned long addr, unsigned long end)
 				(unsigned long)&per_cpu(cpu_tlbstate, cpu),
 				sizeof(struct tlb_state)))
 			return true;
+
+		/*
+		 * When in guest (X86_FEATURE_HYPERVISOR), local_db_save()
+		 * will read per-cpu cpu_dr7 before clear dr7 register.
+		 */
+		if (within_area(addr, end, (unsigned long)&per_cpu(cpu_dr7, cpu),
+				sizeof(cpu_dr7)))
+			return true;
 	}
 
 	return false;
