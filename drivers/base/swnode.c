@@ -24,6 +24,7 @@ struct swnode {
 	struct swnode *parent;
 
 	unsigned int allocated:1;
+	unsigned int managed:1;
 };
 
 static DEFINE_IDA(swnode_root_ids);
@@ -903,6 +904,43 @@ void device_remove_software_node(struct device *dev)
 }
 EXPORT_SYMBOL_GPL(device_remove_software_node);
 
+/**
+ * device_create_managed_software_node - Create a software node for a device
+ * @dev: The device the software node is assigned to.
+ * @properties: Device properties for the software node.
+ * @parent: Parent of the software node.
+ *
+ * Creates a software node as a managed resource for @dev, which means the
+ * lifetime of the newly created software node is tied to the lifetime of @dev.
+ * Software nodes created with this function should not be reused or shared
+ * because of that. The function takes a deep copy of @properties for the
+ * software node.
+ *
+ * Since the new software node is assigned directly to @dev, and since it should
+ * not be shared, it is not returned to the caller. The function returns 0 on
+ * success, and errno in case of an error.
+ */
+int device_create_managed_software_node(struct device *dev,
+					const struct property_entry *properties,
+					const struct software_node *parent)
+{
+	struct fwnode_handle *p = software_node_fwnode(parent);
+	struct fwnode_handle *fwnode;
+
+	if (parent && !p)
+		return -EINVAL;
+
+	fwnode = fwnode_create_software_node(properties, p);
+	if (IS_ERR(fwnode))
+		return PTR_ERR(fwnode);
+
+	to_swnode(fwnode)->managed = true;
+	set_secondary_fwnode(dev, fwnode);
+
+	return 0;
+}
+EXPORT_SYMBOL_GPL(device_create_managed_software_node);
+
 int software_node_notify(struct device *dev, unsigned long action)
 {
 	struct swnode *swnode;
@@ -931,6 +969,11 @@ int software_node_notify(struct device *dev, unsigned long action)
 		sysfs_remove_link(&swnode->kobj, dev_name(dev));
 		sysfs_remove_link(&dev->kobj, "software_node");
 		kobject_put(&swnode->kobj);
+
+		if (swnode->managed) {
+			set_secondary_fwnode(dev, NULL);
+			kobject_put(&swnode->kobj);
+		}
 		break;
 	default:
 		break;
