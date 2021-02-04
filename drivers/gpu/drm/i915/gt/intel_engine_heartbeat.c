@@ -31,7 +31,7 @@ static bool next_heartbeat(struct intel_engine_cs *engine)
 	delay = msecs_to_jiffies_timeout(delay);
 	if (delay >= HZ)
 		delay = round_jiffies_up_relative(delay);
-	mod_delayed_work(system_highpri_wq, &engine->heartbeat.work, delay);
+	mod_delayed_work(system_highpri_wq, &engine->heartbeat.work, delay + 1);
 
 	return true;
 }
@@ -103,6 +103,13 @@ static void heartbeat(struct work_struct *wrk)
 		goto out;
 
 	if (engine->heartbeat.systole) {
+		long delay = READ_ONCE(engine->props.heartbeat_interval_ms);
+
+		/* Safeguard against too-fast worker invocations */
+		if (!time_after(jiffies,
+				rq->emitted_jiffies + msecs_to_jiffies(delay)))
+			goto out;
+
 		if (!i915_sw_fence_signaled(&rq->submit)) {
 			/*
 			 * Not yet submitted, system is stalled.
@@ -140,6 +147,8 @@ static void heartbeat(struct work_struct *wrk)
 					      "stopped heartbeat on %s",
 					      engine->name);
 		}
+
+		rq->emitted_jiffies = jiffies;
 		goto out;
 	}
 
