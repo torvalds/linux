@@ -7195,6 +7195,25 @@ static int io_run_task_work_sig(void)
 	return -EINTR;
 }
 
+/* when returns >0, the caller should retry */
+static inline int io_cqring_wait_schedule(struct io_ring_ctx *ctx,
+					  struct io_wait_queue *iowq,
+					  signed long *timeout)
+{
+	int ret;
+
+	/* make sure we run task_work before checking for signals */
+	ret = io_run_task_work_sig();
+	if (ret || io_should_wake(iowq))
+		return ret;
+	/* let the caller flush overflows, retry */
+	if (test_bit(0, &ctx->cq_check_overflow))
+		return 1;
+
+	*timeout = schedule_timeout(*timeout);
+	return !*timeout ? -ETIME : 1;
+}
+
 /*
  * Wait until events become available, if we don't already have some. The
  * application must reap them itself, as they reside on the shared cq ring.
@@ -7251,27 +7270,9 @@ static int io_cqring_wait(struct io_ring_ctx *ctx, int min_events,
 		io_cqring_overflow_flush(ctx, false, NULL, NULL);
 		prepare_to_wait_exclusive(&ctx->wait, &iowq.wq,
 						TASK_INTERRUPTIBLE);
-		/* make sure we run task_work before checking for signals */
-		ret = io_run_task_work_sig();
-		if (ret > 0) {
-			finish_wait(&ctx->wait, &iowq.wq);
-			continue;
-		}
-		else if (ret < 0)
-			break;
-		if (io_should_wake(&iowq))
-			break;
-		if (test_bit(0, &ctx->cq_check_overflow)) {
-			finish_wait(&ctx->wait, &iowq.wq);
-			continue;
-		}
-		timeout = schedule_timeout(timeout);
-		if (timeout == 0) {
-			ret = -ETIME;
-			break;
-		}
-	} while (1);
-	finish_wait(&ctx->wait, &iowq.wq);
+		ret = io_cqring_wait_schedule(ctx, &iowq, &timeout);
+		finish_wait(&ctx->wait, &iowq.wq);
+	} while (ret > 0);
 
 	restore_saved_sigmask_unless(ret == -EINTR);
 
