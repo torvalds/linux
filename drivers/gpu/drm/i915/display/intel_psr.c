@@ -717,6 +717,12 @@ static bool intel_psr2_config_valid(struct intel_dp *intel_dp,
 	if (!intel_dp->psr.sink_psr2_support)
 		return false;
 
+	/* JSL and EHL only supports eDP 1.3 */
+	if (IS_JSL_EHL(dev_priv)) {
+		drm_dbg_kms(&dev_priv->drm, "PSR2 not supported by phy\n");
+		return false;
+	}
+
 	if (!transcoder_has_psr2(dev_priv, crtc_state->cpu_transcoder)) {
 		drm_dbg_kms(&dev_priv->drm,
 			    "PSR2 not supported in transcoder %s\n",
