@@ -60,6 +60,51 @@ DECLARE_EVENT_CLASS(rpcrdma_completion_class,
 				),					\
 				TP_ARGS(wc, cid))
 
+DECLARE_EVENT_CLASS(rpcrdma_receive_completion_class,
+	TP_PROTO(
+		const struct ib_wc *wc,
+		const struct rpc_rdma_cid *cid
+	),
+
+	TP_ARGS(wc, cid),
+
+	TP_STRUCT__entry(
+		__field(u32, cq_id)
+		__field(int, completion_id)
+		__field(u32, received)
+		__field(unsigned long, status)
+		__field(unsigned int, vendor_err)
+	),
+
+	TP_fast_assign(
+		__entry->cq_id = cid->ci_queue_id;
+		__entry->completion_id = cid->ci_completion_id;
+		__entry->status = wc->status;
+		if (wc->status) {
+			__entry->received = 0;
+			__entry->vendor_err = wc->vendor_err;
+		} else {
+			__entry->received = wc->byte_len;
+			__entry->vendor_err = 0;
+		}
+	),
+
+	TP_printk("cq.id=%u cid=%d status=%s (%lu/0x%x) received=%u",
+		__entry->cq_id, __entry->completion_id,
+		rdma_show_wc_status(__entry->status),
+		__entry->status, __entry->vendor_err,
+		__entry->received
+	)
+);
+
+#define DEFINE_RECEIVE_COMPLETION_EVENT(name)				\
+		DEFINE_EVENT(rpcrdma_receive_completion_class, name,	\
+				TP_PROTO(				\
+					const struct ib_wc *wc,		\
+					const struct rpc_rdma_cid *cid	\
+				),					\
+				TP_ARGS(wc, cid))
+
 DECLARE_EVENT_CLASS(xprtrdma_reply_class,
 	TP_PROTO(
 		const struct rpcrdma_rep *rep
@@ -838,7 +883,8 @@ TRACE_EVENT(xprtrdma_post_linv_err,
  ** Completion events
  **/
 
-DEFINE_COMPLETION_EVENT(xprtrdma_wc_receive);
+DEFINE_RECEIVE_COMPLETION_EVENT(xprtrdma_wc_receive);
+
 DEFINE_COMPLETION_EVENT(xprtrdma_wc_send);
 DEFINE_COMPLETION_EVENT(xprtrdma_wc_fastreg);
 DEFINE_COMPLETION_EVENT(xprtrdma_wc_li);
@@ -1790,7 +1836,7 @@ TRACE_EVENT(svcrdma_post_recv,
 	)
 );
 
-DEFINE_COMPLETION_EVENT(svcrdma_wc_receive);
+DEFINE_RECEIVE_COMPLETION_EVENT(svcrdma_wc_receive);
 
 TRACE_EVENT(svcrdma_rq_post_err,
 	TP_PROTO(
