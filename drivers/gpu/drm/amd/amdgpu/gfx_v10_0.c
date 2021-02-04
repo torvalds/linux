@@ -70,6 +70,11 @@
 #define GB_ADDR_CONFIG__NUM_PKRS__SHIFT                                                                       0x8
 #define GB_ADDR_CONFIG__NUM_PKRS_MASK                                                                         0x00000700L
 
+#define mmCGTS_TCC_DISABLE_gc_10_3                 0x5006
+#define mmCGTS_TCC_DISABLE_gc_10_3_BASE_IDX        1
+#define mmCGTS_USER_TCC_DISABLE_gc_10_3            0x5007
+#define mmCGTS_USER_TCC_DISABLE_gc_10_3_BASE_IDX   1
+
 #define mmCP_MEC_CNTL_Sienna_Cichlid                      0x0f55
 #define mmCP_MEC_CNTL_Sienna_Cichlid_BASE_IDX             0
 #define mmRLC_SAFE_MODE_Sienna_Cichlid			0x4ca0
@@ -98,10 +103,6 @@
 #define mmGCR_GENERAL_CNTL_Sienna_Cichlid			0x1580
 #define mmGCR_GENERAL_CNTL_Sienna_Cichlid_BASE_IDX	0
 
-#define mmCGTS_TCC_DISABLE_Vangogh                0x5006
-#define mmCGTS_TCC_DISABLE_Vangogh_BASE_IDX       1
-#define mmCGTS_USER_TCC_DISABLE_Vangogh                0x5007
-#define mmCGTS_USER_TCC_DISABLE_Vangogh_BASE_IDX       1
 #define mmGOLDEN_TSC_COUNT_UPPER_Vangogh                0x0025
 #define mmGOLDEN_TSC_COUNT_UPPER_Vangogh_BASE_IDX       1
 #define mmGOLDEN_TSC_COUNT_LOWER_Vangogh                0x0026
@@ -4938,15 +4939,12 @@ static void gfx_v10_0_get_tcc_info(struct amdgpu_device *adev)
 	/* TCCs are global (not instanced). */
 	uint32_t tcc_disable;
 
-	switch (adev->asic_type) {
-	case CHIP_VANGOGH:
-		tcc_disable = RREG32_SOC15(GC, 0, mmCGTS_TCC_DISABLE_Vangogh) |
-				RREG32_SOC15(GC, 0, mmCGTS_USER_TCC_DISABLE_Vangogh);
-		break;
-	default:
+	if (adev->asic_type >= CHIP_SIENNA_CICHLID) {
+		tcc_disable = RREG32_SOC15(GC, 0, mmCGTS_TCC_DISABLE_gc_10_3) |
+			      RREG32_SOC15(GC, 0, mmCGTS_USER_TCC_DISABLE_gc_10_3);
+	} else {
 		tcc_disable = RREG32_SOC15(GC, 0, mmCGTS_TCC_DISABLE) |
-				RREG32_SOC15(GC, 0, mmCGTS_USER_TCC_DISABLE);
-		break;
+			      RREG32_SOC15(GC, 0, mmCGTS_USER_TCC_DISABLE);
 	}
 
 	adev->gfx.config.tcc_disabled_mask =
