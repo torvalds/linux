@@ -1,5 +1,5 @@
 /*
- * Copyright 2019 Advanced Micro Devices, Inc.
+ * Copyright 2021 Advanced Micro Devices, Inc.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -23,42 +23,58 @@
  *
  */
 
-#include "color_table.h"
+#include "dce/dce_dmcu.h"
+#include "dc_edid_parser.h"
 
-static struct fixed31_32 pq_table[MAX_HW_POINTS + 2];
-static struct fixed31_32 de_pq_table[MAX_HW_POINTS + 2];
-static bool pq_initialized;
-static bool de_pg_initialized;
-
-bool mod_color_is_table_init(enum table_type type)
+bool dc_edid_parser_send_cea(struct dc *dc,
+		int offset,
+		int total_length,
+		uint8_t *data,
+		int length)
 {
-	bool ret = false;
+	struct dmcu *dmcu = dc->res_pool->dmcu;
 
-	if (type == type_pq_table)
-		ret = pq_initialized;
-	if (type == type_de_pq_table)
-		ret = de_pg_initialized;
+	if (dmcu &&
+	    dmcu->funcs->is_dmcu_initialized(dmcu) &&
+	    dmcu->funcs->send_edid_cea) {
+		return dmcu->funcs->send_edid_cea(dmcu,
+				offset,
+				total_length,
+				data,
+				length);
+	}
 
-	return ret;
+	return false;
 }
 
-struct fixed31_32 *mod_color_get_table(enum table_type type)
+bool dc_edid_parser_recv_cea_ack(struct dc *dc, int *offset)
 {
-	struct fixed31_32 *table = NULL;
+	struct dmcu *dmcu = dc->res_pool->dmcu;
 
-	if (type == type_pq_table)
-		table = pq_table;
-	if (type == type_de_pq_table)
-		table = de_pq_table;
+	if (dmcu &&
+	    dmcu->funcs->is_dmcu_initialized(dmcu) &&
+	    dmcu->funcs->recv_edid_cea_ack) {
+		return dmcu->funcs->recv_edid_cea_ack(dmcu, offset);
+	}
 
-	return table;
+	return false;
 }
 
-void mod_color_set_table_init_state(enum table_type type, bool state)
+bool dc_edid_parser_recv_amd_vsdb(struct dc *dc,
+		int *version,
+		int *min_frame_rate,
+		int *max_frame_rate)
 {
-	if (type == type_pq_table)
-		pq_initialized = state;
-	if (type == type_de_pq_table)
-		de_pg_initialized = state;
-}
+	struct dmcu *dmcu = dc->res_pool->dmcu;
 
+	if (dmcu &&
+	    dmcu->funcs->is_dmcu_initialized(dmcu) &&
+	    dmcu->funcs->recv_amd_vsdb) {
+		return dmcu->funcs->recv_amd_vsdb(dmcu,
+				version,
+				min_frame_rate,
+				max_frame_rate);
+	}
+
+	return false;
+}

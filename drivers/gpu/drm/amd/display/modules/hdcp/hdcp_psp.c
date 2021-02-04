@@ -106,7 +106,7 @@ enum mod_hdcp_status mod_hdcp_add_display_to_topology(struct mod_hdcp *hdcp,
 	dtm_cmd->dtm_in_message.topology_update_v2.dig_be = link->dig_be;
 	dtm_cmd->dtm_in_message.topology_update_v2.dig_fe = display->dig_fe;
 	if (is_dp_hdcp(hdcp))
-		dtm_cmd->dtm_in_message.topology_update_v2.is_assr = link->dp.assr_supported;
+		dtm_cmd->dtm_in_message.topology_update_v2.is_assr = link->dp.assr_enabled;
 
 	dtm_cmd->dtm_in_message.topology_update_v2.dp_mst_vcid = display->vc_id;
 	dtm_cmd->dtm_in_message.topology_update_v2.max_hdcp_supported_version =

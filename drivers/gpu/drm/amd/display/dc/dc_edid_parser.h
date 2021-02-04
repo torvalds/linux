@@ -1,5 +1,5 @@
 /*
- * Copyright 2019 Advanced Micro Devices, Inc.
+ * Copyright 2021 Advanced Micro Devices, Inc.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -23,42 +23,22 @@
  *
  */
 
-#include "color_table.h"
+#ifndef _DC_EDID_PARSER_H_
+#define _DC_EDID_PARSER_H_
 
-static struct fixed31_32 pq_table[MAX_HW_POINTS + 2];
-static struct fixed31_32 de_pq_table[MAX_HW_POINTS + 2];
-static bool pq_initialized;
-static bool de_pg_initialized;
+#include "core_types.h"
 
-bool mod_color_is_table_init(enum table_type type)
-{
-	bool ret = false;
+bool dc_edid_parser_send_cea(struct dc *dc,
+		int offset,
+		int total_length,
+		uint8_t *data,
+		int length);
 
-	if (type == type_pq_table)
-		ret = pq_initialized;
-	if (type == type_de_pq_table)
-		ret = de_pg_initialized;
+bool dc_edid_parser_recv_cea_ack(struct dc *dc, int *offset);
 
-	return ret;
-}
+bool dc_edid_parser_recv_amd_vsdb(struct dc *dc,
+		int *version,
+		int *min_frame_rate,
+		int *max_frame_rate);
 
-struct fixed31_32 *mod_color_get_table(enum table_type type)
-{
-	struct fixed31_32 *table = NULL;
-
-	if (type == type_pq_table)
-		table = pq_table;
-	if (type == type_de_pq_table)
-		table = de_pq_table;
-
-	return table;
-}
-
-void mod_color_set_table_init_state(enum table_type type, bool state)
-{
-	if (type == type_pq_table)
-		pq_initialized = state;
-	if (type == type_de_pq_table)
-		de_pg_initialized = state;
-}
-
+#endif /* _DC_EDID_PARSER_H_ */

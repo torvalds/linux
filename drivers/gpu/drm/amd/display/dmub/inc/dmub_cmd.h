@@ -47,10 +47,10 @@
 
 /* Firmware versioning. */
 #ifdef DMUB_EXPOSE_VERSION
-#define DMUB_FW_VERSION_GIT_HASH 0xf51b86a
+#define DMUB_FW_VERSION_GIT_HASH 0xca1cd48c9
 #define DMUB_FW_VERSION_MAJOR 0
 #define DMUB_FW_VERSION_MINOR 0
-#define DMUB_FW_VERSION_REVISION 47
+#define DMUB_FW_VERSION_REVISION 50
 #define DMUB_FW_VERSION_TEST 0
 #define DMUB_FW_VERSION_VBIOS 0
 #define DMUB_FW_VERSION_HOTFIX 0
@@ -458,6 +458,10 @@ struct dmub_rb_cmd_mall {
 	uint16_t cursor_pitch;
 	uint16_t cursor_height;
 	uint8_t cursor_bpp;
+	uint8_t debug_bits;
+
+	uint8_t reserved1;
+	uint8_t reserved2;
 };
 
 struct dmub_cmd_digx_encoder_control_data {
@@ -624,6 +628,7 @@ enum dmub_cmd_mall_type {
 	DMUB_CMD__MALL_ACTION_ALLOW = 0,
 	DMUB_CMD__MALL_ACTION_DISALLOW = 1,
 	DMUB_CMD__MALL_ACTION_COPY_CURSOR = 2,
+	DMUB_CMD__MALL_ACTION_NO_DF_REQ = 3,
 };
 
 struct dmub_cmd_psr_copy_settings_data {
@@ -648,6 +653,7 @@ struct dmub_cmd_psr_copy_settings_data {
 	uint8_t multi_disp_optimizations_en;
 	uint16_t init_sdp_deadline;
 	uint16_t pad2;
+	uint32_t line_time_in_us;
 };
 
 struct dmub_rb_cmd_psr_copy_settings {
