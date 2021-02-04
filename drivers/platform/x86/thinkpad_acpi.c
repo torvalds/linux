@@ -10078,8 +10078,8 @@ static int convert_profile_to_dytc(enum platform_profile_option profile, int *pe
  * dytc_profile_get: Function to register with platform_profile
  * handler. Returns current platform profile.
  */
-int dytc_profile_get(struct platform_profile_handler *pprof,
-			enum platform_profile_option *profile)
+static int dytc_profile_get(struct platform_profile_handler *pprof,
+			    enum platform_profile_option *profile)
 {
 	*profile = dytc_current_profile;
 	return 0;
@@ -10092,7 +10092,7 @@ int dytc_profile_get(struct platform_profile_handler *pprof,
  *  - enable CQL
  *  If not in CQL mode, just run the command
  */
-int dytc_cql_command(int command, int *output)
+static int dytc_cql_command(int command, int *output)
 {
 	int err, cmd_err, dummy;
 	int cur_funcmode;
@@ -10130,8 +10130,8 @@ int dytc_cql_command(int command, int *output)
  * dytc_profile_set: Function to register with platform_profile
  * handler. Sets current platform profile.
  */
-int dytc_profile_set(struct platform_profile_handler *pprof,
-			enum platform_profile_option profile)
+static int dytc_profile_set(struct platform_profile_handler *pprof,
+			    enum platform_profile_option profile)
 {
 	int output;
 	int err;
