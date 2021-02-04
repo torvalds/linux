@@ -1151,13 +1151,9 @@ rpcrdma_is_bcall(struct rpcrdma_xprt *r_xprt, struct rpcrdma_rep *rep)
 	 */
 	p = xdr_inline_decode(xdr, 3 * sizeof(*p));
 	if (unlikely(!p))
-		goto out_short;
+		return true;
 
 	rpcrdma_bc_receive_call(r_xprt, rep);
-	return true;
-
-out_short:
-	pr_warn("RPC/RDMA short backward direction call\n");
 	return true;
 }
 #else	/* CONFIG_SUNRPC_BACKCHANNEL */
