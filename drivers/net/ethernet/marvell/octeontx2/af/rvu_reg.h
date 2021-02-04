@@ -484,8 +484,16 @@
 #define CPT_AF_RAS_INT_ENA_W1S          (0x47030)
 #define CPT_AF_RAS_INT_ENA_W1C          (0x47038)
 
+#define AF_BAR2_ALIASX(a, b)            (0x9100000ull | (a) << 12 | (b))
+#define CPT_AF_BAR2_SEL                 0x9000000
+#define CPT_AF_BAR2_ALIASX(a, b)        AF_BAR2_ALIASX(a, b)
+
 #define CPT_AF_LF_CTL2_SHIFT 3
 #define CPT_AF_LF_SSO_PF_FUNC_SHIFT 32
+
+#define CPT_LF_CTL                      0x10
+#define CPT_LF_INPROG                   0x40
+#define CPT_LF_Q_GRP_PTR                0x120
 
 #define NPC_AF_BLK_RST                  (0x00040)
 

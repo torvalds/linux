@@ -1073,6 +1073,7 @@ struct cpt_rd_wr_reg_msg {
 	u64 *ret_val;
 	u64 val;
 	u8 is_write;
+	int blkaddr;
 };
 
 struct cpt_lf_alloc_req_msg {
@@ -1080,6 +1081,7 @@ struct cpt_lf_alloc_req_msg {
 	u16 nix_pf_func;
 	u16 sso_pf_func;
 	u16 eng_grpmsk;
+	int blkaddr;
 };
 
 #endif /* MBOX_H */

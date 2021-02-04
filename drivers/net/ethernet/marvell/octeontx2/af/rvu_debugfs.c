@@ -1904,19 +1904,15 @@ static void rvu_dbg_npc_init(struct rvu *rvu)
 			    &rvu_dbg_npc_rx_miss_act_fops);
 }
 
-/* CPT debugfs APIs */
 static int cpt_eng_sts_display(struct seq_file *filp, u8 eng_type)
 {
-	struct rvu *rvu = filp->private;
+	struct cpt_ctx *ctx = filp->private;
 	u64 busy_sts = 0, free_sts = 0;
 	u32 e_min = 0, e_max = 0, e, i;
 	u16 max_ses, max_ies, max_aes;
-	int blkaddr;
+	struct rvu *rvu = ctx->rvu;
+	int blkaddr = ctx->blkaddr;
 	u64 reg;
-
-	blkaddr = rvu_get_blkaddr(rvu, BLKTYPE_CPT, 0);
-	if (blkaddr < 0)
-		return -ENODEV;
 
 	reg = rvu_read64(rvu, blkaddr, CPT_AF_CONSTANTS1);
 	max_ses = reg & 0xffff;
@@ -1977,15 +1973,12 @@ RVU_DEBUG_SEQ_FOPS(cpt_ie_sts, cpt_ie_sts_display, NULL);
 
 static int rvu_dbg_cpt_engines_info_display(struct seq_file *filp, void *unused)
 {
-	struct rvu *rvu = filp->private;
+	struct cpt_ctx *ctx = filp->private;
 	u16 max_ses, max_ies, max_aes;
+	struct rvu *rvu = ctx->rvu;
+	int blkaddr = ctx->blkaddr;
 	u32 e_max, e;
-	int blkaddr;
 	u64 reg;
-
-	blkaddr = rvu_get_blkaddr(rvu, BLKTYPE_CPT, 0);
-	if (blkaddr < 0)
-		return -ENODEV;
 
 	reg = rvu_read64(rvu, blkaddr, CPT_AF_CONSTANTS1);
 	max_ses = reg & 0xffff;
@@ -2014,17 +2007,15 @@ RVU_DEBUG_SEQ_FOPS(cpt_engines_info, cpt_engines_info_display, NULL);
 
 static int rvu_dbg_cpt_lfs_info_display(struct seq_file *filp, void *unused)
 {
-	struct rvu *rvu = filp->private;
-	struct rvu_hwinfo *hw = rvu->hw;
+	struct cpt_ctx *ctx = filp->private;
+	int blkaddr = ctx->blkaddr;
+	struct rvu *rvu = ctx->rvu;
 	struct rvu_block *block;
-	int blkaddr;
+	struct rvu_hwinfo *hw;
 	u64 reg;
 	u32 lf;
 
-	blkaddr = rvu_get_blkaddr(rvu, BLKTYPE_CPT, 0);
-	if (blkaddr < 0)
-		return -ENODEV;
-
+	hw = rvu->hw;
 	block = &hw->block[blkaddr];
 	if (!block->lf.bmap)
 		return -ENODEV;
@@ -2049,13 +2040,10 @@ RVU_DEBUG_SEQ_FOPS(cpt_lfs_info, cpt_lfs_info_display, NULL);
 
 static int rvu_dbg_cpt_err_info_display(struct seq_file *filp, void *unused)
 {
-	struct rvu *rvu = filp->private;
+	struct cpt_ctx *ctx = filp->private;
+	struct rvu *rvu = ctx->rvu;
+	int blkaddr = ctx->blkaddr;
 	u64 reg0, reg1;
-	int blkaddr;
-
-	blkaddr = rvu_get_blkaddr(rvu, BLKTYPE_CPT, 0);
-	if (blkaddr < 0)
-		return -ENODEV;
 
 	reg0 = rvu_read64(rvu, blkaddr, CPT_AF_FLTX_INT(0));
 	reg1 = rvu_read64(rvu, blkaddr, CPT_AF_FLTX_INT(1));
@@ -2079,14 +2067,10 @@ RVU_DEBUG_SEQ_FOPS(cpt_err_info, cpt_err_info_display, NULL);
 
 static int rvu_dbg_cpt_pc_display(struct seq_file *filp, void *unused)
 {
-	struct rvu *rvu;
-	int blkaddr;
+	struct cpt_ctx *ctx = filp->private;
+	struct rvu *rvu = ctx->rvu;
+	int blkaddr = ctx->blkaddr;
 	u64 reg;
-
-	rvu = filp->private;
-	blkaddr = rvu_get_blkaddr(rvu, BLKTYPE_CPT, 0);
-	if (blkaddr < 0)
-		return -ENODEV;
 
 	reg = rvu_read64(rvu, blkaddr, CPT_AF_INST_REQ_PC);
 	seq_printf(filp, "CPT instruction requests   %llu\n", reg);
@@ -2108,26 +2092,39 @@ static int rvu_dbg_cpt_pc_display(struct seq_file *filp, void *unused)
 
 RVU_DEBUG_SEQ_FOPS(cpt_pc, cpt_pc_display, NULL);
 
-static void rvu_dbg_cpt_init(struct rvu *rvu)
+static void rvu_dbg_cpt_init(struct rvu *rvu, int blkaddr)
 {
-	if (!is_block_implemented(rvu->hw, BLKADDR_CPT0))
+	struct cpt_ctx *ctx;
+
+	if (!is_block_implemented(rvu->hw, blkaddr))
 		return;
 
-	rvu->rvu_dbg.cpt = debugfs_create_dir("cpt", rvu->rvu_dbg.root);
+	if (blkaddr == BLKADDR_CPT0) {
+		rvu->rvu_dbg.cpt = debugfs_create_dir("cpt", rvu->rvu_dbg.root);
+		ctx = &rvu->rvu_dbg.cpt_ctx[0];
+		ctx->blkaddr = BLKADDR_CPT0;
+		ctx->rvu = rvu;
+	} else {
+		rvu->rvu_dbg.cpt = debugfs_create_dir("cpt1",
+						      rvu->rvu_dbg.root);
+		ctx = &rvu->rvu_dbg.cpt_ctx[1];
+		ctx->blkaddr = BLKADDR_CPT1;
+		ctx->rvu = rvu;
+	}
 
-	debugfs_create_file("cpt_pc", 0600, rvu->rvu_dbg.cpt, rvu,
+	debugfs_create_file("cpt_pc", 0600, rvu->rvu_dbg.cpt, ctx,
 			    &rvu_dbg_cpt_pc_fops);
-	debugfs_create_file("cpt_ae_sts", 0600, rvu->rvu_dbg.cpt, rvu,
+	debugfs_create_file("cpt_ae_sts", 0600, rvu->rvu_dbg.cpt, ctx,
 			    &rvu_dbg_cpt_ae_sts_fops);
-	debugfs_create_file("cpt_se_sts", 0600, rvu->rvu_dbg.cpt, rvu,
+	debugfs_create_file("cpt_se_sts", 0600, rvu->rvu_dbg.cpt, ctx,
 			    &rvu_dbg_cpt_se_sts_fops);
-	debugfs_create_file("cpt_ie_sts", 0600, rvu->rvu_dbg.cpt, rvu,
+	debugfs_create_file("cpt_ie_sts", 0600, rvu->rvu_dbg.cpt, ctx,
 			    &rvu_dbg_cpt_ie_sts_fops);
-	debugfs_create_file("cpt_engines_info", 0600, rvu->rvu_dbg.cpt, rvu,
+	debugfs_create_file("cpt_engines_info", 0600, rvu->rvu_dbg.cpt, ctx,
 			    &rvu_dbg_cpt_engines_info_fops);
-	debugfs_create_file("cpt_lfs_info", 0600, rvu->rvu_dbg.cpt, rvu,
+	debugfs_create_file("cpt_lfs_info", 0600, rvu->rvu_dbg.cpt, ctx,
 			    &rvu_dbg_cpt_lfs_info_fops);
-	debugfs_create_file("cpt_err_info", 0600, rvu->rvu_dbg.cpt, rvu,
+	debugfs_create_file("cpt_err_info", 0600, rvu->rvu_dbg.cpt, ctx,
 			    &rvu_dbg_cpt_err_info_fops);
 }
 
@@ -2146,7 +2143,8 @@ void rvu_dbg_init(struct rvu *rvu)
 	rvu_dbg_nix_init(rvu, BLKADDR_NIX1);
 	rvu_dbg_cgx_init(rvu);
 	rvu_dbg_npc_init(rvu);
-	rvu_dbg_cpt_init(rvu);
+	rvu_dbg_cpt_init(rvu, BLKADDR_CPT0);
+	rvu_dbg_cpt_init(rvu, BLKADDR_CPT1);
 }
 
 void rvu_dbg_exit(struct rvu *rvu)
