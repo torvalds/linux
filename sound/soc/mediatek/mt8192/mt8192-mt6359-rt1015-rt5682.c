@@ -39,7 +39,7 @@ struct mt8192_mt6359_priv {
 static int mt8192_rt1015_i2s_hw_params(struct snd_pcm_substream *substream,
 				       struct snd_pcm_hw_params *params)
 {
-	struct snd_soc_pcm_runtime *rtd = substream->private_data;
+	struct snd_soc_pcm_runtime *rtd = asoc_substream_to_rtd(substream);
 	struct snd_soc_card *card = rtd->card;
 	struct snd_soc_dai *cpu_dai = asoc_rtd_to_cpu(rtd, 0);
 	struct snd_soc_dai *codec_dai;
@@ -74,7 +74,7 @@ static int mt8192_rt1015_i2s_hw_params(struct snd_pcm_substream *substream,
 static int mt8192_rt5682_i2s_hw_params(struct snd_pcm_substream *substream,
 				       struct snd_pcm_hw_params *params)
 {
-	struct snd_soc_pcm_runtime *rtd = substream->private_data;
+	struct snd_soc_pcm_runtime *rtd = asoc_substream_to_rtd(substream);
 	struct snd_soc_card *card = rtd->card;
 	struct snd_soc_dai *cpu_dai = asoc_rtd_to_cpu(rtd, 0);
 	struct snd_soc_dai *codec_dai = asoc_rtd_to_codec(rtd, 0);
@@ -360,14 +360,8 @@ static int mt8192_i2s_hw_params_fixup(struct snd_soc_pcm_runtime *rtd,
 }
 
 static int
-mt8192_mt6359_rt1015_rt5682_cap1_startup(struct snd_pcm_substream *substream)
+mt8192_mt6359_cap1_startup(struct snd_pcm_substream *substream)
 {
-	struct snd_soc_pcm_runtime *rtd = substream->private_data;
-	struct snd_soc_component *component =
-		snd_soc_rtdcom_lookup(rtd, AFE_PCM_NAME);
-	struct mtk_base_afe *afe = snd_soc_component_get_drvdata(component);
-	int ret;
-
 	static const unsigned int channels[] = {
 		1, 2, 4
 	};
@@ -385,13 +379,15 @@ mt8192_mt6359_rt1015_rt5682_cap1_startup(struct snd_pcm_substream *substream)
 		.mask = 0,
 	};
 
+	struct snd_soc_pcm_runtime *rtd = asoc_substream_to_rtd(substream);
 	struct snd_pcm_runtime *runtime = substream->runtime;
+	int ret;
 
 	ret = snd_pcm_hw_constraint_list(runtime, 0,
 					 SNDRV_PCM_HW_PARAM_CHANNELS,
 					 &constraints_channels);
 	if (ret < 0) {
-		dev_err(afe->dev, "hw_constraint_list channels failed\n");
+		dev_err(rtd->dev, "hw_constraint_list channels failed\n");
 		return ret;
 	}
 
@@ -399,15 +395,15 @@ mt8192_mt6359_rt1015_rt5682_cap1_startup(struct snd_pcm_substream *substream)
 					 SNDRV_PCM_HW_PARAM_RATE,
 					 &constraints_rates);
 	if (ret < 0) {
-		dev_err(afe->dev, "hw_constraint_list rate failed\n");
+		dev_err(rtd->dev, "hw_constraint_list rate failed\n");
 		return ret;
 	}
 
 	return 0;
 }
 
-static const struct snd_soc_ops mt8192_mt6359_rt1015_rt5682_capture1_ops = {
-	.startup = mt8192_mt6359_rt1015_rt5682_cap1_startup,
+static const struct snd_soc_ops mt8192_mt6359_capture1_ops = {
+	.startup = mt8192_mt6359_cap1_startup,
 };
 
 /* FE */
@@ -720,7 +716,7 @@ static struct snd_soc_dai_link mt8192_mt6359_dai_links[] = {
 			    SND_SOC_DPCM_TRIGGER_PRE},
 		.dynamic = 1,
 		.dpcm_capture = 1,
-		.ops = &mt8192_mt6359_rt1015_rt5682_capture1_ops,
+		.ops = &mt8192_mt6359_capture1_ops,
 		SND_SOC_DAILINK_REG(capture1),
 	},
 	{
