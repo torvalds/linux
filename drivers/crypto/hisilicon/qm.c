@@ -54,6 +54,8 @@
 #define QM_SQ_PRIORITY_SHIFT		0
 #define QM_SQ_ORDERS_SHIFT		4
 #define QM_SQ_TYPE_SHIFT		8
+#define QM_QC_PASID_ENABLE		0x1
+#define QM_QC_PASID_ENABLE_SHIFT	7
 
 #define QM_SQ_TYPE_MASK			GENMASK(3, 0)
 #define QM_SQ_TAIL_IDX(sqc)		((le16_to_cpu((sqc)->w11) >> 6) & 0x1)
@@ -1685,6 +1687,7 @@ static struct hisi_qp *qm_create_qp_nolock(struct hisi_qm *qm, u8 alg_type)
 	qp->req_cb = NULL;
 	qp->qp_id = qp_id;
 	qp->alg_type = alg_type;
+	qp->is_in_kernel = true;
 	qm->qp_in_used++;
 	atomic_set(&qp->qp_status.flags, QP_INIT);
 
@@ -1759,6 +1762,10 @@ static int qm_sq_ctx_cfg(struct hisi_qp *qp, int qp_id, u32 pasid)
 	sqc->cq_num = cpu_to_le16(qp_id);
 	sqc->w13 = cpu_to_le16(QM_MK_SQC_W13(0, 1, qp->alg_type));
 
+	if (ver >= QM_HW_V3 && qm->use_sva && !qp->is_in_kernel)
+		sqc->w11 = cpu_to_le16(QM_QC_PASID_ENABLE <<
+				       QM_QC_PASID_ENABLE_SHIFT);
+
 	sqc_dma = dma_map_single(dev, sqc, sizeof(struct qm_sqc),
 				 DMA_TO_DEVICE);
 	if (dma_mapping_error(dev, sqc_dma)) {
@@ -1796,6 +1803,9 @@ static int qm_cq_ctx_cfg(struct hisi_qp *qp, int qp_id, u32 pasid)
 		cqc->w8 = 0; /* rand_qc */
 	}
 	cqc->dw6 = cpu_to_le32(1 << QM_CQ_PHASE_SHIFT | 1 << QM_CQ_FLAG_SHIFT);
+
+	if (ver >= QM_HW_V3 && qm->use_sva && !qp->is_in_kernel)
+		cqc->w11 = cpu_to_le16(QM_QC_PASID_ENABLE);
 
 	cqc_dma = dma_map_single(dev, cqc, sizeof(struct qm_cqc),
 				 DMA_TO_DEVICE);
@@ -2067,6 +2077,7 @@ static int hisi_qm_uacce_get_queue(struct uacce_device *uacce,
 	qp->uacce_q = q;
 	qp->event_cb = qm_qp_event_notifier;
 	qp->pasid = arg;
+	qp->is_in_kernel = false;
 
 	return 0;
 }

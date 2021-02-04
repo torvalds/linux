@@ -323,7 +323,7 @@ static int sec_engine_init(struct hisi_qm *qm)
 
 	reg = readl_relaxed(SEC_ADDR(qm, SEC_INTERFACE_USER_CTRL1_REG));
 	reg &= SEC_USER1_SMMU_MASK;
-	if (qm->use_sva)
+	if (qm->use_sva && qm->ver == QM_HW_V2)
 		reg |= SEC_USER1_SMMU_SVA;
 	else
 		reg |= SEC_USER1_SMMU_NORMAL;

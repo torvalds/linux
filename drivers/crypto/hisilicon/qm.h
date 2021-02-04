@@ -288,6 +288,7 @@ struct hisi_qp {
 
 	struct hisi_qm *qm;
 	bool is_resetting;
+	bool is_in_kernel;
 	u16 pasid;
 	struct uacce_queue *uacce_q;
 };

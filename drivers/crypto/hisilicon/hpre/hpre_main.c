@@ -356,10 +356,6 @@ static int hpre_set_user_domain_and_cache(struct hisi_qm *qm)
 	writel(0x0, HPRE_ADDR(qm, HPRE_COMM_CNT_CLR_CE));
 	writel(0x0, HPRE_ADDR(qm, HPRE_ECC_BYPASS));
 
-	/* Enable data buffer pasid */
-	if (qm->use_sva)
-		hpre_pasid_enable(qm);
-
 	writel(HPRE_BD_USR_MASK, HPRE_ADDR(qm, HPRE_BD_ARUSR_CFG));
 	writel(HPRE_BD_USR_MASK, HPRE_ADDR(qm, HPRE_BD_AWUSR_CFG));
 	writel(0x1, HPRE_ADDR(qm, HPRE_RDCHN_INI_CFG));
@@ -383,6 +379,10 @@ static int hpre_set_user_domain_and_cache(struct hisi_qm *qm)
 			dev_err(dev, "acpi_evaluate_dsm err.\n");
 
 		disable_flr_of_bme(qm);
+
+		/* Enable data buffer pasid */
+		if (qm->use_sva)
+			hpre_pasid_enable(qm);
 	}
 
 	return ret;
@@ -993,16 +993,18 @@ static void hpre_remove(struct pci_dev *pdev)
 			return;
 		}
 	}
-	if (qm->fun_type == QM_HW_PF) {
-		if (qm->use_sva)
-			hpre_pasid_disable(qm);
-		hpre_cnt_regs_clear(qm);
-		qm->debug.curr_qm_qp_num = 0;
-	}
 
 	hpre_debugfs_exit(qm);
 	hisi_qm_stop(qm, QM_NORMAL);
-	hisi_qm_dev_err_uninit(qm);
+
+	if (qm->fun_type == QM_HW_PF) {
+		if (qm->use_sva && qm->ver == QM_HW_V2)
+			hpre_pasid_disable(qm);
+		hpre_cnt_regs_clear(qm);
+		qm->debug.curr_qm_qp_num = 0;
+		hisi_qm_dev_err_uninit(qm);
+	}
+
 	hisi_qm_uninit(qm);
 }
 
