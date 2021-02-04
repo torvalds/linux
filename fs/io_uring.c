@@ -3548,16 +3548,11 @@ static int io_read(struct io_kiocb *req, bool force_nonblock,
 		/* some cases will consume bytes even on error returns */
 		iov_iter_revert(iter, io_size - iov_iter_count(iter));
 		ret = 0;
-	} else if (ret <= 0 || ret == io_size) {
-		/* make sure -ERESTARTSYS -> -EINTR is done */
+	} else if (ret <= 0 || ret == io_size || !force_nonblock ||
+		   (req->file->f_flags & O_NONBLOCK) ||
+		   !(req->flags & REQ_F_ISREG)) {
+		/* read all, failed, already did sync or don't want to retry */
 		goto done;
-	} else {
-		/* we did blocking attempt. no retry. */
-		if (!force_nonblock || (req->file->f_flags & O_NONBLOCK) ||
-		    !(req->flags & REQ_F_ISREG))
-			goto done;
-
-		io_size -= ret;
 	}
 
 	ret2 = io_setup_async_rw(req, iovec, inline_vecs, iter, true);
@@ -3570,6 +3565,7 @@ static int io_read(struct io_kiocb *req, bool force_nonblock,
 	/* now use our persistent iterator, if we aren't already */
 	iter = &rw->iter;
 retry:
+	io_size -= ret;
 	rw->bytes_done += ret;
 	/* if we can retry, do so with the callbacks armed */
 	if (!io_rw_should_retry(req)) {
