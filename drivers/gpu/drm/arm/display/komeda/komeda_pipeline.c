@@ -46,8 +46,9 @@ void komeda_pipeline_destroy(struct komeda_dev *mdev,
 {
 	struct komeda_component *c;
 	int i;
+	unsigned long avail_comps = pipe->avail_comps;
 
-	dp_for_each_set_bit(i, pipe->avail_comps) {
+	for_each_set_bit(i, &avail_comps, 32) {
 		c = komeda_pipeline_get_component(pipe, i);
 		komeda_component_destroy(mdev, c);
 	}
@@ -247,6 +248,7 @@ static void komeda_pipeline_dump(struct komeda_pipeline *pipe)
 {
 	struct komeda_component *c;
 	int id;
+	unsigned long avail_comps = pipe->avail_comps;
 
 	DRM_INFO("Pipeline-%d: n_layers: %d, n_scalers: %d, output: %s.\n",
 		 pipe->id, pipe->n_layers, pipe->n_scalers,
@@ -258,7 +260,7 @@ static void komeda_pipeline_dump(struct komeda_pipeline *pipe)
 		 pipe->of_output_links[1] ?
 		 pipe->of_output_links[1]->full_name : "none");
 
-	dp_for_each_set_bit(id, pipe->avail_comps) {
+	for_each_set_bit(id, &avail_comps, 32) {
 		c = komeda_pipeline_get_component(pipe, id);
 
 		komeda_component_dump(c);
@@ -270,8 +272,9 @@ static void komeda_component_verify_inputs(struct komeda_component *c)
 	struct komeda_pipeline *pipe = c->pipeline;
 	struct komeda_component *input;
 	int id;
+	unsigned long supported_inputs = c->supported_inputs;
 
-	dp_for_each_set_bit(id, c->supported_inputs) {
+	for_each_set_bit(id, &supported_inputs, 32) {
 		input = komeda_pipeline_get_component(pipe, id);
 		if (!input) {
 			c->supported_inputs &= ~(BIT(id));
@@ -302,8 +305,9 @@ static void komeda_pipeline_assemble(struct komeda_pipeline *pipe)
 	struct komeda_component *c;
 	struct komeda_layer *layer;
 	int i, id;
+	unsigned long avail_comps = pipe->avail_comps;
 
-	dp_for_each_set_bit(id, pipe->avail_comps) {
+	for_each_set_bit(id, &avail_comps, 32) {
 		c = komeda_pipeline_get_component(pipe, id);
 		komeda_component_verify_inputs(c);
 	}
@@ -355,13 +359,15 @@ void komeda_pipeline_dump_register(struct komeda_pipeline *pipe,
 {
 	struct komeda_component *c;
 	u32 id;
+	unsigned long avail_comps;
 
 	seq_printf(sf, "\n======== Pipeline-%d ==========\n", pipe->id);
 
 	if (pipe->funcs && pipe->funcs->dump_register)
 		pipe->funcs->dump_register(pipe, sf);
 
-	dp_for_each_set_bit(id, pipe->avail_comps) {
+	avail_comps = pipe->avail_comps;
+	for_each_set_bit(id, &avail_comps, 32) {
 		c = komeda_pipeline_get_component(pipe, id);
 
 		seq_printf(sf, "\n------%s------\n", c->name);
