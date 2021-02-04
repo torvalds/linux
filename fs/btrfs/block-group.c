@@ -1810,24 +1810,8 @@ static int check_chunk_block_group_mappings(struct btrfs_fs_info *fs_info)
 	return ret;
 }
 
-static void read_block_group_item(struct btrfs_block_group *cache,
-				 struct btrfs_path *path,
-				 const struct btrfs_key *key)
-{
-	struct extent_buffer *leaf = path->nodes[0];
-	struct btrfs_block_group_item bgi;
-	int slot = path->slots[0];
-
-	cache->length = key->offset;
-
-	read_extent_buffer(leaf, &bgi, btrfs_item_ptr_offset(leaf, slot),
-			   sizeof(bgi));
-	cache->used = btrfs_stack_block_group_used(&bgi);
-	cache->flags = btrfs_stack_block_group_flags(&bgi);
-}
-
 static int read_one_block_group(struct btrfs_fs_info *info,
-				struct btrfs_path *path,
+				struct btrfs_block_group_item *bgi,
 				const struct btrfs_key *key,
 				int need_clear)
 {
@@ -1842,7 +1826,9 @@ static int read_one_block_group(struct btrfs_fs_info *info,
 	if (!cache)
 		return -ENOMEM;
 
-	read_block_group_item(cache, path, key);
+	cache->length = key->offset;
+	cache->used = btrfs_stack_block_group_used(bgi);
+	cache->flags = btrfs_stack_block_group_flags(bgi);
 
 	set_free_space_tree_thresholds(cache);
 
@@ -2001,19 +1987,29 @@ int btrfs_read_block_groups(struct btrfs_fs_info *info)
 		need_clear = 1;
 
 	while (1) {
+		struct btrfs_block_group_item bgi;
+		struct extent_buffer *leaf;
+		int slot;
+
 		ret = find_first_block_group(info, path, &key);
 		if (ret > 0)
 			break;
 		if (ret != 0)
 			goto error;
 
-		btrfs_item_key_to_cpu(path->nodes[0], &key, path->slots[0]);
-		ret = read_one_block_group(info, path, &key, need_clear);
+		leaf = path->nodes[0];
+		slot = path->slots[0];
+
+		read_extent_buffer(leaf, &bgi, btrfs_item_ptr_offset(leaf, slot),
+				   sizeof(bgi));
+
+		btrfs_item_key_to_cpu(leaf, &key, slot);
+		btrfs_release_path(path);
+		ret = read_one_block_group(info, &bgi, &key, need_clear);
 		if (ret < 0)
 			goto error;
 		key.objectid += key.offset;
 		key.offset = 0;
-		btrfs_release_path(path);
 	}
 	btrfs_release_path(path);
 
