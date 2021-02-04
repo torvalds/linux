@@ -2145,10 +2145,10 @@ static int intel_compute_min_cdclk(struct intel_cdclk_state *cdclk_state)
 		if (IS_ERR(bw_state))
 			return PTR_ERR(bw_state);
 
-		if (cdclk_state->min_cdclk[i] == min_cdclk)
+		if (cdclk_state->min_cdclk[crtc->pipe] == min_cdclk)
 			continue;
 
-		cdclk_state->min_cdclk[i] = min_cdclk;
+		cdclk_state->min_cdclk[crtc->pipe] = min_cdclk;
 
 		ret = intel_atomic_lock_global_state(&cdclk_state->base);
 		if (ret)
@@ -2199,10 +2199,10 @@ static int bxt_compute_min_voltage_level(struct intel_cdclk_state *cdclk_state)
 		else
 			min_voltage_level = 0;
 
-		if (cdclk_state->min_voltage_level[i] == min_voltage_level)
+		if (cdclk_state->min_voltage_level[crtc->pipe] == min_voltage_level)
 			continue;
 
-		cdclk_state->min_voltage_level[i] = min_voltage_level;
+		cdclk_state->min_voltage_level[crtc->pipe] = min_voltage_level;
 
 		ret = intel_atomic_lock_global_state(&cdclk_state->base);
 		if (ret)
