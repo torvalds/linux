@@ -5118,6 +5118,7 @@ void process_cpuid()
 	unsigned int eax, ebx, ecx, edx;
 	unsigned int fms, family, model, stepping, ecx_flags, edx_flags;
 	unsigned int has_turbo;
+	unsigned long long ucode_patch = 0;
 
 	eax = ebx = ecx = edx = 0;
 
@@ -5131,8 +5132,8 @@ void process_cpuid()
 		hygon_genuine = 1;
 
 	if (!quiet)
-		fprintf(outf, "CPUID(0): %.4s%.4s%.4s ",
-			(char *)&ebx, (char *)&edx, (char *)&ecx);
+		fprintf(outf, "CPUID(0): %.4s%.4s%.4s 0x%x CPUID levels\n",
+			(char *)&ebx, (char *)&edx, (char *)&ecx, max_level);
 
 	__cpuid(1, fms, ebx, ecx, edx);
 	family = (fms >> 8) & 0xf;
@@ -5145,6 +5146,9 @@ void process_cpuid()
 	ecx_flags = ecx;
 	edx_flags = edx;
 
+	if (get_msr(sched_getcpu(), MSR_IA32_UCODE_REV, &ucode_patch))
+		warnx("get_msr(UCODE)\n");
+
 	/*
 	 * check max extended function levels of CPUID.
 	 * This is needed to check for invariant TSC.
@@ -5154,8 +5158,9 @@ void process_cpuid()
 	__cpuid(0x80000000, max_extended_level, ebx, ecx, edx);
 
 	if (!quiet) {
-		fprintf(outf, "0x%x CPUID levels; 0x%x xlevels; family:model:stepping 0x%x:%x:%x (%d:%d:%d)\n",
-			max_level, max_extended_level, family, model, stepping, family, model, stepping);
+		fprintf(outf, "CPUID(1): family:model:stepping 0x%x:%x:%x (%d:%d:%d) microcode 0x%x\n",
+			family, model, stepping, family, model, stepping, (unsigned int)((ucode_patch >> 32) & 0xFFFFFFFF));
+		fprintf(outf, "CPUID(0x80000000): max_extended_levels: 0x%x\n", max_extended_level);
 		fprintf(outf, "CPUID(1): %s %s %s %s %s %s %s %s %s %s\n",
 			ecx_flags & (1 << 0) ? "SSE3" : "-",
 			ecx_flags & (1 << 3) ? "MONITOR" : "-",
