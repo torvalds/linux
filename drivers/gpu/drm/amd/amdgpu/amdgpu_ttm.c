@@ -2057,7 +2057,8 @@ int amdgpu_copy_buffer(struct amdgpu_ring *ring, uint64_t src_offset,
 		return r;
 
 	if (vm_needs_flush) {
-		job->vm_pd_addr = amdgpu_gmc_pd_addr(adev->gart.bo);
+		job->vm_pd_addr = amdgpu_gmc_pd_addr(adev->gmc.pdb0_bo ?
+					adev->gmc.pdb0_bo : adev->gart.bo);
 		job->vm_needs_flush = true;
 	}
 	if (resv) {
