@@ -287,7 +287,7 @@ enum amdgpu_kiq_irq {
 
 #define MAX_KIQ_REG_WAIT       5000 /* in usecs, 5ms */
 #define MAX_KIQ_REG_BAILOUT_INTERVAL   5 /* in msecs, 5ms */
-#define MAX_KIQ_REG_TRY 80 /* 20 -> 80 */
+#define MAX_KIQ_REG_TRY 1000
 
 int amdgpu_device_ip_set_clockgating_state(void *dev,
 					   enum amd_ip_block_type block_type,
