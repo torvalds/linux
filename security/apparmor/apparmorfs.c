@@ -1736,14 +1736,15 @@ int __aafs_profile_mkdir(struct aa_profile *profile, struct dentry *parent)
 
 #ifdef CONFIG_SECURITY_APPARMOR_EXPORT_BINARY
 	if (profile->rawdata) {
-		dent = aafs_create("raw_sha1", S_IFLNK | 0444, dir,
-				   profile->label.proxy, NULL, NULL,
-				   &rawdata_link_sha1_iops);
-		if (IS_ERR(dent))
-			goto fail;
-		aa_get_proxy(profile->label.proxy);
-		profile->dents[AAFS_PROF_RAW_HASH] = dent;
-
+		if (aa_g_hash_policy) {
+			dent = aafs_create("raw_sha1", S_IFLNK | 0444, dir,
+					   profile->label.proxy, NULL, NULL,
+					   &rawdata_link_sha1_iops);
+			if (IS_ERR(dent))
+				goto fail;
+			aa_get_proxy(profile->label.proxy);
+			profile->dents[AAFS_PROF_RAW_HASH] = dent;
+		}
 		dent = aafs_create("raw_abi", S_IFLNK | 0444, dir,
 				   profile->label.proxy, NULL, NULL,
 				   &rawdata_link_abi_iops);
