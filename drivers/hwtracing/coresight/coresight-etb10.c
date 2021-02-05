@@ -805,7 +805,7 @@ err_misc_register:
 	return ret;
 }
 
-static int etb_remove(struct amba_device *adev)
+static void etb_remove(struct amba_device *adev)
 {
 	struct etb_drvdata *drvdata = dev_get_drvdata(&adev->dev);
 
@@ -816,8 +816,6 @@ static int etb_remove(struct amba_device *adev)
 	 */
 	misc_deregister(&drvdata->miscdev);
 	coresight_unregister(drvdata->csdev);
-
-	return 0;
 }
 
 #ifdef CONFIG_PM

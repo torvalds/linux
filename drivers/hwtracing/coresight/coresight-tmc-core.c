@@ -563,7 +563,7 @@ out:
 	spin_unlock_irqrestore(&drvdata->spinlock, flags);
 }
 
-static int tmc_remove(struct amba_device *adev)
+static void tmc_remove(struct amba_device *adev)
 {
 	struct tmc_drvdata *drvdata = dev_get_drvdata(&adev->dev);
 
@@ -574,8 +574,6 @@ static int tmc_remove(struct amba_device *adev)
 	 */
 	misc_deregister(&drvdata->miscdev);
 	coresight_unregister(drvdata->csdev);
-
-	return 0;
 }
 
 static const struct amba_id tmc_ids[] = {

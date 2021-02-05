@@ -1906,8 +1906,6 @@ static int __exit etm4_remove_dev(struct etmv4_drvdata *drvdata)
 	cpus_read_unlock();
 
 	coresight_unregister(drvdata->csdev);
-
-	return 0;
 }
 
 static int __exit etm4_remove_amba(struct amba_device *adev)
