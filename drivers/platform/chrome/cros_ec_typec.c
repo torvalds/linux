@@ -870,6 +870,18 @@ disc_exit:
 	return ret;
 }
 
+static int cros_typec_send_clear_event(struct cros_typec_data *typec, int port_num, u32 events_mask)
+{
+	struct ec_params_typec_control req = {
+		.port = port_num,
+		.command = TYPEC_CONTROL_COMMAND_CLEAR_EVENTS,
+		.clear_events_mask = events_mask,
+	};
+
+	return cros_typec_ec_command(typec, 0, EC_CMD_TYPEC_CONTROL, &req,
+				     sizeof(req), NULL, 0);
+}
+
 static void cros_typec_handle_status(struct cros_typec_data *typec, int port_num)
 {
 	struct ec_response_typec_status resp;
@@ -894,9 +906,14 @@ static void cros_typec_handle_status(struct cros_typec_data *typec, int port_num
 		ret = cros_typec_handle_sop_disc(typec, port_num, sop_revision);
 		if (ret < 0)
 			dev_err(typec->dev, "Couldn't parse SOP Disc data, port: %d\n", port_num);
-		else
+		else {
 			typec->ports[port_num]->sop_disc_done = true;
-
+			ret = cros_typec_send_clear_event(typec, port_num,
+							  PD_STATUS_EVENT_SOP_DISC_DONE);
+			if (ret < 0)
+				dev_warn(typec->dev,
+					 "Failed SOP Disc event clear, port: %d\n", port_num);
+		}
 		if (resp.sop_connected)
 			typec_set_pwr_opmode(typec->ports[port_num]->port, TYPEC_PWR_MODE_PD);
 	}
@@ -910,8 +927,14 @@ static void cros_typec_handle_status(struct cros_typec_data *typec, int port_num
 		ret = cros_typec_handle_sop_prime_disc(typec, port_num, sop_prime_revision);
 		if (ret < 0)
 			dev_err(typec->dev, "Couldn't parse SOP' Disc data, port: %d\n", port_num);
-		else
+		else {
 			typec->ports[port_num]->sop_prime_disc_done = true;
+			ret = cros_typec_send_clear_event(typec, port_num,
+							  PD_STATUS_EVENT_SOP_PRIME_DISC_DONE);
+			if (ret < 0)
+				dev_warn(typec->dev,
+					 "Failed SOP Disc event clear, port: %d\n", port_num);
+		}
 	}
 }
 
