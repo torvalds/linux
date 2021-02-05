@@ -3924,7 +3924,7 @@ static int qlge_configure_rings(struct qlge_adapter *qdev)
 	int i;
 	struct rx_ring *rx_ring;
 	struct tx_ring *tx_ring;
-	int cpu_cnt = min(MAX_CPUS, (int)num_online_cpus());
+	int cpu_cnt = min_t(int, MAX_CPUS, num_online_cpus());
 
 	/* In a perfect world we have one RSS ring for each CPU
 	 * and each has it's own vector.  To do that we ask for
