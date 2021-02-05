@@ -1618,7 +1618,7 @@ static int skl_check_plane_surface(struct intel_plane_state *plane_state)
 	return 0;
 }
 
-static bool intel_fb_scalable(const struct drm_framebuffer *fb)
+static bool skl_fb_scalable(const struct drm_framebuffer *fb)
 {
 	if (!fb)
 		return false;
@@ -1651,7 +1651,7 @@ static int skl_plane_check(struct intel_crtc_state *crtc_state,
 		return ret;
 
 	/* use scaler when colorkey is not required */
-	if (!plane_state->ckey.flags && intel_fb_scalable(fb)) {
+	if (!plane_state->ckey.flags && skl_fb_scalable(fb)) {
 		min_scale = 1;
 		max_scale = skl_plane_max_scale(dev_priv, fb);
 	}

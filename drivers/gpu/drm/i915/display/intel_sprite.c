@@ -1365,19 +1365,18 @@ g4x_plane_get_hw_state(struct intel_plane *plane,
 	return ret;
 }
 
-static bool intel_fb_scalable(const struct drm_framebuffer *fb)
+static bool g4x_fb_scalable(const struct drm_framebuffer *fb)
 {
 	if (!fb)
 		return false;
 
 	switch (fb->format->format) {
 	case DRM_FORMAT_C8:
-		return false;
 	case DRM_FORMAT_XRGB16161616F:
 	case DRM_FORMAT_ARGB16161616F:
 	case DRM_FORMAT_XBGR16161616F:
 	case DRM_FORMAT_ABGR16161616F:
-		return INTEL_GEN(to_i915(fb->dev)) >= 11;
+		return false;
 	default:
 		return true;
 	}
@@ -1454,7 +1453,7 @@ g4x_sprite_check(struct intel_crtc_state *crtc_state,
 	int max_scale = DRM_PLANE_HELPER_NO_SCALING;
 	int ret;
 
-	if (intel_fb_scalable(plane_state->hw.fb)) {
+	if (g4x_fb_scalable(plane_state->hw.fb)) {
 		if (INTEL_GEN(dev_priv) < 7) {
 			min_scale = 1;
 			max_scale = 16 << 16;
