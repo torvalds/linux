@@ -1493,8 +1493,10 @@ static int tcpm_pd_svdm(struct tcpm_port *port, struct typec_altmode *adev,
 			const u32 *p, int cnt, u32 *response,
 			enum adev_actions *adev_action)
 {
+	struct typec_port *typec = port->typec_port;
 	struct typec_altmode *pdev;
 	struct pd_mode_data *modep;
+	int svdm_version;
 	int rlen = 0;
 	int cmd_type;
 	int cmd;
@@ -1511,6 +1513,10 @@ static int tcpm_pd_svdm(struct tcpm_port *port, struct typec_altmode *adev,
 	pdev = typec_match_altmode(port->partner_altmode, ALTMODE_DISCOVERY_MAX,
 				   PD_VDO_VID(p[0]), PD_VDO_OPOS(p[0]));
 
+	svdm_version = typec_get_negotiated_svdm_version(typec);
+	if (svdm_version < 0)
+		return 0;
+
 	switch (cmd_type) {
 	case CMDT_INIT:
 		switch (cmd) {
@@ -1518,10 +1524,22 @@ static int tcpm_pd_svdm(struct tcpm_port *port, struct typec_altmode *adev,
 			if (PD_VDO_VID(p[0]) != USB_SID_PD)
 				break;
 
+			if (PD_VDO_SVDM_VER(p[0]) < svdm_version)
+				typec_partner_set_svdm_version(port->partner,
+							       PD_VDO_SVDM_VER(p[0]));
 			/* 6.4.4.3.1: Only respond as UFP (device) */
 			if (port->data_role == TYPEC_DEVICE &&
 			    port->nr_snk_vdo) {
-				for (i = 0; i <  port->nr_snk_vdo; i++)
+				/*
+				 * Product Type DFP and Connector Type are not defined in SVDM
+				 * version 1.0 and shall be set to zero.
+				 */
+				if (typec_get_negotiated_svdm_version(typec) < SVDM_VER_2_0)
+					response[1] = port->snk_vdo[0] & ~IDH_DFP_MASK
+						      & ~IDH_CONN_MASK;
+				else
+					response[1] = port->snk_vdo[0];
+				for (i = 1; i <  port->nr_snk_vdo; i++)
 					response[i + 1] = port->snk_vdo[i];
 				rlen = port->nr_snk_vdo + 1;
 			}
@@ -1550,6 +1568,8 @@ static int tcpm_pd_svdm(struct tcpm_port *port, struct typec_altmode *adev,
 			response[0] = p[0] | VDO_CMDT(CMDT_RSP_BUSY);
 			rlen = 1;
 		}
+		response[0] = (response[0] & ~VDO_SVDM_VERS_MASK) |
+			      (VDO_SVDM_VERS(typec_get_negotiated_svdm_version(typec)));
 		break;
 	case CMDT_RSP_ACK:
 		/* silently drop message if we are not connected */
@@ -1560,19 +1580,22 @@ static int tcpm_pd_svdm(struct tcpm_port *port, struct typec_altmode *adev,
 
 		switch (cmd) {
 		case CMD_DISCOVER_IDENT:
+			if (PD_VDO_SVDM_VER(p[0]) < svdm_version)
+				typec_partner_set_svdm_version(port->partner,
+							       PD_VDO_SVDM_VER(p[0]));
 			/* 6.4.4.3.1 */
 			svdm_consume_identity(port, p, cnt);
-			response[0] = VDO(USB_SID_PD, 1, SVDM_VER_1_0, CMD_DISCOVER_SVID);
+			response[0] = VDO(USB_SID_PD, 1, typec_get_negotiated_svdm_version(typec),
+					  CMD_DISCOVER_SVID);
 			rlen = 1;
 			break;
 		case CMD_DISCOVER_SVID:
 			/* 6.4.4.3.2 */
 			if (svdm_consume_svids(port, p, cnt)) {
-				response[0] = VDO(USB_SID_PD, 1, SVDM_VER_1_0,
-						  CMD_DISCOVER_SVID);
+				response[0] = VDO(USB_SID_PD, 1, svdm_version, CMD_DISCOVER_SVID);
 				rlen = 1;
 			} else if (modep->nsvids && supports_modal(port)) {
-				response[0] = VDO(modep->svids[0], 1, SVDM_VER_1_0,
+				response[0] = VDO(modep->svids[0], 1, svdm_version,
 						  CMD_DISCOVER_MODES);
 				rlen = 1;
 			}
@@ -1583,7 +1606,7 @@ static int tcpm_pd_svdm(struct tcpm_port *port, struct typec_altmode *adev,
 			modep->svid_index++;
 			if (modep->svid_index < modep->nsvids) {
 				u16 svid = modep->svids[modep->svid_index];
-				response[0] = VDO(svid, 1, SVDM_VER_1_0, CMD_DISCOVER_MODES);
+				response[0] = VDO(svid, 1, svdm_version, CMD_DISCOVER_MODES);
 				rlen = 1;
 			} else {
 				tcpm_register_partner_altmodes(port);
@@ -1610,6 +1633,8 @@ static int tcpm_pd_svdm(struct tcpm_port *port, struct typec_altmode *adev,
 			/* Unrecognized SVDM */
 			response[0] = p[0] | VDO_CMDT(CMDT_RSP_NAK);
 			rlen = 1;
+			response[0] = (response[0] & ~VDO_SVDM_VERS_MASK) |
+				      (VDO_SVDM_VERS(svdm_version));
 			break;
 		}
 		break;
@@ -1629,6 +1654,8 @@ static int tcpm_pd_svdm(struct tcpm_port *port, struct typec_altmode *adev,
 			/* Unrecognized SVDM */
 			response[0] = p[0] | VDO_CMDT(CMDT_RSP_NAK);
 			rlen = 1;
+			response[0] = (response[0] & ~VDO_SVDM_VERS_MASK) |
+				      (VDO_SVDM_VERS(svdm_version));
 			break;
 		}
 		port->vdm_sm_running = false;
@@ -1636,6 +1663,8 @@ static int tcpm_pd_svdm(struct tcpm_port *port, struct typec_altmode *adev,
 	default:
 		response[0] = p[0] | VDO_CMDT(CMDT_RSP_NAK);
 		rlen = 1;
+		response[0] = (response[0] & ~VDO_SVDM_VERS_MASK) |
+			      (VDO_SVDM_VERS(svdm_version));
 		port->vdm_sm_running = false;
 		break;
 	}
@@ -1713,7 +1742,13 @@ static void tcpm_handle_vdm_request(struct tcpm_port *port,
 			break;
 		case ADEV_QUEUE_VDM_SEND_EXIT_MODE_ON_FAIL:
 			if (typec_altmode_vdm(adev, p[0], &p[1], cnt)) {
-				response[0] = VDO(adev->svid, 1, SVDM_VER_1_0, CMD_EXIT_MODE);
+				int svdm_version = typec_get_negotiated_svdm_version(
+									port->typec_port);
+				if (svdm_version < 0)
+					break;
+
+				response[0] = VDO(adev->svid, 1, svdm_version,
+						  CMD_EXIT_MODE);
 				response[0] |= VDO_OPOS(adev->mode);
 				rlen = 1;
 			}
@@ -1740,14 +1775,19 @@ static void tcpm_handle_vdm_request(struct tcpm_port *port,
 static void tcpm_send_vdm(struct tcpm_port *port, u32 vid, int cmd,
 			  const u32 *data, int count)
 {
+	int svdm_version = typec_get_negotiated_svdm_version(port->typec_port);
 	u32 header;
+
+	if (svdm_version < 0)
+		return;
 
 	if (WARN_ON(count > VDO_MAX_SIZE - 1))
 		count = VDO_MAX_SIZE - 1;
 
 	/* set VDM header with VID & CMD */
 	header = VDO(vid, ((vid & USB_SID_PD) == USB_SID_PD) ?
-			1 : (PD_VDO_CMD(cmd) <= CMD_ATTENTION), SVDM_VER_1_0, cmd);
+			1 : (PD_VDO_CMD(cmd) <= CMD_ATTENTION),
+			svdm_version, cmd);
 	tcpm_queue_vdm(port, header, data, count);
 }
 
@@ -2040,9 +2080,14 @@ static int tcpm_validate_caps(struct tcpm_port *port, const u32 *pdo,
 static int tcpm_altmode_enter(struct typec_altmode *altmode, u32 *vdo)
 {
 	struct tcpm_port *port = typec_altmode_get_drvdata(altmode);
+	int svdm_version;
 	u32 header;
 
-	header = VDO(altmode->svid, vdo ? 2 : 1, SVDM_VER_1_0, CMD_ENTER_MODE);
+	svdm_version = typec_get_negotiated_svdm_version(port->typec_port);
+	if (svdm_version < 0)
+		return svdm_version;
+
+	header = VDO(altmode->svid, vdo ? 2 : 1, svdm_version, CMD_ENTER_MODE);
 	header |= VDO_OPOS(altmode->mode);
 
 	tcpm_queue_vdm_unlocked(port, header, vdo, vdo ? 1 : 0);
@@ -2052,9 +2097,14 @@ static int tcpm_altmode_enter(struct typec_altmode *altmode, u32 *vdo)
 static int tcpm_altmode_exit(struct typec_altmode *altmode)
 {
 	struct tcpm_port *port = typec_altmode_get_drvdata(altmode);
+	int svdm_version;
 	u32 header;
 
-	header = VDO(altmode->svid, 1, SVDM_VER_1_0, CMD_EXIT_MODE);
+	svdm_version = typec_get_negotiated_svdm_version(port->typec_port);
+	if (svdm_version < 0)
+		return svdm_version;
+
+	header = VDO(altmode->svid, 1, svdm_version, CMD_EXIT_MODE);
 	header |= VDO_OPOS(altmode->mode);
 
 	tcpm_queue_vdm_unlocked(port, header, NULL, 0);
@@ -6076,6 +6126,7 @@ struct tcpm_port *tcpm_register_port(struct device *dev, struct tcpc_dev *tcpc)
 	port->typec_caps.fwnode = tcpc->fwnode;
 	port->typec_caps.revision = 0x0120;	/* Type-C spec release 1.2 */
 	port->typec_caps.pd_revision = 0x0300;	/* USB-PD spec release 3.0 */
+	port->typec_caps.svdm_version = SVDM_VER_2_0;
 	port->typec_caps.driver_data = port;
 	port->typec_caps.ops = &tcpm_ops;
 	port->typec_caps.orientation_aware = 1;
