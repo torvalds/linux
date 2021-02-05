@@ -1787,6 +1787,40 @@ int kvm_emulate_wrmsr(struct kvm_vcpu *vcpu)
 }
 EXPORT_SYMBOL_GPL(kvm_emulate_wrmsr);
 
+int kvm_emulate_as_nop(struct kvm_vcpu *vcpu)
+{
+	return kvm_skip_emulated_instruction(vcpu);
+}
+EXPORT_SYMBOL_GPL(kvm_emulate_as_nop);
+
+int kvm_emulate_invd(struct kvm_vcpu *vcpu)
+{
+	/* Treat an INVD instruction as a NOP and just skip it. */
+	return kvm_emulate_as_nop(vcpu);
+}
+EXPORT_SYMBOL_GPL(kvm_emulate_invd);
+
+int kvm_emulate_mwait(struct kvm_vcpu *vcpu)
+{
+	pr_warn_once("kvm: MWAIT instruction emulated as NOP!\n");
+	return kvm_emulate_as_nop(vcpu);
+}
+EXPORT_SYMBOL_GPL(kvm_emulate_mwait);
+
+int kvm_handle_invalid_op(struct kvm_vcpu *vcpu)
+{
+	kvm_queue_exception(vcpu, UD_VECTOR);
+	return 1;
+}
+EXPORT_SYMBOL_GPL(kvm_handle_invalid_op);
+
+int kvm_emulate_monitor(struct kvm_vcpu *vcpu)
+{
+	pr_warn_once("kvm: MONITOR instruction emulated as NOP!\n");
+	return kvm_emulate_as_nop(vcpu);
+}
+EXPORT_SYMBOL_GPL(kvm_emulate_monitor);
+
 static inline bool kvm_vcpu_exit_request(struct kvm_vcpu *vcpu)
 {
 	xfer_to_guest_mode_prepare();

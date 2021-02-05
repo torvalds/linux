@@ -2103,21 +2103,6 @@ static int intr_interception(struct kvm_vcpu *vcpu)
 	return 1;
 }
 
-static int nop_on_interception(struct kvm_vcpu *vcpu)
-{
-	return 1;
-}
-
-static int halt_interception(struct kvm_vcpu *vcpu)
-{
-	return kvm_emulate_halt(vcpu);
-}
-
-static int vmmcall_interception(struct kvm_vcpu *vcpu)
-{
-	return kvm_emulate_hypercall(vcpu);
-}
-
 static int vmload_vmsave_interception(struct kvm_vcpu *vcpu, bool vmload)
 {
 	struct vcpu_svm *svm = to_svm(vcpu);
@@ -2339,17 +2324,6 @@ static int skinit_interception(struct kvm_vcpu *vcpu)
 	return 1;
 }
 
-static int wbinvd_interception(struct kvm_vcpu *vcpu)
-{
-	return kvm_emulate_wbinvd(vcpu);
-}
-
-static int rdpru_interception(struct kvm_vcpu *vcpu)
-{
-	kvm_queue_exception(vcpu, UD_VECTOR);
-	return 1;
-}
-
 static int task_switch_interception(struct kvm_vcpu *vcpu)
 {
 	struct vcpu_svm *svm = to_svm(vcpu);
@@ -2415,11 +2389,6 @@ static int task_switch_interception(struct kvm_vcpu *vcpu)
 			       has_error_code, error_code);
 }
 
-static int cpuid_interception(struct kvm_vcpu *vcpu)
-{
-	return kvm_emulate_cpuid(vcpu);
-}
-
 static int iret_interception(struct kvm_vcpu *vcpu)
 {
 	struct vcpu_svm *svm = to_svm(vcpu);
@@ -2432,12 +2401,6 @@ static int iret_interception(struct kvm_vcpu *vcpu)
 	}
 	kvm_make_request(KVM_REQ_EVENT, vcpu);
 	return 1;
-}
-
-static int invd_interception(struct kvm_vcpu *vcpu)
-{
-	/* Treat an INVD instruction as a NOP and just skip it. */
-	return kvm_skip_emulated_instruction(vcpu);
 }
 
 static int invlpg_interception(struct kvm_vcpu *vcpu)
@@ -2806,11 +2769,6 @@ static int svm_complete_emulated_msr(struct kvm_vcpu *vcpu, int err)
 	return 1;
 }
 
-static int rdmsr_interception(struct kvm_vcpu *vcpu)
-{
-	return kvm_emulate_rdmsr(vcpu);
-}
-
 static int svm_set_vm_cr(struct kvm_vcpu *vcpu, u64 data)
 {
 	struct vcpu_svm *svm = to_svm(vcpu);
@@ -2994,17 +2952,12 @@ static int svm_set_msr(struct kvm_vcpu *vcpu, struct msr_data *msr)
 	return 0;
 }
 
-static int wrmsr_interception(struct kvm_vcpu *vcpu)
-{
-	return kvm_emulate_wrmsr(vcpu);
-}
-
 static int msr_interception(struct kvm_vcpu *vcpu)
 {
 	if (to_svm(vcpu)->vmcb->control.exit_info_1)
-		return wrmsr_interception(vcpu);
+		return kvm_emulate_wrmsr(vcpu);
 	else
-		return rdmsr_interception(vcpu);
+		return kvm_emulate_rdmsr(vcpu);
 }
 
 static int interrupt_window_interception(struct kvm_vcpu *vcpu)
@@ -3039,23 +2992,6 @@ static int pause_interception(struct kvm_vcpu *vcpu)
 
 	kvm_vcpu_on_spin(vcpu, in_kernel);
 	return 1;
-}
-
-static int nop_interception(struct kvm_vcpu *vcpu)
-{
-	return kvm_skip_emulated_instruction(vcpu);
-}
-
-static int monitor_interception(struct kvm_vcpu *vcpu)
-{
-	printk_once(KERN_WARNING "kvm: MONITOR instruction emulated as NOP!\n");
-	return nop_interception(vcpu);
-}
-
-static int mwait_interception(struct kvm_vcpu *vcpu)
-{
-	printk_once(KERN_WARNING "kvm: MWAIT instruction emulated as NOP!\n");
-	return nop_interception(vcpu);
 }
 
 static int invpcid_interception(struct kvm_vcpu *vcpu)
@@ -3120,15 +3056,15 @@ static int (*const svm_exit_handlers[])(struct kvm_vcpu *vcpu) = {
 	[SVM_EXIT_EXCP_BASE + GP_VECTOR]	= gp_interception,
 	[SVM_EXIT_INTR]				= intr_interception,
 	[SVM_EXIT_NMI]				= nmi_interception,
-	[SVM_EXIT_SMI]				= nop_on_interception,
-	[SVM_EXIT_INIT]				= nop_on_interception,
+	[SVM_EXIT_SMI]				= kvm_emulate_as_nop,
+	[SVM_EXIT_INIT]				= kvm_emulate_as_nop,
 	[SVM_EXIT_VINTR]			= interrupt_window_interception,
 	[SVM_EXIT_RDPMC]			= rdpmc_interception,
-	[SVM_EXIT_CPUID]			= cpuid_interception,
+	[SVM_EXIT_CPUID]			= kvm_emulate_cpuid,
 	[SVM_EXIT_IRET]                         = iret_interception,
-	[SVM_EXIT_INVD]                         = invd_interception,
+	[SVM_EXIT_INVD]                         = kvm_emulate_invd,
 	[SVM_EXIT_PAUSE]			= pause_interception,
-	[SVM_EXIT_HLT]				= halt_interception,
+	[SVM_EXIT_HLT]				= kvm_emulate_halt,
 	[SVM_EXIT_INVLPG]			= invlpg_interception,
 	[SVM_EXIT_INVLPGA]			= invlpga_interception,
 	[SVM_EXIT_IOIO]				= io_interception,
@@ -3136,17 +3072,17 @@ static int (*const svm_exit_handlers[])(struct kvm_vcpu *vcpu) = {
 	[SVM_EXIT_TASK_SWITCH]			= task_switch_interception,
 	[SVM_EXIT_SHUTDOWN]			= shutdown_interception,
 	[SVM_EXIT_VMRUN]			= vmrun_interception,
-	[SVM_EXIT_VMMCALL]			= vmmcall_interception,
+	[SVM_EXIT_VMMCALL]			= kvm_emulate_hypercall,
 	[SVM_EXIT_VMLOAD]			= vmload_interception,
 	[SVM_EXIT_VMSAVE]			= vmsave_interception,
 	[SVM_EXIT_STGI]				= stgi_interception,
 	[SVM_EXIT_CLGI]				= clgi_interception,
 	[SVM_EXIT_SKINIT]			= skinit_interception,
-	[SVM_EXIT_WBINVD]                       = wbinvd_interception,
-	[SVM_EXIT_MONITOR]			= monitor_interception,
-	[SVM_EXIT_MWAIT]			= mwait_interception,
+	[SVM_EXIT_WBINVD]                       = kvm_emulate_wbinvd,
+	[SVM_EXIT_MONITOR]			= kvm_emulate_monitor,
+	[SVM_EXIT_MWAIT]			= kvm_emulate_mwait,
 	[SVM_EXIT_XSETBV]			= kvm_emulate_xsetbv,
-	[SVM_EXIT_RDPRU]			= rdpru_interception,
+	[SVM_EXIT_RDPRU]			= kvm_handle_invalid_op,
 	[SVM_EXIT_EFER_WRITE_TRAP]		= efer_trap,
 	[SVM_EXIT_CR0_WRITE_TRAP]		= cr_trap,
 	[SVM_EXIT_CR4_WRITE_TRAP]		= cr_trap,
@@ -3309,7 +3245,7 @@ int svm_invoke_exit_handler(struct kvm_vcpu *vcpu, u64 exit_code)
 	else if (exit_code == SVM_EXIT_INTR)
 		return intr_interception(vcpu);
 	else if (exit_code == SVM_EXIT_HLT)
-		return halt_interception(vcpu);
+		return kvm_emulate_halt(vcpu);
 	else if (exit_code == SVM_EXIT_NPF)
 		return npf_interception(vcpu);
 #endif
