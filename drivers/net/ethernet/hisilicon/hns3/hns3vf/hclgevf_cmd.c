@@ -342,6 +342,15 @@ static void hclgevf_parse_capability(struct hclgevf_dev *hdev,
 		set_bit(HNAE3_DEV_SUPPORT_UDP_TUNNEL_CSUM_B, ae_dev->caps);
 }
 
+static __le32 hclgevf_build_api_caps(void)
+{
+	u32 api_caps = 0;
+
+	hnae3_set_bit(api_caps, HCLGEVF_API_CAP_FLEX_RSS_TBL_B, 1);
+
+	return cpu_to_le32(api_caps);
+}
+
 static int hclgevf_cmd_query_version_and_capability(struct hclgevf_dev *hdev)
 {
 	struct hnae3_ae_dev *ae_dev = pci_get_drvdata(hdev->pdev);
@@ -352,6 +361,7 @@ static int hclgevf_cmd_query_version_and_capability(struct hclgevf_dev *hdev)
 	resp = (struct hclgevf_query_version_cmd *)desc.data;
 
 	hclgevf_cmd_setup_basic_desc(&desc, HCLGEVF_OPC_QUERY_FW_VER, 1);
+	resp->api_caps = hclgevf_build_api_caps();
 	status = hclgevf_cmd_send(&hdev->hw, &desc, 1);
 	if (status)
 		return status;

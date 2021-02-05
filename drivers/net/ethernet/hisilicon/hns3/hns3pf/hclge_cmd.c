@@ -363,6 +363,15 @@ static void hclge_parse_capability(struct hclge_dev *hdev,
 		set_bit(HNAE3_DEV_SUPPORT_FD_FORWARD_TC_B, ae_dev->caps);
 }
 
+static __le32 hclge_build_api_caps(void)
+{
+	u32 api_caps = 0;
+
+	hnae3_set_bit(api_caps, HCLGE_API_CAP_FLEX_RSS_TBL_B, 1);
+
+	return cpu_to_le32(api_caps);
+}
+
 static enum hclge_cmd_status
 hclge_cmd_query_version_and_capability(struct hclge_dev *hdev)
 {
@@ -373,6 +382,7 @@ hclge_cmd_query_version_and_capability(struct hclge_dev *hdev)
 
 	hclge_cmd_setup_basic_desc(&desc, HCLGE_OPC_QUERY_FW_VER, 1);
 	resp = (struct hclge_query_version_cmd *)desc.data;
+	resp->api_caps = hclge_build_api_caps();
 
 	ret = hclge_cmd_send(&hdev->hw, &desc, 1);
 	if (ret)

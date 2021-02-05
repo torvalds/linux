@@ -386,11 +386,15 @@ enum HCLGE_CAP_BITS {
 	HCLGE_CAP_UDP_TUNNEL_CSUM_B,
 };
 
+enum HCLGE_API_CAP_BITS {
+	HCLGE_API_CAP_FLEX_RSS_TBL_B,
+};
+
 #define HCLGE_QUERY_CAP_LENGTH		3
 struct hclge_query_version_cmd {
 	__le32 firmware;
 	__le32 hardware;
-	__le32 rsv;
+	__le32 api_caps;
 	__le32 caps[HCLGE_QUERY_CAP_LENGTH]; /* capabilities of device */
 };
 
