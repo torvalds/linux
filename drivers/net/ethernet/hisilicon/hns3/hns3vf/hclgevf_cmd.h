@@ -296,7 +296,8 @@ struct hclgevf_dev_specs_0_cmd {
 #define HCLGEVF_DEF_MAX_INT_GL		0x1FE0U
 
 struct hclgevf_dev_specs_1_cmd {
-	__le32 rsv0;
+	__le16 max_frm_size;
+	__le16 rsv0;
 	__le16 max_int_gl;
 	u8 rsv1[18];
 };

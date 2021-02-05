@@ -1371,6 +1371,7 @@ static void hclge_set_default_dev_specs(struct hclge_dev *hdev)
 	ae_dev->dev_specs.rss_key_size = HCLGE_RSS_KEY_SIZE;
 	ae_dev->dev_specs.max_tm_rate = HCLGE_ETHER_MAX_RATE;
 	ae_dev->dev_specs.max_int_gl = HCLGE_DEF_MAX_INT_GL;
+	ae_dev->dev_specs.max_frm_size = HCLGE_MAC_MAX_FRAME;
 }
 
 static void hclge_parse_dev_specs(struct hclge_dev *hdev,
@@ -1390,6 +1391,7 @@ static void hclge_parse_dev_specs(struct hclge_dev *hdev,
 	ae_dev->dev_specs.rss_key_size = le16_to_cpu(req0->rss_key_size);
 	ae_dev->dev_specs.max_tm_rate = le32_to_cpu(req0->max_tm_rate);
 	ae_dev->dev_specs.max_int_gl = le16_to_cpu(req1->max_int_gl);
+	ae_dev->dev_specs.max_frm_size = le16_to_cpu(req1->max_frm_size);
 }
 
 static void hclge_check_dev_specs(struct hclge_dev *hdev)
@@ -1406,6 +1408,8 @@ static void hclge_check_dev_specs(struct hclge_dev *hdev)
 		dev_specs->max_tm_rate = HCLGE_ETHER_MAX_RATE;
 	if (!dev_specs->max_int_gl)
 		dev_specs->max_int_gl = HCLGE_DEF_MAX_INT_GL;
+	if (!dev_specs->max_frm_size)
+		dev_specs->max_frm_size = HCLGE_MAC_MAX_FRAME;
 }
 
 static int hclge_query_dev_specs(struct hclge_dev *hdev)
@@ -9673,7 +9677,7 @@ int hclge_set_vport_mtu(struct hclge_vport *vport, int new_mtu)
 	/* HW supprt 2 layer vlan */
 	max_frm_size = new_mtu + ETH_HLEN + ETH_FCS_LEN + 2 * VLAN_HLEN;
 	if (max_frm_size < HCLGE_MAC_MIN_FRAME ||
-	    max_frm_size > HCLGE_MAC_MAX_FRAME)
+	    max_frm_size > hdev->ae_dev->dev_specs.max_frm_size)
 		return -EINVAL;
 
 	max_frm_size = max(max_frm_size, HCLGE_MAC_DEFAULT_FRAME);
