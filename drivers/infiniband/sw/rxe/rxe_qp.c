@@ -62,7 +62,7 @@ int rxe_qp_chk_init(struct rxe_dev *rxe, struct ib_qp_init_attr *init)
 	struct rxe_port *port;
 	int port_num = init->port_num;
 
-	switch(init->qp_type) {
+	switch (init->qp_type) {
 	case IB_QPT_SMI:
 	case IB_QPT_GSI:
 	case IB_QPT_RC:
