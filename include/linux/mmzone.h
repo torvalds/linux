@@ -40,6 +40,8 @@
  */
 #define PAGE_ALLOC_COSTLY_ORDER 3
 
+#define MAX_KSWAPD_THREADS 16
+
 enum migratetype {
 	MIGRATE_UNMOVABLE,
 	MIGRATE_MOVABLE,
@@ -1249,6 +1251,7 @@ typedef struct pglist_data {
 	struct mutex kswapd_lock;
 #endif
 	struct task_struct *kswapd;	/* Protected by kswapd_lock */
+	struct task_struct *mkswapd[MAX_KSWAPD_THREADS];
 	int kswapd_order;
 	enum zone_type kswapd_highest_zoneidx;
 
