@@ -149,7 +149,6 @@
 #define QM_RAS_CE_TIMES_PER_IRQ		1
 #define QM_RAS_MSI_INT_SEL		0x1040f4
 
-#define QM_DEV_RESET_FLAG		0
 #define QM_RESET_WAIT_TIMEOUT		400
 #define QM_PEH_VENDOR_ID		0x1000d8
 #define ACC_VENDOR_ID_VALUE		0x5a5a
@@ -186,6 +185,10 @@
 #define REMOVE_WAIT_DELAY		10
 #define QM_SQE_ADDR_MASK		GENMASK(7, 0)
 #define QM_EQ_DEPTH			(1024 * 2)
+
+#define QM_DRIVER_REMOVING		0
+#define QM_RST_SCHED			1
+#define QM_RESETTING			2
 
 #define QM_MK_CQC_DW3_V1(hop_num, pg_sz, buf_sz, cqe_sz) \
 	(((hop_num) << QM_CQ_HOP_NUM_SHIFT)	| \
@@ -2261,17 +2264,15 @@ static int qm_alloc_uacce(struct hisi_qm *qm)
  */
 static int qm_frozen(struct hisi_qm *qm)
 {
-	down_write(&qm->qps_lock);
-
-	if (qm->is_frozen) {
-		up_write(&qm->qps_lock);
+	if (test_bit(QM_DRIVER_REMOVING, &qm->misc_ctl))
 		return 0;
-	}
+
+	down_write(&qm->qps_lock);
 
 	if (!qm->qp_in_used) {
 		qm->qp_in_used = qm->qp_num;
-		qm->is_frozen = true;
 		up_write(&qm->qps_lock);
+		set_bit(QM_DRIVER_REMOVING, &qm->misc_ctl);
 		return 0;
 	}
 
@@ -2323,6 +2324,10 @@ void hisi_qm_wait_task_finish(struct hisi_qm *qm, struct hisi_qm_list *qm_list)
 	       qm_try_frozen_vfs(qm->pdev, qm_list))) {
 		msleep(WAIT_PERIOD);
 	}
+
+	while (test_bit(QM_RST_SCHED, &qm->misc_ctl) ||
+	       test_bit(QM_RESETTING, &qm->misc_ctl))
+		msleep(WAIT_PERIOD);
 
 	udelay(REMOVE_WAIT_DELAY);
 }
@@ -2452,7 +2457,7 @@ static void hisi_qm_pre_init(struct hisi_qm *qm)
 	mutex_init(&qm->mailbox_lock);
 	init_rwsem(&qm->qps_lock);
 	qm->qp_in_used = 0;
-	qm->is_frozen = false;
+	qm->misc_ctl = false;
 }
 
 static void hisi_qm_pci_uninit(struct hisi_qm *qm)
@@ -3263,7 +3268,7 @@ EXPORT_SYMBOL_GPL(hisi_qm_sriov_disable);
 int hisi_qm_sriov_configure(struct pci_dev *pdev, int num_vfs)
 {
 	if (num_vfs == 0)
-		return hisi_qm_sriov_disable(pdev, 0);
+		return hisi_qm_sriov_disable(pdev, false);
 	else
 		return hisi_qm_sriov_enable(pdev, num_vfs);
 }
@@ -3480,7 +3485,7 @@ static int qm_reset_prepare_ready(struct hisi_qm *qm)
 	int delay = 0;
 
 	/* All reset requests need to be queued for processing */
-	while (test_and_set_bit(QM_DEV_RESET_FLAG, &pf_qm->reset_flag)) {
+	while (test_and_set_bit(QM_RESETTING, &pf_qm->misc_ctl)) {
 		msleep(++delay);
 		if (delay > QM_RESET_WAIT_TIMEOUT)
 			return -EBUSY;
@@ -3504,6 +3509,7 @@ static int qm_controller_reset_prepare(struct hisi_qm *qm)
 		ret = qm_vf_reset_prepare(qm, QM_SOFT_RESET);
 		if (ret) {
 			pci_err(pdev, "Fails to stop VFs!\n");
+			clear_bit(QM_RESETTING, &qm->misc_ctl);
 			return ret;
 		}
 	}
@@ -3511,8 +3517,11 @@ static int qm_controller_reset_prepare(struct hisi_qm *qm)
 	ret = hisi_qm_stop(qm, QM_SOFT_RESET);
 	if (ret) {
 		pci_err(pdev, "Fails to stop QM!\n");
+		clear_bit(QM_RESETTING, &qm->misc_ctl);
 		return ret;
 	}
+
+	clear_bit(QM_RST_SCHED, &qm->misc_ctl);
 
 	return 0;
 }
@@ -3751,7 +3760,7 @@ static int qm_controller_reset_done(struct hisi_qm *qm)
 	hisi_qm_dev_err_init(qm);
 	qm_restart_done(qm);
 
-	clear_bit(QM_DEV_RESET_FLAG, &qm->reset_flag);
+	clear_bit(QM_RESETTING, &qm->misc_ctl);
 
 	return 0;
 }
@@ -3764,18 +3773,23 @@ static int qm_controller_reset(struct hisi_qm *qm)
 	pci_info(pdev, "Controller resetting...\n");
 
 	ret = qm_controller_reset_prepare(qm);
-	if (ret)
+	if (ret) {
+		clear_bit(QM_RST_SCHED, &qm->misc_ctl);
 		return ret;
+	}
 
 	ret = qm_soft_reset(qm);
 	if (ret) {
 		pci_err(pdev, "Controller reset failed (%d)\n", ret);
+		clear_bit(QM_RESETTING, &qm->misc_ctl);
 		return ret;
 	}
 
 	ret = qm_controller_reset_done(qm);
-	if (ret)
+	if (ret) {
+		clear_bit(QM_RESETTING, &qm->misc_ctl);
 		return ret;
+	}
 
 	pci_info(pdev, "Controller reset complete\n");
 
@@ -3882,8 +3896,6 @@ static bool qm_flr_reset_complete(struct pci_dev *pdev)
 		return false;
 	}
 
-	clear_bit(QM_DEV_RESET_FLAG, &qm->reset_flag);
-
 	return true;
 }
 
@@ -3927,6 +3939,8 @@ void hisi_qm_reset_done(struct pci_dev *pdev)
 flr_done:
 	if (qm_flr_reset_complete(pdev))
 		pci_info(pdev, "FLR reset complete\n");
+
+	clear_bit(QM_RESETTING, &qm->misc_ctl);
 }
 EXPORT_SYMBOL_GPL(hisi_qm_reset_done);
 
@@ -3937,7 +3951,9 @@ static irqreturn_t qm_abnormal_irq(int irq, void *data)
 
 	atomic64_inc(&qm->debug.dfx.abnormal_irq_cnt);
 	ret = qm_process_dev_error(qm);
-	if (ret == ACC_ERR_NEED_RESET)
+	if (ret == ACC_ERR_NEED_RESET &&
+	    !test_bit(QM_DRIVER_REMOVING, &qm->misc_ctl) &&
+	    !test_and_set_bit(QM_RST_SCHED, &qm->misc_ctl))
 		schedule_work(&qm->rst_work);
 
 	return IRQ_HANDLED;

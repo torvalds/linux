@@ -230,7 +230,7 @@ struct hisi_qm {
 	struct hisi_qm_status status;
 	const struct hisi_qm_err_ini *err_ini;
 	struct hisi_qm_err_status err_status;
-	unsigned long reset_flag;
+	unsigned long misc_ctl; /* driver removing and reset sched */
 
 	struct rw_semaphore qps_lock;
 	struct idr qp_idr;

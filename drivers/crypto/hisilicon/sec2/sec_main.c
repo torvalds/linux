@@ -949,7 +949,7 @@ static void sec_remove(struct pci_dev *pdev)
 	hisi_qm_wait_task_finish(qm, &sec_devices);
 	hisi_qm_alg_unregister(qm, &sec_devices);
 	if (qm->fun_type == QM_HW_PF && qm->vfs_num)
-		hisi_qm_sriov_disable(pdev, qm->is_frozen);
+		hisi_qm_sriov_disable(pdev, true);
 
 	sec_debugfs_exit(qm);
 

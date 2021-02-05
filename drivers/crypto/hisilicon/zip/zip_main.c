@@ -901,7 +901,7 @@ static void hisi_zip_remove(struct pci_dev *pdev)
 	hisi_qm_alg_unregister(qm, &zip_devices);
 
 	if (qm->fun_type == QM_HW_PF && qm->vfs_num)
-		hisi_qm_sriov_disable(pdev, qm->is_frozen);
+		hisi_qm_sriov_disable(pdev, true);
 
 	hisi_zip_debugfs_exit(qm);
 	hisi_qm_stop(qm, QM_NORMAL);
