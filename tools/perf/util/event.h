@@ -173,6 +173,7 @@ enum perf_synth_id {
 	PERF_SYNTH_INTEL_EXSTOP,
 	PERF_SYNTH_INTEL_PWRX,
 	PERF_SYNTH_INTEL_CBR,
+	PERF_SYNTH_INTEL_PSB,
 };
 
 /*
@@ -263,6 +264,12 @@ struct perf_synth_intel_cbr {
 	};
 	u32 freq;
 	u32 reserved3;
+};
+
+struct perf_synth_intel_psb {
+	u32 padding;
+	u32 reserved;
+	u64 offset;
 };
 
 /*

@@ -108,6 +108,7 @@ struct intel_pt {
 	u64 exstop_id;
 	u64 pwrx_id;
 	u64 cbr_id;
+	u64 psb_id;
 
 	bool sample_pebs;
 	struct evsel *pebs_evsel;
@@ -1548,6 +1549,32 @@ static int intel_pt_synth_cbr_sample(struct intel_pt_queue *ptq)
 					    pt->pwr_events_sample_type);
 }
 
+static int intel_pt_synth_psb_sample(struct intel_pt_queue *ptq)
+{
+	struct intel_pt *pt = ptq->pt;
+	union perf_event *event = ptq->event_buf;
+	struct perf_sample sample = { .ip = 0, };
+	struct perf_synth_intel_psb raw;
+
+	if (intel_pt_skip_event(pt))
+		return 0;
+
+	intel_pt_prep_p_sample(pt, ptq, event, &sample);
+
+	sample.id = ptq->pt->psb_id;
+	sample.stream_id = ptq->pt->psb_id;
+	sample.flags = 0;
+
+	raw.reserved = 0;
+	raw.offset = ptq->state->psb_offset;
+
+	sample.raw_size = perf_synth__raw_size(raw);
+	sample.raw_data = perf_synth__raw_data(&raw);
+
+	return intel_pt_deliver_synth_event(pt, event, &sample,
+					    pt->pwr_events_sample_type);
+}
+
 static int intel_pt_synth_mwait_sample(struct intel_pt_queue *ptq)
 {
 	struct intel_pt *pt = ptq->pt;
@@ -2012,6 +2039,11 @@ static int intel_pt_sample(struct intel_pt_queue *ptq)
 	}
 
 	if (pt->sample_pwr_events) {
+		if (state->type & INTEL_PT_PSB_EVT) {
+			err = intel_pt_synth_psb_sample(ptq);
+			if (err)
+				return err;
+		}
 		if (ptq->state->cbr != ptq->cbr_seen) {
 			err = intel_pt_synth_cbr_sample(ptq);
 			if (err)
@@ -3108,6 +3140,14 @@ static int intel_pt_synth_events(struct intel_pt *pt,
 			return err;
 		pt->cbr_id = id;
 		intel_pt_set_event_name(evlist, id, "cbr");
+		id += 1;
+
+		attr.config = PERF_SYNTH_INTEL_PSB;
+		err = intel_pt_synth_event(session, "psb", &attr, id);
+		if (err)
+			return err;
+		pt->psb_id = id;
+		intel_pt_set_event_name(evlist, id, "psb");
 		id += 1;
 	}
 

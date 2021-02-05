@@ -858,7 +858,7 @@ The letters are:
 	b	synthesize "branches" events
 	x	synthesize "transactions" events
 	w	synthesize "ptwrite" events
-	p	synthesize "power" events
+	p	synthesize "power" events (incl. PSB events)
 	c	synthesize branches events (calls only)
 	r	synthesize branches events (returns only)
 	e	synthesize tracing error events
@@ -912,6 +912,11 @@ Where:
 	"pwrx" indicates return to C0
 For more details refer to the Intel 64 and IA-32 Architectures Software
 Developer Manuals.
+
+PSB events show when a PSB+ occurred and also the byte-offset in the trace.
+Emitting a PSB+ can cause a CPU a slight delay. When doing timing analysis
+of code with Intel PT, it is useful to know if a timing bubble was caused
+by Intel PT or not.
 
 Error events show where the decoder lost the trace.  Error events
 are quite important.  Users must know if what they are seeing is a complete

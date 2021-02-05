@@ -32,6 +32,7 @@ enum intel_pt_sample_type {
 	INTEL_PT_TRACE_BEGIN	= 1 << 9,
 	INTEL_PT_TRACE_END	= 1 << 10,
 	INTEL_PT_BLK_ITEMS	= 1 << 11,
+	INTEL_PT_PSB_EVT	= 1 << 12,
 };
 
 enum intel_pt_period_type {
@@ -214,6 +215,7 @@ struct intel_pt_state {
 	uint64_t pwre_payload;
 	uint64_t pwrx_payload;
 	uint64_t cbr_payload;
+	uint64_t psb_offset;
 	uint32_t cbr;
 	uint32_t flags;
 	enum intel_pt_insn_op insn_op;

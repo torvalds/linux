@@ -1766,6 +1766,18 @@ static int perf_sample__fprintf_synth_cbr(struct perf_sample *sample, FILE *fp)
 	return len + perf_sample__fprintf_pt_spacing(len, fp);
 }
 
+static int perf_sample__fprintf_synth_psb(struct perf_sample *sample, FILE *fp)
+{
+	struct perf_synth_intel_psb *data = perf_sample__synth_ptr(sample);
+	int len;
+
+	if (perf_sample__bad_synth_size(sample, *data))
+		return 0;
+
+	len = fprintf(fp, " psb offs: %#" PRIx64, data->offset);
+	return len + perf_sample__fprintf_pt_spacing(len, fp);
+}
+
 static int perf_sample__fprintf_synth(struct perf_sample *sample,
 				      struct evsel *evsel, FILE *fp)
 {
@@ -1782,6 +1794,8 @@ static int perf_sample__fprintf_synth(struct perf_sample *sample,
 		return perf_sample__fprintf_synth_pwrx(sample, fp);
 	case PERF_SYNTH_INTEL_CBR:
 		return perf_sample__fprintf_synth_cbr(sample, fp);
+	case PERF_SYNTH_INTEL_PSB:
+		return perf_sample__fprintf_synth_psb(sample, fp);
 	default:
 		break;
 	}
