@@ -74,7 +74,8 @@ early_initcall(vdso_getcpu_init); /* Must be called before SMP init */
 
 int arch_setup_additional_pages(struct linux_binprm *bprm, int uses_interp)
 {
-	unsigned long addr, vdso_text_start, vdso_text_len, vdso_mapping_len;
+	unsigned long vdso_text_len, vdso_mapping_len;
+	unsigned long vvar_start, vdso_text_start;
 	struct mm_struct *mm = current->mm;
 	struct vm_area_struct *vma;
 	int rc;
@@ -85,25 +86,24 @@ int arch_setup_additional_pages(struct linux_binprm *bprm, int uses_interp)
 		return -EINTR;
 	vdso_text_len = vdso_pages << PAGE_SHIFT;
 	vdso_mapping_len = vdso_text_len + PAGE_SIZE;
-	addr = get_unmapped_area(NULL, 0, vdso_mapping_len, 0, 0);
-	rc = addr;
-	if (IS_ERR_VALUE(addr))
+	vvar_start = get_unmapped_area(NULL, 0, vdso_mapping_len, 0, 0);
+	rc = vvar_start;
+	if (IS_ERR_VALUE(vvar_start))
 		goto out;
-	/* VM_MAYWRITE for COW so gdb can set breakpoints */
-	vdso_text_start = addr;
-	vma = _install_special_mapping(mm, addr, vdso_text_len,
-				       VM_READ|VM_EXEC|
-				       VM_MAYREAD|VM_MAYWRITE|VM_MAYEXEC,
-				       &vdso_mapping);
+	vma = _install_special_mapping(mm, vvar_start, PAGE_SIZE,
+				       VM_READ|VM_MAYREAD|VM_PFNMAP,
+				       &vvar_mapping);
 	rc = PTR_ERR(vma);
 	if (IS_ERR(vma))
 		goto out;
-	addr += vdso_text_len;
-	vma = _install_special_mapping(mm, addr, PAGE_SIZE,
-				       VM_READ|VM_MAYREAD|VM_PFNMAP,
-				       &vvar_mapping);
+	vdso_text_start = vvar_start + PAGE_SIZE;
+	/* VM_MAYWRITE for COW so gdb can set breakpoints */
+	vma = _install_special_mapping(mm, vdso_text_start, vdso_text_len,
+				       VM_READ|VM_EXEC|
+				       VM_MAYREAD|VM_MAYWRITE|VM_MAYEXEC,
+				       &vdso_mapping);
 	if (IS_ERR(vma)) {
-		do_munmap(mm, vdso_text_start, vdso_text_len, NULL);
+		do_munmap(mm, vvar_start, PAGE_SIZE, NULL);
 		rc = PTR_ERR(vma);
 	} else {
 		current->mm->context.vdso_base = vdso_text_start;
