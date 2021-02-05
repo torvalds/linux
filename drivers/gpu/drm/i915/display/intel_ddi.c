@@ -1898,9 +1898,6 @@ void intel_ddi_clk_select(struct intel_encoder *encoder,
 
 		intel_de_write(dev_priv, DPLL_CTRL2, val);
 
-	} else if (INTEL_GEN(dev_priv) < 9) {
-		intel_de_write(dev_priv, PORT_CLK_SEL(port),
-			       hsw_pll_to_ddi_pll_sel(pll));
 	}
 
 	mutex_unlock(&dev_priv->dpll.lock);
@@ -1923,10 +1920,28 @@ static void intel_ddi_clk_disable(struct intel_encoder *encoder)
 	} else if (IS_GEN9_BC(dev_priv)) {
 		intel_de_write(dev_priv, DPLL_CTRL2,
 			       intel_de_read(dev_priv, DPLL_CTRL2) | DPLL_CTRL2_DDI_CLK_OFF(port));
-	} else if (INTEL_GEN(dev_priv) < 9) {
-		intel_de_write(dev_priv, PORT_CLK_SEL(port),
-			       PORT_CLK_SEL_NONE);
 	}
+}
+
+void hsw_ddi_enable_clock(struct intel_encoder *encoder,
+			  const struct intel_crtc_state *crtc_state)
+{
+	struct drm_i915_private *i915 = to_i915(encoder->base.dev);
+	const struct intel_shared_dpll *pll = crtc_state->shared_dpll;
+	enum port port = encoder->port;
+
+	if (drm_WARN_ON(&i915->drm, !pll))
+		return;
+
+	intel_de_write(i915, PORT_CLK_SEL(port), hsw_pll_to_ddi_pll_sel(pll));
+}
+
+void hsw_ddi_disable_clock(struct intel_encoder *encoder)
+{
+	struct drm_i915_private *i915 = to_i915(encoder->base.dev);
+	enum port port = encoder->port;
+
+	intel_de_write(i915, PORT_CLK_SEL(port), PORT_CLK_SEL_NONE);
 }
 
 void intel_ddi_enable_clock(struct intel_encoder *encoder,
@@ -4082,6 +4097,11 @@ void intel_ddi_init(struct drm_i915_private *dev_priv, enum port port)
 	encoder->port = port;
 	encoder->cloneable = 0;
 	encoder->pipe_mask = ~0;
+
+	if (IS_BROADWELL(dev_priv) || IS_HASWELL(dev_priv)) {
+		encoder->enable_clock = hsw_ddi_enable_clock;
+		encoder->disable_clock = hsw_ddi_disable_clock;
+	}
 
 	if (IS_DG1(dev_priv))
 		encoder->hpd_pin = dg1_hpd_pin(dev_priv, port);

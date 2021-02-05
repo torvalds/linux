@@ -30,6 +30,9 @@ void intel_ddi_fdi_post_disable(struct intel_atomic_state *state,
 				const struct drm_connector_state *old_conn_state);
 void intel_ddi_enable_clock(struct intel_encoder *encoder,
 			    const struct intel_crtc_state *crtc_state);
+void hsw_ddi_enable_clock(struct intel_encoder *encoder,
+			  const struct intel_crtc_state *crtc_state);
+void hsw_ddi_disable_clock(struct intel_encoder *encoder);
 void intel_prepare_dp_ddi_buffers(struct intel_encoder *encoder,
 				  const struct intel_crtc_state *crtc_state);
 void intel_wait_ddi_buf_idle(struct drm_i915_private *dev_priv,
