@@ -1164,6 +1164,27 @@ ocelot_netdevice_lag_changeupper(struct net_device *dev,
 	return NOTIFY_DONE;
 }
 
+static int
+ocelot_netdevice_changelowerstate(struct net_device *dev,
+				  struct netdev_lag_lower_state_info *info)
+{
+	struct ocelot_port_private *priv = netdev_priv(dev);
+	bool is_active = info->link_up && info->tx_enabled;
+	struct ocelot_port *ocelot_port = &priv->port;
+	struct ocelot *ocelot = ocelot_port->ocelot;
+	int port = priv->chip_port;
+
+	if (!ocelot_port->bond)
+		return NOTIFY_DONE;
+
+	if (ocelot_port->lag_tx_active == is_active)
+		return NOTIFY_DONE;
+
+	ocelot_port_lag_change(ocelot, port, is_active);
+
+	return NOTIFY_OK;
+}
+
 static int ocelot_netdevice_event(struct notifier_block *unused,
 				  unsigned long event, void *ptr)
 {
@@ -1180,6 +1201,15 @@ static int ocelot_netdevice_event(struct notifier_block *unused,
 			return ocelot_netdevice_lag_changeupper(dev, info);
 
 		break;
+	}
+	case NETDEV_CHANGELOWERSTATE: {
+		struct netdev_notifier_changelowerstate_info *info = ptr;
+
+		if (!ocelot_netdevice_dev_check(dev))
+			break;
+
+		return ocelot_netdevice_changelowerstate(dev,
+							 info->lower_state_info);
 	}
 	default:
 		break;

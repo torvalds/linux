@@ -613,6 +613,7 @@ struct ocelot_port {
 	bool				is_dsa_8021q_cpu;
 
 	struct net_device		*bond;
+	bool				lag_tx_active;
 };
 
 struct ocelot {
