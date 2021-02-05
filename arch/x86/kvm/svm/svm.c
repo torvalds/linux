@@ -2118,7 +2118,7 @@ static int vmmcall_interception(struct kvm_vcpu *vcpu)
 	return kvm_emulate_hypercall(vcpu);
 }
 
-static int vmload_interception(struct kvm_vcpu *vcpu)
+static int vmload_vmsave_interception(struct kvm_vcpu *vcpu, bool vmload)
 {
 	struct vcpu_svm *svm = to_svm(vcpu);
 	struct vmcb *vmcb12;
@@ -2139,37 +2139,24 @@ static int vmload_interception(struct kvm_vcpu *vcpu)
 
 	ret = kvm_skip_emulated_instruction(vcpu);
 
-	nested_svm_vmloadsave(vmcb12, svm->vmcb);
+	if (vmload)
+		nested_svm_vmloadsave(vmcb12, svm->vmcb);
+	else
+		nested_svm_vmloadsave(svm->vmcb, vmcb12);
+
 	kvm_vcpu_unmap(vcpu, &map, true);
 
 	return ret;
 }
 
+static int vmload_interception(struct kvm_vcpu *vcpu)
+{
+	return vmload_vmsave_interception(vcpu, true);
+}
+
 static int vmsave_interception(struct kvm_vcpu *vcpu)
 {
-	struct vcpu_svm *svm = to_svm(vcpu);
-	struct vmcb *vmcb12;
-	struct kvm_host_map map;
-	int ret;
-
-	if (nested_svm_check_permissions(vcpu))
-		return 1;
-
-	ret = kvm_vcpu_map(vcpu, gpa_to_gfn(svm->vmcb->save.rax), &map);
-	if (ret) {
-		if (ret == -EINVAL)
-			kvm_inject_gp(vcpu, 0);
-		return 1;
-	}
-
-	vmcb12 = map.hva;
-
-	ret = kvm_skip_emulated_instruction(vcpu);
-
-	nested_svm_vmloadsave(svm->vmcb, vmcb12);
-	kvm_vcpu_unmap(vcpu, &map, true);
-
-	return ret;
+	return vmload_vmsave_interception(vcpu, false);
 }
 
 static int vmrun_interception(struct kvm_vcpu *vcpu)
