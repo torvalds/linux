@@ -1316,11 +1316,15 @@ static void ocelot_setup_lag(struct ocelot *ocelot, int lag)
 }
 
 int ocelot_port_lag_join(struct ocelot *ocelot, int port,
-			 struct net_device *bond)
+			 struct net_device *bond,
+			 struct netdev_lag_upper_info *info)
 {
 	struct net_device *ndev;
 	u32 bond_mask = 0;
 	int lag, lp;
+
+	if (info->tx_type != NETDEV_LAG_TX_TYPE_HASH)
+		return -EOPNOTSUPP;
 
 	rcu_read_lock();
 	for_each_netdev_in_bond_rcu(bond, ndev) {

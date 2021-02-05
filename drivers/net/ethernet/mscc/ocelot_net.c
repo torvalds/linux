@@ -1129,12 +1129,19 @@ static int ocelot_netdevice_changeupper(struct net_device *dev,
 		}
 	}
 	if (netif_is_lag_master(info->upper_dev)) {
-		if (info->linking)
+		if (info->linking) {
 			err = ocelot_port_lag_join(ocelot, port,
-						   info->upper_dev);
-		else
+						   info->upper_dev,
+						   info->upper_info);
+			if (err == -EOPNOTSUPP) {
+				NL_SET_ERR_MSG_MOD(info->info.extack,
+						   "Offloading not supported");
+				err = 0;
+			}
+		} else {
 			ocelot_port_lag_leave(ocelot, port,
 					      info->upper_dev);
+		}
 	}
 
 	return notifier_from_errno(err);
@@ -1163,29 +1170,6 @@ static int ocelot_netdevice_event(struct notifier_block *unused,
 	struct net_device *dev = netdev_notifier_info_to_dev(ptr);
 
 	switch (event) {
-	case NETDEV_PRECHANGEUPPER: {
-		struct netdev_notifier_changeupper_info *info = ptr;
-		struct netdev_lag_upper_info *lag_upper_info;
-		struct netlink_ext_ack *extack;
-
-		if (!ocelot_netdevice_dev_check(dev))
-			break;
-
-		if (!netif_is_lag_master(info->upper_dev))
-			break;
-
-		lag_upper_info = info->upper_info;
-
-		if (lag_upper_info &&
-		    lag_upper_info->tx_type != NETDEV_LAG_TX_TYPE_HASH) {
-			extack = netdev_notifier_info_to_extack(&info->info);
-			NL_SET_ERR_MSG_MOD(extack, "LAG device using unsupported Tx type");
-
-			return notifier_from_errno(-EINVAL);
-		}
-
-		break;
-	}
 	case NETDEV_CHANGEUPPER: {
 		struct netdev_notifier_changeupper_info *info = ptr;
 
