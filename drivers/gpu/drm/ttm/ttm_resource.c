@@ -33,9 +33,6 @@ int ttm_resource_alloc(struct ttm_buffer_object *bo,
 		ttm_manager_type(bo->bdev, res->mem_type);
 
 	res->mm_node = NULL;
-	if (!man->func || !man->func->alloc)
-		return 0;
-
 	return man->func->alloc(man, bo, place, res);
 }
 
@@ -44,9 +41,7 @@ void ttm_resource_free(struct ttm_buffer_object *bo, struct ttm_resource *res)
 	struct ttm_resource_manager *man =
 		ttm_manager_type(bo->bdev, res->mem_type);
 
-	if (man->func && man->func->free)
-		man->func->free(man, res);
-
+	man->func->free(man, res);
 	res->mm_node = NULL;
 	res->mem_type = TTM_PL_SYSTEM;
 }
@@ -139,7 +134,7 @@ void ttm_resource_manager_debug(struct ttm_resource_manager *man,
 	drm_printf(p, "  use_type: %d\n", man->use_type);
 	drm_printf(p, "  use_tt: %d\n", man->use_tt);
 	drm_printf(p, "  size: %llu\n", man->size);
-	if (man->func && man->func->debug)
-		(*man->func->debug)(man, p);
+	if (man->func->debug)
+		man->func->debug(man, p);
 }
 EXPORT_SYMBOL(ttm_resource_manager_debug);
