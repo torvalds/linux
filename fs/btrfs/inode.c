@@ -9993,6 +9993,7 @@ static int btrfs_add_swapfile_pin(struct inode *inode, void *ptr,
 	sp->ptr = ptr;
 	sp->inode = inode;
 	sp->is_block_group = is_block_group;
+	sp->bg_extent_count = 1;
 
 	spin_lock(&fs_info->swapfile_pins_lock);
 	p = &fs_info->swapfile_pins.rb_node;
@@ -10006,6 +10007,8 @@ static int btrfs_add_swapfile_pin(struct inode *inode, void *ptr,
 			   (sp->ptr == entry->ptr && sp->inode > entry->inode)) {
 			p = &(*p)->rb_right;
 		} else {
+			if (is_block_group)
+				entry->bg_extent_count++;
 			spin_unlock(&fs_info->swapfile_pins_lock);
 			kfree(sp);
 			return 1;
@@ -10031,8 +10034,11 @@ static void btrfs_free_swapfile_pins(struct inode *inode)
 		sp = rb_entry(node, struct btrfs_swapfile_pin, node);
 		if (sp->inode == inode) {
 			rb_erase(&sp->node, &fs_info->swapfile_pins);
-			if (sp->is_block_group)
+			if (sp->is_block_group) {
+				btrfs_dec_block_group_swap_extents(sp->ptr,
+							   sp->bg_extent_count);
 				btrfs_put_block_group(sp->ptr);
+			}
 			kfree(sp);
 		}
 		node = next;
@@ -10243,6 +10249,17 @@ static int btrfs_swap_activate(struct swap_info_struct *sis, struct file *file,
 		if (!bg) {
 			btrfs_warn(fs_info,
 			   "could not find block group containing swapfile");
+			ret = -EINVAL;
+			goto out;
+		}
+
+		if (!btrfs_inc_block_group_swap_extents(bg)) {
+			btrfs_warn(fs_info,
+			   "block group for swapfile at %llu is read-only%s",
+			   bg->start,
+			   atomic_read(&fs_info->scrubs_running) ?
+				       " (scrub running)" : "");
+			btrfs_put_block_group(bg);
 			ret = -EINVAL;
 			goto out;
 		}
