@@ -1584,7 +1584,7 @@ struct address_space *page_mapping_file(struct page *page);
  * ALLOC_NO_WATERMARKS and the low watermark was not
  * met implying that the system is under some pressure.
  */
-static inline bool page_is_pfmemalloc(struct page *page)
+static inline bool page_is_pfmemalloc(const struct page *page)
 {
 	/*
 	 * Page index cannot be this large so this must be
