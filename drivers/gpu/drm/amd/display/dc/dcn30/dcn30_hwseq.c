@@ -526,6 +526,8 @@ void dcn30_init_hw(struct dc *dc)
 
 					fe = dc->links[i]->link_enc->funcs->get_dig_frontend(
 										dc->links[i]->link_enc);
+					if (fe == ENGINE_ID_UNKNOWN)
+						continue;
 
 					for (j = 0; j < dc->res_pool->stream_enc_count; j++) {
 						if (fe == dc->res_pool->stream_enc[j]->id) {
