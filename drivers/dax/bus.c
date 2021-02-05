@@ -178,8 +178,12 @@ static int dax_bus_remove(struct device *dev)
 {
 	struct dax_device_driver *dax_drv = to_dax_drv(dev->driver);
 	struct dev_dax *dev_dax = to_dev_dax(dev);
+	int ret = 0;
 
-	return dax_drv->remove(dev_dax);
+	if (dax_drv->remove)
+		ret = dax_drv->remove(dev_dax);
+
+	return ret;
 }
 
 static struct bus_type dax_bus_type = {
