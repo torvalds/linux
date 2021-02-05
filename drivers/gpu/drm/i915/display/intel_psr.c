@@ -32,6 +32,7 @@
 #include "intel_hdmi.h"
 #include "intel_psr.h"
 #include "intel_sprite.h"
+#include "skl_universal_plane.h"
 
 /**
  * DOC: Panel Self Refresh (PSR/SRD)

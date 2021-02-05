@@ -20,6 +20,7 @@
 #include "intel_pipe_crc.h"
 #include "intel_sprite.h"
 #include "i9xx_plane.h"
+#include "skl_universal_plane.h"
 
 static void assert_vblank_disabled(struct drm_crtc *crtc)
 {
@@ -243,7 +244,11 @@ int intel_crtc_init(struct drm_i915_private *dev_priv, enum pipe pipe)
 	crtc->pipe = pipe;
 	crtc->num_scalers = RUNTIME_INFO(dev_priv)->num_scalers[pipe];
 
-	primary = intel_primary_plane_create(dev_priv, pipe);
+	if (INTEL_GEN(dev_priv) >= 9)
+		primary = skl_universal_plane_create(dev_priv, pipe,
+						     PLANE_PRIMARY);
+	else
+		primary = intel_primary_plane_create(dev_priv, pipe);
 	if (IS_ERR(primary)) {
 		ret = PTR_ERR(primary);
 		goto fail;
@@ -253,7 +258,11 @@ int intel_crtc_init(struct drm_i915_private *dev_priv, enum pipe pipe)
 	for_each_sprite(dev_priv, pipe, sprite) {
 		struct intel_plane *plane;
 
-		plane = intel_sprite_plane_create(dev_priv, pipe, sprite);
+		if (INTEL_GEN(dev_priv) >= 9)
+			plane = skl_universal_plane_create(dev_priv, pipe,
+							   PLANE_SPRITE0 + sprite);
+		else
+			plane = intel_sprite_plane_create(dev_priv, pipe, sprite);
 		if (IS_ERR(plane)) {
 			ret = PTR_ERR(plane);
 			goto fail;

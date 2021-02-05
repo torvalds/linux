@@ -743,10 +743,6 @@ intel_primary_plane_create(struct drm_i915_private *dev_priv, enum pipe pipe)
 	int num_formats;
 	int ret, zpos;
 
-	if (INTEL_GEN(dev_priv) >= 9)
-		return skl_universal_plane_create(dev_priv, pipe,
-						  PLANE_PRIMARY);
-
 	plane = intel_plane_alloc();
 	if (IS_ERR(plane))
 		return plane;

@@ -37,6 +37,7 @@
 #include <drm/drm_dp_mst_helper.h>
 #include <drm/drm_encoder.h>
 #include <drm/drm_fb_helper.h>
+#include <drm/drm_fourcc.h>
 #include <drm/drm_probe_helper.h>
 #include <drm/drm_rect.h>
 #include <drm/drm_vblank.h>
@@ -1943,6 +1944,32 @@ static inline u32 intel_fdi_link_freq(struct drm_i915_private *dev_priv,
 		return pipe_config->port_clock; /* SPLL */
 	else
 		return dev_priv->fdi_pll_freq;
+}
+
+static inline bool is_ccs_plane(const struct drm_framebuffer *fb, int plane)
+{
+	if (!is_ccs_modifier(fb->modifier))
+		return false;
+
+	return plane >= fb->format->num_planes / 2;
+}
+
+static inline bool is_gen12_ccs_modifier(u64 modifier)
+{
+	return modifier == I915_FORMAT_MOD_Y_TILED_GEN12_RC_CCS ||
+	       modifier == I915_FORMAT_MOD_Y_TILED_GEN12_RC_CCS_CC ||
+	       modifier == I915_FORMAT_MOD_Y_TILED_GEN12_MC_CCS;
+}
+
+static inline bool is_gen12_ccs_plane(const struct drm_framebuffer *fb, int plane)
+{
+	return is_gen12_ccs_modifier(fb->modifier) && is_ccs_plane(fb, plane);
+}
+
+static inline bool is_gen12_ccs_cc_plane(const struct drm_framebuffer *fb, int plane)
+{
+	return fb->modifier == I915_FORMAT_MOD_Y_TILED_GEN12_RC_CCS_CC &&
+	       plane == 2;
 }
 
 #endif /*  __INTEL_DISPLAY_TYPES_H__ */

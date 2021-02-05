@@ -52,6 +52,7 @@ struct intel_crtc_state;
 struct intel_digital_port;
 struct intel_dp;
 struct intel_encoder;
+struct intel_initial_plane_config;
 struct intel_load_detect_pipe;
 struct intel_plane;
 struct intel_plane_state;
@@ -517,7 +518,6 @@ void intel_link_compute_m_n(u16 bpp, int nlanes,
 			    struct intel_link_m_n *m_n,
 			    bool constant_n, bool fec_enable);
 bool is_ccs_modifier(u64 modifier);
-int intel_main_to_aux_plane(const struct drm_framebuffer *fb, int main_plane);
 void lpt_disable_clkout_dp(struct drm_i915_private *dev_priv);
 u32 intel_plane_fb_max_stride(struct drm_i915_private *dev_priv,
 			      u32 pixel_format, u64 modifier);
@@ -629,18 +629,7 @@ u32 skl_scaler_get_filter_select(enum drm_scaling_filter filter, int set);
 void skl_scaler_setup_filter(struct drm_i915_private *dev_priv, enum pipe pipe,
 			     int id, int set, enum drm_scaling_filter filter);
 void ilk_pfit_disable(const struct intel_crtc_state *old_crtc_state);
-u32 glk_plane_color_ctl(const struct intel_crtc_state *crtc_state,
-			const struct intel_plane_state *plane_state);
-u32 glk_plane_color_ctl_crtc(const struct intel_crtc_state *crtc_state);
-u32 skl_plane_ctl(const struct intel_crtc_state *crtc_state,
-		  const struct intel_plane_state *plane_state);
-u32 skl_plane_ctl_crtc(const struct intel_crtc_state *crtc_state);
-u32 skl_plane_stride(const struct intel_plane_state *plane_state,
-		     int plane);
-int skl_check_plane_surface(struct intel_plane_state *plane_state);
-int skl_calc_main_surface_offset(const struct intel_plane_state *plane_state,
-				 int *x, int *y, u32 *offset);
-int skl_format_to_fourcc(int format, bool rgb_order, bool alpha);
+
 int bdw_get_pipemisc_bpp(struct intel_crtc *crtc);
 unsigned int intel_plane_fence_y_offset(const struct intel_plane_state *plane_state);
 
@@ -662,6 +651,18 @@ void intel_plane_unpin_fb(struct intel_plane_state *old_plane_state);
 struct intel_encoder *
 intel_get_crtc_new_encoder(const struct intel_atomic_state *state,
 			   const struct intel_crtc_state *crtc_state);
+
+unsigned int intel_surf_alignment(const struct drm_framebuffer *fb,
+				  int color_plane);
+void intel_fb_plane_get_subsampling(int *hsub, int *vsub,
+				    const struct drm_framebuffer *fb,
+				    int color_plane);
+u32 intel_plane_adjust_aligned_offset(int *x, int *y,
+				      const struct intel_plane_state *state,
+				      int color_plane,
+				      u32 old_offset, u32 new_offset);
+unsigned int intel_tile_width_bytes(const struct drm_framebuffer *fb, int color_plane);
+unsigned int intel_tile_height(const struct drm_framebuffer *fb, int color_plane);
 
 /* modesetting */
 void intel_modeset_init_hw(struct drm_i915_private *i915);

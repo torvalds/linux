@@ -38,9 +38,6 @@ void intel_pipe_update_end(struct intel_crtc_state *new_crtc_state);
 int intel_plane_check_stride(const struct intel_plane_state *plane_state);
 int intel_plane_check_src_coordinates(struct intel_plane_state *plane_state);
 int chv_plane_check_rotation(const struct intel_plane_state *plane_state);
-struct intel_plane *
-skl_universal_plane_create(struct drm_i915_private *dev_priv,
-			   enum pipe pipe, enum plane_id plane_id);
 
 static inline u8 icl_hdr_plane_mask(void)
 {
@@ -59,4 +56,7 @@ int hsw_plane_min_cdclk(const struct intel_crtc_state *crtc_state,
 int vlv_plane_min_cdclk(const struct intel_crtc_state *crtc_state,
 			const struct intel_plane_state *plane_state);
 
+void skl_program_scaler(struct intel_plane *plane,
+			const struct intel_crtc_state *crtc_state,
+			const struct intel_plane_state *plane_state);
 #endif /* __INTEL_SPRITE_H__ */

@@ -38,6 +38,7 @@
 #include "display/intel_display_types.h"
 #include "display/intel_fbc.h"
 #include "display/intel_sprite.h"
+#include "display/skl_universal_plane.h"
 
 #include "gt/intel_llc.h"
 
