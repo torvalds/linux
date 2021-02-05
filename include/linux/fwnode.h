@@ -11,6 +11,7 @@
 
 #include <linux/types.h>
 #include <linux/list.h>
+#include <linux/err.h>
 
 struct fwnode_operations;
 struct device;
@@ -18,11 +19,13 @@ struct device;
 /*
  * fwnode link flags
  *
- * LINKS_ADDED: The fwnode has already be parsed to add fwnode links.
- * NOT_DEVICE: The fwnode will never be populated as a struct device.
+ * LINKS_ADDED:	The fwnode has already be parsed to add fwnode links.
+ * NOT_DEVICE:	The fwnode will never be populated as a struct device.
+ * INITIALIZED: The hardware corresponding to fwnode has been initialized.
  */
 #define FWNODE_FLAG_LINKS_ADDED		BIT(0)
 #define FWNODE_FLAG_NOT_DEVICE		BIT(1)
+#define FWNODE_FLAG_INITIALIZED		BIT(2)
 
 struct fwnode_handle {
 	struct fwnode_handle *secondary;
@@ -159,6 +162,18 @@ static inline void fwnode_init(struct fwnode_handle *fwnode,
 	fwnode->ops = ops;
 	INIT_LIST_HEAD(&fwnode->consumers);
 	INIT_LIST_HEAD(&fwnode->suppliers);
+}
+
+static inline void fwnode_dev_initialized(struct fwnode_handle *fwnode,
+					  bool initialized)
+{
+	if (IS_ERR_OR_NULL(fwnode))
+		return;
+
+	if (initialized)
+		fwnode->flags |= FWNODE_FLAG_INITIALIZED;
+	else
+		fwnode->flags &= ~FWNODE_FLAG_INITIALIZED;
 }
 
 extern u32 fw_devlink_get_flags(void);
