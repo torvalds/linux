@@ -2424,13 +2424,10 @@ static int rsm_interception(struct kvm_vcpu *vcpu)
 
 static int rdpmc_interception(struct kvm_vcpu *vcpu)
 {
-	int err;
-
 	if (!nrips)
 		return emulate_on_interception(vcpu);
 
-	err = kvm_rdpmc(vcpu);
-	return kvm_complete_insn_gp(vcpu, err);
+	return kvm_emulate_rdpmc(vcpu);
 }
 
 static bool check_selective_cr0_intercepted(struct kvm_vcpu *vcpu,
