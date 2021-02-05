@@ -69,8 +69,10 @@ ssize_t fuse_passthrough_read_iter(struct kiocb *iocb_fuse,
 		struct fuse_aio_req *aio_req;
 
 		aio_req = kmalloc(sizeof(struct fuse_aio_req), GFP_KERNEL);
-		if (!aio_req)
-			return -ENOMEM;
+		if (!aio_req) {
+			ret = -ENOMEM;
+			goto out;
+		}
 
 		aio_req->iocb_fuse = iocb_fuse;
 		kiocb_clone(&aio_req->iocb, iocb_fuse, passthrough_filp);
@@ -79,6 +81,7 @@ ssize_t fuse_passthrough_read_iter(struct kiocb *iocb_fuse,
 		if (ret != -EIOCBQUEUED)
 			fuse_aio_cleanup_handler(aio_req);
 	}
+out:
 	revert_creds(old_cred);
 
 	return ret;
