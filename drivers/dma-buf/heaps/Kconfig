@@ -12,11 +12,3 @@ config DMABUF_HEAPS_CMA
 	  Choose this option to enable dma-buf CMA heap. This heap is backed
 	  by the Contiguous Memory Allocator (CMA). If your system has these
 	  regions, you should say Y here.
-
-config DMABUF_HEAPS_CHUNK
-	bool "DMA-BUF CHUNK Heap"
-	depends on DMABUF_HEAPS && DMA_CMA
-	help
-	  Choose this option to enable dma-buf CHUNK heap. This heap is backed
-	  by the Contiguous Memory Allocator (CMA) and allocates the buffers that
-	  are arranged into a list of fixed size chunks taken from CMA.
