@@ -2980,7 +2980,7 @@ static int pause_interception(struct kvm_vcpu *vcpu)
 		grow_ple_window(vcpu);
 
 	kvm_vcpu_on_spin(vcpu, in_kernel);
-	return 1;
+	return kvm_skip_emulated_instruction(vcpu);
 }
 
 static int invpcid_interception(struct kvm_vcpu *vcpu)
