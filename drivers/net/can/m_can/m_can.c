@@ -1787,11 +1787,6 @@ struct m_can_classdev *m_can_class_allocate_dev(struct device *dev,
 	}
 
 	class_dev = netdev_priv(net_dev);
-	if (!class_dev) {
-		dev_err(dev, "Failed to init netdev cdevate");
-		goto out;
-	}
-
 	class_dev->net = net_dev;
 	class_dev->dev = dev;
 	SET_NETDEV_DEV(net_dev, dev);
