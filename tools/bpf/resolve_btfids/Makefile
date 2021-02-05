@@ -2,11 +2,7 @@
 include ../../scripts/Makefile.include
 include ../../scripts/Makefile.arch
 
-ifeq ($(srctree),)
-srctree := $(patsubst %/,%,$(dir $(CURDIR)))
-srctree := $(patsubst %/,%,$(dir $(srctree)))
-srctree := $(patsubst %/,%,$(dir $(srctree)))
-endif
+srctree := $(abspath $(CURDIR)/../../../)
 
 ifeq ($(V),1)
   Q =
@@ -22,6 +18,7 @@ AR       = $(HOSTAR)
 CC       = $(HOSTCC)
 LD       = $(HOSTLD)
 ARCH     = $(HOSTARCH)
+RM      ?= rm
 
 OUTPUT ?= $(srctree)/tools/bpf/resolve_btfids/
 
