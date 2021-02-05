@@ -624,6 +624,9 @@ static void qm_cq_head_update(struct hisi_qp *qp)
 
 static void qm_poll_qp(struct hisi_qp *qp, struct hisi_qm *qm)
 {
+	if (unlikely(atomic_read(&qp->qp_status.flags) == QP_STOP))
+		return;
+
 	if (qp->event_cb) {
 		qp->event_cb(qp);
 		return;
@@ -1880,6 +1883,28 @@ int hisi_qm_start_qp(struct hisi_qp *qp, unsigned long arg)
 EXPORT_SYMBOL_GPL(hisi_qm_start_qp);
 
 /**
+ * qp_stop_fail_cb() - call request cb.
+ * @qp: stopped failed qp.
+ *
+ * Callback function should be called whether task completed or not.
+ */
+static void qp_stop_fail_cb(struct hisi_qp *qp)
+{
+	int qp_used = atomic_read(&qp->qp_status.used);
+	u16 cur_tail = qp->qp_status.sq_tail;
+	u16 cur_head = (cur_tail + QM_Q_DEPTH - qp_used) % QM_Q_DEPTH;
+	struct hisi_qm *qm = qp->qm;
+	u16 pos;
+	int i;
+
+	for (i = 0; i < qp_used; i++) {
+		pos = (i + cur_head) % QM_Q_DEPTH;
+		qp->req_cb(qp, qp->sqe + (u32)(qm->sqe_size * pos));
+		atomic_dec(&qp->qp_status.used);
+	}
+}
+
+/**
  * qm_drain_qp() - Drain a qp.
  * @qp: The qp we want to drain.
  *
@@ -1973,6 +1998,9 @@ static int qm_stop_qp_nolock(struct hisi_qp *qp)
 		flush_workqueue(qp->qm->wq);
 	else
 		flush_work(&qp->qm->work);
+
+	if (unlikely(qp->is_resetting && atomic_read(&qp->qp_status.used)))
+		qp_stop_fail_cb(qp);
 
 	dev_dbg(dev, "stop queue %u!", qp->qp_id);
 
