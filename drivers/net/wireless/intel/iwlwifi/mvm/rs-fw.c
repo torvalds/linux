@@ -248,14 +248,13 @@ static void rs_fw_set_supp_rates(struct ieee80211_sta *sta,
 				 struct iwl_tlc_config_cmd *cmd)
 {
 	int i;
-	unsigned long tmp;
-	unsigned long supp; /* must be unsigned long for for_each_set_bit */
+	u16 supp = 0;
+	unsigned long tmp; /* must be unsigned long for for_each_set_bit */
 	const struct ieee80211_sta_ht_cap *ht_cap = &sta->ht_cap;
 	const struct ieee80211_sta_vht_cap *vht_cap = &sta->vht_cap;
 	const struct ieee80211_sta_he_cap *he_cap = &sta->he_cap;
 
 	/* non HT rates */
-	supp = 0;
 	tmp = sta->supp_rates[sband->band];
 	for_each_set_bit(i, &tmp, BITS_PER_LONG)
 		supp |= BIT(sband->bitrates[i].hw_value);
