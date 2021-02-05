@@ -5235,6 +5235,9 @@ static int hns_roce_v2_qp_flow_control_init(struct hns_roce_dev *hr_dev,
 	struct hns_roce_cmq_desc desc;
 	int ret, i;
 
+	if (hr_dev->pci_dev->revision >= PCI_REVISION_ID_HIP09)
+		return 0;
+
 	mutex_lock(&hr_dev->qp_table.scc_mutex);
 
 	/* set scc ctx clear done flag */
