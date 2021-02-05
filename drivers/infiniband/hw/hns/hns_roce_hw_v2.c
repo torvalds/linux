@@ -1603,7 +1603,8 @@ static int hns_roce_config_global_param(struct hns_roce_dev *hr_dev)
 		       CFG_GLOBAL_PARAM_DATA_0_ROCEE_TIME_1US_CFG_S, 0x3e8);
 	roce_set_field(req->time_cfg_udp_port,
 		       CFG_GLOBAL_PARAM_DATA_0_ROCEE_UDP_PORT_M,
-		       CFG_GLOBAL_PARAM_DATA_0_ROCEE_UDP_PORT_S, 0x12b7);
+		       CFG_GLOBAL_PARAM_DATA_0_ROCEE_UDP_PORT_S,
+		       ROCE_V2_UDP_DPORT);
 
 	return hns_roce_cmq_send(hr_dev, &desc, 1);
 }
@@ -5266,6 +5267,9 @@ out:
 	return ret;
 }
 
+#define DMA_IDX_SHIFT 3
+#define DMA_WQE_SHIFT 3
+
 static int hns_roce_v2_write_srqc_index_queue(struct hns_roce_srq *srq,
 					      struct hns_roce_srq_context *ctx)
 {
@@ -5288,8 +5292,9 @@ static int hns_roce_v2_write_srqc_index_queue(struct hns_roce_srq *srq,
 	hr_reg_write(ctx, SRQC_IDX_HOP_NUM,
 		     to_hr_hem_hopnum(hr_dev->caps.idx_hop_num, srq->wqe_cnt));
 
-	hr_reg_write(ctx, SRQC_IDX_BT_BA_L, dma_handle_idx >> 3);
-	hr_reg_write(ctx, SRQC_IDX_BT_BA_H, upper_32_bits(dma_handle_idx >> 3));
+	hr_reg_write(ctx, SRQC_IDX_BT_BA_L, dma_handle_idx >> DMA_IDX_SHIFT);
+	hr_reg_write(ctx, SRQC_IDX_BT_BA_H,
+		     upper_32_bits(dma_handle_idx >> DMA_IDX_SHIFT));
 
 	hr_reg_write(ctx, SRQC_IDX_BA_PG_SZ,
 		     to_hr_hw_page_shift(idx_que->mtr.hem_cfg.ba_pg_shift));
@@ -5342,8 +5347,9 @@ static int hns_roce_v2_write_srqc(struct hns_roce_srq *srq, void *mb_buf)
 		     to_hr_hem_hopnum(hr_dev->caps.srqwqe_hop_num,
 				      srq->wqe_cnt));
 
-	hr_reg_write(ctx, SRQC_WQE_BT_BA_L, dma_handle_wqe >> 3);
-	hr_reg_write(ctx, SRQC_WQE_BT_BA_H, upper_32_bits(dma_handle_wqe >> 3));
+	hr_reg_write(ctx, SRQC_WQE_BT_BA_L, dma_handle_wqe >> DMA_WQE_SHIFT);
+	hr_reg_write(ctx, SRQC_WQE_BT_BA_H,
+		     upper_32_bits(dma_handle_wqe >> DMA_WQE_SHIFT));
 
 	hr_reg_write(ctx, SRQC_WQE_BA_PG_SZ,
 		     to_hr_hw_page_shift(srq->buf_mtr.hem_cfg.ba_pg_shift));
