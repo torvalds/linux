@@ -91,16 +91,16 @@
 
 #define PAGE_DESC_LO_MASK   0xfffff000
 #define PAGE_DESC_HI1_LOWER 32
-#define PAGE_DESC_HI1_UPPER 34
-#define PAGE_DESC_HI2_LOWER 35
+#define PAGE_DESC_HI1_UPPER 35
+#define PAGE_DESC_HI2_LOWER 36
 #define PAGE_DESC_HI2_UPPER 39
 #define PAGE_DESC_HI_MASK1  GENMASK_ULL(PAGE_DESC_HI1_UPPER, PAGE_DESC_HI1_LOWER)
 #define PAGE_DESC_HI_MASK2  GENMASK_ULL(PAGE_DESC_HI2_UPPER, PAGE_DESC_HI2_LOWER)
 
-#define DTE_HI1_LOWER 9
+#define DTE_HI1_LOWER 8
 #define DTE_HI1_UPPER 11
 #define DTE_HI2_LOWER 4
-#define DTE_HI2_UPPER 8
+#define DTE_HI2_UPPER 7
 #define DTE_HI_MASK1  GENMASK(DTE_HI1_UPPER, DTE_HI1_LOWER)
 #define DTE_HI_MASK2  GENMASK(DTE_HI2_UPPER, DTE_HI2_LOWER)
 
@@ -212,8 +212,8 @@ static struct rk_iommu_domain *to_rk_domain(struct iommu_domain *dom)
 /*
  * In v2:
  * 31:12 - PT address bit 31:0
- * 11: 9 - PT address bit 34:32
- *  8: 4 - PT address bit 39:35
+ * 11: 8 - PT address bit 35:32
+ *  7: 4 - PT address bit 39:36
  *  3: 1 - Reserved
  *     0 - 1 if PT @ PT address is valid
  */
@@ -226,13 +226,13 @@ static inline phys_addr_t rk_dte_pt_address(u32 dte)
 
 static inline phys_addr_t rk_dte_pt_address_v2(u32 dte)
 {
-	phys_addr_t dte_v2 = dte;
+	u64 dte_v2 = dte;
 
 	dte_v2 = ((dte_v2 & DTE_HI_MASK2) << PAGE_DESC_HI_SHIFT2) |
 		 ((dte_v2 & DTE_HI_MASK1) << PAGE_DESC_HI_SHIFT1) |
 		 (dte_v2 & PAGE_DESC_LO_MASK);
 
-	return dte_v2;
+	return (phys_addr_t)dte_v2;
 }
 
 static inline bool rk_dte_is_pt_valid(u32 dte)
@@ -302,13 +302,13 @@ static inline phys_addr_t rk_pte_page_address(u32 pte)
 
 static inline phys_addr_t rk_pte_page_address_v2(u32 pte)
 {
-	phys_addr_t pte_v2 = pte;
+	u64 pte_v2 = pte;
 
 	pte_v2 = ((pte_v2 & DTE_HI_MASK2) << PAGE_DESC_HI_SHIFT2) |
 		 ((pte_v2 & DTE_HI_MASK1) << PAGE_DESC_HI_SHIFT1) |
 		 (pte_v2 & PAGE_DESC_LO_MASK);
 
-	return pte_v2;
+	return (phys_addr_t)pte_v2;
 }
 
 static inline bool rk_pte_is_page_valid(u32 pte)
