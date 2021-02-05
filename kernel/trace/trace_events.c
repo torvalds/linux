@@ -2097,16 +2097,20 @@ event_subsystem_dir(struct trace_array *tr, const char *name,
 	dir->subsystem = system;
 	file->system = dir;
 
-	entry = tracefs_create_file("filter", 0644, dir->entry, dir,
-				    &ftrace_subsystem_filter_fops);
-	if (!entry) {
-		kfree(system->filter);
-		system->filter = NULL;
-		pr_warn("Could not create tracefs '%s/filter' entry\n", name);
-	}
+	/* the ftrace system is special, do not create enable or filter files */
+	if (strcmp(name, "ftrace") != 0) {
 
-	trace_create_file("enable", 0644, dir->entry, dir,
-			  &ftrace_system_enable_fops);
+		entry = tracefs_create_file("filter", 0644, dir->entry, dir,
+					    &ftrace_subsystem_filter_fops);
+		if (!entry) {
+			kfree(system->filter);
+			system->filter = NULL;
+			pr_warn("Could not create tracefs '%s/filter' entry\n", name);
+		}
+
+		trace_create_file("enable", 0644, dir->entry, dir,
+				  &ftrace_system_enable_fops);
+	}
 
 	list_add(&dir->list, &tr->systems);
 
