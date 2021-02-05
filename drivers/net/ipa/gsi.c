@@ -939,13 +939,7 @@ static int __gsi_channel_stop(struct gsi_channel *channel, bool stop)
 
 	mutex_unlock(&gsi->mutex);
 
-	if (ret)
-		return ret;
-
-	/* Ensure NAPI polling has finished. */
-	napi_synchronize(&channel->napi);
-
-	return 0;
+	return ret;
 }
 
 /* Stop a started channel */
@@ -987,8 +981,16 @@ void gsi_channel_reset(struct gsi *gsi, u32 channel_id, bool doorbell)
 int gsi_channel_suspend(struct gsi *gsi, u32 channel_id, bool stop)
 {
 	struct gsi_channel *channel = &gsi->channel[channel_id];
+	int ret;
 
-	return __gsi_channel_stop(channel, stop);
+	ret = __gsi_channel_stop(channel, stop);
+	if (ret)
+		return ret;
+
+	/* Ensure NAPI polling has finished. */
+	napi_synchronize(&channel->napi);
+
+	return 0;
 }
 
 /* Resume a suspended channel (starting will be requested if STOPPED) */
