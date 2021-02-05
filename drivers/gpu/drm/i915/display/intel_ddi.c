@@ -1606,6 +1606,9 @@ static void dg1_ddi_enable_clock(struct intel_encoder *encoder,
 	struct intel_shared_dpll *pll = crtc_state->shared_dpll;
 	enum phy phy = intel_port_to_phy(dev_priv, encoder->port);
 
+	if (drm_WARN_ON(&dev_priv->drm, !pll))
+		return;
+
 	/*
 	 * If we fail this, something went very wrong: first 2 PLLs should be
 	 * used by first 2 phys and last 2 PLLs by last phys
@@ -1662,6 +1665,9 @@ static void icl_ddi_combo_enable_clock(struct intel_encoder *encoder,
 		mask = ICL_DPCLKA_CFGCR0_DDI_CLK_SEL_MASK(phy);
 		sel = ICL_DPCLKA_CFGCR0_DDI_CLK_SEL(pll->info->id, phy);
 	}
+
+	if (drm_WARN_ON(&dev_priv->drm, !pll))
+		return;
 
 	mutex_lock(&dev_priv->dpll.lock);
 
