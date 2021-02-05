@@ -2123,12 +2123,12 @@ void acpi_walk_dep_device_list(acpi_handle handle)
 	list_for_each_entry_safe(dep, tmp, &acpi_dep_list, node) {
 		if (dep->supplier == handle) {
 			acpi_bus_get_device(dep->consumer, &adev);
-			if (!adev)
-				continue;
 
-			adev->dep_unmet--;
-			if (!adev->dep_unmet)
-				acpi_bus_attach(adev, true);
+			if (adev) {
+				adev->dep_unmet--;
+				if (!adev->dep_unmet)
+					acpi_bus_attach(adev, true);
+			}
 
 			list_del(&dep->node);
 			kfree(dep);
