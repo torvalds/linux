@@ -21,7 +21,8 @@
 #include <linux/of_gpio.h>
 #include <linux/delay.h>
 #include <asm/unaligned.h>
-
+#include <linux/regulator/driver.h>
+#include <linux/regulator/consumer.h>
 #include <linux/notifier.h>
 #include "tp_suspend.h"
 
@@ -80,6 +81,10 @@ struct wacom_i2c {
 	bool prox;
 	int tool;
 	struct tp_device tp;
+	struct regulator *supply;
+	int irq_gpio;
+	int pen_detect_gpio;
+	int reset_gpio;
 };
 
 static int get_hid_desc(struct i2c_client *client,
@@ -252,21 +257,34 @@ static int __maybe_unused wacom_i2c_suspend(struct tp_device *tp_d)
 
 	dev_dbg(&wac_i2c->client->dev, "%s\n", __func__);
 	disable_irq(wac_i2c->client->irq);
-
+	if (wac_i2c->supply) {
+		gpio_direction_output(wac_i2c->irq_gpio, 0);
+		gpio_direction_output(wac_i2c->pen_detect_gpio, 0);
+		gpio_direction_output(wac_i2c->reset_gpio, 0);
+		regulator_disable(wac_i2c->supply);
+	}
 	return 0;
 }
 
 static int __maybe_unused wacom_i2c_resume(struct tp_device *tp_d)
 {
 	struct wacom_i2c *wac_i2c = container_of(tp_d, struct wacom_i2c, tp);
+	int ret;
 
 	dev_dbg(&wac_i2c->client->dev, "%s\n", __func__);
+	if (wac_i2c->supply) {
+		gpio_direction_input(wac_i2c->irq_gpio);
+		gpio_direction_input(wac_i2c->pen_detect_gpio);
+		gpio_direction_output(wac_i2c->reset_gpio, 1);
+		ret = regulator_enable(wac_i2c->supply);
+		if (ret < 0)
+			dev_err(&wac_i2c->client->dev, "failed to enable wacom power supply\n");
+	}
 	enable_irq(wac_i2c->client->irq);
 
 	return 0;
 }
 
-static int g_irq_gpio = -1;
 static int wacom_i2c_probe(struct i2c_client *client,
 				     const struct i2c_device_id *id)
 {
@@ -275,10 +293,9 @@ static int wacom_i2c_probe(struct i2c_client *client,
 	struct wacom_features features = { 0 };
 	HID_DESC hid_desc = { 0 };
 	struct device_node *wac_np;
-	int reset_gpio, irq_gpio = -1, pen_detect_gpio;
 	int error;
+	struct regulator *power_supply;
 
-	printk("wacom_i2c_probe\n");
 	wac_np = client->dev.of_node;
 	if (!wac_np) {
 		dev_err(&client->dev, "get device node error\n");
@@ -293,6 +310,14 @@ static int wacom_i2c_probe(struct i2c_client *client,
 	of_property_read_u32(wac_np, "revert_y", &revert_y_flag);
 	of_property_read_u32(wac_np, "xy_exchange", &exchange_x_y_flag);
 
+	power_supply = devm_regulator_get(&client->dev, "pwr");
+	if (power_supply) {
+		dev_info(&client->dev, "wacom power supply = %dmv\n", regulator_get_voltage(power_supply));
+		error = regulator_enable(power_supply);
+		if (error < 0)
+			dev_err(&client->dev, "failed to enable wacom power supply\n");
+	}
+
 	error = wacom_query_device(client, &features);
 	if (error)
 		return error;
@@ -301,7 +326,6 @@ static int wacom_i2c_probe(struct i2c_client *client,
 	if (error)
 		return error;
 
-
 	wac_i2c = kzalloc(sizeof(*wac_i2c), GFP_KERNEL);
 	input = input_allocate_device();
 	if (!wac_i2c || !input) {
@@ -309,46 +333,47 @@ static int wacom_i2c_probe(struct i2c_client *client,
 		goto err_free_mem;
 	}
 
-	reset_gpio = of_get_named_gpio(wac_np, "gpio_rst", 0);
-	if (!gpio_is_valid(reset_gpio)) {
+	if (power_supply)
+		wac_i2c->supply = power_supply;
+
+	wac_i2c->reset_gpio = of_get_named_gpio(wac_np, "gpio_rst", 0);
+	if (!gpio_is_valid(wac_i2c->reset_gpio)) {
 		dev_err(&client->dev, "no gpio_rst pin available\n");
 		goto err_free_mem;
 	}
 
-	error = devm_gpio_request_one(&client->dev, reset_gpio, GPIOF_OUT_INIT_LOW, "gpio-rst");
+	error = devm_gpio_request_one(&client->dev, wac_i2c->reset_gpio, GPIOF_OUT_INIT_LOW, "gpio-rst");
 	if (error < 0) {
 		goto err_free_mem;
 	}
-	gpio_direction_output(reset_gpio, 0);
+	gpio_direction_output(wac_i2c->reset_gpio, 0);
 	msleep(100);
-	gpio_direction_output(reset_gpio, 1);
+	gpio_direction_output(wac_i2c->reset_gpio, 1);
 
-	pen_detect_gpio = of_get_named_gpio(wac_np, "gpio_detect", 0);
-	if (!gpio_is_valid(pen_detect_gpio)) {
+	wac_i2c->pen_detect_gpio = of_get_named_gpio(wac_np, "gpio_detect", 0);
+	if (!gpio_is_valid(wac_i2c->pen_detect_gpio)) {
 		dev_err(&client->dev, "no pen_detect_gpio pin available\n");
 		goto err_free_reset_gpio;
 	}
-	error = devm_gpio_request_one(&client->dev, pen_detect_gpio, GPIOF_IN, "gpio_detect");
+	error = devm_gpio_request_one(&client->dev, wac_i2c->pen_detect_gpio, GPIOF_IN, "gpio_detect");
 	if (error < 0) {
 		goto err_free_reset_gpio;
 	}
 
-	irq_gpio = of_get_named_gpio(wac_np, "gpio_intr", 0);
-	if (!gpio_is_valid(irq_gpio)) {
+	wac_i2c->irq_gpio = of_get_named_gpio(wac_np, "gpio_intr", 0);
+	if (!gpio_is_valid(wac_i2c->irq_gpio)) {
 		dev_err(&client->dev, "no gpio_intr pin available\n");
 		goto err_free_pen_detect_gpio;
 	}
-	g_irq_gpio = irq_gpio;
-#if 1
-	error = devm_gpio_request_one(&client->dev, irq_gpio, GPIOF_IN, "gpio_intr");
+
+	error = devm_gpio_request_one(&client->dev, wac_i2c->irq_gpio, GPIOF_IN, "gpio_intr");
 	if (error < 0) {
 		goto err_free_pen_detect_gpio;
 	}
-#endif
-	client->irq = gpio_to_irq(irq_gpio);
-	//printk("wacom_i2c_probe irq=%d, irq_gpio=%d\n",client->irq, irq_gpio);
+
+	client->irq = gpio_to_irq(wac_i2c->irq_gpio);
 	if (client->irq < 0) {
-		dev_err(&client->dev, "Unable to get irq number for GPIO %d, error %d\n", irq_gpio, client->irq);
+		dev_err(&client->dev, "Unable to get irq number for GPIO %d, error %d\n", wac_i2c->irq_gpio, client->irq);
 		goto err_free_irq_gpio;
 	}
 
