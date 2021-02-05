@@ -186,7 +186,7 @@ static void intel_wait_ddi_buf_active(struct drm_i915_private *dev_priv,
 			port_name(port));
 }
 
-u32 hsw_pll_to_ddi_pll_sel(const struct intel_shared_dpll *pll)
+static u32 hsw_pll_to_ddi_pll_sel(const struct intel_shared_dpll *pll)
 {
 	switch (pll->info->id) {
 	case DPLL_ID_WRPLL1:
@@ -1847,8 +1847,8 @@ void icl_sanitize_encoder_pll_mapping(struct intel_encoder *encoder)
 		icl_sanitize_port_clk_off(dev_priv, port_mask, ddi_clk_needed);
 }
 
-static void intel_ddi_clk_select(struct intel_encoder *encoder,
-				 const struct intel_crtc_state *crtc_state)
+void intel_ddi_clk_select(struct intel_encoder *encoder,
+			  const struct intel_crtc_state *crtc_state)
 {
 	struct drm_i915_private *dev_priv = to_i915(encoder->base.dev);
 	enum port port = encoder->port;
