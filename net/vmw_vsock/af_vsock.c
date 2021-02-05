@@ -1216,7 +1216,7 @@ static int vsock_transport_cancel_pkt(struct vsock_sock *vsk)
 {
 	const struct vsock_transport *transport = vsk->transport;
 
-	if (!transport->cancel_pkt)
+	if (!transport || !transport->cancel_pkt)
 		return -EOPNOTSUPP;
 
 	return transport->cancel_pkt(vsk);
