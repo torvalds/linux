@@ -1817,10 +1817,10 @@ int amdgpu_ras_save_bad_pages(struct amdgpu_device *adev)
 	save_count = data->count - control->num_recs;
 	/* only new entries are saved */
 	if (save_count > 0) {
-		if (amdgpu_ras_eeprom_process_recods(control,
-							&data->bps[control->num_recs],
-							true,
-							save_count)) {
+		if (amdgpu_ras_eeprom_xfer(control,
+					   &data->bps[control->num_recs],
+					   save_count,
+					   true)) {
 			dev_err(adev->dev, "Failed to save EEPROM table data!");
 			return -EIO;
 		}
@@ -1850,8 +1850,7 @@ static int amdgpu_ras_load_bad_pages(struct amdgpu_device *adev)
 	if (!bps)
 		return -ENOMEM;
 
-	if (amdgpu_ras_eeprom_process_recods(control, bps, false,
-		control->num_recs)) {
+	if (amdgpu_ras_eeprom_xfer(control, bps, control->num_recs, false)) {
 		dev_err(adev->dev, "Failed to load EEPROM table records!");
 		ret = -EIO;
 		goto out;
