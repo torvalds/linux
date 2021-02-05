@@ -1392,6 +1392,13 @@ int __dax_driver_register(struct dax_device_driver *dax_drv,
 	struct device_driver *drv = &dax_drv->drv;
 	int rc = 0;
 
+	/*
+	 * dax_bus_probe() calls dax_drv->probe() unconditionally.
+	 * So better be safe than sorry and ensure it is provided.
+	 */
+	if (!dax_drv->probe)
+		return -EINVAL;
+
 	INIT_LIST_HEAD(&dax_drv->ids);
 	drv->owner = module;
 	drv->name = mod_name;
