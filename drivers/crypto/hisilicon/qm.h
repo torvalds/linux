@@ -307,7 +307,7 @@ static inline int q_num_set(const char *val, const struct kernel_param *kp,
 
 	if (!pdev) {
 		q_num = min_t(u32, QM_QNUM_V1, QM_QNUM_V2);
-		pr_info("No device found currently, suppose queue number is %d\n",
+		pr_info("No device found currently, suppose queue number is %u\n",
 			q_num);
 	} else {
 		if (pdev->revision == QM_HW_V1)

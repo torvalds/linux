@@ -725,7 +725,7 @@ static irqreturn_t qm_aeq_irq(int irq, void *data)
 			dev_err(&qm->pdev->dev, "%s overflow\n",
 				qm_fifo_overflow[type]);
 		else
-			dev_err(&qm->pdev->dev, "unknown error type %d\n",
+			dev_err(&qm->pdev->dev, "unknown error type %u\n",
 				type);
 
 		if (qm->status.aeq_head == QM_Q_DEPTH - 1) {
@@ -1129,7 +1129,7 @@ static int dump_show(struct hisi_qm *qm, void *info,
 
 	dev_info(dev, "%s DUMP\n", info_name);
 	for (i = 0; i < info_size; i += BYTE_PER_DW) {
-		pr_info("DW%d: %02X%02X %02X%02X\n", i / BYTE_PER_DW,
+		pr_info("DW%u: %02X%02X %02X%02X\n", i / BYTE_PER_DW,
 			info_buf[i], info_buf[i + 1UL],
 			info_buf[i + 2UL], info_buf[i + 3UL]);
 	}
@@ -1162,7 +1162,7 @@ static int qm_sqc_dump(struct hisi_qm *qm, const char *s)
 
 	ret = kstrtou32(s, 0, &qp_id);
 	if (ret || qp_id >= qm->qp_num) {
-		dev_err(dev, "Please input qp num (0-%d)", qm->qp_num - 1);
+		dev_err(dev, "Please input qp num (0-%u)", qm->qp_num - 1);
 		return -EINVAL;
 	}
 
@@ -1208,7 +1208,7 @@ static int qm_cqc_dump(struct hisi_qm *qm, const char *s)
 
 	ret = kstrtou32(s, 0, &qp_id);
 	if (ret || qp_id >= qm->qp_num) {
-		dev_err(dev, "Please input qp num (0-%d)", qm->qp_num - 1);
+		dev_err(dev, "Please input qp num (0-%u)", qm->qp_num - 1);
 		return -EINVAL;
 	}
 
@@ -1287,7 +1287,7 @@ static int q_dump_param_parse(struct hisi_qm *qm, char *s,
 
 	ret = kstrtou32(presult, 0, q_id);
 	if (ret || *q_id >= qp_num) {
-		dev_err(dev, "Please input qp num (0-%d)", qp_num - 1);
+		dev_err(dev, "Please input qp num (0-%u)", qp_num - 1);
 		return -EINVAL;
 	}
 
@@ -2729,7 +2729,7 @@ int hisi_qm_start(struct hisi_qm *qm)
 		return -EPERM;
 	}
 
-	dev_dbg(dev, "qm start with %d queue pairs\n", qm->qp_num);
+	dev_dbg(dev, "qm start with %u queue pairs\n", qm->qp_num);
 
 	if (!qm->qp_num) {
 		dev_err(dev, "qp_num should not be 0\n");
@@ -3164,7 +3164,7 @@ int hisi_qm_alloc_qps_node(struct hisi_qm_list *qm_list, int qp_num,
 
 	mutex_unlock(&qm_list->lock);
 	if (ret)
-		pr_info("Failed to create qps, node[%d], alg[%d], qp[%d]!\n",
+		pr_info("Failed to create qps, node[%d], alg[%u], qp[%d]!\n",
 			node, alg_type, qp_num);
 
 err:
@@ -3372,7 +3372,7 @@ pci_ers_result_t hisi_qm_dev_err_detected(struct pci_dev *pdev,
 	if (pdev->is_virtfn)
 		return PCI_ERS_RESULT_NONE;
 
-	pci_info(pdev, "PCI error detected, state(=%d)!!\n", state);
+	pci_info(pdev, "PCI error detected, state(=%u)!!\n", state);
 	if (state == pci_channel_io_perm_failure)
 		return PCI_ERS_RESULT_DISCONNECT;
 
