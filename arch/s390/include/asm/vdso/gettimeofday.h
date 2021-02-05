@@ -67,4 +67,11 @@ long clock_getres_fallback(clockid_t clkid, struct __kernel_timespec *ts)
 	return r2;
 }
 
+#ifdef CONFIG_TIME_NS
+static __always_inline const struct vdso_data *__arch_get_timens_vdso_data(void)
+{
+	return _timens_data;
+}
+#endif
+
 #endif

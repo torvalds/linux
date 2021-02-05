@@ -7,6 +7,8 @@
 /* Default link address for the vDSO */
 #define VDSO64_LBASE	0
 
+#define __VVAR_PAGES	2
+
 #define VDSO_VERSION_STRING	LINUX_2.6.29
 
 #ifndef __ASSEMBLY__

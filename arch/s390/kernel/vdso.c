@@ -15,11 +15,14 @@
 #include <linux/mm.h>
 #include <linux/slab.h>
 #include <linux/smp.h>
+#include <linux/time_namespace.h>
 #include <vdso/datapage.h>
 #include <asm/vdso.h>
 
 extern char vdso64_start[], vdso64_end[];
 static unsigned int vdso_pages;
+
+static struct vm_special_mapping vvar_mapping;
 
 static union {
 	struct vdso_data	data[CS_BASES];
@@ -27,6 +30,12 @@ static union {
 } vdso_data_store __page_aligned_data;
 
 struct vdso_data *vdso_data = vdso_data_store.data;
+
+enum vvar_pages {
+	VVAR_DATA_PAGE_OFFSET,
+	VVAR_TIMENS_PAGE_OFFSET,
+	VVAR_NR_PAGES,
+};
 
 unsigned int __read_mostly vdso_enabled = 1;
 
@@ -40,12 +49,89 @@ static int __init vdso_setup(char *str)
 }
 __setup("vdso=", vdso_setup);
 
+#ifdef CONFIG_TIME_NS
+struct vdso_data *arch_get_vdso_data(void *vvar_page)
+{
+	return (struct vdso_data *)(vvar_page);
+}
+
+static struct page *find_timens_vvar_page(struct vm_area_struct *vma)
+{
+	if (likely(vma->vm_mm == current->mm))
+		return current->nsproxy->time_ns->vvar_page;
+	/*
+	 * VM_PFNMAP | VM_IO protect .fault() handler from being called
+	 * through interfaces like /proc/$pid/mem or
+	 * process_vm_{readv,writev}() as long as there's no .access()
+	 * in special_mapping_vmops().
+	 * For more details check_vma_flags() and __access_remote_vm()
+	 */
+	WARN(1, "vvar_page accessed remotely");
+	return NULL;
+}
+
+/*
+ * The VVAR page layout depends on whether a task belongs to the root or
+ * non-root time namespace. Whenever a task changes its namespace, the VVAR
+ * page tables are cleared and then they will be re-faulted with a
+ * corresponding layout.
+ * See also the comment near timens_setup_vdso_data() for details.
+ */
+int vdso_join_timens(struct task_struct *task, struct time_namespace *ns)
+{
+	struct mm_struct *mm = task->mm;
+	struct vm_area_struct *vma;
+
+	mmap_read_lock(mm);
+	for (vma = mm->mmap; vma; vma = vma->vm_next) {
+		unsigned long size = vma->vm_end - vma->vm_start;
+
+		if (!vma_is_special_mapping(vma, &vvar_mapping))
+			continue;
+		zap_page_range(vma, vma->vm_start, size);
+		break;
+	}
+	mmap_read_unlock(mm);
+	return 0;
+}
+#else
+static inline struct page *find_timens_vvar_page(struct vm_area_struct *vma)
+{
+	return NULL;
+}
+#endif
+
 static vm_fault_t vvar_fault(const struct vm_special_mapping *sm,
 			     struct vm_area_struct *vma, struct vm_fault *vmf)
 {
-	if (vmf->pgoff == 0)
-		return vmf_insert_pfn(vma, vmf->address, virt_to_pfn(vdso_data));
-	return VM_FAULT_SIGBUS;
+	struct page *timens_page = find_timens_vvar_page(vma);
+	unsigned long pfn;
+
+	switch (vmf->pgoff) {
+	case VVAR_DATA_PAGE_OFFSET:
+		if (timens_page)
+			pfn = page_to_pfn(timens_page);
+		else
+			pfn = virt_to_pfn(vdso_data);
+		break;
+#ifdef CONFIG_TIME_NS
+	case VVAR_TIMENS_PAGE_OFFSET:
+		/*
+		 * If a task belongs to a time namespace then a namespace
+		 * specific VVAR is mapped with the VVAR_DATA_PAGE_OFFSET and
+		 * the real VVAR page is mapped with the VVAR_TIMENS_PAGE_OFFSET
+		 * offset.
+		 * See also the comment near timens_setup_vdso_data().
+		 */
+		if (!timens_page)
+			return VM_FAULT_SIGBUS;
+		pfn = virt_to_pfn(vdso_data);
+		break;
+#endif /* CONFIG_TIME_NS */
+	default:
+		return VM_FAULT_SIGBUS;
+	}
+	return vmf_insert_pfn(vma, vmf->address, pfn);
 }
 
 static int vdso_mremap(const struct vm_special_mapping *sm,
@@ -80,23 +166,25 @@ int arch_setup_additional_pages(struct linux_binprm *bprm, int uses_interp)
 	struct vm_area_struct *vma;
 	int rc;
 
+	BUILD_BUG_ON(VVAR_NR_PAGES != __VVAR_PAGES);
 	if (!vdso_enabled || is_compat_task())
 		return 0;
 	if (mmap_write_lock_killable(mm))
 		return -EINTR;
 	vdso_text_len = vdso_pages << PAGE_SHIFT;
-	vdso_mapping_len = vdso_text_len + PAGE_SIZE;
+	vdso_mapping_len = vdso_text_len + VVAR_NR_PAGES * PAGE_SIZE;
 	vvar_start = get_unmapped_area(NULL, 0, vdso_mapping_len, 0, 0);
 	rc = vvar_start;
 	if (IS_ERR_VALUE(vvar_start))
 		goto out;
-	vma = _install_special_mapping(mm, vvar_start, PAGE_SIZE,
-				       VM_READ|VM_MAYREAD|VM_PFNMAP,
+	vma = _install_special_mapping(mm, vvar_start, VVAR_NR_PAGES*PAGE_SIZE,
+				       VM_READ|VM_MAYREAD|VM_IO|VM_DONTDUMP|
+				       VM_PFNMAP,
 				       &vvar_mapping);
 	rc = PTR_ERR(vma);
 	if (IS_ERR(vma))
 		goto out;
-	vdso_text_start = vvar_start + PAGE_SIZE;
+	vdso_text_start = vvar_start + VVAR_NR_PAGES * PAGE_SIZE;
 	/* VM_MAYWRITE for COW so gdb can set breakpoints */
 	vma = _install_special_mapping(mm, vdso_text_start, vdso_text_len,
 				       VM_READ|VM_EXEC|
