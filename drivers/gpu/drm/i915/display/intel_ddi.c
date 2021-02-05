@@ -1625,6 +1625,56 @@ static void _cnl_ddi_disable_clock(struct drm_i915_private *i915, i915_reg_t reg
 	mutex_unlock(&i915->dpll.lock);
 }
 
+static void adls_ddi_enable_clock(struct intel_encoder *encoder,
+				  const struct intel_crtc_state *crtc_state)
+{
+	struct drm_i915_private *i915 = to_i915(encoder->base.dev);
+	const struct intel_shared_dpll *pll = crtc_state->shared_dpll;
+	enum phy phy = intel_port_to_phy(i915, encoder->port);
+
+	if (drm_WARN_ON(&i915->drm, !pll))
+		return;
+
+	_cnl_ddi_enable_clock(i915, ADLS_DPCLKA_CFGCR(phy),
+			      ADLS_DPCLKA_CFGCR_DDI_CLK_SEL_MASK(phy),
+			      pll->info->id << ADLS_DPCLKA_CFGCR_DDI_SHIFT(phy),
+			      ICL_DPCLKA_CFGCR0_DDI_CLK_OFF(phy));
+}
+
+static void adls_ddi_disable_clock(struct intel_encoder *encoder)
+{
+	struct drm_i915_private *i915 = to_i915(encoder->base.dev);
+	enum phy phy = intel_port_to_phy(i915, encoder->port);
+
+	_cnl_ddi_disable_clock(i915, ADLS_DPCLKA_CFGCR(phy),
+			       ICL_DPCLKA_CFGCR0_DDI_CLK_OFF(phy));
+}
+
+static void rkl_ddi_enable_clock(struct intel_encoder *encoder,
+				 const struct intel_crtc_state *crtc_state)
+{
+	struct drm_i915_private *i915 = to_i915(encoder->base.dev);
+	const struct intel_shared_dpll *pll = crtc_state->shared_dpll;
+	enum phy phy = intel_port_to_phy(i915, encoder->port);
+
+	if (drm_WARN_ON(&i915->drm, !pll))
+		return;
+
+	_cnl_ddi_enable_clock(i915, ICL_DPCLKA_CFGCR0,
+			      RKL_DPCLKA_CFGCR0_DDI_CLK_SEL_MASK(phy),
+			      RKL_DPCLKA_CFGCR0_DDI_CLK_SEL(pll->info->id, phy),
+			      RKL_DPCLKA_CFGCR0_DDI_CLK_OFF(phy));
+}
+
+static void rkl_ddi_disable_clock(struct intel_encoder *encoder)
+{
+	struct drm_i915_private *i915 = to_i915(encoder->base.dev);
+	enum phy phy = intel_port_to_phy(i915, encoder->port);
+
+	_cnl_ddi_disable_clock(i915, ICL_DPCLKA_CFGCR0,
+			       RKL_DPCLKA_CFGCR0_DDI_CLK_OFF(phy));
+}
+
 static void dg1_ddi_enable_clock(struct intel_encoder *encoder,
 				 const struct intel_crtc_state *crtc_state)
 {
@@ -1665,43 +1715,23 @@ static void icl_ddi_combo_enable_clock(struct intel_encoder *encoder,
 	struct drm_i915_private *dev_priv = to_i915(encoder->base.dev);
 	const struct intel_shared_dpll *pll = crtc_state->shared_dpll;
 	enum phy phy = intel_port_to_phy(dev_priv, encoder->port);
-	u32 mask, sel;
-	i915_reg_t reg;
-
-	if (IS_ALDERLAKE_S(dev_priv)) {
-		reg = ADLS_DPCLKA_CFGCR(phy);
-		mask = ADLS_DPCLKA_CFGCR_DDI_CLK_SEL_MASK(phy);
-		sel = ((pll->info->id) << ADLS_DPCLKA_CFGCR_DDI_SHIFT(phy));
-	} else if (IS_ROCKETLAKE(dev_priv)) {
-		reg = ICL_DPCLKA_CFGCR0;
-		mask = RKL_DPCLKA_CFGCR0_DDI_CLK_SEL_MASK(phy);
-		sel = RKL_DPCLKA_CFGCR0_DDI_CLK_SEL(pll->info->id, phy);
-	} else {
-		reg = ICL_DPCLKA_CFGCR0;
-		mask = ICL_DPCLKA_CFGCR0_DDI_CLK_SEL_MASK(phy);
-		sel = ICL_DPCLKA_CFGCR0_DDI_CLK_SEL(pll->info->id, phy);
-	}
 
 	if (drm_WARN_ON(&dev_priv->drm, !pll))
 		return;
 
-	_cnl_ddi_enable_clock(dev_priv, reg, mask, sel,
-			      icl_dpclka_cfgcr0_clk_off(dev_priv, phy));
+	_cnl_ddi_enable_clock(dev_priv, ICL_DPCLKA_CFGCR0,
+			      ICL_DPCLKA_CFGCR0_DDI_CLK_SEL_MASK(phy),
+			      ICL_DPCLKA_CFGCR0_DDI_CLK_SEL(pll->info->id, phy),
+			      ICL_DPCLKA_CFGCR0_DDI_CLK_OFF(phy));
 }
 
 static void icl_ddi_combo_disable_clock(struct intel_encoder *encoder)
 {
 	struct drm_i915_private *dev_priv = to_i915(encoder->base.dev);
 	enum phy phy = intel_port_to_phy(dev_priv, encoder->port);
-	i915_reg_t reg;
 
-	if (IS_ALDERLAKE_S(dev_priv))
-		reg = ADLS_DPCLKA_CFGCR(phy);
-	else
-		reg = ICL_DPCLKA_CFGCR0;
-
-	_cnl_ddi_disable_clock(dev_priv, reg,
-			       icl_dpclka_cfgcr0_clk_off(dev_priv, phy));
+	_cnl_ddi_disable_clock(dev_priv, ICL_DPCLKA_CFGCR0,
+			       ICL_DPCLKA_CFGCR0_DDI_CLK_OFF(phy));
 }
 
 static void dg1_sanitize_port_clk_off(struct drm_i915_private *dev_priv,
@@ -4128,9 +4158,12 @@ void intel_ddi_init(struct drm_i915_private *dev_priv, enum port port)
 	encoder->cloneable = 0;
 	encoder->pipe_mask = ~0;
 
-	if (IS_ALDERLAKE_S(dev_priv) || IS_ROCKETLAKE(dev_priv)) {
-		encoder->enable_clock = icl_ddi_combo_enable_clock;
-		encoder->disable_clock = icl_ddi_combo_disable_clock;
+	if (IS_ALDERLAKE_S(dev_priv)) {
+		encoder->enable_clock = adls_ddi_enable_clock;
+		encoder->disable_clock = adls_ddi_disable_clock;
+	} else if (IS_ROCKETLAKE(dev_priv)) {
+		encoder->enable_clock = rkl_ddi_enable_clock;
+		encoder->disable_clock = rkl_ddi_disable_clock;
 	} else if (IS_DG1(dev_priv)) {
 		encoder->enable_clock = dg1_ddi_enable_clock;
 		encoder->disable_clock = dg1_ddi_disable_clock;
