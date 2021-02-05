@@ -1887,17 +1887,6 @@ void intel_ddi_clk_select(struct intel_encoder *encoder,
 		val = intel_de_read(dev_priv, DPCLKA_CFGCR0);
 		val &= ~DPCLKA_CFGCR0_DDI_CLK_OFF(port);
 		intel_de_write(dev_priv, DPCLKA_CFGCR0, val);
-	} else if (IS_GEN9_BC(dev_priv)) {
-		/* DDI -> PLL mapping  */
-		val = intel_de_read(dev_priv, DPLL_CTRL2);
-
-		val &= ~(DPLL_CTRL2_DDI_CLK_OFF(port) |
-			 DPLL_CTRL2_DDI_CLK_SEL_MASK(port));
-		val |= (DPLL_CTRL2_DDI_CLK_SEL(pll->info->id, port) |
-			DPLL_CTRL2_DDI_SEL_OVERRIDE(port));
-
-		intel_de_write(dev_priv, DPLL_CTRL2, val);
-
 	}
 
 	mutex_unlock(&dev_priv->dpll.lock);
@@ -1917,10 +1906,41 @@ static void intel_ddi_clk_disable(struct intel_encoder *encoder)
 	} else if (IS_CANNONLAKE(dev_priv)) {
 		intel_de_write(dev_priv, DPCLKA_CFGCR0,
 			       intel_de_read(dev_priv, DPCLKA_CFGCR0) | DPCLKA_CFGCR0_DDI_CLK_OFF(port));
-	} else if (IS_GEN9_BC(dev_priv)) {
-		intel_de_write(dev_priv, DPLL_CTRL2,
-			       intel_de_read(dev_priv, DPLL_CTRL2) | DPLL_CTRL2_DDI_CLK_OFF(port));
 	}
+}
+
+static void skl_ddi_enable_clock(struct intel_encoder *encoder,
+				 const struct intel_crtc_state *crtc_state)
+{
+	struct drm_i915_private *i915 = to_i915(encoder->base.dev);
+	const struct intel_shared_dpll *pll = crtc_state->shared_dpll;
+	enum port port = encoder->port;
+	u32 val;
+
+	if (drm_WARN_ON(&i915->drm, !pll))
+		return;
+
+	mutex_lock(&i915->dpll.lock);
+
+	val = intel_de_read(i915, DPLL_CTRL2);
+
+	val &= ~(DPLL_CTRL2_DDI_CLK_OFF(port) |
+		 DPLL_CTRL2_DDI_CLK_SEL_MASK(port));
+	val |= (DPLL_CTRL2_DDI_CLK_SEL(pll->info->id, port) |
+		DPLL_CTRL2_DDI_SEL_OVERRIDE(port));
+
+	intel_de_write(i915, DPLL_CTRL2, val);
+
+	mutex_unlock(&i915->dpll.lock);
+}
+
+static void skl_ddi_disable_clock(struct intel_encoder *encoder)
+{
+	struct drm_i915_private *i915 = to_i915(encoder->base.dev);
+	enum port port = encoder->port;
+
+	intel_de_write(i915, DPLL_CTRL2,
+		       intel_de_read(i915, DPLL_CTRL2) | DPLL_CTRL2_DDI_CLK_OFF(port));
 }
 
 void hsw_ddi_enable_clock(struct intel_encoder *encoder,
@@ -4098,7 +4118,10 @@ void intel_ddi_init(struct drm_i915_private *dev_priv, enum port port)
 	encoder->cloneable = 0;
 	encoder->pipe_mask = ~0;
 
-	if (IS_BROADWELL(dev_priv) || IS_HASWELL(dev_priv)) {
+	if (IS_GEN9_BC(dev_priv)) {
+		encoder->enable_clock = skl_ddi_enable_clock;
+		encoder->disable_clock = skl_ddi_disable_clock;
+	} else if (IS_BROADWELL(dev_priv) || IS_HASWELL(dev_priv)) {
 		encoder->enable_clock = hsw_ddi_enable_clock;
 		encoder->disable_clock = hsw_ddi_disable_clock;
 	}
