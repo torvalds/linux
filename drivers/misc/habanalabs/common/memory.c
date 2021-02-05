@@ -1289,12 +1289,13 @@ vm_type_err:
 	return rc;
 }
 
-static int map_block(struct hl_device *hdev, u64 address, u64 *handle)
+static int map_block(struct hl_device *hdev, u64 address, u64 *handle,
+			u32 *size)
 {
 	u32 block_id = 0;
 	int rc;
 
-	rc = hdev->asic_funcs->get_hw_block_id(hdev, address, &block_id);
+	rc = hdev->asic_funcs->get_hw_block_id(hdev, address, size, &block_id);
 
 	*handle = block_id | HL_MMAP_TYPE_BLOCK;
 	*handle <<= PAGE_SHIFT;
@@ -1371,7 +1372,7 @@ static int mem_ioctl_no_mmu(struct hl_fpriv *hpriv, union hl_mem_args *args)
 	struct hl_device *hdev = hpriv->hdev;
 	struct hl_ctx *ctx = hpriv->ctx;
 	u64 block_handle, device_addr = 0;
-	u32 handle = 0;
+	u32 handle = 0, block_size;
 	int rc;
 
 	switch (args->in.op) {
@@ -1416,8 +1417,9 @@ static int mem_ioctl_no_mmu(struct hl_fpriv *hpriv, union hl_mem_args *args)
 
 	case HL_MEM_OP_MAP_BLOCK:
 		rc = map_block(hdev, args->in.map_block.block_addr,
-							&block_handle);
-		args->out.handle = block_handle;
+				&block_handle, &block_size);
+		args->out.block_handle = block_handle;
+		args->out.block_size = block_size;
 		break;
 
 	default:
@@ -1437,7 +1439,7 @@ int hl_mem_ioctl(struct hl_fpriv *hpriv, void *data)
 	struct hl_device *hdev = hpriv->hdev;
 	struct hl_ctx *ctx = hpriv->ctx;
 	u64 block_handle, device_addr = 0;
-	u32 handle = 0;
+	u32 handle = 0, block_size;
 	int rc;
 
 	if (!hl_device_operational(hdev, &status)) {
@@ -1524,8 +1526,9 @@ int hl_mem_ioctl(struct hl_fpriv *hpriv, void *data)
 
 	case HL_MEM_OP_MAP_BLOCK:
 		rc = map_block(hdev, args->in.map_block.block_addr,
-							&block_handle);
-		args->out.handle = block_handle;
+				&block_handle, &block_size);
+		args->out.block_handle = block_handle;
+		args->out.block_size = block_size;
 		break;
 
 	default:

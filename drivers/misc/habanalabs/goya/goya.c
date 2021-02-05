@@ -5390,7 +5390,7 @@ static void goya_ctx_fini(struct hl_ctx *ctx)
 }
 
 static int goya_get_hw_block_id(struct hl_device *hdev, u64 block_addr,
-				u32 *block_id)
+			u32 *block_size, u32 *block_id)
 {
 	return -EPERM;
 }

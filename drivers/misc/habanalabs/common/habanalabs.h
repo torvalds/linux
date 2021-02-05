@@ -862,6 +862,8 @@ enum div_select_defs {
  *                   showing it to users.
  * @ack_protection_bits_errors: ack and dump all security violations
  * @get_hw_block_id: retrieve a HW block id to be used by the user to mmap it.
+ *                   also returns the size of the block if caller supplies
+ *                   a valid pointer for it
  * @hw_block_mmap: mmap a HW block with a given id.
  * @enable_events_from_fw: send interrupt to firmware to notify them the
  *                         driver is ready to receive asynchronous events. This
@@ -980,7 +982,7 @@ struct hl_asic_funcs {
 	u64 (*descramble_addr)(struct hl_device *hdev, u64 addr);
 	void (*ack_protection_bits_errors)(struct hl_device *hdev);
 	int (*get_hw_block_id)(struct hl_device *hdev, u64 block_addr,
-			u32 *block_id);
+				u32 *block_size, u32 *block_id);
 	int (*hw_block_mmap)(struct hl_device *hdev, struct vm_area_struct *vma,
 			u32 block_id, u32 block_size);
 	void (*enable_events_from_fw)(struct hl_device *hdev);
