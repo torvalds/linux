@@ -315,8 +315,9 @@ int dpaa2_mac_connect(struct dpaa2_mac *mac)
 		goto err_put_node;
 	}
 
-	if (mac->attr.link_type == DPMAC_LINK_TYPE_PHY &&
-	    mac->attr.eth_if != DPMAC_ETH_IF_RGMII) {
+	if ((mac->attr.link_type == DPMAC_LINK_TYPE_PHY &&
+	     mac->attr.eth_if != DPMAC_ETH_IF_RGMII) ||
+	    mac->attr.link_type == DPMAC_LINK_TYPE_BACKPLANE) {
 		err = dpaa2_pcs_create(mac, dpmac_node, mac->attr.id);
 		if (err)
 			goto err_put_node;
