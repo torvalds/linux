@@ -2506,12 +2506,12 @@ static int rsm_load_state_32(struct x86_emulate_ctxt *ctxt,
 
 	val = GET_SMSTATE(u32, smstate, 0x7fcc);
 
-	if (ctxt->ops->set_dr(ctxt, 6, (val & DR6_VOLATILE) | DR6_FIXED_1))
+	if (ctxt->ops->set_dr(ctxt, 6, val))
 		return X86EMUL_UNHANDLEABLE;
 
 	val = GET_SMSTATE(u32, smstate, 0x7fc8);
 
-	if (ctxt->ops->set_dr(ctxt, 7, (val & DR7_VOLATILE) | DR7_FIXED_1))
+	if (ctxt->ops->set_dr(ctxt, 7, val))
 		return X86EMUL_UNHANDLEABLE;
 
 	selector =                 GET_SMSTATE(u32, smstate, 0x7fc4);
@@ -2566,12 +2566,12 @@ static int rsm_load_state_64(struct x86_emulate_ctxt *ctxt,
 
 	val = GET_SMSTATE(u32, smstate, 0x7f68);
 
-	if (ctxt->ops->set_dr(ctxt, 6, (val & DR6_VOLATILE) | DR6_FIXED_1))
+	if (ctxt->ops->set_dr(ctxt, 6, val))
 		return X86EMUL_UNHANDLEABLE;
 
 	val = GET_SMSTATE(u32, smstate, 0x7f60);
 
-	if (ctxt->ops->set_dr(ctxt, 7, (val & DR7_VOLATILE) | DR7_FIXED_1))
+	if (ctxt->ops->set_dr(ctxt, 7, val))
 		return X86EMUL_UNHANDLEABLE;
 
 	cr0 =                       GET_SMSTATE(u64, smstate, 0x7f58);
