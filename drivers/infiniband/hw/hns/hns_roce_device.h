@@ -1077,7 +1077,7 @@ static inline struct hns_roce_srq *to_hr_srq(struct ib_srq *ibsrq)
 
 static inline void hns_roce_write64_k(__le32 val[2], void __iomem *dest)
 {
-	__raw_writeq(*(u64 *) val, dest);
+	writeq(*(u64 *)val, dest);
 }
 
 static inline struct hns_roce_qp

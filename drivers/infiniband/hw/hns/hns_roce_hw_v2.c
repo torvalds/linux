@@ -744,8 +744,6 @@ out:
 	if (likely(nreq)) {
 		qp->sq.head += nreq;
 		qp->next_sge = sge_idx;
-		/* Memory barrier */
-		wmb();
 
 		if (nreq == 1 && qp->sq.head == qp->sq.tail + 1 &&
 		    (qp->en_flags & HNS_ROCE_QP_CAP_DIRECT_WQE))
@@ -875,8 +873,6 @@ static int hns_roce_v2_post_recv(struct ib_qp *ibqp,
 out:
 	if (likely(nreq)) {
 		hr_qp->rq.head += nreq;
-		/* Memory barrier */
-		wmb();
 
 		/*
 		 * Hip08 hardware cannot flush the WQEs in RQ if the QP state
@@ -1015,12 +1011,6 @@ static int hns_roce_v2_post_srq_recv(struct ib_srq *ibsrq,
 	}
 
 	if (likely(nreq)) {
-		/*
-		 * Make sure that descriptors are written before
-		 * doorbell record.
-		 */
-		wmb();
-
 		srq_db.byte_4 =
 			cpu_to_le32(HNS_ROCE_V2_SRQ_DB << V2_DB_BYTE_4_CMD_S |
 				    (srq->srqn & V2_DB_BYTE_4_TAG_M));
@@ -3198,11 +3188,6 @@ static void __hns_roce_v2_cq_clean(struct hns_roce_cq *hr_cq, u32 qpn,
 
 	if (nfreed) {
 		hr_cq->cons_index += nfreed;
-		/*
-		 * Make sure update of buffer contents is done before
-		 * updating consumer index.
-		 */
-		wmb();
 		hns_roce_v2_cq_set_ci(hr_cq, hr_cq->cons_index);
 	}
 }
@@ -3711,11 +3696,8 @@ static int hns_roce_v2_poll_cq(struct ib_cq *ibcq, int num_entries,
 			break;
 	}
 
-	if (npolled) {
-		/* Memory barrier */
-		wmb();
+	if (npolled)
 		hns_roce_v2_cq_set_ci(hr_cq, hr_cq->cons_index);
-	}
 
 out:
 	spin_unlock_irqrestore(&hr_cq->lock, flags);
