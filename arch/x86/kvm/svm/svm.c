@@ -205,8 +205,6 @@ bool svm_gp_erratum_intercept = true;
 
 static u8 rsm_ins_bytes[] = "\x0f\xaa";
 
-static void svm_complete_interrupts(struct vcpu_svm *svm);
-
 static unsigned long iopm_base;
 
 struct kvm_ldttss_desc {
