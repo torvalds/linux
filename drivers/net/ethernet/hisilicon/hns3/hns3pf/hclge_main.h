@@ -17,6 +17,8 @@
 
 #define HCLGE_MAX_PF_NUM		8
 
+#define HCLGE_VF_VPORT_START_NUM	1
+
 #define HCLGE_RD_FIRST_STATS_NUM        2
 #define HCLGE_RD_OTHER_STATS_NUM        4
 

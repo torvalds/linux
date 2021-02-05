@@ -55,8 +55,6 @@
 
 #define HCLGE_LINK_STATUS_MS	10
 
-#define HCLGE_VF_VPORT_START_NUM	1
-
 static int hclge_set_mac_mtu(struct hclge_dev *hdev, int new_mps);
 static int hclge_init_vlan_config(struct hclge_dev *hdev);
 static void hclge_sync_vlan_filter(struct hclge_dev *hdev);
