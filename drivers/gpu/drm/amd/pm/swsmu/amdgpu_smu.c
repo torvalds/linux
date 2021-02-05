@@ -2044,14 +2044,23 @@ int smu_set_fan_speed_rpm(struct smu_context *smu, uint32_t speed)
 
 int smu_get_power_limit(struct smu_context *smu,
 			uint32_t *limit,
-			bool max_setting)
+			enum smu_ppt_limit_level limit_level)
 {
 	if (!smu->pm_enabled || !smu->adev->pm.dpm_enabled)
 		return -EOPNOTSUPP;
 
 	mutex_lock(&smu->mutex);
 
-	*limit = (max_setting ? smu->max_power_limit : smu->current_power_limit);
+	switch (limit_level) {
+	case SMU_PPT_LIMIT_CURRENT:
+		*limit = smu->current_power_limit;
+		break;
+	case SMU_PPT_LIMIT_MAX:
+		*limit = smu->max_power_limit;
+		break;
+	default:
+		break;
+	}
 
 	mutex_unlock(&smu->mutex);
 

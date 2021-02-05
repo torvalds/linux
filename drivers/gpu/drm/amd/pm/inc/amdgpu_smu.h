@@ -161,6 +161,13 @@ enum smu_power_src_type
 	SMU_POWER_SOURCE_COUNT,
 };
 
+enum smu_ppt_limit_level
+{
+	SMU_PPT_LIMIT_MIN = -1,
+	SMU_PPT_LIMIT_CURRENT,
+	SMU_PPT_LIMIT_MAX,
+};
+
 enum smu_memory_pool_size
 {
     SMU_MEMORY_POOL_SIZE_ZERO   = 0,
@@ -1218,7 +1225,7 @@ int smu_set_fan_speed_rpm(struct smu_context *smu, uint32_t speed);
 
 int smu_get_power_limit(struct smu_context *smu,
 			uint32_t *limit,
-			bool max_setting);
+			enum smu_ppt_limit_level limit_level);
 
 int smu_set_power_limit(struct smu_context *smu, uint32_t limit);
 int smu_print_clk_levels(struct smu_context *smu, enum smu_clk_type clk_type, char *buf);
