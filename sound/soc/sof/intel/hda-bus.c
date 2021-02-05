@@ -19,13 +19,21 @@
 #define sof_hda_ext_ops	NULL
 #endif
 
+#if IS_ENABLED(CONFIG_SND_SOC_SOF_HDA)
+static const struct hdac_bus_ops bus_core_ops = {
+	.command = snd_hdac_bus_send_cmd,
+	.get_response = snd_hdac_bus_get_response,
+	.link_power = snd_hdac_ext_bus_link_power,
+};
+#endif
+
 /*
  * This can be used for both with/without hda link support.
  */
 void sof_hda_bus_init(struct hdac_bus *bus, struct device *dev)
 {
 #if IS_ENABLED(CONFIG_SND_SOC_SOF_HDA)
-	snd_hdac_ext_bus_init(bus, dev, NULL, sof_hda_ext_ops);
+	snd_hdac_ext_bus_init(bus, dev, &bus_core_ops, sof_hda_ext_ops);
 #else /* CONFIG_SND_SOC_SOF_HDA */
 	memset(bus, 0, sizeof(*bus));
 	bus->dev = dev;
