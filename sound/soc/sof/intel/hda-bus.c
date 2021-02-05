@@ -9,6 +9,7 @@
 
 #include <linux/io.h>
 #include <sound/hdaudio.h>
+#include <sound/hda_i915.h>
 #include "../sof-priv.h"
 #include "hda.h"
 
@@ -20,10 +21,32 @@
 #endif
 
 #if IS_ENABLED(CONFIG_SND_SOC_SOF_HDA)
+static void sof_hda_bus_link_power(struct hdac_device *codec, bool enable)
+{
+	struct hdac_bus *bus = codec->bus;
+	bool oldstate = test_bit(codec->addr, &bus->codec_powered);
+
+	snd_hdac_ext_bus_link_power(codec, enable);
+
+	if (enable == oldstate)
+		return;
+
+	/*
+	 * Both codec driver and controller can hold references to
+	 * display power. To avoid unnecessary power-up/down cycles,
+	 * controller doesn't immediately release its reference.
+	 *
+	 * If the codec driver powers down the link, release
+	 * the controller reference as well.
+	 */
+	if (codec->addr == HDA_IDISP_ADDR && !enable)
+		snd_hdac_display_power(bus, HDA_CODEC_IDX_CONTROLLER, false);
+}
+
 static const struct hdac_bus_ops bus_core_ops = {
 	.command = snd_hdac_bus_send_cmd,
 	.get_response = snd_hdac_bus_get_response,
-	.link_power = snd_hdac_ext_bus_link_power,
+	.link_power = sof_hda_bus_link_power,
 };
 #endif
 
