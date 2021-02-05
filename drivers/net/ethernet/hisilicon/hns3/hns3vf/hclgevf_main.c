@@ -642,22 +642,20 @@ static u32 hclgevf_get_rss_key_size(struct hnae3_handle *handle)
 	return HCLGEVF_RSS_KEY_SIZE;
 }
 
-static u32 hclgevf_get_rss_indir_size(struct hnae3_handle *handle)
-{
-	return HCLGEVF_RSS_IND_TBL_SIZE;
-}
-
 static int hclgevf_set_rss_indir_table(struct hclgevf_dev *hdev)
 {
 	const u8 *indir = hdev->rss_cfg.rss_indirection_tbl;
 	struct hclgevf_rss_indirection_table_cmd *req;
 	struct hclgevf_desc desc;
+	int rss_cfg_tbl_num;
 	int status;
 	int i, j;
 
 	req = (struct hclgevf_rss_indirection_table_cmd *)desc.data;
+	rss_cfg_tbl_num = hdev->ae_dev->dev_specs.rss_ind_tbl_size /
+			  HCLGEVF_RSS_CFG_TBL_SIZE;
 
-	for (i = 0; i < HCLGEVF_RSS_CFG_TBL_NUM; i++) {
+	for (i = 0; i < rss_cfg_tbl_num; i++) {
 		hclgevf_cmd_setup_basic_desc(&desc, HCLGEVF_OPC_RSS_INDIR_TABLE,
 					     false);
 		req->start_table_index = i * HCLGEVF_RSS_CFG_TBL_SIZE;
@@ -795,7 +793,7 @@ static int hclgevf_get_rss(struct hnae3_handle *handle, u32 *indir, u8 *key,
 	}
 
 	if (indir)
-		for (i = 0; i < HCLGEVF_RSS_IND_TBL_SIZE; i++)
+		for (i = 0; i < hdev->ae_dev->dev_specs.rss_ind_tbl_size; i++)
 			indir[i] = rss_cfg->rss_indirection_tbl[i];
 
 	return 0;
@@ -838,7 +836,7 @@ static int hclgevf_set_rss(struct hnae3_handle *handle, const u32 *indir,
 	}
 
 	/* update the shadow RSS table with user specified qids */
-	for (i = 0; i < HCLGEVF_RSS_IND_TBL_SIZE; i++)
+	for (i = 0; i < hdev->ae_dev->dev_specs.rss_ind_tbl_size; i++)
 		rss_cfg->rss_indirection_tbl[i] = indir[i];
 
 	/* update the hardware */
@@ -2482,8 +2480,9 @@ static int hclgevf_config_gro(struct hclgevf_dev *hdev, bool en)
 	return ret;
 }
 
-static void hclgevf_rss_init_cfg(struct hclgevf_dev *hdev)
+static int hclgevf_rss_init_cfg(struct hclgevf_dev *hdev)
 {
+	u16 rss_ind_tbl_size = hdev->ae_dev->dev_specs.rss_ind_tbl_size;
 	struct hclgevf_rss_cfg *rss_cfg = &hdev->rss_cfg;
 	struct hclgevf_rss_tuple_cfg *tuple_sets;
 	u32 i;
@@ -2492,7 +2491,16 @@ static void hclgevf_rss_init_cfg(struct hclgevf_dev *hdev)
 	rss_cfg->rss_size = hdev->nic.kinfo.rss_size;
 	tuple_sets = &rss_cfg->rss_tuple_sets;
 	if (hdev->ae_dev->dev_version >= HNAE3_DEVICE_VERSION_V2) {
+		u8 *rss_ind_tbl;
+
 		rss_cfg->hash_algo = HCLGEVF_RSS_HASH_ALGO_SIMPLE;
+
+		rss_ind_tbl = devm_kcalloc(&hdev->pdev->dev, rss_ind_tbl_size,
+					   sizeof(*rss_ind_tbl), GFP_KERNEL);
+		if (!rss_ind_tbl)
+			return -ENOMEM;
+
+		rss_cfg->rss_indirection_tbl = rss_ind_tbl;
 		memcpy(rss_cfg->rss_hash_key, hclgevf_hash_key,
 		       HCLGEVF_RSS_KEY_SIZE);
 
@@ -2510,8 +2518,10 @@ static void hclgevf_rss_init_cfg(struct hclgevf_dev *hdev)
 	}
 
 	/* Initialize RSS indirect table */
-	for (i = 0; i < HCLGEVF_RSS_IND_TBL_SIZE; i++)
+	for (i = 0; i < rss_ind_tbl_size; i++)
 		rss_cfg->rss_indirection_tbl[i] = i % rss_cfg->rss_size;
+
+	return 0;
 }
 
 static int hclgevf_rss_init_hw(struct hclgevf_dev *hdev)
@@ -3266,7 +3276,12 @@ static int hclgevf_init_hdev(struct hclgevf_dev *hdev)
 		goto err_config;
 
 	/* Initialize RSS for this VF */
-	hclgevf_rss_init_cfg(hdev);
+	ret = hclgevf_rss_init_cfg(hdev);
+	if (ret) {
+		dev_err(&pdev->dev, "failed to init rss cfg, ret = %d\n", ret);
+		goto err_config;
+	}
+
 	ret = hclgevf_rss_init_hw(hdev);
 	if (ret) {
 		dev_err(&hdev->pdev->dev,
@@ -3444,11 +3459,12 @@ static int hclgevf_set_channels(struct hnae3_handle *handle, u32 new_tqps_num,
 		goto out;
 
 	/* Reinitializes the rss indirect table according to the new RSS size */
-	rss_indir = kcalloc(HCLGEVF_RSS_IND_TBL_SIZE, sizeof(u32), GFP_KERNEL);
+	rss_indir = kcalloc(hdev->ae_dev->dev_specs.rss_ind_tbl_size,
+			    sizeof(u32), GFP_KERNEL);
 	if (!rss_indir)
 		return -ENOMEM;
 
-	for (i = 0; i < HCLGEVF_RSS_IND_TBL_SIZE; i++)
+	for (i = 0; i < hdev->ae_dev->dev_specs.rss_ind_tbl_size; i++)
 		rss_indir[i] = i % kinfo->rss_size;
 
 	hdev->rss_cfg.rss_size = kinfo->rss_size;
@@ -3687,7 +3703,6 @@ static const struct hnae3_ae_ops hclgevf_ops = {
 	.get_strings = hclgevf_get_strings,
 	.get_sset_count = hclgevf_get_sset_count,
 	.get_rss_key_size = hclgevf_get_rss_key_size,
-	.get_rss_indir_size = hclgevf_get_rss_indir_size,
 	.get_rss = hclgevf_get_rss,
 	.set_rss = hclgevf_set_rss,
 	.get_rss_tuple = hclgevf_get_rss_tuple,

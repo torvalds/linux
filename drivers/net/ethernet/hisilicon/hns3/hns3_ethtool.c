@@ -859,11 +859,9 @@ static u32 hns3_get_rss_key_size(struct net_device *netdev)
 static u32 hns3_get_rss_indir_size(struct net_device *netdev)
 {
 	struct hnae3_handle *h = hns3_get_handle(netdev);
+	struct hnae3_ae_dev *ae_dev = pci_get_drvdata(h->pdev);
 
-	if (!h->ae_algo->ops->get_rss_indir_size)
-		return 0;
-
-	return h->ae_algo->ops->get_rss_indir_size(h);
+	return ae_dev->dev_specs.rss_ind_tbl_size;
 }
 
 static int hns3_get_rss(struct net_device *netdev, u32 *indir, u8 *key,

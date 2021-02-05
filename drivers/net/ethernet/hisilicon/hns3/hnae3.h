@@ -410,8 +410,6 @@ struct hnae3_ae_dev {
  *   Get the len of the regs dump
  * get_rss_key_size()
  *   Get rss key size
- * get_rss_indir_size()
- *   Get rss indirection table size
  * get_rss()
  *   Get rss table
  * set_rss()
@@ -555,7 +553,6 @@ struct hnae3_ae_ops {
 	int (*get_regs_len)(struct hnae3_handle *handle);
 
 	u32 (*get_rss_key_size)(struct hnae3_handle *handle);
-	u32 (*get_rss_indir_size)(struct hnae3_handle *handle);
 	int (*get_rss)(struct hnae3_handle *handle, u32 *indir, u8 *key,
 		       u8 *hfunc);
 	int (*set_rss)(struct hnae3_handle *handle, const u32 *indir,

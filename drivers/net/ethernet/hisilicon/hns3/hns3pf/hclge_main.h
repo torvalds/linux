@@ -97,8 +97,6 @@
 #define HCLGE_RSS_HASH_ALGO_SIMPLE	1
 #define HCLGE_RSS_HASH_ALGO_SYMMETRIC	2
 #define HCLGE_RSS_HASH_ALGO_MASK	GENMASK(3, 0)
-#define HCLGE_RSS_CFG_TBL_NUM \
-	(HCLGE_RSS_IND_TBL_SIZE / HCLGE_RSS_CFG_TBL_SIZE)
 
 #define HCLGE_RSS_INPUT_TUPLE_OTHER	GENMASK(3, 0)
 #define HCLGE_RSS_INPUT_TUPLE_SCTP	GENMASK(4, 0)
@@ -922,7 +920,7 @@ struct hclge_vport {
 
 	u8  rss_hash_key[HCLGE_RSS_KEY_SIZE]; /* User configured hash keys */
 	/* User configured lookup table entries */
-	u16 rss_indirection_tbl[HCLGE_RSS_IND_TBL_SIZE];
+	u16 *rss_indirection_tbl;
 	int rss_algo;		/* User configured hash algorithm */
 	/* User configured rss tuple sets */
 	struct hclge_rss_tuple_cfg rss_tuple_sets;
