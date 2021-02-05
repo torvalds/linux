@@ -1717,62 +1717,6 @@ static void icl_ddi_combo_disable_clock(struct intel_encoder *encoder)
 			       ICL_DPCLKA_CFGCR0_DDI_CLK_OFF(phy));
 }
 
-void icl_sanitize_encoder_pll_mapping(struct intel_encoder *encoder)
-{
-	struct drm_i915_private *dev_priv = to_i915(encoder->base.dev);
-	u32 port_mask;
-	bool ddi_clk_needed;
-
-	/*
-	 * In case of DP MST, we sanitize the primary encoder only, not the
-	 * virtual ones.
-	 */
-	if (encoder->type == INTEL_OUTPUT_DP_MST)
-		return;
-
-	if (!encoder->base.crtc && intel_encoder_is_dp(encoder)) {
-		u8 pipe_mask;
-		bool is_mst;
-
-		intel_ddi_get_encoder_pipes(encoder, &pipe_mask, &is_mst);
-		/*
-		 * In the unlikely case that BIOS enables DP in MST mode, just
-		 * warn since our MST HW readout is incomplete.
-		 */
-		if (drm_WARN_ON(&dev_priv->drm, is_mst))
-			return;
-	}
-
-	port_mask = BIT(encoder->port);
-	ddi_clk_needed = encoder->base.crtc;
-
-	if (encoder->type == INTEL_OUTPUT_DSI) {
-		struct intel_encoder *other_encoder;
-
-		port_mask = intel_dsi_encoder_ports(encoder);
-		/*
-		 * Sanity check that we haven't incorrectly registered another
-		 * encoder using any of the ports of this DSI encoder.
-		 */
-		for_each_intel_encoder(&dev_priv->drm, other_encoder) {
-			if (other_encoder == encoder)
-				continue;
-
-			if (drm_WARN_ON(&dev_priv->drm,
-					port_mask & BIT(other_encoder->port)))
-				return;
-		}
-		/*
-		 * For DSI we keep the ddi clocks gated
-		 * except during enable/disable sequence.
-		 */
-		ddi_clk_needed = false;
-	}
-
-	if (!ddi_clk_needed && encoder->disable_clock)
-		encoder->disable_clock(encoder);
-}
-
 static void jsl_ddi_tc_enable_clock(struct intel_encoder *encoder,
 				    const struct intel_crtc_state *crtc_state)
 {
@@ -1930,6 +1874,62 @@ void intel_ddi_enable_clock(struct intel_encoder *encoder,
 static void intel_ddi_disable_clock(struct intel_encoder *encoder)
 {
 	if (encoder->disable_clock)
+		encoder->disable_clock(encoder);
+}
+
+void icl_sanitize_encoder_pll_mapping(struct intel_encoder *encoder)
+{
+	struct drm_i915_private *dev_priv = to_i915(encoder->base.dev);
+	u32 port_mask;
+	bool ddi_clk_needed;
+
+	/*
+	 * In case of DP MST, we sanitize the primary encoder only, not the
+	 * virtual ones.
+	 */
+	if (encoder->type == INTEL_OUTPUT_DP_MST)
+		return;
+
+	if (!encoder->base.crtc && intel_encoder_is_dp(encoder)) {
+		u8 pipe_mask;
+		bool is_mst;
+
+		intel_ddi_get_encoder_pipes(encoder, &pipe_mask, &is_mst);
+		/*
+		 * In the unlikely case that BIOS enables DP in MST mode, just
+		 * warn since our MST HW readout is incomplete.
+		 */
+		if (drm_WARN_ON(&dev_priv->drm, is_mst))
+			return;
+	}
+
+	port_mask = BIT(encoder->port);
+	ddi_clk_needed = encoder->base.crtc;
+
+	if (encoder->type == INTEL_OUTPUT_DSI) {
+		struct intel_encoder *other_encoder;
+
+		port_mask = intel_dsi_encoder_ports(encoder);
+		/*
+		 * Sanity check that we haven't incorrectly registered another
+		 * encoder using any of the ports of this DSI encoder.
+		 */
+		for_each_intel_encoder(&dev_priv->drm, other_encoder) {
+			if (other_encoder == encoder)
+				continue;
+
+			if (drm_WARN_ON(&dev_priv->drm,
+					port_mask & BIT(other_encoder->port)))
+				return;
+		}
+		/*
+		 * For DSI we keep the ddi clocks gated
+		 * except during enable/disable sequence.
+		 */
+		ddi_clk_needed = false;
+	}
+
+	if (!ddi_clk_needed && encoder->disable_clock)
 		encoder->disable_clock(encoder);
 }
 
