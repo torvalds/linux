@@ -1381,7 +1381,8 @@ static int intel_pt_synth_branch_sample(struct intel_pt_queue *ptq)
 		sample.branch_stack = (struct branch_stack *)&dummy_bs;
 	}
 
-	sample.cyc_cnt = ptq->ipc_cyc_cnt - ptq->last_br_cyc_cnt;
+	if (ptq->state->flags & INTEL_PT_SAMPLE_IPC)
+		sample.cyc_cnt = ptq->ipc_cyc_cnt - ptq->last_br_cyc_cnt;
 	if (sample.cyc_cnt) {
 		sample.insn_cnt = ptq->ipc_insn_cnt - ptq->last_br_insn_cnt;
 		ptq->last_br_insn_cnt = ptq->ipc_insn_cnt;
@@ -1431,7 +1432,8 @@ static int intel_pt_synth_instruction_sample(struct intel_pt_queue *ptq)
 	else
 		sample.period = ptq->state->tot_insn_cnt - ptq->last_insn_cnt;
 
-	sample.cyc_cnt = ptq->ipc_cyc_cnt - ptq->last_in_cyc_cnt;
+	if (ptq->state->flags & INTEL_PT_SAMPLE_IPC)
+		sample.cyc_cnt = ptq->ipc_cyc_cnt - ptq->last_in_cyc_cnt;
 	if (sample.cyc_cnt) {
 		sample.insn_cnt = ptq->ipc_insn_cnt - ptq->last_in_insn_cnt;
 		ptq->last_in_insn_cnt = ptq->ipc_insn_cnt;
@@ -1966,14 +1968,8 @@ static int intel_pt_sample(struct intel_pt_queue *ptq)
 
 	ptq->have_sample = false;
 
-	if (ptq->state->tot_cyc_cnt > ptq->ipc_cyc_cnt) {
-		/*
-		 * Cycle count and instruction count only go together to create
-		 * a valid IPC ratio when the cycle count changes.
-		 */
-		ptq->ipc_insn_cnt = ptq->state->tot_insn_cnt;
-		ptq->ipc_cyc_cnt = ptq->state->tot_cyc_cnt;
-	}
+	ptq->ipc_insn_cnt = ptq->state->tot_insn_cnt;
+	ptq->ipc_cyc_cnt = ptq->state->tot_cyc_cnt;
 
 	/*
 	 * Do PEBS first to allow for the possibility that the PEBS timestamp
