@@ -421,11 +421,12 @@ void dcn30_program_all_writeback_pipes_in_tree(
 
 void dcn30_init_hw(struct dc *dc)
 {
-	int i, j;
 	struct abm **abms = dc->res_pool->multiple_abms;
 	struct dce_hwseq *hws = dc->hwseq;
 	struct dc_bios *dcb = dc->ctx->dc_bios;
 	struct resource_pool *res_pool = dc->res_pool;
+	int i, j;
+	int edp_num;
 	uint32_t backlight = MAX_BACKLIGHT_LEVEL;
 
 	if (dc->clk_mgr && dc->clk_mgr->funcs->init_clocks)
@@ -574,17 +575,23 @@ void dcn30_init_hw(struct dc *dc)
 	 * if DIG is turned on and seamless boot not enabled
 	 */
 	if (dc->config.power_down_display_on_boot) {
-		struct dc_link *edp_link = get_edp_link(dc);
+		struct dc_link *edp_links[MAX_NUM_EDP];
+		struct dc_link *edp_link;
 
-		if (edp_link &&
-				edp_link->link_enc->funcs->is_dig_enabled &&
-				edp_link->link_enc->funcs->is_dig_enabled(edp_link->link_enc) &&
-				dc->hwss.edp_backlight_control &&
-				dc->hwss.power_down &&
-				dc->hwss.edp_power_control) {
-			dc->hwss.edp_backlight_control(edp_link, false);
-			dc->hwss.power_down(dc);
-			dc->hwss.edp_power_control(edp_link, false);
+		get_edp_links(dc, edp_links, &edp_num);
+		if (edp_num) {
+			for (i = 0; i < edp_num; i++) {
+				edp_link = edp_links[i];
+				if (edp_link->link_enc->funcs->is_dig_enabled &&
+						edp_link->link_enc->funcs->is_dig_enabled(edp_link->link_enc) &&
+						dc->hwss.edp_backlight_control &&
+						dc->hwss.power_down &&
+						dc->hwss.edp_power_control) {
+					dc->hwss.edp_backlight_control(edp_link, false);
+					dc->hwss.power_down(dc);
+					dc->hwss.edp_power_control(edp_link, false);
+				}
+			}
 		} else {
 			for (i = 0; i < dc->link_count; i++) {
 				struct dc_link *link = dc->links[i];

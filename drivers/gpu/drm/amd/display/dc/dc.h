@@ -52,6 +52,7 @@ struct aux_payload;
 #define MAX_STREAMS 6
 #define MAX_SINKS_PER_LINK 4
 #define MIN_VIEWPORT_SIZE 12
+#define MAX_NUM_EDP 2
 
 /*******************************************************************************
  * Display Core Interfaces

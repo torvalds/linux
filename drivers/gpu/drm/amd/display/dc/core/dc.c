@@ -1012,22 +1012,26 @@ destruct_dc:
 
 static void detect_edp_presence(struct dc *dc)
 {
-	struct dc_link *edp_link = get_edp_link(dc);
+	struct dc_link *edp_links[MAX_NUM_EDP];
+	struct dc_link *edp_link = NULL;
+	int i;
+	int edp_num;
 	bool edp_sink_present = true;
 
-	if (!edp_link)
+	get_edp_links(dc, edp_links, &edp_num);
+	if (!edp_num)
 		return;
 
 	if (dc->config.edp_not_connected) {
 			edp_sink_present = false;
 	} else {
 		enum dc_connection_type type;
-		dc_link_detect_sink(edp_link, &type);
-		if (type == dc_connection_none)
-			edp_sink_present = false;
+		for (i = 0; i < edp_num; i++) {
+			edp_link = edp_links[i];
+			dc_link_detect_sink(edp_link, &type);
+			edp_link->edp_sink_present = (type != dc_connection_none);
+		}
 	}
-
-	edp_link->edp_sink_present = edp_sink_present;
 }
 
 void dc_hardware_init(struct dc *dc)

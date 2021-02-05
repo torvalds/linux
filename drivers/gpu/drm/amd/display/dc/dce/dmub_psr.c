@@ -216,6 +216,7 @@ static bool dmub_psr_copy_settings(struct dmub_psr *dmub,
 		    res_ctx->pipe_ctx[i].stream->link == link &&
 		    res_ctx->pipe_ctx[i].stream->link->connector_signal == SIGNAL_TYPE_EDP) {
 			pipe_ctx = &res_ctx->pipe_ctx[i];
+			//TODO: refactor for multi edp support
 			break;
 		}
 	}
