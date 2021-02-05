@@ -315,6 +315,7 @@ struct kvmppc_ops {
 	int (*enable_svm)(struct kvm *kvm);
 	int (*svm_off)(struct kvm *kvm);
 	int (*enable_dawr1)(struct kvm *kvm);
+	bool (*hash_v3_possible)(void);
 };
 
 extern struct kvmppc_ops *kvmppc_hv_ops;
