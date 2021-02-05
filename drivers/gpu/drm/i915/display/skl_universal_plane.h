@@ -30,4 +30,8 @@ int skl_ccs_to_main_plane(const struct drm_framebuffer *fb, int ccs_plane);
 int skl_calc_main_surface_offset(const struct intel_plane_state *plane_state,
 				 int *x, int *y, u32 *offset);
 
+bool icl_is_nv12_y_plane(struct drm_i915_private *dev_priv,
+			 enum plane_id plane_id);
+bool icl_is_hdr_plane(struct drm_i915_private *dev_priv, enum plane_id plane_id);
+
 #endif

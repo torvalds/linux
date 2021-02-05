@@ -35,6 +35,7 @@
 #include "intel_dsi.h"
 #include "intel_panel.h"
 #include "intel_vdsc.h"
+#include "skl_scaler.h"
 #include "skl_universal_plane.h"
 
 static int header_credits_available(struct drm_i915_private *dev_priv,

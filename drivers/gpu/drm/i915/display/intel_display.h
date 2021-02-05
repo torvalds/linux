@@ -618,12 +618,6 @@ enum intel_display_power_domain
 intel_legacy_aux_to_power_domain(enum aux_ch aux_ch);
 void intel_crtc_arm_fifo_underrun(struct intel_crtc *crtc,
 				  struct intel_crtc_state *crtc_state);
-
-u16 skl_scaler_calc_phase(int sub, int scale, bool chroma_center);
-void skl_scaler_disable(const struct intel_crtc_state *old_crtc_state);
-u32 skl_scaler_get_filter_select(enum drm_scaling_filter filter, int set);
-void skl_scaler_setup_filter(struct drm_i915_private *dev_priv, enum pipe pipe,
-			     int id, int set, enum drm_scaling_filter filter);
 void ilk_pfit_disable(const struct intel_crtc_state *old_crtc_state);
 
 int bdw_get_pipemisc_bpp(struct intel_crtc *crtc);

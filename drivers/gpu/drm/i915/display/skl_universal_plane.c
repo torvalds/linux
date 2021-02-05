@@ -14,6 +14,7 @@
 #include "intel_pm.h"
 #include "intel_psr.h"
 #include "intel_sprite.h"
+#include "skl_scaler.h"
 #include "skl_universal_plane.h"
 
 static const u32 skl_plane_formats[] = {
@@ -1054,7 +1055,7 @@ skl_program_plane(struct intel_plane *plane,
 			  intel_plane_ggtt_offset(plane_state) + surf_addr);
 
 	if (plane_state->scaler_id >= 0)
-		skl_program_scaler(plane, crtc_state, plane_state);
+		skl_program_plane_scaler(plane, crtc_state, plane_state);
 
 	spin_unlock_irqrestore(&dev_priv->uncore.lock, irqflags);
 }

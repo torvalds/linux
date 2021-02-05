@@ -40,7 +40,7 @@
 #include "intel_global_state.h"
 #include "intel_hdcp.h"
 #include "intel_psr.h"
-#include "intel_sprite.h"
+#include "skl_universal_plane.h"
 
 /**
  * intel_digital_connector_atomic_get_property - hook for connector->atomic_get_property.

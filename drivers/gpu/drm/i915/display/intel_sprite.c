@@ -138,68 +138,6 @@ int intel_plane_check_src_coordinates(struct intel_plane_state *plane_state)
 	return 0;
 }
 
-void
-skl_program_scaler(struct intel_plane *plane,
-		   const struct intel_crtc_state *crtc_state,
-		   const struct intel_plane_state *plane_state)
-{
-	struct drm_i915_private *dev_priv = to_i915(plane->base.dev);
-	const struct drm_framebuffer *fb = plane_state->hw.fb;
-	enum pipe pipe = plane->pipe;
-	int scaler_id = plane_state->scaler_id;
-	const struct intel_scaler *scaler =
-		&crtc_state->scaler_state.scalers[scaler_id];
-	int crtc_x = plane_state->uapi.dst.x1;
-	int crtc_y = plane_state->uapi.dst.y1;
-	u32 crtc_w = drm_rect_width(&plane_state->uapi.dst);
-	u32 crtc_h = drm_rect_height(&plane_state->uapi.dst);
-	u16 y_hphase, uv_rgb_hphase;
-	u16 y_vphase, uv_rgb_vphase;
-	int hscale, vscale;
-	u32 ps_ctrl;
-
-	hscale = drm_rect_calc_hscale(&plane_state->uapi.src,
-				      &plane_state->uapi.dst,
-				      0, INT_MAX);
-	vscale = drm_rect_calc_vscale(&plane_state->uapi.src,
-				      &plane_state->uapi.dst,
-				      0, INT_MAX);
-
-	/* TODO: handle sub-pixel coordinates */
-	if (intel_format_info_is_yuv_semiplanar(fb->format, fb->modifier) &&
-	    !icl_is_hdr_plane(dev_priv, plane->id)) {
-		y_hphase = skl_scaler_calc_phase(1, hscale, false);
-		y_vphase = skl_scaler_calc_phase(1, vscale, false);
-
-		/* MPEG2 chroma siting convention */
-		uv_rgb_hphase = skl_scaler_calc_phase(2, hscale, true);
-		uv_rgb_vphase = skl_scaler_calc_phase(2, vscale, false);
-	} else {
-		/* not used */
-		y_hphase = 0;
-		y_vphase = 0;
-
-		uv_rgb_hphase = skl_scaler_calc_phase(1, hscale, false);
-		uv_rgb_vphase = skl_scaler_calc_phase(1, vscale, false);
-	}
-
-	ps_ctrl = skl_scaler_get_filter_select(plane_state->hw.scaling_filter, 0);
-	ps_ctrl |= PS_SCALER_EN | PS_PLANE_SEL(plane->id) | scaler->mode;
-
-	skl_scaler_setup_filter(dev_priv, pipe, scaler_id, 0,
-				plane_state->hw.scaling_filter);
-
-	intel_de_write_fw(dev_priv, SKL_PS_CTRL(pipe, scaler_id), ps_ctrl);
-	intel_de_write_fw(dev_priv, SKL_PS_VPHASE(pipe, scaler_id),
-			  PS_Y_PHASE(y_vphase) | PS_UV_RGB_PHASE(uv_rgb_vphase));
-	intel_de_write_fw(dev_priv, SKL_PS_HPHASE(pipe, scaler_id),
-			  PS_Y_PHASE(y_hphase) | PS_UV_RGB_PHASE(uv_rgb_hphase));
-	intel_de_write_fw(dev_priv, SKL_PS_WIN_POS(pipe, scaler_id),
-			  (crtc_x << 16) | crtc_y);
-	intel_de_write_fw(dev_priv, SKL_PS_WIN_SZ(pipe, scaler_id),
-			  (crtc_w << 16) | crtc_h);
-}
-
 static void i9xx_plane_linear_gamma(u16 gamma[8])
 {
 	/* The points are not evenly spaced. */

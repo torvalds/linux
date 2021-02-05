@@ -54,6 +54,7 @@
 #include "intel_tc.h"
 #include "intel_vdsc.h"
 #include "intel_vrr.h"
+#include "skl_scaler.h"
 #include "skl_universal_plane.h"
 
 static const u8 index_to_dp_signal_levels[] = {
