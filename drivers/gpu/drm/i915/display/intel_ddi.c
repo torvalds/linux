@@ -1599,11 +1599,37 @@ static u32 icl_dpclka_cfgcr0_clk_off(struct drm_i915_private *dev_priv,
 	return 0;
 }
 
+static void _cnl_ddi_enable_clock(struct drm_i915_private *i915, i915_reg_t reg,
+				  u32 clk_sel_mask, u32 clk_sel, u32 clk_off)
+{
+	mutex_lock(&i915->dpll.lock);
+
+	intel_de_rmw(i915, reg, clk_sel_mask, clk_sel);
+
+	/*
+	 * "This step and the step before must be
+	 *  done with separate register writes."
+	 */
+	intel_de_rmw(i915, reg, clk_off, 0);
+
+	mutex_unlock(&i915->dpll.lock);
+}
+
+static void _cnl_ddi_disable_clock(struct drm_i915_private *i915, i915_reg_t reg,
+				   u32 clk_off)
+{
+	mutex_lock(&i915->dpll.lock);
+
+	intel_de_rmw(i915, reg, 0, clk_off);
+
+	mutex_unlock(&i915->dpll.lock);
+}
+
 static void dg1_ddi_enable_clock(struct intel_encoder *encoder,
 				 const struct intel_crtc_state *crtc_state)
 {
 	struct drm_i915_private *dev_priv = to_i915(encoder->base.dev);
-	struct intel_shared_dpll *pll = crtc_state->shared_dpll;
+	const struct intel_shared_dpll *pll = crtc_state->shared_dpll;
 	enum phy phy = intel_port_to_phy(dev_priv, encoder->port);
 
 	if (drm_WARN_ON(&dev_priv->drm, !pll))
@@ -1618,16 +1644,10 @@ static void dg1_ddi_enable_clock(struct intel_encoder *encoder,
 			(pll->info->id >= DPLL_ID_DG1_DPLL2 && phy < PHY_C)))
 		return;
 
-	mutex_lock(&dev_priv->dpll.lock);
-
-	intel_de_rmw(dev_priv, DG1_DPCLKA_CFGCR0(phy),
-		     DG1_DPCLKA_CFGCR0_DDI_CLK_SEL_MASK(phy),
-		     DG1_DPCLKA_CFGCR0_DDI_CLK_SEL(pll->info->id, phy));
-
-	intel_de_rmw(dev_priv, DG1_DPCLKA_CFGCR0(phy),
-		     DG1_DPCLKA_CFGCR0_DDI_CLK_OFF(phy), 0);
-
-	mutex_unlock(&dev_priv->dpll.lock);
+	_cnl_ddi_enable_clock(dev_priv, DG1_DPCLKA_CFGCR0(phy),
+			      DG1_DPCLKA_CFGCR0_DDI_CLK_SEL_MASK(phy),
+			      DG1_DPCLKA_CFGCR0_DDI_CLK_SEL(pll->info->id, phy),
+			      DG1_DPCLKA_CFGCR0_DDI_CLK_OFF(phy));
 }
 
 static void dg1_ddi_disable_clock(struct intel_encoder *encoder)
@@ -1635,19 +1655,15 @@ static void dg1_ddi_disable_clock(struct intel_encoder *encoder)
 	struct drm_i915_private *dev_priv = to_i915(encoder->base.dev);
 	enum phy phy = intel_port_to_phy(dev_priv, encoder->port);
 
-	mutex_lock(&dev_priv->dpll.lock);
-
-	intel_de_rmw(dev_priv, DG1_DPCLKA_CFGCR0(phy),
-		     0, DG1_DPCLKA_CFGCR0_DDI_CLK_OFF(phy));
-
-	mutex_unlock(&dev_priv->dpll.lock);
+	_cnl_ddi_disable_clock(dev_priv, DG1_DPCLKA_CFGCR0(phy),
+			       DG1_DPCLKA_CFGCR0_DDI_CLK_OFF(phy));
 }
 
 static void icl_ddi_combo_enable_clock(struct intel_encoder *encoder,
 				       const struct intel_crtc_state *crtc_state)
 {
 	struct drm_i915_private *dev_priv = to_i915(encoder->base.dev);
-	struct intel_shared_dpll *pll = crtc_state->shared_dpll;
+	const struct intel_shared_dpll *pll = crtc_state->shared_dpll;
 	enum phy phy = intel_port_to_phy(dev_priv, encoder->port);
 	u32 mask, sel;
 	i915_reg_t reg;
@@ -1669,24 +1685,8 @@ static void icl_ddi_combo_enable_clock(struct intel_encoder *encoder,
 	if (drm_WARN_ON(&dev_priv->drm, !pll))
 		return;
 
-	mutex_lock(&dev_priv->dpll.lock);
-
-	/*
-	 * Even though this register references DDIs, note that we
-	 * want to pass the PHY rather than the port (DDI).  For
-	 * ICL, port=phy in all cases so it doesn't matter, but for
-	 * EHL the bspec notes the following:
-	 *
-	 *   "DDID clock tied to DDIA clock, so DPCLKA_CFGCR0 DDIA
-	 *   Clock Select chooses the PLL for both DDIA and DDID and
-	 *   drives port A in all cases."
-	 */
-	intel_de_rmw(dev_priv, reg, mask, sel);
-
-	intel_de_rmw(dev_priv, reg,
-		     icl_dpclka_cfgcr0_clk_off(dev_priv, phy), 0);
-
-	mutex_unlock(&dev_priv->dpll.lock);
+	_cnl_ddi_enable_clock(dev_priv, reg, mask, sel,
+			      icl_dpclka_cfgcr0_clk_off(dev_priv, phy));
 }
 
 static void icl_ddi_combo_disable_clock(struct intel_encoder *encoder)
@@ -1695,19 +1695,13 @@ static void icl_ddi_combo_disable_clock(struct intel_encoder *encoder)
 	enum phy phy = intel_port_to_phy(dev_priv, encoder->port);
 	i915_reg_t reg;
 
-	mutex_lock(&dev_priv->dpll.lock);
-
 	if (IS_ALDERLAKE_S(dev_priv))
 		reg = ADLS_DPCLKA_CFGCR(phy);
 	else
 		reg = ICL_DPCLKA_CFGCR0;
 
-	mutex_lock(&dev_priv->dpll.lock);
-
-	intel_de_rmw(dev_priv, reg,
-		     0, icl_dpclka_cfgcr0_clk_off(dev_priv, phy));
-
-	mutex_unlock(&dev_priv->dpll.lock);
+	_cnl_ddi_disable_clock(dev_priv, reg,
+			       icl_dpclka_cfgcr0_clk_off(dev_priv, phy));
 }
 
 static void dg1_sanitize_port_clk_off(struct drm_i915_private *dev_priv,
@@ -1914,20 +1908,10 @@ static void cnl_ddi_enable_clock(struct intel_encoder *encoder,
 	if (drm_WARN_ON(&i915->drm, !pll))
 		return;
 
-	mutex_lock(&i915->dpll.lock);
-
-	intel_de_rmw(i915, DPCLKA_CFGCR0,
-		     DPCLKA_CFGCR0_DDI_CLK_SEL_MASK(port),
-		     DPCLKA_CFGCR0_DDI_CLK_SEL(pll->info->id, port));
-
-	/*
-	 * "This step and the step before must be
-	 *  done with separate register writes."
-	 */
-	intel_de_rmw(i915, DPCLKA_CFGCR0,
-		     DPCLKA_CFGCR0_DDI_CLK_OFF(port), 0);
-
-	mutex_unlock(&i915->dpll.lock);
+	_cnl_ddi_enable_clock(i915, DPCLKA_CFGCR0,
+			      DPCLKA_CFGCR0_DDI_CLK_SEL_MASK(port),
+			      DPCLKA_CFGCR0_DDI_CLK_SEL(pll->info->id, port),
+			      DPCLKA_CFGCR0_DDI_CLK_OFF(port));
 }
 
 static void cnl_ddi_disable_clock(struct intel_encoder *encoder)
@@ -1935,12 +1919,8 @@ static void cnl_ddi_disable_clock(struct intel_encoder *encoder)
 	struct drm_i915_private *i915 = to_i915(encoder->base.dev);
 	enum port port = encoder->port;
 
-	mutex_lock(&i915->dpll.lock);
-
-	intel_de_rmw(i915, DPCLKA_CFGCR0,
-		     0, DPCLKA_CFGCR0_DDI_CLK_OFF(port));
-
-	mutex_unlock(&i915->dpll.lock);
+	_cnl_ddi_disable_clock(i915, DPCLKA_CFGCR0,
+			       DPCLKA_CFGCR0_DDI_CLK_OFF(port));
 }
 
 static void skl_ddi_enable_clock(struct intel_encoder *encoder,
