@@ -1420,7 +1420,15 @@ int __dax_driver_register(struct dax_device_driver *dax_drv,
 	mutex_unlock(&dax_bus_lock);
 	if (rc)
 		return rc;
-	return driver_register(drv);
+
+	rc = driver_register(drv);
+	if (rc && dax_drv->match_always) {
+		mutex_lock(&dax_bus_lock);
+		match_always_count -= dax_drv->match_always;
+		mutex_unlock(&dax_bus_lock);
+	}
+
+	return rc;
 }
 EXPORT_SYMBOL_GPL(__dax_driver_register);
 
