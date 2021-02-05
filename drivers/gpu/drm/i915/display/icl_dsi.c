@@ -1942,6 +1942,7 @@ void icl_dsi_init(struct drm_i915_private *dev_priv)
 	encoder->pipe_mask = ~0;
 	encoder->power_domain = POWER_DOMAIN_PORT_DSI;
 	encoder->get_power_domains = gen11_dsi_get_power_domains;
+	encoder->disable_clock = gen11_dsi_gate_clocks;
 
 	/* register DSI connector with DRM subsystem */
 	drm_connector_init(dev, connector, &gen11_dsi_connector_funcs,

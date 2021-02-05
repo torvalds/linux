@@ -1582,23 +1582,6 @@ hsw_set_signal_levels(struct intel_dp *intel_dp,
 	intel_de_posting_read(dev_priv, DDI_BUF_CTL(port));
 }
 
-static u32 icl_dpclka_cfgcr0_clk_off(struct drm_i915_private *dev_priv,
-				     enum phy phy)
-{
-	if (IS_ROCKETLAKE(dev_priv)) {
-		return RKL_DPCLKA_CFGCR0_DDI_CLK_OFF(phy);
-	} else if (intel_phy_is_combo(dev_priv, phy)) {
-		return ICL_DPCLKA_CFGCR0_DDI_CLK_OFF(phy);
-	} else if (intel_phy_is_tc(dev_priv, phy)) {
-		enum tc_port tc_port = intel_port_to_tc(dev_priv,
-							(enum port)phy);
-
-		return ICL_DPCLKA_CFGCR0_TC_CLK_OFF(tc_port);
-	}
-
-	return 0;
-}
-
 static void _cnl_ddi_enable_clock(struct drm_i915_private *i915, i915_reg_t reg,
 				  u32 clk_sel_mask, u32 clk_sel, u32 clk_off)
 {
@@ -1734,75 +1717,6 @@ static void icl_ddi_combo_disable_clock(struct intel_encoder *encoder)
 			       ICL_DPCLKA_CFGCR0_DDI_CLK_OFF(phy));
 }
 
-static void dg1_sanitize_port_clk_off(struct drm_i915_private *dev_priv,
-				      u32 port_mask, bool ddi_clk_needed)
-{
-	enum port port;
-	u32 val;
-
-	for_each_port_masked(port, port_mask) {
-		enum phy phy = intel_port_to_phy(dev_priv, port);
-		bool ddi_clk_off;
-
-		val = intel_de_read(dev_priv, DG1_DPCLKA_CFGCR0(phy));
-		ddi_clk_off = val & DG1_DPCLKA_CFGCR0_DDI_CLK_OFF(phy);
-
-		if (ddi_clk_needed == !ddi_clk_off)
-			continue;
-
-		/*
-		 * Punt on the case now where clock is gated, but it would
-		 * be needed by the port. Something else is really broken then.
-		 */
-		if (drm_WARN_ON(&dev_priv->drm, ddi_clk_needed))
-			continue;
-
-		drm_notice(&dev_priv->drm,
-			   "PHY %c is disabled with an ungated DDI clock, gate it\n",
-			   phy_name(phy));
-		val |= DG1_DPCLKA_CFGCR0_DDI_CLK_OFF(phy);
-		intel_de_write(dev_priv, DG1_DPCLKA_CFGCR0(phy), val);
-	}
-}
-
-static void icl_sanitize_port_clk_off(struct drm_i915_private *dev_priv,
-				      u32 port_mask, bool ddi_clk_needed)
-{
-	enum port port;
-	bool ddi_clk_off;
-	u32 val;
-	i915_reg_t reg;
-
-	for_each_port_masked(port, port_mask) {
-		enum phy phy = intel_port_to_phy(dev_priv, port);
-
-		if (IS_ALDERLAKE_S(dev_priv))
-			reg = ADLS_DPCLKA_CFGCR(phy);
-		else
-			reg = ICL_DPCLKA_CFGCR0;
-
-		val = intel_de_read(dev_priv, reg);
-		ddi_clk_off = val & icl_dpclka_cfgcr0_clk_off(dev_priv,
-							      phy);
-
-		if (ddi_clk_needed == !ddi_clk_off)
-			continue;
-
-		/*
-		 * Punt on the case now where clock is gated, but it would
-		 * be needed by the port. Something else is really broken then.
-		 */
-		if (drm_WARN_ON(&dev_priv->drm, ddi_clk_needed))
-			continue;
-
-		drm_notice(&dev_priv->drm,
-			   "PHY %c is disabled/in DSI mode with an ungated DDI clock, gate it\n",
-			   phy_name(phy));
-		val |= icl_dpclka_cfgcr0_clk_off(dev_priv, phy);
-		intel_de_write(dev_priv, reg, val);
-	}
-}
-
 void icl_sanitize_encoder_pll_mapping(struct intel_encoder *encoder)
 {
 	struct drm_i915_private *dev_priv = to_i915(encoder->base.dev);
@@ -1855,10 +1769,8 @@ void icl_sanitize_encoder_pll_mapping(struct intel_encoder *encoder)
 		ddi_clk_needed = false;
 	}
 
-	if (IS_DG1(dev_priv))
-		dg1_sanitize_port_clk_off(dev_priv, port_mask, ddi_clk_needed);
-	else
-		icl_sanitize_port_clk_off(dev_priv, port_mask, ddi_clk_needed);
+	if (!ddi_clk_needed && encoder->disable_clock)
+		encoder->disable_clock(encoder);
 }
 
 static void jsl_ddi_tc_enable_clock(struct intel_encoder *encoder,
