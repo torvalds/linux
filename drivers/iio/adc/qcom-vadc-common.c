@@ -368,6 +368,28 @@ static int qcom_vadc_map_voltage_temp(const struct vadc_map_pt *pts,
 	return 0;
 }
 
+static s32 qcom_vadc_map_temp_voltage(const struct vadc_map_pt *pts,
+				      u32 tablesize, int input)
+{
+	u32 i = 0;
+
+	/*
+	 * Table must be sorted, find the interval of 'y' which contains value
+	 * 'input' and map it to proper 'x' value
+	 */
+	while (i < tablesize && pts[i].y < input)
+		i++;
+
+	if (i == 0)
+		return pts[0].x;
+	if (i == tablesize)
+		return pts[tablesize - 1].x;
+
+	/* interpolate linearly */
+	return fixp_linear_interpolate(pts[i - 1].y, pts[i - 1].x,
+			pts[i].y, pts[i].x, input);
+}
+
 static void qcom_vadc_scale_calib(const struct vadc_linear_graph *calib_graph,
 				  u16 adc_code,
 				  bool absolute,
@@ -461,6 +483,21 @@ static int qcom_vadc_scale_chg_temp(const struct vadc_linear_graph *calib_graph,
 	*result_mdec = result;
 
 	return 0;
+}
+
+/* convert voltage to ADC code, using 1.875V reference */
+static u16 qcom_vadc_scale_voltage_code(s32 voltage,
+					const struct vadc_prescale_ratio *prescale,
+					const u32 full_scale_code_volt,
+					unsigned int factor)
+{
+	s64 volt = voltage;
+	s64 adc_vdd_ref_mv = 1875; /* reference voltage */
+
+	volt *= prescale->num * factor * full_scale_code_volt;
+	volt = div64_s64(volt, (s64)prescale->den * adc_vdd_ref_mv * 1000);
+
+	return volt;
 }
 
 static int qcom_vadc_scale_code_voltage_factor(u16 adc_code,
@@ -626,6 +663,19 @@ int qcom_vadc_scale(enum vadc_scale_fn_type scaletype,
 	}
 }
 EXPORT_SYMBOL(qcom_vadc_scale);
+
+u16 qcom_adc_tm5_temp_volt_scale(unsigned int prescale_ratio,
+				 u32 full_scale_code_volt, int temp)
+{
+	const struct vadc_prescale_ratio *prescale = &adc5_prescale_ratios[prescale_ratio];
+	s32 voltage;
+
+	voltage = qcom_vadc_map_temp_voltage(adcmap_100k_104ef_104fb_1875_vref,
+					     ARRAY_SIZE(adcmap_100k_104ef_104fb_1875_vref),
+					     temp);
+	return qcom_vadc_scale_voltage_code(voltage, prescale, full_scale_code_volt, 1000);
+}
+EXPORT_SYMBOL(qcom_adc_tm5_temp_volt_scale);
 
 int qcom_adc5_hw_scale(enum vadc_scale_fn_type scaletype,
 		    unsigned int prescale_ratio,
