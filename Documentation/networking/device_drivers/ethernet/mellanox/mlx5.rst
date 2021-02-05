@@ -13,12 +13,12 @@ Contents
 - `Devlink info`_
 - `Devlink parameters`_
 - `mlx5 subfunction`_
-- `mlx5 port function`_
+- `mlx5 function attributes`_
 - `Devlink health reporters`_
 - `mlx5 tracepoints`_
 
 Enabling the driver and kconfig options
-================================================
+=======================================
 
 | mlx5 core is modular and most of the major mlx5 core driver features can be selected (compiled in/out)
 | at build time via kernel Kconfig flags.
