@@ -161,7 +161,7 @@ static int zinitix_read_data(struct i2c_client *client,
 
 	ret = i2c_master_recv(client, (u8 *)values, length);
 	if (ret != length)
-		return ret < 0 ? ret : -EIO; ;
+		return ret < 0 ? ret : -EIO;
 
 	return 0;
 }
