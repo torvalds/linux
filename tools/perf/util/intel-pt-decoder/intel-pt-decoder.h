@@ -17,6 +17,7 @@
 #define INTEL_PT_ABORT_TX	(1 << 1)
 #define INTEL_PT_ASYNC		(1 << 2)
 #define INTEL_PT_FUP_IP		(1 << 3)
+#define INTEL_PT_SAMPLE_IPC	(1 << 4)
 
 enum intel_pt_sample_type {
 	INTEL_PT_BRANCH		= 1 << 0,

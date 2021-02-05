@@ -2814,9 +2814,18 @@ const struct intel_pt_state *intel_pt_decode(struct intel_pt_decoder *decoder)
 		}
 		if (intel_pt_sample_time(decoder->pkt_state)) {
 			intel_pt_update_sample_time(decoder);
-			if (decoder->sample_cyc)
+			if (decoder->sample_cyc) {
 				decoder->sample_tot_cyc_cnt = decoder->tot_cyc_cnt;
+				decoder->state.flags |= INTEL_PT_SAMPLE_IPC;
+				decoder->sample_cyc = false;
+			}
 		}
+		/*
+		 * When using only TSC/MTC to compute cycles, IPC can be
+		 * sampled as soon as the cycle count changes.
+		 */
+		if (!decoder->have_cyc)
+			decoder->state.flags |= INTEL_PT_SAMPLE_IPC;
 	}
 
 	decoder->state.timestamp = decoder->sample_timestamp;
