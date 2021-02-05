@@ -45,6 +45,10 @@ properties:
       - qcom,sdm845-mem-noc
       - qcom,sdm845-mmss-noc
       - qcom,sdm845-system-noc
+      - qcom,sdx55-ipa-virt
+      - qcom,sdx55-mc-virt
+      - qcom,sdx55-mem-noc
+      - qcom,sdx55-system-noc
       - qcom,sm8150-aggre1-noc
       - qcom,sm8150-aggre2-noc
       - qcom,sm8150-camnoc-noc
