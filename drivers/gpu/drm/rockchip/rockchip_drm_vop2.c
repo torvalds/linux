@@ -1337,6 +1337,17 @@ static void vop2_setup_scale(struct vop2 *vop2, const struct vop2_win *win,
 	else
 		vscl_filter_mode = win_data->vsd_filter_mode;
 
+	/*
+	 * RK3568 VOP Esmart/Smart dsp_w should be even pixel
+	 * at scale down mode
+	 */
+	if (!(win->feature & WIN_FEATURE_AFBDC)) {
+		if ((yrgb_hor_scl_mode == SCALE_DOWN) && (dst_w & 0x1)) {
+			DRM_WARN("%s dst_w[%d] should align as 2 pixel\n", win->name, dst_w);
+			dst_w += 1;
+		}
+	}
+
 	val = vop2_scale_factor(yrgb_hor_scl_mode, hscl_filter_mode,
 				src_w, dst_w);
 	VOP_SCL_SET(vop2, win, scale_yrgb_x, val);
@@ -2535,9 +2546,13 @@ static void vop2_plane_atomic_update(struct drm_plane *plane, struct drm_plane_s
 	 * This is workaround solution for IC design:
 	 * esmart can't support scale down when actual_w % 16 == 1.
 	 */
-	if (!(win->feature & WIN_FEATURE_AFBDC) &&
-	    actual_w > dsp_w && actual_w % 16 == 1)
-		actual_w -= 1;
+	if (!(win->feature & WIN_FEATURE_AFBDC)) {
+		if (actual_w > dsp_w && (actual_w & 0xf) == 1) {
+			DRM_WARN("%s act_w[%d] MODE 16 == 1\n", win->name, actual_w);
+			actual_w -= 1;
+		}
+	}
+
 	if (vpstate->afbc_en && actual_w % 4) {
 		DRM_ERROR("%s actual_w[%d] should align as 4 pixel when enable afbc\n",
 			  win->name, actual_w);
