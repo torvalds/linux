@@ -1110,9 +1110,8 @@ static int ocelot_port_obj_del(struct net_device *dev,
 	return ret;
 }
 
-static int ocelot_netdevice_port_event(struct net_device *dev,
-				       unsigned long event,
-				       struct netdev_notifier_changeupper_info *info)
+static int ocelot_netdevice_changeupper(struct net_device *dev,
+					struct netdev_notifier_changeupper_info *info)
 {
 	struct ocelot_port_private *priv = netdev_priv(dev);
 	struct ocelot_port *ocelot_port = &priv->port;
@@ -1120,28 +1119,22 @@ static int ocelot_netdevice_port_event(struct net_device *dev,
 	int port = priv->chip_port;
 	int err = 0;
 
-	switch (event) {
-	case NETDEV_CHANGEUPPER:
-		if (netif_is_bridge_master(info->upper_dev)) {
-			if (info->linking) {
-				err = ocelot_port_bridge_join(ocelot, port,
-							      info->upper_dev);
-			} else {
-				err = ocelot_port_bridge_leave(ocelot, port,
-							       info->upper_dev);
-			}
-		}
-		if (netif_is_lag_master(info->upper_dev)) {
-			if (info->linking)
-				err = ocelot_port_lag_join(ocelot, port,
-							   info->upper_dev);
-			else
-				ocelot_port_lag_leave(ocelot, port,
+	if (netif_is_bridge_master(info->upper_dev)) {
+		if (info->linking) {
+			err = ocelot_port_bridge_join(ocelot, port,
 						      info->upper_dev);
+		} else {
+			err = ocelot_port_bridge_leave(ocelot, port,
+						       info->upper_dev);
 		}
-		break;
-	default:
-		break;
+	}
+	if (netif_is_lag_master(info->upper_dev)) {
+		if (info->linking)
+			err = ocelot_port_lag_join(ocelot, port,
+						   info->upper_dev);
+		else
+			ocelot_port_lag_leave(ocelot, port,
+					      info->upper_dev);
 	}
 
 	return err;
@@ -1170,17 +1163,19 @@ static int ocelot_netdevice_event(struct notifier_block *unused,
 		}
 	}
 
-	if (netif_is_lag_master(dev)) {
-		struct net_device *slave;
-		struct list_head *iter;
+	if (event == NETDEV_CHANGEUPPER) {
+		if (netif_is_lag_master(dev)) {
+			struct net_device *slave;
+			struct list_head *iter;
 
-		netdev_for_each_lower_dev(dev, slave, iter) {
-			ret = ocelot_netdevice_port_event(slave, event, info);
-			if (ret)
-				goto notify;
+			netdev_for_each_lower_dev(dev, slave, iter) {
+				ret = ocelot_netdevice_changeupper(slave, info);
+				if (ret)
+					goto notify;
+			}
+		} else {
+			ret = ocelot_netdevice_changeupper(dev, info);
 		}
-	} else {
-		ret = ocelot_netdevice_port_event(dev, event, info);
 	}
 
 notify:
