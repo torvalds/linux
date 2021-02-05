@@ -24,7 +24,7 @@ omap4430_mpu_temp_sensor_registers = {
 	.bgap_dtemp_mask = OMAP4430_BGAP_TEMP_SENSOR_DTEMP_MASK,
 
 	.bgap_mode_ctrl = OMAP4430_TEMP_SENSOR_CTRL_OFFSET,
-	.mode_ctrl_mask = OMAP4430_SINGLE_MODE_MASK,
+	.mode_ctrl_mask = OMAP4430_CONTINUOUS_MODE_MASK,
 
 	.bgap_efuse = OMAP4430_FUSE_OPP_BGAP,
 };
@@ -97,7 +97,7 @@ omap4460_mpu_temp_sensor_registers = {
 	.mask_cold_mask = OMAP4460_MASK_COLD_MASK,
 
 	.bgap_mode_ctrl = OMAP4460_BGAP_CTRL_OFFSET,
-	.mode_ctrl_mask = OMAP4460_SINGLE_MODE_MASK,
+	.mode_ctrl_mask = OMAP4460_CONTINUOUS_MODE_MASK,
 
 	.bgap_counter = OMAP4460_BGAP_COUNTER_OFFSET,
 	.counter_mask = OMAP4460_COUNTER_MASK,
