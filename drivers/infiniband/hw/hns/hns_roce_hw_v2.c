@@ -1613,17 +1613,13 @@ static int hns_roce_query_pf_resource(struct hns_roce_dev *hr_dev)
 	struct hns_roce_pf_res_a *req_a;
 	struct hns_roce_pf_res_b *req_b;
 	int ret;
-	int i;
 
-	for (i = 0; i < 2; i++) {
-		hns_roce_cmq_setup_basic_desc(&desc[i],
-					      HNS_ROCE_OPC_QUERY_PF_RES, true);
+	hns_roce_cmq_setup_basic_desc(&desc[0], HNS_ROCE_OPC_QUERY_PF_RES,
+				      true);
+	desc[0].flag |= cpu_to_le16(HNS_ROCE_CMD_FLAG_NEXT);
 
-		if (i == 0)
-			desc[i].flag |= cpu_to_le16(HNS_ROCE_CMD_FLAG_NEXT);
-		else
-			desc[i].flag &= ~cpu_to_le16(HNS_ROCE_CMD_FLAG_NEXT);
-	}
+	hns_roce_cmq_setup_basic_desc(&desc[1], HNS_ROCE_OPC_QUERY_PF_RES,
+				      true);
 
 	ret = hns_roce_cmq_send(hr_dev, desc, 2);
 	if (ret)
@@ -1716,19 +1712,16 @@ static int hns_roce_alloc_vf_resource(struct hns_roce_dev *hr_dev)
 	struct hns_roce_cmq_desc desc[2];
 	struct hns_roce_vf_res_a *req_a;
 	struct hns_roce_vf_res_b *req_b;
-	int i;
 
 	req_a = (struct hns_roce_vf_res_a *)desc[0].data;
 	req_b = (struct hns_roce_vf_res_b *)desc[1].data;
-	for (i = 0; i < 2; i++) {
-		hns_roce_cmq_setup_basic_desc(&desc[i],
-					      HNS_ROCE_OPC_ALLOC_VF_RES, false);
 
-		if (i == 0)
-			desc[i].flag |= cpu_to_le16(HNS_ROCE_CMD_FLAG_NEXT);
-		else
-			desc[i].flag &= ~cpu_to_le16(HNS_ROCE_CMD_FLAG_NEXT);
-	}
+	hns_roce_cmq_setup_basic_desc(&desc[0], HNS_ROCE_OPC_ALLOC_VF_RES,
+				      false);
+	desc[0].flag |= cpu_to_le16(HNS_ROCE_CMD_FLAG_NEXT);
+
+	hns_roce_cmq_setup_basic_desc(&desc[1], HNS_ROCE_OPC_ALLOC_VF_RES,
+				      false);
 
 	roce_set_field(req_a->vf_qpc_bt_idx_num,
 		       VF_RES_A_DATA_1_VF_QPC_BT_IDX_M,
@@ -2409,7 +2402,6 @@ static int hns_roce_config_link_table(struct hns_roce_dev *hr_dev,
 	struct hns_roce_link_table_entry *entry;
 	enum hns_roce_opcode_type opcode;
 	u32 page_num;
-	int i;
 
 	switch (type) {
 	case TSQ_LINK_TABLE:
@@ -2427,14 +2419,10 @@ static int hns_roce_config_link_table(struct hns_roce_dev *hr_dev,
 	page_num = link_tbl->npages;
 	entry = link_tbl->table.buf;
 
-	for (i = 0; i < 2; i++) {
-		hns_roce_cmq_setup_basic_desc(&desc[i], opcode, false);
+	hns_roce_cmq_setup_basic_desc(&desc[0], opcode, false);
+	desc[0].flag |= cpu_to_le16(HNS_ROCE_CMD_FLAG_NEXT);
 
-		if (i == 0)
-			desc[i].flag |= cpu_to_le16(HNS_ROCE_CMD_FLAG_NEXT);
-		else
-			desc[i].flag &= ~cpu_to_le16(HNS_ROCE_CMD_FLAG_NEXT);
-	}
+	hns_roce_cmq_setup_basic_desc(&desc[1], opcode, false);
 
 	req_a->base_addr_l = cpu_to_le32(link_tbl->table.map & 0xffffffff);
 	req_a->base_addr_h = cpu_to_le32(link_tbl->table.map >> 32);
