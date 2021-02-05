@@ -1466,6 +1466,8 @@ int nand_prog_page_op(struct nand_chip *chip, unsigned int page,
 		chip->legacy.write_buf(chip, buf, len);
 		chip->legacy.cmdfunc(chip, NAND_CMD_PAGEPROG, -1, -1);
 		status = chip->legacy.waitfunc(chip);
+		if (status < 0)
+			return status;
 	}
 
 	if (status & NAND_STATUS_FAIL)
