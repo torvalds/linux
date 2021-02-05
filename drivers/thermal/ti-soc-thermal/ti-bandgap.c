@@ -15,6 +15,7 @@
 #include <linux/kernel.h>
 #include <linux/interrupt.h>
 #include <linux/clk.h>
+#include <linux/delay.h>
 #include <linux/gpio/consumer.h>
 #include <linux/platform_device.h>
 #include <linux/err.h>
@@ -605,9 +606,13 @@ ti_bandgap_force_single_read(struct ti_bandgap *bgp, int id)
 	struct temp_sensor_registers *tsr = bgp->conf->sensors[id].registers;
 	u32 counter;
 
-	/* Select single conversion mode */
-	if (TI_BANDGAP_HAS(bgp, MODE_CONFIG))
-		RMW_BITS(bgp, id, bgap_mode_ctrl, mode_ctrl_mask, 0);
+	/* Select continuous or single conversion mode */
+	if (TI_BANDGAP_HAS(bgp, MODE_CONFIG)) {
+		if (TI_BANDGAP_HAS(bgp, CONT_MODE_ONLY))
+			RMW_BITS(bgp, id, bgap_mode_ctrl, mode_ctrl_mask, 1);
+		else
+			RMW_BITS(bgp, id, bgap_mode_ctrl, mode_ctrl_mask, 0);
+	}
 
 	/* Set Start of Conversion if available */
 	if (tsr->bgap_soc_mask) {
@@ -619,6 +624,7 @@ ti_bandgap_force_single_read(struct ti_bandgap *bgp, int id)
 			if (ti_bandgap_readl(bgp, tsr->temp_sensor_ctrl) &
 			    tsr->bgap_eocz_mask)
 				break;
+			udelay(1);
 		}
 
 		/* Clear Start of Conversion if available */
@@ -631,6 +637,7 @@ ti_bandgap_force_single_read(struct ti_bandgap *bgp, int id)
 		if (!(ti_bandgap_readl(bgp, tsr->temp_sensor_ctrl) &
 		      tsr->bgap_eocz_mask))
 			break;
+		udelay(1);
 	}
 
 	return 0;
