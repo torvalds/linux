@@ -600,6 +600,8 @@ static irqreturn_t panfrost_mmu_irq_handler_thread(int irq, void *data)
 		access_type = (fault_status >> 8) & 0x3;
 		source_id = (fault_status >> 16);
 
+		mmu_write(pfdev, MMU_INT_CLEAR, mask);
+
 		/* Page fault only */
 		ret = -1;
 		if ((status & mask) == BIT(i) && (exception_type & 0xF8) == 0xC0)
@@ -622,8 +624,6 @@ static irqreturn_t panfrost_mmu_irq_handler_thread(int irq, void *data)
 				exception_type, panfrost_exception_name(pfdev, exception_type),
 				access_type, access_type_name(pfdev, fault_status),
 				source_id);
-
-		mmu_write(pfdev, MMU_INT_CLEAR, mask);
 
 		status &= ~mask;
 	}
