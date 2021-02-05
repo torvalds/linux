@@ -272,7 +272,72 @@ static void iwl_mvm_get_signal_strength(struct iwl_mvm *mvm,
 	rx_status->chain_signal[2] = S8_MIN;
 }
 
-static int iwl_mvm_rx_crypto(struct iwl_mvm *mvm, struct ieee80211_hdr *hdr,
+static int iwl_mvm_rx_mgmt_crypto(struct ieee80211_sta *sta,
+				  struct ieee80211_hdr *hdr,
+				  struct iwl_rx_mpdu_desc *desc,
+				  u32 status)
+{
+	struct iwl_mvm_sta *mvmsta;
+	struct iwl_mvm_vif *mvmvif;
+	u8 fwkeyid = u32_get_bits(status, IWL_RX_MPDU_STATUS_KEY);
+	u8 keyid;
+	struct ieee80211_key_conf *key;
+	u32 len = le16_to_cpu(desc->mpdu_len);
+	const u8 *frame = (void *)hdr;
+
+	/*
+	 * For non-beacon, we don't really care. But beacons may
+	 * be filtered out, and we thus need the firmware's replay
+	 * detection, otherwise beacons the firmware previously
+	 * filtered could be replayed, or something like that, and
+	 * it can filter a lot - though usually only if nothing has
+	 * changed.
+	 */
+	if (!ieee80211_is_beacon(hdr->frame_control))
+		return 0;
+
+	/* good cases */
+	if (likely(status & IWL_RX_MPDU_STATUS_MIC_OK &&
+		   !(status & IWL_RX_MPDU_STATUS_REPLAY_ERROR)))
+		return 0;
+
+	if (!sta)
+		return -1;
+
+	mvmsta = iwl_mvm_sta_from_mac80211(sta);
+
+	/* what? */
+	if (fwkeyid != 6 && fwkeyid != 7)
+		return -1;
+
+	mvmvif = iwl_mvm_vif_from_mac80211(mvmsta->vif);
+
+	key = rcu_dereference(mvmvif->bcn_prot.keys[fwkeyid - 6]);
+	if (!key)
+		return -1;
+
+	if (len < key->icv_len + IEEE80211_GMAC_PN_LEN + 2)
+		return -1;
+
+	/*
+	 * See if the key ID matches - if not this may be due to a
+	 * switch and the firmware may erroneously report !MIC_OK.
+	 */
+	keyid = frame[len - key->icv_len - IEEE80211_GMAC_PN_LEN - 2];
+	if (keyid != fwkeyid)
+		return -1;
+
+	/* Report status to mac80211 */
+	if (!(status & IWL_RX_MPDU_STATUS_MIC_OK))
+		ieee80211_key_mic_failure(key);
+	else if (status & IWL_RX_MPDU_STATUS_REPLAY_ERROR)
+		ieee80211_key_replay(key);
+
+	return -1;
+}
+
+static int iwl_mvm_rx_crypto(struct iwl_mvm *mvm, struct ieee80211_sta *sta,
+			     struct ieee80211_hdr *hdr,
 			     struct ieee80211_rx_status *stats, u16 phy_info,
 			     struct iwl_rx_mpdu_desc *desc,
 			     u32 pkt_flags, int queue, u8 *crypt_len)
@@ -345,6 +410,8 @@ static int iwl_mvm_rx_crypto(struct iwl_mvm *mvm, struct ieee80211_hdr *hdr,
 			return -1;
 		stats->flag |= RX_FLAG_DECRYPTED;
 		return 0;
+	case RX_MPDU_RES_STATUS_SEC_CMAC_GMAC_ENC:
+		return iwl_mvm_rx_mgmt_crypto(sta, hdr, desc, status);
 	default:
 		/*
 		 * Sometimes we can get frames that were not decrypted
@@ -1682,15 +1749,6 @@ void iwl_mvm_rx_mpdu_mq(struct iwl_mvm *mvm, struct napi_struct *napi,
 
 	iwl_mvm_decode_lsig(skb, &phy_data);
 
-	rx_status = IEEE80211_SKB_RXCB(skb);
-
-	if (iwl_mvm_rx_crypto(mvm, hdr, rx_status, phy_info, desc,
-			      le32_to_cpu(pkt->len_n_flags), queue,
-			      &crypt_len)) {
-		kfree_skb(skb);
-		return;
-	}
-
 	/*
 	 * Keep packets with CRC errors (and with overrun) for monitor mode
 	 * (otherwise the firmware discards them) but mark them as bad.
@@ -1772,6 +1830,13 @@ void iwl_mvm_rx_mpdu_mq(struct iwl_mvm *mvm, struct napi_struct *napi,
 		 * address from being added.
 		 */
 		sta = ieee80211_find_sta_by_ifaddr(mvm->hw, hdr->addr2, NULL);
+	}
+
+	if (iwl_mvm_rx_crypto(mvm, sta, hdr, rx_status, phy_info, desc,
+			      le32_to_cpu(pkt->len_n_flags), queue,
+			      &crypt_len)) {
+		kfree_skb(skb);
+		goto out;
 	}
 
 	if (sta) {
