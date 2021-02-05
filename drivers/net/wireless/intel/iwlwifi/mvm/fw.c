@@ -633,6 +633,8 @@ int iwl_run_init_mvm_ucode(struct iwl_mvm *mvm)
 				   iwl_wait_phy_db_entry,
 				   mvm->phy_db);
 
+	iwl_dbg_tlv_time_point(&mvm->fwrt, IWL_FW_INI_TIME_POINT_EARLY, NULL);
+
 	/* Will also start the device */
 	ret = iwl_mvm_load_ucode_wait_alive(mvm, IWL_UCODE_INIT);
 	if (ret) {
@@ -1311,8 +1313,6 @@ static int iwl_mvm_load_rt_fw(struct iwl_mvm *mvm)
 	ret = iwl_trans_start_hw(mvm->trans);
 	if (ret)
 		return ret;
-
-	iwl_dbg_tlv_time_point(&mvm->fwrt, IWL_FW_INI_TIME_POINT_EARLY, NULL);
 
 	mvm->rfkill_safe_init_done = false;
 	ret = iwl_mvm_load_ucode_wait_alive(mvm, IWL_UCODE_REGULAR);
