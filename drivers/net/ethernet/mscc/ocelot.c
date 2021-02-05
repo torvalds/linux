@@ -1316,20 +1316,36 @@ static void ocelot_set_aggr_pgids(struct ocelot *ocelot)
 	}
 }
 
-static void ocelot_setup_lag(struct ocelot *ocelot, int lag)
+/* When offloading a bonding interface, the switch ports configured under the
+ * same bond must have the same logical port ID, equal to the physical port ID
+ * of the lowest numbered physical port in that bond. Otherwise, in standalone/
+ * bridged mode, each port has a logical port ID equal to its physical port ID.
+ */
+static void ocelot_setup_logical_port_ids(struct ocelot *ocelot)
 {
-	unsigned long bond_mask = ocelot->lags[lag];
-	unsigned int p;
+	int port;
 
-	for_each_set_bit(p, &bond_mask, ocelot->num_phys_ports) {
-		u32 port_cfg = ocelot_read_gix(ocelot, ANA_PORT_PORT_CFG, p);
+	for (port = 0; port < ocelot->num_phys_ports; port++) {
+		struct ocelot_port *ocelot_port = ocelot->ports[port];
+		struct net_device *bond;
 
-		port_cfg &= ~ANA_PORT_PORT_CFG_PORTID_VAL_M;
+		if (!ocelot_port)
+			continue;
 
-		/* Use lag port as logical port for port i */
-		ocelot_write_gix(ocelot, port_cfg |
-				 ANA_PORT_PORT_CFG_PORTID_VAL(lag),
-				 ANA_PORT_PORT_CFG, p);
+		bond = ocelot_port->bond;
+		if (bond) {
+			int lag = __ffs(ocelot_get_bond_mask(ocelot, bond));
+
+			ocelot_rmw_gix(ocelot,
+				       ANA_PORT_PORT_CFG_PORTID_VAL(lag),
+				       ANA_PORT_PORT_CFG_PORTID_VAL_M,
+				       ANA_PORT_PORT_CFG, port);
+		} else {
+			ocelot_rmw_gix(ocelot,
+				       ANA_PORT_PORT_CFG_PORTID_VAL(port),
+				       ANA_PORT_PORT_CFG_PORTID_VAL_M,
+				       ANA_PORT_PORT_CFG, port);
+		}
 	}
 }
 
@@ -1361,7 +1377,7 @@ int ocelot_port_lag_join(struct ocelot *ocelot, int port,
 		ocelot->lags[lag] |= BIT(port);
 	}
 
-	ocelot_setup_lag(ocelot, lag);
+	ocelot_setup_logical_port_ids(ocelot);
 	ocelot_apply_bridge_fwd_mask(ocelot);
 	ocelot_set_aggr_pgids(ocelot);
 
@@ -1372,7 +1388,6 @@ EXPORT_SYMBOL(ocelot_port_lag_join);
 void ocelot_port_lag_leave(struct ocelot *ocelot, int port,
 			   struct net_device *bond)
 {
-	u32 port_cfg;
 	int i;
 
 	ocelot->ports[port]->bond = NULL;
@@ -1389,15 +1404,9 @@ void ocelot_port_lag_leave(struct ocelot *ocelot, int port,
 
 		ocelot->lags[n] = ocelot->lags[port];
 		ocelot->lags[port] = 0;
-
-		ocelot_setup_lag(ocelot, n);
 	}
 
-	port_cfg = ocelot_read_gix(ocelot, ANA_PORT_PORT_CFG, port);
-	port_cfg &= ~ANA_PORT_PORT_CFG_PORTID_VAL_M;
-	ocelot_write_gix(ocelot, port_cfg | ANA_PORT_PORT_CFG_PORTID_VAL(port),
-			 ANA_PORT_PORT_CFG, port);
-
+	ocelot_setup_logical_port_ids(ocelot);
 	ocelot_apply_bridge_fwd_mask(ocelot);
 	ocelot_set_aggr_pgids(ocelot);
 }
