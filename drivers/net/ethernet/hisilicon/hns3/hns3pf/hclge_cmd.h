@@ -1132,7 +1132,7 @@ struct hclge_dev_specs_0_cmd {
 
 struct hclge_dev_specs_1_cmd {
 	__le16 max_frm_size;
-	__le16 rsv0;
+	__le16 max_qset_num;
 	__le16 max_int_gl;
 	u8 rsv1[18];
 };

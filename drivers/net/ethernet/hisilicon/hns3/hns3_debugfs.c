@@ -391,6 +391,7 @@ static void hns3_dbg_dev_specs(struct hnae3_handle *h)
 	dev_info(priv->dev, "MAX INT GL: %u\n", dev_specs->max_int_gl);
 	dev_info(priv->dev, "MAX frame size: %u\n", dev_specs->max_frm_size);
 	dev_info(priv->dev, "MAX TM RATE: %uMbps\n", dev_specs->max_tm_rate);
+	dev_info(priv->dev, "MAX QSET number: %u\n", dev_specs->max_qset_num);
 }
 
 static ssize_t hns3_dbg_cmd_read(struct file *filp, char __user *buffer,
