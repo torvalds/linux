@@ -1338,7 +1338,7 @@ int ocelot_port_lag_join(struct ocelot *ocelot, int port,
 			 struct netdev_lag_upper_info *info)
 {
 	u32 bond_mask = 0;
-	int lag, lp;
+	int lag;
 
 	if (info->tx_type != NETDEV_LAG_TX_TYPE_HASH)
 		return -EOPNOTSUPP;
@@ -1347,22 +1347,18 @@ int ocelot_port_lag_join(struct ocelot *ocelot, int port,
 
 	bond_mask = ocelot_get_bond_mask(ocelot, bond);
 
-	lp = __ffs(bond_mask);
+	lag = __ffs(bond_mask);
 
 	/* If the new port is the lowest one, use it as the logical port from
 	 * now on
 	 */
-	if (port == lp) {
-		lag = port;
+	if (port == lag) {
 		ocelot->lags[port] = bond_mask;
 		bond_mask &= ~BIT(port);
-		if (bond_mask) {
-			lp = __ffs(bond_mask);
-			ocelot->lags[lp] = 0;
-		}
+		if (bond_mask)
+			ocelot->lags[__ffs(bond_mask)] = 0;
 	} else {
-		lag = lp;
-		ocelot->lags[lp] |= BIT(port);
+		ocelot->lags[lag] |= BIT(port);
 	}
 
 	ocelot_setup_lag(ocelot, lag);
