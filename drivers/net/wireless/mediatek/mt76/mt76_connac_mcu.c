@@ -287,7 +287,7 @@ mt76_connac_mcu_alloc_wtbl_req(struct mt76_dev *dev, struct mt76_wcid *wcid,
 				     &hdr.wlan_idx_hi);
 	if (!nskb) {
 		nskb = mt76_mcu_msg_alloc(dev, NULL,
-					  MT76_CONNAC_WTBL_UPDATE_BA_SIZE);
+					  MT76_CONNAC_WTBL_UPDATE_MAX_SIZE);
 		if (!nskb)
 			return ERR_PTR(-ENOMEM);
 

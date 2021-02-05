@@ -304,9 +304,6 @@ struct wtbl_raw {
 					 sizeof(struct tlv) +		\
 					 MT76_CONNAC_WTBL_UPDATE_MAX_SIZE)
 
-#define MT76_CONNAC_WTBL_UPDATE_BA_SIZE	(sizeof(struct wtbl_req_hdr) +	\
-					 sizeof(struct wtbl_ba))
-
 enum {
 	STA_REC_BASIC,
 	STA_REC_RA,
