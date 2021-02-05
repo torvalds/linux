@@ -2242,6 +2242,14 @@ static int dsa_slave_switchdev_event(struct notifier_block *unused,
 
 			if (!dp->ds->assisted_learning_on_cpu_port)
 				return NOTIFY_DONE;
+
+			/* When the bridge learns an address on an offloaded
+			 * LAG we don't want to send traffic to the CPU, the
+			 * other ports bridged with the LAG should be able to
+			 * autonomously forward towards it.
+			 */
+			if (dsa_tree_offloads_netdev(dp->ds->dst, dev))
+				return NOTIFY_DONE;
 		}
 
 		if (!dp->ds->ops->port_fdb_add || !dp->ds->ops->port_fdb_del)

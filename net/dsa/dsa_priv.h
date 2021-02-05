@@ -209,6 +209,19 @@ static inline bool dsa_port_offloads_netdev(struct dsa_port *dp,
 	return false;
 }
 
+/* Returns true if any port of this tree offloads the given net_device */
+static inline bool dsa_tree_offloads_netdev(struct dsa_switch_tree *dst,
+					    struct net_device *dev)
+{
+	struct dsa_port *dp;
+
+	list_for_each_entry(dp, &dst->ports, list)
+		if (dsa_port_offloads_netdev(dp, dev))
+			return true;
+
+	return false;
+}
+
 /* slave.c */
 extern const struct dsa_device_ops notag_netdev_ops;
 void dsa_slave_mii_bus_init(struct dsa_switch *ds);
