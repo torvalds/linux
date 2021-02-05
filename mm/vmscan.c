@@ -171,6 +171,23 @@ struct scan_control {
  */
 int vm_swappiness = 60;
 
+#define DEF_KSWAPD_THREADS_PER_NODE 1
+int kswapd_threads = DEF_KSWAPD_THREADS_PER_NODE;
+static int __init kswapd_per_node_setup(char *str)
+{
+	int tmp;
+
+	if (kstrtoint(str, 0, &tmp) < 0)
+		return 0;
+
+	if (tmp > MAX_KSWAPD_THREADS || tmp <= 0)
+		return 0;
+
+	kswapd_threads = tmp;
+	return 1;
+}
+__setup("kswapd_per_node=", kswapd_per_node_setup);
+
 static void set_task_reclaim_state(struct task_struct *task,
 				   struct reclaim_state *rs)
 {
@@ -3935,6 +3952,46 @@ kswapd_try_sleep:
 	return 0;
 }
 
+static int kswapd_per_node_run(int nid)
+{
+	pg_data_t *pgdat = NODE_DATA(nid);
+	int hid;
+	int ret = 0;
+
+	for (hid = 0; hid < kswapd_threads; ++hid) {
+		pgdat->mkswapd[hid] = kthread_run(kswapd, pgdat, "kswapd%d:%d",
+								nid, hid);
+		if (IS_ERR(pgdat->mkswapd[hid])) {
+			/* failure at boot is fatal */
+			WARN_ON(system_state < SYSTEM_RUNNING);
+			pr_err("Failed to start kswapd%d on node %d\n",
+				hid, nid);
+			ret = PTR_ERR(pgdat->mkswapd[hid]);
+			pgdat->mkswapd[hid] = NULL;
+			continue;
+		}
+		if (!pgdat->kswapd)
+			pgdat->kswapd = pgdat->mkswapd[hid];
+	}
+
+	return ret;
+}
+
+static void kswapd_per_node_stop(int nid)
+{
+	int hid = 0;
+	struct task_struct *kswapd;
+
+	for (hid = 0; hid < kswapd_threads; hid++) {
+		kswapd = NODE_DATA(nid)->mkswapd[hid];
+		if (kswapd) {
+			kthread_stop(kswapd);
+			NODE_DATA(nid)->mkswapd[hid] = NULL;
+		}
+	}
+	NODE_DATA(nid)->kswapd = NULL;
+}
+
 /*
  * A zone is low on free memory or too fragmented for high-order memory.  If
  * kswapd should reclaim (direct reclaim is deferred), wake it up for the zone's
@@ -4038,6 +4095,9 @@ int kswapd_run(int nid)
 	if (pgdat->kswapd)
 		return 0;
 
+	if (kswapd_threads > 1)
+		return kswapd_per_node_run(nid);
+
 	pgdat->kswapd = kthread_run(kswapd, pgdat, "kswapd%d", nid);
 	if (IS_ERR(pgdat->kswapd)) {
 		/* failure at boot is fatal */
@@ -4056,6 +4116,11 @@ int kswapd_run(int nid)
 void kswapd_stop(int nid)
 {
 	struct task_struct *kswapd = NODE_DATA(nid)->kswapd;
+
+	if (kswapd_threads > 1) {
+		kswapd_per_node_stop(nid);
+		return;
+	}
 
 	if (kswapd) {
 		kthread_stop(kswapd);

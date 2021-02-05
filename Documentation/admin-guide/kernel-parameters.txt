@@ -2971,6 +2971,26 @@
 			firmware feature for updating multiple TCE entries
 			at a time.
 
+	kswapd_per_node=
+			kswapd_per_node allows you to control the number of kswapd threads
+			running on the system. This provides the ability to devote additional
+			CPU resources toward proactive page replacement with the goal of
+			reducing direct reclaims. When direct reclaims are prevented, the CPU
+			consumed by them is prevented as well. Depending on the workload, the
+			result can cause aggregate CPU usage on the system to go up, down or
+			stay the same.
+
+			More aggressive page replacement can reduce direct reclaims which
+			cause latency for tasks and decrease throughput when doing filesystem
+			IO through the pagecache. Direct reclaims are recorded using the
+			allocstall counter in /proc/vmstat.
+
+			The range of acceptible values are 1-16. Always start with lower
+			values in the 2-6 range. Higher values should be justified with
+			testing. If direct reclaims occur in spite of high values, the cost
+			of direct reclaims (in latency) that occur can be higher due to
+			increased lock contention.
+
 	onenand.bdry=	[HW,MTD] Flex-OneNAND Boundary Configuration
 
 			Format: [die0_boundary][,die0_lock][,die1_boundary][,die1_lock]
