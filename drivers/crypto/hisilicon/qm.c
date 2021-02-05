@@ -1612,7 +1612,7 @@ static void qm_log_hw_error(struct hisi_qm *qm, u32 error_status)
 
 static enum acc_err_result qm_hw_error_handle_v2(struct hisi_qm *qm)
 {
-	u32 error_status, tmp;
+	u32 error_status, tmp, val;
 
 	/* read err sts */
 	tmp = readl(qm->io_base + QM_ABNORMAL_INT_STATUS);
@@ -1623,9 +1623,13 @@ static enum acc_err_result qm_hw_error_handle_v2(struct hisi_qm *qm)
 			qm->err_status.is_qm_ecc_mbit = true;
 
 		qm_log_hw_error(qm, error_status);
-		if (error_status == QM_DB_RANDOM_INVALID) {
+		val = error_status | QM_DB_RANDOM_INVALID | QM_BASE_CE;
+		/* ce error does not need to be reset */
+		if (val == (QM_DB_RANDOM_INVALID | QM_BASE_CE)) {
 			writel(error_status, qm->io_base +
 			       QM_ABNORMAL_INT_SOURCE);
+			writel(qm->err_ini->err_info.nfe,
+			       qm->io_base + QM_RAS_NFE_ENABLE);
 			return ACC_ERR_RECOVERED;
 		}
 
@@ -3317,12 +3321,19 @@ static enum acc_err_result qm_dev_err_handle(struct hisi_qm *qm)
 		if (err_sts & qm->err_ini->err_info.ecc_2bits_mask)
 			qm->err_status.is_dev_ecc_mbit = true;
 
-		if (!qm->err_ini->log_dev_hw_err) {
-			dev_err(&qm->pdev->dev, "Device doesn't support log hw error!\n");
-			return ACC_ERR_NEED_RESET;
+		if (qm->err_ini->log_dev_hw_err)
+			qm->err_ini->log_dev_hw_err(qm, err_sts);
+
+		/* ce error does not need to be reset */
+		if ((err_sts | qm->err_ini->err_info.dev_ce_mask) ==
+		     qm->err_ini->err_info.dev_ce_mask) {
+			if (qm->err_ini->clear_dev_hw_err_status)
+				qm->err_ini->clear_dev_hw_err_status(qm,
+								err_sts);
+
+			return ACC_ERR_RECOVERED;
 		}
 
-		qm->err_ini->log_dev_hw_err(qm, err_sts);
 		return ACC_ERR_NEED_RESET;
 	}
 

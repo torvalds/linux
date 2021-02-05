@@ -66,6 +66,7 @@
 #define HZIP_CORE_INT_STATUS_M_ECC	BIT(1)
 #define HZIP_CORE_SRAM_ECC_ERR_INFO	0x301148
 #define HZIP_CORE_INT_RAS_CE_ENB	0x301160
+#define HZIP_CORE_INT_RAS_CE_ENABLE	0x1
 #define HZIP_CORE_INT_RAS_NFE_ENB	0x301164
 #define HZIP_CORE_INT_RAS_FE_ENB        0x301168
 #define HZIP_CORE_INT_RAS_NFE_ENABLE	0x7FE
@@ -327,7 +328,8 @@ static void hisi_zip_hw_error_enable(struct hisi_qm *qm)
 	writel(HZIP_CORE_INT_MASK_ALL, qm->io_base + HZIP_CORE_INT_SOURCE);
 
 	/* configure error type */
-	writel(0x1, qm->io_base + HZIP_CORE_INT_RAS_CE_ENB);
+	writel(HZIP_CORE_INT_RAS_CE_ENABLE,
+	       qm->io_base + HZIP_CORE_INT_RAS_CE_ENB);
 	writel(0x0, qm->io_base + HZIP_CORE_INT_RAS_FE_ENB);
 	writel(HZIP_CORE_INT_RAS_NFE_ENABLE,
 	       qm->io_base + HZIP_CORE_INT_RAS_NFE_ENB);
@@ -727,6 +729,7 @@ static const struct hisi_qm_err_ini hisi_zip_err_ini = {
 					  QM_ACC_WB_NOT_READY_TIMEOUT,
 		.fe			= 0,
 		.ecc_2bits_mask		= HZIP_CORE_INT_STATUS_M_ECC,
+		.dev_ce_mask		= HZIP_CORE_INT_RAS_CE_ENABLE,
 		.msi_wr_port		= HZIP_WR_PORT,
 		.acpi_rst		= "ZRST",
 	}

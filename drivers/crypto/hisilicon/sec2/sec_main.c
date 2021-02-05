@@ -752,6 +752,7 @@ static const struct hisi_qm_err_ini sec_err_ini = {
 				  QM_ACC_WB_NOT_READY_TIMEOUT,
 		.fe		= 0,
 		.ecc_2bits_mask	= SEC_CORE_INT_STATUS_M_ECC,
+		.dev_ce_mask	= SEC_RAS_CE_ENB_MSK,
 		.msi_wr_port	= BIT(0),
 		.acpi_rst	= "SRST",
 	}

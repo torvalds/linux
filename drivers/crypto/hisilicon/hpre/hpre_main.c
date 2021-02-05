@@ -881,6 +881,7 @@ static const struct hisi_qm_err_ini hpre_err_ini = {
 		.fe			= 0,
 		.ecc_2bits_mask		= HPRE_CORE_ECC_2BIT_ERR |
 					  HPRE_OOO_ECC_2BIT_ERR,
+		.dev_ce_mask		= HPRE_HAC_RAS_CE_ENABLE,
 		.msi_wr_port		= HPRE_WR_MSI_PORT,
 		.acpi_rst		= "HRST",
 	}

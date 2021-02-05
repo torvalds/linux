@@ -173,6 +173,7 @@ struct hisi_qm_err_info {
 	char *acpi_rst;
 	u32 msi_wr_port;
 	u32 ecc_2bits_mask;
+	u32 dev_ce_mask;
 	u32 ce;
 	u32 nfe;
 	u32 fe;
