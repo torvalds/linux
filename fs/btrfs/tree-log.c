@@ -3120,6 +3120,17 @@ int btrfs_sync_log(struct btrfs_trans_handle *trans,
 	 */
 	blk_start_plug(&plug);
 	ret = btrfs_write_marked_extents(fs_info, &log->dirty_log_pages, mark);
+	/*
+	 * -EAGAIN happens when someone, e.g., a concurrent transaction
+	 *  commit, writes a dirty extent in this tree-log commit. This
+	 *  concurrent write will create a hole writing out the extents,
+	 *  and we cannot proceed on a zoned filesystem, requiring
+	 *  sequential writing. While we can bail out to a full commit
+	 *  here, but we can continue hoping the concurrent writing fills
+	 *  the hole.
+	 */
+	if (ret == -EAGAIN && btrfs_is_zoned(fs_info))
+		ret = 0;
 	if (ret) {
 		blk_finish_plug(&plug);
 		btrfs_abort_transaction(trans, ret);
@@ -3242,7 +3253,17 @@ int btrfs_sync_log(struct btrfs_trans_handle *trans,
 					 &log_root_tree->dirty_log_pages,
 					 EXTENT_DIRTY | EXTENT_NEW);
 	blk_finish_plug(&plug);
-	if (ret) {
+	/*
+	 * As described above, -EAGAIN indicates a hole in the extents. We
+	 * cannot wait for these write outs since the waiting cause a
+	 * deadlock. Bail out to the full commit instead.
+	 */
+	if (ret == -EAGAIN && btrfs_is_zoned(fs_info)) {
+		btrfs_set_log_full_commit(trans);
+		btrfs_wait_tree_log_extents(log, mark);
+		mutex_unlock(&log_root_tree->log_mutex);
+		goto out_wake_log_root;
+	} else if (ret) {
 		btrfs_set_log_full_commit(trans);
 		btrfs_abort_transaction(trans, ret);
 		mutex_unlock(&log_root_tree->log_mutex);
