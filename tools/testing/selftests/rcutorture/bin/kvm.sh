@@ -404,11 +404,16 @@ echo $scriptname $args
 touch $resdir/$ds/log
 echo $scriptname $args >> $resdir/$ds/log
 echo ${TORTURE_SUITE} > $resdir/$ds/TORTURE_SUITE
-pwd > $resdir/$ds/testid.txt
+echo Build directory: `pwd` > $resdir/$ds/testid.txt
 if test -d .git
 then
+	echo Current commit: `git rev-parse HEAD` >> $resdir/$ds/testid.txt
+	echo >> $resdir/$ds/testid.txt
+	echo ' ---' Output of "'"git status"'": >> $resdir/$ds/testid.txt
 	git status >> $resdir/$ds/testid.txt
-	git rev-parse HEAD >> $resdir/$ds/testid.txt
+	echo >> $resdir/$ds/testid.txt
+	echo >> $resdir/$ds/testid.txt
+	echo ' ---' Output of "'"git diff HEAD"'": >> $resdir/$ds/testid.txt
 	git diff HEAD >> $resdir/$ds/testid.txt
 fi
 ___EOF___
