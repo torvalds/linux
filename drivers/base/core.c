@@ -1521,6 +1521,13 @@ static int __init fw_devlink_setup(char *arg)
 }
 early_param("fw_devlink", fw_devlink_setup);
 
+static bool fw_devlink_strict;
+static int __init fw_devlink_strict_setup(char *arg)
+{
+	return strtobool(arg, &fw_devlink_strict);
+}
+early_param("fw_devlink.strict", fw_devlink_strict_setup);
+
 u32 fw_devlink_get_flags(void)
 {
 	return fw_devlink_flags;
@@ -1529,6 +1536,11 @@ u32 fw_devlink_get_flags(void)
 static bool fw_devlink_is_permissive(void)
 {
 	return fw_devlink_flags == FW_DEVLINK_FLAGS_PERMISSIVE;
+}
+
+bool fw_devlink_is_strict(void)
+{
+	return fw_devlink_strict && !fw_devlink_is_permissive();
 }
 
 static void fw_devlink_parse_fwnode(struct fwnode_handle *fwnode)
