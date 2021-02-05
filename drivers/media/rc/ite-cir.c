@@ -262,7 +262,6 @@ static void ite_set_carrier_params(struct ite_dev *dev)
 static irqreturn_t ite_cir_isr(int irq, void *data)
 {
 	struct ite_dev *dev = data;
-	unsigned long flags;
 	irqreturn_t ret = IRQ_RETVAL(IRQ_NONE);
 	u8 rx_buf[ITE_RX_FIFO_LEN];
 	int rx_bytes;
@@ -271,7 +270,7 @@ static irqreturn_t ite_cir_isr(int irq, void *data)
 	ite_dbg_verbose("%s firing", __func__);
 
 	/* grab the spinlock */
-	spin_lock_irqsave(&dev->lock, flags);
+	spin_lock(&dev->lock);
 
 	/* read the interrupt flags */
 	iflags = dev->params.get_irq_causes(dev);
@@ -287,17 +286,14 @@ static irqreturn_t ite_cir_isr(int irq, void *data)
 			/* drop the spinlock, since the ir-core layer
 			 * may call us back again through
 			 * ite_s_idle() */
-			spin_unlock_irqrestore(&dev->
-									 lock,
-									 flags);
+			spin_unlock(&dev->lock);
 
 			/* decode the data we've just received */
 			ite_decode_bytes(dev, rx_buf,
 								   rx_bytes);
 
 			/* reacquire the spinlock */
-			spin_lock_irqsave(&dev->lock,
-								    flags);
+			spin_lock(&dev->lock);
 
 			/* mark the interrupt as serviced */
 			ret = IRQ_RETVAL(IRQ_HANDLED);
@@ -314,7 +310,7 @@ static irqreturn_t ite_cir_isr(int irq, void *data)
 	}
 
 	/* drop the spinlock */
-	spin_unlock_irqrestore(&dev->lock, flags);
+	spin_unlock(&dev->lock);
 
 	ite_dbg_verbose("%s done returning %d", __func__, (int)ret);
 
