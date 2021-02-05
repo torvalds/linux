@@ -586,6 +586,7 @@ struct gfs2_args {
 	unsigned int ar_errors:2;               /* errors=withdraw | panic */
 	unsigned int ar_nobarrier:1;            /* do not send barriers */
 	unsigned int ar_rgrplvb:1;		/* use lvbs for rgrp info */
+	unsigned int ar_got_rgrplvb:1;		/* Was the rgrplvb opt given? */
 	unsigned int ar_loccookie:1;		/* use location based readdir
 						   cookies */
 	s32 ar_commit;				/* Commit interval */

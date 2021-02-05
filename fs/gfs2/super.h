@@ -11,6 +11,10 @@
 #include <linux/dcache.h>
 #include "incore.h"
 
+/* Supported fs format version range */
+#define GFS2_FS_FORMAT_MIN (1801)
+#define GFS2_FS_FORMAT_MAX (1802)
+
 extern void gfs2_lm_unmount(struct gfs2_sbd *sdp);
 
 static inline unsigned int gfs2_jindex_size(struct gfs2_sbd *sdp)
