@@ -244,6 +244,7 @@ struct intel_pt_params {
 	void *data;
 	bool return_compression;
 	bool branch_enable;
+	uint64_t ctl;
 	uint64_t period;
 	enum intel_pt_period_type period_type;
 	unsigned max_non_turbo_ratio;

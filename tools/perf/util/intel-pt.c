@@ -893,6 +893,18 @@ static bool intel_pt_sampling_mode(struct intel_pt *pt)
 	return false;
 }
 
+static u64 intel_pt_ctl(struct intel_pt *pt)
+{
+	struct evsel *evsel;
+	u64 config;
+
+	evlist__for_each_entry(pt->session->evlist, evsel) {
+		if (intel_pt_get_config(pt, &evsel->core.attr, &config))
+			return config;
+	}
+	return 0;
+}
+
 static u64 intel_pt_ns_to_ticks(const struct intel_pt *pt, u64 ns)
 {
 	u64 quot, rem;
@@ -1026,6 +1038,7 @@ static struct intel_pt_queue *intel_pt_alloc_queue(struct intel_pt *pt,
 	params.data = ptq;
 	params.return_compression = intel_pt_return_compression(pt);
 	params.branch_enable = intel_pt_branch_enable(pt);
+	params.ctl = intel_pt_ctl(pt);
 	params.max_non_turbo_ratio = pt->max_non_turbo_ratio;
 	params.mtc_period = intel_pt_mtc_period(pt);
 	params.tsc_ctc_ratio_n = pt->tsc_ctc_ratio_n;
