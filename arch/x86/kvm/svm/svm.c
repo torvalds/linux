@@ -2422,14 +2422,6 @@ static int rsm_interception(struct kvm_vcpu *vcpu)
 	return kvm_emulate_instruction_from_buffer(vcpu, rsm_ins_bytes, 2);
 }
 
-static int rdpmc_interception(struct kvm_vcpu *vcpu)
-{
-	if (!nrips)
-		return emulate_on_interception(vcpu);
-
-	return kvm_emulate_rdpmc(vcpu);
-}
-
 static bool check_selective_cr0_intercepted(struct kvm_vcpu *vcpu,
 					    unsigned long val)
 {
@@ -3056,7 +3048,7 @@ static int (*const svm_exit_handlers[])(struct kvm_vcpu *vcpu) = {
 	[SVM_EXIT_SMI]				= kvm_emulate_as_nop,
 	[SVM_EXIT_INIT]				= kvm_emulate_as_nop,
 	[SVM_EXIT_VINTR]			= interrupt_window_interception,
-	[SVM_EXIT_RDPMC]			= rdpmc_interception,
+	[SVM_EXIT_RDPMC]			= kvm_emulate_rdpmc,
 	[SVM_EXIT_CPUID]			= kvm_emulate_cpuid,
 	[SVM_EXIT_IRET]                         = iret_interception,
 	[SVM_EXIT_INVD]                         = kvm_emulate_invd,
