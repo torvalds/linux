@@ -542,6 +542,7 @@ out_unlock:
 	raw_spin_unlock_irqrestore(&walt_lb_migration_lock, flags);
 }
 
+__read_mostly unsigned int sysctl_sched_force_lb_enable = 1;
 static bool should_help_min_cap(int this_cpu)
 {
 	int cpu;
@@ -753,19 +754,8 @@ static void walt_can_migrate_task(void *unused, struct task_struct *p,
 	*can_migrate = 0;
 }
 
-/*
- * when WALT becomes module, this init will be called from
- * another file and we don't have to define module_init().
- */
 void walt_lb_init(void)
 {
-	/*
-	 * Any task movement outside task placement is called
-	 * load balance, so moving the tick path and rotation
-	 * code to here. we also use our custom active load balance
-	 * stopper function instad of adding hooks to
-	 * active_load_balance_cpu_stop() in fair.c
-	 */
 	walt_lb_rotate_work_init();
 
 	register_trace_android_rvh_migrate_queued_task(walt_migrate_queued_task, NULL);

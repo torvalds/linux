@@ -161,8 +161,6 @@ extern void walt_rotation_checkpoint(int nr_big);
 extern void walt_fill_ta_data(struct core_ctl_notif_data *data);
 extern int sched_set_group_id(struct task_struct *p, unsigned int group_id);
 extern unsigned int sched_get_group_id(struct task_struct *p);
-extern int sched_set_init_task_load(struct task_struct *p, int init_load_pct);
-extern u32 sched_get_init_task_load(struct task_struct *p);
 extern void core_ctl_check(u64 wallclock);
 extern int sched_set_boost(int enable);
 extern int sched_wake_up_idle_show(struct seq_file *m, void *v);
@@ -196,13 +194,7 @@ extern void walt_init_topapp_tg(struct task_group *tg);
 extern void walt_init_foreground_tg(struct task_group *tg);
 extern int register_walt_callback(void);
 extern void set_cpu_array(void);
-extern int sched_init_ops(void);
 extern int core_ctl_init(void);
-extern void acquire_rq_locks_irqsave(const cpumask_t *cpus,
-		unsigned long *flags);
-extern void release_rq_locks_irqrestore(const cpumask_t *cpus,
-		unsigned long *flags);
-extern struct list_head cluster_head;
 extern int input_boost_init(void);
 extern int core_ctl_init(void);
 
@@ -239,6 +231,7 @@ extern unsigned int sysctl_walt_rtg_cfs_boost_prio;
 extern __read_mostly unsigned int sysctl_sched_force_lb_enable;
 extern const int sched_user_hint_max;
 
+extern struct list_head cluster_head;
 #define for_each_sched_cluster(cluster) \
 	list_for_each_entry_rcu(cluster, &cluster_head, list)
 
@@ -290,7 +283,6 @@ extern void walt_update_group_thresholds(void);
 extern void sched_window_nr_ticks_change(void);
 extern unsigned long sched_user_hint_reset_time;
 extern struct irq_work walt_migration_irq_work;
-extern __read_mostly unsigned int new_sched_ravg_window;
 extern struct task_group *task_group_topapp;
 extern struct task_group *task_group_foreground;
 
@@ -298,9 +290,6 @@ extern struct task_group *task_group_foreground;
 extern unsigned int cpuinfo_max_freq_cached;
 extern char sched_lib_name[LIB_PATH_LENGTH];
 extern unsigned int sched_lib_mask_force;
-extern bool is_sched_lib_based_app(pid_t pid);
-void android_vh_show_max_freq(void *unused, struct cpufreq_policy *policy,
-				unsigned int *max_freq);
 
 /* WALT cpufreq interface */
 #define WALT_CPUFREQ_ROLLOVER		(1U << 0)
@@ -760,6 +749,7 @@ extern void sched_update_hyst_times(void);
 extern enum sched_boost_policy sched_boost_policy(void);
 extern void walt_rt_init(void);
 extern void walt_cfs_init(void);
+extern void walt_fixup_init(void);
 extern int walt_find_energy_efficient_cpu(struct task_struct *p, int prev_cpu,
 					int sync, int sibling_count_hint);
 

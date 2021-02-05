@@ -12,7 +12,7 @@ unsigned int cpuinfo_max_freq_cached;
 char sched_lib_name[LIB_PATH_LENGTH];
 unsigned int sched_lib_mask_force;
 
-bool is_sched_lib_based_app(pid_t pid)
+static bool is_sched_lib_based_app(pid_t pid)
 {
 	const char *name = NULL;
 	char *libname, *lib_list;
@@ -77,8 +77,8 @@ put_task_struct:
 	return found;
 }
 
-void android_vh_show_max_freq(void *unused, struct cpufreq_policy *policy,
-				unsigned int *max_freq)
+static void android_vh_show_max_freq(void *unused, struct cpufreq_policy *policy,
+				     unsigned int *max_freq)
 {
 	if (!cpuinfo_max_freq_cached)
 		return;
@@ -88,4 +88,9 @@ void android_vh_show_max_freq(void *unused, struct cpufreq_policy *policy,
 
 	if (is_sched_lib_based_app(current->pid))
 		*max_freq = cpuinfo_max_freq_cached << 1;
+}
+
+void walt_fixup_init(void)
+{
+	register_trace_android_vh_show_max_freq(android_vh_show_max_freq, NULL);
 }

@@ -18,8 +18,6 @@ unsigned int sched_capacity_margin_down[WALT_NR_CPUS] = {
 			[0 ... WALT_NR_CPUS-1] = 1205 /* ~15% margin */
 };
 
-__read_mostly unsigned int sysctl_sched_force_lb_enable = 1;
-
 static inline bool
 bias_to_this_cpu(struct task_struct *p, int cpu, int start_cpu)
 {
