@@ -184,7 +184,7 @@ static inline unsigned amdgpu_bo_ngpu_pages(struct amdgpu_bo *bo)
 
 static inline unsigned amdgpu_bo_gpu_page_alignment(struct amdgpu_bo *bo)
 {
-	return (bo->tbo.mem.page_alignment << PAGE_SHIFT) / AMDGPU_GPU_PAGE_SIZE;
+	return (bo->tbo.page_alignment << PAGE_SHIFT) / AMDGPU_GPU_PAGE_SIZE;
 }
 
 /**

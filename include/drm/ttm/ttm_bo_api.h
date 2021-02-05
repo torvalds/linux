@@ -86,6 +86,7 @@ struct ttm_tt;
  * @base: drm_gem_object superclass data.
  * @bdev: Pointer to the buffer object device structure.
  * @type: The bo type.
+ * @page_alignment: Page alignment.
  * @destroy: Destruction function. If NULL, kfree is used.
  * @num_pages: Actual number of pages.
  * @kref: Reference count of this buffer object. When this refcount reaches
@@ -123,6 +124,7 @@ struct ttm_buffer_object {
 
 	struct ttm_device *bdev;
 	enum ttm_bo_type type;
+	uint32_t page_alignment;
 	void (*destroy) (struct ttm_buffer_object *);
 
 	/**

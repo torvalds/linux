@@ -903,7 +903,6 @@ static int ttm_bo_move_buffer(struct ttm_buffer_object *bo,
 	memset(&hop, 0, sizeof(hop));
 
 	mem.num_pages = PAGE_ALIGN(bo->base.size) >> PAGE_SHIFT;
-	mem.page_alignment = bo->mem.page_alignment;
 	mem.bus.offset = 0;
 	mem.bus.addr = NULL;
 	mem.mm_node = NULL;
@@ -1038,10 +1037,10 @@ int ttm_bo_init_reserved(struct ttm_device *bdev,
 	INIT_LIST_HEAD(&bo->ddestroy);
 	bo->bdev = bdev;
 	bo->type = type;
+	bo->page_alignment = page_alignment;
 	bo->mem.mem_type = TTM_PL_SYSTEM;
 	bo->mem.num_pages = PAGE_ALIGN(size) >> PAGE_SHIFT;
 	bo->mem.mm_node = NULL;
-	bo->mem.page_alignment = page_alignment;
 	bo->mem.bus.offset = 0;
 	bo->mem.bus.addr = NULL;
 	bo->moving = NULL;

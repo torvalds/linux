@@ -79,9 +79,8 @@ static int ttm_range_man_alloc(struct ttm_resource_manager *man,
 		mode = DRM_MM_INSERT_HIGH;
 
 	spin_lock(&rman->lock);
-	ret = drm_mm_insert_node_in_range(mm, node,
-					  mem->num_pages,
-					  mem->page_alignment, 0,
+	ret = drm_mm_insert_node_in_range(mm, node, mem->num_pages,
+					  bo->page_alignment, 0,
 					  place->fpfn, lpfn, mode);
 	spin_unlock(&rman->lock);
 
