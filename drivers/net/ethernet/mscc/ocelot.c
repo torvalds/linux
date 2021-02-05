@@ -1615,7 +1615,10 @@ int ocelot_init(struct ocelot *ocelot)
 	ocelot_write(ocelot, ANA_AGGR_CFG_AC_SMAC_ENA |
 			     ANA_AGGR_CFG_AC_DMAC_ENA |
 			     ANA_AGGR_CFG_AC_IP4_SIPDIP_ENA |
-			     ANA_AGGR_CFG_AC_IP4_TCPUDP_ENA, ANA_AGGR_CFG);
+			     ANA_AGGR_CFG_AC_IP4_TCPUDP_ENA |
+			     ANA_AGGR_CFG_AC_IP6_FLOW_LBL_ENA |
+			     ANA_AGGR_CFG_AC_IP6_TCPUDP_ENA,
+			     ANA_AGGR_CFG);
 
 	/* Set MAC age time to default value. The entry is aged after
 	 * 2*AGE_PERIOD
