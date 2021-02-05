@@ -38,6 +38,7 @@ struct typec_partner {
 	struct ida			mode_ids;
 	int				num_altmodes;
 	u16				pd_revision; /* 0300H = "3.0" */
+	enum usb_pd_svdm_ver		svdm_version;
 };
 
 struct typec_port {
@@ -824,6 +825,20 @@ typec_partner_register_altmode(struct typec_partner *partner,
 EXPORT_SYMBOL_GPL(typec_partner_register_altmode);
 
 /**
+ * typec_partner_set_svdm_version - Set negotiated Structured VDM (SVDM) Version
+ * @partner: USB Type-C Partner that supports SVDM
+ * @svdm_version: Negotiated SVDM Version
+ *
+ * This routine is used to save the negotiated SVDM Version.
+ */
+void typec_partner_set_svdm_version(struct typec_partner *partner,
+				   enum usb_pd_svdm_ver svdm_version)
+{
+	partner->svdm_version = svdm_version;
+}
+EXPORT_SYMBOL_GPL(typec_partner_set_svdm_version);
+
+/**
  * typec_register_partner - Register a USB Type-C Partner
  * @port: The USB Type-C Port the partner is connected to
  * @desc: Description of the partner
@@ -847,6 +862,7 @@ struct typec_partner *typec_register_partner(struct typec_port *port,
 	partner->accessory = desc->accessory;
 	partner->num_altmodes = -1;
 	partner->pd_revision = desc->pd_revision;
+	partner->svdm_version = port->cap->svdm_version;
 
 	if (desc->identity) {
 		/*
@@ -1891,6 +1907,33 @@ int typec_set_mode(struct typec_port *port, int mode)
 EXPORT_SYMBOL_GPL(typec_set_mode);
 
 /* --------------------------------------- */
+
+/**
+ * typec_get_negotiated_svdm_version - Get negotiated SVDM Version
+ * @port: USB Type-C Port.
+ *
+ * Get the negotiated SVDM Version. The Version is set to the port default
+ * value stored in typec_capability on partner registration, and updated after
+ * a successful Discover Identity if the negotiated value is less than the
+ * default value.
+ *
+ * Returns usb_pd_svdm_ver if the partner has been registered otherwise -ENODEV.
+ */
+int typec_get_negotiated_svdm_version(struct typec_port *port)
+{
+	enum usb_pd_svdm_ver svdm_version;
+	struct device *partner_dev;
+
+	partner_dev = device_find_child(&port->dev, NULL, partner_match);
+	if (!partner_dev)
+		return -ENODEV;
+
+	svdm_version = to_typec_partner(partner_dev)->svdm_version;
+	put_device(partner_dev);
+
+	return svdm_version;
+}
+EXPORT_SYMBOL_GPL(typec_get_negotiated_svdm_version);
 
 /**
  * typec_get_drvdata - Return private driver data pointer
