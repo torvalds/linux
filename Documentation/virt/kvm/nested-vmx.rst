@@ -37,8 +37,10 @@ call L2.
 Running nested VMX
 ------------------
 
-The nested VMX feature is disabled by default. It can be enabled by giving
-the "nested=1" option to the kvm-intel module.
+The nested VMX feature is enabled by default since Linux kernel v4.20. For
+older Linux kernel, it can be enabled by giving the "nested=1" option to the
+kvm-intel module.
+
 
 No modifications are required to user space (qemu). However, qemu's default
 emulated CPU type (qemu64) does not list the "VMX" CPU feature, so it must be
