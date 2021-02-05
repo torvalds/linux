@@ -63,7 +63,7 @@
 #include <linux/timer.h>
 #include <linux/timex.h>
 #include <linux/rtc.h>
-
+#include "../tp_suspend.h"
 #include "cyttsp5_core.h"
 
 //2019-03-22
@@ -1024,6 +1024,8 @@ struct cyttsp5_core_data {
 	u32 watchdog_interval;
 	u8 show_timestamp;
 	struct regulator *supply;  
+	struct tp_device tp;
+	u32 is_suspend;
 
 	//2019-03-22 add delayedwork modify watchdog time
 #ifdef CYTTSP_WATCHDOG_DELAY_ENBALE

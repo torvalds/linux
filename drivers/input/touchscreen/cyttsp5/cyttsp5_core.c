@@ -4805,36 +4805,9 @@ static int cyttsp5_core_suspend(struct device *dev)
 {
 	struct cyttsp5_core_data *cd = dev_get_drvdata(dev);
 
-	//printk("cyttsp5_core_suspend :easy_wakeup_gesture=%d\n", cd->easy_wakeup_gesture);
-	cyttsp5_core_sleep(cd);
-
-	if (PM_SUSPEND_MEM_LITE != mem_sleep_current) {
-		disable_irq(cd->irq);
-		cd->irq_disabled = 1;
-		//gpio_direction_output(cd->cpdata->rst_gpio, 0);
-		//msleep(20);
-		//gpio_direction_output(cd->cpdata->rst_gpio, 1);
-		//msleep(40);
-		gpio_direction_output(cd->cpdata->rst_gpio, 0);
-		gpio_direction_output(cd->cpdata->irq_gpio, 0);
-		msleep(20);
-	//	regulator_suspend_disable(cd->supply);
-	} else {
-		enable_irq_wake(cd->irq);
-		cd->irq_wake = 1;
-	}
-/*
-	if (IS_DEEP_SLEEP_CONFIGURED(cd->easy_wakeup_gesture)){	
-		printk("cyttsp5_core_suspend 1100\n");
+	if (cd->is_suspend)
 		return 0;
-	}*/
-
-	/*
-	 * This will not prevent resume
-	 * Required to prevent interrupts before i2c awake
-	 */
-	//disable_irq(cd->irq);
-	//cd->irq_disabled = 1;
+	cyttsp5_core_sleep(cd);
 
 	return 0;
 }
@@ -4843,31 +4816,49 @@ static int cyttsp5_core_resume(struct device *dev)
 {
 	struct cyttsp5_core_data *cd = dev_get_drvdata(dev);
 
-	if (mem_sleep_current != PM_SUSPEND_MEM_LITE) {
-		gpio_direction_input(cd->cpdata->irq_gpio);
-		cyttsp5_hw_hard_reset(cd);
+	if (cd->is_suspend)
+		return 0;
+	cyttsp5_core_wake(cd);
+
+	return 0;
+}
+
+static int cyttsp5_core_early_suspend(struct tp_device *tp_d)
+{
+	struct cyttsp5_core_data *cd = container_of(tp_d, struct cyttsp5_core_data, tp);
+
+	cyttsp5_core_sleep(cd);
+	if (!cd->irq_disabled) {
+		disable_irq(cd->irq);
+		cd->irq_disabled = 1;
 	}
-	//printk("cyttsp5_core_resume cd->irq_enabled=%d\n", cd->irq_enabled);
+	gpio_direction_output(cd->cpdata->rst_gpio, 0);
+	gpio_direction_output(cd->cpdata->irq_gpio, 0);
+	if (cd->supply)
+		regulator_disable(cd->supply);
+	cd->is_suspend = 1;
 
-	//if (IS_DEEP_SLEEP_CONFIGURED(cd->easy_wakeup_gesture))
-	//	goto exit;
+	return 0;
+}
 
-	/*
-	 * I2C bus pm does not call suspend if device runtime suspended
-	 * This flag is cover that case
-	 */
+static int cyttsp5_core_late_resume(struct tp_device *tp_d)
+{
+	struct cyttsp5_core_data *cd = container_of(tp_d, struct cyttsp5_core_data, tp);
+	int ret;
+
+	if (cd->supply) {
+		ret = regulator_enable(cd->supply);
+		if (ret < 0)
+			dev_err(cd->dev, "failed to enable cyttsp5 power supply\n");
+	}
+	gpio_direction_input(cd->cpdata->irq_gpio);
+	cyttsp5_hw_hard_reset(cd);
 	if (cd->irq_disabled) {
 		enable_irq(cd->irq);
 		cd->irq_disabled = 0;
 	}
-
-	if (cd->irq_wake) {
-		disable_irq_wake(cd->irq);
-		cd->irq_wake = 0;
-	}
-
-//exit:
 	cyttsp5_core_wake(cd);
+	cd->is_suspend = 0;
 
 	return 0;
 }
@@ -5881,7 +5872,7 @@ void *cyttsp5_get_module_data(struct device *dev, struct cyttsp5_module *module)
 }
 EXPORT_SYMBOL(cyttsp5_get_module_data);
 
-#ifdef CONFIG_HAS_EARLYSUSPEND
+#if 0 //def CONFIG_HAS_EARLYSUSPEND
 static void cyttsp5_early_suspend(struct early_suspend *h)
 {
 	struct cyttsp5_core_data *cd =
@@ -5906,7 +5897,8 @@ static void cyttsp5_setup_early_suspend(struct cyttsp5_core_data *cd)
 
 	register_early_suspend(&cd->es);
 }
-#elif defined(CONFIG_FB)
+#endif
+#if 0 //defined(CONFIG_FB)
 static int fb_notifier_callback(struct notifier_block *self,
 		unsigned long event, void *data)
 {
@@ -6018,6 +6010,14 @@ int cyttsp5_probe(const struct cyttsp5_bus_ops *ops, struct device *dev,
 		goto error_alloc_data;
 	}
 
+	cd->supply = devm_regulator_get(dev, "cytp");
+	if (cd->supply) {
+		dev_info(dev, "cyttsp5 touch supply = %dmv\n",  regulator_get_voltage(cd->supply));
+		rc = regulator_enable(cd->supply);
+		if (rc < 0)
+			dev_err(dev, "failed to enable cyttsp5 power supply\n");
+	}
+
 	/* Initialize device info */
 	cd->dev = dev;
 	cd->pdata = pdata;
@@ -6120,6 +6120,8 @@ int cyttsp5_probe(const struct cyttsp5_bus_ops *ops, struct device *dev,
 	if (rc < 0)
 		dev_err(dev, "%s: Error, device_init_wakeup rc:%d\n",
 				__func__, rc);
+	enable_irq_wake(cd->irq);
+	cd->irq_wake = 1;
 
 	pm_runtime_get_noresume(dev);
 	pm_runtime_set_active(dev);
@@ -6162,20 +6164,20 @@ int cyttsp5_probe(const struct cyttsp5_bus_ops *ops, struct device *dev,
 	/* Probe registered modules */
 	cyttsp5_probe_modules(cd);
 
-#ifdef CONFIG_HAS_EARLYSUSPEND
-	cyttsp5_setup_early_suspend(cd);
-#elif defined(CONFIG_FB)
-	cyttsp5_setup_fb_notifier(cd);
-#endif
+//#ifdef CONFIG_HAS_EARLYSUSPEND
+//	cyttsp5_setup_early_suspend(cd);
+//#elif defined(CONFIG_FB)
+//	cyttsp5_setup_fb_notifier(cd);
+//#endif
 
 #if NEED_SUSPEND_NOTIFIER
 	cd->pm_notifier.notifier_call = cyttsp5_pm_notifier;
 	register_pm_notifier(&cd->pm_notifier);
 #endif
 
-	cd->supply = devm_regulator_get(dev, "cytp");
-	if (cd->supply)
-		printk("touch supply = %dmv\n",  regulator_get_voltage(cd->supply));
+	cd->tp.tp_resume = cyttsp5_core_late_resume;
+	cd->tp.tp_suspend = cyttsp5_core_early_suspend;
+	tp_register_fb(&cd->tp);
 
 	if (!priv_data) {
 		priv_data = cd;
@@ -6234,11 +6236,11 @@ int cyttsp5_release(struct cyttsp5_core_data *cd)
 	cyttsp5_btn_release(dev);
 	cyttsp5_mt_release(dev);
 
-#ifdef CONFIG_HAS_EARLYSUSPEND
-	unregister_early_suspend(&cd->es);
-#elif defined(CONFIG_FB)
-	fb_unregister_client(&cd->fb_notifier);
-#endif
+//#ifdef CONFIG_HAS_EARLYSUSPEND
+//	unregister_early_suspend(&cd->es);
+//#elif defined(CONFIG_FB)
+//	fb_unregister_client(&cd->fb_notifier);
+//#endif
 
 #if NEED_SUSPEND_NOTIFIER
 	unregister_pm_notifier(&cd->pm_notifier);
