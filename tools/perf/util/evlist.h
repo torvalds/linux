@@ -144,6 +144,10 @@ struct evsel *evlist__find_tracepoint_by_name(struct evlist *evlist, const char 
 int evlist__add_pollfd(struct evlist *evlist, int fd);
 int evlist__filter_pollfd(struct evlist *evlist, short revents_and_mask);
 
+#ifdef HAVE_EVENTFD_SUPPORT
+int evlist__add_wakeup_eventfd(struct evlist *evlist, int fd);
+#endif
+
 int evlist__poll(struct evlist *evlist, int timeout);
 
 struct evsel *evlist__id2evsel(struct evlist *evlist, u64 id);
