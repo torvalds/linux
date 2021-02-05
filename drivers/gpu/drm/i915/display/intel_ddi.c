@@ -1646,8 +1646,8 @@ static void dg1_ddi_disable_clock(struct intel_encoder *encoder)
 	mutex_unlock(&dev_priv->dpll.lock);
 }
 
-static void icl_map_plls_to_ports(struct intel_encoder *encoder,
-				  const struct intel_crtc_state *crtc_state)
+static void icl_ddi_combo_enable_clock(struct intel_encoder *encoder,
+				       const struct intel_crtc_state *crtc_state)
 {
 	struct drm_i915_private *dev_priv = to_i915(encoder->base.dev);
 	struct intel_shared_dpll *pll = crtc_state->shared_dpll;
@@ -1675,22 +1675,20 @@ static void icl_map_plls_to_ports(struct intel_encoder *encoder,
 	drm_WARN_ON(&dev_priv->drm,
 		    (val & icl_dpclka_cfgcr0_clk_off(dev_priv, phy)) == 0);
 
-	if (intel_phy_is_combo(dev_priv, phy)) {
-		/*
-		 * Even though this register references DDIs, note that we
-		 * want to pass the PHY rather than the port (DDI).  For
-		 * ICL, port=phy in all cases so it doesn't matter, but for
-		 * EHL the bspec notes the following:
-		 *
-		 *   "DDID clock tied to DDIA clock, so DPCLKA_CFGCR0 DDIA
-		 *   Clock Select chooses the PLL for both DDIA and DDID and
-		 *   drives port A in all cases."
-		 */
-		val &= ~mask;
-		val |= sel;
-		intel_de_write(dev_priv, reg, val);
-		intel_de_posting_read(dev_priv, reg);
-	}
+	/*
+	 * Even though this register references DDIs, note that we
+	 * want to pass the PHY rather than the port (DDI).  For
+	 * ICL, port=phy in all cases so it doesn't matter, but for
+	 * EHL the bspec notes the following:
+	 *
+	 *   "DDID clock tied to DDIA clock, so DPCLKA_CFGCR0 DDIA
+	 *   Clock Select chooses the PLL for both DDIA and DDID and
+	 *   drives port A in all cases."
+	 */
+	val &= ~mask;
+	val |= sel;
+	intel_de_write(dev_priv, reg, val);
+	intel_de_posting_read(dev_priv, reg);
 
 	val &= ~icl_dpclka_cfgcr0_clk_off(dev_priv, phy);
 	intel_de_write(dev_priv, reg, val);
@@ -1698,7 +1696,7 @@ static void icl_map_plls_to_ports(struct intel_encoder *encoder,
 	mutex_unlock(&dev_priv->dpll.lock);
 }
 
-static void icl_unmap_plls_to_ports(struct intel_encoder *encoder)
+static void icl_ddi_combo_disable_clock(struct intel_encoder *encoder)
 {
 	struct drm_i915_private *dev_priv = to_i915(encoder->base.dev);
 	enum phy phy = intel_port_to_phy(dev_priv, encoder->port);
@@ -1847,47 +1845,71 @@ void icl_sanitize_encoder_pll_mapping(struct intel_encoder *encoder)
 		icl_sanitize_port_clk_off(dev_priv, port_mask, ddi_clk_needed);
 }
 
-void intel_ddi_clk_select(struct intel_encoder *encoder,
-			  const struct intel_crtc_state *crtc_state)
+static void jsl_ddi_tc_enable_clock(struct intel_encoder *encoder,
+				    const struct intel_crtc_state *crtc_state)
 {
-	struct drm_i915_private *dev_priv = to_i915(encoder->base.dev);
-	enum port port = encoder->port;
-	enum phy phy = intel_port_to_phy(dev_priv, port);
+	struct drm_i915_private *i915 = to_i915(encoder->base.dev);
 	const struct intel_shared_dpll *pll = crtc_state->shared_dpll;
+	enum port port = encoder->port;
 
-	if (drm_WARN_ON(&dev_priv->drm, !pll))
+	if (drm_WARN_ON(&i915->drm, !pll))
 		return;
 
-	mutex_lock(&dev_priv->dpll.lock);
+	/*
+	 * "For DDIC and DDID, program DDI_CLK_SEL to map the MG clock to the port.
+	 *  MG does not exist, but the programming is required to ungate DDIC and DDID."
+	 */
+	intel_de_write(i915, DDI_CLK_SEL(port), DDI_CLK_SEL_MG);
 
-	if (INTEL_GEN(dev_priv) >= 11) {
-		if (!intel_phy_is_combo(dev_priv, phy))
-			intel_de_write(dev_priv, DDI_CLK_SEL(port),
-				       icl_pll_to_ddi_clk_sel(encoder, crtc_state));
-		else if (IS_JSL_EHL(dev_priv) && port >= PORT_C)
-			/*
-			 * MG does not exist but the programming is required
-			 * to ungate DDIC and DDID
-			 */
-			intel_de_write(dev_priv, DDI_CLK_SEL(port),
-				       DDI_CLK_SEL_MG);
-	}
-
-	mutex_unlock(&dev_priv->dpll.lock);
+	icl_ddi_combo_enable_clock(encoder, crtc_state);
 }
 
-static void intel_ddi_clk_disable(struct intel_encoder *encoder)
+static void jsl_ddi_tc_disable_clock(struct intel_encoder *encoder)
 {
-	struct drm_i915_private *dev_priv = to_i915(encoder->base.dev);
+	struct drm_i915_private *i915 = to_i915(encoder->base.dev);
 	enum port port = encoder->port;
-	enum phy phy = intel_port_to_phy(dev_priv, port);
 
-	if (INTEL_GEN(dev_priv) >= 11) {
-		if (!intel_phy_is_combo(dev_priv, phy) ||
-		    (IS_JSL_EHL(dev_priv) && port >= PORT_C))
-			intel_de_write(dev_priv, DDI_CLK_SEL(port),
-				       DDI_CLK_SEL_NONE);
-	}
+	icl_ddi_combo_disable_clock(encoder);
+
+	intel_de_write(i915, DDI_CLK_SEL(port), DDI_CLK_SEL_NONE);
+}
+
+static void icl_ddi_tc_enable_clock(struct intel_encoder *encoder,
+				    const struct intel_crtc_state *crtc_state)
+{
+	struct drm_i915_private *i915 = to_i915(encoder->base.dev);
+	const struct intel_shared_dpll *pll = crtc_state->shared_dpll;
+	enum tc_port tc_port = intel_port_to_tc(i915, encoder->port);
+	enum port port = encoder->port;
+
+	if (drm_WARN_ON(&i915->drm, !pll))
+		return;
+
+	intel_de_write(i915, DDI_CLK_SEL(port),
+		       icl_pll_to_ddi_clk_sel(encoder, crtc_state));
+
+	mutex_lock(&i915->dpll.lock);
+
+	intel_de_rmw(i915, ICL_DPCLKA_CFGCR0,
+		     ICL_DPCLKA_CFGCR0_TC_CLK_OFF(tc_port), 0);
+
+	mutex_unlock(&i915->dpll.lock);
+}
+
+static void icl_ddi_tc_disable_clock(struct intel_encoder *encoder)
+{
+	struct drm_i915_private *i915 = to_i915(encoder->base.dev);
+	enum tc_port tc_port = intel_port_to_tc(i915, encoder->port);
+	enum port port = encoder->port;
+
+	mutex_lock(&i915->dpll.lock);
+
+	intel_de_rmw(i915, ICL_DPCLKA_CFGCR0,
+		     0, ICL_DPCLKA_CFGCR0_TC_CLK_OFF(tc_port));
+
+	mutex_unlock(&i915->dpll.lock);
+
+	intel_de_write(i915, DDI_CLK_SEL(port), DDI_CLK_SEL_NONE);
 }
 
 static void cnl_ddi_enable_clock(struct intel_encoder *encoder,
@@ -1988,16 +2010,12 @@ void intel_ddi_enable_clock(struct intel_encoder *encoder,
 {
 	if (encoder->enable_clock)
 		encoder->enable_clock(encoder, crtc_state);
-	else
-		intel_ddi_clk_select(encoder, crtc_state);
 }
 
 static void intel_ddi_disable_clock(struct intel_encoder *encoder)
 {
 	if (encoder->disable_clock)
 		encoder->disable_clock(encoder);
-	else
-		intel_ddi_clk_disable(encoder);
 }
 
 static void
@@ -2479,9 +2497,6 @@ static void intel_ddi_pre_enable(struct intel_atomic_state *state,
 
 	drm_WARN_ON(&dev_priv->drm, crtc_state->has_pch_encoder);
 
-	if (!IS_DG1(dev_priv) && INTEL_GEN(dev_priv) >= 11)
-		icl_map_plls_to_ports(encoder, crtc_state);
-
 	intel_set_cpu_fifo_underrun_reporting(dev_priv, pipe, true);
 
 	if (intel_crtc_has_type(crtc_state, INTEL_OUTPUT_HDMI)) {
@@ -2679,9 +2694,6 @@ static void intel_ddi_post_disable(struct intel_atomic_state *state,
 	else
 		intel_ddi_post_disable_dp(state, encoder, old_crtc_state,
 					  old_conn_state);
-
-	if (!IS_DG1(dev_priv) && INTEL_GEN(dev_priv) >= 11)
-		icl_unmap_plls_to_ports(encoder);
 
 	if (intel_crtc_has_dp_encoder(old_crtc_state) || is_tc_port)
 		intel_display_power_put(dev_priv,
@@ -4029,6 +4041,16 @@ static enum hpd_pin skl_hpd_pin(struct drm_i915_private *dev_priv, enum port por
 	return HPD_PORT_A + port - PORT_A;
 }
 
+static bool intel_ddi_is_tc(struct drm_i915_private *i915, enum port port)
+{
+	if (INTEL_GEN(i915) >= 12)
+		return port >= PORT_TC1;
+	else if (INTEL_GEN(i915) >= 11)
+		return port >= PORT_C;
+	else
+		return false;
+}
+
 #define port_tc_name(port) ((port) - PORT_TC1 + '1')
 #define tc_port_name(tc_port) ((tc_port) - TC_PORT_1 + '1')
 
@@ -4133,9 +4155,28 @@ void intel_ddi_init(struct drm_i915_private *dev_priv, enum port port)
 	encoder->cloneable = 0;
 	encoder->pipe_mask = ~0;
 
-	if (IS_DG1(dev_priv)) {
+	if (IS_ALDERLAKE_S(dev_priv) || IS_ROCKETLAKE(dev_priv)) {
+		encoder->enable_clock = icl_ddi_combo_enable_clock;
+		encoder->disable_clock = icl_ddi_combo_disable_clock;
+	} else if (IS_DG1(dev_priv)) {
 		encoder->enable_clock = dg1_ddi_enable_clock;
 		encoder->disable_clock = dg1_ddi_disable_clock;
+	} else if (IS_JSL_EHL(dev_priv)) {
+		if (intel_ddi_is_tc(dev_priv, port)) {
+			encoder->enable_clock = jsl_ddi_tc_enable_clock;
+			encoder->disable_clock = jsl_ddi_tc_disable_clock;
+		} else {
+			encoder->enable_clock = icl_ddi_combo_enable_clock;
+			encoder->disable_clock = icl_ddi_combo_disable_clock;
+		}
+	} else if (INTEL_GEN(dev_priv) >= 11) {
+		if (intel_ddi_is_tc(dev_priv, port)) {
+			encoder->enable_clock = icl_ddi_tc_enable_clock;
+			encoder->disable_clock = icl_ddi_tc_disable_clock;
+		} else {
+			encoder->enable_clock = icl_ddi_combo_enable_clock;
+			encoder->disable_clock = icl_ddi_combo_disable_clock;
+		}
 	} else if (IS_CANNONLAKE(dev_priv)) {
 		encoder->enable_clock = cnl_ddi_enable_clock;
 		encoder->disable_clock = cnl_ddi_disable_clock;
