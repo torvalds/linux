@@ -4701,11 +4701,9 @@ static int __io_recvmsg_copy_hdr(struct io_kiocb *req,
 	if (req->flags & REQ_F_BUFFER_SELECT) {
 		if (iov_len > 1)
 			return -EINVAL;
-		if (copy_from_user(iomsg->iov, uiov, sizeof(*uiov)))
+		if (copy_from_user(iomsg->fast_iov, uiov, sizeof(*uiov)))
 			return -EFAULT;
-		sr->len = iomsg->iov[0].iov_len;
-		iov_iter_init(&iomsg->msg.msg_iter, READ, iomsg->iov, 1,
-				sr->len);
+		sr->len = iomsg->fast_iov[0].iov_len;
 		iomsg->iov = NULL;
 	} else {
 		ret = __import_iovec(READ, uiov, iov_len, UIO_FASTIOV,
@@ -4748,7 +4746,6 @@ static int __io_compat_recvmsg_copy_hdr(struct io_kiocb *req,
 		if (clen < 0)
 			return -EINVAL;
 		sr->len = clen;
-		iomsg->iov[0].iov_len = clen;
 		iomsg->iov = NULL;
 	} else {
 		ret = __import_iovec(READ, (struct iovec __user *)uiov, len,
@@ -4855,7 +4852,8 @@ static int io_recvmsg(struct io_kiocb *req, bool force_nonblock,
 		if (IS_ERR(kbuf))
 			return PTR_ERR(kbuf);
 		kmsg->fast_iov[0].iov_base = u64_to_user_ptr(kbuf->addr);
-		iov_iter_init(&kmsg->msg.msg_iter, READ, kmsg->iov,
+		kmsg->fast_iov[0].iov_len = req->sr_msg.len;
+		iov_iter_init(&kmsg->msg.msg_iter, READ, kmsg->fast_iov,
 				1, req->sr_msg.len);
 	}
 
