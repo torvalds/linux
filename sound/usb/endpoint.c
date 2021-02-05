@@ -1451,7 +1451,7 @@ void snd_usb_endpoint_release(struct snd_usb_endpoint *ep)
 
 /**
  * snd_usb_endpoint_free_all: Free the resources of an snd_usb_endpoint
- * @card: The chip
+ * @chip: The chip
  *
  * This free all endpoints and those resources
  */
