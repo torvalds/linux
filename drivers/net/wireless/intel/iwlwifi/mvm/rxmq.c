@@ -1634,6 +1634,23 @@ static inline u8 iwl_mvm_nl80211_band_from_rx_msdu(u8 phy_band)
 	}
 }
 
+struct iwl_rx_sta_csa {
+	bool all_sta_unblocked;
+	struct ieee80211_vif *vif;
+};
+
+static void iwl_mvm_rx_get_sta_block_tx(void *data, struct ieee80211_sta *sta)
+{
+	struct iwl_mvm_sta *mvmsta = iwl_mvm_sta_from_mac80211(sta);
+	struct iwl_rx_sta_csa *rx_sta_csa = data;
+
+	if (mvmsta->vif != rx_sta_csa->vif)
+		return;
+
+	if (mvmsta->disable_tx)
+		rx_sta_csa->all_sta_unblocked = false;
+}
+
 void iwl_mvm_rx_mpdu_mq(struct iwl_mvm *mvm, struct napi_struct *napi,
 			struct iwl_rx_cmd_buffer *rxb, int queue)
 {
@@ -1863,10 +1880,24 @@ void iwl_mvm_rx_mpdu_mq(struct iwl_mvm *mvm, struct napi_struct *napi,
 		if (unlikely(tx_blocked_vif) && tx_blocked_vif == vif) {
 			struct iwl_mvm_vif *mvmvif =
 				iwl_mvm_vif_from_mac80211(tx_blocked_vif);
+			struct iwl_rx_sta_csa rx_sta_csa = {
+				.all_sta_unblocked = true,
+				.vif = tx_blocked_vif,
+			};
 
 			if (mvmvif->csa_target_freq == rx_status->freq)
 				iwl_mvm_sta_modify_disable_tx_ap(mvm, sta,
 								 false);
+			ieee80211_iterate_stations_atomic(mvm->hw,
+							  iwl_mvm_rx_get_sta_block_tx,
+							  &rx_sta_csa);
+
+			if (rx_sta_csa.all_sta_unblocked) {
+				RCU_INIT_POINTER(mvm->csa_tx_blocked_vif, NULL);
+				/* Unblock BCAST / MCAST station */
+				iwl_mvm_modify_all_sta_disable_tx(mvm, mvmvif, false);
+				cancel_delayed_work_sync(&mvm->cs_tx_unblock_dwork);
+			}
 		}
 
 		rs_update_last_rssi(mvm, mvmsta, rx_status);
