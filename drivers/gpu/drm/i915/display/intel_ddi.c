@@ -1599,8 +1599,8 @@ static u32 icl_dpclka_cfgcr0_clk_off(struct drm_i915_private *dev_priv,
 	return 0;
 }
 
-static void dg1_map_plls_to_ports(struct intel_encoder *encoder,
-				  const struct intel_crtc_state *crtc_state)
+static void dg1_ddi_enable_clock(struct intel_encoder *encoder,
+				 const struct intel_crtc_state *crtc_state)
 {
 	struct drm_i915_private *dev_priv = to_i915(encoder->base.dev);
 	struct intel_shared_dpll *pll = crtc_state->shared_dpll;
@@ -1629,6 +1629,19 @@ static void dg1_map_plls_to_ports(struct intel_encoder *encoder,
 
 	val &= ~DG1_DPCLKA_CFGCR0_DDI_CLK_OFF(phy);
 	intel_de_write(dev_priv, DG1_DPCLKA_CFGCR0(phy), val);
+
+	mutex_unlock(&dev_priv->dpll.lock);
+}
+
+static void dg1_ddi_disable_clock(struct intel_encoder *encoder)
+{
+	struct drm_i915_private *dev_priv = to_i915(encoder->base.dev);
+	enum phy phy = intel_port_to_phy(dev_priv, encoder->port);
+
+	mutex_lock(&dev_priv->dpll.lock);
+
+	intel_de_rmw(dev_priv, DG1_DPCLKA_CFGCR0(phy), 0,
+		     DG1_DPCLKA_CFGCR0_DDI_CLK_OFF(phy));
 
 	mutex_unlock(&dev_priv->dpll.lock);
 }
@@ -1681,19 +1694,6 @@ static void icl_map_plls_to_ports(struct intel_encoder *encoder,
 
 	val &= ~icl_dpclka_cfgcr0_clk_off(dev_priv, phy);
 	intel_de_write(dev_priv, reg, val);
-
-	mutex_unlock(&dev_priv->dpll.lock);
-}
-
-static void dg1_unmap_plls_to_ports(struct intel_encoder *encoder)
-{
-	struct drm_i915_private *dev_priv = to_i915(encoder->base.dev);
-	enum phy phy = intel_port_to_phy(dev_priv, encoder->port);
-
-	mutex_lock(&dev_priv->dpll.lock);
-
-	intel_de_rmw(dev_priv, DG1_DPCLKA_CFGCR0(phy), 0,
-		     DG1_DPCLKA_CFGCR0_DDI_CLK_OFF(phy));
 
 	mutex_unlock(&dev_priv->dpll.lock);
 }
@@ -2479,9 +2479,7 @@ static void intel_ddi_pre_enable(struct intel_atomic_state *state,
 
 	drm_WARN_ON(&dev_priv->drm, crtc_state->has_pch_encoder);
 
-	if (IS_DG1(dev_priv))
-		dg1_map_plls_to_ports(encoder, crtc_state);
-	else if (INTEL_GEN(dev_priv) >= 11)
+	if (!IS_DG1(dev_priv) && INTEL_GEN(dev_priv) >= 11)
 		icl_map_plls_to_ports(encoder, crtc_state);
 
 	intel_set_cpu_fifo_underrun_reporting(dev_priv, pipe, true);
@@ -2682,9 +2680,7 @@ static void intel_ddi_post_disable(struct intel_atomic_state *state,
 		intel_ddi_post_disable_dp(state, encoder, old_crtc_state,
 					  old_conn_state);
 
-	if (IS_DG1(dev_priv))
-		dg1_unmap_plls_to_ports(encoder);
-	else if (INTEL_GEN(dev_priv) >= 11)
+	if (!IS_DG1(dev_priv) && INTEL_GEN(dev_priv) >= 11)
 		icl_unmap_plls_to_ports(encoder);
 
 	if (intel_crtc_has_dp_encoder(old_crtc_state) || is_tc_port)
@@ -4137,7 +4133,10 @@ void intel_ddi_init(struct drm_i915_private *dev_priv, enum port port)
 	encoder->cloneable = 0;
 	encoder->pipe_mask = ~0;
 
-	if (IS_CANNONLAKE(dev_priv)) {
+	if (IS_DG1(dev_priv)) {
+		encoder->enable_clock = dg1_ddi_enable_clock;
+		encoder->disable_clock = dg1_ddi_disable_clock;
+	} else if (IS_CANNONLAKE(dev_priv)) {
 		encoder->enable_clock = cnl_ddi_enable_clock;
 		encoder->disable_clock = cnl_ddi_disable_clock;
 	} else if (IS_GEN9_BC(dev_priv)) {
