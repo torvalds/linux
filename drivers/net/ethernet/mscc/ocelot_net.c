@@ -1137,49 +1137,71 @@ static int ocelot_netdevice_changeupper(struct net_device *dev,
 					      info->upper_dev);
 	}
 
-	return err;
+	return notifier_from_errno(err);
+}
+
+static int
+ocelot_netdevice_lag_changeupper(struct net_device *dev,
+				 struct netdev_notifier_changeupper_info *info)
+{
+	struct net_device *lower;
+	struct list_head *iter;
+	int err = NOTIFY_DONE;
+
+	netdev_for_each_lower_dev(dev, lower, iter) {
+		err = ocelot_netdevice_changeupper(lower, info);
+		if (err)
+			return notifier_from_errno(err);
+	}
+
+	return NOTIFY_DONE;
 }
 
 static int ocelot_netdevice_event(struct notifier_block *unused,
 				  unsigned long event, void *ptr)
 {
-	struct netdev_notifier_changeupper_info *info = ptr;
 	struct net_device *dev = netdev_notifier_info_to_dev(ptr);
-	int ret = 0;
 
-	if (event == NETDEV_PRECHANGEUPPER &&
-	    ocelot_netdevice_dev_check(dev) &&
-	    netif_is_lag_master(info->upper_dev)) {
-		struct netdev_lag_upper_info *lag_upper_info = info->upper_info;
+	switch (event) {
+	case NETDEV_PRECHANGEUPPER: {
+		struct netdev_notifier_changeupper_info *info = ptr;
+		struct netdev_lag_upper_info *lag_upper_info;
 		struct netlink_ext_ack *extack;
+
+		if (!ocelot_netdevice_dev_check(dev))
+			break;
+
+		if (!netif_is_lag_master(info->upper_dev))
+			break;
+
+		lag_upper_info = info->upper_info;
 
 		if (lag_upper_info &&
 		    lag_upper_info->tx_type != NETDEV_LAG_TX_TYPE_HASH) {
 			extack = netdev_notifier_info_to_extack(&info->info);
 			NL_SET_ERR_MSG_MOD(extack, "LAG device using unsupported Tx type");
 
-			ret = -EINVAL;
-			goto notify;
+			return notifier_from_errno(-EINVAL);
 		}
+
+		break;
+	}
+	case NETDEV_CHANGEUPPER: {
+		struct netdev_notifier_changeupper_info *info = ptr;
+
+		if (ocelot_netdevice_dev_check(dev))
+			return ocelot_netdevice_changeupper(dev, info);
+
+		if (netif_is_lag_master(dev))
+			return ocelot_netdevice_lag_changeupper(dev, info);
+
+		break;
+	}
+	default:
+		break;
 	}
 
-	if (event == NETDEV_CHANGEUPPER) {
-		if (netif_is_lag_master(dev)) {
-			struct net_device *slave;
-			struct list_head *iter;
-
-			netdev_for_each_lower_dev(dev, slave, iter) {
-				ret = ocelot_netdevice_changeupper(slave, info);
-				if (ret)
-					goto notify;
-			}
-		} else {
-			ret = ocelot_netdevice_changeupper(dev, info);
-		}
-	}
-
-notify:
-	return notifier_from_errno(ret);
+	return NOTIFY_DONE;
 }
 
 struct notifier_block ocelot_netdevice_nb __read_mostly = {
