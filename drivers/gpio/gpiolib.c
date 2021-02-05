@@ -56,8 +56,10 @@
 static DEFINE_IDA(gpio_ida);
 static dev_t gpio_devt;
 #define GPIO_DEV_MAX 256 /* 256 GPIO chip devices supported */
+static int gpio_bus_match(struct device *dev, struct device_driver *drv);
 static struct bus_type gpio_bus_type = {
 	.name = "gpio",
+	.match = gpio_bus_match,
 };
 
 /*
@@ -4198,6 +4200,18 @@ void gpiod_put_array(struct gpio_descs *descs)
 	kfree(descs);
 }
 EXPORT_SYMBOL_GPL(gpiod_put_array);
+
+
+static int gpio_bus_match(struct device *dev, struct device_driver *drv)
+{
+	/*
+	 * Only match if the fwnode doesn't already have a proper struct device
+	 * created for it.
+	 */
+	if (dev->fwnode && dev->fwnode->dev != dev)
+		return 0;
+	return 1;
+}
 
 static int gpio_stub_drv_probe(struct device *dev)
 {
