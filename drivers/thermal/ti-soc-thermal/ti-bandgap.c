@@ -602,29 +602,30 @@ void *ti_bandgap_get_sensor_data(struct ti_bandgap *bgp, int id)
 static int
 ti_bandgap_force_single_read(struct ti_bandgap *bgp, int id)
 {
-	u32 counter = 1000;
-	struct temp_sensor_registers *tsr;
+	struct temp_sensor_registers *tsr = bgp->conf->sensors[id].registers;
+	u32 counter;
 
 	/* Select single conversion mode */
 	if (TI_BANDGAP_HAS(bgp, MODE_CONFIG))
 		RMW_BITS(bgp, id, bgap_mode_ctrl, mode_ctrl_mask, 0);
 
-	/* Start of Conversion = 1 */
-	RMW_BITS(bgp, id, temp_sensor_ctrl, bgap_soc_mask, 1);
+	/* Set Start of Conversion if available */
+	if (tsr->bgap_soc_mask) {
+		RMW_BITS(bgp, id, temp_sensor_ctrl, bgap_soc_mask, 1);
 
-	/* Wait for EOCZ going up */
-	tsr = bgp->conf->sensors[id].registers;
+		/* Wait for EOCZ going up */
+		counter = 1000;
+		while (--counter) {
+			if (ti_bandgap_readl(bgp, tsr->temp_sensor_ctrl) &
+			    tsr->bgap_eocz_mask)
+				break;
+		}
 
-	while (--counter) {
-		if (ti_bandgap_readl(bgp, tsr->temp_sensor_ctrl) &
-		    tsr->bgap_eocz_mask)
-			break;
+		/* Clear Start of Conversion if available */
+		RMW_BITS(bgp, id, temp_sensor_ctrl, bgap_soc_mask, 0);
 	}
 
-	/* Start of Conversion = 0 */
-	RMW_BITS(bgp, id, temp_sensor_ctrl, bgap_soc_mask, 0);
-
-	/* Wait for EOCZ going down */
+	/* Wait for EOCZ going down, always needed even if no bgap_soc_mask */
 	counter = 1000;
 	while (--counter) {
 		if (!(ti_bandgap_readl(bgp, tsr->temp_sensor_ctrl) &
