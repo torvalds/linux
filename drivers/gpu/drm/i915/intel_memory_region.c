@@ -18,8 +18,8 @@ static const struct {
 		.class = INTEL_MEMORY_LOCAL,
 		.instance = 0,
 	},
-	[INTEL_REGION_STOLEN] = {
-		.class = INTEL_MEMORY_STOLEN,
+	[INTEL_REGION_STOLEN_SMEM] = {
+		.class = INTEL_MEMORY_STOLEN_SYSTEM,
 		.instance = 0,
 	},
 };
@@ -278,7 +278,7 @@ int intel_memory_regions_hw_probe(struct drm_i915_private *i915)
 		case INTEL_MEMORY_SYSTEM:
 			mem = i915_gem_shmem_setup(i915);
 			break;
-		case INTEL_MEMORY_STOLEN:
+		case INTEL_MEMORY_STOLEN_SYSTEM:
 			mem = i915_gem_stolen_setup(i915);
 			break;
 		default:
