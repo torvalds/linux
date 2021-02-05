@@ -910,10 +910,7 @@ int gsi_channel_start(struct gsi *gsi, u32 channel_id)
 static int gsi_channel_stop_retry(struct gsi_channel *channel)
 {
 	u32 retries = GSI_CHANNEL_STOP_RETRIES;
-	struct gsi *gsi = channel->gsi;
 	int ret;
-
-	mutex_lock(&gsi->mutex);
 
 	do {
 		ret = gsi_channel_stop_command(channel);
@@ -922,24 +919,33 @@ static int gsi_channel_stop_retry(struct gsi_channel *channel)
 		usleep_range(3 * USEC_PER_MSEC, 5 * USEC_PER_MSEC);
 	} while (retries--);
 
-	mutex_unlock(&gsi->mutex);
-
 	return ret;
 }
 
 static int __gsi_channel_stop(struct gsi_channel *channel, bool stop)
 {
+	struct gsi *gsi = channel->gsi;
 	int ret;
 
 	/* Wait for any underway transactions to complete before stopping. */
 	gsi_channel_trans_quiesce(channel);
 
-	ret = stop ? gsi_channel_stop_retry(channel) : 0;
-	/* Finally, ensure NAPI polling has finished. */
-	if (!ret)
-		napi_synchronize(&channel->napi);
+	if (!stop)
+		return 0;
 
-	return ret;
+	mutex_lock(&gsi->mutex);
+
+	ret = gsi_channel_stop_retry(channel);
+
+	mutex_unlock(&gsi->mutex);
+
+	if (ret)
+		return ret;
+
+	/* Ensure NAPI polling has finished. */
+	napi_synchronize(&channel->napi);
+
+	return 0;
 }
 
 /* Stop a started channel */
@@ -948,11 +954,11 @@ int gsi_channel_stop(struct gsi *gsi, u32 channel_id)
 	struct gsi_channel *channel = &gsi->channel[channel_id];
 	int ret;
 
-	/* Only disable the completion interrupt if stop is successful */
 	ret = __gsi_channel_stop(channel, true);
 	if (ret)
 		return ret;
 
+	/* Disable the completion interrupt and NAPI if successful */
 	gsi_irq_ieob_disable_one(gsi, channel->evt_ring_id);
 	napi_disable(&channel->napi);
 
