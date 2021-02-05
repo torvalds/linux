@@ -28,8 +28,8 @@ void intel_ddi_fdi_post_disable(struct intel_atomic_state *state,
 				struct intel_encoder *intel_encoder,
 				const struct intel_crtc_state *old_crtc_state,
 				const struct drm_connector_state *old_conn_state);
-void intel_ddi_clk_select(struct intel_encoder *encoder,
-			  const struct intel_crtc_state *crtc_state);
+void intel_ddi_enable_clock(struct intel_encoder *encoder,
+			    const struct intel_crtc_state *crtc_state);
 void intel_prepare_dp_ddi_buffers(struct intel_encoder *encoder,
 				  const struct intel_crtc_state *crtc_state);
 void intel_wait_ddi_buf_idle(struct drm_i915_private *dev_priv,
