@@ -594,7 +594,8 @@ struct io_async_connect {
 
 struct io_async_msghdr {
 	struct iovec			fast_iov[UIO_FASTIOV];
-	struct iovec			*iov;
+	/* points to an allocated iov, if NULL we use fast_iov instead */
+	struct iovec			*free_iov;
 	struct sockaddr __user		*uaddr;
 	struct msghdr			msg;
 	struct sockaddr_storage		addr;
@@ -4551,24 +4552,27 @@ static int io_setup_async_msg(struct io_kiocb *req,
 	if (async_msg)
 		return -EAGAIN;
 	if (io_alloc_async_data(req)) {
-		if (kmsg->iov != kmsg->fast_iov)
-			kfree(kmsg->iov);
+		kfree(kmsg->free_iov);
 		return -ENOMEM;
 	}
 	async_msg = req->async_data;
 	req->flags |= REQ_F_NEED_CLEANUP;
 	memcpy(async_msg, kmsg, sizeof(*kmsg));
 	async_msg->msg.msg_name = &async_msg->addr;
+	/* if were using fast_iov, set it to the new one */
+	if (!async_msg->free_iov)
+		async_msg->msg.msg_iter.iov = async_msg->fast_iov;
+
 	return -EAGAIN;
 }
 
 static int io_sendmsg_copy_hdr(struct io_kiocb *req,
 			       struct io_async_msghdr *iomsg)
 {
-	iomsg->iov = iomsg->fast_iov;
 	iomsg->msg.msg_name = &iomsg->addr;
+	iomsg->free_iov = iomsg->fast_iov;
 	return sendmsg_copy_msghdr(&iomsg->msg, req->sr_msg.umsg,
-				   req->sr_msg.msg_flags, &iomsg->iov);
+				   req->sr_msg.msg_flags, &iomsg->free_iov);
 }
 
 static int io_sendmsg_prep(struct io_kiocb *req, const struct io_uring_sqe *sqe)
@@ -4609,13 +4613,8 @@ static int io_sendmsg(struct io_kiocb *req, bool force_nonblock,
 	if (unlikely(!sock))
 		return -ENOTSOCK;
 
-	if (req->async_data) {
-		kmsg = req->async_data;
-		/* if iov is set, it's allocated already */
-		if (!kmsg->iov)
-			kmsg->iov = kmsg->fast_iov;
-		kmsg->msg.msg_iter.iov = kmsg->iov;
-	} else {
+	kmsg = req->async_data;
+	if (!kmsg) {
 		ret = io_sendmsg_copy_hdr(req, &iomsg);
 		if (ret)
 			return ret;
@@ -4634,8 +4633,9 @@ static int io_sendmsg(struct io_kiocb *req, bool force_nonblock,
 	if (ret == -ERESTARTSYS)
 		ret = -EINTR;
 
-	if (kmsg->iov != kmsg->fast_iov)
-		kfree(kmsg->iov);
+	/* fast path, check for non-NULL to avoid function call */
+	if (kmsg->free_iov)
+		kfree(kmsg->free_iov);
 	req->flags &= ~REQ_F_NEED_CLEANUP;
 	if (ret < 0)
 		req_set_fail_links(req);
@@ -4704,10 +4704,11 @@ static int __io_recvmsg_copy_hdr(struct io_kiocb *req,
 		if (copy_from_user(iomsg->fast_iov, uiov, sizeof(*uiov)))
 			return -EFAULT;
 		sr->len = iomsg->fast_iov[0].iov_len;
-		iomsg->iov = NULL;
+		iomsg->free_iov = NULL;
 	} else {
+		iomsg->free_iov = iomsg->fast_iov;
 		ret = __import_iovec(READ, uiov, iov_len, UIO_FASTIOV,
-				     &iomsg->iov, &iomsg->msg.msg_iter,
+				     &iomsg->free_iov, &iomsg->msg.msg_iter,
 				     false);
 		if (ret > 0)
 			ret = 0;
@@ -4746,10 +4747,11 @@ static int __io_compat_recvmsg_copy_hdr(struct io_kiocb *req,
 		if (clen < 0)
 			return -EINVAL;
 		sr->len = clen;
-		iomsg->iov = NULL;
+		iomsg->free_iov = NULL;
 	} else {
+		iomsg->free_iov = iomsg->fast_iov;
 		ret = __import_iovec(READ, (struct iovec __user *)uiov, len,
-				   UIO_FASTIOV, &iomsg->iov,
+				   UIO_FASTIOV, &iomsg->free_iov,
 				   &iomsg->msg.msg_iter, true);
 		if (ret < 0)
 			return ret;
@@ -4763,7 +4765,6 @@ static int io_recvmsg_copy_hdr(struct io_kiocb *req,
 			       struct io_async_msghdr *iomsg)
 {
 	iomsg->msg.msg_name = &iomsg->addr;
-	iomsg->iov = iomsg->fast_iov;
 
 #ifdef CONFIG_COMPAT
 	if (req->ctx->compat)
@@ -4834,13 +4835,8 @@ static int io_recvmsg(struct io_kiocb *req, bool force_nonblock,
 	if (unlikely(!sock))
 		return -ENOTSOCK;
 
-	if (req->async_data) {
-		kmsg = req->async_data;
-		/* if iov is set, it's allocated already */
-		if (!kmsg->iov)
-			kmsg->iov = kmsg->fast_iov;
-		kmsg->msg.msg_iter.iov = kmsg->iov;
-	} else {
+	kmsg = req->async_data;
+	if (!kmsg) {
 		ret = io_recvmsg_copy_hdr(req, &iomsg);
 		if (ret)
 			return ret;
@@ -4872,8 +4868,9 @@ static int io_recvmsg(struct io_kiocb *req, bool force_nonblock,
 
 	if (req->flags & REQ_F_BUFFER_SELECTED)
 		cflags = io_put_recv_kbuf(req);
-	if (kmsg->iov != kmsg->fast_iov)
-		kfree(kmsg->iov);
+	/* fast path, check for non-NULL to avoid function call */
+	if (kmsg->free_iov)
+		kfree(kmsg->free_iov);
 	req->flags &= ~REQ_F_NEED_CLEANUP;
 	if (ret < 0)
 		req_set_fail_links(req);
@@ -6166,8 +6163,8 @@ static void __io_clean_op(struct io_kiocb *req)
 		case IORING_OP_RECVMSG:
 		case IORING_OP_SENDMSG: {
 			struct io_async_msghdr *io = req->async_data;
-			if (io->iov != io->fast_iov)
-				kfree(io->iov);
+
+			kfree(io->free_iov);
 			break;
 			}
 		case IORING_OP_SPLICE:
