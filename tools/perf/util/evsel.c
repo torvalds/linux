@@ -2105,6 +2105,13 @@ perf_event__check_size(union perf_event *event, unsigned int sample_size)
 	return 0;
 }
 
+void __weak arch_perf_parse_sample_weight(struct perf_sample *data,
+					  const __u64 *array,
+					  u64 type __maybe_unused)
+{
+	data->weight = *array;
+}
+
 int evsel__parse_sample(struct evsel *evsel, union perf_event *event,
 			struct perf_sample *data)
 {
@@ -2346,16 +2353,8 @@ int evsel__parse_sample(struct evsel *evsel, union perf_event *event,
 	}
 
 	if (type & PERF_SAMPLE_WEIGHT_TYPE) {
-		union perf_sample_weight weight;
-
 		OVERFLOW_CHECK_u64(array);
-		weight.full = *array;
-		if (type & PERF_SAMPLE_WEIGHT)
-			data->weight = weight.full;
-		else {
-			data->weight = weight.var1_dw;
-			data->ins_lat = weight.var2_w;
-		}
+		arch_perf_parse_sample_weight(data, array, type);
 		array++;
 	}
 

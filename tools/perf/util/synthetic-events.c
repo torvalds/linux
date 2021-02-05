@@ -1506,6 +1506,12 @@ size_t perf_event__sample_event_size(const struct perf_sample *sample, u64 type,
 	return result;
 }
 
+void __weak arch_perf_synthesize_sample_weight(const struct perf_sample *data,
+					       __u64 *array, u64 type __maybe_unused)
+{
+	*array = data->weight;
+}
+
 int perf_event__synthesize_sample(union perf_event *event, u64 type, u64 read_format,
 				  const struct perf_sample *sample)
 {
@@ -1642,11 +1648,7 @@ int perf_event__synthesize_sample(union perf_event *event, u64 type, u64 read_fo
 	}
 
 	if (type & PERF_SAMPLE_WEIGHT_TYPE) {
-		*array = sample->weight;
-		if (type & PERF_SAMPLE_WEIGHT_STRUCT) {
-			*array &= 0xffffffff;
-			*array |= ((u64)sample->ins_lat << 32);
-		}
+		arch_perf_synthesize_sample_weight(sample, array, type);
 		array++;
 	}
 
