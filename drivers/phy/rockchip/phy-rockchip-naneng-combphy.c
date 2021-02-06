@@ -537,6 +537,12 @@ static int rk3568_combphy_cfg(struct rockchip_combphy_priv *priv)
 		}
 	}
 
+	if (device_property_read_bool(priv->dev, "rockchip,enable-ssc")) {
+		val = readl(priv->mmio + (0x7 << 2));
+		val |= BIT(4);
+		writel(val, priv->mmio + (0x7 << 2));
+	}
+
 	return 0;
 }
 
