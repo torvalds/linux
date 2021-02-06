@@ -339,7 +339,9 @@ static int mei_hbm_capabilities_req(struct mei_device *dev)
 	memset(&req, 0, sizeof(req));
 	req.hbm_cmd = MEI_HBM_CAPABILITIES_REQ_CMD;
 	if (dev->hbm_f_vt_supported)
-		req.capability_requested[0] = HBM_CAP_VT;
+		req.capability_requested[0] |= HBM_CAP_VT;
+	if (dev->hbm_f_cd_supported)
+		req.capability_requested[0] |= HBM_CAP_CD;
 
 	ret = mei_hbm_write_message(dev, &mei_hdr, &req);
 	if (ret) {
@@ -1085,6 +1087,13 @@ static void mei_hbm_config_features(struct mei_device *dev)
 	    (dev->version.major_version == HBM_MAJOR_VERSION_CAP &&
 	     dev->version.minor_version >= HBM_MINOR_VERSION_CAP))
 		dev->hbm_f_cap_supported = 1;
+
+	/* Client DMA Support */
+	dev->hbm_f_cd_supported = 0;
+	if (dev->version.major_version > HBM_MAJOR_VERSION_CD ||
+	    (dev->version.major_version == HBM_MAJOR_VERSION_CD &&
+	     dev->version.minor_version >= HBM_MINOR_VERSION_CD))
+		dev->hbm_f_cd_supported = 1;
 }
 
 /**
@@ -1233,6 +1242,8 @@ int mei_hbm_dispatch(struct mei_device *dev, struct mei_msg_hdr *hdr)
 		capability_res = (struct hbm_capability_response *)mei_msg;
 		if (!(capability_res->capability_granted[0] & HBM_CAP_VT))
 			dev->hbm_f_vt_supported = 0;
+		if (!(capability_res->capability_granted[0] & HBM_CAP_CD))
+			dev->hbm_f_cd_supported = 0;
 
 		if (dev->hbm_f_dr_supported) {
 			if (mei_dmam_ring_alloc(dev))

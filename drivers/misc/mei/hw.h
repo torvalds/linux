@@ -88,6 +88,12 @@
 #define HBM_MINOR_VERSION_CAP              2
 #define HBM_MAJOR_VERSION_CAP              2
 
+/*
+ * MEI version with client DMA support
+ */
+#define HBM_MINOR_VERSION_CD               2
+#define HBM_MAJOR_VERSION_CD               2
+
 /* Host bus message command opcode */
 #define MEI_HBM_CMD_OP_MSK                  0x7f
 /* Host bus message command RESPONSE */
@@ -648,6 +654,8 @@ struct hbm_dma_ring_ctrl {
 
 /* virtual tag supported */
 #define HBM_CAP_VT BIT(0)
+/* client dma supported */
+#define HBM_CAP_CD BIT(2)
 
 /**
  * struct hbm_capability_request - capability request from host to fw

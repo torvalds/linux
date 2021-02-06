@@ -451,6 +451,7 @@ struct mei_fw_version {
  * @hbm_f_dr_supported  : hbm feature dma ring supported
  * @hbm_f_vt_supported  : hbm feature vtag supported
  * @hbm_f_cap_supported : hbm feature capabilities message supported
+ * @hbm_f_cd_supported  : hbm feature client dma supported
  *
  * @fw_ver : FW versions
  *
@@ -538,6 +539,7 @@ struct mei_device {
 	unsigned int hbm_f_dr_supported:1;
 	unsigned int hbm_f_vt_supported:1;
 	unsigned int hbm_f_cap_supported:1;
+	unsigned int hbm_f_cd_supported:1;
 
 	struct mei_fw_version fw_ver[MEI_MAX_FW_VER_BLOCKS];
 
