@@ -670,18 +670,6 @@ u32 sfc_nand_prog_page_raw(u8 cs, u32 addr, u32 *p_page_buf)
 		return ret;
 
 	ret = sfc_nand_wait_busy(&status, 1000 * 1000);
-	/*
-	 * At the moment of power lost, flash maybe work in a unkonw state
-	 * and result in bit flip, when this situation is detected by cache
-	 * recheck, it's better to wait a second for a reliable hardware
-	 * environment to reduce error behavior.
-	 */
-	sfc_nand_read_cache(addr, (u32 *)sfc_nand_dev.recheck_buffer, 0, data_area_size);
-	if (memcmp(sfc_nand_dev.recheck_buffer, p_page_buf, data_area_size)) {
-		rkflash_print_error("%s cache bitflip2\n", __func__);
-		msleep(1000);
-	}
-
 	if (status & (1 << 3))
 		return SFC_NAND_PROG_ERASE_ERROR;
 
