@@ -150,23 +150,17 @@ gf100_fifo_recover_work(struct work_struct *w)
 	struct nvkm_device *device = fifo->base.engine.subdev.device;
 	struct nvkm_engine *engine;
 	unsigned long flags;
-	u32 engn, engm = 0;
-	u64 mask, todo;
+	u32 engm, engn, todo;
 
 	spin_lock_irqsave(&fifo->base.lock, flags);
-	mask = fifo->recover.mask;
+	engm = fifo->recover.mask;
 	fifo->recover.mask = 0ULL;
 	spin_unlock_irqrestore(&fifo->base.lock, flags);
 
-	for (todo = mask; engn = __ffs64(todo), todo; todo &= ~BIT_ULL(engn)) {
-		if (!(engine = nvkm_device_engine(device, engn, 0)))
-			continue;
-		engm |= 1 << gf100_fifo_engine_id(&fifo->base, engine);
-	}
 	nvkm_mask(device, 0x002630, engm, engm);
 
-	for (todo = mask; engn = __ffs64(todo), todo; todo &= ~BIT_ULL(engn)) {
-		if ((engine = nvkm_device_engine(device, engn, 0))) {
+	for (todo = engm; engn = __ffs(todo), todo; todo &= ~BIT_ULL(engn)) {
+		if ((engine = gf100_fifo_id_engine(&fifo->base, engn))) {
 			nvkm_subdev_fini(&engine->subdev, false);
 			WARN_ON(nvkm_subdev_init(&engine->subdev));
 		}
@@ -184,6 +178,7 @@ gf100_fifo_recover(struct gf100_fifo *fifo, struct nvkm_engine *engine,
 	struct nvkm_subdev *subdev = &fifo->base.engine.subdev;
 	struct nvkm_device *device = subdev->device;
 	u32 chid = chan->base.chid;
+	int engi = gf100_fifo_engine_id(&fifo->base, engine);
 
 	nvkm_error(subdev, "%s engine fault on channel %d, recovering...\n",
 		   engine->subdev.name, chid);
@@ -193,8 +188,8 @@ gf100_fifo_recover(struct gf100_fifo *fifo, struct nvkm_engine *engine,
 	list_del_init(&chan->head);
 	chan->killed = true;
 
-	if (engine != &fifo->base.engine)
-		fifo->recover.mask |= 1ULL << engine->subdev.index;
+	if (engi >= 0 && engi != GF100_FIFO_ENGN_SW)
+		fifo->recover.mask |= BIT(engi);
 	schedule_work(&fifo->recover.work);
 	nvkm_fifo_kevent(&fifo->base, chid);
 }
