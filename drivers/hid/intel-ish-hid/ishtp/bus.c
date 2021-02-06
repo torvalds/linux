@@ -257,17 +257,13 @@ static int ishtp_cl_bus_match(struct device *dev, struct device_driver *drv)
 static int ishtp_cl_device_remove(struct device *dev)
 {
 	struct ishtp_cl_device *device = to_ishtp_cl_device(dev);
-	struct ishtp_cl_driver *driver;
-
-	if (!device || !dev->driver)
-		return 0;
+	struct ishtp_cl_driver *driver = to_ishtp_cl_driver(dev->driver);
 
 	if (device->event_cb) {
 		device->event_cb = NULL;
 		cancel_work_sync(&device->event_work);
 	}
 
-	driver = to_ishtp_cl_driver(dev->driver);
 	if (!driver->remove) {
 		dev->driver = NULL;
 
