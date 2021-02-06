@@ -79,10 +79,20 @@ static bool dpaa2_mac_phy_mode_mismatch(struct dpaa2_mac *mac,
 					phy_interface_t interface)
 {
 	switch (interface) {
+	/* We can switch between SGMII and 1000BASE-X at runtime with
+	 * pcs-lynx
+	 */
+	case PHY_INTERFACE_MODE_SGMII:
+	case PHY_INTERFACE_MODE_1000BASEX:
+		if (mac->pcs &&
+		    (mac->if_mode == PHY_INTERFACE_MODE_SGMII ||
+		     mac->if_mode == PHY_INTERFACE_MODE_1000BASEX))
+			return false;
+		return interface != mac->if_mode;
+
 	case PHY_INTERFACE_MODE_10GBASER:
 	case PHY_INTERFACE_MODE_USXGMII:
 	case PHY_INTERFACE_MODE_QSGMII:
-	case PHY_INTERFACE_MODE_SGMII:
 	case PHY_INTERFACE_MODE_RGMII:
 	case PHY_INTERFACE_MODE_RGMII_ID:
 	case PHY_INTERFACE_MODE_RGMII_RXID:
@@ -122,13 +132,17 @@ static void dpaa2_mac_validate(struct phylink_config *config,
 		fallthrough;
 	case PHY_INTERFACE_MODE_SGMII:
 	case PHY_INTERFACE_MODE_QSGMII:
+	case PHY_INTERFACE_MODE_1000BASEX:
 	case PHY_INTERFACE_MODE_RGMII:
 	case PHY_INTERFACE_MODE_RGMII_ID:
 	case PHY_INTERFACE_MODE_RGMII_RXID:
 	case PHY_INTERFACE_MODE_RGMII_TXID:
-		phylink_set(mask, 10baseT_Full);
-		phylink_set(mask, 100baseT_Full);
+		phylink_set(mask, 1000baseX_Full);
 		phylink_set(mask, 1000baseT_Full);
+		if (state->interface == PHY_INTERFACE_MODE_1000BASEX)
+			break;
+		phylink_set(mask, 100baseT_Full);
+		phylink_set(mask, 10baseT_Full);
 		break;
 	default:
 		goto empty_set;
@@ -301,8 +315,9 @@ int dpaa2_mac_connect(struct dpaa2_mac *mac)
 		goto err_put_node;
 	}
 
-	if (mac->attr.link_type == DPMAC_LINK_TYPE_PHY &&
-	    mac->attr.eth_if != DPMAC_ETH_IF_RGMII) {
+	if ((mac->attr.link_type == DPMAC_LINK_TYPE_PHY &&
+	     mac->attr.eth_if != DPMAC_ETH_IF_RGMII) ||
+	    mac->attr.link_type == DPMAC_LINK_TYPE_BACKPLANE) {
 		err = dpaa2_pcs_create(mac, dpmac_node, mac->attr.id);
 		if (err)
 			goto err_put_node;
