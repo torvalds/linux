@@ -2,9 +2,10 @@
 /*
  * sc500ai driver
  *
- * Copyright (C) 2020 Fuzhou Rockchip Electronics Co., Ltd.
+ * Copyright (C) 2020 Rockchip Electronics Co., Ltd.
  *
  * V0.0X01.0X00 first version.
+ * V0.0X01.0X01 fix set vflip/hflip failed bug.
  */
 
 #include <linux/clk.h>
@@ -26,7 +27,7 @@
 #include <media/v4l2-subdev.h>
 #include <linux/pinctrl/consumer.h>
 
-#define DRIVER_VERSION			KERNEL_VERSION(0, 0x01, 0x00)
+#define DRIVER_VERSION			KERNEL_VERSION(0, 0x01, 0x01)
 
 #ifndef V4L2_CID_DIGITAL_GAIN
 #define V4L2_CID_DIGITAL_GAIN		V4L2_CID_GAIN
@@ -1080,6 +1081,9 @@ static int __sc500ai_start_stream(struct sc500ai *sc500ai)
 		return ret;
 
 	/* In case these controls are set before streaming */
+	ret = __v4l2_ctrl_handler_setup(&sc500ai->ctrl_handler);
+	if (ret)
+		return ret;
 	if (sc500ai->has_init_exp && sc500ai->cur_mode->hdr_mode != NO_HDR) {
 		ret = sc500ai_ioctl(&sc500ai->subdev, PREISP_CMD_SET_HDRAE_EXP,
 		                    &sc500ai->init_hdrae_exp);
@@ -1089,12 +1093,6 @@ static int __sc500ai_start_stream(struct sc500ai *sc500ai)
 			return ret;
 		}
 	}
-	mutex_unlock(&sc500ai->mutex);
-	ret = v4l2_ctrl_handler_setup(&sc500ai->ctrl_handler);
-	mutex_lock(&sc500ai->mutex);
-	if (ret)
-		return ret;
-
 
 	return sc500ai_write_reg(sc500ai->client, SC500AI_REG_CTRL_MODE,
 	                         SC500AI_REG_VALUE_08BIT, SC500AI_MODE_STREAMING);
@@ -1545,6 +1543,13 @@ static int sc500ai_initialize_controls(struct sc500ai *sc500ai)
 	                                       V4L2_CID_ANALOGUE_GAIN, SC500AI_GAIN_MIN,
 	                                       SC500AI_GAIN_MAX, SC500AI_GAIN_STEP,
 	                                       SC500AI_GAIN_DEFAULT);
+
+	v4l2_ctrl_new_std(handler, &sc500ai_ctrl_ops,
+				V4L2_CID_HFLIP, 0, 1, 1, 0);
+
+	v4l2_ctrl_new_std(handler, &sc500ai_ctrl_ops,
+				V4L2_CID_VFLIP, 0, 1, 1, 0);
+
 	if (handler->error) {
 		ret = handler->error;
 		dev_err(&sc500ai->client->dev,
