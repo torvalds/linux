@@ -555,14 +555,24 @@ static void init_send_wr(struct rxe_qp *qp, struct rxe_send_wr *wr,
 	}
 }
 
-static int init_send_wqe(struct rxe_qp *qp, const struct ib_send_wr *ibwr,
+static void copy_inline_data_to_wqe(struct rxe_send_wqe *wqe,
+				    const struct ib_send_wr *ibwr)
+{
+	struct ib_sge *sge = ibwr->sg_list;
+	u8 *p = wqe->dma.inline_data;
+	int i;
+
+	for (i = 0; i < ibwr->num_sge; i++, sge++) {
+		memcpy(p, (void *)(uintptr_t)sge->addr, sge->length);
+		p += sge->length;
+	}
+}
+
+static void init_send_wqe(struct rxe_qp *qp, const struct ib_send_wr *ibwr,
 			 unsigned int mask, unsigned int length,
 			 struct rxe_send_wqe *wqe)
 {
 	int num_sge = ibwr->num_sge;
-	struct ib_sge *sge;
-	int i;
-	u8 *p;
 
 	init_send_wr(qp, &wqe->wr, ibwr);
 
@@ -570,7 +580,7 @@ static int init_send_wqe(struct rxe_qp *qp, const struct ib_send_wr *ibwr,
 	if (unlikely(mask & WR_REG_MASK)) {
 		wqe->mask = mask;
 		wqe->state = wqe_state_posted;
-		return 0;
+		return;
 	}
 
 	if (qp_type(qp) == IB_QPT_UD ||
@@ -578,20 +588,11 @@ static int init_send_wqe(struct rxe_qp *qp, const struct ib_send_wr *ibwr,
 	    qp_type(qp) == IB_QPT_GSI)
 		memcpy(&wqe->av, &to_rah(ud_wr(ibwr)->ah)->av, sizeof(wqe->av));
 
-	if (unlikely(ibwr->send_flags & IB_SEND_INLINE)) {
-		p = wqe->dma.inline_data;
-
-		sge = ibwr->sg_list;
-		for (i = 0; i < num_sge; i++, sge++) {
-			memcpy(p, (void *)(uintptr_t)sge->addr,
-					sge->length);
-
-			p += sge->length;
-		}
-	} else {
+	if (unlikely(ibwr->send_flags & IB_SEND_INLINE))
+		copy_inline_data_to_wqe(wqe, ibwr);
+	else
 		memcpy(wqe->dma.sge, ibwr->sg_list,
 		       num_sge * sizeof(struct ib_sge));
-	}
 
 	wqe->iova = mask & WR_ATOMIC_MASK ? atomic_wr(ibwr)->remote_addr :
 		mask & WR_READ_OR_WRITE_MASK ? rdma_wr(ibwr)->remote_addr : 0;
@@ -603,8 +604,6 @@ static int init_send_wqe(struct rxe_qp *qp, const struct ib_send_wr *ibwr,
 	wqe->dma.sge_offset	= 0;
 	wqe->state		= wqe_state_posted;
 	wqe->ssn		= atomic_add_return(1, &qp->ssn);
-
-	return 0;
 }
 
 static int post_one_send(struct rxe_qp *qp, const struct ib_send_wr *ibwr,
@@ -627,10 +626,7 @@ static int post_one_send(struct rxe_qp *qp, const struct ib_send_wr *ibwr,
 	}
 
 	send_wqe = producer_addr(sq->queue);
-
-	err = init_send_wqe(qp, ibwr, mask, length, send_wqe);
-	if (unlikely(err))
-		goto err1;
+	init_send_wqe(qp, ibwr, mask, length, send_wqe);
 
 	advance_producer(sq->queue);
 	spin_unlock_irqrestore(&qp->sq.sq_lock, flags);
