@@ -35,14 +35,14 @@ nvkm_mc_unk260(struct nvkm_device *device, u32 data)
 }
 
 void
-nvkm_mc_intr_mask(struct nvkm_device *device, enum nvkm_devidx devidx, bool en)
+nvkm_mc_intr_mask(struct nvkm_device *device, enum nvkm_subdev_type type, int inst, bool en)
 {
 	struct nvkm_mc *mc = device->mc;
 	const struct nvkm_mc_map *map;
 	if (likely(mc) && mc->func->intr_mask) {
-		u32 mask = nvkm_top_intr_mask(device, devidx);
+		u32 mask = nvkm_top_intr_mask(device, type, inst);
 		for (map = mc->func->intr; !mask && map->stat; map++) {
-			if (map->type + map->inst == devidx)
+			if (map->type == type && map->inst == inst)
 				mask = map->stat;
 		}
 		mc->func->intr_mask(mc, mask, en ? mask : 0);

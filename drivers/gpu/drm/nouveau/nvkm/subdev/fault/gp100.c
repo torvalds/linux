@@ -30,7 +30,7 @@ void
 gp100_fault_buffer_intr(struct nvkm_fault_buffer *buffer, bool enable)
 {
 	struct nvkm_device *device = buffer->fault->subdev.device;
-	nvkm_mc_intr_mask(device, NVKM_SUBDEV_FAULT, enable);
+	nvkm_mc_intr_mask(device, NVKM_SUBDEV_FAULT, 0, enable);
 }
 
 void
