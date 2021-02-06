@@ -999,8 +999,10 @@ static int ast_vhub_of_parse_str_desc(struct ast_vhub *vhub,
 		str_array[offset].s = NULL;
 
 		ret = ast_vhub_str_alloc_add(vhub, &lang_str);
-		if (ret)
+		if (ret) {
+			of_node_put(child);
 			break;
+		}
 	}
 
 	return ret;
