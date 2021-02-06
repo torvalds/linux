@@ -386,7 +386,7 @@ static int dcon_regulator_is_enabled(struct regulator_dev *rdev)
 	return ec->dcon_enabled ? 1 : 0;
 }
 
-static struct regulator_ops dcon_regulator_ops = {
+static const struct regulator_ops dcon_regulator_ops = {
 	.enable		= dcon_regulator_enable,
 	.disable	= dcon_regulator_disable,
 	.is_enabled	= dcon_regulator_is_enabled,
