@@ -1514,6 +1514,7 @@ static void dr_ste_v1_build_src_gvmi_qpn_bit_mask(struct mlx5dr_match_param *val
 
 	DR_STE_SET_ONES(src_gvmi_qp_v1, bit_mask, source_gvmi, misc_mask, source_port);
 	DR_STE_SET_ONES(src_gvmi_qp_v1, bit_mask, source_qp, misc_mask, source_sqn);
+	misc_mask->source_eswitch_owner_vhca_id = 0;
 }
 
 static int dr_ste_v1_build_src_gvmi_qpn_tag(struct mlx5dr_match_param *value,
