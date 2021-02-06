@@ -1417,14 +1417,20 @@ static inline u32 mfsr(u32 idx)
 {
 	u32 val;
 
-	asm volatile("mfsrin %0, %1" : "=r" (val): "r" (idx));
+	if (__builtin_constant_p(idx))
+		asm volatile("mfsr %0, %1" : "=r" (val): "i" (idx >> 28));
+	else
+		asm volatile("mfsrin %0, %1" : "=r" (val): "r" (idx));
 
 	return val;
 }
 
 static inline void mtsr(u32 val, u32 idx)
 {
-	asm volatile("mtsrin %0, %1" : : "r" (val), "r" (idx));
+	if (__builtin_constant_p(idx))
+		asm volatile("mtsr %1, %0" : : "r" (val), "i" (idx >> 28));
+	else
+		asm volatile("mtsrin %0, %1" : : "r" (val), "r" (idx));
 }
 #endif
 
