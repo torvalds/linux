@@ -78,22 +78,29 @@ void
 nvkm_mc_intr(struct nvkm_device *device, bool *handled)
 {
 	struct nvkm_mc *mc = device->mc;
+	struct nvkm_top *top = device->top;
+	struct nvkm_top_device *tdev;
 	struct nvkm_subdev *subdev;
 	const struct nvkm_mc_map *map;
 	u32 stat, intr;
-	u64 subdevs;
 
 	if (unlikely(!mc))
 		return;
 
-	intr = nvkm_mc_intr_stat(mc);
-	stat = nvkm_top_intr(device, intr, &subdevs);
-	while (subdevs) {
-		enum nvkm_devidx subidx = __ffs64(subdevs);
-		subdev = nvkm_device_subdev(device, subidx, 0);
-		if (subdev)
-			nvkm_subdev_intr(subdev);
-		subdevs &= ~BIT_ULL(subidx);
+	stat = intr = nvkm_mc_intr_stat(mc);
+
+	if (top) {
+		list_for_each_entry(tdev, &top->device, head) {
+			if (tdev->intr >= 0 && (stat & BIT(tdev->intr))) {
+				subdev = nvkm_device_subdev(device, tdev->type, tdev->inst);
+				if (subdev) {
+					nvkm_subdev_intr(subdev);
+					stat &= ~BIT(tdev->intr);
+					if (!stat)
+						break;
+				}
+			}
+		}
 	}
 
 	for (map = mc->func->intr; map->stat; map++) {

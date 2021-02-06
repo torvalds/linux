@@ -90,29 +90,6 @@ nvkm_top_intr_mask(struct nvkm_device *device, enum nvkm_subdev_type type, int i
 	return 0;
 }
 
-u32
-nvkm_top_intr(struct nvkm_device *device, u32 intr, u64 *psubdevs)
-{
-	struct nvkm_top *top = device->top;
-	struct nvkm_top_device *info;
-	u64 subdevs = 0;
-	u32 handled = 0;
-
-	if (top) {
-		list_for_each_entry(info, &top->device, head) {
-			if (info->index != NVKM_SUBDEV_NR && info->intr >= 0) {
-				if (intr & BIT(info->intr)) {
-					subdevs |= BIT_ULL(info->index);
-					handled |= BIT(info->intr);
-				}
-			}
-		}
-	}
-
-	*psubdevs = subdevs;
-	return intr & ~handled;
-}
-
 int
 nvkm_top_fault_id(struct nvkm_device *device, enum nvkm_devidx devidx)
 {
