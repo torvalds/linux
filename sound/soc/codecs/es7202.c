@@ -1047,6 +1047,7 @@ static const struct of_device_id es7202_dt_ids[] = {
 #if ES7202_CHANNELS_MAX > 14
 	{.compatible = "ES7202_PDM_ADC_8",},
 #endif
+	{}
 };
 #endif
 
