@@ -258,19 +258,17 @@ static int ishtp_cl_device_remove(struct device *dev)
 {
 	struct ishtp_cl_device *device = to_ishtp_cl_device(dev);
 	struct ishtp_cl_driver *driver = to_ishtp_cl_driver(dev->driver);
+	int ret = 0;
 
 	if (device->event_cb) {
 		device->event_cb = NULL;
 		cancel_work_sync(&device->event_work);
 	}
 
-	if (!driver->remove) {
-		dev->driver = NULL;
+	if (driver->remove)
+		ret = driver->remove(device);
 
-		return 0;
-	}
-
-	return driver->remove(device);
+	return ret;
 }
 
 /**
