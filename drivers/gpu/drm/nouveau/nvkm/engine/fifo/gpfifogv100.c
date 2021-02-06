@@ -70,8 +70,7 @@ gv100_fifo_gpfifo_engine_fini(struct nvkm_fifo_chan *base,
 	struct nvkm_gpuobj *inst = chan->base.inst;
 	int ret;
 
-	if (engine->subdev.index >= NVKM_ENGINE_CE0 &&
-	    engine->subdev.index <= NVKM_ENGINE_CE_LAST)
+	if (engine->subdev.type == NVKM_ENGINE_CE)
 		return gk104_fifo_gpfifo_kick(chan);
 
 	ret = gv100_fifo_gpfifo_engine_valid(chan, false, false);
@@ -93,8 +92,7 @@ gv100_fifo_gpfifo_engine_init(struct nvkm_fifo_chan *base,
 	struct gk104_fifo_engn *engn = gk104_fifo_gpfifo_engine(chan, engine);
 	struct nvkm_gpuobj *inst = chan->base.inst;
 
-	if (engine->subdev.index >= NVKM_ENGINE_CE0 &&
-	    engine->subdev.index <= NVKM_ENGINE_CE_LAST)
+	if (engine->subdev.type == NVKM_ENGINE_CE)
 		return 0;
 
 	nvkm_kmap(inst);

@@ -47,7 +47,7 @@ g84_fifo_chan_ntfy(struct nvkm_fifo_chan *chan, u32 type,
 static int
 g84_fifo_chan_engine_addr(struct nvkm_engine *engine)
 {
-	switch (engine->subdev.index) {
+	switch (engine->subdev.type) {
 	case NVKM_ENGINE_DMAOBJ:
 	case NVKM_ENGINE_SW    : return -1;
 	case NVKM_ENGINE_GR    : return 0x0020;
@@ -59,7 +59,7 @@ g84_fifo_chan_engine_addr(struct nvkm_engine *engine)
 	case NVKM_ENGINE_MSVLD : return 0x0080;
 	case NVKM_ENGINE_CIPHER:
 	case NVKM_ENGINE_SEC   : return 0x00a0;
-	case NVKM_ENGINE_CE0   : return 0x00c0;
+	case NVKM_ENGINE_CE    : return 0x00c0;
 	default:
 		WARN_ON(1);
 		return -1;
@@ -157,14 +157,14 @@ g84_fifo_chan_object_ctor(struct nvkm_fifo_chan *base,
 	u32 handle = object->handle;
 	u32 context;
 
-	switch (object->engine->subdev.index) {
+	switch (object->engine->subdev.type) {
 	case NVKM_ENGINE_DMAOBJ:
 	case NVKM_ENGINE_SW    : context = 0x00000000; break;
 	case NVKM_ENGINE_GR    : context = 0x00100000; break;
 	case NVKM_ENGINE_MPEG  :
 	case NVKM_ENGINE_MSPPP : context = 0x00200000; break;
 	case NVKM_ENGINE_ME    :
-	case NVKM_ENGINE_CE0   : context = 0x00300000; break;
+	case NVKM_ENGINE_CE    : context = 0x00300000; break;
 	case NVKM_ENGINE_VP    :
 	case NVKM_ENGINE_MSPDEC: context = 0x00400000; break;
 	case NVKM_ENGINE_CIPHER:

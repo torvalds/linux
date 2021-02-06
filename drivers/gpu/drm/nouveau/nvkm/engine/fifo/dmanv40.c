@@ -35,7 +35,7 @@
 static bool
 nv40_fifo_dma_engine(struct nvkm_engine *engine, u32 *reg, u32 *ctx)
 {
-	switch (engine->subdev.index) {
+	switch (engine->subdev.type) {
 	case NVKM_ENGINE_DMAOBJ:
 	case NVKM_ENGINE_SW:
 		return false;
@@ -157,7 +157,7 @@ nv40_fifo_dma_object_ctor(struct nvkm_fifo_chan *base,
 	u32 handle  = object->handle;
 	int hash;
 
-	switch (object->engine->subdev.index) {
+	switch (object->engine->subdev.type) {
 	case NVKM_ENGINE_DMAOBJ:
 	case NVKM_ENGINE_SW    : context |= 0x00000000; break;
 	case NVKM_ENGINE_GR    : context |= 0x00100000; break;

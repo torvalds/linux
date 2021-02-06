@@ -31,7 +31,7 @@
 static int
 nv50_fifo_chan_engine_addr(struct nvkm_engine *engine)
 {
-	switch (engine->subdev.index) {
+	switch (engine->subdev.type) {
 	case NVKM_ENGINE_DMAOBJ:
 	case NVKM_ENGINE_SW    : return -1;
 	case NVKM_ENGINE_GR    : return 0x0000;
@@ -170,7 +170,7 @@ nv50_fifo_chan_object_ctor(struct nvkm_fifo_chan *base,
 	u32 handle = object->handle;
 	u32 context;
 
-	switch (object->engine->subdev.index) {
+	switch (object->engine->subdev.type) {
 	case NVKM_ENGINE_DMAOBJ:
 	case NVKM_ENGINE_SW    : context = 0x00000000; break;
 	case NVKM_ENGINE_GR    : context = 0x00100000; break;

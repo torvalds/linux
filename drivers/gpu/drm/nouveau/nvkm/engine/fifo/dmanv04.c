@@ -53,7 +53,7 @@ nv04_fifo_dma_object_ctor(struct nvkm_fifo_chan *base,
 	u32 handle  = object->handle;
 	int hash;
 
-	switch (object->engine->subdev.index) {
+	switch (object->engine->subdev.type) {
 	case NVKM_ENGINE_DMAOBJ:
 	case NVKM_ENGINE_SW    : context |= 0x00000000; break;
 	case NVKM_ENGINE_GR    : context |= 0x00010000; break;

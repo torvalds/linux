@@ -52,11 +52,10 @@ gf100_fifo_chan_ntfy(struct nvkm_fifo_chan *chan, u32 type,
 static u32
 gf100_fifo_gpfifo_engine_addr(struct nvkm_engine *engine)
 {
-	switch (engine->subdev.index) {
+	switch (engine->subdev.type) {
 	case NVKM_ENGINE_SW    : return 0;
 	case NVKM_ENGINE_GR    : return 0x0210;
-	case NVKM_ENGINE_CE0   : return 0x0230;
-	case NVKM_ENGINE_CE1   : return 0x0240;
+	case NVKM_ENGINE_CE    : return 0x0230 + (engine->subdev.inst * 0x10);
 	case NVKM_ENGINE_MSPDEC: return 0x0250;
 	case NVKM_ENGINE_MSPPP : return 0x0260;
 	case NVKM_ENGINE_MSVLD : return 0x0270;

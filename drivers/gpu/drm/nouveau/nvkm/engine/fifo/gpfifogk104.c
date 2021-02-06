@@ -74,10 +74,9 @@ gk104_fifo_gpfifo_kick(struct gk104_fifo_chan *chan)
 static u32
 gk104_fifo_gpfifo_engine_addr(struct nvkm_engine *engine)
 {
-	switch (engine->subdev.index) {
+	switch (engine->subdev.type) {
 	case NVKM_ENGINE_SW    :
-	case NVKM_ENGINE_CE0...NVKM_ENGINE_CE_LAST:
-		return 0;
+	case NVKM_ENGINE_CE    : return 0;
 	case NVKM_ENGINE_GR    : return 0x0210;
 	case NVKM_ENGINE_SEC   : return 0x0220;
 	case NVKM_ENGINE_MSPDEC: return 0x0250;
@@ -85,9 +84,11 @@ gk104_fifo_gpfifo_engine_addr(struct nvkm_engine *engine)
 	case NVKM_ENGINE_MSVLD : return 0x0270;
 	case NVKM_ENGINE_VIC   : return 0x0280;
 	case NVKM_ENGINE_MSENC : return 0x0290;
-	case NVKM_ENGINE_NVDEC0: return 0x02100270;
-	case NVKM_ENGINE_NVENC0: return 0x02100290;
-	case NVKM_ENGINE_NVENC1: return 0x0210;
+	case NVKM_ENGINE_NVDEC : return 0x02100270;
+	case NVKM_ENGINE_NVENC :
+		if (engine->subdev.inst)
+			return 0x0210;
+		return 0x02100290;
 	default:
 		WARN_ON(1);
 		return 0;
