@@ -1615,6 +1615,7 @@ static int snd_pcm_do_suspend(struct snd_pcm_substream *substream,
 	if (! snd_pcm_running(substream))
 		return 0;
 	substream->ops->trigger(substream, SNDRV_PCM_TRIGGER_SUSPEND);
+	runtime->stop_operating = true;
 	return 0; /* suspend unconditionally */
 }
 
@@ -1691,6 +1692,12 @@ int snd_pcm_suspend_all(struct snd_pcm *pcm)
 				return err;
 		}
 	}
+
+	for (stream = 0; stream < 2; stream++)
+		for (substream = pcm->streams[stream].substream;
+		     substream; substream = substream->next)
+			snd_pcm_sync_stop(substream, false);
+
 	return 0;
 }
 EXPORT_SYMBOL(snd_pcm_suspend_all);
@@ -1736,7 +1743,6 @@ static void snd_pcm_post_resume(struct snd_pcm_substream *substream,
 	snd_pcm_trigger_tstamp(substream);
 	runtime->status->state = runtime->status->suspended_state;
 	snd_pcm_timer_notify(substream, SNDRV_TIMER_EVENT_MRESUME);
-	snd_pcm_sync_stop(substream, true);
 }
 
 static const struct action_ops snd_pcm_action_resume = {
