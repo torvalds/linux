@@ -278,7 +278,7 @@ static int exynos5_counters_disable_edev(struct exynos5_dmc *dmc)
 }
 
 /**
- * find_target_freq_id() - Finds requested frequency in local DMC configuration
+ * find_target_freq_idx() - Finds requested frequency in local DMC configuration
  * @dmc:	device for which the information is checked
  * @target_rate:	requested frequency in KHz
  *
@@ -998,7 +998,7 @@ static struct devfreq_dev_profile exynos5_dmc_df_profile = {
 };
 
 /**
- * exynos5_dmc_align_initial_frequency() - Align initial frequency value
+ * exynos5_dmc_align_init_freq() - Align initial frequency value
  * @dmc:	device for which the frequency is going to be set
  * @bootloader_init_freq:	initial frequency set by the bootloader in KHz
  *
