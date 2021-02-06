@@ -30,14 +30,14 @@ void
 gf100_pmu_reset(struct nvkm_pmu *pmu)
 {
 	struct nvkm_device *device = pmu->subdev.device;
-	nvkm_mc_disable(device, NVKM_SUBDEV_PMU);
-	nvkm_mc_enable(device, NVKM_SUBDEV_PMU);
+	nvkm_mc_disable(device, NVKM_SUBDEV_PMU, 0);
+	nvkm_mc_enable(device, NVKM_SUBDEV_PMU, 0);
 }
 
 bool
 gf100_pmu_enabled(struct nvkm_pmu *pmu)
 {
-	return nvkm_mc_enabled(pmu->subdev.device, NVKM_SUBDEV_PMU);
+	return nvkm_mc_enabled(pmu->subdev.device, NVKM_SUBDEV_PMU, 0);
 }
 
 static const struct nvkm_pmu_func

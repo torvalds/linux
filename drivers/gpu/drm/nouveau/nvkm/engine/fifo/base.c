@@ -313,7 +313,7 @@ nvkm_fifo_oneinit(struct nvkm_engine *engine)
 static void
 nvkm_fifo_preinit(struct nvkm_engine *engine)
 {
-	nvkm_mc_reset(engine->subdev.device, NVKM_ENGINE_FIFO);
+	nvkm_mc_reset(engine->subdev.device, NVKM_ENGINE_FIFO, 0);
 }
 
 static int

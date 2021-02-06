@@ -88,13 +88,12 @@ int
 nvkm_falcon_enable(struct nvkm_falcon *falcon)
 {
 	struct nvkm_device *device = falcon->owner->device;
-	enum nvkm_devidx id = falcon->owner->index;
 	int ret;
 
-	nvkm_mc_enable(device, id);
+	nvkm_mc_enable(device, falcon->owner->type, falcon->owner->inst);
 	ret = falcon->func->enable(falcon);
 	if (ret) {
-		nvkm_mc_disable(device, id);
+		nvkm_mc_disable(device, falcon->owner->type, falcon->owner->inst);
 		return ret;
 	}
 
@@ -105,15 +104,14 @@ void
 nvkm_falcon_disable(struct nvkm_falcon *falcon)
 {
 	struct nvkm_device *device = falcon->owner->device;
-	enum nvkm_devidx id = falcon->owner->index;
 
 	/* already disabled, return or wait_idle will timeout */
-	if (!nvkm_mc_enabled(device, id))
+	if (!nvkm_mc_enabled(device, falcon->owner->type, falcon->owner->inst))
 		return;
 
 	falcon->func->disable(falcon);
 
-	nvkm_mc_disable(device, id);
+	nvkm_mc_disable(device, falcon->owner->type, falcon->owner->inst);
 }
 
 int

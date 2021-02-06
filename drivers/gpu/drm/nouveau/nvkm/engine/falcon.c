@@ -108,7 +108,7 @@ nvkm_falcon_fini(struct nvkm_engine *engine, bool suspend)
 		}
 	}
 
-	if (nvkm_mc_enabled(device, engine->subdev.index)) {
+	if (nvkm_mc_enabled(device, engine->subdev.type, engine->subdev.inst)) {
 		nvkm_mask(device, base + 0x048, 0x00000003, 0x00000000);
 		nvkm_wr32(device, base + 0x014, 0xffffffff);
 	}
