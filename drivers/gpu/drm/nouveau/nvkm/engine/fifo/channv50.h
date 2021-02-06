@@ -15,6 +15,25 @@ struct nv50_fifo_chan {
 	struct nvkm_gpuobj *pgd;
 	struct nvkm_ramht *ramht;
 
+#define NV50_FIFO_ENGN_SW   0
+#define NV50_FIFO_ENGN_GR   1
+#define NV50_FIFO_ENGN_MPEG 2
+#define NV50_FIFO_ENGN_DMA  3
+
+#define G84_FIFO_ENGN_SW     0
+#define G84_FIFO_ENGN_GR     1
+#define G84_FIFO_ENGN_MPEG   2
+#define G84_FIFO_ENGN_MSPPP  2
+#define G84_FIFO_ENGN_ME     3
+#define G84_FIFO_ENGN_CE0    3
+#define G84_FIFO_ENGN_VP     4
+#define G84_FIFO_ENGN_MSPDEC 4
+#define G84_FIFO_ENGN_CIPHER 5
+#define G84_FIFO_ENGN_SEC    5
+#define G84_FIFO_ENGN_VIC    5
+#define G84_FIFO_ENGN_BSP    6
+#define G84_FIFO_ENGN_MSVLD  6
+#define G84_FIFO_ENGN_DMA    7
 	struct nvkm_gpuobj *engn[NVKM_SUBDEV_NR];
 };
 

@@ -105,23 +105,6 @@ gf100_fifo_runlist_insert(struct gf100_fifo *fifo, struct gf100_fifo_chan *chan)
 	mutex_unlock(&fifo->base.mutex);
 }
 
-static inline int
-gf100_fifo_engidx(struct gf100_fifo *fifo, u32 engn)
-{
-	switch (engn) {
-	case NVKM_ENGINE_GR    : engn = 0; break;
-	case NVKM_ENGINE_MSVLD : engn = 1; break;
-	case NVKM_ENGINE_MSPPP : engn = 2; break;
-	case NVKM_ENGINE_MSPDEC: engn = 3; break;
-	case NVKM_ENGINE_CE0   : engn = 4; break;
-	case NVKM_ENGINE_CE1   : engn = 5; break;
-	default:
-		return -1;
-	}
-
-	return engn;
-}
-
 static inline struct nvkm_engine *
 gf100_fifo_engine(struct gf100_fifo *fifo, u32 engn)
 {
@@ -141,6 +124,22 @@ gf100_fifo_engine(struct gf100_fifo *fifo, u32 engn)
 	return nvkm_device_engine(device, engn, 0);
 }
 
+static int
+gf100_fifo_engine_id(struct nvkm_fifo *base, struct nvkm_engine *engine)
+{
+	switch (engine->subdev.type) {
+	case NVKM_ENGINE_GR    : return GF100_FIFO_ENGN_GR;
+	case NVKM_ENGINE_MSPDEC: return GF100_FIFO_ENGN_MSPDEC;
+	case NVKM_ENGINE_MSPPP : return GF100_FIFO_ENGN_MSPPP;
+	case NVKM_ENGINE_MSVLD : return GF100_FIFO_ENGN_MSVLD;
+	case NVKM_ENGINE_CE    : return GF100_FIFO_ENGN_CE0 + engine->subdev.inst;
+	case NVKM_ENGINE_SW    : return GF100_FIFO_ENGN_SW;
+	default:
+		WARN_ON(1);
+		return -1;
+	}
+}
+
 static void
 gf100_fifo_recover_work(struct work_struct *w)
 {
@@ -156,8 +155,11 @@ gf100_fifo_recover_work(struct work_struct *w)
 	fifo->recover.mask = 0ULL;
 	spin_unlock_irqrestore(&fifo->base.lock, flags);
 
-	for (todo = mask; engn = __ffs64(todo), todo; todo &= ~BIT_ULL(engn))
-		engm |= 1 << gf100_fifo_engidx(fifo, engn);
+	for (todo = mask; engn = __ffs64(todo), todo; todo &= ~BIT_ULL(engn)) {
+		if (!(engine = nvkm_device_engine(device, engn, 0)))
+			continue;
+		engm |= 1 << gf100_fifo_engine_id(&fifo->base, engine);
+	}
 	nvkm_mask(device, 0x002630, engm, engm);
 
 	for (todo = mask; engn = __ffs64(todo), todo; todo &= ~BIT_ULL(engn)) {
@@ -673,6 +675,7 @@ gf100_fifo = {
 	.fini = gf100_fifo_fini,
 	.intr = gf100_fifo_intr,
 	.fault = gf100_fifo_fault,
+	.engine_id = gf100_fifo_engine_id,
 	.uevent_init = gf100_fifo_uevent_init,
 	.uevent_fini = gf100_fifo_uevent_fini,
 	.chan = {

@@ -456,6 +456,7 @@ tu102_fifo_ = {
 	.fini = gk104_fifo_fini,
 	.intr = tu102_fifo_intr,
 	.fault = tu102_fifo_fault,
+	.engine_id = gk104_fifo_engine_id,
 	.uevent_init = gk104_fifo_uevent_init,
 	.uevent_fini = gk104_fifo_uevent_fini,
 	.recover_chan = tu102_fifo_recover_chan,

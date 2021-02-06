@@ -45,26 +45,6 @@ g84_fifo_chan_ntfy(struct nvkm_fifo_chan *chan, u32 type,
 }
 
 static int
-g84_fifo_chan_engine(struct nvkm_engine *engine)
-{
-	switch (engine->subdev.index) {
-	case NVKM_ENGINE_GR    : return 0;
-	case NVKM_ENGINE_MPEG  :
-	case NVKM_ENGINE_MSPPP : return 1;
-	case NVKM_ENGINE_CE0   : return 2;
-	case NVKM_ENGINE_VP    :
-	case NVKM_ENGINE_MSPDEC: return 3;
-	case NVKM_ENGINE_CIPHER:
-	case NVKM_ENGINE_SEC   : return 4;
-	case NVKM_ENGINE_BSP   :
-	case NVKM_ENGINE_MSVLD : return 5;
-	default:
-		WARN_ON(1);
-		return 0;
-	}
-}
-
-static int
 g84_fifo_chan_engine_addr(struct nvkm_engine *engine)
 {
 	switch (engine->subdev.index) {
@@ -102,7 +82,7 @@ g84_fifo_chan_engine_fini(struct nvkm_fifo_chan *base,
 	if (offset < 0)
 		return 0;
 
-	engn = g84_fifo_chan_engine(engine);
+	engn = fifo->base.func->engine_id(&fifo->base, engine);
 	save = nvkm_mask(device, 0x002520, 0x0000003f, 1 << engn);
 	nvkm_wr32(device, 0x0032fc, chan->base.inst->addr >> 12);
 	done = nvkm_msec(device, 2000,

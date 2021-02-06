@@ -9,6 +9,10 @@ struct nv04_fifo_chan {
 	struct nvkm_fifo_chan base;
 	struct nv04_fifo *fifo;
 	u32 ramfc;
+#define NV04_FIFO_ENGN_SW   0
+#define NV04_FIFO_ENGN_GR   1
+#define NV04_FIFO_ENGN_MPEG 2
+#define NV04_FIFO_ENGN_DMA  3
 	struct nvkm_gpuobj *engn[NVKM_SUBDEV_NR];
 };
 

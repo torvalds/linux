@@ -16,7 +16,8 @@ struct gk104_fifo_chan {
 
 	struct nvkm_memory *mthd;
 
-	struct {
+#define GK104_FIFO_ENGN_SW 15
+	struct gk104_fifo_engn {
 		struct nvkm_gpuobj *inst;
 		struct nvkm_vma *vma;
 	} engn[NVKM_SUBDEV_NR];

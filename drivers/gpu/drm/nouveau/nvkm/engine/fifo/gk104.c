@@ -258,6 +258,24 @@ gk104_fifo_pbdma = {
 	.init = gk104_fifo_pbdma_init,
 };
 
+int
+gk104_fifo_engine_id(struct nvkm_fifo *base, struct nvkm_engine *engine)
+{
+	struct gk104_fifo *fifo = gk104_fifo(base);
+	int engn;
+
+	if (engine->subdev.type == NVKM_ENGINE_SW)
+		return GK104_FIFO_ENGN_SW;
+
+	for (engn = 0; engn < fifo->engine_nr && engine; engn++) {
+		if (fifo->engine[engn].engine == engine)
+			return engn;
+	}
+
+	WARN_ON(1);
+	return -1;
+}
+
 static void
 gk104_fifo_recover_work(struct work_struct *w)
 {
@@ -459,7 +477,6 @@ gk104_fifo_fault(struct nvkm_fifo *base, struct nvkm_fault_data *info)
 	struct nvkm_fifo_chan *chan;
 	unsigned long flags;
 	char ct[8] = "HUB/", en[16] = "";
-	int engn;
 
 	er = nvkm_enum_find(fifo->func->fault.reason, info->reason);
 	ee = nvkm_enum_find(fifo->func->fault.engine, info->engine);
@@ -522,11 +539,10 @@ gk104_fifo_fault(struct nvkm_fifo *base, struct nvkm_fault_data *info)
 	 * correct engine(s), but just in case we can't find the channel
 	 * information...
 	 */
-	for (engn = 0; engn < fifo->engine_nr && engine; engn++) {
-		if (fifo->engine[engn].engine == engine) {
+	if (engine) {
+		int engn = fifo->base.func->engine_id(&fifo->base, engine);
+		if (engn >= 0 && engn != GK104_FIFO_ENGN_SW)
 			gk104_fifo_recover_engn(fifo, engn);
-			break;
-		}
 	}
 
 	spin_unlock_irqrestore(&fifo->base.lock, flags);
@@ -1020,6 +1036,7 @@ gk104_fifo_ = {
 	.fini = gk104_fifo_fini,
 	.intr = gk104_fifo_intr,
 	.fault = gk104_fifo_fault,
+	.engine_id = gk104_fifo_engine_id,
 	.uevent_init = gk104_fifo_uevent_init,
 	.uevent_fini = gk104_fifo_uevent_fini,
 	.recover_chan = gk104_fifo_recover_chan,

@@ -94,6 +94,20 @@ __releases(fifo->base.lock)
 	spin_unlock_irqrestore(&fifo->base.lock, flags);
 }
 
+int
+nv04_fifo_engine_id(struct nvkm_fifo *base, struct nvkm_engine *engine)
+{
+	switch (engine->subdev.type) {
+	case NVKM_ENGINE_SW    : return NV04_FIFO_ENGN_SW;
+	case NVKM_ENGINE_GR    : return NV04_FIFO_ENGN_GR;
+	case NVKM_ENGINE_MPEG  : return NV04_FIFO_ENGN_MPEG;
+	case NVKM_ENGINE_DMAOBJ: return NV04_FIFO_ENGN_DMA;
+	default:
+		WARN_ON(1);
+		return 0;
+	}
+}
+
 static const char *
 nv_dma_state_err(u32 state)
 {
@@ -349,6 +363,7 @@ static const struct nvkm_fifo_func
 nv04_fifo = {
 	.init = nv04_fifo_init,
 	.intr = nv04_fifo_intr,
+	.engine_id = nv04_fifo_engine_id,
 	.pause = nv04_fifo_pause,
 	.start = nv04_fifo_start,
 	.chan = {
