@@ -500,26 +500,23 @@ static int rk3568_combphy_cfg(struct rockchip_combphy_priv *priv)
 	case 100000000:
 		param_write(priv->phy_grf, &cfg->pipe_clk_100m, true);
 		if (priv->mode == PHY_TYPE_PCIE) {
+			/* PLL KVCO tuning fine */
+			val = readl(priv->mmio + (0x20 << 2));
+			val &= ~(0x7 << 2);
+			val |= 0x2 << 2;
+			writel(val, priv->mmio + (0x20 << 2));
+
 			/* Enable controlling random jitter, aka RMJ */
-			val = readl(priv->mmio + (0xb << 2));
-			val &= ~(0x7);
-			val |= 0x1 << 6 | 0x6;
-			writel(val, priv->mmio + (0xb << 2));
+			writel(0x4, priv->mmio + (0xb << 2));
 
 			val = readl(priv->mmio + (0x5 << 2));
 			val &= ~(0x3 << 6);
 			val |= 0x1 << 6;
 			writel(val, priv->mmio + (0x5 << 2));
 
-			val = readl(priv->mmio + (0x11 << 2));
-			val &= ~(0x7f);
-			val |= 0x19;
-			writel(val, priv->mmio + (0x11 << 2));
+			writel(0x32, priv->mmio + (0x11 << 2));
+			writel(0xf0, priv->mmio + (0xa << 2));
 
-			val = readl(priv->mmio + (0xa << 2));
-			val &= ~(0xf << 4);
-			val |= 0x7 << 4;
-			writel(val, priv->mmio + (0xa << 2));
 		}
 		break;
 	default:
