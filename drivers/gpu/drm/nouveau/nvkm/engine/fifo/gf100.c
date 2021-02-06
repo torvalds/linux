@@ -205,8 +205,8 @@ gf100_fifo_fault_engine[] = {
 	{ 0x11, "PMSPPP", NULL, NVKM_ENGINE_MSPPP },
 	{ 0x13, "PCOUNTER" },
 	{ 0x14, "PMSPDEC", NULL, NVKM_ENGINE_MSPDEC },
-	{ 0x15, "PCE0", NULL, NVKM_ENGINE_CE0 },
-	{ 0x16, "PCE1", NULL, NVKM_ENGINE_CE1 },
+	{ 0x15, "PCE0", NULL, NVKM_ENGINE_CE, 0 },
+	{ 0x16, "PCE1", NULL, NVKM_ENGINE_CE, 1 },
 	{ 0x17, "PMU" },
 	{}
 };
@@ -286,7 +286,7 @@ gf100_fifo_fault(struct nvkm_fifo *base, struct nvkm_fault_data *info)
 			nvkm_mask(device, 0x001718, 0x00000000, 0x00000000);
 			break;
 		default:
-			engine = nvkm_device_engine(device, eu->data2, 0);
+			engine = nvkm_device_engine(device, eu->data2, eu->inst);
 			break;
 		}
 	}

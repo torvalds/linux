@@ -91,13 +91,13 @@ nvkm_top_intr_mask(struct nvkm_device *device, enum nvkm_subdev_type type, int i
 }
 
 int
-nvkm_top_fault_id(struct nvkm_device *device, enum nvkm_devidx devidx)
+nvkm_top_fault_id(struct nvkm_device *device, enum nvkm_subdev_type type, int inst)
 {
 	struct nvkm_top *top = device->top;
 	struct nvkm_top_device *info;
 
 	list_for_each_entry(info, &top->device, head) {
-		if (info->index == devidx && info->fault >= 0)
+		if (info->type == type && info->inst == inst && info->fault >= 0)
 			return info->fault;
 	}
 

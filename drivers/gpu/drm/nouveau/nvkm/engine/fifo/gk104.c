@@ -433,11 +433,12 @@ gk104_fifo_recover_engn(struct gk104_fifo *fifo, int engn)
 	 * called from the fault handler already.
 	 */
 	if (!status.faulted && engine) {
-		mmui = nvkm_top_fault_id(device, engine->subdev.index);
+		mmui = nvkm_top_fault_id(device, engine->subdev.type, engine->subdev.inst);
 		if (mmui < 0) {
 			const struct nvkm_enum *en = fifo->func->fault.engine;
 			for (; en && en->name; en++) {
-				if (en->data2 == engine->subdev.index) {
+				if (en->data2 == engine->subdev.type &&
+				    en->inst  == engine->subdev.inst) {
 					mmui = en->value;
 					break;
 				}
@@ -1111,12 +1112,12 @@ gk104_fifo_fault_engine[] = {
 	{ 0x11, "MSPPP", NULL, NVKM_ENGINE_MSPPP },
 	{ 0x13, "PERF" },
 	{ 0x14, "MSPDEC", NULL, NVKM_ENGINE_MSPDEC },
-	{ 0x15, "CE0", NULL, NVKM_ENGINE_CE0 },
-	{ 0x16, "CE1", NULL, NVKM_ENGINE_CE1 },
+	{ 0x15, "CE0", NULL, NVKM_ENGINE_CE, 0 },
+	{ 0x16, "CE1", NULL, NVKM_ENGINE_CE, 1 },
 	{ 0x17, "PMU" },
 	{ 0x18, "PTP" },
 	{ 0x19, "MSENC", NULL, NVKM_ENGINE_MSENC },
-	{ 0x1b, "CE2", NULL, NVKM_ENGINE_CE2 },
+	{ 0x1b, "CE2", NULL, NVKM_ENGINE_CE, 2 },
 	{}
 };
 
