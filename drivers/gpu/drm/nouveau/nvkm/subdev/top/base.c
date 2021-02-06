@@ -43,14 +43,14 @@ nvkm_top_device_new(struct nvkm_top *top)
 }
 
 u32
-nvkm_top_addr(struct nvkm_device *device, enum nvkm_devidx index)
+nvkm_top_addr(struct nvkm_device *device, enum nvkm_subdev_type type, int inst)
 {
 	struct nvkm_top *top = device->top;
 	struct nvkm_top_device *info;
 
 	if (top) {
 		list_for_each_entry(info, &top->device, head) {
-			if (info->index == index)
+			if (info->type == type && info->inst == inst)
 				return info->addr;
 		}
 	}

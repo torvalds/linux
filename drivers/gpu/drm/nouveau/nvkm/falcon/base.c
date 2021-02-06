@@ -141,7 +141,7 @@ nvkm_falcon_oneinit(struct nvkm_falcon *falcon)
 	u32 reg;
 
 	if (!falcon->addr) {
-		falcon->addr = nvkm_top_addr(subdev->device, subdev->index);
+		falcon->addr = nvkm_top_addr(subdev->device, subdev->type, subdev->inst);
 		if (WARN_ON(!falcon->addr))
 			return -ENODEV;
 	}

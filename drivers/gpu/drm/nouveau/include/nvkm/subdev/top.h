@@ -22,7 +22,7 @@ struct nvkm_top_device {
 	struct list_head head;
 };
 
-u32 nvkm_top_addr(struct nvkm_device *, enum nvkm_devidx);
+u32 nvkm_top_addr(struct nvkm_device *, enum nvkm_subdev_type, int);
 u32 nvkm_top_reset(struct nvkm_device *, enum nvkm_subdev_type, int);
 u32 nvkm_top_intr_mask(struct nvkm_device *, enum nvkm_subdev_type, int);
 int nvkm_top_fault_id(struct nvkm_device *, enum nvkm_devidx);
