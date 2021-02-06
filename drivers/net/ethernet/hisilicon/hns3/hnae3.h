@@ -284,6 +284,8 @@ struct hnae3_dev_specs {
 	u16 int_ql_max; /* max value of interrupt coalesce based on INT_QL */
 	u16 max_int_gl; /* max value of interrupt coalesce based on INT_GL */
 	u8 max_non_tso_bd_num; /* max BD number of one non-TSO packet */
+	u16 max_frm_size;
+	u16 max_qset_num;
 };
 
 struct hnae3_client_ops {
@@ -410,8 +412,6 @@ struct hnae3_ae_dev {
  *   Get the len of the regs dump
  * get_rss_key_size()
  *   Get rss key size
- * get_rss_indir_size()
- *   Get rss indirection table size
  * get_rss()
  *   Get rss table
  * set_rss()
@@ -555,7 +555,6 @@ struct hnae3_ae_ops {
 	int (*get_regs_len)(struct hnae3_handle *handle);
 
 	u32 (*get_rss_key_size)(struct hnae3_handle *handle);
-	u32 (*get_rss_indir_size)(struct hnae3_handle *handle);
 	int (*get_rss)(struct hnae3_handle *handle, u32 *indir, u8 *key,
 		       u8 *hfunc);
 	int (*set_rss)(struct hnae3_handle *handle, const u32 *indir,

@@ -161,11 +161,15 @@ enum HCLGEVF_CAP_BITS {
 	HCLGEVF_CAP_UDP_TUNNEL_CSUM_B,
 };
 
+enum HCLGEVF_API_CAP_BITS {
+	HCLGEVF_API_CAP_FLEX_RSS_TBL_B,
+};
+
 #define HCLGEVF_QUERY_CAP_LENGTH		3
 struct hclgevf_query_version_cmd {
 	__le32 firmware;
 	__le32 hardware;
-	__le32 rsv;
+	__le32 api_caps;
 	__le32 caps[HCLGEVF_QUERY_CAP_LENGTH]; /* capabilities of device */
 };
 
@@ -292,7 +296,8 @@ struct hclgevf_dev_specs_0_cmd {
 #define HCLGEVF_DEF_MAX_INT_GL		0x1FE0U
 
 struct hclgevf_dev_specs_1_cmd {
-	__le32 rsv0;
+	__le16 max_frm_size;
+	__le16 rsv0;
 	__le16 max_int_gl;
 	u8 rsv1[18];
 };

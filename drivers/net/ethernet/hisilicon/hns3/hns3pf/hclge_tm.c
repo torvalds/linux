@@ -640,13 +640,18 @@ static void hclge_tm_vport_tc_info_update(struct hclge_vport *vport)
 	/* TC configuration is shared by PF/VF in one port, only allow
 	 * one tc for VF for simplicity. VF's vport_id is non zero.
 	 */
-	kinfo->tc_info.num_tc = vport->vport_id ? 1 :
+	if (vport->vport_id) {
+		kinfo->tc_info.num_tc = 1;
+		vport->qs_offset = HNAE3_MAX_TC +
+				   vport->vport_id - HCLGE_VF_VPORT_START_NUM;
+		vport_max_rss_size = hdev->vf_rss_size_max;
+	} else {
+		kinfo->tc_info.num_tc =
 			min_t(u16, vport->alloc_tqps, hdev->tm_info.num_tc);
-	vport->qs_offset = (vport->vport_id ? HNAE3_MAX_TC : 0) +
-				(vport->vport_id ? (vport->vport_id - 1) : 0);
+		vport->qs_offset = 0;
+		vport_max_rss_size = hdev->pf_rss_size_max;
+	}
 
-	vport_max_rss_size = vport->vport_id ? hdev->vf_rss_size_max :
-				hdev->pf_rss_size_max;
 	max_rss_size = min_t(u16, vport_max_rss_size,
 			     hclge_vport_get_max_rss_size(vport));
 

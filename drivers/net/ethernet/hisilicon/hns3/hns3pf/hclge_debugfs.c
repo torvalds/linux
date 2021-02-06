@@ -1599,8 +1599,6 @@ static void hclge_dbg_dump_qs_shaper_all(struct hclge_dev *hdev)
 static void hclge_dbg_dump_qs_shaper(struct hclge_dev *hdev,
 				     const char *cmd_buf)
 {
-#define HCLGE_MAX_QSET_NUM 1024
-
 	u16 qsid;
 	int ret;
 
@@ -1610,9 +1608,9 @@ static void hclge_dbg_dump_qs_shaper(struct hclge_dev *hdev,
 		return;
 	}
 
-	if (qsid >= HCLGE_MAX_QSET_NUM) {
-		dev_err(&hdev->pdev->dev, "qsid(%u) out of range[0-1023]\n",
-			qsid);
+	if (qsid >= hdev->ae_dev->dev_specs.max_qset_num) {
+		dev_err(&hdev->pdev->dev, "qsid(%u) out of range[0-%u]\n",
+			qsid, hdev->ae_dev->dev_specs.max_qset_num - 1);
 		return;
 	}
 

@@ -4281,8 +4281,7 @@ static int hns3_client_init(struct hnae3_handle *handle)
 
 	hns3_dbg_init(handle);
 
-	/* MTU range: (ETH_MIN_MTU(kernel default) - 9702) */
-	netdev->max_mtu = HNS3_MAX_MTU;
+	netdev->max_mtu = HNS3_MAX_MTU(ae_dev->dev_specs.max_frm_size);
 
 	if (test_bit(HNAE3_DEV_SUPPORT_HW_TX_CSUM_B, ae_dev->caps))
 		set_bit(HNS3_NIC_STATE_HW_TX_CSUM_ENABLE, &priv->state);
