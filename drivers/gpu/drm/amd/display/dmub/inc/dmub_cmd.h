@@ -47,10 +47,10 @@
 
 /* Firmware versioning. */
 #ifdef DMUB_EXPOSE_VERSION
-#define DMUB_FW_VERSION_GIT_HASH 0x6444c02e7
+#define DMUB_FW_VERSION_GIT_HASH 0xb959929e3
 #define DMUB_FW_VERSION_MAJOR 0
 #define DMUB_FW_VERSION_MINOR 0
-#define DMUB_FW_VERSION_REVISION 51
+#define DMUB_FW_VERSION_REVISION 52
 #define DMUB_FW_VERSION_TEST 0
 #define DMUB_FW_VERSION_VBIOS 0
 #define DMUB_FW_VERSION_HOTFIX 0
@@ -564,9 +564,11 @@ struct aux_transaction_parameters {
 };
 
 struct dmub_cmd_dp_aux_control_data {
-	uint32_t handle;
 	uint8_t instance;
+	uint8_t manual_acq_rel_enable;
 	uint8_t sw_crc_enabled;
+	uint8_t pad;
+	uint16_t handle;
 	uint16_t timeout;
 	enum aux_channel_type type;
 	struct aux_transaction_parameters dpaux;
