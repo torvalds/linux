@@ -13,7 +13,7 @@ struct nv04_fifo_chan {
 #define NV04_FIFO_ENGN_GR   1
 #define NV04_FIFO_ENGN_MPEG 2
 #define NV04_FIFO_ENGN_DMA  3
-	struct nvkm_gpuobj *engn[NVKM_SUBDEV_NR];
+	struct nvkm_gpuobj *engn[NVKM_FIFO_ENGN_NR];
 };
 
 extern const struct nvkm_fifo_chan_func nv04_fifo_dma_func;

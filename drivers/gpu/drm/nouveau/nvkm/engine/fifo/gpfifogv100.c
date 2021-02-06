@@ -90,17 +90,16 @@ gv100_fifo_gpfifo_engine_init(struct nvkm_fifo_chan *base,
 			      struct nvkm_engine *engine)
 {
 	struct gk104_fifo_chan *chan = gk104_fifo_chan(base);
+	struct gk104_fifo_engn *engn = gk104_fifo_gpfifo_engine(chan, engine);
 	struct nvkm_gpuobj *inst = chan->base.inst;
-	u64 addr;
 
 	if (engine->subdev.index >= NVKM_ENGINE_CE0 &&
 	    engine->subdev.index <= NVKM_ENGINE_CE_LAST)
 		return 0;
 
-	addr = chan->engn[engine->subdev.index].vma->addr;
 	nvkm_kmap(inst);
-	nvkm_wo32(inst, 0x210, lower_32_bits(addr) | 0x00000004);
-	nvkm_wo32(inst, 0x214, upper_32_bits(addr));
+	nvkm_wo32(inst, 0x210, lower_32_bits(engn->vma->addr) | 0x00000004);
+	nvkm_wo32(inst, 0x214, upper_32_bits(engn->vma->addr));
 	nvkm_done(inst);
 
 	return gv100_fifo_gpfifo_engine_valid(chan, false, true);

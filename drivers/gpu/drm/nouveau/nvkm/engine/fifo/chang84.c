@@ -114,7 +114,7 @@ g84_fifo_chan_engine_init(struct nvkm_fifo_chan *base,
 			  struct nvkm_engine *engine)
 {
 	struct nv50_fifo_chan *chan = nv50_fifo_chan(base);
-	struct nvkm_gpuobj *engn = chan->engn[engine->subdev.index];
+	struct nvkm_gpuobj *engn = *nv50_fifo_chan_engine(chan, engine);
 	u64 limit, start;
 	int offset;
 
@@ -142,12 +142,11 @@ g84_fifo_chan_engine_ctor(struct nvkm_fifo_chan *base,
 			  struct nvkm_object *object)
 {
 	struct nv50_fifo_chan *chan = nv50_fifo_chan(base);
-	int engn = engine->subdev.index;
 
 	if (g84_fifo_chan_engine_addr(engine) < 0)
 		return 0;
 
-	return nvkm_object_bind(object, NULL, 0, &chan->engn[engn]);
+	return nvkm_object_bind(object, NULL, 0, nv50_fifo_chan_engine(chan, engine));
 }
 
 static int

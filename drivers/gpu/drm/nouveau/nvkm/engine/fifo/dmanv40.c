@@ -55,6 +55,15 @@ nv40_fifo_dma_engine(struct nvkm_engine *engine, u32 *reg, u32 *ctx)
 	}
 }
 
+static struct nvkm_gpuobj **
+nv40_fifo_dma_engn(struct nv04_fifo_chan *chan, struct nvkm_engine *engine)
+{
+	int engi = chan->base.fifo->func->engine_id(chan->base.fifo, engine);
+	if (engi >= 0)
+		return &chan->engn[engi];
+	return NULL;
+}
+
 static int
 nv40_fifo_dma_engine_fini(struct nvkm_fifo_chan *base,
 			  struct nvkm_engine *engine, bool suspend)
@@ -99,7 +108,7 @@ nv40_fifo_dma_engine_init(struct nvkm_fifo_chan *base,
 
 	if (!nv40_fifo_dma_engine(engine, &reg, &ctx))
 		return 0;
-	inst = chan->engn[engine->subdev.index]->addr >> 4;
+	inst = (*nv40_fifo_dma_engn(chan, engine))->addr >> 4;
 
 	spin_lock_irqsave(&fifo->base.lock, flags);
 	nvkm_mask(device, 0x002500, 0x00000001, 0x00000000);
@@ -121,7 +130,7 @@ nv40_fifo_dma_engine_dtor(struct nvkm_fifo_chan *base,
 			  struct nvkm_engine *engine)
 {
 	struct nv04_fifo_chan *chan = nv04_fifo_chan(base);
-	nvkm_gpuobj_del(&chan->engn[engine->subdev.index]);
+	nvkm_gpuobj_del(nv40_fifo_dma_engn(chan, engine));
 }
 
 static int
@@ -130,13 +139,12 @@ nv40_fifo_dma_engine_ctor(struct nvkm_fifo_chan *base,
 			  struct nvkm_object *object)
 {
 	struct nv04_fifo_chan *chan = nv04_fifo_chan(base);
-	const int engn = engine->subdev.index;
 	u32 reg, ctx;
 
 	if (!nv40_fifo_dma_engine(engine, &reg, &ctx))
 		return 0;
 
-	return nvkm_object_bind(object, NULL, 0, &chan->engn[engn]);
+	return nvkm_object_bind(object, NULL, 0, nv40_fifo_dma_engn(chan, engine));
 }
 
 static int
