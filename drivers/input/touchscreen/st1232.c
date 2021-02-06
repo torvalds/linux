@@ -26,6 +26,20 @@
 #define ST1232_TS_NAME	"st1232-ts"
 #define ST1633_TS_NAME	"st1633-ts"
 
+#define REG_STATUS		0x01	/* Device Status | Error Code */
+
+#define STATUS_NORMAL		0x00
+#define STATUS_INIT		0x01
+#define STATUS_ERROR		0x02
+#define STATUS_AUTO_TUNING	0x03
+#define STATUS_IDLE		0x04
+#define STATUS_POWER_DOWN	0x05
+
+#define ERROR_NONE		0x00
+#define ERROR_INVALID_ADDRESS	0x10
+#define ERROR_INVALID_VALUE	0x20
+#define ERROR_INVALID_PLATFORM	0x30
+
 #define REG_XY_RESOLUTION	0x04
 #define REG_XY_COORDINATES	0x12
 #define ST_TS_MAX_FINGERS	10
@@ -47,7 +61,8 @@ struct st1232_ts_data {
 	u8 *read_buf;
 };
 
-static int st1232_ts_read_data(struct st1232_ts_data *ts, u8 reg)
+static int st1232_ts_read_data(struct st1232_ts_data *ts, u8 reg,
+			       unsigned int n)
 {
 	struct i2c_client *client = ts->client;
 	struct i2c_msg msg[] = {
@@ -59,7 +74,7 @@ static int st1232_ts_read_data(struct st1232_ts_data *ts, u8 reg)
 		{
 			.addr	= client->addr,
 			.flags	= I2C_M_RD | I2C_M_DMA_SAFE,
-			.len	= ts->read_buf_len,
+			.len	= n,
 			.buf	= ts->read_buf,
 		}
 	};
@@ -72,6 +87,22 @@ static int st1232_ts_read_data(struct st1232_ts_data *ts, u8 reg)
 	return 0;
 }
 
+static int st1232_ts_wait_ready(struct st1232_ts_data *ts)
+{
+	unsigned int retries;
+	int error;
+
+	for (retries = 10; retries; retries--) {
+		error = st1232_ts_read_data(ts, REG_STATUS, 1);
+		if (!error && ts->read_buf[0] == (STATUS_NORMAL | ERROR_NONE))
+			return 0;
+
+		usleep_range(1000, 2000);
+	}
+
+	return -ENXIO;
+}
+
 static int st1232_ts_read_resolution(struct st1232_ts_data *ts, u16 *max_x,
 				     u16 *max_y)
 {
@@ -79,14 +110,14 @@ static int st1232_ts_read_resolution(struct st1232_ts_data *ts, u16 *max_x,
 	int error;
 
 	/* select resolution register */
-	error = st1232_ts_read_data(ts, REG_XY_RESOLUTION);
+	error = st1232_ts_read_data(ts, REG_XY_RESOLUTION, 3);
 	if (error)
 		return error;
 
 	buf = ts->read_buf;
 
-	*max_x = ((buf[0] & 0x0070) << 4) | buf[1];
-	*max_y = ((buf[0] & 0x0007) << 8) | buf[2];
+	*max_x = (((buf[0] & 0x0070) << 4) | buf[1]) - 1;
+	*max_y = (((buf[0] & 0x0007) << 8) | buf[2]) - 1;
 
 	return 0;
 }
@@ -140,7 +171,7 @@ static irqreturn_t st1232_ts_irq_handler(int irq, void *dev_id)
 	int count;
 	int error;
 
-	error = st1232_ts_read_data(ts, REG_XY_COORDINATES);
+	error = st1232_ts_read_data(ts, REG_XY_COORDINATES, ts->read_buf_len);
 	if (error)
 		goto out;
 
@@ -250,6 +281,11 @@ static int st1232_ts_probe(struct i2c_client *client,
 
 	input_dev->name = "st1232-touchscreen";
 	input_dev->id.bustype = BUS_I2C;
+
+	/* Wait until device is ready */
+	error = st1232_ts_wait_ready(ts);
+	if (error)
+		return error;
 
 	/* Read resolution from the chip */
 	error = st1232_ts_read_resolution(ts, &max_x, &max_y);

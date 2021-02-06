@@ -26,6 +26,7 @@ properties:
       - goodix,gt927
       - goodix,gt9271
       - goodix,gt928
+      - goodix,gt9286
       - goodix,gt967
 
   reg:
