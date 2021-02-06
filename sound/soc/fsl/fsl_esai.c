@@ -23,11 +23,9 @@
 
 /**
  * struct fsl_esai_soc_data - soc specific data
- * @imx: for imx platform
  * @reset_at_xrun: flags for enable reset operaton
  */
 struct fsl_esai_soc_data {
-	bool imx;
 	bool reset_at_xrun;
 };
 
@@ -86,17 +84,14 @@ struct fsl_esai {
 };
 
 static struct fsl_esai_soc_data fsl_esai_vf610 = {
-	.imx = false,
 	.reset_at_xrun = true,
 };
 
 static struct fsl_esai_soc_data fsl_esai_imx35 = {
-	.imx = true,
 	.reset_at_xrun = true,
 };
 
 static struct fsl_esai_soc_data fsl_esai_imx6ull = {
-	.imx = true,
 	.reset_at_xrun = false,
 };
 
