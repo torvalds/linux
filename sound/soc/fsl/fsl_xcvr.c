@@ -857,7 +857,7 @@ static struct snd_kcontrol_new fsl_xcvr_tx_ctls[] = {
 	},
 };
 
-static struct snd_soc_dai_ops fsl_xcvr_dai_ops = {
+static const struct snd_soc_dai_ops fsl_xcvr_dai_ops = {
 	.prepare = fsl_xcvr_prepare,
 	.startup = fsl_xcvr_startup,
 	.shutdown = fsl_xcvr_shutdown,
