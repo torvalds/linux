@@ -595,6 +595,117 @@ static void mei_hbm_cl_notify(struct mei_device *dev,
 }
 
 /**
+ * mei_hbm_cl_dma_map_req - send client dma map request
+ *
+ * @dev: the device structure
+ * @cl: mei host client
+ *
+ * Return: 0 on success and -EIO on write failure
+ */
+int mei_hbm_cl_dma_map_req(struct mei_device *dev, struct mei_cl *cl)
+{
+	struct mei_msg_hdr mei_hdr;
+	struct hbm_client_dma_map_request req;
+	int ret;
+
+	mei_hbm_hdr(&mei_hdr, sizeof(req));
+
+	memset(&req, 0, sizeof(req));
+
+	req.hbm_cmd = MEI_HBM_CLIENT_DMA_MAP_REQ_CMD;
+	req.client_buffer_id = cl->dma.buffer_id;
+	req.address_lsb = lower_32_bits(cl->dma.daddr);
+	req.address_msb = upper_32_bits(cl->dma.daddr);
+	req.size = cl->dma.size;
+
+	ret = mei_hbm_write_message(dev, &mei_hdr, &req);
+	if (ret)
+		dev_err(dev->dev, "dma map request failed: ret = %d\n", ret);
+
+	return ret;
+}
+
+/**
+ * mei_hbm_cl_dma_unmap_req - send client dma unmap request
+ *
+ * @dev: the device structure
+ * @cl: mei host client
+ *
+ * Return: 0 on success and -EIO on write failure
+ */
+int mei_hbm_cl_dma_unmap_req(struct mei_device *dev, struct mei_cl *cl)
+{
+	struct mei_msg_hdr mei_hdr;
+	struct hbm_client_dma_unmap_request req;
+	int ret;
+
+	mei_hbm_hdr(&mei_hdr, sizeof(req));
+
+	memset(&req, 0, sizeof(req));
+
+	req.hbm_cmd = MEI_HBM_CLIENT_DMA_UNMAP_REQ_CMD;
+	req.client_buffer_id = cl->dma.buffer_id;
+
+	ret = mei_hbm_write_message(dev, &mei_hdr, &req);
+	if (ret)
+		dev_err(dev->dev, "dma unmap request failed: ret = %d\n", ret);
+
+	return ret;
+}
+
+static void mei_hbm_cl_dma_map_res(struct mei_device *dev,
+				   struct hbm_client_dma_response *res)
+{
+	struct mei_cl *cl;
+	struct mei_cl_cb *cb, *next;
+
+	cl = NULL;
+	list_for_each_entry_safe(cb, next, &dev->ctrl_rd_list, list) {
+		if (cb->fop_type != MEI_FOP_DMA_MAP)
+			continue;
+		if (!cb->cl->dma.buffer_id || cb->cl->dma_mapped)
+			continue;
+
+		cl = cb->cl;
+		break;
+	}
+	if (!cl)
+		return;
+
+	dev_dbg(dev->dev, "cl dma map result = %d\n", res->status);
+	cl->status = res->status;
+	if (!cl->status)
+		cl->dma_mapped = 1;
+	wake_up(&cl->wait);
+}
+
+static void mei_hbm_cl_dma_unmap_res(struct mei_device *dev,
+				     struct hbm_client_dma_response *res)
+{
+	struct mei_cl *cl;
+	struct mei_cl_cb *cb, *next;
+
+	cl = NULL;
+	list_for_each_entry_safe(cb, next, &dev->ctrl_rd_list, list) {
+		if (cb->fop_type != MEI_FOP_DMA_UNMAP)
+			continue;
+		if (!cb->cl->dma.buffer_id || !cb->cl->dma_mapped)
+			continue;
+
+		cl = cb->cl;
+		break;
+	}
+	if (!cl)
+		return;
+
+	dev_dbg(dev->dev, "cl dma unmap result = %d\n", res->status);
+	cl->status = res->status;
+	if (!cl->status)
+		cl->dma_mapped = 0;
+	wake_up(&cl->wait);
+}
+
+/**
  * mei_hbm_prop_req - request property for a single client
  *
  * @dev: the device structure
@@ -1133,6 +1244,7 @@ int mei_hbm_dispatch(struct mei_device *dev, struct mei_msg_hdr *hdr)
 	struct mei_hbm_cl_cmd *cl_cmd;
 	struct hbm_client_connect_request *disconnect_req;
 	struct hbm_flow_control *fctrl;
+	struct hbm_client_dma_response *client_dma_res;
 
 	/* read the message to our buffer */
 	BUG_ON(hdr->length >= sizeof(dev->rd_msg_buf));
@@ -1457,6 +1569,18 @@ int mei_hbm_dispatch(struct mei_device *dev, struct mei_msg_hdr *hdr)
 	case MEI_HBM_NOTIFICATION_CMD:
 		dev_dbg(dev->dev, "hbm: notification\n");
 		mei_hbm_cl_notify(dev, cl_cmd);
+		break;
+
+	case MEI_HBM_CLIENT_DMA_MAP_RES_CMD:
+		dev_dbg(dev->dev, "hbm: client dma map response: message received.\n");
+		client_dma_res = (struct hbm_client_dma_response *)mei_msg;
+		mei_hbm_cl_dma_map_res(dev, client_dma_res);
+		break;
+
+	case MEI_HBM_CLIENT_DMA_UNMAP_RES_CMD:
+		dev_dbg(dev->dev, "hbm: client dma unmap response: message received.\n");
+		client_dma_res = (struct hbm_client_dma_response *)mei_msg;
+		mei_hbm_cl_dma_unmap_res(dev, client_dma_res);
 		break;
 
 	default:

@@ -547,6 +547,16 @@ int mei_irq_write_handler(struct mei_device *dev, struct list_head *cmpl_list)
 			if (ret)
 				return ret;
 			break;
+		case MEI_FOP_DMA_MAP:
+			ret = mei_cl_irq_dma_map(cl, cb, cmpl_list);
+			if (ret)
+				return ret;
+			break;
+		case MEI_FOP_DMA_UNMAP:
+			ret = mei_cl_irq_dma_unmap(cl, cb, cmpl_list);
+			if (ret)
+				return ret;
+			break;
 		default:
 			BUG();
 		}

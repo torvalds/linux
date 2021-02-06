@@ -79,6 +79,8 @@ enum mei_file_transaction_states {
  * @MEI_FOP_DISCONNECT_RSP: disconnect response
  * @MEI_FOP_NOTIFY_START:   start notification
  * @MEI_FOP_NOTIFY_STOP:    stop notification
+ * @MEI_FOP_DMA_MAP:   request client dma map
+ * @MEI_FOP_DMA_UNMAP: request client dma unmap
  */
 enum mei_cb_file_ops {
 	MEI_FOP_READ = 0,
@@ -88,6 +90,8 @@ enum mei_cb_file_ops {
 	MEI_FOP_DISCONNECT_RSP,
 	MEI_FOP_NOTIFY_START,
 	MEI_FOP_NOTIFY_STOP,
+	MEI_FOP_DMA_MAP,
+	MEI_FOP_DMA_UNMAP,
 };
 
 /**
@@ -111,6 +115,13 @@ enum mei_cl_io_mode {
 struct mei_msg_data {
 	size_t size;
 	unsigned char *data;
+};
+
+struct mei_dma_data {
+	u8 buffer_id;
+	void *vaddr;
+	dma_addr_t daddr;
+	size_t size;
 };
 
 /**
@@ -236,6 +247,8 @@ struct mei_cl_vtag {
  * @rd_pending: pending read credits
  * @rd_completed_lock: protects rd_completed queue
  * @rd_completed: completed read
+ * @dma: dma settings
+ * @dma_mapped: dma buffer is currently mapped.
  *
  * @cldev: device on the mei client bus
  */
@@ -263,6 +276,8 @@ struct mei_cl {
 	struct list_head rd_pending;
 	spinlock_t rd_completed_lock; /* protects rd_completed queue */
 	struct list_head rd_completed;
+	struct mei_dma_data dma;
+	u8 dma_mapped;
 
 	struct mei_cl_device *cldev;
 };
