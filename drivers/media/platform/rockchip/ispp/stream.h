@@ -129,14 +129,6 @@ struct fec_module {
 	bool is_end;
 };
 
-/* fec internal using buf */
-struct in_fec_buf {
-	struct rkispp_dummy_buffer mesh_xint;
-	struct rkispp_dummy_buffer mesh_yint;
-	struct rkispp_dummy_buffer mesh_xfra;
-	struct rkispp_dummy_buffer mesh_yfra;
-};
-
 /* struct rkispp_stream - ISPP stream video device
  * id: stream video identify
  * buf_queue: queued buffer list

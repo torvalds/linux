@@ -547,6 +547,8 @@ static void fec_config(struct rkispp_params_vdev *params_vdev,
 	fec_data->stat = FEC_BUF_CHIPINUSE;
 	params_vdev->buf_fec_idx = buf_idx;
 
+	rkispp_prepare_buffer(dev, &params_vdev->buf_fec[buf_idx]);
+
 	dma_addr = params_vdev->buf_fec[buf_idx].dma_addr;
 	val = dma_addr + fec_data->meshxf_oft;
 	rkispp_write(params_vdev->dev, RKISPP_FEC_MESH_XFRA_BASE, val);

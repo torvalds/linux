@@ -711,18 +711,18 @@ static int config_tnr(struct rkispp_device *dev)
 					GLB_QUICK_MODE_MASK,
 					GLB_QUICK_MODE(0));
 
-			val = vdev->pool[0].dma[GROUP_BUF_PIC];
+			val = hw->pool[0].dma[GROUP_BUF_PIC];
 			rkispp_write(dev, RKISPP_TNR_CUR_Y_BASE, val);
 			rkispp_write(dev, RKISPP_TNR_CUR_UV_BASE, val + addr_offs);
 
-			val = vdev->pool[0].dma[GROUP_BUF_GAIN];
+			val = hw->pool[0].dma[GROUP_BUF_GAIN];
 			rkispp_write(dev, RKISPP_TNR_GAIN_CUR_Y_BASE, val);
 
 			if (vdev->tnr.is_3to1) {
-				val = vdev->pool[1].dma[GROUP_BUF_PIC];
+				val = hw->pool[1].dma[GROUP_BUF_PIC];
 				rkispp_write(dev, RKISPP_TNR_NXT_Y_BASE, val);
 				rkispp_write(dev, RKISPP_TNR_NXT_UV_BASE, val + addr_offs);
-				val = vdev->pool[1].dma[GROUP_BUF_GAIN];
+				val = hw->pool[1].dma[GROUP_BUF_GAIN];
 				rkispp_write(dev, RKISPP_TNR_GAIN_NXT_Y_BASE, val);
 			}
 		}
@@ -883,14 +883,10 @@ static int config_nr_shp(struct rkispp_device *dev)
 	addr_offs = (fmt & FMT_FBC) ? max_w * max_h >> 4 : max_w * max_h;
 	pic_size = (fmt & FMT_YUV422) ? w * h * 2 : w * h * 3 >> 1;
 	vdev->nr.uv_offset = addr_offs;
-	if (fmt & FMT_FBC)
-		pic_size += w * h >> 4;
 
 	if (fmt & FMT_YUYV)
 		mult = 2;
 
-	if (vdev->module_ens & ISPP_MODULE_FEC)
-		pic_size = w * h * 2;
 	ret = nr_init_buf(dev, pic_size);
 	if (ret)
 		return ret;
@@ -916,10 +912,10 @@ static int config_nr_shp(struct rkispp_device *dev)
 				rkispp_set_bits(dev, RKISPP_NR_UVNR_CTRL_PARA,
 						0, SW_UVNR_SD32_SELF_EN);
 
-			val = vdev->pool[0].dma[GROUP_BUF_PIC];
+			val = hw->pool[0].dma[GROUP_BUF_PIC];
 			rkispp_write(dev, RKISPP_NR_ADDR_BASE_Y, val);
 			rkispp_write(dev, RKISPP_NR_ADDR_BASE_UV, val + addr_offs);
-			val = vdev->pool[0].dma[GROUP_BUF_GAIN];
+			val = hw->pool[0].dma[GROUP_BUF_GAIN];
 			rkispp_write(dev, RKISPP_NR_ADDR_BASE_GAIN, val);
 			rkispp_clear_bits(dev, RKISPP_CTRL_QUICK, GLB_NR_SD32_TNR);
 		} else if (stream) {
@@ -933,13 +929,13 @@ static int config_nr_shp(struct rkispp_device *dev)
 
 	rkispp_clear_bits(dev, RKISPP_CTRL_QUICK, GLB_FEC2SCL_EN);
 	if (vdev->module_ens & ISPP_MODULE_FEC) {
-		vdev->fec.uv_offset = 0;
+		addr_offs = width * height;
+		vdev->fec.uv_offset = addr_offs;
 		val = vdev->nr.buf.wr[0].dma_addr;
 		rkispp_write(dev, RKISPP_SHARP_WR_Y_BASE, val);
-		rkispp_write(dev, RKISPP_SHARP_WR_UV_BASE, val);
-		rkispp_write(dev, RKISPP_SHARP_WR_VIR_STRIDE, ALIGN(width * 2, 16) >> 2);
-		rkispp_set_bits(dev, RKISPP_SHARP_CTRL,
-				SW_SHP_WR_FORMAT_MASK, FMT_YUYV | FMT_YUV422);
+		rkispp_write(dev, RKISPP_SHARP_WR_UV_BASE, val + addr_offs);
+		rkispp_write(dev, RKISPP_SHARP_WR_VIR_STRIDE, ALIGN(width * mult, 16) >> 2);
+		rkispp_set_bits(dev, RKISPP_SHARP_CTRL, SW_SHP_WR_FORMAT_MASK, fmt & (~FMT_FBC));
 	} else {
 		stream = &vdev->stream[STREAM_MB];
 		if (!stream->streaming) {
@@ -1019,7 +1015,6 @@ static int config_fec(struct rkispp_device *dev)
 			     rkispp_read(dev, RKISPP_SHARP_WR_Y_BASE));
 		rkispp_write(dev, RKISPP_FEC_RD_UV_BASE,
 			     rkispp_read(dev, RKISPP_SHARP_WR_UV_BASE));
-		fmt = FMT_YUYV | FMT_YUV422;
 	} else if (stream) {
 		stream->config->frame_end_id = FEC_INT;
 		stream->config->reg.cur_y_base = RKISPP_FEC_RD_Y_BASE;
@@ -3048,7 +3043,7 @@ void rkispp_module_work_event(struct rkispp_device *dev,
 			      void *buf_rd, void *buf_wr,
 			      u32 module, bool is_isr)
 {
-	bool is_fec_en = (dev->stream_vdev.module_ens & ISPP_MODULE_FEC);
+	struct rkispp_stream_vdev *vdev = &dev->stream_vdev;
 
 	if (dev->hw_dev->is_shutdown)
 		return;
@@ -3062,9 +3057,15 @@ void rkispp_module_work_event(struct rkispp_device *dev,
 			fec_work_event(dev, buf_rd, is_isr);
 	}
 
+	/* cur frame (tnr->nr->fec) done for next frame
+	 * fec start at nr end if fec enable, and fec can async with
+	 * tnr different frames for single device.
+	 * tnr->nr->fec frame0
+	 *       |->tnr->nr->fec frame1
+	 */
 	if (is_isr && !buf_rd && !buf_wr &&
-	    ((is_fec_en && module == ISPP_MODULE_FEC) ||
-	     (!is_fec_en && module == ISPP_MODULE_NR))) {
+	    ((module == ISPP_MODULE_FEC && !dev->hw_dev->is_single) ||
+	     (module == ISPP_MODULE_NR && (dev->hw_dev->is_single || vdev->fec.is_end)))) {
 		dev->stream_vdev.monitor.retry = 0;
 		rkispp_event_handle(dev, CMD_QUEUE_DMABUF, NULL);
 	}
