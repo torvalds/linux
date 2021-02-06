@@ -1856,6 +1856,12 @@ static int vop2_wb_connector_init(struct vop2 *vop2)
 	return ret;
 }
 
+static void vop2_wb_connector_destory(struct vop2 *vop2)
+{
+	drm_encoder_cleanup(&vop2->wb.conn.encoder);
+	drm_connector_cleanup(&vop2->wb.conn.base);
+}
+
 static void vop2_wb_irqs_enable(struct vop2 *vop2)
 {
 	const struct vop2_data *vop2_data = vop2->data;
@@ -5628,6 +5634,8 @@ static void vop2_unbind(struct device *dev, struct device *master, void *data)
 
 	list_for_each_entry_safe(crtc, tmpc, crtc_list, head)
 		vop2_destroy_crtc(crtc);
+
+	vop2_wb_connector_destory(vop2);
 }
 
 const struct component_ops vop2_component_ops = {
