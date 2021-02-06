@@ -207,7 +207,7 @@ nv50_vmm_flush(struct nvkm_vmm *vmm, int level)
 		case NVKM_ENGINE_MSVLD : id = 0x09; break;
 		case NVKM_ENGINE_CIPHER:
 		case NVKM_ENGINE_SEC   : id = 0x0a; break;
-		case NVKM_ENGINE_CE0   : id = 0x0d; break;
+		case NVKM_ENGINE_CE    : id = 0x0d; break;
 		default:
 			continue;
 		}

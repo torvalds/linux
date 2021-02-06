@@ -118,7 +118,7 @@ nvkm_fifo_chan_child_del(struct nvkm_oproxy *base)
 			chan->func->engine_dtor(chan, engine);
 		nvkm_object_del(&engn->object);
 		if (chan->vmm)
-			atomic_dec(&chan->vmm->engref[engine->subdev.index]);
+			atomic_dec(&chan->vmm->engref[engine->subdev.type]);
 	}
 }
 
@@ -152,7 +152,7 @@ nvkm_fifo_chan_child_new(const struct nvkm_oclass *oclass, void *data, u32 size,
 		};
 
 		if (chan->vmm)
-			atomic_inc(&chan->vmm->engref[engine->subdev.index]);
+			atomic_inc(&chan->vmm->engref[engine->subdev.type]);
 
 		if (engine->func->fifo.cclass) {
 			ret = engine->func->fifo.cclass(chan, &cclass,
