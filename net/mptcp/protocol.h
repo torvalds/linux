@@ -288,6 +288,11 @@ struct mptcp_sock {
 #define mptcp_for_each_subflow(__msk, __subflow)			\
 	list_for_each_entry(__subflow, &((__msk)->conn_list), node)
 
+static inline void msk_owned_by_me(const struct mptcp_sock *msk)
+{
+	sock_owned_by_me((const struct sock *)msk);
+}
+
 static inline struct mptcp_sock *mptcp_sk(const struct sock *sk)
 {
 	return (struct mptcp_sock *)sk;

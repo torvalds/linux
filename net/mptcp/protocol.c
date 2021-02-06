@@ -2187,6 +2187,8 @@ static void __mptcp_close_subflow(struct mptcp_sock *msk)
 {
 	struct mptcp_subflow_context *subflow, *tmp;
 
+	might_sleep();
+
 	list_for_each_entry_safe(subflow, tmp, &msk->conn_list, node) {
 		struct sock *ssk = mptcp_subflow_tcp_sock(subflow);
 
@@ -2528,6 +2530,8 @@ static void __mptcp_destroy_sock(struct sock *sk)
 	LIST_HEAD(conn_list);
 
 	pr_debug("msk=%p", msk);
+
+	might_sleep();
 
 	/* dispose the ancillatory tcp socket, if any */
 	if (msk->subflow) {

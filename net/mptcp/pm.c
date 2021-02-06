@@ -20,6 +20,8 @@ int mptcp_pm_announce_addr(struct mptcp_sock *msk,
 
 	pr_debug("msk=%p, local_id=%d", msk, addr->id);
 
+	lockdep_assert_held(&msk->pm.lock);
+
 	if (add_addr) {
 		pr_warn("addr_signal error, add_addr=%d", add_addr);
 		return -EINVAL;
