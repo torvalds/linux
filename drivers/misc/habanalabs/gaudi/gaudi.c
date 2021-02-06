@@ -3460,6 +3460,12 @@ static void gaudi_set_clock_gating(struct hl_device *hdev)
 		enable = !!(hdev->clock_gating_mask &
 				(BIT_ULL(gaudi_dma_assignment[i])));
 
+		/* GC sends work to DMA engine through Upper CP in DMA5 so
+		 * we need to not enable clock gating in that DMA
+		 */
+		if (i == GAUDI_HBM_DMA_4)
+			enable = 0;
+
 		qman_offset = gaudi_dma_assignment[i] * DMA_QMAN_OFFSET;
 		WREG32(mmDMA0_QM_CGM_CFG1 + qman_offset,
 				enable ? QMAN_CGM1_PWR_GATE_EN : 0);
