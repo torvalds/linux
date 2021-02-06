@@ -15,11 +15,20 @@
 
 	.text
 
+/*
+ * __kernel_start_sigtramp_rt64 and __kernel_sigtramp_rt64 together
+ * are one function split in two parts. The kernel jumps to the former
+ * and the signal handler indirectly (by blr) returns to the latter.
+ * __kernel_sigtramp_rt64 needs to point to the return address so
+ * glibc can correctly identify the trampoline stack frame.
+ */
 	.balign 8
 	.balign IFETCH_ALIGN_BYTES
-V_FUNCTION_BEGIN(__kernel_sigtramp_rt64)
+V_FUNCTION_BEGIN(__kernel_start_sigtramp_rt64)
 .Lsigrt_start:
 	bctrl	/* call the handler */
+V_FUNCTION_END(__kernel_start_sigtramp_rt64)
+V_FUNCTION_BEGIN(__kernel_sigtramp_rt64)
 	addi	r1, r1, __SIGNAL_FRAMESIZE
 	li	r0,__NR_rt_sigreturn
 	sc
