@@ -437,21 +437,6 @@ static void dr_ste_v1_set_rx_decap(u8 *hw_ste_p, u8 *s_action)
 	dr_ste_v1_set_reparse(hw_ste_p);
 }
 
-static void dr_ste_v1_set_rx_decap_l3(u8 *hw_ste_p,
-				      u8 *s_action,
-				      u16 decap_actions,
-				      u32 decap_index)
-{
-	MLX5_SET(ste_single_action_modify_list_v1, s_action, action_id,
-		 DR_STE_V1_ACTION_ID_MODIFY_LIST);
-	MLX5_SET(ste_single_action_modify_list_v1, s_action, num_of_modify_actions,
-		 decap_actions);
-	MLX5_SET(ste_single_action_modify_list_v1, s_action, modify_actions_ptr,
-		 decap_index);
-
-	dr_ste_v1_set_reparse(hw_ste_p);
-}
-
 static void dr_ste_v1_set_rewrite_actions(u8 *hw_ste_p,
 					  u8 *s_action,
 					  u16 num_of_actions,
@@ -571,9 +556,6 @@ static void dr_ste_v1_set_actions_rx(struct mlx5dr_domain *dmn,
 	bool allow_ctr = true;
 
 	if (action_type_set[DR_ACTION_TYP_TNL_L3_TO_L2]) {
-		dr_ste_v1_set_rx_decap_l3(last_ste, action,
-					  attr->decap_actions,
-					  attr->decap_index);
 		dr_ste_v1_set_rewrite_actions(last_ste, action,
 					      attr->decap_actions,
 					      attr->decap_index);
