@@ -838,7 +838,7 @@ static int hid_ishtp_cl_probe(struct ishtp_cl_device *cl_device)
  *
  * Return: 0
  */
-static int hid_ishtp_cl_remove(struct ishtp_cl_device *cl_device)
+static void hid_ishtp_cl_remove(struct ishtp_cl_device *cl_device)
 {
 	struct ishtp_cl *hid_ishtp_cl = ishtp_get_drvdata(cl_device);
 	struct ishtp_cl_data *client_data = ishtp_get_client_data(hid_ishtp_cl);
@@ -856,8 +856,6 @@ static int hid_ishtp_cl_remove(struct ishtp_cl_device *cl_device)
 	hid_ishtp_cl = NULL;
 
 	client_data->num_hid_devices = 0;
-
-	return 0;
 }
 
 /**

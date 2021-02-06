@@ -36,7 +36,7 @@ struct ishtp_cl_driver {
 	const char *name;
 	const guid_t *guid;
 	int (*probe)(struct ishtp_cl_device *dev);
-	int (*remove)(struct ishtp_cl_device *dev);
+	void (*remove)(struct ishtp_cl_device *dev);
 	int (*reset)(struct ishtp_cl_device *dev);
 	const struct dev_pm_ops *pm;
 };

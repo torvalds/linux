@@ -1015,7 +1015,7 @@ static int loader_ishtp_cl_probe(struct ishtp_cl_device *cl_device)
  *
  * Return: 0
  */
-static int loader_ishtp_cl_remove(struct ishtp_cl_device *cl_device)
+static void loader_ishtp_cl_remove(struct ishtp_cl_device *cl_device)
 {
 	struct ishtp_cl_data *client_data;
 	struct ishtp_cl	*loader_ishtp_cl = ishtp_get_drvdata(cl_device);
@@ -1032,8 +1032,6 @@ static int loader_ishtp_cl_remove(struct ishtp_cl_device *cl_device)
 	cancel_work_sync(&client_data->work_ishtp_reset);
 	loader_deinit(loader_ishtp_cl);
 	ishtp_put_device(cl_device);
-
-	return 0;
 }
 
 /**
