@@ -868,24 +868,22 @@ void snd_usb_endpoint_sync_pending_stop(struct snd_usb_endpoint *ep)
 }
 
 /*
- * Stop and unlink active urbs.
+ * Stop active urbs
  *
- * This function checks and clears EP_FLAG_RUNNING state.
- * When @wait_sync is set, it waits until all pending URBs are killed.
+ * This function moves the EP to STOPPING state if it's being RUNNING.
  */
-static int stop_and_unlink_urbs(struct snd_usb_endpoint *ep, bool force,
-				bool wait_sync)
+static int stop_urbs(struct snd_usb_endpoint *ep, bool force)
 {
 	unsigned int i;
 
 	if (!force && atomic_read(&ep->chip->shutdown)) /* to be sure... */
 		return -EBADFD;
 
-	if (atomic_read(&ep->running))
+	if (!force && atomic_read(&ep->running))
 		return -EBUSY;
 
 	if (!test_and_clear_bit(EP_FLAG_RUNNING, &ep->flags))
-		goto out;
+		return 0;
 
 	set_bit(EP_FLAG_STOPPING, &ep->flags);
 	INIT_LIST_HEAD(&ep->ready_playback_urbs);
@@ -901,24 +899,25 @@ static int stop_and_unlink_urbs(struct snd_usb_endpoint *ep, bool force,
 		}
 	}
 
- out:
-	if (wait_sync)
-		return wait_clear_urbs(ep);
 	return 0;
 }
 
 /*
  * release an endpoint's urbs
  */
-static void release_urbs(struct snd_usb_endpoint *ep, int force)
+static int release_urbs(struct snd_usb_endpoint *ep, bool force)
 {
-	int i;
+	int i, err;
 
 	/* route incoming urbs to nirvana */
 	snd_usb_endpoint_set_callback(ep, NULL, NULL, NULL);
 
-	/* stop urbs */
-	stop_and_unlink_urbs(ep, force, true);
+	/* stop and unlink urbs */
+	err = stop_urbs(ep, force);
+	if (err)
+		return err;
+
+	wait_clear_urbs(ep);
 
 	for (i = 0; i < ep->nurbs; i++)
 		release_urb_ctx(&ep->urb[i]);
@@ -928,6 +927,7 @@ static void release_urbs(struct snd_usb_endpoint *ep, int force)
 
 	ep->syncbuf = NULL;
 	ep->nurbs = 0;
+	return 0;
 }
 
 /*
@@ -1118,7 +1118,7 @@ static int data_ep_set_params(struct snd_usb_endpoint *ep)
 	return 0;
 
 out_of_memory:
-	release_urbs(ep, 0);
+	release_urbs(ep, false);
 	return -ENOMEM;
 }
 
@@ -1162,7 +1162,7 @@ static int sync_ep_set_params(struct snd_usb_endpoint *ep)
 	return 0;
 
 out_of_memory:
-	release_urbs(ep, 0);
+	release_urbs(ep, false);
 	return -ENOMEM;
 }
 
@@ -1180,7 +1180,9 @@ static int snd_usb_endpoint_set_params(struct snd_usb_audio *chip,
 	int err;
 
 	/* release old buffers, if any */
-	release_urbs(ep, 0);
+	err = release_urbs(ep, false);
+	if (err < 0)
+		return err;
 
 	ep->datainterval = fmt->datainterval;
 	ep->maxpacksize = fmt->maxpacksize;
@@ -1433,7 +1435,7 @@ void snd_usb_endpoint_stop(struct snd_usb_endpoint *ep)
 		WRITE_ONCE(ep->sync_source->sync_sink, NULL);
 
 	if (!atomic_dec_return(&ep->running))
-		stop_and_unlink_urbs(ep, false, false);
+		stop_urbs(ep, false);
 }
 
 /**
@@ -1446,7 +1448,7 @@ void snd_usb_endpoint_stop(struct snd_usb_endpoint *ep)
  */
 void snd_usb_endpoint_release(struct snd_usb_endpoint *ep)
 {
-	release_urbs(ep, 1);
+	release_urbs(ep, true);
 }
 
 /**
