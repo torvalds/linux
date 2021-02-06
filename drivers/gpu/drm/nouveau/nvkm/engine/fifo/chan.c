@@ -35,6 +35,15 @@ struct nvkm_fifo_chan_object {
 	int hash;
 };
 
+static struct nvkm_fifo_engn *
+nvkm_fifo_chan_engn(struct nvkm_fifo_chan *chan, struct nvkm_engine *engine)
+{
+	int engi = chan->fifo->func->engine_id(chan->fifo, engine);
+	if (engi >= 0)
+		return &chan->engn[engi];
+	return NULL;
+}
+
 static int
 nvkm_fifo_chan_child_fini(struct nvkm_oproxy *base, bool suspend)
 {
@@ -42,7 +51,7 @@ nvkm_fifo_chan_child_fini(struct nvkm_oproxy *base, bool suspend)
 		container_of(base, typeof(*object), oproxy);
 	struct nvkm_engine *engine  = object->oproxy.object->engine;
 	struct nvkm_fifo_chan *chan = object->chan;
-	struct nvkm_fifo_engn *engn = &chan->engn[engine->subdev.index];
+	struct nvkm_fifo_engn *engn = nvkm_fifo_chan_engn(chan, engine);
 	const char *name = engine->subdev.name;
 	int ret = 0;
 
@@ -75,7 +84,7 @@ nvkm_fifo_chan_child_init(struct nvkm_oproxy *base)
 		container_of(base, typeof(*object), oproxy);
 	struct nvkm_engine *engine  = object->oproxy.object->engine;
 	struct nvkm_fifo_chan *chan = object->chan;
-	struct nvkm_fifo_engn *engn = &chan->engn[engine->subdev.index];
+	struct nvkm_fifo_engn *engn = nvkm_fifo_chan_engn(chan, engine);
 	const char *name = engine->subdev.name;
 	int ret;
 
@@ -108,7 +117,7 @@ nvkm_fifo_chan_child_del(struct nvkm_oproxy *base)
 		container_of(base, typeof(*object), oproxy);
 	struct nvkm_engine *engine  = object->oproxy.base.engine;
 	struct nvkm_fifo_chan *chan = object->chan;
-	struct nvkm_fifo_engn *engn = &chan->engn[engine->subdev.index];
+	struct nvkm_fifo_engn *engn = nvkm_fifo_chan_engn(chan, engine);
 
 	if (chan->func->object_dtor)
 		chan->func->object_dtor(chan, object->hash);
@@ -135,7 +144,7 @@ nvkm_fifo_chan_child_new(const struct nvkm_oclass *oclass, void *data, u32 size,
 {
 	struct nvkm_engine *engine = oclass->engine;
 	struct nvkm_fifo_chan *chan = nvkm_fifo_chan(oclass->parent);
-	struct nvkm_fifo_engn *engn = &chan->engn[engine->subdev.index];
+	struct nvkm_fifo_engn *engn = nvkm_fifo_chan_engn(chan, engine);
 	struct nvkm_fifo_chan_object *object;
 	int ret = 0;
 

@@ -7,6 +7,7 @@
 struct nvkm_fault_data;
 
 #define NVKM_FIFO_CHID_NR 4096
+#define NVKM_FIFO_ENGN_NR 16
 
 struct nvkm_fifo_engn {
 	struct nvkm_object *object;
@@ -29,7 +30,7 @@ struct nvkm_fifo_chan {
 	u64 addr;
 	u32 size;
 
-	struct nvkm_fifo_engn engn[NVKM_SUBDEV_NR];
+	struct nvkm_fifo_engn engn[NVKM_FIFO_ENGN_NR];
 };
 
 struct nvkm_fifo {
