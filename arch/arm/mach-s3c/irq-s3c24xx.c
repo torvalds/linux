@@ -21,6 +21,7 @@
 #include <linux/of.h>
 #include <linux/of_irq.h>
 #include <linux/of_address.h>
+#include <linux/spi/s3c24xx.h>
 
 #include <asm/exception.h>
 #include <asm/mach/irq.h>
@@ -32,6 +33,7 @@
 #include "cpu.h"
 #include "regs-irqtype.h"
 #include "pm.h"
+#include "s3c24xx.h"
 
 #define S3C_IRQTYPE_NONE	0
 #define S3C_IRQTYPE_EINT	1
