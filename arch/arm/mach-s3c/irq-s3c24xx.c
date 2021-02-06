@@ -359,7 +359,7 @@ static inline int s3c24xx_handle_intc(struct s3c_irq_intc *intc,
 	return true;
 }
 
-asmlinkage void __exception_irq_entry s3c24xx_handle_irq(struct pt_regs *regs)
+static asmlinkage void __exception_irq_entry s3c24xx_handle_irq(struct pt_regs *regs)
 {
 	do {
 		if (likely(s3c_intc[0]))
@@ -1307,7 +1307,7 @@ static struct s3c24xx_irq_of_ctrl s3c2410_ctrl[] = {
 	}
 };
 
-int __init s3c2410_init_intc_of(struct device_node *np,
+static int __init s3c2410_init_intc_of(struct device_node *np,
 			struct device_node *interrupt_parent)
 {
 	return s3c_init_intc_of(np, interrupt_parent,
@@ -1329,7 +1329,7 @@ static struct s3c24xx_irq_of_ctrl s3c2416_ctrl[] = {
 	}
 };
 
-int __init s3c2416_init_intc_of(struct device_node *np,
+static int __init s3c2416_init_intc_of(struct device_node *np,
 			struct device_node *interrupt_parent)
 {
 	return s3c_init_intc_of(np, interrupt_parent,
