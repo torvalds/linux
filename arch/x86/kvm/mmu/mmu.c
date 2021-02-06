@@ -1225,7 +1225,7 @@ static void kvm_mmu_write_protect_pt_masked(struct kvm *kvm,
 {
 	struct kvm_rmap_head *rmap_head;
 
-	if (kvm->arch.tdp_mmu_enabled)
+	if (is_tdp_mmu_enabled(kvm))
 		kvm_tdp_mmu_clear_dirty_pt_masked(kvm, slot,
 				slot->base_gfn + gfn_offset, mask, true);
 	while (mask) {
@@ -1254,7 +1254,7 @@ void kvm_mmu_clear_dirty_pt_masked(struct kvm *kvm,
 {
 	struct kvm_rmap_head *rmap_head;
 
-	if (kvm->arch.tdp_mmu_enabled)
+	if (is_tdp_mmu_enabled(kvm))
 		kvm_tdp_mmu_clear_dirty_pt_masked(kvm, slot,
 				slot->base_gfn + gfn_offset, mask, false);
 	while (mask) {
@@ -1310,7 +1310,7 @@ bool kvm_mmu_slot_gfn_write_protect(struct kvm *kvm,
 		write_protected |= __rmap_write_protect(kvm, rmap_head, true);
 	}
 
-	if (kvm->arch.tdp_mmu_enabled)
+	if (is_tdp_mmu_enabled(kvm))
 		write_protected |=
 			kvm_tdp_mmu_write_protect_gfn(kvm, slot, gfn);
 
@@ -1522,7 +1522,7 @@ int kvm_unmap_hva_range(struct kvm *kvm, unsigned long start, unsigned long end,
 
 	r = kvm_handle_hva_range(kvm, start, end, 0, kvm_unmap_rmapp);
 
-	if (kvm->arch.tdp_mmu_enabled)
+	if (is_tdp_mmu_enabled(kvm))
 		r |= kvm_tdp_mmu_zap_hva_range(kvm, start, end);
 
 	return r;
@@ -1534,7 +1534,7 @@ int kvm_set_spte_hva(struct kvm *kvm, unsigned long hva, pte_t pte)
 
 	r = kvm_handle_hva(kvm, hva, (unsigned long)&pte, kvm_set_pte_rmapp);
 
-	if (kvm->arch.tdp_mmu_enabled)
+	if (is_tdp_mmu_enabled(kvm))
 		r |= kvm_tdp_mmu_set_spte_hva(kvm, hva, &pte);
 
 	return r;
@@ -1589,7 +1589,7 @@ int kvm_age_hva(struct kvm *kvm, unsigned long start, unsigned long end)
 	int young = false;
 
 	young = kvm_handle_hva_range(kvm, start, end, 0, kvm_age_rmapp);
-	if (kvm->arch.tdp_mmu_enabled)
+	if (is_tdp_mmu_enabled(kvm))
 		young |= kvm_tdp_mmu_age_hva_range(kvm, start, end);
 
 	return young;
@@ -1600,7 +1600,7 @@ int kvm_test_age_hva(struct kvm *kvm, unsigned long hva)
 	int young = false;
 
 	young = kvm_handle_hva(kvm, hva, 0, kvm_test_age_rmapp);
-	if (kvm->arch.tdp_mmu_enabled)
+	if (is_tdp_mmu_enabled(kvm))
 		young |= kvm_tdp_mmu_test_age_hva(kvm, hva);
 
 	return young;
@@ -3155,7 +3155,7 @@ static void mmu_free_root_page(struct kvm *kvm, hpa_t *root_hpa,
 	sp = to_shadow_page(*root_hpa & PT64_BASE_ADDR_MASK);
 
 	if (kvm_mmu_put_root(kvm, sp)) {
-		if (sp->tdp_mmu_page)
+		if (is_tdp_mmu_page(sp))
 			kvm_tdp_mmu_free_root(kvm, sp);
 		else if (sp->role.invalid)
 			kvm_mmu_prepare_zap_page(kvm, sp, invalid_list);
@@ -3249,7 +3249,7 @@ static int mmu_alloc_direct_roots(struct kvm_vcpu *vcpu)
 	hpa_t root;
 	unsigned i;
 
-	if (vcpu->kvm->arch.tdp_mmu_enabled) {
+	if (is_tdp_mmu_enabled(vcpu->kvm)) {
 		root = kvm_tdp_mmu_get_vcpu_root_hpa(vcpu);
 
 		if (!VALID_PAGE(root))
@@ -5411,7 +5411,7 @@ static void kvm_mmu_zap_all_fast(struct kvm *kvm)
 
 	kvm_zap_obsolete_pages(kvm);
 
-	if (kvm->arch.tdp_mmu_enabled)
+	if (is_tdp_mmu_enabled(kvm))
 		kvm_tdp_mmu_zap_all(kvm);
 
 	write_unlock(&kvm->mmu_lock);
@@ -5474,7 +5474,7 @@ void kvm_zap_gfn_range(struct kvm *kvm, gfn_t gfn_start, gfn_t gfn_end)
 		}
 	}
 
-	if (kvm->arch.tdp_mmu_enabled) {
+	if (is_tdp_mmu_enabled(kvm)) {
 		flush = kvm_tdp_mmu_zap_gfn_range(kvm, gfn_start, gfn_end);
 		if (flush)
 			kvm_flush_remote_tlbs(kvm);
@@ -5498,7 +5498,7 @@ void kvm_mmu_slot_remove_write_access(struct kvm *kvm,
 	write_lock(&kvm->mmu_lock);
 	flush = slot_handle_level(kvm, memslot, slot_rmap_write_protect,
 				start_level, KVM_MAX_HUGEPAGE_LEVEL, false);
-	if (kvm->arch.tdp_mmu_enabled)
+	if (is_tdp_mmu_enabled(kvm))
 		flush |= kvm_tdp_mmu_wrprot_slot(kvm, memslot, PG_LEVEL_4K);
 	write_unlock(&kvm->mmu_lock);
 
@@ -5564,7 +5564,7 @@ void kvm_mmu_zap_collapsible_sptes(struct kvm *kvm,
 	slot_handle_leaf(kvm, (struct kvm_memory_slot *)memslot,
 			 kvm_mmu_zap_collapsible_spte, true);
 
-	if (kvm->arch.tdp_mmu_enabled)
+	if (is_tdp_mmu_enabled(kvm))
 		kvm_tdp_mmu_zap_collapsible_sptes(kvm, memslot);
 	write_unlock(&kvm->mmu_lock);
 }
@@ -5591,7 +5591,7 @@ void kvm_mmu_slot_leaf_clear_dirty(struct kvm *kvm,
 
 	write_lock(&kvm->mmu_lock);
 	flush = slot_handle_leaf(kvm, memslot, __rmap_clear_dirty, false);
-	if (kvm->arch.tdp_mmu_enabled)
+	if (is_tdp_mmu_enabled(kvm))
 		flush |= kvm_tdp_mmu_clear_dirty_slot(kvm, memslot);
 	write_unlock(&kvm->mmu_lock);
 
@@ -5614,7 +5614,7 @@ void kvm_mmu_slot_largepage_remove_write_access(struct kvm *kvm,
 	write_lock(&kvm->mmu_lock);
 	flush = slot_handle_large_level(kvm, memslot, slot_rmap_write_protect,
 					false);
-	if (kvm->arch.tdp_mmu_enabled)
+	if (is_tdp_mmu_enabled(kvm))
 		flush |= kvm_tdp_mmu_wrprot_slot(kvm, memslot, PG_LEVEL_2M);
 	write_unlock(&kvm->mmu_lock);
 
@@ -5630,7 +5630,7 @@ void kvm_mmu_slot_set_dirty(struct kvm *kvm,
 
 	write_lock(&kvm->mmu_lock);
 	flush = slot_handle_all_level(kvm, memslot, __rmap_set_dirty, false);
-	if (kvm->arch.tdp_mmu_enabled)
+	if (is_tdp_mmu_enabled(kvm))
 		flush |= kvm_tdp_mmu_slot_set_dirty(kvm, memslot);
 	write_unlock(&kvm->mmu_lock);
 
@@ -5658,7 +5658,7 @@ restart:
 
 	kvm_mmu_commit_zap_page(kvm, &invalid_list);
 
-	if (kvm->arch.tdp_mmu_enabled)
+	if (is_tdp_mmu_enabled(kvm))
 		kvm_tdp_mmu_zap_all(kvm);
 
 	write_unlock(&kvm->mmu_lock);
@@ -5969,7 +5969,7 @@ static void kvm_recover_nx_lpages(struct kvm *kvm)
 				      struct kvm_mmu_page,
 				      lpage_disallowed_link);
 		WARN_ON_ONCE(!sp->lpage_disallowed);
-		if (sp->tdp_mmu_page) {
+		if (is_tdp_mmu_page(sp)) {
 			kvm_tdp_mmu_zap_gfn_range(kvm, sp->gfn,
 				sp->gfn + KVM_PAGES_PER_HPAGE(sp->role.level));
 		} else {

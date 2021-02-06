@@ -10,24 +10,13 @@
 #include <asm/cmpxchg.h>
 #include <trace/events/kvm.h>
 
-#ifdef CONFIG_X86_64
 static bool __read_mostly tdp_mmu_enabled = false;
 module_param_named(tdp_mmu, tdp_mmu_enabled, bool, 0644);
-#endif
-
-static bool is_tdp_mmu_enabled(void)
-{
-#ifdef CONFIG_X86_64
-	return tdp_enabled && READ_ONCE(tdp_mmu_enabled);
-#else
-	return false;
-#endif /* CONFIG_X86_64 */
-}
 
 /* Initializes the TDP MMU for the VM, if enabled. */
 void kvm_mmu_init_tdp_mmu(struct kvm *kvm)
 {
-	if (!is_tdp_mmu_enabled())
+	if (!tdp_enabled || !READ_ONCE(tdp_mmu_enabled))
 		return;
 
 	/* This should not be changed for the lifetime of the VM. */
@@ -95,22 +84,6 @@ static inline struct kvm_mmu_page *tdp_mmu_next_root(struct kvm *kvm,
 
 #define for_each_tdp_mmu_root(_kvm, _root)				\
 	list_for_each_entry(_root, &_kvm->arch.tdp_mmu_roots, link)
-
-bool is_tdp_mmu_root(struct kvm *kvm, hpa_t hpa)
-{
-	struct kvm_mmu_page *sp;
-
-	if (!kvm->arch.tdp_mmu_enabled)
-		return false;
-	if (WARN_ON(!VALID_PAGE(hpa)))
-		return false;
-
-	sp = to_shadow_page(hpa);
-	if (WARN_ON(!sp))
-		return false;
-
-	return sp->tdp_mmu_page && sp->root_count;
-}
 
 static bool zap_gfn_range(struct kvm *kvm, struct kvm_mmu_page *root,
 			  gfn_t start, gfn_t end, bool can_yield);

@@ -1033,6 +1033,7 @@ struct kvm_arch {
 	struct kvm_pmu_event_filter *pmu_event_filter;
 	struct task_struct *nx_lpage_recovery_thread;
 
+#ifdef CONFIG_X86_64
 	/*
 	 * Whether the TDP MMU is enabled for this VM. This contains a
 	 * snapshot of the TDP MMU module parameter from when the VM was
@@ -1071,6 +1072,7 @@ struct kvm_arch {
 	 * the thread holds the MMU lock in write mode.
 	 */
 	spinlock_t tdp_mmu_pages_lock;
+#endif /* CONFIG_X86_64 */
 };
 
 struct kvm_vm_stat {
