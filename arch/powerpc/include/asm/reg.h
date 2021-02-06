@@ -1413,7 +1413,7 @@ static inline void msr_check_and_clear(unsigned long bits)
 }
 
 #ifdef CONFIG_PPC32
-static inline u32 mfsrin(u32 idx)
+static inline u32 mfsr(u32 idx)
 {
 	u32 val;
 
@@ -1422,7 +1422,7 @@ static inline u32 mfsrin(u32 idx)
 	return val;
 }
 
-static inline void mtsrin(u32 val, u32 idx)
+static inline void mtsr(u32 val, u32 idx)
 {
 	asm volatile("mtsrin %0, %1" : : "r" (val), "r" (idx));
 }
