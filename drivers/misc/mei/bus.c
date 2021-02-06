@@ -44,7 +44,8 @@ ssize_t __mei_cl_send(struct mei_cl *cl, u8 *buf, size_t length, u8 vtag,
 	bus = cl->dev;
 
 	mutex_lock(&bus->device_lock);
-	if (bus->dev_state != MEI_DEV_ENABLED) {
+	if (bus->dev_state != MEI_DEV_ENABLED &&
+	    bus->dev_state != MEI_DEV_POWERING_DOWN) {
 		rets = -ENODEV;
 		goto out;
 	}
@@ -128,7 +129,8 @@ ssize_t __mei_cl_recv(struct mei_cl *cl, u8 *buf, size_t length, u8 *vtag,
 	bus = cl->dev;
 
 	mutex_lock(&bus->device_lock);
-	if (bus->dev_state != MEI_DEV_ENABLED) {
+	if (bus->dev_state != MEI_DEV_ENABLED &&
+	    bus->dev_state != MEI_DEV_POWERING_DOWN) {
 		rets = -ENODEV;
 		goto out;
 	}

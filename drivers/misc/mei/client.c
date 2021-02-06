@@ -990,7 +990,8 @@ int mei_cl_disconnect(struct mei_cl *cl)
 		return 0;
 	}
 
-	if (dev->dev_state == MEI_DEV_POWER_DOWN) {
+	if (dev->dev_state == MEI_DEV_POWERING_DOWN ||
+	    dev->dev_state == MEI_DEV_POWER_DOWN) {
 		cl_dbg(dev, cl, "Device is powering down, don't bother with disconnection\n");
 		mei_cl_set_disconnected(cl);
 		return 0;
