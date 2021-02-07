@@ -365,6 +365,58 @@ struct acrn_vm_memmap {
 	__u64	len;
 };
 
+/* Type of interrupt of a passthrough device */
+#define ACRN_PTDEV_IRQ_INTX	0
+#define ACRN_PTDEV_IRQ_MSI	1
+#define ACRN_PTDEV_IRQ_MSIX	2
+/**
+ * struct acrn_ptdev_irq - Interrupt data of a passthrough device.
+ * @type:		Type (ACRN_PTDEV_IRQ_*)
+ * @virt_bdf:		Virtual Bus/Device/Function
+ * @phys_bdf:		Physical Bus/Device/Function
+ * @intx:		Info of interrupt
+ * @intx.virt_pin:	Virtual IOAPIC pin
+ * @intx.phys_pin:	Physical IOAPIC pin
+ * @intx.is_pic_pin:	Is PIC pin or not
+ *
+ * This structure will be passed to hypervisor directly.
+ */
+struct acrn_ptdev_irq {
+	__u32	type;
+	__u16	virt_bdf;
+	__u16	phys_bdf;
+
+	struct {
+		__u32	virt_pin;
+		__u32	phys_pin;
+		__u32	is_pic_pin;
+	} intx;
+};
+
+/* Type of PCI device assignment */
+#define ACRN_PTDEV_QUIRK_ASSIGN	(1U << 0)
+
+#define ACRN_PCI_NUM_BARS	6
+/**
+ * struct acrn_pcidev - Info for assigning or de-assigning a PCI device
+ * @type:	Type of the assignment
+ * @virt_bdf:	Virtual Bus/Device/Function
+ * @phys_bdf:	Physical Bus/Device/Function
+ * @intr_line:	PCI interrupt line
+ * @intr_pin:	PCI interrupt pin
+ * @bar:	PCI BARs.
+ *
+ * This structure will be passed to hypervisor directly.
+ */
+struct acrn_pcidev {
+	__u32	type;
+	__u16	virt_bdf;
+	__u16	phys_bdf;
+	__u8	intr_line;
+	__u8	intr_pin;
+	__u32	bar[ACRN_PCI_NUM_BARS];
+};
+
 /* The ioctl type, documented in ioctl-number.rst */
 #define ACRN_IOCTL_TYPE			0xA2
 
@@ -399,5 +451,14 @@ struct acrn_vm_memmap {
 	_IOW(ACRN_IOCTL_TYPE, 0x41, struct acrn_vm_memmap)
 #define ACRN_IOCTL_UNSET_MEMSEG		\
 	_IOW(ACRN_IOCTL_TYPE, 0x42, struct acrn_vm_memmap)
+
+#define ACRN_IOCTL_SET_PTDEV_INTR	\
+	_IOW(ACRN_IOCTL_TYPE, 0x53, struct acrn_ptdev_irq)
+#define ACRN_IOCTL_RESET_PTDEV_INTR	\
+	_IOW(ACRN_IOCTL_TYPE, 0x54, struct acrn_ptdev_irq)
+#define ACRN_IOCTL_ASSIGN_PCIDEV	\
+	_IOW(ACRN_IOCTL_TYPE, 0x55, struct acrn_pcidev)
+#define ACRN_IOCTL_DEASSIGN_PCIDEV	\
+	_IOW(ACRN_IOCTL_TYPE, 0x56, struct acrn_pcidev)
 
 #endif /* _UAPI_ACRN_H */
