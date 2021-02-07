@@ -1095,16 +1095,16 @@ void mlx5dr_ste_build_tnl_mpls(struct mlx5dr_ste_ctx *ste_ctx,
 	ste_ctx->build_tnl_mpls_init(sb, mask);
 }
 
-int mlx5dr_ste_build_icmp(struct mlx5dr_ste_ctx *ste_ctx,
-			  struct mlx5dr_ste_build *sb,
-			  struct mlx5dr_match_param *mask,
-			  struct mlx5dr_cmd_caps *caps,
-			  bool inner, bool rx)
+void mlx5dr_ste_build_icmp(struct mlx5dr_ste_ctx *ste_ctx,
+			   struct mlx5dr_ste_build *sb,
+			   struct mlx5dr_match_param *mask,
+			   struct mlx5dr_cmd_caps *caps,
+			   bool inner, bool rx)
 {
 	sb->rx = rx;
 	sb->inner = inner;
 	sb->caps = caps;
-	return ste_ctx->build_icmp_init(sb, mask);
+	ste_ctx->build_icmp_init(sb, mask);
 }
 
 void mlx5dr_ste_build_general_purpose(struct mlx5dr_ste_ctx *ste_ctx,

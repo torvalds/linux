@@ -1337,16 +1337,14 @@ static int dr_ste_v1_build_icmp_tag(struct mlx5dr_match_param *value,
 	return 0;
 }
 
-static int dr_ste_v1_build_icmp_init(struct mlx5dr_ste_build *sb,
-				     struct mlx5dr_match_param *mask)
+static void dr_ste_v1_build_icmp_init(struct mlx5dr_ste_build *sb,
+				      struct mlx5dr_match_param *mask)
 {
 	dr_ste_v1_build_icmp_tag(mask, sb, sb->bit_mask);
 
 	sb->lu_type = DR_STE_V1_LU_TYPE_ETHL4_MISC_O;
 	sb->byte_mask = mlx5dr_ste_conv_bit_to_byte_mask(sb->bit_mask);
 	sb->ste_build_tag_func = &dr_ste_v1_build_icmp_tag;
-
-	return 0;
 }
 
 static int dr_ste_v1_build_general_purpose_tag(struct mlx5dr_match_param *value,

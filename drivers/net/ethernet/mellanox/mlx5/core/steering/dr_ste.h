@@ -120,7 +120,7 @@ struct mlx5dr_ste_ctx {
 	void DR_STE_CTX_BUILDER(mpls);
 	void DR_STE_CTX_BUILDER(tnl_gre);
 	void DR_STE_CTX_BUILDER(tnl_mpls);
-	int  DR_STE_CTX_BUILDER(icmp);
+	void DR_STE_CTX_BUILDER(icmp);
 	void DR_STE_CTX_BUILDER(general_purpose);
 	void DR_STE_CTX_BUILDER(eth_l4_misc);
 	void DR_STE_CTX_BUILDER(tnl_vxlan_gpe);

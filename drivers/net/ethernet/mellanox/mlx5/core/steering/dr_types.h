@@ -393,11 +393,11 @@ void mlx5dr_ste_build_tnl_mpls(struct mlx5dr_ste_ctx *ste_ctx,
 			       struct mlx5dr_ste_build *sb,
 			       struct mlx5dr_match_param *mask,
 			       bool inner, bool rx);
-int mlx5dr_ste_build_icmp(struct mlx5dr_ste_ctx *ste_ctx,
-			  struct mlx5dr_ste_build *sb,
-			  struct mlx5dr_match_param *mask,
-			  struct mlx5dr_cmd_caps *caps,
-			  bool inner, bool rx);
+void mlx5dr_ste_build_icmp(struct mlx5dr_ste_ctx *ste_ctx,
+			   struct mlx5dr_ste_build *sb,
+			   struct mlx5dr_match_param *mask,
+			   struct mlx5dr_cmd_caps *caps,
+			   bool inner, bool rx);
 void mlx5dr_ste_build_tnl_vxlan_gpe(struct mlx5dr_ste_ctx *ste_ctx,
 				    struct mlx5dr_ste_build *sb,
 				    struct mlx5dr_match_param *mask,
