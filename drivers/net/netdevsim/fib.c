@@ -406,7 +406,7 @@ static void nsim_fib4_rt_remove(struct nsim_fib_data *data,
 	struct nsim_fib4_rt *fib4_rt;
 
 	fib4_rt = nsim_fib4_rt_lookup(&data->fib_rt_ht, fen_info);
-	if (WARN_ON_ONCE(!fib4_rt))
+	if (!fib4_rt)
 		return;
 
 	rhashtable_remove_fast(&data->fib_rt_ht, &fib4_rt->common.ht_node,
@@ -482,7 +482,7 @@ static void nsim_fib6_rt_nh_del(struct nsim_fib6_rt *fib6_rt,
 	struct nsim_fib6_rt_nh *fib6_rt_nh;
 
 	fib6_rt_nh = nsim_fib6_rt_nh_find(fib6_rt, rt);
-	if (WARN_ON_ONCE(!fib6_rt_nh))
+	if (!fib6_rt_nh)
 		return;
 
 	fib6_rt->nhs--;
@@ -565,7 +565,7 @@ static int nsim_fib6_rt_append(struct nsim_fib_data *data,
 	int i, err;
 
 	fib6_rt = nsim_fib6_rt_lookup(&data->fib_rt_ht, rt);
-	if (WARN_ON_ONCE(!fib6_rt))
+	if (!fib6_rt)
 		return -EINVAL;
 
 	for (i = 0; i < fib6_event->nrt6; i++) {
