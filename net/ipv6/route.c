@@ -6083,6 +6083,12 @@ void fib6_info_hw_flags_set(struct net *net, struct fib6_info *f6i,
 
 	f6i->offload = offload;
 	f6i->trap = trap;
+
+	/* 2 means send notifications only if offload_failed was changed. */
+	if (net->ipv6.sysctl.fib_notify_on_flag_change == 2 &&
+	    f6i->offload_failed == offload_failed)
+		return;
+
 	f6i->offload_failed = offload_failed;
 
 	if (!rcu_access_pointer(f6i->fib6_node))

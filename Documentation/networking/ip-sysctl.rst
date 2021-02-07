@@ -1798,7 +1798,7 @@ nexthop_compat_mode - BOOLEAN
 
 fib_notify_on_flag_change - INTEGER
         Whether to emit RTM_NEWROUTE notifications whenever RTM_F_OFFLOAD/
-        RTM_F_TRAP flags are changed.
+        RTM_F_TRAP/RTM_F_OFFLOAD_FAILED flags are changed.
 
         After installing a route to the kernel, user space receives an
         acknowledgment, which means the route was installed in the kernel,
@@ -1815,6 +1815,7 @@ fib_notify_on_flag_change - INTEGER
 
         - 0 - Do not emit notifications.
         - 1 - Emit notifications.
+        - 2 - Emit notifications only for RTM_F_OFFLOAD_FAILED flag change.
 
 IPv6 Fragmentation:
 
