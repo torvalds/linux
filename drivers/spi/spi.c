@@ -810,7 +810,8 @@ static void spi_set_cs(struct spi_device *spi, bool enable)
 	spi->controller->last_cs_enable = enable;
 	spi->controller->last_cs_mode_high = spi->mode & SPI_CS_HIGH;
 
-	if (!spi->controller->set_cs_timing) {
+	if (spi->cs_gpiod || gpio_is_valid(spi->cs_gpio) ||
+	    !spi->controller->set_cs_timing) {
 		if (enable1)
 			spi_delay_exec(&spi->controller->cs_setup, NULL);
 		else
@@ -841,7 +842,8 @@ static void spi_set_cs(struct spi_device *spi, bool enable)
 		spi->controller->set_cs(spi, !enable);
 	}
 
-	if (!spi->controller->set_cs_timing) {
+	if (spi->cs_gpiod || gpio_is_valid(spi->cs_gpio) ||
+	    !spi->controller->set_cs_timing) {
 		if (!enable1)
 			spi_delay_exec(&spi->controller->cs_inactive, NULL);
 	}
@@ -3464,7 +3466,8 @@ int spi_set_cs_timing(struct spi_device *spi, struct spi_delay *setup,
 	size_t len;
 	int status;
 
-	if (spi->controller->set_cs_timing) {
+	if (spi->controller->set_cs_timing &&
+	    !(spi->cs_gpiod || gpio_is_valid(spi->cs_gpio))) {
 		if (spi->controller->auto_runtime_pm) {
 			status = pm_runtime_get_sync(parent);
 			if (status < 0) {
