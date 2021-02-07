@@ -32,9 +32,19 @@ struct ps_device {
 	int (*parse_report)(struct ps_device *dev, struct hid_report *report, u8 *data, int size);
 };
 
+/* Calibration data for playstation motion sensors. */
+struct ps_calibration_data {
+	int abs_code;
+	short bias;
+	int sens_numer;
+	int sens_denom;
+};
+
 #define DS_INPUT_REPORT_USB			0x01
 #define DS_INPUT_REPORT_USB_SIZE		64
 
+#define DS_FEATURE_REPORT_CALIBRATION		0x05
+#define DS_FEATURE_REPORT_CALIBRATION_SIZE	41
 #define DS_FEATURE_REPORT_PAIRING_INFO		0x09
 #define DS_FEATURE_REPORT_PAIRING_INFO_SIZE	20
 
@@ -68,13 +78,27 @@ struct ps_device {
 #define DS_TOUCH_POINT_INACTIVE BIT(7)
 
 /* DualSense hardware limits */
+#define DS_ACC_RES_PER_G	8192
+#define DS_ACC_RANGE		(4*DS_ACC_RES_PER_G)
+#define DS_GYRO_RES_PER_DEG_S	1024
+#define DS_GYRO_RANGE		(2048*DS_GYRO_RES_PER_DEG_S)
 #define DS_TOUCHPAD_WIDTH	1920
 #define DS_TOUCHPAD_HEIGHT	1080
 
 struct dualsense {
 	struct ps_device base;
 	struct input_dev *gamepad;
+	struct input_dev *sensors;
 	struct input_dev *touchpad;
+
+	/* Calibration data for accelerometer and gyroscope. */
+	struct ps_calibration_data accel_calib_data[3];
+	struct ps_calibration_data gyro_calib_data[3];
+
+	/* Timestamp for sensor data */
+	bool sensor_timestamp_initialized;
+	uint32_t prev_sensor_timestamp;
+	uint32_t sensor_timestamp_us;
 };
 
 struct dualsense_touch_point {
@@ -293,6 +317,43 @@ static int ps_get_report(struct hid_device *hdev, uint8_t report_id, uint8_t *bu
 	return 0;
 }
 
+static struct input_dev *ps_sensors_create(struct hid_device *hdev, int accel_range, int accel_res,
+		int gyro_range, int gyro_res)
+{
+	struct input_dev *sensors;
+	int ret;
+
+	sensors = ps_allocate_input_dev(hdev, "Motion Sensors");
+	if (IS_ERR(sensors))
+		return ERR_CAST(sensors);
+
+	__set_bit(INPUT_PROP_ACCELEROMETER, sensors->propbit);
+	__set_bit(EV_MSC, sensors->evbit);
+	__set_bit(MSC_TIMESTAMP, sensors->mscbit);
+
+	/* Accelerometer */
+	input_set_abs_params(sensors, ABS_X, -accel_range, accel_range, 16, 0);
+	input_set_abs_params(sensors, ABS_Y, -accel_range, accel_range, 16, 0);
+	input_set_abs_params(sensors, ABS_Z, -accel_range, accel_range, 16, 0);
+	input_abs_set_res(sensors, ABS_X, accel_res);
+	input_abs_set_res(sensors, ABS_Y, accel_res);
+	input_abs_set_res(sensors, ABS_Z, accel_res);
+
+	/* Gyroscope */
+	input_set_abs_params(sensors, ABS_RX, -gyro_range, gyro_range, 16, 0);
+	input_set_abs_params(sensors, ABS_RY, -gyro_range, gyro_range, 16, 0);
+	input_set_abs_params(sensors, ABS_RZ, -gyro_range, gyro_range, 16, 0);
+	input_abs_set_res(sensors, ABS_RX, gyro_res);
+	input_abs_set_res(sensors, ABS_RY, gyro_res);
+	input_abs_set_res(sensors, ABS_RZ, gyro_res);
+
+	ret = input_register_device(sensors);
+	if (ret)
+		return ERR_PTR(ret);
+
+	return sensors;
+}
+
 static struct input_dev *ps_touchpad_create(struct hid_device *hdev, int width, int height,
 		unsigned int num_contacts)
 {
@@ -319,6 +380,96 @@ static struct input_dev *ps_touchpad_create(struct hid_device *hdev, int width, 
 		return ERR_PTR(ret);
 
 	return touchpad;
+}
+
+static int dualsense_get_calibration_data(struct dualsense *ds)
+{
+	short gyro_pitch_bias, gyro_pitch_plus, gyro_pitch_minus;
+	short gyro_yaw_bias, gyro_yaw_plus, gyro_yaw_minus;
+	short gyro_roll_bias, gyro_roll_plus, gyro_roll_minus;
+	short gyro_speed_plus, gyro_speed_minus;
+	short acc_x_plus, acc_x_minus;
+	short acc_y_plus, acc_y_minus;
+	short acc_z_plus, acc_z_minus;
+	int speed_2x;
+	int range_2g;
+	int ret = 0;
+	uint8_t *buf;
+
+	buf = kzalloc(DS_FEATURE_REPORT_CALIBRATION_SIZE, GFP_KERNEL);
+	if (!buf)
+		return -ENOMEM;
+
+	ret = ps_get_report(ds->base.hdev, DS_FEATURE_REPORT_CALIBRATION, buf,
+			DS_FEATURE_REPORT_CALIBRATION_SIZE);
+	if (ret) {
+		hid_err(ds->base.hdev, "Failed to retrieve DualSense calibration info: %d\n", ret);
+		goto err_free;
+	}
+
+	gyro_pitch_bias  = get_unaligned_le16(&buf[1]);
+	gyro_yaw_bias    = get_unaligned_le16(&buf[3]);
+	gyro_roll_bias   = get_unaligned_le16(&buf[5]);
+	gyro_pitch_plus  = get_unaligned_le16(&buf[7]);
+	gyro_pitch_minus = get_unaligned_le16(&buf[9]);
+	gyro_yaw_plus    = get_unaligned_le16(&buf[11]);
+	gyro_yaw_minus   = get_unaligned_le16(&buf[13]);
+	gyro_roll_plus   = get_unaligned_le16(&buf[15]);
+	gyro_roll_minus  = get_unaligned_le16(&buf[17]);
+	gyro_speed_plus  = get_unaligned_le16(&buf[19]);
+	gyro_speed_minus = get_unaligned_le16(&buf[21]);
+	acc_x_plus       = get_unaligned_le16(&buf[23]);
+	acc_x_minus      = get_unaligned_le16(&buf[25]);
+	acc_y_plus       = get_unaligned_le16(&buf[27]);
+	acc_y_minus      = get_unaligned_le16(&buf[29]);
+	acc_z_plus       = get_unaligned_le16(&buf[31]);
+	acc_z_minus      = get_unaligned_le16(&buf[33]);
+
+	/*
+	 * Set gyroscope calibration and normalization parameters.
+	 * Data values will be normalized to 1/DS_GYRO_RES_PER_DEG_S degree/s.
+	 */
+	speed_2x = (gyro_speed_plus + gyro_speed_minus);
+	ds->gyro_calib_data[0].abs_code = ABS_RX;
+	ds->gyro_calib_data[0].bias = gyro_pitch_bias;
+	ds->gyro_calib_data[0].sens_numer = speed_2x*DS_GYRO_RES_PER_DEG_S;
+	ds->gyro_calib_data[0].sens_denom = gyro_pitch_plus - gyro_pitch_minus;
+
+	ds->gyro_calib_data[1].abs_code = ABS_RY;
+	ds->gyro_calib_data[1].bias = gyro_yaw_bias;
+	ds->gyro_calib_data[1].sens_numer = speed_2x*DS_GYRO_RES_PER_DEG_S;
+	ds->gyro_calib_data[1].sens_denom = gyro_yaw_plus - gyro_yaw_minus;
+
+	ds->gyro_calib_data[2].abs_code = ABS_RZ;
+	ds->gyro_calib_data[2].bias = gyro_roll_bias;
+	ds->gyro_calib_data[2].sens_numer = speed_2x*DS_GYRO_RES_PER_DEG_S;
+	ds->gyro_calib_data[2].sens_denom = gyro_roll_plus - gyro_roll_minus;
+
+	/*
+	 * Set accelerometer calibration and normalization parameters.
+	 * Data values will be normalized to 1/DS_ACC_RES_PER_G g.
+	 */
+	range_2g = acc_x_plus - acc_x_minus;
+	ds->accel_calib_data[0].abs_code = ABS_X;
+	ds->accel_calib_data[0].bias = acc_x_plus - range_2g / 2;
+	ds->accel_calib_data[0].sens_numer = 2*DS_ACC_RES_PER_G;
+	ds->accel_calib_data[0].sens_denom = range_2g;
+
+	range_2g = acc_y_plus - acc_y_minus;
+	ds->accel_calib_data[1].abs_code = ABS_Y;
+	ds->accel_calib_data[1].bias = acc_y_plus - range_2g / 2;
+	ds->accel_calib_data[1].sens_numer = 2*DS_ACC_RES_PER_G;
+	ds->accel_calib_data[1].sens_denom = range_2g;
+
+	range_2g = acc_z_plus - acc_z_minus;
+	ds->accel_calib_data[2].abs_code = ABS_Z;
+	ds->accel_calib_data[2].bias = acc_z_plus - range_2g / 2;
+	ds->accel_calib_data[2].sens_numer = 2*DS_ACC_RES_PER_G;
+	ds->accel_calib_data[2].sens_denom = range_2g;
+
+err_free:
+	kfree(buf);
+	return ret;
 }
 
 static int dualsense_get_mac_address(struct dualsense *ds)
@@ -352,6 +503,7 @@ static int dualsense_parse_report(struct ps_device *ps_dev, struct hid_report *r
 	struct dualsense_input_report *ds_report;
 	uint8_t battery_data, battery_capacity, charging_status, value;
 	int battery_status;
+	uint32_t sensor_timestamp;
 	unsigned long flags;
 	int i;
 
@@ -395,6 +547,44 @@ static int dualsense_parse_report(struct ps_device *ps_dev, struct hid_report *r
 	input_report_key(ds->gamepad, BTN_THUMBR, ds_report->buttons[1] & DS_BUTTONS1_R3);
 	input_report_key(ds->gamepad, BTN_MODE,   ds_report->buttons[2] & DS_BUTTONS2_PS_HOME);
 	input_sync(ds->gamepad);
+
+	/* Parse and calibrate gyroscope data. */
+	for (i = 0; i < ARRAY_SIZE(ds_report->gyro); i++) {
+		int raw_data = (short)le16_to_cpu(ds_report->gyro[i]);
+		int calib_data = mult_frac(ds->gyro_calib_data[i].sens_numer,
+					   raw_data - ds->gyro_calib_data[i].bias,
+					   ds->gyro_calib_data[i].sens_denom);
+
+		input_report_abs(ds->sensors, ds->gyro_calib_data[i].abs_code, calib_data);
+	}
+
+	/* Parse and calibrate accelerometer data. */
+	for (i = 0; i < ARRAY_SIZE(ds_report->accel); i++) {
+		int raw_data = (short)le16_to_cpu(ds_report->accel[i]);
+		int calib_data = mult_frac(ds->accel_calib_data[i].sens_numer,
+					   raw_data - ds->accel_calib_data[i].bias,
+					   ds->accel_calib_data[i].sens_denom);
+
+		input_report_abs(ds->sensors, ds->accel_calib_data[i].abs_code, calib_data);
+	}
+
+	/* Convert timestamp (in 0.33us unit) to timestamp_us */
+	sensor_timestamp = le32_to_cpu(ds_report->sensor_timestamp);
+	if (!ds->sensor_timestamp_initialized) {
+		ds->sensor_timestamp_us = DIV_ROUND_CLOSEST(sensor_timestamp, 3);
+		ds->sensor_timestamp_initialized = true;
+	} else {
+		uint32_t delta;
+
+		if (ds->prev_sensor_timestamp > sensor_timestamp)
+			delta = (U32_MAX - ds->prev_sensor_timestamp + sensor_timestamp + 1);
+		else
+			delta = sensor_timestamp - ds->prev_sensor_timestamp;
+		ds->sensor_timestamp_us += DIV_ROUND_CLOSEST(delta, 3);
+	}
+	ds->prev_sensor_timestamp = sensor_timestamp;
+	input_event(ds->sensors, EV_MSC, MSC_TIMESTAMP, ds->sensor_timestamp_us);
+	input_sync(ds->sensors);
 
 	for (i = 0; i < ARRAY_SIZE(ds_report->points); i++) {
 		struct dualsense_touch_point *point = &ds_report->points[i];
@@ -485,9 +675,22 @@ static struct ps_device *dualsense_create(struct hid_device *hdev)
 	}
 	snprintf(hdev->uniq, sizeof(hdev->uniq), "%pMR", ds->base.mac_address);
 
+	ret = dualsense_get_calibration_data(ds);
+	if (ret) {
+		hid_err(hdev, "Failed to get calibration data from DualSense\n");
+		goto err;
+	}
+
 	ds->gamepad = ps_gamepad_create(hdev);
 	if (IS_ERR(ds->gamepad)) {
 		ret = PTR_ERR(ds->gamepad);
+		goto err;
+	}
+
+	ds->sensors = ps_sensors_create(hdev, DS_ACC_RANGE, DS_ACC_RES_PER_G,
+			DS_GYRO_RANGE, DS_GYRO_RES_PER_DEG_S);
+	if (IS_ERR(ds->sensors)) {
+		ret = PTR_ERR(ds->sensors);
 		goto err;
 	}
 
