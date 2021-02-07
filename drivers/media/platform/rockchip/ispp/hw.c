@@ -149,7 +149,7 @@ static const char * const rv1126_ispp_clks[] = {
 
 static const struct ispp_clk_info rv1126_ispp_clk_rate[] = {
 	{
-		.clk_rate = 20,
+		.clk_rate = 50,
 		.refer_data = 0,
 	}, {
 		.clk_rate = 250,
