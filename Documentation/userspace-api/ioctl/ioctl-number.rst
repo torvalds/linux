@@ -320,6 +320,7 @@ Code  Seq#    Include File                                           Comments
 0xA0  all    linux/sdp/sdp.h                                         Industrial Device Project
                                                                      <mailto:kenji@bitgate.com>
 0xA1  0      linux/vtpm_proxy.h                                      TPM Emulator Proxy Driver
+0xA2  all    uapi/linux/acrn.h                                       ACRN hypervisor
 0xA3  80-8F                                                          Port ACL  in development:
                                                                      <mailto:tlewis@mindspring.com>
 0xA3  90-9F  linux/dtlk.h
