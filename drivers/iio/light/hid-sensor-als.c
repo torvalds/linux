@@ -54,7 +54,8 @@ static const struct iio_chan_spec als_channels[] = {
 		.info_mask_shared_by_type = BIT(IIO_CHAN_INFO_OFFSET) |
 		BIT(IIO_CHAN_INFO_SCALE) |
 		BIT(IIO_CHAN_INFO_SAMP_FREQ) |
-		BIT(IIO_CHAN_INFO_HYSTERESIS),
+		BIT(IIO_CHAN_INFO_HYSTERESIS) |
+		BIT(IIO_CHAN_INFO_HYSTERESIS_RELATIVE),
 		.scan_index = CHANNEL_SCAN_INDEX_INTENSITY,
 	},
 	{
@@ -63,7 +64,8 @@ static const struct iio_chan_spec als_channels[] = {
 		.info_mask_shared_by_type = BIT(IIO_CHAN_INFO_OFFSET) |
 		BIT(IIO_CHAN_INFO_SCALE) |
 		BIT(IIO_CHAN_INFO_SAMP_FREQ) |
-		BIT(IIO_CHAN_INFO_HYSTERESIS),
+		BIT(IIO_CHAN_INFO_HYSTERESIS) |
+		BIT(IIO_CHAN_INFO_HYSTERESIS_RELATIVE),
 		.scan_index = CHANNEL_SCAN_INDEX_ILLUM,
 	},
 	IIO_CHAN_SOFT_TIMESTAMP(CHANNEL_SCAN_INDEX_TIMESTAMP)
@@ -141,6 +143,10 @@ static int als_read_raw(struct iio_dev *indio_dev,
 		ret_type = hid_sensor_read_raw_hyst_value(
 				&als_state->common_attributes, val, val2);
 		break;
+	case IIO_CHAN_INFO_HYSTERESIS_RELATIVE:
+		ret_type = hid_sensor_read_raw_hyst_rel_value(
+				&als_state->common_attributes, val, val2);
+		break;
 	default:
 		ret_type = -EINVAL;
 		break;
@@ -166,6 +172,10 @@ static int als_write_raw(struct iio_dev *indio_dev,
 		break;
 	case IIO_CHAN_INFO_HYSTERESIS:
 		ret = hid_sensor_write_raw_hyst_value(
+				&als_state->common_attributes, val, val2);
+		break;
+	case IIO_CHAN_INFO_HYSTERESIS_RELATIVE:
+		ret = hid_sensor_write_raw_hyst_rel_value(
 				&als_state->common_attributes, val, val2);
 		break;
 	default:
