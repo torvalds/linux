@@ -3445,6 +3445,15 @@ F:	Documentation/devicetree/bindings/mips/brcm/
 F:	arch/mips/bcm47xx/*
 F:	arch/mips/include/asm/mach-bcm47xx/*
 
+BROADCOM BCM4908 ETHERNET DRIVER
+M:	Rafał Miłecki <rafal@milecki.pl>
+M:	bcm-kernel-feedback-list@broadcom.com
+L:	netdev@vger.kernel.org
+S:	Maintained
+F:	Documentation/devicetree/bindings/net/brcm,bcm4908enet.yaml
+F:	drivers/net/ethernet/broadcom/bcm4908enet.*
+F:	drivers/net/ethernet/broadcom/unimac.h
+
 BROADCOM BCM5301X ARM ARCHITECTURE
 M:	Hauke Mehrtens <hauke@hauke-m.de>
 M:	Rafał Miłecki <zajec5@gmail.com>
