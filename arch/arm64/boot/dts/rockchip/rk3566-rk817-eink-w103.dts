@@ -160,6 +160,19 @@
 		regulator-max-microvolt = <3800000>;
 	};
 
+	vcc_tp: vcc-tp-regulator {
+		compatible = "regulator-fixed";
+		enable-active-high;
+		gpio = <&gpio0 RK_PD6 GPIO_ACTIVE_HIGH>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&vcc_tp_en>;
+		regulator-name = "vcc_tp";
+		regulator-boot-on;
+		startup-delay-us = <10000>;
+		regulator-min-microvolt = <3300000>;
+		regulator-max-microvolt = <3300000>;
+	};
+
 	rk817-sound {
 		compatible = "simple-audio-card";
 		simple-audio-card,format = "i2s";
@@ -660,6 +673,7 @@
 	wacom: wacom@09 {
 		compatible = "wacom,w9013";
 		reg = <0x09>;
+		pwr-supply = <&vcc_tp>;
 		pinctrl-names = "default";
 		pinctrl-0 = <&wacom_gpio>;
 		gpio_detect = <&gpio0 RK_PC0 GPIO_ACTIVE_HIGH>;
@@ -715,13 +729,11 @@
 		cy,adapter_id = "cyttsp5_i2c_adapter";
 		pinctrl-names = "default";
 		pinctrl-0 = <&tsc_gpio>;
-		//cytp-supply = <&vcc_sd>;
+		cytp-supply = <&vcc_tp>;
 		cy,core {
 			cy,name = "cyttsp5_core";
 			cy,irq_gpio =  <&gpio0 RK_PA6 GPIO_ACTIVE_HIGH>;
 			cy,rst_gpio =  <&gpio0 RK_PA5 GPIO_ACTIVE_HIGH>;
-			/*cy,1v8_gpio =  <&gpio3 RK_PC4 GPIO_ACTIVE_HIGH>;*/
-			cy,2v8_gpio =  <&gpio0 RK_PD6 GPIO_ACTIVE_HIGH>;
 			cy,hid_desc_register = <1>;
 			/* CY_CORE_FLAG_RESTORE_PARAMETERS */
 			cy,flags = <6>;
@@ -845,8 +857,7 @@
 		tsc_gpio: tsc-gpio {
 			rockchip,pins =
 					<0 RK_PA5 RK_FUNC_GPIO &pcfg_pull_up>,
-					<0 RK_PA6 RK_FUNC_GPIO &pcfg_pull_up>,
-					<0 RK_PD6 RK_FUNC_GPIO &pcfg_pull_up>;
+					<0 RK_PA6 RK_FUNC_GPIO &pcfg_pull_up>;
 		};
 	};
 
@@ -914,6 +925,12 @@
 
 		bt_irq_gpio: bt-irq-gpio {
 			rockchip,pins = <0 RK_PC3 RK_FUNC_GPIO &pcfg_pull_up>;
+		};
+	};
+
+	vcc-tp {
+		vcc_tp_en: vcc-tp-en {
+			rockchip,pins = <0 RK_PD6 RK_FUNC_GPIO &pcfg_pull_none>;
 		};
 	};
 };
