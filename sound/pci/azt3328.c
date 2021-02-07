@@ -2447,7 +2447,7 @@ snd_azf3328_create(struct snd_card *card,
 
 		/* shutdown codecs to reduce power / noise */
 			/* have ...ctrl_codec_activity() act properly */
-		codec->running = 1;
+		codec->running = true;
 		snd_azf3328_ctrl_codec_activity(chip, codec_type, 0);
 
 		spin_lock_irq(codec->lock);
