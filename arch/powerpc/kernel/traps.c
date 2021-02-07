@@ -1462,9 +1462,8 @@ static int emulate_math(struct pt_regs *regs)
 static inline int emulate_math(struct pt_regs *regs) { return -1; }
 #endif
 
-void program_check_exception(struct pt_regs *regs)
+static void do_program_check(struct pt_regs *regs)
 {
-	enum ctx_state prev_state = exception_enter();
 	unsigned int reason = get_reason(regs);
 
 	/* We can now get here via a FP Unavailable exception if the core
@@ -1473,22 +1472,22 @@ void program_check_exception(struct pt_regs *regs)
 	if (reason & REASON_FP) {
 		/* IEEE FP exception */
 		parse_fpe(regs);
-		goto bail;
+		return;
 	}
 	if (reason & REASON_TRAP) {
 		unsigned long bugaddr;
 		/* Debugger is first in line to stop recursive faults in
 		 * rcu_lock, notify_die, or atomic_notifier_call_chain */
 		if (debugger_bpt(regs))
-			goto bail;
+			return;
 
 		if (kprobe_handler(regs))
-			goto bail;
+			return;
 
 		/* trap exception */
 		if (notify_die(DIE_BPT, "breakpoint", regs, 5, 5, SIGTRAP)
 				== NOTIFY_STOP)
-			goto bail;
+			return;
 
 		bugaddr = regs->nip;
 		/*
@@ -1500,10 +1499,10 @@ void program_check_exception(struct pt_regs *regs)
 		if (!(regs->msr & MSR_PR) &&  /* not user-mode */
 		    report_bug(bugaddr, regs) == BUG_TRAP_TYPE_WARN) {
 			regs->nip += 4;
-			goto bail;
+			return;
 		}
 		_exception(SIGTRAP, regs, TRAP_BRKPT, regs->nip);
-		goto bail;
+		return;
 	}
 #ifdef CONFIG_PPC_TRANSACTIONAL_MEM
 	if (reason & REASON_TM) {
@@ -1524,7 +1523,7 @@ void program_check_exception(struct pt_regs *regs)
 		 */
 		if (user_mode(regs)) {
 			_exception(SIGILL, regs, ILL_ILLOPN, regs->nip);
-			goto bail;
+			return;
 		} else {
 			printk(KERN_EMERG "Unexpected TM Bad Thing exception "
 			       "at %lx (msr 0x%lx) tm_scratch=%llx\n",
@@ -1557,7 +1556,7 @@ void program_check_exception(struct pt_regs *regs)
 	 * pattern to occurrences etc. -dgibson 31/Mar/2003
 	 */
 	if (!emulate_math(regs))
-		goto bail;
+		return;
 
 	/* Try to emulate it if we should. */
 	if (reason & (REASON_ILLEGAL | REASON_PRIVILEGED)) {
@@ -1565,10 +1564,10 @@ void program_check_exception(struct pt_regs *regs)
 		case 0:
 			regs->nip += 4;
 			emulate_single_step(regs);
-			goto bail;
+			return;
 		case -EFAULT:
 			_exception(SIGSEGV, regs, SEGV_MAPERR, regs->nip);
-			goto bail;
+			return;
 		}
 	}
 
@@ -1578,7 +1577,14 @@ sigill:
 	else
 		_exception(SIGILL, regs, ILL_ILLOPC, regs->nip);
 
-bail:
+}
+
+void program_check_exception(struct pt_regs *regs)
+{
+	enum ctx_state prev_state = exception_enter();
+
+	do_program_check(regs);
+
 	exception_exit(prev_state);
 }
 NOKPROBE_SYMBOL(program_check_exception);
@@ -1589,8 +1595,12 @@ NOKPROBE_SYMBOL(program_check_exception);
  */
 void emulation_assist_interrupt(struct pt_regs *regs)
 {
+	enum ctx_state prev_state = exception_enter();
+
 	regs->msr |= REASON_ILLEGAL;
-	program_check_exception(regs);
+	do_program_check(regs);
+
+	exception_exit(prev_state);
 }
 NOKPROBE_SYMBOL(emulation_assist_interrupt);
 
