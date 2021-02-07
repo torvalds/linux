@@ -1019,7 +1019,7 @@ static const struct dw_pcie_ops tegra_dw_pcie_ops = {
 	.stop_link = tegra_pcie_dw_stop_link,
 };
 
-static struct dw_pcie_host_ops tegra_pcie_dw_host_ops = {
+static const struct dw_pcie_host_ops tegra_pcie_dw_host_ops = {
 	.host_init = tegra_pcie_dw_host_init,
 };
 
@@ -1881,7 +1881,7 @@ tegra_pcie_ep_get_features(struct dw_pcie_ep *ep)
 	return &tegra_pcie_epc_features;
 }
 
-static struct dw_pcie_ep_ops pcie_ep_ops = {
+static const struct dw_pcie_ep_ops pcie_ep_ops = {
 	.raise_irq = tegra_pcie_ep_raise_irq,
 	.get_features = tegra_pcie_ep_get_features,
 };
