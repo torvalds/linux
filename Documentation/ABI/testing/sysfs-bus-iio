@@ -1823,3 +1823,12 @@ Description:
 		hinge, keyboard, screen. It means the three channels
 		each correspond respectively to hinge angle, keyboard angle,
 		and screen angle.
+
+What:		/sys/bus/iio/devices/iio:deviceX/in_illuminance_hysteresis_relative
+What:		/sys/bus/iio/devices/iio:deviceX/in_intensity_hysteresis_relative
+KernelVersion:	5.12
+Contact:	linux-iio@vger.kernel.org
+Description:
+		Specify the percent for light sensor relative to the channel
+		absolute value that a data field should change before an event
+		is generated. Units are a percentage of the prior reading.
