@@ -770,15 +770,13 @@ int bch2_write_super(struct bch_fs *c)
 	nr_wrote = dev_mask_nr(&sb_written);
 
 	can_mount_with_written =
-		bch2_have_enough_devs(__bch2_replicas_status(c, sb_written),
-				      BCH_FORCE_IF_DEGRADED);
+		bch2_have_enough_devs(c, sb_written, BCH_FORCE_IF_DEGRADED, false);
 
 	for (i = 0; i < ARRAY_SIZE(sb_written.d); i++)
 		sb_written.d[i] = ~sb_written.d[i];
 
 	can_mount_without_written =
-		bch2_have_enough_devs(__bch2_replicas_status(c, sb_written),
-				      BCH_FORCE_IF_DEGRADED);
+		bch2_have_enough_devs(c, sb_written, BCH_FORCE_IF_DEGRADED, false);
 
 	/*
 	 * If we would be able to mount _without_ the devices we successfully
@@ -789,6 +787,7 @@ int bch2_write_super(struct bch_fs *c)
 	 * mount with the devices we did successfully write to:
 	 */
 	if (bch2_fs_fatal_err_on(!nr_wrote ||
+				 !can_mount_with_written ||
 				 (can_mount_without_written &&
 				  !can_mount_with_written), c,
 		"Unable to write superblock to sufficient devices"))

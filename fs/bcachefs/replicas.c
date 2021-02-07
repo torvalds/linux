@@ -967,92 +967,46 @@ const struct bch_sb_field_ops bch_sb_field_ops_replicas_v0 = {
 
 /* Query replicas: */
 
-struct replicas_status __bch2_replicas_status(struct bch_fs *c,
-					      struct bch_devs_mask online_devs)
+bool bch2_have_enough_devs(struct bch_fs *c, struct bch_devs_mask devs,
+			   unsigned flags, bool print)
 {
-	struct bch_sb_field_members *mi;
 	struct bch_replicas_entry *e;
-	unsigned i, nr_online, nr_offline;
-	struct replicas_status ret;
-
-	memset(&ret, 0, sizeof(ret));
-
-	for (i = 0; i < ARRAY_SIZE(ret.replicas); i++)
-		ret.replicas[i].redundancy = INT_MAX;
-
-	mi = bch2_sb_get_members(c->disk_sb.sb);
+	bool ret = true;
 
 	percpu_down_read(&c->mark_lock);
-
 	for_each_cpu_replicas_entry(&c->replicas, e) {
-		if (e->data_type >= ARRAY_SIZE(ret.replicas))
-			panic("e %p data_type %u\n", e, e->data_type);
+		unsigned i, nr_online = 0, dflags = 0;
+		bool metadata = e->data_type < BCH_DATA_user;
 
-		nr_online = nr_offline = 0;
+		for (i = 0; i < e->nr_devs; i++)
+			nr_online += test_bit(e->devs[i], devs.d);
 
-		for (i = 0; i < e->nr_devs; i++) {
-			BUG_ON(!bch2_dev_exists(c->disk_sb.sb, mi,
-						e->devs[i]));
+		if (nr_online < e->nr_required)
+			dflags |= metadata
+				? BCH_FORCE_IF_METADATA_LOST
+				: BCH_FORCE_IF_DATA_LOST;
 
-			if (test_bit(e->devs[i], online_devs.d))
-				nr_online++;
-			else
-				nr_offline++;
+		if (nr_online < e->nr_devs)
+			dflags |= metadata
+				? BCH_FORCE_IF_METADATA_DEGRADED
+				: BCH_FORCE_IF_DATA_DEGRADED;
+
+		if (dflags & ~flags) {
+			if (print) {
+				char buf[100];
+
+				bch2_replicas_entry_to_text(&PBUF(buf), e);
+				bch_err(c, "insufficient devices online (%u) for replicas entry %s",
+					nr_online, buf);
+			}
+			ret = false;
+			break;
 		}
 
-		ret.replicas[e->data_type].redundancy =
-			min(ret.replicas[e->data_type].redundancy,
-			    (int) nr_online - (int) e->nr_required);
-
-		ret.replicas[e->data_type].nr_offline =
-			max(ret.replicas[e->data_type].nr_offline,
-			    nr_offline);
 	}
-
 	percpu_up_read(&c->mark_lock);
 
-	for (i = 0; i < ARRAY_SIZE(ret.replicas); i++)
-		if (ret.replicas[i].redundancy == INT_MAX)
-			ret.replicas[i].redundancy = 0;
-
 	return ret;
-}
-
-struct replicas_status bch2_replicas_status(struct bch_fs *c)
-{
-	return __bch2_replicas_status(c, bch2_online_devs(c));
-}
-
-static bool have_enough_devs(struct replicas_status s,
-			     enum bch_data_type type,
-			     bool force_if_degraded,
-			     bool force_if_lost)
-{
-	return (!s.replicas[type].nr_offline || force_if_degraded) &&
-		(s.replicas[type].redundancy >= 0 || force_if_lost);
-}
-
-bool bch2_have_enough_devs(struct replicas_status s, unsigned flags)
-{
-	return (have_enough_devs(s, BCH_DATA_journal,
-				 flags & BCH_FORCE_IF_METADATA_DEGRADED,
-				 flags & BCH_FORCE_IF_METADATA_LOST) &&
-		have_enough_devs(s, BCH_DATA_btree,
-				 flags & BCH_FORCE_IF_METADATA_DEGRADED,
-				 flags & BCH_FORCE_IF_METADATA_LOST) &&
-		have_enough_devs(s, BCH_DATA_user,
-				 flags & BCH_FORCE_IF_DATA_DEGRADED,
-				 flags & BCH_FORCE_IF_DATA_LOST));
-}
-
-int bch2_replicas_online(struct bch_fs *c, bool meta)
-{
-	struct replicas_status s = bch2_replicas_status(c);
-
-	return (meta
-		? min(s.replicas[BCH_DATA_journal].redundancy,
-		      s.replicas[BCH_DATA_btree].redundancy)
-		: s.replicas[BCH_DATA_user].redundancy) + 1;
 }
 
 unsigned bch2_dev_has_data(struct bch_fs *c, struct bch_dev *ca)

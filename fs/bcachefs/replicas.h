@@ -39,19 +39,9 @@ static inline void bch2_replicas_entry_cached(struct bch_replicas_entry *e,
 	e->devs[0]	= dev;
 }
 
-struct replicas_status {
-	struct {
-		int		redundancy;
-		unsigned	nr_offline;
-	}			replicas[BCH_DATA_NR];
-};
+bool bch2_have_enough_devs(struct bch_fs *, struct bch_devs_mask,
+			   unsigned, bool);
 
-struct replicas_status __bch2_replicas_status(struct bch_fs *,
-					      struct bch_devs_mask);
-struct replicas_status bch2_replicas_status(struct bch_fs *);
-bool bch2_have_enough_devs(struct replicas_status, unsigned);
-
-int bch2_replicas_online(struct bch_fs *, bool);
 unsigned bch2_dev_has_data(struct bch_fs *, struct bch_dev *);
 
 int bch2_replicas_gc_end(struct bch_fs *, int);

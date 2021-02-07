@@ -1265,7 +1265,6 @@ bool bch2_dev_state_allowed(struct bch_fs *c, struct bch_dev *ca,
 			    enum bch_member_state new_state, int flags)
 {
 	struct bch_devs_mask new_online_devs;
-	struct replicas_status s;
 	struct bch_dev *ca2;
 	int i, nr_rw = 0, required;
 
@@ -1301,9 +1300,7 @@ bool bch2_dev_state_allowed(struct bch_fs *c, struct bch_dev *ca,
 		new_online_devs = bch2_online_devs(c);
 		__clear_bit(ca->dev_idx, new_online_devs.d);
 
-		s = __bch2_replicas_status(c, new_online_devs);
-
-		return bch2_have_enough_devs(s, flags);
+		return bch2_have_enough_devs(c, new_online_devs, flags, false);
 	default:
 		BUG();
 	}
@@ -1311,14 +1308,18 @@ bool bch2_dev_state_allowed(struct bch_fs *c, struct bch_dev *ca,
 
 static bool bch2_fs_may_start(struct bch_fs *c)
 {
-	struct replicas_status s;
 	struct bch_sb_field_members *mi;
 	struct bch_dev *ca;
-	unsigned i, flags = c->opts.degraded
-		? BCH_FORCE_IF_DEGRADED
-		: 0;
+	unsigned i, flags = 0;
 
-	if (!c->opts.degraded) {
+	if (c->opts.very_degraded)
+		flags |= BCH_FORCE_IF_DEGRADED|BCH_FORCE_IF_LOST;
+
+	if (c->opts.degraded)
+		flags |= BCH_FORCE_IF_DEGRADED;
+
+	if (!c->opts.degraded &&
+	    !c->opts.very_degraded) {
 		mutex_lock(&c->sb_lock);
 		mi = bch2_sb_get_members(c->disk_sb.sb);
 
@@ -1338,9 +1339,7 @@ static bool bch2_fs_may_start(struct bch_fs *c)
 		mutex_unlock(&c->sb_lock);
 	}
 
-	s = bch2_replicas_status(c);
-
-	return bch2_have_enough_devs(s, flags);
+	return bch2_have_enough_devs(c, bch2_online_devs(c), flags, true);
 }
 
 static void __bch2_dev_read_only(struct bch_fs *c, struct bch_dev *ca)

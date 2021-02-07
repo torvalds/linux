@@ -199,9 +199,6 @@ read_attribute(new_stripes);
 
 rw_attribute(pd_controllers_update_seconds);
 
-read_attribute(meta_replicas_have);
-read_attribute(data_replicas_have);
-
 read_attribute(io_timers_read);
 read_attribute(io_timers_write);
 
@@ -346,9 +343,6 @@ SHOW(bch2_fs)
 	}
 
 	sysfs_print(promote_whole_extents,	c->promote_whole_extents);
-
-	sysfs_printf(meta_replicas_have, "%i",	bch2_replicas_online(c, true));
-	sysfs_printf(data_replicas_have, "%i",	bch2_replicas_online(c, false));
 
 	/* Debugging: */
 
@@ -519,9 +513,6 @@ struct attribute *bch2_fs_files[] = {
 	&sysfs_block_size,
 	&sysfs_btree_node_size,
 	&sysfs_btree_cache_size,
-
-	&sysfs_meta_replicas_have,
-	&sysfs_data_replicas_have,
 
 	&sysfs_journal_write_delay_ms,
 	&sysfs_journal_reclaim_delay_ms,

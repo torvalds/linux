@@ -222,6 +222,11 @@ enum opt_type {
 	  OPT_BOOL(),							\
 	  NO_SB_OPT,			false,				\
 	  NULL,		"Allow mounting in degraded mode")		\
+	x(very_degraded,		u8,				\
+	  OPT_MOUNT,							\
+	  OPT_BOOL(),							\
+	  NO_SB_OPT,			false,				\
+	  NULL,		"Allow mounting in when data will be missing")	\
 	x(discard,			u8,				\
 	  OPT_MOUNT|OPT_DEVICE,						\
 	  OPT_BOOL(),							\
