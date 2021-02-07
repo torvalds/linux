@@ -1074,7 +1074,7 @@ static int __show_line_range(struct line_range *lr, const char *module,
 	}
 
 	intlist__for_each_entry(ln, lr->line_list) {
-		for (; ln->i > l; l++) {
+		for (; ln->i > (unsigned long)l; l++) {
 			ret = show_one_line(fp, l - lr->offset);
 			if (ret < 0)
 				goto end;

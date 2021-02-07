@@ -13,7 +13,7 @@
 static struct rb_node *intlist__node_new(struct rblist *rblist __maybe_unused,
 					 const void *entry)
 {
-	int i = (int)((long)entry);
+	unsigned long i = (unsigned long)entry;
 	struct rb_node *rc = NULL;
 	struct int_node *node = malloc(sizeof(*node));
 
@@ -41,15 +41,20 @@ static void intlist__node_delete(struct rblist *rblist __maybe_unused,
 
 static int intlist__node_cmp(struct rb_node *rb_node, const void *entry)
 {
-	int i = (int)((long)entry);
+	unsigned long i = (unsigned long)entry;
 	struct int_node *node = container_of(rb_node, struct int_node, rb_node);
 
-	return node->i - i;
+	if (node->i > i)
+		return 1;
+	else if (node->i < i)
+		return -1;
+
+	return 0;
 }
 
-int intlist__add(struct intlist *ilist, int i)
+int intlist__add(struct intlist *ilist, unsigned long i)
 {
-	return rblist__add_node(&ilist->rblist, (void *)((long)i));
+	return rblist__add_node(&ilist->rblist, (void *)i);
 }
 
 void intlist__remove(struct intlist *ilist, struct int_node *node)
@@ -58,7 +63,7 @@ void intlist__remove(struct intlist *ilist, struct int_node *node)
 }
 
 static struct int_node *__intlist__findnew(struct intlist *ilist,
-					   int i, bool create)
+					   unsigned long i, bool create)
 {
 	struct int_node *node = NULL;
 	struct rb_node *rb_node;
@@ -67,9 +72,9 @@ static struct int_node *__intlist__findnew(struct intlist *ilist,
 		return NULL;
 
 	if (create)
-		rb_node = rblist__findnew(&ilist->rblist, (void *)((long)i));
+		rb_node = rblist__findnew(&ilist->rblist, (void *)i);
 	else
-		rb_node = rblist__find(&ilist->rblist, (void *)((long)i));
+		rb_node = rblist__find(&ilist->rblist, (void *)i);
 
 	if (rb_node)
 		node = container_of(rb_node, struct int_node, rb_node);
@@ -77,12 +82,12 @@ static struct int_node *__intlist__findnew(struct intlist *ilist,
 	return node;
 }
 
-struct int_node *intlist__find(struct intlist *ilist, int i)
+struct int_node *intlist__find(struct intlist *ilist, unsigned long i)
 {
 	return __intlist__findnew(ilist, i, false);
 }
 
-struct int_node *intlist__findnew(struct intlist *ilist, int i)
+struct int_node *intlist__findnew(struct intlist *ilist, unsigned long i)
 {
 	return __intlist__findnew(ilist, i, true);
 }
@@ -93,7 +98,7 @@ static int intlist__parse_list(struct intlist *ilist, const char *s)
 	int err;
 
 	do {
-		long value = strtol(s, &sep, 10);
+		unsigned long value = strtol(s, &sep, 10);
 		err = -EINVAL;
 		if (*sep != ',' && *sep != '\0')
 			break;
