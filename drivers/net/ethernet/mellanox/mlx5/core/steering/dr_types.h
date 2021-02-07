@@ -12,7 +12,7 @@
 #include "mlx5_ifc_dr.h"
 #include "mlx5dr.h"
 
-#define DR_RULE_MAX_STES 17
+#define DR_RULE_MAX_STES 18
 #define DR_ACTION_MAX_STES 5
 #define WIRE_PORT 0xFFFF
 #define DR_STE_SVLAN 0x1
@@ -406,6 +406,11 @@ void mlx5dr_ste_build_tnl_geneve(struct mlx5dr_ste_ctx *ste_ctx,
 				 struct mlx5dr_ste_build *sb,
 				 struct mlx5dr_match_param *mask,
 				 bool inner, bool rx);
+void mlx5dr_ste_build_tnl_geneve_tlv_opt(struct mlx5dr_ste_ctx *ste_ctx,
+					 struct mlx5dr_ste_build *sb,
+					 struct mlx5dr_match_param *mask,
+					 struct mlx5dr_cmd_caps *caps,
+					 bool inner, bool rx);
 void mlx5dr_ste_build_general_purpose(struct mlx5dr_ste_ctx *ste_ctx,
 				      struct mlx5dr_ste_build *sb,
 				      struct mlx5dr_match_param *mask,
@@ -658,7 +663,8 @@ struct mlx5dr_match_misc3 {
 	u8 icmpv6_type;
 	u8 icmpv4_code;
 	u8 icmpv4_type;
-	u8 reserved_auto3[0x1c];
+	u32 geneve_tlv_option_0_data;
+	u8 reserved_auto3[0x18];
 };
 
 struct mlx5dr_match_misc4 {
@@ -716,6 +722,7 @@ struct mlx5dr_cmd_caps {
 	u8 flex_parser_id_icmp_dw1;
 	u8 flex_parser_id_icmpv6_dw0;
 	u8 flex_parser_id_icmpv6_dw1;
+	u8 flex_parser_id_geneve_tlv_option_0;
 	u8 max_ft_level;
 	u16 roce_min_src_udp;
 	u8 num_esw_ports;

@@ -852,6 +852,8 @@ static void dr_ste_copy_mask_misc3(char *mask, struct mlx5dr_match_misc3 *spec)
 	spec->icmpv4_code = MLX5_GET(fte_match_set_misc3, mask, icmp_code);
 	spec->icmpv6_type = MLX5_GET(fte_match_set_misc3, mask, icmpv6_type);
 	spec->icmpv6_code = MLX5_GET(fte_match_set_misc3, mask, icmpv6_code);
+	spec->geneve_tlv_option_0_data =
+		MLX5_GET(fte_match_set_misc3, mask, geneve_tlv_option_0_data);
 }
 
 static void dr_ste_copy_mask_misc4(char *mask, struct mlx5dr_match_misc4 *spec)
@@ -1145,6 +1147,18 @@ void mlx5dr_ste_build_tnl_geneve(struct mlx5dr_ste_ctx *ste_ctx,
 	sb->rx = rx;
 	sb->inner = inner;
 	ste_ctx->build_tnl_geneve_init(sb, mask);
+}
+
+void mlx5dr_ste_build_tnl_geneve_tlv_opt(struct mlx5dr_ste_ctx *ste_ctx,
+					 struct mlx5dr_ste_build *sb,
+					 struct mlx5dr_match_param *mask,
+					 struct mlx5dr_cmd_caps *caps,
+					 bool inner, bool rx)
+{
+	sb->rx = rx;
+	sb->caps = caps;
+	sb->inner = inner;
+	ste_ctx->build_tnl_geneve_tlv_opt_init(sb, mask);
 }
 
 void mlx5dr_ste_build_register_0(struct mlx5dr_ste_ctx *ste_ctx,

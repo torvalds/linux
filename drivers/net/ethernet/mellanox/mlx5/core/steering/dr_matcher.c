@@ -133,6 +133,11 @@ static bool dr_mask_is_tnl_geneve_set(struct mlx5dr_match_misc *misc)
 	       misc->geneve_opt_len;
 }
 
+static bool dr_mask_is_tnl_geneve_tlv_opt(struct mlx5dr_match_misc3 *misc3)
+{
+	return misc3->geneve_tlv_option_0_data;
+}
+
 static bool
 dr_matcher_supp_tnl_geneve(struct mlx5dr_cmd_caps *caps)
 {
@@ -360,10 +365,14 @@ static int dr_matcher_set_ste_builders(struct mlx5dr_matcher *matcher,
 		if (dr_mask_is_tnl_vxlan_gpe(&mask, dmn))
 			mlx5dr_ste_build_tnl_vxlan_gpe(ste_ctx, &sb[idx++],
 						       &mask, inner, rx);
-		else if (dr_mask_is_tnl_geneve(&mask, dmn))
+		else if (dr_mask_is_tnl_geneve(&mask, dmn)) {
 			mlx5dr_ste_build_tnl_geneve(ste_ctx, &sb[idx++],
 						    &mask, inner, rx);
-
+			if (dr_mask_is_tnl_geneve_tlv_opt(&mask.misc3))
+				mlx5dr_ste_build_tnl_geneve_tlv_opt(ste_ctx, &sb[idx++],
+								    &mask, &dmn->info.caps,
+								    inner, rx);
+		}
 		if (DR_MASK_IS_ETH_L4_MISC_SET(mask.misc3, outer))
 			mlx5dr_ste_build_eth_l4_misc(ste_ctx, &sb[idx++],
 						     &mask, inner, rx);

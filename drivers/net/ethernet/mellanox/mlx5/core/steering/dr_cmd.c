@@ -106,6 +106,10 @@ int mlx5dr_cmd_query_device(struct mlx5_core_dev *mdev,
 			MLX5_CAP_GEN(mdev, flex_parser_id_icmpv6_dw1);
 	}
 
+	if (caps->flex_protocols & MLX5_FLEX_PARSER_GENEVE_TLV_OPTION_0_ENABLED)
+		caps->flex_parser_id_geneve_tlv_option_0 =
+			MLX5_CAP_GEN(mdev, flex_parser_id_geneve_tlv_option_0);
+
 	caps->nic_rx_drop_address =
 		MLX5_CAP64_FLOWTABLE(mdev, sw_steering_nic_rx_action_drop_icm_address);
 	caps->nic_tx_drop_address =
