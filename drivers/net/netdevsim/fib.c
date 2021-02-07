@@ -595,7 +595,7 @@ static void nsim_fib6_rt_hw_flags_set(struct nsim_fib_data *data,
 	struct nsim_fib6_rt_nh *fib6_rt_nh;
 
 	list_for_each_entry(fib6_rt_nh, &fib6_rt->nh_list, list)
-		fib6_info_hw_flags_set(net, fib6_rt_nh->rt, false, trap);
+		fib6_info_hw_flags_set(net, fib6_rt_nh->rt, false, trap, false);
 }
 #else
 static void nsim_fib6_rt_hw_flags_set(struct nsim_fib_data *data,
