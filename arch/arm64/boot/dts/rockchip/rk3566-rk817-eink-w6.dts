@@ -99,6 +99,15 @@
 		regulator-boot-on;
 	};
 
+	vcc_tp: vcc-tp-regulator {
+		compatible = "regulator-fixed";
+		enable-active-high;
+		gpio = <&gpio0 RK_PC0 GPIO_ACTIVE_HIGH>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&vcc_tp_en>;
+		regulator-name = "vcc_tp";
+	};
+
 	dummy_codec: dummy-codec {
 		compatible = "rockchip,dummy-codec";
 		#sound-dai-cells = <0>;
@@ -454,7 +463,7 @@
 				regulator-name = "vcc3v3_pmu";
 				regulator-state-mem {
 					regulator-on-in-suspend;
-					regulator-suspend-microvolt = <3300000>;
+					regulator-suspend-microvolt = <3000000>;
 					regulator-changeable-in-suspend;
 				};
 			};
@@ -629,7 +638,7 @@
 		max-x = <1024>;
 		max-y = <758>;
 		tp-size = <9111>;
-		tp-supply = <&vcc3v3_pmu>;
+		tp-supply = <&vcc_tp>;
 		wakeup-source;
 		touchscreen-key-map = <158>; //KEY_HOMEPAGE=172,KEY_BACK=158,KEY_MENU=139
 		goodix,driver-send-cfg = <0>;
@@ -652,6 +661,7 @@
 		reg = <0x38>;
 		pinctrl-names = "default";
 		pinctrl-0 = <&tp_gpio>;
+		vdd-supply = <&vcc_tp>;
 		focaltech,reset-gpio = <&gpio0 RK_PA5 GPIO_ACTIVE_HIGH>;
 		focaltech,irq-gpio = <&gpio0 RK_PA6 IRQ_TYPE_EDGE_FALLING>;
 		focaltech,max-touch-number = <5>;
@@ -765,6 +775,12 @@
 	sdio-pwrseq {
 		wifi_enable_h: wifi-enable-h {
 			rockchip,pins = <0 RK_PC6 RK_FUNC_GPIO &pcfg_pull_none>;
+		};
+	};
+
+	vcc-tp {
+		vcc_tp_en: vcc-tp-en {
+			rockchip,pins = <0 RK_PC0 RK_FUNC_GPIO &pcfg_pull_none>;
 		};
 	};
 
