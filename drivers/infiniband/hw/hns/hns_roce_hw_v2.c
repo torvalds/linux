@@ -1169,7 +1169,7 @@ static int hns_roce_init_cmq_ring(struct hns_roce_dev *hr_dev, bool ring_type)
 					    &priv->cmq.csq : &priv->cmq.crq;
 
 	ring->flag = ring_type;
-	ring->next_to_use = 0;
+	ring->head = 0;
 
 	return hns_roce_alloc_cmq_desc(hr_dev, ring);
 }
@@ -1268,10 +1268,10 @@ static void hns_roce_cmq_setup_basic_desc(struct hns_roce_cmq_desc *desc,
 
 static int hns_roce_cmq_csq_done(struct hns_roce_dev *hr_dev)
 {
-	u32 head = roce_read(hr_dev, ROCEE_TX_CMQ_HEAD_REG);
+	u32 tail = roce_read(hr_dev, ROCEE_TX_CMQ_TAIL_REG);
 	struct hns_roce_v2_priv *priv = hr_dev->priv;
 
-	return head == priv->cmq.csq.next_to_use;
+	return tail == priv->cmq.csq.head;
 }
 
 static int __hns_roce_cmq_send(struct hns_roce_dev *hr_dev,
@@ -1283,25 +1283,25 @@ static int __hns_roce_cmq_send(struct hns_roce_dev *hr_dev,
 	u32 timeout = 0;
 	int handle = 0;
 	u16 desc_ret;
+	u32 tail;
 	int ret;
-	int ntc;
 
 	spin_lock_bh(&csq->lock);
 
-	ntc = csq->next_to_use;
+	tail = csq->head;
 
 	while (handle < num) {
-		desc_to_use = &csq->desc[csq->next_to_use];
+		desc_to_use = &csq->desc[csq->head];
 		*desc_to_use = desc[handle];
 		dev_dbg(hr_dev->dev, "set cmq desc:\n");
-		csq->next_to_use++;
-		if (csq->next_to_use == csq->desc_num)
-			csq->next_to_use = 0;
+		csq->head++;
+		if (csq->head == csq->desc_num)
+			csq->head = 0;
 		handle++;
 	}
 
 	/* Write to hardware */
-	roce_write(hr_dev, ROCEE_TX_CMQ_TAIL_REG, csq->next_to_use);
+	roce_write(hr_dev, ROCEE_TX_CMQ_HEAD_REG, csq->head);
 
 	/*
 	 * If the command is sync, wait for the firmware to write back,
@@ -1321,24 +1321,25 @@ static int __hns_roce_cmq_send(struct hns_roce_dev *hr_dev,
 		ret = 0;
 		while (handle < num) {
 			/* get the result of hardware write back */
-			desc_to_use = &csq->desc[ntc];
+			desc_to_use = &csq->desc[tail];
 			desc[handle] = *desc_to_use;
 			dev_dbg(hr_dev->dev, "Get cmq desc:\n");
 			desc_ret = le16_to_cpu(desc[handle].retval);
 			if (unlikely(desc_ret != CMD_EXEC_SUCCESS))
 				ret = -EIO;
 
-			ntc++;
+			tail++;
 			handle++;
-			if (ntc == csq->desc_num)
-				ntc = 0;
+			if (tail == csq->desc_num)
+				tail = 0;
 		}
 	} else {
 		/* FW/HW reset or incorrect number of desc */
-		ntc = roce_read(hr_dev, ROCEE_TX_CMQ_HEAD_REG);
-		dev_warn(hr_dev->dev, "CMDQ move head from %d to %d\n",
-			 csq->next_to_use, ntc);
-		csq->next_to_use = ntc;
+		tail = roce_read(hr_dev, ROCEE_TX_CMQ_TAIL_REG);
+		dev_warn(hr_dev->dev, "CMDQ move tail from %d to %d\n",
+			 csq->head, tail);
+		csq->head = tail;
+
 		ret = -EAGAIN;
 	}
 

@@ -1876,11 +1876,8 @@ struct hns_roce_v2_cmq_ring {
 	dma_addr_t desc_dma_addr;
 	struct hns_roce_cmq_desc *desc;
 	u32 head;
-	u32 tail;
-
 	u16 buf_size;
 	u16 desc_num;
-	int next_to_use;
 	u8 flag;
 	spinlock_t lock; /* command queue lock */
 };
