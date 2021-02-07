@@ -442,6 +442,7 @@ L:	acrn-dev@lists.projectacrn.org
 S:	Supported
 W:	https://projectacrn.org
 F:	Documentation/virt/acrn/
+F:	drivers/virt/acrn/
 
 AD1889 ALSA SOUND DRIVER
 L:	linux-parisc@vger.kernel.org

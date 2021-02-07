@@ -34,4 +34,6 @@ config FSL_HV_MANAGER
 source "drivers/virt/vboxguest/Kconfig"
 
 source "drivers/virt/nitro_enclaves/Kconfig"
+
+source "drivers/virt/acrn/Kconfig"
 endif
