@@ -4943,6 +4943,25 @@ mlxsw_sp_rt6_nexthop(struct mlxsw_sp_nexthop_group *nh_grp,
 }
 
 static void
+mlxsw_sp_fib4_offload_failed_flag_set(struct mlxsw_sp *mlxsw_sp,
+				      struct fib_entry_notifier_info *fen_info)
+{
+	u32 *p_dst = (u32 *) &fen_info->dst;
+	struct fib_rt_info fri;
+
+	fri.fi = fen_info->fi;
+	fri.tb_id = fen_info->tb_id;
+	fri.dst = cpu_to_be32(*p_dst);
+	fri.dst_len = fen_info->dst_len;
+	fri.tos = fen_info->tos;
+	fri.type = fen_info->type;
+	fri.offload = false;
+	fri.trap = false;
+	fri.offload_failed = true;
+	fib_alias_hw_flags_set(mlxsw_sp_net(mlxsw_sp), &fri);
+}
+
+static void
 mlxsw_sp_fib4_entry_hw_flags_set(struct mlxsw_sp *mlxsw_sp,
 				 struct mlxsw_sp_fib_entry *fib_entry)
 {
@@ -4989,6 +5008,30 @@ mlxsw_sp_fib4_entry_hw_flags_clear(struct mlxsw_sp *mlxsw_sp,
 	fri.offload_failed = false;
 	fib_alias_hw_flags_set(mlxsw_sp_net(mlxsw_sp), &fri);
 }
+
+#if IS_ENABLED(CONFIG_IPV6)
+static void
+mlxsw_sp_fib6_offload_failed_flag_set(struct mlxsw_sp *mlxsw_sp,
+				      struct fib6_info **rt_arr,
+				      unsigned int nrt6)
+{
+	int i;
+
+	/* In IPv6 a multipath route is represented using multiple routes, so
+	 * we need to set the flags on all of them.
+	 */
+	for (i = 0; i < nrt6; i++)
+		fib6_info_hw_flags_set(mlxsw_sp_net(mlxsw_sp), rt_arr[i],
+				       false, false, true);
+}
+#else
+static void
+mlxsw_sp_fib6_offload_failed_flag_set(struct mlxsw_sp *mlxsw_sp,
+				      struct fib6_info **rt_arr,
+				      unsigned int nrt6)
+{
+}
+#endif
 
 #if IS_ENABLED(CONFIG_IPV6)
 static void
@@ -7023,6 +7066,8 @@ static void mlxsw_sp_router_fib4_event_process(struct mlxsw_sp *mlxsw_sp,
 		if (err) {
 			mlxsw_sp_fib_entry_op_ctx_priv_put_all(op_ctx);
 			mlxsw_sp_router_fib_abort(mlxsw_sp);
+			mlxsw_sp_fib4_offload_failed_flag_set(mlxsw_sp,
+							      &fib_event->fen_info);
 		}
 		fib_info_put(fib_event->fen_info.fi);
 		break;
@@ -7044,6 +7089,7 @@ static void mlxsw_sp_router_fib6_event_process(struct mlxsw_sp *mlxsw_sp,
 					       struct mlxsw_sp_fib_entry_op_ctx *op_ctx,
 					       struct mlxsw_sp_fib_event *fib_event)
 {
+	struct mlxsw_sp_fib6_event *fib6_event = &fib_event->fib6_event;
 	int err;
 
 	mlxsw_sp_span_respin(mlxsw_sp);
@@ -7055,6 +7101,9 @@ static void mlxsw_sp_router_fib6_event_process(struct mlxsw_sp *mlxsw_sp,
 		if (err) {
 			mlxsw_sp_fib_entry_op_ctx_priv_put_all(op_ctx);
 			mlxsw_sp_router_fib_abort(mlxsw_sp);
+			mlxsw_sp_fib6_offload_failed_flag_set(mlxsw_sp,
+							      fib6_event->rt_arr,
+							      fib6_event->nrt6);
 		}
 		mlxsw_sp_router_fib6_event_fini(&fib_event->fib6_event);
 		break;
@@ -7064,6 +7113,9 @@ static void mlxsw_sp_router_fib6_event_process(struct mlxsw_sp *mlxsw_sp,
 		if (err) {
 			mlxsw_sp_fib_entry_op_ctx_priv_put_all(op_ctx);
 			mlxsw_sp_router_fib_abort(mlxsw_sp);
+			mlxsw_sp_fib6_offload_failed_flag_set(mlxsw_sp,
+							      fib6_event->rt_arr,
+							      fib6_event->nrt6);
 		}
 		mlxsw_sp_router_fib6_event_fini(&fib_event->fib6_event);
 		break;
