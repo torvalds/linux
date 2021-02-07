@@ -1279,32 +1279,26 @@ static int __hns_roce_cmq_send(struct hns_roce_dev *hr_dev,
 {
 	struct hns_roce_v2_priv *priv = hr_dev->priv;
 	struct hns_roce_v2_cmq_ring *csq = &priv->cmq.csq;
-	struct hns_roce_cmq_desc *desc_to_use;
 	u32 timeout = 0;
-	int handle = 0;
 	u16 desc_ret;
 	u32 tail;
 	int ret;
+	int i;
 
 	spin_lock_bh(&csq->lock);
 
 	tail = csq->head;
 
-	while (handle < num) {
-		desc_to_use = &csq->desc[csq->head];
-		*desc_to_use = desc[handle];
-		dev_dbg(hr_dev->dev, "set cmq desc:\n");
-		csq->head++;
+	for (i = 0; i < num; i++) {
+		csq->desc[csq->head++] = desc[i];
 		if (csq->head == csq->desc_num)
 			csq->head = 0;
-		handle++;
 	}
 
 	/* Write to hardware */
 	roce_write(hr_dev, ROCEE_TX_CMQ_HEAD_REG, csq->head);
 
-	/*
-	 * If the command is sync, wait for the firmware to write back,
+	/* If the command is sync, wait for the firmware to write back,
 	 * if multi descriptors to be sent, use the first one to check
 	 */
 	if (le16_to_cpu(desc->flag) & HNS_ROCE_CMD_FLAG_NO_INTR) {
@@ -1312,26 +1306,24 @@ static int __hns_roce_cmq_send(struct hns_roce_dev *hr_dev,
 			if (hns_roce_cmq_csq_done(hr_dev))
 				break;
 			udelay(1);
-			timeout++;
-		} while (timeout < priv->cmq.tx_timeout);
+		} while (++timeout < priv->cmq.tx_timeout);
 	}
 
 	if (hns_roce_cmq_csq_done(hr_dev)) {
-		handle = 0;
-		ret = 0;
-		while (handle < num) {
-			/* get the result of hardware write back */
-			desc_to_use = &csq->desc[tail];
-			desc[handle] = *desc_to_use;
-			dev_dbg(hr_dev->dev, "Get cmq desc:\n");
-			desc_ret = le16_to_cpu(desc[handle].retval);
-			if (unlikely(desc_ret != CMD_EXEC_SUCCESS))
-				ret = -EIO;
-
-			tail++;
-			handle++;
+		for (ret = 0, i = 0; i < num; i++) {
+			/* check the result of hardware write back */
+			desc[i] = csq->desc[tail++];
 			if (tail == csq->desc_num)
 				tail = 0;
+
+			desc_ret = le16_to_cpu(desc[i].retval);
+			if (likely(desc_ret == CMD_EXEC_SUCCESS))
+				continue;
+
+			dev_err_ratelimited(hr_dev->dev,
+					    "Cmdq IO error, opcode = %x, return = %x\n",
+					    desc->opcode, desc_ret);
+			ret = -EIO;
 		}
 	} else {
 		/* FW/HW reset or incorrect number of desc */
