@@ -72,10 +72,9 @@ static int ipack_bus_remove(struct device *device)
 	struct ipack_device *dev = to_ipack_dev(device);
 	struct ipack_driver *drv = to_ipack_driver(device->driver);
 
-	if (!drv->ops->remove)
-		return -EINVAL;
+	if (drv->ops->remove)
+		drv->ops->remove(dev);
 
-	drv->ops->remove(dev);
 	return 0;
 }
 
