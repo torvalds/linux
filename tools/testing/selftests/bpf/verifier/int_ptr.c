@@ -27,7 +27,7 @@
 	},
 	.result = REJECT,
 	.prog_type = BPF_PROG_TYPE_CGROUP_SYSCTL,
-	.errstr = "invalid indirect read from stack off -16+0 size 8",
+	.errstr = "invalid indirect read from stack R4 off -16+0 size 8",
 },
 {
 	"ARG_PTR_TO_LONG half-uninitialized",
@@ -59,7 +59,7 @@
 	},
 	.result = REJECT,
 	.prog_type = BPF_PROG_TYPE_CGROUP_SYSCTL,
-	.errstr = "invalid indirect read from stack off -16+4 size 8",
+	.errstr = "invalid indirect read from stack R4 off -16+4 size 8",
 },
 {
 	"ARG_PTR_TO_LONG misaligned",
@@ -125,7 +125,7 @@
 	},
 	.result = REJECT,
 	.prog_type = BPF_PROG_TYPE_CGROUP_SYSCTL,
-	.errstr = "invalid stack type R4 off=-4 access_size=8",
+	.errstr = "invalid indirect access to stack R4 off=-4 size=8",
 },
 {
 	"ARG_PTR_TO_LONG initialized",
