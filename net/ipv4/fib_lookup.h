@@ -18,7 +18,8 @@ struct fib_alias {
 	s16			fa_default;
 	u8			offload:1,
 				trap:1,
-				unused:6;
+				offload_failed:1,
+				unused:5;
 	struct rcu_head		rcu;
 };
 

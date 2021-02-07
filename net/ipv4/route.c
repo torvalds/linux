@@ -3304,6 +3304,7 @@ static int inet_rtm_getroute(struct sk_buff *in_skb, struct nlmsghdr *nlh,
 		fri.type = rt->rt_type;
 		fri.offload = 0;
 		fri.trap = 0;
+		fri.offload_failed = 0;
 		if (res.fa_head) {
 			struct fib_alias *fa;
 

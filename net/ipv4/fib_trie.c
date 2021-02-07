@@ -1047,11 +1047,13 @@ void fib_alias_hw_flags_set(struct net *net, const struct fib_rt_info *fri)
 	if (!fa_match)
 		goto out;
 
-	if (fa_match->offload == fri->offload && fa_match->trap == fri->trap)
+	if (fa_match->offload == fri->offload && fa_match->trap == fri->trap &&
+	    fa_match->offload_failed == fri->offload_failed)
 		goto out;
 
 	fa_match->offload = fri->offload;
 	fa_match->trap = fri->trap;
+	fa_match->offload_failed = fri->offload_failed;
 
 	if (!net->ipv4.sysctl_fib_notify_on_flag_change)
 		goto out;
@@ -1290,6 +1292,7 @@ int fib_table_insert(struct net *net, struct fib_table *tb,
 			new_fa->fa_default = -1;
 			new_fa->offload = 0;
 			new_fa->trap = 0;
+			new_fa->offload_failed = 0;
 
 			hlist_replace_rcu(&fa->fa_list, &new_fa->fa_list);
 
@@ -1350,6 +1353,7 @@ int fib_table_insert(struct net *net, struct fib_table *tb,
 	new_fa->fa_default = -1;
 	new_fa->offload = 0;
 	new_fa->trap = 0;
+	new_fa->offload_failed = 0;
 
 	/* Insert new entry to the list. */
 	err = fib_insert_alias(t, tp, l, new_fa, fa, key);
@@ -2289,6 +2293,7 @@ static int fn_trie_dump_leaf(struct key_vector *l, struct fib_table *tb,
 				fri.type = fa->fa_type;
 				fri.offload = fa->offload;
 				fri.trap = fa->trap;
+				fri.offload_failed = fa->offload_failed;
 				err = fib_dump_info(skb,
 						    NETLINK_CB(cb->skb).portid,
 						    cb->nlh->nlmsg_seq,
