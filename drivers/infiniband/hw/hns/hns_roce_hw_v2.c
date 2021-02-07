@@ -1130,15 +1130,6 @@ static int hns_roce_v2_rst_process_cmd(struct hns_roce_dev *hr_dev)
 	return 0;
 }
 
-static int hns_roce_cmq_space(struct hns_roce_v2_cmq_ring *ring)
-{
-	int ntu = ring->next_to_use;
-	int ntc = ring->next_to_clean;
-	int used = (ntu - ntc + ring->desc_num) % ring->desc_num;
-
-	return ring->desc_num - used - 1;
-}
-
 static int hns_roce_alloc_cmq_desc(struct hns_roce_dev *hr_dev,
 				   struct hns_roce_v2_cmq_ring *ring)
 {
@@ -1178,7 +1169,6 @@ static int hns_roce_init_cmq_ring(struct hns_roce_dev *hr_dev, bool ring_type)
 					    &priv->cmq.csq : &priv->cmq.crq;
 
 	ring->flag = ring_type;
-	ring->next_to_clean = 0;
 	ring->next_to_use = 0;
 
 	return hns_roce_alloc_cmq_desc(hr_dev, ring);
@@ -1284,30 +1274,6 @@ static int hns_roce_cmq_csq_done(struct hns_roce_dev *hr_dev)
 	return head == priv->cmq.csq.next_to_use;
 }
 
-static int hns_roce_cmq_csq_clean(struct hns_roce_dev *hr_dev)
-{
-	struct hns_roce_v2_priv *priv = hr_dev->priv;
-	struct hns_roce_v2_cmq_ring *csq = &priv->cmq.csq;
-	struct hns_roce_cmq_desc *desc;
-	u16 ntc = csq->next_to_clean;
-	u32 head;
-	int clean = 0;
-
-	desc = &csq->desc[ntc];
-	head = roce_read(hr_dev, ROCEE_TX_CMQ_HEAD_REG);
-	while (head != ntc) {
-		memset(desc, 0, sizeof(*desc));
-		ntc++;
-		if (ntc == csq->desc_num)
-			ntc = 0;
-		desc = &csq->desc[ntc];
-		clean++;
-	}
-	csq->next_to_clean = ntc;
-
-	return clean;
-}
-
 static int __hns_roce_cmq_send(struct hns_roce_dev *hr_dev,
 			       struct hns_roce_cmq_desc *desc, int num)
 {
@@ -1322,15 +1288,6 @@ static int __hns_roce_cmq_send(struct hns_roce_dev *hr_dev,
 
 	spin_lock_bh(&csq->lock);
 
-	if (num > hns_roce_cmq_space(csq)) {
-		spin_unlock_bh(&csq->lock);
-		return -EBUSY;
-	}
-
-	/*
-	 * Record the location of desc in the cmq for this time
-	 * which will be use for hardware to write back
-	 */
 	ntc = csq->next_to_use;
 
 	while (handle < num) {
@@ -1377,14 +1334,13 @@ static int __hns_roce_cmq_send(struct hns_roce_dev *hr_dev,
 				ntc = 0;
 		}
 	} else {
+		/* FW/HW reset or incorrect number of desc */
+		ntc = roce_read(hr_dev, ROCEE_TX_CMQ_HEAD_REG);
+		dev_warn(hr_dev->dev, "CMDQ move head from %d to %d\n",
+			 csq->next_to_use, ntc);
+		csq->next_to_use = ntc;
 		ret = -EAGAIN;
 	}
-
-	/* clean the command send queue */
-	handle = hns_roce_cmq_csq_clean(hr_dev);
-	if (handle != num)
-		dev_warn(hr_dev->dev, "Cleaned %d, need to clean %d\n",
-			 handle, num);
 
 	spin_unlock_bh(&csq->lock);
 

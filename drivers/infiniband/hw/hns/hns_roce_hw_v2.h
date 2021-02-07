@@ -1881,7 +1881,6 @@ struct hns_roce_v2_cmq_ring {
 	u16 buf_size;
 	u16 desc_num;
 	int next_to_use;
-	int next_to_clean;
 	u8 flag;
 	spinlock_t lock; /* command queue lock */
 };
