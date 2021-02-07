@@ -1425,6 +1425,15 @@ void hl_device_fini(struct hl_device *hdev)
 		}
 	}
 
+	/* Disable PCI access from device F/W so it won't send us additional
+	 * interrupts. We disable MSI/MSI-X at the halt_engines function and we
+	 * can't have the F/W sending us interrupts after that. We need to
+	 * disable the access here because if the device is marked disable, the
+	 * message won't be send. Also, in case of heartbeat, the device CPU is
+	 * marked as disable so this message won't be sent
+	 */
+	hl_fw_send_pci_access_msg(hdev,	CPUCP_PACKET_DISABLE_PCI_ACCESS);
+
 	/* Mark device as disabled */
 	hdev->disabled = true;
 

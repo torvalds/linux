@@ -425,6 +425,13 @@ static int read_symbols(struct elf *elf)
 		list_add(&sym->list, entry);
 		elf_hash_add(elf->symbol_hash, &sym->hash, sym->idx);
 		elf_hash_add(elf->symbol_name_hash, &sym->name_hash, str_hash(sym->name));
+
+		/*
+		 * Don't store empty STT_NOTYPE symbols in the rbtree.  They
+		 * can exist within a function, confusing the sorting.
+		 */
+		if (!sym->len)
+			rb_erase(&sym->node, &sym->sec->symbol_tree);
 	}
 
 	if (stats)
