@@ -26,6 +26,7 @@
 #include <asm/asm.h>
 #include <asm/dsemul.h>
 #include <asm/dsp.h>
+#include <asm/exec.h>
 #include <asm/fpu.h>
 #include <asm/inst.h>
 #include <asm/irq.h>
@@ -36,6 +37,7 @@
 #include <asm/mipsregs.h>
 #include <asm/processor.h>
 #include <asm/reg.h>
+#include <asm/stacktrace.h>
 
 #ifdef CONFIG_HOTPLUG_CPU
 void arch_cpu_idle_dead(void)
