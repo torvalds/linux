@@ -1010,10 +1010,12 @@ static int fts_power_source_init(struct fts_ts_data *ts_data)
     fts_pinctrl_select_normal(ts_data);
 #endif
 
-    ts_data->power_disabled = true;
-    ret = fts_power_source_ctrl(ts_data, ENABLE);
-    if (ret) {
-        FTS_ERROR("fail to enable power(regulator)");
+    if (!regulator_is_enabled(ts_data->vdd)) {
+	    ts_data->power_disabled = true;
+	    ret = fts_power_source_ctrl(ts_data, ENABLE);
+	    if (ret) {
+		    FTS_ERROR("fail to enable power(regulator)");
+	    }
     }
 
     FTS_FUNC_EXIT();
@@ -1228,7 +1230,7 @@ static int fts_parse_dt(struct device *dev, struct fts_ts_platform_data *pdata)
                       0, &pdata->irq_gpio_flags);
     if (pdata->pwr_gpio < 0)
         FTS_ERROR("Unable to get pwr_gpio");
-
+    else
 	gpio_direction_output(pdata->pwr_gpio, 1);
 
     ret = of_property_read_u32(np, "focaltech,max-touch-number", &temp_val);
