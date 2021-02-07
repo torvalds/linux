@@ -1597,6 +1597,7 @@ static int psp_rap_unload(struct psp_context *psp)
 static int psp_rap_initialize(struct psp_context *psp)
 {
 	int ret;
+	enum ta_rap_status status = TA_RAP_STATUS__SUCCESS;
 
 	/*
 	 * TODO: bypass the initialize in sriov for now
@@ -1620,8 +1621,8 @@ static int psp_rap_initialize(struct psp_context *psp)
 	if (ret)
 		return ret;
 
-	ret = psp_rap_invoke(psp, TA_CMD_RAP__INITIALIZE);
-	if (ret != TA_RAP_STATUS__SUCCESS) {
+	ret = psp_rap_invoke(psp, TA_CMD_RAP__INITIALIZE, &status);
+	if (ret || status != TA_RAP_STATUS__SUCCESS) {
 		psp_rap_unload(psp);
 
 		amdgpu_bo_free_kernel(&psp->rap_context.rap_shared_bo,
@@ -1630,8 +1631,10 @@ static int psp_rap_initialize(struct psp_context *psp)
 
 		psp->rap_context.rap_initialized = false;
 
-		dev_warn(psp->adev->dev, "RAP TA initialize fail.\n");
-		return -EINVAL;
+		dev_warn(psp->adev->dev, "RAP TA initialize fail (%d) status %d.\n",
+			 ret, status);
+
+		return ret;
 	}
 
 	return 0;
@@ -1656,13 +1659,13 @@ static int psp_rap_terminate(struct psp_context *psp)
 	return ret;
 }
 
-int psp_rap_invoke(struct psp_context *psp, uint32_t ta_cmd_id)
+int psp_rap_invoke(struct psp_context *psp, uint32_t ta_cmd_id, enum ta_rap_status *status)
 {
 	struct ta_rap_shared_memory *rap_cmd;
-	int ret;
+	int ret = 0;
 
 	if (!psp->rap_context.rap_initialized)
-		return -EINVAL;
+		return 0;
 
 	if (ta_cmd_id != TA_CMD_RAP__INITIALIZE &&
 	    ta_cmd_id != TA_CMD_RAP__VALIDATE_L0)
@@ -1678,14 +1681,16 @@ int psp_rap_invoke(struct psp_context *psp, uint32_t ta_cmd_id)
 	rap_cmd->validation_method_id = METHOD_A;
 
 	ret = psp_ta_invoke(psp, rap_cmd->cmd_id, psp->rap_context.session_id);
-	if (ret) {
-		mutex_unlock(&psp->rap_context.mutex);
-		return ret;
-	}
+	if (ret)
+		goto out_unlock;
 
+	if (status)
+		*status = rap_cmd->rap_status;
+
+out_unlock:
 	mutex_unlock(&psp->rap_context.mutex);
 
-	return rap_cmd->rap_status;
+	return ret;
 }
 // RAP end
 

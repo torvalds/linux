@@ -399,7 +399,7 @@ int psp_ras_trigger_error(struct psp_context *psp,
 
 int psp_hdcp_invoke(struct psp_context *psp, uint32_t ta_cmd_id);
 int psp_dtm_invoke(struct psp_context *psp, uint32_t ta_cmd_id);
-int psp_rap_invoke(struct psp_context *psp, uint32_t ta_cmd_id);
+int psp_rap_invoke(struct psp_context *psp, uint32_t ta_cmd_id, enum ta_rap_status *status);
 int psp_securedisplay_invoke(struct psp_context *psp, uint32_t ta_cmd_id);
 
 int psp_rlc_autoload_start(struct psp_context *psp);
