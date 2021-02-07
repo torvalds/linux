@@ -1053,6 +1053,12 @@ void fib_alias_hw_flags_set(struct net *net, const struct fib_rt_info *fri)
 
 	fa_match->offload = fri->offload;
 	fa_match->trap = fri->trap;
+
+	/* 2 means send notifications only if offload_failed was changed. */
+	if (net->ipv4.sysctl_fib_notify_on_flag_change == 2 &&
+	    fa_match->offload_failed == fri->offload_failed)
+		goto out;
+
 	fa_match->offload_failed = fri->offload_failed;
 
 	if (!net->ipv4.sysctl_fib_notify_on_flag_change)
