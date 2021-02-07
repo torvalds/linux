@@ -3552,6 +3552,8 @@ int cmd_script(int argc, const char **argv)
 		   "only consider symbols in these DSOs"),
 	OPT_STRING('S', "symbols", &symbol_conf.sym_list_str, "symbol[,symbol...]",
 		   "only consider these symbols"),
+	OPT_INTEGER(0, "addr-range", &symbol_conf.addr_range,
+		    "Use with -S to list traced records within address range"),
 	OPT_CALLBACK_OPTARG(0, "insn-trace", &itrace_synth_opts, NULL, NULL,
 			"Decode instructions from itrace", parse_insn_trace),
 	OPT_CALLBACK_OPTARG(0, "xed", NULL, NULL, NULL,

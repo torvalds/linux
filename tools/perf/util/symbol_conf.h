@@ -70,11 +70,13 @@ struct symbol_conf {
 			*sym_to_list,
 			*bt_stop_list;
 	struct intlist	*pid_list,
-			*tid_list;
+			*tid_list,
+			*addr_list;
 	const char	*symfs;
 	int		res_sample;
 	int		pad_output_len_dso;
 	int		group_sort_idx;
+	int		addr_range;
 };
 
 extern struct symbol_conf symbol_conf;

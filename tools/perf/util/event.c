@@ -645,6 +645,19 @@ struct symbol *thread__find_symbol_fb(struct thread *thread, u8 cpumode,
 	return al->sym;
 }
 
+static bool check_address_range(struct intlist *addr_list, int addr_range,
+				unsigned long addr)
+{
+	struct int_node *pos;
+
+	intlist__for_each_entry(pos, addr_list) {
+		if (addr >= pos->i && addr < pos->i + addr_range)
+			return true;
+	}
+
+	return false;
+}
+
 /*
  * Callers need to drop the reference to al->thread, obtained in
  * machine__findnew_thread()
@@ -711,6 +724,17 @@ int machine__resolve(struct machine *machine, struct addr_location *al,
 			ret = strlist__has_entry(symbol_conf.sym_list,
 						al_addr_str);
 		}
+		if (!ret && symbol_conf.addr_list && al->map) {
+			unsigned long addr = al->map->unmap_ip(al->map, al->addr);
+
+			ret = intlist__has_entry(symbol_conf.addr_list, addr);
+			if (!ret && symbol_conf.addr_range) {
+				ret = check_address_range(symbol_conf.addr_list,
+							  symbol_conf.addr_range,
+							  addr);
+			}
+		}
+
 		if (!ret)
 			al->filtered |= (1 << HIST_FILTER__SYMBOL);
 	}
