@@ -51,6 +51,7 @@ struct acrn_vm *acrn_vm_create(struct acrn_vm *vm,
 	write_unlock_bh(&acrn_vm_list_lock);
 
 	acrn_ioeventfd_init(vm);
+	acrn_irqfd_init(vm);
 	dev_dbg(acrn_dev.this_device, "VM %u created.\n", vm->vmid);
 	return vm;
 }
@@ -69,7 +70,9 @@ int acrn_vm_destroy(struct acrn_vm *vm)
 	write_unlock_bh(&acrn_vm_list_lock);
 
 	acrn_ioeventfd_deinit(vm);
+	acrn_irqfd_deinit(vm);
 	acrn_ioreq_deinit(vm);
+
 	if (vm->monitor_page) {
 		put_page(vm->monitor_page);
 		vm->monitor_page = NULL;
