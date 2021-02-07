@@ -39,6 +39,9 @@
 #define HC_ASSIGN_PCIDEV		_HC_ID(HC_ID, HC_ID_PCI_BASE + 0x05)
 #define HC_DEASSIGN_PCIDEV		_HC_ID(HC_ID, HC_ID_PCI_BASE + 0x06)
 
+#define HC_ID_PM_BASE			0x80UL
+#define HC_PM_GET_CPU_STATE		_HC_ID(HC_ID, HC_ID_PM_BASE + 0x00)
+
 /**
  * hcall_create_vm() - Create a User VM
  * @vminfo:	Service VM GPA of info of User VM creation
@@ -223,6 +226,15 @@ static inline long hcall_set_ptdev_intr(u64 vmid, u64 irq)
 static inline long hcall_reset_ptdev_intr(u64 vmid, u64 irq)
 {
 	return acrn_hypercall2(HC_RESET_PTDEV_INTR, vmid, irq);
+}
+
+/*
+ * hcall_get_cpu_state() - Get P-states and C-states info from the hypervisor
+ * @state:	Service VM GPA of buffer of P-states and C-states
+ */
+static inline long hcall_get_cpu_state(u64 cmd, u64 state)
+{
+	return acrn_hypercall2(HC_PM_GET_CPU_STATE, cmd, state);
 }
 
 #endif /* __ACRN_HSM_HYPERCALL_H */

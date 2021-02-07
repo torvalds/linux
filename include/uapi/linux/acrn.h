@@ -427,6 +427,58 @@ struct acrn_msi_entry {
 	__u64	msi_data;
 };
 
+struct acrn_acpi_generic_address {
+	__u8	space_id;
+	__u8	bit_width;
+	__u8	bit_offset;
+	__u8	access_size;
+	__u64	address;
+} __attribute__ ((__packed__));
+
+/**
+ * struct acrn_cstate_data - A C state package defined in ACPI
+ * @cx_reg:	Register of the C state object
+ * @type:	Type of the C state object
+ * @latency:	The worst-case latency to enter and exit this C state
+ * @power:	The average power consumption when in this C state
+ */
+struct acrn_cstate_data {
+	struct acrn_acpi_generic_address	cx_reg;
+	__u8					type;
+	__u32					latency;
+	__u64					power;
+};
+
+/**
+ * struct acrn_pstate_data - A P state package defined in ACPI
+ * @core_frequency:	CPU frequency (in MHz).
+ * @power:		Power dissipation (in milliwatts).
+ * @transition_latency:	The worst-case latency in microseconds that CPU is
+ * 			unavailable during a transition from any P state to
+ * 			this P state.
+ * @bus_master_latency:	The worst-case latency in microseconds that Bus Masters
+ * 			are prevented from accessing memory during a transition
+ * 			from any P state to this P state.
+ * @control:		The value to be written to Performance Control Register
+ * @status:		Transition status.
+ */
+struct acrn_pstate_data {
+	__u64	core_frequency;
+	__u64	power;
+	__u64	transition_latency;
+	__u64	bus_master_latency;
+	__u64	control;
+	__u64	status;
+};
+
+#define PMCMD_TYPE_MASK		0x000000ff
+enum acrn_pm_cmd_type {
+	ACRN_PMCMD_GET_PX_CNT,
+	ACRN_PMCMD_GET_PX_DATA,
+	ACRN_PMCMD_GET_CX_CNT,
+	ACRN_PMCMD_GET_CX_DATA,
+};
+
 /* The ioctl type, documented in ioctl-number.rst */
 #define ACRN_IOCTL_TYPE			0xA2
 
@@ -477,5 +529,8 @@ struct acrn_msi_entry {
 	_IOW(ACRN_IOCTL_TYPE, 0x55, struct acrn_pcidev)
 #define ACRN_IOCTL_DEASSIGN_PCIDEV	\
 	_IOW(ACRN_IOCTL_TYPE, 0x56, struct acrn_pcidev)
+
+#define ACRN_IOCTL_PM_GET_CPU_STATE	\
+	_IOWR(ACRN_IOCTL_TYPE, 0x60, __u64)
 
 #endif /* _UAPI_ACRN_H */
