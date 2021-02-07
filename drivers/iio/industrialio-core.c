@@ -1788,6 +1788,7 @@ static const struct iio_buffer_setup_ops noop_ring_setup_ops;
 
 int __iio_device_register(struct iio_dev *indio_dev, struct module *this_mod)
 {
+	const char *label;
 	int ret;
 
 	if (!indio_dev->info)
@@ -1798,8 +1799,9 @@ int __iio_device_register(struct iio_dev *indio_dev, struct module *this_mod)
 	if (!indio_dev->dev.of_node && indio_dev->dev.parent)
 		indio_dev->dev.of_node = indio_dev->dev.parent->of_node;
 
-	indio_dev->label = of_get_property(indio_dev->dev.of_node, "label",
-					   NULL);
+	label = of_get_property(indio_dev->dev.of_node, "label", NULL);
+	if (label)
+		indio_dev->label = label;
 
 	ret = iio_check_unique_scan_index(indio_dev);
 	if (ret < 0)
