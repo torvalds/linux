@@ -269,19 +269,19 @@ nouveau_abi16_ioctl_channel_alloc(ABI16_IOCTL_ARGS)
 	if (device->info.family >= NV_DEVICE_INFO_V0_KEPLER) {
 		if (init->fb_ctxdma_handle == ~0) {
 			switch (init->tt_ctxdma_handle) {
-			case 0x01: engine = NV_DEVICE_INFO_ENGINE_GR    ; break;
-			case 0x02: engine = NV_DEVICE_INFO_ENGINE_MSPDEC; break;
-			case 0x04: engine = NV_DEVICE_INFO_ENGINE_MSPPP ; break;
-			case 0x08: engine = NV_DEVICE_INFO_ENGINE_MSVLD ; break;
-			case 0x30: engine = NV_DEVICE_INFO_ENGINE_CE    ; break;
+			case 0x01: engine = NV_DEVICE_HOST_RUNLIST_ENGINES_GR    ; break;
+			case 0x02: engine = NV_DEVICE_HOST_RUNLIST_ENGINES_MSPDEC; break;
+			case 0x04: engine = NV_DEVICE_HOST_RUNLIST_ENGINES_MSPPP ; break;
+			case 0x08: engine = NV_DEVICE_HOST_RUNLIST_ENGINES_MSVLD ; break;
+			case 0x30: engine = NV_DEVICE_HOST_RUNLIST_ENGINES_CE    ; break;
 			default:
 				return nouveau_abi16_put(abi16, -ENOSYS);
 			}
 		} else {
-			engine = NV_DEVICE_INFO_ENGINE_GR;
+			engine = NV_DEVICE_HOST_RUNLIST_ENGINES_GR;
 		}
 
-		if (engine != NV_DEVICE_INFO_ENGINE_CE)
+		if (engine != NV_DEVICE_HOST_RUNLIST_ENGINES_CE)
 			engine = nvif_fifo_runlist(device, engine);
 		else
 			engine = nvif_fifo_runlist_ce(device);

@@ -556,7 +556,7 @@ nouveau_channels_init(struct nouveau_drm *drm)
 	} args = {
 		.m.version = 1,
 		.m.count = sizeof(args.v) / sizeof(args.v.channels),
-		.v.channels.mthd = NV_DEVICE_FIFO_CHANNELS,
+		.v.channels.mthd = NV_DEVICE_HOST_CHANNELS,
 	};
 	struct nvif_object *device = &drm->client.device.object;
 	int ret;

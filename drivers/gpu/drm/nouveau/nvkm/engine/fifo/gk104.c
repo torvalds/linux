@@ -884,19 +884,41 @@ gk104_fifo_info(struct nvkm_fifo *base, u64 mthd, u64 *data)
 {
 	struct gk104_fifo *fifo = gk104_fifo(base);
 	switch (mthd) {
-	case NV_DEVICE_FIFO_RUNLISTS:
+	case NV_DEVICE_HOST_RUNLISTS:
 		*data = (1ULL << fifo->runlist_nr) - 1;
 		return 0;
-	case NV_DEVICE_FIFO_RUNLIST_ENGINES(0)...
-	     NV_DEVICE_FIFO_RUNLIST_ENGINES(63): {
-		int runl = mthd - NV_DEVICE_FIFO_RUNLIST_ENGINES(0), engn;
-		if (runl < fifo->runlist_nr) {
-			unsigned long engm = fifo->runlist[runl].engm;
+	case NV_DEVICE_HOST_RUNLIST_ENGINES: {
+		if (*data < fifo->runlist_nr) {
+			unsigned long engm = fifo->runlist[*data].engm;
 			struct nvkm_engine *engine;
+			int engn;
 			*data = 0;
 			for_each_set_bit(engn, &engm, fifo->engine_nr) {
-				if ((engine = fifo->engine[engn].engine))
-					*data |= BIT_ULL(engine->subdev.index);
+				if ((engine = fifo->engine[engn].engine)) {
+#define CASE(n) case NVKM_ENGINE_##n: *data |= NV_DEVICE_HOST_RUNLIST_ENGINES_##n; break
+					switch (engine->subdev.type) {
+					CASE(SW    );
+					CASE(GR    );
+					CASE(MPEG  );
+					CASE(ME    );
+					CASE(CIPHER);
+					CASE(BSP   );
+					CASE(VP    );
+					CASE(CE    );
+					CASE(SEC   );
+					CASE(MSVLD );
+					CASE(MSPDEC);
+					CASE(MSPPP );
+					CASE(MSENC );
+					CASE(VIC   );
+					CASE(SEC2  );
+					CASE(NVDEC );
+					CASE(NVENC );
+					default:
+						WARN_ON(1);
+						break;
+					}
+				}
 			}
 			return 0;
 		}
