@@ -48,6 +48,7 @@ static long acrn_dev_ioctl(struct file *filp, unsigned int cmd,
 	struct acrn_vm *vm = filp->private_data;
 	struct acrn_vm_creation *vm_param;
 	struct acrn_vcpu_regs *cpu_regs;
+	struct acrn_vm_memmap memmap;
 	int i, ret = 0;
 
 	if (vm->vmid == ACRN_INVALID_VMID && cmd != ACRN_IOCTL_CREATE_VM) {
@@ -131,6 +132,20 @@ static long acrn_dev_ioctl(struct file *filp, unsigned int cmd,
 				"Failed to set regs state of VM%u!\n",
 				vm->vmid);
 		kfree(cpu_regs);
+		break;
+	case ACRN_IOCTL_SET_MEMSEG:
+		if (copy_from_user(&memmap, (void __user *)ioctl_param,
+				   sizeof(memmap)))
+			return -EFAULT;
+
+		ret = acrn_vm_memseg_map(vm, &memmap);
+		break;
+	case ACRN_IOCTL_UNSET_MEMSEG:
+		if (copy_from_user(&memmap, (void __user *)ioctl_param,
+				   sizeof(memmap)))
+			return -EFAULT;
+
+		ret = acrn_vm_memseg_unmap(vm, &memmap);
 		break;
 	default:
 		dev_dbg(acrn_dev.this_device, "Unknown IOCTL 0x%x!\n", cmd);

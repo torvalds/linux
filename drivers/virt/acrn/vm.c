@@ -31,6 +31,7 @@ struct acrn_vm *acrn_vm_create(struct acrn_vm *vm,
 		return NULL;
 	}
 
+	mutex_init(&vm->regions_mapping_lock);
 	vm->vmid = vm_param->vmid;
 	vm->vcpu_num = vm_param->vcpu_num;
 
@@ -62,6 +63,9 @@ int acrn_vm_destroy(struct acrn_vm *vm)
 		clear_bit(ACRN_VM_FLAG_DESTROYED, &vm->flags);
 		return ret;
 	}
+
+	acrn_vm_all_ram_unmap(vm);
+
 	dev_dbg(acrn_dev.this_device, "VM %u destroyed.\n", vm->vmid);
 	vm->vmid = ACRN_INVALID_VMID;
 	return 0;
