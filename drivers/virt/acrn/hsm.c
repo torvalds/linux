@@ -9,6 +9,7 @@
  *	Yakui Zhao <yakui.zhao@intel.com>
  */
 
+#include <linux/io.h>
 #include <linux/mm.h>
 #include <linux/module.h>
 #include <linux/slab.h>
@@ -46,7 +47,8 @@ static long acrn_dev_ioctl(struct file *filp, unsigned int cmd,
 {
 	struct acrn_vm *vm = filp->private_data;
 	struct acrn_vm_creation *vm_param;
-	int ret = 0;
+	struct acrn_vcpu_regs *cpu_regs;
+	int i, ret = 0;
 
 	if (vm->vmid == ACRN_INVALID_VMID && cmd != ACRN_IOCTL_CREATE_VM) {
 		dev_dbg(acrn_dev.this_device,
@@ -99,6 +101,36 @@ static long acrn_dev_ioctl(struct file *filp, unsigned int cmd,
 		break;
 	case ACRN_IOCTL_DESTROY_VM:
 		ret = acrn_vm_destroy(vm);
+		break;
+	case ACRN_IOCTL_SET_VCPU_REGS:
+		cpu_regs = memdup_user((void __user *)ioctl_param,
+				       sizeof(struct acrn_vcpu_regs));
+		if (IS_ERR(cpu_regs))
+			return PTR_ERR(cpu_regs);
+
+		for (i = 0; i < ARRAY_SIZE(cpu_regs->reserved); i++)
+			if (cpu_regs->reserved[i])
+				return -EINVAL;
+
+		for (i = 0; i < ARRAY_SIZE(cpu_regs->vcpu_regs.reserved_32); i++)
+			if (cpu_regs->vcpu_regs.reserved_32[i])
+				return -EINVAL;
+
+		for (i = 0; i < ARRAY_SIZE(cpu_regs->vcpu_regs.reserved_64); i++)
+			if (cpu_regs->vcpu_regs.reserved_64[i])
+				return -EINVAL;
+
+		for (i = 0; i < ARRAY_SIZE(cpu_regs->vcpu_regs.gdt.reserved); i++)
+			if (cpu_regs->vcpu_regs.gdt.reserved[i] |
+			    cpu_regs->vcpu_regs.idt.reserved[i])
+				return -EINVAL;
+
+		ret = hcall_set_vcpu_regs(vm->vmid, virt_to_phys(cpu_regs));
+		if (ret < 0)
+			dev_dbg(acrn_dev.this_device,
+				"Failed to set regs state of VM%u!\n",
+				vm->vmid);
+		kfree(cpu_regs);
 		break;
 	default:
 		dev_dbg(acrn_dev.this_device, "Unknown IOCTL 0x%x!\n", cmd);
