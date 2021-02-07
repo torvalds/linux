@@ -23,6 +23,7 @@
 
 #define ACRN_IOREQ_TYPE_PORTIO		0
 #define ACRN_IOREQ_TYPE_MMIO		1
+#define ACRN_IOREQ_TYPE_PCICFG		2
 
 #define ACRN_IOREQ_DIR_READ		0
 #define ACRN_IOREQ_DIR_WRITE		1
@@ -60,6 +61,30 @@ struct acrn_pio_request {
 };
 
 /**
+ * struct acrn_pci_request - Info of a PCI I/O request
+ * @direction:	Access direction of this request (ACRN_IOREQ_DIR_*)
+ * @reserved:	Reserved for alignment and should be 0
+ * @size:	Access size of this PCI I/O request
+ * @value:	Read/write value of this PIO I/O request
+ * @bus:	PCI bus value of this PCI I/O request
+ * @dev:	PCI device value of this PCI I/O request
+ * @func:	PCI function value of this PCI I/O request
+ * @reg:	PCI config space offset of this PCI I/O request
+ *
+ * Need keep same header layout with &struct acrn_pio_request.
+ */
+struct acrn_pci_request {
+	__u32	direction;
+	__u32	reserved[3];
+	__u64	size;
+	__u32	value;
+	__u32	bus;
+	__u32	dev;
+	__u32	func;
+	__u32	reg;
+};
+
+/**
  * struct acrn_io_request - 256-byte ACRN I/O request
  * @type:		Type of this request (ACRN_IOREQ_TYPE_*).
  * @completion_polling:	Polling flag. Hypervisor will poll completion of the
@@ -67,6 +92,7 @@ struct acrn_pio_request {
  * @reserved0:		Reserved fields.
  * @reqs:		Union of different types of request. Byte offset: 64.
  * @reqs.pio_request:	PIO request data of the I/O request.
+ * @reqs.pci_request:	PCI configuration space request data of the I/O request.
  * @reqs.mmio_request:	MMIO request data of the I/O request.
  * @reqs.data:		Raw data of the I/O request.
  * @reserved1:		Reserved fields.
@@ -126,6 +152,7 @@ struct acrn_io_request {
 	__u32	reserved0[14];
 	union {
 		struct acrn_pio_request		pio_request;
+		struct acrn_pci_request		pci_request;
 		struct acrn_mmio_request	mmio_request;
 		__u64				data[8];
 	} reqs;
