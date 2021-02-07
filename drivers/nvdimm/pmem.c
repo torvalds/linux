@@ -23,7 +23,6 @@
 #include <linux/uio.h>
 #include <linux/dax.h>
 #include <linux/nd.h>
-#include <linux/backing-dev.h>
 #include <linux/mm.h>
 #include <asm/cacheflush.h>
 #include "pmem.h"
