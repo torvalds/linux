@@ -717,6 +717,7 @@ static int mce_handle_error(struct pt_regs *regs, struct rtas_error_log *errp)
 	struct pseries_errorlog *pseries_log;
 	struct pseries_mc_errorlog *mce_log = NULL;
 	int disposition = rtas_error_disposition(errp);
+	unsigned long msr;
 	u8 error_type;
 
 	if (!rtas_error_extended(errp))
@@ -742,9 +743,21 @@ static int mce_handle_error(struct pt_regs *regs, struct rtas_error_log *errp)
 	 *       SLB multihit is done by now.
 	 */
 out:
-	mtmsr(mfmsr() | MSR_IR | MSR_DR);
+	msr = mfmsr();
+	mtmsr(msr | MSR_IR | MSR_DR);
+
 	disposition = mce_handle_err_virtmode(regs, errp, mce_log,
 					      disposition);
+
+	/*
+	 * Queue irq work to log this rtas event later.
+	 * irq_work_queue uses per-cpu variables, so do this in virt
+	 * mode as well.
+	 */
+	irq_work_queue(&mce_errlog_process_work);
+
+	mtmsr(msr);
+
 	return disposition;
 }
 
@@ -860,10 +873,8 @@ long pseries_machine_check_realmode(struct pt_regs *regs)
 		 * virtual mode.
 		 */
 		disposition = mce_handle_error(regs, errp);
-		fwnmi_release_errinfo();
 
-		/* Queue irq work to log this rtas event later. */
-		irq_work_queue(&mce_errlog_process_work);
+		fwnmi_release_errinfo();
 
 		if (disposition == RTAS_DISP_FULLY_RECOVERED)
 			return 1;
