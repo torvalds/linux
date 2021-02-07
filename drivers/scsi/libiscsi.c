@@ -3274,6 +3274,13 @@ int iscsi_conn_bind(struct iscsi_cls_session *cls_session,
 	spin_unlock_bh(&session->frwd_lock);
 
 	/*
+	 * The target could have reduced it's window size between logins, so
+	 * we have to reset max/exp cmdsn so we can see the new values.
+	 */
+	spin_lock_bh(&session->back_lock);
+	session->max_cmdsn = session->exp_cmdsn = session->cmdsn + 1;
+	spin_unlock_bh(&session->back_lock);
+	/*
 	 * Unblock xmitworker(), Login Phase will pass through.
 	 */
 	clear_bit(ISCSI_SUSPEND_BIT, &conn->suspend_rx);
