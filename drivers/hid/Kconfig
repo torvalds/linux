@@ -922,6 +922,21 @@ config HID_SAMSUNG
 	help
 	Support for Samsung InfraRed remote control or keyboards.
 
+config HID_SEMITEK
+	tristate "Semitek USB keyboards"
+	depends on HID
+	help
+	Support for Semitek USB keyboards that are not fully compliant
+	with the HID standard.
+
+	There are many variants, including:
+	- GK61, GK64, GK68, GK84, GK96, etc.
+	- SK61, SK64, SK68, SK84, SK96, etc.
+	- Dierya DK61/DK66
+	- Tronsmart TK09R
+	- Woo-dy
+	- X-Bows Nature/Knight
+
 config HID_SONY
 	tristate "Sony PS2/3/4 accessories"
 	depends on USB_HID
