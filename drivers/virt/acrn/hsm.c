@@ -51,7 +51,9 @@ static long acrn_dev_ioctl(struct file *filp, unsigned int cmd,
 	struct acrn_ioreq_notify notify;
 	struct acrn_ptdev_irq *irq_info;
 	struct acrn_vm_memmap memmap;
+	struct acrn_msi_entry *msi;
 	struct acrn_pcidev *pcidev;
+	struct page *page;
 	int i, ret = 0;
 
 	if (vm->vmid == ACRN_INVALID_VMID && cmd != ACRN_IOCTL_CREATE_VM) {
@@ -197,6 +199,44 @@ static long acrn_dev_ioctl(struct file *filp, unsigned int cmd,
 			dev_dbg(acrn_dev.this_device,
 				"Failed to reset intr for ptdev!\n");
 		kfree(irq_info);
+		break;
+	case ACRN_IOCTL_SET_IRQLINE:
+		ret = hcall_set_irqline(vm->vmid, ioctl_param);
+		if (ret < 0)
+			dev_dbg(acrn_dev.this_device,
+				"Failed to set interrupt line!\n");
+		break;
+	case ACRN_IOCTL_INJECT_MSI:
+		msi = memdup_user((void __user *)ioctl_param,
+				  sizeof(struct acrn_msi_entry));
+		if (IS_ERR(msi))
+			return PTR_ERR(msi);
+
+		ret = hcall_inject_msi(vm->vmid, virt_to_phys(msi));
+		if (ret < 0)
+			dev_dbg(acrn_dev.this_device,
+				"Failed to inject MSI!\n");
+		kfree(msi);
+		break;
+	case ACRN_IOCTL_VM_INTR_MONITOR:
+		ret = pin_user_pages_fast(ioctl_param, 1,
+					  FOLL_WRITE | FOLL_LONGTERM, &page);
+		if (unlikely(ret != 1)) {
+			dev_dbg(acrn_dev.this_device,
+				"Failed to pin intr hdr buffer!\n");
+			return -EFAULT;
+		}
+
+		ret = hcall_vm_intr_monitor(vm->vmid, page_to_phys(page));
+		if (ret < 0) {
+			unpin_user_page(page);
+			dev_dbg(acrn_dev.this_device,
+				"Failed to monitor intr data!\n");
+			return ret;
+		}
+		if (vm->monitor_page)
+			unpin_user_page(vm->monitor_page);
+		vm->monitor_page = page;
 		break;
 	case ACRN_IOCTL_CREATE_IOREQ_CLIENT:
 		if (vm->default_client)

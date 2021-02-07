@@ -155,6 +155,7 @@ extern rwlock_t acrn_vm_list_lock;
  * @ioreq_buf:			I/O request shared buffer
  * @ioreq_page:			The page of the I/O request shared buffer
  * @pci_conf_addr:		Address of a PCI configuration access emulation
+ * @monitor_page:		Page of interrupt statistics of User VM
  */
 struct acrn_vm {
 	struct list_head		list;
@@ -170,6 +171,7 @@ struct acrn_vm {
 	struct acrn_io_request_buffer	*ioreq_buf;
 	struct page			*ioreq_page;
 	u32				pci_conf_addr;
+	struct page			*monitor_page;
 };
 
 struct acrn_vm *acrn_vm_create(struct acrn_vm *vm,
@@ -195,5 +197,7 @@ struct acrn_ioreq_client *acrn_ioreq_client_create(struct acrn_vm *vm,
 						   void *data, bool is_default,
 						   const char *name);
 void acrn_ioreq_client_destroy(struct acrn_ioreq_client *client);
+
+int acrn_msi_inject(struct acrn_vm *vm, u64 msi_addr, u64 msi_data);
 
 #endif /* __ACRN_HSM_DRV_H */

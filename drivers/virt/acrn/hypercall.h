@@ -21,6 +21,11 @@
 #define HC_RESET_VM			_HC_ID(HC_ID, HC_ID_VM_BASE + 0x05)
 #define HC_SET_VCPU_REGS		_HC_ID(HC_ID, HC_ID_VM_BASE + 0x06)
 
+#define HC_ID_IRQ_BASE			0x20UL
+#define HC_INJECT_MSI			_HC_ID(HC_ID, HC_ID_IRQ_BASE + 0x03)
+#define HC_VM_INTR_MONITOR		_HC_ID(HC_ID, HC_ID_IRQ_BASE + 0x04)
+#define HC_SET_IRQLINE			_HC_ID(HC_ID, HC_ID_IRQ_BASE + 0x05)
+
 #define HC_ID_IOREQ_BASE		0x30UL
 #define HC_SET_IOREQ_BUFFER		_HC_ID(HC_ID, HC_ID_IOREQ_BASE + 0x00)
 #define HC_NOTIFY_REQUEST_FINISH	_HC_ID(HC_ID, HC_ID_IOREQ_BASE + 0x01)
@@ -99,6 +104,42 @@ static inline long hcall_reset_vm(u64 vmid)
 static inline long hcall_set_vcpu_regs(u64 vmid, u64 regs_state)
 {
 	return acrn_hypercall2(HC_SET_VCPU_REGS, vmid, regs_state);
+}
+
+/**
+ * hcall_inject_msi() - Deliver a MSI interrupt to a User VM
+ * @vmid:	User VM ID
+ * @msi:	Service VM GPA of MSI message
+ *
+ * Return: 0 on success, <0 on failure
+ */
+static inline long hcall_inject_msi(u64 vmid, u64 msi)
+{
+	return acrn_hypercall2(HC_INJECT_MSI, vmid, msi);
+}
+
+/**
+ * hcall_vm_intr_monitor() - Set a shared page for User VM interrupt statistics
+ * @vmid:	User VM ID
+ * @addr:	Service VM GPA of the shared page
+ *
+ * Return: 0 on success, <0 on failure
+ */
+static inline long hcall_vm_intr_monitor(u64 vmid, u64 addr)
+{
+	return acrn_hypercall2(HC_VM_INTR_MONITOR, vmid, addr);
+}
+
+/**
+ * hcall_set_irqline() - Set or clear an interrupt line
+ * @vmid:	User VM ID
+ * @op:		Service VM GPA of interrupt line operations
+ *
+ * Return: 0 on success, <0 on failure
+ */
+static inline long hcall_set_irqline(u64 vmid, u64 op)
+{
+	return acrn_hypercall2(HC_SET_IRQLINE, vmid, op);
 }
 
 /**
