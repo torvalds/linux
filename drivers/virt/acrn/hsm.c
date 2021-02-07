@@ -48,6 +48,7 @@ static long acrn_dev_ioctl(struct file *filp, unsigned int cmd,
 	struct acrn_vm *vm = filp->private_data;
 	struct acrn_vm_creation *vm_param;
 	struct acrn_vcpu_regs *cpu_regs;
+	struct acrn_ioreq_notify notify;
 	struct acrn_vm_memmap memmap;
 	int i, ret = 0;
 
@@ -147,6 +148,35 @@ static long acrn_dev_ioctl(struct file *filp, unsigned int cmd,
 
 		ret = acrn_vm_memseg_unmap(vm, &memmap);
 		break;
+	case ACRN_IOCTL_CREATE_IOREQ_CLIENT:
+		if (vm->default_client)
+			return -EEXIST;
+		if (!acrn_ioreq_client_create(vm, NULL, NULL, true, "acrndm"))
+			ret = -EINVAL;
+		break;
+	case ACRN_IOCTL_DESTROY_IOREQ_CLIENT:
+		if (vm->default_client)
+			acrn_ioreq_client_destroy(vm->default_client);
+		break;
+	case ACRN_IOCTL_ATTACH_IOREQ_CLIENT:
+		if (vm->default_client)
+			ret = acrn_ioreq_client_wait(vm->default_client);
+		else
+			ret = -ENODEV;
+		break;
+	case ACRN_IOCTL_NOTIFY_REQUEST_FINISH:
+		if (copy_from_user(&notify, (void __user *)ioctl_param,
+				   sizeof(struct acrn_ioreq_notify)))
+			return -EFAULT;
+
+		if (notify.reserved != 0)
+			return -EINVAL;
+
+		ret = acrn_ioreq_request_default_complete(vm, notify.vcpu);
+		break;
+	case ACRN_IOCTL_CLEAR_VM_IOREQ:
+		acrn_ioreq_request_clear(vm);
+		break;
 	default:
 		dev_dbg(acrn_dev.this_device, "Unknown IOCTL 0x%x!\n", cmd);
 		ret = -ENOTTY;
@@ -188,14 +218,23 @@ static int __init hsm_init(void)
 		return -EPERM;
 
 	ret = misc_register(&acrn_dev);
-	if (ret)
+	if (ret) {
 		pr_err("Create misc dev failed!\n");
+		return ret;
+	}
 
-	return ret;
+	ret = acrn_ioreq_intr_setup();
+	if (ret) {
+		pr_err("Setup I/O request handler failed!\n");
+		misc_deregister(&acrn_dev);
+		return ret;
+	}
+	return 0;
 }
 
 static void __exit hsm_exit(void)
 {
+	acrn_ioreq_intr_remove();
 	misc_deregister(&acrn_dev);
 }
 module_init(hsm_init);

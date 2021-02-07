@@ -21,6 +21,10 @@
 #define HC_RESET_VM			_HC_ID(HC_ID, HC_ID_VM_BASE + 0x05)
 #define HC_SET_VCPU_REGS		_HC_ID(HC_ID, HC_ID_VM_BASE + 0x06)
 
+#define HC_ID_IOREQ_BASE		0x30UL
+#define HC_SET_IOREQ_BUFFER		_HC_ID(HC_ID, HC_ID_IOREQ_BASE + 0x00)
+#define HC_NOTIFY_REQUEST_FINISH	_HC_ID(HC_ID, HC_ID_IOREQ_BASE + 0x01)
+
 #define HC_ID_MEM_BASE			0x40UL
 #define HC_VM_SET_MEMORY_REGIONS	_HC_ID(HC_ID, HC_ID_MEM_BASE + 0x02)
 
@@ -89,6 +93,30 @@ static inline long hcall_reset_vm(u64 vmid)
 static inline long hcall_set_vcpu_regs(u64 vmid, u64 regs_state)
 {
 	return acrn_hypercall2(HC_SET_VCPU_REGS, vmid, regs_state);
+}
+
+/**
+ * hcall_set_ioreq_buffer() - Set up the shared buffer for I/O Requests.
+ * @vmid:	User VM ID
+ * @buffer:	Service VM GPA of the shared buffer
+ *
+ * Return: 0 on success, <0 on failure
+ */
+static inline long hcall_set_ioreq_buffer(u64 vmid, u64 buffer)
+{
+	return acrn_hypercall2(HC_SET_IOREQ_BUFFER, vmid, buffer);
+}
+
+/**
+ * hcall_notify_req_finish() - Notify ACRN Hypervisor of I/O request completion.
+ * @vmid:	User VM ID
+ * @vcpu:	The vCPU which initiated the I/O request
+ *
+ * Return: 0 on success, <0 on failure
+ */
+static inline long hcall_notify_req_finish(u64 vmid, u64 vcpu)
+{
+	return acrn_hypercall2(HC_NOTIFY_REQUEST_FINISH, vmid, vcpu);
 }
 
 /**

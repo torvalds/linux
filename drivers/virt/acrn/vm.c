@@ -15,9 +15,12 @@
 #include "acrn_drv.h"
 
 /* List of VMs */
-static LIST_HEAD(acrn_vm_list);
-/* To protect acrn_vm_list */
-static DEFINE_MUTEX(acrn_vm_list_lock);
+LIST_HEAD(acrn_vm_list);
+/*
+ * acrn_vm_list is read in a worker thread which dispatch I/O requests and
+ * is wrote in VM creation ioctl. Use the rwlock mechanism to protect it.
+ */
+DEFINE_RWLOCK(acrn_vm_list_lock);
 
 struct acrn_vm *acrn_vm_create(struct acrn_vm *vm,
 			       struct acrn_vm_creation *vm_param)
@@ -32,12 +35,20 @@ struct acrn_vm *acrn_vm_create(struct acrn_vm *vm,
 	}
 
 	mutex_init(&vm->regions_mapping_lock);
+	INIT_LIST_HEAD(&vm->ioreq_clients);
+	spin_lock_init(&vm->ioreq_clients_lock);
 	vm->vmid = vm_param->vmid;
 	vm->vcpu_num = vm_param->vcpu_num;
 
-	mutex_lock(&acrn_vm_list_lock);
+	if (acrn_ioreq_init(vm, vm_param->ioreq_buf) < 0) {
+		hcall_destroy_vm(vm_param->vmid);
+		vm->vmid = ACRN_INVALID_VMID;
+		return NULL;
+	}
+
+	write_lock_bh(&acrn_vm_list_lock);
 	list_add(&vm->list, &acrn_vm_list);
-	mutex_unlock(&acrn_vm_list_lock);
+	write_unlock_bh(&acrn_vm_list_lock);
 
 	dev_dbg(acrn_dev.this_device, "VM %u created.\n", vm->vmid);
 	return vm;
@@ -52,9 +63,11 @@ int acrn_vm_destroy(struct acrn_vm *vm)
 		return 0;
 
 	/* Remove from global VM list */
-	mutex_lock(&acrn_vm_list_lock);
+	write_lock_bh(&acrn_vm_list_lock);
 	list_del_init(&vm->list);
-	mutex_unlock(&acrn_vm_list_lock);
+	write_unlock_bh(&acrn_vm_list_lock);
+
+	acrn_ioreq_deinit(vm);
 
 	ret = hcall_destroy_vm(vm->vmid);
 	if (ret < 0) {
