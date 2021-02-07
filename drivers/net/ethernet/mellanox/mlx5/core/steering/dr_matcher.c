@@ -155,6 +155,109 @@ dr_mask_is_tnl_geneve(struct mlx5dr_match_param *mask,
 	       dr_matcher_supp_tnl_geneve(&dmn->info.caps);
 }
 
+static bool dr_mask_is_tnl_gtpu_set(struct mlx5dr_match_misc3 *misc3)
+{
+	return misc3->gtpu_msg_flags || misc3->gtpu_msg_type || misc3->gtpu_teid;
+}
+
+static bool dr_matcher_supp_tnl_gtpu(struct mlx5dr_cmd_caps *caps)
+{
+	return caps->flex_protocols & MLX5_FLEX_PARSER_GTPU_ENABLED;
+}
+
+static bool dr_mask_is_tnl_gtpu(struct mlx5dr_match_param *mask,
+				struct mlx5dr_domain *dmn)
+{
+	return dr_mask_is_tnl_gtpu_set(&mask->misc3) &&
+	       dr_matcher_supp_tnl_gtpu(&dmn->info.caps);
+}
+
+static int dr_matcher_supp_tnl_gtpu_dw_0(struct mlx5dr_cmd_caps *caps)
+{
+	return caps->flex_protocols & MLX5_FLEX_PARSER_GTPU_DW_0_ENABLED;
+}
+
+static bool dr_mask_is_tnl_gtpu_dw_0(struct mlx5dr_match_param *mask,
+				     struct mlx5dr_domain *dmn)
+{
+	return mask->misc3.gtpu_dw_0 &&
+	       dr_matcher_supp_tnl_gtpu_dw_0(&dmn->info.caps);
+}
+
+static int dr_matcher_supp_tnl_gtpu_teid(struct mlx5dr_cmd_caps *caps)
+{
+	return caps->flex_protocols & MLX5_FLEX_PARSER_GTPU_TEID_ENABLED;
+}
+
+static bool dr_mask_is_tnl_gtpu_teid(struct mlx5dr_match_param *mask,
+				     struct mlx5dr_domain *dmn)
+{
+	return mask->misc3.gtpu_teid &&
+	       dr_matcher_supp_tnl_gtpu_teid(&dmn->info.caps);
+}
+
+static int dr_matcher_supp_tnl_gtpu_dw_2(struct mlx5dr_cmd_caps *caps)
+{
+	return caps->flex_protocols & MLX5_FLEX_PARSER_GTPU_DW_2_ENABLED;
+}
+
+static bool dr_mask_is_tnl_gtpu_dw_2(struct mlx5dr_match_param *mask,
+				     struct mlx5dr_domain *dmn)
+{
+	return mask->misc3.gtpu_dw_2 &&
+	       dr_matcher_supp_tnl_gtpu_dw_2(&dmn->info.caps);
+}
+
+static int dr_matcher_supp_tnl_gtpu_first_ext(struct mlx5dr_cmd_caps *caps)
+{
+	return caps->flex_protocols & MLX5_FLEX_PARSER_GTPU_FIRST_EXT_DW_0_ENABLED;
+}
+
+static bool dr_mask_is_tnl_gtpu_first_ext(struct mlx5dr_match_param *mask,
+					  struct mlx5dr_domain *dmn)
+{
+	return mask->misc3.gtpu_first_ext_dw_0 &&
+	       dr_matcher_supp_tnl_gtpu_first_ext(&dmn->info.caps);
+}
+
+static bool dr_mask_is_tnl_gtpu_flex_parser_0(struct mlx5dr_match_param *mask,
+					      struct mlx5dr_domain *dmn)
+{
+	struct mlx5dr_cmd_caps *caps = &dmn->info.caps;
+
+	return (dr_is_flex_parser_0_id(caps->flex_parser_id_gtpu_dw_0) &&
+		dr_mask_is_tnl_gtpu_dw_0(mask, dmn)) ||
+	       (dr_is_flex_parser_0_id(caps->flex_parser_id_gtpu_teid) &&
+		dr_mask_is_tnl_gtpu_teid(mask, dmn)) ||
+	       (dr_is_flex_parser_0_id(caps->flex_parser_id_gtpu_dw_2) &&
+		dr_mask_is_tnl_gtpu_dw_2(mask, dmn)) ||
+	       (dr_is_flex_parser_0_id(caps->flex_parser_id_gtpu_first_ext_dw_0) &&
+		dr_mask_is_tnl_gtpu_first_ext(mask, dmn));
+}
+
+static bool dr_mask_is_tnl_gtpu_flex_parser_1(struct mlx5dr_match_param *mask,
+					      struct mlx5dr_domain *dmn)
+{
+	struct mlx5dr_cmd_caps *caps = &dmn->info.caps;
+
+	return (dr_is_flex_parser_1_id(caps->flex_parser_id_gtpu_dw_0) &&
+		dr_mask_is_tnl_gtpu_dw_0(mask, dmn)) ||
+	       (dr_is_flex_parser_1_id(caps->flex_parser_id_gtpu_teid) &&
+		dr_mask_is_tnl_gtpu_teid(mask, dmn)) ||
+	       (dr_is_flex_parser_1_id(caps->flex_parser_id_gtpu_dw_2) &&
+		dr_mask_is_tnl_gtpu_dw_2(mask, dmn)) ||
+	       (dr_is_flex_parser_1_id(caps->flex_parser_id_gtpu_first_ext_dw_0) &&
+		dr_mask_is_tnl_gtpu_first_ext(mask, dmn));
+}
+
+static bool dr_mask_is_tnl_gtpu_any(struct mlx5dr_match_param *mask,
+				    struct mlx5dr_domain *dmn)
+{
+	return dr_mask_is_tnl_gtpu_flex_parser_0(mask, dmn) ||
+	       dr_mask_is_tnl_gtpu_flex_parser_1(mask, dmn) ||
+	       dr_mask_is_tnl_gtpu(mask, dmn);
+}
+
 static int dr_matcher_supp_icmp_v4(struct mlx5dr_cmd_caps *caps)
 {
 	return (caps->sw_format_ver == MLX5_STEERING_FORMAT_CONNECTX_6DX) ||
@@ -397,7 +500,22 @@ static int dr_matcher_set_ste_builders(struct mlx5dr_matcher *matcher,
 				mlx5dr_ste_build_tnl_geneve_tlv_opt(ste_ctx, &sb[idx++],
 								    &mask, &dmn->info.caps,
 								    inner, rx);
+		} else if (dr_mask_is_tnl_gtpu_any(&mask, dmn)) {
+			if (dr_mask_is_tnl_gtpu_flex_parser_0(&mask, dmn))
+				mlx5dr_ste_build_tnl_gtpu_flex_parser_0(ste_ctx, &sb[idx++],
+									&mask, &dmn->info.caps,
+									inner, rx);
+
+			if (dr_mask_is_tnl_gtpu_flex_parser_1(&mask, dmn))
+				mlx5dr_ste_build_tnl_gtpu_flex_parser_1(ste_ctx, &sb[idx++],
+									&mask, &dmn->info.caps,
+									inner, rx);
+
+			if (dr_mask_is_tnl_gtpu(&mask, dmn))
+				mlx5dr_ste_build_tnl_gtpu(ste_ctx, &sb[idx++],
+							  &mask, inner, rx);
 		}
+
 		if (DR_MASK_IS_ETH_L4_MISC_SET(mask.misc3, outer))
 			mlx5dr_ste_build_eth_l4_misc(ste_ctx, &sb[idx++],
 						     &mask, inner, rx);

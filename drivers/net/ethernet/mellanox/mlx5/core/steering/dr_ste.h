@@ -62,6 +62,13 @@
 		       in_out##_first_mpls_ttl); \
 } while (0)
 
+#define DR_STE_SET_FLEX_PARSER_FIELD(tag, fname, caps, spec) do { \
+	u8 parser_id = (caps)->flex_parser_id_##fname; \
+	u8 *parser_ptr = dr_ste_calc_flex_parser_offset(tag, parser_id); \
+	*(__be32 *)parser_ptr = cpu_to_be32((spec)->fname);\
+	(spec)->fname = 0;\
+} while (0)
+
 #define DR_STE_IS_OUTER_MPLS_OVER_GRE_SET(_misc) (\
 	(_misc)->outer_first_mpls_over_gre_label || \
 	(_misc)->outer_first_mpls_over_gre_exp || \
@@ -133,6 +140,9 @@ struct mlx5dr_ste_ctx {
 	void DR_STE_CTX_BUILDER(src_gvmi_qpn);
 	void DR_STE_CTX_BUILDER(flex_parser_0);
 	void DR_STE_CTX_BUILDER(flex_parser_1);
+	void DR_STE_CTX_BUILDER(tnl_gtpu);
+	void DR_STE_CTX_BUILDER(tnl_gtpu_flex_parser_0);
+	void DR_STE_CTX_BUILDER(tnl_gtpu_flex_parser_1);
 
 	/* Getters and Setters */
 	void (*ste_init)(u8 *hw_ste_p, u16 lu_type,

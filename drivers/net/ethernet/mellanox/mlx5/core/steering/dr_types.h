@@ -26,6 +26,16 @@
 #define mlx5dr_info(dmn, arg...) mlx5_core_info((dmn)->mdev, ##arg)
 #define mlx5dr_dbg(dmn, arg...) mlx5_core_dbg((dmn)->mdev, ##arg)
 
+static inline bool dr_is_flex_parser_0_id(u8 parser_id)
+{
+	return parser_id <= DR_STE_MAX_FLEX_0_ID;
+}
+
+static inline bool dr_is_flex_parser_1_id(u8 parser_id)
+{
+	return parser_id > DR_STE_MAX_FLEX_0_ID;
+}
+
 enum mlx5dr_icm_chunk_size {
 	DR_CHUNK_SIZE_1,
 	DR_CHUNK_SIZE_MIN = DR_CHUNK_SIZE_1, /* keep updated when changing */
@@ -421,6 +431,20 @@ void mlx5dr_ste_build_tnl_geneve_tlv_opt(struct mlx5dr_ste_ctx *ste_ctx,
 					 struct mlx5dr_match_param *mask,
 					 struct mlx5dr_cmd_caps *caps,
 					 bool inner, bool rx);
+void mlx5dr_ste_build_tnl_gtpu(struct mlx5dr_ste_ctx *ste_ctx,
+			       struct mlx5dr_ste_build *sb,
+			       struct mlx5dr_match_param *mask,
+			       bool inner, bool rx);
+void mlx5dr_ste_build_tnl_gtpu_flex_parser_0(struct mlx5dr_ste_ctx *ste_ctx,
+					     struct mlx5dr_ste_build *sb,
+					     struct mlx5dr_match_param *mask,
+					     struct mlx5dr_cmd_caps *caps,
+					     bool inner, bool rx);
+void mlx5dr_ste_build_tnl_gtpu_flex_parser_1(struct mlx5dr_ste_ctx *ste_ctx,
+					     struct mlx5dr_ste_build *sb,
+					     struct mlx5dr_match_param *mask,
+					     struct mlx5dr_cmd_caps *caps,
+					     bool inner, bool rx);
 void mlx5dr_ste_build_general_purpose(struct mlx5dr_ste_ctx *ste_ctx,
 				      struct mlx5dr_ste_build *sb,
 				      struct mlx5dr_match_param *mask,
@@ -674,7 +698,12 @@ struct mlx5dr_match_misc3 {
 	u8 icmpv4_code;
 	u8 icmpv4_type;
 	u32 geneve_tlv_option_0_data;
-	u8 reserved_auto3[0x18];
+	u8 gtpu_msg_flags;
+	u8 gtpu_msg_type;
+	u32 gtpu_teid;
+	u32 gtpu_dw_2;
+	u32 gtpu_first_ext_dw_0;
+	u32 gtpu_dw_0;
 };
 
 struct mlx5dr_match_misc4 {
@@ -735,6 +764,10 @@ struct mlx5dr_cmd_caps {
 	u8 flex_parser_id_geneve_tlv_option_0;
 	u8 flex_parser_id_mpls_over_gre;
 	u8 flex_parser_id_mpls_over_udp;
+	u8 flex_parser_id_gtpu_dw_0;
+	u8 flex_parser_id_gtpu_teid;
+	u8 flex_parser_id_gtpu_dw_2;
+	u8 flex_parser_id_gtpu_first_ext_dw_0;
 	u8 max_ft_level;
 	u16 roce_min_src_udp;
 	u8 num_esw_ports;

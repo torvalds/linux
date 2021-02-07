@@ -485,6 +485,17 @@ struct mlx5_ifc_ste_flex_parser_tnl_geneve_bits {
 	u8         reserved_at_40[0x40];
 };
 
+struct mlx5_ifc_ste_flex_parser_tnl_gtpu_bits {
+	u8	   reserved_at_0[0x5];
+	u8	   gtpu_msg_flags[0x3];
+	u8	   gtpu_msg_type[0x8];
+	u8	   reserved_at_10[0x10];
+
+	u8	   gtpu_teid[0x20];
+
+	u8	   reserved_at_40[0x40];
+};
+
 struct mlx5_ifc_ste_general_purpose_bits {
 	u8         general_purpose_lookup_field[0x20];
 

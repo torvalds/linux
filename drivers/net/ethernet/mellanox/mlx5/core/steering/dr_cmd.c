@@ -118,6 +118,22 @@ int mlx5dr_cmd_query_device(struct mlx5_core_dev *mdev,
 		caps->flex_parser_id_mpls_over_udp =
 			MLX5_CAP_GEN(mdev, flex_parser_id_outer_first_mpls_over_udp_label);
 
+	if (caps->flex_protocols & MLX5_FLEX_PARSER_GTPU_DW_0_ENABLED)
+		caps->flex_parser_id_gtpu_dw_0 =
+			MLX5_CAP_GEN(mdev, flex_parser_id_gtpu_dw_0);
+
+	if (caps->flex_protocols & MLX5_FLEX_PARSER_GTPU_TEID_ENABLED)
+		caps->flex_parser_id_gtpu_teid =
+			MLX5_CAP_GEN(mdev, flex_parser_id_gtpu_teid);
+
+	if (caps->flex_protocols & MLX5_FLEX_PARSER_GTPU_DW_2_ENABLED)
+		caps->flex_parser_id_gtpu_dw_2 =
+			MLX5_CAP_GEN(mdev, flex_parser_id_gtpu_dw_2);
+
+	if (caps->flex_protocols & MLX5_FLEX_PARSER_GTPU_FIRST_EXT_DW_0_ENABLED)
+		caps->flex_parser_id_gtpu_first_ext_dw_0 =
+			MLX5_CAP_GEN(mdev, flex_parser_id_gtpu_first_ext_dw_0);
+
 	caps->nic_rx_drop_address =
 		MLX5_CAP64_FLOWTABLE(mdev, sw_steering_nic_rx_action_drop_icm_address);
 	caps->nic_tx_drop_address =
