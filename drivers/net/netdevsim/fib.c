@@ -26,6 +26,7 @@
 #include <net/fib_rules.h>
 #include <net/net_namespace.h>
 #include <net/nexthop.h>
+#include <linux/debugfs.h>
 
 #include "netdevsim.h"
 
@@ -53,6 +54,8 @@ struct nsim_fib_data {
 	struct work_struct fib_event_work;
 	struct list_head fib_event_queue;
 	spinlock_t fib_event_queue_lock; /* Protects fib event queue list */
+	struct dentry *ddir;
+	bool fail_route_offload;
 };
 
 struct nsim_fib_rt_key {
@@ -303,6 +306,25 @@ nsim_fib4_rt_lookup(struct rhashtable *fib_rt_ht,
 	return container_of(fib_rt, struct nsim_fib4_rt, common);
 }
 
+static void
+nsim_fib4_rt_offload_failed_flag_set(struct net *net,
+				     struct fib_entry_notifier_info *fen_info)
+{
+	u32 *p_dst = (u32 *)&fen_info->dst;
+	struct fib_rt_info fri;
+
+	fri.fi = fen_info->fi;
+	fri.tb_id = fen_info->tb_id;
+	fri.dst = cpu_to_be32(*p_dst);
+	fri.dst_len = fen_info->dst_len;
+	fri.tos = fen_info->tos;
+	fri.type = fen_info->type;
+	fri.offload = false;
+	fri.trap = false;
+	fri.offload_failed = true;
+	fib_alias_hw_flags_set(net, &fri);
+}
+
 static void nsim_fib4_rt_hw_flags_set(struct net *net,
 				      const struct nsim_fib4_rt *fib4_rt,
 				      bool trap)
@@ -384,6 +406,15 @@ static int nsim_fib4_rt_insert(struct nsim_fib_data *data,
 	struct nsim_fib4_rt *fib4_rt, *fib4_rt_old;
 	int err;
 
+	if (data->fail_route_offload) {
+		/* For testing purposes, user set debugfs fail_route_offload
+		 * value to true. Simulate hardware programming latency and then
+		 * fail.
+		 */
+		msleep(1);
+		return -EINVAL;
+	}
+
 	fib4_rt = nsim_fib4_rt_create(data, fen_info);
 	if (!fib4_rt)
 		return -ENOMEM;
@@ -423,6 +454,11 @@ static int nsim_fib4_event(struct nsim_fib_data *data,
 	switch (event) {
 	case FIB_EVENT_ENTRY_REPLACE:
 		err = nsim_fib4_rt_insert(data, fen_info);
+		if (err) {
+			struct net *net = devlink_net(data->devlink);
+
+			nsim_fib4_rt_offload_failed_flag_set(net, fen_info);
+		}
 		break;
 	case FIB_EVENT_ENTRY_DEL:
 		nsim_fib4_rt_remove(data, fen_info);
@@ -564,6 +600,15 @@ static int nsim_fib6_rt_append(struct nsim_fib_data *data,
 	struct nsim_fib6_rt *fib6_rt;
 	int i, err;
 
+	if (data->fail_route_offload) {
+		/* For testing purposes, user set debugfs fail_route_offload
+		 * value to true. Simulate hardware programming latency and then
+		 * fail.
+		 */
+		msleep(1);
+		return -EINVAL;
+	}
+
 	fib6_rt = nsim_fib6_rt_lookup(&data->fib_rt_ht, rt);
 	if (!fib6_rt)
 		return -EINVAL;
@@ -585,6 +630,26 @@ err_fib6_rt_nh_del:
 	}
 	return err;
 }
+
+#if IS_ENABLED(CONFIG_IPV6)
+static void nsim_fib6_rt_offload_failed_flag_set(struct nsim_fib_data *data,
+						 struct fib6_info **rt_arr,
+						 unsigned int nrt6)
+
+{
+	struct net *net = devlink_net(data->devlink);
+	int i;
+
+	for (i = 0; i < nrt6; i++)
+		fib6_info_hw_flags_set(net, rt_arr[i], false, false, true);
+}
+#else
+static void nsim_fib6_rt_offload_failed_flag_set(struct nsim_fib_data *data,
+						 struct fib6_info **rt_arr,
+						 unsigned int nrt6)
+{
+}
+#endif
 
 #if IS_ENABLED(CONFIG_IPV6)
 static void nsim_fib6_rt_hw_flags_set(struct nsim_fib_data *data,
@@ -666,6 +731,15 @@ static int nsim_fib6_rt_insert(struct nsim_fib_data *data,
 	struct fib6_info *rt = fib6_event->rt_arr[0];
 	struct nsim_fib6_rt *fib6_rt, *fib6_rt_old;
 	int err;
+
+	if (data->fail_route_offload) {
+		/* For testing purposes, user set debugfs fail_route_offload
+		 * value to true. Simulate hardware programming latency and then
+		 * fail.
+		 */
+		msleep(1);
+		return -EINVAL;
+	}
 
 	fib6_rt = nsim_fib6_rt_create(data, fib6_event->rt_arr,
 				      fib6_event->nrt6);
@@ -764,7 +838,7 @@ static int nsim_fib6_event(struct nsim_fib_data *data,
 			   struct nsim_fib6_event *fib6_event,
 			   unsigned long event)
 {
-	int err = 0;
+	int err;
 
 	if (fib6_event->rt_arr[0]->fib6_src.plen)
 		return 0;
@@ -772,9 +846,13 @@ static int nsim_fib6_event(struct nsim_fib_data *data,
 	switch (event) {
 	case FIB_EVENT_ENTRY_REPLACE:
 		err = nsim_fib6_rt_insert(data, fib6_event);
+		if (err)
+			goto err_rt_offload_failed_flag_set;
 		break;
 	case FIB_EVENT_ENTRY_APPEND:
 		err = nsim_fib6_rt_append(data, fib6_event);
+		if (err)
+			goto err_rt_offload_failed_flag_set;
 		break;
 	case FIB_EVENT_ENTRY_DEL:
 		nsim_fib6_rt_remove(data, fib6_event);
@@ -783,6 +861,11 @@ static int nsim_fib6_event(struct nsim_fib_data *data,
 		break;
 	}
 
+	return 0;
+
+err_rt_offload_failed_flag_set:
+	nsim_fib6_rt_offload_failed_flag_set(data, fib6_event->rt_arr,
+					     fib6_event->nrt6);
 	return err;
 }
 
@@ -1290,10 +1373,29 @@ static void nsim_fib_event_work(struct work_struct *work)
 	mutex_unlock(&data->fib_lock);
 }
 
+static int
+nsim_fib_debugfs_init(struct nsim_fib_data *data, struct nsim_dev *nsim_dev)
+{
+	data->ddir = debugfs_create_dir("fib", nsim_dev->ddir);
+	if (IS_ERR(data->ddir))
+		return PTR_ERR(data->ddir);
+
+	data->fail_route_offload = false;
+	debugfs_create_bool("fail_route_offload", 0600, data->ddir,
+			    &data->fail_route_offload);
+	return 0;
+}
+
+static void nsim_fib_debugfs_exit(struct nsim_fib_data *data)
+{
+	debugfs_remove_recursive(data->ddir);
+}
+
 struct nsim_fib_data *nsim_fib_create(struct devlink *devlink,
 				      struct netlink_ext_ack *extack)
 {
 	struct nsim_fib_data *data;
+	struct nsim_dev *nsim_dev;
 	int err;
 
 	data = kzalloc(sizeof(*data), GFP_KERNEL);
@@ -1301,9 +1403,14 @@ struct nsim_fib_data *nsim_fib_create(struct devlink *devlink,
 		return ERR_PTR(-ENOMEM);
 	data->devlink = devlink;
 
-	err = rhashtable_init(&data->nexthop_ht, &nsim_nexthop_ht_params);
+	nsim_dev = devlink_priv(devlink);
+	err = nsim_fib_debugfs_init(data, nsim_dev);
 	if (err)
 		goto err_data_free;
+
+	err = rhashtable_init(&data->nexthop_ht, &nsim_nexthop_ht_params);
+	if (err)
+		goto err_debugfs_exit;
 
 	mutex_init(&data->fib_lock);
 	INIT_LIST_HEAD(&data->fib_rt_list);
@@ -1365,6 +1472,8 @@ err_rhashtable_nexthop_destroy:
 	rhashtable_free_and_destroy(&data->nexthop_ht, nsim_nexthop_free,
 				    data);
 	mutex_destroy(&data->fib_lock);
+err_debugfs_exit:
+	nsim_fib_debugfs_exit(data);
 err_data_free:
 	kfree(data);
 	return ERR_PTR(err);
@@ -1392,5 +1501,6 @@ void nsim_fib_destroy(struct devlink *devlink, struct nsim_fib_data *data)
 	WARN_ON_ONCE(!list_empty(&data->fib_event_queue));
 	WARN_ON_ONCE(!list_empty(&data->fib_rt_list));
 	mutex_destroy(&data->fib_lock);
+	nsim_fib_debugfs_exit(data);
 	kfree(data);
 }
