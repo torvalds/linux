@@ -2,6 +2,7 @@
 config ACRN_HSM
 	tristate "ACRN Hypervisor Service Module"
 	depends on ACRN_GUEST
+	select EVENTFD
 	help
 	  ACRN Hypervisor Service Module (HSM) is a kernel module which
 	  communicates with ACRN userspace through ioctls and talks to

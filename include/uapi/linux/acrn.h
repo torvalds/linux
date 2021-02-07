@@ -479,6 +479,32 @@ enum acrn_pm_cmd_type {
 	ACRN_PMCMD_GET_CX_DATA,
 };
 
+#define ACRN_IOEVENTFD_FLAG_PIO		0x01
+#define ACRN_IOEVENTFD_FLAG_DATAMATCH	0x02
+#define ACRN_IOEVENTFD_FLAG_DEASSIGN	0x04
+/**
+ * struct acrn_ioeventfd - Data to operate a &struct hsm_ioeventfd
+ * @fd:		The fd of eventfd associated with a hsm_ioeventfd
+ * @flags:	Logical-OR of ACRN_IOEVENTFD_FLAG_*
+ * @addr:	The start address of IO range of ioeventfd
+ * @len:	The length of IO range of ioeventfd
+ * @reserved:	Reserved and should be 0
+ * @data:	Data for data matching
+ *
+ * Without flag ACRN_IOEVENTFD_FLAG_DEASSIGN, ioctl ACRN_IOCTL_IOEVENTFD
+ * creates a &struct hsm_ioeventfd with properties originated from &struct
+ * acrn_ioeventfd. With flag ACRN_IOEVENTFD_FLAG_DEASSIGN, ioctl
+ * ACRN_IOCTL_IOEVENTFD destroys the &struct hsm_ioeventfd matching the fd.
+ */
+struct acrn_ioeventfd {
+	__u32	fd;
+	__u32	flags;
+	__u64	addr;
+	__u32	len;
+	__u32	reserved;
+	__u64	data;
+};
+
 /* The ioctl type, documented in ioctl-number.rst */
 #define ACRN_IOCTL_TYPE			0xA2
 
@@ -532,5 +558,8 @@ enum acrn_pm_cmd_type {
 
 #define ACRN_IOCTL_PM_GET_CPU_STATE	\
 	_IOWR(ACRN_IOCTL_TYPE, 0x60, __u64)
+
+#define ACRN_IOCTL_IOEVENTFD		\
+	_IOW(ACRN_IOCTL_TYPE, 0x70, struct acrn_ioeventfd)
 
 #endif /* _UAPI_ACRN_H */

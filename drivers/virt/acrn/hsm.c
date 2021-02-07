@@ -111,6 +111,7 @@ static long acrn_dev_ioctl(struct file *filp, unsigned int cmd,
 	struct acrn_vcpu_regs *cpu_regs;
 	struct acrn_ioreq_notify notify;
 	struct acrn_ptdev_irq *irq_info;
+	struct acrn_ioeventfd ioeventfd;
 	struct acrn_vm_memmap memmap;
 	struct acrn_msi_entry *msi;
 	struct acrn_pcidev *pcidev;
@@ -335,6 +336,16 @@ static long acrn_dev_ioctl(struct file *filp, unsigned int cmd,
 			return -EFAULT;
 
 		ret = pmcmd_ioctl(cstate_cmd, (void __user *)ioctl_param);
+		break;
+	case ACRN_IOCTL_IOEVENTFD:
+		if (copy_from_user(&ioeventfd, (void __user *)ioctl_param,
+				   sizeof(ioeventfd)))
+			return -EFAULT;
+
+		if (ioeventfd.reserved != 0)
+			return -EINVAL;
+
+		ret = acrn_ioeventfd_config(vm, &ioeventfd);
 		break;
 	default:
 		dev_dbg(acrn_dev.this_device, "Unknown IOCTL 0x%x!\n", cmd);

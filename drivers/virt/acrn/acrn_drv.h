@@ -156,6 +156,9 @@ extern rwlock_t acrn_vm_list_lock;
  * @ioreq_page:			The page of the I/O request shared buffer
  * @pci_conf_addr:		Address of a PCI configuration access emulation
  * @monitor_page:		Page of interrupt statistics of User VM
+ * @ioeventfds_lock:		Lock to protect ioeventfds list
+ * @ioeventfds:			List to link all hsm_ioeventfd
+ * @ioeventfd_client:		I/O client for ioeventfds of the VM
  */
 struct acrn_vm {
 	struct list_head		list;
@@ -172,6 +175,9 @@ struct acrn_vm {
 	struct page			*ioreq_page;
 	u32				pci_conf_addr;
 	struct page			*monitor_page;
+	struct mutex			ioeventfds_lock;
+	struct list_head		ioeventfds;
+	struct acrn_ioreq_client	*ioeventfd_client;
 };
 
 struct acrn_vm *acrn_vm_create(struct acrn_vm *vm,
@@ -203,5 +209,9 @@ void acrn_ioreq_range_del(struct acrn_ioreq_client *client,
 			  u32 type, u64 start, u64 end);
 
 int acrn_msi_inject(struct acrn_vm *vm, u64 msi_addr, u64 msi_data);
+
+int acrn_ioeventfd_init(struct acrn_vm *vm);
+int acrn_ioeventfd_config(struct acrn_vm *vm, struct acrn_ioeventfd *args);
+void acrn_ioeventfd_deinit(struct acrn_vm *vm);
 
 #endif /* __ACRN_HSM_DRV_H */
