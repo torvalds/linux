@@ -1890,7 +1890,6 @@ struct hns_roce_v2_cmq {
 	struct hns_roce_v2_cmq_ring csq;
 	struct hns_roce_v2_cmq_ring crq;
 	u16 tx_timeout;
-	u16 last_status;
 };
 
 enum hns_roce_link_table_type {

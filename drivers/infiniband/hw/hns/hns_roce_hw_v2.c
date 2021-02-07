@@ -1314,7 +1314,6 @@ static int __hns_roce_cmq_send(struct hns_roce_dev *hr_dev,
 	struct hns_roce_v2_priv *priv = hr_dev->priv;
 	struct hns_roce_v2_cmq_ring *csq = &priv->cmq.csq;
 	struct hns_roce_cmq_desc *desc_to_use;
-	bool complete = false;
 	u32 timeout = 0;
 	int handle = 0;
 	u16 desc_ret;
@@ -1361,7 +1360,6 @@ static int __hns_roce_cmq_send(struct hns_roce_dev *hr_dev,
 	}
 
 	if (hns_roce_cmq_csq_done(hr_dev)) {
-		complete = true;
 		handle = 0;
 		while (handle < num) {
 			/* get the result of hardware write back */
@@ -1373,16 +1371,15 @@ static int __hns_roce_cmq_send(struct hns_roce_dev *hr_dev,
 				ret = 0;
 			else
 				ret = -EIO;
-			priv->cmq.last_status = desc_ret;
+
 			ntc++;
 			handle++;
 			if (ntc == csq->desc_num)
 				ntc = 0;
 		}
-	}
-
-	if (!complete)
+	} else {
 		ret = -EAGAIN;
+	}
 
 	/* clean the command send queue */
 	handle = hns_roce_cmq_csq_clean(hr_dev);
