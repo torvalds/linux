@@ -3137,7 +3137,7 @@ isp_hdrtmo_config(struct rkisp_isp_params_vdev *params_vdev,
 		  const struct isp2x_hdrtmo_cfg *arg, enum rkisp_params_type type)
 {
 	u8 big_en, nobig_en;
-	u32 value;
+	u32 value, irq_mask = 0x0;
 
 	if (type == RKISP_PARAMS_SHD || type == RKISP_PARAMS_ALL) {
 		value = rkisp_ioread32(params_vdev, ISP_HDRTMO_CTRL_CFG);
@@ -3173,6 +3173,12 @@ isp_hdrtmo_config(struct rkisp_isp_params_vdev *params_vdev,
 		if (isp_param_get_insize(params_vdev) > ISP2X_NOBIG_OVERFLOW_SIZE) {
 			big_en = 1;
 			nobig_en = 0;
+		}
+
+		irq_mask = rkisp_ioread32(params_vdev, CIF_ISP_IMSC);
+		if (arg->cnt_mode & 0x01 && !(irq_mask & ISP2X_HDR_DONE)) {
+			irq_mask |= ISP2X_HDR_DONE;
+			rkisp_write(params_vdev->dev, CIF_ISP_IMSC, irq_mask, true);
 		}
 
 		value = rkisp_ioread32(params_vdev, ISP_HDRTMO_CTRL);
