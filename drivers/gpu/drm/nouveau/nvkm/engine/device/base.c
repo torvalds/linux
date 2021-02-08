@@ -2581,6 +2581,7 @@ nv170_chipset = {
 	.pci      = { 0x00000001, gp100_pci_new },
 	.privring = { 0x00000001, gm200_privring_new },
 	.timer    = { 0x00000001, gk20a_timer_new },
+	.top      = { 0x00000001, ga100_top_new },
 };
 
 static const struct nvkm_device_chip
@@ -2598,6 +2599,7 @@ nv172_chipset = {
 	.pci      = { 0x00000001, gp100_pci_new },
 	.privring = { 0x00000001, gm200_privring_new },
 	.timer    = { 0x00000001, gk20a_timer_new },
+	.top      = { 0x00000001, ga100_top_new },
 	.disp     = { 0x00000001, ga102_disp_new },
 	.dma      = { 0x00000001, gv100_dma_new },
 };
@@ -2617,6 +2619,7 @@ nv174_chipset = {
 	.pci      = { 0x00000001, gp100_pci_new },
 	.privring = { 0x00000001, gm200_privring_new },
 	.timer    = { 0x00000001, gk20a_timer_new },
+	.top      = { 0x00000001, ga100_top_new },
 	.disp     = { 0x00000001, ga102_disp_new },
 	.dma      = { 0x00000001, gv100_dma_new },
 };
