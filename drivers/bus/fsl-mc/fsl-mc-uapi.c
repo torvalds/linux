@@ -338,7 +338,7 @@ static int fsl_mc_command_check(struct fsl_mc_device *mc_dev,
 		if ((cmdid & desc->cmdid_mask) == desc->cmdid_value)
 			break;
 	}
-	if (!desc) {
+	if (i == FSL_MC_NUM_ACCEPTED_CMDS) {
 		dev_err(&mc_dev->dev, "MC command 0x%04x: cmdid not accepted\n", cmdid);
 		return -EACCES;
 	}
