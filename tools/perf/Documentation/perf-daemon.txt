@@ -49,7 +49,8 @@ OPTIONS
 
 --base=<PATH>::
 	Base directory path. Each daemon instance is running on top
-	of base directory.
+	of base directory. Only one instance of server can run on
+	top of one directory at the time.
 
 All generic options are available also under commands.
 

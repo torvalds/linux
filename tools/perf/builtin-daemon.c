@@ -2,11 +2,13 @@
 #include <internal/lib.h>
 #include <subcmd/parse-options.h>
 #include <api/fd/array.h>
+#include <api/fs/fs.h>
 #include <linux/zalloc.h>
 #include <linux/string.h>
 #include <linux/limits.h>
 #include <linux/string.h>
 #include <string.h>
+#include <sys/file.h>
 #include <signal.h>
 #include <stdlib.h>
 #include <time.h>
@@ -570,12 +572,18 @@ static int cmd_session_list(struct daemon *daemon, union cmd *cmd, FILE *out)
 			/* output */
 			csv_sep, daemon->base, SESSION_OUTPUT);
 
+		fprintf(out, "%c%s/%s",
+			/* lock */
+			csv_sep, daemon->base, "lock");
+
 		fprintf(out, "\n");
 	} else {
 		fprintf(out, "[%d:daemon] base: %s\n", getpid(), daemon->base);
 		if (cmd->list.verbose) {
 			fprintf(out, "  output:  %s/%s\n",
 				daemon->base, SESSION_OUTPUT);
+			fprintf(out, "  lock:    %s/lock\n",
+				daemon->base);
 		}
 	}
 
@@ -906,6 +914,67 @@ static int setup_config(struct daemon *daemon)
 	return daemon->config_real ? 0 : -1;
 }
 
+#ifndef F_TLOCK
+#define F_TLOCK 2
+
+#include <sys/file.h>
+
+static int lockf(int fd, int cmd, off_t len)
+{
+	if (cmd != F_TLOCK || len != 0)
+		return -1;
+
+	return flock(fd, LOCK_EX | LOCK_NB);
+}
+#endif // F_TLOCK
+
+/*
+ * Each daemon tries to create and lock BASE/lock file,
+ * if it's successful we are sure we're the only daemon
+ * running over the BASE.
+ *
+ * Once daemon is finished, file descriptor to lock file
+ * is closed and lock is released.
+ */
+static int check_lock(struct daemon *daemon)
+{
+	char path[PATH_MAX];
+	char buf[20];
+	int fd, pid;
+	ssize_t len;
+
+	scnprintf(path, sizeof(path), "%s/lock", daemon->base);
+
+	fd = open(path, O_RDWR|O_CREAT|O_CLOEXEC, 0640);
+	if (fd < 0)
+		return -1;
+
+	if (lockf(fd, F_TLOCK, 0) < 0) {
+		filename__read_int(path, &pid);
+		fprintf(stderr, "failed: another perf daemon (pid %d) owns %s\n",
+			pid, daemon->base);
+		close(fd);
+		return -1;
+	}
+
+	scnprintf(buf, sizeof(buf), "%d", getpid());
+	len = strlen(buf);
+
+	if (write(fd, buf, len) != len) {
+		perror("failed: write");
+		close(fd);
+		return -1;
+	}
+
+	if (ftruncate(fd, len)) {
+		perror("failed: ftruncate");
+		close(fd);
+		return -1;
+	}
+
+	return 0;
+}
+
 static int go_background(struct daemon *daemon)
 {
 	int pid, fd;
@@ -918,6 +987,9 @@ static int go_background(struct daemon *daemon)
 		return 1;
 
 	if (setsid() < 0)
+		return -1;
+
+	if (check_lock(daemon))
 		return -1;
 
 	umask(0);
@@ -993,6 +1065,9 @@ static int __cmd_start(struct daemon *daemon, struct option parent_options[],
 	}
 
 	if (setup_server_config(daemon))
+		return -1;
+
+	if (foreground && check_lock(daemon))
 		return -1;
 
 	if (!foreground) {
