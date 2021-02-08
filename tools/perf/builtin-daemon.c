@@ -1,12 +1,19 @@
 // SPDX-License-Identifier: GPL-2.0
+#include <internal/lib.h>
 #include <subcmd/parse-options.h>
+#include <api/fd/array.h>
 #include <linux/limits.h>
+#include <linux/string.h>
 #include <string.h>
 #include <signal.h>
 #include <stdlib.h>
 #include <stdio.h>
 #include <unistd.h>
 #include <errno.h>
+#include <sys/types.h>
+#include <sys/socket.h>
+#include <sys/un.h>
+#include <poll.h>
 #include "builtin.h"
 #include "perf.h"
 #include "debug.h"
@@ -35,6 +42,92 @@ static bool done;
 static void sig_handler(int sig __maybe_unused)
 {
 	done = true;
+}
+
+static int setup_server_socket(struct daemon *daemon)
+{
+	struct sockaddr_un addr;
+	char path[PATH_MAX];
+	int fd = socket(AF_UNIX, SOCK_STREAM, 0);
+
+	if (fd < 0) {
+		fprintf(stderr, "socket: %s\n", strerror(errno));
+		return -1;
+	}
+
+	if (fcntl(fd, F_SETFD, FD_CLOEXEC)) {
+		perror("failed: fcntl FD_CLOEXEC");
+		close(fd);
+		return -1;
+	}
+
+	scnprintf(path, sizeof(path), "%s/control", daemon->base);
+
+	if (strlen(path) + 1 >= sizeof(addr.sun_path)) {
+		pr_err("failed: control path too long '%s'\n", path);
+		close(fd);
+		return -1;
+	}
+
+	memset(&addr, 0, sizeof(addr));
+	addr.sun_family = AF_UNIX;
+
+	strlcpy(addr.sun_path, path, sizeof(addr.sun_path) - 1);
+	unlink(path);
+
+	if (bind(fd, (struct sockaddr *)&addr, sizeof(addr)) == -1) {
+		perror("failed: bind");
+		close(fd);
+		return -1;
+	}
+
+	if (listen(fd, 1) == -1) {
+		perror("failed: listen");
+		close(fd);
+		return -1;
+	}
+
+	return fd;
+}
+
+union cmd {
+	int cmd;
+};
+
+static int handle_server_socket(struct daemon *daemon __maybe_unused, int sock_fd)
+{
+	int ret = -1, fd;
+	FILE *out = NULL;
+	union cmd cmd;
+
+	fd = accept(sock_fd, NULL, NULL);
+	if (fd < 0) {
+		perror("failed: accept");
+		return -1;
+	}
+
+	if (sizeof(cmd) != readn(fd, &cmd, sizeof(cmd))) {
+		perror("failed: read");
+		goto out;
+	}
+
+	out = fdopen(fd, "w");
+	if (!out) {
+		perror("failed: fdopen");
+		goto out;
+	}
+
+	switch (cmd.cmd) {
+	default:
+		break;
+	}
+
+	fclose(out);
+out:
+	/* If out is defined, then fd is closed via fclose. */
+	if (!out)
+		close(fd);
+	return ret;
 }
 
 static void daemon__exit(struct daemon *daemon)
@@ -77,6 +170,9 @@ static int __cmd_start(struct daemon *daemon, struct option parent_options[],
 		OPT_PARENT(parent_options),
 		OPT_END()
 	};
+	int sock_fd = -1;
+	int sock_pos;
+	struct fdarray fda;
 	int err = 0;
 
 	argc = parse_options(argc, argv, start_options, daemon_usage, 0);
@@ -93,14 +189,33 @@ static int __cmd_start(struct daemon *daemon, struct option parent_options[],
 
 	pr_info("daemon started (pid %d)\n", getpid());
 
+	fdarray__init(&fda, 1);
+
+	sock_fd = setup_server_socket(daemon);
+	if (sock_fd < 0)
+		goto out;
+
+	sock_pos = fdarray__add(&fda, sock_fd, POLLIN|POLLERR|POLLHUP, 0);
+	if (sock_pos < 0)
+		goto out;
+
 	signal(SIGINT, sig_handler);
 	signal(SIGTERM, sig_handler);
 
 	while (!done && !err) {
-		sleep(1);
+		if (fdarray__poll(&fda, -1)) {
+			if (fda.entries[sock_pos].revents & POLLIN)
+				err = handle_server_socket(daemon, sock_fd);
+		}
 	}
 
+out:
+	fdarray__exit(&fda);
+
 	daemon__exit(daemon);
+
+	if (sock_fd != -1)
+		close(sock_fd);
 
 	pr_info("daemon exited\n");
 	fclose(daemon->out);
