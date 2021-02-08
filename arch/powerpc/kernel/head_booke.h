@@ -142,14 +142,11 @@ ALT_FTR_SECTION_END_IFSET(CPU_FTR_EMB_HV)
 	addi	r11,r11,global_dbcr0@l
 #ifdef CONFIG_SMP
 	lwz	r10, TASK_CPU(r2)
-	slwi	r10, r10, 3
+	slwi	r10, r10, 2
 	add	r11, r11, r10
 #endif
 	lwz	r12,0(r11)
 	mtspr	SPRN_DBCR0,r12
-	lwz	r12,4(r11)
-	addi	r12,r12,-1
-	stw	r12,4(r11)
 
 3:
 	b	transfer_to_syscall	/* jump to handler */

@@ -166,9 +166,6 @@
 	addi	r11,r11,global_dbcr0@l
 	lwz	r12,0(r11)
 	mtspr	SPRN_DBCR0,r12
-	lwz	r12,4(r11)
-	addi	r12,r12,-1
-	stw	r12,4(r11)
 3:
 #endif
 	b	transfer_to_syscall		/* jump to handler */

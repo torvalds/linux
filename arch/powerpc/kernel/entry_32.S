@@ -175,14 +175,11 @@ transfer_to_handler:
 	addi	r11,r11,global_dbcr0@l
 #ifdef CONFIG_SMP
 	lwz	r9,TASK_CPU(r2)
-	slwi	r9,r9,3
+	slwi	r9,r9,2
 	add	r11,r11,r9
 #endif
 	lwz	r12,0(r11)
 	mtspr	SPRN_DBCR0,r12
-	lwz	r12,4(r11)
-	addi	r12,r12,-1
-	stw	r12,4(r11)
 #endif
 
 	b	3f
@@ -981,14 +978,11 @@ load_dbcr0:
 	addi	r11,r11,global_dbcr0@l
 #ifdef CONFIG_SMP
 	lwz	r9,TASK_CPU(r2)
-	slwi	r9,r9,3
+	slwi	r9,r9,2
 	add	r11,r11,r9
 #endif
 	stw	r10,0(r11)
 	mtspr	SPRN_DBCR0,r0
-	lwz	r10,4(r11)
-	addi	r10,r10,1
-	stw	r10,4(r11)
 	li	r11,-1
 	mtspr	SPRN_DBSR,r11	/* clear all pending debug events */
 	blr
@@ -997,7 +991,7 @@ load_dbcr0:
 	.align	4
 	.global global_dbcr0
 global_dbcr0:
-	.space	8*NR_CPUS
+	.space	4*NR_CPUS
 	.previous
 #endif /* !(CONFIG_4xx || CONFIG_BOOKE) */
 
