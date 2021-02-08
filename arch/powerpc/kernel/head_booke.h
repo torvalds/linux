@@ -124,7 +124,7 @@ ALT_FTR_SECTION_END_IFSET(CPU_FTR_EMB_HV)
 	stw	r2,GPR2(r11)
 	addi	r12, r12, STACK_FRAME_REGS_MARKER@l
 	stw	r9,_MSR(r11)
-	li	r2, \trapno + 1
+	li	r2, \trapno
 	stw	r12, 8(r11)
 	stw	r2,_TRAP(r11)
 	SAVE_GPR(0, r11)

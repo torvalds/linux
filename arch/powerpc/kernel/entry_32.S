@@ -351,6 +351,7 @@ trace_syscall_entry_irq_off:
 
 	.globl	transfer_to_syscall
 transfer_to_syscall:
+	SAVE_NVGPRS(r1)
 #ifdef CONFIG_PPC_BOOK3S_32
 	kuep_lock r11, r12
 #endif
@@ -613,51 +614,6 @@ ret_from_kernel_syscall:
 	b .	/* Prevent prefetch past rfi */
 #endif
 _ASM_NOKPROBE_SYMBOL(ret_from_kernel_syscall)
-
-/*
- * The fork/clone functions need to copy the full register set into
- * the child process. Therefore we need to save all the nonvolatile
- * registers (r13 - r31) before calling the C code.
- */
-	.globl	ppc_fork
-ppc_fork:
-	SAVE_NVGPRS(r1)
-	lwz	r0,_TRAP(r1)
-	rlwinm	r0,r0,0,0,30		/* clear LSB to indicate full */
-	stw	r0,_TRAP(r1)		/* register set saved */
-	b	sys_fork
-
-	.globl	ppc_vfork
-ppc_vfork:
-	SAVE_NVGPRS(r1)
-	lwz	r0,_TRAP(r1)
-	rlwinm	r0,r0,0,0,30		/* clear LSB to indicate full */
-	stw	r0,_TRAP(r1)		/* register set saved */
-	b	sys_vfork
-
-	.globl	ppc_clone
-ppc_clone:
-	SAVE_NVGPRS(r1)
-	lwz	r0,_TRAP(r1)
-	rlwinm	r0,r0,0,0,30		/* clear LSB to indicate full */
-	stw	r0,_TRAP(r1)		/* register set saved */
-	b	sys_clone
-
-	.globl	ppc_clone3
-ppc_clone3:
-	SAVE_NVGPRS(r1)
-	lwz	r0,_TRAP(r1)
-	rlwinm	r0,r0,0,0,30		/* clear LSB to indicate full */
-	stw	r0,_TRAP(r1)		/* register set saved */
-	b	sys_clone3
-
-	.globl	ppc_swapcontext
-ppc_swapcontext:
-	SAVE_NVGPRS(r1)
-	lwz	r0,_TRAP(r1)
-	rlwinm	r0,r0,0,0,30		/* clear LSB to indicate full */
-	stw	r0,_TRAP(r1)		/* register set saved */
-	b	sys_swapcontext
 
 /*
  * Top-level page fault handling.
