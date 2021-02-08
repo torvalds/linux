@@ -87,6 +87,17 @@ SYM_CODE_START_LOCAL(mutate_to_vhe)
 	ubfx	x1, x1, #ID_AA64MMFR1_VHE_SHIFT, #4
 	cbz	x1, 1f
 
+	// Check whether VHE is disabled from the command line
+	adr_l	x1, id_aa64mmfr1_override
+	ldr	x2, [x1, FTR_OVR_VAL_OFFSET]
+	ldr	x1, [x1, FTR_OVR_MASK_OFFSET]
+	ubfx	x2, x2, #ID_AA64MMFR1_VHE_SHIFT, #4
+	ubfx	x1, x1, #ID_AA64MMFR1_VHE_SHIFT, #4
+	cmp	x1, xzr
+	and	x2, x2, x1
+	csinv	x2, x2, xzr, ne
+	cbz	x2, 1f
+
 	// Engage the VHE magic!
 	mov_q	x0, HCR_HOST_VHE_FLAGS
 	msr	hcr_el2, x0
