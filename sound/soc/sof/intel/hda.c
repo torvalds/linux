@@ -317,26 +317,6 @@ static const struct hda_dsp_msg_code hda_dsp_rom_msg[] = {
 	{HDA_DSP_ROM_NULL_FW_ENTRY,	"error: null FW entry point"},
 };
 
-static void hda_dsp_get_status_skl(struct snd_sof_dev *sdev)
-{
-	u32 status;
-	int i;
-
-	status = snd_sof_dsp_read(sdev, HDA_DSP_BAR,
-				  HDA_ADSP_FW_STATUS_SKL);
-
-	for (i = 0; i < ARRAY_SIZE(hda_dsp_rom_msg); i++) {
-		if (status == hda_dsp_rom_msg[i].code) {
-			dev_err(sdev->dev, "%s - code %8.8x\n",
-				hda_dsp_rom_msg[i].msg, status);
-			return;
-		}
-	}
-
-	/* not for us, must be generic sof message */
-	dev_dbg(sdev->dev, "unknown ROM status value %8.8x\n", status);
-}
-
 static void hda_dsp_get_status(struct snd_sof_dev *sdev)
 {
 	u32 status;
@@ -383,36 +363,6 @@ static void hda_dsp_get_registers(struct snd_sof_dev *sdev,
 	offset += sizeof(*panic_info);
 	sof_block_read(sdev, sdev->mmio_bar, offset, stack,
 		       stack_words * sizeof(u32));
-}
-
-void hda_dsp_dump_skl(struct snd_sof_dev *sdev, u32 flags)
-{
-	struct sof_ipc_dsp_oops_xtensa xoops;
-	struct sof_ipc_panic_info panic_info;
-	u32 stack[HDA_DSP_STACK_DUMP_SIZE];
-	u32 status, panic;
-
-	/* try APL specific status message types first */
-	hda_dsp_get_status_skl(sdev);
-
-	/* now try generic SOF status messages */
-	status = snd_sof_dsp_read(sdev, HDA_DSP_BAR,
-				  HDA_ADSP_ERROR_CODE_SKL);
-
-	/*TODO: Check: there is no define in spec, but it is used in the code*/
-	panic = snd_sof_dsp_read(sdev, HDA_DSP_BAR,
-				 HDA_ADSP_ERROR_CODE_SKL + 0x4);
-
-	if (sdev->fw_state == SOF_FW_BOOT_COMPLETE) {
-		hda_dsp_get_registers(sdev, &xoops, &panic_info, stack,
-				      HDA_DSP_STACK_DUMP_SIZE);
-		snd_sof_get_status(sdev, status, panic, &xoops, &panic_info,
-				   stack, HDA_DSP_STACK_DUMP_SIZE);
-	} else {
-		dev_err(sdev->dev, "error: status = 0x%8.8x panic = 0x%8.8x\n",
-			status, panic);
-		hda_dsp_get_status_skl(sdev);
-	}
 }
 
 /* dump the first 8 dwords representing the extended ROM status */
