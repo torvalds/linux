@@ -930,8 +930,7 @@ void reset_vc(struct vc_data *vc)
 	put_pid(vc->vt_pid);
 	vc->vt_pid = NULL;
 	vc->vt_newvt = -1;
-	if (!in_interrupt())    /* Via keyboard.c:SAK() - akpm */
-		reset_palette(vc);
+	reset_palette(vc);
 }
 
 void vc_SAK(struct work_struct *work)
