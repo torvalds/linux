@@ -109,8 +109,7 @@ struct paca_struct {
 	 */
 	/* used for most interrupts/exceptions */
 	u64 exgen[EX_SIZE] __attribute__((aligned(0x80)));
-	u64 exslb[EX_SIZE];	/* used for SLB/segment table misses
- 				 * on the linear mapping */
+
 	/* SLB related definitions */
 	u16 vmalloc_sllp;
 	u8 slb_cache_ptr;
