@@ -150,7 +150,8 @@ void mod_freesync_build_vrr_infopacket(struct mod_freesync *mod_freesync,
 		const struct mod_vrr_params *vrr,
 		enum vrr_packet_type packet_type,
 		enum color_transfer_func app_tf,
-		struct dc_info_packet *infopacket);
+		struct dc_info_packet *infopacket,
+		bool pack_sdp_v1_3);
 
 void mod_freesync_build_vrr_params(struct mod_freesync *mod_freesync,
 		const struct dc_stream_state *stream,
