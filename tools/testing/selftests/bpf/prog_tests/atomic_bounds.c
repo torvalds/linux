@@ -12,4 +12,6 @@ void test_atomic_bounds(void)
 	skel = atomic_bounds__open_and_load();
 	if (CHECK(!skel, "skel_load", "couldn't load program\n"))
 		return;
+
+	atomic_bounds__destroy(skel);
 }
