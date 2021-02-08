@@ -86,15 +86,11 @@ err_autopm_put:
 
 static int usb_serial_device_remove(struct device *dev)
 {
+	struct usb_serial_port *port = to_usb_serial_port(dev);
 	struct usb_serial_driver *driver;
-	struct usb_serial_port *port;
 	int retval = 0;
 	int minor;
 	int autopm_err;
-
-	port = to_usb_serial_port(dev);
-	if (!port)
-		return -ENODEV;
 
 	/*
 	 * Make sure suspend/resume doesn't race against port_remove.
