@@ -614,8 +614,12 @@ static int dmic_topology_fixup(struct snd_sof_dev *sdev,
 	dmic_num = check_nhlt_dmic(sdev);
 
 	/* allow for module parameter override */
-	if (hda_dmic_num != -1)
+	if (hda_dmic_num != -1) {
+		dev_dbg(sdev->dev,
+			"overriding DMICs detected in NHLT tables %d by kernel param %d\n",
+			dmic_num, hda_dmic_num);
 		dmic_num = hda_dmic_num;
+	}
 
 	switch (dmic_num) {
 	case 1:
