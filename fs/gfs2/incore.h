@@ -20,6 +20,7 @@
 #include <linux/percpu.h>
 #include <linux/lockref.h>
 #include <linux/rhashtable.h>
+#include <linux/mutex.h>
 
 #define DIO_WAIT	0x00000010
 #define DIO_METADATA	0x00000020
@@ -123,6 +124,7 @@ struct gfs2_rgrpd {
 #define GFS2_RDF_PREFERRED	0x80000000 /* This rgrp is preferred */
 #define GFS2_RDF_MASK		0xf0000000 /* mask for internal flags */
 	spinlock_t rd_rsspin;           /* protects reservation related vars */
+	struct mutex rd_mutex;
 	struct rb_root rd_rstree;       /* multi-block reservation tree */
 };
 

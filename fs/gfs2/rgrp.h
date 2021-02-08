@@ -88,4 +88,8 @@ static inline int rgrp_contains_block(struct gfs2_rgrpd *rgd, u64 block)
 }
 
 extern void check_and_update_goal(struct gfs2_inode *ip);
+
+extern void rgrp_lock_local(struct gfs2_rgrpd *rgd);
+extern void rgrp_unlock_local(struct gfs2_rgrpd *rgd);
+
 #endif /* __RGRP_DOT_H__ */
