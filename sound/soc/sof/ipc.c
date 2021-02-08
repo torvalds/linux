@@ -106,6 +106,8 @@ static void ipc_log_header(struct device *dev, u8 *text, u32 cmd)
 			str2 = "CLK_REQ"; break;
 		case SOF_IPC_PM_CORE_ENABLE:
 			str2 = "CORE_ENABLE"; break;
+		case SOF_IPC_PM_GATE:
+			str2 = "GATE"; break;
 		default:
 			str2 = "unknown type"; break;
 		}
