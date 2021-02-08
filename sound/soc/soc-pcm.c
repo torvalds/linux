@@ -1344,8 +1344,8 @@ static int dpcm_add_paths(struct snd_soc_pcm_runtime *fe, int stream,
 		/* is there a valid BE rtd for this widget */
 		be = dpcm_get_be(card, widget, stream);
 		if (!be) {
-			dev_err(fe->dev, "ASoC: no BE found for %s\n",
-					widget->name);
+			dev_dbg(fe->dev, "ASoC: no BE found for %s\n",
+				widget->name);
 			continue;
 		}
 
