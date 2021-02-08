@@ -14,11 +14,13 @@
  * @chan_ids - channels array
  * @num_adaps - number of adapters
  * @sel_reg_addr - mux select register offset in CPLD space
+ * @reg_size: register size in bytes
  */
 struct mlxcpld_mux_plat_data {
 	int *chan_ids;
 	int num_adaps;
 	int sel_reg_addr;
+	u8 reg_size;
 };
 
 #endif /* _LINUX_I2C_MLXCPLD_H */

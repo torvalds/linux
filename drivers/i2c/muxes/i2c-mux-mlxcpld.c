@@ -63,18 +63,38 @@ static int mlxcpld_mux_reg_write(struct i2c_adapter *adap,
 				 struct mlxcpld_mux *mux, u32 val)
 {
 	struct i2c_client *client = mux->client;
-	union i2c_smbus_data data = { .byte = val };
+	union i2c_smbus_data data;
+	struct i2c_msg msg;
+	u8 buf[3];
 
-	return __i2c_smbus_xfer(adap, client->addr, client->flags,
-				I2C_SMBUS_WRITE, mux->pdata.sel_reg_addr,
-				I2C_SMBUS_BYTE_DATA, &data);
+	switch (mux->pdata.reg_size) {
+	case 1:
+		data.byte = val;
+		return __i2c_smbus_xfer(adap, client->addr, client->flags,
+					I2C_SMBUS_WRITE, mux->pdata.sel_reg_addr,
+					I2C_SMBUS_BYTE_DATA, &data);
+	case 2:
+		buf[0] = mux->pdata.sel_reg_addr >> 8;
+		buf[1] = mux->pdata.sel_reg_addr;
+		buf[2] = val;
+		msg.addr = client->addr;
+		msg.buf = buf;
+		msg.len = mux->pdata.reg_size + 1;
+		msg.flags = 0;
+		return __i2c_transfer(adap, &msg, 1);
+	default:
+		return -EINVAL;
+	}
 }
 
 static int mlxcpld_mux_select_chan(struct i2c_mux_core *muxc, u32 chan)
 {
 	struct mlxcpld_mux *mux = i2c_mux_priv(muxc);
-	u32 regval = chan + 1;
+	u32 regval = chan;
 	int err = 0;
+
+	if (mux->pdata.reg_size == 1)
+		regval += 1;
 
 	/* Only select the channel if its different from the last channel */
 	if (mux->last_val != regval) {
@@ -103,12 +123,23 @@ static int mlxcpld_mux_probe(struct platform_device *pdev)
 	struct i2c_mux_core *muxc;
 	struct mlxcpld_mux *data;
 	int num, err;
+	u32 func;
 
 	if (!pdata)
 		return -EINVAL;
 
-	if (!i2c_check_functionality(client->adapter,
-				     I2C_FUNC_SMBUS_WRITE_BYTE_DATA))
+	switch (pdata->reg_size) {
+	case 1:
+		func = I2C_FUNC_SMBUS_WRITE_BYTE_DATA;
+		break;
+	case 2:
+		func = I2C_FUNC_I2C;
+		break;
+	default:
+		return -EINVAL;
+	}
+
+	if (!i2c_check_functionality(client->adapter, func))
 		return -ENODEV;
 
 	muxc = i2c_mux_alloc(client->adapter, &pdev->dev, CPLD_MUX_MAX_NCHANS,
