@@ -52,8 +52,6 @@ static inline bool __access_ok(unsigned long addr, unsigned long size)
 	__get_user_nocheck((x), (ptr), sizeof(*(ptr)), true)
 #define __put_user(x, ptr) \
 	__put_user_nocheck((__typeof__(*(ptr)))(x), (ptr), sizeof(*(ptr)))
-#define __put_user_goto(x, ptr, label) \
-	__put_user_nocheck_goto((__typeof__(*(ptr)))(x), (ptr), sizeof(*(ptr)), label)
 
 #define __get_user_allowed(x, ptr) \
 	__get_user_nocheck((x), (ptr), sizeof(*(ptr)), false)
@@ -213,7 +211,7 @@ do {								\
 	}							\
 } while (0)
 
-#define __put_user_nocheck_goto(x, ptr, size, label)		\
+#define __unsafe_put_user_goto(x, ptr, size, label)		\
 do {								\
 	__typeof__(*(ptr)) __user *__pu_addr = (ptr);		\
 	if (!is_kernel_addr((unsigned long)__pu_addr))		\
@@ -530,7 +528,8 @@ user_write_access_begin(const void __user *ptr, size_t len)
 
 #define unsafe_op_wrap(op, err) do { if (unlikely(op)) goto err; } while (0)
 #define unsafe_get_user(x, p, e) unsafe_op_wrap(__get_user_allowed(x, p), e)
-#define unsafe_put_user(x, p, e) __put_user_goto(x, p, e)
+#define unsafe_put_user(x, p, e) \
+	__unsafe_put_user_goto((__typeof__(*(p)))(x), (p), sizeof(*(p)), e)
 
 #define unsafe_copy_to_user(d, s, l, e) \
 do {									\
@@ -540,17 +539,17 @@ do {									\
 	int _i;								\
 									\
 	for (_i = 0; _i < (_len & ~(sizeof(long) - 1)); _i += sizeof(long))		\
-		__put_user_goto(*(long*)(_src + _i), (long __user *)(_dst + _i), e);\
+		unsafe_put_user(*(long*)(_src + _i), (long __user *)(_dst + _i), e); \
 	if (IS_ENABLED(CONFIG_PPC64) && (_len & 4)) {			\
-		__put_user_goto(*(u32*)(_src + _i), (u32 __user *)(_dst + _i), e);	\
+		unsafe_put_user(*(u32*)(_src + _i), (u32 __user *)(_dst + _i), e); \
 		_i += 4;						\
 	}								\
 	if (_len & 2) {							\
-		__put_user_goto(*(u16*)(_src + _i), (u16 __user *)(_dst + _i), e);	\
+		unsafe_put_user(*(u16*)(_src + _i), (u16 __user *)(_dst + _i), e); \
 		_i += 2;						\
 	}								\
 	if (_len & 1) \
-		__put_user_goto(*(u8*)(_src + _i), (u8 __user *)(_dst + _i), e);\
+		unsafe_put_user(*(u8*)(_src + _i), (u8 __user *)(_dst + _i), e); \
 } while (0)
 
 #define HAVE_GET_KERNEL_NOFAULT
