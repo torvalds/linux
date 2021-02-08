@@ -810,7 +810,8 @@ static void spi_set_cs(struct spi_device *spi, bool enable)
 	spi->controller->last_cs_enable = enable;
 	spi->controller->last_cs_mode_high = spi->mode & SPI_CS_HIGH;
 
-	if (!spi->controller->set_cs_timing) {
+	if (spi->cs_gpiod || gpio_is_valid(spi->cs_gpio) ||
+	    !spi->controller->set_cs_timing) {
 		if (enable1)
 			spi_delay_exec(&spi->controller->cs_setup, NULL);
 		else
@@ -841,7 +842,8 @@ static void spi_set_cs(struct spi_device *spi, bool enable)
 		spi->controller->set_cs(spi, !enable);
 	}
 
-	if (!spi->controller->set_cs_timing) {
+	if (spi->cs_gpiod || gpio_is_valid(spi->cs_gpio) ||
+	    !spi->controller->set_cs_timing) {
 		if (!enable1)
 			spi_delay_exec(&spi->controller->cs_inactive, NULL);
 	}
@@ -3460,11 +3462,31 @@ EXPORT_SYMBOL_GPL(spi_setup);
 int spi_set_cs_timing(struct spi_device *spi, struct spi_delay *setup,
 		      struct spi_delay *hold, struct spi_delay *inactive)
 {
+	struct device *parent = spi->controller->dev.parent;
 	size_t len;
+	int status;
 
-	if (spi->controller->set_cs_timing)
-		return spi->controller->set_cs_timing(spi, setup, hold,
-						      inactive);
+	if (spi->controller->set_cs_timing &&
+	    !(spi->cs_gpiod || gpio_is_valid(spi->cs_gpio))) {
+		if (spi->controller->auto_runtime_pm) {
+			status = pm_runtime_get_sync(parent);
+			if (status < 0) {
+				pm_runtime_put_noidle(parent);
+				dev_err(&spi->controller->dev, "Failed to power device: %d\n",
+					status);
+				return status;
+			}
+
+			status = spi->controller->set_cs_timing(spi, setup,
+								hold, inactive);
+			pm_runtime_mark_last_busy(parent);
+			pm_runtime_put_autosuspend(parent);
+			return status;
+		} else {
+			return spi->controller->set_cs_timing(spi, setup, hold,
+							      inactive);
+		}
+	}
 
 	if ((setup && setup->unit == SPI_DELAY_UNIT_SCK) ||
 	    (hold && hold->unit == SPI_DELAY_UNIT_SCK) ||
