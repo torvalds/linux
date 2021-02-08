@@ -30,14 +30,6 @@ static int mlx5e_trap_napi_poll(struct napi_struct *napi, int budget)
 	return work_done;
 }
 
-static void mlx5e_free_trap_rq(struct mlx5e_rq *rq)
-{
-	page_pool_destroy(rq->page_pool);
-	mlx5e_free_di_list(rq);
-	kvfree(rq->wqe.frags);
-	mlx5_wq_destroy(&rq->wq_ctrl);
-}
-
 static void mlx5e_init_trap_rq(struct mlx5e_trap *t, struct mlx5e_params *params,
 			       struct mlx5e_rq *rq)
 {
@@ -93,9 +85,7 @@ err_destroy_cq:
 
 static void mlx5e_close_trap_rq(struct mlx5e_rq *rq)
 {
-	mlx5e_destroy_rq(rq);
-	mlx5e_free_rx_descs(rq);
-	mlx5e_free_trap_rq(rq);
+	mlx5e_close_rq(rq);
 	mlx5e_close_cq(&rq->cq);
 }
 
