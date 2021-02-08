@@ -790,7 +790,8 @@ static int imx334_parse_hw_config(struct imx334 *imx334)
 	imx334->reset_gpio = devm_gpiod_get_optional(imx334->dev, "reset",
 						     GPIOD_OUT_LOW);
 	if (IS_ERR(imx334->reset_gpio)) {
-		dev_err(imx334->dev, "failed to get reset gpio %d", ret);
+		dev_err(imx334->dev, "failed to get reset gpio %ld",
+			PTR_ERR(imx334->reset_gpio));
 		return PTR_ERR(imx334->reset_gpio);
 	}
 
