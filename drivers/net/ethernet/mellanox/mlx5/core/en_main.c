@@ -886,7 +886,10 @@ err_free_rq:
 void mlx5e_activate_rq(struct mlx5e_rq *rq)
 {
 	set_bit(MLX5E_RQ_STATE_ENABLED, &rq->state);
-	mlx5e_trigger_irq(rq->icosq);
+	if (rq->icosq)
+		mlx5e_trigger_irq(rq->icosq);
+	else
+		napi_schedule(rq->cq.napi);
 }
 
 void mlx5e_deactivate_rq(struct mlx5e_rq *rq)

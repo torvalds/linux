@@ -128,16 +128,6 @@ static void mlx5e_destroy_trap_direct_rq_tir(struct mlx5_core_dev *mdev, struct 
 	mlx5e_destroy_tir(mdev, tir);
 }
 
-static void mlx5e_activate_trap_rq(struct mlx5e_rq *rq)
-{
-	set_bit(MLX5E_RQ_STATE_ENABLED, &rq->state);
-}
-
-static void mlx5e_deactivate_trap_rq(struct mlx5e_rq *rq)
-{
-	clear_bit(MLX5E_RQ_STATE_ENABLED, &rq->state);
-}
-
 static void mlx5e_build_trap_params(struct mlx5_core_dev *mdev,
 				    int max_mtu, u16 q_counter,
 				    struct mlx5e_trap *t)
@@ -202,15 +192,14 @@ void mlx5e_close_trap(struct mlx5e_trap *trap)
 static void mlx5e_activate_trap(struct mlx5e_trap *trap)
 {
 	napi_enable(&trap->napi);
-	mlx5e_activate_trap_rq(&trap->rq);
-	napi_schedule(&trap->napi);
+	mlx5e_activate_rq(&trap->rq);
 }
 
 void mlx5e_deactivate_trap(struct mlx5e_priv *priv)
 {
 	struct mlx5e_trap *trap = priv->en_trap;
 
-	mlx5e_deactivate_trap_rq(&trap->rq);
+	mlx5e_deactivate_rq(&trap->rq);
 	napi_disable(&trap->napi);
 }
 
