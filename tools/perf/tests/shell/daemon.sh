@@ -426,6 +426,43 @@ EOF
 	rm -f ${config}
 }
 
+test_lock()
+{
+	echo "test daemon lock"
+
+	local config=$(mktemp /tmp/perf.daemon.config.XXX)
+	local base=$(mktemp -d /tmp/perf.daemon.base.XXX)
+
+	# prepare config
+	cat <<EOF > ${config}
+[daemon]
+base=BASE
+
+[session-size]
+run = -e cpu-clock
+EOF
+
+	sed -i -e "s|BASE|${base}|" ${config}
+
+	# start daemon
+	daemon_start ${config} size
+
+	# start second daemon over the same config/base
+	failed=`perf daemon start --config ${config} 2>&1 | awk '{ print $1 }'`
+
+	# check that we failed properly
+	if [ ${failed} != "failed:" ]; then
+		error=1
+		echo "FAILED: daemon lock failed"
+	fi
+
+	# stop daemon
+	daemon_exit ${base} ${config}
+
+	rm -rf ${base}
+	rm -f ${config}
+}
+
 error=0
 
 test_list
@@ -433,5 +470,6 @@ test_reconfig
 test_stop
 test_signal
 test_ping
+test_lock
 
 exit ${error}
