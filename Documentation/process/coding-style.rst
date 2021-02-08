@@ -323,8 +323,7 @@ that counts the number of active users, you should call that
 
 Encoding the type of a function into the name (so-called Hungarian
 notation) is asinine - the compiler knows the types anyway and can check
-those, and it only confuses the programmer. No wonder Microsoft makes buggy
-programs.
+those, and it only confuses the programmer.
 
 LOCAL variable names should be short, and to the point.  If you have
 some random integer loop counter, it should probably be called ``i``.
