@@ -101,9 +101,8 @@ static int mlxcpld_mux_probe(struct platform_device *pdev)
 	struct mlxcpld_mux_plat_data *pdata = dev_get_platdata(&pdev->dev);
 	struct i2c_client *client = to_i2c_client(pdev->dev.parent);
 	struct i2c_mux_core *muxc;
-	int num, force;
 	struct mlxcpld_mux *data;
-	int err;
+	int num, err;
 
 	if (!pdata)
 		return -EINVAL;
@@ -130,9 +129,7 @@ static int mlxcpld_mux_probe(struct platform_device *pdev)
 			/* discard unconfigured channels */
 			break;
 
-		force = pdata->adap_ids[num];
-
-		err = i2c_mux_add_adapter(muxc, force, num, 0);
+		err = i2c_mux_add_adapter(muxc, 0, pdata->chan_ids[num], 0);
 		if (err)
 			goto virt_reg_failed;
 	}
