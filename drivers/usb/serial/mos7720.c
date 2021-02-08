@@ -1760,14 +1760,12 @@ static int mos7720_port_probe(struct usb_serial_port *port)
 	return 0;
 }
 
-static int mos7720_port_remove(struct usb_serial_port *port)
+static void mos7720_port_remove(struct usb_serial_port *port)
 {
 	struct moschip_port *mos7720_port;
 
 	mos7720_port = usb_get_serial_port_data(port);
 	kfree(mos7720_port);
-
-	return 0;
 }
 
 static struct usb_serial_driver moschip7720_2port_driver = {

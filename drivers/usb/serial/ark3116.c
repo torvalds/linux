@@ -178,15 +178,13 @@ static int ark3116_port_probe(struct usb_serial_port *port)
 	return 0;
 }
 
-static int ark3116_port_remove(struct usb_serial_port *port)
+static void ark3116_port_remove(struct usb_serial_port *port)
 {
 	struct ark3116_private *priv = usb_get_serial_port_data(port);
 
 	/* device is closed, so URBs and DMA should be down */
 	mutex_destroy(&priv->hw_lock);
 	kfree(priv);
-
-	return 0;
 }
 
 static void ark3116_set_termios(struct tty_struct *tty,

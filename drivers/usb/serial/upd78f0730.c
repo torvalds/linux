@@ -171,15 +171,13 @@ static int upd78f0730_port_probe(struct usb_serial_port *port)
 	return 0;
 }
 
-static int upd78f0730_port_remove(struct usb_serial_port *port)
+static void upd78f0730_port_remove(struct usb_serial_port *port)
 {
 	struct upd78f0730_port_private *private;
 
 	private = usb_get_serial_port_data(port);
 	mutex_destroy(&private->lock);
 	kfree(private);
-
-	return 0;
 }
 
 static int upd78f0730_tiocmget(struct tty_struct *tty)

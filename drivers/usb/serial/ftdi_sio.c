@@ -1069,7 +1069,7 @@ static const char *ftdi_chip_name[] = {
 static int  ftdi_sio_probe(struct usb_serial *serial,
 					const struct usb_device_id *id);
 static int  ftdi_sio_port_probe(struct usb_serial_port *port);
-static int  ftdi_sio_port_remove(struct usb_serial_port *port);
+static void ftdi_sio_port_remove(struct usb_serial_port *port);
 static int  ftdi_open(struct tty_struct *tty, struct usb_serial_port *port);
 static void ftdi_dtr_rts(struct usb_serial_port *port, int on);
 static void ftdi_process_read_urb(struct urb *urb);
@@ -2400,7 +2400,7 @@ static int ftdi_stmclite_probe(struct usb_serial *serial)
 	return 0;
 }
 
-static int ftdi_sio_port_remove(struct usb_serial_port *port)
+static void ftdi_sio_port_remove(struct usb_serial_port *port)
 {
 	struct ftdi_private *priv = usb_get_serial_port_data(port);
 
@@ -2409,8 +2409,6 @@ static int ftdi_sio_port_remove(struct usb_serial_port *port)
 	remove_sysfs_attrs(port);
 
 	kfree(priv);
-
-	return 0;
 }
 
 static int ftdi_open(struct tty_struct *tty, struct usb_serial_port *port)

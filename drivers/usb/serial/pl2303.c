@@ -450,13 +450,11 @@ static int pl2303_port_probe(struct usb_serial_port *port)
 	return 0;
 }
 
-static int pl2303_port_remove(struct usb_serial_port *port)
+static void pl2303_port_remove(struct usb_serial_port *port)
 {
 	struct pl2303_private *priv = usb_get_serial_port_data(port);
 
 	kfree(priv);
-
-	return 0;
 }
 
 static int pl2303_set_control_lines(struct usb_serial_port *port, u8 value)
