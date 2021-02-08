@@ -2848,6 +2848,8 @@ static const struct attribute_group tty_dev_attr_group = {
  *	@drv: pointer to the uart low level driver structure for this port
  *	@uport: uart port structure to use for this port.
  *
+ *	Context: task context, might sleep
+ *
  *	This allows the driver to register its own uart_port structure
  *	with the core driver.  The main purpose is to allow the low
  *	level uart drivers to expand uart_port, rather than having yet
@@ -2860,8 +2862,6 @@ int uart_add_one_port(struct uart_driver *drv, struct uart_port *uport)
 	int ret = 0;
 	struct device *tty_dev;
 	int num_groups;
-
-	BUG_ON(in_interrupt());
 
 	if (uport->line >= drv->nr)
 		return -EINVAL;
@@ -2951,6 +2951,8 @@ int uart_add_one_port(struct uart_driver *drv, struct uart_port *uport)
  *	@drv: pointer to the uart low level driver structure for this port
  *	@uport: uart port structure for this port
  *
+ *	Context: task context, might sleep
+ *
  *	This unhooks (and hangs up) the specified port structure from the
  *	core driver.  No further calls will be made to the low-level code
  *	for this port.
@@ -2962,8 +2964,6 @@ int uart_remove_one_port(struct uart_driver *drv, struct uart_port *uport)
 	struct uart_port *uart_port;
 	struct tty_struct *tty;
 	int ret = 0;
-
-	BUG_ON(in_interrupt());
 
 	mutex_lock(&port_mutex);
 
