@@ -27,6 +27,10 @@ OPTIONS
 --verbose::
 	Be more verbose.
 
+--config=<PATH>::
+	Config file path. If not provided, perf will check system and default
+	locations (/etc/perfconfig, $HOME/.perfconfig).
+
 All generic options are available also under commands.
 
 
