@@ -626,13 +626,11 @@ ssize_t nfs_file_write(struct kiocb *iocb, struct iov_iter *from)
 	/*
 	 * O_APPEND implies that we must revalidate the file length.
 	 */
-	if (iocb->ki_flags & IOCB_APPEND) {
+	if (iocb->ki_flags & IOCB_APPEND || iocb->ki_pos > i_size_read(inode)) {
 		result = nfs_revalidate_file_size(inode, file);
 		if (result)
 			goto out;
 	}
-	if (iocb->ki_pos > i_size_read(inode))
-		nfs_revalidate_mapping(inode, file->f_mapping);
 
 	since = filemap_sample_wb_err(file->f_mapping);
 	nfs_start_io_write(inode);
