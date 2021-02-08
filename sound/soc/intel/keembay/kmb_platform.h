@@ -150,6 +150,7 @@ struct kmb_i2s_info {
 	struct snd_pcm_substream *rx_substream;
 	unsigned int tx_ptr;
 	unsigned int rx_ptr;
+	bool iec958_fmt;
 };
 
 #endif /* KMB_PLATFORM_H_ */

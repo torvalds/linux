@@ -5,6 +5,7 @@
 // Intel KeemBay Platform driver.
 //
 
+#include <linux/bitrev.h>
 #include <linux/clk.h>
 #include <linux/dma-mapping.h>
 #include <linux/io.h>
@@ -39,7 +40,8 @@ static const struct snd_pcm_hardware kmb_pcm_hardware = {
 	.rate_max = 48000,
 	.formats = SNDRV_PCM_FMTBIT_S16_LE |
 		   SNDRV_PCM_FMTBIT_S24_LE |
-		   SNDRV_PCM_FMTBIT_S32_LE,
+		   SNDRV_PCM_FMTBIT_S32_LE |
+		   SNDRV_PCM_FMTBIT_IEC958_SUBFRAME_LE,
 	.channels_min = 2,
 	.channels_max = 2,
 	.buffer_bytes_max = BUFFER_BYTES_MAX,
@@ -49,6 +51,50 @@ static const struct snd_pcm_hardware kmb_pcm_hardware = {
 	.periods_max = PERIODS_MAX,
 	.fifo_size = 16,
 };
+
+/*
+ * Convert to ADV7511 HDMI hardware format.
+ * ADV7511 HDMI chip need parity bit replaced by block start bit and
+ * with the preamble bits left out.
+ * ALSA IEC958 subframe format:
+ * bit 0-3  = preamble (0x8 = block start)
+ *     4-7  = AUX (=0)
+ *     8-27 = audio data (without AUX if 24bit sample)
+ *     28   = validity
+ *     29   = user data
+ *     30   = channel status
+ *     31   = parity
+ *
+ * ADV7511 IEC958 subframe format:
+ * bit 0-23  = audio data
+ *     24    = validity
+ *     25    = user data
+ *     26    = channel status
+ *     27    = block start
+ *     28-31 = 0
+ * MSB to LSB bit reverse by software as hardware not supporting it.
+ */
+static void hdmi_reformat_iec958(struct snd_pcm_runtime *runtime,
+				 struct kmb_i2s_info *kmb_i2s,
+				 unsigned int tx_ptr)
+{
+	u32(*buf)[2] = (void *)runtime->dma_area;
+	unsigned long temp;
+	u32 i, j, sample;
+
+	for (i = 0; i < kmb_i2s->fifo_th; i++) {
+		j = 0;
+		do {
+			temp = buf[tx_ptr][j];
+			/* Replace parity with block start*/
+			assign_bit(31, &temp, (BIT(3) & temp));
+			sample = bitrev32(temp);
+			buf[tx_ptr][j] = sample << 4;
+			j++;
+		} while (j < 2);
+		tx_ptr++;
+	}
+}
 
 static unsigned int kmb_pcm_tx_fn(struct kmb_i2s_info *kmb_i2s,
 				  struct snd_pcm_runtime *runtime,
@@ -65,6 +111,8 @@ static unsigned int kmb_pcm_tx_fn(struct kmb_i2s_info *kmb_i2s,
 			writel(((u16(*)[2])buf)[tx_ptr][0], i2s_base + LRBR_LTHR(0));
 			writel(((u16(*)[2])buf)[tx_ptr][1], i2s_base + RRBR_RTHR(0));
 		} else {
+			if (kmb_i2s->iec958_fmt)
+				hdmi_reformat_iec958(runtime, kmb_i2s, tx_ptr);
 			writel(((u32(*)[2])buf)[tx_ptr][0], i2s_base + LRBR_LTHR(0));
 			writel(((u32(*)[2])buf)[tx_ptr][1], i2s_base + RRBR_RTHR(0));
 		}
@@ -235,6 +283,7 @@ static int kmb_pcm_trigger(struct snd_soc_component *component,
 			kmb_i2s->tx_substream = NULL;
 		else
 			kmb_i2s->rx_substream = NULL;
+		kmb_i2s->iec958_fmt = false;
 		break;
 	default:
 		return -EINVAL;
@@ -549,6 +598,9 @@ static int kmb_dai_hw_params(struct snd_pcm_substream *substream,
 		kmb_i2s->play_dma_data.addr_width = DMA_SLAVE_BUSWIDTH_4_BYTES;
 		kmb_i2s->capture_dma_data.addr_width = DMA_SLAVE_BUSWIDTH_4_BYTES;
 		break;
+	case SNDRV_PCM_FORMAT_IEC958_SUBFRAME_LE:
+		kmb_i2s->iec958_fmt = true;
+		fallthrough;
 	case SNDRV_PCM_FORMAT_S32_LE:
 		config->data_width = 32;
 		kmb_i2s->ccr = 0x10;
@@ -686,6 +738,24 @@ static struct snd_soc_dai_ops kmb_dai_ops = {
 	.set_fmt	= kmb_set_dai_fmt,
 };
 
+static struct snd_soc_dai_driver intel_kmb_hdmi_dai[] = {
+	{
+		.name = "intel_kmb_hdmi_i2s",
+		.playback = {
+			.channels_min = 2,
+			.channels_max = 2,
+			.rates = SNDRV_PCM_RATE_48000,
+			.rate_min = 48000,
+			.rate_max = 48000,
+			.formats = (SNDRV_PCM_FMTBIT_S16_LE |
+				    SNDRV_PCM_FMTBIT_S24_LE |
+				    SNDRV_PCM_FMTBIT_IEC958_SUBFRAME_LE),
+		},
+		.ops = &kmb_dai_ops,
+		.probe = kmb_probe,
+	},
+};
+
 static struct snd_soc_dai_driver intel_kmb_i2s_dai[] = {
 	{
 		.name = "intel_kmb_i2s",
@@ -740,6 +810,7 @@ static struct snd_soc_dai_driver intel_kmb_tdm_dai[] = {
 
 static const struct of_device_id kmb_plat_of_match[] = {
 	{ .compatible = "intel,keembay-i2s", .data = &intel_kmb_i2s_dai},
+	{ .compatible = "intel,keembay-hdmi-i2s", .data = &intel_kmb_hdmi_dai},
 	{ .compatible = "intel,keembay-tdm", .data = &intel_kmb_tdm_dai},
 	{}
 };
