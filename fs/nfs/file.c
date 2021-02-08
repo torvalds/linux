@@ -89,7 +89,7 @@ nfs_file_release(struct inode *inode, struct file *filp)
 EXPORT_SYMBOL_GPL(nfs_file_release);
 
 /**
- * nfs_revalidate_size - Revalidate the file size
+ * nfs_revalidate_file_size - Revalidate the file size
  * @inode: pointer to inode struct
  * @filp: pointer to struct file
  *
