@@ -295,9 +295,63 @@ EOF
 	rm -f ${config_new}
 	rm -f ${config_empty}
 }
+
+test_stop()
+{
+	echo "test daemon stop"
+
+	local config=$(mktemp /tmp/perf.daemon.config.XXX)
+	local base=$(mktemp -d /tmp/perf.daemon.base.XXX)
+
+	# prepare config
+	cat <<EOF > ${config}
+[daemon]
+base=BASE
+
+[session-size]
+run = -e cpu-clock
+
+[session-time]
+run = -e task-clock
+EOF
+
+	sed -i -e "s|BASE|${base}|" ${config}
+
+	# start daemon
+	daemon_start ${config} size
+
+	local pid_size=`perf daemon --config ${config} -x: | head -2 | tail -1 | awk 'BEGIN { FS = ":" } ; { print $1 }'`
+	local pid_time=`perf daemon --config ${config} -x: | head -3 | tail -1 | awk 'BEGIN { FS = ":" } ; { print $1 }'`
+
+	# check that sessions are running
+	if [ ! -d "/proc/${pid_size}" ]; then
+		echo "FAILED: session size not up"
+	fi
+
+	if [ ! -d "/proc/${pid_time}" ]; then
+		echo "FAILED: session time not up"
+	fi
+
+	# stop daemon
+	daemon_exit ${base} ${config}
+
+	# check that sessions are gone
+	if [ -d "/proc/${pid_size}" ]; then
+		echo "FAILED: session size still up"
+	fi
+
+	if [ -d "/proc/${pid_time}" ]; then
+		echo "FAILED: session time still up"
+	fi
+
+	rm -rf ${base}
+	rm -f ${config}
+}
+
 error=0
 
 test_list
 test_reconfig
+test_stop
 
 exit ${error}
