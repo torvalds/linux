@@ -6,6 +6,7 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include <unistd.h>
+#include <errno.h>
 #include "builtin.h"
 #include "perf.h"
 #include "debug.h"
@@ -15,6 +16,7 @@
 struct daemon {
 	const char		*config;
 	char			*config_real;
+	const char		*base_user;
 	char			*base;
 	FILE			*out;
 	char			 perf[PATH_MAX];
@@ -38,10 +40,17 @@ static void sig_handler(int sig __maybe_unused)
 static void daemon__exit(struct daemon *daemon)
 {
 	free(daemon->config_real);
+	free(daemon->base);
 }
 
 static int setup_config(struct daemon *daemon)
 {
+	if (daemon->base_user) {
+		daemon->base = strdup(daemon->base_user);
+		if (!daemon->base)
+			return -ENOMEM;
+	}
+
 	if (daemon->config) {
 		char *real = realpath(daemon->config, NULL);
 
@@ -104,6 +113,8 @@ int cmd_daemon(int argc, const char **argv)
 		OPT_INCR('v', "verbose", &verbose, "be more verbose"),
 		OPT_STRING(0, "config", &__daemon.config,
 			"config file", "config file path"),
+		OPT_STRING(0, "base", &__daemon.base_user,
+			"directory", "base directory"),
 		OPT_END()
 	};
 
