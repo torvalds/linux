@@ -159,6 +159,10 @@ static int mlxcpld_mux_probe(struct platform_device *pdev)
 			goto virt_reg_failed;
 	}
 
+	/* Notify caller when all channels' adapters are created. */
+	if (pdata->completion_notify)
+		pdata->completion_notify(pdata->handle, muxc->parent, muxc->adapter);
+
 	return 0;
 
 virt_reg_failed:
