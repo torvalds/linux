@@ -880,13 +880,9 @@ static int mei_cl_device_probe(struct device *dev)
 static int mei_cl_device_remove(struct device *dev)
 {
 	struct mei_cl_device *cldev = to_mei_cl_device(dev);
-	struct mei_cl_driver *cldrv;
+	struct mei_cl_driver *cldrv = to_mei_cl_driver(dev->driver);
 	int ret = 0;
 
-	if (!cldev || !dev->driver)
-		return 0;
-
-	cldrv = to_mei_cl_driver(dev->driver);
 	if (cldrv->remove)
 		ret = cldrv->remove(cldev);
 
