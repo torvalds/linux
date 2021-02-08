@@ -419,6 +419,10 @@ struct iwl_mvm_vif {
 
 	/* 26-tone RU OFDMA transmissions should be blocked */
 	bool he_ru_2mhz_block;
+
+	struct {
+		struct ieee80211_key_conf __rcu *keys[2];
+	} bcn_prot;
 };
 
 static inline struct iwl_mvm_vif *
@@ -795,6 +799,8 @@ struct iwl_mvm {
 
 	bool hw_registered;
 	bool rfkill_safe_init_done;
+
+	u8 cca_40mhz_workaround;
 
 	u32 ampdu_ref;
 	bool ampdu_toggle;
@@ -1471,10 +1477,9 @@ const char *iwl_mvm_get_tx_fail_reason(u32 status);
 #else
 static inline const char *iwl_mvm_get_tx_fail_reason(u32 status) { return ""; }
 #endif
-int iwl_mvm_flush_tx_path(struct iwl_mvm *mvm, u32 tfd_msk, u32 flags);
+int iwl_mvm_flush_tx_path(struct iwl_mvm *mvm, u32 tfd_msk);
 int iwl_mvm_flush_sta(struct iwl_mvm *mvm, void *sta, bool internal);
-int iwl_mvm_flush_sta_tids(struct iwl_mvm *mvm, u32 sta_id,
-			   u16 tids, u32 flags);
+int iwl_mvm_flush_sta_tids(struct iwl_mvm *mvm, u32 sta_id, u16 tids);
 
 void iwl_mvm_async_handlers_purge(struct iwl_mvm *mvm);
 
@@ -1547,6 +1552,9 @@ bool iwl_mvm_bcast_filter_build_cmd(struct iwl_mvm *mvm,
  * FW notifications / CMD responses handlers
  * Convention: iwl_mvm_rx_<NAME OF THE CMD>
  */
+void iwl_mvm_rx_mq(struct iwl_op_mode *op_mode,
+		   struct napi_struct *napi,
+		   struct iwl_rx_cmd_buffer *rxb);
 void iwl_mvm_rx_rx_phy_cmd(struct iwl_mvm *mvm, struct iwl_rx_cmd_buffer *rxb);
 void iwl_mvm_rx_rx_mpdu(struct iwl_mvm *mvm, struct napi_struct *napi,
 			struct iwl_rx_cmd_buffer *rxb);
@@ -1898,7 +1906,6 @@ int iwl_mvm_reconfig_scd(struct iwl_mvm *mvm, int queue, int fifo, int sta_id,
 
 /* Thermal management and CT-kill */
 void iwl_mvm_tt_tx_backoff(struct iwl_mvm *mvm, u32 backoff);
-void iwl_mvm_tt_temp_changed(struct iwl_mvm *mvm, u32 temp);
 void iwl_mvm_temp_notif(struct iwl_mvm *mvm,
 			struct iwl_rx_cmd_buffer *rxb);
 void iwl_mvm_tt_handler(struct iwl_mvm *mvm);
@@ -1995,6 +2002,7 @@ void iwl_mvm_sync_rx_queues_internal(struct iwl_mvm *mvm,
 				     u32 size);
 void iwl_mvm_reorder_timer_expired(struct timer_list *t);
 struct ieee80211_vif *iwl_mvm_get_bss_vif(struct iwl_mvm *mvm);
+struct ieee80211_vif *iwl_mvm_get_vif_by_macid(struct iwl_mvm *mvm, u32 macid);
 bool iwl_mvm_is_vif_assoc(struct iwl_mvm *mvm);
 
 #define MVM_TCM_PERIOD_MSEC 500

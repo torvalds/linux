@@ -213,9 +213,9 @@ static int iwl_pcie_gen2_nic_init(struct iwl_trans *trans)
 			       trans->cfg->min_txq_size);
 
 	/* TODO: most of the logic can be removed in A0 - but not in Z0 */
-	spin_lock(&trans_pcie->irq_lock);
+	spin_lock_bh(&trans_pcie->irq_lock);
 	iwl_pcie_gen2_apm_init(trans);
-	spin_unlock(&trans_pcie->irq_lock);
+	spin_unlock_bh(&trans_pcie->irq_lock);
 
 	iwl_op_mode_nic_config(trans->op_mode);
 

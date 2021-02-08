@@ -91,7 +91,7 @@ static ssize_t iwl_dbgfs_tx_flush_write(struct iwl_mvm *mvm, char *buf,
 				    "FLUSHING all tids queues on sta_id = %d\n",
 				    flush_arg);
 		mutex_lock(&mvm->mutex);
-		ret = iwl_mvm_flush_sta_tids(mvm, flush_arg, 0xFFFF, 0)
+		ret = iwl_mvm_flush_sta_tids(mvm, flush_arg, 0xFFFF)
 			? : count;
 		mutex_unlock(&mvm->mutex);
 		return ret;
@@ -101,7 +101,7 @@ static ssize_t iwl_dbgfs_tx_flush_write(struct iwl_mvm *mvm, char *buf,
 			    flush_arg);
 
 	mutex_lock(&mvm->mutex);
-	ret =  iwl_mvm_flush_tx_path(mvm, flush_arg, 0) ? : count;
+	ret =  iwl_mvm_flush_tx_path(mvm, flush_arg) ? : count;
 	mutex_unlock(&mvm->mutex);
 
 	return ret;
@@ -712,6 +712,30 @@ static ssize_t iwl_dbgfs_fw_ver_read(struct file *file, char __user *user_buf,
 	return ret;
 }
 
+static ssize_t iwl_dbgfs_phy_integration_ver_read(struct file *file,
+						  char __user *user_buf,
+						  size_t count, loff_t *ppos)
+{
+	struct iwl_mvm *mvm = file->private_data;
+	char *buf;
+	size_t bufsz;
+	int pos;
+	ssize_t ret;
+
+	bufsz = mvm->fw->phy_integration_ver_len + 2;
+	buf = kmalloc(bufsz, GFP_KERNEL);
+	if (!buf)
+		return -ENOMEM;
+
+	pos = scnprintf(buf, bufsz, "%.*s\n", mvm->fw->phy_integration_ver_len,
+			mvm->fw->phy_integration_ver);
+
+	ret = simple_read_from_buffer(user_buf, count, ppos, buf, pos);
+
+	kfree(buf);
+	return ret;
+}
+
 #define PRINT_STATS_LE32(_struct, _memb)				\
 			 pos += scnprintf(buf + pos, bufsz - pos,	\
 					  fmt_table, #_memb,		\
@@ -1117,24 +1141,22 @@ static ssize_t iwl_dbgfs_inject_packet_write(struct iwl_mvm *mvm,
 					     char *buf, size_t count,
 					     loff_t *ppos)
 {
+	struct iwl_op_mode *opmode = container_of((void *)mvm,
+						  struct iwl_op_mode,
+						  op_mode_specific);
 	struct iwl_rx_cmd_buffer rxb = {
 		._rx_page_order = 0,
 		.truesize = 0, /* not used */
 		._offset = 0,
 	};
 	struct iwl_rx_packet *pkt;
-	struct iwl_rx_mpdu_desc *desc;
 	int bin_len = count / 2;
 	int ret = -EINVAL;
-	size_t mpdu_cmd_hdr_size = (mvm->trans->trans_cfg->device_family >=
-				    IWL_DEVICE_FAMILY_AX210) ?
-		sizeof(struct iwl_rx_mpdu_desc) :
-		IWL_RX_DESC_SIZE_V1;
 
 	if (!iwl_mvm_firmware_running(mvm))
 		return -EIO;
 
-	/* supporting only 9000 descriptor */
+	/* supporting only MQ RX */
 	if (!mvm->trans->trans_cfg->mq_rx_supported)
 		return -ENOTSUPP;
 
@@ -1147,23 +1169,13 @@ static ssize_t iwl_dbgfs_inject_packet_write(struct iwl_mvm *mvm,
 	if (ret)
 		goto out;
 
-	/* avoid invalid memory access */
-	if (bin_len < sizeof(*pkt) + mpdu_cmd_hdr_size)
-		goto out;
-
-	/* check this is RX packet */
-	if (WIDE_ID(pkt->hdr.group_id, pkt->hdr.cmd) !=
-	    WIDE_ID(LEGACY_GROUP, REPLY_RX_MPDU_CMD))
-		goto out;
-
-	/* check the length in metadata matches actual received length */
-	desc = (void *)pkt->data;
-	if (le16_to_cpu(desc->mpdu_len) !=
-	    (bin_len - mpdu_cmd_hdr_size - sizeof(*pkt)))
+	/* avoid invalid memory access and malformed packet */
+	if (bin_len < sizeof(*pkt) ||
+	    bin_len != sizeof(*pkt) + iwl_rx_packet_payload_len(pkt))
 		goto out;
 
 	local_bh_disable();
-	iwl_mvm_rx_mpdu_mq(mvm, NULL, &rxb, 0);
+	iwl_mvm_rx_mq(opmode, NULL, &rxb);
 	local_bh_enable();
 	ret = 0;
 
@@ -1333,6 +1345,24 @@ static ssize_t iwl_dbgfs_fw_dbg_collect_write(struct iwl_mvm *mvm,
 
 	iwl_fw_dbg_collect(&mvm->fwrt, FW_DBG_TRIGGER_USER, buf,
 			   (count - 1), NULL);
+
+	return count;
+}
+
+static ssize_t iwl_dbgfs_dbg_time_point_write(struct iwl_mvm *mvm,
+					      char *buf, size_t count,
+					      loff_t *ppos)
+{
+	u32 timepoint;
+
+	if (kstrtou32(buf, 0, &timepoint))
+		return -EINVAL;
+
+	if (timepoint == IWL_FW_INI_TIME_POINT_INVALID ||
+	    timepoint >= IWL_FW_INI_TIME_POINT_NUM)
+		return -EINVAL;
+
+	iwl_dbg_tlv_time_point(&mvm->fwrt, timepoint, NULL);
 
 	return count;
 }
@@ -1766,6 +1796,7 @@ MVM_DEBUGFS_READ_WRITE_FILE_OPS(disable_power_off, 64);
 MVM_DEBUGFS_READ_FILE_OPS(fw_rx_stats);
 MVM_DEBUGFS_READ_FILE_OPS(drv_rx_stats);
 MVM_DEBUGFS_READ_FILE_OPS(fw_ver);
+MVM_DEBUGFS_READ_FILE_OPS(phy_integration_ver);
 MVM_DEBUGFS_WRITE_FILE_OPS(fw_restart, 10);
 MVM_DEBUGFS_WRITE_FILE_OPS(fw_nmi, 10);
 MVM_DEBUGFS_WRITE_FILE_OPS(bt_tx_prio, 10);
@@ -1773,6 +1804,7 @@ MVM_DEBUGFS_WRITE_FILE_OPS(bt_force_ant, 10);
 MVM_DEBUGFS_READ_WRITE_FILE_OPS(scan_ant_rxchain, 8);
 MVM_DEBUGFS_READ_WRITE_FILE_OPS(fw_dbg_conf, 8);
 MVM_DEBUGFS_WRITE_FILE_OPS(fw_dbg_collect, 64);
+MVM_DEBUGFS_WRITE_FILE_OPS(dbg_time_point, 64);
 MVM_DEBUGFS_WRITE_FILE_OPS(indirection_tbl,
 			   (IWL_RSS_INDIRECTION_TABLE_SIZE * 2));
 MVM_DEBUGFS_WRITE_FILE_OPS(inject_packet, 512);
@@ -1978,6 +2010,9 @@ void iwl_mvm_dbgfs_register(struct iwl_mvm *mvm, struct dentry *dbgfs_dir)
 	MVM_DEBUGFS_ADD_FILE(inject_packet, mvm->debugfs_dir, 0200);
 	MVM_DEBUGFS_ADD_FILE(inject_beacon_ie, mvm->debugfs_dir, 0200);
 	MVM_DEBUGFS_ADD_FILE(inject_beacon_ie_restore, mvm->debugfs_dir, 0200);
+
+	if (mvm->fw->phy_integration_ver)
+		MVM_DEBUGFS_ADD_FILE(phy_integration_ver, mvm->debugfs_dir, 0400);
 #ifdef CONFIG_ACPI
 	MVM_DEBUGFS_ADD_FILE(sar_geo_profile, dbgfs_dir, 0400);
 #endif

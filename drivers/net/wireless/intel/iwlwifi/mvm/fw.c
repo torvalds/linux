@@ -6,6 +6,7 @@
  */
 #include <net/mac80211.h>
 #include <linux/netdevice.h>
+#include <linux/dmi.h>
 
 #include "iwl-trans.h"
 #include "iwl-op-mode.h"
@@ -633,6 +634,8 @@ int iwl_run_init_mvm_ucode(struct iwl_mvm *mvm)
 				   iwl_wait_phy_db_entry,
 				   mvm->phy_db);
 
+	iwl_dbg_tlv_time_point(&mvm->fwrt, IWL_FW_INI_TIME_POINT_EARLY, NULL);
+
 	/* Will also start the device */
 	ret = iwl_mvm_load_ucode_wait_alive(mvm, IWL_UCODE_INIT);
 	if (ret) {
@@ -997,6 +1000,8 @@ int iwl_mvm_ppag_send_cmd(struct iwl_mvm *mvm)
 		return 0;
 	}
 
+	ppag_table.v1.enabled = mvm->fwrt.ppag_table.v1.enabled;
+
 	cmd_ver = iwl_fw_lookup_cmd_ver(mvm->fw, PHY_OPS_GROUP,
 					PER_PLATFORM_ANT_GAIN_CMD,
 					IWL_FW_CMD_VER_UNKNOWN);
@@ -1039,6 +1044,29 @@ int iwl_mvm_ppag_send_cmd(struct iwl_mvm *mvm)
 	return ret;
 }
 
+static const struct dmi_system_id dmi_ppag_approved_list[] = {
+	{ .ident = "HP",
+	  .matches = {
+			DMI_MATCH(DMI_SYS_VENDOR, "HP"),
+		},
+	},
+	{ .ident = "SAMSUNG",
+	  .matches = {
+			DMI_MATCH(DMI_SYS_VENDOR, "SAMSUNG ELECTRONICS CO., LTD"),
+		},
+	},
+	{ .ident = "MSFT",
+	  .matches = {
+			DMI_MATCH(DMI_SYS_VENDOR, "Microsoft Corporation"),
+		},
+	},
+	{ .ident = "ASUS",
+	  .matches = {
+			DMI_MATCH(DMI_SYS_VENDOR, "ASUSTek COMPUTER INC."),
+		},
+	},
+};
+
 static int iwl_mvm_ppag_init(struct iwl_mvm *mvm)
 {
 	int ret;
@@ -1050,6 +1078,15 @@ static int iwl_mvm_ppag_init(struct iwl_mvm *mvm)
 				ret);
 		return 0;
 	}
+
+	if (!dmi_check_system(dmi_ppag_approved_list)) {
+		IWL_DEBUG_RADIO(mvm,
+				"System vendor '%s' is not in the approved list, disabling PPAG.\n",
+				dmi_get_system_info(DMI_SYS_VENDOR));
+		mvm->fwrt.ppag_table.v1.enabled = cpu_to_le32(0);
+		return 0;
+	}
+
 	return iwl_mvm_ppag_send_cmd(mvm);
 }
 
@@ -1314,8 +1351,6 @@ static int iwl_mvm_load_rt_fw(struct iwl_mvm *mvm)
 	ret = iwl_trans_start_hw(mvm->trans);
 	if (ret)
 		return ret;
-
-	iwl_dbg_tlv_time_point(&mvm->fwrt, IWL_FW_INI_TIME_POINT_EARLY, NULL);
 
 	mvm->rfkill_safe_init_done = false;
 	ret = iwl_mvm_load_ucode_wait_alive(mvm, IWL_UCODE_REGULAR);

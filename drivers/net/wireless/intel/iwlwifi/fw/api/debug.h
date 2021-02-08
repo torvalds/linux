@@ -186,6 +186,21 @@ struct iwl_shared_mem_cfg {
 } __packed; /* SHARED_MEM_ALLOC_API_S_VER_4 */
 
 /**
+ * struct iwl_mfuart_load_notif_v1 - mfuart image version & status
+ * ( MFUART_LOAD_NOTIFICATION = 0xb1 )
+ * @installed_ver: installed image version
+ * @external_ver: external image version
+ * @status: MFUART loading status
+ * @duration: MFUART loading time
+*/
+struct iwl_mfuart_load_notif_v1 {
+	__le32 installed_ver;
+	__le32 external_ver;
+	__le32 status;
+	__le32 duration;
+} __packed; /* MFU_LOADER_NTFY_API_S_VER_1 */
+
+/**
  * struct iwl_mfuart_load_notif - mfuart image version & status
  * ( MFUART_LOAD_NOTIFICATION = 0xb1 )
  * @installed_ver: installed image version

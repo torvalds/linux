@@ -146,6 +146,70 @@ static void iwl_mvm_nic_config(struct iwl_op_mode *op_mode)
 				       ~APMG_PS_CTRL_EARLY_PWR_OFF_RESET_DIS);
 }
 
+static void iwl_mvm_rx_monitor_notif(struct iwl_mvm *mvm,
+				     struct iwl_rx_cmd_buffer *rxb)
+{
+	struct iwl_rx_packet *pkt = rxb_addr(rxb);
+	struct iwl_datapath_monitor_notif *notif = (void *)pkt->data;
+	struct ieee80211_supported_band *sband;
+	const struct ieee80211_sta_he_cap *he_cap;
+	struct ieee80211_vif *vif;
+
+	if (notif->type != cpu_to_le32(IWL_DP_MON_NOTIF_TYPE_EXT_CCA))
+		return;
+
+	vif = iwl_mvm_get_vif_by_macid(mvm, notif->mac_id);
+	if (!vif || vif->type != NL80211_IFTYPE_STATION)
+		return;
+
+	if (!vif->bss_conf.chandef.chan ||
+	    vif->bss_conf.chandef.chan->band != NL80211_BAND_2GHZ ||
+	    vif->bss_conf.chandef.width < NL80211_CHAN_WIDTH_40)
+		return;
+
+	if (!vif->bss_conf.assoc)
+		return;
+
+	/* this shouldn't happen *again*, ignore it */
+	if (mvm->cca_40mhz_workaround)
+		return;
+
+	/*
+	 * We'll decrement this on disconnect - so set to 2 since we'll
+	 * still have to disconnect from the current AP first.
+	 */
+	mvm->cca_40mhz_workaround = 2;
+
+	/*
+	 * This capability manipulation isn't really ideal, but it's the
+	 * easiest choice - otherwise we'd have to do some major changes
+	 * in mac80211 to support this, which isn't worth it. This does
+	 * mean that userspace may have outdated information, but that's
+	 * actually not an issue at all.
+	 */
+	sband = mvm->hw->wiphy->bands[NL80211_BAND_2GHZ];
+
+	WARN_ON(!sband->ht_cap.ht_supported);
+	WARN_ON(!(sband->ht_cap.cap & IEEE80211_HT_CAP_SUP_WIDTH_20_40));
+	sband->ht_cap.cap &= ~IEEE80211_HT_CAP_SUP_WIDTH_20_40;
+
+	he_cap = ieee80211_get_he_iftype_cap(sband,
+					     ieee80211_vif_type_p2p(vif));
+
+	if (he_cap) {
+		/* we know that ours is writable */
+		struct ieee80211_sta_he_cap *he = (void *)he_cap;
+
+		WARN_ON(!he->has_he);
+		WARN_ON(!(he->he_cap_elem.phy_cap_info[0] &
+				IEEE80211_HE_PHY_CAP0_CHANNEL_WIDTH_SET_40MHZ_IN_2G));
+		he->he_cap_elem.phy_cap_info[0] &=
+			~IEEE80211_HE_PHY_CAP0_CHANNEL_WIDTH_SET_40MHZ_IN_2G;
+	}
+
+	ieee80211_disconnect(vif, true);
+}
+
 /**
  * enum iwl_rx_handler_context context for Rx handler
  * @RX_HANDLER_SYNC : this means that it will be called in the Rx path
@@ -169,15 +233,21 @@ enum iwl_rx_handler_context {
  * @fn: the function is called when notification is received
  */
 struct iwl_rx_handlers {
-	u16 cmd_id;
+	u16 cmd_id, min_size;
 	enum iwl_rx_handler_context context;
 	void (*fn)(struct iwl_mvm *mvm, struct iwl_rx_cmd_buffer *rxb);
 };
 
-#define RX_HANDLER(_cmd_id, _fn, _context)	\
-	{ .cmd_id = _cmd_id, .fn = _fn, .context = _context }
-#define RX_HANDLER_GRP(_grp, _cmd, _fn, _context)	\
-	{ .cmd_id = WIDE_ID(_grp, _cmd), .fn = _fn, .context = _context }
+#define RX_HANDLER_NO_SIZE(_cmd_id, _fn, _context)		\
+	{ .cmd_id = _cmd_id, .fn = _fn, .context = _context, }
+#define RX_HANDLER_GRP_NO_SIZE(_grp, _cmd, _fn, _context)	\
+	{ .cmd_id = WIDE_ID(_grp, _cmd), .fn = _fn, .context = _context, }
+#define RX_HANDLER(_cmd_id, _fn, _context, _struct)		\
+	{ .cmd_id = _cmd_id, .fn = _fn,				\
+	  .context = _context, .min_size = sizeof(_struct), }
+#define RX_HANDLER_GRP(_grp, _cmd, _fn, _context, _struct)	\
+	{ .cmd_id = WIDE_ID(_grp, _cmd), .fn = _fn,		\
+	  .context = _context, .min_size = sizeof(_struct), }
 
 /*
  * Handlers for fw notifications
@@ -187,85 +257,107 @@ struct iwl_rx_handlers {
  * The handler can be one from three contexts, see &iwl_rx_handler_context
  */
 static const struct iwl_rx_handlers iwl_mvm_rx_handlers[] = {
-	RX_HANDLER(TX_CMD, iwl_mvm_rx_tx_cmd, RX_HANDLER_SYNC),
-	RX_HANDLER(BA_NOTIF, iwl_mvm_rx_ba_notif, RX_HANDLER_SYNC),
+	RX_HANDLER(TX_CMD, iwl_mvm_rx_tx_cmd, RX_HANDLER_SYNC,
+		   struct iwl_mvm_tx_resp),
+	RX_HANDLER(BA_NOTIF, iwl_mvm_rx_ba_notif, RX_HANDLER_SYNC,
+		   struct iwl_mvm_ba_notif),
 
 	RX_HANDLER_GRP(DATA_PATH_GROUP, TLC_MNG_UPDATE_NOTIF,
-		       iwl_mvm_tlc_update_notif, RX_HANDLER_SYNC),
+		       iwl_mvm_tlc_update_notif, RX_HANDLER_SYNC,
+		       struct iwl_tlc_update_notif),
 
 	RX_HANDLER(BT_PROFILE_NOTIFICATION, iwl_mvm_rx_bt_coex_notif,
-		   RX_HANDLER_ASYNC_LOCKED),
-	RX_HANDLER(BEACON_NOTIFICATION, iwl_mvm_rx_beacon_notif,
-		   RX_HANDLER_ASYNC_LOCKED),
-	RX_HANDLER(STATISTICS_NOTIFICATION, iwl_mvm_rx_statistics,
-		   RX_HANDLER_ASYNC_LOCKED),
+		   RX_HANDLER_ASYNC_LOCKED, struct iwl_bt_coex_profile_notif),
+	RX_HANDLER_NO_SIZE(BEACON_NOTIFICATION, iwl_mvm_rx_beacon_notif,
+			   RX_HANDLER_ASYNC_LOCKED),
+	RX_HANDLER_NO_SIZE(STATISTICS_NOTIFICATION, iwl_mvm_rx_statistics,
+			   RX_HANDLER_ASYNC_LOCKED),
 
 	RX_HANDLER(BA_WINDOW_STATUS_NOTIFICATION_ID,
-		   iwl_mvm_window_status_notif, RX_HANDLER_SYNC),
+		   iwl_mvm_window_status_notif, RX_HANDLER_SYNC,
+		   struct iwl_ba_window_status_notif),
 
 	RX_HANDLER(TIME_EVENT_NOTIFICATION, iwl_mvm_rx_time_event_notif,
-		   RX_HANDLER_SYNC),
+		   RX_HANDLER_SYNC, struct iwl_time_event_notif),
 	RX_HANDLER_GRP(MAC_CONF_GROUP, SESSION_PROTECTION_NOTIF,
-		       iwl_mvm_rx_session_protect_notif, RX_HANDLER_SYNC),
+		       iwl_mvm_rx_session_protect_notif, RX_HANDLER_SYNC,
+		       struct iwl_mvm_session_prot_notif),
 	RX_HANDLER(MCC_CHUB_UPDATE_CMD, iwl_mvm_rx_chub_update_mcc,
-		   RX_HANDLER_ASYNC_LOCKED),
+		   RX_HANDLER_ASYNC_LOCKED, struct iwl_mcc_chub_notif),
 
-	RX_HANDLER(EOSP_NOTIFICATION, iwl_mvm_rx_eosp_notif, RX_HANDLER_SYNC),
+	RX_HANDLER(EOSP_NOTIFICATION, iwl_mvm_rx_eosp_notif, RX_HANDLER_SYNC,
+		   struct iwl_mvm_eosp_notification),
 
 	RX_HANDLER(SCAN_ITERATION_COMPLETE,
-		   iwl_mvm_rx_lmac_scan_iter_complete_notif, RX_HANDLER_SYNC),
+		   iwl_mvm_rx_lmac_scan_iter_complete_notif, RX_HANDLER_SYNC,
+		   struct iwl_lmac_scan_complete_notif),
 	RX_HANDLER(SCAN_OFFLOAD_COMPLETE,
 		   iwl_mvm_rx_lmac_scan_complete_notif,
-		   RX_HANDLER_ASYNC_LOCKED),
-	RX_HANDLER(MATCH_FOUND_NOTIFICATION, iwl_mvm_rx_scan_match_found,
-		   RX_HANDLER_SYNC),
+		   RX_HANDLER_ASYNC_LOCKED, struct iwl_periodic_scan_complete),
+	RX_HANDLER_NO_SIZE(MATCH_FOUND_NOTIFICATION,
+			   iwl_mvm_rx_scan_match_found,
+			   RX_HANDLER_SYNC),
 	RX_HANDLER(SCAN_COMPLETE_UMAC, iwl_mvm_rx_umac_scan_complete_notif,
-		   RX_HANDLER_ASYNC_LOCKED),
+		   RX_HANDLER_ASYNC_LOCKED, struct iwl_umac_scan_complete),
 	RX_HANDLER(SCAN_ITERATION_COMPLETE_UMAC,
-		   iwl_mvm_rx_umac_scan_iter_complete_notif, RX_HANDLER_SYNC),
+		   iwl_mvm_rx_umac_scan_iter_complete_notif, RX_HANDLER_SYNC,
+		   struct iwl_umac_scan_iter_complete_notif),
 
 	RX_HANDLER(CARD_STATE_NOTIFICATION, iwl_mvm_rx_card_state_notif,
-		   RX_HANDLER_SYNC),
+		   RX_HANDLER_SYNC, struct iwl_card_state_notif),
 
 	RX_HANDLER(MISSED_BEACONS_NOTIFICATION, iwl_mvm_rx_missed_beacons_notif,
-		   RX_HANDLER_SYNC),
+		   RX_HANDLER_SYNC, struct iwl_missed_beacons_notif),
 
-	RX_HANDLER(REPLY_ERROR, iwl_mvm_rx_fw_error, RX_HANDLER_SYNC),
+	RX_HANDLER(REPLY_ERROR, iwl_mvm_rx_fw_error, RX_HANDLER_SYNC,
+		   struct iwl_error_resp),
 	RX_HANDLER(PSM_UAPSD_AP_MISBEHAVING_NOTIFICATION,
-		   iwl_mvm_power_uapsd_misbehaving_ap_notif, RX_HANDLER_SYNC),
-	RX_HANDLER(DTS_MEASUREMENT_NOTIFICATION, iwl_mvm_temp_notif,
-		   RX_HANDLER_ASYNC_LOCKED),
-	RX_HANDLER_GRP(PHY_OPS_GROUP, DTS_MEASUREMENT_NOTIF_WIDE,
-		       iwl_mvm_temp_notif, RX_HANDLER_ASYNC_UNLOCKED),
+		   iwl_mvm_power_uapsd_misbehaving_ap_notif, RX_HANDLER_SYNC,
+		   struct iwl_uapsd_misbehaving_ap_notif),
+	RX_HANDLER_NO_SIZE(DTS_MEASUREMENT_NOTIFICATION, iwl_mvm_temp_notif,
+			   RX_HANDLER_ASYNC_LOCKED),
+	RX_HANDLER_GRP_NO_SIZE(PHY_OPS_GROUP, DTS_MEASUREMENT_NOTIF_WIDE,
+			       iwl_mvm_temp_notif, RX_HANDLER_ASYNC_UNLOCKED),
 	RX_HANDLER_GRP(PHY_OPS_GROUP, CT_KILL_NOTIFICATION,
-		       iwl_mvm_ct_kill_notif, RX_HANDLER_SYNC),
+		       iwl_mvm_ct_kill_notif, RX_HANDLER_SYNC,
+		       struct ct_kill_notif),
 
 	RX_HANDLER(TDLS_CHANNEL_SWITCH_NOTIFICATION, iwl_mvm_rx_tdls_notif,
-		   RX_HANDLER_ASYNC_LOCKED),
+		   RX_HANDLER_ASYNC_LOCKED,
+		   struct iwl_tdls_channel_switch_notif),
 	RX_HANDLER(MFUART_LOAD_NOTIFICATION, iwl_mvm_rx_mfuart_notif,
-		   RX_HANDLER_SYNC),
+		   RX_HANDLER_SYNC, struct iwl_mfuart_load_notif_v1),
 	RX_HANDLER_GRP(LOCATION_GROUP, TOF_RESPONDER_STATS,
-		       iwl_mvm_ftm_responder_stats, RX_HANDLER_ASYNC_LOCKED),
+		       iwl_mvm_ftm_responder_stats, RX_HANDLER_ASYNC_LOCKED,
+		       struct iwl_ftm_responder_stats),
 
-	RX_HANDLER_GRP(LOCATION_GROUP, TOF_RANGE_RESPONSE_NOTIF,
-		       iwl_mvm_ftm_range_resp, RX_HANDLER_ASYNC_LOCKED),
-	RX_HANDLER_GRP(LOCATION_GROUP, TOF_LC_NOTIF,
-		       iwl_mvm_ftm_lc_notif, RX_HANDLER_ASYNC_LOCKED),
+	RX_HANDLER_GRP_NO_SIZE(LOCATION_GROUP, TOF_RANGE_RESPONSE_NOTIF,
+			       iwl_mvm_ftm_range_resp, RX_HANDLER_ASYNC_LOCKED),
+	RX_HANDLER_GRP_NO_SIZE(LOCATION_GROUP, TOF_LC_NOTIF,
+			       iwl_mvm_ftm_lc_notif, RX_HANDLER_ASYNC_LOCKED),
 
 	RX_HANDLER_GRP(DEBUG_GROUP, MFU_ASSERT_DUMP_NTF,
-		       iwl_mvm_mfu_assert_dump_notif, RX_HANDLER_SYNC),
+		       iwl_mvm_mfu_assert_dump_notif, RX_HANDLER_SYNC,
+		       struct iwl_mfu_assert_dump_notif),
 	RX_HANDLER_GRP(PROT_OFFLOAD_GROUP, STORED_BEACON_NTF,
-		       iwl_mvm_rx_stored_beacon_notif, RX_HANDLER_SYNC),
+		       iwl_mvm_rx_stored_beacon_notif, RX_HANDLER_SYNC,
+		       struct iwl_stored_beacon_notif),
 	RX_HANDLER_GRP(DATA_PATH_GROUP, MU_GROUP_MGMT_NOTIF,
-		       iwl_mvm_mu_mimo_grp_notif, RX_HANDLER_SYNC),
+		       iwl_mvm_mu_mimo_grp_notif, RX_HANDLER_SYNC,
+		       struct iwl_mu_group_mgmt_notif),
 	RX_HANDLER_GRP(DATA_PATH_GROUP, STA_PM_NOTIF,
-		       iwl_mvm_sta_pm_notif, RX_HANDLER_SYNC),
+		       iwl_mvm_sta_pm_notif, RX_HANDLER_SYNC,
+		       struct iwl_mvm_pm_state_notification),
 	RX_HANDLER_GRP(MAC_CONF_GROUP, PROBE_RESPONSE_DATA_NOTIF,
 		       iwl_mvm_probe_resp_data_notif,
-		       RX_HANDLER_ASYNC_LOCKED),
+		       RX_HANDLER_ASYNC_LOCKED,
+		       struct iwl_probe_resp_data_notif),
 	RX_HANDLER_GRP(MAC_CONF_GROUP, CHANNEL_SWITCH_NOA_NOTIF,
 		       iwl_mvm_channel_switch_noa_notif,
-		       RX_HANDLER_SYNC),
+		       RX_HANDLER_SYNC, struct iwl_channel_switch_noa_notif),
+	RX_HANDLER_GRP(DATA_PATH_GROUP, MONITOR_NOTIF,
+		       iwl_mvm_rx_monitor_notif, RX_HANDLER_ASYNC_LOCKED,
+		       struct iwl_datapath_monitor_notif),
 };
 #undef RX_HANDLER
 #undef RX_HANDLER_GRP
@@ -410,6 +502,7 @@ static const struct iwl_hcmd_names iwl_mvm_data_path_names[] = {
 	HCMD_NAME(RFH_QUEUE_CONFIG_CMD),
 	HCMD_NAME(TLC_MNG_CONFIG_CMD),
 	HCMD_NAME(CHEST_COLLECTOR_FILTER_CONFIG_CMD),
+	HCMD_NAME(MONITOR_NOTIF),
 	HCMD_NAME(STA_PM_NOTIF),
 	HCMD_NAME(MU_GROUP_MGMT_NOTIF),
 	HCMD_NAME(RX_QUEUES_NOTIFICATION),
@@ -964,6 +1057,7 @@ static void iwl_mvm_rx_common(struct iwl_mvm *mvm,
 			      struct iwl_rx_cmd_buffer *rxb,
 			      struct iwl_rx_packet *pkt)
 {
+	unsigned int pkt_len = iwl_rx_packet_payload_len(pkt);
 	int i;
 	union iwl_dbg_tlv_tp_data tp_data = { .fw_pkt = pkt };
 
@@ -984,6 +1078,9 @@ static void iwl_mvm_rx_common(struct iwl_mvm *mvm,
 
 		if (rx_h->cmd_id != WIDE_ID(pkt->hdr.group_id, pkt->hdr.cmd))
 			continue;
+
+		if (unlikely(pkt_len < rx_h->min_size))
+			return;
 
 		if (rx_h->context == RX_HANDLER_SYNC) {
 			rx_h->fn(mvm, rxb);
@@ -1024,9 +1121,9 @@ static void iwl_mvm_rx(struct iwl_op_mode *op_mode,
 		iwl_mvm_rx_common(mvm, rxb, pkt);
 }
 
-static void iwl_mvm_rx_mq(struct iwl_op_mode *op_mode,
-			  struct napi_struct *napi,
-			  struct iwl_rx_cmd_buffer *rxb)
+void iwl_mvm_rx_mq(struct iwl_op_mode *op_mode,
+		   struct napi_struct *napi,
+		   struct iwl_rx_cmd_buffer *rxb)
 {
 	struct iwl_rx_packet *pkt = rxb_addr(rxb);
 	struct iwl_mvm *mvm = IWL_OP_MODE_GET_MVM(op_mode);

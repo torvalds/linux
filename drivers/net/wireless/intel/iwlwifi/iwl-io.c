@@ -446,3 +446,39 @@ int iwl_finish_nic_init(struct iwl_trans *trans,
 	return err < 0 ? err : 0;
 }
 IWL_EXPORT_SYMBOL(iwl_finish_nic_init);
+
+void iwl_trans_sync_nmi_with_addr(struct iwl_trans *trans, u32 inta_addr,
+				  u32 sw_err_bit)
+{
+	unsigned long timeout = jiffies + IWL_TRANS_NMI_TIMEOUT;
+	bool interrupts_enabled = test_bit(STATUS_INT_ENABLED, &trans->status);
+
+	/* if the interrupts were already disabled, there is no point in
+	 * calling iwl_disable_interrupts
+	 */
+	if (interrupts_enabled)
+		iwl_trans_interrupts(trans, false);
+
+	iwl_force_nmi(trans);
+	while (time_after(timeout, jiffies)) {
+		u32 inta_hw = iwl_read32(trans, inta_addr);
+
+		/* Error detected by uCode */
+		if (inta_hw & sw_err_bit) {
+			/* Clear causes register */
+			iwl_write32(trans, inta_addr, inta_hw & sw_err_bit);
+			break;
+		}
+
+		mdelay(1);
+	}
+
+	/* enable interrupts only if there were already enabled before this
+	 * function to avoid a case were the driver enable interrupts before
+	 * proper configurations were made
+	 */
+	if (interrupts_enabled)
+		iwl_trans_interrupts(trans, true);
+
+	iwl_trans_fw_error(trans);
+}
