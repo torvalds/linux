@@ -934,19 +934,15 @@ void hda_dsp_d0i3_work(struct work_struct *work)
 						      d0i3_work.work);
 	struct hdac_bus *bus = &hdev->hbus.core;
 	struct snd_sof_dev *sdev = dev_get_drvdata(bus->dev);
-	struct sof_dsp_power_state target_state;
+	struct sof_dsp_power_state target_state = {
+		.state = SOF_DSP_PM_D0,
+		.substate = SOF_HDA_DSP_PM_D0I3,
+	};
 	int ret;
 
-	target_state.state = SOF_DSP_PM_D0;
-
 	/* DSP can enter D0I3 iff only D0I3-compatible streams are active */
-	if (snd_sof_dsp_only_d0i3_compatible_stream_active(sdev))
-		target_state.substate = SOF_HDA_DSP_PM_D0I3;
-	else
-		target_state.substate = SOF_HDA_DSP_PM_D0I0;
-
-	/* remain in D0I0 */
-	if (target_state.substate == SOF_HDA_DSP_PM_D0I0)
+	if (!snd_sof_dsp_only_d0i3_compatible_stream_active(sdev))
+		/* remain in D0I0 */
 		return;
 
 	/* This can fail but error cannot be propagated */
