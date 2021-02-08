@@ -1779,10 +1779,6 @@ vmw_kms_create_hotplug_mode_update_property(struct vmw_private *dev_priv)
 		drm_property_create_range(&dev_priv->drm,
 					  DRM_MODE_PROP_IMMUTABLE,
 					  "hotplug_mode_update", 0, 1);
-
-	if (!dev_priv->hotplug_mode_update_property)
-		return;
-
 }
 
 int vmw_kms_init(struct vmw_private *dev_priv)
