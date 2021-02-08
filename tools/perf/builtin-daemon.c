@@ -32,6 +32,8 @@
 #include "util.h"
 
 #define SESSION_OUTPUT  "output"
+#define SESSION_CONTROL "control"
+#define SESSION_ACK     "ack"
 
 /*
  * Session states:
@@ -74,6 +76,7 @@ struct daemon_session {
 	char				*base;
 	char				*name;
 	char				*run;
+	char				*control;
 	int				 pid;
 	struct list_head		 list;
 	enum daemon_session_state	 state;
@@ -365,7 +368,18 @@ static int daemon_session__run(struct daemon_session *session,
 	dup2(fd, 2);
 	close(fd);
 
-	scnprintf(buf, sizeof(buf), "%s record %s", daemon->perf, session->run);
+	if (mkfifo(SESSION_CONTROL, O_RDWR) && errno != EEXIST) {
+		perror("failed: create control fifo");
+		return -1;
+	}
+
+	if (mkfifo(SESSION_ACK, O_RDWR) && errno != EEXIST) {
+		perror("failed: create ack fifo");
+		return -1;
+	}
+
+	scnprintf(buf, sizeof(buf), "%s record --control=fifo:%s,%s %s",
+		  daemon->perf, SESSION_CONTROL, SESSION_ACK, session->run);
 
 	argv = argv_split(buf, &argc);
 	if (!argv)
@@ -603,6 +617,12 @@ static int cmd_session_list(struct daemon *daemon, union cmd *cmd, FILE *out)
 				/* session output */
 				csv_sep, session->base, SESSION_OUTPUT);
 
+			fprintf(out, "%c%s/%s%c%s/%s",
+				/* session control */
+				csv_sep, session->base, SESSION_CONTROL,
+				/* session ack */
+				csv_sep, session->base, SESSION_ACK);
+
 			fprintf(out, "\n");
 		} else {
 			fprintf(out, "[%d:%s] perf record %s\n",
@@ -613,6 +633,10 @@ static int cmd_session_list(struct daemon *daemon, union cmd *cmd, FILE *out)
 				session->base);
 			fprintf(out, "  output:  %s/%s\n",
 				session->base, SESSION_OUTPUT);
+			fprintf(out, "  control: %s/%s\n",
+				session->base, SESSION_CONTROL);
+			fprintf(out, "  ack:     %s/%s\n",
+				session->base, SESSION_ACK);
 		}
 	}
 

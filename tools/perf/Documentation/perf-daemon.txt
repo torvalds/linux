@@ -37,6 +37,9 @@ flight recorder sessions in above example or session that is configured
 to produce data periodically, like with --switch-output configuration
 for time and size.
 
+Each session is started with control setup (with perf record --control
+options).
+
 OPTIONS
 -------
 -v::
