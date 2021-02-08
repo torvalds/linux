@@ -438,6 +438,7 @@ SYM_FUNC_START_LOCAL(__primary_switched)
 #endif
 	mov	x0, x21				// pass FDT address in x0
 	bl	early_fdt_map			// Try mapping the FDT early
+	bl	init_feature_override		// Parse cpu feature overrides
 #ifdef CONFIG_RANDOMIZE_BASE
 	tst	x23, ~(MIN_KIMG_ALIGN - 1)	// already running randomized?
 	b.ne	0f
