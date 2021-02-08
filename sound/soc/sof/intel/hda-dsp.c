@@ -732,7 +732,7 @@ int hda_dsp_resume(struct snd_sof_dev *sdev)
 				ret = snd_hdac_ext_bus_link_power_up(hlink);
 				if (ret < 0) {
 					dev_dbg(sdev->dev,
-						"error %x in %s: failed to power up links",
+						"error %d in %s: failed to power up links",
 						ret, __func__);
 					return ret;
 				}
