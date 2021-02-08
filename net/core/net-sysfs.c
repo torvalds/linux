@@ -1136,18 +1136,25 @@ static ssize_t traffic_class_show(struct netdev_queue *queue,
 				  char *buf)
 {
 	struct net_device *dev = queue->dev;
+	int num_tc, tc;
 	int index;
-	int tc;
 
 	if (!netif_is_multiqueue(dev))
 		return -ENOENT;
+
+	if (!rtnl_trylock())
+		return restart_syscall();
 
 	index = get_netdev_queue_index(queue);
 
 	/* If queue belongs to subordinate dev use its TC mapping */
 	dev = netdev_get_tx_queue(dev, index)->sb_dev ? : dev;
 
+	num_tc = dev->num_tc;
 	tc = netdev_txq_to_tc(dev, index);
+
+	rtnl_unlock();
+
 	if (tc < 0)
 		return -EINVAL;
 
@@ -1158,8 +1165,8 @@ static ssize_t traffic_class_show(struct netdev_queue *queue,
 	 * belongs to the root device it will be reported with just the
 	 * traffic class, so just "0" for TC 0 for example.
 	 */
-	return dev->num_tc < 0 ? sprintf(buf, "%d%d\n", tc, dev->num_tc) :
-				 sprintf(buf, "%d\n", tc);
+	return num_tc < 0 ? sprintf(buf, "%d%d\n", tc, num_tc) :
+			    sprintf(buf, "%d\n", tc);
 }
 
 #ifdef CONFIG_XPS
