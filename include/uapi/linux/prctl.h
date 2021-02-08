@@ -251,6 +251,9 @@ struct prctl_mm_map {
 #define PR_SET_SYSCALL_USER_DISPATCH	59
 # define PR_SYS_DISPATCH_OFF		0
 # define PR_SYS_DISPATCH_ON		1
+/* The control values for the user space selector when dispatch is enabled */
+# define SYSCALL_DISPATCH_FILTER_ALLOW	0
+# define SYSCALL_DISPATCH_FILTER_BLOCK	1
 
 #define PR_SET_VMA		0x53564d41
 # define PR_SET_VMA_ANON_NAME		0
