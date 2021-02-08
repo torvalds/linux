@@ -41,6 +41,10 @@ for time and size.
 Each session is started with control setup (with perf record --control
 options).
 
+Sessions are configured through config file, see CONFIG FILE section
+with EXAMPLES.
+
+
 OPTIONS
 -------
 -v::
@@ -103,6 +107,100 @@ session-<NAME>.run:
 	line without the 'record' keyword.
 
 Each perf record session is run in daemon.base/<NAME> directory.
+
+
+EXAMPLES
+--------
+Example with 2 record sessions:
+
+  # cat ~/.perfconfig
+  [daemon]
+  base=/opt/perfdata
+
+  [session-cycles]
+  run = -m 10M -e cycles --overwrite --switch-output -a
+
+  [session-sched]
+  run = -m 20M -e sched:* --overwrite --switch-output -a
+
+
+Starting the daemon:
+
+  # perf daemon start
+
+
+Check sessions:
+
+  # perf daemon
+  [603349:daemon] base: /opt/perfdata
+  [603350:cycles] perf record -m 10M -e cycles --overwrite --switch-output -a
+  [603351:sched] perf record -m 20M -e sched:* --overwrite --switch-output -a
+
+First line is daemon process info with configured daemon base.
+
+
+Check sessions with more info:
+
+  # perf daemon -v
+  [603349:daemon] base: /opt/perfdata
+    output:  /opt/perfdata/output
+    lock:    /opt/perfdata/lock
+    up:      1 minutes
+  [603350:cycles] perf record -m 10M -e cycles --overwrite --switch-output -a
+    base:    /opt/perfdata/session-cycles
+    output:  /opt/perfdata/session-cycles/output
+    control: /opt/perfdata/session-cycles/control
+    ack:     /opt/perfdata/session-cycles/ack
+    up:      1 minutes
+  [603351:sched] perf record -m 20M -e sched:* --overwrite --switch-output -a
+    base:    /opt/perfdata/session-sched
+    output:  /opt/perfdata/session-sched/output
+    control: /opt/perfdata/session-sched/control
+    ack:     /opt/perfdata/session-sched/ack
+    up:      1 minutes
+
+The 'base' path is daemon/session base.
+The 'lock' file is daemon's lock file guarding that no other
+daemon is running on top of the base.
+The 'output' file is perf record output for specific session.
+The 'control' and 'ack' files are perf control files.
+The 'up' number shows minutes daemon/session is running.
+
+
+Make sure control session is online:
+
+  # perf daemon ping
+  OK   cycles
+  OK   sched
+
+
+Send USR2 signal to session 'cycles' to generate perf.data file:
+
+  # perf daemon signal --session cycles
+  signal 12 sent to session 'cycles [603452]'
+
+  # tail -2  /opt/perfdata/session-cycles/output
+  [ perf record: dump data: Woken up 1 times ]
+  [ perf record: Dump perf.data.2020123017013149 ]
+
+
+Send USR2 signal to all sessions:
+
+  # perf daemon signal
+  signal 12 sent to session 'cycles [603452]'
+  signal 12 sent to session 'sched [603453]'
+
+  # tail -2  /opt/perfdata/session-cycles/output
+  [ perf record: dump data: Woken up 1 times ]
+  [ perf record: Dump perf.data.2020123017024689 ]
+  # tail -2  /opt/perfdata/session-sched/output
+  [ perf record: dump data: Woken up 1 times ]
+  [ perf record: Dump perf.data.2020123017024713 ]
+
+
+Stop daemon:
+
+  # perf daemon stop
 
 
 SEE ALSO
