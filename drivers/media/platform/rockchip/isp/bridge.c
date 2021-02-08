@@ -1483,8 +1483,7 @@ int rkisp_register_bridge_subdev(struct rkisp_device *dev,
 	v4l2_subdev_init(sd, &bridge_v4l2_ops);
 	//sd->flags |= V4L2_SUBDEV_FL_HAS_DEVNODE;
 	sd->entity.obj_type = 0;
-	snprintf(sd->name, sizeof(sd->name),
-		 "%s%d", BRIDGE_DEV_NAME, dev->dev_id);
+	snprintf(sd->name, sizeof(sd->name), "%s", BRIDGE_DEV_NAME);
 	bridge->pad.flags = MEDIA_PAD_FL_SINK;
 	ret = media_entity_pads_init(&sd->entity, 1, &bridge->pad);
 	if (ret < 0)
