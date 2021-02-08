@@ -2972,17 +2972,20 @@ expand_dfs_referral(const unsigned int xid, struct cifs_ses *ses,
 	rc = dfs_cache_find(xid, ses, cifs_sb->local_nls, cifs_remap(cifs_sb),
 			    ref_path, &referral, NULL);
 	if (!rc) {
+		char *fake_devname = NULL;
+
 		mdata = cifs_compose_mount_options(cifs_sb->ctx->mount_options,
-						   full_path + 1, &referral);
+						   full_path + 1, &referral,
+						   &fake_devname);
 		free_dfs_info_param(&referral);
 
 		if (IS_ERR(mdata)) {
 			rc = PTR_ERR(mdata);
 			mdata = NULL;
 		} else {
-			smb3_cleanup_fs_context_contents(ctx);
-			rc = cifs_setup_volume_info(ctx);
+			rc = cifs_setup_volume_info(ctx, mdata, fake_devname);
 		}
+		kfree(fake_devname);
 		kfree(cifs_sb->ctx->mount_options);
 		cifs_sb->ctx->mount_options = mdata;
 	}
@@ -3036,6 +3039,7 @@ static int setup_dfs_tgt_conn(const char *path, const char *full_path,
 	struct dfs_info3_param ref = {0};
 	char *mdata = NULL;
 	struct smb3_fs_context fake_ctx = {NULL};
+	char *fake_devname = NULL;
 
 	cifs_dbg(FYI, "%s: dfs path: %s\n", __func__, path);
 
@@ -3044,16 +3048,18 @@ static int setup_dfs_tgt_conn(const char *path, const char *full_path,
 		return rc;
 
 	mdata = cifs_compose_mount_options(cifs_sb->ctx->mount_options,
-					   full_path + 1, &ref);
+					   full_path + 1, &ref,
+					   &fake_devname);
 	free_dfs_info_param(&ref);
 
 	if (IS_ERR(mdata)) {
 		rc = PTR_ERR(mdata);
 		mdata = NULL;
 	} else
-		rc = cifs_setup_volume_info(&fake_ctx);
+		rc = cifs_setup_volume_info(&fake_ctx, mdata, fake_devname);
 
 	kfree(mdata);
+	kfree(fake_devname);
 
 	if (!rc) {
 		/*
@@ -3122,9 +3128,23 @@ static int do_dfs_failover(const char *path, const char *full_path, struct cifs_
  * we should pass a clone of the original context?
  */
 int
-cifs_setup_volume_info(struct smb3_fs_context *ctx)
+cifs_setup_volume_info(struct smb3_fs_context *ctx, const char *mntopts, const char *devname)
 {
 	int rc = 0;
+
+	smb3_parse_devname(devname, ctx);
+
+	if (mntopts) {
+		char *ip;
+
+		cifs_dbg(FYI, "%s: mntopts=%s\n", __func__, mntopts);
+		rc = smb3_parse_opt(mntopts, "ip", &ip);
+		if (!rc && !cifs_convert_address((struct sockaddr *)&ctx->dstaddr, ip,
+						 strlen(ip))) {
+			cifs_dbg(VFS, "%s: failed to convert ip address\n", __func__);
+			return -EINVAL;
+		}
+	}
 
 	if (ctx->nullauth) {
 		cifs_dbg(FYI, "Anonymous login\n");

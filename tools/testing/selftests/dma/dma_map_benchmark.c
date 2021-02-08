@@ -6,6 +6,7 @@
 #include <fcntl.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 #include <unistd.h>
 #include <sys/ioctl.h>
 #include <sys/mman.h>
@@ -35,7 +36,7 @@ struct map_benchmark {
 	__s32 node; /* which numa node this benchmark will run on */
 	__u32 dma_bits; /* DMA addressing capability */
 	__u32 dma_dir; /* DMA data direction */
-	__u64 expansion[10];	/* For future use */
+	__u8 expansion[84];	/* For future use */
 };
 
 int main(int argc, char **argv)
@@ -102,6 +103,7 @@ int main(int argc, char **argv)
 		exit(1);
 	}
 
+	memset(&map, 0, sizeof(map));
 	map.seconds = seconds;
 	map.threads = threads;
 	map.node = node;

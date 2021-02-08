@@ -131,4 +131,4 @@ VERSION
 /*
  * Make the sigreturn code visible to the kernel.
  */
-VDSO_sigtramp_rt64	= __kernel_sigtramp_rt64;
+VDSO_sigtramp_rt64	= __kernel_start_sigtramp_rt64;

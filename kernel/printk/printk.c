@@ -1398,7 +1398,7 @@ static size_t record_print_text(struct printk_record *r, bool syslog,
 	 * not counted in the return value.
 	 */
 	if (buf_size > 0)
-		text[len] = 0;
+		r->text_buf[len] = 0;
 
 	return len;
 }

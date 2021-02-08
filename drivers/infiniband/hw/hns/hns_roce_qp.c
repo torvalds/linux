@@ -209,7 +209,7 @@ static int alloc_qpn(struct hns_roce_dev *hr_dev, struct hns_roce_qp *hr_qp)
 
 		hr_qp->doorbell_qpn = 1;
 	} else {
-		spin_lock(&qp_table->bank_lock);
+		mutex_lock(&qp_table->bank_mutex);
 		bankid = get_least_load_bankid_for_qp(qp_table->bank);
 
 		ret = alloc_qpn_with_bankid(&qp_table->bank[bankid], bankid,
@@ -217,12 +217,12 @@ static int alloc_qpn(struct hns_roce_dev *hr_dev, struct hns_roce_qp *hr_qp)
 		if (ret) {
 			ibdev_err(&hr_dev->ib_dev,
 				  "failed to alloc QPN, ret = %d\n", ret);
-			spin_unlock(&qp_table->bank_lock);
+			mutex_unlock(&qp_table->bank_mutex);
 			return ret;
 		}
 
 		qp_table->bank[bankid].inuse++;
-		spin_unlock(&qp_table->bank_lock);
+		mutex_unlock(&qp_table->bank_mutex);
 
 		hr_qp->doorbell_qpn = (u32)num;
 	}
@@ -408,9 +408,9 @@ static void free_qpn(struct hns_roce_dev *hr_dev, struct hns_roce_qp *hr_qp)
 
 	ida_free(&hr_dev->qp_table.bank[bankid].ida, hr_qp->qpn >> 3);
 
-	spin_lock(&hr_dev->qp_table.bank_lock);
+	mutex_lock(&hr_dev->qp_table.bank_mutex);
 	hr_dev->qp_table.bank[bankid].inuse--;
-	spin_unlock(&hr_dev->qp_table.bank_lock);
+	mutex_unlock(&hr_dev->qp_table.bank_mutex);
 }
 
 static int set_rq_size(struct hns_roce_dev *hr_dev, struct ib_qp_cap *cap,
@@ -1371,6 +1371,7 @@ int hns_roce_init_qp_table(struct hns_roce_dev *hr_dev)
 	unsigned int i;
 
 	mutex_init(&qp_table->scc_mutex);
+	mutex_init(&qp_table->bank_mutex);
 	xa_init(&hr_dev->qp_table_xa);
 
 	reserved_from_bot = hr_dev->caps.reserved_qps;

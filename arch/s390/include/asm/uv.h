@@ -96,7 +96,7 @@ struct uv_cb_qui {
 	u32 max_num_sec_conf;
 	u64 max_guest_stor_addr;
 	u8  reserved88[158 - 136];
-	u16 max_guest_cpus;
+	u16 max_guest_cpu_id;
 	u8  reserveda0[200 - 160];
 } __packed __aligned(8);
 
@@ -273,7 +273,7 @@ struct uv_info {
 	unsigned long guest_cpu_stor_len;
 	unsigned long max_sec_stor_addr;
 	unsigned int max_num_sec_conf;
-	unsigned short max_guest_cpus;
+	unsigned short max_guest_cpu_id;
 };
 
 extern struct uv_info uv_info;

@@ -5,7 +5,8 @@ Required properties:
  - compatible: "adc-keys"
  - io-channels: Phandle to an ADC channel
  - io-channel-names = "buttons";
- - keyup-threshold-microvolt: Voltage at which all the keys are considered up.
+ - keyup-threshold-microvolt: Voltage above or equal to which all the keys are
+			      considered up.
 
 Optional properties:
 	- poll-interval: Poll interval time in milliseconds
@@ -17,7 +18,12 @@ Each button (key) is represented as a sub-node of "adc-keys":
 Required subnode-properties:
 	- label: Descriptive name of the key.
 	- linux,code: Keycode to emit.
-	- press-threshold-microvolt: Voltage ADC input when this key is pressed.
+	- press-threshold-microvolt: voltage above or equal to which this key is
+				     considered pressed.
+
+No two values of press-threshold-microvolt may be the same.
+All values of press-threshold-microvolt must be less than
+keyup-threshold-microvolt.
 
 Example:
 
@@ -47,3 +53,15 @@ Example:
 			press-threshold-microvolt = <500000>;
 		};
 	};
+
++--------------------------------+------------------------+
+| 2.000.000 <= value             | no key pressed         |
++--------------------------------+------------------------+
+| 1.500.000 <= value < 2.000.000 | KEY_VOLUMEUP pressed   |
++--------------------------------+------------------------+
+| 1.000.000 <= value < 1.500.000 | KEY_VOLUMEDOWN pressed |
++--------------------------------+------------------------+
+|   500.000 <= value < 1.000.000 | KEY_ENTER pressed      |
++--------------------------------+------------------------+
+|              value <   500.000 | no key pressed         |
++--------------------------------+------------------------+
