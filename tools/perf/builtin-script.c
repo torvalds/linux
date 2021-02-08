@@ -2795,7 +2795,7 @@ parse:
 				break;
 		}
 		if (i == imax && strcmp(tok, "flags") == 0) {
-			print_flags = change == REMOVE ? false : true;
+			print_flags = change != REMOVE;
 			continue;
 		}
 		if (i == imax) {
@@ -3243,7 +3243,7 @@ static char *get_script_path(const char *script_root, const char *suffix)
 
 static bool is_top_script(const char *script_path)
 {
-	return ends_with(script_path, "top") == NULL ? false : true;
+	return ends_with(script_path, "top") != NULL;
 }
 
 static int has_required_arg(char *script_path)
