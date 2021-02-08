@@ -86,8 +86,10 @@ gk104_top_oneinit(struct nvkm_top *top)
 		case 0x0000000e: I_(NVKM_ENGINE_NVENC , inst); break;
 		case 0x0000000f: O_(NVKM_ENGINE_NVENC ,    1); break;
 		case 0x00000010: I_(NVKM_ENGINE_NVDEC , inst); break;
+		case 0x00000012: I_(NVKM_SUBDEV_IOCTRL, inst); break;
 		case 0x00000013: I_(NVKM_ENGINE_CE    , inst); break;
 		case 0x00000014: O_(NVKM_SUBDEV_GSP   ,    0); break;
+		case 0x00000015: O_(NVKM_ENGINE_NVJPG ,    0); break;
 		default:
 			break;
 		}
