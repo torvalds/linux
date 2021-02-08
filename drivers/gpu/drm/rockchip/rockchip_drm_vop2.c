@@ -2240,6 +2240,7 @@ static void vop2_crtc_atomic_disable(struct drm_crtc *crtc,
 {
 	struct vop2_video_port *vp = to_vop2_video_port(crtc);
 	struct vop2 *vop2 = vp->vop2;
+	int ret;
 
 	WARN_ON(vp->event);
 	vop2_lock(vop2);
@@ -2262,7 +2263,9 @@ static void vop2_crtc_atomic_disable(struct drm_crtc *crtc,
 
 	spin_unlock(&vop2->reg_lock);
 
-	WARN_ON(!wait_for_completion_timeout(&vp->dsp_hold_completion, msecs_to_jiffies(50)));
+	ret = wait_for_completion_timeout(&vp->dsp_hold_completion, msecs_to_jiffies(50));
+	if (!ret)
+		DRM_DEV_INFO(vop2->dev, "wait for vp%d dsp_hold timeout\n", vp->id);
 
 	vop2_dsp_hold_valid_irq_disable(crtc);
 

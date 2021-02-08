@@ -343,9 +343,9 @@ rockchip_drm_atomic_helper_wait_for_vblanks(struct drm_device *dev,
 
 		s = to_rockchip_crtc_state(crtc->state);
 
-		if (!s->mode_update)
-			WARN(!ret, "[CRTC:%d:%s] state:%d, vblank wait timed out\n",
-			     crtc->base.id, crtc->name, old_crtc_state->active);
+		if (!s->mode_update && !ret)
+			DRM_WARN("[CRTC:%d:%s] state:%d, vblank wait timed out\n",
+				 crtc->base.id, crtc->name, old_crtc_state->active);
 
 		drm_crtc_vblank_put(crtc);
 		s->mode_update = false;
