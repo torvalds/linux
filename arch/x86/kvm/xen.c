@@ -284,8 +284,12 @@ int kvm_xen_write_hypercall_page(struct kvm_vcpu *vcpu, u64 data)
 				return 1;
 		}
 	} else {
-		u64 blob_addr = lm ? kvm->arch.xen_hvm_config.blob_addr_64
-				   : kvm->arch.xen_hvm_config.blob_addr_32;
+		/*
+		 * Note, truncation is a non-issue as 'lm' is guaranteed to be
+		 * false for a 32-bit kernel, i.e. when hva_t is only 4 bytes.
+		 */
+		hva_t blob_addr = lm ? kvm->arch.xen_hvm_config.blob_addr_64
+				     : kvm->arch.xen_hvm_config.blob_addr_32;
 		u8 blob_size = lm ? kvm->arch.xen_hvm_config.blob_size_64
 				  : kvm->arch.xen_hvm_config.blob_size_32;
 		u8 *page;
