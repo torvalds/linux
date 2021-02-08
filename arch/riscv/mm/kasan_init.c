@@ -96,6 +96,15 @@ static void kasan_populate_pmd(pgd_t *pgd, unsigned long vaddr, unsigned long en
 
 	do {
 		next = pmd_addr_end(vaddr, end);
+
+		if (pmd_none(*pmdp) && IS_ALIGNED(vaddr, PMD_SIZE) && (next - vaddr) >= PMD_SIZE) {
+			phys_addr = memblock_phys_alloc(PMD_SIZE, PMD_SIZE);
+			if (phys_addr) {
+				set_pmd(pmdp, pfn_pmd(PFN_DOWN(phys_addr), PAGE_KERNEL));
+				continue;
+			}
+		}
+
 		kasan_populate_pte(pmdp, vaddr, next);
 	} while (pmdp++, vaddr = next, vaddr != end);
 
@@ -116,6 +125,21 @@ static void kasan_populate_pgd(unsigned long vaddr, unsigned long end)
 
 	do {
 		next = pgd_addr_end(vaddr, end);
+
+		/*
+		 * pgdp can't be none since kasan_early_init initialized all KASAN
+		 * shadow region with kasan_early_shadow_pmd: if this is stillthe case,
+		 * that means we can try to allocate a hugepage as a replacement.
+		 */
+		if (pgd_page_vaddr(*pgdp) == (unsigned long)lm_alias(kasan_early_shadow_pmd) &&
+		    IS_ALIGNED(vaddr, PGDIR_SIZE) && (next - vaddr) >= PGDIR_SIZE) {
+			phys_addr = memblock_phys_alloc(PGDIR_SIZE, PGDIR_SIZE);
+			if (phys_addr) {
+				set_pgd(pgdp, pfn_pgd(PFN_DOWN(phys_addr), PAGE_KERNEL));
+				continue;
+			}
+		}
+
 		kasan_populate_pmd(pgdp, vaddr, next);
 	} while (pgdp++, vaddr = next, vaddr != end);
 }
