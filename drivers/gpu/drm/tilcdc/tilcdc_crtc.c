@@ -913,13 +913,12 @@ irqreturn_t tilcdc_crtc_irq(struct drm_crtc *crtc)
 	tilcdc_clear_irqstatus(dev, stat);
 
 	if (stat & LCDC_END_OF_FRAME0) {
-		unsigned long flags;
 		bool skip_event = false;
 		ktime_t now;
 
 		now = ktime_get();
 
-		spin_lock_irqsave(&tilcdc_crtc->irq_lock, flags);
+		spin_lock(&tilcdc_crtc->irq_lock);
 
 		tilcdc_crtc->last_vblank = now;
 
@@ -929,21 +928,21 @@ irqreturn_t tilcdc_crtc_irq(struct drm_crtc *crtc)
 			skip_event = true;
 		}
 
-		spin_unlock_irqrestore(&tilcdc_crtc->irq_lock, flags);
+		spin_unlock(&tilcdc_crtc->irq_lock);
 
 		drm_crtc_handle_vblank(crtc);
 
 		if (!skip_event) {
 			struct drm_pending_vblank_event *event;
 
-			spin_lock_irqsave(&dev->event_lock, flags);
+			spin_lock(&dev->event_lock);
 
 			event = tilcdc_crtc->event;
 			tilcdc_crtc->event = NULL;
 			if (event)
 				drm_crtc_send_vblank_event(crtc, event);
 
-			spin_unlock_irqrestore(&dev->event_lock, flags);
+			spin_unlock(&dev->event_lock);
 		}
 
 		if (tilcdc_crtc->frame_intact)
