@@ -5,7 +5,7 @@
 Pixel data transmitter and receiver drivers
 ===========================================
 
-V4L2 supports various devices that transmit and receiver pixel data. Examples of
+V4L2 supports various devices that transmit and receive pixel data. Examples of
 these devices include a camera sensor, a TV tuner and a parallel or a CSI-2
 receiver in an SoC.
 
@@ -95,9 +95,9 @@ LP-11 and LP-111 modes
 
 The transmitter drivers must, if possible, configure the CSI-2 transmitter to
 *LP-11 or LP-111 mode* whenever the transmitter is powered on but not active,
-and maintain *LP-11 or LP-111 mode* until stream on. Only at stream on should
-the transmitter activate the clock on the clock lane and transition to *HS
-mode*.
+and maintain *LP-11 or LP-111 mode* until stream on. Only at stream on time
+should the transmitter activate the clock on the clock lane and transition to
+*HS mode*.
 
 Some transmitters do this automatically but some have to be explicitly
 programmed to do so, and some are unable to do so altogether due to

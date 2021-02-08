@@ -37,6 +37,8 @@ Image Process Control IDs
     by selecting the desired horizontal and vertical blanking. The unit
     of this control is Hz.
 
+.. _v4l2-cid-pixel-rate:
+
 ``V4L2_CID_PIXEL_RATE (64-bit integer)``
     Pixel rate in the source pads of the subdev. This control is
     read-only and its unit is pixels / second.
