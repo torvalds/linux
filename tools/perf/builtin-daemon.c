@@ -499,6 +499,77 @@ static int daemon__wait(struct daemon *daemon, int secs)
 	return 0;
 }
 
+static int daemon_session__control(struct daemon_session *session,
+				   const char *msg, bool do_ack)
+{
+	struct pollfd pollfd = { .events = POLLIN, };
+	char control_path[PATH_MAX];
+	char ack_path[PATH_MAX];
+	int control, ack = -1, len;
+	char buf[20];
+	int ret = -1;
+	ssize_t err;
+
+	/* open the control file */
+	scnprintf(control_path, sizeof(control_path), "%s/%s",
+		  session->base, SESSION_CONTROL);
+
+	control = open(control_path, O_WRONLY|O_NONBLOCK);
+	if (!control)
+		return -1;
+
+	if (do_ack) {
+		/* open the ack file */
+		scnprintf(ack_path, sizeof(ack_path), "%s/%s",
+			  session->base, SESSION_ACK);
+
+		ack = open(ack_path, O_RDONLY, O_NONBLOCK);
+		if (!ack) {
+			close(control);
+			return -1;
+		}
+	}
+
+	/* write the command */
+	len = strlen(msg);
+
+	err = writen(control, msg, len);
+	if (err != len) {
+		pr_err("failed: write to control pipe: %d (%s)\n",
+		       errno, control_path);
+		goto out;
+	}
+
+	if (!do_ack)
+		goto out;
+
+	/* wait for an ack */
+	pollfd.fd = ack;
+
+	if (!poll(&pollfd, 1, 2000)) {
+		pr_err("failed: control ack timeout\n");
+		goto out;
+	}
+
+	if (!(pollfd.revents & POLLIN)) {
+		pr_err("failed: did not received an ack\n");
+		goto out;
+	}
+
+	err = read(ack, buf, sizeof(buf));
+	if (err > 0)
+		ret = strcmp(buf, "ack\n");
+	else
+		perror("failed: read ack %d\n");
+
+out:
+	if (ack != -1)
+		close(ack);
+
+	close(control);
+	return ret;
+}
+
 static int setup_server_socket(struct daemon *daemon)
 {
 	struct sockaddr_un addr;
@@ -549,6 +620,7 @@ enum {
 	CMD_LIST   = 0,
 	CMD_SIGNAL = 1,
 	CMD_STOP   = 2,
+	CMD_PING   = 3,
 	CMD_MAX,
 };
 
@@ -570,7 +642,24 @@ union cmd {
 		int	sig;
 		char	name[SESSION_MAX];
 	} signal;
+
+	/* CMD_PING */
+	struct {
+		int	cmd;
+		char	name[SESSION_MAX];
+	} ping;
 };
+
+enum {
+	PING_OK	  = 0,
+	PING_FAIL = 1,
+	PING_MAX,
+};
+
+static int daemon_session__ping(struct daemon_session *session)
+{
+	return daemon_session__control(session, "ping", true) ?  PING_FAIL : PING_OK;
+}
 
 static int cmd_session_list(struct daemon *daemon, union cmd *cmd, FILE *out)
 {
@@ -668,6 +757,34 @@ static int cmd_session_kill(struct daemon *daemon, union cmd *cmd, FILE *out)
 	return 0;
 }
 
+static const char *ping_str[PING_MAX] = {
+	[PING_OK]   = "OK",
+	[PING_FAIL] = "FAIL",
+};
+
+static int cmd_session_ping(struct daemon *daemon, union cmd *cmd, FILE *out)
+{
+	struct daemon_session *session;
+	bool all = false, found = false;
+
+	all = !strcmp(cmd->ping.name, "all");
+
+	list_for_each_entry(session, &daemon->sessions, list) {
+		if (all || !strcmp(cmd->ping.name, session->name)) {
+			int state = daemon_session__ping(session);
+
+			fprintf(out, "%-4s %s\n", ping_str[state], session->name);
+			found = true;
+		}
+	}
+
+	if (!found && !all) {
+		fprintf(out, "%-4s %s (not found)\n",
+			ping_str[PING_FAIL], cmd->ping.name);
+	}
+	return 0;
+}
+
 static int handle_server_socket(struct daemon *daemon, int sock_fd)
 {
 	int ret = -1, fd;
@@ -702,6 +819,9 @@ static int handle_server_socket(struct daemon *daemon, int sock_fd)
 		done = 1;
 		ret = 0;
 		pr_debug("perf daemon is exciting\n");
+		break;
+	case CMD_PING:
+		ret = cmd_session_ping(daemon, &cmd, out);
 		break;
 	default:
 		break;
@@ -1138,6 +1258,7 @@ static int __cmd_start(struct daemon *daemon, struct option parent_options[],
 
 	signal(SIGINT, sig_handler);
 	signal(SIGTERM, sig_handler);
+	signal(SIGPIPE, SIG_IGN);
 
 	while (!done && !err) {
 		err = daemon__reconfig(daemon);
@@ -1277,6 +1398,31 @@ static int __cmd_stop(struct daemon *daemon, struct option parent_options[],
 	return send_cmd(daemon, &cmd);
 }
 
+static int __cmd_ping(struct daemon *daemon, struct option parent_options[],
+		      int argc, const char **argv)
+{
+	const char *name = "all";
+	struct option ping_options[] = {
+		OPT_STRING(0, "session", &name, "session",
+			"Ping to specific session"),
+		OPT_PARENT(parent_options),
+		OPT_END()
+	};
+	union cmd cmd = { .cmd = CMD_PING, };
+
+	argc = parse_options(argc, argv, ping_options, daemon_usage, 0);
+	if (argc)
+		usage_with_options(daemon_usage, ping_options);
+
+	if (setup_config(daemon)) {
+		pr_err("failed: config not found\n");
+		return -1;
+	}
+
+	scnprintf(cmd.ping.name, sizeof(cmd.ping.name), "%s", name);
+	return send_cmd(daemon, &cmd);
+}
+
 int cmd_daemon(int argc, const char **argv)
 {
 	struct option daemon_options[] = {
@@ -1303,6 +1449,8 @@ int cmd_daemon(int argc, const char **argv)
 			return __cmd_signal(&__daemon, daemon_options, argc, argv);
 		else if (!strcmp(argv[0], "stop"))
 			return __cmd_stop(&__daemon, daemon_options, argc, argv);
+		else if (!strcmp(argv[0], "ping"))
+			return __cmd_ping(&__daemon, daemon_options, argc, argv);
 
 		pr_err("failed: unknown command '%s'\n", argv[0]);
 		return -1;

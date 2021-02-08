@@ -15,6 +15,7 @@ SYNOPSIS
 'perf daemon start'  [<options>]
 'perf daemon stop'   [<options>]
 'perf daemon signal' [<options>]
+'perf daemon ping'   [<options>]
 
 
 DESCRIPTION
@@ -78,6 +79,14 @@ The signal command sends signal to configured sessions.
 
 --session::
 	Send signal to specific session.
+
+
+PING COMMAND
+------------
+The ping command sends control ping to configured sessions.
+
+--session::
+	Send ping to specific session.
 
 
 CONFIG FILE
