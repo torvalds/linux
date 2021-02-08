@@ -387,11 +387,51 @@ EOF
 	rm -f ${config}
 }
 
+test_ping()
+{
+	echo "test daemon ping"
+
+	local config=$(mktemp /tmp/perf.daemon.config.XXX)
+	local base=$(mktemp -d /tmp/perf.daemon.base.XXX)
+
+	# prepare config
+	cat <<EOF > ${config}
+[daemon]
+base=BASE
+
+[session-size]
+run = -e cpu-clock
+
+[session-time]
+run = -e task-clock
+EOF
+
+	sed -i -e "s|BASE|${base}|" ${config}
+
+	# start daemon
+	daemon_start ${config} size
+
+	size=`perf daemon ping --config ${config} --session size | awk '{ print $1 }'`
+	type=`perf daemon ping --config ${config} --session time | awk '{ print $1 }'`
+
+	if [ ${size} != "OK" -o ${type} != "OK" ]; then
+		error=1
+		echo "FAILED: daemon ping failed"
+	fi
+
+	# stop daemon
+	daemon_exit ${base} ${config}
+
+	rm -rf ${base}
+	rm -f ${config}
+}
+
 error=0
 
 test_list
 test_reconfig
 test_stop
 test_signal
+test_ping
 
 exit ${error}
