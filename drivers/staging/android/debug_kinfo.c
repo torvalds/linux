@@ -110,6 +110,11 @@ static int debug_kinfo_probe(struct platform_device *pdev)
 		return -ENODEV;
 	}
 
+	/* Need to wait for reserved memory to be mapped */
+	if (!rmem->priv) {
+		return -EPROBE_DEFER;
+	}
+
 	if (!rmem->base || !rmem->size) {
 		dev_warn(&pdev->dev, "unexpected reserved memory\n");
 		return -EINVAL;
