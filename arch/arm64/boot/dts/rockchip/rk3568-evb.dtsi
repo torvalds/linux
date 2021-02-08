@@ -1766,6 +1766,8 @@
 
 &vop {
 	status = "okay";
+	assigned-clocks = <&cru DCLK_VOP0>, <&cru DCLK_VOP1>;
+	assigned-clock-parents = <&pmucru PLL_HPLL>, <&cru PLL_VPLL>;
 };
 
 &vop_mmu {
