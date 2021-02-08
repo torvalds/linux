@@ -28,6 +28,14 @@
 #define CPUCP_PKT_HBM_ECC_INFO_HBM_CH_SHIFT		6
 #define CPUCP_PKT_HBM_ECC_INFO_HBM_CH_MASK		0x000007C0
 
+/*
+ * info of the pkt queue pointers in the first async occurrence
+ */
+struct cpucp_pkt_sync_err {
+	__le32 pi;
+	__le32 ci;
+};
+
 struct hl_eq_hbm_ecc_data {
 	/* SERR counter */
 	__le32 sec_cnt;
@@ -77,6 +85,7 @@ struct hl_eq_entry {
 		struct hl_eq_ecc_data ecc_data;
 		struct hl_eq_hbm_ecc_data hbm_ecc_data;
 		struct hl_eq_sm_sei_data sm_sei_data;
+		struct cpucp_pkt_sync_err pkt_sync_err;
 		__le64 data[7];
 	};
 };

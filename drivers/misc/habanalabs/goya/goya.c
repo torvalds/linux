@@ -4401,6 +4401,8 @@ static const char *_goya_get_event_desc(u16 event_type)
 		return "THERMAL_ENV_S";
 	case GOYA_ASYNC_EVENT_ID_FIX_THERMAL_ENV_E:
 		return "THERMAL_ENV_E";
+	case GOYA_ASYNC_EVENT_PKT_QUEUE_OUT_SYNC:
+		return "QUEUE_OUT_OF_SYNC";
 	default:
 		return "N/A";
 	}
@@ -4483,6 +4485,9 @@ static void goya_get_event_desc(u16 event_type, char *desc, size_t size)
 		index = event_type - GOYA_ASYNC_EVENT_ID_DMA_BM_CH0;
 		snprintf(desc, size, _goya_get_event_desc(event_type), index);
 		break;
+	case GOYA_ASYNC_EVENT_PKT_QUEUE_OUT_SYNC:
+		snprintf(desc, size, _goya_get_event_desc(event_type));
+		break;
 	default:
 		snprintf(desc, size, _goya_get_event_desc(event_type));
 		break;
@@ -4532,6 +4537,15 @@ static void goya_print_mmu_error_info(struct hl_device *hdev)
 
 		WREG32(mmMMU_PAGE_ERROR_CAPTURE, 0);
 	}
+}
+
+static void goya_print_out_of_sync_info(struct hl_device *hdev,
+					struct cpucp_pkt_sync_err *sync_err)
+{
+	struct hl_hw_queue *q = &hdev->kernel_queues[GOYA_QUEUE_ID_CPU_PQ];
+
+	dev_err(hdev->dev, "Out of sync with FW, FW: pi=%u, ci=%u, LKD: pi=%u, ci=%u\n",
+			sync_err->pi, sync_err->ci, q->pi, atomic_read(&q->ci));
 }
 
 static void goya_print_irq_info(struct hl_device *hdev, u16 event_type,
@@ -4752,6 +4766,15 @@ void goya_handle_eqe(struct hl_device *hdev, struct hl_eq_entry *eq_entry)
 	case GOYA_ASYNC_EVENT_ID_FIX_THERMAL_ENV_E:
 		goya_print_clk_change_info(hdev, event_type);
 		goya_unmask_irq(hdev, event_type);
+		break;
+
+	case GOYA_ASYNC_EVENT_PKT_QUEUE_OUT_SYNC:
+		goya_print_irq_info(hdev, event_type, false);
+		goya_print_out_of_sync_info(hdev, &eq_entry->pkt_sync_err);
+		if (hdev->hard_reset_on_fw_events)
+			hl_device_reset(hdev, true, false);
+		else
+			hl_fw_unmask_irq(hdev, event_type);
 		break;
 
 	default:

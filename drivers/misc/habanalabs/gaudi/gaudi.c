@@ -7097,6 +7097,15 @@ static void gaudi_print_irq_info(struct hl_device *hdev, u16 event_type,
 	}
 }
 
+static void gaudi_print_out_of_sync_info(struct hl_device *hdev,
+					struct cpucp_pkt_sync_err *sync_err)
+{
+	struct hl_hw_queue *q = &hdev->kernel_queues[GAUDI_QUEUE_ID_CPU_PQ];
+
+	dev_err(hdev->dev, "Out of sync with FW, FW: pi=%u, ci=%u, LKD: pi=%u, ci=%u\n",
+			sync_err->pi, sync_err->ci, q->pi, atomic_read(&q->ci));
+}
+
 static int gaudi_soft_reset_late_init(struct hl_device *hdev)
 {
 	struct gaudi_device *gaudi = hdev->asic_specific;
@@ -7550,6 +7559,15 @@ static void gaudi_handle_eqe(struct hl_device *hdev,
 		dev_err(hdev->dev,
 			"Received high temp H/W interrupt %d (cause %d)\n",
 			event_type, cause);
+		break;
+
+	case GAUDI_EVENT_PKT_QUEUE_OUT_SYNC:
+		gaudi_print_irq_info(hdev, event_type, false);
+		gaudi_print_out_of_sync_info(hdev, &eq_entry->pkt_sync_err);
+		if (hdev->hard_reset_on_fw_events)
+			hl_device_reset(hdev, true, false);
+		else
+			hl_fw_unmask_irq(hdev, event_type);
 		break;
 
 	default:
