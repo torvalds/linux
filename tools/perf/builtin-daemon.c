@@ -675,10 +675,61 @@ static int setup_config(struct daemon *daemon)
 	return daemon->config_real ? 0 : -1;
 }
 
+static int go_background(struct daemon *daemon)
+{
+	int pid, fd;
+
+	pid = fork();
+	if (pid < 0)
+		return -1;
+
+	if (pid > 0)
+		return 1;
+
+	if (setsid() < 0)
+		return -1;
+
+	umask(0);
+
+	if (chdir(daemon->base)) {
+		perror("failed: chdir");
+		return -1;
+	}
+
+	fd = open("output", O_RDWR|O_CREAT|O_TRUNC, 0644);
+	if (fd < 0) {
+		perror("failed: open");
+		return -1;
+	}
+
+	if (fcntl(fd, F_SETFD, FD_CLOEXEC)) {
+		perror("failed: fcntl FD_CLOEXEC");
+		close(fd);
+		return -1;
+	}
+
+	close(0);
+	dup2(fd, 1);
+	dup2(fd, 2);
+	close(fd);
+
+	daemon->out = fdopen(1, "w");
+	if (!daemon->out) {
+		close(1);
+		close(2);
+		return -1;
+	}
+
+	setbuf(daemon->out, NULL);
+	return 0;
+}
+
 static int __cmd_start(struct daemon *daemon, struct option parent_options[],
 		       int argc, const char **argv)
 {
+	bool foreground = false;
 	struct option start_options[] = {
+		OPT_BOOLEAN('f', "foreground", &foreground, "stay on console"),
 		OPT_PARENT(parent_options),
 		OPT_END()
 	};
@@ -698,6 +749,17 @@ static int __cmd_start(struct daemon *daemon, struct option parent_options[],
 
 	if (setup_server_config(daemon))
 		return -1;
+
+	if (!foreground) {
+		err = go_background(daemon);
+		if (err) {
+			/* original process, exit normally */
+			if (err == 1)
+				err = 0;
+			daemon__exit(daemon);
+			return err;
+		}
+	}
 
 	debug_set_file(daemon->out);
 	debug_set_display_time(true);

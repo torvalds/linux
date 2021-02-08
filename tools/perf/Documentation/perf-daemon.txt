@@ -56,6 +56,10 @@ START COMMAND
 -------------
 The start command creates the daemon process.
 
+-f::
+--foreground::
+	Do not put the process in background.
+
 
 CONFIG FILE
 -----------
