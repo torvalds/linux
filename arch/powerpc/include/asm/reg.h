@@ -1375,6 +1375,7 @@
 #define mtmsr(v)	asm volatile("mtmsr %0" : \
 				     : "r" ((unsigned long)(v)) \
 				     : "memory")
+#define __mtmsrd(v, l)	BUILD_BUG()
 #define __MTMSR		"mtmsr"
 #endif
 
