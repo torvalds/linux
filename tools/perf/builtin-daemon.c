@@ -531,8 +531,11 @@ static int setup_server_socket(struct daemon *daemon)
 
 enum {
 	CMD_LIST   = 0,
+	CMD_SIGNAL = 1,
 	CMD_MAX,
 };
+
+#define SESSION_MAX 64
 
 union cmd {
 	int cmd;
@@ -543,6 +546,13 @@ union cmd {
 		int	verbose;
 		char	csv_sep;
 	} list;
+
+	/* CMD_SIGNAL */
+	struct {
+		int	cmd;
+		int	sig;
+		char	name[SESSION_MAX];
+	} signal;
 };
 
 static int cmd_session_list(struct daemon *daemon, union cmd *cmd, FILE *out)
@@ -600,6 +610,31 @@ static int cmd_session_list(struct daemon *daemon, union cmd *cmd, FILE *out)
 	return 0;
 }
 
+static int daemon_session__signal(struct daemon_session *session, int sig)
+{
+	if (session->pid < 0)
+		return -1;
+	return kill(session->pid, sig);
+}
+
+static int cmd_session_kill(struct daemon *daemon, union cmd *cmd, FILE *out)
+{
+	struct daemon_session *session;
+	bool all = false;
+
+	all = !strcmp(cmd->signal.name, "all");
+
+	list_for_each_entry(session, &daemon->sessions, list) {
+		if (all || !strcmp(cmd->signal.name, session->name)) {
+			daemon_session__signal(session, cmd->signal.sig);
+			fprintf(out, "signal %d sent to session '%s [%d]'\n",
+				cmd->signal.sig, session->name, session->pid);
+		}
+	}
+
+	return 0;
+}
+
 static int handle_server_socket(struct daemon *daemon, int sock_fd)
 {
 	int ret = -1, fd;
@@ -626,6 +661,9 @@ static int handle_server_socket(struct daemon *daemon, int sock_fd)
 	switch (cmd.cmd) {
 	case CMD_LIST:
 		ret = cmd_session_list(daemon, &cmd, out);
+		break;
+	case CMD_SIGNAL:
+		ret = cmd_session_kill(daemon, &cmd, out);
 		break;
 	default:
 		break;
@@ -669,13 +707,6 @@ static int setup_client_socket(struct daemon *daemon)
 	}
 
 	return fd;
-}
-
-static int daemon_session__signal(struct daemon_session *session, int sig)
-{
-	if (session->pid < 0)
-		return -1;
-	return kill(session->pid, sig);
 }
 
 static void daemon_session__kill(struct daemon_session *session,
@@ -1092,6 +1123,34 @@ static int send_cmd_list(struct daemon *daemon)
 	return send_cmd(daemon, &cmd);
 }
 
+static int __cmd_signal(struct daemon *daemon, struct option parent_options[],
+			int argc, const char **argv)
+{
+	const char *name = "all";
+	struct option start_options[] = {
+		OPT_STRING(0, "session", &name, "session",
+			"Sent signal to specific session"),
+		OPT_PARENT(parent_options),
+		OPT_END()
+	};
+	union cmd cmd;
+
+	argc = parse_options(argc, argv, start_options, daemon_usage, 0);
+	if (argc)
+		usage_with_options(daemon_usage, start_options);
+
+	if (setup_config(daemon)) {
+		pr_err("failed: config not found\n");
+		return -1;
+	}
+
+	cmd.signal.cmd = CMD_SIGNAL,
+	cmd.signal.sig = SIGUSR2;
+	strncpy(cmd.signal.name, name, sizeof(cmd.signal.name) - 1);
+
+	return send_cmd(daemon, &cmd);
+}
+
 int cmd_daemon(int argc, const char **argv)
 {
 	struct option daemon_options[] = {
@@ -1114,6 +1173,8 @@ int cmd_daemon(int argc, const char **argv)
 	if (argc) {
 		if (!strcmp(argv[0], "start"))
 			return __cmd_start(&__daemon, daemon_options, argc, argv);
+		if (!strcmp(argv[0], "signal"))
+			return __cmd_signal(&__daemon, daemon_options, argc, argv);
 
 		pr_err("failed: unknown command '%s'\n", argv[0]);
 		return -1;

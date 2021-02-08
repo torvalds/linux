@@ -13,6 +13,7 @@ SYNOPSIS
 'perf daemon'
 'perf daemon' [<options>]
 'perf daemon start'  [<options>]
+'perf daemon signal' [<options>]
 
 
 DESCRIPTION
@@ -59,6 +60,14 @@ The start command creates the daemon process.
 -f::
 --foreground::
 	Do not put the process in background.
+
+
+SIGNAL COMMAND
+--------------
+The signal command sends signal to configured sessions.
+
+--session::
+	Send signal to specific session.
 
 
 CONFIG FILE
