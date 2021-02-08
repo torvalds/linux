@@ -27,6 +27,7 @@
 #define OTPC_USER_CTRL			0x0100
 #define OTPC_USER_ADDR			0x0104
 #define OTPC_USER_ENABLE		0x0108
+#define OTPC_USER_QP			0x0120
 #define OTPC_USER_Q			0x0124
 #define OTPC_INT_STATUS			0x0304
 #define OTPC_SBPI_CMD0_OFFSET		0x1000
@@ -255,6 +256,7 @@ static int rk3568_otp_read(void *context, unsigned int offset, void *val,
 {
 	struct rockchip_otp *otp = context;
 	unsigned int addr_start, addr_end, addr_offset, addr_len;
+	unsigned int otp_qp;
 	u32 out_value;
 	u8 *buf;
 	int ret = 0, i = 0;
@@ -281,7 +283,7 @@ static int rk3568_otp_read(void *context, unsigned int offset, void *val,
 		goto disable_clks;
 	}
 
-	ret = px30_otp_ecc_enable(otp, false);
+	ret = px30_otp_ecc_enable(otp, true);
 	if (ret < 0) {
 		dev_err(otp->dev, "rockchip_otp_ecc_enable err\n");
 		goto disable_clks;
@@ -297,6 +299,12 @@ static int rk3568_otp_read(void *context, unsigned int offset, void *val,
 		ret = px30_otp_wait_status(otp, OTPC_USER_DONE);
 		if (ret < 0) {
 			dev_err(otp->dev, "timeout during read setup\n");
+			goto read_end;
+		}
+		otp_qp = readl(otp->base + OTPC_USER_QP);
+		if (((otp_qp & 0xc0) == 0xc0) || (otp_qp & 0x20)) {
+			ret = -EIO;
+			dev_err(otp->dev, "ecc check error during read setup\n");
 			goto read_end;
 		}
 		out_value = readl(otp->base + OTPC_USER_Q);
