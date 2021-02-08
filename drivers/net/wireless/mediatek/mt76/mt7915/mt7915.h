@@ -169,6 +169,7 @@ struct mt7915_dev {
 	struct mt7915_hif *hif2;
 
 	const struct mt76_bus_ops *bus_ops;
+	struct tasklet_struct irq_tasklet;
 	struct mt7915_phy phy;
 
 	u16 chainmask;
@@ -374,9 +375,11 @@ void mt7915_dual_hif_set_irq_mask(struct mt7915_dev *dev, bool write_reg,
 static inline void mt7915_irq_enable(struct mt7915_dev *dev, u32 mask)
 {
 	if (dev->hif2)
-		mt7915_dual_hif_set_irq_mask(dev, true, 0, mask);
+		mt7915_dual_hif_set_irq_mask(dev, false, 0, mask);
 	else
-		mt76_set_irq_mask(&dev->mt76, MT_INT_MASK_CSR, 0, mask);
+		mt76_set_irq_mask(&dev->mt76, 0, 0, mask);
+
+	tasklet_schedule(&dev->irq_tasklet);
 }
 
 static inline void mt7915_irq_disable(struct mt7915_dev *dev, u32 mask)
