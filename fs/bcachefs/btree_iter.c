@@ -516,12 +516,7 @@ static void bch2_btree_iter_verify_level(struct btree_iter *iter,
 	if (!bch2_btree_node_relock(iter, level))
 		return;
 
-	/*
-	 * Ideally this invariant would always be true, and hopefully in the
-	 * future it will be, but for now set_pos_same_leaf() breaks it:
-	 */
-	BUG_ON(iter->uptodate < BTREE_ITER_NEED_TRAVERSE &&
-	       !btree_iter_pos_in_node(iter, l->b));
+	BUG_ON(!btree_iter_pos_in_node(iter, l->b));
 
 	/*
 	 * node iterators don't use leaf node iterator:
@@ -1456,36 +1451,6 @@ struct btree *bch2_btree_iter_next_node(struct btree_iter *iter)
 }
 
 /* Iterate across keys (in leaf nodes only) */
-
-void bch2_btree_iter_set_pos_same_leaf(struct btree_iter *iter, struct bpos new_pos)
-{
-	struct btree_iter_level *l = &iter->l[0];
-
-	EBUG_ON(iter->level != 0);
-	EBUG_ON(bkey_cmp(new_pos, iter->pos) < 0);
-	EBUG_ON(!btree_node_locked(iter, 0));
-	EBUG_ON(bkey_cmp(new_pos, l->b->key.k.p) > 0);
-
-	bkey_init(&iter->k);
-	iter->k.p = iter->pos = new_pos;
-	btree_iter_set_dirty(iter, BTREE_ITER_NEED_PEEK);
-
-	btree_iter_advance_to_pos(iter, l, -1);
-
-	/*
-	 * XXX:
-	 * keeping a node locked that's outside (even just outside) iter->pos
-	 * breaks __bch2_btree_node_lock(). This seems to only affect
-	 * bch2_btree_node_get_sibling so for now it's fixed there, but we
-	 * should try to get rid of this corner case.
-	 *
-	 * (this behaviour is currently needed for BTREE_INSERT_NOUNLOCK)
-	 */
-
-	if (bch2_btree_node_iter_end(&l->iter) &&
-	    btree_iter_pos_after_node(iter, l->b))
-		btree_iter_set_dirty(iter, BTREE_ITER_NEED_TRAVERSE);
-}
 
 static void btree_iter_pos_changed(struct btree_iter *iter, int cmp)
 {

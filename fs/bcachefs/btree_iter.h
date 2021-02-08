@@ -174,7 +174,6 @@ struct bkey_s_c bch2_btree_iter_next_slot(struct btree_iter *);
 
 struct bkey_s_c bch2_btree_iter_peek_cached(struct btree_iter *);
 
-void bch2_btree_iter_set_pos_same_leaf(struct btree_iter *, struct bpos);
 void __bch2_btree_iter_set_pos(struct btree_iter *, struct bpos, bool);
 void bch2_btree_iter_set_pos(struct btree_iter *, struct bpos);
 

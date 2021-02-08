@@ -951,12 +951,8 @@ retry:
 
 	trans_for_each_iter(trans, iter)
 		if ((trans->iters_live & (1ULL << iter->idx)) &&
-		    (iter->flags & BTREE_ITER_SET_POS_AFTER_COMMIT)) {
-			if (trans->flags & BTREE_INSERT_NOUNLOCK)
-				bch2_btree_iter_set_pos_same_leaf(iter, iter->pos_after_commit);
-			else
-				bch2_btree_iter_set_pos(iter, iter->pos_after_commit);
-		}
+		    (iter->flags & BTREE_ITER_SET_POS_AFTER_COMMIT))
+			bch2_btree_iter_set_pos(iter, iter->pos_after_commit);
 out:
 	bch2_journal_preres_put(&trans->c->journal, &trans->journal_preres);
 
