@@ -16,6 +16,8 @@
 
 #define FTR_DESC_NAME_LEN	20
 #define FTR_DESC_FIELD_LEN	10
+#define FTR_ALIAS_NAME_LEN	30
+#define FTR_ALIAS_OPTION_LEN	80
 
 struct ftr_set_desc {
 	char 				name[FTR_DESC_NAME_LEN];
@@ -37,6 +39,12 @@ static const struct ftr_set_desc mmfr1 __initconst = {
 
 static const struct ftr_set_desc * const regs[] __initconst = {
 	&mmfr1,
+};
+
+static const struct {
+	char	alias[FTR_ALIAS_NAME_LEN];
+	char	feature[FTR_ALIAS_OPTION_LEN];
+} aliases[] __initconst = {
 };
 
 static int __init find_field(const char *cmdline,
@@ -81,7 +89,7 @@ static void __init match_options(const char *cmdline)
 	}
 }
 
-static __init void __parse_cmdline(const char *cmdline)
+static __init void __parse_cmdline(const char *cmdline, bool parse_aliases)
 {
 	do {
 		char buf[256];
@@ -105,6 +113,9 @@ static __init void __parse_cmdline(const char *cmdline)
 
 		match_options(buf);
 
+		for (i = 0; parse_aliases && i < ARRAY_SIZE(aliases); i++)
+			if (parameq(buf, aliases[i].alias))
+				__parse_cmdline(aliases[i].feature, false);
 	} while (1);
 }
 
@@ -127,14 +138,14 @@ static __init void parse_cmdline(void)
 		if (!prop)
 			goto out;
 
-		__parse_cmdline(prop);
+		__parse_cmdline(prop, true);
 
 		if (!IS_ENABLED(CONFIG_CMDLINE_EXTEND))
 			return;
 	}
 
 out:
-	__parse_cmdline(CONFIG_CMDLINE);
+	__parse_cmdline(CONFIG_CMDLINE, true);
 }
 
 /* Keep checkers quiet */
