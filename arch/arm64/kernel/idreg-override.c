@@ -11,6 +11,7 @@
 #include <linux/libfdt.h>
 
 #include <asm/cacheflush.h>
+#include <asm/cpufeature.h>
 #include <asm/setup.h>
 
 #define FTR_DESC_NAME_LEN	20
@@ -25,7 +26,17 @@ struct ftr_set_desc {
 	} 				fields[];
 };
 
+static const struct ftr_set_desc mmfr1 __initconst = {
+	.name		= "id_aa64mmfr1",
+	.override	= &id_aa64mmfr1_override,
+	.fields		= {
+	        { "vh", ID_AA64MMFR1_VHE_SHIFT },
+		{}
+	},
+};
+
 static const struct ftr_set_desc * const regs[] __initconst = {
+	&mmfr1,
 };
 
 static int __init find_field(const char *cmdline,
