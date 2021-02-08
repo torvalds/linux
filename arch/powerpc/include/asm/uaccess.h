@@ -216,8 +216,6 @@ do {								\
 #define __put_user_nocheck_goto(x, ptr, size, label)		\
 do {								\
 	__typeof__(*(ptr)) __user *__pu_addr = (ptr);		\
-	if (!is_kernel_addr((unsigned long)__pu_addr))		\
-		might_fault();					\
 	__chk_user_ptr(ptr);					\
 	__put_user_size_goto((x), __pu_addr, (size), label);	\
 } while (0)
@@ -313,7 +311,7 @@ do {								\
 	__typeof__(size) __gu_size = (size);			\
 								\
 	__chk_user_ptr(__gu_addr);				\
-	if (!is_kernel_addr((unsigned long)__gu_addr))		\
+	if (do_allow && !is_kernel_addr((unsigned long)__gu_addr)) \
 		might_fault();					\
 	barrier_nospec();					\
 	if (do_allow)								\
@@ -508,6 +506,9 @@ static __must_check inline bool user_access_begin(const void __user *ptr, size_t
 {
 	if (unlikely(!access_ok(ptr, len)))
 		return false;
+
+	might_fault();
+
 	allow_read_write_user((void __user *)ptr, ptr, len);
 	return true;
 }
@@ -521,6 +522,9 @@ user_read_access_begin(const void __user *ptr, size_t len)
 {
 	if (unlikely(!access_ok(ptr, len)))
 		return false;
+
+	might_fault();
+
 	allow_read_from_user(ptr, len);
 	return true;
 }
@@ -532,6 +536,9 @@ user_write_access_begin(const void __user *ptr, size_t len)
 {
 	if (unlikely(!access_ok(ptr, len)))
 		return false;
+
+	might_fault();
+
 	allow_write_to_user((void __user *)ptr, len);
 	return true;
 }
