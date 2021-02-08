@@ -1722,7 +1722,7 @@ tgl_stepping_get(struct drm_i915_private *dev_priv)
 
 #define HAS_GMCH(dev_priv) (INTEL_INFO(dev_priv)->display.has_gmch)
 
-#define HAS_LSPCON(dev_priv) (INTEL_GEN(dev_priv) >= 9)
+#define HAS_LSPCON(dev_priv) (IS_GEN_RANGE(dev_priv, 9, 10))
 
 /* DPF == dynamic parity feature */
 #define HAS_L3_DPF(dev_priv) (INTEL_INFO(dev_priv)->has_l3_dpf)
