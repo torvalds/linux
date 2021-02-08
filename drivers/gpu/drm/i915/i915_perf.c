@@ -302,7 +302,7 @@ static u32 i915_oa_max_sample_rate = 100000;
  * code assumes all reports have a power-of-two size and ~(size - 1) can
  * be used as a mask to align the OA tail pointer.
  */
-static const struct i915_oa_format hsw_oa_formats[I915_OA_FORMAT_MAX] = {
+static const struct i915_oa_format oa_formats[I915_OA_FORMAT_MAX] = {
 	[I915_OA_FORMAT_A13]	    = { 0, 64 },
 	[I915_OA_FORMAT_A29]	    = { 1, 128 },
 	[I915_OA_FORMAT_A13_B8_C8]  = { 2, 128 },
@@ -311,16 +311,8 @@ static const struct i915_oa_format hsw_oa_formats[I915_OA_FORMAT_MAX] = {
 	[I915_OA_FORMAT_A45_B8_C8]  = { 5, 256 },
 	[I915_OA_FORMAT_B4_C8_A16]  = { 6, 128 },
 	[I915_OA_FORMAT_C4_B8]	    = { 7, 64 },
-};
-
-static const struct i915_oa_format gen8_plus_oa_formats[I915_OA_FORMAT_MAX] = {
 	[I915_OA_FORMAT_A12]		    = { 0, 64 },
 	[I915_OA_FORMAT_A12_B8_C8]	    = { 2, 128 },
-	[I915_OA_FORMAT_A32u40_A4u32_B8_C8] = { 5, 256 },
-	[I915_OA_FORMAT_C4_B8]		    = { 7, 64 },
-};
-
-static const struct i915_oa_format gen12_oa_formats[I915_OA_FORMAT_MAX] = {
 	[I915_OA_FORMAT_A32u40_A4u32_B8_C8] = { 5, 256 },
 };
 
@@ -4333,6 +4325,7 @@ void i915_perf_init(struct drm_i915_private *i915)
 
 	/* XXX const struct i915_perf_ops! */
 
+	perf->oa_formats = oa_formats;
 	if (IS_HASWELL(i915)) {
 		perf->ops.is_valid_b_counter_reg = gen7_is_valid_b_counter_addr;
 		perf->ops.is_valid_mux_reg = hsw_is_valid_mux_addr;
@@ -4343,8 +4336,6 @@ void i915_perf_init(struct drm_i915_private *i915)
 		perf->ops.oa_disable = gen7_oa_disable;
 		perf->ops.read = gen7_oa_read;
 		perf->ops.oa_hw_tail_read = gen7_oa_hw_tail_read;
-
-		perf->oa_formats = hsw_oa_formats;
 	} else if (HAS_LOGICAL_RING_CONTEXTS(i915)) {
 		/* Note: that although we could theoretically also support the
 		 * legacy ringbuffer mode on BDW (and earlier iterations of
@@ -4355,8 +4346,6 @@ void i915_perf_init(struct drm_i915_private *i915)
 		perf->ops.read = gen8_oa_read;
 
 		if (IS_GEN_RANGE(i915, 8, 9)) {
-			perf->oa_formats = gen8_plus_oa_formats;
-
 			perf->ops.is_valid_b_counter_reg =
 				gen7_is_valid_b_counter_addr;
 			perf->ops.is_valid_mux_reg =
@@ -4387,8 +4376,6 @@ void i915_perf_init(struct drm_i915_private *i915)
 				perf->gen8_valid_ctx_bit = BIT(16);
 			}
 		} else if (IS_GEN_RANGE(i915, 10, 11)) {
-			perf->oa_formats = gen8_plus_oa_formats;
-
 			perf->ops.is_valid_b_counter_reg =
 				gen7_is_valid_b_counter_addr;
 			perf->ops.is_valid_mux_reg =
@@ -4411,8 +4398,6 @@ void i915_perf_init(struct drm_i915_private *i915)
 			}
 			perf->gen8_valid_ctx_bit = BIT(16);
 		} else if (IS_GEN(i915, 12)) {
-			perf->oa_formats = gen12_oa_formats;
-
 			perf->ops.is_valid_b_counter_reg =
 				gen12_is_valid_b_counter_addr;
 			perf->ops.is_valid_mux_reg =
