@@ -476,15 +476,14 @@ static int get_sdw_dailink_info(const struct snd_soc_acpi_link_adr *links,
 	return 0;
 }
 
-static void init_dai_link(struct snd_soc_dai_link *dai_links, int be_id,
-			  char *name, int playback, int capture,
-			  struct snd_soc_dai_link_component *cpus,
-			  int cpus_num,
-			  struct snd_soc_dai_link_component *codecs,
-			  int codecs_num,
+static void init_dai_link(struct device *dev, struct snd_soc_dai_link *dai_links,
+			  int be_id, char *name, int playback, int capture,
+			  struct snd_soc_dai_link_component *cpus, int cpus_num,
+			  struct snd_soc_dai_link_component *codecs, int codecs_num,
 			  int (*init)(struct snd_soc_pcm_runtime *rtd),
 			  const struct snd_soc_ops *ops)
 {
+	dev_dbg(dev, "create dai link %s, id %d\n", name, be_id);
 	dai_links->id = be_id;
 	dai_links->name = name;
 	dai_links->platforms = platform_component;
@@ -822,7 +821,7 @@ static int create_sdw_dailink(struct device *dev, int *be_index,
 
 		playback = (stream == SNDRV_PCM_STREAM_PLAYBACK);
 		capture = (stream == SNDRV_PCM_STREAM_CAPTURE);
-		init_dai_link(dai_links + *be_index, *be_index, name,
+		init_dai_link(dev, dai_links + *be_index, *be_index, name,
 			      playback, capture,
 			      cpus + *cpu_id, cpu_dai_num,
 			      codecs, codec_num,
@@ -1061,7 +1060,7 @@ SSP:
 
 		playback = info->direction[SNDRV_PCM_STREAM_PLAYBACK];
 		capture = info->direction[SNDRV_PCM_STREAM_CAPTURE];
-		init_dai_link(links + link_id, be_id, name,
+		init_dai_link(dev, links + link_id, be_id, name,
 			      playback, capture,
 			      cpus + cpu_id, 1,
 			      ssp_components, 1,
@@ -1078,7 +1077,7 @@ DMIC:
 	/* dmic */
 	if (dmic_num > 0) {
 		cpus[cpu_id].dai_name = "DMIC01 Pin";
-		init_dai_link(links + link_id, be_id, "dmic01",
+		init_dai_link(dev, links + link_id, be_id, "dmic01",
 			      0, 1, // DMIC only supports capture
 			      cpus + cpu_id, 1,
 			      dmic_component, 1,
@@ -1086,7 +1085,7 @@ DMIC:
 		INC_ID(be_id, cpu_id, link_id);
 
 		cpus[cpu_id].dai_name = "DMIC16k Pin";
-		init_dai_link(links + link_id, be_id, "dmic16k",
+		init_dai_link(dev, links + link_id, be_id, "dmic16k",
 			      0, 1, // DMIC only supports capture
 			      cpus + cpu_id, 1,
 			      dmic_component, 1,
@@ -1129,7 +1128,7 @@ DMIC:
 			return -ENOMEM;
 
 		cpus[cpu_id].dai_name = cpu_name;
-		init_dai_link(links + link_id, be_id, name,
+		init_dai_link(dev, links + link_id, be_id, name,
 			      1, 0, // HDMI only supports playback
 			      cpus + cpu_id, 1,
 			      idisp_components + i, 1,
