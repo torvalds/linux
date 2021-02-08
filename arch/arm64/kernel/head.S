@@ -419,10 +419,6 @@ SYM_FUNC_START_LOCAL(__primary_switched)
 	adr_l	x5, init_task
 	msr	sp_el0, x5			// Save thread_info
 
-#ifdef CONFIG_ARM64_PTR_AUTH
-	__ptrauth_keys_init_cpu	x5, x6, x7, x8
-#endif
-
 	adr_l	x8, vectors			// load VBAR_EL1 with virtual
 	msr	vbar_el1, x8			// vector table address
 	isb
