@@ -131,14 +131,11 @@ ALT_FTR_SECTION_END_IFSET(CPU_FTR_EMB_HV)
 	SAVE_4GPRS(3, r11)
 	SAVE_2GPRS(7, r11)
 
-	addi	r11,r1,STACK_FRAME_OVERHEAD
 	addi	r2,r10,-THREAD
-	stw	r11,PT_REGS(r10)
 	/* Check to see if the dbcr0 register is set up to debug.  Use the
 	   internal debug mode bit to do this. */
 	lwz	r12,THREAD_DBCR0(r10)
 	andis.	r12,r12,DBCR0_IDM@h
-	ACCOUNT_CPU_USER_ENTRY(r2, r11, r12)
 	beq+	3f
 	/* From user and task is ptraced - load up global dbcr0 */
 	li	r12,-1			/* clear all pending debug events */
@@ -157,20 +154,6 @@ ALT_FTR_SECTION_END_IFSET(CPU_FTR_EMB_HV)
 	stw	r12,4(r11)
 
 3:
-#ifdef CONFIG_TRACE_IRQFLAGS
-	/*
-	 * If MSR is changing we need to keep interrupts disabled at this point
-	 * otherwise we might risk taking an interrupt before we tell lockdep
-	 * they are enabled.
-	 */
-	lis	r10, MSR_KERNEL@h
-	ori	r10, r10, MSR_KERNEL@l
-	rlwimi	r10, r9, 0, MSR_EE
-#else
-	lis	r10, (MSR_KERNEL | MSR_EE)@h
-	ori	r10, r10, (MSR_KERNEL | MSR_EE)@l
-#endif
-	mtmsr	r10
 	b	transfer_to_syscall	/* jump to handler */
 99:	b	ret_from_kernel_syscall
 .endm
