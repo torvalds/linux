@@ -2200,6 +2200,7 @@ int vmw_du_connector_fill_modes(struct drm_connector *connector,
 	mode->hdisplay = du->pref_width;
 	mode->vdisplay = du->pref_height;
 	vmw_guess_mode_timing(mode);
+	drm_mode_set_name(mode);
 
 	if (vmw_kms_validate_mode_vram(dev_priv,
 					mode->hdisplay * assumed_bpp,
