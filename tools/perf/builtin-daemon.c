@@ -13,6 +13,7 @@
 #include <sys/types.h>
 #include <sys/socket.h>
 #include <sys/un.h>
+#include <sys/stat.h>
 #include <poll.h>
 #include "builtin.h"
 #include "perf.h"
@@ -42,6 +43,67 @@ static bool done;
 static void sig_handler(int sig __maybe_unused)
 {
 	done = true;
+}
+
+static int client_config(const char *var, const char *value, void *cb)
+{
+	struct daemon *daemon = cb;
+
+	if (!strcmp(var, "daemon.base") && !daemon->base_user) {
+		daemon->base = strdup(value);
+		if (!daemon->base)
+			return -ENOMEM;
+	}
+
+	return 0;
+}
+
+static int check_base(struct daemon *daemon)
+{
+	struct stat st;
+
+	if (!daemon->base) {
+		pr_err("failed: base not defined\n");
+		return -EINVAL;
+	}
+
+	if (stat(daemon->base, &st)) {
+		switch (errno) {
+		case EACCES:
+			pr_err("failed: permission denied for '%s' base\n",
+			       daemon->base);
+			return -EACCES;
+		case ENOENT:
+			pr_err("failed: base '%s' does not exists\n",
+			       daemon->base);
+			return -EACCES;
+		default:
+			pr_err("failed: can't access base '%s': %s\n",
+			       daemon->base, strerror(errno));
+			return -errno;
+		}
+	}
+
+	if ((st.st_mode & S_IFMT) != S_IFDIR) {
+		pr_err("failed: base '%s' is not directory\n",
+		       daemon->base);
+		return -EINVAL;
+	}
+
+	return 0;
+}
+
+static int setup_client_config(struct daemon *daemon)
+{
+	struct perf_config_set *set = perf_config_set__load_file(daemon->config_real);
+	int err = -ENOMEM;
+
+	if (set) {
+		err = perf_config_set(set, client_config, daemon);
+		perf_config_set__delete(set);
+	}
+
+	return err ?: check_base(daemon);
 }
 
 static int setup_server_socket(struct daemon *daemon)
@@ -128,6 +190,38 @@ out:
 	if (!out)
 		close(fd);
 	return ret;
+}
+
+static int setup_client_socket(struct daemon *daemon)
+{
+	struct sockaddr_un addr;
+	char path[PATH_MAX];
+	int fd = socket(AF_UNIX, SOCK_STREAM, 0);
+
+	if (fd == -1) {
+		perror("failed: socket");
+		return -1;
+	}
+
+	scnprintf(path, sizeof(path), "%s/control", daemon->base);
+
+	if (strlen(path) + 1 >= sizeof(addr.sun_path)) {
+		pr_err("failed: control path too long '%s'\n", path);
+		close(fd);
+		return -1;
+	}
+
+	memset(&addr, 0, sizeof(addr));
+	addr.sun_family = AF_UNIX;
+	strlcpy(addr.sun_path, path, sizeof(addr.sun_path) - 1);
+
+	if (connect(fd, (struct sockaddr *) &addr, sizeof(addr)) == -1) {
+		perror("failed: connect");
+		close(fd);
+		return -1;
+	}
+
+	return fd;
 }
 
 static void daemon__exit(struct daemon *daemon)
@@ -220,6 +314,50 @@ out:
 	pr_info("daemon exited\n");
 	fclose(daemon->out);
 	return err;
+}
+
+__maybe_unused
+static int send_cmd(struct daemon *daemon, union cmd *cmd)
+{
+	int ret = -1, fd;
+	char *line = NULL;
+	size_t len = 0;
+	ssize_t nread;
+	FILE *in = NULL;
+
+	if (setup_client_config(daemon))
+		return -1;
+
+	fd = setup_client_socket(daemon);
+	if (fd < 0)
+		return -1;
+
+	if (sizeof(*cmd) != writen(fd, cmd, sizeof(*cmd))) {
+		perror("failed: write");
+		goto out;
+	}
+
+	in = fdopen(fd, "r");
+	if (!in) {
+		perror("failed: fdopen");
+		goto out;
+	}
+
+	while ((nread = getline(&line, &len, in)) != -1) {
+		if (fwrite(line, nread, 1, stdout) != 1)
+			goto out_fclose;
+		fflush(stdout);
+	}
+
+	ret = 0;
+out_fclose:
+	fclose(in);
+	free(line);
+out:
+	/* If in is defined, then fd is closed via fclose. */
+	if (!in)
+		close(fd);
+	return ret;
 }
 
 int cmd_daemon(int argc, const char **argv)
