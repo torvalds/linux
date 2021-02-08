@@ -13,6 +13,7 @@ SYNOPSIS
 'perf daemon'
 'perf daemon' [<options>]
 'perf daemon start'  [<options>]
+'perf daemon stop'   [<options>]
 'perf daemon signal' [<options>]
 
 
@@ -60,6 +61,11 @@ The start command creates the daemon process.
 -f::
 --foreground::
 	Do not put the process in background.
+
+
+STOP COMMAND
+------------
+The stop command stops all the session and the daemon process.
 
 
 SIGNAL COMMAND

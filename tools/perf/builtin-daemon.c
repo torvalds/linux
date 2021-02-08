@@ -532,6 +532,7 @@ static int setup_server_socket(struct daemon *daemon)
 enum {
 	CMD_LIST   = 0,
 	CMD_SIGNAL = 1,
+	CMD_STOP   = 2,
 	CMD_MAX,
 };
 
@@ -664,6 +665,11 @@ static int handle_server_socket(struct daemon *daemon, int sock_fd)
 		break;
 	case CMD_SIGNAL:
 		ret = cmd_session_kill(daemon, &cmd, out);
+		break;
+	case CMD_STOP:
+		done = 1;
+		ret = 0;
+		pr_debug("perf daemon is exciting\n");
 		break;
 	default:
 		break;
@@ -1151,6 +1157,27 @@ static int __cmd_signal(struct daemon *daemon, struct option parent_options[],
 	return send_cmd(daemon, &cmd);
 }
 
+static int __cmd_stop(struct daemon *daemon, struct option parent_options[],
+			int argc, const char **argv)
+{
+	struct option start_options[] = {
+		OPT_PARENT(parent_options),
+		OPT_END()
+	};
+	union cmd cmd = { .cmd = CMD_STOP, };
+
+	argc = parse_options(argc, argv, start_options, daemon_usage, 0);
+	if (argc)
+		usage_with_options(daemon_usage, start_options);
+
+	if (setup_config(daemon)) {
+		pr_err("failed: config not found\n");
+		return -1;
+	}
+
+	return send_cmd(daemon, &cmd);
+}
+
 int cmd_daemon(int argc, const char **argv)
 {
 	struct option daemon_options[] = {
@@ -1175,6 +1202,8 @@ int cmd_daemon(int argc, const char **argv)
 			return __cmd_start(&__daemon, daemon_options, argc, argv);
 		if (!strcmp(argv[0], "signal"))
 			return __cmd_signal(&__daemon, daemon_options, argc, argv);
+		else if (!strcmp(argv[0], "stop"))
+			return __cmd_stop(&__daemon, daemon_options, argc, argv);
 
 		pr_err("failed: unknown command '%s'\n", argv[0]);
 		return -1;
