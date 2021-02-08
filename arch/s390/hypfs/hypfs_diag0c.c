@@ -84,7 +84,7 @@ static int dbfs_diag0c_create(void **data, void **data_free_ptr, size_t *size)
 	if (IS_ERR(diag0c_data))
 		return PTR_ERR(diag0c_data);
 	memset(&diag0c_data->hdr, 0, sizeof(diag0c_data->hdr));
-	get_tod_clock_ext(diag0c_data->hdr.tod_ext);
+	store_tod_clock_ext((union tod_clock *)diag0c_data->hdr.tod_ext);
 	diag0c_data->hdr.len = count * sizeof(struct hypfs_diag0c_entry);
 	diag0c_data->hdr.version = DBFS_D0C_HDR_VERSION;
 	diag0c_data->hdr.count = count;
