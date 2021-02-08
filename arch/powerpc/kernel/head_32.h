@@ -118,8 +118,6 @@
 .macro SYSCALL_ENTRY trapno
 	mfspr	r9, SPRN_SRR1
 	mfspr	r10, SPRN_SRR0
-	andi.	r11, r9, MSR_PR
-	beq-	99f
 	LOAD_REG_IMMEDIATE(r11, MSR_KERNEL)		/* can take exceptions */
 	lis	r12, 1f@h
 	ori	r12, r12, 1f@l
@@ -174,7 +172,6 @@
 3:
 #endif
 	b	transfer_to_syscall		/* jump to handler */
-99:	b	ret_from_kernel_syscall
 .endm
 
 .macro save_dar_dsisr_on_stack reg1, reg2, sp
