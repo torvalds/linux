@@ -93,7 +93,7 @@ static void __init populate(void *start, void *end)
 				__pgprot(_PAGE_TABLE)));
 
 	local_flush_tlb_all();
-	memset(start, 0, end - start);
+	memset(start, KASAN_SHADOW_INIT, end - start);
 }
 
 void __init kasan_shallow_populate(void *start, void *end)
@@ -163,6 +163,6 @@ void __init kasan_init(void)
 			       __pgprot(_PAGE_PRESENT | _PAGE_READ |
 					_PAGE_ACCESSED)));
 
-	memset(kasan_early_shadow_page, 0, PAGE_SIZE);
+	memset(kasan_early_shadow_page, KASAN_SHADOW_INIT, PAGE_SIZE);
 	init_task.kasan_depth = 0;
 }
