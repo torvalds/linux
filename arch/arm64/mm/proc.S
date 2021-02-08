@@ -465,8 +465,8 @@ SYM_FUNC_START(__cpu_setup)
 #endif
 	msr	mair_el1, x5
 	/*
-	 * Set/prepare TCR and TTBR. We use 512GB (39-bit) address range for
-	 * both user and kernel.
+	 * Set/prepare TCR and TTBR. TCR_EL1.T1SZ gets further
+	 * adjusted if the kernel is compiled with 52bit VA support.
 	 */
 	mov_q	x10, TCR_TxSZ(VA_BITS) | TCR_CACHE_FLAGS | TCR_SMP_FLAGS | \
 			TCR_TG_FLAGS | TCR_KASLR_FLAGS | TCR_ASID16 | \
