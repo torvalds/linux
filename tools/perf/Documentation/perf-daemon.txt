@@ -1,0 +1,40 @@
+perf-daemon(1)
+==============
+
+
+NAME
+----
+perf-daemon - Run record sessions on background
+
+
+SYNOPSIS
+--------
+[verse]
+'perf daemon'
+'perf daemon' [<options>]
+'perf daemon start'  [<options>]
+
+
+DESCRIPTION
+-----------
+This command allows to run simple daemon process that starts and
+monitors configured record sessions.
+
+
+OPTIONS
+-------
+-v::
+--verbose::
+	Be more verbose.
+
+All generic options are available also under commands.
+
+
+START COMMAND
+-------------
+The start command creates the daemon process.
+
+
+SEE ALSO
+--------
+linkperf:perf-record[1], linkperf:perf-config[1]
