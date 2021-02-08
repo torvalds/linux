@@ -214,9 +214,24 @@ static void felix_phylink_mac_link_down(struct dsa_switch *ds, int port,
 {
 	struct ocelot *ocelot = ds->priv;
 	struct ocelot_port *ocelot_port = ocelot->ports[port];
+	int err;
 
-	ocelot_port_writel(ocelot_port, 0, DEV_MAC_ENA_CFG);
+	ocelot_port_rmwl(ocelot_port, 0, DEV_MAC_ENA_CFG_RX_ENA,
+			 DEV_MAC_ENA_CFG);
+
 	ocelot_fields_write(ocelot, port, QSYS_SWITCH_PORT_MODE_PORT_ENA, 0);
+
+	err = ocelot_port_flush(ocelot, port);
+	if (err)
+		dev_err(ocelot->dev, "failed to flush port %d: %d\n",
+			port, err);
+
+	/* Put the port in reset. */
+	ocelot_port_writel(ocelot_port,
+			   DEV_CLOCK_CFG_MAC_TX_RST |
+			   DEV_CLOCK_CFG_MAC_RX_RST |
+			   DEV_CLOCK_CFG_LINK_SPEED(OCELOT_SPEED_1000),
+			   DEV_CLOCK_CFG);
 }
 
 static void felix_phylink_mac_link_up(struct dsa_switch *ds, int port,
