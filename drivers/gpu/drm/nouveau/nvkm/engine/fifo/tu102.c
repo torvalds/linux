@@ -278,7 +278,8 @@ tu102_fifo_fault(struct nvkm_fifo *base, struct nvkm_fault_data *info)
 	struct nvkm_engine *engine = NULL;
 	struct nvkm_fifo_chan *chan;
 	unsigned long flags;
-	char ct[8] = "HUB/", en[16] = "";
+	const char *en = "";
+	char ct[8] = "HUB/";
 	int engn;
 
 	er = nvkm_enum_find(fifo->func->fault.reason, info->reason);
@@ -309,19 +310,14 @@ tu102_fifo_fault(struct nvkm_fifo *base, struct nvkm_fault_data *info)
 	}
 
 	if (ee == NULL) {
-		enum nvkm_devidx engidx = nvkm_top_fault(device, info->engine);
-
-		if (engidx < NVKM_SUBDEV_NR) {
-			const char *src = nvkm_subdev_type[engidx];
-			char *dst = en;
-
-			do {
-				*dst++ = toupper(*src++);
-			} while (*src);
-			engine = nvkm_device_engine(device, engidx, 0);
+		struct nvkm_subdev *subdev = nvkm_top_fault(device, info->engine);
+		if (subdev) {
+			if (subdev->func == &nvkm_engine)
+				engine = container_of(subdev, typeof(*engine), subdev);
+			en = engine->subdev.name;
 		}
 	} else {
-		snprintf(en, sizeof(en), "%s", ee->name);
+		en = ee->name;
 	}
 
 	spin_lock_irqsave(&fifo->base.lock, flags);

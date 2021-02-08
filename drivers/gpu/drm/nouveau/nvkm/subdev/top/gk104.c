@@ -70,7 +70,7 @@ gk104_top_oneinit(struct nvkm_top *top)
 			continue;
 
 		/* Translate engine type to NVKM engine identifier. */
-#define I_(T,I) do { info->type = (T); info->inst = (I); info->index = (T) + (I); } while(0)
+#define I_(T,I) do { info->type = (T); info->inst = (I); } while(0)
 #define O_(T,I) do { WARN_ON(inst); I_(T, I); } while (0)
 		switch (type) {
 		case 0x00000000: O_(NVKM_ENGINE_GR    ,    0); break;

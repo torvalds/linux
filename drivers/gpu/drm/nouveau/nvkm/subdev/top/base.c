@@ -30,7 +30,6 @@ nvkm_top_device_new(struct nvkm_top *top)
 	if (info) {
 		info->type = NVKM_SUBDEV_NR;
 		info->inst = -1;
-		info->index = NVKM_SUBDEV_NR;
 		info->addr = 0;
 		info->fault = -1;
 		info->engine = -1;
@@ -104,7 +103,7 @@ nvkm_top_fault_id(struct nvkm_device *device, enum nvkm_subdev_type type, int in
 	return -ENOENT;
 }
 
-enum nvkm_devidx
+struct nvkm_subdev *
 nvkm_top_fault(struct nvkm_device *device, int fault)
 {
 	struct nvkm_top *top = device->top;
@@ -112,10 +111,10 @@ nvkm_top_fault(struct nvkm_device *device, int fault)
 
 	list_for_each_entry(info, &top->device, head) {
 		if (info->fault == fault)
-			return info->index;
+			return nvkm_device_subdev(device, info->type, info->inst);
 	}
 
-	return NVKM_SUBDEV_NR;
+	return NULL;
 }
 
 static int
