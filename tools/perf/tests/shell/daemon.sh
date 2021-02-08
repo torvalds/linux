@@ -348,10 +348,50 @@ EOF
 	rm -f ${config}
 }
 
+test_signal()
+{
+	echo "test daemon signal"
+
+	local config=$(mktemp /tmp/perf.daemon.config.XXX)
+	local base=$(mktemp -d /tmp/perf.daemon.base.XXX)
+
+	# prepare config
+	cat <<EOF > ${config}
+[daemon]
+base=BASE
+
+[session-test]
+run = -e cpu-clock --switch-output
+EOF
+
+	sed -i -e "s|BASE|${base}|" ${config}
+
+	# start daemon
+	daemon_start ${config} test
+
+	# send 2 signals
+	perf daemon signal --config ${config} --session test
+	perf daemon signal --config ${config}
+
+	# stop daemon
+	daemon_exit ${base} ${config}
+
+	# count is 2 perf.data for signals and 1 for perf record finished
+	count=`ls ${base}/session-test/ | grep perf.data | wc -l`
+	if [ ${count} -ne 3 ]; then
+		error=1
+		echo "FAILED: perf data no generated"
+	fi
+
+	rm -rf ${base}
+	rm -f ${config}
+}
+
 error=0
 
 test_list
 test_reconfig
 test_stop
+test_signal
 
 exit ${error}
