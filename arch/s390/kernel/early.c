@@ -296,6 +296,7 @@ static void __init check_image_bootable(void)
 
 void __init startup_init(void)
 {
+	sclp_early_adjust_va();
 	reset_tod_clock();
 	check_image_bootable();
 	time_early_init();

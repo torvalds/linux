@@ -155,6 +155,11 @@ static void __init sclp_early_console_detect(struct init_sccb *sccb)
 		sclp.has_linemode = 1;
 }
 
+void __init sclp_early_adjust_va(void)
+{
+	sclp_early_sccb = __va((unsigned long)sclp_early_sccb);
+}
+
 void __init sclp_early_detect(void)
 {
 	void *sccb = sclp_early_sccb;
