@@ -29,13 +29,15 @@ static int rockchip_cpuinfo_probe(struct platform_device *pdev)
 	struct device *dev = &pdev->dev;
 	struct nvmem_cell *cell;
 	unsigned char *efuse_buf, buf[16];
-	size_t len;
+	size_t len = 0;
 	int i;
 
 	cell = nvmem_cell_get(dev, "cpu-code");
 	if (!IS_ERR(cell)) {
 		efuse_buf = nvmem_cell_read(cell, &len);
 		nvmem_cell_put(cell);
+		if (IS_ERR(efuse_buf))
+			return PTR_ERR(efuse_buf);
 
 		if (len == 2)
 			rockchip_set_cpu((efuse_buf[0] << 8 | efuse_buf[1]));
@@ -46,6 +48,8 @@ static int rockchip_cpuinfo_probe(struct platform_device *pdev)
 	if (!IS_ERR(cell)) {
 		efuse_buf = nvmem_cell_read(cell, &len);
 		nvmem_cell_put(cell);
+		if (IS_ERR(efuse_buf))
+			return PTR_ERR(efuse_buf);
 
 		if ((len == 1) && (efuse_buf[0] > rockchip_get_cpu_version()))
 			rockchip_set_cpu_version(efuse_buf[0]);
@@ -61,6 +65,8 @@ static int rockchip_cpuinfo_probe(struct platform_device *pdev)
 	}
 	efuse_buf = nvmem_cell_read(cell, &len);
 	nvmem_cell_put(cell);
+	if (IS_ERR(efuse_buf))
+		return PTR_ERR(efuse_buf);
 
 	if (len != 16) {
 		kfree(efuse_buf);
