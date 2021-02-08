@@ -870,11 +870,25 @@ static int setup_client_socket(struct daemon *daemon)
 static void daemon_session__kill(struct daemon_session *session,
 				 struct daemon *daemon)
 {
-	daemon_session__signal(session, SIGTERM);
-	if (daemon_session__wait(session, daemon, 10)) {
-		daemon_session__signal(session, SIGKILL);
-		daemon_session__wait(session, daemon, 10);
-	}
+	int how = 0;
+
+	do {
+		switch (how) {
+		case 0:
+			daemon_session__control(session, "stop", false);
+			break;
+		case 1:
+			daemon_session__signal(session, SIGTERM);
+			break;
+		case 2:
+			daemon_session__signal(session, SIGKILL);
+			break;
+		default:
+			break;
+		}
+		how++;
+
+	} while (daemon_session__wait(session, daemon, 10));
 }
 
 static void daemon__signal(struct daemon *daemon, int sig)
@@ -899,13 +913,35 @@ static void daemon_session__remove(struct daemon_session *session)
 	daemon_session__delete(session);
 }
 
+static void daemon__stop(struct daemon *daemon)
+{
+	struct daemon_session *session;
+
+	list_for_each_entry(session, &daemon->sessions, list)
+		daemon_session__control(session, "stop", false);
+}
+
 static void daemon__kill(struct daemon *daemon)
 {
-	daemon__signal(daemon, SIGTERM);
-	if (daemon__wait(daemon, 10)) {
-		daemon__signal(daemon, SIGKILL);
-		daemon__wait(daemon, 10);
-	}
+	int how = 0;
+
+	do {
+		switch (how) {
+		case 0:
+			daemon__stop(daemon);
+			break;
+		case 1:
+			daemon__signal(daemon, SIGTERM);
+			break;
+		case 2:
+			daemon__signal(daemon, SIGKILL);
+			break;
+		default:
+			break;
+		}
+		how++;
+
+	} while (daemon__wait(daemon, 10));
 }
 
 static void daemon__exit(struct daemon *daemon)
