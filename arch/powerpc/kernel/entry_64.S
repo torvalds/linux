@@ -226,6 +226,12 @@ _ASM_NOKPROBE_SYMBOL(system_call_vectored_emulate)
 #endif
 
 	.balign IFETCH_ALIGN_BYTES
+	.globl system_call_common_real
+system_call_common_real:
+	ld	r10,PACAKMSR(r13)	/* get MSR value for kernel */
+	mtmsrd	r10
+
+	.balign IFETCH_ALIGN_BYTES
 	.globl system_call_common
 system_call_common:
 _ASM_NOKPROBE_SYMBOL(system_call_common)
