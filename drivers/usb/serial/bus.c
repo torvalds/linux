@@ -16,19 +16,13 @@
 static int usb_serial_device_match(struct device *dev,
 						struct device_driver *drv)
 {
-	struct usb_serial_driver *driver;
-	const struct usb_serial_port *port;
+	const struct usb_serial_port *port = to_usb_serial_port(dev);
+	struct usb_serial_driver *driver = to_usb_serial_driver(drv);
 
 	/*
 	 * drivers are already assigned to ports in serial_probe so it's
 	 * a simple check here.
 	 */
-	port = to_usb_serial_port(dev);
-	if (!port)
-		return 0;
-
-	driver = to_usb_serial_driver(drv);
-
 	if (driver == port->serial->type)
 		return 1;
 
@@ -37,15 +31,11 @@ static int usb_serial_device_match(struct device *dev,
 
 static int usb_serial_device_probe(struct device *dev)
 {
+	struct usb_serial_port *port = to_usb_serial_port(dev);
 	struct usb_serial_driver *driver;
-	struct usb_serial_port *port;
 	struct device *tty_dev;
 	int retval = 0;
 	int minor;
-
-	port = to_usb_serial_port(dev);
-	if (!port)
-		return -ENODEV;
 
 	/* make sure suspend/resume doesn't race against port_probe */
 	retval = usb_autopm_get_interface(port->serial->interface);
