@@ -5196,6 +5196,48 @@ exit:
 	return err;
 }
 
+static int brcmf_cfg80211_set_cqm_rssi_range_config(struct wiphy *wiphy,
+						    struct net_device *ndev,
+						    s32 rssi_low, s32 rssi_high)
+{
+	struct brcmf_cfg80211_vif *vif;
+	struct brcmf_if *ifp;
+	int err = 0;
+
+	brcmf_dbg(TRACE, "low=%d high=%d", rssi_low, rssi_high);
+
+	ifp = netdev_priv(ndev);
+	vif = ifp->vif;
+
+	if (rssi_low != vif->cqm_rssi_low || rssi_high != vif->cqm_rssi_high) {
+		/* The firmware will send an event when the RSSI is less than or
+		 * equal to a configured level and the previous RSSI event was
+		 * less than or equal to a different level. Set a third level
+		 * so that we also detect the transition from rssi <= rssi_high
+		 * to rssi > rssi_high.
+		 */
+		struct brcmf_rssi_event_le config = {
+			.rate_limit_msec = cpu_to_le32(0),
+			.rssi_level_num = 3,
+			.rssi_levels = {
+				clamp_val(rssi_low, S8_MIN, S8_MAX - 2),
+				clamp_val(rssi_high, S8_MIN + 1, S8_MAX - 1),
+				S8_MAX,
+			},
+		};
+
+		err = brcmf_fil_iovar_data_set(ifp, "rssi_event", &config,
+					       sizeof(config));
+		if (err) {
+			err = -EINVAL;
+		} else {
+			vif->cqm_rssi_low = rssi_low;
+			vif->cqm_rssi_high = rssi_high;
+		}
+	}
+
+	return err;
+}
 
 static int
 brcmf_cfg80211_cancel_remain_on_channel(struct wiphy *wiphy,
@@ -5502,6 +5544,7 @@ static struct cfg80211_ops brcmf_cfg80211_ops = {
 	.update_mgmt_frame_registrations =
 		brcmf_cfg80211_update_mgmt_frame_registrations,
 	.mgmt_tx = brcmf_cfg80211_mgmt_tx,
+	.set_cqm_rssi_range_config = brcmf_cfg80211_set_cqm_rssi_range_config,
 	.remain_on_channel = brcmf_p2p_remain_on_channel,
 	.cancel_remain_on_channel = brcmf_cfg80211_cancel_remain_on_channel,
 	.get_channel = brcmf_cfg80211_get_channel,
@@ -6140,6 +6183,47 @@ brcmf_notify_mic_status(struct brcmf_if *ifp,
 	return 0;
 }
 
+static s32 brcmf_notify_rssi(struct brcmf_if *ifp,
+			     const struct brcmf_event_msg *e, void *data)
+{
+	struct brcmf_cfg80211_vif *vif = ifp->vif;
+	struct brcmf_rssi_be *info = data;
+	s32 rssi, snr, noise;
+	s32 low, high, last;
+
+	if (e->datalen < sizeof(*info)) {
+		brcmf_err("insufficient RSSI event data\n");
+		return 0;
+	}
+
+	rssi = be32_to_cpu(info->rssi);
+	snr = be32_to_cpu(info->snr);
+	noise = be32_to_cpu(info->noise);
+
+	low = vif->cqm_rssi_low;
+	high = vif->cqm_rssi_high;
+	last = vif->cqm_rssi_last;
+
+	brcmf_dbg(TRACE, "rssi=%d snr=%d noise=%d low=%d high=%d last=%d\n",
+		  rssi, snr, noise, low, high, last);
+
+	vif->cqm_rssi_last = rssi;
+
+	if (rssi <= low || rssi == 0) {
+		brcmf_dbg(INFO, "LOW rssi=%d\n", rssi);
+		cfg80211_cqm_rssi_notify(ifp->ndev,
+					 NL80211_CQM_RSSI_THRESHOLD_EVENT_LOW,
+					 rssi, GFP_KERNEL);
+	} else if (rssi > high) {
+		brcmf_dbg(INFO, "HIGH rssi=%d\n", rssi);
+		cfg80211_cqm_rssi_notify(ifp->ndev,
+					 NL80211_CQM_RSSI_THRESHOLD_EVENT_HIGH,
+					 rssi, GFP_KERNEL);
+	}
+
+	return 0;
+}
+
 static s32 brcmf_notify_vif_event(struct brcmf_if *ifp,
 				  const struct brcmf_event_msg *e, void *data)
 {
@@ -6238,6 +6322,7 @@ static void brcmf_register_event_handlers(struct brcmf_cfg80211_info *cfg)
 			    brcmf_p2p_notify_action_tx_complete);
 	brcmf_fweh_register(cfg->pub, BRCMF_E_PSK_SUP,
 			    brcmf_notify_connect_status);
+	brcmf_fweh_register(cfg->pub, BRCMF_E_RSSI, brcmf_notify_rssi);
 }
 
 static void brcmf_deinit_priv_mem(struct brcmf_cfg80211_info *cfg)
@@ -7171,6 +7256,8 @@ static int brcmf_setup_wiphy(struct wiphy *wiphy, struct brcmf_if *ifp)
 	    brcmf_feat_is_enabled(ifp, BRCMF_FEAT_DOT11H))
 		wiphy_ext_feature_set(wiphy,
 				      NL80211_EXT_FEATURE_DFS_OFFLOAD);
+
+	wiphy_ext_feature_set(wiphy, NL80211_EXT_FEATURE_CQM_RSSI_LIST);
 
 	wiphy_read_of_freq_limits(wiphy);
 
