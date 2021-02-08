@@ -1457,16 +1457,17 @@ static void slot_rmap_walk_next(struct slot_rmap_walk_iterator *iterator)
 	     slot_rmap_walk_okay(_iter_);				\
 	     slot_rmap_walk_next(_iter_))
 
-static int kvm_handle_hva_range(struct kvm *kvm,
-				unsigned long start,
-				unsigned long end,
-				unsigned long data,
-				int (*handler)(struct kvm *kvm,
-					       struct kvm_rmap_head *rmap_head,
-					       struct kvm_memory_slot *slot,
-					       gfn_t gfn,
-					       int level,
-					       unsigned long data))
+static __always_inline int
+kvm_handle_hva_range(struct kvm *kvm,
+		     unsigned long start,
+		     unsigned long end,
+		     unsigned long data,
+		     int (*handler)(struct kvm *kvm,
+				    struct kvm_rmap_head *rmap_head,
+				    struct kvm_memory_slot *slot,
+				    gfn_t gfn,
+				    int level,
+				    unsigned long data))
 {
 	struct kvm_memslots *slots;
 	struct kvm_memory_slot *memslot;

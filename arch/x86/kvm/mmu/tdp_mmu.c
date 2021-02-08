@@ -879,11 +879,17 @@ int kvm_tdp_mmu_map(struct kvm_vcpu *vcpu, gpa_t gpa, u32 error_code,
 	return ret;
 }
 
-static int kvm_tdp_mmu_handle_hva_range(struct kvm *kvm, unsigned long start,
-		unsigned long end, unsigned long data,
-		int (*handler)(struct kvm *kvm, struct kvm_memory_slot *slot,
-			       struct kvm_mmu_page *root, gfn_t start,
-			       gfn_t end, unsigned long data))
+static __always_inline int
+kvm_tdp_mmu_handle_hva_range(struct kvm *kvm,
+			     unsigned long start,
+			     unsigned long end,
+			     unsigned long data,
+			     int (*handler)(struct kvm *kvm,
+					    struct kvm_memory_slot *slot,
+					    struct kvm_mmu_page *root,
+					    gfn_t start,
+					    gfn_t end,
+					    unsigned long data))
 {
 	struct kvm_memslots *slots;
 	struct kvm_memory_slot *memslot;
