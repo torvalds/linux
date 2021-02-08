@@ -132,8 +132,6 @@ struct mt7603_dev {
 
 	spinlock_t ps_lock;
 
-	u8 mac_work_count;
-
 	u8 mcu_running;
 
 	u8 ed_monitor_enabled;
