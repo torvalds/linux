@@ -214,18 +214,17 @@ static inline void mlx5e_build_umr_wqe(struct mlx5e_rq *rq,
 	ucseg->mkey_mask     = cpu_to_be64(MLX5_MKEY_MASK_FREE);
 }
 
-static int mlx5e_rq_alloc_mpwqe_info(struct mlx5e_rq *rq,
-				     struct mlx5e_channel *c)
+static int mlx5e_rq_alloc_mpwqe_info(struct mlx5e_rq *rq, int node)
 {
 	int wq_sz = mlx5_wq_ll_get_size(&rq->mpwqe.wq);
 
 	rq->mpwqe.info = kvzalloc_node(array_size(wq_sz,
 						  sizeof(*rq->mpwqe.info)),
-				       GFP_KERNEL, cpu_to_node(c->cpu));
+				       GFP_KERNEL, node);
 	if (!rq->mpwqe.info)
 		return -ENOMEM;
 
-	mlx5e_build_umr_wqe(rq, &c->icosq, &rq->mpwqe.umr_wqe);
+	mlx5e_build_umr_wqe(rq, rq->icosq, &rq->mpwqe.umr_wqe);
 
 	return 0;
 }
@@ -459,7 +458,7 @@ static int mlx5e_alloc_rq(struct mlx5e_channel *c,
 			goto err_rq_drop_page;
 		rq->mkey_be = cpu_to_be32(rq->umr_mkey.key);
 
-		err = mlx5e_rq_alloc_mpwqe_info(rq, c);
+		err = mlx5e_rq_alloc_mpwqe_info(rq, cpu_to_node(c->cpu));
 		if (err)
 			goto err_rq_mkey;
 		break;
