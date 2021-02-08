@@ -361,96 +361,6 @@ static int bcm54811_config_init(struct phy_device *phydev)
 	return err;
 }
 
-static int bcm5482_config_init(struct phy_device *phydev)
-{
-	int err, reg;
-
-	err = bcm54xx_config_init(phydev);
-
-	if (phydev->dev_flags & PHY_BCM_FLAGS_MODE_1000BX) {
-		/*
-		 * Enable secondary SerDes and its use as an LED source
-		 */
-		reg = bcm_phy_read_shadow(phydev, BCM5482_SHD_SSD);
-		bcm_phy_write_shadow(phydev, BCM5482_SHD_SSD,
-				     reg |
-				     BCM5482_SHD_SSD_LEDM |
-				     BCM5482_SHD_SSD_EN);
-
-		/*
-		 * Enable SGMII slave mode and auto-detection
-		 */
-		reg = BCM5482_SSD_SGMII_SLAVE | MII_BCM54XX_EXP_SEL_SSD;
-		err = bcm_phy_read_exp(phydev, reg);
-		if (err < 0)
-			return err;
-		err = bcm_phy_write_exp(phydev, reg, err |
-					BCM5482_SSD_SGMII_SLAVE_EN |
-					BCM5482_SSD_SGMII_SLAVE_AD);
-		if (err < 0)
-			return err;
-
-		/*
-		 * Disable secondary SerDes powerdown
-		 */
-		reg = BCM5482_SSD_1000BX_CTL | MII_BCM54XX_EXP_SEL_SSD;
-		err = bcm_phy_read_exp(phydev, reg);
-		if (err < 0)
-			return err;
-		err = bcm_phy_write_exp(phydev, reg,
-					err & ~BCM5482_SSD_1000BX_CTL_PWRDOWN);
-		if (err < 0)
-			return err;
-
-		/*
-		 * Select 1000BASE-X register set (primary SerDes)
-		 */
-		reg = bcm_phy_read_shadow(phydev, BCM54XX_SHD_MODE);
-		bcm_phy_write_shadow(phydev, BCM54XX_SHD_MODE,
-				     reg | BCM54XX_SHD_MODE_1000BX);
-
-		/*
-		 * LED1=ACTIVITYLED, LED3=LINKSPD[2]
-		 * (Use LED1 as secondary SerDes ACTIVITY LED)
-		 */
-		bcm_phy_write_shadow(phydev, BCM5482_SHD_LEDS1,
-			BCM5482_SHD_LEDS1_LED1(BCM_LED_SRC_ACTIVITYLED) |
-			BCM5482_SHD_LEDS1_LED3(BCM_LED_SRC_LINKSPD2));
-
-		/*
-		 * Auto-negotiation doesn't seem to work quite right
-		 * in this mode, so we disable it and force it to the
-		 * right speed/duplex setting.  Only 'link status'
-		 * is important.
-		 */
-		phydev->autoneg = AUTONEG_DISABLE;
-		phydev->speed = SPEED_1000;
-		phydev->duplex = DUPLEX_FULL;
-	}
-
-	return err;
-}
-
-static int bcm5482_read_status(struct phy_device *phydev)
-{
-	int err;
-
-	err = genphy_read_status(phydev);
-
-	if (phydev->dev_flags & PHY_BCM_FLAGS_MODE_1000BX) {
-		/*
-		 * Only link status matters for 1000Base-X mode, so force
-		 * 1000 Mbit/s full-duplex status
-		 */
-		if (phydev->link) {
-			phydev->speed = SPEED_1000;
-			phydev->duplex = DUPLEX_FULL;
-		}
-	}
-
-	return err;
-}
-
 static int bcm5481_config_aneg(struct phy_device *phydev)
 {
 	struct device_node *np = phydev->mdio.dev.of_node;
@@ -800,8 +710,7 @@ static struct phy_driver broadcom_drivers[] = {
 	.phy_id_mask	= 0xfffffff0,
 	.name		= "Broadcom BCM5482",
 	/* PHY_GBIT_FEATURES */
-	.config_init	= bcm5482_config_init,
-	.read_status	= bcm5482_read_status,
+	.config_init	= bcm54xx_config_init,
 	.config_intr	= bcm_phy_config_intr,
 	.handle_interrupt = bcm_phy_handle_interrupt,
 }, {
