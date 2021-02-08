@@ -208,7 +208,7 @@ static inline cycles_t get_cycles(void)
 int get_phys_clock(unsigned long *clock);
 void init_cpu_timer(void);
 
-extern unsigned char tod_clock_base[16] __aligned(8);
+extern union tod_clock tod_clock_base;
 
 /**
  * get_clock_monotonic - returns current time in clock rate units
@@ -222,7 +222,7 @@ static inline unsigned long long get_tod_clock_monotonic(void)
 	unsigned long long tod;
 
 	preempt_disable_notrace();
-	tod = get_tod_clock() - *(unsigned long long *) &tod_clock_base[1];
+	tod = get_tod_clock() - tod_clock_base.tod;
 	preempt_enable_notrace();
 	return tod;
 }
