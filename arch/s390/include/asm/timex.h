@@ -53,16 +53,15 @@ static inline int set_tod_clock(__u64 time)
 	return cc;
 }
 
-static inline int store_tod_clock_ext(char *time)
+static inline int store_tod_clock_ext_cc(union tod_clock *clk)
 {
-	typedef struct { char _[STORE_CLOCK_EXT_SIZE]; } addrtype;
 	int cc;
 
 	asm volatile(
 		"   stcke  %1\n"
 		"   ipm   %0\n"
 		"   srl   %0,28\n"
-		: "=d" (cc), "=Q" (*(addrtype *)time) : : "cc");
+		: "=d" (cc), "=Q" (*clk) : : "cc");
 	return cc;
 }
 
