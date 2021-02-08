@@ -27,7 +27,6 @@
 #include <linux/dma-map-ops.h>
 #include <linux/decompress/generic.h>
 #include <linux/of_fdt.h>
-#include <linux/of_reserved_mem.h>
 #include <linux/dmi.h>
 
 #include <asm/addrspace.h>
@@ -688,8 +687,6 @@ static void __init arch_mem_init(char **cmdline_p)
 	/* Reserve for hibernation. */
 	memblock_reserve(__pa_symbol(&__nosave_begin),
 		__pa_symbol(&__nosave_end) - __pa_symbol(&__nosave_begin));
-
-	fdt_init_reserved_mem();
 
 	early_memtest(PFN_PHYS(ARCH_PFN_OFFSET), PFN_PHYS(max_low_pfn));
 }
