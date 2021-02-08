@@ -18,12 +18,12 @@
 #define CPLD_MUX_MAX_NCHANS	8
 
 /* mlxcpld_mux - mux control structure:
- * @last_chan - last register value
+ * @last_val - last selected register value or -1 if mux deselected
  * @client - I2C device client
  * @pdata: platform data
  */
 struct mlxcpld_mux {
-	u8 last_chan;
+	int last_val;
 	struct i2c_client *client;
 	struct mlxcpld_mux_plat_data pdata;
 };
@@ -60,7 +60,7 @@ struct mlxcpld_mux {
  * for this as they will try to lock adapter a second time.
  */
 static int mlxcpld_mux_reg_write(struct i2c_adapter *adap,
-				 struct mlxcpld_mux *mux, u8 val)
+				 struct mlxcpld_mux *mux, u32 val)
 {
 	struct i2c_client *client = mux->client;
 	union i2c_smbus_data data = { .byte = val };
@@ -73,13 +73,13 @@ static int mlxcpld_mux_reg_write(struct i2c_adapter *adap,
 static int mlxcpld_mux_select_chan(struct i2c_mux_core *muxc, u32 chan)
 {
 	struct mlxcpld_mux *mux = i2c_mux_priv(muxc);
-	u8 regval = chan + 1;
+	u32 regval = chan + 1;
 	int err = 0;
 
 	/* Only select the channel if its different from the last channel */
-	if (mux->last_chan != regval) {
+	if (mux->last_val != regval) {
 		err = mlxcpld_mux_reg_write(muxc->parent, mux, regval);
-		mux->last_chan = err < 0 ? 0 : regval;
+		mux->last_val = err < 0 ? -1 : regval;
 	}
 
 	return err;
@@ -90,9 +90,9 @@ static int mlxcpld_mux_deselect(struct i2c_mux_core *muxc, u32 chan)
 	struct mlxcpld_mux *mux = i2c_mux_priv(muxc);
 
 	/* Deselect active channel */
-	mux->last_chan = 0;
+	mux->last_val = -1;
 
-	return mlxcpld_mux_reg_write(muxc->parent, mux, mux->last_chan);
+	return mlxcpld_mux_reg_write(muxc->parent, mux, 0);
 }
 
 /* Probe/reomove functions */
@@ -122,7 +122,7 @@ static int mlxcpld_mux_probe(struct platform_device *pdev)
 	data = i2c_mux_priv(muxc);
 	data->client = client;
 	memcpy(&data->pdata, pdata, sizeof(*pdata));
-	data->last_chan = 0; /* force the first selection */
+	data->last_val = -1; /* force the first selection */
 
 	/* Create an adapter for each channel. */
 	for (num = 0; num < CPLD_MUX_MAX_NCHANS; num++) {
