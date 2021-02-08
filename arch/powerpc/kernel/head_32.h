@@ -116,30 +116,28 @@
 .endm
 
 .macro SYSCALL_ENTRY trapno
-	mfspr	r12,SPRN_SPRG_THREAD
 	mfspr	r9, SPRN_SRR1
-	mfspr	r11, SPRN_SRR0
-	mtctr	r11
+	mfspr	r10, SPRN_SRR0
 	andi.	r11, r9, MSR_PR
+	beq-	99f
+	LOAD_REG_IMMEDIATE(r11, MSR_KERNEL)		/* can take exceptions */
+	lis	r12, 1f@h
+	ori	r12, r12, 1f@l
+	mtspr	SPRN_SRR1, r11
+	mtspr	SPRN_SRR0, r12
+	mfspr	r12,SPRN_SPRG_THREAD
 	mr	r11, r1
 	lwz	r1,TASK_STACK-THREAD(r12)
-	beq-	99f
+	tovirt(r12, r12)
 	addi	r1, r1, THREAD_SIZE - INT_FRAME_SIZE
-	LOAD_REG_IMMEDIATE(r10, MSR_KERNEL)		/* can take exceptions */
-	mtspr	SPRN_SRR1, r10
-	lis	r10, 1f@h
-	ori	r10, r10, 1f@l
-	mtspr	SPRN_SRR0, r10
 	rfi
 1:
-	tovirt(r12, r12)
 	stw	r11,GPR1(r1)
 	stw	r11,0(r1)
 	mr	r11, r1
+	stw	r10,_NIP(r11)
 	mflr	r10
 	stw	r10, _LINK(r11)
-	mfctr	r10
-	stw	r10,_NIP(r11)
 	mfcr	r10
 	rlwinm	r10,r10,0,4,2	/* Clear SO bit in CR */
 	stw	r10,_CCR(r11)		/* save registers */
