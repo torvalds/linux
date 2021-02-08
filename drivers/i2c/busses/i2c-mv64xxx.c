@@ -813,7 +813,7 @@ mv64xxx_of_config(struct mv64xxx_i2c_data *drv_data,
 	 * need to know tclk in order to calculate bus clock
 	 * factors.
 	 */
-	if (IS_ERR(drv_data->clk)) {
+	if (!drv_data->clk) {
 		rc = -ENODEV;
 		goto out;
 	}
