@@ -174,7 +174,6 @@ nvkm_subdev_ctor(const struct nvkm_subdev_func *func, struct nvkm_device *device
 	subdev->device = device;
 	subdev->type = type;
 	subdev->inst = inst < 0 ? 0 : inst;
-	subdev->index = type + subdev->inst;
 
 	if (inst >= 0)
 		snprintf(subdev->name, sizeof(subdev->name), "%s%d", nvkm_subdev_type[type], inst);

@@ -2645,7 +2645,7 @@ nvkm_device_subdev(struct nvkm_device *device, int type, int inst)
 	struct nvkm_subdev *subdev;
 
 	list_for_each_entry(subdev, &device->subdev, head) {
-		if (subdev->index == type + inst)
+		if (subdev->type == type && subdev->inst == inst)
 			return subdev;
 	}
 

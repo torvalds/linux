@@ -5,8 +5,6 @@
 #include <core/event.h>
 enum nvkm_subdev_type;
 
-#define nvkm_devidx nvkm_subdev_type
-
 enum nvkm_device_type {
 	NVKM_DEVICE_PCI,
 	NVKM_DEVICE_AGP,

@@ -4,13 +4,9 @@
 #include <core/device.h>
 
 enum nvkm_subdev_type {
-#define NVKM_LAYOUT_ONCE(t,s,p) t,
-#define NVKM_LAYOUT_INST_3(t) t, t##0 = t, t##1, t##2, t##_LAST = t##2,
-#define NVKM_LAYOUT_INST_9(t) t, t##0 = t, t##1, t##2, t##3, t##4, t##5, t##6, t##7, t##8, t##_LAST = t##8,
-#define NVKM_LAYOUT_INST(t,s,p,c) NVKM_LAYOUT_INST_##c(t)
+#define NVKM_LAYOUT_ONCE(t,s,p,...) t,
+#define NVKM_LAYOUT_INST NVKM_LAYOUT_ONCE
 #include <core/layout.h>
-#undef NVKM_LAYOUT_INST_9
-#undef NVKM_LAYOUT_INST_3
 #undef NVKM_LAYOUT_INST
 #undef NVKM_LAYOUT_ONCE
 	NVKM_SUBDEV_NR
@@ -19,7 +15,6 @@ enum nvkm_subdev_type {
 struct nvkm_subdev {
 	const struct nvkm_subdev_func *func;
 	struct nvkm_device *device;
-	enum nvkm_devidx index;
 	enum nvkm_subdev_type type;
 	int inst;
 	char name[16];
