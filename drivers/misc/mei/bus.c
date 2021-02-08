@@ -881,17 +881,16 @@ static int mei_cl_device_remove(struct device *dev)
 {
 	struct mei_cl_device *cldev = to_mei_cl_device(dev);
 	struct mei_cl_driver *cldrv = to_mei_cl_driver(dev->driver);
-	int ret = 0;
 
 	if (cldrv->remove)
-		ret = cldrv->remove(cldev);
+		cldrv->remove(cldev);
 
 	mei_cldev_unregister_callbacks(cldev);
 
 	mei_cl_bus_module_put(cldev);
 	module_put(THIS_MODULE);
 
-	return ret;
+	return 0;
 }
 
 static ssize_t name_show(struct device *dev, struct device_attribute *a,
