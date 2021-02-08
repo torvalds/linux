@@ -1377,7 +1377,7 @@ static int device_not_zoned_model(struct dm_target *ti, struct dm_dev *dev,
 	struct request_queue *q = bdev_get_queue(dev->bdev);
 	enum blk_zoned_model *zoned_model = data;
 
-	return !q || blk_queue_zoned_model(q) != *zoned_model;
+	return blk_queue_zoned_model(q) != *zoned_model;
 }
 
 static bool dm_table_supports_zoned_model(struct dm_table *t,
@@ -1407,7 +1407,7 @@ static int device_not_matches_zone_sectors(struct dm_target *ti, struct dm_dev *
 	struct request_queue *q = bdev_get_queue(dev->bdev);
 	unsigned int *zone_sectors = data;
 
-	return !q || blk_queue_zone_sectors(q) != *zone_sectors;
+	return blk_queue_zone_sectors(q) != *zone_sectors;
 }
 
 static int validate_hardware_zoned_model(struct dm_table *table,
@@ -1556,7 +1556,7 @@ static int device_flush_capable(struct dm_target *ti, struct dm_dev *dev,
 	unsigned long flush = (unsigned long) data;
 	struct request_queue *q = bdev_get_queue(dev->bdev);
 
-	return q && (q->queue_flags & flush);
+	return (q->queue_flags & flush);
 }
 
 static bool dm_table_supports_flush(struct dm_table *t, unsigned long flush)
@@ -1606,7 +1606,7 @@ static int device_is_rotational(struct dm_target *ti, struct dm_dev *dev,
 {
 	struct request_queue *q = bdev_get_queue(dev->bdev);
 
-	return q && !blk_queue_nonrot(q);
+	return !blk_queue_nonrot(q);
 }
 
 static int device_is_not_random(struct dm_target *ti, struct dm_dev *dev,
@@ -1614,7 +1614,7 @@ static int device_is_not_random(struct dm_target *ti, struct dm_dev *dev,
 {
 	struct request_queue *q = bdev_get_queue(dev->bdev);
 
-	return q && !blk_queue_add_random(q);
+	return !blk_queue_add_random(q);
 }
 
 static int device_not_write_same_capable(struct dm_target *ti, struct dm_dev *dev,
@@ -1622,7 +1622,7 @@ static int device_not_write_same_capable(struct dm_target *ti, struct dm_dev *de
 {
 	struct request_queue *q = bdev_get_queue(dev->bdev);
 
-	return q && !q->limits.max_write_same_sectors;
+	return !q->limits.max_write_same_sectors;
 }
 
 static bool dm_table_supports_write_same(struct dm_table *t)
@@ -1649,7 +1649,7 @@ static int device_not_write_zeroes_capable(struct dm_target *ti, struct dm_dev *
 {
 	struct request_queue *q = bdev_get_queue(dev->bdev);
 
-	return q && !q->limits.max_write_zeroes_sectors;
+	return !q->limits.max_write_zeroes_sectors;
 }
 
 static bool dm_table_supports_write_zeroes(struct dm_table *t)
@@ -1676,7 +1676,7 @@ static int device_not_nowait_capable(struct dm_target *ti, struct dm_dev *dev,
 {
 	struct request_queue *q = bdev_get_queue(dev->bdev);
 
-	return q && !blk_queue_nowait(q);
+	return !blk_queue_nowait(q);
 }
 
 static bool dm_table_supports_nowait(struct dm_table *t)
@@ -1703,7 +1703,7 @@ static int device_not_discard_capable(struct dm_target *ti, struct dm_dev *dev,
 {
 	struct request_queue *q = bdev_get_queue(dev->bdev);
 
-	return q && !blk_queue_discard(q);
+	return !blk_queue_discard(q);
 }
 
 static bool dm_table_supports_discards(struct dm_table *t)
@@ -1737,7 +1737,7 @@ static int device_not_secure_erase_capable(struct dm_target *ti,
 {
 	struct request_queue *q = bdev_get_queue(dev->bdev);
 
-	return q && !blk_queue_secure_erase(q);
+	return !blk_queue_secure_erase(q);
 }
 
 static bool dm_table_supports_secure_erase(struct dm_table *t)
@@ -1765,7 +1765,7 @@ static int device_requires_stable_pages(struct dm_target *ti,
 {
 	struct request_queue *q = bdev_get_queue(dev->bdev);
 
-	return q && blk_queue_stable_writes(q);
+	return blk_queue_stable_writes(q);
 }
 
 void dm_table_set_restrictions(struct dm_table *t, struct request_queue *q,
