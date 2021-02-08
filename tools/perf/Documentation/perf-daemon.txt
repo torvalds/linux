@@ -20,6 +20,20 @@ DESCRIPTION
 This command allows to run simple daemon process that starts and
 monitors configured record sessions.
 
+You can imagine 'perf daemon' of background process with several
+'perf record' child tasks, like:
+
+  # ps axjf
+  ...
+       1  916507 ... perf daemon start
+  916507  916508 ...  \_ perf record --control=fifo:control,ack -m 10M -e cycles --overwrite --switch-output -a
+  916507  916509 ...  \_ perf record --control=fifo:control,ack -m 20M -e sched:* --overwrite --switch-output -a
+
+Not every 'perf record' session is suitable for running under daemon.
+User need perf session that either produces data on query, like the
+flight recorder sessions in above example or session that is configured
+to produce data periodically, like with --switch-output configuration
+for time and size.
 
 OPTIONS
 -------
@@ -41,6 +55,22 @@ All generic options are available also under commands.
 START COMMAND
 -------------
 The start command creates the daemon process.
+
+
+CONFIG FILE
+-----------
+The daemon is configured within standard perf config file by
+following new variables:
+
+daemon.base:
+	Base path for daemon data. All sessions data are
+	stored under this path.
+
+session-<NAME>.run:
+	Defines new record session. The value is record's command
+	line without the 'record' keyword.
+
+Each perf record session is run in daemon.base/<NAME> directory.
 
 
 SEE ALSO

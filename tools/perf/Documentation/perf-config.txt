@@ -703,6 +703,20 @@ auxtrace.*::
 		If the directory does not exist or has the wrong file type,
 		the current directory is used.
 
+daemon.*::
+
+	daemon.base::
+		Base path for daemon data. All sessions data are stored under
+		this path.
+
+session-<NAME>.*::
+
+	session-<NAME>.run::
+
+		Defines new record session for daemon. The value is record's
+		command line without the 'record' keyword.
+
+
 SEE ALSO
 --------
 linkperf:perf[1]

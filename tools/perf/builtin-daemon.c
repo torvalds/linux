@@ -2,6 +2,8 @@
 #include <internal/lib.h>
 #include <subcmd/parse-options.h>
 #include <api/fd/array.h>
+#include <linux/zalloc.h>
+#include <linux/string.h>
 #include <linux/limits.h>
 #include <linux/string.h>
 #include <string.h>
@@ -15,22 +17,74 @@
 #include <sys/un.h>
 #include <sys/stat.h>
 #include <poll.h>
+#include <sys/stat.h>
 #include "builtin.h"
 #include "perf.h"
 #include "debug.h"
 #include "config.h"
 #include "util.h"
 
+#define SESSION_OUTPUT  "output"
+
+/*
+ * Session states:
+ *
+ *   OK       - session is up and running
+ *   RECONFIG - session is pending for reconfiguration,
+ *              new values are already loaded in session object
+ *   KILL     - session is pending to be killed
+ *
+ * Session object life and its state is maintained by
+ * following functions:
+ *
+ *  setup_server_config
+ *    - reads config file and setup session objects
+ *      with following states:
+ *
+ *      OK       - no change needed
+ *      RECONFIG - session needs to be changed
+ *                 (run variable changed)
+ *      KILL     - session needs to be killed
+ *                 (session is no longer in config file)
+ *
+ *  daemon__reconfig
+ *    - scans session objects and does following actions
+ *      for states:
+ *
+ *      OK       - skip
+ *      RECONFIG - session is killed and re-run with new config
+ *      KILL     - session is killed
+ *
+ *    - all sessions have OK state on the function exit
+ */
+enum daemon_session_state {
+	OK,
+	RECONFIG,
+	KILL,
+};
+
+struct daemon_session {
+	char				*base;
+	char				*name;
+	char				*run;
+	int				 pid;
+	struct list_head		 list;
+	enum daemon_session_state	 state;
+};
+
 struct daemon {
 	const char		*config;
 	char			*config_real;
 	const char		*base_user;
 	char			*base;
+	struct list_head	 sessions;
 	FILE			*out;
 	char			 perf[PATH_MAX];
 };
 
-static struct daemon __daemon = { };
+static struct daemon __daemon = {
+	.sessions = LIST_HEAD_INIT(__daemon.sessions),
+};
 
 static const char * const daemon_usage[] = {
 	"perf daemon start [<options>]",
@@ -43,6 +97,125 @@ static bool done;
 static void sig_handler(int sig __maybe_unused)
 {
 	done = true;
+}
+
+static struct daemon_session *daemon__add_session(struct daemon *config, char *name)
+{
+	struct daemon_session *session = zalloc(sizeof(*session));
+
+	if (!session)
+		return NULL;
+
+	session->name = strdup(name);
+	if (!session->name) {
+		free(session);
+		return NULL;
+	}
+
+	session->pid = -1;
+	list_add_tail(&session->list, &config->sessions);
+	return session;
+}
+
+static struct daemon_session *daemon__find_session(struct daemon *daemon, char *name)
+{
+	struct daemon_session *session;
+
+	list_for_each_entry(session, &daemon->sessions, list) {
+		if (!strcmp(session->name, name))
+			return session;
+	}
+
+	return NULL;
+}
+
+static int get_session_name(const char *var, char *session, int len)
+{
+	const char *p = var + sizeof("session-") - 1;
+
+	while (*p != '.' && *p != 0x0 && len--)
+		*session++ = *p++;
+
+	*session = 0;
+	return *p == '.' ? 0 : -EINVAL;
+}
+
+static int session_config(struct daemon *daemon, const char *var, const char *value)
+{
+	struct daemon_session *session;
+	char name[100];
+
+	if (get_session_name(var, name, sizeof(name)))
+		return -EINVAL;
+
+	var = strchr(var, '.');
+	if (!var)
+		return -EINVAL;
+
+	var++;
+
+	session = daemon__find_session(daemon, name);
+
+	if (!session) {
+		/* New session is defined. */
+		session = daemon__add_session(daemon, name);
+		if (!session)
+			return -ENOMEM;
+
+		pr_debug("reconfig: found new session %s\n", name);
+
+		/* Trigger reconfig to start it. */
+		session->state = RECONFIG;
+	} else if (session->state == KILL) {
+		/* Current session is defined, no action needed. */
+		pr_debug("reconfig: found current session %s\n", name);
+		session->state = OK;
+	}
+
+	if (!strcmp(var, "run")) {
+		bool same = false;
+
+		if (session->run)
+			same = !strcmp(session->run, value);
+
+		if (!same) {
+			if (session->run) {
+				free(session->run);
+				pr_debug("reconfig: session %s is changed\n", name);
+			}
+
+			session->run = strdup(value);
+			if (!session->run)
+				return -ENOMEM;
+
+			/*
+			 * Either new or changed run value is defined,
+			 * trigger reconfig for the session.
+			 */
+			session->state = RECONFIG;
+		}
+	}
+
+	return 0;
+}
+
+static int server_config(const char *var, const char *value, void *cb)
+{
+	struct daemon *daemon = cb;
+
+	if (strstarts(var, "session-")) {
+		return session_config(daemon, var, value);
+	} else if (!strcmp(var, "daemon.base") && !daemon->base_user) {
+		if (daemon->base && strcmp(daemon->base, value)) {
+			pr_err("failed: can't redefine base, bailing out\n");
+			return -EINVAL;
+		}
+		daemon->base = strdup(value);
+		if (!daemon->base)
+			return -ENOMEM;
+	}
+
+	return 0;
 }
 
 static int client_config(const char *var, const char *value, void *cb)
@@ -104,6 +277,92 @@ static int setup_client_config(struct daemon *daemon)
 	}
 
 	return err ?: check_base(daemon);
+}
+
+static int setup_server_config(struct daemon *daemon)
+{
+	struct perf_config_set *set;
+	struct daemon_session *session;
+	int err = -ENOMEM;
+
+	pr_debug("reconfig: started\n");
+
+	/*
+	 * Mark all sessions for kill, the server config
+	 * will set following states, see explanation at
+	 * enum daemon_session_state declaration.
+	 */
+	list_for_each_entry(session, &daemon->sessions, list)
+		session->state = KILL;
+
+	set = perf_config_set__load_file(daemon->config_real);
+	if (set) {
+		err = perf_config_set(set, server_config, daemon);
+		perf_config_set__delete(set);
+	}
+
+	return err ?: check_base(daemon);
+}
+
+static int daemon_session__run(struct daemon_session *session,
+			       struct daemon *daemon)
+{
+	char buf[PATH_MAX];
+	char **argv;
+	int argc, fd;
+
+	if (asprintf(&session->base, "%s/session-%s",
+		     daemon->base, session->name) < 0) {
+		perror("failed: asprintf");
+		return -1;
+	}
+
+	if (mkdir(session->base, 0755) && errno != EEXIST) {
+		perror("failed: mkdir");
+		return -1;
+	}
+
+	session->pid = fork();
+	if (session->pid < 0)
+		return -1;
+	if (session->pid > 0) {
+		pr_info("reconfig: ruining session [%s:%d]: %s\n",
+			session->name, session->pid, session->run);
+		return 0;
+	}
+
+	if (chdir(session->base)) {
+		perror("failed: chdir");
+		return -1;
+	}
+
+	fd = open("/dev/null", O_RDONLY);
+	if (fd < 0) {
+		perror("failed: open /dev/null");
+		return -1;
+	}
+
+	dup2(fd, 0);
+	close(fd);
+
+	fd = open(SESSION_OUTPUT, O_RDWR|O_CREAT|O_TRUNC, 0644);
+	if (fd < 0) {
+		perror("failed: open session output");
+		return -1;
+	}
+
+	dup2(fd, 1);
+	dup2(fd, 2);
+	close(fd);
+
+	scnprintf(buf, sizeof(buf), "%s record %s", daemon->perf, session->run);
+
+	argv = argv_split(buf, &argc);
+	if (!argv)
+		exit(-1);
+
+	exit(execve(daemon->perf, argv, NULL));
+	return -1;
 }
 
 static int setup_server_socket(struct daemon *daemon)
@@ -224,10 +483,87 @@ static int setup_client_socket(struct daemon *daemon)
 	return fd;
 }
 
+static int daemon_session__signal(struct daemon_session *session, int sig)
+{
+	if (session->pid < 0)
+		return -1;
+	return kill(session->pid, sig);
+}
+
+static void daemon_session__kill(struct daemon_session *session)
+{
+	daemon_session__signal(session, SIGTERM);
+}
+
+static void daemon__signal(struct daemon *daemon, int sig)
+{
+	struct daemon_session *session;
+
+	list_for_each_entry(session, &daemon->sessions, list)
+		daemon_session__signal(session, sig);
+}
+
+static void daemon_session__delete(struct daemon_session *session)
+{
+	free(session->base);
+	free(session->name);
+	free(session->run);
+	free(session);
+}
+
+static void daemon_session__remove(struct daemon_session *session)
+{
+	list_del(&session->list);
+	daemon_session__delete(session);
+}
+
+static void daemon__kill(struct daemon *daemon)
+{
+	daemon__signal(daemon, SIGTERM);
+}
+
 static void daemon__exit(struct daemon *daemon)
 {
+	struct daemon_session *session, *h;
+
+	list_for_each_entry_safe(session, h, &daemon->sessions, list)
+		daemon_session__remove(session);
+
 	free(daemon->config_real);
 	free(daemon->base);
+}
+
+static int daemon__reconfig(struct daemon *daemon)
+{
+	struct daemon_session *session, *n;
+
+	list_for_each_entry_safe(session, n, &daemon->sessions, list) {
+		/* No change. */
+		if (session->state == OK)
+			continue;
+
+		/* Remove session. */
+		if (session->state == KILL) {
+			if (session->pid > 0) {
+				daemon_session__kill(session);
+				pr_info("reconfig: session '%s' killed\n", session->name);
+			}
+			daemon_session__remove(session);
+			continue;
+		}
+
+		/* Reconfig session. */
+		if (session->pid > 0) {
+			daemon_session__kill(session);
+			pr_info("reconfig: session '%s' killed\n", session->name);
+		}
+		if (daemon_session__run(session, daemon))
+			return -1;
+
+		session->state = OK;
+	}
+
+	return 0;
 }
 
 static int setup_config(struct daemon *daemon)
@@ -278,6 +614,9 @@ static int __cmd_start(struct daemon *daemon, struct option parent_options[],
 		return -1;
 	}
 
+	if (setup_server_config(daemon))
+		return -1;
+
 	debug_set_file(daemon->out);
 	debug_set_display_time(true);
 
@@ -297,15 +636,23 @@ static int __cmd_start(struct daemon *daemon, struct option parent_options[],
 	signal(SIGTERM, sig_handler);
 
 	while (!done && !err) {
-		if (fdarray__poll(&fda, -1)) {
+		err = daemon__reconfig(daemon);
+
+		if (!err && fdarray__poll(&fda, -1)) {
+			bool reconfig = false;
+
 			if (fda.entries[sock_pos].revents & POLLIN)
 				err = handle_server_socket(daemon, sock_fd);
+
+			if (reconfig)
+				err = setup_server_config(daemon);
 		}
 	}
 
 out:
 	fdarray__exit(&fda);
 
+	daemon__kill(daemon);
 	daemon__exit(daemon);
 
 	if (sock_fd != -1)
