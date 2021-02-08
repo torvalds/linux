@@ -676,6 +676,23 @@ USER(\label, ic	ivau, \tmp2)			// invalidate I line PoU
 	.endm
 
 /*
+ * Set SCTLR_EL1 to the passed value, and invalidate the local icache
+ * in the process. This is called when setting the MMU on.
+ */
+.macro set_sctlr_el1, reg
+	msr	sctlr_el1, \reg
+	isb
+	/*
+	 * Invalidate the local I-cache so that any instructions fetched
+	 * speculatively from the PoC are discarded, since they may have
+	 * been dynamically patched at the PoU.
+	 */
+	ic	iallu
+	dsb	nsh
+	isb
+.endm
+
+/*
  * Check whether to yield to another runnable task from kernel mode NEON code
  * (which runs with preemption disabled).
  *
