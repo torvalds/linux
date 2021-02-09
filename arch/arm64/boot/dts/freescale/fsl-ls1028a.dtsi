@@ -1114,6 +1114,12 @@
 					full-duplex;
 				};
 			};
+
+			rcec@1f,0 {
+				reg = <0x00f800 0 0 0 0>;
+				/* IEP INT_A */
+				interrupts = <GIC_SPI 94 IRQ_TYPE_LEVEL_HIGH>;
+			};
 		};
 
 		rcpm: power-controller@1e34040 {
