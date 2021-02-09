@@ -5618,6 +5618,8 @@ static void ufshcd_exception_event_handler(struct work_struct *work)
 		goto out;
 	}
 
+	trace_ufshcd_exception_event(dev_name(hba->dev), status);
+
 	status &= hba->ee_ctrl_mask;
 
 	if (status & MASK_EE_URGENT_BKOPS)
