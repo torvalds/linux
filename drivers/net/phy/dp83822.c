@@ -534,6 +534,9 @@ static int dp83822_probe(struct phy_device *phydev)
 
 	dp83822_of_init(phydev);
 
+	if (dp83822->fx_enabled)
+		phydev->port = PORT_FIBRE;
+
 	return 0;
 }
 

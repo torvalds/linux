@@ -505,6 +505,8 @@ static int bcm54616s_probe(struct phy_device *phydev)
 		 */
 		if (!(val & BCM54616S_100FX_MODE))
 			phydev->dev_flags |= PHY_BCM_FLAGS_MODE_1000BX;
+
+		phydev->port = PORT_FIBRE;
 	}
 
 	return 0;
