@@ -452,7 +452,6 @@ struct dm_crtc_state {
 	int active_planes;
 
 	int crc_skip_count;
-	enum amdgpu_dm_pipe_crc_source crc_src;
 
 	bool freesync_timing_changed;
 	bool freesync_vrr_info_changed;

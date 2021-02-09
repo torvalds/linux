@@ -5510,7 +5510,6 @@ dm_crtc_duplicate_state(struct drm_crtc *crtc)
 	state->abm_level = cur->abm_level;
 	state->vrr_supported = cur->vrr_supported;
 	state->freesync_config = cur->freesync_config;
-	state->crc_src = cur->crc_src;
 	state->cm_has_degamma = cur->cm_has_degamma;
 	state->cm_is_degamma_srgb = cur->cm_is_degamma_srgb;
 
@@ -8650,6 +8649,9 @@ static void amdgpu_dm_atomic_commit_tail(struct drm_atomic_state *state)
 	 */
 	for_each_oldnew_crtc_in_state(state, crtc, old_crtc_state, new_crtc_state, i) {
 		struct amdgpu_crtc *acrtc = to_amdgpu_crtc(crtc);
+#ifdef CONFIG_DEBUG_FS
+		enum amdgpu_dm_pipe_crc_source cur_crc_src;
+#endif
 
 		dm_new_crtc_state = to_dm_crtc_state(new_crtc_state);
 
@@ -8666,11 +8668,14 @@ static void amdgpu_dm_atomic_commit_tail(struct drm_atomic_state *state)
 			 * settings for the stream.
 			 */
 			dm_new_crtc_state = to_dm_crtc_state(new_crtc_state);
+			spin_lock_irqsave(&adev_to_drm(adev)->event_lock, flags);
+			cur_crc_src = acrtc->dm_irq_params.crc_src;
+			spin_unlock_irqrestore(&adev_to_drm(adev)->event_lock, flags);
 
-			if (amdgpu_dm_is_valid_crc_source(dm_new_crtc_state->crc_src)) {
+			if (amdgpu_dm_is_valid_crc_source(cur_crc_src)) {
 				amdgpu_dm_crtc_configure_crc_source(
 					crtc, dm_new_crtc_state,
-					dm_new_crtc_state->crc_src);
+					cur_crc_src);
 			}
 #endif
 		}
