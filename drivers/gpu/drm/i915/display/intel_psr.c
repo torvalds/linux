@@ -684,7 +684,8 @@ static bool intel_psr2_sel_fetch_config_valid(struct intel_dp *intel_dp,
 	struct intel_plane *plane;
 	int i;
 
-	if (!dev_priv->params.enable_psr2_sel_fetch) {
+	if (!dev_priv->params.enable_psr2_sel_fetch &&
+	    intel_dp->psr.debug != I915_PSR_DEBUG_ENABLE_SEL_FETCH) {
 		drm_dbg_kms(&dev_priv->drm,
 			    "PSR2 sel fetch not enabled, disabled by parameter\n");
 		return false;
@@ -1448,7 +1449,8 @@ void intel_psr_update(struct intel_dp *intel_dp,
 	enable = crtc_state->has_psr;
 	psr2_enable = crtc_state->has_psr2;
 
-	if (enable == psr->enabled && psr2_enable == psr->psr2_enabled) {
+	if (enable == psr->enabled && psr2_enable == psr->psr2_enabled &&
+	    crtc_state->enable_psr2_sel_fetch == psr->psr2_sel_fetch_enabled) {
 		/* Force a PSR exit when enabling CRC to avoid CRC timeouts */
 		if (crtc_state->crc_enabled && psr->enabled)
 			psr_force_hw_tracking_exit(intel_dp);
@@ -1637,7 +1639,7 @@ int intel_psr_debug_set(struct intel_dp *intel_dp, u64 val)
 	int ret;
 
 	if (val & ~(I915_PSR_DEBUG_IRQ | I915_PSR_DEBUG_MODE_MASK) ||
-	    mode > I915_PSR_DEBUG_FORCE_PSR1) {
+	    mode > I915_PSR_DEBUG_ENABLE_SEL_FETCH) {
 		drm_dbg_kms(&dev_priv->drm, "Invalid debug mask %llx\n", val);
 		return -EINVAL;
 	}
