@@ -9,6 +9,11 @@
 
 #define BYTES_IN_MBIT 125000
 
+struct mlx5e_htb {
+	DECLARE_HASHTABLE(qos_tc2node, order_base_2(MLX5E_QOS_MAX_LEAF_NODES));
+	DECLARE_BITMAP(qos_used_qids, MLX5E_QOS_MAX_LEAF_NODES);
+};
+
 int mlx5e_qos_bytes_rate_check(struct mlx5_core_dev *mdev, u64 nbytes)
 {
 	if (nbytes < BYTES_IN_MBIT) {
@@ -31,8 +36,9 @@ int mlx5e_qos_max_leaf_nodes(struct mlx5_core_dev *mdev)
 
 int mlx5e_qos_cur_leaf_nodes(struct mlx5e_priv *priv)
 {
-	int last = find_last_bit(priv->htb.qos_used_qids, mlx5e_qos_max_leaf_nodes(priv->mdev));
+	int last;
 
+	last = find_last_bit(priv->htb->qos_used_qids, mlx5e_qos_max_leaf_nodes(priv->mdev));
 	return last == mlx5e_qos_max_leaf_nodes(priv->mdev) ? 0 : last + 1;
 }
 
@@ -44,7 +50,7 @@ static int mlx5e_find_unused_qos_qid(struct mlx5e_priv *priv)
 	int res;
 
 	WARN_ONCE(!mutex_is_locked(&priv->state_lock), "%s: state_lock is not held\n", __func__);
-	res = find_first_zero_bit(priv->htb.qos_used_qids, size);
+	res = find_first_zero_bit(priv->htb->qos_used_qids, size);
 
 	return res == size ? -ENOSPC : res;
 }
@@ -76,10 +82,10 @@ mlx5e_sw_node_create_leaf(struct mlx5e_priv *priv, u16 classid, u16 qid,
 	node->parent = parent;
 
 	node->qid = qid;
-	__set_bit(qid, priv->htb.qos_used_qids);
+	__set_bit(qid, priv->htb->qos_used_qids);
 
 	node->classid = classid;
-	hash_add_rcu(priv->htb.qos_tc2node, &node->hnode, classid);
+	hash_add_rcu(priv->htb->qos_tc2node, &node->hnode, classid);
 
 	mlx5e_update_tx_netdev_queues(priv);
 
@@ -96,7 +102,7 @@ static struct mlx5e_qos_node *mlx5e_sw_node_create_root(struct mlx5e_priv *priv)
 
 	node->qid = MLX5E_QOS_QID_INNER;
 	node->classid = MLX5E_HTB_CLASSID_ROOT;
-	hash_add_rcu(priv->htb.qos_tc2node, &node->hnode, node->classid);
+	hash_add_rcu(priv->htb->qos_tc2node, &node->hnode, node->classid);
 
 	return node;
 }
@@ -105,7 +111,7 @@ static struct mlx5e_qos_node *mlx5e_sw_node_find(struct mlx5e_priv *priv, u32 cl
 {
 	struct mlx5e_qos_node *node = NULL;
 
-	hash_for_each_possible(priv->htb.qos_tc2node, node, hnode, classid) {
+	hash_for_each_possible(priv->htb->qos_tc2node, node, hnode, classid) {
 		if (node->classid == classid)
 			break;
 	}
@@ -117,7 +123,7 @@ static struct mlx5e_qos_node *mlx5e_sw_node_find_rcu(struct mlx5e_priv *priv, u3
 {
 	struct mlx5e_qos_node *node = NULL;
 
-	hash_for_each_possible_rcu(priv->htb.qos_tc2node, node, hnode, classid) {
+	hash_for_each_possible_rcu(priv->htb->qos_tc2node, node, hnode, classid) {
 		if (node->classid == classid)
 			break;
 	}
@@ -129,7 +135,7 @@ static void mlx5e_sw_node_delete(struct mlx5e_priv *priv, struct mlx5e_qos_node 
 {
 	hash_del_rcu(&node->hnode);
 	if (node->qid != MLX5E_QOS_QID_INNER) {
-		__clear_bit(node->qid, priv->htb.qos_used_qids);
+		__clear_bit(node->qid, priv->htb->qos_used_qids);
 		mlx5e_update_tx_netdev_queues(priv);
 	}
 	/* Make sure this qid is no longer selected by mlx5e_select_queue, so
@@ -424,7 +430,7 @@ int mlx5e_qos_open_queues(struct mlx5e_priv *priv, struct mlx5e_channels *chs)
 	if (err)
 		return err;
 
-	hash_for_each(priv->htb.qos_tc2node, bkt, node, hnode) {
+	hash_for_each(priv->htb->qos_tc2node, bkt, node, hnode) {
 		if (node->qid == MLX5E_QOS_QID_INNER)
 			continue;
 		err = mlx5e_open_qos_sq(priv, chs, node);
@@ -442,7 +448,7 @@ void mlx5e_qos_activate_queues(struct mlx5e_priv *priv)
 	struct mlx5e_qos_node *node = NULL;
 	int bkt;
 
-	hash_for_each(priv->htb.qos_tc2node, bkt, node, hnode) {
+	hash_for_each(priv->htb->qos_tc2node, bkt, node, hnode) {
 		if (node->qid == MLX5E_QOS_QID_INNER)
 			continue;
 		mlx5e_activate_qos_sq(priv, node);
@@ -494,12 +500,6 @@ mlx5e_htb_root_add(struct mlx5e_priv *priv, u16 htb_maj_id, u16 htb_defcls,
 	int err;
 
 	qos_dbg(priv->mdev, "TC_HTB_CREATE handle %04x:, default :%04x\n", htb_maj_id, htb_defcls);
-
-	if (!mlx5_qos_is_supported(priv->mdev)) {
-		NL_SET_ERR_MSG_MOD(extack,
-				   "Missing QoS capabilities. Try disabling SRIOV or use a supported device.");
-		return -EOPNOTSUPP;
-	}
 
 	mlx5e_selq_prepare_htb(&priv->selq, htb_maj_id, htb_defcls);
 
@@ -749,7 +749,7 @@ static struct mlx5e_qos_node *mlx5e_sw_node_find_by_qid(struct mlx5e_priv *priv,
 	struct mlx5e_qos_node *node = NULL;
 	int bkt;
 
-	hash_for_each(priv->htb.qos_tc2node, bkt, node, hnode)
+	hash_for_each(priv->htb->qos_tc2node, bkt, node, hnode)
 		if (node->qid == qid)
 			break;
 
@@ -837,7 +837,7 @@ static int mlx5e_htb_leaf_del(struct mlx5e_priv *priv, u16 *classid,
 
 	/* Stop traffic to the old queue. */
 	WRITE_ONCE(node->qid, MLX5E_QOS_QID_INNER);
-	__clear_bit(moved_qid, priv->htb.qos_used_qids);
+	__clear_bit(moved_qid, priv->htb->qos_used_qids);
 
 	if (opened) {
 		txq = netdev_get_tx_queue(priv->netdev,
@@ -849,7 +849,7 @@ static int mlx5e_htb_leaf_del(struct mlx5e_priv *priv, u16 *classid,
 	/* Prevent packets from the old class from getting into the new one. */
 	mlx5e_reset_qdisc(priv->netdev, moved_qid);
 
-	__set_bit(qid, priv->htb.qos_used_qids);
+	__set_bit(qid, priv->htb->qos_used_qids);
 	WRITE_ONCE(node->qid, qid);
 
 	if (test_bit(MLX5E_STATE_OPENED, &priv->state)) {
@@ -960,7 +960,7 @@ mlx5e_qos_update_children(struct mlx5e_priv *priv, struct mlx5e_qos_node *node,
 	int err = 0;
 	int bkt;
 
-	hash_for_each(priv->htb.qos_tc2node, bkt, child, hnode) {
+	hash_for_each(priv->htb->qos_tc2node, bkt, child, hnode) {
 		u32 old_bw_share = child->bw_share;
 		int err_one;
 
@@ -1027,16 +1027,57 @@ mlx5e_htb_node_modify(struct mlx5e_priv *priv, u16 classid, u64 rate, u64 ceil,
 }
 
 /* HTB API */
+
+static struct mlx5e_htb *mlx5e_htb_alloc(void)
+{
+	return kvzalloc(sizeof(struct mlx5e_htb), GFP_KERNEL);
+}
+
+static void mlx5e_htb_free(struct mlx5e_htb *htb)
+{
+	kvfree(htb);
+}
+
+static int mlx5e_htb_init(struct mlx5e_priv *priv, struct tc_htb_qopt_offload *htb)
+{
+	hash_init(priv->htb->qos_tc2node);
+
+	return mlx5e_htb_root_add(priv, htb->parent_classid, htb->classid, htb->extack);
+}
+
+static void mlx5e_htb_cleanup(struct mlx5e_priv *priv)
+{
+	mlx5e_htb_root_del(priv);
+}
+
 int mlx5e_htb_setup_tc(struct mlx5e_priv *priv, struct tc_htb_qopt_offload *htb)
 {
 	int res;
 
+	if (!priv->htb && htb->command != TC_HTB_CREATE)
+		return -EINVAL;
+
 	switch (htb->command) {
 	case TC_HTB_CREATE:
-		return mlx5e_htb_root_add(priv, htb->parent_classid, htb->classid,
-					  htb->extack);
+		if (!mlx5_qos_is_supported(priv->mdev)) {
+			NL_SET_ERR_MSG_MOD(htb->extack,
+					   "Missing QoS capabilities. Try disabling SRIOV or use a supported device.");
+			return -EOPNOTSUPP;
+		}
+		priv->htb = mlx5e_htb_alloc();
+		if (!priv->htb)
+			return -ENOMEM;
+		res = mlx5e_htb_init(priv, htb);
+		if (res) {
+			mlx5e_htb_free(priv->htb);
+			priv->htb = NULL;
+		}
+		return res;
 	case TC_HTB_DESTROY:
-		return mlx5e_htb_root_del(priv);
+		mlx5e_htb_cleanup(priv);
+		mlx5e_htb_free(priv->htb);
+		priv->htb = NULL;
+		return 0;
 	case TC_HTB_LEAF_ALLOC_QUEUE:
 		res = mlx5e_htb_leaf_alloc_queue(priv, htb->classid, htb->parent_classid,
 						 htb->rate, htb->ceil, htb->extack);
