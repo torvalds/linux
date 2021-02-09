@@ -897,7 +897,7 @@ static void *worker_testapp_validate(void *arg)
 			ksft_print_msg("Destroying socket\n");
 	}
 
-	if (!opt_bidi || (opt_bidi && bidi_pass)) {
+	if (!opt_bidi || bidi_pass) {
 		xsk_socket__delete(ifobject->xsk->xsk);
 		(void)xsk_umem__delete(ifobject->umem->umem);
 	}
@@ -922,7 +922,7 @@ static void testapp_validate(void)
 	pthread_mutex_lock(&sync_mutex);
 
 	/*Spawn RX thread */
-	if (!opt_bidi || (opt_bidi && !bidi_pass)) {
+	if (!opt_bidi || !bidi_pass) {
 		if (pthread_create(&t0, &attr, worker_testapp_validate, ifdict[1]))
 			exit_with_error(errno);
 	} else if (opt_bidi && bidi_pass) {
@@ -942,7 +942,7 @@ static void testapp_validate(void)
 	pthread_mutex_unlock(&sync_mutex);
 
 	/*Spawn TX thread */
-	if (!opt_bidi || (opt_bidi && !bidi_pass)) {
+	if (!opt_bidi || !bidi_pass) {
 		if (pthread_create(&t1, &attr, worker_testapp_validate, ifdict[0]))
 			exit_with_error(errno);
 	} else if (opt_bidi && bidi_pass) {
