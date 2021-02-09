@@ -9,6 +9,7 @@ struct mhi_net_stats {
 	u64_stats_t rx_bytes;
 	u64_stats_t rx_errors;
 	u64_stats_t rx_dropped;
+	u64_stats_t rx_length_errors;
 	u64_stats_t tx_packets;
 	u64_stats_t tx_bytes;
 	u64_stats_t tx_errors;

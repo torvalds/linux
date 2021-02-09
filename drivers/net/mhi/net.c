@@ -95,6 +95,7 @@ static void mhi_ndo_get_stats64(struct net_device *ndev,
 		stats->rx_bytes = u64_stats_read(&mhi_netdev->stats.rx_bytes);
 		stats->rx_errors = u64_stats_read(&mhi_netdev->stats.rx_errors);
 		stats->rx_dropped = u64_stats_read(&mhi_netdev->stats.rx_dropped);
+		stats->rx_length_errors = u64_stats_read(&mhi_netdev->stats.rx_length_errors);
 	} while (u64_stats_fetch_retry_irq(&mhi_netdev->stats.rx_syncp, start));
 
 	do {
