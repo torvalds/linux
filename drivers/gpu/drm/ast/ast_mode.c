@@ -621,6 +621,26 @@ static const struct drm_plane_funcs ast_primary_plane_funcs = {
 	.atomic_destroy_state = drm_atomic_helper_plane_destroy_state,
 };
 
+static int ast_primary_plane_init(struct ast_private *ast)
+{
+	struct drm_device *dev = &ast->base;
+	struct drm_plane *primary_plane = &ast->primary_plane;
+	int ret;
+
+	ret = drm_universal_plane_init(dev, primary_plane, 0x01,
+				       &ast_primary_plane_funcs,
+				       ast_primary_plane_formats,
+				       ARRAY_SIZE(ast_primary_plane_formats),
+				       NULL, DRM_PLANE_TYPE_PRIMARY, NULL);
+	if (ret) {
+		drm_err(dev, "drm_universal_plane_init() failed: %d\n", ret);
+		return ret;
+	}
+	drm_plane_helper_add(primary_plane, &ast_primary_plane_helper_funcs);
+
+	return 0;
+}
+
 /*
  * Cursor plane
  */
@@ -724,6 +744,26 @@ static const struct drm_plane_funcs ast_cursor_plane_funcs = {
 	.atomic_duplicate_state = drm_atomic_helper_plane_duplicate_state,
 	.atomic_destroy_state = drm_atomic_helper_plane_destroy_state,
 };
+
+static int ast_cursor_plane_init(struct ast_private *ast)
+{
+	struct drm_device *dev = &ast->base;
+	struct drm_plane *cursor_plane = &ast->cursor_plane;
+	int ret;
+
+	ret = drm_universal_plane_init(dev, cursor_plane, 0x01,
+				       &ast_cursor_plane_funcs,
+				       ast_cursor_plane_formats,
+				       ARRAY_SIZE(ast_cursor_plane_formats),
+				       NULL, DRM_PLANE_TYPE_CURSOR, NULL);
+	if (ret) {
+		drm_err(dev, "drm_universal_plane_failed(): %d\n", ret);
+		return ret;
+	}
+	drm_plane_helper_add(cursor_plane, &ast_cursor_plane_helper_funcs);
+
+	return 0;
+}
 
 /*
  * CRTC
@@ -1138,30 +1178,14 @@ int ast_mode_config_init(struct ast_private *ast)
 
 	dev->mode_config.helper_private = &ast_mode_config_helper_funcs;
 
-	memset(&ast->primary_plane, 0, sizeof(ast->primary_plane));
-	ret = drm_universal_plane_init(dev, &ast->primary_plane, 0x01,
-				       &ast_primary_plane_funcs,
-				       ast_primary_plane_formats,
-				       ARRAY_SIZE(ast_primary_plane_formats),
-				       NULL, DRM_PLANE_TYPE_PRIMARY, NULL);
-	if (ret) {
-		drm_err(dev, "ast: drm_universal_plane_init() failed: %d\n", ret);
-		return ret;
-	}
-	drm_plane_helper_add(&ast->primary_plane,
-			     &ast_primary_plane_helper_funcs);
 
-	ret = drm_universal_plane_init(dev, &ast->cursor_plane, 0x01,
-				       &ast_cursor_plane_funcs,
-				       ast_cursor_plane_formats,
-				       ARRAY_SIZE(ast_cursor_plane_formats),
-				       NULL, DRM_PLANE_TYPE_CURSOR, NULL);
-	if (ret) {
-		drm_err(dev, "drm_universal_plane_failed(): %d\n", ret);
+	ret = ast_primary_plane_init(ast);
+	if (ret)
 		return ret;
-	}
-	drm_plane_helper_add(&ast->cursor_plane,
-			     &ast_cursor_plane_helper_funcs);
+
+	ret = ast_cursor_plane_init(ast);
+	if (ret)
+		return ret;
 
 	ast_crtc_init(dev);
 	ast_encoder_init(dev);
