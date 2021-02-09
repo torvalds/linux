@@ -408,6 +408,7 @@ static void smu_restore_dpm_user_profile(struct smu_context *smu)
 		ret = smu_set_fan_control_mode(smu, smu->user_dpm_profile.fan_mode);
 		if (ret) {
 			smu->user_dpm_profile.fan_speed_percent = 0;
+			smu->user_dpm_profile.fan_speed_rpm = 0;
 			smu->user_dpm_profile.fan_mode = AMD_FAN_CTRL_AUTO;
 			dev_err(smu->adev->dev, "Failed to set manual fan control mode\n");
 		}
@@ -415,7 +416,13 @@ static void smu_restore_dpm_user_profile(struct smu_context *smu)
 		if (smu->user_dpm_profile.fan_speed_percent) {
 			ret = smu_set_fan_speed_percent(smu, smu->user_dpm_profile.fan_speed_percent);
 			if (ret)
-				dev_err(smu->adev->dev, "Failed to set manual fan speed\n");
+				dev_err(smu->adev->dev, "Failed to set manual fan speed in percent\n");
+		}
+
+		if (smu->user_dpm_profile.fan_speed_rpm) {
+			ret = smu_set_fan_speed_rpm(smu, smu->user_dpm_profile.fan_speed_rpm);
+			if (ret)
+				dev_err(smu->adev->dev, "Failed to set manual fan speed in rpm\n");
 		}
 	}
 
@@ -2182,7 +2189,6 @@ static int smu_set_gfx_cgpg(struct smu_context *smu, bool enabled)
 static int smu_set_fan_speed_rpm(void *handle, uint32_t speed)
 {
 	struct smu_context *smu = handle;
-	u32 percent;
 	int ret = 0;
 
 	if (!smu->pm_enabled || !smu->adev->pm.dpm_enabled)
@@ -2193,8 +2199,12 @@ static int smu_set_fan_speed_rpm(void *handle, uint32_t speed)
 	if (smu->ppt_funcs->set_fan_speed_rpm) {
 		ret = smu->ppt_funcs->set_fan_speed_rpm(smu, speed);
 		if (!ret && !(smu->user_dpm_profile.flags & SMU_DPM_USER_PROFILE_RESTORE)) {
-			percent = speed * 100 / smu->fan_max_rpm;
-			smu->user_dpm_profile.fan_speed_percent = percent;
+			smu->user_dpm_profile.flags |= SMU_CUSTOM_FAN_SPEED_RPM;
+			smu->user_dpm_profile.fan_speed_rpm = speed;
+
+			/* Override custom PWM setting as they cannot co-exist */
+			smu->user_dpm_profile.flags &= ~SMU_CUSTOM_FAN_SPEED_PWM;
+			smu->user_dpm_profile.fan_speed_percent = 0;
 		}
 	}
 
@@ -2555,8 +2565,11 @@ static int smu_set_fan_control_mode(struct smu_context *smu, int value)
 
 	/* reset user dpm fan speed */
 	if (!ret && value != AMD_FAN_CTRL_MANUAL &&
-			!(smu->user_dpm_profile.flags & SMU_DPM_USER_PROFILE_RESTORE))
+			!(smu->user_dpm_profile.flags & SMU_DPM_USER_PROFILE_RESTORE)) {
 		smu->user_dpm_profile.fan_speed_percent = 0;
+		smu->user_dpm_profile.fan_speed_rpm = 0;
+		smu->user_dpm_profile.flags &= ~(SMU_CUSTOM_FAN_SPEED_RPM | SMU_CUSTOM_FAN_SPEED_PWM);
+	}
 
 	return ret;
 }
@@ -2607,8 +2620,14 @@ static int smu_set_fan_speed_percent(void *handle, u32 speed)
 		if (speed > 100)
 			speed = 100;
 		ret = smu->ppt_funcs->set_fan_speed_percent(smu, speed);
-		if (!ret && !(smu->user_dpm_profile.flags & SMU_DPM_USER_PROFILE_RESTORE))
+		if (!ret && !(smu->user_dpm_profile.flags & SMU_DPM_USER_PROFILE_RESTORE)) {
+			smu->user_dpm_profile.flags |= SMU_CUSTOM_FAN_SPEED_PWM;
 			smu->user_dpm_profile.fan_speed_percent = speed;
+
+			/* Override custom RPM setting as they cannot co-exist */
+			smu->user_dpm_profile.flags &= ~SMU_CUSTOM_FAN_SPEED_RPM;
+			smu->user_dpm_profile.fan_speed_rpm = 0;
+		}
 	}
 
 	mutex_unlock(&smu->mutex);

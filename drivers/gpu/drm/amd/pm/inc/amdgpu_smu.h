@@ -34,6 +34,8 @@
 #define SMU_FW_NAME_LEN			0x24
 
 #define SMU_DPM_USER_PROFILE_RESTORE (1 << 0)
+#define SMU_CUSTOM_FAN_SPEED_RPM     (1 << 1)
+#define SMU_CUSTOM_FAN_SPEED_PWM     (1 << 2)
 
 // Power Throttlers
 #define SMU_THROTTLER_PPT0_BIT			0
@@ -230,6 +232,7 @@ struct smu_user_dpm_profile {
 	uint32_t fan_mode;
 	uint32_t power_limit;
 	uint32_t fan_speed_percent;
+	uint32_t fan_speed_rpm;
 	uint32_t flags;
 	uint32_t user_od;
 
