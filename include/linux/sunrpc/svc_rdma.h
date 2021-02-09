@@ -90,7 +90,7 @@ struct svcxprt_rdma {
 	struct ib_pd         *sc_pd;
 
 	spinlock_t	     sc_send_lock;
-	struct list_head     sc_send_ctxts;
+	struct llist_head    sc_send_ctxts;
 	spinlock_t	     sc_rw_ctxt_lock;
 	struct list_head     sc_rw_ctxts;
 
@@ -150,7 +150,7 @@ struct svc_rdma_recv_ctxt {
 };
 
 struct svc_rdma_send_ctxt {
-	struct list_head	sc_list;
+	struct llist_node	sc_node;
 	struct rpc_rdma_cid	sc_cid;
 
 	struct ib_send_wr	sc_send_wr;
