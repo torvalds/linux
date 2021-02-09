@@ -17,6 +17,7 @@
 #include <linux/types.h>
 #include <asm/io.h>
 
+#include <asm/softirq_stack.h>
 #include <asm/smp.h>
 #include <asm/ldcw.h>
 

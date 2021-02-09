@@ -569,15 +569,6 @@ struct softirq_action
 asmlinkage void do_softirq(void);
 asmlinkage void __do_softirq(void);
 
-#ifdef CONFIG_HAVE_SOFTIRQ_ON_OWN_STACK
-void do_softirq_own_stack(void);
-#else
-static inline void do_softirq_own_stack(void)
-{
-	__do_softirq();
-}
-#endif
-
 extern void open_softirq(int nr, void (*action)(struct softirq_action *));
 extern void softirq_init(void);
 extern void __raise_softirq_irqoff(unsigned int nr);

@@ -20,6 +20,7 @@
 #include <linux/sched/task_stack.h>
 
 #include <asm/cpu_entry_area.h>
+#include <asm/softirq_stack.h>
 #include <asm/irq_stack.h>
 #include <asm/io_apic.h>
 #include <asm/apic.h>
