@@ -42,11 +42,13 @@ struct rt_firmware_hdr {
 
 	/*  LONG WORD 0 ---- */
 	__le16 signature;  /* 92C0: test chip; 92C, 88C0: test chip;
-			    * 88C1: MP A-cut; 92C1: MP A-cut */
+			    * 88C1: MP A-cut; 92C1: MP A-cut
+			    */
 	u8 category;	   /* AP/NIC and USB/PCI */
 	u8 function;	   /* Reserved for different FW function indications,
 			    * for further use when driver needs to download
-			    * different FW in different conditions. */
+			    * different FW in different conditions.
+			    */
 	__le16 version;    /* FW Version */
 	__le16 subversion; /* FW Subversion, default 0x00 */
 
@@ -135,7 +137,6 @@ struct rt_firmware_hdr {
 #define WMM_NORMAL_PAGE_NUM_LPQ_8723B 0x20
 #define WMM_NORMAL_PAGE_NUM_NPQ_8723B 0x20
 
-
 #include "HalVerDef.h"
 #include "hal_com.h"
 
@@ -149,7 +150,8 @@ struct rt_firmware_hdr {
 #define EFUSE_MAX_SECTION_8723B      64
 
 #define EFUSE_IC_ID_OFFSET 506 /* For some inferiority IC purpose.
-				* Added by Roger, 2009.09.02. */
+				* Added by Roger, 2009.09.02.
+				*/
 #define AVAILABLE_EFUSE_ADDR(addr) (addr < EFUSE_REAL_CONTENT_LEN_8723B)
 
 #define EFUSE_ACCESS_ON  0x69 /* For RTL8723 only. */
@@ -173,7 +175,8 @@ typedef enum _C2H_EVT {
 	C2H_TSF = 1,
 	C2H_AP_RPT_RSP = 2,
 	C2H_CCX_TX_RPT = 3, /* The FW notify the report
-			     * of the specific tx packet. */
+			     * of the specific tx packet.
+			     */
 	C2H_BT_RSSI = 4,
 	C2H_BT_OP_MODE = 5,
 	C2H_EXT_RA_RPT = 6,
