@@ -7000,14 +7000,18 @@ static int io_cqring_wait(struct io_ring_ctx *ctx, int min_events,
 						TASK_INTERRUPTIBLE);
 		/* make sure we run task_work before checking for signals */
 		ret = io_run_task_work_sig();
-		if (ret > 0)
+		if (ret > 0) {
+			finish_wait(&ctx->wait, &iowq.wq);
 			continue;
+		}
 		else if (ret < 0)
 			break;
 		if (io_should_wake(&iowq))
 			break;
-		if (test_bit(0, &ctx->cq_check_overflow))
+		if (test_bit(0, &ctx->cq_check_overflow)) {
+			finish_wait(&ctx->wait, &iowq.wq);
 			continue;
+		}
 		schedule();
 	} while (1);
 	finish_wait(&ctx->wait, &iowq.wq);
