@@ -14,6 +14,7 @@
 #include <linux/pci.h>
 #include <linux/netdevice.h>
 #include <linux/etherdevice.h>
+#include <linux/ethtool.h>
 #include <linux/phy.h>
 #include <linux/of.h>
 #include <linux/of_mdio.h>
@@ -646,6 +647,7 @@ static inline void cgx_link_usertable_init(void)
 	cgx_speed_mbps[CGX_LINK_25G] = 25000;
 	cgx_speed_mbps[CGX_LINK_40G] = 40000;
 	cgx_speed_mbps[CGX_LINK_50G] = 50000;
+	cgx_speed_mbps[CGX_LINK_80G] = 80000;
 	cgx_speed_mbps[CGX_LINK_100G] = 100000;
 
 	cgx_lmactype_string[LMAC_MODE_SGMII] = "SGMII";
@@ -691,6 +693,110 @@ static int cgx_link_usertable_index_map(int speed)
 		return CGX_LINK_NONE;
 	}
 	return CGX_LINK_NONE;
+}
+
+static void set_mod_args(struct cgx_set_link_mode_args *args,
+			 u32 speed, u8 duplex, u8 autoneg, u64 mode)
+{
+	/* Fill default values incase of user did not pass
+	 * valid parameters
+	 */
+	if (args->duplex == DUPLEX_UNKNOWN)
+		args->duplex = duplex;
+	if (args->speed == SPEED_UNKNOWN)
+		args->speed = speed;
+	if (args->an == AUTONEG_UNKNOWN)
+		args->an = autoneg;
+	args->mode = mode;
+	args->ports = 0;
+}
+
+static void otx2_map_ethtool_link_modes(u64 bitmask,
+					struct cgx_set_link_mode_args *args)
+{
+	switch (bitmask) {
+	case ETHTOOL_LINK_MODE_10baseT_Half_BIT:
+		set_mod_args(args, 10, 1, 1, BIT_ULL(CGX_MODE_SGMII));
+		break;
+	case  ETHTOOL_LINK_MODE_10baseT_Full_BIT:
+		set_mod_args(args, 10, 0, 1, BIT_ULL(CGX_MODE_SGMII));
+		break;
+	case  ETHTOOL_LINK_MODE_100baseT_Half_BIT:
+		set_mod_args(args, 100, 1, 1, BIT_ULL(CGX_MODE_SGMII));
+		break;
+	case  ETHTOOL_LINK_MODE_100baseT_Full_BIT:
+		set_mod_args(args, 100, 0, 1, BIT_ULL(CGX_MODE_SGMII));
+		break;
+	case  ETHTOOL_LINK_MODE_1000baseT_Half_BIT:
+		set_mod_args(args, 1000, 1, 1, BIT_ULL(CGX_MODE_SGMII));
+		break;
+	case  ETHTOOL_LINK_MODE_1000baseT_Full_BIT:
+		set_mod_args(args, 1000, 0, 1, BIT_ULL(CGX_MODE_SGMII));
+		break;
+	case  ETHTOOL_LINK_MODE_1000baseX_Full_BIT:
+		set_mod_args(args, 1000, 0, 0, BIT_ULL(CGX_MODE_1000_BASEX));
+		break;
+	case  ETHTOOL_LINK_MODE_10000baseT_Full_BIT:
+		set_mod_args(args, 1000, 0, 1, BIT_ULL(CGX_MODE_QSGMII));
+		break;
+	case  ETHTOOL_LINK_MODE_10000baseSR_Full_BIT:
+		set_mod_args(args, 10000, 0, 0, BIT_ULL(CGX_MODE_10G_C2C));
+		break;
+	case  ETHTOOL_LINK_MODE_10000baseLR_Full_BIT:
+		set_mod_args(args, 10000, 0, 0, BIT_ULL(CGX_MODE_10G_C2M));
+		break;
+	case  ETHTOOL_LINK_MODE_10000baseKR_Full_BIT:
+		set_mod_args(args, 10000, 0, 1, BIT_ULL(CGX_MODE_10G_KR));
+		break;
+	case  ETHTOOL_LINK_MODE_25000baseSR_Full_BIT:
+		set_mod_args(args, 25000, 0, 0, BIT_ULL(CGX_MODE_25G_C2C));
+		break;
+	case  ETHTOOL_LINK_MODE_25000baseCR_Full_BIT:
+		set_mod_args(args, 25000, 0, 1, BIT_ULL(CGX_MODE_25G_CR));
+		break;
+	case  ETHTOOL_LINK_MODE_25000baseKR_Full_BIT:
+		set_mod_args(args, 25000, 0, 1, BIT_ULL(CGX_MODE_25G_KR));
+		break;
+	case  ETHTOOL_LINK_MODE_40000baseSR4_Full_BIT:
+		set_mod_args(args, 40000, 0, 0, BIT_ULL(CGX_MODE_40G_C2C));
+		break;
+	case  ETHTOOL_LINK_MODE_40000baseLR4_Full_BIT:
+		set_mod_args(args, 40000, 0, 0, BIT_ULL(CGX_MODE_40G_C2M));
+		break;
+	case  ETHTOOL_LINK_MODE_40000baseCR4_Full_BIT:
+		set_mod_args(args, 40000, 0, 1, BIT_ULL(CGX_MODE_40G_CR4));
+		break;
+	case  ETHTOOL_LINK_MODE_40000baseKR4_Full_BIT:
+		set_mod_args(args, 40000, 0, 1, BIT_ULL(CGX_MODE_40G_KR4));
+		break;
+	case  ETHTOOL_LINK_MODE_50000baseSR_Full_BIT:
+		set_mod_args(args, 50000, 0, 0, BIT_ULL(CGX_MODE_50G_C2C));
+		break;
+	case  ETHTOOL_LINK_MODE_50000baseLR_ER_FR_Full_BIT:
+		set_mod_args(args, 50000, 0, 0, BIT_ULL(CGX_MODE_50G_C2M));
+		break;
+	case  ETHTOOL_LINK_MODE_50000baseCR_Full_BIT:
+		set_mod_args(args, 50000, 0, 1, BIT_ULL(CGX_MODE_50G_CR));
+		break;
+	case  ETHTOOL_LINK_MODE_50000baseKR_Full_BIT:
+		set_mod_args(args, 50000, 0, 1, BIT_ULL(CGX_MODE_50G_KR));
+		break;
+	case  ETHTOOL_LINK_MODE_100000baseSR4_Full_BIT:
+		set_mod_args(args, 100000, 0, 0, BIT_ULL(CGX_MODE_100G_C2C));
+		break;
+	case  ETHTOOL_LINK_MODE_100000baseLR4_ER4_Full_BIT:
+		set_mod_args(args, 100000, 0, 0, BIT_ULL(CGX_MODE_100G_C2M));
+		break;
+	case  ETHTOOL_LINK_MODE_100000baseCR4_Full_BIT:
+		set_mod_args(args, 100000, 0, 1, BIT_ULL(CGX_MODE_100G_CR4));
+		break;
+	case  ETHTOOL_LINK_MODE_100000baseKR4_Full_BIT:
+		set_mod_args(args, 100000, 0, 1, BIT_ULL(CGX_MODE_100G_KR4));
+		break;
+	default:
+		set_mod_args(args, 0, 1, 0, BIT_ULL(CGX_MODE_MAX));
+		break;
+	}
 }
 
 static inline void link_status_user_format(u64 lstat,
@@ -887,13 +993,19 @@ int cgx_set_link_mode(void *cgxd, struct cgx_set_link_mode_args args,
 	if (!cgx)
 		return -ENODEV;
 
+	if (args.mode)
+		otx2_map_ethtool_link_modes(args.mode, &args);
+	if (!args.speed && args.duplex && !args.an)
+		return -EINVAL;
+
 	req = FIELD_SET(CMDREG_ID, CGX_CMD_MODE_CHANGE, req);
 	req = FIELD_SET(CMDMODECHANGE_SPEED,
 			cgx_link_usertable_index_map(args.speed), req);
 	req = FIELD_SET(CMDMODECHANGE_DUPLEX, args.duplex, req);
 	req = FIELD_SET(CMDMODECHANGE_AN, args.an, req);
 	req = FIELD_SET(CMDMODECHANGE_PORT, args.ports, req);
-	req = FIELD_SET(CMDMODECHANGE_FLAGS, args.flags, req);
+	req = FIELD_SET(CMDMODECHANGE_FLAGS, args.mode, req);
+
 	return cgx_fwi_cmd_generic(req, &resp, cgx, lmac_id);
 }
 int cgx_set_fec(u64 fec, int cgx_id, int lmac_id)
