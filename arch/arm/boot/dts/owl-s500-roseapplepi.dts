@@ -14,6 +14,7 @@
 	model = "Roseapple Pi";
 
 	aliases {
+		mmc0 = &mmc0;
 		serial2 = &uart2;
 	};
 
@@ -26,11 +27,98 @@
 		reg = <0x0 0x80000000>; /* 2GB */
 	};
 
-	uart2_clk: uart2-clk {
-		compatible = "fixed-clock";
-		clock-frequency = <921600>;
-		#clock-cells = <0>;
+	/* Fixed regulator used in the absence of PMIC */
+	sd_vcc: sd-vcc {
+		compatible = "regulator-fixed";
+		regulator-name = "fixed-3.1V";
+		regulator-min-microvolt = <3100000>;
+		regulator-max-microvolt = <3100000>;
+		regulator-always-on;
 	};
+};
+
+&i2c0 {
+	status = "okay";
+	pinctrl-names = "default";
+	pinctrl-0 = <&i2c0_pins>;
+};
+
+&i2c1 {
+	status = "disabled";
+	pinctrl-names = "default";
+	pinctrl-0 = <&i2c1_pins>;
+};
+
+&i2c2 {
+	status = "disabled";
+	pinctrl-names = "default";
+	pinctrl-0 = <&i2c2_pins>;
+};
+
+&pinctrl {
+	i2c0_pins: i2c0-pins {
+		pinmux {
+			groups = "i2c0_mfp";
+			function = "i2c0";
+		};
+
+		pinconf {
+			pins = "i2c0_sclk", "i2c0_sdata";
+			bias-pull-up;
+		};
+	};
+
+	i2c1_pins: i2c1-pins {
+		pinconf {
+			pins = "i2c1_sclk", "i2c1_sdata";
+			bias-pull-up;
+		};
+	};
+
+	i2c2_pins: i2c2-pins {
+		pinconf {
+			pins = "i2c2_sclk", "i2c2_sdata";
+			bias-pull-up;
+		};
+	};
+
+	mmc0_pins: mmc0-pins {
+		pinmux {
+			groups = "sd0_d0_mfp", "sd0_d1_mfp", "sd0_d2_d3_mfp",
+				 "sd0_cmd_mfp", "sd0_clk_mfp";
+			function = "sd0";
+		};
+
+		drv-pinconf {
+			groups = "sd0_d0_d3_drv", "sd0_cmd_drv", "sd0_clk_drv";
+			drive-strength = <8>;
+		};
+
+		bias0-pinconf {
+			pins = "sd0_d0", "sd0_d1", "sd0_d2",
+			       "sd0_d3", "sd0_cmd";
+			bias-pull-up;
+		};
+
+		bias1-pinconf {
+			pins = "sd0_clk";
+			bias-pull-down;
+		};
+	};
+};
+
+/* uSD */
+&mmc0 {
+	status = "okay";
+	pinctrl-names = "default";
+	pinctrl-0 = <&mmc0_pins>;
+	no-sdio;
+	no-mmc;
+	no-1-8-v;
+	cd-gpios = <&pinctrl 117 GPIO_ACTIVE_LOW>;
+	bus-width = <4>;
+	vmmc-supply = <&sd_vcc>;
+	vqmmc-supply = <&sd_vcc>;
 };
 
 &twd_timer {
@@ -43,5 +131,4 @@
 
 &uart2 {
 	status = "okay";
-	clocks = <&uart2_clk>;
 };
