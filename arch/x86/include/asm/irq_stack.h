@@ -7,6 +7,104 @@
 #include <asm/processor.h>
 
 #ifdef CONFIG_X86_64
+
+/*
+ * Macro to inline switching to an interrupt stack and invoking function
+ * calls from there. The following rules apply:
+ *
+ * - Ordering:
+ *
+ *   1. Write the stack pointer into the top most place of the irq
+ *	stack. This ensures that the various unwinders can link back to the
+ *	original stack.
+ *
+ *   2. Switch the stack pointer to the top of the irq stack.
+ *
+ *   3. Invoke whatever needs to be done (@asm_call argument)
+ *
+ *   4. Pop the original stack pointer from the top of the irq stack
+ *	which brings it back to the original stack where it left off.
+ *
+ * - Function invocation:
+ *
+ *   To allow flexible usage of the macro, the actual function code including
+ *   the store of the arguments in the call ABI registers is handed in via
+ *   the @asm_call argument.
+ *
+ * - Local variables:
+ *
+ *   @tos:
+ *	The @tos variable holds a pointer to the top of the irq stack and
+ *	_must_ be allocated in a non-callee saved register as this is a
+ *	restriction coming from objtool.
+ *
+ *	Note, that (tos) is both in input and output constraints to ensure
+ *	that the compiler does not assume that R11 is left untouched in
+ *	case this macro is used in some place where the per cpu interrupt
+ *	stack pointer is used again afterwards
+ *
+ * - Function arguments:
+ *	The function argument(s), if any, have to be defined in register
+ *	variables at the place where this is invoked. Storing the
+ *	argument(s) in the proper register(s) is part of the @asm_call
+ *
+ * - Constraints:
+ *
+ *   The constraints have to be done very carefully because the compiler
+ *   does not know about the assembly call.
+ *
+ *   output:
+ *     As documented already above the @tos variable is required to be in
+ *     the output constraints to make the compiler aware that R11 cannot be
+ *     reused after the asm() statement.
+ *
+ *     For builds with CONFIG_UNWIND_FRAME_POINTER ASM_CALL_CONSTRAINT is
+ *     required as well as this prevents certain creative GCC variants from
+ *     misplacing the ASM code.
+ *
+ *  input:
+ *    - func:
+ *	  Immediate, which tells the compiler that the function is referenced.
+ *
+ *    - tos:
+ *	  Register. The actual register is defined by the variable declaration.
+ *
+ *    - function arguments:
+ *	  The constraints are handed in via the 'argconstr' argument list. They
+ *	  describe the register arguments which are used in @asm_call.
+ *
+ *  clobbers:
+ *     Function calls can clobber anything except the callee-saved
+ *     registers. Tell the compiler.
+ */
+#define call_on_irqstack(func, asm_call, argconstr...)			\
+{									\
+	register void *tos asm("r11");					\
+									\
+	tos = ((void *)__this_cpu_read(hardirq_stack_ptr));		\
+									\
+	asm_inline volatile(						\
+	"movq	%%rsp, (%[tos])				\n"		\
+	"movq	%[tos], %%rsp				\n"		\
+									\
+	asm_call							\
+									\
+	"popq	%%rsp					\n"		\
+									\
+	: "+r" (tos), ASM_CALL_CONSTRAINT				\
+	: [__func] "i" (func), [tos] "r" (tos) argconstr		\
+	: "cc", "rax", "rcx", "rdx", "rsi", "rdi", "r8", "r9", "r10",	\
+	  "memory"							\
+	);								\
+}
+
+/* Macros to assert type correctness for run_*_on_irqstack macros */
+#define assert_function_type(func, proto)				\
+	static_assert(__builtin_types_compatible_p(typeof(&func), proto))
+
+#define assert_arg_type(arg, proto)					\
+	static_assert(__builtin_types_compatible_p(typeof(arg), proto))
+
 static __always_inline bool irqstack_active(void)
 {
 	return __this_cpu_read(hardirq_stack_inuse);
