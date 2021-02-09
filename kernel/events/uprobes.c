@@ -661,7 +661,7 @@ static struct uprobe *__find_uprobe(struct inode *inode, loff_t offset)
 	struct rb_node *node = rb_find(&key, &uprobes_tree, __uprobe_cmp_key);
 
 	if (node)
-		return __node_2_uprobe(node);
+		return get_uprobe(__node_2_uprobe(node));
 
 	return NULL;
 }
