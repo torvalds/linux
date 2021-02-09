@@ -1496,15 +1496,6 @@ static void io_kill_timeout(struct io_kiocb *req)
 	}
 }
 
-static bool io_task_match(struct io_kiocb *req, struct task_struct *tsk)
-{
-	struct io_ring_ctx *ctx = req->ctx;
-
-	if (!tsk || req->task == tsk)
-		return true;
-	return (ctx->flags & IORING_SETUP_SQPOLL);
-}
-
 /*
  * Returns true if we found and killed one or more timeouts
  */
@@ -8524,110 +8515,29 @@ static int io_uring_release(struct inode *inode, struct file *file)
 	return 0;
 }
 
-/*
- * Returns true if 'preq' is the link parent of 'req'
- */
-static bool io_match_link(struct io_kiocb *preq, struct io_kiocb *req)
-{
-	struct io_kiocb *link;
+struct io_task_cancel {
+	struct task_struct *task;
+	struct files_struct *files;
+};
 
-	if (!(preq->flags & REQ_F_LINK_HEAD))
-		return false;
-
-	list_for_each_entry(link, &preq->link_list, link_list) {
-		if (link == req)
-			return true;
-	}
-
-	return false;
-}
-
-/*
- * We're looking to cancel 'req' because it's holding on to our files, but
- * 'req' could be a link to another request. See if it is, and cancel that
- * parent request if so.
- */
-static bool io_poll_remove_link(struct io_ring_ctx *ctx, struct io_kiocb *req)
-{
-	struct hlist_node *tmp;
-	struct io_kiocb *preq;
-	bool found = false;
-	int i;
-
-	spin_lock_irq(&ctx->completion_lock);
-	for (i = 0; i < (1U << ctx->cancel_hash_bits); i++) {
-		struct hlist_head *list;
-
-		list = &ctx->cancel_hash[i];
-		hlist_for_each_entry_safe(preq, tmp, list, hash_node) {
-			found = io_match_link(preq, req);
-			if (found) {
-				io_poll_remove_one(preq);
-				break;
-			}
-		}
-	}
-	spin_unlock_irq(&ctx->completion_lock);
-	return found;
-}
-
-static bool io_timeout_remove_link(struct io_ring_ctx *ctx,
-				   struct io_kiocb *req)
-{
-	struct io_kiocb *preq;
-	bool found = false;
-
-	spin_lock_irq(&ctx->completion_lock);
-	list_for_each_entry(preq, &ctx->timeout_list, timeout.list) {
-		found = io_match_link(preq, req);
-		if (found) {
-			__io_timeout_cancel(preq);
-			break;
-		}
-	}
-	spin_unlock_irq(&ctx->completion_lock);
-	return found;
-}
-
-static bool io_cancel_link_cb(struct io_wq_work *work, void *data)
+static bool io_cancel_task_cb(struct io_wq_work *work, void *data)
 {
 	struct io_kiocb *req = container_of(work, struct io_kiocb, work);
+	struct io_task_cancel *cancel = data;
 	bool ret;
 
-	if (req->flags & REQ_F_LINK_TIMEOUT) {
+	if (cancel->files && (req->flags & REQ_F_LINK_TIMEOUT)) {
 		unsigned long flags;
 		struct io_ring_ctx *ctx = req->ctx;
 
 		/* protect against races with linked timeouts */
 		spin_lock_irqsave(&ctx->completion_lock, flags);
-		ret = io_match_link(req, data);
+		ret = io_match_task(req, cancel->task, cancel->files);
 		spin_unlock_irqrestore(&ctx->completion_lock, flags);
 	} else {
-		ret = io_match_link(req, data);
+		ret = io_match_task(req, cancel->task, cancel->files);
 	}
 	return ret;
-}
-
-static void io_attempt_cancel(struct io_ring_ctx *ctx, struct io_kiocb *req)
-{
-	enum io_wq_cancel cret;
-
-	/* cancel this particular work, if it's running */
-	cret = io_wq_cancel_work(ctx->io_wq, &req->work);
-	if (cret != IO_WQ_CANCEL_NOTFOUND)
-		return;
-
-	/* find links that hold this pending, cancel those */
-	cret = io_wq_cancel_cb(ctx->io_wq, io_cancel_link_cb, req, true);
-	if (cret != IO_WQ_CANCEL_NOTFOUND)
-		return;
-
-	/* if we have a poll link holding this pending, cancel that */
-	if (io_poll_remove_link(ctx, req))
-		return;
-
-	/* final option, timeout link is holding this req pending */
-	io_timeout_remove_link(ctx, req);
 }
 
 static void io_cancel_defer_files(struct io_ring_ctx *ctx,
@@ -8661,8 +8571,10 @@ static void io_uring_cancel_files(struct io_ring_ctx *ctx,
 				  struct files_struct *files)
 {
 	while (!list_empty_careful(&ctx->inflight_list)) {
-		struct io_kiocb *cancel_req = NULL, *req;
+		struct io_task_cancel cancel = { .task = task, .files = NULL, };
+		struct io_kiocb *req;
 		DEFINE_WAIT(wait);
+		bool found = false;
 
 		spin_lock_irq(&ctx->inflight_lock);
 		list_for_each_entry(req, &ctx->inflight_list, inflight_entry) {
@@ -8670,25 +8582,21 @@ static void io_uring_cancel_files(struct io_ring_ctx *ctx,
 			    (req->work.flags & IO_WQ_WORK_FILES) &&
 			    req->work.identity->files != files)
 				continue;
-			/* req is being completed, ignore */
-			if (!refcount_inc_not_zero(&req->refs))
-				continue;
-			cancel_req = req;
+			found = true;
 			break;
 		}
-		if (cancel_req)
+		if (found)
 			prepare_to_wait(&ctx->inflight_wait, &wait,
 						TASK_UNINTERRUPTIBLE);
 		spin_unlock_irq(&ctx->inflight_lock);
 
 		/* We need to keep going until we don't find a matching req */
-		if (!cancel_req)
+		if (!found)
 			break;
-		/* cancel this request, or head link requests */
-		io_attempt_cancel(ctx, cancel_req);
-		io_cqring_overflow_flush(ctx, true, task, files);
 
-		io_put_req(cancel_req);
+		io_wq_cancel_cb(ctx->io_wq, io_cancel_task_cb, &cancel, true);
+		io_poll_remove_all(ctx, task, files);
+		io_kill_timeouts(ctx, task, files);
 		/* cancellations _may_ trigger task work */
 		io_run_task_work();
 		schedule();
@@ -8696,22 +8604,15 @@ static void io_uring_cancel_files(struct io_ring_ctx *ctx,
 	}
 }
 
-static bool io_cancel_task_cb(struct io_wq_work *work, void *data)
-{
-	struct io_kiocb *req = container_of(work, struct io_kiocb, work);
-	struct task_struct *task = data;
-
-	return io_task_match(req, task);
-}
-
 static void __io_uring_cancel_task_requests(struct io_ring_ctx *ctx,
 					    struct task_struct *task)
 {
 	while (1) {
+		struct io_task_cancel cancel = { .task = task, .files = NULL, };
 		enum io_wq_cancel cret;
 		bool ret = false;
 
-		cret = io_wq_cancel_cb(ctx->io_wq, io_cancel_task_cb, task, true);
+		cret = io_wq_cancel_cb(ctx->io_wq, io_cancel_task_cb, &cancel, true);
 		if (cret != IO_WQ_CANCEL_NOTFOUND)
 			ret = true;
 
