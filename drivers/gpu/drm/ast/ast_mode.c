@@ -823,26 +823,19 @@ ast_cursor_plane_helper_atomic_update(struct drm_plane *plane,
 	struct drm_plane_state *state = plane->state;
 	struct drm_framebuffer *fb = state->fb;
 	struct ast_private *ast = to_ast_private(plane->dev);
-	struct drm_device *dev = &ast->base;
-	struct drm_gem_vram_object *gbo =
-		ast_cursor_plane->hwc[ast_cursor_plane->next_hwc_index].gbo;
+	u64 dst_off =
+		ast_cursor_plane->hwc[ast_cursor_plane->next_hwc_index].off;
 	unsigned int offset_x, offset_y;
-	s64 off;
 	struct dma_buf_map map;
 	u16 x, y;
 	u8 x_offset, y_offset;
 	u8 __iomem *dst;
 	u8 __iomem *sig;
 
-	gbo = ast_cursor_plane->hwc[ast_cursor_plane->next_hwc_index].gbo;
 	map = ast_cursor_plane->hwc[ast_cursor_plane->next_hwc_index].map;
 
 	if (state->fb != old_state->fb) {
-		/* A new cursor image was installed. */
-		off = drm_gem_vram_offset(gbo);
-		if (drm_WARN_ON_ONCE(dev, off < 0))
-			return; /* Bug: we didn't pin the cursor HW BO to VRAM. */
-		ast_set_cursor_base(ast, off);
+		ast_set_cursor_base(ast, dst_off);
 
 		++ast_cursor_plane->next_hwc_index;
 		ast_cursor_plane->next_hwc_index %= ARRAY_SIZE(ast_cursor_plane->hwc);
@@ -931,6 +924,7 @@ static int ast_cursor_plane_init(struct ast_private *ast)
 	struct drm_gem_vram_object *gbo;
 	struct dma_buf_map map;
 	int ret;
+	s64 off;
 
 	/*
 	 * Allocate backing storage for cursors. The BOs are permanently
@@ -952,8 +946,14 @@ static int ast_cursor_plane_init(struct ast_private *ast)
 		ret = drm_gem_vram_vmap(gbo, &map);
 		if (ret)
 			goto err_drm_gem_vram_unpin;
+		off = drm_gem_vram_offset(gbo);
+		if (off < 0) {
+			ret = off;
+			goto err_drm_gem_vram_vunmap;
+		}
 		ast_cursor_plane->hwc[i].gbo = gbo;
 		ast_cursor_plane->hwc[i].map = map;
+		ast_cursor_plane->hwc[i].off = off;
 	}
 
 	/*
@@ -979,6 +979,7 @@ err_hwc:
 		--i;
 		gbo = ast_cursor_plane->hwc[i].gbo;
 		map = ast_cursor_plane->hwc[i].map;
+err_drm_gem_vram_vunmap:
 		drm_gem_vram_vunmap(gbo, &map);
 err_drm_gem_vram_unpin:
 		drm_gem_vram_unpin(gbo);

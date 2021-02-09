@@ -108,6 +108,7 @@ struct ast_cursor_plane {
 	struct {
 		struct drm_gem_vram_object *gbo;
 		struct dma_buf_map map;
+		u64 off;
 	} hwc[AST_DEFAULT_HWC_NUM];
 
 	unsigned int next_hwc_index;
