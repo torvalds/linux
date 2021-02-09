@@ -997,6 +997,36 @@ static inline void io_clean_op(struct io_kiocb *req)
 		__io_clean_op(req);
 }
 
+static inline bool __io_match_files(struct io_kiocb *req,
+				    struct files_struct *files)
+{
+	return ((req->flags & REQ_F_WORK_INITIALIZED) &&
+	        (req->work.flags & IO_WQ_WORK_FILES)) &&
+		req->work.identity->files == files;
+}
+
+static bool io_match_task(struct io_kiocb *head,
+			  struct task_struct *task,
+			  struct files_struct *files)
+{
+	struct io_kiocb *link;
+
+	if (task && head->task != task)
+		return false;
+	if (!files)
+		return true;
+	if (__io_match_files(head, files))
+		return true;
+	if (head->flags & REQ_F_LINK_HEAD) {
+		list_for_each_entry(link, &head->link_list, link_list) {
+			if (__io_match_files(link, files))
+				return true;
+		}
+	}
+	return false;
+}
+
+
 static void io_sq_thread_drop_mm(void)
 {
 	struct mm_struct *mm = current->mm;
@@ -1612,32 +1642,6 @@ static void io_cqring_mark_overflow(struct io_ring_ctx *ctx)
 	}
 }
 
-static inline bool __io_match_files(struct io_kiocb *req,
-				    struct files_struct *files)
-{
-	return ((req->flags & REQ_F_WORK_INITIALIZED) &&
-	        (req->work.flags & IO_WQ_WORK_FILES)) &&
-		req->work.identity->files == files;
-}
-
-static bool io_match_files(struct io_kiocb *req,
-			   struct files_struct *files)
-{
-	struct io_kiocb *link;
-
-	if (!files)
-		return true;
-	if (__io_match_files(req, files))
-		return true;
-	if (req->flags & REQ_F_LINK_HEAD) {
-		list_for_each_entry(link, &req->link_list, link_list) {
-			if (__io_match_files(link, files))
-				return true;
-		}
-	}
-	return false;
-}
-
 /* Returns true if there are no backlogged entries after the flush */
 static bool __io_cqring_overflow_flush(struct io_ring_ctx *ctx, bool force,
 				       struct task_struct *tsk,
@@ -1659,9 +1663,7 @@ static bool __io_cqring_overflow_flush(struct io_ring_ctx *ctx, bool force,
 
 	cqe = NULL;
 	list_for_each_entry_safe(req, tmp, &ctx->cq_overflow_list, compl.list) {
-		if (tsk && req->task != tsk)
-			continue;
-		if (!io_match_files(req, files))
+		if (!io_match_task(req, tsk, files))
 			continue;
 
 		cqe = io_get_cqring(ctx);
@@ -8635,8 +8637,7 @@ static void io_cancel_defer_files(struct io_ring_ctx *ctx,
 
 	spin_lock_irq(&ctx->completion_lock);
 	list_for_each_entry_reverse(de, &ctx->defer_list, list) {
-		if (io_task_match(de->req, task) &&
-		    io_match_files(de->req, files)) {
+		if (io_match_task(de->req, task, files)) {
 			list_cut_position(&list, &ctx->defer_list, &de->list);
 			break;
 		}
