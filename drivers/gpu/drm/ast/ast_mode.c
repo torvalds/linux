@@ -757,9 +757,10 @@ static int
 ast_cursor_plane_helper_prepare_fb(struct drm_plane *plane,
 				   struct drm_plane_state *new_state)
 {
+	struct ast_cursor_plane *ast_cursor_plane = to_ast_cursor_plane(plane);
 	struct drm_framebuffer *fb = new_state->fb;
-	struct ast_private *ast = to_ast_private(plane->dev);
-	struct drm_gem_vram_object *dst_gbo = ast->cursor.gbo[ast->cursor.next_index];
+	struct drm_gem_vram_object *dst_gbo =
+		ast_cursor_plane->hwc[ast_cursor_plane->next_hwc_index].gbo;
 	struct drm_gem_vram_object *src_gbo;
 	struct dma_buf_map src_map, dst_map;
 	void __iomem *dst;
@@ -826,11 +827,13 @@ static void
 ast_cursor_plane_helper_atomic_update(struct drm_plane *plane,
 				      struct drm_plane_state *old_state)
 {
+	struct ast_cursor_plane *ast_cursor_plane = to_ast_cursor_plane(plane);
 	struct drm_plane_state *state = plane->state;
 	struct drm_framebuffer *fb = state->fb;
 	struct ast_private *ast = to_ast_private(plane->dev);
 	struct drm_device *dev = &ast->base;
-	struct drm_gem_vram_object *gbo = ast->cursor.gbo[ast->cursor.next_index];
+	struct drm_gem_vram_object *gbo =
+		ast_cursor_plane->hwc[ast_cursor_plane->next_hwc_index].gbo;
 	unsigned int offset_x, offset_y;
 	s64 off;
 	struct dma_buf_map map;
@@ -840,7 +843,7 @@ ast_cursor_plane_helper_atomic_update(struct drm_plane *plane,
 	u8 __iomem *sig;
 	int ret;
 
-	gbo = ast->cursor.gbo[ast->cursor.next_index];
+	gbo = ast_cursor_plane->hwc[ast_cursor_plane->next_hwc_index].gbo;
 
 	if (state->fb != old_state->fb) {
 		/* A new cursor image was installed. */
@@ -849,8 +852,8 @@ ast_cursor_plane_helper_atomic_update(struct drm_plane *plane,
 			return; /* Bug: we didn't pin the cursor HW BO to VRAM. */
 		ast_set_cursor_base(ast, off);
 
-		++ast->cursor.next_index;
-		ast->cursor.next_index %= ARRAY_SIZE(ast->cursor.gbo);
+		++ast_cursor_plane->next_hwc_index;
+		ast_cursor_plane->next_hwc_index %= ARRAY_SIZE(ast_cursor_plane->hwc);
 	}
 
 	ret = drm_gem_vram_vmap(gbo, &map);
@@ -907,12 +910,12 @@ static const struct drm_plane_helper_funcs ast_cursor_plane_helper_funcs = {
 
 static void ast_cursor_plane_destroy(struct drm_plane *plane)
 {
-	struct ast_private *ast = to_ast_private(plane->dev);
+	struct ast_cursor_plane *ast_cursor_plane = to_ast_cursor_plane(plane);
 	size_t i;
 	struct drm_gem_vram_object *gbo;
 
-	for (i = 0; i < ARRAY_SIZE(ast->cursor.gbo); ++i) {
-		gbo = ast->cursor.gbo[i];
+	for (i = 0; i < ARRAY_SIZE(ast_cursor_plane->hwc); ++i) {
+		gbo = ast_cursor_plane->hwc[i].gbo;
 		drm_gem_vram_unpin(gbo);
 		drm_gem_vram_put(gbo);
 	}
@@ -945,7 +948,7 @@ static int ast_cursor_plane_init(struct ast_private *ast)
 
 	size = roundup(AST_HWC_SIZE + AST_HWC_SIGNATURE_SIZE, PAGE_SIZE);
 
-	for (i = 0; i < ARRAY_SIZE(ast->cursor.gbo); ++i) {
+	for (i = 0; i < ARRAY_SIZE(ast_cursor_plane->hwc); ++i) {
 		gbo = drm_gem_vram_create(dev, size, 0);
 		if (IS_ERR(gbo)) {
 			ret = PTR_ERR(gbo);
@@ -955,7 +958,7 @@ static int ast_cursor_plane_init(struct ast_private *ast)
 					    DRM_GEM_VRAM_PL_FLAG_TOPDOWN);
 		if (ret)
 			goto err_drm_gem_vram_put;
-		ast->cursor.gbo[i] = gbo;
+		ast_cursor_plane->hwc[i].gbo = gbo;
 	}
 
 	/*
@@ -979,7 +982,7 @@ static int ast_cursor_plane_init(struct ast_private *ast)
 err_hwc:
 	while (i) {
 		--i;
-		gbo = ast->cursor.gbo[i];
+		gbo = ast_cursor_plane->hwc[i].gbo;
 		drm_gem_vram_unpin(gbo);
 err_drm_gem_vram_put:
 		drm_gem_vram_put(gbo);

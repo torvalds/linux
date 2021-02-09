@@ -104,6 +104,12 @@ enum ast_tx_chip {
 
 struct ast_cursor_plane {
 	struct drm_plane base;
+
+	struct {
+		struct drm_gem_vram_object *gbo;
+	} hwc[AST_DEFAULT_HWC_NUM];
+
+	unsigned int next_hwc_index;
 };
 
 static inline struct ast_cursor_plane *
@@ -150,11 +156,6 @@ struct ast_private {
 	uint32_t mclk;
 
 	int fb_mtrr;
-
-	struct {
-		struct drm_gem_vram_object *gbo[AST_DEFAULT_HWC_NUM];
-		unsigned int next_index;
-	} cursor;
 
 	struct drm_plane primary_plane;
 	struct ast_cursor_plane cursor_plane;
