@@ -517,7 +517,7 @@ static int xsk_get_max_queues(struct xsk_socket *xsk)
 	struct ifreq ifr = {};
 	int fd, err, ret;
 
-	fd = socket(AF_INET, SOCK_DGRAM, 0);
+	fd = socket(AF_LOCAL, SOCK_DGRAM, 0);
 	if (fd < 0)
 		return -errno;
 
