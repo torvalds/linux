@@ -13,8 +13,8 @@
 #include <linux/usb/composite.h>
 #include <linux/iopoll.h>
 
-#include "gadget.h"
-#include "trace.h"
+#include "cdns3-gadget.h"
+#include "cdns3-trace.h"
 
 static struct usb_endpoint_descriptor cdns3_gadget_ep0_desc = {
 	.bLength = USB_DT_ENDPOINT_SIZE,
@@ -364,7 +364,7 @@ static int cdns3_ep0_feature_handle_endpoint(struct cdns3_device *priv_dev,
 	if (le16_to_cpu(ctrl->wValue) != USB_ENDPOINT_HALT)
 		return -EINVAL;
 
-	if (!(ctrl->wIndex & ~USB_DIR_IN))
+	if (!(le16_to_cpu(ctrl->wIndex) & ~USB_DIR_IN))
 		return 0;
 
 	index = cdns3_ep_addr_to_index(le16_to_cpu(ctrl->wIndex));
@@ -789,7 +789,7 @@ int cdns3_gadget_ep_set_wedge(struct usb_ep *ep)
 	return 0;
 }
 
-const struct usb_ep_ops cdns3_gadget_ep0_ops = {
+static const struct usb_ep_ops cdns3_gadget_ep0_ops = {
 	.enable = cdns3_gadget_ep0_enable,
 	.disable = cdns3_gadget_ep0_disable,
 	.alloc_request = cdns3_gadget_ep_alloc_request,

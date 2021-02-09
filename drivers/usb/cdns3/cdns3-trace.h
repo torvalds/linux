@@ -19,8 +19,8 @@
 #include <asm/byteorder.h>
 #include <linux/usb/ch9.h>
 #include "core.h"
-#include "gadget.h"
-#include "debug.h"
+#include "cdns3-gadget.h"
+#include "cdns3-debug.h"
 
 #define CDNS3_MSG_MAX	500
 
@@ -565,6 +565,6 @@ DEFINE_EVENT(cdns3_log_request_handled, cdns3_request_handled,
 #define TRACE_INCLUDE_PATH .
 
 #undef TRACE_INCLUDE_FILE
-#define TRACE_INCLUDE_FILE trace
+#define TRACE_INCLUDE_FILE cdns3-trace
 
 #include <trace/define_trace.h>

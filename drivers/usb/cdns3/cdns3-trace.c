@@ -8,4 +8,4 @@
  */
 
 #define CREATE_TRACE_POINTS
-#include "trace.h"
+#include "cdns3-trace.h"

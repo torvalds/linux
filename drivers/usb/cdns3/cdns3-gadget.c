@@ -63,8 +63,8 @@
 
 #include "core.h"
 #include "gadget-export.h"
-#include "gadget.h"
-#include "trace.h"
+#include "cdns3-gadget.h"
+#include "cdns3-trace.h"
 #include "drd.h"
 
 static int __cdns3_gadget_ep_queue(struct usb_ep *ep,
@@ -1200,7 +1200,7 @@ static int cdns3_ep_run_transfer(struct cdns3_endpoint *priv_ep,
 		td_size = DIV_ROUND_UP(request->length,
 				       priv_ep->endpoint.maxpacket);
 		if (priv_dev->gadget.speed == USB_SPEED_SUPER)
-			trb->length = TRB_TDL_SS_SIZE(td_size);
+			trb->length = cpu_to_le32(TRB_TDL_SS_SIZE(td_size));
 		else
 			control |= TRB_TDL_HS_SIZE(td_size);
 	}
@@ -1247,10 +1247,10 @@ static int cdns3_ep_run_transfer(struct cdns3_endpoint *priv_ep,
 			priv_req->trb->control = cpu_to_le32(control);
 
 		if (sg_supported) {
-			trb->control |= TRB_ISP;
+			trb->control |= cpu_to_le32(TRB_ISP);
 			/* Don't set chain bit for last TRB */
 			if (sg_iter < num_trb - 1)
-				trb->control |= TRB_CHAIN;
+				trb->control |= cpu_to_le32(TRB_CHAIN);
 
 			s = sg_next(s);
 		}
@@ -1844,7 +1844,7 @@ __must_hold(&priv_dev->lock)
 static irqreturn_t cdns3_device_irq_handler(int irq, void *data)
 {
 	struct cdns3_device *priv_dev = data;
-	struct cdns3 *cdns = dev_get_drvdata(priv_dev->dev);
+	struct cdns *cdns = dev_get_drvdata(priv_dev->dev);
 	irqreturn_t ret = IRQ_NONE;
 	u32 reg;
 
@@ -3084,7 +3084,7 @@ static void cdns3_gadget_release(struct device *dev)
 	kfree(priv_dev);
 }
 
-static void cdns3_gadget_exit(struct cdns3 *cdns)
+static void cdns3_gadget_exit(struct cdns *cdns)
 {
 	struct cdns3_device *priv_dev;
 
@@ -3117,10 +3117,10 @@ static void cdns3_gadget_exit(struct cdns3 *cdns)
 	kfree(priv_dev->zlp_buf);
 	usb_put_gadget(&priv_dev->gadget);
 	cdns->gadget_dev = NULL;
-	cdns3_drd_gadget_off(cdns);
+	cdns_drd_gadget_off(cdns);
 }
 
-static int cdns3_gadget_start(struct cdns3 *cdns)
+static int cdns3_gadget_start(struct cdns *cdns)
 {
 	struct cdns3_device *priv_dev;
 	u32 max_speed;
@@ -3240,7 +3240,7 @@ err1:
 	return ret;
 }
 
-static int __cdns3_gadget_init(struct cdns3 *cdns)
+static int __cdns3_gadget_init(struct cdns *cdns)
 {
 	int ret = 0;
 
@@ -3251,7 +3251,7 @@ static int __cdns3_gadget_init(struct cdns3 *cdns)
 		return ret;
 	}
 
-	cdns3_drd_gadget_on(cdns);
+	cdns_drd_gadget_on(cdns);
 	pm_runtime_get_sync(cdns->dev);
 
 	ret = cdns3_gadget_start(cdns);
@@ -3277,7 +3277,7 @@ err0:
 	return ret;
 }
 
-static int cdns3_gadget_suspend(struct cdns3 *cdns, bool do_wakeup)
+static int cdns3_gadget_suspend(struct cdns *cdns, bool do_wakeup)
 __must_hold(&cdns->lock)
 {
 	struct cdns3_device *priv_dev = cdns->gadget_dev;
@@ -3296,7 +3296,7 @@ __must_hold(&cdns->lock)
 	return 0;
 }
 
-static int cdns3_gadget_resume(struct cdns3 *cdns, bool hibernated)
+static int cdns3_gadget_resume(struct cdns *cdns, bool hibernated)
 {
 	struct cdns3_device *priv_dev = cdns->gadget_dev;
 
@@ -3311,13 +3311,13 @@ static int cdns3_gadget_resume(struct cdns3 *cdns, bool hibernated)
 /**
  * cdns3_gadget_init - initialize device structure
  *
- * @cdns: cdns3 instance
+ * @cdns: cdns instance
  *
  * This function initializes the gadget.
  */
-int cdns3_gadget_init(struct cdns3 *cdns)
+int cdns3_gadget_init(struct cdns *cdns)
 {
-	struct cdns3_role_driver *rdrv;
+	struct cdns_role_driver *rdrv;
 
 	rdrv = devm_kzalloc(cdns->dev, sizeof(*rdrv), GFP_KERNEL);
 	if (!rdrv)
@@ -3327,7 +3327,7 @@ int cdns3_gadget_init(struct cdns3 *cdns)
 	rdrv->stop	= cdns3_gadget_exit;
 	rdrv->suspend	= cdns3_gadget_suspend;
 	rdrv->resume	= cdns3_gadget_resume;
-	rdrv->state	= CDNS3_ROLE_STATE_INACTIVE;
+	rdrv->state	= CDNS_ROLE_STATE_INACTIVE;
 	rdrv->name	= "gadget";
 	cdns->roles[USB_ROLE_DEVICE] = rdrv;
 
