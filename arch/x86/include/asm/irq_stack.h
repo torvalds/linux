@@ -185,20 +185,23 @@
 			      IRQ_CONSTRAINTS, regs, vector);		\
 }
 
-static __always_inline bool irqstack_active(void)
-{
-	return __this_cpu_read(hardirq_stack_inuse);
-}
+#define ASM_CALL_SOFTIRQ						\
+	"call %P[__func]				\n"
 
-void asm_call_on_stack(void *sp, void (*func)(void), void *arg);
-
-static __always_inline void __run_on_irqstack(void (*func)(void))
-{
-	void *tos = __this_cpu_read(hardirq_stack_ptr);
-
-	__this_cpu_write(hardirq_stack_inuse, true);
-	asm_call_on_stack(tos, func, NULL);
-	__this_cpu_write(hardirq_stack_inuse, false);
+/*
+ * Macro to invoke __do_softirq on the irq stack. Contrary to the above
+ * the only check which is necessary is whether the interrupt stack is
+ * in use already.
+ */
+#define run_softirq_on_irqstack_cond()					\
+{									\
+	if (__this_cpu_read(hardirq_stack_inuse)) {			\
+		__do_softirq();						\
+	} else {							\
+		__this_cpu_write(hardirq_stack_inuse, true);		\
+		call_on_irqstack(__do_softirq, ASM_CALL_SOFTIRQ);	\
+		__this_cpu_write(hardirq_stack_inuse, false);		\
+	}								\
 }
 
 #else /* CONFIG_X86_64 */
@@ -219,29 +222,6 @@ static __always_inline void __run_on_irqstack(void (*func)(void))
 	irq_exit_rcu();							\
 }
 
-static inline bool irqstack_active(void) { return false; }
-static inline void __run_on_irqstack(void (*func)(void)) { }
 #endif /* !CONFIG_X86_64 */
-
-static __always_inline bool irq_needs_irq_stack(struct pt_regs *regs)
-{
-	if (IS_ENABLED(CONFIG_X86_32))
-		return false;
-	if (!regs)
-		return !irqstack_active();
-	return !user_mode(regs) && !irqstack_active();
-}
-
-
-static __always_inline void run_on_irqstack_cond(void (*func)(void),
-						 struct pt_regs *regs)
-{
-	lockdep_assert_irqs_disabled();
-
-	if (irq_needs_irq_stack(regs))
-		__run_on_irqstack(func);
-	else
-		func();
-}
 
 #endif
