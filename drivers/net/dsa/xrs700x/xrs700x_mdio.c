@@ -138,7 +138,7 @@ static void xrs700x_mdio_remove(struct mdio_device *mdiodev)
 	xrs700x_switch_remove(priv);
 }
 
-static const struct of_device_id xrs700x_mdio_dt_ids[] = {
+static const struct of_device_id __maybe_unused xrs700x_mdio_dt_ids[] = {
 	{ .compatible = "arrow,xrs7003e", .data = &xrs7003e_info },
 	{ .compatible = "arrow,xrs7003f", .data = &xrs7003f_info },
 	{ .compatible = "arrow,xrs7004e", .data = &xrs7004e_info },

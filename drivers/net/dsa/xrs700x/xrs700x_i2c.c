@@ -121,7 +121,7 @@ static const struct i2c_device_id xrs700x_i2c_id[] = {
 
 MODULE_DEVICE_TABLE(i2c, xrs700x_i2c_id);
 
-static const struct of_device_id xrs700x_i2c_dt_ids[] = {
+static const struct of_device_id __maybe_unused xrs700x_i2c_dt_ids[] = {
 	{ .compatible = "arrow,xrs7003e", .data = &xrs7003e_info },
 	{ .compatible = "arrow,xrs7003f", .data = &xrs7003f_info },
 	{ .compatible = "arrow,xrs7004e", .data = &xrs7004e_info },
