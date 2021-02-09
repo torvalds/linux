@@ -2298,6 +2298,7 @@ static int cdns_torrent_phy_probe(struct platform_device *pdev)
 
 	if (total_num_lanes > MAX_NUM_LANES) {
 		dev_err(dev, "Invalid lane configuration\n");
+		ret = -EINVAL;
 		goto put_lnk_rst;
 	}
 
