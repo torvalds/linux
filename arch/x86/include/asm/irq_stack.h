@@ -162,14 +162,35 @@
 			      SYSVEC_CONSTRAINTS, regs);		\
 }
 
+/*
+ * As in ASM_CALL_SYSVEC above the clobbers force the compiler to store
+ * @regs and @vector in callee saved registers.
+ */
+#define ASM_CALL_IRQ							\
+	"call irq_enter_rcu				\n"		\
+	"movq	%[arg1], %%rdi				\n"		\
+	"movl	%[arg2], %%esi				\n"		\
+	"call %P[__func]				\n"		\
+	"call irq_exit_rcu				\n"
+
+#define IRQ_CONSTRAINTS	, [arg1] "r" (regs), [arg2] "r" (vector)
+
+#define run_irq_on_irqstack_cond(func, regs, vector)			\
+{									\
+	assert_function_type(func, void (*)(struct pt_regs *, u32));	\
+	assert_arg_type(regs, struct pt_regs *);			\
+	assert_arg_type(vector, u32);					\
+									\
+	call_on_irqstack_cond(func, regs, ASM_CALL_IRQ,			\
+			      IRQ_CONSTRAINTS, regs, vector);		\
+}
+
 static __always_inline bool irqstack_active(void)
 {
 	return __this_cpu_read(hardirq_stack_inuse);
 }
 
 void asm_call_on_stack(void *sp, void (*func)(void), void *arg);
-void asm_call_irq_on_stack(void *sp, void (*func)(struct irq_desc *desc),
-			   struct irq_desc *desc);
 
 static __always_inline void __run_on_irqstack(void (*func)(void))
 {
@@ -177,17 +198,6 @@ static __always_inline void __run_on_irqstack(void (*func)(void))
 
 	__this_cpu_write(hardirq_stack_inuse, true);
 	asm_call_on_stack(tos, func, NULL);
-	__this_cpu_write(hardirq_stack_inuse, false);
-}
-
-static __always_inline void
-__run_irq_on_irqstack(void (*func)(struct irq_desc *desc),
-		      struct irq_desc *desc)
-{
-	void *tos = __this_cpu_read(hardirq_stack_ptr);
-
-	__this_cpu_write(hardirq_stack_inuse, true);
-	asm_call_irq_on_stack(tos, func, desc);
 	__this_cpu_write(hardirq_stack_inuse, false);
 }
 
@@ -201,10 +211,16 @@ __run_irq_on_irqstack(void (*func)(struct irq_desc *desc),
 	irq_exit_rcu();							\
 }
 
+/* Switches to the irq stack within func() */
+#define run_irq_on_irqstack_cond(func, regs, vector)			\
+{									\
+	irq_enter_rcu();						\
+	func(regs, vector);						\
+	irq_exit_rcu();							\
+}
+
 static inline bool irqstack_active(void) { return false; }
 static inline void __run_on_irqstack(void (*func)(void)) { }
-static inline void __run_irq_on_irqstack(void (*func)(struct irq_desc *desc),
-					 struct irq_desc *desc) { }
 #endif /* !CONFIG_X86_64 */
 
 static __always_inline bool irq_needs_irq_stack(struct pt_regs *regs)
@@ -226,18 +242,6 @@ static __always_inline void run_on_irqstack_cond(void (*func)(void),
 		__run_on_irqstack(func);
 	else
 		func();
-}
-
-static __always_inline void
-run_irq_on_irqstack_cond(void (*func)(struct irq_desc *desc), struct irq_desc *desc,
-			 struct pt_regs *regs)
-{
-	lockdep_assert_irqs_disabled();
-
-	if (irq_needs_irq_stack(regs))
-		__run_irq_on_irqstack(func, desc);
-	else
-		func(desc);
 }
 
 #endif
