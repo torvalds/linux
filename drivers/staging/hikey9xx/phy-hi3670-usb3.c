@@ -585,7 +585,7 @@ out:
 	return ret;
 }
 
-static struct phy_ops hi3670_phy_ops = {
+static const struct phy_ops hi3670_phy_ops = {
 	.init		= hi3670_phy_init,
 	.exit		= hi3670_phy_exit,
 	.owner		= THIS_MODULE,
