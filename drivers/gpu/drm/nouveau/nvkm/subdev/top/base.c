@@ -118,24 +118,6 @@ nvkm_top_fault(struct nvkm_device *device, int fault)
 	return NVKM_SUBDEV_NR;
 }
 
-enum nvkm_devidx
-nvkm_top_engine(struct nvkm_device *device, int index, int *runl, int *engn)
-{
-	struct nvkm_top *top = device->top;
-	struct nvkm_top_device *info;
-	int n = 0;
-
-	list_for_each_entry(info, &top->device, head) {
-		if (info->engine >= 0 && info->runlist >= 0 && n++ == index) {
-			*runl = info->runlist;
-			*engn = info->engine;
-			return info->index;
-		}
-	}
-
-	return -ENODEV;
-}
-
 static int
 nvkm_top_oneinit(struct nvkm_subdev *subdev)
 {

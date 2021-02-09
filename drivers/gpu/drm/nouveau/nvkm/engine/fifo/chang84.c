@@ -220,20 +220,20 @@ g84_fifo_chan_ctor(struct nv50_fifo *fifo, u64 vmm, u64 push,
 
 	ret = nvkm_fifo_chan_ctor(&g84_fifo_chan_func, &fifo->base,
 				  0x10000, 0x1000, false, vmm, push,
-				  (1ULL << NVKM_ENGINE_BSP) |
-				  (1ULL << NVKM_ENGINE_CE0) |
-				  (1ULL << NVKM_ENGINE_CIPHER) |
-				  (1ULL << NVKM_ENGINE_DMAOBJ) |
-				  (1ULL << NVKM_ENGINE_GR) |
-				  (1ULL << NVKM_ENGINE_ME) |
-				  (1ULL << NVKM_ENGINE_MPEG) |
-				  (1ULL << NVKM_ENGINE_MSPDEC) |
-				  (1ULL << NVKM_ENGINE_MSPPP) |
-				  (1ULL << NVKM_ENGINE_MSVLD) |
-				  (1ULL << NVKM_ENGINE_SEC) |
-				  (1ULL << NVKM_ENGINE_SW) |
-				  (1ULL << NVKM_ENGINE_VIC) |
-				  (1ULL << NVKM_ENGINE_VP),
+				  BIT(G84_FIFO_ENGN_SW) |
+				  BIT(G84_FIFO_ENGN_GR) |
+				  BIT(G84_FIFO_ENGN_MPEG) |
+				  BIT(G84_FIFO_ENGN_MSPPP) |
+				  BIT(G84_FIFO_ENGN_ME) |
+				  BIT(G84_FIFO_ENGN_CE0) |
+				  BIT(G84_FIFO_ENGN_VP) |
+				  BIT(G84_FIFO_ENGN_MSPDEC) |
+				  BIT(G84_FIFO_ENGN_CIPHER) |
+				  BIT(G84_FIFO_ENGN_SEC) |
+				  BIT(G84_FIFO_ENGN_VIC) |
+				  BIT(G84_FIFO_ENGN_BSP) |
+				  BIT(G84_FIFO_ENGN_MSVLD) |
+				  BIT(G84_FIFO_ENGN_DMA),
 				  0, 0xc00000, 0x2000, oclass, &chan->base);
 	chan->fifo = fifo;
 	if (ret)

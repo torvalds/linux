@@ -248,10 +248,10 @@ nv50_fifo_chan_ctor(struct nv50_fifo *fifo, u64 vmm, u64 push,
 
 	ret = nvkm_fifo_chan_ctor(&nv50_fifo_chan_func, &fifo->base,
 				  0x10000, 0x1000, false, vmm, push,
-				  (1ULL << NVKM_ENGINE_DMAOBJ) |
-				  (1ULL << NVKM_ENGINE_SW) |
-				  (1ULL << NVKM_ENGINE_GR) |
-				  (1ULL << NVKM_ENGINE_MPEG),
+				  BIT(NV50_FIFO_ENGN_SW) |
+				  BIT(NV50_FIFO_ENGN_GR) |
+				  BIT(NV50_FIFO_ENGN_MPEG) |
+				  BIT(NV50_FIFO_ENGN_DMA),
 				  0, 0xc00000, 0x2000, oclass, &chan->base);
 	chan->fifo = fifo;
 	if (ret)

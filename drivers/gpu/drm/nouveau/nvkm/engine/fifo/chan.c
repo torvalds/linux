@@ -212,13 +212,12 @@ nvkm_fifo_chan_child_get(struct nvkm_object *object, int index,
 {
 	struct nvkm_fifo_chan *chan = nvkm_fifo_chan(object);
 	struct nvkm_fifo *fifo = chan->fifo;
-	struct nvkm_device *device = fifo->engine.subdev.device;
 	struct nvkm_engine *engine;
-	u64 mask = chan->engines;
-	int ret, i, c;
+	u32 engm = chan->engm;
+	int engi, ret, c;
 
-	for (; c = 0, i = __ffs64(mask), mask; mask &= ~(1ULL << i)) {
-		if (!(engine = nvkm_device_engine(device, i, 0)))
+	for (; c = 0, engi = __ffs(engm), engm; engm &= ~(1ULL << engi)) {
+		if (!(engine = fifo->func->id_engine(fifo, engi)))
 			continue;
 		oclass->engine = engine;
 		oclass->base.oclass = 0;
@@ -361,7 +360,7 @@ nvkm_fifo_chan_func = {
 int
 nvkm_fifo_chan_ctor(const struct nvkm_fifo_chan_func *func,
 		    struct nvkm_fifo *fifo, u32 size, u32 align, bool zero,
-		    u64 hvmm, u64 push, u64 engines, int bar, u32 base,
+		    u64 hvmm, u64 push, u32 engm, int bar, u32 base,
 		    u32 user, const struct nvkm_oclass *oclass,
 		    struct nvkm_fifo_chan *chan)
 {
@@ -374,7 +373,7 @@ nvkm_fifo_chan_ctor(const struct nvkm_fifo_chan_func *func,
 	nvkm_object_ctor(&nvkm_fifo_chan_func, oclass, &chan->object);
 	chan->func = func;
 	chan->fifo = fifo;
-	chan->engines = engines;
+	chan->engm = engm;
 	INIT_LIST_HEAD(&chan->head);
 
 	/* instance memory */

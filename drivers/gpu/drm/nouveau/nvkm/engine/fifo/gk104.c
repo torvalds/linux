@@ -915,8 +915,8 @@ gk104_fifo_oneinit(struct nvkm_fifo *base)
 	struct nvkm_subdev *subdev = &fifo->base.engine.subdev;
 	struct nvkm_device *device = subdev->device;
 	struct nvkm_vmm *bar = nvkm_bar_bar1_vmm(device);
-	int engn, runl, pbid, ret, i, j;
-	enum nvkm_devidx engidx;
+	struct nvkm_top_device *tdev;
+	int pbid, ret, i, j;
 	u32 *map;
 
 	fifo->pbdma_nr = fifo->func->pbdma->nr(fifo);
@@ -930,25 +930,41 @@ gk104_fifo_oneinit(struct nvkm_fifo *base)
 		map[i] = nvkm_rd32(device, 0x002390 + (i * 0x04));
 
 	/* Determine runlist configuration from topology device info. */
-	i = 0;
-	while ((int)(engidx = nvkm_top_engine(device, i++, &runl, &engn)) >= 0) {
+	list_for_each_entry(tdev, &device->top->device, head) {
+		const int engn = tdev->engine;
+		char _en[16], *en;
+
+		if (engn < 0)
+			continue;
+
 		/* Determine which PBDMA handles requests for this engine. */
 		for (j = 0, pbid = -1; j < fifo->pbdma_nr; j++) {
-			if (map[j] & (1 << runl)) {
+			if (map[j] & BIT(tdev->runlist)) {
 				pbid = j;
 				break;
 			}
 		}
 
-		nvkm_debug(subdev, "engine %2d: runlist %2d pbdma %2d (%s)\n",
-			   engn, runl, pbid, nvkm_subdev_type[engidx]);
+		fifo->engine[engn].engine = nvkm_device_engine(device, tdev->type, tdev->inst);
+		if (!fifo->engine[engn].engine) {
+			snprintf(_en, sizeof(_en), "%s, %d",
+				 nvkm_subdev_type[tdev->type], tdev->inst);
+			en = _en;
+		} else {
+			en = fifo->engine[engn].engine->subdev.name;
+		}
 
-		fifo->engine[engn].engine = nvkm_device_engine(device, engidx, 0);
-		fifo->engine[engn].runl = runl;
+		nvkm_debug(subdev, "engine %2d: runlist %2d pbdma %2d (%s)\n",
+			   tdev->engine, tdev->runlist, pbid, en);
+
+		fifo->engine[engn].runl = tdev->runlist;
 		fifo->engine[engn].pbid = pbid;
 		fifo->engine_nr = max(fifo->engine_nr, engn + 1);
-		fifo->runlist[runl].engm |= 1 << engn;
-		fifo->runlist_nr = max(fifo->runlist_nr, runl + 1);
+		fifo->runlist[tdev->runlist].engm |= BIT(engn);
+		fifo->runlist[tdev->runlist].engm_sw |= BIT(engn);
+		if (tdev->type == NVKM_ENGINE_GR)
+			fifo->runlist[tdev->runlist].engm_sw |= BIT(GK104_FIFO_ENGN_SW);
+		fifo->runlist_nr = max(fifo->runlist_nr, tdev->runlist + 1);
 	}
 
 	kfree(map);

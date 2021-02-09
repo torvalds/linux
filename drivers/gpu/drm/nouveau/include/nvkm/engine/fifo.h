@@ -18,7 +18,7 @@ struct nvkm_fifo_engn {
 struct nvkm_fifo_chan {
 	const struct nvkm_fifo_chan_func *func;
 	struct nvkm_fifo *fifo;
-	u64 engines;
+	u32 engm;
 	struct nvkm_object object;
 
 	struct list_head head;

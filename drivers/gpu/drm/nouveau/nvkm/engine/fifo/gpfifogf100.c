@@ -251,13 +251,13 @@ gf100_fifo_gpfifo_new(struct nvkm_fifo *base, const struct nvkm_oclass *oclass,
 
 	ret = nvkm_fifo_chan_ctor(&gf100_fifo_gpfifo_func, &fifo->base,
 				  0x1000, 0x1000, true, args->v0.vmm, 0,
-				  (1ULL << NVKM_ENGINE_CE0) |
-				  (1ULL << NVKM_ENGINE_CE1) |
-				  (1ULL << NVKM_ENGINE_GR) |
-				  (1ULL << NVKM_ENGINE_MSPDEC) |
-				  (1ULL << NVKM_ENGINE_MSPPP) |
-				  (1ULL << NVKM_ENGINE_MSVLD) |
-				  (1ULL << NVKM_ENGINE_SW),
+				  BIT(GF100_FIFO_ENGN_GR) |
+				  BIT(GF100_FIFO_ENGN_MSPDEC) |
+				  BIT(GF100_FIFO_ENGN_MSPPP) |
+				  BIT(GF100_FIFO_ENGN_MSVLD) |
+				  BIT(GF100_FIFO_ENGN_CE0) |
+				  BIT(GF100_FIFO_ENGN_CE1) |
+				  BIT(GF100_FIFO_ENGN_SW),
 				  1, fifo->user.bar->addr, 0x1000,
 				  oclass, &chan->base);
 	if (ret)

@@ -35,6 +35,7 @@ struct gk104_fifo {
 		struct list_head cgrp;
 		struct list_head chan;
 		u32 engm;
+		u32 engm_sw;
 	} runlist[16];
 	int runlist_nr;
 

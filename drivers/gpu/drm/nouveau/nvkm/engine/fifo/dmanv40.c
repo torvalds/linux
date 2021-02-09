@@ -217,10 +217,10 @@ nv40_fifo_dma_new(struct nvkm_fifo *base, const struct nvkm_oclass *oclass,
 
 	ret = nvkm_fifo_chan_ctor(&nv40_fifo_dma_func, &fifo->base,
 				  0x1000, 0x1000, false, 0, args->v0.pushbuf,
-				  (1ULL << NVKM_ENGINE_DMAOBJ) |
-				  (1ULL << NVKM_ENGINE_GR) |
-				  (1ULL << NVKM_ENGINE_MPEG) |
-				  (1ULL << NVKM_ENGINE_SW),
+				  BIT(NV04_FIFO_ENGN_SW) |
+				  BIT(NV04_FIFO_ENGN_GR) |
+				  BIT(NV04_FIFO_ENGN_MPEG) |
+				  BIT(NV04_FIFO_ENGN_DMA),
 				  0, 0xc00000, 0x1000, oclass, &chan->base);
 	chan->fifo = fifo;
 	if (ret)

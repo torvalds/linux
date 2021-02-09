@@ -255,22 +255,11 @@ gk104_fifo_gpfifo_new_(struct gk104_fifo *fifo, u64 *runlists, u16 *chid,
 {
 	struct gk104_fifo_chan *chan;
 	int runlist = ffs(*runlists) -1, ret, i;
-	unsigned long engm;
-	u64 subdevs = 0;
 	u64 usermem;
 
 	if (!vmm || runlist < 0 || runlist >= fifo->runlist_nr)
 		return -EINVAL;
 	*runlists = BIT_ULL(runlist);
-
-	engm = fifo->runlist[runlist].engm;
-	for_each_set_bit(i, &engm, fifo->engine_nr) {
-		if (fifo->engine[i].engine)
-			subdevs |= BIT_ULL(fifo->engine[i].engine->subdev.index);
-	}
-
-	if (subdevs & BIT_ULL(NVKM_ENGINE_GR))
-		subdevs |= BIT_ULL(NVKM_ENGINE_SW);
 
 	/* Allocate the channel. */
 	if (!(chan = kzalloc(sizeof(*chan), GFP_KERNEL)))
@@ -281,7 +270,7 @@ gk104_fifo_gpfifo_new_(struct gk104_fifo *fifo, u64 *runlists, u16 *chid,
 	INIT_LIST_HEAD(&chan->head);
 
 	ret = nvkm_fifo_chan_ctor(&gk104_fifo_gpfifo_func, &fifo->base,
-				  0x1000, 0x1000, true, vmm, 0, subdevs,
+				  0x1000, 0x1000, true, vmm, 0, fifo->runlist[runlist].engm_sw,
 				  1, fifo->user.bar->addr, 0x200,
 				  oclass, &chan->base);
 	if (ret)
