@@ -14,6 +14,9 @@
 	interrupt-parent = <&gic>;
 
 	aliases {
+		mmc0 = &sdmmc;
+		mmc1 = &sdio;
+		mmc2 = &emmc;
 		serial0 = &uart0;
 		serial1 = &uart1;
 		serial2 = &uart2;
@@ -92,24 +95,6 @@
 		opp-1200000000 {
 			opp-hz = /bits/ 64 <1200000000>;
 			opp-microvolt = <1275000>;
-		};
-	};
-
-	amba: bus {
-		compatible = "simple-bus";
-		#address-cells = <1>;
-		#size-cells = <1>;
-		ranges;
-
-		pdma: pdma@110f0000 {
-			compatible = "arm,pl330", "arm,primecell";
-			reg = <0x110f0000 0x4000>;
-			interrupts = <GIC_SPI 0 IRQ_TYPE_LEVEL_HIGH>,
-				     <GIC_SPI 1 IRQ_TYPE_LEVEL_HIGH>;
-			#dma-cells = <1>;
-			arm,pl330-periph-burst;
-			clocks = <&cru ACLK_DMAC>;
-			clock-names = "apb_pclk";
 		};
 	};
 
@@ -462,6 +447,17 @@
 			<150000000>, <75000000>,
 			<150000000>, <150000000>,
 			<75000000>;
+	};
+
+	pdma: pdma@110f0000 {
+		compatible = "arm,pl330", "arm,primecell";
+		reg = <0x110f0000 0x4000>;
+		interrupts = <GIC_SPI 0 IRQ_TYPE_LEVEL_HIGH>,
+			     <GIC_SPI 1 IRQ_TYPE_LEVEL_HIGH>;
+		#dma-cells = <1>;
+		arm,pl330-periph-burst;
+		clocks = <&cru ACLK_DMAC>;
+		clock-names = "apb_pclk";
 	};
 
 	thermal-zones {
