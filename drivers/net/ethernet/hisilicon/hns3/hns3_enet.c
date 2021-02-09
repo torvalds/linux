@@ -32,7 +32,7 @@
 #define CREATE_TRACE_POINTS
 #include "hns3_trace.h"
 
-#define hns3_set_field(origin, shift, val)	((origin) |= ((val) << (shift)))
+#define hns3_set_field(origin, shift, val)	((origin) |= (val) << (shift))
 #define hns3_tx_bd_count(S)	DIV_ROUND_UP(S, HNS3_MAX_BD_SIZE)
 
 #define hns3_rl_err(fmt, ...)						\

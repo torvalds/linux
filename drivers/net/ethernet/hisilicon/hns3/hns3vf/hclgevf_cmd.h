@@ -315,9 +315,9 @@ static inline u32 hclgevf_read_reg(u8 __iomem *base, u32 reg)
 }
 
 #define hclgevf_write_dev(a, reg, value) \
-	hclgevf_write_reg((a)->io_base, (reg), (value))
+	hclgevf_write_reg((a)->io_base, reg, value)
 #define hclgevf_read_dev(a, reg) \
-	hclgevf_read_reg((a)->io_base, (reg))
+	hclgevf_read_reg((a)->io_base, reg)
 
 #define HCLGEVF_SEND_SYNC(flag) \
 	((flag) & HCLGEVF_CMD_FLAG_NO_INTR)

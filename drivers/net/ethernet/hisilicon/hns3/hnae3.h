@@ -272,7 +272,7 @@ struct hnae3_ring_chain_node {
 };
 
 #define HNAE3_IS_TX_RING(node) \
-	(((node)->flag & (1 << HNAE3_RING_TYPE_B)) == HNAE3_RING_TYPE_TX)
+	(((node)->flag & 1 << HNAE3_RING_TYPE_B) == HNAE3_RING_TYPE_TX)
 
 /* device specification info from firmware */
 struct hnae3_dev_specs {
@@ -775,9 +775,9 @@ struct hnae3_handle {
 #define hnae3_get_field(origin, mask, shift) (((origin) & (mask)) >> (shift))
 
 #define hnae3_set_bit(origin, shift, val) \
-	hnae3_set_field((origin), (0x1 << (shift)), (shift), (val))
+	hnae3_set_field(origin, 0x1 << (shift), shift, val)
 #define hnae3_get_bit(origin, shift) \
-	hnae3_get_field((origin), (0x1 << (shift)), (shift))
+	hnae3_get_field(origin, 0x1 << (shift), shift)
 
 #define HNAE3_DBG_TM_NODES		"tm_nodes"
 #define HNAE3_DBG_TM_PRI		"tm_priority"

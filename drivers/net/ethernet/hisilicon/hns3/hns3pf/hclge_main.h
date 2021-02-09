@@ -728,7 +728,7 @@ struct hclge_vf_vlan_cfg {
  *	x = (~k) & v
  *	y = (k ^ ~v) & k
  */
-#define calc_x(x, k, v) ((x) = (~(k) & (v)))
+#define calc_x(x, k, v) (x = ~(k) & (v))
 #define calc_y(y, k, v) \
 	do { \
 		const typeof(k) _k_ = (k); \
