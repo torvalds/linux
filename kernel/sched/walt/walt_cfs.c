@@ -662,11 +662,16 @@ static void
 walt_select_task_rq_fair(void *unused, struct task_struct *p, int prev_cpu,
 				int sd_flag, int wake_flags, int *target_cpu)
 {
-	int sync = (wake_flags & WF_SYNC) && !(current->flags & PF_EXITING);
-	int sibling_count_hint = 1;
+	int sync;
+	int sibling_count_hint;
 
 	if (static_branch_unlikely(&walt_disabled))
 		return;
+
+	sync = (wake_flags & WF_SYNC) && !(current->flags & PF_EXITING);
+	sibling_count_hint = p->wake_q_count;
+	p->wake_q_count = 0;
+
 	*target_cpu = walt_find_energy_efficient_cpu(p, prev_cpu, sync, sibling_count_hint);
 	if (unlikely(*target_cpu < 0))
 		*target_cpu = prev_cpu;
