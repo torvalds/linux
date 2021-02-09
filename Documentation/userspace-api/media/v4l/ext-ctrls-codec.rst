@@ -3719,7 +3719,9 @@ enum v4l2_mpeg_video_hevc_size_of_length_field -
     * - ``V4L2_MPEG_VIDEO_HEVC_START_CODE_NONE``
       - 0
       - Selecting this value specifies that HEVC slices are passed
-        to the driver without any start code.
+        to the driver without any start code. The bitstream data should be
+        according to :ref:`hevc` 7.3.1.1 General NAL unit syntax, hence
+        contains emulation prevention bytes when required.
     * - ``V4L2_MPEG_VIDEO_HEVC_START_CODE_ANNEX_B``
       - 1
       - Selecting this value specifies that HEVC slices are expected

@@ -769,7 +769,9 @@ Stateless Codec Control ID
     * - ``V4L2_STATELESS_H264_START_CODE_NONE``
       - 0
       - Selecting this value specifies that H264 slices are passed
-        to the driver without any start code.
+        to the driver without any start code. The bitstream data should be
+        according to :ref:`h264` 7.3.1 NAL unit syntax, hence contains
+        emulation prevention bytes when required.
     * - ``V4L2_STATELESS_H264_START_CODE_ANNEX_B``
       - 1
       - Selecting this value specifies that H264 slices are expected
