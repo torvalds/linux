@@ -1157,6 +1157,68 @@ static int otx2_get_link_ksettings(struct net_device *netdev,
 	return 0;
 }
 
+static void otx2_get_advertised_mode(const struct ethtool_link_ksettings *cmd,
+				     u64 *mode)
+{
+	u32 bit_pos;
+
+	/* Firmware does not support requesting multiple advertised modes
+	 * return first set bit
+	 */
+	bit_pos = find_first_bit(cmd->link_modes.advertising,
+				 __ETHTOOL_LINK_MODE_MASK_NBITS);
+	if (bit_pos != __ETHTOOL_LINK_MODE_MASK_NBITS)
+		*mode = bit_pos;
+}
+
+static int otx2_set_link_ksettings(struct net_device *netdev,
+				   const struct ethtool_link_ksettings *cmd)
+{
+	struct otx2_nic *pf = netdev_priv(netdev);
+	struct ethtool_link_ksettings cur_ks;
+	struct cgx_set_link_mode_req *req;
+	struct mbox *mbox = &pf->mbox;
+	int err = 0;
+
+	memset(&cur_ks, 0, sizeof(struct ethtool_link_ksettings));
+
+	if (!ethtool_validate_speed(cmd->base.speed) ||
+	    !ethtool_validate_duplex(cmd->base.duplex))
+		return -EINVAL;
+
+	if (cmd->base.autoneg != AUTONEG_ENABLE &&
+	    cmd->base.autoneg != AUTONEG_DISABLE)
+		return -EINVAL;
+
+	otx2_get_link_ksettings(netdev, &cur_ks);
+
+	/* Check requested modes against supported modes by hardware */
+	if (!bitmap_subset(cmd->link_modes.advertising,
+			   cur_ks.link_modes.supported,
+			   __ETHTOOL_LINK_MODE_MASK_NBITS))
+		return -EINVAL;
+
+	mutex_lock(&mbox->lock);
+	req = otx2_mbox_alloc_msg_cgx_set_link_mode(&pf->mbox);
+	if (!req) {
+		err = -ENOMEM;
+		goto end;
+	}
+
+	req->args.speed = cmd->base.speed;
+	/* firmware expects 1 for half duplex and 0 for full duplex
+	 * hence inverting
+	 */
+	req->args.duplex = cmd->base.duplex ^ 0x1;
+	req->args.an = cmd->base.autoneg;
+	otx2_get_advertised_mode(cmd, &req->args.mode);
+
+	err = otx2_sync_mbox_msg(&pf->mbox);
+end:
+	mutex_unlock(&mbox->lock);
+	return err;
+}
+
 static const struct ethtool_ops otx2_ethtool_ops = {
 	.supported_coalesce_params = ETHTOOL_COALESCE_USECS |
 				     ETHTOOL_COALESCE_MAX_FRAMES,
@@ -1187,6 +1249,7 @@ static const struct ethtool_ops otx2_ethtool_ops = {
 	.get_fecparam		= otx2_get_fecparam,
 	.set_fecparam		= otx2_set_fecparam,
 	.get_link_ksettings     = otx2_get_link_ksettings,
+	.set_link_ksettings     = otx2_set_link_ksettings,
 };
 
 void otx2_set_ethtool_ops(struct net_device *netdev)
