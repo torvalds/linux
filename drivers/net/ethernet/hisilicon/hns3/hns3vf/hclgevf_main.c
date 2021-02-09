@@ -180,7 +180,7 @@ static u8 *hclgevf_tqps_get_strings(struct hnae3_handle *handle, u8 *data)
 	for (i = 0; i < kinfo->num_tqps; i++) {
 		struct hclgevf_tqp *tqp = container_of(kinfo->tqp[i],
 						       struct hclgevf_tqp, q);
-		snprintf(buff, ETH_GSTRING_LEN, "txq%d_pktnum_rcd",
+		snprintf(buff, ETH_GSTRING_LEN, "txq%u_pktnum_rcd",
 			 tqp->index);
 		buff += ETH_GSTRING_LEN;
 	}
@@ -188,7 +188,7 @@ static u8 *hclgevf_tqps_get_strings(struct hnae3_handle *handle, u8 *data)
 	for (i = 0; i < kinfo->num_tqps; i++) {
 		struct hclgevf_tqp *tqp = container_of(kinfo->tqp[i],
 						       struct hclgevf_tqp, q);
-		snprintf(buff, ETH_GSTRING_LEN, "rxq%d_pktnum_rcd",
+		snprintf(buff, ETH_GSTRING_LEN, "rxq%u_pktnum_rcd",
 			 tqp->index);
 		buff += ETH_GSTRING_LEN;
 	}
@@ -658,8 +658,9 @@ static int hclgevf_set_rss_indir_table(struct hclgevf_dev *hdev)
 	for (i = 0; i < rss_cfg_tbl_num; i++) {
 		hclgevf_cmd_setup_basic_desc(&desc, HCLGEVF_OPC_RSS_INDIR_TABLE,
 					     false);
-		req->start_table_index = i * HCLGEVF_RSS_CFG_TBL_SIZE;
-		req->rss_set_bitmap = HCLGEVF_RSS_SET_BITMAP_MSK;
+		req->start_table_index =
+			cpu_to_le16(i * HCLGEVF_RSS_CFG_TBL_SIZE);
+		req->rss_set_bitmap = cpu_to_le16(HCLGEVF_RSS_SET_BITMAP_MSK);
 		for (j = 0; j < HCLGEVF_RSS_CFG_TBL_SIZE; j++)
 			req->rss_result[j] =
 				indir[i * HCLGEVF_RSS_CFG_TBL_SIZE + j];
@@ -700,12 +701,16 @@ static int hclgevf_set_rss_tc_mode(struct hclgevf_dev *hdev,  u16 rss_size)
 
 	hclgevf_cmd_setup_basic_desc(&desc, HCLGEVF_OPC_RSS_TC_MODE, false);
 	for (i = 0; i < HCLGEVF_MAX_TC_NUM; i++) {
-		hnae3_set_bit(req->rss_tc_mode[i], HCLGEVF_RSS_TC_VALID_B,
+		u16 mode = 0;
+
+		hnae3_set_bit(mode, HCLGEVF_RSS_TC_VALID_B,
 			      (tc_valid[i] & 0x1));
-		hnae3_set_field(req->rss_tc_mode[i], HCLGEVF_RSS_TC_SIZE_M,
+		hnae3_set_field(mode, HCLGEVF_RSS_TC_SIZE_M,
 				HCLGEVF_RSS_TC_SIZE_S, tc_size[i]);
-		hnae3_set_field(req->rss_tc_mode[i], HCLGEVF_RSS_TC_OFFSET_M,
+		hnae3_set_field(mode, HCLGEVF_RSS_TC_OFFSET_M,
 				HCLGEVF_RSS_TC_OFFSET_S, tc_offset[i]);
+
+		req->rss_tc_mode[i] = cpu_to_le16(mode);
 	}
 	status = hclgevf_cmd_send(&hdev->hw, &desc, 1);
 	if (status)

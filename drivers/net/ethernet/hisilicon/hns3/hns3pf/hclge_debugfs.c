@@ -696,17 +696,16 @@ static void hclge_dbg_dump_tm_map(struct hclge_dev *hdev,
 	u32 qset_mapping[HCLGE_BP_EXT_GRP_NUM];
 	struct hclge_qs_to_pri_link_cmd *map;
 	struct hclge_tqp_tx_queue_tc_cmd *tc;
+	u16 group_id, queue_id, qset_id;
 	enum hclge_opcode_type cmd;
+	u8 grp_num, pri_id, tc_id;
 	struct hclge_desc desc;
-	int queue_id, group_id;
-	int tc_id, qset_id;
-	int pri_id, ret;
 	u16 qs_id_l;
 	u16 qs_id_h;
-	u8 grp_num;
+	int ret;
 	u32 i;
 
-	ret = kstrtouint(cmd_buf, 0, &queue_id);
+	ret = kstrtou16(cmd_buf, 0, &queue_id);
 	queue_id = (ret != 0) ? 0 : queue_id;
 
 	cmd = HCLGE_OPC_TM_NQ_TO_QS_LINK;
@@ -754,7 +753,7 @@ static void hclge_dbg_dump_tm_map(struct hclge_dev *hdev,
 	tc_id = tc->tc_id & 0x7;
 
 	dev_info(&hdev->pdev->dev, "queue_id | qset_id | pri_id | tc_id\n");
-	dev_info(&hdev->pdev->dev, "%04d     | %04d    | %02d     | %02d\n",
+	dev_info(&hdev->pdev->dev, "%04u     | %04u    | %02u     | %02u\n",
 		 queue_id, qset_id, pri_id, tc_id);
 
 	if (!hnae3_dev_dcb_supported(hdev)) {

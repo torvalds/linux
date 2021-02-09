@@ -162,7 +162,7 @@ static int hns3_dbg_queue_map(struct hnae3_handle *h)
 			continue;
 
 		dev_info(&h->pdev->dev,
-			 "      %4d            %4d            %4d\n",
+			 "      %4d            %4u            %4d\n",
 			 i, global_qid, priv->ring[i].tqp_vector->vector_irq);
 	}
 

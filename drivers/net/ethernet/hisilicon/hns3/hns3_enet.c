@@ -32,7 +32,7 @@
 #define CREATE_TRACE_POINTS
 #include "hns3_trace.h"
 
-#define hns3_set_field(origin, shift, val)	((origin) |= ((val) << (shift)))
+#define hns3_set_field(origin, shift, val)	((origin) |= (val) << (shift))
 #define hns3_tx_bd_count(S)	DIV_ROUND_UP(S, HNS3_MAX_BD_SIZE)
 
 #define hns3_rl_err(fmt, ...)						\
@@ -2329,7 +2329,7 @@ static pci_ers_result_t hns3_error_detected(struct pci_dev *pdev,
 	struct hnae3_ae_dev *ae_dev = pci_get_drvdata(pdev);
 	pci_ers_result_t ret;
 
-	dev_info(&pdev->dev, "PCI error detected, state(=%d)!!\n", state);
+	dev_info(&pdev->dev, "PCI error detected, state(=%u)!!\n", state);
 
 	if (state == pci_channel_io_perm_failure)
 		return PCI_ERS_RESULT_DISCONNECT;
@@ -4084,7 +4084,7 @@ out_when_alloc_ring_memory:
 	return -ENOMEM;
 }
 
-int hns3_uninit_all_ring(struct hns3_nic_priv *priv)
+static void hns3_uninit_all_ring(struct hns3_nic_priv *priv)
 {
 	struct hnae3_handle *h = priv->ae_handle;
 	int i;
@@ -4093,7 +4093,6 @@ int hns3_uninit_all_ring(struct hns3_nic_priv *priv)
 		hns3_fini_ring(&priv->ring[i]);
 		hns3_fini_ring(&priv->ring[i + h->kinfo.num_tqps]);
 	}
-	return 0;
 }
 
 /* Set mac addr if it is configured. or leave it to the AE driver */
@@ -4321,7 +4320,6 @@ static void hns3_client_uninit(struct hnae3_handle *handle, bool reset)
 {
 	struct net_device *netdev = handle->kinfo.netdev;
 	struct hns3_nic_priv *priv = netdev_priv(netdev);
-	int ret;
 
 	if (netdev->reg_state != NETREG_UNINITIALIZED)
 		unregister_netdev(netdev);
@@ -4347,9 +4345,7 @@ static void hns3_client_uninit(struct hnae3_handle *handle, bool reset)
 
 	hns3_nic_dealloc_vector_data(priv);
 
-	ret = hns3_uninit_all_ring(priv);
-	if (ret)
-		netdev_err(netdev, "uninit ring error\n");
+	hns3_uninit_all_ring(priv);
 
 	hns3_put_ring_config(priv);
 
@@ -4376,20 +4372,6 @@ static void hns3_link_status_change(struct hnae3_handle *handle, bool linkup)
 		if (netif_msg_link(handle))
 			netdev_info(netdev, "link down\n");
 	}
-}
-
-static int hns3_client_setup_tc(struct hnae3_handle *handle, u8 tc)
-{
-	struct hnae3_knic_private_info *kinfo = &handle->kinfo;
-	struct net_device *ndev = kinfo->netdev;
-
-	if (tc > HNAE3_MAX_TC)
-		return -EINVAL;
-
-	if (!ndev)
-		return -ENODEV;
-
-	return hns3_nic_set_real_num_queue(ndev);
 }
 
 static void hns3_clear_tx_ring(struct hns3_enet_ring *ring)
@@ -4676,9 +4658,7 @@ static int hns3_reset_notify_uninit_enet(struct hnae3_handle *handle)
 
 	hns3_nic_dealloc_vector_data(priv);
 
-	ret = hns3_uninit_all_ring(priv);
-	if (ret)
-		netdev_err(netdev, "uninit ring error\n");
+	hns3_uninit_all_ring(priv);
 
 	hns3_put_ring_config(priv);
 
@@ -4828,7 +4808,6 @@ static const struct hnae3_client_ops client_ops = {
 	.init_instance = hns3_client_init,
 	.uninit_instance = hns3_client_uninit,
 	.link_status_change = hns3_link_status_change,
-	.setup_tc = hns3_client_setup_tc,
 	.reset_notify = hns3_reset_notify,
 	.process_hw_error = hns3_process_hw_error,
 };

@@ -24,7 +24,7 @@
 #include "hnae3.h"
 
 #define HCLGE_NAME			"hclge"
-#define HCLGE_STATS_READ(p, offset) (*((u64 *)((u8 *)(p) + (offset))))
+#define HCLGE_STATS_READ(p, offset) (*(u64 *)((u8 *)(p) + (offset)))
 #define HCLGE_MAC_STATS_FIELD_OFF(f) (offsetof(struct hclge_mac_stats, f))
 
 #define HCLGE_BUF_SIZE_UNIT	256U
@@ -626,7 +626,7 @@ static u8 *hclge_tqps_get_strings(struct hnae3_handle *handle, u8 *data)
 	for (i = 0; i < kinfo->num_tqps; i++) {
 		struct hclge_tqp *tqp = container_of(handle->kinfo.tqp[i],
 			struct hclge_tqp, q);
-		snprintf(buff, ETH_GSTRING_LEN, "txq%d_pktnum_rcd",
+		snprintf(buff, ETH_GSTRING_LEN, "txq%u_pktnum_rcd",
 			 tqp->index);
 		buff = buff + ETH_GSTRING_LEN;
 	}
@@ -634,7 +634,7 @@ static u8 *hclge_tqps_get_strings(struct hnae3_handle *handle, u8 *data)
 	for (i = 0; i < kinfo->num_tqps; i++) {
 		struct hclge_tqp *tqp = container_of(kinfo->tqp[i],
 			struct hclge_tqp, q);
-		snprintf(buff, ETH_GSTRING_LEN, "rxq%d_pktnum_rcd",
+		snprintf(buff, ETH_GSTRING_LEN, "rxq%u_pktnum_rcd",
 			 tqp->index);
 		buff = buff + ETH_GSTRING_LEN;
 	}
@@ -928,7 +928,7 @@ static int hclge_query_pf_resource(struct hclge_dev *hdev)
 	return 0;
 }
 
-static int hclge_parse_speed(int speed_cmd, int *speed)
+static int hclge_parse_speed(u8 speed_cmd, u32 *speed)
 {
 	switch (speed_cmd) {
 	case 6:
@@ -5595,7 +5595,7 @@ static int hclge_fd_check_ext_tuple(struct hclge_dev *hdev,
 		if (fs->m_ext.vlan_tci &&
 		    be16_to_cpu(fs->h_ext.vlan_tci) >= VLAN_N_VID) {
 			dev_err(&hdev->pdev->dev,
-				"failed to config vlan_tci, invalid vlan_tci: %u, max is %u.\n",
+				"failed to config vlan_tci, invalid vlan_tci: %u, max is %d.\n",
 				ntohs(fs->h_ext.vlan_tci), VLAN_N_VID - 1);
 			return -EINVAL;
 		}
@@ -10831,7 +10831,7 @@ static void hclge_reset_vf_rate(struct hclge_dev *hdev)
 	}
 }
 
-static int hclge_vf_rate_param_check(struct hclge_dev *hdev, int vf,
+static int hclge_vf_rate_param_check(struct hclge_dev *hdev,
 				     int min_tx_rate, int max_tx_rate)
 {
 	if (min_tx_rate != 0 ||
@@ -10852,7 +10852,7 @@ static int hclge_set_vf_rate(struct hnae3_handle *handle, int vf,
 	struct hclge_dev *hdev = vport->back;
 	int ret;
 
-	ret = hclge_vf_rate_param_check(hdev, vf, min_tx_rate, max_tx_rate);
+	ret = hclge_vf_rate_param_check(hdev, min_tx_rate, max_tx_rate);
 	if (ret)
 		return ret;
 
