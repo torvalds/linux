@@ -91,9 +91,10 @@ int arch_decode_instruction(const struct elf *elf, const struct section *sec,
 {
 	struct insn insn;
 	int x86_64, sign;
-	unsigned char op1, op2, rex = 0, rex_b = 0, rex_r = 0, rex_w = 0,
-		      rex_x = 0, modrm = 0, modrm_mod = 0, modrm_rm = 0,
-		      modrm_reg = 0, sib = 0;
+	unsigned char op1, op2,
+		      rex = 0, rex_b = 0, rex_r = 0, rex_w = 0, rex_x = 0,
+		      modrm = 0, modrm_mod = 0, modrm_rm = 0, modrm_reg = 0,
+		      sib = 0;
 	struct stack_op *op = NULL;
 	struct symbol *sym;
 
@@ -328,68 +329,37 @@ int arch_decode_instruction(const struct elf *elf, const struct section *sec,
 		break;
 
 	case 0x8d:
-		if (sib == 0x24 && rex_w && !rex_b && !rex_x) {
-
-			ADD_OP(op) {
-				if (!insn.displacement.value) {
-					/* lea (%rsp), reg */
-					op->src.type = OP_SRC_REG;
-				} else {
-					/* lea disp(%rsp), reg */
-					op->src.type = OP_SRC_ADD;
-					op->src.offset = insn.displacement.value;
-				}
-				op->src.reg = CFI_SP;
-				op->dest.type = OP_DEST_REG;
-				op->dest.reg = op_to_cfi_reg[modrm_reg][rex_r];
-			}
-
-		} else if (rex == 0x48 && modrm == 0x65) {
-
-			/* lea disp(%rbp), %rsp */
-			ADD_OP(op) {
-				op->src.type = OP_SRC_ADD;
-				op->src.reg = CFI_BP;
-				op->src.offset = insn.displacement.value;
-				op->dest.type = OP_DEST_REG;
-				op->dest.reg = CFI_SP;
-			}
-
-		} else if (rex == 0x49 && modrm == 0x62 &&
-			   insn.displacement.value == -8) {
-
-			/*
-			 * lea -0x8(%r10), %rsp
-			 *
-			 * Restoring rsp back to its original value after a
-			 * stack realignment.
-			 */
-			ADD_OP(op) {
-				op->src.type = OP_SRC_ADD;
-				op->src.reg = CFI_R10;
-				op->src.offset = -8;
-				op->dest.type = OP_DEST_REG;
-				op->dest.reg = CFI_SP;
-			}
-
-		} else if (rex == 0x49 && modrm == 0x65 &&
-			   insn.displacement.value == -16) {
-
-			/*
-			 * lea -0x10(%r13), %rsp
-			 *
-			 * Restoring rsp back to its original value after a
-			 * stack realignment.
-			 */
-			ADD_OP(op) {
-				op->src.type = OP_SRC_ADD;
-				op->src.reg = CFI_R13;
-				op->src.offset = -16;
-				op->dest.type = OP_DEST_REG;
-				op->dest.reg = CFI_SP;
-			}
+		if (modrm_mod == 3) {
+			WARN("invalid LEA encoding at %s:0x%lx", sec->name, offset);
+			break;
 		}
 
+		/* skip non 64bit ops */
+		if (!rex_w)
+			break;
+
+		/* skip nontrivial SIB */
+		if (modrm_rm == 4 && !(sib == 0x24 && rex_b == rex_x))
+			break;
+
+		/* skip RIP relative displacement */
+		if (modrm_rm == 5 && modrm_mod == 0)
+			break;
+
+		/* lea disp(%src), %dst */
+		ADD_OP(op) {
+			op->src.offset = insn.displacement.value;
+			if (!op->src.offset) {
+				/* lea (%src), %dst */
+				op->src.type = OP_SRC_REG;
+			} else {
+				/* lea disp(%src), %dst */
+				op->src.type = OP_SRC_ADD;
+			}
+			op->src.reg = op_to_cfi_reg[modrm_rm][rex_b];
+			op->dest.type = OP_DEST_REG;
+			op->dest.reg = op_to_cfi_reg[modrm_reg][rex_r];
+		}
 		break;
 
 	case 0x8f:
