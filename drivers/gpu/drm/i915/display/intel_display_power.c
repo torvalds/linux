@@ -5317,17 +5317,25 @@ struct buddy_page_mask {
 
 static const struct buddy_page_mask tgl_buddy_page_masks[] = {
 	{ .num_channels = 1, .type = INTEL_DRAM_DDR4,   .page_mask = 0xF },
+	{ .num_channels = 1, .type = INTEL_DRAM_DDR5,	.page_mask = 0xF },
 	{ .num_channels = 2, .type = INTEL_DRAM_LPDDR4, .page_mask = 0x1C },
+	{ .num_channels = 2, .type = INTEL_DRAM_LPDDR5, .page_mask = 0x1C },
 	{ .num_channels = 2, .type = INTEL_DRAM_DDR4,   .page_mask = 0x1F },
+	{ .num_channels = 2, .type = INTEL_DRAM_DDR5,   .page_mask = 0x1E },
 	{ .num_channels = 4, .type = INTEL_DRAM_LPDDR4, .page_mask = 0x38 },
+	{ .num_channels = 4, .type = INTEL_DRAM_LPDDR5, .page_mask = 0x38 },
 	{}
 };
 
 static const struct buddy_page_mask wa_1409767108_buddy_page_masks[] = {
 	{ .num_channels = 1, .type = INTEL_DRAM_LPDDR4, .page_mask = 0x1 },
 	{ .num_channels = 1, .type = INTEL_DRAM_DDR4,   .page_mask = 0x1 },
+	{ .num_channels = 1, .type = INTEL_DRAM_DDR5,   .page_mask = 0x1 },
+	{ .num_channels = 1, .type = INTEL_DRAM_LPDDR5, .page_mask = 0x1 },
 	{ .num_channels = 2, .type = INTEL_DRAM_LPDDR4, .page_mask = 0x3 },
 	{ .num_channels = 2, .type = INTEL_DRAM_DDR4,   .page_mask = 0x3 },
+	{ .num_channels = 2, .type = INTEL_DRAM_DDR5,   .page_mask = 0x3 },
+	{ .num_channels = 2, .type = INTEL_DRAM_LPDDR5, .page_mask = 0x3 },
 	{}
 };
 
