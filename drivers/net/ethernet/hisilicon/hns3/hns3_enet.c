@@ -2329,7 +2329,7 @@ static pci_ers_result_t hns3_error_detected(struct pci_dev *pdev,
 	struct hnae3_ae_dev *ae_dev = pci_get_drvdata(pdev);
 	pci_ers_result_t ret;
 
-	dev_info(&pdev->dev, "PCI error detected, state(=%d)!!\n", state);
+	dev_info(&pdev->dev, "PCI error detected, state(=%u)!!\n", state);
 
 	if (state == pci_channel_io_perm_failure)
 		return PCI_ERS_RESULT_DISCONNECT;

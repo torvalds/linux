@@ -626,7 +626,7 @@ static u8 *hclge_tqps_get_strings(struct hnae3_handle *handle, u8 *data)
 	for (i = 0; i < kinfo->num_tqps; i++) {
 		struct hclge_tqp *tqp = container_of(handle->kinfo.tqp[i],
 			struct hclge_tqp, q);
-		snprintf(buff, ETH_GSTRING_LEN, "txq%d_pktnum_rcd",
+		snprintf(buff, ETH_GSTRING_LEN, "txq%u_pktnum_rcd",
 			 tqp->index);
 		buff = buff + ETH_GSTRING_LEN;
 	}
@@ -634,7 +634,7 @@ static u8 *hclge_tqps_get_strings(struct hnae3_handle *handle, u8 *data)
 	for (i = 0; i < kinfo->num_tqps; i++) {
 		struct hclge_tqp *tqp = container_of(kinfo->tqp[i],
 			struct hclge_tqp, q);
-		snprintf(buff, ETH_GSTRING_LEN, "rxq%d_pktnum_rcd",
+		snprintf(buff, ETH_GSTRING_LEN, "rxq%u_pktnum_rcd",
 			 tqp->index);
 		buff = buff + ETH_GSTRING_LEN;
 	}
@@ -5595,7 +5595,7 @@ static int hclge_fd_check_ext_tuple(struct hclge_dev *hdev,
 		if (fs->m_ext.vlan_tci &&
 		    be16_to_cpu(fs->h_ext.vlan_tci) >= VLAN_N_VID) {
 			dev_err(&hdev->pdev->dev,
-				"failed to config vlan_tci, invalid vlan_tci: %u, max is %u.\n",
+				"failed to config vlan_tci, invalid vlan_tci: %u, max is %d.\n",
 				ntohs(fs->h_ext.vlan_tci), VLAN_N_VID - 1);
 			return -EINVAL;
 		}
