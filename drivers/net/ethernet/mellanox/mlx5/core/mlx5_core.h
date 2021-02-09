@@ -270,5 +270,7 @@ void mlx5_mdev_uninit(struct mlx5_core_dev *dev);
 void mlx5_unload_one(struct mlx5_core_dev *dev, bool cleanup);
 int mlx5_load_one(struct mlx5_core_dev *dev, bool boot);
 
+int mlx5_vport_get_other_func_cap(struct mlx5_core_dev *dev, u16 function_id, void *out);
+
 void mlx5_events_work_enqueue(struct mlx5_core_dev *dev, struct work_struct *work);
 #endif /* __MLX5_CORE_H__ */

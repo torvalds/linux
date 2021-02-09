@@ -59,9 +59,15 @@ int mlx5e_tc_tun_init_encap_attr(struct net_device *tunnel_dev,
 int mlx5e_tc_tun_create_header_ipv4(struct mlx5e_priv *priv,
 				    struct net_device *mirred_dev,
 				    struct mlx5e_encap_entry *e);
+int mlx5e_tc_tun_update_header_ipv4(struct mlx5e_priv *priv,
+				    struct net_device *mirred_dev,
+				    struct mlx5e_encap_entry *e);
 
 #if IS_ENABLED(CONFIG_INET) && IS_ENABLED(CONFIG_IPV6)
 int mlx5e_tc_tun_create_header_ipv6(struct mlx5e_priv *priv,
+				    struct net_device *mirred_dev,
+				    struct mlx5e_encap_entry *e);
+int mlx5e_tc_tun_update_header_ipv6(struct mlx5e_priv *priv,
 				    struct net_device *mirred_dev,
 				    struct mlx5e_encap_entry *e);
 #else
@@ -69,7 +75,14 @@ static inline int
 mlx5e_tc_tun_create_header_ipv6(struct mlx5e_priv *priv,
 				struct net_device *mirred_dev,
 				struct mlx5e_encap_entry *e) { return -EOPNOTSUPP; }
+int mlx5e_tc_tun_update_header_ipv6(struct mlx5e_priv *priv,
+				    struct net_device *mirred_dev,
+				    struct mlx5e_encap_entry *e)
+{ return -EOPNOTSUPP; }
 #endif
+int mlx5e_tc_tun_route_lookup(struct mlx5e_priv *priv,
+			      struct mlx5_flow_spec *spec,
+			      struct mlx5_flow_attr *attr);
 
 bool mlx5e_tc_tun_device_to_offload(struct mlx5e_priv *priv,
 				    struct net_device *netdev);

@@ -711,6 +711,8 @@ mlx5_tc_ct_entry_add_rule(struct mlx5_tc_ct_priv *ct_priv,
 	attr->outer_match_level = MLX5_MATCH_L4;
 	attr->counter = entry->counter->counter;
 	attr->flags |= MLX5_ESW_ATTR_FLAG_NO_IN_PORT;
+	if (ct_priv->ns_type == MLX5_FLOW_NAMESPACE_FDB)
+		attr->esw_attr->in_mdev = priv->mdev;
 
 	mlx5_tc_ct_set_tuple_match(netdev_priv(ct_priv->netdev), spec, flow_rule);
 	mlx5e_tc_match_to_reg_match(spec, ZONE_TO_REG, entry->tuple.zone, MLX5_CT_ZONE_MASK);
@@ -1761,7 +1763,6 @@ __mlx5_tc_ct_flow_offload_clear(struct mlx5_tc_ct_priv *ct_priv,
 		goto err_set_registers;
 	}
 
-	dealloc_mod_hdr_actions(mod_acts);
 	pre_ct_attr->modify_hdr = mod_hdr;
 	pre_ct_attr->action |= MLX5_FLOW_CONTEXT_ACTION_MOD_HDR;
 

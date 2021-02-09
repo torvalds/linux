@@ -129,10 +129,10 @@ static void mlx5e_rep_neigh_update(struct work_struct *work)
 							     work);
 	struct mlx5e_neigh_hash_entry *nhe = update_work->nhe;
 	struct neighbour *n = update_work->n;
+	bool neigh_connected, same_dev;
 	struct mlx5e_encap_entry *e;
 	unsigned char ha[ETH_ALEN];
 	struct mlx5e_priv *priv;
-	bool neigh_connected;
 	u8 nud_state, dead;
 
 	rtnl_lock();
@@ -146,11 +146,15 @@ static void mlx5e_rep_neigh_update(struct work_struct *work)
 	memcpy(ha, n->ha, ETH_ALEN);
 	nud_state = n->nud_state;
 	dead = n->dead;
+	same_dev = READ_ONCE(nhe->neigh_dev) == n->dev;
 	read_unlock_bh(&n->lock);
 
 	neigh_connected = (nud_state & NUD_VALID) && !dead;
 
 	trace_mlx5e_rep_neigh_update(nhe, ha, neigh_connected);
+
+	if (!same_dev)
+		goto out;
 
 	list_for_each_entry(e, &nhe->encap_list, encap_list) {
 		if (!mlx5e_encap_take(e))
@@ -160,6 +164,7 @@ static void mlx5e_rep_neigh_update(struct work_struct *work)
 		mlx5e_rep_update_flows(priv, e, neigh_connected, ha);
 		mlx5e_encap_put(priv, e);
 	}
+out:
 	rtnl_unlock();
 	mlx5e_release_neigh_update_work(update_work);
 }
@@ -175,7 +180,6 @@ static struct neigh_update_work *mlx5e_alloc_neigh_update_work(struct mlx5e_priv
 	if (WARN_ON(!update_work))
 		return NULL;
 
-	m_neigh.dev = n->dev;
 	m_neigh.family = n->ops->family;
 	memcpy(&m_neigh.dst_ip, n->primary_key, n->tbl->key_len);
 
@@ -246,7 +250,7 @@ static int mlx5e_rep_netevent_event(struct notifier_block *nb,
 		rcu_read_lock();
 		list_for_each_entry_rcu(nhe, &neigh_update->neigh_list,
 					neigh_list) {
-			if (p->dev == nhe->m_neigh.dev) {
+			if (p->dev == READ_ONCE(nhe->neigh_dev)) {
 				found = true;
 				break;
 			}
@@ -369,7 +373,8 @@ mlx5e_rep_neigh_entry_lookup(struct mlx5e_priv *priv,
 }
 
 int mlx5e_rep_neigh_entry_create(struct mlx5e_priv *priv,
-				 struct mlx5e_encap_entry *e,
+				 struct mlx5e_neigh *m_neigh,
+				 struct net_device *neigh_dev,
 				 struct mlx5e_neigh_hash_entry **nhe)
 {
 	int err;
@@ -379,10 +384,11 @@ int mlx5e_rep_neigh_entry_create(struct mlx5e_priv *priv,
 		return -ENOMEM;
 
 	(*nhe)->priv = priv;
-	memcpy(&(*nhe)->m_neigh, &e->m_neigh, sizeof(e->m_neigh));
+	memcpy(&(*nhe)->m_neigh, m_neigh, sizeof(*m_neigh));
 	spin_lock_init(&(*nhe)->encap_list_lock);
 	INIT_LIST_HEAD(&(*nhe)->encap_list);
 	refcount_set(&(*nhe)->refcnt, 1);
+	WRITE_ONCE((*nhe)->neigh_dev, neigh_dev);
 
 	err = mlx5e_rep_neigh_entry_insert(priv, *nhe);
 	if (err)

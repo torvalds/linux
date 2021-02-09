@@ -36,6 +36,7 @@
 #include <linux/if_ether.h>
 #include <linux/if_link.h>
 #include <linux/atomic.h>
+#include <linux/xarray.h>
 #include <net/devlink.h>
 #include <linux/mlx5/device.h>
 #include <linux/mlx5/eswitch.h>
@@ -160,6 +161,8 @@ struct mlx5_vport {
 	struct devlink_port *dl_port;
 };
 
+struct mlx5_esw_indir_table;
+
 struct mlx5_eswitch_fdb {
 	union {
 		struct legacy_fdb {
@@ -176,9 +179,11 @@ struct mlx5_eswitch_fdb {
 			struct mlx5_flow_namespace *ns;
 			struct mlx5_flow_table *slow_fdb;
 			struct mlx5_flow_group *send_to_vport_grp;
+			struct mlx5_flow_group *send_to_vport_meta_grp;
 			struct mlx5_flow_group *peer_miss_grp;
 			struct mlx5_flow_handle **peer_miss_rules;
 			struct mlx5_flow_group *miss_grp;
+			struct mlx5_flow_handle **send_to_vport_meta_rules;
 			struct mlx5_flow_handle *miss_rule_uni;
 			struct mlx5_flow_handle *miss_rule_multi;
 			int vlan_push_pop_refcount;
@@ -189,6 +194,8 @@ struct mlx5_eswitch_fdb {
 				/* Protects vports.table */
 				struct mutex lock;
 			} vports;
+
+			struct mlx5_esw_indir_table *indir;
 
 		} offloads;
 	};
@@ -212,6 +219,7 @@ struct mlx5_esw_offload {
 	struct mod_hdr_tbl mod_hdr;
 	DECLARE_HASHTABLE(termtbl_tbl, 8);
 	struct mutex termtbl_mutex; /* protects termtbl hash */
+	struct xarray vhca_map;
 	const struct mlx5_eswitch_rep_ops *rep_ops[NUM_REP_TYPES];
 	u8 inline_mode;
 	atomic64_t num_flows;
@@ -387,12 +395,14 @@ enum mlx5_flow_match_level {
 enum {
 	MLX5_ESW_DEST_ENCAP         = BIT(0),
 	MLX5_ESW_DEST_ENCAP_VALID   = BIT(1),
+	MLX5_ESW_DEST_CHAIN_WITH_SRC_PORT_CHANGE  = BIT(2),
 };
 
 enum {
 	MLX5_ESW_ATTR_FLAG_VLAN_HANDLED  = BIT(0),
 	MLX5_ESW_ATTR_FLAG_SLOW_PATH     = BIT(1),
 	MLX5_ESW_ATTR_FLAG_NO_IN_PORT    = BIT(2),
+	MLX5_ESW_ATTR_FLAG_SRC_REWRITE   = BIT(3),
 };
 
 struct mlx5_esw_flow_attr {
@@ -413,7 +423,9 @@ struct mlx5_esw_flow_attr {
 		struct mlx5_pkt_reformat *pkt_reformat;
 		struct mlx5_core_dev *mdev;
 		struct mlx5_termtbl_handle *termtbl;
+		int src_port_rewrite_act_id;
 	} dests[MLX5_MAX_FLOW_FWD_VPORTS];
+	struct mlx5_rx_tun_attr *rx_tun_attr;
 	struct mlx5_pkt_reformat *decap_pkt_reformat;
 };
 
@@ -733,6 +745,10 @@ void mlx5_esw_devlink_sf_port_unregister(struct mlx5_eswitch *esw, u16 vport_num
 int mlx5_esw_offloads_sf_vport_enable(struct mlx5_eswitch *esw, struct devlink_port *dl_port,
 				      u16 vport_num, u32 sfnum);
 void mlx5_esw_offloads_sf_vport_disable(struct mlx5_eswitch *esw, u16 vport_num);
+
+int mlx5_esw_vport_vhca_id_set(struct mlx5_eswitch *esw, u16 vport_num);
+void mlx5_esw_vport_vhca_id_clear(struct mlx5_eswitch *esw, u16 vport_num);
+int mlx5_eswitch_vhca_id_to_vport(struct mlx5_eswitch *esw, u16 vhca_id, u16 *vport_num);
 
 /**
  * mlx5_esw_event_info - Indicates eswitch mode changed/changing.
