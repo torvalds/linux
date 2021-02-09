@@ -1469,7 +1469,7 @@ struct d11rxhdr {
 /* htphy PhyRxStatus_1: */
 /* core enables for {3..0}, 0=disabled, 1=enabled */
 #define PRXS1_HTPHY_CORE_MASK	0x000F
-/* antenna configation */
+/* antenna configuration */
 #define PRXS1_HTPHY_ANTCFG_MASK	0x00F0
 /* Mixmode PLCP Length low byte mask */
 #define PRXS1_HTPHY_MMPLCPLenL_MASK	0xFF00
