@@ -2389,7 +2389,7 @@ static int pxa_camera_probe(struct platform_device *pdev)
 
 	pxa_camera_activate(pcdev);
 
-	dev_set_drvdata(&pdev->dev, pcdev);
+	platform_set_drvdata(pdev, pcdev);
 	err = v4l2_device_register(&pdev->dev, &pcdev->v4l2_dev);
 	if (err)
 		goto exit_deactivate;
@@ -2421,7 +2421,7 @@ exit_free_dma_y:
 
 static int pxa_camera_remove(struct platform_device *pdev)
 {
-	struct pxa_camera_dev *pcdev = dev_get_drvdata(&pdev->dev);
+	struct pxa_camera_dev *pcdev = platform_get_drvdata(pdev);
 
 	pxa_camera_deactivate(pcdev);
 	tasklet_kill(&pcdev->task_eof);
