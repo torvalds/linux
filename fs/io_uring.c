@@ -1472,11 +1472,7 @@ static bool io_task_match(struct io_kiocb *req, struct task_struct *tsk)
 
 	if (!tsk || req->task == tsk)
 		return true;
-	if (ctx->flags & IORING_SETUP_SQPOLL) {
-		if (ctx->sq_data && req->task == ctx->sq_data->thread)
-			return true;
-	}
-	return false;
+	return (ctx->flags & IORING_SETUP_SQPOLL);
 }
 
 /*
