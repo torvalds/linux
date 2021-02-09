@@ -759,10 +759,10 @@ ast_cursor_plane_helper_prepare_fb(struct drm_plane *plane,
 {
 	struct ast_cursor_plane *ast_cursor_plane = to_ast_cursor_plane(plane);
 	struct drm_framebuffer *fb = new_state->fb;
-	struct drm_gem_vram_object *dst_gbo =
-		ast_cursor_plane->hwc[ast_cursor_plane->next_hwc_index].gbo;
+	struct dma_buf_map dst_map =
+		ast_cursor_plane->hwc[ast_cursor_plane->next_hwc_index].map;
 	struct drm_gem_vram_object *src_gbo;
-	struct dma_buf_map src_map, dst_map;
+	struct dma_buf_map src_map;
 	void __iomem *dst;
 	void *src;
 	int ret;
@@ -777,22 +777,14 @@ ast_cursor_plane_helper_prepare_fb(struct drm_plane *plane,
 		return ret;
 	src = src_map.vaddr; /* TODO: Use mapping abstraction properly */
 
-	ret = drm_gem_vram_vmap(dst_gbo, &dst_map);
-	if (ret)
-		goto err_drm_gem_vram_vunmap;
 	dst = dst_map.vaddr_iomem; /* TODO: Use mapping abstraction properly */
 
 	/* do data transfer to cursor BO */
 	ast_update_cursor_image(dst, src, fb->width, fb->height);
 
-	drm_gem_vram_vunmap(dst_gbo, &dst_map);
 	drm_gem_vram_vunmap(src_gbo, &src_map);
 
 	return 0;
-
-err_drm_gem_vram_vunmap:
-	drm_gem_vram_vunmap(src_gbo, &src_map);
-	return ret;
 }
 
 static int ast_cursor_plane_helper_atomic_check(struct drm_plane *plane,
@@ -841,9 +833,9 @@ ast_cursor_plane_helper_atomic_update(struct drm_plane *plane,
 	u8 x_offset, y_offset;
 	u8 __iomem *dst;
 	u8 __iomem *sig;
-	int ret;
 
 	gbo = ast_cursor_plane->hwc[ast_cursor_plane->next_hwc_index].gbo;
+	map = ast_cursor_plane->hwc[ast_cursor_plane->next_hwc_index].map;
 
 	if (state->fb != old_state->fb) {
 		/* A new cursor image was installed. */
@@ -856,16 +848,11 @@ ast_cursor_plane_helper_atomic_update(struct drm_plane *plane,
 		ast_cursor_plane->next_hwc_index %= ARRAY_SIZE(ast_cursor_plane->hwc);
 	}
 
-	ret = drm_gem_vram_vmap(gbo, &map);
-	if (drm_WARN_ONCE(dev, ret, "drm_gem_vram_vmap() failed, ret=%d\n", ret))
-		return;
 	dst = map.vaddr_iomem; /* TODO: Use mapping abstraction properly */
 
 	sig = dst + AST_HWC_SIZE;
 	writel(state->crtc_x, sig + AST_HWC_SIGNATURE_X);
 	writel(state->crtc_y, sig + AST_HWC_SIGNATURE_Y);
-
-	drm_gem_vram_vunmap(gbo, &map);
 
 	offset_x = AST_MAX_HWC_WIDTH - fb->width;
 	offset_y = AST_MAX_HWC_HEIGHT - fb->height;
@@ -913,9 +900,12 @@ static void ast_cursor_plane_destroy(struct drm_plane *plane)
 	struct ast_cursor_plane *ast_cursor_plane = to_ast_cursor_plane(plane);
 	size_t i;
 	struct drm_gem_vram_object *gbo;
+	struct dma_buf_map map;
 
 	for (i = 0; i < ARRAY_SIZE(ast_cursor_plane->hwc); ++i) {
 		gbo = ast_cursor_plane->hwc[i].gbo;
+		map = ast_cursor_plane->hwc[i].map;
+		drm_gem_vram_vunmap(gbo, &map);
 		drm_gem_vram_unpin(gbo);
 		drm_gem_vram_put(gbo);
 	}
@@ -939,6 +929,7 @@ static int ast_cursor_plane_init(struct ast_private *ast)
 	struct drm_plane *cursor_plane = &ast_cursor_plane->base;
 	size_t size, i;
 	struct drm_gem_vram_object *gbo;
+	struct dma_buf_map map;
 	int ret;
 
 	/*
@@ -958,7 +949,11 @@ static int ast_cursor_plane_init(struct ast_private *ast)
 					    DRM_GEM_VRAM_PL_FLAG_TOPDOWN);
 		if (ret)
 			goto err_drm_gem_vram_put;
+		ret = drm_gem_vram_vmap(gbo, &map);
+		if (ret)
+			goto err_drm_gem_vram_unpin;
 		ast_cursor_plane->hwc[i].gbo = gbo;
+		ast_cursor_plane->hwc[i].map = map;
 	}
 
 	/*
@@ -983,6 +978,9 @@ err_hwc:
 	while (i) {
 		--i;
 		gbo = ast_cursor_plane->hwc[i].gbo;
+		map = ast_cursor_plane->hwc[i].map;
+		drm_gem_vram_vunmap(gbo, &map);
+err_drm_gem_vram_unpin:
 		drm_gem_vram_unpin(gbo);
 err_drm_gem_vram_put:
 		drm_gem_vram_put(gbo);
