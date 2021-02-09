@@ -8,6 +8,7 @@
 /dts-v1/;
 
 #include "fsl-lx2160a-cex7.dtsi"
+#include <dt-bindings/input/linux-event-codes.h>
 
 / {
 	aliases {
@@ -17,6 +18,17 @@
 
 	chosen {
 		stdout-path = "serial0:115200n8";
+	};
+
+	gpio-keys {
+		compatible = "gpio-keys";
+
+		key {
+			label = "power";
+			linux,can-disable;
+			linux,code = <KEY_POWER>;
+			gpios = <&gpio2 6 GPIO_ACTIVE_LOW>;
+		};
 	};
 };
 
