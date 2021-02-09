@@ -4378,20 +4378,6 @@ static void hns3_link_status_change(struct hnae3_handle *handle, bool linkup)
 	}
 }
 
-static int hns3_client_setup_tc(struct hnae3_handle *handle, u8 tc)
-{
-	struct hnae3_knic_private_info *kinfo = &handle->kinfo;
-	struct net_device *ndev = kinfo->netdev;
-
-	if (tc > HNAE3_MAX_TC)
-		return -EINVAL;
-
-	if (!ndev)
-		return -ENODEV;
-
-	return hns3_nic_set_real_num_queue(ndev);
-}
-
 static void hns3_clear_tx_ring(struct hns3_enet_ring *ring)
 {
 	while (ring->next_to_clean != ring->next_to_use) {
@@ -4828,7 +4814,6 @@ static const struct hnae3_client_ops client_ops = {
 	.init_instance = hns3_client_init,
 	.uninit_instance = hns3_client_uninit,
 	.link_status_change = hns3_link_status_change,
-	.setup_tc = hns3_client_setup_tc,
 	.reset_notify = hns3_reset_notify,
 	.process_hw_error = hns3_process_hw_error,
 };

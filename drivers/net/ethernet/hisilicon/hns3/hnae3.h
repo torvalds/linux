@@ -292,7 +292,6 @@ struct hnae3_client_ops {
 	int (*init_instance)(struct hnae3_handle *handle);
 	void (*uninit_instance)(struct hnae3_handle *handle, bool reset);
 	void (*link_status_change)(struct hnae3_handle *handle, bool state);
-	int (*setup_tc)(struct hnae3_handle *handle, u8 tc);
 	int (*reset_notify)(struct hnae3_handle *handle,
 			    enum hnae3_reset_notify_type type);
 	void (*process_hw_error)(struct hnae3_handle *handle,
