@@ -3069,6 +3069,8 @@ static int ib_to_mlx5_rate_map(u8 rate)
 		return 4;
 	case IB_RATE_50_GBPS:
 		return 5;
+	case IB_RATE_400_GBPS:
+		return 6;
 	default:
 		return rate + MLX5_STAT_RATE_OFFSET;
 	}
