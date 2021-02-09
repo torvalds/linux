@@ -106,7 +106,7 @@ static int hi6421_spmi_regulator_enable(struct regulator_dev *rdev)
 
 	ret = regmap_update_bits(pmic->regmap, rdev->desc->enable_reg,
 				 rdev->desc->enable_mask,
-			         rdev->desc->enable_mask);
+				 rdev->desc->enable_mask);
 
 	/* Avoid powering up multiple devices at the same time */
 	usleep_range(rdev->desc->off_on_delay, rdev->desc->off_on_delay + 60);
