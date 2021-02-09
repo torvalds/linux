@@ -204,6 +204,8 @@ struct otx2_hw {
 	struct otx2_drv_stats	drv_stats;
 	u64			cgx_rx_stats[CGX_RX_STATS_COUNT];
 	u64			cgx_tx_stats[CGX_TX_STATS_COUNT];
+	u64			cgx_fec_corr_blks;
+	u64			cgx_fec_uncorr_blks;
 	u8			cgx_links;  /* No. of CGX links present in HW */
 	u8			lbk_links;  /* No. of LBK links present in HW */
 };
@@ -661,6 +663,9 @@ void mbox_handler_nix_txsch_alloc(struct otx2_nic *pf,
 				  struct nix_txsch_alloc_rsp *rsp);
 void mbox_handler_cgx_stats(struct otx2_nic *pfvf,
 			    struct cgx_stats_rsp *rsp);
+void mbox_handler_cgx_fec_stats(struct otx2_nic *pfvf,
+				struct cgx_fec_stats_rsp *rsp);
+void otx2_set_fec_stats_count(struct otx2_nic *pfvf);
 void mbox_handler_nix_bp_enable(struct otx2_nic *pfvf,
 				struct nix_bp_cfg_rsp *rsp);
 
@@ -669,6 +674,7 @@ void otx2_get_dev_stats(struct otx2_nic *pfvf);
 void otx2_get_stats64(struct net_device *netdev,
 		      struct rtnl_link_stats64 *stats);
 void otx2_update_lmac_stats(struct otx2_nic *pfvf);
+void otx2_update_lmac_fec_stats(struct otx2_nic *pfvf);
 int otx2_update_rq_stats(struct otx2_nic *pfvf, int qidx);
 int otx2_update_sq_stats(struct otx2_nic *pfvf, int qidx);
 void otx2_set_ethtool_ops(struct net_device *netdev);

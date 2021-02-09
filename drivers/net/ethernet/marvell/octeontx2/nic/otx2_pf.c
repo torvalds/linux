@@ -779,6 +779,9 @@ static void otx2_process_pfaf_mbox_msg(struct otx2_nic *pf,
 	case MBOX_MSG_CGX_STATS:
 		mbox_handler_cgx_stats(pf, (struct cgx_stats_rsp *)msg);
 		break;
+	case MBOX_MSG_CGX_FEC_STATS:
+		mbox_handler_cgx_fec_stats(pf, (struct cgx_fec_stats_rsp *)msg);
+		break;
 	default:
 		if (msg->rc)
 			dev_err(pf->dev,

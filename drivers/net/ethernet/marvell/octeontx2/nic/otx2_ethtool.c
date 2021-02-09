@@ -66,6 +66,8 @@ static const unsigned int otx2_n_dev_stats = ARRAY_SIZE(otx2_dev_stats);
 static const unsigned int otx2_n_drv_stats = ARRAY_SIZE(otx2_drv_stats);
 static const unsigned int otx2_n_queue_stats = ARRAY_SIZE(otx2_queue_stats);
 
+static struct cgx_fw_data *otx2_get_fwdata(struct otx2_nic *pfvf);
+
 static void otx2_get_drvinfo(struct net_device *netdev,
 			     struct ethtool_drvinfo *info)
 {
@@ -128,6 +130,10 @@ static void otx2_get_strings(struct net_device *netdev, u32 sset, u8 *data)
 
 	strcpy(data, "reset_count");
 	data += ETH_GSTRING_LEN;
+	sprintf(data, "Fec Corrected Errors: ");
+	data += ETH_GSTRING_LEN;
+	sprintf(data, "Fec Uncorrected Errors: ");
+	data += ETH_GSTRING_LEN;
 }
 
 static void otx2_get_qset_stats(struct otx2_nic *pfvf,
@@ -160,11 +166,30 @@ static void otx2_get_qset_stats(struct otx2_nic *pfvf,
 	}
 }
 
+static int otx2_get_phy_fec_stats(struct otx2_nic *pfvf)
+{
+	struct msg_req *req;
+	int rc = -ENOMEM;
+
+	mutex_lock(&pfvf->mbox.lock);
+	req = otx2_mbox_alloc_msg_cgx_get_phy_fec_stats(&pfvf->mbox);
+	if (!req)
+		goto end;
+
+	if (!otx2_sync_mbox_msg(&pfvf->mbox))
+		rc = 0;
+end:
+	mutex_unlock(&pfvf->mbox.lock);
+	return rc;
+}
+
 /* Get device and per queue statistics */
 static void otx2_get_ethtool_stats(struct net_device *netdev,
 				   struct ethtool_stats *stats, u64 *data)
 {
 	struct otx2_nic *pfvf = netdev_priv(netdev);
+	u64 fec_corr_blks, fec_uncorr_blks;
+	struct cgx_fw_data *rsp;
 	int stat;
 
 	otx2_get_dev_stats(pfvf);
@@ -183,6 +208,32 @@ static void otx2_get_ethtool_stats(struct net_device *netdev,
 	for (stat = 0; stat < CGX_TX_STATS_COUNT; stat++)
 		*(data++) = pfvf->hw.cgx_tx_stats[stat];
 	*(data++) = pfvf->reset_count;
+
+	fec_corr_blks = pfvf->hw.cgx_fec_corr_blks;
+	fec_uncorr_blks = pfvf->hw.cgx_fec_uncorr_blks;
+
+	rsp = otx2_get_fwdata(pfvf);
+	if (!IS_ERR(rsp) && rsp->fwdata.phy.misc.has_fec_stats &&
+	    !otx2_get_phy_fec_stats(pfvf)) {
+		/* Fetch fwdata again because it's been recently populated with
+		 * latest PHY FEC stats.
+		 */
+		rsp = otx2_get_fwdata(pfvf);
+		if (!IS_ERR(rsp)) {
+			struct fec_stats_s *p = &rsp->fwdata.phy.fec_stats;
+
+			if (pfvf->linfo.fec == OTX2_FEC_BASER) {
+				fec_corr_blks   = p->brfec_corr_blks;
+				fec_uncorr_blks = p->brfec_uncorr_blks;
+			} else {
+				fec_corr_blks   = p->rsfec_corr_cws;
+				fec_uncorr_blks = p->rsfec_uncorr_cws;
+			}
+		}
+	}
+
+	*(data++) = fec_corr_blks;
+	*(data++) = fec_uncorr_blks;
 }
 
 static int otx2_get_sset_count(struct net_device *netdev, int sset)
@@ -195,9 +246,11 @@ static int otx2_get_sset_count(struct net_device *netdev, int sset)
 
 	qstats_count = otx2_n_queue_stats *
 		       (pfvf->hw.rx_queues + pfvf->hw.tx_queues);
+	otx2_update_lmac_fec_stats(pfvf);
 
 	return otx2_n_dev_stats + otx2_n_drv_stats + qstats_count +
-		CGX_RX_STATS_COUNT + CGX_TX_STATS_COUNT + 1;
+	       CGX_RX_STATS_COUNT + CGX_TX_STATS_COUNT + OTX2_FEC_STATS_CNT
+	       + 1;
 }
 
 /* Get no of queues device supports and current queue count */
@@ -859,6 +912,109 @@ static int otx2_get_ts_info(struct net_device *netdev,
 	return 0;
 }
 
+static struct cgx_fw_data *otx2_get_fwdata(struct otx2_nic *pfvf)
+{
+	struct cgx_fw_data *rsp = NULL;
+	struct msg_req *req;
+	int err = 0;
+
+	mutex_lock(&pfvf->mbox.lock);
+	req = otx2_mbox_alloc_msg_cgx_get_aux_link_info(&pfvf->mbox);
+	if (!req) {
+		mutex_unlock(&pfvf->mbox.lock);
+		return ERR_PTR(-ENOMEM);
+	}
+
+	err = otx2_sync_mbox_msg(&pfvf->mbox);
+	if (!err) {
+		rsp = (struct cgx_fw_data *)
+			otx2_mbox_get_rsp(&pfvf->mbox.mbox, 0, &req->hdr);
+	} else {
+		rsp = ERR_PTR(err);
+	}
+
+	mutex_unlock(&pfvf->mbox.lock);
+	return rsp;
+}
+
+static int otx2_get_fecparam(struct net_device *netdev,
+			     struct ethtool_fecparam *fecparam)
+{
+	struct otx2_nic *pfvf = netdev_priv(netdev);
+	struct cgx_fw_data *rsp;
+	const int fec[] = {
+		ETHTOOL_FEC_OFF,
+		ETHTOOL_FEC_BASER,
+		ETHTOOL_FEC_RS,
+		ETHTOOL_FEC_BASER | ETHTOOL_FEC_RS};
+#define FEC_MAX_INDEX 4
+	if (pfvf->linfo.fec < FEC_MAX_INDEX)
+		fecparam->active_fec = fec[pfvf->linfo.fec];
+
+	rsp = otx2_get_fwdata(pfvf);
+	if (IS_ERR(rsp))
+		return PTR_ERR(rsp);
+
+	if (rsp->fwdata.supported_fec <= FEC_MAX_INDEX) {
+		if (!rsp->fwdata.supported_fec)
+			fecparam->fec = ETHTOOL_FEC_NONE;
+		else
+			fecparam->fec = fec[rsp->fwdata.supported_fec];
+	}
+	return 0;
+}
+
+static int otx2_set_fecparam(struct net_device *netdev,
+			     struct ethtool_fecparam *fecparam)
+{
+	struct otx2_nic *pfvf = netdev_priv(netdev);
+	struct mbox *mbox = &pfvf->mbox;
+	struct fec_mode *req, *rsp;
+	int err = 0, fec = 0;
+
+	switch (fecparam->fec) {
+	/* Firmware does not support AUTO mode consider it as FEC_OFF */
+	case ETHTOOL_FEC_OFF:
+	case ETHTOOL_FEC_AUTO:
+		fec = OTX2_FEC_OFF;
+		break;
+	case ETHTOOL_FEC_RS:
+		fec = OTX2_FEC_RS;
+		break;
+	case ETHTOOL_FEC_BASER:
+		fec = OTX2_FEC_BASER;
+		break;
+	default:
+		netdev_warn(pfvf->netdev, "Unsupported FEC mode: %d",
+			    fecparam->fec);
+		return -EINVAL;
+	}
+
+	if (fec == pfvf->linfo.fec)
+		return 0;
+
+	mutex_lock(&mbox->lock);
+	req = otx2_mbox_alloc_msg_cgx_set_fec_param(&pfvf->mbox);
+	if (!req) {
+		err = -ENOMEM;
+		goto end;
+	}
+	req->fec = fec;
+	err = otx2_sync_mbox_msg(&pfvf->mbox);
+	if (err)
+		goto end;
+
+	rsp = (struct fec_mode *)otx2_mbox_get_rsp(&pfvf->mbox.mbox,
+						   0, &req->hdr);
+	if (rsp->fec >= 0)
+		pfvf->linfo.fec = rsp->fec;
+	else
+		err = rsp->fec;
+end:
+	mutex_unlock(&mbox->lock);
+	return err;
+}
+
 static const struct ethtool_ops otx2_ethtool_ops = {
 	.supported_coalesce_params = ETHTOOL_COALESCE_USECS |
 				     ETHTOOL_COALESCE_MAX_FRAMES,
@@ -886,6 +1042,8 @@ static const struct ethtool_ops otx2_ethtool_ops = {
 	.get_pauseparam		= otx2_get_pauseparam,
 	.set_pauseparam		= otx2_set_pauseparam,
 	.get_ts_info		= otx2_get_ts_info,
+	.get_fecparam		= otx2_get_fecparam,
+	.set_fecparam		= otx2_set_fecparam,
 };
 
 void otx2_set_ethtool_ops(struct net_device *netdev)
