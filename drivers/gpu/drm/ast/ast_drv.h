@@ -81,6 +81,9 @@ enum ast_tx_chip {
 #define AST_DRAM_4Gx16   7
 #define AST_DRAM_8Gx16   8
 
+/*
+ * Cursor plane
+ */
 
 #define AST_MAX_HWC_WIDTH	64
 #define AST_MAX_HWC_HEIGHT	64
@@ -99,6 +102,20 @@ enum ast_tx_chip {
 #define AST_HWC_SIGNATURE_HOTSPOTX	0x14
 #define AST_HWC_SIGNATURE_HOTSPOTY	0x18
 
+struct ast_cursor_plane {
+	struct drm_plane base;
+};
+
+static inline struct ast_cursor_plane *
+to_ast_cursor_plane(struct drm_plane *plane)
+{
+	return container_of(plane, struct ast_cursor_plane, base);
+}
+
+/*
+ * Connector with i2c channel
+ */
+
 struct ast_i2c_chan {
 	struct i2c_adapter adapter;
 	struct drm_device *dev;
@@ -115,6 +132,10 @@ to_ast_connector(struct drm_connector *connector)
 {
 	return container_of(connector, struct ast_connector, base);
 }
+
+/*
+ * Device
+ */
 
 struct ast_private {
 	struct drm_device base;
@@ -136,7 +157,7 @@ struct ast_private {
 	} cursor;
 
 	struct drm_plane primary_plane;
-	struct drm_plane cursor_plane;
+	struct ast_cursor_plane cursor_plane;
 	struct drm_crtc crtc;
 	struct drm_encoder encoder;
 	struct ast_connector connector;

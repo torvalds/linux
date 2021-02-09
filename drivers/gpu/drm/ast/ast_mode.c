@@ -932,7 +932,8 @@ static const struct drm_plane_funcs ast_cursor_plane_funcs = {
 static int ast_cursor_plane_init(struct ast_private *ast)
 {
 	struct drm_device *dev = &ast->base;
-	struct drm_plane *cursor_plane = &ast->cursor_plane;
+	struct ast_cursor_plane *ast_cursor_plane = &ast->cursor_plane;
+	struct drm_plane *cursor_plane = &ast_cursor_plane->base;
 	size_t size, i;
 	struct drm_gem_vram_object *gbo;
 	int ret;
@@ -1178,7 +1179,7 @@ static int ast_crtc_init(struct drm_device *dev)
 	int ret;
 
 	ret = drm_crtc_init_with_planes(dev, crtc, &ast->primary_plane,
-					&ast->cursor_plane, &ast_crtc_funcs,
+					&ast->cursor_plane.base, &ast_crtc_funcs,
 					NULL);
 	if (ret)
 		return ret;
