@@ -1227,23 +1227,13 @@ void intel_psr2_program_plane_sel_fetch(struct intel_plane *plane,
 void intel_psr2_program_trans_man_trk_ctl(const struct intel_crtc_state *crtc_state)
 {
 	struct drm_i915_private *dev_priv = to_i915(crtc_state->uapi.crtc->dev);
-	struct intel_encoder *encoder;
 
 	if (!HAS_PSR2_SEL_FETCH(dev_priv) ||
 	    !crtc_state->enable_psr2_sel_fetch)
 		return;
 
-	for_each_intel_encoder_mask_with_psr(&dev_priv->drm, encoder,
-					     crtc_state->uapi.encoder_mask) {
-		struct intel_dp *intel_dp = enc_to_intel_dp(encoder);
-
-		if (!intel_dp->psr.enabled)
-			continue;
-
-		intel_de_write(dev_priv,
-			       PSR2_MAN_TRK_CTL(crtc_state->cpu_transcoder),
-			       crtc_state->psr2_man_track_ctl);
-	}
+	intel_de_write(dev_priv, PSR2_MAN_TRK_CTL(crtc_state->cpu_transcoder),
+		       crtc_state->psr2_man_track_ctl);
 }
 
 static void psr2_man_trk_ctl_calc(struct intel_crtc_state *crtc_state,
