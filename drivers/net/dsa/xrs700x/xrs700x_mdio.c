@@ -10,6 +10,7 @@
 #include <linux/module.h>
 #include <linux/phy.h>
 #include <linux/if_vlan.h>
+#include <linux/of.h>
 #include "xrs700x.h"
 #include "xrs700x_reg.h"
 
@@ -150,7 +151,7 @@ MODULE_DEVICE_TABLE(of, xrs700x_mdio_dt_ids);
 static struct mdio_driver xrs700x_mdio_driver = {
 	.mdiodrv.driver = {
 		.name	= "xrs700x-mdio",
-		.of_match_table = xrs700x_mdio_dt_ids,
+		.of_match_table = of_match_ptr(xrs700x_mdio_dt_ids),
 	},
 	.probe	= xrs700x_mdio_probe,
 	.remove	= xrs700x_mdio_remove,
