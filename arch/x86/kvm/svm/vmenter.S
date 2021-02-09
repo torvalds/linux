@@ -79,12 +79,6 @@ SYM_FUNC_START(__svm_vcpu_run)
 
 	/* Enter guest mode */
 	sti
-1:	vmload %_ASM_AX
-	jmp 3f
-2:	cmpb $0, kvm_rebooting
-	jne 3f
-	ud2
-	_ASM_EXTABLE(1b, 2b)
 
 3:	vmrun %_ASM_AX
 	jmp 5f
@@ -93,13 +87,7 @@ SYM_FUNC_START(__svm_vcpu_run)
 	ud2
 	_ASM_EXTABLE(3b, 4b)
 
-5:	vmsave %_ASM_AX
-	jmp 7f
-6:	cmpb $0, kvm_rebooting
-	jne 7f
-	ud2
-	_ASM_EXTABLE(5b, 6b)
-7:
+5:
 	cli
 
 #ifdef CONFIG_RETPOLINE

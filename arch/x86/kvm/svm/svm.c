@@ -3717,7 +3717,9 @@ static noinstr void svm_vcpu_enter_exit(struct kvm_vcpu *vcpu)
 	} else {
 		struct svm_cpu_data *sd = per_cpu(svm_data, vcpu->cpu);
 
+		vmload(svm->vmcb_pa);
 		__svm_vcpu_run(svm->vmcb_pa, (unsigned long *)&vcpu->arch.regs);
+		vmsave(svm->vmcb_pa);
 
 		vmload(__sme_page_pa(sd->save_area));
 	}
