@@ -8586,30 +8586,31 @@ static void io_cancel_defer_files(struct io_ring_ctx *ctx,
 	}
 }
 
+static int io_uring_count_inflight(struct io_ring_ctx *ctx,
+				   struct task_struct *task,
+				   struct files_struct *files)
+{
+	struct io_kiocb *req;
+	int cnt = 0;
+
+	spin_lock_irq(&ctx->inflight_lock);
+	list_for_each_entry(req, &ctx->inflight_list, inflight_entry)
+		cnt += io_match_task(req, task, files);
+	spin_unlock_irq(&ctx->inflight_lock);
+	return cnt;
+}
+
 static void io_uring_cancel_files(struct io_ring_ctx *ctx,
 				  struct task_struct *task,
 				  struct files_struct *files)
 {
 	while (!list_empty_careful(&ctx->inflight_list)) {
 		struct io_task_cancel cancel = { .task = task, .files = files };
-		struct io_kiocb *req;
 		DEFINE_WAIT(wait);
-		bool found = false;
+		int inflight;
 
-		spin_lock_irq(&ctx->inflight_lock);
-		list_for_each_entry(req, &ctx->inflight_list, inflight_entry) {
-			if (!io_match_task(req, task, files))
-				continue;
-			found = true;
-			break;
-		}
-		if (found)
-			prepare_to_wait(&task->io_uring->wait, &wait,
-					TASK_UNINTERRUPTIBLE);
-		spin_unlock_irq(&ctx->inflight_lock);
-
-		/* We need to keep going until we don't find a matching req */
-		if (!found)
+		inflight = io_uring_count_inflight(ctx, task, files);
+		if (!inflight)
 			break;
 
 		io_wq_cancel_cb(ctx->io_wq, io_cancel_task_cb, &cancel, true);
@@ -8617,7 +8618,11 @@ static void io_uring_cancel_files(struct io_ring_ctx *ctx,
 		io_kill_timeouts(ctx, task, files);
 		/* cancellations _may_ trigger task work */
 		io_run_task_work();
-		schedule();
+
+		prepare_to_wait(&task->io_uring->wait, &wait,
+				TASK_UNINTERRUPTIBLE);
+		if (inflight == io_uring_count_inflight(ctx, task, files))
+			schedule();
 		finish_wait(&task->io_uring->wait, &wait);
 	}
 }
