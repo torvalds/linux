@@ -25,8 +25,6 @@ static inline int irq_canonicalize(int irq)
 
 extern int irq_init_percpu_irqstack(unsigned int cpu);
 
-#define __ARCH_HAS_DO_SOFTIRQ
-
 struct irq_desc;
 
 extern void fixup_irqs(void);
