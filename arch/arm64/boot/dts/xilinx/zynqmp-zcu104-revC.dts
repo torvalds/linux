@@ -1,8 +1,8 @@
-// SPDX-License-Identifier: GPL-2.0+
+// SPDX-License-Identifier: GPL-2.0
 /*
  * dts file for Xilinx ZynqMP ZCU104
  *
- * (C) Copyright 2017 - 2019, Xilinx, Inc.
+ * (C) Copyright 2017 - 2020, Xilinx, Inc.
  *
  * Michal Simek <michal.simek@xilinx.com>
  */
@@ -15,8 +15,8 @@
 #include <dt-bindings/phy/phy.h>
 
 / {
-	model = "ZynqMP ZCU104 RevA";
-	compatible = "xlnx,zynqmp-zcu104-revA", "xlnx,zynqmp-zcu104", "xlnx,zynqmp";
+	model = "ZynqMP ZCU104 RevC";
+	compatible = "xlnx,zynqmp-zcu104-revC", "xlnx,zynqmp-zcu104", "xlnx,zynqmp";
 
 	aliases {
 		ethernet0 = &gem3;
@@ -36,6 +36,11 @@
 	memory@0 {
 		device_type = "memory";
 		reg = <0x0 0x0 0x0 0x80000000>;
+	};
+
+	ina226 {
+		compatible = "iio-hwmon";
+		io-channels = <&u183 0>, <&u183 1>, <&u183 2>, <&u183 3>;
 	};
 
 	clock_8t49n287_5: clk125 {
@@ -65,6 +70,38 @@
 	status = "okay";
 };
 
+&fpd_dma_chan1 {
+	status = "okay";
+};
+
+&fpd_dma_chan2 {
+	status = "okay";
+};
+
+&fpd_dma_chan3 {
+	status = "okay";
+};
+
+&fpd_dma_chan4 {
+	status = "okay";
+};
+
+&fpd_dma_chan5 {
+	status = "okay";
+};
+
+&fpd_dma_chan6 {
+	status = "okay";
+};
+
+&fpd_dma_chan7 {
+	status = "okay";
+};
+
+&fpd_dma_chan8 {
+	status = "okay";
+};
+
 &gem3 {
 	status = "okay";
 	phy-handle = <&phy0>;
@@ -86,6 +123,25 @@
 	status = "okay";
 	clock-frequency = <400000>;
 
+	tca6416_u97: gpio@20 {
+		compatible = "ti,tca6416";
+		reg = <0x20>;
+		gpio-controller;
+		#gpio-cells = <2>;
+		/*
+		 * IRQ not connected
+		 * Lines:
+		 * 0 - IRPS5401_ALERT_B
+		 * 1 - HDMI_8T49N241_INT_ALM
+		 * 2 - MAX6643_OT_B
+		 * 3 - MAX6643_FANFAIL_B
+		 * 5 - IIC_MUX_RESET_B
+		 * 6 - GEM3_EXP_RESET_B
+		 * 7 - FMC_LPC_PRSNT_M2C_B
+		 * 4, 10 - 17 - not connected
+		 */
+	};
+
 	/* Another connection to this bus via PL i2c via PCA9306 - u45 */
 	i2c-mux@74 { /* u34 */
 		compatible = "nxp,pca9548";
@@ -104,7 +160,7 @@
 			 * 512B - 768B address 0x56
 			 * 768B - 1024B address 0x57
 			 */
-			eeprom@54 { /* u23 */
+			eeprom: eeprom@54 { /* u23 */
 				compatible = "atmel,24c08";
 				reg = <0x54>;
 				#address-cells = <1>;
@@ -125,35 +181,25 @@
 			#address-cells = <1>;
 			#size-cells = <0>;
 			reg = <2>;
-			irps5401_43: irps54012@43 { /* IRPS5401 - u175 */
-				reg = <0x43>;
+			irps5401_43: irps5401@43 { /* IRPS5401 - u175 */
+				compatible = "infineon,irps5401";
+				reg = <0x43>; /* pmbus / i2c 0x13 */
 			};
-			irps5401_4d: irps54012@4d { /* IRPS5401 - u180 */
-				reg = <0x4d>;
+			irps5401_44: irps5401@44 { /* IRPS5401 - u180 */
+				compatible = "infineon,irps5401";
+				reg = <0x44>; /* pmbus / i2c 0x14 */
 			};
 		};
 
-		i2c@4 {
+		i2c@3 {
 			#address-cells = <1>;
 			#size-cells = <0>;
-			reg = <4>;
-			tca6416_u97: gpio@20 {
-				compatible = "ti,tca6416";
-				reg = <0x20>;
-				gpio-controller;
-				#gpio-cells = <2>;
-				/*
-				 * IRQ not connected
-				 * Lines:
-				 * 0 - IRPS5401_ALERT_B
-				 * 1 - HDMI_8T49N241_INT_ALM
-				 * 2 - MAX6643_OT_B
-				 * 3 - MAX6643_FANFAIL_B
-				 * 5 - IIC_MUX_RESET_B
-				 * 6 - GEM3_EXP_RESET_B
-				 * 7 - FMC_LPC_PRSNT_M2C_B
-				 * 4, 10 - 17 - not connected
-				 */
+			reg = <3>;
+			u183: ina226@40 { /* u183 */
+				compatible = "ti,ina226";
+				#io-channel-cells = <1>;
+				reg = <0x40>;
+				shunt-resistor = <5000>;
 			};
 		};
 
@@ -169,7 +215,17 @@
 			reg = <7>;
 		};
 
-		/* 3, 6 not connected */
+		/* 4, 6 not connected */
+	};
+};
+
+&qspi {
+	status = "okay";
+	flash@0 {
+		compatible = "m25p80", "jedec,spi-nor"; /* n25q512a 128MiB */
+		#address-cells = <1>;
+		#size-cells = <1>;
+		reg = <0x0>;
 	};
 };
 
