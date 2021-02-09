@@ -397,7 +397,8 @@ static int sync_manager_info(struct hl_fpriv *hpriv, struct hl_info_args *args)
 			prop->first_available_user_sob[args->dcore_id];
 	sm_info.first_available_monitor =
 			prop->first_available_user_mon[args->dcore_id];
-
+	sm_info.first_available_cq =
+			prop->first_available_cq[args->dcore_id];
 
 	return copy_to_user(out, &sm_info, min_t(size_t, (size_t) max_size,
 			sizeof(sm_info))) ? -EFAULT : 0;

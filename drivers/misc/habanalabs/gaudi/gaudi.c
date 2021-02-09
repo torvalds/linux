@@ -529,6 +529,9 @@ static int gaudi_get_fixed_properties(struct hl_device *hdev)
 
 	prop->first_available_user_msix_interrupt = USHRT_MAX;
 
+	for (i = 0 ; i < HL_MAX_DCORES ; i++)
+		prop->first_available_cq[i] = USHRT_MAX;
+
 	/* disable fw security for now, set it in a later stage */
 	prop->fw_security_disabled = true;
 	prop->fw_security_status_valid = false;
@@ -1378,8 +1381,6 @@ static int gaudi_late_init(struct hl_device *hdev)
 		dev_err(hdev->dev, "Failed to enable PCI access from CPU\n");
 		return rc;
 	}
-
-	WREG32(mmGIC_DISTRIBUTOR__5_GICD_SETSPI_NSR, GAUDI_EVENT_INTS_REGISTER);
 
 	rc = gaudi_fetch_psoc_frequency(hdev);
 	if (rc) {
@@ -3459,6 +3460,12 @@ static void gaudi_set_clock_gating(struct hl_device *hdev)
 		enable = !!(hdev->clock_gating_mask &
 				(BIT_ULL(gaudi_dma_assignment[i])));
 
+		/* GC sends work to DMA engine through Upper CP in DMA5 so
+		 * we need to not enable clock gating in that DMA
+		 */
+		if (i == GAUDI_HBM_DMA_4)
+			enable = 0;
+
 		qman_offset = gaudi_dma_assignment[i] * DMA_QMAN_OFFSET;
 		WREG32(mmDMA0_QM_CGM_CFG1 + qman_offset,
 				enable ? QMAN_CGM1_PWR_GATE_EN : 0);
@@ -3725,6 +3732,7 @@ static int gaudi_init_cpu(struct hl_device *hdev)
 static int gaudi_init_cpu_queues(struct hl_device *hdev, u32 cpu_timeout)
 {
 	struct gaudi_device *gaudi = hdev->asic_specific;
+	struct asic_fixed_properties *prop = &hdev->asic_prop;
 	struct hl_eq *eq;
 	u32 status;
 	struct hl_hw_queue *cpu_pq =
@@ -3780,6 +3788,10 @@ static int gaudi_init_cpu_queues(struct hl_device *hdev, u32 cpu_timeout)
 			"Failed to communicate with Device CPU (CPU-CP timeout)\n");
 		return -EIO;
 	}
+
+	/* update FW application security bits */
+	if (prop->fw_security_status_valid)
+		prop->fw_app_security_map = RREG32(mmCPU_BOOT_DEV_STS0);
 
 	gaudi->hw_cap_initialized |= HW_CAP_CPU_Q;
 	return 0;
@@ -4438,9 +4450,12 @@ static void gaudi_ring_doorbell(struct hl_device *hdev, u32 hw_queue_id, u32 pi)
 	/* ring the doorbell */
 	WREG32(db_reg_offset, db_value);
 
-	if (hw_queue_id == GAUDI_QUEUE_ID_CPU_PQ)
+	if (hw_queue_id == GAUDI_QUEUE_ID_CPU_PQ) {
+		/* make sure device CPU will read latest data from host */
+		mb();
 		WREG32(mmGIC_DISTRIBUTOR__5_GICD_SETSPI_NSR,
 				GAUDI_EVENT_PI_UPDATE);
+	}
 }
 
 static void gaudi_pqe_write(struct hl_device *hdev, __le64 *pqe,
@@ -7098,7 +7113,9 @@ static int gaudi_hbm_read_interrupts(struct hl_device *hdev, int device,
 	u32 base, val, val2, wr_par, rd_par, ca_par, derr, serr, type, ch;
 	int err = 0;
 
-	if (!hdev->asic_prop.fw_security_disabled) {
+	if (hdev->asic_prop.fw_security_status_valid &&
+			(hdev->asic_prop.fw_app_security_map &
+				CPU_BOOT_DEV_STS0_HBM_ECC_EN)) {
 		if (!hbm_ecc_data) {
 			dev_err(hdev->dev, "No FW ECC data");
 			return 0;
@@ -7120,11 +7137,21 @@ static int gaudi_hbm_read_interrupts(struct hl_device *hdev, int device,
 				le32_to_cpu(hbm_ecc_data->hbm_ecc_info));
 
 		dev_err(hdev->dev,
-			"HBM%d pc%d ECC: TYPE=%d, WR_PAR=%d, RD_PAR=%d, CA_PAR=%d, SERR=%d, DERR=%d\n",
-			device, ch, type, wr_par, rd_par, ca_par, serr, derr);
+			"HBM%d pc%d interrupts info: WR_PAR=%d, RD_PAR=%d, CA_PAR=%d, SERR=%d, DERR=%d\n",
+			device, ch, wr_par, rd_par, ca_par, serr, derr);
+		dev_err(hdev->dev,
+			"HBM%d pc%d ECC info: 1ST_ERR_ADDR=0x%x, 1ST_ERR_TYPE=%d, SEC_CONT_CNT=%u, SEC_CNT=%d, DEC_CNT=%d\n",
+			device, ch, hbm_ecc_data->first_addr, type,
+			hbm_ecc_data->sec_cont_cnt, hbm_ecc_data->sec_cnt,
+			hbm_ecc_data->dec_cnt);
 
 		err = 1;
 
+		return 0;
+	}
+
+	if (!hdev->asic_prop.fw_security_disabled) {
+		dev_info(hdev->dev, "Cannot access MC regs for ECC data while security is enabled\n");
 		return 0;
 	}
 
@@ -8469,7 +8496,7 @@ static u64 gaudi_get_device_time(struct hl_device *hdev)
 }
 
 static int gaudi_get_hw_block_id(struct hl_device *hdev, u64 block_addr,
-					u32 *block_id)
+				u32 *block_size, u32 *block_id)
 {
 	return -EPERM;
 }
@@ -8479,6 +8506,11 @@ static int gaudi_block_mmap(struct hl_device *hdev,
 				u32 block_id, u32 block_size)
 {
 	return -EPERM;
+}
+
+static void gaudi_enable_events_from_fw(struct hl_device *hdev)
+{
+	WREG32(mmGIC_DISTRIBUTOR__5_GICD_SETSPI_NSR, GAUDI_EVENT_INTS_REGISTER);
 }
 
 static const struct hl_asic_funcs gaudi_funcs = {
@@ -8562,7 +8594,8 @@ static const struct hl_asic_funcs gaudi_funcs = {
 	.descramble_addr = hl_mmu_descramble_addr,
 	.ack_protection_bits_errors = gaudi_ack_protection_bits_errors,
 	.get_hw_block_id = gaudi_get_hw_block_id,
-	.hw_block_mmap = gaudi_block_mmap
+	.hw_block_mmap = gaudi_block_mmap,
+	.enable_events_from_fw = gaudi_enable_events_from_fw
 };
 
 /**

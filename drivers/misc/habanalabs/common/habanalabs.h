@@ -411,6 +411,7 @@ struct hl_mmu_properties {
  * @first_available_user_mon: first monitor available for the user
  * @first_available_user_msix_interrupt: first available msix interrupt
  *                                       reserved for the user
+ * @first_available_cq: first available CQ for the user.
  * @tpc_enabled_mask: which TPCs are enabled.
  * @completion_queues_count: number of completion queues.
  * @fw_security_disabled: true if security measures are disabled in firmware,
@@ -473,6 +474,7 @@ struct asic_fixed_properties {
 	u16				first_available_user_sob[HL_MAX_DCORES];
 	u16				first_available_user_mon[HL_MAX_DCORES];
 	u16				first_available_user_msix_interrupt;
+	u16				first_available_cq[HL_MAX_DCORES];
 	u8				tpc_enabled_mask;
 	u8				completion_queues_count;
 	u8				fw_security_disabled;
@@ -855,12 +857,18 @@ enum div_select_defs {
  *                           and place them in the relevant cs jobs
  * @collective_wait_create_jobs: allocate collective wait cs jobs
  * @scramble_addr: Routine to scramble the address prior of mapping it
- *                  in the MMU.
+ *                 in the MMU.
  * @descramble_addr: Routine to de-scramble the address prior of
- *                  showing it to users.
+ *                   showing it to users.
  * @ack_protection_bits_errors: ack and dump all security violations
  * @get_hw_block_id: retrieve a HW block id to be used by the user to mmap it.
+ *                   also returns the size of the block if caller supplies
+ *                   a valid pointer for it
  * @hw_block_mmap: mmap a HW block with a given id.
+ * @enable_events_from_fw: send interrupt to firmware to notify them the
+ *                         driver is ready to receive asynchronous events. This
+ *                         function should be called during the first init and
+ *                         after every hard-reset of the device
  */
 struct hl_asic_funcs {
 	int (*early_init)(struct hl_device *hdev);
@@ -974,9 +982,10 @@ struct hl_asic_funcs {
 	u64 (*descramble_addr)(struct hl_device *hdev, u64 addr);
 	void (*ack_protection_bits_errors)(struct hl_device *hdev);
 	int (*get_hw_block_id)(struct hl_device *hdev, u64 block_addr,
-			u32 *block_id);
+				u32 *block_size, u32 *block_id);
 	int (*hw_block_mmap)(struct hl_device *hdev, struct vm_area_struct *vma,
 			u32 block_id, u32 block_size);
+	void (*enable_events_from_fw)(struct hl_device *hdev);
 };
 
 

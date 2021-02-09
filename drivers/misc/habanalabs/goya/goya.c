@@ -457,6 +457,9 @@ int goya_get_fixed_properties(struct hl_device *hdev)
 
 	prop->first_available_user_msix_interrupt = USHRT_MAX;
 
+	for (i = 0 ; i < HL_MAX_DCORES ; i++)
+		prop->first_available_cq[i] = USHRT_MAX;
+
 	/* disable fw security for now, set it in a later stage */
 	prop->fw_security_disabled = true;
 	prop->fw_security_status_valid = false;
@@ -793,9 +796,6 @@ int goya_late_init(struct hl_device *hdev)
 			"Failed to enable PCI access from CPU %d\n", rc);
 		return rc;
 	}
-
-	WREG32(mmGIC_DISTRIBUTOR__5_GICD_SETSPI_NSR,
-			GOYA_ASYNC_EVENT_ID_INTS_REGISTER);
 
 	return 0;
 }
@@ -1188,6 +1188,7 @@ static int goya_stop_external_queues(struct hl_device *hdev)
 int goya_init_cpu_queues(struct hl_device *hdev)
 {
 	struct goya_device *goya = hdev->asic_specific;
+	struct asic_fixed_properties *prop = &hdev->asic_prop;
 	struct hl_eq *eq;
 	u32 status;
 	struct hl_hw_queue *cpu_pq = &hdev->kernel_queues[GOYA_QUEUE_ID_CPU_PQ];
@@ -1239,6 +1240,10 @@ int goya_init_cpu_queues(struct hl_device *hdev)
 			"Failed to setup communication with device CPU\n");
 		return -EIO;
 	}
+
+	/* update FW application security bits */
+	if (prop->fw_security_status_valid)
+		prop->fw_app_security_map = RREG32(mmCPU_BOOT_DEV_STS0);
 
 	goya->hw_cap_initialized |= HW_CAP_CPU_Q;
 	return 0;
@@ -2806,9 +2811,12 @@ void goya_ring_doorbell(struct hl_device *hdev, u32 hw_queue_id, u32 pi)
 	/* ring the doorbell */
 	WREG32(db_reg_offset, db_value);
 
-	if (hw_queue_id == GOYA_QUEUE_ID_CPU_PQ)
+	if (hw_queue_id == GOYA_QUEUE_ID_CPU_PQ) {
+		/* make sure device CPU will read latest data from host */
+		mb();
 		WREG32(mmGIC_DISTRIBUTOR__5_GICD_SETSPI_NSR,
 				GOYA_ASYNC_EVENT_ID_PI_UPDATE);
+	}
 }
 
 void goya_pqe_write(struct hl_device *hdev, __le64 *pqe, struct hl_bd *bd)
@@ -5382,7 +5390,7 @@ static void goya_ctx_fini(struct hl_ctx *ctx)
 }
 
 static int goya_get_hw_block_id(struct hl_device *hdev, u64 block_addr,
-				u32 *block_id)
+			u32 *block_size, u32 *block_id)
 {
 	return -EPERM;
 }
@@ -5391,6 +5399,12 @@ static int goya_block_mmap(struct hl_device *hdev, struct vm_area_struct *vma,
 				u32 block_id, u32 block_size)
 {
 	return -EPERM;
+}
+
+static void goya_enable_events_from_fw(struct hl_device *hdev)
+{
+	WREG32(mmGIC_DISTRIBUTOR__5_GICD_SETSPI_NSR,
+			GOYA_ASYNC_EVENT_ID_INTS_REGISTER);
 }
 
 static const struct hl_asic_funcs goya_funcs = {
@@ -5474,7 +5488,8 @@ static const struct hl_asic_funcs goya_funcs = {
 	.descramble_addr = hl_mmu_descramble_addr,
 	.ack_protection_bits_errors = goya_ack_protection_bits_errors,
 	.get_hw_block_id = goya_get_hw_block_id,
-	.hw_block_mmap = goya_block_mmap
+	.hw_block_mmap = goya_block_mmap,
+	.enable_events_from_fw = goya_enable_events_from_fw
 };
 
 /*

@@ -414,10 +414,13 @@ struct hl_pll_frequency_info {
  * struct hl_info_sync_manager - sync manager information
  * @first_available_sync_object: first available sob
  * @first_available_monitor: first available monitor
+ * @first_available_cq: first available cq
  */
 struct hl_info_sync_manager {
 	__u32 first_available_sync_object;
 	__u32 first_available_monitor;
+	__u32 first_available_cq;
+	__u32 reserved;
 };
 
 /**
@@ -779,10 +782,10 @@ struct hl_mem_in {
 		/* HL_MEM_OP_MAP_BLOCK - map a hw block */
 		struct {
 			/*
-			 * HW block address to map, a handle will be returned
-			 * to the user and will be used to mmap the relevant
-			 * block. Only addresses from configuration space are
-			 * allowed.
+			 * HW block address to map, a handle and size will be
+			 * returned to the user and will be used to mmap the
+			 * relevant block. Only addresses from configuration
+			 * space are allowed.
 			 */
 			__u64 block_addr;
 		} map_block;
@@ -813,11 +816,26 @@ struct hl_mem_out {
 		__u64 device_virt_addr;
 
 		/*
-		 * Used for HL_MEM_OP_ALLOC and HL_MEM_OP_MAP_BLOCK.
+		 * Used in HL_MEM_OP_ALLOC
 		 * This is the assigned handle for the allocated memory
-		 * or mapped block
 		 */
 		__u64 handle;
+
+		struct {
+			/*
+			 * Used in HL_MEM_OP_MAP_BLOCK.
+			 * This is the assigned handle for the mapped block
+			 */
+			__u64 block_handle;
+
+			/*
+			 * Used in HL_MEM_OP_MAP_BLOCK
+			 * This is the size of the mapped block
+			 */
+			__u32 block_size;
+
+			__u32 pad;
+		};
 	};
 };
 
