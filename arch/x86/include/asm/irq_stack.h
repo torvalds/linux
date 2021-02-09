@@ -23,7 +23,7 @@ static __always_inline void __run_on_irqstack(void (*func)(void))
 	void *tos = __this_cpu_read(hardirq_stack_ptr);
 
 	__this_cpu_write(hardirq_stack_inuse, true);
-	asm_call_on_stack(tos - 8, func, NULL);
+	asm_call_on_stack(tos, func, NULL);
 	__this_cpu_write(hardirq_stack_inuse, false);
 }
 
@@ -34,7 +34,7 @@ __run_sysvec_on_irqstack(void (*func)(struct pt_regs *regs),
 	void *tos = __this_cpu_read(hardirq_stack_ptr);
 
 	__this_cpu_write(hardirq_stack_inuse, true);
-	asm_call_sysvec_on_stack(tos - 8, func, regs);
+	asm_call_sysvec_on_stack(tos, func, regs);
 	__this_cpu_write(hardirq_stack_inuse, false);
 }
 
@@ -45,7 +45,7 @@ __run_irq_on_irqstack(void (*func)(struct irq_desc *desc),
 	void *tos = __this_cpu_read(hardirq_stack_ptr);
 
 	__this_cpu_write(hardirq_stack_inuse, true);
-	asm_call_irq_on_stack(tos - 8, func, desc);
+	asm_call_irq_on_stack(tos, func, desc);
 	__this_cpu_write(hardirq_stack_inuse, false);
 }
 
