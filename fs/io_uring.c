@@ -1508,14 +1508,15 @@ static bool io_task_match(struct io_kiocb *req, struct task_struct *tsk)
 /*
  * Returns true if we found and killed one or more timeouts
  */
-static bool io_kill_timeouts(struct io_ring_ctx *ctx, struct task_struct *tsk)
+static bool io_kill_timeouts(struct io_ring_ctx *ctx, struct task_struct *tsk,
+			     struct files_struct *files)
 {
 	struct io_kiocb *req, *tmp;
 	int canceled = 0;
 
 	spin_lock_irq(&ctx->completion_lock);
 	list_for_each_entry_safe(req, tmp, &ctx->timeout_list, timeout.list) {
-		if (io_task_match(req, tsk)) {
+		if (io_match_task(req, tsk, files)) {
 			io_kill_timeout(req);
 			canceled++;
 		}
@@ -5312,7 +5313,8 @@ static bool io_poll_remove_one(struct io_kiocb *req)
 /*
  * Returns true if we found and killed one or more poll requests
  */
-static bool io_poll_remove_all(struct io_ring_ctx *ctx, struct task_struct *tsk)
+static bool io_poll_remove_all(struct io_ring_ctx *ctx, struct task_struct *tsk,
+			       struct files_struct *files)
 {
 	struct hlist_node *tmp;
 	struct io_kiocb *req;
@@ -5324,7 +5326,7 @@ static bool io_poll_remove_all(struct io_ring_ctx *ctx, struct task_struct *tsk)
 
 		list = &ctx->cancel_hash[i];
 		hlist_for_each_entry_safe(req, tmp, list, hash_node) {
-			if (io_task_match(req, tsk))
+			if (io_match_task(req, tsk, files))
 				posted += io_poll_remove_one(req);
 		}
 	}
@@ -8485,8 +8487,8 @@ static void io_ring_ctx_wait_and_kill(struct io_ring_ctx *ctx)
 		__io_cqring_overflow_flush(ctx, true, NULL, NULL);
 	mutex_unlock(&ctx->uring_lock);
 
-	io_kill_timeouts(ctx, NULL);
-	io_poll_remove_all(ctx, NULL);
+	io_kill_timeouts(ctx, NULL, NULL);
+	io_poll_remove_all(ctx, NULL, NULL);
 
 	if (ctx->io_wq)
 		io_wq_cancel_cb(ctx->io_wq, io_cancel_ctx_cb, ctx, true);
@@ -8721,8 +8723,8 @@ static void __io_uring_cancel_task_requests(struct io_ring_ctx *ctx,
 			}
 		}
 
-		ret |= io_poll_remove_all(ctx, task);
-		ret |= io_kill_timeouts(ctx, task);
+		ret |= io_poll_remove_all(ctx, task, NULL);
+		ret |= io_kill_timeouts(ctx, task, NULL);
 		if (!ret)
 			break;
 		io_run_task_work();
