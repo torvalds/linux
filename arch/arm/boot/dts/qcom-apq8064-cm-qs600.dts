@@ -141,10 +141,10 @@
 		};
 
 		gsbi@16600000 {
-			status = "ok";
+			status = "okay";
 			qcom,mode = <GSBI_PROT_I2C_UART>;
 			serial@16640000 {
-				status = "ok";
+				status = "okay";
 				pinctrl-names = "default";
 				pinctrl-0 = <&gsbi7_uart_2pins>;
 			};
@@ -152,7 +152,7 @@
 
 		/* OTG */
 		usb@12500000 {
-			status = "ok";
+			status = "okay";
 			dr_mode = "otg";
 			ulpi {
 				phy {
@@ -209,7 +209,7 @@
 		};
 
 		pci@1b500000 {
-			status = "ok";
+			status = "okay";
 			vdda-supply = <&pm8921_s3>;
 			vdda_phy-supply = <&pm8921_lvs6>;
 			vdda_refclk-supply = <&v3p3_fixed>;
