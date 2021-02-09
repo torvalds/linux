@@ -224,6 +224,8 @@ static void frontbuffer_release(struct kref *ref)
 	struct drm_i915_gem_object *obj = front->obj;
 	struct i915_vma *vma;
 
+	drm_WARN_ON(obj->base.dev, atomic_read(&front->bits));
+
 	spin_lock(&obj->vma.lock);
 	for_each_ggtt_vma(vma, obj)
 		vma->display_alignment = I915_GTT_MIN_ALIGNMENT;
