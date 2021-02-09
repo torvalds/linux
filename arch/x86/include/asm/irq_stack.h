@@ -189,19 +189,16 @@
 	"call %P[__func]				\n"
 
 /*
- * Macro to invoke __do_softirq on the irq stack. Contrary to the above
- * the only check which is necessary is whether the interrupt stack is
- * in use already.
+ * Macro to invoke __do_softirq on the irq stack. This is only called from
+ * task context when bottom halfs are about to be reenabled and soft
+ * interrupts are pending to be processed. The interrupt stack cannot be in
+ * use here.
  */
-#define run_softirq_on_irqstack_cond()					\
+#define run_softirq_on_irqstack()					\
 {									\
-	if (__this_cpu_read(hardirq_stack_inuse)) {			\
-		__do_softirq();						\
-	} else {							\
-		__this_cpu_write(hardirq_stack_inuse, true);		\
-		call_on_irqstack(__do_softirq, ASM_CALL_SOFTIRQ);	\
-		__this_cpu_write(hardirq_stack_inuse, false);		\
-	}								\
+	__this_cpu_write(hardirq_stack_inuse, true);			\
+	call_on_irqstack(__do_softirq, ASM_CALL_SOFTIRQ);		\
+	__this_cpu_write(hardirq_stack_inuse, false);			\
 }
 
 #else /* CONFIG_X86_64 */
