@@ -538,6 +538,7 @@
 				fsl,num-tx-queues = <1>;
 				fsl,num-rx-queues = <1>;
 				fsl,stop-mode = <&gpr 0x10 4>;
+				fsl,magic-packet;
 				status = "disabled";
 			};
 
@@ -885,6 +886,7 @@
 				fsl,num-tx-queues = <1>;
 				fsl,num-rx-queues = <1>;
 				fsl,stop-mode = <&gpr 0x10 3>;
+				fsl,magic-packet;
 				status = "disabled";
 			};
 

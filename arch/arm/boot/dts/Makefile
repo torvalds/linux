@@ -465,6 +465,9 @@ dtb-$(CONFIG_SOC_IMX6Q) += \
 	imx6dl-pico-hobbit.dtb \
 	imx6dl-pico-nymph.dtb \
 	imx6dl-pico-pi.dtb \
+	imx6dl-plybas.dtb \
+	imx6dl-plym2m.dtb \
+	imx6dl-prtmvt.dtb \
 	imx6dl-prtrvt.dtb \
 	imx6dl-prtvt7.dtb \
 	imx6dl-rex-basic.dtb \
@@ -487,6 +490,8 @@ dtb-$(CONFIG_SOC_IMX6Q) += \
 	imx6dl-tx6u-811x.dtb \
 	imx6dl-tx6u-81xx-mb7.dtb \
 	imx6dl-udoo.dtb \
+	imx6dl-victgo.dtb \
+	imx6dl-vicut1.dtb \
 	imx6dl-wandboard.dtb \
 	imx6dl-wandboard-revb1.dtb \
 	imx6dl-wandboard-revd1.dtb \
@@ -580,6 +585,7 @@ dtb-$(CONFIG_SOC_IMX6Q) += \
 	imx6q-udoo.dtb \
 	imx6q-utilite-pro.dtb \
 	imx6q-var-dt6customboard.dtb \
+	imx6q-vicut1.dtb \
 	imx6q-wandboard.dtb \
 	imx6q-wandboard-revb1.dtb \
 	imx6q-wandboard-revd1.dtb \
@@ -594,6 +600,7 @@ dtb-$(CONFIG_SOC_IMX6Q) += \
 	imx6qp-tx6qp-8037-mb7.dtb \
 	imx6qp-tx6qp-8137.dtb \
 	imx6qp-tx6qp-8137-mb7.dtb \
+	imx6qp-vicutp.dtb \
 	imx6qp-wandboard-revd1.dtb \
 	imx6qp-zii-rdu2.dtb
 dtb-$(CONFIG_SOC_IMX6SL) += \
@@ -631,6 +638,7 @@ dtb-$(CONFIG_SOC_IMX6UL) += \
 	imx6ul-pico-pi.dtb \
 	imx6ul-phytec-segin-ff-rdk-emmc.dtb \
 	imx6ul-phytec-segin-ff-rdk-nand.dtb \
+	imx6ul-prti6g.dtb \
 	imx6ul-tx6ul-0010.dtb \
 	imx6ul-tx6ul-0011.dtb \
 	imx6ul-tx6ul-mainboard.dtb \
