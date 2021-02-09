@@ -517,7 +517,7 @@ static int palmas_gpadc_probe(struct platform_device *pdev)
 	adc->palmas = dev_get_drvdata(pdev->dev.parent);
 	adc->adc_info = palmas_gpadc_info;
 	init_completion(&adc->conv_completion);
-	dev_set_drvdata(&pdev->dev, indio_dev);
+	platform_set_drvdata(pdev, indio_dev);
 
 	adc->auto_conversion_period = gpadc_pdata->auto_conversion_period_ms;
 	adc->irq = palmas_irq_get_virq(adc->palmas, PALMAS_GPADC_EOC_SW_IRQ);
