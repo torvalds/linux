@@ -2020,7 +2020,7 @@ static int update_cfi_state(struct instruction *insn,
 			}
 
 			else if (op->src.reg == CFI_BP && op->dest.reg == CFI_SP &&
-				 cfa->base == CFI_BP) {
+				 (cfa->base == CFI_BP || cfa->base == cfi->drap_reg)) {
 
 				/*
 				 * mov %rbp, %rsp
@@ -2217,7 +2217,7 @@ static int update_cfi_state(struct instruction *insn,
 				cfa->offset = 0;
 				cfi->drap_offset = -1;
 
-			} else if (regs[op->dest.reg].offset == -cfi->stack_size) {
+			} else if (cfi->stack_size == -regs[op->dest.reg].offset) {
 
 				/* pop %reg */
 				restore_reg(cfi, op->dest.reg);
@@ -2354,26 +2354,6 @@ static int update_cfi_state(struct instruction *insn,
 			/* mov %rsp, (%reg); # setup a stack swizzle. */
 			cfi->vals[op->dest.reg].base = CFI_SP_INDIRECT;
 			cfi->vals[op->dest.reg].offset = cfa->offset;
-		}
-
-		break;
-
-	case OP_DEST_LEAVE:
-		if ((!cfi->drap && cfa->base != CFI_BP) ||
-		    (cfi->drap && cfa->base != cfi->drap_reg)) {
-			WARN_FUNC("leave instruction with modified stack frame",
-				  insn->sec, insn->offset);
-			return -1;
-		}
-
-		/* leave (mov %rbp, %rsp; pop %rbp) */
-
-		cfi->stack_size = -cfi->regs[CFI_BP].offset - 8;
-		restore_reg(cfi, CFI_BP);
-
-		if (!cfi->drap) {
-			cfa->base = CFI_SP;
-			cfa->offset -= 8;
 		}
 
 		break;

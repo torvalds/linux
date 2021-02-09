@@ -35,7 +35,6 @@ enum op_dest_type {
 	OP_DEST_MEM,
 	OP_DEST_PUSH,
 	OP_DEST_PUSHF,
-	OP_DEST_LEAVE,
 };
 
 struct op_dest {

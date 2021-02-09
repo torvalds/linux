@@ -446,9 +446,17 @@ int arch_decode_instruction(const struct elf *elf, const struct section *sec,
 		 * mov bp, sp
 		 * pop bp
 		 */
-		ADD_OP(op)
-			op->dest.type = OP_DEST_LEAVE;
-
+		ADD_OP(op) {
+			op->src.type = OP_SRC_REG;
+			op->src.reg = CFI_BP;
+			op->dest.type = OP_DEST_REG;
+			op->dest.reg = CFI_SP;
+		}
+		ADD_OP(op) {
+			op->src.type = OP_SRC_POP;
+			op->dest.type = OP_DEST_REG;
+			op->dest.reg = CFI_BP;
+		}
 		break;
 
 	case 0xe3:
