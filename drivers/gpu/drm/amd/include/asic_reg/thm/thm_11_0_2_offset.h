@@ -49,4 +49,7 @@
 #define mmTHM_BACO_CNTL                                                                                0x0081
 #define mmTHM_BACO_CNTL_BASE_IDX                                                                       0
 
+#define mmCG_THERMAL_STATUS                                                                            0x006C
+#define mmCG_THERMAL_STATUS_BASE_IDX                                                                   0
+
 #endif
