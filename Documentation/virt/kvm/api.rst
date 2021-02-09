@@ -4924,7 +4924,7 @@ KVM_XEN_VCPU_ATTR_TYPE_VCPU_TIME_INFO
   for a given vCPU. This is typically used for guest vsyscall support.
 
 4.130 KVM_XEN_VCPU_GET_ATTR
---------------------------
+---------------------------
 
 :Capability: KVM_CAP_XEN_HVM / KVM_XEN_HVM_CONFIG_SHARED_INFO
 :Architectures: x86
