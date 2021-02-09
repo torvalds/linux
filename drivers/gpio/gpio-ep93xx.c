@@ -38,6 +38,7 @@
 #define EP93XX_GPIO_F_IRQ_BASE 80
 
 struct ep93xx_gpio_irq_chip {
+	struct irq_chip ic;
 	u8 irq_offset;
 	u8 int_unmasked;
 	u8 int_enabled;
@@ -263,15 +264,6 @@ static int ep93xx_gpio_irq_type(struct irq_data *d, unsigned int type)
 	return 0;
 }
 
-static struct irq_chip ep93xx_gpio_irq_chip = {
-	.name		= "GPIO",
-	.irq_ack	= ep93xx_gpio_irq_ack,
-	.irq_mask_ack	= ep93xx_gpio_irq_mask_ack,
-	.irq_mask	= ep93xx_gpio_irq_mask,
-	.irq_unmask	= ep93xx_gpio_irq_unmask,
-	.irq_set_type	= ep93xx_gpio_irq_type,
-};
-
 /*************************************************************************
  * gpiolib interface for EP93xx on-chip GPIOs
  *************************************************************************/
@@ -331,6 +323,15 @@ static int ep93xx_gpio_f_to_irq(struct gpio_chip *gc, unsigned offset)
 	return EP93XX_GPIO_F_IRQ_BASE + offset;
 }
 
+static void ep93xx_init_irq_chip(struct device *dev, struct irq_chip *ic)
+{
+	ic->irq_ack = ep93xx_gpio_irq_ack;
+	ic->irq_mask_ack = ep93xx_gpio_irq_mask_ack;
+	ic->irq_mask = ep93xx_gpio_irq_mask;
+	ic->irq_unmask = ep93xx_gpio_irq_unmask;
+	ic->irq_set_type = ep93xx_gpio_irq_type;
+}
+
 static int ep93xx_gpio_add_bank(struct ep93xx_gpio_chip *egc,
 				struct platform_device *pdev,
 				struct ep93xx_gpio *epg,
@@ -352,6 +353,8 @@ static int ep93xx_gpio_add_bank(struct ep93xx_gpio_chip *egc,
 
 	girq = &gc->irq;
 	if (bank->has_irq || bank->has_hierarchical_irq) {
+		struct irq_chip *ic;
+
 		gc->set_config = ep93xx_gpio_set_config;
 		egc->eic = devm_kcalloc(dev, 1,
 					sizeof(*egc->eic),
@@ -359,7 +362,12 @@ static int ep93xx_gpio_add_bank(struct ep93xx_gpio_chip *egc,
 		if (!egc->eic)
 			return -ENOMEM;
 		egc->eic->irq_offset = bank->irq;
-		girq->chip = &ep93xx_gpio_irq_chip;
+		ic = &egc->eic->ic;
+		ic->name = devm_kasprintf(dev, GFP_KERNEL, "gpio-irq-%s", bank->label);
+		if (!ic->name)
+			return -ENOMEM;
+		ep93xx_init_irq_chip(dev, ic);
+		girq->chip = ic;
 	}
 
 	if (bank->has_irq) {
@@ -401,7 +409,7 @@ static int ep93xx_gpio_add_bank(struct ep93xx_gpio_chip *egc,
 			gpio_irq = EP93XX_GPIO_F_IRQ_BASE + i;
 			irq_set_chip_data(gpio_irq, &epg->gc[5]);
 			irq_set_chip_and_handler(gpio_irq,
-						 &ep93xx_gpio_irq_chip,
+						 girq->chip,
 						 handle_level_irq);
 			irq_clear_status_flags(gpio_irq, IRQ_NOREQUEST);
 		}
