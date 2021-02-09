@@ -105,14 +105,69 @@
 #define assert_arg_type(arg, proto)					\
 	static_assert(__builtin_types_compatible_p(typeof(arg), proto))
 
+/*
+ * Macro to invoke system vector and device interrupt C handlers.
+ */
+#define call_on_irqstack_cond(func, regs, asm_call, constr, c_args...)	\
+{									\
+	/*								\
+	 * User mode entry and interrupt on the irq stack do not	\
+	 * switch stacks. If from user mode the task stack is empty.	\
+	 */								\
+	if (user_mode(regs) || __this_cpu_read(hardirq_stack_inuse)) {	\
+		irq_enter_rcu();					\
+		func(c_args);						\
+		irq_exit_rcu();						\
+	} else {							\
+		/*							\
+		 * Mark the irq stack inuse _before_ and unmark _after_	\
+		 * switching stacks. Interrupts are disabled in both	\
+		 * places. Invoke the stack switch macro with the call	\
+		 * sequence which matches the above direct invocation.	\
+		 */							\
+		__this_cpu_write(hardirq_stack_inuse, true);		\
+		call_on_irqstack(func, asm_call, constr);		\
+		__this_cpu_write(hardirq_stack_inuse, false);		\
+	}								\
+}
+
+/*
+ * Function call sequence for __call_on_irqstack() for system vectors.
+ *
+ * Note that irq_enter_rcu() and irq_exit_rcu() do not use the input
+ * mechanism because these functions are global and cannot be optimized out
+ * when compiling a particular source file which uses one of these macros.
+ *
+ * The argument (regs) does not need to be pushed or stashed in a callee
+ * saved register to be safe vs. the irq_enter_rcu() call because the
+ * clobbers already prevent the compiler from storing it in a callee
+ * clobbered register. As the compiler has to preserve @regs for the final
+ * call to idtentry_exit() anyway, it's likely that it does not cause extra
+ * effort for this asm magic.
+ */
+#define ASM_CALL_SYSVEC							\
+	"call irq_enter_rcu				\n"		\
+	"movq	%[arg1], %%rdi				\n"		\
+	"call %P[__func]				\n"		\
+	"call irq_exit_rcu				\n"
+
+#define SYSVEC_CONSTRAINTS	, [arg1] "r" (regs)
+
+#define run_sysvec_on_irqstack_cond(func, regs)				\
+{									\
+	assert_function_type(func, void (*)(struct pt_regs *));		\
+	assert_arg_type(regs, struct pt_regs *);			\
+									\
+	call_on_irqstack_cond(func, regs, ASM_CALL_SYSVEC,		\
+			      SYSVEC_CONSTRAINTS, regs);		\
+}
+
 static __always_inline bool irqstack_active(void)
 {
 	return __this_cpu_read(hardirq_stack_inuse);
 }
 
 void asm_call_on_stack(void *sp, void (*func)(void), void *arg);
-void asm_call_sysvec_on_stack(void *sp, void (*func)(struct pt_regs *regs),
-			      struct pt_regs *regs);
 void asm_call_irq_on_stack(void *sp, void (*func)(struct irq_desc *desc),
 			   struct irq_desc *desc);
 
@@ -122,17 +177,6 @@ static __always_inline void __run_on_irqstack(void (*func)(void))
 
 	__this_cpu_write(hardirq_stack_inuse, true);
 	asm_call_on_stack(tos, func, NULL);
-	__this_cpu_write(hardirq_stack_inuse, false);
-}
-
-static __always_inline void
-__run_sysvec_on_irqstack(void (*func)(struct pt_regs *regs),
-			 struct pt_regs *regs)
-{
-	void *tos = __this_cpu_read(hardirq_stack_ptr);
-
-	__this_cpu_write(hardirq_stack_inuse, true);
-	asm_call_sysvec_on_stack(tos, func, regs);
 	__this_cpu_write(hardirq_stack_inuse, false);
 }
 
@@ -148,10 +192,17 @@ __run_irq_on_irqstack(void (*func)(struct irq_desc *desc),
 }
 
 #else /* CONFIG_X86_64 */
+
+/* System vector handlers always run on the stack they interrupted. */
+#define run_sysvec_on_irqstack_cond(func, regs)				\
+{									\
+	irq_enter_rcu();						\
+	func(regs);							\
+	irq_exit_rcu();							\
+}
+
 static inline bool irqstack_active(void) { return false; }
 static inline void __run_on_irqstack(void (*func)(void)) { }
-static inline void __run_sysvec_on_irqstack(void (*func)(struct pt_regs *regs),
-					    struct pt_regs *regs) { }
 static inline void __run_irq_on_irqstack(void (*func)(struct irq_desc *desc),
 					 struct irq_desc *desc) { }
 #endif /* !CONFIG_X86_64 */
@@ -175,18 +226,6 @@ static __always_inline void run_on_irqstack_cond(void (*func)(void),
 		__run_on_irqstack(func);
 	else
 		func();
-}
-
-static __always_inline void
-run_sysvec_on_irqstack_cond(void (*func)(struct pt_regs *regs),
-			    struct pt_regs *regs)
-{
-	lockdep_assert_irqs_disabled();
-
-	if (irq_needs_irq_stack(regs))
-		__run_sysvec_on_irqstack(func, regs);
-	else
-		func(regs);
 }
 
 static __always_inline void
