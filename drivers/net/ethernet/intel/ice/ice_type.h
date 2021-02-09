@@ -403,7 +403,11 @@ struct ice_link_default_override_tlv {
 #define ice_for_each_traffic_class(_i)	\
 	for ((_i) = 0; (_i) < ICE_MAX_TRAFFIC_CLASS; (_i)++)
 
+/* ICE_DFLT_AGG_ID means that all new VM(s)/VSI node connects
+ * to driver defined policy for default aggregator
+ */
 #define ICE_INVAL_TEID 0xFFFFFFFF
+#define ICE_DFLT_AGG_ID 0
 
 struct ice_sched_node {
 	struct ice_sched_node *parent;
@@ -552,6 +556,14 @@ struct ice_dcbx_cfg {
 #define ICE_DCBX_APPS_NON_WILLING	0x1
 };
 
+struct ice_qos_cfg {
+	struct ice_dcbx_cfg local_dcbx_cfg;	/* Oper/Local Cfg */
+	struct ice_dcbx_cfg desired_dcbx_cfg;	/* CEE Desired Cfg */
+	struct ice_dcbx_cfg remote_dcbx_cfg;	/* Peer Cfg */
+	u8 dcbx_status : 3;			/* see ICE_DCBX_STATUS_DIS */
+	u8 is_sw_lldp : 1;
+};
+
 struct ice_port_info {
 	struct ice_sched_node *root;	/* Root Node per Port */
 	struct ice_hw *hw;		/* back pointer to HW instance */
@@ -575,13 +587,7 @@ struct ice_port_info {
 		sib_head[ICE_MAX_TRAFFIC_CLASS][ICE_AQC_TOPO_MAX_LEVEL_NUM];
 	/* List contain profile ID(s) and other params per layer */
 	struct list_head rl_prof_list[ICE_AQC_TOPO_MAX_LEVEL_NUM];
-	struct ice_dcbx_cfg local_dcbx_cfg;	/* Oper/Local Cfg */
-	/* DCBX info */
-	struct ice_dcbx_cfg remote_dcbx_cfg;	/* Peer Cfg */
-	struct ice_dcbx_cfg desired_dcbx_cfg;	/* CEE Desired Cfg */
-	/* LLDP/DCBX Status */
-	u8 dcbx_status:3;		/* see ICE_DCBX_STATUS_DIS */
-	u8 is_sw_lldp:1;
+	struct ice_qos_cfg qos_cfg;
 	u8 is_vf:1;
 };
 
@@ -614,6 +620,8 @@ struct ice_hw {
 	void *back;
 	struct ice_aqc_layer_props *layer_info;
 	struct ice_port_info *port_info;
+	/* PSM clock frequency for calculating RL profile params */
+	u32 psm_clk_freq;
 	u64 debug_mask;		/* bitmap for debug mask */
 	enum ice_mac_type mac_type;
 
@@ -901,5 +909,10 @@ struct ice_hw_port_stats {
 
 /* Hash redirection LUT for VSI - maximum array size */
 #define ICE_VSIQF_HLUT_ARRAY_SIZE	((VSIQF_HLUT_MAX_INDEX + 1) * 4)
+
+/* AQ API version for LLDP_FILTER_CONTROL */
+#define ICE_FW_API_LLDP_FLTR_MAJ	1
+#define ICE_FW_API_LLDP_FLTR_MIN	7
+#define ICE_FW_API_LLDP_FLTR_PATCH	1
 
 #endif /* _ICE_TYPE_H_ */
