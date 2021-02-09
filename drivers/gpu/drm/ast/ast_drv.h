@@ -179,6 +179,9 @@ struct ast_private *ast_device_create(const struct drm_driver *drv,
 
 #define AST_IO_VGAIR1_VREFRESH		BIT(3)
 
+#define AST_IO_VGACRCB_HWC_ENABLED     BIT(1)
+#define AST_IO_VGACRCB_HWC_16BPP       BIT(0) /* set: ARGB4444, cleared: 2bpp palette */
+
 #define __ast_read(x) \
 static inline u##x ast_read##x(struct ast_private *ast, u32 reg) { \
 u##x val = 0;\

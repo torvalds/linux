@@ -236,6 +236,19 @@ static void ast_cursor_set_location(struct ast_private *ast, u16 x, u16 y,
 	ast_set_index_reg(ast, AST_IO_CRTC_PORT, 0xc7, y1);
 }
 
+static void ast_set_cursor_enabled(struct ast_private *ast, bool enabled)
+{
+	static const u8 mask = (u8)~(AST_IO_VGACRCB_HWC_16BPP |
+				     AST_IO_VGACRCB_HWC_ENABLED);
+
+	u8 vgacrcb = AST_IO_VGACRCB_HWC_16BPP;
+
+	if (enabled)
+		vgacrcb |= AST_IO_VGACRCB_HWC_ENABLED;
+
+	ast_set_index_reg_mask(ast, AST_IO_CRTC_PORT, 0xcb, mask, vgacrcb);
+}
+
 void ast_cursor_show(struct ast_private *ast, int x, int y,
 		     unsigned int offset_x, unsigned int offset_y)
 {
@@ -245,7 +258,6 @@ void ast_cursor_show(struct ast_private *ast, int x, int y,
 	u8 x_offset, y_offset;
 	u8 __iomem *dst;
 	u8 __iomem *sig;
-	u8 jreg;
 	int ret;
 
 	ret = drm_gem_vram_vmap(gbo, &map);
@@ -274,13 +286,10 @@ void ast_cursor_show(struct ast_private *ast, int x, int y,
 
 	ast_cursor_set_location(ast, x, y, x_offset, y_offset);
 
-	/* dummy write to fire HWC */
-	jreg = 0x02 |
-	       0x01; /* enable ARGB4444 cursor */
-	ast_set_index_reg_mask(ast, AST_IO_CRTC_PORT, 0xcb, 0xfc, jreg);
+	ast_set_cursor_enabled(ast, true); /* dummy write to fire HWC */
 }
 
 void ast_cursor_hide(struct ast_private *ast)
 {
-	ast_set_index_reg_mask(ast, AST_IO_CRTC_PORT, 0xcb, 0xfc, 0x00);
+	ast_set_cursor_enabled(ast, false);
 }
