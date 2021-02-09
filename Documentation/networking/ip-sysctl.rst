@@ -1446,6 +1446,25 @@ rp_filter - INTEGER
 	Default value is 0. Note that some distributions enable it
 	in startup scripts.
 
+src_valid_mark - BOOLEAN
+	- 0 - The fwmark of the packet is not included in reverse path
+	  route lookup.  This allows for asymmetric routing configurations
+	  utilizing the fwmark in only one direction, e.g., transparent
+	  proxying.
+
+	- 1 - The fwmark of the packet is included in reverse path route
+	  lookup.  This permits rp_filter to function when the fwmark is
+	  used for routing traffic in both directions.
+
+	This setting also affects the utilization of fmwark when
+	performing source address selection for ICMP replies, or
+	determining addresses stored for the IPOPT_TS_TSANDADDR and
+	IPOPT_RR IP options.
+
+	The max value from conf/{all,interface}/src_valid_mark is used.
+
+	Default value is 0.
+
 arp_filter - BOOLEAN
 	- 1 - Allows you to have multiple network interfaces on the same
 	  subnet, and have the ARPs for each interface be answered
