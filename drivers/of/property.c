@@ -1245,8 +1245,6 @@ DEFINE_SIMPLE_PROP(dmas, "dmas", "#dma-cells")
 DEFINE_SIMPLE_PROP(power_domains, "power-domains", "#power-domain-cells")
 DEFINE_SIMPLE_PROP(hwlocks, "hwlocks", "#hwlock-cells")
 DEFINE_SIMPLE_PROP(extcon, "extcon", NULL)
-DEFINE_SIMPLE_PROP(interrupts_extended, "interrupts-extended",
-					"#interrupt-cells")
 DEFINE_SIMPLE_PROP(nvmem_cells, "nvmem-cells", NULL)
 DEFINE_SIMPLE_PROP(phys, "phys", "#phy-cells")
 DEFINE_SIMPLE_PROP(wakeup_parent, "wakeup-parent", NULL)
@@ -1297,10 +1295,13 @@ static struct device_node *parse_gpio_compat(struct device_node *np,
 static struct device_node *parse_interrupts(struct device_node *np,
 					    const char *prop_name, int index)
 {
-	if (strcmp(prop_name, "interrupts") || index)
+	struct of_phandle_args sup_args;
+
+	if (strcmp(prop_name, "interrupts") &&
+	    strcmp(prop_name, "interrupts-extended"))
 		return NULL;
 
-	return of_irq_find_parent(np);
+	return of_irq_parse_one(np, index, &sup_args) ? NULL : sup_args.np;
 }
 
 static const struct supplier_bindings of_supplier_bindings[] = {
@@ -1315,7 +1316,6 @@ static const struct supplier_bindings of_supplier_bindings[] = {
 	{ .parse_prop = parse_power_domains, },
 	{ .parse_prop = parse_hwlocks, },
 	{ .parse_prop = parse_extcon, },
-	{ .parse_prop = parse_interrupts_extended, },
 	{ .parse_prop = parse_nvmem_cells, },
 	{ .parse_prop = parse_phys, },
 	{ .parse_prop = parse_wakeup_parent, },
