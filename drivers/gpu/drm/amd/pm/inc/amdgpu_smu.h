@@ -730,6 +730,11 @@ struct pptable_funcs {
 	int (*get_fan_speed_percent)(struct smu_context *smu, uint32_t *speed);
 
 	/**
+	 * @get_fan_speed_rpm: Get the current fan speed in rpm.
+	 */
+	int (*get_fan_speed_rpm)(struct smu_context *smu, uint32_t *speed);
+
+	/**
 	 * @set_watermarks_table: Configure and upload the watermarks tables to
 	 *                        the SMU.
 	 */
