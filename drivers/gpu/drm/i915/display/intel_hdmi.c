@@ -3138,6 +3138,24 @@ static u8 rkl_port_to_ddc_pin(struct drm_i915_private *dev_priv, enum port port)
 	return GMBUS_PIN_1_BXT + phy;
 }
 
+static u8 gen9bc_tgp_port_to_ddc_pin(struct drm_i915_private *i915, enum port port)
+{
+	enum phy phy = intel_port_to_phy(i915, port);
+
+	drm_WARN_ON(&i915->drm, port == PORT_A);
+
+	/*
+	 * Pin mapping for GEN9 BC depends on which PCH is present.  With TGP,
+	 * final two outputs use type-c pins, even though they're actually
+	 * combo outputs.  With CMP, the traditional DDI A-D pins are used for
+	 * all outputs.
+	 */
+	if (INTEL_PCH_TYPE(i915) >= PCH_TGP && phy >= PHY_C)
+		return GMBUS_PIN_9_TC1_ICP + phy - PHY_C;
+
+	return GMBUS_PIN_1_BXT + phy;
+}
+
 static u8 dg1_port_to_ddc_pin(struct drm_i915_private *dev_priv, enum port port)
 {
 	return intel_port_to_phy(dev_priv, port) + 1;
@@ -3202,6 +3220,8 @@ static u8 intel_hdmi_ddc_pin(struct intel_encoder *encoder)
 		ddc_pin = dg1_port_to_ddc_pin(dev_priv, port);
 	else if (IS_ROCKETLAKE(dev_priv))
 		ddc_pin = rkl_port_to_ddc_pin(dev_priv, port);
+	else if (IS_GEN9_BC(dev_priv) && HAS_PCH_TGP(dev_priv))
+		ddc_pin = gen9bc_tgp_port_to_ddc_pin(dev_priv, port);
 	else if (HAS_PCH_MCC(dev_priv))
 		ddc_pin = mcc_port_to_ddc_pin(dev_priv, port);
 	else if (INTEL_PCH_TYPE(dev_priv) >= PCH_ICP)
