@@ -108,33 +108,16 @@ void __init mem_init(void)
 
 void __init setup_bootmem(void)
 {
-	phys_addr_t mem_start = 0;
-	phys_addr_t start, dram_end, end = 0;
 	phys_addr_t vmlinux_end = __pa_symbol(&_end);
 	phys_addr_t vmlinux_start = __pa_symbol(&_start);
+	phys_addr_t dram_end = memblock_end_of_DRAM();
 	phys_addr_t max_mapped_addr = __pa(~(ulong)0);
-	u64 i;
 
-	/* Find the memory region containing the kernel */
-	for_each_mem_range(i, &start, &end) {
-		phys_addr_t size = end - start;
-		if (!mem_start)
-			mem_start = start;
-		if (start <= vmlinux_start && vmlinux_end <= end)
-			BUG_ON(size == 0);
-	}
-
-	/*
-	 * The maximal physical memory size is -PAGE_OFFSET.
-	 * Make sure that any memory beyond mem_start + (-PAGE_OFFSET) is removed
-	 * as it is unusable by kernel.
-	 */
+	/* The maximal physical memory size is -PAGE_OFFSET. */
 	memblock_enforce_memory_limit(-PAGE_OFFSET);
 
 	/* Reserve from the start of the kernel to the end of the kernel */
 	memblock_reserve(vmlinux_start, vmlinux_end - vmlinux_start);
-
-	dram_end = memblock_end_of_DRAM();
 
 	/*
 	 * memblock allocator is not aware of the fact that last 4K bytes of
