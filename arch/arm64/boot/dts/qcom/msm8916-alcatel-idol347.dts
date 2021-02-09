@@ -1,25 +1,21 @@
 // SPDX-License-Identifier: GPL-2.0-only
 
+/dts-v1/;
+
 #include "msm8916-pm8916.dtsi"
 #include <dt-bindings/gpio/gpio.h>
 #include <dt-bindings/input/input.h>
-#include <dt-bindings/interrupt-controller/irq.h>
 
 / {
+	model = "Alcatel OneTouch Idol 3 (4.7)";
+	compatible = "alcatel,idol347", "qcom,msm8916";
+
 	aliases {
 		serial0 = &blsp1_uart2;
 	};
 
 	chosen {
 		stdout-path = "serial0";
-	};
-
-	reserved-memory {
-		/* Additional memory used by Samsung firmware modifications */
-		tz-apps@85500000 {
-			reg = <0x0 0x85500000 0x0 0xb00000>;
-			no-map;
-		};
 	};
 
 	gpio-keys {
@@ -35,90 +31,13 @@
 			gpios = <&msmgpio 107 GPIO_ACTIVE_LOW>;
 			linux,code = <KEY_VOLUMEUP>;
 		};
-
-		home {
-			label = "Home";
-			gpios = <&msmgpio 109 GPIO_ACTIVE_LOW>;
-			linux,code = <KEY_HOMEPAGE>;
-		};
 	};
 
-	gpio-hall-sensor {
-		compatible = "gpio-keys";
-
+	usb_id: usb-id {
+		compatible = "linux,extcon-usb-gpio";
+		id-gpio = <&msmgpio 69 GPIO_ACTIVE_HIGH>;
 		pinctrl-names = "default";
-		pinctrl-0 = <&gpio_hall_sensor_default>;
-
-		label = "GPIO Hall Effect Sensor";
-
-		hall-sensor {
-			label = "Hall Effect Sensor";
-			gpios = <&msmgpio 52 GPIO_ACTIVE_LOW>;
-			linux,input-type = <EV_SW>;
-			linux,code = <SW_LID>;
-			linux,can-disable;
-		};
-	};
-
-	reg_vdd_tsp: regulator-vdd-tsp {
-		compatible = "regulator-fixed";
-		regulator-name = "vdd_tsp";
-		regulator-min-microvolt = <3300000>;
-		regulator-max-microvolt = <3300000>;
-
-		gpio = <&msmgpio 73 GPIO_ACTIVE_HIGH>;
-		enable-active-high;
-
-		pinctrl-names = "default";
-		pinctrl-0 = <&tsp_en_default>;
-	};
-
-	i2c-muic {
-		compatible = "i2c-gpio";
-		sda-gpios = <&msmgpio 105 (GPIO_ACTIVE_HIGH|GPIO_OPEN_DRAIN)>;
-		scl-gpios = <&msmgpio 106 (GPIO_ACTIVE_HIGH|GPIO_OPEN_DRAIN)>;
-
-		pinctrl-names = "default";
-		pinctrl-0 = <&muic_i2c_default>;
-
-		#address-cells = <1>;
-		#size-cells = <0>;
-
-		muic: extcon@25 {
-			compatible = "siliconmitus,sm5502-muic";
-
-			reg = <0x25>;
-			interrupt-parent = <&msmgpio>;
-			interrupts = <12 IRQ_TYPE_EDGE_FALLING>;
-
-			pinctrl-names = "default";
-			pinctrl-0 = <&muic_int_default>;
-		};
-	};
-};
-
-&blsp_i2c2 {
-	status = "okay";
-
-	accelerometer: accelerometer@10 {
-		compatible = "bosch,bmc150_accel";
-		reg = <0x10>;
-		interrupt-parent = <&msmgpio>;
-		interrupts = <115 IRQ_TYPE_EDGE_RISING>;
-
-		vdd-supply = <&pm8916_l17>;
-		vddio-supply = <&pm8916_l5>;
-
-		pinctrl-names = "default";
-		pinctrl-0 = <&accel_int_default>;
-	};
-
-	magnetometer@12 {
-		compatible = "bosch,bmc150_magn";
-		reg = <0x12>;
-
-		vdd-supply = <&pm8916_l17>;
-		vddio-supply = <&pm8916_l5>;
+		pinctrl-0 = <&usb_id_default>;
 	};
 };
 
@@ -126,19 +45,65 @@
 	status = "okay";
 };
 
-&dsi0 {
-	pinctrl-names = "default", "sleep";
-	pinctrl-0 = <&mdss_default>;
-	pinctrl-1 = <&mdss_sleep>;
-};
-
-&mdss {
+&blsp_i2c5 {
 	status = "okay";
+
+	magnetometer@c {
+		compatible = "asahi-kasei,ak09911";
+		reg = <0x0c>;
+		vdd-supply = <&pm8916_l17>;
+		vid-supply = <&pm8916_l6>;
+		reset-gpios = <&msmgpio 8 GPIO_ACTIVE_LOW>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&mag_reset_default>;
+		mount-matrix = "0", "1", "0",
+			       "-1", "0", "0",
+			       "0", "0", "1";
+	};
+
+	accelerometer@f {
+		compatible = "kionix,kxtj21009";
+		reg = <0x0f>;
+		vdd-supply = <&pm8916_l17>;
+		vddio-supply = <&pm8916_l6>;
+		interrupt-parent = <&msmgpio>;
+		interrupts = <31 IRQ_TYPE_EDGE_RISING>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&accel_int_default>;
+		mount-matrix = "-1", "0", "0",
+			       "0", "1", "0",
+			       "0", "0", "-1";
+	};
+
+	proximity@48 {
+		compatible = "sensortek,stk3310";
+		reg = <0x48>;
+		interrupt-parent = <&msmgpio>;
+		interrupts = <12 IRQ_TYPE_EDGE_FALLING>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&proximity_int_default>;
+	};
+
+	gyroscope@68 {
+		compatible = "bosch,bmg160";
+		reg = <0x68>;
+		vdd-supply = <&pm8916_l17>;
+		vddio-supply = <&pm8916_l6>;
+		interrupt-parent = <&msmgpio>;
+		interrupts = <97 IRQ_TYPE_EDGE_RISING>,
+			     <98 IRQ_TYPE_EDGE_RISING>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&gyro_int_default>;
+	};
 };
 
 &pm8916_resin {
 	status = "okay";
 	linux,code = <KEY_VOLUMEDOWN>;
+};
+
+&pm8916_vib {
+	status = "okay";
 };
 
 &pronto {
@@ -165,11 +130,11 @@
 
 &usb {
 	status = "okay";
-	extcon = <&muic>, <&muic>;
+	extcon = <&usb_id>, <&usb_id>;
 };
 
 &usb_hs_phy {
-	extcon = <&muic>;
+	extcon = <&usb_id>;
 };
 
 &smd_rpm_regulators {
@@ -277,7 +242,7 @@
 
 &msmgpio {
 	accel_int_default: accel-int-default {
-		pins = "gpio115";
+		pins = "gpio31";
 		function = "gpio";
 
 		drive-strength = <2>;
@@ -285,59 +250,42 @@
 	};
 
 	gpio_keys_default: gpio-keys-default {
-		pins = "gpio107", "gpio109";
+		pins = "gpio107";
 		function = "gpio";
 
 		drive-strength = <2>;
 		bias-pull-up;
 	};
 
-	gpio_hall_sensor_default: gpio-hall-sensor-default {
-		pins = "gpio52";
+	gyro_int_default: gyro-int-default {
+		pins = "gpio97", "gpio98";
 		function = "gpio";
 
 		drive-strength = <2>;
 		bias-disable;
 	};
 
-	mdss {
-		mdss_default: mdss-default {
-			pins = "gpio25";
-			function = "gpio";
-
-			drive-strength = <8>;
-			bias-disable;
-		};
-		mdss_sleep: mdss-sleep {
-			pins = "gpio25";
-			function = "gpio";
-
-			drive-strength = <2>;
-			bias-pull-down;
-		};
-	};
-
-	muic_i2c_default: muic-i2c-default {
-		pins = "gpio105", "gpio106";
+	mag_reset_default: mag-reset-default {
+		pins = "gpio8";
 		function = "gpio";
 
 		drive-strength = <2>;
 		bias-disable;
 	};
 
-	muic_int_default: muic-int-default {
+	proximity_int_default: proximity-int-default {
 		pins = "gpio12";
 		function = "gpio";
 
-		drive-strength = <2>;
-		bias-disable;
+		drive-strength = <6>;
+		bias-pull-up;
 	};
 
-	tsp_en_default: tsp-en-default {
-		pins = "gpio73";
+	usb_id_default: usb-id-default {
+		pins = "gpio69";
 		function = "gpio";
 
-		drive-strength = <2>;
-		bias-disable;
+		drive-strength = <8>;
+		bias-pull-up;
 	};
 };

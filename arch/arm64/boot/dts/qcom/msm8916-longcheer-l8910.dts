@@ -1,25 +1,22 @@
 // SPDX-License-Identifier: GPL-2.0-only
 
+/dts-v1/;
+
 #include "msm8916-pm8916.dtsi"
 #include <dt-bindings/gpio/gpio.h>
 #include <dt-bindings/input/input.h>
-#include <dt-bindings/interrupt-controller/irq.h>
+#include <dt-bindings/leds/common.h>
 
 / {
+	model = "BQ Aquaris X5 (Longcheer L8910)";
+	compatible = "longcheer,l8910", "qcom,msm8916";
+
 	aliases {
 		serial0 = &blsp1_uart2;
 	};
 
 	chosen {
 		stdout-path = "serial0";
-	};
-
-	reserved-memory {
-		/* Additional memory used by Samsung firmware modifications */
-		tz-apps@85500000 {
-			reg = <0x0 0x85500000 0x0 0xb00000>;
-			no-map;
-		};
 	};
 
 	gpio-keys {
@@ -35,90 +32,56 @@
 			gpios = <&msmgpio 107 GPIO_ACTIVE_LOW>;
 			linux,code = <KEY_VOLUMEUP>;
 		};
-
-		home {
-			label = "Home";
-			gpios = <&msmgpio 109 GPIO_ACTIVE_LOW>;
-			linux,code = <KEY_HOMEPAGE>;
-		};
 	};
 
-	gpio-hall-sensor {
-		compatible = "gpio-keys";
+	leds {
+		compatible = "gpio-leds";
 
-		pinctrl-names = "default";
-		pinctrl-0 = <&gpio_hall_sensor_default>;
-
-		label = "GPIO Hall Effect Sensor";
-
-		hall-sensor {
-			label = "Hall Effect Sensor";
-			gpios = <&msmgpio 52 GPIO_ACTIVE_LOW>;
-			linux,input-type = <EV_SW>;
-			linux,code = <SW_LID>;
-			linux,can-disable;
-		};
-	};
-
-	reg_vdd_tsp: regulator-vdd-tsp {
-		compatible = "regulator-fixed";
-		regulator-name = "vdd_tsp";
-		regulator-min-microvolt = <3300000>;
-		regulator-max-microvolt = <3300000>;
-
-		gpio = <&msmgpio 73 GPIO_ACTIVE_HIGH>;
-		enable-active-high;
-
-		pinctrl-names = "default";
-		pinctrl-0 = <&tsp_en_default>;
-	};
-
-	i2c-muic {
-		compatible = "i2c-gpio";
-		sda-gpios = <&msmgpio 105 (GPIO_ACTIVE_HIGH|GPIO_OPEN_DRAIN)>;
-		scl-gpios = <&msmgpio 106 (GPIO_ACTIVE_HIGH|GPIO_OPEN_DRAIN)>;
-
-		pinctrl-names = "default";
-		pinctrl-0 = <&muic_i2c_default>;
-
-		#address-cells = <1>;
-		#size-cells = <0>;
-
-		muic: extcon@25 {
-			compatible = "siliconmitus,sm5502-muic";
-
-			reg = <0x25>;
-			interrupt-parent = <&msmgpio>;
-			interrupts = <12 IRQ_TYPE_EDGE_FALLING>;
+		led-0 {
+			gpios = <&msmgpio 17 GPIO_ACTIVE_HIGH>;
+			color = <LED_COLOR_ID_WHITE>;
+			default-state = "off";
+			function = LED_FUNCTION_KBD_BACKLIGHT;
 
 			pinctrl-names = "default";
-			pinctrl-0 = <&muic_int_default>;
+			pinctrl-0 = <&button_backlight_default>;
 		};
+	};
+
+	usb_id: usb-id {
+		compatible = "linux,extcon-usb-gpio";
+		id-gpio = <&msmgpio 110 GPIO_ACTIVE_HIGH>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&usb_id_default>;
 	};
 };
 
-&blsp_i2c2 {
+&blsp_i2c3 {
 	status = "okay";
 
-	accelerometer: accelerometer@10 {
-		compatible = "bosch,bmc150_accel";
-		reg = <0x10>;
-		interrupt-parent = <&msmgpio>;
-		interrupts = <115 IRQ_TYPE_EDGE_RISING>;
+	magnetometer@d {
+		compatible = "asahi-kasei,ak09911";
+		reg = <0x0d>;
 
 		vdd-supply = <&pm8916_l17>;
-		vddio-supply = <&pm8916_l5>;
+		vid-supply = <&pm8916_l6>;
+
+		reset-gpios = <&msmgpio 111 GPIO_ACTIVE_LOW>;
 
 		pinctrl-names = "default";
-		pinctrl-0 = <&accel_int_default>;
+		pinctrl-0 = <&mag_reset_default>;
 	};
 
-	magnetometer@12 {
-		compatible = "bosch,bmc150_magn";
-		reg = <0x12>;
+	imu@68 {
+		compatible = "bosch,bmi160";
+		reg = <0x68>;
 
 		vdd-supply = <&pm8916_l17>;
-		vddio-supply = <&pm8916_l5>;
+		vddio-supply = <&pm8916_l6>;
+
+		mount-matrix = "0", "1", "0",
+			      "-1", "0", "0",
+			       "0", "0", "1";
 	};
 };
 
@@ -126,19 +89,13 @@
 	status = "okay";
 };
 
-&dsi0 {
-	pinctrl-names = "default", "sleep";
-	pinctrl-0 = <&mdss_default>;
-	pinctrl-1 = <&mdss_sleep>;
-};
-
-&mdss {
-	status = "okay";
-};
-
 &pm8916_resin {
 	status = "okay";
 	linux,code = <KEY_VOLUMEDOWN>;
+};
+
+&pm8916_vib {
+	status = "okay";
 };
 
 &pronto {
@@ -165,11 +122,11 @@
 
 &usb {
 	status = "okay";
-	extcon = <&muic>, <&muic>;
+	extcon = <&usb_id>, <&usb_id>;
 };
 
 &usb_hs_phy {
-	extcon = <&muic>;
+	extcon = <&usb_id>;
 };
 
 &smd_rpm_regulators {
@@ -276,8 +233,8 @@
 };
 
 &msmgpio {
-	accel_int_default: accel-int-default {
-		pins = "gpio115";
+	button_backlight_default: button-backlight-default {
+		pins = "gpio17";
 		function = "gpio";
 
 		drive-strength = <2>;
@@ -285,59 +242,26 @@
 	};
 
 	gpio_keys_default: gpio-keys-default {
-		pins = "gpio107", "gpio109";
+		pins = "gpio107";
 		function = "gpio";
 
 		drive-strength = <2>;
 		bias-pull-up;
 	};
 
-	gpio_hall_sensor_default: gpio-hall-sensor-default {
-		pins = "gpio52";
+	mag_reset_default: mag-reset-default {
+		pins = "gpio111";
 		function = "gpio";
 
 		drive-strength = <2>;
 		bias-disable;
 	};
 
-	mdss {
-		mdss_default: mdss-default {
-			pins = "gpio25";
-			function = "gpio";
-
-			drive-strength = <8>;
-			bias-disable;
-		};
-		mdss_sleep: mdss-sleep {
-			pins = "gpio25";
-			function = "gpio";
-
-			drive-strength = <2>;
-			bias-pull-down;
-		};
-	};
-
-	muic_i2c_default: muic-i2c-default {
-		pins = "gpio105", "gpio106";
+	usb_id_default: usb-id-default {
+		pins = "gpio110";
 		function = "gpio";
 
-		drive-strength = <2>;
-		bias-disable;
-	};
-
-	muic_int_default: muic-int-default {
-		pins = "gpio12";
-		function = "gpio";
-
-		drive-strength = <2>;
-		bias-disable;
-	};
-
-	tsp_en_default: tsp-en-default {
-		pins = "gpio73";
-		function = "gpio";
-
-		drive-strength = <2>;
-		bias-disable;
+		drive-strength = <8>;
+		bias-pull-up;
 	};
 };
