@@ -1964,7 +1964,7 @@ void intel_psr_short_pulse(struct intel_dp *intel_dp)
 			  DP_PSR_VSC_SDP_UNCORRECTABLE_ERROR |
 			  DP_PSR_LINK_CRC_ERROR;
 
-	if (!CAN_PSR(intel_dp) || !intel_dp_is_edp(intel_dp))
+	if (!CAN_PSR(intel_dp))
 		return;
 
 	mutex_lock(&psr->lock);
@@ -2014,7 +2014,7 @@ bool intel_psr_enabled(struct intel_dp *intel_dp)
 {
 	bool ret;
 
-	if (!CAN_PSR(intel_dp) || !intel_dp_is_edp(intel_dp))
+	if (!CAN_PSR(intel_dp))
 		return false;
 
 	mutex_lock(&intel_dp->psr.lock);

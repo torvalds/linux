@@ -2358,7 +2358,7 @@ bool intel_dp_initial_fastset_check(struct intel_encoder *encoder,
 		return false;
 	}
 
-	if (CAN_PSR(intel_dp) && intel_dp_is_edp(intel_dp)) {
+	if (CAN_PSR(intel_dp)) {
 		drm_dbg_kms(&i915->drm, "Forcing full modeset to compute PSR state\n");
 		crtc_state->uapi.mode_changed = true;
 		return false;
