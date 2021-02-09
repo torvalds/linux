@@ -5162,14 +5162,14 @@ static irqreturn_t ufshcd_transfer_req_compl(struct ufs_hba *hba)
 	}
 }
 
-static int __ufshcd_write_ee_control(struct ufs_hba *hba, u32 ee_ctrl_mask)
+int __ufshcd_write_ee_control(struct ufs_hba *hba, u32 ee_ctrl_mask)
 {
 	return ufshcd_query_attr_retry(hba, UPIU_QUERY_OPCODE_WRITE_ATTR,
 				       QUERY_ATTR_IDN_EE_CONTROL, 0, 0,
 				       &ee_ctrl_mask);
 }
 
-static int ufshcd_write_ee_control(struct ufs_hba *hba)
+int ufshcd_write_ee_control(struct ufs_hba *hba)
 {
 	int err;
 
@@ -5637,6 +5637,7 @@ static void ufshcd_exception_event_handler(struct work_struct *work)
 	if (status & hba->ee_drv_mask & MASK_EE_URGENT_BKOPS)
 		ufshcd_bkops_exception_event_handler(hba);
 
+	ufs_debugfs_exception_event(hba, status);
 out:
 	ufshcd_scsi_unblock_requests(hba);
 	/*
