@@ -1151,6 +1151,8 @@ int occ_setup(struct occ *occ, const char *name)
 {
 	int rc;
 
+	/* start with 1 to avoid false match with zero-initialized SRAM buffer */
+	occ->seq_no = 1;
 	mutex_init(&occ->lock);
 	occ->groups[0] = &occ->group;
 
