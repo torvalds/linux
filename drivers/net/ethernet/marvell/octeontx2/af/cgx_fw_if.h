@@ -81,6 +81,14 @@ enum cgx_cmd_id {
 	CGX_CMD_GET_MKEX_PRFL_SIZE,
 	CGX_CMD_GET_MKEX_PRFL_ADDR,
 	CGX_CMD_GET_FWD_BASE,		/* get base address of shared FW data */
+	CGX_CMD_GET_LINK_MODES,		/* Supported Link Modes */
+	CGX_CMD_SET_LINK_MODE,
+	CGX_CMD_GET_SUPPORTED_FEC,
+	CGX_CMD_SET_FEC,
+	CGX_CMD_GET_AN,
+	CGX_CMD_SET_AN,
+	CGX_CMD_GET_ADV_LINK_MODES,
+	CGX_CMD_GET_ADV_FEC,
 };
 
 /* async event ids */
@@ -171,13 +179,19 @@ struct cgx_lnk_sts {
 	uint64_t full_duplex:1;
 	uint64_t speed:4;		/* cgx_link_speed */
 	uint64_t err_type:10;
-	uint64_t reserved2:39;
+	uint64_t an:1;			/* AN supported or not */
+	uint64_t fec:2;			/* FEC type if enabled, if not 0 */
+	uint64_t port:8;
+	uint64_t reserved2:28;
 };
 
 #define RESP_LINKSTAT_UP		GENMASK_ULL(9, 9)
 #define RESP_LINKSTAT_FDUPLEX		GENMASK_ULL(10, 10)
 #define RESP_LINKSTAT_SPEED		GENMASK_ULL(14, 11)
 #define RESP_LINKSTAT_ERRTYPE		GENMASK_ULL(24, 15)
+#define RESP_LINKSTAT_AN		GENMASK_ULL(25, 25)
+#define RESP_LINKSTAT_FEC		GENMASK_ULL(27, 26)
+#define RESP_LINKSTAT_PORT		GENMASK_ULL(35, 28)
 
 /* scratchx(1) CSR used for non-secure SW->ATF communication
  * This CSR acts as a command register
@@ -199,4 +213,5 @@ struct cgx_lnk_sts {
 #define CMDLINKCHANGE_FULLDPLX	BIT_ULL(9)
 #define CMDLINKCHANGE_SPEED	GENMASK_ULL(13, 10)
 
+#define CMDSETFEC			GENMASK_ULL(9, 8)
 #endif /* __CGX_FW_INTF_H__ */

@@ -36,7 +36,7 @@
 
 #define INTR_MASK(pfvfs) ((pfvfs < 64) ? (BIT_ULL(pfvfs) - 1) : (~0ull))
 
-#define MBOX_RSP_TIMEOUT	2000 /* Time(ms) to wait for mbox response */
+#define MBOX_RSP_TIMEOUT	3000 /* Time(ms) to wait for mbox response */
 
 #define MBOX_MSG_ALIGN		16  /* Align mbox msg start to 16bytes */
 
@@ -149,6 +149,9 @@ M(CGX_PTP_RX_ENABLE,	0x20C, cgx_ptp_rx_enable, msg_req, msg_rsp)	\
 M(CGX_PTP_RX_DISABLE,	0x20D, cgx_ptp_rx_disable, msg_req, msg_rsp)	\
 M(CGX_CFG_PAUSE_FRM,	0x20E, cgx_cfg_pause_frm, cgx_pause_frm_cfg,	\
 			       cgx_pause_frm_cfg)			\
+M(CGX_FEC_SET,		0x210, cgx_set_fec_param, fec_mode, fec_mode)   \
+M(CGX_FEC_STATS,	0x211, cgx_fec_stats, msg_req, cgx_fec_stats_rsp) \
+ /* NPA mbox IDs (range 0x400 - 0x5FF) */				\
 /* NPA mbox IDs (range 0x400 - 0x5FF) */				\
 M(NPA_LF_ALLOC,		0x400, npa_lf_alloc,				\
 				npa_lf_alloc_req, npa_lf_alloc_rsp)	\
@@ -360,6 +363,11 @@ struct cgx_stats_rsp {
 	u64 tx_stats[CGX_TX_STATS_COUNT];
 };
 
+struct cgx_fec_stats_rsp {
+	struct mbox_msghdr hdr;
+	u64 fec_corr_blks;
+	u64 fec_uncorr_blks;
+};
 /* Structure for requesting the operation for
  * setting/getting mac address in the CGX interface
  */
@@ -373,6 +381,7 @@ struct cgx_link_user_info {
 	uint64_t full_duplex:1;
 	uint64_t lmac_type_id:4;
 	uint64_t speed:20; /* speed in Mbps */
+	uint64_t fec:2;	 /* FEC type if enabled else 0 */
 #define LMACTYPE_STR_LEN 16
 	char lmac_type[LMACTYPE_STR_LEN];
 };
@@ -389,6 +398,19 @@ struct cgx_pause_frm_cfg {
 	/* set = 0 if the request is to fetch pause frames config */
 	u8 rx_pause;
 	u8 tx_pause;
+};
+
+enum fec_type {
+	OTX2_FEC_NONE,
+	OTX2_FEC_BASER,
+	OTX2_FEC_RS,
+	OTX2_FEC_STATS_CNT = 2,
+	OTX2_FEC_OFF,
+};
+
+struct fec_mode {
+	struct mbox_msghdr hdr;
+	int fec;
 };
 
 /* NPA mbox message formats */
