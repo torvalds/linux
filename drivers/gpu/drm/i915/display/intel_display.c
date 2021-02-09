@@ -11954,7 +11954,14 @@ static void intel_setup_outputs(struct drm_i915_private *dev_priv)
 
 		/* DDI B, C, D, and F detection is indicated by the SFUSE_STRAP
 		 * register */
-		found = intel_de_read(dev_priv, SFUSE_STRAP);
+		if (HAS_PCH_TGP(dev_priv)) {
+			/* W/A due to lack of STRAP config on TGP PCH*/
+			found = (SFUSE_STRAP_DDIB_DETECTED |
+				 SFUSE_STRAP_DDIC_DETECTED |
+				 SFUSE_STRAP_DDID_DETECTED);
+		} else {
+			found = intel_de_read(dev_priv, SFUSE_STRAP);
+		}
 
 		if (found & SFUSE_STRAP_DDIB_DETECTED)
 			intel_ddi_init(dev_priv, PORT_B);
