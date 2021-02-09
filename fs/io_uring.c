@@ -1014,8 +1014,12 @@ static bool io_match_task(struct io_kiocb *head,
 {
 	struct io_kiocb *link;
 
-	if (task && head->task != task)
+	if (task && head->task != task) {
+		/* in terms of cancelation, always match if req task is dead */
+		if (head->task->flags & PF_EXITING)
+			return true;
 		return false;
+	}
 	if (!files)
 		return true;
 	if (__io_match_files(head, files))
@@ -8843,6 +8847,9 @@ static int io_uring_flush(struct file *file, void *data)
 {
 	struct io_uring_task *tctx = current->io_uring;
 	struct io_ring_ctx *ctx = file->private_data;
+
+	if (fatal_signal_pending(current) || (current->flags & PF_EXITING))
+		io_uring_cancel_task_requests(ctx, NULL);
 
 	if (!tctx)
 		return 0;
