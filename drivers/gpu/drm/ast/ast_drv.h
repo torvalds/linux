@@ -317,11 +317,4 @@ bool ast_dp501_read_edid(struct drm_device *dev, u8 *ediddata);
 u8 ast_get_dp501_max_clk(struct drm_device *dev);
 void ast_init_3rdtx(struct drm_device *dev);
 
-/* ast_cursor.c */
-int ast_cursor_blit(struct ast_private *ast, struct drm_framebuffer *fb);
-void ast_cursor_page_flip(struct ast_private *ast);
-void ast_cursor_show(struct ast_private *ast, int x, int y,
-		     unsigned int offset_x, unsigned int offset_y);
-void ast_cursor_hide(struct ast_private *ast);
-
 #endif
