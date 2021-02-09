@@ -928,7 +928,7 @@ static int hclge_query_pf_resource(struct hclge_dev *hdev)
 	return 0;
 }
 
-static int hclge_parse_speed(int speed_cmd, int *speed)
+static int hclge_parse_speed(u8 speed_cmd, u32 *speed)
 {
 	switch (speed_cmd) {
 	case 6:
