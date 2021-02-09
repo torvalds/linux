@@ -592,9 +592,9 @@ static void rtw_txq_push(struct rtw_dev *rtwdev,
 	rcu_read_unlock();
 }
 
-void rtw_tx_tasklet(struct tasklet_struct *t)
+void rtw_tx_work(struct work_struct *w)
 {
-	struct rtw_dev *rtwdev = from_tasklet(rtwdev, t, tx_tasklet);
+	struct rtw_dev *rtwdev = container_of(w, struct rtw_dev, tx_work);
 	struct rtw_txq *rtwtxq, *tmp;
 
 	spin_lock_bh(&rtwdev->txq_lock);

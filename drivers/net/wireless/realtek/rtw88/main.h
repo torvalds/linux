@@ -13,6 +13,7 @@
 #include <linux/bitfield.h>
 #include <linux/iopoll.h>
 #include <linux/interrupt.h>
+#include <linux/workqueue.h>
 
 #include "util.h"
 
@@ -1772,7 +1773,8 @@ struct rtw_dev {
 	/* used to protect txqs list */
 	spinlock_t txq_lock;
 	struct list_head txqs;
-	struct tasklet_struct tx_tasklet;
+	struct workqueue_struct *tx_wq;
+	struct work_struct tx_work;
 	struct work_struct ba_work;
 
 	struct rtw_tx_report tx_report;
