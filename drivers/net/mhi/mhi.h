@@ -28,6 +28,7 @@ struct mhi_net_dev {
 	struct delayed_work rx_refill;
 	struct mhi_net_stats stats;
 	u32 rx_queue_sz;
+	int msg_enable;
 };
 
 struct mhi_net_proto {
@@ -35,3 +36,5 @@ struct mhi_net_proto {
 	struct sk_buff * (*tx_fixup)(struct mhi_net_dev *mhi_netdev, struct sk_buff *skb);
 	void (*rx)(struct mhi_net_dev *mhi_netdev, struct sk_buff *skb);
 };
+
+extern const struct mhi_net_proto proto_mbim;
