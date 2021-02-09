@@ -256,6 +256,33 @@ int i9xx_check_plane_surface(struct intel_plane_state *plane_state)
 		offset = 0;
 
 	/*
+	 * When using an X-tiled surface the plane starts to
+	 * misbehave if the x offset + width exceeds the stride.
+	 * hsw/bdw: underrun galore
+	 * ilk/snb/ivb: wrap to the next tile row mid scanout
+	 * i965/g4x: so far appear immune to this
+	 * vlv/chv: TODO check
+	 *
+	 * Linear surfaces seem to work just fine, even on hsw/bdw
+	 * despite them not using the linear offset anymore.
+	 */
+	if (INTEL_GEN(dev_priv) >= 4 && fb->modifier == I915_FORMAT_MOD_X_TILED) {
+		u32 alignment = intel_surf_alignment(fb, 0);
+		int cpp = fb->format->cpp[0];
+
+		while ((src_x + src_w) * cpp > plane_state->color_plane[0].stride) {
+			if (offset == 0) {
+				drm_dbg_kms(&dev_priv->drm,
+					    "Unable to find suitable display surface offset due to X-tiling\n");
+				return -EINVAL;
+			}
+
+			offset = intel_plane_adjust_aligned_offset(&src_x, &src_y, plane_state, 0,
+								   offset, offset - alignment);
+		}
+	}
+
+	/*
 	 * Put the final coordinates back so that the src
 	 * coordinate checks will see the right values.
 	 */
