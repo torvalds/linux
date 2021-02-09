@@ -14,6 +14,7 @@
 #include <linux/etherdevice.h>
 #include <linux/log2.h>
 #include <linux/net_tstamp.h>
+#include <linux/linkmode.h>
 
 #include "otx2_common.h"
 #include "otx2_ptp.h"
@@ -31,6 +32,14 @@ struct otx2_stat {
 	.name = #stat, \
 	.index = offsetof(struct otx2_dev_stats, stat) / sizeof(u64), \
 }
+
+/* Physical link config */
+#define OTX2_ETHTOOL_SUPPORTED_MODES 0x638CCBF //110001110001100110010111111
+
+enum link_mode {
+	OTX2_MODE_SUPPORTED,
+	OTX2_MODE_ADVERTISED
+};
 
 static const struct otx2_stat otx2_dev_stats[] = {
 	OTX2_DEV_STAT(rx_ucast_frames),
@@ -1015,6 +1024,139 @@ end:
 	return err;
 }
 
+static void otx2_get_fec_info(u64 index, int req_mode,
+			      struct ethtool_link_ksettings *link_ksettings)
+{
+	__ETHTOOL_DECLARE_LINK_MODE_MASK(otx2_fec_modes) = { 0, };
+
+	switch (index) {
+	case OTX2_FEC_NONE:
+		linkmode_set_bit(ETHTOOL_LINK_MODE_FEC_NONE_BIT,
+				 otx2_fec_modes);
+		break;
+	case OTX2_FEC_BASER:
+		linkmode_set_bit(ETHTOOL_LINK_MODE_FEC_BASER_BIT,
+				 otx2_fec_modes);
+		break;
+	case OTX2_FEC_RS:
+		linkmode_set_bit(ETHTOOL_LINK_MODE_FEC_RS_BIT,
+				 otx2_fec_modes);
+		break;
+	case OTX2_FEC_BASER | OTX2_FEC_RS:
+		linkmode_set_bit(ETHTOOL_LINK_MODE_FEC_BASER_BIT,
+				 otx2_fec_modes);
+		linkmode_set_bit(ETHTOOL_LINK_MODE_FEC_RS_BIT,
+				 otx2_fec_modes);
+		break;
+	}
+
+	/* Add fec modes to existing modes */
+	if (req_mode == OTX2_MODE_ADVERTISED)
+		linkmode_or(link_ksettings->link_modes.advertising,
+			    link_ksettings->link_modes.advertising,
+			    otx2_fec_modes);
+	else
+		linkmode_or(link_ksettings->link_modes.supported,
+			    link_ksettings->link_modes.supported,
+			    otx2_fec_modes);
+}
+
+static void otx2_get_link_mode_info(u64 link_mode_bmap,
+				    bool req_mode,
+				    struct ethtool_link_ksettings
+				    *link_ksettings)
+{
+	__ETHTOOL_DECLARE_LINK_MODE_MASK(otx2_link_modes) = { 0, };
+	const int otx2_sgmii_features[6] = {
+		ETHTOOL_LINK_MODE_10baseT_Half_BIT,
+		ETHTOOL_LINK_MODE_10baseT_Full_BIT,
+		ETHTOOL_LINK_MODE_100baseT_Half_BIT,
+		ETHTOOL_LINK_MODE_100baseT_Full_BIT,
+		ETHTOOL_LINK_MODE_1000baseT_Half_BIT,
+		ETHTOOL_LINK_MODE_1000baseT_Full_BIT,
+	};
+	/* CGX link modes to Ethtool link mode mapping */
+	const int cgx_link_mode[27] = {
+		0, /* SGMII  Mode */
+		ETHTOOL_LINK_MODE_1000baseX_Full_BIT,
+		ETHTOOL_LINK_MODE_10000baseT_Full_BIT,
+		ETHTOOL_LINK_MODE_10000baseSR_Full_BIT,
+		ETHTOOL_LINK_MODE_10000baseLR_Full_BIT,
+		ETHTOOL_LINK_MODE_10000baseKR_Full_BIT,
+		0,
+		ETHTOOL_LINK_MODE_25000baseSR_Full_BIT,
+		0,
+		0,
+		ETHTOOL_LINK_MODE_25000baseCR_Full_BIT,
+		ETHTOOL_LINK_MODE_25000baseKR_Full_BIT,
+		ETHTOOL_LINK_MODE_40000baseSR4_Full_BIT,
+		ETHTOOL_LINK_MODE_40000baseLR4_Full_BIT,
+		ETHTOOL_LINK_MODE_40000baseCR4_Full_BIT,
+		ETHTOOL_LINK_MODE_40000baseKR4_Full_BIT,
+		0,
+		ETHTOOL_LINK_MODE_50000baseSR_Full_BIT,
+		0,
+		ETHTOOL_LINK_MODE_50000baseLR_ER_FR_Full_BIT,
+		ETHTOOL_LINK_MODE_50000baseCR_Full_BIT,
+		ETHTOOL_LINK_MODE_50000baseKR_Full_BIT,
+		0,
+		ETHTOOL_LINK_MODE_100000baseSR4_Full_BIT,
+		ETHTOOL_LINK_MODE_100000baseLR4_ER4_Full_BIT,
+		ETHTOOL_LINK_MODE_100000baseCR4_Full_BIT,
+		ETHTOOL_LINK_MODE_100000baseKR4_Full_BIT
+	};
+	u8 bit;
+
+	link_mode_bmap = link_mode_bmap & OTX2_ETHTOOL_SUPPORTED_MODES;
+
+	for_each_set_bit(bit, (unsigned long *)&link_mode_bmap, 27) {
+		/* SGMII mode is set */
+		if (bit == 0)
+			linkmode_set_bit_array(otx2_sgmii_features,
+					       ARRAY_SIZE(otx2_sgmii_features),
+					       otx2_link_modes);
+		else
+			linkmode_set_bit(cgx_link_mode[bit], otx2_link_modes);
+	}
+
+	if (req_mode == OTX2_MODE_ADVERTISED)
+		linkmode_copy(link_ksettings->link_modes.advertising,
+			      otx2_link_modes);
+	else
+		linkmode_copy(link_ksettings->link_modes.supported,
+			      otx2_link_modes);
+}
+
+static int otx2_get_link_ksettings(struct net_device *netdev,
+				   struct ethtool_link_ksettings *cmd)
+{
+	struct otx2_nic *pfvf = netdev_priv(netdev);
+	struct cgx_fw_data *rsp = NULL;
+
+	cmd->base.duplex  = pfvf->linfo.full_duplex;
+	cmd->base.speed   = pfvf->linfo.speed;
+	cmd->base.autoneg = pfvf->linfo.an;
+
+	rsp = otx2_get_fwdata(pfvf);
+	if (IS_ERR(rsp))
+		return PTR_ERR(rsp);
+
+	if (rsp->fwdata.supported_an)
+		ethtool_link_ksettings_add_link_mode(cmd,
+						     supported,
+						     Autoneg);
+
+	otx2_get_link_mode_info(rsp->fwdata.advertised_link_modes,
+				OTX2_MODE_ADVERTISED, cmd);
+	otx2_get_fec_info(rsp->fwdata.advertised_fec,
+			  OTX2_MODE_ADVERTISED, cmd);
+	otx2_get_link_mode_info(rsp->fwdata.supported_link_modes,
+				OTX2_MODE_SUPPORTED, cmd);
+	otx2_get_fec_info(rsp->fwdata.supported_fec,
+			  OTX2_MODE_SUPPORTED, cmd);
+	return 0;
+}
+
 static const struct ethtool_ops otx2_ethtool_ops = {
 	.supported_coalesce_params = ETHTOOL_COALESCE_USECS |
 				     ETHTOOL_COALESCE_MAX_FRAMES,
@@ -1044,6 +1186,7 @@ static const struct ethtool_ops otx2_ethtool_ops = {
 	.get_ts_info		= otx2_get_ts_info,
 	.get_fecparam		= otx2_get_fecparam,
 	.set_fecparam		= otx2_set_fecparam,
+	.get_link_ksettings     = otx2_get_link_ksettings,
 };
 
 void otx2_set_ethtool_ops(struct net_device *netdev)
@@ -1118,6 +1261,20 @@ static int otx2vf_get_sset_count(struct net_device *netdev, int sset)
 	return otx2_n_dev_stats + otx2_n_drv_stats + qstats_count + 1;
 }
 
+static int otx2vf_get_link_ksettings(struct net_device *netdev,
+				     struct ethtool_link_ksettings *cmd)
+{
+	struct otx2_nic *pfvf = netdev_priv(netdev);
+
+	if (is_otx2_lbkvf(pfvf->pdev)) {
+		cmd->base.duplex = DUPLEX_FULL;
+		cmd->base.speed = SPEED_100000;
+	} else {
+		return otx2_get_link_ksettings(netdev, cmd);
+	}
+	return 0;
+}
+
 static const struct ethtool_ops otx2vf_ethtool_ops = {
 	.supported_coalesce_params = ETHTOOL_COALESCE_USECS |
 				     ETHTOOL_COALESCE_MAX_FRAMES,
@@ -1144,6 +1301,7 @@ static const struct ethtool_ops otx2vf_ethtool_ops = {
 	.set_msglevel		= otx2_set_msglevel,
 	.get_pauseparam		= otx2_get_pauseparam,
 	.set_pauseparam		= otx2_set_pauseparam,
+	.get_link_ksettings     = otx2vf_get_link_ksettings,
 };
 
 void otx2vf_set_ethtool_ops(struct net_device *netdev)
