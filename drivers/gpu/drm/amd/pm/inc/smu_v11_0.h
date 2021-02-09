@@ -224,6 +224,9 @@ smu_v11_0_set_fan_control_mode(struct smu_context *smu,
 int smu_v11_0_set_fan_speed_percent(struct smu_context *smu,
 				    uint32_t speed);
 
+int smu_v11_0_set_fan_speed_rpm(struct smu_context *smu,
+				uint32_t speed);
+
 int smu_v11_0_set_xgmi_pstate(struct smu_context *smu,
 				     uint32_t pstate);
 

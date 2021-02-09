@@ -1048,6 +1048,11 @@ struct pptable_funcs {
 	int (*set_fan_speed_percent)(struct smu_context *smu, uint32_t speed);
 
 	/**
+	 * @set_fan_speed_rpm: Set a static fan speed in rpm.
+	 */
+	int (*set_fan_speed_rpm)(struct smu_context *smu, uint32_t speed);
+
+	/**
 	 * @set_xgmi_pstate: Set inter-chip global memory interconnect pstate.
 	 * &pstate: Pstate to set. D0 if Nonzero, D3 otherwise.
 	 */

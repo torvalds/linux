@@ -2190,11 +2190,12 @@ static int smu_set_fan_speed_rpm(void *handle, uint32_t speed)
 
 	mutex_lock(&smu->mutex);
 
-	if (smu->ppt_funcs->set_fan_speed_percent) {
-		percent = speed * 100 / smu->fan_max_rpm;
-		ret = smu->ppt_funcs->set_fan_speed_percent(smu, percent);
-		if (!ret && !(smu->user_dpm_profile.flags & SMU_DPM_USER_PROFILE_RESTORE))
+	if (smu->ppt_funcs->set_fan_speed_rpm) {
+		ret = smu->ppt_funcs->set_fan_speed_rpm(smu, speed);
+		if (!ret && !(smu->user_dpm_profile.flags & SMU_DPM_USER_PROFILE_RESTORE)) {
+			percent = speed * 100 / smu->fan_max_rpm;
 			smu->user_dpm_profile.fan_speed_percent = percent;
+		}
 	}
 
 	mutex_unlock(&smu->mutex);
