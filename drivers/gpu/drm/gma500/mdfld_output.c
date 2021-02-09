@@ -25,6 +25,8 @@
  * Scott Rowe <scott.m.rowe@intel.com>
 */
 
+#include <asm/intel_scu_ipc.h>
+
 #include "mdfld_output.h"
 #include "mdfld_dsi_dpi.h"
 #include "mdfld_dsi_output.h"
@@ -58,10 +60,13 @@ static void mdfld_init_panel(struct drm_device *dev, int mipi_pipe,
 	}
 }
 
-
 int mdfld_output_init(struct drm_device *dev)
 {
 	struct drm_psb_private *dev_priv = dev->dev_private;
+
+	dev_priv->scu = devm_intel_scu_ipc_dev_get(&dev->pdev->dev);
+	if (!dev_priv->scu)
+		return -EPROBE_DEFER;
 
 	/* FIXME: hardcoded for now */
 	dev_priv->mdfld_panel_id = TC35876X;
@@ -71,4 +76,3 @@ int mdfld_output_init(struct drm_device *dev)
 	mdfld_init_panel(dev, 1, HDMI);
 	return 0;
 }
-

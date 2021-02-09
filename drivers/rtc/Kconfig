@@ -973,18 +973,6 @@ config RTC_DRV_ALPHA
 	  Direct support for the real-time clock found on every Alpha
 	  system, specifically MC146818 compatibles.  If in doubt, say Y.
 
-config RTC_DRV_VRTC
-	tristate "Virtual RTC for Intel MID platforms"
-	depends on X86_INTEL_MID
-	default y if X86_INTEL_MID
-
-	help
-	Say "yes" here to get direct support for the real time clock
-	found on Moorestown platforms. The VRTC is a emulated RTC that
-	derives its clock source from a real RTC in the PMIC. The MC146818
-	style programming interface is mostly conserved, but any
-	updates are done via IPC calls to the system controller FW.
-
 config RTC_DRV_DS1216
 	tristate "Dallas DS1216"
 	depends on SNI_RM

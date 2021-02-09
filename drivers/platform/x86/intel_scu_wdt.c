@@ -11,8 +11,9 @@
 #include <linux/platform_device.h>
 #include <linux/platform_data/intel-mid_wdt.h>
 
+#include <asm/cpu_device_id.h>
+#include <asm/intel-family.h>
 #include <asm/intel-mid.h>
-#include <asm/intel_scu_ipc.h>
 #include <asm/io_apic.h>
 #include <asm/hw_irq.h>
 
@@ -49,34 +50,26 @@ static struct intel_mid_wdt_pdata tangier_pdata = {
 	.probe = tangier_probe,
 };
 
-static int wdt_scu_status_change(struct notifier_block *nb,
-				 unsigned long code, void *data)
-{
-	if (code == SCU_DOWN) {
-		platform_device_unregister(&wdt_dev);
-		return 0;
-	}
-
-	return platform_device_register(&wdt_dev);
-}
-
-static struct notifier_block wdt_scu_notifier = {
-	.notifier_call	= wdt_scu_status_change,
+static const struct x86_cpu_id intel_mid_cpu_ids[] = {
+	X86_MATCH_INTEL_FAM6_MODEL(ATOM_SILVERMONT_MID, &tangier_pdata),
+	{}
 };
 
 static int __init register_mid_wdt(void)
 {
-	if (intel_mid_identify_cpu() != INTEL_MID_CPU_CHIP_TANGIER)
+	const struct x86_cpu_id *id;
+
+	id = x86_match_cpu(intel_mid_cpu_ids);
+	if (!id)
 		return -ENODEV;
 
-	wdt_dev.dev.platform_data = &tangier_pdata;
-
-	/*
-	 * We need to be sure that the SCU IPC is ready before watchdog device
-	 * can be registered:
-	 */
-	intel_scu_notifier_add(&wdt_scu_notifier);
-
-	return 0;
+	wdt_dev.dev.platform_data = (struct intel_mid_wdt_pdata *)id->driver_data;
+	return platform_device_register(&wdt_dev);
 }
 arch_initcall(register_mid_wdt);
+
+static void __exit unregister_mid_wdt(void)
+{
+	platform_device_unregister(&wdt_dev);
+}
+__exitcall(unregister_mid_wdt);

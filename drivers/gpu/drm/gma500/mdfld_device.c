@@ -8,8 +8,6 @@
 #include <linux/delay.h>
 #include <linux/gpio/machine.h>
 
-#include <asm/intel_scu_ipc.h>
-
 #include "mdfld_dsi_output.h"
 #include "mdfld_output.h"
 #include "mid_bios.h"

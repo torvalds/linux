@@ -30,6 +30,7 @@ config DRM_GMA3600
 config DRM_MEDFIELD
 	bool "Intel Medfield support (Experimental)"
 	depends on DRM_GMA500 && X86_INTEL_MID
+	select INTEL_SCU_IPC
 	help
 	  Say yes to include support for the Intel Medfield platform.
 
