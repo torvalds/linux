@@ -37,6 +37,10 @@
 	le32p_replace_bits((__le32 *)(txdesc) + 0x03, value, GENMASK(21, 17))
 #define SET_TX_DESC_USE_RTS(tx_desc, value)                                    \
 	le32p_replace_bits((__le32 *)(txdesc) + 0x03, value, BIT(12))
+#define SET_TX_DESC_RTSRATE(txdesc, value)                                     \
+	le32p_replace_bits((__le32 *)(txdesc) + 0x04, value, GENMASK(28, 24))
+#define SET_TX_DESC_DATA_RTS_SHORT(txdesc, value)                              \
+	le32p_replace_bits((__le32 *)(txdesc) + 0x05, value, BIT(12))
 #define SET_TX_DESC_AMPDU_DENSITY(txdesc, value)                               \
 	le32p_replace_bits((__le32 *)(txdesc) + 0x02, value, GENMASK(22, 20))
 #define SET_TX_DESC_DATA_STBC(txdesc, value)                                   \
