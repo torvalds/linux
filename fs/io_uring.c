@@ -6170,7 +6170,8 @@ static struct file *io_file_get(struct io_submit_state *state,
 		file = __io_file_get(state, fd);
 	}
 
-	if (file && file->f_op == &io_uring_fops) {
+	if (file && file->f_op == &io_uring_fops &&
+	    !(req->flags & REQ_F_INFLIGHT)) {
 		io_req_init_async(req);
 		req->flags |= REQ_F_INFLIGHT;
 
