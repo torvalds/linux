@@ -38,6 +38,52 @@ g84_fifo_uevent_init(struct nvkm_fifo *fifo)
 	nvkm_mask(device, 0x002140, 0x40000000, 0x40000000);
 }
 
+static struct nvkm_engine *
+g84_fifo_id_engine(struct nvkm_fifo *fifo, int engi)
+{
+	struct nvkm_device *device = fifo->engine.subdev.device;
+	struct nvkm_engine *engine;
+	enum nvkm_subdev_type type;
+
+	switch (engi) {
+	case G84_FIFO_ENGN_SW    : type = NVKM_ENGINE_SW; break;
+	case G84_FIFO_ENGN_GR    : type = NVKM_ENGINE_GR; break;
+	case G84_FIFO_ENGN_MPEG  :
+		if ((engine = nvkm_device_engine(device, NVKM_ENGINE_MSPPP, 0)))
+			return engine;
+		type = NVKM_ENGINE_MPEG;
+		break;
+	case G84_FIFO_ENGN_ME    :
+		if ((engine = nvkm_device_engine(device, NVKM_ENGINE_CE, 0)))
+			return engine;
+		type = NVKM_ENGINE_ME;
+		break;
+	case G84_FIFO_ENGN_VP    :
+		if ((engine = nvkm_device_engine(device, NVKM_ENGINE_MSPDEC, 0)))
+			return engine;
+		type = NVKM_ENGINE_VP;
+		break;
+	case G84_FIFO_ENGN_CIPHER:
+		if ((engine = nvkm_device_engine(device, NVKM_ENGINE_VIC, 0)))
+			return engine;
+		if ((engine = nvkm_device_engine(device, NVKM_ENGINE_SEC, 0)))
+			return engine;
+		type = NVKM_ENGINE_CIPHER;
+		break;
+	case G84_FIFO_ENGN_BSP   :
+		if ((engine = nvkm_device_engine(device, NVKM_ENGINE_MSVLD, 0)))
+			return engine;
+		type = NVKM_ENGINE_BSP;
+		break;
+	case G84_FIFO_ENGN_DMA   : type = NVKM_ENGINE_DMAOBJ; break;
+	default:
+		WARN_ON(1);
+		return NULL;
+	}
+
+	return nvkm_device_engine(fifo->engine.subdev.device, type, 0);
+}
+
 static int
 g84_fifo_engine_id(struct nvkm_fifo *base, struct nvkm_engine *engine)
 {
@@ -67,6 +113,7 @@ g84_fifo = {
 	.init = nv50_fifo_init,
 	.intr = nv04_fifo_intr,
 	.engine_id = g84_fifo_engine_id,
+	.id_engine = g84_fifo_id_engine,
 	.pause = nv04_fifo_pause,
 	.start = nv04_fifo_start,
 	.uevent_init = g84_fifo_uevent_init,

@@ -258,6 +258,12 @@ gk104_fifo_pbdma = {
 	.init = gk104_fifo_pbdma_init,
 };
 
+struct nvkm_engine *
+gk104_fifo_id_engine(struct nvkm_fifo *base, int engi)
+{
+	return gk104_fifo(base)->engine[engi].engine;
+}
+
 int
 gk104_fifo_engine_id(struct nvkm_fifo *base, struct nvkm_engine *engine)
 {
@@ -1037,6 +1043,7 @@ gk104_fifo_ = {
 	.intr = gk104_fifo_intr,
 	.fault = gk104_fifo_fault,
 	.engine_id = gk104_fifo_engine_id,
+	.id_engine = gk104_fifo_id_engine,
 	.uevent_init = gk104_fifo_uevent_init,
 	.uevent_fini = gk104_fifo_uevent_fini,
 	.recover_chan = gk104_fifo_recover_chan,

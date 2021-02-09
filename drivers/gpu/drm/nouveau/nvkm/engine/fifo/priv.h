@@ -24,6 +24,7 @@ struct nvkm_fifo_func {
 	void (*intr)(struct nvkm_fifo *);
 	void (*fault)(struct nvkm_fifo *, struct nvkm_fault_data *);
 	int (*engine_id)(struct nvkm_fifo *, struct nvkm_engine *);
+	struct nvkm_engine *(*id_engine)(struct nvkm_fifo *, int engi);
 	void (*pause)(struct nvkm_fifo *, unsigned long *);
 	void (*start)(struct nvkm_fifo *, unsigned long *);
 	void (*uevent_init)(struct nvkm_fifo *);
@@ -37,10 +38,12 @@ struct nvkm_fifo_func {
 
 void nv04_fifo_intr(struct nvkm_fifo *);
 int nv04_fifo_engine_id(struct nvkm_fifo *, struct nvkm_engine *);
+struct nvkm_engine *nv04_fifo_id_engine(struct nvkm_fifo *, int);
 void nv04_fifo_pause(struct nvkm_fifo *, unsigned long *);
 void nv04_fifo_start(struct nvkm_fifo *, unsigned long *);
 
 void gf100_fifo_intr_fault(struct nvkm_fifo *, int);
 
 int gk104_fifo_engine_id(struct nvkm_fifo *, struct nvkm_engine *);
+struct nvkm_engine *gk104_fifo_id_engine(struct nvkm_fifo *, int);
 #endif

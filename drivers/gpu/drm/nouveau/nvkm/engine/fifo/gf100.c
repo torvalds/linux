@@ -105,23 +105,26 @@ gf100_fifo_runlist_insert(struct gf100_fifo *fifo, struct gf100_fifo_chan *chan)
 	mutex_unlock(&fifo->base.mutex);
 }
 
-static inline struct nvkm_engine *
-gf100_fifo_engine(struct gf100_fifo *fifo, u32 engn)
+static struct nvkm_engine *
+gf100_fifo_id_engine(struct nvkm_fifo *fifo, int engi)
 {
-	struct nvkm_device *device = fifo->base.engine.subdev.device;
+	enum nvkm_subdev_type type;
+	int inst;
 
-	switch (engn) {
-	case 0: engn = NVKM_ENGINE_GR; break;
-	case 1: engn = NVKM_ENGINE_MSVLD; break;
-	case 2: engn = NVKM_ENGINE_MSPPP; break;
-	case 3: engn = NVKM_ENGINE_MSPDEC; break;
-	case 4: engn = NVKM_ENGINE_CE0; break;
-	case 5: engn = NVKM_ENGINE_CE1; break;
+	switch (engi) {
+	case GF100_FIFO_ENGN_GR    : type = NVKM_ENGINE_GR    ; inst = 0; break;
+	case GF100_FIFO_ENGN_MSPDEC: type = NVKM_ENGINE_MSPDEC; inst = 0; break;
+	case GF100_FIFO_ENGN_MSPPP : type = NVKM_ENGINE_MSPPP ; inst = 0; break;
+	case GF100_FIFO_ENGN_MSVLD : type = NVKM_ENGINE_MSVLD ; inst = 0; break;
+	case GF100_FIFO_ENGN_CE0   : type = NVKM_ENGINE_CE    ; inst = 0; break;
+	case GF100_FIFO_ENGN_CE1   : type = NVKM_ENGINE_CE    ; inst = 1; break;
+	case GF100_FIFO_ENGN_SW    : type = NVKM_ENGINE_SW    ; inst = 0; break;
 	default:
+		WARN_ON(1);
 		return NULL;
 	}
 
-	return nvkm_device_engine(device, engn, 0);
+	return nvkm_device_engine(fifo->engine.subdev.device, type, inst);
 }
 
 static int
@@ -337,7 +340,7 @@ gf100_fifo_intr_sched_ctxsw(struct gf100_fifo *fifo)
 		if (busy && unk0 && unk1) {
 			list_for_each_entry(chan, &fifo->chan, head) {
 				if (chan->base.chid == chid) {
-					engine = gf100_fifo_engine(fifo, engn);
+					engine = gf100_fifo_id_engine(&fifo->base, engn);
 					if (!engine)
 						break;
 					gf100_fifo_recover(fifo, engine, chan);
@@ -676,6 +679,7 @@ gf100_fifo = {
 	.intr = gf100_fifo_intr,
 	.fault = gf100_fifo_fault,
 	.engine_id = gf100_fifo_engine_id,
+	.id_engine = gf100_fifo_id_engine,
 	.uevent_init = gf100_fifo_uevent_init,
 	.uevent_fini = gf100_fifo_uevent_fini,
 	.chan = {
