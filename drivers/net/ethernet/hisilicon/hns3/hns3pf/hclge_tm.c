@@ -41,8 +41,9 @@ static int hclge_shaper_para_calc(u32 ir, u8 shaper_level,
 				  struct hclge_shaper_ir_para *ir_para,
 				  u32 max_tm_rate)
 {
+#define DEFAULT_SHAPER_IR_B	126
 #define DIVISOR_CLK		(1000 * 8)
-#define DIVISOR_IR_B_126	(126 * DIVISOR_CLK)
+#define DEFAULT_DIVISOR_IR_B	(DEFAULT_SHAPER_IR_B * DIVISOR_CLK)
 
 	static const u16 tick_array[HCLGE_SHAPER_LVL_CNT] = {
 		6 * 256,        /* Prioriy level */
@@ -69,10 +70,10 @@ static int hclge_shaper_para_calc(u32 ir, u8 shaper_level,
 	 * ir_calc = ---------------- * 1000
 	 *		tick * 1
 	 */
-	ir_calc = (DIVISOR_IR_B_126 + (tick >> 1) - 1) / tick;
+	ir_calc = (DEFAULT_DIVISOR_IR_B + (tick >> 1) - 1) / tick;
 
 	if (ir_calc == ir) {
-		ir_para->ir_b = 126;
+		ir_para->ir_b = DEFAULT_SHAPER_IR_B;
 		ir_para->ir_u = 0;
 		ir_para->ir_s = 0;
 
@@ -81,7 +82,8 @@ static int hclge_shaper_para_calc(u32 ir, u8 shaper_level,
 		/* Increasing the denominator to select ir_s value */
 		while (ir_calc >= ir && ir) {
 			ir_s_calc++;
-			ir_calc = DIVISOR_IR_B_126 / (tick * (1 << ir_s_calc));
+			ir_calc = DEFAULT_DIVISOR_IR_B /
+				  (tick * (1 << ir_s_calc));
 		}
 
 		ir_para->ir_b = (ir * tick * (1 << ir_s_calc) +
@@ -92,12 +94,12 @@ static int hclge_shaper_para_calc(u32 ir, u8 shaper_level,
 
 		while (ir_calc < ir) {
 			ir_u_calc++;
-			numerator = DIVISOR_IR_B_126 * (1 << ir_u_calc);
+			numerator = DEFAULT_DIVISOR_IR_B * (1 << ir_u_calc);
 			ir_calc = (numerator + (tick >> 1)) / tick;
 		}
 
 		if (ir_calc == ir) {
-			ir_para->ir_b = 126;
+			ir_para->ir_b = DEFAULT_SHAPER_IR_B;
 		} else {
 			u32 denominator = DIVISOR_CLK * (1 << --ir_u_calc);
 			ir_para->ir_b = (ir * tick + (denominator >> 1)) /
