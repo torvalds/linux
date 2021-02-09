@@ -2,6 +2,7 @@
 /* Copyright (c) 2020, Mellanox Technologies inc. All rights reserved. */
 #include <net/sch_generic.h>
 
+#include <net/pkt_cls.h>
 #include "en.h"
 #include "params.h"
 #include "../qos.h"
@@ -482,10 +483,11 @@ static void mlx5e_qos_deactivate_all_queues(struct mlx5e_channels *chs)
 		mlx5e_qos_deactivate_queues(chs->c[i]);
 }
 
-/* HTB API */
+/* HTB TC handlers */
 
-int mlx5e_htb_root_add(struct mlx5e_priv *priv, u16 htb_maj_id, u16 htb_defcls,
-		       struct netlink_ext_ack *extack)
+static int
+mlx5e_htb_root_add(struct mlx5e_priv *priv, u16 htb_maj_id, u16 htb_defcls,
+		   struct netlink_ext_ack *extack)
 {
 	struct mlx5e_qos_node *root;
 	bool opened;
@@ -542,7 +544,7 @@ err_cancel_selq:
 	return err;
 }
 
-int mlx5e_htb_root_del(struct mlx5e_priv *priv)
+static int mlx5e_htb_root_del(struct mlx5e_priv *priv)
 {
 	struct mlx5e_qos_node *root;
 	int err;
@@ -607,9 +609,10 @@ static void mlx5e_htb_convert_ceil(struct mlx5e_priv *priv, u64 ceil, u32 *max_a
 		ceil, *max_average_bw);
 }
 
-int mlx5e_htb_leaf_alloc_queue(struct mlx5e_priv *priv, u16 classid,
-			       u32 parent_classid, u64 rate, u64 ceil,
-			       struct netlink_ext_ack *extack)
+static int
+mlx5e_htb_leaf_alloc_queue(struct mlx5e_priv *priv, u16 classid,
+			   u32 parent_classid, u64 rate, u64 ceil,
+			   struct netlink_ext_ack *extack)
 {
 	struct mlx5e_qos_node *node, *parent;
 	int qid;
@@ -661,8 +664,9 @@ int mlx5e_htb_leaf_alloc_queue(struct mlx5e_priv *priv, u16 classid,
 	return mlx5e_qid_from_qos(&priv->channels, node->qid);
 }
 
-int mlx5e_htb_leaf_to_inner(struct mlx5e_priv *priv, u16 classid, u16 child_classid,
-			    u64 rate, u64 ceil, struct netlink_ext_ack *extack)
+static int
+mlx5e_htb_leaf_to_inner(struct mlx5e_priv *priv, u16 classid, u16 child_classid,
+			u64 rate, u64 ceil, struct netlink_ext_ack *extack)
 {
 	struct mlx5e_qos_node *node, *child;
 	int err, tmp_err;
@@ -781,8 +785,8 @@ static void mlx5e_reset_qdisc(struct net_device *dev, u16 qid)
 	spin_unlock_bh(qdisc_lock(qdisc));
 }
 
-int mlx5e_htb_leaf_del(struct mlx5e_priv *priv, u16 *classid,
-		       struct netlink_ext_ack *extack)
+static int mlx5e_htb_leaf_del(struct mlx5e_priv *priv, u16 *classid,
+			      struct netlink_ext_ack *extack)
 {
 	struct mlx5e_qos_node *node;
 	struct netdev_queue *txq;
@@ -876,8 +880,9 @@ int mlx5e_htb_leaf_del(struct mlx5e_priv *priv, u16 *classid,
 	return 0;
 }
 
-int mlx5e_htb_leaf_del_last(struct mlx5e_priv *priv, u16 classid, bool force,
-			    struct netlink_ext_ack *extack)
+static int
+mlx5e_htb_leaf_del_last(struct mlx5e_priv *priv, u16 classid, bool force,
+			struct netlink_ext_ack *extack)
 {
 	struct mlx5e_qos_node *node, *parent;
 	u32 old_hw_id, new_hw_id;
@@ -956,8 +961,9 @@ int mlx5e_htb_leaf_del_last(struct mlx5e_priv *priv, u16 classid, bool force,
 	return 0;
 }
 
-static int mlx5e_qos_update_children(struct mlx5e_priv *priv, struct mlx5e_qos_node *node,
-				     struct netlink_ext_ack *extack)
+static int
+mlx5e_qos_update_children(struct mlx5e_priv *priv, struct mlx5e_qos_node *node,
+			  struct netlink_ext_ack *extack)
 {
 	struct mlx5e_qos_node *child;
 	int err = 0;
@@ -988,8 +994,9 @@ static int mlx5e_qos_update_children(struct mlx5e_priv *priv, struct mlx5e_qos_n
 	return err;
 }
 
-int mlx5e_htb_node_modify(struct mlx5e_priv *priv, u16 classid, u64 rate, u64 ceil,
-			  struct netlink_ext_ack *extack)
+static int
+mlx5e_htb_node_modify(struct mlx5e_priv *priv, u16 classid, u64 rate, u64 ceil,
+		      struct netlink_ext_ack *extack)
 {
 	u32 bw_share, max_average_bw;
 	struct mlx5e_qos_node *node;
@@ -1026,6 +1033,48 @@ int mlx5e_htb_node_modify(struct mlx5e_priv *priv, u16 classid, u64 rate, u64 ce
 		err = mlx5e_qos_update_children(priv, node, extack);
 
 	return err;
+}
+
+/* HTB API */
+int mlx5e_htb_setup_tc(struct mlx5e_priv *priv, struct tc_htb_qopt_offload *htb)
+{
+	int res;
+
+	switch (htb->command) {
+	case TC_HTB_CREATE:
+		return mlx5e_htb_root_add(priv, htb->parent_classid, htb->classid,
+					  htb->extack);
+	case TC_HTB_DESTROY:
+		return mlx5e_htb_root_del(priv);
+	case TC_HTB_LEAF_ALLOC_QUEUE:
+		res = mlx5e_htb_leaf_alloc_queue(priv, htb->classid, htb->parent_classid,
+						 htb->rate, htb->ceil, htb->extack);
+		if (res < 0)
+			return res;
+		htb->qid = res;
+		return 0;
+	case TC_HTB_LEAF_TO_INNER:
+		return mlx5e_htb_leaf_to_inner(priv, htb->parent_classid, htb->classid,
+					       htb->rate, htb->ceil, htb->extack);
+	case TC_HTB_LEAF_DEL:
+		return mlx5e_htb_leaf_del(priv, &htb->classid, htb->extack);
+	case TC_HTB_LEAF_DEL_LAST:
+	case TC_HTB_LEAF_DEL_LAST_FORCE:
+		return mlx5e_htb_leaf_del_last(priv, htb->classid,
+					       htb->command == TC_HTB_LEAF_DEL_LAST_FORCE,
+					       htb->extack);
+	case TC_HTB_NODE_MODIFY:
+		return mlx5e_htb_node_modify(priv, htb->classid, htb->rate, htb->ceil,
+					     htb->extack);
+	case TC_HTB_LEAF_QUERY_QUEUE:
+		res = mlx5e_get_txq_by_classid(priv, htb->classid);
+		if (res < 0)
+			return res;
+		htb->qid = res;
+		return 0;
+	default:
+		return -EOPNOTSUPP;
+	}
 }
 
 struct mlx5e_mqprio_rl {
@@ -1111,3 +1160,4 @@ int mlx5e_mqprio_rl_get_node_hw_id(struct mlx5e_mqprio_rl *rl, int tc, u32 *hw_i
 	*hw_id = rl->leaves_id[tc];
 	return 0;
 }
+

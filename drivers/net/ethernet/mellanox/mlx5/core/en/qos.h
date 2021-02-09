@@ -11,6 +11,7 @@
 struct mlx5e_priv;
 struct mlx5e_channels;
 struct mlx5e_channel;
+struct tc_htb_qopt_offload;
 
 int mlx5e_qos_bytes_rate_check(struct mlx5_core_dev *mdev, u64 nbytes);
 int mlx5e_qos_max_leaf_nodes(struct mlx5_core_dev *mdev);
@@ -26,20 +27,7 @@ void mlx5e_qos_deactivate_queues(struct mlx5e_channel *c);
 void mlx5e_qos_close_queues(struct mlx5e_channel *c);
 
 /* HTB API */
-int mlx5e_htb_root_add(struct mlx5e_priv *priv, u16 htb_maj_id, u16 htb_defcls,
-		       struct netlink_ext_ack *extack);
-int mlx5e_htb_root_del(struct mlx5e_priv *priv);
-int mlx5e_htb_leaf_alloc_queue(struct mlx5e_priv *priv, u16 classid,
-			       u32 parent_classid, u64 rate, u64 ceil,
-			       struct netlink_ext_ack *extack);
-int mlx5e_htb_leaf_to_inner(struct mlx5e_priv *priv, u16 classid, u16 child_classid,
-			    u64 rate, u64 ceil, struct netlink_ext_ack *extack);
-int mlx5e_htb_leaf_del(struct mlx5e_priv *priv, u16 *classid,
-		       struct netlink_ext_ack *extack);
-int mlx5e_htb_leaf_del_last(struct mlx5e_priv *priv, u16 classid, bool force,
-			    struct netlink_ext_ack *extack);
-int mlx5e_htb_node_modify(struct mlx5e_priv *priv, u16 classid, u64 rate, u64 ceil,
-			  struct netlink_ext_ack *extack);
+int mlx5e_htb_setup_tc(struct mlx5e_priv *priv, struct tc_htb_qopt_offload *htb);
 
 /* MQPRIO TX rate limit */
 struct mlx5e_mqprio_rl;
