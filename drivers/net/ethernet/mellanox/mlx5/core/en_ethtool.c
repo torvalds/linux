@@ -459,7 +459,7 @@ int mlx5e_ethtool_set_channels(struct mlx5e_priv *priv,
 	 * because the numeration of the QoS SQs will change, while per-queue
 	 * qdiscs are attached.
 	 */
-	if (priv->htb.maj_id) {
+	if (mlx5e_selq_is_htb_enabled(&priv->selq)) {
 		err = -EINVAL;
 		netdev_err(priv->netdev, "%s: HTB offload is active, cannot change the number of channels\n",
 			   __func__);
@@ -2075,7 +2075,7 @@ static int set_pflag_tx_port_ts(struct net_device *netdev, bool enable)
 	 * the numeration of the QoS SQs will change, while per-queue qdiscs are
 	 * attached.
 	 */
-	if (priv->htb.maj_id) {
+	if (mlx5e_selq_is_htb_enabled(&priv->selq)) {
 		netdev_err(priv->netdev, "%s: HTB offload is active, cannot change the PTP state\n",
 			   __func__);
 		return -EINVAL;

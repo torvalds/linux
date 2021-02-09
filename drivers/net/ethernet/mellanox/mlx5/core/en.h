@@ -904,8 +904,6 @@ struct mlx5e_htb {
 	DECLARE_BITMAP(qos_used_qids, MLX5E_QOS_MAX_LEAF_NODES);
 	struct mlx5e_sq_stats **qos_sq_stats;
 	u16 max_qos_sqs;
-	u16 maj_id;
-	u16 defcls;
 };
 
 struct mlx5e_trap;

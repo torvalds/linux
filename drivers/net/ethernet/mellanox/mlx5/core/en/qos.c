@@ -144,9 +144,9 @@ static void mlx5e_sw_node_delete(struct mlx5e_priv *priv, struct mlx5e_qos_node 
 static u16 mlx5e_qid_from_qos(struct mlx5e_channels *chs, u16 qid)
 {
 	/* These channel params are safe to access from the datapath, because:
-	 * 1. This function is called only after checking priv->htb.maj_id != 0,
+	 * 1. This function is called only after checking selq->htb_maj_id != 0,
 	 *    and the number of queues can't change while HTB offload is active.
-	 * 2. When priv->htb.maj_id becomes 0, synchronize_rcu waits for
+	 * 2. When selq->htb_maj_id becomes 0, synchronize_rcu waits for
 	 *    mlx5e_select_queue to finish while holding priv->state_lock,
 	 *    preventing other code from changing the number of queues.
 	 */
@@ -417,7 +417,7 @@ int mlx5e_qos_open_queues(struct mlx5e_priv *priv, struct mlx5e_channels *chs)
 	struct mlx5e_qos_node *node = NULL;
 	int bkt, err;
 
-	if (!priv->htb.maj_id)
+	if (!mlx5e_selq_is_htb_enabled(&priv->selq))
 		return 0;
 
 	err = mlx5e_qos_alloc_queues(priv, chs);
@@ -501,10 +501,10 @@ mlx5e_htb_root_add(struct mlx5e_priv *priv, u16 htb_maj_id, u16 htb_defcls,
 		return -EOPNOTSUPP;
 	}
 
+	mlx5e_selq_prepare_htb(&priv->selq, htb_maj_id, htb_defcls);
+
 	opened = test_bit(MLX5E_STATE_OPENED, &priv->state);
 	if (opened) {
-		mlx5e_selq_prepare(&priv->selq, &priv->channels.params, true);
-
 		err = mlx5e_qos_alloc_queues(priv, &priv->channels);
 		if (err)
 			goto err_cancel_selq;
@@ -522,14 +522,7 @@ mlx5e_htb_root_add(struct mlx5e_priv *priv, u16 htb_maj_id, u16 htb_defcls,
 		goto err_sw_node_delete;
 	}
 
-	WRITE_ONCE(priv->htb.defcls, htb_defcls);
-	/* Order maj_id after defcls - pairs with
-	 * mlx5e_select_queue/mlx5e_select_htb_queues.
-	 */
-	smp_store_release(&priv->htb.maj_id, htb_maj_id);
-
-	if (opened)
-		mlx5e_selq_apply(&priv->selq);
+	mlx5e_selq_apply(&priv->selq);
 
 	return 0;
 
@@ -556,10 +549,8 @@ static int mlx5e_htb_root_del(struct mlx5e_priv *priv)
 	 */
 	synchronize_net();
 
-	mlx5e_selq_prepare(&priv->selq, &priv->channels.params, false);
+	mlx5e_selq_prepare_htb(&priv->selq, 0, 0);
 	mlx5e_selq_apply(&priv->selq);
-
-	WRITE_ONCE(priv->htb.maj_id, 0);
 
 	root = mlx5e_sw_node_find(priv, MLX5E_HTB_CLASSID_ROOT);
 	if (!root) {
