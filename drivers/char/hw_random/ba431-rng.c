@@ -193,22 +193,13 @@ static int ba431_trng_probe(struct platform_device *pdev)
 
 	platform_set_drvdata(pdev, ba431);
 
-	ret = hwrng_register(&ba431->rng);
+	ret = devm_hwrng_register(&pdev->dev, &ba431->rng);
 	if (ret) {
 		dev_err(&pdev->dev, "BA431 registration failed (%d)\n", ret);
 		return ret;
 	}
 
 	dev_info(&pdev->dev, "BA431 TRNG registered\n");
-
-	return 0;
-}
-
-static int ba431_trng_remove(struct platform_device *pdev)
-{
-	struct ba431_trng *ba431 = platform_get_drvdata(pdev);
-
-	hwrng_unregister(&ba431->rng);
 
 	return 0;
 }
@@ -225,7 +216,6 @@ static struct platform_driver ba431_trng_driver = {
 		.of_match_table = ba431_trng_dt_ids,
 	},
 	.probe = ba431_trng_probe,
-	.remove = ba431_trng_remove,
 };
 
 module_platform_driver(ba431_trng_driver);
