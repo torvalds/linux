@@ -1162,8 +1162,9 @@ int occ_setup(struct occ *occ, const char *name)
 		dev_info(occ->bus_dev, "host is not ready\n");
 		return rc;
 	} else if (rc < 0) {
-		dev_err(occ->bus_dev, "failed to get OCC poll response: %d\n",
-			rc);
+		dev_err(occ->bus_dev,
+			"failed to get OCC poll response=%02x: %d\n",
+			occ->resp.return_status, rc);
 		return rc;
 	}
 
