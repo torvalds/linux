@@ -8654,16 +8654,10 @@ static void io_cancel_defer_files(struct io_ring_ctx *ctx,
 	}
 }
 
-/*
- * Returns true if we found and killed one or more files pinning requests
- */
-static bool io_uring_cancel_files(struct io_ring_ctx *ctx,
+static void io_uring_cancel_files(struct io_ring_ctx *ctx,
 				  struct task_struct *task,
 				  struct files_struct *files)
 {
-	if (list_empty_careful(&ctx->inflight_list))
-		return false;
-
 	while (!list_empty_careful(&ctx->inflight_list)) {
 		struct io_kiocb *cancel_req = NULL, *req;
 		DEFINE_WAIT(wait);
@@ -8698,8 +8692,6 @@ static bool io_uring_cancel_files(struct io_ring_ctx *ctx,
 		schedule();
 		finish_wait(&ctx->inflight_wait, &wait);
 	}
-
-	return true;
 }
 
 static bool io_cancel_task_cb(struct io_wq_work *work, void *data)
@@ -8710,15 +8702,12 @@ static bool io_cancel_task_cb(struct io_wq_work *work, void *data)
 	return io_task_match(req, task);
 }
 
-static bool __io_uring_cancel_task_requests(struct io_ring_ctx *ctx,
-					    struct task_struct *task,
-					    struct files_struct *files)
+static void __io_uring_cancel_task_requests(struct io_ring_ctx *ctx,
+					    struct task_struct *task)
 {
-	bool ret;
-
-	ret = io_uring_cancel_files(ctx, task, files);
-	if (!files) {
+	while (1) {
 		enum io_wq_cancel cret;
+		bool ret = false;
 
 		cret = io_wq_cancel_cb(ctx->io_wq, io_cancel_task_cb, task, true);
 		if (cret != IO_WQ_CANCEL_NOTFOUND)
@@ -8734,9 +8723,11 @@ static bool __io_uring_cancel_task_requests(struct io_ring_ctx *ctx,
 
 		ret |= io_poll_remove_all(ctx, task);
 		ret |= io_kill_timeouts(ctx, task);
+		if (!ret)
+			break;
+		io_run_task_work();
+		cond_resched();
 	}
-
-	return ret;
 }
 
 static void io_disable_sqo_submit(struct io_ring_ctx *ctx)
@@ -8771,11 +8762,10 @@ static void io_uring_cancel_task_requests(struct io_ring_ctx *ctx,
 
 	io_cancel_defer_files(ctx, task, files);
 	io_cqring_overflow_flush(ctx, true, task, files);
+	io_uring_cancel_files(ctx, task, files);
 
-	while (__io_uring_cancel_task_requests(ctx, task, files)) {
-		io_run_task_work();
-		cond_resched();
-	}
+	if (!files)
+		__io_uring_cancel_task_requests(ctx, task);
 
 	if ((ctx->flags & IORING_SETUP_SQPOLL) && ctx->sq_data) {
 		atomic_dec(&task->io_uring->in_idle);
