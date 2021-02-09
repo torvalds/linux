@@ -10831,7 +10831,7 @@ static void hclge_reset_vf_rate(struct hclge_dev *hdev)
 	}
 }
 
-static int hclge_vf_rate_param_check(struct hclge_dev *hdev, int vf,
+static int hclge_vf_rate_param_check(struct hclge_dev *hdev,
 				     int min_tx_rate, int max_tx_rate)
 {
 	if (min_tx_rate != 0 ||
@@ -10852,7 +10852,7 @@ static int hclge_set_vf_rate(struct hnae3_handle *handle, int vf,
 	struct hclge_dev *hdev = vport->back;
 	int ret;
 
-	ret = hclge_vf_rate_param_check(hdev, vf, min_tx_rate, max_tx_rate);
+	ret = hclge_vf_rate_param_check(hdev, min_tx_rate, max_tx_rate);
 	if (ret)
 		return ret;
 
