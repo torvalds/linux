@@ -194,7 +194,7 @@
  * interrupts are pending to be processed. The interrupt stack cannot be in
  * use here.
  */
-#define run_softirq_on_irqstack()					\
+#define do_softirq_own_stack()						\
 {									\
 	__this_cpu_write(hardirq_stack_inuse, true);			\
 	call_on_irqstack(__do_softirq, ASM_CALL_SOFTIRQ);		\
@@ -202,7 +202,6 @@
 }
 
 #else /* CONFIG_X86_64 */
-
 /* System vector handlers always run on the stack they interrupted. */
 #define run_sysvec_on_irqstack_cond(func, regs)				\
 {									\

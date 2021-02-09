@@ -74,8 +74,3 @@ int irq_init_percpu_irqstack(unsigned int cpu)
 		return 0;
 	return map_irq_stack(cpu);
 }
-
-void do_softirq_own_stack(void)
-{
-	run_softirq_on_irqstack();
-}
