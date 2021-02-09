@@ -49,8 +49,6 @@ static void ttm_global_release(void)
 	if (--ttm_glob_use_count > 0)
 		goto out;
 
-	kobject_del(&glob->kobj);
-	kobject_put(&glob->kobj);
 	ttm_mem_global_release(&ttm_mem_glob);
 	__free_page(glob->dummy_read_page);
 	memset(glob, 0, sizeof(*glob));

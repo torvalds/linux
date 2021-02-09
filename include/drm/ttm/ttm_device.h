@@ -55,7 +55,6 @@ extern struct ttm_global {
 	 * Constant after init.
 	 */
 
-	struct kobject kobj;
 	struct page *dummy_read_page;
 	spinlock_t lru_lock;
 
