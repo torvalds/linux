@@ -85,8 +85,8 @@ static int __init blake2b_neon_mod_init(void)
 
 static void __exit blake2b_neon_mod_exit(void)
 {
-	return crypto_unregister_shashes(blake2b_neon_algs,
-					 ARRAY_SIZE(blake2b_neon_algs));
+	crypto_unregister_shashes(blake2b_neon_algs,
+				  ARRAY_SIZE(blake2b_neon_algs));
 }
 
 module_init(blake2b_neon_mod_init);
