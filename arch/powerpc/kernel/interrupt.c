@@ -73,6 +73,8 @@ notrace long system_call_exception(long r3, long r4, long r5,
 		kuap_check_amr();
 #endif
 
+	booke_restore_dbcr0();
+
 	account_cpu_user_entry();
 
 	account_stolen_time();
@@ -204,6 +206,28 @@ static notrace inline bool prep_irq_for_enabled_exit(bool clear_ri, bool irqs_en
 	return false;
 }
 
+static notrace void booke_load_dbcr0(void)
+{
+#ifdef CONFIG_PPC_ADV_DEBUG_REGS
+	unsigned long dbcr0 = current->thread.debug.dbcr0;
+
+	if (likely(!(dbcr0 & DBCR0_IDM)))
+		return;
+
+	/*
+	 * Check to see if the dbcr0 register is set up to debug.
+	 * Use the internal debug mode bit to do this.
+	 */
+	mtmsr(mfmsr() & ~MSR_DE);
+	if (IS_ENABLED(CONFIG_PPC32)) {
+		isync();
+		global_dbcr0[smp_processor_id()] = mfspr(SPRN_DBCR0);
+	}
+	mtspr(SPRN_DBCR0, dbcr0);
+	mtspr(SPRN_DBSR, -1);
+#endif
+}
+
 /*
  * This should be called after a syscall returns, with r3 the return value
  * from the syscall. If this function returns non-zero, the system call
@@ -317,6 +341,8 @@ again:
 	local_paca->tm_scratch = regs->msr;
 #endif
 
+	booke_load_dbcr0();
+
 	account_cpu_user_exit();
 
 #ifdef CONFIG_PPC_BOOK3S_64 /* BOOK3E and ppc32 not using this */
@@ -331,9 +357,6 @@ again:
 #ifndef CONFIG_PPC_BOOK3E_64 /* BOOK3E not yet using this */
 notrace unsigned long interrupt_exit_user_prepare(struct pt_regs *regs, unsigned long msr)
 {
-#ifdef CONFIG_PPC_BOOK3E
-	struct thread_struct *ts = &current->thread;
-#endif
 	unsigned long *ti_flagsp = &current_thread_info()->flags;
 	unsigned long ti_flags;
 	unsigned long flags;
@@ -398,17 +421,7 @@ again:
 		goto again;
 	}
 
-#ifdef CONFIG_PPC_BOOK3E
-	if (unlikely(ts->debug.dbcr0 & DBCR0_IDM)) {
-		/*
-		 * Check to see if the dbcr0 register is set up to debug.
-		 * Use the internal debug mode bit to do this.
-		 */
-		mtmsr(mfmsr() & ~MSR_DE);
-		mtspr(SPRN_DBCR0, ts->debug.dbcr0);
-		mtspr(SPRN_DBSR, -1);
-	}
-#endif
+	booke_load_dbcr0();
 
 #ifdef CONFIG_PPC_TRANSACTIONAL_MEM
 	local_paca->tm_scratch = regs->msr;
