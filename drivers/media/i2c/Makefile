@@ -125,10 +125,9 @@ obj-$(CONFIG_VIDEO_IMX319)	+= imx319.o
 obj-$(CONFIG_VIDEO_IMX334)	+= imx334.o
 obj-$(CONFIG_VIDEO_IMX355)	+= imx355.o
 obj-$(CONFIG_VIDEO_MAX9286)	+= max9286.o
-rdacm20-camera_module-objs	:= rdacm20.o max9271.o
-obj-$(CONFIG_VIDEO_RDACM20)	+= rdacm20-camera_module.o
-rdacm21-camera_module-objs	:= rdacm21.o max9271.o
-obj-$(CONFIG_VIDEO_RDACM21)	+= rdacm21-camera_module.o
+obj-$(CONFIG_VIDEO_MAX9271_LIB)	+= max9271.o
+obj-$(CONFIG_VIDEO_RDACM20)	+= rdacm20.o
+obj-$(CONFIG_VIDEO_RDACM21)	+= rdacm21.o
 obj-$(CONFIG_VIDEO_ST_MIPID02) += st-mipid02.o
 
 obj-$(CONFIG_SDR_MAX2175) += max2175.o

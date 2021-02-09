@@ -1240,12 +1240,16 @@ config VIDEO_NOON010PC30
 
 source "drivers/media/i2c/m5mols/Kconfig"
 
+config VIDEO_MAX9271_LIB
+	tristate
+
 config VIDEO_RDACM20
 	tristate "IMI RDACM20 camera support"
 	depends on I2C
 	select V4L2_FWNODE
 	select VIDEO_V4L2_SUBDEV_API
 	select MEDIA_CONTROLLER
+	select VIDEO_MAX9271_LIB
 	help
 	  This driver supports the IMI RDACM20 GMSL camera, used in
 	  ADAS systems.
@@ -1259,6 +1263,7 @@ config VIDEO_RDACM21
 	select V4L2_FWNODE
 	select VIDEO_V4L2_SUBDEV_API
 	select MEDIA_CONTROLLER
+	select VIDEO_MAX9271_LIB
 	help
 	  This driver supports the IMI RDACM21 GMSL camera, used in
 	  ADAS systems.
