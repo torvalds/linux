@@ -44,10 +44,56 @@ static int ufs_debugfs_stats_show(struct seq_file *s, void *data)
 }
 DEFINE_SHOW_ATTRIBUTE(ufs_debugfs_stats);
 
+static int ee_usr_mask_get(void *data, u64 *val)
+{
+	struct ufs_hba *hba = data;
+
+	*val = hba->ee_usr_mask;
+	return 0;
+}
+
+static int ufs_debugfs_get_user_access(struct ufs_hba *hba)
+__acquires(&hba->host_sem)
+{
+	down(&hba->host_sem);
+	if (!ufshcd_is_user_access_allowed(hba)) {
+		up(&hba->host_sem);
+		return -EBUSY;
+	}
+	pm_runtime_get_sync(hba->dev);
+	return 0;
+}
+
+static void ufs_debugfs_put_user_access(struct ufs_hba *hba)
+__releases(&hba->host_sem)
+{
+	pm_runtime_put_sync(hba->dev);
+	up(&hba->host_sem);
+}
+
+static int ee_usr_mask_set(void *data, u64 val)
+{
+	struct ufs_hba *hba = data;
+	int err;
+
+	if (val & ~(u64)MASK_EE_STATUS)
+		return -EINVAL;
+	err = ufs_debugfs_get_user_access(hba);
+	if (err)
+		return err;
+	err = ufshcd_update_ee_usr_mask(hba, val, MASK_EE_STATUS);
+	ufs_debugfs_put_user_access(hba);
+	return err;
+}
+
+DEFINE_DEBUGFS_ATTRIBUTE(ee_usr_mask_fops, ee_usr_mask_get, ee_usr_mask_set, "%#llx\n");
+
 void ufs_debugfs_hba_init(struct ufs_hba *hba)
 {
 	hba->debugfs_root = debugfs_create_dir(dev_name(hba->dev), ufs_debugfs_root);
 	debugfs_create_file("stats", 0400, hba->debugfs_root, hba, &ufs_debugfs_stats_fops);
+	debugfs_create_file("exception_event_mask", 0600, hba->debugfs_root,
+			    hba, &ee_usr_mask_fops);
 }
 
 void ufs_debugfs_hba_exit(struct ufs_hba *hba)

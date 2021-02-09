@@ -5162,6 +5162,46 @@ static irqreturn_t ufshcd_transfer_req_compl(struct ufs_hba *hba)
 	}
 }
 
+static int __ufshcd_write_ee_control(struct ufs_hba *hba, u32 ee_ctrl_mask)
+{
+	return ufshcd_query_attr_retry(hba, UPIU_QUERY_OPCODE_WRITE_ATTR,
+				       QUERY_ATTR_IDN_EE_CONTROL, 0, 0,
+				       &ee_ctrl_mask);
+}
+
+static int ufshcd_write_ee_control(struct ufs_hba *hba)
+{
+	int err;
+
+	mutex_lock(&hba->ee_ctrl_mutex);
+	err = __ufshcd_write_ee_control(hba, hba->ee_ctrl_mask);
+	mutex_unlock(&hba->ee_ctrl_mutex);
+	if (err)
+		dev_err(hba->dev, "%s: failed to write ee control %d\n",
+			__func__, err);
+	return err;
+}
+
+int ufshcd_update_ee_control(struct ufs_hba *hba, u16 *mask, u16 *other_mask,
+			     u16 set, u16 clr)
+{
+	u16 new_mask, ee_ctrl_mask;
+	int err = 0;
+
+	mutex_lock(&hba->ee_ctrl_mutex);
+	new_mask = (*mask & ~clr) | set;
+	ee_ctrl_mask = new_mask | *other_mask;
+	if (ee_ctrl_mask != hba->ee_ctrl_mask)
+		err = __ufshcd_write_ee_control(hba, ee_ctrl_mask);
+	/* Still need to update 'mask' even if 'ee_ctrl_mask' was unchanged */
+	if (!err) {
+		hba->ee_ctrl_mask = ee_ctrl_mask;
+		*mask = new_mask;
+	}
+	mutex_unlock(&hba->ee_ctrl_mutex);
+	return err;
+}
+
 /**
  * ufshcd_disable_ee - disable exception event
  * @hba: per-adapter instance
@@ -5172,22 +5212,9 @@ static irqreturn_t ufshcd_transfer_req_compl(struct ufs_hba *hba)
  *
  * Returns zero on success, non-zero error value on failure.
  */
-static int ufshcd_disable_ee(struct ufs_hba *hba, u16 mask)
+static inline int ufshcd_disable_ee(struct ufs_hba *hba, u16 mask)
 {
-	int err = 0;
-	u32 val;
-
-	if (!(hba->ee_ctrl_mask & mask))
-		goto out;
-
-	val = hba->ee_ctrl_mask & ~mask;
-	val &= MASK_EE_STATUS;
-	err = ufshcd_query_attr_retry(hba, UPIU_QUERY_OPCODE_WRITE_ATTR,
-			QUERY_ATTR_IDN_EE_CONTROL, 0, 0, &val);
-	if (!err)
-		hba->ee_ctrl_mask &= ~mask;
-out:
-	return err;
+	return ufshcd_update_ee_drv_mask(hba, 0, mask);
 }
 
 /**
@@ -5200,22 +5227,9 @@ out:
  *
  * Returns zero on success, non-zero error value on failure.
  */
-static int ufshcd_enable_ee(struct ufs_hba *hba, u16 mask)
+static inline int ufshcd_enable_ee(struct ufs_hba *hba, u16 mask)
 {
-	int err = 0;
-	u32 val;
-
-	if (hba->ee_ctrl_mask & mask)
-		goto out;
-
-	val = hba->ee_ctrl_mask | mask;
-	val &= MASK_EE_STATUS;
-	err = ufshcd_query_attr_retry(hba, UPIU_QUERY_OPCODE_WRITE_ATTR,
-			QUERY_ATTR_IDN_EE_CONTROL, 0, 0, &val);
-	if (!err)
-		hba->ee_ctrl_mask |= mask;
-out:
-	return err;
+	return ufshcd_update_ee_drv_mask(hba, mask, 0);
 }
 
 /**
@@ -5620,9 +5634,7 @@ static void ufshcd_exception_event_handler(struct work_struct *work)
 
 	trace_ufshcd_exception_event(dev_name(hba->dev), status);
 
-	status &= hba->ee_ctrl_mask;
-
-	if (status & MASK_EE_URGENT_BKOPS)
+	if (status & hba->ee_drv_mask & MASK_EE_URGENT_BKOPS)
 		ufshcd_bkops_exception_event_handler(hba);
 
 out:
@@ -7923,6 +7935,8 @@ static int ufshcd_probe_hba(struct ufs_hba *hba, bool async)
 	ufshcd_set_active_icc_lvl(hba);
 
 	ufshcd_wb_config(hba);
+	if (hba->ee_usr_mask)
+		ufshcd_write_ee_control(hba);
 	/* Enable Auto-Hibernate if configured */
 	ufshcd_auto_hibern8_enable(hba);
 
@@ -8920,6 +8934,9 @@ static int ufshcd_resume(struct ufs_hba *hba, enum ufs_pm_op pm_op)
 		 */
 		ufshcd_urgent_bkops(hba);
 
+	if (hba->ee_usr_mask)
+		ufshcd_write_ee_control(hba);
+
 	hba->clk_gating.is_suspended = false;
 
 	if (ufshcd_is_clkscaling_supported(hba))
@@ -9356,6 +9373,9 @@ int ufshcd_init(struct ufs_hba *hba, void __iomem *mmio_base, unsigned int irq)
 
 	/* Initialize mutex for device management commands */
 	mutex_init(&hba->dev_cmd.lock);
+
+	/* Initialize mutex for exception event control */
+	mutex_init(&hba->ee_ctrl_mutex);
 
 	init_rwsem(&hba->clk_scaling_lock);
 
