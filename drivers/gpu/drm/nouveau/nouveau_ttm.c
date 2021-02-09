@@ -154,7 +154,7 @@ error_unlock:
 	return ret;
 }
 
-static struct vm_operations_struct nouveau_ttm_vm_ops = {
+static const struct vm_operations_struct nouveau_ttm_vm_ops = {
 	.fault = nouveau_ttm_fault,
 	.open = ttm_bo_vm_open,
 	.close = ttm_bo_vm_close,
