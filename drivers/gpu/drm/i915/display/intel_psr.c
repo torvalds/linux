@@ -1839,9 +1839,6 @@ void intel_psr_init(struct intel_dp *intel_dp)
 	if (!HAS_PSR(dev_priv))
 		return;
 
-	if (!intel_dp->psr.sink_support)
-		return;
-
 	/*
 	 * HSW spec explicitly says PSR is tied to port A.
 	 * BDW+ platforms have a instance of PSR registers per transcoder but
