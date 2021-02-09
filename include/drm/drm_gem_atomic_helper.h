@@ -45,6 +45,38 @@ to_drm_shadow_plane_state(struct drm_plane_state *state)
 	return container_of(state, struct drm_shadow_plane_state, base);
 }
 
+void drm_gem_reset_shadow_plane(struct drm_plane *plane);
+struct drm_plane_state *drm_gem_duplicate_shadow_plane_state(struct drm_plane *plane);
+void drm_gem_destroy_shadow_plane_state(struct drm_plane *plane,
+					struct drm_plane_state *plane_state);
+
+/**
+ * DRM_GEM_SHADOW_PLANE_FUNCS -
+ *	Initializes struct drm_plane_funcs for shadow-buffered planes
+ *
+ * Drivers may use GEM BOs as shadow buffers over the framebuffer memory. This
+ * macro initializes struct drm_plane_funcs to use the rsp helper functions.
+ */
+#define DRM_GEM_SHADOW_PLANE_FUNCS \
+	.reset = drm_gem_reset_shadow_plane, \
+	.atomic_duplicate_state = drm_gem_duplicate_shadow_plane_state, \
+	.atomic_destroy_state = drm_gem_destroy_shadow_plane_state
+
+int drm_gem_prepare_shadow_fb(struct drm_plane *plane, struct drm_plane_state *plane_state);
+void drm_gem_cleanup_shadow_fb(struct drm_plane *plane, struct drm_plane_state *plane_state);
+
+/**
+ * DRM_GEM_SHADOW_PLANE_HELPER_FUNCS -
+ *	Initializes struct drm_plane_helper_funcs for shadow-buffered planes
+ *
+ * Drivers may use GEM BOs as shadow buffers over the framebuffer memory. This
+ * macro initializes struct drm_plane_helper_funcs to use the rsp helper
+ * functions.
+ */
+#define DRM_GEM_SHADOW_PLANE_HELPER_FUNCS \
+	.prepare_fb = drm_gem_prepare_shadow_fb, \
+	.cleanup_fb = drm_gem_cleanup_shadow_fb
+
 int drm_gem_simple_kms_prepare_shadow_fb(struct drm_simple_display_pipe *pipe,
 					 struct drm_plane_state *plane_state);
 void drm_gem_simple_kms_cleanup_shadow_fb(struct drm_simple_display_pipe *pipe,
