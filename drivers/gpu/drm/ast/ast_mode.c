@@ -736,10 +736,25 @@ static const struct drm_plane_helper_funcs ast_cursor_plane_helper_funcs = {
 	.atomic_disable = ast_cursor_plane_helper_atomic_disable,
 };
 
+static void ast_cursor_plane_destroy(struct drm_plane *plane)
+{
+	struct ast_private *ast = to_ast_private(plane->dev);
+	size_t i;
+	struct drm_gem_vram_object *gbo;
+
+	for (i = 0; i < ARRAY_SIZE(ast->cursor.gbo); ++i) {
+		gbo = ast->cursor.gbo[i];
+		drm_gem_vram_unpin(gbo);
+		drm_gem_vram_put(gbo);
+	}
+
+	drm_plane_cleanup(plane);
+}
+
 static const struct drm_plane_funcs ast_cursor_plane_funcs = {
 	.update_plane = drm_atomic_helper_update_plane,
 	.disable_plane = drm_atomic_helper_disable_plane,
-	.destroy = drm_plane_cleanup,
+	.destroy = ast_cursor_plane_destroy,
 	.reset = drm_atomic_helper_plane_reset,
 	.atomic_duplicate_state = drm_atomic_helper_plane_duplicate_state,
 	.atomic_destroy_state = drm_atomic_helper_plane_destroy_state,
@@ -749,7 +764,34 @@ static int ast_cursor_plane_init(struct ast_private *ast)
 {
 	struct drm_device *dev = &ast->base;
 	struct drm_plane *cursor_plane = &ast->cursor_plane;
+	size_t size, i;
+	struct drm_gem_vram_object *gbo;
 	int ret;
+
+	/*
+	 * Allocate backing storage for cursors. The BOs are permanently
+	 * pinned to the top end of the VRAM.
+	 */
+
+	size = roundup(AST_HWC_SIZE + AST_HWC_SIGNATURE_SIZE, PAGE_SIZE);
+
+	for (i = 0; i < ARRAY_SIZE(ast->cursor.gbo); ++i) {
+		gbo = drm_gem_vram_create(dev, size, 0);
+		if (IS_ERR(gbo)) {
+			ret = PTR_ERR(gbo);
+			goto err_hwc;
+		}
+		ret = drm_gem_vram_pin(gbo, DRM_GEM_VRAM_PL_FLAG_VRAM |
+					    DRM_GEM_VRAM_PL_FLAG_TOPDOWN);
+		if (ret)
+			goto err_drm_gem_vram_put;
+		ast->cursor.gbo[i] = gbo;
+	}
+
+	/*
+	 * Create the cursor plane. The plane's destroy callback will release
+	 * the backing storages' BO memory.
+	 */
 
 	ret = drm_universal_plane_init(dev, cursor_plane, 0x01,
 				       &ast_cursor_plane_funcs,
@@ -757,12 +799,22 @@ static int ast_cursor_plane_init(struct ast_private *ast)
 				       ARRAY_SIZE(ast_cursor_plane_formats),
 				       NULL, DRM_PLANE_TYPE_CURSOR, NULL);
 	if (ret) {
-		drm_err(dev, "drm_universal_plane_failed(): %d\n", ret);
-		return ret;
+		drm_err(dev, "drm_universal_plane failed(): %d\n", ret);
+		goto err_hwc;
 	}
 	drm_plane_helper_add(cursor_plane, &ast_cursor_plane_helper_funcs);
 
 	return 0;
+
+err_hwc:
+	while (i) {
+		--i;
+		gbo = ast->cursor.gbo[i];
+		drm_gem_vram_unpin(gbo);
+err_drm_gem_vram_put:
+		drm_gem_vram_put(gbo);
+	}
+	return ret;
 }
 
 /*
@@ -1148,10 +1200,6 @@ int ast_mode_config_init(struct ast_private *ast)
 	struct drm_device *dev = &ast->base;
 	struct pci_dev *pdev = to_pci_dev(dev->dev);
 	int ret;
-
-	ret = ast_cursor_init(ast);
-	if (ret)
-		return ret;
 
 	ret = drmm_mode_config_init(dev);
 	if (ret)

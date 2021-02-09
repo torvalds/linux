@@ -318,7 +318,6 @@ u8 ast_get_dp501_max_clk(struct drm_device *dev);
 void ast_init_3rdtx(struct drm_device *dev);
 
 /* ast_cursor.c */
-int ast_cursor_init(struct ast_private *ast);
 int ast_cursor_blit(struct ast_private *ast, struct drm_framebuffer *fb);
 void ast_cursor_page_flip(struct ast_private *ast);
 void ast_cursor_show(struct ast_private *ast, int x, int y,

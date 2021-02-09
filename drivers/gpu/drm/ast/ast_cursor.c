@@ -32,64 +32,6 @@
 
 #include "ast_drv.h"
 
-static void ast_cursor_fini(struct ast_private *ast)
-{
-	size_t i;
-	struct drm_gem_vram_object *gbo;
-
-	for (i = 0; i < ARRAY_SIZE(ast->cursor.gbo); ++i) {
-		gbo = ast->cursor.gbo[i];
-		drm_gem_vram_unpin(gbo);
-		drm_gem_vram_put(gbo);
-	}
-}
-
-static void ast_cursor_release(struct drm_device *dev, void *ptr)
-{
-	struct ast_private *ast = to_ast_private(dev);
-
-	ast_cursor_fini(ast);
-}
-
-/*
- * Allocate cursor BOs and pin them at the end of VRAM.
- */
-int ast_cursor_init(struct ast_private *ast)
-{
-	struct drm_device *dev = &ast->base;
-	size_t size, i;
-	struct drm_gem_vram_object *gbo;
-	int ret;
-
-	size = roundup(AST_HWC_SIZE + AST_HWC_SIGNATURE_SIZE, PAGE_SIZE);
-
-	for (i = 0; i < ARRAY_SIZE(ast->cursor.gbo); ++i) {
-		gbo = drm_gem_vram_create(dev, size, 0);
-		if (IS_ERR(gbo)) {
-			ret = PTR_ERR(gbo);
-			goto err_drm_gem_vram_put;
-		}
-		ret = drm_gem_vram_pin(gbo, DRM_GEM_VRAM_PL_FLAG_VRAM |
-					    DRM_GEM_VRAM_PL_FLAG_TOPDOWN);
-		if (ret) {
-			drm_gem_vram_put(gbo);
-			goto err_drm_gem_vram_put;
-		}
-		ast->cursor.gbo[i] = gbo;
-	}
-
-	return drmm_add_action_or_reset(dev, ast_cursor_release, NULL);
-
-err_drm_gem_vram_put:
-	while (i) {
-		--i;
-		gbo = ast->cursor.gbo[i];
-		drm_gem_vram_unpin(gbo);
-		drm_gem_vram_put(gbo);
-	}
-	return ret;
-}
-
 static void update_cursor_image(u8 __iomem *dst, const u8 *src, int width, int height)
 {
 	union {
