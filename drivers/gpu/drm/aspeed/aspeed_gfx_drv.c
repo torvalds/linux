@@ -319,7 +319,7 @@ static int aspeed_gfx_probe(struct platform_device *pdev)
 	if (ret)
 		return ret;
 
-	dev_set_drvdata(&pdev->dev, priv);
+	platform_set_drvdata(pdev, priv);
 
 	ret = sysfs_create_group(&pdev->dev.kobj, &aspeed_sysfs_attr_group);
 	if (ret)
