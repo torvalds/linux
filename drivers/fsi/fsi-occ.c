@@ -223,7 +223,8 @@ static const struct file_operations occ_fops = {
 	.release = occ_release,
 };
 
-static int occ_verify_checksum(struct occ_response *resp, u16 data_length)
+static int occ_verify_checksum(struct occ *occ, struct occ_response *resp,
+			       u16 data_length)
 {
 	/* Fetch the two bytes after the data for the checksum. */
 	u16 checksum_resp = get_unaligned_be16(&resp->data[data_length]);
@@ -238,8 +239,11 @@ static int occ_verify_checksum(struct occ_response *resp, u16 data_length)
 	for (i = 0; i < data_length; ++i)
 		checksum += resp->data[i];
 
-	if (checksum != checksum_resp)
+	if (checksum != checksum_resp) {
+		dev_err(occ->dev, "Bad checksum: %04x!=%04x\n", checksum,
+			checksum_resp);
 		return -EBADMSG;
+	}
 
 	return 0;
 }
@@ -533,7 +537,7 @@ int fsi_occ_submit(struct device *dev, const void *request, size_t req_len,
 	}
 
 	*resp_len = resp_data_length + 7;
-	rc = occ_verify_checksum(resp, resp_data_length);
+	rc = occ_verify_checksum(occ, resp, resp_data_length);
 
  done:
 	mutex_unlock(&occ->occ_lock);
