@@ -28,6 +28,7 @@ select:
     compatible:
       contains:
         enum:
+          - rockchip,rk3328-dwc3
           - rockchip,rk3399-dwc3
   required:
     - compatible
@@ -36,6 +37,7 @@ properties:
   compatible:
     items:
       - enum:
+          - rockchip,rk3328-dwc3
           - rockchip,rk3399-dwc3
       - const: snps,dwc3
 
@@ -46,6 +48,7 @@ properties:
     maxItems: 1
 
   clocks:
+    minItems: 3
     items:
       - description:
           Controller reference clock, must to be 24 MHz
@@ -58,6 +61,7 @@ properties:
           Controller grf clock
 
   clock-names:
+    minItems: 3
     items:
       - const: ref_clk
       - const: suspend_clk
