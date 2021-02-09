@@ -151,6 +151,8 @@ M(CGX_CFG_PAUSE_FRM,	0x20E, cgx_cfg_pause_frm, cgx_pause_frm_cfg,	\
 			       cgx_pause_frm_cfg)			\
 M(CGX_FEC_SET,		0x210, cgx_set_fec_param, fec_mode, fec_mode)   \
 M(CGX_FEC_STATS,	0x211, cgx_fec_stats, msg_req, cgx_fec_stats_rsp) \
+M(CGX_GET_PHY_FEC_STATS, 0x212, cgx_get_phy_fec_stats, msg_req, msg_rsp) \
+M(CGX_FW_DATA_GET,	0x213, cgx_get_aux_link_info, msg_req, cgx_fw_data) \
  /* NPA mbox IDs (range 0x400 - 0x5FF) */				\
 /* NPA mbox IDs (range 0x400 - 0x5FF) */				\
 M(NPA_LF_ALLOC,		0x400, npa_lf_alloc,				\
@@ -411,6 +413,47 @@ enum fec_type {
 struct fec_mode {
 	struct mbox_msghdr hdr;
 	int fec;
+};
+
+struct sfp_eeprom_s {
+#define SFP_EEPROM_SIZE 256
+	u16 sff_id;
+	u8 buf[SFP_EEPROM_SIZE];
+	u64 reserved;
+};
+
+struct phy_s {
+	struct {
+		u64 can_change_mod_type:1;
+		u64 mod_type:1;
+		u64 has_fec_stats:1;
+	} misc;
+	struct fec_stats_s {
+		u32 rsfec_corr_cws;
+		u32 rsfec_uncorr_cws;
+		u32 brfec_corr_blks;
+		u32 brfec_uncorr_blks;
+	} fec_stats;
+};
+
+struct cgx_lmac_fwdata_s {
+	u16 rw_valid;
+	u64 supported_fec;
+	u64 supported_an;
+	u64 supported_link_modes;
+	/* only applicable if AN is supported */
+	u64 advertised_fec;
+	u64 advertised_link_modes;
+	/* Only applicable if SFP/QSFP slot is present */
+	struct sfp_eeprom_s sfp_eeprom;
+	struct phy_s phy;
+#define LMAC_FWDATA_RESERVED_MEM 1021
+	u64 reserved[LMAC_FWDATA_RESERVED_MEM];
+};
+
+struct cgx_fw_data {
+	struct mbox_msghdr hdr;
+	struct cgx_lmac_fwdata_s fwdata;
 };
 
 /* NPA mbox message formats */

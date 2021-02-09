@@ -861,6 +861,18 @@ int cgx_set_fec(u64 fec, int cgx_id, int lmac_id)
 	return cgx->lmac_idmap[lmac_id]->link_info.fec;
 }
 
+int cgx_get_phy_fec_stats(void *cgxd, int lmac_id)
+{
+	struct cgx *cgx = cgxd;
+	u64 req = 0, resp;
+
+	if (!cgx)
+		return -ENODEV;
+
+	req = FIELD_SET(CMDREG_ID, CGX_CMD_GET_PHY_FEC_STATS, req);
+	return cgx_fwi_cmd_generic(req, &resp, cgx, lmac_id);
+}
+
 static int cgx_fwi_link_change(struct cgx *cgx, int lmac_id, bool enable)
 {
 	u64 req = 0;

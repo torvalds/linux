@@ -89,6 +89,11 @@ enum cgx_cmd_id {
 	CGX_CMD_SET_AN,
 	CGX_CMD_GET_ADV_LINK_MODES,
 	CGX_CMD_GET_ADV_FEC,
+	CGX_CMD_GET_PHY_MOD_TYPE, /* line-side modulation type: NRZ or PAM4 */
+	CGX_CMD_SET_PHY_MOD_TYPE,
+	CGX_CMD_PRBS,
+	CGX_CMD_DISPLAY_EYE,
+	CGX_CMD_GET_PHY_FEC_STATS,
 };
 
 /* async event ids */
