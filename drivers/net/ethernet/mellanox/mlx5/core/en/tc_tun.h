@@ -11,6 +11,8 @@
 #include "en.h"
 #include "en_rep.h"
 
+#ifdef CONFIG_MLX5_ESWITCH
+
 enum {
 	MLX5E_TC_TUNNEL_TYPE_UNKNOWN,
 	MLX5E_TC_TUNNEL_TYPE_VXLAN,
@@ -98,5 +100,7 @@ int mlx5e_tc_tun_parse_udp_ports(struct mlx5e_priv *priv,
 				 struct flow_cls_offload *f,
 				 void *headers_c,
 				 void *headers_v);
+
+#endif /* CONFIG_MLX5_ESWITCH */
 
 #endif //__MLX5_EN_TC_TUNNEL_H__
