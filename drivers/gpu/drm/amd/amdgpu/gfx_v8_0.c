@@ -6718,7 +6718,8 @@ static int gfx_v8_0_cp_ecc_error_irq(struct amdgpu_device *adev,
 	return 0;
 }
 
-static void gfx_v8_0_parse_sq_irq(struct amdgpu_device *adev, unsigned ih_data)
+static void gfx_v8_0_parse_sq_irq(struct amdgpu_device *adev, unsigned ih_data,
+				  bool from_wq)
 {
 	u32 enc, se_id, sh_id, cu_id;
 	char type[20];
@@ -6756,7 +6757,7 @@ static void gfx_v8_0_parse_sq_irq(struct amdgpu_device *adev, unsigned ih_data)
 			 * or from BH in which case we can access SQ_EDC_INFO
 			 * instance
 			 */
-			if (in_task()) {
+			if (from_wq) {
 				mutex_lock(&adev->grbm_idx_mutex);
 				gfx_v8_0_select_se_sh(adev, se_id, sh_id, cu_id);
 
@@ -6794,7 +6795,7 @@ static void gfx_v8_0_sq_irq_work_func(struct work_struct *work)
 	struct amdgpu_device *adev = container_of(work, struct amdgpu_device, gfx.sq_work.work);
 	struct sq_work *sq_work = container_of(work, struct sq_work, work);
 
-	gfx_v8_0_parse_sq_irq(adev, sq_work->ih_data);
+	gfx_v8_0_parse_sq_irq(adev, sq_work->ih_data, true);
 }
 
 static int gfx_v8_0_sq_irq(struct amdgpu_device *adev,
@@ -6809,7 +6810,7 @@ static int gfx_v8_0_sq_irq(struct amdgpu_device *adev,
 	 * just print whatever info is possible directly from the ISR.
 	 */
 	if (work_pending(&adev->gfx.sq_work.work)) {
-		gfx_v8_0_parse_sq_irq(adev, ih_data);
+		gfx_v8_0_parse_sq_irq(adev, ih_data, false);
 	} else {
 		adev->gfx.sq_work.ih_data = ih_data;
 		schedule_work(&adev->gfx.sq_work.work);
