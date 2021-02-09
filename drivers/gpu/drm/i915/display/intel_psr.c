@@ -1233,8 +1233,8 @@ void intel_psr2_program_trans_man_trk_ctl(const struct intel_crtc_state *crtc_st
 	    !crtc_state->enable_psr2_sel_fetch)
 		return;
 
-	for_each_intel_encoder_mask_can_psr(&dev_priv->drm, encoder,
-					    crtc_state->uapi.encoder_mask) {
+	for_each_intel_encoder_mask_with_psr(&dev_priv->drm, encoder,
+					     crtc_state->uapi.encoder_mask) {
 		struct intel_dp *intel_dp = enc_to_intel_dp(encoder);
 
 		if (!intel_dp->psr.enabled)
@@ -1517,8 +1517,8 @@ void intel_psr_wait_for_idle(const struct intel_crtc_state *new_crtc_state)
 	if (!new_crtc_state->has_psr)
 		return;
 
-	for_each_intel_encoder_mask_can_psr(&dev_priv->drm, encoder,
-					    new_crtc_state->uapi.encoder_mask) {
+	for_each_intel_encoder_mask_with_psr(&dev_priv->drm, encoder,
+					     new_crtc_state->uapi.encoder_mask) {
 		struct intel_dp *intel_dp = enc_to_intel_dp(encoder);
 		u32 psr_status;
 
@@ -1732,7 +1732,7 @@ void intel_psr_invalidate(struct drm_i915_private *dev_priv,
 	if (origin == ORIGIN_FLIP)
 		return;
 
-	for_each_intel_encoder_can_psr(&dev_priv->drm, encoder) {
+	for_each_intel_encoder_with_psr(&dev_priv->drm, encoder) {
 		unsigned int pipe_frontbuffer_bits = frontbuffer_bits;
 		struct intel_dp *intel_dp = enc_to_intel_dp(encoder);
 
@@ -1804,7 +1804,7 @@ void intel_psr_flush(struct drm_i915_private *dev_priv,
 {
 	struct intel_encoder *encoder;
 
-	for_each_intel_encoder_can_psr(&dev_priv->drm, encoder) {
+	for_each_intel_encoder_with_psr(&dev_priv->drm, encoder) {
 		unsigned int pipe_frontbuffer_bits = frontbuffer_bits;
 		struct intel_dp *intel_dp = enc_to_intel_dp(encoder);
 

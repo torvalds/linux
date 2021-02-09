@@ -2096,7 +2096,7 @@ static void ivb_display_irq_handler(struct drm_i915_private *dev_priv,
 	if (de_iir & DE_EDP_PSR_INT_HSW) {
 		struct intel_encoder *encoder;
 
-		for_each_intel_encoder_can_psr(&dev_priv->drm, encoder) {
+		for_each_intel_encoder_with_psr(&dev_priv->drm, encoder) {
 			struct intel_dp *intel_dp = enc_to_intel_dp(encoder);
 
 			u32 psr_iir = intel_uncore_read(&dev_priv->uncore,
@@ -2323,7 +2323,7 @@ gen8_de_misc_irq_handler(struct drm_i915_private *dev_priv, u32 iir)
 		u32 psr_iir;
 		i915_reg_t iir_reg;
 
-		for_each_intel_encoder_can_psr(&dev_priv->drm, encoder) {
+		for_each_intel_encoder_with_psr(&dev_priv->drm, encoder) {
 			struct intel_dp *intel_dp = enc_to_intel_dp(encoder);
 
 			if (INTEL_GEN(dev_priv) >= 12)

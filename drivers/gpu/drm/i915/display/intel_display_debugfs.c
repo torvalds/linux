@@ -437,7 +437,7 @@ static int i915_edp_psr_status(struct seq_file *m, void *data)
 		return -ENODEV;
 
 	/* Find the first EDP which supports PSR */
-	for_each_intel_encoder_can_psr(&dev_priv->drm, encoder) {
+	for_each_intel_encoder_with_psr(&dev_priv->drm, encoder) {
 		intel_dp = enc_to_intel_dp(encoder);
 		break;
 	}
@@ -459,7 +459,7 @@ i915_edp_psr_debug_set(void *data, u64 val)
 	if (!HAS_PSR(dev_priv))
 		return ret;
 
-	for_each_intel_encoder_can_psr(&dev_priv->drm, encoder) {
+	for_each_intel_encoder_with_psr(&dev_priv->drm, encoder) {
 		struct intel_dp *intel_dp = enc_to_intel_dp(encoder);
 
 		drm_dbg_kms(&dev_priv->drm, "Setting PSR debug to %llx\n", val);
@@ -484,7 +484,7 @@ i915_edp_psr_debug_get(void *data, u64 *val)
 	if (!HAS_PSR(dev_priv))
 		return -ENODEV;
 
-	for_each_intel_encoder_can_psr(&dev_priv->drm, encoder) {
+	for_each_intel_encoder_with_psr(&dev_priv->drm, encoder) {
 		struct intel_dp *intel_dp = enc_to_intel_dp(encoder);
 
 		// TODO: split to each transcoder's PSR debug state
