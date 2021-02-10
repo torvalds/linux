@@ -482,10 +482,12 @@ static int is_errata100(struct pt_regs *regs, unsigned long address)
 }
 
 /* Pentium F0 0F C7 C8 bug workaround: */
-static int is_f00f_bug(struct pt_regs *regs, unsigned long address)
+static int is_f00f_bug(struct pt_regs *regs, unsigned long error_code,
+		       unsigned long address)
 {
 #ifdef CONFIG_X86_F00F_BUG
-	if (boot_cpu_has_bug(X86_BUG_F00F) && idt_is_f00f_address(address)) {
+	if (boot_cpu_has_bug(X86_BUG_F00F) && !(error_code & X86_PF_USER) &&
+	    idt_is_f00f_address(address)) {
 		handle_invalid_op(regs);
 		return 1;
 	}
@@ -853,9 +855,6 @@ __bad_area_nosemaphore(struct pt_regs *regs, unsigned long error_code,
 		return;
 	}
 
-	if (is_f00f_bug(regs, address))
-		return;
-
 	no_context(regs, error_code, address, SIGSEGV, si_code);
 }
 
@@ -1194,6 +1193,9 @@ do_kern_addr_fault(struct pt_regs *regs, unsigned long hw_error_code,
 			return;
 	}
 #endif
+
+	if (is_f00f_bug(regs, hw_error_code, address))
+		return;
 
 	/* Was the fault spurious, caused by lazy TLB invalidation? */
 	if (spurious_kernel_fault(hw_error_code, address))
