@@ -801,7 +801,7 @@ static int __init debugfs_mips(void)
 arch_initcall(debugfs_mips);
 #endif
 
-#ifdef CONFIG_DMA_MAYBE_COHERENT
+#ifdef CONFIG_DMA_NONCOHERENT
 static int __init setcoherentio(char *str)
 {
 	dma_default_coherent = true;

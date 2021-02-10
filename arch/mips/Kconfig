@@ -184,7 +184,7 @@ config MIPS_ALCHEMY
 	select CEVT_R4K
 	select CSRC_R4K
 	select IRQ_MIPS_CPU
-	select DMA_MAYBE_COHERENT	# Au1000,1500,1100 aren't, rest is
+	select DMA_NONCOHERENT		# Au1000,1500,1100 aren't, rest is
 	select MIPS_FIXUP_BIGPHYS_ADDR if PCI
 	select SYS_HAS_CPU_MIPS32_R1
 	select SYS_SUPPORTS_32BIT_KERNEL
@@ -548,7 +548,7 @@ config MIPS_MALTA
 	select CLKSRC_MIPS_GIC
 	select COMMON_CLK
 	select CSRC_R4K
-	select DMA_MAYBE_COHERENT
+	select DMA_NONCOHERENT
 	select GENERIC_ISA_DMA
 	select HAVE_PCSPKR_PLATFORM
 	select HAVE_PCI
@@ -1160,10 +1160,6 @@ config FW_CFE
 	bool
 
 config ARCH_SUPPORTS_UPROBES
-	bool
-
-config DMA_MAYBE_COHERENT
-	select DMA_NONCOHERENT
 	bool
 
 config DMA_PERDEV_COHERENT
