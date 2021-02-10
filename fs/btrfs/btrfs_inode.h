@@ -220,6 +220,7 @@ struct btrfs_inode {
 	/* Hook into fs_info->delayed_iputs */
 	struct list_head delayed_iput;
 
+	struct rw_semaphore i_mmap_lock;
 	struct inode vfs_inode;
 };
 
