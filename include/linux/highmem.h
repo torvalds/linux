@@ -276,6 +276,39 @@ static inline void copy_highpage(struct page *to, struct page *from)
 
 #endif
 
+static inline void memcpy_page(struct page *dst_page, size_t dst_off,
+			       struct page *src_page, size_t src_off,
+			       size_t len)
+{
+	char *dst = kmap_local_page(dst_page);
+	char *src = kmap_local_page(src_page);
+
+	memcpy(dst + dst_off, src + src_off, len);
+	kunmap_local(src);
+	kunmap_local(dst);
+}
+
+static inline void memmove_page(struct page *dst_page, size_t dst_off,
+			       struct page *src_page, size_t src_off,
+			       size_t len)
+{
+	char *dst = kmap_local_page(dst_page);
+	char *src = kmap_local_page(src_page);
+
+	memmove(dst + dst_off, src + src_off, len);
+	kunmap_local(src);
+	kunmap_local(dst);
+}
+
+static inline void memset_page(struct page *page, size_t offset, int val,
+			       size_t len)
+{
+	char *addr = kmap_local_page(page);
+
+	memset(addr + offset, val, len);
+	kunmap_local(addr);
+}
+
 static inline void memcpy_from_page(char *to, struct page *page,
 				    size_t offset, size_t len)
 {
