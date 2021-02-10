@@ -448,7 +448,8 @@ static bool lsdir_bid_tail_filter(const char *name __maybe_unused,
 	int i = 0;
 	while (isxdigit(d->d_name[i]) && i < SBUILD_ID_SIZE - 3)
 		i++;
-	return (i == SBUILD_ID_SIZE - 3) && (d->d_name[i] == '\0');
+	return (i >= SBUILD_ID_MIN_SIZE - 3) && (i <= SBUILD_ID_SIZE - 3) &&
+		(d->d_name[i] == '\0');
 }
 
 struct strlist *build_id_cache__list_all(bool validonly)
@@ -490,7 +491,7 @@ struct strlist *build_id_cache__list_all(bool validonly)
 		}
 		strlist__for_each_entry(nd2, linklist) {
 			if (snprintf(sbuild_id, SBUILD_ID_SIZE, "%s%s",
-				     nd->s, nd2->s) != SBUILD_ID_SIZE - 1)
+				     nd->s, nd2->s) > SBUILD_ID_SIZE - 1)
 				goto err_out;
 			if (validonly && !build_id_cache__valid_id(sbuild_id))
 				continue;
