@@ -394,6 +394,16 @@ static u64 notrace bpf_prog_start_time(void)
 	return start;
 }
 
+static void notrace inc_misses_counter(struct bpf_prog *prog)
+{
+	struct bpf_prog_stats *stats;
+
+	stats = this_cpu_ptr(prog->stats);
+	u64_stats_update_begin(&stats->syncp);
+	stats->misses++;
+	u64_stats_update_end(&stats->syncp);
+}
+
 /* The logic is similar to BPF_PROG_RUN, but with an explicit
  * rcu_read_lock() and migrate_disable() which are required
  * for the trampoline. The macro is split into
@@ -412,8 +422,10 @@ u64 notrace __bpf_prog_enter(struct bpf_prog *prog)
 {
 	rcu_read_lock();
 	migrate_disable();
-	if (unlikely(__this_cpu_inc_return(*(prog->active)) != 1))
+	if (unlikely(__this_cpu_inc_return(*(prog->active)) != 1)) {
+		inc_misses_counter(prog);
 		return 0;
+	}
 	return bpf_prog_start_time();
 }
 
@@ -451,8 +463,10 @@ u64 notrace __bpf_prog_enter_sleepable(struct bpf_prog *prog)
 	rcu_read_lock_trace();
 	migrate_disable();
 	might_fault();
-	if (unlikely(__this_cpu_inc_return(*(prog->active)) != 1))
+	if (unlikely(__this_cpu_inc_return(*(prog->active)) != 1)) {
+		inc_misses_counter(prog);
 		return 0;
+	}
 	return bpf_prog_start_time();
 }
 
