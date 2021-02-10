@@ -284,7 +284,7 @@ enum iwl_legacy_cmds {
 
 	/* Phy */
 	/**
-	 * @PHY_CONFIGURATION_CMD: &struct iwl_phy_cfg_cmd
+	 * @PHY_CONFIGURATION_CMD: &struct iwl_phy_cfg_cmd_v1 or &struct iwl_phy_cfg_cmd_v3
 	 */
 	PHY_CONFIGURATION_CMD = 0x6a,
 
