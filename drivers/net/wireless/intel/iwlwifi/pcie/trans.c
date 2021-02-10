@@ -1972,7 +1972,7 @@ static bool iwl_trans_pcie_grab_nic_access(struct iwl_trans *trans,
 	int ret;
 	struct iwl_trans_pcie *trans_pcie = IWL_TRANS_GET_PCIE_TRANS(trans);
 
-	spin_lock_irqsave(&trans_pcie->reg_lock, *flags);
+	spin_lock_bh(&trans_pcie->reg_lock);
 
 	if (trans_pcie->cmd_hold_nic_awake)
 		goto out;
@@ -2057,7 +2057,7 @@ static bool iwl_trans_pcie_grab_nic_access(struct iwl_trans *trans,
 		}
 
 err:
-		spin_unlock_irqrestore(&trans_pcie->reg_lock, *flags);
+		spin_unlock_bh(&trans_pcie->reg_lock);
 		return false;
 	}
 
@@ -2095,7 +2095,7 @@ static void iwl_trans_pcie_release_nic_access(struct iwl_trans *trans,
 	 * scheduled on different CPUs (after we drop reg_lock).
 	 */
 out:
-	spin_unlock_irqrestore(&trans_pcie->reg_lock, *flags);
+	spin_unlock_bh(&trans_pcie->reg_lock);
 }
 
 static int iwl_trans_pcie_read_mem(struct iwl_trans *trans, u32 addr,
@@ -2296,11 +2296,10 @@ static void iwl_trans_pcie_set_bits_mask(struct iwl_trans *trans, u32 reg,
 					 u32 mask, u32 value)
 {
 	struct iwl_trans_pcie *trans_pcie = IWL_TRANS_GET_PCIE_TRANS(trans);
-	unsigned long flags;
 
-	spin_lock_irqsave(&trans_pcie->reg_lock, flags);
+	spin_lock_bh(&trans_pcie->reg_lock);
 	__iwl_trans_pcie_set_bits_mask(trans, reg, mask, value);
-	spin_unlock_irqrestore(&trans_pcie->reg_lock, flags);
+	spin_unlock_bh(&trans_pcie->reg_lock);
 }
 
 static const char *get_csr_string(int cmd)
