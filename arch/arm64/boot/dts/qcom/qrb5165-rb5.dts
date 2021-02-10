@@ -948,6 +948,8 @@
 /* CAN */
 &spi0 {
 	status = "okay";
+	pinctrl-names = "default";
+	pinctrl-0 = <&qup_spi0_data_clk>, <&qup_spi0_cs>;
 
 	can@0 {
 		compatible = "microchip,mcp2518fd";
@@ -1350,7 +1352,12 @@
 };
 
 /* PINCTRL - additions to nodes defined in sm8250.dtsi */
-&qup_spi0_default {
+&qup_spi0_cs {
+	drive-strength = <6>;
+	bias-disable;
+};
+
+&qup_spi0_data_clk {
 	drive-strength = <6>;
 	bias-disable;
 };
