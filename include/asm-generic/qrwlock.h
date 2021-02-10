@@ -14,7 +14,8 @@
 #include <asm/processor.h>
 
 #include <asm-generic/qrwlock_types.h>
-#include <asm-generic/qspinlock.h>
+
+/* Must be included from asm/spinlock.h after defining arch_spin_is_locked.  */
 
 /*
  * Writer states & reader shift and bias.
