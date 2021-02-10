@@ -1,9 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0 OR BSD-3-Clause
-/******************************************************************************
- *
- * Copyright(c) 2020 Intel Corporation
- *
- *****************************************************************************/
+/*
+ * Copyright(c) 2020-2021 Intel Corporation
+ */
 
 #include "iwl-drv.h"
 #include "pnvm.h"
@@ -221,9 +219,44 @@ static int iwl_pnvm_parse(struct iwl_trans *trans, const u8 *data,
 	return -ENOENT;
 }
 
+static int iwl_pnvm_get_from_fs(struct iwl_trans *trans, u8 **data, size_t *len)
+{
+	const struct firmware *pnvm;
+	char pnvm_name[64];
+	int ret;
+
+	/*
+	 * The prefix unfortunately includes a hyphen at the end, so
+	 * don't add the dot here...
+	 */
+	snprintf(pnvm_name, sizeof(pnvm_name), "%spnvm",
+		 trans->cfg->fw_name_pre);
+
+	/* ...but replace the hyphen with the dot here. */
+	if (strlen(trans->cfg->fw_name_pre) < sizeof(pnvm_name))
+		pnvm_name[strlen(trans->cfg->fw_name_pre) - 1] = '.';
+
+	ret = firmware_request_nowarn(&pnvm, pnvm_name, trans->dev);
+	if (ret) {
+		IWL_DEBUG_FW(trans, "PNVM file %s not found %d\n",
+			     pnvm_name, ret);
+		return ret;
+	}
+
+	*data = kmemdup(pnvm->data, pnvm->size, GFP_KERNEL);
+	if (!*data)
+		return -ENOMEM;
+
+	*len = pnvm->size;
+
+	return 0;
+}
+
 int iwl_pnvm_load(struct iwl_trans *trans,
 		  struct iwl_notif_wait_data *notif_wait)
 {
+	u8 *data;
+	size_t len;
 	struct iwl_notification_wait pnvm_wait;
 	static const u16 ntf_cmds[] = { WIDE_ID(REGULATORY_AND_NVM_GROUP,
 						PNVM_INIT_COMPLETE_NTFY) };
@@ -233,44 +266,35 @@ int iwl_pnvm_load(struct iwl_trans *trans,
 	if (!trans->sku_id[0] && !trans->sku_id[1] && !trans->sku_id[2])
 		return 0;
 
-	/* load from disk only if we haven't done it (or tried) before */
-	if (!trans->pnvm_loaded) {
-		const struct firmware *pnvm;
-		char pnvm_name[64];
-
-		/*
-		 * The prefix unfortunately includes a hyphen at the end, so
-		 * don't add the dot here...
-		 */
-		snprintf(pnvm_name, sizeof(pnvm_name), "%spnvm",
-			 trans->cfg->fw_name_pre);
-
-		/* ...but replace the hyphen with the dot here. */
-		if (strlen(trans->cfg->fw_name_pre) < sizeof(pnvm_name))
-			pnvm_name[strlen(trans->cfg->fw_name_pre) - 1] = '.';
-
-		ret = firmware_request_nowarn(&pnvm, pnvm_name, trans->dev);
-		if (ret) {
-			IWL_DEBUG_FW(trans, "PNVM file %s not found %d\n",
-				     pnvm_name, ret);
-			/*
-			 * Pretend we've loaded it - at least we've tried and
-			 * couldn't load it at all, so there's no point in
-			 * trying again over and over.
-			 */
-			trans->pnvm_loaded = true;
-		} else {
-			iwl_pnvm_parse(trans, pnvm->data, pnvm->size);
-
-			release_firmware(pnvm);
-		}
-	} else {
-		/* if we already loaded, we need to set it again */
+	/*
+	 * If we already loaded (or tried to load) it before, we just
+	 * need to set it again.
+	 */
+	if (trans->pnvm_loaded) {
 		ret = iwl_trans_set_pnvm(trans, NULL, 0);
 		if (ret)
 			return ret;
+		goto skip_parse;
 	}
 
+	/* Try to load the PNVM from the filesystem */
+	ret = iwl_pnvm_get_from_fs(trans, &data, &len);
+	if (ret) {
+		/*
+		 * Pretend we've loaded it - at least we've tried and
+		 * couldn't load it at all, so there's no point in
+		 * trying again over and over.
+		 */
+		trans->pnvm_loaded = true;
+
+		goto skip_parse;
+	}
+
+	iwl_pnvm_parse(trans, data, len);
+
+	kfree(data);
+
+skip_parse:
 	iwl_init_notification_wait(notif_wait, &pnvm_wait,
 				   ntf_cmds, ARRAY_SIZE(ntf_cmds),
 				   iwl_pnvm_complete_fn, trans);
