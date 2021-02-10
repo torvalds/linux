@@ -667,6 +667,22 @@ static int iwl_mvm_start_get_nvm(struct iwl_mvm *mvm)
 	return ret;
 }
 
+static int iwl_mvm_start_post_nvm(struct iwl_mvm *mvm)
+{
+	int ret;
+
+	iwl_mvm_toggle_tx_ant(mvm, &mvm->mgmt_last_antenna_idx);
+
+	ret = iwl_mvm_mac_setup_register(mvm);
+	if (ret)
+		return ret;
+	mvm->hw_registered = true;
+
+	iwl_mvm_dbgfs_register(mvm);
+
+	return 0;
+}
+
 static struct iwl_op_mode *
 iwl_op_mode_mvm_start(struct iwl_trans *trans, const struct iwl_cfg *cfg,
 		      const struct iwl_fw *fw, struct dentry *dbgfs_dir)
@@ -890,9 +906,6 @@ iwl_op_mode_mvm_start(struct iwl_trans *trans, const struct iwl_cfg *cfg,
 
 	scan_size = iwl_mvm_scan_size(mvm);
 
-	if (iwl_mvm_start_get_nvm(mvm))
-		goto out_free;
-
 	mvm->scan_cmd = kmalloc(scan_size, GFP_KERNEL);
 	if (!mvm->scan_cmd)
 		goto out_free;
@@ -913,15 +926,13 @@ iwl_op_mode_mvm_start(struct iwl_trans *trans, const struct iwl_cfg *cfg,
 	else
 		memset(&mvm->rx_stats, 0, sizeof(struct mvm_statistics_rx));
 
-	iwl_mvm_toggle_tx_ant(mvm, &mvm->mgmt_last_antenna_idx);
-
-	err = iwl_mvm_mac_setup_register(mvm);
-	if (err)
-		goto out_thermal_exit;
-	mvm->hw_registered = true;
-
 	mvm->debugfs_dir = dbgfs_dir;
-	iwl_mvm_dbgfs_register(mvm);
+
+	if (iwl_mvm_start_get_nvm(mvm))
+		goto out_thermal_exit;
+
+	if (iwl_mvm_start_post_nvm(mvm))
+		goto out_thermal_exit;
 
 	return op_mode;
 
