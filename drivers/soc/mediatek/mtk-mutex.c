@@ -511,7 +511,7 @@ static const struct of_device_id mutex_driver_dt_match[] = {
 };
 MODULE_DEVICE_TABLE(of, mutex_driver_dt_match);
 
-struct platform_driver mtk_mutex_driver = {
+static struct platform_driver mtk_mutex_driver = {
 	.probe		= mtk_mutex_probe,
 	.remove		= mtk_mutex_remove,
 	.driver		= {
