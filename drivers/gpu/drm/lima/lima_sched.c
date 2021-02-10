@@ -415,7 +415,7 @@ out:
 	mutex_unlock(&dev->error_task_list_lock);
 }
 
-static enum drm_gpu_sched_stat lima_sched_timedout_job(struct drm_sched_job *job)
+static void lima_sched_timedout_job(struct drm_sched_job *job)
 {
 	struct lima_sched_pipe *pipe = to_lima_pipe(job->sched);
 	struct lima_sched_task *task = to_lima_task(job);
@@ -449,8 +449,6 @@ static enum drm_gpu_sched_stat lima_sched_timedout_job(struct drm_sched_job *job
 
 	drm_sched_resubmit_jobs(&pipe->base);
 	drm_sched_start(&pipe->base, true);
-
-	return DRM_GPU_SCHED_STAT_NOMINAL;
 }
 
 static void lima_sched_free_job(struct drm_sched_job *job)
