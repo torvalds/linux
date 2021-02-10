@@ -16,7 +16,7 @@
 #include <linux/prefetch.h>		/* prefetchw			*/
 #include <linux/context_tracking.h>	/* exception_enter(), ...	*/
 #include <linux/uaccess.h>		/* faulthandler_disabled()	*/
-#include <linux/efi.h>			/* efi_recover_from_page_fault()*/
+#include <linux/efi.h>			/* efi_crash_gracefully_on_page_fault()*/
 #include <linux/mm_types.h>
 
 #include <asm/cpufeature.h>		/* boot_cpu_has, ...		*/
@@ -25,7 +25,7 @@
 #include <asm/vsyscall.h>		/* emulate_vsyscall		*/
 #include <asm/vm86.h>			/* struct vm86			*/
 #include <asm/mmu_context.h>		/* vma_pkey()			*/
-#include <asm/efi.h>			/* efi_recover_from_page_fault()*/
+#include <asm/efi.h>			/* efi_crash_gracefully_on_page_fault()*/
 #include <asm/desc.h>			/* store_idt(), ...		*/
 #include <asm/cpu_entry_area.h>		/* exception stack		*/
 #include <asm/pgtable_areas.h>		/* VMALLOC_START, ...		*/
@@ -701,11 +701,12 @@ page_fault_oops(struct pt_regs *regs, unsigned long error_code,
 #endif
 
 	/*
-	 * Buggy firmware could access regions which might page fault, try to
-	 * recover from such faults.
+	 * Buggy firmware could access regions which might page fault.  If
+	 * this happens, EFI has a special OOPS path that will try to
+	 * avoid hanging the system.
 	 */
 	if (IS_ENABLED(CONFIG_EFI))
-		efi_recover_from_page_fault(address);
+		efi_crash_gracefully_on_page_fault(address);
 
 oops:
 	/*

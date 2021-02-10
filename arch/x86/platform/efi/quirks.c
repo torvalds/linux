@@ -687,15 +687,25 @@ int efi_capsule_setup_info(struct capsule_info *cap_info, void *kbuff,
  * @return: Returns, if the page fault is not handled. This function
  * will never return if the page fault is handled successfully.
  */
-void efi_recover_from_page_fault(unsigned long phys_addr)
+void efi_crash_gracefully_on_page_fault(unsigned long phys_addr)
 {
 	if (!IS_ENABLED(CONFIG_X86_64))
 		return;
 
 	/*
-	 * Make sure that an efi runtime service caused the page fault.
+	 * If we get an interrupt/NMI while processing an EFI runtime service
+	 * then this is a regular OOPS, not an EFI failure.
 	 */
-	if (efi_rts_work.efi_rts_id == EFI_NONE)
+	if (in_interrupt())
+		return;
+
+	/*
+	 * Make sure that an efi runtime service caused the page fault.
+	 * READ_ONCE() because we might be OOPSing in a different thread,
+	 * and we don't want to trip KTSAN while trying to OOPS.
+	 */
+	if (READ_ONCE(efi_rts_work.efi_rts_id) == EFI_NONE ||
+	    current_work() != &efi_rts_work.work)
 		return;
 
 	/*
@@ -747,6 +757,4 @@ void efi_recover_from_page_fault(unsigned long phys_addr)
 		set_current_state(TASK_IDLE);
 		schedule();
 	}
-
-	return;
 }
