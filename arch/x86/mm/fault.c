@@ -826,44 +826,49 @@ __bad_area_nosemaphore(struct pt_regs *regs, unsigned long error_code,
 {
 	struct task_struct *tsk = current;
 
-	/* User mode accesses just cause a SIGSEGV */
-	if (user_mode(regs) && (error_code & X86_PF_USER)) {
-		/*
-		 * It's possible to have interrupts off here:
-		 */
-		local_irq_enable();
-
-		/*
-		 * Valid to do another page fault here because this one came
-		 * from user space:
-		 */
-		if (is_prefetch(regs, error_code, address))
-			return;
-
-		if (is_errata100(regs, address))
-			return;
-
-		sanitize_error_code(address, &error_code);
-
-		if (fixup_vdso_exception(regs, X86_TRAP_PF, error_code, address))
-			return;
-
-		if (likely(show_unhandled_signals))
-			show_signal_msg(regs, error_code, address, tsk);
-
-		set_signal_archinfo(address, error_code);
-
-		if (si_code == SEGV_PKUERR)
-			force_sig_pkuerr((void __user *)address, pkey);
-
-		force_sig_fault(SIGSEGV, si_code, (void __user *)address);
-
-		local_irq_disable();
-
+	if (!user_mode(regs)) {
+		no_context(regs, error_code, address, pkey, si_code);
 		return;
 	}
 
-	no_context(regs, error_code, address, SIGSEGV, si_code);
+	if (!(error_code & X86_PF_USER)) {
+		/* Implicit user access to kernel memory -- just oops */
+		page_fault_oops(regs, error_code, address);
+		return;
+	}
+
+	/*
+	 * User mode accesses just cause a SIGSEGV.
+	 * It's possible to have interrupts off here:
+	 */
+	local_irq_enable();
+
+	/*
+	 * Valid to do another page fault here because this one came
+	 * from user space:
+	 */
+	if (is_prefetch(regs, error_code, address))
+		return;
+
+	if (is_errata100(regs, address))
+		return;
+
+	sanitize_error_code(address, &error_code);
+
+	if (fixup_vdso_exception(regs, X86_TRAP_PF, error_code, address))
+		return;
+
+	if (likely(show_unhandled_signals))
+		show_signal_msg(regs, error_code, address, tsk);
+
+	set_signal_archinfo(address, error_code);
+
+	if (si_code == SEGV_PKUERR)
+		force_sig_pkuerr((void __user *)address, pkey);
+
+	force_sig_fault(SIGSEGV, si_code, (void __user *)address);
+
+	local_irq_disable();
 }
 
 static noinline void
