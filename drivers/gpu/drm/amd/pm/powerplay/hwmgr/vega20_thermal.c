@@ -114,7 +114,7 @@ static int vega20_get_current_rpm(struct pp_hwmgr *hwmgr, uint32_t *current_rpm)
 	return 0;
 }
 
-int vega20_fan_ctrl_get_fan_speed_percent(struct pp_hwmgr *hwmgr,
+int vega20_fan_ctrl_get_fan_speed_pwm(struct pp_hwmgr *hwmgr,
 		uint32_t *speed)
 {
 	struct amdgpu_device *adev = hwmgr->adev;
@@ -129,17 +129,14 @@ int vega20_fan_ctrl_get_fan_speed_percent(struct pp_hwmgr *hwmgr,
 	if (!duty100)
 		return -EINVAL;
 
-	tmp64 = (uint64_t)duty * 100;
+	tmp64 = (uint64_t)duty * 255;
 	do_div(tmp64, duty100);
-	*speed = (uint32_t)tmp64;
-
-	if (*speed > 100)
-		*speed = 100;
+	*speed = MIN((uint32_t)tmp64, 255);
 
 	return 0;
 }
 
-int vega20_fan_ctrl_set_fan_speed_percent(struct pp_hwmgr *hwmgr,
+int vega20_fan_ctrl_set_fan_speed_pwm(struct pp_hwmgr *hwmgr,
 		uint32_t speed)
 {
 	struct amdgpu_device *adev = hwmgr->adev;
@@ -147,8 +144,7 @@ int vega20_fan_ctrl_set_fan_speed_percent(struct pp_hwmgr *hwmgr,
 	uint32_t duty;
 	uint64_t tmp64;
 
-	if (speed > 100)
-		speed = 100;
+	speed = MIN(speed, 255);
 
 	if (PP_CAP(PHM_PlatformCaps_MicrocodeFanControl))
 		vega20_fan_ctrl_stop_smc_fan_control(hwmgr);
@@ -160,7 +156,7 @@ int vega20_fan_ctrl_set_fan_speed_percent(struct pp_hwmgr *hwmgr,
 		return -EINVAL;
 
 	tmp64 = (uint64_t)speed * duty100;
-	do_div(tmp64, 100);
+	do_div(tmp64, 255);
 	duty = (uint32_t)tmp64;
 
 	WREG32_SOC15(THM, 0, mmCG_FDO_CTRL0,

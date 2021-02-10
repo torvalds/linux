@@ -533,7 +533,7 @@ static uint32_t pp_dpm_get_fan_control_mode(void *handle)
 	return mode;
 }
 
-static int pp_dpm_set_fan_speed_percent(void *handle, uint32_t percent)
+static int pp_dpm_set_fan_speed_pwm(void *handle, uint32_t speed)
 {
 	struct pp_hwmgr *hwmgr = handle;
 	int ret = 0;
@@ -541,17 +541,17 @@ static int pp_dpm_set_fan_speed_percent(void *handle, uint32_t percent)
 	if (!hwmgr || !hwmgr->pm_en)
 		return -EINVAL;
 
-	if (hwmgr->hwmgr_func->set_fan_speed_percent == NULL) {
+	if (hwmgr->hwmgr_func->set_fan_speed_pwm == NULL) {
 		pr_info_ratelimited("%s was not implemented.\n", __func__);
 		return 0;
 	}
 	mutex_lock(&hwmgr->smu_lock);
-	ret = hwmgr->hwmgr_func->set_fan_speed_percent(hwmgr, percent);
+	ret = hwmgr->hwmgr_func->set_fan_speed_pwm(hwmgr, speed);
 	mutex_unlock(&hwmgr->smu_lock);
 	return ret;
 }
 
-static int pp_dpm_get_fan_speed_percent(void *handle, uint32_t *speed)
+static int pp_dpm_get_fan_speed_pwm(void *handle, uint32_t *speed)
 {
 	struct pp_hwmgr *hwmgr = handle;
 	int ret = 0;
@@ -559,13 +559,13 @@ static int pp_dpm_get_fan_speed_percent(void *handle, uint32_t *speed)
 	if (!hwmgr || !hwmgr->pm_en)
 		return -EINVAL;
 
-	if (hwmgr->hwmgr_func->get_fan_speed_percent == NULL) {
+	if (hwmgr->hwmgr_func->get_fan_speed_pwm == NULL) {
 		pr_info_ratelimited("%s was not implemented.\n", __func__);
 		return 0;
 	}
 
 	mutex_lock(&hwmgr->smu_lock);
-	ret = hwmgr->hwmgr_func->get_fan_speed_percent(hwmgr, speed);
+	ret = hwmgr->hwmgr_func->get_fan_speed_pwm(hwmgr, speed);
 	mutex_unlock(&hwmgr->smu_lock);
 	return ret;
 }
@@ -1691,8 +1691,8 @@ static const struct amd_pm_funcs pp_dpm_funcs = {
 	.dispatch_tasks = pp_dpm_dispatch_tasks,
 	.set_fan_control_mode = pp_dpm_set_fan_control_mode,
 	.get_fan_control_mode = pp_dpm_get_fan_control_mode,
-	.set_fan_speed_percent = pp_dpm_set_fan_speed_percent,
-	.get_fan_speed_percent = pp_dpm_get_fan_speed_percent,
+	.set_fan_speed_pwm = pp_dpm_set_fan_speed_pwm,
+	.get_fan_speed_pwm = pp_dpm_get_fan_speed_pwm,
 	.get_fan_speed_rpm = pp_dpm_get_fan_speed_rpm,
 	.set_fan_speed_rpm = pp_dpm_set_fan_speed_rpm,
 	.get_pp_num_states = pp_dpm_get_pp_num_states,

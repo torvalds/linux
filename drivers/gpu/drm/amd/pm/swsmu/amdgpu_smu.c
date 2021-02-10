@@ -58,7 +58,7 @@ static int smu_handle_task(struct smu_context *smu,
 			   enum amd_pp_task task_id,
 			   bool lock_needed);
 static int smu_reset(struct smu_context *smu);
-static int smu_set_fan_speed_percent(void *handle, u32 speed);
+static int smu_set_fan_speed_pwm(void *handle, u32 speed);
 static int smu_set_fan_control_mode(struct smu_context *smu, int value);
 static int smu_set_power_limit(void *handle, uint32_t limit);
 static int smu_set_fan_speed_rpm(void *handle, uint32_t speed);
@@ -407,16 +407,16 @@ static void smu_restore_dpm_user_profile(struct smu_context *smu)
 	    smu->user_dpm_profile.fan_mode == AMD_FAN_CTRL_NONE) {
 		ret = smu_set_fan_control_mode(smu, smu->user_dpm_profile.fan_mode);
 		if (ret) {
-			smu->user_dpm_profile.fan_speed_percent = 0;
+			smu->user_dpm_profile.fan_speed_pwm = 0;
 			smu->user_dpm_profile.fan_speed_rpm = 0;
 			smu->user_dpm_profile.fan_mode = AMD_FAN_CTRL_AUTO;
 			dev_err(smu->adev->dev, "Failed to set manual fan control mode\n");
 		}
 
-		if (smu->user_dpm_profile.fan_speed_percent) {
-			ret = smu_set_fan_speed_percent(smu, smu->user_dpm_profile.fan_speed_percent);
+		if (smu->user_dpm_profile.fan_speed_pwm) {
+			ret = smu_set_fan_speed_pwm(smu, smu->user_dpm_profile.fan_speed_pwm);
 			if (ret)
-				dev_err(smu->adev->dev, "Failed to set manual fan speed in percent\n");
+				dev_err(smu->adev->dev, "Failed to set manual fan speed in pwm\n");
 		}
 
 		if (smu->user_dpm_profile.fan_speed_rpm) {
@@ -2204,7 +2204,7 @@ static int smu_set_fan_speed_rpm(void *handle, uint32_t speed)
 
 			/* Override custom PWM setting as they cannot co-exist */
 			smu->user_dpm_profile.flags &= ~SMU_CUSTOM_FAN_SPEED_PWM;
-			smu->user_dpm_profile.fan_speed_percent = 0;
+			smu->user_dpm_profile.fan_speed_pwm = 0;
 		}
 	}
 
@@ -2566,7 +2566,7 @@ static int smu_set_fan_control_mode(struct smu_context *smu, int value)
 	/* reset user dpm fan speed */
 	if (!ret && value != AMD_FAN_CTRL_MANUAL &&
 			!(smu->user_dpm_profile.flags & SMU_DPM_USER_PROFILE_RESTORE)) {
-		smu->user_dpm_profile.fan_speed_percent = 0;
+		smu->user_dpm_profile.fan_speed_pwm = 0;
 		smu->user_dpm_profile.fan_speed_rpm = 0;
 		smu->user_dpm_profile.flags &= ~(SMU_CUSTOM_FAN_SPEED_RPM | SMU_CUSTOM_FAN_SPEED_PWM);
 	}
@@ -2582,31 +2582,25 @@ static void smu_pp_set_fan_control_mode(void *handle, u32 value)
 }
 
 
-static int smu_get_fan_speed_percent(void *handle, u32 *speed)
+static int smu_get_fan_speed_pwm(void *handle, u32 *speed)
 {
 	struct smu_context *smu = handle;
 	int ret = 0;
-	uint32_t percent;
 
 	if (!smu->pm_enabled || !smu->adev->pm.dpm_enabled)
 		return -EOPNOTSUPP;
 
 	mutex_lock(&smu->mutex);
 
-	if (smu->ppt_funcs->get_fan_speed_percent) {
-		ret = smu->ppt_funcs->get_fan_speed_percent(smu, &percent);
-		if (!ret) {
-			*speed = percent > 100 ? 100 : percent;
-		}
-	}
+	if (smu->ppt_funcs->get_fan_speed_pwm)
+		ret = smu->ppt_funcs->get_fan_speed_pwm(smu, speed);
 
 	mutex_unlock(&smu->mutex);
-
 
 	return ret;
 }
 
-static int smu_set_fan_speed_percent(void *handle, u32 speed)
+static int smu_set_fan_speed_pwm(void *handle, u32 speed)
 {
 	struct smu_context *smu = handle;
 	int ret = 0;
@@ -2616,13 +2610,11 @@ static int smu_set_fan_speed_percent(void *handle, u32 speed)
 
 	mutex_lock(&smu->mutex);
 
-	if (smu->ppt_funcs->set_fan_speed_percent) {
-		if (speed > 100)
-			speed = 100;
-		ret = smu->ppt_funcs->set_fan_speed_percent(smu, speed);
+	if (smu->ppt_funcs->set_fan_speed_pwm) {
+		ret = smu->ppt_funcs->set_fan_speed_pwm(smu, speed);
 		if (!ret && !(smu->user_dpm_profile.flags & SMU_DPM_USER_PROFILE_RESTORE)) {
 			smu->user_dpm_profile.flags |= SMU_CUSTOM_FAN_SPEED_PWM;
-			smu->user_dpm_profile.fan_speed_percent = speed;
+			smu->user_dpm_profile.fan_speed_pwm = speed;
 
 			/* Override custom RPM setting as they cannot co-exist */
 			smu->user_dpm_profile.flags &= ~SMU_CUSTOM_FAN_SPEED_RPM;
@@ -3063,8 +3055,8 @@ static const struct amd_pm_funcs swsmu_pm_funcs = {
 	/* export for sysfs */
 	.set_fan_control_mode    = smu_pp_set_fan_control_mode,
 	.get_fan_control_mode    = smu_get_fan_control_mode,
-	.set_fan_speed_percent   = smu_set_fan_speed_percent,
-	.get_fan_speed_percent   = smu_get_fan_speed_percent,
+	.set_fan_speed_pwm   = smu_set_fan_speed_pwm,
+	.get_fan_speed_pwm   = smu_get_fan_speed_pwm,
 	.force_clock_level       = smu_force_ppclk_levels,
 	.print_clock_levels      = smu_print_ppclk_levels,
 	.force_performance_level = smu_force_performance_level,
