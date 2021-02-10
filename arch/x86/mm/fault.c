@@ -1279,9 +1279,12 @@ void do_user_addr_fault(struct pt_regs *regs,
 	 */
 	if (unlikely(cpu_feature_enabled(X86_FEATURE_SMAP) &&
 		     !(error_code & X86_PF_USER) &&
-		     !(regs->flags & X86_EFLAGS_AC)))
-	{
-		bad_area_nosemaphore(regs, error_code, address);
+		     !(regs->flags & X86_EFLAGS_AC))) {
+		/*
+		 * No extable entry here.  This was a kernel access to an
+		 * invalid pointer.  get_kernel_nofault() will not get here.
+		 */
+		page_fault_oops(regs, error_code, address);
 		return;
 	}
 
