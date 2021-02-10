@@ -261,7 +261,7 @@ int iwl_mvm_get_temp(struct iwl_mvm *mvm, s32 *temp)
 	ret = iwl_wait_notification(&mvm->notif_wait, &wait_temp_notif,
 				    IWL_MVM_TEMP_NOTIF_WAIT_TIMEOUT);
 	if (ret)
-		IWL_ERR(mvm, "Getting the temperature timed out\n");
+		IWL_WARN(mvm, "Getting the temperature timed out\n");
 
 	return ret;
 }
