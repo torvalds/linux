@@ -18,6 +18,8 @@
 #include <asm/cputhreads.h>
 #include <asm/plpar_wrappers.h>
 
+#include "internal.h"
+
 #define RIC_FLUSH_TLB 0
 #define RIC_FLUSH_PWC 1
 #define RIC_FLUSH_ALL 2

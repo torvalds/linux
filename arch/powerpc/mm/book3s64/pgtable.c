@@ -20,6 +20,8 @@
 #include <mm/mmu_decl.h>
 #include <trace/events/thp.h>
 
+#include "internal.h"
+
 unsigned long __pmd_frag_nr;
 EXPORT_SYMBOL(__pmd_frag_nr);
 unsigned long __pmd_frag_size_shift;
@@ -78,8 +80,6 @@ void set_pmd_at(struct mm_struct *mm, unsigned long addr,
 	trace_hugepage_set_pmd(addr, pmd_val(pmd));
 	return set_pte_at(mm, addr, pmdp_ptep(pmdp), pmd_pte(pmd));
 }
-
-void exit_lazy_flush_tlb(struct mm_struct *mm, bool always_flush);
 
 static void do_serialize(void *arg)
 {
