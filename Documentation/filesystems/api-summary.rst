@@ -122,6 +122,12 @@ Events based on file descriptors
 .. kernel-doc:: fs/eventfd.c
    :export:
 
+eventpoll (epoll) interfaces
+============================
+
+.. kernel-doc:: fs/eventpoll.c
+   :internal:
+
 The Filesystem for Exporting Kernel Objects
 ===========================================
 
