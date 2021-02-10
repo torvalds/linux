@@ -82,6 +82,15 @@ inline u16 errno_to_nvme_status(struct nvmet_req *req, int errno)
 	return status;
 }
 
+u16 nvmet_report_invalid_opcode(struct nvmet_req *req)
+{
+	pr_debug("unhandled cmd %d on qid %d\n", req->cmd->common.opcode,
+		 req->sq->qid);
+
+	req->error_loc = offsetof(struct nvme_common_command, opcode);
+	return NVME_SC_INVALID_OPCODE | NVME_SC_DNR;
+}
+
 static struct nvmet_subsys *nvmet_find_get_subsys(struct nvmet_port *port,
 		const char *subsysnqn);
 

@@ -589,6 +589,7 @@ nvmet_req_passthru_ctrl(struct nvmet_req *req)
 }
 
 u16 errno_to_nvme_status(struct nvmet_req *req, int errno);
+u16 nvmet_report_invalid_opcode(struct nvmet_req *req);
 
 /* Convert a 32-bit number to a 16-bit 0's based number */
 static inline __le16 to0based(u32 a)
