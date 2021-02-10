@@ -1172,6 +1172,21 @@ static void mvpp2_prs_mh_init(struct mvpp2 *priv)
 	/* Update shadow table and hw entry */
 	mvpp2_prs_shadow_set(priv, pe.index, MVPP2_PRS_LU_MH);
 	mvpp2_prs_hw_write(priv, &pe);
+
+	/* Set MH entry that skip parser */
+	pe.index = MVPP2_PE_MH_SKIP_PRS;
+	mvpp2_prs_tcam_lu_set(&pe, MVPP2_PRS_LU_MH);
+	mvpp2_prs_sram_shift_set(&pe, MVPP2_MH_SIZE,
+				 MVPP2_PRS_SRAM_OP_SEL_SHIFT_ADD);
+	mvpp2_prs_sram_bits_set(&pe, MVPP2_PRS_SRAM_LU_GEN_BIT, 1);
+	mvpp2_prs_sram_next_lu_set(&pe, MVPP2_PRS_LU_FLOWS);
+
+	/* Mask all ports */
+	mvpp2_prs_tcam_port_map_set(&pe, 0);
+
+	/* Update shadow table and hw entry */
+	mvpp2_prs_shadow_set(priv, pe.index, MVPP2_PRS_LU_MH);
+	mvpp2_prs_hw_write(priv, &pe);
 }
 
 /* Set default entires (place holder) for promiscuous, non-promiscuous and
