@@ -266,7 +266,7 @@ struct io_sq_data {
 
 #define IO_IOPOLL_BATCH			8
 #define IO_COMPL_BATCH			32
-#define IO_REQ_CACHE_SIZE		8
+#define IO_REQ_CACHE_SIZE		32
 #define IO_REQ_ALLOC_BATCH		8
 
 struct io_comp_state {
@@ -2264,7 +2264,8 @@ static void io_req_free_batch_finish(struct io_ring_ctx *ctx,
 		percpu_ref_put_many(&ctx->refs, rb->ctx_refs);
 }
 
-static void io_req_free_batch(struct req_batch *rb, struct io_kiocb *req)
+static void io_req_free_batch(struct req_batch *rb, struct io_kiocb *req,
+			      struct io_submit_state *state)
 {
 	io_queue_next(req);
 
@@ -2278,9 +2279,13 @@ static void io_req_free_batch(struct req_batch *rb, struct io_kiocb *req)
 	rb->ctx_refs++;
 
 	io_dismantle_req(req);
-	rb->reqs[rb->to_free++] = req;
-	if (unlikely(rb->to_free == ARRAY_SIZE(rb->reqs)))
-		__io_req_free_batch_flush(req->ctx, rb);
+	if (state->free_reqs != ARRAY_SIZE(state->reqs)) {
+		state->reqs[state->free_reqs++] = req;
+	} else {
+		rb->reqs[rb->to_free++] = req;
+		if (unlikely(rb->to_free == ARRAY_SIZE(rb->reqs)))
+			__io_req_free_batch_flush(req->ctx, rb);
+	}
 }
 
 static void io_submit_flush_completions(struct io_comp_state *cs,
@@ -2305,7 +2310,7 @@ static void io_submit_flush_completions(struct io_comp_state *cs,
 
 		/* submission and completion refs */
 		if (refcount_sub_and_test(2, &req->refs))
-			io_req_free_batch(&rb, req);
+			io_req_free_batch(&rb, req, &ctx->submit_state);
 	}
 
 	io_req_free_batch_finish(ctx, &rb);
@@ -2458,7 +2463,7 @@ static void io_iopoll_complete(struct io_ring_ctx *ctx, unsigned int *nr_events,
 		(*nr_events)++;
 
 		if (refcount_dec_and_test(&req->refs))
-			io_req_free_batch(&rb, req);
+			io_req_free_batch(&rb, req, &ctx->submit_state);
 	}
 
 	io_commit_cqring(ctx);
