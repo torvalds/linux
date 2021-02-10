@@ -645,6 +645,28 @@ static const struct iwl_fw_runtime_ops iwl_mvm_fwrt_ops = {
 	.d3_debug_enable = iwl_mvm_d3_debug_enable,
 };
 
+static int iwl_mvm_start_get_nvm(struct iwl_mvm *mvm)
+{
+	int ret;
+
+	mutex_lock(&mvm->mutex);
+
+	ret = iwl_run_init_mvm_ucode(mvm);
+
+	if (ret && ret != -ERFKILL)
+		iwl_fw_dbg_error_collect(&mvm->fwrt, FW_DBG_TRIGGER_DRIVER);
+
+	if (!iwlmvm_mod_params.init_dbg || !ret)
+		iwl_mvm_stop_device(mvm);
+
+	mutex_unlock(&mvm->mutex);
+
+	if (ret < 0)
+		IWL_ERR(mvm, "Failed to run INIT ucode: %d\n", ret);
+
+	return ret;
+}
+
 static struct iwl_op_mode *
 iwl_op_mode_mvm_start(struct iwl_trans *trans, const struct iwl_cfg *cfg,
 		      const struct iwl_fw *fw, struct dentry *dbgfs_dir)
@@ -866,19 +888,10 @@ iwl_op_mode_mvm_start(struct iwl_trans *trans, const struct iwl_cfg *cfg,
 	if (err)
 		goto out_free;
 
-	mutex_lock(&mvm->mutex);
-	err = iwl_run_init_mvm_ucode(mvm);
-	if (err && err != -ERFKILL)
-		iwl_fw_dbg_error_collect(&mvm->fwrt, FW_DBG_TRIGGER_DRIVER);
-	if (!iwlmvm_mod_params.init_dbg || !err)
-		iwl_mvm_stop_device(mvm);
-	mutex_unlock(&mvm->mutex);
-	if (err < 0) {
-		IWL_ERR(mvm, "Failed to run INIT ucode: %d\n", err);
-		goto out_free;
-	}
-
 	scan_size = iwl_mvm_scan_size(mvm);
+
+	if (iwl_mvm_start_get_nvm(mvm))
+		goto out_free;
 
 	mvm->scan_cmd = kmalloc(scan_size, GFP_KERNEL);
 	if (!mvm->scan_cmd)
