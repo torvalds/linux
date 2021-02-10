@@ -1952,24 +1952,34 @@ static inline void io_req_complete(struct io_kiocb *req, long res)
 	__io_req_complete(req, 0, res, 0);
 }
 
+static bool io_flush_cached_reqs(struct io_submit_state *state)
+{
+	struct io_kiocb *req = NULL;
+
+	while (!list_empty(&state->comp.free_list)) {
+		req = list_first_entry(&state->comp.free_list, struct io_kiocb,
+					compl.list);
+		list_del(&req->compl.list);
+		state->reqs[state->free_reqs++] = req;
+		if (state->free_reqs == ARRAY_SIZE(state->reqs))
+			break;
+	}
+
+	return req != NULL;
+}
+
 static struct io_kiocb *io_alloc_req(struct io_ring_ctx *ctx)
 {
 	struct io_submit_state *state = &ctx->submit_state;
 
 	BUILD_BUG_ON(IO_REQ_ALLOC_BATCH > ARRAY_SIZE(state->reqs));
 
-	if (!list_empty(&state->comp.free_list)) {
-		struct io_kiocb *req;
-
-		req = list_first_entry(&state->comp.free_list, struct io_kiocb,
-					compl.list);
-		list_del(&req->compl.list);
-		return req;
-	}
-
 	if (!state->free_reqs) {
 		gfp_t gfp = GFP_KERNEL | __GFP_NOWARN;
 		int ret;
+
+		if (io_flush_cached_reqs(state))
+			goto got_req;
 
 		ret = kmem_cache_alloc_bulk(req_cachep, gfp, IO_REQ_ALLOC_BATCH,
 					    state->reqs);
@@ -1986,7 +1996,7 @@ static struct io_kiocb *io_alloc_req(struct io_ring_ctx *ctx)
 		}
 		state->free_reqs = ret;
 	}
-
+got_req:
 	state->free_reqs--;
 	return state->reqs[state->free_reqs];
 }
