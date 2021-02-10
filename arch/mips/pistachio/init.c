@@ -13,7 +13,6 @@
 #include <linux/of_fdt.h>
 
 #include <asm/cacheflush.h>
-#include <asm/dma-coherence.h>
 #include <asm/fw/fw.h>
 #include <asm/mips-boards/generic.h>
 #include <asm/mips-cps.h>

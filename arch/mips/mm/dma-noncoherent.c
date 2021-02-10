@@ -10,7 +10,6 @@
 
 #include <asm/cache.h>
 #include <asm/cpu-type.h>
-#include <asm/dma-coherence.h>
 #include <asm/io.h>
 
 /*

@@ -13,8 +13,8 @@
 #include <linux/pci.h>
 #include <linux/screen_info.h>
 #include <linux/time.h>
+#include <linux/dma-map-ops.h> /* for dma_default_coherent */
 
-#include <asm/dma-coherence.h>
 #include <asm/fw/fw.h>
 #include <asm/mips-cps.h>
 #include <asm/mips-boards/generic.h>

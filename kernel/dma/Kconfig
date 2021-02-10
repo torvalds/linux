@@ -33,9 +33,6 @@ config NEED_DMA_MAP_STATE
 config ARCH_DMA_ADDR_T_64BIT
 	def_bool 64BIT || PHYS_ADDR_T_64BIT
 
-config ARCH_HAS_DMA_COHERENCE_H
-	bool
-
 config ARCH_HAS_DMA_SET_MASK
 	bool
 

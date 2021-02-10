@@ -28,8 +28,8 @@
 #include <linux/init.h>
 #include <linux/ioport.h>
 #include <linux/mm.h>
+#include <linux/dma-map-ops.h> /* for dma_default_coherent */
 
-#include <asm/dma-coherence.h>
 #include <asm/mipsregs.h>
 
 #include <au1000.h>

@@ -36,7 +36,6 @@
 #include <asm/cdmm.h>
 #include <asm/cpu.h>
 #include <asm/debug.h>
-#include <asm/dma-coherence.h>
 #include <asm/sections.h>
 #include <asm/setup.h>
 #include <asm/smp-ops.h>
@@ -803,9 +802,6 @@ arch_initcall(debugfs_mips);
 #endif
 
 #ifdef CONFIG_DMA_MAYBE_COHERENT
-bool dma_default_coherent;
-EXPORT_SYMBOL_GPL(dma_default_coherent);
-
 static int __init setcoherentio(char *str)
 {
 	dma_default_coherent = true;

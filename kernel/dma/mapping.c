@@ -16,6 +16,8 @@
 #include "debug.h"
 #include "direct.h"
 
+bool dma_default_coherent;
+
 /*
  * Managed DMA API
  */
