@@ -283,6 +283,7 @@ static inline void memcpy_page(struct page *dst_page, size_t dst_off,
 	char *dst = kmap_local_page(dst_page);
 	char *src = kmap_local_page(src_page);
 
+	VM_BUG_ON(dst_off + len > PAGE_SIZE || src_off + len > PAGE_SIZE);
 	memcpy(dst + dst_off, src + src_off, len);
 	kunmap_local(src);
 	kunmap_local(dst);
@@ -295,6 +296,7 @@ static inline void memmove_page(struct page *dst_page, size_t dst_off,
 	char *dst = kmap_local_page(dst_page);
 	char *src = kmap_local_page(src_page);
 
+	VM_BUG_ON(dst_off + len > PAGE_SIZE || src_off + len > PAGE_SIZE);
 	memmove(dst + dst_off, src + src_off, len);
 	kunmap_local(src);
 	kunmap_local(dst);
@@ -305,6 +307,7 @@ static inline void memset_page(struct page *page, size_t offset, int val,
 {
 	char *addr = kmap_local_page(page);
 
+	VM_BUG_ON(offset + len > PAGE_SIZE);
 	memset(addr + offset, val, len);
 	kunmap_local(addr);
 }
@@ -314,6 +317,7 @@ static inline void memcpy_from_page(char *to, struct page *page,
 {
 	char *from = kmap_local_page(page);
 
+	VM_BUG_ON(offset + len > PAGE_SIZE);
 	memcpy(to, from + offset, len);
 	kunmap_local(from);
 }
@@ -323,6 +327,7 @@ static inline void memcpy_to_page(struct page *page, size_t offset,
 {
 	char *to = kmap_local_page(page);
 
+	VM_BUG_ON(offset + len > PAGE_SIZE);
 	memcpy(to + offset, from, len);
 	kunmap_local(to);
 }
