@@ -60,7 +60,7 @@ u32 of_msi_map_id(struct device *dev, struct device_node *msi_np, u32 id_in);
 static inline int of_irq_parse_one(struct device_node *device, int index,
 				   struct of_phandle_args *out_irq)
 {
-	return 0;
+	return -EINVAL;
 }
 static inline int of_irq_count(struct device_node *dev)
 {
