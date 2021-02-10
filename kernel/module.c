@@ -4388,7 +4388,7 @@ int module_kallsyms_on_each_symbol(int (*fn)(void *, const char *,
 {
 	struct module *mod;
 	unsigned int i;
-	int ret;
+	int ret = 0;
 
 	mutex_lock(&module_mutex);
 	list_for_each_entry(mod, &modules, list) {
