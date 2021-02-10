@@ -2948,6 +2948,11 @@
 				function = "qup0";
 			};
 
+			qup_spi0_cs_gpio: qup-spi0-cs-gpio {
+				pins = "gpio31";
+				function = "gpio";
+			};
+
 			qup_spi0_data_clk: qup-spi0-data-clk {
 				pins = "gpio28", "gpio29",
 				       "gpio30";
@@ -2957,6 +2962,11 @@
 			qup_spi1_cs: qup-spi1-cs {
 				pins = "gpio7";
 				function = "qup1";
+			};
+
+			qup_spi1_cs_gpio: qup-spi1-cs-gpio {
+				pins = "gpio7";
+				function = "gpio";
 			};
 
 			qup_spi1_data_clk: qup-spi1-data-clk {
@@ -2970,6 +2980,11 @@
 				function = "qup2";
 			};
 
+			qup_spi2_cs_gpio: qup-spi2-cs-gpio {
+				pins = "gpio118";
+				function = "gpio";
+			};
+
 			qup_spi2_data_clk: qup-spi2-data-clk {
 				pins = "gpio115", "gpio116",
 				       "gpio117";
@@ -2979,6 +2994,11 @@
 			qup_spi3_cs: qup-spi3-cs {
 				pins = "gpio122";
 				function = "qup3";
+			};
+
+			qup_spi3_cs_gpio: qup-spi3-cs-gpio {
+				pins = "gpio122";
+				function = "gpio";
 			};
 
 			qup_spi3_data_clk: qup-spi3-data-clk {
@@ -2992,6 +3012,11 @@
 				function = "qup4";
 			};
 
+			qup_spi4_cs_gpio: qup-spi4-cs-gpio {
+				pins = "gpio11";
+				function = "gpio";
+			};
+
 			qup_spi4_data_clk: qup-spi4-data-clk {
 				pins = "gpio8", "gpio9",
 				       "gpio10";
@@ -3001,6 +3026,11 @@
 			qup_spi5_cs: qup-spi5-cs {
 				pins = "gpio15";
 				function = "qup5";
+			};
+
+			qup_spi5_cs_gpio: qup-spi5-cs-gpio {
+				pins = "gpio15";
+				function = "gpio";
 			};
 
 			qup_spi5_data_clk: qup-spi5-data-clk {
@@ -3014,6 +3044,11 @@
 				function = "qup6";
 			};
 
+			qup_spi6_cs_gpio: qup-spi6-cs-gpio {
+				pins = "gpio19";
+				function = "gpio";
+			};
+
 			qup_spi6_data_clk: qup-spi6-data-clk {
 				pins = "gpio16", "gpio17",
 				       "gpio18";
@@ -3023,6 +3058,11 @@
 			qup_spi7_cs: qup-spi7-cs {
 				pins = "gpio23";
 				function = "qup7";
+			};
+
+			qup_spi7_cs_gpio: qup-spi7-cs-gpio {
+				pins = "gpio23";
+				function = "gpio";
 			};
 
 			qup_spi7_data_clk: qup-spi7-data-clk {
@@ -3036,6 +3076,11 @@
 				function = "qup8";
 			};
 
+			qup_spi8_cs_gpio: qup-spi8-cs-gpio {
+				pins = "gpio27";
+				function = "gpio";
+			};
+
 			qup_spi8_data_clk: qup-spi8-data-clk {
 				pins = "gpio24", "gpio25",
 				       "gpio26";
@@ -3045,6 +3090,11 @@
 			qup_spi9_cs: qup-spi9-cs {
 				pins = "gpio128";
 				function = "qup9";
+			};
+
+			qup_spi9_cs_gpio: qup-spi9-cs-gpio {
+				pins = "gpio128";
+				function = "gpio";
 			};
 
 			qup_spi9_data_clk: qup-spi9-data-clk {
@@ -3058,6 +3108,11 @@
 				function = "qup10";
 			};
 
+			qup_spi10_cs_gpio: qup-spi10-cs-gpio {
+				pins = "gpio132";
+				function = "gpio";
+			};
+
 			qup_spi10_data_clk: qup-spi10-data-clk {
 				pins = "gpio129", "gpio130",
 				       "gpio131";
@@ -3067,6 +3122,11 @@
 			qup_spi11_cs: qup-spi11-cs {
 				pins = "gpio63";
 				function = "qup11";
+			};
+
+			qup_spi11_cs_gpio: qup-spi11-cs-gpio {
+				pins = "gpio63";
+				function = "gpio";
 			};
 
 			qup_spi11_data_clk: qup-spi11-data-clk {
@@ -3080,6 +3140,11 @@
 				function = "qup12";
 			};
 
+			qup_spi12_cs_gpio: qup-spi12-cs-gpio {
+				pins = "gpio35";
+				function = "gpio";
+			};
+
 			qup_spi12_data_clk: qup-spi12-data-clk {
 				pins = "gpio32", "gpio33",
 				       "gpio34";
@@ -3089,6 +3154,11 @@
 			qup_spi13_cs: qup-spi13-cs {
 				pins = "gpio39";
 				function = "qup13";
+			};
+
+			qup_spi13_cs_gpio: qup-spi13-cs-gpio {
+				pins = "gpio39";
+				function = "gpio";
 			};
 
 			qup_spi13_data_clk: qup-spi13-data-clk {
@@ -3102,6 +3172,11 @@
 				function = "qup14";
 			};
 
+			qup_spi14_cs_gpio: qup-spi14-cs-gpio {
+				pins = "gpio43";
+				function = "gpio";
+			};
+
 			qup_spi14_data_clk: qup-spi14-data-clk {
 				pins = "gpio40", "gpio41",
 				       "gpio42";
@@ -3111,6 +3186,11 @@
 			qup_spi15_cs: qup-spi15-cs {
 				pins = "gpio47";
 				function = "qup15";
+			};
+
+			qup_spi15_cs_gpio: qup-spi15-cs-gpio {
+				pins = "gpio47";
+				function = "gpio";
 			};
 
 			qup_spi15_data_clk: qup-spi15-data-clk {
@@ -3124,6 +3204,11 @@
 				function = "qup16";
 			};
 
+			qup_spi16_cs_gpio: qup-spi16-cs-gpio {
+				pins = "gpio51";
+				function = "gpio";
+			};
+
 			qup_spi16_data_clk: qup-spi16-data-clk {
 				pins = "gpio48", "gpio49",
 				       "gpio50";
@@ -3133,6 +3218,11 @@
 			qup_spi17_cs: qup-spi17-cs {
 				pins = "gpio55";
 				function = "qup17";
+			};
+
+			qup_spi17_cs_gpio: qup-spi17-cs-gpio {
+				pins = "gpio55";
+				function = "gpio";
 			};
 
 			qup_spi17_data_clk: qup-spi17-data-clk {
@@ -3146,6 +3236,11 @@
 				function = "qup18";
 			};
 
+			qup_spi18_cs_gpio: qup-spi18-cs-gpio {
+				pins = "gpio59";
+				function = "gpio";
+			};
+
 			qup_spi18_data_clk: qup-spi18-data-clk {
 				pins = "gpio56", "gpio57",
 				       "gpio58";
@@ -3155,6 +3250,11 @@
 			qup_spi19_cs: qup-spi19-cs {
 				pins = "gpio3";
 				function = "qup19";
+			};
+
+			qup_spi19_cs_gpio: qup-spi19-cs-gpio {
+				pins = "gpio3";
+				function = "gpio";
 			};
 
 			qup_spi19_data_clk: qup-spi19-data-clk {
