@@ -193,7 +193,7 @@ static int hash_redo_key(const struct bch_hash_desc desc,
 	bch2_trans_update(trans, k_iter, &delete, 0);
 
 	return bch2_hash_set(trans, desc, &h->info, k_iter->pos.inode,
-			     tmp, BCH_HASH_SET_MUST_CREATE);
+			     tmp, 0);
 }
 
 static int fsck_hash_delete_at(struct btree_trans *trans,
