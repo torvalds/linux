@@ -1025,7 +1025,7 @@ F:	Documentation/devicetree/bindings/mux/adi,adgs1408.txt
 F:	drivers/mux/adgs1408.c
 
 ANALOG DEVICES INC ADIN DRIVER
-M:	Alexandru Ardelean <alexaundru.ardelean@analog.com>
+M:	Michael Hennerich <michael.hennerich@analog.com>
 L:	netdev@vger.kernel.org
 S:	Supported
 W:	http://ez.analog.com/community/linux-device-drivers
@@ -1033,7 +1033,7 @@ F:	Documentation/devicetree/bindings/net/adi,adin.yaml
 F:	drivers/net/phy/adin.c
 
 ANALOG DEVICES INC ADIS DRIVER LIBRARY
-M:	Alexandru Ardelean <alexandru.ardelean@analog.com>
+M:	Nuno Sa <nuno.sa@analog.com>
 L:	linux-iio@vger.kernel.org
 S:	Supported
 F:	drivers/iio/imu/adis.c
