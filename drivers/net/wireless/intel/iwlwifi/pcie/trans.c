@@ -640,17 +640,16 @@ static int iwl_pcie_load_firmware_chunk(struct iwl_trans *trans,
 					u32 byte_cnt)
 {
 	struct iwl_trans_pcie *trans_pcie = IWL_TRANS_GET_PCIE_TRANS(trans);
-	unsigned long flags;
 	int ret;
 
 	trans_pcie->ucode_write_complete = false;
 
-	if (!iwl_trans_grab_nic_access(trans, &flags))
+	if (!iwl_trans_grab_nic_access(trans))
 		return -EIO;
 
 	iwl_pcie_load_firmware_chunk_fh(trans, dst_addr, phy_addr,
 					byte_cnt);
-	iwl_trans_release_nic_access(trans, &flags);
+	iwl_trans_release_nic_access(trans);
 
 	ret = wait_event_timeout(trans_pcie->ucode_write_waitq,
 				 trans_pcie->ucode_write_complete, 5 * HZ);
@@ -1974,8 +1973,7 @@ static void iwl_trans_pcie_removal_wk(struct work_struct *wk)
 	module_put(THIS_MODULE);
 }
 
-static bool iwl_trans_pcie_grab_nic_access(struct iwl_trans *trans,
-					   unsigned long *flags)
+static bool iwl_trans_pcie_grab_nic_access(struct iwl_trans *trans)
 {
 	int ret;
 	struct iwl_trans_pcie *trans_pcie = IWL_TRANS_GET_PCIE_TRANS(trans);
@@ -2078,8 +2076,7 @@ out:
 	return true;
 }
 
-static void iwl_trans_pcie_release_nic_access(struct iwl_trans *trans,
-					      unsigned long *flags)
+static void iwl_trans_pcie_release_nic_access(struct iwl_trans *trans)
 {
 	struct iwl_trans_pcie *trans_pcie = IWL_TRANS_GET_PCIE_TRANS(trans);
 
@@ -2109,7 +2106,6 @@ out:
 static int iwl_trans_pcie_read_mem(struct iwl_trans *trans, u32 addr,
 				   void *buf, int dwords)
 {
-	unsigned long flags;
 	int offs = 0;
 	u32 *vals = buf;
 
@@ -2118,7 +2114,7 @@ static int iwl_trans_pcie_read_mem(struct iwl_trans *trans, u32 addr,
 		unsigned long end = jiffies + HZ / 2;
 		bool resched = false;
 
-		if (iwl_trans_grab_nic_access(trans, &flags)) {
+		if (iwl_trans_grab_nic_access(trans)) {
 			iwl_write32(trans, HBUS_TARG_MEM_RADDR,
 				    addr + 4 * offs);
 
@@ -2132,7 +2128,7 @@ static int iwl_trans_pcie_read_mem(struct iwl_trans *trans, u32 addr,
 					break;
 				}
 			}
-			iwl_trans_release_nic_access(trans, &flags);
+			iwl_trans_release_nic_access(trans);
 
 			if (resched)
 				cond_resched();
@@ -2147,16 +2143,15 @@ static int iwl_trans_pcie_read_mem(struct iwl_trans *trans, u32 addr,
 static int iwl_trans_pcie_write_mem(struct iwl_trans *trans, u32 addr,
 				    const void *buf, int dwords)
 {
-	unsigned long flags;
 	int offs, ret = 0;
 	const u32 *vals = buf;
 
-	if (iwl_trans_grab_nic_access(trans, &flags)) {
+	if (iwl_trans_grab_nic_access(trans)) {
 		iwl_write32(trans, HBUS_TARG_MEM_WADDR, addr);
 		for (offs = 0; offs < dwords; offs++)
 			iwl_write32(trans, HBUS_TARG_MEM_WDAT,
 				    vals ? vals[offs] : 0);
-		iwl_trans_release_nic_access(trans, &flags);
+		iwl_trans_release_nic_access(trans);
 	} else {
 		ret = -EBUSY;
 	}
@@ -2952,11 +2947,10 @@ static u32 iwl_trans_pcie_fh_regs_dump(struct iwl_trans *trans,
 				       struct iwl_fw_error_dump_data **data)
 {
 	u32 fh_regs_len = FH_MEM_UPPER_BOUND - FH_MEM_LOWER_BOUND;
-	unsigned long flags;
 	__le32 *val;
 	int i;
 
-	if (!iwl_trans_grab_nic_access(trans, &flags))
+	if (!iwl_trans_grab_nic_access(trans))
 		return 0;
 
 	(*data)->type = cpu_to_le32(IWL_FW_ERROR_DUMP_FH_REGS);
@@ -2974,7 +2968,7 @@ static u32 iwl_trans_pcie_fh_regs_dump(struct iwl_trans *trans,
 			*val++ = cpu_to_le32(iwl_trans_pcie_read_prph(trans,
 								      i));
 
-	iwl_trans_release_nic_access(trans, &flags);
+	iwl_trans_release_nic_access(trans);
 
 	*data = iwl_fw_error_next_data(*data);
 
@@ -2988,10 +2982,9 @@ iwl_trans_pci_dump_marbh_monitor(struct iwl_trans *trans,
 {
 	u32 buf_size_in_dwords = (monitor_len >> 2);
 	u32 *buffer = (u32 *)fw_mon_data->data;
-	unsigned long flags;
 	u32 i;
 
-	if (!iwl_trans_grab_nic_access(trans, &flags))
+	if (!iwl_trans_grab_nic_access(trans))
 		return 0;
 
 	iwl_write_umac_prph_no_grab(trans, MON_DMARB_RD_CTL_ADDR, 0x1);
@@ -3000,7 +2993,7 @@ iwl_trans_pci_dump_marbh_monitor(struct iwl_trans *trans,
 						       MON_DMARB_RD_DATA_ADDR);
 	iwl_write_umac_prph_no_grab(trans, MON_DMARB_RD_CTL_ADDR, 0x0);
 
-	iwl_trans_release_nic_access(trans, &flags);
+	iwl_trans_release_nic_access(trans);
 
 	return monitor_len;
 }

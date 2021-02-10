@@ -33,12 +33,11 @@ static void iwl_read_radio_regs(struct iwl_fw_runtime *fwrt,
 				struct iwl_fw_error_dump_data **dump_data)
 {
 	u8 *pos = (void *)(*dump_data)->data;
-	unsigned long flags;
 	int i;
 
 	IWL_DEBUG_INFO(fwrt, "WRT radio registers dump\n");
 
-	if (!iwl_trans_grab_nic_access(fwrt->trans, &flags))
+	if (!iwl_trans_grab_nic_access(fwrt->trans))
 		return;
 
 	(*dump_data)->type = cpu_to_le32(IWL_FW_ERROR_DUMP_RADIO_REG);
@@ -56,7 +55,7 @@ static void iwl_read_radio_regs(struct iwl_fw_runtime *fwrt,
 
 	*dump_data = iwl_fw_error_next_data(*dump_data);
 
-	iwl_trans_release_nic_access(fwrt->trans, &flags);
+	iwl_trans_release_nic_access(fwrt->trans);
 }
 
 static void iwl_fwrt_dump_rxf(struct iwl_fw_runtime *fwrt,
@@ -172,11 +171,10 @@ static void iwl_fw_dump_rxf(struct iwl_fw_runtime *fwrt,
 			    struct iwl_fw_error_dump_data **dump_data)
 {
 	struct iwl_fwrt_shared_mem_cfg *cfg = &fwrt->smem_cfg;
-	unsigned long flags;
 
 	IWL_DEBUG_INFO(fwrt, "WRT RX FIFO dump\n");
 
-	if (!iwl_trans_grab_nic_access(fwrt->trans, &flags))
+	if (!iwl_trans_grab_nic_access(fwrt->trans))
 		return;
 
 	if (iwl_fw_dbg_type_on(fwrt, IWL_FW_ERROR_DUMP_RXF)) {
@@ -194,7 +192,7 @@ static void iwl_fw_dump_rxf(struct iwl_fw_runtime *fwrt,
 					  LMAC2_PRPH_OFFSET, 2);
 	}
 
-	iwl_trans_release_nic_access(fwrt->trans, &flags);
+	iwl_trans_release_nic_access(fwrt->trans);
 }
 
 static void iwl_fw_dump_txf(struct iwl_fw_runtime *fwrt,
@@ -204,12 +202,11 @@ static void iwl_fw_dump_txf(struct iwl_fw_runtime *fwrt,
 	struct iwl_fwrt_shared_mem_cfg *cfg = &fwrt->smem_cfg;
 	u32 *fifo_data;
 	u32 fifo_len;
-	unsigned long flags;
 	int i, j;
 
 	IWL_DEBUG_INFO(fwrt, "WRT TX FIFO dump\n");
 
-	if (!iwl_trans_grab_nic_access(fwrt->trans, &flags))
+	if (!iwl_trans_grab_nic_access(fwrt->trans))
 		return;
 
 	if (iwl_fw_dbg_type_on(fwrt, IWL_FW_ERROR_DUMP_TXF)) {
@@ -299,7 +296,7 @@ static void iwl_fw_dump_txf(struct iwl_fw_runtime *fwrt,
 		}
 	}
 
-	iwl_trans_release_nic_access(fwrt->trans, &flags);
+	iwl_trans_release_nic_access(fwrt->trans);
 }
 
 #define IWL8260_ICCM_OFFSET		0x44000 /* Only for B-step */
@@ -527,7 +524,6 @@ static void iwl_dump_prph(struct iwl_fw_runtime *fwrt,
 	struct iwl_trans *trans = fwrt->trans;
 	struct iwl_fw_error_dump_data **data =
 		(struct iwl_fw_error_dump_data **)ptr;
-	unsigned long flags;
 	u32 i;
 
 	if (!data)
@@ -535,7 +531,7 @@ static void iwl_dump_prph(struct iwl_fw_runtime *fwrt,
 
 	IWL_DEBUG_INFO(trans, "WRT PRPH dump\n");
 
-	if (!iwl_trans_grab_nic_access(trans, &flags))
+	if (!iwl_trans_grab_nic_access(trans))
 		return;
 
 	for (i = 0; i < range_len; i++) {
@@ -558,7 +554,7 @@ static void iwl_dump_prph(struct iwl_fw_runtime *fwrt,
 		*data = iwl_fw_error_next_data(*data);
 	}
 
-	iwl_trans_release_nic_access(trans, &flags);
+	iwl_trans_release_nic_access(trans);
 }
 
 /*
@@ -1048,7 +1044,6 @@ iwl_dump_ini_prph_phy_iter(struct iwl_fw_runtime *fwrt,
 	u32 addr = le32_to_cpu(reg->addrs[idx]);
 	u32 dphy_state;
 	u32 dphy_addr;
-	unsigned long flags;
 	int i;
 
 	range->internal_base_addr = cpu_to_le32(addr);
@@ -1060,7 +1055,7 @@ iwl_dump_ini_prph_phy_iter(struct iwl_fw_runtime *fwrt,
 	indirect_wr_addr += le32_to_cpu(reg->dev_addr.offset);
 	indirect_rd_addr += le32_to_cpu(reg->dev_addr.offset);
 
-	if (!iwl_trans_grab_nic_access(fwrt->trans, &flags))
+	if (!iwl_trans_grab_nic_access(fwrt->trans))
 		return -EBUSY;
 
 	dphy_addr = (reg->dev_addr.offset) ? WFPM_LMAC2_PS_CTL_RW :
@@ -1082,7 +1077,7 @@ iwl_dump_ini_prph_phy_iter(struct iwl_fw_runtime *fwrt,
 		*val++ = cpu_to_le32(prph_val);
 	}
 
-	iwl_trans_release_nic_access(fwrt->trans, &flags);
+	iwl_trans_release_nic_access(fwrt->trans);
 	return sizeof(*range) + le32_to_cpu(range->range_data_size);
 }
 
@@ -1297,13 +1292,12 @@ static int iwl_dump_ini_txf_iter(struct iwl_fw_runtime *fwrt,
 	u32 registers_num = iwl_tlv_array_len(reg_data->reg_tlv, reg, addrs);
 	u32 registers_size = registers_num * sizeof(*reg_dump);
 	__le32 *data;
-	unsigned long flags;
 	int i;
 
 	if (!iwl_ini_txf_iter(fwrt, reg_data, idx))
 		return -EIO;
 
-	if (!iwl_trans_grab_nic_access(fwrt->trans, &flags))
+	if (!iwl_trans_grab_nic_access(fwrt->trans))
 		return -EBUSY;
 
 	range->fifo_hdr.fifo_num = cpu_to_le32(iter->fifo);
@@ -1345,7 +1339,7 @@ static int iwl_dump_ini_txf_iter(struct iwl_fw_runtime *fwrt,
 		*data++ = cpu_to_le32(iwl_read_prph_no_grab(fwrt->trans, addr));
 
 out:
-	iwl_trans_release_nic_access(fwrt->trans, &flags);
+	iwl_trans_release_nic_access(fwrt->trans);
 
 	return sizeof(*range) + le32_to_cpu(range->range_data_size);
 }
@@ -1429,14 +1423,13 @@ static int iwl_dump_ini_rxf_iter(struct iwl_fw_runtime *fwrt,
 	u32 registers_num = iwl_tlv_array_len(reg_data->reg_tlv, reg, addrs);
 	u32 registers_size = registers_num * sizeof(*reg_dump);
 	__le32 *data;
-	unsigned long flags;
 	int i;
 
 	iwl_ini_get_rxf_data(fwrt, reg_data, &rxf_data);
 	if (!rxf_data.size)
 		return -EIO;
 
-	if (!iwl_trans_grab_nic_access(fwrt->trans, &flags))
+	if (!iwl_trans_grab_nic_access(fwrt->trans))
 		return -EBUSY;
 
 	range->fifo_hdr.fifo_num = cpu_to_le32(rxf_data.fifo_num);
@@ -1479,7 +1472,7 @@ static int iwl_dump_ini_rxf_iter(struct iwl_fw_runtime *fwrt,
 		*data++ = cpu_to_le32(iwl_read_prph_no_grab(fwrt->trans, addr));
 
 out:
-	iwl_trans_release_nic_access(fwrt->trans, &flags);
+	iwl_trans_release_nic_access(fwrt->trans);
 
 	return sizeof(*range) + le32_to_cpu(range->range_data_size);
 }
@@ -1596,9 +1589,8 @@ iwl_dump_ini_mon_fill_header(struct iwl_fw_runtime *fwrt,
 {
 	struct iwl_fw_ini_region_tlv *reg = (void *)reg_data->reg_tlv->data;
 	u32 alloc_id = le32_to_cpu(reg->dram_alloc_id);
-	unsigned long flags;
 
-	if (!iwl_trans_grab_nic_access(fwrt->trans, &flags)) {
+	if (!iwl_trans_grab_nic_access(fwrt->trans)) {
 		IWL_ERR(fwrt, "Failed to get monitor header\n");
 		return NULL;
 	}
@@ -1615,7 +1607,7 @@ iwl_dump_ini_mon_fill_header(struct iwl_fw_runtime *fwrt,
 	data->cur_frag = iwl_get_mon_reg(fwrt, alloc_id,
 					 &addrs->cur_frag);
 
-	iwl_trans_release_nic_access(fwrt->trans, &flags);
+	iwl_trans_release_nic_access(fwrt->trans);
 
 	data->header.version = cpu_to_le32(IWL_INI_DUMP_VER);
 
@@ -2762,7 +2754,6 @@ IWL_EXPORT_SYMBOL(iwl_fw_dbg_stop_sync);
 void iwl_fw_error_print_fseq_regs(struct iwl_fw_runtime *fwrt)
 {
 	struct iwl_trans *trans = fwrt->trans;
-	unsigned long flags;
 	int i;
 	struct {
 		u32 addr;
@@ -2782,7 +2773,7 @@ void iwl_fw_error_print_fseq_regs(struct iwl_fw_runtime *fwrt)
 		FSEQ_REG(CNVR_SCU_SD_REGS_SD_REG_ACTIVE_VDIG_MIRROR),
 	};
 
-	if (!iwl_trans_grab_nic_access(trans, &flags))
+	if (!iwl_trans_grab_nic_access(trans))
 		return;
 
 	IWL_ERR(fwrt, "Fseq Registers:\n");
@@ -2792,7 +2783,7 @@ void iwl_fw_error_print_fseq_regs(struct iwl_fw_runtime *fwrt)
 			iwl_read_prph_no_grab(trans, fseq_regs[i].addr),
 			fseq_regs[i].str);
 
-	iwl_trans_release_nic_access(trans, &flags);
+	iwl_trans_release_nic_access(trans);
 }
 IWL_EXPORT_SYMBOL(iwl_fw_error_print_fseq_regs);
 
