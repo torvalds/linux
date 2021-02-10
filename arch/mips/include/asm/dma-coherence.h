@@ -9,30 +9,14 @@
 #ifndef __ASM_DMA_COHERENCE_H
 #define __ASM_DMA_COHERENCE_H
 
-enum coherent_io_user_state {
-	IO_COHERENCE_DEFAULT,
-	IO_COHERENCE_ENABLED,
-	IO_COHERENCE_DISABLED,
-};
-
-#if defined(CONFIG_DMA_PERDEV_COHERENT)
-/* Don't provide (hw_)coherentio to avoid misuse */
-#elif defined(CONFIG_DMA_MAYBE_COHERENT)
-extern enum coherent_io_user_state coherentio;
-extern int hw_coherentio;
-
+#ifdef CONFIG_DMA_MAYBE_COHERENT
+extern bool dma_default_coherent;
 static inline bool dev_is_dma_coherent(struct device *dev)
 {
-	return coherentio == IO_COHERENCE_ENABLED ||
-		(coherentio == IO_COHERENCE_DEFAULT && hw_coherentio);
+	return dma_default_coherent;
 }
 #else
-#ifdef CONFIG_DMA_NONCOHERENT
-#define coherentio	IO_COHERENCE_DISABLED
-#else
-#define coherentio	IO_COHERENCE_ENABLED
+#define dma_default_coherent	(!IS_ENABLED(CONFIG_DMA_NONCOHERENT))
 #endif
-#define hw_coherentio	0
-#endif /* CONFIG_DMA_MAYBE_COHERENT */
 
 #endif

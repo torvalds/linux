@@ -98,7 +98,7 @@ static void __init plat_setup_iocoherency(void)
 		if (BONITO_PCICACHECTRL & BONITO_PCICACHECTRL_CPUCOH_PRES) {
 			BONITO_PCICACHECTRL |= BONITO_PCICACHECTRL_CPUCOH_EN;
 			pr_info("Enabled Bonito CPU coherency\n");
-			hw_coherentio = 1;
+			dma_default_coherent = true;
 		}
 		if (strstr(fw_getcmdline(), "iobcuncached")) {
 			BONITO_PCICACHECTRL &= ~BONITO_PCICACHECTRL_IOBCCOH_EN;
@@ -118,12 +118,12 @@ static void __init plat_setup_iocoherency(void)
 		pr_info("CMP IOCU detected\n");
 		cfg = __raw_readl((u32 *)CKSEG1ADDR(ROCIT_CONFIG_GEN0));
 		if (cfg & ROCIT_CONFIG_GEN0_PCI_IOCU)
-			hw_coherentio = 1;
+			dma_default_coherent = true;
 		else
 			pr_crit("IOCU OPERATION DISABLED BY SWITCH - DEFAULTING TO SW IO COHERENCY\n");
 	}
 
-	if (hw_coherentio)
+	if (dma_default_coherent)
 		pr_info("Hardware DMA cache coherency enabled\n");
 	else
 		pr_info("Software DMA cache coherency enabled\n");

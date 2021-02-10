@@ -803,14 +803,12 @@ arch_initcall(debugfs_mips);
 #endif
 
 #ifdef CONFIG_DMA_MAYBE_COHERENT
-/* User defined DMA coherency from command line. */
-enum coherent_io_user_state coherentio = IO_COHERENCE_DEFAULT;
-EXPORT_SYMBOL_GPL(coherentio);
-int hw_coherentio;	/* Actual hardware supported DMA coherency setting. */
+bool dma_default_coherent;
+EXPORT_SYMBOL_GPL(dma_default_coherent);
 
 static int __init setcoherentio(char *str)
 {
-	coherentio = IO_COHERENCE_ENABLED;
+	dma_default_coherent = true;
 	pr_info("Hardware DMA cache coherency (command line)\n");
 	return 0;
 }
@@ -818,7 +816,7 @@ early_param("coherentio", setcoherentio);
 
 static int __init setnocoherentio(char *str)
 {
-	coherentio = IO_COHERENCE_DISABLED;
+	dma_default_coherent = true;
 	pr_info("Software DMA cache coherency (command line)\n");
 	return 0;
 }

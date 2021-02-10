@@ -65,8 +65,7 @@ void __init plat_mem_setup(void)
 		/* Clear to obtain best system bus performance */
 		clear_c0_config(1 << 19); /* Clear Config[OD] */
 
-	coherentio = alchemy_dma_coherent() ?
-		IO_COHERENCE_ENABLED : IO_COHERENCE_DISABLED;
+	dma_default_coherent = alchemy_dma_coherent();
 
 	board_setup();	/* board specific setup */
 
