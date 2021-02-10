@@ -102,13 +102,6 @@ config MTD_NAND_S3C2410_CLKSTOP
 	  when the is NAND chip selected or released, but will save
 	  approximately 5mA of power when there is nothing happening.
 
-config MTD_NAND_TANGO
-	tristate "Tango NAND controller"
-	depends on ARCH_TANGO || COMPILE_TEST
-	depends on HAS_IOMEM
-	help
-	  Enables the NAND Flash controller on Tango chips.
-
 config MTD_NAND_SHARPSL
 	tristate "Sharp SL Series (C7xx + others) NAND controller"
 	depends on ARCH_PXA || COMPILE_TEST
