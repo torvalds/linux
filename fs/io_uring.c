@@ -2227,6 +2227,7 @@ static void io_free_req(struct io_kiocb *req)
 struct req_batch {
 	void *reqs[IO_IOPOLL_BATCH];
 	int to_free;
+	int ctx_refs;
 
 	struct task_struct	*task;
 	int			task_refs;
@@ -2236,6 +2237,7 @@ static inline void io_init_req_batch(struct req_batch *rb)
 {
 	rb->to_free = 0;
 	rb->task_refs = 0;
+	rb->ctx_refs = 0;
 	rb->task = NULL;
 }
 
@@ -2243,7 +2245,6 @@ static void __io_req_free_batch_flush(struct io_ring_ctx *ctx,
 				      struct req_batch *rb)
 {
 	kmem_cache_free_bulk(req_cachep, rb->to_free, rb->reqs);
-	percpu_ref_put_many(&ctx->refs, rb->to_free);
 	rb->to_free = 0;
 }
 
@@ -2256,6 +2257,8 @@ static void io_req_free_batch_finish(struct io_ring_ctx *ctx,
 		io_put_task(rb->task, rb->task_refs);
 		rb->task = NULL;
 	}
+	if (rb->ctx_refs)
+		percpu_ref_put_many(&ctx->refs, rb->ctx_refs);
 }
 
 static void io_req_free_batch(struct req_batch *rb, struct io_kiocb *req)
@@ -2269,6 +2272,7 @@ static void io_req_free_batch(struct req_batch *rb, struct io_kiocb *req)
 		rb->task_refs = 0;
 	}
 	rb->task_refs++;
+	rb->ctx_refs++;
 
 	io_dismantle_req(req);
 	rb->reqs[rb->to_free++] = req;
