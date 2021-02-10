@@ -485,7 +485,7 @@ static void nvmet_execute_identify_ns(struct nvmet_req *req)
 	/* return an all zeroed buffer if we can't find an active namespace */
 	req->ns = nvmet_find_namespace(ctrl, req->cmd->identify.nsid);
 	if (!req->ns) {
-		status = NVME_SC_INVALID_NS;
+		status = 0;
 		goto done;
 	}
 
