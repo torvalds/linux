@@ -49,6 +49,11 @@
 
 /* Port Configuration Registers - HSR/PRP */
 #define XRS_HSR_CFG(x)			(XRS_PORT_HSR_BASE(x) + 0x0)
+#define XRS_HSR_CFG_HSR_PRP		BIT(0)
+#define XRS_HSR_CFG_HSR			0
+#define XRS_HSR_CFG_PRP			BIT(8)
+#define XRS_HSR_CFG_LANID_A		0
+#define XRS_HSR_CFG_LANID_B		BIT(10)
 
 /* Port Configuration Registers - PTP */
 #define XRS_PTP_RX_SYNC_DELAY_NS_LO(x)	(XRS_PORT_PTP_BASE(x) + 0x2)

@@ -7,10 +7,16 @@
 #include <net/dsa.h>
 #include <linux/if_bridge.h>
 #include <linux/of_device.h>
+#include <linux/netdev_features.h>
+#include <linux/if_hsr.h>
 #include "xrs700x.h"
 #include "xrs700x_reg.h"
 
 #define XRS700X_MIB_INTERVAL msecs_to_jiffies(3000)
+
+#define XRS7000X_SUPPORTED_HSR_FEATURES \
+	(NETIF_F_HW_HSR_TAG_INS | NETIF_F_HW_HSR_TAG_RM | \
+	 NETIF_F_HW_HSR_FWD | NETIF_F_HW_HSR_DUP)
 
 #define XRS7003E_ID	0x100
 #define XRS7003F_ID	0x101
@@ -496,6 +502,119 @@ static void xrs700x_bridge_leave(struct dsa_switch *ds, int port,
 	xrs700x_bridge_common(ds, port, bridge, false);
 }
 
+static int xrs700x_hsr_join(struct dsa_switch *ds, int port,
+			    struct net_device *hsr)
+{
+	unsigned int val = XRS_HSR_CFG_HSR_PRP;
+	struct dsa_port *partner = NULL, *dp;
+	struct xrs700x *priv = ds->priv;
+	struct net_device *slave;
+	int ret, i, hsr_pair[2];
+	enum hsr_version ver;
+
+	ret = hsr_get_version(hsr, &ver);
+	if (ret)
+		return ret;
+
+	/* Only ports 1 and 2 can be HSR/PRP redundant ports. */
+	if (port != 1 && port != 2)
+		return -EOPNOTSUPP;
+
+	if (ver == HSR_V1)
+		val |= XRS_HSR_CFG_HSR;
+	else if (ver == PRP_V1)
+		val |= XRS_HSR_CFG_PRP;
+	else
+		return -EOPNOTSUPP;
+
+	dsa_hsr_foreach_port(dp, ds, hsr) {
+		partner = dp;
+	}
+
+	/* We can't enable redundancy on the switch until both
+	 * redundant ports have signed up.
+	 */
+	if (!partner)
+		return 0;
+
+	regmap_fields_write(priv->ps_forward, partner->index,
+			    XRS_PORT_DISABLED);
+	regmap_fields_write(priv->ps_forward, port, XRS_PORT_DISABLED);
+
+	regmap_write(priv->regmap, XRS_HSR_CFG(partner->index),
+		     val | XRS_HSR_CFG_LANID_A);
+	regmap_write(priv->regmap, XRS_HSR_CFG(port),
+		     val | XRS_HSR_CFG_LANID_B);
+
+	/* Clear bits for both redundant ports (HSR only) and the CPU port to
+	 * enable forwarding.
+	 */
+	val = GENMASK(ds->num_ports - 1, 0);
+	if (ver == HSR_V1) {
+		val &= ~BIT(partner->index);
+		val &= ~BIT(port);
+	}
+	val &= ~BIT(dsa_upstream_port(ds, port));
+	regmap_write(priv->regmap, XRS_PORT_FWD_MASK(partner->index), val);
+	regmap_write(priv->regmap, XRS_PORT_FWD_MASK(port), val);
+
+	regmap_fields_write(priv->ps_forward, partner->index,
+			    XRS_PORT_FORWARDING);
+	regmap_fields_write(priv->ps_forward, port, XRS_PORT_FORWARDING);
+
+	hsr_pair[0] = port;
+	hsr_pair[1] = partner->index;
+	for (i = 0; i < ARRAY_SIZE(hsr_pair); i++) {
+		slave = dsa_to_port(ds, hsr_pair[i])->slave;
+		slave->features |= XRS7000X_SUPPORTED_HSR_FEATURES;
+	}
+
+	return 0;
+}
+
+static int xrs700x_hsr_leave(struct dsa_switch *ds, int port,
+			     struct net_device *hsr)
+{
+	struct dsa_port *partner = NULL, *dp;
+	struct xrs700x *priv = ds->priv;
+	struct net_device *slave;
+	int i, hsr_pair[2];
+	unsigned int val;
+
+	dsa_hsr_foreach_port(dp, ds, hsr) {
+		partner = dp;
+	}
+
+	if (!partner)
+		return 0;
+
+	regmap_fields_write(priv->ps_forward, partner->index,
+			    XRS_PORT_DISABLED);
+	regmap_fields_write(priv->ps_forward, port, XRS_PORT_DISABLED);
+
+	regmap_write(priv->regmap, XRS_HSR_CFG(partner->index), 0);
+	regmap_write(priv->regmap, XRS_HSR_CFG(port), 0);
+
+	/* Clear bit for the CPU port to enable forwarding. */
+	val = GENMASK(ds->num_ports - 1, 0);
+	val &= ~BIT(dsa_upstream_port(ds, port));
+	regmap_write(priv->regmap, XRS_PORT_FWD_MASK(partner->index), val);
+	regmap_write(priv->regmap, XRS_PORT_FWD_MASK(port), val);
+
+	regmap_fields_write(priv->ps_forward, partner->index,
+			    XRS_PORT_FORWARDING);
+	regmap_fields_write(priv->ps_forward, port, XRS_PORT_FORWARDING);
+
+	hsr_pair[0] = port;
+	hsr_pair[1] = partner->index;
+	for (i = 0; i < ARRAY_SIZE(hsr_pair); i++) {
+		slave = dsa_to_port(ds, hsr_pair[i])->slave;
+		slave->features &= ~XRS7000X_SUPPORTED_HSR_FEATURES;
+	}
+
+	return 0;
+}
+
 static const struct dsa_switch_ops xrs700x_ops = {
 	.get_tag_protocol	= xrs700x_get_tag_protocol,
 	.setup			= xrs700x_setup,
@@ -509,6 +628,8 @@ static const struct dsa_switch_ops xrs700x_ops = {
 	.get_stats64		= xrs700x_get_stats64,
 	.port_bridge_join	= xrs700x_bridge_join,
 	.port_bridge_leave	= xrs700x_bridge_leave,
+	.port_hsr_join		= xrs700x_hsr_join,
+	.port_hsr_leave		= xrs700x_hsr_leave,
 };
 
 static int xrs700x_detect(struct xrs700x *priv)
