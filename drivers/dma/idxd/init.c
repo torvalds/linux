@@ -335,7 +335,10 @@ static int idxd_probe(struct idxd_device *idxd)
 	int rc;
 
 	dev_dbg(dev, "%s entered and resetting device\n", __func__);
-	idxd_device_init_reset(idxd);
+	rc = idxd_device_init_reset(idxd);
+	if (rc < 0)
+		return rc;
+
 	dev_dbg(dev, "IDXD reset complete\n");
 
 	if (IS_ENABLED(CONFIG_INTEL_IDXD_SVM)) {
