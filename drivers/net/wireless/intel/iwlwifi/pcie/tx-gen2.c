@@ -78,7 +78,6 @@ static int iwl_pcie_gen2_enqueue_hcmd(struct iwl_trans *trans,
 	struct iwl_txq *txq = trans->txqs.txq[trans->txqs.cmd.q_id];
 	struct iwl_device_cmd *out_cmd;
 	struct iwl_cmd_meta *out_meta;
-	unsigned long flags;
 	void *dup_buf = NULL;
 	dma_addr_t phys_addr;
 	int i, cmd_pos, idx;
@@ -291,11 +290,11 @@ static int iwl_pcie_gen2_enqueue_hcmd(struct iwl_trans *trans,
 	if (txq->read_ptr == txq->write_ptr && txq->wd_timeout)
 		mod_timer(&txq->stuck_timer, jiffies + txq->wd_timeout);
 
-	spin_lock_irqsave(&trans_pcie->reg_lock, flags);
+	spin_lock(&trans_pcie->reg_lock);
 	/* Increment and update queue's write index */
 	txq->write_ptr = iwl_txq_inc_wrap(trans, txq->write_ptr);
 	iwl_txq_inc_wr_ptr(trans, txq);
-	spin_unlock_irqrestore(&trans_pcie->reg_lock, flags);
+	spin_unlock(&trans_pcie->reg_lock);
 
 out:
 	spin_unlock_bh(&txq->lock);
