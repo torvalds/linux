@@ -1141,7 +1141,8 @@ static u8 iwl_mvm_eval_dsm_indonesia_5g2(struct iwl_mvm *mvm)
 	u8 value;
 
 	int ret = iwl_acpi_get_dsm_u8((&mvm->fwrt)->dev, 0,
-				      DSM_FUNC_ENABLE_INDONESIA_5G2, &value);
+				      DSM_FUNC_ENABLE_INDONESIA_5G2,
+				      &iwl_guid, &value);
 
 	if (ret < 0)
 		IWL_DEBUG_RADIO(mvm,
@@ -1162,11 +1163,36 @@ static u8 iwl_mvm_eval_dsm_indonesia_5g2(struct iwl_mvm *mvm)
 	return DSM_VALUE_INDONESIA_DISABLE;
 }
 
+static u8 iwl_mvm_eval_dsm_rfi(struct iwl_mvm *mvm)
+{
+	u8 value;
+	int ret = iwl_acpi_get_dsm_u8((&mvm->fwrt)->dev, 0, DSM_RFI_FUNC_ENABLE,
+				      &iwl_rfi_guid, &value);
+
+	if (ret < 0) {
+		IWL_DEBUG_RADIO(mvm, "Failed to get DSM RFI, ret=%d\n", ret);
+
+	} else if (value >= DSM_VALUE_RFI_MAX) {
+		IWL_DEBUG_RADIO(mvm, "DSM RFI got invalid value, ret=%d\n",
+				value);
+
+	} else if (value == DSM_VALUE_RFI_ENABLE) {
+		IWL_DEBUG_RADIO(mvm, "DSM RFI is evaluated to enable\n");
+		return DSM_VALUE_RFI_ENABLE;
+	}
+
+	IWL_DEBUG_RADIO(mvm, "DSM RFI is disabled\n");
+
+	/* default behaviour is disabled */
+	return DSM_VALUE_RFI_DISABLE;
+}
+
 static u8 iwl_mvm_eval_dsm_disable_srd(struct iwl_mvm *mvm)
 {
 	u8 value;
 	int ret = iwl_acpi_get_dsm_u8((&mvm->fwrt)->dev, 0,
-				      DSM_FUNC_DISABLE_SRD, &value);
+				      DSM_FUNC_DISABLE_SRD,
+				      &iwl_guid, &value);
 
 	if (ret < 0)
 		IWL_DEBUG_RADIO(mvm,
@@ -1266,6 +1292,11 @@ static void iwl_mvm_tas_init(struct iwl_mvm *mvm)
 
 static void iwl_mvm_lari_cfg(struct iwl_mvm *mvm)
 {
+}
+
+static u8 iwl_mvm_eval_dsm_rfi(struct iwl_mvm *mvm)
+{
+	return DSM_VALUE_RFI_DISABLE;
 }
 #endif /* CONFIG_ACPI */
 
@@ -1602,6 +1633,12 @@ int iwl_mvm_up(struct iwl_mvm *mvm)
 	iwl_mvm_leds_sync(mvm);
 
 	iwl_mvm_ftm_initiator_smooth_config(mvm);
+
+	if (fw_has_capa(&mvm->fw->ucode_capa,
+			IWL_UCODE_TLV_CAPA_RFIM_SUPPORT)) {
+		if (iwl_mvm_eval_dsm_rfi(mvm) == DSM_VALUE_RFI_ENABLE)
+			iwl_rfi_send_config_cmd(mvm, NULL);
+	}
 
 	IWL_DEBUG_INFO(mvm, "RT uCode started.\n");
 	return 0;
