@@ -103,6 +103,10 @@ struct mapped_device {
 	/* kobject and completion */
 	struct dm_kobject_holder kobj_holder;
 
+	int swap_bios;
+	struct semaphore swap_bios_semaphore;
+	struct mutex swap_bios_lock;
+
 	struct dm_stats stats;
 
 	/* for blk-mq request-based DM support */
