@@ -949,7 +949,8 @@
 &spi0 {
 	status = "okay";
 	pinctrl-names = "default";
-	pinctrl-0 = <&qup_spi0_data_clk>, <&qup_spi0_cs>;
+	pinctrl-0 = <&qup_spi0_data_clk>, <&qup_spi0_cs_gpio>;
+	cs-gpios = <&tlmm 31 GPIO_ACTIVE_LOW>;
 
 	can@0 {
 		compatible = "microchip,mcp2518fd";
@@ -1352,7 +1353,7 @@
 };
 
 /* PINCTRL - additions to nodes defined in sm8250.dtsi */
-&qup_spi0_cs {
+&qup_spi0_cs_gpio {
 	drive-strength = <6>;
 	bias-disable;
 };
