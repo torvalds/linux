@@ -2164,17 +2164,12 @@ out:
 	return 1;
 }
 
-static int iwl_mvm_resume_d3(struct iwl_mvm *mvm)
-{
-	return __iwl_mvm_resume(mvm, false);
-}
-
 int iwl_mvm_resume(struct ieee80211_hw *hw)
 {
 	struct iwl_mvm *mvm = IWL_MAC80211_GET_MVM(hw);
 	int ret;
 
-	ret = iwl_mvm_resume_d3(mvm);
+	ret = __iwl_mvm_resume(mvm, false);
 
 	iwl_mvm_resume_tcm(mvm);
 
