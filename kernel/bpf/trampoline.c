@@ -381,13 +381,16 @@ out:
 	mutex_unlock(&trampoline_mutex);
 }
 
-#define NO_START_TIME 0
+#define NO_START_TIME 1
 static u64 notrace bpf_prog_start_time(void)
 {
 	u64 start = NO_START_TIME;
 
-	if (static_branch_unlikely(&bpf_stats_enabled_key))
+	if (static_branch_unlikely(&bpf_stats_enabled_key)) {
 		start = sched_clock();
+		if (unlikely(!start))
+			start = NO_START_TIME;
+	}
 	return start;
 }
 
@@ -397,12 +400,20 @@ static u64 notrace bpf_prog_start_time(void)
  * call __bpf_prog_enter
  * call prog->bpf_func
  * call __bpf_prog_exit
+ *
+ * __bpf_prog_enter returns:
+ * 0 - skip execution of the bpf prog
+ * 1 - execute bpf prog
+ * [2..MAX_U64] - excute bpf prog and record execution time.
+ *     This is start time.
  */
-u64 notrace __bpf_prog_enter(void)
+u64 notrace __bpf_prog_enter(struct bpf_prog *prog)
 	__acquires(RCU)
 {
 	rcu_read_lock();
 	migrate_disable();
+	if (unlikely(__this_cpu_inc_return(*(prog->active)) != 1))
+		return 0;
 	return bpf_prog_start_time();
 }
 
@@ -430,21 +441,25 @@ void notrace __bpf_prog_exit(struct bpf_prog *prog, u64 start)
 	__releases(RCU)
 {
 	update_prog_stats(prog, start);
+	__this_cpu_dec(*(prog->active));
 	migrate_enable();
 	rcu_read_unlock();
 }
 
-u64 notrace __bpf_prog_enter_sleepable(void)
+u64 notrace __bpf_prog_enter_sleepable(struct bpf_prog *prog)
 {
 	rcu_read_lock_trace();
 	migrate_disable();
 	might_fault();
+	if (unlikely(__this_cpu_inc_return(*(prog->active)) != 1))
+		return 0;
 	return bpf_prog_start_time();
 }
 
 void notrace __bpf_prog_exit_sleepable(struct bpf_prog *prog, u64 start)
 {
 	update_prog_stats(prog, start);
+	__this_cpu_dec(*(prog->active));
 	migrate_enable();
 	rcu_read_unlock_trace();
 }
