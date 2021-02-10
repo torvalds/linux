@@ -2107,6 +2107,18 @@
 			};
 		};
 
+		cif {
+			cif_clkin: cif-clkin {
+				rockchip,pins =
+					<2 RK_PB2 3 &pcfg_pull_none>;
+			};
+
+			cif_clkouta: cif-clkouta {
+				rockchip,pins =
+					<2 RK_PB3 3 &pcfg_pull_none>;
+			};
+		};
+
 		edp {
 			edp_hpd: edp-hpd {
 				rockchip,pins =
