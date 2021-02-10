@@ -2578,7 +2578,7 @@ static noinline_for_stack int prealloc_file_extent_cluster(
 		return btrfs_end_transaction(trans);
 	}
 
-	inode_lock(&inode->vfs_inode);
+	btrfs_inode_lock(&inode->vfs_inode, 0);
 	for (nr = 0; nr < cluster->nr; nr++) {
 		start = cluster->boundary[nr] - offset;
 		if (nr + 1 < cluster->nr)
@@ -2596,7 +2596,7 @@ static noinline_for_stack int prealloc_file_extent_cluster(
 		if (ret)
 			break;
 	}
-	inode_unlock(&inode->vfs_inode);
+	btrfs_inode_unlock(&inode->vfs_inode, 0);
 
 	if (cur_offset < prealloc_end)
 		btrfs_free_reserved_data_space_noquota(inode->root->fs_info,
