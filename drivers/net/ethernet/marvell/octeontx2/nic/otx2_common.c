@@ -60,6 +60,19 @@ void otx2_update_lmac_stats(struct otx2_nic *pfvf)
 	mutex_unlock(&pfvf->mbox.lock);
 }
 
+void otx2_update_lmac_fec_stats(struct otx2_nic *pfvf)
+{
+	struct msg_req *req;
+
+	if (!netif_running(pfvf->netdev))
+		return;
+	mutex_lock(&pfvf->mbox.lock);
+	req = otx2_mbox_alloc_msg_cgx_fec_stats(&pfvf->mbox);
+	if (req)
+		otx2_sync_mbox_msg(&pfvf->mbox);
+	mutex_unlock(&pfvf->mbox.lock);
+}
+
 int otx2_update_rq_stats(struct otx2_nic *pfvf, int qidx)
 {
 	struct otx2_rcv_queue *rq = &pfvf->qset.rq[qidx];
@@ -1487,6 +1500,13 @@ void mbox_handler_cgx_stats(struct otx2_nic *pfvf,
 		pfvf->hw.cgx_rx_stats[id] = rsp->rx_stats[id];
 	for (id = 0; id < CGX_TX_STATS_COUNT; id++)
 		pfvf->hw.cgx_tx_stats[id] = rsp->tx_stats[id];
+}
+
+void mbox_handler_cgx_fec_stats(struct otx2_nic *pfvf,
+				struct cgx_fec_stats_rsp *rsp)
+{
+	pfvf->hw.cgx_fec_corr_blks += rsp->fec_corr_blks;
+	pfvf->hw.cgx_fec_uncorr_blks += rsp->fec_uncorr_blks;
 }
 
 void mbox_handler_nix_txsch_alloc(struct otx2_nic *pf,
