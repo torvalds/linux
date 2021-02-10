@@ -65,6 +65,4 @@ int update_cookie(struct bpf_sock_ops *ctx)
 	return 1;
 }
 
-int _version SEC("version") = 1;
-
 char _license[] SEC("license") = "GPL";
