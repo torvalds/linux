@@ -1,0 +1,71 @@
+// SPDX-License-Identifier: (GPL-2.0+ OR MIT)
+/*
+ * Copyright (c) 2020 BayLibre SAS. All rights reserved.
+ */
+
+/dts-v1/;
+/plugin/;
+
+#include <dt-bindings/gpio/gpio.h>
+#include <dt-bindings/gpio/meson-g12a-gpio.h>
+#include <dt-bindings/input/input.h>
+#include <dt-bindings/interrupt-controller/irq.h>
+#include <dt-bindings/interrupt-controller/arm-gic.h>
+
+/ {
+  compatible = "seirobotics,sei610", "amlogic,sm1";
+  model = "SEI Robotics SEI610";
+  fragment@101 {
+	target-path = "/";
+	__overlay__ {
+
+		reserved-memory {
+			#address-cells = <2>;
+			#size-cells = <2>;
+			ramoops@d000000 {
+				compatible = "ramoops";
+				reg = <0x0 0x0d000000 0x0 0x00100000>;
+				record-size = <0x8000>;
+				console-size = <0x8000>;
+				ftrace-size = <0x0>;
+				pmsg-size = <0x8000>;
+			};
+		};
+	};
+   };
+};
+
+&vddao_3v3_t {
+	gpio-open-drain;
+};
+
+&emmc_pwrseq {
+	status = "okay";
+};
+
+&sd_emmc_a {
+	/* WiFi firmware requires power to be kept while in suspend */
+	keep-power-in-suspend;
+};
+
+&uart_C {
+        status = "disabled";
+        pinctrl-0 = <&uart_c_pins>;
+        pinctrl-names = "default";
+};
+
+&spicc0 {
+        status = "disabled";
+        pinctrl-names = "default";
+        pinctrl-0 = <&spicc0_x_pins>;
+        cs-gpios = <&gpio GPIOX_10 GPIO_ACTIVE_LOW>;
+        #address-cells = <1>;
+        #size-cells = <0>;
+
+        spidev@0 {
+            compatible = "rohm,dh2228fv";
+            reg = <0>;
+            spi-max-frequency = <500000>;
+            status = "disabled";
+        };
+};
