@@ -17,6 +17,7 @@
 #include <net/pkt_cls.h>
 #include <net/tc_act/tc_mirred.h>
 #include <linux/if_bridge.h>
+#include <linux/if_hsr.h>
 #include <linux/netpoll.h>
 #include <linux/ptp_classify.h>
 
@@ -1936,6 +1937,19 @@ static int dsa_slave_changeupper(struct net_device *dev,
 			err = notifier_from_errno(err);
 		} else {
 			dsa_port_lag_leave(dp, info->upper_dev);
+			err = NOTIFY_OK;
+		}
+	} else if (is_hsr_master(info->upper_dev)) {
+		if (info->linking) {
+			err = dsa_port_hsr_join(dp, info->upper_dev);
+			if (err == -EOPNOTSUPP) {
+				NL_SET_ERR_MSG_MOD(info->info.extack,
+						   "Offloading not supported");
+				err = 0;
+			}
+			err = notifier_from_errno(err);
+		} else {
+			dsa_port_hsr_leave(dp, info->upper_dev);
 			err = NOTIFY_OK;
 		}
 	}
