@@ -577,8 +577,6 @@ static int rndis_filter_receive_data(struct net_device *ndev,
 	return ret;
 
 drop:
-	/* Drop incomplete packet */
-	nvchan->rsc.cnt = 0;
 	return NVSP_STAT_FAIL;
 }
 

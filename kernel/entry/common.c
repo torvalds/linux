@@ -209,15 +209,9 @@ static void exit_to_user_mode_prepare(struct pt_regs *regs)
 	lockdep_sys_exit();
 }
 
-#ifndef _TIF_SINGLESTEP
-static inline bool report_single_step(unsigned long work)
-{
-	return false;
-}
-#else
 /*
  * If SYSCALL_EMU is set, then the only reason to report is when
- * TIF_SINGLESTEP is set (i.e. PTRACE_SYSEMU_SINGLESTEP).  This syscall
+ * SINGLESTEP is set (i.e. PTRACE_SYSEMU_SINGLESTEP).  This syscall
  * instruction has been already reported in syscall_enter_from_user_mode().
  */
 static inline bool report_single_step(unsigned long work)
@@ -225,10 +219,8 @@ static inline bool report_single_step(unsigned long work)
 	if (work & SYSCALL_WORK_SYSCALL_EMU)
 		return false;
 
-	return !!(current_thread_info()->flags & _TIF_SINGLESTEP);
+	return work & SYSCALL_WORK_SYSCALL_EXIT_TRAP;
 }
-#endif
-
 
 static void syscall_exit_work(struct pt_regs *regs, unsigned long work)
 {
