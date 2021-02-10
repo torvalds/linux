@@ -80,7 +80,6 @@ int main(int argc, char *argv[])
 	/* Map a region for the shared_info page */
 	vm_userspace_mem_region_add(vm, VM_MEM_SRC_ANONYMOUS,
 				    SHINFO_REGION_GPA, SHINFO_REGION_SLOT, 2, 0);
-	virt_map(vm, SHINFO_REGION_GPA, SHINFO_REGION_GPA, 2, 0);
 
 	struct kvm_xen_hvm_config hvmc = {
 		.flags = KVM_XEN_HVM_CONFIG_INTERCEPT_HCALL,
@@ -147,9 +146,9 @@ int main(int argc, char *argv[])
 	struct pvclock_wall_clock *wc;
 	struct pvclock_vcpu_time_info *ti, *ti2;
 
-	wc = addr_gva2hva(vm, SHINFO_REGION_GPA + 0xc00);
-	ti = addr_gva2hva(vm, SHINFO_REGION_GPA + 0x40 + 0x20);
-	ti2 = addr_gva2hva(vm, PVTIME_ADDR);
+	wc = addr_gpa2hva(vm, SHINFO_REGION_GPA + 0xc00);
+	ti = addr_gpa2hva(vm, SHINFO_REGION_GPA + 0x40 + 0x20);
+	ti2 = addr_gpa2hva(vm, PVTIME_ADDR);
 
 	vm_ts.tv_sec = wc->sec;
 	vm_ts.tv_nsec = wc->nsec;
