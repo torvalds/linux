@@ -389,24 +389,6 @@ static int renoir_od_edit_dpm_table(struct smu_context *smu,
 		}
 		smu->gfx_actual_hard_min_freq = smu->gfx_default_hard_min_freq;
 		smu->gfx_actual_soft_max_freq = smu->gfx_default_soft_max_freq;
-
-		ret = smu_cmn_send_smc_msg_with_param(smu,
-								SMU_MSG_SetHardMinGfxClk,
-								smu->gfx_actual_hard_min_freq,
-								NULL);
-		if (ret) {
-			dev_err(smu->adev->dev, "Restore the default hard min sclk failed!");
-			return ret;
-		}
-
-		ret = smu_cmn_send_smc_msg_with_param(smu,
-								SMU_MSG_SetSoftMaxGfxClk,
-								smu->gfx_actual_soft_max_freq,
-								NULL);
-		if (ret) {
-			dev_err(smu->adev->dev, "Restore the default soft max sclk failed!");
-			return ret;
-		}
 		break;
 	case PP_OD_COMMIT_DPM_TABLE:
 		if (size != 0) {
