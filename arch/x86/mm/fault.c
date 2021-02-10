@@ -447,6 +447,9 @@ static int is_errata93(struct pt_regs *regs, unsigned long address)
 	    || boot_cpu_data.x86 != 0xf)
 		return 0;
 
+	if (user_mode(regs))
+		return 0;
+
 	if (address != regs->ip)
 		return 0;
 
@@ -742,9 +745,6 @@ no_context(struct pt_regs *regs, unsigned long error_code,
 	 *   Hall of shame of CPU/BIOS bugs.
 	 */
 	if (is_prefetch(regs, error_code, address))
-		return;
-
-	if (is_errata93(regs, address))
 		return;
 
 	/*
@@ -1238,6 +1238,21 @@ void do_user_addr_fault(struct pt_regs *regs,
 
 	tsk = current;
 	mm = tsk->mm;
+
+	if (unlikely((error_code & (X86_PF_USER | X86_PF_INSTR)) == X86_PF_INSTR)) {
+		/*
+		 * Whoops, this is kernel mode code trying to execute from
+		 * user memory.  Unless this is AMD erratum #93, which
+		 * corrupts RIP such that it looks like a user address,
+		 * this is unrecoverable.  Don't even try to look up the
+		 * VMA.
+		 */
+		if (is_errata93(regs, address))
+			return;
+
+		bad_area_nosemaphore(regs, error_code, address);
+		return;
+	}
 
 	/* kprobes don't want to hook the spurious faults: */
 	if (unlikely(kprobe_page_fault(regs, X86_TRAP_PF)))
