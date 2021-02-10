@@ -476,9 +476,13 @@ static int iwl_run_unified_mvm_ucode(struct iwl_mvm *mvm)
 
 	/* Load NVM to NIC if needed */
 	if (mvm->nvm_file_name) {
-		iwl_read_external_nvm(mvm->trans, mvm->nvm_file_name,
-				      mvm->nvm_sections);
-		iwl_mvm_load_nvm_to_nic(mvm);
+		ret = iwl_read_external_nvm(mvm->trans, mvm->nvm_file_name,
+					    mvm->nvm_sections);
+		if (ret)
+			goto error;
+		ret = iwl_mvm_load_nvm_to_nic(mvm);
+		if (ret)
+			goto error;
 	}
 
 	if (IWL_MVM_PARSE_NVM && !mvm->nvm_data) {
@@ -659,8 +663,11 @@ int iwl_run_init_mvm_ucode(struct iwl_mvm *mvm)
 	}
 
 	/* In case we read the NVM from external file, load it to the NIC */
-	if (mvm->nvm_file_name)
-		iwl_mvm_load_nvm_to_nic(mvm);
+	if (mvm->nvm_file_name) {
+		ret = iwl_mvm_load_nvm_to_nic(mvm);
+		if (ret)
+			goto remove_notif;
+	}
 
 	WARN_ONCE(mvm->nvm_data->nvm_version < mvm->trans->cfg->nvm_ver,
 		  "Too old NVM version (0x%0x, required = 0x%0x)",

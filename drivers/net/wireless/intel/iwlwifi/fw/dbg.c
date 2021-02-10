@@ -2447,7 +2447,8 @@ int iwl_fw_dbg_error_collect(struct iwl_fw_runtime *fwrt,
 		return -EIO;
 
 	if (iwl_trans_dbg_ini_valid(fwrt->trans)) {
-		if (trig_type != FW_DBG_TRIGGER_ALIVE_TIMEOUT)
+		if (trig_type != FW_DBG_TRIGGER_ALIVE_TIMEOUT &&
+		    trig_type != FW_DBG_TRIGGER_DRIVER)
 			return -EIO;
 
 		iwl_dbg_tlv_time_point(fwrt,
