@@ -891,8 +891,8 @@ static u16 nvmet_parse_io_cmd(struct nvmet_req *req)
 
 	if (req->ns->file)
 		return nvmet_file_parse_io_cmd(req);
-	else
-		return nvmet_bdev_parse_io_cmd(req);
+
+	return nvmet_bdev_parse_io_cmd(req);
 }
 
 bool nvmet_req_init(struct nvmet_req *req, struct nvmet_cq *cq,
