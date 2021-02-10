@@ -75,15 +75,11 @@ static u16 nvmet_get_smart_log_nsid(struct nvmet_req *req,
 		struct nvme_smart_log *slog)
 {
 	u64 host_reads, host_writes, data_units_read, data_units_written;
+	u16 status;
 
-	req->ns = nvmet_find_namespace(req->sq->ctrl,
-				       req->cmd->get_log_page.nsid);
-	if (!req->ns) {
-		pr_err("Could not find namespace id : %d\n",
-				le32_to_cpu(req->cmd->get_log_page.nsid));
-		req->error_loc = offsetof(struct nvme_rw_command, nsid);
-		return NVME_SC_INVALID_NS | NVME_SC_DNR;
-	}
+	status = nvmet_req_find_ns(req);
+	if (status)
+		return status;
 
 	/* we don't have the right data for file backed ns */
 	if (!req->ns->bdev)
@@ -468,7 +464,7 @@ static void nvmet_execute_identify_ns(struct nvmet_req *req)
 {
 	struct nvmet_ctrl *ctrl = req->sq->ctrl;
 	struct nvme_id_ns *id;
-	u16 status = 0;
+	u16 status;
 
 	if (le32_to_cpu(req->cmd->identify.nsid) == NVME_NSID_ALL) {
 		req->error_loc = offsetof(struct nvme_identify, nsid);
@@ -483,8 +479,8 @@ static void nvmet_execute_identify_ns(struct nvmet_req *req)
 	}
 
 	/* return an all zeroed buffer if we can't find an active namespace */
-	req->ns = nvmet_find_namespace(ctrl, req->cmd->identify.nsid);
-	if (!req->ns) {
+	status = nvmet_req_find_ns(req);
+	if (status) {
 		status = 0;
 		goto done;
 	}
@@ -604,15 +600,12 @@ static u16 nvmet_copy_ns_identifier(struct nvmet_req *req, u8 type, u8 len,
 
 static void nvmet_execute_identify_desclist(struct nvmet_req *req)
 {
-	u16 status = 0;
 	off_t off = 0;
+	u16 status;
 
-	req->ns = nvmet_find_namespace(req->sq->ctrl, req->cmd->identify.nsid);
-	if (!req->ns) {
-		req->error_loc = offsetof(struct nvme_identify, nsid);
-		status = NVME_SC_INVALID_NS | NVME_SC_DNR;
+	status = nvmet_req_find_ns(req);
+	if (status)
 		goto out;
-	}
 
 	if (memchr_inv(&req->ns->uuid, 0, sizeof(req->ns->uuid))) {
 		status = nvmet_copy_ns_identifier(req, NVME_NIDT_UUID,
@@ -692,13 +685,11 @@ static u16 nvmet_set_feat_write_protect(struct nvmet_req *req)
 {
 	u32 write_protect = le32_to_cpu(req->cmd->common.cdw11);
 	struct nvmet_subsys *subsys = req->sq->ctrl->subsys;
-	u16 status = NVME_SC_FEATURE_NOT_CHANGEABLE;
+	u16 status;
 
-	req->ns = nvmet_find_namespace(req->sq->ctrl, req->cmd->rw.nsid);
-	if (unlikely(!req->ns)) {
-		req->error_loc = offsetof(struct nvme_common_command, nsid);
-		return status = NVME_SC_INVALID_NS | NVME_SC_DNR;
-	}
+	status = nvmet_req_find_ns(req);
+	if (status)
+		return status;
 
 	mutex_lock(&subsys->lock);
 	switch (write_protect) {
@@ -799,11 +790,10 @@ static u16 nvmet_get_feat_write_protect(struct nvmet_req *req)
 	struct nvmet_subsys *subsys = req->sq->ctrl->subsys;
 	u32 result;
 
-	req->ns = nvmet_find_namespace(req->sq->ctrl, req->cmd->common.nsid);
-	if (!req->ns)  {
-		req->error_loc = offsetof(struct nvme_common_command, nsid);
-		return NVME_SC_INVALID_NS | NVME_SC_DNR;
-	}
+	result = nvmet_req_find_ns(req);
+	if (result)
+		return result;
+
 	mutex_lock(&subsys->lock);
 	if (req->ns->readonly == true)
 		result = NVME_NS_WRITE_PROTECT;

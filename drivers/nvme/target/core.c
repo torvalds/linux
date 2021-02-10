@@ -417,15 +417,18 @@ void nvmet_stop_keep_alive_timer(struct nvmet_ctrl *ctrl)
 	cancel_delayed_work_sync(&ctrl->ka_work);
 }
 
-struct nvmet_ns *nvmet_find_namespace(struct nvmet_ctrl *ctrl, __le32 nsid)
+u16 nvmet_req_find_ns(struct nvmet_req *req)
 {
-	struct nvmet_ns *ns;
+	u32 nsid = le32_to_cpu(req->cmd->common.nsid);
 
-	ns = xa_load(&ctrl->subsys->namespaces, le32_to_cpu(nsid));
-	if (ns)
-		percpu_ref_get(&ns->ref);
+	req->ns = xa_load(&req->sq->ctrl->subsys->namespaces, nsid);
+	if (unlikely(!req->ns)) {
+		req->error_loc = offsetof(struct nvme_common_command, nsid);
+		return NVME_SC_INVALID_NS | NVME_SC_DNR;
+	}
 
-	return ns;
+	percpu_ref_get(&req->ns->ref);
+	return NVME_SC_SUCCESS;
 }
 
 static void nvmet_destroy_namespace(struct percpu_ref *ref)
@@ -862,11 +865,10 @@ static u16 nvmet_parse_io_cmd(struct nvmet_req *req)
 	if (nvmet_req_passthru_ctrl(req))
 		return nvmet_parse_passthru_io_cmd(req);
 
-	req->ns = nvmet_find_namespace(req->sq->ctrl, cmd->rw.nsid);
-	if (unlikely(!req->ns)) {
-		req->error_loc = offsetof(struct nvme_common_command, nsid);
-		return NVME_SC_INVALID_NS | NVME_SC_DNR;
-	}
+	ret = nvmet_req_find_ns(req);
+	if (unlikely(ret))
+		return ret;
+
 	ret = nvmet_check_ana_state(req->port, req->ns);
 	if (unlikely(ret)) {
 		req->error_loc = offsetof(struct nvme_common_command, nsid);
