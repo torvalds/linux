@@ -1380,8 +1380,11 @@ good_area:
 	 */
 	fault = handle_mm_fault(vma, address, flags, regs);
 
-	/* Quick path to respond to signals */
 	if (fault_signal_pending(fault, regs)) {
+		/*
+		 * Quick path to respond to signals.  The core mm code
+		 * has unlocked the mm for us if we get here.
+		 */
 		if (!user_mode(regs))
 			no_context(regs, error_code, address, SIGBUS,
 				   BUS_ADRERR);
