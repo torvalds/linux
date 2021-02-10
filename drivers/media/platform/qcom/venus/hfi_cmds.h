@@ -68,7 +68,7 @@ struct hfi_sys_release_resource_pkt {
 struct hfi_sys_set_property_pkt {
 	struct hfi_pkt_hdr hdr;
 	u32 num_properties;
-	u32 data[1];
+	u32 data[];
 };
 
 struct hfi_sys_get_property_pkt {
