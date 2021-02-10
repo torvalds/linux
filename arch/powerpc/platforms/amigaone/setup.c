@@ -70,7 +70,7 @@ void __init amigaone_setup_arch(void)
 		ppc_md.progress("Linux/PPC "UTS_RELEASE"\n", 0);
 }
 
-void __init amigaone_discover_phbs(void)
+static void __init amigaone_discover_phbs(void)
 {
 	struct device_node *np;
 	int phb = -ENODEV;
