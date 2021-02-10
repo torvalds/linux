@@ -453,11 +453,6 @@ struct radeon_surface_reg {
 struct radeon_mman {
 	struct ttm_bo_device		bdev;
 	bool				initialized;
-
-#if defined(CONFIG_DEBUG_FS)
-	struct dentry			*vram;
-	struct dentry			*gtt;
-#endif
 };
 
 struct radeon_bo_list {
