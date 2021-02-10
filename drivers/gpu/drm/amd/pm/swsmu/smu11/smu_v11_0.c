@@ -1208,9 +1208,6 @@ smu_v11_0_set_fan_speed_pwm(struct smu_context *smu, uint32_t speed)
 
 	speed = MIN(speed, 255);
 
-	if (smu_v11_0_auto_fan_control(smu, 0))
-		return -EINVAL;
-
 	duty100 = REG_GET_FIELD(RREG32_SOC15(THM, 0, mmCG_FDO_CTRL1),
 				CG_FDO_CTRL1, FMAX_DUTY100);
 	if (!duty100)
@@ -1237,11 +1234,6 @@ int smu_v11_0_set_fan_speed_rpm(struct smu_context *smu,
 	 */
 	uint32_t crystal_clock_freq = 2500;
 	uint32_t tach_period;
-	int ret;
-
-	ret = smu_v11_0_auto_fan_control(smu, 0);
-	if (ret)
-		return ret;
 
 	/*
 	 * To prevent from possible overheat, some ASICs may have requirement
@@ -1257,9 +1249,7 @@ int smu_v11_0_set_fan_speed_rpm(struct smu_context *smu,
 				   CG_TACH_CTRL, TARGET_PERIOD,
 				   tach_period));
 
-	ret = smu_v11_0_set_fan_static_mode(smu, FDO_PWM_MODE_STATIC_RPM);
-
-	return ret;
+	return smu_v11_0_set_fan_static_mode(smu, FDO_PWM_MODE_STATIC_RPM);
 }
 
 int smu_v11_0_get_fan_speed_pwm(struct smu_context *smu,
@@ -1330,7 +1320,9 @@ smu_v11_0_set_fan_control_mode(struct smu_context *smu,
 
 	switch (mode) {
 	case AMD_FAN_CTRL_NONE:
-		ret = smu_v11_0_set_fan_speed_pwm(smu, 255);
+		ret = smu_v11_0_auto_fan_control(smu, 0);
+		if (!ret)
+			ret = smu_v11_0_set_fan_speed_pwm(smu, 255);
 		break;
 	case AMD_FAN_CTRL_MANUAL:
 		ret = smu_v11_0_auto_fan_control(smu, 0);
