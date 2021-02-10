@@ -1559,7 +1559,8 @@ static int gmc_v9_0_sw_init(void *handle)
 	 * for video processing.
 	 */
 	adev->vm_manager.first_kfd_vmid =
-		adev->asic_type == CHIP_ARCTURUS ? 3 : 8;
+		(adev->asic_type == CHIP_ARCTURUS ||
+		 adev->asic_type == CHIP_ALDEBARAN) ? 3 : 8;
 
 	amdgpu_vm_manager_init(adev);
 
