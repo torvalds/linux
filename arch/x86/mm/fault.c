@@ -655,13 +655,84 @@ static void set_signal_archinfo(unsigned long address,
 }
 
 static noinline void
-no_context(struct pt_regs *regs, unsigned long error_code,
-	   unsigned long address, int signal, int si_code)
+page_fault_oops(struct pt_regs *regs, unsigned long error_code,
+		unsigned long address)
 {
-	struct task_struct *tsk = current;
 	unsigned long flags;
 	int sig;
 
+	if (user_mode(regs)) {
+		/*
+		 * Implicit kernel access from user mode?  Skip the stack
+		 * overflow and EFI special cases.
+		 */
+		goto oops;
+	}
+
+#ifdef CONFIG_VMAP_STACK
+	/*
+	 * Stack overflow?  During boot, we can fault near the initial
+	 * stack in the direct map, but that's not an overflow -- check
+	 * that we're in vmalloc space to avoid this.
+	 */
+	if (is_vmalloc_addr((void *)address) &&
+	    (((unsigned long)current->stack - 1 - address < PAGE_SIZE) ||
+	     address - ((unsigned long)current->stack + THREAD_SIZE) < PAGE_SIZE)) {
+		unsigned long stack = __this_cpu_ist_top_va(DF) - sizeof(void *);
+		/*
+		 * We're likely to be running with very little stack space
+		 * left.  It's plausible that we'd hit this condition but
+		 * double-fault even before we get this far, in which case
+		 * we're fine: the double-fault handler will deal with it.
+		 *
+		 * We don't want to make it all the way into the oops code
+		 * and then double-fault, though, because we're likely to
+		 * break the console driver and lose most of the stack dump.
+		 */
+		asm volatile ("movq %[stack], %%rsp\n\t"
+			      "call handle_stack_overflow\n\t"
+			      "1: jmp 1b"
+			      : ASM_CALL_CONSTRAINT
+			      : "D" ("kernel stack overflow (page fault)"),
+				"S" (regs), "d" (address),
+				[stack] "rm" (stack));
+		unreachable();
+	}
+#endif
+
+	/*
+	 * Buggy firmware could access regions which might page fault, try to
+	 * recover from such faults.
+	 */
+	if (IS_ENABLED(CONFIG_EFI))
+		efi_recover_from_page_fault(address);
+
+oops:
+	/*
+	 * Oops. The kernel tried to access some bad page. We'll have to
+	 * terminate things with extreme prejudice:
+	 */
+	flags = oops_begin();
+
+	show_fault_oops(regs, error_code, address);
+
+	if (task_stack_end_corrupted(current))
+		printk(KERN_EMERG "Thread overran stack, or stack corrupted\n");
+
+	sig = SIGKILL;
+	if (__die("Oops", regs, error_code))
+		sig = 0;
+
+	/* Executive summary in case the body of the oops scrolled away */
+	printk(KERN_DEFAULT "CR2: %016lx\n", address);
+
+	oops_end(flags, regs, sig);
+}
+
+static noinline void
+no_context(struct pt_regs *regs, unsigned long error_code,
+	   unsigned long address, int signal, int si_code)
+{
 	if (user_mode(regs)) {
 		/*
 		 * This is an implicit supervisor-mode access from user
@@ -702,78 +773,15 @@ no_context(struct pt_regs *regs, unsigned long error_code,
 		return;
 	}
 
-#ifdef CONFIG_VMAP_STACK
 	/*
-	 * Stack overflow?  During boot, we can fault near the initial
-	 * stack in the direct map, but that's not an overflow -- check
-	 * that we're in vmalloc space to avoid this.
-	 */
-	if (is_vmalloc_addr((void *)address) &&
-	    (((unsigned long)tsk->stack - 1 - address < PAGE_SIZE) ||
-	     address - ((unsigned long)tsk->stack + THREAD_SIZE) < PAGE_SIZE)) {
-		unsigned long stack = __this_cpu_ist_top_va(DF) - sizeof(void *);
-		/*
-		 * We're likely to be running with very little stack space
-		 * left.  It's plausible that we'd hit this condition but
-		 * double-fault even before we get this far, in which case
-		 * we're fine: the double-fault handler will deal with it.
-		 *
-		 * We don't want to make it all the way into the oops code
-		 * and then double-fault, though, because we're likely to
-		 * break the console driver and lose most of the stack dump.
-		 */
-		asm volatile ("movq %[stack], %%rsp\n\t"
-			      "call handle_stack_overflow\n\t"
-			      "1: jmp 1b"
-			      : ASM_CALL_CONSTRAINT
-			      : "D" ("kernel stack overflow (page fault)"),
-				"S" (regs), "d" (address),
-				[stack] "rm" (stack));
-		unreachable();
-	}
-#endif
-
-	/*
-	 * 32-bit:
-	 *
-	 *   Valid to do another page fault here, because if this fault
-	 *   had been triggered by is_prefetch fixup_exception would have
-	 *   handled it.
-	 *
-	 * 64-bit:
-	 *
-	 *   Hall of shame of CPU/BIOS bugs.
+	 * AMD erratum #91 manifests as a spurious page fault on a PREFETCH
+	 * instruction.
 	 */
 	if (is_prefetch(regs, error_code, address))
 		return;
 
-	/*
-	 * Buggy firmware could access regions which might page fault, try to
-	 * recover from such faults.
-	 */
-	if (IS_ENABLED(CONFIG_EFI))
-		efi_recover_from_page_fault(address);
-
 oops:
-	/*
-	 * Oops. The kernel tried to access some bad page. We'll have to
-	 * terminate things with extreme prejudice:
-	 */
-	flags = oops_begin();
-
-	show_fault_oops(regs, error_code, address);
-
-	if (task_stack_end_corrupted(tsk))
-		printk(KERN_EMERG "Thread overran stack, or stack corrupted\n");
-
-	sig = SIGKILL;
-	if (__die("Oops", regs, error_code))
-		sig = 0;
-
-	/* Executive summary in case the body of the oops scrolled away */
-	printk(KERN_DEFAULT "CR2: %016lx\n", address);
-
-	oops_end(flags, regs, sig);
+	page_fault_oops(regs, error_code, address);
 }
 
 /*
