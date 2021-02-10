@@ -1228,7 +1228,6 @@ int amdgpu_debugfs_regs_init(struct amdgpu_device *adev)
 					  adev, debugfs_regs[i]);
 		if (!i && !IS_ERR_OR_NULL(ent))
 			i_size_write(ent->d_inode, adev->rmmio_size);
-		adev->debugfs_regs[i] = ent;
 	}
 
 	return 0;
@@ -1594,22 +1593,21 @@ DEFINE_SIMPLE_ATTRIBUTE(fops_sclk_set, NULL,
 
 int amdgpu_debugfs_init(struct amdgpu_device *adev)
 {
+	struct dentry *ent;
 	int r, i;
 
-	adev->debugfs_preempt =
-		debugfs_create_file("amdgpu_preempt_ib", 0600,
-				    adev_to_drm(adev)->primary->debugfs_root, adev,
-				    &fops_ib_preempt);
-	if (!(adev->debugfs_preempt)) {
+	ent = debugfs_create_file("amdgpu_preempt_ib", 0600,
+				  adev_to_drm(adev)->primary->debugfs_root, adev,
+				  &fops_ib_preempt);
+	if (!ent) {
 		DRM_ERROR("unable to create amdgpu_preempt_ib debugsfs file\n");
 		return -EIO;
 	}
 
-	adev->smu.debugfs_sclk =
-		debugfs_create_file("amdgpu_force_sclk", 0200,
-				    adev_to_drm(adev)->primary->debugfs_root, adev,
-				    &fops_sclk_set);
-	if (!(adev->smu.debugfs_sclk)) {
+	ent = debugfs_create_file("amdgpu_force_sclk", 0200,
+				  adev_to_drm(adev)->primary->debugfs_root, adev,
+				  &fops_sclk_set);
+	if (!ent) {
 		DRM_ERROR("unable to create amdgpu_set_sclk debugsfs file\n");
 		return -EIO;
 	}

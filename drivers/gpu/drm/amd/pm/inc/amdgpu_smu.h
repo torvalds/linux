@@ -439,9 +439,6 @@ struct smu_context
 	struct smu_baco_context		smu_baco;
 	struct smu_temperature_range	thermal_range;
 	void *od_settings;
-#if defined(CONFIG_DEBUG_FS)
-	struct dentry                   *debugfs_sclk;
-#endif
 
 	struct smu_umd_pstate_table	pstate_table;
 	uint32_t pstate_sclk;

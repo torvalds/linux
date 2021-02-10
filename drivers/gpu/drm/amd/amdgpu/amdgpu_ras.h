@@ -318,8 +318,6 @@ struct amdgpu_ras {
 	uint32_t supported;
 	uint32_t features;
 	struct list_head head;
-	/* debugfs */
-	struct dentry *dir;
 	/* sysfs */
 	struct device_attribute features_attr;
 	struct bin_attribute badpages_attr;
@@ -395,8 +393,6 @@ struct ras_manager {
 	struct list_head node;
 	/* the device */
 	struct amdgpu_device *adev;
-	/* debugfs */
-	struct dentry *ent;
 	/* sysfs */
 	struct device_attribute sysfs_attr;
 	int attr_inuse;

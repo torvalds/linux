@@ -1137,16 +1137,17 @@ static int amdgpu_ras_sysfs_remove_all(struct amdgpu_device *adev)
  *
  */
 /* debugfs begin */
-static void amdgpu_ras_debugfs_create_ctrl_node(struct amdgpu_device *adev)
+struct dentry *amdgpu_ras_debugfs_create_ctrl_node(struct amdgpu_device *adev)
 {
 	struct amdgpu_ras *con = amdgpu_ras_get_context(adev);
+	struct dentry *dir;
 	struct drm_minor *minor = adev_to_drm(adev)->primary;
 
-	con->dir = debugfs_create_dir(RAS_FS_NAME, minor->debugfs_root);
-	debugfs_create_file("ras_ctrl", S_IWUGO | S_IRUGO, con->dir,
-				adev, &amdgpu_ras_debugfs_ctrl_ops);
-	debugfs_create_file("ras_eeprom_reset", S_IWUGO | S_IRUGO, con->dir,
-				adev, &amdgpu_ras_debugfs_eeprom_ops);
+	dir = debugfs_create_dir(RAS_FS_NAME, minor->debugfs_root);
+	debugfs_create_file("ras_ctrl", S_IWUGO | S_IRUGO, dir, adev,
+			    &amdgpu_ras_debugfs_ctrl_ops);
+	debugfs_create_file("ras_eeprom_reset", S_IWUGO | S_IRUGO, dir, adev,
+			    &amdgpu_ras_debugfs_eeprom_ops);
 
 	/*
 	 * After one uncorrectable error happens, usually GPU recovery will
@@ -1156,24 +1157,24 @@ static void amdgpu_ras_debugfs_create_ctrl_node(struct amdgpu_device *adev)
 	 * ERREVENT_ATHUB_INTERRUPT generated. Normal GPU recovery routine
 	 * will never be called.
 	 */
-	debugfs_create_bool("auto_reboot", S_IWUGO | S_IRUGO, con->dir,
-				&con->reboot);
+	debugfs_create_bool("auto_reboot", S_IWUGO | S_IRUGO, dir, &con->reboot);
 
 	/*
 	 * User could set this not to clean up hardware's error count register
 	 * of RAS IPs during ras recovery.
 	 */
-	debugfs_create_bool("disable_ras_err_cnt_harvest", 0644,
-			con->dir, &con->disable_ras_err_cnt_harvest);
+	debugfs_create_bool("disable_ras_err_cnt_harvest", 0644, dir,
+			    &con->disable_ras_err_cnt_harvest);
+	return dir;
 }
 
 static void amdgpu_ras_debugfs_create(struct amdgpu_device *adev,
-		struct ras_fs_if *head)
+				      struct ras_fs_if *head,
+				      struct dentry *dir)
 {
-	struct amdgpu_ras *con = amdgpu_ras_get_context(adev);
 	struct ras_manager *obj = amdgpu_ras_find_obj(adev, &head->head);
 
-	if (!obj || obj->ent)
+	if (!obj || !dir)
 		return;
 
 	get_obj(obj);
@@ -1182,14 +1183,14 @@ static void amdgpu_ras_debugfs_create(struct amdgpu_device *adev,
 			head->debugfs_name,
 			sizeof(obj->fs_data.debugfs_name));
 
-	obj->ent = debugfs_create_file(obj->fs_data.debugfs_name,
-				       S_IWUGO | S_IRUGO, con->dir, obj,
-				       &amdgpu_ras_debugfs_ops);
+	debugfs_create_file(obj->fs_data.debugfs_name, S_IWUGO | S_IRUGO, dir,
+			    obj, &amdgpu_ras_debugfs_ops);
 }
 
 void amdgpu_ras_debugfs_create_all(struct amdgpu_device *adev)
 {
 	struct amdgpu_ras *con = amdgpu_ras_get_context(adev);
+	struct dentry *dir;
 	struct ras_manager *obj;
 	struct ras_fs_if fs_info;
 
@@ -1200,7 +1201,7 @@ void amdgpu_ras_debugfs_create_all(struct amdgpu_device *adev)
 	if (!IS_ENABLED(CONFIG_DEBUG_FS) || !con)
 		return;
 
-	amdgpu_ras_debugfs_create_ctrl_node(adev);
+	dir = amdgpu_ras_debugfs_create_ctrl_node(adev);
 
 	list_for_each_entry(obj, &con->head, node) {
 		if (amdgpu_ras_is_supported(adev, obj->head.block) &&
@@ -1208,34 +1209,11 @@ void amdgpu_ras_debugfs_create_all(struct amdgpu_device *adev)
 			sprintf(fs_info.debugfs_name, "%s_err_inject",
 					ras_block_str(obj->head.block));
 			fs_info.head = obj->head;
-			amdgpu_ras_debugfs_create(adev, &fs_info);
+			amdgpu_ras_debugfs_create(adev, &fs_info, dir);
 		}
 	}
 }
 
-static void amdgpu_ras_debugfs_remove(struct amdgpu_device *adev,
-		struct ras_common_if *head)
-{
-	struct ras_manager *obj = amdgpu_ras_find_obj(adev, head);
-
-	if (!obj || !obj->ent)
-		return;
-
-	obj->ent = NULL;
-	put_obj(obj);
-}
-
-static void amdgpu_ras_debugfs_remove_all(struct amdgpu_device *adev)
-{
-	struct amdgpu_ras *con = amdgpu_ras_get_context(adev);
-	struct ras_manager *obj, *tmp;
-
-	list_for_each_entry_safe(obj, tmp, &con->head, node) {
-		amdgpu_ras_debugfs_remove(adev, &obj->head);
-	}
-
-	con->dir = NULL;
-}
 /* debugfs end */
 
 /* ras fs */
@@ -1282,8 +1260,17 @@ static int amdgpu_ras_fs_init(struct amdgpu_device *adev)
 
 static int amdgpu_ras_fs_fini(struct amdgpu_device *adev)
 {
-	if (IS_ENABLED(CONFIG_DEBUG_FS))
-		amdgpu_ras_debugfs_remove_all(adev);
+	struct amdgpu_ras *con = amdgpu_ras_get_context(adev);
+	struct ras_manager *con_obj, *ip_obj, *tmp;
+
+	if (IS_ENABLED(CONFIG_DEBUG_FS)) {
+		list_for_each_entry_safe(con_obj, tmp, &con->head, node) {
+			ip_obj = amdgpu_ras_find_obj(adev, &con_obj->head);
+			if (ip_obj)
+				put_obj(ip_obj);
+		}
+	}
+
 	amdgpu_ras_sysfs_remove_all(adev);
 	return 0;
 }

@@ -1696,7 +1696,7 @@ static void amdgpu_ttm_training_data_block_init(struct amdgpu_device *adev)
 		(adev->gmc.mc_vram_size - GDDR6_MEM_TRAINING_OFFSET);
 	ctx->train_data_size =
 		GDDR6_MEM_TRAINING_DATA_SIZE_IN_BYTES;
-	
+
 	DRM_DEBUG("train_data_size:%llx,p2c_train_data_offset:%llx,c2p_train_data_offset:%llx.\n",
 			ctx->train_data_size,
 			ctx->p2c_train_data_offset,
@@ -2474,18 +2474,6 @@ static const struct file_operations amdgpu_ttm_iomem_fops = {
 	.llseek = default_llseek
 };
 
-static const struct {
-	char *name;
-	const struct file_operations *fops;
-	int domain;
-} ttm_debugfs_entries[] = {
-	{ "amdgpu_vram", &amdgpu_ttm_vram_fops, TTM_PL_VRAM },
-#ifdef CONFIG_DRM_AMDGPU_GART_DEBUGFS
-	{ "amdgpu_gtt", &amdgpu_ttm_gtt_fops, TTM_PL_TT },
-#endif
-	{ "amdgpu_iomem", &amdgpu_ttm_iomem_fops, TTM_PL_SYSTEM },
-};
-
 #endif
 
 int amdgpu_ttm_debugfs_init(struct amdgpu_device *adev)
@@ -2494,23 +2482,18 @@ int amdgpu_ttm_debugfs_init(struct amdgpu_device *adev)
 	unsigned count;
 
 	struct drm_minor *minor = adev_to_drm(adev)->primary;
-	struct dentry *ent, *root = minor->debugfs_root;
+	umode_t mode = S_IFREG | S_IRUGO;
+	struct dentry *root = minor->debugfs_root;
 
-	for (count = 0; count < ARRAY_SIZE(ttm_debugfs_entries); count++) {
-		ent = debugfs_create_file(
-				ttm_debugfs_entries[count].name,
-				S_IFREG | S_IRUGO, root,
-				adev,
-				ttm_debugfs_entries[count].fops);
-		if (IS_ERR(ent))
-			return PTR_ERR(ent);
-		if (ttm_debugfs_entries[count].domain == TTM_PL_VRAM)
-			i_size_write(ent->d_inode, adev->gmc.mc_vram_size);
-		else if (ttm_debugfs_entries[count].domain == TTM_PL_TT)
-			i_size_write(ent->d_inode, adev->gmc.gart_size);
-		adev->mman.debugfs_entries[count] = ent;
-	}
+	debugfs_create_file_size("amdgpu_vram", mode, root, adev,
+				 &amdgpu_ttm_vram_fops, adev->gmc.mc_vram_size);
+#ifdef CONFIG_DRM_AMDGPU_GART_DEBUGFS
+	debugfs_create_file_size("amdgpu_gtt", mode, root, adev,
+				 &amdgpu_ttm_gtt_fops, adev->gmc.gart_size);
+#endif
 
+	debugfs_create_file("amdgpu_iomem", mode, root, adev,
+			    &amdgpu_ttm_iomem_fops);
 	count = ARRAY_SIZE(amdgpu_ttm_debugfs_list);
 	return amdgpu_debugfs_add_files(adev, amdgpu_ttm_debugfs_list, count);
 #else
