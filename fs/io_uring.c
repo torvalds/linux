@@ -1017,11 +1017,6 @@ static const struct io_op_def io_op_defs[] = {
 	},
 };
 
-enum io_mem_account {
-	ACCT_LOCKED,
-	ACCT_PINNED,
-};
-
 static void io_uring_try_cancel_requests(struct io_ring_ctx *ctx,
 					 struct task_struct *task,
 					 struct files_struct *files);
@@ -8355,25 +8350,16 @@ static inline int __io_account_mem(struct user_struct *user,
 	return 0;
 }
 
-static void io_unaccount_mem(struct io_ring_ctx *ctx, unsigned long nr_pages,
-			     enum io_mem_account acct)
+static void io_unaccount_mem(struct io_ring_ctx *ctx, unsigned long nr_pages)
 {
 	if (ctx->limit_mem)
 		__io_unaccount_mem(ctx->user, nr_pages);
 
-	if (ctx->mm_account) {
-		if (acct == ACCT_LOCKED) {
-			mmap_write_lock(ctx->mm_account);
-			ctx->mm_account->locked_vm -= nr_pages;
-			mmap_write_unlock(ctx->mm_account);
-		}else if (acct == ACCT_PINNED) {
-			atomic64_sub(nr_pages, &ctx->mm_account->pinned_vm);
-		}
-	}
+	if (ctx->mm_account)
+		atomic64_sub(nr_pages, &ctx->mm_account->pinned_vm);
 }
 
-static int io_account_mem(struct io_ring_ctx *ctx, unsigned long nr_pages,
-			  enum io_mem_account acct)
+static int io_account_mem(struct io_ring_ctx *ctx, unsigned long nr_pages)
 {
 	int ret;
 
@@ -8383,15 +8369,8 @@ static int io_account_mem(struct io_ring_ctx *ctx, unsigned long nr_pages,
 			return ret;
 	}
 
-	if (ctx->mm_account) {
-		if (acct == ACCT_LOCKED) {
-			mmap_write_lock(ctx->mm_account);
-			ctx->mm_account->locked_vm += nr_pages;
-			mmap_write_unlock(ctx->mm_account);
-		} else if (acct == ACCT_PINNED) {
-			atomic64_add(nr_pages, &ctx->mm_account->pinned_vm);
-		}
-	}
+	if (ctx->mm_account)
+		atomic64_add(nr_pages, &ctx->mm_account->pinned_vm);
 
 	return 0;
 }
@@ -8411,7 +8390,7 @@ static void io_mem_free(void *ptr)
 static void *io_mem_alloc(size_t size)
 {
 	gfp_t gfp_flags = GFP_KERNEL | __GFP_ZERO | __GFP_NOWARN | __GFP_COMP |
-				__GFP_NORETRY;
+				__GFP_NORETRY | __GFP_ACCOUNT;
 
 	return (void *) __get_free_pages(gfp_flags, get_order(size));
 }
@@ -8445,18 +8424,6 @@ static unsigned long rings_size(unsigned sq_entries, unsigned cq_entries,
 	return off;
 }
 
-static unsigned long ring_pages(unsigned sq_entries, unsigned cq_entries)
-{
-	size_t pages;
-
-	pages = (size_t)1 << get_order(
-		rings_size(sq_entries, cq_entries, NULL));
-	pages += (size_t)1 << get_order(
-		array_size(sizeof(struct io_uring_sqe), sq_entries));
-
-	return pages;
-}
-
 static int io_sqe_buffers_unregister(struct io_ring_ctx *ctx)
 {
 	int i, j;
@@ -8471,7 +8438,7 @@ static int io_sqe_buffers_unregister(struct io_ring_ctx *ctx)
 			unpin_user_page(imu->bvec[j].bv_page);
 
 		if (imu->acct_pages)
-			io_unaccount_mem(ctx, imu->acct_pages, ACCT_PINNED);
+			io_unaccount_mem(ctx, imu->acct_pages);
 		kvfree(imu->bvec);
 		imu->nr_bvecs = 0;
 	}
@@ -8569,7 +8536,7 @@ static int io_buffer_account_pin(struct io_ring_ctx *ctx, struct page **pages,
 	if (!imu->acct_pages)
 		return 0;
 
-	ret = io_account_mem(ctx, imu->acct_pages, ACCT_PINNED);
+	ret = io_account_mem(ctx, imu->acct_pages);
 	if (ret)
 		imu->acct_pages = 0;
 	return ret;
@@ -8948,14 +8915,6 @@ static void io_ring_ctx_wait_and_kill(struct io_ring_ctx *ctx)
 
 	/* if we failed setting up the ctx, we might not have any rings */
 	io_iopoll_try_reap_events(ctx);
-
-	/*
-	 * Do this upfront, so we won't have a grace period where the ring
-	 * is closed but resources aren't reaped yet. This can cause
-	 * spurious failure in setting up a new ring.
-	 */
-	io_unaccount_mem(ctx, ring_pages(ctx->sq_entries, ctx->cq_entries),
-			 ACCT_LOCKED);
 
 	INIT_WORK(&ctx->exit_work, io_ring_exit_work);
 	/*
@@ -9780,7 +9739,6 @@ static int io_uring_create(unsigned entries, struct io_uring_params *p,
 	struct user_struct *user = NULL;
 	struct io_ring_ctx *ctx;
 	struct file *file;
-	bool limit_mem;
 	int ret;
 
 	if (!entries)
@@ -9821,26 +9779,14 @@ static int io_uring_create(unsigned entries, struct io_uring_params *p,
 	}
 
 	user = get_uid(current_user());
-	limit_mem = !capable(CAP_IPC_LOCK);
-
-	if (limit_mem) {
-		ret = __io_account_mem(user,
-				ring_pages(p->sq_entries, p->cq_entries));
-		if (ret) {
-			free_uid(user);
-			return ret;
-		}
-	}
 
 	ctx = io_ring_ctx_alloc(p);
 	if (!ctx) {
-		if (limit_mem)
-			__io_unaccount_mem(user, ring_pages(p->sq_entries,
-								p->cq_entries));
 		free_uid(user);
 		return -ENOMEM;
 	}
 	ctx->compat = in_compat_syscall();
+	ctx->limit_mem = !capable(CAP_IPC_LOCK);
 	ctx->user = user;
 	ctx->creds = get_current_cred();
 #ifdef CONFIG_AUDIT
@@ -9876,17 +9822,6 @@ static int io_uring_create(unsigned entries, struct io_uring_params *p,
 		goto err;
 	}
 #endif
-
-	/*
-	 * Account memory _before_ installing the file descriptor. Once
-	 * the descriptor is installed, it can get closed at any time. Also
-	 * do this before hitting the general error path, as ring freeing
-	 * will un-account as well.
-	 */
-	io_account_mem(ctx, ring_pages(p->sq_entries, p->cq_entries),
-		       ACCT_LOCKED);
-	ctx->limit_mem = limit_mem;
-
 	ret = io_allocate_scq_urings(ctx, p);
 	if (ret)
 		goto err;
