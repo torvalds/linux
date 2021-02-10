@@ -5488,8 +5488,6 @@ int mlx5e_priv_init(struct mlx5e_priv *priv,
 		    struct net_device *netdev,
 		    struct mlx5_core_dev *mdev)
 {
-	memset(priv, 0, sizeof(*priv));
-
 	/* priv init */
 	priv->mdev        = mdev;
 	priv->netdev      = netdev;
@@ -5522,12 +5520,18 @@ void mlx5e_priv_cleanup(struct mlx5e_priv *priv)
 {
 	int i;
 
+	/* bail if change profile failed and also rollback failed */
+	if (!priv->mdev)
+		return;
+
 	destroy_workqueue(priv->wq);
 	free_cpumask_var(priv->scratchpad.cpumask);
 
 	for (i = 0; i < priv->htb.max_qos_sqs; i++)
 		kfree(priv->htb.qos_sq_stats[i]);
 	kvfree(priv->htb.qos_sq_stats);
+
+	memset(priv, 0, sizeof(*priv));
 }
 
 struct net_device *
@@ -5644,11 +5648,10 @@ void mlx5e_detach_netdev(struct mlx5e_priv *priv)
 }
 
 static int
-mlx5e_netdev_attach_profile(struct mlx5e_priv *priv,
+mlx5e_netdev_attach_profile(struct net_device *netdev, struct mlx5_core_dev *mdev,
 			    const struct mlx5e_profile *new_profile, void *new_ppriv)
 {
-	struct net_device *netdev = priv->netdev;
-	struct mlx5_core_dev *mdev = priv->mdev;
+	struct mlx5e_priv *priv = netdev_priv(netdev);
 	int err;
 
 	err = mlx5e_priv_init(priv, netdev, mdev);
@@ -5661,10 +5664,16 @@ mlx5e_netdev_attach_profile(struct mlx5e_priv *priv,
 	priv->ppriv = new_ppriv;
 	err = new_profile->init(priv->mdev, priv->netdev);
 	if (err)
-		return err;
+		goto priv_cleanup;
 	err = mlx5e_attach_netdev(priv);
 	if (err)
-		new_profile->cleanup(priv);
+		goto profile_cleanup;
+	return err;
+
+profile_cleanup:
+	new_profile->cleanup(priv);
+priv_cleanup:
+	mlx5e_priv_cleanup(priv);
 	return err;
 }
 
@@ -5673,13 +5682,14 @@ int mlx5e_netdev_change_profile(struct mlx5e_priv *priv,
 {
 	unsigned int new_max_nch = mlx5e_calc_max_nch(priv, new_profile);
 	const struct mlx5e_profile *orig_profile = priv->profile;
+	struct net_device *netdev = priv->netdev;
+	struct mlx5_core_dev *mdev = priv->mdev;
 	void *orig_ppriv = priv->ppriv;
 	int err, rollback_err;
 
 	/* sanity */
 	if (new_max_nch != priv->max_nch) {
-		netdev_warn(priv->netdev,
-			    "%s: Replacing profile with different max channels\n",
+		netdev_warn(netdev, "%s: Replacing profile with different max channels\n",
 			    __func__);
 		return -EINVAL;
 	}
@@ -5689,22 +5699,19 @@ int mlx5e_netdev_change_profile(struct mlx5e_priv *priv,
 	priv->profile->cleanup(priv);
 	mlx5e_priv_cleanup(priv);
 
-	err = mlx5e_netdev_attach_profile(priv, new_profile, new_ppriv);
+	err = mlx5e_netdev_attach_profile(netdev, mdev, new_profile, new_ppriv);
 	if (err) { /* roll back to original profile */
-		netdev_warn(priv->netdev, "%s: new profile init failed, %d\n",
-			    __func__, err);
+		netdev_warn(netdev, "%s: new profile init failed, %d\n", __func__, err);
 		goto rollback;
 	}
 
 	return 0;
 
 rollback:
-	rollback_err = mlx5e_netdev_attach_profile(priv, orig_profile, orig_ppriv);
-	if (rollback_err) {
-		netdev_err(priv->netdev,
-			   "%s: failed to rollback to orig profile, %d\n",
+	rollback_err = mlx5e_netdev_attach_profile(netdev, mdev, orig_profile, orig_ppriv);
+	if (rollback_err)
+		netdev_err(netdev, "%s: failed to rollback to orig profile, %d\n",
 			   __func__, rollback_err);
-	}
 	return err;
 }
 
