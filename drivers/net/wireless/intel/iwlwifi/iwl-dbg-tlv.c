@@ -959,6 +959,7 @@ static void iwl_dbg_tlv_init_cfg(struct iwl_fw_runtime *fwrt)
 {
 	enum iwl_fw_ini_buffer_location *ini_dest = &fwrt->trans->dbg.ini_dest;
 	int ret, i;
+	u32 failed_alloc = 0;
 
 	if (*ini_dest != IWL_FW_INI_LOCATION_INVALID)
 		return;
@@ -990,10 +991,43 @@ static void iwl_dbg_tlv_init_cfg(struct iwl_fw_runtime *fwrt)
 			continue;
 
 		ret = iwl_dbg_tlv_alloc_fragments(fwrt, i);
-		if (ret)
+
+		if (ret) {
 			IWL_WARN(fwrt,
 				 "WRT: Failed to allocate DRAM buffer for allocation id %d, ret=%d\n",
 				 i, ret);
+			failed_alloc |= BIT(i);
+		}
+	}
+
+	if (!failed_alloc)
+		return;
+
+	for (i = 0; i < ARRAY_SIZE(fwrt->trans->dbg.active_regions) && failed_alloc; i++) {
+		struct iwl_fw_ini_region_tlv *reg;
+		struct iwl_ucode_tlv **active_reg =
+			&fwrt->trans->dbg.active_regions[i];
+		u32 reg_type;
+
+		if (!*active_reg)
+			continue;
+
+		reg = (void *)(*active_reg)->data;
+		reg_type = le32_to_cpu(reg->type);
+
+		if (reg_type != IWL_FW_INI_REGION_DRAM_BUFFER ||
+		    !(BIT(le32_to_cpu(reg->dram_alloc_id)) & failed_alloc))
+			continue;
+
+		IWL_DEBUG_FW(fwrt,
+			     "WRT: removing allocation id %d from region id %d\n",
+			     le32_to_cpu(reg->dram_alloc_id), i);
+
+		failed_alloc &= ~le32_to_cpu(reg->dram_alloc_id);
+		fwrt->trans->dbg.unsupported_region_msk |= BIT(i);
+
+		kfree(*active_reg);
+		*active_reg = NULL;
 	}
 }
 

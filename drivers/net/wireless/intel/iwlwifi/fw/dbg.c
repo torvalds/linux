@@ -2073,7 +2073,8 @@ static u32 iwl_dump_ini_info(struct iwl_fw_runtime *fwrt,
 	dump->umac_minor = cpu_to_le32(fwrt->dump.fw_ver.umac_minor);
 
 	dump->fw_mon_mode = cpu_to_le32(fwrt->trans->dbg.ini_dest);
-	dump->regions_mask = trigger->regions_mask;
+	dump->regions_mask = trigger->regions_mask &
+			     ~cpu_to_le64(fwrt->trans->dbg.unsupported_region_msk);
 
 	dump->build_tag_len = cpu_to_le32(sizeof(dump->build_tag));
 	memcpy(dump->build_tag, fwrt->fw->human_readable,
@@ -2202,7 +2203,8 @@ static u32 iwl_dump_ini_trigger(struct iwl_fw_runtime *fwrt,
 	};
 	int i;
 	u32 size = 0;
-	u64 regions_mask = le64_to_cpu(trigger->regions_mask);
+	u64 regions_mask = le64_to_cpu(trigger->regions_mask) &
+			   ~(fwrt->trans->dbg.unsupported_region_msk);
 
 	BUILD_BUG_ON(sizeof(trigger->regions_mask) != sizeof(regions_mask));
 	BUILD_BUG_ON((sizeof(trigger->regions_mask) * BITS_PER_BYTE) <
