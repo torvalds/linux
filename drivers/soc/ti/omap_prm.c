@@ -332,7 +332,7 @@ static const struct omap_prm_data dra7_prm_data[] = {
 	{
 		.name = "l3init", .base = 0x4ae07300,
 		.pwrstctrl = 0x0, .pwrstst = 0x4, .dmap = &omap_prm_alwon,
-		.rstctrl = 0x10, .rstst = 0x14, .rstmap = rst_map_012,
+		.rstctrl = 0x10, .rstst = 0x14, .rstmap = rst_map_01,
 		.clkdm_name = "pcie"
 	},
 	{
