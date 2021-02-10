@@ -1196,7 +1196,7 @@ static void iwl_mvm_lari_cfg(struct iwl_mvm *mvm)
 {
 	u8 ret;
 	int cmd_ret;
-	struct iwl_lari_config_change_cmd cmd = {};
+	struct iwl_lari_config_change_cmd_v2 cmd = {};
 
 	if (iwl_mvm_eval_dsm_indonesia_5g2(mvm) == DSM_VALUE_INDONESIA_ENABLE)
 		cmd.config_bitmap |=
@@ -1214,11 +1214,18 @@ static void iwl_mvm_lari_cfg(struct iwl_mvm *mvm)
 	/* apply more config masks here */
 
 	if (cmd.config_bitmap) {
-		IWL_DEBUG_RADIO(mvm, "sending LARI_CONFIG_CHANGE\n");
+		size_t cmd_size = iwl_fw_lookup_cmd_ver(mvm->fw,
+							REGULATORY_AND_NVM_GROUP,
+							LARI_CONFIG_CHANGE, 1) == 2 ?
+			sizeof(struct iwl_lari_config_change_cmd_v2) :
+			sizeof(struct iwl_lari_config_change_cmd_v1);
+		IWL_DEBUG_RADIO(mvm,
+				"sending LARI_CONFIG_CHANGE, config_bitmap=0x%x\n",
+				le32_to_cpu(cmd.config_bitmap));
 		cmd_ret = iwl_mvm_send_cmd_pdu(mvm,
 					       WIDE_ID(REGULATORY_AND_NVM_GROUP,
 						       LARI_CONFIG_CHANGE),
-					       0, sizeof(cmd), &cmd);
+					       0, cmd_size, &cmd);
 		if (cmd_ret < 0)
 			IWL_DEBUG_RADIO(mvm,
 					"Failed to send LARI_CONFIG_CHANGE (%d)\n",
