@@ -1051,6 +1051,8 @@ static int io_setup_async_rw(struct io_kiocb *req, const struct iovec *iovec,
 			     const struct iovec *fast_iov,
 			     struct iov_iter *iter, bool force);
 static void io_req_task_queue(struct io_kiocb *req);
+static void io_submit_flush_completions(struct io_comp_state *cs,
+					struct io_ring_ctx *ctx);
 
 static struct kmem_cache *req_cachep;
 
@@ -2139,6 +2141,7 @@ static inline struct io_kiocb *io_req_find_next(struct io_kiocb *req)
 
 static bool __tctx_task_work(struct io_uring_task *tctx)
 {
+	struct io_ring_ctx *ctx = NULL;
 	struct io_wq_work_list list;
 	struct io_wq_work_node *node;
 
@@ -2153,11 +2156,28 @@ static bool __tctx_task_work(struct io_uring_task *tctx)
 	node = list.first;
 	while (node) {
 		struct io_wq_work_node *next = node->next;
+		struct io_ring_ctx *this_ctx;
 		struct io_kiocb *req;
 
 		req = container_of(node, struct io_kiocb, io_task_work.node);
+		this_ctx = req->ctx;
 		req->task_work.func(&req->task_work);
 		node = next;
+
+		if (!ctx) {
+			ctx = this_ctx;
+		} else if (ctx != this_ctx) {
+			mutex_lock(&ctx->uring_lock);
+			io_submit_flush_completions(&ctx->submit_state.comp, ctx);
+			mutex_unlock(&ctx->uring_lock);
+			ctx = this_ctx;
+		}
+	}
+
+	if (ctx && ctx->submit_state.comp.nr) {
+		mutex_lock(&ctx->uring_lock);
+		io_submit_flush_completions(&ctx->submit_state.comp, ctx);
+		mutex_unlock(&ctx->uring_lock);
 	}
 
 	return list.first != NULL;
@@ -2280,7 +2300,7 @@ static void __io_req_task_submit(struct io_kiocb *req)
 	if (!ctx->sqo_dead &&
 	    !__io_sq_thread_acquire_mm(ctx) &&
 	    !__io_sq_thread_acquire_files(ctx))
-		__io_queue_sqe(req, NULL);
+		__io_queue_sqe(req, &ctx->submit_state.comp);
 	else
 		__io_req_task_cancel(req, -EFAULT);
 	mutex_unlock(&ctx->uring_lock);
