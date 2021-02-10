@@ -1083,6 +1083,7 @@ static void virtio_uml_release_dev(struct device *d)
 	}
 
 	os_close_file(vu_dev->sock);
+	kfree(vu_dev);
 }
 
 /* Platform device */
@@ -1096,7 +1097,7 @@ static int virtio_uml_probe(struct platform_device *pdev)
 	if (!pdata)
 		return -EINVAL;
 
-	vu_dev = devm_kzalloc(&pdev->dev, sizeof(*vu_dev), GFP_KERNEL);
+	vu_dev = kzalloc(sizeof(*vu_dev), GFP_KERNEL);
 	if (!vu_dev)
 		return -ENOMEM;
 

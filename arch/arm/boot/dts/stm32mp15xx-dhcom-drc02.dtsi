@@ -35,7 +35,7 @@
 	 */
 	rs485-rx-en {
 		gpio-hog;
-		gpios = <8 GPIO_ACTIVE_HIGH>;
+		gpios = <8 0>;
 		output-low;
 		line-name = "rs485-rx-en";
 	};
@@ -63,7 +63,7 @@
 	 */
 	usb-hub {
 		gpio-hog;
-		gpios = <2 GPIO_ACTIVE_HIGH>;
+		gpios = <2 0>;
 		output-high;
 		line-name = "usb-hub-reset";
 	};
@@ -87,6 +87,12 @@
 	};
 };
 
+&i2c4 {
+	touchscreen@49 {
+		status = "disabled";
+	};
+};
+
 &i2c5 {	/* TP7/TP8 */
 	pinctrl-names = "default";
 	pinctrl-0 = <&i2c5_pins_a>;
@@ -104,7 +110,7 @@
 	 * are used for on-board microSD slot instead.
 	 */
 	/delete-property/broken-cd;
-	cd-gpios = <&gpioi 10 (GPIO_ACTIVE_LOW | GPIO_PULL_UP)>;
+	cd-gpios = <&gpioi 10 GPIO_ACTIVE_HIGH>;
 	disable-wp;
 };
 

@@ -1037,8 +1037,8 @@ bool kvm_tdp_mmu_slot_set_dirty(struct kvm *kvm, struct kvm_memory_slot *slot)
 }
 
 /*
- * Clear non-leaf entries (and free associated page tables) which could
- * be replaced by large mappings, for GFNs within the slot.
+ * Clear leaf entries which could be replaced by large mappings, for
+ * GFNs within the slot.
  */
 static void zap_collapsible_spte_range(struct kvm *kvm,
 				       struct kvm_mmu_page *root,
@@ -1050,7 +1050,7 @@ static void zap_collapsible_spte_range(struct kvm *kvm,
 
 	tdp_root_for_each_pte(iter, root, start, end) {
 		if (!is_shadow_present_pte(iter.old_spte) ||
-		    is_last_spte(iter.old_spte, iter.level))
+		    !is_last_spte(iter.old_spte, iter.level))
 			continue;
 
 		pfn = spte_to_pfn(iter.old_spte);

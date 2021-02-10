@@ -320,7 +320,7 @@ int kvm_vcpu_ioctl_get_cpuid2(struct kvm_vcpu *vcpu,
 	if (cpuid->nent < vcpu->arch.cpuid_nent)
 		goto out;
 	r = -EFAULT;
-	if (copy_to_user(entries, &vcpu->arch.cpuid_entries,
+	if (copy_to_user(entries, vcpu->arch.cpuid_entries,
 			 vcpu->arch.cpuid_nent * sizeof(struct kvm_cpuid_entry2)))
 		goto out;
 	return 0;

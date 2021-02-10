@@ -8782,12 +8782,6 @@ static void io_uring_cancel_task_requests(struct io_ring_ctx *ctx,
 
 	if ((ctx->flags & IORING_SETUP_SQPOLL) && ctx->sq_data) {
 		atomic_dec(&task->io_uring->in_idle);
-		/*
-		 * If the files that are going away are the ones in the thread
-		 * identity, clear them out.
-		 */
-		if (task->io_uring->identity->files == files)
-			task->io_uring->identity->files = NULL;
 		io_sq_thread_unpark(ctx->sq_data);
 	}
 }
