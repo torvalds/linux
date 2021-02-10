@@ -7,8 +7,8 @@
 #define _CHECK_H
 
 #include <stdbool.h>
-#include "cfi.h"
-#include "arch.h"
+#include <objtool/cfi.h>
+#include <objtool/arch.h>
 
 struct insn_state {
 	struct cfi_state cfi;
@@ -17,6 +17,23 @@ struct insn_state {
 	bool df;
 	bool noinstr;
 	s8 instr;
+};
+
+struct alt_group {
+	/*
+	 * Pointer from a replacement group to the original group.  NULL if it
+	 * *is* the original group.
+	 */
+	struct alt_group *orig_group;
+
+	/* First and last instructions in the group */
+	struct instruction *first_insn, *last_insn;
+
+	/*
+	 * Byte-offset-addressed len-sized array of pointers to CFI structs.
+	 * This is shared with the other alt_groups in the same alternative.
+	 */
+	struct cfi_state **cfi;
 };
 
 struct instruction {
@@ -33,8 +50,7 @@ struct instruction {
 	bool retpoline_safe;
 	s8 instr;
 	u8 visited;
-	u8 ret_offset;
-	int alt_group;
+	struct alt_group *alt_group;
 	struct symbol *call_dest;
 	struct instruction *jump_dest;
 	struct instruction *first_jump_src;
@@ -43,15 +59,23 @@ struct instruction {
 	struct symbol *func;
 	struct list_head stack_ops;
 	struct cfi_state cfi;
-#ifdef INSN_USE_ORC
-	struct orc_entry orc;
-#endif
 };
 
 static inline bool is_static_jump(struct instruction *insn)
 {
 	return insn->type == INSN_JUMP_CONDITIONAL ||
 	       insn->type == INSN_JUMP_UNCONDITIONAL;
+}
+
+static inline bool is_dynamic_jump(struct instruction *insn)
+{
+	return insn->type == INSN_JUMP_DYNAMIC ||
+	       insn->type == INSN_JUMP_DYNAMIC_CONDITIONAL;
+}
+
+static inline bool is_jump(struct instruction *insn)
+{
+	return is_static_jump(insn) || is_dynamic_jump(insn);
 }
 
 struct instruction *find_insn(struct objtool_file *file,

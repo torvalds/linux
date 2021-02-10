@@ -7,8 +7,8 @@
 #define _SPECIAL_H
 
 #include <stdbool.h>
-#include "check.h"
-#include "elf.h"
+#include <objtool/check.h>
+#include <objtool/elf.h>
 
 #define C_JUMP_TABLE_SECTION ".rodata..c_jump_table"
 
