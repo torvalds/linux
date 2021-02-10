@@ -4804,9 +4804,12 @@ static void rtl8169_net_suspend(struct rtl8169_private *tp)
 
 #ifdef CONFIG_PM
 
-static int rtl8169_net_resume(struct rtl8169_private *tp)
+static int rtl8169_runtime_resume(struct device *dev)
 {
+	struct rtl8169_private *tp = dev_get_drvdata(dev);
+
 	rtl_rar_set(tp, tp->dev->dev_addr);
+	__rtl8169_set_wol(tp, tp->saved_wolopts);
 
 	if (tp->TxDescArray)
 		rtl8169_up(tp);
@@ -4840,7 +4843,7 @@ static int __maybe_unused rtl8169_resume(struct device *device)
 	if (tp->mac_version == RTL_GIGA_MAC_VER_37)
 		rtl_init_rxcfg(tp);
 
-	return rtl8169_net_resume(tp);
+	return rtl8169_runtime_resume(device);
 }
 
 static int rtl8169_runtime_suspend(struct device *device)
@@ -4858,15 +4861,6 @@ static int rtl8169_runtime_suspend(struct device *device)
 	rtnl_unlock();
 
 	return 0;
-}
-
-static int rtl8169_runtime_resume(struct device *device)
-{
-	struct rtl8169_private *tp = dev_get_drvdata(device);
-
-	__rtl8169_set_wol(tp, tp->saved_wolopts);
-
-	return rtl8169_net_resume(tp);
 }
 
 static int rtl8169_runtime_idle(struct device *device)
