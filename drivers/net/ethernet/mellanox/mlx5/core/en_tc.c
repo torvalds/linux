@@ -4750,10 +4750,12 @@ int mlx5e_tc_esw_init(struct rhashtable *tc_ht)
 	lockdep_set_class(&tc_ht->mutex, &tc_ht_lock_key);
 
 	uplink_priv->encap = mlx5e_tc_tun_init(priv);
-	if (IS_ERR(uplink_priv->encap))
+	if (IS_ERR(uplink_priv->encap)) {
+		err = PTR_ERR(uplink_priv->encap);
 		goto err_register_fib_notifier;
+	}
 
-	return err;
+	return 0;
 
 err_register_fib_notifier:
 	rhashtable_destroy(tc_ht);
