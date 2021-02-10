@@ -264,6 +264,39 @@ struct io_sq_data {
 	unsigned		sq_thread_idle;
 };
 
+#define IO_IOPOLL_BATCH			8
+
+struct io_comp_state {
+	unsigned int		nr;
+	struct list_head	list;
+	struct io_ring_ctx	*ctx;
+};
+
+struct io_submit_state {
+	struct blk_plug		plug;
+
+	/*
+	 * io_kiocb alloc cache
+	 */
+	void			*reqs[IO_IOPOLL_BATCH];
+	unsigned int		free_reqs;
+
+	bool			plug_started;
+
+	/*
+	 * Batch completion logic
+	 */
+	struct io_comp_state	comp;
+
+	/*
+	 * File reference cache
+	 */
+	struct file		*file;
+	unsigned int		fd;
+	unsigned int		file_refs;
+	unsigned int		ios_left;
+};
+
 struct io_ring_ctx {
 	struct {
 		struct percpu_ref	refs;
@@ -406,6 +439,7 @@ struct io_ring_ctx {
 
 	struct work_struct		exit_work;
 	struct io_restriction		restrictions;
+	struct io_submit_state		submit_state;
 };
 
 /*
@@ -756,39 +790,6 @@ struct io_defer_entry {
 	struct list_head	list;
 	struct io_kiocb		*req;
 	u32			seq;
-};
-
-#define IO_IOPOLL_BATCH			8
-
-struct io_comp_state {
-	unsigned int		nr;
-	struct list_head	list;
-	struct io_ring_ctx	*ctx;
-};
-
-struct io_submit_state {
-	struct blk_plug		plug;
-
-	/*
-	 * io_kiocb alloc cache
-	 */
-	void			*reqs[IO_IOPOLL_BATCH];
-	unsigned int		free_reqs;
-
-	bool			plug_started;
-
-	/*
-	 * Batch completion logic
-	 */
-	struct io_comp_state	comp;
-
-	/*
-	 * File reference cache
-	 */
-	struct file		*file;
-	unsigned int		fd;
-	unsigned int		file_refs;
-	unsigned int		ios_left;
 };
 
 struct io_op_def {
@@ -1997,9 +1998,10 @@ static struct io_kiocb *io_get_fallback_req(struct io_ring_ctx *ctx)
 	return NULL;
 }
 
-static struct io_kiocb *io_alloc_req(struct io_ring_ctx *ctx,
-				     struct io_submit_state *state)
+static struct io_kiocb *io_alloc_req(struct io_ring_ctx *ctx)
 {
+	struct io_submit_state *state = &ctx->submit_state;
+
 	if (!state->free_reqs) {
 		gfp_t gfp = GFP_KERNEL | __GFP_NOWARN;
 		size_t sz;
@@ -6758,9 +6760,9 @@ static inline bool io_check_restriction(struct io_ring_ctx *ctx,
 				IOSQE_BUFFER_SELECT)
 
 static int io_init_req(struct io_ring_ctx *ctx, struct io_kiocb *req,
-		       const struct io_uring_sqe *sqe,
-		       struct io_submit_state *state)
+		       const struct io_uring_sqe *sqe)
 {
+	struct io_submit_state *state;
 	unsigned int sqe_flags;
 	int id, ret;
 
@@ -6812,6 +6814,7 @@ static int io_init_req(struct io_ring_ctx *ctx, struct io_kiocb *req,
 
 	/* same numerical values with corresponding REQ_F_*, safe to copy */
 	req->flags |= sqe_flags;
+	state = &ctx->submit_state;
 
 	/*
 	 * Plug now if we have more than 1 IO left after this, and the target
@@ -6838,7 +6841,6 @@ static int io_init_req(struct io_ring_ctx *ctx, struct io_kiocb *req,
 
 static int io_submit_sqes(struct io_ring_ctx *ctx, unsigned int nr)
 {
-	struct io_submit_state state;
 	struct io_submit_link link;
 	int i, submitted = 0;
 
@@ -6857,7 +6859,7 @@ static int io_submit_sqes(struct io_ring_ctx *ctx, unsigned int nr)
 	percpu_counter_add(&current->io_uring->inflight, nr);
 	refcount_add(nr, &current->usage);
 
-	io_submit_state_start(&state, ctx, nr);
+	io_submit_state_start(&ctx->submit_state, ctx, nr);
 	link.head = NULL;
 
 	for (i = 0; i < nr; i++) {
@@ -6870,7 +6872,7 @@ static int io_submit_sqes(struct io_ring_ctx *ctx, unsigned int nr)
 			io_consume_sqe(ctx);
 			break;
 		}
-		req = io_alloc_req(ctx, &state);
+		req = io_alloc_req(ctx);
 		if (unlikely(!req)) {
 			if (!submitted)
 				submitted = -EAGAIN;
@@ -6880,7 +6882,7 @@ static int io_submit_sqes(struct io_ring_ctx *ctx, unsigned int nr)
 		/* will complete beyond this point, count as submitted */
 		submitted++;
 
-		err = io_init_req(ctx, req, sqe, &state);
+		err = io_init_req(ctx, req, sqe);
 		if (unlikely(err)) {
 fail_req:
 			io_put_req(req);
@@ -6890,7 +6892,7 @@ fail_req:
 
 		trace_io_uring_submit_sqe(ctx, req->opcode, req->user_data,
 					true, ctx->flags & IORING_SETUP_SQPOLL);
-		err = io_submit_sqe(req, sqe, &link, &state.comp);
+		err = io_submit_sqe(req, sqe, &link, &ctx->submit_state.comp);
 		if (err)
 			goto fail_req;
 	}
@@ -6905,8 +6907,8 @@ fail_req:
 		put_task_struct_many(current, unused);
 	}
 	if (link.head)
-		io_queue_link_head(link.head, &state.comp);
-	io_submit_state_end(&state);
+		io_queue_link_head(link.head, &ctx->submit_state.comp);
+	io_submit_state_end(&ctx->submit_state);
 
 	 /* Commit SQ ring head once we've consumed and submitted all SQEs */
 	io_commit_sqring(ctx);
