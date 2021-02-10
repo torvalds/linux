@@ -438,7 +438,7 @@ F:	include/uapi/linux/wmi.h
 
 ACRN HYPERVISOR SERVICE MODULE
 M:	Shuo Liu <shuo.a.liu@intel.com>
-L:	acrn-dev@lists.projectacrn.org
+L:	acrn-dev@lists.projectacrn.org (subscribers-only)
 S:	Supported
 W:	https://projectacrn.org
 F:	Documentation/virt/acrn/
