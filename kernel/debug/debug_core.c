@@ -119,7 +119,6 @@ static DEFINE_RAW_SPINLOCK(dbg_slave_lock);
  */
 static atomic_t			masters_in_kgdb;
 static atomic_t			slaves_in_kgdb;
-static atomic_t			kgdb_break_tasklet_var;
 atomic_t			kgdb_setting_breakpoint;
 
 struct task_struct		*kgdb_usethread;
@@ -1083,31 +1082,6 @@ static void kgdb_unregister_callbacks(void)
 		}
 	}
 }
-
-/*
- * There are times a tasklet needs to be used vs a compiled in
- * break point so as to cause an exception outside a kgdb I/O module,
- * such as is the case with kgdboe, where calling a breakpoint in the
- * I/O driver itself would be fatal.
- */
-static void kgdb_tasklet_bpt(unsigned long ing)
-{
-	kgdb_breakpoint();
-	atomic_set(&kgdb_break_tasklet_var, 0);
-}
-
-static DECLARE_TASKLET_OLD(kgdb_tasklet_breakpoint, kgdb_tasklet_bpt);
-
-void kgdb_schedule_breakpoint(void)
-{
-	if (atomic_read(&kgdb_break_tasklet_var) ||
-		atomic_read(&kgdb_active) != -1 ||
-		atomic_read(&kgdb_setting_breakpoint))
-		return;
-	atomic_inc(&kgdb_break_tasklet_var);
-	tasklet_schedule(&kgdb_tasklet_breakpoint);
-}
-EXPORT_SYMBOL_GPL(kgdb_schedule_breakpoint);
 
 /**
  *	kgdb_register_io_module - register KGDB IO module
