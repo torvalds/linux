@@ -907,7 +907,8 @@ iwl_op_mode_mvm_start(struct iwl_trans *trans, const struct iwl_cfg *cfg,
 		goto out_thermal_exit;
 	mvm->hw_registered = true;
 
-	iwl_mvm_dbgfs_register(mvm, dbgfs_dir);
+	mvm->debugfs_dir = dbgfs_dir;
+	iwl_mvm_dbgfs_register(mvm);
 
 	return op_mode;
 
