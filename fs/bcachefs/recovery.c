@@ -506,115 +506,6 @@ static void replay_now_at(struct journal *j, u64 seq)
 		bch2_journal_pin_put(j, j->replay_journal_seq++);
 }
 
-static int bch2_extent_replay_key(struct bch_fs *c, enum btree_id btree_id,
-				  struct bkey_i *k)
-{
-	struct btree_trans trans;
-	struct btree_iter *iter, *split_iter;
-	/*
-	 * We might cause compressed extents to be split, so we need to pass in
-	 * a disk_reservation:
-	 */
-	struct disk_reservation disk_res =
-		bch2_disk_reservation_init(c, 0);
-	struct bkey_i *split;
-	struct bpos atomic_end;
-	/*
-	 * Some extents aren't equivalent - w.r.t. what the triggers do
-	 * - if they're split:
-	 */
-	bool remark_if_split = bch2_bkey_sectors_compressed(bkey_i_to_s_c(k)) ||
-		k->k.type == KEY_TYPE_reflink_p;
-	bool remark = false;
-	int ret;
-
-	bch2_trans_init(&trans, c, BTREE_ITER_MAX, 0);
-retry:
-	bch2_trans_begin(&trans);
-
-	iter = bch2_trans_get_iter(&trans, btree_id,
-				   bkey_start_pos(&k->k),
-				   BTREE_ITER_INTENT);
-
-	do {
-		ret = bch2_btree_iter_traverse(iter);
-		if (ret)
-			goto err;
-
-		atomic_end = bpos_min(k->k.p, iter->l[0].b->key.k.p);
-
-		split = bch2_trans_kmalloc(&trans, bkey_bytes(&k->k));
-		ret = PTR_ERR_OR_ZERO(split);
-		if (ret)
-			goto err;
-
-		if (!remark &&
-		    remark_if_split &&
-		    bkey_cmp(atomic_end, k->k.p) < 0) {
-			ret = bch2_disk_reservation_add(c, &disk_res,
-					k->k.size *
-					bch2_bkey_nr_ptrs_allocated(bkey_i_to_s_c(k)),
-					BCH_DISK_RESERVATION_NOFAIL);
-			BUG_ON(ret);
-
-			remark = true;
-		}
-
-		bkey_copy(split, k);
-		bch2_cut_front(iter->pos, split);
-		bch2_cut_back(atomic_end, split);
-
-		split_iter = bch2_trans_copy_iter(&trans, iter);
-
-		/*
-		 * It's important that we don't go through the
-		 * extent_handle_overwrites() and extent_update_to_keys() path
-		 * here: journal replay is supposed to treat extents like
-		 * regular keys
-		 */
-		__bch2_btree_iter_set_pos(split_iter, split->k.p, false);
-		bch2_trans_update(&trans, split_iter, split,
-				  BTREE_TRIGGER_NORUN);
-		bch2_trans_iter_put(&trans, split_iter);
-
-		bch2_btree_iter_set_pos(iter, split->k.p);
-
-		if (remark) {
-			ret = bch2_trans_mark_key(&trans,
-						  bkey_s_c_null,
-						  bkey_i_to_s_c(split),
-						  0, split->k.size,
-						  BTREE_TRIGGER_INSERT);
-			if (ret)
-				goto err;
-		}
-	} while (bkey_cmp(iter->pos, k->k.p) < 0);
-
-	if (remark) {
-		ret = bch2_trans_mark_key(&trans,
-					  bkey_i_to_s_c(k),
-					  bkey_s_c_null,
-					  0, -((s64) k->k.size),
-					  BTREE_TRIGGER_OVERWRITE);
-		if (ret)
-			goto err;
-	}
-
-	ret = bch2_trans_commit(&trans, &disk_res, NULL,
-				BTREE_INSERT_NOFAIL|
-				BTREE_INSERT_LAZY_RW|
-				BTREE_INSERT_JOURNAL_REPLAY);
-err:
-	bch2_trans_iter_put(&trans, iter);
-
-	if (ret == -EINTR)
-		goto retry;
-
-	bch2_disk_reservation_put(c, &disk_res);
-
-	return bch2_trans_exit(&trans) ?: ret;
-}
-
 static int __bch2_journal_replay_key(struct btree_trans *trans,
 				     enum btree_id id, unsigned level,
 				     struct bkey_i *k)
@@ -753,9 +644,7 @@ static int bch2_journal_replay(struct bch_fs *c,
 
 		replay_now_at(j, keys.journal_seq_base + i->journal_seq);
 
-		ret = i->k->k.size
-			? bch2_extent_replay_key(c, i->btree_id, i->k)
-			: bch2_journal_replay_key(c, i);
+		ret = bch2_journal_replay_key(c, i);
 		if (ret)
 			goto err;
 	}

@@ -1346,13 +1346,19 @@ LE64_BITMASK(BCH_SB_METADATA_TARGET,	struct bch_sb, flags[3], 16, 28);
 	x(reflink_inline_data,		14)	\
 	x(new_varint,			15)	\
 	x(journal_no_flush,		16)	\
-	x(alloc_v2,			17)
+	x(alloc_v2,			17)	\
+	x(extents_across_btree_nodes,	18)
+
+#define BCH_SB_FEATURES_ALWAYS				\
+	((1ULL << BCH_FEATURE_new_extent_overwrite)|	\
+	 (1ULL << BCH_FEATURE_extents_above_btree_updates)|\
+	 (1ULL << BCH_FEATURE_btree_updates_journalled)|\
+	 (1ULL << BCH_FEATURE_extents_across_btree_nodes))
 
 #define BCH_SB_FEATURES_ALL				\
-	((1ULL << BCH_FEATURE_new_siphash)|		\
-	 (1ULL << BCH_FEATURE_new_extent_overwrite)|	\
+	(BCH_SB_FEATURES_ALWAYS|			\
+	 (1ULL << BCH_FEATURE_new_siphash)|		\
 	 (1ULL << BCH_FEATURE_btree_ptr_v2)|		\
-	 (1ULL << BCH_FEATURE_extents_above_btree_updates)|\
 	 (1ULL << BCH_FEATURE_new_varint)|		\
 	 (1ULL << BCH_FEATURE_journal_no_flush)|	\
 	 (1ULL << BCH_FEATURE_alloc_v2))

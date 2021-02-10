@@ -1321,9 +1321,6 @@ int bch2_mark_update(struct btree_trans *trans,
 		     unsigned flags)
 {
 	struct bch_fs		*c = trans->c;
-	struct btree		*b = iter_l(iter)->b;
-	struct btree_node_iter	node_iter = iter_l(iter)->iter;
-	struct bkey_packed	*_old;
 	struct bkey_s_c		old;
 	struct bkey		unpacked;
 	int ret = 0;
@@ -1363,23 +1360,24 @@ int bch2_mark_update(struct btree_trans *trans,
 				BTREE_TRIGGER_OVERWRITE|flags);
 		}
 	} else {
+		struct btree_iter *copy;
+
 		BUG_ON(btree_iter_type(iter) == BTREE_ITER_CACHED);
 		bch2_mark_key_locked(c, old, bkey_i_to_s_c(new),
 			0, new->k.size,
 			fs_usage, trans->journal_res.seq,
 			BTREE_TRIGGER_INSERT|flags);
 
-		while ((_old = bch2_btree_node_iter_peek(&node_iter, b))) {
-			unsigned offset = 0;
-			s64 sectors;
+		copy = bch2_trans_copy_iter(trans, iter);
 
-			old = bkey_disassemble(b, _old, &unpacked);
-			sectors = -((s64) old.k->size);
+		for_each_btree_key_continue(copy, 0, old, ret) {
+			unsigned offset = 0;
+			s64 sectors = -((s64) old.k->size);
 
 			flags |= BTREE_TRIGGER_OVERWRITE;
 
 			if (bkey_cmp(new->k.p, bkey_start_pos(old.k)) <= 0)
-				return 0;
+				break;
 
 			switch (bch2_extent_overlap(&new->k, old.k)) {
 			case BCH_EXTENT_OVERLAP_ALL:
@@ -1412,9 +1410,8 @@ int bch2_mark_update(struct btree_trans *trans,
 					trans->journal_res.seq, flags) ?: 1;
 			if (ret <= 0)
 				break;
-
-			bch2_btree_node_iter_advance(&node_iter, b);
 		}
+		bch2_trans_iter_put(trans, copy);
 	}
 
 	return ret;
@@ -1445,27 +1442,20 @@ void bch2_trans_fs_usage_apply(struct btree_trans *trans,
 		pr_err("overlapping with");
 
 		if (btree_iter_type(i->iter) != BTREE_ITER_CACHED) {
-			struct btree		*b = iter_l(i->iter)->b;
-			struct btree_node_iter	node_iter = iter_l(i->iter)->iter;
-			struct bkey_packed	*_k;
+			struct btree_iter *copy = bch2_trans_copy_iter(trans, i->iter);
+			struct bkey_s_c k;
+			int ret;
 
-			while ((_k = bch2_btree_node_iter_peek(&node_iter, b))) {
-				struct bkey		unpacked;
-				struct bkey_s_c		k;
-
-				pr_info("_k %px format %u", _k, _k->format);
-				k = bkey_disassemble(b, _k, &unpacked);
-
-				if (btree_node_is_extents(b)
+			for_each_btree_key_continue(copy, 0, k, ret) {
+				if (btree_node_type_is_extents(i->iter->btree_id)
 				    ? bkey_cmp(i->k->k.p, bkey_start_pos(k.k)) <= 0
 				    : bkey_cmp(i->k->k.p, k.k->p))
 					break;
 
 				bch2_bkey_val_to_text(&PBUF(buf), c, k);
 				pr_err("%s", buf);
-
-				bch2_btree_node_iter_advance(&node_iter, b);
 			}
+			bch2_trans_iter_put(trans, copy);
 		} else {
 			struct bkey_cached *ck = (void *) i->iter->l[0].b;
 
@@ -1860,8 +1850,6 @@ static int __bch2_trans_mark_reflink_p(struct btree_trans *trans,
 	}
 
 	bch2_btree_iter_set_pos(iter, bkey_start_pos(k.k));
-	BUG_ON(iter->uptodate > BTREE_ITER_NEED_PEEK);
-
 	bch2_trans_update(trans, iter, n, 0);
 out:
 	ret = sectors;
@@ -1987,15 +1975,13 @@ int bch2_trans_mark_update(struct btree_trans *trans,
 					BTREE_TRIGGER_OVERWRITE|flags);
 		}
 	} else {
-		struct btree		*b = iter_l(iter)->b;
-		struct btree_node_iter	node_iter = iter_l(iter)->iter;
-		struct bkey_packed	*_old;
-		struct bkey		unpacked;
+		struct btree_iter *copy;
+		struct bkey _old;
 
 		EBUG_ON(btree_iter_type(iter) == BTREE_ITER_CACHED);
 
-		bkey_init(&unpacked);
-		old = (struct bkey_s_c) { &unpacked, NULL };
+		bkey_init(&_old);
+		old = (struct bkey_s_c) { &_old, NULL };
 
 		ret = bch2_trans_mark_key(trans, old, bkey_i_to_s_c(new),
 					  0, new->k.size,
@@ -2003,18 +1989,16 @@ int bch2_trans_mark_update(struct btree_trans *trans,
 		if (ret)
 			return ret;
 
-		while ((_old = bch2_btree_node_iter_peek(&node_iter, b))) {
-			unsigned flags = BTREE_TRIGGER_OVERWRITE;
-			unsigned offset = 0;
-			s64 sectors;
+		copy = bch2_trans_copy_iter(trans, iter);
 
-			old = bkey_disassemble(b, _old, &unpacked);
-			sectors = -((s64) old.k->size);
+		for_each_btree_key_continue(copy, 0, old, ret) {
+			unsigned offset = 0;
+			s64 sectors = -((s64) old.k->size);
 
 			flags |= BTREE_TRIGGER_OVERWRITE;
 
 			if (bkey_cmp(new->k.p, bkey_start_pos(old.k)) <= 0)
-				return 0;
+				break;
 
 			switch (bch2_extent_overlap(&new->k, old.k)) {
 			case BCH_EXTENT_OVERLAP_ALL:
@@ -2045,10 +2029,9 @@ int bch2_trans_mark_update(struct btree_trans *trans,
 			ret = bch2_trans_mark_key(trans, old, bkey_i_to_s_c(new),
 					offset, sectors, flags);
 			if (ret)
-				return ret;
-
-			bch2_btree_node_iter_advance(&node_iter, b);
+				break;
 		}
+		bch2_trans_iter_put(trans, copy);
 	}
 
 	return ret;

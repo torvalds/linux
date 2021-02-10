@@ -1814,11 +1814,8 @@ struct bkey_s_c bch2_btree_iter_prev(struct btree_iter *iter)
 static inline struct bkey_s_c
 __bch2_btree_iter_peek_slot_extents(struct btree_iter *iter)
 {
-	struct btree_iter_level *l = &iter->l[0];
-	struct btree_node_iter node_iter;
 	struct bkey_s_c k;
-	struct bkey n;
-	int ret;
+	struct bpos pos, next_start;
 
 	/* keys & holes can't span inode numbers: */
 	if (iter->pos.offset == KEY_OFFSET_MAX) {
@@ -1826,50 +1823,31 @@ __bch2_btree_iter_peek_slot_extents(struct btree_iter *iter)
 			return bkey_s_c_null;
 
 		bch2_btree_iter_set_pos(iter, bkey_successor(iter->pos));
-
-		ret = bch2_btree_iter_traverse(iter);
-		if (unlikely(ret))
-			return bkey_s_c_err(ret);
 	}
 
-	/*
-	 * iterator is now at the correct position for inserting at iter->pos,
-	 * but we need to keep iterating until we find the first non whiteout so
-	 * we know how big a hole we have, if any:
-	 */
+	pos = iter->pos;
+	k = bch2_btree_iter_peek(iter);
+	iter->pos = pos;
 
-	node_iter = l->iter;
-	k = __btree_iter_unpack(iter, l, &iter->k,
-		bch2_btree_node_iter_peek(&node_iter, l->b));
-
-	if (k.k && bkey_cmp(bkey_start_pos(k.k), iter->pos) <= 0) {
-		/*
-		 * We're not setting iter->uptodate because the node iterator
-		 * doesn't necessarily point at the key we're returning:
-		 */
-
-		EBUG_ON(bkey_cmp(k.k->p, iter->pos) <= 0);
-		bch2_btree_iter_verify(iter);
+	if (bkey_err(k))
 		return k;
-	}
 
-	/* hole */
+	if (k.k && bkey_cmp(bkey_start_pos(k.k), iter->pos) <= 0)
+		return k;
 
-	if (!k.k)
-		k.k = &l->b->key.k;
+	next_start = k.k ? bkey_start_pos(k.k) : POS_MAX;
 
-	bkey_init(&n);
-	n.p = iter->pos;
-	bch2_key_resize(&n,
+	bkey_init(&iter->k);
+	iter->k.p = iter->pos;
+	bch2_key_resize(&iter->k,
 			min_t(u64, KEY_SIZE_MAX,
-			      (k.k->p.inode == n.p.inode
-			       ? bkey_start_offset(k.k)
+			      (next_start.inode == iter->pos.inode
+			       ? next_start.offset
 			       : KEY_OFFSET_MAX) -
-			      n.p.offset));
+			      iter->pos.offset));
 
-	EBUG_ON(!n.size);
+	EBUG_ON(!iter->k.size);
 
-	iter->k	= n;
 	iter->uptodate = BTREE_ITER_UPTODATE;
 
 	bch2_btree_iter_verify_entry_exit(iter);
@@ -1893,12 +1871,12 @@ struct bkey_s_c bch2_btree_iter_peek_slot(struct btree_iter *iter)
 	if (iter->uptodate == BTREE_ITER_UPTODATE)
 		return btree_iter_peek_uptodate(iter);
 
+	if (iter->flags & BTREE_ITER_IS_EXTENTS)
+		return __bch2_btree_iter_peek_slot_extents(iter);
+
 	ret = bch2_btree_iter_traverse(iter);
 	if (unlikely(ret))
 		return bkey_s_c_err(ret);
-
-	if (iter->flags & BTREE_ITER_IS_EXTENTS)
-		return __bch2_btree_iter_peek_slot_extents(iter);
 
 	k = __btree_iter_peek_all(iter, l, &iter->k);
 

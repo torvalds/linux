@@ -956,9 +956,7 @@ int bch2_fs_mark_dirty(struct bch_fs *c)
 
 	mutex_lock(&c->sb_lock);
 	SET_BCH_SB_CLEAN(c->disk_sb.sb, false);
-	c->disk_sb.sb->features[0] |= 1ULL << BCH_FEATURE_new_extent_overwrite;
-	c->disk_sb.sb->features[0] |= 1ULL << BCH_FEATURE_extents_above_btree_updates;
-	c->disk_sb.sb->features[0] |= 1ULL << BCH_FEATURE_btree_updates_journalled;
+	c->disk_sb.sb->features[0] |= BCH_SB_FEATURES_ALWAYS;
 	ret = bch2_write_super(c);
 	mutex_unlock(&c->sb_lock);
 

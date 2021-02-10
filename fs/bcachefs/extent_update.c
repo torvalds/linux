@@ -99,24 +99,12 @@ int bch2_extent_atomic_end(struct btree_iter *iter,
 			   struct bpos *end)
 {
 	struct btree_trans *trans = iter->trans;
-	struct btree *b;
-	struct btree_node_iter	node_iter;
-	struct bkey_packed	*_k;
-	unsigned		nr_iters = 0;
+	struct btree_iter *copy;
+	struct bkey_s_c k;
+	unsigned nr_iters = 0;
 	int ret;
 
-	ret = bch2_btree_iter_traverse(iter);
-	if (ret)
-		return ret;
-
-	b = iter->l[0].b;
-	node_iter = iter->l[0].iter;
-
-	BUG_ON(bkey_cmp(b->data->min_key, POS_MIN) &&
-	       bkey_cmp(bkey_start_pos(&insert->k),
-			bkey_predecessor(b->data->min_key)) < 0);
-
-	*end = bpos_min(insert->k.p, b->key.k.p);
+	*end = insert->k.p;
 
 	/* extent_update_to_keys(): */
 	nr_iters += 1;
@@ -126,9 +114,9 @@ int bch2_extent_atomic_end(struct btree_iter *iter,
 	if (ret < 0)
 		return ret;
 
-	while ((_k = bch2_btree_node_iter_peek(&node_iter, b))) {
-		struct bkey	unpacked;
-		struct bkey_s_c	k = bkey_disassemble(b, _k, &unpacked);
+	copy = bch2_trans_copy_iter(trans, iter);
+
+	for_each_btree_key_continue(copy, 0, k, ret) {
 		unsigned offset = 0;
 
 		if (bkey_cmp(bkey_start_pos(k.k), *end) >= 0)
@@ -155,10 +143,9 @@ int bch2_extent_atomic_end(struct btree_iter *iter,
 					&nr_iters, EXTENT_ITERS_MAX);
 		if (ret)
 			break;
-
-		bch2_btree_node_iter_advance(&node_iter, b);
 	}
 
+	bch2_trans_iter_put(trans, copy);
 	return ret < 0 ? ret : 0;
 }
 
