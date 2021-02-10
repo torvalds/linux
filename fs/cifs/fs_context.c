@@ -1533,8 +1533,8 @@ void smb3_update_mnt_flags(struct cifs_sb_info *cifs_sb)
 		cifs_sb->mnt_cifs_flags |= (CIFS_MOUNT_MULTIUSER |
 					    CIFS_MOUNT_NO_PERM);
 	else
-		cifs_sb->mnt_cifs_flags &= ~(CIFS_MOUNT_MULTIUSER |
-					     CIFS_MOUNT_NO_PERM);
+		cifs_sb->mnt_cifs_flags &= ~CIFS_MOUNT_MULTIUSER;
+
 
 	if (ctx->strict_io)
 		cifs_sb->mnt_cifs_flags |= CIFS_MOUNT_STRICT_IO;
