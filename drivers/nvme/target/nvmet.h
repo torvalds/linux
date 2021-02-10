@@ -551,6 +551,11 @@ static inline u32 nvmet_dsm_len(struct nvmet_req *req)
 		sizeof(struct nvme_dsm_range);
 }
 
+static inline struct nvmet_subsys *nvmet_req_subsys(struct nvmet_req *req)
+{
+	return req->sq->ctrl->subsys;
+}
+
 #ifdef CONFIG_NVME_TARGET_PASSTHRU
 void nvmet_passthru_subsys_free(struct nvmet_subsys *subsys);
 int nvmet_passthru_ctrl_enable(struct nvmet_subsys *subsys);
@@ -585,7 +590,7 @@ static inline struct nvme_ctrl *nvmet_passthru_ctrl(struct nvmet_subsys *subsys)
 static inline struct nvme_ctrl *
 nvmet_req_passthru_ctrl(struct nvmet_req *req)
 {
-	return nvmet_passthru_ctrl(req->sq->ctrl->subsys);
+	return nvmet_passthru_ctrl(nvmet_req_subsys(req));
 }
 
 u16 errno_to_nvme_status(struct nvmet_req *req, int errno);

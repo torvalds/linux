@@ -239,9 +239,9 @@ static void nvmet_passthru_execute_cmd(struct nvmet_req *req)
 		}
 
 		q = ns->queue;
-		timeout = req->sq->ctrl->subsys->io_timeout;
+		timeout = nvmet_req_subsys(req)->io_timeout;
 	} else {
-		timeout = req->sq->ctrl->subsys->admin_timeout;
+		timeout = nvmet_req_subsys(req)->admin_timeout;
 	}
 
 	rq = nvme_alloc_request(q, req->cmd, 0);
