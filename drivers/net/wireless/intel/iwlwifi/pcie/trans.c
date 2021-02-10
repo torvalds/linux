@@ -523,11 +523,15 @@ static int iwl_pcie_nic_init(struct iwl_trans *trans)
 	iwl_op_mode_nic_config(trans->op_mode);
 
 	/* Allocate the RX queue, or reset if it is already allocated */
-	iwl_pcie_rx_init(trans);
+	ret = iwl_pcie_rx_init(trans);
+	if (ret)
+		return ret;
 
 	/* Allocate or reset and init all Tx and Command queues */
-	if (iwl_pcie_tx_init(trans))
+	if (iwl_pcie_tx_init(trans)) {
+		iwl_pcie_rx_free(trans);
 		return -ENOMEM;
+	}
 
 	if (trans->trans_cfg->base_params->shadow_reg_enable) {
 		/* enable shadow regs in HW */

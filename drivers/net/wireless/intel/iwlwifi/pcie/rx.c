@@ -834,8 +834,11 @@ err:
 		trans_pcie->base_rb_stts_dma = 0;
 	}
 	kfree(trans_pcie->rx_pool);
+	trans_pcie->rx_pool = NULL;
 	kfree(trans_pcie->global_table);
+	trans_pcie->global_table = NULL;
 	kfree(trans_pcie->rxq);
+	trans_pcie->rxq = NULL;
 
 	return ret;
 }
