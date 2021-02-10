@@ -26,6 +26,8 @@
 /x86_64/vmx_set_nested_state_test
 /x86_64/vmx_tsc_adjust_test
 /x86_64/xapic_ipi_test
+/x86_64/xen_shinfo_test
+/x86_64/xen_vmcall_test
 /x86_64/xss_msr_test
 /x86_64/vmx_pmu_msrs_test
 /demand_paging_test
