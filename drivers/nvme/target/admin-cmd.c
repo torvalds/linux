@@ -82,7 +82,7 @@ static u16 nvmet_get_smart_log_nsid(struct nvmet_req *req,
 		pr_err("Could not find namespace id : %d\n",
 				le32_to_cpu(req->cmd->get_log_page.nsid));
 		req->error_loc = offsetof(struct nvme_rw_command, nsid);
-		return NVME_SC_INVALID_NS;
+		return NVME_SC_INVALID_NS | NVME_SC_DNR;
 	}
 
 	/* we don't have the right data for file backed ns */
@@ -697,7 +697,7 @@ static u16 nvmet_set_feat_write_protect(struct nvmet_req *req)
 	req->ns = nvmet_find_namespace(req->sq->ctrl, req->cmd->rw.nsid);
 	if (unlikely(!req->ns)) {
 		req->error_loc = offsetof(struct nvme_common_command, nsid);
-		return status;
+		return status = NVME_SC_INVALID_NS | NVME_SC_DNR;
 	}
 
 	mutex_lock(&subsys->lock);
