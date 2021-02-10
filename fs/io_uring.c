@@ -1042,7 +1042,7 @@ static int __io_sqe_files_update(struct io_ring_ctx *ctx,
 static void __io_clean_op(struct io_kiocb *req);
 static struct file *io_file_get(struct io_submit_state *state,
 				struct io_kiocb *req, int fd, bool fixed);
-static void __io_queue_sqe(struct io_kiocb *req, struct io_comp_state *cs);
+static void __io_queue_sqe(struct io_kiocb *req);
 static void io_rsrc_put_work(struct work_struct *work);
 
 static int io_import_iovec(int rw, struct io_kiocb *req, struct iovec **iovec,
@@ -2300,7 +2300,7 @@ static void __io_req_task_submit(struct io_kiocb *req)
 	if (!ctx->sqo_dead &&
 	    !__io_sq_thread_acquire_mm(ctx) &&
 	    !__io_sq_thread_acquire_files(ctx))
-		__io_queue_sqe(req, &ctx->submit_state.comp);
+		__io_queue_sqe(req);
 	else
 		__io_req_task_cancel(req, -EFAULT);
 	mutex_unlock(&ctx->uring_lock);
@@ -6551,14 +6551,12 @@ static struct io_kiocb *io_prep_linked_timeout(struct io_kiocb *req)
 	return nxt;
 }
 
-static void __io_queue_sqe(struct io_kiocb *req, struct io_comp_state *cs)
+static void __io_queue_sqe(struct io_kiocb *req)
 {
 	struct io_kiocb *linked_timeout;
 	const struct cred *old_creds = NULL;
-	int ret, issue_flags = IO_URING_F_NONBLOCK;
+	int ret;
 
-	if (cs)
-		issue_flags |= IO_URING_F_COMPLETE_DEFER;
 again:
 	linked_timeout = io_prep_linked_timeout(req);
 
@@ -6573,7 +6571,7 @@ again:
 			old_creds = override_creds(req->work.identity->creds);
 	}
 
-	ret = io_issue_sqe(req, issue_flags);
+	ret = io_issue_sqe(req, IO_URING_F_NONBLOCK|IO_URING_F_COMPLETE_DEFER);
 
 	/*
 	 * We async punt it if the file wasn't marked NOWAIT, or if the file
@@ -6593,9 +6591,12 @@ again:
 	} else if (likely(!ret)) {
 		/* drop submission reference */
 		if (req->flags & REQ_F_COMPLETE_INLINE) {
+			struct io_ring_ctx *ctx = req->ctx;
+			struct io_comp_state *cs = &ctx->submit_state.comp;
+
 			cs->reqs[cs->nr++] = req;
 			if (cs->nr == IO_COMPL_BATCH)
-				io_submit_flush_completions(cs, req->ctx);
+				io_submit_flush_completions(cs, ctx);
 			req = NULL;
 		} else {
 			req = io_put_req_find_next(req);
@@ -6621,8 +6622,7 @@ again:
 		revert_creds(old_creds);
 }
 
-static void io_queue_sqe(struct io_kiocb *req, const struct io_uring_sqe *sqe,
-			 struct io_comp_state *cs)
+static void io_queue_sqe(struct io_kiocb *req, const struct io_uring_sqe *sqe)
 {
 	int ret;
 
@@ -6647,18 +6647,17 @@ fail_req:
 			if (unlikely(ret))
 				goto fail_req;
 		}
-		__io_queue_sqe(req, cs);
+		__io_queue_sqe(req);
 	}
 }
 
-static inline void io_queue_link_head(struct io_kiocb *req,
-				      struct io_comp_state *cs)
+static inline void io_queue_link_head(struct io_kiocb *req)
 {
 	if (unlikely(req->flags & REQ_F_FAIL_LINK)) {
 		io_put_req(req);
 		io_req_complete(req, -ECANCELED);
 	} else
-		io_queue_sqe(req, NULL, cs);
+		io_queue_sqe(req, NULL);
 }
 
 struct io_submit_link {
@@ -6667,7 +6666,7 @@ struct io_submit_link {
 };
 
 static int io_submit_sqe(struct io_kiocb *req, const struct io_uring_sqe *sqe,
-			 struct io_submit_link *link, struct io_comp_state *cs)
+			 struct io_submit_link *link)
 {
 	struct io_ring_ctx *ctx = req->ctx;
 	int ret;
@@ -6705,7 +6704,7 @@ static int io_submit_sqe(struct io_kiocb *req, const struct io_uring_sqe *sqe,
 
 		/* last request of a link, enqueue the link */
 		if (!(req->flags & (REQ_F_LINK | REQ_F_HARDLINK))) {
-			io_queue_link_head(head, cs);
+			io_queue_link_head(head);
 			link->head = NULL;
 		}
 	} else {
@@ -6720,7 +6719,7 @@ static int io_submit_sqe(struct io_kiocb *req, const struct io_uring_sqe *sqe,
 			link->head = req;
 			link->last = req;
 		} else {
-			io_queue_sqe(req, sqe, cs);
+			io_queue_sqe(req, sqe);
 		}
 	}
 
@@ -6961,7 +6960,7 @@ fail_req:
 
 		trace_io_uring_submit_sqe(ctx, req->opcode, req->user_data,
 					true, ctx->flags & IORING_SETUP_SQPOLL);
-		err = io_submit_sqe(req, sqe, &link, &ctx->submit_state.comp);
+		err = io_submit_sqe(req, sqe, &link);
 		if (err)
 			goto fail_req;
 	}
@@ -6976,7 +6975,7 @@ fail_req:
 		put_task_struct_many(current, unused);
 	}
 	if (link.head)
-		io_queue_link_head(link.head, &ctx->submit_state.comp);
+		io_queue_link_head(link.head);
 	io_submit_state_end(&ctx->submit_state, ctx);
 
 	 /* Commit SQ ring head once we've consumed and submitted all SQEs */
