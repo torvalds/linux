@@ -279,19 +279,19 @@ static inline void copy_highpage(struct page *to, struct page *from)
 static inline void memcpy_from_page(char *to, struct page *page,
 				    size_t offset, size_t len)
 {
-	char *from = kmap_atomic(page);
+	char *from = kmap_local_page(page);
 
 	memcpy(to, from + offset, len);
-	kunmap_atomic(from);
+	kunmap_local(from);
 }
 
 static inline void memcpy_to_page(struct page *page, size_t offset,
 				  const char *from, size_t len)
 {
-	char *to = kmap_atomic(page);
+	char *to = kmap_local_page(page);
 
 	memcpy(to + offset, from, len);
-	kunmap_atomic(to);
+	kunmap_local(to);
 }
 
 #endif /* _LINUX_HIGHMEM_H */
