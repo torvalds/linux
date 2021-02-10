@@ -7,7 +7,7 @@
 # Execute this in the source tree.  Do not run it as a background task
 # because qemu does not seem to like that much.
 #
-# Usage: kvm-test-1-run.sh config builddir resdir seconds qemu-args boot_args_in
+# Usage: kvm-test-1-run.sh config resdir seconds qemu-args boot_args_in
 #
 # qemu-args defaults to "-enable-kvm -nographic", along with arguments
 #			specifying the number of CPUs and other options
@@ -35,8 +35,7 @@ mkdir $T
 config_template=${1}
 config_dir=`echo $config_template | sed -e 's,/[^/]*$,,'`
 title=`echo $config_template | sed -e 's/^.*\///'`
-builddir=${2}
-resdir=${3}
+resdir=${2}
 if test -z "$resdir" -o ! -d "$resdir" -o ! -w "$resdir"
 then
 	echo "kvm-test-1-run.sh :$resdir: Not a writable directory, cannot store results into it"
@@ -89,9 +88,9 @@ then
 	ln -s $base_resdir/Make*.out $resdir  # for kvm-recheck.sh
 	ln -s $base_resdir/.config $resdir  # for kvm-recheck.sh
 	echo Initial build failed, not running KVM, see $resdir.
-	if test -f $builddir.wait
+	if test -f $resdir/build.wait
 	then
-		mv $builddir.wait $builddir.ready
+		mv $resdir/build.wait $resdir/build.ready
 	fi
 	exit 1
 elif kvm-build.sh $T/KcList $resdir
@@ -118,23 +117,23 @@ else
 	# Build failed.
 	cp .config $resdir || :
 	echo Build failed, not running KVM, see $resdir.
-	if test -f $builddir.wait
+	if test -f $resdir/build.wait
 	then
-		mv $builddir.wait $builddir.ready
+		mv $resdir/build.wait $resdir/build.ready
 	fi
 	exit 1
 fi
-if test -f $builddir.wait
+if test -f $resdir/build.wait
 then
-	mv $builddir.wait $builddir.ready
+	mv $resdir/build.wait $resdir/build.ready
 fi
-while test -f $builddir.ready
+while test -f $resdir/build.ready
 do
 	sleep 1
 done
-seconds=$4
-qemu_args=$5
-boot_args_in=$6
+seconds=$3
+qemu_args=$4
+boot_args_in=$5
 
 if test -z "$TORTURE_BUILDONLY"
 then

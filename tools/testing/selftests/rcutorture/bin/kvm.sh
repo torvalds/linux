@@ -444,7 +444,6 @@ function dump(first, pastlast, batchnum)
 	print "needqemurun="
 	jn=1
 	for (j = first; j < pastlast; j++) {
-		builddir=KVM "/b" j - first + 1
 		cpusr[jn] = cpus[j];
 		if (cfrep[cf[j]] == "") {
 			cfr[jn] = cf[j];
@@ -453,15 +452,15 @@ function dump(first, pastlast, batchnum)
 			cfrep[cf[j]]++;
 			cfr[jn] = cf[j] "." cfrep[cf[j]];
 		}
+		builddir=rd cfr[jn] "/build";
 		if (cpusr[jn] > ncpus && ncpus != 0)
 			ovf = "-ovf";
 		else
 			ovf = "";
 		print "echo ", cfr[jn], cpusr[jn] ovf ": Starting build. `date` | tee -a " rd "log";
-		print "rm -f " builddir ".*";
-		print "touch " builddir ".wait";
 		print "mkdir " rd cfr[jn] " || :";
-		print "kvm-test-1-run.sh " CONFIGDIR cf[j], builddir, rd cfr[jn], dur " \"" TORTURE_QEMU_ARG "\" \"" TORTURE_BOOTARGS "\" > " rd cfr[jn]  "/kvm-test-1-run.sh.out 2>&1 &"
+		print "touch " builddir ".wait";
+		print "kvm-test-1-run.sh " CONFIGDIR cf[j], rd cfr[jn], dur " \"" TORTURE_QEMU_ARG "\" \"" TORTURE_BOOTARGS "\" > " rd cfr[jn]  "/kvm-test-1-run.sh.out 2>&1 &"
 		print "echo ", cfr[jn], cpusr[jn] ovf ": Waiting for build to complete. `date` | tee -a " rd "log";
 		print "while test -f " builddir ".wait"
 		print "do"
@@ -471,7 +470,7 @@ function dump(first, pastlast, batchnum)
 		jn++;
 	}
 	for (j = 1; j < jn; j++) {
-		builddir=KVM "/b" j
+		builddir=rd cfr[j] "/build";
 		print "rm -f " builddir ".ready"
 		print "if test -f \"" rd cfr[j] "/builtkernel\""
 		print "then"
@@ -509,7 +508,6 @@ function dump(first, pastlast, batchnum)
 	print "\techo ---- No kernel runs. `date` | tee -a " rd "log";
 	print "fi"
 	for (j = 1; j < jn; j++) {
-		builddir=KVM "/b" j
 		print "echo ----", cfr[j], cpusr[j] ovf ": Build/run results: | tee -a " rd "log";
 		print "cat " rd cfr[j]  "/kvm-test-1-run.sh.out | tee -a " rd "log";
 	}
