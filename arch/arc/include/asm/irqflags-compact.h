@@ -50,8 +50,12 @@
  * are redone after IRQs are re-enabled (and gcc doesn't reuse stale register)
  *
  * Noted at the time of Abilis Timer List corruption
- *	Orig Bug + Rejected solution	: https://lkml.org/lkml/2013/3/29/67
- *	Reasoning			: https://lkml.org/lkml/2013/4/8/15
+ *
+ * Orig Bug + Rejected solution:
+ * https://lore.kernel.org/lkml/1364553218-31255-1-git-send-email-vgupta@synopsys.com
+ *
+ * Reasoning:
+ * https://lore.kernel.org/lkml/CA+55aFyFWjpSVQM6M266tKrG_ZXJzZ-nYejpmXYQXbrr42mGPQ@mail.gmail.com
  *
  ******************************************************************/
 
