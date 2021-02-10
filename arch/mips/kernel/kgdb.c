@@ -32,7 +32,6 @@
 #include <asm/cacheflush.h>
 #include <asm/processor.h>
 #include <asm/sigcontext.h>
-#include <linux/uaccess.h>
 #include <asm/irq_regs.h>
 
 static struct hard_trap_info {
@@ -210,14 +209,7 @@ void arch_kgdb_breakpoint(void)
 
 void kgdb_call_nmi_hook(void *ignored)
 {
-	mm_segment_t old_fs;
-
-	old_fs = get_fs();
-	set_fs(KERNEL_DS);
-
 	kgdb_nmicallback(raw_smp_processor_id(), get_irq_regs());
-
-	set_fs(old_fs);
 }
 
 static int compute_signal(int tt)
@@ -302,7 +294,6 @@ static int kgdb_mips_notify(struct notifier_block *self, unsigned long cmd,
 	struct die_args *args = (struct die_args *)ptr;
 	struct pt_regs *regs = args->regs;
 	int trap = (regs->cp0_cause & 0x7c) >> 2;
-	mm_segment_t old_fs;
 
 #ifdef CONFIG_KPROBES
 	/*
@@ -317,17 +308,11 @@ static int kgdb_mips_notify(struct notifier_block *self, unsigned long cmd,
 	if (user_mode(regs))
 		return NOTIFY_DONE;
 
-	/* Kernel mode. Set correct address limit */
-	old_fs = get_fs();
-	set_fs(KERNEL_DS);
-
 	if (atomic_read(&kgdb_active) != -1)
 		kgdb_nmicallback(smp_processor_id(), regs);
 
-	if (kgdb_handle_exception(trap, compute_signal(trap), cmd, regs)) {
-		set_fs(old_fs);
+	if (kgdb_handle_exception(trap, compute_signal(trap), cmd, regs))
 		return NOTIFY_DONE;
-	}
 
 	if (atomic_read(&kgdb_setting_breakpoint))
 		if ((trap == 9) && (regs->cp0_epc == (unsigned long)breakinst))
@@ -337,7 +322,6 @@ static int kgdb_mips_notify(struct notifier_block *self, unsigned long cmd,
 	local_irq_enable();
 	__flush_cache_all();
 
-	set_fs(old_fs);
 	return NOTIFY_STOP;
 }
 
