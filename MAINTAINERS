@@ -15678,6 +15678,13 @@ S:	Supported
 W:	http://www.ibm.com/developerworks/linux/linux390/
 F:	drivers/s390/scsi/zfcp_*
 
+S3C ADC BATTERY DRIVER
+M:	Krzysztof Kozlowski <krzk@kernel.org>
+L:	linux-samsung-soc@vger.kernel.org
+S:	Odd Fixes
+F:	drivers/power/supply/s3c_adc_battery.c
+F:	include/linux/s3c_adc_battery.h
+
 S3C24XX SD/MMC Driver
 M:	Ben Dooks <ben-linux@fluff.org>
 L:	linux-arm-kernel@lists.infradead.org (moderated for non-subscribers)
