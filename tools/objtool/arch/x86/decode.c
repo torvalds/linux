@@ -98,13 +98,14 @@ int arch_decode_instruction(const struct elf *elf, const struct section *sec,
 			    struct list_head *ops_list)
 {
 	struct insn insn;
-	int x86_64, sign;
+	int x86_64;
 	unsigned char op1, op2,
 		      rex = 0, rex_b = 0, rex_r = 0, rex_w = 0, rex_x = 0,
 		      modrm = 0, modrm_mod = 0, modrm_rm = 0, modrm_reg = 0,
 		      sib = 0, /* sib_scale = 0, */ sib_index = 0, sib_base = 0;
 	struct stack_op *op = NULL;
 	struct symbol *sym;
+	u64 imm;
 
 	x86_64 = is_x86_64(elf);
 	if (x86_64 == -1)
@@ -200,12 +201,54 @@ int arch_decode_instruction(const struct elf *elf, const struct section *sec,
 		*type = INSN_JUMP_CONDITIONAL;
 		break;
 
-	case 0x81:
-	case 0x83:
-		if (rex != 0x48)
+	case 0x80 ... 0x83:
+		/*
+		 * 1000 00sw : mod OP r/m : immediate
+		 *
+		 * s - sign extend immediate
+		 * w - imm8 / imm32
+		 *
+		 * OP: 000 ADD    100 AND
+		 *     001 OR     101 SUB
+		 *     010 ADC    110 XOR
+		 *     011 SBB    111 CMP
+		 */
+
+		/* 64bit only */
+		if (!rex_w)
 			break;
 
-		if (modrm == 0xe4) {
+		/* %rsp target only */
+		if (!(modrm_mod == 3 && modrm_rm == CFI_SP))
+			break;
+
+		imm = insn.immediate.value;
+		if (op1 & 2) { /* sign extend */
+			if (op1 & 1) { /* imm32 */
+				imm <<= 32;
+				imm = (s64)imm >> 32;
+			} else { /* imm8 */
+				imm <<= 56;
+				imm = (s64)imm >> 56;
+			}
+		}
+
+		switch (modrm_reg & 7) {
+		case 5:
+			imm = -imm;
+			/* fallthrough */
+		case 0:
+			/* add/sub imm, %rsp */
+			ADD_OP(op) {
+				op->src.type = OP_SRC_ADD;
+				op->src.reg = CFI_SP;
+				op->src.offset = imm;
+				op->dest.type = OP_DEST_REG;
+				op->dest.reg = CFI_SP;
+			}
+			break;
+
+		case 4:
 			/* and imm, %rsp */
 			ADD_OP(op) {
 				op->src.type = OP_SRC_AND;
@@ -215,23 +258,12 @@ int arch_decode_instruction(const struct elf *elf, const struct section *sec,
 				op->dest.reg = CFI_SP;
 			}
 			break;
-		}
 
-		if (modrm == 0xc4)
-			sign = 1;
-		else if (modrm == 0xec)
-			sign = -1;
-		else
+		default:
+			/* WARN ? */
 			break;
-
-		/* add/sub imm, %rsp */
-		ADD_OP(op) {
-			op->src.type = OP_SRC_ADD;
-			op->src.reg = CFI_SP;
-			op->src.offset = insn.immediate.value * sign;
-			op->dest.type = OP_DEST_REG;
-			op->dest.reg = CFI_SP;
 		}
+
 		break;
 
 	case 0x89:
