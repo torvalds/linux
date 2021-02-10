@@ -49,11 +49,12 @@ struct compat_arch_vcpu_info {
 };
 
 struct compat_vcpu_info {
-        uint8_t evtchn_upcall_pending;
-        uint8_t evtchn_upcall_mask;
-        uint32_t evtchn_pending_sel;
-        struct compat_arch_vcpu_info arch;
-        struct pvclock_vcpu_time_info time;
+	uint8_t evtchn_upcall_pending;
+	uint8_t evtchn_upcall_mask;
+	uint16_t pad;
+	uint32_t evtchn_pending_sel;
+	struct compat_arch_vcpu_info arch;
+	struct pvclock_vcpu_time_info time;
 }; /* 64 bytes (x86) */
 
 struct compat_arch_shared_info {
