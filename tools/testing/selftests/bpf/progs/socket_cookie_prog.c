@@ -1,11 +1,12 @@
 // SPDX-License-Identifier: GPL-2.0
 // Copyright (c) 2018 Facebook
 
-#include <linux/bpf.h>
-#include <sys/socket.h>
+#include "vmlinux.h"
 
 #include <bpf/bpf_helpers.h>
 #include <bpf/bpf_endian.h>
+
+#define AF_INET6 10
 
 struct socket_cookie {
 	__u64 cookie_key;
@@ -41,7 +42,7 @@ int set_cookie(struct bpf_sock_addr *ctx)
 SEC("sockops")
 int update_cookie(struct bpf_sock_ops *ctx)
 {
-	struct bpf_sock *sk;
+	struct bpf_sock *sk = ctx->sk;
 	struct socket_cookie *p;
 
 	if (ctx->family != AF_INET6)
@@ -50,10 +51,10 @@ int update_cookie(struct bpf_sock_ops *ctx)
 	if (ctx->op != BPF_SOCK_OPS_TCP_CONNECT_CB)
 		return 1;
 
-	if (!ctx->sk)
+	if (!sk)
 		return 1;
 
-	p = bpf_sk_storage_get(&socket_cookies, ctx->sk, 0, 0);
+	p = bpf_sk_storage_get(&socket_cookies, sk, 0, 0);
 	if (!p)
 		return 1;
 
