@@ -106,12 +106,25 @@ check_prefetch_opcode(struct pt_regs *regs, unsigned char *instr,
 	}
 }
 
+static bool is_amd_k8_pre_npt(void)
+{
+	struct cpuinfo_x86 *c = &boot_cpu_data;
+
+	return unlikely(IS_ENABLED(CONFIG_CPU_SUP_AMD) &&
+			c->x86_vendor == X86_VENDOR_AMD &&
+			c->x86 == 0xf && c->x86_model < 0x40);
+}
+
 static int
 is_prefetch(struct pt_regs *regs, unsigned long error_code, unsigned long addr)
 {
 	unsigned char *max_instr;
 	unsigned char *instr;
 	int prefetch = 0;
+
+	/* Erratum #91 affects AMD K8, pre-NPT CPUs */
+	if (!is_amd_k8_pre_npt())
+		return 0;
 
 	/*
 	 * If it was a exec (instruction fetch) fault on NX page, then
