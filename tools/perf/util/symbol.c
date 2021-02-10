@@ -1568,7 +1568,7 @@ int dso__load_bfd_symbols(struct dso *dso, const char *debugfile)
 	bfd *abfd;
 	u64 start, len;
 
-	abfd = bfd_openr(dso->long_name, NULL);
+	abfd = bfd_openr(debugfile, NULL);
 	if (!abfd)
 		return -1;
 
@@ -1584,12 +1584,6 @@ int dso__load_bfd_symbols(struct dso *dso, const char *debugfile)
 	section = bfd_get_section_by_name(abfd, ".text");
 	if (section)
 		dso->text_offset = section->vma - section->filepos;
-
-	bfd_close(abfd);
-
-	abfd = bfd_openr(debugfile, NULL);
-	if (!abfd)
-		return -1;
 
 	if (!bfd_check_format(abfd, bfd_object)) {
 		pr_debug2("%s: cannot read %s bfd file.\n", __func__,
