@@ -1924,26 +1924,6 @@ static inline void io_req_complete_nostate(struct io_kiocb *req, long res,
 	io_put_req(req);
 }
 
-static void io_submit_flush_completions(struct io_comp_state *cs,
-					struct io_ring_ctx *ctx)
-{
-	int i, nr = cs->nr;
-
-	spin_lock_irq(&ctx->completion_lock);
-	for (i = 0; i < nr; i++) {
-		struct io_kiocb *req = cs->reqs[i];
-
-		__io_cqring_fill_event(req, req->result, req->compl.cflags);
-	}
-	io_commit_cqring(ctx);
-	spin_unlock_irq(&ctx->completion_lock);
-
-	io_cqring_ev_posted(ctx);
-	for (i = 0; i < nr; i++)
-		io_double_put_req(cs->reqs[i]);
-	cs->nr = 0;
-}
-
 static void io_req_complete_state(struct io_kiocb *req, long res,
 				  unsigned int cflags)
 {
@@ -2327,6 +2307,35 @@ static void io_req_free_batch(struct req_batch *rb, struct io_kiocb *req)
 	rb->reqs[rb->to_free++] = req;
 	if (unlikely(rb->to_free == ARRAY_SIZE(rb->reqs)))
 		__io_req_free_batch_flush(req->ctx, rb);
+}
+
+static void io_submit_flush_completions(struct io_comp_state *cs,
+					struct io_ring_ctx *ctx)
+{
+	int i, nr = cs->nr;
+	struct io_kiocb *req;
+	struct req_batch rb;
+
+	io_init_req_batch(&rb);
+	spin_lock_irq(&ctx->completion_lock);
+	for (i = 0; i < nr; i++) {
+		req = cs->reqs[i];
+		__io_cqring_fill_event(req, req->result, req->compl.cflags);
+	}
+	io_commit_cqring(ctx);
+	spin_unlock_irq(&ctx->completion_lock);
+
+	io_cqring_ev_posted(ctx);
+	for (i = 0; i < nr; i++) {
+		req = cs->reqs[i];
+
+		/* submission and completion refs */
+		if (refcount_sub_and_test(2, &req->refs))
+			io_req_free_batch(&rb, req);
+	}
+
+	io_req_free_batch_finish(ctx, &rb);
+	cs->nr = 0;
 }
 
 /*
