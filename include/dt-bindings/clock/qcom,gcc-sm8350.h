@@ -251,4 +251,16 @@
 #define GCC_VIDEO_AXI1_CLK_ARES					36
 #define GCC_VIDEO_BCR						37
 
+/* GCC power domains */
+#define PCIE_0_GDSC						0
+#define PCIE_1_GDSC						1
+#define UFS_CARD_GDSC						2
+#define UFS_PHY_GDSC						3
+#define USB30_PRIM_GDSC						4
+#define USB30_SEC_GDSC						5
+#define HLOS1_VOTE_MMNOC_MMU_TBU_HF0_GDSC			6
+#define HLOS1_VOTE_MMNOC_MMU_TBU_HF1_GDSC			7
+#define HLOS1_VOTE_MMNOC_MMU_TBU_SF0_GDSC			8
+#define HLOS1_VOTE_MMNOC_MMU_TBU_SF1_GDSC			9
+
 #endif
