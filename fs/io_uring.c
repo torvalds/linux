@@ -265,10 +265,11 @@ struct io_sq_data {
 };
 
 #define IO_IOPOLL_BATCH			8
+#define IO_COMPL_BATCH			32
 
 struct io_comp_state {
 	unsigned int		nr;
-	struct list_head	list;
+	struct io_kiocb		*reqs[IO_COMPL_BATCH];
 };
 
 struct io_submit_state {
@@ -1345,7 +1346,6 @@ static struct io_ring_ctx *io_ring_ctx_alloc(struct io_uring_params *p)
 	INIT_LIST_HEAD(&ctx->rsrc_ref_list);
 	INIT_DELAYED_WORK(&ctx->rsrc_put_work, io_rsrc_put_work);
 	init_llist_head(&ctx->rsrc_put_llist);
-	INIT_LIST_HEAD(&submit_state->comp.list);
 	return ctx;
 err:
 	if (ctx->fallback_req)
@@ -1927,33 +1927,20 @@ static inline void io_req_complete_nostate(struct io_kiocb *req, long res,
 static void io_submit_flush_completions(struct io_comp_state *cs,
 					struct io_ring_ctx *ctx)
 {
+	int i, nr = cs->nr;
+
 	spin_lock_irq(&ctx->completion_lock);
-	while (!list_empty(&cs->list)) {
-		struct io_kiocb *req;
+	for (i = 0; i < nr; i++) {
+		struct io_kiocb *req = cs->reqs[i];
 
-		req = list_first_entry(&cs->list, struct io_kiocb, compl.list);
-		list_del(&req->compl.list);
 		__io_cqring_fill_event(req, req->result, req->compl.cflags);
-
-		/*
-		 * io_free_req() doesn't care about completion_lock unless one
-		 * of these flags is set. REQ_F_WORK_INITIALIZED is in the list
-		 * because of a potential deadlock with req->work.fs->lock
-		 * We defer both, completion and submission refs.
-		 */
-		if (req->flags & (REQ_F_FAIL_LINK|REQ_F_LINK_TIMEOUT
-				 |REQ_F_WORK_INITIALIZED)) {
-			spin_unlock_irq(&ctx->completion_lock);
-			io_double_put_req(req);
-			spin_lock_irq(&ctx->completion_lock);
-		} else {
-			io_double_put_req(req);
-		}
 	}
 	io_commit_cqring(ctx);
 	spin_unlock_irq(&ctx->completion_lock);
 
 	io_cqring_ev_posted(ctx);
+	for (i = 0; i < nr; i++)
+		io_double_put_req(cs->reqs[i]);
 	cs->nr = 0;
 }
 
@@ -6517,8 +6504,8 @@ again:
 	} else if (likely(!ret)) {
 		/* drop submission reference */
 		if (req->flags & REQ_F_COMPLETE_INLINE) {
-			list_add_tail(&req->compl.list, &cs->list);
-			if (++cs->nr >= 32)
+			cs->reqs[cs->nr++] = req;
+			if (cs->nr == IO_COMPL_BATCH)
 				io_submit_flush_completions(cs, req->ctx);
 			req = NULL;
 		} else {
@@ -6657,7 +6644,7 @@ static int io_submit_sqe(struct io_kiocb *req, const struct io_uring_sqe *sqe,
 static void io_submit_state_end(struct io_submit_state *state,
 				struct io_ring_ctx *ctx)
 {
-	if (!list_empty(&state->comp.list))
+	if (state->comp.nr)
 		io_submit_flush_completions(&state->comp, ctx);
 	if (state->plug_started)
 		blk_finish_plug(&state->plug);
