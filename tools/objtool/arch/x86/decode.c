@@ -72,6 +72,25 @@ unsigned long arch_jump_destination(struct instruction *insn)
 		return -1; \
 	else for (list_add_tail(&op->list, ops_list); op; op = NULL)
 
+/*
+ * Helpers to decode ModRM/SIB:
+ *
+ * r/m| AX  CX  DX  BX |  SP |  BP |  SI  DI |
+ *    | R8  R9 R10 R11 | R12 | R13 | R14 R15 |
+ * Mod+----------------+-----+-----+---------+
+ * 00 |    [r/m]       |[SIB]|[IP+]|  [r/m]  |
+ * 01 |  [r/m + d8]    |[S+d]|   [r/m + d8]  |
+ * 10 |  [r/m + d32]   |[S+D]|   [r/m + d32] |
+ * 11 |                   r/ m               |
+ *
+ */
+#define is_RIP()   ((modrm_rm & 7) == CFI_BP && modrm_mod == 0)
+#define have_SIB() ((modrm_rm & 7) == CFI_SP && modrm_mod != 3)
+
+#define rm_is(reg) (have_SIB() ? \
+		    sib_base == (reg) && sib_index == CFI_SP : \
+		    modrm_rm == (reg))
+
 int arch_decode_instruction(const struct elf *elf, const struct section *sec,
 			    unsigned long offset, unsigned int maxlen,
 			    unsigned int *len, enum insn_type *type,
@@ -83,7 +102,7 @@ int arch_decode_instruction(const struct elf *elf, const struct section *sec,
 	unsigned char op1, op2,
 		      rex = 0, rex_b = 0, rex_r = 0, rex_w = 0, rex_x = 0,
 		      modrm = 0, modrm_mod = 0, modrm_rm = 0, modrm_reg = 0,
-		      sib = 0 /* , sib_scale = 0, sib_index = 0, sib_base = 0 */;
+		      sib = 0, /* sib_scale = 0, */ sib_index = 0, sib_base = 0;
 	struct stack_op *op = NULL;
 	struct symbol *sym;
 
@@ -125,11 +144,9 @@ int arch_decode_instruction(const struct elf *elf, const struct section *sec,
 
 	if (insn.sib.nbytes) {
 		sib = insn.sib.bytes[0];
-		/*
-		sib_scale = X86_SIB_SCALE(sib);
+		/* sib_scale = X86_SIB_SCALE(sib); */
 		sib_index = X86_SIB_INDEX(sib) + 8*rex_x;
 		sib_base  = X86_SIB_BASE(sib)  + 8*rex_b;
-		 */
 	}
 
 	switch (op1) {
@@ -218,7 +235,10 @@ int arch_decode_instruction(const struct elf *elf, const struct section *sec,
 		break;
 
 	case 0x89:
-		if (rex_w && modrm_reg == CFI_SP) {
+		if (!rex_w)
+			break;
+
+		if (modrm_reg == CFI_SP) {
 
 			if (modrm_mod == 3) {
 				/* mov %rsp, reg */
@@ -231,13 +251,16 @@ int arch_decode_instruction(const struct elf *elf, const struct section *sec,
 				break;
 
 			} else {
-				/* skip nontrivial SIB */
-				if ((modrm_rm & 7) == 4 && !(sib == 0x24 && rex_b == rex_x))
+				/* skip RIP relative displacement */
+				if (is_RIP())
 					break;
 
-				/* skip RIP relative displacement */
-				if ((modrm_rm & 7) == 5 && modrm_mod == 0)
-					break;
+				/* skip nontrivial SIB */
+				if (have_SIB()) {
+					modrm_rm = sib_base;
+					if (sib_index != CFI_SP)
+						break;
+				}
 
 				/* mov %rsp, disp(%reg) */
 				ADD_OP(op) {
@@ -253,7 +276,7 @@ int arch_decode_instruction(const struct elf *elf, const struct section *sec,
 			break;
 		}
 
-		if (rex_w && modrm_mod == 3 && modrm_rm == CFI_SP) {
+		if (modrm_mod == 3 && modrm_rm == CFI_SP) {
 
 			/* mov reg, %rsp */
 			ADD_OP(op) {
@@ -267,6 +290,9 @@ int arch_decode_instruction(const struct elf *elf, const struct section *sec,
 
 		/* fallthrough */
 	case 0x88:
+		if (!rex_w)
+			break;
+
 		if ((modrm_mod == 1 || modrm_mod == 2) && modrm_rm == CFI_BP) {
 
 			/* mov reg, disp(%rbp) */
@@ -280,7 +306,7 @@ int arch_decode_instruction(const struct elf *elf, const struct section *sec,
 			break;
 		}
 
-		if (rex_w && modrm_rm == CFI_SP && sib == 0x24) {
+		if (modrm_mod != 3 && rm_is(CFI_SP)) {
 
 			/* mov reg, disp(%rsp) */
 			ADD_OP(op) {
@@ -299,7 +325,7 @@ int arch_decode_instruction(const struct elf *elf, const struct section *sec,
 		if (!rex_w)
 			break;
 
-		if (modrm_mod == 1 && modrm_rm == CFI_BP) {
+		if ((modrm_mod == 1 || modrm_mod == 2) && modrm_rm == CFI_BP) {
 
 			/* mov disp(%rbp), reg */
 			ADD_OP(op) {
@@ -312,7 +338,7 @@ int arch_decode_instruction(const struct elf *elf, const struct section *sec,
 			break;
 		}
 
-		if (modrm_mod != 3 && modrm_rm == CFI_SP && sib == 0x24) {
+		if (modrm_mod != 3 && rm_is(CFI_SP)) {
 
 			/* mov disp(%rsp), reg */
 			ADD_OP(op) {
@@ -337,13 +363,16 @@ int arch_decode_instruction(const struct elf *elf, const struct section *sec,
 		if (!rex_w)
 			break;
 
-		/* skip nontrivial SIB */
-		if ((modrm_rm & 7) == 4 && !(sib == 0x24 && rex_b == rex_x))
+		/* skip RIP relative displacement */
+		if (is_RIP())
 			break;
 
-		/* skip RIP relative displacement */
-		if ((modrm_rm & 7) == 5 && modrm_mod == 0)
-			break;
+		/* skip nontrivial SIB */
+		if (have_SIB()) {
+			modrm_rm = sib_base;
+			if (sib_index != CFI_SP)
+				break;
+		}
 
 		/* lea disp(%src), %dst */
 		ADD_OP(op) {
