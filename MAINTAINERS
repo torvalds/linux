@@ -3879,6 +3879,7 @@ CANAAN/KENDRYTE K210 SOC SYSTEM CONTROLLER DRIVER
 M:	Damien Le Moal <damien.lemoal@wdc.com>
 L:	linux-riscv@lists.infradead.org
 S:	Maintained
+F:      Documentation/devicetree/bindings/mfd/canaan,k210-sysctl.yaml
 F:	drivers/soc/canaan/
 F:	include/soc/canaan/
 
