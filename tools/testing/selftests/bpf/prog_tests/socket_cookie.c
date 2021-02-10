@@ -35,9 +35,14 @@ void test_socket_cookie(void)
 	if (!ASSERT_OK_PTR(skel->links.set_cookie, "prog_attach"))
 		goto close_cgroup_fd;
 
-	skel->links.update_cookie = bpf_program__attach_cgroup(
-		skel->progs.update_cookie, cgroup_fd);
-	if (!ASSERT_OK_PTR(skel->links.update_cookie, "prog_attach"))
+	skel->links.update_cookie_sockops = bpf_program__attach_cgroup(
+		skel->progs.update_cookie_sockops, cgroup_fd);
+	if (!ASSERT_OK_PTR(skel->links.update_cookie_sockops, "prog_attach"))
+		goto close_cgroup_fd;
+
+	skel->links.update_cookie_tracing = bpf_program__attach(
+		skel->progs.update_cookie_tracing);
+	if (!ASSERT_OK_PTR(skel->links.update_cookie_tracing, "prog_attach"))
 		goto close_cgroup_fd;
 
 	server_fd = start_server(AF_INET6, SOCK_STREAM, "::1", 0, 0);
