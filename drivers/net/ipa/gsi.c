@@ -1710,6 +1710,7 @@ static int gsi_channel_setup(struct gsi *gsi)
 		if (!channel->gsi)
 			continue;	/* Ignore uninitialized channels */
 
+		ret = -EINVAL;
 		dev_err(gsi->dev, "channel %u not supported by hardware\n",
 			channel_id - 1);
 		channel_id = gsi->channel_count;
