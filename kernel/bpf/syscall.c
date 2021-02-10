@@ -1739,7 +1739,7 @@ static void bpf_prog_get_stats(const struct bpf_prog *prog,
 		unsigned int start;
 		u64 tnsecs, tcnt;
 
-		st = per_cpu_ptr(prog->aux->stats, cpu);
+		st = per_cpu_ptr(prog->stats, cpu);
 		do {
 			start = u64_stats_fetch_begin_irq(&st->syncp);
 			tnsecs = st->nsecs;

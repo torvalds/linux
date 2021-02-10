@@ -412,7 +412,7 @@ void notrace __bpf_prog_exit(struct bpf_prog *prog, u64 start)
 	     * Hence check that 'start' is not zero.
 	     */
 	    start) {
-		stats = this_cpu_ptr(prog->aux->stats);
+		stats = this_cpu_ptr(prog->stats);
 		u64_stats_update_begin(&stats->syncp);
 		stats->cnt++;
 		stats->nsecs += sched_clock() - start;

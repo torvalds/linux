@@ -114,8 +114,8 @@ struct bpf_prog *bpf_prog_alloc(unsigned int size, gfp_t gfp_extra_flags)
 	if (!prog)
 		return NULL;
 
-	prog->aux->stats = alloc_percpu_gfp(struct bpf_prog_stats, gfp_flags);
-	if (!prog->aux->stats) {
+	prog->stats = alloc_percpu_gfp(struct bpf_prog_stats, gfp_flags);
+	if (!prog->stats) {
 		kfree(prog->aux);
 		vfree(prog);
 		return NULL;
@@ -124,7 +124,7 @@ struct bpf_prog *bpf_prog_alloc(unsigned int size, gfp_t gfp_extra_flags)
 	for_each_possible_cpu(cpu) {
 		struct bpf_prog_stats *pstats;
 
-		pstats = per_cpu_ptr(prog->aux->stats, cpu);
+		pstats = per_cpu_ptr(prog->stats, cpu);
 		u64_stats_init(&pstats->syncp);
 	}
 	return prog;
@@ -249,10 +249,10 @@ void __bpf_prog_free(struct bpf_prog *fp)
 	if (fp->aux) {
 		mutex_destroy(&fp->aux->used_maps_mutex);
 		mutex_destroy(&fp->aux->dst_mutex);
-		free_percpu(fp->aux->stats);
 		kfree(fp->aux->poke_tab);
 		kfree(fp->aux);
 	}
+	free_percpu(fp->stats);
 	vfree(fp);
 }
 
