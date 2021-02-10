@@ -1076,8 +1076,8 @@ off``. ::
     BPF_CMPXCHG
 
 This atomically compares the value addressed by ``dst_reg + off`` with
-``R0``. If they match it is replaced with ``src_reg``, The value that was there
-before is loaded back to ``R0``.
+``R0``. If they match it is replaced with ``src_reg``. In either case, the
+value that was there before is zero-extended and loaded back to ``R0``.
 
 Note that 1 and 2 byte atomic operations are not supported.
 
