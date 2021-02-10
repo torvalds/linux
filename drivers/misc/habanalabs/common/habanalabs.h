@@ -1920,6 +1920,7 @@ struct hl_mmu_funcs {
  * @device_fini_pending: true if device_fini was called and might be
  *                       waiting for the reset thread to finish
  * @supports_staged_submission: true if staged submissions are supported
+ * @reset_upon_device_release: true if reset is required upon device release
  */
 struct hl_device {
 	struct pci_dev			*pdev;
@@ -2026,6 +2027,7 @@ struct hl_device {
 	u8				process_kill_trial_cnt;
 	u8				device_fini_pending;
 	u8				supports_staged_submission;
+	u8				reset_upon_device_release;
 
 	/* Parameters for bring-up */
 	u64				nic_ports_mask;
