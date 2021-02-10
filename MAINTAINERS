@@ -2416,6 +2416,8 @@ F:	drivers/*/*s5pv210*
 F:	drivers/memory/samsung/
 F:	drivers/soc/samsung/
 F:	drivers/tty/serial/samsung*
+F:	include/linux/platform_data/*s3c*
+F:	include/linux/serial_s3c.h
 F:	include/linux/soc/samsung/
 N:	exynos
 N:	s3c2410
