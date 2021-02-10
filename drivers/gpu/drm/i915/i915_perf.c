@@ -725,11 +725,6 @@ static int gen8_append_oa_reports(struct i915_perf_stream *stream,
 			  (IS_GEN(stream->perf->i915, 12) ?
 			   OAREPORT_REASON_MASK_EXTENDED :
 			   OAREPORT_REASON_MASK));
-		if (reason == 0) {
-			if (__ratelimit(&stream->perf->spurious_report_rs))
-				DRM_NOTE("Skipping spurious, invalid OA report\n");
-			continue;
-		}
 
 		ctx_id = report32[2] & stream->specific_ctx_id_mask;
 
