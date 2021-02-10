@@ -200,6 +200,42 @@ static const struct rpmhpd_desc sm8250_desc = {
 	.num_pds = ARRAY_SIZE(sm8250_rpmhpds),
 };
 
+/* SM8350 Power domains */
+static struct rpmhpd sm8350_mxc_ao;
+static struct rpmhpd sm8350_mxc = {
+	.pd = { .name = "mxc", },
+	.peer = &sm8150_mmcx_ao,
+	.res_name = "mxc.lvl",
+};
+
+static struct rpmhpd sm8350_mxc_ao = {
+	.pd = { .name = "mxc_ao", },
+	.active_only = true,
+	.peer = &sm8350_mxc,
+	.res_name = "mxc.lvl",
+};
+
+static struct rpmhpd *sm8350_rpmhpds[] = {
+	[SM8350_CX] = &sdm845_cx,
+	[SM8350_CX_AO] = &sdm845_cx_ao,
+	[SM8350_EBI] = &sdm845_ebi,
+	[SM8350_GFX] = &sdm845_gfx,
+	[SM8350_LCX] = &sdm845_lcx,
+	[SM8350_LMX] = &sdm845_lmx,
+	[SM8350_MMCX] = &sm8150_mmcx,
+	[SM8350_MMCX_AO] = &sm8150_mmcx_ao,
+	[SM8350_MX] = &sdm845_mx,
+	[SM8350_MX_AO] = &sdm845_mx_ao,
+	[SM8350_MXC] = &sm8350_mxc,
+	[SM8350_MXC_AO] = &sm8350_mxc_ao,
+	[SM8350_MSS] = &sdm845_mss,
+};
+
+static const struct rpmhpd_desc sm8350_desc = {
+	.rpmhpds = sm8350_rpmhpds,
+	.num_pds = ARRAY_SIZE(sm8350_rpmhpds),
+};
+
 /* SC7180 RPMH powerdomains */
 static struct rpmhpd *sc7180_rpmhpds[] = {
 	[SC7180_CX] = &sdm845_cx,
@@ -223,6 +259,7 @@ static const struct of_device_id rpmhpd_match_table[] = {
 	{ .compatible = "qcom,sdx55-rpmhpd", .data = &sdx55_desc},
 	{ .compatible = "qcom,sm8150-rpmhpd", .data = &sm8150_desc },
 	{ .compatible = "qcom,sm8250-rpmhpd", .data = &sm8250_desc },
+	{ .compatible = "qcom,sm8350-rpmhpd", .data = &sm8350_desc },
 	{ }
 };
 MODULE_DEVICE_TABLE(of, rpmhpd_match_table);
