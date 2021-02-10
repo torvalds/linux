@@ -1,14 +1,12 @@
 # SPDX-License-Identifier: GPL-2.0
 
-if SOC_CANAAN
-
-config K210_SYSCTL
+config SOC_K210_SYSCTL
 	bool "Canaan Kendryte K210 SoC system controller"
-	default y
-	depends on RISCV
+	depends on RISCV && SOC_CANAAN && OF
+	default SOC_CANAAN
+        select PM
+        select SIMPLE_PM_BUS
+        select SYSCON
+        select MFD_SYSCON
 	help
-	  Enables controlling the K210 various clocks and to enable
-	  general purpose use of the extra 2MB of SRAM normally
-	  reserved for the AI engine.
-
-endif
+	  Canaan Kendryte K210 SoC system controller driver.

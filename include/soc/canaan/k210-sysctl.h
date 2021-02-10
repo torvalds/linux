@@ -38,4 +38,6 @@
 #define K210_SYSCTL_DMA_SEL1	0x68 /* DMA handshake selector 1 */
 #define K210_SYSCTL_POWER_SEL	0x6C /* IO Power Mode Select controller */
 
+void k210_clk_early_init(void __iomem *regs);
+
 #endif
