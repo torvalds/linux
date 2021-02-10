@@ -819,8 +819,7 @@ out:
 	return rc;
 }
 
-static int qede_set_coalesce(struct net_device *dev,
-			     struct ethtool_coalesce *coal)
+int qede_set_coalesce(struct net_device *dev, struct ethtool_coalesce *coal)
 {
 	struct qede_dev *edev = netdev_priv(dev);
 	struct qede_fastpath *fp;
@@ -855,6 +854,8 @@ static int qede_set_coalesce(struct net_device *dev,
 					"Set RX coalesce error, rc = %d\n", rc);
 				return rc;
 			}
+			edev->coal_entry[i].rxc = rxc;
+			edev->coal_entry[i].isvalid = true;
 		}
 
 		if (edev->fp_array[i].type & QEDE_FASTPATH_TX) {
@@ -874,6 +875,8 @@ static int qede_set_coalesce(struct net_device *dev,
 					"Set TX coalesce error, rc = %d\n", rc);
 				return rc;
 			}
+			edev->coal_entry[i].txc = txc;
+			edev->coal_entry[i].isvalid = true;
 		}
 	}
 
@@ -2105,9 +2108,8 @@ err:
 	return rc;
 }
 
-static int qede_set_per_coalesce(struct net_device *dev,
-				 u32 queue,
-				 struct ethtool_coalesce *coal)
+int qede_set_per_coalesce(struct net_device *dev, u32 queue,
+			  struct ethtool_coalesce *coal)
 {
 	struct qede_dev *edev = netdev_priv(dev);
 	struct qede_fastpath *fp;
@@ -2150,6 +2152,8 @@ static int qede_set_per_coalesce(struct net_device *dev,
 				"Set RX coalesce error, rc = %d\n", rc);
 			goto out;
 		}
+		edev->coal_entry[queue].rxc = rxc;
+		edev->coal_entry[queue].isvalid = true;
 	}
 
 	if (edev->fp_array[queue].type & QEDE_FASTPATH_TX) {
@@ -2161,6 +2165,8 @@ static int qede_set_per_coalesce(struct net_device *dev,
 				"Set TX coalesce error, rc = %d\n", rc);
 			goto out;
 		}
+		edev->coal_entry[queue].txc = txc;
+		edev->coal_entry[queue].isvalid = true;
 	}
 out:
 	__qede_unlock(edev);

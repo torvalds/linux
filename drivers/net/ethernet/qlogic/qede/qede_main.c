@@ -904,6 +904,7 @@ static int qede_alloc_fp_array(struct qede_dev *edev)
 {
 	u8 fp_combined, fp_rx = edev->fp_num_rx;
 	struct qede_fastpath *fp;
+	void *mem;
 	int i;
 
 	edev->fp_array = kcalloc(QEDE_QUEUE_CNT(edev),
@@ -912,6 +913,15 @@ static int qede_alloc_fp_array(struct qede_dev *edev)
 		DP_NOTICE(edev, "fp array allocation failed\n");
 		goto err;
 	}
+
+	mem = krealloc(edev->coal_entry, QEDE_QUEUE_CNT(edev) *
+		       sizeof(*edev->coal_entry), GFP_KERNEL);
+	if (!mem) {
+		DP_ERR(edev, "coalesce entry allocation failed\n");
+		kfree(edev->coal_entry);
+		goto err;
+	}
+	edev->coal_entry = mem;
 
 	fp_combined = QEDE_QUEUE_CNT(edev) - fp_rx - edev->fp_num_tx;
 
@@ -1320,8 +1330,10 @@ static void __qede_remove(struct pci_dev *pdev, enum qede_remove_mode mode)
 	 * [e.g., QED register callbacks] won't break anything when
 	 * accessing the netdevice.
 	 */
-	if (mode != QEDE_REMOVE_RECOVERY)
+	if (mode != QEDE_REMOVE_RECOVERY) {
+		kfree(edev->coal_entry);
 		free_netdev(ndev);
+	}
 
 	dev_info(&pdev->dev, "Ending qede_remove successfully\n");
 }
@@ -2328,8 +2340,9 @@ static int qede_load(struct qede_dev *edev, enum qede_load_mode mode,
 		     bool is_locked)
 {
 	struct qed_link_params link_params;
+	struct ethtool_coalesce coal = {};
 	u8 num_tc;
-	int rc;
+	int rc, i;
 
 	DP_INFO(edev, "Starting qede load\n");
 
@@ -2390,6 +2403,18 @@ static int qede_load(struct qede_dev *edev, enum qede_load_mode mode,
 
 	edev->state = QEDE_STATE_OPEN;
 
+	coal.rx_coalesce_usecs = QED_DEFAULT_RX_USECS;
+	coal.tx_coalesce_usecs = QED_DEFAULT_TX_USECS;
+
+	for_each_queue(i) {
+		if (edev->coal_entry[i].isvalid) {
+			coal.rx_coalesce_usecs = edev->coal_entry[i].rxc;
+			coal.tx_coalesce_usecs = edev->coal_entry[i].txc;
+		}
+		__qede_unlock(edev);
+		qede_set_per_coalesce(edev->ndev, i, &coal);
+		__qede_lock(edev);
+	}
 	DP_INFO(edev, "Ending successfully qede load\n");
 
 	goto out;
