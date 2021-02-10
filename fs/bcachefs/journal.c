@@ -574,6 +574,8 @@ int bch2_journal_flush_seq_async(struct journal *j, u64 seq,
 
 	spin_lock(&j->lock);
 
+	BUG_ON(seq > journal_cur_seq(j));
+
 	/* Recheck under lock: */
 	if (j->err_seq && seq >= j->err_seq) {
 		ret = -EIO;
