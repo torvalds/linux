@@ -3134,7 +3134,6 @@ static int crypt_ctr_optional(struct dm_target *ti, unsigned int argc, char **ar
 }
 
 #ifdef CONFIG_BLK_DEV_ZONED
-
 static int crypt_report_zones(struct dm_target *ti,
 		struct dm_report_zones_args *args, unsigned int nr_zones)
 {
@@ -3145,7 +3144,8 @@ static int crypt_report_zones(struct dm_target *ti,
 	return blkdev_report_zones(cc->dev->bdev, sector, nr_zones,
 				   dm_report_zones_cb, args);
 }
-
+#else
+#define crypt_report_zones NULL
 #endif
 
 /*
@@ -3580,10 +3580,8 @@ static struct target_type crypt_target = {
 	.module = THIS_MODULE,
 	.ctr    = crypt_ctr,
 	.dtr    = crypt_dtr,
-#ifdef CONFIG_BLK_DEV_ZONED
 	.features = DM_TARGET_ZONED_HM,
 	.report_zones = crypt_report_zones,
-#endif
 	.map    = crypt_map,
 	.status = crypt_status,
 	.postsuspend = crypt_postsuspend,
