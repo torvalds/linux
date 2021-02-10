@@ -1250,12 +1250,12 @@ void do_user_addr_fault(struct pt_regs *regs,
 		 * user memory.  Unless this is AMD erratum #93, which
 		 * corrupts RIP such that it looks like a user address,
 		 * this is unrecoverable.  Don't even try to look up the
-		 * VMA.
+		 * VMA or look for extable entries.
 		 */
 		if (is_errata93(regs, address))
 			return;
 
-		bad_area_nosemaphore(regs, error_code, address);
+		page_fault_oops(regs, error_code, address);
 		return;
 	}
 
