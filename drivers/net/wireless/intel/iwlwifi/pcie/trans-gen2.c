@@ -10,6 +10,8 @@
 #include "internal.h"
 #include "fw/dbg.h"
 
+#define FW_RESET_TIMEOUT (HZ / 5)
+
 /*
  * Start up NIC's basic functionality after it has been reset
  * (e.g. after platform boot, or shutdown via iwl_pcie_apm_stop())
@@ -104,7 +106,7 @@ static void iwl_trans_pcie_fw_reset_handshake(struct iwl_trans *trans)
 
 	/* wait 200ms */
 	ret = wait_event_timeout(trans_pcie->fw_reset_waitq,
-				 trans_pcie->fw_reset_done, HZ / 5);
+				 trans_pcie->fw_reset_done, FW_RESET_TIMEOUT);
 	if (!ret)
 		IWL_ERR(trans,
 			"firmware didn't ACK the reset - continue anyway\n");
