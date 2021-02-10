@@ -1255,15 +1255,15 @@ struct hns_roce_v2_rc_send_wqe {
 
 #define V2_RC_SEND_WQE_BYTE_4_INLINE_S 12
 
-#define V2_RC_FRMR_WQE_BYTE_4_BIND_EN_S 19
+#define V2_RC_FRMR_WQE_BYTE_40_BIND_EN_S 10
 
-#define V2_RC_FRMR_WQE_BYTE_4_ATOMIC_S 20
+#define V2_RC_FRMR_WQE_BYTE_40_ATOMIC_S 11
 
-#define V2_RC_FRMR_WQE_BYTE_4_RR_S 21
+#define V2_RC_FRMR_WQE_BYTE_40_RR_S 12
 
-#define V2_RC_FRMR_WQE_BYTE_4_RW_S 22
+#define V2_RC_FRMR_WQE_BYTE_40_RW_S 13
 
-#define V2_RC_FRMR_WQE_BYTE_4_LW_S 23
+#define V2_RC_FRMR_WQE_BYTE_40_LW_S 14
 
 #define V2_RC_SEND_WQE_BYTE_4_FLAG_S 31
 
@@ -1280,7 +1280,7 @@ struct hns_roce_v2_rc_send_wqe {
 
 struct hns_roce_wqe_frmr_seg {
 	__le32	pbl_size;
-	__le32	mode_buf_pg_sz;
+	__le32	byte_40;
 };
 
 #define V2_RC_FRMR_WQE_BYTE_40_PBL_BUF_PG_SZ_S	4

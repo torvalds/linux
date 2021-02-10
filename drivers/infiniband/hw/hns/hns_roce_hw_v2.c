@@ -99,16 +99,16 @@ static void set_frmr_seg(struct hns_roce_v2_rc_send_wqe *rc_sq_wqe,
 	u64 pbl_ba;
 
 	/* use ib_access_flags */
-	roce_set_bit(rc_sq_wqe->byte_4, V2_RC_FRMR_WQE_BYTE_4_BIND_EN_S,
-		     wr->access & IB_ACCESS_MW_BIND ? 1 : 0);
-	roce_set_bit(rc_sq_wqe->byte_4, V2_RC_FRMR_WQE_BYTE_4_ATOMIC_S,
-		     wr->access & IB_ACCESS_REMOTE_ATOMIC ? 1 : 0);
-	roce_set_bit(rc_sq_wqe->byte_4, V2_RC_FRMR_WQE_BYTE_4_RR_S,
-		     wr->access & IB_ACCESS_REMOTE_READ ? 1 : 0);
-	roce_set_bit(rc_sq_wqe->byte_4, V2_RC_FRMR_WQE_BYTE_4_RW_S,
-		     wr->access & IB_ACCESS_REMOTE_WRITE ? 1 : 0);
-	roce_set_bit(rc_sq_wqe->byte_4, V2_RC_FRMR_WQE_BYTE_4_LW_S,
-		     wr->access & IB_ACCESS_LOCAL_WRITE ? 1 : 0);
+	roce_set_bit(fseg->byte_40, V2_RC_FRMR_WQE_BYTE_40_BIND_EN_S,
+		     !!(wr->access & IB_ACCESS_MW_BIND));
+	roce_set_bit(fseg->byte_40, V2_RC_FRMR_WQE_BYTE_40_ATOMIC_S,
+		     !!(wr->access & IB_ACCESS_REMOTE_ATOMIC));
+	roce_set_bit(fseg->byte_40, V2_RC_FRMR_WQE_BYTE_40_RR_S,
+		     !!(wr->access & IB_ACCESS_REMOTE_READ));
+	roce_set_bit(fseg->byte_40, V2_RC_FRMR_WQE_BYTE_40_RW_S,
+		     !!(wr->access & IB_ACCESS_REMOTE_WRITE));
+	roce_set_bit(fseg->byte_40, V2_RC_FRMR_WQE_BYTE_40_LW_S,
+		     !!(wr->access & IB_ACCESS_LOCAL_WRITE));
 
 	/* Data structure reuse may lead to confusion */
 	pbl_ba = mr->pbl_mtr.hem_cfg.root_ba;
@@ -121,12 +121,10 @@ static void set_frmr_seg(struct hns_roce_v2_rc_send_wqe *rc_sq_wqe,
 	rc_sq_wqe->va = cpu_to_le64(wr->mr->iova);
 
 	fseg->pbl_size = cpu_to_le32(mr->npages);
-	roce_set_field(fseg->mode_buf_pg_sz,
-		       V2_RC_FRMR_WQE_BYTE_40_PBL_BUF_PG_SZ_M,
+	roce_set_field(fseg->byte_40, V2_RC_FRMR_WQE_BYTE_40_PBL_BUF_PG_SZ_M,
 		       V2_RC_FRMR_WQE_BYTE_40_PBL_BUF_PG_SZ_S,
 		       to_hr_hw_page_shift(mr->pbl_mtr.hem_cfg.buf_pg_shift));
-	roce_set_bit(fseg->mode_buf_pg_sz,
-		     V2_RC_FRMR_WQE_BYTE_40_BLK_MODE_S, 0);
+	roce_set_bit(fseg->byte_40, V2_RC_FRMR_WQE_BYTE_40_BLK_MODE_S, 0);
 }
 
 static void set_atomic_seg(const struct ib_send_wr *wr,
@@ -522,10 +520,12 @@ static inline int set_ud_wqe(struct hns_roce_qp *qp,
 	return 0;
 }
 
-static int set_rc_opcode(struct hns_roce_v2_rc_send_wqe *rc_sq_wqe,
+static int set_rc_opcode(struct hns_roce_dev *hr_dev,
+			 struct hns_roce_v2_rc_send_wqe *rc_sq_wqe,
 			 const struct ib_send_wr *wr)
 {
 	u32 ib_op = wr->opcode;
+	int ret = 0;
 
 	rc_sq_wqe->immtdata = get_immtdata(wr);
 
@@ -545,7 +545,10 @@ static int set_rc_opcode(struct hns_roce_v2_rc_send_wqe *rc_sq_wqe,
 		rc_sq_wqe->va = cpu_to_le64(atomic_wr(wr)->remote_addr);
 		break;
 	case IB_WR_REG_MR:
-		set_frmr_seg(rc_sq_wqe, reg_wr(wr));
+		if (hr_dev->pci_dev->revision >= PCI_REVISION_ID_HIP09)
+			set_frmr_seg(rc_sq_wqe, reg_wr(wr));
+		else
+			ret = -EOPNOTSUPP;
 		break;
 	case IB_WR_LOCAL_INV:
 		roce_set_bit(rc_sq_wqe->byte_4, V2_RC_SEND_WQE_BYTE_4_SO_S, 1);
@@ -554,19 +557,23 @@ static int set_rc_opcode(struct hns_roce_v2_rc_send_wqe *rc_sq_wqe,
 		rc_sq_wqe->inv_key = cpu_to_le32(wr->ex.invalidate_rkey);
 		break;
 	default:
-		return -EINVAL;
+		ret = -EINVAL;
 	}
+
+	if (unlikely(ret))
+		return ret;
 
 	roce_set_field(rc_sq_wqe->byte_4, V2_RC_SEND_WQE_BYTE_4_OPCODE_M,
 		       V2_RC_SEND_WQE_BYTE_4_OPCODE_S, to_hr_opcode(ib_op));
 
-	return 0;
+	return ret;
 }
 static inline int set_rc_wqe(struct hns_roce_qp *qp,
 			     const struct ib_send_wr *wr,
 			     void *wqe, unsigned int *sge_idx,
 			     unsigned int owner_bit)
 {
+	struct hns_roce_dev *hr_dev = to_hr_dev(qp->ibqp.device);
 	struct hns_roce_v2_rc_send_wqe *rc_sq_wqe = wqe;
 	unsigned int curr_idx = *sge_idx;
 	unsigned int valid_num_sge;
@@ -577,7 +584,7 @@ static inline int set_rc_wqe(struct hns_roce_qp *qp,
 
 	rc_sq_wqe->msg_len = cpu_to_le32(msg_len);
 
-	ret = set_rc_opcode(rc_sq_wqe, wr);
+	ret = set_rc_opcode(hr_dev, rc_sq_wqe, wr);
 	if (WARN_ON(ret))
 		return ret;
 
