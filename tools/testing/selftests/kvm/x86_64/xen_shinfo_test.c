@@ -79,8 +79,7 @@ int main(int argc, char *argv[])
 
 	/* Map a region for the shared_info page */
 	vm_userspace_mem_region_add(vm, VM_MEM_SRC_ANONYMOUS,
-                                    SHINFO_REGION_GPA, SHINFO_REGION_SLOT,
-				    2 * getpagesize(), 0);
+				    SHINFO_REGION_GPA, SHINFO_REGION_SLOT, 2, 0);
 	virt_map(vm, SHINFO_REGION_GPA, SHINFO_REGION_GPA, 2, 0);
 
 	struct kvm_xen_hvm_config hvmc = {
