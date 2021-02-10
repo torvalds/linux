@@ -1866,8 +1866,10 @@ int dso__load(struct dso *dso, struct map *map)
 		if (nsexit)
 			nsinfo__mountns_enter(dso->nsinfo, &nsc);
 
-		if (bfdrc == 0)
+		if (bfdrc == 0) {
+			ret = 0;
 			break;
+		}
 
 		if (!is_reg || sirc < 0)
 			continue;
