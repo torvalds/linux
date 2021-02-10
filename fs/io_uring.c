@@ -270,8 +270,9 @@ struct io_sq_data {
 #define IO_REQ_ALLOC_BATCH		8
 
 struct io_comp_state {
-	unsigned int		nr;
 	struct io_kiocb		*reqs[IO_COMPL_BATCH];
+	unsigned int		nr;
+	struct list_head	free_list;
 };
 
 struct io_submit_state {
@@ -1341,6 +1342,7 @@ static struct io_ring_ctx *io_ring_ctx_alloc(struct io_uring_params *p)
 	INIT_LIST_HEAD(&ctx->rsrc_ref_list);
 	INIT_DELAYED_WORK(&ctx->rsrc_put_work, io_rsrc_put_work);
 	init_llist_head(&ctx->rsrc_put_llist);
+	INIT_LIST_HEAD(&ctx->submit_state.comp.free_list);
 	return ctx;
 err:
 	kfree(ctx->cancel_hash);
@@ -1946,6 +1948,15 @@ static struct io_kiocb *io_alloc_req(struct io_ring_ctx *ctx)
 
 	BUILD_BUG_ON(IO_REQ_ALLOC_BATCH > ARRAY_SIZE(state->reqs));
 
+	if (!list_empty(&state->comp.free_list)) {
+		struct io_kiocb *req;
+
+		req = list_first_entry(&state->comp.free_list, struct io_kiocb,
+					compl.list);
+		list_del(&req->compl.list);
+		return req;
+	}
+
 	if (!state->free_reqs) {
 		gfp_t gfp = GFP_KERNEL | __GFP_NOWARN;
 		int ret;
@@ -2228,34 +2239,21 @@ static void io_free_req(struct io_kiocb *req)
 }
 
 struct req_batch {
-	void *reqs[IO_IOPOLL_BATCH];
-	int to_free;
-	int ctx_refs;
-
 	struct task_struct	*task;
 	int			task_refs;
+	int			ctx_refs;
 };
 
 static inline void io_init_req_batch(struct req_batch *rb)
 {
-	rb->to_free = 0;
 	rb->task_refs = 0;
 	rb->ctx_refs = 0;
 	rb->task = NULL;
 }
 
-static void __io_req_free_batch_flush(struct io_ring_ctx *ctx,
-				      struct req_batch *rb)
-{
-	kmem_cache_free_bulk(req_cachep, rb->to_free, rb->reqs);
-	rb->to_free = 0;
-}
-
 static void io_req_free_batch_finish(struct io_ring_ctx *ctx,
 				     struct req_batch *rb)
 {
-	if (rb->to_free)
-		__io_req_free_batch_flush(ctx, rb);
 	if (rb->task) {
 		io_put_task(rb->task, rb->task_refs);
 		rb->task = NULL;
@@ -2282,9 +2280,9 @@ static void io_req_free_batch(struct req_batch *rb, struct io_kiocb *req,
 	if (state->free_reqs != ARRAY_SIZE(state->reqs)) {
 		state->reqs[state->free_reqs++] = req;
 	} else {
-		rb->reqs[rb->to_free++] = req;
-		if (unlikely(rb->to_free == ARRAY_SIZE(rb->reqs)))
-			__io_req_free_batch_flush(req->ctx, rb);
+		struct io_comp_state *cs = &req->ctx->submit_state.comp;
+
+		list_add(&req->compl.list, &cs->free_list);
 	}
 }
 
@@ -8634,6 +8632,19 @@ static void io_destroy_buffers(struct io_ring_ctx *ctx)
 	idr_destroy(&ctx->io_buffer_idr);
 }
 
+static void io_req_cache_free(struct io_ring_ctx *ctx)
+{
+	struct io_comp_state *cs = &ctx->submit_state.comp;
+
+	while (!list_empty(&cs->free_list)) {
+		struct io_kiocb *req;
+
+		req = list_first_entry(&cs->free_list, struct io_kiocb, compl.list);
+		list_del(&req->compl.list);
+		kmem_cache_free(req_cachep, req);
+	}
+}
+
 static void io_ring_ctx_free(struct io_ring_ctx *ctx)
 {
 	struct io_submit_state *submit_state = &ctx->submit_state;
@@ -8676,6 +8687,7 @@ static void io_ring_ctx_free(struct io_ring_ctx *ctx)
 	free_uid(ctx->user);
 	put_cred(ctx->creds);
 	kfree(ctx->cancel_hash);
+	io_req_cache_free(ctx);
 	kfree(ctx);
 }
 
