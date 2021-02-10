@@ -10,18 +10,15 @@ POST_DEFCONFIG_CMDS="rm ${ROOT_DIR}/${KERNEL_DIR}/arch/arm64/configs/${DEFCONFIG
 DTC_FLAGS="-@"
 
 MAKE_GOALS="${MAKE_GOALS}
-amlogic/meson-g12a-sei510.dtb
-amlogic/meson-sm1-sei610.dtb
-amlogic/meson-sm1-khadas-vim3l.dtb
-amlogic/meson-g12b-a311d-khadas-vim3.dtb
+dtbs
 "
 
 FILES="${FILES}
 arch/arm64/boot/Image.lz4
-arch/arm64/boot/dts/amlogic/meson-g12a-sei510.dtb
-arch/arm64/boot/dts/amlogic/meson-sm1-sei610.dtb
-arch/arm64/boot/dts/amlogic/meson-sm1-khadas-vim3l.dtb
-arch/arm64/boot/dts/amlogic/meson-g12b-a311d-khadas-vim3.dtb
+arch/arm64/boot/dts/amlogic/meson-g12a-sei510*.dtb
+arch/arm64/boot/dts/amlogic/meson-sm1-sei610*.dtb
+arch/arm64/boot/dts/amlogic/meson-sm1-khadas-vim3l*.dtb
+arch/arm64/boot/dts/amlogic/meson-g12b-a311d-khadas-vim3*.dtb
 "
 
 #
