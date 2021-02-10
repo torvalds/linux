@@ -346,7 +346,7 @@ static int __init async_stack_realloc(void)
 	new = stack_alloc();
 	if (!new)
 		panic("Couldn't allocate async stack");
-	S390_lowcore.async_stack = new + STACK_INIT_OFFSET;
+	WRITE_ONCE(S390_lowcore.async_stack, new + STACK_INIT_OFFSET);
 	free_pages(old, THREAD_SIZE_ORDER);
 	return 0;
 }
