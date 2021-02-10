@@ -402,8 +402,6 @@ static int s3c_adc_bat_remove(struct platform_device *pdev)
 static int s3c_adc_bat_suspend(struct platform_device *pdev,
 	pm_message_t state)
 {
-	struct s3c_adc_bat_pdata *pdata = pdev->dev.platform_data;
-
 	if (main_bat.charge_finished) {
 		if (device_may_wakeup(&pdev->dev))
 			enable_irq_wake(
@@ -419,8 +417,6 @@ static int s3c_adc_bat_suspend(struct platform_device *pdev,
 
 static int s3c_adc_bat_resume(struct platform_device *pdev)
 {
-	struct s3c_adc_bat_pdata *pdata = pdev->dev.platform_data;
-
 	if (main_bat.charge_finished) {
 		if (device_may_wakeup(&pdev->dev))
 			disable_irq_wake(
