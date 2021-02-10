@@ -266,6 +266,8 @@ struct io_sq_data {
 
 #define IO_IOPOLL_BATCH			8
 #define IO_COMPL_BATCH			32
+#define IO_REQ_CACHE_SIZE		8
+#define IO_REQ_ALLOC_BATCH		8
 
 struct io_comp_state {
 	unsigned int		nr;
@@ -278,7 +280,7 @@ struct io_submit_state {
 	/*
 	 * io_kiocb alloc cache
 	 */
-	void			*reqs[IO_IOPOLL_BATCH];
+	void			*reqs[IO_REQ_CACHE_SIZE];
 	unsigned int		free_reqs;
 
 	bool			plug_started;
@@ -1942,13 +1944,14 @@ static struct io_kiocb *io_alloc_req(struct io_ring_ctx *ctx)
 {
 	struct io_submit_state *state = &ctx->submit_state;
 
+	BUILD_BUG_ON(IO_REQ_ALLOC_BATCH > ARRAY_SIZE(state->reqs));
+
 	if (!state->free_reqs) {
 		gfp_t gfp = GFP_KERNEL | __GFP_NOWARN;
-		size_t sz;
 		int ret;
 
-		sz = min_t(size_t, state->ios_left, ARRAY_SIZE(state->reqs));
-		ret = kmem_cache_alloc_bulk(req_cachep, gfp, sz, state->reqs);
+		ret = kmem_cache_alloc_bulk(req_cachep, gfp, IO_REQ_ALLOC_BATCH,
+					    state->reqs);
 
 		/*
 		 * Bulk alloc is all-or-nothing. If we fail to get a batch,
@@ -6629,10 +6632,6 @@ static void io_submit_state_end(struct io_submit_state *state,
 	if (state->plug_started)
 		blk_finish_plug(&state->plug);
 	io_state_file_put(state);
-	if (state->free_reqs) {
-		kmem_cache_free_bulk(req_cachep, state->free_reqs, state->reqs);
-		state->free_reqs = 0;
-	}
 }
 
 /*
@@ -8632,6 +8631,8 @@ static void io_destroy_buffers(struct io_ring_ctx *ctx)
 
 static void io_ring_ctx_free(struct io_ring_ctx *ctx)
 {
+	struct io_submit_state *submit_state = &ctx->submit_state;
+
 	io_finish_async(ctx);
 	io_sqe_buffers_unregister(ctx);
 
@@ -8641,6 +8642,10 @@ static void io_ring_ctx_free(struct io_ring_ctx *ctx)
 		mmdrop(ctx->mm_account);
 		ctx->mm_account = NULL;
 	}
+
+	if (submit_state->free_reqs)
+		kmem_cache_free_bulk(req_cachep, submit_state->free_reqs,
+				     submit_state->reqs);
 
 #ifdef CONFIG_BLK_CGROUP
 	if (ctx->sqo_blkcg_css)
