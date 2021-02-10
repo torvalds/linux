@@ -758,7 +758,7 @@ static const struct sx9500_reg_default sx9500_default_regs[] = {
 		.reg = SX9500_REG_PROX_CTRL5,
 		/*
 		 * Debouncer off, lowest average negative filter,
-		 * highest average postive filter.
+		 * highest average positive filter.
 		 */
 		.def = 0x0f,
 	},
