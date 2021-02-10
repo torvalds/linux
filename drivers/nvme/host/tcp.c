@@ -201,7 +201,7 @@ static inline size_t nvme_tcp_req_cur_offset(struct nvme_tcp_request *req)
 
 static inline size_t nvme_tcp_req_cur_length(struct nvme_tcp_request *req)
 {
-	return min_t(size_t, req->iter.bvec->bv_len - req->iter.iov_offset,
+	return min_t(size_t, iov_iter_single_seg_count(&req->iter),
 			req->pdu_len - req->pdu_sent);
 }
 
@@ -262,6 +262,16 @@ static inline void nvme_tcp_advance_req(struct nvme_tcp_request *req,
 	}
 }
 
+static inline void nvme_tcp_send_all(struct nvme_tcp_queue *queue)
+{
+	int ret;
+
+	/* drain the send queue as much as we can... */
+	do {
+		ret = nvme_tcp_try_send(queue);
+	} while (ret > 0);
+}
+
 static inline void nvme_tcp_queue_request(struct nvme_tcp_request *req,
 		bool sync, bool last)
 {
@@ -276,10 +286,10 @@ static inline void nvme_tcp_queue_request(struct nvme_tcp_request *req,
 	 * directly, otherwise queue io_work. Also, only do that if we
 	 * are on the same cpu, so we don't introduce contention.
 	 */
-	if (queue->io_cpu == smp_processor_id() &&
+	if (queue->io_cpu == __smp_processor_id() &&
 	    sync && empty && mutex_trylock(&queue->send_mutex)) {
 		queue->more_requests = !last;
-		nvme_tcp_try_send(queue);
+		nvme_tcp_send_all(queue);
 		queue->more_requests = false;
 		mutex_unlock(&queue->send_mutex);
 	} else if (last) {

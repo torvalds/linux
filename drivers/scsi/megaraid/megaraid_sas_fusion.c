@@ -359,24 +359,29 @@ megasas_get_msix_index(struct megasas_instance *instance,
 {
 	int sdev_busy;
 
-	/* nr_hw_queue = 1 for MegaRAID */
-	struct blk_mq_hw_ctx *hctx =
-		scmd->device->request_queue->queue_hw_ctx[0];
-
-	sdev_busy = atomic_read(&hctx->nr_active);
+	/* TBD - if sml remove device_busy in future, driver
+	 * should track counter in internal structure.
+	 */
+	sdev_busy = atomic_read(&scmd->device->device_busy);
 
 	if (instance->perf_mode == MR_BALANCED_PERF_MODE &&
-	    sdev_busy > (data_arms * MR_DEVICE_HIGH_IOPS_DEPTH))
+	    sdev_busy > (data_arms * MR_DEVICE_HIGH_IOPS_DEPTH)) {
 		cmd->request_desc->SCSIIO.MSIxIndex =
 			mega_mod64((atomic64_add_return(1, &instance->high_iops_outstanding) /
 					MR_HIGH_IOPS_BATCH_COUNT), instance->low_latency_index_start);
-	else if (instance->msix_load_balance)
+	} else if (instance->msix_load_balance) {
 		cmd->request_desc->SCSIIO.MSIxIndex =
 			(mega_mod64(atomic64_add_return(1, &instance->total_io_count),
 				instance->msix_vectors));
-	else
+	} else if (instance->host->nr_hw_queues > 1) {
+		u32 tag = blk_mq_unique_tag(scmd->request);
+
+		cmd->request_desc->SCSIIO.MSIxIndex = blk_mq_unique_tag_to_hwq(tag) +
+			instance->low_latency_index_start;
+	} else {
 		cmd->request_desc->SCSIIO.MSIxIndex =
 			instance->reply_map[raw_smp_processor_id()];
+	}
 }
 
 /**
@@ -956,9 +961,6 @@ megasas_alloc_cmds_fusion(struct megasas_instance *instance)
 	if (megasas_alloc_cmdlist_fusion(instance))
 		goto fail_exit;
 
-	dev_info(&instance->pdev->dev, "Configured max firmware commands: %d\n",
-		 instance->max_fw_cmds);
-
 	/* The first 256 bytes (SMID 0) is not used. Don't add to the cmd list */
 	io_req_base = fusion->io_request_frames + MEGA_MPI2_RAID_DEFAULT_IO_FRAME_SIZE;
 	io_req_base_phys = fusion->io_request_frames_phys + MEGA_MPI2_RAID_DEFAULT_IO_FRAME_SIZE;
@@ -1102,8 +1104,9 @@ megasas_ioc_init_fusion(struct megasas_instance *instance)
 		MR_HIGH_IOPS_QUEUE_COUNT) && cur_intr_coalescing)
 		instance->perf_mode = MR_BALANCED_PERF_MODE;
 
-	dev_info(&instance->pdev->dev, "Performance mode :%s\n",
-		MEGASAS_PERF_MODE_2STR(instance->perf_mode));
+	dev_info(&instance->pdev->dev, "Performance mode :%s (latency index = %d)\n",
+		MEGASAS_PERF_MODE_2STR(instance->perf_mode),
+		instance->low_latency_index_start);
 
 	instance->fw_sync_cache_support = (scratch_pad_1 &
 		MR_CAN_HANDLE_SYNC_CACHE_OFFSET) ? 1 : 0;

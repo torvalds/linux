@@ -252,7 +252,8 @@ static int vangogh_get_smu_metrics_data(struct smu_context *smu,
 		*value = metrics->UvdActivity;
 		break;
 	case METRICS_AVERAGE_SOCKETPOWER:
-		*value = metrics->CurrentSocketPower;
+		*value = (metrics->CurrentSocketPower << 8) /
+		1000 ;
 		break;
 	case METRICS_TEMPERATURE_EDGE:
 		*value = metrics->GfxTemperature / 100 *

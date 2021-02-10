@@ -863,33 +863,6 @@ static int __finalise_sg(struct device *dev, struct scatterlist *sg, int nents,
 	unsigned int cur_len = 0, max_len = dma_get_max_seg_size(dev);
 	int i, count = 0;
 
-	/*
-	 * The Intel graphic driver is used to assume that the returned
-	 * sg list is not combound. This blocks the efforts of converting
-	 * Intel IOMMU driver to dma-iommu api's. Add this quirk to make the
-	 * device driver work and should be removed once it's fixed in i915
-	 * driver.
-	 */
-	if (IS_ENABLED(CONFIG_DRM_I915) && dev_is_pci(dev) &&
-	    to_pci_dev(dev)->vendor == PCI_VENDOR_ID_INTEL &&
-	    (to_pci_dev(dev)->class >> 16) == PCI_BASE_CLASS_DISPLAY) {
-		for_each_sg(sg, s, nents, i) {
-			unsigned int s_iova_off = sg_dma_address(s);
-			unsigned int s_length = sg_dma_len(s);
-			unsigned int s_iova_len = s->length;
-
-			s->offset += s_iova_off;
-			s->length = s_length;
-			sg_dma_address(s) = dma_addr + s_iova_off;
-			sg_dma_len(s) = s_length;
-			dma_addr += s_iova_len;
-
-			pr_info_once("sg combining disabled due to i915 driver\n");
-		}
-
-		return nents;
-	}
-
 	for_each_sg(sg, s, nents, i) {
 		/* Restore this segment's original unaligned fields first */
 		unsigned int s_iova_off = sg_dma_address(s);

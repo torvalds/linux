@@ -1733,7 +1733,7 @@ static void silent_stream_disable(struct hda_codec *codec,
 	per_pin->silent_stream = false;
 
  unlock_out:
-	mutex_unlock(&spec->pcm_lock);
+	mutex_unlock(&per_pin->lock);
 }
 
 /* update ELD and jack state via audio component */

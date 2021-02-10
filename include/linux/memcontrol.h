@@ -665,7 +665,7 @@ static inline struct lruvec *mem_cgroup_page_lruvec(struct page *page,
 {
 	struct mem_cgroup *memcg = page_memcg(page);
 
-	VM_WARN_ON_ONCE_PAGE(!memcg, page);
+	VM_WARN_ON_ONCE_PAGE(!memcg && !mem_cgroup_disabled(), page);
 	return mem_cgroup_lruvec(memcg, pgdat);
 }
 

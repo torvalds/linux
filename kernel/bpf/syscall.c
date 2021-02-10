@@ -17,7 +17,6 @@
 #include <linux/fs.h>
 #include <linux/license.h>
 #include <linux/filter.h>
-#include <linux/version.h>
 #include <linux/kernel.h>
 #include <linux/idr.h>
 #include <linux/cred.h>

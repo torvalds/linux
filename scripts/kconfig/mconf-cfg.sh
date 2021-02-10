@@ -33,7 +33,9 @@ if [ -f /usr/include/ncurses/ncurses.h ]; then
 	exit 0
 fi
 
-if [ -f /usr/include/ncurses.h ]; then
+# As a final fallback before giving up, check if $HOSTCC knows of a default
+# ncurses installation (e.g. from a vendor-specific sysroot).
+if echo '#include <ncurses.h>' | "${HOSTCC}" -E - >/dev/null 2>&1; then
 	echo cflags=\"-D_GNU_SOURCE\"
 	echo libs=\"-lncurses\"
 	exit 0

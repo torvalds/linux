@@ -4162,7 +4162,7 @@ static int nf_tables_newset(struct net *net, struct sock *nlsk,
 		if (flags & ~(NFT_SET_ANONYMOUS | NFT_SET_CONSTANT |
 			      NFT_SET_INTERVAL | NFT_SET_TIMEOUT |
 			      NFT_SET_MAP | NFT_SET_EVAL |
-			      NFT_SET_OBJECT | NFT_SET_CONCAT))
+			      NFT_SET_OBJECT | NFT_SET_CONCAT | NFT_SET_EXPR))
 			return -EOPNOTSUPP;
 		/* Only one of these operations is supported */
 		if ((flags & (NFT_SET_MAP | NFT_SET_OBJECT)) ==
@@ -4304,6 +4304,10 @@ static int nf_tables_newset(struct net *net, struct sock *nlsk,
 		struct nlattr *tmp;
 		int left;
 
+		if (!(flags & NFT_SET_EXPR)) {
+			err = -EINVAL;
+			goto err_set_alloc_name;
+		}
 		i = 0;
 		nla_for_each_nested(tmp, nla[NFTA_SET_EXPRESSIONS], left) {
 			if (i == NFT_SET_EXPR_MAX) {
@@ -5254,8 +5258,8 @@ static int nft_set_elem_expr_clone(const struct nft_ctx *ctx,
 	return 0;
 
 err_expr:
-	for (k = i - 1; k >= 0; k++)
-		nft_expr_destroy(ctx, expr_array[i]);
+	for (k = i - 1; k >= 0; k--)
+		nft_expr_destroy(ctx, expr_array[k]);
 
 	return -ENOMEM;
 }

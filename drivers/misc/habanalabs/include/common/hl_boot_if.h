@@ -145,10 +145,14 @@
  *					implemented. This means that FW will
  *					perform hard reset procedure on
  *					receiving the halt-machine event.
- *					Initialized in: linux
+ *					Initialized in: preboot, u-boot, linux
  *
  * CPU_BOOT_DEV_STS0_PLL_INFO_EN	FW retrieval of PLL info is enabled.
  *					Initialized in: linux
+ *
+ * CPU_BOOT_DEV_STS0_CLK_GATE_EN	Clock Gating enabled.
+ *					FW initialized Clock Gating.
+ *					Initialized in: preboot
  *
  * CPU_BOOT_DEV_STS0_ENABLED		Device status register enabled.
  *					This is a main indication that the
@@ -171,6 +175,7 @@
 #define CPU_BOOT_DEV_STS0_DRAM_SCR_EN			(1 << 9)
 #define CPU_BOOT_DEV_STS0_FW_HARD_RST_EN		(1 << 10)
 #define CPU_BOOT_DEV_STS0_PLL_INFO_EN			(1 << 11)
+#define CPU_BOOT_DEV_STS0_CLK_GATE_EN			(1 << 13)
 #define CPU_BOOT_DEV_STS0_ENABLED			(1 << 31)
 
 enum cpu_boot_status {
@@ -204,6 +209,8 @@ enum kmd_msg {
 	KMD_MSG_GOTO_WFE,
 	KMD_MSG_FIT_RDY,
 	KMD_MSG_SKIP_BMC,
+	RESERVED,
+	KMD_MSG_RST_DEV,
 };
 
 enum cpu_msg_status {

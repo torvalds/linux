@@ -79,9 +79,6 @@ typedef __u32 __bitwise req_flags_t;
 #define RQF_MQ_INFLIGHT		((__force req_flags_t)(1 << 6))
 /* don't call prep for this one */
 #define RQF_DONTPREP		((__force req_flags_t)(1 << 7))
-/* set for "ide_preempt" requests and also for requests for which the SCSI
-   "quiesce" state must be ignored. */
-#define RQF_PREEMPT		((__force req_flags_t)(1 << 8))
 /* vaguely specified driver internal error.  Ignored by the block layer */
 #define RQF_FAILED		((__force req_flags_t)(1 << 10))
 /* don't warn about errors */
@@ -430,8 +427,7 @@ struct request_queue {
 	unsigned long		queue_flags;
 	/*
 	 * Number of contexts that have called blk_set_pm_only(). If this
-	 * counter is above zero then only RQF_PM and RQF_PREEMPT requests are
-	 * processed.
+	 * counter is above zero then only RQF_PM requests are processed.
 	 */
 	atomic_t		pm_only;
 
@@ -695,6 +691,18 @@ static inline bool queue_is_mq(struct request_queue *q)
 {
 	return q->mq_ops;
 }
+
+#ifdef CONFIG_PM
+static inline enum rpm_status queue_rpm_status(struct request_queue *q)
+{
+	return q->rpm_status;
+}
+#else
+static inline enum rpm_status queue_rpm_status(struct request_queue *q)
+{
+	return RPM_ACTIVE;
+}
+#endif
 
 static inline enum blk_zoned_model
 blk_queue_zoned_model(struct request_queue *q)

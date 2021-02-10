@@ -338,10 +338,12 @@ static int rnbd_srv_link_ev(struct rtrs_srv *rtrs,
 
 void rnbd_srv_sess_dev_force_close(struct rnbd_srv_sess_dev *sess_dev)
 {
-	mutex_lock(&sess_dev->sess->lock);
-	rnbd_srv_destroy_dev_session_sysfs(sess_dev);
-	mutex_unlock(&sess_dev->sess->lock);
+	struct rnbd_srv_session	*sess = sess_dev->sess;
+
 	sess_dev->keep_id = true;
+	mutex_lock(&sess->lock);
+	rnbd_srv_destroy_dev_session_sysfs(sess_dev);
+	mutex_unlock(&sess->lock);
 }
 
 static int process_msg_close(struct rtrs_srv *rtrs,

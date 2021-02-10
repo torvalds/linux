@@ -1046,7 +1046,7 @@ static void reloc_gpu_flush(struct i915_execbuffer *eb, struct reloc_cache *cach
 	GEM_BUG_ON(cache->rq_size >= obj->base.size / sizeof(u32));
 	cache->rq_cmd[cache->rq_size] = MI_BATCH_BUFFER_END;
 
-	__i915_gem_object_flush_map(obj, 0, sizeof(u32) * (cache->rq_size + 1));
+	i915_gem_object_flush_map(obj);
 	i915_gem_object_unpin_map(obj);
 
 	intel_gt_chipset_flush(cache->rq->engine->gt);
@@ -1295,6 +1295,8 @@ static int __reloc_gpu_alloc(struct i915_execbuffer *eb,
 		err = PTR_ERR(cmd);
 		goto err_pool;
 	}
+
+	memset32(cmd, 0, pool->obj->base.size / sizeof(u32));
 
 	batch = i915_vma_instance(pool->obj, vma->vm, NULL);
 	if (IS_ERR(batch)) {
