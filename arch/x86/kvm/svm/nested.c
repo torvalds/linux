@@ -536,7 +536,6 @@ int enter_svm_guest_mode(struct kvm_vcpu *vcpu, u64 vmcb12_gpa,
 
 	WARN_ON(svm->vmcb == svm->nested.vmcb02.ptr);
 
-	nested_svm_vmloadsave(svm->vmcb01.ptr, svm->nested.vmcb02.ptr);
 	nested_load_control_from_vmcb12(svm, &vmcb12->control);
 
 	svm_switch_vmcb(svm, &svm->nested.vmcb02);
@@ -725,8 +724,6 @@ int nested_svm_vmexit(struct vcpu_svm *svm)
 		svm->vmcb->control.pause_filter_count;
 	vmcb12->control.pause_filter_thresh =
 		svm->vmcb->control.pause_filter_thresh;
-
-	nested_svm_vmloadsave(svm->nested.vmcb02.ptr, svm->vmcb01.ptr);
 
 	svm_switch_vmcb(svm, &svm->vmcb01);
 
