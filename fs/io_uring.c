@@ -2796,7 +2796,7 @@ static void io_complete_rw_common(struct kiocb *kiocb, long res,
 static bool io_resubmit_prep(struct io_kiocb *req)
 {
 	struct iovec inline_vecs[UIO_FASTIOV], *iovec = inline_vecs;
-	int rw, ret = -ECANCELED;
+	int rw, ret;
 	struct iov_iter iter;
 
 	/* already prepared */
