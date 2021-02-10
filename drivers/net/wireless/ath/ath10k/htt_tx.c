@@ -569,6 +569,8 @@ void ath10k_htt_htc_tx_complete(struct ath10k *ar, struct sk_buff *skb)
 			desc_hdr = (struct htt_data_tx_desc *)
 				(skb->data + sizeof(*htt_hdr));
 			flags1 = __le16_to_cpu(desc_hdr->flags1);
+			skb_pull(skb, sizeof(struct htt_cmd_hdr));
+			skb_pull(skb, sizeof(struct htt_data_tx_desc));
 		}
 	}
 
