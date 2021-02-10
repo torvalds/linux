@@ -343,6 +343,8 @@ static const char *snd_device_type_name(int type)
 		return "sequencer";
 	case SNDRV_DEVICE_TYPE_TIMER:
 		return "timer";
+	case SNDRV_DEVICE_TYPE_COMPRESS:
+		return "compress";
 	default:
 		return "?";
 	}
