@@ -2036,9 +2036,12 @@ static enum mac_version rtl8169_get_mac_version(u16 xid, bool gmii)
 		{ 0x7c8, 0x348,	RTL_GIGA_MAC_VER_09 },
 		{ 0x7c8, 0x248,	RTL_GIGA_MAC_VER_09 },
 		{ 0x7c8, 0x340,	RTL_GIGA_MAC_VER_16 },
-		/* FIXME: where did these entries come from ? -- FR */
-		{ 0xfc8, 0x388,	RTL_GIGA_MAC_VER_13 },
-		{ 0xfc8, 0x308,	RTL_GIGA_MAC_VER_13 },
+		/* FIXME: where did these entries come from ? -- FR
+		 * Not even r8101 vendor driver knows these id's,
+		 * so let's disable detection for now. -- HK
+		 * { 0xfc8, 0x388,	RTL_GIGA_MAC_VER_13 },
+		 * { 0xfc8, 0x308,	RTL_GIGA_MAC_VER_13 },
+		 */
 
 		/* 8110 family. */
 		{ 0xfc8, 0x980,	RTL_GIGA_MAC_VER_06 },
