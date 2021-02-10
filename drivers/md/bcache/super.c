@@ -2821,6 +2821,7 @@ static void bcache_exit(void)
 		destroy_workqueue(bcache_wq);
 	if (bch_journal_wq)
 		destroy_workqueue(bch_journal_wq);
+	bch_btree_exit();
 
 	if (bcache_major)
 		unregister_blkdev(bcache_major, "bcache");
@@ -2875,6 +2876,9 @@ static int __init bcache_init(void)
 		mutex_destroy(&bch_register_lock);
 		return bcache_major;
 	}
+
+	if (bch_btree_init())
+		goto err;
 
 	bcache_wq = alloc_workqueue("bcache", WQ_MEM_RECLAIM, 0);
 	if (!bcache_wq)
