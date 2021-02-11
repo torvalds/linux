@@ -1,0 +1,5 @@
+# SPDX-License-Identifier: GPL-2.0-only
+config MSTAR_MSC313_MPLL
+	bool
+	select REGMAP
+	select REGMAP_MMIO
