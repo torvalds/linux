@@ -326,6 +326,7 @@ int create_hdev(struct hl_device **dev, struct pci_dev *pdev,
 	hdev->reset_on_lockup = reset_on_lockup;
 	hdev->memory_scrub = memory_scrub;
 	hdev->boot_error_status_mask = boot_error_status_mask;
+	hdev->stop_on_err = true;
 
 	hdev->pldm = 0;
 
