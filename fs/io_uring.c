@@ -8112,12 +8112,13 @@ static int __io_sqe_files_update(struct io_ring_ctx *ctx,
 				err = -EBADF;
 				break;
 			}
+			*file_slot = file;
 			err = io_sqe_file_register(ctx, file, i);
 			if (err) {
+				*file_slot = NULL;
 				fput(file);
 				break;
 			}
-			*file_slot = file;
 		}
 	}
 
