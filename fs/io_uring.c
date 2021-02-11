@@ -2397,10 +2397,8 @@ static inline void io_init_req_batch(struct req_batch *rb)
 static void io_req_free_batch_finish(struct io_ring_ctx *ctx,
 				     struct req_batch *rb)
 {
-	if (rb->task) {
+	if (rb->task)
 		io_put_task(rb->task, rb->task_refs);
-		rb->task = NULL;
-	}
 	if (rb->ctx_refs)
 		percpu_ref_put_many(&ctx->refs, rb->ctx_refs);
 }
