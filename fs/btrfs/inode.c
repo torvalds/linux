@@ -7262,6 +7262,19 @@ static struct extent_map *btrfs_new_extent_direct(struct btrfs_inode *inode,
 	return em;
 }
 
+static int btrfs_extent_readonly(struct btrfs_fs_info *fs_info, u64 bytenr)
+{
+	struct btrfs_block_group *block_group;
+	int readonly = 0;
+
+	block_group = btrfs_lookup_block_group(fs_info, bytenr);
+	if (!block_group || block_group->ro)
+		readonly = 1;
+	if (block_group)
+		btrfs_put_block_group(block_group);
+	return readonly;
+}
+
 /*
  * Check if we can do nocow write into the range [@offset, @offset + @len)
  *
