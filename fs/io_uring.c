@@ -1029,8 +1029,7 @@ static struct fixed_rsrc_ref_node *alloc_fixed_rsrc_ref_node(
 static void init_fixed_file_ref_node(struct io_ring_ctx *ctx,
 				     struct fixed_rsrc_ref_node *ref_node);
 
-static void __io_complete_rw(struct io_kiocb *req, long res, long res2,
-			     unsigned int issue_flags);
+static bool io_rw_reissue(struct io_kiocb *req, long res);
 static void io_cqring_fill_event(struct io_kiocb *req, long res);
 static void io_put_req(struct io_kiocb *req);
 static void io_put_req_deferred(struct io_kiocb *req, int nr);
@@ -2558,17 +2557,6 @@ static inline bool io_run_task_work(void)
 	return false;
 }
 
-static void io_iopoll_queue(struct list_head *again)
-{
-	struct io_kiocb *req;
-
-	do {
-		req = list_first_entry(again, struct io_kiocb, inflight_entry);
-		list_del(&req->inflight_entry);
-		__io_complete_rw(req, -EAGAIN, 0, 0);
-	} while (!list_empty(again));
-}
-
 /*
  * Find and free completed poll iocbs
  */
@@ -2577,7 +2565,6 @@ static void io_iopoll_complete(struct io_ring_ctx *ctx, unsigned int *nr_events,
 {
 	struct req_batch rb;
 	struct io_kiocb *req;
-	LIST_HEAD(again);
 
 	/* order with ->result store in io_complete_rw_iopoll() */
 	smp_rmb();
@@ -2587,13 +2574,13 @@ static void io_iopoll_complete(struct io_ring_ctx *ctx, unsigned int *nr_events,
 		int cflags = 0;
 
 		req = list_first_entry(done, struct io_kiocb, inflight_entry);
-		if (READ_ONCE(req->result) == -EAGAIN) {
-			req->result = 0;
-			req->iopoll_completed = 0;
-			list_move_tail(&req->inflight_entry, &again);
-			continue;
-		}
 		list_del(&req->inflight_entry);
+
+		if (READ_ONCE(req->result) == -EAGAIN) {
+			req->iopoll_completed = 0;
+			if (io_rw_reissue(req, -EAGAIN))
+				continue;
+		}
 
 		if (req->flags & REQ_F_BUFFER_SELECTED)
 			cflags = io_put_rw_kbuf(req);
@@ -2608,9 +2595,6 @@ static void io_iopoll_complete(struct io_ring_ctx *ctx, unsigned int *nr_events,
 	io_commit_cqring(ctx);
 	io_cqring_ev_posted_iopoll(ctx);
 	io_req_free_batch_finish(ctx, &rb);
-
-	if (!list_empty(&again))
-		io_iopoll_queue(&again);
 }
 
 static int io_do_iopoll(struct io_ring_ctx *ctx, unsigned int *nr_events,
