@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0-only */
-#ifndef __BCM4908ENET_H
-#define __BCM4908ENET_H
+#ifndef __BCM4908_ENET_H
+#define __BCM4908_ENET_H
 
 #define ENET_CONTROL					0x000
 #define ENET_MIB_CTRL					0x004

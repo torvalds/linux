@@ -51,7 +51,7 @@ config B44_PCI
 	depends on B44_PCI_AUTOSELECT && B44_PCICORE_AUTOSELECT
 	default y
 
-config BCM4908ENET
+config BCM4908_ENET
 	tristate "Broadcom BCM4908 internal mac support"
 	depends on ARCH_BCM4908 || COMPILE_TEST
 	default y
