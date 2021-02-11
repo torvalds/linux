@@ -572,7 +572,7 @@ static void del_hw_fte(struct fs_node *node)
 			mlx5_core_warn(dev,
 				       "flow steering can't delete fte in index %d of flow group id %d\n",
 				       fte->index, fg->id);
-		node->active = 0;
+		node->active = false;
 	}
 }
 

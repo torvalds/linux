@@ -216,7 +216,7 @@ static int mlx5_esw_indir_table_rule_get(struct mlx5_eswitch *esw,
 	flow_act.flags = FLOW_ACT_IGNORE_FLOW_LEVEL | FLOW_ACT_NO_APPEND;
 	dest.type = MLX5_FLOW_DESTINATION_TYPE_FLOW_TABLE;
 	dest.ft = mlx5_chains_get_table(chains, 0, 1, 0);
-	if (!dest.ft) {
+	if (IS_ERR(dest.ft)) {
 		err = PTR_ERR(dest.ft);
 		goto err_table;
 	}

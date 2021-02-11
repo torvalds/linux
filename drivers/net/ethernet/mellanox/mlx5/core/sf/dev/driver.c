@@ -37,6 +37,7 @@ static int mlx5_sf_dev_probe(struct auxiliary_device *adev, const struct auxilia
 	mdev->iseg = ioremap(mdev->iseg_base, sizeof(*mdev->iseg));
 	if (!mdev->iseg) {
 		mlx5_core_warn(mdev, "remap error\n");
+		err = -ENOMEM;
 		goto remap_err;
 	}
 
