@@ -2674,6 +2674,23 @@ intel_bios_is_lspcon_present(const struct drm_i915_private *i915,
 	return HAS_LSPCON(i915) && child && child->lspcon;
 }
 
+/**
+ * intel_bios_is_lane_reversal_needed - if lane reversal needed on port
+ * @i915:       i915 device instance
+ * @port:       port to check
+ *
+ * Return true if port requires lane reversal
+ */
+bool
+intel_bios_is_lane_reversal_needed(const struct drm_i915_private *i915,
+				   enum port port)
+{
+	const struct child_device_config *child =
+		i915->vbt.ddi_port_info[port].child;
+
+	return child && child->lane_reversal;
+}
+
 enum aux_ch intel_bios_port_aux_ch(struct drm_i915_private *dev_priv,
 				   enum port port)
 {
