@@ -10,6 +10,7 @@ enum devm_ioremap_type {
 	DEVM_IOREMAP = 0,
 	DEVM_IOREMAP_UC,
 	DEVM_IOREMAP_WC,
+	DEVM_IOREMAP_NP,
 };
 
 void devm_ioremap_release(struct device *dev, void *res)
@@ -41,6 +42,9 @@ static void __iomem *__devm_ioremap(struct device *dev, resource_size_t offset,
 		break;
 	case DEVM_IOREMAP_WC:
 		addr = ioremap_wc(offset, size);
+		break;
+	case DEVM_IOREMAP_NP:
+		addr = ioremap_np(offset, size);
 		break;
 	}
 
@@ -99,6 +103,21 @@ void __iomem *devm_ioremap_wc(struct device *dev, resource_size_t offset,
 EXPORT_SYMBOL(devm_ioremap_wc);
 
 /**
+ * devm_ioremap_np - Managed ioremap_np()
+ * @dev: Generic device to remap IO address for
+ * @offset: Resource address to map
+ * @size: Size of map
+ *
+ * Managed ioremap_np().  Map is automatically unmapped on driver detach.
+ */
+void __iomem *devm_ioremap_np(struct device *dev, resource_size_t offset,
+			      resource_size_t size)
+{
+	return __devm_ioremap(dev, offset, size, DEVM_IOREMAP_NP);
+}
+EXPORT_SYMBOL(devm_ioremap_np);
+
+/**
  * devm_iounmap - Managed iounmap()
  * @dev: Generic device to unmap for
  * @addr: Address to unmap
@@ -127,6 +146,9 @@ __devm_ioremap_resource(struct device *dev, const struct resource *res,
 		dev_err(dev, "invalid resource\n");
 		return IOMEM_ERR_PTR(-EINVAL);
 	}
+
+	if (type == DEVM_IOREMAP && res->flags & IORESOURCE_MEM_NONPOSTED)
+		type = DEVM_IOREMAP_NP;
 
 	size = resource_size(res);
 
