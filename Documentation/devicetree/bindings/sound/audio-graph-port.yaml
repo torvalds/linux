@@ -33,9 +33,6 @@ properties:
         properties:
           remote-endpoint:
             maxItems: 1
-          clocks:
-            maxItems: 1
-            description: Describes the clock used by audio component.
           mclk-fs:
             description: |
               Multiplication factor between stream rate and codec mclk.
