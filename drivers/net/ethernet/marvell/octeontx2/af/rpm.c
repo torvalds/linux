@@ -21,6 +21,8 @@ static struct mac_ops	rpm_mac_ops   = {
 	.rx_stats_cnt   =       43,
 	.tx_stats_cnt   =       34,
 	.get_nr_lmacs	=	rpm_get_nr_lmacs,
+	.get_lmac_type  =       rpm_get_lmac_type,
+	.mac_lmac_intl_lbk =    rpm_lmac_internal_loopback,
 	.mac_get_rx_stats  =	rpm_get_rx_stats,
 	.mac_get_tx_stats  =	rpm_get_tx_stats,
 	.mac_enadis_rx_pause_fwding =	rpm_lmac_enadis_rx_pause_fwding,
@@ -224,5 +226,47 @@ int rpm_get_tx_stats(void *rpmd, int lmac_id, int idx, u64 *tx_stat)
 	*tx_stat = (val_hi << 32 | val_lo);
 
 	mutex_unlock(&rpm->lock);
+	return 0;
+}
+
+u8 rpm_get_lmac_type(void *rpmd, int lmac_id)
+{
+	rpm_t *rpm = rpmd;
+	u64 req = 0, resp;
+	int err;
+
+	req = FIELD_SET(CMDREG_ID, CGX_CMD_GET_LINK_STS, req);
+	err = cgx_fwi_cmd_generic(req, &resp, rpm, 0);
+	if (!err)
+		return FIELD_GET(RESP_LINKSTAT_LMAC_TYPE, resp);
+	return err;
+}
+
+int rpm_lmac_internal_loopback(void *rpmd, int lmac_id, bool enable)
+{
+	rpm_t *rpm = rpmd;
+	u8 lmac_type;
+	u64 cfg;
+
+	if (!rpm || lmac_id >= rpm->lmac_count)
+		return -ENODEV;
+	lmac_type = rpm->mac_ops->get_lmac_type(rpm, lmac_id);
+	if (lmac_type == LMAC_MODE_100G_R) {
+		cfg = rpm_read(rpm, lmac_id, RPMX_MTI_PCS100X_CONTROL1);
+
+		if (enable)
+			cfg |= RPMX_MTI_PCS_LBK;
+		else
+			cfg &= ~RPMX_MTI_PCS_LBK;
+		rpm_write(rpm, lmac_id, RPMX_MTI_PCS100X_CONTROL1, cfg);
+	} else {
+		cfg = rpm_read(rpm, lmac_id, RPMX_MTI_LPCSX_CONTROL1);
+		if (enable)
+			cfg |= RPMX_MTI_PCS_LBK;
+		else
+			cfg &= ~RPMX_MTI_PCS_LBK;
+		rpm_write(rpm, lmac_id, RPMX_MTI_LPCSX_CONTROL1, cfg);
+	}
+
 	return 0;
 }

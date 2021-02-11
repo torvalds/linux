@@ -229,8 +229,9 @@ int cgx_set_pkind(void *cgxd, u8 lmac_id, int pkind)
 	return 0;
 }
 
-static inline u8 cgx_get_lmac_type(struct cgx *cgx, int lmac_id)
+static u8 cgx_get_lmac_type(void *cgxd, int lmac_id)
 {
+	struct cgx *cgx = cgxd;
 	u64 cfg;
 
 	cfg = cgx_read(cgx, lmac_id, CGXX_CMRX_CFG);
@@ -247,7 +248,7 @@ int cgx_lmac_internal_loopback(void *cgxd, int lmac_id, bool enable)
 	if (!is_lmac_valid(cgx, lmac_id))
 		return -ENODEV;
 
-	lmac_type = cgx_get_lmac_type(cgx, lmac_id);
+	lmac_type = cgx->mac_ops->get_lmac_type(cgx, lmac_id);
 	if (lmac_type == LMAC_MODE_SGMII || lmac_type == LMAC_MODE_QSGMII) {
 		cfg = cgx_read(cgx, lmac_id, CGXX_GMP_PCS_MRX_CTL);
 		if (enable)
@@ -1302,6 +1303,8 @@ static struct mac_ops	cgx_mac_ops    = {
 	.rx_stats_cnt   =       9,
 	.tx_stats_cnt   =       18,
 	.get_nr_lmacs	=	cgx_get_nr_lmacs,
+	.get_lmac_type  =       cgx_get_lmac_type,
+	.mac_lmac_intl_lbk =    cgx_lmac_internal_loopback,
 	.mac_get_rx_stats  =	cgx_get_rx_stats,
 	.mac_get_tx_stats  =	cgx_get_tx_stats,
 	.mac_enadis_rx_pause_fwding =	cgx_lmac_enadis_rx_pause_fwding,

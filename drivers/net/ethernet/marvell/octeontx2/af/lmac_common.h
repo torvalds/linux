@@ -70,7 +70,9 @@ struct mac_ops {
 	 * number of setbits in lmac_exist tells number of lmacs
 	 */
 	int			(*get_nr_lmacs)(void *cgx);
-
+	u8                      (*get_lmac_type)(void *cgx, int lmac_id);
+	int                     (*mac_lmac_intl_lbk)(void *cgx, int lmac_id,
+						     bool enable);
 	/* Register Stats related functions */
 	int			(*mac_get_rx_stats)(void *cgx, int lmac_id,
 						    int idx, u64 *rx_stat);
