@@ -2040,9 +2040,8 @@ static int do_reset(struct ibmvnic_adapter *adapter,
 		}
 
 		rc = ibmvnic_login(netdev);
-		if (rc) {
+		if (rc)
 			goto out;
-		}
 
 		if (adapter->reset_reason == VNIC_RESET_CHANGE_PARAM) {
 			rc = init_resources(adapter);
