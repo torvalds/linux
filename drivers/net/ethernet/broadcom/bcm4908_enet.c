@@ -567,7 +567,7 @@ static int bcm4908_enet_poll(struct napi_struct *napi, int weight)
 
 		dma_unmap_single(dev, slot.dma_addr, slot.len, DMA_FROM_DEVICE);
 
-		skb_put(slot.skb, len - 4 + 2);
+		skb_put(slot.skb, len - ETH_FCS_LEN);
 		slot.skb->protocol = eth_type_trans(slot.skb, enet->netdev);
 		netif_receive_skb(slot.skb);
 
