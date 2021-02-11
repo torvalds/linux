@@ -2761,22 +2761,6 @@ static void kiocb_end_write(struct io_kiocb *req)
 	file_end_write(req->file);
 }
 
-static void io_complete_rw_common(struct kiocb *kiocb, long res,
-				  unsigned int issue_flags)
-{
-	struct io_kiocb *req = container_of(kiocb, struct io_kiocb, rw.kiocb);
-	int cflags = 0;
-
-	if (kiocb->ki_flags & IOCB_WRITE)
-		kiocb_end_write(req);
-
-	if (res != req->result)
-		req_set_fail_links(req);
-	if (req->flags & REQ_F_BUFFER_SELECTED)
-		cflags = io_put_rw_kbuf(req);
-	__io_req_complete(req, issue_flags, res, cflags);
-}
-
 #ifdef CONFIG_BLOCK
 static bool io_resubmit_prep(struct io_kiocb *req)
 {
@@ -2840,10 +2824,18 @@ static bool io_rw_reissue(struct io_kiocb *req)
 static void __io_complete_rw(struct io_kiocb *req, long res, long res2,
 			     unsigned int issue_flags)
 {
+	int cflags = 0;
+
 	if ((res == -EAGAIN || res == -EOPNOTSUPP) && io_rw_reissue(req))
 		return;
+	if (res != req->result)
+		req_set_fail_links(req);
 
-	io_complete_rw_common(&req->rw.kiocb, res, issue_flags);
+	if (req->rw.kiocb.ki_flags & IOCB_WRITE)
+		kiocb_end_write(req);
+	if (req->flags & REQ_F_BUFFER_SELECTED)
+		cflags = io_put_rw_kbuf(req);
+	__io_req_complete(req, issue_flags, res, cflags);
 }
 
 static void io_complete_rw(struct kiocb *kiocb, long res, long res2)
