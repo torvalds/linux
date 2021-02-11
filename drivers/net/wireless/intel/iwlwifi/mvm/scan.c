@@ -1253,14 +1253,16 @@ int iwl_mvm_config_scan(struct iwl_mvm *mvm)
 	memset(&cfg, 0, sizeof(cfg));
 
 	if (iwl_fw_lookup_cmd_ver(mvm->fw, LONG_GROUP,
-				  ADD_STA, 0) < 12)
+				  ADD_STA, 0) < 12) {
 		cfg.bcast_sta_id = mvm->aux_sta.sta_id;
-	/*
-	 * Fw doesn't use this sta anymore, pending deprecation via HOST API
-	 * change.
-	 */
-	else
+	} else if (iwl_fw_lookup_cmd_ver(mvm->fw, LONG_GROUP,
+					 SCAN_CFG_CMD, 0) < 5) {
+		/*
+		 * Fw doesn't use this sta anymore. Deprecated on SCAN_CFG_CMD
+		 * version 5.
+		 */
 		cfg.bcast_sta_id = 0xff;
+	}
 
 	cfg.tx_chains = cpu_to_le32(iwl_mvm_get_valid_tx_ant(mvm));
 	cfg.rx_chains = cpu_to_le32(iwl_mvm_scan_rx_ant(mvm));

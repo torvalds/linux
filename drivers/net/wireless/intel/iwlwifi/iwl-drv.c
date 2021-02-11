@@ -559,7 +559,7 @@ static int iwl_parse_tlv_firmware(struct iwl_drv *drv,
 				bool *usniffer_images)
 {
 	struct iwl_tlv_ucode_header *ucode = (void *)ucode_raw->data;
-	struct iwl_ucode_tlv *tlv;
+	const struct iwl_ucode_tlv *tlv;
 	size_t len = ucode_raw->size;
 	const u8 *data;
 	u32 tlv_len;

@@ -1776,6 +1776,69 @@ iwl_dbgfs_ltr_config_write(struct iwl_mvm *mvm,
 	return ret ?: count;
 }
 
+static ssize_t iwl_dbgfs_rfi_freq_table_write(struct iwl_mvm *mvm, char *buf,
+					      size_t count, loff_t *ppos)
+{
+	int ret = 0;
+	u16 op_id;
+
+	if (kstrtou16(buf, 10, &op_id))
+		return -EINVAL;
+
+	/* value zero triggers re-sending the default table to the device */
+	if (!op_id)
+		ret = iwl_rfi_send_config_cmd(mvm, NULL);
+	else
+		ret = -EOPNOTSUPP; /* in the future a new table will be added */
+
+	return ret ?: count;
+}
+
+/* The size computation is as follows:
+ * each number needs at most 3 characters, number of rows is the size of
+ * the table; So, need 5 chars for the "freq: " part and each tuple afterwards
+ * needs 6 characters for numbers and 5 for the punctuation around.
+ */
+#define IWL_RFI_BUF_SIZE (IWL_RFI_LUT_INSTALLED_SIZE *\
+				(5 + IWL_RFI_LUT_ENTRY_CHANNELS_NUM * (6 + 5)))
+
+static ssize_t iwl_dbgfs_rfi_freq_table_read(struct file *file,
+					     char __user *user_buf,
+					     size_t count, loff_t *ppos)
+{
+	struct iwl_mvm *mvm = file->private_data;
+	struct iwl_rfi_freq_table_resp_cmd *resp;
+	u32 status;
+	char buf[IWL_RFI_BUF_SIZE];
+	int i, j, pos = 0;
+
+	resp = iwl_rfi_get_freq_table(mvm);
+	if (IS_ERR(resp))
+		return PTR_ERR(resp);
+
+	status = le32_to_cpu(resp->status);
+	if (status != RFI_FREQ_TABLE_OK) {
+		scnprintf(buf, IWL_RFI_BUF_SIZE, "status = %d\n", status);
+		goto out;
+	}
+
+	for (i = 0; i < ARRAY_SIZE(resp->table); i++) {
+		pos += scnprintf(buf + pos, IWL_RFI_BUF_SIZE - pos, "%d: ",
+				 resp->table[i].freq);
+
+		for (j = 0; j < ARRAY_SIZE(resp->table[i].channels); j++)
+			pos += scnprintf(buf + pos, IWL_RFI_BUF_SIZE - pos,
+					 "(%d, %d) ",
+					 resp->table[i].channels[j],
+					 resp->table[i].bands[j]);
+		pos += scnprintf(buf + pos, IWL_RFI_BUF_SIZE - pos, "\n");
+	}
+
+out:
+	kfree(resp);
+	return simple_read_from_buffer(user_buf, count, ppos, buf, pos);
+}
+
 MVM_DEBUGFS_READ_WRITE_FILE_OPS(prph_reg, 64);
 
 /* Device wide debugfs entries */
@@ -1827,6 +1890,7 @@ MVM_DEBUGFS_READ_WRITE_STA_FILE_OPS(amsdu_len, 16);
 MVM_DEBUGFS_READ_WRITE_FILE_OPS(he_sniffer_params, 32);
 
 MVM_DEBUGFS_WRITE_FILE_OPS(ltr_config, 512);
+MVM_DEBUGFS_READ_WRITE_FILE_OPS(rfi_freq_table, 16);
 
 static ssize_t iwl_dbgfs_mem_read(struct file *file, char __user *user_buf,
 				  size_t count, loff_t *ppos)
@@ -1973,26 +2037,24 @@ void iwl_mvm_sta_add_debugfs(struct ieee80211_hw *hw,
 	MVM_DEBUGFS_ADD_STA_FILE(amsdu_len, dir, 0600);
 }
 
-void iwl_mvm_dbgfs_register(struct iwl_mvm *mvm, struct dentry *dbgfs_dir)
+void iwl_mvm_dbgfs_register(struct iwl_mvm *mvm)
 {
 	struct dentry *bcast_dir __maybe_unused;
 	char buf[100];
 
 	spin_lock_init(&mvm->drv_stats_lock);
 
-	mvm->debugfs_dir = dbgfs_dir;
-
 	MVM_DEBUGFS_ADD_FILE(tx_flush, mvm->debugfs_dir, 0200);
 	MVM_DEBUGFS_ADD_FILE(sta_drain, mvm->debugfs_dir, 0200);
 	MVM_DEBUGFS_ADD_FILE(sram, mvm->debugfs_dir, 0600);
 	MVM_DEBUGFS_ADD_FILE(set_nic_temperature, mvm->debugfs_dir, 0600);
-	MVM_DEBUGFS_ADD_FILE(nic_temp, dbgfs_dir, 0400);
-	MVM_DEBUGFS_ADD_FILE(ctdp_budget, dbgfs_dir, 0400);
-	MVM_DEBUGFS_ADD_FILE(stop_ctdp, dbgfs_dir, 0200);
-	MVM_DEBUGFS_ADD_FILE(force_ctkill, dbgfs_dir, 0200);
-	MVM_DEBUGFS_ADD_FILE(stations, dbgfs_dir, 0400);
-	MVM_DEBUGFS_ADD_FILE(bt_notif, dbgfs_dir, 0400);
-	MVM_DEBUGFS_ADD_FILE(bt_cmd, dbgfs_dir, 0400);
+	MVM_DEBUGFS_ADD_FILE(nic_temp, mvm->debugfs_dir, 0400);
+	MVM_DEBUGFS_ADD_FILE(ctdp_budget, mvm->debugfs_dir, 0400);
+	MVM_DEBUGFS_ADD_FILE(stop_ctdp, mvm->debugfs_dir, 0200);
+	MVM_DEBUGFS_ADD_FILE(force_ctkill, mvm->debugfs_dir, 0200);
+	MVM_DEBUGFS_ADD_FILE(stations, mvm->debugfs_dir, 0400);
+	MVM_DEBUGFS_ADD_FILE(bt_notif, mvm->debugfs_dir, 0400);
+	MVM_DEBUGFS_ADD_FILE(bt_cmd, mvm->debugfs_dir, 0400);
 	MVM_DEBUGFS_ADD_FILE(disable_power_off, mvm->debugfs_dir, 0600);
 	MVM_DEBUGFS_ADD_FILE(fw_ver, mvm->debugfs_dir, 0400);
 	MVM_DEBUGFS_ADD_FILE(fw_rx_stats, mvm->debugfs_dir, 0400);
@@ -2010,11 +2072,12 @@ void iwl_mvm_dbgfs_register(struct iwl_mvm *mvm, struct dentry *dbgfs_dir)
 	MVM_DEBUGFS_ADD_FILE(inject_packet, mvm->debugfs_dir, 0200);
 	MVM_DEBUGFS_ADD_FILE(inject_beacon_ie, mvm->debugfs_dir, 0200);
 	MVM_DEBUGFS_ADD_FILE(inject_beacon_ie_restore, mvm->debugfs_dir, 0200);
+	MVM_DEBUGFS_ADD_FILE(rfi_freq_table, mvm->debugfs_dir, 0600);
 
 	if (mvm->fw->phy_integration_ver)
 		MVM_DEBUGFS_ADD_FILE(phy_integration_ver, mvm->debugfs_dir, 0400);
 #ifdef CONFIG_ACPI
-	MVM_DEBUGFS_ADD_FILE(sar_geo_profile, dbgfs_dir, 0400);
+	MVM_DEBUGFS_ADD_FILE(sar_geo_profile, mvm->debugfs_dir, 0400);
 #endif
 	MVM_DEBUGFS_ADD_FILE(he_sniffer_params, mvm->debugfs_dir, 0600);
 
@@ -2066,12 +2129,13 @@ void iwl_mvm_dbgfs_register(struct iwl_mvm *mvm, struct dentry *dbgfs_dir)
 	debugfs_create_blob("nvm_reg", S_IRUSR,
 			    mvm->debugfs_dir, &mvm->nvm_reg_blob);
 
-	debugfs_create_file("mem", 0600, dbgfs_dir, mvm, &iwl_dbgfs_mem_ops);
+	debugfs_create_file("mem", 0600, mvm->debugfs_dir, mvm,
+			    &iwl_dbgfs_mem_ops);
 
 	/*
 	 * Create a symlink with mac80211. It will be removed when mac80211
 	 * exists (before the opmode exists which removes the target.)
 	 */
-	snprintf(buf, 100, "../../%pd2", dbgfs_dir->d_parent);
+	snprintf(buf, 100, "../../%pd2", mvm->debugfs_dir->d_parent);
 	debugfs_create_symlink("iwlwifi", mvm->hw->wiphy->debugfsdir, buf);
 }

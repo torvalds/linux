@@ -13,6 +13,7 @@
 #include "iwl-fh.h"
 #include "queue/tx.h"
 #include <linux/dmapool.h>
+#include "fw/api/commands.h"
 
 struct iwl_trans *iwl_trans_alloc(unsigned int priv_size,
 				  struct device *dev,
@@ -161,8 +162,10 @@ int iwl_trans_send_cmd(struct iwl_trans *trans, struct iwl_host_cmd *cmd)
 	if (!(cmd->flags & CMD_ASYNC))
 		lock_map_acquire_read(&trans->sync_cmd_lockdep_map);
 
-	if (trans->wide_cmd_header && !iwl_cmd_groupid(cmd->id))
-		cmd->id = DEF_ID(cmd->id);
+	if (trans->wide_cmd_header && !iwl_cmd_groupid(cmd->id)) {
+		if (cmd->id != REPLY_ERROR)
+			cmd->id = DEF_ID(cmd->id);
+	}
 
 	ret = iwl_trans_txq_send_hcmd(trans, cmd);
 

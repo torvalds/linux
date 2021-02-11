@@ -415,13 +415,24 @@ enum iwl_lari_config_masks {
 };
 
 /**
- * struct iwl_lari_config_change_cmd - change LARI configuration
+ * struct iwl_lari_config_change_cmd_v1 - change LARI configuration
  * @config_bitmap: bit map of the config commands. each bit will trigger a
  * different predefined FW config operation
  */
-struct iwl_lari_config_change_cmd {
+struct iwl_lari_config_change_cmd_v1 {
 	__le32 config_bitmap;
 } __packed; /* LARI_CHANGE_CONF_CMD_S_VER_1 */
+
+/**
+ * struct iwl_lari_config_change_cmd_v2 - change LARI configuration
+ * @config_bitmap: bit map of the config commands. each bit will trigger a
+ * different predefined FW config operation
+ * @oem_uhb_allow_bitmap: bitmap of UHB enabled MCC sets
+ */
+struct iwl_lari_config_change_cmd_v2 {
+	__le32 config_bitmap;
+	__le32 oem_uhb_allow_bitmap;
+} __packed; /* LARI_CHANGE_CONF_CMD_S_VER_2 */
 
 /**
  * struct iwl_pnvm_init_complete_ntfy - PNVM initialization complete

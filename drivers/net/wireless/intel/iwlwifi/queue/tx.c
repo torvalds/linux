@@ -1577,6 +1577,10 @@ void iwl_txq_reclaim(struct iwl_trans *trans, int txq_id, int ssn,
 			__func__, txq_id, last_to_free,
 			trans->trans_cfg->base_params->max_tfd_queue_size,
 			txq->write_ptr, txq->read_ptr);
+
+		iwl_op_mode_time_point(trans->op_mode,
+				       IWL_FW_INI_TIME_POINT_FAKE_TX,
+				       NULL);
 		goto out;
 	}
 
