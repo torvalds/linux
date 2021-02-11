@@ -2198,16 +2198,27 @@ DEFINE_SHOW_ATTRIBUTE(i915_panel);
 static int i915_hdcp_sink_capability_show(struct seq_file *m, void *data)
 {
 	struct drm_connector *connector = m->private;
+	struct drm_i915_private *i915 = to_i915(connector->dev);
 	struct intel_connector *intel_connector = to_intel_connector(connector);
+	int ret;
 
-	if (connector->status != connector_status_connected)
-		return -ENODEV;
+	ret = drm_modeset_lock_single_interruptible(&i915->drm.mode_config.connection_mutex);
+	if (ret)
+		return ret;
+
+	if (!connector->encoder || connector->status != connector_status_connected) {
+		ret = -ENODEV;
+		goto out;
+	}
 
 	seq_printf(m, "%s:%d HDCP version: ", connector->name,
 		   connector->base.id);
 	intel_hdcp_info(m, intel_connector);
 
-	return 0;
+out:
+	drm_modeset_unlock(&i915->drm.mode_config.connection_mutex);
+
+	return ret;
 }
 DEFINE_SHOW_ATTRIBUTE(i915_hdcp_sink_capability);
 
