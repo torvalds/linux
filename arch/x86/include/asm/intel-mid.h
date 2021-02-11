@@ -7,7 +7,6 @@
 #ifndef _ASM_X86_INTEL_MID_H
 #define _ASM_X86_INTEL_MID_H
 
-#include <linux/sfi.h>
 #include <linux/pci.h>
 #include <linux/platform_device.h>
 
@@ -21,39 +20,6 @@ extern void intel_mid_pwr_power_off(void);
 #define INTEL_MID_PWR_LSS_TYPE		(1 << 7)
 
 extern int intel_mid_pwr_get_lss_id(struct pci_dev *pdev);
-
-extern int get_gpio_by_name(const char *name);
-
-/*
- * Here defines the array of devices platform data that IAFW would export
- * through SFI "DEVS" table, we use name and type to match the device and
- * its platform data.
- */
-struct devs_id {
-	char name[SFI_NAME_LEN + 1];
-	u8 type;
-	u8 delay;
-	void *(*get_platform_data)(void *info);
-};
-
-#define sfi_device(i)								\
-	static const struct devs_id *const __intel_mid_sfi_##i##_dev __used	\
-	__section(".x86_intel_mid_dev.init") = &i
-
-/**
-* struct mid_sd_board_info - template for SD device creation
-* @name:		identifies the driver
-* @bus_num:		board-specific identifier for a given SD controller
-* @max_clk:		the maximum frequency device supports
-* @platform_data:	the particular data stored there is driver-specific
-*/
-struct mid_sd_board_info {
-	char		name[SFI_NAME_LEN];
-	int		bus_num;
-	unsigned short	addr;
-	u32		max_clk;
-	void		*platform_data;
-};
 
 /*
  * Medfield is the follow-up of Moorestown, it combines two chip solution into
@@ -98,8 +64,5 @@ static inline void intel_scu_devices_destroy(void) { }
 #define BSEL_SOC_FUSE_101		0x5
 /* FSB 83MHz */
 #define BSEL_SOC_FUSE_111		0x7
-
-/* The offset for the mapping of global gpio pin to irq */
-#define INTEL_MID_IRQ_OFFSET		0x100
 
 #endif /* _ASM_X86_INTEL_MID_H */

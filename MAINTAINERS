@@ -16234,13 +16234,6 @@ S:	Maintained
 F:	Documentation/fb/sm712fb.rst
 F:	drivers/video/fbdev/sm712*
 
-SIMPLE FIRMWARE INTERFACE (SFI)
-S:	Obsolete
-W:	http://simplefirmware.org/
-F:	arch/x86/platform/sfi/
-F:	drivers/sfi/
-F:	include/linux/sfi*.h
-
 SIMPLEFB FB DRIVER
 M:	Hans de Goede <hdegoede@redhat.com>
 L:	linux-fbdev@vger.kernel.org

@@ -444,7 +444,7 @@ config X86_X2APIC
 	  If you don't know what to do here, say N.
 
 config X86_MPPARSE
-	bool "Enable MPS table" if ACPI || SFI
+	bool "Enable MPS table" if ACPI
 	default y
 	depends on X86_LOCAL_APIC
 	help
@@ -603,7 +603,6 @@ config X86_INTEL_MID
 	depends on PCI
 	depends on X86_64 || (PCI_GOANY && X86_32)
 	depends on X86_IO_APIC
-	select SFI
 	select I2C
 	select DW_APB_TIMER
 	select APB_TIMER
@@ -2457,8 +2456,6 @@ source "kernel/power/Kconfig"
 
 source "drivers/acpi/Kconfig"
 
-source "drivers/sfi/Kconfig"
-
 config X86_APM_BOOT
 	def_bool y
 	depends on APM
@@ -2645,7 +2642,7 @@ config PCI_DIRECT
 config PCI_MMCONFIG
 	bool "Support mmconfig PCI config space access" if X86_64
 	default y
-	depends on PCI && (ACPI || SFI || JAILHOUSE_GUEST)
+	depends on PCI && (ACPI || JAILHOUSE_GUEST)
 	depends on X86_64 || (PCI_GOANY || PCI_GOMMCONFIG)
 
 config PCI_OLPC
