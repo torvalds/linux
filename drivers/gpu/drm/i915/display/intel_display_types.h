@@ -1493,6 +1493,8 @@ struct intel_dp {
 	int max_link_lane_count;
 	/* Max rate for the current link */
 	int max_link_rate;
+	int mso_link_count;
+	int mso_pixel_overlap;
 	/* sink or branch descriptor */
 	struct drm_dp_desc desc;
 	struct drm_dp_aux aux;

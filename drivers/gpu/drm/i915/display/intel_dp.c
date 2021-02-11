@@ -3516,6 +3516,37 @@ static void intel_dp_get_dsc_sink_cap(struct intel_dp *intel_dp)
 	}
 }
 
+static void intel_edp_mso_init(struct intel_dp *intel_dp)
+{
+	struct drm_i915_private *i915 = dp_to_i915(intel_dp);
+	u8 mso;
+
+	if (intel_dp->edp_dpcd[0] < DP_EDP_14)
+		return;
+
+	if (drm_dp_dpcd_readb(&intel_dp->aux, DP_EDP_MSO_LINK_CAPABILITIES, &mso) != 1) {
+		drm_err(&i915->drm, "Failed to read MSO cap\n");
+		return;
+	}
+
+	/* Valid configurations are SST or MSO 2x1, 2x2, 4x1 */
+	mso &= DP_EDP_MSO_NUMBER_OF_LINKS_MASK;
+	if (mso % 2 || mso > drm_dp_max_lane_count(intel_dp->dpcd)) {
+		drm_err(&i915->drm, "Invalid MSO link count cap %u\n", mso);
+		mso = 0;
+	}
+
+	if (mso) {
+		drm_dbg_kms(&i915->drm, "Sink MSO %ux%u configuration\n",
+			    mso, drm_dp_max_lane_count(intel_dp->dpcd) / mso);
+		drm_err(&i915->drm, "No source MSO support, disabling\n");
+		mso = 0;
+	}
+
+	intel_dp->mso_link_count = mso;
+	intel_dp->mso_pixel_overlap = 0; /* FIXME: read from DisplayID v2.0 */
+}
+
 static bool
 intel_edp_init_dpcd(struct intel_dp *intel_dp)
 {
@@ -3598,6 +3629,8 @@ intel_edp_init_dpcd(struct intel_dp *intel_dp)
 	 * available (such as HDR backlight controls)
 	 */
 	intel_edp_init_source_oui(intel_dp, true);
+
+	intel_edp_mso_init(intel_dp);
 
 	return true;
 }
