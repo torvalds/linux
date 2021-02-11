@@ -206,9 +206,6 @@ struct full_stripe_lock {
 	struct mutex mutex;
 };
 
-static void scrub_pending_bio_inc(struct scrub_ctx *sctx);
-static void scrub_pending_bio_dec(struct scrub_ctx *sctx);
-static int scrub_handle_errored_block(struct scrub_block *sblock_to_check);
 static int scrub_setup_recheck_block(struct scrub_block *original_sblock,
 				     struct scrub_block *sblocks_for_recheck);
 static void scrub_recheck_block(struct btrfs_fs_info *fs_info,
@@ -226,14 +223,11 @@ static int scrub_write_page_to_dev_replace(struct scrub_block *sblock,
 static int scrub_checksum_data(struct scrub_block *sblock);
 static int scrub_checksum_tree_block(struct scrub_block *sblock);
 static int scrub_checksum_super(struct scrub_block *sblock);
-static void scrub_block_get(struct scrub_block *sblock);
 static void scrub_block_put(struct scrub_block *sblock);
 static void scrub_page_get(struct scrub_page *spage);
 static void scrub_page_put(struct scrub_page *spage);
 static void scrub_parity_get(struct scrub_parity *sparity);
 static void scrub_parity_put(struct scrub_parity *sparity);
-static int scrub_add_page_to_rd_bio(struct scrub_ctx *sctx,
-				    struct scrub_page *spage);
 static int scrub_pages(struct scrub_ctx *sctx, u64 logical, u32 len,
 		       u64 physical, struct btrfs_device *dev, u64 flags,
 		       u64 gen, int mirror_num, u8 *csum,
@@ -251,8 +245,6 @@ static int scrub_add_page_to_wr_bio(struct scrub_ctx *sctx,
 static void scrub_wr_submit(struct scrub_ctx *sctx);
 static void scrub_wr_bio_end_io(struct bio *bio);
 static void scrub_wr_bio_end_io_worker(struct btrfs_work *work);
-static void __scrub_blocked_if_needed(struct btrfs_fs_info *fs_info);
-static void scrub_blocked_if_needed(struct btrfs_fs_info *fs_info);
 static void scrub_put_ctx(struct scrub_ctx *sctx);
 
 static inline int scrub_is_page_on_raid56(struct scrub_page *spage)
