@@ -502,12 +502,9 @@ function dump(first, pastlast, batchnum)
 	print "if test -n \"$needqemurun\""
 	print "then"
 	print "\techo ---- Starting kernels. `date` | tee -a " rd "log";
-	print "\techo > " rd "jitter_pids"
 	print "\ttouch " rd "jittering"
-	for (j = 0; j < njitter; j++) {
+	for (j = 0; j < njitter; j++)
 		print "\tjitter.sh " j " " dur " " rd "jittering " ja[2] " " ja[3] "&"
-		print "\techo $! >> " rd "jitter_pids"
-	}
 	print "\twhile ls $runfiles > /dev/null 2>&1"
 	print "\tdo"
 	print "\t\t:"
