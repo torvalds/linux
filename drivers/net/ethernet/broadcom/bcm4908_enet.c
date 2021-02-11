@@ -163,8 +163,6 @@ static int bcm4908_dma_alloc_buf_descs(struct bcm4908_enet *enet,
 	if (!ring->slots)
 		goto err_free_buf_descs;
 
-	memset(ring->cpu_addr, 0, size);
-
 	ring->read_idx = 0;
 	ring->write_idx = 0;
 
