@@ -209,7 +209,14 @@ struct otx2_hw {
 	u8			lbk_links;  /* No. of LBK links present in HW */
 #define HW_TSO			BIT_ULL(0)
 #define CN10K_MBOX		BIT_ULL(1)
+#define CN10K_LMTST		BIT_ULL(2)
 	unsigned long		cap_flag;
+
+#define LMT_LINE_SIZE		128
+#define NIX_LMTID_BASE		72 /* RX + TX + XDP */
+	void __iomem		*lmt_base;
+	u64			*npa_lmt_base;
+	u64			*nix_lmt_base;
 };
 
 struct otx2_vf_config {
@@ -319,6 +326,10 @@ struct otx2_nic {
 
 	/* Block address of NIX either BLKADDR_NIX0 or BLKADDR_NIX1 */
 	int			nix_blkaddr;
+	/* LMTST Lines info */
+	u16			tot_lmt_lines;
+	u16			nix_lmt_lines;
+	u32			nix_lmt_size;
 
 	struct otx2_ptp		*ptp;
 	struct hwtstamp_config	tstamp;
@@ -384,8 +395,10 @@ static inline void otx2_setup_dev_hw_settings(struct otx2_nic *pfvf)
 		pfvf->hw.rq_skid = 600;
 		pfvf->qset.rqe_cnt = Q_COUNT(Q_SIZE_1K);
 	}
-	if (!is_dev_otx2(pfvf->pdev))
+	if (!is_dev_otx2(pfvf->pdev)) {
 		__set_bit(CN10K_MBOX, &hw->cap_flag);
+		__set_bit(CN10K_LMTST, &hw->cap_flag);
+	}
 }
 
 /* Register read/write APIs */
