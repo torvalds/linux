@@ -1151,6 +1151,14 @@ int cgx_lmac_linkup_start(void *cgxd)
 	return 0;
 }
 
+static void cgx_lmac_get_fifolen(struct cgx *cgx)
+{
+	u64 cfg;
+
+	cfg = cgx_read(cgx, 0, CGX_CONST);
+	cgx->mac_ops->fifo_len = FIELD_GET(CGX_CONST_RXFIFO_SIZE, cfg);
+}
+
 static int cgx_configure_interrupt(struct cgx *cgx, struct lmac *lmac,
 				   int cnt, bool req_free)
 {
@@ -1204,6 +1212,8 @@ static int cgx_lmac_init(struct cgx *cgx)
 	struct lmac *lmac;
 	u64 lmac_list;
 	int i, err;
+
+	cgx_lmac_get_fifolen(cgx);
 
 	cgx->lmac_count = cgx->mac_ops->get_nr_lmacs(cgx);
 	/* lmac_list specifies which lmacs are enabled

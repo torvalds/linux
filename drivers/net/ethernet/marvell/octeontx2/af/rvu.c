@@ -22,7 +22,7 @@
 
 #include "rvu_trace.h"
 
-#define DRV_NAME	"octeontx2-af"
+#define DRV_NAME	"rvu_af"
 #define DRV_STRING      "Marvell OcteonTX2 RVU Admin Function Driver"
 
 static int rvu_get_hwvf(struct rvu *rvu, int pcifunc);
@@ -855,6 +855,31 @@ static int rvu_setup_cpt_hw_resource(struct rvu *rvu, int blkaddr)
 	return rvu_alloc_bitmap(&block->lf);
 }
 
+static void rvu_get_lbk_bufsize(struct rvu *rvu)
+{
+	struct pci_dev *pdev = NULL;
+	void __iomem *base;
+	u64 lbk_const;
+
+	pdev = pci_get_device(PCI_VENDOR_ID_CAVIUM,
+			      PCI_DEVID_OCTEONTX2_LBK, pdev);
+	if (!pdev)
+		return;
+
+	base = pci_ioremap_bar(pdev, 0);
+	if (!base)
+		goto err_put;
+
+	lbk_const = readq(base + LBK_CONST);
+
+	/* cache fifo size */
+	rvu->hw->lbk_bufsize = FIELD_GET(LBK_CONST_BUF_SIZE, lbk_const);
+
+	iounmap(base);
+err_put:
+	pci_dev_put(pdev);
+}
+
 static int rvu_setup_hw_resources(struct rvu *rvu)
 {
 	struct rvu_hwinfo *hw = rvu->hw;
@@ -1024,6 +1049,8 @@ cpt:
 	err = rvu_npa_init(rvu);
 	if (err)
 		goto npa_err;
+
+	rvu_get_lbk_bufsize(rvu);
 
 	err = rvu_nix_init(rvu);
 	if (err)

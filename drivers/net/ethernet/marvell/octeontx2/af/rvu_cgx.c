@@ -14,6 +14,7 @@
 
 #include "rvu.h"
 #include "cgx.h"
+#include "lmac_common.h"
 #include "rvu_reg.h"
 #include "rvu_trace.h"
 
@@ -683,6 +684,18 @@ int rvu_mbox_handler_cgx_features_get(struct rvu *rvu,
 	rsp->lmac_features = cgx_features_get(cgxd);
 
 	return 0;
+}
+
+u32 rvu_cgx_get_fifolen(struct rvu *rvu)
+{
+	struct mac_ops *mac_ops;
+	int rvu_def_cgx_id = 0;
+	u32 fifo_len;
+
+	mac_ops = get_mac_ops(rvu_cgx_pdata(rvu_def_cgx_id, rvu));
+	fifo_len = mac_ops ? mac_ops->fifo_len : 0;
+
+	return fifo_len;
 }
 
 static int rvu_cgx_config_intlbk(struct rvu *rvu, u16 pcifunc, bool en)

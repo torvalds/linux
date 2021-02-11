@@ -251,7 +251,8 @@ M(NIX_BP_ENABLE,	0x8016, nix_bp_enable, nix_bp_cfg_req,	\
 M(NIX_BP_DISABLE,	0x8017, nix_bp_disable, nix_bp_cfg_req, msg_rsp) \
 M(NIX_GET_MAC_ADDR, 0x8018, nix_get_mac_addr, msg_req, nix_get_mac_addr_rsp) \
 M(NIX_CN10K_AQ_ENQ,	0x8019, nix_cn10k_aq_enq, nix_cn10k_aq_enq_req, \
-				nix_cn10k_aq_enq_rsp)
+				nix_cn10k_aq_enq_rsp)			\
+M(NIX_GET_HW_INFO,	0x801a, nix_get_hw_info, msg_req, nix_hw_info)
 
 /* Messages initiated by AF (range 0xC00 - 0xDFF) */
 #define MBOX_UP_CGX_MESSAGES						\
@@ -946,6 +947,12 @@ struct nix_bp_cfg_rsp {
 	struct mbox_msghdr hdr;
 	u16	chan_bpid[NIX_MAX_BPID_CHAN]; /* Channel and bpid mapping */
 	u8	chan_cnt; /* Number of channel for which bpids are assigned */
+};
+
+struct nix_hw_info {
+	struct mbox_msghdr hdr;
+	u16 max_mtu;
+	u16 min_mtu;
 };
 
 /* NPC mbox message structs */
