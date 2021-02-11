@@ -797,6 +797,14 @@ static int pca9450_i2c_probe(struct i2c_client *i2c,
 		return ret;
 	}
 
+	/* Set reset behavior on assertion of WDOG_B signal */
+	ret = regmap_update_bits(pca9450->regmap, PCA9450_REG_RESET_CTRL,
+				WDOG_B_CFG_MASK, WDOG_B_CFG_COLD_LDO12);
+	if (ret) {
+		dev_err(&i2c->dev, "Failed to set WDOG_B reset behavior\n");
+		return ret;
+	}
+
 	/*
 	 * The driver uses the LDO5CTRL_H register to control the LDO5 regulator.
 	 * This is only valid if the SD_VSEL input of the PMIC is high. Let's
