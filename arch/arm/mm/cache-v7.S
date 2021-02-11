@@ -38,9 +38,10 @@ icache_size:
  * procedures.
  */
 ENTRY(v7_invalidate_l1)
-       mov     r0, #0
-       mcr     p15, 2, r0, c0, c0, 0
-       mrc     p15, 1, r0, c0, c0, 0
+	mov	r0, #0
+	mcr	p15, 2, r0, c0, c0, 0	@ select L1 data cache in CSSELR
+	isb
+	mrc	p15, 1, r0, c0, c0, 0	@ read cache geometry from CCSIDR
 
        movw    r1, #0x7fff
        and     r2, r1, r0, lsr #13
