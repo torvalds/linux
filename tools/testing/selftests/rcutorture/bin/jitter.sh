@@ -5,7 +5,7 @@
 # of this script is to inflict random OS jitter on a concurrently running
 # test.
 #
-# Usage: jitter.sh me duration jittering-path [ sleepmax [ spinmax ] ]
+# Usage: jitter.sh me jittering-path duration [ sleepmax [ spinmax ] ]
 #
 # me: Random-number-generator seed salt.
 # duration: Time to run in seconds.
@@ -18,8 +18,8 @@
 # Authors: Paul E. McKenney <paulmck@linux.ibm.com>
 
 me=$(($1 * 1000))
-duration=$2
-jittering=$3
+jittering=$2
+duration=$3
 sleepmax=${4-1000000}
 spinmax=${5-1000}
 
