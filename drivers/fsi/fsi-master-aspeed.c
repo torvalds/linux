@@ -92,7 +92,7 @@ static const u32 fsi_base = 0xa0000000;
 static u16 aspeed_fsi_divisor = FSI_DIVISOR_DEFAULT;
 module_param_named(bus_div,aspeed_fsi_divisor, ushort, 0);
 
-#define OPB_POLL_TIMEOUT		10000
+#define OPB_POLL_TIMEOUT		500
 
 static int __opb_write(struct fsi_master_aspeed *aspeed, u32 addr,
 		       u32 val, u32 transfer_size)
