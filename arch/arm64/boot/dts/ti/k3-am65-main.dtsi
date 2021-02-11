@@ -707,6 +707,7 @@
 		dma-coherent;
 		interrupts = <GIC_SPI 340 IRQ_TYPE_EDGE_RISING>;
 		msi-map = <0x0 &gic_its 0x0 0x10000>;
+		device_type = "pci";
 	};
 
 	pcie0_ep: pcie-ep@5500000 {
@@ -739,6 +740,7 @@
 		dma-coherent;
 		interrupts = <GIC_SPI 355 IRQ_TYPE_EDGE_RISING>;
 		msi-map = <0x0 &gic_its 0x10000 0x10000>;
+		device_type = "pci";
 	};
 
 	pcie1_ep: pcie-ep@5600000 {
