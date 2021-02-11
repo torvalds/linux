@@ -19,9 +19,11 @@
 #include "common.h"
 #include "mbox.h"
 #include "npc.h"
+#include "rvu_reg.h"
 
 /* PCI device IDs */
 #define	PCI_DEVID_OCTEONTX2_RVU_AF		0xA065
+#define	PCI_DEVID_OCTEONTX2_LBK			0xA061
 
 /* Subsystem Device ID */
 #define PCI_SUBSYS_DEVID_96XX                  0xB200
@@ -305,6 +307,7 @@ struct hw_cap {
 	bool	nix_tx_link_bp;		 /* Can link backpressure TL queues ? */
 	bool	nix_rx_multicast;	 /* Rx packet replication support */
 	bool	per_pf_mbox_regs; /* PF mbox specified in per PF registers ? */
+	bool	programmable_chans; /* Channels programmable ? */
 };
 
 struct rvu_hwinfo {
@@ -313,9 +316,14 @@ struct rvu_hwinfo {
 	u16	max_vfs_per_pf; /* Max VFs that can be attached to a PF */
 	u8	cgx;
 	u8	lmac_per_cgx;
+	u16	cgx_chan_base;	/* CGX base channel number */
+	u16	lbk_chan_base;	/* LBK base channel number */
+	u16	sdp_chan_base;	/* SDP base channel number */
+	u16	cpt_chan_base;	/* CPT base channel number */
 	u8	cgx_links;
 	u8	lbk_links;
 	u8	sdp_links;
+	u8	cpt_links;	/* Number of CPT links */
 	u8	npc_kpus;          /* No of parser units */
 	u8	npc_pkinds;        /* No of port kinds */
 	u8	npc_intfs;         /* No of interfaces */
@@ -499,6 +507,38 @@ static inline bool is_rvu_otx2(struct rvu *rvu)
 		midr == PCI_REVISION_ID_95XXMM);
 }
 
+static inline u16 rvu_nix_chan_cgx(struct rvu *rvu, u8 cgxid,
+				   u8 lmacid, u8 chan)
+{
+	u64 nix_const = rvu_read64(rvu, BLKADDR_NIX0, NIX_AF_CONST);
+	u16 cgx_chans = nix_const & 0xFFULL;
+	struct rvu_hwinfo *hw = rvu->hw;
+
+	if (!hw->cap.programmable_chans)
+		return NIX_CHAN_CGX_LMAC_CHX(cgxid, lmacid, chan);
+
+	return rvu->hw->cgx_chan_base +
+		(cgxid * hw->lmac_per_cgx + lmacid) * cgx_chans + chan;
+}
+
+static inline u16 rvu_nix_chan_lbk(struct rvu *rvu, u8 lbkid,
+				   u8 chan)
+{
+	u64 nix_const = rvu_read64(rvu, BLKADDR_NIX0, NIX_AF_CONST);
+	u16 lbk_chans = (nix_const >> 16) & 0xFFULL;
+	struct rvu_hwinfo *hw = rvu->hw;
+
+	if (!hw->cap.programmable_chans)
+		return NIX_CHAN_LBK_CHX(lbkid, chan);
+
+	return rvu->hw->lbk_chan_base + lbkid * lbk_chans + chan;
+}
+
+static inline u16 rvu_nix_chan_cpt(struct rvu *rvu, u8 chan)
+{
+	return rvu->hw->cpt_chan_base + chan;
+}
+
 /* Function Prototypes
  * RVU
  */
@@ -639,6 +679,10 @@ bool is_mac_feature_supported(struct rvu *rvu, int pf, int feature);
 
 /* CPT APIs */
 int rvu_cpt_lf_teardown(struct rvu *rvu, u16 pcifunc, int lf, int slot);
+
+/* CN10K RVU */
+int rvu_set_channels_base(struct rvu *rvu);
+void rvu_program_channels(struct rvu *rvu);
 
 #ifdef CONFIG_DEBUG_FS
 void rvu_dbg_init(struct rvu *rvu);

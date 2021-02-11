@@ -406,11 +406,15 @@
 #define NIX_AF_RX_NPC_MIRROR_RCV	(0x4720)
 #define NIX_AF_RX_NPC_MIRROR_DROP	(0x4730)
 #define NIX_AF_RX_ACTIVE_CYCLES_PCX(a)	(0x4800 | (a) << 16)
+#define NIX_AF_LINKX_CFG(a)		(0x4010 | (a) << 17)
 
 #define NIX_PRIV_AF_INT_CFG		(0x8000000)
 #define NIX_PRIV_LFX_CFG		(0x8000010)
 #define NIX_PRIV_LFX_INT_CFG		(0x8000020)
 #define NIX_AF_RVU_LF_CFG_DEBUG		(0x8000030)
+
+#define NIX_AF_LINKX_BASE_MASK		GENMASK_ULL(11, 0)
+#define NIX_AF_LINKX_RANGE_MASK		GENMASK_ULL(19, 16)
 
 /* SSO */
 #define SSO_AF_CONST			(0x1000)
@@ -644,4 +648,16 @@
 		(0x00F00 | (a) << 5 | (b) << 4)
 #define NDC_AF_BANKX_HIT_PC(a)		(0x01000 | (a) << 3)
 #define NDC_AF_BANKX_MISS_PC(a)		(0x01100 | (a) << 3)
+
+/* LBK */
+#define LBK_CONST			(0x10ull)
+#define LBK_LINK_CFG_P2X		(0x400ull)
+#define LBK_LINK_CFG_X2P		(0x408ull)
+#define LBK_CONST_CHANS			GENMASK_ULL(47, 32)
+#define LBK_CONST_DST			GENMASK_ULL(31, 28)
+#define LBK_CONST_SRC			GENMASK_ULL(27, 24)
+#define LBK_LINK_CFG_RANGE_MASK		GENMASK_ULL(19, 16)
+#define LBK_LINK_CFG_ID_MASK		GENMASK_ULL(11, 6)
+#define LBK_LINK_CFG_BASE_MASK		GENMASK_ULL(5, 0)
+
 #endif /* RVU_REG_H */

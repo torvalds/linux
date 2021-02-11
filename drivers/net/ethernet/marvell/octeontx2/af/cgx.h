@@ -162,4 +162,6 @@ struct mac_ops *get_mac_ops(void *cgxd);
 int cgx_get_nr_lmacs(void *cgxd);
 u8 cgx_get_lmacid(void *cgxd, u8 lmac_index);
 unsigned long cgx_get_lmac_bmap(void *cgxd);
+void cgx_lmac_write(int cgx_id, int lmac_id, u64 offset, u64 val);
+u64 cgx_lmac_read(int cgx_id, int lmac_id, u64 offset);
 #endif /* CGX_H */

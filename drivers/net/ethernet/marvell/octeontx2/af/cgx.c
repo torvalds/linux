@@ -123,6 +123,20 @@ void *cgx_get_pdata(int cgx_id)
 	return NULL;
 }
 
+void cgx_lmac_write(int cgx_id, int lmac_id, u64 offset, u64 val)
+{
+	struct cgx *cgx_dev = cgx_get_pdata(cgx_id);
+
+	cgx_write(cgx_dev, lmac_id, offset, val);
+}
+
+u64 cgx_lmac_read(int cgx_id, int lmac_id, u64 offset)
+{
+	struct cgx *cgx_dev = cgx_get_pdata(cgx_id);
+
+	return cgx_read(cgx_dev, lmac_id, offset);
+}
+
 int cgx_get_cgxid(void *cgxd)
 {
 	struct cgx *cgx = cgxd;
