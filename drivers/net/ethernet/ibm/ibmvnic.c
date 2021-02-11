@@ -1221,8 +1221,7 @@ static int ibmvnic_open(struct net_device *netdev)
 	rc = __ibmvnic_open(netdev);
 
 out:
-	/*
-	 * If open fails due to a pending failover, set device state and
+	/* If open fails due to a pending failover, set device state and
 	 * return. Device operation will be handled by reset routine.
 	 */
 	if (rc && adapter->failover_pending) {
@@ -1946,8 +1945,7 @@ static int do_reset(struct ibmvnic_adapter *adapter,
 	if (!(adapter->reset_reason == VNIC_RESET_CHANGE_PARAM))
 		rtnl_lock();
 
-	/*
-	 * Now that we have the rtnl lock, clear any pending failover.
+	/* Now that we have the rtnl lock, clear any pending failover.
 	 * This will ensure ibmvnic_open() has either completed or will
 	 * block until failover is complete.
 	 */
@@ -2249,8 +2247,7 @@ static void __ibmvnic_reset(struct work_struct *work)
 		spin_unlock_irqrestore(&adapter->state_lock, flags);
 
 		if (adapter->force_reset_recovery) {
-			/*
-			 * Since we are doing a hard reset now, clear the
+			/* Since we are doing a hard reset now, clear the
 			 * failover_pending flag so we don't ignore any
 			 * future MOBILITY or other resets.
 			 */
@@ -2322,8 +2319,7 @@ static int ibmvnic_reset(struct ibmvnic_adapter *adapter,
 	unsigned long flags;
 	int ret;
 
-	/*
-	 * If failover is pending don't schedule any other reset.
+	/* If failover is pending don't schedule any other reset.
 	 * Instead let the failover complete. If there is already a
 	 * a failover reset scheduled, we will detect and drop the
 	 * duplicate reset when walking the ->rwi_list below.
