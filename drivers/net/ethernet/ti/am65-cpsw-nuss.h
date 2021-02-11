@@ -6,12 +6,14 @@
 #ifndef AM65_CPSW_NUSS_H_
 #define AM65_CPSW_NUSS_H_
 
+#include <linux/if_ether.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/netdevice.h>
 #include <linux/phy.h>
 #include <linux/platform_device.h>
 #include <linux/soc/ti/k3-ringacc.h>
+#include <net/devlink.h>
 #include "am65-cpsw-qos.h"
 
 struct am65_cpts;
@@ -21,6 +23,8 @@ struct am65_cpts;
 #define AM65_CPSW_MAX_TX_QUEUES	8
 #define AM65_CPSW_MAX_RX_QUEUES	1
 #define AM65_CPSW_MAX_RX_FLOWS	1
+
+#define AM65_CPSW_PORT_VLAN_REG_OFFSET	0x014
 
 struct am65_cpsw_slave_data {
 	bool				mac_only;
@@ -32,6 +36,7 @@ struct am65_cpsw_slave_data {
 	bool				rx_pause;
 	bool				tx_pause;
 	u8				mac_addr[ETH_ALEN];
+	int				port_vlan;
 };
 
 struct am65_cpsw_port {
@@ -47,6 +52,7 @@ struct am65_cpsw_port {
 	bool				tx_ts_enabled;
 	bool				rx_ts_enabled;
 	struct am65_cpsw_qos		qos;
+	struct devlink_port		devlink_port;
 };
 
 struct am65_cpsw_host {
@@ -85,6 +91,15 @@ struct am65_cpsw_pdata {
 	const char	*ale_dev_id;
 };
 
+enum cpsw_devlink_param_id {
+	AM65_CPSW_DEVLINK_PARAM_ID_BASE = DEVLINK_PARAM_GENERIC_ID_MAX,
+	AM65_CPSW_DL_PARAM_SWITCH_MODE,
+};
+
+struct am65_cpsw_devlink {
+	struct am65_cpsw_common *common;
+};
+
 struct am65_cpsw_common {
 	struct device		*dev;
 	struct device		*mdio_dev;
@@ -117,6 +132,12 @@ struct am65_cpsw_common {
 	bool			pf_p0_rx_ptype_rrobin;
 	struct am65_cpts	*cpts;
 	int			est_enabled;
+
+	bool		is_emac_mode;
+	u16			br_members;
+	int			default_vlan;
+	struct devlink *devlink;
+	unsigned char switch_id[MAX_PHYS_ITEM_ID_LEN];
 };
 
 struct am65_cpsw_ndev_stats {
@@ -131,6 +152,7 @@ struct am65_cpsw_ndev_priv {
 	u32			msg_enable;
 	struct am65_cpsw_port	*port;
 	struct am65_cpsw_ndev_stats __percpu *stats;
+	bool offload_fwd_mark;
 };
 
 #define am65_ndev_to_priv(ndev) \
