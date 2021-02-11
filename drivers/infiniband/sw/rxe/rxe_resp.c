@@ -586,11 +586,10 @@ static struct sk_buff *prepare_ack_packet(struct rxe_qp *qp,
 	ack->qp = qp;
 	ack->opcode = opcode;
 	ack->mask = rxe_opcode[opcode].mask;
-	ack->offset = pkt->offset;
 	ack->paylen = paylen;
 
 	/* fill in bth using the request packet headers */
-	memcpy(ack->hdr, pkt->hdr, pkt->offset + RXE_BTH_BYTES);
+	memcpy(ack->hdr, pkt->hdr, RXE_BTH_BYTES);
 
 	bth_set_opcode(ack, opcode);
 	bth_set_qpn(ack, qp->attr.dest_qp_num);
