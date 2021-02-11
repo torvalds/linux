@@ -75,17 +75,17 @@ struct bcm4908_enet {
  * R/W ops
  */
 
-static inline u32 enet_read(struct bcm4908_enet *enet, u16 offset)
+static u32 enet_read(struct bcm4908_enet *enet, u16 offset)
 {
 	return readl(enet->base + offset);
 }
 
-static inline void enet_write(struct bcm4908_enet *enet, u16 offset, u32 value)
+static void enet_write(struct bcm4908_enet *enet, u16 offset, u32 value)
 {
 	writel(value, enet->base + offset);
 }
 
-static inline void enet_maskset(struct bcm4908_enet *enet, u16 offset, u32 mask, u32 set)
+static void enet_maskset(struct bcm4908_enet *enet, u16 offset, u32 mask, u32 set)
 {
 	u32 val;
 
@@ -96,27 +96,22 @@ static inline void enet_maskset(struct bcm4908_enet *enet, u16 offset, u32 mask,
 	enet_write(enet, offset, val);
 }
 
-static inline void enet_set(struct bcm4908_enet *enet, u16 offset, u32 set)
+static void enet_set(struct bcm4908_enet *enet, u16 offset, u32 set)
 {
 	enet_maskset(enet, offset, set, set);
 }
 
-static inline u32 enet_umac_read(struct bcm4908_enet *enet, u16 offset)
+static u32 enet_umac_read(struct bcm4908_enet *enet, u16 offset)
 {
 	return enet_read(enet, ENET_UNIMAC + offset);
 }
 
-static inline void enet_umac_write(struct bcm4908_enet *enet, u16 offset, u32 value)
+static void enet_umac_write(struct bcm4908_enet *enet, u16 offset, u32 value)
 {
 	enet_write(enet, ENET_UNIMAC + offset, value);
 }
 
-static inline void enet_umac_maskset(struct bcm4908_enet *enet, u16 offset, u32 mask, u32 set)
-{
-	enet_maskset(enet, ENET_UNIMAC + offset, mask, set);
-}
-
-static inline void enet_umac_set(struct bcm4908_enet *enet, u16 offset, u32 set)
+static void enet_umac_set(struct bcm4908_enet *enet, u16 offset, u32 set)
 {
 	enet_set(enet, ENET_UNIMAC + offset, set);
 }
