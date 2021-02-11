@@ -1029,7 +1029,7 @@ static struct fixed_rsrc_ref_node *alloc_fixed_rsrc_ref_node(
 static void init_fixed_file_ref_node(struct io_ring_ctx *ctx,
 				     struct fixed_rsrc_ref_node *ref_node);
 
-static bool io_rw_reissue(struct io_kiocb *req, long res);
+static bool io_rw_reissue(struct io_kiocb *req);
 static void io_cqring_fill_event(struct io_kiocb *req, long res);
 static void io_put_req(struct io_kiocb *req);
 static void io_put_req_deferred(struct io_kiocb *req, int nr);
@@ -2578,7 +2578,7 @@ static void io_iopoll_complete(struct io_ring_ctx *ctx, unsigned int *nr_events,
 
 		if (READ_ONCE(req->result) == -EAGAIN) {
 			req->iopoll_completed = 0;
-			if (io_rw_reissue(req, -EAGAIN))
+			if (io_rw_reissue(req))
 				continue;
 		}
 
@@ -2812,15 +2812,12 @@ static bool io_resubmit_prep(struct io_kiocb *req)
 }
 #endif
 
-static bool io_rw_reissue(struct io_kiocb *req, long res)
+static bool io_rw_reissue(struct io_kiocb *req)
 {
 #ifdef CONFIG_BLOCK
-	umode_t mode;
+	umode_t mode = file_inode(req->file)->i_mode;
 	int ret;
 
-	if (res != -EAGAIN && res != -EOPNOTSUPP)
-		return false;
-	mode = file_inode(req->file)->i_mode;
 	if (!S_ISBLK(mode) && !S_ISREG(mode))
 		return false;
 	if ((req->flags & REQ_F_NOWAIT) || io_wq_current_is_worker())
@@ -2843,8 +2840,10 @@ static bool io_rw_reissue(struct io_kiocb *req, long res)
 static void __io_complete_rw(struct io_kiocb *req, long res, long res2,
 			     unsigned int issue_flags)
 {
-	if (!io_rw_reissue(req, res))
-		io_complete_rw_common(&req->rw.kiocb, res, issue_flags);
+	if ((res == -EAGAIN || res == -EOPNOTSUPP) && io_rw_reissue(req))
+		return;
+
+	io_complete_rw_common(&req->rw.kiocb, res, issue_flags);
 }
 
 static void io_complete_rw(struct kiocb *kiocb, long res, long res2)
