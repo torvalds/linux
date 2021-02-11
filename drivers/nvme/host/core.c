@@ -355,6 +355,21 @@ void nvme_complete_rq(struct request *req)
 }
 EXPORT_SYMBOL_GPL(nvme_complete_rq);
 
+/*
+ * Called to unwind from ->queue_rq on a failed command submission so that the
+ * multipathing code gets called to potentially failover to another path.
+ * The caller needs to unwind all transport specific resource allocations and
+ * must return propagate the return value.
+ */
+blk_status_t nvme_host_path_error(struct request *req)
+{
+	nvme_req(req)->status = NVME_SC_HOST_PATH_ERROR;
+	blk_mq_set_request_complete(req);
+	nvme_complete_rq(req);
+	return BLK_STS_OK;
+}
+EXPORT_SYMBOL_GPL(nvme_host_path_error);
+
 bool nvme_cancel_request(struct request *req, void *data, bool reserved)
 {
 	dev_dbg_ratelimited(((struct nvme_ctrl *) data)->device,
@@ -2848,7 +2863,7 @@ static ssize_t nvme_subsys_show_nqn(struct device *dev,
 	struct nvme_subsystem *subsys =
 		container_of(dev, struct nvme_subsystem, dev);
 
-	return snprintf(buf, PAGE_SIZE, "%s\n", subsys->subnqn);
+	return sysfs_emit(buf, "%s\n", subsys->subnqn);
 }
 static SUBSYS_ATTR_RO(subsysnqn, S_IRUGO, nvme_subsys_show_nqn);
 
@@ -3541,7 +3556,7 @@ static ssize_t nvme_sysfs_show_transport(struct device *dev,
 {
 	struct nvme_ctrl *ctrl = dev_get_drvdata(dev);
 
-	return snprintf(buf, PAGE_SIZE, "%s\n", ctrl->ops->name);
+	return sysfs_emit(buf, "%s\n", ctrl->ops->name);
 }
 static DEVICE_ATTR(transport, S_IRUGO, nvme_sysfs_show_transport, NULL);
 
@@ -3575,7 +3590,7 @@ static ssize_t nvme_sysfs_show_subsysnqn(struct device *dev,
 {
 	struct nvme_ctrl *ctrl = dev_get_drvdata(dev);
 
-	return snprintf(buf, PAGE_SIZE, "%s\n", ctrl->subsys->subnqn);
+	return sysfs_emit(buf, "%s\n", ctrl->subsys->subnqn);
 }
 static DEVICE_ATTR(subsysnqn, S_IRUGO, nvme_sysfs_show_subsysnqn, NULL);
 
@@ -3585,7 +3600,7 @@ static ssize_t nvme_sysfs_show_hostnqn(struct device *dev,
 {
 	struct nvme_ctrl *ctrl = dev_get_drvdata(dev);
 
-	return snprintf(buf, PAGE_SIZE, "%s\n", ctrl->opts->host->nqn);
+	return sysfs_emit(buf, "%s\n", ctrl->opts->host->nqn);
 }
 static DEVICE_ATTR(hostnqn, S_IRUGO, nvme_sysfs_show_hostnqn, NULL);
 
@@ -3595,7 +3610,7 @@ static ssize_t nvme_sysfs_show_hostid(struct device *dev,
 {
 	struct nvme_ctrl *ctrl = dev_get_drvdata(dev);
 
-	return snprintf(buf, PAGE_SIZE, "%pU\n", &ctrl->opts->host->id);
+	return sysfs_emit(buf, "%pU\n", &ctrl->opts->host->id);
 }
 static DEVICE_ATTR(hostid, S_IRUGO, nvme_sysfs_show_hostid, NULL);
 
@@ -4456,6 +4471,7 @@ EXPORT_SYMBOL_GPL(nvme_start_ctrl);
 
 void nvme_uninit_ctrl(struct nvme_ctrl *ctrl)
 {
+	nvme_hwmon_exit(ctrl);
 	nvme_fault_inject_fini(&ctrl->fault_inject);
 	dev_pm_qos_hide_latency_tolerance(ctrl->device);
 	cdev_device_del(&ctrl->cdev, ctrl->device);

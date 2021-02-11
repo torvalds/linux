@@ -2362,13 +2362,16 @@ static int nvme_pci_enable(struct nvme_dev *dev)
 {
 	int result = -ENOMEM;
 	struct pci_dev *pdev = to_pci_dev(dev->dev);
+	int dma_address_bits = 64;
 
 	if (pci_enable_device_mem(pdev))
 		return result;
 
 	pci_set_master(pdev);
 
-	if (dma_set_mask_and_coherent(dev->dev, DMA_BIT_MASK(64)))
+	if (dev->ctrl.quirks & NVME_QUIRK_DMA_ADDRESS_BITS_48)
+		dma_address_bits = 48;
+	if (dma_set_mask_and_coherent(dev->dev, DMA_BIT_MASK(dma_address_bits)))
 		goto disable;
 
 	if (readl(dev->bar + NVME_REG_CSTS) == -1) {
@@ -3257,6 +3260,22 @@ static const struct pci_device_id nvme_id_table[] = {
 		.driver_data = NVME_QUIRK_DISABLE_WRITE_ZEROES, },
 	{ PCI_DEVICE(0x15b7, 0x2001),   /*  Sandisk Skyhawk */
 		.driver_data = NVME_QUIRK_DISABLE_WRITE_ZEROES, },
+	{ PCI_DEVICE(0x1d97, 0x2263),   /* SPCC */
+		.driver_data = NVME_QUIRK_DISABLE_WRITE_ZEROES, },
+	{ PCI_DEVICE(0x2646, 0x2263),   /* KINGSTON A2000 NVMe SSD  */
+		.driver_data = NVME_QUIRK_NO_DEEPEST_PS, },
+	{ PCI_DEVICE(PCI_VENDOR_ID_AMAZON, 0x0061),
+		.driver_data = NVME_QUIRK_DMA_ADDRESS_BITS_48, },
+	{ PCI_DEVICE(PCI_VENDOR_ID_AMAZON, 0x0065),
+		.driver_data = NVME_QUIRK_DMA_ADDRESS_BITS_48, },
+	{ PCI_DEVICE(PCI_VENDOR_ID_AMAZON, 0x8061),
+		.driver_data = NVME_QUIRK_DMA_ADDRESS_BITS_48, },
+	{ PCI_DEVICE(PCI_VENDOR_ID_AMAZON, 0xcd00),
+		.driver_data = NVME_QUIRK_DMA_ADDRESS_BITS_48, },
+	{ PCI_DEVICE(PCI_VENDOR_ID_AMAZON, 0xcd01),
+		.driver_data = NVME_QUIRK_DMA_ADDRESS_BITS_48, },
+	{ PCI_DEVICE(PCI_VENDOR_ID_AMAZON, 0xcd02),
+		.driver_data = NVME_QUIRK_DMA_ADDRESS_BITS_48, },
 	{ PCI_DEVICE(PCI_VENDOR_ID_APPLE, 0x2001),
 		.driver_data = NVME_QUIRK_SINGLE_VECTOR },
 	{ PCI_DEVICE(PCI_VENDOR_ID_APPLE, 0x2003) },
