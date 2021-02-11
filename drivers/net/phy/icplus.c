@@ -37,12 +37,17 @@ MODULE_LICENSE("GPL");
 #define IP1001_SPEC_CTRL_STATUS_2	20	/* IP1001 Spec. Control Reg 2 */
 #define IP1001_APS_ON			11	/* IP1001 APS Mode  bit */
 #define IP101A_G_APS_ON			BIT(1)	/* IP101A/G APS Mode bit */
+#define IP101A_G_AUTO_MDIX_DIS		BIT(11)
 #define IP101A_G_IRQ_CONF_STATUS	0x11	/* Conf Info IRQ & Status Reg */
 #define	IP101A_G_IRQ_PIN_USED		BIT(15) /* INTR pin used */
 #define IP101A_G_IRQ_ALL_MASK		BIT(11) /* IRQ's inactive */
 #define IP101A_G_IRQ_SPEED_CHANGE	BIT(2)
 #define IP101A_G_IRQ_DUPLEX_CHANGE	BIT(1)
 #define IP101A_G_IRQ_LINK_CHANGE	BIT(0)
+#define IP101A_G_PHY_STATUS		18
+#define IP101A_G_MDIX			BIT(9)
+#define IP101A_G_PHY_SPEC_CTRL		30
+#define IP101A_G_FORCE_MDIX		BIT(3)
 
 #define IP101G_PAGE_CONTROL				0x14
 #define IP101G_PAGE_CONTROL_MASK			GENMASK(4, 0)
@@ -299,6 +304,94 @@ static int ip101g_config_init(struct phy_device *phydev)
 	return ip101a_g_config_intr_pin(phydev);
 }
 
+static int ip101a_g_read_status(struct phy_device *phydev)
+{
+	int oldpage, ret, stat1, stat2;
+
+	ret = genphy_read_status(phydev);
+	if (ret)
+		return ret;
+
+	oldpage = phy_select_page(phydev, IP101G_DEFAULT_PAGE);
+	if (oldpage < 0)
+		return oldpage;
+
+	ret = __phy_read(phydev, IP10XX_SPEC_CTRL_STATUS);
+	if (ret < 0)
+		goto out;
+	stat1 = ret;
+
+	ret = __phy_read(phydev, IP101A_G_PHY_SPEC_CTRL);
+	if (ret < 0)
+		goto out;
+	stat2 = ret;
+
+	if (stat1 & IP101A_G_AUTO_MDIX_DIS) {
+		if (stat2 & IP101A_G_FORCE_MDIX)
+			phydev->mdix_ctrl = ETH_TP_MDI_X;
+		else
+			phydev->mdix_ctrl = ETH_TP_MDI;
+	} else {
+		phydev->mdix_ctrl = ETH_TP_MDI_AUTO;
+	}
+
+	if (stat2 & IP101A_G_MDIX)
+		phydev->mdix = ETH_TP_MDI_X;
+	else
+		phydev->mdix = ETH_TP_MDI;
+
+	ret = 0;
+
+out:
+	return phy_restore_page(phydev, oldpage, ret);
+}
+
+static int ip101a_g_config_mdix(struct phy_device *phydev)
+{
+	u16 ctrl = 0, ctrl2 = 0;
+	int oldpage, ret;
+
+	switch (phydev->mdix_ctrl) {
+	case ETH_TP_MDI:
+		ctrl = IP101A_G_AUTO_MDIX_DIS;
+		break;
+	case ETH_TP_MDI_X:
+		ctrl = IP101A_G_AUTO_MDIX_DIS;
+		ctrl2 = IP101A_G_FORCE_MDIX;
+		break;
+	case ETH_TP_MDI_AUTO:
+		break;
+	default:
+		return 0;
+	}
+
+	oldpage = phy_select_page(phydev, IP101G_DEFAULT_PAGE);
+	if (oldpage < 0)
+		return oldpage;
+
+	ret = __phy_modify(phydev, IP10XX_SPEC_CTRL_STATUS,
+			   IP101A_G_AUTO_MDIX_DIS, ctrl);
+	if (ret)
+		goto out;
+
+	ret = __phy_modify(phydev, IP101A_G_PHY_SPEC_CTRL,
+			   IP101A_G_FORCE_MDIX, ctrl2);
+
+out:
+	return phy_restore_page(phydev, oldpage, ret);
+}
+
+static int ip101a_g_config_aneg(struct phy_device *phydev)
+{
+	int ret;
+
+	ret = ip101a_g_config_mdix(phydev);
+	if (ret)
+		return ret;
+
+	return genphy_config_aneg(phydev);
+}
+
 static int ip101a_g_ack_interrupt(struct phy_device *phydev)
 {
 	int err;
@@ -504,6 +597,8 @@ static struct phy_driver icplus_driver[] = {
 	.config_intr	= ip101a_g_config_intr,
 	.handle_interrupt = ip101a_g_handle_interrupt,
 	.config_init	= ip101a_config_init,
+	.config_aneg	= ip101a_g_config_aneg,
+	.read_status	= ip101a_g_read_status,
 	.soft_reset	= genphy_soft_reset,
 	.suspend	= genphy_suspend,
 	.resume		= genphy_resume,
@@ -516,6 +611,8 @@ static struct phy_driver icplus_driver[] = {
 	.config_intr	= ip101a_g_config_intr,
 	.handle_interrupt = ip101a_g_handle_interrupt,
 	.config_init	= ip101g_config_init,
+	.config_aneg	= ip101a_g_config_aneg,
+	.read_status	= ip101a_g_read_status,
 	.soft_reset	= genphy_soft_reset,
 	.get_sset_count = ip101g_get_sset_count,
 	.get_strings	= ip101g_get_strings,
