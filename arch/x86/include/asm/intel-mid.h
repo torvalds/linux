@@ -21,35 +21,12 @@ extern void intel_mid_pwr_power_off(void);
 
 extern int intel_mid_pwr_get_lss_id(struct pci_dev *pdev);
 
-/*
- * Medfield is the follow-up of Moorestown, it combines two chip solution into
- * one. Other than that it also added always-on and constant tsc and lapic
- * timers. Medfield is the platform name, and the chip name is called Penwell
- * we treat Medfield/Penwell as a variant of Moorestown. Penwell can be
- * identified via MSRs.
- */
-enum intel_mid_cpu_type {
-	/* 1 was Moorestown */
-	INTEL_MID_CPU_CHIP_PENWELL = 2,
-	INTEL_MID_CPU_CHIP_CLOVERVIEW,
-	INTEL_MID_CPU_CHIP_TANGIER,
-};
-
-extern enum intel_mid_cpu_type __intel_mid_cpu_chip;
-
 #ifdef CONFIG_X86_INTEL_MID
-
-static inline enum intel_mid_cpu_type intel_mid_identify_cpu(void)
-{
-	return __intel_mid_cpu_chip;
-}
 
 extern void intel_scu_devices_create(void);
 extern void intel_scu_devices_destroy(void);
 
 #else /* !CONFIG_X86_INTEL_MID */
-
-#define intel_mid_identify_cpu()	0
 
 static inline void intel_scu_devices_create(void) { }
 static inline void intel_scu_devices_destroy(void) { }

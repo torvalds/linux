@@ -32,9 +32,6 @@
 #define IPCMSG_COLD_OFF		0x80	/* Only for Tangier */
 #define IPCMSG_COLD_RESET	0xF1
 
-enum intel_mid_cpu_type __intel_mid_cpu_chip;
-EXPORT_SYMBOL_GPL(__intel_mid_cpu_chip);
-
 static void intel_mid_power_off(void)
 {
 	/* Shut down South Complex via PWRMU */
@@ -58,29 +55,15 @@ static void __init intel_mid_time_init(void)
 
 static void intel_mid_arch_setup(void)
 {
-	if (boot_cpu_data.x86 != 6) {
-		pr_err("Unknown Intel MID CPU (%d:%d), default to Penwell\n",
-			boot_cpu_data.x86, boot_cpu_data.x86_model);
-		__intel_mid_cpu_chip = INTEL_MID_CPU_CHIP_PENWELL;
-		goto out;
-	}
-
 	switch (boot_cpu_data.x86_model) {
-	case 0x35:
-		__intel_mid_cpu_chip = INTEL_MID_CPU_CHIP_CLOVERVIEW;
-		break;
 	case 0x3C:
 	case 0x4A:
-		__intel_mid_cpu_chip = INTEL_MID_CPU_CHIP_TANGIER;
 		x86_platform.legacy.rtc = 1;
 		break;
-	case 0x27:
 	default:
-		__intel_mid_cpu_chip = INTEL_MID_CPU_CHIP_PENWELL;
 		break;
 	}
 
-out:
 	/*
 	 * Intel MID platforms are using explicitly defined regulators.
 	 *
