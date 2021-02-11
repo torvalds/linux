@@ -1634,7 +1634,8 @@ struct mlx5_ifc_cmd_hca_cap_bits {
 	u8         sf_set_partition[0x1];
 	u8         reserved_at_682[0x1];
 	u8         log_max_sf[0x5];
-	u8         reserved_at_688[0x8];
+	u8         apu[0x1];
+	u8         reserved_at_689[0x7];
 	u8         log_min_sf_size[0x8];
 	u8         max_num_sf_partitions[0x8];
 
@@ -3816,7 +3817,7 @@ struct mlx5_ifc_cqc_bits {
 	u8         status[0x4];
 	u8         reserved_at_4[0x2];
 	u8         dbr_umem_valid[0x1];
-	u8         reserved_at_7[0x1];
+	u8         apu_thread_cq[0x1];
 	u8         cqe_sz[0x3];
 	u8         cc[0x1];
 	u8         reserved_at_c[0x1];
