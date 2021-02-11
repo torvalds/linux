@@ -333,6 +333,7 @@ static struct platform_device *amd_energy_platdev;
 static const struct x86_cpu_id cpu_ids[] __initconst = {
 	X86_MATCH_VENDOR_FAM_MODEL(AMD, 0x17, 0x31, NULL),
 	X86_MATCH_VENDOR_FAM_MODEL(AMD, 0x19, 0x01, NULL),
+	X86_MATCH_VENDOR_FAM_MODEL(AMD, 0x19, 0x30, NULL),
 	{}
 };
 MODULE_DEVICE_TABLE(x86cpu, cpu_ids);
