@@ -798,7 +798,7 @@ int snd_sof_ipc_valid(struct snd_sof_dev *sdev)
 		return -EINVAL;
 	}
 
-	if (v->abi_version > SOF_ABI_VERSION) {
+	if (SOF_ABI_VERSION_MINOR(v->abi_version) > SOF_ABI_MINOR) {
 		if (!IS_ENABLED(CONFIG_SND_SOC_SOF_STRICT_ABI_CHECKS)) {
 			dev_warn(sdev->dev, "warn: FW ABI is more recent than kernel\n");
 		} else {

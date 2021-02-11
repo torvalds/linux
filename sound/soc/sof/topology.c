@@ -3658,7 +3658,7 @@ static int sof_manifest(struct snd_soc_component *scomp, int index,
 		return -EINVAL;
 	}
 
-	if (abi_version > SOF_ABI_VERSION) {
+	if (SOF_ABI_VERSION_MINOR(abi_version) > SOF_ABI_MINOR) {
 		if (!IS_ENABLED(CONFIG_SND_SOC_SOF_STRICT_ABI_CHECKS)) {
 			dev_warn(scomp->dev, "warn: topology ABI is more recent than kernel\n");
 		} else {
