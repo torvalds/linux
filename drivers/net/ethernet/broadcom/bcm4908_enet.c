@@ -328,8 +328,8 @@ static int bcm4908_enet_dma_init(struct bcm4908_enet *enet)
 	return 0;
 }
 
-static void bcm4908_enet_dma_tx_ring_ensable(struct bcm4908_enet *enet,
-					     struct bcm4908_enet_dma_ring *ring)
+static void bcm4908_enet_dma_tx_ring_enable(struct bcm4908_enet *enet,
+					    struct bcm4908_enet_dma_ring *ring)
 {
 	enet_write(enet, ring->cfg_block + ENET_DMA_CH_CFG, ENET_DMA_CH_CFG_ENABLE);
 }
@@ -519,7 +519,7 @@ static int bcm4908_enet_start_xmit(struct sk_buff *skb, struct net_device *netde
 	buf_desc->addr = cpu_to_le32((uint32_t)slot->dma_addr);
 	buf_desc->ctl = cpu_to_le32(tmp);
 
-	bcm4908_enet_dma_tx_ring_ensable(enet, &enet->tx_ring);
+	bcm4908_enet_dma_tx_ring_enable(enet, &enet->tx_ring);
 
 	if (++ring->write_idx == ring->length - 1)
 		ring->write_idx = 0;
@@ -583,7 +583,7 @@ static int bcm4908_enet_poll(struct napi_struct *napi, int weight)
 	return handled;
 }
 
-static const struct net_device_ops bcm96xx_netdev_ops = {
+static const struct net_device_ops bcm4908_enet_netdev_ops = {
 	.ndo_open = bcm4908_enet_open,
 	.ndo_stop = bcm4908_enet_stop,
 	.ndo_start_xmit = bcm4908_enet_start_xmit,
@@ -623,7 +623,7 @@ static int bcm4908_enet_probe(struct platform_device *pdev)
 
 	SET_NETDEV_DEV(netdev, &pdev->dev);
 	eth_hw_addr_random(netdev);
-	netdev->netdev_ops = &bcm96xx_netdev_ops;
+	netdev->netdev_ops = &bcm4908_enet_netdev_ops;
 	netdev->min_mtu = ETH_ZLEN;
 	netdev->mtu = ENET_MTU_MAX;
 	netdev->max_mtu = ENET_MTU_MAX;
