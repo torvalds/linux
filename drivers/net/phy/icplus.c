@@ -49,6 +49,8 @@ MODULE_LICENSE("GPL");
 #define IP101G_DIGITAL_IO_SPEC_CTRL			0x1d
 #define IP101G_DIGITAL_IO_SPEC_CTRL_SEL_INTR32		BIT(2)
 
+#define IP101G_DEFAULT_PAGE			16
+
 #define IP175C_PHY_ID 0x02430d80
 #define IP1001_PHY_ID 0x02430d90
 #define IP101A_PHY_ID 0x02430c54
@@ -211,23 +213,27 @@ static int ip101a_g_probe(struct phy_device *phydev)
 static int ip101a_g_config_intr_pin(struct phy_device *phydev)
 {
 	struct ip101a_g_phy_priv *priv = phydev->priv;
-	int err;
+	int oldpage, err = 0;
+
+	oldpage = phy_select_page(phydev, IP101G_DEFAULT_PAGE);
+	if (oldpage < 0)
+		return oldpage;
 
 	/* configure the RXER/INTR_32 pin of the 32-pin IP101GR if needed: */
 	switch (priv->sel_intr32) {
 	case IP101GR_SEL_INTR32_RXER:
-		err = phy_modify(phydev, IP101G_DIGITAL_IO_SPEC_CTRL,
-				 IP101G_DIGITAL_IO_SPEC_CTRL_SEL_INTR32, 0);
+		err = __phy_modify(phydev, IP101G_DIGITAL_IO_SPEC_CTRL,
+				   IP101G_DIGITAL_IO_SPEC_CTRL_SEL_INTR32, 0);
 		if (err < 0)
-			return err;
+			goto out;
 		break;
 
 	case IP101GR_SEL_INTR32_INTR:
-		err = phy_modify(phydev, IP101G_DIGITAL_IO_SPEC_CTRL,
-				 IP101G_DIGITAL_IO_SPEC_CTRL_SEL_INTR32,
-				 IP101G_DIGITAL_IO_SPEC_CTRL_SEL_INTR32);
+		err = __phy_modify(phydev, IP101G_DIGITAL_IO_SPEC_CTRL,
+				   IP101G_DIGITAL_IO_SPEC_CTRL_SEL_INTR32,
+				   IP101G_DIGITAL_IO_SPEC_CTRL_SEL_INTR32);
 		if (err < 0)
-			return err;
+			goto out;
 		break;
 
 	default:
@@ -241,7 +247,8 @@ static int ip101a_g_config_intr_pin(struct phy_device *phydev)
 		break;
 	}
 
-	return 0;
+out:
+	return phy_restore_page(phydev, oldpage, err);
 }
 
 static int ip101a_config_init(struct phy_device *phydev)
@@ -263,8 +270,10 @@ static int ip101g_config_init(struct phy_device *phydev)
 
 static int ip101a_g_ack_interrupt(struct phy_device *phydev)
 {
-	int err = phy_read(phydev, IP101A_G_IRQ_CONF_STATUS);
+	int err;
 
+	err = phy_read_paged(phydev, IP101G_DEFAULT_PAGE,
+			     IP101A_G_IRQ_CONF_STATUS);
 	if (err < 0)
 		return err;
 
@@ -283,10 +292,12 @@ static int ip101a_g_config_intr(struct phy_device *phydev)
 
 		/* INTR pin used: Speed/link/duplex will cause an interrupt */
 		val = IP101A_G_IRQ_PIN_USED;
-		err = phy_write(phydev, IP101A_G_IRQ_CONF_STATUS, val);
+		err = phy_write_paged(phydev, IP101G_DEFAULT_PAGE,
+				      IP101A_G_IRQ_CONF_STATUS, val);
 	} else {
 		val = IP101A_G_IRQ_ALL_MASK;
-		err = phy_write(phydev, IP101A_G_IRQ_CONF_STATUS, val);
+		err = phy_write_paged(phydev, IP101G_DEFAULT_PAGE,
+				      IP101A_G_IRQ_CONF_STATUS, val);
 		if (err)
 			return err;
 
@@ -300,7 +311,8 @@ static irqreturn_t ip101a_g_handle_interrupt(struct phy_device *phydev)
 {
 	int irq_status;
 
-	irq_status = phy_read(phydev, IP101A_G_IRQ_CONF_STATUS);
+	irq_status = phy_read_paged(phydev, IP101G_DEFAULT_PAGE,
+				    IP101A_G_IRQ_CONF_STATUS);
 	if (irq_status < 0) {
 		phy_error(phydev);
 		return IRQ_NONE;
@@ -314,6 +326,31 @@ static irqreturn_t ip101a_g_handle_interrupt(struct phy_device *phydev)
 	phy_trigger_machine(phydev);
 
 	return IRQ_HANDLED;
+}
+
+/* The IP101A doesn't really have a page register. We just pretend to have one
+ * so we can use the paged versions of the callbacks of the IP101G.
+ */
+static int ip101a_read_page(struct phy_device *phydev)
+{
+	return IP101G_DEFAULT_PAGE;
+}
+
+static int ip101a_write_page(struct phy_device *phydev, int page)
+{
+	WARN_ONCE(page != IP101G_DEFAULT_PAGE, "wrong page selected\n");
+
+	return 0;
+}
+
+static int ip101g_read_page(struct phy_device *phydev)
+{
+	return __phy_read(phydev, IP101G_PAGE_CONTROL);
+}
+
+static int ip101g_write_page(struct phy_device *phydev, int page)
+{
+	return __phy_write(phydev, IP101G_PAGE_CONTROL, page);
 }
 
 static int ip101a_g_has_page_register(struct phy_device *phydev)
@@ -390,6 +427,8 @@ static struct phy_driver icplus_driver[] = {
 	.name		= "ICPlus IP101A",
 	.match_phy_device = ip101a_match_phy_device,
 	.probe		= ip101a_g_probe,
+	.read_page	= ip101a_read_page,
+	.write_page	= ip101a_write_page,
 	.config_intr	= ip101a_g_config_intr,
 	.handle_interrupt = ip101a_g_handle_interrupt,
 	.config_init	= ip101a_config_init,
@@ -400,6 +439,8 @@ static struct phy_driver icplus_driver[] = {
 	.name		= "ICPlus IP101G",
 	.match_phy_device = ip101g_match_phy_device,
 	.probe		= ip101a_g_probe,
+	.read_page	= ip101g_read_page,
+	.write_page	= ip101g_write_page,
 	.config_intr	= ip101a_g_config_intr,
 	.handle_interrupt = ip101a_g_handle_interrupt,
 	.config_init	= ip101g_config_init,
