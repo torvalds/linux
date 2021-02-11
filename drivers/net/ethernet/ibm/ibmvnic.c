@@ -2440,9 +2440,8 @@ restart_poll:
 		if (!pending_scrq(adapter, rx_scrq))
 			break;
 		next = ibmvnic_next_scrq(adapter, rx_scrq);
-		rx_buff =
-		    (struct ibmvnic_rx_buff *)be64_to_cpu(next->
-							  rx_comp.correlator);
+		rx_buff = (struct ibmvnic_rx_buff *)
+			  be64_to_cpu(next->rx_comp.correlator);
 		/* do error checking */
 		if (next->rx_comp.rc) {
 			netdev_dbg(netdev, "rx buffer returned with rc %x\n",
@@ -3855,15 +3854,15 @@ static int send_login(struct ibmvnic_adapter *adapter)
 
 	for (i = 0; i < adapter->req_tx_queues; i++) {
 		if (adapter->tx_scrq[i]) {
-			tx_list_p[i] = cpu_to_be64(adapter->tx_scrq[i]->
-						   crq_num);
+			tx_list_p[i] =
+				cpu_to_be64(adapter->tx_scrq[i]->crq_num);
 		}
 	}
 
 	for (i = 0; i < adapter->req_rx_queues; i++) {
 		if (adapter->rx_scrq[i]) {
-			rx_list_p[i] = cpu_to_be64(adapter->rx_scrq[i]->
-						   crq_num);
+			rx_list_p[i] =
+				cpu_to_be64(adapter->rx_scrq[i]->crq_num);
 		}
 	}
 
@@ -4406,8 +4405,8 @@ static void handle_request_cap_rsp(union ibmvnic_crq *crq,
 	case PARTIALSUCCESS:
 		dev_info(dev, "req=%lld, rsp=%ld in %s queue, retrying.\n",
 			 *req_value,
-			 (long)be64_to_cpu(crq->request_capability_rsp.
-					       number), name);
+			 (long)be64_to_cpu(crq->request_capability_rsp.number),
+			 name);
 
 		if (be16_to_cpu(crq->request_capability_rsp.capability) ==
 		    REQ_MTU) {
