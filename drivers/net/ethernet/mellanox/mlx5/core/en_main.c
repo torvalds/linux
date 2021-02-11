@@ -4494,8 +4494,10 @@ static int mlx5e_xdp_set(struct net_device *netdev, struct bpf_prog *prog)
 		struct mlx5e_channel *c = priv->channels.c[i];
 
 		mlx5e_rq_replace_xdp_prog(&c->rq, prog);
-		if (test_bit(MLX5E_CHANNEL_STATE_XSK, c->state))
+		if (test_bit(MLX5E_CHANNEL_STATE_XSK, c->state)) {
+			bpf_prog_inc(prog);
 			mlx5e_rq_replace_xdp_prog(&c->xskrq, prog);
+		}
 	}
 
 unlock:
