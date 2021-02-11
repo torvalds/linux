@@ -15,6 +15,7 @@
 #include "otx2_reg.h"
 #include "otx2_common.h"
 #include "otx2_struct.h"
+#include "cn10k.h"
 
 static void otx2_nix_rq_op_stats(struct queue_stats *stats,
 				 struct otx2_nic *pfvf, int qidx)
@@ -526,6 +527,26 @@ static int otx2_alloc_rbuf(struct otx2_nic *pfvf, struct otx2_pool *pool,
 	return ret;
 }
 
+int otx2_alloc_buffer(struct otx2_nic *pfvf, struct otx2_cq_queue *cq,
+		      dma_addr_t *dma)
+{
+	if (unlikely(__otx2_alloc_rbuf(pfvf, cq->rbpool, dma))) {
+		struct refill_work *work;
+		struct delayed_work *dwork;
+
+		work = &pfvf->refill_wrk[cq->cq_idx];
+		dwork = &work->pool_refill_work;
+		/* Schedule a task if no other task is running */
+		if (!cq->refill_task_sched) {
+			cq->refill_task_sched = true;
+			schedule_delayed_work(dwork,
+					      msecs_to_jiffies(100));
+		}
+		return -ENOMEM;
+	}
+	return 0;
+}
+
 void otx2_tx_timeout(struct net_device *netdev, unsigned int txq)
 {
 	struct otx2_nic *pfvf = netdev_priv(netdev);
@@ -728,9 +749,6 @@ void otx2_sqb_flush(struct otx2_nic *pfvf)
 #define RQ_PASS_LVL_AURA (255 - ((95 * 256) / 100)) /* RED when 95% is full */
 #define RQ_DROP_LVL_AURA (255 - ((99 * 256) / 100)) /* Drop when 99% is full */
 
-/* Send skid of 2000 packets required for CQ size of 4K CQEs. */
-#define SEND_CQ_SKID	2000
-
 static int otx2_rq_init(struct otx2_nic *pfvf, u16 qidx, u16 lpb_aura)
 {
 	struct otx2_qset *qset = &pfvf->qset;
@@ -764,45 +782,14 @@ static int otx2_rq_init(struct otx2_nic *pfvf, u16 qidx, u16 lpb_aura)
 	return otx2_sync_mbox_msg(&pfvf->mbox);
 }
 
-static int cn10k_sq_aq_init(struct otx2_nic *pfvf, u16 qidx, u16 sqb_aura)
+int otx2_sq_aq_init(void *dev, u16 qidx, u16 sqb_aura)
 {
-	struct nix_cn10k_aq_enq_req *aq;
-
-	/* Get memory to put this msg */
-	aq = otx2_mbox_alloc_msg_nix_cn10k_aq_enq(&pfvf->mbox);
-	if (!aq)
-		return -ENOMEM;
-
-	aq->sq.cq = pfvf->hw.rx_queues + qidx;
-	aq->sq.max_sqe_size = NIX_MAXSQESZ_W16; /* 128 byte */
-	aq->sq.cq_ena = 1;
-	aq->sq.ena = 1;
-	/* Only one SMQ is allocated, map all SQ's to that SMQ  */
-	aq->sq.smq = pfvf->hw.txschq_list[NIX_TXSCH_LVL_SMQ][0];
-	/* FIXME: set based on NIX_AF_DWRR_RPM_MTU*/
-	aq->sq.smq_rr_weight = OTX2_MAX_MTU;
-	aq->sq.default_chan = pfvf->hw.tx_chan_base;
-	aq->sq.sqe_stype = NIX_STYPE_STF; /* Cache SQB */
-	aq->sq.sqb_aura = sqb_aura;
-	aq->sq.sq_int_ena = NIX_SQINT_BITS;
-	aq->sq.qint_idx = 0;
-	/* Due pipelining impact minimum 2000 unused SQ CQE's
-	 * need to maintain to avoid CQ overflow.
-	 */
-	aq->sq.cq_limit = ((SEND_CQ_SKID * 256) / (pfvf->qset.sqe_cnt));
-
-	/* Fill AQ info */
-	aq->qidx = qidx;
-	aq->ctype = NIX_AQ_CTYPE_SQ;
-	aq->op = NIX_AQ_INSTOP_INIT;
-
-	return otx2_sync_mbox_msg(&pfvf->mbox);
-}
-
-static int otx2_sq_aq_init(struct otx2_nic *pfvf, u16 qidx, u16 sqb_aura)
-{
+	struct otx2_nic *pfvf = dev;
+	struct otx2_snd_queue *sq;
 	struct nix_aq_enq_req *aq;
 
+	sq = &pfvf->qset.sq[qidx];
+	sq->lmt_addr = (__force u64 *)(pfvf->reg_base + LMT_LF_LMTLINEX(qidx));
 	/* Get memory to put this msg */
 	aq = otx2_mbox_alloc_msg_nix_aq_enq(&pfvf->mbox);
 	if (!aq)
@@ -873,16 +860,12 @@ static int otx2_sq_init(struct otx2_nic *pfvf, u16 qidx, u16 sqb_aura)
 	sq->sqe_thresh = ((sq->num_sqbs * sq->sqe_per_sqb) * 10) / 100;
 	sq->aura_id = sqb_aura;
 	sq->aura_fc_addr = pool->fc_addr->base;
-	sq->lmt_addr = (__force u64 *)(pfvf->reg_base + LMT_LF_LMTLINEX(qidx));
 	sq->io_addr = (__force u64)otx2_get_regaddr(pfvf, NIX_LF_OP_SENDX(0));
 
 	sq->stats.bytes = 0;
 	sq->stats.pkts = 0;
 
-	if (is_dev_otx2(pfvf->pdev))
-		return otx2_sq_aq_init(pfvf, qidx, sqb_aura);
-	else
-		return cn10k_sq_aq_init(pfvf, qidx, sqb_aura);
+	return pfvf->hw_ops->sq_aq_init(pfvf, qidx, sqb_aura);
 
 }
 
@@ -987,7 +970,7 @@ static void otx2_pool_refill_task(struct work_struct *work)
 			}
 			return;
 		}
-		otx2_aura_freeptr(pfvf, qidx, bufptr + OTX2_HEAD_ROOM);
+		pfvf->hw_ops->aura_freeptr(pfvf, qidx, bufptr + OTX2_HEAD_ROOM);
 		cq->pool_ptrs--;
 	}
 	cq->refill_task_sched = false;
@@ -1231,6 +1214,11 @@ static int otx2_pool_init(struct otx2_nic *pfvf, u16 pool_id,
 
 	pool->rbsize = buf_size;
 
+	/* Set LMTST addr for NPA batch free */
+	if (test_bit(CN10K_LMTST, &pfvf->hw.cap_flag))
+		pool->lmt_addr = (__force u64 *)((u64)pfvf->hw.npa_lmt_base +
+						 (pool_id * LMT_LINE_SIZE));
+
 	/* Initialize this pool's context via AF */
 	aq = otx2_mbox_alloc_msg_npa_aq_enq(&pfvf->mbox);
 	if (!aq) {
@@ -1319,7 +1307,7 @@ int otx2_sq_aura_pool_init(struct otx2_nic *pfvf)
 		for (ptr = 0; ptr < num_sqbs; ptr++) {
 			if (otx2_alloc_rbuf(pfvf, pool, &bufptr))
 				return -ENOMEM;
-			otx2_aura_freeptr(pfvf, pool_id, bufptr);
+			pfvf->hw_ops->aura_freeptr(pfvf, pool_id, bufptr);
 			sq->sqb_ptrs[sq->sqb_count++] = (u64)bufptr;
 		}
 	}
@@ -1369,8 +1357,8 @@ int otx2_rq_aura_pool_init(struct otx2_nic *pfvf)
 		for (ptr = 0; ptr < num_ptrs; ptr++) {
 			if (otx2_alloc_rbuf(pfvf, pool, &bufptr))
 				return -ENOMEM;
-			otx2_aura_freeptr(pfvf, pool_id,
-					  bufptr + OTX2_HEAD_ROOM);
+			pfvf->hw_ops->aura_freeptr(pfvf, pool_id,
+						   bufptr + OTX2_HEAD_ROOM);
 		}
 	}
 

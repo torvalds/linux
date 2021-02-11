@@ -22,6 +22,7 @@
 #include "otx2_txrx.h"
 #include "otx2_struct.h"
 #include "otx2_ptp.h"
+#include "cn10k.h"
 #include <rvu_trace.h>
 
 #define DRV_NAME	"rvu_nicpf"
@@ -45,39 +46,6 @@ enum {
 
 static int otx2_config_hw_tx_tstamp(struct otx2_nic *pfvf, bool enable);
 static int otx2_config_hw_rx_tstamp(struct otx2_nic *pfvf, bool enable);
-
-static int cn10k_lmtst_init(struct otx2_nic *pf)
-{
-	int size, num_lines;
-	u64 base;
-
-	if (!test_bit(CN10K_LMTST, &pf->hw.cap_flag))
-		return 0;
-
-	base = pci_resource_start(pf->pdev, PCI_MBOX_BAR_NUM) +
-		       (MBOX_SIZE * (pf->total_vfs + 1));
-
-	size = pci_resource_len(pf->pdev, PCI_MBOX_BAR_NUM) -
-	       (MBOX_SIZE * (pf->total_vfs + 1));
-
-	pf->hw.lmt_base = ioremap(base, size);
-
-	if (!pf->hw.lmt_base) {
-		dev_err(pf->dev, "Unable to map PF LMTST region\n");
-		return -ENOMEM;
-	}
-
-	/* FIXME: Get the num of LMTST lines from LMT table */
-	pf->tot_lmt_lines = size / LMT_LINE_SIZE;
-	num_lines = (pf->tot_lmt_lines - NIX_LMTID_BASE) /
-			    pf->hw.tx_queues;
-	/* Number of LMT lines per SQ queues */
-	pf->nix_lmt_lines = num_lines > 32 ? 32 : num_lines;
-
-	pf->nix_lmt_size = pf->nix_lmt_lines * LMT_LINE_SIZE;
-
-	return 0;
-}
 
 static int otx2_change_mtu(struct net_device *netdev, int new_mtu)
 {
@@ -2404,7 +2372,7 @@ static int otx2_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 	if (err)
 		goto err_detach_rsrc;
 
-	err = cn10k_lmtst_init(pf);
+	err = cn10k_pf_lmtst_init(pf);
 	if (err)
 		goto err_detach_rsrc;
 

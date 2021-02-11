@@ -7,6 +7,7 @@
 
 #include "otx2_common.h"
 #include "otx2_reg.h"
+#include "cn10k.h"
 
 #define DRV_NAME	"rvu_nicvf"
 #define DRV_STRING	"Marvell RVU NIC Virtual Function Driver"
@@ -26,31 +27,6 @@ MODULE_DEVICE_TABLE(pci, otx2_vf_id_table);
 enum {
 	RVU_VF_INT_VEC_MBOX = 0x0,
 };
-
-static int cn10k_lmtst_init(struct otx2_nic *vf)
-{
-	int size, num_lines;
-
-	if (!test_bit(CN10K_LMTST, &vf->hw.cap_flag))
-		return 0;
-
-	size = pci_resource_len(vf->pdev, PCI_MBOX_BAR_NUM);
-	vf->hw.lmt_base = ioremap_wc(pci_resource_start(vf->pdev,
-							PCI_MBOX_BAR_NUM),
-				     size);
-	if (!vf->hw.lmt_base) {
-		dev_err(vf->dev, "Unable to map VF LMTST region\n");
-		return -ENOMEM;
-	}
-
-	vf->tot_lmt_lines = size / LMT_LINE_SIZE;
-	/* LMTST lines per SQ */
-	num_lines = (vf->tot_lmt_lines - NIX_LMTID_BASE) /
-			    vf->hw.tx_queues;
-	vf->nix_lmt_lines = num_lines > 32 ? 32 : num_lines;
-	vf->nix_lmt_size = vf->nix_lmt_lines * LMT_LINE_SIZE;
-	return 0;
-}
 
 static void otx2vf_process_vfaf_mbox_msg(struct otx2_nic *vf,
 					 struct mbox_msghdr *msg)
@@ -585,7 +561,7 @@ static int otx2vf_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 	if (err)
 		goto err_detach_rsrc;
 
-	err = cn10k_lmtst_init(vf);
+	err = cn10k_vf_lmtst_init(vf);
 	if (err)
 		goto err_detach_rsrc;
 

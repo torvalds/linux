@@ -50,6 +50,9 @@ enum arua_mapped_qtypes {
 #define NIX_LF_ERR_VEC				0x81
 #define NIX_LF_POISON_VEC			0x82
 
+/* Send skid of 2000 packets required for CQ size of 4K CQEs. */
+#define SEND_CQ_SKID	2000
+
 /* RSS configuration */
 struct otx2_rss_ctx {
 	u8  ind_tbl[MAX_RSS_INDIR_TBL_SIZE];
@@ -275,9 +278,18 @@ struct otx2_flow_config {
 	struct list_head	flow_list;
 };
 
+struct dev_hw_ops {
+	int	(*sq_aq_init)(void *dev, u16 qidx, u16 sqb_aura);
+	void	(*sqe_flush)(void *dev, struct otx2_snd_queue *sq,
+			     int size, int qidx);
+	void	(*refill_pool_ptrs)(void *dev, struct otx2_cq_queue *cq);
+	void	(*aura_freeptr)(void *dev, int aura, u64 buf);
+};
+
 struct otx2_nic {
 	void __iomem		*reg_base;
 	struct net_device	*netdev;
+	struct dev_hw_ops	*hw_ops;
 	void			*iommu_domain;
 	u16			max_frs;
 	u16			rbsize; /* Receive buffer size */
@@ -507,9 +519,50 @@ static inline u64 otx2_atomic64_add(u64 incr, u64 *ptr)
 }
 
 #else
-#define otx2_write128(lo, hi, addr)
+#define otx2_write128(lo, hi, addr)		writeq((hi) | (lo), addr)
 #define otx2_atomic64_add(incr, ptr)		({ *ptr += incr; })
 #endif
+
+static inline void __cn10k_aura_freeptr(struct otx2_nic *pfvf, u64 aura,
+					u64 *ptrs, u64 num_ptrs,
+					u64 *lmt_addr)
+{
+	u64 size = 0, count_eot = 0;
+	u64 tar_addr, val = 0;
+
+	tar_addr = (__force u64)otx2_get_regaddr(pfvf, NPA_LF_AURA_BATCH_FREE0);
+	/* LMTID is same as AURA Id */
+	val = (aura & 0x7FF) | BIT_ULL(63);
+	/* Set if [127:64] of last 128bit word has a valid pointer */
+	count_eot = (num_ptrs % 2) ? 0ULL : 1ULL;
+	/* Set AURA ID to free pointer */
+	ptrs[0] = (count_eot << 32) | (aura & 0xFFFFF);
+	/* Target address for LMTST flush tells HW how many 128bit
+	 * words are valid from NPA_LF_AURA_BATCH_FREE0.
+	 *
+	 * tar_addr[6:4] is LMTST size-1 in units of 128b.
+	 */
+	if (num_ptrs > 2) {
+		size = (sizeof(u64) * num_ptrs) / 16;
+		if (!count_eot)
+			size++;
+		tar_addr |=  ((size - 1) & 0x7) << 4;
+	}
+	memcpy(lmt_addr, ptrs, sizeof(u64) * num_ptrs);
+	/* Perform LMTST flush */
+	cn10k_lmt_flush(val, tar_addr);
+}
+
+static inline void cn10k_aura_freeptr(void *dev, int aura, u64 buf)
+{
+	struct otx2_nic *pfvf = dev;
+	struct otx2_pool *pool;
+	u64 ptrs[2];
+
+	pool = &pfvf->qset.pool[aura];
+	ptrs[1] = buf;
+	__cn10k_aura_freeptr(pfvf, aura, ptrs, 2, pool->lmt_addr);
+}
 
 /* Alloc pointer from pool/aura */
 static inline u64 otx2_aura_allocptr(struct otx2_nic *pfvf, int aura)
@@ -522,11 +575,12 @@ static inline u64 otx2_aura_allocptr(struct otx2_nic *pfvf, int aura)
 }
 
 /* Free pointer to a pool/aura */
-static inline void otx2_aura_freeptr(struct otx2_nic *pfvf,
-				     int aura, u64 buf)
+static inline void otx2_aura_freeptr(void *dev, int aura, u64 buf)
 {
-	otx2_write128(buf, (u64)aura | BIT_ULL(63),
-		      otx2_get_regaddr(pfvf, NPA_LF_AURA_OP_FREE0));
+	struct otx2_nic *pfvf = dev;
+	void __iomem *addr = otx2_get_regaddr(pfvf, NPA_LF_AURA_OP_FREE0);
+
+	otx2_write128(buf, (u64)aura | BIT_ULL(63), addr);
 }
 
 static inline int otx2_get_pool_idx(struct otx2_nic *pfvf, int type, int idx)
@@ -681,6 +735,10 @@ void otx2_ctx_disable(struct mbox *mbox, int type, bool npa);
 int otx2_nix_config_bp(struct otx2_nic *pfvf, bool enable);
 void otx2_cleanup_rx_cqes(struct otx2_nic *pfvf, struct otx2_cq_queue *cq);
 void otx2_cleanup_tx_cqes(struct otx2_nic *pfvf, struct otx2_cq_queue *cq);
+int otx2_sq_aq_init(void *dev, u16 qidx, u16 sqb_aura);
+int cn10k_sq_aq_init(void *dev, u16 qidx, u16 sqb_aura);
+int otx2_alloc_buffer(struct otx2_nic *pfvf, struct otx2_cq_queue *cq,
+		      dma_addr_t *dma);
 
 /* RSS configuration APIs*/
 int otx2_rss_init(struct otx2_nic *pfvf);
