@@ -2921,7 +2921,7 @@ static void __init pnv_pci_init_ioda_phb(struct device_node *np,
 	phb_id = be64_to_cpup(prop64);
 	pr_debug("  PHB-ID  : 0x%016llx\n", phb_id);
 
-	phb = kmalloc(sizeof(*phb), GFP_KERNEL);
+	phb = kzalloc(sizeof(*phb), GFP_KERNEL);
 	if (!phb)
 		panic("%s: Failed to allocate %zu bytes\n", __func__,
 		      sizeof(*phb));
@@ -2970,7 +2970,7 @@ static void __init pnv_pci_init_ioda_phb(struct device_node *np,
 	else
 		phb->diag_data_size = PNV_PCI_DIAG_BUF_SIZE;
 
-	phb->diag_data = kmalloc(phb->diag_data_size, GFP_KERNEL);
+	phb->diag_data = kzalloc(phb->diag_data_size, GFP_KERNEL);
 	if (!phb->diag_data)
 		panic("%s: Failed to allocate %u bytes\n", __func__,
 		      phb->diag_data_size);
@@ -3032,7 +3032,7 @@ static void __init pnv_pci_init_ioda_phb(struct device_node *np,
 	}
 	pemap_off = size;
 	size += phb->ioda.total_pe_num * sizeof(struct pnv_ioda_pe);
-	aux = kmalloc(size, GFP_KERNEL);
+	aux = kzalloc(size, GFP_KERNEL);
 	if (!aux)
 		panic("%s: Failed to allocate %lu bytes\n", __func__, size);
 
