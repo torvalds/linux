@@ -42,6 +42,20 @@ static struct _req_type __maybe_unused					\
 MBOX_UP_CGX_MESSAGES
 #undef M
 
+bool is_mac_feature_supported(struct rvu *rvu, int pf, int feature)
+{
+	u8 cgx_id, lmac_id;
+	void *cgxd;
+
+	if (!is_pf_cgxmapped(rvu, pf))
+		return 0;
+
+	rvu_get_cgx_lmac_id(rvu->pf2cgxlmac_map[pf], &cgx_id, &lmac_id);
+	cgxd = rvu_cgx_pdata(cgx_id, rvu);
+
+	return  (cgx_features_get(cgxd) & feature);
+}
+
 /* Returns bitmap of mapped PFs */
 static u16 cgxlmac_to_pfmap(struct rvu *rvu, u8 cgx_id, u8 lmac_id)
 {
@@ -92,9 +106,10 @@ static int rvu_map_cgx_lmac_pf(struct rvu *rvu)
 {
 	struct npc_pkind *pkind = &rvu->hw->pkind;
 	int cgx_cnt_max = rvu->cgx_cnt_max;
-	int cgx, lmac_cnt, lmac;
 	int pf = PF_CGXMAP_BASE;
+	unsigned long lmac_bmap;
 	int size, free_pkind;
+	int cgx, lmac, iter;
 
 	if (!cgx_cnt_max)
 		return 0;
@@ -125,14 +140,17 @@ static int rvu_map_cgx_lmac_pf(struct rvu *rvu)
 	for (cgx = 0; cgx < cgx_cnt_max; cgx++) {
 		if (!rvu_cgx_pdata(cgx, rvu))
 			continue;
-		lmac_cnt = cgx_get_lmac_cnt(rvu_cgx_pdata(cgx, rvu));
-		for (lmac = 0; lmac < lmac_cnt; lmac++, pf++) {
+		lmac_bmap = cgx_get_lmac_bmap(rvu_cgx_pdata(cgx, rvu));
+		for_each_set_bit(iter, &lmac_bmap, MAX_LMAC_PER_CGX) {
+			lmac = cgx_get_lmacid(rvu_cgx_pdata(cgx, rvu),
+					      iter);
 			rvu->pf2cgxlmac_map[pf] = cgxlmac_id_to_bmap(cgx, lmac);
 			rvu->cgxlmac2pf_map[CGX_OFFSET(cgx) + lmac] = 1 << pf;
 			free_pkind = rvu_alloc_rsrc(&pkind->rsrc);
 			pkind->pfchan_map[free_pkind] = ((pf) & 0x3F) << 16;
 			rvu_map_cgx_nix_block(rvu, pf, cgx, lmac);
 			rvu->cgx_mapped_pfs++;
+			pf++;
 		}
 	}
 	return 0;
@@ -154,8 +172,10 @@ static int rvu_cgx_send_link_info(int cgx_id, int lmac_id, struct rvu *rvu)
 				&qentry->link_event.link_uinfo);
 	qentry->link_event.cgx_id = cgx_id;
 	qentry->link_event.lmac_id = lmac_id;
-	if (err)
+	if (err) {
+		kfree(qentry);
 		goto skip_add;
+	}
 	list_add_tail(&qentry->evq_node, &rvu->cgx_evq_head);
 skip_add:
 	spin_unlock_irqrestore(&rvu->cgx_evq_lock, flags);
@@ -251,6 +271,7 @@ static void cgx_evhandler_task(struct work_struct *work)
 
 static int cgx_lmac_event_handler_init(struct rvu *rvu)
 {
+	unsigned long lmac_bmap;
 	struct cgx_event_cb cb;
 	int cgx, lmac, err;
 	void *cgxd;
@@ -271,7 +292,8 @@ static int cgx_lmac_event_handler_init(struct rvu *rvu)
 		cgxd = rvu_cgx_pdata(cgx, rvu);
 		if (!cgxd)
 			continue;
-		for (lmac = 0; lmac < cgx_get_lmac_cnt(cgxd); lmac++) {
+		lmac_bmap = cgx_get_lmac_bmap(cgxd);
+		for_each_set_bit(lmac, &lmac_bmap, MAX_LMAC_PER_CGX) {
 			err = cgx_lmac_evh_register(&cb, cgxd, lmac);
 			if (err)
 				dev_err(rvu->dev,
@@ -349,6 +371,7 @@ int rvu_cgx_init(struct rvu *rvu)
 
 int rvu_cgx_exit(struct rvu *rvu)
 {
+	unsigned long lmac_bmap;
 	int cgx, lmac;
 	void *cgxd;
 
@@ -356,7 +379,8 @@ int rvu_cgx_exit(struct rvu *rvu)
 		cgxd = rvu_cgx_pdata(cgx, rvu);
 		if (!cgxd)
 			continue;
-		for (lmac = 0; lmac < cgx_get_lmac_cnt(cgxd); lmac++)
+		lmac_bmap = cgx_get_lmac_bmap(cgxd);
+		for_each_set_bit(lmac, &lmac_bmap, MAX_LMAC_PER_CGX)
 			cgx_lmac_evh_unregister(cgxd, lmac);
 	}
 
@@ -554,6 +578,9 @@ static int rvu_cgx_ptp_rx_cfg(struct rvu *rvu, u16 pcifunc, bool enable)
 	u8 cgx_id, lmac_id;
 	void *cgxd;
 
+	if (!is_mac_feature_supported(rvu, pf, RVU_LMAC_FEAT_PTP))
+		return 0;
+
 	/* This msg is expected only from PFs that are mapped to CGX LMACs,
 	 * if received from other PF/VF simply ACK, nothing to do.
 	 */
@@ -640,6 +667,24 @@ int rvu_mbox_handler_cgx_get_linkinfo(struct rvu *rvu, struct msg_req *req,
 	return err;
 }
 
+int rvu_mbox_handler_cgx_features_get(struct rvu *rvu,
+				      struct msg_req *req,
+				      struct cgx_features_info_msg *rsp)
+{
+	int pf = rvu_get_pf(req->hdr.pcifunc);
+	u8 cgx_idx, lmac;
+	void *cgxd;
+
+	if (!is_pf_cgxmapped(rvu, pf))
+		return 0;
+
+	rvu_get_cgx_lmac_id(rvu->pf2cgxlmac_map[pf], &cgx_idx, &lmac);
+	cgxd = rvu_cgx_pdata(cgx_idx, rvu);
+	rsp->lmac_features = cgx_features_get(cgxd);
+
+	return 0;
+}
+
 static int rvu_cgx_config_intlbk(struct rvu *rvu, u16 pcifunc, bool en)
 {
 	int pf = rvu_get_pf(pcifunc);
@@ -674,6 +719,9 @@ int rvu_mbox_handler_cgx_cfg_pause_frm(struct rvu *rvu,
 {
 	int pf = rvu_get_pf(req->hdr.pcifunc);
 	u8 cgx_id, lmac_id;
+
+	if (!is_mac_feature_supported(rvu, pf, RVU_LMAC_FEAT_FC))
+		return 0;
 
 	/* This msg is expected only from PF/VFs that are mapped to CGX LMACs,
 	 * if received from other PF/VF simply ACK, nothing to do.

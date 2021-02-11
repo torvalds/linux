@@ -13,6 +13,7 @@
 
 #include "mbox.h"
 #include "cgx_fw_if.h"
+#include "rpm.h"
 
  /* PCI device IDs */
 #define	PCI_DEVID_OCTEONTX2_CGX		0xA059
@@ -40,18 +41,18 @@
 #define FW_CGX_INT			BIT_ULL(1)
 #define CGXX_CMRX_INT_ENA_W1S		0x058
 #define CGXX_CMRX_RX_ID_MAP		0x060
-#define CGXX_CMRX_RX_STAT0		0x070
+#define CGXX_CMRX_RX_STAT0		(0x070 + mac_ops->csr_offset)
 #define CGXX_CMRX_RX_LMACS		0x128
-#define CGXX_CMRX_RX_DMAC_CTL0		0x1F8
+#define CGXX_CMRX_RX_DMAC_CTL0		(0x1F8 + mac_ops->csr_offset)
 #define CGX_DMAC_CTL0_CAM_ENABLE	BIT_ULL(3)
 #define CGX_DMAC_CAM_ACCEPT		BIT_ULL(3)
 #define CGX_DMAC_MCAST_MODE		BIT_ULL(1)
 #define CGX_DMAC_BCAST_MODE		BIT_ULL(0)
-#define CGXX_CMRX_RX_DMAC_CAM0		0x200
+#define CGXX_CMRX_RX_DMAC_CAM0		(0x200 + mac_ops->csr_offset)
 #define CGX_DMAC_CAM_ADDR_ENABLE	BIT_ULL(48)
 #define CGXX_CMRX_RX_DMAC_CAM1		0x400
 #define CGX_RX_DMAC_ADR_MASK		GENMASK_ULL(47, 0)
-#define CGXX_CMRX_TX_STAT0		0x700
+#define CGXX_CMRX_TX_STAT0		(0x700 + mac_ops->csr_offset)
 #define CGXX_SCRATCH0_REG		0x1050
 #define CGXX_SCRATCH1_REG		0x1058
 #define CGX_CONST			0x2000
@@ -86,7 +87,6 @@
 #define CGX_CMD_TIMEOUT			2200 /* msecs */
 #define DEFAULT_PAUSE_TIME		0x7FF
 
-#define CGX_NVEC			37
 #define CGX_LMAC_FWI			0
 
 enum  cgx_nix_stat_type {
@@ -157,5 +157,9 @@ int cgx_get_fec_stats(void *cgxd, int lmac_id, struct cgx_fec_stats_rsp *rsp);
 int cgx_get_phy_fec_stats(void *cgxd, int lmac_id);
 int cgx_set_link_mode(void *cgxd, struct cgx_set_link_mode_args args,
 		      int cgx_id, int lmac_id);
-
+u64 cgx_features_get(void *cgxd);
+struct mac_ops *get_mac_ops(void *cgxd);
+int cgx_get_nr_lmacs(void *cgxd);
+u8 cgx_get_lmacid(void *cgxd, u8 lmac_index);
+unsigned long cgx_get_lmac_bmap(void *cgxd);
 #endif /* CGX_H */
