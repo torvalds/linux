@@ -166,10 +166,10 @@ void kprobe_arm_test_cases(void)
 
 	/* Data-processing with PC as a target and status registers updated */
 	TEST_UNSUPPORTED("movs	pc, r1")
-	TEST_UNSUPPORTED("movs	pc, r1, lsl r2")
+	TEST_UNSUPPORTED(__inst_arm(0xe1b0f211) "	@movs	pc, r1, lsl r2")
 	TEST_UNSUPPORTED("movs	pc, #0x10000")
 	TEST_UNSUPPORTED("adds	pc, lr, r1")
-	TEST_UNSUPPORTED("adds	pc, lr, r1, lsl r2")
+	TEST_UNSUPPORTED(__inst_arm(0xe09ef211) "	@adds	pc, lr, r1, lsl r2")
 	TEST_UNSUPPORTED("adds	pc, lr, #4")
 
 	/* Data-processing with SP as target */
