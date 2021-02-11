@@ -4587,9 +4587,9 @@ static int rtl8169_poll(struct napi_struct *napi, int budget)
 	struct net_device *dev = tp->dev;
 	int work_done;
 
-	work_done = rtl_rx(dev, tp, budget);
-
 	rtl_tx(dev, tp, budget);
+
+	work_done = rtl_rx(dev, tp, budget);
 
 	if (work_done < budget && napi_complete_done(napi, work_done))
 		rtl_irq_enable(tp);
