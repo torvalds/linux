@@ -502,15 +502,12 @@ function dump(first, pastlast, batchnum)
 	print "if test -n \"$needqemurun\""
 	print "then"
 	print "\techo ---- Starting kernels. `date` | tee -a " rd "log";
-	print "\ttouch " rd "jittering"
-	for (j = 0; j < njitter; j++)
-		print "\tjitter.sh " j " " rd "jittering " dur " " ja[2] " " ja[3] "&"
+	print "\t. jitterstart.sh " njitter " " rd " " dur " " ja[2] " " ja[3]
 	print "\twhile ls $runfiles > /dev/null 2>&1"
 	print "\tdo"
 	print "\t\t:"
 	print "\tdone"
-	print "\trm -f " rd "jittering"
-	print "\twait"
+	print "\t. jitterstop.sh " rd
 	print "\techo ---- All kernel runs complete. `date` | tee -a " rd "log";
 	print "else"
 	print "\twait"
