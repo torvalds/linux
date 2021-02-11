@@ -229,6 +229,7 @@ config SND_SOC_ALL_CODECS
 	imply SND_SOC_WCD9335
 	imply SND_SOC_WCD934X
 	imply SND_SOC_LPASS_RX_MACRO
+	imply SND_SOC_LPASS_TX_MACRO
 	imply SND_SOC_WL1273
 	imply SND_SOC_WM0010
 	imply SND_SOC_WM1250_EV1
@@ -1837,5 +1838,9 @@ config SND_SOC_LPASS_VA_MACRO
 config SND_SOC_LPASS_RX_MACRO
 	depends on COMMON_CLK
 	tristate "Qualcomm RX Macro in LPASS(Low Power Audio SubSystem)"
+
+config SND_SOC_LPASS_TX_MACRO
+	depends on COMMON_CLK
+	tristate "Qualcomm TX Macro in LPASS(Low Power Audio SubSystem)"
 
 endmenu
