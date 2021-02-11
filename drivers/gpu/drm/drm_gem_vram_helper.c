@@ -564,9 +564,7 @@ static void drm_gem_vram_bo_driver_evict_flags(struct drm_gem_vram_object *gbo,
 	*pl = gbo->placement;
 }
 
-static void drm_gem_vram_bo_driver_move_notify(struct drm_gem_vram_object *gbo,
-					       bool evict,
-					       struct ttm_resource *new_mem)
+static void drm_gem_vram_bo_driver_move_notify(struct drm_gem_vram_object *gbo)
 {
 	struct ttm_buffer_object *bo = &gbo->bo;
 	struct drm_device *dev = bo->base.dev;
@@ -582,16 +580,8 @@ static int drm_gem_vram_bo_driver_move(struct drm_gem_vram_object *gbo,
 				       struct ttm_operation_ctx *ctx,
 				       struct ttm_resource *new_mem)
 {
-	int ret;
-
-	drm_gem_vram_bo_driver_move_notify(gbo, evict, new_mem);
-	ret = ttm_bo_move_memcpy(&gbo->bo, ctx, new_mem);
-	if (ret) {
-		swap(*new_mem, gbo->bo.mem);
-		drm_gem_vram_bo_driver_move_notify(gbo, false, new_mem);
-		swap(*new_mem, gbo->bo.mem);
-	}
-	return ret;
+	drm_gem_vram_bo_driver_move_notify(gbo);
+	return ttm_bo_move_memcpy(&gbo->bo, ctx, new_mem);
 }
 
 /*
@@ -947,7 +937,7 @@ static void bo_driver_delete_mem_notify(struct ttm_buffer_object *bo)
 
 	gbo = drm_gem_vram_of_bo(bo);
 
-	drm_gem_vram_bo_driver_move_notify(gbo, false, NULL);
+	drm_gem_vram_bo_driver_move_notify(gbo);
 }
 
 static int bo_driver_move(struct ttm_buffer_object *bo,
