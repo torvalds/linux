@@ -155,6 +155,8 @@ enum nix_scheduler {
 #define	NIC_HW_MIN_FRS			40
 #define	NIC_HW_MAX_FRS			9212
 #define	SDP_HW_MAX_FRS			65535
+#define CN10K_LMAC_LINK_MAX_FRS		16380 /* 16k - FCS */
+#define CN10K_LBK_LINK_MAX_FRS		65535 /* 64k */
 
 /* NIX RX action operation*/
 #define NIX_RX_ACTIONOP_DROP		(0x0ull)
@@ -191,6 +193,9 @@ enum nix_scheduler {
 #define NIX_LINK_LBK(a)			(12 + (a))
 #define NIX_CHAN_CGX_LMAC_CHX(a, b, c)	(0x800 + 0x100 * (a) + 0x10 * (b) + (c))
 #define NIX_CHAN_LBK_CHX(a, b)		(0 + 0x100 * (a) + (b))
+#define NIX_CHAN_SDP_CH_START		(0x700ull)
+
+#define SDP_CHANNELS			256
 
 /* NIX LSO format indices.
  * As of now TSO is the only one using, so statically assigning indices.
