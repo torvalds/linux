@@ -1539,8 +1539,12 @@ guest_exit_cont:		/* r9 = vcpu, r12 = trap, r13 = paca */
 	.endr
 	b	guest_bypass
 
-0:	/* Sanitise radix guest SLB, see guest_exit_short_path comment. */
+0:	/*
+	 * Sanitise radix guest SLB, see guest_exit_short_path comment.
+	 * We clear vcpu->arch.slb_max to match earlier behaviour.
+	 */
 	li	r0,0
+	stw	r0,VCPU_SLB_MAX(r9)
 	slbmte	r0,r0
 	li	r4,1
 	slbmte	r0,r4
