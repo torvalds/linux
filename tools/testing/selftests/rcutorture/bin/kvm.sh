@@ -503,14 +503,17 @@ function dump(first, pastlast, batchnum)
 	print "then"
 	print "\techo ---- Starting kernels. `date` | tee -a " rd "log";
 	print "\techo > " rd "jitter_pids"
+	print "\ttouch " rd "jittering"
 	for (j = 0; j < njitter; j++) {
-		print "\tjitter.sh " j " " dur " " ja[2] " " ja[3] "&"
+		print "\tjitter.sh " j " " dur " " rd "jittering " ja[2] " " ja[3] "&"
 		print "\techo $! >> " rd "jitter_pids"
 	}
 	print "\twhile ls $runfiles > /dev/null 2>&1"
 	print "\tdo"
 	print "\t\t:"
 	print "\tdone"
+	print "\trm -f " rd "jittering"
+	print "\twait"
 	print "\techo ---- All kernel runs complete. `date` | tee -a " rd "log";
 	print "else"
 	print "\twait"

@@ -5,10 +5,11 @@
 # of this script is to inflict random OS jitter on a concurrently running
 # test.
 #
-# Usage: jitter.sh me duration [ sleepmax [ spinmax ] ]
+# Usage: jitter.sh me duration jittering-path [ sleepmax [ spinmax ] ]
 #
 # me: Random-number-generator seed salt.
 # duration: Time to run in seconds.
+# jittering-path: Path to file whose removal will stop this script.
 # sleepmax: Maximum microseconds to sleep, defaults to one second.
 # spinmax: Maximum microseconds to spin, defaults to one millisecond.
 #
@@ -18,8 +19,9 @@
 
 me=$(($1 * 1000))
 duration=$2
-sleepmax=${3-1000000}
-spinmax=${4-1000}
+jittering=$3
+sleepmax=${4-1000000}
+spinmax=${5-1000}
 
 n=1
 
@@ -47,7 +49,7 @@ do
 	fi
 
 	# Check for stop request.
-	if test -f "$TORTURE_STOPFILE"
+	if ! test -f "$jittering"
 	then
 		exit 1;
 	fi
