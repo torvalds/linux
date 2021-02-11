@@ -469,9 +469,15 @@ function dump(first, pastlast, batchnum)
 		print "echo ", cfr[jn], cpusr[jn] ovf ": Build complete. `date` | tee -a " rd "log";
 		jn++;
 	}
+	print "runfiles="
 	for (j = 1; j < jn; j++) {
 		builddir=rd cfr[j] "/build";
-		print "rm -f " builddir ".ready"
+		if (TORTURE_BUILDONLY)
+			print "rm -f " builddir ".ready"
+		else
+			print "mv " builddir ".ready " builddir ".run"
+			print "runfiles=\"$runfiles " builddir ".run\""
+		fi
 		print "if test -f \"" rd cfr[j] "/builtkernel\""
 		print "then"
 		print "\techo ----", cfr[j], cpusr[j] ovf ": Kernel present. `date` | tee -a " rd "log";
@@ -501,7 +507,10 @@ function dump(first, pastlast, batchnum)
 		print "\tjitter.sh " j " " dur " " ja[2] " " ja[3] "&"
 		print "\techo $! >> " rd "jitter_pids"
 	}
-	print "\twait"
+	print "\twhile ls $runfiles > /dev/null 2>&1"
+	print "\tdo"
+	print "\t\t:"
+	print "\tdone"
 	print "\techo ---- All kernel runs complete. `date` | tee -a " rd "log";
 	print "else"
 	print "\twait"
