@@ -3182,7 +3182,7 @@ msi:
 		     "Running with legacy interrupts.\n");
 }
 
-/* Each vector services 1 RSS ring and and 1 or more
+/* Each vector services 1 RSS ring and 1 or more
  * TX completion rings.  This function loops through
  * the TX completion rings and assigns the vector that
  * will service it.  An example would be if there are
