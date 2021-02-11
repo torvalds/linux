@@ -1086,8 +1086,6 @@ static int ath11k_pci_probe(struct pci_dev *pdev,
 	u32 soc_hw_version, soc_hw_version_major, soc_hw_version_minor;
 	int ret;
 
-	dev_warn(&pdev->dev, "WARNING: ath11k PCI support is experimental!\n");
-
 	ab = ath11k_core_alloc(&pdev->dev, sizeof(*ab_pci), ATH11K_BUS_PCI,
 			       &ath11k_pci_bus_params);
 	if (!ab) {
