@@ -470,7 +470,7 @@ static int walt_lb_find_busiest_cpu(int dst_cpu, const cpumask_t *src_mask)
 	if (capacity_orig_of(dst_cpu) == capacity_orig_of(fsrc_cpu))
 		busiest_cpu = walt_lb_find_busiest_similar_cap_cpu(dst_cpu,
 								src_mask);
-	else if (capacity_orig_of(dst_cpu) < capacity_orig_of(fsrc_cpu))
+	else if (capacity_orig_of(dst_cpu) > capacity_orig_of(fsrc_cpu))
 		busiest_cpu = walt_lb_find_busiest_lower_cap_cpu(dst_cpu,
 								src_mask);
 	else
