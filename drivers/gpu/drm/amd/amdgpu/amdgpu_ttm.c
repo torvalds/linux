@@ -2308,58 +2308,6 @@ static const struct file_operations amdgpu_ttm_vram_fops = {
 	.llseek = default_llseek,
 };
 
-#ifdef CONFIG_DRM_AMDGPU_GART_DEBUGFS
-
-/*
- * amdgpu_ttm_gtt_read - Linear read access to GTT memory
- */
-static ssize_t amdgpu_ttm_gtt_read(struct file *f, char __user *buf,
-				   size_t size, loff_t *pos)
-{
-	struct amdgpu_device *adev = file_inode(f)->i_private;
-	ssize_t result = 0;
-	int r;
-
-	while (size) {
-		loff_t p = *pos / PAGE_SIZE;
-		unsigned off = *pos & ~PAGE_MASK;
-		size_t cur_size = min_t(size_t, size, PAGE_SIZE - off);
-		struct page *page;
-		void *ptr;
-
-		if (p >= adev->gart.num_cpu_pages)
-			return result;
-
-		page = adev->gart.pages[p];
-		if (page) {
-			ptr = kmap(page);
-			ptr += off;
-
-			r = copy_to_user(buf, ptr, cur_size);
-			kunmap(adev->gart.pages[p]);
-		} else
-			r = clear_user(buf, cur_size);
-
-		if (r)
-			return -EFAULT;
-
-		result += cur_size;
-		buf += cur_size;
-		*pos += cur_size;
-		size -= cur_size;
-	}
-
-	return result;
-}
-
-static const struct file_operations amdgpu_ttm_gtt_fops = {
-	.owner = THIS_MODULE,
-	.read = amdgpu_ttm_gtt_read,
-	.llseek = default_llseek
-};
-
-#endif
-
 /*
  * amdgpu_iomem_read - Virtual read access to GPU mapped memory
  *
@@ -2487,11 +2435,6 @@ int amdgpu_ttm_debugfs_init(struct amdgpu_device *adev)
 
 	debugfs_create_file_size("amdgpu_vram", mode, root, adev,
 				 &amdgpu_ttm_vram_fops, adev->gmc.mc_vram_size);
-#ifdef CONFIG_DRM_AMDGPU_GART_DEBUGFS
-	debugfs_create_file_size("amdgpu_gtt", mode, root, adev,
-				 &amdgpu_ttm_gtt_fops, adev->gmc.gart_size);
-#endif
-
 	debugfs_create_file("amdgpu_iomem", mode, root, adev,
 			    &amdgpu_ttm_iomem_fops);
 	count = ARRAY_SIZE(amdgpu_ttm_debugfs_list);
