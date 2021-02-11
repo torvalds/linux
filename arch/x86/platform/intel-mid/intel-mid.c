@@ -29,6 +29,9 @@
 #include <asm/intel_scu_ipc.h>
 #include <asm/reboot.h>
 
+#define IPCMSG_COLD_OFF		0x80	/* Only for Tangier */
+#define IPCMSG_COLD_RESET	0xF1
+
 enum intel_mid_cpu_type __intel_mid_cpu_chip;
 EXPORT_SYMBOL_GPL(__intel_mid_cpu_chip);
 
@@ -38,12 +41,12 @@ static void intel_mid_power_off(void)
 	intel_mid_pwr_power_off();
 
 	/* Only for Tangier, the rest will ignore this command */
-	intel_scu_ipc_simple_command(IPCMSG_COLD_OFF, 1);
+	intel_scu_ipc_dev_simple_command(NULL, IPCMSG_COLD_OFF, 1);
 };
 
 static void intel_mid_reboot(void)
 {
-	intel_scu_ipc_simple_command(IPCMSG_COLD_RESET, 0);
+	intel_scu_ipc_dev_simple_command(NULL, IPCMSG_COLD_RESET, 0);
 }
 
 static void __init intel_mid_time_init(void)

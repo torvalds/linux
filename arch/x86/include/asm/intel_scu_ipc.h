@@ -65,6 +65,4 @@ static inline int intel_scu_ipc_dev_command(struct intel_scu_ipc_dev *scu, int c
 						   inlen, out, outlen);
 }
 
-#include <asm/intel_scu_ipc_legacy.h>
-
 #endif
