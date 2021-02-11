@@ -30,6 +30,29 @@ static LIST_HEAD(zbus_list);
 static DEFINE_SPINLOCK(zbus_list_lock);
 static int zpci_nb_devices;
 
+/* zpci_bus_scan_device - Scan a single device adding it to the PCI core
+ * @zdev: the zdev to be scanned
+ *
+ * Scans the PCI function making it available to the common PCI code.
+ *
+ * Return: 0 on success, an error value otherwise
+ */
+int zpci_bus_scan_device(struct zpci_dev *zdev)
+{
+	struct pci_dev *pdev;
+
+	pdev = pci_scan_single_device(zdev->zbus->bus, zdev->devfn);
+	if (!pdev)
+		return -ENODEV;
+
+	pci_bus_add_device(pdev);
+	pci_lock_rescan_remove();
+	pci_bus_add_devices(zdev->zbus->bus);
+	pci_unlock_rescan_remove();
+
+	return 0;
+}
+
 /* zpci_bus_remove_device - Removes the given zdev from the PCI core
  * @zdev: the zdev to be removed from the PCI core
  * @set_error: if true the device's error state is set to permanent failure
@@ -176,10 +199,10 @@ void pcibios_bus_add_device(struct pci_dev *pdev)
 
 static int zpci_bus_add_device(struct zpci_bus *zbus, struct zpci_dev *zdev)
 {
-	struct pci_bus *bus;
 	struct resource_entry *window, *n;
 	struct resource *res;
 	struct pci_dev *pdev;
+	struct pci_bus *bus;
 	int rc;
 
 	bus = zbus->bus;
@@ -203,11 +226,7 @@ static int zpci_bus_add_device(struct zpci_bus *zbus, struct zpci_dev *zdev)
 		pci_bus_add_resource(bus, res, 0);
 	}
 
-	pdev = pci_scan_single_device(bus, zdev->devfn);
-	if (pdev)
-		pci_bus_add_device(pdev);
-
-	return 0;
+	return zpci_bus_scan_device(zdev);
 }
 
 static void zpci_bus_add_devices(struct zpci_bus *zbus)
@@ -217,10 +236,6 @@ static void zpci_bus_add_devices(struct zpci_bus *zbus)
 	for (i = 1; i < ZPCI_FUNCTIONS_PER_BUS; i++)
 		if (zbus->function[i])
 			zpci_bus_add_device(zbus, zbus->function[i]);
-
-	pci_lock_rescan_remove();
-	pci_bus_add_devices(zbus->bus);
-	pci_unlock_rescan_remove();
 }
 
 int zpci_bus_device_register(struct zpci_dev *zdev, struct pci_ops *ops)

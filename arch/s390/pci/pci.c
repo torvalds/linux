@@ -757,7 +757,6 @@ error:
  */
 int zpci_configure_device(struct zpci_dev *zdev, u32 fh)
 {
-	struct pci_dev *pdev;
 	int rc;
 
 	zdev->fh = fh;
@@ -777,14 +776,10 @@ int zpci_configure_device(struct zpci_dev *zdev, u32 fh)
 	if (!zdev->zbus->bus)
 		return 0;
 
-	pdev = pci_scan_single_device(zdev->zbus->bus, zdev->devfn);
-	if (!pdev)
+	rc = zpci_bus_scan_device(zdev);
+	if (rc)
 		goto error_disable;
 
-	pci_bus_add_device(pdev);
-	pci_lock_rescan_remove();
-	pci_bus_add_devices(zdev->zbus->bus);
-	pci_unlock_rescan_remove();
 	return 0;
 
 error_disable:
