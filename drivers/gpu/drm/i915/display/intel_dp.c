@@ -5547,19 +5547,18 @@ static int intel_dp_get_modes(struct drm_connector *connector)
 {
 	struct intel_connector *intel_connector = to_intel_connector(connector);
 	struct edid *edid;
+	int num_modes = 0;
 
 	edid = intel_connector->detect_edid;
 	if (edid) {
-		int ret = intel_connector_update_modes(connector, edid);
+		num_modes = intel_connector_update_modes(connector, edid);
 
 		if (intel_vrr_is_capable(connector))
 			drm_connector_set_vrr_capable_property(connector,
 							       true);
-		if (ret)
-			return ret;
 	}
 
-	/* if eDP has no EDID, fall back to fixed mode */
+	/* Also add fixed mode, which may or may not be present in EDID */
 	if (intel_dp_is_edp(intel_attached_dp(intel_connector)) &&
 	    intel_connector->panel.fixed_mode) {
 		struct drm_display_mode *mode;
@@ -5568,9 +5567,12 @@ static int intel_dp_get_modes(struct drm_connector *connector)
 					  intel_connector->panel.fixed_mode);
 		if (mode) {
 			drm_mode_probed_add(connector, mode);
-			return 1;
+			num_modes++;
 		}
 	}
+
+	if (num_modes)
+		return num_modes;
 
 	if (!edid) {
 		struct intel_dp *intel_dp = intel_attached_dp(intel_connector);
@@ -5581,11 +5583,11 @@ static int intel_dp_get_modes(struct drm_connector *connector)
 					      intel_dp->downstream_ports);
 		if (mode) {
 			drm_mode_probed_add(connector, mode);
-			return 1;
+			num_modes++;
 		}
 	}
 
-	return 0;
+	return num_modes;
 }
 
 static int
