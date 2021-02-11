@@ -1031,6 +1031,7 @@ static int cros_ec_typec_event(struct notifier_block *nb,
 {
 	struct cros_typec_data *typec = container_of(nb, struct cros_typec_data, nb);
 
+	flush_work(&typec->port_work);
 	schedule_work(&typec->port_work);
 
 	return NOTIFY_OK;
