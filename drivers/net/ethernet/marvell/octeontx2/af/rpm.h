@@ -21,9 +21,25 @@
 
 #define RPMX_CMRX_LINK_RANGE_MASK	GENMASK_ULL(19, 16)
 #define RPMX_CMRX_LINK_BASE_MASK	GENMASK_ULL(11, 0)
-
+#define RPMX_MTI_MAC100X_COMMAND_CONFIG	0x8010
+#define RPMX_MTI_MAC100X_COMMAND_CONFIG_RX_P_DISABLE	BIT_ULL(29)
+#define RPMX_MTI_MAC100X_COMMAND_CONFIG_TX_P_DISABLE	BIT_ULL(28)
+#define RPMX_MTI_MAC100X_COMMAND_CONFIG_PAUSE_IGNORE	BIT_ULL(8)
+#define RPMX_MTI_MAC100X_COMMAND_CONFIG_PFC_MODE	BIT_ULL(19)
+#define RPMX_MTI_MAC100X_CL01_PAUSE_QUANTA		0x80A8
+#define RPMX_MTI_MAC100X_CL01_QUANTA_THRESH		0x80C8
+#define RPM_DEFAULT_PAUSE_TIME			0xFFFF
+#define RPMX_CMR_RX_OVR_BP		0x4120
+#define RPMX_CMR_RX_OVR_BP_EN(x)	BIT_ULL((x) + 8)
+#define RPMX_CMR_RX_OVR_BP_BP(x)	BIT_ULL((x) + 4)
 #define RPM_LMAC_FWI			0xa
 
 /* Function Declarations */
+void rpm_lmac_enadis_rx_pause_fwding(void *rpmd, int lmac_id, bool enable);
+int rpm_lmac_get_pause_frm_status(void *cgxd, int lmac_id, u8 *tx_pause,
+				  u8 *rx_pause);
+void rpm_lmac_pause_frm_config(void *rpmd, int lmac_id, bool enable);
+int rpm_lmac_enadis_pause_frm(void *rpmd, int lmac_id, u8 tx_pause,
+			      u8 rx_pause);
 int rpm_get_nr_lmacs(void *cgxd);
 #endif /* RPM_H */

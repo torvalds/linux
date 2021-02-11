@@ -307,9 +307,6 @@ void cgx_lmac_enadis_rx_pause_fwding(void *cgxd, int lmac_id, bool enable)
 	struct cgx *cgx = cgxd;
 	u64 cfg;
 
-	if (is_dev_rpm(cgx))
-		return;
-
 	if (!cgx)
 		return;
 
@@ -452,8 +449,8 @@ int cgx_lmac_tx_enable(void *cgxd, int lmac_id, bool enable)
 	return !!(last & DATA_PKT_TX_EN);
 }
 
-int cgx_lmac_get_pause_frm(void *cgxd, int lmac_id,
-			   u8 *tx_pause, u8 *rx_pause)
+static int cgx_lmac_get_pause_frm_status(void *cgxd, int lmac_id,
+					 u8 *tx_pause, u8 *rx_pause)
 {
 	struct cgx *cgx = cgxd;
 	u64 cfg;
@@ -472,8 +469,8 @@ int cgx_lmac_get_pause_frm(void *cgxd, int lmac_id,
 	return 0;
 }
 
-int cgx_lmac_set_pause_frm(void *cgxd, int lmac_id,
-			   u8 tx_pause, u8 rx_pause)
+static int cgx_lmac_enadis_pause_frm(void *cgxd, int lmac_id,
+				     u8 tx_pause, u8 rx_pause)
 {
 	struct cgx *cgx = cgxd;
 	u64 cfg;
@@ -505,12 +502,10 @@ int cgx_lmac_set_pause_frm(void *cgxd, int lmac_id,
 	return 0;
 }
 
-static void cgx_lmac_pause_frm_config(struct cgx *cgx, int lmac_id, bool enable)
+static void cgx_lmac_pause_frm_config(void *cgxd, int lmac_id, bool enable)
 {
+	struct cgx *cgx = cgxd;
 	u64 cfg;
-
-	if (is_dev_rpm(cgx))
-		return;
 
 	if (!is_lmac_valid(cgx, lmac_id))
 		return;
@@ -1252,7 +1247,7 @@ static int cgx_lmac_init(struct cgx *cgx)
 
 		/* Add reference */
 		cgx->lmac_idmap[lmac->lmac_id] = lmac;
-		cgx_lmac_pause_frm_config(cgx, lmac->lmac_id, true);
+		cgx->mac_ops->mac_pause_frm_config(cgx, lmac->lmac_id, true);
 		set_bit(lmac->lmac_id, &cgx->lmac_bmap);
 	}
 
@@ -1281,7 +1276,7 @@ static int cgx_lmac_exit(struct cgx *cgx)
 		lmac = cgx->lmac_idmap[i];
 		if (!lmac)
 			continue;
-		cgx_lmac_pause_frm_config(cgx, lmac->lmac_id, false);
+		cgx->mac_ops->mac_pause_frm_config(cgx, lmac->lmac_id, false);
 		cgx_configure_interrupt(cgx, lmac, lmac->lmac_id, true);
 		kfree(lmac->name);
 		kfree(lmac);
@@ -1293,7 +1288,7 @@ static int cgx_lmac_exit(struct cgx *cgx)
 static void cgx_populate_features(struct cgx *cgx)
 {
 	if (is_dev_rpm(cgx))
-		cgx->hw_features =  RVU_MAC_RPM;
+		cgx->hw_features =  (RVU_MAC_RPM | RVU_LMAC_FEAT_FC);
 	else
 		cgx->hw_features = (RVU_LMAC_FEAT_FC | RVU_LMAC_FEAT_PTP);
 }
@@ -1309,6 +1304,10 @@ static struct mac_ops	cgx_mac_ops    = {
 	.lmac_fwi	=	CGX_LMAC_FWI,
 	.non_contiguous_serdes_lane = false,
 	.get_nr_lmacs	=	cgx_get_nr_lmacs,
+	.mac_enadis_rx_pause_fwding =	cgx_lmac_enadis_rx_pause_fwding,
+	.mac_get_pause_frm_status =	cgx_lmac_get_pause_frm_status,
+	.mac_enadis_pause_frm =		cgx_lmac_enadis_pause_frm,
+	.mac_pause_frm_config =		cgx_lmac_pause_frm_config,
 };
 
 static int cgx_probe(struct pci_dev *pdev, const struct pci_device_id *id)

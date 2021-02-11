@@ -67,6 +67,24 @@ struct mac_ops {
 	 * number of setbits in lmac_exist tells number of lmacs
 	 */
 	int			(*get_nr_lmacs)(void *cgx);
+
+	/* Enable LMAC Pause Frame Configuration */
+	void			(*mac_enadis_rx_pause_fwding)(void *cgxd,
+							      int lmac_id,
+							      bool enable);
+	int			(*mac_get_pause_frm_status)(void *cgxd,
+							    int lmac_id,
+							    u8 *tx_pause,
+							    u8 *rx_pause);
+
+	int			(*mac_enadis_pause_frm)(void *cgxd,
+							int lmac_id,
+							u8 tx_pause,
+							u8 rx_pause);
+	void			(*mac_pause_frm_config)(void  *cgxd,
+							int lmac_id,
+							bool enable);
+
 };
 
 struct cgx {

@@ -406,6 +406,7 @@ static bool is_cgx_config_permitted(struct rvu *rvu, u16 pcifunc)
 
 void rvu_cgx_enadis_rx_bp(struct rvu *rvu, int pf, bool enable)
 {
+	struct mac_ops *mac_ops;
 	u8 cgx_id, lmac_id;
 	void *cgxd;
 
@@ -415,11 +416,12 @@ void rvu_cgx_enadis_rx_bp(struct rvu *rvu, int pf, bool enable)
 	rvu_get_cgx_lmac_id(rvu->pf2cgxlmac_map[pf], &cgx_id, &lmac_id);
 	cgxd = rvu_cgx_pdata(cgx_id, rvu);
 
+	mac_ops = get_mac_ops(cgxd);
 	/* Set / clear CTL_BCK to control pause frame forwarding to NIX */
 	if (enable)
-		cgx_lmac_enadis_rx_pause_fwding(cgxd, lmac_id, true);
+		mac_ops->mac_enadis_rx_pause_fwding(cgxd, lmac_id, true);
 	else
-		cgx_lmac_enadis_rx_pause_fwding(cgxd, lmac_id, false);
+		mac_ops->mac_enadis_rx_pause_fwding(cgxd, lmac_id, false);
 }
 
 int rvu_cgx_config_rxtx(struct rvu *rvu, u16 pcifunc, bool start)
@@ -731,7 +733,9 @@ int rvu_mbox_handler_cgx_cfg_pause_frm(struct rvu *rvu,
 				       struct cgx_pause_frm_cfg *rsp)
 {
 	int pf = rvu_get_pf(req->hdr.pcifunc);
+	struct mac_ops *mac_ops;
 	u8 cgx_id, lmac_id;
+	void *cgxd;
 
 	if (!is_mac_feature_supported(rvu, pf, RVU_LMAC_FEAT_FC))
 		return 0;
@@ -743,13 +747,16 @@ int rvu_mbox_handler_cgx_cfg_pause_frm(struct rvu *rvu,
 		return -ENODEV;
 
 	rvu_get_cgx_lmac_id(rvu->pf2cgxlmac_map[pf], &cgx_id, &lmac_id);
+	cgxd = rvu_cgx_pdata(cgx_id, rvu);
+	mac_ops = get_mac_ops(cgxd);
 
 	if (req->set)
-		cgx_lmac_set_pause_frm(rvu_cgx_pdata(cgx_id, rvu), lmac_id,
-				       req->tx_pause, req->rx_pause);
+		mac_ops->mac_enadis_pause_frm(cgxd, lmac_id,
+					      req->tx_pause, req->rx_pause);
 	else
-		cgx_lmac_get_pause_frm(rvu_cgx_pdata(cgx_id, rvu), lmac_id,
-				       &rsp->tx_pause, &rsp->rx_pause);
+		mac_ops->mac_get_pause_frm_status(cgxd, lmac_id,
+						  &rsp->tx_pause,
+						  &rsp->rx_pause);
 	return 0;
 }
 
