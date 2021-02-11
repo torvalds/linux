@@ -1,7 +1,7 @@
 # SPDX-License-Identifier: GPL-2.0-only OR BSD-2-Clause
 %YAML 1.2
 ---
-$id: http://devicetree.org/schemas/net/brcm,bcm4908enet.yaml#
+$id: http://devicetree.org/schemas/net/brcm,bcm4908-enet.yaml#
 $schema: http://devicetree.org/meta-schemas/core.yaml#
 
 title: Broadcom BCM4908 Ethernet controller
@@ -11,9 +11,12 @@ description: Broadcom's Ethernet controller integrated into BCM4908 family SoCs
 maintainers:
   - Rafał Miłecki <rafal@milecki.pl>
 
+allOf:
+  - $ref: ethernet-controller.yaml#
+
 properties:
   compatible:
-    const: brcm,bcm4908enet
+    const: brcm,bcm4908-enet
 
   reg:
     maxItems: 1
@@ -37,7 +40,7 @@ examples:
     #include <dt-bindings/interrupt-controller/arm-gic.h>
 
     ethernet@80002000 {
-        compatible = "brcm,bcm4908enet";
+        compatible = "brcm,bcm4908-enet";
         reg = <0x80002000 0x1000>;
 
         interrupts = <GIC_SPI 86 IRQ_TYPE_LEVEL_HIGH>;
