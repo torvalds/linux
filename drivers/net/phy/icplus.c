@@ -208,10 +208,10 @@ static int ip101a_g_probe(struct phy_device *phydev)
 	return 0;
 }
 
-static int ip101a_g_config_init(struct phy_device *phydev)
+static int ip101a_g_config_intr_pin(struct phy_device *phydev)
 {
 	struct ip101a_g_phy_priv *priv = phydev->priv;
-	int err, c;
+	int err;
 
 	/* configure the RXER/INTR_32 pin of the 32-pin IP101GR if needed: */
 	switch (priv->sel_intr32) {
@@ -241,11 +241,24 @@ static int ip101a_g_config_init(struct phy_device *phydev)
 		break;
 	}
 
-	/* Enable Auto Power Saving mode */
-	c = phy_read(phydev, IP10XX_SPEC_CTRL_STATUS);
-	c |= IP101A_G_APS_ON;
+	return 0;
+}
 
-	return phy_write(phydev, IP10XX_SPEC_CTRL_STATUS, c);
+static int ip101a_config_init(struct phy_device *phydev)
+{
+	int ret;
+
+	/* Enable Auto Power Saving mode */
+	ret = phy_set_bits(phydev, IP10XX_SPEC_CTRL_STATUS, IP101A_G_APS_ON);
+	if (ret)
+		return ret;
+
+	return ip101a_g_config_intr_pin(phydev);
+}
+
+static int ip101g_config_init(struct phy_device *phydev)
+{
+	return ip101a_g_config_intr_pin(phydev);
 }
 
 static int ip101a_g_ack_interrupt(struct phy_device *phydev)
@@ -379,7 +392,7 @@ static struct phy_driver icplus_driver[] = {
 	.probe		= ip101a_g_probe,
 	.config_intr	= ip101a_g_config_intr,
 	.handle_interrupt = ip101a_g_handle_interrupt,
-	.config_init	= ip101a_g_config_init,
+	.config_init	= ip101a_config_init,
 	.soft_reset	= genphy_soft_reset,
 	.suspend	= genphy_suspend,
 	.resume		= genphy_resume,
@@ -389,7 +402,7 @@ static struct phy_driver icplus_driver[] = {
 	.probe		= ip101a_g_probe,
 	.config_intr	= ip101a_g_config_intr,
 	.handle_interrupt = ip101a_g_handle_interrupt,
-	.config_init	= ip101a_g_config_init,
+	.config_init	= ip101g_config_init,
 	.soft_reset	= genphy_soft_reset,
 	.suspend	= genphy_suspend,
 	.resume		= genphy_resume,
