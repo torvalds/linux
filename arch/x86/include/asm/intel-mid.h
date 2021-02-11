@@ -1,8 +1,8 @@
 /* SPDX-License-Identifier: GPL-2.0-only */
 /*
- * intel-mid.h: Intel MID specific setup code
+ * Intel MID specific setup code
  *
- * (C) Copyright 2009 Intel Corporation
+ * (C) Copyright 2009, 2021 Intel Corporation
  */
 #ifndef _ASM_X86_INTEL_MID_H
 #define _ASM_X86_INTEL_MID_H

@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
- * intel-mid.c: Intel MID platform setup code
+ * Intel MID platform setup code
  *
- * (C) Copyright 2008, 2012 Intel Corporation
+ * (C) Copyright 2008, 2012, 2021 Intel Corporation
  * Author: Jacob Pan (jacob.jun.pan@intel.com)
  * Author: Sathyanarayanan Kuppuswamy <sathyanarayanan.kuppuswamy@intel.com>
  */
