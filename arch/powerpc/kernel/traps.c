@@ -513,7 +513,6 @@ out:
 
 	return 0;
 }
-NOKPROBE_SYMBOL(system_reset_exception);
 
 /*
  * I/O accesses can cause machine checks on powermacs.
@@ -798,7 +797,6 @@ void die_mce(const char *str, struct pt_regs *regs, long err)
 		nmi_exit();
 	die(str, regs, err);
 }
-NOKPROBE_SYMBOL(die_mce);
 
 /*
  * BOOK3S_64 does not call this handler as a non-maskable interrupt
@@ -851,7 +849,6 @@ bail:
 	return 0;
 #endif
 }
-NOKPROBE_SYMBOL(machine_check_exception);
 
 DEFINE_INTERRUPT_HANDLER(SMIException) /* async? */
 {
@@ -1113,7 +1110,6 @@ DEFINE_INTERRUPT_HANDLER(single_step_exception)
 
 	_exception(SIGTRAP, regs, TRAP_TRACE, regs->nip);
 }
-NOKPROBE_SYMBOL(single_step_exception);
 
 /*
  * After we have successfully emulated an instruction, we have to
@@ -1556,7 +1552,6 @@ DEFINE_INTERRUPT_HANDLER(program_check_exception)
 {
 	do_program_check(regs);
 }
-NOKPROBE_SYMBOL(program_check_exception);
 
 /*
  * This occurs when running in hypervisor mode on POWER6 or later
@@ -1567,7 +1562,6 @@ DEFINE_INTERRUPT_HANDLER(emulation_assist_interrupt)
 	regs->msr |= REASON_ILLEGAL;
 	do_program_check(regs);
 }
-NOKPROBE_SYMBOL(emulation_assist_interrupt);
 
 DEFINE_INTERRUPT_HANDLER(alignment_exception)
 {
@@ -2034,7 +2028,6 @@ DEFINE_INTERRUPT_HANDLER(DebugException)
 	} else
 		handle_debug(regs, debug_status);
 }
-NOKPROBE_SYMBOL(DebugException);
 #endif /* CONFIG_PPC_ADV_DEBUG_REGS */
 
 #ifdef CONFIG_ALTIVEC
@@ -2183,7 +2176,6 @@ DEFINE_INTERRUPT_HANDLER(unrecoverable_exception)
 		 regs->trap, regs->nip, regs->msr);
 	die("Unrecoverable exception", regs, SIGABRT);
 }
-NOKPROBE_SYMBOL(unrecoverable_exception);
 
 #if defined(CONFIG_BOOKE_WDT) || defined(CONFIG_40x)
 /*
@@ -2214,7 +2206,6 @@ DEFINE_INTERRUPT_HANDLER(kernel_bad_stack)
 	       regs->gpr[1], regs->nip);
 	die("Bad kernel stack pointer", regs, SIGABRT);
 }
-NOKPROBE_SYMBOL(kernel_bad_stack);
 
 void __init trap_init(void)
 {

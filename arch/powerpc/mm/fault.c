@@ -566,7 +566,6 @@ DEFINE_INTERRUPT_HANDLER_RET(do_page_fault)
 {
 	return __do_page_fault(regs);
 }
-NOKPROBE_SYMBOL(do_page_fault);
 
 #ifdef CONFIG_PPC_BOOK3S_64
 /* Same as do_page_fault but interrupt entry has already run in do_hash_fault */
