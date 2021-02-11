@@ -346,6 +346,13 @@ struct io_ring_ctx {
 		struct io_uring_sqe	*sq_sqes;
 	} ____cacheline_aligned_in_smp;
 
+	struct {
+		struct mutex		uring_lock;
+		wait_queue_head_t	wait;
+	} ____cacheline_aligned_in_smp;
+
+	struct io_submit_state		submit_state;
+
 	struct io_rings	*rings;
 
 	/* IO offload */
@@ -414,11 +421,6 @@ struct io_ring_ctx {
 	} ____cacheline_aligned_in_smp;
 
 	struct {
-		struct mutex		uring_lock;
-		wait_queue_head_t	wait;
-	} ____cacheline_aligned_in_smp;
-
-	struct {
 		spinlock_t		completion_lock;
 
 		/*
@@ -441,9 +443,10 @@ struct io_ring_ctx {
 	struct list_head		rsrc_ref_list;
 	spinlock_t			rsrc_ref_lock;
 
-	struct work_struct		exit_work;
 	struct io_restriction		restrictions;
-	struct io_submit_state		submit_state;
+
+	/* Keep this last, we don't need it for the fast path */
+	struct work_struct		exit_work;
 };
 
 /*
