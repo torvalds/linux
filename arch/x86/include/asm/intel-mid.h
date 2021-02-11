@@ -8,7 +8,6 @@
 #define _ASM_X86_INTEL_MID_H
 
 #include <linux/pci.h>
-#include <linux/platform_device.h>
 
 extern int intel_mid_pci_init(void);
 extern int intel_mid_pci_set_power_state(struct pci_dev *pdev, pci_power_t state);
