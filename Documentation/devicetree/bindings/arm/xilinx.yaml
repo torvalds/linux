@@ -22,6 +22,9 @@ properties:
               - adapteva,parallella
               - digilent,zynq-zybo
               - digilent,zynq-zybo-z7
+              - ebang,ebaz4205
+              - myir,zynq-zturn-v5
+              - myir,zynq-zturn
               - xlnx,zynq-cc108
               - xlnx,zynq-zc702
               - xlnx,zynq-zc706
