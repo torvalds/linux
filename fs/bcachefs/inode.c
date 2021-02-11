@@ -479,7 +479,7 @@ int bch2_inode_create(struct btree_trans *trans,
 	u64 min, max, start, *hint;
 	int ret;
 
-	unsigned cpu = raw_smp_processor_id();
+	u64 cpu = raw_smp_processor_id();
 	unsigned bits = (c->opts.inodes_32bit
 		? 31 : 63) - c->inode_shard_bits;
 
