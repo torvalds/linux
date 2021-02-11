@@ -656,8 +656,7 @@ static int elants_i2c_initialize(struct elants_data *ts)
 			error = elants_i2c_query_ts_info_ektf(ts);
 		break;
 	default:
-		unreachable();
-		break;
+		BUG();
 	}
 
 	if (error)
