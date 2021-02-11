@@ -295,6 +295,8 @@
 #define     MVPP2_PON_CAUSE_TXP_OCCUP_DESC_ALL_MASK	0x3fc00000
 #define     MVPP2_PON_CAUSE_MISC_SUM_MASK		BIT(31)
 #define MVPP2_ISR_MISC_CAUSE_REG		0x55b0
+#define MVPP2_ISR_RX_ERR_CAUSE_REG(port)	(0x5520 + 4 * (port))
+#define     MVPP2_ISR_RX_ERR_CAUSE_NONOCC_MASK	0x00ff
 
 /* Buffer Manager registers */
 #define MVPP2_BM_POOL_BASE_REG(pool)		(0x6000 + ((pool) * 4))
@@ -763,6 +765,7 @@
 /* MSS Flow control */
 #define FC_QUANTA		0xFFFF
 #define FC_CLK_DIVIDER		100
+#define MSS_THRESHOLD_STOP	768
 
 /* RX buffer constants */
 #define MVPP2_SKB_SHINFO_SIZE \
