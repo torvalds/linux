@@ -2030,6 +2030,7 @@ static int tcp_zerocopy_vm_insert_batch(struct vm_area_struct *vma,
 		err);
 }
 
+#define TCP_VALID_ZC_MSG_FLAGS   (TCP_CMSG_TS)
 static void tcp_recv_timestamp(struct msghdr *msg, const struct sock *sk,
 			       struct scm_timestamping_internal *tss);
 static void tcp_zc_finalize_rx_tstamp(struct sock *sk,
@@ -4152,13 +4153,21 @@ static int do_tcp_getsockopt(struct sock *sk, int level,
 			return -EFAULT;
 		if (len < offsetofend(struct tcp_zerocopy_receive, length))
 			return -EINVAL;
-		if (len > sizeof(zc)) {
+		if (unlikely(len > sizeof(zc))) {
+			err = check_zeroed_user(optval + sizeof(zc),
+						len - sizeof(zc));
+			if (err < 1)
+				return err == 0 ? -EINVAL : err;
 			len = sizeof(zc);
 			if (put_user(len, optlen))
 				return -EFAULT;
 		}
 		if (copy_from_user(&zc, optval, len))
 			return -EFAULT;
+		if (zc.reserved)
+			return -EINVAL;
+		if (zc.msg_flags &  ~(TCP_VALID_ZC_MSG_FLAGS))
+			return -EINVAL;
 		lock_sock(sk);
 		err = tcp_zerocopy_receive(sk, &zc, &tss);
 		release_sock(sk);
