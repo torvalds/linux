@@ -78,6 +78,9 @@ static void rvu_setup_hw_capabilities(struct rvu *rvu)
 		if (is_rvu_96xx_A0(rvu))
 			hw->cap.nix_rx_multicast = false;
 	}
+
+	if (!is_rvu_otx2(rvu))
+		hw->cap.per_pf_mbox_regs = true;
 }
 
 /* Poll a RVU block's register 'offset', for a 'zero'
@@ -1936,41 +1939,105 @@ static inline void rvu_afvf_mbox_up_handler(struct work_struct *work)
 	__rvu_mbox_up_handler(mwork, TYPE_AFVF);
 }
 
+static int rvu_get_mbox_regions(struct rvu *rvu, void **mbox_addr,
+				int num, int type)
+{
+	struct rvu_hwinfo *hw = rvu->hw;
+	int region;
+	u64 bar4;
+
+	/* For cn10k platform VF mailbox regions of a PF follows after the
+	 * PF <-> AF mailbox region. Whereas for Octeontx2 it is read from
+	 * RVU_PF_VF_BAR4_ADDR register.
+	 */
+	if (type == TYPE_AFVF) {
+		for (region = 0; region < num; region++) {
+			if (hw->cap.per_pf_mbox_regs) {
+				bar4 = rvu_read64(rvu, BLKADDR_RVUM,
+						  RVU_AF_PFX_BAR4_ADDR(0)) +
+						  MBOX_SIZE;
+				bar4 += region * MBOX_SIZE;
+			} else {
+				bar4 = rvupf_read64(rvu, RVU_PF_VF_BAR4_ADDR);
+				bar4 += region * MBOX_SIZE;
+			}
+			mbox_addr[region] = (void *)ioremap_wc(bar4, MBOX_SIZE);
+			if (!mbox_addr[region])
+				goto error;
+		}
+		return 0;
+	}
+
+	/* For cn10k platform AF <-> PF mailbox region of a PF is read from per
+	 * PF registers. Whereas for Octeontx2 it is read from
+	 * RVU_AF_PF_BAR4_ADDR register.
+	 */
+	for (region = 0; region < num; region++) {
+		if (hw->cap.per_pf_mbox_regs) {
+			bar4 = rvu_read64(rvu, BLKADDR_RVUM,
+					  RVU_AF_PFX_BAR4_ADDR(region));
+		} else {
+			bar4 = rvu_read64(rvu, BLKADDR_RVUM,
+					  RVU_AF_PF_BAR4_ADDR);
+			bar4 += region * MBOX_SIZE;
+		}
+		mbox_addr[region] = (void *)ioremap_wc(bar4, MBOX_SIZE);
+		if (!mbox_addr[region])
+			goto error;
+	}
+	return 0;
+
+error:
+	while (region--)
+		iounmap((void __iomem *)mbox_addr[region]);
+	return -ENOMEM;
+}
+
 static int rvu_mbox_init(struct rvu *rvu, struct mbox_wq_info *mw,
 			 int type, int num,
 			 void (mbox_handler)(struct work_struct *),
 			 void (mbox_up_handler)(struct work_struct *))
 {
-	void __iomem *hwbase = NULL, *reg_base;
-	int err, i, dir, dir_up;
+	int err = -EINVAL, i, dir, dir_up;
+	void __iomem *reg_base;
 	struct rvu_work *mwork;
+	void **mbox_regions;
 	const char *name;
-	u64 bar4_addr;
+
+	mbox_regions = kcalloc(num, sizeof(void *), GFP_KERNEL);
+	if (!mbox_regions)
+		return -ENOMEM;
 
 	switch (type) {
 	case TYPE_AFPF:
 		name = "rvu_afpf_mailbox";
-		bar4_addr = rvu_read64(rvu, BLKADDR_RVUM, RVU_AF_PF_BAR4_ADDR);
 		dir = MBOX_DIR_AFPF;
 		dir_up = MBOX_DIR_AFPF_UP;
 		reg_base = rvu->afreg_base;
+		err = rvu_get_mbox_regions(rvu, mbox_regions, num, TYPE_AFPF);
+		if (err)
+			goto free_regions;
 		break;
 	case TYPE_AFVF:
 		name = "rvu_afvf_mailbox";
-		bar4_addr = rvupf_read64(rvu, RVU_PF_VF_BAR4_ADDR);
 		dir = MBOX_DIR_PFVF;
 		dir_up = MBOX_DIR_PFVF_UP;
 		reg_base = rvu->pfreg_base;
+		err = rvu_get_mbox_regions(rvu, mbox_regions, num, TYPE_AFVF);
+		if (err)
+			goto free_regions;
 		break;
 	default:
-		return -EINVAL;
+		return err;
 	}
 
 	mw->mbox_wq = alloc_workqueue(name,
 				      WQ_UNBOUND | WQ_HIGHPRI | WQ_MEM_RECLAIM,
 				      num);
-	if (!mw->mbox_wq)
-		return -ENOMEM;
+	if (!mw->mbox_wq) {
+		err = -ENOMEM;
+		goto unmap_regions;
+	}
 
 	mw->mbox_wrk = devm_kcalloc(rvu->dev, num,
 				    sizeof(struct rvu_work), GFP_KERNEL);
@@ -1986,23 +2053,13 @@ static int rvu_mbox_init(struct rvu *rvu, struct mbox_wq_info *mw,
 		goto exit;
 	}
 
-	/* Mailbox is a reserved memory (in RAM) region shared between
-	 * RVU devices, shouldn't be mapped as device memory to allow
-	 * unaligned accesses.
-	 */
-	hwbase = ioremap_wc(bar4_addr, MBOX_SIZE * num);
-	if (!hwbase) {
-		dev_err(rvu->dev, "Unable to map mailbox region\n");
-		err = -ENOMEM;
-		goto exit;
-	}
-
-	err = otx2_mbox_init(&mw->mbox, hwbase, rvu->pdev, reg_base, dir, num);
+	err = otx2_mbox_regions_init(&mw->mbox, mbox_regions, rvu->pdev,
+				     reg_base, dir, num);
 	if (err)
 		goto exit;
 
-	err = otx2_mbox_init(&mw->mbox_up, hwbase, rvu->pdev,
-			     reg_base, dir_up, num);
+	err = otx2_mbox_regions_init(&mw->mbox_up, mbox_regions, rvu->pdev,
+				     reg_base, dir_up, num);
 	if (err)
 		goto exit;
 
@@ -2015,25 +2072,36 @@ static int rvu_mbox_init(struct rvu *rvu, struct mbox_wq_info *mw,
 		mwork->rvu = rvu;
 		INIT_WORK(&mwork->work, mbox_up_handler);
 	}
-
+	kfree(mbox_regions);
 	return 0;
+
 exit:
-	if (hwbase)
-		iounmap((void __iomem *)hwbase);
 	destroy_workqueue(mw->mbox_wq);
+unmap_regions:
+	while (num--)
+		iounmap((void __iomem *)mbox_regions[num]);
+free_regions:
+	kfree(mbox_regions);
 	return err;
 }
 
 static void rvu_mbox_destroy(struct mbox_wq_info *mw)
 {
+	struct otx2_mbox *mbox = &mw->mbox;
+	struct otx2_mbox_dev *mdev;
+	int devid;
+
 	if (mw->mbox_wq) {
 		flush_workqueue(mw->mbox_wq);
 		destroy_workqueue(mw->mbox_wq);
 		mw->mbox_wq = NULL;
 	}
 
-	if (mw->mbox.hwbase)
-		iounmap((void __iomem *)mw->mbox.hwbase);
+	for (devid = 0; devid < mbox->ndevs; devid++) {
+		mdev = &mbox->dev[devid];
+		if (mdev->hwbase)
+			iounmap((void __iomem *)mdev->hwbase);
+	}
 
 	otx2_mbox_destroy(&mw->mbox);
 	otx2_mbox_destroy(&mw->mbox_up);

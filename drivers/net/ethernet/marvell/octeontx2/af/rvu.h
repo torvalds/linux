@@ -25,6 +25,7 @@
 
 /* Subsystem Device ID */
 #define PCI_SUBSYS_DEVID_96XX                  0xB200
+#define PCI_SUBSYS_DEVID_CN10K_A	       0xB900
 
 /* PCI BAR nos */
 #define	PCI_AF_REG_BAR_NUM			0
@@ -303,6 +304,7 @@ struct hw_cap {
 	bool	nix_shaping;		 /* Is shaping and coloring supported */
 	bool	nix_tx_link_bp;		 /* Can link backpressure TL queues ? */
 	bool	nix_rx_multicast;	 /* Rx packet replication support */
+	bool	per_pf_mbox_regs; /* PF mbox specified in per PF registers ? */
 };
 
 struct rvu_hwinfo {
@@ -474,6 +476,27 @@ static inline bool is_rvu_96xx_B0(struct rvu *rvu)
 
 	return ((pdev->revision == 0x00) || (pdev->revision == 0x01)) &&
 		(pdev->subsystem_device == PCI_SUBSYS_DEVID_96XX);
+}
+
+/* REVID for PCIe devices.
+ * Bits 0..1: minor pass, bit 3..2: major pass
+ * bits 7..4: midr id
+ */
+#define PCI_REVISION_ID_96XX		0x00
+#define PCI_REVISION_ID_95XX		0x10
+#define PCI_REVISION_ID_LOKI		0x20
+#define PCI_REVISION_ID_98XX		0x30
+#define PCI_REVISION_ID_95XXMM		0x40
+
+static inline bool is_rvu_otx2(struct rvu *rvu)
+{
+	struct pci_dev *pdev = rvu->pdev;
+
+	u8 midr = pdev->revision & 0xF0;
+
+	return (midr == PCI_REVISION_ID_96XX || midr == PCI_REVISION_ID_95XX ||
+		midr == PCI_REVISION_ID_LOKI || midr == PCI_REVISION_ID_98XX ||
+		midr == PCI_REVISION_ID_95XXMM);
 }
 
 /* Function Prototypes

@@ -44,6 +44,11 @@
 #define RVU_AF_PFME_INT_W1S                 (0x28c8)
 #define RVU_AF_PFME_INT_ENA_W1S             (0x28d0)
 #define RVU_AF_PFME_INT_ENA_W1C             (0x28d8)
+#define RVU_AF_PFX_BAR4_ADDR(a)             (0x5000 | (a) << 4)
+#define RVU_AF_PFX_BAR4_CFG                 (0x5200 | (a) << 4)
+#define RVU_AF_PFX_VF_BAR4_ADDR             (0x5400 | (a) << 4)
+#define RVU_AF_PFX_VF_BAR4_CFG              (0x5600 | (a) << 4)
+#define RVU_AF_PFX_LMTLINE_ADDR             (0x5800 | (a) << 4)
 
 /* Admin function's privileged PF/VF registers */
 #define RVU_PRIV_CONST                      (0x8000000)
@@ -100,6 +105,8 @@
 #define RVU_PF_MSIX_VECX_ADDR(a)            (0x000 | (a) << 4)
 #define RVU_PF_MSIX_VECX_CTL(a)             (0x008 | (a) << 4)
 #define RVU_PF_MSIX_PBAX(a)                 (0xF0000 | (a) << 3)
+#define RVU_PF_VF_MBOX_ADDR                 (0xC40)
+#define RVU_PF_LMTLINE_ADDR                 (0xC48)
 
 /* RVU VF registers */
 #define	RVU_VF_VFPF_MBOX0		    (0x00000)
