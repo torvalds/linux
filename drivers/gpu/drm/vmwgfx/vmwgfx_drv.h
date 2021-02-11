@@ -775,7 +775,8 @@ extern void vmw_resource_unreserve(struct vmw_resource *res,
 				   struct vmw_buffer_object *new_backup,
 				   unsigned long new_backup_offset);
 extern void vmw_query_move_notify(struct ttm_buffer_object *bo,
-				  struct ttm_resource *mem);
+				  struct ttm_resource *old_mem,
+				  struct ttm_resource *new_mem);
 extern int vmw_query_readback_all(struct vmw_buffer_object *dx_query_mob);
 extern void vmw_resource_evict_all(struct vmw_private *dev_priv);
 extern void vmw_resource_unbind_list(struct vmw_buffer_object *vbo);
