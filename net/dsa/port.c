@@ -868,3 +868,37 @@ int dsa_port_get_phy_sset_count(struct dsa_port *dp)
 	return ret;
 }
 EXPORT_SYMBOL_GPL(dsa_port_get_phy_sset_count);
+
+int dsa_port_hsr_join(struct dsa_port *dp, struct net_device *hsr)
+{
+	struct dsa_notifier_hsr_info info = {
+		.sw_index = dp->ds->index,
+		.port = dp->index,
+		.hsr = hsr,
+	};
+	int err;
+
+	dp->hsr_dev = hsr;
+
+	err = dsa_port_notify(dp, DSA_NOTIFIER_HSR_JOIN, &info);
+	if (err)
+		dp->hsr_dev = NULL;
+
+	return err;
+}
+
+void dsa_port_hsr_leave(struct dsa_port *dp, struct net_device *hsr)
+{
+	struct dsa_notifier_hsr_info info = {
+		.sw_index = dp->ds->index,
+		.port = dp->index,
+		.hsr = hsr,
+	};
+	int err;
+
+	dp->hsr_dev = NULL;
+
+	err = dsa_port_notify(dp, DSA_NOTIFIER_HSR_LEAVE, &info);
+	if (err)
+		pr_err("DSA: failed to notify DSA_NOTIFIER_HSR_LEAVE\n");
+}
