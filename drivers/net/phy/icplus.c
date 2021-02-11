@@ -44,6 +44,8 @@ MODULE_LICENSE("GPL");
 #define IP101A_G_IRQ_DUPLEX_CHANGE	BIT(1)
 #define IP101A_G_IRQ_LINK_CHANGE	BIT(0)
 
+#define IP101G_PAGE_CONTROL				0x14
+#define IP101G_PAGE_CONTROL_MASK			GENMASK(4, 0)
 #define IP101G_DIGITAL_IO_SPEC_CTRL			0x1d
 #define IP101G_DIGITAL_IO_SPEC_CTRL_SEL_INTR32		BIT(2)
 
@@ -301,6 +303,58 @@ static irqreturn_t ip101a_g_handle_interrupt(struct phy_device *phydev)
 	return IRQ_HANDLED;
 }
 
+static int ip101a_g_has_page_register(struct phy_device *phydev)
+{
+	int oldval, val, ret;
+
+	oldval = phy_read(phydev, IP101G_PAGE_CONTROL);
+	if (oldval < 0)
+		return oldval;
+
+	ret = phy_write(phydev, IP101G_PAGE_CONTROL, 0xffff);
+	if (ret)
+		return ret;
+
+	val = phy_read(phydev, IP101G_PAGE_CONTROL);
+	if (val < 0)
+		return val;
+
+	ret = phy_write(phydev, IP101G_PAGE_CONTROL, oldval);
+	if (ret)
+		return ret;
+
+	return val == IP101G_PAGE_CONTROL_MASK;
+}
+
+static int ip101a_g_match_phy_device(struct phy_device *phydev, bool ip101a)
+{
+	int ret;
+
+	if (phydev->phy_id != IP101A_PHY_ID)
+		return 0;
+
+	/* The IP101A and the IP101G share the same PHY identifier.The IP101G
+	 * seems to be a successor of the IP101A and implements more functions.
+	 * Amongst other things there is a page select register, which is not
+	 * available on the IP101A. Use this to distinguish these two.
+	 */
+	ret = ip101a_g_has_page_register(phydev);
+	if (ret < 0)
+		return ret;
+
+	return ip101a == !ret;
+}
+
+static int ip101a_match_phy_device(struct phy_device *phydev)
+{
+	return ip101a_g_match_phy_device(phydev, true);
+}
+
+static int ip101g_match_phy_device(struct phy_device *phydev)
+{
+	return ip101a_g_match_phy_device(phydev, false);
+}
+
 static struct phy_driver icplus_driver[] = {
 {
 	PHY_ID_MATCH_MODEL(IP175C_PHY_ID),
@@ -320,9 +374,18 @@ static struct phy_driver icplus_driver[] = {
 	.suspend	= genphy_suspend,
 	.resume		= genphy_resume,
 }, {
-	PHY_ID_MATCH_EXACT(IP101A_PHY_ID),
-	.name		= "ICPlus IP101A/G",
-	/* PHY_BASIC_FEATURES */
+	.name		= "ICPlus IP101A",
+	.match_phy_device = ip101a_match_phy_device,
+	.probe		= ip101a_g_probe,
+	.config_intr	= ip101a_g_config_intr,
+	.handle_interrupt = ip101a_g_handle_interrupt,
+	.config_init	= ip101a_g_config_init,
+	.soft_reset	= genphy_soft_reset,
+	.suspend	= genphy_suspend,
+	.resume		= genphy_resume,
+}, {
+	.name		= "ICPlus IP101G",
+	.match_phy_device = ip101g_match_phy_device,
 	.probe		= ip101a_g_probe,
 	.config_intr	= ip101a_g_config_intr,
 	.handle_interrupt = ip101a_g_handle_interrupt,
