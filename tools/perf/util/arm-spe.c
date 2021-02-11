@@ -53,6 +53,7 @@ struct arm_spe {
 	u8				sample_tlb;
 	u8				sample_branch;
 	u8				sample_remote_access;
+	u8				sample_memory;
 
 	u64				l1d_miss_id;
 	u64				l1d_access_id;
@@ -62,6 +63,7 @@ struct arm_spe {
 	u64				tlb_access_id;
 	u64				branch_miss_id;
 	u64				remote_access_id;
+	u64				memory_id;
 
 	u64				kernel_start;
 
@@ -293,6 +295,18 @@ static int arm_spe__synth_branch_sample(struct arm_spe_queue *speq,
 	return arm_spe_deliver_synth_event(spe, speq, event, &sample);
 }
 
+#define SPE_MEM_TYPE	(ARM_SPE_L1D_ACCESS | ARM_SPE_L1D_MISS | \
+			 ARM_SPE_LLC_ACCESS | ARM_SPE_LLC_MISS | \
+			 ARM_SPE_REMOTE_ACCESS)
+
+static bool arm_spe__is_memory_event(enum arm_spe_sample_type type)
+{
+	if (type & SPE_MEM_TYPE)
+		return true;
+
+	return false;
+}
+
 static int arm_spe_sample(struct arm_spe_queue *speq)
 {
 	const struct arm_spe_record *record = &speq->decoder->record;
@@ -350,6 +364,12 @@ static int arm_spe_sample(struct arm_spe_queue *speq)
 	if (spe->sample_remote_access &&
 	    (record->type & ARM_SPE_REMOTE_ACCESS)) {
 		err = arm_spe__synth_mem_sample(speq, spe->remote_access_id);
+		if (err)
+			return err;
+	}
+
+	if (spe->sample_memory && arm_spe__is_memory_event(record->type)) {
+		err = arm_spe__synth_mem_sample(speq, spe->memory_id);
 		if (err)
 			return err;
 	}
@@ -915,6 +935,16 @@ arm_spe_synth_events(struct arm_spe *spe, struct perf_session *session)
 		spe->remote_access_id = id;
 		arm_spe_set_event_name(evlist, id, "remote-access");
 		id += 1;
+	}
+
+	if (spe->synth_opts.mem) {
+		spe->sample_memory = true;
+
+		err = arm_spe_synth_event(session, &attr, id);
+		if (err)
+			return err;
+		spe->memory_id = id;
+		arm_spe_set_event_name(evlist, id, "memory");
 	}
 
 	return 0;
