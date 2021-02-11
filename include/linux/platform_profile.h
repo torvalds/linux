@@ -12,9 +12,8 @@
 #include <linux/bitops.h>
 
 /*
- * If more options are added please update profile_names
- * array in platform-profile.c and sysfs-platform-profile.rst
- * documentation.
+ * If more options are added please update profile_names array in
+ * platform_profile.c and sysfs-platform_profile documentation.
  */
 
 enum platform_profile_option {
