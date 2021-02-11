@@ -1739,6 +1739,16 @@ cifs_mkdir_qinfo(struct inode *parent, struct dentry *dentry, umode_t mode,
 	if (rc)
 		return rc;
 
+	if (!S_ISDIR(inode->i_mode)) {
+		/*
+		 * mkdir succeeded, but another client has managed to remove the
+		 * sucker and replace it with non-directory.  Return success,
+		 * but don't leave the child in dcache.
+		 */
+		 iput(inode);
+		 d_drop(dentry);
+		 return 0;
+	}
 	/*
 	 * setting nlink not necessary except in cases where we failed to get it
 	 * from the server or was set bogus. Also, since this is a brand new
@@ -1790,7 +1800,7 @@ cifs_mkdir_qinfo(struct inode *parent, struct dentry *dentry, umode_t mode,
 		}
 	}
 	d_instantiate(dentry, inode);
-	return rc;
+	return 0;
 }
 
 static int
