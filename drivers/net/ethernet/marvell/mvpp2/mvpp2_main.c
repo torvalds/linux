@@ -1409,7 +1409,7 @@ static void mvpp2_interrupts_unmask(void *arg)
 	u32 val, thread;
 
 	/* If the thread isn't used, don't do anything */
-	if (cpu > port->priv->nthreads)
+	if (cpu >= port->priv->nthreads)
 		return;
 
 	thread = mvpp2_cpu_to_thread(port->priv, cpu);
@@ -2595,7 +2595,7 @@ static void mvpp2_txq_sent_counter_clear(void *arg)
 	int queue;
 
 	/* If the thread isn't used, don't do anything */
-	if (smp_processor_id() > port->priv->nthreads)
+	if (smp_processor_id() >= port->priv->nthreads)
 		return;
 
 	for (queue = 0; queue < port->ntxqs; queue++) {
