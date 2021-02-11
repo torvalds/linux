@@ -476,7 +476,7 @@ static int bcm4908_enet_start_xmit(struct sk_buff *skb, struct net_device *netde
 	/* Free transmitted skbs */
 	while (ring->read_idx != ring->write_idx) {
 		buf_desc = &ring->buf_desc[ring->read_idx];
-		if (buf_desc->ctl & DMA_CTL_STATUS_OWN)
+		if (le32_to_cpu(buf_desc->ctl) & DMA_CTL_STATUS_OWN)
 			break;
 		slot = &ring->slots[ring->read_idx];
 
