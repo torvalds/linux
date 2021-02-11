@@ -1774,7 +1774,7 @@ static size_t ssh_ptl_rx_eval(struct ssh_ptl *ptl, struct ssam_span *source)
 		break;
 	}
 
-	return aligned.ptr - source->ptr + SSH_MESSAGE_LENGTH(frame->len);
+	return aligned.ptr - source->ptr + SSH_MESSAGE_LENGTH(payload.len);
 }
 
 static int ssh_ptl_rx_threadfn(void *data)
