@@ -220,11 +220,6 @@ static int iwl_pnvm_parse(struct iwl_trans *trans, const u8 *data,
 	return -ENOENT;
 }
 
-/*
- * This is known to be broken on v4.19 and to work on v5.4.  Until we
- * figure out why this is the case and how to make it work, simply
- * disable the feature in old kernels.
- */
 #if defined(CONFIG_EFI)
 
 #define IWL_EFI_VAR_GUID EFI_GUID(0x92daaf2f, 0xc02b, 0x455b,	\
