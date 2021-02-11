@@ -47,6 +47,10 @@ MODULE_LICENSE("GPL");
 #define IP101G_DIGITAL_IO_SPEC_CTRL			0x1d
 #define IP101G_DIGITAL_IO_SPEC_CTRL_SEL_INTR32		BIT(2)
 
+#define IP175C_PHY_ID 0x02430d80
+#define IP1001_PHY_ID 0x02430d90
+#define IP101A_PHY_ID 0x02430c54
+
 /* The 32-pin IP101GR package can re-configure the mode of the RXER/INTR_32 pin
  * (pin number 21). The hardware default is RXER (receive error) mode. But it
  * can be configured to interrupt mode manually.
@@ -329,9 +333,8 @@ static irqreturn_t ip101a_g_handle_interrupt(struct phy_device *phydev)
 
 static struct phy_driver icplus_driver[] = {
 {
-	.phy_id		= 0x02430d80,
+	PHY_ID_MATCH_MODEL(IP175C_PHY_ID),
 	.name		= "ICPlus IP175C",
-	.phy_id_mask	= 0x0ffffff0,
 	/* PHY_BASIC_FEATURES */
 	.config_init	= &ip175c_config_init,
 	.config_aneg	= &ip175c_config_aneg,
@@ -339,17 +342,15 @@ static struct phy_driver icplus_driver[] = {
 	.suspend	= genphy_suspend,
 	.resume		= genphy_resume,
 }, {
-	.phy_id		= 0x02430d90,
+	PHY_ID_MATCH_MODEL(IP1001_PHY_ID),
 	.name		= "ICPlus IP1001",
-	.phy_id_mask	= 0x0ffffff0,
 	/* PHY_GBIT_FEATURES */
 	.config_init	= &ip1001_config_init,
 	.suspend	= genphy_suspend,
 	.resume		= genphy_resume,
 }, {
-	.phy_id		= 0x02430c54,
+	PHY_ID_MATCH_MODEL(IP101A_PHY_ID),
 	.name		= "ICPlus IP101A/G",
-	.phy_id_mask	= 0x0ffffff0,
 	/* PHY_BASIC_FEATURES */
 	.probe		= ip101a_g_probe,
 	.config_intr	= ip101a_g_config_intr,
@@ -362,9 +363,9 @@ static struct phy_driver icplus_driver[] = {
 module_phy_driver(icplus_driver);
 
 static struct mdio_device_id __maybe_unused icplus_tbl[] = {
-	{ 0x02430d80, 0x0ffffff0 },
-	{ 0x02430d90, 0x0ffffff0 },
-	{ 0x02430c54, 0x0ffffff0 },
+	{ PHY_ID_MATCH_MODEL(IP175C_PHY_ID) },
+	{ PHY_ID_MATCH_MODEL(IP1001_PHY_ID) },
+	{ PHY_ID_MATCH_MODEL(IP101A_PHY_ID) },
 	{ }
 };
 
