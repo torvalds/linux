@@ -1069,7 +1069,7 @@ xfs_log_need_covered(
 	bool			needed = false;
 
 	if (!xlog_cil_empty(log))
-		return 0;
+		return false;
 
 	spin_lock(&log->l_icloglock);
 	switch (log->l_covered_state) {
