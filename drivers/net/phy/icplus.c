@@ -120,35 +120,9 @@ static int ip175c_config_init(struct phy_device *phydev)
 	return 0;
 }
 
-static int ip1xx_reset(struct phy_device *phydev)
-{
-	int bmcr;
-
-	/* Software Reset PHY */
-	bmcr = phy_read(phydev, MII_BMCR);
-	if (bmcr < 0)
-		return bmcr;
-	bmcr |= BMCR_RESET;
-	bmcr = phy_write(phydev, MII_BMCR, bmcr);
-	if (bmcr < 0)
-		return bmcr;
-
-	do {
-		bmcr = phy_read(phydev, MII_BMCR);
-		if (bmcr < 0)
-			return bmcr;
-	} while (bmcr & BMCR_RESET);
-
-	return 0;
-}
-
 static int ip1001_config_init(struct phy_device *phydev)
 {
 	int c;
-
-	c = ip1xx_reset(phydev);
-	if (c < 0)
-		return c;
 
 	/* Enable Auto Power Saving mode */
 	c = phy_read(phydev, IP1001_SPEC_CTRL_STATUS_2);
@@ -236,10 +210,6 @@ static int ip101a_g_config_init(struct phy_device *phydev)
 {
 	struct ip101a_g_phy_priv *priv = phydev->priv;
 	int err, c;
-
-	c = ip1xx_reset(phydev);
-	if (c < 0)
-		return c;
 
 	/* configure the RXER/INTR_32 pin of the 32-pin IP101GR if needed: */
 	switch (priv->sel_intr32) {
@@ -346,6 +316,7 @@ static struct phy_driver icplus_driver[] = {
 	.name		= "ICPlus IP1001",
 	/* PHY_GBIT_FEATURES */
 	.config_init	= ip1001_config_init,
+	.soft_reset	= genphy_soft_reset,
 	.suspend	= genphy_suspend,
 	.resume		= genphy_resume,
 }, {
@@ -356,6 +327,7 @@ static struct phy_driver icplus_driver[] = {
 	.config_intr	= ip101a_g_config_intr,
 	.handle_interrupt = ip101a_g_handle_interrupt,
 	.config_init	= ip101a_g_config_init,
+	.soft_reset	= genphy_soft_reset,
 	.suspend	= genphy_suspend,
 	.resume		= genphy_resume,
 } };
