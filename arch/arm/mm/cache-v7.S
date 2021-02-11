@@ -53,12 +53,12 @@ ENTRY(v7_invalidate_l1)
 	and	r2, r0, #0x7
 	add	r2, r2, #4		@ SetShift
 
-1:	movw	r4, #0x7fff
-	and	r0, r4, r0, lsr #13	@ 'NumSets' in CCSIDR[27:13]
+1:	movw	ip, #0x7fff
+	and	r0, ip, r0, lsr #13	@ 'NumSets' in CCSIDR[27:13]
 
-2:	mov	r4, r0, lsl r2		@ NumSet << SetShift
-	orr	r4, r4, r3		@ Reg = (Temp<<WayShift)|(NumSets<<SetShift)
-	mcr	p15, 0, r4, c7, c6, 2
+2:	mov	ip, r0, lsl r2		@ NumSet << SetShift
+	orr	ip, ip, r3		@ Reg = (Temp<<WayShift)|(NumSets<<SetShift)
+	mcr	p15, 0, ip, c7, c6, 2
 	subs	r0, r0, #1		@ Set--
 	bpl	2b
 	subs	r3, r3, r1		@ Way--
