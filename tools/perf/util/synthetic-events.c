@@ -24,7 +24,6 @@
 #include <linux/perf_event.h>
 #include <asm/bug.h>
 #include <perf/evsel.h>
-#include <internal/cpumap.h>
 #include <perf/cpumap.h>
 #include <internal/lib.h> // page_size
 #include <internal/threadmap.h>
