@@ -331,10 +331,8 @@ void cgx_lmac_enadis_rx_pause_fwding(void *cgxd, int lmac_id, bool enable)
 
 int cgx_get_rx_stats(void *cgxd, int lmac_id, int idx, u64 *rx_stat)
 {
-	struct mac_ops *mac_ops;
 	struct cgx *cgx = cgxd;
 
-	mac_ops = cgx->mac_ops;
 	if (!is_lmac_valid(cgx, lmac_id))
 		return -ENODEV;
 	*rx_stat =  cgx_read(cgx, lmac_id, CGXX_CMRX_RX_STAT0 + (idx * 8));
@@ -343,10 +341,8 @@ int cgx_get_rx_stats(void *cgxd, int lmac_id, int idx, u64 *rx_stat)
 
 int cgx_get_tx_stats(void *cgxd, int lmac_id, int idx, u64 *tx_stat)
 {
-	struct mac_ops *mac_ops;
 	struct cgx *cgx = cgxd;
 
-	mac_ops = cgx->mac_ops;
 	if (!is_lmac_valid(cgx, lmac_id))
 		return -ENODEV;
 	*tx_stat = cgx_read(cgx, lmac_id, CGXX_CMRX_TX_STAT0 + (idx * 8));
@@ -1303,7 +1299,11 @@ static struct mac_ops	cgx_mac_ops    = {
 	.int_ena_bit    =       FW_CGX_INT,
 	.lmac_fwi	=	CGX_LMAC_FWI,
 	.non_contiguous_serdes_lane = false,
+	.rx_stats_cnt   =       9,
+	.tx_stats_cnt   =       18,
 	.get_nr_lmacs	=	cgx_get_nr_lmacs,
+	.mac_get_rx_stats  =	cgx_get_rx_stats,
+	.mac_get_tx_stats  =	cgx_get_tx_stats,
 	.mac_enadis_rx_pause_fwding =	cgx_lmac_enadis_rx_pause_fwding,
 	.mac_get_pause_frm_status =	cgx_lmac_get_pause_frm_status,
 	.mac_enadis_pause_frm =		cgx_lmac_enadis_pause_frm,
@@ -1375,6 +1375,8 @@ static int cgx_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 	cgx_link_usertable_init();
 
 	cgx_populate_features(cgx);
+
+	mutex_init(&cgx->lock);
 
 	err = cgx_lmac_init(cgx);
 	if (err)

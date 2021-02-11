@@ -453,10 +453,11 @@ int rvu_mbox_handler_cgx_stop_rxtx(struct rvu *rvu, struct msg_req *req,
 	return 0;
 }
 
-int rvu_mbox_handler_cgx_stats(struct rvu *rvu, struct msg_req *req,
-			       struct cgx_stats_rsp *rsp)
+static int rvu_lmac_get_stats(struct rvu *rvu, struct msg_req *req,
+			      void *rsp)
 {
 	int pf = rvu_get_pf(req->hdr.pcifunc);
+	struct mac_ops *mac_ops;
 	int stat = 0, err = 0;
 	u64 tx_stat, rx_stat;
 	u8 cgx_idx, lmac;
@@ -467,26 +468,45 @@ int rvu_mbox_handler_cgx_stats(struct rvu *rvu, struct msg_req *req,
 
 	rvu_get_cgx_lmac_id(rvu->pf2cgxlmac_map[pf], &cgx_idx, &lmac);
 	cgxd = rvu_cgx_pdata(cgx_idx, rvu);
+	mac_ops = get_mac_ops(cgxd);
 
 	/* Rx stats */
-	while (stat < CGX_RX_STATS_COUNT) {
-		err = cgx_get_rx_stats(cgxd, lmac, stat, &rx_stat);
+	while (stat < mac_ops->rx_stats_cnt) {
+		err = mac_ops->mac_get_rx_stats(cgxd, lmac, stat, &rx_stat);
 		if (err)
 			return err;
-		rsp->rx_stats[stat] = rx_stat;
+		if (mac_ops->rx_stats_cnt == RPM_RX_STATS_COUNT)
+			((struct rpm_stats_rsp *)rsp)->rx_stats[stat] = rx_stat;
+		else
+			((struct cgx_stats_rsp *)rsp)->rx_stats[stat] = rx_stat;
 		stat++;
 	}
 
 	/* Tx stats */
 	stat = 0;
-	while (stat < CGX_TX_STATS_COUNT) {
-		err = cgx_get_tx_stats(cgxd, lmac, stat, &tx_stat);
+	while (stat < mac_ops->tx_stats_cnt) {
+		err = mac_ops->mac_get_tx_stats(cgxd, lmac, stat, &tx_stat);
 		if (err)
 			return err;
-		rsp->tx_stats[stat] = tx_stat;
+		if (mac_ops->tx_stats_cnt == RPM_TX_STATS_COUNT)
+			((struct rpm_stats_rsp *)rsp)->tx_stats[stat] = tx_stat;
+		else
+			((struct cgx_stats_rsp *)rsp)->tx_stats[stat] = tx_stat;
 		stat++;
 	}
 	return 0;
+}
+
+int rvu_mbox_handler_cgx_stats(struct rvu *rvu, struct msg_req *req,
+			       struct cgx_stats_rsp *rsp)
+{
+	return rvu_lmac_get_stats(rvu, req, (void *)rsp);
+}
+
+int rvu_mbox_handler_rpm_stats(struct rvu *rvu, struct msg_req *req,
+			       struct rpm_stats_rsp *rsp)
+{
+	return rvu_lmac_get_stats(rvu, req, (void *)rsp);
 }
 
 int rvu_mbox_handler_cgx_fec_stats(struct rvu *rvu,

@@ -18,7 +18,11 @@ static struct mac_ops	rpm_mac_ops   = {
 	.int_ena_bit    =       BIT_ULL(0),
 	.lmac_fwi	=	RPM_LMAC_FWI,
 	.non_contiguous_serdes_lane = true,
+	.rx_stats_cnt   =       43,
+	.tx_stats_cnt   =       34,
 	.get_nr_lmacs	=	rpm_get_nr_lmacs,
+	.mac_get_rx_stats  =	rpm_get_rx_stats,
+	.mac_get_tx_stats  =	rpm_get_tx_stats,
 	.mac_enadis_rx_pause_fwding =	rpm_lmac_enadis_rx_pause_fwding,
 	.mac_get_pause_frm_status =	rpm_lmac_get_pause_frm_status,
 	.mac_enadis_pause_frm =		rpm_lmac_enadis_pause_frm,
@@ -49,7 +53,7 @@ int rpm_get_nr_lmacs(void *rpmd)
 
 void rpm_lmac_enadis_rx_pause_fwding(void *rpmd, int lmac_id, bool enable)
 {
-	struct cgx *rpm = rpmd;
+	rpm_t *rpm = rpmd;
 	u64 cfg;
 
 	if (!rpm)
@@ -170,4 +174,55 @@ void rpm_lmac_pause_frm_config(void *rpmd, int lmac_id, bool enable)
 		cfg |= RPMX_MTI_MAC100X_COMMAND_CONFIG_TX_P_DISABLE;
 		rpm_write(rpm, lmac_id, RPMX_MTI_MAC100X_COMMAND_CONFIG, cfg);
 	}
+}
+
+int rpm_get_rx_stats(void *rpmd, int lmac_id, int idx, u64 *rx_stat)
+{
+	rpm_t *rpm = rpmd;
+	u64 val_lo, val_hi;
+
+	if (!rpm || lmac_id >= rpm->lmac_count)
+		return -ENODEV;
+
+	mutex_lock(&rpm->lock);
+
+	/* Update idx to point per lmac Rx statistics page */
+	idx += lmac_id * rpm->mac_ops->rx_stats_cnt;
+
+	/* Read lower 32 bits of counter */
+	val_lo = rpm_read(rpm, 0, RPMX_MTI_STAT_RX_STAT_PAGES_COUNTERX +
+			  (idx * 8));
+
+	/* upon read of lower 32 bits, higher 32 bits are written
+	 * to RPMX_MTI_STAT_DATA_HI_CDC
+	 */
+	val_hi = rpm_read(rpm, 0, RPMX_MTI_STAT_DATA_HI_CDC);
+
+	*rx_stat = (val_hi << 32 | val_lo);
+
+	mutex_unlock(&rpm->lock);
+	return 0;
+}
+
+int rpm_get_tx_stats(void *rpmd, int lmac_id, int idx, u64 *tx_stat)
+{
+	rpm_t *rpm = rpmd;
+	u64 val_lo, val_hi;
+
+	if (!rpm || lmac_id >= rpm->lmac_count)
+		return -ENODEV;
+
+	mutex_lock(&rpm->lock);
+
+	/* Update idx to point per lmac Tx statistics page */
+	idx += lmac_id * rpm->mac_ops->tx_stats_cnt;
+
+	val_lo = rpm_read(rpm, 0, RPMX_MTI_STAT_TX_STAT_PAGES_COUNTERX +
+			    (idx * 8));
+	val_hi = rpm_read(rpm, 0, RPMX_MTI_STAT_DATA_HI_CDC);
+
+	*tx_stat = (val_hi << 32 | val_lo);
+
+	mutex_unlock(&rpm->lock);
+	return 0;
 }

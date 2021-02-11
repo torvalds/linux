@@ -161,6 +161,7 @@ M(CGX_SET_LINK_MODE,	0x214, cgx_set_link_mode, cgx_set_link_mode_req,\
 			       cgx_set_link_mode_rsp)	\
 M(CGX_FEATURES_GET,	0x215, cgx_features_get, msg_req,		\
 			       cgx_features_info_msg)			\
+M(RPM_STATS,		0x216, rpm_stats, msg_req, rpm_stats_rsp)	\
  /* NPA mbox IDs (range 0x400 - 0x5FF) */				\
 /* NPA mbox IDs (range 0x400 - 0x5FF) */				\
 M(NPA_LF_ALLOC,		0x400, npa_lf_alloc,				\
@@ -490,12 +491,20 @@ struct cgx_set_link_mode_rsp {
 #define RVU_LMAC_FEAT_FC		BIT_ULL(0) /* pause frames */
 #define RVU_LMAC_FEAT_PTP		BIT_ULL(1) /* precison time protocol */
 #define RVU_MAC_VERSION			BIT_ULL(2)
-#define RVU_MAC_CGX			0
-#define RVU_MAC_RPM			1
+#define RVU_MAC_CGX			BIT_ULL(3)
+#define RVU_MAC_RPM			BIT_ULL(4)
 
 struct cgx_features_info_msg {
 	struct mbox_msghdr hdr;
 	u64    lmac_features;
+};
+
+struct rpm_stats_rsp {
+	struct mbox_msghdr hdr;
+#define RPM_RX_STATS_COUNT		43
+#define RPM_TX_STATS_COUNT		34
+	u64 rx_stats[RPM_RX_STATS_COUNT];
+	u64 tx_stats[RPM_TX_STATS_COUNT];
 };
 
 /* NPA mbox message formats */

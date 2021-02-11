@@ -63,15 +63,25 @@ struct mac_ops {
 	u8			lmac_fwi;
 	u32			fifo_len;
 	bool			non_contiguous_serdes_lane;
+	/* RPM & CGX differs in number of Receive/transmit stats */
+	u8			rx_stats_cnt;
+	u8			tx_stats_cnt;
 	/* Incase of RPM get number of lmacs from RPMX_CMR_RX_LMACS[LMAC_EXIST]
 	 * number of setbits in lmac_exist tells number of lmacs
 	 */
 	int			(*get_nr_lmacs)(void *cgx);
 
+	/* Register Stats related functions */
+	int			(*mac_get_rx_stats)(void *cgx, int lmac_id,
+						    int idx, u64 *rx_stat);
+	int			(*mac_get_tx_stats)(void *cgx, int lmac_id,
+						    int idx, u64 *tx_stat);
+
 	/* Enable LMAC Pause Frame Configuration */
 	void			(*mac_enadis_rx_pause_fwding)(void *cgxd,
 							      int lmac_id,
 							      bool enable);
+
 	int			(*mac_get_pause_frm_status)(void *cgxd,
 							    int lmac_id,
 							    u8 *tx_pause,
@@ -81,10 +91,10 @@ struct mac_ops {
 							int lmac_id,
 							u8 tx_pause,
 							u8 rx_pause);
+
 	void			(*mac_pause_frm_config)(void  *cgxd,
 							int lmac_id,
 							bool enable);
-
 };
 
 struct cgx {
@@ -99,6 +109,10 @@ struct cgx {
 	u64			hw_features;
 	struct mac_ops		*mac_ops;
 	unsigned long		lmac_bmap; /* bitmap of enabled lmacs */
+	/* Lock to serialize read/write of global csrs like
+	 * RPMX_MTI_STAT_DATA_HI_CDC etc
+	 */
+	struct mutex		lock;
 };
 
 typedef struct cgx rpm_t;
