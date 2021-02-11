@@ -768,7 +768,8 @@ enum passtype {PASS_SCAN, PASS_REVOKE, PASS_REPLAY};
 struct journal_s
 {
 	/**
-	 * @j_flags: General journaling state flags [j_state_lock]
+	 * @j_flags: General journaling state flags [j_state_lock,
+	 * no lock for quick racy checks]
 	 */
 	unsigned long		j_flags;
 
@@ -808,7 +809,8 @@ struct journal_s
 	/**
 	 * @j_barrier_count:
 	 *
-	 * Number of processes waiting to create a barrier lock [j_state_lock]
+	 * Number of processes waiting to create a barrier lock [j_state_lock,
+	 * no lock for quick racy checks]
 	 */
 	int			j_barrier_count;
 
@@ -821,7 +823,8 @@ struct journal_s
 	 * @j_running_transaction:
 	 *
 	 * Transactions: The current running transaction...
-	 * [j_state_lock] [caller holding open handle]
+	 * [j_state_lock, no lock for quick racy checks] [caller holding
+	 * open handle]
 	 */
 	transaction_t		*j_running_transaction;
 
@@ -1033,7 +1036,7 @@ struct journal_s
 	 * @j_commit_sequence:
 	 *
 	 * Sequence number of the most recently committed transaction
-	 * [j_state_lock].
+	 * [j_state_lock, no lock for quick racy checks]
 	 */
 	tid_t			j_commit_sequence;
 
@@ -1041,7 +1044,7 @@ struct journal_s
 	 * @j_commit_request:
 	 *
 	 * Sequence number of the most recent transaction wanting commit
-	 * [j_state_lock]
+	 * [j_state_lock, no lock for quick racy checks]
 	 */
 	tid_t			j_commit_request;
 
