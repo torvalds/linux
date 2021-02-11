@@ -30,6 +30,8 @@ struct arm_spe_record {
 	u64 from_ip;
 	u64 to_ip;
 	u64 timestamp;
+	u64 virt_addr;
+	u64 phys_addr;
 };
 
 struct arm_spe_insn;
