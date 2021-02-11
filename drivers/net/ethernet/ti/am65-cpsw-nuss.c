@@ -2036,6 +2036,126 @@ static void am65_cpsw_nuss_cleanup_ndev(struct am65_cpsw_common *common)
 	}
 }
 
+static void am65_cpsw_port_offload_fwd_mark_update(struct am65_cpsw_common *common)
+{
+	int set_val = 0;
+	int i;
+
+	if (common->br_members == (GENMASK(common->port_num, 1) & ~common->disabled_ports_mask))
+		set_val = 1;
+
+	dev_dbg(common->dev, "set offload_fwd_mark %d\n", set_val);
+
+	for (i = 1; i <= common->port_num; i++) {
+		struct am65_cpsw_port *port = am65_common_get_port(common, i);
+		struct am65_cpsw_ndev_priv *priv = am65_ndev_to_priv(port->ndev);
+
+		priv->offload_fwd_mark = set_val;
+	}
+}
+
+bool am65_cpsw_port_dev_check(const struct net_device *ndev)
+{
+	if (ndev->netdev_ops == &am65_cpsw_nuss_netdev_ops) {
+		struct am65_cpsw_common *common = am65_ndev_to_common(ndev);
+
+		return !common->is_emac_mode;
+	}
+
+	return false;
+}
+
+static int am65_cpsw_netdevice_port_link(struct net_device *ndev, struct net_device *br_ndev)
+{
+	struct am65_cpsw_common *common = am65_ndev_to_common(ndev);
+	struct am65_cpsw_ndev_priv *priv = am65_ndev_to_priv(ndev);
+
+	if (!common->br_members) {
+		common->hw_bridge_dev = br_ndev;
+	} else {
+		/* This is adding the port to a second bridge, this is
+		 * unsupported
+		 */
+		if (common->hw_bridge_dev != br_ndev)
+			return -EOPNOTSUPP;
+	}
+
+	common->br_members |= BIT(priv->port->port_id);
+
+	am65_cpsw_port_offload_fwd_mark_update(common);
+
+	return NOTIFY_DONE;
+}
+
+static void am65_cpsw_netdevice_port_unlink(struct net_device *ndev)
+{
+	struct am65_cpsw_common *common = am65_ndev_to_common(ndev);
+	struct am65_cpsw_ndev_priv *priv = am65_ndev_to_priv(ndev);
+
+	common->br_members &= ~BIT(priv->port->port_id);
+
+	am65_cpsw_port_offload_fwd_mark_update(common);
+
+	if (!common->br_members)
+		common->hw_bridge_dev = NULL;
+}
+
+/* netdev notifier */
+static int am65_cpsw_netdevice_event(struct notifier_block *unused,
+				     unsigned long event, void *ptr)
+{
+	struct net_device *ndev = netdev_notifier_info_to_dev(ptr);
+	struct netdev_notifier_changeupper_info *info;
+	int ret = NOTIFY_DONE;
+
+	if (!am65_cpsw_port_dev_check(ndev))
+		return NOTIFY_DONE;
+
+	switch (event) {
+	case NETDEV_CHANGEUPPER:
+		info = ptr;
+
+		if (netif_is_bridge_master(info->upper_dev)) {
+			if (info->linking)
+				ret = am65_cpsw_netdevice_port_link(ndev, info->upper_dev);
+			else
+				am65_cpsw_netdevice_port_unlink(ndev);
+		}
+		break;
+	default:
+		return NOTIFY_DONE;
+	}
+
+	return notifier_from_errno(ret);
+}
+
+static int am65_cpsw_register_notifiers(struct am65_cpsw_common *cpsw)
+{
+	int ret = 0;
+
+	if (AM65_CPSW_IS_CPSW2G(cpsw) ||
+	    !IS_REACHABLE(CONFIG_TI_K3_AM65_CPSW_SWITCHDEV))
+		return 0;
+
+	cpsw->am65_cpsw_netdevice_nb.notifier_call = &am65_cpsw_netdevice_event;
+	ret = register_netdevice_notifier(&cpsw->am65_cpsw_netdevice_nb);
+	if (ret) {
+		dev_err(cpsw->dev, "can't register netdevice notifier\n");
+		return ret;
+	}
+
+	return ret;
+}
+
+static void am65_cpsw_unregister_notifiers(struct am65_cpsw_common *cpsw)
+{
+	if (AM65_CPSW_IS_CPSW2G(cpsw) ||
+	    !IS_REACHABLE(CONFIG_TI_K3_AM65_CPSW_SWITCHDEV))
+		return;
+
+	unregister_netdevice_notifier(&cpsw->am65_cpsw_netdevice_nb);
+}
+
 static const struct devlink_ops am65_cpsw_devlink_ops = {};
 
 static void am65_cpsw_init_stp_ale_entry(struct am65_cpsw_common *cpsw)
@@ -2379,17 +2499,24 @@ static int am65_cpsw_nuss_register_ndevs(struct am65_cpsw_common *common)
 		}
 	}
 
-	ret = am65_cpsw_nuss_register_devlink(common);
+	ret = am65_cpsw_register_notifiers(common);
 	if (ret)
 		goto err_cleanup_ndev;
+
+	ret = am65_cpsw_nuss_register_devlink(common);
+	if (ret)
+		goto clean_unregister_notifiers;
 
 	/* can't auto unregister ndev using devm_add_action() due to
 	 * devres release sequence in DD core for DMA
 	 */
 
 	return 0;
+clean_unregister_notifiers:
+	am65_cpsw_unregister_notifiers(common);
 err_cleanup_ndev:
 	am65_cpsw_nuss_cleanup_ndev(common);
+
 	return ret;
 }
 
@@ -2621,6 +2748,7 @@ static int am65_cpsw_nuss_remove(struct platform_device *pdev)
 	}
 
 	am65_cpsw_unregister_devlink(common);
+	am65_cpsw_unregister_notifiers(common);
 
 	/* must unregister ndevs here because DD release_driver routine calls
 	 * dma_deconfigure(dev) before devres_release_all(dev)

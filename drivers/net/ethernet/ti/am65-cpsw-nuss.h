@@ -137,6 +137,8 @@ struct am65_cpsw_common {
 	u16			br_members;
 	int			default_vlan;
 	struct devlink *devlink;
+	struct net_device *hw_bridge_dev;
+	struct notifier_block am65_cpsw_netdevice_nb;
 	unsigned char switch_id[MAX_PHYS_ITEM_ID_LEN];
 };
 
@@ -179,5 +181,7 @@ void am65_cpsw_nuss_adjust_link(struct net_device *ndev);
 void am65_cpsw_nuss_set_p0_ptype(struct am65_cpsw_common *common);
 void am65_cpsw_nuss_remove_tx_chns(struct am65_cpsw_common *common);
 int am65_cpsw_nuss_update_tx_chns(struct am65_cpsw_common *common, int num_tx);
+
+bool am65_cpsw_port_dev_check(const struct net_device *dev);
 
 #endif /* AM65_CPSW_NUSS_H_ */
