@@ -166,7 +166,6 @@ config MLX5_FPGA_TLS
 	depends on TLS=y || MLX5_CORE=m
 	depends on MLX5_CORE_EN
 	depends on MLX5_FPGA
-	depends on XPS
 	select MLX5_EN_TLS
 	default n
 	help
@@ -181,7 +180,6 @@ config MLX5_TLS
 	depends on TLS_DEVICE
 	depends on TLS=y || MLX5_CORE=m
 	depends on MLX5_CORE_EN
-	depends on XPS
 	select MLX5_ACCEL
 	select MLX5_EN_TLS
 	default n

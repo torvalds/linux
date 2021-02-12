@@ -8814,7 +8814,7 @@ u32 bpf_sock_convert_ctx_access(enum bpf_access_type type,
 				       target_size));
 		break;
 	case offsetof(struct bpf_sock, rx_queue_mapping):
-#ifdef CONFIG_XPS
+#ifdef CONFIG_SOCK_RX_QUEUE_MAPPING
 		*insn++ = BPF_LDX_MEM(
 			BPF_FIELD_SIZEOF(struct sock, sk_rx_queue_mapping),
 			si->dst_reg, si->src_reg,
