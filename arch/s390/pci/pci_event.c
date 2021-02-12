@@ -104,13 +104,15 @@ static void __zpci_event_availability(struct zpci_ccdf_avail *ccdf)
 	switch (ccdf->pec) {
 	case 0x0301: /* Reserved|Standby -> Configured */
 		if (!zdev) {
-			zpci_create_device(ccdf->fid, ccdf->fh, ZPCI_FN_STATE_CONFIGURED);
-			break;
+			zdev = zpci_create_device(ccdf->fid, ccdf->fh, ZPCI_FN_STATE_CONFIGURED);
+			if (IS_ERR(zdev))
+				break;
+		} else {
+			/* the configuration request may be stale */
+			if (zdev->state != ZPCI_FN_STATE_STANDBY)
+				break;
+			zdev->state = ZPCI_FN_STATE_CONFIGURED;
 		}
-		/* the configuration request may be stale */
-		if (zdev->state != ZPCI_FN_STATE_STANDBY)
-			break;
-		zdev->state = ZPCI_FN_STATE_CONFIGURED;
 		zpci_configure_device(zdev, ccdf->fh);
 		break;
 	case 0x0302: /* Reserved -> Standby */

@@ -690,9 +690,9 @@ int zpci_disable_device(struct zpci_dev *zdev)
  * Creates a new zpci device and adds it to its, possibly newly created, zbus
  * as well as zpci_list.
  *
- * Returns: 0 on success, an error value otherwise
+ * Returns: the zdev on success or an error pointer otherwise
  */
-int zpci_create_device(u32 fid, u32 fh, enum zpci_state state)
+struct zpci_dev *zpci_create_device(u32 fid, u32 fh, enum zpci_state state)
 {
 	struct zpci_dev *zdev;
 	int rc;
@@ -700,7 +700,7 @@ int zpci_create_device(u32 fid, u32 fh, enum zpci_state state)
 	zpci_dbg(3, "add fid:%x, fh:%x, c:%d\n", fid, fh, state);
 	zdev = kzalloc(sizeof(*zdev), GFP_KERNEL);
 	if (!zdev)
-		return -ENOMEM;
+		return ERR_PTR(-ENOMEM);
 
 	/* FID and Function Handle are the static/dynamic identifiers */
 	zdev->fid = fid;
@@ -727,14 +727,14 @@ int zpci_create_device(u32 fid, u32 fh, enum zpci_state state)
 	list_add_tail(&zdev->entry, &zpci_list);
 	spin_unlock(&zpci_list_lock);
 
-	return 0;
+	return zdev;
 
 error_destroy_iommu:
 	zpci_destroy_iommu(zdev);
 error:
 	zpci_dbg(0, "add fid:%x, rc:%d\n", fid, rc);
 	kfree(zdev);
-	return rc;
+	return ERR_PTR(rc);
 }
 
 /**
@@ -959,6 +959,7 @@ static int __init pci_base_init(void)
 	rc = clp_scan_pci_devices();
 	if (rc)
 		goto out_find;
+	zpci_bus_scan_busses();
 
 	s390_pci_initialized = 1;
 	return 0;

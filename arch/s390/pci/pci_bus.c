@@ -160,6 +160,23 @@ int zpci_bus_scan_bus(struct zpci_bus *zbus)
 	return ret;
 }
 
+/* zpci_bus_scan_busses - Scan all registered busses
+ *
+ * Scan all available zbusses
+ *
+ */
+void zpci_bus_scan_busses(void)
+{
+	struct zpci_bus *zbus = NULL;
+
+	mutex_lock(&zbus_list_lock);
+	list_for_each_entry(zbus, &zbus_list, bus_next) {
+		zpci_bus_scan_bus(zbus);
+		cond_resched();
+	}
+	mutex_unlock(&zbus_list_lock);
+}
+
 /* zpci_bus_create_pci_bus - Create the PCI bus associated with this zbus
  * @zbus: the zbus holding the zdevices
  * @f0: function 0 of the bus
@@ -384,24 +401,6 @@ int zpci_bus_device_register(struct zpci_dev *zdev, struct pci_ops *ops)
 	}
 
 	rc = zpci_bus_add_device(zbus, zdev);
-	if (rc)
-		goto error;
-
-	if (zdev->state != ZPCI_FN_STATE_CONFIGURED)
-		return 0;
-
-	/* the PCI function will be scanned once function 0 appears */
-	if (!zdev->zbus->bus)
-		return 0;
-
-	/* For function 0 scan whole bus as we might have to pick up existing
-	 * functions waiting for it to allow creating the PCI bus
-	 */
-	if (zdev->devfn == 0 && zdev->zbus->multifunction)
-		rc = zpci_bus_scan_bus(zdev->zbus);
-	else
-		rc = zpci_bus_scan_device(zdev);
-
 	if (rc)
 		goto error;
 
