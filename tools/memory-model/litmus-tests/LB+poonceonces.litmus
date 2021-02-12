@@ -7,10 +7,7 @@ C LB+poonceonces
  * be prevented even with no explicit ordering?
  *)
 
-{
-	int x;
-	int y;
-}
+{}
 
 P0(int *x, int *y)
 {

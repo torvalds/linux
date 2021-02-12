@@ -7,10 +7,7 @@ C MP+poonceonces
  * no ordering at all?
  *)
 
-{
-	int buf;
-	int flag;
-}
+{}
 
 P0(int *buf, int *flag) // Producer
 {

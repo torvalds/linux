@@ -8,10 +8,7 @@ C MP+fencewmbonceonce+fencermbonceonce
  * is usually better to use smp_store_release() and smp_load_acquire().
  *)
 
-{
-	int buf;
-	int flag;
-}
+{}
 
 P0(int *buf, int *flag) // Producer
 {

@@ -9,10 +9,7 @@ C S+poonceonces
  * READ_ONCE(), is ordering preserved?
  *)
 
-{
-	int x;
-	int y;
-}
+{}
 
 P0(int *x, int *y)
 {
