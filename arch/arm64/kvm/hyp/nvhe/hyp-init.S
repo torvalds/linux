@@ -55,17 +55,10 @@ __do_hyp_init:
 	cmp	x0, #HVC_STUB_HCALL_NR
 	b.lo	__kvm_handle_stub_hvc
 
-	// We only actively check bits [24:31], and everything
-	// else has to be zero, which we check at build time.
-#if (KVM_HOST_SMCCC_FUNC(__kvm_hyp_init) & 0xFFFFFFFF00FFFFFF)
-#error Unexpected __KVM_HOST_SMCCC_FUNC___kvm_hyp_init value
-#endif
+	mov	x3, #KVM_HOST_SMCCC_FUNC(__kvm_hyp_init)
+	cmp	x0, x3
+	b.eq	1f
 
-	ror	x0, x0, #24
-	eor	x0, x0, #((KVM_HOST_SMCCC_FUNC(__kvm_hyp_init) >> 24) & 0xF)
-	ror	x0, x0, #4
-	eor	x0, x0, #((KVM_HOST_SMCCC_FUNC(__kvm_hyp_init) >> 28) & 0xF)
-	cbz	x0, 1f
 	mov	x0, #SMCCC_RET_NOT_SUPPORTED
 	eret
 
