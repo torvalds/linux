@@ -86,24 +86,33 @@ void zpci_bus_remove_device(struct zpci_dev *zdev, bool set_error)
 	}
 }
 
-/* zpci_bus_scan
+/* zpci_bus_scan - Scan the PCI bus associated with this zbus
  * @zbus: the zbus holding the zdevices
+ * @f0: function 0 of the bus
  * @ops: the pci operations
  *
- * The domain number must be set before pci_scan_root_bus is called.
- * This function can be called once the domain is known, hence
- * when the function_0 is dicovered.
+ * Function zero is taken as a parameter as this is used to determine the
+ * domain, multifunction property and maximum bus speed of the entire bus.
+ *
+ * Return: 0 on success, an error code otherwise
  */
-static int zpci_bus_scan(struct zpci_bus *zbus, int domain, struct pci_ops *ops)
+static int zpci_bus_scan(struct zpci_bus *zbus, struct zpci_dev *f0, struct pci_ops *ops)
 {
 	struct pci_bus *bus;
-	int rc;
+	int domain;
 
-	rc = zpci_alloc_domain(domain);
-	if (rc < 0)
-		return rc;
-	zbus->domain_nr = rc;
+	domain = zpci_alloc_domain((u16)f0->uid);
+	if (domain < 0)
+		return domain;
 
+	zbus->domain_nr = domain;
+	zbus->multifunction = f0->rid_available;
+	zbus->max_bus_speed = f0->max_bus_speed;
+
+	/*
+	 * Note that the zbus->resources are taken over and zbus->resources
+	 * is empty after a successful call
+	 */
 	bus = pci_scan_root_bus(NULL, ZPCI_BUS_NR, ops, zbus, &zbus->resources);
 	if (!bus) {
 		zpci_free_domain(zbus->domain_nr);
@@ -288,7 +297,7 @@ int zpci_bus_device_register(struct zpci_dev *zdev, struct pci_ops *ops)
 			WARN_ONCE(1, "rid_available not set on function 0 for multifunction\n");
 			goto error_bus;
 		}
-		rc = zpci_bus_scan(zbus, (u16)zdev->uid, ops);
+		rc = zpci_bus_scan(zbus, zdev, ops);
 		if (rc)
 			goto error_bus;
 		zpci_bus_add_devices(zbus);
@@ -296,8 +305,6 @@ int zpci_bus_device_register(struct zpci_dev *zdev, struct pci_ops *ops)
 		if (rc)
 			goto error_bus;
 		zdev->has_hp_slot = 1;
-		zbus->multifunction = zdev->rid_available;
-		zbus->max_bus_speed = zdev->max_bus_speed;
 	} else {
 		zbus->multifunction = 1;
 	}
