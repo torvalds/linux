@@ -1011,6 +1011,16 @@ static void kfd_process_ref_release(struct kref *ref)
 	queue_work(kfd_process_wq, &p->release_work);
 }
 
+static struct mmu_notifier *kfd_process_alloc_notifier(struct mm_struct *mm)
+{
+	int idx = srcu_read_lock(&kfd_processes_srcu);
+	struct kfd_process *p = find_process_by_mm(mm);
+
+	srcu_read_unlock(&kfd_processes_srcu, idx);
+
+	return p ? &p->mmu_notifier : ERR_PTR(-ESRCH);
+}
+
 static void kfd_process_free_notifier(struct mmu_notifier *mn)
 {
 	kfd_unref_process(container_of(mn, struct kfd_process, mmu_notifier));
@@ -1075,6 +1085,7 @@ static void kfd_process_notifier_release(struct mmu_notifier *mn,
 
 static const struct mmu_notifier_ops kfd_process_mmu_notifier_ops = {
 	.release = kfd_process_notifier_release,
+	.alloc_notifier = kfd_process_alloc_notifier,
 	.free_notifier = kfd_process_free_notifier,
 };
 
@@ -1152,6 +1163,7 @@ static int kfd_process_device_init_cwsr_dgpu(struct kfd_process_device *pdd)
 static struct kfd_process *create_process(const struct task_struct *thread)
 {
 	struct kfd_process *process;
+	struct mmu_notifier *mn;
 	int err = -ENOMEM;
 
 	process = kzalloc(sizeof(*process), GFP_KERNEL);
@@ -1182,19 +1194,28 @@ static struct kfd_process *create_process(const struct task_struct *thread)
 	if (err != 0)
 		goto err_init_apertures;
 
-	/* Must be last, have to use release destruction after this */
-	process->mmu_notifier.ops = &kfd_process_mmu_notifier_ops;
-	err = mmu_notifier_register(&process->mmu_notifier, process->mm);
-	if (err)
-		goto err_register_notifier;
-
-	get_task_struct(process->lead_thread);
+	/* alloc_notifier needs to find the process in the hash table */
 	hash_add_rcu(kfd_processes_table, &process->kfd_processes,
 			(uintptr_t)process->mm);
+
+	/* MMU notifier registration must be the last call that can fail
+	 * because after this point we cannot unwind the process creation.
+	 * After this point, mmu_notifier_put will trigger the cleanup by
+	 * dropping the last process reference in the free_notifier.
+	 */
+	mn = mmu_notifier_get(&kfd_process_mmu_notifier_ops, process->mm);
+	if (IS_ERR(mn)) {
+		err = PTR_ERR(mn);
+		goto err_register_notifier;
+	}
+	BUG_ON(mn != &process->mmu_notifier);
+
+	get_task_struct(process->lead_thread);
 
 	return process;
 
 err_register_notifier:
+	hash_del_rcu(&process->kfd_processes);
 	kfd_process_free_outstanding_kfd_bos(process);
 	kfd_process_destroy_pdds(process);
 err_init_apertures:
