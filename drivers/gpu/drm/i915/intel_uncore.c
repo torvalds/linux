@@ -465,6 +465,22 @@ fpga_check_for_unclaimed_mmio(struct intel_uncore *uncore)
 	if (likely(!(dbg & FPGA_DBG_RM_NOCLAIM)))
 		return false;
 
+	/*
+	 * Bugs in PCI programming (or failing hardware) can occasionally cause
+	 * us to lose access to the MMIO BAR.  When this happens, register
+	 * reads will come back with 0xFFFFFFFF for every register and things
+	 * go bad very quickly.  Let's try to detect that special case and at
+	 * least try to print a more informative message about what has
+	 * happened.
+	 *
+	 * During normal operation the FPGA_DBG register has several unused
+	 * bits that will always read back as 0's so we can use them as canaries
+	 * to recognize when MMIO accesses are just busted.
+	 */
+	if (unlikely(dbg == ~0))
+		drm_err(&uncore->i915->drm,
+			"Lost access to MMIO BAR; all registers now read back as 0xFFFFFFFF!\n");
+
 	__raw_uncore_write32(uncore, FPGA_DBG, FPGA_DBG_RM_NOCLAIM);
 
 	return true;
