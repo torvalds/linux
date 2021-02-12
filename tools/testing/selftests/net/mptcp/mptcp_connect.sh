@@ -334,6 +334,21 @@ do_ping()
 	return 0
 }
 
+# $1: ns, $2: MIB counter
+get_mib_counter()
+{
+	local listener_ns="${1}"
+	local mib="${2}"
+
+	# strip the header
+	ip netns exec "${listener_ns}" \
+		nstat -z -a "${mib}" | \
+			tail -n+2 | \
+			while read a count c rest; do
+				echo $count
+			done
+}
+
 # $1: ns, $2: port
 wait_local_port_listen()
 {
@@ -410,10 +425,10 @@ do_transfer()
 		sleep 1
 	fi
 
-	local stat_synrx_last_l=$(ip netns exec ${listener_ns} nstat -z -a MPTcpExtMPCapableSYNRX | while read a count c rest ;do  echo $count;done)
-	local stat_ackrx_last_l=$(ip netns exec ${listener_ns} nstat -z -a MPTcpExtMPCapableACKRX | while read a count c rest ;do  echo $count;done)
-	local stat_cookietx_last=$(ip netns exec ${listener_ns} nstat -z -a TcpExtSyncookiesSent | while read a count c rest ;do  echo $count;done)
-	local stat_cookierx_last=$(ip netns exec ${listener_ns} nstat -z -a TcpExtSyncookiesRecv | while read a count c rest ;do  echo $count;done)
+	local stat_synrx_last_l=$(get_mib_counter "${listener_ns}" "MPTcpExtMPCapableSYNRX")
+	local stat_ackrx_last_l=$(get_mib_counter "${listener_ns}" "MPTcpExtMPCapableACKRX")
+	local stat_cookietx_last=$(get_mib_counter "${listener_ns}" "TcpExtSyncookiesSent")
+	local stat_cookierx_last=$(get_mib_counter "${listener_ns}" "TcpExtSyncookiesRecv")
 
 	ip netns exec ${listener_ns} ./mptcp_connect -t $timeout -l -p $port -s ${srv_proto} $extra_args $local_addr < "$sin" > "$sout" &
 	local spid=$!
@@ -448,15 +463,17 @@ do_transfer()
 
 	local duration
 	duration=$((stop-start))
-	duration=$(printf "(duration %05sms)" $duration)
+	printf "(duration %05sms) " "${duration}"
 	if [ ${rets} -ne 0 ] || [ ${retc} -ne 0 ]; then
-		echo "$duration [ FAIL ] client exit code $retc, server $rets" 1>&2
+		echo "[ FAIL ] client exit code $retc, server $rets" 1>&2
 		echo -e "\nnetns ${listener_ns} socket stat for ${port}:" 1>&2
 		ip netns exec ${listener_ns} ss -Menita 1>&2 -o "sport = :$port"
 		cat /tmp/${listener_ns}.out
 		echo -e "\nnetns ${connector_ns} socket stat for ${port}:" 1>&2
 		ip netns exec ${connector_ns} ss -Menita 1>&2 -o "dport = :$port"
 		[ ${listener_ns} != ${connector_ns} ] && cat /tmp/${connector_ns}.out
+
+		echo
 		cat "$capout"
 		return 1
 	fi
@@ -466,11 +483,14 @@ do_transfer()
 	check_transfer $cin $sout "file received by server"
 	rets=$?
 
-	local stat_synrx_now_l=$(ip netns exec ${listener_ns} nstat -z -a MPTcpExtMPCapableSYNRX  | while read a count c rest ;do  echo $count;done)
-	local stat_ackrx_now_l=$(ip netns exec ${listener_ns} nstat -z -a MPTcpExtMPCapableACKRX  | while read a count c rest ;do  echo $count;done)
+	if [ $retc -eq 0 ] && [ $rets -eq 0 ]; then
+		printf "[ OK ]"
+	fi
 
-	local stat_cookietx_now=$(ip netns exec ${listener_ns} nstat -z -a TcpExtSyncookiesSent | while read a count c rest ;do  echo $count;done)
-	local stat_cookierx_now=$(ip netns exec ${listener_ns} nstat -z -a TcpExtSyncookiesRecv | while read a count c rest ;do  echo $count;done)
+	local stat_synrx_now_l=$(get_mib_counter "${listener_ns}" "MPTcpExtMPCapableSYNRX")
+	local stat_ackrx_now_l=$(get_mib_counter "${listener_ns}" "MPTcpExtMPCapableACKRX")
+	local stat_cookietx_now=$(get_mib_counter "${listener_ns}" "TcpExtSyncookiesSent")
+	local stat_cookierx_now=$(get_mib_counter "${listener_ns}" "TcpExtSyncookiesRecv")
 
 	expect_synrx=$((stat_synrx_last_l))
 	expect_ackrx=$((stat_ackrx_last_l))
@@ -484,35 +504,32 @@ do_transfer()
 	fi
 	if [ $cookies -eq 2 ];then
 		if [ $stat_cookietx_last -ge $stat_cookietx_now ] ;then
-			echo "${listener_ns} CookieSent: ${cl_proto} -> ${srv_proto}: did not advance"
+			printf " WARN: CookieSent: did not advance"
 		fi
 		if [ $stat_cookierx_last -ge $stat_cookierx_now ] ;then
-			echo "${listener_ns} CookieRecv: ${cl_proto} -> ${srv_proto}: did not advance"
+			printf " WARN: CookieRecv: did not advance"
 		fi
 	else
 		if [ $stat_cookietx_last -ne $stat_cookietx_now ] ;then
-			echo "${listener_ns} CookieSent: ${cl_proto} -> ${srv_proto}: changed"
+			printf " WARN: CookieSent: changed"
 		fi
 		if [ $stat_cookierx_last -ne $stat_cookierx_now ] ;then
-			echo "${listener_ns} CookieRecv: ${cl_proto} -> ${srv_proto}: changed"
+			printf " WARN: CookieRecv: changed"
 		fi
 	fi
 
 	if [ $expect_synrx -ne $stat_synrx_now_l ] ;then
-		echo "${listener_ns} SYNRX: ${cl_proto} -> ${srv_proto}: expect ${expect_synrx}, got ${stat_synrx_now_l}"
+		printf " WARN: SYNRX: expect %d, got %d" \
+			"${expect_synrx}" "${stat_synrx_now_l}"
 	fi
 	if [ $expect_ackrx -ne $stat_ackrx_now_l ] ;then
-		echo "${listener_ns} ACKRX: ${cl_proto} -> ${srv_proto}: expect ${expect_ackrx}, got ${stat_ackrx_now_l} "
+		printf " WARN: ACKRX: expect %d, got %d" \
+			"${expect_ackrx}" "${stat_ackrx_now_l}"
 	fi
 
-	if [ $retc -eq 0 ] && [ $rets -eq 0 ];then
-		echo "$duration [ OK ]"
-		cat "$capout"
-		return 0
-	fi
-
+	echo
 	cat "$capout"
-	return 1
+	[ $retc -eq 0 ] && [ $rets -eq 0 ]
 }
 
 make_file()
