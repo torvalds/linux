@@ -1475,10 +1475,12 @@ static bool __is_path_w_addr_exists(struct rtrs_srv *srv,
 
 static void free_sess(struct rtrs_srv_sess *sess)
 {
-	if (sess->kobj.state_in_sysfs)
+	if (sess->kobj.state_in_sysfs) {
+		kobject_del(&sess->kobj);
 		kobject_put(&sess->kobj);
-	else
+	} else {
 		kfree(sess);
+	}
 }
 
 static void rtrs_srv_close_work(struct work_struct *work)

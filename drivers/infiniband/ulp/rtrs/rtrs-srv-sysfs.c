@@ -305,7 +305,7 @@ void rtrs_srv_destroy_sess_files(struct rtrs_srv_sess *sess)
 	if (sess->kobj.state_in_sysfs) {
 		kobject_del(&sess->stats->kobj_stats);
 		kobject_put(&sess->stats->kobj_stats);
-		kobject_del(&sess->kobj);
+		sysfs_remove_group(&sess->kobj, &rtrs_srv_sess_attr_group);
 		kobject_put(&sess->kobj);
 
 		rtrs_srv_destroy_once_sysfs_root_folders(sess);
