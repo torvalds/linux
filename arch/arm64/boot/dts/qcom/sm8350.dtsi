@@ -257,6 +257,15 @@
 			no-map;
 		};
 
+		rmtfs_mem: memory@9b800000 {
+			compatible = "qcom,rmtfs-mem";
+			reg = <0x0 0x9b800000 0x0 0x280000>;
+			no-map;
+
+			qcom,client-id = <1>;
+			qcom,vmid = <15>;
+		};
+
 		hyp_reserved_mem: memory@d0000000 {
 			reg = <0x0 0xd0000000 0x0 0x800000>;
 			no-map;
