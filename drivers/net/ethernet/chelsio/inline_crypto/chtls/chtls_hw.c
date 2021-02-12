@@ -88,6 +88,24 @@ static int chtls_set_tcb_field(struct sock *sk, u16 word, u64 mask, u64 val)
 	return ret < 0 ? ret : 0;
 }
 
+void chtls_set_tcb_field_rpl_skb(struct sock *sk, u16 word,
+				 u64 mask, u64 val, u8 cookie,
+				 int through_l2t)
+{
+	struct sk_buff *skb;
+	unsigned int wrlen;
+
+	wrlen = sizeof(struct cpl_set_tcb_field) + sizeof(struct ulptx_idata);
+	wrlen = roundup(wrlen, 16);
+
+	skb = alloc_skb(wrlen, GFP_KERNEL | __GFP_NOFAIL);
+	if (!skb)
+		return;
+
+	__set_tcb_field(sk, skb, word, mask, val, cookie, 0);
+	send_or_defer(sk, tcp_sk(sk), skb, through_l2t);
+}
+
 /*
  * Set one of the t_flags bits in the TCB.
  */
@@ -111,6 +129,29 @@ static int chtls_set_tcb_quiesce(struct sock *sk, int val)
 {
 	return chtls_set_tcb_field(sk, 1, (1ULL << TF_RX_QUIESCE_S),
 				   TF_RX_QUIESCE_V(val));
+}
+
+void chtls_set_quiesce_ctrl(struct sock *sk, int val)
+{
+	struct chtls_sock *csk;
+	struct sk_buff *skb;
+	unsigned int wrlen;
+	int ret;
+
+	wrlen = sizeof(struct cpl_set_tcb_field) + sizeof(struct ulptx_idata);
+	wrlen = roundup(wrlen, 16);
+
+	skb = alloc_skb(wrlen, GFP_ATOMIC);
+	if (!skb)
+		return;
+
+	csk = rcu_dereference_sk_user_data(sk);
+
+	__set_tcb_field(sk, skb, 1, TF_RX_QUIESCE_V(1), 0, 0, 1);
+	set_wr_txq(skb, CPL_PRIORITY_CONTROL, csk->port_id);
+	ret = cxgb4_ofld_send(csk->egress_dev, skb);
+	if (ret < 0)
+		kfree_skb(skb);
 }
 
 /* TLS Key bitmap processing */

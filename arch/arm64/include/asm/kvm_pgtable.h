@@ -157,6 +157,11 @@ void kvm_pgtable_stage2_destroy(struct kvm_pgtable *pgt);
  * If device attributes are not explicitly requested in @prot, then the
  * mapping will be normal, cacheable.
  *
+ * Note that the update of a valid leaf PTE in this function will be aborted,
+ * if it's trying to recreate the exact same mapping or only change the access
+ * permissions. Instead, the vCPU will exit one more time from guest if still
+ * needed and then go through the path of relaxing permissions.
+ *
  * Note that this function will both coalesce existing table entries and split
  * existing block mappings, relying on page-faults to fault back areas outside
  * of the new mapping lazily.

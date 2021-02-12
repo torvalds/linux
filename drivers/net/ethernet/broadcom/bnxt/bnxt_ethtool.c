@@ -2532,7 +2532,7 @@ int bnxt_flash_package_from_fw_obj(struct net_device *dev, const struct firmware
 
 		if (rc && ((struct hwrm_err_output *)&resp)->cmd_err ==
 		    NVM_INSTALL_UPDATE_CMD_ERR_CODE_FRAG_ERR) {
-			install.flags |=
+			install.flags =
 				cpu_to_le16(NVM_INSTALL_UPDATE_REQ_FLAGS_ALLOWED_TO_DEFRAG);
 
 			rc = _hwrm_send_message_silent(bp, &install,
@@ -2546,6 +2546,7 @@ int bnxt_flash_package_from_fw_obj(struct net_device *dev, const struct firmware
 				 * UPDATE directory and try the flash again
 				 */
 				defrag_attempted = true;
+				install.flags = 0;
 				rc = __bnxt_flash_nvram(bp->dev,
 							BNX_DIR_TYPE_UPDATE,
 							BNX_DIR_ORDINAL_FIRST,

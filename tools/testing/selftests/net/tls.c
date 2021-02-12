@@ -103,8 +103,8 @@ FIXTURE(tls)
 
 FIXTURE_VARIANT(tls)
 {
-	u16 tls_version;
-	u16 cipher_type;
+	uint16_t tls_version;
+	uint16_t cipher_type;
 };
 
 FIXTURE_VARIANT_ADD(tls, 12_gcm)

@@ -58,8 +58,6 @@ static const struct snd_usb_implicit_fb_match playback_implicit_fb_quirks[] = {
 	IMPLICIT_FB_FIXED_DEV(0x0499, 0x172f, 0x81, 2), /* Steinberg UR22C */
 	IMPLICIT_FB_FIXED_DEV(0x0d9a, 0x00df, 0x81, 2), /* RTX6001 */
 	IMPLICIT_FB_FIXED_DEV(0x22f0, 0x0006, 0x81, 3), /* Allen&Heath Qu-16 */
-	IMPLICIT_FB_FIXED_DEV(0x2b73, 0x000a, 0x82, 0), /* Pioneer DJ DJM-900NXS2 */
-	IMPLICIT_FB_FIXED_DEV(0x2b73, 0x0017, 0x82, 0), /* Pioneer DJ DJM-250MK2 */
 	IMPLICIT_FB_FIXED_DEV(0x1686, 0xf029, 0x82, 2), /* Zoom UAC-2 */
 	IMPLICIT_FB_FIXED_DEV(0x2466, 0x8003, 0x86, 2), /* Fractal Audio Axe-Fx II */
 	IMPLICIT_FB_FIXED_DEV(0x0499, 0x172a, 0x86, 2), /* Yamaha MODX */
@@ -100,7 +98,7 @@ static const struct snd_usb_implicit_fb_match capture_implicit_fb_quirks[] = {
 /* set up sync EP information on the audioformat */
 static int add_implicit_fb_sync_ep(struct snd_usb_audio *chip,
 				   struct audioformat *fmt,
-				   int ep, int ifnum,
+				   int ep, int ep_idx, int ifnum,
 				   const struct usb_host_interface *alts)
 {
 	struct usb_interface *iface;
@@ -115,7 +113,7 @@ static int add_implicit_fb_sync_ep(struct snd_usb_audio *chip,
 	fmt->sync_ep = ep;
 	fmt->sync_iface = ifnum;
 	fmt->sync_altsetting = alts->desc.bAlternateSetting;
-	fmt->sync_ep_idx = 0;
+	fmt->sync_ep_idx = ep_idx;
 	fmt->implicit_fb = 1;
 	usb_audio_dbg(chip,
 		      "%d:%d: added %s implicit_fb sync_ep %x, iface %d:%d\n",
@@ -147,7 +145,7 @@ static int add_generic_uac2_implicit_fb(struct snd_usb_audio *chip,
 	    (epd->bmAttributes & USB_ENDPOINT_USAGE_MASK) !=
 					USB_ENDPOINT_USAGE_IMPLICIT_FB)
 		return 0;
-	return add_implicit_fb_sync_ep(chip, fmt, epd->bEndpointAddress,
+	return add_implicit_fb_sync_ep(chip, fmt, epd->bEndpointAddress, 0,
 				       ifnum, alts);
 }
 
@@ -173,10 +171,32 @@ static int add_roland_implicit_fb(struct snd_usb_audio *chip,
 	    (epd->bmAttributes & USB_ENDPOINT_USAGE_MASK) !=
 					USB_ENDPOINT_USAGE_IMPLICIT_FB)
 		return 0;
-	return add_implicit_fb_sync_ep(chip, fmt, epd->bEndpointAddress,
+	return add_implicit_fb_sync_ep(chip, fmt, epd->bEndpointAddress, 0,
 				       ifnum, alts);
 }
 
+/* Pioneer devices: playback and capture streams sharing the same iface/altset
+ */
+static int add_pioneer_implicit_fb(struct snd_usb_audio *chip,
+				   struct audioformat *fmt,
+				   struct usb_host_interface *alts)
+{
+	struct usb_endpoint_descriptor *epd;
+
+	if (alts->desc.bNumEndpoints != 2)
+		return 0;
+
+	epd = get_endpoint(alts, 1);
+	if (!usb_endpoint_is_isoc_in(epd) ||
+	    (epd->bmAttributes & USB_ENDPOINT_SYNCTYPE) != USB_ENDPOINT_SYNC_ASYNC ||
+	    ((epd->bmAttributes & USB_ENDPOINT_USAGE_MASK) !=
+	     USB_ENDPOINT_USAGE_DATA &&
+	     (epd->bmAttributes & USB_ENDPOINT_USAGE_MASK) !=
+	     USB_ENDPOINT_USAGE_IMPLICIT_FB))
+		return 0;
+	return add_implicit_fb_sync_ep(chip, fmt, epd->bEndpointAddress, 1,
+				       alts->desc.bInterfaceNumber, alts);
+}
 
 static int __add_generic_implicit_fb(struct snd_usb_audio *chip,
 				     struct audioformat *fmt,
@@ -197,7 +217,7 @@ static int __add_generic_implicit_fb(struct snd_usb_audio *chip,
 	if (!usb_endpoint_is_isoc_in(epd) ||
 	    (epd->bmAttributes & USB_ENDPOINT_SYNCTYPE) != USB_ENDPOINT_SYNC_ASYNC)
 		return 0;
-	return add_implicit_fb_sync_ep(chip, fmt, epd->bEndpointAddress,
+	return add_implicit_fb_sync_ep(chip, fmt, epd->bEndpointAddress, 0,
 				       iface, alts);
 }
 
@@ -250,7 +270,7 @@ static int audioformat_implicit_fb_quirk(struct snd_usb_audio *chip,
 		case IMPLICIT_FB_NONE:
 			return 0; /* No quirk */
 		case IMPLICIT_FB_FIXED:
-			return add_implicit_fb_sync_ep(chip, fmt, p->ep_num,
+			return add_implicit_fb_sync_ep(chip, fmt, p->ep_num, 0,
 						       p->iface, NULL);
 		}
 	}
@@ -278,6 +298,14 @@ static int audioformat_implicit_fb_quirk(struct snd_usb_audio *chip,
 			return 1;
 	}
 
+	/* Pioneer devices implicit feedback with vendor spec class */
+	if (attr == USB_ENDPOINT_SYNC_ASYNC &&
+	    alts->desc.bInterfaceClass == USB_CLASS_VENDOR_SPEC &&
+	    USB_ID_VENDOR(chip->usb_id) == 0x2b73 /* Pioneer */) {
+		if (add_pioneer_implicit_fb(chip, fmt, alts))
+			return 1;
+	}
+
 	/* Try the generic implicit fb if available */
 	if (chip->generic_implicit_fb)
 		return add_generic_implicit_fb(chip, fmt, alts);
@@ -295,8 +323,8 @@ static int audioformat_capture_quirk(struct snd_usb_audio *chip,
 
 	p = find_implicit_fb_entry(chip, capture_implicit_fb_quirks, alts);
 	if (p && p->type == IMPLICIT_FB_FIXED)
-		return add_implicit_fb_sync_ep(chip, fmt, p->ep_num, p->iface,
-					       NULL);
+		return add_implicit_fb_sync_ep(chip, fmt, p->ep_num, 0,
+					       p->iface, NULL);
 	return 0;
 }
 
@@ -378,20 +406,19 @@ snd_usb_find_implicit_fb_sync_format(struct snd_usb_audio *chip,
 				     int stream)
 {
 	struct snd_usb_substream *subs;
-	const struct audioformat *fp, *sync_fmt;
+	const struct audioformat *fp, *sync_fmt = NULL;
 	int score, high_score;
 
-	/* When sharing the same altset, use the original audioformat */
+	/* Use the original audioformat as fallback for the shared altset */
 	if (target->iface == target->sync_iface &&
 	    target->altsetting == target->sync_altsetting)
-		return target;
+		sync_fmt = target;
 
 	subs = find_matching_substream(chip, stream, target->sync_ep,
 				       target->fmt_type);
 	if (!subs)
-		return NULL;
+		return sync_fmt;
 
-	sync_fmt = NULL;
 	high_score = 0;
 	list_for_each_entry(fp, &subs->fmt_list, list) {
 		score = match_endpoint_audioformats(subs, fp,
