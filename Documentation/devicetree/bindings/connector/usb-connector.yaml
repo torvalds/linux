@@ -120,9 +120,10 @@ properties:
     $ref: /schemas/types.yaml#/definitions/uint32-array
 
   sink-vdos:
-    description: An array of u32 with each entry (VDM Objects) providing additional information
-      corresponding to the product, the detailed bit definitions and the order of each VDO can be
-      found in "USB Power Delivery Specification Revision 3.0, Version 2.0 + ECNs 2020-12-10"
+    description: An array of u32 with each entry, a Vendor Defined Message Object (VDO),
+      providing additional information corresponding to the product, the detailed bit
+      definitions and the order of each VDO can be found in
+      "USB Power Delivery Specification Revision 3.0, Version 2.0 + ECNs 2020-12-10"
       chapter 6.4.4.3.1 Discover Identity. User can specify the VDO array via
       VDO_IDH/_CERT/_PRODUCT/_UFP/_DFP/_PCABLE/_ACABLE(1/2)/_VPD() defined in
       dt-bindings/usb/pd.h.
