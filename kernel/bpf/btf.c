@@ -5291,7 +5291,7 @@ int btf_check_type_match(struct bpf_verifier_log *log, const struct bpf_prog *pr
  * Only PTR_TO_CTX and SCALAR_VALUE states are recognized.
  */
 int btf_check_func_arg_match(struct bpf_verifier_env *env, int subprog,
-			     struct bpf_reg_state *reg)
+			     struct bpf_reg_state *regs)
 {
 	struct bpf_verifier_log *log = &env->log;
 	struct bpf_prog *prog = env->prog;
@@ -5337,17 +5337,19 @@ int btf_check_func_arg_match(struct bpf_verifier_env *env, int subprog,
 	 * verifier sees.
 	 */
 	for (i = 0; i < nargs; i++) {
+		struct bpf_reg_state *reg = &regs[i + 1];
+
 		t = btf_type_by_id(btf, args[i].type);
 		while (btf_type_is_modifier(t))
 			t = btf_type_by_id(btf, t->type);
 		if (btf_type_is_int(t) || btf_type_is_enum(t)) {
-			if (reg[i + 1].type == SCALAR_VALUE)
+			if (reg->type == SCALAR_VALUE)
 				continue;
 			bpf_log(log, "R%d is not a scalar\n", i + 1);
 			goto out;
 		}
 		if (btf_type_is_ptr(t)) {
-			if (reg[i + 1].type == SCALAR_VALUE) {
+			if (reg->type == SCALAR_VALUE) {
 				bpf_log(log, "R%d is not a pointer\n", i + 1);
 				goto out;
 			}
@@ -5355,13 +5357,13 @@ int btf_check_func_arg_match(struct bpf_verifier_env *env, int subprog,
 			 * is passing PTR_TO_CTX.
 			 */
 			if (btf_get_prog_ctx_type(log, btf, t, prog->type, i)) {
-				if (reg[i + 1].type != PTR_TO_CTX) {
+				if (reg->type != PTR_TO_CTX) {
 					bpf_log(log,
 						"arg#%d expected pointer to ctx, but got %s\n",
 						i, btf_kind_str[BTF_INFO_KIND(t->info)]);
 					goto out;
 				}
-				if (check_ctx_reg(env, &reg[i + 1], i + 1))
+				if (check_ctx_reg(env, reg, i + 1))
 					goto out;
 				continue;
 			}
@@ -5388,7 +5390,7 @@ out:
  * (either PTR_TO_CTX or SCALAR_VALUE).
  */
 int btf_prepare_func_args(struct bpf_verifier_env *env, int subprog,
-			  struct bpf_reg_state *reg)
+			  struct bpf_reg_state *regs)
 {
 	struct bpf_verifier_log *log = &env->log;
 	struct bpf_prog *prog = env->prog;
@@ -5459,16 +5461,18 @@ int btf_prepare_func_args(struct bpf_verifier_env *env, int subprog,
 	 * Only PTR_TO_CTX and SCALAR are supported atm.
 	 */
 	for (i = 0; i < nargs; i++) {
+		struct bpf_reg_state *reg = &regs[i + 1];
+
 		t = btf_type_by_id(btf, args[i].type);
 		while (btf_type_is_modifier(t))
 			t = btf_type_by_id(btf, t->type);
 		if (btf_type_is_int(t) || btf_type_is_enum(t)) {
-			reg[i + 1].type = SCALAR_VALUE;
+			reg->type = SCALAR_VALUE;
 			continue;
 		}
 		if (btf_type_is_ptr(t) &&
 		    btf_get_prog_ctx_type(log, btf, t, prog_type, i)) {
-			reg[i + 1].type = PTR_TO_CTX;
+			reg->type = PTR_TO_CTX;
 			continue;
 		}
 		bpf_log(log, "Arg#%d type %s in %s() is not supported yet.\n",
