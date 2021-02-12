@@ -120,9 +120,11 @@ static int rxrpc_open_socket(struct rxrpc_local *local, struct net *net)
 	if (udp_conf.family == AF_INET) {
 		udp_conf.local_ip = srx->transport.sin.sin_addr;
 		udp_conf.local_udp_port = srx->transport.sin.sin_port;
+#if IS_ENABLED(CONFIG_AF_RXRPC_IPV6)
 	} else {
 		udp_conf.local_ip6 = srx->transport.sin6.sin6_addr;
 		udp_conf.local_udp_port = srx->transport.sin6.sin6_port;
+#endif
 	}
 	ret = udp_sock_create(net, &udp_conf, &local->socket);
 	if (ret < 0) {
