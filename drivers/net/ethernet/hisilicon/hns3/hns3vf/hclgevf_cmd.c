@@ -176,36 +176,35 @@ void hclgevf_cmd_setup_basic_desc(struct hclgevf_desc *desc,
 		desc->flag &= cpu_to_le16(~HCLGEVF_CMD_FLAG_WR);
 }
 
+struct vf_errcode {
+	u32 imp_errcode;
+	int common_errno;
+};
+
 static int hclgevf_cmd_convert_err_code(u16 desc_ret)
 {
-	switch (desc_ret) {
-	case HCLGEVF_CMD_EXEC_SUCCESS:
-		return 0;
-	case HCLGEVF_CMD_NO_AUTH:
-		return -EPERM;
-	case HCLGEVF_CMD_NOT_SUPPORTED:
-		return -EOPNOTSUPP;
-	case HCLGEVF_CMD_QUEUE_FULL:
-		return -EXFULL;
-	case HCLGEVF_CMD_NEXT_ERR:
-		return -ENOSR;
-	case HCLGEVF_CMD_UNEXE_ERR:
-		return -ENOTBLK;
-	case HCLGEVF_CMD_PARA_ERR:
-		return -EINVAL;
-	case HCLGEVF_CMD_RESULT_ERR:
-		return -ERANGE;
-	case HCLGEVF_CMD_TIMEOUT:
-		return -ETIME;
-	case HCLGEVF_CMD_HILINK_ERR:
-		return -ENOLINK;
-	case HCLGEVF_CMD_QUEUE_ILLEGAL:
-		return -ENXIO;
-	case HCLGEVF_CMD_INVALID:
-		return -EBADR;
-	default:
-		return -EIO;
-	}
+	struct vf_errcode hclgevf_cmd_errcode[] = {
+		{HCLGEVF_CMD_EXEC_SUCCESS, 0},
+		{HCLGEVF_CMD_NO_AUTH, -EPERM},
+		{HCLGEVF_CMD_NOT_SUPPORTED, -EOPNOTSUPP},
+		{HCLGEVF_CMD_QUEUE_FULL, -EXFULL},
+		{HCLGEVF_CMD_NEXT_ERR, -ENOSR},
+		{HCLGEVF_CMD_UNEXE_ERR, -ENOTBLK},
+		{HCLGEVF_CMD_PARA_ERR, -EINVAL},
+		{HCLGEVF_CMD_RESULT_ERR, -ERANGE},
+		{HCLGEVF_CMD_TIMEOUT, -ETIME},
+		{HCLGEVF_CMD_HILINK_ERR, -ENOLINK},
+		{HCLGEVF_CMD_QUEUE_ILLEGAL, -ENXIO},
+		{HCLGEVF_CMD_INVALID, -EBADR},
+	};
+	u32 errcode_count = ARRAY_SIZE(hclgevf_cmd_errcode);
+	u32 i;
+
+	for (i = 0; i < errcode_count; i++)
+		if (hclgevf_cmd_errcode[i].imp_errcode == desc_ret)
+			return hclgevf_cmd_errcode[i].common_errno;
+
+	return -EIO;
 }
 
 /* hclgevf_cmd_send - send command to command queue
