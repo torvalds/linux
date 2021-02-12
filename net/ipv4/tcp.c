@@ -481,19 +481,11 @@ static void tcp_tx_timestamp(struct sock *sk, u16 tsflags)
 	}
 }
 
-static inline bool tcp_stream_is_readable(const struct tcp_sock *tp,
-					  int target, struct sock *sk)
+static bool tcp_stream_is_readable(struct sock *sk, int target)
 {
-	int avail = READ_ONCE(tp->rcv_nxt) - READ_ONCE(tp->copied_seq);
+	if (tcp_epollin_ready(sk, target))
+		return true;
 
-	if (avail > 0) {
-		if (avail >= target)
-			return true;
-		if (tcp_rmem_pressure(sk))
-			return true;
-		if (tcp_receive_window(tp) <= inet_csk(sk)->icsk_ack.rcv_mss)
-			return true;
-	}
 	if (sk->sk_prot->stream_memory_read)
 		return sk->sk_prot->stream_memory_read(sk);
 	return false;
@@ -568,7 +560,7 @@ __poll_t tcp_poll(struct file *file, struct socket *sock, poll_table *wait)
 		    tp->urg_data)
 			target++;
 
-		if (tcp_stream_is_readable(tp, target, sk))
+		if (tcp_stream_is_readable(sk, target))
 			mask |= EPOLLIN | EPOLLRDNORM;
 
 		if (!(sk->sk_shutdown & SEND_SHUTDOWN)) {

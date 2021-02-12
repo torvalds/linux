@@ -1442,6 +1442,18 @@ static inline bool tcp_rmem_pressure(const struct sock *sk)
 	return atomic_read(&sk->sk_rmem_alloc) > threshold;
 }
 
+static inline bool tcp_epollin_ready(const struct sock *sk, int target)
+{
+	const struct tcp_sock *tp = tcp_sk(sk);
+	int avail = READ_ONCE(tp->rcv_nxt) - READ_ONCE(tp->copied_seq);
+
+	if (avail <= 0)
+		return false;
+
+	return (avail >= target) || tcp_rmem_pressure(sk) ||
+	       (tcp_receive_window(tp) <= inet_csk(sk)->icsk_ack.rcv_mss);
+}
+
 extern void tcp_openreq_init_rwin(struct request_sock *req,
 				  const struct sock *sk_listener,
 				  const struct dst_entry *dst);
