@@ -245,6 +245,8 @@ struct bpf_prog *bpf_prog_realloc(struct bpf_prog *fp_old, unsigned int size,
 		 * reallocated structure.
 		 */
 		fp_old->aux = NULL;
+		fp_old->stats = NULL;
+		fp_old->active = NULL;
 		__bpf_prog_free(fp_old);
 	}
 
