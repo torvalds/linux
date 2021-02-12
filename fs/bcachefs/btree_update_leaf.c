@@ -219,7 +219,7 @@ static inline void btree_insert_entry_checks(struct btree_trans *trans,
 {
 	struct bch_fs *c = trans->c;
 
-	BUG_ON(bkey_cmp(insert->k.p, iter->pos));
+	BUG_ON(bkey_cmp(insert->k.p, iter->real_pos));
 	BUG_ON(bch2_debug_check_bkeys &&
 	       bch2_bkey_invalid(c, bkey_i_to_s_c(insert),
 				 __btree_node_type(iter->level, iter->btree_id)));

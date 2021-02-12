@@ -247,6 +247,8 @@ enum btree_iter_uptodate {
 struct btree_iter {
 	struct btree_trans	*trans;
 	struct bpos		pos;
+	/* what we're searching for/what the iterator actually points to: */
+	struct bpos		real_pos;
 	struct bpos		pos_after_commit;
 
 	u16			flags;
