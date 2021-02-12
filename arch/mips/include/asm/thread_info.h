@@ -35,6 +35,10 @@ struct thread_info {
 						 */
 	struct pt_regs		*regs;
 	long			syscall;	/* syscall number */
+
+	int bpt_nsaved;
+	unsigned long bpt_addr[1];		/* breakpoint handling */
+	unsigned int bpt_insn[1];
 };
 
 /*
@@ -117,6 +121,7 @@ static inline struct thread_info *current_thread_info(void)
 #define TIF_UPROBE		6	/* breakpointed or singlestepping */
 #define TIF_NOTIFY_SIGNAL	7	/* signal notifications exist */
 #define TIF_RESTORE_SIGMASK	9	/* restore signal mask in do_signal() */
+#define TIF_SINGLESTEP		10	/* restore singlestep on return to user mode */
 #define TIF_USEDFPU		16	/* FPU was used by this task this quantum (SMP) */
 #define TIF_MEMDIE		18	/* is terminating due to OOM killer */
 #define TIF_NOHZ		19	/* in adaptive nohz mode */

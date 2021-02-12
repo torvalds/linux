@@ -186,4 +186,6 @@ static inline void user_stack_pointer_set(struct pt_regs *regs,
 	regs->regs[29] = val;
 }
 
+#define arch_has_single_step()	(1)
+
 #endif /* _ASM_PTRACE_H */

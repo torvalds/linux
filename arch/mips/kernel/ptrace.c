@@ -45,9 +45,14 @@
 #include <linux/uaccess.h>
 #include <asm/bootinfo.h>
 #include <asm/reg.h>
+#include <asm/branch.h>
 
 #define CREATE_TRACE_POINTS
 #include <trace/events/syscalls.h>
+
+#include "probes-common.h"
+
+#define BREAKINST	0x0000000d
 
 /*
  * Called by kernel/ptrace.c when detaching..
@@ -58,6 +63,7 @@ void ptrace_disable(struct task_struct *child)
 {
 	/* Don't load the watchpoint registers for the ex-child. */
 	clear_tsk_thread_flag(child, TIF_LOAD_WATCH);
+	user_disable_single_step(child);
 }
 
 /*
@@ -1070,6 +1076,108 @@ const struct user_regset_view *task_user_regset_view(struct task_struct *task)
 #endif
 	return &user_mips64_view;
 #endif
+}
+
+static int read_insn(struct task_struct *task, unsigned long addr, unsigned int *insn)
+{
+	int copied = access_process_vm(task, addr, insn,
+				       sizeof(unsigned int), FOLL_FORCE);
+
+	if (copied != sizeof(unsigned int)) {
+		pr_err("failed to read instruction from 0x%lx\n", addr);
+		return -EIO;
+	}
+
+	return 0;
+}
+
+static int write_insn(struct task_struct *task, unsigned long addr, unsigned int insn)
+{
+	int copied = access_process_vm(task, addr, &insn,
+				       sizeof(unsigned int), FOLL_FORCE | FOLL_WRITE);
+
+	if (copied != sizeof(unsigned int)) {
+		pr_err("failed to write instruction to 0x%lx\n", addr);
+		return -EIO;
+	}
+
+	return 0;
+}
+
+static int insn_has_delayslot(union mips_instruction insn)
+{
+	return __insn_has_delay_slot(insn);
+}
+
+static void ptrace_set_bpt(struct task_struct *child)
+{
+	union mips_instruction mips_insn = { 0 };
+	struct pt_regs *regs;
+	unsigned long pc;
+	unsigned int insn;
+	int i, ret, nsaved = 0;
+
+	regs = task_pt_regs(child);
+	pc = regs->cp0_epc;
+
+	ret = read_insn(child, pc, &insn);
+	if (ret < 0)
+		return;
+
+	if (insn_has_delayslot(mips_insn)) {
+		pr_info("executing branch insn\n");
+		ret = __compute_return_epc(regs);
+		if (ret < 0)
+			return;
+		task_thread_info(child)->bpt_addr[nsaved++] = regs->cp0_epc;
+	} else {
+		pr_info("executing normal insn\n");
+		task_thread_info(child)->bpt_addr[nsaved++] = pc + 4;
+	}
+
+	/* install breakpoints */
+	for (i = 0; i < nsaved; i++) {
+		ret = read_insn(child, task_thread_info(child)->bpt_addr[i], &insn);
+		if (ret < 0)
+			return;
+
+		task_thread_info(child)->bpt_insn[i] = insn;
+
+		ret = write_insn(child, task_thread_info(child)->bpt_addr[i], BREAKINST);
+		if (ret < 0)
+			return;
+	}
+
+	task_thread_info(child)->bpt_nsaved = nsaved;
+}
+
+static void ptrace_cancel_bpt(struct task_struct *child)
+{
+	int i, nsaved = task_thread_info(child)->bpt_nsaved;
+
+	task_thread_info(child)->bpt_nsaved = 0;
+
+	if (nsaved > 1) {
+		pr_info("%s: bogus nsaved: %d!\n", __func__, nsaved);
+		nsaved = 1;
+	}
+
+	for (i = 0; i < nsaved; i++) {
+		write_insn(child, task_thread_info(child)->bpt_addr[i],
+			  task_thread_info(child)->bpt_insn[i]);
+	}
+}
+
+void user_enable_single_step(struct task_struct *child)
+{
+	set_tsk_thread_flag(child, TIF_SINGLESTEP);
+	ptrace_set_bpt(child);
+}
+
+void user_disable_single_step(struct task_struct *child)
+{
+	clear_tsk_thread_flag(child, TIF_SINGLESTEP);
+	ptrace_cancel_bpt(child);
 }
 
 long arch_ptrace(struct task_struct *child, long request,
