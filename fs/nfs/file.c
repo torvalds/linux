@@ -606,8 +606,8 @@ ssize_t nfs_file_write(struct kiocb *iocb, struct iov_iter *from)
 {
 	struct file *file = iocb->ki_filp;
 	struct inode *inode = file_inode(file);
-	unsigned long written = 0;
-	ssize_t result;
+	unsigned int mntflags = NFS_SERVER(inode)->flags;
+	ssize_t result, written;
 	errseq_t since;
 	int error;
 
@@ -648,6 +648,21 @@ ssize_t nfs_file_write(struct kiocb *iocb, struct iov_iter *from)
 
 	written = result;
 	iocb->ki_pos += written;
+
+	if (mntflags & NFS_MOUNT_WRITE_EAGER) {
+		result = filemap_fdatawrite_range(file->f_mapping,
+						  iocb->ki_pos - written,
+						  iocb->ki_pos - 1);
+		if (result < 0)
+			goto out;
+	}
+	if (mntflags & NFS_MOUNT_WRITE_WAIT) {
+		result = filemap_fdatawait_range(file->f_mapping,
+						 iocb->ki_pos - written,
+						 iocb->ki_pos - 1);
+		if (result < 0)
+			goto out;
+	}
 	result = generic_write_sync(iocb, written);
 	if (result < 0)
 		goto out;

@@ -712,16 +712,23 @@ int nfs_writepages(struct address_space *mapping, struct writeback_control *wbc)
 {
 	struct inode *inode = mapping->host;
 	struct nfs_pageio_descriptor pgio;
-	struct nfs_io_completion *ioc;
+	struct nfs_io_completion *ioc = NULL;
+	unsigned int mntflags = NFS_SERVER(inode)->flags;
+	int priority = 0;
 	int err;
 
 	nfs_inc_stats(inode, NFSIOS_VFSWRITEPAGES);
 
-	ioc = nfs_io_completion_alloc(GFP_KERNEL);
-	if (ioc)
-		nfs_io_completion_init(ioc, nfs_io_completion_commit, inode);
+	if (!(mntflags & NFS_MOUNT_WRITE_EAGER) || wbc->for_kupdate ||
+	    wbc->for_background || wbc->for_sync || wbc->for_reclaim) {
+		ioc = nfs_io_completion_alloc(GFP_KERNEL);
+		if (ioc)
+			nfs_io_completion_init(ioc, nfs_io_completion_commit,
+					       inode);
+		priority = wb_priority(wbc);
+	}
 
-	nfs_pageio_init_write(&pgio, inode, wb_priority(wbc), false,
+	nfs_pageio_init_write(&pgio, inode, priority, false,
 				&nfs_async_write_completion_ops);
 	pgio.pg_io_completion = ioc;
 	err = write_cache_pages(mapping, wbc, nfs_writepages_callback, &pgio);
