@@ -29,12 +29,14 @@
 #include "amdgpu_atomfirmware.h"
 #include "atom.h"
 
-static inline struct amdgpu_vram_mgr *to_vram_mgr(struct ttm_resource_manager *man)
+static inline struct amdgpu_vram_mgr *
+to_vram_mgr(struct ttm_resource_manager *man)
 {
 	return container_of(man, struct amdgpu_vram_mgr, manager);
 }
 
-static inline struct amdgpu_device *to_amdgpu_device(struct amdgpu_vram_mgr *mgr)
+static inline struct amdgpu_device *
+to_amdgpu_device(struct amdgpu_vram_mgr *mgr)
 {
 	return container_of(mgr, struct amdgpu_device, mman.vram_mgr);
 }
@@ -82,12 +84,14 @@ static ssize_t amdgpu_mem_info_vis_vram_total_show(struct device *dev,
  * amount of currently used VRAM in bytes
  */
 static ssize_t amdgpu_mem_info_vram_used_show(struct device *dev,
-		struct device_attribute *attr, char *buf)
+					      struct device_attribute *attr,
+					      char *buf)
 {
 	struct drm_device *ddev = dev_get_drvdata(dev);
 	struct amdgpu_device *adev = drm_to_adev(ddev);
-	struct ttm_resource_manager *man = ttm_manager_type(&adev->mman.bdev, TTM_PL_VRAM);
+	struct ttm_resource_manager *man;
 
+	man = ttm_manager_type(&adev->mman.bdev, TTM_PL_VRAM);
 	return sysfs_emit(buf, "%llu\n", amdgpu_vram_mgr_usage(man));
 }
 
@@ -100,18 +104,28 @@ static ssize_t amdgpu_mem_info_vram_used_show(struct device *dev,
  * amount of currently used visible VRAM in bytes
  */
 static ssize_t amdgpu_mem_info_vis_vram_used_show(struct device *dev,
-		struct device_attribute *attr, char *buf)
+						  struct device_attribute *attr,
+						  char *buf)
 {
 	struct drm_device *ddev = dev_get_drvdata(dev);
 	struct amdgpu_device *adev = drm_to_adev(ddev);
-	struct ttm_resource_manager *man = ttm_manager_type(&adev->mman.bdev, TTM_PL_VRAM);
+	struct ttm_resource_manager *man;
 
+	man = ttm_manager_type(&adev->mman.bdev, TTM_PL_VRAM);
 	return sysfs_emit(buf, "%llu\n", amdgpu_vram_mgr_vis_usage(man));
 }
 
+/**
+ * DOC: mem_info_vram_vendor
+ *
+ * The amdgpu driver provides a sysfs API for reporting the vendor of the
+ * installed VRAM
+ * The file mem_info_vram_vendor is used for this and returns the name of the
+ * vendor.
+ */
 static ssize_t amdgpu_mem_info_vram_vendor(struct device *dev,
-						 struct device_attribute *attr,
-						 char *buf)
+					   struct device_attribute *attr,
+					   char *buf)
 {
 	struct drm_device *ddev = dev_get_drvdata(dev);
 	struct amdgpu_device *adev = drm_to_adev(ddev);
@@ -162,78 +176,6 @@ static const struct attribute *amdgpu_vram_mgr_attributes[] = {
 	NULL
 };
 
-static const struct ttm_resource_manager_func amdgpu_vram_mgr_func;
-
-/**
- * amdgpu_vram_mgr_init - init VRAM manager and DRM MM
- *
- * @adev: amdgpu_device pointer
- *
- * Allocate and initialize the VRAM manager.
- */
-int amdgpu_vram_mgr_init(struct amdgpu_device *adev)
-{
-	struct amdgpu_vram_mgr *mgr = &adev->mman.vram_mgr;
-	struct ttm_resource_manager *man = &mgr->manager;
-	int ret;
-
-	ttm_resource_manager_init(man, adev->gmc.real_vram_size >> PAGE_SHIFT);
-
-	man->func = &amdgpu_vram_mgr_func;
-
-	drm_mm_init(&mgr->mm, 0, man->size);
-	spin_lock_init(&mgr->lock);
-	INIT_LIST_HEAD(&mgr->reservations_pending);
-	INIT_LIST_HEAD(&mgr->reserved_pages);
-
-	/* Add the two VRAM-related sysfs files */
-	ret = sysfs_create_files(&adev->dev->kobj, amdgpu_vram_mgr_attributes);
-	if (ret)
-		DRM_ERROR("Failed to register sysfs\n");
-
-	ttm_set_driver_manager(&adev->mman.bdev, TTM_PL_VRAM, &mgr->manager);
-	ttm_resource_manager_set_used(man, true);
-	return 0;
-}
-
-/**
- * amdgpu_vram_mgr_fini - free and destroy VRAM manager
- *
- * @adev: amdgpu_device pointer
- *
- * Destroy and free the VRAM manager, returns -EBUSY if ranges are still
- * allocated inside it.
- */
-void amdgpu_vram_mgr_fini(struct amdgpu_device *adev)
-{
-	struct amdgpu_vram_mgr *mgr = &adev->mman.vram_mgr;
-	struct ttm_resource_manager *man = &mgr->manager;
-	int ret;
-	struct amdgpu_vram_reservation *rsv, *temp;
-
-	ttm_resource_manager_set_used(man, false);
-
-	ret = ttm_resource_manager_evict_all(&adev->mman.bdev, man);
-	if (ret)
-		return;
-
-	spin_lock(&mgr->lock);
-	list_for_each_entry_safe(rsv, temp, &mgr->reservations_pending, node)
-		kfree(rsv);
-
-	list_for_each_entry_safe(rsv, temp, &mgr->reserved_pages, node) {
-		drm_mm_remove_node(&rsv->mm_node);
-		kfree(rsv);
-	}
-	drm_mm_takedown(&mgr->mm);
-	spin_unlock(&mgr->lock);
-
-	sysfs_remove_files(&adev->dev->kobj, amdgpu_vram_mgr_attributes);
-
-	ttm_resource_manager_cleanup(man);
-	ttm_set_driver_manager(&adev->mman.bdev, TTM_PL_VRAM, NULL);
-}
-
 /**
  * amdgpu_vram_mgr_vis_size - Calculate visible node size
  *
@@ -283,6 +225,7 @@ u64 amdgpu_vram_mgr_bo_visible_size(struct amdgpu_bo *bo)
 	return usage;
 }
 
+/* Commit the reservation of VRAM pages */
 static void amdgpu_vram_mgr_do_reserve(struct ttm_resource_manager *man)
 {
 	struct amdgpu_vram_mgr *mgr = to_vram_mgr(man);
@@ -727,3 +670,73 @@ static const struct ttm_resource_manager_func amdgpu_vram_mgr_func = {
 	.free	= amdgpu_vram_mgr_del,
 	.debug	= amdgpu_vram_mgr_debug
 };
+
+/**
+ * amdgpu_vram_mgr_init - init VRAM manager and DRM MM
+ *
+ * @adev: amdgpu_device pointer
+ *
+ * Allocate and initialize the VRAM manager.
+ */
+int amdgpu_vram_mgr_init(struct amdgpu_device *adev)
+{
+	struct amdgpu_vram_mgr *mgr = &adev->mman.vram_mgr;
+	struct ttm_resource_manager *man = &mgr->manager;
+	int ret;
+
+	ttm_resource_manager_init(man, adev->gmc.real_vram_size >> PAGE_SHIFT);
+
+	man->func = &amdgpu_vram_mgr_func;
+
+	drm_mm_init(&mgr->mm, 0, man->size);
+	spin_lock_init(&mgr->lock);
+	INIT_LIST_HEAD(&mgr->reservations_pending);
+	INIT_LIST_HEAD(&mgr->reserved_pages);
+
+	/* Add the two VRAM-related sysfs files */
+	ret = sysfs_create_files(&adev->dev->kobj, amdgpu_vram_mgr_attributes);
+	if (ret)
+		DRM_ERROR("Failed to register sysfs\n");
+
+	ttm_set_driver_manager(&adev->mman.bdev, TTM_PL_VRAM, &mgr->manager);
+	ttm_resource_manager_set_used(man, true);
+	return 0;
+}
+
+/**
+ * amdgpu_vram_mgr_fini - free and destroy VRAM manager
+ *
+ * @adev: amdgpu_device pointer
+ *
+ * Destroy and free the VRAM manager, returns -EBUSY if ranges are still
+ * allocated inside it.
+ */
+void amdgpu_vram_mgr_fini(struct amdgpu_device *adev)
+{
+	struct amdgpu_vram_mgr *mgr = &adev->mman.vram_mgr;
+	struct ttm_resource_manager *man = &mgr->manager;
+	int ret;
+	struct amdgpu_vram_reservation *rsv, *temp;
+
+	ttm_resource_manager_set_used(man, false);
+
+	ret = ttm_resource_manager_evict_all(&adev->mman.bdev, man);
+	if (ret)
+		return;
+
+	spin_lock(&mgr->lock);
+	list_for_each_entry_safe(rsv, temp, &mgr->reservations_pending, node)
+		kfree(rsv);
+
+	list_for_each_entry_safe(rsv, temp, &mgr->reserved_pages, node) {
+		drm_mm_remove_node(&rsv->mm_node);
+		kfree(rsv);
+	}
+	drm_mm_takedown(&mgr->mm);
+	spin_unlock(&mgr->lock);
+
+	sysfs_remove_files(&adev->dev->kobj, amdgpu_vram_mgr_attributes);
+
+	ttm_resource_manager_cleanup(man);
+	ttm_set_driver_manager(&adev->mman.bdev, TTM_PL_VRAM, NULL);
+}
