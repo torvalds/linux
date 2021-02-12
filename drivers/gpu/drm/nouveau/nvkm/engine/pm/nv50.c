@@ -169,7 +169,7 @@ nv50_pm[] = {
 };
 
 int
-nv50_pm_new(struct nvkm_device *device, int index, struct nvkm_pm **ppm)
+nv50_pm_new(struct nvkm_device *device, enum nvkm_subdev_type type, int inst, struct nvkm_pm **ppm)
 {
-	return nv40_pm_new_(nv50_pm, device, index, ppm);
+	return nv40_pm_new_(nv50_pm, device, type, inst, ppm);
 }

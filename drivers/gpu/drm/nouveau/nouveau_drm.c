@@ -344,7 +344,7 @@ nouveau_accel_gr_init(struct nouveau_drm *drm)
 
 	/* Allocate channel that has access to the graphics engine. */
 	if (device->info.family >= NV_DEVICE_INFO_V0_KEPLER) {
-		arg0 = nvif_fifo_runlist(device, NV_DEVICE_INFO_ENGINE_GR);
+		arg0 = nvif_fifo_runlist(device, NV_DEVICE_HOST_RUNLIST_ENGINES_GR);
 		arg1 = 1;
 	} else {
 		arg0 = NvDmaFB;

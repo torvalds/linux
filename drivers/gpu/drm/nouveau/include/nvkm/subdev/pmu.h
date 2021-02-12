@@ -18,6 +18,7 @@ struct nvkm_pmu {
 	struct completion wpr_ready;
 
 	struct {
+		struct mutex mutex;
 		u32 base;
 		u32 size;
 	} send;
@@ -39,18 +40,18 @@ int nvkm_pmu_send(struct nvkm_pmu *, u32 reply[2], u32 process,
 void nvkm_pmu_pgob(struct nvkm_pmu *, bool enable);
 bool nvkm_pmu_fan_controlled(struct nvkm_device *);
 
-int gt215_pmu_new(struct nvkm_device *, int, struct nvkm_pmu **);
-int gf100_pmu_new(struct nvkm_device *, int, struct nvkm_pmu **);
-int gf119_pmu_new(struct nvkm_device *, int, struct nvkm_pmu **);
-int gk104_pmu_new(struct nvkm_device *, int, struct nvkm_pmu **);
-int gk110_pmu_new(struct nvkm_device *, int, struct nvkm_pmu **);
-int gk208_pmu_new(struct nvkm_device *, int, struct nvkm_pmu **);
-int gk20a_pmu_new(struct nvkm_device *, int, struct nvkm_pmu **);
-int gm107_pmu_new(struct nvkm_device *, int, struct nvkm_pmu **);
-int gm200_pmu_new(struct nvkm_device *, int, struct nvkm_pmu **);
-int gm20b_pmu_new(struct nvkm_device *, int, struct nvkm_pmu **);
-int gp102_pmu_new(struct nvkm_device *, int, struct nvkm_pmu **);
-int gp10b_pmu_new(struct nvkm_device *, int, struct nvkm_pmu **);
+int gt215_pmu_new(struct nvkm_device *, enum nvkm_subdev_type, int inst, struct nvkm_pmu **);
+int gf100_pmu_new(struct nvkm_device *, enum nvkm_subdev_type, int inst, struct nvkm_pmu **);
+int gf119_pmu_new(struct nvkm_device *, enum nvkm_subdev_type, int inst, struct nvkm_pmu **);
+int gk104_pmu_new(struct nvkm_device *, enum nvkm_subdev_type, int inst, struct nvkm_pmu **);
+int gk110_pmu_new(struct nvkm_device *, enum nvkm_subdev_type, int inst, struct nvkm_pmu **);
+int gk208_pmu_new(struct nvkm_device *, enum nvkm_subdev_type, int inst, struct nvkm_pmu **);
+int gk20a_pmu_new(struct nvkm_device *, enum nvkm_subdev_type, int inst, struct nvkm_pmu **);
+int gm107_pmu_new(struct nvkm_device *, enum nvkm_subdev_type, int inst, struct nvkm_pmu **);
+int gm200_pmu_new(struct nvkm_device *, enum nvkm_subdev_type, int inst, struct nvkm_pmu **);
+int gm20b_pmu_new(struct nvkm_device *, enum nvkm_subdev_type, int inst, struct nvkm_pmu **);
+int gp102_pmu_new(struct nvkm_device *, enum nvkm_subdev_type, int inst, struct nvkm_pmu **);
+int gp10b_pmu_new(struct nvkm_device *, enum nvkm_subdev_type, int inst, struct nvkm_pmu **);
 
 /* interface to MEMX process running on PMU */
 struct nvkm_memx;

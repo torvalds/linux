@@ -107,13 +107,13 @@ void nvkm_therm_clkgate_init(struct nvkm_therm *,
 void nvkm_therm_clkgate_enable(struct nvkm_therm *);
 void nvkm_therm_clkgate_fini(struct nvkm_therm *, bool);
 
-int nv40_therm_new(struct nvkm_device *, int, struct nvkm_therm **);
-int nv50_therm_new(struct nvkm_device *, int, struct nvkm_therm **);
-int g84_therm_new(struct nvkm_device *, int, struct nvkm_therm **);
-int gt215_therm_new(struct nvkm_device *, int, struct nvkm_therm **);
-int gf119_therm_new(struct nvkm_device *, int, struct nvkm_therm **);
-int gk104_therm_new(struct nvkm_device *, int, struct nvkm_therm **);
-int gm107_therm_new(struct nvkm_device *, int, struct nvkm_therm **);
-int gm200_therm_new(struct nvkm_device *, int, struct nvkm_therm **);
-int gp100_therm_new(struct nvkm_device *, int, struct nvkm_therm **);
+int nv40_therm_new(struct nvkm_device *, enum nvkm_subdev_type, int inst, struct nvkm_therm **);
+int nv50_therm_new(struct nvkm_device *, enum nvkm_subdev_type, int inst, struct nvkm_therm **);
+int g84_therm_new(struct nvkm_device *, enum nvkm_subdev_type, int inst, struct nvkm_therm **);
+int gt215_therm_new(struct nvkm_device *, enum nvkm_subdev_type, int inst, struct nvkm_therm **);
+int gf119_therm_new(struct nvkm_device *, enum nvkm_subdev_type, int inst, struct nvkm_therm **);
+int gk104_therm_new(struct nvkm_device *, enum nvkm_subdev_type, int inst, struct nvkm_therm **);
+int gm107_therm_new(struct nvkm_device *, enum nvkm_subdev_type, int inst, struct nvkm_therm **);
+int gm200_therm_new(struct nvkm_device *, enum nvkm_subdev_type, int inst, struct nvkm_therm **);
+int gp100_therm_new(struct nvkm_device *, enum nvkm_subdev_type, int inst, struct nvkm_therm **);
 #endif

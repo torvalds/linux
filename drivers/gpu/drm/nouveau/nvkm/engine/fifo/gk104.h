@@ -35,6 +35,7 @@ struct gk104_fifo {
 		struct list_head cgrp;
 		struct list_head chan;
 		u32 engm;
+		u32 engm_sw;
 	} runlist[16];
 	int runlist_nr;
 
@@ -99,7 +100,7 @@ struct gk104_fifo_engine_status {
 	} prev, next, *chan;
 };
 
-int gk104_fifo_new_(const struct gk104_fifo_func *, struct nvkm_device *,
+int gk104_fifo_new_(const struct gk104_fifo_func *, struct nvkm_device *, enum nvkm_subdev_type,
 		    int index, int nr, struct nvkm_fifo **);
 void gk104_fifo_runlist_insert(struct gk104_fifo *, struct gk104_fifo_chan *);
 void gk104_fifo_runlist_remove(struct gk104_fifo *, struct gk104_fifo_chan *);

@@ -5,8 +5,8 @@
 #include <subdev/ltc.h>
 #include <core/enum.h>
 
-int nvkm_ltc_new_(const struct nvkm_ltc_func *, struct nvkm_device *,
-		  int index, struct nvkm_ltc **);
+int nvkm_ltc_new_(const struct nvkm_ltc_func *, struct nvkm_device *, enum nvkm_subdev_type, int,
+		  struct nvkm_ltc **);
 
 struct nvkm_ltc_func {
 	int  (*oneinit)(struct nvkm_ltc *);

@@ -278,7 +278,8 @@ tu102_fifo_fault(struct nvkm_fifo *base, struct nvkm_fault_data *info)
 	struct nvkm_engine *engine = NULL;
 	struct nvkm_fifo_chan *chan;
 	unsigned long flags;
-	char ct[8] = "HUB/", en[16] = "";
+	const char *en = "";
+	char ct[8] = "HUB/";
 	int engn;
 
 	er = nvkm_enum_find(fifo->func->fault.reason, info->reason);
@@ -303,25 +304,20 @@ tu102_fifo_fault(struct nvkm_fifo *base, struct nvkm_fault_data *info)
 			nvkm_mask(device, 0x001718, 0x00000000, 0x00000000);
 			break;
 		default:
-			engine = nvkm_device_engine(device, ee->data2);
+			engine = nvkm_device_engine(device, ee->data2, 0);
 			break;
 		}
 	}
 
 	if (ee == NULL) {
-		enum nvkm_devidx engidx = nvkm_top_fault(device, info->engine);
-
-		if (engidx < NVKM_SUBDEV_NR) {
-			const char *src = nvkm_subdev_name[engidx];
-			char *dst = en;
-
-			do {
-				*dst++ = toupper(*src++);
-			} while (*src);
-			engine = nvkm_device_engine(device, engidx);
+		struct nvkm_subdev *subdev = nvkm_top_fault(device, info->engine);
+		if (subdev) {
+			if (subdev->func == &nvkm_engine)
+				engine = container_of(subdev, typeof(*engine), subdev);
+			en = engine->subdev.name;
 		}
 	} else {
-		snprintf(en, sizeof(en), "%s", ee->name);
+		en = ee->name;
 	}
 
 	spin_lock_irqsave(&fifo->base.lock, flags);
@@ -456,6 +452,8 @@ tu102_fifo_ = {
 	.fini = gk104_fifo_fini,
 	.intr = tu102_fifo_intr,
 	.fault = tu102_fifo_fault,
+	.engine_id = gk104_fifo_engine_id,
+	.id_engine = gk104_fifo_id_engine,
 	.uevent_init = gk104_fifo_uevent_init,
 	.uevent_fini = gk104_fifo_uevent_fini,
 	.recover_chan = tu102_fifo_recover_chan,
@@ -464,7 +462,8 @@ tu102_fifo_ = {
 };
 
 int
-tu102_fifo_new(struct nvkm_device *device, int index, struct nvkm_fifo **pfifo)
+tu102_fifo_new(struct nvkm_device *device, enum nvkm_subdev_type type, int inst,
+	       struct nvkm_fifo **pfifo)
 {
 	struct gk104_fifo *fifo;
 
@@ -474,5 +473,5 @@ tu102_fifo_new(struct nvkm_device *device, int index, struct nvkm_fifo **pfifo)
 	INIT_WORK(&fifo->recover.work, tu102_fifo_recover_work);
 	*pfifo = &fifo->base;
 
-	return nvkm_fifo_ctor(&tu102_fifo_, device, index, 4096, &fifo->base);
+	return nvkm_fifo_ctor(&tu102_fifo_, device, type, inst, 4096, &fifo->base);
 }
