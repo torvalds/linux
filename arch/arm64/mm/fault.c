@@ -564,7 +564,7 @@ retry:
 		mmap_read_lock(mm);
 	} else {
 		/*
-		 * The above down_read_trylock() might have succeeded in which
+		 * The above mmap_read_trylock() might have succeeded in which
 		 * case, we'll have missed the might_sleep() from down_read().
 		 */
 		might_sleep();
