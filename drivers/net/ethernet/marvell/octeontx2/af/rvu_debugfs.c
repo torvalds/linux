@@ -121,7 +121,7 @@ static char *rpm_rx_stats_fields[] = {
 	"Packets received with FrameCheckSequenceErrors",
 	"Packets received with VLAN header",
 	"Error packets",
-	"Packets recievd with unicast DMAC",
+	"Packets received with unicast DMAC",
 	"Packets received with multicast DMAC",
 	"Packets received with broadcast DMAC",
 	"Dropped packets",
