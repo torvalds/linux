@@ -2114,8 +2114,8 @@ static struct sock *mptcp_subflow_get_retrans(const struct mptcp_sock *msk)
  * so we need to use tcp_close() after detaching them from the mptcp
  * parent socket.
  */
-void __mptcp_close_ssk(struct sock *sk, struct sock *ssk,
-		       struct mptcp_subflow_context *subflow)
+static void __mptcp_close_ssk(struct sock *sk, struct sock *ssk,
+			      struct mptcp_subflow_context *subflow)
 {
 	list_del(&subflow->node);
 
@@ -2147,6 +2147,12 @@ void __mptcp_close_ssk(struct sock *sk, struct sock *ssk,
 	sock_put(ssk);
 }
 
+void mptcp_close_ssk(struct sock *sk, struct sock *ssk,
+		     struct mptcp_subflow_context *subflow)
+{
+	__mptcp_close_ssk(sk, ssk, subflow);
+}
+
 static unsigned int mptcp_sync_mss(struct sock *sk, u32 pmtu)
 {
 	return 0;
@@ -2164,7 +2170,7 @@ static void __mptcp_close_subflow(struct mptcp_sock *msk)
 		if (inet_sk_state_load(ssk) != TCP_CLOSE)
 			continue;
 
-		__mptcp_close_ssk((struct sock *)msk, ssk, subflow);
+		mptcp_close_ssk((struct sock *)msk, ssk, subflow);
 	}
 }
 
