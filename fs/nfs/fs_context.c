@@ -1512,6 +1512,8 @@ static int nfs_init_fs_context(struct fs_context *fc)
 		ctx->selected_flavor	= RPC_AUTH_MAXFLAVOR;
 		ctx->minorversion	= 0;
 		ctx->need_mount		= true;
+
+		fc->s_iflags		|= SB_I_STABLE_WRITES;
 	}
 	fc->fs_private = ctx;
 	fc->ops = &nfs_fs_context_ops;
