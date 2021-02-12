@@ -53,9 +53,6 @@ struct mapped_device {
 
 	int numa_node_id;
 	struct request_queue *queue;
-#ifdef CONFIG_BLK_INLINE_ENCRYPTION
-	struct blk_keyslot_manager ksm;
-#endif
 
 	atomic_t holders;
 	atomic_t open_count;
@@ -166,6 +163,10 @@ struct dm_table {
 	void *event_context;
 
 	struct dm_md_mempools *mempools;
+
+#ifdef CONFIG_BLK_INLINE_ENCRYPTION
+	struct blk_keyslot_manager *ksm;
+#endif
 };
 
 static inline struct completion *dm_get_completion_from_kobject(struct kobject *kobj)

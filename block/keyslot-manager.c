@@ -386,7 +386,7 @@ void blk_ksm_reprogram_all_keys(struct blk_keyslot_manager *ksm)
 {
 	unsigned int slot;
 
-	if (WARN_ON(blk_ksm_is_passthrough(ksm)))
+	if (blk_ksm_is_passthrough(ksm))
 		return;
 
 	/* This is for device initialization, so don't resume the device */
@@ -430,7 +430,6 @@ void blk_ksm_unregister(struct request_queue *q)
 {
 	q->ksm = NULL;
 }
-EXPORT_SYMBOL_GPL(blk_ksm_unregister);
 
 /**
  * blk_ksm_derive_raw_secret() - Derive software secret from wrapped key
@@ -490,20 +489,99 @@ void blk_ksm_intersect_modes(struct blk_keyslot_manager *parent,
 		parent->max_dun_bytes_supported =
 			min(parent->max_dun_bytes_supported,
 			    child->max_dun_bytes_supported);
-		parent->features &= child->features;
 		for (i = 0; i < ARRAY_SIZE(child->crypto_modes_supported);
 		     i++) {
 			parent->crypto_modes_supported[i] &=
 				child->crypto_modes_supported[i];
 		}
+		parent->features &= child->features;
 	} else {
 		parent->max_dun_bytes_supported = 0;
-		parent->features = 0;
 		memset(parent->crypto_modes_supported, 0,
 		       sizeof(parent->crypto_modes_supported));
+		parent->features = 0;
 	}
 }
 EXPORT_SYMBOL_GPL(blk_ksm_intersect_modes);
+
+/**
+ * blk_ksm_is_superset() - Check if a KSM supports a superset of crypto modes
+ *			   and DUN bytes that another KSM supports. Here,
+ *			   "superset" refers to the mathematical meaning of the
+ *			   word - i.e. if two KSMs have the *same* capabilities,
+ *			   they *are* considered supersets of each other.
+ * @ksm_superset: The KSM that we want to verify is a superset
+ * @ksm_subset: The KSM that we want to verify is a subset
+ *
+ * Return: True if @ksm_superset supports a superset of the crypto modes and DUN
+ *	   bytes that @ksm_subset supports.
+ */
+bool blk_ksm_is_superset(struct blk_keyslot_manager *ksm_superset,
+			 struct blk_keyslot_manager *ksm_subset)
+{
+	int i;
+
+	if (!ksm_subset)
+		return true;
+
+	if (!ksm_superset)
+		return false;
+
+	for (i = 0; i < ARRAY_SIZE(ksm_superset->crypto_modes_supported); i++) {
+		if (ksm_subset->crypto_modes_supported[i] &
+		    (~ksm_superset->crypto_modes_supported[i])) {
+			return false;
+		}
+	}
+
+	if (ksm_subset->max_dun_bytes_supported >
+	    ksm_superset->max_dun_bytes_supported) {
+		return false;
+	}
+
+	if (ksm_subset->features & ~ksm_superset->features)
+		return false;
+
+	return true;
+}
+EXPORT_SYMBOL_GPL(blk_ksm_is_superset);
+
+/**
+ * blk_ksm_update_capabilities() - Update the restrictions of a KSM to those of
+ *				   another KSM
+ * @target_ksm: The KSM whose restrictions to update.
+ * @reference_ksm: The KSM to whose restrictions this function will update
+ *		   @target_ksm's restrictions to.
+ *
+ * Blk-crypto requires that crypto capabilities that were
+ * advertised when a bio was created continue to be supported by the
+ * device until that bio is ended. This is turn means that a device cannot
+ * shrink its advertised crypto capabilities without any explicit
+ * synchronization with upper layers. So if there's no such explicit
+ * synchronization, @reference_ksm must support all the crypto capabilities that
+ * @target_ksm does
+ * (i.e. we need blk_ksm_is_superset(@reference_ksm, @target_ksm) == true).
+ *
+ * Note also that as long as the crypto capabilities are being expanded, the
+ * order of updates becoming visible is not important because it's alright
+ * for blk-crypto to see stale values - they only cause blk-crypto to
+ * believe that a crypto capability isn't supported when it actually is (which
+ * might result in blk-crypto-fallback being used if available, or the bio being
+ * failed).
+ */
+void blk_ksm_update_capabilities(struct blk_keyslot_manager *target_ksm,
+				 struct blk_keyslot_manager *reference_ksm)
+{
+	memcpy(target_ksm->crypto_modes_supported,
+	       reference_ksm->crypto_modes_supported,
+	       sizeof(target_ksm->crypto_modes_supported));
+
+	target_ksm->max_dun_bytes_supported =
+				reference_ksm->max_dun_bytes_supported;
+
+	target_ksm->features = reference_ksm->features;
+}
+EXPORT_SYMBOL_GPL(blk_ksm_update_capabilities);
 
 /**
  * blk_ksm_init_passthrough() - Init a passthrough keyslot manager
@@ -512,10 +590,8 @@ EXPORT_SYMBOL_GPL(blk_ksm_intersect_modes);
  * Initialize a passthrough keyslot manager.
  * Called by e.g. storage drivers to set up a keyslot manager in their
  * request_queue, when the storage driver wants to manage its keys by itself.
- * This is useful for inline encryption hardware that don't have a small fixed
- * number of keyslots, and for layered devices.
- *
- * See blk_ksm_init() for more details about the parameters.
+ * This is useful for inline encryption hardware that doesn't have the concept
+ * of keyslots, and for layered devices.
  */
 void blk_ksm_init_passthrough(struct blk_keyslot_manager *ksm)
 {
