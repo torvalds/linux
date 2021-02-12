@@ -45,3 +45,4 @@ parameters, info versions, and other features it supports.
    sja1105
    qed
    ti-cpsw-switch
+   am65-nuss-cpsw-switch
