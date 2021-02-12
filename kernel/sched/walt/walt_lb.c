@@ -439,7 +439,9 @@ static int walt_lb_find_busiest_lower_cap_cpu(int dst_cpu, const cpumask_t *src_
 		if (cpu_rq(i)->active_balance)
 			continue;
 
-		if (cpu_rq(i)->cfs.h_nr_running < 2 && !wrq->walt_stats.nr_big_tasks)
+		/* active migration is allowed only to idle cpu */
+		if (cpu_rq(i)->cfs.h_nr_running < 2 &&
+			(!wrq->walt_stats.nr_big_tasks || !available_idle_cpu(dst_cpu)))
 			continue;
 
 		if (!walt_rotation_enabled && !cpu_overutilized(i))
