@@ -2336,6 +2336,7 @@ static void __io_req_task_submit(struct io_kiocb *req)
 {
 	struct io_ring_ctx *ctx = req->ctx;
 
+	/* ctx stays valid until unlock, even if we drop all ours ctx->refs */
 	mutex_lock(&ctx->uring_lock);
 	if (!ctx->sqo_dead && !io_sq_thread_acquire_mm_files(ctx, req))
 		__io_queue_sqe(req);
@@ -2347,10 +2348,8 @@ static void __io_req_task_submit(struct io_kiocb *req)
 static void io_req_task_submit(struct callback_head *cb)
 {
 	struct io_kiocb *req = container_of(cb, struct io_kiocb, task_work);
-	struct io_ring_ctx *ctx = req->ctx;
 
 	__io_req_task_submit(req);
-	percpu_ref_put(&ctx->refs);
 }
 
 static void io_req_task_queue(struct io_kiocb *req)
@@ -2358,11 +2357,11 @@ static void io_req_task_queue(struct io_kiocb *req)
 	int ret;
 
 	req->task_work.func = io_req_task_submit;
-	percpu_ref_get(&req->ctx->refs);
-
 	ret = io_req_task_work_add(req);
-	if (unlikely(ret))
+	if (unlikely(ret)) {
+		percpu_ref_get(&req->ctx->refs);
 		io_req_task_work_add_fallback(req, io_req_task_cancel);
+	}
 }
 
 static inline void io_queue_next(struct io_kiocb *req)
@@ -8706,6 +8705,14 @@ static void io_req_cache_free(struct list_head *list)
 static void io_ring_ctx_free(struct io_ring_ctx *ctx)
 {
 	struct io_submit_state *submit_state = &ctx->submit_state;
+
+	/*
+	 * Some may use context even when all refs and requests have been put,
+	 * and they are free to do so while still holding uring_lock, see
+	 * __io_req_task_submit(). Wait for them to finish.
+	 */
+	mutex_lock(&ctx->uring_lock);
+	mutex_unlock(&ctx->uring_lock);
 
 	io_finish_async(ctx);
 	io_sqe_buffers_unregister(ctx);
