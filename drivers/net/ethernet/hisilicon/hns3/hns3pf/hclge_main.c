@@ -8786,31 +8786,15 @@ static void hclge_enable_vlan_filter(struct hnae3_handle *handle, bool enable)
 		handle->netdev_flags &= ~HNAE3_VLAN_FLTR;
 }
 
-static int hclge_set_vf_vlan_common(struct hclge_dev *hdev, u16 vfid,
-				    bool is_kill, u16 vlan,
-				    __be16 proto)
+static int hclge_set_vf_vlan_filter_cmd(struct hclge_dev *hdev, u16 vfid,
+					bool is_kill, u16 vlan,
+					struct hclge_desc *desc)
 {
-	struct hclge_vport *vport = &hdev->vport[vfid];
 	struct hclge_vlan_filter_vf_cfg_cmd *req0;
 	struct hclge_vlan_filter_vf_cfg_cmd *req1;
-	struct hclge_desc desc[2];
 	u8 vf_byte_val;
 	u8 vf_byte_off;
 	int ret;
-
-	/* if vf vlan table is full, firmware will close vf vlan filter, it
-	 * is unable and unnecessary to add new vlan id to vf vlan filter.
-	 * If spoof check is enable, and vf vlan is full, it shouldn't add
-	 * new vlan, because tx packets with these vlan id will be dropped.
-	 */
-	if (test_bit(vfid, hdev->vf_vlan_full) && !is_kill) {
-		if (vport->vf_info.spoofchk && vlan) {
-			dev_err(&hdev->pdev->dev,
-				"Can't add vlan due to spoof check is on and vf vlan table is full\n");
-			return -EPERM;
-		}
-		return 0;
-	}
 
 	hclge_cmd_setup_basic_desc(&desc[0],
 				   HCLGE_OPC_VLAN_FILTER_VF_CFG, false);
@@ -8841,12 +8825,22 @@ static int hclge_set_vf_vlan_common(struct hclge_dev *hdev, u16 vfid,
 		return ret;
 	}
 
+	return 0;
+}
+
+static int hclge_check_vf_vlan_cmd_status(struct hclge_dev *hdev, u16 vfid,
+					  bool is_kill, struct hclge_desc *desc)
+{
+	struct hclge_vlan_filter_vf_cfg_cmd *req;
+
+	req = (struct hclge_vlan_filter_vf_cfg_cmd *)desc[0].data;
+
 	if (!is_kill) {
 #define HCLGE_VF_VLAN_NO_ENTRY	2
-		if (!req0->resp_code || req0->resp_code == 1)
+		if (!req->resp_code || req->resp_code == 1)
 			return 0;
 
-		if (req0->resp_code == HCLGE_VF_VLAN_NO_ENTRY) {
+		if (req->resp_code == HCLGE_VF_VLAN_NO_ENTRY) {
 			set_bit(vfid, hdev->vf_vlan_full);
 			dev_warn(&hdev->pdev->dev,
 				 "vf vlan table is full, vf vlan filter is disabled\n");
@@ -8855,10 +8849,10 @@ static int hclge_set_vf_vlan_common(struct hclge_dev *hdev, u16 vfid,
 
 		dev_err(&hdev->pdev->dev,
 			"Add vf vlan filter fail, ret =%u.\n",
-			req0->resp_code);
+			req->resp_code);
 	} else {
 #define HCLGE_VF_VLAN_DEL_NO_FOUND	1
-		if (!req0->resp_code)
+		if (!req->resp_code)
 			return 0;
 
 		/* vf vlan filter is disabled when vf vlan table is full,
@@ -8866,15 +8860,44 @@ static int hclge_set_vf_vlan_common(struct hclge_dev *hdev, u16 vfid,
 		 * Just return 0 without warning, avoid massive verbose
 		 * print logs when unload.
 		 */
-		if (req0->resp_code == HCLGE_VF_VLAN_DEL_NO_FOUND)
+		if (req->resp_code == HCLGE_VF_VLAN_DEL_NO_FOUND)
 			return 0;
 
 		dev_err(&hdev->pdev->dev,
 			"Kill vf vlan filter fail, ret =%u.\n",
-			req0->resp_code);
+			req->resp_code);
 	}
 
 	return -EIO;
+}
+
+static int hclge_set_vf_vlan_common(struct hclge_dev *hdev, u16 vfid,
+				    bool is_kill, u16 vlan,
+				    __be16 proto)
+{
+	struct hclge_vport *vport = &hdev->vport[vfid];
+	struct hclge_desc desc[2];
+	int ret;
+
+	/* if vf vlan table is full, firmware will close vf vlan filter, it
+	 * is unable and unnecessary to add new vlan id to vf vlan filter.
+	 * If spoof check is enable, and vf vlan is full, it shouldn't add
+	 * new vlan, because tx packets with these vlan id will be dropped.
+	 */
+	if (test_bit(vfid, hdev->vf_vlan_full) && !is_kill) {
+		if (vport->vf_info.spoofchk && vlan) {
+			dev_err(&hdev->pdev->dev,
+				"Can't add vlan due to spoof check is on and vf vlan table is full\n");
+			return -EPERM;
+		}
+		return 0;
+	}
+
+	ret = hclge_set_vf_vlan_filter_cmd(hdev, vfid, is_kill, vlan, desc);
+	if (ret)
+		return ret;
+
+	return hclge_check_vf_vlan_cmd_status(hdev, vfid, is_kill, desc);
 }
 
 static int hclge_set_port_vlan_filter(struct hclge_dev *hdev, __be16 proto,
