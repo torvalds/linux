@@ -68,7 +68,7 @@ int mptcp_pm_remove_subflow(struct mptcp_sock *msk, u8 local_id)
 
 /* path manager event handlers */
 
-void mptcp_pm_new_connection(struct mptcp_sock *msk, int server_side)
+void mptcp_pm_new_connection(struct mptcp_sock *msk, const struct sock *ssk, int server_side)
 {
 	struct mptcp_pm_data *pm = &msk->pm;
 
@@ -119,7 +119,7 @@ static bool mptcp_pm_schedule_work(struct mptcp_sock *msk,
 	return true;
 }
 
-void mptcp_pm_fully_established(struct mptcp_sock *msk)
+void mptcp_pm_fully_established(struct mptcp_sock *msk, const struct sock *ssk, gfp_t gfp)
 {
 	struct mptcp_pm_data *pm = &msk->pm;
 

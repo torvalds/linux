@@ -3028,7 +3028,7 @@ void mptcp_finish_connect(struct sock *ssk)
 	WRITE_ONCE(msk->can_ack, 1);
 	WRITE_ONCE(msk->snd_una, msk->write_seq);
 
-	mptcp_pm_new_connection(msk, 0);
+	mptcp_pm_new_connection(msk, ssk, 0);
 
 	mptcp_rcv_space_init(msk, ssk);
 }
@@ -3272,7 +3272,7 @@ static int mptcp_stream_accept(struct socket *sock, struct socket *newsock,
 		list_add(&subflow->node, &msk->conn_list);
 		sock_hold(msk->first);
 		if (mptcp_is_fully_established(newsk))
-			mptcp_pm_fully_established(msk);
+			mptcp_pm_fully_established(msk, msk->first, GFP_KERNEL);
 
 		mptcp_copy_inaddrs(newsk, msk->first);
 		mptcp_rcv_space_init(msk, msk->first);

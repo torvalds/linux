@@ -867,7 +867,7 @@ fully_established:
 		clear_3rdack_retransmission(ssk);
 		mptcp_pm_subflow_established(msk, subflow);
 	} else {
-		mptcp_pm_fully_established(msk);
+		mptcp_pm_fully_established(msk, ssk, GFP_ATOMIC);
 	}
 	return true;
 
