@@ -538,6 +538,7 @@ int zpci_setup_bus_resources(struct zpci_dev *zdev,
 		zdev->bars[i].res = res;
 		pci_add_resource(resources, res);
 	}
+	zdev->has_resources = 1;
 
 	return 0;
 }
@@ -554,6 +555,7 @@ static void zpci_cleanup_bus_resources(struct zpci_dev *zdev)
 		release_resource(zdev->bars[i].res);
 		kfree(zdev->bars[i].res);
 	}
+	zdev->has_resources = 0;
 }
 
 int pcibios_add_device(struct pci_dev *pdev)
@@ -717,15 +719,9 @@ int zpci_create_device(u32 fid, u32 fh, enum zpci_state state)
 	if (rc)
 		goto error;
 
-	if (zdev->state == ZPCI_FN_STATE_CONFIGURED) {
-		rc = zpci_enable_device(zdev);
-		if (rc)
-			goto error_destroy_iommu;
-	}
-
 	rc = zpci_bus_device_register(zdev, &pci_root_ops);
 	if (rc)
-		goto error_disable;
+		goto error_destroy_iommu;
 
 	spin_lock(&zpci_list_lock);
 	list_add_tail(&zdev->entry, &zpci_list);
@@ -733,9 +729,6 @@ int zpci_create_device(u32 fid, u32 fh, enum zpci_state state)
 
 	return 0;
 
-error_disable:
-	if (zdev_enabled(zdev))
-		zpci_disable_device(zdev);
 error_destroy_iommu:
 	zpci_destroy_iommu(zdev);
 error:
@@ -751,7 +744,8 @@ error:
  *
  * Configuring a device includes the configuration itself, if not done by the
  * platform, enabling, scanning and adding it to the common code PCI subsystem.
- * If any failure occurs, the zpci_dev is left in Standby.
+ * If any failure occurs, the zpci_dev is left disabled either in Standby if
+ * the configuration failed or Configured if enabling or scanning failed.
  *
  * Return: 0 on success, or an error code otherwise
  */
@@ -768,29 +762,19 @@ int zpci_configure_device(struct zpci_dev *zdev, u32 fh)
 		zdev->state = ZPCI_FN_STATE_CONFIGURED;
 	}
 
-	rc = zpci_enable_device(zdev);
-	if (rc)
-		goto error;
-
 	/* the PCI function will be scanned once function 0 appears */
 	if (!zdev->zbus->bus)
 		return 0;
 
-	rc = zpci_bus_scan_device(zdev);
-	if (rc)
-		goto error_disable;
+	/* For function 0 on a multi-function bus scan whole bus as we might
+	 * have to pick up existing functions waiting for it to allow creating
+	 * the PCI bus
+	 */
+	if (zdev->devfn == 0 && zdev->zbus->multifunction)
+		rc = zpci_bus_scan_bus(zdev->zbus);
+	else
+		rc = zpci_bus_scan_device(zdev);
 
-	return 0;
-
-error_disable:
-	zpci_disable_device(zdev);
-error:
-	if (zdev->state == ZPCI_FN_STATE_CONFIGURED) {
-		rc = sclp_pci_deconfigure(zdev->fid);
-		zpci_dbg(3, "deconf fid:%x, rc:%d\n", zdev->fid, rc);
-		if (!rc)
-			zdev->state = ZPCI_FN_STATE_STANDBY;
-	}
 	return rc;
 }
 

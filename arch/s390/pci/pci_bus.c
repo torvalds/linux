@@ -30,6 +30,38 @@ static LIST_HEAD(zbus_list);
 static DEFINE_SPINLOCK(zbus_list_lock);
 static int zpci_nb_devices;
 
+/* zpci_bus_prepare_device - Prepare a zPCI function for scanning
+ * @zdev: the zPCI function to be prepared
+ *
+ * The PCI resources for the function are set up and added to its zbus and the
+ * function is enabled. The function must be added to a zbus which must have
+ * a PCI bus created. If an error occurs the zPCI function is not enabled.
+ *
+ * Return: 0 on success, an error code otherwise
+ */
+static int zpci_bus_prepare_device(struct zpci_dev *zdev)
+{
+	struct resource_entry *window, *n;
+	struct resource *res;
+	int rc;
+
+	if (!zdev_enabled(zdev)) {
+		rc = zpci_enable_device(zdev);
+		if (rc)
+			return rc;
+	}
+
+	if (!zdev->has_resources) {
+		zpci_setup_bus_resources(zdev, &zdev->zbus->resources);
+		resource_list_for_each_entry_safe(window, n, &zdev->zbus->resources) {
+			res = window->res;
+			pci_bus_add_resource(zdev->zbus->bus, res, 0);
+		}
+	}
+
+	return 0;
+}
+
 /* zpci_bus_scan_device - Scan a single device adding it to the PCI core
  * @zdev: the zdev to be scanned
  *
@@ -40,6 +72,11 @@ static int zpci_nb_devices;
 int zpci_bus_scan_device(struct zpci_dev *zdev)
 {
 	struct pci_dev *pdev;
+	int rc;
+
+	rc = zpci_bus_prepare_device(zdev);
+	if (rc)
+		return rc;
 
 	pdev = pci_scan_single_device(zdev->zbus->bus, zdev->devfn);
 	if (!pdev)
@@ -86,7 +123,44 @@ void zpci_bus_remove_device(struct zpci_dev *zdev, bool set_error)
 	}
 }
 
-/* zpci_bus_scan - Scan the PCI bus associated with this zbus
+/* zpci_bus_scan_bus - Scan all configured zPCI functions on the bus
+ * @zbus: the zbus to be scanned
+ *
+ * Enables and scans all PCI functions on the bus making them available to the
+ * common PCI code. If there is no function 0 on the zbus nothing is scanned. If
+ * a function does not have a slot yet because it was added to the zbus before
+ * function 0 the slot is created. If a PCI function fails to be initialized
+ * an error will be returned but attempts will still be made for all other
+ * functions on the bus.
+ *
+ * Return: 0 on success, an error value otherwise
+ */
+int zpci_bus_scan_bus(struct zpci_bus *zbus)
+{
+	struct zpci_dev *zdev;
+	int devfn, rc, ret = 0;
+
+	if (!zbus->function[0])
+		return 0;
+
+	for (devfn = 0; devfn < ZPCI_FUNCTIONS_PER_BUS; devfn++) {
+		zdev = zbus->function[devfn];
+		if (zdev && zdev->state == ZPCI_FN_STATE_CONFIGURED) {
+			rc = zpci_bus_prepare_device(zdev);
+			if (rc)
+				ret = -EIO;
+		}
+	}
+
+	pci_lock_rescan_remove();
+	pci_scan_child_bus(zbus->bus);
+	pci_bus_add_devices(zbus->bus);
+	pci_unlock_rescan_remove();
+
+	return ret;
+}
+
+/* zpci_bus_create_pci_bus - Create the PCI bus associated with this zbus
  * @zbus: the zbus holding the zdevices
  * @f0: function 0 of the bus
  * @ops: the pci operations
@@ -96,7 +170,7 @@ void zpci_bus_remove_device(struct zpci_dev *zdev, bool set_error)
  *
  * Return: 0 on success, an error code otherwise
  */
-static int zpci_bus_scan(struct zpci_bus *zbus, struct zpci_dev *f0, struct pci_ops *ops)
+static int zpci_bus_create_pci_bus(struct zpci_bus *zbus, struct zpci_dev *f0, struct pci_ops *ops)
 {
 	struct pci_bus *bus;
 	int domain;
@@ -113,7 +187,7 @@ static int zpci_bus_scan(struct zpci_bus *zbus, struct zpci_dev *f0, struct pci_
 	 * Note that the zbus->resources are taken over and zbus->resources
 	 * is empty after a successful call
 	 */
-	bus = pci_scan_root_bus(NULL, ZPCI_BUS_NR, ops, zbus, &zbus->resources);
+	bus = pci_create_root_bus(NULL, ZPCI_BUS_NR, ops, zbus, &zbus->resources);
 	if (!bus) {
 		zpci_free_domain(zbus->domain_nr);
 		return -EFAULT;
@@ -121,6 +195,7 @@ static int zpci_bus_scan(struct zpci_bus *zbus, struct zpci_dev *f0, struct pci_
 
 	zbus->bus = bus;
 	pci_bus_add_devices(bus);
+
 	return 0;
 }
 
@@ -206,45 +281,77 @@ void pcibios_bus_add_device(struct pci_dev *pdev)
 	}
 }
 
-static int zpci_bus_add_device(struct zpci_bus *zbus, struct zpci_dev *zdev)
+/* zpci_bus_create_hotplug_slots - Add hotplug slot(s) for device added to bus
+ * @zdev: the zPCI device that was newly added
+ *
+ * Add the hotplug slot(s) for the newly added PCI function. Normally this is
+ * simply the slot for the function itself. If however we are adding the
+ * function 0 on a zbus, it might be that we already registered functions on
+ * that zbus but could not create their hotplug slots yet so add those now too.
+ *
+ * Return: 0 on success, an error code otherwise
+ */
+static int zpci_bus_create_hotplug_slots(struct zpci_dev *zdev)
 {
-	struct resource_entry *window, *n;
-	struct resource *res;
-	struct pci_dev *pdev;
-	struct pci_bus *bus;
-	int rc;
-
-	bus = zbus->bus;
-	if (!bus)
-		return -EINVAL;
-
-	pdev = pci_get_slot(bus, zdev->devfn);
-	if (pdev) {
-		/* Device is already known. */
-		pci_dev_put(pdev);
-		return 0;
-	}
+	struct zpci_bus *zbus = zdev->zbus;
+	int devfn, rc = 0;
 
 	rc = zpci_init_slot(zdev);
 	if (rc)
 		return rc;
 	zdev->has_hp_slot = 1;
 
-	resource_list_for_each_entry_safe(window, n, &zbus->resources) {
-		res = window->res;
-		pci_bus_add_resource(bus, res, 0);
+	if (zdev->devfn == 0 && zbus->multifunction) {
+		/* Now that function 0 is there we can finally create the
+		 * hotplug slots for those functions with devfn != 0 that have
+		 * been parked in zbus->function[] waiting for us to be able to
+		 * create the PCI bus.
+		 */
+		for  (devfn = 1; devfn < ZPCI_FUNCTIONS_PER_BUS; devfn++) {
+			zdev = zbus->function[devfn];
+			if (zdev && !zdev->has_hp_slot) {
+				rc = zpci_init_slot(zdev);
+				if (rc)
+					return rc;
+				zdev->has_hp_slot = 1;
+			}
+		}
+
 	}
 
-	return zpci_bus_scan_device(zdev);
+	return rc;
 }
 
-static void zpci_bus_add_devices(struct zpci_bus *zbus)
+static int zpci_bus_add_device(struct zpci_bus *zbus, struct zpci_dev *zdev)
 {
-	int i;
+	int rc = -EINVAL;
 
-	for (i = 1; i < ZPCI_FUNCTIONS_PER_BUS; i++)
-		if (zbus->function[i])
-			zpci_bus_add_device(zbus, zbus->function[i]);
+	zdev->zbus = zbus;
+	if (zbus->function[zdev->devfn]) {
+		pr_err("devfn %04x is already assigned\n", zdev->devfn);
+		return rc;
+	}
+	zbus->function[zdev->devfn] = zdev;
+	zpci_nb_devices++;
+
+	if (zbus->bus) {
+		if (zbus->multifunction && !zdev->rid_available) {
+			WARN_ONCE(1, "rid_available not set for multifunction\n");
+			goto error;
+		}
+
+		zpci_bus_create_hotplug_slots(zdev);
+	} else {
+		/* Hotplug slot will be created once function 0 appears */
+		zbus->multifunction = 1;
+	}
+
+	return 0;
+
+error:
+	zbus->function[zdev->devfn] = NULL;
+	zpci_nb_devices--;
+	return rc;
 }
 
 int zpci_bus_device_register(struct zpci_dev *zdev, struct pci_ops *ops)
@@ -257,7 +364,6 @@ int zpci_bus_device_register(struct zpci_dev *zdev, struct pci_ops *ops)
 			zdev->fid, ZPCI_NR_DEVICES);
 		return -ENOSPC;
 	}
-	zpci_nb_devices++;
 
 	if (zdev->devfn >= ZPCI_FUNCTIONS_PER_BUS)
 		return -EINVAL;
@@ -271,49 +377,36 @@ int zpci_bus_device_register(struct zpci_dev *zdev, struct pci_ops *ops)
 			return -ENOMEM;
 	}
 
-	zdev->zbus = zbus;
-	if (zbus->function[zdev->devfn]) {
-		pr_err("devfn %04x is already assigned\n", zdev->devfn);
-		goto error; /* rc already set */
+	if (zdev->devfn == 0) {
+		rc = zpci_bus_create_pci_bus(zbus, zdev, ops);
+		if (rc)
+			goto error;
 	}
-	zbus->function[zdev->devfn] = zdev;
 
-	zpci_setup_bus_resources(zdev, &zbus->resources);
+	rc = zpci_bus_add_device(zbus, zdev);
+	if (rc)
+		goto error;
 
-	if (zbus->bus) {
-		if (!zbus->multifunction) {
-			WARN_ONCE(1, "zbus is not multifunction\n");
-			goto error_bus;
-		}
-		if (!zdev->rid_available) {
-			WARN_ONCE(1, "rid_available not set for multifunction\n");
-			goto error_bus;
-		}
-		rc = zpci_bus_add_device(zbus, zdev);
-		if (rc)
-			goto error_bus;
-	} else if (zdev->devfn == 0) {
-		if (zbus->multifunction && !zdev->rid_available) {
-			WARN_ONCE(1, "rid_available not set on function 0 for multifunction\n");
-			goto error_bus;
-		}
-		rc = zpci_bus_scan(zbus, zdev, ops);
-		if (rc)
-			goto error_bus;
-		zpci_bus_add_devices(zbus);
-		rc = zpci_init_slot(zdev);
-		if (rc)
-			goto error_bus;
-		zdev->has_hp_slot = 1;
-	} else {
-		zbus->multifunction = 1;
-	}
+	if (zdev->state != ZPCI_FN_STATE_CONFIGURED)
+		return 0;
+
+	/* the PCI function will be scanned once function 0 appears */
+	if (!zdev->zbus->bus)
+		return 0;
+
+	/* For function 0 scan whole bus as we might have to pick up existing
+	 * functions waiting for it to allow creating the PCI bus
+	 */
+	if (zdev->devfn == 0 && zdev->zbus->multifunction)
+		rc = zpci_bus_scan_bus(zdev->zbus);
+	else
+		rc = zpci_bus_scan_device(zdev);
+
+	if (rc)
+		goto error;
 
 	return 0;
 
-error_bus:
-	zpci_nb_devices--;
-	zbus->function[zdev->devfn] = NULL;
 error:
 	pr_err("Adding PCI function %08x failed\n", zdev->fid);
 	zpci_bus_put(zbus);
