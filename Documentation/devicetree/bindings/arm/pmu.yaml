@@ -43,6 +43,7 @@ properties:
           - arm,cortex-a75-pmu
           - arm,cortex-a76-pmu
           - arm,cortex-a77-pmu
+          - arm,cortex-a78-pmu
           - arm,neoverse-e1-pmu
           - arm,neoverse-n1-pmu
           - brcm,vulcan-pmu
