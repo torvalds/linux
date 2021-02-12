@@ -314,6 +314,40 @@ static int mlx5_extts_configure(struct ptp_clock_info *ptp,
 			       MLX5_EVENT_MODE_REPETETIVE & on);
 }
 
+static u64 find_target_cycles(struct mlx5_core_dev *mdev, s64 target_ns)
+{
+	struct mlx5_clock *clock = &mdev->clock;
+	u64 cycles_now, cycles_delta;
+	u64 nsec_now, nsec_delta;
+	struct mlx5_timer *timer;
+	unsigned long flags;
+
+	timer = &clock->timer;
+
+	cycles_now = mlx5_read_internal_timer(mdev, NULL);
+	write_seqlock_irqsave(&clock->lock, flags);
+	nsec_now = timecounter_cyc2time(&timer->tc, cycles_now);
+	nsec_delta = target_ns - nsec_now;
+	cycles_delta = div64_u64(nsec_delta << timer->cycles.shift,
+				 timer->cycles.mult);
+	write_sequnlock_irqrestore(&clock->lock, flags);
+
+	return cycles_now + cycles_delta;
+}
+
+static u64 perout_conf_internal_timer(struct mlx5_core_dev *mdev,
+				      s64 sec, u32 nsec)
+{
+	struct timespec64 ts;
+	s64 target_ns;
+
+	ts.tv_sec = sec;
+	ts.tv_nsec = nsec;
+	target_ns = timespec64_to_ns(&ts);
+
+	return find_target_cycles(mdev, target_ns);
+}
+
 static int mlx5_perout_configure(struct ptp_clock_info *ptp,
 				 struct ptp_clock_request *rq,
 				 int on)
@@ -322,13 +356,10 @@ static int mlx5_perout_configure(struct ptp_clock_info *ptp,
 			container_of(ptp, struct mlx5_clock, ptp_info);
 	struct mlx5_core_dev *mdev =
 			container_of(clock, struct mlx5_core_dev, clock);
-	struct mlx5_timer *timer = &clock->timer;
 	u32 in[MLX5_ST_SZ_DW(mtpps_reg)] = {0};
-	u64 nsec_now, nsec_delta, time_stamp = 0;
-	u64 cycles_now, cycles_delta;
 	struct timespec64 ts;
-	unsigned long flags;
 	u32 field_select = 0;
+	u64 time_stamp = 0;
 	u8 pin_mode = 0;
 	u8 pattern = 0;
 	int pin = -1;
@@ -345,12 +376,15 @@ static int mlx5_perout_configure(struct ptp_clock_info *ptp,
 	if (rq->perout.index >= clock->ptp_info.n_pins)
 		return -EINVAL;
 
-	pin = ptp_find_pin(clock->ptp, PTP_PF_PEROUT,
-			   rq->perout.index);
-	if (pin < 0)
-		return -EBUSY;
-
+	field_select = MLX5_MTPPS_FS_ENABLE;
 	if (on) {
+		u32 nsec;
+		s64 sec;
+
+		pin = ptp_find_pin(clock->ptp, PTP_PF_PEROUT, rq->perout.index);
+		if (pin < 0)
+			return -EBUSY;
+
 		pin_mode = MLX5_PIN_MODE_OUT;
 		pattern = MLX5_OUT_PATTERN_PERIODIC;
 		ts.tv_sec = rq->perout.period.sec;
@@ -360,23 +394,14 @@ static int mlx5_perout_configure(struct ptp_clock_info *ptp,
 		if ((ns >> 1) != 500000000LL)
 			return -EINVAL;
 
-		ts.tv_sec = rq->perout.start.sec;
-		ts.tv_nsec = rq->perout.start.nsec;
-		ns = timespec64_to_ns(&ts);
-		cycles_now = mlx5_read_internal_timer(mdev, NULL);
-		write_seqlock_irqsave(&clock->lock, flags);
-		nsec_now = timecounter_cyc2time(&timer->tc, cycles_now);
-		nsec_delta = ns - nsec_now;
-		cycles_delta = div64_u64(nsec_delta << timer->cycles.shift,
-					 timer->cycles.mult);
-		write_sequnlock_irqrestore(&clock->lock, flags);
-		time_stamp = cycles_now + cycles_delta;
-		field_select = MLX5_MTPPS_FS_PIN_MODE |
-			       MLX5_MTPPS_FS_PATTERN |
-			       MLX5_MTPPS_FS_ENABLE |
-			       MLX5_MTPPS_FS_TIME_STAMP;
-	} else {
-		field_select = MLX5_MTPPS_FS_ENABLE;
+		nsec = rq->perout.start.nsec;
+		sec = rq->perout.start.sec;
+
+		time_stamp = perout_conf_internal_timer(mdev, sec, nsec);
+
+		field_select |= MLX5_MTPPS_FS_PIN_MODE |
+				MLX5_MTPPS_FS_PATTERN |
+				MLX5_MTPPS_FS_TIME_STAMP;
 	}
 
 	MLX5_SET(mtpps_reg, in, pin, pin);
@@ -547,19 +572,35 @@ static void mlx5_get_pps_caps(struct mlx5_core_dev *mdev)
 	clock->pps_info.pin_caps[7] = MLX5_GET(mtpps_reg, out, cap_pin_7_mode);
 }
 
+static void ts_next_sec(struct timespec64 *ts)
+{
+	ts->tv_sec += 1;
+	ts->tv_nsec = 0;
+}
+
+static u64 perout_conf_next_event_inernal_timer(struct mlx5_core_dev *mdev,
+						struct mlx5_clock *clock)
+{
+	struct timespec64 ts;
+	s64 target_ns;
+
+	mlx5_ptp_gettimex(&clock->ptp_info, &ts, NULL);
+	ts_next_sec(&ts);
+	target_ns = timespec64_to_ns(&ts);
+
+	return find_target_cycles(mdev, target_ns);
+}
+
 static int mlx5_pps_event(struct notifier_block *nb,
 			  unsigned long type, void *data)
 {
 	struct mlx5_clock *clock = mlx5_nb_cof(nb, struct mlx5_clock, pps_nb);
-	struct mlx5_timer *timer = &clock->timer;
 	struct ptp_clock_event ptp_event;
-	u64 cycles_now, cycles_delta;
-	u64 nsec_now, nsec_delta, ns;
 	struct mlx5_eqe *eqe = data;
 	int pin = eqe->data.pps.pin;
 	struct mlx5_core_dev *mdev;
-	struct timespec64 ts;
 	unsigned long flags;
+	u64 ns;
 
 	mdev = container_of(clock, struct mlx5_core_dev, clock);
 
@@ -580,17 +621,9 @@ static int mlx5_pps_event(struct notifier_block *nb,
 		ptp_clock_event(clock->ptp, &ptp_event);
 		break;
 	case PTP_PF_PEROUT:
-		mlx5_ptp_gettimex(&clock->ptp_info, &ts, NULL);
-		cycles_now = mlx5_read_internal_timer(mdev, NULL);
-		ts.tv_sec += 1;
-		ts.tv_nsec = 0;
-		ns = timespec64_to_ns(&ts);
+		ns = perout_conf_next_event_inernal_timer(mdev, clock);
 		write_seqlock_irqsave(&clock->lock, flags);
-		nsec_now = timecounter_cyc2time(&timer->tc, cycles_now);
-		nsec_delta = ns - nsec_now;
-		cycles_delta = div64_u64(nsec_delta << timer->cycles.shift,
-					 timer->cycles.mult);
-		clock->pps_info.start[pin] = cycles_now + cycles_delta;
+		clock->pps_info.start[pin] = ns;
 		write_sequnlock_irqrestore(&clock->lock, flags);
 		schedule_work(&clock->pps_info.out_work);
 		break;
