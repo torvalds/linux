@@ -2348,7 +2348,6 @@ static void commit_planes_do_stream_update(struct dc *dc,
 		struct dc_state *context)
 {
 	int j;
-	bool should_program_abm;
 
 	// Stream updates
 	for (j = 0; j < dc->res_pool->pipe_count; j++) {
@@ -2424,7 +2423,7 @@ static void commit_planes_do_stream_update(struct dc *dc,
 			}
 
 			if (stream_update->abm_level && pipe_ctx->stream_res.abm) {
-				should_program_abm = true;
+				bool should_program_abm = true;
 
 				// if otg funcs defined check if blanked before programming
 				if (pipe_ctx->stream_res.tg->funcs->is_blanked)
