@@ -52,6 +52,16 @@ properties:
       - pattern: '^clk_uart_baud[0-3]$'
       - pattern: '^clk_uart_baud[0-3]$'
 
+  dmas:
+    items:
+      - description: DMA controller phandle and request line for RX
+      - description: DMA controller phandle and request line for TX
+
+  dma-names:
+    items:
+      - const: rx
+      - const: tx
+
   interrupts:
     description: RX interrupt and optionally TX interrupt.
     minItems: 1
