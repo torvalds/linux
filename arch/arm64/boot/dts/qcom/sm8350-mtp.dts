@@ -32,6 +32,11 @@
 	};
 };
 
+&adsp {
+	status = "okay";
+	firmware-name = "qcom/sm8350/adsp.mbn";
+};
+
 &apps_rsc {
 	pm8350-rpmh-regulators {
 		compatible = "qcom,pm8350-rpmh-regulators";
@@ -265,8 +270,23 @@
 	};
 };
 
+&cdsp {
+	status = "okay";
+	firmware-name = "qcom/sm8350/cdsp.mbn";
+};
+
+&mpss {
+	status = "okay";
+	firmware-name = "qcom/sm8350/modem.mbn";
+};
+
 &qupv3_id_1 {
 	status = "okay";
+};
+
+&slpi {
+	status = "okay";
+	firmware-name = "qcom/sm8350/slpi.mbn";
 };
 
 &tlmm {
