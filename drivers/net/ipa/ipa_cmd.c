@@ -268,7 +268,7 @@ static bool ipa_cmd_register_write_valid(struct ipa *ipa)
 	/* If hashed tables are supported, ensure the hash flush register
 	 * offset will fit in a register write IPA immediate command.
 	 */
-	if (ipa->version != IPA_VERSION_4_2) {
+	if (ipa_table_hash_support(ipa)) {
 		offset = ipa_reg_filt_rout_hash_flush_offset(ipa->version);
 		name = "filter/route hash flush";
 		if (!ipa_cmd_register_write_offset_valid(ipa, name, offset))
