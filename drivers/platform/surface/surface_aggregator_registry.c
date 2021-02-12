@@ -77,6 +77,48 @@ static const struct software_node ssam_node_bas_dtx = {
 	.parent = &ssam_node_root,
 };
 
+/* HID keyboard. */
+static const struct software_node ssam_node_hid_main_keyboard = {
+	.name = "ssam:01:15:02:01:00",
+	.parent = &ssam_node_root,
+};
+
+/* HID touchpad. */
+static const struct software_node ssam_node_hid_main_touchpad = {
+	.name = "ssam:01:15:02:03:00",
+	.parent = &ssam_node_root,
+};
+
+/* HID device instance 5 (unknown HID device). */
+static const struct software_node ssam_node_hid_main_iid5 = {
+	.name = "ssam:01:15:02:05:00",
+	.parent = &ssam_node_root,
+};
+
+/* HID keyboard (base hub). */
+static const struct software_node ssam_node_hid_base_keyboard = {
+	.name = "ssam:01:15:02:01:00",
+	.parent = &ssam_node_hub_base,
+};
+
+/* HID touchpad (base hub). */
+static const struct software_node ssam_node_hid_base_touchpad = {
+	.name = "ssam:01:15:02:03:00",
+	.parent = &ssam_node_hub_base,
+};
+
+/* HID device instance 5 (unknown HID device, base hub). */
+static const struct software_node ssam_node_hid_base_iid5 = {
+	.name = "ssam:01:15:02:05:00",
+	.parent = &ssam_node_hub_base,
+};
+
+/* HID device instance 6 (unknown HID device, base hub). */
+static const struct software_node ssam_node_hid_base_iid6 = {
+	.name = "ssam:01:15:02:06:00",
+	.parent = &ssam_node_hub_base,
+};
+
 /* Devices for Surface Book 2. */
 static const struct software_node *ssam_node_group_sb2[] = {
 	&ssam_node_root,
@@ -93,6 +135,10 @@ static const struct software_node *ssam_node_group_sb3[] = {
 	&ssam_node_bat_sb3base,
 	&ssam_node_tmp_pprof,
 	&ssam_node_bas_dtx,
+	&ssam_node_hid_base_keyboard,
+	&ssam_node_hid_base_touchpad,
+	&ssam_node_hid_base_iid5,
+	&ssam_node_hid_base_iid6,
 	NULL,
 };
 
@@ -116,6 +162,9 @@ static const struct software_node *ssam_node_group_sl3[] = {
 	&ssam_node_bat_ac,
 	&ssam_node_bat_main,
 	&ssam_node_tmp_pprof,
+	&ssam_node_hid_main_keyboard,
+	&ssam_node_hid_main_touchpad,
+	&ssam_node_hid_main_iid5,
 	NULL,
 };
 
