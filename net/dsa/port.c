@@ -140,7 +140,7 @@ static void dsa_port_change_brport_flags(struct dsa_port *dp,
 		tmp.val = flags.val & BIT(flag);
 		tmp.mask = BIT(flag);
 
-		dsa_port_bridge_flags(dp, tmp);
+		dsa_port_bridge_flags(dp, tmp, NULL);
 	}
 }
 
@@ -425,41 +425,38 @@ int dsa_port_ageing_time(struct dsa_port *dp, clock_t ageing_clock)
 }
 
 int dsa_port_pre_bridge_flags(const struct dsa_port *dp,
-			      struct switchdev_brport_flags flags)
+			      struct switchdev_brport_flags flags,
+			      struct netlink_ext_ack *extack)
 {
 	struct dsa_switch *ds = dp->ds;
 
-	if (!ds->ops->port_egress_floods ||
-	    (flags.mask & ~(BR_FLOOD | BR_MCAST_FLOOD)))
+	if (!ds->ops->port_pre_bridge_flags)
 		return -EINVAL;
 
-	return 0;
+	return ds->ops->port_pre_bridge_flags(ds, dp->index, flags, extack);
 }
 
 int dsa_port_bridge_flags(const struct dsa_port *dp,
-			  struct switchdev_brport_flags flags)
+			  struct switchdev_brport_flags flags,
+			  struct netlink_ext_ack *extack)
 {
 	struct dsa_switch *ds = dp->ds;
-	int port = dp->index;
-	int err = 0;
 
-	if (ds->ops->port_egress_floods)
-		err = ds->ops->port_egress_floods(ds, port,
-						  flags.val & BR_FLOOD,
-						  flags.val & BR_MCAST_FLOOD);
+	if (!ds->ops->port_bridge_flags)
+		return -EINVAL;
 
-	return err;
+	return ds->ops->port_bridge_flags(ds, dp->index, flags, extack);
 }
 
-int dsa_port_mrouter(struct dsa_port *dp, bool mrouter)
+int dsa_port_mrouter(struct dsa_port *dp, bool mrouter,
+		     struct netlink_ext_ack *extack)
 {
 	struct dsa_switch *ds = dp->ds;
-	int port = dp->index;
 
-	if (!ds->ops->port_egress_floods)
+	if (!ds->ops->port_set_mrouter)
 		return -EOPNOTSUPP;
 
-	return ds->ops->port_egress_floods(ds, port, true, mrouter);
+	return ds->ops->port_set_mrouter(ds, dp->index, mrouter, extack);
 }
 
 int dsa_port_mtu_change(struct dsa_port *dp, int new_mtu,
