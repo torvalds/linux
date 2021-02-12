@@ -9150,6 +9150,28 @@ struct mlx5_ifc_mpegc_reg_bits {
 	u8         reserved_at_60[0x100];
 };
 
+enum {
+	MLX5_MTUTC_OPERATION_SET_TIME_IMMEDIATE   = 0x1,
+	MLX5_MTUTC_OPERATION_ADJUST_TIME          = 0x2,
+	MLX5_MTUTC_OPERATION_ADJUST_FREQ_UTC      = 0x3,
+};
+
+struct mlx5_ifc_mtutc_reg_bits {
+	u8         reserved_at_0[0x1c];
+	u8         operation[0x4];
+
+	u8         freq_adjustment[0x20];
+
+	u8         reserved_at_40[0x40];
+
+	u8         utc_sec[0x20];
+
+	u8         reserved_at_a0[0x2];
+	u8         utc_nsec[0x1e];
+
+	u8         time_adjustment[0x20];
+};
+
 struct mlx5_ifc_pcam_enhanced_features_bits {
 	u8         reserved_at_0[0x68];
 	u8         fec_50G_per_lane_in_pplm[0x1];
@@ -9208,7 +9230,9 @@ struct mlx5_ifc_pcam_reg_bits {
 };
 
 struct mlx5_ifc_mcam_enhanced_features_bits {
-	u8         reserved_at_0[0x6e];
+	u8         reserved_at_0[0x6b];
+	u8         ptpcyc2realtime_modify[0x1];
+	u8         reserved_at_6c[0x2];
 	u8         pci_status_and_power[0x1];
 	u8         reserved_at_6f[0x5];
 	u8         mark_tx_action_cnp[0x1];
@@ -9231,7 +9255,8 @@ struct mlx5_ifc_mcam_access_reg_bits {
 
 	u8         regs_95_to_87[0x9];
 	u8         mpegc[0x1];
-	u8         regs_85_to_68[0x12];
+	u8         mtutc[0x1];
+	u8         regs_84_to_68[0x11];
 	u8         tracer_registers[0x4];
 
 	u8         regs_63_to_32[0x20];
@@ -9964,6 +9989,7 @@ union mlx5_ifc_ports_control_registers_document_bits {
 	struct mlx5_ifc_mcda_reg_bits mcda_reg;
 	struct mlx5_ifc_mirc_reg_bits mirc_reg;
 	struct mlx5_ifc_mfrl_reg_bits mfrl_reg;
+	struct mlx5_ifc_mtutc_reg_bits mtutc_reg;
 	u8         reserved_at_0[0x60e0];
 };
 
