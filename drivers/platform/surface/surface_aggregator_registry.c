@@ -71,6 +71,12 @@ static const struct software_node ssam_node_tmp_pprof = {
 	.parent = &ssam_node_root,
 };
 
+/* DTX / detachment-system device (Surface Book 3). */
+static const struct software_node ssam_node_bas_dtx = {
+	.name = "ssam:01:11:01:00:00",
+	.parent = &ssam_node_root,
+};
+
 /* Devices for Surface Book 2. */
 static const struct software_node *ssam_node_group_sb2[] = {
 	&ssam_node_root,
@@ -86,6 +92,7 @@ static const struct software_node *ssam_node_group_sb3[] = {
 	&ssam_node_bat_main,
 	&ssam_node_bat_sb3base,
 	&ssam_node_tmp_pprof,
+	&ssam_node_bas_dtx,
 	NULL,
 };
 
