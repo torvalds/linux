@@ -323,7 +323,6 @@ static int walt_lb_find_busiest_similar_cap_cpu(int dst_cpu, const cpumask_t *sr
 {
 	int i;
 	int busiest_cpu = -1;
-	int busiest_nr = 1; /* we need atleast 2 */
 	unsigned long util, busiest_util = 0;
 	struct walt_rq *wrq;
 
@@ -331,14 +330,13 @@ static int walt_lb_find_busiest_similar_cap_cpu(int dst_cpu, const cpumask_t *sr
 		wrq = (struct walt_rq *) cpu_rq(i)->android_vendor_data1;
 		trace_walt_lb_cpu_util(i, wrq);
 
-		if (cpu_rq(i)->cfs.h_nr_running < 2)
+		if (cpu_rq(i)->nr_running < 2 || !cpu_rq(i)->cfs.h_nr_running)
 			continue;
 
 		util = walt_lb_cpu_util(i);
 		if (util < busiest_util)
 			continue;
 
-		busiest_nr = cpu_rq(i)->cfs.h_nr_running;
 		busiest_util = util;
 		busiest_cpu = i;
 	}
@@ -351,7 +349,6 @@ static int walt_lb_find_busiest_higher_cap_cpu(int dst_cpu, const cpumask_t *src
 {
 	int i;
 	int busiest_cpu = -1;
-	int busiest_nr = 1; /* we need atleast 2 */
 	unsigned long util, busiest_util = 0;
 	unsigned long total_capacity = 0, total_util = 0, total_nr = 0;
 	int total_cpus = 0;
@@ -390,7 +387,6 @@ static int walt_lb_find_busiest_higher_cap_cpu(int dst_cpu, const cpumask_t *src
 		if (util < busiest_util)
 			continue;
 
-		busiest_nr = cpu_rq(i)->cfs.h_nr_running;
 		busiest_util = util;
 		busiest_cpu = i;
 	}
@@ -411,7 +407,6 @@ static int walt_lb_find_busiest_lower_cap_cpu(int dst_cpu, const cpumask_t *src_
 {
 	int i;
 	int busiest_cpu = -1;
-	int busiest_nr = 1; /* we need atleast 2 */
 	unsigned long util, busiest_util = 0;
 	unsigned long total_capacity = 0, total_util = 0, total_nr = 0;
 	int total_cpus = 0;
@@ -457,7 +452,6 @@ static int walt_lb_find_busiest_lower_cap_cpu(int dst_cpu, const cpumask_t *src_
 		if (util < busiest_util)
 			continue;
 
-		busiest_nr = cpu_rq(i)->cfs.h_nr_running;
 		busiest_util = util;
 		busiest_cpu = i;
 		busy_nr_big_tasks = wrq->walt_stats.nr_big_tasks;
