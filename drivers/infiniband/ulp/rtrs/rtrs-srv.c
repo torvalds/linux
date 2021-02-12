@@ -1333,7 +1333,8 @@ static void free_srv(struct rtrs_srv *srv)
 }
 
 static struct rtrs_srv *get_or_create_srv(struct rtrs_srv_ctx *ctx,
-					   const uuid_t *paths_uuid)
+					  const uuid_t *paths_uuid,
+					  bool first_conn)
 {
 	struct rtrs_srv *srv;
 	int i;
@@ -1346,12 +1347,20 @@ static struct rtrs_srv *get_or_create_srv(struct rtrs_srv_ctx *ctx,
 			return srv;
 		}
 	}
+	/*
+	 * If this request is not the first connection request from the
+	 * client for this session then fail and return error.
+	 */
+	if (!first_conn) {
+		mutex_unlock(&ctx->srv_mutex);
+		return ERR_PTR(-ENXIO);
+	}
 
 	/* need to allocate a new srv */
 	srv = kzalloc(sizeof(*srv), GFP_KERNEL);
 	if  (!srv) {
 		mutex_unlock(&ctx->srv_mutex);
-		return NULL;
+		return ERR_PTR(-ENOMEM);
 	}
 
 	INIT_LIST_HEAD(&srv->paths_list);
@@ -1386,7 +1395,7 @@ err_free_chunks:
 
 err_free_srv:
 	kfree(srv);
-	return NULL;
+	return ERR_PTR(-ENOMEM);
 }
 
 static void put_srv(struct rtrs_srv *srv)
@@ -1787,13 +1796,13 @@ static int rtrs_rdma_connect(struct rdma_cm_id *cm_id,
 		goto reject_w_econnreset;
 	}
 	recon_cnt = le16_to_cpu(msg->recon_cnt);
-	srv = get_or_create_srv(ctx, &msg->paths_uuid);
+	srv = get_or_create_srv(ctx, &msg->paths_uuid, msg->first_conn);
 	/*
 	 * "refcount == 0" happens if a previous thread calls get_or_create_srv
 	 * allocate srv, but chunks of srv are not allocated yet.
 	 */
-	if (!srv || refcount_read(&srv->refcount) == 0) {
-		err = -ENOMEM;
+	if (IS_ERR(srv) || refcount_read(&srv->refcount) == 0) {
+		err = PTR_ERR(srv);
 		goto reject_w_err;
 	}
 	mutex_lock(&srv->paths_mutex);

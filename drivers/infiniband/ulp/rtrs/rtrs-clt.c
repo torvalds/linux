@@ -31,6 +31,8 @@
  */
 #define RTRS_RECONNECT_SEED 8
 
+#define FIRST_CONN 0x01
+
 MODULE_DESCRIPTION("RDMA Transport Client");
 MODULE_LICENSE("GPL");
 
@@ -1660,6 +1662,7 @@ static int rtrs_rdma_route_resolved(struct rtrs_clt_con *con)
 		.cid_num = cpu_to_le16(sess->s.con_num),
 		.recon_cnt = cpu_to_le16(sess->s.recon_cnt),
 	};
+	msg.first_conn = sess->for_new_clt ? FIRST_CONN : 0;
 	uuid_copy(&msg.sess_uuid, &sess->s.uuid);
 	uuid_copy(&msg.paths_uuid, &clt->paths_uuid);
 
@@ -1745,6 +1748,8 @@ static int rtrs_rdma_conn_established(struct rtrs_clt_con *con,
 		scnprintf(sess->hca_name, sizeof(sess->hca_name),
 			  sess->s.dev->ib_dev->name);
 		sess->s.src_addr = con->c.cm_id->route.addr.src_addr;
+		/* set for_new_clt, to allow future reconnect on any path */
+		sess->for_new_clt = 1;
 	}
 
 	return 0;
@@ -2662,6 +2667,8 @@ struct rtrs_clt *rtrs_clt_open(struct rtrs_clt_ops *ops,
 			err = PTR_ERR(sess);
 			goto close_all_sess;
 		}
+		if (!i)
+			sess->for_new_clt = 1;
 		list_add_tail_rcu(&sess->s.entry, &clt->paths_list);
 
 		err = init_sess(sess);
