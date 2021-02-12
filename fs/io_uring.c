@@ -6762,7 +6762,7 @@ static const struct io_uring_sqe *io_get_sqe(struct io_ring_ctx *ctx)
 	 * 2) allows the kernel side to track the head on its own, even
 	 *    though the application is the one updating it.
 	 */
-	head = READ_ONCE(sq_array[ctx->cached_sq_head & ctx->sq_mask]);
+	head = READ_ONCE(sq_array[ctx->cached_sq_head++ & ctx->sq_mask]);
 	if (likely(head < ctx->sq_entries))
 		return &ctx->sq_sqes[head];
 
@@ -6770,11 +6770,6 @@ static const struct io_uring_sqe *io_get_sqe(struct io_ring_ctx *ctx)
 	ctx->cached_sq_dropped++;
 	WRITE_ONCE(ctx->rings->sq_dropped, ctx->cached_sq_dropped);
 	return NULL;
-}
-
-static inline void io_consume_sqe(struct io_ring_ctx *ctx)
-{
-	ctx->cached_sq_head++;
 }
 
 /*
@@ -6915,18 +6910,17 @@ static int io_submit_sqes(struct io_ring_ctx *ctx, unsigned int nr)
 		struct io_kiocb *req;
 		int err;
 
-		sqe = io_get_sqe(ctx);
-		if (unlikely(!sqe)) {
-			io_consume_sqe(ctx);
-			break;
-		}
 		req = io_alloc_req(ctx);
 		if (unlikely(!req)) {
 			if (!submitted)
 				submitted = -EAGAIN;
 			break;
 		}
-		io_consume_sqe(ctx);
+		sqe = io_get_sqe(ctx);
+		if (unlikely(!sqe)) {
+			kmem_cache_free(req_cachep, req);
+			break;
+		}
 		/* will complete beyond this point, count as submitted */
 		submitted++;
 
