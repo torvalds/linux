@@ -2417,13 +2417,10 @@ static void io_req_free_batch(struct req_batch *rb, struct io_kiocb *req,
 	rb->ctx_refs++;
 
 	io_dismantle_req(req);
-	if (state->free_reqs != ARRAY_SIZE(state->reqs)) {
+	if (state->free_reqs != ARRAY_SIZE(state->reqs))
 		state->reqs[state->free_reqs++] = req;
-	} else {
-		struct io_comp_state *cs = &req->ctx->submit_state.comp;
-
-		list_add(&req->compl.list, &cs->free_list);
-	}
+	else
+		list_add(&req->compl.list, &state->comp.free_list);
 }
 
 static void io_submit_flush_completions(struct io_comp_state *cs,
