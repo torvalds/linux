@@ -222,7 +222,8 @@ static int rdma_write_sg(struct rtrs_srv_op *id)
 	dma_addr_t dma_addr = sess->dma_addr[id->msg_id];
 	struct rtrs_srv_mr *srv_mr;
 	struct rtrs_srv *srv = sess->srv;
-	struct ib_send_wr inv_wr, imm_wr;
+	struct ib_send_wr inv_wr;
+	struct ib_rdma_wr imm_wr;
 	struct ib_rdma_wr *wr = NULL;
 	enum ib_send_flags flags;
 	size_t sg_cnt;
@@ -274,15 +275,15 @@ static int rdma_write_sg(struct rtrs_srv_op *id)
 	if (need_inval && always_invalidate) {
 		wr->wr.next = &rwr.wr;
 		rwr.wr.next = &inv_wr;
-		inv_wr.next = &imm_wr;
+		inv_wr.next = &imm_wr.wr;
 	} else if (always_invalidate) {
 		wr->wr.next = &rwr.wr;
-		rwr.wr.next = &imm_wr;
+		rwr.wr.next = &imm_wr.wr;
 	} else if (need_inval) {
 		wr->wr.next = &inv_wr;
-		inv_wr.next = &imm_wr;
+		inv_wr.next = &imm_wr.wr;
 	} else {
-		wr->wr.next = &imm_wr;
+		wr->wr.next = &imm_wr.wr;
 	}
 	/*
 	 * From time to time we have to post signaled sends,
@@ -300,7 +301,7 @@ static int rdma_write_sg(struct rtrs_srv_op *id)
 		inv_wr.ex.invalidate_rkey = rkey;
 	}
 
-	imm_wr.next = NULL;
+	imm_wr.wr.next = NULL;
 	if (always_invalidate) {
 		struct rtrs_msg_rkey_rsp *msg;
 
@@ -321,22 +322,22 @@ static int rdma_write_sg(struct rtrs_srv_op *id)
 		list.addr   = srv_mr->iu->dma_addr;
 		list.length = sizeof(*msg);
 		list.lkey   = sess->s.dev->ib_pd->local_dma_lkey;
-		imm_wr.sg_list = &list;
-		imm_wr.num_sge = 1;
-		imm_wr.opcode = IB_WR_SEND_WITH_IMM;
+		imm_wr.wr.sg_list = &list;
+		imm_wr.wr.num_sge = 1;
+		imm_wr.wr.opcode = IB_WR_SEND_WITH_IMM;
 		ib_dma_sync_single_for_device(sess->s.dev->ib_dev,
 					      srv_mr->iu->dma_addr,
 					      srv_mr->iu->size, DMA_TO_DEVICE);
 	} else {
-		imm_wr.sg_list = NULL;
-		imm_wr.num_sge = 0;
-		imm_wr.opcode = IB_WR_RDMA_WRITE_WITH_IMM;
+		imm_wr.wr.sg_list = NULL;
+		imm_wr.wr.num_sge = 0;
+		imm_wr.wr.opcode = IB_WR_RDMA_WRITE_WITH_IMM;
 	}
-	imm_wr.send_flags = flags;
-	imm_wr.ex.imm_data = cpu_to_be32(rtrs_to_io_rsp_imm(id->msg_id,
+	imm_wr.wr.send_flags = flags;
+	imm_wr.wr.ex.imm_data = cpu_to_be32(rtrs_to_io_rsp_imm(id->msg_id,
 							     0, need_inval));
 
-	imm_wr.wr_cqe   = &io_comp_cqe;
+	imm_wr.wr.wr_cqe   = &io_comp_cqe;
 	ib_dma_sync_single_for_device(sess->s.dev->ib_dev, dma_addr,
 				      offset, DMA_BIDIRECTIONAL);
 
@@ -363,7 +364,8 @@ static int send_io_resp_imm(struct rtrs_srv_con *con, struct rtrs_srv_op *id,
 {
 	struct rtrs_sess *s = con->c.sess;
 	struct rtrs_srv_sess *sess = to_srv_sess(s);
-	struct ib_send_wr inv_wr, imm_wr, *wr = NULL;
+	struct ib_send_wr inv_wr, *wr = NULL;
+	struct ib_rdma_wr imm_wr;
 	struct ib_reg_wr rwr;
 	struct rtrs_srv *srv = sess->srv;
 	struct rtrs_srv_mr *srv_mr;
@@ -400,15 +402,15 @@ static int send_io_resp_imm(struct rtrs_srv_con *con, struct rtrs_srv_op *id,
 	if (need_inval && always_invalidate) {
 		wr = &inv_wr;
 		inv_wr.next = &rwr.wr;
-		rwr.wr.next = &imm_wr;
+		rwr.wr.next = &imm_wr.wr;
 	} else if (always_invalidate) {
 		wr = &rwr.wr;
-		rwr.wr.next = &imm_wr;
+		rwr.wr.next = &imm_wr.wr;
 	} else if (need_inval) {
 		wr = &inv_wr;
-		inv_wr.next = &imm_wr;
+		inv_wr.next = &imm_wr.wr;
 	} else {
-		wr = &imm_wr;
+		wr = &imm_wr.wr;
 	}
 	/*
 	 * From time to time we have to post signalled sends,
@@ -417,13 +419,13 @@ static int send_io_resp_imm(struct rtrs_srv_con *con, struct rtrs_srv_op *id,
 	flags = (atomic_inc_return(&con->wr_cnt) % srv->queue_depth) ?
 		0 : IB_SEND_SIGNALED;
 	imm = rtrs_to_io_rsp_imm(id->msg_id, errno, need_inval);
-	imm_wr.next = NULL;
+	imm_wr.wr.next = NULL;
 	if (always_invalidate) {
 		struct ib_sge list;
 		struct rtrs_msg_rkey_rsp *msg;
 
 		srv_mr = &sess->mrs[id->msg_id];
-		rwr.wr.next = &imm_wr;
+		rwr.wr.next = &imm_wr.wr;
 		rwr.wr.opcode = IB_WR_REG_MR;
 		rwr.wr.wr_cqe = &local_reg_cqe;
 		rwr.wr.num_sge = 0;
@@ -440,21 +442,21 @@ static int send_io_resp_imm(struct rtrs_srv_con *con, struct rtrs_srv_op *id,
 		list.addr   = srv_mr->iu->dma_addr;
 		list.length = sizeof(*msg);
 		list.lkey   = sess->s.dev->ib_pd->local_dma_lkey;
-		imm_wr.sg_list = &list;
-		imm_wr.num_sge = 1;
-		imm_wr.opcode = IB_WR_SEND_WITH_IMM;
+		imm_wr.wr.sg_list = &list;
+		imm_wr.wr.num_sge = 1;
+		imm_wr.wr.opcode = IB_WR_SEND_WITH_IMM;
 		ib_dma_sync_single_for_device(sess->s.dev->ib_dev,
 					      srv_mr->iu->dma_addr,
 					      srv_mr->iu->size, DMA_TO_DEVICE);
 	} else {
-		imm_wr.sg_list = NULL;
-		imm_wr.num_sge = 0;
-		imm_wr.opcode = IB_WR_RDMA_WRITE_WITH_IMM;
+		imm_wr.wr.sg_list = NULL;
+		imm_wr.wr.num_sge = 0;
+		imm_wr.wr.opcode = IB_WR_RDMA_WRITE_WITH_IMM;
 	}
-	imm_wr.send_flags = flags;
-	imm_wr.wr_cqe   = &io_comp_cqe;
+	imm_wr.wr.send_flags = flags;
+	imm_wr.wr.wr_cqe   = &io_comp_cqe;
 
-	imm_wr.ex.imm_data = cpu_to_be32(imm);
+	imm_wr.wr.ex.imm_data = cpu_to_be32(imm);
 
 	err = ib_post_send(id->con->c.qp, wr, NULL);
 	if (unlikely(err))
