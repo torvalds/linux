@@ -157,11 +157,6 @@ static void default_host_smc_handler(struct kvm_cpu_context *host_ctxt)
 	__kvm_hyp_host_forward_smc(host_ctxt);
 }
 
-static void skip_host_instruction(void)
-{
-	write_sysreg_el2(read_sysreg_el2(SYS_ELR) + 4, SYS_ELR);
-}
-
 static void handle_host_smc(struct kvm_cpu_context *host_ctxt)
 {
 	bool handled;
@@ -170,11 +165,8 @@ static void handle_host_smc(struct kvm_cpu_context *host_ctxt)
 	if (!handled)
 		default_host_smc_handler(host_ctxt);
 
-	/*
-	 * Unlike HVC, the return address of an SMC is the instruction's PC.
-	 * Move the return address past the instruction.
-	 */
-	skip_host_instruction();
+	/* SMC was trapped, move ELR past the current PC. */
+	kvm_skip_host_instr();
 }
 
 void handle_trap(struct kvm_cpu_context *host_ctxt)

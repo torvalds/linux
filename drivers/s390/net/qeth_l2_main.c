@@ -2208,7 +2208,7 @@ static void qeth_l2_remove_device(struct ccwgroup_device *gdev)
 	wait_event(card->wait_q, qeth_threads_running(card, 0xffffffff) == 0);
 
 	if (gdev->state == CCWGROUP_ONLINE)
-		qeth_set_offline(card, false);
+		qeth_set_offline(card, card->discipline, false);
 
 	cancel_work_sync(&card->close_dev_work);
 	if (card->dev->reg_state == NETREG_REGISTERED)

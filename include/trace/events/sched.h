@@ -366,7 +366,7 @@ TRACE_EVENT(sched_process_wait,
 );
 
 /*
- * Tracepoint for do_fork:
+ * Tracepoint for kernel_clone:
  */
 TRACE_EVENT(sched_process_fork,
 

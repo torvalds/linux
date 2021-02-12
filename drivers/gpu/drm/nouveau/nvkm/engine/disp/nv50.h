@@ -86,6 +86,8 @@ void gv100_disp_intr(struct nv50_disp *);
 void gv100_disp_super(struct work_struct *);
 int gv100_disp_wndw_cnt(struct nvkm_disp *, unsigned long *);
 
+int tu102_disp_init(struct nv50_disp *);
+
 void nv50_disp_dptmds_war_2(struct nv50_disp *, struct dcb_output *);
 void nv50_disp_dptmds_war_3(struct nv50_disp *, struct dcb_output *);
 void nv50_disp_update_sppll1(struct nv50_disp *);

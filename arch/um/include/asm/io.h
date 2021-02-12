@@ -5,7 +5,7 @@
 #define ioremap ioremap
 static inline void __iomem *ioremap(phys_addr_t offset, size_t size)
 {
-	return (void __iomem *)(unsigned long)offset;
+	return NULL;
 }
 
 #define iounmap iounmap

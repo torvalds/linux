@@ -42,7 +42,6 @@ properties:
     const: 1
 
   ti,channel0-current-microamp:
-    $ref: /schemas/types.yaml#/definitions/uint32
     description: Channel 0 current in uA.
     enum:
       - 0
@@ -51,7 +50,6 @@ properties:
       - 20
 
   ti,channel3-current-microamp:
-    $ref: /schemas/types.yaml#/definitions/uint32
     description: Channel 3 current in uA.
     enum:
       - 0

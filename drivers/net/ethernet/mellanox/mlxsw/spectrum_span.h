@@ -60,6 +60,7 @@ struct mlxsw_sp_span_entry {
 };
 
 struct mlxsw_sp_span_entry_ops {
+	bool is_static;
 	bool (*can_handle)(const struct net_device *to_dev);
 	int (*parms_set)(struct mlxsw_sp *mlxsw_sp,
 			 const struct net_device *to_dev,

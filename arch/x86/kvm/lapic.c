@@ -674,7 +674,7 @@ static bool pv_eoi_get_pending(struct kvm_vcpu *vcpu)
 			   (unsigned long long)vcpu->arch.pv_eoi.msr_val);
 		return false;
 	}
-	return val & 0x1;
+	return val & KVM_PV_EOI_ENABLED;
 }
 
 static void pv_eoi_set_pending(struct kvm_vcpu *vcpu)
@@ -2898,7 +2898,7 @@ void kvm_apic_accept_events(struct kvm_vcpu *vcpu)
 			/* evaluate pending_events before reading the vector */
 			smp_rmb();
 			sipi_vector = apic->sipi_vector;
-			kvm_vcpu_deliver_sipi_vector(vcpu, sipi_vector);
+			kvm_x86_ops.vcpu_deliver_sipi_vector(vcpu, sipi_vector);
 			vcpu->arch.mp_state = KVM_MP_STATE_RUNNABLE;
 		}
 	}

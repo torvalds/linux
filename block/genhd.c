@@ -45,10 +45,11 @@ static void disk_release_events(struct gendisk *disk);
 void set_capacity(struct gendisk *disk, sector_t sectors)
 {
 	struct block_device *bdev = disk->part0;
+	unsigned long flags;
 
-	spin_lock(&bdev->bd_size_lock);
+	spin_lock_irqsave(&bdev->bd_size_lock, flags);
 	i_size_write(bdev->bd_inode, (loff_t)sectors << SECTOR_SHIFT);
-	spin_unlock(&bdev->bd_size_lock);
+	spin_unlock_irqrestore(&bdev->bd_size_lock, flags);
 }
 EXPORT_SYMBOL(set_capacity);
 
@@ -246,15 +247,18 @@ struct block_device *disk_part_iter_next(struct disk_part_iter *piter)
 		part = rcu_dereference(ptbl->part[piter->idx]);
 		if (!part)
 			continue;
-		if (!bdev_nr_sectors(part) &&
-		    !(piter->flags & DISK_PITER_INCL_EMPTY) &&
-		    !(piter->flags & DISK_PITER_INCL_EMPTY_PART0 &&
-		      piter->idx == 0))
-			continue;
-
 		piter->part = bdgrab(part);
 		if (!piter->part)
 			continue;
+		if (!bdev_nr_sectors(part) &&
+		    !(piter->flags & DISK_PITER_INCL_EMPTY) &&
+		    !(piter->flags & DISK_PITER_INCL_EMPTY_PART0 &&
+		      piter->idx == 0)) {
+			bdput(piter->part);
+			piter->part = NULL;
+			continue;
+		}
+
 		piter->idx += inc;
 		break;
 	}

@@ -246,7 +246,6 @@ patternProperties:
           Resolution (bits) to use for conversions:
             - can be 6, 8, 10 or 12 on stm32f4
             - can be 8, 10, 12, 14 or 16 on stm32h7 and stm32mp1
-        $ref: /schemas/types.yaml#/definitions/uint32
 
       st,adc-channels:
         description: |
