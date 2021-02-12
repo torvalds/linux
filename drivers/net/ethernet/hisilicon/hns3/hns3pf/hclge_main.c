@@ -4580,52 +4580,69 @@ static int hclge_set_rss_tuple(struct hnae3_handle *handle,
 	return 0;
 }
 
-static int hclge_get_rss_tuple(struct hnae3_handle *handle,
-			       struct ethtool_rxnfc *nfc)
+static int hclge_get_vport_rss_tuple(struct hclge_vport *vport, int flow_type,
+				     u8 *tuple_sets)
 {
-	struct hclge_vport *vport = hclge_get_vport(handle);
-	u8 tuple_sets;
-
-	nfc->data = 0;
-
-	switch (nfc->flow_type) {
+	switch (flow_type) {
 	case TCP_V4_FLOW:
-		tuple_sets = vport->rss_tuple_sets.ipv4_tcp_en;
+		*tuple_sets = vport->rss_tuple_sets.ipv4_tcp_en;
 		break;
 	case UDP_V4_FLOW:
-		tuple_sets = vport->rss_tuple_sets.ipv4_udp_en;
+		*tuple_sets = vport->rss_tuple_sets.ipv4_udp_en;
 		break;
 	case TCP_V6_FLOW:
-		tuple_sets = vport->rss_tuple_sets.ipv6_tcp_en;
+		*tuple_sets = vport->rss_tuple_sets.ipv6_tcp_en;
 		break;
 	case UDP_V6_FLOW:
-		tuple_sets = vport->rss_tuple_sets.ipv6_udp_en;
+		*tuple_sets = vport->rss_tuple_sets.ipv6_udp_en;
 		break;
 	case SCTP_V4_FLOW:
-		tuple_sets = vport->rss_tuple_sets.ipv4_sctp_en;
+		*tuple_sets = vport->rss_tuple_sets.ipv4_sctp_en;
 		break;
 	case SCTP_V6_FLOW:
-		tuple_sets = vport->rss_tuple_sets.ipv6_sctp_en;
+		*tuple_sets = vport->rss_tuple_sets.ipv6_sctp_en;
 		break;
 	case IPV4_FLOW:
 	case IPV6_FLOW:
-		tuple_sets = HCLGE_S_IP_BIT | HCLGE_D_IP_BIT;
+		*tuple_sets = HCLGE_S_IP_BIT | HCLGE_D_IP_BIT;
 		break;
 	default:
 		return -EINVAL;
 	}
 
-	if (!tuple_sets)
-		return 0;
+	return 0;
+}
+
+static u64 hclge_convert_rss_tuple(u8 tuple_sets)
+{
+	u64 tuple_data = 0;
 
 	if (tuple_sets & HCLGE_D_PORT_BIT)
-		nfc->data |= RXH_L4_B_2_3;
+		tuple_data |= RXH_L4_B_2_3;
 	if (tuple_sets & HCLGE_S_PORT_BIT)
-		nfc->data |= RXH_L4_B_0_1;
+		tuple_data |= RXH_L4_B_0_1;
 	if (tuple_sets & HCLGE_D_IP_BIT)
-		nfc->data |= RXH_IP_DST;
+		tuple_data |= RXH_IP_DST;
 	if (tuple_sets & HCLGE_S_IP_BIT)
-		nfc->data |= RXH_IP_SRC;
+		tuple_data |= RXH_IP_SRC;
+
+	return tuple_data;
+}
+
+static int hclge_get_rss_tuple(struct hnae3_handle *handle,
+			       struct ethtool_rxnfc *nfc)
+{
+	struct hclge_vport *vport = hclge_get_vport(handle);
+	u8 tuple_sets;
+	int ret;
+
+	nfc->data = 0;
+
+	ret = hclge_get_vport_rss_tuple(vport, nfc->flow_type, &tuple_sets);
+	if (ret || !tuple_sets)
+		return ret;
+
+	nfc->data = hclge_convert_rss_tuple(tuple_sets);
 
 	return 0;
 }
