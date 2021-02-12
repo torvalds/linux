@@ -1951,8 +1951,6 @@ static int unuse_pte_range(struct vm_area_struct *vma, pmd_t *pmd,
 	si = swap_info[type];
 	pte = pte_offset_map(pmd, addr);
 	do {
-		struct vm_fault vmf;
-
 		if (!is_swap_pte(*pte))
 			continue;
 
@@ -1968,9 +1966,12 @@ static int unuse_pte_range(struct vm_area_struct *vma, pmd_t *pmd,
 		swap_map = &si->swap_map[offset];
 		page = lookup_swap_cache(entry, vma, addr);
 		if (!page) {
-			vmf.vma = vma;
-			vmf.address = addr;
-			vmf.pmd = pmd;
+			struct vm_fault vmf = {
+				.vma = vma,
+				.address = addr,
+				.pmd = pmd,
+			};
+
 			page = swapin_readahead(entry, GFP_HIGHUSER_MOVABLE,
 						&vmf);
 		}
