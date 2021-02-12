@@ -64,9 +64,7 @@ struct io_worker {
 #endif
 	const struct cred *cur_creds;
 	const struct cred *saved_creds;
-	struct files_struct *restore_files;
 	struct nsproxy *restore_nsproxy;
-	struct fs_struct *restore_fs;
 };
 
 #if BITS_PER_LONG == 64
@@ -156,19 +154,19 @@ static bool __io_worker_unuse(struct io_wqe *wqe, struct io_worker *worker)
 		worker->cur_creds = worker->saved_creds = NULL;
 	}
 
-	if (current->files != worker->restore_files) {
+	if (current->files) {
 		__acquire(&wqe->lock);
 		raw_spin_unlock_irq(&wqe->lock);
 		dropped_lock = true;
 
 		task_lock(current);
-		current->files = worker->restore_files;
+		current->files = NULL;
 		current->nsproxy = worker->restore_nsproxy;
 		task_unlock(current);
 	}
 
-	if (current->fs != worker->restore_fs)
-		current->fs = worker->restore_fs;
+	if (current->fs)
+		current->fs = NULL;
 
 	/*
 	 * If we have an active mm, we need to drop the wq lock before unusing
@@ -329,11 +327,11 @@ static void io_worker_start(struct io_wqe *wqe, struct io_worker *worker)
 	allow_kernel_signal(SIGINT);
 
 	current->flags |= PF_IO_WORKER;
+	current->fs = NULL;
+	current->files = NULL;
 
 	worker->flags |= (IO_WORKER_F_UP | IO_WORKER_F_RUNNING);
-	worker->restore_files = current->files;
 	worker->restore_nsproxy = current->nsproxy;
-	worker->restore_fs = current->fs;
 	io_wqe_inc_running(wqe, worker);
 }
 
