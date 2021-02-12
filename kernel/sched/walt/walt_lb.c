@@ -8,6 +8,13 @@
 #include "walt.h"
 #include "trace.h"
 
+static inline unsigned long walt_lb_cpu_util(int cpu)
+{
+	struct walt_rq *wrq = (struct walt_rq *) cpu_rq(cpu)->android_vendor_data1;
+
+	return wrq->walt_stats.cumulative_runnable_avg_scaled;
+}
+
 static void walt_detach_task(struct task_struct *p, struct rq *src_rq,
 			     struct rq *dst_rq)
 {
@@ -327,7 +334,7 @@ static int walt_lb_find_busiest_similar_cap_cpu(int dst_cpu, const cpumask_t *sr
 		if (cpu_rq(i)->cfs.h_nr_running < 2)
 			continue;
 
-		util = cpu_util(i);
+		util = walt_lb_cpu_util(i);
 		if (util < busiest_util)
 			continue;
 
@@ -358,7 +365,7 @@ static int walt_lb_find_busiest_higher_cap_cpu(int dst_cpu, const cpumask_t *src
 		wrq = (struct walt_rq *) cpu_rq(i)->android_vendor_data1;
 		trace_walt_lb_cpu_util(i, wrq);
 
-		util = cpu_util(i);
+		util = walt_lb_cpu_util(i);
 		total_cpus += 1;
 		total_util += util;
 		total_capacity += capacity_orig_of(i);
@@ -426,7 +433,7 @@ static int walt_lb_find_busiest_lower_cap_cpu(int dst_cpu, const cpumask_t *src_
 
 		trace_walt_lb_cpu_util(i, wrq);
 
-		util = cpu_util(i);
+		util = walt_lb_cpu_util(i);
 		total_cpus += 1;
 		total_util += util;
 		total_capacity += capacity_orig_of(i);
