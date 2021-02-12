@@ -112,7 +112,7 @@ extern int npmem_ranges;
 #else
 #define BITS_PER_PTE_ENTRY	2
 #define BITS_PER_PMD_ENTRY	2
-#define BITS_PER_PGD_ENTRY	BITS_PER_PMD_ENTRY
+#define BITS_PER_PGD_ENTRY	2
 #endif
 #define PGD_ENTRY_SIZE	(1UL << BITS_PER_PGD_ENTRY)
 #define PMD_ENTRY_SIZE	(1UL << BITS_PER_PMD_ENTRY)

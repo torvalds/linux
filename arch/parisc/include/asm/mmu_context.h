@@ -5,6 +5,7 @@
 #include <linux/mm.h>
 #include <linux/sched.h>
 #include <linux/atomic.h>
+#include <linux/spinlock.h>
 #include <asm-generic/mm_hooks.h>
 
 static inline void enter_lazy_tlb(struct mm_struct *mm, struct task_struct *tsk)
@@ -52,6 +53,12 @@ static inline void switch_mm_irqs_off(struct mm_struct *prev,
 		struct mm_struct *next, struct task_struct *tsk)
 {
 	if (prev != next) {
+#ifdef CONFIG_TLB_PTLOCK
+		/* put physical address of page_table_lock in cr28 (tr4)
+		   for TLB faults */
+		spinlock_t *pgd_lock = &next->page_table_lock;
+		mtctl(__pa(__ldcw_align(&pgd_lock->rlock.raw_lock)), 28);
+#endif
 		mtctl(__pa(next->pgd), 25);
 		load_context(next->context);
 	}
