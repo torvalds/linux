@@ -6563,25 +6563,19 @@ static struct io_kiocb *io_prep_linked_timeout(struct io_kiocb *req)
 
 static void __io_queue_sqe(struct io_kiocb *req)
 {
-	struct io_kiocb *linked_timeout;
+	struct io_kiocb *linked_timeout = io_prep_linked_timeout(req);
 	const struct cred *old_creds = NULL;
 	int ret;
 
-again:
-	linked_timeout = io_prep_linked_timeout(req);
-
 	if ((req->flags & REQ_F_WORK_INITIALIZED) &&
 	    (req->work.flags & IO_WQ_WORK_CREDS) &&
-	    req->work.identity->creds != current_cred()) {
-		if (old_creds)
-			revert_creds(old_creds);
-		if (old_creds == req->work.identity->creds)
-			old_creds = NULL; /* restored original creds */
-		else
-			old_creds = override_creds(req->work.identity->creds);
-	}
+	    req->work.identity->creds != current_cred())
+		old_creds = override_creds(req->work.identity->creds);
 
 	ret = io_issue_sqe(req, IO_URING_F_NONBLOCK|IO_URING_F_COMPLETE_DEFER);
+
+	if (old_creds)
+		revert_creds(old_creds);
 
 	/*
 	 * We async punt it if the file wasn't marked NOWAIT, or if the file
@@ -6595,9 +6589,6 @@ again:
 			 */
 			io_queue_async_work(req);
 		}
-
-		if (linked_timeout)
-			io_queue_linked_timeout(linked_timeout);
 	} else if (likely(!ret)) {
 		/* drop submission reference */
 		if (req->flags & REQ_F_COMPLETE_INLINE) {
@@ -6605,31 +6596,18 @@ again:
 			struct io_comp_state *cs = &ctx->submit_state.comp;
 
 			cs->reqs[cs->nr++] = req;
-			if (cs->nr == IO_COMPL_BATCH)
+			if (cs->nr == ARRAY_SIZE(cs->reqs))
 				io_submit_flush_completions(cs, ctx);
-			req = NULL;
 		} else {
-			req = io_put_req_find_next(req);
-		}
-
-		if (linked_timeout)
-			io_queue_linked_timeout(linked_timeout);
-
-		if (req) {
-			if (!(req->flags & REQ_F_FORCE_ASYNC))
-				goto again;
-			io_queue_async_work(req);
+			io_put_req(req);
 		}
 	} else {
-		/* un-prep timeout, so it'll be killed as any other linked */
-		req->flags &= ~REQ_F_LINK_TIMEOUT;
 		req_set_fail_links(req);
 		io_put_req(req);
 		io_req_complete(req, ret);
 	}
-
-	if (old_creds)
-		revert_creds(old_creds);
+	if (linked_timeout)
+		io_queue_linked_timeout(linked_timeout);
 }
 
 static void io_queue_sqe(struct io_kiocb *req, const struct io_uring_sqe *sqe)
