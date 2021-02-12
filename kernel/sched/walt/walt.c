@@ -3800,10 +3800,10 @@ static void android_rvh_update_misfit_status(void *unused, struct task_struct *p
 	wts = (struct walt_task_struct *) p->android_vendor_data1;
 	old_misfit = wts->misfit;
 
-	if (task_fits_capacity(p, capacity_orig_of(cpu_of(rq)), rq->cpu))
+	if (task_fits_max(p, rq->cpu))
 		rq->misfit_task_load = 0;
 	else
-		rq->misfit_task_load = task_load(p);
+		rq->misfit_task_load = task_util(p);
 
 	misfit = rq->misfit_task_load;
 
