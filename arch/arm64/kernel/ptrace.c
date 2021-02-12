@@ -194,6 +194,7 @@ static void ptrace_hbptriggered(struct perf_event *bp,
 		}
 		arm64_force_sig_ptrace_errno_trap(si_errno, bkpt->trigger,
 						  desc);
+		return;
 	}
 #endif
 	arm64_force_sig_fault(SIGTRAP, TRAP_HWBKPT, bkpt->trigger, desc);
