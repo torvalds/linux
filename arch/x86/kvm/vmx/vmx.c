@@ -4295,17 +4295,7 @@ static void vmx_compute_secondary_exec_control(struct vcpu_vmx *vmx)
 	}
 
 	vmx_adjust_sec_exec_feature(vmx, &exec_control, rdtscp, RDTSCP);
-
-	/*
-	 * Expose INVPCID if and only if PCID is also exposed to the guest.
-	 * INVPCID takes a #UD when it's disabled in the VMCS, but a #GP or #PF
-	 * if CR4.PCIDE=0.  Enumerating CPUID.INVPCID=1 would lead to incorrect
-	 * behavior from the guest perspective (it would expect #GP or #PF).
-	 */
-	if (!guest_cpuid_has(vcpu, X86_FEATURE_PCID))
-		guest_cpuid_clear(vcpu, X86_FEATURE_INVPCID);
 	vmx_adjust_sec_exec_feature(vmx, &exec_control, invpcid, INVPCID);
-
 
 	vmx_adjust_sec_exec_exiting(vmx, &exec_control, rdrand, RDRAND);
 	vmx_adjust_sec_exec_exiting(vmx, &exec_control, rdseed, RDSEED);
