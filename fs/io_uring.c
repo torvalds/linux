@@ -2172,7 +2172,7 @@ static struct io_kiocb *__io_req_find_next(struct io_kiocb *req)
 
 static inline struct io_kiocb *io_req_find_next(struct io_kiocb *req)
 {
-	if (likely(!(req->link) && !(req->flags & REQ_F_LINK_TIMEOUT)))
+	if (likely(!(req->flags & (REQ_F_LINK|REQ_F_HARDLINK))))
 		return NULL;
 	return __io_req_find_next(req);
 }
