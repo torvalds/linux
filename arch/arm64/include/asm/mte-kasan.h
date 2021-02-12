@@ -43,7 +43,7 @@ static inline u8 mte_get_random_tag(void)
 	void *addr;
 
 	asm(__MTE_PREAMBLE "irg %0, %0"
-		: "+r" (addr));
+		: "=r" (addr));
 
 	return mte_get_ptr_tag(addr);
 }
