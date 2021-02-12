@@ -42,6 +42,21 @@ check_tc_version()
 	fi
 }
 
+# Old versions of tc don't understand "mpls_uc"
+check_tc_mpls_support()
+{
+	local dev=$1; shift
+
+	tc filter add dev $dev ingress protocol mpls_uc pref 1 handle 1 \
+		matchall action pipe &> /dev/null
+	if [[ $? -ne 0 ]]; then
+		echo "SKIP: iproute2 too old; tc is missing MPLS support"
+		return 1
+	fi
+	tc filter del dev $dev ingress protocol mpls_uc pref 1 handle 1 \
+		matchall
+}
+
 check_tc_shblock_support()
 {
 	tc filter help 2>&1 | grep block &> /dev/null

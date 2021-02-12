@@ -3,7 +3,8 @@
 
 ALL_TESTS="match_dst_mac_test match_src_mac_test match_dst_ip_test \
 	match_src_ip_test match_ip_flags_test match_pcp_test match_vlan_test \
-	match_ip_tos_test match_indev_test"
+	match_ip_tos_test match_indev_test match_mpls_label_test \
+	match_mpls_tc_test match_mpls_bos_test match_mpls_ttl_test"
 NUM_NETIFS=2
 source tc_common.sh
 source lib.sh
@@ -332,6 +333,175 @@ match_indev_test()
 	tc filter del dev $h2 ingress protocol ip pref 1 handle 101 flower
 
 	log_test "indev match ($tcflags)"
+}
+
+# Unfortunately, mausezahn can't build MPLS headers when used in L2
+# mode, so we have this function to build Label Stack Entries.
+mpls_lse()
+{
+	local label=$1
+	local tc=$2
+	local bos=$3
+	local ttl=$4
+
+	printf "%02x %02x %02x %02x"                        \
+		$((label >> 12))                            \
+		$((label >> 4 & 0xff))                      \
+		$((((label & 0xf) << 4) + (tc << 1) + bos)) \
+		$ttl
+}
+
+match_mpls_label_test()
+{
+	local ethtype="88 47"; readonly ethtype
+	local pkt
+
+	RET=0
+
+	check_tc_mpls_support $h2 || return 0
+
+	tc filter add dev $h2 ingress protocol mpls_uc pref 1 handle 101 \
+		flower $tcflags mpls_label 0 action drop
+	tc filter add dev $h2 ingress protocol mpls_uc pref 2 handle 102 \
+		flower $tcflags mpls_label 1048575 action drop
+
+	pkt="$ethtype $(mpls_lse 1048575 0 1 255)"
+	$MZ $h1 -c 1 -p 64 -a $h1mac -b $h2mac "$pkt" -q
+
+	tc_check_packets "dev $h2 ingress" 101 1
+	check_fail $? "Matched on a wrong filter (1048575)"
+
+	tc_check_packets "dev $h2 ingress" 102 1
+	check_err $? "Did not match on correct filter (1048575)"
+
+	pkt="$ethtype $(mpls_lse 0 0 1 255)"
+	$MZ $h1 -c 1 -p 64 -a $h1mac -b $h2mac "$pkt" -q
+
+	tc_check_packets "dev $h2 ingress" 102 2
+	check_fail $? "Matched on a wrong filter (0)"
+
+	tc_check_packets "dev $h2 ingress" 101 1
+	check_err $? "Did not match on correct filter (0)"
+
+	tc filter del dev $h2 ingress protocol mpls_uc pref 2 handle 102 flower
+	tc filter del dev $h2 ingress protocol mpls_uc pref 1 handle 101 flower
+
+	log_test "mpls_label match ($tcflags)"
+}
+
+match_mpls_tc_test()
+{
+	local ethtype="88 47"; readonly ethtype
+	local pkt
+
+	RET=0
+
+	check_tc_mpls_support $h2 || return 0
+
+	tc filter add dev $h2 ingress protocol mpls_uc pref 1 handle 101 \
+		flower $tcflags mpls_tc 0 action drop
+	tc filter add dev $h2 ingress protocol mpls_uc pref 2 handle 102 \
+		flower $tcflags mpls_tc 7 action drop
+
+	pkt="$ethtype $(mpls_lse 0 7 1 255)"
+	$MZ $h1 -c 1 -p 64 -a $h1mac -b $h2mac "$pkt" -q
+
+	tc_check_packets "dev $h2 ingress" 101 1
+	check_fail $? "Matched on a wrong filter (7)"
+
+	tc_check_packets "dev $h2 ingress" 102 1
+	check_err $? "Did not match on correct filter (7)"
+
+	pkt="$ethtype $(mpls_lse 0 0 1 255)"
+	$MZ $h1 -c 1 -p 64 -a $h1mac -b $h2mac "$pkt" -q
+
+	tc_check_packets "dev $h2 ingress" 102 2
+	check_fail $? "Matched on a wrong filter (0)"
+
+	tc_check_packets "dev $h2 ingress" 101 1
+	check_err $? "Did not match on correct filter (0)"
+
+	tc filter del dev $h2 ingress protocol mpls_uc pref 2 handle 102 flower
+	tc filter del dev $h2 ingress protocol mpls_uc pref 1 handle 101 flower
+
+	log_test "mpls_tc match ($tcflags)"
+}
+
+match_mpls_bos_test()
+{
+	local ethtype="88 47"; readonly ethtype
+	local pkt
+
+	RET=0
+
+	check_tc_mpls_support $h2 || return 0
+
+	tc filter add dev $h2 ingress protocol mpls_uc pref 1 handle 101 \
+		flower $tcflags mpls_bos 0 action drop
+	tc filter add dev $h2 ingress protocol mpls_uc pref 2 handle 102 \
+		flower $tcflags mpls_bos 1 action drop
+
+	pkt="$ethtype $(mpls_lse 0 0 1 255)"
+	$MZ $h1 -c 1 -p 64 -a $h1mac -b $h2mac "$pkt" -q
+
+	tc_check_packets "dev $h2 ingress" 101 1
+	check_fail $? "Matched on a wrong filter (1)"
+
+	tc_check_packets "dev $h2 ingress" 102 1
+	check_err $? "Did not match on correct filter (1)"
+
+	# Need to add a second label to properly mark the Bottom of Stack
+	pkt="$ethtype $(mpls_lse 0 0 0 255) $(mpls_lse 0 0 1 255)"
+	$MZ $h1 -c 1 -p 64 -a $h1mac -b $h2mac "$pkt" -q
+
+	tc_check_packets "dev $h2 ingress" 102 2
+	check_fail $? "Matched on a wrong filter (0)"
+
+	tc_check_packets "dev $h2 ingress" 101 1
+	check_err $? "Did not match on correct filter (0)"
+
+	tc filter del dev $h2 ingress protocol mpls_uc pref 2 handle 102 flower
+	tc filter del dev $h2 ingress protocol mpls_uc pref 1 handle 101 flower
+
+	log_test "mpls_bos match ($tcflags)"
+}
+
+match_mpls_ttl_test()
+{
+	local ethtype="88 47"; readonly ethtype
+	local pkt
+
+	RET=0
+
+	check_tc_mpls_support $h2 || return 0
+
+	tc filter add dev $h2 ingress protocol mpls_uc pref 1 handle 101 \
+		flower $tcflags mpls_ttl 0 action drop
+	tc filter add dev $h2 ingress protocol mpls_uc pref 2 handle 102 \
+		flower $tcflags mpls_ttl 255 action drop
+
+	pkt="$ethtype $(mpls_lse 0 0 1 255)"
+	$MZ $h1 -c 1 -p 64 -a $h1mac -b $h2mac "$pkt" -q
+
+	tc_check_packets "dev $h2 ingress" 101 1
+	check_fail $? "Matched on a wrong filter (255)"
+
+	tc_check_packets "dev $h2 ingress" 102 1
+	check_err $? "Did not match on correct filter (255)"
+
+	pkt="$ethtype $(mpls_lse 0 0 1 0)"
+	$MZ $h1 -c 1 -p 64 -a $h1mac -b $h2mac "$pkt" -q
+
+	tc_check_packets "dev $h2 ingress" 102 2
+	check_fail $? "Matched on a wrong filter (0)"
+
+	tc_check_packets "dev $h2 ingress" 101 1
+	check_err $? "Did not match on correct filter (0)"
+
+	tc filter del dev $h2 ingress protocol mpls_uc pref 2 handle 102 flower
+	tc filter del dev $h2 ingress protocol mpls_uc pref 1 handle 101 flower
+
+	log_test "mpls_ttl match ($tcflags)"
 }
 
 setup_prepare()
