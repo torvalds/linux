@@ -4056,6 +4056,7 @@ static void walt_init(void)
 	walt_lb_init();
 	walt_rt_init();
 	walt_cfs_init();
+	walt_pause_init();
 
 	stop_machine(walt_init_stop_handler, NULL, NULL);
 
