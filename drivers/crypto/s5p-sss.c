@@ -401,7 +401,7 @@ static const struct samsung_aes_variant exynos_aes_data = {
 static const struct samsung_aes_variant exynos5433_slim_aes_data = {
 	.aes_offset	= 0x400,
 	.hash_offset	= 0x800,
-	.clk_names	= { "pclk", "aclk", },
+	.clk_names	= { "aclk", "pclk", },
 };
 
 static const struct of_device_id s5p_sss_dt_match[] = {
