@@ -6182,9 +6182,6 @@ void skl_pipe_wm_get_hw_state(struct intel_crtc *crtc,
 
 		skl_wm_level_from_reg_val(val, &wm->trans_wm);
 	}
-
-	if (!crtc->active)
-		return;
 }
 
 void skl_wm_get_hw_state(struct drm_i915_private *dev_priv)
