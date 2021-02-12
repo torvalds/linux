@@ -833,6 +833,9 @@ int mt76_connac_mcu_add_sta_cmd(struct mt76_phy *phy,
 	wtbl_hdr = mt76_connac_mcu_alloc_wtbl_req(dev, wcid,
 						  WTBL_RESET_AND_SET,
 						  sta_wtbl, &skb);
+	if (IS_ERR(wtbl_hdr))
+		return PTR_ERR(wtbl_hdr);
+
 	if (enable) {
 		mt76_connac_mcu_wtbl_generic_tlv(dev, skb, vif, sta, sta_wtbl,
 						 wtbl_hdr);
