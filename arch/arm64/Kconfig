@@ -1132,6 +1132,10 @@ config CRASH_DUMP
 
 	  For more details see Documentation/admin-guide/kdump/kdump.rst
 
+config TRANS_TABLE
+	def_bool y
+	depends on HIBERNATION
+
 config XEN_DOM0
 	def_bool y
 	depends on XEN
