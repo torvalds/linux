@@ -749,19 +749,14 @@ static const struct bd71828_regulator_data bd71828_rdata[] = {
 
 static int bd71828_probe(struct platform_device *pdev)
 {
-	struct rohm_regmap_dev *bd71828;
 	int i, j, ret;
 	struct regulator_config config = {
 		.dev = pdev->dev.parent,
 	};
 
-	bd71828 = dev_get_drvdata(pdev->dev.parent);
-	if (!bd71828) {
-		dev_err(&pdev->dev, "No MFD driver data\n");
-		return -EINVAL;
-	}
-
-	config.regmap = bd71828->regmap;
+	config.regmap = dev_get_regmap(pdev->dev.parent, NULL);
+	if (!config.regmap)
+		return -ENODEV;
 
 	for (i = 0; i < ARRAY_SIZE(bd71828_rdata); i++) {
 		struct regulator_dev *rdev;
@@ -777,7 +772,7 @@ static int bd71828_probe(struct platform_device *pdev)
 			return PTR_ERR(rdev);
 		}
 		for (j = 0; j < rd->reg_init_amnt; j++) {
-			ret = regmap_update_bits(bd71828->regmap,
+			ret = regmap_update_bits(config.regmap,
 						 rd->reg_inits[j].reg,
 						 rd->reg_inits[j].mask,
 						 rd->reg_inits[j].val);
