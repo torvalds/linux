@@ -8353,36 +8353,18 @@ static void hclge_sync_mac_table(struct hclge_dev *hdev)
 	}
 }
 
-void hclge_rm_vport_all_mac_table(struct hclge_vport *vport, bool is_del_list,
-				  enum HCLGE_MAC_ADDR_TYPE mac_type)
+static void hclge_build_del_list(struct list_head *list,
+				 bool is_del_list,
+				 struct list_head *tmp_del_list)
 {
-	int (*unsync)(struct hclge_vport *vport, const unsigned char *addr);
 	struct hclge_mac_node *mac_cfg, *tmp;
-	struct hclge_dev *hdev = vport->back;
-	struct list_head tmp_del_list, *list;
-	int ret;
-
-	if (mac_type == HCLGE_MAC_ADDR_UC) {
-		list = &vport->uc_mac_list;
-		unsync = hclge_rm_uc_addr_common;
-	} else {
-		list = &vport->mc_mac_list;
-		unsync = hclge_rm_mc_addr_common;
-	}
-
-	INIT_LIST_HEAD(&tmp_del_list);
-
-	if (!is_del_list)
-		set_bit(vport->vport_id, hdev->vport_config_block);
-
-	spin_lock_bh(&vport->mac_list_lock);
 
 	list_for_each_entry_safe(mac_cfg, tmp, list, node) {
 		switch (mac_cfg->state) {
 		case HCLGE_MAC_TO_DEL:
 		case HCLGE_MAC_ACTIVE:
 			list_del(&mac_cfg->node);
-			list_add_tail(&mac_cfg->node, &tmp_del_list);
+			list_add_tail(&mac_cfg->node, tmp_del_list);
 			break;
 		case HCLGE_MAC_TO_ADD:
 			if (is_del_list) {
@@ -8392,10 +8374,18 @@ void hclge_rm_vport_all_mac_table(struct hclge_vport *vport, bool is_del_list,
 			break;
 		}
 	}
+}
 
-	spin_unlock_bh(&vport->mac_list_lock);
+static void hclge_unsync_del_list(struct hclge_vport *vport,
+				  int (*unsync)(struct hclge_vport *vport,
+						const unsigned char *addr),
+				  bool is_del_list,
+				  struct list_head *tmp_del_list)
+{
+	struct hclge_mac_node *mac_cfg, *tmp;
+	int ret;
 
-	list_for_each_entry_safe(mac_cfg, tmp, &tmp_del_list, node) {
+	list_for_each_entry_safe(mac_cfg, tmp, tmp_del_list, node) {
 		ret = unsync(vport, mac_cfg->mac_addr);
 		if (!ret || ret == -ENOENT) {
 			/* clear all mac addr from hardware, but remain these
@@ -8413,6 +8403,35 @@ void hclge_rm_vport_all_mac_table(struct hclge_vport *vport, bool is_del_list,
 			mac_cfg->state = HCLGE_MAC_TO_DEL;
 		}
 	}
+}
+
+void hclge_rm_vport_all_mac_table(struct hclge_vport *vport, bool is_del_list,
+				  enum HCLGE_MAC_ADDR_TYPE mac_type)
+{
+	int (*unsync)(struct hclge_vport *vport, const unsigned char *addr);
+	struct hclge_dev *hdev = vport->back;
+	struct list_head tmp_del_list, *list;
+
+	if (mac_type == HCLGE_MAC_ADDR_UC) {
+		list = &vport->uc_mac_list;
+		unsync = hclge_rm_uc_addr_common;
+	} else {
+		list = &vport->mc_mac_list;
+		unsync = hclge_rm_mc_addr_common;
+	}
+
+	INIT_LIST_HEAD(&tmp_del_list);
+
+	if (!is_del_list)
+		set_bit(vport->vport_id, hdev->vport_config_block);
+
+	spin_lock_bh(&vport->mac_list_lock);
+
+	hclge_build_del_list(list, is_del_list, &tmp_del_list);
+
+	spin_unlock_bh(&vport->mac_list_lock);
+
+	hclge_unsync_del_list(vport, unsync, is_del_list, &tmp_del_list);
 
 	spin_lock_bh(&vport->mac_list_lock);
 
