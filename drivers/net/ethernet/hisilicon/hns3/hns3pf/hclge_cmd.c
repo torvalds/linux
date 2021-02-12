@@ -189,36 +189,35 @@ static bool hclge_is_special_opcode(u16 opcode)
 	return false;
 }
 
+struct errcode {
+	u32 imp_errcode;
+	int common_errno;
+};
+
 static int hclge_cmd_convert_err_code(u16 desc_ret)
 {
-	switch (desc_ret) {
-	case HCLGE_CMD_EXEC_SUCCESS:
-		return 0;
-	case HCLGE_CMD_NO_AUTH:
-		return -EPERM;
-	case HCLGE_CMD_NOT_SUPPORTED:
-		return -EOPNOTSUPP;
-	case HCLGE_CMD_QUEUE_FULL:
-		return -EXFULL;
-	case HCLGE_CMD_NEXT_ERR:
-		return -ENOSR;
-	case HCLGE_CMD_UNEXE_ERR:
-		return -ENOTBLK;
-	case HCLGE_CMD_PARA_ERR:
-		return -EINVAL;
-	case HCLGE_CMD_RESULT_ERR:
-		return -ERANGE;
-	case HCLGE_CMD_TIMEOUT:
-		return -ETIME;
-	case HCLGE_CMD_HILINK_ERR:
-		return -ENOLINK;
-	case HCLGE_CMD_QUEUE_ILLEGAL:
-		return -ENXIO;
-	case HCLGE_CMD_INVALID:
-		return -EBADR;
-	default:
-		return -EIO;
-	}
+	struct errcode hclge_cmd_errcode[] = {
+		{HCLGE_CMD_EXEC_SUCCESS, 0},
+		{HCLGE_CMD_NO_AUTH, -EPERM},
+		{HCLGE_CMD_NOT_SUPPORTED, -EOPNOTSUPP},
+		{HCLGE_CMD_QUEUE_FULL, -EXFULL},
+		{HCLGE_CMD_NEXT_ERR, -ENOSR},
+		{HCLGE_CMD_UNEXE_ERR, -ENOTBLK},
+		{HCLGE_CMD_PARA_ERR, -EINVAL},
+		{HCLGE_CMD_RESULT_ERR, -ERANGE},
+		{HCLGE_CMD_TIMEOUT, -ETIME},
+		{HCLGE_CMD_HILINK_ERR, -ENOLINK},
+		{HCLGE_CMD_QUEUE_ILLEGAL, -ENXIO},
+		{HCLGE_CMD_INVALID, -EBADR},
+	};
+	u32 errcode_count = ARRAY_SIZE(hclge_cmd_errcode);
+	u32 i;
+
+	for (i = 0; i < errcode_count; i++)
+		if (hclge_cmd_errcode[i].imp_errcode == desc_ret)
+			return hclge_cmd_errcode[i].common_errno;
+
+	return -EIO;
 }
 
 static int hclge_cmd_check_retval(struct hclge_hw *hw, struct hclge_desc *desc,
