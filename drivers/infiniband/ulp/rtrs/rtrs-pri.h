@@ -188,7 +188,9 @@ struct rtrs_msg_conn_req {
 	__le16		recon_cnt;
 	uuid_t		sess_uuid;
 	uuid_t		paths_uuid;
-	u8		reserved[12];
+	u8		first_conn : 1;
+	u8		reserved_bits : 7;
+	u8		reserved[11];
 };
 
 /**
