@@ -333,7 +333,7 @@ static int ps_battery_get_property(struct power_supply *psy,
 	uint8_t battery_capacity;
 	int battery_status;
 	unsigned long flags;
-	int ret;
+	int ret = 0;
 
 	spin_lock_irqsave(&dev->lock, flags);
 	battery_capacity = dev->battery_capacity;
@@ -358,7 +358,7 @@ static int ps_battery_get_property(struct power_supply *psy,
 		break;
 	}
 
-	return 0;
+	return ret;
 }
 
 static int ps_device_register_battery(struct ps_device *dev)
