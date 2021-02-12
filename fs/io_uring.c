@@ -3494,7 +3494,6 @@ static int io_async_buf_func(struct wait_queue_entry *wait, unsigned mode,
 	struct wait_page_queue *wpq;
 	struct io_kiocb *req = wait->private;
 	struct wait_page_key *key = arg;
-	int ret;
 
 	wpq = container_of(wait, struct wait_page_queue, wait);
 
@@ -3504,14 +3503,9 @@ static int io_async_buf_func(struct wait_queue_entry *wait, unsigned mode,
 	req->rw.kiocb.ki_flags &= ~IOCB_WAITQ;
 	list_del_init(&wait->entry);
 
-	req->task_work.func = io_req_task_submit;
-	percpu_ref_get(&req->ctx->refs);
-
 	/* submit ref gets dropped, acquire a new one */
 	refcount_inc(&req->refs);
-	ret = io_req_task_work_add(req);
-	if (unlikely(ret))
-		io_req_task_work_add_fallback(req, io_req_task_cancel);
+	io_req_task_queue(req);
 	return 1;
 }
 
