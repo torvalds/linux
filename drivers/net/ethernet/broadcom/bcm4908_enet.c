@@ -5,6 +5,7 @@
 
 #include <linux/delay.h>
 #include <linux/etherdevice.h>
+#include <linux/if_vlan.h>
 #include <linux/interrupt.h>
 #include <linux/module.h>
 #include <linux/of.h>
@@ -29,9 +30,10 @@
 						 ENET_DMA_CH_CFG_INT_BUFF_DONE)
 #define ENET_DMA_MAX_BURST_LEN			8 /* in 64 bit words */
 
-#define ENET_MTU_MIN				60
-#define ENET_MTU_MAX				1500 /* Is it possible to support 2044? */
-#define ENET_MTU_MAX_EXTRA_SIZE			32 /* L2 */
+#define ENET_MTU_MAX				ETH_DATA_LEN /* Is it possible to support 2044? */
+#define BRCM_MAX_TAG_LEN			6
+#define ENET_MAX_ETH_OVERHEAD			(ETH_HLEN + BRCM_MAX_TAG_LEN + VLAN_HLEN + \
+						 ETH_FCS_LEN + 4) /* 32 */
 
 struct bcm4908_enet_dma_ring_bd {
 	__le32 ctl;
@@ -133,6 +135,11 @@ static void bcm4908_enet_intrs_off(struct bcm4908_enet *enet)
 static void bcm4908_enet_intrs_ack(struct bcm4908_enet *enet)
 {
 	enet_write(enet, ENET_DMA_CH_RX_CFG + ENET_DMA_CH_CFG_INT_STAT, ENET_DMA_INT_DEFAULTS);
+}
+
+static void bcm4908_enet_set_mtu(struct bcm4908_enet *enet, int mtu)
+{
+	enet_umac_write(enet, UMAC_MAX_FRAME_LEN, mtu + ENET_MAX_ETH_OVERHEAD);
 }
 
 /***
@@ -246,7 +253,7 @@ static int bcm4908_enet_dma_alloc_rx_buf(struct bcm4908_enet *enet, unsigned int
 	u32 tmp;
 	int err;
 
-	slot->len = ENET_MTU_MAX + ENET_MTU_MAX_EXTRA_SIZE;
+	slot->len = ENET_MTU_MAX + ENET_MAX_ETH_OVERHEAD;
 
 	slot->skb = netdev_alloc_skb(enet->netdev, slot->len);
 	if (!slot->skb)
@@ -373,6 +380,8 @@ static void bcm4908_enet_dma_rx_ring_disable(struct bcm4908_enet *enet,
 static void bcm4908_enet_gmac_init(struct bcm4908_enet *enet)
 {
 	u32 cmd;
+
+	bcm4908_enet_set_mtu(enet, enet->netdev->mtu);
 
 	cmd = enet_umac_read(enet, UMAC_CMD);
 	enet_umac_write(enet, UMAC_CMD, cmd | CMD_SW_RESET);
@@ -559,7 +568,7 @@ static int bcm4908_enet_poll(struct napi_struct *napi, int weight)
 
 		len = (ctl & DMA_CTL_LEN_DESC_BUFLENGTH) >> DMA_CTL_LEN_DESC_BUFLENGTH_SHIFT;
 
-		if (len < ENET_MTU_MIN ||
+		if (len < ETH_ZLEN ||
 		    (ctl & (DMA_CTL_STATUS_SOP | DMA_CTL_STATUS_EOP)) != (DMA_CTL_STATUS_SOP | DMA_CTL_STATUS_EOP)) {
 			enet->netdev->stats.rx_dropped++;
 			break;
@@ -583,11 +592,21 @@ static int bcm4908_enet_poll(struct napi_struct *napi, int weight)
 	return handled;
 }
 
+static int bcm4908_enet_change_mtu(struct net_device *netdev, int new_mtu)
+{
+	struct bcm4908_enet *enet = netdev_priv(netdev);
+
+	bcm4908_enet_set_mtu(enet, new_mtu);
+
+	return 0;
+}
+
 static const struct net_device_ops bcm4908_enet_netdev_ops = {
 	.ndo_open = bcm4908_enet_open,
 	.ndo_stop = bcm4908_enet_stop,
 	.ndo_start_xmit = bcm4908_enet_start_xmit,
 	.ndo_set_mac_address = eth_mac_addr,
+	.ndo_change_mtu = bcm4908_enet_change_mtu,
 };
 
 static int bcm4908_enet_probe(struct platform_device *pdev)
@@ -625,7 +644,7 @@ static int bcm4908_enet_probe(struct platform_device *pdev)
 	eth_hw_addr_random(netdev);
 	netdev->netdev_ops = &bcm4908_enet_netdev_ops;
 	netdev->min_mtu = ETH_ZLEN;
-	netdev->mtu = ENET_MTU_MAX;
+	netdev->mtu = ETH_DATA_LEN;
 	netdev->max_mtu = ENET_MTU_MAX;
 	netif_napi_add(netdev, &enet->napi, bcm4908_enet_poll, 64);
 
