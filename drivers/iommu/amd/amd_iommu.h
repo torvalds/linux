@@ -84,12 +84,9 @@ static inline bool is_rd890_iommu(struct pci_dev *pdev)
 	       (pdev->device == PCI_DEVICE_ID_RD890_IOMMU);
 }
 
-static inline bool iommu_feature(struct amd_iommu *iommu, u64 f)
+static inline bool iommu_feature(struct amd_iommu *iommu, u64 mask)
 {
-	if (!(iommu->cap & (1 << IOMMU_CAP_EFR)))
-		return false;
-
-	return !!(iommu->features & f);
+	return !!(iommu->features & mask);
 }
 
 static inline u64 iommu_virt_to_phys(void *vaddr)

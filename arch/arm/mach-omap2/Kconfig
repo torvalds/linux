@@ -17,11 +17,10 @@ config ARCH_OMAP3
 	bool "TI OMAP3"
 	depends on ARCH_MULTI_V7
 	select ARCH_OMAP2PLUS
-	select ARM_CPU_SUSPEND if PM
+	select ARM_CPU_SUSPEND
 	select OMAP_HWMOD
 	select OMAP_INTERCONNECT
-	select PM_OPP if PM
-	select PM if CPU_IDLE
+	select PM_OPP
 	select SOC_HAS_OMAP2_SDRC
 	select ARM_ERRATA_430973
 
@@ -30,7 +29,7 @@ config ARCH_OMAP4
 	depends on ARCH_MULTI_V7
 	select ARCH_OMAP2PLUS
 	select ARCH_NEEDS_CPU_IDLE_COUPLED if SMP
-	select ARM_CPU_SUSPEND if PM
+	select ARM_CPU_SUSPEND
 	select ARM_ERRATA_720789
 	select ARM_GIC
 	select HAVE_ARM_SCU if SMP
@@ -40,7 +39,7 @@ config ARCH_OMAP4
 	select OMAP_INTERCONNECT_BARRIER
 	select PL310_ERRATA_588369 if CACHE_L2X0
 	select PL310_ERRATA_727915 if CACHE_L2X0
-	select PM_OPP if PM
+	select PM_OPP
 	select PM if CPU_IDLE
 	select ARM_ERRATA_754322
 	select ARM_ERRATA_775420
@@ -50,7 +49,7 @@ config SOC_OMAP5
 	bool "TI OMAP5"
 	depends on ARCH_MULTI_V7
 	select ARCH_OMAP2PLUS
-	select ARM_CPU_SUSPEND if PM
+	select ARM_CPU_SUSPEND
 	select ARM_GIC
 	select HAVE_ARM_SCU if SMP
 	select HAVE_ARM_ARCH_TIMER
@@ -58,14 +57,14 @@ config SOC_OMAP5
 	select OMAP_HWMOD
 	select OMAP_INTERCONNECT
 	select OMAP_INTERCONNECT_BARRIER
-	select PM_OPP if PM
+	select PM_OPP
 	select ZONE_DMA if ARM_LPAE
 
 config SOC_AM33XX
 	bool "TI AM33XX"
 	depends on ARCH_MULTI_V7
 	select ARCH_OMAP2PLUS
-	select ARM_CPU_SUSPEND if PM
+	select ARM_CPU_SUSPEND
 
 config SOC_AM43XX
 	bool "TI AM43x"
@@ -79,13 +78,13 @@ config SOC_AM43XX
 	select ARM_ERRATA_754322
 	select ARM_ERRATA_775420
 	select OMAP_INTERCONNECT
-	select ARM_CPU_SUSPEND if PM
+	select ARM_CPU_SUSPEND
 
 config SOC_DRA7XX
 	bool "TI DRA7XX"
 	depends on ARCH_MULTI_V7
 	select ARCH_OMAP2PLUS
-	select ARM_CPU_SUSPEND if PM
+	select ARM_CPU_SUSPEND
 	select ARM_GIC
 	select HAVE_ARM_SCU if SMP
 	select HAVE_ARM_ARCH_TIMER
@@ -94,7 +93,7 @@ config SOC_DRA7XX
 	select OMAP_HWMOD
 	select OMAP_INTERCONNECT
 	select OMAP_INTERCONNECT_BARRIER
-	select PM_OPP if PM
+	select PM_OPP
 	select ZONE_DMA if ARM_LPAE
 	select PINCTRL_TI_IODELAY if OF && PINCTRL
 
@@ -112,9 +111,11 @@ config ARCH_OMAP2PLUS
 	select OMAP_DM_TIMER
 	select OMAP_GPMC
 	select PINCTRL
-	select PM_GENERIC_DOMAINS if PM
-	select PM_GENERIC_DOMAINS_OF if PM
+	select PM
+	select PM_GENERIC_DOMAINS
+	select PM_GENERIC_DOMAINS_OF
 	select RESET_CONTROLLER
+	select SIMPLE_PM_BUS
 	select SOC_BUS
 	select TI_SYSC
 	select OMAP_IRQCHIP
@@ -140,7 +141,6 @@ config ARCH_OMAP2PLUS_TYPICAL
 	select I2C_OMAP
 	select MENELAUS if ARCH_OMAP2
 	select NEON if CPU_V7
-	select PM
 	select REGULATOR
 	select REGULATOR_FIXED_VOLTAGE
 	select TWL4030_CORE if ARCH_OMAP3 || ARCH_OMAP4

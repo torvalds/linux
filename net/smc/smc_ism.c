@@ -250,7 +250,8 @@ static int smc_nl_handle_smcd_dev(struct smcd_dev *smcd,
 		goto errattr;
 	if (nla_put_u8(skb, SMC_NLA_DEV_PORT_PNET_USR, smcd->pnetid_by_user))
 		goto errportattr;
-	snprintf(smc_pnet, sizeof(smc_pnet), "%s", smcd->pnetid);
+	memcpy(smc_pnet, smcd->pnetid, SMC_MAX_PNETID_LEN);
+	smc_pnet[SMC_MAX_PNETID_LEN] = 0;
 	if (nla_put_string(skb, SMC_NLA_DEV_PORT_PNETID, smc_pnet))
 		goto errportattr;
 
