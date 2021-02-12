@@ -255,8 +255,6 @@ static int default_key_ctr(struct dm_target *ti, unsigned int argc, char **argv)
 
 	ti->num_flush_bios = 1;
 
-	ti->may_passthrough_inline_crypto = true;
-
 	err = 0;
 	goto out;
 
@@ -397,6 +395,7 @@ static void default_key_io_hints(struct dm_target *ti,
 static struct target_type default_key_target = {
 	.name			= "default-key",
 	.version		= {2, 1, 0},
+	.features		= DM_TARGET_PASSES_CRYPTO,
 	.module			= THIS_MODULE,
 	.ctr			= default_key_ctr,
 	.dtr			= default_key_dtr,

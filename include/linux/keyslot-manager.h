@@ -18,8 +18,6 @@ enum {
 	BLK_CRYPTO_FEATURE_WRAPPED_KEYS = BIT(1),
 };
 
-#ifdef CONFIG_BLK_INLINE_ENCRYPTION
-
 struct blk_keyslot_manager;
 
 /**
@@ -127,16 +125,20 @@ void blk_ksm_reprogram_all_keys(struct blk_keyslot_manager *ksm);
 
 void blk_ksm_destroy(struct blk_keyslot_manager *ksm);
 
-void blk_ksm_intersect_modes(struct blk_keyslot_manager *parent,
-			     const struct blk_keyslot_manager *child);
-
 int blk_ksm_derive_raw_secret(struct blk_keyslot_manager *ksm,
 			      const u8 *wrapped_key,
 			      unsigned int wrapped_key_size,
 			      u8 *secret, unsigned int secret_size);
 
+void blk_ksm_intersect_modes(struct blk_keyslot_manager *parent,
+			     const struct blk_keyslot_manager *child);
+
 void blk_ksm_init_passthrough(struct blk_keyslot_manager *ksm);
 
-#endif /* CONFIG_BLK_INLINE_ENCRYPTION */
+bool blk_ksm_is_superset(struct blk_keyslot_manager *ksm_superset,
+			 struct blk_keyslot_manager *ksm_subset);
+
+void blk_ksm_update_capabilities(struct blk_keyslot_manager *target_ksm,
+				 struct blk_keyslot_manager *reference_ksm);
 
 #endif /* __LINUX_KEYSLOT_MANAGER_H */

@@ -1723,7 +1723,18 @@ static const struct dax_operations dm_dax_ops;
 
 static void dm_wq_work(struct work_struct *work);
 
-static void dm_destroy_inline_encryption(struct request_queue *q);
+#ifdef CONFIG_BLK_INLINE_ENCRYPTION
+static void dm_queue_destroy_keyslot_manager(struct request_queue *q)
+{
+	dm_destroy_keyslot_manager(q->ksm);
+}
+
+#else /* CONFIG_BLK_INLINE_ENCRYPTION */
+
+static inline void dm_queue_destroy_keyslot_manager(struct request_queue *q)
+{
+}
+#endif /* !CONFIG_BLK_INLINE_ENCRYPTION */
 
 static void cleanup_mapped_device(struct mapped_device *md)
 {
@@ -1747,7 +1758,7 @@ static void cleanup_mapped_device(struct mapped_device *md)
 	}
 
 	if (md->queue) {
-		dm_destroy_inline_encryption(md->queue);
+		dm_queue_destroy_keyslot_manager(md->queue);
 		blk_cleanup_queue(md->queue);
 	}
 
@@ -2098,161 +2109,6 @@ struct queue_limits *dm_get_queue_limits(struct mapped_device *md)
 }
 EXPORT_SYMBOL_GPL(dm_get_queue_limits);
 
-#ifdef CONFIG_BLK_INLINE_ENCRYPTION
-struct dm_keyslot_evict_args {
-	const struct blk_crypto_key *key;
-	int err;
-};
-
-static int dm_keyslot_evict_callback(struct dm_target *ti, struct dm_dev *dev,
-				     sector_t start, sector_t len, void *data)
-{
-	struct dm_keyslot_evict_args *args = data;
-	int err;
-
-	err = blk_crypto_evict_key(bdev_get_queue(dev->bdev), args->key);
-	if (!args->err)
-		args->err = err;
-	/* Always try to evict the key from all devices. */
-	return 0;
-}
-
-/*
- * When an inline encryption key is evicted from a device-mapper device, evict
- * it from all the underlying devices.
- */
-static int dm_keyslot_evict(struct blk_keyslot_manager *ksm,
-			    const struct blk_crypto_key *key, unsigned int slot)
-{
-	struct mapped_device *md = container_of(ksm, struct mapped_device, ksm);
-	struct dm_keyslot_evict_args args = { key };
-	struct dm_table *t;
-	int srcu_idx;
-	int i;
-	struct dm_target *ti;
-
-	t = dm_get_live_table(md, &srcu_idx);
-	if (!t)
-		return 0;
-	for (i = 0; i < dm_table_get_num_targets(t); i++) {
-		ti = dm_table_get_target(t, i);
-		if (!ti->type->iterate_devices)
-			continue;
-		ti->type->iterate_devices(ti, dm_keyslot_evict_callback, &args);
-	}
-	dm_put_live_table(md, srcu_idx);
-	return args.err;
-}
-
-struct dm_derive_raw_secret_args {
-	const u8 *wrapped_key;
-	unsigned int wrapped_key_size;
-	u8 *secret;
-	unsigned int secret_size;
-	int err;
-};
-
-static int dm_derive_raw_secret_callback(struct dm_target *ti,
-					 struct dm_dev *dev, sector_t start,
-					 sector_t len, void *data)
-{
-	struct dm_derive_raw_secret_args *args = data;
-	struct request_queue *q = bdev_get_queue(dev->bdev);
-
-	if (!args->err)
-		return 0;
-
-	if (!q->ksm) {
-		args->err = -EOPNOTSUPP;
-		return 0;
-	}
-
-	args->err = blk_ksm_derive_raw_secret(q->ksm, args->wrapped_key,
-					      args->wrapped_key_size,
-					      args->secret,
-					      args->secret_size);
-	/* Try another device in case this fails. */
-	return 0;
-}
-
-/*
- * Retrieve the raw_secret from the underlying device. Given that
- * only only one raw_secret can exist for a particular wrappedkey,
- * retrieve it only from the first device that supports derive_raw_secret()
- */
-static int dm_derive_raw_secret(struct blk_keyslot_manager *ksm,
-				const u8 *wrapped_key,
-				unsigned int wrapped_key_size,
-				u8 *secret, unsigned int secret_size)
-{
-	struct mapped_device *md = container_of(ksm, struct mapped_device, ksm);
-	struct dm_derive_raw_secret_args args = {
-		.wrapped_key = wrapped_key,
-		.wrapped_key_size = wrapped_key_size,
-		.secret = secret,
-		.secret_size = secret_size,
-		.err = -EOPNOTSUPP,
-	};
-	struct dm_table *t;
-	int srcu_idx;
-	int i;
-	struct dm_target *ti;
-
-	t = dm_get_live_table(md, &srcu_idx);
-	if (!t)
-		return -EOPNOTSUPP;
-	for (i = 0; i < dm_table_get_num_targets(t); i++) {
-		ti = dm_table_get_target(t, i);
-		if (!ti->type->iterate_devices)
-			continue;
-		ti->type->iterate_devices(ti, dm_derive_raw_secret_callback,
-					  &args);
-		if (!args.err)
-			break;
-	}
-	dm_put_live_table(md, srcu_idx);
-	return args.err;
-}
-
-static struct blk_ksm_ll_ops dm_ksm_ll_ops = {
-	.keyslot_evict = dm_keyslot_evict,
-	.derive_raw_secret = dm_derive_raw_secret,
-};
-
-static void dm_init_inline_encryption(struct mapped_device *md)
-{
-	blk_ksm_init_passthrough(&md->ksm);
-	md->ksm.ksm_ll_ops = dm_ksm_ll_ops;
-
-	/*
-	 * Initially declare support for all crypto settings. Anything
-	 * unsupported by a child device will be removed later when calculating
-	 * the device restrictions.
-	 */
-	md->ksm.max_dun_bytes_supported = UINT_MAX;
-	md->ksm.features = BLK_CRYPTO_FEATURE_STANDARD_KEYS |
-			   BLK_CRYPTO_FEATURE_WRAPPED_KEYS;
-	memset(md->ksm.crypto_modes_supported, 0xFF,
-	       sizeof(md->ksm.crypto_modes_supported));
-
-	blk_ksm_register(&md->ksm, md->queue);
-}
-
-static void dm_destroy_inline_encryption(struct request_queue *q)
-{
-	blk_ksm_destroy(q->ksm);
-	blk_ksm_unregister(q);
-}
-#else /* CONFIG_BLK_INLINE_ENCRYPTION */
-static inline void dm_init_inline_encryption(struct mapped_device *md)
-{
-}
-
-static inline void dm_destroy_inline_encryption(struct request_queue *q)
-{
-}
-#endif /* !CONFIG_BLK_INLINE_ENCRYPTION */
-
 /*
  * Setup the DM device's queue based on md's type
  */
@@ -2284,9 +2140,6 @@ int dm_setup_md_queue(struct mapped_device *md, struct dm_table *t)
 		DMERR("Cannot calculate initial queue limits");
 		return r;
 	}
-
-	dm_init_inline_encryption(md);
-
 	dm_table_set_restrictions(t, md->queue, &limits);
 	blk_register_queue(md->disk);
 
