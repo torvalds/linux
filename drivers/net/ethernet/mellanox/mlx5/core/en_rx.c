@@ -1795,8 +1795,8 @@ int mlx5e_rq_set_handlers(struct mlx5e_rq *rq, struct mlx5e_params *params, bool
 
 		rq->handle_rx_cqe = priv->profile->rx_handlers->handle_rx_cqe_mpwqe;
 #ifdef CONFIG_MLX5_EN_IPSEC
-		if (MLX5_IPSEC_DEV(mdev)) {
-			netdev_err(netdev, "MPWQE RQ with IPSec offload not supported\n");
+		if (mlx5_fpga_is_ipsec_device(mdev)) {
+			netdev_err(netdev, "MPWQE RQ with Innova IPSec offload not supported\n");
 			return -EINVAL;
 		}
 #endif

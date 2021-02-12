@@ -83,7 +83,7 @@ static inline void mlx5e_xdp_tx_disable(struct mlx5e_priv *priv)
 
 	clear_bit(MLX5E_STATE_XDP_TX_ENABLED, &priv->state);
 	/* Let other device's napi(s) and XSK wakeups see our new state. */
-	synchronize_rcu();
+	synchronize_net();
 }
 
 static inline bool mlx5e_xdp_tx_is_enabled(struct mlx5e_priv *priv)
