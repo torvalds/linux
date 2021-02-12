@@ -47,6 +47,24 @@ static const struct software_node ssam_node_hub_base = {
 	.parent = &ssam_node_root,
 };
 
+/* AC adapter. */
+static const struct software_node ssam_node_bat_ac = {
+	.name = "ssam:01:02:01:01:01",
+	.parent = &ssam_node_root,
+};
+
+/* Primary battery. */
+static const struct software_node ssam_node_bat_main = {
+	.name = "ssam:01:02:01:01:00",
+	.parent = &ssam_node_root,
+};
+
+/* Secondary battery (Surface Book 3). */
+static const struct software_node ssam_node_bat_sb3base = {
+	.name = "ssam:01:02:02:01:00",
+	.parent = &ssam_node_hub_base,
+};
+
 /* Devices for Surface Book 2. */
 static const struct software_node *ssam_node_group_sb2[] = {
 	&ssam_node_root,
@@ -57,6 +75,9 @@ static const struct software_node *ssam_node_group_sb2[] = {
 static const struct software_node *ssam_node_group_sb3[] = {
 	&ssam_node_root,
 	&ssam_node_hub_base,
+	&ssam_node_bat_ac,
+	&ssam_node_bat_main,
+	&ssam_node_bat_sb3base,
 	NULL,
 };
 
@@ -75,12 +96,16 @@ static const struct software_node *ssam_node_group_sl2[] = {
 /* Devices for Surface Laptop 3. */
 static const struct software_node *ssam_node_group_sl3[] = {
 	&ssam_node_root,
+	&ssam_node_bat_ac,
+	&ssam_node_bat_main,
 	NULL,
 };
 
 /* Devices for Surface Laptop Go. */
 static const struct software_node *ssam_node_group_slg1[] = {
 	&ssam_node_root,
+	&ssam_node_bat_ac,
+	&ssam_node_bat_main,
 	NULL,
 };
 
@@ -99,6 +124,8 @@ static const struct software_node *ssam_node_group_sp6[] = {
 /* Devices for Surface Pro 7. */
 static const struct software_node *ssam_node_group_sp7[] = {
 	&ssam_node_root,
+	&ssam_node_bat_ac,
+	&ssam_node_bat_main,
 	NULL,
 };
 
