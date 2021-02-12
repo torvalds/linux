@@ -6806,14 +6806,15 @@ static int io_init_req(struct io_ring_ctx *ctx, struct io_kiocb *req,
 {
 	struct io_submit_state *state;
 	unsigned int sqe_flags;
-	int id, ret;
+	int id, ret = 0;
 
 	req->opcode = READ_ONCE(sqe->opcode);
+	/* same numerical values with corresponding REQ_F_*, safe to copy */
+	req->flags = sqe_flags = READ_ONCE(sqe->flags);
 	req->user_data = READ_ONCE(sqe->user_data);
 	req->async_data = NULL;
 	req->file = NULL;
 	req->ctx = ctx;
-	req->flags = 0;
 	req->link = NULL;
 	req->fixed_rsrc_refs = NULL;
 	/* one is dropped after submission, the other at completion */
@@ -6821,16 +6822,15 @@ static int io_init_req(struct io_ring_ctx *ctx, struct io_kiocb *req,
 	req->task = current;
 	req->result = 0;
 
+	/* enforce forwards compatibility on users */
+	if (unlikely(sqe_flags & ~SQE_VALID_FLAGS))
+		return -EINVAL;
+
 	if (unlikely(req->opcode >= IORING_OP_LAST))
 		return -EINVAL;
 
 	if (unlikely(io_sq_thread_acquire_mm_files(ctx, req)))
 		return -EFAULT;
-
-	sqe_flags = READ_ONCE(sqe->flags);
-	/* enforce forwards compatibility on users */
-	if (unlikely(sqe_flags & ~SQE_VALID_FLAGS))
-		return -EINVAL;
 
 	if (unlikely(!io_check_restriction(ctx, req, sqe_flags)))
 		return -EACCES;
@@ -6854,8 +6854,6 @@ static int io_init_req(struct io_ring_ctx *ctx, struct io_kiocb *req,
 		req->work.flags |= IO_WQ_WORK_CREDS;
 	}
 
-	/* same numerical values with corresponding REQ_F_*, safe to copy */
-	req->flags |= sqe_flags;
 	state = &ctx->submit_state;
 
 	/*
@@ -6868,7 +6866,6 @@ static int io_init_req(struct io_ring_ctx *ctx, struct io_kiocb *req,
 		state->plug_started = true;
 	}
 
-	ret = 0;
 	if (io_op_defs[req->opcode].needs_file) {
 		bool fixed = req->flags & REQ_F_FIXED_FILE;
 
