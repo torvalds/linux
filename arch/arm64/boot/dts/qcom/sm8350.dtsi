@@ -4,6 +4,7 @@
  */
 
 #include <dt-bindings/interrupt-controller/arm-gic.h>
+#include <dt-bindings/clock/qcom,gcc-sm8350.h>
 #include <dt-bindings/clock/qcom,rpmh.h>
 #include <dt-bindings/mailbox/qcom-ipcc.h>
 #include <dt-bindings/power/qcom-aoss-qmp.h>
@@ -429,8 +430,8 @@
 			compatible = "qcom,geni-se-qup";
 			reg = <0x0 0x009c0000 0x0 0x6000>;
 			clock-names = "m-ahb", "s-ahb";
-			clocks = <&gcc 121>,
-				 <&gcc 122>;
+			clocks = <&gcc GCC_QUPV3_WRAP_0_M_AHB_CLK>,
+				 <&gcc GCC_QUPV3_WRAP_0_S_AHB_CLK>;
 			#address-cells = <2>;
 			#size-cells = <2>;
 			ranges;
@@ -440,7 +441,7 @@
 				compatible = "qcom,geni-debug-uart";
 				reg = <0 0x0098c000 0 0x4000>;
 				clock-names = "se";
-				clocks = <&gcc 83>;
+				clocks = <&gcc GCC_QUPV3_WRAP0_S3_CLK>;
 				pinctrl-names = "default";
 				pinctrl-0 = <&qup_uart3_default_state>;
 				interrupts = <GIC_SPI 604 IRQ_TYPE_LEVEL_HIGH>;
@@ -796,10 +797,10 @@
 			phy-names = "ufsphy";
 			lanes-per-direction = <2>;
 			#reset-cells = <1>;
-			resets = <&gcc 25>;
+			resets = <&gcc GCC_UFS_PHY_BCR>;
 			reset-names = "rst";
 
-			power-domains = <&gcc 3>;
+			power-domains = <&gcc UFS_PHY_GDSC>;
 
 			iommus = <&apps_smmu 0xe0 0x0>;
 
@@ -815,14 +816,14 @@
 				"rx_lane1_sync_clk";
 			clocks =
 				<&rpmhcc RPMH_CXO_CLK>,
-				<&gcc 155>,
-				<&gcc 16>,
-				<&gcc 154>,
-				<&gcc 170>,
+				<&gcc GCC_UFS_PHY_AXI_CLK>,
+				<&gcc GCC_AGGRE_UFS_PHY_AXI_CLK>,
+				<&gcc GCC_UFS_PHY_AHB_CLK>,
+				<&gcc GCC_UFS_PHY_UNIPRO_CORE_CLK>,
 				<&rpmhcc RPMH_CXO_CLK>,
-				<&gcc 168>,
-				<&gcc 164>,
-				<&gcc 166>;
+				<&gcc GCC_UFS_PHY_TX_SYMBOL_0_CLK>,
+				<&gcc GCC_UFS_PHY_RX_SYMBOL_0_CLK>,
+				<&gcc GCC_UFS_PHY_RX_SYMBOL_1_CLK>;
 			freq-table-hz =
 				<75000000 300000000>,
 				<75000000 300000000>,
@@ -846,7 +847,7 @@
 			clock-names = "ref",
 				      "ref_aux";
 			clocks = <&rpmhcc RPMH_CXO_CLK>,
-				 <&gcc 161>;
+				 <&gcc GCC_UFS_PHY_PHY_AUX_CLK>;
 
 			resets = <&ufs_mem_hc 0>;
 			reset-names = "ufsphy";
@@ -952,7 +953,7 @@
 			clocks = <&rpmhcc RPMH_CXO_CLK>;
 			clock-names = "ref";
 
-			resets = <&gcc 20>;
+			resets = <&gcc GCC_QUSB2PHY_PRIM_BCR>;
 		};
 
 		usb_2_hsphy: phy@88e4000 {
@@ -965,7 +966,7 @@
 			clocks = <&rpmhcc RPMH_CXO_CLK>;
 			clock-names = "ref";
 
-			resets = <&gcc 21>;
+			resets = <&gcc GCC_QUSB2PHY_SEC_BCR>;
 		};
 
 		usb_1_qmpphy: phy-wrapper@88e9000 {
@@ -979,13 +980,13 @@
 			#size-cells = <2>;
 			ranges;
 
-			clocks = <&gcc 187>,
+			clocks = <&gcc GCC_USB3_PRIM_PHY_AUX_CLK>,
 				 <&rpmhcc RPMH_CXO_CLK>,
-				 <&gcc 189>;
+				 <&gcc GCC_USB3_PRIM_PHY_COM_AUX_CLK>;
 			clock-names = "aux", "ref_clk_src", "com_aux";
 
-			resets = <&gcc 28>,
-				 <&gcc 30>;
+			resets = <&gcc GCC_USB3_DP_PHY_PRIM_BCR>,
+				 <&gcc GCC_USB3_PHY_PRIM_BCR>;
 			reset-names = "phy", "common";
 
 			usb_1_ssphy: phy@88e9200 {
@@ -997,7 +998,7 @@
 				      <0 0x088e9a00 0 0x100>;
 				#phy-cells = <0>;
 				#clock-cells = <1>;
-				clocks = <&gcc 190>;
+				clocks = <&gcc GCC_USB3_PRIM_PHY_PIPE_CLK>;
 				clock-names = "pipe0";
 				clock-output-names = "usb3_phy_pipe_clk_src";
 			};
@@ -1012,14 +1013,14 @@
 			#size-cells = <2>;
 			ranges;
 
-			clocks = <&gcc 193>,
+			clocks = <&gcc GCC_USB3_SEC_PHY_AUX_CLK>,
 				 <&rpmhcc RPMH_CXO_CLK>,
-				 <&gcc 192>,
-				 <&gcc 195>;
+				 <&gcc GCC_USB3_SEC_CLKREF_EN>,
+				 <&gcc GCC_USB3_SEC_PHY_COM_AUX_CLK>;
 			clock-names = "aux", "ref_clk_src", "ref", "com_aux";
 
-			resets = <&gcc 33>,
-				 <&gcc 31>;
+			resets = <&gcc GCC_USB3PHY_PHY_SEC_BCR>,
+				 <&gcc GCC_USB3_PHY_SEC_BCR>;
 			reset-names = "phy", "common";
 
 			usb_2_ssphy: phy@88ebe00 {
@@ -1028,7 +1029,7 @@
 				      <0 0x088eb200 0 0x1100>;
 				#phy-cells = <0>;
 				#clock-cells = <1>;
-				clocks = <&gcc 196>;
+				clocks = <&gcc GCC_USB3_SEC_PHY_PIPE_CLK>;
 				clock-names = "pipe0";
 				clock-output-names = "usb3_uni_phy_pipe_clk_src";
 			};
@@ -1042,16 +1043,16 @@
 			#size-cells = <2>;
 			ranges;
 
-			clocks = <&gcc 23>,
-				 <&gcc 173>,
-				 <&gcc 18>,
-				 <&gcc 176>,
-				 <&gcc 179>;
+			clocks = <&gcc GCC_CFG_NOC_USB3_PRIM_AXI_CLK>,
+				 <&gcc GCC_USB30_PRIM_MASTER_CLK>,
+				 <&gcc GCC_AGGRE_USB3_PRIM_AXI_CLK>,
+				 <&gcc GCC_USB30_PRIM_MOCK_UTMI_CLK>,
+				 <&gcc GCC_USB30_PRIM_SLEEP_CLK>;
 			clock-names = "cfg_noc", "core", "iface", "mock_utmi",
 				      "sleep";
 
-			assigned-clocks = <&gcc 176>,
-					  <&gcc 173>;
+			assigned-clocks = <&gcc GCC_USB30_PRIM_MOCK_UTMI_CLK>,
+					  <&gcc GCC_USB30_PRIM_MASTER_CLK>;
 			assigned-clock-rates = <19200000>, <200000000>;
 
 			interrupts-extended = <&intc GIC_SPI 131 IRQ_TYPE_LEVEL_HIGH>,
@@ -1061,9 +1062,9 @@
 			interrupt-names = "hs_phy_irq", "dp_hs_phy_irq",
 					  "dm_hs_phy_irq", "ss_phy_irq";
 
-			power-domains = <&gcc 4>;
+			power-domains = <&gcc USB30_PRIM_GDSC>;
 
-			resets = <&gcc 26>;
+			resets = <&gcc GCC_USB30_PRIM_BCR>;
 
 			usb_1_dwc3: dwc3@a600000 {
 				compatible = "snps,dwc3";
@@ -1085,17 +1086,17 @@
 			#size-cells = <2>;
 			ranges;
 
-			clocks = <&gcc 24>,
-				 <&gcc 180>,
-				 <&gcc 19>,
-				 <&gcc 183>,
-				 <&gcc 186>,
-				 <&gcc 192>;
+			clocks = <&gcc GCC_CFG_NOC_USB3_SEC_AXI_CLK>,
+				 <&gcc GCC_USB30_SEC_MASTER_CLK>,
+				 <&gcc GCC_AGGRE_USB3_SEC_AXI_CLK>,
+				 <&gcc GCC_USB30_SEC_MOCK_UTMI_CLK>,
+				 <&gcc GCC_USB30_SEC_SLEEP_CLK>,
+				 <&gcc GCC_USB3_SEC_CLKREF_EN>;
 			clock-names = "cfg_noc", "core", "iface", "mock_utmi",
 				      "sleep", "xo";
 
-			assigned-clocks = <&gcc 183>,
-					  <&gcc 180>;
+			assigned-clocks = <&gcc GCC_USB30_SEC_MOCK_UTMI_CLK>,
+					  <&gcc GCC_USB30_SEC_MASTER_CLK>;
 			assigned-clock-rates = <19200000>, <200000000>;
 
 			interrupts-extended = <&intc GIC_SPI 136 IRQ_TYPE_LEVEL_HIGH>,
@@ -1105,9 +1106,9 @@
 			interrupt-names = "hs_phy_irq", "dp_hs_phy_irq",
 					  "dm_hs_phy_irq", "ss_phy_irq";
 
-			power-domains = <&gcc 5>;
+			power-domains = <&gcc USB30_SEC_GDSC>;
 
-			resets = <&gcc 27>;
+			resets = <&gcc GCC_USB30_SEC_BCR>;
 
 			usb_2_dwc3: dwc3@a800000 {
 				compatible = "snps,dwc3";
