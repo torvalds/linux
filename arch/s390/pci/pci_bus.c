@@ -27,7 +27,7 @@
 #include "pci_iov.h"
 
 static LIST_HEAD(zbus_list);
-static DEFINE_SPINLOCK(zbus_list_lock);
+static DEFINE_MUTEX(zbus_list_lock);
 static int zpci_nb_devices;
 
 /* zpci_bus_prepare_device - Prepare a zPCI function for scanning
@@ -214,9 +214,9 @@ static void zpci_bus_release(struct kref *kref)
 		pci_unlock_rescan_remove();
 	}
 
-	spin_lock(&zbus_list_lock);
+	mutex_lock(&zbus_list_lock);
 	list_del(&zbus->bus_next);
-	spin_unlock(&zbus_list_lock);
+	mutex_unlock(&zbus_list_lock);
 	kfree(zbus);
 }
 
@@ -229,7 +229,7 @@ static struct zpci_bus *zpci_bus_get(int pchid)
 {
 	struct zpci_bus *zbus;
 
-	spin_lock(&zbus_list_lock);
+	mutex_lock(&zbus_list_lock);
 	list_for_each_entry(zbus, &zbus_list, bus_next) {
 		if (pchid == zbus->pchid) {
 			kref_get(&zbus->kref);
@@ -238,7 +238,7 @@ static struct zpci_bus *zpci_bus_get(int pchid)
 	}
 	zbus = NULL;
 out_unlock:
-	spin_unlock(&zbus_list_lock);
+	mutex_unlock(&zbus_list_lock);
 	return zbus;
 }
 
@@ -252,9 +252,9 @@ static struct zpci_bus *zpci_bus_alloc(int pchid)
 
 	zbus->pchid = pchid;
 	INIT_LIST_HEAD(&zbus->bus_next);
-	spin_lock(&zbus_list_lock);
+	mutex_lock(&zbus_list_lock);
 	list_add_tail(&zbus->bus_next, &zbus_list);
-	spin_unlock(&zbus_list_lock);
+	mutex_unlock(&zbus_list_lock);
 
 	kref_init(&zbus->kref);
 	INIT_LIST_HEAD(&zbus->resources);
