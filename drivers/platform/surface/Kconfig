@@ -77,6 +77,33 @@ config SURFACE_AGGREGATOR_CDEV
 	  The provided interface is intended for debugging and development only,
 	  and should not be used otherwise.
 
+config SURFACE_AGGREGATOR_REGISTRY
+	tristate "Surface System Aggregator Module Device Registry"
+	depends on SURFACE_AGGREGATOR
+	depends on SURFACE_AGGREGATOR_BUS
+	help
+	  Device-registry and device-hubs for Surface System Aggregator Module
+	  (SSAM) devices.
+
+	  Provides a module and driver which act as a device-registry for SSAM
+	  client devices that cannot be detected automatically, e.g. via ACPI.
+	  Such devices are instead provided via this registry and attached via
+	  device hubs, also provided in this module.
+
+	  Devices provided via this registry are:
+	  - Platform profile (performance-/cooling-mode) device (5th- and later
+	    generations).
+	  - Battery/AC devices (7th-generation).
+	  - HID input devices (7th-generation).
+
+	  Select M (recommended) or Y here if you want support for the above
+	  mentioned devices on the corresponding Surface models. Without this
+	  module, the respective devices will not be instantiated and thus any
+	  functionality provided by them will be missing, even when drivers for
+	  these devices are present. In other words, this module only provides
+	  the respective client devices. Drivers for these devices still need to
+	  be selected via the other options.
+
 config SURFACE_GPE
 	tristate "Surface GPE/Lid Support Driver"
 	depends on DMI
