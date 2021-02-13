@@ -1212,7 +1212,7 @@ static int br_changelink(struct net_device *brdev, struct nlattr *tb[],
 	if (data[IFLA_BR_VLAN_FILTERING]) {
 		u8 vlan_filter = nla_get_u8(data[IFLA_BR_VLAN_FILTERING]);
 
-		err = __br_vlan_filter_toggle(br, vlan_filter);
+		err = br_vlan_filter_toggle(br, vlan_filter);
 		if (err)
 			return err;
 	}

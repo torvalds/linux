@@ -806,7 +806,7 @@ void br_recalculate_fwd_mask(struct net_bridge *br)
 					      ~(1u << br->group_addr[5]);
 }
 
-int __br_vlan_filter_toggle(struct net_bridge *br, unsigned long val)
+int br_vlan_filter_toggle(struct net_bridge *br, unsigned long val)
 {
 	struct switchdev_attr attr = {
 		.orig_dev = br->dev,
@@ -829,11 +829,6 @@ int __br_vlan_filter_toggle(struct net_bridge *br, unsigned long val)
 	br_recalculate_fwd_mask(br);
 
 	return 0;
-}
-
-int br_vlan_filter_toggle(struct net_bridge *br, unsigned long val)
-{
-	return __br_vlan_filter_toggle(br, val);
 }
 
 bool br_vlan_enabled(const struct net_device *dev)
