@@ -671,38 +671,39 @@ static void i915_driver_register(struct drm_i915_private *dev_priv)
 	}
 
 	i915_debugfs_register(dev_priv);
-	if (HAS_DISPLAY(dev_priv))
-		intel_display_debugfs_register(dev_priv);
 	i915_setup_sysfs(dev_priv);
 
 	/* Depends on sysfs having been initialized */
 	i915_perf_register(dev_priv);
 
+	intel_gt_driver_register(&dev_priv->gt);
+
 	if (HAS_DISPLAY(dev_priv)) {
+		intel_display_debugfs_register(dev_priv);
+
 		/* Must be done after probing outputs */
 		intel_opregion_register(dev_priv);
 		acpi_video_register();
-	}
 
-	intel_gt_driver_register(&dev_priv->gt);
+		intel_audio_init(dev_priv);
 
-	intel_audio_init(dev_priv);
+		/*
+		 * Some ports require correctly set-up hpd registers for
+		 * detection to work properly (leading to ghost connected
+		 * connector status), e.g. VGA on gm45.  Hence we can only set
+		 * up the initial fbdev config after hpd irqs are fully
+		 * enabled. We do it last so that the async config cannot run
+		 * before the connectors are registered.
+		 */
+		intel_fbdev_initial_config_async(dev);
 
-	/*
-	 * Some ports require correctly set-up hpd registers for detection to
-	 * work properly (leading to ghost connected connector status), e.g. VGA
-	 * on gm45.  Hence we can only set up the initial fbdev config after hpd
-	 * irqs are fully enabled. We do it last so that the async config
-	 * cannot run before the connectors are registered.
-	 */
-	intel_fbdev_initial_config_async(dev);
-
-	/*
-	 * We need to coordinate the hotplugs with the asynchronous fbdev
-	 * configuration, for which we use the fbdev->async_cookie.
-	 */
-	if (HAS_DISPLAY(dev_priv))
+		/*
+		 * We need to coordinate the hotplugs with the asynchronous
+		 * fbdev configuration, for which we use the
+		 * fbdev->async_cookie.
+		 */
 		drm_kms_helper_poll_init(dev);
+	}
 
 	intel_power_domains_enable(dev_priv);
 	intel_runtime_pm_enable(&dev_priv->runtime_pm);
@@ -726,20 +727,23 @@ static void i915_driver_unregister(struct drm_i915_private *dev_priv)
 	intel_runtime_pm_disable(&dev_priv->runtime_pm);
 	intel_power_domains_disable(dev_priv);
 
-	intel_fbdev_unregister(dev_priv);
-	intel_audio_deinit(dev_priv);
+	if (HAS_DISPLAY(dev_priv)) {
+		intel_fbdev_unregister(dev_priv);
+		intel_audio_deinit(dev_priv);
 
-	/*
-	 * After flushing the fbdev (incl. a late async config which will
-	 * have delayed queuing of a hotplug event), then flush the hotplug
-	 * events.
-	 */
-	drm_kms_helper_poll_fini(&dev_priv->drm);
-	drm_atomic_helper_shutdown(&dev_priv->drm);
+		/*
+		 * After flushing the fbdev (incl. a late async config which
+		 * will have delayed queuing of a hotplug event), then flush
+		 * the hotplug events.
+		 */
+		drm_kms_helper_poll_fini(&dev_priv->drm);
+		drm_atomic_helper_shutdown(&dev_priv->drm);
+
+		acpi_video_unregister();
+		intel_opregion_unregister(dev_priv);
+	}
 
 	intel_gt_driver_unregister(&dev_priv->gt);
-	acpi_video_unregister();
-	intel_opregion_unregister(dev_priv);
 
 	i915_perf_unregister(dev_priv);
 	i915_pmu_unregister(dev_priv);
