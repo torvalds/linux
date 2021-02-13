@@ -430,17 +430,9 @@ amdgpu_dma_buf_create_obj(struct drm_device *dev, struct dma_buf *dma_buf)
 	struct dma_resv *resv = dma_buf->resv;
 	struct amdgpu_device *adev = drm_to_adev(dev);
 	struct amdgpu_bo *bo;
-	struct amdgpu_bo_param bp;
 	struct drm_gem_object *gobj;
 	int ret;
 
-	memset(&bp, 0, sizeof(bp));
-	bp.size = dma_buf->size;
-	bp.byte_align = PAGE_SIZE;
-	bp.domain = AMDGPU_GEM_DOMAIN_CPU;
-	bp.flags = 0;
-	bp.type = ttm_bo_type_sg;
-	bp.resv = resv;
 	dma_resv_lock(resv, NULL);
 	ret = amdgpu_gem_object_create(adev, dma_buf->size, PAGE_SIZE,
 			AMDGPU_GEM_DOMAIN_CPU,
