@@ -119,6 +119,51 @@ static void skb_under_panic(struct sk_buff *skb, unsigned int sz, void *addr)
 	skb_panic(skb, sz, addr, __func__);
 }
 
+#define NAPI_SKB_CACHE_SIZE	64
+
+struct napi_alloc_cache {
+	struct page_frag_cache page;
+	unsigned int skb_count;
+	void *skb_cache[NAPI_SKB_CACHE_SIZE];
+};
+
+static DEFINE_PER_CPU(struct page_frag_cache, netdev_alloc_cache);
+static DEFINE_PER_CPU(struct napi_alloc_cache, napi_alloc_cache);
+
+static void *__alloc_frag_align(unsigned int fragsz, gfp_t gfp_mask,
+				unsigned int align_mask)
+{
+	struct napi_alloc_cache *nc = this_cpu_ptr(&napi_alloc_cache);
+
+	return page_frag_alloc_align(&nc->page, fragsz, gfp_mask, align_mask);
+}
+
+void *__napi_alloc_frag_align(unsigned int fragsz, unsigned int align_mask)
+{
+	fragsz = SKB_DATA_ALIGN(fragsz);
+
+	return __alloc_frag_align(fragsz, GFP_ATOMIC, align_mask);
+}
+EXPORT_SYMBOL(__napi_alloc_frag_align);
+
+void *__netdev_alloc_frag_align(unsigned int fragsz, unsigned int align_mask)
+{
+	struct page_frag_cache *nc;
+	void *data;
+
+	fragsz = SKB_DATA_ALIGN(fragsz);
+	if (in_irq() || irqs_disabled()) {
+		nc = this_cpu_ptr(&netdev_alloc_cache);
+		data = page_frag_alloc_align(nc, fragsz, GFP_ATOMIC, align_mask);
+	} else {
+		local_bh_disable();
+		data = __alloc_frag_align(fragsz, GFP_ATOMIC, align_mask);
+		local_bh_enable();
+	}
+	return data;
+}
+EXPORT_SYMBOL(__netdev_alloc_frag_align);
+
 /* Caller must provide SKB that is memset cleared */
 static void __build_skb_around(struct sk_buff *skb, void *data,
 			       unsigned int frag_size)
@@ -219,51 +264,6 @@ struct sk_buff *build_skb_around(struct sk_buff *skb,
 	return skb;
 }
 EXPORT_SYMBOL(build_skb_around);
-
-#define NAPI_SKB_CACHE_SIZE	64
-
-struct napi_alloc_cache {
-	struct page_frag_cache page;
-	unsigned int skb_count;
-	void *skb_cache[NAPI_SKB_CACHE_SIZE];
-};
-
-static DEFINE_PER_CPU(struct page_frag_cache, netdev_alloc_cache);
-static DEFINE_PER_CPU(struct napi_alloc_cache, napi_alloc_cache);
-
-static void *__alloc_frag_align(unsigned int fragsz, gfp_t gfp_mask,
-				unsigned int align_mask)
-{
-	struct napi_alloc_cache *nc = this_cpu_ptr(&napi_alloc_cache);
-
-	return page_frag_alloc_align(&nc->page, fragsz, gfp_mask, align_mask);
-}
-
-void *__napi_alloc_frag_align(unsigned int fragsz, unsigned int align_mask)
-{
-	fragsz = SKB_DATA_ALIGN(fragsz);
-
-	return __alloc_frag_align(fragsz, GFP_ATOMIC, align_mask);
-}
-EXPORT_SYMBOL(__napi_alloc_frag_align);
-
-void *__netdev_alloc_frag_align(unsigned int fragsz, unsigned int align_mask)
-{
-	struct page_frag_cache *nc;
-	void *data;
-
-	fragsz = SKB_DATA_ALIGN(fragsz);
-	if (in_irq() || irqs_disabled()) {
-		nc = this_cpu_ptr(&netdev_alloc_cache);
-		data = page_frag_alloc_align(nc, fragsz, GFP_ATOMIC, align_mask);
-	} else {
-		local_bh_disable();
-		data = __alloc_frag_align(fragsz, GFP_ATOMIC, align_mask);
-		local_bh_enable();
-	}
-	return data;
-}
-EXPORT_SYMBOL(__netdev_alloc_frag_align);
 
 /*
  * kmalloc_reserve is a wrapper around kmalloc_node_track_caller that tells
