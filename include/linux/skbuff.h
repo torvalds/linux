@@ -1087,6 +1087,8 @@ struct sk_buff *build_skb(void *data, unsigned int frag_size);
 struct sk_buff *build_skb_around(struct sk_buff *skb,
 				 void *data, unsigned int frag_size);
 
+struct sk_buff *napi_build_skb(void *data, unsigned int frag_size);
+
 /**
  * alloc_skb - allocate a network buffer
  * @size: size to allocate
