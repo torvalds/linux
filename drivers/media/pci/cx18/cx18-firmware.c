@@ -244,7 +244,7 @@ void cx18_init_power(struct cx18 *cx, int lowpwr)
 	 * an error of less than 0.13 ppm which is way, way better than any off
 	 * the shelf crystal will have for accuracy anyway.
 	 *
-	 * Below I aim to run the PLLs' VCOs near 400 MHz to minimze errors.
+	 * Below I aim to run the PLLs' VCOs near 400 MHz to minimize errors.
 	 *
 	 * Many thanks to Jeff Campbell and Mike Bradley for their extensive
 	 * investigation, experimentation, testing, and suggested solutions of
