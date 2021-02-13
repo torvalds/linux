@@ -207,11 +207,6 @@ void arch_kgdb_breakpoint(void)
 		".set\treorder");
 }
 
-void kgdb_call_nmi_hook(void *ignored)
-{
-	kgdb_nmicallback(raw_smp_processor_id(), get_irq_regs());
-}
-
 static int compute_signal(int tt)
 {
 	struct hard_trap_info *ht;
