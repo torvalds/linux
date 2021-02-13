@@ -2167,15 +2167,13 @@ static void prepare_vmcs02_constant_state(struct vcpu_vmx *vmx)
 		vmcs_write64(MSR_BITMAP, __pa(vmx->nested.vmcs02.msr_bitmap));
 
 	/*
-	 * The PML address never changes, so it is constant in vmcs02.
-	 * Conceptually we want to copy the PML index from vmcs01 here,
-	 * and then back to vmcs01 on nested vmexit.  But since we flush
-	 * the log and reset GUEST_PML_INDEX on each vmexit, the PML
-	 * index is also effectively constant in vmcs02.
+	 * PML is emulated for L2, but never enabled in hardware as the MMU
+	 * handles A/D emulation.  Disabling PML for L2 also avoids having to
+	 * deal with filtering out L2 GPAs from the buffer.
 	 */
 	if (enable_pml) {
-		vmcs_write64(PML_ADDRESS, page_to_phys(vmx->pml_pg));
-		vmcs_write16(GUEST_PML_INDEX, PML_ENTITY_NUM - 1);
+		vmcs_write64(PML_ADDRESS, 0);
+		vmcs_write16(GUEST_PML_INDEX, -1);
 	}
 
 	if (cpu_has_vmx_encls_vmexit())
@@ -2210,7 +2208,7 @@ static void prepare_vmcs02_early_rare(struct vcpu_vmx *vmx,
 
 static void prepare_vmcs02_early(struct vcpu_vmx *vmx, struct vmcs12 *vmcs12)
 {
-	u32 exec_control, vmcs12_exec_ctrl;
+	u32 exec_control;
 	u64 guest_efer = nested_vmx_calc_efer(vmx, vmcs12);
 
 	if (vmx->nested.dirty_vmcs12 || vmx->nested.hv_evmcs)
@@ -2284,11 +2282,11 @@ static void prepare_vmcs02_early(struct vcpu_vmx *vmx, struct vmcs12 *vmcs12)
 				  SECONDARY_EXEC_APIC_REGISTER_VIRT |
 				  SECONDARY_EXEC_ENABLE_VMFUNC);
 		if (nested_cpu_has(vmcs12,
-				   CPU_BASED_ACTIVATE_SECONDARY_CONTROLS)) {
-			vmcs12_exec_ctrl = vmcs12->secondary_vm_exec_control &
-				~SECONDARY_EXEC_ENABLE_PML;
-			exec_control |= vmcs12_exec_ctrl;
-		}
+				   CPU_BASED_ACTIVATE_SECONDARY_CONTROLS))
+			exec_control |= vmcs12->secondary_vm_exec_control;
+
+		/* PML is emulated and never enabled in hardware for L2. */
+		exec_control &= ~SECONDARY_EXEC_ENABLE_PML;
 
 		/* VMCS shadowing for L2 is emulated for now */
 		exec_control &= ~SECONDARY_EXEC_SHADOW_VMCS;
@@ -5790,7 +5788,10 @@ static bool nested_vmx_l0_wants_exit(struct kvm_vcpu *vcpu,
 	case EXIT_REASON_PREEMPTION_TIMER:
 		return true;
 	case EXIT_REASON_PML_FULL:
-		/* We emulate PML support to L1. */
+		/*
+		 * PML is emulated for an L1 VMM and should never be enabled in
+		 * vmcs02, always "handle" PML_FULL by exiting to userspace.
+		 */
 		return true;
 	case EXIT_REASON_VMFUNC:
 		/* VM functions are emulated through L2->L0 vmexits. */
