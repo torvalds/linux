@@ -10,6 +10,7 @@
 #include <linux/random.h>
 #include <net/tcp.h>
 #include <net/inet_connection_sock.h>
+#include <uapi/linux/mptcp.h>
 
 #define MPTCP_SUPPORTED_VERSION	1
 
@@ -539,8 +540,8 @@ void mptcp_subflow_fully_established(struct mptcp_subflow_context *subflow,
 bool mptcp_subflow_data_available(struct sock *sk);
 void __init mptcp_subflow_init(void);
 void mptcp_subflow_shutdown(struct sock *sk, struct sock *ssk, int how);
-void __mptcp_close_ssk(struct sock *sk, struct sock *ssk,
-		       struct mptcp_subflow_context *subflow);
+void mptcp_close_ssk(struct sock *sk, struct sock *ssk,
+		     struct mptcp_subflow_context *subflow);
 void mptcp_subflow_reset(struct sock *ssk);
 void mptcp_sock_graft(struct sock *sk, struct socket *parent);
 struct socket *__mptcp_nmpc_socket(const struct mptcp_sock *msk);
@@ -639,8 +640,8 @@ void mptcp_crypto_hmac_sha(u64 key1, u64 key2, u8 *msg, int len, void *hmac);
 
 void __init mptcp_pm_init(void);
 void mptcp_pm_data_init(struct mptcp_sock *msk);
-void mptcp_pm_new_connection(struct mptcp_sock *msk, int server_side);
-void mptcp_pm_fully_established(struct mptcp_sock *msk);
+void mptcp_pm_new_connection(struct mptcp_sock *msk, const struct sock *ssk, int server_side);
+void mptcp_pm_fully_established(struct mptcp_sock *msk, const struct sock *ssk, gfp_t gfp);
 bool mptcp_pm_allow_new_subflow(struct mptcp_sock *msk);
 void mptcp_pm_connection_closed(struct mptcp_sock *msk);
 void mptcp_pm_subflow_established(struct mptcp_sock *msk,
@@ -665,6 +666,11 @@ int mptcp_pm_announce_addr(struct mptcp_sock *msk,
 			   bool echo, bool port);
 int mptcp_pm_remove_addr(struct mptcp_sock *msk, u8 local_id);
 int mptcp_pm_remove_subflow(struct mptcp_sock *msk, u8 local_id);
+
+void mptcp_event(enum mptcp_event_type type, const struct mptcp_sock *msk,
+		 const struct sock *ssk, gfp_t gfp);
+void mptcp_event_addr_announced(const struct mptcp_sock *msk, const struct mptcp_addr_info *info);
+void mptcp_event_addr_removed(const struct mptcp_sock *msk, u8 id);
 
 static inline bool mptcp_pm_should_add_signal(struct mptcp_sock *msk)
 {
@@ -713,11 +719,7 @@ int mptcp_pm_get_local_id(struct mptcp_sock *msk, struct sock_common *skc);
 
 void __init mptcp_pm_nl_init(void);
 void mptcp_pm_nl_data_init(struct mptcp_sock *msk);
-void mptcp_pm_nl_fully_established(struct mptcp_sock *msk);
-void mptcp_pm_nl_subflow_established(struct mptcp_sock *msk);
-void mptcp_pm_nl_add_addr_received(struct mptcp_sock *msk);
-void mptcp_pm_nl_add_addr_send_ack(struct mptcp_sock *msk);
-void mptcp_pm_nl_rm_addr_received(struct mptcp_sock *msk);
+void mptcp_pm_nl_work(struct mptcp_sock *msk);
 void mptcp_pm_nl_rm_subflow_received(struct mptcp_sock *msk, u8 rm_id);
 int mptcp_pm_nl_get_local_id(struct mptcp_sock *msk, struct sock_common *skc);
 unsigned int mptcp_pm_get_add_addr_signal_max(struct mptcp_sock *msk);
