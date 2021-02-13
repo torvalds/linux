@@ -411,8 +411,12 @@ unmap:
 free:
 #ifdef CONFIG_NL80211_TESTMODE
 	/* fix tx_done accounting on queue overflow */
-	if (tx_info.skb == dev->test.tx_skb)
-		dev->test.tx_done--;
+	if (mt76_is_testmode_skb(dev, skb, &hw)) {
+		struct mt76_phy *phy = hw->priv;
+
+		if (tx_info.skb == phy->test.tx_skb)
+			phy->test.tx_done--;
+	}
 #endif
 
 	e.skb = tx_info.skb;

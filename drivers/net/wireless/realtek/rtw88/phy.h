@@ -185,4 +185,7 @@ enum rtw_phy_cck_pd_lv {
 #define LSSI_READ_EDGE_MASK	0x80000000
 #define LSSI_READ_DATA_MASK	0xfffff
 
+#define RRSR_RATE_ORDER_MAX	0xfffff
+#define RRSR_RATE_ORDER_CCK_LEN	4
+
 #endif

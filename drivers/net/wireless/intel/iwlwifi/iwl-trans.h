@@ -107,12 +107,16 @@ static inline u32 iwl_rx_packet_payload_len(const struct iwl_rx_packet *pkt)
  *	the response. The caller needs to call iwl_free_resp when done.
  * @CMD_WANT_ASYNC_CALLBACK: the op_mode's async callback function must be
  *	called after this command completes. Valid only with CMD_ASYNC.
+ * @CMD_SEND_IN_D3: Allow the command to be sent in D3 mode, relevant to
+ *	SUSPEND and RESUME commands. We are in D3 mode when we set
+ *	trans->system_pm_mode to IWL_PLAT_PM_MODE_D3.
  */
 enum CMD_MODE {
 	CMD_ASYNC		= BIT(0),
 	CMD_WANT_SKB		= BIT(1),
 	CMD_SEND_IN_RFKILL	= BIT(2),
 	CMD_WANT_ASYNC_CALLBACK	= BIT(3),
+	CMD_SEND_IN_D3          = BIT(4),
 };
 
 #define DEF_CMD_PAYLOAD_SIZE 320
@@ -514,6 +518,7 @@ struct iwl_trans_rxq_dma_data {
  *	of the trans debugfs
  * @set_pnvm: set the pnvm data in the prph scratch buffer, inside the
  *	context info.
+ * @interrupts: disable/enable interrupts to transport
  */
 struct iwl_trans_ops {
 
@@ -574,19 +579,17 @@ struct iwl_trans_ops {
 			  const struct iwl_trans_config *trans_cfg);
 	void (*set_pmi)(struct iwl_trans *trans, bool state);
 	void (*sw_reset)(struct iwl_trans *trans);
-	bool (*grab_nic_access)(struct iwl_trans *trans, unsigned long *flags);
-	void (*release_nic_access)(struct iwl_trans *trans,
-				   unsigned long *flags);
+	bool (*grab_nic_access)(struct iwl_trans *trans);
+	void (*release_nic_access)(struct iwl_trans *trans);
 	void (*set_bits_mask)(struct iwl_trans *trans, u32 reg, u32 mask,
 			      u32 value);
-	int  (*suspend)(struct iwl_trans *trans);
-	void (*resume)(struct iwl_trans *trans);
 
 	struct iwl_trans_dump_data *(*dump_data)(struct iwl_trans *trans,
 						 u32 dump_mask);
 	void (*debugfs_cleanup)(struct iwl_trans *trans);
 	void (*sync_nmi)(struct iwl_trans *trans);
 	int (*set_pnvm)(struct iwl_trans *trans, const void *data, u32 len);
+	void (*interrupts)(struct iwl_trans *trans, bool enable);
 };
 
 /**
@@ -742,6 +745,7 @@ struct iwl_trans_debug {
 	bool hw_error;
 	enum iwl_fw_ini_buffer_location ini_dest;
 
+	u64 unsupported_region_msk;
 	struct iwl_ucode_tlv *active_regions[IWL_FW_INI_MAX_REGION_ID];
 	struct list_head debug_info_tlv_list;
 	struct iwl_dbg_tlv_time_point_data
@@ -914,6 +918,7 @@ struct iwl_trans_txqs {
  * @pm_support: set to true in start_hw if link pm is supported
  * @ltr_enabled: set to true if the LTR is enabled
  * @wide_cmd_header: true when ucode supports wide command header format
+ * @wait_command_queue: wait queue for sync commands
  * @num_rx_queues: number of RX queues allocated by the transport;
  *	the transport must set this before calling iwl_drv_start()
  * @iml_len: the length of the image loader
@@ -957,6 +962,7 @@ struct iwl_trans {
 	int command_groups_size;
 	bool wide_cmd_header;
 
+	wait_queue_head_t wait_command_queue;
 	u8 num_rx_queues;
 
 	size_t iml_len;
@@ -1071,20 +1077,6 @@ static inline int iwl_trans_d3_resume(struct iwl_trans *trans,
 		return 0;
 
 	return trans->ops->d3_resume(trans, status, test, reset);
-}
-
-static inline int iwl_trans_suspend(struct iwl_trans *trans)
-{
-	if (!trans->ops->suspend)
-		return 0;
-
-	return trans->ops->suspend(trans);
-}
-
-static inline void iwl_trans_resume(struct iwl_trans *trans)
-{
-	if (trans->ops->resume)
-		trans->ops->resume(trans);
 }
 
 static inline struct iwl_trans_dump_data *
@@ -1375,14 +1367,14 @@ iwl_trans_set_bits_mask(struct iwl_trans *trans, u32 reg, u32 mask, u32 value)
 	trans->ops->set_bits_mask(trans, reg, mask, value);
 }
 
-#define iwl_trans_grab_nic_access(trans, flags)	\
+#define iwl_trans_grab_nic_access(trans)		\
 	__cond_lock(nic_access,				\
-		    likely((trans)->ops->grab_nic_access(trans, flags)))
+		    likely((trans)->ops->grab_nic_access(trans)))
 
 static inline void __releases(nic_access)
-iwl_trans_release_nic_access(struct iwl_trans *trans, unsigned long *flags)
+iwl_trans_release_nic_access(struct iwl_trans *trans)
 {
-	trans->ops->release_nic_access(trans, flags);
+	trans->ops->release_nic_access(trans);
 	__release(nic_access);
 }
 
@@ -1409,6 +1401,9 @@ static inline void iwl_trans_sync_nmi(struct iwl_trans *trans)
 		trans->ops->sync_nmi(trans);
 }
 
+void iwl_trans_sync_nmi_with_addr(struct iwl_trans *trans, u32 inta_addr,
+				  u32 sw_err_bit);
+
 static inline int iwl_trans_set_pnvm(struct iwl_trans *trans,
 				     const void *data, u32 len)
 {
@@ -1428,6 +1423,12 @@ static inline bool iwl_trans_dbg_ini_valid(struct iwl_trans *trans)
 {
 	return trans->dbg.internal_ini_cfg != IWL_INI_CFG_STATE_NOT_LOADED ||
 		trans->dbg.external_ini_cfg != IWL_INI_CFG_STATE_NOT_LOADED;
+}
+
+static inline void iwl_trans_interrupts(struct iwl_trans *trans, bool enable)
+{
+	if (trans->ops->interrupts)
+		trans->ops->interrupts(trans, enable);
 }
 
 /*****************************************************

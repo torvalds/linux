@@ -1019,7 +1019,6 @@ struct ath10k {
 	enum ath10k_hw_rev hw_rev;
 	u16 dev_id;
 	u32 chip_id;
-	enum ath10k_dev_type dev_type;
 	u32 target_version;
 	u8 fw_version_major;
 	u32 fw_version_minor;
@@ -1295,6 +1294,9 @@ struct ath10k {
 
 	bool coex_support;
 	int coex_gpio_pin;
+
+	s32 tx_power_2g_limit;
+	s32 tx_power_5g_limit;
 
 	/* must be last */
 	u8 drv_priv[] __aligned(sizeof(void *));

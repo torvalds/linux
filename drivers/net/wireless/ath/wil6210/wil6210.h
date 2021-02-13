@@ -89,6 +89,9 @@ static inline u32 WIL_GET_BITS(u32 x, int b0, int b1)
 #define WIL_MAX_AGG_WSIZE_64	(64) /* FW/HW limit */
 #define WIL6210_MAX_STATUS_RINGS	(8)
 #define WIL_WMI_CALL_GENERAL_TO_MS 100
+#define WIL_EXTENDED_MCS_26 (26) /* FW reports MCS 12.1 to driver as "26" */
+#define WIL_BASE_MCS_FOR_EXTENDED_26 (7) /* MCS 7 is base MCS for MCS 12.1 */
+#define WIL_EXTENDED_MCS_CHECK(x) (((x) == WIL_EXTENDED_MCS_26) ? "12.1" : #x)
 
 /* Hardware offload block adds the following:
  * 26 bytes - 3-address QoS data header

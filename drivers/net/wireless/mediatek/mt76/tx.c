@@ -202,15 +202,21 @@ void mt76_tx_complete_skb(struct mt76_dev *dev, u16 wcid_idx, struct sk_buff *sk
 	struct ieee80211_hw *hw;
 	struct sk_buff_head list;
 
+	mt76_tx_check_non_aql(dev, wcid_idx, skb);
+
 #ifdef CONFIG_NL80211_TESTMODE
-	if (skb == dev->test.tx_skb) {
-		dev->test.tx_done++;
-		if (dev->test.tx_queued == dev->test.tx_done)
+	if (mt76_is_testmode_skb(dev, skb, &hw)) {
+		struct mt76_phy *phy = hw->priv;
+
+		if (skb == phy->test.tx_skb)
+			phy->test.tx_done++;
+		if (phy->test.tx_queued == phy->test.tx_done)
 			wake_up(&dev->tx_wait);
+
+		ieee80211_free_txskb(hw, skb);
+		return;
 	}
 #endif
-
-	mt76_tx_check_non_aql(dev, wcid_idx, skb);
 
 	if (!skb->prev) {
 		hw = mt76_tx_status_get_hw(dev, skb);
@@ -261,7 +267,7 @@ mt76_tx(struct mt76_phy *phy, struct ieee80211_sta *sta,
 	int qid = skb_get_queue_mapping(skb);
 	bool ext_phy = phy != &dev->phy;
 
-	if (mt76_testmode_enabled(dev)) {
+	if (mt76_testmode_enabled(phy)) {
 		ieee80211_free_txskb(phy->hw, skb);
 		return;
 	}
@@ -454,7 +460,6 @@ mt76_txq_schedule_list(struct mt76_phy *phy, enum mt76_txq_id qid)
 	struct mt76_wcid *wcid;
 	int ret = 0;
 
-	spin_lock_bh(&q->lock);
 	while (1) {
 		if (test_bit(MT76_STATE_PM, &phy->state) ||
 		    test_bit(MT76_RESET, &phy->state)) {
@@ -464,13 +469,8 @@ mt76_txq_schedule_list(struct mt76_phy *phy, enum mt76_txq_id qid)
 
 		if (dev->queue_ops->tx_cleanup &&
 		    q->queued + 2 * MT_TXQ_FREE_THR >= q->ndesc) {
-			spin_unlock_bh(&q->lock);
 			dev->queue_ops->tx_cleanup(dev, q, false);
-			spin_lock_bh(&q->lock);
 		}
-
-		if (mt76_txq_stopped(q))
-			break;
 
 		txq = ieee80211_next_txq(phy->hw, qid);
 		if (!txq)
@@ -480,6 +480,8 @@ mt76_txq_schedule_list(struct mt76_phy *phy, enum mt76_txq_id qid)
 		wcid = mtxq->wcid;
 		if (wcid && test_bit(MT_WCID_FLAG_PS, &wcid->flags))
 			continue;
+
+		spin_lock_bh(&q->lock);
 
 		if (mtxq->send_bar && mtxq->aggr) {
 			struct ieee80211_txq *txq = mtxq_to_txq(mtxq);
@@ -494,10 +496,13 @@ mt76_txq_schedule_list(struct mt76_phy *phy, enum mt76_txq_id qid)
 			spin_lock_bh(&q->lock);
 		}
 
-		ret += mt76_txq_send_burst(phy, q, mtxq);
+		if (!mt76_txq_stopped(q))
+			ret += mt76_txq_send_burst(phy, q, mtxq);
+
+		spin_unlock_bh(&q->lock);
+
 		ieee80211_return_txq(phy->hw, txq, false);
 	}
-	spin_unlock_bh(&q->lock);
 
 	return ret;
 }
@@ -539,8 +544,10 @@ void mt76_tx_worker(struct mt76_worker *w)
 		mt76_txq_schedule_all(dev->phy2);
 
 #ifdef CONFIG_NL80211_TESTMODE
-	if (dev->test.tx_pending)
-		mt76_testmode_tx_pending(dev);
+	if (dev->phy.test.tx_pending)
+		mt76_testmode_tx_pending(&dev->phy);
+	if (dev->phy2 && dev->phy2->test.tx_pending)
+		mt76_testmode_tx_pending(dev->phy2);
 #endif
 }
 

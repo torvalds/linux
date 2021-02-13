@@ -999,9 +999,6 @@ void iwl_mvm_remove_csa_period(struct iwl_mvm *mvm,
 
 	lockdep_assert_held(&mvm->mutex);
 
-	if (!te_data->running)
-		return;
-
 	spin_lock_bh(&mvm->time_event_lock);
 	id = te_data->id;
 	spin_unlock_bh(&mvm->time_event_lock);
