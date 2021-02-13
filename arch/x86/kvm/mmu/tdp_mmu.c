@@ -1269,60 +1269,6 @@ void kvm_tdp_mmu_clear_dirty_pt_masked(struct kvm *kvm,
 }
 
 /*
- * Set the dirty status of all the SPTEs mapping GFNs in the memslot. This is
- * only used for PML, and so will involve setting the dirty bit on each SPTE.
- * Returns true if an SPTE has been changed and the TLBs need to be flushed.
- */
-static bool set_dirty_gfn_range(struct kvm *kvm, struct kvm_mmu_page *root,
-				gfn_t start, gfn_t end)
-{
-	struct tdp_iter iter;
-	u64 new_spte;
-	bool spte_set = false;
-
-	rcu_read_lock();
-
-	tdp_root_for_each_pte(iter, root, start, end) {
-		if (tdp_mmu_iter_cond_resched(kvm, &iter, false))
-			continue;
-
-		if (!is_shadow_present_pte(iter.old_spte) ||
-		    iter.old_spte & shadow_dirty_mask)
-			continue;
-
-		new_spte = iter.old_spte | shadow_dirty_mask;
-
-		tdp_mmu_set_spte(kvm, &iter, new_spte);
-		spte_set = true;
-	}
-
-	rcu_read_unlock();
-	return spte_set;
-}
-
-/*
- * Set the dirty status of all the SPTEs mapping GFNs in the memslot. This is
- * only used for PML, and so will involve setting the dirty bit on each SPTE.
- * Returns true if an SPTE has been changed and the TLBs need to be flushed.
- */
-bool kvm_tdp_mmu_slot_set_dirty(struct kvm *kvm, struct kvm_memory_slot *slot)
-{
-	struct kvm_mmu_page *root;
-	int root_as_id;
-	bool spte_set = false;
-
-	for_each_tdp_mmu_root_yield_safe(kvm, root) {
-		root_as_id = kvm_mmu_page_as_id(root);
-		if (root_as_id != slot->as_id)
-			continue;
-
-		spte_set |= set_dirty_gfn_range(kvm, root, slot->base_gfn,
-				slot->base_gfn + slot->npages);
-	}
-	return spte_set;
-}
-
-/*
  * Clear leaf entries which could be replaced by large mappings, for
  * GFNs within the slot.
  */
