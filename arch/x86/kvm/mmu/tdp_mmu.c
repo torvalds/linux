@@ -1328,8 +1328,10 @@ bool kvm_tdp_mmu_slot_set_dirty(struct kvm *kvm, struct kvm_memory_slot *slot)
  */
 static void zap_collapsible_spte_range(struct kvm *kvm,
 				       struct kvm_mmu_page *root,
-				       gfn_t start, gfn_t end)
+				       struct kvm_memory_slot *slot)
 {
+	gfn_t start = slot->base_gfn;
+	gfn_t end = start + slot->npages;
 	struct tdp_iter iter;
 	kvm_pfn_t pfn;
 	bool spte_set = false;
@@ -1348,8 +1350,8 @@ static void zap_collapsible_spte_range(struct kvm *kvm,
 
 		pfn = spte_to_pfn(iter.old_spte);
 		if (kvm_is_reserved_pfn(pfn) ||
-		    (!PageCompound(pfn_to_page(pfn)) &&
-		     !kvm_is_zone_device_pfn(pfn)))
+		    iter.level >= kvm_mmu_max_mapping_level(kvm, slot, iter.gfn,
+							    pfn, PG_LEVEL_NUM))
 			continue;
 
 		tdp_mmu_set_spte(kvm, &iter, 0);
@@ -1367,7 +1369,7 @@ static void zap_collapsible_spte_range(struct kvm *kvm,
  * be replaced by large mappings, for GFNs within the slot.
  */
 void kvm_tdp_mmu_zap_collapsible_sptes(struct kvm *kvm,
-				       const struct kvm_memory_slot *slot)
+				       struct kvm_memory_slot *slot)
 {
 	struct kvm_mmu_page *root;
 	int root_as_id;
@@ -1377,8 +1379,7 @@ void kvm_tdp_mmu_zap_collapsible_sptes(struct kvm *kvm,
 		if (root_as_id != slot->as_id)
 			continue;
 
-		zap_collapsible_spte_range(kvm, root, slot->base_gfn,
-					   slot->base_gfn + slot->npages);
+		zap_collapsible_spte_range(kvm, root, slot);
 	}
 }
 

@@ -5553,8 +5553,8 @@ restart:
 		 * mapping if the indirect sp has level = 1.
 		 */
 		if (sp->role.direct && !kvm_is_reserved_pfn(pfn) &&
-		    (kvm_is_zone_device_pfn(pfn) ||
-		     PageCompound(pfn_to_page(pfn)))) {
+		    sp->role.level < kvm_mmu_max_mapping_level(kvm, slot, sp->gfn,
+							       pfn, PG_LEVEL_NUM)) {
 			pte_list_remove(rmap_head, sptep);
 
 			if (kvm_available_flush_tlb_with_range())
@@ -5574,12 +5574,13 @@ void kvm_mmu_zap_collapsible_sptes(struct kvm *kvm,
 				   const struct kvm_memory_slot *memslot)
 {
 	/* FIXME: const-ify all uses of struct kvm_memory_slot.  */
+	struct kvm_memory_slot *slot = (struct kvm_memory_slot *)memslot;
+
 	write_lock(&kvm->mmu_lock);
-	slot_handle_leaf(kvm, (struct kvm_memory_slot *)memslot,
-			 kvm_mmu_zap_collapsible_spte, true);
+	slot_handle_leaf(kvm, slot, kvm_mmu_zap_collapsible_spte, true);
 
 	if (is_tdp_mmu_enabled(kvm))
-		kvm_tdp_mmu_zap_collapsible_sptes(kvm, memslot);
+		kvm_tdp_mmu_zap_collapsible_sptes(kvm, slot);
 	write_unlock(&kvm->mmu_lock);
 }
 
