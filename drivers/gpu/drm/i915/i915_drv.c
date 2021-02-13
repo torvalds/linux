@@ -46,7 +46,6 @@
 #include <drm/drm_probe_helper.h>
 
 #include "display/intel_acpi.h"
-#include "display/intel_audio.h"
 #include "display/intel_bw.h"
 #include "display/intel_cdclk.h"
 #include "display/intel_csr.h"
@@ -349,7 +348,6 @@ static int i915_driver_early_probe(struct drm_i915_private *dev_priv)
 	intel_irq_init(dev_priv);
 	intel_init_display_hooks(dev_priv);
 	intel_init_clock_gating_hooks(dev_priv);
-	intel_init_audio_hooks(dev_priv);
 
 	intel_detect_preproduction_hw(dev_priv);
 
