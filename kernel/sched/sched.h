@@ -2288,6 +2288,7 @@ static inline struct task_struct *get_push_task(struct rq *rq)
 
 extern int push_cpu_stop(void *arg);
 
+extern unsigned long __read_mostly max_load_balance_interval;
 #endif
 
 #ifdef CONFIG_CPU_IDLE
