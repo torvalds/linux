@@ -511,7 +511,8 @@ static int ksz9477_port_vlan_filtering(struct dsa_switch *ds, int port,
 }
 
 static int ksz9477_port_vlan_add(struct dsa_switch *ds, int port,
-				 const struct switchdev_obj_port_vlan *vlan)
+				 const struct switchdev_obj_port_vlan *vlan,
+				 struct netlink_ext_ack *extack)
 {
 	struct ksz_device *dev = ds->priv;
 	u32 vlan_table[3];
@@ -520,7 +521,7 @@ static int ksz9477_port_vlan_add(struct dsa_switch *ds, int port,
 
 	err = ksz9477_get_vlan_table(dev, vlan->vid, vlan_table);
 	if (err) {
-		dev_dbg(dev->dev, "Failed to get vlan table\n");
+		NL_SET_ERR_MSG_MOD(extack, "Failed to get vlan table");
 		return err;
 	}
 
@@ -535,7 +536,7 @@ static int ksz9477_port_vlan_add(struct dsa_switch *ds, int port,
 
 	err = ksz9477_set_vlan_table(dev, vlan->vid, vlan_table);
 	if (err) {
-		dev_dbg(dev->dev, "Failed to set vlan table\n");
+		NL_SET_ERR_MSG_MOD(extack, "Failed to set vlan table");
 		return err;
 	}
 

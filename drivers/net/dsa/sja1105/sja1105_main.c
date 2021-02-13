@@ -2795,7 +2795,8 @@ static int sja1105_vlan_del_one(struct dsa_switch *ds, int port, u16 vid,
 }
 
 static int sja1105_vlan_add(struct dsa_switch *ds, int port,
-			    const struct switchdev_obj_port_vlan *vlan)
+			    const struct switchdev_obj_port_vlan *vlan,
+			    struct netlink_ext_ack *extack)
 {
 	struct sja1105_private *priv = ds->priv;
 	bool vlan_table_changed = false;
@@ -2807,7 +2808,8 @@ static int sja1105_vlan_add(struct dsa_switch *ds, int port,
 	 */
 	if (priv->vlan_state != SJA1105_VLAN_FILTERING_FULL &&
 	    vid_is_dsa_8021q(vlan->vid)) {
-		dev_err(ds->dev, "Range 1024-3071 reserved for dsa_8021q operation\n");
+		NL_SET_ERR_MSG_MOD(extack,
+				   "Range 1024-3071 reserved for dsa_8021q operation");
 		return -EBUSY;
 	}
 

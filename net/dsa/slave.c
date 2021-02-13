@@ -357,11 +357,14 @@ static int dsa_slave_vlan_add(struct net_device *dev,
 		rcu_read_lock();
 		err = dsa_slave_vlan_check_for_8021q_uppers(dev, &vlan);
 		rcu_read_unlock();
-		if (err)
+		if (err) {
+			NL_SET_ERR_MSG_MOD(extack,
+					   "Port already has a VLAN upper with this VID");
 			return err;
+		}
 	}
 
-	err = dsa_port_vlan_add(dp, &vlan);
+	err = dsa_port_vlan_add(dp, &vlan, extack);
 	if (err)
 		return err;
 
@@ -371,7 +374,7 @@ static int dsa_slave_vlan_add(struct net_device *dev,
 	 */
 	vlan.flags &= ~BRIDGE_VLAN_INFO_PVID;
 
-	err = dsa_port_vlan_add(dp->cpu_dp, &vlan);
+	err = dsa_port_vlan_add(dp->cpu_dp, &vlan, extack);
 	if (err)
 		return err;
 
@@ -1287,17 +1290,25 @@ static int dsa_slave_vlan_rx_add_vid(struct net_device *dev, __be16 proto,
 		/* This API only allows programming tagged, non-PVID VIDs */
 		.flags = 0,
 	};
+	struct netlink_ext_ack extack = {0};
 	int ret;
 
 	/* User port... */
-	ret = dsa_port_vlan_add(dp, &vlan);
-	if (ret)
+	ret = dsa_port_vlan_add(dp, &vlan, &extack);
+	if (ret) {
+		if (extack._msg)
+			netdev_err(dev, "%s\n", extack._msg);
 		return ret;
+	}
 
 	/* And CPU port... */
-	ret = dsa_port_vlan_add(dp->cpu_dp, &vlan);
-	if (ret)
+	ret = dsa_port_vlan_add(dp->cpu_dp, &vlan, &extack);
+	if (ret) {
+		if (extack._msg)
+			netdev_err(dev, "CPU port %d: %s\n", dp->cpu_dp->index,
+				   extack._msg);
 		return ret;
+	}
 
 	return vlan_vid_add(master, proto, vid);
 }

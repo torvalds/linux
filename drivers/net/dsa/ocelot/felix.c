@@ -789,7 +789,8 @@ static int felix_vlan_filtering(struct dsa_switch *ds, int port, bool enabled)
 }
 
 static int felix_vlan_add(struct dsa_switch *ds, int port,
-			  const struct switchdev_obj_port_vlan *vlan)
+			  const struct switchdev_obj_port_vlan *vlan,
+			  struct netlink_ext_ack *extack)
 {
 	struct ocelot *ocelot = ds->priv;
 	u16 flags = vlan->flags;

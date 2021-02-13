@@ -291,7 +291,8 @@ static int dsa_switch_vlan_add(struct dsa_switch *ds,
 
 	for (port = 0; port < ds->num_ports; port++) {
 		if (dsa_switch_vlan_match(ds, port, info)) {
-			err = ds->ops->port_vlan_add(ds, port, info->vlan);
+			err = ds->ops->port_vlan_add(ds, port, info->vlan,
+						     info->extack);
 			if (err)
 				return err;
 		}
