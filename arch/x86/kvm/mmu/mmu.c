@@ -2756,8 +2756,8 @@ static void direct_pte_prefetch(struct kvm_vcpu *vcpu, u64 *sptep)
 	__direct_pte_prefetch(vcpu, sp, sptep);
 }
 
-static int host_pfn_mapping_level(struct kvm_vcpu *vcpu, gfn_t gfn,
-				  kvm_pfn_t pfn, struct kvm_memory_slot *slot)
+static int host_pfn_mapping_level(struct kvm *kvm, gfn_t gfn, kvm_pfn_t pfn,
+				  struct kvm_memory_slot *slot)
 {
 	unsigned long hva;
 	pte_t *pte;
@@ -2776,11 +2776,29 @@ static int host_pfn_mapping_level(struct kvm_vcpu *vcpu, gfn_t gfn,
 	 */
 	hva = __gfn_to_hva_memslot(slot, gfn);
 
-	pte = lookup_address_in_mm(vcpu->kvm->mm, hva, &level);
+	pte = lookup_address_in_mm(kvm->mm, hva, &level);
 	if (unlikely(!pte))
 		return PG_LEVEL_4K;
 
 	return level;
+}
+
+int kvm_mmu_max_mapping_level(struct kvm *kvm, struct kvm_memory_slot *slot,
+			      gfn_t gfn, kvm_pfn_t pfn, int max_level)
+{
+	struct kvm_lpage_info *linfo;
+
+	max_level = min(max_level, max_huge_page_level);
+	for ( ; max_level > PG_LEVEL_4K; max_level--) {
+		linfo = lpage_info_slot(gfn, slot, max_level);
+		if (!linfo->disallow_lpage)
+			break;
+	}
+
+	if (max_level == PG_LEVEL_4K)
+		return PG_LEVEL_4K;
+
+	return host_pfn_mapping_level(kvm, gfn, pfn, slot);
 }
 
 int kvm_mmu_hugepage_adjust(struct kvm_vcpu *vcpu, gfn_t gfn,
@@ -2788,7 +2806,6 @@ int kvm_mmu_hugepage_adjust(struct kvm_vcpu *vcpu, gfn_t gfn,
 			    bool huge_page_disallowed, int *req_level)
 {
 	struct kvm_memory_slot *slot;
-	struct kvm_lpage_info *linfo;
 	kvm_pfn_t pfn = *pfnp;
 	kvm_pfn_t mask;
 	int level;
@@ -2805,17 +2822,7 @@ int kvm_mmu_hugepage_adjust(struct kvm_vcpu *vcpu, gfn_t gfn,
 	if (!slot)
 		return PG_LEVEL_4K;
 
-	max_level = min(max_level, max_huge_page_level);
-	for ( ; max_level > PG_LEVEL_4K; max_level--) {
-		linfo = lpage_info_slot(gfn, slot, max_level);
-		if (!linfo->disallow_lpage)
-			break;
-	}
-
-	if (max_level == PG_LEVEL_4K)
-		return PG_LEVEL_4K;
-
-	level = host_pfn_mapping_level(vcpu, gfn, pfn, slot);
+	level = kvm_mmu_max_mapping_level(vcpu->kvm, slot, gfn, pfn, max_level);
 	if (level == PG_LEVEL_4K)
 		return level;
 
