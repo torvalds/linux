@@ -8693,10 +8693,27 @@ static void io_req_cache_free(struct list_head *list, struct task_struct *tsk)
 	}
 }
 
-static void io_ring_ctx_free(struct io_ring_ctx *ctx)
+static void io_req_caches_free(struct io_ring_ctx *ctx, struct task_struct *tsk)
 {
 	struct io_submit_state *submit_state = &ctx->submit_state;
 
+	mutex_lock(&ctx->uring_lock);
+
+	if (submit_state->free_reqs)
+		kmem_cache_free_bulk(req_cachep, submit_state->free_reqs,
+				     submit_state->reqs);
+
+	io_req_cache_free(&submit_state->comp.free_list, NULL);
+
+	spin_lock_irq(&ctx->completion_lock);
+	io_req_cache_free(&submit_state->comp.locked_free_list, NULL);
+	spin_unlock_irq(&ctx->completion_lock);
+
+	mutex_unlock(&ctx->uring_lock);
+}
+
+static void io_ring_ctx_free(struct io_ring_ctx *ctx)
+{
 	/*
 	 * Some may use context even when all refs and requests have been put,
 	 * and they are free to do so while still holding uring_lock, see
@@ -8714,10 +8731,6 @@ static void io_ring_ctx_free(struct io_ring_ctx *ctx)
 		mmdrop(ctx->mm_account);
 		ctx->mm_account = NULL;
 	}
-
-	if (submit_state->free_reqs)
-		kmem_cache_free_bulk(req_cachep, submit_state->free_reqs,
-				     submit_state->reqs);
 
 #ifdef CONFIG_BLK_CGROUP
 	if (ctx->sqo_blkcg_css)
@@ -8742,9 +8755,8 @@ static void io_ring_ctx_free(struct io_ring_ctx *ctx)
 	percpu_ref_exit(&ctx->refs);
 	free_uid(ctx->user);
 	put_cred(ctx->creds);
+	io_req_caches_free(ctx, NULL);
 	kfree(ctx->cancel_hash);
-	io_req_cache_free(&ctx->submit_state.comp.free_list, NULL);
-	io_req_cache_free(&ctx->submit_state.comp.locked_free_list, NULL);
 	kfree(ctx);
 }
 
