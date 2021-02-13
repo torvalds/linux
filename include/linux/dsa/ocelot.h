@@ -195,6 +195,16 @@ static inline void ocelot_ifh_set_qos_class(void *injection, u64 qos_class)
 	packing(injection, &qos_class, 19, 17, OCELOT_TAG_LEN, PACK, 0);
 }
 
+static inline void seville_ifh_set_dest(void *injection, u64 dest)
+{
+	packing(injection, &dest, 67, 57, OCELOT_TAG_LEN, PACK, 0);
+}
+
+static inline void ocelot_ifh_set_src(void *injection, u64 src)
+{
+	packing(injection, &src, 46, 43, OCELOT_TAG_LEN, PACK, 0);
+}
+
 static inline void ocelot_ifh_set_tag_type(void *injection, u64 tag_type)
 {
 	packing(injection, &tag_type, 16, 16, OCELOT_TAG_LEN, PACK, 0);

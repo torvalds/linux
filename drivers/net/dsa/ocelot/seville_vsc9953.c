@@ -1165,31 +1165,6 @@ static void vsc9953_mdio_bus_free(struct ocelot *ocelot)
 	mdiobus_unregister(felix->imdio);
 }
 
-static void vsc9953_xmit_template_populate(struct ocelot *ocelot, int port)
-{
-	struct ocelot_port *ocelot_port = ocelot->ports[port];
-	u8 *template = ocelot_port->xmit_template;
-	u64 bypass, dest, src;
-	__be32 *prefix;
-	u8 *injection;
-
-	/* Set the source port as the CPU port module and not the
-	 * NPI port
-	 */
-	src = ocelot->num_phys_ports;
-	dest = BIT(port);
-	bypass = true;
-
-	injection = template + OCELOT_SHORT_PREFIX_LEN;
-	prefix = (__be32 *)template;
-
-	packing(injection, &bypass, 127, 127, OCELOT_TAG_LEN, PACK, 0);
-	packing(injection, &dest,    67,  57, OCELOT_TAG_LEN, PACK, 0);
-	packing(injection, &src,     46,  43, OCELOT_TAG_LEN, PACK, 0);
-
-	*prefix = cpu_to_be32(0x88800005);
-}
-
 static const struct felix_info seville_info_vsc9953 = {
 	.target_io_res		= vsc9953_target_io_res,
 	.port_io_res		= vsc9953_port_io_res,
@@ -1206,7 +1181,6 @@ static const struct felix_info seville_info_vsc9953 = {
 	.mdio_bus_free		= vsc9953_mdio_bus_free,
 	.phylink_validate	= vsc9953_phylink_validate,
 	.prevalidate_phy_mode	= vsc9953_prevalidate_phy_mode,
-	.xmit_template_populate	= vsc9953_xmit_template_populate,
 };
 
 static int seville_probe(struct platform_device *pdev)
@@ -1246,7 +1220,7 @@ static int seville_probe(struct platform_device *pdev)
 	ds->ops = &felix_switch_ops;
 	ds->priv = ocelot;
 	felix->ds = ds;
-	felix->tag_proto = DSA_TAG_PROTO_OCELOT;
+	felix->tag_proto = DSA_TAG_PROTO_SEVILLE;
 
 	err = dsa_register_switch(ds);
 	if (err) {

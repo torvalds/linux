@@ -24,32 +24,51 @@ static void ocelot_xmit_ptp(struct dsa_port *dp, void *injection,
 	ocelot_ifh_set_rew_op(injection, rew_op);
 }
 
-static struct sk_buff *ocelot_xmit(struct sk_buff *skb,
-				   struct net_device *netdev)
+static void ocelot_xmit_common(struct sk_buff *skb, struct net_device *netdev,
+			       __be32 ifh_prefix, void **ifh)
 {
 	struct dsa_port *dp = dsa_slave_to_port(netdev);
 	struct sk_buff *clone = DSA_SKB_CB(skb)->clone;
 	struct dsa_switch *ds = dp->ds;
-	struct ocelot *ocelot = ds->priv;
-	struct ocelot_port *ocelot_port;
-	u8 *prefix, *injection;
-
-	ocelot_port = ocelot->ports[dp->index];
+	void *injection;
+	__be32 *prefix;
 
 	injection = skb_push(skb, OCELOT_TAG_LEN);
-
 	prefix = skb_push(skb, OCELOT_SHORT_PREFIX_LEN);
 
-	memcpy(prefix, ocelot_port->xmit_template, OCELOT_TOTAL_TAG_LEN);
-
-	/* Fix up the fields which are not statically determined
-	 * in the template
-	 */
+	*prefix = ifh_prefix;
+	memset(injection, 0, OCELOT_TAG_LEN);
+	ocelot_ifh_set_bypass(injection, 1);
+	ocelot_ifh_set_src(injection, ds->num_ports);
 	ocelot_ifh_set_qos_class(injection, skb->priority);
 
 	/* TX timestamping was requested */
 	if (clone)
 		ocelot_xmit_ptp(dp, injection, clone);
+
+	*ifh = injection;
+}
+
+static struct sk_buff *ocelot_xmit(struct sk_buff *skb,
+				   struct net_device *netdev)
+{
+	struct dsa_port *dp = dsa_slave_to_port(netdev);
+	void *injection;
+
+	ocelot_xmit_common(skb, netdev, cpu_to_be32(0x8880000a), &injection);
+	ocelot_ifh_set_dest(injection, BIT(dp->index));
+
+	return skb;
+}
+
+static struct sk_buff *seville_xmit(struct sk_buff *skb,
+				    struct net_device *netdev)
+{
+	struct dsa_port *dp = dsa_slave_to_port(netdev);
+	void *injection;
+
+	ocelot_xmit_common(skb, netdev, cpu_to_be32(0x88800005), &injection);
+	seville_ifh_set_dest(injection, BIT(dp->index));
 
 	return skb;
 }
@@ -147,7 +166,26 @@ static const struct dsa_device_ops ocelot_netdev_ops = {
 	.promisc_on_master	= true,
 };
 
-MODULE_LICENSE("GPL v2");
+DSA_TAG_DRIVER(ocelot_netdev_ops);
 MODULE_ALIAS_DSA_TAG_DRIVER(DSA_TAG_PROTO_OCELOT);
 
-module_dsa_tag_driver(ocelot_netdev_ops);
+static const struct dsa_device_ops seville_netdev_ops = {
+	.name			= "seville",
+	.proto			= DSA_TAG_PROTO_SEVILLE,
+	.xmit			= seville_xmit,
+	.rcv			= ocelot_rcv,
+	.overhead		= OCELOT_TOTAL_TAG_LEN,
+	.promisc_on_master	= true,
+};
+
+DSA_TAG_DRIVER(seville_netdev_ops);
+MODULE_ALIAS_DSA_TAG_DRIVER(DSA_TAG_PROTO_SEVILLE);
+
+static struct dsa_tag_driver *ocelot_tag_driver_array[] = {
+	&DSA_TAG_DRIVER_NAME(ocelot_netdev_ops),
+	&DSA_TAG_DRIVER_NAME(seville_netdev_ops),
+};
+
+module_dsa_tag_drivers(ocelot_tag_driver_array);
+
+MODULE_LICENSE("GPL v2");
