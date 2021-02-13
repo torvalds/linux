@@ -2939,6 +2939,8 @@ static int sja1105_setup(struct dsa_switch *ds)
 
 	ds->mtu_enforcement_ingress = true;
 
+	priv->best_effort_vlan_filtering = true;
+
 	rc = sja1105_devlink_setup(ds);
 	if (rc < 0)
 		return rc;
