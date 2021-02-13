@@ -5214,10 +5214,18 @@ static int kvm_vm_ioctl_reinject(struct kvm *kvm,
 
 void kvm_arch_sync_dirty_log(struct kvm *kvm, struct kvm_memory_slot *memslot)
 {
+
 	/*
-	 * Flush potentially hardware-cached dirty pages to dirty_bitmap.
+	 * Flush all CPUs' dirty log buffers to the  dirty_bitmap.  Called
+	 * before reporting dirty_bitmap to userspace.  KVM flushes the buffers
+	 * on all VM-Exits, thus we only need to kick running vCPUs to force a
+	 * VM-Exit.
 	 */
-	static_call_cond(kvm_x86_flush_log_dirty)(kvm);
+	struct kvm_vcpu *vcpu;
+	int i;
+
+	kvm_for_each_vcpu(i, vcpu, kvm)
+		kvm_vcpu_kick(vcpu);
 }
 
 int kvm_vm_ioctl_irq_line(struct kvm *kvm, struct kvm_irq_level *irq_event,
@@ -10809,8 +10817,10 @@ static void kvm_mmu_slot_apply_flags(struct kvm *kvm,
 	 * is enabled the D-bit or the W-bit will be cleared.
 	 */
 	if (new->flags & KVM_MEM_LOG_DIRTY_PAGES) {
-		if (kvm_x86_ops.slot_enable_log_dirty) {
-			static_call(kvm_x86_slot_enable_log_dirty)(kvm, new);
+		if (kvm_x86_ops.cpu_dirty_log_size) {
+			if (!kvm_dirty_log_manual_protect_and_init_set(kvm))
+				kvm_mmu_slot_leaf_clear_dirty(kvm, new);
+			kvm_mmu_slot_largepage_remove_write_access(kvm, new);
 		} else {
 			int level =
 				kvm_dirty_log_manual_protect_and_init_set(kvm) ?
@@ -10826,8 +10836,8 @@ static void kvm_mmu_slot_apply_flags(struct kvm *kvm,
 			 */
 			kvm_mmu_slot_remove_write_access(kvm, new, level);
 		}
-	} else {
-		static_call_cond(kvm_x86_slot_disable_log_dirty)(kvm, new);
+	} else if (kvm_x86_ops.cpu_dirty_log_size) {
+		kvm_mmu_slot_set_dirty(kvm, new);
 	}
 }
 
