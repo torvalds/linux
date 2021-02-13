@@ -4924,7 +4924,7 @@ err:
 
 void tcp_data_ready(struct sock *sk)
 {
-	if (tcp_epollin_ready(sk, sk->sk_rcvlowat))
+	if (tcp_epollin_ready(sk, sk->sk_rcvlowat) || sock_flag(sk, SOCK_DONE))
 		sk->sk_data_ready(sk);
 }
 
