@@ -916,9 +916,6 @@ static void napi_skb_cache_put(struct sk_buff *skb)
 	struct napi_alloc_cache *nc = this_cpu_ptr(&napi_alloc_cache);
 	u32 i;
 
-	/* drop skb->head and call any destructors for packet */
-	skb_release_all(skb);
-
 	kasan_poison_object_data(skbuff_head_cache, skb);
 	nc->skb_cache[nc->skb_count++] = skb;
 
@@ -935,6 +932,14 @@ static void napi_skb_cache_put(struct sk_buff *skb)
 
 void __kfree_skb_defer(struct sk_buff *skb)
 {
+	skb_release_all(skb);
+	napi_skb_cache_put(skb);
+}
+
+void napi_skb_free_stolen_head(struct sk_buff *skb)
+{
+	skb_dst_drop(skb);
+	skb_ext_put(skb);
 	napi_skb_cache_put(skb);
 }
 
@@ -960,6 +965,7 @@ void napi_consume_skb(struct sk_buff *skb, int budget)
 		return;
 	}
 
+	skb_release_all(skb);
 	napi_skb_cache_put(skb);
 }
 EXPORT_SYMBOL(napi_consume_skb);
