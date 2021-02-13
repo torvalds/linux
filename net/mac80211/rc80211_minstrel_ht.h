@@ -6,6 +6,8 @@
 #ifndef __RC_MINSTREL_HT_H
 #define __RC_MINSTREL_HT_H
 
+#include <linux/bitfield.h>
+
 /* number of highest throughput rates to consider*/
 #define MAX_THR_RATES 4
 #define SAMPLE_COLUMNS	10	/* number of columns in sample table */
@@ -57,10 +59,22 @@
 
 #define MCS_GROUP_RATES		10
 
+#define MI_RATE_IDX_MASK	GENMASK(3, 0)
+#define MI_RATE_GROUP_MASK	GENMASK(15, 4)
+
+#define MI_RATE(_group, _idx)				\
+	(FIELD_PREP(MI_RATE_GROUP_MASK, _group) |	\
+	 FIELD_PREP(MI_RATE_IDX_MASK, _idx))
+
+#define MI_RATE_IDX(_rate) FIELD_GET(MI_RATE_IDX_MASK, _rate)
+#define MI_RATE_GROUP(_rate) FIELD_GET(MI_RATE_GROUP_MASK, _rate)
+
+#define MINSTREL_SAMPLE_RATES		5 /* rates per sample type */
+#define MINSTREL_SAMPLE_INTERVAL	(HZ / 50)
+
 struct minstrel_priv {
 	struct ieee80211_hw *hw;
 	bool has_mrr;
-	u32 sample_switch;
 	unsigned int cw_min;
 	unsigned int cw_max;
 	unsigned int max_retry;
@@ -110,8 +124,14 @@ struct minstrel_rate_stats {
 	u8 retry_count;
 	u8 retry_count_rtscts;
 
-	u8 sample_skipped;
 	bool retry_updated;
+};
+
+enum minstrel_sample_type {
+	MINSTREL_SAMPLE_TYPE_INC,
+	MINSTREL_SAMPLE_TYPE_JUMP,
+	MINSTREL_SAMPLE_TYPE_SLOW,
+	__MINSTREL_SAMPLE_TYPE_MAX
 };
 
 struct minstrel_mcs_group_data {
@@ -126,10 +146,10 @@ struct minstrel_mcs_group_data {
 	struct minstrel_rate_stats rates[MCS_GROUP_RATES];
 };
 
-enum minstrel_sample_mode {
-	MINSTREL_SAMPLE_IDLE,
-	MINSTREL_SAMPLE_ACTIVE,
-	MINSTREL_SAMPLE_PENDING,
+struct minstrel_sample_category {
+	u8 sample_group;
+	u16 sample_rates[MINSTREL_SAMPLE_RATES];
+	u16 cur_sample_rates[MINSTREL_SAMPLE_RATES];
 };
 
 struct minstrel_ht_sta {
@@ -155,26 +175,19 @@ struct minstrel_ht_sta {
 	unsigned int overhead_legacy;
 	unsigned int overhead_legacy_rtscts;
 
-	unsigned int total_packets_last;
-	unsigned int total_packets_cur;
 	unsigned int total_packets;
 	unsigned int sample_packets;
 
 	/* tx flags to add for frames for this sta */
 	u32 tx_flags;
 
-	u8 sample_wait;
-	u8 sample_tries;
-	u8 sample_count;
-	u8 sample_slow;
+	u8 band;
 
-	enum minstrel_sample_mode sample_mode;
+	u8 sample_seq;
 	u16 sample_rate;
 
-	/* current MCS group to be sampled */
-	u8 sample_group;
-
-	u8 band;
+	unsigned long sample_time;
+	struct minstrel_sample_category sample[__MINSTREL_SAMPLE_TYPE_MAX];
 
 	/* Bitfield of supported MCS rates of all groups */
 	u16 supported[MINSTREL_GROUPS_NB];
