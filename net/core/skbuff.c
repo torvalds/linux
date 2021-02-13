@@ -120,8 +120,8 @@ static void skb_under_panic(struct sk_buff *skb, unsigned int sz, void *addr)
 }
 
 /* Caller must provide SKB that is memset cleared */
-static struct sk_buff *__build_skb_around(struct sk_buff *skb,
-					  void *data, unsigned int frag_size)
+static void __build_skb_around(struct sk_buff *skb, void *data,
+			       unsigned int frag_size)
 {
 	struct skb_shared_info *shinfo;
 	unsigned int size = frag_size ? : ksize(data);
@@ -144,8 +144,6 @@ static struct sk_buff *__build_skb_around(struct sk_buff *skb,
 	atomic_set(&shinfo->dataref, 1);
 
 	skb_set_kcov_handle(skb, kcov_common_handle());
-
-	return skb;
 }
 
 /**
@@ -176,8 +174,9 @@ struct sk_buff *__build_skb(void *data, unsigned int frag_size)
 		return NULL;
 
 	memset(skb, 0, offsetof(struct sk_buff, tail));
+	__build_skb_around(skb, data, frag_size);
 
-	return __build_skb_around(skb, data, frag_size);
+	return skb;
 }
 
 /* build_skb() is wrapper over __build_skb(), that specifically
@@ -210,9 +209,9 @@ struct sk_buff *build_skb_around(struct sk_buff *skb,
 	if (unlikely(!skb))
 		return NULL;
 
-	skb = __build_skb_around(skb, data, frag_size);
+	__build_skb_around(skb, data, frag_size);
 
-	if (skb && frag_size) {
+	if (frag_size) {
 		skb->head_frag = 1;
 		if (page_is_pfmemalloc(virt_to_head_page(data)))
 			skb->pfmemalloc = 1;
