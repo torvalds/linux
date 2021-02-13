@@ -89,6 +89,8 @@
 	KVM_ARCH_REQ_FLAGS(27, KVM_REQUEST_NO_WAKEUP)
 #define KVM_REQ_APF_READY		KVM_ARCH_REQ(28)
 #define KVM_REQ_MSR_FILTER_CHANGED	KVM_ARCH_REQ(29)
+#define KVM_REQ_UPDATE_CPU_DIRTY_LOGGING \
+	KVM_ARCH_REQ_FLAGS(30, KVM_REQUEST_WAIT | KVM_REQUEST_NO_WAKEUP)
 
 #define CR0_RESERVED_BITS                                               \
 	(~(unsigned long)(X86_CR0_PE | X86_CR0_MP | X86_CR0_EM | X86_CR0_TS \
@@ -1007,6 +1009,7 @@ struct kvm_arch {
 	u32 bsp_vcpu_id;
 
 	u64 disabled_quirks;
+	int cpu_dirty_logging_count;
 
 	enum kvm_irqchip_mode irqchip_mode;
 	u8 nr_reserved_ioapic_pins;
@@ -1275,6 +1278,7 @@ struct kvm_x86_ops {
 	 * value indicates CPU dirty logging is unsupported or disabled.
 	 */
 	int cpu_dirty_log_size;
+	void (*update_cpu_dirty_logging)(struct kvm_vcpu *vcpu);
 
 	/* pmu operations of sub-arch */
 	const struct kvm_pmu_ops *pmu_ops;

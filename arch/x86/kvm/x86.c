@@ -8987,6 +8987,9 @@ static int vcpu_enter_guest(struct kvm_vcpu *vcpu)
 			kvm_check_async_pf_completion(vcpu);
 		if (kvm_check_request(KVM_REQ_MSR_FILTER_CHANGED, vcpu))
 			static_call(kvm_x86_msr_filter_changed)(vcpu);
+
+		if (kvm_check_request(KVM_REQ_UPDATE_CPU_DIRTY_LOGGING, vcpu))
+			static_call(kvm_x86_update_cpu_dirty_logging)(vcpu);
 	}
 
 	if (kvm_check_request(KVM_REQ_EVENT, vcpu) || req_int_win ||
@@ -10755,14 +10758,38 @@ int kvm_arch_prepare_memory_region(struct kvm *kvm,
 	return 0;
 }
 
+
+static void kvm_mmu_update_cpu_dirty_logging(struct kvm *kvm, bool enable)
+{
+	struct kvm_arch *ka = &kvm->arch;
+
+	if (!kvm_x86_ops.cpu_dirty_log_size)
+		return;
+
+	if ((enable && ++ka->cpu_dirty_logging_count == 1) ||
+	    (!enable && --ka->cpu_dirty_logging_count == 0))
+		kvm_make_all_cpus_request(kvm, KVM_REQ_UPDATE_CPU_DIRTY_LOGGING);
+
+	WARN_ON_ONCE(ka->cpu_dirty_logging_count < 0);
+}
+
 static void kvm_mmu_slot_apply_flags(struct kvm *kvm,
 				     struct kvm_memory_slot *old,
 				     struct kvm_memory_slot *new,
 				     enum kvm_mr_change change)
 {
+	bool log_dirty_pages = new->flags & KVM_MEM_LOG_DIRTY_PAGES;
+
 	/*
-	 * Nothing to do for RO slots (which can't be dirtied and can't be made
-	 * writable) or CREATE/MOVE/DELETE of a slot.  See comments below.
+	 * Update CPU dirty logging if dirty logging is being toggled.  This
+	 * applies to all operations.
+	 */
+	if ((old->flags ^ new->flags) & KVM_MEM_LOG_DIRTY_PAGES)
+		kvm_mmu_update_cpu_dirty_logging(kvm, log_dirty_pages);
+
+	/*
+	 * Nothing more to do for RO slots (which can't be dirtied and can't be
+	 * made writable) or CREATE/MOVE/DELETE of a slot.  See comments below.
 	 */
 	if ((change != KVM_MR_FLAGS_ONLY) || (new->flags & KVM_MEM_READONLY))
 		return;
@@ -10792,7 +10819,7 @@ static void kvm_mmu_slot_apply_flags(struct kvm *kvm,
 	 * MOVE/DELETE: The old mappings will already have been cleaned up by
 	 *		kvm_arch_flush_shadow_memslot()
 	 */
-	if (!(new->flags & KVM_MEM_LOG_DIRTY_PAGES))
+	if (!log_dirty_pages)
 		kvm_mmu_zap_collapsible_sptes(kvm, new);
 
 	/*
@@ -10823,7 +10850,7 @@ static void kvm_mmu_slot_apply_flags(struct kvm *kvm,
 	 * initial-all-set state.  Otherwise, depending on whether pml
 	 * is enabled the D-bit or the W-bit will be cleared.
 	 */
-	if (new->flags & KVM_MEM_LOG_DIRTY_PAGES) {
+	if (log_dirty_pages) {
 		if (kvm_x86_ops.cpu_dirty_log_size) {
 			if (!kvm_dirty_log_manual_protect_and_init_set(kvm))
 				kvm_mmu_slot_leaf_clear_dirty(kvm, new);

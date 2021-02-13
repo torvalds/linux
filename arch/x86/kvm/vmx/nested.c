@@ -4490,6 +4490,11 @@ void nested_vmx_vmexit(struct kvm_vcpu *vcpu, u32 vm_exit_reason,
 		vmx_set_virtual_apic_mode(vcpu);
 	}
 
+	if (vmx->nested.update_vmcs01_cpu_dirty_logging) {
+		vmx->nested.update_vmcs01_cpu_dirty_logging = false;
+		vmx_update_cpu_dirty_logging(vcpu);
+	}
+
 	/* Unpin physical memory we referred to in vmcs02 */
 	if (vmx->nested.apic_access_page) {
 		kvm_release_page_clean(vmx->nested.apic_access_page);

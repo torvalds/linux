@@ -4277,7 +4277,12 @@ static void vmx_compute_secondary_exec_control(struct vcpu_vmx *vmx)
 	*/
 	exec_control &= ~SECONDARY_EXEC_SHADOW_VMCS;
 
-	if (!enable_pml)
+	/*
+	 * PML is enabled/disabled when dirty logging of memsmlots changes, but
+	 * it needs to be set here when dirty logging is already active, e.g.
+	 * if this vCPU was created after dirty logging was enabled.
+	 */
+	if (!vcpu->kvm->arch.cpu_dirty_logging_count)
 		exec_control &= ~SECONDARY_EXEC_ENABLE_PML;
 
 	if (cpu_has_vmx_xsaves()) {
@@ -7491,6 +7496,26 @@ static void vmx_sched_in(struct kvm_vcpu *vcpu, int cpu)
 		shrink_ple_window(vcpu);
 }
 
+void vmx_update_cpu_dirty_logging(struct kvm_vcpu *vcpu)
+{
+	struct vcpu_vmx *vmx = to_vmx(vcpu);
+
+	if (is_guest_mode(vcpu)) {
+		vmx->nested.update_vmcs01_cpu_dirty_logging = true;
+		return;
+	}
+
+	/*
+	 * Note, cpu_dirty_logging_count can be changed concurrent with this
+	 * code, but in that case another update request will be made and so
+	 * the guest will never run with a stale PML value.
+	 */
+	if (vcpu->kvm->arch.cpu_dirty_logging_count)
+		secondary_exec_controls_setbit(vmx, SECONDARY_EXEC_ENABLE_PML);
+	else
+		secondary_exec_controls_clearbit(vmx, SECONDARY_EXEC_ENABLE_PML);
+}
+
 static int vmx_pre_block(struct kvm_vcpu *vcpu)
 {
 	if (pi_pre_block(vcpu))
@@ -7698,6 +7723,7 @@ static struct kvm_x86_ops vmx_x86_ops __initdata = {
 	.sched_in = vmx_sched_in,
 
 	.cpu_dirty_log_size = PML_ENTITY_NUM,
+	.update_cpu_dirty_logging = vmx_update_cpu_dirty_logging,
 
 	.pre_block = vmx_pre_block,
 	.post_block = vmx_post_block,
