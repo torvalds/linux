@@ -381,9 +381,20 @@ static int bcm5481_config_aneg(struct phy_device *phydev)
 	return ret;
 }
 
+struct bcm54616s_phy_priv {
+	bool mode_1000bx_en;
+};
+
 static int bcm54616s_probe(struct phy_device *phydev)
 {
+	struct bcm54616s_phy_priv *priv;
 	int val, intf_sel;
+
+	priv = devm_kzalloc(&phydev->mdio.dev, sizeof(*priv), GFP_KERNEL);
+	if (!priv)
+		return -ENOMEM;
+
+	phydev->priv = priv;
 
 	val = bcm_phy_read_shadow(phydev, BCM54XX_SHD_MODE);
 	if (val < 0)
@@ -407,7 +418,7 @@ static int bcm54616s_probe(struct phy_device *phydev)
 		 * 1000BASE-X configuration.
 		 */
 		if (!(val & BCM54616S_100FX_MODE))
-			phydev->dev_flags |= PHY_BCM_FLAGS_MODE_1000BX;
+			priv->mode_1000bx_en = true;
 
 		phydev->port = PORT_FIBRE;
 	}
@@ -417,10 +428,11 @@ static int bcm54616s_probe(struct phy_device *phydev)
 
 static int bcm54616s_config_aneg(struct phy_device *phydev)
 {
+	struct bcm54616s_phy_priv *priv = phydev->priv;
 	int ret;
 
 	/* Aneg firstly. */
-	if (phydev->dev_flags & PHY_BCM_FLAGS_MODE_1000BX)
+	if (priv->mode_1000bx_en)
 		ret = genphy_c37_config_aneg(phydev);
 	else
 		ret = genphy_config_aneg(phydev);
@@ -433,9 +445,10 @@ static int bcm54616s_config_aneg(struct phy_device *phydev)
 
 static int bcm54616s_read_status(struct phy_device *phydev)
 {
+	struct bcm54616s_phy_priv *priv = phydev->priv;
 	int err;
 
-	if (phydev->dev_flags & PHY_BCM_FLAGS_MODE_1000BX)
+	if (priv->mode_1000bx_en)
 		err = genphy_c37_read_status(phydev);
 	else
 		err = genphy_read_status(phydev);
