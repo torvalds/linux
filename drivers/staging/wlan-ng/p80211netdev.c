@@ -569,24 +569,22 @@ static int p80211knetdev_do_ioctl(struct net_device *dev,
 		goto bail;
 	}
 
-	/* Allocate a buf of size req->len */
-	msgbuf = kmalloc(req->len, GFP_KERNEL);
-	if (msgbuf) {
-		if (copy_from_user(msgbuf, (void __user *)req->data, req->len))
-			result = -EFAULT;
-		else
-			result = p80211req_dorequest(wlandev, msgbuf);
-
-		if (result == 0) {
-			if (copy_to_user
-			    ((void __user *)req->data, msgbuf, req->len)) {
-				result = -EFAULT;
-			}
-		}
-		kfree(msgbuf);
-	} else {
-		result = -ENOMEM;
+	msgbuf = memdup_user(req->data, req->len);
+	if (IS_ERR(msgbuf)) {
+		result = PTR_ERR(msgbuf);
+		goto bail;
 	}
+
+	result = p80211req_dorequest(wlandev, msgbuf);
+
+	if (result == 0) {
+		if (copy_to_user
+		    ((void __user *)req->data, msgbuf, req->len)) {
+			result = -EFAULT;
+		}
+	}
+	kfree(msgbuf);
+
 bail:
 	/* If allocate,copyfrom or copyto fails, return errno */
 	return result;
