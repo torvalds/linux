@@ -1469,6 +1469,13 @@ axienet_ethtools_set_link_ksettings(struct net_device *ndev,
 	return phylink_ethtool_ksettings_set(lp->phylink, cmd);
 }
 
+static int axienet_ethtools_nway_reset(struct net_device *dev)
+{
+	struct axienet_local *lp = netdev_priv(dev);
+
+	return phylink_ethtool_nway_reset(lp->phylink);
+}
+
 static const struct ethtool_ops axienet_ethtool_ops = {
 	.supported_coalesce_params = ETHTOOL_COALESCE_MAX_FRAMES,
 	.get_drvinfo    = axienet_ethtools_get_drvinfo,
@@ -1483,6 +1490,7 @@ static const struct ethtool_ops axienet_ethtool_ops = {
 	.set_coalesce   = axienet_ethtools_set_coalesce,
 	.get_link_ksettings = axienet_ethtools_get_link_ksettings,
 	.set_link_ksettings = axienet_ethtools_set_link_ksettings,
+	.nway_reset	= axienet_ethtools_nway_reset,
 };
 
 static void axienet_validate(struct phylink_config *config,
