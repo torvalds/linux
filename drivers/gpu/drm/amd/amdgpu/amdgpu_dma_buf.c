@@ -429,14 +429,22 @@ amdgpu_dma_buf_create_obj(struct drm_device *dev, struct dma_buf *dma_buf)
 {
 	struct dma_resv *resv = dma_buf->resv;
 	struct amdgpu_device *adev = drm_to_adev(dev);
-	struct amdgpu_bo *bo;
 	struct drm_gem_object *gobj;
+	struct amdgpu_bo *bo;
+	uint64_t flags = 0;
 	int ret;
 
 	dma_resv_lock(resv, NULL);
+
+	if (dma_buf->ops == &amdgpu_dmabuf_ops) {
+		struct amdgpu_bo *other = gem_to_amdgpu_bo(dma_buf->priv);
+
+		flags |= other->flags & AMDGPU_GEM_CREATE_CPU_GTT_USWC;
+	}
+
 	ret = amdgpu_gem_object_create(adev, dma_buf->size, PAGE_SIZE,
-			AMDGPU_GEM_DOMAIN_CPU,
-			0, ttm_bo_type_sg, resv, &gobj);
+				       AMDGPU_GEM_DOMAIN_CPU, flags,
+				       ttm_bo_type_sg, resv, &gobj);
 	if (ret)
 		goto error;
 
