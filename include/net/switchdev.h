@@ -247,7 +247,8 @@ switchdev_notifier_info_to_extack(const struct switchdev_notifier_info *info)
 
 void switchdev_deferred_process(void);
 int switchdev_port_attr_set(struct net_device *dev,
-			    const struct switchdev_attr *attr);
+			    const struct switchdev_attr *attr,
+			    struct netlink_ext_ack *extack);
 int switchdev_port_obj_add(struct net_device *dev,
 			   const struct switchdev_obj *obj,
 			   struct netlink_ext_ack *extack);

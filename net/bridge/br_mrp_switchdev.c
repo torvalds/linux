@@ -178,7 +178,7 @@ int br_mrp_port_switchdev_set_state(struct net_bridge_port *p, u32 state)
 	};
 	int err;
 
-	err = switchdev_port_attr_set(p->dev, &attr);
+	err = switchdev_port_attr_set(p->dev, &attr, NULL);
 	if (err && err != -EOPNOTSUPP)
 		br_warn(p->br, "error setting offload MRP state on port %u(%s)\n",
 			(unsigned int)p->port_no, p->dev->name);
@@ -196,7 +196,7 @@ int br_mrp_port_switchdev_set_role(struct net_bridge_port *p,
 	};
 	int err;
 
-	err = switchdev_port_attr_set(p->dev, &attr);
+	err = switchdev_port_attr_set(p->dev, &attr, NULL);
 	if (err && err != -EOPNOTSUPP)
 		return err;
 

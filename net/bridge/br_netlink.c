@@ -1221,7 +1221,7 @@ static int br_changelink(struct net_device *brdev, struct nlattr *tb[],
 	if (data[IFLA_BR_VLAN_PROTOCOL]) {
 		__be16 vlan_proto = nla_get_be16(data[IFLA_BR_VLAN_PROTOCOL]);
 
-		err = __br_vlan_set_proto(br, vlan_proto);
+		err = __br_vlan_set_proto(br, vlan_proto, extack);
 		if (err)
 			return err;
 	}
