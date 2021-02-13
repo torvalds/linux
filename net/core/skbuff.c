@@ -405,7 +405,11 @@ struct sk_buff *__alloc_skb(unsigned int size, gfp_t gfp_mask,
 		gfp_mask |= __GFP_MEMALLOC;
 
 	/* Get the HEAD */
-	skb = kmem_cache_alloc_node(cache, gfp_mask & ~__GFP_DMA, node);
+	if ((flags & (SKB_ALLOC_FCLONE | SKB_ALLOC_NAPI)) == SKB_ALLOC_NAPI &&
+	    likely(node == NUMA_NO_NODE || node == numa_mem_id()))
+		skb = napi_skb_cache_get();
+	else
+		skb = kmem_cache_alloc_node(cache, gfp_mask & ~GFP_DMA, node);
 	if (unlikely(!skb))
 		return NULL;
 	prefetchw(skb);
