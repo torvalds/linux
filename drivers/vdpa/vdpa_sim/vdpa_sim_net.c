@@ -110,8 +110,7 @@ out:
 
 static void vdpasim_net_get_config(struct vdpasim *vdpasim, void *config)
 {
-	struct virtio_net_config *net_config =
-		(struct virtio_net_config *)config;
+	struct virtio_net_config *net_config = config;
 
 	net_config->mtu = cpu_to_vdpasim16(vdpasim, 1500);
 	net_config->status = cpu_to_vdpasim16(vdpasim, VIRTIO_NET_S_LINK_UP);
