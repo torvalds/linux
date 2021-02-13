@@ -2919,7 +2919,6 @@ static inline struct sk_buff *napi_alloc_skb(struct napi_struct *napi,
 }
 void napi_consume_skb(struct sk_buff *skb, int budget);
 
-void __kfree_skb_flush(void);
 void __kfree_skb_defer(struct sk_buff *skb);
 
 /**
