@@ -4944,8 +4944,6 @@ static __latent_entropy void net_tx_action(struct softirq_action *h)
 			else
 				__kfree_skb_defer(skb);
 		}
-
-		__kfree_skb_flush();
 	}
 
 	if (sd->output_queue) {
@@ -6097,13 +6095,6 @@ struct packet_offload *gro_find_complete_by_type(__be16 type)
 }
 EXPORT_SYMBOL(gro_find_complete_by_type);
 
-static void napi_skb_free_stolen_head(struct sk_buff *skb)
-{
-	skb_dst_drop(skb);
-	skb_ext_put(skb);
-	kmem_cache_free(skbuff_head_cache, skb);
-}
-
 static gro_result_t napi_skb_finish(struct napi_struct *napi,
 				    struct sk_buff *skb,
 				    gro_result_t ret)
@@ -6117,7 +6108,7 @@ static gro_result_t napi_skb_finish(struct napi_struct *napi,
 		if (NAPI_GRO_CB(skb)->free == NAPI_GRO_FREE_STOLEN_HEAD)
 			napi_skb_free_stolen_head(skb);
 		else
-			__kfree_skb(skb);
+			__kfree_skb_defer(skb);
 		break;
 
 	case GRO_HELD:
@@ -7012,7 +7003,6 @@ static int napi_threaded_poll(void *data)
 			__napi_poll(napi, &repoll);
 			netpoll_poll_unlock(have);
 
-			__kfree_skb_flush();
 			local_bh_enable();
 
 			if (!repoll)
@@ -7042,7 +7032,7 @@ static __latent_entropy void net_rx_action(struct softirq_action *h)
 
 		if (list_empty(&list)) {
 			if (!sd_has_rps_ipi_waiting(sd) && list_empty(&repoll))
-				goto out;
+				return;
 			break;
 		}
 
@@ -7069,8 +7059,6 @@ static __latent_entropy void net_rx_action(struct softirq_action *h)
 		__raise_softirq_irqoff(NET_RX_SOFTIRQ);
 
 	net_rps_action_and_irq_enable(sd);
-out:
-	__kfree_skb_flush();
 }
 
 struct netdev_adjacent {
