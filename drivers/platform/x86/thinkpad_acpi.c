@@ -175,6 +175,12 @@ enum tpacpi_hkey_event_t {
 						     or port replicator */
 	TP_HKEY_EV_HOTPLUG_UNDOCK	= 0x4011, /* undocked from hotplug
 						     dock or port replicator */
+	/*
+	 * Thinkpad X1 Tablet series devices emit 0x4012 and 0x4013
+	 * when keyboard cover is attached, detached or folded onto the back
+	 */
+	TP_HKEY_EV_KBD_COVER_ATTACH	= 0x4012, /* keyboard cover attached */
+	TP_HKEY_EV_KBD_COVER_DETACH	= 0x4013, /* keyboard cover detached or folded back */
 
 	/* User-interface events */
 	TP_HKEY_EV_LID_CLOSE		= 0x5001, /* laptop lid closed */
@@ -3989,6 +3995,23 @@ static bool hotkey_notify_dockevent(const u32 hkey,
 		return true;
 	case TP_HKEY_EV_HOTPLUG_UNDOCK: /* undocked from port replicator */
 		pr_info("undocked from hotplug port replicator\n");
+		return true;
+
+	/*
+	 * Deliberately ignore attaching and detaching the keybord cover to avoid
+	 * duplicates from intel-vbtn, which already emits SW_TABLET_MODE events
+	 * to userspace.
+	 *
+	 * Please refer to the following thread for more information and a preliminary
+	 * implementation using the GTOP ("Get Tablet OPtions") interface that could be
+	 * extended to other attachment options of the ThinkPad X1 Tablet series, such as
+	 * the Pico cartridge dock module:
+	 * https://lore.kernel.org/platform-driver-x86/38cb8265-1e30-d547-9e12-b4ae290be737@a-kobel.de/
+	 */
+	case TP_HKEY_EV_KBD_COVER_ATTACH:
+	case TP_HKEY_EV_KBD_COVER_DETACH:
+		*send_acpi_ev = false;
+		*ignore_acpi_ev = true;
 		return true;
 
 	default:
