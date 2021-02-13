@@ -130,7 +130,6 @@ static inline bool io_wq_is_hashed(struct io_wq_work *work)
 }
 
 void io_wq_cancel_all(struct io_wq *wq);
-enum io_wq_cancel io_wq_cancel_work(struct io_wq *wq, struct io_wq_work *cwork);
 
 typedef bool (work_cancel_fn)(struct io_wq_work *, void *);
 
