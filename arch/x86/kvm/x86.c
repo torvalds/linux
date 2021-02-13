@@ -10761,10 +10761,18 @@ static void kvm_mmu_slot_apply_flags(struct kvm *kvm,
 				     enum kvm_mr_change change)
 {
 	/*
-	 * Nothing to do for RO slots or CREATE/MOVE/DELETE of a slot.
-	 * See comments below.
+	 * Nothing to do for RO slots (which can't be dirtied and can't be made
+	 * writable) or CREATE/MOVE/DELETE of a slot.  See comments below.
 	 */
 	if ((change != KVM_MR_FLAGS_ONLY) || (new->flags & KVM_MEM_READONLY))
+		return;
+
+	/*
+	 * READONLY and non-flags changes were filtered out above, and the only
+	 * other flag is LOG_DIRTY_PAGES, i.e. something is wrong if dirty
+	 * logging isn't being toggled on or off.
+	 */
+	if (WARN_ON_ONCE(!((old->flags ^ new->flags) & KVM_MEM_LOG_DIRTY_PAGES)))
 		return;
 
 	/*
@@ -10784,8 +10792,7 @@ static void kvm_mmu_slot_apply_flags(struct kvm *kvm,
 	 * MOVE/DELETE: The old mappings will already have been cleaned up by
 	 *		kvm_arch_flush_shadow_memslot()
 	 */
-	if ((old->flags & KVM_MEM_LOG_DIRTY_PAGES) &&
-	    !(new->flags & KVM_MEM_LOG_DIRTY_PAGES))
+	if (!(new->flags & KVM_MEM_LOG_DIRTY_PAGES))
 		kvm_mmu_zap_collapsible_sptes(kvm, new);
 
 	/*
