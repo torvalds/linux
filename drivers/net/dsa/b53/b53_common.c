@@ -1409,7 +1409,8 @@ void b53_phylink_mac_link_up(struct dsa_switch *ds, int port,
 }
 EXPORT_SYMBOL(b53_phylink_mac_link_up);
 
-int b53_vlan_filtering(struct dsa_switch *ds, int port, bool vlan_filtering)
+int b53_vlan_filtering(struct dsa_switch *ds, int port, bool vlan_filtering,
+		       struct netlink_ext_ack *extack)
 {
 	struct b53_device *dev = ds->priv;
 

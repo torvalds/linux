@@ -875,7 +875,8 @@ static int hellcreek_fdb_dump(struct dsa_switch *ds, int port,
 }
 
 static int hellcreek_vlan_filtering(struct dsa_switch *ds, int port,
-				    bool vlan_filtering)
+				    bool vlan_filtering,
+				    struct netlink_ext_ack *extack)
 {
 	struct hellcreek *hellcreek = ds->priv;
 

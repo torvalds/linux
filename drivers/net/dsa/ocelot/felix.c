@@ -781,7 +781,8 @@ static int felix_vlan_prepare(struct dsa_switch *ds, int port,
 				   flags & BRIDGE_VLAN_INFO_UNTAGGED);
 }
 
-static int felix_vlan_filtering(struct dsa_switch *ds, int port, bool enabled)
+static int felix_vlan_filtering(struct dsa_switch *ds, int port, bool enabled,
+				struct netlink_ext_ack *extack)
 {
 	struct ocelot *ocelot = ds->priv;
 
