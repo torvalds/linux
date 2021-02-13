@@ -2434,12 +2434,20 @@ static int mv88e6xxx_setup_egress_floods(struct mv88e6xxx_chip *chip, int port)
 {
 	struct dsa_switch *ds = chip->ds;
 	bool flood;
+	int err;
 
 	/* Upstream ports flood frames with unknown unicast or multicast DA */
 	flood = dsa_is_cpu_port(ds, port) || dsa_is_dsa_port(ds, port);
-	if (chip->info->ops->port_set_egress_floods)
-		return chip->info->ops->port_set_egress_floods(chip, port,
-							       flood, flood);
+	if (chip->info->ops->port_set_ucast_flood) {
+		err = chip->info->ops->port_set_ucast_flood(chip, port, flood);
+		if (err)
+			return err;
+	}
+	if (chip->info->ops->port_set_mcast_flood) {
+		err = chip->info->ops->port_set_mcast_flood(chip, port, flood);
+		if (err)
+			return err;
+	}
 
 	return 0;
 }
@@ -3239,7 +3247,8 @@ static const struct mv88e6xxx_ops mv88e6085_ops = {
 	.port_set_speed_duplex = mv88e6185_port_set_speed_duplex,
 	.port_tag_remap = mv88e6095_port_tag_remap,
 	.port_set_frame_mode = mv88e6351_port_set_frame_mode,
-	.port_set_egress_floods = mv88e6352_port_set_egress_floods,
+	.port_set_ucast_flood = mv88e6352_port_set_ucast_flood,
+	.port_set_mcast_flood = mv88e6352_port_set_mcast_flood,
 	.port_set_ether_type = mv88e6351_port_set_ether_type,
 	.port_egress_rate_limiting = mv88e6097_port_egress_rate_limiting,
 	.port_pause_limit = mv88e6097_port_pause_limit,
@@ -3278,7 +3287,8 @@ static const struct mv88e6xxx_ops mv88e6095_ops = {
 	.port_sync_link = mv88e6185_port_sync_link,
 	.port_set_speed_duplex = mv88e6185_port_set_speed_duplex,
 	.port_set_frame_mode = mv88e6085_port_set_frame_mode,
-	.port_set_egress_floods = mv88e6185_port_set_egress_floods,
+	.port_set_ucast_flood = mv88e6185_port_set_forward_unknown,
+	.port_set_mcast_flood = mv88e6185_port_set_default_forward,
 	.port_set_upstream_port = mv88e6095_port_set_upstream_port,
 	.port_get_cmode = mv88e6185_port_get_cmode,
 	.port_setup_message_port = mv88e6xxx_setup_message_port,
@@ -3313,7 +3323,8 @@ static const struct mv88e6xxx_ops mv88e6097_ops = {
 	.port_set_speed_duplex = mv88e6185_port_set_speed_duplex,
 	.port_tag_remap = mv88e6095_port_tag_remap,
 	.port_set_frame_mode = mv88e6351_port_set_frame_mode,
-	.port_set_egress_floods = mv88e6352_port_set_egress_floods,
+	.port_set_ucast_flood = mv88e6352_port_set_ucast_flood,
+	.port_set_mcast_flood = mv88e6352_port_set_mcast_flood,
 	.port_set_ether_type = mv88e6351_port_set_ether_type,
 	.port_egress_rate_limiting = mv88e6095_port_egress_rate_limiting,
 	.port_pause_limit = mv88e6097_port_pause_limit,
@@ -3357,7 +3368,8 @@ static const struct mv88e6xxx_ops mv88e6123_ops = {
 	.port_sync_link = mv88e6xxx_port_sync_link,
 	.port_set_speed_duplex = mv88e6185_port_set_speed_duplex,
 	.port_set_frame_mode = mv88e6085_port_set_frame_mode,
-	.port_set_egress_floods = mv88e6352_port_set_egress_floods,
+	.port_set_ucast_flood = mv88e6352_port_set_ucast_flood,
+	.port_set_mcast_flood = mv88e6352_port_set_mcast_flood,
 	.port_disable_learn_limit = mv88e6xxx_port_disable_learn_limit,
 	.port_disable_pri_override = mv88e6xxx_port_disable_pri_override,
 	.port_get_cmode = mv88e6185_port_get_cmode,
@@ -3393,7 +3405,8 @@ static const struct mv88e6xxx_ops mv88e6131_ops = {
 	.port_set_speed_duplex = mv88e6185_port_set_speed_duplex,
 	.port_tag_remap = mv88e6095_port_tag_remap,
 	.port_set_frame_mode = mv88e6351_port_set_frame_mode,
-	.port_set_egress_floods = mv88e6185_port_set_egress_floods,
+	.port_set_ucast_flood = mv88e6185_port_set_forward_unknown,
+	.port_set_mcast_flood = mv88e6185_port_set_default_forward,
 	.port_set_ether_type = mv88e6351_port_set_ether_type,
 	.port_set_upstream_port = mv88e6095_port_set_upstream_port,
 	.port_set_jumbo_size = mv88e6165_port_set_jumbo_size,
@@ -3437,7 +3450,8 @@ static const struct mv88e6xxx_ops mv88e6141_ops = {
 	.port_max_speed_mode = mv88e6341_port_max_speed_mode,
 	.port_tag_remap = mv88e6095_port_tag_remap,
 	.port_set_frame_mode = mv88e6351_port_set_frame_mode,
-	.port_set_egress_floods = mv88e6352_port_set_egress_floods,
+	.port_set_ucast_flood = mv88e6352_port_set_ucast_flood,
+	.port_set_mcast_flood = mv88e6352_port_set_mcast_flood,
 	.port_set_ether_type = mv88e6351_port_set_ether_type,
 	.port_set_jumbo_size = mv88e6165_port_set_jumbo_size,
 	.port_egress_rate_limiting = mv88e6097_port_egress_rate_limiting,
@@ -3487,7 +3501,8 @@ static const struct mv88e6xxx_ops mv88e6161_ops = {
 	.port_set_speed_duplex = mv88e6185_port_set_speed_duplex,
 	.port_tag_remap = mv88e6095_port_tag_remap,
 	.port_set_frame_mode = mv88e6351_port_set_frame_mode,
-	.port_set_egress_floods = mv88e6352_port_set_egress_floods,
+	.port_set_ucast_flood = mv88e6352_port_set_ucast_flood,
+	.port_set_mcast_flood = mv88e6352_port_set_mcast_flood,
 	.port_set_ether_type = mv88e6351_port_set_ether_type,
 	.port_set_jumbo_size = mv88e6165_port_set_jumbo_size,
 	.port_egress_rate_limiting = mv88e6097_port_egress_rate_limiting,
@@ -3565,7 +3580,8 @@ static const struct mv88e6xxx_ops mv88e6171_ops = {
 	.port_set_speed_duplex = mv88e6185_port_set_speed_duplex,
 	.port_tag_remap = mv88e6095_port_tag_remap,
 	.port_set_frame_mode = mv88e6351_port_set_frame_mode,
-	.port_set_egress_floods = mv88e6352_port_set_egress_floods,
+	.port_set_ucast_flood = mv88e6352_port_set_ucast_flood,
+	.port_set_mcast_flood = mv88e6352_port_set_mcast_flood,
 	.port_set_ether_type = mv88e6351_port_set_ether_type,
 	.port_set_jumbo_size = mv88e6165_port_set_jumbo_size,
 	.port_egress_rate_limiting = mv88e6097_port_egress_rate_limiting,
@@ -3609,7 +3625,8 @@ static const struct mv88e6xxx_ops mv88e6172_ops = {
 	.port_tag_remap = mv88e6095_port_tag_remap,
 	.port_set_policy = mv88e6352_port_set_policy,
 	.port_set_frame_mode = mv88e6351_port_set_frame_mode,
-	.port_set_egress_floods = mv88e6352_port_set_egress_floods,
+	.port_set_ucast_flood = mv88e6352_port_set_ucast_flood,
+	.port_set_mcast_flood = mv88e6352_port_set_mcast_flood,
 	.port_set_ether_type = mv88e6351_port_set_ether_type,
 	.port_set_jumbo_size = mv88e6165_port_set_jumbo_size,
 	.port_egress_rate_limiting = mv88e6097_port_egress_rate_limiting,
@@ -3660,7 +3677,8 @@ static const struct mv88e6xxx_ops mv88e6175_ops = {
 	.port_set_speed_duplex = mv88e6185_port_set_speed_duplex,
 	.port_tag_remap = mv88e6095_port_tag_remap,
 	.port_set_frame_mode = mv88e6351_port_set_frame_mode,
-	.port_set_egress_floods = mv88e6352_port_set_egress_floods,
+	.port_set_ucast_flood = mv88e6352_port_set_ucast_flood,
+	.port_set_mcast_flood = mv88e6352_port_set_mcast_flood,
 	.port_set_ether_type = mv88e6351_port_set_ether_type,
 	.port_set_jumbo_size = mv88e6165_port_set_jumbo_size,
 	.port_egress_rate_limiting = mv88e6097_port_egress_rate_limiting,
@@ -3704,7 +3722,8 @@ static const struct mv88e6xxx_ops mv88e6176_ops = {
 	.port_tag_remap = mv88e6095_port_tag_remap,
 	.port_set_policy = mv88e6352_port_set_policy,
 	.port_set_frame_mode = mv88e6351_port_set_frame_mode,
-	.port_set_egress_floods = mv88e6352_port_set_egress_floods,
+	.port_set_ucast_flood = mv88e6352_port_set_ucast_flood,
+	.port_set_mcast_flood = mv88e6352_port_set_mcast_flood,
 	.port_set_ether_type = mv88e6351_port_set_ether_type,
 	.port_set_jumbo_size = mv88e6165_port_set_jumbo_size,
 	.port_egress_rate_limiting = mv88e6097_port_egress_rate_limiting,
@@ -3755,7 +3774,8 @@ static const struct mv88e6xxx_ops mv88e6185_ops = {
 	.port_sync_link = mv88e6185_port_sync_link,
 	.port_set_speed_duplex = mv88e6185_port_set_speed_duplex,
 	.port_set_frame_mode = mv88e6085_port_set_frame_mode,
-	.port_set_egress_floods = mv88e6185_port_set_egress_floods,
+	.port_set_ucast_flood = mv88e6185_port_set_forward_unknown,
+	.port_set_mcast_flood = mv88e6185_port_set_default_forward,
 	.port_egress_rate_limiting = mv88e6095_port_egress_rate_limiting,
 	.port_set_upstream_port = mv88e6095_port_set_upstream_port,
 	.port_set_pause = mv88e6185_port_set_pause,
@@ -3800,7 +3820,8 @@ static const struct mv88e6xxx_ops mv88e6190_ops = {
 	.port_tag_remap = mv88e6390_port_tag_remap,
 	.port_set_policy = mv88e6352_port_set_policy,
 	.port_set_frame_mode = mv88e6351_port_set_frame_mode,
-	.port_set_egress_floods = mv88e6352_port_set_egress_floods,
+	.port_set_ucast_flood = mv88e6352_port_set_ucast_flood,
+	.port_set_mcast_flood = mv88e6352_port_set_mcast_flood,
 	.port_set_ether_type = mv88e6351_port_set_ether_type,
 	.port_set_jumbo_size = mv88e6165_port_set_jumbo_size,
 	.port_pause_limit = mv88e6390_port_pause_limit,
@@ -3860,7 +3881,8 @@ static const struct mv88e6xxx_ops mv88e6190x_ops = {
 	.port_tag_remap = mv88e6390_port_tag_remap,
 	.port_set_policy = mv88e6352_port_set_policy,
 	.port_set_frame_mode = mv88e6351_port_set_frame_mode,
-	.port_set_egress_floods = mv88e6352_port_set_egress_floods,
+	.port_set_ucast_flood = mv88e6352_port_set_ucast_flood,
+	.port_set_mcast_flood = mv88e6352_port_set_mcast_flood,
 	.port_set_ether_type = mv88e6351_port_set_ether_type,
 	.port_set_jumbo_size = mv88e6165_port_set_jumbo_size,
 	.port_pause_limit = mv88e6390_port_pause_limit,
@@ -3919,7 +3941,8 @@ static const struct mv88e6xxx_ops mv88e6191_ops = {
 	.port_max_speed_mode = mv88e6390_port_max_speed_mode,
 	.port_tag_remap = mv88e6390_port_tag_remap,
 	.port_set_frame_mode = mv88e6351_port_set_frame_mode,
-	.port_set_egress_floods = mv88e6352_port_set_egress_floods,
+	.port_set_ucast_flood = mv88e6352_port_set_ucast_flood,
+	.port_set_mcast_flood = mv88e6352_port_set_mcast_flood,
 	.port_set_ether_type = mv88e6351_port_set_ether_type,
 	.port_pause_limit = mv88e6390_port_pause_limit,
 	.port_disable_learn_limit = mv88e6xxx_port_disable_learn_limit,
@@ -3979,7 +4002,8 @@ static const struct mv88e6xxx_ops mv88e6240_ops = {
 	.port_tag_remap = mv88e6095_port_tag_remap,
 	.port_set_policy = mv88e6352_port_set_policy,
 	.port_set_frame_mode = mv88e6351_port_set_frame_mode,
-	.port_set_egress_floods = mv88e6352_port_set_egress_floods,
+	.port_set_ucast_flood = mv88e6352_port_set_ucast_flood,
+	.port_set_mcast_flood = mv88e6352_port_set_mcast_flood,
 	.port_set_ether_type = mv88e6351_port_set_ether_type,
 	.port_set_jumbo_size = mv88e6165_port_set_jumbo_size,
 	.port_egress_rate_limiting = mv88e6097_port_egress_rate_limiting,
@@ -4037,7 +4061,8 @@ static const struct mv88e6xxx_ops mv88e6250_ops = {
 	.port_set_speed_duplex = mv88e6250_port_set_speed_duplex,
 	.port_tag_remap = mv88e6095_port_tag_remap,
 	.port_set_frame_mode = mv88e6351_port_set_frame_mode,
-	.port_set_egress_floods = mv88e6352_port_set_egress_floods,
+	.port_set_ucast_flood = mv88e6352_port_set_ucast_flood,
+	.port_set_mcast_flood = mv88e6352_port_set_mcast_flood,
 	.port_set_ether_type = mv88e6351_port_set_ether_type,
 	.port_egress_rate_limiting = mv88e6097_port_egress_rate_limiting,
 	.port_pause_limit = mv88e6097_port_pause_limit,
@@ -4077,7 +4102,8 @@ static const struct mv88e6xxx_ops mv88e6290_ops = {
 	.port_tag_remap = mv88e6390_port_tag_remap,
 	.port_set_policy = mv88e6352_port_set_policy,
 	.port_set_frame_mode = mv88e6351_port_set_frame_mode,
-	.port_set_egress_floods = mv88e6352_port_set_egress_floods,
+	.port_set_ucast_flood = mv88e6352_port_set_ucast_flood,
+	.port_set_mcast_flood = mv88e6352_port_set_mcast_flood,
 	.port_set_ether_type = mv88e6351_port_set_ether_type,
 	.port_pause_limit = mv88e6390_port_pause_limit,
 	.port_disable_learn_limit = mv88e6xxx_port_disable_learn_limit,
@@ -4136,7 +4162,8 @@ static const struct mv88e6xxx_ops mv88e6320_ops = {
 	.port_set_speed_duplex = mv88e6185_port_set_speed_duplex,
 	.port_tag_remap = mv88e6095_port_tag_remap,
 	.port_set_frame_mode = mv88e6351_port_set_frame_mode,
-	.port_set_egress_floods = mv88e6352_port_set_egress_floods,
+	.port_set_ucast_flood = mv88e6352_port_set_ucast_flood,
+	.port_set_mcast_flood = mv88e6352_port_set_mcast_flood,
 	.port_set_ether_type = mv88e6351_port_set_ether_type,
 	.port_set_jumbo_size = mv88e6165_port_set_jumbo_size,
 	.port_egress_rate_limiting = mv88e6097_port_egress_rate_limiting,
@@ -4179,7 +4206,8 @@ static const struct mv88e6xxx_ops mv88e6321_ops = {
 	.port_set_speed_duplex = mv88e6185_port_set_speed_duplex,
 	.port_tag_remap = mv88e6095_port_tag_remap,
 	.port_set_frame_mode = mv88e6351_port_set_frame_mode,
-	.port_set_egress_floods = mv88e6352_port_set_egress_floods,
+	.port_set_ucast_flood = mv88e6352_port_set_ucast_flood,
+	.port_set_mcast_flood = mv88e6352_port_set_mcast_flood,
 	.port_set_ether_type = mv88e6351_port_set_ether_type,
 	.port_set_jumbo_size = mv88e6165_port_set_jumbo_size,
 	.port_egress_rate_limiting = mv88e6097_port_egress_rate_limiting,
@@ -4222,7 +4250,8 @@ static const struct mv88e6xxx_ops mv88e6341_ops = {
 	.port_max_speed_mode = mv88e6341_port_max_speed_mode,
 	.port_tag_remap = mv88e6095_port_tag_remap,
 	.port_set_frame_mode = mv88e6351_port_set_frame_mode,
-	.port_set_egress_floods = mv88e6352_port_set_egress_floods,
+	.port_set_ucast_flood = mv88e6352_port_set_ucast_flood,
+	.port_set_mcast_flood = mv88e6352_port_set_mcast_flood,
 	.port_set_ether_type = mv88e6351_port_set_ether_type,
 	.port_set_jumbo_size = mv88e6165_port_set_jumbo_size,
 	.port_egress_rate_limiting = mv88e6097_port_egress_rate_limiting,
@@ -4275,7 +4304,8 @@ static const struct mv88e6xxx_ops mv88e6350_ops = {
 	.port_set_speed_duplex = mv88e6185_port_set_speed_duplex,
 	.port_tag_remap = mv88e6095_port_tag_remap,
 	.port_set_frame_mode = mv88e6351_port_set_frame_mode,
-	.port_set_egress_floods = mv88e6352_port_set_egress_floods,
+	.port_set_ucast_flood = mv88e6352_port_set_ucast_flood,
+	.port_set_mcast_flood = mv88e6352_port_set_mcast_flood,
 	.port_set_ether_type = mv88e6351_port_set_ether_type,
 	.port_set_jumbo_size = mv88e6165_port_set_jumbo_size,
 	.port_egress_rate_limiting = mv88e6097_port_egress_rate_limiting,
@@ -4316,7 +4346,8 @@ static const struct mv88e6xxx_ops mv88e6351_ops = {
 	.port_set_speed_duplex = mv88e6185_port_set_speed_duplex,
 	.port_tag_remap = mv88e6095_port_tag_remap,
 	.port_set_frame_mode = mv88e6351_port_set_frame_mode,
-	.port_set_egress_floods = mv88e6352_port_set_egress_floods,
+	.port_set_ucast_flood = mv88e6352_port_set_ucast_flood,
+	.port_set_mcast_flood = mv88e6352_port_set_mcast_flood,
 	.port_set_ether_type = mv88e6351_port_set_ether_type,
 	.port_set_jumbo_size = mv88e6165_port_set_jumbo_size,
 	.port_egress_rate_limiting = mv88e6097_port_egress_rate_limiting,
@@ -4362,7 +4393,8 @@ static const struct mv88e6xxx_ops mv88e6352_ops = {
 	.port_tag_remap = mv88e6095_port_tag_remap,
 	.port_set_policy = mv88e6352_port_set_policy,
 	.port_set_frame_mode = mv88e6351_port_set_frame_mode,
-	.port_set_egress_floods = mv88e6352_port_set_egress_floods,
+	.port_set_ucast_flood = mv88e6352_port_set_ucast_flood,
+	.port_set_mcast_flood = mv88e6352_port_set_mcast_flood,
 	.port_set_ether_type = mv88e6351_port_set_ether_type,
 	.port_set_jumbo_size = mv88e6165_port_set_jumbo_size,
 	.port_egress_rate_limiting = mv88e6097_port_egress_rate_limiting,
@@ -4424,7 +4456,8 @@ static const struct mv88e6xxx_ops mv88e6390_ops = {
 	.port_tag_remap = mv88e6390_port_tag_remap,
 	.port_set_policy = mv88e6352_port_set_policy,
 	.port_set_frame_mode = mv88e6351_port_set_frame_mode,
-	.port_set_egress_floods = mv88e6352_port_set_egress_floods,
+	.port_set_ucast_flood = mv88e6352_port_set_ucast_flood,
+	.port_set_mcast_flood = mv88e6352_port_set_mcast_flood,
 	.port_set_ether_type = mv88e6351_port_set_ether_type,
 	.port_set_jumbo_size = mv88e6165_port_set_jumbo_size,
 	.port_egress_rate_limiting = mv88e6097_port_egress_rate_limiting,
@@ -4488,7 +4521,8 @@ static const struct mv88e6xxx_ops mv88e6390x_ops = {
 	.port_tag_remap = mv88e6390_port_tag_remap,
 	.port_set_policy = mv88e6352_port_set_policy,
 	.port_set_frame_mode = mv88e6351_port_set_frame_mode,
-	.port_set_egress_floods = mv88e6352_port_set_egress_floods,
+	.port_set_ucast_flood = mv88e6352_port_set_ucast_flood,
+	.port_set_mcast_flood = mv88e6352_port_set_mcast_flood,
 	.port_set_ether_type = mv88e6351_port_set_ether_type,
 	.port_set_jumbo_size = mv88e6165_port_set_jumbo_size,
 	.port_egress_rate_limiting = mv88e6097_port_egress_rate_limiting,
@@ -5364,17 +5398,72 @@ static void mv88e6xxx_port_mirror_del(struct dsa_switch *ds, int port,
 	mutex_unlock(&chip->reg_lock);
 }
 
-static int mv88e6xxx_port_egress_floods(struct dsa_switch *ds, int port,
-					 bool unicast, bool multicast)
+static int mv88e6xxx_port_pre_bridge_flags(struct dsa_switch *ds, int port,
+					   struct switchdev_brport_flags flags,
+					   struct netlink_ext_ack *extack)
+{
+	struct mv88e6xxx_chip *chip = ds->priv;
+	const struct mv88e6xxx_ops *ops;
+
+	if (flags.mask & ~(BR_FLOOD | BR_MCAST_FLOOD))
+		return -EINVAL;
+
+	ops = chip->info->ops;
+
+	if ((flags.mask & BR_FLOOD) && !ops->port_set_ucast_flood)
+		return -EINVAL;
+
+	if ((flags.mask & BR_MCAST_FLOOD) && !ops->port_set_mcast_flood)
+		return -EINVAL;
+
+	return 0;
+}
+
+static int mv88e6xxx_port_bridge_flags(struct dsa_switch *ds, int port,
+				       struct switchdev_brport_flags flags,
+				       struct netlink_ext_ack *extack)
 {
 	struct mv88e6xxx_chip *chip = ds->priv;
 	int err = -EOPNOTSUPP;
 
 	mv88e6xxx_reg_lock(chip);
-	if (chip->info->ops->port_set_egress_floods)
-		err = chip->info->ops->port_set_egress_floods(chip, port,
-							      unicast,
-							      multicast);
+
+	if (flags.mask & BR_FLOOD) {
+		bool unicast = !!(flags.val & BR_FLOOD);
+
+		err = chip->info->ops->port_set_ucast_flood(chip, port,
+							    unicast);
+		if (err)
+			goto out;
+	}
+
+	if (flags.mask & BR_MCAST_FLOOD) {
+		bool multicast = !!(flags.val & BR_MCAST_FLOOD);
+
+		err = chip->info->ops->port_set_mcast_flood(chip, port,
+							    multicast);
+		if (err)
+			goto out;
+	}
+
+out:
+	mv88e6xxx_reg_unlock(chip);
+
+	return err;
+}
+
+static int mv88e6xxx_port_set_mrouter(struct dsa_switch *ds, int port,
+				      bool mrouter,
+				      struct netlink_ext_ack *extack)
+{
+	struct mv88e6xxx_chip *chip = ds->priv;
+	int err;
+
+	if (!chip->info->ops->port_set_mcast_flood)
+		return -EOPNOTSUPP;
+
+	mv88e6xxx_reg_lock(chip);
+	err = chip->info->ops->port_set_mcast_flood(chip, port, mrouter);
 	mv88e6xxx_reg_unlock(chip);
 
 	return err;
@@ -5678,7 +5767,9 @@ static const struct dsa_switch_ops mv88e6xxx_switch_ops = {
 	.set_ageing_time	= mv88e6xxx_set_ageing_time,
 	.port_bridge_join	= mv88e6xxx_port_bridge_join,
 	.port_bridge_leave	= mv88e6xxx_port_bridge_leave,
-	.port_egress_floods	= mv88e6xxx_port_egress_floods,
+	.port_pre_bridge_flags	= mv88e6xxx_port_pre_bridge_flags,
+	.port_bridge_flags	= mv88e6xxx_port_bridge_flags,
+	.port_set_mrouter	= mv88e6xxx_port_set_mrouter,
 	.port_stp_state_set	= mv88e6xxx_port_stp_state_set,
 	.port_fast_age		= mv88e6xxx_port_fast_age,
 	.port_vlan_filtering	= mv88e6xxx_port_vlan_filtering,

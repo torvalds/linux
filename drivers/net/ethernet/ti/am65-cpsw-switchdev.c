@@ -55,33 +55,38 @@ static int am65_cpsw_port_stp_state_set(struct am65_cpsw_port *port, u8 state)
 
 static int am65_cpsw_port_attr_br_flags_set(struct am65_cpsw_port *port,
 					    struct net_device *orig_dev,
-					    unsigned long brport_flags)
+					    struct switchdev_brport_flags flags)
 {
 	struct am65_cpsw_common *cpsw = port->common;
-	bool unreg_mcast_add = false;
 
-	if (brport_flags & BR_MCAST_FLOOD)
-		unreg_mcast_add = true;
-	netdev_dbg(port->ndev, "BR_MCAST_FLOOD: %d port %u\n",
-		   unreg_mcast_add, port->port_id);
+	if (flags.mask & BR_MCAST_FLOOD) {
+		bool unreg_mcast_add = false;
 
-	cpsw_ale_set_unreg_mcast(cpsw->ale, BIT(port->port_id),
-				 unreg_mcast_add);
+		if (flags.val & BR_MCAST_FLOOD)
+			unreg_mcast_add = true;
+
+		netdev_dbg(port->ndev, "BR_MCAST_FLOOD: %d port %u\n",
+			   unreg_mcast_add, port->port_id);
+
+		cpsw_ale_set_unreg_mcast(cpsw->ale, BIT(port->port_id),
+					 unreg_mcast_add);
+	}
 
 	return 0;
 }
 
 static int am65_cpsw_port_attr_br_flags_pre_set(struct net_device *netdev,
-						unsigned long flags)
+						struct switchdev_brport_flags flags)
 {
-	if (flags & ~(BR_LEARNING | BR_MCAST_FLOOD))
+	if (flags.mask & ~(BR_LEARNING | BR_MCAST_FLOOD))
 		return -EINVAL;
 
 	return 0;
 }
 
 static int am65_cpsw_port_attr_set(struct net_device *ndev,
-				   const struct switchdev_attr *attr)
+				   const struct switchdev_attr *attr,
+				   struct netlink_ext_ack *extack)
 {
 	struct am65_cpsw_port *port = am65_ndev_to_port(ndev);
 	int ret;

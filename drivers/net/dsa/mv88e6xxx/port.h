@@ -154,11 +154,8 @@
 #define MV88E6185_PORT_CTL0_USE_IP				0x0020
 #define MV88E6185_PORT_CTL0_USE_TAG				0x0010
 #define MV88E6185_PORT_CTL0_FORWARD_UNKNOWN			0x0004
-#define MV88E6352_PORT_CTL0_EGRESS_FLOODS_MASK			0x000c
-#define MV88E6352_PORT_CTL0_EGRESS_FLOODS_NO_UNKNOWN_DA		0x0000
-#define MV88E6352_PORT_CTL0_EGRESS_FLOODS_NO_UNKNOWN_MC_DA	0x0004
-#define MV88E6352_PORT_CTL0_EGRESS_FLOODS_NO_UNKNOWN_UC_DA	0x0008
-#define MV88E6352_PORT_CTL0_EGRESS_FLOODS_ALL_UNKNOWN_DA	0x000c
+#define MV88E6352_PORT_CTL0_EGRESS_FLOODS_UC			0x0004
+#define MV88E6352_PORT_CTL0_EGRESS_FLOODS_MC			0x0008
 #define MV88E6XXX_PORT_CTL0_STATE_MASK				0x0003
 #define MV88E6XXX_PORT_CTL0_STATE_DISABLED			0x0000
 #define MV88E6XXX_PORT_CTL0_STATE_BLOCKING			0x0001
@@ -343,10 +340,14 @@ int mv88e6085_port_set_frame_mode(struct mv88e6xxx_chip *chip, int port,
 				  enum mv88e6xxx_frame_mode mode);
 int mv88e6351_port_set_frame_mode(struct mv88e6xxx_chip *chip, int port,
 				  enum mv88e6xxx_frame_mode mode);
-int mv88e6185_port_set_egress_floods(struct mv88e6xxx_chip *chip, int port,
-				     bool unicast, bool multicast);
-int mv88e6352_port_set_egress_floods(struct mv88e6xxx_chip *chip, int port,
-				     bool unicast, bool multicast);
+int mv88e6185_port_set_forward_unknown(struct mv88e6xxx_chip *chip,
+				       int port, bool unicast);
+int mv88e6185_port_set_default_forward(struct mv88e6xxx_chip *chip,
+				       int port, bool multicast);
+int mv88e6352_port_set_ucast_flood(struct mv88e6xxx_chip *chip, int port,
+				   bool unicast);
+int mv88e6352_port_set_mcast_flood(struct mv88e6xxx_chip *chip, int port,
+				   bool multicast);
 int mv88e6352_port_set_policy(struct mv88e6xxx_chip *chip, int port,
 			      enum mv88e6xxx_policy_mapping mapping,
 			      enum mv88e6xxx_policy_action action);
