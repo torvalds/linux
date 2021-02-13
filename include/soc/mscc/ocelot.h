@@ -87,9 +87,6 @@
 /* Source PGIDs, one per physical port */
 #define PGID_SRC			80
 
-#define IFH_INJ_BYPASS			BIT(31)
-#define IFH_INJ_POP_CNT_DISABLE		(3 << 28)
-
 #define IFH_TAG_TYPE_C			0
 #define IFH_TAG_TYPE_S			1
 
@@ -100,10 +97,6 @@
 #define IFH_REW_OP_ORIGIN_PTP		0x5
 
 #define OCELOT_NUM_TC			8
-#define OCELOT_TAG_LEN			16
-#define OCELOT_SHORT_PREFIX_LEN		4
-#define OCELOT_LONG_PREFIX_LEN		16
-#define OCELOT_TOTAL_TAG_LEN	(OCELOT_SHORT_PREFIX_LEN + OCELOT_TAG_LEN)
 
 #define OCELOT_SPEED_2500		0
 #define OCELOT_SPEED_1000		1

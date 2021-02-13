@@ -14,8 +14,8 @@
 #include <soc/mscc/ocelot_ptp.h>
 #include <soc/mscc/ocelot.h>
 #include <linux/dsa/8021q.h>
+#include <linux/dsa/ocelot.h>
 #include <linux/platform_device.h>
-#include <linux/packing.h>
 #include <linux/module.h>
 #include <linux/of_net.h>
 #include <linux/pci.h>
@@ -1161,9 +1161,9 @@ static int felix_hwtstamp_set(struct dsa_switch *ds, int port,
 static bool felix_rxtstamp(struct dsa_switch *ds, int port,
 			   struct sk_buff *skb, unsigned int type)
 {
+	u8 *extraction = skb->data - ETH_HLEN - OCELOT_TAG_LEN;
 	struct skb_shared_hwtstamps *shhwtstamps;
 	struct ocelot *ocelot = ds->priv;
-	u8 *extraction = skb->data - ETH_HLEN - OCELOT_TAG_LEN;
 	u32 tstamp_lo, tstamp_hi;
 	struct timespec64 ts;
 	u64 tstamp, val;
@@ -1171,7 +1171,7 @@ static bool felix_rxtstamp(struct dsa_switch *ds, int port,
 	ocelot_ptp_gettime64(&ocelot->ptp_info, &ts);
 	tstamp = ktime_set(ts.tv_sec, ts.tv_nsec);
 
-	packing(extraction, &val,  116, 85, OCELOT_TAG_LEN, UNPACK, 0);
+	ocelot_xfh_get_rew_val(extraction, &val);
 	tstamp_lo = (u32)val;
 
 	tstamp_hi = tstamp >> 32;

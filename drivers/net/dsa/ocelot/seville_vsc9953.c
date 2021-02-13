@@ -8,7 +8,7 @@
 #include <soc/mscc/ocelot.h>
 #include <linux/of_platform.h>
 #include <linux/pcs-lynx.h>
-#include <linux/packing.h>
+#include <linux/dsa/ocelot.h>
 #include <linux/iopoll.h>
 #include "felix.h"
 

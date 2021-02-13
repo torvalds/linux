@@ -4,6 +4,7 @@
  *
  * Copyright (c) 2017 Microsemi Corporation
  */
+#include <linux/dsa/ocelot.h>
 #include <linux/interrupt.h>
 #include <linux/module.h>
 #include <linux/of_net.h>
@@ -17,8 +18,6 @@
 #include <soc/mscc/ocelot_vcap.h>
 #include <soc/mscc/ocelot_hsio.h>
 #include "ocelot.h"
-
-#define IFH_EXTRACT_BITFIELD64(x, o, w) (((x) >> (o)) & GENMASK_ULL((w) - 1, 0))
 
 static const u32 ocelot_ana_regmap[] = {
 	REG(ANA_ADVLEARN,				0x009000),
@@ -532,29 +531,6 @@ static int ocelot_chip_init(struct ocelot *ocelot, const struct ocelot_ops *ops)
 	return 0;
 }
 
-static int ocelot_parse_ifh(u32 *_ifh, struct frame_info *info)
-{
-	u8 llen, wlen;
-	u64 ifh[2];
-
-	ifh[0] = be64_to_cpu(((__force __be64 *)_ifh)[0]);
-	ifh[1] = be64_to_cpu(((__force __be64 *)_ifh)[1]);
-
-	wlen = IFH_EXTRACT_BITFIELD64(ifh[0], 7,  8);
-	llen = IFH_EXTRACT_BITFIELD64(ifh[0], 15,  6);
-
-	info->len = OCELOT_BUFFER_CELL_SZ * wlen + llen - 80;
-
-	info->timestamp = IFH_EXTRACT_BITFIELD64(ifh[0], 21, 32);
-
-	info->port = IFH_EXTRACT_BITFIELD64(ifh[1], 43, 4);
-
-	info->tag_type = IFH_EXTRACT_BITFIELD64(ifh[1], 16,  1);
-	info->vid = IFH_EXTRACT_BITFIELD64(ifh[1], 0,  12);
-
-	return 0;
-}
-
 static int ocelot_rx_frame_word(struct ocelot *ocelot, u8 grp, bool ifh,
 				u32 *rval)
 {
@@ -609,20 +585,20 @@ static irqreturn_t ocelot_xtr_irq_handler(int irq, void *arg)
 		struct ocelot_port_private *priv;
 		struct ocelot_port *ocelot_port;
 		u64 tod_in_ns, full_ts_in_ns;
-		struct frame_info info = {};
+		u64 src_port, len, timestamp;
 		struct net_device *dev;
-		u32 ifh[4], val, *buf;
+		u32 xfh[4], val, *buf;
 		struct timespec64 ts;
-		int sz, len, buf_len;
 		struct sk_buff *skb;
+		int sz, buf_len;
 
 		for (i = 0; i < OCELOT_TAG_LEN / 4; i++) {
-			err = ocelot_rx_frame_word(ocelot, grp, true, &ifh[i]);
+			err = ocelot_rx_frame_word(ocelot, grp, true, &xfh[i]);
 			if (err != 4)
 				goto out;
 		}
 
-		/* At this point the IFH was read correctly, so it is safe to
+		/* At this point the XFH was read correctly, so it is safe to
 		 * presume that there is no error. The err needs to be reset
 		 * otherwise a frame could come in CPU queue between the while
 		 * condition and the check for error later on. And in that case
@@ -630,21 +606,23 @@ static irqreturn_t ocelot_xtr_irq_handler(int irq, void *arg)
 		 */
 		err = 0;
 
-		ocelot_parse_ifh(ifh, &info);
+		ocelot_xfh_get_src_port(xfh, &src_port);
+		ocelot_xfh_get_len(xfh, &len);
+		ocelot_xfh_get_rew_val(xfh, &timestamp);
 
-		ocelot_port = ocelot->ports[info.port];
+		ocelot_port = ocelot->ports[src_port];
 		priv = container_of(ocelot_port, struct ocelot_port_private,
 				    port);
 		dev = priv->dev;
 
-		skb = netdev_alloc_skb(dev, info.len);
+		skb = netdev_alloc_skb(dev, len);
 
 		if (unlikely(!skb)) {
 			netdev_err(dev, "Unable to allocate sk_buff\n");
 			err = -ENOMEM;
 			goto out;
 		}
-		buf_len = info.len - ETH_FCS_LEN;
+		buf_len = len - ETH_FCS_LEN;
 		buf = (u32 *)skb_put(skb, buf_len);
 
 		len = 0;
@@ -677,12 +655,12 @@ static irqreturn_t ocelot_xtr_irq_handler(int irq, void *arg)
 			ocelot_ptp_gettime64(&ocelot->ptp_info, &ts);
 
 			tod_in_ns = ktime_set(ts.tv_sec, ts.tv_nsec);
-			if ((tod_in_ns & 0xffffffff) < info.timestamp)
+			if ((tod_in_ns & 0xffffffff) < timestamp)
 				full_ts_in_ns = (((tod_in_ns >> 32) - 1) << 32) |
-						info.timestamp;
+						timestamp;
 			else
 				full_ts_in_ns = (tod_in_ns & GENMASK_ULL(63, 32)) |
-						info.timestamp;
+						timestamp;
 
 			shhwtstamps = skb_hwtstamps(skb);
 			memset(shhwtstamps, 0, sizeof(struct skb_shared_hwtstamps));
@@ -692,7 +670,7 @@ static irqreturn_t ocelot_xtr_irq_handler(int irq, void *arg)
 		/* Everything we see on an interface that is in the HW bridge
 		 * has already been forwarded.
 		 */
-		if (ocelot->bridge_mask & BIT(info.port))
+		if (ocelot->bridge_mask & BIT(src_port))
 			skb->offload_fwd_mark = 1;
 
 		skb->protocol = eth_type_trans(skb, dev);
