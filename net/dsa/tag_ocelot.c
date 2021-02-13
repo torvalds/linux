@@ -5,6 +5,25 @@
 #include <soc/mscc/ocelot.h>
 #include "dsa_priv.h"
 
+static void ocelot_xmit_ptp(struct dsa_port *dp, void *injection,
+			    struct sk_buff *clone)
+{
+	struct ocelot *ocelot = dp->ds->priv;
+	struct ocelot_port *ocelot_port;
+	u64 rew_op;
+
+	ocelot_port = ocelot->ports[dp->index];
+	rew_op = ocelot_port->ptp_cmd;
+
+	/* Retrieve timestamp ID populated inside skb->cb[0] of the
+	 * clone by ocelot_port_add_txtstamp_skb
+	 */
+	if (ocelot_port->ptp_cmd == IFH_REW_OP_TWO_STEP_PTP)
+		rew_op |= clone->cb[0] << 3;
+
+	ocelot_ifh_set_rew_op(injection, rew_op);
+}
+
 static struct sk_buff *ocelot_xmit(struct sk_buff *skb,
 				   struct net_device *netdev)
 {
@@ -29,17 +48,8 @@ static struct sk_buff *ocelot_xmit(struct sk_buff *skb,
 	ocelot_ifh_set_qos_class(injection, skb->priority);
 
 	/* TX timestamping was requested */
-	if (clone) {
-		u64 rew_op = ocelot_port->ptp_cmd;
-
-		/* Retrieve timestamp ID populated inside skb->cb[0] of the
-		 * clone by ocelot_port_add_txtstamp_skb
-		 */
-		if (ocelot_port->ptp_cmd == IFH_REW_OP_TWO_STEP_PTP)
-			rew_op |= clone->cb[0] << 3;
-
-		ocelot_ifh_set_rew_op(injection, rew_op);
-	}
+	if (clone)
+		ocelot_xmit_ptp(dp, injection, clone);
 
 	return skb;
 }
