@@ -10829,24 +10829,25 @@ static void kvm_mmu_slot_apply_flags(struct kvm *kvm,
 		 */
 		kvm_mmu_zap_collapsible_sptes(kvm, new);
 	} else {
-		/*
-		 * Large sptes are write-protected so they can be split on first
-		 * write. New large sptes cannot be created for this slot until
-		 * the end of the logging. See the comments in fast_page_fault().
-		 *
-		 * For small sptes, nothing is done if the dirty log is in the
-		 * initial-all-set state.  Otherwise, depending on whether pml
-		 * is enabled the D-bit or the W-bit will be cleared.
-		 */
+		/* By default, write-protect everything to log writes. */
+		int level = PG_LEVEL_4K;
+
 		if (kvm_x86_ops.cpu_dirty_log_size) {
+			/*
+			 * Clear all dirty bits, unless pages are treated as
+			 * dirty from the get-go.
+			 */
 			if (!kvm_dirty_log_manual_protect_and_init_set(kvm))
 				kvm_mmu_slot_leaf_clear_dirty(kvm, new);
-			kvm_mmu_slot_largepage_remove_write_access(kvm, new);
-		} else {
-			int level =
-				kvm_dirty_log_manual_protect_and_init_set(kvm) ?
-				PG_LEVEL_2M : PG_LEVEL_4K;
 
+			/*
+			 * Write-protect large pages on write so that dirty
+			 * logging happens at 4k granularity.  No need to
+			 * write-protect small SPTEs since write accesses are
+			 * logged by the CPU via dirty bits.
+			 */
+			level = PG_LEVEL_2M;
+		} else if (kvm_dirty_log_manual_protect_and_init_set(kvm)) {
 			/*
 			 * If we're with initial-all-set, we don't need
 			 * to write protect any small page because
@@ -10855,8 +10856,9 @@ static void kvm_mmu_slot_apply_flags(struct kvm *kvm,
 			 * so that the page split can happen lazily on
 			 * the first write to the huge page.
 			 */
-			kvm_mmu_slot_remove_write_access(kvm, new, level);
+			level = PG_LEVEL_2M;
 		}
+		kvm_mmu_slot_remove_write_access(kvm, new, level);
 	}
 }
 
