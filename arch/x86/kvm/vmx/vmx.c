@@ -7642,11 +7642,6 @@ static bool vmx_check_apicv_inhibit_reasons(ulong bit)
 	return supported & BIT(bit);
 }
 
-static int vmx_cpu_dirty_log_size(void)
-{
-	return enable_pml ? PML_ENTITY_NUM : 0;
-}
-
 static struct kvm_x86_ops vmx_x86_ops __initdata = {
 	.hardware_unsetup = hardware_unsetup,
 
@@ -7750,6 +7745,7 @@ static struct kvm_x86_ops vmx_x86_ops __initdata = {
 	.slot_disable_log_dirty = vmx_slot_disable_log_dirty,
 	.flush_log_dirty = vmx_flush_log_dirty,
 	.enable_log_dirty_pt_masked = vmx_enable_log_dirty_pt_masked,
+	.cpu_dirty_log_size = PML_ENTITY_NUM,
 
 	.pre_block = vmx_pre_block,
 	.post_block = vmx_post_block,
@@ -7777,7 +7773,6 @@ static struct kvm_x86_ops vmx_x86_ops __initdata = {
 
 	.msr_filter_changed = vmx_msr_filter_changed,
 	.complete_emulated_msr = kvm_complete_insn_gp,
-	.cpu_dirty_log_size = vmx_cpu_dirty_log_size,
 
 	.vcpu_deliver_sipi_vector = kvm_vcpu_deliver_sipi_vector,
 };
@@ -7899,7 +7894,7 @@ static __init int hardware_setup(void)
 		vmx_x86_ops.slot_disable_log_dirty = NULL;
 		vmx_x86_ops.flush_log_dirty = NULL;
 		vmx_x86_ops.enable_log_dirty_pt_masked = NULL;
-		vmx_x86_ops.cpu_dirty_log_size = NULL;
+		vmx_x86_ops.cpu_dirty_log_size = 0;
 	}
 
 	if (!cpu_has_vmx_preemption_timer())

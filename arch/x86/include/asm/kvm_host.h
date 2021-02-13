@@ -1294,7 +1294,7 @@ struct kvm_x86_ops {
 	void (*enable_log_dirty_pt_masked)(struct kvm *kvm,
 					   struct kvm_memory_slot *slot,
 					   gfn_t offset, unsigned long mask);
-	int (*cpu_dirty_log_size)(void);
+	int cpu_dirty_log_size;
 
 	/* pmu operations of sub-arch */
 	const struct kvm_pmu_ops *pmu_ops;
