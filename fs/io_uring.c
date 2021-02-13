@@ -8681,12 +8681,13 @@ static void io_destroy_buffers(struct io_ring_ctx *ctx)
 	idr_destroy(&ctx->io_buffer_idr);
 }
 
-static void io_req_cache_free(struct list_head *list)
+static void io_req_cache_free(struct list_head *list, struct task_struct *tsk)
 {
-	while (!list_empty(list)) {
-		struct io_kiocb *req;
+	struct io_kiocb *req, *nxt;
 
-		req = list_first_entry(list, struct io_kiocb, compl.list);
+	list_for_each_entry_safe(req, nxt, list, compl.list) {
+		if (tsk && req->task != tsk)
+			continue;
 		list_del(&req->compl.list);
 		kmem_cache_free(req_cachep, req);
 	}
@@ -8742,8 +8743,8 @@ static void io_ring_ctx_free(struct io_ring_ctx *ctx)
 	free_uid(ctx->user);
 	put_cred(ctx->creds);
 	kfree(ctx->cancel_hash);
-	io_req_cache_free(&ctx->submit_state.comp.free_list);
-	io_req_cache_free(&ctx->submit_state.comp.locked_free_list);
+	io_req_cache_free(&ctx->submit_state.comp.free_list, NULL);
+	io_req_cache_free(&ctx->submit_state.comp.locked_free_list, NULL);
 	kfree(ctx);
 }
 
