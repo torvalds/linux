@@ -10,6 +10,7 @@
 #include <linux/random.h>
 #include <net/tcp.h>
 #include <net/inet_connection_sock.h>
+#include <uapi/linux/mptcp.h>
 
 #define MPTCP_SUPPORTED_VERSION	1
 
@@ -665,6 +666,11 @@ int mptcp_pm_announce_addr(struct mptcp_sock *msk,
 			   bool echo, bool port);
 int mptcp_pm_remove_addr(struct mptcp_sock *msk, u8 local_id);
 int mptcp_pm_remove_subflow(struct mptcp_sock *msk, u8 local_id);
+
+void mptcp_event(enum mptcp_event_type type, const struct mptcp_sock *msk,
+		 const struct sock *ssk, gfp_t gfp);
+void mptcp_event_addr_announced(const struct mptcp_sock *msk, const struct mptcp_addr_info *info);
+void mptcp_event_addr_removed(const struct mptcp_sock *msk, u8 id);
 
 static inline bool mptcp_pm_should_add_signal(struct mptcp_sock *msk)
 {

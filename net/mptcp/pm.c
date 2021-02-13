@@ -75,6 +75,7 @@ void mptcp_pm_new_connection(struct mptcp_sock *msk, const struct sock *ssk, int
 	pr_debug("msk=%p, token=%u side=%d", msk, msk->token, server_side);
 
 	WRITE_ONCE(pm->server_side, server_side);
+	mptcp_event(MPTCP_EVENT_CREATED, msk, ssk, GFP_ATOMIC);
 }
 
 bool mptcp_pm_allow_new_subflow(struct mptcp_sock *msk)
@@ -122,12 +123,9 @@ static bool mptcp_pm_schedule_work(struct mptcp_sock *msk,
 void mptcp_pm_fully_established(struct mptcp_sock *msk, const struct sock *ssk, gfp_t gfp)
 {
 	struct mptcp_pm_data *pm = &msk->pm;
+	bool announce = false;
 
 	pr_debug("msk=%p", msk);
-
-	/* try to avoid acquiring the lock below */
-	if (!READ_ONCE(pm->work_pending))
-		return;
 
 	spin_lock_bh(&pm->lock);
 
@@ -138,9 +136,15 @@ void mptcp_pm_fully_established(struct mptcp_sock *msk, const struct sock *ssk, 
 	if (READ_ONCE(pm->work_pending) &&
 	    !(msk->pm.status & BIT(MPTCP_PM_ALREADY_ESTABLISHED)))
 		mptcp_pm_schedule_work(msk, MPTCP_PM_ESTABLISHED);
-	msk->pm.status |= BIT(MPTCP_PM_ALREADY_ESTABLISHED);
 
+	if ((msk->pm.status & BIT(MPTCP_PM_ALREADY_ESTABLISHED)) == 0)
+		announce = true;
+
+	msk->pm.status |= BIT(MPTCP_PM_ALREADY_ESTABLISHED);
 	spin_unlock_bh(&pm->lock);
+
+	if (announce)
+		mptcp_event(MPTCP_EVENT_ESTABLISHED, msk, ssk, gfp);
 }
 
 void mptcp_pm_connection_closed(struct mptcp_sock *msk)
@@ -179,6 +183,8 @@ void mptcp_pm_add_addr_received(struct mptcp_sock *msk,
 	pr_debug("msk=%p remote_id=%d accept=%d", msk, addr->id,
 		 READ_ONCE(pm->accept_addr));
 
+	mptcp_event_addr_announced(msk, addr);
+
 	spin_lock_bh(&pm->lock);
 
 	if (!READ_ONCE(pm->accept_addr)) {
@@ -205,6 +211,8 @@ void mptcp_pm_rm_addr_received(struct mptcp_sock *msk, u8 rm_id)
 
 	pr_debug("msk=%p remote_id=%d", msk, rm_id);
 
+	mptcp_event_addr_removed(msk, rm_id);
+
 	spin_lock_bh(&pm->lock);
 	mptcp_pm_schedule_work(msk, MPTCP_PM_RM_ADDR_RECEIVED);
 	pm->rm_id = rm_id;
@@ -217,6 +225,8 @@ void mptcp_pm_mp_prio_received(struct sock *sk, u8 bkup)
 
 	pr_debug("subflow->backup=%d, bkup=%d\n", subflow->backup, bkup);
 	subflow->backup = bkup;
+
+	mptcp_event(MPTCP_EVENT_SUB_PRIORITY, mptcp_sk(subflow->conn), sk, GFP_ATOMIC);
 }
 
 /* path manager helpers */

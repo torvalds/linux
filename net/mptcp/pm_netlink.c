@@ -860,10 +860,14 @@ void mptcp_pm_nl_data_init(struct mptcp_sock *msk)
 	WRITE_ONCE(pm->accept_subflow, subflows);
 }
 
-#define MPTCP_PM_CMD_GRP_OFFSET	0
+#define MPTCP_PM_CMD_GRP_OFFSET       0
+#define MPTCP_PM_EV_GRP_OFFSET        1
 
 static const struct genl_multicast_group mptcp_pm_mcgrps[] = {
 	[MPTCP_PM_CMD_GRP_OFFSET]	= { .name = MPTCP_PM_CMD_GRP_NAME, },
+	[MPTCP_PM_EV_GRP_OFFSET]        = { .name = MPTCP_PM_EV_GRP_NAME,
+					    .flags = GENL_UNS_ADMIN_PERM,
+					  },
 };
 
 static const struct nla_policy
@@ -1480,6 +1484,261 @@ static int mptcp_nl_cmd_set_flags(struct sk_buff *skb, struct genl_info *info)
 	}
 
 	return 0;
+}
+
+static void mptcp_nl_mcast_send(struct net *net, struct sk_buff *nlskb, gfp_t gfp)
+{
+	genlmsg_multicast_netns(&mptcp_genl_family, net,
+				nlskb, 0, MPTCP_PM_EV_GRP_OFFSET, gfp);
+}
+
+static int mptcp_event_add_subflow(struct sk_buff *skb, const struct sock *ssk)
+{
+	const struct inet_sock *issk = inet_sk(ssk);
+	const struct mptcp_subflow_context *sf;
+
+	if (nla_put_u16(skb, MPTCP_ATTR_FAMILY, ssk->sk_family))
+		return -EMSGSIZE;
+
+	switch (ssk->sk_family) {
+	case AF_INET:
+		if (nla_put_in_addr(skb, MPTCP_ATTR_SADDR4, issk->inet_saddr))
+			return -EMSGSIZE;
+		if (nla_put_in_addr(skb, MPTCP_ATTR_DADDR4, issk->inet_daddr))
+			return -EMSGSIZE;
+		break;
+#if IS_ENABLED(CONFIG_MPTCP_IPV6)
+	case AF_INET6: {
+		const struct ipv6_pinfo *np = inet6_sk(ssk);
+
+		if (nla_put_in6_addr(skb, MPTCP_ATTR_SADDR6, &np->saddr))
+			return -EMSGSIZE;
+		if (nla_put_in6_addr(skb, MPTCP_ATTR_DADDR6, &ssk->sk_v6_daddr))
+			return -EMSGSIZE;
+		break;
+	}
+#endif
+	default:
+		WARN_ON_ONCE(1);
+		return -EMSGSIZE;
+	}
+
+	if (nla_put_be16(skb, MPTCP_ATTR_SPORT, issk->inet_sport))
+		return -EMSGSIZE;
+	if (nla_put_be16(skb, MPTCP_ATTR_DPORT, issk->inet_dport))
+		return -EMSGSIZE;
+
+	sf = mptcp_subflow_ctx(ssk);
+	if (WARN_ON_ONCE(!sf))
+		return -EINVAL;
+
+	if (nla_put_u8(skb, MPTCP_ATTR_LOC_ID, sf->local_id))
+		return -EMSGSIZE;
+
+	if (nla_put_u8(skb, MPTCP_ATTR_REM_ID, sf->remote_id))
+		return -EMSGSIZE;
+
+	return 0;
+}
+
+static int mptcp_event_put_token_and_ssk(struct sk_buff *skb,
+					 const struct mptcp_sock *msk,
+					 const struct sock *ssk)
+{
+	const struct sock *sk = (const struct sock *)msk;
+	const struct mptcp_subflow_context *sf;
+	u8 sk_err;
+
+	if (nla_put_u32(skb, MPTCP_ATTR_TOKEN, msk->token))
+		return -EMSGSIZE;
+
+	if (mptcp_event_add_subflow(skb, ssk))
+		return -EMSGSIZE;
+
+	sf = mptcp_subflow_ctx(ssk);
+	if (WARN_ON_ONCE(!sf))
+		return -EINVAL;
+
+	if (nla_put_u8(skb, MPTCP_ATTR_BACKUP, sf->backup))
+		return -EMSGSIZE;
+
+	if (ssk->sk_bound_dev_if &&
+	    nla_put_s32(skb, MPTCP_ATTR_IF_IDX, ssk->sk_bound_dev_if))
+		return -EMSGSIZE;
+
+	sk_err = ssk->sk_err;
+	if (sk_err && sk->sk_state == TCP_ESTABLISHED &&
+	    nla_put_u8(skb, MPTCP_ATTR_ERROR, sk_err))
+		return -EMSGSIZE;
+
+	return 0;
+}
+
+static int mptcp_event_sub_established(struct sk_buff *skb,
+				       const struct mptcp_sock *msk,
+				       const struct sock *ssk)
+{
+	return mptcp_event_put_token_and_ssk(skb, msk, ssk);
+}
+
+static int mptcp_event_sub_closed(struct sk_buff *skb,
+				  const struct mptcp_sock *msk,
+				  const struct sock *ssk)
+{
+	if (mptcp_event_put_token_and_ssk(skb, msk, ssk))
+		return -EMSGSIZE;
+
+	return 0;
+}
+
+static int mptcp_event_created(struct sk_buff *skb,
+			       const struct mptcp_sock *msk,
+			       const struct sock *ssk)
+{
+	int err = nla_put_u32(skb, MPTCP_ATTR_TOKEN, msk->token);
+
+	if (err)
+		return err;
+
+	return mptcp_event_add_subflow(skb, ssk);
+}
+
+void mptcp_event_addr_removed(const struct mptcp_sock *msk, uint8_t id)
+{
+	struct net *net = sock_net((const struct sock *)msk);
+	struct nlmsghdr *nlh;
+	struct sk_buff *skb;
+
+	if (!genl_has_listeners(&mptcp_genl_family, net, MPTCP_PM_EV_GRP_OFFSET))
+		return;
+
+	skb = nlmsg_new(NLMSG_DEFAULT_SIZE, GFP_ATOMIC);
+	if (!skb)
+		return;
+
+	nlh = genlmsg_put(skb, 0, 0, &mptcp_genl_family, 0, MPTCP_EVENT_REMOVED);
+	if (!nlh)
+		goto nla_put_failure;
+
+	if (nla_put_u32(skb, MPTCP_ATTR_TOKEN, msk->token))
+		goto nla_put_failure;
+
+	if (nla_put_u8(skb, MPTCP_ATTR_REM_ID, id))
+		goto nla_put_failure;
+
+	genlmsg_end(skb, nlh);
+	mptcp_nl_mcast_send(net, skb, GFP_ATOMIC);
+	return;
+
+nla_put_failure:
+	kfree_skb(skb);
+}
+
+void mptcp_event_addr_announced(const struct mptcp_sock *msk,
+				const struct mptcp_addr_info *info)
+{
+	struct net *net = sock_net((const struct sock *)msk);
+	struct nlmsghdr *nlh;
+	struct sk_buff *skb;
+
+	if (!genl_has_listeners(&mptcp_genl_family, net, MPTCP_PM_EV_GRP_OFFSET))
+		return;
+
+	skb = nlmsg_new(NLMSG_DEFAULT_SIZE, GFP_ATOMIC);
+	if (!skb)
+		return;
+
+	nlh = genlmsg_put(skb, 0, 0, &mptcp_genl_family, 0,
+			  MPTCP_EVENT_ANNOUNCED);
+	if (!nlh)
+		goto nla_put_failure;
+
+	if (nla_put_u32(skb, MPTCP_ATTR_TOKEN, msk->token))
+		goto nla_put_failure;
+
+	if (nla_put_u8(skb, MPTCP_ATTR_REM_ID, info->id))
+		goto nla_put_failure;
+
+	if (nla_put_be16(skb, MPTCP_ATTR_DPORT, info->port))
+		goto nla_put_failure;
+
+	switch (info->family) {
+	case AF_INET:
+		if (nla_put_in_addr(skb, MPTCP_ATTR_DADDR4, info->addr.s_addr))
+			goto nla_put_failure;
+		break;
+#if IS_ENABLED(CONFIG_MPTCP_IPV6)
+	case AF_INET6:
+		if (nla_put_in6_addr(skb, MPTCP_ATTR_DADDR6, &info->addr6))
+			goto nla_put_failure;
+		break;
+#endif
+	default:
+		WARN_ON_ONCE(1);
+		goto nla_put_failure;
+	}
+
+	genlmsg_end(skb, nlh);
+	mptcp_nl_mcast_send(net, skb, GFP_ATOMIC);
+	return;
+
+nla_put_failure:
+	kfree_skb(skb);
+}
+
+void mptcp_event(enum mptcp_event_type type, const struct mptcp_sock *msk,
+		 const struct sock *ssk, gfp_t gfp)
+{
+	struct net *net = sock_net((const struct sock *)msk);
+	struct nlmsghdr *nlh;
+	struct sk_buff *skb;
+
+	if (!genl_has_listeners(&mptcp_genl_family, net, MPTCP_PM_EV_GRP_OFFSET))
+		return;
+
+	skb = nlmsg_new(NLMSG_DEFAULT_SIZE, gfp);
+	if (!skb)
+		return;
+
+	nlh = genlmsg_put(skb, 0, 0, &mptcp_genl_family, 0, type);
+	if (!nlh)
+		goto nla_put_failure;
+
+	switch (type) {
+	case MPTCP_EVENT_UNSPEC:
+		WARN_ON_ONCE(1);
+		break;
+	case MPTCP_EVENT_CREATED:
+	case MPTCP_EVENT_ESTABLISHED:
+		if (mptcp_event_created(skb, msk, ssk) < 0)
+			goto nla_put_failure;
+		break;
+	case MPTCP_EVENT_CLOSED:
+		if (nla_put_u32(skb, MPTCP_ATTR_TOKEN, msk->token) < 0)
+			goto nla_put_failure;
+		break;
+	case MPTCP_EVENT_ANNOUNCED:
+	case MPTCP_EVENT_REMOVED:
+		/* call mptcp_event_addr_announced()/removed instead */
+		WARN_ON_ONCE(1);
+		break;
+	case MPTCP_EVENT_SUB_ESTABLISHED:
+	case MPTCP_EVENT_SUB_PRIORITY:
+		if (mptcp_event_sub_established(skb, msk, ssk) < 0)
+			goto nla_put_failure;
+		break;
+	case MPTCP_EVENT_SUB_CLOSED:
+		if (mptcp_event_sub_closed(skb, msk, ssk) < 0)
+			goto nla_put_failure;
+		break;
+	}
+
+	genlmsg_end(skb, nlh);
+	mptcp_nl_mcast_send(net, skb, gfp);
+	return;
+
+nla_put_failure:
+	kfree_skb(skb);
 }
 
 static const struct genl_small_ops mptcp_pm_ops[] = {
