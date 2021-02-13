@@ -193,6 +193,7 @@ static void bcm54xx_adjust_rxrefclk(struct phy_device *phydev)
 	if (BRCM_PHY_MODEL(phydev) != PHY_ID_BCM57780 &&
 	    BRCM_PHY_MODEL(phydev) != PHY_ID_BCM50610 &&
 	    BRCM_PHY_MODEL(phydev) != PHY_ID_BCM50610M &&
+	    BRCM_PHY_MODEL(phydev) != PHY_ID_BCM54210E &&
 	    BRCM_PHY_MODEL(phydev) != PHY_ID_BCM54810 &&
 	    BRCM_PHY_MODEL(phydev) != PHY_ID_BCM54811)
 		return;
@@ -227,9 +228,10 @@ static void bcm54xx_adjust_rxrefclk(struct phy_device *phydev)
 		val |= BCM54XX_SHD_SCR3_DLLAPD_DIS;
 
 	if (phydev->dev_flags & PHY_BRCM_DIS_TXCRXC_NOENRGY) {
-		if (BRCM_PHY_MODEL(phydev) == PHY_ID_BCM54810 ||
-		    BRCM_PHY_MODEL(phydev) == PHY_ID_BCM54811)
-			val |= BCM54810_SHD_SCR3_TRDDAPD;
+		if (BRCM_PHY_MODEL(phydev) == PHY_ID_BCM54210E ||
+		    BRCM_PHY_MODEL(phydev) == PHY_ID_BCM54810 ||
+		    BRCM_PHY_MODEL(phydev) == PHY_ID_BCM54210E)
+			val |= BCM54XX_SHD_SCR3_RXCTXC_DIS;
 		else
 			val |= BCM54XX_SHD_SCR3_TRDDAPD;
 	}
