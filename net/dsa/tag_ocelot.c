@@ -177,12 +177,10 @@ static struct sk_buff *ocelot_rcv(struct sk_buff *skb,
 				  struct net_device *netdev,
 				  struct packet_type *pt)
 {
-	struct dsa_port *cpu_dp = netdev->dsa_ptr;
-	struct dsa_switch *ds = cpu_dp->ds;
-	struct ocelot *ocelot = ds->priv;
 	u64 src_port, qos_class;
 	u64 vlan_tci, tag_type;
 	u8 *start = skb->data;
+	struct dsa_port *dp;
 	u8 *extraction;
 	u16 vlan_tpid;
 
@@ -243,9 +241,10 @@ static struct sk_buff *ocelot_rcv(struct sk_buff *skb,
 	 * equal to the pvid of the ingress port and should not be used for
 	 * processing.
 	 */
+	dp = dsa_slave_to_port(skb->dev);
 	vlan_tpid = tag_type ? ETH_P_8021AD : ETH_P_8021Q;
 
-	if (ocelot->ports[src_port]->vlan_aware &&
+	if (dsa_port_is_vlan_filtering(dp) &&
 	    eth_hdr(skb)->h_proto == htons(vlan_tpid)) {
 		u16 dummy_vlan_tci;
 
