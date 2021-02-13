@@ -273,11 +273,8 @@ EXPORT_SYMBOL(__netdev_alloc_frag_align);
  * may be used. Otherwise, the packet data may be discarded until enough
  * memory is free
  */
-#define kmalloc_reserve(size, gfp, node, pfmemalloc) \
-	 __kmalloc_reserve(size, gfp, node, _RET_IP_, pfmemalloc)
-
-static void *__kmalloc_reserve(size_t size, gfp_t flags, int node,
-			       unsigned long ip, bool *pfmemalloc)
+static void *kmalloc_reserve(size_t size, gfp_t flags, int node,
+			     bool *pfmemalloc)
 {
 	void *obj;
 	bool ret_pfmemalloc = false;
