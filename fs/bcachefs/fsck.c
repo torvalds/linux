@@ -1072,6 +1072,11 @@ static void inc_link(struct bch_fs *c, nlink_table *links,
 	if (inum < range_start || inum >= *range_end)
 		return;
 
+	if (inum - range_start >= SIZE_MAX / sizeof(struct nlink)) {
+		*range_end = inum;
+		return;
+	}
+
 	link = genradix_ptr_alloc(links, inum - range_start, GFP_KERNEL);
 	if (!link) {
 		bch_verbose(c, "allocation failed during fsck - will need another pass");
@@ -1346,23 +1351,25 @@ static int bch2_gc_walk_inodes(struct bch_fs *c,
 	nlinks_iter = genradix_iter_init(links, 0);
 
 	while ((k = bch2_btree_iter_peek(iter)).k &&
-	       !(ret2 = bkey_err(k))) {
+	       !(ret2 = bkey_err(k)) &&
+	       iter->pos.offset < range_end) {
 peek_nlinks:	link = genradix_iter_peek(&nlinks_iter, links);
 
 		if (!link && (!k.k || iter->pos.offset >= range_end))
 			break;
 
 		nlinks_pos = range_start + nlinks_iter.pos;
-		if (iter->pos.offset > nlinks_pos) {
+
+		if (link && nlinks_pos < iter->pos.offset) {
 			/* Should have been caught by dirents pass: */
-			need_fsck_err_on(link && link->count, c,
+			need_fsck_err_on(link->count, c,
 				"missing inode %llu (nlink %u)",
 				nlinks_pos, link->count);
 			genradix_iter_advance(&nlinks_iter, links);
 			goto peek_nlinks;
 		}
 
-		if (iter->pos.offset < nlinks_pos || !link)
+		if (!link || nlinks_pos > iter->pos.offset)
 			link = &zero_links;
 
 		if (k.k && k.k->type == KEY_TYPE_inode) {
