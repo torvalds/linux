@@ -3599,7 +3599,7 @@ static int send_subcrq_indirect(struct ibmvnic_adapter *adapter,
 	int rc;
 
 	/* Make sure the hypervisor sees the complete request */
-	mb();
+	dma_wmb();
 	rc = plpar_hcall_norets(H_SEND_SUB_CRQ_INDIRECT, ua,
 				cpu_to_be64(remote_handle),
 				ioba, num_entries);
@@ -3629,7 +3629,7 @@ static int ibmvnic_send_crq(struct ibmvnic_adapter *adapter,
 	}
 
 	/* Make sure the hypervisor sees the complete request */
-	mb();
+	dma_wmb();
 
 	rc = plpar_hcall_norets(H_SEND_CRQ, ua,
 				cpu_to_be64(u64_crq[0]),
