@@ -2114,14 +2114,11 @@ static int bnxt_async_event_process(struct bnxt *bp,
 
 		fw_health->enabled = EVENT_DATA1_RECOVERY_ENABLED(data1);
 		fw_health->master = EVENT_DATA1_RECOVERY_MASTER_FUNC(data1);
-		if (!fw_health->enabled)
+		if (!fw_health->enabled) {
+			netif_info(bp, drv, bp->dev,
+				   "Error recovery info: error recovery[0]\n");
 			break;
-
-		netif_info(bp, drv, bp->dev,
-			   "Error recovery info: error recovery[%d], master[%d], reset count[0x%x], health status: 0x%x\n",
-			   fw_health->enabled, fw_health->master,
-			   bnxt_fw_health_readl(bp, BNXT_FW_RESET_CNT_REG),
-			   bnxt_fw_health_readl(bp, BNXT_FW_HEALTH_REG));
+		}
 		fw_health->tmr_multiplier =
 			DIV_ROUND_UP(fw_health->polling_dsecs * HZ,
 				     bp->current_interval * 10);
@@ -2130,6 +2127,10 @@ static int bnxt_async_event_process(struct bnxt *bp,
 			bnxt_fw_health_readl(bp, BNXT_FW_HEARTBEAT_REG);
 		fw_health->last_fw_reset_cnt =
 			bnxt_fw_health_readl(bp, BNXT_FW_RESET_CNT_REG);
+		netif_info(bp, drv, bp->dev,
+			   "Error recovery info: error recovery[1], master[%d], reset count[%u], health status: 0x%x\n",
+			   fw_health->master, fw_health->last_fw_reset_cnt,
+			   bnxt_fw_health_readl(bp, BNXT_FW_HEALTH_REG));
 		goto async_event_process_exit;
 	}
 	case ASYNC_EVENT_CMPL_EVENT_ID_DEBUG_NOTIFICATION:
