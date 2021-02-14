@@ -257,6 +257,7 @@ static const u16 bnxt_async_events_arr[] = {
 	ASYNC_EVENT_CMPL_EVENT_ID_ERROR_RECOVERY,
 	ASYNC_EVENT_CMPL_EVENT_ID_DEBUG_NOTIFICATION,
 	ASYNC_EVENT_CMPL_EVENT_ID_RING_MONITOR_MSG,
+	ASYNC_EVENT_CMPL_EVENT_ID_ECHO_REQUEST,
 };
 
 static struct workqueue_struct *bnxt_pf_wq;
@@ -2097,6 +2098,20 @@ static int bnxt_async_event_process(struct bnxt *bp,
 		}
 		rxr = bp->bnapi[grp_idx]->rx_ring;
 		bnxt_sched_reset(bp, rxr);
+		goto async_event_process_exit;
+	}
+	case ASYNC_EVENT_CMPL_EVENT_ID_ECHO_REQUEST: {
+		struct bnxt_fw_health *fw_health = bp->fw_health;
+
+		netif_notice(bp, hw, bp->dev,
+			     "Received firmware echo request, data1: 0x%x, data2: 0x%x\n",
+			     data1, data2);
+		if (fw_health) {
+			fw_health->echo_req_data1 = data1;
+			fw_health->echo_req_data2 = data2;
+			set_bit(BNXT_FW_ECHO_REQUEST_SP_EVENT, &bp->sp_event);
+			break;
+		}
 		goto async_event_process_exit;
 	}
 	default:
@@ -11208,6 +11223,17 @@ static void bnxt_init_ethtool_link_settings(struct bnxt *bp)
 		link_info->req_flow_ctrl = link_info->force_pause_setting;
 }
 
+static void bnxt_fw_echo_reply(struct bnxt *bp)
+{
+	struct bnxt_fw_health *fw_health = bp->fw_health;
+	struct hwrm_func_echo_response_input req = {0};
+
+	bnxt_hwrm_cmd_hdr_init(bp, &req, HWRM_FUNC_ECHO_RESPONSE, -1, -1);
+	req.event_data1 = cpu_to_le32(fw_health->echo_req_data1);
+	req.event_data2 = cpu_to_le32(fw_health->echo_req_data2);
+	hwrm_send_message(bp, &req, sizeof(req), HWRM_CMD_TIMEOUT);
+}
+
 static void bnxt_sp_task(struct work_struct *work)
 {
 	struct bnxt *bp = container_of(work, struct bnxt, sp_task);
@@ -11274,6 +11300,9 @@ static void bnxt_sp_task(struct work_struct *work)
 
 	if (test_and_clear_bit(BNXT_RING_COAL_NOW_SP_EVENT, &bp->sp_event))
 		bnxt_chk_missed_irq(bp);
+
+	if (test_and_clear_bit(BNXT_FW_ECHO_REQUEST_SP_EVENT, &bp->sp_event))
+		bnxt_fw_echo_reply(bp);
 
 	/* These functions below will clear BNXT_STATE_IN_SP_TASK.  They
 	 * must be the last functions to be called before exiting.
