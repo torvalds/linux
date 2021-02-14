@@ -2,8 +2,8 @@
 VERSION = 5
 PATCHLEVEL = 11
 SUBLEVEL = 0
-EXTRAVERSION = -rc7
-NAME = Kleptomaniac Octopus
+EXTRAVERSION =
+NAME = 💕 Valentine's Day Edition 💕
 
 # *DOCUMENTATION*
 # To see a list of typical targets execute "make help"
