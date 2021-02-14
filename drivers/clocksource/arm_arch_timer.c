@@ -63,6 +63,14 @@ struct arch_timer {
 static u32 arch_timer_rate;
 static int arch_timer_ppi[ARCH_TIMER_MAX_TIMER_PPI];
 
+static const char *arch_timer_ppi_names[ARCH_TIMER_MAX_TIMER_PPI] = {
+	[ARCH_TIMER_PHYS_SECURE_PPI]	= "sec-phys",
+	[ARCH_TIMER_PHYS_NONSECURE_PPI]	= "phys",
+	[ARCH_TIMER_VIRT_PPI]		= "virt",
+	[ARCH_TIMER_HYP_PPI]		= "hyp-phys",
+	[ARCH_TIMER_HYP_VIRT_PPI]	= "hyp-virt",
+};
+
 static struct clock_event_device __percpu *arch_timer_evt;
 
 static enum arch_timer_ppi_nr arch_timer_uses_ppi = ARCH_TIMER_VIRT_PPI;
@@ -1280,8 +1288,9 @@ static void __init arch_timer_populate_kvm_info(void)
 
 static int __init arch_timer_of_init(struct device_node *np)
 {
-	int i, ret;
+	int i, irq, ret;
 	u32 rate;
+	bool has_names;
 
 	if (arch_timers_present & ARCH_TIMER_TYPE_CP15) {
 		pr_warn("multiple nodes in dt, skipping\n");
@@ -1289,8 +1298,17 @@ static int __init arch_timer_of_init(struct device_node *np)
 	}
 
 	arch_timers_present |= ARCH_TIMER_TYPE_CP15;
-	for (i = ARCH_TIMER_PHYS_SECURE_PPI; i < ARCH_TIMER_MAX_TIMER_PPI; i++)
-		arch_timer_ppi[i] = irq_of_parse_and_map(np, i);
+
+	has_names = of_property_read_bool(np, "interrupt-names");
+
+	for (i = ARCH_TIMER_PHYS_SECURE_PPI; i < ARCH_TIMER_MAX_TIMER_PPI; i++) {
+		if (has_names)
+			irq = of_irq_get_byname(np, arch_timer_ppi_names[i]);
+		else
+			irq = of_irq_get(np, i);
+		if (irq > 0)
+			arch_timer_ppi[i] = irq;
+	}
 
 	arch_timer_populate_kvm_info();
 
