@@ -22,7 +22,7 @@
 union sequence_control {
 	u16 short_data;
 	struct {
-		u16	FragNum:4;
+		u16	frag_num:4;
 		u16	SeqNum:12;
 	} field;
 };
