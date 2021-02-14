@@ -344,7 +344,7 @@ static int device_early_init(struct hl_device *hdev)
 	if (hdev->asic_prop.completion_queues_count) {
 		hdev->cq_wq = kcalloc(hdev->asic_prop.completion_queues_count,
 				sizeof(*hdev->cq_wq),
-				GFP_ATOMIC);
+				GFP_KERNEL);
 		if (!hdev->cq_wq) {
 			rc = -ENOMEM;
 			goto asid_fini;

@@ -145,7 +145,7 @@ static int alloc_device_memory(struct hl_ctx *ctx, struct hl_mem_in *args,
 
 	spin_lock(&vm->idr_lock);
 	handle = idr_alloc(&vm->phys_pg_pack_handles, phys_pg_pack, 1, 0,
-				GFP_ATOMIC);
+				GFP_KERNEL);
 	spin_unlock(&vm->idr_lock);
 
 	if (handle < 0) {
@@ -1596,7 +1596,7 @@ static int get_user_memory(struct hl_device *hdev, u64 addr, u64 size,
 
 	rc = sg_alloc_table_from_pages(userptr->sgt,
 				       userptr->pages,
-				       npages, offset, size, GFP_ATOMIC);
+				       npages, offset, size, GFP_KERNEL);
 	if (rc < 0) {
 		dev_err(hdev->dev, "failed to create SG table from pages\n");
 		goto put_pages;
@@ -1646,11 +1646,7 @@ int hl_pin_host_memory(struct hl_device *hdev, u64 addr, u64 size,
 		return -EINVAL;
 	}
 
-	/*
-	 * This function can be called also from data path, hence use atomic
-	 * always as it is not a big allocation.
-	 */
-	userptr->sgt = kzalloc(sizeof(*userptr->sgt), GFP_ATOMIC);
+	userptr->sgt = kzalloc(sizeof(*userptr->sgt), GFP_KERNEL);
 	if (!userptr->sgt)
 		return -ENOMEM;
 

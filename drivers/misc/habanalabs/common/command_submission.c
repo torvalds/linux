@@ -638,6 +638,9 @@ static int allocate_cs(struct hl_device *hdev, struct hl_ctx *ctx,
 	cntr = &hdev->aggregated_cs_counters;
 
 	cs = kzalloc(sizeof(*cs), GFP_ATOMIC);
+	if (!cs)
+		cs = kzalloc(sizeof(*cs), GFP_KERNEL);
+
 	if (!cs) {
 		atomic64_inc(&ctx->cs_counters.out_of_mem_drop_cnt);
 		atomic64_inc(&cntr->out_of_mem_drop_cnt);
@@ -657,6 +660,9 @@ static int allocate_cs(struct hl_device *hdev, struct hl_ctx *ctx,
 	spin_lock_init(&cs->job_lock);
 
 	cs_cmpl = kmalloc(sizeof(*cs_cmpl), GFP_ATOMIC);
+	if (!cs_cmpl)
+		cs_cmpl = kmalloc(sizeof(*cs_cmpl), GFP_KERNEL);
+
 	if (!cs_cmpl) {
 		atomic64_inc(&ctx->cs_counters.out_of_mem_drop_cnt);
 		atomic64_inc(&cntr->out_of_mem_drop_cnt);
@@ -698,6 +704,10 @@ static int allocate_cs(struct hl_device *hdev, struct hl_ctx *ctx,
 
 	cs->jobs_in_queue_cnt = kcalloc(hdev->asic_prop.max_queues,
 			sizeof(*cs->jobs_in_queue_cnt), GFP_ATOMIC);
+	if (!cs->jobs_in_queue_cnt)
+		cs->jobs_in_queue_cnt = kcalloc(hdev->asic_prop.max_queues,
+				sizeof(*cs->jobs_in_queue_cnt), GFP_KERNEL);
+
 	if (!cs->jobs_in_queue_cnt) {
 		atomic64_inc(&ctx->cs_counters.out_of_mem_drop_cnt);
 		atomic64_inc(&cntr->out_of_mem_drop_cnt);
@@ -928,6 +938,9 @@ struct hl_cs_job *hl_cs_allocate_job(struct hl_device *hdev,
 
 	job = kzalloc(sizeof(*job), GFP_ATOMIC);
 	if (!job)
+		job = kzalloc(sizeof(*job), GFP_KERNEL);
+
+	if (!job)
 		return NULL;
 
 	kref_init(&job->refcount);
@@ -1029,6 +1042,9 @@ static int hl_cs_copy_chunk_array(struct hl_device *hdev,
 
 	*cs_chunk_array = kmalloc_array(num_chunks, sizeof(**cs_chunk_array),
 					GFP_ATOMIC);
+	if (!*cs_chunk_array)
+		*cs_chunk_array = kmalloc_array(num_chunks,
+					sizeof(**cs_chunk_array), GFP_KERNEL);
 	if (!*cs_chunk_array) {
 		atomic64_inc(&ctx->cs_counters.out_of_mem_drop_cnt);
 		atomic64_inc(&hdev->aggregated_cs_counters.out_of_mem_drop_cnt);
@@ -1483,6 +1499,10 @@ static int cs_ioctl_extract_signal_seq(struct hl_device *hdev,
 	signal_seq_arr = kmalloc_array(signal_seq_arr_len,
 					sizeof(*signal_seq_arr),
 					GFP_ATOMIC);
+	if (!signal_seq_arr)
+		signal_seq_arr = kmalloc_array(signal_seq_arr_len,
+					sizeof(*signal_seq_arr),
+					GFP_KERNEL);
 	if (!signal_seq_arr) {
 		atomic64_inc(&ctx->cs_counters.out_of_mem_drop_cnt);
 		atomic64_inc(&hdev->aggregated_cs_counters.out_of_mem_drop_cnt);
@@ -1931,7 +1951,7 @@ static int _hl_interrupt_wait_ioctl(struct hl_device *hdev, struct hl_ctx *ctx,
 
 	hl_ctx_get(hdev, ctx);
 
-	pend = kmalloc(sizeof(*pend), GFP_ATOMIC);
+	pend = kmalloc(sizeof(*pend), GFP_KERNEL);
 	if (!pend) {
 		hl_ctx_put(ctx);
 		return -ENOMEM;
