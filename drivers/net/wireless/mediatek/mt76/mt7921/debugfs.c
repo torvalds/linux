@@ -164,7 +164,6 @@ mt7921_pm_set(void *data, u64 val)
 {
 	struct mt7921_dev *dev = data;
 	struct mt76_phy *mphy = dev->phy.mt76;
-	int ret = 0;
 
 	mt7921_mutex_acquire(dev);
 
@@ -175,7 +174,7 @@ mt7921_pm_set(void *data, u64 val)
 					    mt7921_pm_interface_iter, mphy->priv);
 	mt7921_mutex_release(dev);
 
-	return ret;
+	return 0;
 }
 
 static int
