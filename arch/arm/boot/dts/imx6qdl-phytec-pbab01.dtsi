@@ -78,7 +78,8 @@
 	ssi2 {
 		fsl,audmux-port = <1>;
 		fsl,port-config = <
-			(IMX_AUDMUX_V2_PTCR_TFSDIR |
+			(IMX_AUDMUX_V2_PTCR_SYN |
+			IMX_AUDMUX_V2_PTCR_TFSDIR |
 			IMX_AUDMUX_V2_PTCR_TFSEL(4) |
 			IMX_AUDMUX_V2_PTCR_TCLKDIR |
 			IMX_AUDMUX_V2_PTCR_TCSEL(4))
@@ -89,7 +90,7 @@
 	pins5 {
 		fsl,audmux-port = <4>;
 		fsl,port-config = <
-			0x00000000
+			IMX_AUDMUX_V2_PTCR_SYN
 			IMX_AUDMUX_V2_PDCR_RXDSEL(1)
 		>;
 	};
