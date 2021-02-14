@@ -2688,6 +2688,23 @@ static void bnxt_free_skbs(struct bnxt *bp)
 	bnxt_free_rx_skbs(bp);
 }
 
+static void bnxt_init_ctx_mem(struct bnxt_mem_init *mem_init, void *p, int len)
+{
+	u8 init_val = mem_init->init_val;
+	u16 offset = mem_init->offset;
+	u8 *p2 = p;
+	int i;
+
+	if (!init_val)
+		return;
+	if (offset == BNXT_MEM_INVALID_OFFSET) {
+		memset(p, init_val, len);
+		return;
+	}
+	for (i = 0; i < len; i += mem_init->size)
+		*(p2 + i + offset) = init_val;
+}
+
 static void bnxt_free_ring(struct bnxt *bp, struct bnxt_ring_mem_info *rmem)
 {
 	struct pci_dev *pdev = bp->pdev;
@@ -2747,9 +2764,9 @@ static int bnxt_alloc_ring(struct bnxt *bp, struct bnxt_ring_mem_info *rmem)
 		if (!rmem->pg_arr[i])
 			return -ENOMEM;
 
-		if (rmem->mem_init && rmem->mem_init->init_val)
-			memset(rmem->pg_arr[i], rmem->mem_init->init_val,
-			       rmem->page_size);
+		if (rmem->mem_init)
+			bnxt_init_ctx_mem(rmem->mem_init, rmem->pg_arr[i],
+					  rmem->page_size);
 		if (rmem->nr_pages > 1 || rmem->depth > 0) {
 			if (i == rmem->nr_pages - 2 &&
 			    (rmem->flags & BNXT_RMEM_RING_PTE_FLAG))
@@ -6754,13 +6771,33 @@ static void bnxt_init_ctx_initializer(struct bnxt_ctx_mem_info *ctx,
 			struct hwrm_func_backing_store_qcaps_output *resp)
 {
 	struct bnxt_mem_init *mem_init;
+	u16 init_mask;
 	u8 init_val;
+	u8 *offset;
 	int i;
 
 	init_val = resp->ctx_kind_initializer;
-	mem_init = &ctx->mem_init[0];
-	for (i = 0; i < BNXT_CTX_MEM_INIT_MAX; i++, mem_init++)
+	init_mask = le16_to_cpu(resp->ctx_init_mask);
+	offset = &resp->qp_init_offset;
+	mem_init = &ctx->mem_init[BNXT_CTX_MEM_INIT_QP];
+	for (i = 0; i < BNXT_CTX_MEM_INIT_MAX; i++, mem_init++, offset++) {
 		mem_init->init_val = init_val;
+		mem_init->offset = BNXT_MEM_INVALID_OFFSET;
+		if (!init_mask)
+			continue;
+		if (i == BNXT_CTX_MEM_INIT_STAT)
+			offset = &resp->stat_init_offset;
+		if (init_mask & (1 << i))
+			mem_init->offset = *offset * 4;
+		else
+			mem_init->init_val = 0;
+	}
+	ctx->mem_init[BNXT_CTX_MEM_INIT_QP].size = ctx->qp_entry_size;
+	ctx->mem_init[BNXT_CTX_MEM_INIT_SRQ].size = ctx->srq_entry_size;
+	ctx->mem_init[BNXT_CTX_MEM_INIT_CQ].size = ctx->cq_entry_size;
+	ctx->mem_init[BNXT_CTX_MEM_INIT_VNIC].size = ctx->vnic_entry_size;
+	ctx->mem_init[BNXT_CTX_MEM_INIT_STAT].size = ctx->stat_entry_size;
+	ctx->mem_init[BNXT_CTX_MEM_INIT_MRAV].size = ctx->mrav_entry_size;
 }
 
 static int bnxt_hwrm_func_backing_store_qcaps(struct bnxt *bp)
