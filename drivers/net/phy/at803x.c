@@ -1190,6 +1190,7 @@ static struct phy_driver at803x_driver[] = {
 	.probe			= at803x_probe,
 	.remove			= at803x_remove,
 	.config_init		= at803x_config_init,
+	.config_aneg		= at803x_config_aneg,
 	.soft_reset		= genphy_soft_reset,
 	.set_wol		= at803x_set_wol,
 	.get_wol		= at803x_get_wol,
