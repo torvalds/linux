@@ -225,7 +225,7 @@ static struct dentry *vboxsf_dir_lookup(struct inode *parent,
 	} else {
 		inode = vboxsf_new_inode(parent->i_sb);
 		if (!IS_ERR(inode))
-			vboxsf_init_inode(sbi, inode, &fsinfo);
+			vboxsf_init_inode(sbi, inode, &fsinfo, false);
 	}
 
 	return d_splice_alias(inode, dentry);
@@ -245,7 +245,7 @@ static int vboxsf_dir_instantiate(struct inode *parent, struct dentry *dentry,
 	sf_i = VBOXSF_I(inode);
 	/* The host may have given us different attr then requested */
 	sf_i->force_restat = 1;
-	vboxsf_init_inode(sbi, inode, info);
+	vboxsf_init_inode(sbi, inode, info, false);
 
 	d_instantiate(dentry, inode);
 
