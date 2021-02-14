@@ -188,7 +188,7 @@ static int ip175c_read_status(struct phy_device *phydev)
 		genphy_read_status(phydev);
 	else
 		/* Don't need to read status for switch ports */
-		phydev->irq = PHY_IGNORE_INTERRUPT;
+		phydev->irq = PHY_MAC_INTERRUPT;
 
 	return 0;
 }

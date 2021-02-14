@@ -1145,7 +1145,7 @@ void phy_state_machine(struct work_struct *work)
 	}
 
 	/* Only re-schedule a PHY state machine change if we are polling the
-	 * PHY, if PHY_IGNORE_INTERRUPT is set, then we will be moving
+	 * PHY, if PHY_MAC_INTERRUPT is set, then we will be moving
 	 * between states from phy_mac_interrupt().
 	 *
 	 * In state PHY_HALTED the PHY gets suspended, so rescheduling the

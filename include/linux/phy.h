@@ -71,11 +71,11 @@ extern const int phy_10gbit_features_array[1];
 
 /*
  * Set phydev->irq to PHY_POLL if interrupts are not supported,
- * or not desired for this PHY.  Set to PHY_IGNORE_INTERRUPT if
- * the attached driver handles the interrupt
+ * or not desired for this PHY.  Set to PHY_MAC_INTERRUPT if
+ * the attached MAC driver handles the interrupt
  */
 #define PHY_POLL		-1
-#define PHY_IGNORE_INTERRUPT	-2
+#define PHY_MAC_INTERRUPT	-2
 
 #define PHY_IS_INTERNAL		0x00000001
 #define PHY_RST_AFTER_CLK_EN	0x00000002
@@ -1202,11 +1202,11 @@ static inline int phy_clear_bits_mmd(struct phy_device *phydev, int devad,
  * @phydev: the phy_device struct
  *
  * NOTE: must be kept in sync with addition/removal of PHY_POLL and
- * PHY_IGNORE_INTERRUPT
+ * PHY_MAC_INTERRUPT
  */
 static inline bool phy_interrupt_is_valid(struct phy_device *phydev)
 {
-	return phydev->irq != PHY_POLL && phydev->irq != PHY_IGNORE_INTERRUPT;
+	return phydev->irq != PHY_POLL && phydev->irq != PHY_MAC_INTERRUPT;
 }
 
 /**

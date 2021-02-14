@@ -1167,8 +1167,8 @@ char *phy_attached_info_irq(struct phy_device *phydev)
 	case PHY_POLL:
 		irq_str = "POLL";
 		break;
-	case PHY_IGNORE_INTERRUPT:
-		irq_str = "IGNORE";
+	case PHY_MAC_INTERRUPT:
+		irq_str = "MAC";
 		break;
 	default:
 		snprintf(irq_num, sizeof(irq_num), "%d", phydev->irq);

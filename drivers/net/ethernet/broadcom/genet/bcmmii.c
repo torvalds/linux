@@ -359,7 +359,7 @@ int bcmgenet_mii_probe(struct net_device *dev)
 	 * those versions of GENET.
 	 */
 	if (priv->internal_phy && !GENET_IS_V5(priv))
-		dev->phydev->irq = PHY_IGNORE_INTERRUPT;
+		dev->phydev->irq = PHY_MAC_INTERRUPT;
 
 	return 0;
 }

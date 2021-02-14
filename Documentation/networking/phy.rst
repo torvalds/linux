@@ -216,7 +216,7 @@ put into an unsupported state.
 Lastly, once the controller is ready to handle network traffic, you call
 phy_start(phydev).  This tells the PAL that you are ready, and configures the
 PHY to connect to the network. If the MAC interrupt of your network driver
-also handles PHY status changes, just set phydev->irq to PHY_IGNORE_INTERRUPT
+also handles PHY status changes, just set phydev->irq to PHY_MAC_INTERRUPT
 before you call phy_start and use phy_mac_interrupt() from the network
 driver. If you don't want to use interrupts, set phydev->irq to PHY_POLL.
 phy_start() enables the PHY interrupts (if applicable) and starts the
