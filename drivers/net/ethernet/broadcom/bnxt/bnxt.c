@@ -10935,6 +10935,11 @@ static void bnxt_fw_reset_close(struct bnxt *bp)
 	 * kernel memory.
 	 */
 	if (test_bit(BNXT_STATE_FW_FATAL_COND, &bp->state)) {
+		u16 val = 0;
+
+		pci_read_config_word(bp->pdev, PCI_SUBSYSTEM_ID, &val);
+		if (val == 0xffff)
+			bp->fw_reset_min_dsecs = 0;
 		bnxt_tx_disable(bp);
 		bnxt_disable_napi(bp);
 		bnxt_disable_int_sync(bp);
@@ -11620,6 +11625,20 @@ static void bnxt_fw_reset_task(struct work_struct *work)
 		if (test_bit(BNXT_STATE_FW_FATAL_COND, &bp->state)) {
 			u32 val;
 
+			if (!bp->fw_reset_min_dsecs) {
+				u16 val;
+
+				pci_read_config_word(bp->pdev, PCI_SUBSYSTEM_ID,
+						     &val);
+				if (val == 0xffff) {
+					if (bnxt_fw_reset_timeout(bp)) {
+						netdev_err(bp->dev, "Firmware reset aborted, PCI config space invalid\n");
+						goto fw_reset_abort;
+					}
+					bnxt_queue_fw_reset_work(bp, HZ / 1000);
+					return;
+				}
+			}
 			val = bnxt_fw_health_readl(bp,
 						   BNXT_FW_RESET_INPROG_REG);
 			if (val)
