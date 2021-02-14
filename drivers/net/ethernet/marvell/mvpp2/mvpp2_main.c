@@ -7093,8 +7093,8 @@ static void mvpp22_tx_fifo_set_hw(struct mvpp2 *priv, int port, int size)
 }
 
 /* Initialize TX FIFO's: the total FIFO size is 19kB on PPv2.2 and PPv2.3.
- * 3kB fixed space must be assigned for the loopback port.
- * Redistribute remaining avialable 16kB space among all active ports.
+ * 1kB fixed space must be assigned for the loopback port.
+ * Redistribute remaining avialable 18kB space among all active ports.
  * The 10G interface should use 10kB (which is maximum possible size
  * per single port).
  */
@@ -7105,9 +7105,9 @@ static void mvpp22_tx_fifo_init(struct mvpp2 *priv)
 	int size_remainder;
 	int port, size;
 
-	/* The loopback requires fixed 3kB of the FIFO space assignment. */
+	/* The loopback requires fixed 1kB of the FIFO space assignment. */
 	mvpp22_tx_fifo_set_hw(priv, MVPP2_LOOPBACK_PORT_INDEX,
-			      MVPP22_TX_FIFO_DATA_SIZE_3KB);
+			      MVPP22_TX_FIFO_DATA_SIZE_1KB);
 	port_map = priv->port_map & ~BIT(MVPP2_LOOPBACK_PORT_INDEX);
 
 	/* Set TX FIFO size to 0 for inactive ports. */
@@ -7115,7 +7115,7 @@ static void mvpp22_tx_fifo_init(struct mvpp2 *priv)
 		mvpp22_tx_fifo_set_hw(priv, port, 0);
 
 	/* Assign remaining TX FIFO space among all active ports. */
-	size_remainder = MVPP22_TX_FIFO_DATA_SIZE_16KB;
+	size_remainder = MVPP22_TX_FIFO_DATA_SIZE_18KB;
 	remaining_ports_count = hweight_long(port_map);
 
 	for_each_set_bit(port, &port_map, MVPP2_LOOPBACK_PORT_INDEX) {
