@@ -23,8 +23,6 @@
  *          Alex Deucher <alexdeucher@gmail.com>
  */
 
-#include <drm/drm_debugfs.h>
-
 #include "amdgpu.h"
 #include "amdgpu_drv.h"
 #include "amdgpu_pm.h"
@@ -3784,11 +3782,10 @@ static void amdgpu_parse_cg_state(struct seq_file *m, u32 flags)
 			   (flags & clocks[i].flag) ? "On" : "Off");
 }
 
-static int amdgpu_debugfs_pm_info(struct seq_file *m, void *data)
+static int amdgpu_debugfs_pm_info_show(struct seq_file *m, void *unused)
 {
-	struct drm_info_node *node = (struct drm_info_node *) m->private;
-	struct drm_device *dev = node->minor->dev;
-	struct amdgpu_device *adev = drm_to_adev(dev);
+	struct amdgpu_device *adev = (struct amdgpu_device *)m->private;
+	struct drm_device *dev = adev_to_drm(adev);
 	u32 flags = 0;
 	int r;
 
@@ -3836,16 +3833,18 @@ out:
 	return r;
 }
 
-static const struct drm_info_list amdgpu_pm_info_list[] = {
-	{"amdgpu_pm_info", amdgpu_debugfs_pm_info, 0, NULL},
-};
+DEFINE_SHOW_ATTRIBUTE(amdgpu_debugfs_pm_info);
+
 #endif
 
-int amdgpu_debugfs_pm_init(struct amdgpu_device *adev)
+void amdgpu_debugfs_pm_init(struct amdgpu_device *adev)
 {
 #if defined(CONFIG_DEBUG_FS)
-	return amdgpu_debugfs_add_files(adev, amdgpu_pm_info_list, ARRAY_SIZE(amdgpu_pm_info_list));
-#else
-	return 0;
+	struct drm_minor *minor = adev_to_drm(adev)->primary;
+	struct dentry *root = minor->debugfs_root;
+
+	debugfs_create_file("amdgpu_pm_info", 0444, root, adev,
+			    &amdgpu_debugfs_pm_info_fops);
+
 #endif
 }

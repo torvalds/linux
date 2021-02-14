@@ -1619,11 +1619,7 @@ int amdgpu_debugfs_init(struct amdgpu_device *adev)
 		return r;
 	}
 
-	r = amdgpu_debugfs_pm_init(adev);
-	if (r) {
-		DRM_ERROR("Failed to register debugfs file for dpm!\n");
-		return r;
-	}
+	amdgpu_debugfs_pm_init(adev);
 
 	if (amdgpu_debugfs_sa_init(adev)) {
 		dev_err(adev->dev, "failed to register debugfs file for SA\n");
