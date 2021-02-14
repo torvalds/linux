@@ -6834,6 +6834,9 @@ static void bnxt_hwrm_set_pg_attr(struct bnxt_ring_mem_info *rmem, u8 *pg_attr,
 {
 	u8 pg_size = 0;
 
+	if (!rmem->nr_pages)
+		return;
+
 	if (BNXT_PAGE_SHIFT == 13)
 		pg_size = 1 << 4;
 	else if (BNXT_PAGE_SIZE == 16)
@@ -7124,39 +7127,49 @@ static int bnxt_alloc_ctx_mem(struct bnxt *bp)
 	ctx_pg = &ctx->qp_mem;
 	ctx_pg->entries = ctx->qp_min_qp1_entries + ctx->qp_max_l2_entries +
 			  extra_qps;
-	mem_size = ctx->qp_entry_size * ctx_pg->entries;
-	rc = bnxt_alloc_ctx_pg_tbls(bp, ctx_pg, mem_size, pg_lvl, true);
-	if (rc)
-		return rc;
+	if (ctx->qp_entry_size) {
+		mem_size = ctx->qp_entry_size * ctx_pg->entries;
+		rc = bnxt_alloc_ctx_pg_tbls(bp, ctx_pg, mem_size, pg_lvl, true);
+		if (rc)
+			return rc;
+	}
 
 	ctx_pg = &ctx->srq_mem;
 	ctx_pg->entries = ctx->srq_max_l2_entries + extra_srqs;
-	mem_size = ctx->srq_entry_size * ctx_pg->entries;
-	rc = bnxt_alloc_ctx_pg_tbls(bp, ctx_pg, mem_size, pg_lvl, true);
-	if (rc)
-		return rc;
+	if (ctx->srq_entry_size) {
+		mem_size = ctx->srq_entry_size * ctx_pg->entries;
+		rc = bnxt_alloc_ctx_pg_tbls(bp, ctx_pg, mem_size, pg_lvl, true);
+		if (rc)
+			return rc;
+	}
 
 	ctx_pg = &ctx->cq_mem;
 	ctx_pg->entries = ctx->cq_max_l2_entries + extra_qps * 2;
-	mem_size = ctx->cq_entry_size * ctx_pg->entries;
-	rc = bnxt_alloc_ctx_pg_tbls(bp, ctx_pg, mem_size, pg_lvl, true);
-	if (rc)
-		return rc;
+	if (ctx->cq_entry_size) {
+		mem_size = ctx->cq_entry_size * ctx_pg->entries;
+		rc = bnxt_alloc_ctx_pg_tbls(bp, ctx_pg, mem_size, pg_lvl, true);
+		if (rc)
+			return rc;
+	}
 
 	ctx_pg = &ctx->vnic_mem;
 	ctx_pg->entries = ctx->vnic_max_vnic_entries +
 			  ctx->vnic_max_ring_table_entries;
-	mem_size = ctx->vnic_entry_size * ctx_pg->entries;
-	rc = bnxt_alloc_ctx_pg_tbls(bp, ctx_pg, mem_size, 1, true);
-	if (rc)
-		return rc;
+	if (ctx->vnic_entry_size) {
+		mem_size = ctx->vnic_entry_size * ctx_pg->entries;
+		rc = bnxt_alloc_ctx_pg_tbls(bp, ctx_pg, mem_size, 1, true);
+		if (rc)
+			return rc;
+	}
 
 	ctx_pg = &ctx->stat_mem;
 	ctx_pg->entries = ctx->stat_max_entries;
-	mem_size = ctx->stat_entry_size * ctx_pg->entries;
-	rc = bnxt_alloc_ctx_pg_tbls(bp, ctx_pg, mem_size, 1, true);
-	if (rc)
-		return rc;
+	if (ctx->stat_entry_size) {
+		mem_size = ctx->stat_entry_size * ctx_pg->entries;
+		rc = bnxt_alloc_ctx_pg_tbls(bp, ctx_pg, mem_size, 1, true);
+		if (rc)
+			return rc;
+	}
 
 	ena = 0;
 	if (!(bp->flags & BNXT_FLAG_ROCE_CAP))
@@ -7169,10 +7182,12 @@ static int bnxt_alloc_ctx_mem(struct bnxt *bp)
 	num_mr = 1024 * 256;
 	num_ah = 1024 * 128;
 	ctx_pg->entries = num_mr + num_ah;
-	mem_size = ctx->mrav_entry_size * ctx_pg->entries;
-	rc = bnxt_alloc_ctx_pg_tbls(bp, ctx_pg, mem_size, 2, true);
-	if (rc)
-		return rc;
+	if (ctx->mrav_entry_size) {
+		mem_size = ctx->mrav_entry_size * ctx_pg->entries;
+		rc = bnxt_alloc_ctx_pg_tbls(bp, ctx_pg, mem_size, 2, true);
+		if (rc)
+			return rc;
+	}
 	ena = FUNC_BACKING_STORE_CFG_REQ_ENABLES_MRAV;
 	if (ctx->mrav_num_entries_units)
 		ctx_pg->entries =
@@ -7181,10 +7196,12 @@ static int bnxt_alloc_ctx_mem(struct bnxt *bp)
 
 	ctx_pg = &ctx->tim_mem;
 	ctx_pg->entries = ctx->qp_mem.entries;
-	mem_size = ctx->tim_entry_size * ctx_pg->entries;
-	rc = bnxt_alloc_ctx_pg_tbls(bp, ctx_pg, mem_size, 1, false);
-	if (rc)
-		return rc;
+	if (ctx->tim_entry_size) {
+		mem_size = ctx->tim_entry_size * ctx_pg->entries;
+		rc = bnxt_alloc_ctx_pg_tbls(bp, ctx_pg, mem_size, 1, false);
+		if (rc)
+			return rc;
+	}
 	ena |= FUNC_BACKING_STORE_CFG_REQ_ENABLES_TIM;
 
 skip_rdma:
@@ -7198,10 +7215,13 @@ skip_rdma:
 	for (i = 0; i < ctx->tqm_fp_rings_count + 1; i++) {
 		ctx_pg = ctx->tqm_mem[i];
 		ctx_pg->entries = i ? entries : entries_sp;
-		mem_size = ctx->tqm_entry_size * ctx_pg->entries;
-		rc = bnxt_alloc_ctx_pg_tbls(bp, ctx_pg, mem_size, 1, false);
-		if (rc)
-			return rc;
+		if (ctx->tqm_entry_size) {
+			mem_size = ctx->tqm_entry_size * ctx_pg->entries;
+			rc = bnxt_alloc_ctx_pg_tbls(bp, ctx_pg, mem_size, 1,
+						    false);
+			if (rc)
+				return rc;
+		}
 		ena |= FUNC_BACKING_STORE_CFG_REQ_ENABLES_TQM_SP << i;
 	}
 	ena |= FUNC_BACKING_STORE_CFG_REQ_DFLT_ENABLES;
