@@ -2204,7 +2204,7 @@ static void ocfs2_unpack_timespec(struct timespec64 *spec,
 	spec->tv_nsec = packed_time & OCFS2_NSEC_MASK;
 }
 
-static void ocfs2_refresh_inode_from_lvb(struct inode *inode)
+static int ocfs2_refresh_inode_from_lvb(struct inode *inode)
 {
 	struct ocfs2_inode_info *oi = OCFS2_I(inode);
 	struct ocfs2_lock_res *lockres = &oi->ip_inode_lockres;
@@ -2213,6 +2213,8 @@ static void ocfs2_refresh_inode_from_lvb(struct inode *inode)
 	mlog_meta_lvb(0, lockres);
 
 	lvb = ocfs2_dlm_lvb(&lockres->l_lksb);
+	if (inode_wrong_type(inode, be16_to_cpu(lvb->lvb_imode)))
+		return -ESTALE;
 
 	/* We're safe here without the lockres lock... */
 	spin_lock(&oi->ip_lock);
@@ -2240,6 +2242,7 @@ static void ocfs2_refresh_inode_from_lvb(struct inode *inode)
 	ocfs2_unpack_timespec(&inode->i_ctime,
 			      be64_to_cpu(lvb->lvb_ictime_packed));
 	spin_unlock(&oi->ip_lock);
+	return 0;
 }
 
 static inline int ocfs2_meta_lvb_is_trustable(struct inode *inode,
@@ -2342,7 +2345,8 @@ static int ocfs2_inode_lock_update(struct inode *inode,
 	if (ocfs2_meta_lvb_is_trustable(inode, lockres)) {
 		mlog(0, "Trusting LVB on inode %llu\n",
 		     (unsigned long long)oi->ip_blkno);
-		ocfs2_refresh_inode_from_lvb(inode);
+		status = ocfs2_refresh_inode_from_lvb(inode);
+		goto bail_refresh;
 	} else {
 		/* Boo, we have to go to disk. */
 		/* read bh, cast, ocfs2_refresh_inode */
@@ -2352,6 +2356,10 @@ static int ocfs2_inode_lock_update(struct inode *inode,
 			goto bail_refresh;
 		}
 		fe = (struct ocfs2_dinode *) (*bh)->b_data;
+		if (inode_wrong_type(inode, le16_to_cpu(fe->i_mode))) {
+			status = -ESTALE;
+			goto bail_refresh;
+		}
 
 		/* This is a good chance to make sure we're not
 		 * locking an invalid object.  ocfs2_read_inode_block()
