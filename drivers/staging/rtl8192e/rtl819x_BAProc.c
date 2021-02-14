@@ -61,7 +61,7 @@ void ResetBaEntry(struct ba_record *pBA)
 	pBA->BaParamSet.shortData	= 0;
 	pBA->BaTimeoutValue		= 0;
 	pBA->DialogToken		= 0;
-	pBA->BaStartSeqCtrl.ShortData	= 0;
+	pBA->BaStartSeqCtrl.short_data	= 0;
 }
 static struct sk_buff *rtllib_ADDBA(struct rtllib_device *ieee, u8 *Dst,
 				    struct ba_record *pBA,

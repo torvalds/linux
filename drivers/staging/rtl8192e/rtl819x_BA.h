@@ -20,7 +20,7 @@
 #define	DELBA_REASON_UNKNOWN_BA	38
 #define	DELBA_REASON_TIMEOUT			39
 union sequence_control {
-	u16 ShortData;
+	u16 short_data;
 	struct {
 		u16	FragNum:4;
 		u16	SeqNum:12;
