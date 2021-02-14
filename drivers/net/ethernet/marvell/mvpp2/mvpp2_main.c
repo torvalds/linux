@@ -7277,10 +7277,8 @@ static int mvpp2_get_sram(struct platform_device *pdev,
 	}
 
 	priv->cm3_base = devm_ioremap_resource(&pdev->dev, res);
-	if (IS_ERR(priv->cm3_base))
-		return PTR_ERR(priv->cm3_base);
 
-	return 0;
+	return PTR_ERR_OR_ZERO(priv->cm3_base);
 }
 
 static int mvpp2_probe(struct platform_device *pdev)
