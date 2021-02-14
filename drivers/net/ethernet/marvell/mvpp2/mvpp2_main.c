@@ -7469,10 +7469,8 @@ static int mvpp2_probe(struct platform_device *pdev)
 			priv->port_map |= BIT(i);
 	}
 
-	if (priv->hw_version != MVPP21) {
-		if (mvpp2_read(priv, MVPP2_VER_ID_REG) == MVPP2_VER_PP23)
-			priv->hw_version = MVPP23;
-	}
+	if (mvpp2_read(priv, MVPP2_VER_ID_REG) == MVPP2_VER_PP23)
+		priv->hw_version = MVPP23;
 
 	/* Init mss lock */
 	spin_lock_init(&priv->mss_spinlock);
