@@ -12,7 +12,7 @@
 /* Made up value to limit allocation sizes */
 #define IIO_MAX_NAME_LENGTH 64
 
-#define FORMAT_SCAN_ELEMENTS_DIR "%s/scan_elements"
+#define FORMAT_SCAN_ELEMENTS_DIR "%s/buffer%d"
 #define FORMAT_TYPE_FILE "%s_type"
 
 #define ARRAY_SIZE(arr) (sizeof(arr) / sizeof(arr[0]))
@@ -61,7 +61,7 @@ int iioutils_get_param_float(float *output, const char *param_name,
 			     const char *device_dir, const char *name,
 			     const char *generic_name);
 void bsort_channel_array_by_index(struct iio_channel_info *ci_array, int cnt);
-int build_channel_array(const char *device_dir,
+int build_channel_array(const char *device_dir, int buffer_idx,
 			struct iio_channel_info **ci_array, int *counter);
 int find_type_by_name(const char *name, const char *type);
 int write_sysfs_int(const char *filename, const char *basedir, int val);
