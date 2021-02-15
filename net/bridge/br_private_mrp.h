@@ -88,4 +88,33 @@ int br_mrp_switchdev_send_in_test(struct net_bridge *br, struct br_mrp *mrp,
 int br_mrp_ring_port_open(struct net_device *dev, u8 loc);
 int br_mrp_in_port_open(struct net_device *dev, u8 loc);
 
+/* MRP protocol data units */
+struct br_mrp_tlv_hdr {
+	__u8 type;
+	__u8 length;
+};
+
+struct br_mrp_common_hdr {
+	__be16 seq_id;
+	__u8 domain[MRP_DOMAIN_UUID_LENGTH];
+};
+
+struct br_mrp_ring_test_hdr {
+	__be16 prio;
+	__u8 sa[ETH_ALEN];
+	__be16 port_role;
+	__be16 state;
+	__be16 transitions;
+	__be32 timestamp;
+} __attribute__((__packed__));
+
+struct br_mrp_in_test_hdr {
+	__be16 id;
+	__u8 sa[ETH_ALEN];
+	__be16 port_role;
+	__be16 state;
+	__be16 transitions;
+	__be32 timestamp;
+} __attribute__((__packed__));
+
 #endif /* _BR_PRIVATE_MRP_H */

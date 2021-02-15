@@ -196,7 +196,7 @@ void __init setup_bootmem(void)
 	max_pfn = PFN_DOWN(dram_end);
 	max_low_pfn = max_pfn;
 	dma32_phys_limit = min(4UL * SZ_1G, (unsigned long)PFN_PHYS(max_low_pfn));
-	set_max_mapnr(max_low_pfn);
+	set_max_mapnr(max_low_pfn - ARCH_PFN_OFFSET);
 
 #ifdef CONFIG_BLK_DEV_INITRD
 	setup_initrd();

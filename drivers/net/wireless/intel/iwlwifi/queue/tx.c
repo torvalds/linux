@@ -142,26 +142,25 @@ void iwl_txq_gen2_free_tfd(struct iwl_trans *trans, struct iwl_txq *txq)
 	 * idx is bounded by n_window
 	 */
 	int idx = iwl_txq_get_cmd_index(txq, txq->read_ptr);
+	struct sk_buff *skb;
 
 	lockdep_assert_held(&txq->lock);
+
+	if (!txq->entries)
+		return;
 
 	iwl_txq_gen2_tfd_unmap(trans, &txq->entries[idx].meta,
 			       iwl_txq_get_tfd(trans, txq, idx));
 
-	/* free SKB */
-	if (txq->entries) {
-		struct sk_buff *skb;
+	skb = txq->entries[idx].skb;
 
-		skb = txq->entries[idx].skb;
-
-		/* Can be called from irqs-disabled context
-		 * If skb is not NULL, it means that the whole queue is being
-		 * freed and that the queue is not empty - free the skb
-		 */
-		if (skb) {
-			iwl_op_mode_free_skb(trans->op_mode, skb);
-			txq->entries[idx].skb = NULL;
-		}
+	/* Can be called from irqs-disabled context
+	 * If skb is not NULL, it means that the whole queue is being
+	 * freed and that the queue is not empty - free the skb
+	 */
+	if (skb) {
+		iwl_op_mode_free_skb(trans->op_mode, skb);
+		txq->entries[idx].skb = NULL;
 	}
 }
 
@@ -841,10 +840,8 @@ void iwl_txq_gen2_unmap(struct iwl_trans *trans, int txq_id)
 			int idx = iwl_txq_get_cmd_index(txq, txq->read_ptr);
 			struct sk_buff *skb = txq->entries[idx].skb;
 
-			if (WARN_ON_ONCE(!skb))
-				continue;
-
-			iwl_txq_free_tso_page(trans, skb);
+			if (!WARN_ON_ONCE(!skb))
+				iwl_txq_free_tso_page(trans, skb);
 		}
 		iwl_txq_gen2_free_tfd(trans, txq);
 		txq->read_ptr = iwl_txq_inc_wrap(trans, txq->read_ptr);
@@ -1494,8 +1491,12 @@ void iwl_txq_free_tfd(struct iwl_trans *trans, struct iwl_txq *txq)
 	 */
 	int rd_ptr = txq->read_ptr;
 	int idx = iwl_txq_get_cmd_index(txq, rd_ptr);
+	struct sk_buff *skb;
 
 	lockdep_assert_held(&txq->lock);
+
+	if (!txq->entries)
+		return;
 
 	/* We have only q->n_window txq->entries, but we use
 	 * TFD_QUEUE_SIZE_MAX tfds
@@ -1503,19 +1504,15 @@ void iwl_txq_free_tfd(struct iwl_trans *trans, struct iwl_txq *txq)
 	iwl_txq_gen1_tfd_unmap(trans, &txq->entries[idx].meta, txq, rd_ptr);
 
 	/* free SKB */
-	if (txq->entries) {
-		struct sk_buff *skb;
+	skb = txq->entries[idx].skb;
 
-		skb = txq->entries[idx].skb;
-
-		/* Can be called from irqs-disabled context
-		 * If skb is not NULL, it means that the whole queue is being
-		 * freed and that the queue is not empty - free the skb
-		 */
-		if (skb) {
-			iwl_op_mode_free_skb(trans->op_mode, skb);
-			txq->entries[idx].skb = NULL;
-		}
+	/* Can be called from irqs-disabled context
+	 * If skb is not NULL, it means that the whole queue is being
+	 * freed and that the queue is not empty - free the skb
+	 */
+	if (skb) {
+		iwl_op_mode_free_skb(trans->op_mode, skb);
+		txq->entries[idx].skb = NULL;
 	}
 }
 

@@ -1744,7 +1744,7 @@ static int ibmvfc_queuecommand_lck(struct scsi_cmnd *cmnd,
 		iu->pri_task_attr = IBMVFC_SIMPLE_TASK;
 	}
 
-	vfc_cmd->correlation = cpu_to_be64(evt);
+	vfc_cmd->correlation = cpu_to_be64((u64)evt);
 
 	if (likely(!(rc = ibmvfc_map_sg_data(cmnd, evt, vfc_cmd, vhost->dev))))
 		return ibmvfc_send_event(evt, vhost, 0);
@@ -2418,7 +2418,7 @@ static int ibmvfc_abort_task_set(struct scsi_device *sdev)
 		tmf->flags = cpu_to_be16((IBMVFC_NO_MEM_DESC | IBMVFC_TMF));
 		evt->sync_iu = &rsp_iu;
 
-		tmf->correlation = cpu_to_be64(evt);
+		tmf->correlation = cpu_to_be64((u64)evt);
 
 		init_completion(&evt->comp);
 		rsp_rc = ibmvfc_send_event(evt, vhost, default_timeout);
@@ -3007,8 +3007,10 @@ static int ibmvfc_slave_configure(struct scsi_device *sdev)
 	unsigned long flags = 0;
 
 	spin_lock_irqsave(shost->host_lock, flags);
-	if (sdev->type == TYPE_DISK)
+	if (sdev->type == TYPE_DISK) {
 		sdev->allow_restart = 1;
+		blk_queue_rq_timeout(sdev->request_queue, 120 * HZ);
+	}
 	spin_unlock_irqrestore(shost->host_lock, flags);
 	return 0;
 }

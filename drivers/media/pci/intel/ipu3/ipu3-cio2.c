@@ -302,7 +302,7 @@ static int cio2_csi2_calc_timing(struct cio2_device *cio2, struct cio2_queue *q,
 	if (!q->sensor)
 		return -ENODEV;
 
-	freq = v4l2_get_link_rate(q->sensor->ctrl_handler, bpp, lanes);
+	freq = v4l2_get_link_freq(q->sensor->ctrl_handler, bpp, lanes);
 	if (freq < 0) {
 		dev_err(dev, "error %lld, invalid link_freq\n", freq);
 		return freq;

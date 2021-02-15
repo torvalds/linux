@@ -997,10 +997,17 @@ intr_do_preempt:
 	bb,<,n	%r20, 31 - PSW_SM_I, intr_restore
 	nop
 
+	/* ssm PSW_SM_I done later in intr_restore */
+#ifdef CONFIG_MLONGCALLS
+	ldil	L%intr_restore, %r2
+	load32	preempt_schedule_irq, %r1
+	bv	%r0(%r1)
+	ldo	R%intr_restore(%r2), %r2
+#else
+	ldil	L%intr_restore, %r1
 	BL	preempt_schedule_irq, %r2
-	nop
-
-	b,n	intr_restore		/* ssm PSW_SM_I done by intr_restore */
+	ldo	R%intr_restore(%r1), %r2
+#endif
 #endif /* CONFIG_PREEMPTION */
 
 	/*

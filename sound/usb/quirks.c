@@ -1470,30 +1470,6 @@ static void set_format_emu_quirk(struct snd_usb_substream *subs,
 	subs->pkt_offset_adj = (emu_samplerate_id >= EMU_QUIRK_SR_176400HZ) ? 4 : 0;
 }
 
-
-/*
- * Pioneer DJ DJM-900NXS2
- * Device needs to know the sample rate each time substream is started
- */
-static int pioneer_djm_set_format_quirk(struct snd_usb_substream *subs)
-{
-	unsigned int cur_rate = subs->data_endpoint->cur_rate;
-	/* Convert sample rate value to little endian */
-	u8 sr[3];
-
-	sr[0] = cur_rate & 0xff;
-	sr[1] = (cur_rate >> 8) & 0xff;
-	sr[2] = (cur_rate >> 16) & 0xff;
-
-	/* Configure device */
-	usb_set_interface(subs->dev, 0, 1);
-	snd_usb_ctl_msg(subs->stream->chip->dev,
-		usb_rcvctrlpipe(subs->stream->chip->dev, 0),
-		0x01, 0x22, 0x0100, 0x0082, &sr, 0x0003);
-
-	return 0;
-}
-
 void snd_usb_set_format_quirk(struct snd_usb_substream *subs,
 			      const struct audioformat *fmt)
 {
@@ -1503,10 +1479,6 @@ void snd_usb_set_format_quirk(struct snd_usb_substream *subs,
 	case USB_ID(0x041e, 0x3f0a): /* E-Mu Tracker Pre */
 	case USB_ID(0x041e, 0x3f19): /* E-Mu 0204 USB */
 		set_format_emu_quirk(subs, fmt);
-		break;
-	case USB_ID(0x2b73, 0x000a): /* Pioneer DJ DJM-900NXS2 */
-	case USB_ID(0x2b73, 0x0017): /* Pioneer DJ DJM-250MK2 */
-		pioneer_djm_set_format_quirk(subs);
 		break;
 	case USB_ID(0x534d, 0x2109): /* MacroSilicon MS2109 */
 		subs->stream_offset_adj = 2;

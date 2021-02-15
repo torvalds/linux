@@ -8,6 +8,7 @@
 #include <linux/if_arp.h>
 #include <linux/netdevice.h>
 #include <linux/if.h>
+#include <linux/if_vlan.h>
 #include <net/udp_tunnel.h>
 #include <net/sch_generic.h>
 #include <linux/netfilter.h>
@@ -153,9 +154,14 @@ static int rxe_udp_encap_recv(struct sock *sk, struct sk_buff *skb)
 {
 	struct udphdr *udph;
 	struct net_device *ndev = skb->dev;
+	struct net_device *rdev = ndev;
 	struct rxe_dev *rxe = rxe_get_dev_from_net(ndev);
 	struct rxe_pkt_info *pkt = SKB_TO_PKT(skb);
 
+	if (!rxe && is_vlan_dev(rdev)) {
+		rdev = vlan_dev_real_dev(ndev);
+		rxe = rxe_get_dev_from_net(rdev);
+	}
 	if (!rxe)
 		goto drop;
 
