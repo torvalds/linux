@@ -334,14 +334,11 @@ int cros_ec_sensors_core_init(struct platform_device *pdev,
 			 * We can not use trigger here, as events are generated
 			 * as soon as sample_frequency is set.
 			 */
-			struct iio_buffer *buffer;
-
-			buffer = devm_iio_kfifo_allocate(dev);
-			if (!buffer)
-				return -ENOMEM;
-
-			iio_device_attach_buffer(indio_dev, buffer);
-			indio_dev->modes = INDIO_BUFFER_SOFTWARE;
+			ret = devm_iio_kfifo_buffer_setup(dev, indio_dev,
+							  INDIO_BUFFER_SOFTWARE,
+							  NULL);
+			if (ret)
+				return ret;
 
 			ret = cros_ec_sensorhub_register_push_data(
 					sensor_hub, sensor_platform->sensor_num,
