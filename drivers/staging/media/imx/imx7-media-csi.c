@@ -530,9 +530,6 @@ static void imx7_csi_configure(struct imx7_csi *csi)
 			   BIT_IMAGE_HEIGHT(out_pix->height),
 			   CSI_CSIIMAG_PARA);
 	imx7_csi_reg_write(csi, stride, CSI_CSIFBUF_PARA);
-
-	/* reflash the embedded DMA controller */
-	imx7_csi_dma_reflash(csi);
 }
 
 static int imx7_csi_init(struct imx7_csi *csi)
