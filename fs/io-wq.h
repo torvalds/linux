@@ -78,7 +78,7 @@ static inline void wq_list_del(struct io_wq_work_list *list,
 
 struct io_wq_work {
 	struct io_wq_work_node list;
-	struct io_identity *identity;
+	const struct cred *creds;
 	unsigned flags;
 };
 
