@@ -11,6 +11,7 @@
 
 perfdata=$(mktemp /tmp/__perf_test.perf.data.XXXXX)
 file=$(mktemp /tmp/temporary_file.XXXXX)
+glb_err=0
 
 skip_if_no_cs_etm_event() {
 	perf list | grep -q 'cs_etm//' && return 0
@@ -69,6 +70,15 @@ perf_report_instruction_samples() {
 		egrep " +[0-9]+\.[0-9]+% +$1" > /dev/null 2>&1
 }
 
+arm_cs_report() {
+	if [ $2 != 0 ]; then
+		echo "$1: FAIL"
+		glb_err=$2
+	else
+		echo "$1: PASS"
+	fi
+}
+
 is_device_sink() {
 	# If the node of "enable_sink" is existed under the device path, this
 	# means the device is a sink device.  Need to exclude 'tpiu' since it
@@ -113,9 +123,7 @@ arm_cs_iterate_devices() {
 			perf_report_instruction_samples touch
 
 			err=$?
-
-			# Exit when find failure
-			[ $err != 0 ] && exit $err
+			arm_cs_report "CoreSight path testing (CPU$2 -> $device_name)" $err
 		fi
 
 		arm_cs_iterate_devices $dev $2
@@ -143,9 +151,7 @@ arm_cs_etm_system_wide_test() {
 	perf_report_instruction_samples perf
 
 	err=$?
-
-	# Exit when find failure
-	[ $err != 0 ] && exit $err
+	arm_cs_report "CoreSight system wide testing" $err
 }
 
 arm_cs_etm_snapshot_test() {
@@ -169,12 +175,10 @@ arm_cs_etm_snapshot_test() {
 	perf_report_instruction_samples dd
 
 	err=$?
-
-	# Exit when find failure
-	[ $err != 0 ] && exit $err
+	arm_cs_report "CoreSight snapshot testing" $err
 }
 
 arm_cs_etm_traverse_path_test
 arm_cs_etm_system_wide_test
 arm_cs_etm_snapshot_test
-exit 0
+exit $glb_err
