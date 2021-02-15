@@ -290,9 +290,7 @@ int devm_iio_dmaengine_buffer_setup(struct device *dev,
 
 	indio_dev->modes |= INDIO_BUFFER_HARDWARE;
 
-	iio_device_attach_buffer(indio_dev, buffer);
-
-	return 0;
+	return iio_device_attach_buffer(indio_dev, buffer);
 }
 EXPORT_SYMBOL_GPL(devm_iio_dmaengine_buffer_setup);
 

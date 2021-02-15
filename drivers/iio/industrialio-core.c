@@ -1585,7 +1585,7 @@ static void iio_dev_release(struct device *device)
 	iio_device_unregister_eventset(indio_dev);
 	iio_device_unregister_sysfs(indio_dev);
 
-	iio_buffer_put(indio_dev->buffer);
+	iio_buffers_put(indio_dev);
 
 	ida_simple_remove(&iio_ida, indio_dev->id);
 	kfree(iio_dev_opaque);
@@ -1862,7 +1862,7 @@ int __iio_device_register(struct iio_dev *indio_dev, struct module *this_mod)
 
 	iio_device_register_debugfs(indio_dev);
 
-	ret = iio_buffer_alloc_sysfs_and_mask(indio_dev);
+	ret = iio_buffers_alloc_sysfs_and_mask(indio_dev);
 	if (ret) {
 		dev_err(indio_dev->dev.parent,
 			"Failed to create buffer sysfs interfaces\n");
@@ -1888,12 +1888,12 @@ int __iio_device_register(struct iio_dev *indio_dev, struct module *this_mod)
 		indio_dev->setup_ops == NULL)
 		indio_dev->setup_ops = &noop_ring_setup_ops;
 
-	if (indio_dev->buffer)
+	if (iio_dev_opaque->attached_buffers_cnt)
 		cdev_init(&indio_dev->chrdev, &iio_buffer_fileops);
 	else if (iio_dev_opaque->event_interface)
 		cdev_init(&indio_dev->chrdev, &iio_event_fileops);
 
-	if (indio_dev->buffer || iio_dev_opaque->event_interface) {
+	if (iio_dev_opaque->attached_buffers_cnt || iio_dev_opaque->event_interface) {
 		indio_dev->dev.devt = MKDEV(MAJOR(iio_devt), indio_dev->id);
 		indio_dev->chrdev.owner = this_mod;
 	}
@@ -1912,7 +1912,7 @@ error_unreg_eventset:
 error_free_sysfs:
 	iio_device_unregister_sysfs(indio_dev);
 error_buffer_free_sysfs:
-	iio_buffer_free_sysfs_and_mask(indio_dev);
+	iio_buffers_free_sysfs_and_mask(indio_dev);
 error_unreg_debugfs:
 	iio_device_unregister_debugfs(indio_dev);
 	return ret;
@@ -1946,7 +1946,7 @@ void iio_device_unregister(struct iio_dev *indio_dev)
 
 	mutex_unlock(&indio_dev->info_exist_lock);
 
-	iio_buffer_free_sysfs_and_mask(indio_dev);
+	iio_buffers_free_sysfs_and_mask(indio_dev);
 }
 EXPORT_SYMBOL(iio_device_unregister);
 

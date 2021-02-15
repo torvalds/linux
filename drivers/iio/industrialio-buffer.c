@@ -193,12 +193,14 @@ __poll_t iio_buffer_poll(struct file *filp,
  */
 void iio_buffer_wakeup_poll(struct iio_dev *indio_dev)
 {
-	struct iio_buffer *buffer = indio_dev->buffer;
+	struct iio_dev_opaque *iio_dev_opaque = to_iio_dev_opaque(indio_dev);
+	struct iio_buffer *buffer;
+	unsigned int i;
 
-	if (!buffer)
-		return;
-
-	wake_up(&buffer->pollq);
+	for (i = 0; i < iio_dev_opaque->attached_buffers_cnt; i++) {
+		buffer = iio_dev_opaque->attached_buffers[i];
+		wake_up(&buffer->pollq);
+	}
 }
 
 void iio_buffer_init(struct iio_buffer *buffer)
@@ -211,6 +213,18 @@ void iio_buffer_init(struct iio_buffer *buffer)
 		buffer->watermark = 1;
 }
 EXPORT_SYMBOL(iio_buffer_init);
+
+void iio_buffers_put(struct iio_dev *indio_dev)
+{
+	struct iio_dev_opaque *iio_dev_opaque = to_iio_dev_opaque(indio_dev);
+	struct iio_buffer *buffer;
+	unsigned int i;
+
+	for (i = 0; i < iio_dev_opaque->attached_buffers_cnt; i++) {
+		buffer = iio_dev_opaque->attached_buffers[i];
+		iio_buffer_put(buffer);
+	}
+}
 
 static ssize_t iio_show_scan_index(struct device *dev,
 				   struct device_attribute *attr,
@@ -1452,11 +1466,13 @@ static void __iio_buffer_free_sysfs_and_mask(struct iio_buffer *buffer)
 	iio_free_chan_devattr_list(&buffer->buffer_attr_list);
 }
 
-int iio_buffer_alloc_sysfs_and_mask(struct iio_dev *indio_dev)
+int iio_buffers_alloc_sysfs_and_mask(struct iio_dev *indio_dev)
 {
-	struct iio_buffer *buffer = indio_dev->buffer;
+	struct iio_dev_opaque *iio_dev_opaque = to_iio_dev_opaque(indio_dev);
 	const struct iio_chan_spec *channels;
-	int i;
+	struct iio_buffer *buffer;
+	int unwind_idx;
+	int ret, i;
 
 	channels = indio_dev->channels;
 	if (channels) {
@@ -1467,22 +1483,46 @@ int iio_buffer_alloc_sysfs_and_mask(struct iio_dev *indio_dev)
 		indio_dev->masklength = ml;
 	}
 
-	if (!buffer)
+	if (!iio_dev_opaque->attached_buffers_cnt)
 		return 0;
 
-	return __iio_buffer_alloc_sysfs_and_mask(buffer, indio_dev, 0);
+	for (i = 0; i < iio_dev_opaque->attached_buffers_cnt; i++) {
+		buffer = iio_dev_opaque->attached_buffers[i];
+		ret = __iio_buffer_alloc_sysfs_and_mask(buffer, indio_dev, i);
+		if (ret) {
+			unwind_idx = i;
+			goto error_unwind_sysfs_and_mask;
+		}
+	}
+
+	return 0;
+
+error_unwind_sysfs_and_mask:
+	for (; unwind_idx >= 0; unwind_idx--) {
+		buffer = iio_dev_opaque->attached_buffers[unwind_idx];
+		__iio_buffer_free_sysfs_and_mask(buffer);
+	}
+	kfree(iio_dev_opaque->attached_buffers);
+	return ret;
 }
 
-void iio_buffer_free_sysfs_and_mask(struct iio_dev *indio_dev)
+void iio_buffers_free_sysfs_and_mask(struct iio_dev *indio_dev)
 {
-	struct iio_buffer *buffer = indio_dev->buffer;
+	struct iio_dev_opaque *iio_dev_opaque = to_iio_dev_opaque(indio_dev);
+	struct iio_buffer *buffer;
+	int i;
 
-	if (!buffer)
+	if (!iio_dev_opaque->attached_buffers_cnt)
 		return;
 
 	iio_buffer_unregister_legacy_sysfs_groups(indio_dev);
 
-	__iio_buffer_free_sysfs_and_mask(buffer);
+	for (i = iio_dev_opaque->attached_buffers_cnt - 1; i >= 0; i--) {
+		buffer = iio_dev_opaque->attached_buffers[i];
+		__iio_buffer_free_sysfs_and_mask(buffer);
+	}
+
+	kfree(iio_dev_opaque->attached_buffers);
 }
 
 /**
@@ -1600,13 +1640,35 @@ EXPORT_SYMBOL_GPL(iio_buffer_put);
  * @indio_dev: The device the buffer should be attached to
  * @buffer: The buffer to attach to the device
  *
+ * Return 0 if successful, negative if error.
+ *
  * This function attaches a buffer to a IIO device. The buffer stays attached to
- * the device until the device is freed. The function should only be called at
- * most once per device.
+ * the device until the device is freed. For legacy reasons, the first attached
+ * buffer will also be assigned to 'indio_dev->buffer'.
  */
-void iio_device_attach_buffer(struct iio_dev *indio_dev,
-			      struct iio_buffer *buffer)
+int iio_device_attach_buffer(struct iio_dev *indio_dev,
+			     struct iio_buffer *buffer)
 {
-	indio_dev->buffer = iio_buffer_get(buffer);
+	struct iio_dev_opaque *iio_dev_opaque = to_iio_dev_opaque(indio_dev);
+	struct iio_buffer **new, **old = iio_dev_opaque->attached_buffers;
+	unsigned int cnt = iio_dev_opaque->attached_buffers_cnt;
+
+	cnt++;
+
+	new = krealloc(old, sizeof(*new) * cnt, GFP_KERNEL);
+	if (!new)
+		return -ENOMEM;
+	iio_dev_opaque->attached_buffers = new;
+
+	buffer = iio_buffer_get(buffer);
+
+	/* first buffer is legacy; attach it to the IIO device directly */
+	if (!indio_dev->buffer)
+		indio_dev->buffer = buffer;
+
+	iio_dev_opaque->attached_buffers[cnt - 1] = buffer;
+	iio_dev_opaque->attached_buffers_cnt = cnt;
+
+	return 0;
 }
 EXPORT_SYMBOL_GPL(iio_device_attach_buffer);

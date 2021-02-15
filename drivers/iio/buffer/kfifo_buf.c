@@ -235,12 +235,10 @@ int devm_iio_kfifo_buffer_setup(struct device *dev,
 	if (!buffer)
 		return -ENOMEM;
 
-	iio_device_attach_buffer(indio_dev, buffer);
-
 	indio_dev->modes |= mode_flags;
 	indio_dev->setup_ops = setup_ops;
 
-	return 0;
+	return iio_device_attach_buffer(indio_dev, buffer);
 }
 EXPORT_SYMBOL_GPL(devm_iio_kfifo_buffer_setup);
 
