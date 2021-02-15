@@ -45,6 +45,8 @@ struct capture_priv {
 	spinlock_t q_lock;			/* Protect ready_q */
 
 	struct v4l2_ctrl_handler ctrl_hdlr;	/* Controls inherited from subdevs */
+
+	bool legacy_api;			/* Use the legacy (pre-MC) API */
 };
 
 #define to_capture_priv(v) container_of(v, struct capture_priv, vdev)
@@ -800,7 +802,7 @@ EXPORT_SYMBOL_GPL(imx_media_capture_device_unregister);
 
 struct imx_media_video_dev *
 imx_media_capture_device_init(struct device *dev, struct v4l2_subdev *src_sd,
-			      int pad)
+			      int pad, bool legacy_api)
 {
 	struct capture_priv *priv;
 	struct video_device *vfd;
@@ -814,6 +816,7 @@ imx_media_capture_device_init(struct device *dev, struct v4l2_subdev *src_sd,
 	priv->src_sd = src_sd;
 	priv->src_sd_pad = pad;
 	priv->dev = dev;
+	priv->legacy_api = legacy_api;
 
 	mutex_init(&priv->mutex);
 	INIT_LIST_HEAD(&priv->ready_q);
@@ -868,9 +871,11 @@ imx_media_capture_device_init(struct device *dev, struct v4l2_subdev *src_sd,
 		return ERR_PTR(ret);
 	}
 
-	/* Initialize the control handler. */
-	v4l2_ctrl_handler_init(&priv->ctrl_hdlr, 0);
-	vfd->ctrl_handler = &priv->ctrl_hdlr;
+	if (legacy_api) {
+		/* Initialize the control handler. */
+		v4l2_ctrl_handler_init(&priv->ctrl_hdlr, 0);
+		vfd->ctrl_handler = &priv->ctrl_hdlr;
+	}
 
 	return &priv->vdev;
 }

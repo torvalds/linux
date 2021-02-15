@@ -1265,7 +1265,7 @@ static int prp_registered(struct v4l2_subdev *sd)
 
 	priv->vdev = imx_media_capture_device_init(ic_priv->ipu_dev,
 						   &ic_priv->sd,
-						   PRPENCVF_SRC_PAD);
+						   PRPENCVF_SRC_PAD, true);
 	if (IS_ERR(priv->vdev))
 		return PTR_ERR(priv->vdev);
 

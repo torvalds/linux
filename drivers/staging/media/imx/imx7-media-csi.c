@@ -1100,7 +1100,7 @@ static int imx7_csi_registered(struct v4l2_subdev *sd)
 	}
 
 	csi->vdev = imx_media_capture_device_init(csi->sd.dev, &csi->sd,
-						  IMX7_CSI_PAD_SRC);
+						  IMX7_CSI_PAD_SRC, true);
 	if (IS_ERR(csi->vdev))
 		return PTR_ERR(csi->vdev);
 
