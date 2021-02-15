@@ -1604,7 +1604,7 @@ struct device_type iio_device_type = {
 struct iio_dev *iio_device_alloc(struct device *parent, int sizeof_priv)
 {
 	struct iio_dev_opaque *iio_dev_opaque;
-	struct iio_dev *dev;
+	struct iio_dev *indio_dev;
 	size_t alloc_size;
 
 	alloc_size = sizeof(struct iio_dev_opaque);
@@ -1617,31 +1617,31 @@ struct iio_dev *iio_device_alloc(struct device *parent, int sizeof_priv)
 	if (!iio_dev_opaque)
 		return NULL;
 
-	dev = &iio_dev_opaque->indio_dev;
-	dev->priv = (char *)iio_dev_opaque +
+	indio_dev = &iio_dev_opaque->indio_dev;
+	indio_dev->priv = (char *)iio_dev_opaque +
 		ALIGN(sizeof(struct iio_dev_opaque), IIO_ALIGN);
 
-	dev->dev.parent = parent;
-	dev->dev.type = &iio_device_type;
-	dev->dev.bus = &iio_bus_type;
-	device_initialize(&dev->dev);
-	dev_set_drvdata(&dev->dev, (void *)dev);
-	mutex_init(&dev->mlock);
-	mutex_init(&dev->info_exist_lock);
+	indio_dev->dev.parent = parent;
+	indio_dev->dev.type = &iio_device_type;
+	indio_dev->dev.bus = &iio_bus_type;
+	device_initialize(&indio_dev->dev);
+	dev_set_drvdata(&indio_dev->dev, (void *)indio_dev);
+	mutex_init(&indio_dev->mlock);
+	mutex_init(&indio_dev->info_exist_lock);
 	INIT_LIST_HEAD(&iio_dev_opaque->channel_attr_list);
 
-	dev->id = ida_simple_get(&iio_ida, 0, 0, GFP_KERNEL);
-	if (dev->id < 0) {
+	indio_dev->id = ida_simple_get(&iio_ida, 0, 0, GFP_KERNEL);
+	if (indio_dev->id < 0) {
 		/* cannot use a dev_err as the name isn't available */
 		pr_err("failed to get device id\n");
 		kfree(iio_dev_opaque);
 		return NULL;
 	}
-	dev_set_name(&dev->dev, "iio:device%d", dev->id);
+	dev_set_name(&indio_dev->dev, "iio:device%d", indio_dev->id);
 	INIT_LIST_HEAD(&iio_dev_opaque->buffer_list);
 	INIT_LIST_HEAD(&iio_dev_opaque->ioctl_handlers);
 
-	return dev;
+	return indio_dev;
 }
 EXPORT_SYMBOL(iio_device_alloc);
 
