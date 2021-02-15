@@ -536,10 +536,8 @@ static void mipi_csis_set_params(struct csi_state *state)
 
 	__mipi_csis_set_format(state);
 
-	val = mipi_csis_read(state, MIPI_CSIS_DPHYCTRL);
-	val = (val & ~MIPI_CSIS_DPHYCTRL_HSSETTLE_MASK)
-	    | MIPI_CSIS_DPHYCTRL_HSSETTLE(state->hs_settle);
-	mipi_csis_write(state, MIPI_CSIS_DPHYCTRL, val);
+	mipi_csis_write(state, MIPI_CSIS_DPHYCTRL,
+			MIPI_CSIS_DPHYCTRL_HSSETTLE(state->hs_settle));
 
 	val = (0 << MIPI_CSIS_ISPSYNC_HSYNC_LINTV_OFFSET) |
 		(0 << MIPI_CSIS_ISPSYNC_VSYNC_SINTV_OFFSET) |
