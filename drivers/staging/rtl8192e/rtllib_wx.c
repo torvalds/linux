@@ -324,7 +324,7 @@ int rtllib_wx_set_encode(struct rtllib_device *ieee,
 		 * and if no key index was provided, de-init them all
 		 */
 		for (i = 0; i < NUM_WEP_KEYS; i++) {
-			if (ieee->crypt_info.crypt[i] != NULL) {
+			if (ieee->crypt_info.crypt[i]) {
 				if (key_provided)
 					break;
 				lib80211_crypt_delayed_deinit(&ieee->crypt_info,
@@ -344,7 +344,7 @@ int rtllib_wx_set_encode(struct rtllib_device *ieee,
 	sec.enabled = 1;
 	sec.flags |= SEC_ENABLED;
 
-	if (*crypt != NULL && (*crypt)->ops != NULL &&
+	if (*crypt && (*crypt)->ops &&
 	    strcmp((*crypt)->ops->name, "R-WEP") != 0) {
 		/* changing to use WEP; deinit previously used algorithm
 		 * on this key
@@ -352,12 +352,12 @@ int rtllib_wx_set_encode(struct rtllib_device *ieee,
 		lib80211_crypt_delayed_deinit(&ieee->crypt_info, crypt);
 	}
 
-	if (*crypt == NULL) {
+	if (!*crypt) {
 		struct lib80211_crypt_data *new_crypt;
 
 		/* take WEP into use */
 		new_crypt = kzalloc(sizeof(*new_crypt), GFP_KERNEL);
-		if (new_crypt == NULL)
+		if (!new_crypt)
 			return -ENOMEM;
 		new_crypt->ops = lib80211_get_crypto_ops("R-WEP");
 		if (!new_crypt->ops) {
@@ -484,7 +484,7 @@ int rtllib_wx_get_encode(struct rtllib_device *ieee,
 
 	erq->flags = key + 1;
 
-	if (crypt == NULL || crypt->ops == NULL) {
+	if (!crypt || !crypt->ops) {
 		erq->length = 0;
 		erq->flags |= IW_ENCODE_DISABLED;
 		return 0;
@@ -549,7 +549,7 @@ int rtllib_wx_set_encode_ext(struct rtllib_device *ieee,
 			lib80211_crypt_delayed_deinit(&ieee->crypt_info, crypt);
 
 		for (i = 0; i < NUM_WEP_KEYS; i++) {
-			if (ieee->crypt_info.crypt[i] != NULL)
+			if (ieee->crypt_info.crypt[i])
 				break;
 		}
 		if (i == NUM_WEP_KEYS) {
@@ -582,7 +582,7 @@ int rtllib_wx_set_encode_ext(struct rtllib_device *ieee,
 	netdev_dbg(dev, "alg name:%s\n", alg);
 
 	ops = lib80211_get_crypto_ops(alg);
-	if (ops == NULL) {
+	if (!ops) {
 		char tempbuf[100];
 
 		memset(tempbuf, 0x00, 100);
@@ -590,19 +590,19 @@ int rtllib_wx_set_encode_ext(struct rtllib_device *ieee,
 		request_module("%s", tempbuf);
 		ops = lib80211_get_crypto_ops(alg);
 	}
-	if (ops == NULL) {
+	if (!ops) {
 		netdev_info(dev, "========>unknown crypto alg %d\n", ext->alg);
 		ret = -EINVAL;
 		goto done;
 	}
 
-	if (*crypt == NULL || (*crypt)->ops != ops) {
+	if (!*crypt || (*crypt)->ops != ops) {
 		struct lib80211_crypt_data *new_crypt;
 
 		lib80211_crypt_delayed_deinit(&ieee->crypt_info, crypt);
 
 		new_crypt = kzalloc(sizeof(*new_crypt), GFP_KERNEL);
-		if (new_crypt == NULL) {
+		if (!new_crypt) {
 			ret = -ENOMEM;
 			goto done;
 		}
@@ -610,7 +610,7 @@ int rtllib_wx_set_encode_ext(struct rtllib_device *ieee,
 		if (new_crypt->ops && try_module_get(new_crypt->ops->owner))
 			new_crypt->priv = new_crypt->ops->init(idx);
 
-		if (new_crypt->priv == NULL) {
+		if (!new_crypt->priv) {
 			kfree(new_crypt);
 			ret = -EINVAL;
 			goto done;
@@ -766,7 +766,7 @@ int rtllib_wx_set_gen_ie(struct rtllib_device *ieee, u8 *ie, size_t len)
 	u8 *buf;
 	u8 eid, wps_oui[4] = {0x0, 0x50, 0xf2, 0x04};
 
-	if (len > MAX_WPA_IE_LEN || (len && ie == NULL))
+	if (len > MAX_WPA_IE_LEN || (len && !ie))
 		return -EINVAL;
 
 	if (len) {
@@ -776,7 +776,7 @@ int rtllib_wx_set_gen_ie(struct rtllib_device *ieee, u8 *ie, size_t len)
 
 			ieee->wps_ie_len = min_t(size_t, len, MAX_WZC_IE_LEN);
 			buf = kmemdup(ie, ieee->wps_ie_len, GFP_KERNEL);
-			if (buf == NULL)
+			if (!buf)
 				return -ENOMEM;
 			ieee->wps_ie = buf;
 			return 0;
@@ -789,7 +789,7 @@ int rtllib_wx_set_gen_ie(struct rtllib_device *ieee, u8 *ie, size_t len)
 		if (len != ie[1]+2)
 			return -EINVAL;
 		buf = kmemdup(ie, len, GFP_KERNEL);
-		if (buf == NULL)
+		if (!buf)
 			return -ENOMEM;
 		kfree(ieee->wpa_ie);
 		ieee->wpa_ie = buf;
