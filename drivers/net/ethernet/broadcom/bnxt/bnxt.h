@@ -18,7 +18,7 @@
  */
 #define DRV_VER_MAJ	1
 #define DRV_VER_MIN	10
-#define DRV_VER_UPD	1
+#define DRV_VER_UPD	2
 
 #include <linux/ethtool.h>
 #include <linux/interrupt.h>
@@ -714,6 +714,13 @@ struct bnxt_sw_rx_agg_bd {
 	dma_addr_t		mapping;
 };
 
+struct bnxt_mem_init {
+	u8	init_val;
+	u16	offset;
+#define	BNXT_MEM_INVALID_OFFSET	0xffff
+	u16	size;
+};
+
 struct bnxt_ring_mem_info {
 	int			nr_pages;
 	int			page_size;
@@ -723,7 +730,7 @@ struct bnxt_ring_mem_info {
 #define BNXT_RMEM_USE_FULL_PAGE_FLAG	4
 
 	u16			depth;
-	u8			init_val;
+	struct bnxt_mem_init	*mem_init;
 
 	void			**pg_arr;
 	dma_addr_t		*dma_arr;
@@ -1474,7 +1481,6 @@ struct bnxt_ctx_mem_info {
 	u32	tim_max_entries;
 	u16	mrav_num_entries_units;
 	u8	tqm_entries_multiple;
-	u8	ctx_kind_initializer;
 	u8	tqm_fp_rings_count;
 
 	u32	flags;
@@ -1488,6 +1494,15 @@ struct bnxt_ctx_mem_info {
 	struct bnxt_ctx_pg_info mrav_mem;
 	struct bnxt_ctx_pg_info tim_mem;
 	struct bnxt_ctx_pg_info *tqm_mem[BNXT_MAX_TQM_RINGS];
+
+#define BNXT_CTX_MEM_INIT_QP	0
+#define BNXT_CTX_MEM_INIT_SRQ	1
+#define BNXT_CTX_MEM_INIT_CQ	2
+#define BNXT_CTX_MEM_INIT_VNIC	3
+#define BNXT_CTX_MEM_INIT_STAT	4
+#define BNXT_CTX_MEM_INIT_MRAV	5
+#define BNXT_CTX_MEM_INIT_MAX	6
+	struct bnxt_mem_init	mem_init[BNXT_CTX_MEM_INIT_MAX];
 };
 
 struct bnxt_fw_health {
@@ -1516,6 +1531,8 @@ struct bnxt_fw_health {
 	u32 fw_reset_seq_regs[16];
 	u32 fw_reset_seq_vals[16];
 	u32 fw_reset_seq_delay_msec[16];
+	u32 echo_req_data1;
+	u32 echo_req_data2;
 	struct devlink_health_reporter	*fw_reporter;
 	struct devlink_health_reporter *fw_reset_reporter;
 	struct devlink_health_reporter *fw_fatal_reporter;
@@ -1925,6 +1942,7 @@ struct bnxt {
 #define BNXT_FW_RESET_NOTIFY_SP_EVENT	18
 #define BNXT_FW_EXCEPTION_SP_EVENT	19
 #define BNXT_LINK_CFG_CHANGE_SP_EVENT	21
+#define BNXT_FW_ECHO_REQUEST_SP_EVENT	23
 
 	struct delayed_work	fw_reset_task;
 	int			fw_reset_state;

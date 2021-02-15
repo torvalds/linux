@@ -257,6 +257,7 @@ static const u16 bnxt_async_events_arr[] = {
 	ASYNC_EVENT_CMPL_EVENT_ID_ERROR_RECOVERY,
 	ASYNC_EVENT_CMPL_EVENT_ID_DEBUG_NOTIFICATION,
 	ASYNC_EVENT_CMPL_EVENT_ID_RING_MONITOR_MSG,
+	ASYNC_EVENT_CMPL_EVENT_ID_ECHO_REQUEST,
 };
 
 static struct workqueue_struct *bnxt_pf_wq;
@@ -2054,14 +2055,11 @@ static int bnxt_async_event_process(struct bnxt *bp,
 
 		fw_health->enabled = EVENT_DATA1_RECOVERY_ENABLED(data1);
 		fw_health->master = EVENT_DATA1_RECOVERY_MASTER_FUNC(data1);
-		if (!fw_health->enabled)
+		if (!fw_health->enabled) {
+			netif_info(bp, drv, bp->dev,
+				   "Error recovery info: error recovery[0]\n");
 			break;
-
-		netif_info(bp, drv, bp->dev,
-			   "Error recovery info: error recovery[%d], master[%d], reset count[0x%x], health status: 0x%x\n",
-			   fw_health->enabled, fw_health->master,
-			   bnxt_fw_health_readl(bp, BNXT_FW_RESET_CNT_REG),
-			   bnxt_fw_health_readl(bp, BNXT_FW_HEALTH_REG));
+		}
 		fw_health->tmr_multiplier =
 			DIV_ROUND_UP(fw_health->polling_dsecs * HZ,
 				     bp->current_interval * 10);
@@ -2070,6 +2068,10 @@ static int bnxt_async_event_process(struct bnxt *bp,
 			bnxt_fw_health_readl(bp, BNXT_FW_HEARTBEAT_REG);
 		fw_health->last_fw_reset_cnt =
 			bnxt_fw_health_readl(bp, BNXT_FW_RESET_CNT_REG);
+		netif_info(bp, drv, bp->dev,
+			   "Error recovery info: error recovery[1], master[%d], reset count[%u], health status: 0x%x\n",
+			   fw_health->master, fw_health->last_fw_reset_cnt,
+			   bnxt_fw_health_readl(bp, BNXT_FW_HEALTH_REG));
 		goto async_event_process_exit;
 	}
 	case ASYNC_EVENT_CMPL_EVENT_ID_DEBUG_NOTIFICATION:
@@ -2097,6 +2099,20 @@ static int bnxt_async_event_process(struct bnxt *bp,
 		}
 		rxr = bp->bnapi[grp_idx]->rx_ring;
 		bnxt_sched_reset(bp, rxr);
+		goto async_event_process_exit;
+	}
+	case ASYNC_EVENT_CMPL_EVENT_ID_ECHO_REQUEST: {
+		struct bnxt_fw_health *fw_health = bp->fw_health;
+
+		netif_notice(bp, hw, bp->dev,
+			     "Received firmware echo request, data1: 0x%x, data2: 0x%x\n",
+			     data1, data2);
+		if (fw_health) {
+			fw_health->echo_req_data1 = data1;
+			fw_health->echo_req_data2 = data2;
+			set_bit(BNXT_FW_ECHO_REQUEST_SP_EVENT, &bp->sp_event);
+			break;
+		}
 		goto async_event_process_exit;
 	}
 	default:
@@ -2688,6 +2704,23 @@ static void bnxt_free_skbs(struct bnxt *bp)
 	bnxt_free_rx_skbs(bp);
 }
 
+static void bnxt_init_ctx_mem(struct bnxt_mem_init *mem_init, void *p, int len)
+{
+	u8 init_val = mem_init->init_val;
+	u16 offset = mem_init->offset;
+	u8 *p2 = p;
+	int i;
+
+	if (!init_val)
+		return;
+	if (offset == BNXT_MEM_INVALID_OFFSET) {
+		memset(p, init_val, len);
+		return;
+	}
+	for (i = 0; i < len; i += mem_init->size)
+		*(p2 + i + offset) = init_val;
+}
+
 static void bnxt_free_ring(struct bnxt *bp, struct bnxt_ring_mem_info *rmem)
 {
 	struct pci_dev *pdev = bp->pdev;
@@ -2747,9 +2780,9 @@ static int bnxt_alloc_ring(struct bnxt *bp, struct bnxt_ring_mem_info *rmem)
 		if (!rmem->pg_arr[i])
 			return -ENOMEM;
 
-		if (rmem->init_val)
-			memset(rmem->pg_arr[i], rmem->init_val,
-			       rmem->page_size);
+		if (rmem->mem_init)
+			bnxt_init_ctx_mem(rmem->mem_init, rmem->pg_arr[i],
+					  rmem->page_size);
 		if (rmem->nr_pages > 1 || rmem->depth > 0) {
 			if (i == rmem->nr_pages - 2 &&
 			    (rmem->flags & BNXT_RMEM_RING_PTE_FLAG))
@@ -6750,6 +6783,39 @@ func_qcfg_exit:
 	return rc;
 }
 
+static void bnxt_init_ctx_initializer(struct bnxt_ctx_mem_info *ctx,
+			struct hwrm_func_backing_store_qcaps_output *resp)
+{
+	struct bnxt_mem_init *mem_init;
+	u16 init_mask;
+	u8 init_val;
+	u8 *offset;
+	int i;
+
+	init_val = resp->ctx_kind_initializer;
+	init_mask = le16_to_cpu(resp->ctx_init_mask);
+	offset = &resp->qp_init_offset;
+	mem_init = &ctx->mem_init[BNXT_CTX_MEM_INIT_QP];
+	for (i = 0; i < BNXT_CTX_MEM_INIT_MAX; i++, mem_init++, offset++) {
+		mem_init->init_val = init_val;
+		mem_init->offset = BNXT_MEM_INVALID_OFFSET;
+		if (!init_mask)
+			continue;
+		if (i == BNXT_CTX_MEM_INIT_STAT)
+			offset = &resp->stat_init_offset;
+		if (init_mask & (1 << i))
+			mem_init->offset = *offset * 4;
+		else
+			mem_init->init_val = 0;
+	}
+	ctx->mem_init[BNXT_CTX_MEM_INIT_QP].size = ctx->qp_entry_size;
+	ctx->mem_init[BNXT_CTX_MEM_INIT_SRQ].size = ctx->srq_entry_size;
+	ctx->mem_init[BNXT_CTX_MEM_INIT_CQ].size = ctx->cq_entry_size;
+	ctx->mem_init[BNXT_CTX_MEM_INIT_VNIC].size = ctx->vnic_entry_size;
+	ctx->mem_init[BNXT_CTX_MEM_INIT_STAT].size = ctx->stat_entry_size;
+	ctx->mem_init[BNXT_CTX_MEM_INIT_MRAV].size = ctx->mrav_entry_size;
+}
+
 static int bnxt_hwrm_func_backing_store_qcaps(struct bnxt *bp)
 {
 	struct hwrm_func_backing_store_qcaps_input req = {0};
@@ -6804,7 +6870,9 @@ static int bnxt_hwrm_func_backing_store_qcaps(struct bnxt *bp)
 			le16_to_cpu(resp->mrav_num_entries_units);
 		ctx->tim_entry_size = le16_to_cpu(resp->tim_entry_size);
 		ctx->tim_max_entries = le32_to_cpu(resp->tim_max_entries);
-		ctx->ctx_kind_initializer = resp->ctx_kind_initializer;
+
+		bnxt_init_ctx_initializer(ctx, resp);
+
 		ctx->tqm_fp_rings_count = resp->tqm_fp_rings_count;
 		if (!ctx->tqm_fp_rings_count)
 			ctx->tqm_fp_rings_count = bp->max_q;
@@ -6833,6 +6901,9 @@ static void bnxt_hwrm_set_pg_attr(struct bnxt_ring_mem_info *rmem, u8 *pg_attr,
 				  __le64 *pg_dir)
 {
 	u8 pg_size = 0;
+
+	if (!rmem->nr_pages)
+		return;
 
 	if (BNXT_PAGE_SHIFT == 13)
 		pg_size = 1 << 4;
@@ -6978,7 +7049,7 @@ static int bnxt_alloc_ctx_mem_blk(struct bnxt *bp,
 
 static int bnxt_alloc_ctx_pg_tbls(struct bnxt *bp,
 				  struct bnxt_ctx_pg_info *ctx_pg, u32 mem_size,
-				  u8 depth, bool use_init_val)
+				  u8 depth, struct bnxt_mem_init *mem_init)
 {
 	struct bnxt_ring_mem_info *rmem = &ctx_pg->ring_mem;
 	int rc;
@@ -7016,8 +7087,7 @@ static int bnxt_alloc_ctx_pg_tbls(struct bnxt *bp,
 			rmem->pg_tbl_map = ctx_pg->ctx_dma_arr[i];
 			rmem->depth = 1;
 			rmem->nr_pages = MAX_CTX_PAGES;
-			if (use_init_val)
-				rmem->init_val = bp->ctx->ctx_kind_initializer;
+			rmem->mem_init = mem_init;
 			if (i == (nr_tbls - 1)) {
 				int rem = ctx_pg->nr_pages % MAX_CTX_PAGES;
 
@@ -7032,8 +7102,7 @@ static int bnxt_alloc_ctx_pg_tbls(struct bnxt *bp,
 		rmem->nr_pages = DIV_ROUND_UP(mem_size, BNXT_PAGE_SIZE);
 		if (rmem->nr_pages > 1 || depth)
 			rmem->depth = 1;
-		if (use_init_val)
-			rmem->init_val = bp->ctx->ctx_kind_initializer;
+		rmem->mem_init = mem_init;
 		rc = bnxt_alloc_ctx_mem_blk(bp, ctx_pg);
 	}
 	return rc;
@@ -7097,6 +7166,7 @@ static int bnxt_alloc_ctx_mem(struct bnxt *bp)
 {
 	struct bnxt_ctx_pg_info *ctx_pg;
 	struct bnxt_ctx_mem_info *ctx;
+	struct bnxt_mem_init *init;
 	u32 mem_size, ena, entries;
 	u32 entries_sp, min;
 	u32 num_mr, num_ah;
@@ -7124,39 +7194,54 @@ static int bnxt_alloc_ctx_mem(struct bnxt *bp)
 	ctx_pg = &ctx->qp_mem;
 	ctx_pg->entries = ctx->qp_min_qp1_entries + ctx->qp_max_l2_entries +
 			  extra_qps;
-	mem_size = ctx->qp_entry_size * ctx_pg->entries;
-	rc = bnxt_alloc_ctx_pg_tbls(bp, ctx_pg, mem_size, pg_lvl, true);
-	if (rc)
-		return rc;
+	if (ctx->qp_entry_size) {
+		mem_size = ctx->qp_entry_size * ctx_pg->entries;
+		init = &ctx->mem_init[BNXT_CTX_MEM_INIT_QP];
+		rc = bnxt_alloc_ctx_pg_tbls(bp, ctx_pg, mem_size, pg_lvl, init);
+		if (rc)
+			return rc;
+	}
 
 	ctx_pg = &ctx->srq_mem;
 	ctx_pg->entries = ctx->srq_max_l2_entries + extra_srqs;
-	mem_size = ctx->srq_entry_size * ctx_pg->entries;
-	rc = bnxt_alloc_ctx_pg_tbls(bp, ctx_pg, mem_size, pg_lvl, true);
-	if (rc)
-		return rc;
+	if (ctx->srq_entry_size) {
+		mem_size = ctx->srq_entry_size * ctx_pg->entries;
+		init = &ctx->mem_init[BNXT_CTX_MEM_INIT_SRQ];
+		rc = bnxt_alloc_ctx_pg_tbls(bp, ctx_pg, mem_size, pg_lvl, init);
+		if (rc)
+			return rc;
+	}
 
 	ctx_pg = &ctx->cq_mem;
 	ctx_pg->entries = ctx->cq_max_l2_entries + extra_qps * 2;
-	mem_size = ctx->cq_entry_size * ctx_pg->entries;
-	rc = bnxt_alloc_ctx_pg_tbls(bp, ctx_pg, mem_size, pg_lvl, true);
-	if (rc)
-		return rc;
+	if (ctx->cq_entry_size) {
+		mem_size = ctx->cq_entry_size * ctx_pg->entries;
+		init = &ctx->mem_init[BNXT_CTX_MEM_INIT_CQ];
+		rc = bnxt_alloc_ctx_pg_tbls(bp, ctx_pg, mem_size, pg_lvl, init);
+		if (rc)
+			return rc;
+	}
 
 	ctx_pg = &ctx->vnic_mem;
 	ctx_pg->entries = ctx->vnic_max_vnic_entries +
 			  ctx->vnic_max_ring_table_entries;
-	mem_size = ctx->vnic_entry_size * ctx_pg->entries;
-	rc = bnxt_alloc_ctx_pg_tbls(bp, ctx_pg, mem_size, 1, true);
-	if (rc)
-		return rc;
+	if (ctx->vnic_entry_size) {
+		mem_size = ctx->vnic_entry_size * ctx_pg->entries;
+		init = &ctx->mem_init[BNXT_CTX_MEM_INIT_VNIC];
+		rc = bnxt_alloc_ctx_pg_tbls(bp, ctx_pg, mem_size, 1, init);
+		if (rc)
+			return rc;
+	}
 
 	ctx_pg = &ctx->stat_mem;
 	ctx_pg->entries = ctx->stat_max_entries;
-	mem_size = ctx->stat_entry_size * ctx_pg->entries;
-	rc = bnxt_alloc_ctx_pg_tbls(bp, ctx_pg, mem_size, 1, true);
-	if (rc)
-		return rc;
+	if (ctx->stat_entry_size) {
+		mem_size = ctx->stat_entry_size * ctx_pg->entries;
+		init = &ctx->mem_init[BNXT_CTX_MEM_INIT_STAT];
+		rc = bnxt_alloc_ctx_pg_tbls(bp, ctx_pg, mem_size, 1, init);
+		if (rc)
+			return rc;
+	}
 
 	ena = 0;
 	if (!(bp->flags & BNXT_FLAG_ROCE_CAP))
@@ -7169,10 +7254,13 @@ static int bnxt_alloc_ctx_mem(struct bnxt *bp)
 	num_mr = 1024 * 256;
 	num_ah = 1024 * 128;
 	ctx_pg->entries = num_mr + num_ah;
-	mem_size = ctx->mrav_entry_size * ctx_pg->entries;
-	rc = bnxt_alloc_ctx_pg_tbls(bp, ctx_pg, mem_size, 2, true);
-	if (rc)
-		return rc;
+	if (ctx->mrav_entry_size) {
+		mem_size = ctx->mrav_entry_size * ctx_pg->entries;
+		init = &ctx->mem_init[BNXT_CTX_MEM_INIT_MRAV];
+		rc = bnxt_alloc_ctx_pg_tbls(bp, ctx_pg, mem_size, 2, init);
+		if (rc)
+			return rc;
+	}
 	ena = FUNC_BACKING_STORE_CFG_REQ_ENABLES_MRAV;
 	if (ctx->mrav_num_entries_units)
 		ctx_pg->entries =
@@ -7181,10 +7269,12 @@ static int bnxt_alloc_ctx_mem(struct bnxt *bp)
 
 	ctx_pg = &ctx->tim_mem;
 	ctx_pg->entries = ctx->qp_mem.entries;
-	mem_size = ctx->tim_entry_size * ctx_pg->entries;
-	rc = bnxt_alloc_ctx_pg_tbls(bp, ctx_pg, mem_size, 1, false);
-	if (rc)
-		return rc;
+	if (ctx->tim_entry_size) {
+		mem_size = ctx->tim_entry_size * ctx_pg->entries;
+		rc = bnxt_alloc_ctx_pg_tbls(bp, ctx_pg, mem_size, 1, NULL);
+		if (rc)
+			return rc;
+	}
 	ena |= FUNC_BACKING_STORE_CFG_REQ_ENABLES_TIM;
 
 skip_rdma:
@@ -7198,10 +7288,13 @@ skip_rdma:
 	for (i = 0; i < ctx->tqm_fp_rings_count + 1; i++) {
 		ctx_pg = ctx->tqm_mem[i];
 		ctx_pg->entries = i ? entries : entries_sp;
-		mem_size = ctx->tqm_entry_size * ctx_pg->entries;
-		rc = bnxt_alloc_ctx_pg_tbls(bp, ctx_pg, mem_size, 1, false);
-		if (rc)
-			return rc;
+		if (ctx->tqm_entry_size) {
+			mem_size = ctx->tqm_entry_size * ctx_pg->entries;
+			rc = bnxt_alloc_ctx_pg_tbls(bp, ctx_pg, mem_size, 1,
+						    NULL);
+			if (rc)
+				return rc;
+		}
 		ena |= FUNC_BACKING_STORE_CFG_REQ_ENABLES_TQM_SP << i;
 	}
 	ena |= FUNC_BACKING_STORE_CFG_REQ_DFLT_ENABLES;
@@ -10915,6 +11008,11 @@ static void bnxt_fw_reset_close(struct bnxt *bp)
 	 * kernel memory.
 	 */
 	if (test_bit(BNXT_STATE_FW_FATAL_COND, &bp->state)) {
+		u16 val = 0;
+
+		pci_read_config_word(bp->pdev, PCI_SUBSYSTEM_ID, &val);
+		if (val == 0xffff)
+			bp->fw_reset_min_dsecs = 0;
 		bnxt_tx_disable(bp);
 		bnxt_disable_napi(bp);
 		bnxt_disable_int_sync(bp);
@@ -11126,6 +11224,17 @@ static void bnxt_init_ethtool_link_settings(struct bnxt *bp)
 		link_info->req_flow_ctrl = link_info->force_pause_setting;
 }
 
+static void bnxt_fw_echo_reply(struct bnxt *bp)
+{
+	struct bnxt_fw_health *fw_health = bp->fw_health;
+	struct hwrm_func_echo_response_input req = {0};
+
+	bnxt_hwrm_cmd_hdr_init(bp, &req, HWRM_FUNC_ECHO_RESPONSE, -1, -1);
+	req.event_data1 = cpu_to_le32(fw_health->echo_req_data1);
+	req.event_data2 = cpu_to_le32(fw_health->echo_req_data2);
+	hwrm_send_message(bp, &req, sizeof(req), HWRM_CMD_TIMEOUT);
+}
+
 static void bnxt_sp_task(struct work_struct *work)
 {
 	struct bnxt *bp = container_of(work, struct bnxt, sp_task);
@@ -11192,6 +11301,9 @@ static void bnxt_sp_task(struct work_struct *work)
 
 	if (test_and_clear_bit(BNXT_RING_COAL_NOW_SP_EVENT, &bp->sp_event))
 		bnxt_chk_missed_irq(bp);
+
+	if (test_and_clear_bit(BNXT_FW_ECHO_REQUEST_SP_EVENT, &bp->sp_event))
+		bnxt_fw_echo_reply(bp);
 
 	/* These functions below will clear BNXT_STATE_IN_SP_TASK.  They
 	 * must be the last functions to be called before exiting.
@@ -11600,6 +11712,20 @@ static void bnxt_fw_reset_task(struct work_struct *work)
 		if (test_bit(BNXT_STATE_FW_FATAL_COND, &bp->state)) {
 			u32 val;
 
+			if (!bp->fw_reset_min_dsecs) {
+				u16 val;
+
+				pci_read_config_word(bp->pdev, PCI_SUBSYSTEM_ID,
+						     &val);
+				if (val == 0xffff) {
+					if (bnxt_fw_reset_timeout(bp)) {
+						netdev_err(bp->dev, "Firmware reset aborted, PCI config space invalid\n");
+						goto fw_reset_abort;
+					}
+					bnxt_queue_fw_reset_work(bp, HZ / 1000);
+					return;
+				}
+			}
 			val = bnxt_fw_health_readl(bp,
 						   BNXT_FW_RESET_INPROG_REG);
 			if (val)
