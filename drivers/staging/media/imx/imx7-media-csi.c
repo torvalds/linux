@@ -1000,39 +1000,47 @@ static int imx7_csi_pad_link_validate(struct v4l2_subdev *sd,
 	struct imx7_csi *csi = v4l2_get_subdevdata(sd);
 	struct imx_media_video_dev *vdev = csi->vdev;
 	const struct v4l2_pix_format *out_pix = &vdev->fmt;
-	struct media_entity *src;
 	struct media_pad *pad;
+	bool is_csi2;
 	int ret;
 
+	if (!csi->src_sd)
+		return -EPIPE;
+
 	/*
-	 * Validate the source link, and record whether the CSI mux selects the
+	 * Validate the source link, and record whether the source uses the
 	 * parallel input or the CSI-2 receiver.
 	 */
 	ret = v4l2_subdev_link_validate_default(sd, link, source_fmt, sink_fmt);
 	if (ret)
 		return ret;
 
-	if (!csi->src_sd)
-		return -EPIPE;
+	switch (csi->src_sd->entity.function) {
+	case MEDIA_ENT_F_VID_IF_BRIDGE:
+		/* The input is the CSI-2 receiver. */
+		is_csi2 = true;
+		break;
 
-	src = &csi->src_sd->entity;
+	case MEDIA_ENT_F_VID_MUX:
+		/* The input is the mux, check its input. */
+		pad = imx_media_pipeline_pad(&csi->src_sd->entity, 0, 0, true);
+		if (!pad)
+			return -ENODEV;
 
-	/*
-	 * if the source is neither a CSI MUX or CSI-2 get the one directly
-	 * upstream from this CSI
-	 */
-	if (src->function != MEDIA_ENT_F_VID_IF_BRIDGE &&
-	    src->function != MEDIA_ENT_F_VID_MUX)
-		src = &csi->sd.entity;
+		is_csi2 = pad->entity->function == MEDIA_ENT_F_VID_IF_BRIDGE;
+		break;
 
-	pad = imx_media_pipeline_pad(src, 0, 0, true);
-	if (!pad)
-		return -ENODEV;
+	default:
+		/*
+		 * The input is an external entity, it must use the parallel
+		 * bus.
+		 */
+		is_csi2 = false;
+		break;
+	}
 
 	mutex_lock(&csi->lock);
-
-	csi->is_csi2 = (pad->entity->function == MEDIA_ENT_F_VID_IF_BRIDGE);
-
+	csi->is_csi2 = is_csi2;
 	mutex_unlock(&csi->lock);
 
 	/* Validate the sink link, ensure the pixel format is supported. */
