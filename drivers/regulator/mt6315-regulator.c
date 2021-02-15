@@ -69,7 +69,7 @@ static unsigned int mt6315_map_mode(u32 mode)
 	case MT6315_BUCK_MODE_LP:
 		return REGULATOR_MODE_IDLE;
 	default:
-		return -EINVAL;
+		return REGULATOR_MODE_INVALID;
 	}
 }
 
