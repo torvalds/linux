@@ -331,8 +331,6 @@ static void imx7_csi_sw_reset(struct imx7_csi *csi)
 	usleep_range(2000, 3000);
 
 	imx7_csi_irq_clear(csi);
-
-	imx7_csi_hw_enable(csi);
 }
 
 static void imx7_csi_update_buf(struct imx7_csi *csi, dma_addr_t phys,
