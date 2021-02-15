@@ -56,8 +56,8 @@ struct capture_priv {
  * Video ioctls follow
  */
 
-static int vidioc_querycap(struct file *file, void *fh,
-			   struct v4l2_capability *cap)
+static int capture_querycap(struct file *file, void *fh,
+			    struct v4l2_capability *cap)
 {
 	struct capture_priv *priv = video_drvdata(file);
 
@@ -414,7 +414,7 @@ static int capture_subscribe_event(struct v4l2_fh *fh,
 }
 
 static const struct v4l2_ioctl_ops capture_ioctl_ops = {
-	.vidioc_querycap	= vidioc_querycap,
+	.vidioc_querycap	= capture_querycap,
 
 	.vidioc_enum_framesizes = capture_enum_framesizes,
 	.vidioc_enum_frameintervals = capture_enum_frameintervals,
