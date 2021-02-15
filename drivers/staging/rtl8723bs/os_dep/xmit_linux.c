@@ -139,8 +139,6 @@ static int rtw_mlcst2unicst(struct adapter *padapter, struct sk_buff *skb)
 	int i;
 	s32	res;
 
-	DBG_COUNTER(padapter->tx_logs.os_tx_m2u);
-
 	spin_lock_bh(&pstapriv->asoc_list_lock);
 	phead = &pstapriv->asoc_list;
 	plist = get_next(phead);
@@ -160,20 +158,14 @@ static int rtw_mlcst2unicst(struct adapter *padapter, struct sk_buff *skb)
 
 	for (i = 0; i < chk_alive_num; i++) {
 		psta = rtw_get_stainfo_by_offset(pstapriv, chk_alive_list[i]);
-		if (!(psta->state & _FW_LINKED)) {
-			DBG_COUNTER(padapter->tx_logs.os_tx_m2u_ignore_fw_linked);
+		if (!(psta->state & _FW_LINKED))
 			continue;
-		}
 
 		/* avoid come from STA1 and send back STA1 */
 		if (!memcmp(psta->hwaddr, &skb->data[6], 6) ||
 		    !memcmp(psta->hwaddr, null_addr, 6) ||
-		    !memcmp(psta->hwaddr, bc_addr, 6)) {
-			DBG_COUNTER(padapter->tx_logs.os_tx_m2u_ignore_self);
+		    !memcmp(psta->hwaddr, bc_addr, 6))
 			continue;
-		}
-
-		DBG_COUNTER(padapter->tx_logs.os_tx_m2u_entry);
 
 		newskb = rtw_skb_copy(skb);
 
@@ -181,13 +173,11 @@ static int rtw_mlcst2unicst(struct adapter *padapter, struct sk_buff *skb)
 			memcpy(newskb->data, psta->hwaddr, 6);
 			res = rtw_xmit(padapter, &newskb);
 			if (res < 0) {
-				DBG_COUNTER(padapter->tx_logs.os_tx_m2u_entry_err_xmit);
 				DBG_871X("%s()-%d: rtw_xmit() return error!\n", __func__, __LINE__);
 				pxmitpriv->tx_drop++;
 				dev_kfree_skb_any(newskb);
 			}
 		} else {
-			DBG_COUNTER(padapter->tx_logs.os_tx_m2u_entry_err_skb);
 			DBG_871X("%s-%d: rtw_skb_copy() failed!\n", __func__, __LINE__);
 			pxmitpriv->tx_drop++;
 			/* dev_kfree_skb_any(skb); */
@@ -206,11 +196,9 @@ int _rtw_xmit_entry(_pkt *pkt, _nic_hdl pnetdev)
 	struct mlme_priv *pmlmepriv = &padapter->mlmepriv;
 	s32 res = 0;
 
-	DBG_COUNTER(padapter->tx_logs.os_tx);
 	RT_TRACE(_module_rtl871x_mlme_c_, _drv_info_, ("+xmit_enry\n"));
 
 	if (rtw_if_up(padapter) == false) {
-		DBG_COUNTER(padapter->tx_logs.os_tx_err_up);
 		RT_TRACE(_module_xmit_osdep_c_, _drv_err_, ("rtw_xmit_entry: rtw_if_up fail\n"));
 		#ifdef DBG_TX_DROP_FRAME
 		DBG_871X("DBG_TX_DROP_FRAME %s if_up fail\n", __func__);
@@ -236,7 +224,6 @@ int _rtw_xmit_entry(_pkt *pkt, _nic_hdl pnetdev)
 		} else {
 			/* DBG_871X("Stop M2U(%d, %d)! ", pxmitpriv->free_xmitframe_cnt, pxmitpriv->free_xmitbuf_cnt); */
 			/* DBG_871X("!m2u); */
-			DBG_COUNTER(padapter->tx_logs.os_tx_m2u_stop);
 		}
 	}
 
