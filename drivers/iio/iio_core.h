@@ -46,6 +46,9 @@ int __iio_add_chan_devattr(const char *postfix,
 			   struct list_head *attr_list);
 void iio_free_chan_devattr_list(struct list_head *attr_list);
 
+int iio_device_register_sysfs_group(struct iio_dev *indio_dev,
+				    const struct attribute_group *group);
+
 ssize_t iio_format_value(char *buf, unsigned int type, int size, int *vals);
 
 /* Event interface flags */

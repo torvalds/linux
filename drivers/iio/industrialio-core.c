@@ -1454,6 +1454,25 @@ static ssize_t iio_store_timestamp_clock(struct device *dev,
 	return len;
 }
 
+int iio_device_register_sysfs_group(struct iio_dev *indio_dev,
+				    const struct attribute_group *group)
+{
+	struct iio_dev_opaque *iio_dev_opaque = to_iio_dev_opaque(indio_dev);
+	const struct attribute_group **new, **old = iio_dev_opaque->groups;
+	unsigned int cnt = iio_dev_opaque->groupcounter;
+
+	new = krealloc(old, sizeof(*new) * (cnt + 2), GFP_KERNEL);
+	if (!new)
+		return -ENOMEM;
+
+	new[iio_dev_opaque->groupcounter++] = group;
+	new[iio_dev_opaque->groupcounter] = NULL;
+
+	iio_dev_opaque->groups = new;
+
+	return 0;
+}
+
 static DEVICE_ATTR(current_timestamp_clock, S_IRUGO | S_IWUSR,
 		   iio_show_timestamp_clock, iio_store_timestamp_clock);
 
@@ -1527,8 +1546,10 @@ static int iio_device_register_sysfs(struct iio_dev *indio_dev)
 	if (clk)
 		iio_dev_opaque->chan_attr_group.attrs[attrn++] = clk;
 
-	indio_dev->groups[indio_dev->groupcounter++] =
-		&iio_dev_opaque->chan_attr_group;
+	ret = iio_device_register_sysfs_group(indio_dev,
+					      &iio_dev_opaque->chan_attr_group);
+	if (ret)
+		goto error_clear_attrs;
 
 	return 0;
 
@@ -1545,6 +1566,7 @@ static void iio_device_unregister_sysfs(struct iio_dev *indio_dev)
 	iio_free_chan_devattr_list(&iio_dev_opaque->channel_attr_list);
 	kfree(iio_dev_opaque->chan_attr_group.attrs);
 	iio_dev_opaque->chan_attr_group.attrs = NULL;
+	kfree(iio_dev_opaque->groups);
 }
 
 static void iio_dev_release(struct device *device)
@@ -1594,7 +1616,6 @@ struct iio_dev *iio_device_alloc(struct device *parent, int sizeof_priv)
 		ALIGN(sizeof(struct iio_dev_opaque), IIO_ALIGN);
 
 	dev->dev.parent = parent;
-	dev->dev.groups = dev->groups;
 	dev->dev.type = &iio_device_type;
 	dev->dev.bus = &iio_bus_type;
 	device_initialize(&dev->dev);
@@ -1856,6 +1877,9 @@ int __iio_device_register(struct iio_dev *indio_dev, struct module *this_mod)
 		indio_dev->dev.devt = MKDEV(MAJOR(iio_devt), indio_dev->id);
 		indio_dev->chrdev.owner = this_mod;
 	}
+
+	/* assign device groups now; they should be all registered now */
+	indio_dev->dev.groups = iio_dev_opaque->groups;
 
 	ret = cdev_device_add(&indio_dev->chrdev, &indio_dev->dev);
 	if (ret < 0)

@@ -12,6 +12,8 @@
  *				attributes
  * @chan_attr_group:		group for all attrs in base directory
  * @ioctl_handlers:		ioctl handlers registered with the core handler
+ * @groups:			attribute groups
+ * @groupcounter:		index of next attribute group
  * @debugfs_dentry:		device specific debugfs dentry
  * @cached_reg_addr:		cached register address for debugfs reads
  * @read_buf:			read buffer to be used for the initial reg read
@@ -24,6 +26,8 @@ struct iio_dev_opaque {
 	struct list_head		channel_attr_list;
 	struct attribute_group		chan_attr_group;
 	struct list_head		ioctl_handlers;
+	const struct attribute_group	**groups;
+	int				groupcounter;
 #if defined(CONFIG_DEBUG_FS)
 	struct dentry			*debugfs_dentry;
 	unsigned			cached_reg_addr;

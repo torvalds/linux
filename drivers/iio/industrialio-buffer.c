@@ -1287,7 +1287,9 @@ static int __iio_buffer_alloc_sysfs_and_mask(struct iio_buffer *buffer,
 	buffer->buffer_group.name = "buffer";
 	buffer->buffer_group.attrs = attr;
 
-	indio_dev->groups[indio_dev->groupcounter++] = &buffer->buffer_group;
+	ret = iio_device_register_sysfs_group(indio_dev, &buffer->buffer_group);
+	if (ret)
+		goto error_free_buffer_attrs;
 
 	attrcount = 0;
 	INIT_LIST_HEAD(&buffer->scan_el_dev_attr_list);
@@ -1330,14 +1332,20 @@ static int __iio_buffer_alloc_sysfs_and_mask(struct iio_buffer *buffer,
 
 	list_for_each_entry(p, &buffer->scan_el_dev_attr_list, l)
 		buffer->scan_el_group.attrs[attrn++] = &p->dev_attr.attr;
-	indio_dev->groups[indio_dev->groupcounter++] = &buffer->scan_el_group;
+
+	ret = iio_device_register_sysfs_group(indio_dev, &buffer->scan_el_group);
+	if (ret)
+		goto error_free_scan_el_attrs;
 
 	return 0;
 
+error_free_scan_el_attrs:
+	kfree(buffer->scan_el_group.attrs);
 error_free_scan_mask:
 	bitmap_free(buffer->scan_mask);
 error_cleanup_dynamic:
 	iio_free_chan_devattr_list(&buffer->scan_el_dev_attr_list);
+error_free_buffer_attrs:
 	kfree(buffer->buffer_group.attrs);
 
 	return ret;

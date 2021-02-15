@@ -694,10 +694,8 @@ EXPORT_SYMBOL(iio_trigger_validate_own_device);
 
 int iio_device_register_trigger_consumer(struct iio_dev *indio_dev)
 {
-	indio_dev->groups[indio_dev->groupcounter++] =
-		&iio_trigger_consumer_attr_group;
-
-	return 0;
+	return iio_device_register_sysfs_group(indio_dev,
+					       &iio_trigger_consumer_attr_group);
 }
 
 void iio_device_unregister_trigger_consumer(struct iio_dev *indio_dev)
