@@ -668,20 +668,23 @@ static int mipi_csis_link_setup(struct media_entity *entity,
 	dev_dbg(state->dev, "link setup %s -> %s", remote_pad->entity->name,
 		local_pad->entity->name);
 
+	/* We only care about the link to the source. */
+	if (!(local_pad->flags & MEDIA_PAD_FL_SINK))
+		return 0;
+
 	remote_sd = media_entity_to_v4l2_subdev(remote_pad->entity);
 
 	mutex_lock(&state->lock);
 
-	if (local_pad->flags & MEDIA_PAD_FL_SINK) {
-		if (flags & MEDIA_LNK_FL_ENABLED) {
-			if (state->src_sd) {
-				ret = -EBUSY;
-				goto out;
-			}
-			state->src_sd = remote_sd;
-		} else {
-			state->src_sd = NULL;
+	if (flags & MEDIA_LNK_FL_ENABLED) {
+		if (state->src_sd) {
+			ret = -EBUSY;
+			goto out;
 		}
+
+		state->src_sd = remote_sd;
+	} else {
+		state->src_sd = NULL;
 	}
 
 out:
