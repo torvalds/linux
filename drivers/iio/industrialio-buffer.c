@@ -1175,8 +1175,6 @@ done:
 	return (ret < 0) ? ret : len;
 }
 
-static const char * const iio_scan_elements_group_name = "scan_elements";
-
 static ssize_t iio_buffer_show_watermark(struct device *dev,
 					 struct device_attribute *attr,
 					 char *buf)
@@ -1252,8 +1250,68 @@ static struct attribute *iio_buffer_attrs[] = {
 	&dev_attr_data_available.attr,
 };
 
+static int iio_buffer_register_legacy_sysfs_groups(struct iio_dev *indio_dev,
+						   struct attribute **buffer_attrs,
+						   int buffer_attrcount,
+						   int scan_el_attrcount)
+{
+	struct iio_dev_opaque *iio_dev_opaque = to_iio_dev_opaque(indio_dev);
+	struct attribute_group *group;
+	struct attribute **attrs;
+	int ret;
+
+	attrs = kcalloc(buffer_attrcount + 1, sizeof(*attrs), GFP_KERNEL);
+	if (!attrs)
+		return -ENOMEM;
+
+	memcpy(attrs, buffer_attrs, buffer_attrcount * sizeof(*attrs));
+
+	group = &iio_dev_opaque->legacy_buffer_group;
+	group->attrs = attrs;
+	group->name = "buffer";
+
+	ret = iio_device_register_sysfs_group(indio_dev, group);
+	if (ret)
+		goto error_free_buffer_attrs;
+
+	attrs = kcalloc(scan_el_attrcount + 1, sizeof(*attrs), GFP_KERNEL);
+	if (!attrs) {
+		ret = -ENOMEM;
+		goto error_free_buffer_attrs;
+	}
+
+	memcpy(attrs, &buffer_attrs[buffer_attrcount],
+	       scan_el_attrcount * sizeof(*attrs));
+
+	group = &iio_dev_opaque->legacy_scan_el_group;
+	group->attrs = attrs;
+	group->name = "scan_elements";
+
+	ret = iio_device_register_sysfs_group(indio_dev, group);
+	if (ret)
+		goto error_free_scan_el_attrs;
+
+	return 0;
+
+error_free_buffer_attrs:
+	kfree(iio_dev_opaque->legacy_buffer_group.attrs);
+error_free_scan_el_attrs:
+	kfree(iio_dev_opaque->legacy_scan_el_group.attrs);
+
+	return ret;
+}
+
+static void iio_buffer_unregister_legacy_sysfs_groups(struct iio_dev *indio_dev)
+{
+	struct iio_dev_opaque *iio_dev_opaque = to_iio_dev_opaque(indio_dev);
+
+	kfree(iio_dev_opaque->legacy_buffer_group.attrs);
+	kfree(iio_dev_opaque->legacy_scan_el_group.attrs);
+}
+
 static int __iio_buffer_alloc_sysfs_and_mask(struct iio_buffer *buffer,
-					     struct iio_dev *indio_dev)
+					     struct iio_dev *indio_dev,
+					     int index)
 {
 	struct iio_dev_attr *p;
 	struct attribute **attr;
@@ -1294,8 +1352,8 @@ static int __iio_buffer_alloc_sysfs_and_mask(struct iio_buffer *buffer,
 		}
 	}
 
-	attr = kcalloc(buffer_attrcount + ARRAY_SIZE(iio_buffer_attrs) + 1,
-		       sizeof(*attr), GFP_KERNEL);
+	attrn = buffer_attrcount + scan_el_attrcount + ARRAY_SIZE(iio_buffer_attrs);
+	attr = kcalloc(attrn + 1, sizeof(* attr), GFP_KERNEL);
 	if (!attr) {
 		ret = -ENOMEM;
 		goto error_free_scan_mask;
@@ -1313,37 +1371,38 @@ static int __iio_buffer_alloc_sysfs_and_mask(struct iio_buffer *buffer,
 		       sizeof(struct attribute *) * buffer_attrcount);
 
 	buffer_attrcount += ARRAY_SIZE(iio_buffer_attrs);
-	attr[buffer_attrcount] = NULL;
 
-	buffer->buffer_group.name = "buffer";
+	attrn = buffer_attrcount;
+
+	list_for_each_entry(p, &buffer->scan_el_dev_attr_list, l)
+		attr[attrn++] = &p->dev_attr.attr;
+
+	buffer->buffer_group.name = kasprintf(GFP_KERNEL, "buffer%d", index);
+	if (!buffer->buffer_group.name) {
+		ret = -ENOMEM;
+		goto error_free_buffer_attrs;
+	}
+
 	buffer->buffer_group.attrs = attr;
 
 	ret = iio_device_register_sysfs_group(indio_dev, &buffer->buffer_group);
 	if (ret)
-		goto error_free_buffer_attrs;
+		goto error_free_buffer_attr_group_name;
 
-	buffer->scan_el_group.name = iio_scan_elements_group_name;
+	/* we only need to register the legacy groups for the first buffer */
+	if (index > 0)
+		return 0;
 
-	buffer->scan_el_group.attrs = kcalloc(scan_el_attrcount + 1,
-					      sizeof(buffer->scan_el_group.attrs[0]),
-					      GFP_KERNEL);
-	if (buffer->scan_el_group.attrs == NULL) {
-		ret = -ENOMEM;
-		goto error_free_scan_mask;
-	}
-	attrn = 0;
-
-	list_for_each_entry(p, &buffer->scan_el_dev_attr_list, l)
-		buffer->scan_el_group.attrs[attrn++] = &p->dev_attr.attr;
-
-	ret = iio_device_register_sysfs_group(indio_dev, &buffer->scan_el_group);
+	ret = iio_buffer_register_legacy_sysfs_groups(indio_dev, attr,
+						      buffer_attrcount,
+						      scan_el_attrcount);
 	if (ret)
-		goto error_free_scan_el_attrs;
+		goto error_free_buffer_attr_group_name;
 
 	return 0;
 
-error_free_scan_el_attrs:
-	kfree(buffer->scan_el_group.attrs);
+error_free_buffer_attr_group_name:
+	kfree(buffer->buffer_group.name);
 error_free_buffer_attrs:
 	kfree(buffer->buffer_group.attrs);
 error_free_scan_mask:
@@ -1372,14 +1431,14 @@ int iio_buffer_alloc_sysfs_and_mask(struct iio_dev *indio_dev)
 	if (!buffer)
 		return 0;
 
-	return __iio_buffer_alloc_sysfs_and_mask(buffer, indio_dev);
+	return __iio_buffer_alloc_sysfs_and_mask(buffer, indio_dev, 0);
 }
 
 static void __iio_buffer_free_sysfs_and_mask(struct iio_buffer *buffer)
 {
 	bitmap_free(buffer->scan_mask);
+	kfree(buffer->buffer_group.name);
 	kfree(buffer->buffer_group.attrs);
-	kfree(buffer->scan_el_group.attrs);
 	iio_free_chan_devattr_list(&buffer->scan_el_dev_attr_list);
 }
 
@@ -1389,6 +1448,8 @@ void iio_buffer_free_sysfs_and_mask(struct iio_dev *indio_dev)
 
 	if (!buffer)
 		return;
+
+	iio_buffer_unregister_legacy_sysfs_groups(indio_dev);
 
 	__iio_buffer_free_sysfs_and_mask(buffer);
 }

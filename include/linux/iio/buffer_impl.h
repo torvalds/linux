@@ -100,14 +100,11 @@ struct iio_buffer {
 	/* @scan_el_dev_attr_list: List of scan element related attributes. */
 	struct list_head scan_el_dev_attr_list;
 
-	/* @buffer_group: Attributes of the buffer group. */
-	struct attribute_group buffer_group;
-
 	/*
-	 * @scan_el_group: Attribute group for those attributes not
-	 * created from the iio_chan_info array.
+	 * @buffer_group: Attributes of the new buffer group.
+	 * Includes scan elements attributes.
 	 */
-	struct attribute_group scan_el_group;
+	struct attribute_group buffer_group;
 
 	/* @attrs: Standard attributes of the buffer. */
 	const struct attribute **attrs;

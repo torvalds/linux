@@ -14,6 +14,8 @@
  * @ioctl_handlers:		ioctl handlers registered with the core handler
  * @groups:			attribute groups
  * @groupcounter:		index of next attribute group
+ * @legacy_scan_el_group:	attribute group for legacy scan elements attribute group
+ * @legacy_buffer_group:	attribute group for legacy buffer attributes group
  * @debugfs_dentry:		device specific debugfs dentry
  * @cached_reg_addr:		cached register address for debugfs reads
  * @read_buf:			read buffer to be used for the initial reg read
@@ -28,6 +30,8 @@ struct iio_dev_opaque {
 	struct list_head		ioctl_handlers;
 	const struct attribute_group	**groups;
 	int				groupcounter;
+	struct attribute_group		legacy_scan_el_group;
+	struct attribute_group		legacy_buffer_group;
 #if defined(CONFIG_DEBUG_FS)
 	struct dentry			*debugfs_dentry;
 	unsigned			cached_reg_addr;
