@@ -26,44 +26,6 @@ MODULE_DESCRIPTION("Broadcom PHY driver");
 MODULE_AUTHOR("Maciej W. Rozycki");
 MODULE_LICENSE("GPL");
 
-static int bcm54xx_config_clock_delay(struct phy_device *phydev);
-
-static int bcm54210e_config_init(struct phy_device *phydev)
-{
-	int val;
-
-	bcm54xx_config_clock_delay(phydev);
-
-	if (phydev->dev_flags & PHY_BRCM_EN_MASTER_MODE) {
-		val = phy_read(phydev, MII_CTRL1000);
-		val |= CTL1000_AS_MASTER | CTL1000_ENABLE_MASTER;
-		phy_write(phydev, MII_CTRL1000, val);
-	}
-
-	return 0;
-}
-
-static int bcm54612e_config_init(struct phy_device *phydev)
-{
-	int reg;
-
-	bcm54xx_config_clock_delay(phydev);
-
-	/* Enable CLK125 MUX on LED4 if ref clock is enabled. */
-	if (!(phydev->dev_flags & PHY_BRCM_RX_REFCLK_UNUSED)) {
-		int err;
-
-		reg = bcm_phy_read_exp(phydev, BCM54612E_EXP_SPARE0);
-		err = bcm_phy_write_exp(phydev, BCM54612E_EXP_SPARE0,
-					BCM54612E_LED4_CLK125OUT_EN | reg);
-
-		if (err < 0)
-			return err;
-	}
-
-	return 0;
-}
-
 static int bcm54xx_config_clock_delay(struct phy_device *phydev)
 {
 	int rc, val;
@@ -101,6 +63,42 @@ static int bcm54xx_config_clock_delay(struct phy_device *phydev)
 	rc = bcm_phy_write_shadow(phydev, BCM54810_SHD_CLK_CTL, val);
 	if (rc < 0)
 		return rc;
+
+	return 0;
+}
+
+static int bcm54210e_config_init(struct phy_device *phydev)
+{
+	int val;
+
+	bcm54xx_config_clock_delay(phydev);
+
+	if (phydev->dev_flags & PHY_BRCM_EN_MASTER_MODE) {
+		val = phy_read(phydev, MII_CTRL1000);
+		val |= CTL1000_AS_MASTER | CTL1000_ENABLE_MASTER;
+		phy_write(phydev, MII_CTRL1000, val);
+	}
+
+	return 0;
+}
+
+static int bcm54612e_config_init(struct phy_device *phydev)
+{
+	int reg;
+
+	bcm54xx_config_clock_delay(phydev);
+
+	/* Enable CLK125 MUX on LED4 if ref clock is enabled. */
+	if (!(phydev->dev_flags & PHY_BRCM_RX_REFCLK_UNUSED)) {
+		int err;
+
+		reg = bcm_phy_read_exp(phydev, BCM54612E_EXP_SPARE0);
+		err = bcm_phy_write_exp(phydev, BCM54612E_EXP_SPARE0,
+					BCM54612E_LED4_CLK125OUT_EN | reg);
+
+		if (err < 0)
+			return err;
+	}
 
 	return 0;
 }
@@ -195,6 +193,7 @@ static void bcm54xx_adjust_rxrefclk(struct phy_device *phydev)
 	if (BRCM_PHY_MODEL(phydev) != PHY_ID_BCM57780 &&
 	    BRCM_PHY_MODEL(phydev) != PHY_ID_BCM50610 &&
 	    BRCM_PHY_MODEL(phydev) != PHY_ID_BCM50610M &&
+	    BRCM_PHY_MODEL(phydev) != PHY_ID_BCM54210E &&
 	    BRCM_PHY_MODEL(phydev) != PHY_ID_BCM54810 &&
 	    BRCM_PHY_MODEL(phydev) != PHY_ID_BCM54811)
 		return;
@@ -229,9 +228,10 @@ static void bcm54xx_adjust_rxrefclk(struct phy_device *phydev)
 		val |= BCM54XX_SHD_SCR3_DLLAPD_DIS;
 
 	if (phydev->dev_flags & PHY_BRCM_DIS_TXCRXC_NOENRGY) {
-		if (BRCM_PHY_MODEL(phydev) == PHY_ID_BCM54810 ||
-		    BRCM_PHY_MODEL(phydev) == PHY_ID_BCM54811)
-			val |= BCM54810_SHD_SCR3_TRDDAPD;
+		if (BRCM_PHY_MODEL(phydev) == PHY_ID_BCM54210E ||
+		    BRCM_PHY_MODEL(phydev) == PHY_ID_BCM54810 ||
+		    BRCM_PHY_MODEL(phydev) == PHY_ID_BCM54210E)
+			val |= BCM54XX_SHD_SCR3_RXCTXC_DIS;
 		else
 			val |= BCM54XX_SHD_SCR3_TRDDAPD;
 	}
@@ -383,9 +383,20 @@ static int bcm5481_config_aneg(struct phy_device *phydev)
 	return ret;
 }
 
+struct bcm54616s_phy_priv {
+	bool mode_1000bx_en;
+};
+
 static int bcm54616s_probe(struct phy_device *phydev)
 {
+	struct bcm54616s_phy_priv *priv;
 	int val, intf_sel;
+
+	priv = devm_kzalloc(&phydev->mdio.dev, sizeof(*priv), GFP_KERNEL);
+	if (!priv)
+		return -ENOMEM;
+
+	phydev->priv = priv;
 
 	val = bcm_phy_read_shadow(phydev, BCM54XX_SHD_MODE);
 	if (val < 0)
@@ -409,7 +420,7 @@ static int bcm54616s_probe(struct phy_device *phydev)
 		 * 1000BASE-X configuration.
 		 */
 		if (!(val & BCM54616S_100FX_MODE))
-			phydev->dev_flags |= PHY_BCM_FLAGS_MODE_1000BX;
+			priv->mode_1000bx_en = true;
 
 		phydev->port = PORT_FIBRE;
 	}
@@ -419,10 +430,11 @@ static int bcm54616s_probe(struct phy_device *phydev)
 
 static int bcm54616s_config_aneg(struct phy_device *phydev)
 {
+	struct bcm54616s_phy_priv *priv = phydev->priv;
 	int ret;
 
 	/* Aneg firstly. */
-	if (phydev->dev_flags & PHY_BCM_FLAGS_MODE_1000BX)
+	if (priv->mode_1000bx_en)
 		ret = genphy_c37_config_aneg(phydev);
 	else
 		ret = genphy_config_aneg(phydev);
@@ -435,9 +447,10 @@ static int bcm54616s_config_aneg(struct phy_device *phydev)
 
 static int bcm54616s_read_status(struct phy_device *phydev)
 {
+	struct bcm54616s_phy_priv *priv = phydev->priv;
 	int err;
 
-	if (phydev->dev_flags & PHY_BCM_FLAGS_MODE_1000BX)
+	if (priv->mode_1000bx_en)
 		err = genphy_c37_read_status(phydev);
 	else
 		err = genphy_read_status(phydev);
