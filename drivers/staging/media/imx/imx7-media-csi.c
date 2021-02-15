@@ -305,23 +305,6 @@ static void imx7_csi_rx_fifo_clear(struct imx7_csi *csi)
 	imx7_csi_reg_write(csi, cr1 | BIT_FCC, CSI_CSICR1);
 }
 
-static void imx7_csi_buf_stride_set(struct imx7_csi *csi, u32 stride)
-{
-	imx7_csi_reg_write(csi, stride, CSI_CSIFBUF_PARA);
-}
-
-static void imx7_csi_deinterlace_enable(struct imx7_csi *csi, bool enable)
-{
-	u32 cr18 = imx7_csi_reg_read(csi, CSI_CSICR18);
-
-	if (enable)
-		cr18 |= BIT_DEINTERLACE_EN;
-	else
-		cr18 &= ~BIT_DEINTERLACE_EN;
-
-	imx7_csi_reg_write(csi, cr18, CSI_CSICR18);
-}
-
 static void imx7_csi_dmareq_rff_enable(struct imx7_csi *csi)
 {
 	u32 cr3 = imx7_csi_reg_read(csi, CSI_CSICR3);
@@ -346,21 +329,6 @@ static void imx7_csi_dmareq_rff_disable(struct imx7_csi *csi)
 	cr3 &= ~BIT_DMA_REQ_EN_RFF;
 	cr3 &= ~BIT_HRESP_ERR_EN;
 	imx7_csi_reg_write(csi, cr3, CSI_CSICR3);
-}
-
-static void imx7_csi_set_imagpara(struct imx7_csi *csi, int width, int height)
-{
-	int imag_para;
-	int rx_count;
-
-	rx_count = (width * height) >> 2;
-	imx7_csi_reg_write(csi, rx_count, CSI_CSIRXCNT);
-
-	imag_para = BIT_IMAGE_WIDTH(width) | BIT_IMAGE_HEIGHT(height);
-	imx7_csi_reg_write(csi, imag_para, CSI_CSIIMAG_PARA);
-
-	/* reflash the embedded DMA controller */
-	imx7_csi_dma_reflash(csi);
 }
 
 static void imx7_csi_sw_reset(struct imx7_csi *csi)
@@ -482,93 +450,101 @@ static void imx7_csi_configure(struct imx7_csi *csi)
 {
 	struct imx_media_video_dev *vdev = csi->vdev;
 	struct v4l2_pix_format *out_pix = &vdev->fmt;
-	u32 cr1, cr18;
 	int width = out_pix->width;
-
-	if (out_pix->field == V4L2_FIELD_INTERLACED) {
-		imx7_csi_deinterlace_enable(csi, true);
-		imx7_csi_buf_stride_set(csi, out_pix->width);
-	} else {
-		imx7_csi_deinterlace_enable(csi, false);
-		imx7_csi_buf_stride_set(csi, 0);
-	}
+	u32 cr1, cr18;
+	u32 stride;
 
 	cr18 = imx7_csi_reg_read(csi, CSI_CSICR18);
 
+	if (out_pix->field == V4L2_FIELD_INTERLACED) {
+		cr18 |= BIT_DEINTERLACE_EN;
+		stride = out_pix->width;
+	} else {
+		cr18 &= ~BIT_DEINTERLACE_EN;
+		stride = 0;
+	}
+
 	if (!csi->is_csi2) {
+		cr1 = BIT_SOF_POL | BIT_REDGE | BIT_GCLK_MODE | BIT_HSYNC_POL
+		    | BIT_FCC | BIT_MCLKDIV(1) | BIT_MCLKEN;
+
+		cr18 |= BIT_BASEADDR_SWITCH_EN | BIT_BASEADDR_SWITCH_SEL |
+			BIT_BASEADDR_CHG_ERR_EN;
+
 		if (out_pix->pixelformat == V4L2_PIX_FMT_UYVY ||
 		    out_pix->pixelformat == V4L2_PIX_FMT_YUYV)
 			width *= 2;
+	} else {
+		cr1 = BIT_SOF_POL | BIT_REDGE | BIT_HSYNC_POL | BIT_FCC
+		    | BIT_MCLKDIV(1) | BIT_MCLKEN;
 
-		imx7_csi_set_imagpara(csi, width, out_pix->height);
+		cr18 &= BIT_MIPI_DATA_FORMAT_MASK;
+		cr18 |= BIT_DATA_FROM_MIPI;
 
-		cr18 |= (BIT_BASEADDR_SWITCH_EN | BIT_BASEADDR_SWITCH_SEL |
-			BIT_BASEADDR_CHG_ERR_EN);
-		imx7_csi_reg_write(csi, cr18, CSI_CSICR18);
+		switch (csi->format_mbus[IMX7_CSI_PAD_SINK].code) {
+		case MEDIA_BUS_FMT_Y8_1X8:
+		case MEDIA_BUS_FMT_SBGGR8_1X8:
+		case MEDIA_BUS_FMT_SGBRG8_1X8:
+		case MEDIA_BUS_FMT_SGRBG8_1X8:
+		case MEDIA_BUS_FMT_SRGGB8_1X8:
+			cr18 |= BIT_MIPI_DATA_FORMAT_RAW8;
+			break;
+		case MEDIA_BUS_FMT_Y10_1X10:
+		case MEDIA_BUS_FMT_SBGGR10_1X10:
+		case MEDIA_BUS_FMT_SGBRG10_1X10:
+		case MEDIA_BUS_FMT_SGRBG10_1X10:
+		case MEDIA_BUS_FMT_SRGGB10_1X10:
+			cr18 |= BIT_MIPI_DATA_FORMAT_RAW10;
+			break;
+		case MEDIA_BUS_FMT_Y12_1X12:
+		case MEDIA_BUS_FMT_SBGGR12_1X12:
+		case MEDIA_BUS_FMT_SGBRG12_1X12:
+		case MEDIA_BUS_FMT_SGRBG12_1X12:
+		case MEDIA_BUS_FMT_SRGGB12_1X12:
+			cr18 |= BIT_MIPI_DATA_FORMAT_RAW12;
+			break;
+		case MEDIA_BUS_FMT_Y14_1X14:
+		case MEDIA_BUS_FMT_SBGGR14_1X14:
+		case MEDIA_BUS_FMT_SGBRG14_1X14:
+		case MEDIA_BUS_FMT_SGRBG14_1X14:
+		case MEDIA_BUS_FMT_SRGGB14_1X14:
+			cr18 |= BIT_MIPI_DATA_FORMAT_RAW14;
+			break;
+		/*
+		 * CSI-2 sources are supposed to use the 1X16 formats, but not
+		 * all of them comply. Support both variants.
+		 */
+		case MEDIA_BUS_FMT_UYVY8_2X8:
+		case MEDIA_BUS_FMT_UYVY8_1X16:
+		case MEDIA_BUS_FMT_YUYV8_2X8:
+		case MEDIA_BUS_FMT_YUYV8_1X16:
+			cr18 |= BIT_MIPI_DATA_FORMAT_YUV422_8B;
+			break;
+		}
 
-		return;
-	}
-
-	imx7_csi_set_imagpara(csi, width, out_pix->height);
-
-	cr1 = imx7_csi_reg_read(csi, CSI_CSICR1);
-	cr1 &= ~BIT_GCLK_MODE;
-
-	cr18 &= BIT_MIPI_DATA_FORMAT_MASK;
-	cr18 |= BIT_DATA_FROM_MIPI;
-
-	switch (csi->format_mbus[IMX7_CSI_PAD_SINK].code) {
-	case MEDIA_BUS_FMT_Y8_1X8:
-	case MEDIA_BUS_FMT_SBGGR8_1X8:
-	case MEDIA_BUS_FMT_SGBRG8_1X8:
-	case MEDIA_BUS_FMT_SGRBG8_1X8:
-	case MEDIA_BUS_FMT_SRGGB8_1X8:
-		cr18 |= BIT_MIPI_DATA_FORMAT_RAW8;
-		break;
-	case MEDIA_BUS_FMT_Y10_1X10:
-	case MEDIA_BUS_FMT_SBGGR10_1X10:
-	case MEDIA_BUS_FMT_SGBRG10_1X10:
-	case MEDIA_BUS_FMT_SGRBG10_1X10:
-	case MEDIA_BUS_FMT_SRGGB10_1X10:
-		cr18 |= BIT_MIPI_DATA_FORMAT_RAW10;
-		break;
-	case MEDIA_BUS_FMT_Y12_1X12:
-	case MEDIA_BUS_FMT_SBGGR12_1X12:
-	case MEDIA_BUS_FMT_SGBRG12_1X12:
-	case MEDIA_BUS_FMT_SGRBG12_1X12:
-	case MEDIA_BUS_FMT_SRGGB12_1X12:
-		cr18 |= BIT_MIPI_DATA_FORMAT_RAW12;
-		break;
-	case MEDIA_BUS_FMT_Y14_1X14:
-	case MEDIA_BUS_FMT_SBGGR14_1X14:
-	case MEDIA_BUS_FMT_SGBRG14_1X14:
-	case MEDIA_BUS_FMT_SGRBG14_1X14:
-	case MEDIA_BUS_FMT_SRGGB14_1X14:
-		cr18 |= BIT_MIPI_DATA_FORMAT_RAW14;
-		break;
-	/*
-	 * CSI-2 sources are supposed to use the 1X16 formats, but not all of
-	 * them comply. Support both variants.
-	 */
-	case MEDIA_BUS_FMT_UYVY8_2X8:
-	case MEDIA_BUS_FMT_UYVY8_1X16:
-	case MEDIA_BUS_FMT_YUYV8_2X8:
-	case MEDIA_BUS_FMT_YUYV8_1X16:
-		cr18 |= BIT_MIPI_DATA_FORMAT_YUV422_8B;
-		break;
-	}
-
-	switch (out_pix->pixelformat) {
-	case V4L2_PIX_FMT_Y10:
-	case V4L2_PIX_FMT_Y12:
-	case V4L2_PIX_FMT_SBGGR8:
-	case V4L2_PIX_FMT_SBGGR16:
-		cr1 |= BIT_PIXEL_BIT;
-		break;
+		switch (out_pix->pixelformat) {
+		case V4L2_PIX_FMT_Y10:
+		case V4L2_PIX_FMT_Y12:
+		case V4L2_PIX_FMT_SBGGR8:
+		case V4L2_PIX_FMT_SBGGR16:
+			cr1 |= BIT_PIXEL_BIT;
+			break;
+		}
 	}
 
 	imx7_csi_reg_write(csi, cr1, CSI_CSICR1);
+	imx7_csi_reg_write(csi, 0, CSI_CSICR2);
+	imx7_csi_reg_write(csi, BIT_FRMCNT_RST, CSI_CSICR3);
 	imx7_csi_reg_write(csi, cr18, CSI_CSICR18);
+
+	imx7_csi_reg_write(csi, (width * out_pix->height) >> 2, CSI_CSIRXCNT);
+	imx7_csi_reg_write(csi, BIT_IMAGE_WIDTH(width) |
+			   BIT_IMAGE_HEIGHT(out_pix->height),
+			   CSI_CSIIMAG_PARA);
+	imx7_csi_reg_write(csi, stride, CSI_CSIFBUF_PARA);
+
+	/* reflash the embedded DMA controller */
+	imx7_csi_dma_reflash(csi);
 }
 
 static int imx7_csi_init(struct imx7_csi *csi)
@@ -579,14 +555,12 @@ static int imx7_csi_init(struct imx7_csi *csi)
 	if (ret < 0)
 		return ret;
 
-	imx7_csi_init_default(csi);
+	imx7_csi_configure(csi);
 	imx7_csi_dmareq_rff_enable(csi);
 
 	ret = imx7_csi_dma_setup(csi);
 	if (ret < 0)
 		return ret;
-
-	imx7_csi_configure(csi);
 
 	return 0;
 }
