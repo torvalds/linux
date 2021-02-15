@@ -234,8 +234,7 @@ out_err:
 
 static void set_driver_behavior_per_device(struct hl_device *hdev)
 {
-	hdev->cpu_enable = 1;
-	hdev->fw_loading = FW_TYPE_ALL_TYPES;
+	hdev->fw_components = FW_TYPE_ALL_TYPES;
 	hdev->cpu_queues_enable = 1;
 	hdev->heartbeat = 1;
 	hdev->mmu_enable = 1;

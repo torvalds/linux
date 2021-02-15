@@ -3701,7 +3701,7 @@ static int gaudi_init_cpu(struct hl_device *hdev)
 	struct gaudi_device *gaudi = hdev->asic_specific;
 	int rc;
 
-	if (!hdev->cpu_enable)
+	if (!(hdev->fw_components & FW_TYPE_PREBOOT_CPU))
 		return 0;
 
 	if (gaudi->hw_cap_initialized & HW_CAP_CPU)

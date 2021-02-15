@@ -2429,7 +2429,7 @@ static int goya_init_cpu(struct hl_device *hdev)
 	struct goya_device *goya = hdev->asic_specific;
 	int rc;
 
-	if (!hdev->cpu_enable)
+	if (!(hdev->fw_components & FW_TYPE_PREBOOT_CPU))
 		return 0;
 
 	if (goya->hw_cap_initialized & HW_CAP_CPU)

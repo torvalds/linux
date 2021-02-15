@@ -623,7 +623,11 @@ int hl_fw_read_preboot_status(struct hl_device *hdev, u32 cpu_boot_status_reg,
 	u32 status, security_status;
 	int rc;
 
-	if (!hdev->cpu_enable)
+	/* pldm was added for cases in which we use preboot on pldm and want
+	 * to load boot fit, but we can't wait for preboot because it runs
+	 * very slowly
+	 */
+	if (!(hdev->fw_components & FW_TYPE_PREBOOT_CPU) || hdev->pldm)
 		return 0;
 
 	/* Need to check two possible scenarios:
@@ -710,7 +714,7 @@ int hl_fw_init_cpu(struct hl_device *hdev, u32 cpu_boot_status_reg,
 	u32 status;
 	int rc;
 
-	if (!(hdev->fw_loading & FW_TYPE_BOOT_CPU))
+	if (!(hdev->fw_components & FW_TYPE_BOOT_CPU))
 		return 0;
 
 	dev_info(hdev->dev, "Going to wait for device boot (up to %lds)\n",
@@ -801,7 +805,7 @@ int hl_fw_init_cpu(struct hl_device *hdev, u32 cpu_boot_status_reg,
 		goto out;
 	}
 
-	if (!(hdev->fw_loading & FW_TYPE_LINUX)) {
+	if (!(hdev->fw_components & FW_TYPE_LINUX)) {
 		dev_info(hdev->dev, "Skip loading Linux F/W\n");
 		goto out;
 	}

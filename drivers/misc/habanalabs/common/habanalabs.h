@@ -171,15 +171,19 @@ enum hl_fw_component {
 };
 
 /**
- * enum hl_fw_types - F/W types to load
+ * enum hl_fw_types - F/W types present in the system
  * @FW_TYPE_LINUX: Linux image for device CPU
  * @FW_TYPE_BOOT_CPU: Boot image for device CPU
+ * @FW_TYPE_PREBOOT_CPU: Indicates pre-loaded CPUs are present in the system
+ *                       (preboot, ppboot etc...)
  * @FW_TYPE_ALL_TYPES: Mask for all types
  */
 enum hl_fw_types {
 	FW_TYPE_LINUX = 0x1,
 	FW_TYPE_BOOT_CPU = 0x2,
-	FW_TYPE_ALL_TYPES = (FW_TYPE_LINUX | FW_TYPE_BOOT_CPU)
+	FW_TYPE_PREBOOT_CPU = 0x4,
+	FW_TYPE_ALL_TYPES =
+		(FW_TYPE_LINUX | FW_TYPE_BOOT_CPU | FW_TYPE_PREBOOT_CPU)
 };
 
 /**
@@ -2066,10 +2070,9 @@ struct hl_device {
 
 	/* Parameters for bring-up */
 	u64				nic_ports_mask;
-	u64				fw_loading;
+	u64				fw_components;
 	u8				mmu_enable;
 	u8				mmu_huge_page_opt;
-	u8				cpu_enable;
 	u8				reset_pcilink;
 	u8				cpu_queues_enable;
 	u8				pldm;
