@@ -232,7 +232,7 @@ static int capture_legacy_enum_fmt_vid_cap(struct file *file, void *fh,
 
 static int __capture_legacy_try_fmt(struct capture_priv *priv,
 				    struct v4l2_subdev_format *fmt_src,
-				    struct v4l2_format *f,
+				    struct v4l2_pix_format *pixfmt,
 				    const struct imx_media_pixfmt **retcc,
 				    struct v4l2_rect *compose)
 {
@@ -246,7 +246,7 @@ static int __capture_legacy_try_fmt(struct capture_priv *priv,
 
 		fmt_sel = (cc->cs == IPUV3_COLORSPACE_YUV)
 			? PIXFMT_SEL_YUV : PIXFMT_SEL_RGB;
-		fourcc = f->fmt.pix.pixelformat;
+		fourcc = pixfmt->pixelformat;
 
 		cc = imx_media_find_pixel_format(fourcc, fmt_sel);
 		if (!cc) {
@@ -261,7 +261,7 @@ static int __capture_legacy_try_fmt(struct capture_priv *priv,
 	}
 
 	/* allow IDMAC interweave but enforce field order from source */
-	if (V4L2_FIELD_IS_INTERLACED(f->fmt.pix.field)) {
+	if (V4L2_FIELD_IS_INTERLACED(pixfmt->field)) {
 		switch (fmt_src->format.field) {
 		case V4L2_FIELD_SEQ_TB:
 			fmt_src->format.field = V4L2_FIELD_INTERLACED_TB;
@@ -274,7 +274,7 @@ static int __capture_legacy_try_fmt(struct capture_priv *priv,
 		}
 	}
 
-	imx_media_mbus_fmt_to_pix_fmt(&f->fmt.pix, &fmt_src->format, cc);
+	imx_media_mbus_fmt_to_pix_fmt(pixfmt, &fmt_src->format, cc);
 
 	if (retcc)
 		*retcc = cc;
@@ -302,7 +302,8 @@ static int capture_legacy_try_fmt_vid_cap(struct file *file, void *fh,
 	if (ret)
 		return ret;
 
-	return __capture_legacy_try_fmt(priv, &fmt_src, f, NULL, NULL);
+	return __capture_legacy_try_fmt(priv, &fmt_src, &f->fmt.pix, NULL,
+					NULL);
 }
 
 static int capture_legacy_s_fmt_vid_cap(struct file *file, void *fh,
@@ -323,8 +324,8 @@ static int capture_legacy_s_fmt_vid_cap(struct file *file, void *fh,
 	if (ret)
 		return ret;
 
-	ret = __capture_legacy_try_fmt(priv, &fmt_src, f, &priv->vdev.cc,
-				       &priv->vdev.compose);
+	ret = __capture_legacy_try_fmt(priv, &fmt_src, &f->fmt.pix,
+				       &priv->vdev.cc, &priv->vdev.compose);
 	if (ret)
 		return ret;
 
@@ -534,7 +535,7 @@ static int capture_validate_fmt(struct capture_priv *priv)
 	struct v4l2_subdev_format fmt_src;
 	const struct imx_media_pixfmt *cc;
 	struct v4l2_rect compose;
-	struct v4l2_format f;
+	struct v4l2_pix_format pixfmt;
 	int ret;
 
 	fmt_src.pad = priv->src_sd_pad;
@@ -543,14 +544,14 @@ static int capture_validate_fmt(struct capture_priv *priv)
 	if (ret)
 		return ret;
 
-	v4l2_fill_pix_format(&f.fmt.pix, &fmt_src.format);
+	v4l2_fill_pix_format(&pixfmt, &fmt_src.format);
 
-	ret = __capture_legacy_try_fmt(priv, &fmt_src, &f, &cc, &compose);
+	ret = __capture_legacy_try_fmt(priv, &fmt_src, &pixfmt, &cc, &compose);
 	if (ret)
 		return ret;
 
-	return (priv->vdev.fmt.width != f.fmt.pix.width ||
-		priv->vdev.fmt.height != f.fmt.pix.height ||
+	return (priv->vdev.fmt.width != pixfmt.width ||
+		priv->vdev.fmt.height != pixfmt.height ||
 		priv->vdev.cc->cs != cc->cs ||
 		priv->vdev.compose.width != compose.width ||
 		priv->vdev.compose.height != compose.height) ? -EINVAL : 0;
