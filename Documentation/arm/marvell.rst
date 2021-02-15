@@ -356,13 +356,12 @@ MMP/MMP2/MMP3 family (communication processor)
              - Product Brief        : https://archive.org/download/marvell-pxa910-pb/Marvell_PXA910_Platform-001_PB.pdf
              - Application processor with Communication processor
              - Core: ARMv5 compatible Marvell PJ1 88sv331 (Mohawk)
-        - PXA688, a.k.a. MMP2, a.k.a Armada 610
+        - PXA688, a.k.a. MMP2, a.k.a Armada 610 (OLPC XO-1.75)
              - Product Brief        : https://web.archive.org/web/20111102023255/http://www.marvell.com/application-processors/armada-600/assets/armada610_pb.pdf
              - Application processor only
              - Core: ARMv7 compatible Sheeva PJ4 88sv581x core
-	- PXA2128, a.k.a. MMP3 (OLPC XO4, Linux support not upstream)
+	- PXA2128, a.k.a. MMP3, a.k.a Armada 620 (OLPC XO-4)
 	     - Product Brief	    : https://web.archive.org/web/20120824055155/http://www.marvell.com/application-processors/armada/pxa2128/assets/Marvell-ARMADA-PXA2128-SoC-PB.pdf
-
 	     - Application processor only
 	     - Core: Dual-core ARMv7 compatible Sheeva PJ4C core
 	- PXA960/PXA968/PXA978 (Linux support not upstream)
