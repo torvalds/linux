@@ -1065,47 +1065,7 @@ static const struct v4l2_subdev_internal_ops imx7_csi_internal_ops = {
  * Media Entity Operations
  */
 
-static int imx7_csi_link_setup(struct media_entity *entity,
-			       const struct media_pad *local,
-			       const struct media_pad *remote, u32 flags)
-{
-	struct v4l2_subdev *sd = media_entity_to_v4l2_subdev(entity);
-	struct imx7_csi *csi = v4l2_get_subdevdata(sd);
-	struct v4l2_subdev *remote_sd;
-	int ret = 0;
-
-	dev_dbg(csi->dev, "link setup %s -> %s\n", remote->entity->name,
-		local->entity->name);
-
-	mutex_lock(&csi->lock);
-
-	if (local->flags & MEDIA_PAD_FL_SINK) {
-		if (!is_media_entity_v4l2_subdev(remote->entity)) {
-			ret = -EINVAL;
-			goto unlock;
-		}
-
-		remote_sd = media_entity_to_v4l2_subdev(remote->entity);
-
-		if (flags & MEDIA_LNK_FL_ENABLED) {
-			if (csi->src_sd) {
-				ret = -EBUSY;
-				goto unlock;
-			}
-			csi->src_sd = remote_sd;
-		} else {
-			csi->src_sd = NULL;
-		}
-	}
-
-unlock:
-	mutex_unlock(&csi->lock);
-
-	return ret;
-}
-
 static const struct media_entity_operations imx7_csi_entity_ops = {
-	.link_setup	= imx7_csi_link_setup,
 	.link_validate	= v4l2_subdev_link_validate,
 	.get_fwnode_pad = v4l2_subdev_get_fwnode_pad_1_to_1,
 };
@@ -1128,7 +1088,10 @@ static int imx7_csi_notify_bound(struct v4l2_async_notifier *notifier,
 	if (sd->entity.function == MEDIA_ENT_F_VID_MUX)
 		sd->grp_id = IMX_MEDIA_GRP_ID_CSI_MUX;
 
-	return v4l2_create_fwnode_links_to_pad(sd, sink, 0);
+	csi->src_sd = sd;
+
+	return v4l2_create_fwnode_links_to_pad(sd, sink, MEDIA_LNK_FL_ENABLED |
+					       MEDIA_LNK_FL_IMMUTABLE);
 }
 
 static const struct v4l2_async_notifier_operations imx7_csi_notify_ops = {
