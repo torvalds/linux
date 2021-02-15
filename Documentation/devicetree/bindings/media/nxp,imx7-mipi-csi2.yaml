@@ -44,9 +44,6 @@ properties:
   resets:
     maxItems: 1
 
-  reset-names:
-    const: mrst
-
   clock-frequency:
     description:
       The IP main (system bus) clock frequency in Hertz
@@ -98,7 +95,6 @@ required:
   - power-domains
   - phy-supply
   - resets
-  - reset-names
   - ports
 
 additionalProperties: false
@@ -124,7 +120,6 @@ examples:
             power-domains = <&pgc_mipi_phy>;
             phy-supply = <&reg_1p0d>;
             resets = <&src IMX7_RESET_MIPI_PHY_MRST>;
-            reset-names = "mrst";
             fsl,csis-hs-settle = <3>;
 
             ports {
