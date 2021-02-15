@@ -32,11 +32,6 @@
 #define IMX7_CSI_PAD_SRC	1
 #define IMX7_CSI_PADS_NUM	2
 
-/* reset values */
-#define CSICR1_RESET_VAL	0x40000800
-#define CSICR2_RESET_VAL	0x0
-#define CSICR3_RESET_VAL	0x0
-
 /* csi control reg 1 */
 #define BIT_SWAP16_EN		BIT(31)
 #define BIT_EXT_VSYNC		BIT(30)
@@ -211,9 +206,9 @@ static void imx7_csi_hw_reset(struct imx7_csi *csi)
 			   imx7_csi_reg_read(csi, CSI_CSICR3) | BIT_FRMCNT_RST,
 			   CSI_CSICR3);
 
-	imx7_csi_reg_write(csi, CSICR1_RESET_VAL, CSI_CSICR1);
-	imx7_csi_reg_write(csi, CSICR2_RESET_VAL, CSI_CSICR2);
-	imx7_csi_reg_write(csi, CSICR3_RESET_VAL, CSI_CSICR3);
+	imx7_csi_reg_write(csi, BIT_EXT_VSYNC | BIT_HSYNC_POL, CSI_CSICR1);
+	imx7_csi_reg_write(csi, 0, CSI_CSICR2);
+	imx7_csi_reg_write(csi, 0, CSI_CSICR3);
 }
 
 static u32 imx7_csi_irq_clear(struct imx7_csi *csi)
