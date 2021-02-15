@@ -91,12 +91,18 @@ int v4l_vb2q_enable_media_source(struct vb2_queue *q);
  *
  * @src_sd: pointer to a source subdev
  * @sink:  pointer to a subdev sink pad
+ * @flags: the link flags
  *
  * This function searches for fwnode endpoint connections from a source
  * subdevice to a single sink pad, and if suitable connections are found,
  * translates them into media links to that pad. The function can be
  * called by the sink subdevice, in its v4l2-async notifier subdev bound
  * callback, to create links from a bound source subdevice.
+ *
+ * The @flags argument specifies the link flags. The caller shall ensure that
+ * the flags are valid regardless of the number of links that may be created.
+ * For instance, setting the MEDIA_LNK_FL_ENABLED flag will cause all created
+ * links to be enabled, which isn't valid if more than one link is created.
  *
  * .. note::
  *
@@ -107,7 +113,7 @@ int v4l_vb2q_enable_media_source(struct vb2_queue *q);
  * Return 0 on success or a negative error code on failure.
  */
 int v4l2_create_fwnode_links_to_pad(struct v4l2_subdev *src_sd,
-				    struct media_pad *sink);
+				    struct media_pad *sink, u32 flags);
 
 /**
  * v4l2_create_fwnode_links - Create fwnode-based links from a source

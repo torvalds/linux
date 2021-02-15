@@ -621,7 +621,7 @@ static int csi2_notify_bound(struct v4l2_async_notifier *notifier,
 
 	dev_dbg(csi2->dev, "Bound %s pad: %d\n", sd->name, pad);
 
-	return v4l2_create_fwnode_links_to_pad(sd, sink);
+	return v4l2_create_fwnode_links_to_pad(sd, sink, 0);
 }
 
 static void csi2_notify_unbind(struct v4l2_async_notifier *notifier,

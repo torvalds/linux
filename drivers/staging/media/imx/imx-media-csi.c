@@ -1894,7 +1894,7 @@ static int imx_csi_notify_bound(struct v4l2_async_notifier *notifier,
 	if (sd->entity.function == MEDIA_ENT_F_VID_MUX)
 		sd->grp_id = IMX_MEDIA_GRP_ID_CSI_MUX;
 
-	return v4l2_create_fwnode_links_to_pad(sd, sink);
+	return v4l2_create_fwnode_links_to_pad(sd, sink, 0);
 }
 
 static const struct v4l2_async_notifier_operations csi_notify_ops = {

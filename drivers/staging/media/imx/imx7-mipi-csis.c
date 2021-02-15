@@ -962,7 +962,7 @@ static int mipi_csis_notify_bound(struct v4l2_async_notifier *notifier,
 	struct csi_state *state = mipi_notifier_to_csis_state(notifier);
 	struct media_pad *sink = &state->mipi_sd.entity.pads[CSIS_PAD_SINK];
 
-	return v4l2_create_fwnode_links_to_pad(sd, sink);
+	return v4l2_create_fwnode_links_to_pad(sd, sink, 0);
 }
 
 static const struct v4l2_async_notifier_operations mipi_csis_notify_ops = {
