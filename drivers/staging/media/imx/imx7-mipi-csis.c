@@ -188,6 +188,9 @@
 #define MIPI_CSIS_ISP_SYNC_VSYNC_SINTV_OFFSET	12
 #define MIPI_CSIS_ISP_SYNC_VSYNC_EINTV_OFFSET	0
 
+/* Debug control register */
+#define MIPI_CSIS_DBG_CTRL			0xc0
+
 /* Non-image packet data buffers */
 #define MIPI_CSIS_PKTDATA_ODD			0x2000
 #define MIPI_CSIS_PKTDATA_EVEN			0x3000
@@ -399,23 +402,23 @@ static int mipi_csis_dump_regs(struct csi_state *state)
 		u32 offset;
 		const char * const name;
 	} registers[] = {
-		{ 0x04, "CTRL" },
-		{ 0x24, "DPHYCTRL" },
-		{ 0x08, "CLKCTRL" },
-		{ 0x20, "DPHYSTS" },
-		{ 0x10, "INTMSK" },
-		{ 0x40, "CONFIG_CH0" },
-		{ 0x44, "RESOL_CH0" },
-		{ 0xC0, "DBG_CONFIG" },
-		{ 0x38, "DPHYSLAVE_L" },
-		{ 0x3C, "DPHYSLAVE_H" },
+		{ MIPI_CSIS_CMN_CTRL, "CMN_CTRL" },
+		{ MIPI_CSIS_CLK_CTRL, "CLK_CTRL" },
+		{ MIPI_CSIS_INT_MSK, "INT_MSK" },
+		{ MIPI_CSIS_DPHY_STATUS, "DPHY_STATUS" },
+		{ MIPI_CSIS_DPHY_CMN_CTRL, "DPHY_CMN_CTRL" },
+		{ MIPI_CSIS_DPHY_SCTRL_L, "DPHY_SCTRL_L" },
+		{ MIPI_CSIS_DPHY_SCTRL_H, "DPHY_SCTRL_H" },
+		{ MIPI_CSIS_ISP_CONFIG_CH(0), "ISP_CONFIG_CH0" },
+		{ MIPI_CSIS_ISP_RESOL_CH(0), "ISP_RESOL_CH0" },
+		{ MIPI_CSIS_DBG_CTRL, "DBG_CTRL" },
 	};
 
 	dev_info(dev, "--- REGISTERS ---\n");
 
 	for (i = 0; i < ARRAY_SIZE(registers); i++) {
 		cfg = mipi_csis_read(state, registers[i].offset);
-		dev_info(dev, "%12s: 0x%08x\n", registers[i].name, cfg);
+		dev_info(dev, "%14s: 0x%08x\n", registers[i].name, cfg);
 	}
 
 	return 0;
