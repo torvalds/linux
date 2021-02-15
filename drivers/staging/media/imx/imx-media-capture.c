@@ -189,7 +189,7 @@ static int capture_g_fmt_vid_cap(struct file *file, void *fh,
 {
 	struct capture_priv *priv = video_drvdata(file);
 
-	*f = priv->vdev.fmt;
+	f->fmt.pix = priv->vdev.fmt;
 
 	return 0;
 }
@@ -294,7 +294,7 @@ static int capture_s_fmt_vid_cap(struct file *file, void *fh,
 	if (ret)
 		return ret;
 
-	priv->vdev.fmt.fmt.pix = f->fmt.pix;
+	priv->vdev.fmt = f->fmt.pix;
 
 	return 0;
 }
@@ -343,8 +343,8 @@ static int capture_g_selection(struct file *file, void *fh,
 		 */
 		s->r.left = 0;
 		s->r.top = 0;
-		s->r.width = priv->vdev.fmt.fmt.pix.width;
-		s->r.height = priv->vdev.fmt.fmt.pix.height;
+		s->r.width = priv->vdev.fmt.width;
+		s->r.height = priv->vdev.fmt.height;
 		break;
 	default:
 		return -EINVAL;
@@ -458,7 +458,7 @@ static int capture_queue_setup(struct vb2_queue *vq,
 			       struct device *alloc_devs[])
 {
 	struct capture_priv *priv = vb2_get_drv_priv(vq);
-	struct v4l2_pix_format *pix = &priv->vdev.fmt.fmt.pix;
+	struct v4l2_pix_format *pix = &priv->vdev.fmt;
 	unsigned int count = *nbuffers;
 
 	if (vq->type != V4L2_BUF_TYPE_VIDEO_CAPTURE)
@@ -497,7 +497,7 @@ static int capture_buf_prepare(struct vb2_buffer *vb)
 {
 	struct vb2_queue *vq = vb->vb2_queue;
 	struct capture_priv *priv = vb2_get_drv_priv(vq);
-	struct v4l2_pix_format *pix = &priv->vdev.fmt.fmt.pix;
+	struct v4l2_pix_format *pix = &priv->vdev.fmt;
 
 	if (vb2_plane_size(vb, 0) < pix->sizeimage) {
 		dev_err(priv->dev,
@@ -544,8 +544,8 @@ static int capture_validate_fmt(struct capture_priv *priv)
 	if (ret)
 		return ret;
 
-	return (priv->vdev.fmt.fmt.pix.width != f.fmt.pix.width ||
-		priv->vdev.fmt.fmt.pix.height != f.fmt.pix.height ||
+	return (priv->vdev.fmt.width != f.fmt.pix.width ||
+		priv->vdev.fmt.height != f.fmt.pix.height ||
 		priv->vdev.cc->cs != cc->cs ||
 		priv->vdev.compose.width != compose.width ||
 		priv->vdev.compose.height != compose.height) ? -EINVAL : 0;
@@ -732,12 +732,10 @@ int imx_media_capture_device_register(struct imx_media_video_dev *vdev)
 		return ret;
 	}
 
-	vdev->fmt.type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
-	imx_media_mbus_fmt_to_pix_fmt(&vdev->fmt.fmt.pix,
-				      &fmt_src.format, NULL);
+	imx_media_mbus_fmt_to_pix_fmt(&vdev->fmt, &fmt_src.format, NULL);
 	vdev->compose.width = fmt_src.format.width;
 	vdev->compose.height = fmt_src.format.height;
-	vdev->cc = imx_media_find_pixel_format(vdev->fmt.fmt.pix.pixelformat,
+	vdev->cc = imx_media_find_pixel_format(vdev->fmt.pixelformat,
 					       PIXFMT_SEL_ANY);
 
 	/* Register the video device. */

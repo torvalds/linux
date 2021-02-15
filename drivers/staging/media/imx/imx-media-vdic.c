@@ -246,7 +246,7 @@ static int setup_vdi_channel(struct vdic_priv *priv,
 	ipu_cpmem_zero(channel);
 
 	memset(&image, 0, sizeof(image));
-	image.pix = vdev->fmt.fmt.pix;
+	image.pix = vdev->fmt;
 	image.rect = vdev->compose;
 	/* one field to VDIC channels */
 	image.pix.height /= 2;

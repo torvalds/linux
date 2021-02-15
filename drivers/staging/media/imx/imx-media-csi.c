@@ -267,7 +267,7 @@ static void csi_vb2_buf_done(struct csi_priv *priv)
 
 	done = priv->active_vb2_buf[priv->ipu_buf_num];
 	if (done) {
-		done->vbuf.field = vdev->fmt.fmt.pix.field;
+		done->vbuf.field = vdev->fmt.field;
 		done->vbuf.sequence = priv->frame_sequence;
 		vb = &done->vbuf.vb2_buf;
 		vb->timestamp = ktime_get_ns();
@@ -292,7 +292,7 @@ static void csi_vb2_buf_done(struct csi_priv *priv)
 		ipu_idmac_clear_buffer(priv->idmac_ch, priv->ipu_buf_num);
 
 	if (priv->interweave_swap)
-		phys += vdev->fmt.fmt.pix.bytesperline;
+		phys += vdev->fmt.bytesperline;
 
 	ipu_cpmem_set_buffer(priv->idmac_ch, priv->ipu_buf_num, phys);
 }
@@ -422,7 +422,7 @@ static int csi_idmac_setup_channel(struct csi_priv *priv)
 	ipu_cpmem_zero(priv->idmac_ch);
 
 	memset(&image, 0, sizeof(image));
-	image.pix = vdev->fmt.fmt.pix;
+	image.pix = vdev->fmt;
 	image.rect = vdev->compose;
 
 	csi_idmac_setup_vb2_buf(priv, phys);
@@ -596,7 +596,6 @@ static int csi_idmac_setup(struct csi_priv *priv)
 static int csi_idmac_start(struct csi_priv *priv)
 {
 	struct imx_media_video_dev *vdev = priv->vdev;
-	struct v4l2_pix_format *outfmt;
 	int ret;
 
 	ret = csi_idmac_get_ipu_resources(priv);
@@ -605,10 +604,8 @@ static int csi_idmac_start(struct csi_priv *priv)
 
 	ipu_smfc_map_channel(priv->smfc, priv->csi_id, priv->vc_num);
 
-	outfmt = &vdev->fmt.fmt.pix;
-
 	ret = imx_media_alloc_dma_buf(priv->dev, &priv->underrun_buf,
-				      outfmt->sizeimage);
+				      vdev->fmt.sizeimage);
 	if (ret)
 		goto out_put_ipu;
 

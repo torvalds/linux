@@ -204,7 +204,7 @@ static void prp_vb2_buf_done(struct prp_priv *priv, struct ipuv3_channel *ch)
 
 	done = priv->active_vb2_buf[priv->ipu_buf_num];
 	if (done) {
-		done->vbuf.field = vdev->fmt.fmt.pix.field;
+		done->vbuf.field = vdev->fmt.field;
 		done->vbuf.sequence = priv->frame_sequence;
 		vb = &done->vbuf.vb2_buf;
 		vb->timestamp = ktime_get_ns();
@@ -229,7 +229,7 @@ static void prp_vb2_buf_done(struct prp_priv *priv, struct ipuv3_channel *ch)
 		ipu_idmac_clear_buffer(ch, priv->ipu_buf_num);
 
 	if (priv->interweave_swap && ch == priv->out_ch)
-		phys += vdev->fmt.fmt.pix.bytesperline;
+		phys += vdev->fmt.bytesperline;
 
 	ipu_cpmem_set_buffer(ch, priv->ipu_buf_num, phys);
 }
@@ -362,7 +362,7 @@ static int prp_setup_channel(struct prp_priv *priv,
 	ipu_cpmem_zero(channel);
 
 	memset(&image, 0, sizeof(image));
-	image.pix = vdev->fmt.fmt.pix;
+	image.pix = vdev->fmt;
 	image.rect = vdev->compose;
 
 	/*
@@ -457,7 +457,7 @@ static int prp_setup_rotation(struct prp_priv *priv)
 	int ret;
 
 	infmt = &priv->format_mbus[PRPENCVF_SINK_PAD];
-	outfmt = &vdev->fmt.fmt.pix;
+	outfmt = &vdev->fmt;
 	incc = priv->cc[PRPENCVF_SINK_PAD];
 	outcc = vdev->cc;
 
@@ -586,7 +586,7 @@ static int prp_setup_norotation(struct prp_priv *priv)
 	int ret;
 
 	infmt = &priv->format_mbus[PRPENCVF_SINK_PAD];
-	outfmt = &vdev->fmt.fmt.pix;
+	outfmt = &vdev->fmt;
 	incc = priv->cc[PRPENCVF_SINK_PAD];
 	outcc = vdev->cc;
 
@@ -665,17 +665,14 @@ static int prp_start(struct prp_priv *priv)
 {
 	struct imx_ic_priv *ic_priv = priv->ic_priv;
 	struct imx_media_video_dev *vdev = priv->vdev;
-	struct v4l2_pix_format *outfmt;
 	int ret;
 
 	ret = prp_get_ipu_resources(priv);
 	if (ret)
 		return ret;
 
-	outfmt = &vdev->fmt.fmt.pix;
-
 	ret = imx_media_alloc_dma_buf(ic_priv->ipu_dev, &priv->underrun_buf,
-				      outfmt->sizeimage);
+				      vdev->fmt.sizeimage);
 	if (ret)
 		goto out_put_ipu;
 

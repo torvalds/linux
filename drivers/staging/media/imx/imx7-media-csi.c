@@ -596,7 +596,7 @@ static void imx7_csi_vb2_buf_done(struct imx7_csi *csi)
 
 	done = csi->active_vb2_buf[csi->buf_num];
 	if (done) {
-		done->vbuf.field = vdev->fmt.fmt.pix.field;
+		done->vbuf.field = vdev->fmt.field;
 		done->vbuf.sequence = csi->frame_sequence;
 		vb = &done->vbuf.vb2_buf;
 		vb->timestamp = ktime_get_ns();
@@ -678,11 +678,10 @@ static irqreturn_t imx7_csi_irq_handler(int irq, void *data)
 static int imx7_csi_dma_start(struct imx7_csi *csi)
 {
 	struct imx_media_video_dev *vdev = csi->vdev;
-	struct v4l2_pix_format *out_pix = &vdev->fmt.fmt.pix;
 	int ret;
 
 	ret = imx_media_alloc_dma_buf(csi->dev, &csi->underrun_buf,
-				      out_pix->sizeimage);
+				      vdev->fmt.sizeimage);
 	if (ret < 0) {
 		v4l2_warn(&csi->sd, "consider increasing the CMA area\n");
 		return ret;
@@ -727,7 +726,7 @@ static void imx7_csi_dma_stop(struct imx7_csi *csi)
 static int imx7_csi_configure(struct imx7_csi *csi)
 {
 	struct imx_media_video_dev *vdev = csi->vdev;
-	struct v4l2_pix_format *out_pix = &vdev->fmt.fmt.pix;
+	struct v4l2_pix_format *out_pix = &vdev->fmt;
 	__u32 in_code = csi->format_mbus[IMX7_CSI_PAD_SINK].code;
 	u32 cr1, cr18;
 	int width = out_pix->width;
