@@ -672,16 +672,6 @@ static const struct v4l2_file_operations capture_fops = {
 	.mmap		= vb2_fop_mmap,
 };
 
-static struct video_device capture_videodev = {
-	.fops		= &capture_fops,
-	.ioctl_ops	= &capture_ioctl_ops,
-	.minor		= -1,
-	.release	= video_device_release,
-	.vfl_dir	= VFL_DIR_RX,
-	.tvnorms	= V4L2_STD_NTSC | V4L2_STD_PAL | V4L2_STD_SECAM,
-	.device_caps	= V4L2_CAP_VIDEO_CAPTURE | V4L2_CAP_STREAMING,
-};
-
 struct imx_media_buffer *
 imx_media_capture_device_next_buf(struct imx_media_video_dev *vdev)
 {
@@ -809,16 +799,21 @@ imx_media_capture_device_init(struct device *dev, struct v4l2_subdev *src_sd,
 	spin_lock_init(&priv->q_lock);
 
 	/* Allocate and initialize the video device. */
-	snprintf(capture_videodev.name, sizeof(capture_videodev.name),
-		 "%s capture", src_sd->name);
-
 	vfd = video_device_alloc();
 	if (!vfd)
 		return ERR_PTR(-ENOMEM);
 
-	*vfd = capture_videodev;
+	vfd->fops = &capture_fops;
+	vfd->ioctl_ops = &capture_ioctl_ops;
+	vfd->minor = -1;
+	vfd->release = video_device_release;
+	vfd->vfl_dir = VFL_DIR_RX;
+	vfd->tvnorms = V4L2_STD_NTSC | V4L2_STD_PAL | V4L2_STD_SECAM;
+	vfd->device_caps = V4L2_CAP_VIDEO_CAPTURE | V4L2_CAP_STREAMING;
 	vfd->lock = &priv->mutex;
 	vfd->queue = &priv->q;
+
+	snprintf(vfd->name, sizeof(vfd->name), "%s capture", src_sd->name);
 
 	video_set_drvdata(vfd, priv);
 	priv->vdev.vfd = vfd;
