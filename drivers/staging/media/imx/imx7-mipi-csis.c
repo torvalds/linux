@@ -188,6 +188,11 @@
 #define MIPI_CSIS_ISP_SYNC_VSYNC_SINTV_OFFSET	12
 #define MIPI_CSIS_ISP_SYNC_VSYNC_EINTV_OFFSET	0
 
+/* ISP shadow registers */
+#define MIPI_CSIS_SDW_CONFIG_CH(n)		(0x80 + (n) * 0x10)
+#define MIPI_CSIS_SDW_RESOL_CH(n)		(0x84 + (n) * 0x10)
+#define MIPI_CSIS_SDW_SYNC_CH(n)		(0x88 + (n) * 0x10)
+
 /* Debug control register */
 #define MIPI_CSIS_DBG_CTRL			0xc0
 
@@ -411,6 +416,8 @@ static int mipi_csis_dump_regs(struct csi_state *state)
 		{ MIPI_CSIS_DPHY_SCTRL_H, "DPHY_SCTRL_H" },
 		{ MIPI_CSIS_ISP_CONFIG_CH(0), "ISP_CONFIG_CH0" },
 		{ MIPI_CSIS_ISP_RESOL_CH(0), "ISP_RESOL_CH0" },
+		{ MIPI_CSIS_SDW_CONFIG_CH(0), "SDW_CONFIG_CH0" },
+		{ MIPI_CSIS_SDW_RESOL_CH(0), "SDW_RESOL_CH0" },
 		{ MIPI_CSIS_DBG_CTRL, "DBG_CTRL" },
 	};
 
