@@ -253,8 +253,7 @@ static ssize_t iio_scan_el_show(struct device *dev,
 				char *buf)
 {
 	int ret;
-	struct iio_dev *indio_dev = dev_to_iio_dev(dev);
-	struct iio_buffer *buffer = indio_dev->buffer;
+	struct iio_buffer *buffer = to_iio_dev_attr(attr)->buffer;
 
 	/* Ensure ret is 0 or 1. */
 	ret = !!test_bit(to_iio_dev_attr(attr)->address,
@@ -367,8 +366,8 @@ static ssize_t iio_scan_el_store(struct device *dev,
 	int ret;
 	bool state;
 	struct iio_dev *indio_dev = dev_to_iio_dev(dev);
-	struct iio_buffer *buffer = indio_dev->buffer;
 	struct iio_dev_attr *this_attr = to_iio_dev_attr(attr);
+	struct iio_buffer *buffer = this_attr->buffer;
 
 	ret = strtobool(buf, &state);
 	if (ret < 0)
@@ -402,8 +401,7 @@ static ssize_t iio_scan_el_ts_show(struct device *dev,
 				   struct device_attribute *attr,
 				   char *buf)
 {
-	struct iio_dev *indio_dev = dev_to_iio_dev(dev);
-	struct iio_buffer *buffer = indio_dev->buffer;
+	struct iio_buffer *buffer = to_iio_dev_attr(attr)->buffer;
 
 	return sprintf(buf, "%d\n", buffer->scan_timestamp);
 }
@@ -415,7 +413,7 @@ static ssize_t iio_scan_el_ts_store(struct device *dev,
 {
 	int ret;
 	struct iio_dev *indio_dev = dev_to_iio_dev(dev);
-	struct iio_buffer *buffer = indio_dev->buffer;
+	struct iio_buffer *buffer = to_iio_dev_attr(attr)->buffer;
 	bool state;
 
 	ret = strtobool(buf, &state);
@@ -448,7 +446,7 @@ static int iio_buffer_add_channel_sysfs(struct iio_dev *indio_dev,
 				     IIO_SEPARATE,
 				     &indio_dev->dev,
 				     buffer,
-				     &buffer->scan_el_dev_attr_list);
+				     &buffer->buffer_attr_list);
 	if (ret)
 		return ret;
 	attrcount++;
@@ -460,7 +458,7 @@ static int iio_buffer_add_channel_sysfs(struct iio_dev *indio_dev,
 				     0,
 				     &indio_dev->dev,
 				     buffer,
-				     &buffer->scan_el_dev_attr_list);
+				     &buffer->buffer_attr_list);
 	if (ret)
 		return ret;
 	attrcount++;
@@ -473,7 +471,7 @@ static int iio_buffer_add_channel_sysfs(struct iio_dev *indio_dev,
 					     0,
 					     &indio_dev->dev,
 					     buffer,
-					     &buffer->scan_el_dev_attr_list);
+					     &buffer->buffer_attr_list);
 	else
 		ret = __iio_add_chan_devattr("en",
 					     chan,
@@ -483,7 +481,7 @@ static int iio_buffer_add_channel_sysfs(struct iio_dev *indio_dev,
 					     0,
 					     &indio_dev->dev,
 					     buffer,
-					     &buffer->scan_el_dev_attr_list);
+					     &buffer->buffer_attr_list);
 	if (ret)
 		return ret;
 	attrcount++;
@@ -495,8 +493,7 @@ static ssize_t iio_buffer_read_length(struct device *dev,
 				      struct device_attribute *attr,
 				      char *buf)
 {
-	struct iio_dev *indio_dev = dev_to_iio_dev(dev);
-	struct iio_buffer *buffer = indio_dev->buffer;
+	struct iio_buffer *buffer = to_iio_dev_attr(attr)->buffer;
 
 	return sprintf(buf, "%d\n", buffer->length);
 }
@@ -506,7 +503,7 @@ static ssize_t iio_buffer_write_length(struct device *dev,
 				       const char *buf, size_t len)
 {
 	struct iio_dev *indio_dev = dev_to_iio_dev(dev);
-	struct iio_buffer *buffer = indio_dev->buffer;
+	struct iio_buffer *buffer = to_iio_dev_attr(attr)->buffer;
 	unsigned int val;
 	int ret;
 
@@ -538,8 +535,7 @@ static ssize_t iio_buffer_show_enable(struct device *dev,
 				      struct device_attribute *attr,
 				      char *buf)
 {
-	struct iio_dev *indio_dev = dev_to_iio_dev(dev);
-	struct iio_buffer *buffer = indio_dev->buffer;
+	struct iio_buffer *buffer = to_iio_dev_attr(attr)->buffer;
 
 	return sprintf(buf, "%d\n", iio_buffer_is_active(buffer));
 }
@@ -1154,7 +1150,7 @@ static ssize_t iio_buffer_store_enable(struct device *dev,
 	int ret;
 	bool requested_state;
 	struct iio_dev *indio_dev = dev_to_iio_dev(dev);
-	struct iio_buffer *buffer = indio_dev->buffer;
+	struct iio_buffer *buffer = to_iio_dev_attr(attr)->buffer;
 	bool inlist;
 
 	ret = strtobool(buf, &requested_state);
@@ -1183,8 +1179,7 @@ static ssize_t iio_buffer_show_watermark(struct device *dev,
 					 struct device_attribute *attr,
 					 char *buf)
 {
-	struct iio_dev *indio_dev = dev_to_iio_dev(dev);
-	struct iio_buffer *buffer = indio_dev->buffer;
+	struct iio_buffer *buffer = to_iio_dev_attr(attr)->buffer;
 
 	return sprintf(buf, "%u\n", buffer->watermark);
 }
@@ -1195,7 +1190,7 @@ static ssize_t iio_buffer_store_watermark(struct device *dev,
 					  size_t len)
 {
 	struct iio_dev *indio_dev = dev_to_iio_dev(dev);
-	struct iio_buffer *buffer = indio_dev->buffer;
+	struct iio_buffer *buffer = to_iio_dev_attr(attr)->buffer;
 	unsigned int val;
 	int ret;
 
@@ -1228,8 +1223,7 @@ static ssize_t iio_dma_show_data_available(struct device *dev,
 						struct device_attribute *attr,
 						char *buf)
 {
-	struct iio_dev *indio_dev = dev_to_iio_dev(dev);
-	struct iio_buffer *buffer = indio_dev->buffer;
+	struct iio_buffer *buffer = to_iio_dev_attr(attr)->buffer;
 
 	return sprintf(buf, "%zu\n", iio_buffer_data_available(buffer));
 }
@@ -1253,6 +1247,27 @@ static struct attribute *iio_buffer_attrs[] = {
 	&dev_attr_watermark.attr,
 	&dev_attr_data_available.attr,
 };
+
+#define to_dev_attr(_attr) container_of(_attr, struct device_attribute, attr)
+
+static struct attribute *iio_buffer_wrap_attr(struct iio_buffer *buffer,
+					      struct attribute *attr)
+{
+	struct device_attribute *dattr = to_dev_attr(attr);
+	struct iio_dev_attr *iio_attr;
+
+	iio_attr = kzalloc(sizeof(*iio_attr), GFP_KERNEL);
+	if (!iio_attr)
+		return NULL;
+
+	iio_attr->buffer = buffer;
+	memcpy(&iio_attr->dev_attr, dattr, sizeof(iio_attr->dev_attr));
+	iio_attr->dev_attr.attr.name = kstrdup_const(attr->name, GFP_KERNEL);
+
+	list_add(&iio_attr->l, &buffer->buffer_attr_list);
+
+	return &iio_attr->dev_attr.attr;
+}
 
 static int iio_buffer_register_legacy_sysfs_groups(struct iio_dev *indio_dev,
 						   struct attribute **buffer_attrs,
@@ -1329,7 +1344,7 @@ static int __iio_buffer_alloc_sysfs_and_mask(struct iio_buffer *buffer,
 	}
 
 	scan_el_attrcount = 0;
-	INIT_LIST_HEAD(&buffer->scan_el_dev_attr_list);
+	INIT_LIST_HEAD(&buffer->buffer_attr_list);
 	channels = indio_dev->channels;
 	if (channels) {
 		/* new magic */
@@ -1376,9 +1391,19 @@ static int __iio_buffer_alloc_sysfs_and_mask(struct iio_buffer *buffer,
 
 	buffer_attrcount += ARRAY_SIZE(iio_buffer_attrs);
 
-	attrn = buffer_attrcount;
+	for (i = 0; i < buffer_attrcount; i++) {
+		struct attribute *wrapped;
 
-	list_for_each_entry(p, &buffer->scan_el_dev_attr_list, l)
+		wrapped = iio_buffer_wrap_attr(buffer, attr[i]);
+		if (!wrapped) {
+			ret = -ENOMEM;
+			goto error_free_scan_mask;
+		}
+		attr[i] = wrapped;
+	}
+
+	attrn = 0;
+	list_for_each_entry(p, &buffer->buffer_attr_list, l)
 		attr[attrn++] = &p->dev_attr.attr;
 
 	buffer->buffer_group.name = kasprintf(GFP_KERNEL, "buffer%d", index);
@@ -1412,7 +1437,7 @@ error_free_buffer_attrs:
 error_free_scan_mask:
 	bitmap_free(buffer->scan_mask);
 error_cleanup_dynamic:
-	iio_free_chan_devattr_list(&buffer->scan_el_dev_attr_list);
+	iio_free_chan_devattr_list(&buffer->buffer_attr_list);
 
 	return ret;
 }
@@ -1443,7 +1468,7 @@ static void __iio_buffer_free_sysfs_and_mask(struct iio_buffer *buffer)
 	bitmap_free(buffer->scan_mask);
 	kfree(buffer->buffer_group.name);
 	kfree(buffer->buffer_group.attrs);
-	iio_free_chan_devattr_list(&buffer->scan_el_dev_attr_list);
+	iio_free_chan_devattr_list(&buffer->buffer_attr_list);
 }
 
 void iio_buffer_free_sysfs_and_mask(struct iio_dev *indio_dev)
