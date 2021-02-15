@@ -308,10 +308,6 @@ static void imx7_csi_rx_fifo_clear(struct imx7_csi *csi)
 static void imx7_csi_dmareq_rff_enable(struct imx7_csi *csi)
 {
 	u32 cr3 = imx7_csi_reg_read(csi, CSI_CSICR3);
-	u32 cr2 = imx7_csi_reg_read(csi, CSI_CSICR2);
-
-	/* Burst Type of DMA Transfer from RxFIFO. INCR16 */
-	cr2 |= BIT_DMA_BURST_TYPE_RFF_INCR16;
 
 	cr3 |= BIT_DMA_REQ_EN_RFF;
 	cr3 |= BIT_HRESP_ERR_EN;
@@ -319,7 +315,6 @@ static void imx7_csi_dmareq_rff_enable(struct imx7_csi *csi)
 	cr3 |= BIT_RXFF_LEVEL(2);
 
 	imx7_csi_reg_write(csi, cr3, CSI_CSICR3);
-	imx7_csi_reg_write(csi, cr2, CSI_CSICR2);
 }
 
 static void imx7_csi_dmareq_rff_disable(struct imx7_csi *csi)
@@ -532,7 +527,7 @@ static void imx7_csi_configure(struct imx7_csi *csi)
 	}
 
 	imx7_csi_reg_write(csi, cr1, CSI_CSICR1);
-	imx7_csi_reg_write(csi, 0, CSI_CSICR2);
+	imx7_csi_reg_write(csi, BIT_DMA_BURST_TYPE_RFF_INCR16, CSI_CSICR2);
 	imx7_csi_reg_write(csi, BIT_FRMCNT_RST, CSI_CSICR3);
 	imx7_csi_reg_write(csi, cr18, CSI_CSICR18);
 
