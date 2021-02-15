@@ -20,7 +20,7 @@ static const char *proc_self_get_link(struct dentry *dentry,
 	 * Not currently supported. Once we can inherit all of struct pid,
 	 * we can allow this.
 	 */
-	if (current->flags & PF_IO_WORKER)
+	if (current->flags & PF_KTHREAD)
 		return ERR_PTR(-EOPNOTSUPP);
 
 	if (!tgid)
