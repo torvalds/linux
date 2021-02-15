@@ -38,15 +38,16 @@ attributes of the following form:
 * :file:`type`, description of the scan element data storage within the buffer
   and hence the form in which it is read from user space.
   Format is [be|le]:[s|u]bits/storagebitsXrepeat[>>shift] .
+
   * *be* or *le*, specifies big or little endian.
   * *s* or *u*, specifies if signed (2's complement) or unsigned.
   * *bits*, is the number of valid data bits.
   * *storagebits*, is the number of bits (after padding) that it occupies in the
-  buffer.
-  * *shift*, if specified, is the shift that needs to be applied prior to
-  masking out unused bits.
+    buffer.
   * *repeat*, specifies the number of bits/storagebits repetitions. When the
-  repeat element is 0 or 1, then the repeat value is omitted.
+    repeat element is 0 or 1, then the repeat value is omitted.
+  * *shift*, if specified, is the shift that needs to be applied prior to
+    masking out unused bits.
 
 For example, a driver for a 3-axis accelerometer with 12 bit resolution where
 data is stored in two 8-bits registers as follows::
@@ -123,4 +124,3 @@ More details
 .. kernel-doc:: include/linux/iio/buffer.h
 .. kernel-doc:: drivers/iio/industrialio-buffer.c
    :export:
-
