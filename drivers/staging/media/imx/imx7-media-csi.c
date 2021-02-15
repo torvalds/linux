@@ -462,6 +462,12 @@ static int imx7_csi_dma_setup(struct imx7_csi *csi)
 	return 0;
 }
 
+static void imx7_csi_dma_cleanup(struct imx7_csi *csi)
+{
+	imx7_csi_dma_unsetup_vb2_buf(csi, VB2_BUF_STATE_ERROR);
+	imx_media_free_dma_buf(csi->dev, &csi->underrun_buf);
+}
+
 static void imx7_csi_dma_stop(struct imx7_csi *csi)
 {
 	unsigned long timeout_jiffies;
@@ -483,10 +489,6 @@ static void imx7_csi_dma_stop(struct imx7_csi *csi)
 		v4l2_warn(&csi->sd, "wait last EOF timeout\n");
 
 	imx7_csi_hw_disable_irq(csi);
-
-	imx7_csi_dma_unsetup_vb2_buf(csi, VB2_BUF_STATE_ERROR);
-
-	imx_media_free_dma_buf(csi->dev, &csi->underrun_buf);
 }
 
 static void imx7_csi_configure(struct imx7_csi *csi)
@@ -627,6 +629,7 @@ static int imx7_csi_streaming_start(struct imx7_csi *csi)
 static int imx7_csi_streaming_stop(struct imx7_csi *csi)
 {
 	imx7_csi_dma_stop(csi);
+	imx7_csi_dma_cleanup(csi);
 
 	imx7_csi_disable(csi);
 
