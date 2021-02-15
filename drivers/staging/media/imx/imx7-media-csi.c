@@ -166,8 +166,6 @@ struct imx7_csi {
 
 	struct v4l2_subdev *src_sd;
 
-	struct media_entity *sink;
-
 	struct v4l2_mbus_framefmt format_mbus[IMX7_CSI_PADS_NUM];
 	const struct imx_media_pixfmt *cc[IMX7_CSI_PADS_NUM];
 	struct v4l2_fract frame_interval[IMX7_CSI_PADS_NUM];
@@ -450,19 +448,6 @@ static int imx7_csi_link_setup(struct media_entity *entity,
 		} else {
 			csi->src_sd = NULL;
 		}
-
-		goto unlock;
-	}
-
-	/* source pad */
-	if (flags & MEDIA_LNK_FL_ENABLED) {
-		if (csi->sink) {
-			ret = -EBUSY;
-			goto unlock;
-		}
-		csi->sink = remote->entity;
-	} else {
-		csi->sink = NULL;
 	}
 
 unlock:
@@ -842,7 +827,7 @@ static int imx7_csi_s_stream(struct v4l2_subdev *sd, int enable)
 
 	mutex_lock(&csi->lock);
 
-	if (!csi->src_sd || !csi->sink) {
+	if (!csi->src_sd) {
 		ret = -EPIPE;
 		goto out_unlock;
 	}
@@ -1091,7 +1076,8 @@ static int imx7_csi_registered(struct v4l2_subdev *sd)
 	if (IS_ERR(csi->vdev))
 		return PTR_ERR(csi->vdev);
 
-	ret = imx_media_capture_device_register(csi->vdev, 0);
+	ret = imx_media_capture_device_register(csi->vdev,
+						MEDIA_LNK_FL_IMMUTABLE);
 	if (ret)
 		imx_media_capture_device_remove(csi->vdev);
 
