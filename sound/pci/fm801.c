@@ -1300,7 +1300,7 @@ static int snd_fm801_create(struct snd_card *card,
 		chip->tea575x_tuner |= tuner_only;
 	}
 	if (!(chip->tea575x_tuner & TUNER_DISABLED)) {
-		strlcpy(chip->tea.card, get_tea575x_gpio(chip)->name,
+		strscpy(chip->tea.card, get_tea575x_gpio(chip)->name,
 			sizeof(chip->tea.card));
 	}
 #endif

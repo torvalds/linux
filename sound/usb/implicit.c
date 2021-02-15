@@ -73,6 +73,7 @@ static const struct snd_usb_implicit_fb_match playback_implicit_fb_quirks[] = {
 	/* No quirk for playback but with capture quirk (see below) */
 	IMPLICIT_FB_SKIP_DEV(0x0582, 0x0130),	/* BOSS BR-80 */
 	IMPLICIT_FB_SKIP_DEV(0x0582, 0x0171),   /* BOSS RC-505 */
+	IMPLICIT_FB_SKIP_DEV(0x0582, 0x0185),	/* BOSS GP-10 */
 	IMPLICIT_FB_SKIP_DEV(0x0582, 0x0189),	/* BOSS GT-100v2 */
 	IMPLICIT_FB_SKIP_DEV(0x0582, 0x01d6),	/* BOSS GT-1 */
 	IMPLICIT_FB_SKIP_DEV(0x0582, 0x01d8),	/* BOSS Katana */
@@ -86,6 +87,7 @@ static const struct snd_usb_implicit_fb_match playback_implicit_fb_quirks[] = {
 static const struct snd_usb_implicit_fb_match capture_implicit_fb_quirks[] = {
 	IMPLICIT_FB_FIXED_DEV(0x0582, 0x0130, 0x0d, 0x01), /* BOSS BR-80 */
 	IMPLICIT_FB_FIXED_DEV(0x0582, 0x0171, 0x0d, 0x01), /* BOSS RC-505 */
+	IMPLICIT_FB_FIXED_DEV(0x0582, 0x0185, 0x0d, 0x01), /* BOSS GP-10 */
 	IMPLICIT_FB_FIXED_DEV(0x0582, 0x0189, 0x0d, 0x01), /* BOSS GT-100v2 */
 	IMPLICIT_FB_FIXED_DEV(0x0582, 0x01d6, 0x0d, 0x01), /* BOSS GT-1 */
 	IMPLICIT_FB_FIXED_DEV(0x0582, 0x01d8, 0x0d, 0x01), /* BOSS Katana */
@@ -302,7 +304,8 @@ static int audioformat_implicit_fb_quirk(struct snd_usb_audio *chip,
 	/* Pioneer devices with vendor spec class */
 	if (attr == USB_ENDPOINT_SYNC_ASYNC &&
 	    alts->desc.bInterfaceClass == USB_CLASS_VENDOR_SPEC &&
-	    USB_ID_VENDOR(chip->usb_id) == 0x2b73 /* Pioneer */) {
+	    (USB_ID_VENDOR(chip->usb_id) == 0x2b73 || /* Pioneer */
+	     USB_ID_VENDOR(chip->usb_id) == 0x08e4    /* Pioneer */)) {
 		if (skip_pioneer_sync_ep(chip, fmt, alts))
 			return 1;
 	}

@@ -61,8 +61,8 @@ static int snd_timer_user_info_compat(struct file *file,
 	info.card = t->card ? t->card->number : -1;
 	if (t->hw.flags & SNDRV_TIMER_HW_SLAVE)
 		info.flags |= SNDRV_TIMER_FLG_SLAVE;
-	strlcpy(info.id, t->id, sizeof(info.id));
-	strlcpy(info.name, t->name, sizeof(info.name));
+	strscpy(info.id, t->id, sizeof(info.id));
+	strscpy(info.name, t->name, sizeof(info.name));
 	info.resolution = t->hw.resolution;
 	if (copy_to_user(_info, &info, sizeof(*_info)))
 		return -EFAULT;

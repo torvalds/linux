@@ -477,9 +477,9 @@ static int init_card(struct snd_usb_caiaqdev *cdev)
 	usb_string(usb_dev, usb_dev->descriptor.iProduct,
 		   cdev->product_name, CAIAQ_USB_STR_LEN);
 
-	strlcpy(card->driver, MODNAME, sizeof(card->driver));
-	strlcpy(card->shortname, cdev->product_name, sizeof(card->shortname));
-	strlcpy(card->mixername, cdev->product_name, sizeof(card->mixername));
+	strscpy(card->driver, MODNAME, sizeof(card->driver));
+	strscpy(card->shortname, cdev->product_name, sizeof(card->shortname));
+	strscpy(card->mixername, cdev->product_name, sizeof(card->mixername));
 
 	/* if the id was not passed as module option, fill it with a shortened
 	 * version of the product string which does not contain any

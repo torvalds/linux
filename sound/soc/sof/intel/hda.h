@@ -388,7 +388,8 @@
 #define SSP_SET_SFRM_SLAVE	BIT(24)
 #define SSP_SET_SLAVE		(SSP_SET_SCLK_SLAVE | SSP_SET_SFRM_SLAVE)
 
-#define HDA_IDISP_CODEC(x) ((x) & BIT(2))
+#define HDA_IDISP_ADDR		2
+#define HDA_IDISP_CODEC(x) ((x) & BIT(HDA_IDISP_ADDR))
 
 struct sof_intel_dsp_bdl {
 	__le32 addr_l;
