@@ -581,10 +581,10 @@ ipa_resource_config(struct ipa *ipa, const struct ipa_resource_data *data)
 		return -EINVAL;
 
 	for (i = 0; i < data->resource_src_count; i++)
-		ipa_resource_config_src(ipa, data->resource_src);
+		ipa_resource_config_src(ipa, &data->resource_src[i]);
 
 	for (i = 0; i < data->resource_dst_count; i++)
-		ipa_resource_config_dst(ipa, data->resource_dst);
+		ipa_resource_config_dst(ipa, &data->resource_dst[i]);
 
 	return 0;
 }
