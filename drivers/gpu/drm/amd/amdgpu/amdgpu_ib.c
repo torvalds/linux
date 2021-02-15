@@ -30,7 +30,6 @@
 #include <linux/slab.h>
 
 #include <drm/amdgpu_drm.h>
-#include <drm/drm_debugfs.h>
 
 #include "amdgpu.h"
 #include "atom.h"
@@ -453,11 +452,9 @@ int amdgpu_ib_ring_tests(struct amdgpu_device *adev)
  */
 #if defined(CONFIG_DEBUG_FS)
 
-static int amdgpu_debugfs_sa_info(struct seq_file *m, void *data)
+static int amdgpu_debugfs_sa_info_show(struct seq_file *m, void *unused)
 {
-	struct drm_info_node *node = (struct drm_info_node *) m->private;
-	struct drm_device *dev = node->minor->dev;
-	struct amdgpu_device *adev = drm_to_adev(dev);
+	struct amdgpu_device *adev = (struct amdgpu_device *)m->private;
 
 	seq_printf(m, "--------------------- DELAYED --------------------- \n");
 	amdgpu_sa_bo_dump_debug_info(&adev->ib_pools[AMDGPU_IB_POOL_DELAYED],
@@ -471,18 +468,18 @@ static int amdgpu_debugfs_sa_info(struct seq_file *m, void *data)
 	return 0;
 }
 
-static const struct drm_info_list amdgpu_debugfs_sa_list[] = {
-	{"amdgpu_sa_info", &amdgpu_debugfs_sa_info, 0, NULL},
-};
+DEFINE_SHOW_ATTRIBUTE(amdgpu_debugfs_sa_info);
 
 #endif
 
-int amdgpu_debugfs_sa_init(struct amdgpu_device *adev)
+void amdgpu_debugfs_sa_init(struct amdgpu_device *adev)
 {
 #if defined(CONFIG_DEBUG_FS)
-	return amdgpu_debugfs_add_files(adev, amdgpu_debugfs_sa_list,
-					ARRAY_SIZE(amdgpu_debugfs_sa_list));
-#else
-	return 0;
+	struct drm_minor *minor = adev_to_drm(adev)->primary;
+	struct dentry *root = minor->debugfs_root;
+
+	debugfs_create_file("amdgpu_sa_info", 0444, root, adev,
+			    &amdgpu_debugfs_sa_info_fops);
+
 #endif
 }

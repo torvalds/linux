@@ -47,7 +47,6 @@
 #include <drm/ttm/ttm_bo_driver.h>
 #include <drm/ttm/ttm_placement.h>
 
-#include <drm/drm_debugfs.h>
 #include <drm/amdgpu_drm.h>
 
 #include "amdgpu.h"
@@ -2191,36 +2190,74 @@ error_free:
 
 #if defined(CONFIG_DEBUG_FS)
 
-static int amdgpu_mm_dump_table(struct seq_file *m, void *data)
+static int amdgpu_mm_vram_table_show(struct seq_file *m, void *unused)
 {
-	struct drm_info_node *node = (struct drm_info_node *)m->private;
-	unsigned ttm_pl = (uintptr_t)node->info_ent->data;
-	struct drm_device *dev = node->minor->dev;
-	struct amdgpu_device *adev = drm_to_adev(dev);
-	struct ttm_resource_manager *man = ttm_manager_type(&adev->mman.bdev, ttm_pl);
+	struct amdgpu_device *adev = (struct amdgpu_device *)m->private;
+	struct ttm_resource_manager *man = ttm_manager_type(&adev->mman.bdev,
+							    TTM_PL_VRAM);
 	struct drm_printer p = drm_seq_file_printer(m);
 
 	man->func->debug(man, &p);
 	return 0;
 }
 
-static int amdgpu_ttm_pool_debugfs(struct seq_file *m, void *data)
+static int amdgpu_ttm_page_pool_show(struct seq_file *m, void *unused)
 {
-	struct drm_info_node *node = (struct drm_info_node *)m->private;
-	struct drm_device *dev = node->minor->dev;
-	struct amdgpu_device *adev = drm_to_adev(dev);
+	struct amdgpu_device *adev = (struct amdgpu_device *)m->private;
 
 	return ttm_pool_debugfs(&adev->mman.bdev.pool, m);
 }
 
-static const struct drm_info_list amdgpu_ttm_debugfs_list[] = {
-	{"amdgpu_vram_mm", amdgpu_mm_dump_table, 0, (void *)TTM_PL_VRAM},
-	{"amdgpu_gtt_mm", amdgpu_mm_dump_table, 0, (void *)TTM_PL_TT},
-	{"amdgpu_gds_mm", amdgpu_mm_dump_table, 0, (void *)AMDGPU_PL_GDS},
-	{"amdgpu_gws_mm", amdgpu_mm_dump_table, 0, (void *)AMDGPU_PL_GWS},
-	{"amdgpu_oa_mm", amdgpu_mm_dump_table, 0, (void *)AMDGPU_PL_OA},
-	{"ttm_page_pool", amdgpu_ttm_pool_debugfs, 0, NULL},
-};
+static int amdgpu_mm_tt_table_show(struct seq_file *m, void *unused)
+{
+	struct amdgpu_device *adev = (struct amdgpu_device *)m->private;
+	struct ttm_resource_manager *man = ttm_manager_type(&adev->mman.bdev,
+							    TTM_PL_TT);
+	struct drm_printer p = drm_seq_file_printer(m);
+
+	man->func->debug(man, &p);
+	return 0;
+}
+
+static int amdgpu_mm_gds_table_show(struct seq_file *m, void *unused)
+{
+	struct amdgpu_device *adev = (struct amdgpu_device *)m->private;
+	struct ttm_resource_manager *man = ttm_manager_type(&adev->mman.bdev,
+							    AMDGPU_PL_GDS);
+	struct drm_printer p = drm_seq_file_printer(m);
+
+	man->func->debug(man, &p);
+	return 0;
+}
+
+static int amdgpu_mm_gws_table_show(struct seq_file *m, void *unused)
+{
+	struct amdgpu_device *adev = (struct amdgpu_device *)m->private;
+	struct ttm_resource_manager *man = ttm_manager_type(&adev->mman.bdev,
+							    AMDGPU_PL_GWS);
+	struct drm_printer p = drm_seq_file_printer(m);
+
+	man->func->debug(man, &p);
+	return 0;
+}
+
+static int amdgpu_mm_oa_table_show(struct seq_file *m, void *unused)
+{
+	struct amdgpu_device *adev = (struct amdgpu_device *)m->private;
+	struct ttm_resource_manager *man = ttm_manager_type(&adev->mman.bdev,
+							    AMDGPU_PL_OA);
+	struct drm_printer p = drm_seq_file_printer(m);
+
+	man->func->debug(man, &p);
+	return 0;
+}
+
+DEFINE_SHOW_ATTRIBUTE(amdgpu_mm_vram_table);
+DEFINE_SHOW_ATTRIBUTE(amdgpu_mm_tt_table);
+DEFINE_SHOW_ATTRIBUTE(amdgpu_mm_gds_table);
+DEFINE_SHOW_ATTRIBUTE(amdgpu_mm_gws_table);
+DEFINE_SHOW_ATTRIBUTE(amdgpu_mm_oa_table);
+DEFINE_SHOW_ATTRIBUTE(amdgpu_ttm_page_pool);
 
 /*
  * amdgpu_ttm_vram_read - Linear read access to VRAM
@@ -2424,22 +2461,27 @@ static const struct file_operations amdgpu_ttm_iomem_fops = {
 
 #endif
 
-int amdgpu_ttm_debugfs_init(struct amdgpu_device *adev)
+void amdgpu_ttm_debugfs_init(struct amdgpu_device *adev)
 {
 #if defined(CONFIG_DEBUG_FS)
-	unsigned count;
-
 	struct drm_minor *minor = adev_to_drm(adev)->primary;
-	umode_t mode = S_IFREG | S_IRUGO;
 	struct dentry *root = minor->debugfs_root;
 
-	debugfs_create_file_size("amdgpu_vram", mode, root, adev,
+	debugfs_create_file_size("amdgpu_vram", 0444, root, adev,
 				 &amdgpu_ttm_vram_fops, adev->gmc.mc_vram_size);
-	debugfs_create_file("amdgpu_iomem", mode, root, adev,
+	debugfs_create_file("amdgpu_iomem", 0444, root, adev,
 			    &amdgpu_ttm_iomem_fops);
-	count = ARRAY_SIZE(amdgpu_ttm_debugfs_list);
-	return amdgpu_debugfs_add_files(adev, amdgpu_ttm_debugfs_list, count);
-#else
-	return 0;
+	debugfs_create_file("amdgpu_vram_mm", 0444, root, adev,
+			    &amdgpu_mm_vram_table_fops);
+	debugfs_create_file("amdgpu_gtt_mm", 0444, root, adev,
+			    &amdgpu_mm_tt_table_fops);
+	debugfs_create_file("amdgpu_gds_mm", 0444, root, adev,
+			    &amdgpu_mm_gds_table_fops);
+	debugfs_create_file("amdgpu_gws_mm", 0444, root, adev,
+			    &amdgpu_mm_gws_table_fops);
+	debugfs_create_file("amdgpu_oa_mm", 0444, root, adev,
+			    &amdgpu_mm_oa_table_fops);
+	debugfs_create_file("ttm_page_pool", 0444, root, adev,
+			    &amdgpu_ttm_page_pool_fops);
 #endif
 }
