@@ -358,8 +358,15 @@ static const struct csis_pix_format mipi_csis_formats[] = {
 	}
 };
 
-#define mipi_csis_write(__csis, __r, __v) writel(__v, (__csis)->regs + (__r))
-#define mipi_csis_read(__csis, __r) readl((__csis)->regs + (__r))
+static inline void mipi_csis_write(struct csi_state *state, u32 reg, u32 val)
+{
+	writel(val, state->regs + reg);
+}
+
+static inline u32 mipi_csis_read(struct csi_state *state, u32 reg)
+{
+	return readl(state->regs + reg);
+}
 
 static int mipi_csis_dump_regs(struct csi_state *state)
 {
