@@ -750,17 +750,15 @@ int clear_foreign_p2m_mapping(struct gnttab_unmap_grant_ref *unmap_ops,
 		unsigned long mfn = __pfn_to_mfn(page_to_pfn(pages[i]));
 		unsigned long pfn = page_to_pfn(pages[i]);
 
-		if (mfn == INVALID_P2M_ENTRY || !(mfn & FOREIGN_FRAME_BIT)) {
+		if (mfn != INVALID_P2M_ENTRY && (mfn & FOREIGN_FRAME_BIT))
+			set_phys_to_machine(pfn, INVALID_P2M_ENTRY);
+		else
 			ret = -EINVAL;
-			goto out;
-		}
-
-		set_phys_to_machine(pfn, INVALID_P2M_ENTRY);
 	}
 	if (kunmap_ops)
 		ret = HYPERVISOR_grant_table_op(GNTTABOP_unmap_grant_ref,
-						kunmap_ops, count);
-out:
+						kunmap_ops, count) ?: ret;
+
 	return ret;
 }
 EXPORT_SYMBOL_GPL(clear_foreign_p2m_mapping);
