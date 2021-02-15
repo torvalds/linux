@@ -124,18 +124,14 @@ void rtw_os_recv_indicate_pkt(struct adapter *padapter, _pkt *pkt, struct rx_pkt
 
 					_rtw_xmit_entry(pkt, pnetdev);
 
-					if (bmcast && pskb2) {
+					if (bmcast && pskb2)
 						pkt = pskb2;
-						DBG_COUNTER(padapter->rx_logs.os_indicate_ap_mcast);
-					} else {
-						DBG_COUNTER(padapter->rx_logs.os_indicate_ap_forward);
+					else
 						return;
-					}
 				}
 			} else {
 				/*  to APself */
 				/* DBG_871X("to APSelf\n"); */
-				DBG_COUNTER(padapter->rx_logs.os_indicate_ap_self);
 			}
 		}
 
@@ -153,10 +149,6 @@ void rtw_os_recv_indicate_pkt(struct adapter *padapter, _pkt *pkt, struct rx_pkt
 #endif /* CONFIG_TCP_CSUM_OFFLOAD_RX */
 
 		ret = rtw_netif_rx(padapter->pnetdev, pkt);
-		if (ret == NET_RX_SUCCESS)
-			DBG_COUNTER(padapter->rx_logs.os_netif_ok);
-		else
-			DBG_COUNTER(padapter->rx_logs.os_netif_err);
 	}
 }
 
@@ -246,8 +238,6 @@ int rtw_recv_indicatepkt(struct adapter *padapter, union recv_frame *precv_frame
 	_pkt *skb;
 	struct rx_pkt_attrib *pattrib = &precv_frame->u.hdr.attrib;
 
-	DBG_COUNTER(padapter->rx_logs.os_indicate);
-
 	precvpriv = &(padapter->recvpriv);
 	pfree_recv_queue = &(precvpriv->free_recv_queue);
 
@@ -293,7 +283,6 @@ _recv_indicatepkt_drop:
 	/* enqueue back to free_recv_queue */
 	rtw_free_recvframe(precv_frame, pfree_recv_queue);
 
-	DBG_COUNTER(padapter->rx_logs.os_indicate_err);
 	return _FAIL;
 }
 
