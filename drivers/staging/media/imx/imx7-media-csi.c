@@ -333,8 +333,6 @@ static void imx7_csi_dmareq_rff_disable(struct imx7_csi *csi)
 
 static void imx7_csi_sw_reset(struct imx7_csi *csi)
 {
-	imx7_csi_hw_disable(csi);
-
 	imx7_csi_rx_fifo_clear(csi);
 
 	imx7_csi_dma_reflash(csi);
@@ -451,17 +449,19 @@ static void imx7_csi_configure(struct imx7_csi *csi)
 	struct imx_media_video_dev *vdev = csi->vdev;
 	struct v4l2_pix_format *out_pix = &vdev->fmt;
 	int width = out_pix->width;
+	u32 stride = 0;
 	u32 cr1, cr18;
-	u32 stride;
 
 	cr18 = imx7_csi_reg_read(csi, CSI_CSICR18);
+
+	cr18 &= ~(BIT_CSI_HW_ENABLE | BIT_MIPI_DATA_FORMAT_MASK |
+		  BIT_DATA_FROM_MIPI | BIT_BASEADDR_CHG_ERR_EN |
+		  BIT_BASEADDR_SWITCH_EN | BIT_BASEADDR_SWITCH_SEL |
+		  BIT_DEINTERLACE_EN);
 
 	if (out_pix->field == V4L2_FIELD_INTERLACED) {
 		cr18 |= BIT_DEINTERLACE_EN;
 		stride = out_pix->width;
-	} else {
-		cr18 &= ~BIT_DEINTERLACE_EN;
-		stride = 0;
 	}
 
 	if (!csi->is_csi2) {
@@ -478,7 +478,6 @@ static void imx7_csi_configure(struct imx7_csi *csi)
 		cr1 = BIT_SOF_POL | BIT_REDGE | BIT_HSYNC_POL | BIT_FCC
 		    | BIT_MCLKDIV(1) | BIT_MCLKEN;
 
-		cr18 &= BIT_MIPI_DATA_FORMAT_MASK;
 		cr18 |= BIT_DATA_FROM_MIPI;
 
 		switch (csi->format_mbus[IMX7_CSI_PAD_SINK].code) {
