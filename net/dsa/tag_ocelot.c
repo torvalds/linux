@@ -56,7 +56,7 @@ static struct sk_buff *ocelot_xmit(struct sk_buff *skb,
 	void *injection;
 
 	ocelot_xmit_common(skb, netdev, cpu_to_be32(0x8880000a), &injection);
-	ocelot_ifh_set_dest(injection, BIT(dp->index));
+	ocelot_ifh_set_dest(injection, BIT_ULL(dp->index));
 
 	return skb;
 }
@@ -68,7 +68,7 @@ static struct sk_buff *seville_xmit(struct sk_buff *skb,
 	void *injection;
 
 	ocelot_xmit_common(skb, netdev, cpu_to_be32(0x88800005), &injection);
-	seville_ifh_set_dest(injection, BIT(dp->index));
+	seville_ifh_set_dest(injection, BIT_ULL(dp->index));
 
 	return skb;
 }

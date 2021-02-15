@@ -803,7 +803,7 @@ void ocelot_port_inject_frame(struct ocelot *ocelot, int port, int grp,
 			 QS_INJ_CTRL_SOF, QS_INJ_CTRL, grp);
 
 	ocelot_ifh_set_bypass(ifh, 1);
-	ocelot_ifh_set_dest(ifh, BIT(port));
+	ocelot_ifh_set_dest(ifh, BIT_ULL(port));
 	ocelot_ifh_set_tag_type(ifh, IFH_TAG_TYPE_C);
 	ocelot_ifh_set_vid(ifh, skb_vlan_tag_get(skb));
 	ocelot_ifh_set_rew_op(ifh, rew_op);
