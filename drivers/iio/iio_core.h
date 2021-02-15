@@ -12,6 +12,7 @@
 #include <linux/kernel.h>
 #include <linux/device.h>
 
+struct iio_buffer;
 struct iio_chan_spec;
 struct iio_dev;
 
@@ -43,6 +44,7 @@ int __iio_add_chan_devattr(const char *postfix,
 			   u64 mask,
 			   enum iio_shared_by shared_by,
 			   struct device *dev,
+			   struct iio_buffer *buffer,
 			   struct list_head *attr_list);
 void iio_free_chan_devattr_list(struct list_head *attr_list);
 
