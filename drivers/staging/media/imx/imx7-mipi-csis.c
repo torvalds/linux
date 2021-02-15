@@ -163,11 +163,7 @@
 #define MIPI_CSIS_DPHY_SCTRL_H			0x3c
 
 /* ISP Configuration register */
-#define MIPI_CSIS_ISPCONFIG_CH0			0x40
-#define MIPI_CSIS_ISPCONFIG_CH1			0x50
-#define MIPI_CSIS_ISPCONFIG_CH2			0x60
-#define MIPI_CSIS_ISPCONFIG_CH3			0x70
-
+#define MIPI_CSIS_ISPCONFIG_CH(n)		(0x40 + (n) * 0x10)
 #define MIPI_CSIS_ISPCFG_MEM_FULL_GAP_MSK	(0xff << 24)
 #define MIPI_CSIS_ISPCFG_MEM_FULL_GAP(x)	((x) << 24)
 #define MIPI_CSIS_ISPCFG_DOUBLE_CMPNT		BIT(12)
@@ -177,25 +173,17 @@
 #define MIPI_CSIS_ISPCFG_FMT_RAW10		(0x2b << 2)
 #define MIPI_CSIS_ISPCFG_FMT_RAW12		(0x2c << 2)
 #define MIPI_CSIS_ISPCFG_FMT_RAW14		(0x2d << 2)
-
 /* User defined formats, x = 1...4 */
 #define MIPI_CSIS_ISPCFG_FMT_USER(x)		((0x30 + (x) - 1) << 2)
 #define MIPI_CSIS_ISPCFG_FMT_MASK		(0x3f << 2)
 
 /* ISP Image Resolution register */
-#define MIPI_CSIS_ISPRESOL_CH0			0x44
-#define MIPI_CSIS_ISPRESOL_CH1			0x54
-#define MIPI_CSIS_ISPRESOL_CH2			0x64
-#define MIPI_CSIS_ISPRESOL_CH3			0x74
+#define MIPI_CSIS_ISPRESOL_CH(n)		(0x44 + (n) * 0x10)
 #define CSIS_MAX_PIX_WIDTH			0xffff
 #define CSIS_MAX_PIX_HEIGHT			0xffff
 
 /* ISP SYNC register */
-#define MIPI_CSIS_ISPSYNC_CH0			0x48
-#define MIPI_CSIS_ISPSYNC_CH1			0x58
-#define MIPI_CSIS_ISPSYNC_CH2			0x68
-#define MIPI_CSIS_ISPSYNC_CH3			0x78
-
+#define MIPI_CSIS_ISPSYNC_CH(n)			(0x48 + (n) * 0x10)
 #define MIPI_CSIS_ISPSYNC_HSYNC_LINTV_OFFSET	18
 #define MIPI_CSIS_ISPSYNC_VSYNC_SINTV_OFFSET	12
 #define MIPI_CSIS_ISPSYNC_VSYNC_EINTV_OFFSET	0
@@ -514,14 +502,14 @@ static void __mipi_csis_set_format(struct csi_state *state)
 	u32 val;
 
 	/* Color format */
-	val = mipi_csis_read(state, MIPI_CSIS_ISPCONFIG_CH0);
+	val = mipi_csis_read(state, MIPI_CSIS_ISPCONFIG_CH(0));
 	val &= ~(MIPI_CSIS_ISPCFG_ALIGN_32BIT | MIPI_CSIS_ISPCFG_FMT_MASK);
 	val |= state->csis_fmt->fmt_reg;
-	mipi_csis_write(state, MIPI_CSIS_ISPCONFIG_CH0, val);
+	mipi_csis_write(state, MIPI_CSIS_ISPCONFIG_CH(0), val);
 
 	/* Pixel resolution */
 	val = mf->width | (mf->height << 16);
-	mipi_csis_write(state, MIPI_CSIS_ISPRESOL_CH0, val);
+	mipi_csis_write(state, MIPI_CSIS_ISPRESOL_CH(0), val);
 }
 
 static int mipi_csis_calculate_params(struct csi_state *state)
@@ -576,7 +564,7 @@ static void mipi_csis_set_params(struct csi_state *state)
 	val = (0 << MIPI_CSIS_ISPSYNC_HSYNC_LINTV_OFFSET) |
 		(0 << MIPI_CSIS_ISPSYNC_VSYNC_SINTV_OFFSET) |
 		(0 << MIPI_CSIS_ISPSYNC_VSYNC_EINTV_OFFSET);
-	mipi_csis_write(state, MIPI_CSIS_ISPSYNC_CH0, val);
+	mipi_csis_write(state, MIPI_CSIS_ISPSYNC_CH(0), val);
 
 	val = mipi_csis_read(state, MIPI_CSIS_CLK_CTRL);
 	val |= MIPI_CSIS_CLK_CTRL_WCLK_SRC;
