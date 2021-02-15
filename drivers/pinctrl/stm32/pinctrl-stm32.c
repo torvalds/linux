@@ -1542,8 +1542,10 @@ int stm32_pctl_probe(struct platform_device *pdev)
 		if (of_property_read_bool(child, "gpio-controller")) {
 			bank->rstc = of_reset_control_get_exclusive(child,
 								    NULL);
-			if (PTR_ERR(bank->rstc) == -EPROBE_DEFER)
+			if (PTR_ERR(bank->rstc) == -EPROBE_DEFER) {
+				of_node_put(child);
 				return -EPROBE_DEFER;
+			}
 
 			bank->clk = of_clk_get_by_name(child, NULL);
 			if (IS_ERR(bank->clk)) {
@@ -1551,6 +1553,7 @@ int stm32_pctl_probe(struct platform_device *pdev)
 					dev_err(dev,
 						"failed to get clk (%ld)\n",
 						PTR_ERR(bank->clk));
+				of_node_put(child);
 				return PTR_ERR(bank->clk);
 			}
 			i++;
