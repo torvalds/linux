@@ -212,12 +212,8 @@
 /* global definition */
 #define RT5670_L_MUTE				(0x1 << 15)
 #define RT5670_L_MUTE_SFT			15
-#define RT5670_VOL_L_MUTE			(0x1 << 14)
-#define RT5670_VOL_L_SFT			14
 #define RT5670_R_MUTE				(0x1 << 7)
 #define RT5670_R_MUTE_SFT			7
-#define RT5670_VOL_R_MUTE			(0x1 << 6)
-#define RT5670_VOL_R_SFT			6
 #define RT5670_L_VOL_MASK			(0x3f << 8)
 #define RT5670_L_VOL_SFT			8
 #define RT5670_R_VOL_MASK			(0x3f)
