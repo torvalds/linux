@@ -445,8 +445,6 @@ union recv_frame *decryptor(struct adapter *padapter, union recv_frame *precv_fr
 	union recv_frame *return_packet = precv_frame;
 	u32  res = _SUCCESS;
 
-	DBG_COUNTER(padapter->rx_logs.core_rx_post_decrypt);
-
 	RT_TRACE(_module_rtl871x_recv_c_, _drv_info_, ("prxstat->decrypted =%x prxattrib->encrypt = 0x%03x\n", prxattrib->bdecrypted, prxattrib->encrypt));
 
 	if (prxattrib->encrypt > 0) {
@@ -485,15 +483,12 @@ union recv_frame *decryptor(struct adapter *padapter, union recv_frame *precv_fr
 		switch (prxattrib->encrypt) {
 		case _WEP40_:
 		case _WEP104_:
-			DBG_COUNTER(padapter->rx_logs.core_rx_post_decrypt_wep);
 			rtw_wep_decrypt(padapter, (u8 *)precv_frame);
 			break;
 		case _TKIP_:
-			DBG_COUNTER(padapter->rx_logs.core_rx_post_decrypt_tkip);
 			res = rtw_tkip_decrypt(padapter, (u8 *)precv_frame);
 			break;
 		case _AES_:
-			DBG_COUNTER(padapter->rx_logs.core_rx_post_decrypt_aes);
 			res = rtw_aes_decrypt(padapter, (u8 *)precv_frame);
 			break;
 		default:
@@ -502,8 +497,6 @@ union recv_frame *decryptor(struct adapter *padapter, union recv_frame *precv_fr
 	} else if (prxattrib->bdecrypted == 1 && prxattrib->encrypt > 0 &&
 		   (psecuritypriv->busetkipkey == 1 || prxattrib->encrypt != _TKIP_)
 		) {
-		DBG_COUNTER(padapter->rx_logs.core_rx_post_decrypt_hw);
-
 		psecuritypriv->hw_decrypted = true;
 		#ifdef DBG_RX_DECRYPTOR
 		DBG_871X("[%s] %d:prxstat->bdecrypted:%d,  prxattrib->encrypt:%d,  Setting psecuritypriv->hw_decrypted = %d\n",
@@ -515,7 +508,6 @@ union recv_frame *decryptor(struct adapter *padapter, union recv_frame *precv_fr
 
 		#endif
 	} else {
-		DBG_COUNTER(padapter->rx_logs.core_rx_post_decrypt_unknown);
 		#ifdef DBG_RX_DECRYPTOR
 		DBG_871X("[%s] %d:prxstat->bdecrypted:%d,  prxattrib->encrypt:%d,  Setting psecuritypriv->hw_decrypted = %d\n",
 			__func__,
@@ -1488,7 +1480,6 @@ sint validate_recv_frame(struct adapter *adapter, union recv_frame *precv_frame)
 	if (ver != 0) {
 		RT_TRACE(_module_rtl871x_recv_c_, _drv_err_, ("validate_recv_data_frame fail! (ver!= 0)\n"));
 		retval = _FAIL;
-		DBG_COUNTER(adapter->rx_logs.core_rx_pre_ver_err);
 		goto exit;
 	}
 
@@ -1515,39 +1506,29 @@ sint validate_recv_frame(struct adapter *adapter, union recv_frame *precv_frame)
 
 	switch (type) {
 	case WIFI_MGT_TYPE: /* mgnt */
-		DBG_COUNTER(adapter->rx_logs.core_rx_pre_mgmt);
 		if (validate_80211w_mgmt(adapter, precv_frame) == _FAIL) {
 			retval = _FAIL;
-			DBG_COUNTER(padapter->rx_logs.core_rx_pre_mgmt_err_80211w);
 			break;
 		}
 
 		retval = validate_recv_mgnt_frame(adapter, precv_frame);
-		if (retval == _FAIL) {
+		if (retval == _FAIL)
 			RT_TRACE(_module_rtl871x_recv_c_, _drv_err_, ("validate_recv_mgnt_frame fail\n"));
-			DBG_COUNTER(adapter->rx_logs.core_rx_pre_mgmt_err);
-		}
 		retval = _FAIL; /*  only data frame return _SUCCESS */
 		break;
 	case WIFI_CTRL_TYPE: /* ctrl */
-		DBG_COUNTER(adapter->rx_logs.core_rx_pre_ctrl);
 		retval = validate_recv_ctrl_frame(adapter, precv_frame);
-		if (retval == _FAIL) {
+		if (retval == _FAIL)
 			RT_TRACE(_module_rtl871x_recv_c_, _drv_err_, ("validate_recv_ctrl_frame fail\n"));
-			DBG_COUNTER(adapter->rx_logs.core_rx_pre_ctrl_err);
-		}
 		retval = _FAIL; /*  only data frame return _SUCCESS */
 		break;
 	case WIFI_DATA_TYPE: /* data */
-		DBG_COUNTER(adapter->rx_logs.core_rx_pre_data);
-
 		pattrib->qos = (subtype & BIT(7)) ? 1:0;
 		retval = validate_recv_data_frame(adapter, precv_frame);
 		if (retval == _FAIL) {
 			struct recv_priv *precvpriv = &adapter->recvpriv;
 			/* RT_TRACE(_module_rtl871x_recv_c_, _drv_err_, ("validate_recv_data_frame fail\n")); */
 			precvpriv->rx_drop++;
-			DBG_COUNTER(adapter->rx_logs.core_rx_pre_data_err);
 		} else if (retval == _SUCCESS) {
 #ifdef DBG_RX_DUMP_EAP
 			u8 bDumpRxPkt;
@@ -1561,11 +1542,9 @@ sint validate_recv_frame(struct adapter *adapter, union recv_frame *precv_frame)
 			if ((bDumpRxPkt == 4) && (eth_type == 0x888e))
 				dump_rx_packet(ptr);
 #endif
-		} else
-			DBG_COUNTER(adapter->rx_logs.core_rx_pre_data_handled);
+		}
 		break;
 	default:
-		DBG_COUNTER(adapter->rx_logs.core_rx_pre_unknown);
 		RT_TRACE(_module_rtl871x_recv_c_, _drv_err_, ("validate_recv_data_frame fail! type = 0x%x\n", type));
 		#ifdef DBG_RX_DROP_FRAME
 		DBG_871X("DBG_RX_DROP_FRAME validate_recv_data_frame fail! type = 0x%x\n", type);
@@ -2083,8 +2062,6 @@ int recv_indicatepkts_in_order(struct adapter *padapter, struct recv_reorder_ctr
 	struct dvobj_priv *psdpriv = padapter->dvobj;
 	struct debug_priv *pdbgpriv = &psdpriv->drv_dbg;
 
-	DBG_COUNTER(padapter->rx_logs.core_rx_post_indicate_in_oder);
-
 	/* DbgPrint("+recv_indicatepkts_in_order\n"); */
 
 	/* spin_lock_irqsave(&ppending_recvframe_queue->lock, irql); */
@@ -2189,8 +2166,6 @@ int recv_indicatepkt_reorder(struct adapter *padapter, union recv_frame *prframe
 	struct __queue *ppending_recvframe_queue = &preorder_ctrl->pending_recvframe_queue;
 	struct dvobj_priv *psdpriv = padapter->dvobj;
 	struct debug_priv *pdbgpriv = &psdpriv->drv_dbg;
-
-	DBG_COUNTER(padapter->rx_logs.core_rx_post_indicate_reoder);
 
 	if (!pattrib->amsdu) {
 		/* s1. */
@@ -2345,8 +2320,6 @@ int process_recv_indicatepkts(struct adapter *padapter, union recv_frame *prfram
 	struct mlme_priv *pmlmepriv = &padapter->mlmepriv;
 	struct ht_priv *phtpriv = &pmlmepriv->htpriv;
 
-	DBG_COUNTER(padapter->rx_logs.core_rx_post_indicate);
-
 	if (phtpriv->ht_option == true) { /* B/G/N Mode */
 		/* prframe->u.hdr.preorder_ctrl = &precvpriv->recvreorder_ctrl[pattrib->priority]; */
 
@@ -2396,8 +2369,6 @@ static int recv_func_prehandle(struct adapter *padapter, union recv_frame *rfram
 	int ret = _SUCCESS;
 	struct __queue *pfree_recv_queue = &padapter->recvpriv.free_recv_queue;
 
-	DBG_COUNTER(padapter->rx_logs.core_rx_pre);
-
 	/* check the frame crtl field and decache */
 	ret = validate_recv_frame(padapter, rframe);
 	if (ret != _SUCCESS) {
@@ -2417,8 +2388,6 @@ static int recv_func_posthandle(struct adapter *padapter, union recv_frame *prfr
 	struct recv_priv *precvpriv = &padapter->recvpriv;
 	struct __queue *pfree_recv_queue = &padapter->recvpriv.free_recv_queue;
 
-	DBG_COUNTER(padapter->rx_logs.core_rx_post);
-
 	prframe = decryptor(padapter, prframe);
 	if (!prframe) {
 		RT_TRACE(_module_rtl871x_recv_c_, _drv_err_, ("decryptor: drop pkt\n"));
@@ -2426,7 +2395,6 @@ static int recv_func_posthandle(struct adapter *padapter, union recv_frame *prfr
 		DBG_871X("DBG_RX_DROP_FRAME %s decryptor: drop pkt\n", __func__);
 		#endif
 		ret = _FAIL;
-		DBG_COUNTER(padapter->rx_logs.core_rx_post_decrypt_err);
 		goto _recv_data_drop;
 	}
 
@@ -2436,7 +2404,6 @@ static int recv_func_posthandle(struct adapter *padapter, union recv_frame *prfr
 		#ifdef DBG_RX_DROP_FRAME
 		DBG_871X("DBG_RX_DROP_FRAME %s recvframe_chk_defrag: drop pkt\n", __func__);
 		#endif
-		DBG_COUNTER(padapter->rx_logs.core_rx_post_defrag_err);
 		goto _recv_data_drop;
 	}
 
@@ -2447,7 +2414,6 @@ static int recv_func_posthandle(struct adapter *padapter, union recv_frame *prfr
 		DBG_871X("DBG_RX_DROP_FRAME %s portctrl: drop pkt\n", __func__);
 		#endif
 		ret = _FAIL;
-		DBG_COUNTER(padapter->rx_logs.core_rx_post_portctrl_err);
 		goto _recv_data_drop;
 	}
 
@@ -2460,7 +2426,6 @@ static int recv_func_posthandle(struct adapter *padapter, union recv_frame *prfr
 		DBG_871X("DBG_RX_DROP_FRAME %s process_recv_indicatepkts fail!\n", __func__);
 		#endif
 		rtw_free_recvframe(orig_prframe, pfree_recv_queue);/* free this recv_frame */
-		DBG_COUNTER(padapter->rx_logs.core_rx_post_indicate_err);
 		goto _recv_data_drop;
 	}
 
@@ -2486,7 +2451,6 @@ int recv_func(struct adapter *padapter, union recv_frame *rframe)
 
 		while ((pending_frame = rtw_alloc_recvframe(&padapter->recvpriv.uc_swdec_pending_queue))) {
 			cnt++;
-			DBG_COUNTER(padapter->rx_logs.core_rx_dequeue);
 			recv_func_posthandle(padapter, pending_frame);
 		}
 
@@ -2495,7 +2459,6 @@ int recv_func(struct adapter *padapter, union recv_frame *rframe)
 				FUNC_ADPT_ARG(padapter), cnt);
 	}
 
-	DBG_COUNTER(padapter->rx_logs.core_rx);
 	ret = recv_func_prehandle(padapter, rframe);
 
 	if (ret == _SUCCESS) {
@@ -2506,7 +2469,6 @@ int recv_func(struct adapter *padapter, union recv_frame *rframe)
 			(prxattrib->bdecrypted == 0 || psecuritypriv->sw_decrypt == true) &&
 			psecuritypriv->ndisauthtype == Ndis802_11AuthModeWPAPSK &&
 			!psecuritypriv->busetkipkey) {
-			DBG_COUNTER(padapter->rx_logs.core_rx_enqueue);
 			rtw_enqueue_recvframe(rframe, &padapter->recvpriv.uc_swdec_pending_queue);
 			/* DBG_871X("%s: no key, enqueue uc_swdec_pending_queue\n", __func__); */
 
