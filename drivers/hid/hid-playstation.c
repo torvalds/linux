@@ -845,7 +845,7 @@ static int dualsense_parse_report(struct ps_device *ps_dev, struct hid_report *r
 	input_report_abs(ds->gamepad, ABS_RZ, ds_report->rz);
 
 	value = ds_report->buttons[0] & DS_BUTTONS0_HAT_SWITCH;
-	if (value > ARRAY_SIZE(ps_gamepad_hat_mapping))
+	if (value >= ARRAY_SIZE(ps_gamepad_hat_mapping))
 		value = 8; /* center */
 	input_report_abs(ds->gamepad, ABS_HAT0X, ps_gamepad_hat_mapping[value].x);
 	input_report_abs(ds->gamepad, ABS_HAT0Y, ps_gamepad_hat_mapping[value].y);
