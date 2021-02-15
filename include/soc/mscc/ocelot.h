@@ -87,9 +87,6 @@
 /* Source PGIDs, one per physical port */
 #define PGID_SRC			80
 
-#define IFH_INJ_BYPASS			BIT(31)
-#define IFH_INJ_POP_CNT_DISABLE		(3 << 28)
-
 #define IFH_TAG_TYPE_C			0
 #define IFH_TAG_TYPE_S			1
 
@@ -100,10 +97,6 @@
 #define IFH_REW_OP_ORIGIN_PTP		0x5
 
 #define OCELOT_NUM_TC			8
-#define OCELOT_TAG_LEN			16
-#define OCELOT_SHORT_PREFIX_LEN		4
-#define OCELOT_LONG_PREFIX_LEN		16
-#define OCELOT_TOTAL_TAG_LEN	(OCELOT_SHORT_PREFIX_LEN + OCELOT_TAG_LEN)
 
 #define OCELOT_SPEED_2500		0
 #define OCELOT_SPEED_1000		1
@@ -741,6 +734,40 @@ u32 __ocelot_target_read_ix(struct ocelot *ocelot, enum ocelot_target target,
 			    u32 reg, u32 offset);
 void __ocelot_target_write_ix(struct ocelot *ocelot, enum ocelot_target target,
 			      u32 val, u32 reg, u32 offset);
+
+/* Packet I/O */
+#if IS_ENABLED(CONFIG_MSCC_OCELOT_SWITCH_LIB)
+
+bool ocelot_can_inject(struct ocelot *ocelot, int grp);
+void ocelot_port_inject_frame(struct ocelot *ocelot, int port, int grp,
+			      u32 rew_op, struct sk_buff *skb);
+int ocelot_xtr_poll_frame(struct ocelot *ocelot, int grp, struct sk_buff **skb);
+void ocelot_drain_cpu_queue(struct ocelot *ocelot, int grp);
+
+#else
+
+static inline bool ocelot_can_inject(struct ocelot *ocelot, int grp)
+{
+	return false;
+}
+
+static inline void ocelot_port_inject_frame(struct ocelot *ocelot, int port,
+					    int grp, u32 rew_op,
+					    struct sk_buff *skb)
+{
+}
+
+static inline int ocelot_xtr_poll_frame(struct ocelot *ocelot, int grp,
+					struct sk_buff **skb)
+{
+	return -EIO;
+}
+
+static inline void ocelot_drain_cpu_queue(struct ocelot *ocelot, int grp)
+{
+}
+
+#endif
 
 /* Hardware initialization */
 int ocelot_regfields_init(struct ocelot *ocelot,

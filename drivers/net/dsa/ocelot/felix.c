@@ -14,8 +14,9 @@
 #include <soc/mscc/ocelot_ptp.h>
 #include <soc/mscc/ocelot.h>
 #include <linux/dsa/8021q.h>
+#include <linux/dsa/ocelot.h>
 #include <linux/platform_device.h>
-#include <linux/packing.h>
+#include <linux/ptp_classify.h>
 #include <linux/module.h>
 #include <linux/of_net.h>
 #include <linux/pci.h>
@@ -264,6 +265,129 @@ static void felix_8021q_cpu_port_deinit(struct ocelot *ocelot, int port)
 	ocelot_apply_bridge_fwd_mask(ocelot);
 }
 
+/* Set up a VCAP IS2 rule for delivering PTP frames to the CPU port module.
+ * If the quirk_no_xtr_irq is in place, then also copy those PTP frames to the
+ * tag_8021q CPU port.
+ */
+static int felix_setup_mmio_filtering(struct felix *felix)
+{
+	unsigned long user_ports = 0, cpu_ports = 0;
+	struct ocelot_vcap_filter *redirect_rule;
+	struct ocelot_vcap_filter *tagging_rule;
+	struct ocelot *ocelot = &felix->ocelot;
+	struct dsa_switch *ds = felix->ds;
+	int port, ret;
+
+	tagging_rule = kzalloc(sizeof(struct ocelot_vcap_filter), GFP_KERNEL);
+	if (!tagging_rule)
+		return -ENOMEM;
+
+	redirect_rule = kzalloc(sizeof(struct ocelot_vcap_filter), GFP_KERNEL);
+	if (!redirect_rule) {
+		kfree(tagging_rule);
+		return -ENOMEM;
+	}
+
+	for (port = 0; port < ocelot->num_phys_ports; port++) {
+		if (dsa_is_user_port(ds, port))
+			user_ports |= BIT(port);
+		if (dsa_is_cpu_port(ds, port))
+			cpu_ports |= BIT(port);
+	}
+
+	tagging_rule->key_type = OCELOT_VCAP_KEY_ETYPE;
+	*(__be16 *)tagging_rule->key.etype.etype.value = htons(ETH_P_1588);
+	*(__be16 *)tagging_rule->key.etype.etype.mask = htons(0xffff);
+	tagging_rule->ingress_port_mask = user_ports;
+	tagging_rule->prio = 1;
+	tagging_rule->id.cookie = ocelot->num_phys_ports;
+	tagging_rule->id.tc_offload = false;
+	tagging_rule->block_id = VCAP_IS1;
+	tagging_rule->type = OCELOT_VCAP_FILTER_OFFLOAD;
+	tagging_rule->lookup = 0;
+	tagging_rule->action.pag_override_mask = 0xff;
+	tagging_rule->action.pag_val = ocelot->num_phys_ports;
+
+	ret = ocelot_vcap_filter_add(ocelot, tagging_rule, NULL);
+	if (ret) {
+		kfree(tagging_rule);
+		kfree(redirect_rule);
+		return ret;
+	}
+
+	redirect_rule->key_type = OCELOT_VCAP_KEY_ANY;
+	redirect_rule->ingress_port_mask = user_ports;
+	redirect_rule->pag = ocelot->num_phys_ports;
+	redirect_rule->prio = 1;
+	redirect_rule->id.cookie = ocelot->num_phys_ports;
+	redirect_rule->id.tc_offload = false;
+	redirect_rule->block_id = VCAP_IS2;
+	redirect_rule->type = OCELOT_VCAP_FILTER_OFFLOAD;
+	redirect_rule->lookup = 0;
+	redirect_rule->action.cpu_copy_ena = true;
+	if (felix->info->quirk_no_xtr_irq) {
+		/* Redirect to the tag_8021q CPU but also copy PTP packets to
+		 * the CPU port module
+		 */
+		redirect_rule->action.mask_mode = OCELOT_MASK_MODE_REDIRECT;
+		redirect_rule->action.port_mask = cpu_ports;
+	} else {
+		/* Trap PTP packets only to the CPU port module (which is
+		 * redirected to the NPI port)
+		 */
+		redirect_rule->action.mask_mode = OCELOT_MASK_MODE_PERMIT_DENY;
+		redirect_rule->action.port_mask = 0;
+	}
+
+	ret = ocelot_vcap_filter_add(ocelot, redirect_rule, NULL);
+	if (ret) {
+		ocelot_vcap_filter_del(ocelot, tagging_rule);
+		kfree(redirect_rule);
+		return ret;
+	}
+
+	/* The ownership of the CPU port module's queues might have just been
+	 * transferred to the tag_8021q tagger from the NPI-based tagger.
+	 * So there might still be all sorts of crap in the queues. On the
+	 * other hand, the MMIO-based matching of PTP frames is very brittle,
+	 * so we need to be careful that there are no extra frames to be
+	 * dequeued over MMIO, since we would never know to discard them.
+	 */
+	ocelot_drain_cpu_queue(ocelot, 0);
+
+	return 0;
+}
+
+static int felix_teardown_mmio_filtering(struct felix *felix)
+{
+	struct ocelot_vcap_filter *tagging_rule, *redirect_rule;
+	struct ocelot_vcap_block *block_vcap_is1;
+	struct ocelot_vcap_block *block_vcap_is2;
+	struct ocelot *ocelot = &felix->ocelot;
+	int err;
+
+	block_vcap_is1 = &ocelot->block[VCAP_IS1];
+	block_vcap_is2 = &ocelot->block[VCAP_IS2];
+
+	tagging_rule = ocelot_vcap_block_find_filter_by_id(block_vcap_is1,
+							   ocelot->num_phys_ports,
+							   false);
+	if (!tagging_rule)
+		return -ENOENT;
+
+	err = ocelot_vcap_filter_del(ocelot, tagging_rule);
+	if (err)
+		return err;
+
+	redirect_rule = ocelot_vcap_block_find_filter_by_id(block_vcap_is2,
+							    ocelot->num_phys_ports,
+							    false);
+	if (!redirect_rule)
+		return -ENOENT;
+
+	return ocelot_vcap_filter_del(ocelot, redirect_rule);
+}
+
 static int felix_setup_tag_8021q(struct dsa_switch *ds, int cpu)
 {
 	struct ocelot *ocelot = ds->priv;
@@ -292,9 +416,9 @@ static int felix_setup_tag_8021q(struct dsa_switch *ds, int cpu)
 				 ANA_PORT_CPU_FWD_BPDU_CFG, port);
 	}
 
-	/* In tag_8021q mode, the CPU port module is unused. So we
-	 * want to disable flooding of any kind to the CPU port module,
-	 * since packets going there will end in a black hole.
+	/* In tag_8021q mode, the CPU port module is unused, except for PTP
+	 * frames. So we want to disable flooding of any kind to the CPU port
+	 * module, since packets going there will end in a black hole.
 	 */
 	cpu_flood = ANA_PGID_PGID_PGID(BIT(ocelot->num_phys_ports));
 	ocelot_rmw_rix(ocelot, 0, cpu_flood, ANA_PGID_PGID, PGID_UC);
@@ -314,8 +438,14 @@ static int felix_setup_tag_8021q(struct dsa_switch *ds, int cpu)
 	if (err)
 		goto out_free_dsa_8021_ctx;
 
+	err = felix_setup_mmio_filtering(felix);
+	if (err)
+		goto out_teardown_dsa_8021q;
+
 	return 0;
 
+out_teardown_dsa_8021q:
+	dsa_8021q_setup(felix->dsa_8021q_ctx, false);
 out_free_dsa_8021_ctx:
 	kfree(felix->dsa_8021q_ctx);
 	return err;
@@ -326,6 +456,11 @@ static void felix_teardown_tag_8021q(struct dsa_switch *ds, int cpu)
 	struct ocelot *ocelot = ds->priv;
 	struct felix *felix = ocelot_to_felix(ocelot);
 	int err, port;
+
+	err = felix_teardown_mmio_filtering(felix);
+	if (err)
+		dev_err(ds->dev, "felix_teardown_mmio_filtering returned %d",
+			err);
 
 	err = dsa_8021q_setup(felix->dsa_8021q_ctx, false);
 	if (err)
@@ -431,6 +566,7 @@ static int felix_set_tag_protocol(struct dsa_switch *ds, int cpu,
 	int err;
 
 	switch (proto) {
+	case DSA_TAG_PROTO_SEVILLE:
 	case DSA_TAG_PROTO_OCELOT:
 		err = felix_setup_tag_npi(ds, cpu);
 		break;
@@ -448,6 +584,7 @@ static void felix_del_tag_protocol(struct dsa_switch *ds, int cpu,
 				   enum dsa_tag_protocol proto)
 {
 	switch (proto) {
+	case DSA_TAG_PROTO_SEVILLE:
 	case DSA_TAG_PROTO_OCELOT:
 		felix_teardown_tag_npi(ds, cpu);
 		break;
@@ -471,7 +608,8 @@ static int felix_change_tag_protocol(struct dsa_switch *ds, int cpu,
 	enum dsa_tag_protocol old_proto = felix->tag_proto;
 	int err;
 
-	if (proto != DSA_TAG_PROTO_OCELOT &&
+	if (proto != DSA_TAG_PROTO_SEVILLE &&
+	    proto != DSA_TAG_PROTO_OCELOT &&
 	    proto != DSA_TAG_PROTO_OCELOT_8021Q)
 		return -EPROTONOSUPPORT;
 
@@ -1003,7 +1141,6 @@ static int felix_init_structs(struct felix *felix, int num_phys_ports)
 	for (port = 0; port < num_phys_ports; port++) {
 		struct ocelot_port *ocelot_port;
 		struct regmap *target;
-		u8 *template;
 
 		ocelot_port = devm_kzalloc(ocelot->dev,
 					   sizeof(struct ocelot_port),
@@ -1029,22 +1166,10 @@ static int felix_init_structs(struct felix *felix, int num_phys_ports)
 			return PTR_ERR(target);
 		}
 
-		template = devm_kzalloc(ocelot->dev, OCELOT_TOTAL_TAG_LEN,
-					GFP_KERNEL);
-		if (!template) {
-			dev_err(ocelot->dev,
-				"Failed to allocate memory for DSA tag\n");
-			kfree(port_phy_modes);
-			return -ENOMEM;
-		}
-
 		ocelot_port->phy_mode = port_phy_modes[port];
 		ocelot_port->ocelot = ocelot;
 		ocelot_port->target = target;
-		ocelot_port->xmit_template = template;
 		ocelot->ports[port] = ocelot_port;
-
-		felix->info->xmit_template_populate(ocelot, port);
 	}
 
 	kfree(port_phy_modes);
@@ -1158,20 +1283,79 @@ static int felix_hwtstamp_set(struct dsa_switch *ds, int port,
 	return ocelot_hwstamp_set(ocelot, port, ifr);
 }
 
+static bool felix_check_xtr_pkt(struct ocelot *ocelot, unsigned int ptp_type)
+{
+	struct felix *felix = ocelot_to_felix(ocelot);
+	int err, grp = 0;
+
+	if (felix->tag_proto != DSA_TAG_PROTO_OCELOT_8021Q)
+		return false;
+
+	if (!felix->info->quirk_no_xtr_irq)
+		return false;
+
+	if (ptp_type == PTP_CLASS_NONE)
+		return false;
+
+	while (ocelot_read(ocelot, QS_XTR_DATA_PRESENT) & BIT(grp)) {
+		struct sk_buff *skb;
+		unsigned int type;
+
+		err = ocelot_xtr_poll_frame(ocelot, grp, &skb);
+		if (err)
+			goto out;
+
+		/* We trap to the CPU port module all PTP frames, but
+		 * felix_rxtstamp() only gets called for event frames.
+		 * So we need to avoid sending duplicate general
+		 * message frames by running a second BPF classifier
+		 * here and dropping those.
+		 */
+		__skb_push(skb, ETH_HLEN);
+
+		type = ptp_classify_raw(skb);
+
+		__skb_pull(skb, ETH_HLEN);
+
+		if (type == PTP_CLASS_NONE) {
+			kfree_skb(skb);
+			continue;
+		}
+
+		netif_rx(skb);
+	}
+
+out:
+	if (err < 0)
+		ocelot_drain_cpu_queue(ocelot, 0);
+
+	return true;
+}
+
 static bool felix_rxtstamp(struct dsa_switch *ds, int port,
 			   struct sk_buff *skb, unsigned int type)
 {
+	u8 *extraction = skb->data - ETH_HLEN - OCELOT_TAG_LEN;
 	struct skb_shared_hwtstamps *shhwtstamps;
 	struct ocelot *ocelot = ds->priv;
-	u8 *extraction = skb->data - ETH_HLEN - OCELOT_TAG_LEN;
 	u32 tstamp_lo, tstamp_hi;
 	struct timespec64 ts;
 	u64 tstamp, val;
 
+	/* If the "no XTR IRQ" workaround is in use, tell DSA to defer this skb
+	 * for RX timestamping. Then free it, and poll for its copy through
+	 * MMIO in the CPU port module, and inject that into the stack from
+	 * ocelot_xtr_poll().
+	 */
+	if (felix_check_xtr_pkt(ocelot, type)) {
+		kfree_skb(skb);
+		return true;
+	}
+
 	ocelot_ptp_gettime64(&ocelot->ptp_info, &ts);
 	tstamp = ktime_set(ts.tv_sec, ts.tv_nsec);
 
-	packing(extraction, &val,  116, 85, OCELOT_TAG_LEN, UNPACK, 0);
+	ocelot_xfh_get_rew_val(extraction, &val);
 	tstamp_lo = (u32)val;
 
 	tstamp_hi = tstamp >> 32;

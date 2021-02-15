@@ -4,6 +4,7 @@
  *
  * Copyright (c) 2017 Microsemi Corporation
  */
+#include <linux/dsa/ocelot.h>
 #include <linux/if_bridge.h>
 #include <soc/mscc/ocelot_vcap.h>
 #include "ocelot.h"
@@ -627,6 +628,221 @@ void ocelot_get_txtstamp(struct ocelot *ocelot)
 	}
 }
 EXPORT_SYMBOL(ocelot_get_txtstamp);
+
+static int ocelot_rx_frame_word(struct ocelot *ocelot, u8 grp, bool ifh,
+				u32 *rval)
+{
+	u32 bytes_valid, val;
+
+	val = ocelot_read_rix(ocelot, QS_XTR_RD, grp);
+	if (val == XTR_NOT_READY) {
+		if (ifh)
+			return -EIO;
+
+		do {
+			val = ocelot_read_rix(ocelot, QS_XTR_RD, grp);
+		} while (val == XTR_NOT_READY);
+	}
+
+	switch (val) {
+	case XTR_ABORT:
+		return -EIO;
+	case XTR_EOF_0:
+	case XTR_EOF_1:
+	case XTR_EOF_2:
+	case XTR_EOF_3:
+	case XTR_PRUNED:
+		bytes_valid = XTR_VALID_BYTES(val);
+		val = ocelot_read_rix(ocelot, QS_XTR_RD, grp);
+		if (val == XTR_ESCAPE)
+			*rval = ocelot_read_rix(ocelot, QS_XTR_RD, grp);
+		else
+			*rval = val;
+
+		return bytes_valid;
+	case XTR_ESCAPE:
+		*rval = ocelot_read_rix(ocelot, QS_XTR_RD, grp);
+
+		return 4;
+	default:
+		*rval = val;
+
+		return 4;
+	}
+}
+
+static int ocelot_xtr_poll_xfh(struct ocelot *ocelot, int grp, u32 *xfh)
+{
+	int i, err = 0;
+
+	for (i = 0; i < OCELOT_TAG_LEN / 4; i++) {
+		err = ocelot_rx_frame_word(ocelot, grp, true, &xfh[i]);
+		if (err != 4)
+			return (err < 0) ? err : -EIO;
+	}
+
+	return 0;
+}
+
+int ocelot_xtr_poll_frame(struct ocelot *ocelot, int grp, struct sk_buff **nskb)
+{
+	struct skb_shared_hwtstamps *shhwtstamps;
+	u64 tod_in_ns, full_ts_in_ns;
+	u64 timestamp, src_port, len;
+	u32 xfh[OCELOT_TAG_LEN / 4];
+	struct net_device *dev;
+	struct timespec64 ts;
+	struct sk_buff *skb;
+	int sz, buf_len;
+	u32 val, *buf;
+	int err;
+
+	err = ocelot_xtr_poll_xfh(ocelot, grp, xfh);
+	if (err)
+		return err;
+
+	ocelot_xfh_get_src_port(xfh, &src_port);
+	ocelot_xfh_get_len(xfh, &len);
+	ocelot_xfh_get_rew_val(xfh, &timestamp);
+
+	if (WARN_ON(src_port >= ocelot->num_phys_ports))
+		return -EINVAL;
+
+	dev = ocelot->ops->port_to_netdev(ocelot, src_port);
+	if (!dev)
+		return -EINVAL;
+
+	skb = netdev_alloc_skb(dev, len);
+	if (unlikely(!skb)) {
+		netdev_err(dev, "Unable to allocate sk_buff\n");
+		return -ENOMEM;
+	}
+
+	buf_len = len - ETH_FCS_LEN;
+	buf = (u32 *)skb_put(skb, buf_len);
+
+	len = 0;
+	do {
+		sz = ocelot_rx_frame_word(ocelot, grp, false, &val);
+		if (sz < 0) {
+			err = sz;
+			goto out_free_skb;
+		}
+		*buf++ = val;
+		len += sz;
+	} while (len < buf_len);
+
+	/* Read the FCS */
+	sz = ocelot_rx_frame_word(ocelot, grp, false, &val);
+	if (sz < 0) {
+		err = sz;
+		goto out_free_skb;
+	}
+
+	/* Update the statistics if part of the FCS was read before */
+	len -= ETH_FCS_LEN - sz;
+
+	if (unlikely(dev->features & NETIF_F_RXFCS)) {
+		buf = (u32 *)skb_put(skb, ETH_FCS_LEN);
+		*buf = val;
+	}
+
+	if (ocelot->ptp) {
+		ocelot_ptp_gettime64(&ocelot->ptp_info, &ts);
+
+		tod_in_ns = ktime_set(ts.tv_sec, ts.tv_nsec);
+		if ((tod_in_ns & 0xffffffff) < timestamp)
+			full_ts_in_ns = (((tod_in_ns >> 32) - 1) << 32) |
+					timestamp;
+		else
+			full_ts_in_ns = (tod_in_ns & GENMASK_ULL(63, 32)) |
+					timestamp;
+
+		shhwtstamps = skb_hwtstamps(skb);
+		memset(shhwtstamps, 0, sizeof(struct skb_shared_hwtstamps));
+		shhwtstamps->hwtstamp = full_ts_in_ns;
+	}
+
+	/* Everything we see on an interface that is in the HW bridge
+	 * has already been forwarded.
+	 */
+	if (ocelot->bridge_mask & BIT(src_port))
+		skb->offload_fwd_mark = 1;
+
+	skb->protocol = eth_type_trans(skb, dev);
+	*nskb = skb;
+
+	return 0;
+
+out_free_skb:
+	kfree_skb(skb);
+	return err;
+}
+EXPORT_SYMBOL(ocelot_xtr_poll_frame);
+
+bool ocelot_can_inject(struct ocelot *ocelot, int grp)
+{
+	u32 val = ocelot_read(ocelot, QS_INJ_STATUS);
+
+	if (!(val & QS_INJ_STATUS_FIFO_RDY(BIT(grp))))
+		return false;
+	if (val & QS_INJ_STATUS_WMARK_REACHED(BIT(grp)))
+		return false;
+
+	return true;
+}
+EXPORT_SYMBOL(ocelot_can_inject);
+
+void ocelot_port_inject_frame(struct ocelot *ocelot, int port, int grp,
+			      u32 rew_op, struct sk_buff *skb)
+{
+	u32 ifh[OCELOT_TAG_LEN / 4] = {0};
+	unsigned int i, count, last;
+
+	ocelot_write_rix(ocelot, QS_INJ_CTRL_GAP_SIZE(1) |
+			 QS_INJ_CTRL_SOF, QS_INJ_CTRL, grp);
+
+	ocelot_ifh_set_bypass(ifh, 1);
+	ocelot_ifh_set_dest(ifh, BIT(port));
+	ocelot_ifh_set_tag_type(ifh, IFH_TAG_TYPE_C);
+	ocelot_ifh_set_vid(ifh, skb_vlan_tag_get(skb));
+	ocelot_ifh_set_rew_op(ifh, rew_op);
+
+	for (i = 0; i < OCELOT_TAG_LEN / 4; i++)
+		ocelot_write_rix(ocelot, ifh[i], QS_INJ_WR, grp);
+
+	count = DIV_ROUND_UP(skb->len, 4);
+	last = skb->len % 4;
+	for (i = 0; i < count; i++)
+		ocelot_write_rix(ocelot, ((u32 *)skb->data)[i], QS_INJ_WR, grp);
+
+	/* Add padding */
+	while (i < (OCELOT_BUFFER_CELL_SZ / 4)) {
+		ocelot_write_rix(ocelot, 0, QS_INJ_WR, grp);
+		i++;
+	}
+
+	/* Indicate EOF and valid bytes in last word */
+	ocelot_write_rix(ocelot, QS_INJ_CTRL_GAP_SIZE(1) |
+			 QS_INJ_CTRL_VLD_BYTES(skb->len < OCELOT_BUFFER_CELL_SZ ? 0 : last) |
+			 QS_INJ_CTRL_EOF,
+			 QS_INJ_CTRL, grp);
+
+	/* Add dummy CRC */
+	ocelot_write_rix(ocelot, 0, QS_INJ_WR, grp);
+	skb_tx_timestamp(skb);
+
+	skb->dev->stats.tx_packets++;
+	skb->dev->stats.tx_bytes += skb->len;
+}
+EXPORT_SYMBOL(ocelot_port_inject_frame);
+
+void ocelot_drain_cpu_queue(struct ocelot *ocelot, int grp)
+{
+	while (ocelot_read(ocelot, QS_XTR_DATA_PRESENT) & BIT(grp))
+		ocelot_read_rix(ocelot, QS_XTR_RD, grp);
+}
+EXPORT_SYMBOL(ocelot_drain_cpu_queue);
 
 int ocelot_fdb_add(struct ocelot *ocelot, int port,
 		   const unsigned char *addr, u16 vid)
