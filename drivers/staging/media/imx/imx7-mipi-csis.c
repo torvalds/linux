@@ -206,7 +206,17 @@ static const struct mipi_csis_event mipi_csis_events[] = {
 
 #define MIPI_CSIS_NUM_EVENTS ARRAY_SIZE(mipi_csis_events)
 
-static const char * const mipi_csis_clk_id[] = {"pclk", "wrap", "phy"};
+enum mipi_csis_clk {
+	MIPI_CSIS_CLK_PCLK,
+	MIPI_CSIS_CLK_WRAP,
+	MIPI_CSIS_CLK_PHY,
+};
+
+static const char * const mipi_csis_clk_id[] = {
+	"pclk",
+	"wrap",
+	"phy",
+};
 
 struct csis_hw_reset {
 	struct regmap *src;
@@ -229,7 +239,6 @@ struct csi_state {
 	struct platform_device *pdev;
 	struct phy *phy;
 	void __iomem *regs;
-	struct clk *wrap_clk;
 	int irq;
 	u32 flags;
 
@@ -507,12 +516,7 @@ static void mipi_csis_set_params(struct csi_state *state)
 	mipi_csis_write(state, MIPI_CSIS_ISPSYNC_CH0, val);
 
 	val = mipi_csis_read(state, MIPI_CSIS_CLK_CTRL);
-	val &= ~MIPI_CSIS_CLK_CTRL_WCLK_SRC;
-	if (state->wrap_clk)
-		val |= MIPI_CSIS_CLK_CTRL_WCLK_SRC;
-	else
-		val &= ~MIPI_CSIS_CLK_CTRL_WCLK_SRC;
-
+	val |= MIPI_CSIS_CLK_CTRL_WCLK_SRC;
 	val |= MIPI_CSIS_CLK_CTRL_CLKGATE_TRAIL_CH0(15);
 	val &= ~MIPI_CSIS_CLK_CTRL_CLKGATE_EN_MSK;
 	mipi_csis_write(state, MIPI_CSIS_CLK_CTRL, val);
@@ -557,12 +561,9 @@ static int mipi_csis_clk_get(struct csi_state *state)
 	if (ret < 0)
 		return ret;
 
-	state->wrap_clk = devm_clk_get(dev, "wrap");
-	if (IS_ERR(state->wrap_clk))
-		return PTR_ERR(state->wrap_clk);
-
 	/* Set clock rate */
-	ret = clk_set_rate(state->wrap_clk, state->clk_frequency);
+	ret = clk_set_rate(state->clks[MIPI_CSIS_CLK_WRAP].clk,
+			   state->clk_frequency);
 	if (ret < 0)
 		dev_err(dev, "set rate=%d failed: %d\n", state->clk_frequency,
 			ret);
@@ -1149,9 +1150,9 @@ static int mipi_csis_probe(struct platform_device *pdev)
 			goto unregister_all;
 	}
 
-	dev_info(&pdev->dev, "lanes: %d, hs_settle: %d, wclk: %d, freq: %u\n",
+	dev_info(&pdev->dev, "lanes: %d, hs_settle: %d, freq: %u\n",
 		 state->bus.num_data_lanes, state->hs_settle,
-		 state->wrap_clk ? 1 : 0, state->clk_frequency);
+		 state->clk_frequency);
 
 	return 0;
 
