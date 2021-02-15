@@ -611,6 +611,8 @@ static void imx7_csi_enable(struct imx7_csi *csi)
 
 static void imx7_csi_disable(struct imx7_csi *csi)
 {
+	imx7_csi_dma_stop(csi);
+
 	imx7_csi_dmareq_rff_disable(csi);
 
 	imx7_csi_hw_disable_irq(csi);
@@ -618,20 +620,6 @@ static void imx7_csi_disable(struct imx7_csi *csi)
 	imx7_csi_buf_stride_set(csi, 0);
 
 	imx7_csi_hw_disable(csi);
-}
-
-static void imx7_csi_streaming_start(struct imx7_csi *csi)
-{
-	imx7_csi_enable(csi);
-}
-
-static int imx7_csi_streaming_stop(struct imx7_csi *csi)
-{
-	imx7_csi_dma_stop(csi);
-
-	imx7_csi_disable(csi);
-
-	return 0;
 }
 
 /* -----------------------------------------------------------------------------
@@ -767,9 +755,9 @@ static int imx7_csi_s_stream(struct v4l2_subdev *sd, int enable)
 			goto out_unlock;
 		}
 
-		imx7_csi_streaming_start(csi);
+		imx7_csi_enable(csi);
 	} else {
-		imx7_csi_streaming_stop(csi);
+		imx7_csi_disable(csi);
 
 		v4l2_subdev_call(csi->src_sd, video, s_stream, 0);
 
