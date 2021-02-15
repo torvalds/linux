@@ -1444,6 +1444,14 @@ error_cleanup_dynamic:
 	return ret;
 }
 
+static void __iio_buffer_free_sysfs_and_mask(struct iio_buffer *buffer)
+{
+	bitmap_free(buffer->scan_mask);
+	kfree(buffer->buffer_group.name);
+	kfree(buffer->buffer_group.attrs);
+	iio_free_chan_devattr_list(&buffer->buffer_attr_list);
+}
+
 int iio_buffer_alloc_sysfs_and_mask(struct iio_dev *indio_dev)
 {
 	struct iio_buffer *buffer = indio_dev->buffer;
@@ -1463,14 +1471,6 @@ int iio_buffer_alloc_sysfs_and_mask(struct iio_dev *indio_dev)
 		return 0;
 
 	return __iio_buffer_alloc_sysfs_and_mask(buffer, indio_dev, 0);
-}
-
-static void __iio_buffer_free_sysfs_and_mask(struct iio_buffer *buffer)
-{
-	bitmap_free(buffer->scan_mask);
-	kfree(buffer->buffer_group.name);
-	kfree(buffer->buffer_group.attrs);
-	iio_free_chan_devattr_list(&buffer->buffer_attr_list);
 }
 
 void iio_buffer_free_sysfs_and_mask(struct iio_dev *indio_dev)
