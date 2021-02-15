@@ -163,7 +163,7 @@ static int capture_enum_fmt_vid_cap(struct file *file, void *fh,
 	fmt_src.which = V4L2_SUBDEV_FORMAT_ACTIVE;
 	ret = v4l2_subdev_call(priv->src_sd, pad, get_fmt, NULL, &fmt_src);
 	if (ret) {
-		v4l2_err(priv->src_sd, "failed to get src_sd format\n");
+		dev_err(priv->dev, "failed to get src_sd format\n");
 		return ret;
 	}
 
@@ -289,7 +289,7 @@ static int capture_s_fmt_vid_cap(struct file *file, void *fh,
 	int ret;
 
 	if (vb2_is_busy(&priv->q)) {
-		v4l2_err(priv->src_sd, "%s queue busy\n", __func__);
+		dev_err(priv->dev, "%s queue busy\n", __func__);
 		return -EBUSY;
 	}
 
@@ -510,9 +510,9 @@ static int capture_buf_prepare(struct vb2_buffer *vb)
 	struct v4l2_pix_format *pix = &priv->vdev.fmt.fmt.pix;
 
 	if (vb2_plane_size(vb, 0) < pix->sizeimage) {
-		v4l2_err(priv->src_sd,
-			 "data will not fit into plane (%lu < %lu)\n",
-			 vb2_plane_size(vb, 0), (long)pix->sizeimage);
+		dev_err(priv->dev,
+			"data will not fit into plane (%lu < %lu)\n",
+			vb2_plane_size(vb, 0), (long)pix->sizeimage);
 		return -EINVAL;
 	}
 
@@ -570,14 +570,14 @@ static int capture_start_streaming(struct vb2_queue *vq, unsigned int count)
 
 	ret = capture_validate_fmt(priv);
 	if (ret) {
-		v4l2_err(priv->src_sd, "capture format not valid\n");
+		dev_err(priv->dev, "capture format not valid\n");
 		goto return_bufs;
 	}
 
 	ret = imx_media_pipeline_set_stream(priv->md, &priv->src_sd->entity,
 					    true);
 	if (ret) {
-		v4l2_err(priv->src_sd, "pipeline start failed with %d\n", ret);
+		dev_err(priv->dev, "pipeline start failed with %d\n", ret);
 		goto return_bufs;
 	}
 
@@ -610,7 +610,7 @@ static void capture_stop_streaming(struct vb2_queue *vq)
 	ret = imx_media_pipeline_set_stream(priv->md, &priv->src_sd->entity,
 					    false);
 	if (ret)
-		v4l2_warn(priv->src_sd, "pipeline stop failed with %d\n", ret);
+		dev_warn(priv->dev, "pipeline stop failed with %d\n", ret);
 
 	/* release all active buffers */
 	spin_lock_irqsave(&priv->q_lock, flags);
@@ -646,7 +646,7 @@ static int capture_open(struct file *file)
 
 	ret = v4l2_fh_open(file);
 	if (ret)
-		v4l2_err(priv->src_sd, "v4l2_fh_open failed\n");
+		dev_err(priv->dev, "v4l2_fh_open failed\n");
 
 	ret = v4l2_pipeline_pm_get(&vfd->entity);
 	if (ret)
@@ -749,7 +749,7 @@ int imx_media_capture_device_register(struct imx_media_video_dev *vdev)
 
 	ret = video_register_device(vfd, VFL_TYPE_VIDEO, -1);
 	if (ret) {
-		v4l2_err(sd, "Failed to register video device\n");
+		dev_err(priv->dev, "Failed to register video device\n");
 		return ret;
 	}
 
@@ -766,7 +766,7 @@ int imx_media_capture_device_register(struct imx_media_video_dev *vdev)
 
 	ret = vb2_queue_init(vq);
 	if (ret) {
-		v4l2_err(sd, "vb2_queue_init failed\n");
+		dev_err(priv->dev, "vb2_queue_init failed\n");
 		goto unreg;
 	}
 
@@ -776,7 +776,7 @@ int imx_media_capture_device_register(struct imx_media_video_dev *vdev)
 	ret = media_create_pad_link(&sd->entity, priv->src_sd_pad,
 				    &vfd->entity, 0, 0);
 	if (ret) {
-		v4l2_err(sd, "failed to create link to device node\n");
+		dev_err(priv->dev, "failed to create link to device node\n");
 		goto unreg;
 	}
 
@@ -785,7 +785,7 @@ int imx_media_capture_device_register(struct imx_media_video_dev *vdev)
 	fmt_src.which = V4L2_SUBDEV_FORMAT_ACTIVE;
 	ret = v4l2_subdev_call(sd, pad, get_fmt, NULL, &fmt_src);
 	if (ret) {
-		v4l2_err(sd, "failed to get src_sd format\n");
+		dev_err(priv->dev, "failed to get src_sd format\n");
 		goto unreg;
 	}
 
@@ -797,8 +797,8 @@ int imx_media_capture_device_register(struct imx_media_video_dev *vdev)
 	vdev->cc = imx_media_find_pixel_format(vdev->fmt.fmt.pix.pixelformat,
 					       PIXFMT_SEL_ANY);
 
-	v4l2_info(sd, "Registered %s as /dev/%s\n", vfd->name,
-		  video_device_node_name(vfd));
+	dev_info(priv->dev, "Registered %s as /dev/%s\n", vfd->name,
+		 video_device_node_name(vfd));
 
 	vfd->ctrl_handler = &priv->ctrl_hdlr;
 
