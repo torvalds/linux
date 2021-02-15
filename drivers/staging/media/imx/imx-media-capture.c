@@ -643,13 +643,16 @@ static int capture_open(struct file *file)
 		return -ERESTARTSYS;
 
 	ret = v4l2_fh_open(file);
-	if (ret)
+	if (ret) {
 		dev_err(priv->dev, "v4l2_fh_open failed\n");
+		goto out;
+	}
 
 	ret = v4l2_pipeline_pm_get(&vfd->entity);
 	if (ret)
 		v4l2_fh_release(file);
 
+out:
 	mutex_unlock(&priv->mutex);
 	return ret;
 }
