@@ -244,7 +244,7 @@ static void __devm_iio_dmaengine_buffer_free(struct device *dev, void *res)
  *
  * The buffer will be automatically de-allocated once the device gets destroyed.
  */
-struct iio_buffer *devm_iio_dmaengine_buffer_alloc(struct device *dev,
+static struct iio_buffer *devm_iio_dmaengine_buffer_alloc(struct device *dev,
 	const char *channel)
 {
 	struct iio_buffer **bufferp, *buffer;
@@ -265,7 +265,36 @@ struct iio_buffer *devm_iio_dmaengine_buffer_alloc(struct device *dev,
 
 	return buffer;
 }
-EXPORT_SYMBOL_GPL(devm_iio_dmaengine_buffer_alloc);
+
+/**
+ * devm_iio_dmaengine_buffer_setup() - Setup a DMA buffer for an IIO device
+ * @dev: Parent device for the buffer
+ * @indio_dev: IIO device to which to attach this buffer.
+ * @channel: DMA channel name, typically "rx".
+ *
+ * This allocates a new IIO buffer with devm_iio_dmaengine_buffer_alloc()
+ * and attaches it to an IIO device with iio_device_attach_buffer().
+ * It also appends the INDIO_BUFFER_HARDWARE mode to the supported modes of the
+ * IIO device.
+ */
+int devm_iio_dmaengine_buffer_setup(struct device *dev,
+				    struct iio_dev *indio_dev,
+				    const char *channel)
+{
+	struct iio_buffer *buffer;
+
+	buffer = devm_iio_dmaengine_buffer_alloc(indio_dev->dev.parent,
+						 channel);
+	if (IS_ERR(buffer))
+		return PTR_ERR(buffer);
+
+	indio_dev->modes |= INDIO_BUFFER_HARDWARE;
+
+	iio_device_attach_buffer(indio_dev, buffer);
+
+	return 0;
+}
+EXPORT_SYMBOL_GPL(devm_iio_dmaengine_buffer_setup);
 
 MODULE_AUTHOR("Lars-Peter Clausen <lars@metafoo.de>");
 MODULE_DESCRIPTION("DMA buffer for the IIO framework");
