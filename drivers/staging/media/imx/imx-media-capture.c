@@ -45,8 +45,6 @@ struct capture_priv {
 	spinlock_t q_lock;			/* Protect ready_q */
 
 	struct v4l2_ctrl_handler ctrl_hdlr;	/* Controls inherited from subdevs */
-
-	bool stop;				/* streaming is stopping */
 };
 
 #define to_capture_priv(v) container_of(v, struct capture_priv, vdev)
@@ -573,8 +571,6 @@ static int capture_start_streaming(struct vb2_queue *vq, unsigned int count)
 		goto return_bufs;
 	}
 
-	priv->stop = false;
-
 	return 0;
 
 return_bufs:
@@ -594,10 +590,6 @@ static void capture_stop_streaming(struct vb2_queue *vq)
 	struct imx_media_buffer *tmp;
 	unsigned long flags;
 	int ret;
-
-	spin_lock_irqsave(&priv->q_lock, flags);
-	priv->stop = true;
-	spin_unlock_irqrestore(&priv->q_lock, flags);
 
 	ret = imx_media_pipeline_set_stream(priv->md, &priv->src_sd->entity,
 					    false);
