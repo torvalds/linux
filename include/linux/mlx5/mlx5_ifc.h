@@ -9956,6 +9956,53 @@ struct mlx5_ifc_mirc_reg_bits {
 	u8         reserved_at_20[0x20];
 };
 
+struct mlx5_ifc_pddr_monitor_opcode_bits {
+	u8         reserved_at_0[0x10];
+	u8         monitor_opcode[0x10];
+};
+
+union mlx5_ifc_pddr_troubleshooting_page_status_opcode_auto_bits {
+	struct mlx5_ifc_pddr_monitor_opcode_bits pddr_monitor_opcode;
+	u8         reserved_at_0[0x20];
+};
+
+enum {
+	/* Monitor opcodes */
+	MLX5_PDDR_REG_TRBLSH_GROUP_OPCODE_MONITOR = 0x0,
+};
+
+struct mlx5_ifc_pddr_troubleshooting_page_bits {
+	u8         reserved_at_0[0x10];
+	u8         group_opcode[0x10];
+
+	union mlx5_ifc_pddr_troubleshooting_page_status_opcode_auto_bits status_opcode;
+
+	u8         reserved_at_40[0x20];
+
+	u8         status_message[59][0x20];
+};
+
+union mlx5_ifc_pddr_reg_page_data_auto_bits {
+	struct mlx5_ifc_pddr_troubleshooting_page_bits pddr_troubleshooting_page;
+	u8         reserved_at_0[0x7c0];
+};
+
+enum {
+	MLX5_PDDR_REG_PAGE_SELECT_TROUBLESHOOTING_INFO_PAGE      = 0x1,
+};
+
+struct mlx5_ifc_pddr_reg_bits {
+	u8         reserved_at_0[0x8];
+	u8         local_port[0x8];
+	u8         pnat[0x2];
+	u8         reserved_at_12[0xe];
+
+	u8         reserved_at_20[0x18];
+	u8         page_select[0x8];
+
+	union mlx5_ifc_pddr_reg_page_data_auto_bits page_data;
+};
+
 union mlx5_ifc_ports_control_registers_document_bits {
 	struct mlx5_ifc_bufferx_reg_bits bufferx_reg;
 	struct mlx5_ifc_eth_2819_cntrs_grp_data_layout_bits eth_2819_cntrs_grp_data_layout;
@@ -9970,6 +10017,9 @@ union mlx5_ifc_ports_control_registers_document_bits {
 	struct mlx5_ifc_pamp_reg_bits pamp_reg;
 	struct mlx5_ifc_paos_reg_bits paos_reg;
 	struct mlx5_ifc_pcap_reg_bits pcap_reg;
+	struct mlx5_ifc_pddr_monitor_opcode_bits pddr_monitor_opcode;
+	struct mlx5_ifc_pddr_reg_bits pddr_reg;
+	struct mlx5_ifc_pddr_troubleshooting_page_bits pddr_troubleshooting_page;
 	struct mlx5_ifc_peir_reg_bits peir_reg;
 	struct mlx5_ifc_pelc_reg_bits pelc_reg;
 	struct mlx5_ifc_pfcc_reg_bits pfcc_reg;
