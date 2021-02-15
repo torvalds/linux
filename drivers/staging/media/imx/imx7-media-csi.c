@@ -441,7 +441,7 @@ static void imx7_csi_dma_unsetup_vb2_buf(struct imx7_csi *csi,
 	}
 }
 
-static int imx7_csi_dma_start(struct imx7_csi *csi)
+static int imx7_csi_dma_setup(struct imx7_csi *csi)
 {
 	struct imx_media_video_dev *vdev = csi->vdev;
 	int ret;
@@ -614,7 +614,7 @@ static int imx7_csi_streaming_start(struct imx7_csi *csi)
 {
 	int ret;
 
-	ret = imx7_csi_dma_start(csi);
+	ret = imx7_csi_dma_setup(csi);
 	if (ret < 0)
 		return ret;
 
