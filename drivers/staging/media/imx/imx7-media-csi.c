@@ -544,7 +544,6 @@ static int imx7_csi_init(struct imx7_csi *csi)
 		return ret;
 
 	imx7_csi_configure(csi);
-	imx7_csi_dmareq_rff_enable(csi);
 
 	ret = imx7_csi_dma_setup(csi);
 	if (ret < 0)
