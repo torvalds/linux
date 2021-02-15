@@ -134,6 +134,24 @@
 		      { TPS_STATUS_HIGH_VOLAGE_WARNING,	"HIGH_VOLAGE_WARNING" }, \
 		      { TPS_STATUS_HIGH_LOW_VOLTAGE_WARNING, "HIGH_LOW_VOLTAGE_WARNING" })
 
+#define show_power_status_source_sink(power_status) \
+	__print_symbolic(TPS_POWER_STATUS_SOURCESINK(power_status), \
+		{ 1, "sink" }, \
+		{ 0, "source" })
+
+#define show_power_status_typec_status(power_status) \
+	__print_symbolic(TPS_POWER_STATUS_PWROPMODE(power_status), \
+		{ TPS_POWER_STATUS_TYPEC_CURRENT_PD,  "pd" }, \
+		{ TPS_POWER_STATUS_TYPEC_CURRENT_3A0, "3.0A" }, \
+		{ TPS_POWER_STATUS_TYPEC_CURRENT_1A5, "1.5A" }, \
+		{ TPS_POWER_STATUS_TYPEC_CURRENT_USB, "usb" })
+
+#define show_power_status_bc12_status(power_status) \
+	__print_symbolic(TPS_POWER_STATUS_BC12_STATUS(power_status), \
+		{ TPS_POWER_STATUS_BC12_STATUS_DCP, "dcp" }, \
+		{ TPS_POWER_STATUS_BC12_STATUS_CDP, "cdp" }, \
+		{ TPS_POWER_STATUS_BC12_STATUS_SDP, "sdp" })
+
 TRACE_EVENT(tps6598x_irq,
 	    TP_PROTO(u64 event1,
 		     u64 event2),
@@ -178,6 +196,26 @@ TRACE_EVENT(tps6598x_status,
 		      show_status_usb_host_present(__entry->status),
 		      show_status_legacy(__entry->status),
 		      show_status_flags(__entry->status)
+		    )
+);
+
+TRACE_EVENT(tps6598x_power_status,
+	    TP_PROTO(u16 power_status),
+	    TP_ARGS(power_status),
+
+	    TP_STRUCT__entry(
+			     __field(u16, power_status)
+			     ),
+
+	    TP_fast_assign(
+			   __entry->power_status = power_status;
+			   ),
+
+	    TP_printk("conn: %d, pwr-role: %s, typec: %s, bc: %s",
+		      !!TPS_POWER_STATUS_CONNECTION(__entry->power_status),
+		      show_power_status_source_sink(__entry->power_status),
+		      show_power_status_typec_status(__entry->power_status),
+		      show_power_status_bc12_status(__entry->power_status)
 		    )
 );
 

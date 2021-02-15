@@ -50,11 +50,6 @@ enum {
 	TPS_PORTINFO_SOURCE,
 };
 
-/* TPS_REG_POWER_STATUS bits */
-#define TPS_POWER_STATUS_CONNECTION	BIT(0)
-#define TPS_POWER_STATUS_SOURCESINK	BIT(1)
-#define TPS_POWER_STATUS_PWROPMODE(p)	(((p) & GENMASK(3, 2)) >> 2)
-
 /* TPS_REG_RX_IDENTITY_SOP */
 struct tps6598x_rx_identity_reg {
 	u8 status;
@@ -414,6 +409,7 @@ static irqreturn_t tps6598x_interrupt(int irq, void *data)
 	u64 event1;
 	u64 event2;
 	u32 status;
+	u16 pwr_status;
 	int ret;
 
 	mutex_lock(&tps->lock);
@@ -432,6 +428,15 @@ static irqreturn_t tps6598x_interrupt(int irq, void *data)
 		goto err_clear_ints;
 	}
 	trace_tps6598x_status(status);
+
+	if ((event1 | event2) & TPS_REG_INT_POWER_STATUS_UPDATE) {
+		ret = tps6598x_read16(tps, TPS_REG_POWER_STATUS, &pwr_status);
+		if (ret < 0) {
+			dev_err(tps->dev, "failed to read power status: %d\n", ret);
+			goto err_clear_ints;
+		}
+		trace_tps6598x_power_status(pwr_status);
+	}
 
 	/* Handle plug insert or removal */
 	if ((event1 | event2) & TPS_REG_INT_PLUG_EVENT) {
@@ -497,8 +502,8 @@ static int tps6598x_psy_get_online(struct tps6598x *tps,
 	if (ret < 0)
 		return ret;
 
-	if ((pwr_status & TPS_POWER_STATUS_CONNECTION) &&
-	    (pwr_status & TPS_POWER_STATUS_SOURCESINK)) {
+	if (TPS_POWER_STATUS_CONNECTION(pwr_status) &&
+	    TPS_POWER_STATUS_SOURCESINK(pwr_status)) {
 		val->intval = 1;
 	} else {
 		val->intval = 0;
