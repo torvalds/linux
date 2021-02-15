@@ -19,8 +19,6 @@
 
 #include "internal.h"
 
-#define _COMPONENT		ACPI_BUS_COMPONENT
-ACPI_MODULE_NAME("scan");
 extern struct acpi_device *acpi_root;
 
 #define ACPI_BUS_CLASS			"system_bus"
@@ -265,8 +263,7 @@ static int acpi_scan_hot_remove(struct acpi_device *device)
 			return error;
 	}
 
-	ACPI_DEBUG_PRINT((ACPI_DB_INFO,
-		"Hot-removing device %s...\n", dev_name(&device->dev)));
+	acpi_handle_debug(handle, "Ejecting\n");
 
 	acpi_bus_trim(device);
 
@@ -829,7 +826,8 @@ static int acpi_bus_extract_wakeup_device_power_package(struct acpi_device *dev)
 	/* _PRW */
 	status = acpi_evaluate_object(handle, "_PRW", NULL, &buffer);
 	if (ACPI_FAILURE(status)) {
-		ACPI_EXCEPTION((AE_INFO, status, "Evaluating _PRW"));
+		acpi_handle_info(handle, "_PRW evaluation failed: %s\n",
+				 acpi_format_exception(status));
 		return err;
 	}
 
@@ -934,7 +932,7 @@ static void acpi_bus_get_wakeup_device_flags(struct acpi_device *device)
 
 	err = acpi_bus_extract_wakeup_device_power_package(device);
 	if (err) {
-		dev_err(&device->dev, "_PRW evaluation error: %d\n", err);
+		dev_err(&device->dev, "Unable to extract wakeup power resources");
 		return;
 	}
 
@@ -1170,8 +1168,7 @@ acpi_backlight_cap_match(acpi_handle handle, u32 level, void *context,
 
 	if (acpi_has_method(handle, "_BCM") &&
 	    acpi_has_method(handle, "_BCL")) {
-		ACPI_DEBUG_PRINT((ACPI_DB_INFO, "Found generic backlight "
-				  "support\n"));
+		acpi_handle_debug(handle, "Found generic backlight support\n");
 		*cap |= ACPI_VIDEO_BACKLIGHT;
 		/* We have backlight support, no need to scan further */
 		return AE_CTRL_TERMINATE;
@@ -1662,17 +1659,15 @@ static int acpi_add_single_object(struct acpi_device **child,
 				  acpi_handle handle, int type,
 				  unsigned long long sta)
 {
-	int result;
-	struct acpi_device *device;
-	struct acpi_buffer buffer = { ACPI_ALLOCATE_BUFFER, NULL };
 	struct acpi_device_info *info = NULL;
+	struct acpi_device *device;
+	int result;
 
 	if (handle != ACPI_ROOT_OBJECT && type == ACPI_BUS_TYPE_DEVICE)
 		acpi_get_object_info(handle, &info);
 
 	device = kzalloc(sizeof(struct acpi_device), GFP_KERNEL);
 	if (!device) {
-		printk(KERN_ERR PREFIX "Memory allocation error\n");
 		kfree(info);
 		return -ENOMEM;
 	}
@@ -1699,11 +1694,11 @@ static int acpi_add_single_object(struct acpi_device **child,
 
 	acpi_power_add_remove_device(device, true);
 	acpi_device_add_finalize(device);
-	acpi_get_name(handle, ACPI_FULL_PATHNAME, &buffer);
-	ACPI_DEBUG_PRINT((ACPI_DB_INFO, "Added %s [%s] parent %s\n",
-		dev_name(&device->dev), (char *) buffer.pointer,
-		device->parent ? dev_name(&device->parent->dev) : "(null)"));
-	kfree(buffer.pointer);
+
+	acpi_handle_debug(handle, "Added as %s, parent %s\n",
+			  dev_name(&device->dev), device->parent ?
+				dev_name(&device->parent->dev) : "(null)");
+
 	*child = device;
 	return 0;
 }
