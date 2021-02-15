@@ -469,13 +469,17 @@ static int pf8x00_i2c_probe(struct i2c_client *client)
 }
 
 static const struct of_device_id pf8x00_dt_ids[] = {
-	{ .compatible = "nxp,pf8x00",},
+	{ .compatible = "nxp,pf8100",},
+	{ .compatible = "nxp,pf8121a",},
+	{ .compatible = "nxp,pf8200",},
 	{ }
 };
 MODULE_DEVICE_TABLE(of, pf8x00_dt_ids);
 
 static const struct i2c_device_id pf8x00_i2c_id[] = {
-	{ "pf8x00", 0 },
+	{ "pf8100", 0 },
+	{ "pf8121a", 0 },
+	{ "pf8200", 0 },
 	{},
 };
 MODULE_DEVICE_TABLE(i2c, pf8x00_i2c_id);

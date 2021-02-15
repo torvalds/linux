@@ -371,8 +371,8 @@ static int smc_nl_handle_dev_port(struct sk_buff *skb,
 	if (nla_put_u8(skb, SMC_NLA_DEV_PORT_PNET_USR,
 		       smcibdev->pnetid_by_user[port]))
 		goto errattr;
-	snprintf(smc_pnet, sizeof(smc_pnet), "%s",
-		 (char *)&smcibdev->pnetid[port]);
+	memcpy(smc_pnet, &smcibdev->pnetid[port], SMC_MAX_PNETID_LEN);
+	smc_pnet[SMC_MAX_PNETID_LEN] = 0;
 	if (nla_put_string(skb, SMC_NLA_DEV_PORT_PNETID, smc_pnet))
 		goto errattr;
 	if (nla_put_u32(skb, SMC_NLA_DEV_PORT_NETDEV,
@@ -414,7 +414,7 @@ static int smc_nl_handle_smcr_dev(struct smc_ib_device *smcibdev,
 				  struct sk_buff *skb,
 				  struct netlink_callback *cb)
 {
-	char smc_ibname[IB_DEVICE_NAME_MAX + 1];
+	char smc_ibname[IB_DEVICE_NAME_MAX];
 	struct smc_pci_dev smc_pci_dev;
 	struct pci_dev *pci_dev;
 	unsigned char is_crit;

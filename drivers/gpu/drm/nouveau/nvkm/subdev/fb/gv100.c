@@ -22,7 +22,7 @@
 #include "gf100.h"
 #include "ram.h"
 
-static int
+int
 gv100_fb_init_page(struct nvkm_fb *fb)
 {
 	return (fb->page == 16) ? 0 : -EINVAL;

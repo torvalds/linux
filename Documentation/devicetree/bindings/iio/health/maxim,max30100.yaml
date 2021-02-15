@@ -21,7 +21,6 @@ properties:
     description: Connected to ADC_RDY pin.
 
   maxim,led-current-microamp:
-    $ref: /schemas/types.yaml#/definitions/uint32-array
     minItems: 2
     maxItems: 2
     description: |

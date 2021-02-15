@@ -730,9 +730,6 @@ int radeon_ttm_init(struct radeon_device *rdev)
 	}
 	rdev->mman.initialized = true;
 
-	ttm_pool_init(&rdev->mman.bdev.pool, rdev->dev, rdev->need_swiotlb,
-		      dma_addressing_limited(&rdev->pdev->dev));
-
 	r = radeon_ttm_init_vram(rdev);
 	if (r) {
 		DRM_ERROR("Failed initializing VRAM heap.\n");

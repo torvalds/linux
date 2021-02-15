@@ -67,7 +67,7 @@ struct amd_mp2_dev {
 struct amd_mp2_sensor_info {
 	u8 sensor_idx;
 	u32 period;
-	phys_addr_t phys_address;
+	dma_addr_t dma_address;
 };
 
 void amd_start_sensor(struct amd_mp2_dev *privdata, struct amd_mp2_sensor_info info);

@@ -568,7 +568,6 @@ struct nfsd4_copy {
 	struct nfs_fh		c_fh;
 	nfs4_stateid		stateid;
 };
-extern bool inter_copy_offload_enable;
 
 struct nfsd4_seek {
 	/* request */

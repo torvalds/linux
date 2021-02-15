@@ -344,10 +344,12 @@ static int sof_pci_probe(struct pci_dev *pci,
 	const struct snd_sof_dsp_ops *ops;
 	int ret;
 
-	ret = snd_intel_dsp_driver_probe(pci);
-	if (ret != SND_INTEL_DSP_DRIVER_ANY && ret != SND_INTEL_DSP_DRIVER_SOF) {
-		dev_dbg(&pci->dev, "SOF PCI driver not selected, aborting probe\n");
-		return -ENODEV;
+	if (IS_REACHABLE(CONFIG_SND_INTEL_DSP_CONFIG)) {
+		ret = snd_intel_dsp_driver_probe(pci);
+		if (ret != SND_INTEL_DSP_DRIVER_ANY && ret != SND_INTEL_DSP_DRIVER_SOF) {
+			dev_dbg(&pci->dev, "SOF PCI driver not selected, aborting probe\n");
+			return -ENODEV;
+		}
 	}
 	dev_dbg(&pci->dev, "PCI DSP detected");
 

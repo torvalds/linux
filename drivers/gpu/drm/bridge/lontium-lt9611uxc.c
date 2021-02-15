@@ -14,6 +14,7 @@
 #include <linux/regmap.h>
 #include <linux/regulator/consumer.h>
 #include <linux/wait.h>
+#include <linux/workqueue.h>
 
 #include <sound/hdmi-codec.h>
 
@@ -36,6 +37,7 @@ struct lt9611uxc {
 	struct mutex ocm_lock;
 
 	struct wait_queue_head wq;
+	struct work_struct work;
 
 	struct device_node *dsi0_node;
 	struct device_node *dsi1_node;
@@ -52,6 +54,8 @@ struct lt9611uxc {
 
 	bool hpd_supported;
 	bool edid_read;
+	/* can be accessed from different threads, so protect this with ocm_lock */
+	bool hdmi_connected;
 	uint8_t fw_version;
 };
 
@@ -143,19 +147,39 @@ static irqreturn_t lt9611uxc_irq_thread_handler(int irq, void *dev_id)
 	if (irq_status)
 		regmap_write(lt9611uxc->regmap, 0xb022, 0);
 
-	lt9611uxc_unlock(lt9611uxc);
-
-	if (irq_status & BIT(0))
+	if (irq_status & BIT(0)) {
 		lt9611uxc->edid_read = !!(hpd_status & BIT(0));
-
-	if (irq_status & BIT(1)) {
-		if (lt9611uxc->connector.dev)
-			drm_kms_helper_hotplug_event(lt9611uxc->connector.dev);
-		else
-			drm_bridge_hpd_notify(&lt9611uxc->bridge, !!(hpd_status & BIT(1)));
+		wake_up_all(&lt9611uxc->wq);
 	}
 
+	if (irq_status & BIT(1)) {
+		lt9611uxc->hdmi_connected = hpd_status & BIT(1);
+		schedule_work(&lt9611uxc->work);
+	}
+
+	lt9611uxc_unlock(lt9611uxc);
+
 	return IRQ_HANDLED;
+}
+
+static void lt9611uxc_hpd_work(struct work_struct *work)
+{
+	struct lt9611uxc *lt9611uxc = container_of(work, struct lt9611uxc, work);
+	bool connected;
+
+	if (lt9611uxc->connector.dev)
+		drm_kms_helper_hotplug_event(lt9611uxc->connector.dev);
+	else {
+
+		mutex_lock(&lt9611uxc->ocm_lock);
+		connected = lt9611uxc->hdmi_connected;
+		mutex_unlock(&lt9611uxc->ocm_lock);
+
+		drm_bridge_hpd_notify(&lt9611uxc->bridge,
+				      connected ?
+				      connector_status_connected :
+				      connector_status_disconnected);
+	}
 }
 
 static void lt9611uxc_reset(struct lt9611uxc *lt9611uxc)
@@ -445,18 +469,21 @@ static enum drm_connector_status lt9611uxc_bridge_detect(struct drm_bridge *brid
 	struct lt9611uxc *lt9611uxc = bridge_to_lt9611uxc(bridge);
 	unsigned int reg_val = 0;
 	int ret;
-	int connected = 1;
+	bool connected = true;
+
+	lt9611uxc_lock(lt9611uxc);
 
 	if (lt9611uxc->hpd_supported) {
-		lt9611uxc_lock(lt9611uxc);
 		ret = regmap_read(lt9611uxc->regmap, 0xb023, &reg_val);
-		lt9611uxc_unlock(lt9611uxc);
 
 		if (ret)
 			dev_err(lt9611uxc->dev, "failed to read hpd status: %d\n", ret);
 		else
 			connected  = reg_val & BIT(1);
 	}
+	lt9611uxc->hdmi_connected = connected;
+
+	lt9611uxc_unlock(lt9611uxc);
 
 	return connected ?  connector_status_connected :
 				connector_status_disconnected;
@@ -465,7 +492,7 @@ static enum drm_connector_status lt9611uxc_bridge_detect(struct drm_bridge *brid
 static int lt9611uxc_wait_for_edid(struct lt9611uxc *lt9611uxc)
 {
 	return wait_event_interruptible_timeout(lt9611uxc->wq, lt9611uxc->edid_read,
-			msecs_to_jiffies(100));
+			msecs_to_jiffies(500));
 }
 
 static int lt9611uxc_get_edid_block(void *data, u8 *buf, unsigned int block, size_t len)
@@ -503,7 +530,10 @@ static struct edid *lt9611uxc_bridge_get_edid(struct drm_bridge *bridge,
 	ret = lt9611uxc_wait_for_edid(lt9611uxc);
 	if (ret < 0) {
 		dev_err(lt9611uxc->dev, "wait for EDID failed: %d\n", ret);
-		return ERR_PTR(ret);
+		return NULL;
+	} else if (ret == 0) {
+		dev_err(lt9611uxc->dev, "wait for EDID timeout\n");
+		return NULL;
 	}
 
 	return drm_do_get_edid(connector, lt9611uxc_get_edid_block, lt9611uxc);
@@ -926,6 +956,8 @@ retry:
 	lt9611uxc->fw_version = ret;
 
 	init_waitqueue_head(&lt9611uxc->wq);
+	INIT_WORK(&lt9611uxc->work, lt9611uxc_hpd_work);
+
 	ret = devm_request_threaded_irq(dev, client->irq, NULL,
 					lt9611uxc_irq_thread_handler,
 					IRQF_ONESHOT, "lt9611uxc", lt9611uxc);
@@ -962,6 +994,7 @@ static int lt9611uxc_remove(struct i2c_client *client)
 	struct lt9611uxc *lt9611uxc = i2c_get_clientdata(client);
 
 	disable_irq(client->irq);
+	flush_scheduled_work();
 	lt9611uxc_audio_exit(lt9611uxc);
 	drm_bridge_remove(&lt9611uxc->bridge);
 

@@ -473,7 +473,7 @@ read-side critical sections that follow the idle period (the oval near
 the bottom of the diagram above).
 
 Plumbing this into the full grace-period execution is described
-`below <#Forcing%20Quiescent%20States>`__.
+`below <Forcing Quiescent States_>`__.
 
 CPU-Hotplug Interface
 ^^^^^^^^^^^^^^^^^^^^^
@@ -494,7 +494,7 @@ mask to detect CPUs having gone offline since the beginning of this
 grace period.
 
 Plumbing this into the full grace-period execution is described
-`below <#Forcing%20Quiescent%20States>`__.
+`below <Forcing Quiescent States_>`__.
 
 Forcing Quiescent States
 ^^^^^^^^^^^^^^^^^^^^^^^^
@@ -532,7 +532,7 @@ from other CPUs.
 | RCU. But this diagram is complex enough as it is, so simplicity       |
 | overrode accuracy. You can think of it as poetic license, or you can  |
 | think of it as misdirection that is resolved in the                   |
-| `stitched-together diagram <#Putting%20It%20All%20Together>`__.       |
+| `stitched-together diagram <Putting It All Together_>`__.             |
 +-----------------------------------------------------------------------+
 
 Grace-Period Cleanup
@@ -596,7 +596,7 @@ maintain ordering. For example, if the callback function wakes up a task
 that runs on some other CPU, proper ordering must in place in both the
 callback function and the task being awakened. To see why this is
 important, consider the top half of the `grace-period
-cleanup <#Grace-Period%20Cleanup>`__ diagram. The callback might be
+cleanup`_ diagram. The callback might be
 running on a CPU corresponding to the leftmost leaf ``rcu_node``
 structure, and awaken a task that is to run on a CPU corresponding to
 the rightmost leaf ``rcu_node`` structure, and the grace-period kernel

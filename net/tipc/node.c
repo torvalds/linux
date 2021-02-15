@@ -1665,7 +1665,7 @@ static void tipc_lxc_xmit(struct net *peer_net, struct sk_buff_head *list)
 }
 
 /**
- * tipc_node_xmit() is the general link level function for message sending
+ * tipc_node_xmit() - general link level function for message sending
  * @net: the applicable net namespace
  * @list: chain of buffers containing message
  * @dnode: address of destination node

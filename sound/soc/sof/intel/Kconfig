@@ -355,7 +355,7 @@ config SND_SOC_SOF_HDA
 
 config SND_SOC_SOF_INTEL_SOUNDWIRE_LINK
 	bool "SOF support for SoundWire"
-	depends on SOUNDWIRE && ACPI
+	depends on ACPI
 	help
 	  This adds support for SoundWire with Sound Open Firmware
 	  for Intel(R) platforms.
@@ -371,6 +371,7 @@ config SND_SOC_SOF_INTEL_SOUNDWIRE_LINK_BASELINE
 
 config SND_SOC_SOF_INTEL_SOUNDWIRE
 	tristate
+	select SOUNDWIRE
 	select SOUNDWIRE_INTEL
 	help
 	  This option is not user-selectable but automagically handled by
