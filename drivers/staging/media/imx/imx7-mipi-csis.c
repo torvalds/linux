@@ -943,7 +943,7 @@ static int mipi_csis_parse_dt(struct platform_device *pdev,
 		state->clk_frequency = DEFAULT_SCLK_CSIS_FREQ;
 
 	/* Get MIPI PHY resets */
-	state->mrst = devm_reset_control_get_exclusive(&pdev->dev, "mrst");
+	state->mrst = devm_reset_control_get_exclusive(&pdev->dev, NULL);
 	if (IS_ERR(state->mrst))
 		return PTR_ERR(state->mrst);
 
