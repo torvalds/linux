@@ -1389,11 +1389,13 @@ static int cqspi_setup_flash(struct cqspi_st *cqspi)
 		ret = of_property_read_u32(np, "reg", &cs);
 		if (ret) {
 			dev_err(dev, "Couldn't determine chip select.\n");
+			of_node_put(np);
 			return ret;
 		}
 
 		if (cs >= CQSPI_MAX_CHIPSELECT) {
 			dev_err(dev, "Chip select %d out of range.\n", cs);
+			of_node_put(np);
 			return -EINVAL;
 		}
 
@@ -1402,8 +1404,10 @@ static int cqspi_setup_flash(struct cqspi_st *cqspi)
 		f_pdata->cs = cs;
 
 		ret = cqspi_of_get_flash_pdata(pdev, f_pdata, np);
-		if (ret)
+		if (ret) {
+			of_node_put(np);
 			return ret;
+		}
 	}
 
 	return 0;
