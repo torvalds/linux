@@ -236,16 +236,16 @@ static int __capture_legacy_try_fmt(struct capture_priv *priv,
 				    const struct imx_media_pixfmt **retcc,
 				    struct v4l2_rect *compose)
 {
-	const struct imx_media_pixfmt *cc, *cc_src;
+	const struct imx_media_pixfmt *cc;
 
-	cc_src = imx_media_find_ipu_format(fmt_src->format.code,
-					   PIXFMT_SEL_YUV_RGB);
-	if (cc_src) {
+	cc = imx_media_find_ipu_format(fmt_src->format.code,
+				       PIXFMT_SEL_YUV_RGB);
+	if (cc) {
 		enum imx_pixfmt_sel fmt_sel;
 		u32 fourcc;
 
-		fmt_sel = (cc_src->cs == IPUV3_COLORSPACE_YUV) ?
-			PIXFMT_SEL_YUV : PIXFMT_SEL_RGB;
+		fmt_sel = (cc->cs == IPUV3_COLORSPACE_YUV)
+			? PIXFMT_SEL_YUV : PIXFMT_SEL_RGB;
 		fourcc = f->fmt.pix.pixelformat;
 
 		cc = imx_media_find_pixel_format(fourcc, fmt_sel);
@@ -254,12 +254,10 @@ static int __capture_legacy_try_fmt(struct capture_priv *priv,
 			cc = imx_media_find_pixel_format(fourcc, fmt_sel);
 		}
 	} else {
-		cc_src = imx_media_find_mbus_format(fmt_src->format.code,
-						    PIXFMT_SEL_ANY);
-		if (WARN_ON(!cc_src))
+		cc = imx_media_find_mbus_format(fmt_src->format.code,
+						PIXFMT_SEL_ANY);
+		if (WARN_ON(!cc))
 			return -EINVAL;
-
-		cc = cc_src;
 	}
 
 	/* allow IDMAC interweave but enforce field order from source */
