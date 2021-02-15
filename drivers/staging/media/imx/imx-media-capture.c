@@ -537,27 +537,35 @@ static int capture_validate_fmt(struct capture_priv *priv)
 {
 	struct v4l2_subdev_format fmt_src;
 	const struct imx_media_pixfmt *cc;
-	struct v4l2_rect compose;
-	struct v4l2_pix_format pixfmt;
 	int ret;
 
+	/* Retrieve the media bus format on the source subdev. */
 	fmt_src.pad = priv->src_sd_pad;
 	fmt_src.which = V4L2_SUBDEV_FORMAT_ACTIVE;
 	ret = v4l2_subdev_call(priv->src_sd, pad, get_fmt, NULL, &fmt_src);
 	if (ret)
 		return ret;
 
-	v4l2_fill_pix_format(&pixfmt, &fmt_src.format);
+	/*
+	 * Verify that the media bus size matches the size set on the video
+	 * node. It is sufficient to check the compose rectangle size without
+	 * checking the rounded size from vdev.fmt, as the rounded size is
+	 * derived directly from the compose rectangle size, and will thus
+	 * always match if the compose rectangle matches.
+	 */
+	if (priv->vdev.compose.width != fmt_src.format.width ||
+	    priv->vdev.compose.height != fmt_src.format.height)
+		return -EPIPE;
 
-	ret = __capture_legacy_try_fmt(priv, &fmt_src, &pixfmt, &cc, &compose);
-	if (ret)
-		return ret;
+	/*
+	 * Verify that the media bus code is compatible with the pixel format
+	 * set on the video node.
+	 */
+	cc = capture_find_format(fmt_src.format.code, 0);
+	if (!cc || priv->vdev.cc->cs != cc->cs)
+		return -EPIPE;
 
-	return (priv->vdev.fmt.width != pixfmt.width ||
-		priv->vdev.fmt.height != pixfmt.height ||
-		priv->vdev.cc->cs != cc->cs ||
-		priv->vdev.compose.width != compose.width ||
-		priv->vdev.compose.height != compose.height) ? -EPIPE : 0;
+	return 0;
 }
 
 static int capture_start_streaming(struct vb2_queue *vq, unsigned int count)
