@@ -58,6 +58,27 @@ struct capture_priv {
  * Common Video IOCTLs
  */
 
+static const struct imx_media_pixfmt *capture_find_format(u32 code, u32 fourcc)
+{
+	const struct imx_media_pixfmt *cc;
+
+	cc = imx_media_find_ipu_format(code, PIXFMT_SEL_YUV_RGB);
+	if (cc) {
+		enum imx_pixfmt_sel fmt_sel = cc->cs == IPUV3_COLORSPACE_YUV
+					    ? PIXFMT_SEL_YUV : PIXFMT_SEL_RGB;
+
+		cc = imx_media_find_pixel_format(fourcc, fmt_sel);
+		if (!cc) {
+			imx_media_enum_pixel_formats(&fourcc, 0, fmt_sel, 0);
+			cc = imx_media_find_pixel_format(fourcc, fmt_sel);
+		}
+
+		return cc;
+	}
+
+	return imx_media_find_mbus_format(code, PIXFMT_SEL_ANY);
+}
+
 static int capture_querycap(struct file *file, void *fh,
 			    struct v4l2_capability *cap)
 {
@@ -238,27 +259,9 @@ static int __capture_legacy_try_fmt(struct capture_priv *priv,
 {
 	const struct imx_media_pixfmt *cc;
 
-	cc = imx_media_find_ipu_format(fmt_src->format.code,
-				       PIXFMT_SEL_YUV_RGB);
-	if (cc) {
-		enum imx_pixfmt_sel fmt_sel;
-		u32 fourcc;
-
-		fmt_sel = (cc->cs == IPUV3_COLORSPACE_YUV)
-			? PIXFMT_SEL_YUV : PIXFMT_SEL_RGB;
-		fourcc = pixfmt->pixelformat;
-
-		cc = imx_media_find_pixel_format(fourcc, fmt_sel);
-		if (!cc) {
-			imx_media_enum_pixel_formats(&fourcc, 0, fmt_sel, 0);
-			cc = imx_media_find_pixel_format(fourcc, fmt_sel);
-		}
-	} else {
-		cc = imx_media_find_mbus_format(fmt_src->format.code,
-						PIXFMT_SEL_ANY);
-		if (WARN_ON(!cc))
-			return -EINVAL;
-	}
+	cc = capture_find_format(fmt_src->format.code, pixfmt->pixelformat);
+	if (WARN_ON(!cc))
+		return -EINVAL;
 
 	/* allow IDMAC interweave but enforce field order from source */
 	if (V4L2_FIELD_IS_INTERLACED(pixfmt->field)) {
