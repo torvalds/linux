@@ -197,6 +197,10 @@ imx7_csi_notifier_to_dev(struct v4l2_async_notifier *n)
 	return container_of(n, struct imx7_csi, notifier);
 }
 
+/* -----------------------------------------------------------------------------
+ * Hardware Configuration
+ */
+
 static u32 imx7_csi_reg_read(struct imx7_csi *csi, unsigned int offset)
 {
 	return readl(csi->regbase + offset);
@@ -387,122 +391,6 @@ static void imx7_csi_sw_reset(struct imx7_csi *csi)
 	imx7_csi_hw_enable(csi);
 }
 
-static void imx7_csi_error_recovery(struct imx7_csi *csi)
-{
-	imx7_csi_hw_disable(csi);
-
-	imx7_csi_rx_fifo_clear(csi);
-
-	imx7_csi_dma_reflash(csi);
-
-	imx7_csi_hw_enable(csi);
-}
-
-static int imx7_csi_init(struct imx7_csi *csi)
-{
-	int ret;
-
-	ret = clk_prepare_enable(csi->mclk);
-	if (ret < 0)
-		return ret;
-	imx7_csi_hw_reset(csi);
-	imx7_csi_init_interface(csi);
-	imx7_csi_dmareq_rff_enable(csi);
-
-	return 0;
-}
-
-static void imx7_csi_deinit(struct imx7_csi *csi)
-{
-	imx7_csi_hw_reset(csi);
-	imx7_csi_init_interface(csi);
-	imx7_csi_dmareq_rff_disable(csi);
-	clk_disable_unprepare(csi->mclk);
-}
-
-static int imx7_csi_link_setup(struct media_entity *entity,
-			       const struct media_pad *local,
-			       const struct media_pad *remote, u32 flags)
-{
-	struct v4l2_subdev *sd = media_entity_to_v4l2_subdev(entity);
-	struct imx7_csi *csi = v4l2_get_subdevdata(sd);
-	struct v4l2_subdev *remote_sd;
-	int ret = 0;
-
-	dev_dbg(csi->dev, "link setup %s -> %s\n", remote->entity->name,
-		local->entity->name);
-
-	mutex_lock(&csi->lock);
-
-	if (local->flags & MEDIA_PAD_FL_SINK) {
-		if (!is_media_entity_v4l2_subdev(remote->entity)) {
-			ret = -EINVAL;
-			goto unlock;
-		}
-
-		remote_sd = media_entity_to_v4l2_subdev(remote->entity);
-
-		if (flags & MEDIA_LNK_FL_ENABLED) {
-			if (csi->src_sd) {
-				ret = -EBUSY;
-				goto unlock;
-			}
-			csi->src_sd = remote_sd;
-		} else {
-			csi->src_sd = NULL;
-		}
-	}
-
-unlock:
-	mutex_unlock(&csi->lock);
-
-	return ret;
-}
-
-static int imx7_csi_pad_link_validate(struct v4l2_subdev *sd,
-				      struct media_link *link,
-				      struct v4l2_subdev_format *source_fmt,
-				      struct v4l2_subdev_format *sink_fmt)
-{
-	struct imx7_csi *csi = v4l2_get_subdevdata(sd);
-	struct media_entity *src;
-	struct media_pad *pad;
-	int ret;
-
-	ret = v4l2_subdev_link_validate_default(sd, link, source_fmt, sink_fmt);
-	if (ret)
-		return ret;
-
-	if (!csi->src_sd)
-		return -EPIPE;
-
-	src = &csi->src_sd->entity;
-
-	/*
-	 * if the source is neither a CSI MUX or CSI-2 get the one directly
-	 * upstream from this CSI
-	 */
-	if (src->function != MEDIA_ENT_F_VID_IF_BRIDGE &&
-	    src->function != MEDIA_ENT_F_VID_MUX)
-		src = &csi->sd.entity;
-
-	/*
-	 * find the entity that is selected by the source. This is needed
-	 * to distinguish between a parallel or CSI-2 pipeline.
-	 */
-	pad = imx_media_pipeline_pad(src, 0, 0, true);
-	if (!pad)
-		return -ENODEV;
-
-	mutex_lock(&csi->lock);
-
-	csi->is_csi2 = (pad->entity->function == MEDIA_ENT_F_VID_IF_BRIDGE);
-
-	mutex_unlock(&csi->lock);
-
-	return 0;
-}
-
 static void imx7_csi_update_buf(struct imx7_csi *csi, dma_addr_t phys,
 				int buf_num)
 {
@@ -551,94 +439,6 @@ static void imx7_csi_dma_unsetup_vb2_buf(struct imx7_csi *csi,
 			vb2_buffer_done(vb, return_status);
 		}
 	}
-}
-
-static void imx7_csi_vb2_buf_done(struct imx7_csi *csi)
-{
-	struct imx_media_video_dev *vdev = csi->vdev;
-	struct imx_media_buffer *done, *next;
-	struct vb2_buffer *vb;
-	dma_addr_t phys;
-
-	done = csi->active_vb2_buf[csi->buf_num];
-	if (done) {
-		done->vbuf.field = vdev->fmt.field;
-		done->vbuf.sequence = csi->frame_sequence;
-		vb = &done->vbuf.vb2_buf;
-		vb->timestamp = ktime_get_ns();
-		vb2_buffer_done(vb, VB2_BUF_STATE_DONE);
-	}
-	csi->frame_sequence++;
-
-	/* get next queued buffer */
-	next = imx_media_capture_device_next_buf(vdev);
-	if (next) {
-		phys = vb2_dma_contig_plane_dma_addr(&next->vbuf.vb2_buf, 0);
-		csi->active_vb2_buf[csi->buf_num] = next;
-	} else {
-		phys = csi->underrun_buf.phys;
-		csi->active_vb2_buf[csi->buf_num] = NULL;
-	}
-
-	imx7_csi_update_buf(csi, phys, csi->buf_num);
-}
-
-static irqreturn_t imx7_csi_irq_handler(int irq, void *data)
-{
-	struct imx7_csi *csi =  data;
-	u32 status;
-
-	spin_lock(&csi->irqlock);
-
-	status = imx7_csi_irq_clear(csi);
-
-	if (status & BIT_RFF_OR_INT) {
-		dev_warn(csi->dev, "Rx fifo overflow\n");
-		imx7_csi_error_recovery(csi);
-	}
-
-	if (status & BIT_HRESP_ERR_INT) {
-		dev_warn(csi->dev, "Hresponse error detected\n");
-		imx7_csi_error_recovery(csi);
-	}
-
-	if (status & BIT_ADDR_CH_ERR_INT) {
-		imx7_csi_hw_disable(csi);
-
-		imx7_csi_dma_reflash(csi);
-
-		imx7_csi_hw_enable(csi);
-	}
-
-	if ((status & BIT_DMA_TSF_DONE_FB1) &&
-	    (status & BIT_DMA_TSF_DONE_FB2)) {
-		/*
-		 * For both FB1 and FB2 interrupter bits set case,
-		 * CSI DMA is work in one of FB1 and FB2 buffer,
-		 * but software can not know the state.
-		 * Skip it to avoid base address updated
-		 * when csi work in field0 and field1 will write to
-		 * new base address.
-		 */
-	} else if (status & BIT_DMA_TSF_DONE_FB1) {
-		csi->buf_num = 0;
-	} else if (status & BIT_DMA_TSF_DONE_FB2) {
-		csi->buf_num = 1;
-	}
-
-	if ((status & BIT_DMA_TSF_DONE_FB1) ||
-	    (status & BIT_DMA_TSF_DONE_FB2)) {
-		imx7_csi_vb2_buf_done(csi);
-
-		if (csi->last_eof) {
-			complete(&csi->last_eof_completion);
-			csi->last_eof = false;
-		}
-	}
-
-	spin_unlock(&csi->irqlock);
-
-	return IRQ_HANDLED;
 }
 
 static int imx7_csi_dma_start(struct imx7_csi *csi)
@@ -772,6 +572,28 @@ static int imx7_csi_configure(struct imx7_csi *csi)
 	return 0;
 }
 
+static int imx7_csi_init(struct imx7_csi *csi)
+{
+	int ret;
+
+	ret = clk_prepare_enable(csi->mclk);
+	if (ret < 0)
+		return ret;
+	imx7_csi_hw_reset(csi);
+	imx7_csi_init_interface(csi);
+	imx7_csi_dmareq_rff_enable(csi);
+
+	return 0;
+}
+
+static void imx7_csi_deinit(struct imx7_csi *csi)
+{
+	imx7_csi_hw_reset(csi);
+	imx7_csi_init_interface(csi);
+	imx7_csi_dmareq_rff_disable(csi);
+	clk_disable_unprepare(csi->mclk);
+}
+
 static void imx7_csi_enable(struct imx7_csi *csi)
 {
 	imx7_csi_sw_reset(csi);
@@ -823,6 +645,113 @@ static int imx7_csi_streaming_stop(struct imx7_csi *csi)
 	return 0;
 }
 
+/* -----------------------------------------------------------------------------
+ * Interrupt Handling
+ */
+
+static void imx7_csi_error_recovery(struct imx7_csi *csi)
+{
+	imx7_csi_hw_disable(csi);
+
+	imx7_csi_rx_fifo_clear(csi);
+
+	imx7_csi_dma_reflash(csi);
+
+	imx7_csi_hw_enable(csi);
+}
+
+static void imx7_csi_vb2_buf_done(struct imx7_csi *csi)
+{
+	struct imx_media_video_dev *vdev = csi->vdev;
+	struct imx_media_buffer *done, *next;
+	struct vb2_buffer *vb;
+	dma_addr_t phys;
+
+	done = csi->active_vb2_buf[csi->buf_num];
+	if (done) {
+		done->vbuf.field = vdev->fmt.field;
+		done->vbuf.sequence = csi->frame_sequence;
+		vb = &done->vbuf.vb2_buf;
+		vb->timestamp = ktime_get_ns();
+		vb2_buffer_done(vb, VB2_BUF_STATE_DONE);
+	}
+	csi->frame_sequence++;
+
+	/* get next queued buffer */
+	next = imx_media_capture_device_next_buf(vdev);
+	if (next) {
+		phys = vb2_dma_contig_plane_dma_addr(&next->vbuf.vb2_buf, 0);
+		csi->active_vb2_buf[csi->buf_num] = next;
+	} else {
+		phys = csi->underrun_buf.phys;
+		csi->active_vb2_buf[csi->buf_num] = NULL;
+	}
+
+	imx7_csi_update_buf(csi, phys, csi->buf_num);
+}
+
+static irqreturn_t imx7_csi_irq_handler(int irq, void *data)
+{
+	struct imx7_csi *csi =  data;
+	u32 status;
+
+	spin_lock(&csi->irqlock);
+
+	status = imx7_csi_irq_clear(csi);
+
+	if (status & BIT_RFF_OR_INT) {
+		dev_warn(csi->dev, "Rx fifo overflow\n");
+		imx7_csi_error_recovery(csi);
+	}
+
+	if (status & BIT_HRESP_ERR_INT) {
+		dev_warn(csi->dev, "Hresponse error detected\n");
+		imx7_csi_error_recovery(csi);
+	}
+
+	if (status & BIT_ADDR_CH_ERR_INT) {
+		imx7_csi_hw_disable(csi);
+
+		imx7_csi_dma_reflash(csi);
+
+		imx7_csi_hw_enable(csi);
+	}
+
+	if ((status & BIT_DMA_TSF_DONE_FB1) &&
+	    (status & BIT_DMA_TSF_DONE_FB2)) {
+		/*
+		 * For both FB1 and FB2 interrupter bits set case,
+		 * CSI DMA is work in one of FB1 and FB2 buffer,
+		 * but software can not know the state.
+		 * Skip it to avoid base address updated
+		 * when csi work in field0 and field1 will write to
+		 * new base address.
+		 */
+	} else if (status & BIT_DMA_TSF_DONE_FB1) {
+		csi->buf_num = 0;
+	} else if (status & BIT_DMA_TSF_DONE_FB2) {
+		csi->buf_num = 1;
+	}
+
+	if ((status & BIT_DMA_TSF_DONE_FB1) ||
+	    (status & BIT_DMA_TSF_DONE_FB2)) {
+		imx7_csi_vb2_buf_done(csi);
+
+		if (csi->last_eof) {
+			complete(&csi->last_eof_completion);
+			csi->last_eof = false;
+		}
+	}
+
+	spin_unlock(&csi->irqlock);
+
+	return IRQ_HANDLED;
+}
+
+/* -----------------------------------------------------------------------------
+ * V4L2 Subdev Operations
+ */
+
 static int imx7_csi_s_stream(struct v4l2_subdev *sd, int enable)
 {
 	struct imx7_csi *csi = v4l2_get_subdevdata(sd);
@@ -869,6 +798,26 @@ out_unlock:
 	mutex_unlock(&csi->lock);
 
 	return ret;
+}
+
+static int imx7_csi_init_cfg(struct v4l2_subdev *sd,
+			     struct v4l2_subdev_pad_config *cfg)
+{
+	struct imx7_csi *csi = v4l2_get_subdevdata(sd);
+	struct v4l2_mbus_framefmt *mf;
+	int ret;
+	int i;
+
+	for (i = 0; i < IMX7_CSI_PADS_NUM; i++) {
+		mf = v4l2_subdev_get_try_format(sd, cfg, i);
+
+		ret = imx_media_init_mbus_fmt(mf, 800, 600, 0, V4L2_FIELD_NONE,
+					      &csi->cc[i]);
+		if (ret < 0)
+			return ret;
+	}
+
+	return 0;
 }
 
 static struct v4l2_mbus_framefmt *
@@ -1055,6 +1004,50 @@ out_unlock:
 	return ret;
 }
 
+static int imx7_csi_pad_link_validate(struct v4l2_subdev *sd,
+				      struct media_link *link,
+				      struct v4l2_subdev_format *source_fmt,
+				      struct v4l2_subdev_format *sink_fmt)
+{
+	struct imx7_csi *csi = v4l2_get_subdevdata(sd);
+	struct media_entity *src;
+	struct media_pad *pad;
+	int ret;
+
+	ret = v4l2_subdev_link_validate_default(sd, link, source_fmt, sink_fmt);
+	if (ret)
+		return ret;
+
+	if (!csi->src_sd)
+		return -EPIPE;
+
+	src = &csi->src_sd->entity;
+
+	/*
+	 * if the source is neither a CSI MUX or CSI-2 get the one directly
+	 * upstream from this CSI
+	 */
+	if (src->function != MEDIA_ENT_F_VID_IF_BRIDGE &&
+	    src->function != MEDIA_ENT_F_VID_MUX)
+		src = &csi->sd.entity;
+
+	/*
+	 * find the entity that is selected by the source. This is needed
+	 * to distinguish between a parallel or CSI-2 pipeline.
+	 */
+	pad = imx_media_pipeline_pad(src, 0, 0, true);
+	if (!pad)
+		return -ENODEV;
+
+	mutex_lock(&csi->lock);
+
+	csi->is_csi2 = (pad->entity->function == MEDIA_ENT_F_VID_IF_BRIDGE);
+
+	mutex_unlock(&csi->lock);
+
+	return 0;
+}
+
 static int imx7_csi_registered(struct v4l2_subdev *sd)
 {
 	struct imx7_csi *csi = v4l2_get_subdevdata(sd);
@@ -1095,24 +1088,69 @@ static void imx7_csi_unregistered(struct v4l2_subdev *sd)
 	imx_media_capture_device_remove(csi->vdev);
 }
 
-static int imx7_csi_init_cfg(struct v4l2_subdev *sd,
-			     struct v4l2_subdev_pad_config *cfg)
+static const struct v4l2_subdev_video_ops imx7_csi_video_ops = {
+	.s_stream	= imx7_csi_s_stream,
+};
+
+static const struct v4l2_subdev_pad_ops imx7_csi_pad_ops = {
+	.init_cfg	= imx7_csi_init_cfg,
+	.enum_mbus_code	= imx7_csi_enum_mbus_code,
+	.get_fmt	= imx7_csi_get_fmt,
+	.set_fmt	= imx7_csi_set_fmt,
+	.link_validate	= imx7_csi_pad_link_validate,
+};
+
+static const struct v4l2_subdev_ops imx7_csi_subdev_ops = {
+	.video		= &imx7_csi_video_ops,
+	.pad		= &imx7_csi_pad_ops,
+};
+
+static const struct v4l2_subdev_internal_ops imx7_csi_internal_ops = {
+	.registered	= imx7_csi_registered,
+	.unregistered	= imx7_csi_unregistered,
+};
+
+/* -----------------------------------------------------------------------------
+ * Media Entity Operations
+ */
+
+static int imx7_csi_link_setup(struct media_entity *entity,
+			       const struct media_pad *local,
+			       const struct media_pad *remote, u32 flags)
 {
+	struct v4l2_subdev *sd = media_entity_to_v4l2_subdev(entity);
 	struct imx7_csi *csi = v4l2_get_subdevdata(sd);
-	struct v4l2_mbus_framefmt *mf;
-	int ret;
-	int i;
+	struct v4l2_subdev *remote_sd;
+	int ret = 0;
 
-	for (i = 0; i < IMX7_CSI_PADS_NUM; i++) {
-		mf = v4l2_subdev_get_try_format(sd, cfg, i);
+	dev_dbg(csi->dev, "link setup %s -> %s\n", remote->entity->name,
+		local->entity->name);
 
-		ret = imx_media_init_mbus_fmt(mf, 800, 600, 0, V4L2_FIELD_NONE,
-					      &csi->cc[i]);
-		if (ret < 0)
-			return ret;
+	mutex_lock(&csi->lock);
+
+	if (local->flags & MEDIA_PAD_FL_SINK) {
+		if (!is_media_entity_v4l2_subdev(remote->entity)) {
+			ret = -EINVAL;
+			goto unlock;
+		}
+
+		remote_sd = media_entity_to_v4l2_subdev(remote->entity);
+
+		if (flags & MEDIA_LNK_FL_ENABLED) {
+			if (csi->src_sd) {
+				ret = -EBUSY;
+				goto unlock;
+			}
+			csi->src_sd = remote_sd;
+		} else {
+			csi->src_sd = NULL;
+		}
 	}
 
-	return 0;
+unlock:
+	mutex_unlock(&csi->lock);
+
+	return ret;
 }
 
 static const struct media_entity_operations imx7_csi_entity_ops = {
@@ -1121,27 +1159,9 @@ static const struct media_entity_operations imx7_csi_entity_ops = {
 	.get_fwnode_pad = v4l2_subdev_get_fwnode_pad_1_to_1,
 };
 
-static const struct v4l2_subdev_video_ops imx7_csi_video_ops = {
-	.s_stream		= imx7_csi_s_stream,
-};
-
-static const struct v4l2_subdev_pad_ops imx7_csi_pad_ops = {
-	.init_cfg =		imx7_csi_init_cfg,
-	.enum_mbus_code =	imx7_csi_enum_mbus_code,
-	.get_fmt =		imx7_csi_get_fmt,
-	.set_fmt =		imx7_csi_set_fmt,
-	.link_validate =	imx7_csi_pad_link_validate,
-};
-
-static const struct v4l2_subdev_ops imx7_csi_subdev_ops = {
-	.video =	&imx7_csi_video_ops,
-	.pad =		&imx7_csi_pad_ops,
-};
-
-static const struct v4l2_subdev_internal_ops imx7_csi_internal_ops = {
-	.registered	= imx7_csi_registered,
-	.unregistered	= imx7_csi_unregistered,
-};
+/* -----------------------------------------------------------------------------
+ * Probe & Remove
+ */
 
 static int imx7_csi_notify_bound(struct v4l2_async_notifier *notifier,
 				 struct v4l2_subdev *sd,
