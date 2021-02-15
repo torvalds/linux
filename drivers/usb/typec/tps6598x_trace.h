@@ -67,6 +67,73 @@
 		{ TPS_REG_INT_USER_VID_ALT_MODE_ATTN_VDM,	"USER_VID_ALT_MODE_ATTN_VDM" }, \
 		{ TPS_REG_INT_USER_VID_ALT_MODE_OTHER_VDM,	"USER_VID_ALT_MODE_OTHER_VDM" })
 
+#define TPS6598X_STATUS_FLAGS_MASK (GENMASK(31, 0) ^ (TPS_STATUS_CONN_STATE_MASK | \
+						      TPS_STATUS_PP_5V0_SWITCH_MASK | \
+						      TPS_STATUS_PP_HV_SWITCH_MASK | \
+						      TPS_STATUS_PP_EXT_SWITCH_MASK | \
+						      TPS_STATUS_PP_CABLE_SWITCH_MASK | \
+						      TPS_STATUS_POWER_SOURCE_MASK | \
+						      TPS_STATUS_VBUS_STATUS_MASK | \
+						      TPS_STATUS_USB_HOST_PRESENT_MASK | \
+						      TPS_STATUS_LEGACY_MASK))
+
+#define show_status_conn_state(status) \
+	__print_symbolic(TPS_STATUS_CONN_STATE((status)), \
+		{ TPS_STATUS_CONN_STATE_CONN_WITH_R_A,	"conn-Ra"  }, \
+		{ TPS_STATUS_CONN_STATE_CONN_NO_R_A,	"conn-no-Ra" }, \
+		{ TPS_STATUS_CONN_STATE_NO_CONN_R_A,	"no-conn-Ra" },	\
+		{ TPS_STATUS_CONN_STATE_DEBUG_CONN,	"debug"	 }, \
+		{ TPS_STATUS_CONN_STATE_AUDIO_CONN,	"audio"	 }, \
+		{ TPS_STATUS_CONN_STATE_DISABLED,	"disabled" }, \
+		{ TPS_STATUS_CONN_STATE_NO_CONN,	"no-conn" })
+
+#define show_status_pp_switch_state(status) \
+	__print_symbolic(status, \
+		{ TPS_STATUS_PP_SWITCH_STATE_IN,	"in" }, \
+		{ TPS_STATUS_PP_SWITCH_STATE_OUT,	"out" }, \
+		{ TPS_STATUS_PP_SWITCH_STATE_FAULT,	"fault" }, \
+		{ TPS_STATUS_PP_SWITCH_STATE_DISABLED,	"off" })
+
+#define show_status_power_sources(status) \
+	__print_symbolic(TPS_STATUS_POWER_SOURCE(status), \
+		{ TPS_STATUS_POWER_SOURCE_VBUS,		"vbus" }, \
+		{ TPS_STATUS_POWER_SOURCE_VIN_3P3,	"vin-3p3" }, \
+		{ TPS_STATUS_POWER_SOURCE_DEAD_BAT,	"dead-battery" }, \
+		{ TPS_STATUS_POWER_SOURCE_UNKNOWN,	"unknown" })
+
+#define show_status_vbus_status(status) \
+	__print_symbolic(TPS_STATUS_VBUS_STATUS(status), \
+		{ TPS_STATUS_VBUS_STATUS_VSAFE0V,	"vSafe0V" }, \
+		{ TPS_STATUS_VBUS_STATUS_VSAFE5V,	"vSafe5V" }, \
+		{ TPS_STATUS_VBUS_STATUS_PD,		"pd" }, \
+		{ TPS_STATUS_VBUS_STATUS_FAULT,		"fault" })
+
+#define show_status_usb_host_present(status) \
+	__print_symbolic(TPS_STATUS_USB_HOST_PRESENT(status), \
+		{ TPS_STATUS_USB_HOST_PRESENT_PD_USB,	 "pd-usb" }, \
+		{ TPS_STATUS_USB_HOST_PRESENT_NO_PD,	 "no-pd" }, \
+		{ TPS_STATUS_USB_HOST_PRESENT_PD_NO_USB, "pd-no-usb" }, \
+		{ TPS_STATUS_USB_HOST_PRESENT_NO,	 "no" })
+
+#define show_status_legacy(status) \
+	__print_symbolic(TPS_STATUS_LEGACY(status),	     \
+		{ TPS_STATUS_LEGACY_SOURCE,		 "source" }, \
+		{ TPS_STATUS_LEGACY_SINK,		 "sink" }, \
+		{ TPS_STATUS_LEGACY_NO,			 "no" })
+
+#define show_status_flags(flags) \
+	__print_flags((flags & TPS6598X_STATUS_FLAGS_MASK), "|", \
+		      { TPS_STATUS_PLUG_PRESENT,	"PLUG_PRESENT" }, \
+		      { TPS_STATUS_PLUG_UPSIDE_DOWN,	"UPSIDE_DOWN" }, \
+		      { TPS_STATUS_PORTROLE,		"PORTROLE" }, \
+		      { TPS_STATUS_DATAROLE,		"DATAROLE" }, \
+		      { TPS_STATUS_VCONN,		"VCONN" }, \
+		      { TPS_STATUS_OVERCURRENT,		"OVERCURRENT" }, \
+		      { TPS_STATUS_GOTO_MIN_ACTIVE,	"GOTO_MIN_ACTIVE" }, \
+		      { TPS_STATUS_BIST,		"BIST" }, \
+		      { TPS_STATUS_HIGH_VOLAGE_WARNING,	"HIGH_VOLAGE_WARNING" }, \
+		      { TPS_STATUS_HIGH_LOW_VOLTAGE_WARNING, "HIGH_LOW_VOLTAGE_WARNING" })
+
 TRACE_EVENT(tps6598x_irq,
 	    TP_PROTO(u64 event1,
 		     u64 event2),
@@ -85,6 +152,33 @@ TRACE_EVENT(tps6598x_irq,
 	    TP_printk("event1=%s, event2=%s",
 		      show_irq_flags(__entry->event1),
 		      show_irq_flags(__entry->event2))
+);
+
+TRACE_EVENT(tps6598x_status,
+	    TP_PROTO(u32 status),
+	    TP_ARGS(status),
+
+	    TP_STRUCT__entry(
+			     __field(u32, status)
+			     ),
+
+	    TP_fast_assign(
+			   __entry->status = status;
+			   ),
+
+	    TP_printk("conn: %s, pp_5v0: %s, pp_hv: %s, pp_ext: %s, pp_cable: %s, "
+		      "pwr-src: %s, vbus: %s, usb-host: %s, legacy: %s, flags: %s",
+		      show_status_conn_state(__entry->status),
+		      show_status_pp_switch_state(TPS_STATUS_PP_5V0_SWITCH(__entry->status)),
+		      show_status_pp_switch_state(TPS_STATUS_PP_HV_SWITCH(__entry->status)),
+		      show_status_pp_switch_state(TPS_STATUS_PP_EXT_SWITCH(__entry->status)),
+		      show_status_pp_switch_state(TPS_STATUS_PP_CABLE_SWITCH(__entry->status)),
+		      show_status_power_sources(__entry->status),
+		      show_status_vbus_status(__entry->status),
+		      show_status_usb_host_present(__entry->status),
+		      show_status_legacy(__entry->status),
+		      show_status_flags(__entry->status)
+		    )
 );
 
 #endif /* _TPS6598X_TRACE_H_ */
