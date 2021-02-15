@@ -29,30 +29,24 @@
 #define IMX_CAPTURE_NAME "imx-capture"
 
 struct capture_priv {
-	struct imx_media_video_dev vdev;
+	struct imx_media_dev *md;		/* Media device */
+	struct device *dev;			/* Physical device */
 
-	struct v4l2_subdev    *src_sd;
-	int                   src_sd_pad;
-	struct device         *dev;
+	struct imx_media_video_dev vdev;	/* Video device */
+	struct media_pad vdev_pad;		/* Video device pad */
 
-	struct imx_media_dev  *md;
+	struct v4l2_subdev *src_sd;		/* Source subdev */
+	int src_sd_pad;				/* Source subdev pad */
 
-	struct media_pad      vdev_pad;
+	struct mutex mutex;			/* Protect vdev operations */
 
-	struct mutex          mutex;       /* capture device mutex */
+	struct vb2_queue q;			/* The videobuf2 queue */
+	struct list_head ready_q;		/* List of queued buffers */
+	spinlock_t q_lock;			/* Protect ready_q */
 
-	/* the videobuf2 queue */
-	struct vb2_queue       q;
-	/* list of ready imx_media_buffer's from q */
-	struct list_head       ready_q;
-	/* protect ready_q */
-	spinlock_t             q_lock;
+	struct v4l2_ctrl_handler ctrl_hdlr;	/* Controls inherited from subdevs */
 
-	/* controls inherited from subdevs */
-	struct v4l2_ctrl_handler ctrl_hdlr;
-
-	/* misc status */
-	bool                  stop;          /* streaming is stopping */
+	bool stop;				/* streaming is stopping */
 };
 
 #define to_capture_priv(v) container_of(v, struct capture_priv, vdev)
