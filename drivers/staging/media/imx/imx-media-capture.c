@@ -725,7 +725,6 @@ int imx_media_capture_device_register(struct imx_media_video_dev *vdev)
 	struct v4l2_subdev *sd = priv->src_sd;
 	struct v4l2_device *v4l2_dev = sd->v4l2_dev;
 	struct video_device *vfd = vdev->vfd;
-	struct vb2_queue *vq = &priv->q;
 	struct v4l2_subdev_format fmt_src;
 	int ret;
 
@@ -739,25 +738,6 @@ int imx_media_capture_device_register(struct imx_media_video_dev *vdev)
 		dev_err(priv->dev, "Failed to register video device\n");
 		return ret;
 	}
-
-	vq->type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
-	vq->io_modes = VB2_MMAP | VB2_DMABUF;
-	vq->drv_priv = priv;
-	vq->buf_struct_size = sizeof(struct imx_media_buffer);
-	vq->ops = &capture_qops;
-	vq->mem_ops = &vb2_dma_contig_memops;
-	vq->timestamp_flags = V4L2_BUF_FLAG_TIMESTAMP_MONOTONIC;
-	vq->lock = &priv->mutex;
-	vq->min_buffers_needed = 2;
-	vq->dev = priv->dev;
-
-	ret = vb2_queue_init(vq);
-	if (ret) {
-		dev_err(priv->dev, "vb2_queue_init failed\n");
-		goto unreg;
-	}
-
-	INIT_LIST_HEAD(&priv->ready_q);
 
 	/* create the link from the src_sd devnode pad to device node */
 	ret = media_create_pad_link(&sd->entity, priv->src_sd_pad,
@@ -787,8 +767,6 @@ int imx_media_capture_device_register(struct imx_media_video_dev *vdev)
 	dev_info(priv->dev, "Registered %s as /dev/%s\n", vfd->name,
 		 video_device_node_name(vfd));
 
-	vfd->ctrl_handler = &priv->ctrl_hdlr;
-
 	/* add vdev to the video device list */
 	imx_media_add_video_device(priv->md, vdev);
 
@@ -815,6 +793,7 @@ imx_media_capture_device_init(struct device *dev, struct v4l2_subdev *src_sd,
 {
 	struct capture_priv *priv;
 	struct video_device *vfd;
+	struct vb2_queue *vq;
 	int ret;
 
 	priv = devm_kzalloc(dev, sizeof(*priv), GFP_KERNEL);
@@ -826,8 +805,10 @@ imx_media_capture_device_init(struct device *dev, struct v4l2_subdev *src_sd,
 	priv->dev = dev;
 
 	mutex_init(&priv->mutex);
+	INIT_LIST_HEAD(&priv->ready_q);
 	spin_lock_init(&priv->q_lock);
 
+	/* Allocate and initialize the video device. */
 	snprintf(capture_videodev.name, sizeof(capture_videodev.name),
 		 "%s capture", src_sd->name);
 
@@ -838,8 +819,12 @@ imx_media_capture_device_init(struct device *dev, struct v4l2_subdev *src_sd,
 	*vfd = capture_videodev;
 	vfd->lock = &priv->mutex;
 	vfd->queue = &priv->q;
-	priv->vdev.vfd = vfd;
 
+	video_set_drvdata(vfd, priv);
+	priv->vdev.vfd = vfd;
+	INIT_LIST_HEAD(&priv->vdev.list);
+
+	/* Initialize the video device pad. */
 	priv->vdev_pad.flags = MEDIA_PAD_FL_SINK;
 	ret = media_entity_pads_init(&vfd->entity, 1, &priv->vdev_pad);
 	if (ret) {
@@ -847,11 +832,29 @@ imx_media_capture_device_init(struct device *dev, struct v4l2_subdev *src_sd,
 		return ERR_PTR(ret);
 	}
 
-	INIT_LIST_HEAD(&priv->vdev.list);
+	/* Initialize the vb2 queue. */
+	vq = &priv->q;
+	vq->type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
+	vq->io_modes = VB2_MMAP | VB2_DMABUF;
+	vq->drv_priv = priv;
+	vq->buf_struct_size = sizeof(struct imx_media_buffer);
+	vq->ops = &capture_qops;
+	vq->mem_ops = &vb2_dma_contig_memops;
+	vq->timestamp_flags = V4L2_BUF_FLAG_TIMESTAMP_MONOTONIC;
+	vq->lock = &priv->mutex;
+	vq->min_buffers_needed = 2;
+	vq->dev = priv->dev;
 
-	video_set_drvdata(vfd, priv);
+	ret = vb2_queue_init(vq);
+	if (ret) {
+		dev_err(priv->dev, "vb2_queue_init failed\n");
+		video_device_release(vfd);
+		return ERR_PTR(ret);
+	}
 
+	/* Initialize the control handler. */
 	v4l2_ctrl_handler_init(&priv->ctrl_hdlr, 0);
+	vfd->ctrl_handler = &priv->ctrl_hdlr;
 
 	return &priv->vdev;
 }
