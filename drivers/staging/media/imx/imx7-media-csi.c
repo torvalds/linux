@@ -616,8 +616,6 @@ static void imx7_csi_disable(struct imx7_csi *csi)
 
 	imx7_csi_hw_disable_irq(csi);
 
-	imx7_csi_buf_stride_set(csi, 0);
-
 	imx7_csi_hw_disable(csi);
 }
 
