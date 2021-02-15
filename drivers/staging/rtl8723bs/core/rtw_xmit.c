@@ -653,8 +653,6 @@ static s32 update_attrib(struct adapter *padapter, _pkt *pkt, struct pkt_attrib 
 	struct qos_priv *pqospriv = &pmlmepriv->qospriv;
 	sint res = _SUCCESS;
 
-	DBG_COUNTER(padapter->tx_logs.core_tx_upd_attrib);
-
 	_rtw_open_pktfile(pkt, &pktfile);
 	_rtw_pktfile_read(&pktfile, (u8 *)&etherhdr, ETH_HLEN);
 
@@ -667,17 +665,12 @@ static s32 update_attrib(struct adapter *padapter, _pkt *pkt, struct pkt_attrib 
 		(check_fwstate(pmlmepriv, WIFI_ADHOC_MASTER_STATE) == true)) {
 		memcpy(pattrib->ra, pattrib->dst, ETH_ALEN);
 		memcpy(pattrib->ta, pattrib->src, ETH_ALEN);
-		DBG_COUNTER(padapter->tx_logs.core_tx_upd_attrib_adhoc);
 	} else if (check_fwstate(pmlmepriv, WIFI_STATION_STATE)) {
 		memcpy(pattrib->ra, get_bssid(pmlmepriv), ETH_ALEN);
 		memcpy(pattrib->ta, pattrib->src, ETH_ALEN);
-		DBG_COUNTER(padapter->tx_logs.core_tx_upd_attrib_sta);
 	} else if (check_fwstate(pmlmepriv, WIFI_AP_STATE)) {
 		memcpy(pattrib->ra, pattrib->dst, ETH_ALEN);
 		memcpy(pattrib->ta, get_bssid(pmlmepriv), ETH_ALEN);
-		DBG_COUNTER(padapter->tx_logs.core_tx_upd_attrib_ap);
-	} else {
-		DBG_COUNTER(padapter->tx_logs.core_tx_upd_attrib_unknown);
 	}
 
 	pattrib->pktlen = pktfile.pkt_len;
@@ -699,7 +692,6 @@ static s32 update_attrib(struct adapter *padapter, _pkt *pkt, struct pkt_attrib 
 					/*  67 : UDP BOOTP server */
 					RT_TRACE(_module_rtl871x_xmit_c_, _drv_err_, ("======================update_attrib: get DHCP Packet\n"));
 					pattrib->dhcp_pkt = 1;
-					DBG_COUNTER(padapter->tx_logs.core_tx_upd_attrib_dhcp);
 				}
 			}
 		}
@@ -709,10 +701,8 @@ static s32 update_attrib(struct adapter *padapter, _pkt *pkt, struct pkt_attrib 
 			struct iphdr *piphdr = (struct iphdr *)tmp;
 
 			pattrib->icmp_pkt = 0;
-			if (piphdr->protocol == 0x1) { /*  protocol type in ip header 0x1 is ICMP */
+			if (piphdr->protocol == 0x1) /*  protocol type in ip header 0x1 is ICMP */
 				pattrib->icmp_pkt = 1;
-				DBG_COUNTER(padapter->tx_logs.core_tx_upd_attrib_icmp);
-			}
 		}
 	} else if (0x888e == pattrib->ether_type) {
 		DBG_871X_LEVEL(_drv_always_, "send eapol packet\n");
@@ -724,10 +714,8 @@ static s32 update_attrib(struct adapter *padapter, _pkt *pkt, struct pkt_attrib 
 	/*  If EAPOL , ARP , OR DHCP packet, driver must be in active mode. */
 	if (pattrib->icmp_pkt == 1)
 		rtw_lps_ctrl_wk_cmd(padapter, LPS_CTRL_LEAVE, 1);
-	else if (pattrib->dhcp_pkt == 1) {
-		DBG_COUNTER(padapter->tx_logs.core_tx_upd_attrib_active);
+	else if (pattrib->dhcp_pkt == 1)
 		rtw_lps_ctrl_wk_cmd(padapter, LPS_CTRL_SPECIAL_PACKET, 1);
-	}
 
 	bmcast = IS_MCAST(pattrib->ra);
 
@@ -737,7 +725,6 @@ static s32 update_attrib(struct adapter *padapter, _pkt *pkt, struct pkt_attrib 
 	} else {
 		psta = rtw_get_stainfo(pstapriv, pattrib->ra);
 		if (!psta)	{ /*  if we cannot get psta => drop the pkt */
-			DBG_COUNTER(padapter->tx_logs.core_tx_upd_attrib_err_ucast_sta);
 			RT_TRACE(_module_rtl871x_xmit_c_, _drv_alert_, ("\nupdate_attrib => get sta_info fail, ra:%pM\n", MAC_ARG(pattrib->ra)));
 			#ifdef DBG_TX_DROP_FRAME
 			DBG_871X("DBG_TX_DROP_FRAME %s get sta_info fail, ra:%pM\n", __func__, MAC_ARG(pattrib->ra));
@@ -745,7 +732,6 @@ static s32 update_attrib(struct adapter *padapter, _pkt *pkt, struct pkt_attrib 
 			res = _FAIL;
 			goto exit;
 		} else if ((check_fwstate(pmlmepriv, WIFI_AP_STATE) == true) && (!(psta->state & _FW_LINKED))) {
-			DBG_COUNTER(padapter->tx_logs.core_tx_upd_attrib_err_ucast_ap_link);
 			res = _FAIL;
 			goto exit;
 		}
@@ -753,7 +739,6 @@ static s32 update_attrib(struct adapter *padapter, _pkt *pkt, struct pkt_attrib 
 
 	if (!psta) {
 		/*  if we cannot get psta => drop the pkt */
-		DBG_COUNTER(padapter->tx_logs.core_tx_upd_attrib_err_sta);
 		RT_TRACE(_module_rtl871x_xmit_c_, _drv_alert_, ("\nupdate_attrib => get sta_info fail, ra:%pM\n", MAC_ARG(pattrib->ra)));
 		#ifdef DBG_TX_DROP_FRAME
 		DBG_871X("DBG_TX_DROP_FRAME %s get sta_info fail, ra:%pM\n", __func__, MAC_ARG(pattrib->ra));
@@ -763,14 +748,12 @@ static s32 update_attrib(struct adapter *padapter, _pkt *pkt, struct pkt_attrib 
 	}
 
 	if (!(psta->state & _FW_LINKED)) {
-		DBG_COUNTER(padapter->tx_logs.core_tx_upd_attrib_err_link);
 		DBG_871X("%s, psta(%pM)->state(0x%x) != _FW_LINKED\n", __func__, MAC_ARG(psta->hwaddr), psta->state);
 		return _FAIL;
 	}
 
 	/* TODO:_lock */
 	if (update_attrib_sec_info(padapter, pattrib, psta) == _FAIL) {
-		DBG_COUNTER(padapter->tx_logs.core_tx_upd_attrib_err_sec);
 		res = _FAIL;
 		goto exit;
 	}
@@ -1892,7 +1875,6 @@ void rtw_free_xmitframe_queue(struct xmit_priv *pxmitpriv, struct __queue *pfram
 
 s32 rtw_xmitframe_enqueue(struct adapter *padapter, struct xmit_frame *pxmitframe)
 {
-	DBG_COUNTER(padapter->tx_logs.core_tx_enqueue);
 	if (rtw_xmit_classifier(padapter, pxmitframe) == _FAIL) {
 		RT_TRACE(_module_rtl871x_xmit_c_, _drv_err_,
 			 ("rtw_xmitframe_enqueue: drop xmit pkt for classifier fail\n"));
@@ -1953,17 +1935,13 @@ s32 rtw_xmit_classifier(struct adapter *padapter, struct xmit_frame *pxmitframe)
 	struct hw_xmit	*phwxmits =  padapter->xmitpriv.hwxmits;
 	sint res = _SUCCESS;
 
-	DBG_COUNTER(padapter->tx_logs.core_tx_enqueue_class);
-
 	psta = rtw_get_stainfo(&padapter->stapriv, pattrib->ra);
 	if (pattrib->psta != psta) {
-		DBG_COUNTER(padapter->tx_logs.core_tx_enqueue_class_err_sta);
 		DBG_871X("%s, pattrib->psta(%p) != psta(%p)\n", __func__, pattrib->psta, psta);
 		return _FAIL;
 	}
 
 	if (!psta) {
-		DBG_COUNTER(padapter->tx_logs.core_tx_enqueue_class_err_nosta);
 		res = _FAIL;
 		DBG_8192C("rtw_xmit_classifier: psta == NULL\n");
 		RT_TRACE(_module_rtl871x_xmit_c_, _drv_err_, ("rtw_xmit_classifier: psta == NULL\n"));
@@ -1971,7 +1949,6 @@ s32 rtw_xmit_classifier(struct adapter *padapter, struct xmit_frame *pxmitframe)
 	}
 
 	if (!(psta->state & _FW_LINKED)) {
-		DBG_COUNTER(padapter->tx_logs.core_tx_enqueue_class_err_fwlink);
 		DBG_871X("%s, psta->state(0x%x) != _FW_LINKED\n", __func__, psta->state);
 		return _FAIL;
 	}
@@ -2110,8 +2087,6 @@ s32 rtw_xmit(struct adapter *padapter, _pkt **ppkt)
 
 	s32 res;
 
-	DBG_COUNTER(padapter->tx_logs.core_tx);
-
 	if (start == 0)
 		start = jiffies;
 
@@ -2127,7 +2102,6 @@ s32 rtw_xmit(struct adapter *padapter, _pkt **ppkt)
 	if (!pxmitframe) {
 		drop_cnt++;
 		RT_TRACE(_module_xmit_osdep_c_, _drv_err_, ("%s: no more pxmitframe\n", __func__));
-		DBG_COUNTER(padapter->tx_logs.core_tx_err_pxmitframe);
 		return -1;
 	}
 
@@ -2148,7 +2122,6 @@ s32 rtw_xmit(struct adapter *padapter, _pkt **ppkt)
 	spin_lock_bh(&pxmitpriv->lock);
 	if (xmitframe_enqueue_for_sleeping_sta(padapter, pxmitframe) == true) {
 		spin_unlock_bh(&pxmitpriv->lock);
-		DBG_COUNTER(padapter->tx_logs.core_tx_ap_enqueue);
 		return 1;
 	}
 	spin_unlock_bh(&pxmitpriv->lock);
@@ -2200,32 +2173,25 @@ sint xmitframe_enqueue_for_sleeping_sta(struct adapter *padapter, struct xmit_fr
 	sint bmcst = IS_MCAST(pattrib->ra);
 	bool update_tim = false;
 
-	if (check_fwstate(pmlmepriv, WIFI_AP_STATE) == false) {
-		DBG_COUNTER(padapter->tx_logs.core_tx_ap_enqueue_warn_fwstate);
+	if (check_fwstate(pmlmepriv, WIFI_AP_STATE) == false)
 		return ret;
-	}
 	psta = rtw_get_stainfo(&padapter->stapriv, pattrib->ra);
 	if (pattrib->psta != psta) {
-		DBG_COUNTER(padapter->tx_logs.core_tx_ap_enqueue_warn_sta);
 		DBG_871X("%s, pattrib->psta(%p) != psta(%p)\n", __func__, pattrib->psta, psta);
 		return false;
 	}
 
 	if (!psta) {
-		DBG_COUNTER(padapter->tx_logs.core_tx_ap_enqueue_warn_nosta);
 		DBG_871X("%s, psta ==NUL\n", __func__);
 		return false;
 	}
 
 	if (!(psta->state & _FW_LINKED)) {
-		DBG_COUNTER(padapter->tx_logs.core_tx_ap_enqueue_warn_link);
 		DBG_871X("%s, psta->state(0x%x) != _FW_LINKED\n", __func__, psta->state);
 		return false;
 	}
 
 	if (pattrib->triggered == 1) {
-		DBG_COUNTER(padapter->tx_logs.core_tx_ap_enqueue_warn_trigger);
-
 		if (bmcst && xmitframe_hiq_filter(pxmitframe))
 			pattrib->qsel = 0x11;/* HIQ */
 
@@ -2256,8 +2222,6 @@ sint xmitframe_enqueue_for_sleeping_sta(struct adapter *padapter, struct xmit_fr
 				chk_bmc_sleepq_cmd(padapter);
 
 			ret = true;
-
-			DBG_COUNTER(padapter->tx_logs.core_tx_ap_enqueue_mcast);
 		}
 
 		spin_unlock_bh(&psta->sleep_q.lock);
@@ -2312,8 +2276,6 @@ sint xmitframe_enqueue_for_sleeping_sta(struct adapter *padapter, struct xmit_fr
 			}
 
 			ret = true;
-
-			DBG_COUNTER(padapter->tx_logs.core_tx_ap_enqueue_ucast);
 		}
 	}
 
