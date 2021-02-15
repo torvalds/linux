@@ -1100,7 +1100,7 @@ EXPORT_SYMBOL_GPL(__pm_runtime_resume);
  * suspending the device when both its runtime PM status is %RPM_ACTIVE and its
  * runtime PM usage counter is not zero.
  *
- * The caller is resposible for decrementing the runtime PM usage counter of
+ * The caller is responsible for decrementing the runtime PM usage counter of
  * @dev after this function has returned a positive value for it.
  */
 int pm_runtime_get_if_active(struct device *dev, bool ign_usage_count)
