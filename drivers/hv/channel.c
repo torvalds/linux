@@ -597,15 +597,12 @@ static int __vmbus_open(struct vmbus_channel *newchannel,
 	newchannel->onchannel_callback = onchannelcallback;
 	newchannel->channel_callback_context = context;
 
-	if (!newchannel->max_pkt_size)
-		newchannel->max_pkt_size = VMBUS_DEFAULT_MAX_PKT_SIZE;
-
-	err = hv_ringbuffer_init(&newchannel->outbound, page, send_pages, 0);
+	err = hv_ringbuffer_init(&newchannel->outbound, page, send_pages);
 	if (err)
 		goto error_clean_ring;
 
-	err = hv_ringbuffer_init(&newchannel->inbound, &page[send_pages],
-				 recv_pages, newchannel->max_pkt_size);
+	err = hv_ringbuffer_init(&newchannel->inbound,
+				 &page[send_pages], recv_pages);
 	if (err)
 		goto error_clean_ring;
 
