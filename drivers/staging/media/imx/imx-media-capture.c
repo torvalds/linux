@@ -723,27 +723,13 @@ int imx_media_capture_device_register(struct imx_media_video_dev *vdev)
 
 	vfd->v4l2_dev = v4l2_dev;
 
-	ret = video_register_device(vfd, VFL_TYPE_VIDEO, -1);
-	if (ret) {
-		dev_err(priv->dev, "Failed to register video device\n");
-		return ret;
-	}
-
-	/* create the link from the src_sd devnode pad to device node */
-	ret = media_create_pad_link(&sd->entity, priv->src_sd_pad,
-				    &vfd->entity, 0, 0);
-	if (ret) {
-		dev_err(priv->dev, "failed to create link to device node\n");
-		goto unreg;
-	}
-
 	/* setup default format */
 	fmt_src.pad = priv->src_sd_pad;
 	fmt_src.which = V4L2_SUBDEV_FORMAT_ACTIVE;
 	ret = v4l2_subdev_call(sd, pad, get_fmt, NULL, &fmt_src);
 	if (ret) {
 		dev_err(priv->dev, "failed to get src_sd format\n");
-		goto unreg;
+		return ret;
 	}
 
 	vdev->fmt.type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
@@ -754,16 +740,29 @@ int imx_media_capture_device_register(struct imx_media_video_dev *vdev)
 	vdev->cc = imx_media_find_pixel_format(vdev->fmt.fmt.pix.pixelformat,
 					       PIXFMT_SEL_ANY);
 
+	/* Register the video device. */
+	ret = video_register_device(vfd, VFL_TYPE_VIDEO, -1);
+	if (ret) {
+		dev_err(priv->dev, "Failed to register video device\n");
+		return ret;
+	}
+
 	dev_info(priv->dev, "Registered %s as /dev/%s\n", vfd->name,
 		 video_device_node_name(vfd));
 
-	/* add vdev to the video device list */
+	/* Create the link from the src_sd devnode pad to device node. */
+	ret = media_create_pad_link(&sd->entity, priv->src_sd_pad,
+				    &vfd->entity, 0, 0);
+	if (ret) {
+		dev_err(priv->dev, "failed to create link to device node\n");
+		video_unregister_device(vfd);
+		return ret;
+	}
+
+	/* Add vdev to the video devices list. */
 	imx_media_add_video_device(priv->md, vdev);
 
 	return 0;
-unreg:
-	video_unregister_device(vfd);
-	return ret;
 }
 EXPORT_SYMBOL_GPL(imx_media_capture_device_register);
 
