@@ -74,7 +74,7 @@ static int vidioc_querycap(struct file *file, void *fh,
 	strscpy(cap->driver, IMX_CAPTURE_NAME, sizeof(cap->driver));
 	strscpy(cap->card, IMX_CAPTURE_NAME, sizeof(cap->card));
 	snprintf(cap->bus_info, sizeof(cap->bus_info),
-		 "platform:%s", priv->src_sd->name);
+		 "platform:%s", dev_name(priv->dev));
 
 	return 0;
 }
