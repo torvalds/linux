@@ -71,7 +71,7 @@ kernel module following the interface in include/linux/iio/sw_trigger.h::
 	.ops = &iio_trig_sample_ops,
   };
 
-module_iio_sw_trigger_driver(iio_trig_sample);
+  module_iio_sw_trigger_driver(iio_trig_sample);
 
 Each trigger type has its own directory under /config/iio/triggers. Loading
 iio-trig-sample module will create 'trig-sample' trigger type directory
