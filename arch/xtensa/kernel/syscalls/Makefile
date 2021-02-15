@@ -5,7 +5,7 @@ uapi := arch/$(SRCARCH)/include/generated/uapi/asm
 _dummy := $(shell [ -d '$(uapi)' ] || mkdir -p '$(uapi)')	\
 	  $(shell [ -d '$(kapi)' ] || mkdir -p '$(kapi)')
 
-syscall := $(srctree)/$(src)/syscall.tbl
+syscall := $(src)/syscall.tbl
 syshdr := $(srctree)/$(src)/syscallhdr.sh
 systbl := $(srctree)/$(src)/syscalltbl.sh
 

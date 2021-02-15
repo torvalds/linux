@@ -6,8 +6,8 @@ uapi := arch/$(SRCARCH)/include/generated/uapi/asm
 _dummy := $(shell [ -d '$(out)' ] || mkdir -p '$(out)') \
 	  $(shell [ -d '$(uapi)' ] || mkdir -p '$(uapi)')
 
-syscall32 := $(srctree)/$(src)/syscall_32.tbl
-syscall64 := $(srctree)/$(src)/syscall_64.tbl
+syscall32 := $(src)/syscall_32.tbl
+syscall64 := $(src)/syscall_64.tbl
 
 syshdr := $(srctree)/$(src)/syscallhdr.sh
 systbl := $(srctree)/$(src)/syscalltbl.sh
