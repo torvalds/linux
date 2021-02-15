@@ -2013,6 +2013,11 @@ struct rt5670_priv {
 	int dsp_rate;
 	int jack_type;
 	int jack_type_saved;
+
+	bool dac1_mixl_dac1_switch;
+	bool dac1_mixr_dac1_switch;
+	bool dac1_playback_switch_l;
+	bool dac1_playback_switch_r;
 };
 
 void rt5670_jack_suspend(struct snd_soc_component *component);
