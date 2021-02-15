@@ -152,6 +152,41 @@
 		{ TPS_POWER_STATUS_BC12_STATUS_CDP, "cdp" }, \
 		{ TPS_POWER_STATUS_BC12_STATUS_SDP, "sdp" })
 
+#define TPS_DATA_STATUS_FLAGS_MASK (GENMASK(31, 0) ^ (TPS_DATA_STATUS_DP_PIN_ASSIGNMENT_MASK | \
+						      TPS_DATA_STATUS_TBT_CABLE_SPEED_MASK | \
+						      TPS_DATA_STATUS_TBT_CABLE_GEN_MASK))
+
+#define show_data_status_flags(data_status) \
+	__print_flags(data_status & TPS_DATA_STATUS_FLAGS_MASK, "|", \
+		{ TPS_DATA_STATUS_DATA_CONNECTION,	"DATA_CONNECTION" }, \
+		{ TPS_DATA_STATUS_UPSIDE_DOWN,		"DATA_UPSIDE_DOWN" }, \
+		{ TPS_DATA_STATUS_ACTIVE_CABLE,		"ACTIVE_CABLE" }, \
+		{ TPS_DATA_STATUS_USB2_CONNECTION,	"USB2_CONNECTION" }, \
+		{ TPS_DATA_STATUS_USB3_CONNECTION,	"USB3_CONNECTION" }, \
+		{ TPS_DATA_STATUS_USB3_GEN2,		"USB3_GEN2" }, \
+		{ TPS_DATA_STATUS_USB_DATA_ROLE,	"USB_DATA_ROLE" }, \
+		{ TPS_DATA_STATUS_DP_CONNECTION,	"DP_CONNECTION" }, \
+		{ TPS_DATA_STATUS_DP_SINK,		"DP_SINK" }, \
+		{ TPS_DATA_STATUS_TBT_CONNECTION,	"TBT_CONNECTION" }, \
+		{ TPS_DATA_STATUS_TBT_TYPE,		"TBT_TYPE" }, \
+		{ TPS_DATA_STATUS_OPTICAL_CABLE,	"OPTICAL_CABLE" }, \
+		{ TPS_DATA_STATUS_ACTIVE_LINK_TRAIN,	"ACTIVE_LINK_TRAIN" }, \
+		{ TPS_DATA_STATUS_FORCE_LSX,		"FORCE_LSX" }, \
+		{ TPS_DATA_STATUS_POWER_MISMATCH,	"POWER_MISMATCH" })
+
+#define show_data_status_dp_pin_assignment(data_status) \
+	__print_symbolic(TPS_DATA_STATUS_DP_SPEC_PIN_ASSIGNMENT(data_status), \
+		{ TPS_DATA_STATUS_DP_SPEC_PIN_ASSIGNMENT_E, "E" }, \
+		{ TPS_DATA_STATUS_DP_SPEC_PIN_ASSIGNMENT_F, "F" }, \
+		{ TPS_DATA_STATUS_DP_SPEC_PIN_ASSIGNMENT_C, "C" }, \
+		{ TPS_DATA_STATUS_DP_SPEC_PIN_ASSIGNMENT_D, "D" }, \
+		{ TPS_DATA_STATUS_DP_SPEC_PIN_ASSIGNMENT_A, "A" }, \
+		{ TPS_DATA_STATUS_DP_SPEC_PIN_ASSIGNMENT_B, "B" })
+
+#define maybe_show_data_status_dp_pin_assignment(data_status) \
+	(data_status & TPS_DATA_STATUS_DP_CONNECTION ? \
+	 show_data_status_dp_pin_assignment(data_status) : "")
+
 TRACE_EVENT(tps6598x_irq,
 	    TP_PROTO(u64 event1,
 		     u64 event2),
@@ -216,6 +251,25 @@ TRACE_EVENT(tps6598x_power_status,
 		      show_power_status_source_sink(__entry->power_status),
 		      show_power_status_typec_status(__entry->power_status),
 		      show_power_status_bc12_status(__entry->power_status)
+		    )
+);
+
+TRACE_EVENT(tps6598x_data_status,
+	    TP_PROTO(u32 data_status),
+	    TP_ARGS(data_status),
+
+	    TP_STRUCT__entry(
+			     __field(u32, data_status)
+			     ),
+
+	    TP_fast_assign(
+			   __entry->data_status = data_status;
+			   ),
+
+	    TP_printk("%s%s%s",
+		      show_data_status_flags(__entry->data_status),
+		      __entry->data_status & TPS_DATA_STATUS_DP_CONNECTION ? ", DP pinout " : "",
+		      maybe_show_data_status_dp_pin_assignment(__entry->data_status)
 		    )
 );
 

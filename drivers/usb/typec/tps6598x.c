@@ -36,6 +36,7 @@
 #define TPS_REG_CTRL_CONF		0x29
 #define TPS_REG_POWER_STATUS		0x3f
 #define TPS_REG_RX_IDENTITY_SOP		0x48
+#define TPS_REG_DATA_STATUS		0x5f
 
 /* TPS_REG_SYSTEM_CONF bits */
 #define TPS_SYSCONF_PORTINFO(c)		((c) & 7)
@@ -408,7 +409,7 @@ static irqreturn_t tps6598x_interrupt(int irq, void *data)
 	struct tps6598x *tps = data;
 	u64 event1;
 	u64 event2;
-	u32 status;
+	u32 status, data_status;
 	u16 pwr_status;
 	int ret;
 
@@ -436,6 +437,15 @@ static irqreturn_t tps6598x_interrupt(int irq, void *data)
 			goto err_clear_ints;
 		}
 		trace_tps6598x_power_status(pwr_status);
+	}
+
+	if ((event1 | event2) & TPS_REG_INT_DATA_STATUS_UPDATE) {
+		ret = tps6598x_read32(tps, TPS_REG_DATA_STATUS, &data_status);
+		if (ret < 0) {
+			dev_err(tps->dev, "failed to read data status: %d\n", ret);
+			goto err_clear_ints;
+		}
+		trace_tps6598x_data_status(data_status);
 	}
 
 	/* Handle plug insert or removal */
