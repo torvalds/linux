@@ -496,7 +496,13 @@ static void imx7_csi_configure(struct imx7_csi *csi)
 		case V4L2_PIX_FMT_Y10:
 		case V4L2_PIX_FMT_Y12:
 		case V4L2_PIX_FMT_SBGGR8:
+		case V4L2_PIX_FMT_SGBRG8:
+		case V4L2_PIX_FMT_SGRBG8:
+		case V4L2_PIX_FMT_SRGGB8:
 		case V4L2_PIX_FMT_SBGGR16:
+		case V4L2_PIX_FMT_SGBRG16:
+		case V4L2_PIX_FMT_SGRBG16:
+		case V4L2_PIX_FMT_SRGGB16:
 			cr1 |= BIT_PIXEL_BIT;
 			break;
 		}
@@ -975,7 +981,13 @@ static int imx7_csi_pad_link_validate(struct v4l2_subdev *sd,
 	case V4L2_PIX_FMT_Y10:
 	case V4L2_PIX_FMT_Y12:
 	case V4L2_PIX_FMT_SBGGR8:
+	case V4L2_PIX_FMT_SGBRG8:
+	case V4L2_PIX_FMT_SGRBG8:
+	case V4L2_PIX_FMT_SRGGB8:
 	case V4L2_PIX_FMT_SBGGR16:
+	case V4L2_PIX_FMT_SGBRG16:
+	case V4L2_PIX_FMT_SGRBG16:
+	case V4L2_PIX_FMT_SRGGB16:
 		break;
 
 	default:
