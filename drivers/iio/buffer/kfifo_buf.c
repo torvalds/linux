@@ -186,7 +186,7 @@ static void devm_iio_kfifo_release(struct device *dev, void *res)
  * RETURNS:
  * Pointer to allocated iio_buffer on success, NULL on failure.
  */
-struct iio_buffer *devm_iio_kfifo_allocate(struct device *dev)
+static struct iio_buffer *devm_iio_kfifo_allocate(struct device *dev)
 {
 	struct iio_buffer **ptr, *r;
 
@@ -204,7 +204,6 @@ struct iio_buffer *devm_iio_kfifo_allocate(struct device *dev)
 
 	return r;
 }
-EXPORT_SYMBOL(devm_iio_kfifo_allocate);
 
 /**
  * devm_iio_kfifo_buffer_setup - Allocate a kfifo buffer & attach it to an IIO device

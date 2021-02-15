@@ -10,8 +10,6 @@ struct device;
 struct iio_buffer *iio_kfifo_allocate(void);
 void iio_kfifo_free(struct iio_buffer *r);
 
-struct iio_buffer *devm_iio_kfifo_allocate(struct device *dev);
-
 int devm_iio_kfifo_buffer_setup(struct device *dev,
 				struct iio_dev *indio_dev,
 				int mode_flags,
