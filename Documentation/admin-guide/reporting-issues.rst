@@ -154,8 +154,8 @@ After these preparations you'll now enter the main part:
    that hear about it for the first time. And if you learned something in this
    process, consider searching again for existing reports about the issue.
 
- * If the failure includes a stack dump, like an Oops does, consider decoding
-   it to find the offending line of code.
+ * If your failure involves a 'panic', 'Oops', 'warning', or 'BUG', consider
+   decoding the kernel log to find the line of code that triggered the error.
 
  * If your problem is a regression, try to narrow down when the issue was
    introduced as much as possible.
@@ -869,6 +869,19 @@ pick up the configuration of your current kernel and then tries to adjust it
 somewhat for your system. That does not make the resulting kernel any better,
 but quicker to compile.
 
+Note: If you are dealing with a panic, Oops, warning, or BUG from the kernel,
+please try to enable CONFIG_KALLSYMS when configuring your kernel.
+Additionally, enable CONFIG_DEBUG_KERNEL and CONFIG_DEBUG_INFO, too; the
+latter is the relevant one of those two, but can only be reached if you enable
+the former. Be aware CONFIG_DEBUG_INFO increases the storage space required to
+build a kernel by quite a bit. But that's worth it, as these options will allow
+you later to pinpoint the exact line of code that triggers your issue. The
+section 'Decode failure messages' below explains this in more detail.
+
+But keep in mind: Always keep a record of the issue encountered in case it is
+hard to reproduce. Sending an undecoded report is better than not reporting
+the issue at all.
+
 
 Check 'taint' flag
 ------------------
@@ -923,31 +936,55 @@ instead you can join.
 Decode failure messages
 -----------------------
 
-.. note::
+    *If your failure involves a 'panic', 'Oops', 'warning', or 'BUG', consider
+    decoding the kernel log to find the line of code that triggered the error.*
 
-   FIXME: The text in this section is a placeholder for now and quite similar to
-   the old text found in 'Documentation/admin-guide/reporting-bugs.rst'
-   currently. It and the document it references are known to be outdated and
-   thus need to be revisited. Thus consider this note a request for help: if you
-   are familiar with this topic, please write a few lines that would fit here.
-   Alternatively, simply outline the current situation roughly to the main
-   authors of this document (see intro), as they might be able to write
-   something then.
+When the kernel detects an internal problem, it will log some information about
+the executed code. This makes it possible to pinpoint the exact line in the
+source code that triggered the issue and shows how it was called. But that only
+works if you enabled CONFIG_DEBUG_INFO and CONFIG_KALLSYMS when configuring
+your kernel. If you did so, consider to decode the information from the
+kernel's log. That will make it a lot easier to understand what lead to the
+'panic', 'Oops', 'warning', or 'BUG', which increases the chances that someone
+can provide a fix.
 
-   This section in the end should answer questions like "when is this actually
-   needed", "what .config options to ideally set earlier to make this step easy
-   or unnecessary?" (likely CONFIG_UNWINDER_ORC when it's available, otherwise
-   CONFIG_UNWINDER_FRAME_POINTER; but is there anything else needed?).
+Decoding can be done with a script you find in the Linux source tree. If you
+are running a kernel you compiled yourself earlier, call it like this::
 
-..
+       [user@something ~]$ sudo dmesg | ./linux-5.10.5/scripts/decode_stacktrace.sh ./linux-5.10.5/vmlinux
 
-    *If the failure includes a stack dump, like an Oops does, consider decoding
-    it to find the offending line of code.*
+If you are running a packaged vanilla kernel, you will likely have to install
+the corresponding packages with debug symbols. Then call the script (which you
+might need to get from the Linux sources if your distro does not package it)
+like this::
 
-When the kernel detects an error, it will print a stack dump that allows to
-identify the exact line of code where the issue happens. But that information
-sometimes needs to get decoded to be readable, which is explained in
-admin-guide/bug-hunting.rst.
+       [user@something ~]$ sudo dmesg | ./linux-5.10.5/scripts/decode_stacktrace.sh \
+        /usr/lib/debug/lib/modules/5.10.10-4.1.x86_64/vmlinux /usr/src/kernels/5.10.10-4.1.x86_64/
+
+The script will work on log lines like the following, which show the address of
+the code the kernel was executing when the error occurred::
+
+       [   68.387301] RIP: 0010:test_module_init+0x5/0xffa [test_module]
+
+Once decoded, these lines will look like this::
+
+       [   68.387301] RIP: 0010:test_module_init (/home/username/linux-5.10.5/test-module/test-module.c:16) test_module
+
+In this case the executed code was built from the file
+'~/linux-5.10.5/test-module/test-module.c' and the error occurred by the
+instructions found in line '16'.
+
+The script will similarly decode the addresses mentioned in the section
+starting with 'Call trace', which show the path to the function where the
+problem occurred. Additionally, the script will show the assembler output for
+the code section the kernel was executing.
+
+Note, if you can't get this to work, simply skip this step and mention the
+reason for it in the report. If you're lucky, it might not be needed. And if it
+is, someone might help you to get things going. Also be aware this is just one
+of several ways to decode kernel stack traces. Sometimes different steps will
+be required to retrieve the relevant details. Don't worry about that, if that's
+needed in your case, developers will tell you what to do.
 
 
 Special care for regressions
