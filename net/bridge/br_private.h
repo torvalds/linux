@@ -1265,7 +1265,8 @@ static inline u16 br_get_pvid(const struct net_bridge_vlan_group *vg)
 }
 
 static inline int br_vlan_filter_toggle(struct net_bridge *br,
-					unsigned long val)
+					unsigned long val,
+					struct netlink_ext_ack *extack)
 {
 	return -EOPNOTSUPP;
 }
