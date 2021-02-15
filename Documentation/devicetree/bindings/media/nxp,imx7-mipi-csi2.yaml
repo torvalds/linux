@@ -49,11 +49,6 @@ properties:
       The IP main (system bus) clock frequency in Hertz
     default: 166000000
 
-  fsl,csis-hs-settle:
-    $ref: /schemas/types.yaml#/definitions/uint32
-    description:
-      Differential receiver (HS-RX) settle time
-
   ports:
     $ref: /schemas/graph.yaml#/properties/ports
 
@@ -120,7 +115,6 @@ examples:
             power-domains = <&pgc_mipi_phy>;
             phy-supply = <&reg_1p0d>;
             resets = <&src IMX7_RESET_MIPI_PHY_MRST>;
-            fsl,csis-hs-settle = <3>;
 
             ports {
                     #address-cells = <1>;
