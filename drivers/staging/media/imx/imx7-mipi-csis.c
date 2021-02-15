@@ -831,25 +831,25 @@ static int mipi_csis_set_fmt(struct v4l2_subdev *mipi_sd,
 	 */
 	switch (csis_fmt->width % 8) {
 	case 0:
-		align = 1;
+		align = 0;
 		break;
 	case 4:
-		align = 2;
+		align = 1;
 		break;
 	case 2:
 	case 6:
-		align = 4;
+		align = 2;
 		break;
 	case 1:
 	case 3:
 	case 5:
 	case 7:
-		align = 8;
+		align = 3;
 		break;
 	}
 
 	v4l_bound_align_image(&fmt->width, 1, CSIS_MAX_PIX_WIDTH, align,
-			      &fmt->height, 1, CSIS_MAX_PIX_HEIGHT, 1, 0);
+			      &fmt->height, 1, CSIS_MAX_PIX_HEIGHT, 0, 0);
 
 	sdformat->format = *fmt;
 
