@@ -206,4 +206,43 @@ struct iio_buffer *devm_iio_kfifo_allocate(struct device *dev)
 }
 EXPORT_SYMBOL(devm_iio_kfifo_allocate);
 
+/**
+ * devm_iio_kfifo_buffer_setup - Allocate a kfifo buffer & attach it to an IIO device
+ * @dev: Device object to which to attach the life-time of this kfifo buffer
+ * @indio_dev: The device the buffer should be attached to
+ * @mode_flags: The mode flags for this buffer (INDIO_BUFFER_SOFTWARE and/or
+ *		INDIO_BUFFER_TRIGGERED).
+ * @setup_ops: The setup_ops required to configure the HW part of the buffer (optional)
+ *
+ * This function allocates a kfifo buffer via devm_iio_kfifo_allocate() and
+ * attaches it to the IIO device via iio_device_attach_buffer().
+ * This is meant to be a bit of a short-hand/helper function as there are a few
+ * drivers that seem to do this.
+ */
+int devm_iio_kfifo_buffer_setup(struct device *dev,
+				struct iio_dev *indio_dev,
+				int mode_flags,
+				const struct iio_buffer_setup_ops *setup_ops)
+{
+	struct iio_buffer *buffer;
+
+	if (mode_flags)
+		mode_flags &= kfifo_access_funcs.modes;
+
+	if (!mode_flags)
+		return -EINVAL;
+
+	buffer = devm_iio_kfifo_allocate(dev);
+	if (!buffer)
+		return -ENOMEM;
+
+	iio_device_attach_buffer(indio_dev, buffer);
+
+	indio_dev->modes |= mode_flags;
+	indio_dev->setup_ops = setup_ops;
+
+	return 0;
+}
+EXPORT_SYMBOL_GPL(devm_iio_kfifo_buffer_setup);
+
 MODULE_LICENSE("GPL");
