@@ -18,7 +18,6 @@
 #include <linux/regmap.h>
 #include <linux/types.h>
 
-#include <media/v4l2-ctrls.h>
 #include <media/v4l2-device.h>
 #include <media/v4l2-event.h>
 #include <media/v4l2-fwnode.h>
@@ -172,8 +171,6 @@ struct imx7_csi {
 	struct v4l2_mbus_framefmt format_mbus[IMX7_CSI_PADS_NUM];
 	const struct imx_media_pixfmt *cc[IMX7_CSI_PADS_NUM];
 	struct v4l2_fract frame_interval[IMX7_CSI_PADS_NUM];
-
-	struct v4l2_ctrl_handler ctrl_hdlr;
 
 	void __iomem *regbase;
 	int irq;
@@ -476,8 +473,6 @@ static int imx7_csi_link_setup(struct media_entity *entity,
 		}
 		csi->sink = remote->entity;
 	} else {
-		v4l2_ctrl_handler_free(&csi->ctrl_hdlr);
-		v4l2_ctrl_handler_init(&csi->ctrl_hdlr, 0);
 		csi->sink = NULL;
 	}
 
@@ -1289,9 +1284,6 @@ static int imx7_csi_probe(struct platform_device *pdev)
 	csi->sd.grp_id = IMX_MEDIA_GRP_ID_CSI;
 	snprintf(csi->sd.name, sizeof(csi->sd.name), "csi");
 
-	v4l2_ctrl_handler_init(&csi->ctrl_hdlr, 0);
-	csi->sd.ctrl_handler = &csi->ctrl_hdlr;
-
 	for (i = 0; i < IMX7_CSI_PADS_NUM; i++)
 		csi->pad[i].flags = (i == IMX7_CSI_PAD_SINK) ?
 			MEDIA_PAD_FL_SINK : MEDIA_PAD_FL_SOURCE;
@@ -1299,7 +1291,7 @@ static int imx7_csi_probe(struct platform_device *pdev)
 	ret = media_entity_pads_init(&csi->sd.entity, IMX7_CSI_PADS_NUM,
 				     csi->pad);
 	if (ret < 0)
-		goto free;
+		goto cleanup;
 
 	ret = imx7_csi_async_register(csi);
 	if (ret)
@@ -1310,9 +1302,6 @@ static int imx7_csi_probe(struct platform_device *pdev)
 subdev_notifier_cleanup:
 	v4l2_async_notifier_unregister(&csi->notifier);
 	v4l2_async_notifier_cleanup(&csi->notifier);
-
-free:
-	v4l2_ctrl_handler_free(&csi->ctrl_hdlr);
 
 cleanup:
 	v4l2_async_notifier_unregister(&imxmd->notifier);
@@ -1343,7 +1332,6 @@ static int imx7_csi_remove(struct platform_device *pdev)
 	v4l2_async_notifier_unregister(&csi->notifier);
 	v4l2_async_notifier_cleanup(&csi->notifier);
 	v4l2_async_unregister_subdev(sd);
-	v4l2_ctrl_handler_free(&csi->ctrl_hdlr);
 
 	mutex_destroy(&csi->lock);
 
