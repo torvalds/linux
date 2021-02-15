@@ -577,15 +577,23 @@ static int imx7_csi_init(struct imx7_csi *csi)
 	ret = clk_prepare_enable(csi->mclk);
 	if (ret < 0)
 		return ret;
+
 	imx7_csi_hw_reset(csi);
 	imx7_csi_init_interface(csi);
 	imx7_csi_dmareq_rff_enable(csi);
+
+	ret = imx7_csi_dma_setup(csi);
+	if (ret < 0)
+		return ret;
+
+	imx7_csi_configure(csi);
 
 	return 0;
 }
 
 static void imx7_csi_deinit(struct imx7_csi *csi)
 {
+	imx7_csi_dma_cleanup(csi);
 	imx7_csi_hw_reset(csi);
 	imx7_csi_init_interface(csi);
 	imx7_csi_dmareq_rff_disable(csi);
@@ -612,24 +620,14 @@ static void imx7_csi_disable(struct imx7_csi *csi)
 	imx7_csi_hw_disable(csi);
 }
 
-static int imx7_csi_streaming_start(struct imx7_csi *csi)
+static void imx7_csi_streaming_start(struct imx7_csi *csi)
 {
-	int ret;
-
-	ret = imx7_csi_dma_setup(csi);
-	if (ret < 0)
-		return ret;
-
-	imx7_csi_configure(csi);
 	imx7_csi_enable(csi);
-
-	return 0;
 }
 
 static int imx7_csi_streaming_stop(struct imx7_csi *csi)
 {
 	imx7_csi_dma_stop(csi);
-	imx7_csi_dma_cleanup(csi);
 
 	imx7_csi_disable(csi);
 
@@ -769,12 +767,7 @@ static int imx7_csi_s_stream(struct v4l2_subdev *sd, int enable)
 			goto out_unlock;
 		}
 
-		ret = imx7_csi_streaming_start(csi);
-		if (ret < 0) {
-			v4l2_subdev_call(csi->src_sd, video, s_stream, 0);
-			imx7_csi_deinit(csi);
-			goto out_unlock;
-		}
+		imx7_csi_streaming_start(csi);
 	} else {
 		imx7_csi_streaming_stop(csi);
 
