@@ -334,21 +334,22 @@ int gntdev_map_grant_pages(struct gntdev_grant_map *map)
 	pr_debug("map %d+%d\n", map->index, map->count);
 	err = gnttab_map_refs(map->map_ops, use_ptemod ? map->kmap_ops : NULL,
 			map->pages, map->count);
-	if (err)
-		return err;
 
 	for (i = 0; i < map->count; i++) {
-		if (map->map_ops[i].status) {
+		if (map->map_ops[i].status == GNTST_okay)
+			map->unmap_ops[i].handle = map->map_ops[i].handle;
+		else if (!err)
 			err = -EINVAL;
-			continue;
-		}
 
 		if (map->flags & GNTMAP_device_map)
 			map->unmap_ops[i].dev_bus_addr = map->map_ops[i].dev_bus_addr;
 
-		map->unmap_ops[i].handle = map->map_ops[i].handle;
-		if (use_ptemod)
-			map->kunmap_ops[i].handle = map->kmap_ops[i].handle;
+		if (use_ptemod) {
+			if (map->kmap_ops[i].status == GNTST_okay)
+				map->kunmap_ops[i].handle = map->kmap_ops[i].handle;
+			else if (!err)
+				err = -EINVAL;
+		}
 	}
 	return err;
 }
