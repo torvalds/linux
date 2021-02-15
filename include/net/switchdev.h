@@ -296,7 +296,8 @@ static inline void switchdev_deferred_process(void)
 }
 
 static inline int switchdev_port_attr_set(struct net_device *dev,
-					  const struct switchdev_attr *attr)
+					  const struct switchdev_attr *attr,
+					  struct netlink_ext_ack *extack)
 {
 	return -EOPNOTSUPP;
 }
