@@ -6,6 +6,8 @@
  * Author: Heikki Krogerus <heikki.krogerus@linux.intel.com>
  */
 
+#include "tps6598x.h"
+
 #include <linux/i2c.h>
 #include <linux/acpi.h>
 #include <linux/module.h>
@@ -14,6 +16,9 @@
 #include <linux/interrupt.h>
 #include <linux/usb/typec.h>
 #include <linux/usb/role.h>
+
+#define CREATE_TRACE_POINTS
+#include "tps6598x_trace.h"
 
 /* Register offsets */
 #define TPS_REG_VID			0x00
@@ -31,9 +36,6 @@
 #define TPS_REG_CTRL_CONF		0x29
 #define TPS_REG_POWER_STATUS		0x3f
 #define TPS_REG_RX_IDENTITY_SOP		0x48
-
-/* TPS_REG_INT_* bits */
-#define TPS_REG_INT_PLUG_EVENT		BIT(3)
 
 /* TPS_REG_STATUS bits */
 #define TPS_STATUS_PLUG_PRESENT		BIT(0)
@@ -428,6 +430,7 @@ static irqreturn_t tps6598x_interrupt(int irq, void *data)
 		dev_err(tps->dev, "%s: failed to read events\n", __func__);
 		goto err_unlock;
 	}
+	trace_tps6598x_irq(event1, event2);
 
 	ret = tps6598x_read32(tps, TPS_REG_STATUS, &status);
 	if (ret) {
