@@ -273,9 +273,9 @@ struct csis_pix_format {
 static const struct csis_pix_format mipi_csis_formats[] = {
 	/* YUV formats. */
 	{
-		.code = MEDIA_BUS_FMT_UYVY8_2X8,
+		.code = MEDIA_BUS_FMT_UYVY8_1X16,
 		.fmt_reg = MIPI_CSIS_ISPCFG_FMT_YCBCR422_8BIT,
-		.width = 8,
+		.width = 16,
 	},
 	/* RAW (Bayer and greyscale) formats. */
 	{
@@ -718,7 +718,7 @@ static int mipi_csis_init_cfg(struct v4l2_subdev *mipi_sd,
 	which = cfg ? V4L2_SUBDEV_FORMAT_TRY : V4L2_SUBDEV_FORMAT_ACTIVE;
 	fmt_sink = mipi_csis_get_format(state, cfg, which, CSIS_PAD_SINK);
 
-	fmt_sink->code = MEDIA_BUS_FMT_UYVY8_2X8;
+	fmt_sink->code = MEDIA_BUS_FMT_UYVY8_1X16;
 	fmt_sink->width = MIPI_CSIS_DEF_PIX_WIDTH;
 	fmt_sink->height = MIPI_CSIS_DEF_PIX_HEIGHT;
 	fmt_sink->field = V4L2_FIELD_NONE;
