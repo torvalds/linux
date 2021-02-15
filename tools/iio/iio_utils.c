@@ -82,10 +82,11 @@ int iioutils_break_up_name(const char *full_name, char **generic_name)
  *
  * Returns a value >= 0 on success, otherwise a negative error code.
  **/
-int iioutils_get_type(unsigned *is_signed, unsigned *bytes, unsigned *bits_used,
-		      unsigned *shift, uint64_t *mask, unsigned *be,
-		      const char *device_dir, const char *name,
-		      const char *generic_name)
+static int iioutils_get_type(unsigned int *is_signed, unsigned int *bytes,
+			     unsigned int *bits_used, unsigned int *shift,
+			     uint64_t *mask, unsigned int *be,
+			     const char *device_dir, const char *name,
+			     const char *generic_name)
 {
 	FILE *sysfsfp;
 	int ret;
