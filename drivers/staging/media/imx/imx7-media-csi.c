@@ -240,14 +240,9 @@ static void imx7_csi_hw_enable_irq(struct imx7_csi *csi)
 {
 	u32 cr1 = imx7_csi_reg_read(csi, CSI_CSICR1);
 
-	cr1 |= BIT_SOF_INTEN;
 	cr1 |= BIT_RFF_OR_INT;
-
-	/* still capture needs DMA interrupt */
 	cr1 |= BIT_FB1_DMA_DONE_INTEN;
 	cr1 |= BIT_FB2_DMA_DONE_INTEN;
-
-	cr1 |= BIT_EOF_INT_EN;
 
 	imx7_csi_reg_write(csi, cr1, CSI_CSICR1);
 }
@@ -256,11 +251,9 @@ static void imx7_csi_hw_disable_irq(struct imx7_csi *csi)
 {
 	u32 cr1 = imx7_csi_reg_read(csi, CSI_CSICR1);
 
-	cr1 &= ~BIT_SOF_INTEN;
 	cr1 &= ~BIT_RFF_OR_INT;
 	cr1 &= ~BIT_FB1_DMA_DONE_INTEN;
 	cr1 &= ~BIT_FB2_DMA_DONE_INTEN;
-	cr1 &= ~BIT_EOF_INT_EN;
 
 	imx7_csi_reg_write(csi, cr1, CSI_CSICR1);
 }
@@ -320,17 +313,6 @@ static void imx7_csi_dmareq_rff_disable(struct imx7_csi *csi)
 	cr3 &= ~BIT_DMA_REQ_EN_RFF;
 	cr3 &= ~BIT_HRESP_ERR_EN;
 	imx7_csi_reg_write(csi, cr3, CSI_CSICR3);
-}
-
-static void imx7_csi_sw_reset(struct imx7_csi *csi)
-{
-	imx7_csi_rx_fifo_clear(csi);
-
-	imx7_csi_dma_reflash(csi);
-
-	usleep_range(2000, 3000);
-
-	imx7_csi_irq_clear(csi);
 }
 
 static void imx7_csi_update_buf(struct imx7_csi *csi, dma_addr_t phys,
@@ -559,10 +541,18 @@ static void imx7_csi_deinit(struct imx7_csi *csi)
 
 static void imx7_csi_enable(struct imx7_csi *csi)
 {
-	imx7_csi_sw_reset(csi);
+	/* Clear the Rx FIFO and reflash the DMA controller. */
+	imx7_csi_rx_fifo_clear(csi);
+	imx7_csi_dma_reflash(csi);
 
-	imx7_csi_dmareq_rff_enable(csi);
+	usleep_range(2000, 3000);
+
+	/* Clear and enable the interrupts. */
+	imx7_csi_irq_clear(csi);
 	imx7_csi_hw_enable_irq(csi);
+
+	/* Enable the RxFIFO DMA and the CSI. */
+	imx7_csi_dmareq_rff_enable(csi);
 	imx7_csi_hw_enable(csi);
 }
 
