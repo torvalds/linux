@@ -60,8 +60,6 @@ struct capture_priv {
 /* In bytes, per queue */
 #define VID_MEM_LIMIT	SZ_64M
 
-static const struct vb2_ops capture_qops;
-
 /*
  * Video ioctls follow
  */
