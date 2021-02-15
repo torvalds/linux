@@ -675,46 +675,6 @@ walt_select_task_rq_fair(void *unused, struct task_struct *p, int prev_cpu,
 		*target_cpu = prev_cpu;
 }
 
-#ifdef CONFIG_FAIR_GROUP_SCHED
-static unsigned long task_h_load(struct task_struct *p)
-{
-	struct cfs_rq *cfs_rq = task_cfs_rq(p);
-
-	update_cfs_rq_h_load(cfs_rq);
-	return div64_ul(p->se.avg.load_avg * cfs_rq->h_load,
-			cfs_rq_load_avg(cfs_rq) + 1);
-}
-#else
-static unsigned long task_h_load(struct task_struct *p)
-{
-	return p->se.avg.load_avg;
-}
-#endif
-
-static void walt_update_misfit_status(void *unused, struct task_struct *p,
-					struct rq *rq, bool *need_update)
-{
-	if (static_branch_unlikely(&walt_disabled))
-		return;
-	*need_update = false;
-
-	if (!p) {
-		rq->misfit_task_load = 0;
-		return;
-	}
-
-	if (task_fits_max(p, cpu_of(rq))) {
-		rq->misfit_task_load = 0;
-		return;
-	}
-
-	/*
-	 * Make sure that misfit_task_load will not be null even if
-	 * task_h_load() returns 0.
-	 */
-	rq->misfit_task_load = max_t(unsigned long, task_h_load(p), 1);
-}
-
 static inline struct task_struct *task_of(struct sched_entity *se)
 {
 	return container_of(se, struct task_struct, se);
@@ -770,7 +730,6 @@ static void walt_binder_low_latency_clear(void *unused, struct binder_transactio
 void walt_cfs_init(void)
 {
 	register_trace_android_rvh_select_task_rq_fair(walt_select_task_rq_fair, NULL);
-	register_trace_android_rvh_update_misfit_status(walt_update_misfit_status, NULL);
 	register_trace_android_rvh_place_entity(walt_place_entity, NULL);
 
 	register_trace_android_vh_binder_wakeup_ilocked(walt_binder_low_latency_set, NULL);
