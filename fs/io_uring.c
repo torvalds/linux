@@ -838,7 +838,6 @@ struct io_op_def {
 	unsigned		plug : 1;
 	/* size of async data needed, if any */
 	unsigned short		async_size;
-	unsigned		work_flags;
 };
 
 static const struct io_op_def io_op_defs[] = {
@@ -851,7 +850,6 @@ static const struct io_op_def io_op_defs[] = {
 		.needs_async_data	= 1,
 		.plug			= 1,
 		.async_size		= sizeof(struct io_async_rw),
-		.work_flags		= IO_WQ_WORK_MM | IO_WQ_WORK_BLKCG,
 	},
 	[IORING_OP_WRITEV] = {
 		.needs_file		= 1,
@@ -861,12 +859,9 @@ static const struct io_op_def io_op_defs[] = {
 		.needs_async_data	= 1,
 		.plug			= 1,
 		.async_size		= sizeof(struct io_async_rw),
-		.work_flags		= IO_WQ_WORK_MM | IO_WQ_WORK_BLKCG |
-						IO_WQ_WORK_FSIZE,
 	},
 	[IORING_OP_FSYNC] = {
 		.needs_file		= 1,
-		.work_flags		= IO_WQ_WORK_BLKCG,
 	},
 	[IORING_OP_READ_FIXED] = {
 		.needs_file		= 1,
@@ -874,7 +869,6 @@ static const struct io_op_def io_op_defs[] = {
 		.pollin			= 1,
 		.plug			= 1,
 		.async_size		= sizeof(struct io_async_rw),
-		.work_flags		= IO_WQ_WORK_BLKCG | IO_WQ_WORK_MM,
 	},
 	[IORING_OP_WRITE_FIXED] = {
 		.needs_file		= 1,
@@ -883,8 +877,6 @@ static const struct io_op_def io_op_defs[] = {
 		.pollout		= 1,
 		.plug			= 1,
 		.async_size		= sizeof(struct io_async_rw),
-		.work_flags		= IO_WQ_WORK_BLKCG | IO_WQ_WORK_FSIZE |
-						IO_WQ_WORK_MM,
 	},
 	[IORING_OP_POLL_ADD] = {
 		.needs_file		= 1,
@@ -893,7 +885,6 @@ static const struct io_op_def io_op_defs[] = {
 	[IORING_OP_POLL_REMOVE] = {},
 	[IORING_OP_SYNC_FILE_RANGE] = {
 		.needs_file		= 1,
-		.work_flags		= IO_WQ_WORK_BLKCG,
 	},
 	[IORING_OP_SENDMSG] = {
 		.needs_file		= 1,
@@ -901,8 +892,6 @@ static const struct io_op_def io_op_defs[] = {
 		.pollout		= 1,
 		.needs_async_data	= 1,
 		.async_size		= sizeof(struct io_async_msghdr),
-		.work_flags		= IO_WQ_WORK_MM | IO_WQ_WORK_BLKCG |
-						IO_WQ_WORK_FS,
 	},
 	[IORING_OP_RECVMSG] = {
 		.needs_file		= 1,
@@ -911,29 +900,23 @@ static const struct io_op_def io_op_defs[] = {
 		.buffer_select		= 1,
 		.needs_async_data	= 1,
 		.async_size		= sizeof(struct io_async_msghdr),
-		.work_flags		= IO_WQ_WORK_MM | IO_WQ_WORK_BLKCG |
-						IO_WQ_WORK_FS,
 	},
 	[IORING_OP_TIMEOUT] = {
 		.needs_async_data	= 1,
 		.async_size		= sizeof(struct io_timeout_data),
-		.work_flags		= IO_WQ_WORK_MM,
 	},
 	[IORING_OP_TIMEOUT_REMOVE] = {
 		/* used by timeout updates' prep() */
-		.work_flags		= IO_WQ_WORK_MM,
 	},
 	[IORING_OP_ACCEPT] = {
 		.needs_file		= 1,
 		.unbound_nonreg_file	= 1,
 		.pollin			= 1,
-		.work_flags		= IO_WQ_WORK_MM | IO_WQ_WORK_FILES,
 	},
 	[IORING_OP_ASYNC_CANCEL] = {},
 	[IORING_OP_LINK_TIMEOUT] = {
 		.needs_async_data	= 1,
 		.async_size		= sizeof(struct io_timeout_data),
-		.work_flags		= IO_WQ_WORK_MM,
 	},
 	[IORING_OP_CONNECT] = {
 		.needs_file		= 1,
@@ -941,26 +924,14 @@ static const struct io_op_def io_op_defs[] = {
 		.pollout		= 1,
 		.needs_async_data	= 1,
 		.async_size		= sizeof(struct io_async_connect),
-		.work_flags		= IO_WQ_WORK_MM,
 	},
 	[IORING_OP_FALLOCATE] = {
 		.needs_file		= 1,
-		.work_flags		= IO_WQ_WORK_BLKCG | IO_WQ_WORK_FSIZE,
 	},
-	[IORING_OP_OPENAT] = {
-		.work_flags		= IO_WQ_WORK_FILES | IO_WQ_WORK_BLKCG |
-						IO_WQ_WORK_FS | IO_WQ_WORK_MM,
-	},
-	[IORING_OP_CLOSE] = {
-		.work_flags		= IO_WQ_WORK_FILES | IO_WQ_WORK_BLKCG,
-	},
-	[IORING_OP_FILES_UPDATE] = {
-		.work_flags		= IO_WQ_WORK_FILES | IO_WQ_WORK_MM,
-	},
-	[IORING_OP_STATX] = {
-		.work_flags		= IO_WQ_WORK_FILES | IO_WQ_WORK_MM |
-						IO_WQ_WORK_FS | IO_WQ_WORK_BLKCG,
-	},
+	[IORING_OP_OPENAT] = {},
+	[IORING_OP_CLOSE] = {},
+	[IORING_OP_FILES_UPDATE] = {},
+	[IORING_OP_STATX] = {},
 	[IORING_OP_READ] = {
 		.needs_file		= 1,
 		.unbound_nonreg_file	= 1,
@@ -968,7 +939,6 @@ static const struct io_op_def io_op_defs[] = {
 		.buffer_select		= 1,
 		.plug			= 1,
 		.async_size		= sizeof(struct io_async_rw),
-		.work_flags		= IO_WQ_WORK_MM | IO_WQ_WORK_BLKCG,
 	},
 	[IORING_OP_WRITE] = {
 		.needs_file		= 1,
@@ -976,42 +946,31 @@ static const struct io_op_def io_op_defs[] = {
 		.pollout		= 1,
 		.plug			= 1,
 		.async_size		= sizeof(struct io_async_rw),
-		.work_flags		= IO_WQ_WORK_MM | IO_WQ_WORK_BLKCG |
-						IO_WQ_WORK_FSIZE,
 	},
 	[IORING_OP_FADVISE] = {
 		.needs_file		= 1,
-		.work_flags		= IO_WQ_WORK_BLKCG,
 	},
-	[IORING_OP_MADVISE] = {
-		.work_flags		= IO_WQ_WORK_MM | IO_WQ_WORK_BLKCG,
-	},
+	[IORING_OP_MADVISE] = {},
 	[IORING_OP_SEND] = {
 		.needs_file		= 1,
 		.unbound_nonreg_file	= 1,
 		.pollout		= 1,
-		.work_flags		= IO_WQ_WORK_MM | IO_WQ_WORK_BLKCG,
 	},
 	[IORING_OP_RECV] = {
 		.needs_file		= 1,
 		.unbound_nonreg_file	= 1,
 		.pollin			= 1,
 		.buffer_select		= 1,
-		.work_flags		= IO_WQ_WORK_MM | IO_WQ_WORK_BLKCG,
 	},
 	[IORING_OP_OPENAT2] = {
-		.work_flags		= IO_WQ_WORK_FILES | IO_WQ_WORK_FS |
-						IO_WQ_WORK_BLKCG | IO_WQ_WORK_MM,
 	},
 	[IORING_OP_EPOLL_CTL] = {
 		.unbound_nonreg_file	= 1,
-		.work_flags		= IO_WQ_WORK_FILES,
 	},
 	[IORING_OP_SPLICE] = {
 		.needs_file		= 1,
 		.hash_reg_file		= 1,
 		.unbound_nonreg_file	= 1,
-		.work_flags		= IO_WQ_WORK_BLKCG,
 	},
 	[IORING_OP_PROVIDE_BUFFERS] = {},
 	[IORING_OP_REMOVE_BUFFERS] = {},
@@ -1023,14 +982,8 @@ static const struct io_op_def io_op_defs[] = {
 	[IORING_OP_SHUTDOWN] = {
 		.needs_file		= 1,
 	},
-	[IORING_OP_RENAMEAT] = {
-		.work_flags		= IO_WQ_WORK_MM | IO_WQ_WORK_FILES |
-						IO_WQ_WORK_FS | IO_WQ_WORK_BLKCG,
-	},
-	[IORING_OP_UNLINKAT] = {
-		.work_flags		= IO_WQ_WORK_MM | IO_WQ_WORK_FILES |
-						IO_WQ_WORK_FS | IO_WQ_WORK_BLKCG,
-	},
+	[IORING_OP_RENAMEAT] = {},
+	[IORING_OP_UNLINKAT] = {},
 };
 
 static void io_uring_try_cancel_requests(struct io_ring_ctx *ctx,
@@ -1141,8 +1094,7 @@ static bool io_match_task(struct io_kiocb *head,
 			continue;
 		if (req->file && req->file->f_op == &io_uring_fops)
 			return true;
-		if ((req->work.flags & IO_WQ_WORK_FILES) &&
-		    req->work.identity->files == files)
+		if (req->work.identity->files == files)
 			return true;
 	}
 	return false;
@@ -1219,20 +1171,15 @@ static int __io_sq_thread_acquire_mm(struct io_ring_ctx *ctx)
 static int __io_sq_thread_acquire_mm_files(struct io_ring_ctx *ctx,
 					   struct io_kiocb *req)
 {
-	const struct io_op_def *def = &io_op_defs[req->opcode];
 	int ret;
 
-	if (def->work_flags & IO_WQ_WORK_MM) {
-		ret = __io_sq_thread_acquire_mm(ctx);
-		if (unlikely(ret))
-			return ret;
-	}
+	ret = __io_sq_thread_acquire_mm(ctx);
+	if (unlikely(ret))
+		return ret;
 
-	if (def->needs_file || (def->work_flags & IO_WQ_WORK_FILES)) {
-		ret = __io_sq_thread_acquire_files(ctx);
-		if (unlikely(ret))
-			return ret;
-	}
+	ret = __io_sq_thread_acquire_files(ctx);
+	if (unlikely(ret))
+		return ret;
 
 	return 0;
 }
@@ -1416,28 +1363,6 @@ static void io_req_clean_work(struct io_kiocb *req)
 	if (!(req->flags & REQ_F_WORK_INITIALIZED))
 		return;
 
-	if (req->work.flags & IO_WQ_WORK_MM)
-		mmdrop(req->work.identity->mm);
-#ifdef CONFIG_BLK_CGROUP
-	if (req->work.flags & IO_WQ_WORK_BLKCG)
-		css_put(req->work.identity->blkcg_css);
-#endif
-	if (req->work.flags & IO_WQ_WORK_CREDS)
-		put_cred(req->work.identity->creds);
-	if (req->work.flags & IO_WQ_WORK_FS) {
-		struct fs_struct *fs = req->work.identity->fs;
-
-		spin_lock(&req->work.identity->fs->lock);
-		if (--fs->users)
-			fs = NULL;
-		spin_unlock(&req->work.identity->fs->lock);
-		if (fs)
-			free_fs_struct(fs);
-	}
-	if (req->work.flags & IO_WQ_WORK_FILES) {
-		put_files_struct(req->work.identity->files);
-		put_nsproxy(req->work.identity->nsproxy);
-	}
 	if (req->flags & REQ_F_INFLIGHT) {
 		struct io_ring_ctx *ctx = req->ctx;
 		struct io_uring_task *tctx = req->task->io_uring;
@@ -1452,54 +1377,7 @@ static void io_req_clean_work(struct io_kiocb *req)
 	}
 
 	req->flags &= ~REQ_F_WORK_INITIALIZED;
-	req->work.flags &= ~(IO_WQ_WORK_MM | IO_WQ_WORK_BLKCG | IO_WQ_WORK_FS |
-			     IO_WQ_WORK_CREDS | IO_WQ_WORK_FILES);
 	io_put_identity(req->task->io_uring, req);
-}
-
-/*
- * Create a private copy of io_identity, since some fields don't match
- * the current context.
- */
-static bool io_identity_cow(struct io_kiocb *req)
-{
-	struct io_uring_task *tctx = current->io_uring;
-	const struct cred *creds = NULL;
-	struct io_identity *id;
-
-	if (req->work.flags & IO_WQ_WORK_CREDS)
-		creds = req->work.identity->creds;
-
-	id = kmemdup(req->work.identity, sizeof(*id), GFP_KERNEL);
-	if (unlikely(!id)) {
-		req->work.flags |= IO_WQ_WORK_CANCEL;
-		return false;
-	}
-
-	/*
-	 * We can safely just re-init the creds we copied  Either the field
-	 * matches the current one, or we haven't grabbed it yet. The only
-	 * exception is ->creds, through registered personalities, so handle
-	 * that one separately.
-	 */
-	io_init_identity(id);
-	if (creds)
-		id->creds = creds;
-
-	/* add one for this request */
-	refcount_inc(&id->count);
-
-	/* drop tctx and req identity references, if needed */
-	if (tctx->identity != &tctx->__identity &&
-	    refcount_dec_and_test(&tctx->identity->count))
-		kfree(tctx->identity);
-	if (req->work.identity != &tctx->__identity &&
-	    refcount_dec_and_test(&req->work.identity->count))
-		kfree(req->work.identity);
-
-	req->work.identity = id;
-	tctx->identity = id;
-	return true;
 }
 
 static void io_req_track_inflight(struct io_kiocb *req)
@@ -1514,79 +1392,6 @@ static void io_req_track_inflight(struct io_kiocb *req)
 		list_add(&req->inflight_entry, &ctx->inflight_list);
 		spin_unlock_irq(&ctx->inflight_lock);
 	}
-}
-
-static bool io_grab_identity(struct io_kiocb *req)
-{
-	const struct io_op_def *def = &io_op_defs[req->opcode];
-	struct io_identity *id = req->work.identity;
-
-	if (def->work_flags & IO_WQ_WORK_FSIZE) {
-		if (id->fsize != rlimit(RLIMIT_FSIZE))
-			return false;
-		req->work.flags |= IO_WQ_WORK_FSIZE;
-	}
-#ifdef CONFIG_BLK_CGROUP
-	if (!(req->work.flags & IO_WQ_WORK_BLKCG) &&
-	    (def->work_flags & IO_WQ_WORK_BLKCG)) {
-		rcu_read_lock();
-		if (id->blkcg_css != blkcg_css()) {
-			rcu_read_unlock();
-			return false;
-		}
-		/*
-		 * This should be rare, either the cgroup is dying or the task
-		 * is moving cgroups. Just punt to root for the handful of ios.
-		 */
-		if (css_tryget_online(id->blkcg_css))
-			req->work.flags |= IO_WQ_WORK_BLKCG;
-		rcu_read_unlock();
-	}
-#endif
-	if (!(req->work.flags & IO_WQ_WORK_CREDS)) {
-		if (id->creds != current_cred())
-			return false;
-		get_cred(id->creds);
-		req->work.flags |= IO_WQ_WORK_CREDS;
-	}
-#ifdef CONFIG_AUDIT
-	if (!uid_eq(current->loginuid, id->loginuid) ||
-	    current->sessionid != id->sessionid)
-		return false;
-#endif
-	if (!(req->work.flags & IO_WQ_WORK_FS) &&
-	    (def->work_flags & IO_WQ_WORK_FS)) {
-		if (current->fs != id->fs)
-			return false;
-		spin_lock(&id->fs->lock);
-		if (!id->fs->in_exec) {
-			id->fs->users++;
-			req->work.flags |= IO_WQ_WORK_FS;
-		} else {
-			req->work.flags |= IO_WQ_WORK_CANCEL;
-		}
-		spin_unlock(&current->fs->lock);
-	}
-	if (!(req->work.flags & IO_WQ_WORK_FILES) &&
-	    (def->work_flags & IO_WQ_WORK_FILES) &&
-	    !(req->flags & REQ_F_NO_FILE_TABLE)) {
-		if (id->files != current->files ||
-		    id->nsproxy != current->nsproxy)
-			return false;
-		atomic_inc(&id->files->count);
-		get_nsproxy(id->nsproxy);
-		req->work.flags |= IO_WQ_WORK_FILES;
-		io_req_track_inflight(req);
-	}
-	if (!(req->work.flags & IO_WQ_WORK_MM) &&
-	    (def->work_flags & IO_WQ_WORK_MM)) {
-		if (id->mm != current->mm)
-			return false;
-		mmgrab(id->mm);
-		req->work.flags |= IO_WQ_WORK_MM;
-	}
-
-	return true;
 }
 
 static void io_prep_async_work(struct io_kiocb *req)
@@ -1606,17 +1411,6 @@ static void io_prep_async_work(struct io_kiocb *req)
 		if (def->unbound_nonreg_file)
 			req->work.flags |= IO_WQ_WORK_UNBOUND;
 	}
-
-	/* if we fail grabbing identity, we must COW, regrab, and retry */
-	if (io_grab_identity(req))
-		return;
-
-	if (!io_identity_cow(req))
-		return;
-
-	/* can't fail at this point */
-	if (!io_grab_identity(req))
-		WARN_ON(1);
 }
 
 static void io_prep_async_link(struct io_kiocb *req)
@@ -6583,7 +6377,6 @@ static void __io_queue_sqe(struct io_kiocb *req)
 	int ret;
 
 	if ((req->flags & REQ_F_WORK_INITIALIZED) &&
-	    (req->work.flags & IO_WQ_WORK_CREDS) &&
 	    req->work.identity->creds != current_cred())
 		old_creds = override_creds(req->work.identity->creds);
 
@@ -6725,7 +6518,6 @@ static int io_init_req(struct io_ring_ctx *ctx, struct io_kiocb *req,
 		__io_req_init_async(req);
 		get_cred(iod->creds);
 		req->work.identity = iod;
-		req->work.flags |= IO_WQ_WORK_CREDS;
 	}
 
 	state = &ctx->submit_state;
