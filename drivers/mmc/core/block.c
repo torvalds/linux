@@ -1933,8 +1933,9 @@ static void mmc_blk_hsq_req_done(struct mmc_request *mrq)
 void mmc_blk_mq_complete(struct request *req)
 {
 	struct mmc_queue *mq = req->q->queuedata;
+	struct mmc_host *host = mq->card->host;
 
-	if (mq->use_cqe)
+	if (host->cqe_enabled)
 		mmc_blk_cqe_complete_rq(mq, req);
 	else if (likely(!blk_should_fake_timeout(req->q)))
 		mmc_blk_mq_complete_rq(mq, req);
@@ -2179,7 +2180,7 @@ out_post_req:
 
 static int mmc_blk_wait_for_idle(struct mmc_queue *mq, struct mmc_host *host)
 {
-	if (mq->use_cqe)
+	if (host->cqe_enabled)
 		return host->cqe_ops->cqe_wait_for_idle(host);
 
 	return mmc_blk_rw_wait(mq, NULL);
@@ -2228,7 +2229,7 @@ enum mmc_issued mmc_blk_mq_issue_rq(struct mmc_queue *mq, struct request *req)
 			break;
 		case REQ_OP_READ:
 		case REQ_OP_WRITE:
-			if (mq->use_cqe)
+			if (host->cqe_enabled)
 				ret = mmc_blk_cqe_issue_rw_rq(mq, req);
 			else
 				ret = mmc_blk_mq_issue_rw_rq(mq, req);
