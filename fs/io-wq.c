@@ -305,15 +305,13 @@ static void __io_worker_busy(struct io_wqe *wqe, struct io_worker *worker,
  * retry the loop in that case (we changed task state), we don't regrab
  * the lock if we return success.
  */
-static bool __io_worker_idle(struct io_wqe *wqe, struct io_worker *worker)
+static void __io_worker_idle(struct io_wqe *wqe, struct io_worker *worker)
 	__must_hold(wqe->lock)
 {
 	if (!(worker->flags & IO_WORKER_F_FREE)) {
 		worker->flags |= IO_WORKER_F_FREE;
 		hlist_nulls_add_head_rcu(&worker->nulls_node, &wqe->free_list);
 	}
-
-	return false;
 }
 
 static inline unsigned int io_get_work_hash(struct io_wq_work *work)
@@ -454,11 +452,7 @@ loop:
 			io_worker_handle_work(worker);
 			goto loop;
 		}
-		/* drops the lock on success, retry */
-		if (__io_worker_idle(wqe, worker)) {
-			__release(&wqe->lock);
-			goto loop;
-		}
+		__io_worker_idle(wqe, worker);
 		raw_spin_unlock_irq(&wqe->lock);
 		io_flush_signals();
 		if (schedule_timeout(WORKER_IDLE_TIMEOUT))
