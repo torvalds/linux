@@ -1813,13 +1813,20 @@ static void scsi_mq_exit_request(struct blk_mq_tag_set *set, struct request *rq,
 
 static int scsi_mq_poll(struct blk_mq_hw_ctx *hctx)
 {
-	struct request_queue *q = hctx->queue;
-	struct scsi_device *sdev = q->queuedata;
-	struct Scsi_Host *shost = sdev->host;
+	struct Scsi_Host *shost = hctx->driver_data;
 
 	if (shost->hostt->mq_poll)
 		return shost->hostt->mq_poll(shost, hctx->queue_num);
 
+	return 0;
+}
+
+static int scsi_init_hctx(struct blk_mq_hw_ctx *hctx, void *data,
+			  unsigned int hctx_idx)
+{
+	struct Scsi_Host *shost = data;
+
+	hctx->driver_data = shost;
 	return 0;
 }
 
@@ -1890,6 +1897,7 @@ static const struct blk_mq_ops scsi_mq_ops_no_commit = {
 	.cleanup_rq	= scsi_cleanup_rq,
 	.busy		= scsi_mq_lld_busy,
 	.map_queues	= scsi_map_queues,
+	.init_hctx	= scsi_init_hctx,
 	.poll		= scsi_mq_poll,
 	.set_rq_budget_token = scsi_mq_set_rq_budget_token,
 	.get_rq_budget_token = scsi_mq_get_rq_budget_token,
@@ -1898,9 +1906,7 @@ static const struct blk_mq_ops scsi_mq_ops_no_commit = {
 
 static void scsi_commit_rqs(struct blk_mq_hw_ctx *hctx)
 {
-	struct request_queue *q = hctx->queue;
-	struct scsi_device *sdev = q->queuedata;
-	struct Scsi_Host *shost = sdev->host;
+	struct Scsi_Host *shost = hctx->driver_data;
 
 	shost->hostt->commit_rqs(shost, hctx->queue_num);
 }
@@ -1921,6 +1927,7 @@ static const struct blk_mq_ops scsi_mq_ops = {
 	.cleanup_rq	= scsi_cleanup_rq,
 	.busy		= scsi_mq_lld_busy,
 	.map_queues	= scsi_map_queues,
+	.init_hctx	= scsi_init_hctx,
 	.poll		= scsi_mq_poll,
 	.set_rq_budget_token = scsi_mq_set_rq_budget_token,
 	.get_rq_budget_token = scsi_mq_get_rq_budget_token,
