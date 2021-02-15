@@ -1257,41 +1257,16 @@ static int __iio_buffer_alloc_sysfs_and_mask(struct iio_buffer *buffer,
 {
 	struct iio_dev_attr *p;
 	struct attribute **attr;
-	int ret, i, attrn, attrcount;
+	int ret, i, attrn, scan_el_attrcount, buffer_attrcount;
 	const struct iio_chan_spec *channels;
 
-	attrcount = 0;
+	buffer_attrcount = 0;
 	if (buffer->attrs) {
-		while (buffer->attrs[attrcount] != NULL)
-			attrcount++;
+		while (buffer->attrs[buffer_attrcount] != NULL)
+			buffer_attrcount++;
 	}
 
-	attr = kcalloc(attrcount + ARRAY_SIZE(iio_buffer_attrs) + 1,
-		       sizeof(struct attribute *), GFP_KERNEL);
-	if (!attr)
-		return -ENOMEM;
-
-	memcpy(attr, iio_buffer_attrs, sizeof(iio_buffer_attrs));
-	if (!buffer->access->set_length)
-		attr[0] = &dev_attr_length_ro.attr;
-
-	if (buffer->access->flags & INDIO_BUFFER_FLAG_FIXED_WATERMARK)
-		attr[2] = &dev_attr_watermark_ro.attr;
-
-	if (buffer->attrs)
-		memcpy(&attr[ARRAY_SIZE(iio_buffer_attrs)], buffer->attrs,
-		       sizeof(struct attribute *) * attrcount);
-
-	attr[attrcount + ARRAY_SIZE(iio_buffer_attrs)] = NULL;
-
-	buffer->buffer_group.name = "buffer";
-	buffer->buffer_group.attrs = attr;
-
-	ret = iio_device_register_sysfs_group(indio_dev, &buffer->buffer_group);
-	if (ret)
-		goto error_free_buffer_attrs;
-
-	attrcount = 0;
+	scan_el_attrcount = 0;
 	INIT_LIST_HEAD(&buffer->scan_el_dev_attr_list);
 	channels = indio_dev->channels;
 	if (channels) {
@@ -1304,7 +1279,7 @@ static int __iio_buffer_alloc_sysfs_and_mask(struct iio_buffer *buffer,
 							 &channels[i]);
 			if (ret < 0)
 				goto error_cleanup_dynamic;
-			attrcount += ret;
+			scan_el_attrcount += ret;
 			if (channels[i].type == IIO_TIMESTAMP)
 				indio_dev->scan_index_timestamp =
 					channels[i].scan_index;
@@ -1319,9 +1294,37 @@ static int __iio_buffer_alloc_sysfs_and_mask(struct iio_buffer *buffer,
 		}
 	}
 
+	attr = kcalloc(buffer_attrcount + ARRAY_SIZE(iio_buffer_attrs) + 1,
+		       sizeof(*attr), GFP_KERNEL);
+	if (!attr) {
+		ret = -ENOMEM;
+		goto error_free_scan_mask;
+	}
+
+	memcpy(attr, iio_buffer_attrs, sizeof(iio_buffer_attrs));
+	if (!buffer->access->set_length)
+		attr[0] = &dev_attr_length_ro.attr;
+
+	if (buffer->access->flags & INDIO_BUFFER_FLAG_FIXED_WATERMARK)
+		attr[2] = &dev_attr_watermark_ro.attr;
+
+	if (buffer->attrs)
+		memcpy(&attr[ARRAY_SIZE(iio_buffer_attrs)], buffer->attrs,
+		       sizeof(struct attribute *) * buffer_attrcount);
+
+	buffer_attrcount += ARRAY_SIZE(iio_buffer_attrs);
+	attr[buffer_attrcount] = NULL;
+
+	buffer->buffer_group.name = "buffer";
+	buffer->buffer_group.attrs = attr;
+
+	ret = iio_device_register_sysfs_group(indio_dev, &buffer->buffer_group);
+	if (ret)
+		goto error_free_buffer_attrs;
+
 	buffer->scan_el_group.name = iio_scan_elements_group_name;
 
-	buffer->scan_el_group.attrs = kcalloc(attrcount + 1,
+	buffer->scan_el_group.attrs = kcalloc(scan_el_attrcount + 1,
 					      sizeof(buffer->scan_el_group.attrs[0]),
 					      GFP_KERNEL);
 	if (buffer->scan_el_group.attrs == NULL) {
@@ -1341,12 +1344,12 @@ static int __iio_buffer_alloc_sysfs_and_mask(struct iio_buffer *buffer,
 
 error_free_scan_el_attrs:
 	kfree(buffer->scan_el_group.attrs);
+error_free_buffer_attrs:
+	kfree(buffer->buffer_group.attrs);
 error_free_scan_mask:
 	bitmap_free(buffer->scan_mask);
 error_cleanup_dynamic:
 	iio_free_chan_devattr_list(&buffer->scan_el_dev_attr_list);
-error_free_buffer_attrs:
-	kfree(buffer->buffer_group.attrs);
 
 	return ret;
 }
