@@ -377,7 +377,7 @@ static struct dentry *mhi_debugfs_root;
 void mhi_create_debugfs(struct mhi_controller *mhi_cntrl)
 {
 	mhi_cntrl->debugfs_dentry =
-			debugfs_create_dir(dev_name(mhi_cntrl->cntrl_dev),
+			debugfs_create_dir(dev_name(&mhi_cntrl->mhi_dev->dev),
 					   mhi_debugfs_root);
 
 	debugfs_create_file("states", 0444, mhi_cntrl->debugfs_dentry,
