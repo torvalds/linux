@@ -31,8 +31,6 @@ struct mp_wiparam {
 	u32 io_value;
 };
 
-typedef void(*wi_act_func)(void *padapter);
-
 struct mp_tx {
 	u8 stop;
 	u32 count, sended;
