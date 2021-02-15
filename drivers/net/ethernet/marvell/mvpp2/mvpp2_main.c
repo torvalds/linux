@@ -924,6 +924,25 @@ static void mvpp2_bm_pool_update_fc(struct mvpp2_port *port,
 	spin_unlock_irqrestore(&port->priv->mss_spinlock, flags);
 }
 
+/* disable/enable flow control for BM pool on all ports */
+static void mvpp2_bm_pool_update_priv_fc(struct mvpp2 *priv, bool en)
+{
+	struct mvpp2_port *port;
+	int i;
+
+	for (i = 0; i < priv->port_count; i++) {
+		port = priv->port_list[i];
+		if (port->priv->percpu_pools) {
+			for (i = 0; i < port->nrxqs; i++)
+				mvpp2_bm_pool_update_fc(port, &port->priv->bm_pools[i],
+							port->tx_fc & en);
+		} else {
+			mvpp2_bm_pool_update_fc(port, port->pool_long, port->tx_fc & en);
+			mvpp2_bm_pool_update_fc(port, port->pool_short, port->tx_fc & en);
+		}
+	}
+}
+
 static int mvpp2_enable_global_fc(struct mvpp2 *priv)
 {
 	int val, timeout = 0;
@@ -4913,6 +4932,7 @@ static int mvpp2_set_mac_address(struct net_device *dev, void *p)
  */
 static int mvpp2_bm_switch_buffers(struct mvpp2 *priv, bool percpu)
 {
+	bool change_percpu = (percpu != priv->percpu_pools);
 	int numbufs = MVPP2_BM_POOLS_NUM, i;
 	struct mvpp2_port *port = NULL;
 	bool status[MVPP2_MAX_PORTS];
@@ -4928,6 +4948,9 @@ static int mvpp2_bm_switch_buffers(struct mvpp2 *priv, bool percpu)
 	if (priv->percpu_pools)
 		numbufs = port->nrxqs * 2;
 
+	if (change_percpu)
+		mvpp2_bm_pool_update_priv_fc(priv, false);
+
 	for (i = 0; i < numbufs; i++)
 		mvpp2_bm_pool_destroy(port->dev->dev.parent, priv, &priv->bm_pools[i]);
 
@@ -4941,6 +4964,9 @@ static int mvpp2_bm_switch_buffers(struct mvpp2 *priv, bool percpu)
 		if (status[i])
 			mvpp2_open(port->dev);
 	}
+
+	if (change_percpu)
+		mvpp2_bm_pool_update_priv_fc(priv, true);
 
 	return 0;
 }
