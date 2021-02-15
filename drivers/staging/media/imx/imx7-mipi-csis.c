@@ -108,8 +108,8 @@
 
 /* D-PHY common control */
 #define MIPI_CSIS_DPHYCTRL			0x24
-#define MIPI_CSIS_DPHYCTRL_HSS_MASK		(0xff << 24)
-#define MIPI_CSIS_DPHYCTRL_HSS_OFFSET		24
+#define MIPI_CSIS_DPHYCTRL_HSSETTLE(n)		((n) << 24)
+#define MIPI_CSIS_DPHYCTRL_HSSETTLE_MASK	GENMASK(31, 24)
 #define MIPI_CSIS_DPHYCTRL_SCLKS_MASK		(0x3 << 22)
 #define MIPI_CSIS_DPHYCTRL_SCLKS_OFFSET		22
 #define MIPI_CSIS_DPHYCTRL_DPDN_SWAP_CLK	BIT(6)
@@ -482,15 +482,6 @@ static void __mipi_csis_set_format(struct csi_state *state)
 	mipi_csis_write(state, MIPI_CSIS_ISPRESOL_CH0, val);
 }
 
-static void mipi_csis_set_hsync_settle(struct csi_state *state, int hs_settle)
-{
-	u32 val = mipi_csis_read(state, MIPI_CSIS_DPHYCTRL);
-
-	val = (val & ~MIPI_CSIS_DPHYCTRL_HSS_MASK) | (hs_settle << 24);
-
-	mipi_csis_write(state, MIPI_CSIS_DPHYCTRL, val);
-}
-
 static void mipi_csis_set_params(struct csi_state *state)
 {
 	int lanes = state->bus.num_data_lanes;
@@ -504,7 +495,10 @@ static void mipi_csis_set_params(struct csi_state *state)
 
 	__mipi_csis_set_format(state);
 
-	mipi_csis_set_hsync_settle(state, state->hs_settle);
+	val = mipi_csis_read(state, MIPI_CSIS_DPHYCTRL);
+	val = (val & ~MIPI_CSIS_DPHYCTRL_HSSETTLE_MASK)
+	    | MIPI_CSIS_DPHYCTRL_HSSETTLE(state->hs_settle);
+	mipi_csis_write(state, MIPI_CSIS_DPHYCTRL, val);
 
 	val = (0 << MIPI_CSIS_ISPSYNC_HSYNC_LINTV_OFFSET) |
 		(0 << MIPI_CSIS_ISPSYNC_VSYNC_SINTV_OFFSET) |
