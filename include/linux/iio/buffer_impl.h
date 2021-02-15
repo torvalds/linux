@@ -6,6 +6,8 @@
 
 #ifdef CONFIG_IIO_BUFFER
 
+#include <uapi/linux/iio/buffer.h>
+
 struct iio_dev;
 struct iio_buffer;
 
@@ -71,6 +73,9 @@ struct iio_buffer_access_funcs {
 struct iio_buffer {
 	/** @length: Number of datums in buffer. */
 	unsigned int length;
+
+	/** @flags: File ops flags including busy flag. */
+	unsigned long flags;
 
 	/**  @bytes_per_datum: Size of individual datum including timestamp. */
 	size_t bytes_per_datum;

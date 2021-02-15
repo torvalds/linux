@@ -9,9 +9,11 @@
  * - Better memory allocation techniques?
  * - Alternative access techniques?
  */
+#include <linux/anon_inodes.h>
 #include <linux/kernel.h>
 #include <linux/export.h>
 #include <linux/device.h>
+#include <linux/file.h>
 #include <linux/fs.h>
 #include <linux/cdev.h>
 #include <linux/slab.h>
@@ -89,7 +91,7 @@ static bool iio_buffer_ready(struct iio_dev *indio_dev, struct iio_buffer *buf,
 }
 
 /**
- * iio_buffer_read_outer() - chrdev read for buffer access
+ * iio_buffer_read() - chrdev read for buffer access
  * @filp:	File structure pointer for the char device
  * @buf:	Destination buffer for iio buffer read
  * @n:		First n bytes to read
@@ -101,8 +103,8 @@ static bool iio_buffer_ready(struct iio_dev *indio_dev, struct iio_buffer *buf,
  * Return: negative values corresponding to error codes or ret != 0
  *	   for ending the reading activity
  **/
-ssize_t iio_buffer_read_outer(struct file *filp, char __user *buf,
-			      size_t n, loff_t *f_ps)
+static ssize_t iio_buffer_read(struct file *filp, char __user *buf,
+			       size_t n, loff_t *f_ps)
 {
 	struct iio_dev_buffer_pair *ib = filp->private_data;
 	struct iio_buffer *rb = ib->buffer;
@@ -168,8 +170,8 @@ ssize_t iio_buffer_read_outer(struct file *filp, char __user *buf,
  * Return: (EPOLLIN | EPOLLRDNORM) if data is available for reading
  *	   or 0 for other cases
  */
-__poll_t iio_buffer_poll(struct file *filp,
-			     struct poll_table_struct *wait)
+static __poll_t iio_buffer_poll(struct file *filp,
+				struct poll_table_struct *wait)
 {
 	struct iio_dev_buffer_pair *ib = filp->private_data;
 	struct iio_buffer *rb = ib->buffer;
@@ -182,6 +184,32 @@ __poll_t iio_buffer_poll(struct file *filp,
 	if (iio_buffer_ready(indio_dev, rb, rb->watermark, 0))
 		return EPOLLIN | EPOLLRDNORM;
 	return 0;
+}
+
+ssize_t iio_buffer_read_wrapper(struct file *filp, char __user *buf,
+				size_t n, loff_t *f_ps)
+{
+	struct iio_dev_buffer_pair *ib = filp->private_data;
+	struct iio_buffer *rb = ib->buffer;
+
+	/* check if buffer was opened through new API */
+	if (test_bit(IIO_BUSY_BIT_POS, &rb->flags))
+		return -EBUSY;
+
+	return iio_buffer_read(filp, buf, n, f_ps);
+}
+
+__poll_t iio_buffer_poll_wrapper(struct file *filp,
+				 struct poll_table_struct *wait)
+{
+	struct iio_dev_buffer_pair *ib = filp->private_data;
+	struct iio_buffer *rb = ib->buffer;
+
+	/* check if buffer was opened through new API */
+	if (test_bit(IIO_BUSY_BIT_POS, &rb->flags))
+		return 0;
+
+	return iio_buffer_poll(filp, wait);
 }
 
 /**
@@ -1344,6 +1372,96 @@ static void iio_buffer_unregister_legacy_sysfs_groups(struct iio_dev *indio_dev)
 	kfree(iio_dev_opaque->legacy_scan_el_group.attrs);
 }
 
+static int iio_buffer_chrdev_release(struct inode *inode, struct file *filep)
+{
+	struct iio_dev_buffer_pair *ib = filep->private_data;
+	struct iio_dev *indio_dev = ib->indio_dev;
+	struct iio_buffer *buffer = ib->buffer;
+
+	wake_up(&buffer->pollq);
+
+	kfree(ib);
+	clear_bit(IIO_BUSY_BIT_POS, &buffer->flags);
+	iio_device_put(indio_dev);
+
+	return 0;
+}
+
+static const struct file_operations iio_buffer_chrdev_fileops = {
+	.owner = THIS_MODULE,
+	.llseek = noop_llseek,
+	.read = iio_buffer_read,
+	.poll = iio_buffer_poll,
+	.release = iio_buffer_chrdev_release,
+};
+
+static long iio_device_buffer_getfd(struct iio_dev *indio_dev, unsigned long arg)
+{
+	struct iio_dev_opaque *iio_dev_opaque = to_iio_dev_opaque(indio_dev);
+	int __user *ival = (int __user *)arg;
+	struct iio_dev_buffer_pair *ib;
+	struct iio_buffer *buffer;
+	int fd, idx, ret;
+
+	if (copy_from_user(&idx, ival, sizeof(idx)))
+		return -EFAULT;
+
+	if (idx >= iio_dev_opaque->attached_buffers_cnt)
+		return -ENODEV;
+
+	iio_device_get(indio_dev);
+
+	buffer = iio_dev_opaque->attached_buffers[idx];
+
+	if (test_and_set_bit(IIO_BUSY_BIT_POS, &buffer->flags)) {
+		ret = -EBUSY;
+		goto error_iio_dev_put;
+	}
+
+	ib = kzalloc(sizeof(*ib), GFP_KERNEL);
+	if (!ib) {
+		ret = -ENOMEM;
+		goto error_clear_busy_bit;
+	}
+
+	ib->indio_dev = indio_dev;
+	ib->buffer = buffer;
+
+	fd = anon_inode_getfd("iio:buffer", &iio_buffer_chrdev_fileops,
+			      ib, O_RDWR | O_CLOEXEC);
+	if (fd < 0) {
+		ret = fd;
+		goto error_free_ib;
+	}
+
+	if (copy_to_user(ival, &fd, sizeof(fd))) {
+		put_unused_fd(fd);
+		ret = -EFAULT;
+		goto error_free_ib;
+	}
+
+	return fd;
+
+error_free_ib:
+	kfree(ib);
+error_clear_busy_bit:
+	clear_bit(IIO_BUSY_BIT_POS, &buffer->flags);
+error_iio_dev_put:
+	iio_device_put(indio_dev);
+	return ret;
+}
+
+static long iio_device_buffer_ioctl(struct iio_dev *indio_dev, struct file *filp,
+				    unsigned int cmd, unsigned long arg)
+{
+	switch (cmd) {
+	case IIO_BUFFER_GET_FD_IOCTL:
+		return iio_device_buffer_getfd(indio_dev, arg);
+	default:
+		return IIO_IOCTL_UNHANDLED;
+	}
+}
+
 static int __iio_buffer_alloc_sysfs_and_mask(struct iio_buffer *buffer,
 					     struct iio_dev *indio_dev,
 					     int index)
@@ -1473,6 +1591,7 @@ int iio_buffers_alloc_sysfs_and_mask(struct iio_dev *indio_dev)
 	struct iio_buffer *buffer;
 	int unwind_idx;
 	int ret, i;
+	size_t sz;
 
 	channels = indio_dev->channels;
 	if (channels) {
@@ -1494,6 +1613,18 @@ int iio_buffers_alloc_sysfs_and_mask(struct iio_dev *indio_dev)
 			goto error_unwind_sysfs_and_mask;
 		}
 	}
+	unwind_idx = iio_dev_opaque->attached_buffers_cnt - 1;
+
+	sz = sizeof(*(iio_dev_opaque->buffer_ioctl_handler));
+	iio_dev_opaque->buffer_ioctl_handler = kzalloc(sz, GFP_KERNEL);
+	if (!iio_dev_opaque->buffer_ioctl_handler) {
+		ret = -ENOMEM;
+		goto error_unwind_sysfs_and_mask;
+	}
+
+	iio_dev_opaque->buffer_ioctl_handler->ioctl = iio_device_buffer_ioctl;
+	iio_device_ioctl_handler_register(indio_dev,
+					  iio_dev_opaque->buffer_ioctl_handler);
 
 	return 0;
 
@@ -1514,6 +1645,9 @@ void iio_buffers_free_sysfs_and_mask(struct iio_dev *indio_dev)
 
 	if (!iio_dev_opaque->attached_buffers_cnt)
 		return;
+
+	iio_device_ioctl_handler_unregister(iio_dev_opaque->buffer_ioctl_handler);
+	kfree(iio_dev_opaque->buffer_ioctl_handler);
 
 	iio_buffer_unregister_legacy_sysfs_groups(indio_dev);
 
