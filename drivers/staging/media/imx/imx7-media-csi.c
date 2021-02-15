@@ -489,7 +489,7 @@ static void imx7_csi_dma_stop(struct imx7_csi *csi)
 	imx_media_free_dma_buf(csi->dev, &csi->underrun_buf);
 }
 
-static int imx7_csi_configure(struct imx7_csi *csi)
+static void imx7_csi_configure(struct imx7_csi *csi)
 {
 	struct imx_media_video_dev *vdev = csi->vdev;
 	struct v4l2_pix_format *out_pix = &vdev->fmt;
@@ -518,7 +518,7 @@ static int imx7_csi_configure(struct imx7_csi *csi)
 			BIT_BASEADDR_CHG_ERR_EN);
 		imx7_csi_reg_write(csi, cr18, CSI_CSICR18);
 
-		return 0;
+		return;
 	}
 
 	imx7_csi_set_imagpara(csi, width, out_pix->height);
@@ -562,14 +562,10 @@ static int imx7_csi_configure(struct imx7_csi *csi)
 			cr18 |= BIT_MIPI_DATA_FORMAT_RAW14;
 		cr1 |= BIT_PIXEL_BIT;
 		break;
-	default:
-		return -EINVAL;
 	}
 
 	imx7_csi_reg_write(csi, cr1, CSI_CSICR1);
 	imx7_csi_reg_write(csi, cr18, CSI_CSICR18);
-
-	return 0;
 }
 
 static int imx7_csi_init(struct imx7_csi *csi)
@@ -622,18 +618,10 @@ static int imx7_csi_streaming_start(struct imx7_csi *csi)
 	if (ret < 0)
 		return ret;
 
-	ret = imx7_csi_configure(csi);
-	if (ret < 0)
-		goto dma_stop;
-
+	imx7_csi_configure(csi);
 	imx7_csi_enable(csi);
 
 	return 0;
-
-dma_stop:
-	imx7_csi_dma_stop(csi);
-
-	return ret;
 }
 
 static int imx7_csi_streaming_stop(struct imx7_csi *csi)
@@ -1010,10 +998,16 @@ static int imx7_csi_pad_link_validate(struct v4l2_subdev *sd,
 				      struct v4l2_subdev_format *sink_fmt)
 {
 	struct imx7_csi *csi = v4l2_get_subdevdata(sd);
+	struct imx_media_video_dev *vdev = csi->vdev;
+	const struct v4l2_pix_format *out_pix = &vdev->fmt;
 	struct media_entity *src;
 	struct media_pad *pad;
 	int ret;
 
+	/*
+	 * Validate the source link, and record whether the CSI mux selects the
+	 * parallel input or the CSI-2 receiver.
+	 */
 	ret = v4l2_subdev_link_validate_default(sd, link, source_fmt, sink_fmt);
 	if (ret)
 		return ret;
@@ -1031,10 +1025,6 @@ static int imx7_csi_pad_link_validate(struct v4l2_subdev *sd,
 	    src->function != MEDIA_ENT_F_VID_MUX)
 		src = &csi->sd.entity;
 
-	/*
-	 * find the entity that is selected by the source. This is needed
-	 * to distinguish between a parallel or CSI-2 pipeline.
-	 */
 	pad = imx_media_pipeline_pad(src, 0, 0, true);
 	if (!pad)
 		return -ENODEV;
@@ -1044,6 +1034,23 @@ static int imx7_csi_pad_link_validate(struct v4l2_subdev *sd,
 	csi->is_csi2 = (pad->entity->function == MEDIA_ENT_F_VID_IF_BRIDGE);
 
 	mutex_unlock(&csi->lock);
+
+	/* Validate the sink link, ensure the pixel format is supported. */
+	switch (out_pix->pixelformat) {
+	case V4L2_PIX_FMT_UYVY:
+	case V4L2_PIX_FMT_YUYV:
+	case V4L2_PIX_FMT_GREY:
+	case V4L2_PIX_FMT_Y10:
+	case V4L2_PIX_FMT_Y12:
+	case V4L2_PIX_FMT_SBGGR8:
+	case V4L2_PIX_FMT_SBGGR16:
+		break;
+
+	default:
+		dev_dbg(csi->dev, "Invalid capture pixel format 0x%08x\n",
+			out_pix->pixelformat);
+		return -EINVAL;
+	}
 
 	return 0;
 }
