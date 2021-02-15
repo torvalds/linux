@@ -294,14 +294,10 @@ static void imx7_csi_dma_reflash(struct imx7_csi *csi)
 
 static void imx7_csi_rx_fifo_clear(struct imx7_csi *csi)
 {
-	u32 cr1;
+	u32 cr1 = imx7_csi_reg_read(csi, CSI_CSICR1) & ~BIT_FCC;
 
-	cr1 = imx7_csi_reg_read(csi, CSI_CSICR1);
-	imx7_csi_reg_write(csi, cr1 & ~BIT_FCC, CSI_CSICR1);
-	cr1 = imx7_csi_reg_read(csi, CSI_CSICR1);
+	imx7_csi_reg_write(csi, cr1, CSI_CSICR1);
 	imx7_csi_reg_write(csi, cr1 | BIT_CLR_RXFIFO, CSI_CSICR1);
-
-	cr1 = imx7_csi_reg_read(csi, CSI_CSICR1);
 	imx7_csi_reg_write(csi, cr1 | BIT_FCC, CSI_CSICR1);
 }
 
