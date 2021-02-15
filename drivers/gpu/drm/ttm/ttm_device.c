@@ -39,8 +39,8 @@
 /**
  * ttm_global_mutex - protecting the global state
  */
-DEFINE_MUTEX(ttm_global_mutex);
-unsigned ttm_glob_use_count;
+static DEFINE_MUTEX(ttm_global_mutex);
+static unsigned ttm_glob_use_count;
 struct ttm_global ttm_glob;
 EXPORT_SYMBOL(ttm_glob);
 
