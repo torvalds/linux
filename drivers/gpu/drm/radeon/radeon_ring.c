@@ -387,6 +387,7 @@ int radeon_ring_init(struct radeon_device *rdev, struct radeon_ring *ring, unsig
 	ring->ring_size = ring_size;
 	ring->rptr_offs = rptr_offs;
 	ring->nop = nop;
+	ring->rdev = rdev;
 	/* Allocate ring buffer */
 	if (ring->ring_obj == NULL) {
 		r = radeon_bo_create(rdev, ring->ring_size, PAGE_SIZE, true,
