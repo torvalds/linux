@@ -1636,7 +1636,7 @@ void i40e_dcb_hw_calculate_pool_sizes(struct i40e_hw *hw,
 	u32 total_pool_size = 0;
 	int shared_pool_size; /* Need signed variable */
 	u32 port_pb_size;
-	u32 mfs_max;
+	u32 mfs_max = 0;
 	u32 pcirtt;
 	u8 i;
 
