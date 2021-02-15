@@ -294,7 +294,8 @@ void dsa_port_lag_leave(struct dsa_port *dp, struct net_device *lag)
 
 /* Must be called under rcu_read_lock() */
 static bool dsa_port_can_apply_vlan_filtering(struct dsa_port *dp,
-					      bool vlan_filtering)
+					      bool vlan_filtering,
+					      struct netlink_ext_ack *extack)
 {
 	struct dsa_switch *ds = dp->ds;
 	int err, i;
@@ -324,8 +325,8 @@ static bool dsa_port_can_apply_vlan_filtering(struct dsa_port *dp,
 			 */
 			err = br_vlan_get_info(br, vid, &br_info);
 			if (err == 0) {
-				dev_err(ds->dev, "Must remove upper %s first\n",
-					upper_dev->name);
+				NL_SET_ERR_MSG_MOD(extack,
+						   "Must first remove VLAN uppers having VIDs also present in bridge");
 				return false;
 			}
 		}
@@ -351,14 +352,16 @@ static bool dsa_port_can_apply_vlan_filtering(struct dsa_port *dp,
 		if (other_bridge == dp->bridge_dev)
 			continue;
 		if (br_vlan_enabled(other_bridge) != vlan_filtering) {
-			dev_err(ds->dev, "VLAN filtering is a global setting\n");
+			NL_SET_ERR_MSG_MOD(extack,
+					   "VLAN filtering is a global setting");
 			return false;
 		}
 	}
 	return true;
 }
 
-int dsa_port_vlan_filtering(struct dsa_port *dp, bool vlan_filtering)
+int dsa_port_vlan_filtering(struct dsa_port *dp, bool vlan_filtering,
+			    struct netlink_ext_ack *extack)
 {
 	struct dsa_switch *ds = dp->ds;
 	bool apply;
@@ -372,7 +375,7 @@ int dsa_port_vlan_filtering(struct dsa_port *dp, bool vlan_filtering)
 	 * dsa_slave_switchdev_event().
 	 */
 	rcu_read_lock();
-	apply = dsa_port_can_apply_vlan_filtering(dp, vlan_filtering);
+	apply = dsa_port_can_apply_vlan_filtering(dp, vlan_filtering, extack);
 	rcu_read_unlock();
 	if (!apply)
 		return -EINVAL;
@@ -380,7 +383,8 @@ int dsa_port_vlan_filtering(struct dsa_port *dp, bool vlan_filtering)
 	if (dsa_port_is_vlan_filtering(dp) == vlan_filtering)
 		return 0;
 
-	err = ds->ops->port_vlan_filtering(ds, dp->index, vlan_filtering);
+	err = ds->ops->port_vlan_filtering(ds, dp->index, vlan_filtering,
+					   extack);
 	if (err)
 		return err;
 
@@ -535,12 +539,14 @@ int dsa_port_mdb_del(const struct dsa_port *dp,
 }
 
 int dsa_port_vlan_add(struct dsa_port *dp,
-		      const struct switchdev_obj_port_vlan *vlan)
+		      const struct switchdev_obj_port_vlan *vlan,
+		      struct netlink_ext_ack *extack)
 {
 	struct dsa_notifier_vlan_info info = {
 		.sw_index = dp->ds->index,
 		.port = dp->index,
 		.vlan = vlan,
+		.extack = extack,
 	};
 
 	return dsa_port_notify(dp, DSA_NOTIFIER_VLAN_ADD, &info);

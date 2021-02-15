@@ -2639,7 +2639,8 @@ out:
  * which can only be partially reconfigured at runtime (and not the TPID).
  * So a switch reset is required.
  */
-int sja1105_vlan_filtering(struct dsa_switch *ds, int port, bool enabled)
+int sja1105_vlan_filtering(struct dsa_switch *ds, int port, bool enabled,
+			   struct netlink_ext_ack *extack)
 {
 	struct sja1105_l2_lookup_params_entry *l2_lookup_params;
 	struct sja1105_general_params_entry *general_params;
@@ -2653,8 +2654,8 @@ int sja1105_vlan_filtering(struct dsa_switch *ds, int port, bool enabled)
 
 	list_for_each_entry(rule, &priv->flow_block.rules, list) {
 		if (rule->type == SJA1105_RULE_VL) {
-			dev_err(ds->dev,
-				"Cannot change VLAN filtering with active VL rules\n");
+			NL_SET_ERR_MSG_MOD(extack,
+					   "Cannot change VLAN filtering with active VL rules");
 			return -EBUSY;
 		}
 	}
@@ -2736,7 +2737,7 @@ int sja1105_vlan_filtering(struct dsa_switch *ds, int port, bool enabled)
 
 	rc = sja1105_static_config_reload(priv, SJA1105_VLAN_FILTERING);
 	if (rc)
-		dev_err(ds->dev, "Failed to change VLAN Ethertype\n");
+		NL_SET_ERR_MSG_MOD(extack, "Failed to change VLAN Ethertype");
 
 	/* Switch port identification based on 802.1Q is only passable
 	 * if we are not under a vlan_filtering bridge. So make sure
@@ -2795,7 +2796,8 @@ static int sja1105_vlan_del_one(struct dsa_switch *ds, int port, u16 vid,
 }
 
 static int sja1105_vlan_add(struct dsa_switch *ds, int port,
-			    const struct switchdev_obj_port_vlan *vlan)
+			    const struct switchdev_obj_port_vlan *vlan,
+			    struct netlink_ext_ack *extack)
 {
 	struct sja1105_private *priv = ds->priv;
 	bool vlan_table_changed = false;
@@ -2807,7 +2809,8 @@ static int sja1105_vlan_add(struct dsa_switch *ds, int port,
 	 */
 	if (priv->vlan_state != SJA1105_VLAN_FILTERING_FULL &&
 	    vid_is_dsa_8021q(vlan->vid)) {
-		dev_err(ds->dev, "Range 1024-3071 reserved for dsa_8021q operation\n");
+		NL_SET_ERR_MSG_MOD(extack,
+				   "Range 1024-3071 reserved for dsa_8021q operation");
 		return -EBUSY;
 	}
 

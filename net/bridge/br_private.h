@@ -1085,14 +1085,17 @@ int br_vlan_delete(struct net_bridge *br, u16 vid);
 void br_vlan_flush(struct net_bridge *br);
 struct net_bridge_vlan *br_vlan_find(struct net_bridge_vlan_group *vg, u16 vid);
 void br_recalculate_fwd_mask(struct net_bridge *br);
-int __br_vlan_filter_toggle(struct net_bridge *br, unsigned long val);
-int br_vlan_filter_toggle(struct net_bridge *br, unsigned long val);
-int __br_vlan_set_proto(struct net_bridge *br, __be16 proto);
-int br_vlan_set_proto(struct net_bridge *br, unsigned long val);
+int br_vlan_filter_toggle(struct net_bridge *br, unsigned long val,
+			  struct netlink_ext_ack *extack);
+int __br_vlan_set_proto(struct net_bridge *br, __be16 proto,
+			struct netlink_ext_ack *extack);
+int br_vlan_set_proto(struct net_bridge *br, unsigned long val,
+		      struct netlink_ext_ack *extack);
 int br_vlan_set_stats(struct net_bridge *br, unsigned long val);
 int br_vlan_set_stats_per_port(struct net_bridge *br, unsigned long val);
 int br_vlan_init(struct net_bridge *br);
-int br_vlan_set_default_pvid(struct net_bridge *br, unsigned long val);
+int br_vlan_set_default_pvid(struct net_bridge *br, unsigned long val,
+			     struct netlink_ext_ack *extack);
 int __br_vlan_set_default_pvid(struct net_bridge *br, u16 pvid,
 			       struct netlink_ext_ack *extack);
 int nbp_vlan_add(struct net_bridge_port *port, u16 vid, u16 flags,
@@ -1261,8 +1264,8 @@ static inline u16 br_get_pvid(const struct net_bridge_vlan_group *vg)
 	return 0;
 }
 
-static inline int __br_vlan_filter_toggle(struct net_bridge *br,
-					  unsigned long val)
+static inline int br_vlan_filter_toggle(struct net_bridge *br,
+					unsigned long val)
 {
 	return -EOPNOTSUPP;
 }

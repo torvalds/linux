@@ -340,7 +340,8 @@ int rtl8366_init_vlan(struct realtek_smi *smi)
 }
 EXPORT_SYMBOL_GPL(rtl8366_init_vlan);
 
-int rtl8366_vlan_filtering(struct dsa_switch *ds, int port, bool vlan_filtering)
+int rtl8366_vlan_filtering(struct dsa_switch *ds, int port, bool vlan_filtering,
+			   struct netlink_ext_ack *extack)
 {
 	struct realtek_smi *smi = ds->priv;
 	struct rtl8366_vlan_4k vlan4k;
@@ -375,7 +376,8 @@ int rtl8366_vlan_filtering(struct dsa_switch *ds, int port, bool vlan_filtering)
 EXPORT_SYMBOL_GPL(rtl8366_vlan_filtering);
 
 int rtl8366_vlan_add(struct dsa_switch *ds, int port,
-		     const struct switchdev_obj_port_vlan *vlan)
+		     const struct switchdev_obj_port_vlan *vlan,
+		     struct netlink_ext_ack *extack)
 {
 	bool untagged = !!(vlan->flags & BRIDGE_VLAN_INFO_UNTAGGED);
 	bool pvid = !!(vlan->flags & BRIDGE_VLAN_INFO_PVID);
@@ -384,16 +386,20 @@ int rtl8366_vlan_add(struct dsa_switch *ds, int port,
 	u32 untag = 0;
 	int ret;
 
-	if (!smi->ops->is_vlan_valid(smi, vlan->vid))
+	if (!smi->ops->is_vlan_valid(smi, vlan->vid)) {
+		NL_SET_ERR_MSG_MOD(extack, "VLAN ID not valid");
 		return -EINVAL;
+	}
 
 	/* Enable VLAN in the hardware
 	 * FIXME: what's with this 4k business?
 	 * Just rtl8366_enable_vlan() seems inconclusive.
 	 */
 	ret = rtl8366_enable_vlan4k(smi, true);
-	if (ret)
+	if (ret) {
+		NL_SET_ERR_MSG_MOD(extack, "Failed to enable VLAN 4K");
 		return ret;
+	}
 
 	dev_info(smi->dev, "add VLAN %d on port %d, %s, %s\n",
 		 vlan->vid, port, untagged ? "untagged" : "tagged",

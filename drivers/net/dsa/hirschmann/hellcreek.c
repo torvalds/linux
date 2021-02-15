@@ -341,7 +341,8 @@ static u16 hellcreek_private_vid(int port)
 }
 
 static int hellcreek_vlan_prepare(struct dsa_switch *ds, int port,
-				  const struct switchdev_obj_port_vlan *vlan)
+				  const struct switchdev_obj_port_vlan *vlan,
+				  struct netlink_ext_ack *extack)
 {
 	struct hellcreek *hellcreek = ds->priv;
 	int i;
@@ -358,8 +359,10 @@ static int hellcreek_vlan_prepare(struct dsa_switch *ds, int port,
 		if (!dsa_is_user_port(ds, i))
 			continue;
 
-		if (vlan->vid == restricted_vid)
+		if (vlan->vid == restricted_vid) {
+			NL_SET_ERR_MSG_MOD(extack, "VID restricted by driver");
 			return -EBUSY;
+		}
 	}
 
 	return 0;
@@ -445,14 +448,15 @@ static void hellcreek_unapply_vlan(struct hellcreek *hellcreek, int port,
 }
 
 static int hellcreek_vlan_add(struct dsa_switch *ds, int port,
-			      const struct switchdev_obj_port_vlan *vlan)
+			      const struct switchdev_obj_port_vlan *vlan,
+			      struct netlink_ext_ack *extack)
 {
 	bool untagged = vlan->flags & BRIDGE_VLAN_INFO_UNTAGGED;
 	bool pvid = vlan->flags & BRIDGE_VLAN_INFO_PVID;
 	struct hellcreek *hellcreek = ds->priv;
 	int err;
 
-	err = hellcreek_vlan_prepare(ds, port, vlan);
+	err = hellcreek_vlan_prepare(ds, port, vlan, extack);
 	if (err)
 		return err;
 
@@ -871,7 +875,8 @@ static int hellcreek_fdb_dump(struct dsa_switch *ds, int port,
 }
 
 static int hellcreek_vlan_filtering(struct dsa_switch *ds, int port,
-				    bool vlan_filtering)
+				    bool vlan_filtering,
+				    struct netlink_ext_ack *extack)
 {
 	struct hellcreek *hellcreek = ds->priv;
 

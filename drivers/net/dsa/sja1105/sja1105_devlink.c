@@ -143,7 +143,7 @@ static int sja1105_best_effort_vlan_filtering_set(struct sja1105_private *priv,
 		dp = dsa_to_port(ds, port);
 		vlan_filtering = dsa_port_is_vlan_filtering(dp);
 
-		rc = sja1105_vlan_filtering(ds, port, vlan_filtering);
+		rc = sja1105_vlan_filtering(ds, port, vlan_filtering, NULL);
 		if (rc)
 			break;
 	}

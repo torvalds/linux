@@ -75,6 +75,7 @@ struct dsa_notifier_vlan_info {
 	const struct switchdev_obj_port_vlan *vlan;
 	int sw_index;
 	int port;
+	struct netlink_ext_ack *extack;
 };
 
 /* DSA_NOTIFIER_MTU */
@@ -169,7 +170,8 @@ int dsa_port_lag_change(struct dsa_port *dp,
 int dsa_port_lag_join(struct dsa_port *dp, struct net_device *lag_dev,
 		      struct netdev_lag_upper_info *uinfo);
 void dsa_port_lag_leave(struct dsa_port *dp, struct net_device *lag_dev);
-int dsa_port_vlan_filtering(struct dsa_port *dp, bool vlan_filtering);
+int dsa_port_vlan_filtering(struct dsa_port *dp, bool vlan_filtering,
+			    struct netlink_ext_ack *extack);
 bool dsa_port_skip_vlan_configuration(struct dsa_port *dp);
 int dsa_port_ageing_time(struct dsa_port *dp, clock_t ageing_clock);
 int dsa_port_mtu_change(struct dsa_port *dp, int new_mtu,
@@ -192,7 +194,8 @@ int dsa_port_bridge_flags(const struct dsa_port *dp,
 int dsa_port_mrouter(struct dsa_port *dp, bool mrouter,
 		     struct netlink_ext_ack *extack);
 int dsa_port_vlan_add(struct dsa_port *dp,
-		      const struct switchdev_obj_port_vlan *vlan);
+		      const struct switchdev_obj_port_vlan *vlan,
+		      struct netlink_ext_ack *extack);
 int dsa_port_vlan_del(struct dsa_port *dp,
 		      const struct switchdev_obj_port_vlan *vlan);
 int dsa_port_link_register_of(struct dsa_port *dp);

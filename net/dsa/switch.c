@@ -106,6 +106,7 @@ static int dsa_switch_bridge_leave(struct dsa_switch *ds,
 {
 	bool unset_vlan_filtering = br_vlan_enabled(info->br);
 	struct dsa_switch_tree *dst = ds->dst;
+	struct netlink_ext_ack extack = {0};
 	int err, i;
 
 	if (dst->index == info->tree_index && ds->index == info->sw_index &&
@@ -137,7 +138,10 @@ static int dsa_switch_bridge_leave(struct dsa_switch *ds,
 	}
 	if (unset_vlan_filtering) {
 		err = dsa_port_vlan_filtering(dsa_to_port(ds, info->port),
-					      false);
+					      false, &extack);
+		if (extack._msg)
+			dev_err(ds->dev, "port %d: %s\n", info->port,
+				extack._msg);
 		if (err && err != EOPNOTSUPP)
 			return err;
 	}
@@ -291,7 +295,8 @@ static int dsa_switch_vlan_add(struct dsa_switch *ds,
 
 	for (port = 0; port < ds->num_ports; port++) {
 		if (dsa_switch_vlan_match(ds, port, info)) {
-			err = ds->ops->port_vlan_add(ds, port, info->vlan);
+			err = ds->ops->port_vlan_add(ds, port, info->vlan,
+						     info->extack);
 			if (err)
 				return err;
 		}

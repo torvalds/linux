@@ -100,7 +100,8 @@ static int switchdev_deferred_enqueue(struct net_device *dev,
 
 static int switchdev_port_attr_notify(enum switchdev_notifier_type nt,
 				      struct net_device *dev,
-				      const struct switchdev_attr *attr)
+				      const struct switchdev_attr *attr,
+				      struct netlink_ext_ack *extack)
 {
 	int err;
 	int rc;
@@ -111,7 +112,7 @@ static int switchdev_port_attr_notify(enum switchdev_notifier_type nt,
 	};
 
 	rc = call_switchdev_blocking_notifiers(nt, dev,
-					       &attr_info.info, NULL);
+					       &attr_info.info, extack);
 	err = notifier_to_errno(rc);
 	if (err) {
 		WARN_ON(!attr_info.handled);
@@ -125,9 +126,11 @@ static int switchdev_port_attr_notify(enum switchdev_notifier_type nt,
 }
 
 static int switchdev_port_attr_set_now(struct net_device *dev,
-				       const struct switchdev_attr *attr)
+				       const struct switchdev_attr *attr,
+				       struct netlink_ext_ack *extack)
 {
-	return switchdev_port_attr_notify(SWITCHDEV_PORT_ATTR_SET, dev, attr);
+	return switchdev_port_attr_notify(SWITCHDEV_PORT_ATTR_SET, dev, attr,
+					  extack);
 }
 
 static void switchdev_port_attr_set_deferred(struct net_device *dev,
@@ -136,7 +139,7 @@ static void switchdev_port_attr_set_deferred(struct net_device *dev,
 	const struct switchdev_attr *attr = data;
 	int err;
 
-	err = switchdev_port_attr_set_now(dev, attr);
+	err = switchdev_port_attr_set_now(dev, attr, NULL);
 	if (err && err != -EOPNOTSUPP)
 		netdev_err(dev, "failed (err=%d) to set attribute (id=%d)\n",
 			   err, attr->id);
@@ -156,17 +159,19 @@ static int switchdev_port_attr_set_defer(struct net_device *dev,
  *
  *	@dev: port device
  *	@attr: attribute to set
+ *	@extack: netlink extended ack, for error message propagation
  *
  *	rtnl_lock must be held and must not be in atomic section,
  *	in case SWITCHDEV_F_DEFER flag is not set.
  */
 int switchdev_port_attr_set(struct net_device *dev,
-			    const struct switchdev_attr *attr)
+			    const struct switchdev_attr *attr,
+			    struct netlink_ext_ack *extack)
 {
 	if (attr->flags & SWITCHDEV_F_DEFER)
 		return switchdev_port_attr_set_defer(dev, attr);
 	ASSERT_RTNL();
-	return switchdev_port_attr_set_now(dev, attr);
+	return switchdev_port_attr_set_now(dev, attr, extack);
 }
 EXPORT_SYMBOL_GPL(switchdev_port_attr_set);
 

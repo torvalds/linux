@@ -43,7 +43,7 @@ void br_set_state(struct net_bridge_port *p, unsigned int state)
 		return;
 
 	p->state = state;
-	err = switchdev_port_attr_set(p->dev, &attr);
+	err = switchdev_port_attr_set(p->dev, &attr, NULL);
 	if (err && err != -EOPNOTSUPP)
 		br_warn(p->br, "error setting offload STP state on port %u(%s)\n",
 				(unsigned int) p->port_no, p->dev->name);
@@ -591,7 +591,7 @@ int __set_ageing_time(struct net_device *dev, unsigned long t)
 	};
 	int err;
 
-	err = switchdev_port_attr_set(dev, &attr);
+	err = switchdev_port_attr_set(dev, &attr, NULL);
 	if (err && err != -EOPNOTSUPP)
 		return err;
 
