@@ -1758,8 +1758,9 @@ static int csi_registered(struct v4l2_subdev *sd)
 
 		/* set a default mbus format  */
 		ret = imx_media_init_mbus_fmt(&priv->format_mbus[i],
-					      640, 480, code, V4L2_FIELD_NONE,
-					      &priv->cc[i]);
+					      IMX_MEDIA_DEF_PIX_WIDTH,
+					      IMX_MEDIA_DEF_PIX_HEIGHT, code,
+					      V4L2_FIELD_NONE, &priv->cc[i]);
 		if (ret)
 			goto put_csi;
 
@@ -1772,10 +1773,10 @@ static int csi_registered(struct v4l2_subdev *sd)
 	priv->skip = &csi_skip[0];
 
 	/* init default crop and compose rectangle sizes */
-	priv->crop.width = 640;
-	priv->crop.height = 480;
-	priv->compose.width = 640;
-	priv->compose.height = 480;
+	priv->crop.width = IMX_MEDIA_DEF_PIX_WIDTH;
+	priv->crop.height = IMX_MEDIA_DEF_PIX_HEIGHT;
+	priv->compose.width = IMX_MEDIA_DEF_PIX_WIDTH;
+	priv->compose.height = IMX_MEDIA_DEF_PIX_HEIGHT;
 
 	priv->fim = imx_media_fim_init(&priv->sd);
 	if (IS_ERR(priv->fim)) {

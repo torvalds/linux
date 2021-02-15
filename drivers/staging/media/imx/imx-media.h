@@ -15,6 +15,9 @@
 #include <media/videobuf2-dma-contig.h>
 #include <video/imx-ipu-v3.h>
 
+#define IMX_MEDIA_DEF_PIX_WIDTH		640
+#define IMX_MEDIA_DEF_PIX_HEIGHT	480
+
 /*
  * Enumeration of the IPU internal sub-devices
  */
