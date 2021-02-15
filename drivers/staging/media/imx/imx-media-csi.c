@@ -1788,7 +1788,7 @@ static int csi_registered(struct v4l2_subdev *sd)
 		goto free_fim;
 	}
 
-	ret = imx_media_capture_device_register(priv->vdev);
+	ret = imx_media_capture_device_register(priv->vdev, 0);
 	if (ret)
 		goto remove_vdev;
 

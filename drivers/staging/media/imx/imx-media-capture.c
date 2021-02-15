@@ -898,7 +898,8 @@ static int capture_init_format(struct capture_priv *priv)
 	return 0;
 }
 
-int imx_media_capture_device_register(struct imx_media_video_dev *vdev)
+int imx_media_capture_device_register(struct imx_media_video_dev *vdev,
+				      u32 link_flags)
 {
 	struct capture_priv *priv = to_capture_priv(vdev);
 	struct v4l2_subdev *sd = priv->src_sd;
@@ -927,8 +928,10 @@ int imx_media_capture_device_register(struct imx_media_video_dev *vdev)
 		 video_device_node_name(vfd));
 
 	/* Create the link from the src_sd devnode pad to device node. */
+	if (link_flags & MEDIA_LNK_FL_IMMUTABLE)
+		link_flags |= MEDIA_LNK_FL_ENABLED;
 	ret = media_create_pad_link(&sd->entity, priv->src_sd_pad,
-				    &vfd->entity, 0, 0);
+				    &vfd->entity, 0, link_flags);
 	if (ret) {
 		dev_err(priv->dev, "failed to create link to device node\n");
 		video_unregister_device(vfd);

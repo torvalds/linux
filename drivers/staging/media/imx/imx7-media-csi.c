@@ -1104,7 +1104,7 @@ static int imx7_csi_registered(struct v4l2_subdev *sd)
 	if (IS_ERR(csi->vdev))
 		return PTR_ERR(csi->vdev);
 
-	ret = imx_media_capture_device_register(csi->vdev);
+	ret = imx_media_capture_device_register(csi->vdev, 0);
 	if (ret)
 		imx_media_capture_device_remove(csi->vdev);
 
