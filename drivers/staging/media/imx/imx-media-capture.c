@@ -174,7 +174,8 @@ static int capture_enum_fmt_vid_cap(struct file *file, void *fh,
 			(cc_src->cs == IPUV3_COLORSPACE_YUV) ?
 			PIXFMT_SEL_YUV : PIXFMT_SEL_RGB;
 
-		ret = imx_media_enum_pixel_formats(&fourcc, f->index, fmt_sel);
+		ret = imx_media_enum_pixel_formats(&fourcc, f->index, fmt_sel,
+						   0);
 		if (ret)
 			return ret;
 	} else {
@@ -223,7 +224,7 @@ static int __capture_try_fmt_vid_cap(struct capture_priv *priv,
 
 		cc = imx_media_find_pixel_format(fourcc, fmt_sel);
 		if (!cc) {
-			imx_media_enum_pixel_formats(&fourcc, 0, fmt_sel);
+			imx_media_enum_pixel_formats(&fourcc, 0, fmt_sel, 0);
 			cc = imx_media_find_pixel_format(fourcc, fmt_sel);
 		}
 	} else {

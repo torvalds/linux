@@ -170,7 +170,7 @@ struct imx_media_dev {
 const struct imx_media_pixfmt *
 imx_media_find_pixel_format(u32 fourcc, enum imx_pixfmt_sel sel);
 int imx_media_enum_pixel_formats(u32 *fourcc, u32 index,
-				 enum imx_pixfmt_sel sel);
+				 enum imx_pixfmt_sel sel, u32 code);
 const struct imx_media_pixfmt *
 imx_media_find_mbus_format(u32 code, enum imx_pixfmt_sel sel);
 int imx_media_enum_mbus_formats(u32 *code, u32 index,
