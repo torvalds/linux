@@ -184,7 +184,6 @@ struct imx7_csi {
 	u32 frame_sequence;
 
 	bool last_eof;
-	bool is_init;
 	bool is_streaming;
 	bool is_csi2;
 
@@ -402,9 +401,6 @@ static int imx7_csi_init(struct imx7_csi *csi)
 {
 	int ret;
 
-	if (csi->is_init)
-		return 0;
-
 	ret = clk_prepare_enable(csi->mclk);
 	if (ret < 0)
 		return ret;
@@ -412,22 +408,15 @@ static int imx7_csi_init(struct imx7_csi *csi)
 	imx7_csi_init_interface(csi);
 	imx7_csi_dmareq_rff_enable(csi);
 
-	csi->is_init = true;
-
 	return 0;
 }
 
 static void imx7_csi_deinit(struct imx7_csi *csi)
 {
-	if (!csi->is_init)
-		return;
-
 	imx7_csi_hw_reset(csi);
 	imx7_csi_init_interface(csi);
 	imx7_csi_dmareq_rff_disable(csi);
 	clk_disable_unprepare(csi->mclk);
-
-	csi->is_init = false;
 }
 
 static int imx7_csi_link_setup(struct media_entity *entity,
@@ -462,7 +451,7 @@ static int imx7_csi_link_setup(struct media_entity *entity,
 			csi->src_sd = NULL;
 		}
 
-		goto init;
+		goto unlock;
 	}
 
 	/* source pad */
@@ -475,12 +464,6 @@ static int imx7_csi_link_setup(struct media_entity *entity,
 	} else {
 		csi->sink = NULL;
 	}
-
-init:
-	if (csi->sink || csi->src_sd)
-		ret = imx7_csi_init(csi);
-	else
-		imx7_csi_deinit(csi);
 
 unlock:
 	mutex_unlock(&csi->lock);
@@ -868,19 +851,28 @@ static int imx7_csi_s_stream(struct v4l2_subdev *sd, int enable)
 		goto out_unlock;
 
 	if (enable) {
-		ret = v4l2_subdev_call(csi->src_sd, video, s_stream, 1);
+		ret = imx7_csi_init(csi);
 		if (ret < 0)
 			goto out_unlock;
+
+		ret = v4l2_subdev_call(csi->src_sd, video, s_stream, 1);
+		if (ret < 0) {
+			imx7_csi_deinit(csi);
+			goto out_unlock;
+		}
 
 		ret = imx7_csi_streaming_start(csi);
 		if (ret < 0) {
 			v4l2_subdev_call(csi->src_sd, video, s_stream, 0);
+			imx7_csi_deinit(csi);
 			goto out_unlock;
 		}
 	} else {
 		imx7_csi_streaming_stop(csi);
 
 		v4l2_subdev_call(csi->src_sd, video, s_stream, 0);
+
+		imx7_csi_deinit(csi);
 	}
 
 	csi->is_streaming = !!enable;
