@@ -251,17 +251,16 @@ static int capture_legacy_enum_fmt_vid_cap(struct file *file, void *fh,
 	return 0;
 }
 
-static int __capture_legacy_try_fmt(struct capture_priv *priv,
-				    struct v4l2_subdev_format *fmt_src,
-				    struct v4l2_pix_format *pixfmt,
-				    const struct imx_media_pixfmt **retcc,
-				    struct v4l2_rect *compose)
+static const struct imx_media_pixfmt *
+__capture_legacy_try_fmt(struct capture_priv *priv,
+			 struct v4l2_subdev_format *fmt_src,
+			 struct v4l2_pix_format *pixfmt)
 {
 	const struct imx_media_pixfmt *cc;
 
 	cc = capture_find_format(fmt_src->format.code, pixfmt->pixelformat);
 	if (WARN_ON(!cc))
-		return -EINVAL;
+		return NULL;
 
 	/* allow IDMAC interweave but enforce field order from source */
 	if (V4L2_FIELD_IS_INTERLACED(pixfmt->field)) {
@@ -279,17 +278,7 @@ static int __capture_legacy_try_fmt(struct capture_priv *priv,
 
 	imx_media_mbus_fmt_to_pix_fmt(pixfmt, &fmt_src->format, cc);
 
-	if (retcc)
-		*retcc = cc;
-
-	if (compose) {
-		compose->left = 0;
-		compose->top = 0;
-		compose->width = fmt_src->format.width;
-		compose->height = fmt_src->format.height;
-	}
-
-	return 0;
+	return cc;
 }
 
 static int capture_legacy_try_fmt_vid_cap(struct file *file, void *fh,
@@ -305,8 +294,10 @@ static int capture_legacy_try_fmt_vid_cap(struct file *file, void *fh,
 	if (ret)
 		return ret;
 
-	return __capture_legacy_try_fmt(priv, &fmt_src, &f->fmt.pix, NULL,
-					NULL);
+	if (!__capture_legacy_try_fmt(priv, &fmt_src, &f->fmt.pix))
+		return -EINVAL;
+
+	return 0;
 }
 
 static int capture_legacy_s_fmt_vid_cap(struct file *file, void *fh,
@@ -314,6 +305,7 @@ static int capture_legacy_s_fmt_vid_cap(struct file *file, void *fh,
 {
 	struct capture_priv *priv = video_drvdata(file);
 	struct v4l2_subdev_format fmt_src;
+	const struct imx_media_pixfmt *cc;
 	int ret;
 
 	if (vb2_is_busy(&priv->q)) {
@@ -327,12 +319,14 @@ static int capture_legacy_s_fmt_vid_cap(struct file *file, void *fh,
 	if (ret)
 		return ret;
 
-	ret = __capture_legacy_try_fmt(priv, &fmt_src, &f->fmt.pix,
-				       &priv->vdev.cc, &priv->vdev.compose);
-	if (ret)
-		return ret;
+	cc = __capture_legacy_try_fmt(priv, &fmt_src, &f->fmt.pix);
+	if (!cc)
+		return -EINVAL;
 
+	priv->vdev.cc = cc;
 	priv->vdev.fmt = f->fmt.pix;
+	priv->vdev.compose.width = fmt_src.format.width;
+	priv->vdev.compose.height = fmt_src.format.height;
 
 	return 0;
 }
