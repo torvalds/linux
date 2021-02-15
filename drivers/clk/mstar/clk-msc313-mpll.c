@@ -123,7 +123,7 @@ static int msc313_mpll_probe(struct platform_device *pdev)
 	mpll->clk_data->hws[0] = &mpll->clk_hw;
 
 	for (i = 0; i < ARRAY_SIZE(output_dividers); i++) {
-		outputname = devm_kasprintf(dev, GFP_KERNEL, "%s_div_%d",
+		outputname = devm_kasprintf(dev, GFP_KERNEL, "%s_div_%u",
 				clk_init.name, output_dividers[i]);
 		if (!outputname)
 			return -ENOMEM;
