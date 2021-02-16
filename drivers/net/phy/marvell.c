@@ -684,16 +684,19 @@ static int m88e1111_config_aneg(struct phy_device *phydev)
 	if (err < 0)
 		goto error;
 
-	/* Do not touch the fiber page if we're in copper->sgmii mode */
-	if (phydev->interface == PHY_INTERFACE_MODE_SGMII)
-		return 0;
-
 	/* Then the fiber link */
 	err = marvell_set_page(phydev, MII_MARVELL_FIBER_PAGE);
 	if (err < 0)
 		goto error;
 
-	err = marvell_config_aneg_fiber(phydev);
+	if (phydev->interface == PHY_INTERFACE_MODE_SGMII)
+		/* Do not touch the fiber advertisement if we're in copper->sgmii mode.
+		 * Just ensure that SGMII-side autonegotiation is enabled.
+		 * If we switched from some other mode to SGMII it may not be.
+		 */
+		err = genphy_check_and_restart_aneg(phydev, false);
+	else
+		err = marvell_config_aneg_fiber(phydev);
 	if (err < 0)
 		goto error;
 
