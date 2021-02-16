@@ -133,9 +133,38 @@ static inline void ath11k_pci_select_window(struct ath11k_pci *ab_pci, u32 offse
 	}
 }
 
+static inline void ath11k_pci_select_static_window(struct ath11k_pci *ab_pci)
+{
+	u32 umac_window = FIELD_GET(WINDOW_VALUE_MASK, HAL_SEQ_WCSS_UMAC_OFFSET);
+	u32 ce_window = FIELD_GET(WINDOW_VALUE_MASK, HAL_CE_WFSS_CE_REG_BASE);
+	u32 window;
+
+	window = (umac_window << 12) | (ce_window << 6);
+
+	iowrite32(WINDOW_ENABLE_BIT | window, ab_pci->ab->mem + WINDOW_REG_ADDRESS);
+}
+
+static inline u32 ath11k_pci_get_window_start(struct ath11k_base *ab,
+					      u32 offset)
+{
+	u32 window_start;
+
+	/* If offset lies within DP register range, use 3rd window */
+	if ((offset ^ HAL_SEQ_WCSS_UMAC_OFFSET) < WINDOW_RANGE_MASK)
+		window_start = 3 * WINDOW_START;
+	/* If offset lies within CE register range, use 2nd window */
+	else if ((offset ^ HAL_CE_WFSS_CE_REG_BASE) < WINDOW_RANGE_MASK)
+		window_start = 2 * WINDOW_START;
+	else
+		window_start = WINDOW_START;
+
+	return window_start;
+}
+
 void ath11k_pci_write32(struct ath11k_base *ab, u32 offset, u32 value)
 {
 	struct ath11k_pci *ab_pci = ath11k_pci_priv(ab);
+	u32 window_start;
 
 	/* for offset beyond BAR + 4K - 32, may
 	 * need to wakeup MHI to access.
@@ -147,10 +176,21 @@ void ath11k_pci_write32(struct ath11k_base *ab, u32 offset, u32 value)
 	if (offset < WINDOW_START) {
 		iowrite32(value, ab->mem  + offset);
 	} else {
-		spin_lock_bh(&ab_pci->window_lock);
-		ath11k_pci_select_window(ab_pci, offset);
-		iowrite32(value, ab->mem + WINDOW_START + (offset & WINDOW_RANGE_MASK));
-		spin_unlock_bh(&ab_pci->window_lock);
+		if (ab->bus_params.static_window_map)
+			window_start = ath11k_pci_get_window_start(ab, offset);
+		else
+			window_start = WINDOW_START;
+
+		if (window_start == WINDOW_START) {
+			spin_lock_bh(&ab_pci->window_lock);
+			ath11k_pci_select_window(ab_pci, offset);
+			iowrite32(value, ab->mem + window_start +
+				  (offset & WINDOW_RANGE_MASK));
+			spin_unlock_bh(&ab_pci->window_lock);
+		} else {
+			iowrite32(value, ab->mem + window_start +
+				  (offset & WINDOW_RANGE_MASK));
+		}
 	}
 
 	if (test_bit(ATH11K_PCI_FLAG_INIT_DONE, &ab_pci->flags) &&
@@ -161,7 +201,7 @@ void ath11k_pci_write32(struct ath11k_base *ab, u32 offset, u32 value)
 u32 ath11k_pci_read32(struct ath11k_base *ab, u32 offset)
 {
 	struct ath11k_pci *ab_pci = ath11k_pci_priv(ab);
-	u32 val;
+	u32 val, window_start;
 
 	/* for offset beyond BAR + 4K - 32, may
 	 * need to wakeup MHI to access.
@@ -173,10 +213,21 @@ u32 ath11k_pci_read32(struct ath11k_base *ab, u32 offset)
 	if (offset < WINDOW_START) {
 		val = ioread32(ab->mem + offset);
 	} else {
-		spin_lock_bh(&ab_pci->window_lock);
-		ath11k_pci_select_window(ab_pci, offset);
-		val = ioread32(ab->mem + WINDOW_START + (offset & WINDOW_RANGE_MASK));
-		spin_unlock_bh(&ab_pci->window_lock);
+		if (ab->bus_params.static_window_map)
+			window_start = ath11k_pci_get_window_start(ab, offset);
+		else
+			window_start = WINDOW_START;
+
+		if (window_start == WINDOW_START) {
+			spin_lock_bh(&ab_pci->window_lock);
+			ath11k_pci_select_window(ab_pci, offset);
+			val = ioread32(ab->mem + window_start +
+				       (offset & WINDOW_RANGE_MASK));
+			spin_unlock_bh(&ab_pci->window_lock);
+		} else {
+			val = ioread32(ab->mem + window_start +
+				       (offset & WINDOW_RANGE_MASK));
+		}
 	}
 
 	if (test_bit(ATH11K_PCI_FLAG_INIT_DONE, &ab_pci->flags) &&
@@ -935,6 +986,9 @@ static int ath11k_pci_power_up(struct ath11k_base *ab)
 		ath11k_err(ab, "failed to start mhi: %d\n", ret);
 		return ret;
 	}
+
+	if (ab->bus_params.static_window_map)
+		ath11k_pci_select_static_window(ab_pci);
 
 	return 0;
 }

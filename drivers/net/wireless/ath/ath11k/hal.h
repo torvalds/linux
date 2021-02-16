@@ -39,6 +39,7 @@ struct ath11k_base;
 #define HAL_SHADOW_REG(x) (HAL_SHADOW_BASE_ADDR + (4 * (x)))
 
 /* WCSS Relative address */
+#define HAL_SEQ_WCSS_UMAC_OFFSET		0x00a00000
 #define HAL_SEQ_WCSS_UMAC_REO_REG		0x00a38000
 #define HAL_SEQ_WCSS_UMAC_TCL_REG		0x00a44000
 #define HAL_SEQ_WCSS_UMAC_CE0_SRC_REG		0x00a00000
@@ -46,6 +47,9 @@ struct ath11k_base;
 #define HAL_SEQ_WCSS_UMAC_CE1_SRC_REG		0x00a02000
 #define HAL_SEQ_WCSS_UMAC_CE1_DST_REG		0x00a03000
 #define HAL_SEQ_WCSS_UMAC_WBM_REG		0x00a34000
+
+#define HAL_CE_WFSS_CE_REG_BASE			0x01b80000
+#define HAL_WLAON_REG_BASE			0x01f80000
 
 /* SW2TCL(x) R0 ring configuration address */
 #define HAL_TCL1_RING_CMN_CTRL_REG		0x00000014
