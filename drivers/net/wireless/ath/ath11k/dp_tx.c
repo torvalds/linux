@@ -792,8 +792,8 @@ int ath11k_dp_tx_htt_srng_setup(struct ath11k_base *ab, u32 ring_id,
 	cmd->ring_tail_off32_remote_addr_hi = (u64)tp_addr >>
 					      HAL_ADDR_MSB_REG_SHIFT;
 
-	cmd->ring_msi_addr_lo = params.msi_addr & 0xffffffff;
-	cmd->ring_msi_addr_hi = ((uint64_t)(params.msi_addr) >> 32) & 0xffffffff;
+	cmd->ring_msi_addr_lo = lower_32_bits(params.msi_addr);
+	cmd->ring_msi_addr_hi = upper_32_bits(params.msi_addr);
 	cmd->msi_data = params.msi_data;
 
 	cmd->intr_info = FIELD_PREP(

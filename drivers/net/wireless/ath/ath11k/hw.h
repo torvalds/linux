@@ -208,6 +208,7 @@ extern const struct ath11k_hw_ops qcn9074_ops;
 
 extern const struct ath11k_hw_ring_mask ath11k_hw_ring_mask_ipq8074;
 extern const struct ath11k_hw_ring_mask ath11k_hw_ring_mask_qca6390;
+extern const struct ath11k_hw_ring_mask ath11k_hw_ring_mask_qcn9074;
 
 static inline
 int ath11k_hw_get_mac_from_pdev_id(struct ath11k_hw_params *hw,

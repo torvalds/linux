@@ -592,6 +592,9 @@ static irqreturn_t ath11k_pci_ce_interrupt_handler(int irq, void *arg)
 {
 	struct ath11k_ce_pipe *ce_pipe = arg;
 
+	/* last interrupt received for this CE */
+	ce_pipe->timestamp = jiffies;
+
 	ath11k_pci_ce_irq_disable(ce_pipe->ab, ce_pipe->pipe_num);
 	tasklet_schedule(&ce_pipe->intr_tq);
 
@@ -686,6 +689,9 @@ static irqreturn_t ath11k_pci_ext_interrupt_handler(int irq, void *arg)
 
 	ath11k_dbg(irq_grp->ab, ATH11K_DBG_PCI, "ext irq:%d\n", irq);
 
+	/* last interrupt received for this group */
+	irq_grp->timestamp = jiffies;
+
 	ath11k_pci_ext_grp_disable(irq_grp);
 
 	napi_schedule(&irq_grp->napi);
@@ -696,8 +702,9 @@ static irqreturn_t ath11k_pci_ext_interrupt_handler(int irq, void *arg)
 static int ath11k_pci_ext_irq_config(struct ath11k_base *ab)
 {
 	int i, j, ret, num_vectors = 0;
-	u32 user_base_data = 0, base_vector = 0;
+	u32 user_base_data = 0, base_vector = 0, base_idx;
 
+	base_idx = ATH11K_PCI_IRQ_CE0_OFFSET + CE_COUNT_MAX;
 	ret = ath11k_pci_get_user_msi_assignment(ath11k_pci_priv(ab), "DP",
 						 &num_vectors,
 						 &user_base_data,
@@ -727,7 +734,7 @@ static int ath11k_pci_ext_irq_config(struct ath11k_base *ab)
 		}
 
 		irq_grp->num_irq = num_irq;
-		irq_grp->irqs[0] = base_vector + i;
+		irq_grp->irqs[0] = base_idx + i;
 
 		for (j = 0; j < irq_grp->num_irq; j++) {
 			int irq_idx = irq_grp->irqs[j];
@@ -738,6 +745,8 @@ static int ath11k_pci_ext_irq_config(struct ath11k_base *ab)
 
 			ath11k_dbg(ab, ATH11K_DBG_PCI,
 				   "irq:%d group:%d\n", irq, i);
+
+			irq_set_status_flags(irq, IRQ_DISABLE_UNLAZY);
 			ret = request_irq(irq, ath11k_pci_ext_interrupt_handler,
 					  IRQF_SHARED,
 					  "DP_EXT_IRQ", irq_grp);
