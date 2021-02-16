@@ -687,7 +687,7 @@ static int ocelot_xtr_poll_xfh(struct ocelot *ocelot, int grp, u32 *xfh)
 int ocelot_xtr_poll_frame(struct ocelot *ocelot, int grp, struct sk_buff **nskb)
 {
 	struct skb_shared_hwtstamps *shhwtstamps;
-	u64 tod_in_ns, full_ts_in_ns;
+	u64 tod_in_ns, full_ts_in_ns, cpuq;
 	u64 timestamp, src_port, len;
 	u32 xfh[OCELOT_TAG_LEN / 4];
 	struct net_device *dev;
@@ -704,6 +704,7 @@ int ocelot_xtr_poll_frame(struct ocelot *ocelot, int grp, struct sk_buff **nskb)
 	ocelot_xfh_get_src_port(xfh, &src_port);
 	ocelot_xfh_get_len(xfh, &len);
 	ocelot_xfh_get_rew_val(xfh, &timestamp);
+	ocelot_xfh_get_cpuq(xfh, &cpuq);
 
 	if (WARN_ON(src_port >= ocelot->num_phys_ports))
 		return -EINVAL;
@@ -770,6 +771,13 @@ int ocelot_xtr_poll_frame(struct ocelot *ocelot, int grp, struct sk_buff **nskb)
 		skb->offload_fwd_mark = 1;
 
 	skb->protocol = eth_type_trans(skb, dev);
+
+#if IS_ENABLED(CONFIG_BRIDGE_MRP)
+	if (skb->protocol == cpu_to_be16(ETH_P_MRP) &&
+	    cpuq & BIT(OCELOT_MRP_CPUQ))
+		skb->offload_fwd_mark = 0;
+#endif
+
 	*nskb = skb;
 
 	return 0;
