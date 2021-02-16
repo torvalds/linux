@@ -775,6 +775,7 @@ static int ath11k_pci_config_irq(struct ath11k_base *ab)
 		}
 
 		ab->irq_num[irq_idx] = irq;
+
 		ath11k_pci_ce_irq_disable(ab, i);
 	}
 

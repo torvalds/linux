@@ -316,8 +316,6 @@ struct ath11k_base;
 #define HAL_WBM2SW_RELEASE_RING_BASE_MSB_RING_SIZE	0x000fffff
 #define HAL_RXDMA_RING_MAX_SIZE				0x0000ffff
 
-#define HAL_RX_DESC_SIZE (sizeof(struct hal_rx_desc))
-
 /* Add any other errors here and return them in
  * ath11k_hal_rx_desc_get_err().
  */

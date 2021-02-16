@@ -105,6 +105,7 @@ enum ath11k_bus {
 
 #define ATH11K_EXT_IRQ_GRP_NUM_MAX 11
 
+struct hal_rx_desc;
 struct hal_tcl_data_cmd;
 
 struct ath11k_hw_ring_mask {
@@ -160,6 +161,7 @@ struct ath11k_hw_params {
 	bool idle_ps;
 	bool cold_boot_calib;
 	bool supports_suspend;
+	u32 hal_desc_sz;
 };
 
 struct ath11k_hw_ops {
@@ -170,6 +172,33 @@ struct ath11k_hw_ops {
 	int (*mac_id_to_srng_id)(struct ath11k_hw_params *hw, int mac_id);
 	void (*tx_mesh_enable)(struct ath11k_base *ab,
 			       struct hal_tcl_data_cmd *tcl_cmd);
+	bool (*rx_desc_get_first_msdu)(struct hal_rx_desc *desc);
+	bool (*rx_desc_get_last_msdu)(struct hal_rx_desc *desc);
+	u8 (*rx_desc_get_l3_pad_bytes)(struct hal_rx_desc *desc);
+	u8 *(*rx_desc_get_hdr_status)(struct hal_rx_desc *desc);
+	bool (*rx_desc_encrypt_valid)(struct hal_rx_desc *desc);
+	u32 (*rx_desc_get_encrypt_type)(struct hal_rx_desc *desc);
+	u8 (*rx_desc_get_decap_type)(struct hal_rx_desc *desc);
+	u8 (*rx_desc_get_mesh_ctl)(struct hal_rx_desc *desc);
+	bool (*rx_desc_get_mpdu_seq_ctl_vld)(struct hal_rx_desc *desc);
+	bool (*rx_desc_get_mpdu_fc_valid)(struct hal_rx_desc *desc);
+	u16 (*rx_desc_get_mpdu_start_seq_no)(struct hal_rx_desc *desc);
+	u16 (*rx_desc_get_msdu_len)(struct hal_rx_desc *desc);
+	u8 (*rx_desc_get_msdu_sgi)(struct hal_rx_desc *desc);
+	u8 (*rx_desc_get_msdu_rate_mcs)(struct hal_rx_desc *desc);
+	u8 (*rx_desc_get_msdu_rx_bw)(struct hal_rx_desc *desc);
+	u32 (*rx_desc_get_msdu_freq)(struct hal_rx_desc *desc);
+	u8 (*rx_desc_get_msdu_pkt_type)(struct hal_rx_desc *desc);
+	u8 (*rx_desc_get_msdu_nss)(struct hal_rx_desc *desc);
+	u8 (*rx_desc_get_mpdu_tid)(struct hal_rx_desc *desc);
+	u16 (*rx_desc_get_mpdu_peer_id)(struct hal_rx_desc *desc);
+	void (*rx_desc_copy_attn_end_tlv)(struct hal_rx_desc *fdesc,
+					  struct hal_rx_desc *ldesc);
+	u32 (*rx_desc_get_mpdu_start_tag)(struct hal_rx_desc *desc);
+	u32 (*rx_desc_get_mpdu_ppdu_id)(struct hal_rx_desc *desc);
+	void (*rx_desc_set_msdu_len)(struct hal_rx_desc *desc, u16 len);
+	struct rx_attention *(*rx_desc_get_attention)(struct hal_rx_desc *desc);
+	u8 *(*rx_desc_get_msdu_payload)(struct hal_rx_desc *desc);
 };
 
 extern const struct ath11k_hw_ops ipq8074_ops;

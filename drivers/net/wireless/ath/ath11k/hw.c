@@ -169,12 +169,358 @@ static int ath11k_hw_mac_id_to_srng_id_qca6390(struct ath11k_hw_params *hw,
 	return mac_id;
 }
 
+static bool ath11k_hw_ipq8074_rx_desc_get_first_msdu(struct hal_rx_desc *desc)
+{
+	return !!FIELD_GET(RX_MSDU_END_INFO2_FIRST_MSDU,
+			   __le32_to_cpu(desc->u.ipq8074.msdu_end.info2));
+}
+
+static bool ath11k_hw_ipq8074_rx_desc_get_last_msdu(struct hal_rx_desc *desc)
+{
+	return !!FIELD_GET(RX_MSDU_END_INFO2_LAST_MSDU,
+			   __le32_to_cpu(desc->u.ipq8074.msdu_end.info2));
+}
+
+static u8 ath11k_hw_ipq8074_rx_desc_get_l3_pad_bytes(struct hal_rx_desc *desc)
+{
+	return FIELD_GET(RX_MSDU_END_INFO2_L3_HDR_PADDING,
+			 __le32_to_cpu(desc->u.ipq8074.msdu_end.info2));
+}
+
+static u8 *ath11k_hw_ipq8074_rx_desc_get_hdr_status(struct hal_rx_desc *desc)
+{
+	return desc->u.ipq8074.hdr_status;
+}
+
+static bool ath11k_hw_ipq8074_rx_desc_encrypt_valid(struct hal_rx_desc *desc)
+{
+	return __le32_to_cpu(desc->u.ipq8074.mpdu_start.info1) &
+	       RX_MPDU_START_INFO1_ENCRYPT_INFO_VALID;
+}
+
+static u32 ath11k_hw_ipq8074_rx_desc_get_encrypt_type(struct hal_rx_desc *desc)
+{
+	return FIELD_GET(RX_MPDU_START_INFO2_ENC_TYPE,
+			 __le32_to_cpu(desc->u.ipq8074.mpdu_start.info2));
+}
+
+static u8 ath11k_hw_ipq8074_rx_desc_get_decap_type(struct hal_rx_desc *desc)
+{
+	return FIELD_GET(RX_MSDU_START_INFO2_DECAP_FORMAT,
+			 __le32_to_cpu(desc->u.ipq8074.msdu_start.info2));
+}
+
+static u8 ath11k_hw_ipq8074_rx_desc_get_mesh_ctl(struct hal_rx_desc *desc)
+{
+	return FIELD_GET(RX_MSDU_START_INFO2_MESH_CTRL_PRESENT,
+			 __le32_to_cpu(desc->u.ipq8074.msdu_start.info2));
+}
+
+static bool ath11k_hw_ipq8074_rx_desc_get_mpdu_seq_ctl_vld(struct hal_rx_desc *desc)
+{
+	return !!FIELD_GET(RX_MPDU_START_INFO1_MPDU_SEQ_CTRL_VALID,
+			   __le32_to_cpu(desc->u.ipq8074.mpdu_start.info1));
+}
+
+static bool ath11k_hw_ipq8074_rx_desc_get_mpdu_fc_valid(struct hal_rx_desc *desc)
+{
+	return !!FIELD_GET(RX_MPDU_START_INFO1_MPDU_FCTRL_VALID,
+			   __le32_to_cpu(desc->u.ipq8074.mpdu_start.info1));
+}
+
+static u16 ath11k_hw_ipq8074_rx_desc_get_mpdu_start_seq_no(struct hal_rx_desc *desc)
+{
+	return FIELD_GET(RX_MPDU_START_INFO1_MPDU_SEQ_NUM,
+			 __le32_to_cpu(desc->u.ipq8074.mpdu_start.info1));
+}
+
+static u16 ath11k_hw_ipq8074_rx_desc_get_msdu_len(struct hal_rx_desc *desc)
+{
+	return FIELD_GET(RX_MSDU_START_INFO1_MSDU_LENGTH,
+			 __le32_to_cpu(desc->u.ipq8074.msdu_start.info1));
+}
+
+static u8 ath11k_hw_ipq8074_rx_desc_get_msdu_sgi(struct hal_rx_desc *desc)
+{
+	return FIELD_GET(RX_MSDU_START_INFO3_SGI,
+			 __le32_to_cpu(desc->u.ipq8074.msdu_start.info3));
+}
+
+static u8 ath11k_hw_ipq8074_rx_desc_get_msdu_rate_mcs(struct hal_rx_desc *desc)
+{
+	return FIELD_GET(RX_MSDU_START_INFO3_RATE_MCS,
+			 __le32_to_cpu(desc->u.ipq8074.msdu_start.info3));
+}
+
+static u8 ath11k_hw_ipq8074_rx_desc_get_msdu_rx_bw(struct hal_rx_desc *desc)
+{
+	return FIELD_GET(RX_MSDU_START_INFO3_RECV_BW,
+			 __le32_to_cpu(desc->u.ipq8074.msdu_start.info3));
+}
+
+static u32 ath11k_hw_ipq8074_rx_desc_get_msdu_freq(struct hal_rx_desc *desc)
+{
+	return __le32_to_cpu(desc->u.ipq8074.msdu_start.phy_meta_data);
+}
+
+static u8 ath11k_hw_ipq8074_rx_desc_get_msdu_pkt_type(struct hal_rx_desc *desc)
+{
+	return FIELD_GET(RX_MSDU_START_INFO3_PKT_TYPE,
+			 __le32_to_cpu(desc->u.ipq8074.msdu_start.info3));
+}
+
+static u8 ath11k_hw_ipq8074_rx_desc_get_msdu_nss(struct hal_rx_desc *desc)
+{
+	return FIELD_GET(RX_MSDU_START_INFO3_MIMO_SS_BITMAP,
+			 __le32_to_cpu(desc->u.ipq8074.msdu_start.info3));
+}
+
+static u8 ath11k_hw_ipq8074_rx_desc_get_mpdu_tid(struct hal_rx_desc *desc)
+{
+	return FIELD_GET(RX_MPDU_START_INFO2_TID,
+			 __le32_to_cpu(desc->u.ipq8074.mpdu_start.info2));
+}
+
+static u16 ath11k_hw_ipq8074_rx_desc_get_mpdu_peer_id(struct hal_rx_desc *desc)
+{
+	return __le16_to_cpu(desc->u.ipq8074.mpdu_start.sw_peer_id);
+}
+
+static void ath11k_hw_ipq8074_rx_desc_copy_attn_end(struct hal_rx_desc *fdesc,
+						    struct hal_rx_desc *ldesc)
+{
+	memcpy((u8 *)&fdesc->u.ipq8074.msdu_end, (u8 *)&ldesc->u.ipq8074.msdu_end,
+	       sizeof(struct rx_msdu_end_ipq8074));
+	memcpy((u8 *)&fdesc->u.ipq8074.attention, (u8 *)&ldesc->u.ipq8074.attention,
+	       sizeof(struct rx_attention));
+	memcpy((u8 *)&fdesc->u.ipq8074.mpdu_end, (u8 *)&ldesc->u.ipq8074.mpdu_end,
+	       sizeof(struct rx_mpdu_end));
+}
+
+static u32 ath11k_hw_ipq8074_rx_desc_get_mpdu_start_tag(struct hal_rx_desc *desc)
+{
+	return FIELD_GET(HAL_TLV_HDR_TAG,
+			 __le32_to_cpu(desc->u.ipq8074.mpdu_start_tag));
+}
+
+static u32 ath11k_hw_ipq8074_rx_desc_get_mpdu_ppdu_id(struct hal_rx_desc *desc)
+{
+	return __le16_to_cpu(desc->u.ipq8074.mpdu_start.phy_ppdu_id);
+}
+
+static void ath11k_hw_ipq8074_rx_desc_set_msdu_len(struct hal_rx_desc *desc, u16 len)
+{
+	u32 info = __le32_to_cpu(desc->u.ipq8074.msdu_start.info1);
+
+	info &= ~RX_MSDU_START_INFO1_MSDU_LENGTH;
+	info |= FIELD_PREP(RX_MSDU_START_INFO1_MSDU_LENGTH, len);
+
+	desc->u.ipq8074.msdu_start.info1 = __cpu_to_le32(info);
+}
+
+static
+struct rx_attention *ath11k_hw_ipq8074_rx_desc_get_attention(struct hal_rx_desc *desc)
+{
+	return &desc->u.ipq8074.attention;
+}
+
+static u8 *ath11k_hw_ipq8074_rx_desc_get_msdu_payload(struct hal_rx_desc *desc)
+{
+	return &desc->u.ipq8074.msdu_payload[0];
+}
+
+static bool ath11k_hw_qcn9074_rx_desc_get_first_msdu(struct hal_rx_desc *desc)
+{
+	return !!FIELD_GET(RX_MSDU_END_INFO4_FIRST_MSDU,
+			   __le16_to_cpu(desc->u.qcn9074.msdu_end.info4));
+}
+
+static bool ath11k_hw_qcn9074_rx_desc_get_last_msdu(struct hal_rx_desc *desc)
+{
+	return !!FIELD_GET(RX_MSDU_END_INFO4_LAST_MSDU,
+			   __le16_to_cpu(desc->u.qcn9074.msdu_end.info4));
+}
+
+static u8 ath11k_hw_qcn9074_rx_desc_get_l3_pad_bytes(struct hal_rx_desc *desc)
+{
+	return FIELD_GET(RX_MSDU_END_INFO4_L3_HDR_PADDING,
+			 __le16_to_cpu(desc->u.qcn9074.msdu_end.info4));
+}
+
+static u8 *ath11k_hw_qcn9074_rx_desc_get_hdr_status(struct hal_rx_desc *desc)
+{
+	return desc->u.qcn9074.hdr_status;
+}
+
+static bool ath11k_hw_qcn9074_rx_desc_encrypt_valid(struct hal_rx_desc *desc)
+{
+	return __le32_to_cpu(desc->u.qcn9074.mpdu_start.info11) &
+	       RX_MPDU_START_INFO11_ENCRYPT_INFO_VALID;
+}
+
+static u32 ath11k_hw_qcn9074_rx_desc_get_encrypt_type(struct hal_rx_desc *desc)
+{
+	return FIELD_GET(RX_MPDU_START_INFO9_ENC_TYPE,
+			 __le32_to_cpu(desc->u.qcn9074.mpdu_start.info9));
+}
+
+static u8 ath11k_hw_qcn9074_rx_desc_get_decap_type(struct hal_rx_desc *desc)
+{
+	return FIELD_GET(RX_MSDU_START_INFO2_DECAP_FORMAT,
+			 __le32_to_cpu(desc->u.qcn9074.msdu_start.info2));
+}
+
+static u8 ath11k_hw_qcn9074_rx_desc_get_mesh_ctl(struct hal_rx_desc *desc)
+{
+	return FIELD_GET(RX_MSDU_START_INFO2_MESH_CTRL_PRESENT,
+			 __le32_to_cpu(desc->u.qcn9074.msdu_start.info2));
+}
+
+static bool ath11k_hw_qcn9074_rx_desc_get_mpdu_seq_ctl_vld(struct hal_rx_desc *desc)
+{
+	return !!FIELD_GET(RX_MPDU_START_INFO11_MPDU_SEQ_CTRL_VALID,
+			   __le32_to_cpu(desc->u.qcn9074.mpdu_start.info11));
+}
+
+static bool ath11k_hw_qcn9074_rx_desc_get_mpdu_fc_valid(struct hal_rx_desc *desc)
+{
+	return !!FIELD_GET(RX_MPDU_START_INFO11_MPDU_FCTRL_VALID,
+			   __le32_to_cpu(desc->u.qcn9074.mpdu_start.info11));
+}
+
+static u16 ath11k_hw_qcn9074_rx_desc_get_mpdu_start_seq_no(struct hal_rx_desc *desc)
+{
+	return FIELD_GET(RX_MPDU_START_INFO11_MPDU_SEQ_NUM,
+			 __le32_to_cpu(desc->u.qcn9074.mpdu_start.info11));
+}
+
+static u16 ath11k_hw_qcn9074_rx_desc_get_msdu_len(struct hal_rx_desc *desc)
+{
+	return FIELD_GET(RX_MSDU_START_INFO1_MSDU_LENGTH,
+			 __le32_to_cpu(desc->u.qcn9074.msdu_start.info1));
+}
+
+static u8 ath11k_hw_qcn9074_rx_desc_get_msdu_sgi(struct hal_rx_desc *desc)
+{
+	return FIELD_GET(RX_MSDU_START_INFO3_SGI,
+			 __le32_to_cpu(desc->u.qcn9074.msdu_start.info3));
+}
+
+static u8 ath11k_hw_qcn9074_rx_desc_get_msdu_rate_mcs(struct hal_rx_desc *desc)
+{
+	return FIELD_GET(RX_MSDU_START_INFO3_RATE_MCS,
+			 __le32_to_cpu(desc->u.qcn9074.msdu_start.info3));
+}
+
+static u8 ath11k_hw_qcn9074_rx_desc_get_msdu_rx_bw(struct hal_rx_desc *desc)
+{
+	return FIELD_GET(RX_MSDU_START_INFO3_RECV_BW,
+			 __le32_to_cpu(desc->u.qcn9074.msdu_start.info3));
+}
+
+static u32 ath11k_hw_qcn9074_rx_desc_get_msdu_freq(struct hal_rx_desc *desc)
+{
+	return __le32_to_cpu(desc->u.qcn9074.msdu_start.phy_meta_data);
+}
+
+static u8 ath11k_hw_qcn9074_rx_desc_get_msdu_pkt_type(struct hal_rx_desc *desc)
+{
+	return FIELD_GET(RX_MSDU_START_INFO3_PKT_TYPE,
+			 __le32_to_cpu(desc->u.qcn9074.msdu_start.info3));
+}
+
+static u8 ath11k_hw_qcn9074_rx_desc_get_msdu_nss(struct hal_rx_desc *desc)
+{
+	return FIELD_GET(RX_MSDU_START_INFO3_MIMO_SS_BITMAP,
+			 __le32_to_cpu(desc->u.qcn9074.msdu_start.info3));
+}
+
+static u8 ath11k_hw_qcn9074_rx_desc_get_mpdu_tid(struct hal_rx_desc *desc)
+{
+	return FIELD_GET(RX_MPDU_START_INFO9_TID,
+			 __le32_to_cpu(desc->u.qcn9074.mpdu_start.info9));
+}
+
+static u16 ath11k_hw_qcn9074_rx_desc_get_mpdu_peer_id(struct hal_rx_desc *desc)
+{
+	return __le16_to_cpu(desc->u.qcn9074.mpdu_start.sw_peer_id);
+}
+
+static void ath11k_hw_qcn9074_rx_desc_copy_attn_end(struct hal_rx_desc *fdesc,
+						    struct hal_rx_desc *ldesc)
+{
+	memcpy((u8 *)&fdesc->u.qcn9074.msdu_end, (u8 *)&ldesc->u.qcn9074.msdu_end,
+	       sizeof(struct rx_msdu_end_qcn9074));
+	memcpy((u8 *)&fdesc->u.qcn9074.attention, (u8 *)&ldesc->u.qcn9074.attention,
+	       sizeof(struct rx_attention));
+	memcpy((u8 *)&fdesc->u.qcn9074.mpdu_end, (u8 *)&ldesc->u.qcn9074.mpdu_end,
+	       sizeof(struct rx_mpdu_end));
+}
+
+static u32 ath11k_hw_qcn9074_rx_desc_get_mpdu_start_tag(struct hal_rx_desc *desc)
+{
+	return FIELD_GET(HAL_TLV_HDR_TAG,
+			 __le32_to_cpu(desc->u.qcn9074.mpdu_start_tag));
+}
+
+static u32 ath11k_hw_qcn9074_rx_desc_get_mpdu_ppdu_id(struct hal_rx_desc *desc)
+{
+	return __le16_to_cpu(desc->u.qcn9074.mpdu_start.phy_ppdu_id);
+}
+
+static void ath11k_hw_qcn9074_rx_desc_set_msdu_len(struct hal_rx_desc *desc, u16 len)
+{
+	u32 info = __le32_to_cpu(desc->u.qcn9074.msdu_start.info1);
+
+	info &= ~RX_MSDU_START_INFO1_MSDU_LENGTH;
+	info |= FIELD_PREP(RX_MSDU_START_INFO1_MSDU_LENGTH, len);
+
+	desc->u.qcn9074.msdu_start.info1 = __cpu_to_le32(info);
+}
+
+static
+struct rx_attention *ath11k_hw_qcn9074_rx_desc_get_attention(struct hal_rx_desc *desc)
+{
+	return &desc->u.qcn9074.attention;
+}
+
+static u8 *ath11k_hw_qcn9074_rx_desc_get_msdu_payload(struct hal_rx_desc *desc)
+{
+	return &desc->u.qcn9074.msdu_payload[0];
+}
+
 const struct ath11k_hw_ops ipq8074_ops = {
 	.get_hw_mac_from_pdev_id = ath11k_hw_ipq8074_mac_from_pdev_id,
 	.wmi_init_config = ath11k_init_wmi_config_ipq8074,
 	.mac_id_to_pdev_id = ath11k_hw_mac_id_to_pdev_id_ipq8074,
 	.mac_id_to_srng_id = ath11k_hw_mac_id_to_srng_id_ipq8074,
 	.tx_mesh_enable = ath11k_hw_ipq8074_tx_mesh_enable,
+	.rx_desc_get_first_msdu = ath11k_hw_ipq8074_rx_desc_get_first_msdu,
+	.rx_desc_get_last_msdu = ath11k_hw_ipq8074_rx_desc_get_last_msdu,
+	.rx_desc_get_l3_pad_bytes = ath11k_hw_ipq8074_rx_desc_get_l3_pad_bytes,
+	.rx_desc_get_hdr_status = ath11k_hw_ipq8074_rx_desc_get_hdr_status,
+	.rx_desc_encrypt_valid = ath11k_hw_ipq8074_rx_desc_encrypt_valid,
+	.rx_desc_get_encrypt_type = ath11k_hw_ipq8074_rx_desc_get_encrypt_type,
+	.rx_desc_get_decap_type = ath11k_hw_ipq8074_rx_desc_get_decap_type,
+	.rx_desc_get_mesh_ctl = ath11k_hw_ipq8074_rx_desc_get_mesh_ctl,
+	.rx_desc_get_mpdu_seq_ctl_vld = ath11k_hw_ipq8074_rx_desc_get_mpdu_seq_ctl_vld,
+	.rx_desc_get_mpdu_fc_valid = ath11k_hw_ipq8074_rx_desc_get_mpdu_fc_valid,
+	.rx_desc_get_mpdu_start_seq_no = ath11k_hw_ipq8074_rx_desc_get_mpdu_start_seq_no,
+	.rx_desc_get_msdu_len = ath11k_hw_ipq8074_rx_desc_get_msdu_len,
+	.rx_desc_get_msdu_sgi = ath11k_hw_ipq8074_rx_desc_get_msdu_sgi,
+	.rx_desc_get_msdu_rate_mcs = ath11k_hw_ipq8074_rx_desc_get_msdu_rate_mcs,
+	.rx_desc_get_msdu_rx_bw = ath11k_hw_ipq8074_rx_desc_get_msdu_rx_bw,
+	.rx_desc_get_msdu_freq = ath11k_hw_ipq8074_rx_desc_get_msdu_freq,
+	.rx_desc_get_msdu_pkt_type = ath11k_hw_ipq8074_rx_desc_get_msdu_pkt_type,
+	.rx_desc_get_msdu_nss = ath11k_hw_ipq8074_rx_desc_get_msdu_nss,
+	.rx_desc_get_mpdu_tid = ath11k_hw_ipq8074_rx_desc_get_mpdu_tid,
+	.rx_desc_get_mpdu_peer_id = ath11k_hw_ipq8074_rx_desc_get_mpdu_peer_id,
+	.rx_desc_copy_attn_end_tlv = ath11k_hw_ipq8074_rx_desc_copy_attn_end,
+	.rx_desc_get_mpdu_start_tag = ath11k_hw_ipq8074_rx_desc_get_mpdu_start_tag,
+	.rx_desc_get_mpdu_ppdu_id = ath11k_hw_ipq8074_rx_desc_get_mpdu_ppdu_id,
+	.rx_desc_set_msdu_len = ath11k_hw_ipq8074_rx_desc_set_msdu_len,
+	.rx_desc_get_attention = ath11k_hw_ipq8074_rx_desc_get_attention,
+	.rx_desc_get_msdu_payload = ath11k_hw_ipq8074_rx_desc_get_msdu_payload,
 };
 
 const struct ath11k_hw_ops ipq6018_ops = {
@@ -183,6 +529,32 @@ const struct ath11k_hw_ops ipq6018_ops = {
 	.mac_id_to_pdev_id = ath11k_hw_mac_id_to_pdev_id_ipq8074,
 	.mac_id_to_srng_id = ath11k_hw_mac_id_to_srng_id_ipq8074,
 	.tx_mesh_enable = ath11k_hw_ipq8074_tx_mesh_enable,
+	.rx_desc_get_first_msdu = ath11k_hw_ipq8074_rx_desc_get_first_msdu,
+	.rx_desc_get_last_msdu = ath11k_hw_ipq8074_rx_desc_get_last_msdu,
+	.rx_desc_get_l3_pad_bytes = ath11k_hw_ipq8074_rx_desc_get_l3_pad_bytes,
+	.rx_desc_get_hdr_status = ath11k_hw_ipq8074_rx_desc_get_hdr_status,
+	.rx_desc_encrypt_valid = ath11k_hw_ipq8074_rx_desc_encrypt_valid,
+	.rx_desc_get_encrypt_type = ath11k_hw_ipq8074_rx_desc_get_encrypt_type,
+	.rx_desc_get_decap_type = ath11k_hw_ipq8074_rx_desc_get_decap_type,
+	.rx_desc_get_mesh_ctl = ath11k_hw_ipq8074_rx_desc_get_mesh_ctl,
+	.rx_desc_get_mpdu_seq_ctl_vld = ath11k_hw_ipq8074_rx_desc_get_mpdu_seq_ctl_vld,
+	.rx_desc_get_mpdu_fc_valid = ath11k_hw_ipq8074_rx_desc_get_mpdu_fc_valid,
+	.rx_desc_get_mpdu_start_seq_no = ath11k_hw_ipq8074_rx_desc_get_mpdu_start_seq_no,
+	.rx_desc_get_msdu_len = ath11k_hw_ipq8074_rx_desc_get_msdu_len,
+	.rx_desc_get_msdu_sgi = ath11k_hw_ipq8074_rx_desc_get_msdu_sgi,
+	.rx_desc_get_msdu_rate_mcs = ath11k_hw_ipq8074_rx_desc_get_msdu_rate_mcs,
+	.rx_desc_get_msdu_rx_bw = ath11k_hw_ipq8074_rx_desc_get_msdu_rx_bw,
+	.rx_desc_get_msdu_freq = ath11k_hw_ipq8074_rx_desc_get_msdu_freq,
+	.rx_desc_get_msdu_pkt_type = ath11k_hw_ipq8074_rx_desc_get_msdu_pkt_type,
+	.rx_desc_get_msdu_nss = ath11k_hw_ipq8074_rx_desc_get_msdu_nss,
+	.rx_desc_get_mpdu_tid = ath11k_hw_ipq8074_rx_desc_get_mpdu_tid,
+	.rx_desc_get_mpdu_peer_id = ath11k_hw_ipq8074_rx_desc_get_mpdu_peer_id,
+	.rx_desc_copy_attn_end_tlv = ath11k_hw_ipq8074_rx_desc_copy_attn_end,
+	.rx_desc_get_mpdu_start_tag = ath11k_hw_ipq8074_rx_desc_get_mpdu_start_tag,
+	.rx_desc_get_mpdu_ppdu_id = ath11k_hw_ipq8074_rx_desc_get_mpdu_ppdu_id,
+	.rx_desc_set_msdu_len = ath11k_hw_ipq8074_rx_desc_set_msdu_len,
+	.rx_desc_get_attention = ath11k_hw_ipq8074_rx_desc_get_attention,
+	.rx_desc_get_msdu_payload = ath11k_hw_ipq8074_rx_desc_get_msdu_payload,
 };
 
 const struct ath11k_hw_ops qca6390_ops = {
@@ -191,6 +563,32 @@ const struct ath11k_hw_ops qca6390_ops = {
 	.mac_id_to_pdev_id = ath11k_hw_mac_id_to_pdev_id_qca6390,
 	.mac_id_to_srng_id = ath11k_hw_mac_id_to_srng_id_qca6390,
 	.tx_mesh_enable = ath11k_hw_ipq8074_tx_mesh_enable,
+	.rx_desc_get_first_msdu = ath11k_hw_ipq8074_rx_desc_get_first_msdu,
+	.rx_desc_get_last_msdu = ath11k_hw_ipq8074_rx_desc_get_last_msdu,
+	.rx_desc_get_l3_pad_bytes = ath11k_hw_ipq8074_rx_desc_get_l3_pad_bytes,
+	.rx_desc_get_hdr_status = ath11k_hw_ipq8074_rx_desc_get_hdr_status,
+	.rx_desc_encrypt_valid = ath11k_hw_ipq8074_rx_desc_encrypt_valid,
+	.rx_desc_get_encrypt_type = ath11k_hw_ipq8074_rx_desc_get_encrypt_type,
+	.rx_desc_get_decap_type = ath11k_hw_ipq8074_rx_desc_get_decap_type,
+	.rx_desc_get_mesh_ctl = ath11k_hw_ipq8074_rx_desc_get_mesh_ctl,
+	.rx_desc_get_mpdu_seq_ctl_vld = ath11k_hw_ipq8074_rx_desc_get_mpdu_seq_ctl_vld,
+	.rx_desc_get_mpdu_fc_valid = ath11k_hw_ipq8074_rx_desc_get_mpdu_fc_valid,
+	.rx_desc_get_mpdu_start_seq_no = ath11k_hw_ipq8074_rx_desc_get_mpdu_start_seq_no,
+	.rx_desc_get_msdu_len = ath11k_hw_ipq8074_rx_desc_get_msdu_len,
+	.rx_desc_get_msdu_sgi = ath11k_hw_ipq8074_rx_desc_get_msdu_sgi,
+	.rx_desc_get_msdu_rate_mcs = ath11k_hw_ipq8074_rx_desc_get_msdu_rate_mcs,
+	.rx_desc_get_msdu_rx_bw = ath11k_hw_ipq8074_rx_desc_get_msdu_rx_bw,
+	.rx_desc_get_msdu_freq = ath11k_hw_ipq8074_rx_desc_get_msdu_freq,
+	.rx_desc_get_msdu_pkt_type = ath11k_hw_ipq8074_rx_desc_get_msdu_pkt_type,
+	.rx_desc_get_msdu_nss = ath11k_hw_ipq8074_rx_desc_get_msdu_nss,
+	.rx_desc_get_mpdu_tid = ath11k_hw_ipq8074_rx_desc_get_mpdu_tid,
+	.rx_desc_get_mpdu_peer_id = ath11k_hw_ipq8074_rx_desc_get_mpdu_peer_id,
+	.rx_desc_copy_attn_end_tlv = ath11k_hw_ipq8074_rx_desc_copy_attn_end,
+	.rx_desc_get_mpdu_start_tag = ath11k_hw_ipq8074_rx_desc_get_mpdu_start_tag,
+	.rx_desc_get_mpdu_ppdu_id = ath11k_hw_ipq8074_rx_desc_get_mpdu_ppdu_id,
+	.rx_desc_set_msdu_len = ath11k_hw_ipq8074_rx_desc_set_msdu_len,
+	.rx_desc_get_attention = ath11k_hw_ipq8074_rx_desc_get_attention,
+	.rx_desc_get_msdu_payload = ath11k_hw_ipq8074_rx_desc_get_msdu_payload,
 };
 
 const struct ath11k_hw_ops qcn9074_ops = {
@@ -199,6 +597,32 @@ const struct ath11k_hw_ops qcn9074_ops = {
 	.mac_id_to_pdev_id = ath11k_hw_mac_id_to_pdev_id_ipq8074,
 	.mac_id_to_srng_id = ath11k_hw_mac_id_to_srng_id_ipq8074,
 	.tx_mesh_enable = ath11k_hw_qcn9074_tx_mesh_enable,
+	.rx_desc_get_first_msdu = ath11k_hw_qcn9074_rx_desc_get_first_msdu,
+	.rx_desc_get_last_msdu = ath11k_hw_qcn9074_rx_desc_get_last_msdu,
+	.rx_desc_get_l3_pad_bytes = ath11k_hw_qcn9074_rx_desc_get_l3_pad_bytes,
+	.rx_desc_get_hdr_status = ath11k_hw_qcn9074_rx_desc_get_hdr_status,
+	.rx_desc_encrypt_valid = ath11k_hw_qcn9074_rx_desc_encrypt_valid,
+	.rx_desc_get_encrypt_type = ath11k_hw_qcn9074_rx_desc_get_encrypt_type,
+	.rx_desc_get_decap_type = ath11k_hw_qcn9074_rx_desc_get_decap_type,
+	.rx_desc_get_mesh_ctl = ath11k_hw_qcn9074_rx_desc_get_mesh_ctl,
+	.rx_desc_get_mpdu_seq_ctl_vld = ath11k_hw_qcn9074_rx_desc_get_mpdu_seq_ctl_vld,
+	.rx_desc_get_mpdu_fc_valid = ath11k_hw_qcn9074_rx_desc_get_mpdu_fc_valid,
+	.rx_desc_get_mpdu_start_seq_no = ath11k_hw_qcn9074_rx_desc_get_mpdu_start_seq_no,
+	.rx_desc_get_msdu_len = ath11k_hw_qcn9074_rx_desc_get_msdu_len,
+	.rx_desc_get_msdu_sgi = ath11k_hw_qcn9074_rx_desc_get_msdu_sgi,
+	.rx_desc_get_msdu_rate_mcs = ath11k_hw_qcn9074_rx_desc_get_msdu_rate_mcs,
+	.rx_desc_get_msdu_rx_bw = ath11k_hw_qcn9074_rx_desc_get_msdu_rx_bw,
+	.rx_desc_get_msdu_freq = ath11k_hw_qcn9074_rx_desc_get_msdu_freq,
+	.rx_desc_get_msdu_pkt_type = ath11k_hw_qcn9074_rx_desc_get_msdu_pkt_type,
+	.rx_desc_get_msdu_nss = ath11k_hw_qcn9074_rx_desc_get_msdu_nss,
+	.rx_desc_get_mpdu_tid = ath11k_hw_qcn9074_rx_desc_get_mpdu_tid,
+	.rx_desc_get_mpdu_peer_id = ath11k_hw_qcn9074_rx_desc_get_mpdu_peer_id,
+	.rx_desc_copy_attn_end_tlv = ath11k_hw_qcn9074_rx_desc_copy_attn_end,
+	.rx_desc_get_mpdu_start_tag = ath11k_hw_qcn9074_rx_desc_get_mpdu_start_tag,
+	.rx_desc_get_mpdu_ppdu_id = ath11k_hw_qcn9074_rx_desc_get_mpdu_ppdu_id,
+	.rx_desc_set_msdu_len = ath11k_hw_qcn9074_rx_desc_set_msdu_len,
+	.rx_desc_get_attention = ath11k_hw_qcn9074_rx_desc_get_attention,
+	.rx_desc_get_msdu_payload = ath11k_hw_qcn9074_rx_desc_get_msdu_payload,
 };
 
 #define ATH11K_TX_RING_MASK_0 0x1
