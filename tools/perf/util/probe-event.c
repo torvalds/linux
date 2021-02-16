@@ -894,6 +894,16 @@ static int try_to_find_probe_trace_events(struct perf_probe_event *pev,
 	struct debuginfo *dinfo;
 	int ntevs, ret = 0;
 
+	/* Workaround for gcc #98776 issue.
+	 * Perf failed to add kretprobe event with debuginfo of vmlinux which is
+	 * compiled by gcc with -fpatchable-function-entry option enabled. The
+	 * same issue with kernel module. The retprobe doesn`t need debuginfo.
+	 * This workaround solution use map to query the probe function address
+	 * for retprobe event.
+	 */
+	if (pev->point.retprobe)
+		return 0;
+
 	dinfo = open_debuginfo(pev->target, pev->nsi, !need_dwarf);
 	if (!dinfo) {
 		if (need_dwarf)

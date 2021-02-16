@@ -559,6 +559,9 @@ __lpfc_nvme_ls_req(struct lpfc_vport *vport, struct lpfc_nodelist *ndlp,
 		return -ENODEV;
 	}
 
+	if (!vport->phba->sli4_hba.nvmels_wq)
+		return -ENOMEM;
+
 	/*
 	 * there are two dma buf in the request, actually there is one and
 	 * the second one is just the start address + cmd size.

@@ -36,7 +36,7 @@ struct map_benchmark {
 	__s32 node; /* which numa node this benchmark will run on */
 	__u32 dma_bits; /* DMA addressing capability */
 	__u32 dma_dir; /* DMA data direction */
-	__u64 expansion[10];	/* For future use */
+	__u8 expansion[84];	/* For future use */
 };
 
 struct map_benchmark_data {

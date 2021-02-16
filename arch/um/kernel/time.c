@@ -535,6 +535,31 @@ invalid_number:
 
 	return 1;
 }
+
+static void time_travel_set_start(void)
+{
+	if (time_travel_start_set)
+		return;
+
+	switch (time_travel_mode) {
+	case TT_MODE_EXTERNAL:
+		time_travel_start = time_travel_ext_req(UM_TIMETRAVEL_GET_TOD, -1);
+		/* controller gave us the *current* time, so adjust by that */
+		time_travel_ext_get_time();
+		time_travel_start -= time_travel_time;
+		break;
+	case TT_MODE_INFCPU:
+	case TT_MODE_BASIC:
+		if (!time_travel_start_set)
+			time_travel_start = os_persistent_clock_emulation();
+		break;
+	case TT_MODE_OFF:
+		/* we just read the host clock with os_persistent_clock_emulation() */
+		break;
+	}
+
+	time_travel_start_set = true;
+}
 #else /* CONFIG_UML_TIME_TRAVEL_SUPPORT */
 #define time_travel_start_set 0
 #define time_travel_start 0
@@ -550,6 +575,10 @@ static inline void time_travel_handle_real_alarm(void)
 }
 
 static void time_travel_set_interval(unsigned long long interval)
+{
+}
+
+static inline void time_travel_set_start(void)
 {
 }
 
@@ -731,6 +760,8 @@ void read_persistent_clock64(struct timespec64 *ts)
 {
 	long long nsecs;
 
+	time_travel_set_start();
+
 	if (time_travel_mode != TT_MODE_OFF)
 		nsecs = time_travel_start + time_travel_time;
 	else
@@ -742,25 +773,6 @@ void read_persistent_clock64(struct timespec64 *ts)
 
 void __init time_init(void)
 {
-#ifdef CONFIG_UML_TIME_TRAVEL_SUPPORT
-	switch (time_travel_mode) {
-	case TT_MODE_EXTERNAL:
-		time_travel_start = time_travel_ext_req(UM_TIMETRAVEL_GET_TOD, -1);
-		/* controller gave us the *current* time, so adjust by that */
-		time_travel_ext_get_time();
-		time_travel_start -= time_travel_time;
-		break;
-	case TT_MODE_INFCPU:
-	case TT_MODE_BASIC:
-		if (!time_travel_start_set)
-			time_travel_start = os_persistent_clock_emulation();
-		break;
-	case TT_MODE_OFF:
-		/* we just read the host clock with os_persistent_clock_emulation() */
-		break;
-	}
-#endif
-
 	timer_set_signal_handler();
 	late_time_init = um_timer_setup;
 }

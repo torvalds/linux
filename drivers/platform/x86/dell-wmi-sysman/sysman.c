@@ -419,13 +419,17 @@ static int init_bios_attributes(int attr_type, const char *guid)
 		return retval;
 	/* need to use specific instance_id and guid combination to get right data */
 	obj = get_wmiobj_pointer(instance_id, guid);
-	if (!obj)
+	if (!obj || obj->type != ACPI_TYPE_PACKAGE)
 		return -ENODEV;
 	elements = obj->package.elements;
 
 	mutex_lock(&wmi_priv.mutex);
 	while (elements) {
 		/* sanity checking */
+		if (elements[ATTR_NAME].type != ACPI_TYPE_STRING) {
+			pr_debug("incorrect element type\n");
+			goto nextobj;
+		}
 		if (strlen(elements[ATTR_NAME].string.pointer) == 0) {
 			pr_debug("empty attribute found\n");
 			goto nextobj;
