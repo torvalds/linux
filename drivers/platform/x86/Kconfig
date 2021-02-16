@@ -1187,7 +1187,7 @@ config INTEL_PMT_CLASS
 	tristate
 	help
 	  The Intel Platform Monitoring Technology (PMT) class driver provides
-	  the basic sysfs interface and file hierarchy uses by PMT devices.
+	  the basic sysfs interface and file hierarchy used by PMT devices.
 
 	  For more information, see:
 	  <file:Documentation/ABI/testing/sysfs-class-intel_pmt>
