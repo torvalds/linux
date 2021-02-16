@@ -55,7 +55,6 @@ static DEFINE_MUTEX(deferred_probe_mutex);
 static LIST_HEAD(deferred_probe_pending_list);
 static LIST_HEAD(deferred_probe_active_list);
 static atomic_t deferred_trigger_count = ATOMIC_INIT(0);
-static struct dentry *deferred_devices;
 static bool initcalls_done;
 
 /* Save the async probe drivers' name from kernel cmdline */
@@ -310,8 +309,8 @@ static DECLARE_DELAYED_WORK(deferred_probe_timeout_work, deferred_probe_timeout_
  */
 static int deferred_probe_initcall(void)
 {
-	deferred_devices = debugfs_create_file("devices_deferred", 0444, NULL,
-					       NULL, &deferred_devs_fops);
+	debugfs_create_file("devices_deferred", 0444, NULL, NULL,
+			    &deferred_devs_fops);
 
 	driver_deferred_probe_enable = true;
 	driver_deferred_probe_trigger();
@@ -336,7 +335,7 @@ late_initcall(deferred_probe_initcall);
 
 static void __exit deferred_probe_exit(void)
 {
-	debugfs_remove_recursive(deferred_devices);
+	debugfs_remove_recursive(debugfs_lookup("devices_deferred", NULL));
 }
 __exitcall(deferred_probe_exit);
 
