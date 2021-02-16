@@ -148,7 +148,6 @@ const struct fs_parameter_spec smb3_fs_parameters[] = {
 
 	/* Mount options which take string value */
 	fsparam_string("source", Opt_source),
-	fsparam_string("unc", Opt_source),
 	fsparam_string("user", Opt_user),
 	fsparam_string("username", Opt_user),
 	fsparam_string("pass", Opt_pass),
@@ -178,6 +177,11 @@ const struct fs_parameter_spec smb3_fs_parameters[] = {
 	fsparam_flag_no("auto", Opt_ignore),
 	fsparam_string("cred", Opt_ignore),
 	fsparam_string("credentials", Opt_ignore),
+	/*
+	 * UNC and prefixpath is now extracted from Opt_source
+	 * in the new mount API so we can just ignore them going forward.
+	 */
+	fsparam_string("unc", Opt_ignore),
 	fsparam_string("prefixpath", Opt_ignore),
 	{}
 };
@@ -313,6 +317,7 @@ smb3_fs_context_dup(struct smb3_fs_context *new_ctx, struct smb3_fs_context *ctx
 	new_ctx->password = NULL;
 	new_ctx->domainname = NULL;
 	new_ctx->UNC = NULL;
+	new_ctx->source = NULL;
 	new_ctx->iocharset = NULL;
 
 	/*
@@ -323,6 +328,7 @@ smb3_fs_context_dup(struct smb3_fs_context *new_ctx, struct smb3_fs_context *ctx
 	DUP_CTX_STR(username);
 	DUP_CTX_STR(password);
 	DUP_CTX_STR(UNC);
+	DUP_CTX_STR(source);
 	DUP_CTX_STR(domainname);
 	DUP_CTX_STR(nodename);
 	DUP_CTX_STR(iocharset);
@@ -732,6 +738,7 @@ static int smb3_reconfigure(struct fs_context *fc)
 	 * just use what we already have in cifs_sb->ctx.
 	 */
 	STEAL_STRING(cifs_sb, ctx, UNC);
+	STEAL_STRING(cifs_sb, ctx, source);
 	STEAL_STRING(cifs_sb, ctx, username);
 	STEAL_STRING(cifs_sb, ctx, password);
 	STEAL_STRING(cifs_sb, ctx, domainname);
@@ -972,6 +979,11 @@ static int smb3_fs_context_parse_param(struct fs_context *fc,
 			goto cifs_parse_mount_err;
 		default:
 			cifs_dbg(VFS, "Unknown error parsing devname\n");
+			goto cifs_parse_mount_err;
+		}
+		ctx->source = kstrdup(param->string, GFP_KERNEL);
+		if (ctx->source == NULL) {
+			cifs_dbg(VFS, "OOM when copying UNC string\n");
 			goto cifs_parse_mount_err;
 		}
 		fc->source = kstrdup(param->string, GFP_KERNEL);
@@ -1396,6 +1408,8 @@ smb3_cleanup_fs_context_contents(struct smb3_fs_context *ctx)
 	ctx->password = NULL;
 	kfree(ctx->UNC);
 	ctx->UNC = NULL;
+	kfree(ctx->source);
+	ctx->source = NULL;
 	kfree(ctx->domainname);
 	ctx->domainname = NULL;
 	kfree(ctx->nodename);
@@ -1533,8 +1547,8 @@ void smb3_update_mnt_flags(struct cifs_sb_info *cifs_sb)
 		cifs_sb->mnt_cifs_flags |= (CIFS_MOUNT_MULTIUSER |
 					    CIFS_MOUNT_NO_PERM);
 	else
-		cifs_sb->mnt_cifs_flags &= ~(CIFS_MOUNT_MULTIUSER |
-					     CIFS_MOUNT_NO_PERM);
+		cifs_sb->mnt_cifs_flags &= ~CIFS_MOUNT_MULTIUSER;
+
 
 	if (ctx->strict_io)
 		cifs_sb->mnt_cifs_flags |= CIFS_MOUNT_STRICT_IO;

@@ -5,6 +5,7 @@ if LEDS_CLASS_FLASH
 config LEDS_RT8515
 	tristate "LED support for Richtek RT8515 flash/torch LED"
 	depends on GPIOLIB
+	depends on V4L2_FLASH_LED_CLASS || !V4L2_FLASH_LED_CLASS
 	help
 	  This option enables support for the Richtek RT8515 flash
 	  and torch LEDs found on some mobile phones.
