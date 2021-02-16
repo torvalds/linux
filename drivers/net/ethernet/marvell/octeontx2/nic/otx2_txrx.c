@@ -816,20 +816,21 @@ static bool is_hw_tso_supported(struct otx2_nic *pfvf,
 {
 	int payload_len, last_seg_size;
 
+	if (test_bit(HW_TSO, &pfvf->hw.cap_flag))
+		return true;
+
+	/* On 96xx A0, HW TSO not supported */
+	if (!is_96xx_B0(pfvf->pdev))
+		return false;
 
 	/* HW has an issue due to which when the payload of the last LSO
 	 * segment is shorter than 16 bytes, some header fields may not
 	 * be correctly modified, hence don't offload such TSO segments.
 	 */
-	if (!is_96xx_B0(pfvf->pdev))
-		return true;
 
 	payload_len = skb->len - (skb_transport_offset(skb) + tcp_hdrlen(skb));
 	last_seg_size = payload_len % skb_shinfo(skb)->gso_size;
 	if (last_seg_size && last_seg_size < 16)
-		return false;
-
-	if (!test_bit(HW_TSO, &pfvf->hw.cap_flag))
 		return false;
 
 	return true;

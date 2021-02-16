@@ -2432,7 +2432,7 @@ void rvu_dbg_init(struct rvu *rvu)
 		debugfs_create_file("rvu_pf_cgx_map", 0444, rvu->rvu_dbg.root,
 				    rvu, &rvu_dbg_rvu_pf_cgx_map_fops);
 	else
-		debugfs_create_file("rvu_pf_cgx_map", 0444, rvu->rvu_dbg.root,
+		debugfs_create_file("rvu_pf_rpm_map", 0444, rvu->rvu_dbg.root,
 				    rvu, &rvu_dbg_rvu_pf_cgx_map_fops);
 
 create:
