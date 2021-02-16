@@ -13,24 +13,26 @@ is a partial list of the known problems and missing features:
 
 a) SMB3 (and SMB3.1.1) missing optional features:
 
-   - multichannel (started), integration with RDMA
-   - directory leases (improved metadata caching), started (root dir only)
+   - multichannel (partially integrated), integration of multichannel with RDMA
+   - directory leases (improved metadata caching). Currently only implemented for root dir
    - T10 copy offload ie "ODX" (copy chunk, and "Duplicate Extents" ioctl
      currently the only two server side copy mechanisms supported)
 
 b) improved sparse file support (fiemap and SEEK_HOLE are implemented
-   but additional features would be supportable by the protocol).
+   but additional features would be supportable by the protocol such
+   as FALLOC_FL_COLLAPSE_RANGE and FALLOC_FL_INSERT_RANGE)
 
 c) Directory entry caching relies on a 1 second timer, rather than
    using Directory Leases, currently only the root file handle is cached longer
+   by leveraging Directory Leases
 
-d) quota support (needs minor kernel change since quota calls
-   to make it to network filesystems or deviceless filesystems)
+d) quota support (needs minor kernel change since quota calls otherwise
+    won't make it to network filesystems or deviceless filesystems).
 
 e) Additional use cases can be optimized to use "compounding" (e.g.
    open/query/close and open/setinfo/close) to reduce the number of
    roundtrips to the server and improve performance. Various cases
-   (stat, statfs, create, unlink, mkdir) already have been improved by
+   (stat, statfs, create, unlink, mkdir, xattrs) already have been improved by
    using compounding but more can be done. In addition we could
    significantly reduce redundant opens by using deferred close (with
    handle caching leases) and better using reference counters on file
@@ -60,7 +62,9 @@ k) Add tools to take advantage of more smb3 specific ioctls and features
    metadata attributes easier from tools (e.g. extending what was done
    in smb-info tool).
 
-l) encrypted file support
+l) encrypted file support (currently the attribute showing the file is
+   encrypted on the server is reported, but changing the attribute is not
+   supported).
 
 m) improved stats gathering tools (perhaps integration with nfsometer?)
    to extend and make easier to use what is currently in /proc/fs/cifs/Stats
@@ -69,14 +73,13 @@ n) Add support for claims based ACLs ("DAC")
 
 o) mount helper GUI (to simplify the various configuration options on mount)
 
-p) Add support for witness protocol (perhaps ioctl to cifs.ko from user space
-   tool listening on witness protocol RPC) to allow for notification of share
-   move, server failover, and server adapter changes.  And also improve other
-   failover scenarios, e.g. when client knows multiple DFS entries point to
-   different servers, and the server we are connected to has gone down.
+p) Expand support for witness protocol to allow for notification of share
+   move, and server network adapter changes. Currently only notifications by
+   the witness protocol for server move is supported by the Linux client.
 
 q) Allow mount.cifs to be more verbose in reporting errors with dialect
-   or unsupported feature errors.
+   or unsupported feature errors. This would now be easier due to the
+   implementation of the new mount API.
 
 r) updating cifs documentation, and user guide.
 
@@ -87,11 +90,10 @@ t) split cifs and smb3 support into separate modules so legacy (and less
    secure) CIFS dialect can be disabled in environments that don't need it
    and simplify the code.
 
-v) POSIX Extensions for SMB3.1.1 (started, create and mkdir support added
-   so far).
+v) Additional testing of POSIX Extensions for SMB3.1.1
 
 w) Add support for additional strong encryption types, and additional spnego
-   authentication mechanisms (see MS-SMB2)
+   authentication mechanisms (see MS-SMB2).  GCM-256 is now partially implemented.
 
 x) Finish support for SMB3.1.1 compression
 
