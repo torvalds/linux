@@ -1496,14 +1496,13 @@ DEFINE_SHOW_ATTRIBUTE(sl811h_debug);
 /* expect just one sl811 per system */
 static void create_debug_file(struct sl811 *sl811)
 {
-	sl811->debug_file = debugfs_create_file("sl811h", S_IRUGO,
-						usb_debug_root, sl811,
-						&sl811h_debug_fops);
+	debugfs_create_file("sl811h", S_IRUGO, usb_debug_root, sl811,
+			    &sl811h_debug_fops);
 }
 
 static void remove_debug_file(struct sl811 *sl811)
 {
-	debugfs_remove(sl811->debug_file);
+	debugfs_remove(debugfs_lookup("sl811h", usb_debug_root));
 }
 
 /*-------------------------------------------------------------------------*/
