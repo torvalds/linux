@@ -322,7 +322,7 @@ static int lp50xx_brightness_set(struct led_classdev *cdev,
 
 	ret = regmap_write(led->priv->regmap, reg_val, brightness);
 	if (ret) {
-		dev_err(&led->priv->client->dev,
+		dev_err(led->priv->dev,
 			"Cannot write brightness value %d\n", ret);
 		goto out;
 	}
@@ -338,7 +338,7 @@ static int lp50xx_brightness_set(struct led_classdev *cdev,
 		ret = regmap_write(led->priv->regmap, reg_val,
 				   mc_dev->subled_info[i].intensity);
 		if (ret) {
-			dev_err(&led->priv->client->dev,
+			dev_err(led->priv->dev,
 				"Cannot write intensity value %d\n", ret);
 			goto out;
 		}
@@ -404,7 +404,7 @@ static int lp50xx_probe_leds(struct fwnode_handle *child, struct lp50xx *priv,
 
 	if (num_leds > 1) {
 		if (num_leds > priv->chip_info->max_modules) {
-			dev_err(&priv->client->dev, "reg property is invalid\n");
+			dev_err(priv->dev, "reg property is invalid\n");
 			return -EINVAL;
 		}
 
@@ -412,13 +412,13 @@ static int lp50xx_probe_leds(struct fwnode_handle *child, struct lp50xx *priv,
 
 		ret = fwnode_property_read_u32_array(child, "reg", led_banks, num_leds);
 		if (ret) {
-			dev_err(&priv->client->dev, "reg property is missing\n");
+			dev_err(priv->dev, "reg property is missing\n");
 			return ret;
 		}
 
 		ret = lp50xx_set_banks(priv, led_banks);
 		if (ret) {
-			dev_err(&priv->client->dev, "Cannot setup banked LEDs\n");
+			dev_err(priv->dev, "Cannot setup banked LEDs\n");
 			return ret;
 		}
 
@@ -426,12 +426,12 @@ static int lp50xx_probe_leds(struct fwnode_handle *child, struct lp50xx *priv,
 	} else {
 		ret = fwnode_property_read_u32(child, "reg", &led_number);
 		if (ret) {
-			dev_err(&priv->client->dev, "led reg property missing\n");
+			dev_err(priv->dev, "led reg property missing\n");
 			return ret;
 		}
 
 		if (led_number > priv->chip_info->num_leds) {
-			dev_err(&priv->client->dev, "led-sources property is invalid\n");
+			dev_err(priv->dev, "led-sources property is invalid\n");
 			return -EINVAL;
 		}
 
@@ -467,7 +467,7 @@ static int lp50xx_probe_dt(struct lp50xx *priv)
 		led = &priv->leds[i];
 		ret = fwnode_property_count_u32(child, "reg");
 		if (ret < 0) {
-			dev_err(&priv->client->dev, "reg property is invalid\n");
+			dev_err(priv->dev, "reg property is invalid\n");
 			goto child_out;
 		}
 
@@ -507,12 +507,11 @@ static int lp50xx_probe_dt(struct lp50xx *priv)
 		led_cdev = &led->mc_cdev.led_cdev;
 		led_cdev->brightness_set_blocking = lp50xx_brightness_set;
 
-		ret = devm_led_classdev_multicolor_register_ext(&priv->client->dev,
+		ret = devm_led_classdev_multicolor_register_ext(priv->dev,
 						       &led->mc_cdev,
 						       &init_data);
 		if (ret) {
-			dev_err(&priv->client->dev, "led register err: %d\n",
-				ret);
+			dev_err(priv->dev, "led register err: %d\n", ret);
 			goto child_out;
 		}
 		i++;
@@ -575,15 +574,14 @@ static int lp50xx_remove(struct i2c_client *client)
 
 	ret = lp50xx_enable_disable(led, 0);
 	if (ret) {
-		dev_err(&led->client->dev, "Failed to disable chip\n");
+		dev_err(led->dev, "Failed to disable chip\n");
 		return ret;
 	}
 
 	if (led->regulator) {
 		ret = regulator_disable(led->regulator);
 		if (ret)
-			dev_err(&led->client->dev,
-				"Failed to disable regulator\n");
+			dev_err(led->dev, "Failed to disable regulator\n");
 	}
 
 	mutex_destroy(&led->lock);
