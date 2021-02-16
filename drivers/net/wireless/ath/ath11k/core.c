@@ -147,6 +147,18 @@ static const struct ath11k_hw_params ath11k_hw_params[] = {
 		.cold_boot_calib = false,
 		.supports_suspend = true,
 	},
+	{
+		.name = "qcn9074 hw1.0",
+		.hw_rev = ATH11K_HW_QCN9074_HW10,
+		.fw = {
+			.dir = "QCN9074/hw1.0",
+			.board_size = 256 * 1024,
+			.cal_size = 256 * 1024,
+		},
+		.max_radios = 1,
+		.single_pdev_only = false,
+		.qmi_service_ins_id = ATH11K_QMI_WLFW_SERVICE_INS_ID_V01_QCN9074,
+	},
 };
 
 int ath11k_core_suspend(struct ath11k_base *ab)
