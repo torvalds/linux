@@ -382,11 +382,9 @@ static int lp50xx_enable_disable(struct lp50xx *priv, int enable_disable)
 {
 	int ret;
 
-	if (priv->enable_gpio) {
-		ret = gpiod_direction_output(priv->enable_gpio, enable_disable);
-		if (ret)
-			return ret;
-	}
+	ret = gpiod_direction_output(priv->enable_gpio, enable_disable);
+	if (ret)
+		return ret;
 
 	if (enable_disable)
 		return regmap_write(priv->regmap, LP50XX_DEV_CFG0, LP50XX_CHIP_EN);
