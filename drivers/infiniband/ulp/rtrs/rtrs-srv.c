@@ -1347,21 +1347,18 @@ static struct rtrs_srv *get_or_create_srv(struct rtrs_srv_ctx *ctx,
 			return srv;
 		}
 	}
+	mutex_unlock(&ctx->srv_mutex);
 	/*
 	 * If this request is not the first connection request from the
 	 * client for this session then fail and return error.
 	 */
-	if (!first_conn) {
-		mutex_unlock(&ctx->srv_mutex);
+	if (!first_conn)
 		return ERR_PTR(-ENXIO);
-	}
 
 	/* need to allocate a new srv */
 	srv = kzalloc(sizeof(*srv), GFP_KERNEL);
-	if  (!srv) {
-		mutex_unlock(&ctx->srv_mutex);
+	if  (!srv)
 		return ERR_PTR(-ENOMEM);
-	}
 
 	INIT_LIST_HEAD(&srv->paths_list);
 	mutex_init(&srv->paths_mutex);
@@ -1371,8 +1368,6 @@ static struct rtrs_srv *get_or_create_srv(struct rtrs_srv_ctx *ctx,
 	srv->ctx = ctx;
 	device_initialize(&srv->dev);
 	srv->dev.release = rtrs_srv_dev_release;
-	list_add(&srv->ctx_list, &ctx->srv_list);
-	mutex_unlock(&ctx->srv_mutex);
 
 	srv->chunks = kcalloc(srv->queue_depth, sizeof(*srv->chunks),
 			      GFP_KERNEL);
@@ -1385,6 +1380,9 @@ static struct rtrs_srv *get_or_create_srv(struct rtrs_srv_ctx *ctx,
 			goto err_free_chunks;
 	}
 	refcount_set(&srv->refcount, 1);
+	mutex_lock(&ctx->srv_mutex);
+	list_add(&srv->ctx_list, &ctx->srv_list);
+	mutex_unlock(&ctx->srv_mutex);
 
 	return srv;
 
@@ -1799,11 +1797,7 @@ static int rtrs_rdma_connect(struct rdma_cm_id *cm_id,
 	}
 	recon_cnt = le16_to_cpu(msg->recon_cnt);
 	srv = get_or_create_srv(ctx, &msg->paths_uuid, msg->first_conn);
-	/*
-	 * "refcount == 0" happens if a previous thread calls get_or_create_srv
-	 * allocate srv, but chunks of srv are not allocated yet.
-	 */
-	if (IS_ERR(srv) || refcount_read(&srv->refcount) == 0) {
+	if (IS_ERR(srv)) {
 		err = PTR_ERR(srv);
 		goto reject_w_err;
 	}
