@@ -33,24 +33,29 @@ config GCC_VERSION
 	default $(cc-version) if CC_IS_GCC
 	default 0
 
-config LD_VERSION
-	int
-	default $(shell,$(LD) --version | $(srctree)/scripts/ld-version.sh)
-
 config CC_IS_CLANG
 	def_bool $(success,test "$(cc-name)" = Clang)
-
-config LD_IS_LLD
-	def_bool $(success,$(LD) -v | head -n 1 | grep -q LLD)
 
 config CLANG_VERSION
 	int
 	default $(cc-version) if CC_IS_CLANG
 	default 0
 
+config LD_IS_BFD
+	def_bool $(success,test "$(ld-name)" = BFD)
+
+config LD_VERSION
+	int
+	default $(ld-version) if LD_IS_BFD
+	default 0
+
+config LD_IS_LLD
+	def_bool $(success,test "$(ld-name)" = LLD)
+
 config LLD_VERSION
 	int
-	default $(shell,$(srctree)/scripts/lld-version.sh $(LD))
+	default $(ld-version) if LD_IS_LLD
+	default 0
 
 config CC_CAN_LINK
 	bool
