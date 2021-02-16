@@ -321,9 +321,10 @@ static int cdns_pcie_host_map_dma_ranges(struct cdns_pcie_rc *rc)
 
 	resource_list_for_each_entry(entry, &bridge->dma_ranges) {
 		err = cdns_pcie_host_bar_config(rc, entry);
-		if (err)
+		if (err) {
 			dev_err(dev, "Fail to configure IB using dma-ranges\n");
-		return err;
+			return err;
+		}
 	}
 
 	return 0;
