@@ -70,6 +70,22 @@ static void hpriv_release(struct kref *ref)
 	mutex_unlock(&hdev->fpriv_list_lock);
 
 	kfree(hpriv);
+
+	if (hdev->reset_upon_device_release) {
+		u64 idle_mask[HL_BUSY_ENGINES_MASK_EXT_SIZE] = {0};
+
+		/* We try soft reset first */
+		hl_device_reset(hdev, false, false);
+
+		/* If device is not idle perform hard reset */
+		if (!hdev->asic_funcs->is_device_idle(hdev, idle_mask,
+				HL_BUSY_ENGINES_MASK_EXT_SIZE, NULL)) {
+			dev_info(hdev->dev,
+				"device is not idle (mask %#llx %#llx) after soft reset, performing hard reset",
+				idle_mask[0], idle_mask[1]);
+			hl_device_reset(hdev, true, false);
+		}
+	}
 }
 
 void hl_hpriv_get(struct hl_fpriv *hpriv)
@@ -105,22 +121,6 @@ static int hl_device_release(struct inode *inode, struct file *filp)
 
 	hl_cb_mgr_fini(hdev, &hpriv->cb_mgr);
 	hl_ctx_mgr_fini(hdev, &hpriv->ctx_mgr);
-
-	if (hdev->reset_upon_device_release) {
-		u64 idle_mask[HL_BUSY_ENGINES_MASK_EXT_SIZE] = {0};
-
-		/* We try soft reset first */
-		hl_device_reset(hdev, false, false);
-
-		/* If device is not idle perform hard reset */
-		if (!hdev->asic_funcs->is_device_idle(hdev, idle_mask,
-				HL_BUSY_ENGINES_MASK_EXT_SIZE, NULL)) {
-			dev_info(hdev->dev,
-				"device is not idle (mask %#llx %#llx) after soft reset, performing hard reset",
-				idle_mask[0], idle_mask[1]);
-			hl_device_reset(hdev, true, false);
-		}
-	}
 
 	hl_hpriv_put(hpriv);
 
