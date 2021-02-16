@@ -7991,19 +7991,27 @@ static void intel_modeset_update_connector_atomic_state(struct drm_device *dev)
 
 	drm_connector_list_iter_begin(dev, &conn_iter);
 	for_each_intel_connector_iter(connector, &conn_iter) {
-		if (connector->base.state->crtc)
+		struct drm_connector_state *conn_state = connector->base.state;
+		struct intel_encoder *encoder =
+			to_intel_encoder(connector->base.encoder);
+
+		if (conn_state->crtc)
 			drm_connector_put(&connector->base);
 
-		if (connector->base.encoder) {
-			connector->base.state->best_encoder =
-				connector->base.encoder;
-			connector->base.state->crtc =
-				connector->base.encoder->crtc;
+		if (encoder) {
+			struct intel_crtc *crtc =
+				to_intel_crtc(encoder->base.crtc);
+			const struct intel_crtc_state *crtc_state =
+				to_intel_crtc_state(crtc->base.state);
+
+			conn_state->best_encoder = &encoder->base;
+			conn_state->crtc = &crtc->base;
+			conn_state->max_bpc = (crtc_state->pipe_bpp ?: 24) / 3;
 
 			drm_connector_get(&connector->base);
 		} else {
-			connector->base.state->best_encoder = NULL;
-			connector->base.state->crtc = NULL;
+			conn_state->best_encoder = NULL;
+			conn_state->crtc = NULL;
 		}
 	}
 	drm_connector_list_iter_end(&conn_iter);
