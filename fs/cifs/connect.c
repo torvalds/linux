@@ -995,6 +995,10 @@ next_pdu:
 			if (mids[i] != NULL) {
 				mids[i]->resp_buf_size = server->pdu_size;
 
+				if (bufs[i] && server->ops->is_network_name_deleted)
+					server->ops->is_network_name_deleted(bufs[i],
+									server);
+
 				if (!mids[i]->multiRsp || mids[i]->multiEnd)
 					mids[i]->callback(mids[i]);
 
