@@ -482,6 +482,23 @@ int ath11k_pci_get_user_msi_assignment(struct ath11k_pci *ab_pci, char *user_nam
 	return -EINVAL;
 }
 
+static void ath11k_pci_get_ce_msi_idx(struct ath11k_base *ab, u32 ce_id,
+				      u32 *msi_idx)
+{
+	u32 i, msi_data_idx;
+
+	for (i = 0, msi_data_idx = 0; i < ab->hw_params.ce_count; i++) {
+		if (ath11k_ce_get_attr_flags(ab, i) & CE_ATTR_DIS_INTR)
+			continue;
+
+		if (ce_id == i)
+			break;
+
+		msi_data_idx++;
+	}
+	*msi_idx = msi_data_idx;
+}
+
 static int ath11k_get_user_msi_assignment(struct ath11k_base *ab, char *user_name,
 					  int *num_vectors, u32 *user_base_data,
 					  u32 *base_vector)
@@ -741,7 +758,7 @@ static int ath11k_pci_config_irq(struct ath11k_base *ab)
 {
 	struct ath11k_ce_pipe *ce_pipe;
 	u32 msi_data_start;
-	u32 msi_data_count;
+	u32 msi_data_count, msi_data_idx;
 	u32 msi_irq_start;
 	unsigned int msi_data;
 	int irq, i, ret, irq_idx;
@@ -753,13 +770,13 @@ static int ath11k_pci_config_irq(struct ath11k_base *ab)
 		return ret;
 
 	/* Configure CE irqs */
-	for (i = 0; i < ab->hw_params.ce_count; i++) {
-		msi_data = (i % msi_data_count) + msi_irq_start;
-		irq = ath11k_pci_get_msi_irq(ab->dev, msi_data);
-		ce_pipe = &ab->ce.ce_pipe[i];
-
+	for (i = 0, msi_data_idx = 0; i < ab->hw_params.ce_count; i++) {
 		if (ath11k_ce_get_attr_flags(ab, i) & CE_ATTR_DIS_INTR)
 			continue;
+
+		msi_data = (msi_data_idx % msi_data_count) + msi_irq_start;
+		irq = ath11k_pci_get_msi_irq(ab->dev, msi_data);
+		ce_pipe = &ab->ce.ce_pipe[i];
 
 		irq_idx = ATH11K_PCI_IRQ_CE0_OFFSET + i;
 
@@ -775,6 +792,7 @@ static int ath11k_pci_config_irq(struct ath11k_base *ab)
 		}
 
 		ab->irq_num[irq_idx] = irq;
+		msi_data_idx++;
 
 		ath11k_pci_ce_irq_disable(ab, i);
 	}
@@ -1135,6 +1153,7 @@ static const struct ath11k_hif_ops ath11k_pci_hif_ops = {
 	.map_service_to_pipe = ath11k_pci_map_service_to_pipe,
 	.ce_irq_enable = ath11k_pci_hif_ce_irq_enable,
 	.ce_irq_disable = ath11k_pci_hif_ce_irq_disable,
+	.get_ce_msi_idx = ath11k_pci_get_ce_msi_idx,
 };
 
 static int ath11k_pci_probe(struct pci_dev *pdev,
