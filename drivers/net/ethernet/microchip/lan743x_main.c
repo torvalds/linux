@@ -1939,35 +1939,52 @@ static int lan743x_rx_init_ring_element(struct lan743x_rx *rx, int index)
 	struct net_device *netdev = rx->adapter->netdev;
 	struct device *dev = &rx->adapter->pdev->dev;
 	struct lan743x_rx_buffer_info *buffer_info;
+	unsigned int buffer_length, used_length;
 	struct lan743x_rx_descriptor *descriptor;
 	struct sk_buff *skb;
 	dma_addr_t dma_ptr;
-	int length;
 
-	length = netdev->mtu + ETH_HLEN + 4 + RX_HEAD_PADDING;
+	buffer_length = netdev->mtu + ETH_HLEN + 4 + RX_HEAD_PADDING;
 
 	descriptor = &rx->ring_cpu_ptr[index];
 	buffer_info = &rx->buffer_info[index];
-	skb = __netdev_alloc_skb(netdev, length, GFP_ATOMIC | GFP_DMA);
+	skb = __netdev_alloc_skb(netdev, buffer_length, GFP_ATOMIC | GFP_DMA);
 	if (!skb)
 		return -ENOMEM;
-	dma_ptr = dma_map_single(dev, skb->data, length, DMA_FROM_DEVICE);
+	dma_ptr = dma_map_single(dev, skb->data, buffer_length, DMA_FROM_DEVICE);
 	if (dma_mapping_error(dev, dma_ptr)) {
 		dev_kfree_skb_any(skb);
 		return -ENOMEM;
 	}
-	if (buffer_info->dma_ptr)
-		dma_unmap_single(dev, buffer_info->dma_ptr,
-				 buffer_info->buffer_length, DMA_FROM_DEVICE);
+	if (buffer_info->dma_ptr) {
+		/* sync used area of buffer only */
+		if (le32_to_cpu(descriptor->data0) & RX_DESC_DATA0_LS_)
+			/* frame length is valid only if LS bit is set.
+			 * it's a safe upper bound for the used area in this
+			 * buffer.
+			 */
+			used_length = min(RX_DESC_DATA0_FRAME_LENGTH_GET_
+					  (le32_to_cpu(descriptor->data0)),
+					  buffer_info->buffer_length);
+		else
+			used_length = buffer_info->buffer_length;
+		dma_sync_single_for_cpu(dev, buffer_info->dma_ptr,
+					used_length,
+					DMA_FROM_DEVICE);
+		dma_unmap_single_attrs(dev, buffer_info->dma_ptr,
+				       buffer_info->buffer_length,
+				       DMA_FROM_DEVICE,
+				       DMA_ATTR_SKIP_CPU_SYNC);
+	}
 
 	buffer_info->skb = skb;
 	buffer_info->dma_ptr = dma_ptr;
-	buffer_info->buffer_length = length;
+	buffer_info->buffer_length = buffer_length;
 	descriptor->data1 = cpu_to_le32(DMA_ADDR_LOW32(buffer_info->dma_ptr));
 	descriptor->data2 = cpu_to_le32(DMA_ADDR_HIGH32(buffer_info->dma_ptr));
 	descriptor->data3 = 0;
 	descriptor->data0 = cpu_to_le32((RX_DESC_DATA0_OWN_ |
-			    (length & RX_DESC_DATA0_BUF_LENGTH_MASK_)));
+			    (buffer_length & RX_DESC_DATA0_BUF_LENGTH_MASK_)));
 	lan743x_rx_update_tail(rx, index);
 
 	return 0;
