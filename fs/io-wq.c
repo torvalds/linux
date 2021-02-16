@@ -16,7 +16,6 @@
 #include <linux/kthread.h>
 #include <linux/rculist_nulls.h>
 #include <linux/fs_struct.h>
-#include <linux/task_work.h>
 #include <linux/blk-cgroup.h>
 #include <linux/audit.h>
 #include <linux/cpu.h>
@@ -775,9 +774,6 @@ static int io_wq_manager(void *data)
 	complete(&wq->done);
 
 	while (!kthread_should_stop()) {
-		if (current->task_works)
-			task_work_run();
-
 		for_each_node(node) {
 			struct io_wqe *wqe = wq->wqes[node];
 			bool fork_worker[2] = { false, false };
@@ -799,9 +795,6 @@ static int io_wq_manager(void *data)
 		set_current_state(TASK_INTERRUPTIBLE);
 		schedule_timeout(HZ);
 	}
-
-	if (current->task_works)
-		task_work_run();
 
 out:
 	if (refcount_dec_and_test(&wq->refs)) {
@@ -1158,11 +1151,6 @@ void io_wq_destroy(struct io_wq *wq)
 {
 	if (refcount_dec_and_test(&wq->use_refs))
 		__io_wq_destroy(wq);
-}
-
-struct task_struct *io_wq_get_task(struct io_wq *wq)
-{
-	return wq->manager;
 }
 
 static bool io_wq_worker_affinity(struct io_worker *worker, void *data)

@@ -456,6 +456,9 @@ struct io_ring_ctx {
 
 	struct io_restriction		restrictions;
 
+	/* exit task_work */
+	struct callback_head		*exit_task_work;
+
 	/* Keep this last, we don't need it for the fast path */
 	struct work_struct		exit_work;
 };
@@ -2328,11 +2331,14 @@ static int io_req_task_work_add(struct io_kiocb *req)
 static void io_req_task_work_add_fallback(struct io_kiocb *req,
 					  task_work_func_t cb)
 {
-	struct task_struct *tsk = io_wq_get_task(req->ctx->io_wq);
+	struct io_ring_ctx *ctx = req->ctx;
+	struct callback_head *head;
 
 	init_task_work(&req->task_work, cb);
-	task_work_add(tsk, &req->task_work, TWA_NONE);
-	wake_up_process(tsk);
+	do {
+		head = READ_ONCE(ctx->exit_task_work);
+		req->task_work.next = head;
+	} while (cmpxchg(&ctx->exit_task_work, head, &req->task_work) != head);
 }
 
 static void __io_req_task_cancel(struct io_kiocb *req, int error)
@@ -8835,6 +8841,28 @@ static int io_remove_personalities(int id, void *p, void *data)
 	return 0;
 }
 
+static void io_run_ctx_fallback(struct io_ring_ctx *ctx)
+{
+	struct callback_head *work, *head, *next;
+
+	do {
+		do {
+			head = NULL;
+			work = READ_ONCE(ctx->exit_task_work);
+		} while (cmpxchg(&ctx->exit_task_work, work, head) != work);
+
+		if (!work)
+			break;
+
+		do {
+			next = work->next;
+			work->func(work);
+			work = next;
+			cond_resched();
+		} while (work);
+	} while (1);
+}
+
 static void io_ring_exit_work(struct work_struct *work)
 {
 	struct io_ring_ctx *ctx = container_of(work, struct io_ring_ctx,
@@ -8848,6 +8876,7 @@ static void io_ring_exit_work(struct work_struct *work)
 	 */
 	do {
 		io_uring_try_cancel_requests(ctx, NULL, NULL);
+		io_run_ctx_fallback(ctx);
 	} while (!wait_for_completion_timeout(&ctx->ref_comp, HZ/20));
 	io_ring_ctx_free(ctx);
 }
@@ -9242,6 +9271,8 @@ static int io_uring_flush(struct file *file, void *data)
 		io_uring_cancel_task_requests(ctx, NULL);
 		io_req_caches_free(ctx, current);
 	}
+
+	io_run_ctx_fallback(ctx);
 
 	if (!tctx)
 		return 0;
