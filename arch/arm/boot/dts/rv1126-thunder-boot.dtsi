@@ -101,6 +101,18 @@
 	inactive;
 };
 
+&mtl_rx_setup {
+	queue0 {
+		status = "okay";
+	};
+};
+
+&mtl_tx_setup {
+	queue0 {
+		status = "okay";
+	};
+};
+
 &ramoops {
 	status = "disabled";
 };
