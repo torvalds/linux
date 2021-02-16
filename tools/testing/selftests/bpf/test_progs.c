@@ -390,7 +390,7 @@ static void unload_bpf_testmod(void)
 			return;
 		}
 		fprintf(env.stderr, "Failed to unload bpf_testmod.ko from kernel: %d\n", -errno);
-		exit(1);
+		return;
 	}
 	if (env.verbosity > VERBOSE_NONE)
 		fprintf(stdout, "Successfully unloaded bpf_testmod.ko.\n");

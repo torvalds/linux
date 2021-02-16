@@ -345,7 +345,7 @@ static int __bpf_fill_ja(struct bpf_test *self, unsigned int len,
 
 static int bpf_fill_maxinsns11(struct bpf_test *self)
 {
-	/* Hits 70 passes on x86_64, so cannot get JITed there. */
+	/* Hits 70 passes on x86_64 and triggers NOPs padding. */
 	return __bpf_fill_ja(self, BPF_MAXINSNS, 68);
 }
 
@@ -5318,15 +5318,10 @@ static struct bpf_test tests[] = {
 	{
 		"BPF_MAXINSNS: Jump, gap, jump, ...",
 		{ },
-#if defined(CONFIG_BPF_JIT_ALWAYS_ON) && defined(CONFIG_X86)
-		CLASSIC | FLAG_NO_DATA | FLAG_EXPECTED_FAIL,
-#else
 		CLASSIC | FLAG_NO_DATA,
-#endif
 		{ },
 		{ { 0, 0xababcbac } },
 		.fill_helper = bpf_fill_maxinsns11,
-		.expected_errcode = -ENOTSUPP,
 	},
 	{
 		"BPF_MAXINSNS: jump over MSH",

@@ -35,6 +35,7 @@
 #define VETH_XDP_HEADROOM	(XDP_PACKET_HEADROOM + NET_IP_ALIGN)
 
 #define VETH_XDP_TX_BULK_SIZE	16
+#define VETH_XDP_BATCH		16
 
 struct veth_stats {
 	u64	rx_drops;
@@ -562,20 +563,13 @@ static int veth_xdp_tx(struct veth_rq *rq, struct xdp_buff *xdp,
 	return 0;
 }
 
-static struct sk_buff *veth_xdp_rcv_one(struct veth_rq *rq,
-					struct xdp_frame *frame,
-					struct veth_xdp_tx_bq *bq,
-					struct veth_stats *stats)
+static struct xdp_frame *veth_xdp_rcv_one(struct veth_rq *rq,
+					  struct xdp_frame *frame,
+					  struct veth_xdp_tx_bq *bq,
+					  struct veth_stats *stats)
 {
-	void *hard_start = frame->data - frame->headroom;
-	int len = frame->len, delta = 0;
 	struct xdp_frame orig_frame;
 	struct bpf_prog *xdp_prog;
-	unsigned int headroom;
-	struct sk_buff *skb;
-
-	/* bpf_xdp_adjust_head() assures BPF cannot access xdp_frame area */
-	hard_start -= sizeof(struct xdp_frame);
 
 	rcu_read_lock();
 	xdp_prog = rcu_dereference(rq->xdp_prog);
@@ -590,8 +584,8 @@ static struct sk_buff *veth_xdp_rcv_one(struct veth_rq *rq,
 
 		switch (act) {
 		case XDP_PASS:
-			delta = frame->data - xdp.data;
-			len = xdp.data_end - xdp.data;
+			if (xdp_update_frame_from_buff(&xdp, frame))
+				goto err_xdp;
 			break;
 		case XDP_TX:
 			orig_frame = *frame;
@@ -629,24 +623,43 @@ static struct sk_buff *veth_xdp_rcv_one(struct veth_rq *rq,
 	}
 	rcu_read_unlock();
 
-	headroom = sizeof(struct xdp_frame) + frame->headroom - delta;
-	skb = veth_build_skb(hard_start, headroom, len, frame->frame_sz);
-	if (!skb) {
-		xdp_return_frame(frame);
-		stats->rx_drops++;
-		goto err;
-	}
-
-	xdp_release_frame(frame);
-	xdp_scrub_frame(frame);
-	skb->protocol = eth_type_trans(skb, rq->dev);
-err:
-	return skb;
+	return frame;
 err_xdp:
 	rcu_read_unlock();
 	xdp_return_frame(frame);
 xdp_xmit:
 	return NULL;
+}
+
+/* frames array contains VETH_XDP_BATCH at most */
+static void veth_xdp_rcv_bulk_skb(struct veth_rq *rq, void **frames,
+				  int n_xdpf, struct veth_xdp_tx_bq *bq,
+				  struct veth_stats *stats)
+{
+	void *skbs[VETH_XDP_BATCH];
+	int i;
+
+	if (xdp_alloc_skb_bulk(skbs, n_xdpf,
+			       GFP_ATOMIC | __GFP_ZERO) < 0) {
+		for (i = 0; i < n_xdpf; i++)
+			xdp_return_frame(frames[i]);
+		stats->rx_drops += n_xdpf;
+
+		return;
+	}
+
+	for (i = 0; i < n_xdpf; i++) {
+		struct sk_buff *skb = skbs[i];
+
+		skb = __xdp_build_skb_from_frame(frames[i], skb,
+						 rq->dev);
+		if (!skb) {
+			xdp_return_frame(frames[i]);
+			stats->rx_drops++;
+			continue;
+		}
+		napi_gro_receive(&rq->xdp_napi, skb);
+	}
 }
 
 static struct sk_buff *veth_xdp_rcv_skb(struct veth_rq *rq,
@@ -796,31 +809,44 @@ static int veth_xdp_rcv(struct veth_rq *rq, int budget,
 			struct veth_xdp_tx_bq *bq,
 			struct veth_stats *stats)
 {
-	int i, done = 0;
+	int i, done = 0, n_xdpf = 0;
+	void *xdpf[VETH_XDP_BATCH];
 
 	for (i = 0; i < budget; i++) {
 		void *ptr = __ptr_ring_consume(&rq->xdp_ring);
-		struct sk_buff *skb;
 
 		if (!ptr)
 			break;
 
 		if (veth_is_xdp_frame(ptr)) {
+			/* ndo_xdp_xmit */
 			struct xdp_frame *frame = veth_ptr_to_xdp(ptr);
 
 			stats->xdp_bytes += frame->len;
-			skb = veth_xdp_rcv_one(rq, frame, bq, stats);
+			frame = veth_xdp_rcv_one(rq, frame, bq, stats);
+			if (frame) {
+				/* XDP_PASS */
+				xdpf[n_xdpf++] = frame;
+				if (n_xdpf == VETH_XDP_BATCH) {
+					veth_xdp_rcv_bulk_skb(rq, xdpf, n_xdpf,
+							      bq, stats);
+					n_xdpf = 0;
+				}
+			}
 		} else {
-			skb = ptr;
+			/* ndo_start_xmit */
+			struct sk_buff *skb = ptr;
+
 			stats->xdp_bytes += skb->len;
 			skb = veth_xdp_rcv_skb(rq, skb, bq, stats);
+			if (skb)
+				napi_gro_receive(&rq->xdp_napi, skb);
 		}
-
-		if (skb)
-			napi_gro_receive(&rq->xdp_napi, skb);
-
 		done++;
 	}
+
+	if (n_xdpf)
+		veth_xdp_rcv_bulk_skb(rq, xdpf, n_xdpf, bq, stats);
 
 	u64_stats_update_begin(&rq->stats.syncp);
 	rq->stats.vs.xdp_redirect += stats->xdp_redirect;

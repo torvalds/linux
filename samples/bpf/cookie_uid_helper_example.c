@@ -313,7 +313,7 @@ int main(int argc, char *argv[])
 			print_table();
 			printf("\n");
 			sleep(1);
-		};
+		}
 	} else if (cfg_test_cookie) {
 		udp_client();
 	}

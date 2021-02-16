@@ -88,6 +88,10 @@ struct bpf_test {
 	int fixup_map_event_output[MAX_FIXUPS];
 	int fixup_map_reuseport_array[MAX_FIXUPS];
 	int fixup_map_ringbuf[MAX_FIXUPS];
+	/* Expected verifier log output for result REJECT or VERBOSE_ACCEPT.
+	 * Can be a tab-separated sequence of expected strings. An empty string
+	 * means no log verification.
+	 */
 	const char *errstr;
 	const char *errstr_unpriv;
 	uint32_t insn_processed;
@@ -291,6 +295,78 @@ static void bpf_fill_scale(struct bpf_test *self)
 		return bpf_fill_scale1(self);
 	case 2:
 		return bpf_fill_scale2(self);
+	default:
+		self->prog_len = 0;
+		break;
+	}
+}
+
+static int bpf_fill_torturous_jumps_insn_1(struct bpf_insn *insn)
+{
+	unsigned int len = 259, hlen = 128;
+	int i;
+
+	insn[0] = BPF_EMIT_CALL(BPF_FUNC_get_prandom_u32);
+	for (i = 1; i <= hlen; i++) {
+		insn[i]        = BPF_JMP_IMM(BPF_JEQ, BPF_REG_0, i, hlen);
+		insn[i + hlen] = BPF_JMP_A(hlen - i);
+	}
+	insn[len - 2] = BPF_MOV64_IMM(BPF_REG_0, 1);
+	insn[len - 1] = BPF_EXIT_INSN();
+
+	return len;
+}
+
+static int bpf_fill_torturous_jumps_insn_2(struct bpf_insn *insn)
+{
+	unsigned int len = 4100, jmp_off = 2048;
+	int i, j;
+
+	insn[0] = BPF_EMIT_CALL(BPF_FUNC_get_prandom_u32);
+	for (i = 1; i <= jmp_off; i++) {
+		insn[i] = BPF_JMP_IMM(BPF_JEQ, BPF_REG_0, i, jmp_off);
+	}
+	insn[i++] = BPF_JMP_A(jmp_off);
+	for (; i <= jmp_off * 2 + 1; i+=16) {
+		for (j = 0; j < 16; j++) {
+			insn[i + j] = BPF_JMP_A(16 - j - 1);
+		}
+	}
+
+	insn[len - 2] = BPF_MOV64_IMM(BPF_REG_0, 2);
+	insn[len - 1] = BPF_EXIT_INSN();
+
+	return len;
+}
+
+static void bpf_fill_torturous_jumps(struct bpf_test *self)
+{
+	struct bpf_insn *insn = self->fill_insns;
+	int i = 0;
+
+	switch (self->retval) {
+	case 1:
+		self->prog_len = bpf_fill_torturous_jumps_insn_1(insn);
+		return;
+	case 2:
+		self->prog_len = bpf_fill_torturous_jumps_insn_2(insn);
+		return;
+	case 3:
+		/* main */
+		insn[i++] = BPF_RAW_INSN(BPF_JMP|BPF_CALL, 0, 1, 0, 4);
+		insn[i++] = BPF_RAW_INSN(BPF_JMP|BPF_CALL, 0, 1, 0, 262);
+		insn[i++] = BPF_ST_MEM(BPF_B, BPF_REG_10, -32, 0);
+		insn[i++] = BPF_MOV64_IMM(BPF_REG_0, 3);
+		insn[i++] = BPF_EXIT_INSN();
+
+		/* subprog 1 */
+		i += bpf_fill_torturous_jumps_insn_1(insn + i);
+
+		/* subprog 2 */
+		i += bpf_fill_torturous_jumps_insn_2(insn + i);
+
+		self->prog_len = i;
+		return;
 	default:
 		self->prog_len = 0;
 		break;
@@ -923,13 +999,19 @@ static int do_prog_test_run(int fd_prog, bool unpriv, uint32_t expected_val,
 	return 0;
 }
 
+/* Returns true if every part of exp (tab-separated) appears in log, in order.
+ *
+ * If exp is an empty string, returns true.
+ */
 static bool cmp_str_seq(const char *log, const char *exp)
 {
-	char needle[80];
+	char needle[200];
 	const char *p, *q;
 	int len;
 
 	do {
+		if (!strlen(exp))
+			break;
 		p = strchr(exp, '\t');
 		if (!p)
 			p = exp + strlen(exp);
@@ -943,7 +1025,7 @@ static bool cmp_str_seq(const char *log, const char *exp)
 		needle[len] = 0;
 		q = strstr(log, needle);
 		if (!q) {
-			printf("FAIL\nUnexpected verifier log in successful load!\n"
+			printf("FAIL\nUnexpected verifier log!\n"
 			       "EXP: %s\nRES:\n", needle);
 			return false;
 		}
@@ -1058,7 +1140,7 @@ static void do_test_single(struct bpf_test *test, bool unpriv,
 			printf("FAIL\nUnexpected success to load!\n");
 			goto fail_log;
 		}
-		if (!expected_err || !strstr(bpf_vlog, expected_err)) {
+		if (!expected_err || !cmp_str_seq(bpf_vlog, expected_err)) {
 			printf("FAIL\nUnexpected error message!\n\tEXP: %s\n\tRES: %s\n",
 			      expected_err, bpf_vlog);
 			goto fail_log;

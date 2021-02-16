@@ -92,8 +92,6 @@ struct flow_vector {
 	enum fvector {
 		tx,
 		rx,
-		bidi,
-		undef,
 	} vector;
 };
 

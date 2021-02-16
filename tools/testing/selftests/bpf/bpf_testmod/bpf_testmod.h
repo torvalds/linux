@@ -11,4 +11,10 @@ struct bpf_testmod_test_read_ctx {
 	size_t len;
 };
 
+struct bpf_testmod_test_write_ctx {
+	char *buf;
+	loff_t off;
+	size_t len;
+};
+
 #endif /* _BPF_TESTMOD_H */
