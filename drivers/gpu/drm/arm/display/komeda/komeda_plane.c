@@ -49,10 +49,8 @@ komeda_plane_init_data_flow(struct drm_plane_state *st,
 
 	dflow->rot = drm_rotation_simplify(st->rotation, caps->supported_rots);
 	if (!has_bits(dflow->rot, caps->supported_rots)) {
-		DRM_DEBUG_ATOMIC("rotation(0x%x) isn't supported by %s.\n",
-				 dflow->rot,
-				 komeda_get_format_name(caps->fourcc,
-							fb->modifier));
+		DRM_DEBUG_ATOMIC("rotation(0x%x) isn't supported by %p4cc with modifier: 0x%llx.\n",
+				 dflow->rot, &caps->fourcc, fb->modifier);
 		return -EINVAL;
 	}
 

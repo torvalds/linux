@@ -890,7 +890,6 @@ static int vmw_kms_new_framebuffer_surface(struct vmw_private *dev_priv,
 	struct vmw_framebuffer_surface *vfbs;
 	enum SVGA3dSurfaceFormat format;
 	int ret;
-	struct drm_format_name_buf format_name;
 
 	/* 3D is only supported on HWv8 and newer hosts */
 	if (dev_priv->active_display_unit == vmw_du_legacy)
@@ -928,8 +927,8 @@ static int vmw_kms_new_framebuffer_surface(struct vmw_private *dev_priv,
 		format = SVGA3D_A1R5G5B5;
 		break;
 	default:
-		DRM_ERROR("Invalid pixel format: %s\n",
-			  drm_get_format_name(mode_cmd->pixel_format, &format_name));
+		DRM_ERROR("Invalid pixel format: %p4cc\n",
+			  &mode_cmd->pixel_format);
 		return -EINVAL;
 	}
 
@@ -1144,7 +1143,6 @@ static int vmw_create_bo_proxy(struct drm_device *dev,
 	uint32_t format;
 	struct vmw_resource *res;
 	unsigned int bytes_pp;
-	struct drm_format_name_buf format_name;
 	int ret;
 
 	switch (mode_cmd->pixel_format) {
@@ -1166,8 +1164,8 @@ static int vmw_create_bo_proxy(struct drm_device *dev,
 		break;
 
 	default:
-		DRM_ERROR("Invalid framebuffer format %s\n",
-			  drm_get_format_name(mode_cmd->pixel_format, &format_name));
+		DRM_ERROR("Invalid framebuffer format %p4cc\n",
+			  &mode_cmd->pixel_format);
 		return -EINVAL;
 	}
 
@@ -1211,7 +1209,6 @@ static int vmw_kms_new_framebuffer_bo(struct vmw_private *dev_priv,
 	struct drm_device *dev = &dev_priv->drm;
 	struct vmw_framebuffer_bo *vfbd;
 	unsigned int requested_size;
-	struct drm_format_name_buf format_name;
 	int ret;
 
 	requested_size = mode_cmd->height * mode_cmd->pitches[0];
@@ -1231,8 +1228,8 @@ static int vmw_kms_new_framebuffer_bo(struct vmw_private *dev_priv,
 		case DRM_FORMAT_RGB565:
 			break;
 		default:
-			DRM_ERROR("Invalid pixel format: %s\n",
-				  drm_get_format_name(mode_cmd->pixel_format, &format_name));
+			DRM_ERROR("Invalid pixel format: %p4cc\n",
+				  &mode_cmd->pixel_format);
 			return -EINVAL;
 		}
 	}

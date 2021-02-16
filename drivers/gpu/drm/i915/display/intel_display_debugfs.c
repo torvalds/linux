@@ -772,27 +772,25 @@ static void intel_plane_uapi_info(struct seq_file *m, struct intel_plane *plane)
 	const struct intel_plane_state *plane_state =
 		to_intel_plane_state(plane->base.state);
 	const struct drm_framebuffer *fb = plane_state->uapi.fb;
-	struct drm_format_name_buf format_name;
 	struct drm_rect src, dst;
 	char rot_str[48];
 
 	src = drm_plane_state_src(&plane_state->uapi);
 	dst = drm_plane_state_dest(&plane_state->uapi);
 
-	if (fb)
-		drm_get_format_name(fb->format->format, &format_name);
-
 	plane_rotation(rot_str, sizeof(rot_str),
 		       plane_state->uapi.rotation);
 
-	seq_printf(m, "\t\tuapi: [FB:%d] %s,0x%llx,%dx%d, visible=%s, src=" DRM_RECT_FP_FMT ", dst=" DRM_RECT_FMT ", rotation=%s\n",
-		   fb ? fb->base.id : 0, fb ? format_name.str : "n/a",
-		   fb ? fb->modifier : 0,
-		   fb ? fb->width : 0, fb ? fb->height : 0,
-		   plane_visibility(plane_state),
-		   DRM_RECT_FP_ARG(&src),
-		   DRM_RECT_ARG(&dst),
-		   rot_str);
+	seq_puts(m, "\t\tuapi: [FB:");
+	if (fb)
+		seq_printf(m, "%d] %p4cc,0x%llx,%dx%d", fb->base.id,
+			   &fb->format->format, fb->modifier, fb->width,
+			   fb->height);
+	else
+		seq_puts(m, "0] n/a,0x0,0x0,");
+	seq_printf(m, ", visible=%s, src=" DRM_RECT_FP_FMT ", dst=" DRM_RECT_FMT
+		   ", rotation=%s\n", plane_visibility(plane_state),
+		   DRM_RECT_FP_ARG(&src), DRM_RECT_ARG(&dst), rot_str);
 
 	if (plane_state->planar_linked_plane)
 		seq_printf(m, "\t\tplanar: Linked to [PLANE:%d:%s] as a %s\n",
@@ -805,19 +803,17 @@ static void intel_plane_hw_info(struct seq_file *m, struct intel_plane *plane)
 	const struct intel_plane_state *plane_state =
 		to_intel_plane_state(plane->base.state);
 	const struct drm_framebuffer *fb = plane_state->hw.fb;
-	struct drm_format_name_buf format_name;
 	char rot_str[48];
 
 	if (!fb)
 		return;
 
-	drm_get_format_name(fb->format->format, &format_name);
-
 	plane_rotation(rot_str, sizeof(rot_str),
 		       plane_state->hw.rotation);
 
-	seq_printf(m, "\t\thw: [FB:%d] %s,0x%llx,%dx%d, visible=%s, src=" DRM_RECT_FP_FMT ", dst=" DRM_RECT_FMT ", rotation=%s\n",
-		   fb->base.id, format_name.str,
+	seq_printf(m, "\t\thw: [FB:%d] %p4cc,0x%llx,%dx%d, visible=%s, src="
+		   DRM_RECT_FP_FMT ", dst=" DRM_RECT_FMT ", rotation=%s\n",
+		   fb->base.id, &fb->format->format,
 		   fb->modifier, fb->width, fb->height,
 		   yesno(plane_state->uapi.visible),
 		   DRM_RECT_FP_ARG(&plane_state->uapi.src),

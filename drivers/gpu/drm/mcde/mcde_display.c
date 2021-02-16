@@ -1161,7 +1161,6 @@ static void mcde_display_enable(struct drm_simple_display_pipe *pipe,
 	int dsi_pkt_size;
 	int fifo_wtrmrk;
 	int cpp = fb->format->cpp[0];
-	struct drm_format_name_buf tmp;
 	u32 dsi_formatter_frame;
 	u32 val;
 	int ret;
@@ -1173,9 +1172,8 @@ static void mcde_display_enable(struct drm_simple_display_pipe *pipe,
 		return;
 	}
 
-	dev_info(drm->dev, "enable MCDE, %d x %d format %s\n",
-		 mode->hdisplay, mode->vdisplay,
-		 drm_get_format_name(format, &tmp));
+	dev_info(drm->dev, "enable MCDE, %d x %d format %p4cc\n",
+		 mode->hdisplay, mode->vdisplay, &format);
 
 
 	/* Clear any pending interrupts */

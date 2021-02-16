@@ -769,12 +769,8 @@ static int __setplane_check(struct drm_plane *plane,
 	ret = drm_plane_check_pixel_format(plane, fb->format->format,
 					   fb->modifier);
 	if (ret) {
-		struct drm_format_name_buf format_name;
-
-		DRM_DEBUG_KMS("Invalid pixel format %s, modifier 0x%llx\n",
-			      drm_get_format_name(fb->format->format,
-						  &format_name),
-			      fb->modifier);
+		DRM_DEBUG_KMS("Invalid pixel format %p4cc, modifier 0x%llx\n",
+			      &fb->format->format, fb->modifier);
 		return ret;
 	}
 
