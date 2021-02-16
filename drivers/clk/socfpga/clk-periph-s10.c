@@ -15,6 +15,21 @@
 
 #define to_periph_clk(p) container_of(p, struct socfpga_periph_clk, hw.hw)
 
+static unsigned long n5x_clk_peri_c_clk_recalc_rate(struct clk_hw *hwclk,
+					     unsigned long parent_rate)
+{
+	struct socfpga_periph_clk *socfpgaclk = to_periph_clk(hwclk);
+	unsigned long div;
+	unsigned long shift = socfpgaclk->shift;
+	u32 val;
+
+	val = readl(socfpgaclk->hw.reg);
+	val &= (0x1f << shift);
+	div = (val >> shift) + 1;
+
+	return parent_rate / div;
+}
+
 static unsigned long clk_peri_c_clk_recalc_rate(struct clk_hw *hwclk,
 					     unsigned long parent_rate)
 {
@@ -63,6 +78,11 @@ static u8 clk_periclk_get_parent(struct clk_hw *hwclk)
 	return parent;
 }
 
+static const struct clk_ops n5x_peri_c_clk_ops = {
+	.recalc_rate = n5x_clk_peri_c_clk_recalc_rate,
+	.get_parent = clk_periclk_get_parent,
+};
+
 static const struct clk_ops peri_c_clk_ops = {
 	.recalc_rate = clk_peri_c_clk_recalc_rate,
 	.get_parent = clk_periclk_get_parent,
@@ -96,6 +116,39 @@ struct clk *s10_register_periph(const struct stratix10_perip_c_clock *clks,
 	init.parent_names = parent_name ? &parent_name : NULL;
 	if (init.parent_names == NULL)
 		init.parent_data = clks->parent_data;
+
+	periph_clk->hw.hw.init = &init;
+
+	clk = clk_register(NULL, &periph_clk->hw.hw);
+	if (WARN_ON(IS_ERR(clk))) {
+		kfree(periph_clk);
+		return NULL;
+	}
+	return clk;
+}
+
+struct clk *n5x_register_periph(const struct n5x_perip_c_clock *clks,
+				void __iomem *regbase)
+{
+	struct clk *clk;
+	struct socfpga_periph_clk *periph_clk;
+	struct clk_init_data init;
+	const char *name = clks->name;
+	const char *parent_name = clks->parent_name;
+
+	periph_clk = kzalloc(sizeof(*periph_clk), GFP_KERNEL);
+	if (WARN_ON(!periph_clk))
+		return NULL;
+
+	periph_clk->hw.reg = regbase + clks->offset;
+	periph_clk->shift = clks->shift;
+
+	init.name = name;
+	init.ops = &n5x_peri_c_clk_ops;
+	init.flags = clks->flags;
+
+	init.num_parents = clks->num_parents;
+	init.parent_names = parent_name ? &parent_name : NULL;
 
 	periph_clk->hw.hw.init = &init;
 
