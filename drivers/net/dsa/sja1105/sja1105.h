@@ -206,6 +206,8 @@ struct sja1105_private {
 	bool rgmii_tx_delay[SJA1105_NUM_PORTS];
 	bool best_effort_vlan_filtering;
 	unsigned long learn_ena;
+	unsigned long ucast_egress_floods;
+	unsigned long bcast_egress_floods;
 	const struct sja1105_info *info;
 	struct gpio_desc *reset_gpio;
 	struct spi_device *spidev;
