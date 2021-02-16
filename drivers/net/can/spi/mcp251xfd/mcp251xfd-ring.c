@@ -182,8 +182,18 @@ mcp251xfd_ring_init_rx(struct mcp251xfd_priv *priv, u16 *base, u8 *fifo_nr)
 		*base = mcp251xfd_get_rx_obj_addr(rx_ring, rx_ring->obj_num);
 		*fifo_nr += 1;
 
-		/* FIFO increment RX tail pointer */
+		/* FIFO IRQ enable */
 		addr = MCP251XFD_REG_FIFOCON(rx_ring->fifo_nr);
+		val = MCP251XFD_REG_FIFOCON_RXOVIE |
+			MCP251XFD_REG_FIFOCON_TFNRFNIE;
+		len = mcp251xfd_cmd_prepare_write_reg(priv, &rx_ring->irq_enable_buf,
+						      addr, val, val);
+		rx_ring->irq_enable_xfer.tx_buf = &rx_ring->irq_enable_buf;
+		rx_ring->irq_enable_xfer.len = len;
+		spi_message_init_with_transfers(&rx_ring->irq_enable_msg,
+						&rx_ring->irq_enable_xfer, 1);
+
+		/* FIFO increment RX tail pointer */
 		val = MCP251XFD_REG_FIFOCON_UINC;
 		len = mcp251xfd_cmd_prepare_write_reg(priv, &rx_ring->uinc_buf,
 						      addr, val, val);
@@ -205,6 +215,39 @@ mcp251xfd_ring_init_rx(struct mcp251xfd_priv *priv, u16 *base, u8 *fifo_nr)
 		 * the chip select at the end of the message.
 		 */
 		xfer->cs_change = 0;
+
+		/* Use 1st RX-FIFO for IRQ coalescing. If enabled
+		 * (rx_coalesce_usecs_irq or rx_max_coalesce_frames_irq
+		 * is activated), use the last transfer to disable:
+		 *
+		 * - TFNRFNIE (Receive FIFO Not Empty Interrupt)
+		 *
+		 * and enable:
+		 *
+		 * - TFHRFHIE (Receive FIFO Half Full Interrupt)
+		 *   - or -
+		 * - TFERFFIE (Receive FIFO Full Interrupt)
+		 *
+		 * depending on rx_max_coalesce_frames_irq.
+		 *
+		 * The RXOVIE (Overflow Interrupt) is always enabled.
+		 */
+		if (rx_ring->nr == 0 && (priv->rx_coalesce_usecs_irq ||
+					 priv->rx_obj_num_coalesce_irq)) {
+			val = MCP251XFD_REG_FIFOCON_UINC |
+				MCP251XFD_REG_FIFOCON_RXOVIE;
+
+			if (priv->rx_obj_num_coalesce_irq == rx_ring->obj_num)
+				val |= MCP251XFD_REG_FIFOCON_TFERFFIE;
+			else if (priv->rx_obj_num_coalesce_irq)
+				val |= MCP251XFD_REG_FIFOCON_TFHRFHIE;
+
+			len = mcp251xfd_cmd_prepare_write_reg(priv,
+							      &rx_ring->uinc_irq_disable_buf,
+							      addr, val, val);
+			xfer->tx_buf = &rx_ring->uinc_irq_disable_buf;
+			xfer->len = len;
+		}
 	}
 }
 
@@ -246,12 +289,33 @@ int mcp251xfd_ring_init(struct mcp251xfd_priv *priv)
 		   priv->tx->obj_num * sizeof(struct mcp251xfd_hw_tef_obj));
 
 	mcp251xfd_for_each_rx_ring(priv, rx_ring, i) {
-		netdev_dbg(priv->ndev,
-			   "FIFO setup: RX-%u: FIFO %u/0x%03x: %2u*%u bytes = %4u bytes\n",
-			   rx_ring->nr, rx_ring->fifo_nr,
-			   mcp251xfd_get_rx_obj_addr(rx_ring, 0),
-			   rx_ring->obj_num, rx_ring->obj_size,
-			   rx_ring->obj_num * rx_ring->obj_size);
+		if (rx_ring->nr == 0 && priv->rx_obj_num_coalesce_irq) {
+			netdev_dbg(priv->ndev,
+				   "FIFO setup: RX-%u: FIFO %u/0x%03x: %2u*%u bytes = %4u bytes (coalesce)\n",
+				   rx_ring->nr, rx_ring->fifo_nr,
+				   mcp251xfd_get_rx_obj_addr(rx_ring, 0),
+				   priv->rx_obj_num_coalesce_irq, rx_ring->obj_size,
+				   priv->rx_obj_num_coalesce_irq * rx_ring->obj_size);
+
+			if (priv->rx_obj_num_coalesce_irq == MCP251XFD_FIFO_DEPTH)
+				continue;
+
+			netdev_dbg(priv->ndev,
+				   "                         0x%03x: %2u*%u bytes = %4u bytes\n",
+				   mcp251xfd_get_rx_obj_addr(rx_ring,
+							     priv->rx_obj_num_coalesce_irq),
+				   rx_ring->obj_num - priv->rx_obj_num_coalesce_irq,
+				   rx_ring->obj_size,
+				   (rx_ring->obj_num - priv->rx_obj_num_coalesce_irq) *
+				   rx_ring->obj_size);
+		} else {
+			netdev_dbg(priv->ndev,
+				   "FIFO setup: RX-%u: FIFO %u/0x%03x: %2u*%u bytes = %4u bytes\n",
+				   rx_ring->nr, rx_ring->fifo_nr,
+				   mcp251xfd_get_rx_obj_addr(rx_ring, 0),
+				   rx_ring->obj_num, rx_ring->obj_size,
+				   rx_ring->obj_num * rx_ring->obj_size);
+		}
 	}
 
 	netdev_dbg(priv->ndev,
@@ -284,6 +348,20 @@ void mcp251xfd_ring_free(struct mcp251xfd_priv *priv)
 		kfree(priv->rx[i]);
 		priv->rx[i] = NULL;
 	}
+}
+
+static enum hrtimer_restart mcp251xfd_rx_irq_timer(struct hrtimer *t)
+{
+	struct mcp251xfd_priv *priv = container_of(t, struct mcp251xfd_priv,
+						   rx_irq_timer);
+	struct mcp251xfd_rx_ring *ring = priv->rx[0];
+
+	if (test_bit(MCP251XFD_FLAGS_DOWN, priv->flags))
+		return HRTIMER_NORESTART;
+
+	spi_async(priv->spi, &ring->irq_enable_msg);
+
+	return HRTIMER_NORESTART;
 }
 
 const struct can_ram_config mcp251xfd_ram_config = {
@@ -346,8 +424,12 @@ int mcp251xfd_ring_alloc(struct mcp251xfd_priv *priv)
 	for (i = 0; i < ARRAY_SIZE(priv->rx) && rem; i++) {
 		u8 rx_obj_num;
 
-		rx_obj_num = min_t(u8, rounddown_pow_of_two(rem),
-				   MCP251XFD_FIFO_DEPTH);
+		if (i == 0 && priv->rx_obj_num_coalesce_irq)
+			rx_obj_num = min_t(u8, priv->rx_obj_num_coalesce_irq * 2,
+					   MCP251XFD_FIFO_DEPTH);
+		else
+			rx_obj_num = min_t(u8, rounddown_pow_of_two(rem),
+					   MCP251XFD_FIFO_DEPTH);
 		rem -= rx_obj_num;
 
 		rx_ring = kzalloc(sizeof(*rx_ring) + rx_obj_size * rx_obj_num,
@@ -362,6 +444,9 @@ int mcp251xfd_ring_alloc(struct mcp251xfd_priv *priv)
 		priv->rx[i] = rx_ring;
 	}
 	priv->rx_ring_num = i;
+
+	hrtimer_init(&priv->rx_irq_timer, CLOCK_MONOTONIC, HRTIMER_MODE_REL);
+	priv->rx_irq_timer.function = mcp251xfd_rx_irq_timer;
 
 	return 0;
 }

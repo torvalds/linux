@@ -545,7 +545,12 @@ struct mcp251xfd_rx_ring {
 	u8 obj_num;
 	u8 obj_size;
 
+	union mcp251xfd_write_reg_buf irq_enable_buf;
+	struct spi_transfer irq_enable_xfer;
+	struct spi_message irq_enable_msg;
+
 	union mcp251xfd_write_reg_buf uinc_buf;
+	union mcp251xfd_write_reg_buf uinc_irq_disable_buf;
 	struct spi_transfer uinc_xfer[MCP251XFD_FIFO_DEPTH];
 	struct mcp251xfd_hw_rx_obj_canfd obj[];
 };
@@ -583,6 +588,7 @@ struct mcp251xfd_devtype_data {
 };
 
 enum mcp251xfd_flags {
+	MCP251XFD_FLAGS_DOWN,
 	MCP251XFD_FLAGS_FD_MODE,
 
 	__MCP251XFD_FLAGS_SIZE__
@@ -617,6 +623,10 @@ struct mcp251xfd_priv {
 
 	u8 rx_ring_num;
 	u8 rx_obj_num;
+	u8 rx_obj_num_coalesce_irq;
+
+	u32 rx_coalesce_usecs_irq;
+	struct hrtimer rx_irq_timer;
 
 	struct mcp251xfd_ecc ecc;
 	struct mcp251xfd_regs_status regs_status;

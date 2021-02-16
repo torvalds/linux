@@ -254,13 +254,23 @@ int mcp251xfd_handle_rxif(struct mcp251xfd_priv *priv)
 	int err, n;
 
 	mcp251xfd_for_each_rx_ring(priv, ring, n) {
-		if (!(priv->regs_status.rxif & BIT(ring->fifo_nr)))
+		/* - if RX IRQ coalescing is active always handle ring 0
+		 * - only handle rings if RX IRQ is active
+		 */
+		if ((ring->nr > 0 || !priv->rx_obj_num_coalesce_irq) &&
+		    !(priv->regs_status.rxif & BIT(ring->fifo_nr)))
 			continue;
 
 		err = mcp251xfd_handle_rxif_ring(priv, ring);
 		if (err)
 			return err;
 	}
+
+	if (priv->rx_coalesce_usecs_irq)
+		hrtimer_start(&priv->rx_irq_timer,
+			      ns_to_ktime(priv->rx_coalesce_usecs_irq *
+					  NSEC_PER_USEC),
+			      HRTIMER_MODE_REL);
 
 	return 0;
 }

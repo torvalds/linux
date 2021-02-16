@@ -65,4 +65,7 @@ void mcp251xfd_ethtool_init(struct mcp251xfd_priv *priv)
 	can_ram_get_layout(&layout, &mcp251xfd_ram_config, NULL, NULL, false);
 	priv->rx_obj_num = layout.default_rx;
 	priv->tx->obj_num = layout.default_tx;
+
+	priv->rx_obj_num_coalesce_irq = 0;
+	priv->rx_coalesce_usecs_irq = 0;
 }
