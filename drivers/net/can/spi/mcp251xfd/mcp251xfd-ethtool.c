@@ -46,14 +46,69 @@ mcp251xfd_ring_set_ringparam(struct net_device *ndev,
 		return -EBUSY;
 
 	priv->rx_obj_num = layout.cur_rx;
+	priv->rx_obj_num_coalesce_irq = layout.rx_coalesce;
+	priv->tx->obj_num = layout.cur_tx;
+
+	return 0;
+}
+
+static int mcp251xfd_ring_get_coalesce(struct net_device *ndev,
+				       struct ethtool_coalesce *ec,
+				       struct kernel_ethtool_coalesce *kec,
+				       struct netlink_ext_ack *ext_ack)
+{
+	struct mcp251xfd_priv *priv = netdev_priv(ndev);
+	u32 rx_max_frames;
+
+	/* The ethtool doc says:
+	 * To disable coalescing, set usecs = 0 and max_frames = 1.
+	 */
+	if (priv->rx_obj_num_coalesce_irq == 0)
+		rx_max_frames = 1;
+	else
+		rx_max_frames = priv->rx_obj_num_coalesce_irq;
+
+	ec->rx_max_coalesced_frames_irq = rx_max_frames;
+	ec->rx_coalesce_usecs_irq = priv->rx_coalesce_usecs_irq;
+
+	return 0;
+}
+
+static int mcp251xfd_ring_set_coalesce(struct net_device *ndev,
+				       struct ethtool_coalesce *ec,
+				       struct kernel_ethtool_coalesce *kec,
+				       struct netlink_ext_ack *ext_ack)
+{
+	struct mcp251xfd_priv *priv = netdev_priv(ndev);
+	const bool fd_mode = mcp251xfd_is_fd_mode(priv);
+	const struct ethtool_ringparam ring = {
+		.rx_pending = priv->rx_obj_num,
+		.tx_pending = priv->tx->obj_num,
+	};
+	struct can_ram_layout layout;
+
+	can_ram_get_layout(&layout, &mcp251xfd_ram_config, &ring, ec, fd_mode);
+
+	if ((layout.rx_coalesce != priv->rx_obj_num_coalesce_irq ||
+	     ec->rx_coalesce_usecs_irq != priv->rx_coalesce_usecs_irq) &&
+	    netif_running(ndev))
+		return -EBUSY;
+
+	priv->rx_obj_num = layout.cur_rx;
+	priv->rx_obj_num_coalesce_irq = layout.rx_coalesce;
+	priv->rx_coalesce_usecs_irq = ec->rx_coalesce_usecs_irq;
 	priv->tx->obj_num = layout.cur_tx;
 
 	return 0;
 }
 
 static const struct ethtool_ops mcp251xfd_ethtool_ops = {
+	.supported_coalesce_params = ETHTOOL_COALESCE_RX_USECS_IRQ |
+		ETHTOOL_COALESCE_RX_MAX_FRAMES_IRQ,
 	.get_ringparam = mcp251xfd_ring_get_ringparam,
 	.set_ringparam = mcp251xfd_ring_set_ringparam,
+	.get_coalesce = mcp251xfd_ring_get_coalesce,
+	.set_coalesce = mcp251xfd_ring_set_coalesce,
 };
 
 void mcp251xfd_ethtool_init(struct mcp251xfd_priv *priv)
