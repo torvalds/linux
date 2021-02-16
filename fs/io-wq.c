@@ -759,18 +759,7 @@ static int io_wq_manager(void *data)
 	struct io_wq *wq = data;
 	int node;
 
-	/* create fixed workers */
 	refcount_set(&wq->refs, 1);
-	for_each_node(node) {
-		if (!node_online(node))
-			continue;
-		if (create_io_worker(wq, wq->wqes[node], IO_WQ_ACCT_BOUND))
-			continue;
-		set_bit(IO_WQ_BIT_ERROR, &wq->state);
-		set_bit(IO_WQ_BIT_EXIT, &wq->state);
-		goto out;
-	}
-
 	complete(&wq->done);
 
 	while (!kthread_should_stop()) {
@@ -796,7 +785,6 @@ static int io_wq_manager(void *data)
 		schedule_timeout(HZ);
 	}
 
-out:
 	if (refcount_dec_and_test(&wq->refs)) {
 		complete(&wq->done);
 		return 0;
