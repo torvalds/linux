@@ -71,21 +71,8 @@ static void hpriv_release(struct kref *ref)
 
 	kfree(hpriv);
 
-	if (hdev->reset_upon_device_release) {
-		u64 idle_mask[HL_BUSY_ENGINES_MASK_EXT_SIZE] = {0};
-
-		/* We try soft reset first */
+	if (hdev->reset_upon_device_release)
 		hl_device_reset(hdev, false, false);
-
-		/* If device is not idle perform hard reset */
-		if (!hdev->asic_funcs->is_device_idle(hdev, idle_mask,
-				HL_BUSY_ENGINES_MASK_EXT_SIZE, NULL)) {
-			dev_info(hdev->dev,
-				"device is not idle (mask %#llx %#llx) after soft reset, performing hard reset",
-				idle_mask[0], idle_mask[1]);
-			hl_device_reset(hdev, true, false);
-		}
-	}
 }
 
 void hl_hpriv_get(struct hl_fpriv *hpriv)
@@ -948,6 +935,7 @@ static void device_disable_open_processes(struct hl_device *hdev)
 int hl_device_reset(struct hl_device *hdev, bool hard_reset,
 			bool from_hard_reset_thread)
 {
+	u64 idle_mask[HL_BUSY_ENGINES_MASK_EXT_SIZE] = {0};
 	int i, rc;
 
 	if (!hdev->init_done) {
@@ -1164,6 +1152,16 @@ kill_processes:
 	if (rc) {
 		dev_err(hdev->dev,
 			"failed to initialize the H/W after reset\n");
+		goto out_err;
+	}
+
+	/* If device is not idle fail the reset process */
+	if (!hdev->asic_funcs->is_device_idle(hdev, idle_mask,
+			HL_BUSY_ENGINES_MASK_EXT_SIZE, NULL)) {
+		dev_err(hdev->dev,
+			"device is not idle (mask %#llx %#llx) after reset\n",
+			idle_mask[0], idle_mask[1]);
+		rc = -EIO;
 		goto out_err;
 	}
 
