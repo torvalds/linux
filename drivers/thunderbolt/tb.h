@@ -787,32 +787,6 @@ static inline bool tb_switch_is_titan_ridge(const struct tb_switch *sw)
 	return false;
 }
 
-static inline bool tb_switch_is_ice_lake(const struct tb_switch *sw)
-{
-	if (sw->config.vendor_id == PCI_VENDOR_ID_INTEL) {
-		switch (sw->config.device_id) {
-		case PCI_DEVICE_ID_INTEL_ICL_NHI0:
-		case PCI_DEVICE_ID_INTEL_ICL_NHI1:
-			return true;
-		}
-	}
-	return false;
-}
-
-static inline bool tb_switch_is_tiger_lake(const struct tb_switch *sw)
-{
-	if (sw->config.vendor_id == PCI_VENDOR_ID_INTEL) {
-		switch (sw->config.device_id) {
-		case PCI_DEVICE_ID_INTEL_TGL_NHI0:
-		case PCI_DEVICE_ID_INTEL_TGL_NHI1:
-		case PCI_DEVICE_ID_INTEL_TGL_H_NHI0:
-		case PCI_DEVICE_ID_INTEL_TGL_H_NHI1:
-			return true;
-		}
-	}
-	return false;
-}
-
 /**
  * tb_switch_is_usb4() - Is the switch USB4 compliant
  * @sw: Switch to check
