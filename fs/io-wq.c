@@ -122,8 +122,6 @@ struct io_wq {
 	struct completion done;
 
 	struct hlist_node cpuhp_node;
-
-	refcount_t use_refs;
 };
 
 static enum cpuhp_state io_wq_online;
@@ -1086,7 +1084,6 @@ struct io_wq *io_wq_create(unsigned bounded, struct io_wq_data *data)
 			ret = -ENOMEM;
 			goto err;
 		}
-		refcount_set(&wq->use_refs, 1);
 		reinit_completion(&wq->done);
 		return wq;
 	}
@@ -1104,15 +1101,7 @@ err_wq:
 	return ERR_PTR(ret);
 }
 
-bool io_wq_get(struct io_wq *wq, struct io_wq_data *data)
-{
-	if (data->free_work != wq->free_work || data->do_work != wq->do_work)
-		return false;
-
-	return refcount_inc_not_zero(&wq->use_refs);
-}
-
-static void __io_wq_destroy(struct io_wq *wq)
+void io_wq_destroy(struct io_wq *wq)
 {
 	int node;
 
@@ -1133,12 +1122,6 @@ static void __io_wq_destroy(struct io_wq *wq)
 		kfree(wq->wqes[node]);
 	kfree(wq->wqes);
 	kfree(wq);
-}
-
-void io_wq_destroy(struct io_wq *wq)
-{
-	if (refcount_dec_and_test(&wq->use_refs))
-		__io_wq_destroy(wq);
 }
 
 static bool io_wq_worker_affinity(struct io_worker *worker, void *data)
