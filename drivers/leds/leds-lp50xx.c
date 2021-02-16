@@ -359,8 +359,8 @@ static int lp50xx_set_banks(struct lp50xx *priv, u32 led_banks[])
 			bank_enable_mask |= (1 << led_banks[i]);
 	}
 
-	led_config_lo = (u8)(bank_enable_mask & 0xff);
-	led_config_hi = (u8)(bank_enable_mask >> 8) & 0xff;
+	led_config_lo = bank_enable_mask;
+	led_config_hi = bank_enable_mask >> 8;
 
 	ret = regmap_write(priv->regmap, LP50XX_LED_CFG0, led_config_lo);
 	if (ret)
