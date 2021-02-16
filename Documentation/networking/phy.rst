@@ -267,6 +267,12 @@ Some of the interface modes are described below:
     duplex, pause or other settings.  This is dependent on the MAC and/or
     PHY behaviour.
 
+``PHY_INTERFACE_MODE_5GBASER``
+    This is the IEEE 802.3 Clause 129 defined 5GBASE-R protocol. It is
+    identical to the 10GBASE-R protocol defined in Clause 49, with the
+    exception that it operates at half the frequency. Please refer to the
+    IEEE standard for the definition.
+
 ``PHY_INTERFACE_MODE_10GBASER``
     This is the IEEE 802.3 Clause 49 defined 10GBASE-R protocol used with
     various different mediums. Please refer to the IEEE standard for a
