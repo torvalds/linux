@@ -1762,7 +1762,8 @@ found:
 	tbl->it_ops = &pnv_ioda1_iommu_ops;
 	pe->table_group.tce32_start = tbl->it_offset << tbl->it_page_shift;
 	pe->table_group.tce32_size = tbl->it_size << tbl->it_page_shift;
-	iommu_init_table(tbl, phb->hose->node, 0, 0);
+	if (!iommu_init_table(tbl, phb->hose->node, 0, 0))
+		panic("Failed to initialize iommu table");
 
 	pe->dma_setup_done = true;
 	return;
@@ -1930,16 +1931,16 @@ static long pnv_pci_ioda2_setup_default_config(struct pnv_ioda_pe *pe)
 		res_start = pe->phb->ioda.m32_pci_base >> tbl->it_page_shift;
 		res_end = min(window_size, SZ_4G) >> tbl->it_page_shift;
 	}
-	iommu_init_table(tbl, pe->phb->hose->node, res_start, res_end);
 
-	rc = pnv_pci_ioda2_set_window(&pe->table_group, 0, tbl);
+	if (iommu_init_table(tbl, pe->phb->hose->node, res_start, res_end))
+		rc = pnv_pci_ioda2_set_window(&pe->table_group, 0, tbl);
+	else
+		rc = -ENOMEM;
 	if (rc) {
-		pe_err(pe, "Failed to configure 32-bit TCE table, err %ld\n",
-				rc);
+		pe_err(pe, "Failed to configure 32-bit TCE table, err %ld\n", rc);
 		iommu_tce_table_put(tbl);
-		return rc;
+		tbl = NULL; /* This clears iommu_table_base below */
 	}
-
 	if (!pnv_iommu_bypass_disabled)
 		pnv_pci_ioda2_set_bypass(pe, true);
 

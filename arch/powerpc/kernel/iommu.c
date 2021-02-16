@@ -727,8 +727,10 @@ struct iommu_table *iommu_init_table(struct iommu_table *tbl, int nid,
 	sz = BITS_TO_LONGS(tbl->it_size) * sizeof(unsigned long);
 
 	tbl->it_map = vzalloc_node(sz, nid);
-	if (!tbl->it_map)
-		panic("iommu_init_table: Can't allocate %ld bytes\n", sz);
+	if (!tbl->it_map) {
+		pr_err("%s: Can't allocate %ld bytes\n", __func__, sz);
+		return NULL;
+	}
 
 	iommu_table_reserve_pages(tbl, res_start, res_end);
 
