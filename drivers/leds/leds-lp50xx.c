@@ -455,12 +455,9 @@ static int lp50xx_probe_dt(struct lp50xx *priv)
 	int i = 0;
 
 	priv->enable_gpio = devm_gpiod_get_optional(priv->dev, "enable", GPIOD_OUT_LOW);
-	if (IS_ERR(priv->enable_gpio)) {
-		ret = PTR_ERR(priv->enable_gpio);
-		dev_err(&priv->client->dev, "Failed to get enable gpio: %d\n",
-			ret);
-		return ret;
-	}
+	if (IS_ERR(priv->enable_gpio))
+		return dev_err_probe(priv->dev, PTR_ERR(priv->enable_gpio),
+				     "Failed to get enable GPIO\n");
 
 	priv->regulator = devm_regulator_get(priv->dev, "vled");
 	if (IS_ERR(priv->regulator))
