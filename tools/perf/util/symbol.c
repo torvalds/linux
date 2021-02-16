@@ -1585,15 +1585,6 @@ int dso__load_bfd_symbols(struct dso *dso, const char *debugfile)
 	if (section)
 		dso->text_offset = section->vma - section->filepos;
 
-	if (!bfd_check_format(abfd, bfd_object)) {
-		pr_debug2("%s: cannot read %s bfd file.\n", __func__,
-			  debugfile);
-		goto out_close;
-	}
-
-	if (bfd_get_flavour(abfd) == bfd_target_elf_flavour)
-		goto out_close;
-
 	symbols_size = bfd_get_symtab_upper_bound(abfd);
 	if (symbols_size == 0) {
 		bfd_close(abfd);
