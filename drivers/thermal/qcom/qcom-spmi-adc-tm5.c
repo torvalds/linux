@@ -375,18 +375,18 @@ static int adc_tm5_init(struct adc_tm5_chip *chip)
 	int ret;
 	unsigned int i;
 
-	for (i = 0; i < chip->nchannels; i++) {
-		if (chip->channels[i].channel >= channels_available) {
-			dev_err(chip->dev, "Invalid channel %d\n", chip->channels[i].channel);
-			return -EINVAL;
-		}
-	}
-
 	ret = adc_tm5_read(chip, ADC_TM5_NUM_BTM,
 			   &channels_available, sizeof(channels_available));
 	if (ret) {
 		dev_err(chip->dev, "read failed for BTM channels\n");
 		return ret;
+	}
+
+	for (i = 0; i < chip->nchannels; i++) {
+		if (chip->channels[i].channel >= channels_available) {
+			dev_err(chip->dev, "Invalid channel %d\n", chip->channels[i].channel);
+			return -EINVAL;
+		}
 	}
 
 	buf[0] = chip->decimation;
