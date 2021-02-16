@@ -36,6 +36,7 @@ struct io_uring_task {
 	struct xarray		xa;
 	struct wait_queue_head	wait;
 	struct file		*last;
+	void			*io_wq;
 	struct percpu_counter	inflight;
 	struct io_identity	__identity;
 	struct io_identity	*identity;

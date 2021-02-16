@@ -366,9 +366,6 @@ struct io_ring_ctx {
 
 	struct io_rings	*rings;
 
-	/* IO offload */
-	struct io_wq		*io_wq;
-
 	/*
 	 * For SQPOLL usage - we hold a reference to the parent task, so we
 	 * have access to the ->files
@@ -1634,10 +1631,11 @@ static struct io_kiocb *__io_queue_async_work(struct io_kiocb *req)
 {
 	struct io_ring_ctx *ctx = req->ctx;
 	struct io_kiocb *link = io_prep_linked_timeout(req);
+	struct io_uring_task *tctx = req->task->io_uring;
 
 	trace_io_uring_queue_async_work(ctx, io_wq_is_hashed(&req->work), req,
 					&req->work, req->flags);
-	io_wq_enqueue(ctx->io_wq, &req->work);
+	io_wq_enqueue(tctx->io_wq, &req->work);
 	return link;
 }
 
@@ -5960,12 +5958,15 @@ static bool io_cancel_cb(struct io_wq_work *work, void *data)
 	return req->user_data == (unsigned long) data;
 }
 
-static int io_async_cancel_one(struct io_ring_ctx *ctx, void *sqe_addr)
+static int io_async_cancel_one(struct io_uring_task *tctx, void *sqe_addr)
 {
 	enum io_wq_cancel cancel_ret;
 	int ret = 0;
 
-	cancel_ret = io_wq_cancel_cb(ctx->io_wq, io_cancel_cb, sqe_addr, false);
+	if (!tctx->io_wq)
+		return -ENOENT;
+
+	cancel_ret = io_wq_cancel_cb(tctx->io_wq, io_cancel_cb, sqe_addr, false);
 	switch (cancel_ret) {
 	case IO_WQ_CANCEL_OK:
 		ret = 0;
@@ -5988,7 +5989,8 @@ static void io_async_find_and_cancel(struct io_ring_ctx *ctx,
 	unsigned long flags;
 	int ret;
 
-	ret = io_async_cancel_one(ctx, (void *) (unsigned long) sqe_addr);
+	ret = io_async_cancel_one(req->task->io_uring,
+					(void *) (unsigned long) sqe_addr);
 	if (ret != -ENOENT) {
 		spin_lock_irqsave(&ctx->completion_lock, flags);
 		goto done;
@@ -7537,16 +7539,6 @@ static void io_sq_thread_stop(struct io_ring_ctx *ctx)
 	}
 }
 
-static void io_finish_async(struct io_ring_ctx *ctx)
-{
-	io_sq_thread_stop(ctx);
-
-	if (ctx->io_wq) {
-		io_wq_destroy(ctx->io_wq);
-		ctx->io_wq = NULL;
-	}
-}
-
 #if defined(CONFIG_UNIX)
 /*
  * Ensure the UNIX gc is aware of our file set, so we are certain that
@@ -8105,11 +8097,10 @@ static struct io_wq_work *io_free_work(struct io_wq_work *work)
 	return req ? &req->work : NULL;
 }
 
-static int io_init_wq_offload(struct io_ring_ctx *ctx)
+static struct io_wq *io_init_wq_offload(struct io_ring_ctx *ctx)
 {
 	struct io_wq_data data;
 	unsigned int concurrency;
-	int ret = 0;
 
 	data.user = ctx->user;
 	data.free_work = io_free_work;
@@ -8118,16 +8109,11 @@ static int io_init_wq_offload(struct io_ring_ctx *ctx)
 	/* Do QD, or 4 * CPUS, whatever is smallest */
 	concurrency = min(ctx->sq_entries, 4 * num_online_cpus());
 
-	ctx->io_wq = io_wq_create(concurrency, &data);
-	if (IS_ERR(ctx->io_wq)) {
-		ret = PTR_ERR(ctx->io_wq);
-		ctx->io_wq = NULL;
-	}
-
-	return ret;
+	return io_wq_create(concurrency, &data);
 }
 
-static int io_uring_alloc_task_context(struct task_struct *task)
+static int io_uring_alloc_task_context(struct task_struct *task,
+				       struct io_ring_ctx *ctx)
 {
 	struct io_uring_task *tctx;
 	int ret;
@@ -8138,6 +8124,14 @@ static int io_uring_alloc_task_context(struct task_struct *task)
 
 	ret = percpu_counter_init(&tctx->inflight, 0, GFP_KERNEL);
 	if (unlikely(ret)) {
+		kfree(tctx);
+		return ret;
+	}
+
+	tctx->io_wq = io_init_wq_offload(ctx);
+	if (IS_ERR(tctx->io_wq)) {
+		ret = PTR_ERR(tctx->io_wq);
+		percpu_counter_destroy(&tctx->inflight);
 		kfree(tctx);
 		return ret;
 	}
@@ -8214,7 +8208,7 @@ static int io_sq_offload_create(struct io_ring_ctx *ctx,
 			ctx->sq_thread_idle = HZ;
 
 		if (sqd->thread)
-			goto done;
+			return 0;
 
 		if (p->flags & IORING_SETUP_SQ_AFF) {
 			int cpu = p->sq_thread_cpu;
@@ -8236,7 +8230,7 @@ static int io_sq_offload_create(struct io_ring_ctx *ctx,
 			sqd->thread = NULL;
 			goto err;
 		}
-		ret = io_uring_alloc_task_context(sqd->thread);
+		ret = io_uring_alloc_task_context(sqd->thread, ctx);
 		if (ret)
 			goto err;
 	} else if (p->flags & IORING_SETUP_SQ_AFF) {
@@ -8245,14 +8239,9 @@ static int io_sq_offload_create(struct io_ring_ctx *ctx,
 		goto err;
 	}
 
-done:
-	ret = io_init_wq_offload(ctx);
-	if (ret)
-		goto err;
-
 	return 0;
 err:
-	io_finish_async(ctx);
+	io_sq_thread_stop(ctx);
 	return ret;
 }
 
@@ -8727,7 +8716,7 @@ static void io_ring_ctx_free(struct io_ring_ctx *ctx)
 	mutex_lock(&ctx->uring_lock);
 	mutex_unlock(&ctx->uring_lock);
 
-	io_finish_async(ctx);
+	io_sq_thread_stop(ctx);
 	io_sqe_buffers_unregister(ctx);
 
 	if (ctx->sqo_task) {
@@ -8870,13 +8859,6 @@ static void io_ring_exit_work(struct work_struct *work)
 	io_ring_ctx_free(ctx);
 }
 
-static bool io_cancel_ctx_cb(struct io_wq_work *work, void *data)
-{
-	struct io_kiocb *req = container_of(work, struct io_kiocb, work);
-
-	return req->ctx == data;
-}
-
 static void io_ring_ctx_wait_and_kill(struct io_ring_ctx *ctx)
 {
 	mutex_lock(&ctx->uring_lock);
@@ -8894,9 +8876,6 @@ static void io_ring_ctx_wait_and_kill(struct io_ring_ctx *ctx)
 
 	io_kill_timeouts(ctx, NULL, NULL);
 	io_poll_remove_all(ctx, NULL, NULL);
-
-	if (ctx->io_wq)
-		io_wq_cancel_cb(ctx->io_wq, io_cancel_ctx_cb, ctx, true);
 
 	/* if we failed setting up the ctx, we might not have any rings */
 	io_iopoll_try_reap_events(ctx);
@@ -8976,13 +8955,14 @@ static void io_uring_try_cancel_requests(struct io_ring_ctx *ctx,
 					 struct files_struct *files)
 {
 	struct io_task_cancel cancel = { .task = task, .files = files, };
+	struct io_uring_task *tctx = current->io_uring;
 
 	while (1) {
 		enum io_wq_cancel cret;
 		bool ret = false;
 
-		if (ctx->io_wq) {
-			cret = io_wq_cancel_cb(ctx->io_wq, io_cancel_task_cb,
+		if (tctx && tctx->io_wq) {
+			cret = io_wq_cancel_cb(tctx->io_wq, io_cancel_task_cb,
 					       &cancel, true);
 			ret |= (cret != IO_WQ_CANCEL_NOTFOUND);
 		}
@@ -9094,7 +9074,7 @@ static int io_uring_add_task_file(struct io_ring_ctx *ctx, struct file *file)
 	int ret;
 
 	if (unlikely(!tctx)) {
-		ret = io_uring_alloc_task_context(current);
+		ret = io_uring_alloc_task_context(current, ctx);
 		if (unlikely(ret))
 			return ret;
 		tctx = current->io_uring;
@@ -9164,8 +9144,12 @@ void __io_uring_files_cancel(struct files_struct *files)
 		io_uring_cancel_task_requests(file->private_data, files);
 	atomic_dec(&tctx->in_idle);
 
-	if (files)
+	if (files) {
 		io_uring_remove_task_files(tctx);
+	} else if (tctx->io_wq && current->flags & PF_EXITING) {
+		io_wq_destroy(tctx->io_wq);
+		tctx->io_wq = NULL;
+	}
 }
 
 static s64 tctx_inflight(struct io_uring_task *tctx)
