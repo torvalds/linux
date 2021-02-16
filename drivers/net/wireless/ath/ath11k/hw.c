@@ -31,6 +31,20 @@ static u8 ath11k_hw_ipq6018_mac_from_pdev_id(int pdev_idx)
 	return pdev_idx;
 }
 
+static void ath11k_hw_ipq8074_tx_mesh_enable(struct ath11k_base *ab,
+					     struct hal_tcl_data_cmd *tcl_cmd)
+{
+	tcl_cmd->info2 |= FIELD_PREP(HAL_IPQ8074_TCL_DATA_CMD_INFO2_MESH_ENABLE,
+				     true);
+}
+
+static void ath11k_hw_qcn9074_tx_mesh_enable(struct ath11k_base *ab,
+					     struct hal_tcl_data_cmd *tcl_cmd)
+{
+	tcl_cmd->info3 |= FIELD_PREP(HAL_QCN9074_TCL_DATA_CMD_INFO3_MESH_ENABLE,
+				     true);
+}
+
 static void ath11k_init_wmi_config_qca6390(struct ath11k_base *ab,
 					   struct target_resource_config *config)
 {
@@ -160,6 +174,7 @@ const struct ath11k_hw_ops ipq8074_ops = {
 	.wmi_init_config = ath11k_init_wmi_config_ipq8074,
 	.mac_id_to_pdev_id = ath11k_hw_mac_id_to_pdev_id_ipq8074,
 	.mac_id_to_srng_id = ath11k_hw_mac_id_to_srng_id_ipq8074,
+	.tx_mesh_enable = ath11k_hw_ipq8074_tx_mesh_enable,
 };
 
 const struct ath11k_hw_ops ipq6018_ops = {
@@ -167,6 +182,7 @@ const struct ath11k_hw_ops ipq6018_ops = {
 	.wmi_init_config = ath11k_init_wmi_config_ipq8074,
 	.mac_id_to_pdev_id = ath11k_hw_mac_id_to_pdev_id_ipq8074,
 	.mac_id_to_srng_id = ath11k_hw_mac_id_to_srng_id_ipq8074,
+	.tx_mesh_enable = ath11k_hw_ipq8074_tx_mesh_enable,
 };
 
 const struct ath11k_hw_ops qca6390_ops = {
@@ -174,6 +190,15 @@ const struct ath11k_hw_ops qca6390_ops = {
 	.wmi_init_config = ath11k_init_wmi_config_qca6390,
 	.mac_id_to_pdev_id = ath11k_hw_mac_id_to_pdev_id_qca6390,
 	.mac_id_to_srng_id = ath11k_hw_mac_id_to_srng_id_qca6390,
+	.tx_mesh_enable = ath11k_hw_ipq8074_tx_mesh_enable,
+};
+
+const struct ath11k_hw_ops qcn9074_ops = {
+	.get_hw_mac_from_pdev_id = ath11k_hw_ipq6018_mac_from_pdev_id,
+	.wmi_init_config = ath11k_init_wmi_config_ipq8074,
+	.mac_id_to_pdev_id = ath11k_hw_mac_id_to_pdev_id_ipq8074,
+	.mac_id_to_srng_id = ath11k_hw_mac_id_to_srng_id_ipq8074,
+	.tx_mesh_enable = ath11k_hw_qcn9074_tx_mesh_enable,
 };
 
 #define ATH11K_TX_RING_MASK_0 0x1
@@ -841,6 +866,26 @@ const struct ath11k_hw_regs ipq8074_regs = {
 	.hal_reo_status_ring_base_lsb = 0x00000504,
 	.hal_reo_status_hp = 0x00003070,
 
+	/* WCSS relative address */
+	.hal_seq_wcss_umac_ce0_src_reg = 0x00a00000,
+	.hal_seq_wcss_umac_ce0_dst_reg = 0x00a01000,
+	.hal_seq_wcss_umac_ce1_src_reg = 0x00a02000,
+	.hal_seq_wcss_umac_ce1_dst_reg = 0x00a03000,
+
+	/* WBM Idle address */
+	.hal_wbm_idle_link_ring_base_lsb = 0x00000860,
+	.hal_wbm_idle_link_ring_misc = 0x00000870,
+
+	/* SW2WBM release address */
+	.hal_wbm_release_ring_base_lsb = 0x000001d8,
+
+	/* WBM2SW release address */
+	.hal_wbm0_release_ring_base_lsb = 0x00000910,
+	.hal_wbm1_release_ring_base_lsb = 0x00000968,
+
+	/* PCIe base address */
+	.pcie_qserdes_sysclk_en_sel = 0x0,
+	.pcie_pcs_osc_dtct_config_base = 0x0,
 };
 
 const struct ath11k_hw_regs qca6390_regs = {
@@ -891,4 +936,96 @@ const struct ath11k_hw_regs qca6390_regs = {
 	/* REO status address */
 	.hal_reo_status_ring_base_lsb = 0x000004ac,
 	.hal_reo_status_hp = 0x00003068,
+
+	/* WCSS relative address */
+	.hal_seq_wcss_umac_ce0_src_reg = 0x00a00000,
+	.hal_seq_wcss_umac_ce0_dst_reg = 0x00a01000,
+	.hal_seq_wcss_umac_ce1_src_reg = 0x00a02000,
+	.hal_seq_wcss_umac_ce1_dst_reg = 0x00a03000,
+
+	/* WBM Idle address */
+	.hal_wbm_idle_link_ring_base_lsb = 0x00000860,
+	.hal_wbm_idle_link_ring_misc = 0x00000870,
+
+	/* SW2WBM release address */
+	.hal_wbm_release_ring_base_lsb = 0x000001d8,
+
+	/* WBM2SW release address */
+	.hal_wbm0_release_ring_base_lsb = 0x00000910,
+	.hal_wbm1_release_ring_base_lsb = 0x00000968,
+
+	/* PCIe base address */
+	.pcie_qserdes_sysclk_en_sel = 0x01e0c0ac,
+	.pcie_pcs_osc_dtct_config_base = 0x01e0c628,
+};
+
+const struct ath11k_hw_regs qcn9074_regs = {
+	/* SW2TCL(x) R0 ring configuration address */
+	.hal_tcl1_ring_base_lsb = 0x000004f0,
+	.hal_tcl1_ring_base_msb = 0x000004f4,
+	.hal_tcl1_ring_id = 0x000004f8,
+	.hal_tcl1_ring_misc = 0x00000500,
+	.hal_tcl1_ring_tp_addr_lsb = 0x0000050c,
+	.hal_tcl1_ring_tp_addr_msb = 0x00000510,
+	.hal_tcl1_ring_consumer_int_setup_ix0 = 0x00000520,
+	.hal_tcl1_ring_consumer_int_setup_ix1 = 0x00000524,
+	.hal_tcl1_ring_msi1_base_lsb = 0x00000538,
+	.hal_tcl1_ring_msi1_base_msb = 0x0000053c,
+	.hal_tcl1_ring_msi1_data = 0x00000540,
+	.hal_tcl2_ring_base_lsb = 0x00000548,
+	.hal_tcl_ring_base_lsb = 0x000005f8,
+
+	/* TCL STATUS ring address */
+	.hal_tcl_status_ring_base_lsb = 0x00000700,
+
+	/* REO2SW(x) R0 ring configuration address */
+	.hal_reo1_ring_base_lsb = 0x0000029c,
+	.hal_reo1_ring_base_msb = 0x000002a0,
+	.hal_reo1_ring_id = 0x000002a4,
+	.hal_reo1_ring_misc = 0x000002ac,
+	.hal_reo1_ring_hp_addr_lsb = 0x000002b0,
+	.hal_reo1_ring_hp_addr_msb = 0x000002b4,
+	.hal_reo1_ring_producer_int_setup = 0x000002c0,
+	.hal_reo1_ring_msi1_base_lsb = 0x000002e4,
+	.hal_reo1_ring_msi1_base_msb = 0x000002e8,
+	.hal_reo1_ring_msi1_data = 0x000002ec,
+	.hal_reo2_ring_base_lsb = 0x000002f4,
+	.hal_reo1_aging_thresh_ix_0 = 0x00000564,
+	.hal_reo1_aging_thresh_ix_1 = 0x00000568,
+	.hal_reo1_aging_thresh_ix_2 = 0x0000056c,
+	.hal_reo1_aging_thresh_ix_3 = 0x00000570,
+
+	/* REO2SW(x) R2 ring pointers (head/tail) address */
+	.hal_reo1_ring_hp = 0x00003038,
+	.hal_reo1_ring_tp = 0x0000303c,
+	.hal_reo2_ring_hp = 0x00003040,
+
+	/* REO2TCL R0 ring configuration address */
+	.hal_reo_tcl_ring_base_lsb = 0x000003fc,
+	.hal_reo_tcl_ring_hp = 0x00003058,
+
+	/* REO status address */
+	.hal_reo_status_ring_base_lsb = 0x00000504,
+	.hal_reo_status_hp = 0x00003070,
+
+	/* WCSS relative address */
+	.hal_seq_wcss_umac_ce0_src_reg = 0x01b80000,
+	.hal_seq_wcss_umac_ce0_dst_reg = 0x01b81000,
+	.hal_seq_wcss_umac_ce1_src_reg = 0x01b82000,
+	.hal_seq_wcss_umac_ce1_dst_reg = 0x01b83000,
+
+	/* WBM Idle address */
+	.hal_wbm_idle_link_ring_base_lsb = 0x00000874,
+	.hal_wbm_idle_link_ring_misc = 0x00000884,
+
+	/* SW2WBM release address */
+	.hal_wbm_release_ring_base_lsb = 0x000001ec,
+
+	/* WBM2SW release address */
+	.hal_wbm0_release_ring_base_lsb = 0x00000924,
+	.hal_wbm1_release_ring_base_lsb = 0x0000097c,
+
+	/* PCIe base address */
+	.pcie_qserdes_sysclk_en_sel = 0x01e0e0a8,
+	.pcie_pcs_osc_dtct_config_base = 0x01e0f45c,
 };

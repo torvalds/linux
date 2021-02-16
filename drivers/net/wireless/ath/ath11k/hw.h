@@ -105,6 +105,8 @@ enum ath11k_bus {
 
 #define ATH11K_EXT_IRQ_GRP_NUM_MAX 11
 
+struct hal_tcl_data_cmd;
+
 struct ath11k_hw_ring_mask {
 	u8 tx[ATH11K_EXT_IRQ_GRP_NUM_MAX];
 	u8 rx_mon_status[ATH11K_EXT_IRQ_GRP_NUM_MAX];
@@ -166,11 +168,14 @@ struct ath11k_hw_ops {
 				struct target_resource_config *config);
 	int (*mac_id_to_pdev_id)(struct ath11k_hw_params *hw, int mac_id);
 	int (*mac_id_to_srng_id)(struct ath11k_hw_params *hw, int mac_id);
+	void (*tx_mesh_enable)(struct ath11k_base *ab,
+			       struct hal_tcl_data_cmd *tcl_cmd);
 };
 
 extern const struct ath11k_hw_ops ipq8074_ops;
 extern const struct ath11k_hw_ops ipq6018_ops;
 extern const struct ath11k_hw_ops qca6390_ops;
+extern const struct ath11k_hw_ops qcn9074_ops;
 
 extern const struct ath11k_hw_ring_mask ath11k_hw_ring_mask_ipq8074;
 extern const struct ath11k_hw_ring_mask ath11k_hw_ring_mask_qca6390;
@@ -262,9 +267,26 @@ struct ath11k_hw_regs {
 
 	u32 hal_reo_status_ring_base_lsb;
 	u32 hal_reo_status_hp;
+
+	u32 hal_seq_wcss_umac_ce0_src_reg;
+	u32 hal_seq_wcss_umac_ce0_dst_reg;
+	u32 hal_seq_wcss_umac_ce1_src_reg;
+	u32 hal_seq_wcss_umac_ce1_dst_reg;
+
+	u32 hal_wbm_idle_link_ring_base_lsb;
+	u32 hal_wbm_idle_link_ring_misc;
+
+	u32 hal_wbm_release_ring_base_lsb;
+
+	u32 hal_wbm0_release_ring_base_lsb;
+	u32 hal_wbm1_release_ring_base_lsb;
+
+	u32 pcie_qserdes_sysclk_en_sel;
+	u32 pcie_pcs_osc_dtct_config_base;
 };
 
 extern const struct ath11k_hw_regs ipq8074_regs;
 extern const struct ath11k_hw_regs qca6390_regs;
+extern const struct ath11k_hw_regs qcn9074_regs;
 
 #endif

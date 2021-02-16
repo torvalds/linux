@@ -324,7 +324,7 @@ static int ath11k_pci_fix_l1ss(struct ath11k_base *ab)
 	int ret;
 
 	ret = ath11k_pci_set_link_reg(ab,
-				      PCIE_QSERDES_COM_SYSCLK_EN_SEL_REG,
+				      PCIE_QSERDES_COM_SYSCLK_EN_SEL_REG(ab),
 				      PCIE_QSERDES_COM_SYSCLK_EN_SEL_VAL,
 				      PCIE_QSERDES_COM_SYSCLK_EN_SEL_MSK);
 	if (ret) {
@@ -333,27 +333,27 @@ static int ath11k_pci_fix_l1ss(struct ath11k_base *ab)
 	}
 
 	ret = ath11k_pci_set_link_reg(ab,
-				      PCIE_USB3_PCS_MISC_OSC_DTCT_CONFIG1_REG,
-				      PCIE_USB3_PCS_MISC_OSC_DTCT_CONFIG1_VAL,
-				      PCIE_USB3_PCS_MISC_OSC_DTCT_CONFIG_MSK);
+				      PCIE_PCS_OSC_DTCT_CONFIG1_REG(ab),
+				      PCIE_PCS_OSC_DTCT_CONFIG1_VAL,
+				      PCIE_PCS_OSC_DTCT_CONFIG_MSK);
 	if (ret) {
 		ath11k_warn(ab, "failed to set dtct config1 error: %d\n", ret);
 		return ret;
 	}
 
 	ret = ath11k_pci_set_link_reg(ab,
-				      PCIE_USB3_PCS_MISC_OSC_DTCT_CONFIG2_REG,
-				      PCIE_USB3_PCS_MISC_OSC_DTCT_CONFIG2_VAL,
-				      PCIE_USB3_PCS_MISC_OSC_DTCT_CONFIG_MSK);
+				      PCIE_PCS_OSC_DTCT_CONFIG2_REG(ab),
+				      PCIE_PCS_OSC_DTCT_CONFIG2_VAL,
+				      PCIE_PCS_OSC_DTCT_CONFIG_MSK);
 	if (ret) {
 		ath11k_warn(ab, "failed to set dtct config2: %d\n", ret);
 		return ret;
 	}
 
 	ret = ath11k_pci_set_link_reg(ab,
-				      PCIE_USB3_PCS_MISC_OSC_DTCT_CONFIG4_REG,
-				      PCIE_USB3_PCS_MISC_OSC_DTCT_CONFIG4_VAL,
-				      PCIE_USB3_PCS_MISC_OSC_DTCT_CONFIG_MSK);
+				      PCIE_PCS_OSC_DTCT_CONFIG4_REG(ab),
+				      PCIE_PCS_OSC_DTCT_CONFIG4_VAL,
+				      PCIE_PCS_OSC_DTCT_CONFIG_MSK);
 	if (ret) {
 		ath11k_warn(ab, "failed to set dtct config4: %d\n", ret);
 		return ret;

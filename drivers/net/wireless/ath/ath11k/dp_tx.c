@@ -178,7 +178,7 @@ tcl_ring_sel:
 	}
 
 	if (ieee80211_vif_is_mesh(arvif->vif))
-		ti.flags1 |= FIELD_PREP(HAL_TCL_DATA_CMD_INFO2_MESH_ENABLE, 1);
+		ti.enable_mesh = true;
 
 	ti.flags1 |= FIELD_PREP(HAL_TCL_DATA_CMD_INFO2_TID_OVERWRITE, 1);
 
