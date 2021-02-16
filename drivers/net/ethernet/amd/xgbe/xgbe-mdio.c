@@ -1396,7 +1396,6 @@ static void xgbe_phy_stop(struct xgbe_prv_data *pdata)
 	pdata->phy_if.phy_impl.stop(pdata);
 
 	pdata->phy.link = 0;
-	netif_carrier_off(pdata->netdev);
 
 	xgbe_phy_adjust_link(pdata);
 }

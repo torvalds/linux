@@ -1368,6 +1368,7 @@ static void xgbe_stop(struct xgbe_prv_data *pdata)
 		return;
 
 	netif_tx_stop_all_queues(netdev);
+	netif_carrier_off(pdata->netdev);
 
 	xgbe_stop_timers(pdata);
 	flush_workqueue(pdata->dev_workqueue);
