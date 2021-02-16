@@ -1078,9 +1078,8 @@ static int svc_tcp_send_kvec(struct socket *sock, const struct kvec *vec,
  * In addition, the logic assumes that * .bv_len is never larger
  * than PAGE_SIZE.
  */
-static int svc_tcp_sendmsg(struct socket *sock, struct msghdr *msg,
-			   struct xdr_buf *xdr, rpc_fraghdr marker,
-			   unsigned int *sentp)
+static int svc_tcp_sendmsg(struct socket *sock, struct xdr_buf *xdr,
+			   rpc_fraghdr marker, unsigned int *sentp)
 {
 	const struct kvec *head = xdr->head;
 	const struct kvec *tail = xdr->tail;
@@ -1088,12 +1087,15 @@ static int svc_tcp_sendmsg(struct socket *sock, struct msghdr *msg,
 		.iov_base	= &marker,
 		.iov_len	= sizeof(marker),
 	};
+	struct msghdr msg = {
+		.msg_flags	= 0,
+	};
 	int ret;
 
 	*sentp = 0;
 	xdr_alloc_bvec(xdr, GFP_KERNEL);
 
-	ret = kernel_sendmsg(sock, msg, &rm, 1, rm.iov_len);
+	ret = kernel_sendmsg(sock, &msg, &rm, 1, rm.iov_len);
 	if (ret < 0)
 		return ret;
 	*sentp += ret;
@@ -1157,9 +1159,6 @@ static int svc_tcp_sendto(struct svc_rqst *rqstp)
 	struct xdr_buf *xdr = &rqstp->rq_res;
 	rpc_fraghdr marker = cpu_to_be32(RPC_LAST_STREAM_FRAGMENT |
 					 (u32)xdr->len);
-	struct msghdr msg = {
-		.msg_flags	= 0,
-	};
 	unsigned int sent;
 	int err;
 
@@ -1170,7 +1169,7 @@ static int svc_tcp_sendto(struct svc_rqst *rqstp)
 	if (svc_xprt_is_dead(xprt))
 		goto out_notconn;
 	tcp_sock_set_cork(svsk->sk_sk, true);
-	err = svc_tcp_sendmsg(svsk->sk_sock, &msg, xdr, marker, &sent);
+	err = svc_tcp_sendmsg(svsk->sk_sock, xdr, marker, &sent);
 	xdr_free_bvec(xdr);
 	trace_svcsock_tcp_send(xprt, err < 0 ? err : sent);
 	if (err < 0 || sent != (xdr->len + sizeof(marker)))
