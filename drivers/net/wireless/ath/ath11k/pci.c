@@ -35,9 +35,11 @@
 #define ACCESS_ALWAYS_OFF 0xFE0
 
 #define QCA6390_DEVICE_ID		0x1101
+#define QCN9074_DEVICE_ID		0x1104
 
 static const struct pci_device_id ath11k_pci_id_table[] = {
 	{ PCI_VDEVICE(QCOM, QCA6390_DEVICE_ID) },
+	/* TODO: add QCN9074_DEVICE_ID) once firmware issues are resolved */
 	{0}
 };
 
@@ -59,6 +61,15 @@ static const struct ath11k_msi_config ath11k_msi_config[] = {
 			{ .name = "CE", .num_vectors = 10, .base_vector = 3 },
 			{ .name = "WAKE", .num_vectors = 1, .base_vector = 13 },
 			{ .name = "DP", .num_vectors = 18, .base_vector = 14 },
+		},
+	},
+	{
+		.total_vectors = 16,
+		.total_users = 3,
+		.users = (struct ath11k_msi_user[]) {
+			{ .name = "MHI", .num_vectors = 3, .base_vector = 0 },
+			{ .name = "CE", .num_vectors = 5, .base_vector = 3 },
+			{ .name = "DP", .num_vectors = 8, .base_vector = 8 },
 		},
 	},
 };
@@ -1217,6 +1228,12 @@ static int ath11k_pci_probe(struct pci_dev *pdev,
 			ret = -EOPNOTSUPP;
 			goto err_pci_free_region;
 		}
+		ab_pci->msi_config = &ath11k_msi_config[0];
+		break;
+	case QCN9074_DEVICE_ID:
+		ab_pci->msi_config = &ath11k_msi_config[1];
+		ab->bus_params.static_window_map = true;
+		ab->hw_rev = ATH11K_HW_QCN9074_HW10;
 		break;
 	default:
 		dev_err(&pdev->dev, "Unknown PCI device found: 0x%x\n",
@@ -1225,7 +1242,6 @@ static int ath11k_pci_probe(struct pci_dev *pdev,
 		goto err_pci_free_region;
 	}
 
-	ab_pci->msi_config = &ath11k_msi_config[0];
 	ret = ath11k_pci_enable_msi(ab_pci);
 	if (ret) {
 		ath11k_err(ab, "failed to enable msi: %d\n", ret);
