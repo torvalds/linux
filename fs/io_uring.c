@@ -1633,6 +1633,9 @@ static struct io_kiocb *__io_queue_async_work(struct io_kiocb *req)
 	struct io_kiocb *link = io_prep_linked_timeout(req);
 	struct io_uring_task *tctx = req->task->io_uring;
 
+	BUG_ON(!tctx);
+	BUG_ON(!tctx->io_wq);
+
 	trace_io_uring_queue_async_work(ctx, io_wq_is_hashed(&req->work), req,
 					&req->work, req->flags);
 	io_wq_enqueue(tctx->io_wq, &req->work);
@@ -9239,6 +9242,10 @@ static int io_uring_flush(struct file *file, void *data)
 {
 	struct io_uring_task *tctx = current->io_uring;
 	struct io_ring_ctx *ctx = file->private_data;
+
+	/* Ignore helper thread files exit */
+	if (current->flags & PF_IO_WORKER)
+		return 0;
 
 	if (fatal_signal_pending(current) || (current->flags & PF_EXITING)) {
 		io_uring_cancel_task_requests(ctx, NULL);
