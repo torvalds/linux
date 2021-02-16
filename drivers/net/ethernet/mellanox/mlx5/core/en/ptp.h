@@ -49,6 +49,9 @@ void mlx5e_ptp_close(struct mlx5e_ptp *c);
 void mlx5e_ptp_activate_channel(struct mlx5e_ptp *c);
 void mlx5e_ptp_deactivate_channel(struct mlx5e_ptp *c);
 int mlx5e_ptp_get_rqn(struct mlx5e_ptp *c, u32 *rqn);
+int mlx5e_ptp_alloc_rx_fs(struct mlx5e_priv *priv);
+void mlx5e_ptp_free_rx_fs(struct mlx5e_priv *priv);
+int mlx5e_ptp_rx_manage_fs(struct mlx5e_priv *priv, bool set);
 
 enum {
 	MLX5E_SKB_CB_CQE_HWTSTAMP  = BIT(0),

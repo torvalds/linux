@@ -245,6 +245,7 @@ struct mlx5e_accel_fs_tcp;
 
 struct mlx5e_fs_udp;
 struct mlx5e_fs_any;
+struct mlx5e_ptp_fs;
 
 struct mlx5e_flow_steering {
 	struct mlx5_flow_namespace      *ns;
@@ -266,6 +267,7 @@ struct mlx5e_flow_steering {
 #endif
 	struct mlx5e_fs_udp            *udp;
 	struct mlx5e_fs_any            *any;
+	struct mlx5e_ptp_fs            *ptp_fs;
 };
 
 struct ttc_params {

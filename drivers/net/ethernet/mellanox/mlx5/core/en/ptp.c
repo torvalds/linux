@@ -1,9 +1,18 @@
 // SPDX-License-Identifier: GPL-2.0 OR Linux-OpenIB
 // Copyright (c) 2020 Mellanox Technologies
 
+#include <linux/ptp_classify.h>
 #include "en/ptp.h"
 #include "en/txrx.h"
 #include "en/params.h"
+#include "en/fs_tt_redirect.h"
+
+struct mlx5e_ptp_fs {
+	struct mlx5_flow_handle *l2_rule;
+	struct mlx5_flow_handle *udp_v4_rule;
+	struct mlx5_flow_handle *udp_v6_rule;
+	bool valid;
+};
 
 #define MLX5E_PTP_CHANNEL_IX 0
 
@@ -573,6 +582,78 @@ static int mlx5e_ptp_set_state(struct mlx5e_ptp *c, struct mlx5e_params *params)
 	return bitmap_empty(c->state, MLX5E_PTP_STATE_NUM_STATES) ? -EINVAL : 0;
 }
 
+static void mlx5e_ptp_rx_unset_fs(struct mlx5e_priv *priv)
+{
+	struct mlx5e_ptp_fs *ptp_fs = priv->fs.ptp_fs;
+
+	if (!ptp_fs->valid)
+		return;
+
+	mlx5e_fs_tt_redirect_del_rule(ptp_fs->l2_rule);
+	mlx5e_fs_tt_redirect_any_destroy(priv);
+
+	mlx5e_fs_tt_redirect_del_rule(ptp_fs->udp_v6_rule);
+	mlx5e_fs_tt_redirect_del_rule(ptp_fs->udp_v4_rule);
+	mlx5e_fs_tt_redirect_udp_destroy(priv);
+	ptp_fs->valid = false;
+}
+
+static int mlx5e_ptp_rx_set_fs(struct mlx5e_priv *priv)
+{
+	struct mlx5e_ptp_fs *ptp_fs = priv->fs.ptp_fs;
+	struct mlx5_flow_handle *rule;
+	u32 tirn = priv->ptp_tir.tirn;
+	int err;
+
+	if (ptp_fs->valid)
+		return 0;
+
+	err = mlx5e_fs_tt_redirect_udp_create(priv);
+	if (err)
+		goto out_free;
+
+	rule = mlx5e_fs_tt_redirect_udp_add_rule(priv, MLX5E_TT_IPV4_UDP,
+						 tirn, PTP_EV_PORT);
+	if (IS_ERR(rule)) {
+		err = PTR_ERR(rule);
+		goto out_destroy_fs_udp;
+	}
+	ptp_fs->udp_v4_rule = rule;
+
+	rule = mlx5e_fs_tt_redirect_udp_add_rule(priv, MLX5E_TT_IPV6_UDP,
+						 tirn, PTP_EV_PORT);
+	if (IS_ERR(rule)) {
+		err = PTR_ERR(rule);
+		goto out_destroy_udp_v4_rule;
+	}
+	ptp_fs->udp_v6_rule = rule;
+
+	err = mlx5e_fs_tt_redirect_any_create(priv);
+	if (err)
+		goto out_destroy_udp_v6_rule;
+
+	rule = mlx5e_fs_tt_redirect_any_add_rule(priv, tirn, ETH_P_1588);
+	if (IS_ERR(rule)) {
+		err = PTR_ERR(rule);
+		goto out_destroy_fs_any;
+	}
+	ptp_fs->l2_rule = rule;
+	ptp_fs->valid = true;
+
+	return 0;
+
+out_destroy_fs_any:
+	mlx5e_fs_tt_redirect_any_destroy(priv);
+out_destroy_udp_v6_rule:
+	mlx5e_fs_tt_redirect_del_rule(ptp_fs->udp_v6_rule);
+out_destroy_udp_v4_rule:
+	mlx5e_fs_tt_redirect_del_rule(ptp_fs->udp_v4_rule);
+out_destroy_fs_udp:
+	mlx5e_fs_tt_redirect_udp_destroy(priv);
+out_free:
+	return err;
+}
+
 int mlx5e_ptp_open(struct mlx5e_priv *priv, struct mlx5e_params *params,
 		   u8 lag_port, struct mlx5e_ptp **cp)
 {
@@ -645,8 +726,10 @@ void mlx5e_ptp_activate_channel(struct mlx5e_ptp *c)
 		for (tc = 0; tc < c->num_tc; tc++)
 			mlx5e_activate_txqsq(&c->ptpsq[tc].txqsq);
 	}
-	if (test_bit(MLX5E_PTP_STATE_RX, c->state))
+	if (test_bit(MLX5E_PTP_STATE_RX, c->state)) {
+		mlx5e_ptp_rx_set_fs(c->priv);
 		mlx5e_activate_rq(&c->rq);
+	}
 }
 
 void mlx5e_ptp_deactivate_channel(struct mlx5e_ptp *c)
@@ -670,5 +753,54 @@ int mlx5e_ptp_get_rqn(struct mlx5e_ptp *c, u32 *rqn)
 		return -EINVAL;
 
 	*rqn = c->rq.rqn;
+	return 0;
+}
+
+int mlx5e_ptp_alloc_rx_fs(struct mlx5e_priv *priv)
+{
+	struct mlx5e_ptp_fs *ptp_fs;
+
+	if (!priv->profile->rx_ptp_support)
+		return 0;
+
+	ptp_fs = kzalloc(sizeof(*ptp_fs), GFP_KERNEL);
+	if (!ptp_fs)
+		return -ENOMEM;
+
+	priv->fs.ptp_fs = ptp_fs;
+	return 0;
+}
+
+void mlx5e_ptp_free_rx_fs(struct mlx5e_priv *priv)
+{
+	struct mlx5e_ptp_fs *ptp_fs = priv->fs.ptp_fs;
+
+	if (!priv->profile->rx_ptp_support)
+		return;
+
+	mlx5e_ptp_rx_unset_fs(priv);
+	kfree(ptp_fs);
+}
+
+int mlx5e_ptp_rx_manage_fs(struct mlx5e_priv *priv, bool set)
+{
+	struct mlx5e_ptp *c = priv->channels.ptp;
+
+	if (!priv->profile->rx_ptp_support)
+		return 0;
+
+	if (set) {
+		if (!c || !test_bit(MLX5E_PTP_STATE_RX, c->state)) {
+			netdev_WARN_ONCE(priv->netdev, "Don't try to add PTP RX-FS rules");
+			return -EINVAL;
+		}
+		return mlx5e_ptp_rx_set_fs(priv);
+	}
+	/* set == false */
+	if (c && test_bit(MLX5E_PTP_STATE_RX, c->state)) {
+		netdev_WARN_ONCE(priv->netdev, "Don't try to remove PTP RX-FS rules");
+		return -EINVAL;
+	}
+	mlx5e_ptp_rx_unset_fs(priv);
 	return 0;
 }

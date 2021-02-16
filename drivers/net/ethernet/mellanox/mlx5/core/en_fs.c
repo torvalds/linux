@@ -38,6 +38,7 @@
 #include "en.h"
 #include "en_rep.h"
 #include "lib/mpfs.h"
+#include "en/ptp.h"
 
 static int mlx5e_add_l2_flow_rule(struct mlx5e_priv *priv,
 				  struct mlx5e_l2_rule *ai, int type);
@@ -1792,10 +1793,16 @@ int mlx5e_create_flow_steering(struct mlx5e_priv *priv)
 		goto err_destroy_l2_table;
 	}
 
+	err = mlx5e_ptp_alloc_rx_fs(priv);
+	if (err)
+		goto err_destory_vlan_table;
+
 	mlx5e_ethtool_init_steering(priv);
 
 	return 0;
 
+err_destory_vlan_table:
+	mlx5e_destroy_vlan_table(priv);
 err_destroy_l2_table:
 	mlx5e_destroy_l2_table(priv);
 err_destroy_ttc_table:
@@ -1810,6 +1817,7 @@ err_destroy_arfs_tables:
 
 void mlx5e_destroy_flow_steering(struct mlx5e_priv *priv)
 {
+	mlx5e_ptp_free_rx_fs(priv);
 	mlx5e_destroy_vlan_table(priv);
 	mlx5e_destroy_l2_table(priv);
 	mlx5e_destroy_ttc_table(priv, &priv->fs.ttc);
