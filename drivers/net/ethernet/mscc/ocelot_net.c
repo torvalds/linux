@@ -1010,6 +1010,52 @@ static int ocelot_port_obj_del_mdb(struct net_device *dev,
 	return ocelot_port_mdb_del(ocelot, port, mdb);
 }
 
+static int ocelot_port_obj_mrp_add(struct net_device *dev,
+				   const struct switchdev_obj_mrp *mrp)
+{
+	struct ocelot_port_private *priv = netdev_priv(dev);
+	struct ocelot_port *ocelot_port = &priv->port;
+	struct ocelot *ocelot = ocelot_port->ocelot;
+	int port = priv->chip_port;
+
+	return ocelot_mrp_add(ocelot, port, mrp);
+}
+
+static int ocelot_port_obj_mrp_del(struct net_device *dev,
+				   const struct switchdev_obj_mrp *mrp)
+{
+	struct ocelot_port_private *priv = netdev_priv(dev);
+	struct ocelot_port *ocelot_port = &priv->port;
+	struct ocelot *ocelot = ocelot_port->ocelot;
+	int port = priv->chip_port;
+
+	return ocelot_mrp_del(ocelot, port, mrp);
+}
+
+static int
+ocelot_port_obj_mrp_add_ring_role(struct net_device *dev,
+				  const struct switchdev_obj_ring_role_mrp *mrp)
+{
+	struct ocelot_port_private *priv = netdev_priv(dev);
+	struct ocelot_port *ocelot_port = &priv->port;
+	struct ocelot *ocelot = ocelot_port->ocelot;
+	int port = priv->chip_port;
+
+	return ocelot_mrp_add_ring_role(ocelot, port, mrp);
+}
+
+static int
+ocelot_port_obj_mrp_del_ring_role(struct net_device *dev,
+				  const struct switchdev_obj_ring_role_mrp *mrp)
+{
+	struct ocelot_port_private *priv = netdev_priv(dev);
+	struct ocelot_port *ocelot_port = &priv->port;
+	struct ocelot *ocelot = ocelot_port->ocelot;
+	int port = priv->chip_port;
+
+	return ocelot_mrp_del_ring_role(ocelot, port, mrp);
+}
+
 static int ocelot_port_obj_add(struct net_device *dev,
 			       const struct switchdev_obj *obj,
 			       struct netlink_ext_ack *extack)
@@ -1023,6 +1069,13 @@ static int ocelot_port_obj_add(struct net_device *dev,
 		break;
 	case SWITCHDEV_OBJ_ID_PORT_MDB:
 		ret = ocelot_port_obj_add_mdb(dev, SWITCHDEV_OBJ_PORT_MDB(obj));
+		break;
+	case SWITCHDEV_OBJ_ID_MRP:
+		ret = ocelot_port_obj_mrp_add(dev, SWITCHDEV_OBJ_MRP(obj));
+		break;
+	case SWITCHDEV_OBJ_ID_RING_ROLE_MRP:
+		ret = ocelot_port_obj_mrp_add_ring_role(dev,
+							SWITCHDEV_OBJ_RING_ROLE_MRP(obj));
 		break;
 	default:
 		return -EOPNOTSUPP;
@@ -1043,6 +1096,13 @@ static int ocelot_port_obj_del(struct net_device *dev,
 		break;
 	case SWITCHDEV_OBJ_ID_PORT_MDB:
 		ret = ocelot_port_obj_del_mdb(dev, SWITCHDEV_OBJ_PORT_MDB(obj));
+		break;
+	case SWITCHDEV_OBJ_ID_MRP:
+		ret = ocelot_port_obj_mrp_del(dev, SWITCHDEV_OBJ_MRP(obj));
+		break;
+	case SWITCHDEV_OBJ_ID_RING_ROLE_MRP:
+		ret = ocelot_port_obj_mrp_del_ring_role(dev,
+							SWITCHDEV_OBJ_RING_ROLE_MRP(obj));
 		break;
 	default:
 		return -EOPNOTSUPP;

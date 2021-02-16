@@ -404,6 +404,17 @@ static int dsa_slave_port_obj_add(struct net_device *dev,
 	case SWITCHDEV_OBJ_ID_PORT_VLAN:
 		err = dsa_slave_vlan_add(dev, obj, extack);
 		break;
+	case SWITCHDEV_OBJ_ID_MRP:
+		if (!dsa_port_offloads_netdev(dp, obj->orig_dev))
+			return -EOPNOTSUPP;
+		err = dsa_port_mrp_add(dp, SWITCHDEV_OBJ_MRP(obj));
+		break;
+	case SWITCHDEV_OBJ_ID_RING_ROLE_MRP:
+		if (!dsa_port_offloads_netdev(dp, obj->orig_dev))
+			return -EOPNOTSUPP;
+		err = dsa_port_mrp_add_ring_role(dp,
+						 SWITCHDEV_OBJ_RING_ROLE_MRP(obj));
+		break;
 	default:
 		err = -EOPNOTSUPP;
 		break;
@@ -460,6 +471,17 @@ static int dsa_slave_port_obj_del(struct net_device *dev,
 		break;
 	case SWITCHDEV_OBJ_ID_PORT_VLAN:
 		err = dsa_slave_vlan_del(dev, obj);
+		break;
+	case SWITCHDEV_OBJ_ID_MRP:
+		if (!dsa_port_offloads_netdev(dp, obj->orig_dev))
+			return -EOPNOTSUPP;
+		err = dsa_port_mrp_del(dp, SWITCHDEV_OBJ_MRP(obj));
+		break;
+	case SWITCHDEV_OBJ_ID_RING_ROLE_MRP:
+		if (!dsa_port_offloads_netdev(dp, obj->orig_dev))
+			return -EOPNOTSUPP;
+		err = dsa_port_mrp_del_ring_role(dp,
+						 SWITCHDEV_OBJ_RING_ROLE_MRP(obj));
 		break;
 	default:
 		err = -EOPNOTSUPP;
