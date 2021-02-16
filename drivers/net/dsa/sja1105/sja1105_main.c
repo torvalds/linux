@@ -3287,7 +3287,7 @@ static int sja1105_port_set_learning(struct sja1105_private *priv, int port,
 
 	mac = priv->static_config.tables[BLK_IDX_MAC_CONFIG].entries;
 
-	mac[port].dyn_learn = !!(priv->learn_ena & BIT(port));
+	mac[port].dyn_learn = enabled;
 
 	rc = sja1105_dynamic_config_write(priv, BLK_IDX_MAC_CONFIG, port,
 					  &mac[port], true);
