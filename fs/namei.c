@@ -1122,8 +1122,7 @@ int may_linkat(struct user_namespace *mnt_userns, struct path *link)
  *			  should be allowed, or not, on files that already
  *			  exist.
  * @mnt_userns:	user namespace of the mount the inode was found from
- * @dir_mode: mode bits of directory
- * @dir_uid: owner of directory
+ * @nd: nameidata pathwalk data
  * @inode: the inode of the file to open
  *
  * Block an O_CREAT open of a FIFO (or a regular file) when:
@@ -3381,7 +3380,7 @@ static int do_open(struct nameidata *nd,
  * @mnt_userns:	user namespace of the mount the inode was found from
  * @dentry:	pointer to dentry of the base directory
  * @mode:	mode of the new tmpfile
- * @open_flags:	flags
+ * @open_flag:	flags
  *
  * Create a temporary file.
  *
@@ -4406,14 +4405,7 @@ SYSCALL_DEFINE2(link, const char __user *, oldname, const char __user *, newname
 
 /**
  * vfs_rename - rename a filesystem object
- * @old_mnt_userns:	old user namespace of the mount the inode was found from
- * @old_dir:		parent of source
- * @old_dentry:		source
- * @new_mnt_userns:	new user namespace of the mount the inode was found from
- * @new_dir:		parent of destination
- * @new_dentry:		destination
- * @delegated_inode:	returns an inode needing a delegation break
- * @flags:		rename flags
+ * @rd:		pointer to &struct renamedata info
  *
  * The caller must hold multiple mutexes--see lock_rename()).
  *
