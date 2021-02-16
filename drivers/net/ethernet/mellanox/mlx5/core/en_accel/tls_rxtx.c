@@ -298,12 +298,6 @@ err_out:
 	return false;
 }
 
-void mlx5e_tls_handle_tx_wqe(struct mlx5e_txqsq *sq, struct mlx5_wqe_ctrl_seg *cseg,
-			     struct mlx5e_accel_tx_tls_state *state)
-{
-	cseg->tis_tir_num = cpu_to_be32(state->tls_tisn << 8);
-}
-
 static int tls_update_resync_sn(struct net_device *netdev,
 				struct sk_buff *skb,
 				struct mlx5e_tls_metadata *mdata)

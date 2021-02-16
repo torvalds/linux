@@ -53,8 +53,12 @@ static inline bool mlx5e_tls_skb_offloaded(struct sk_buff *skb)
 	return skb->sk && tls_is_sk_tx_device_offloaded(skb->sk);
 }
 
-void mlx5e_tls_handle_tx_wqe(struct mlx5e_txqsq *sq, struct mlx5_wqe_ctrl_seg *cseg,
-			     struct mlx5e_accel_tx_tls_state *state);
+static inline void
+mlx5e_tls_handle_tx_wqe(struct mlx5_wqe_ctrl_seg *cseg,
+			struct mlx5e_accel_tx_tls_state *state)
+{
+	cseg->tis_tir_num = cpu_to_be32(state->tls_tisn << 8);
+}
 
 void mlx5e_tls_handle_rx_skb_metadata(struct mlx5e_rq *rq, struct sk_buff *skb,
 				      u32 *cqe_bcnt);
