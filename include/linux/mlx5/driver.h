@@ -143,6 +143,7 @@ enum {
 	MLX5_REG_MPCNT		 = 0x9051,
 	MLX5_REG_MTPPS		 = 0x9053,
 	MLX5_REG_MTPPSE		 = 0x9054,
+	MLX5_REG_MTUTC		 = 0x9055,
 	MLX5_REG_MPEGC		 = 0x9056,
 	MLX5_REG_MCQS		 = 0x9060,
 	MLX5_REG_MCQI		 = 0x9061,
@@ -675,18 +676,22 @@ struct mlx5_pps {
 	u8                         enabled;
 };
 
-struct mlx5_clock {
-	struct mlx5_nb             pps_nb;
-	seqlock_t                  lock;
+struct mlx5_timer {
 	struct cyclecounter        cycles;
 	struct timecounter         tc;
-	struct hwtstamp_config     hwtstamp_config;
 	u32                        nominal_c_mult;
 	unsigned long              overflow_period;
 	struct delayed_work        overflow_work;
+};
+
+struct mlx5_clock {
+	struct mlx5_nb             pps_nb;
+	seqlock_t                  lock;
+	struct hwtstamp_config     hwtstamp_config;
 	struct ptp_clock          *ptp;
 	struct ptp_clock_info      ptp_info;
 	struct mlx5_pps            pps_info;
+	struct mlx5_timer          timer;
 };
 
 struct mlx5_dm;

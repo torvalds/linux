@@ -57,6 +57,7 @@
 #include "en/fs.h"
 #include "en/qos.h"
 #include "lib/hv_vhca.h"
+#include "lib/clock.h"
 
 extern const struct net_device_ops mlx5e_netdev_ops;
 struct page_pool;
@@ -393,6 +394,7 @@ struct mlx5e_txqsq {
 	u32                        rate_limit;
 	struct work_struct         recover_work;
 	struct mlx5e_ptpsq        *ptpsq;
+	cqe_ts_to_ns               ptp_cyc2time;
 } ____cacheline_aligned_in_smp;
 
 struct mlx5e_dma_info {
@@ -655,6 +657,7 @@ struct mlx5e_rq {
 
 	/* XDP read-mostly */
 	struct xdp_rxq_info    xdp_rxq;
+	cqe_ts_to_ns           ptp_cyc2time;
 } ____cacheline_aligned_in_smp;
 
 enum mlx5e_channel_state {

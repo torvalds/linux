@@ -582,7 +582,10 @@ struct mlx5_init_seg {
 	__be32			internal_timer_l;
 	__be32			rsvd3[2];
 	__be32			health_counter;
-	__be32			rsvd4[1019];
+	__be32			rsvd4[11];
+	__be32			real_time_h;
+	__be32			real_time_l;
+	__be32			rsvd5[1006];
 	__be64			ieee1588_clk;
 	__be32			ieee1588_clk_type;
 	__be32			clr_intx;

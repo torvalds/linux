@@ -47,7 +47,6 @@
 #include "fpga/ipsec.h"
 #include "en_accel/ipsec_rxtx.h"
 #include "en_accel/tls_rxtx.h"
-#include "lib/clock.h"
 #include "en/xdp.h"
 #include "en/xsk/rx.h"
 #include "en/health.h"
@@ -1062,9 +1061,8 @@ static inline void mlx5e_build_rx_skb(struct mlx5_cqe64 *cqe,
 	}
 
 	if (unlikely(mlx5e_rx_hw_stamp(rq->tstamp)))
-		skb_hwtstamps(skb)->hwtstamp =
-				mlx5_timecounter_cyc2time(rq->clock, get_cqe_ts(cqe));
-
+		skb_hwtstamps(skb)->hwtstamp = mlx5e_cqe_ts_to_ns(rq->ptp_cyc2time,
+								  rq->clock, get_cqe_ts(cqe));
 	skb_record_rx_queue(skb, rq->ix);
 
 	if (likely(netdev->features & NETIF_F_RXHASH))
@@ -1667,9 +1665,8 @@ static inline void mlx5i_complete_rx_cqe(struct mlx5e_rq *rq,
 	}
 
 	if (unlikely(mlx5e_rx_hw_stamp(tstamp)))
-		skb_hwtstamps(skb)->hwtstamp =
-				mlx5_timecounter_cyc2time(rq->clock, get_cqe_ts(cqe));
-
+		skb_hwtstamps(skb)->hwtstamp = mlx5e_cqe_ts_to_ns(rq->ptp_cyc2time,
+								  rq->clock, get_cqe_ts(cqe));
 	skb_record_rx_queue(skb, rq->ix);
 
 	if (likely(netdev->features & NETIF_F_RXHASH))

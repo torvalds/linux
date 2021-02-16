@@ -26,6 +26,13 @@
 
 #define MLX5E_RX_ERR_CQE(cqe) (get_cqe_opcode(cqe) != MLX5_CQE_RESP_SEND)
 
+static inline
+ktime_t mlx5e_cqe_ts_to_ns(cqe_ts_to_ns func, struct mlx5_clock *clock, u64 cqe_ts)
+{
+	return INDIRECT_CALL_2(func, mlx5_real_time_cyc2time, mlx5_timecounter_cyc2time,
+			       clock, cqe_ts);
+}
+
 enum mlx5e_icosq_wqe_type {
 	MLX5E_ICOSQ_WQE_NOP,
 	MLX5E_ICOSQ_WQE_UMR_RX,

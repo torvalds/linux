@@ -449,6 +449,9 @@ static int mlx5e_alloc_rq(struct mlx5e_channel *c,
 	rq->hw_mtu  = MLX5E_SW2HW_MTU(params, params->sw_mtu);
 	rq->xdpsq   = &c->rq_xdpsq;
 	rq->xsk_pool = xsk_pool;
+	rq->ptp_cyc2time = mlx5_is_real_time_rq(mdev) ?
+			   mlx5_real_time_cyc2time :
+			   mlx5_timecounter_cyc2time;
 
 	if (rq->xsk_pool)
 		rq->stats = &c->priv->channel_stats[c->ix].xskrq;
@@ -680,7 +683,7 @@ static void mlx5e_free_rq(struct mlx5e_rq *rq)
 int mlx5e_create_rq(struct mlx5e_rq *rq, struct mlx5e_rq_param *param)
 {
 	struct mlx5_core_dev *mdev = rq->mdev;
-
+	u8 ts_format;
 	void *in;
 	void *rqc;
 	void *wq;
@@ -693,6 +696,9 @@ int mlx5e_create_rq(struct mlx5e_rq *rq, struct mlx5e_rq_param *param)
 	if (!in)
 		return -ENOMEM;
 
+	ts_format = mlx5_is_real_time_rq(mdev) ?
+		    MLX5_RQC_TIMESTAMP_FORMAT_REAL_TIME :
+		    MLX5_RQC_TIMESTAMP_FORMAT_FREE_RUNNING;
 	rqc = MLX5_ADDR_OF(create_rq_in, in, ctx);
 	wq  = MLX5_ADDR_OF(rqc, rqc, wq);
 
@@ -700,6 +706,7 @@ int mlx5e_create_rq(struct mlx5e_rq *rq, struct mlx5e_rq_param *param)
 
 	MLX5_SET(rqc,  rqc, cqn,		rq->cq.mcq.cqn);
 	MLX5_SET(rqc,  rqc, state,		MLX5_RQC_STATE_RST);
+	MLX5_SET(rqc,  rqc, ts_format,		ts_format);
 	MLX5_SET(wq,   wq,  log_wq_pg_sz,	rq->wq_ctrl.buf.page_shift -
 						MLX5_ADAPTER_PAGE_SHIFT);
 	MLX5_SET64(wq, wq,  dbr_addr,		rq->wq_ctrl.db.dma);
@@ -1179,6 +1186,9 @@ static int mlx5e_alloc_txqsq(struct mlx5e_channel *c,
 	if (param->is_mpw)
 		set_bit(MLX5E_SQ_STATE_MPWQE, &sq->state);
 	sq->stop_room = param->stop_room;
+	sq->ptp_cyc2time = mlx5_is_real_time_sq(mdev) ?
+			   mlx5_real_time_cyc2time :
+			   mlx5_timecounter_cyc2time;
 
 	param->wq.db_numa_node = cpu_to_node(c->cpu);
 	err = mlx5_wq_cyc_create(mdev, &param->wq, sqc_wq, wq, &sq->wq_ctrl);
@@ -1212,6 +1222,7 @@ static int mlx5e_create_sq(struct mlx5_core_dev *mdev,
 			   struct mlx5e_create_sq_param *csp,
 			   u32 *sqn)
 {
+	u8 ts_format;
 	void *in;
 	void *sqc;
 	void *wq;
@@ -1224,6 +1235,9 @@ static int mlx5e_create_sq(struct mlx5_core_dev *mdev,
 	if (!in)
 		return -ENOMEM;
 
+	ts_format = mlx5_is_real_time_sq(mdev) ?
+		    MLX5_SQC_TIMESTAMP_FORMAT_REAL_TIME :
+		    MLX5_SQC_TIMESTAMP_FORMAT_FREE_RUNNING;
 	sqc = MLX5_ADDR_OF(create_sq_in, in, ctx);
 	wq = MLX5_ADDR_OF(sqc, sqc, wq);
 
@@ -1232,6 +1246,8 @@ static int mlx5e_create_sq(struct mlx5_core_dev *mdev,
 	MLX5_SET(sqc,  sqc, tis_num_0, csp->tisn);
 	MLX5_SET(sqc,  sqc, cqn, csp->cqn);
 	MLX5_SET(sqc,  sqc, ts_cqe_to_dest_cqn, csp->ts_cqe_to_dest_cqn);
+	MLX5_SET(sqc,  sqc, ts_format, ts_format);
+
 
 	if (MLX5_CAP_ETH(mdev, wqe_inline_mode) == MLX5_CAP_INLINE_MODE_VPORT_CONTEXT)
 		MLX5_SET(sqc,  sqc, min_wqe_inline_mode, csp->min_inline_mode);
