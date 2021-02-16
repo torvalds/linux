@@ -507,11 +507,6 @@ static int ttm_bo_evict(struct ttm_buffer_object *bo,
 		return ttm_tt_create(bo, false);
 	}
 
-	evict_mem = bo->mem;
-	evict_mem.mm_node = NULL;
-	evict_mem.bus.offset = 0;
-	evict_mem.bus.addr = NULL;
-
 	ret = ttm_bo_mem_space(bo, &placement, &evict_mem, ctx);
 	if (ret) {
 		if (ret != -ERESTARTSYS) {
@@ -867,12 +862,8 @@ static int ttm_bo_bounce_temp_buffer(struct ttm_buffer_object *bo,
 				     struct ttm_place *hop)
 {
 	struct ttm_placement hop_placement;
+	struct ttm_resource hop_mem;
 	int ret;
-	struct ttm_resource hop_mem = *mem;
-
-	hop_mem.mm_node = NULL;
-	hop_mem.mem_type = TTM_PL_SYSTEM;
-	hop_mem.placement = 0;
 
 	hop_placement.num_placement = hop_placement.num_busy_placement = 1;
 	hop_placement.placement = hop_placement.busy_placement = hop;
@@ -894,18 +885,13 @@ static int ttm_bo_move_buffer(struct ttm_buffer_object *bo,
 			      struct ttm_placement *placement,
 			      struct ttm_operation_ctx *ctx)
 {
-	int ret = 0;
 	struct ttm_place hop;
 	struct ttm_resource mem;
+	int ret;
 
 	dma_resv_assert_held(bo->base.resv);
 
 	memset(&hop, 0, sizeof(hop));
-
-	mem.num_pages = PAGE_ALIGN(bo->base.size) >> PAGE_SHIFT;
-	mem.bus.offset = 0;
-	mem.bus.addr = NULL;
-	mem.mm_node = NULL;
 
 	/*
 	 * Determine where to move the buffer.
@@ -1027,6 +1013,7 @@ int ttm_bo_init_reserved(struct ttm_device *bdev,
 			 struct dma_resv *resv,
 			 void (*destroy) (struct ttm_buffer_object *))
 {
+	static const struct ttm_place sys_mem = { .mem_type = TTM_PL_SYSTEM };
 	bool locked;
 	int ret = 0;
 
@@ -1038,13 +1025,8 @@ int ttm_bo_init_reserved(struct ttm_device *bdev,
 	bo->bdev = bdev;
 	bo->type = type;
 	bo->page_alignment = page_alignment;
-	bo->mem.mem_type = TTM_PL_SYSTEM;
-	bo->mem.num_pages = PAGE_ALIGN(size) >> PAGE_SHIFT;
-	bo->mem.mm_node = NULL;
-	bo->mem.bus.offset = 0;
-	bo->mem.bus.addr = NULL;
+	ttm_resource_alloc(bo, &sys_mem, &bo->mem);
 	bo->moving = NULL;
-	bo->mem.placement = 0;
 	bo->pin_count = 0;
 	bo->sg = sg;
 	if (resv) {

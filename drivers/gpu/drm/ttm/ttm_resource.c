@@ -30,9 +30,18 @@ int ttm_resource_alloc(struct ttm_buffer_object *bo,
 		       struct ttm_resource *res)
 {
 	struct ttm_resource_manager *man =
-		ttm_manager_type(bo->bdev, res->mem_type);
+		ttm_manager_type(bo->bdev, place->mem_type);
 
 	res->mm_node = NULL;
+	res->start = 0;
+	res->num_pages = PFN_UP(bo->base.size);
+	res->mem_type = place->mem_type;
+	res->placement = place->flags;
+	res->bus.addr = NULL;
+	res->bus.offset = 0;
+	res->bus.is_iomem = false;
+	res->bus.caching = ttm_cached;
+
 	return man->func->alloc(man, bo, place, res);
 }
 
