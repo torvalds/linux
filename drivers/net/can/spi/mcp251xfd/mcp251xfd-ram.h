@@ -28,6 +28,7 @@ struct can_ram_obj_config {
 
 	u8 fifo_num;
 	u8 fifo_depth_min;
+	u8 fifo_depth_coalesce_min;
 };
 
 struct can_ram_config {
@@ -47,11 +48,15 @@ struct can_ram_layout {
 
 	u8 cur_rx;
 	u8 cur_tx;
+
+	u8 rx_coalesce;
+	u8 tx_coalesce;
 };
 
 void can_ram_get_layout(struct can_ram_layout *layout,
 			const struct can_ram_config *config,
 			const struct ethtool_ringparam *ring,
+			const struct ethtool_coalesce *ec,
 			const bool fd_mode);
 
 #endif
