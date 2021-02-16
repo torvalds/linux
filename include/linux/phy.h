@@ -492,6 +492,7 @@ struct macsec_ops;
  * @sysfs_links: Internal boolean tracking sysfs symbolic links setup/removal.
  * @loopback_enabled: Set true if this PHY has been loopbacked successfully.
  * @downshifted_rate: Set true if link speed has been downshifted.
+ * @is_on_sfp_module: Set true if PHY is located on an SFP module.
  * @state: State of the PHY for management purposes
  * @dev_flags: Device-specific flags used by the PHY driver.
  * @irq: IRQ number of the PHY's interrupt (-1 if none)
@@ -565,6 +566,7 @@ struct phy_device {
 	unsigned sysfs_links:1;
 	unsigned loopback_enabled:1;
 	unsigned downshifted_rate:1;
+	unsigned is_on_sfp_module:1;
 
 	unsigned autoneg:1;
 	/* The most recently read link state */
@@ -1294,6 +1296,15 @@ static inline void phy_txtstamp(struct phy_device *phydev, struct sk_buff *skb,
 static inline bool phy_is_internal(struct phy_device *phydev)
 {
 	return phydev->is_internal;
+}
+
+/**
+ * phy_on_sfp - Convenience function for testing if a PHY is on an SFP module
+ * @phydev: the phy_device struct
+ */
+static inline bool phy_on_sfp(struct phy_device *phydev)
+{
+	return phydev->is_on_sfp_module;
 }
 
 /**
