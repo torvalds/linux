@@ -1516,6 +1516,21 @@ static void vsc8584_get_base_addr(struct phy_device *phydev)
 	vsc8531->addr = addr;
 }
 
+static void vsc85xx_coma_mode_release(struct phy_device *phydev)
+{
+	/* The coma mode (pin or reg) provides an optional feature that
+	 * may be used to control when the PHYs become active.
+	 * Alternatively the COMA_MODE pin may be connected low
+	 * so that the PHYs are fully active once out of reset.
+	 */
+
+	/* Enable output (mode=0) and write zero to it */
+	vsc85xx_phy_write_page(phydev, MSCC_PHY_PAGE_EXTENDED_GPIO);
+	__phy_modify(phydev, MSCC_PHY_GPIO_CONTROL_2,
+		     MSCC_PHY_COMA_MODE | MSCC_PHY_COMA_OUTPUT, 0);
+	vsc85xx_phy_write_page(phydev, MSCC_PHY_PAGE_STANDARD);
+}
+
 static int vsc8584_config_init(struct phy_device *phydev)
 {
 	struct vsc8531_private *vsc8531 = phydev->priv;
@@ -1962,6 +1977,7 @@ static int vsc8514_config_init(struct phy_device *phydev)
 		ret = vsc8514_config_host_serdes(phydev);
 		if (ret)
 			goto err;
+		vsc85xx_coma_mode_release(phydev);
 	}
 
 	phy_unlock_mdio_bus(phydev);
