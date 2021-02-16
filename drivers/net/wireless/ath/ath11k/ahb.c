@@ -373,7 +373,7 @@ static void ath11k_ahb_init_qmi_ce_config(struct ath11k_base *ab)
 	cfg->tgt_ce = ab->hw_params.target_ce_config;
 	cfg->svc_to_ce_map_len = ab->hw_params.svc_to_ce_map_len;
 	cfg->svc_to_ce_map = ab->hw_params.svc_to_ce_map;
-	ab->qmi.service_ins_id = ATH11K_QMI_WLFW_SERVICE_INS_ID_V01_IPQ8074;
+	ab->qmi.service_ins_id = ab->hw_params.qmi_service_ins_id;
 }
 
 static void ath11k_ahb_free_ext_irq(struct ath11k_base *ab)

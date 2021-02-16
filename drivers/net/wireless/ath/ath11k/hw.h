@@ -134,6 +134,7 @@ struct ath11k_hw_params {
 	bool internal_sleep_clock;
 
 	const struct ath11k_hw_regs *regs;
+	u32 qmi_service_ins_id;
 	const struct ce_attr *host_ce_config;
 	u32 ce_count;
 	const struct ce_pipe_config *target_ce_config;
