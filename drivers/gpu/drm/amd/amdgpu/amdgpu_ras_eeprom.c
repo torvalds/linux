@@ -441,7 +441,7 @@ bool amdgpu_ras_eeprom_check_err_threshold(struct amdgpu_device *adev)
 	if (!__is_ras_eeprom_supported(adev))
 		return false;
 
-	if (con->eeprom_control.tbl_hdr.header == EEPROM_TABLE_HDR_BAD) {
+	if (con && (con->eeprom_control.tbl_hdr.header == EEPROM_TABLE_HDR_BAD)) {
 		dev_warn(adev->dev, "This GPU is in BAD status.");
 		dev_warn(adev->dev, "Please retire it or setting one bigger "
 				"threshold value when reloading driver.\n");

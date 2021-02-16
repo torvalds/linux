@@ -150,6 +150,7 @@ struct amdgpu_xgmi {
 	bool supported;
 	struct ras_common_if *ras_if;
 	bool connected_to_cpu;
+	bool pending_reset;
 };
 
 struct amdgpu_gmc {
