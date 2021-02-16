@@ -311,8 +311,6 @@ record_it:
 
 static void blk_trace_free(struct blk_trace *bt)
 {
-	debugfs_remove(bt->msg_file);
-	debugfs_remove(bt->dropped_file);
 	relay_close(bt->rchan);
 	debugfs_remove(bt->dir);
 	free_percpu(bt->sequence);
@@ -544,10 +542,8 @@ static int do_blk_trace_setup(struct request_queue *q, char *name, dev_t dev,
 	INIT_LIST_HEAD(&bt->running_list);
 
 	ret = -EIO;
-	bt->dropped_file = debugfs_create_file("dropped", 0444, dir, bt,
-					       &blk_dropped_fops);
-
-	bt->msg_file = debugfs_create_file("msg", 0222, dir, bt, &blk_msg_fops);
+	debugfs_create_file("dropped", 0444, dir, bt, &blk_dropped_fops);
+	debugfs_create_file("msg", 0222, dir, bt, &blk_msg_fops);
 
 	bt->rchan = relay_open("trace", dir, buts->buf_size,
 				buts->buf_nr, &blk_relay_callbacks, bt);
