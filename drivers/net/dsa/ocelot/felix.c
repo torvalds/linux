@@ -1202,7 +1202,7 @@ static int felix_setup(struct dsa_switch *ds)
 
 	err = ocelot_init(ocelot);
 	if (err)
-		return err;
+		goto out_mdiobus_free;
 
 	if (ocelot->ptp) {
 		err = ocelot_init_timestamp(ocelot, felix->info->ptp_caps);
@@ -1227,7 +1227,7 @@ static int felix_setup(struct dsa_switch *ds)
 
 	err = ocelot_devlink_sb_register(ocelot);
 	if (err)
-		return err;
+		goto out_deinit_ports;
 
 	for (port = 0; port < ds->num_ports; port++) {
 		if (!dsa_is_cpu_port(ds, port))
@@ -1243,6 +1243,23 @@ static int felix_setup(struct dsa_switch *ds)
 	ds->assisted_learning_on_cpu_port = true;
 
 	return 0;
+
+out_deinit_ports:
+	for (port = 0; port < ocelot->num_phys_ports; port++) {
+		if (dsa_is_unused_port(ds, port))
+			continue;
+
+		ocelot_deinit_port(ocelot, port);
+	}
+
+	ocelot_deinit_timestamp(ocelot);
+	ocelot_deinit(ocelot);
+
+out_mdiobus_free:
+	if (felix->info->mdio_bus_free)
+		felix->info->mdio_bus_free(ocelot);
+
+	return err;
 }
 
 static void felix_teardown(struct dsa_switch *ds)
