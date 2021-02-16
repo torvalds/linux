@@ -1014,6 +1014,7 @@ extern struct pglist_data contig_page_data;
 extern struct pglist_data *first_online_pgdat(void);
 extern struct pglist_data *next_online_pgdat(struct pglist_data *pgdat);
 extern struct zone *next_zone(struct zone *zone);
+extern int isolate_anon_lru_page(struct page *page);
 
 /**
  * for_each_online_pgdat - helper macro to iterate over all online nodes

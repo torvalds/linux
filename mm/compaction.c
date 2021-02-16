@@ -763,6 +763,29 @@ isolate_freepages_range(struct compact_control *cc,
 	return pfn;
 }
 
+unsigned long isolate_and_split_free_page(struct page *page,
+						struct list_head *list)
+{
+	unsigned long isolated;
+	unsigned int order;
+
+	if (!PageBuddy(page))
+		return 0;
+
+	order = buddy_order(page);
+	isolated = __isolate_free_page(page, order);
+	if (!isolated)
+		return 0;
+
+	set_page_private(page, order);
+	list_add(&page->lru, list);
+
+	split_map_pages(list);
+
+	return isolated;
+}
+EXPORT_SYMBOL_GPL(isolate_and_split_free_page);
+
 /* Similar to reclaim, but different enough that they don't share logic */
 static bool too_many_isolated(pg_data_t *pgdat)
 {
