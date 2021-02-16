@@ -252,7 +252,7 @@ contain several subdevs that use an I2C bus, but also a subdev that is
 controlled through GPIO pins. This distinction is only relevant when setting
 up the device, but once the subdev is registered it is completely transparent.
 
-Once te subdev has been registered you can call an ops function either
+Once the subdev has been registered you can call an ops function either
 directly:
 
 .. code-block:: c
