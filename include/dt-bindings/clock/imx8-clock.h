@@ -64,6 +64,8 @@
 #define IMX_DC0_PLL1_CLK				81
 #define IMX_DC0_DISP0_CLK				82
 #define IMX_DC0_DISP1_CLK				83
+#define IMX_DC0_BYPASS0_CLK				84
+#define IMX_DC0_BYPASS1_CLK				85
 
 /* MIPI-LVDS SS */
 #define IMX_MIPI_IPG_CLK				90
