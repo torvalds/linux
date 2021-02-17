@@ -69,6 +69,7 @@ struct cxl_memdev;
  *                (CXL 2.0 8.2.8.4.3 Mailbox Capabilities Register)
  * @mbox_mutex: Mutex to synchronize mailbox access.
  * @firmware_version: Firmware version for the memory device.
+ * @enabled_commands: Hardware commands found enabled in CEL.
  * @pmem_range: Persistent memory capacity information.
  * @ram_range: Volatile memory capacity information.
  */
@@ -84,6 +85,7 @@ struct cxl_mem {
 	size_t payload_size;
 	struct mutex mbox_mutex; /* Protects device mailbox and firmware */
 	char firmware_version[0x10];
+	unsigned long *enabled_cmds;
 
 	struct range pmem_range;
 	struct range ram_range;
