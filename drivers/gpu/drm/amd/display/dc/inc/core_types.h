@@ -110,6 +110,8 @@ struct resource_funcs {
 				display_e2e_pipe_params_st *pipes,
 				int pipe_cnt,
 				int vlevel);
+	void (*update_soc_for_wm_a)(
+				struct dc *dc, struct dc_state *context);
 	int (*populate_dml_pipes)(
 		struct dc *dc,
 		struct dc_state *context,
