@@ -2267,29 +2267,33 @@ int btrfs_inc_block_group_ro(struct btrfs_block_group *cache,
 	struct btrfs_trans_handle *trans;
 	u64 alloc_flags;
 	int ret;
+	bool dirty_bg_running;
 
-again:
-	trans = btrfs_join_transaction(fs_info->extent_root);
-	if (IS_ERR(trans))
-		return PTR_ERR(trans);
+	do {
+		trans = btrfs_join_transaction(fs_info->extent_root);
+		if (IS_ERR(trans))
+			return PTR_ERR(trans);
 
-	/*
-	 * we're not allowed to set block groups readonly after the dirty
-	 * block groups cache has started writing.  If it already started,
-	 * back off and let this transaction commit
-	 */
-	mutex_lock(&fs_info->ro_block_group_mutex);
-	if (test_bit(BTRFS_TRANS_DIRTY_BG_RUN, &trans->transaction->flags)) {
-		u64 transid = trans->transid;
+		dirty_bg_running = false;
 
-		mutex_unlock(&fs_info->ro_block_group_mutex);
-		btrfs_end_transaction(trans);
+		/*
+		 * We're not allowed to set block groups readonly after the dirty
+		 * block group cache has started writing.  If it already started,
+		 * back off and let this transaction commit.
+		 */
+		mutex_lock(&fs_info->ro_block_group_mutex);
+		if (test_bit(BTRFS_TRANS_DIRTY_BG_RUN, &trans->transaction->flags)) {
+			u64 transid = trans->transid;
 
-		ret = btrfs_wait_for_commit(fs_info, transid);
-		if (ret)
-			return ret;
-		goto again;
-	}
+			mutex_unlock(&fs_info->ro_block_group_mutex);
+			btrfs_end_transaction(trans);
+
+			ret = btrfs_wait_for_commit(fs_info, transid);
+			if (ret)
+				return ret;
+			dirty_bg_running = true;
+		}
+	} while (dirty_bg_running);
 
 	if (do_chunk_alloc) {
 		/*
