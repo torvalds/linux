@@ -1018,10 +1018,8 @@ static void sun8i_dwmac_exit(struct platform_device *pdev, void *priv)
 {
 	struct sunxi_priv_data *gmac = priv;
 
-	if (gmac->variant->soc_has_internal_phy) {
-		if (gmac->internal_phy_powered)
-			sun8i_dwmac_unpower_internal_phy(gmac);
-	}
+	if (gmac->variant->soc_has_internal_phy)
+		sun8i_dwmac_unpower_internal_phy(gmac);
 
 	clk_disable_unprepare(gmac->tx_clk);
 
