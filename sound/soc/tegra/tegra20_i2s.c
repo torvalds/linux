@@ -260,7 +260,7 @@ static const struct snd_soc_dai_driver tegra20_i2s_dai_template = {
 		.formats = SNDRV_PCM_FMTBIT_S16_LE,
 	},
 	.ops = &tegra20_i2s_dai_ops,
-	.symmetric_rates = 1,
+	.symmetric_rate = 1,
 };
 
 static const struct snd_soc_component_driver tegra20_i2s_component = {

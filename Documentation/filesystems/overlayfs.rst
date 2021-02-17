@@ -586,6 +586,14 @@ without significant effort.
 The advantage of mounting with the "volatile" option is that all forms of
 sync calls to the upper filesystem are omitted.
 
+In order to avoid a giving a false sense of safety, the syncfs (and fsync)
+semantics of volatile mounts are slightly different than that of the rest of
+VFS.  If any writeback error occurs on the upperdir's filesystem after a
+volatile mount takes place, all sync functions will return an error.  Once this
+condition is reached, the filesystem will not recover, and every subsequent sync
+call will return an error, even if the upperdir has not experience a new error
+since the last sync call.
+
 When overlay is mounted with "volatile" option, the directory
 "$workdir/work/incompat/volatile" is created.  During next mount, overlay
 checks for this directory and refuses to mount if present. This is a strong

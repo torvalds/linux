@@ -99,6 +99,10 @@
 #define mmGCR_GENERAL_CNTL_Sienna_Cichlid			0x1580
 #define mmGCR_GENERAL_CNTL_Sienna_Cichlid_BASE_IDX	0
 
+#define mmCGTS_TCC_DISABLE_Vangogh                0x5006
+#define mmCGTS_TCC_DISABLE_Vangogh_BASE_IDX       1
+#define mmCGTS_USER_TCC_DISABLE_Vangogh                0x5007
+#define mmCGTS_USER_TCC_DISABLE_Vangogh_BASE_IDX       1
 #define mmGOLDEN_TSC_COUNT_UPPER_Vangogh                0x0025
 #define mmGOLDEN_TSC_COUNT_UPPER_Vangogh_BASE_IDX       1
 #define mmGOLDEN_TSC_COUNT_LOWER_Vangogh                0x0026
@@ -119,6 +123,8 @@
 #define mmVGT_ESGS_RING_SIZE_Vangogh_BASE_IDX    1
 #define mmSPI_CONFIG_CNTL_Vangogh                0x2440
 #define mmSPI_CONFIG_CNTL_Vangogh_BASE_IDX       1
+#define mmGCR_GENERAL_CNTL_Vangogh               0x1580
+#define mmGCR_GENERAL_CNTL_Vangogh_BASE_IDX      0
 
 #define mmCP_HYP_PFP_UCODE_ADDR			0x5814
 #define mmCP_HYP_PFP_UCODE_ADDR_BASE_IDX	1
@@ -3244,7 +3250,7 @@ static const struct soc15_reg_golden golden_settings_gc_10_3_vangogh[] =
 	SOC15_REG_GOLDEN_VALUE(GC, 0, mmDB_DEBUG4, 0xffffffff, 0x00800000),
 	SOC15_REG_GOLDEN_VALUE(GC, 0, mmDB_EXCEPTION_CONTROL, 0x7fff0f1f, 0x00b80000),
 	SOC15_REG_GOLDEN_VALUE(GC, 0, mmGB_ADDR_CONFIG, 0x0c1807ff, 0x00000142),
-	SOC15_REG_GOLDEN_VALUE(GC, 0, mmGCR_GENERAL_CNTL, 0x1ff1ffff, 0x00000500),
+	SOC15_REG_GOLDEN_VALUE(GC, 0, mmGCR_GENERAL_CNTL_Vangogh, 0x1ff1ffff, 0x00000500),
 	SOC15_REG_GOLDEN_VALUE(GC, 0, mmGL1_PIPE_STEER, 0x000000ff, 0x000000e4),
 	SOC15_REG_GOLDEN_VALUE(GC, 0, mmGL2_PIPE_STEER_0, 0x77777777, 0x32103210),
 	SOC15_REG_GOLDEN_VALUE(GC, 0, mmGL2_PIPE_STEER_1, 0x77777777, 0x32103210),
@@ -4934,8 +4940,18 @@ static void gfx_v10_0_tcp_harvest(struct amdgpu_device *adev)
 static void gfx_v10_0_get_tcc_info(struct amdgpu_device *adev)
 {
 	/* TCCs are global (not instanced). */
-	uint32_t tcc_disable = RREG32_SOC15(GC, 0, mmCGTS_TCC_DISABLE) |
-			       RREG32_SOC15(GC, 0, mmCGTS_USER_TCC_DISABLE);
+	uint32_t tcc_disable;
+
+	switch (adev->asic_type) {
+	case CHIP_VANGOGH:
+		tcc_disable = RREG32_SOC15(GC, 0, mmCGTS_TCC_DISABLE_Vangogh) |
+				RREG32_SOC15(GC, 0, mmCGTS_USER_TCC_DISABLE_Vangogh);
+		break;
+	default:
+		tcc_disable = RREG32_SOC15(GC, 0, mmCGTS_TCC_DISABLE) |
+				RREG32_SOC15(GC, 0, mmCGTS_USER_TCC_DISABLE);
+		break;
+	}
 
 	adev->gfx.config.tcc_disabled_mask =
 		REG_GET_FIELD(tcc_disable, CGTS_TCC_DISABLE, TCC_DISABLE) |

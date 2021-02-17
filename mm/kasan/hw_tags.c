@@ -19,11 +19,10 @@
 
 #include "kasan.h"
 
-enum kasan_arg_mode {
-	KASAN_ARG_MODE_DEFAULT,
-	KASAN_ARG_MODE_OFF,
-	KASAN_ARG_MODE_PROD,
-	KASAN_ARG_MODE_FULL,
+enum kasan_arg {
+	KASAN_ARG_DEFAULT,
+	KASAN_ARG_OFF,
+	KASAN_ARG_ON,
 };
 
 enum kasan_arg_stacktrace {
@@ -38,7 +37,7 @@ enum kasan_arg_fault {
 	KASAN_ARG_FAULT_PANIC,
 };
 
-static enum kasan_arg_mode kasan_arg_mode __ro_after_init;
+static enum kasan_arg kasan_arg __ro_after_init;
 static enum kasan_arg_stacktrace kasan_arg_stacktrace __ro_after_init;
 static enum kasan_arg_fault kasan_arg_fault __ro_after_init;
 
@@ -52,26 +51,24 @@ DEFINE_STATIC_KEY_FALSE(kasan_flag_stacktrace);
 /* Whether panic or disable tag checking on fault. */
 bool kasan_flag_panic __ro_after_init;
 
-/* kasan.mode=off/prod/full */
-static int __init early_kasan_mode(char *arg)
+/* kasan=off/on */
+static int __init early_kasan_flag(char *arg)
 {
 	if (!arg)
 		return -EINVAL;
 
 	if (!strcmp(arg, "off"))
-		kasan_arg_mode = KASAN_ARG_MODE_OFF;
-	else if (!strcmp(arg, "prod"))
-		kasan_arg_mode = KASAN_ARG_MODE_PROD;
-	else if (!strcmp(arg, "full"))
-		kasan_arg_mode = KASAN_ARG_MODE_FULL;
+		kasan_arg = KASAN_ARG_OFF;
+	else if (!strcmp(arg, "on"))
+		kasan_arg = KASAN_ARG_ON;
 	else
 		return -EINVAL;
 
 	return 0;
 }
-early_param("kasan.mode", early_kasan_mode);
+early_param("kasan", early_kasan_flag);
 
-/* kasan.stack=off/on */
+/* kasan.stacktrace=off/on */
 static int __init early_kasan_flag_stacktrace(char *arg)
 {
 	if (!arg)
@@ -113,8 +110,8 @@ void kasan_init_hw_tags_cpu(void)
 	 * as this function is only called for MTE-capable hardware.
 	 */
 
-	/* If KASAN is disabled, do nothing. */
-	if (kasan_arg_mode == KASAN_ARG_MODE_OFF)
+	/* If KASAN is disabled via command line, don't initialize it. */
+	if (kasan_arg == KASAN_ARG_OFF)
 		return;
 
 	hw_init_tags(KASAN_TAG_MAX);
@@ -124,43 +121,28 @@ void kasan_init_hw_tags_cpu(void)
 /* kasan_init_hw_tags() is called once on boot CPU. */
 void __init kasan_init_hw_tags(void)
 {
-	/* If hardware doesn't support MTE, do nothing. */
+	/* If hardware doesn't support MTE, don't initialize KASAN. */
 	if (!system_supports_mte())
 		return;
 
-	/* Choose KASAN mode if kasan boot parameter is not provided. */
-	if (kasan_arg_mode == KASAN_ARG_MODE_DEFAULT) {
-		if (IS_ENABLED(CONFIG_DEBUG_KERNEL))
-			kasan_arg_mode = KASAN_ARG_MODE_FULL;
-		else
-			kasan_arg_mode = KASAN_ARG_MODE_PROD;
-	}
-
-	/* Preset parameter values based on the mode. */
-	switch (kasan_arg_mode) {
-	case KASAN_ARG_MODE_DEFAULT:
-		/* Shouldn't happen as per the check above. */
-		WARN_ON(1);
+	/* If KASAN is disabled via command line, don't initialize it. */
+	if (kasan_arg == KASAN_ARG_OFF)
 		return;
-	case KASAN_ARG_MODE_OFF:
-		/* If KASAN is disabled, do nothing. */
-		return;
-	case KASAN_ARG_MODE_PROD:
-		static_branch_enable(&kasan_flag_enabled);
-		break;
-	case KASAN_ARG_MODE_FULL:
-		static_branch_enable(&kasan_flag_enabled);
-		static_branch_enable(&kasan_flag_stacktrace);
-		break;
-	}
 
-	/* Now, optionally override the presets. */
+	/* Enable KASAN. */
+	static_branch_enable(&kasan_flag_enabled);
 
 	switch (kasan_arg_stacktrace) {
 	case KASAN_ARG_STACKTRACE_DEFAULT:
+		/*
+		 * Default to enabling stack trace collection for
+		 * debug kernels.
+		 */
+		if (IS_ENABLED(CONFIG_DEBUG_KERNEL))
+			static_branch_enable(&kasan_flag_stacktrace);
 		break;
 	case KASAN_ARG_STACKTRACE_OFF:
-		static_branch_disable(&kasan_flag_stacktrace);
+		/* Do nothing, kasan_flag_stacktrace keeps its default value. */
 		break;
 	case KASAN_ARG_STACKTRACE_ON:
 		static_branch_enable(&kasan_flag_stacktrace);
@@ -169,11 +151,16 @@ void __init kasan_init_hw_tags(void)
 
 	switch (kasan_arg_fault) {
 	case KASAN_ARG_FAULT_DEFAULT:
+		/*
+		 * Default to no panic on report.
+		 * Do nothing, kasan_flag_panic keeps its default value.
+		 */
 		break;
 	case KASAN_ARG_FAULT_REPORT:
-		kasan_flag_panic = false;
+		/* Do nothing, kasan_flag_panic keeps its default value. */
 		break;
 	case KASAN_ARG_FAULT_PANIC:
+		/* Enable panic on report. */
 		kasan_flag_panic = true;
 		break;
 	}

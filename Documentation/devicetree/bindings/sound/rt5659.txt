@@ -37,9 +37,20 @@ Optional properties:
 - realtek,jd-src
   0: No JD is used
   1: using JD3 as JD source
+  2: JD source for Intel HDA header
 
 - realtek,ldo1-en-gpios : The GPIO that controls the CODEC's LDO1_EN pin.
 - realtek,reset-gpios : The GPIO that controls the CODEC's RESET pin.
+
+- sound-name-prefix: Please refer to name-prefix.txt
+
+- ports: A Codec may have a single or multiple I2S interfaces. These
+  interfaces on Codec side can be described under 'ports' or 'port'.
+  When the SoC or host device is connected to multiple interfaces of
+  the Codec, the connectivity can be described using 'ports' property.
+  If a single interface is used, then 'port' can be used. The usage
+  depends on the platform or board design.
+  Please refer to Documentation/devicetree/bindings/graph.txt
 
 Pins on the device (for linking into audio routes) for RT5659/RT5658:
 
