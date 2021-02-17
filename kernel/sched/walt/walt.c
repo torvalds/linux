@@ -2091,7 +2091,13 @@ update_task_rq_cpu_cycles(struct task_struct *p, struct rq *rq, int event,
 			time_delta = irqtime;
 		else
 			time_delta = wallclock - wts->mark_start;
-		SCHED_BUG_ON((s64)time_delta < 0);
+
+		if ((s64)time_delta < 0) {
+			printk_deferred("WALT-BUG pid=%u CPU%d wallclock=%llu < mark_start=%llu event=%d irqtime=%llu",
+					p->pid, rq->cpu, wallclock,
+					wts->mark_start, event, irqtime);
+			SCHED_BUG_ON((s64)time_delta < 0);
+		}
 
 		wrq->task_exec_scale = DIV64_U64_ROUNDUP(cycles_delta *
 				arch_scale_cpu_capacity(cpu),
