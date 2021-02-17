@@ -2123,12 +2123,7 @@ static void mlx5e_build_rq_frags_info(struct mlx5_core_dev *mdev,
 	u32 buf_size = 0;
 	int i;
 
-<<<<<<< HEAD
-	if (MLX5_IPSEC_DEV(mdev))
-=======
-#ifdef CONFIG_MLX5_EN_IPSEC
 	if (mlx5_fpga_is_ipsec_device(mdev))
->>>>>>> 3af409ca278d4a8d50e91f9f7c4c33b175645cf3
 		byte_count += MLX5E_METADATA_ETHER_LEN;
 
 	if (mlx5e_rx_is_linear_skb(params, xsk)) {

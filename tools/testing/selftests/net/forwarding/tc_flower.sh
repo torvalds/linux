@@ -3,7 +3,8 @@
 
 ALL_TESTS="match_dst_mac_test match_src_mac_test match_dst_ip_test \
 	match_src_ip_test match_ip_flags_test match_pcp_test match_vlan_test \
-	match_ip_tos_test match_indev_testmatch_ip_ttl_test match_mpls_label_test \
+	match_ip_tos_test match_indev_test match_ip_ttl_test
+	match_mpls_label_test \
 	match_mpls_tc_test match_mpls_bos_test match_mpls_ttl_test \
 	match_mpls_lse_test"
 NUM_NETIFS=2

@@ -1081,13 +1081,15 @@ struct ibmvnic_adapter {
 
 	struct tasklet_struct tasklet;
 	enum vnic_state state;
-	/* Used for serializatin of state field */
+	/* Used for serialization of state field. When taking both state
+	 * and rwi locks, take state lock first.
+	 */
 	spinlock_t state_lock;
 	enum ibmvnic_reset_reason reset_reason;
-	/* when taking both state and rwi locks, take state lock first */
-	spinlock_t rwi_lock;
 	struct list_head rwi_list;
-	/* Used for serialization of rwi_list */
+	/* Used for serialization of rwi_list. When taking both state
+	 * and rwi locks, take state lock first
+	 */
 	spinlock_t rwi_lock;
 	struct work_struct ibmvnic_reset;
 	struct delayed_work ibmvnic_delayed_reset;
