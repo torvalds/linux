@@ -335,6 +335,67 @@ static int wait_for_boot_status_ready(struct idtcm *idtcm)
 	return -EBUSY;
 }
 
+static int read_sys_apll_status(struct idtcm *idtcm, u8 *status)
+{
+	return idtcm_read(idtcm, STATUS, DPLL_SYS_APLL_STATUS, status,
+			  sizeof(u8));
+}
+
+static int read_sys_dpll_status(struct idtcm *idtcm, u8 *status)
+{
+	return idtcm_read(idtcm, STATUS, DPLL_SYS_STATUS, status, sizeof(u8));
+}
+
+static int wait_for_sys_apll_dpll_lock(struct idtcm *idtcm)
+{
+	unsigned long timeout = jiffies + msecs_to_jiffies(LOCK_TIMEOUT_MS);
+	u8 apll = 0;
+	u8 dpll = 0;
+	int err;
+
+	do {
+		err = read_sys_apll_status(idtcm, &apll);
+		if (err)
+			return err;
+
+		err = read_sys_dpll_status(idtcm, &dpll);
+		if (err)
+			return err;
+
+		apll &= SYS_APLL_LOSS_LOCK_LIVE_MASK;
+		dpll &= DPLL_SYS_STATE_MASK;
+
+		if (apll == SYS_APLL_LOSS_LOCK_LIVE_LOCKED &&
+		    dpll == DPLL_STATE_LOCKED) {
+			return 0;
+		} else if (dpll == DPLL_STATE_FREERUN ||
+			   dpll == DPLL_STATE_HOLDOVER ||
+			   dpll == DPLL_STATE_OPEN_LOOP) {
+			dev_warn(&idtcm->client->dev,
+				"No wait state: DPLL_SYS_STATE %d", dpll);
+			return -EPERM;
+		}
+
+		msleep(LOCK_POLL_INTERVAL_MS);
+	} while (time_is_after_jiffies(timeout));
+
+	dev_warn(&idtcm->client->dev,
+		 "%d ms lock timeout: SYS APLL Loss Lock %d  SYS DPLL state %d",
+		 LOCK_TIMEOUT_MS, apll, dpll);
+
+	return -ETIME;
+}
+
+static void wait_for_chip_ready(struct idtcm *idtcm)
+{
+	if (wait_for_boot_status_ready(idtcm))
+		dev_warn(&idtcm->client->dev, "BOOT_STATUS != 0xA0");
+
+	if (wait_for_sys_apll_dpll_lock(idtcm))
+		dev_warn(&idtcm->client->dev,
+			 "Continuing while SYS APLL/DPLL is not locked");
+}
+
 static int _idtcm_gettime(struct idtcm_channel *channel,
 			  struct timespec64 *ts)
 {
@@ -2235,8 +2296,7 @@ static int idtcm_probe(struct i2c_client *client,
 		dev_warn(&idtcm->client->dev,
 			 "loading firmware failed with %d\n", err);
 
-	if (wait_for_boot_status_ready(idtcm))
-		dev_warn(&idtcm->client->dev, "BOOT_STATUS != 0xA0\n");
+	wait_for_chip_ready(idtcm);
 
 	if (idtcm->tod_mask) {
 		for (i = 0; i < MAX_TOD; i++) {
