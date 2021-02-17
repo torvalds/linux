@@ -250,6 +250,9 @@ static loff_t zonefs_check_zone_condition(struct inode *inode,
 		}
 		inode->i_mode &= ~0222;
 		return i_size_read(inode);
+	case BLK_ZONE_COND_FULL:
+		/* The write pointer of full zones is invalid. */
+		return zi->i_max_size;
 	default:
 		if (zi->i_ztype == ZONEFS_ZTYPE_CNV)
 			return zi->i_max_size;
