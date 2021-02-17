@@ -1,6 +1,8 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /* Copyright(c) 2020 Intel Corporation. All rights reserved. */
 #include <uapi/linux/cxl_mem.h>
+#include <linux/security.h>
+#include <linux/debugfs.h>
 #include <linux/module.h>
 #include <linux/mutex.h>
 #include <linux/cdev.h>
@@ -42,7 +44,14 @@
 
 enum opcode {
 	CXL_MBOX_OP_INVALID		= 0x0000,
+	CXL_MBOX_OP_RAW			= CXL_MBOX_OP_INVALID,
+	CXL_MBOX_OP_ACTIVATE_FW		= 0x0202,
 	CXL_MBOX_OP_IDENTIFY		= 0x4000,
+	CXL_MBOX_OP_SET_PARTITION_INFO	= 0x4101,
+	CXL_MBOX_OP_SET_LSA		= 0x4103,
+	CXL_MBOX_OP_SET_SHUTDOWN_STATE	= 0x4204,
+	CXL_MBOX_OP_SCAN_MEDIA		= 0x4304,
+	CXL_MBOX_OP_GET_SCAN_MEDIA	= 0x4305,
 	CXL_MBOX_OP_MAX			= 0x10000
 };
 
@@ -96,6 +105,8 @@ struct cxl_memdev {
 
 static int cxl_mem_major;
 static DEFINE_IDA(cxl_memdev_ida);
+static struct dentry *cxl_debugfs;
+static bool cxl_raw_allow_all;
 
 /**
  * struct cxl_mem_command - Driver representation of a memory device command
@@ -132,6 +143,49 @@ struct cxl_mem_command {
  */
 static struct cxl_mem_command mem_commands[] = {
 	CXL_CMD(IDENTIFY, 0, 0x43),
+#ifdef CONFIG_CXL_MEM_RAW_COMMANDS
+	CXL_CMD(RAW, ~0, ~0),
+#endif
+};
+
+/*
+ * Commands that RAW doesn't permit. The rationale for each:
+ *
+ * CXL_MBOX_OP_ACTIVATE_FW: Firmware activation requires adjustment /
+ * coordination of transaction timeout values at the root bridge level.
+ *
+ * CXL_MBOX_OP_SET_PARTITION_INFO: The device memory map may change live
+ * and needs to be coordinated with HDM updates.
+ *
+ * CXL_MBOX_OP_SET_LSA: The label storage area may be cached by the
+ * driver and any writes from userspace invalidates those contents.
+ *
+ * CXL_MBOX_OP_SET_SHUTDOWN_STATE: Set shutdown state assumes no writes
+ * to the device after it is marked clean, userspace can not make that
+ * assertion.
+ *
+ * CXL_MBOX_OP_[GET_]SCAN_MEDIA: The kernel provides a native error list that
+ * is kept up to date with patrol notifications and error management.
+ */
+static u16 cxl_disabled_raw_commands[] = {
+	CXL_MBOX_OP_ACTIVATE_FW,
+	CXL_MBOX_OP_SET_PARTITION_INFO,
+	CXL_MBOX_OP_SET_LSA,
+	CXL_MBOX_OP_SET_SHUTDOWN_STATE,
+	CXL_MBOX_OP_SCAN_MEDIA,
+	CXL_MBOX_OP_GET_SCAN_MEDIA,
+};
+
+/*
+ * Command sets that RAW doesn't permit. All opcodes in this set are
+ * disabled because they pass plain text security payloads over the
+ * user/kernel boundary. This functionality is intended to be wrapped
+ * behind the keys ABI which allows for encrypted payloads in the UAPI
+ */
+static u8 security_command_sets[] = {
+	0x44, /* Sanitize */
+	0x45, /* Persistent Memory Data-at-rest Security */
+	0x46, /* Security Passthrough */
 };
 
 #define cxl_for_each_cmd(cmd)                                                  \
@@ -160,6 +214,16 @@ static int cxl_mem_wait_for_doorbell(struct cxl_mem *cxlm)
 	dev_dbg(&cxlm->pdev->dev, "Doorbell wait took %dms",
 		jiffies_to_msecs(end) - jiffies_to_msecs(start));
 	return 0;
+}
+
+static bool cxl_is_security_command(u16 opcode)
+{
+	int i;
+
+	for (i = 0; i < ARRAY_SIZE(security_command_sets); i++)
+		if (security_command_sets[i] == (opcode >> 8))
+			return true;
+	return false;
 }
 
 static void cxl_mem_mbox_timeout(struct cxl_mem *cxlm,
@@ -431,6 +495,9 @@ static int handle_mailbox_cmd_from_user(struct cxl_mem *cxlm,
 		cxl_command_names[cmd->info.id].name, mbox_cmd.opcode,
 		cmd->info.size_in);
 
+	dev_WARN_ONCE(dev, cmd->info.id == CXL_MEM_COMMAND_ID_RAW,
+		      "raw command path used\n");
+
 	rc = __cxl_mem_mbox_send_cmd(cxlm, &mbox_cmd);
 	cxl_mem_mbox_put(cxlm);
 	if (rc)
@@ -460,6 +527,29 @@ out:
 	return rc;
 }
 
+static bool cxl_mem_raw_command_allowed(u16 opcode)
+{
+	int i;
+
+	if (!IS_ENABLED(CONFIG_CXL_MEM_RAW_COMMANDS))
+		return false;
+
+	if (security_locked_down(LOCKDOWN_NONE))
+		return false;
+
+	if (cxl_raw_allow_all)
+		return true;
+
+	if (cxl_is_security_command(opcode))
+		return false;
+
+	for (i = 0; i < ARRAY_SIZE(cxl_disabled_raw_commands); i++)
+		if (cxl_disabled_raw_commands[i] == opcode)
+			return false;
+
+	return true;
+}
+
 /**
  * cxl_validate_cmd_from_user() - Check fields for CXL_MEM_SEND_COMMAND.
  * @cxlm: &struct cxl_mem device whose mailbox will be used.
@@ -471,6 +561,7 @@ out:
  *  * %-ENOTTY	- Invalid command specified.
  *  * %-EINVAL	- Reserved fields or invalid values were used.
  *  * %-ENOMEM	- Input or output buffer wasn't sized properly.
+ *  * %-EPERM	- Attempted to use a protected command.
  *
  * The result of this command is a fully validated command in @out_cmd that is
  * safe to send to the hardware.
@@ -494,6 +585,40 @@ static int cxl_validate_cmd_from_user(struct cxl_mem *cxlm,
 	 */
 	if (send_cmd->in.size > cxlm->payload_size)
 		return -EINVAL;
+
+	/*
+	 * Checks are bypassed for raw commands but a WARN/taint will occur
+	 * later in the callchain
+	 */
+	if (send_cmd->id == CXL_MEM_COMMAND_ID_RAW) {
+		const struct cxl_mem_command temp = {
+			.info = {
+				.id = CXL_MEM_COMMAND_ID_RAW,
+				.flags = 0,
+				.size_in = send_cmd->in.size,
+				.size_out = send_cmd->out.size,
+			},
+			.opcode = send_cmd->raw.opcode
+		};
+
+		if (send_cmd->raw.rsvd)
+			return -EINVAL;
+
+		/*
+		 * Unlike supported commands, the output size of RAW commands
+		 * gets passed along without further checking, so it must be
+		 * validated here.
+		 */
+		if (send_cmd->out.size > cxlm->payload_size)
+			return -EINVAL;
+
+		if (!cxl_mem_raw_command_allowed(send_cmd->raw.opcode))
+			return -EPERM;
+
+		memcpy(out_cmd, &temp, sizeof(temp));
+
+		return 0;
+	}
 
 	if (send_cmd->flags & ~CXL_MEM_COMMAND_FLAG_MASK)
 		return -EINVAL;
@@ -1166,6 +1291,7 @@ static struct pci_driver cxl_mem_driver = {
 
 static __init int cxl_mem_init(void)
 {
+	struct dentry *mbox_debugfs;
 	dev_t devt;
 	int rc;
 
@@ -1182,11 +1308,17 @@ static __init int cxl_mem_init(void)
 		return rc;
 	}
 
+	cxl_debugfs = debugfs_create_dir("cxl", NULL);
+	mbox_debugfs = debugfs_create_dir("mbox", cxl_debugfs);
+	debugfs_create_bool("raw_allow_all", 0600, mbox_debugfs,
+			    &cxl_raw_allow_all);
+
 	return 0;
 }
 
 static __exit void cxl_mem_exit(void)
 {
+	debugfs_remove_recursive(cxl_debugfs);
 	pci_unregister_driver(&cxl_mem_driver);
 	unregister_chrdev_region(MKDEV(cxl_mem_major, 0), CXL_MEM_MAX_DEVS);
 }
