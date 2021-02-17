@@ -155,6 +155,7 @@ static void io_worker_exit(struct io_worker *worker)
 {
 	struct io_wqe *wqe = worker->wqe;
 	struct io_wqe_acct *acct = io_wqe_get_acct(worker);
+	unsigned flags;
 
 	/*
 	 * If we're not at zero, someone else is holding a brief reference
@@ -167,9 +168,11 @@ static void io_worker_exit(struct io_worker *worker)
 
 	preempt_disable();
 	current->flags &= ~PF_IO_WORKER;
-	if (worker->flags & IO_WORKER_F_RUNNING)
+	flags = worker->flags;
+	worker->flags = 0;
+	if (flags & IO_WORKER_F_RUNNING)
 		atomic_dec(&acct->nr_running);
-	if (!(worker->flags & IO_WORKER_F_BOUND))
+	if (!(flags & IO_WORKER_F_BOUND))
 		atomic_dec(&wqe->wq->user->processes);
 	worker->flags = 0;
 	preempt_enable();
@@ -180,7 +183,8 @@ static void io_worker_exit(struct io_worker *worker)
 	}
 
 	raw_spin_lock_irq(&wqe->lock);
-	hlist_nulls_del_rcu(&worker->nulls_node);
+	if (flags & IO_WORKER_F_FREE)
+		hlist_nulls_del_rcu(&worker->nulls_node);
 	list_del_rcu(&worker->all_list);
 	acct->nr_workers--;
 	raw_spin_unlock_irq(&wqe->lock);
