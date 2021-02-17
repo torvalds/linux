@@ -4128,6 +4128,8 @@ static void vop2_setup_cluster_alpha(struct vop2 *vop2, struct vop2_cluster *clu
 
 	if (top_win_vpstate) {
 		fb = top_win_vpstate->base.fb;
+		if (!fb)
+			return;
 		if (top_win_vpstate->base.pixel_blend_mode == DRM_MODE_BLEND_PREMULTI)
 			premulti_en = true;
 		else
@@ -4135,6 +4137,8 @@ static void vop2_setup_cluster_alpha(struct vop2 *vop2, struct vop2_cluster *clu
 		src_pixel_alpha_en = is_alpha_support(fb->format->format);
 	}
 	fb = bottom_win_vpstate->base.fb;
+	if (!fb)
+		return;
 	dst_pixel_alpha_en = is_alpha_support(fb->format->format);
 	alpha_config.src_premulti_en = premulti_en;
 	alpha_config.dst_premulti_en = false;
