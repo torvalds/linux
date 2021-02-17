@@ -1389,13 +1389,23 @@ static int idtcm_perout_enable(struct idtcm_channel *channel,
 			       bool enable,
 			       struct ptp_perout_request *perout)
 {
+	struct idtcm *idtcm = channel->idtcm;
 	unsigned int flags = perout->flags;
+	struct timespec64 ts = {0, 0};
+	int err;
 
 	if (flags == PEROUT_ENABLE_OUTPUT_MASK)
-		return idtcm_output_mask_enable(channel, enable);
+		err = idtcm_output_mask_enable(channel, enable);
+	else
+		err = idtcm_output_enable(channel, enable, perout->index);
 
-	/* Enable/disable individual output instead */
-	return idtcm_output_enable(channel, enable, perout->index);
+	if (err) {
+		dev_err(&idtcm->client->dev, "Unable to set output enable");
+		return err;
+	}
+
+	/* Align output to internal 1 PPS */
+	return _idtcm_settime(channel, &ts, SCSR_TOD_WR_TYPE_SEL_DELTA_PLUS);
 }
 
 static int idtcm_get_pll_mode(struct idtcm_channel *channel,
