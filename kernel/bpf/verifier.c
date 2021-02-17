@@ -5877,7 +5877,7 @@ static int update_alu_sanitation_state(struct bpf_insn_aux_data *aux,
 	     aux->alu_limit != alu_limit))
 		return -EACCES;
 
-	/* Corresponding fixup done in fixup_bpf_calls(). */
+	/* Corresponding fixup done in do_misc_fixups(). */
 	aux->alu_state = alu_state;
 	aux->alu_limit = alu_limit;
 	return 0;
@@ -11535,12 +11535,10 @@ static int fixup_call_args(struct bpf_verifier_env *env)
 	return err;
 }
 
-/* fixup insn->imm field of bpf_call instructions
- * and inline eligible helpers as explicit sequence of BPF instructions
- *
- * this function is called after eBPF program passed verification
+/* Do various post-verification rewrites in a single program pass.
+ * These rewrites simplify JIT and interpreter implementations.
  */
-static int fixup_bpf_calls(struct bpf_verifier_env *env)
+static int do_misc_fixups(struct bpf_verifier_env *env)
 {
 	struct bpf_prog *prog = env->prog;
 	bool expect_blinding = bpf_jit_blinding_enabled(prog);
@@ -11555,6 +11553,7 @@ static int fixup_bpf_calls(struct bpf_verifier_env *env)
 	int i, ret, cnt, delta = 0;
 
 	for (i = 0; i < insn_cnt; i++, insn++) {
+		/* Make divide-by-zero exceptions impossible. */
 		if (insn->code == (BPF_ALU64 | BPF_MOD | BPF_X) ||
 		    insn->code == (BPF_ALU64 | BPF_DIV | BPF_X) ||
 		    insn->code == (BPF_ALU | BPF_MOD | BPF_X) ||
@@ -11595,6 +11594,7 @@ static int fixup_bpf_calls(struct bpf_verifier_env *env)
 			continue;
 		}
 
+		/* Implement LD_ABS and LD_IND with a rewrite, if supported by the program type. */
 		if (BPF_CLASS(insn->code) == BPF_LD &&
 		    (BPF_MODE(insn->code) == BPF_ABS ||
 		     BPF_MODE(insn->code) == BPF_IND)) {
@@ -11614,6 +11614,7 @@ static int fixup_bpf_calls(struct bpf_verifier_env *env)
 			continue;
 		}
 
+		/* Rewrite pointer arithmetic to mitigate speculation attacks. */
 		if (insn->code == (BPF_ALU64 | BPF_ADD | BPF_X) ||
 		    insn->code == (BPF_ALU64 | BPF_SUB | BPF_X)) {
 			const u8 code_add = BPF_ALU64 | BPF_ADD | BPF_X;
@@ -11835,6 +11836,7 @@ patch_map_ops_generic:
 			goto patch_call_imm;
 		}
 
+		/* Implement bpf_jiffies64 inline. */
 		if (prog->jit_requested && BITS_PER_LONG == 64 &&
 		    insn->imm == BPF_FUNC_jiffies64) {
 			struct bpf_insn ld_jiffies_addr[2] = {
@@ -12645,7 +12647,7 @@ skip_full_check:
 		ret = convert_ctx_accesses(env);
 
 	if (ret == 0)
-		ret = fixup_bpf_calls(env);
+		ret = do_misc_fixups(env);
 
 	/* do 32-bit optimization after insn patching has done so those patched
 	 * insns could be handled correctly.
