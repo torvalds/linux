@@ -173,11 +173,11 @@
 };
 
 &dsi0_in_vp0 {
-	status = "okay";
+	status = "disabled";
 };
 
 &dsi0_in_vp1 {
-	status = "disabled";
+	status = "okay";
 };
 
 &dsi0_panel {
@@ -493,6 +493,7 @@
 
 &route_dsi0 {
 	status = "okay";
+	connect = <&vp1_out_dsi0>;
 };
 
 &sata2 {

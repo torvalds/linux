@@ -448,11 +448,11 @@
 };
 
 &dsi0_in_vp0 {
-	status = "okay";
+	status = "disabled";
 };
 
 &dsi0_in_vp1 {
-	status = "disabled";
+	status = "okay";
 };
 
 &gpu {
@@ -1093,6 +1093,7 @@
 
 &route_dsi0 {
 	status = "okay";
+	connect = <&vp1_out_dsi0>;
 };
 
 &saradc {
@@ -1185,6 +1186,8 @@
 
 &vop {
 	status = "okay";
+	assigned-clocks = <&cru DCLK_VOP0>, <&cru DCLK_VOP1>;
+	assigned-clock-parents = <&pmucru PLL_HPLL>, <&cru PLL_VPLL>;
 };
 
 &vop_mmu {
