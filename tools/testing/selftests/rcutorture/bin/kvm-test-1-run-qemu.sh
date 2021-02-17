@@ -33,6 +33,8 @@ then
 	exit 1
 fi
 
+echo ' ---' `date`: Starting kernel, PID $$
+
 # Obtain settings from the qemu-cmd file.
 grep '^#' $resdir/qemu-cmd | sed -e 's/^# //' > $T/qemu-cmd-settings
 . $T/qemu-cmd-settings

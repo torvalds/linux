@@ -41,7 +41,7 @@ then
 	echo "kvm-test-1-run.sh :$resdir: Not a writable directory, cannot store results into it"
 	exit 1
 fi
-echo ' ---' `date`: Starting build
+echo ' ---' `date`: Starting build, PID $$
 echo ' ---' Kconfig fragment at: $config_template >> $resdir/log
 touch $resdir/ConfigFragment.input
 
