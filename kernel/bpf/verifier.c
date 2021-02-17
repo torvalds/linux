@@ -1120,7 +1120,7 @@ static void mark_ptr_not_null_reg(struct bpf_reg_state *reg)
 		reg->type = PTR_TO_RDWR_BUF;
 		break;
 	default:
-		WARN_ON("unknown nullable register type");
+		WARN_ONCE(1, "unknown nullable register type");
 	}
 }
 
