@@ -147,9 +147,9 @@ static int wacom_wac_pen_serial_enforce(struct hid_device *hdev,
 	}
 
 	if (flush)
-		wacom_wac_queue_flush(hdev, &wacom_wac->pen_fifo);
+		wacom_wac_queue_flush(hdev, wacom_wac->pen_fifo);
 	else if (insert)
-		wacom_wac_queue_insert(hdev, &wacom_wac->pen_fifo,
+		wacom_wac_queue_insert(hdev, wacom_wac->pen_fifo,
 				       raw_data, report_size);
 
 	return insert && !flush;
@@ -1280,7 +1280,7 @@ static void wacom_devm_kfifo_release(struct device *dev, void *res)
 static int wacom_devm_kfifo_alloc(struct wacom *wacom)
 {
 	struct wacom_wac *wacom_wac = &wacom->wacom_wac;
-	struct kfifo_rec_ptr_2 *pen_fifo = &wacom_wac->pen_fifo;
+	struct kfifo_rec_ptr_2 *pen_fifo;
 	int error;
 
 	pen_fifo = devres_alloc(wacom_devm_kfifo_release,
@@ -1297,6 +1297,7 @@ static int wacom_devm_kfifo_alloc(struct wacom *wacom)
 	}
 
 	devres_add(&wacom->hdev->dev, pen_fifo);
+	wacom_wac->pen_fifo = pen_fifo;
 
 	return 0;
 }

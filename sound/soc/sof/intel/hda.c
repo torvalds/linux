@@ -285,11 +285,13 @@ static char *hda_model;
 module_param(hda_model, charp, 0444);
 MODULE_PARM_DESC(hda_model, "Use the given HDA board model.");
 
-#if IS_ENABLED(CONFIG_SND_SOC_SOF_HDA)
+#if IS_ENABLED(CONFIG_SND_SOC_SOF_HDA) || IS_ENABLED(CONFIG_SND_SOC_SOF_INTEL_SOUNDWIRE)
 static int hda_dmic_num = -1;
 module_param_named(dmic_num, hda_dmic_num, int, 0444);
 MODULE_PARM_DESC(dmic_num, "SOF HDA DMIC number");
+#endif
 
+#if IS_ENABLED(CONFIG_SND_SOC_SOF_HDA)
 static bool hda_codec_use_common_hdmi = IS_ENABLED(CONFIG_SND_HDA_CODEC_HDMI);
 module_param_named(use_common_hdmi, hda_codec_use_common_hdmi, bool, 0444);
 MODULE_PARM_DESC(use_common_hdmi, "SOF HDA use common HDMI codec driver");
@@ -316,26 +318,6 @@ static const struct hda_dsp_msg_code hda_dsp_rom_msg[] = {
 	{HDA_DSP_ROM_UNEXPECTED_RESET, "error: unexpected reset"},
 	{HDA_DSP_ROM_NULL_FW_ENTRY,	"error: null FW entry point"},
 };
-
-static void hda_dsp_get_status_skl(struct snd_sof_dev *sdev)
-{
-	u32 status;
-	int i;
-
-	status = snd_sof_dsp_read(sdev, HDA_DSP_BAR,
-				  HDA_ADSP_FW_STATUS_SKL);
-
-	for (i = 0; i < ARRAY_SIZE(hda_dsp_rom_msg); i++) {
-		if (status == hda_dsp_rom_msg[i].code) {
-			dev_err(sdev->dev, "%s - code %8.8x\n",
-				hda_dsp_rom_msg[i].msg, status);
-			return;
-		}
-	}
-
-	/* not for us, must be generic sof message */
-	dev_dbg(sdev->dev, "unknown ROM status value %8.8x\n", status);
-}
 
 static void hda_dsp_get_status(struct snd_sof_dev *sdev)
 {
@@ -383,36 +365,6 @@ static void hda_dsp_get_registers(struct snd_sof_dev *sdev,
 	offset += sizeof(*panic_info);
 	sof_block_read(sdev, sdev->mmio_bar, offset, stack,
 		       stack_words * sizeof(u32));
-}
-
-void hda_dsp_dump_skl(struct snd_sof_dev *sdev, u32 flags)
-{
-	struct sof_ipc_dsp_oops_xtensa xoops;
-	struct sof_ipc_panic_info panic_info;
-	u32 stack[HDA_DSP_STACK_DUMP_SIZE];
-	u32 status, panic;
-
-	/* try APL specific status message types first */
-	hda_dsp_get_status_skl(sdev);
-
-	/* now try generic SOF status messages */
-	status = snd_sof_dsp_read(sdev, HDA_DSP_BAR,
-				  HDA_ADSP_ERROR_CODE_SKL);
-
-	/*TODO: Check: there is no define in spec, but it is used in the code*/
-	panic = snd_sof_dsp_read(sdev, HDA_DSP_BAR,
-				 HDA_ADSP_ERROR_CODE_SKL + 0x4);
-
-	if (sdev->fw_state == SOF_FW_BOOT_COMPLETE) {
-		hda_dsp_get_registers(sdev, &xoops, &panic_info, stack,
-				      HDA_DSP_STACK_DUMP_SIZE);
-		snd_sof_get_status(sdev, status, panic, &xoops, &panic_info,
-				   stack, HDA_DSP_STACK_DUMP_SIZE);
-	} else {
-		dev_err(sdev->dev, "error: status = 0x%8.8x panic = 0x%8.8x\n",
-			status, panic);
-		hda_dsp_get_status_skl(sdev);
-	}
 }
 
 /* dump the first 8 dwords representing the extended ROM status */
@@ -555,7 +507,7 @@ static int hda_init(struct snd_sof_dev *sdev)
 	return ret;
 }
 
-#if IS_ENABLED(CONFIG_SND_SOC_SOF_HDA)
+#if IS_ENABLED(CONFIG_SND_SOC_SOF_HDA) || IS_ENABLED(CONFIG_SND_SOC_SOF_INTEL_SOUNDWIRE)
 
 static int check_nhlt_dmic(struct snd_sof_dev *sdev)
 {
@@ -579,25 +531,76 @@ static const char *fixup_tplg_name(struct snd_sof_dev *sdev,
 				   const char *dmic_str)
 {
 	const char *tplg_filename = NULL;
-	char *filename;
-	char *split_ext;
+	char *filename, *tmp;
+	const char *split_ext;
 
-	filename = devm_kstrdup(sdev->dev, sof_tplg_filename, GFP_KERNEL);
+	filename = kstrdup(sof_tplg_filename, GFP_KERNEL);
 	if (!filename)
 		return NULL;
 
 	/* this assumes a .tplg extension */
-	split_ext = strsep(&filename, ".");
-	if (split_ext) {
+	tmp = filename;
+	split_ext = strsep(&tmp, ".");
+	if (split_ext)
 		tplg_filename = devm_kasprintf(sdev->dev, GFP_KERNEL,
 					       "%s%s%s.tplg",
 					       split_ext, idisp_str, dmic_str);
-		if (!tplg_filename)
-			return NULL;
-	}
+	kfree(filename);
+
 	return tplg_filename;
 }
 
+static int dmic_topology_fixup(struct snd_sof_dev *sdev,
+			       const char **tplg_filename,
+			       const char *idisp_str,
+			       int *dmic_found)
+{
+	const char *default_tplg_filename = *tplg_filename;
+	const char *fixed_tplg_filename;
+	const char *dmic_str;
+	int dmic_num;
+
+	/* first check NHLT for DMICs */
+	dmic_num = check_nhlt_dmic(sdev);
+
+	/* allow for module parameter override */
+	if (hda_dmic_num != -1) {
+		dev_dbg(sdev->dev,
+			"overriding DMICs detected in NHLT tables %d by kernel param %d\n",
+			dmic_num, hda_dmic_num);
+		dmic_num = hda_dmic_num;
+	}
+
+	switch (dmic_num) {
+	case 1:
+		dmic_str = "-1ch";
+		break;
+	case 2:
+		dmic_str = "-2ch";
+		break;
+	case 3:
+		dmic_str = "-3ch";
+		break;
+	case 4:
+		dmic_str = "-4ch";
+		break;
+	default:
+		dmic_num = 0;
+		dmic_str = "";
+		break;
+	}
+
+	fixed_tplg_filename = fixup_tplg_name(sdev, default_tplg_filename,
+					      idisp_str, dmic_str);
+	if (!fixed_tplg_filename)
+		return -ENOMEM;
+
+	dev_info(sdev->dev, "DMICs detected in NHLT tables: %d\n", dmic_num);
+	*dmic_found = dmic_num;
+	*tplg_filename = fixed_tplg_filename;
+
+	return 0;
+}
 #endif
 
 static int hda_init_caps(struct snd_sof_dev *sdev)
@@ -809,13 +812,9 @@ int hda_dsp_probe(struct snd_sof_dev *sdev)
 	sdev->mailbox_bar = HDA_DSP_BAR;
 
 	/* allow 64bit DMA address if supported by H/W */
-	if (!dma_set_mask(&pci->dev, DMA_BIT_MASK(64))) {
-		dev_dbg(sdev->dev, "DMA mask is 64 bit\n");
-		dma_set_coherent_mask(&pci->dev, DMA_BIT_MASK(64));
-	} else {
+	if (dma_set_mask_and_coherent(&pci->dev, DMA_BIT_MASK(64))) {
 		dev_dbg(sdev->dev, "DMA mask is 32 bit\n");
-		dma_set_mask(&pci->dev, DMA_BIT_MASK(32));
-		dma_set_coherent_mask(&pci->dev, DMA_BIT_MASK(32));
+		dma_set_mask_and_coherent(&pci->dev, DMA_BIT_MASK(32));
 	}
 
 	/* init streams */
@@ -932,7 +931,7 @@ int hda_dsp_remove(struct snd_sof_dev *sdev)
 
 	/* disable cores */
 	if (chip)
-		hda_dsp_core_reset_power_down(sdev, chip->host_managed_cores_mask);
+		snd_sof_dsp_core_power_down(sdev, chip->host_managed_cores_mask);
 
 	/* disable DSP */
 	snd_sof_dsp_update_bits(sdev, HDA_DSP_PP_BAR, SOF_HDA_REG_PP_PPCTL,
@@ -967,9 +966,9 @@ static int hda_generic_machine_select(struct snd_sof_dev *sdev)
 	struct snd_sof_pdata *pdata = sdev->pdata;
 	const char *tplg_filename;
 	const char *idisp_str;
-	const char *dmic_str;
 	int dmic_num = 0;
 	int codec_num = 0;
+	int ret;
 	int i;
 
 	/* codec detection */
@@ -994,10 +993,6 @@ static int hda_generic_machine_select(struct snd_sof_dev *sdev)
 		if (!pdata->machine && codec_num <= 2) {
 			hda_mach = snd_soc_acpi_intel_hda_machines;
 
-			/* topology: use the info from hda_machines */
-			pdata->tplg_filename =
-				hda_mach->sof_tplg_filename;
-
 			dev_info(bus->dev, "using HDA machine driver %s now\n",
 				 hda_mach->drv_name);
 
@@ -1006,42 +1001,13 @@ static int hda_generic_machine_select(struct snd_sof_dev *sdev)
 			else
 				idisp_str = "";
 
-			/* first check NHLT for DMICs */
-			dmic_num = check_nhlt_dmic(sdev);
+			/* topology: use the info from hda_machines */
+			tplg_filename = hda_mach->sof_tplg_filename;
+			ret = dmic_topology_fixup(sdev, &tplg_filename, idisp_str, &dmic_num);
+			if (ret < 0)
+				return ret;
 
-			/* allow for module parameter override */
-			if (hda_dmic_num != -1)
-				dmic_num = hda_dmic_num;
-
-			switch (dmic_num) {
-			case 1:
-				dmic_str = "-1ch";
-				break;
-			case 2:
-				dmic_str = "-2ch";
-				break;
-			case 3:
-				dmic_str = "-3ch";
-				break;
-			case 4:
-				dmic_str = "-4ch";
-				break;
-			default:
-				dmic_num = 0;
-				dmic_str = "";
-				break;
-			}
-
-			tplg_filename = pdata->tplg_filename;
-			tplg_filename = fixup_tplg_name(sdev, tplg_filename,
-							idisp_str, dmic_str);
-			if (!tplg_filename)
-				return -EINVAL;
-
-			dev_info(bus->dev,
-				 "DMICs detected in NHLT tables: %d\n",
-				 dmic_num);
-
+			hda_mach->mach_params.dmic_num = dmic_num;
 			pdata->machine = hda_mach;
 			pdata->tplg_filename = tplg_filename;
 		}
@@ -1053,7 +1019,6 @@ static int hda_generic_machine_select(struct snd_sof_dev *sdev)
 			&pdata->machine->mach_params;
 		mach_params->codec_mask = bus->codec_mask;
 		mach_params->common_hdmi_codec_drv = hda_codec_use_common_hdmi;
-		mach_params->dmic_num = dmic_num;
 	}
 
 	return 0;
@@ -1075,32 +1040,63 @@ static bool link_slaves_found(struct snd_sof_dev *sdev,
 	struct sdw_intel_slave_id *ids = sdw->ids;
 	int num_slaves = sdw->num_slaves;
 	unsigned int part_id, link_id, unique_id, mfg_id;
-	int i, j;
+	int i, j, k;
 
 	for (i = 0; i < link->num_adr; i++) {
 		u64 adr = link->adr_d[i].adr;
+		int reported_part_count = 0;
 
 		mfg_id = SDW_MFG_ID(adr);
 		part_id = SDW_PART_ID(adr);
 		link_id = SDW_DISCO_LINK_ID(adr);
+
 		for (j = 0; j < num_slaves; j++) {
+			/* find out how many identical parts were reported on that link */
+			if (ids[j].link_id == link_id &&
+			    ids[j].id.part_id == part_id &&
+			    ids[j].id.mfg_id == mfg_id)
+				reported_part_count++;
+		}
+
+		for (j = 0; j < num_slaves; j++) {
+			int expected_part_count = 0;
+
 			if (ids[j].link_id != link_id ||
 			    ids[j].id.part_id != part_id ||
 			    ids[j].id.mfg_id != mfg_id)
 				continue;
-			/*
-			 * we have to check unique id
-			 * if there is more than one
-			 * Slave on the link
-			 */
-			unique_id = SDW_UNIQUE_ID(adr);
-			if (link->num_adr == 1 ||
-			    ids[j].id.unique_id == SDW_IGNORED_UNIQUE_ID ||
-			    ids[j].id.unique_id == unique_id) {
-				dev_dbg(bus->dev,
-					"found %x at link %d\n",
-					part_id, link_id);
-				break;
+
+			/* find out how many identical parts are expected */
+			for (k = 0; k < link->num_adr; k++) {
+				u64 adr2 = link->adr_d[i].adr;
+				unsigned int part_id2, link_id2, mfg_id2;
+
+				mfg_id2 = SDW_MFG_ID(adr2);
+				part_id2 = SDW_PART_ID(adr2);
+				link_id2 = SDW_DISCO_LINK_ID(adr2);
+
+				if (link_id2 == link_id &&
+				    part_id2 == part_id &&
+				    mfg_id2 == mfg_id)
+					expected_part_count++;
+			}
+
+			if (reported_part_count == expected_part_count) {
+				/*
+				 * we have to check unique id
+				 * if there is more than one
+				 * Slave on the link
+				 */
+				unique_id = SDW_UNIQUE_ID(adr);
+				if (reported_part_count == 1 ||
+				    ids[j].id.unique_id == unique_id) {
+					dev_dbg(bus->dev, "found %x at link %d\n",
+						part_id, link_id);
+					break;
+				}
+			} else {
+				dev_dbg(bus->dev, "part %x reported %d expected %d on link %d, skipping\n",
+					part_id, reported_part_count, expected_part_count, link_id);
 			}
 		}
 		if (j == num_slaves) {
@@ -1117,7 +1113,6 @@ static int hda_sdw_machine_select(struct snd_sof_dev *sdev)
 {
 	struct snd_sof_pdata *pdata = sdev->pdata;
 	const struct snd_soc_acpi_link_adr *link;
-	struct hdac_bus *bus = sof_to_bus(sdev);
 	struct snd_soc_acpi_mach *mach;
 	struct sof_intel_hda_dev *hdev;
 	u32 link_mask;
@@ -1165,16 +1160,42 @@ static int hda_sdw_machine_select(struct snd_sof_dev *sdev)
 				break;
 		}
 		if (mach && mach->link_mask) {
-			dev_dbg(bus->dev,
-				"SoundWire machine driver %s topology %s\n",
-				mach->drv_name,
-				mach->sof_tplg_filename);
+			int dmic_num = 0;
+
 			pdata->machine = mach;
 			mach->mach_params.links = mach->links;
 			mach->mach_params.link_mask = mach->link_mask;
 			mach->mach_params.platform = dev_name(sdev->dev);
-			pdata->fw_filename = mach->sof_fw_filename;
+			if (mach->sof_fw_filename)
+				pdata->fw_filename = mach->sof_fw_filename;
+			else
+				pdata->fw_filename = pdata->desc->default_fw_filename;
 			pdata->tplg_filename = mach->sof_tplg_filename;
+
+			/*
+			 * DMICs use up to 4 pins and are typically pin-muxed with SoundWire
+			 * link 2 and 3, thus we only try to enable dmics if all conditions
+			 * are true:
+			 * a) link 2 and 3 are not used by SoundWire
+			 * b) the NHLT table reports the presence of microphones
+			 */
+			if (!(mach->link_mask & GENMASK(3, 2))) {
+				const char *tplg_filename = mach->sof_tplg_filename;
+				int ret;
+
+				ret = dmic_topology_fixup(sdev, &tplg_filename, "", &dmic_num);
+
+				if (ret < 0)
+					return ret;
+
+				pdata->tplg_filename = tplg_filename;
+			}
+			mach->mach_params.dmic_num = dmic_num;
+
+			dev_dbg(sdev->dev,
+				"SoundWire machine driver %s topology %s\n",
+				mach->drv_name,
+				pdata->tplg_filename);
 		} else {
 			dev_info(sdev->dev,
 				 "No SoundWire machine driver found\n");

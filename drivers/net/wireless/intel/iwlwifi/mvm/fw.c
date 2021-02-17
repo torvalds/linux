@@ -1090,20 +1090,22 @@ static void iwl_mvm_tas_init(struct iwl_mvm *mvm)
 
 static u8 iwl_mvm_eval_dsm_indonesia_5g2(struct iwl_mvm *mvm)
 {
+	u8 value;
+
 	int ret = iwl_acpi_get_dsm_u8((&mvm->fwrt)->dev, 0,
-				      DSM_FUNC_ENABLE_INDONESIA_5G2);
+				      DSM_FUNC_ENABLE_INDONESIA_5G2, &value);
 
 	if (ret < 0)
 		IWL_DEBUG_RADIO(mvm,
 				"Failed to evaluate DSM function ENABLE_INDONESIA_5G2, ret=%d\n",
 				ret);
 
-	else if (ret >= DSM_VALUE_INDONESIA_MAX)
+	else if (value >= DSM_VALUE_INDONESIA_MAX)
 		IWL_DEBUG_RADIO(mvm,
-				"DSM function ENABLE_INDONESIA_5G2 return invalid value, ret=%d\n",
-				ret);
+				"DSM function ENABLE_INDONESIA_5G2 return invalid value, value=%d\n",
+				value);
 
-	else if (ret == DSM_VALUE_INDONESIA_ENABLE) {
+	else if (value == DSM_VALUE_INDONESIA_ENABLE) {
 		IWL_DEBUG_RADIO(mvm,
 				"Evaluated DSM function ENABLE_INDONESIA_5G2: Enabling 5g2\n");
 		return DSM_VALUE_INDONESIA_ENABLE;
@@ -1114,25 +1116,26 @@ static u8 iwl_mvm_eval_dsm_indonesia_5g2(struct iwl_mvm *mvm)
 
 static u8 iwl_mvm_eval_dsm_disable_srd(struct iwl_mvm *mvm)
 {
+	u8 value;
 	int ret = iwl_acpi_get_dsm_u8((&mvm->fwrt)->dev, 0,
-				      DSM_FUNC_DISABLE_SRD);
+				      DSM_FUNC_DISABLE_SRD, &value);
 
 	if (ret < 0)
 		IWL_DEBUG_RADIO(mvm,
 				"Failed to evaluate DSM function DISABLE_SRD, ret=%d\n",
 				ret);
 
-	else if (ret >= DSM_VALUE_SRD_MAX)
+	else if (value >= DSM_VALUE_SRD_MAX)
 		IWL_DEBUG_RADIO(mvm,
-				"DSM function DISABLE_SRD return invalid value, ret=%d\n",
-				ret);
+				"DSM function DISABLE_SRD return invalid value, value=%d\n",
+				value);
 
-	else if (ret == DSM_VALUE_SRD_PASSIVE) {
+	else if (value == DSM_VALUE_SRD_PASSIVE) {
 		IWL_DEBUG_RADIO(mvm,
 				"Evaluated DSM function DISABLE_SRD: setting SRD to passive\n");
 		return DSM_VALUE_SRD_PASSIVE;
 
-	} else if (ret == DSM_VALUE_SRD_DISABLE) {
+	} else if (value == DSM_VALUE_SRD_DISABLE) {
 		IWL_DEBUG_RADIO(mvm,
 				"Evaluated DSM function DISABLE_SRD: disabling SRD\n");
 		return DSM_VALUE_SRD_DISABLE;

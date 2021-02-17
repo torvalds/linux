@@ -34,61 +34,6 @@ struct storage {
 	struct bpf_spin_lock lock;
 };
 
-/* Copies an rm binary to a temp file. dest is a mkstemp template */
-static int copy_rm(char *dest)
-{
-	int fd_in, fd_out = -1, ret = 0;
-	struct stat stat;
-	char *buf = NULL;
-
-	fd_in = open("/bin/rm", O_RDONLY);
-	if (fd_in < 0)
-		return -errno;
-
-	fd_out = mkstemp(dest);
-	if (fd_out < 0) {
-		ret = -errno;
-		goto out;
-	}
-
-	ret = fstat(fd_in, &stat);
-	if (ret == -1) {
-		ret = -errno;
-		goto out;
-	}
-
-	buf = malloc(stat.st_blksize);
-	if (!buf) {
-		ret = -errno;
-		goto out;
-	}
-
-	while (ret = read(fd_in, buf, stat.st_blksize), ret > 0) {
-		ret = write(fd_out, buf, ret);
-		if (ret < 0) {
-			ret = -errno;
-			goto out;
-
-		}
-	}
-	if (ret < 0) {
-		ret = -errno;
-		goto out;
-
-	}
-
-	/* Set executable permission on the copied file */
-	ret = chmod(dest, 0100);
-	if (ret == -1)
-		ret = -errno;
-
-out:
-	free(buf);
-	close(fd_in);
-	close(fd_out);
-	return ret;
-}
-
 /* Fork and exec the provided rm binary and return the exit code of the
  * forked process and its pid.
  */
@@ -168,9 +113,11 @@ static bool check_syscall_operations(int map_fd, int obj_fd)
 
 void test_test_local_storage(void)
 {
-	char tmp_exec_path[PATH_MAX] = "/tmp/copy_of_rmXXXXXX";
+	char tmp_dir_path[64] = "/tmp/local_storageXXXXXX";
 	int err, serv_sk = -1, task_fd = -1, rm_fd = -1;
 	struct local_storage *skel = NULL;
+	char tmp_exec_path[64];
+	char cmd[256];
 
 	skel = local_storage__open_and_load();
 	if (CHECK(!skel, "skel_load", "lsm skeleton failed\n"))
@@ -189,18 +136,24 @@ void test_test_local_storage(void)
 				      task_fd))
 		goto close_prog;
 
-	err = copy_rm(tmp_exec_path);
-	if (CHECK(err < 0, "copy_rm", "err %d errno %d\n", err, errno))
+	if (CHECK(!mkdtemp(tmp_dir_path), "mkdtemp",
+		  "unable to create tmpdir: %d\n", errno))
 		goto close_prog;
+
+	snprintf(tmp_exec_path, sizeof(tmp_exec_path), "%s/copy_of_rm",
+		 tmp_dir_path);
+	snprintf(cmd, sizeof(cmd), "cp /bin/rm %s", tmp_exec_path);
+	if (CHECK_FAIL(system(cmd)))
+		goto close_prog_rmdir;
 
 	rm_fd = open(tmp_exec_path, O_RDONLY);
 	if (CHECK(rm_fd < 0, "open", "failed to open %s err:%d, errno:%d",
 		  tmp_exec_path, rm_fd, errno))
-		goto close_prog;
+		goto close_prog_rmdir;
 
 	if (!check_syscall_operations(bpf_map__fd(skel->maps.inode_storage_map),
 				      rm_fd))
-		goto close_prog;
+		goto close_prog_rmdir;
 
 	/* Sets skel->bss->monitored_pid to the pid of the forked child
 	 * forks a child process that executes tmp_exec_path and tries to
@@ -209,33 +162,36 @@ void test_test_local_storage(void)
 	 */
 	err = run_self_unlink(&skel->bss->monitored_pid, tmp_exec_path);
 	if (CHECK(err != EPERM, "run_self_unlink", "err %d want EPERM\n", err))
-		goto close_prog_unlink;
+		goto close_prog_rmdir;
 
 	/* Set the process being monitored to be the current process */
 	skel->bss->monitored_pid = getpid();
 
-	/* Remove the temporary created executable */
-	err = unlink(tmp_exec_path);
-	if (CHECK(err != 0, "unlink", "unable to unlink %s: %d", tmp_exec_path,
-		  errno))
-		goto close_prog_unlink;
+	/* Move copy_of_rm to a new location so that it triggers the
+	 * inode_rename LSM hook with a new_dentry that has a NULL inode ptr.
+	 */
+	snprintf(cmd, sizeof(cmd), "mv %s/copy_of_rm %s/check_null_ptr",
+		 tmp_dir_path, tmp_dir_path);
+	if (CHECK_FAIL(system(cmd)))
+		goto close_prog_rmdir;
 
 	CHECK(skel->data->inode_storage_result != 0, "inode_storage_result",
 	      "inode_local_storage not set\n");
 
 	serv_sk = start_server(AF_INET6, SOCK_STREAM, NULL, 0, 0);
 	if (CHECK(serv_sk < 0, "start_server", "failed to start server\n"))
-		goto close_prog;
+		goto close_prog_rmdir;
 
 	CHECK(skel->data->sk_storage_result != 0, "sk_storage_result",
 	      "sk_local_storage not set\n");
 
 	if (!check_syscall_operations(bpf_map__fd(skel->maps.sk_storage_map),
 				      serv_sk))
-		goto close_prog;
+		goto close_prog_rmdir;
 
-close_prog_unlink:
-	unlink(tmp_exec_path);
+close_prog_rmdir:
+	snprintf(cmd, sizeof(cmd), "rm -rf %s", tmp_dir_path);
+	system(cmd);
 close_prog:
 	close(serv_sk);
 	close(rm_fd);

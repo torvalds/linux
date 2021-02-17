@@ -1551,7 +1551,7 @@ static struct snd_soc_dai_driver da7213_dai = {
 		.formats = DA7213_FORMATS,
 	},
 	.ops = &da7213_dai_ops,
-	.symmetric_rates = 1,
+	.symmetric_rate = 1,
 };
 
 static int da7213_set_auto_pll(struct snd_soc_component *component, bool enable)

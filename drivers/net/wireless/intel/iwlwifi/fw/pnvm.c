@@ -224,40 +224,46 @@ static int iwl_pnvm_parse(struct iwl_trans *trans, const u8 *data,
 int iwl_pnvm_load(struct iwl_trans *trans,
 		  struct iwl_notif_wait_data *notif_wait)
 {
-	const struct firmware *pnvm;
 	struct iwl_notification_wait pnvm_wait;
 	static const u16 ntf_cmds[] = { WIDE_ID(REGULATORY_AND_NVM_GROUP,
 						PNVM_INIT_COMPLETE_NTFY) };
-	char pnvm_name[64];
-	int ret;
 
 	/* if the SKU_ID is empty, there's nothing to do */
 	if (!trans->sku_id[0] && !trans->sku_id[1] && !trans->sku_id[2])
 		return 0;
 
-	/* if we already have it, nothing to do either */
-	if (trans->pnvm_loaded)
-		return 0;
+	/* load from disk only if we haven't done it (or tried) before */
+	if (!trans->pnvm_loaded) {
+		const struct firmware *pnvm;
+		char pnvm_name[64];
+		int ret;
 
-	/*
-	 * The prefix unfortunately includes a hyphen at the end, so
-	 * don't add the dot here...
-	 */
-	snprintf(pnvm_name, sizeof(pnvm_name), "%spnvm",
-		 trans->cfg->fw_name_pre);
+		/*
+		 * The prefix unfortunately includes a hyphen at the end, so
+		 * don't add the dot here...
+		 */
+		snprintf(pnvm_name, sizeof(pnvm_name), "%spnvm",
+			 trans->cfg->fw_name_pre);
 
-	/* ...but replace the hyphen with the dot here. */
-	if (strlen(trans->cfg->fw_name_pre) < sizeof(pnvm_name))
-		pnvm_name[strlen(trans->cfg->fw_name_pre) - 1] = '.';
+		/* ...but replace the hyphen with the dot here. */
+		if (strlen(trans->cfg->fw_name_pre) < sizeof(pnvm_name))
+			pnvm_name[strlen(trans->cfg->fw_name_pre) - 1] = '.';
 
-	ret = firmware_request_nowarn(&pnvm, pnvm_name, trans->dev);
-	if (ret) {
-		IWL_DEBUG_FW(trans, "PNVM file %s not found %d\n",
-			     pnvm_name, ret);
-	} else {
-		iwl_pnvm_parse(trans, pnvm->data, pnvm->size);
+		ret = firmware_request_nowarn(&pnvm, pnvm_name, trans->dev);
+		if (ret) {
+			IWL_DEBUG_FW(trans, "PNVM file %s not found %d\n",
+				     pnvm_name, ret);
+			/*
+			 * Pretend we've loaded it - at least we've tried and
+			 * couldn't load it at all, so there's no point in
+			 * trying again over and over.
+			 */
+			trans->pnvm_loaded = true;
+		} else {
+			iwl_pnvm_parse(trans, pnvm->data, pnvm->size);
 
-		release_firmware(pnvm);
+			release_firmware(pnvm);
+		}
 	}
 
 	iwl_init_notification_wait(notif_wait, &pnvm_wait,

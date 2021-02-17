@@ -167,6 +167,12 @@ static const struct rhashtable_params tuples_nat_ht_params = {
 	.min_size = 16 * 1024,
 };
 
+static bool
+mlx5_tc_ct_entry_has_nat(struct mlx5_ct_entry *entry)
+{
+	return !!(entry->tuple_nat_node.next);
+}
+
 static int
 mlx5_tc_ct_rule_to_tuple(struct mlx5_ct_tuple *tuple, struct flow_rule *rule)
 {
@@ -911,13 +917,13 @@ mlx5_tc_ct_block_flow_offload_add(struct mlx5_ct_ft *ft,
 err_insert:
 	mlx5_tc_ct_entry_del_rules(ct_priv, entry);
 err_rules:
-	rhashtable_remove_fast(&ct_priv->ct_tuples_nat_ht,
-			       &entry->tuple_nat_node, tuples_nat_ht_params);
+	if (mlx5_tc_ct_entry_has_nat(entry))
+		rhashtable_remove_fast(&ct_priv->ct_tuples_nat_ht,
+				       &entry->tuple_nat_node, tuples_nat_ht_params);
 err_tuple_nat:
-	if (entry->tuple_node.next)
-		rhashtable_remove_fast(&ct_priv->ct_tuples_ht,
-				       &entry->tuple_node,
-				       tuples_ht_params);
+	rhashtable_remove_fast(&ct_priv->ct_tuples_ht,
+			       &entry->tuple_node,
+			       tuples_ht_params);
 err_tuple:
 err_set:
 	kfree(entry);
@@ -932,7 +938,7 @@ mlx5_tc_ct_del_ft_entry(struct mlx5_tc_ct_priv *ct_priv,
 {
 	mlx5_tc_ct_entry_del_rules(ct_priv, entry);
 	mutex_lock(&ct_priv->shared_counter_lock);
-	if (entry->tuple_node.next)
+	if (mlx5_tc_ct_entry_has_nat(entry))
 		rhashtable_remove_fast(&ct_priv->ct_tuples_nat_ht,
 				       &entry->tuple_nat_node,
 				       tuples_nat_ht_params);

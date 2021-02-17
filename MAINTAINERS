@@ -2616,8 +2616,8 @@ S:	Maintained
 F:	drivers/power/reset/keystone-reset.c
 
 ARM/TEXAS INSTRUMENTS K3 ARCHITECTURE
-M:	Tero Kristo <t-kristo@ti.com>
 M:	Nishanth Menon <nm@ti.com>
+M:	Tero Kristo <kristo@kernel.org>
 L:	linux-arm-kernel@lists.infradead.org (moderated for non-subscribers)
 S:	Supported
 F:	Documentation/devicetree/bindings/arm/ti/k3.yaml
@@ -3239,6 +3239,7 @@ L:	netdev@vger.kernel.org
 S:	Supported
 W:	http://sourceforge.net/projects/bonding/
 F:	drivers/net/bonding/
+F:	include/net/bonding.h
 F:	include/uapi/linux/if_bonding.h
 
 BOSCH SENSORTEC BMA400 ACCELEROMETER IIO DRIVER
@@ -3334,7 +3335,7 @@ F:	arch/riscv/net/
 X:	arch/riscv/net/bpf_jit_comp64.c
 
 BPF JIT for RISC-V (64-bit)
-M:	Björn Töpel <bjorn.topel@gmail.com>
+M:	Björn Töpel <bjorn@kernel.org>
 L:	netdev@vger.kernel.org
 L:	bpf@vger.kernel.org
 S:	Maintained
@@ -3411,7 +3412,7 @@ F:	Documentation/devicetree/bindings/pci/brcm,stb-pcie.yaml
 F:	drivers/pci/controller/pcie-brcmstb.c
 F:	drivers/staging/vc04_services
 N:	bcm2711
-N:	bcm2835
+N:	bcm283*
 
 BROADCOM BCM281XX/BCM11XXX/BCM216XX ARM ARCHITECTURE
 M:	Florian Fainelli <f.fainelli@gmail.com>
@@ -3879,7 +3880,7 @@ F:	Documentation/devicetree/bindings/mtd/cadence-nand-controller.txt
 F:	drivers/mtd/nand/raw/cadence-nand-controller.c
 
 CADENCE USB3 DRD IP DRIVER
-M:	Peter Chen <peter.chen@nxp.com>
+M:	Peter Chen <peter.chen@kernel.org>
 M:	Pawel Laszczak <pawell@cadence.com>
 R:	Roger Quadros <rogerq@kernel.org>
 R:	Aswath Govindraju <a-govindraju@ti.com>
@@ -4161,7 +4162,7 @@ S:	Maintained
 F:	Documentation/translations/zh_CN/
 
 CHIPIDEA USB HIGH SPEED DUAL ROLE CONTROLLER
-M:	Peter Chen <Peter.Chen@nxp.com>
+M:	Peter Chen <peter.chen@kernel.org>
 L:	linux-usb@vger.kernel.org
 S:	Maintained
 T:	git git://git.kernel.org/pub/scm/linux/kernel/git/peter.chen/usb.git
@@ -4303,7 +4304,7 @@ S:	Maintained
 F:	.clang-format
 
 CLANG/LLVM BUILD SUPPORT
-M:	Nathan Chancellor <natechancellor@gmail.com>
+M:	Nathan Chancellor <nathan@kernel.org>
 M:	Nick Desaulniers <ndesaulniers@google.com>
 L:	clang-built-linux@googlegroups.com
 S:	Supported
@@ -4311,7 +4312,9 @@ W:	https://clangbuiltlinux.github.io/
 B:	https://github.com/ClangBuiltLinux/linux/issues
 C:	irc://chat.freenode.net/clangbuiltlinux
 F:	Documentation/kbuild/llvm.rst
+F:	include/linux/compiler-clang.h
 F:	scripts/clang-tools/
+F:	scripts/clang-version.sh
 F:	scripts/lld-version.sh
 K:	\b(?i:clang|llvm)\b
 
@@ -6471,9 +6474,9 @@ S:	Maintained
 F:	drivers/edac/skx_*.[ch]
 
 EDAC-TI
-M:	Tero Kristo <t-kristo@ti.com>
+M:	Tero Kristo <kristo@kernel.org>
 L:	linux-edac@vger.kernel.org
-S:	Maintained
+S:	Odd Fixes
 F:	drivers/edac/ti_edac.c
 
 EDIROL UA-101/UA-1000 DRIVER
@@ -8431,11 +8434,8 @@ F:	drivers/i3c/
 F:	include/linux/i3c/
 
 IA64 (Itanium) PLATFORM
-M:	Tony Luck <tony.luck@intel.com>
-M:	Fenghua Yu <fenghua.yu@intel.com>
 L:	linux-ia64@vger.kernel.org
-S:	Odd Fixes
-T:	git git://git.kernel.org/pub/scm/linux/kernel/git/aegl/linux.git
+S:	Orphan
 F:	Documentation/ia64/
 F:	arch/ia64/
 
@@ -12413,6 +12413,7 @@ F:	tools/testing/selftests/net/ipsec.c
 NETWORKING [IPv4/IPv6]
 M:	"David S. Miller" <davem@davemloft.net>
 M:	Hideaki YOSHIFUJI <yoshfuji@linux-ipv6.org>
+M:	David Ahern <dsahern@kernel.org>
 L:	netdev@vger.kernel.org
 S:	Maintained
 T:	git git://git.kernel.org/pub/scm/linux/kernel/git/netdev/net.git
@@ -17571,7 +17572,7 @@ F:	include/linux/dma/k3-psil.h
 
 TEXAS INSTRUMENTS' SYSTEM CONTROL INTERFACE (TISCI) PROTOCOL DRIVER
 M:	Nishanth Menon <nm@ti.com>
-M:	Tero Kristo <t-kristo@ti.com>
+M:	Tero Kristo <kristo@kernel.org>
 M:	Santosh Shilimkar <ssantosh@kernel.org>
 L:	linux-arm-kernel@lists.infradead.org
 S:	Maintained
@@ -17715,9 +17716,9 @@ S:	Maintained
 F:	drivers/clk/clk-cdce706.c
 
 TI CLOCK DRIVER
-M:	Tero Kristo <t-kristo@ti.com>
+M:	Tero Kristo <kristo@kernel.org>
 L:	linux-omap@vger.kernel.org
-S:	Maintained
+S:	Odd Fixes
 F:	drivers/clk/ti/
 F:	include/linux/clk/ti.h
 
@@ -18420,7 +18421,7 @@ F:	Documentation/usb/ohci.rst
 F:	drivers/usb/host/ohci*
 
 USB OTG FSM (Finite State Machine)
-M:	Peter Chen <Peter.Chen@nxp.com>
+M:	Peter Chen <peter.chen@kernel.org>
 L:	linux-usb@vger.kernel.org
 S:	Maintained
 T:	git git://git.kernel.org/pub/scm/linux/kernel/git/peter.chen/usb.git
@@ -19424,7 +19425,7 @@ F:	drivers/net/ethernet/*/*/*xdp*
 K:	(?:\b|_)xdp(?:\b|_)
 
 XDP SOCKETS (AF_XDP)
-M:	Björn Töpel <bjorn.topel@intel.com>
+M:	Björn Töpel <bjorn@kernel.org>
 M:	Magnus Karlsson <magnus.karlsson@intel.com>
 R:	Jonathan Lemon <jonathan.lemon@gmail.com>
 L:	netdev@vger.kernel.org

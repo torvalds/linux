@@ -5235,9 +5235,8 @@ static void nf_tables_set_elem_destroy(const struct nft_ctx *ctx,
 	kfree(elem);
 }
 
-static int nft_set_elem_expr_clone(const struct nft_ctx *ctx,
-				   struct nft_set *set,
-				   struct nft_expr *expr_array[])
+int nft_set_elem_expr_clone(const struct nft_ctx *ctx, struct nft_set *set,
+			    struct nft_expr *expr_array[])
 {
 	struct nft_expr *expr;
 	int err, i, k;

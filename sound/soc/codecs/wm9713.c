@@ -1134,7 +1134,7 @@ static struct snd_soc_dai_driver wm9713_dai[] = {
 		.rates = WM9713_PCM_RATES,
 		.formats = WM9713_PCM_FORMATS,},
 	.ops = &wm9713_dai_ops_voice,
-	.symmetric_rates = 1,
+	.symmetric_rate = 1,
 	},
 };
 

@@ -4014,7 +4014,8 @@ static void intel_dp_enable_port(struct intel_dp *intel_dp,
 	intel_de_posting_read(dev_priv, intel_dp->output_reg);
 }
 
-void intel_dp_configure_protocol_converter(struct intel_dp *intel_dp)
+void intel_dp_configure_protocol_converter(struct intel_dp *intel_dp,
+					   const struct intel_crtc_state *crtc_state)
 {
 	struct drm_i915_private *i915 = dp_to_i915(intel_dp);
 	u8 tmp;
@@ -4033,8 +4034,8 @@ void intel_dp_configure_protocol_converter(struct intel_dp *intel_dp)
 		drm_dbg_kms(&i915->drm, "Failed to set protocol converter HDMI mode to %s\n",
 			    enableddisabled(intel_dp->has_hdmi_sink));
 
-	tmp = intel_dp->dfp.ycbcr_444_to_420 ?
-		DP_CONVERSION_TO_YCBCR420_ENABLE : 0;
+	tmp = crtc_state->output_format == INTEL_OUTPUT_FORMAT_YCBCR444 &&
+		intel_dp->dfp.ycbcr_444_to_420 ? DP_CONVERSION_TO_YCBCR420_ENABLE : 0;
 
 	if (drm_dp_dpcd_writeb(&intel_dp->aux,
 			       DP_PROTOCOL_CONVERTER_CONTROL_1, tmp) != 1)
@@ -4088,7 +4089,7 @@ static void intel_enable_dp(struct intel_atomic_state *state,
 	}
 
 	intel_dp_set_power(intel_dp, DP_SET_POWER_D0);
-	intel_dp_configure_protocol_converter(intel_dp);
+	intel_dp_configure_protocol_converter(intel_dp, pipe_config);
 	intel_dp_start_link_train(intel_dp, pipe_config);
 	intel_dp_stop_link_train(intel_dp, pipe_config);
 
@@ -4634,24 +4635,6 @@ ivb_cpu_edp_set_signal_levels(struct intel_dp *intel_dp,
 
 	intel_de_write(dev_priv, intel_dp->output_reg, intel_dp->DP);
 	intel_de_posting_read(dev_priv, intel_dp->output_reg);
-}
-
-void intel_dp_set_signal_levels(struct intel_dp *intel_dp,
-				const struct intel_crtc_state *crtc_state)
-{
-	struct drm_i915_private *dev_priv = dp_to_i915(intel_dp);
-	u8 train_set = intel_dp->train_set[0];
-
-	drm_dbg_kms(&dev_priv->drm, "Using vswing level %d%s\n",
-		    train_set & DP_TRAIN_VOLTAGE_SWING_MASK,
-		    train_set & DP_TRAIN_MAX_SWING_REACHED ? " (max)" : "");
-	drm_dbg_kms(&dev_priv->drm, "Using pre-emphasis level %d%s\n",
-		    (train_set & DP_TRAIN_PRE_EMPHASIS_MASK) >>
-		    DP_TRAIN_PRE_EMPHASIS_SHIFT,
-		    train_set & DP_TRAIN_MAX_PRE_EMPHASIS_REACHED ?
-		    " (max)" : "");
-
-	intel_dp->set_signal_levels(intel_dp, crtc_state);
 }
 
 void
@@ -5702,7 +5685,7 @@ static void intel_dp_process_phy_request(struct intel_dp *intel_dp,
 
 	intel_dp_autotest_phy_ddi_disable(intel_dp, crtc_state);
 
-	intel_dp_set_signal_levels(intel_dp, crtc_state);
+	intel_dp_set_signal_levels(intel_dp, crtc_state, DP_PHY_DPRX);
 
 	intel_dp_phy_pattern_update(intel_dp, crtc_state);
 

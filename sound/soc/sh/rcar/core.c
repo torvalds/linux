@@ -1320,8 +1320,8 @@ static void __rsnd_dai_probe(struct rsnd_priv *priv,
 
 	if (rsnd_ssi_is_pin_sharing(io_capture) ||
 	    rsnd_ssi_is_pin_sharing(io_playback)) {
-		/* should have symmetric_rates if pin sharing */
-		drv->symmetric_rates = 1;
+		/* should have symmetric_rate if pin sharing */
+		drv->symmetric_rate = 1;
 	}
 
 	dev_dbg(dev, "%s (%s/%s)\n", rdai->name,

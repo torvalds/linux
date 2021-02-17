@@ -155,6 +155,22 @@ struct snd_soc_acpi_mach  snd_soc_acpi_intel_baytrail_machines[] = {
 		.sof_tplg_filename = "sof-byt-rt5651.tplg",
 	},
 	{
+		.id = "WM510204",
+		.drv_name = "bytcr_wm5102",
+		.fw_filename = "intel/fw_sst_0f28.bin",
+		.board = "bytcr_wm5102",
+		.sof_fw_filename = "sof-byt.ri",
+		.sof_tplg_filename = "sof-byt-wm5102.tplg",
+	},
+	{
+		.id = "WM510205",
+		.drv_name = "bytcr_wm5102",
+		.fw_filename = "intel/fw_sst_0f28.bin",
+		.board = "bytcr_wm5102",
+		.sof_fw_filename = "sof-byt.ri",
+		.sof_tplg_filename = "sof-byt-wm5102.tplg",
+	},
+	{
 		.id = "DLGS7212",
 		.drv_name = "bytcht_da7213",
 		.fw_filename = "intel/fw_sst_0f28.bin",
@@ -233,6 +249,3 @@ struct snd_soc_acpi_mach  snd_soc_acpi_intel_baytrail_machines[] = {
 	{},
 };
 EXPORT_SYMBOL_GPL(snd_soc_acpi_intel_baytrail_machines);
-
-MODULE_LICENSE("GPL v2");
-MODULE_DESCRIPTION("Intel Common ACPI Match module");

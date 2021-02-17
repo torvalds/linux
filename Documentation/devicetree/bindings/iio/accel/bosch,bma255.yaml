@@ -16,8 +16,8 @@ description:
 properties:
   compatible:
     enum:
-      - bosch,bmc150
-      - bosch,bmi055
+      - bosch,bmc150_accel
+      - bosch,bmi055_accel
       - bosch,bma255
       - bosch,bma250e
       - bosch,bma222
