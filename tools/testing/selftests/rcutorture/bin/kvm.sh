@@ -405,7 +405,7 @@ echo Results directory: $resdir/$ds
 echo $scriptname $args
 touch $resdir/$ds/log
 echo $scriptname $args >> $resdir/$ds/log
-echo ${TORTURE_SUITE} > $resdir/$ds/TORTURE_SUITE
+echo ${TORTURE_SUITE} > $resdir/$ds/torture_suite
 echo Build directory: `pwd` > $resdir/$ds/testid.txt
 if test -d .git
 then
