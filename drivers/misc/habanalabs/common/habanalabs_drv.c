@@ -27,13 +27,13 @@ static struct class *hl_class;
 static DEFINE_IDR(hl_devs_idr);
 static DEFINE_MUTEX(hl_devs_idr_lock);
 
-static int timeout_locked = 5;
+static int timeout_locked = 30;
 static int reset_on_lockup = 1;
 static int memory_scrub = 1;
 
 module_param(timeout_locked, int, 0444);
 MODULE_PARM_DESC(timeout_locked,
-	"Device lockup timeout in seconds (0 = disabled, default 5s)");
+	"Device lockup timeout in seconds (0 = disabled, default 30s)");
 
 module_param(reset_on_lockup, int, 0444);
 MODULE_PARM_DESC(reset_on_lockup,
