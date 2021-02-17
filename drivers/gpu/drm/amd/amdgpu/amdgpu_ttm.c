@@ -441,7 +441,8 @@ error:
 static bool amdgpu_mem_visible(struct amdgpu_device *adev,
 			       struct ttm_resource *mem)
 {
-	struct drm_mm_node *nodes = mem->mm_node;
+	uint64_t mem_size = (u64)mem->num_pages << PAGE_SHIFT;
+	struct amdgpu_res_cursor cursor;
 
 	if (mem->mem_type == TTM_PL_SYSTEM ||
 	    mem->mem_type == TTM_PL_TT)
@@ -449,12 +450,13 @@ static bool amdgpu_mem_visible(struct amdgpu_device *adev,
 	if (mem->mem_type != TTM_PL_VRAM)
 		return false;
 
+	amdgpu_res_first(mem, 0, mem_size, &cursor);
+
 	/* ttm_resource_ioremap only supports contiguous memory */
-	if (nodes->size != mem->num_pages)
+	if (cursor.size != mem_size)
 		return false;
 
-	return ((nodes->start + nodes->size) << PAGE_SHIFT)
-		<= adev->gmc.visible_vram_size;
+	return cursor.start + cursor.size <= adev->gmc.visible_vram_size;
 }
 
 /*
