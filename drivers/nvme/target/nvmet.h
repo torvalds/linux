@@ -208,11 +208,6 @@ struct nvmet_ctrl {
 	bool			pi_support;
 };
 
-struct nvmet_subsys_model {
-	struct rcu_head		rcuhead;
-	char			number[];
-};
-
 struct nvmet_subsys {
 	enum nvme_subsys_type	type;
 
@@ -242,7 +237,7 @@ struct nvmet_subsys {
 	struct config_group	namespaces_group;
 	struct config_group	allowed_hosts_group;
 
-	struct nvmet_subsys_model	__rcu *model;
+	char			*model_number;
 
 #ifdef CONFIG_NVME_TARGET_PASSTHRU
 	struct nvme_ctrl	*passthru_ctrl;
