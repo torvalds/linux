@@ -104,6 +104,23 @@ enum hl_mmu_page_table_location {
 
 #define HL_MAX_DCORES			4
 
+/*
+ * Reset Flags
+ *
+ * - HL_RESET_HARD
+ *       If set do hard reset to all engines. If not set reset just
+ *       compute/DMA engines.
+ *
+ * - HL_RESET_FROM_RESET_THREAD
+ *       Set if the caller is the hard-reset thread
+ *
+ * - HL_RESET_HEARTBEAT
+ *       Set if reset is due to heartbeat
+ */
+#define HL_RESET_HARD			(1 << 0)
+#define HL_RESET_FROM_RESET_THREAD	(1 << 1)
+#define HL_RESET_HEARTBEAT		(1 << 2)
+
 #define HL_MAX_SOBS_PER_MONITOR	8
 
 /**
@@ -2242,8 +2259,7 @@ int hl_device_init(struct hl_device *hdev, struct class *hclass);
 void hl_device_fini(struct hl_device *hdev);
 int hl_device_suspend(struct hl_device *hdev);
 int hl_device_resume(struct hl_device *hdev);
-int hl_device_reset(struct hl_device *hdev, bool hard_reset,
-			bool from_hard_reset_thread);
+int hl_device_reset(struct hl_device *hdev, u32 flags);
 void hl_hpriv_get(struct hl_fpriv *hpriv);
 int hl_hpriv_put(struct hl_fpriv *hpriv);
 int hl_device_set_frequency(struct hl_device *hdev, enum hl_pll_frequency freq);

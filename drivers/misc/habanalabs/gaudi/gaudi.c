@@ -7380,18 +7380,14 @@ static void gaudi_handle_eqe(struct hl_device *hdev,
 	case GAUDI_EVENT_MMU_DERR:
 		gaudi_print_irq_info(hdev, event_type, true);
 		gaudi_handle_ecc_event(hdev, event_type, &eq_entry->ecc_data);
-		if (hdev->hard_reset_on_fw_events)
-			hl_device_reset(hdev, true, false);
-		break;
+		goto reset_device;
 
 	case GAUDI_EVENT_GIC500:
 	case GAUDI_EVENT_AXI_ECC:
 	case GAUDI_EVENT_L2_RAM_ECC:
 	case GAUDI_EVENT_PLL0 ... GAUDI_EVENT_PLL17:
 		gaudi_print_irq_info(hdev, event_type, false);
-		if (hdev->hard_reset_on_fw_events)
-			hl_device_reset(hdev, true, false);
-		break;
+		goto reset_device;
 
 	case GAUDI_EVENT_HBM0_SPI_0:
 	case GAUDI_EVENT_HBM1_SPI_0:
@@ -7401,9 +7397,7 @@ static void gaudi_handle_eqe(struct hl_device *hdev,
 		gaudi_hbm_read_interrupts(hdev,
 				gaudi_hbm_event_to_dev(event_type),
 				&eq_entry->hbm_ecc_data);
-		if (hdev->hard_reset_on_fw_events)
-			hl_device_reset(hdev, true, false);
-		break;
+		goto reset_device;
 
 	case GAUDI_EVENT_HBM0_SPI_1:
 	case GAUDI_EVENT_HBM1_SPI_1:
@@ -7432,8 +7426,7 @@ static void gaudi_handle_eqe(struct hl_device *hdev,
 			dev_err(hdev->dev, "hard reset required due to %s\n",
 				gaudi_irq_map_table[event_type].name);
 
-			if (hdev->hard_reset_on_fw_events)
-				hl_device_reset(hdev, true, false);
+			goto reset_device;
 		} else {
 			hl_fw_unmask_irq(hdev, event_type);
 		}
@@ -7455,8 +7448,7 @@ static void gaudi_handle_eqe(struct hl_device *hdev,
 			dev_err(hdev->dev, "hard reset required due to %s\n",
 				gaudi_irq_map_table[event_type].name);
 
-			if (hdev->hard_reset_on_fw_events)
-				hl_device_reset(hdev, true, false);
+			goto reset_device;
 		} else {
 			hl_fw_unmask_irq(hdev, event_type);
 		}
@@ -7525,9 +7517,7 @@ static void gaudi_handle_eqe(struct hl_device *hdev,
 
 	case GAUDI_EVENT_RAZWI_OR_ADC_SW:
 		gaudi_print_irq_info(hdev, event_type, true);
-		if (hdev->hard_reset_on_fw_events)
-			hl_device_reset(hdev, true, false);
-		break;
+		goto reset_device;
 
 	case GAUDI_EVENT_TPC0_BMON_SPMU:
 	case GAUDI_EVENT_TPC1_BMON_SPMU:
@@ -7564,17 +7554,21 @@ static void gaudi_handle_eqe(struct hl_device *hdev,
 	case GAUDI_EVENT_PKT_QUEUE_OUT_SYNC:
 		gaudi_print_irq_info(hdev, event_type, false);
 		gaudi_print_out_of_sync_info(hdev, &eq_entry->pkt_sync_err);
-		if (hdev->hard_reset_on_fw_events)
-			hl_device_reset(hdev, true, false);
-		else
-			hl_fw_unmask_irq(hdev, event_type);
-		break;
+		goto reset_device;
 
 	default:
 		dev_err(hdev->dev, "Received invalid H/W interrupt %d\n",
 				event_type);
 		break;
 	}
+
+	return;
+
+reset_device:
+	if (hdev->hard_reset_on_fw_events)
+		hl_device_reset(hdev, HL_RESET_HARD);
+	else
+		hl_fw_unmask_irq(hdev, event_type);
 }
 
 static void *gaudi_get_events_stat(struct hl_device *hdev, bool aggregate,
@@ -7625,7 +7619,7 @@ static int gaudi_mmu_invalidate_cache(struct hl_device *hdev, bool is_hard,
 	if (rc) {
 		dev_err_ratelimited(hdev->dev,
 					"MMU cache invalidation timeout\n");
-		hl_device_reset(hdev, true, false);
+		hl_device_reset(hdev, HL_RESET_HARD);
 	}
 
 	return rc;
@@ -7674,7 +7668,7 @@ static int gaudi_mmu_invalidate_cache_range(struct hl_device *hdev,
 	if (rc) {
 		dev_err_ratelimited(hdev->dev,
 					"MMU cache invalidation timeout\n");
-		hl_device_reset(hdev, true, false);
+		hl_device_reset(hdev, HL_RESET_HARD);
 	}
 
 	return rc;

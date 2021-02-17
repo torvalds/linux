@@ -887,7 +887,7 @@ static ssize_t hl_stop_on_err_write(struct file *f, const char __user *buf,
 
 	hdev->stop_on_err = value ? 1 : 0;
 
-	hl_device_reset(hdev, false, false);
+	hl_device_reset(hdev, 0);
 
 	return count;
 }

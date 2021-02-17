@@ -4712,7 +4712,7 @@ void goya_handle_eqe(struct hl_device *hdev, struct hl_eq_entry *eq_entry)
 	case GOYA_ASYNC_EVENT_ID_PSOC_GPIO_05_SW_RESET:
 		goya_print_irq_info(hdev, event_type, false);
 		if (hdev->hard_reset_on_fw_events)
-			hl_device_reset(hdev, true, false);
+			hl_device_reset(hdev, HL_RESET_HARD);
 		break;
 
 	case GOYA_ASYNC_EVENT_ID_PCIE_DEC:
@@ -4772,7 +4772,7 @@ void goya_handle_eqe(struct hl_device *hdev, struct hl_eq_entry *eq_entry)
 		goya_print_irq_info(hdev, event_type, false);
 		goya_print_out_of_sync_info(hdev, &eq_entry->pkt_sync_err);
 		if (hdev->hard_reset_on_fw_events)
-			hl_device_reset(hdev, true, false);
+			hl_device_reset(hdev, HL_RESET_HARD);
 		else
 			hl_fw_unmask_irq(hdev, event_type);
 		break;
@@ -5106,7 +5106,7 @@ static int goya_mmu_invalidate_cache(struct hl_device *hdev, bool is_hard,
 	if (rc) {
 		dev_err_ratelimited(hdev->dev,
 					"MMU cache invalidation timeout\n");
-		hl_device_reset(hdev, true, false);
+		hl_device_reset(hdev, HL_RESET_HARD);
 	}
 
 	return rc;
@@ -5157,7 +5157,7 @@ static int goya_mmu_invalidate_cache_range(struct hl_device *hdev,
 	if (rc) {
 		dev_err_ratelimited(hdev->dev,
 					"MMU cache invalidation timeout\n");
-		hl_device_reset(hdev, true, false);
+		hl_device_reset(hdev, HL_RESET_HARD);
 	}
 
 	return rc;

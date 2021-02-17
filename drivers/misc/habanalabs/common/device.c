@@ -72,7 +72,7 @@ static void hpriv_release(struct kref *ref)
 	kfree(hpriv);
 
 	if (hdev->reset_upon_device_release)
-		hl_device_reset(hdev, false, false);
+		hl_device_reset(hdev, 0);
 }
 
 void hl_hpriv_get(struct hl_fpriv *hpriv)
@@ -293,7 +293,7 @@ static void device_hard_reset_pending(struct work_struct *work)
 	struct hl_device *hdev = device_reset_work->hdev;
 	int rc;
 
-	rc = hl_device_reset(hdev, true, true);
+	rc = hl_device_reset(hdev, HL_RESET_HARD | HL_RESET_FROM_RESET_THREAD);
 	if ((rc == -EBUSY) && !hdev->device_fini_pending) {
 		dev_info(hdev->dev,
 			"Could not reset device. will try again in %u seconds",
@@ -495,7 +495,7 @@ static void hl_device_heartbeat(struct work_struct *work)
 		goto reschedule;
 
 	dev_err(hdev->dev, "Device heartbeat failed!\n");
-	hl_device_reset(hdev, true, false);
+	hl_device_reset(hdev, HL_RESET_HARD | HL_RESET_HEARTBEAT);
 
 	return;
 
@@ -819,7 +819,7 @@ int hl_device_resume(struct hl_device *hdev)
 	hdev->disabled = false;
 	atomic_set(&hdev->in_reset, 0);
 
-	rc = hl_device_reset(hdev, true, false);
+	rc = hl_device_reset(hdev, HL_RESET_HARD);
 	if (rc) {
 		dev_err(hdev->dev, "Failed to reset device during resume\n");
 		goto disable_device;
@@ -925,9 +925,7 @@ static void device_disable_open_processes(struct hl_device *hdev)
  * hl_device_reset - reset the device
  *
  * @hdev: pointer to habanalabs device structure
- * @hard_reset: should we do hard reset to all engines or just reset the
- *              compute/dma engines
- * @from_hard_reset_thread: is the caller the hard-reset thread
+ * @flags: reset flags.
  *
  * Block future CS and wait for pending CS to be enqueued
  * Call ASIC H/W fini
@@ -939,10 +937,10 @@ static void device_disable_open_processes(struct hl_device *hdev)
  *
  * Returns 0 for success or an error on failure.
  */
-int hl_device_reset(struct hl_device *hdev, bool hard_reset,
-			bool from_hard_reset_thread)
+int hl_device_reset(struct hl_device *hdev, u32 flags)
 {
 	u64 idle_mask[HL_BUSY_ENGINES_MASK_EXT_SIZE] = {0};
+	bool hard_reset, from_hard_reset_thread;
 	int i, rc;
 
 	if (!hdev->init_done) {
@@ -950,6 +948,9 @@ int hl_device_reset(struct hl_device *hdev, bool hard_reset,
 			"Can't reset before initialization is done\n");
 		return 0;
 	}
+
+	hard_reset = (flags & HL_RESET_HARD) != 0;
+	from_hard_reset_thread = (flags & HL_RESET_FROM_RESET_THREAD) != 0;
 
 	if ((!hard_reset) && (!hdev->supports_soft_reset)) {
 		dev_dbg(hdev->dev, "Doing hard-reset instead of soft-reset\n");
@@ -971,7 +972,11 @@ int hl_device_reset(struct hl_device *hdev, bool hard_reset,
 		if (rc)
 			return 0;
 
-		if (hard_reset) {
+		/*
+		 * if reset is due to heartbeat, device CPU is no responsive in
+		 * which case no point sending PCI disable message to it
+		 */
+		if (hard_reset && !(flags & HL_RESET_HEARTBEAT)) {
 			/* Disable PCI access from device F/W so he won't send
 			 * us additional interrupts. We disable MSI/MSI-X at
 			 * the halt_engines function and we can't have the F/W
