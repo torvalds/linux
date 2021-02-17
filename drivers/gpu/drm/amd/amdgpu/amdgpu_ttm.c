@@ -1398,7 +1398,7 @@ static bool amdgpu_ttm_bo_eviction_valuable(struct ttm_buffer_object *bo,
 					    const struct ttm_place *place)
 {
 	unsigned long num_pages = bo->mem.num_pages;
-	struct drm_mm_node *node = bo->mem.mm_node;
+	struct amdgpu_res_cursor cursor;
 	struct dma_resv_list *flist;
 	struct dma_fence *f;
 	int i;
@@ -1430,13 +1430,15 @@ static bool amdgpu_ttm_bo_eviction_valuable(struct ttm_buffer_object *bo,
 
 	case TTM_PL_VRAM:
 		/* Check each drm MM node individually */
-		while (num_pages) {
-			if (place->fpfn < (node->start + node->size) &&
-			    !(place->lpfn && place->lpfn <= node->start))
+		amdgpu_res_first(&bo->mem, 0, (u64)num_pages << PAGE_SHIFT,
+				 &cursor);
+		while (cursor.remaining) {
+			if (place->fpfn < PFN_DOWN(cursor.start + cursor.size)
+			    && !(place->lpfn &&
+				 place->lpfn <= PFN_DOWN(cursor.start)))
 				return true;
 
-			num_pages -= node->size;
-			++node;
+			amdgpu_res_next(&cursor, cursor.size);
 		}
 		return false;
 
