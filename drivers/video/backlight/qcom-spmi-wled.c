@@ -991,7 +991,7 @@ static bool wled_auto_cal_required(struct wled *wled)
 
 static int wled_auto_calibrate_at_init(struct wled *wled)
 {
-	int rc;
+	int rc, delay_time_us;
 	bool fault_set;
 
 	if (!wled->cfg.auto_calib_enabled)
@@ -1004,6 +1004,23 @@ static int wled_auto_calibrate_at_init(struct wled *wled)
 	}
 
 	if (fault_set) {
+		wled_get_ovp_delay(wled, &delay_time_us);
+
+		if (delay_time_us < 20000)
+			usleep_range(delay_time_us, delay_time_us + 1000);
+		else
+			msleep(delay_time_us / 1000);
+
+		rc = wled_get_ovp_fault_status(wled, &fault_set);
+		if (rc < 0) {
+			pr_err("Error in getting OVP fault_sts, rc=%d\n", rc);
+			return rc;
+		}
+		if (!fault_set) {
+			pr_debug("WLED OVP fault cleared, not running auto calibration\n");
+			return rc;
+		}
+
 		mutex_lock(&wled->lock);
 		rc = wled_auto_calibrate(wled);
 		mutex_unlock(&wled->lock);
