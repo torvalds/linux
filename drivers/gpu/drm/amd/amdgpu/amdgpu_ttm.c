@@ -179,28 +179,6 @@ static int amdgpu_verify_access(struct ttm_buffer_object *bo, struct file *filp)
 }
 
 /**
- * amdgpu_mm_node_addr - Compute the GPU relative offset of a GTT buffer.
- *
- * @bo: The bo to assign the memory to.
- * @mm_node: Memory manager node for drm allocator.
- * @mem: The region where the bo resides.
- *
- */
-static uint64_t amdgpu_mm_node_addr(struct ttm_buffer_object *bo,
-				    struct drm_mm_node *mm_node,
-				    struct ttm_resource *mem)
-{
-	uint64_t addr = 0;
-
-	if (mm_node->start != AMDGPU_BO_INVALID_OFFSET) {
-		addr = mm_node->start << PAGE_SHIFT;
-		addr += amdgpu_ttm_domain_start(amdgpu_ttm_adev(bo->bdev),
-						mem->mem_type);
-	}
-	return addr;
-}
-
-/**
  * amdgpu_find_mm_node - Helper function finds the drm_mm_node corresponding to
  * @offset. It also modifies the offset to be within the drm_mm_node returned
  *
@@ -2083,9 +2061,9 @@ int amdgpu_fill_buffer(struct amdgpu_bo *bo,
 	uint32_t max_bytes = adev->mman.buffer_funcs->fill_max_bytes;
 	struct amdgpu_ring *ring = adev->mman.buffer_funcs_ring;
 
-	struct drm_mm_node *mm_node;
-	unsigned long num_pages;
+	struct amdgpu_res_cursor cursor;
 	unsigned int num_loops, num_dw;
+	uint64_t num_bytes;
 
 	struct amdgpu_job *job;
 	int r;
@@ -2101,15 +2079,13 @@ int amdgpu_fill_buffer(struct amdgpu_bo *bo,
 			return r;
 	}
 
-	num_pages = bo->tbo.mem.num_pages;
-	mm_node = bo->tbo.mem.mm_node;
+	num_bytes = bo->tbo.mem.num_pages << PAGE_SHIFT;
 	num_loops = 0;
-	while (num_pages) {
-		uint64_t byte_count = mm_node->size << PAGE_SHIFT;
 
-		num_loops += DIV_ROUND_UP_ULL(byte_count, max_bytes);
-		num_pages -= mm_node->size;
-		++mm_node;
+	amdgpu_res_first(&bo->tbo.mem, 0, num_bytes, &cursor);
+	while (cursor.remaining) {
+		num_loops += DIV_ROUND_UP_ULL(cursor.size, max_bytes);
+		amdgpu_res_next(&cursor, cursor.size);
 	}
 	num_dw = num_loops * adev->mman.buffer_funcs->fill_num_dw;
 
@@ -2131,27 +2107,16 @@ int amdgpu_fill_buffer(struct amdgpu_bo *bo,
 		}
 	}
 
-	num_pages = bo->tbo.mem.num_pages;
-	mm_node = bo->tbo.mem.mm_node;
+	amdgpu_res_first(&bo->tbo.mem, 0, num_bytes, &cursor);
+	while (cursor.remaining) {
+		uint32_t cur_size = min_t(uint64_t, cursor.size, max_bytes);
+		uint64_t dst_addr = cursor.start;
 
-	while (num_pages) {
-		uint64_t byte_count = mm_node->size << PAGE_SHIFT;
-		uint64_t dst_addr;
+		dst_addr += amdgpu_ttm_domain_start(adev, bo->tbo.mem.mem_type);
+		amdgpu_emit_fill_buffer(adev, &job->ibs[0], src_data, dst_addr,
+					cur_size);
 
-		dst_addr = amdgpu_mm_node_addr(&bo->tbo, mm_node, &bo->tbo.mem);
-		while (byte_count) {
-			uint32_t cur_size_in_bytes = min_t(uint64_t, byte_count,
-							   max_bytes);
-
-			amdgpu_emit_fill_buffer(adev, &job->ibs[0], src_data,
-						dst_addr, cur_size_in_bytes);
-
-			dst_addr += cur_size_in_bytes;
-			byte_count -= cur_size_in_bytes;
-		}
-
-		num_pages -= mm_node->size;
-		++mm_node;
+		amdgpu_res_next(&cursor, cur_size);
 	}
 
 	amdgpu_ring_pad_ib(ring, &job->ibs[0]);
