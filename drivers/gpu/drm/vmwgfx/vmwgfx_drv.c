@@ -47,12 +47,6 @@
 #define VMW_MIN_INITIAL_WIDTH 800
 #define VMW_MIN_INITIAL_HEIGHT 600
 
-#ifndef VMWGFX_GIT_VERSION
-#define VMWGFX_GIT_VERSION "Unknown"
-#endif
-
-#define VMWGFX_REPO "In Tree"
-
 #define VMWGFX_VALIDATION_MEM_GRAN (16*PAGE_SIZE)
 
 
@@ -967,8 +961,6 @@ static int vmw_driver_load(struct vmw_private *dev_priv, u32 pci_id)
 	if (ret)
 		goto out_no_fifo;
 
-	DRM_INFO("Atomic: %s\n", (dev_priv->drm.driver->driver_features & DRIVER_ATOMIC)
-		 ? "yes." : "no.");
 	if (dev_priv->sm_type == VMW_SM_5)
 		DRM_INFO("SM5 support available.\n");
 	if (dev_priv->sm_type == VMW_SM_4_1)
@@ -976,11 +968,6 @@ static int vmw_driver_load(struct vmw_private *dev_priv, u32 pci_id)
 	if (dev_priv->sm_type == VMW_SM_4)
 		DRM_INFO("SM4 support available.\n");
 
-	snprintf(host_log, sizeof(host_log), "vmwgfx: %s-%s",
-		VMWGFX_REPO, VMWGFX_GIT_VERSION);
-	vmw_host_log(host_log);
-
-	memset(host_log, 0, sizeof(host_log));
 	snprintf(host_log, sizeof(host_log), "vmwgfx: Module Version: %d.%d.%d",
 		VMWGFX_DRIVER_MAJOR, VMWGFX_DRIVER_MINOR,
 		VMWGFX_DRIVER_PATCHLEVEL);
