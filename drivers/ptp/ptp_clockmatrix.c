@@ -444,7 +444,7 @@ static int _sync_pll_output(struct idtcm *idtcm,
 	u16 sync_ctrl1;
 	u8 temp;
 
-	if ((qn == 0) && (qn_plus_1 == 0))
+	if (qn == 0 && qn_plus_1 == 0)
 		return 0;
 
 	switch (pll) {
@@ -509,7 +509,7 @@ static int _sync_pll_output(struct idtcm *idtcm,
 		return err;
 
 	/* PLL5 can have OUT8 as second additional output. */
-	if ((pll == 5) && (qn_plus_1 != 0)) {
+	if (pll == 5 && qn_plus_1 != 0) {
 		err = idtcm_read(idtcm, 0, HW_Q8_CTRL_SPARE,
 				 &temp, sizeof(temp));
 		if (err)
@@ -531,7 +531,7 @@ static int _sync_pll_output(struct idtcm *idtcm,
 	}
 
 	/* PLL6 can have OUT11 as second additional output. */
-	if ((pll == 6) && (qn_plus_1 != 0)) {
+	if (pll == 6 && qn_plus_1 != 0) {
 		err = idtcm_read(idtcm, 0, HW_Q11_CTRL_SPARE,
 				 &temp, sizeof(temp));
 		if (err)
@@ -654,7 +654,7 @@ static int idtcm_sync_pps_output(struct idtcm_channel *channel)
 			}
 		}
 
-		if ((qn != 0) || (qn_plus_1 != 0))
+		if (qn != 0 || qn_plus_1 != 0)
 			err = _sync_pll_output(idtcm, pll, sync_src, qn,
 					       qn_plus_1);
 
@@ -1263,13 +1263,11 @@ static int idtcm_load_firmware(struct idtcm *idtcm,
 			err = 0;
 
 			/* Top (status registers) and bottom are read-only */
-			if ((regaddr < GPIO_USER_CONTROL)
-			    || (regaddr >= SCRATCH))
+			if (regaddr < GPIO_USER_CONTROL || regaddr >= SCRATCH)
 				continue;
 
 			/* Page size 128, last 4 bytes of page skipped */
-			if (((loaddr > 0x7b) && (loaddr <= 0x7f))
-			     || loaddr > 0xfb)
+			if ((loaddr > 0x7b && loaddr <= 0x7f) || loaddr > 0xfb)
 				continue;
 
 			err = idtcm_write(idtcm, regaddr, 0, &val, sizeof(val));
@@ -1688,7 +1686,7 @@ static int _enable_pll_tod_sync(struct idtcm *idtcm,
 	u16 dpll;
 	u16 out0 = 0, out1 = 0;
 
-	if ((qn == 0) && (qn_plus_1 == 0))
+	if (qn == 0 && qn_plus_1 == 0)
 		return 0;
 
 	switch (pll) {
@@ -1883,7 +1881,7 @@ static int idtcm_enable_tod_sync(struct idtcm_channel *channel)
 			}
 		}
 
-		if ((qn != 0) || (qn_plus_1 != 0))
+		if (qn != 0 || qn_plus_1 != 0)
 			err = _enable_pll_tod_sync(idtcm, pll, sync_src, qn,
 					       qn_plus_1);
 		if (err)
