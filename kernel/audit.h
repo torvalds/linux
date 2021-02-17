@@ -103,10 +103,12 @@ struct audit_context {
 	enum {
 		AUDIT_CTX_UNUSED,	/* audit_context is currently unused */
 		AUDIT_CTX_SYSCALL,	/* in use by syscall */
+		AUDIT_CTX_URING,	/* in use by io_uring */
 	} context;
 	enum audit_state    state, current_state;
 	unsigned int	    serial;     /* serial number for record */
 	int		    major;      /* syscall number */
+	int		    uring_op;   /* uring operation */
 	struct timespec64   ctime;      /* time of syscall entry */
 	unsigned long	    argv[4];    /* syscall arguments */
 	long		    return_code;/* syscall return code */
