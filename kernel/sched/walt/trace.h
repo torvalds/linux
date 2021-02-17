@@ -823,7 +823,7 @@ TRACE_EVENT(sched_cpu_util,
 		__entry->cpu		= cpu;
 		__entry->nr_running	= cpu_rq(cpu)->nr_running;
 		__entry->cpu_util	= cpu_util(cpu);
-		__entry->cpu_util_cum	= cpu_util_cum(cpu, 0);
+		__entry->cpu_util_cum	= cpu_util_cum(cpu);
 		__entry->capacity_curr	= capacity_curr_of(cpu);
 		__entry->capacity	= capacity_of(cpu);
 		__entry->capacity_orig	= capacity_orig_of(cpu);

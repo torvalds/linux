@@ -193,7 +193,6 @@ static void walt_find_best_target(struct sched_domain *sd,
 	bool rtg_high_prio_task = task_rtg_high_prio(p);
 	cpumask_t visit_cpus;
 	struct walt_task_struct *wts = (struct walt_task_struct *) p->android_vendor_data1;
-	struct cfs_rq *cfs_rq;
 
 	/* Find start CPU based on boost value */
 	start_cpu = fbt_env->start_cpu;
@@ -271,10 +270,6 @@ static void walt_find_best_target(struct sched_domain *sd,
 					TASK_BOOST_STRICT_MAX)
 				continue;
 
-			/* get rq's utilization with this task included */
-			cfs_rq = &cpu_rq(i)->cfs;
-			new_util_cuml = READ_ONCE(cfs_rq->avg.util_avg) + min_util;
-
 			/*
 			 * Ensure minimum capacity to grant the required boost.
 			 * The target CPU can be already at a capacity level higher
@@ -320,6 +315,8 @@ static void walt_find_best_target(struct sched_domain *sd,
 				 */
 				if (idle_exit_latency > min_exit_latency)
 					continue;
+
+				new_util_cuml = cpu_util_cum(i);
 				if (min_exit_latency == idle_exit_latency &&
 					(best_idle_cpu == prev_cpu ||
 					(i != prev_cpu &&

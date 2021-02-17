@@ -114,7 +114,6 @@ struct walt_rq {
 	u64			prev_runnable_sum;
 	u64			nt_curr_runnable_sum;
 	u64			nt_prev_runnable_sum;
-	u64			cum_window_demand_scaled;
 	struct group_cpu_time	grp_time;
 	struct load_subtractions load_subs[NUM_TRACKED_WINDOWS];
 	DECLARE_BITMAP_ARRAY(top_tasks_bitmap,
@@ -401,17 +400,9 @@ static inline unsigned long cpu_util(int cpu)
 	return min_t(unsigned long, walt_cpu_util, capacity_orig_of(cpu));
 }
 
-static inline unsigned long cpu_util_cum(int cpu, int delta)
+static inline unsigned long cpu_util_cum(int cpu)
 {
-	struct walt_rq *wrq = (struct walt_rq *) cpu_rq(cpu)->android_vendor_data1;
-	u64 util = wrq->cum_window_demand_scaled;
-	unsigned long capacity = capacity_orig_of(cpu);
-
-	delta += util;
-	if (delta < 0)
-		return 0;
-
-	return (delta >= capacity) ? capacity : delta;
+	return READ_ONCE(cpu_rq(cpu)->cfs.avg.util_avg);
 }
 
 static inline enum sched_boost_policy sched_boost_policy(void)
@@ -824,25 +815,6 @@ static inline void clear_reserved(int cpu)
 	struct walt_rq *wrq = (struct walt_rq *) rq->android_vendor_data1;
 
 	clear_bit(CPU_RESERVED, &wrq->walt_flags);
-}
-
-static inline bool
-task_in_cum_window_demand(struct rq *rq, struct task_struct *p)
-{
-	struct walt_rq *wrq = (struct walt_rq *) rq->android_vendor_data1;
-	struct walt_task_struct *wts = (struct walt_task_struct *) p->android_vendor_data1;
-
-	return cpu_of(rq) == task_cpu(p) && (p->on_rq ||
-		wts->last_sleep_ts >= wrq->window_start);
-}
-
-static inline void walt_fixup_cum_window_demand(struct rq *rq, s64 scaled_delta)
-{
-	struct walt_rq *wrq = (struct walt_rq *) rq->android_vendor_data1;
-
-	wrq->cum_window_demand_scaled += scaled_delta;
-	if (unlikely((s64)wrq->cum_window_demand_scaled < 0))
-		wrq->cum_window_demand_scaled = 0;
 }
 
 static inline void walt_irq_work_queue(struct irq_work *work)

@@ -240,7 +240,6 @@ static inline void walt_rq_dump(int cpu)
 	SCHED_PRINT(wrq->prev_runnable_sum);
 	SCHED_PRINT(wrq->nt_curr_runnable_sum);
 	SCHED_PRINT(wrq->nt_prev_runnable_sum);
-	SCHED_PRINT(wrq->cum_window_demand_scaled);
 	SCHED_PRINT(wrq->task_exec_scale);
 	SCHED_PRINT(wrq->grp_time.curr_runnable_sum);
 	SCHED_PRINT(wrq->grp_time.prev_runnable_sum);
@@ -376,8 +375,6 @@ update_window_start(struct rq *rq, u64 wallclock, int event)
 	nr_windows = div64_u64(delta, sched_ravg_window);
 	wrq->window_start += (u64)nr_windows * (u64)sched_ravg_window;
 
-	wrq->cum_window_demand_scaled =
-			wrq->walt_stats.cumulative_runnable_avg_scaled;
 	wrq->prev_window_size = sched_ravg_window;
 
 	return old_window_start;
@@ -3571,7 +3568,6 @@ static void walt_sched_init_rq(struct rq *rq)
 		BUG_ON(!wrq->top_tasks[j]);
 		clear_top_tasks_bitmap(wrq->top_tasks_bitmap[j]);
 	}
-	wrq->cum_window_demand_scaled = 0;
 	wrq->notif_pending = false;
 }
 
