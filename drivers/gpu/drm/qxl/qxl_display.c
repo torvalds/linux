@@ -600,7 +600,7 @@ static void qxl_cursor_atomic_update(struct drm_plane *plane,
 		user_bo = gem_to_qxl_bo(obj);
 
 		/* pinning is done in the prepare/cleanup framevbuffer */
-		ret = qxl_bo_kmap(user_bo, &user_map);
+		ret = qxl_bo_vmap_locked(user_bo, &user_map);
 		if (ret)
 			goto out_free_release;
 		user_ptr = user_map.vaddr; /* TODO: Use mapping abstraction properly */
@@ -619,7 +619,7 @@ static void qxl_cursor_atomic_update(struct drm_plane *plane,
 		if (ret)
 			goto out_unpin;
 
-		ret = qxl_bo_kmap(cursor_bo, &cursor_map);
+		ret = qxl_bo_vmap_locked(cursor_bo, &cursor_map);
 		if (ret)
 			goto out_backoff;
 		if (cursor_map.is_iomem) /* TODO: Use mapping abstraction properly */
@@ -638,8 +638,8 @@ static void qxl_cursor_atomic_update(struct drm_plane *plane,
 		cursor->chunk.prev_chunk = 0;
 		cursor->chunk.data_size = size;
 		memcpy(cursor->chunk.data, user_ptr, size);
-		qxl_bo_kunmap(cursor_bo);
-		qxl_bo_kunmap(user_bo);
+		qxl_bo_vunmap_locked(cursor_bo);
+		qxl_bo_vunmap_locked(user_bo);
 
 		cmd = (struct qxl_cursor_cmd *) qxl_release_map(qdev, release);
 		cmd->u.set.visible = 1;
@@ -681,7 +681,7 @@ out_unpin:
 out_free_bo:
 	qxl_bo_unref(&cursor_bo);
 out_kunmap:
-	qxl_bo_kunmap(user_bo);
+	qxl_bo_vunmap_locked(user_bo);
 out_free_release:
 	qxl_release_free(qdev, release);
 	return;
@@ -1163,7 +1163,7 @@ int qxl_create_monitors_object(struct qxl_device *qdev)
 	if (ret)
 		return ret;
 
-	qxl_bo_kmap(qdev->monitors_config_bo, &map);
+	qxl_bo_vmap_locked(qdev->monitors_config_bo, &map);
 
 	qdev->monitors_config = qdev->monitors_config_bo->kptr;
 	qdev->ram_header->monitors_config =
@@ -1189,7 +1189,7 @@ int qxl_destroy_monitors_object(struct qxl_device *qdev)
 	qdev->monitors_config = NULL;
 	qdev->ram_header->monitors_config = 0;
 
-	qxl_bo_kunmap(qdev->monitors_config_bo);
+	qxl_bo_vunmap_locked(qdev->monitors_config_bo);
 	ret = qxl_bo_unpin(qdev->monitors_config_bo);
 	if (ret)
 		return ret;

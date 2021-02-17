@@ -155,7 +155,7 @@ int qxl_bo_create(struct qxl_device *qdev, unsigned long size,
 	return 0;
 }
 
-int qxl_bo_kmap(struct qxl_bo *bo, struct dma_buf_map *map)
+int qxl_bo_vmap_locked(struct qxl_bo *bo, struct dma_buf_map *map)
 {
 	int r;
 
@@ -203,7 +203,7 @@ fallback:
 		return rptr;
 	}
 
-	ret = qxl_bo_kmap(bo, &bo_map);
+	ret = qxl_bo_vmap_locked(bo, &bo_map);
 	if (ret)
 		return NULL;
 	rptr = bo_map.vaddr; /* TODO: Use mapping abstraction properly */
@@ -212,7 +212,7 @@ fallback:
 	return rptr;
 }
 
-void qxl_bo_kunmap(struct qxl_bo *bo)
+void qxl_bo_vunmap_locked(struct qxl_bo *bo)
 {
 	if (bo->kptr == NULL)
 		return;
@@ -233,7 +233,7 @@ void qxl_bo_kunmap_atomic_page(struct qxl_device *qdev,
 	io_mapping_unmap_atomic(pmap);
 	return;
  fallback:
-	qxl_bo_kunmap(bo);
+	qxl_bo_vunmap_locked(bo);
 }
 
 void qxl_bo_unref(struct qxl_bo **bo)
