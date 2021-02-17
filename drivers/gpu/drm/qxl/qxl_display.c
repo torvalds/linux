@@ -771,13 +771,45 @@ static void qxl_calc_dumb_shadow(struct qxl_device *qdev,
 		DRM_DEBUG("%dx%d\n", surf->width, surf->height);
 }
 
+static void qxl_prepare_shadow(struct qxl_device *qdev, struct qxl_bo *user_bo,
+			       int crtc_index)
+{
+	struct qxl_surface surf;
+
+	qxl_update_dumb_head(qdev, crtc_index,
+			     user_bo);
+	qxl_calc_dumb_shadow(qdev, &surf);
+	if (!qdev->dumb_shadow_bo ||
+	    qdev->dumb_shadow_bo->surf.width  != surf.width ||
+	    qdev->dumb_shadow_bo->surf.height != surf.height) {
+		if (qdev->dumb_shadow_bo) {
+			drm_gem_object_put
+				(&qdev->dumb_shadow_bo->tbo.base);
+			qdev->dumb_shadow_bo = NULL;
+		}
+		qxl_bo_create(qdev, surf.height * surf.stride,
+			      true, true, QXL_GEM_DOMAIN_SURFACE, 0,
+			      &surf, &qdev->dumb_shadow_bo);
+	}
+	if (user_bo->shadow != qdev->dumb_shadow_bo) {
+		if (user_bo->shadow) {
+			qxl_bo_unpin(user_bo->shadow);
+			drm_gem_object_put
+				(&user_bo->shadow->tbo.base);
+			user_bo->shadow = NULL;
+		}
+		drm_gem_object_get(&qdev->dumb_shadow_bo->tbo.base);
+		user_bo->shadow = qdev->dumb_shadow_bo;
+		qxl_bo_pin(user_bo->shadow);
+	}
+}
+
 static int qxl_plane_prepare_fb(struct drm_plane *plane,
 				struct drm_plane_state *new_state)
 {
 	struct qxl_device *qdev = to_qxl(plane->dev);
 	struct drm_gem_object *obj;
 	struct qxl_bo *user_bo;
-	struct qxl_surface surf;
 
 	if (!new_state->fb)
 		return 0;
@@ -787,32 +819,7 @@ static int qxl_plane_prepare_fb(struct drm_plane *plane,
 
 	if (plane->type == DRM_PLANE_TYPE_PRIMARY &&
 	    user_bo->is_dumb) {
-		qxl_update_dumb_head(qdev, new_state->crtc->index,
-				     user_bo);
-		qxl_calc_dumb_shadow(qdev, &surf);
-		if (!qdev->dumb_shadow_bo ||
-		    qdev->dumb_shadow_bo->surf.width  != surf.width ||
-		    qdev->dumb_shadow_bo->surf.height != surf.height) {
-			if (qdev->dumb_shadow_bo) {
-				drm_gem_object_put
-					(&qdev->dumb_shadow_bo->tbo.base);
-				qdev->dumb_shadow_bo = NULL;
-			}
-			qxl_bo_create(qdev, surf.height * surf.stride,
-				      true, true, QXL_GEM_DOMAIN_SURFACE, 0,
-				      &surf, &qdev->dumb_shadow_bo);
-		}
-		if (user_bo->shadow != qdev->dumb_shadow_bo) {
-			if (user_bo->shadow) {
-				qxl_bo_unpin(user_bo->shadow);
-				drm_gem_object_put
-					(&user_bo->shadow->tbo.base);
-				user_bo->shadow = NULL;
-			}
-			drm_gem_object_get(&qdev->dumb_shadow_bo->tbo.base);
-			user_bo->shadow = qdev->dumb_shadow_bo;
-			qxl_bo_pin(user_bo->shadow);
-		}
+		qxl_prepare_shadow(qdev, user_bo, new_state->crtc->index);
 	}
 
 	return qxl_bo_pin(user_bo);
