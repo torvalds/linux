@@ -1924,7 +1924,7 @@ static int _hl_interrupt_wait_ioctl(struct hl_device *hdev, struct hl_ctx *ctx,
 	u32 completion_value;
 	int rc = 0;
 
-	if (timeout_us == MAX_SCHEDULE_TIMEOUT)
+	if (timeout_us == U32_MAX)
 		timeout = timeout_us;
 	else
 		timeout = usecs_to_jiffies(timeout_us);
