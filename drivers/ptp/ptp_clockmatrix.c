@@ -282,12 +282,9 @@ static int idtcm_write(struct idtcm *idtcm,
 
 static int clear_boot_status(struct idtcm *idtcm)
 {
-	int err;
 	u8 buf[4] = {0};
 
-	err = idtcm_write(idtcm, GENERAL_STATUS, BOOT_STATUS, buf, sizeof(buf));
-
-	return err;
+	return idtcm_write(idtcm, GENERAL_STATUS, BOOT_STATUS, buf, sizeof(buf));
 }
 
 static int read_boot_status(struct idtcm *idtcm, u32 *status)
