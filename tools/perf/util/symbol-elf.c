@@ -1226,11 +1226,25 @@ int dso__load_sym(struct dso *dso, struct map *map, struct symsrc *syms_ss,
 		if (sym.st_shndx == SHN_ABS)
 			continue;
 
-		sec = elf_getscn(runtime_ss->elf, sym.st_shndx);
+		sec = elf_getscn(syms_ss->elf, sym.st_shndx);
 		if (!sec)
 			goto out_elf_end;
 
 		gelf_getshdr(sec, &shdr);
+
+		/*
+		 * We have to fallback to runtime when syms' section header has
+		 * NOBITS set. NOBITS results in file offset (sh_offset) not
+		 * being incremented. So sh_offset used below has different
+		 * values for syms (invalid) and runtime (valid).
+		 */
+		if (shdr.sh_type == SHT_NOBITS) {
+			sec = elf_getscn(runtime_ss->elf, sym.st_shndx);
+			if (!sec)
+				goto out_elf_end;
+
+			gelf_getshdr(sec, &shdr);
+		}
 
 		if (is_label && !elf_sec__filter(&shdr, secstrs))
 			continue;
