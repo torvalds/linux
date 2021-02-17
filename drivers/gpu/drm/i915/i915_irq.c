@@ -4319,6 +4319,8 @@ void intel_irq_init(struct drm_i915_private *dev_priv)
 			dev_priv->display.hpd_irq_setup = gen11_hpd_irq_setup;
 		else if (IS_GEN9_LP(dev_priv))
 			dev_priv->display.hpd_irq_setup = bxt_hpd_irq_setup;
+		else if (INTEL_PCH_TYPE(dev_priv) >= PCH_ICP)
+			dev_priv->display.hpd_irq_setup = icp_hpd_irq_setup;
 		else if (INTEL_PCH_TYPE(dev_priv) >= PCH_SPT)
 			dev_priv->display.hpd_irq_setup = spt_hpd_irq_setup;
 		else
