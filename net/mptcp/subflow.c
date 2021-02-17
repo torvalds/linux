@@ -100,7 +100,7 @@ static struct mptcp_sock *subflow_token_join_request(struct request_sock *req)
 	return msk;
 }
 
-static int __subflow_init_req(struct request_sock *req, const struct sock *sk_listener)
+static void subflow_init_req(struct request_sock *req, const struct sock *sk_listener)
 {
 	struct mptcp_subflow_request_sock *subflow_req = mptcp_subflow_rsk(req);
 
@@ -108,16 +108,6 @@ static int __subflow_init_req(struct request_sock *req, const struct sock *sk_li
 	subflow_req->mp_join = 0;
 	subflow_req->msk = NULL;
 	mptcp_token_init_request(req);
-
-#ifdef CONFIG_TCP_MD5SIG
-	/* no MPTCP if MD5SIG is enabled on this socket or we may run out of
-	 * TCP option space.
-	 */
-	if (rcu_access_pointer(tcp_sk(sk_listener)->md5sig_info))
-		return -EINVAL;
-#endif
-
-	return 0;
 }
 
 static bool subflow_use_different_sport(struct mptcp_sock *msk, const struct sock *sk)
@@ -130,20 +120,23 @@ static bool subflow_use_different_sport(struct mptcp_sock *msk, const struct soc
  * Returns an error code if a JOIN has failed and a TCP reset
  * should be sent.
  */
-static int subflow_init_req(struct request_sock *req,
-			    const struct sock *sk_listener,
-			    struct sk_buff *skb)
+static int subflow_check_req(struct request_sock *req,
+			     const struct sock *sk_listener,
+			     struct sk_buff *skb)
 {
 	struct mptcp_subflow_context *listener = mptcp_subflow_ctx(sk_listener);
 	struct mptcp_subflow_request_sock *subflow_req = mptcp_subflow_rsk(req);
 	struct mptcp_options_received mp_opt;
-	int ret;
 
 	pr_debug("subflow_req=%p, listener=%p", subflow_req, listener);
 
-	ret = __subflow_init_req(req, sk_listener);
-	if (ret)
-		return 0;
+#ifdef CONFIG_TCP_MD5SIG
+	/* no MPTCP if MD5SIG is enabled on this socket or we may run out of
+	 * TCP option space.
+	 */
+	if (rcu_access_pointer(tcp_sk(sk_listener)->md5sig_info))
+		return -EINVAL;
+#endif
 
 	mptcp_get_options(skb, &mp_opt);
 
@@ -236,10 +229,7 @@ int mptcp_subflow_init_cookie_req(struct request_sock *req,
 	struct mptcp_options_received mp_opt;
 	int err;
 
-	err = __subflow_init_req(req, sk_listener);
-	if (err)
-		return err;
-
+	subflow_init_req(req, sk_listener);
 	mptcp_get_options(skb, &mp_opt);
 
 	if (mp_opt.mp_capable && mp_opt.mp_join)
@@ -279,12 +269,13 @@ static struct dst_entry *subflow_v4_route_req(const struct sock *sk,
 	int err;
 
 	tcp_rsk(req)->is_mptcp = 1;
+	subflow_init_req(req, sk);
 
 	dst = tcp_request_sock_ipv4_ops.route_req(sk, skb, fl, req);
 	if (!dst)
 		return NULL;
 
-	err = subflow_init_req(req, sk, skb);
+	err = subflow_check_req(req, sk, skb);
 	if (err == 0)
 		return dst;
 
@@ -304,12 +295,13 @@ static struct dst_entry *subflow_v6_route_req(const struct sock *sk,
 	int err;
 
 	tcp_rsk(req)->is_mptcp = 1;
+	subflow_init_req(req, sk);
 
 	dst = tcp_request_sock_ipv6_ops.route_req(sk, skb, fl, req);
 	if (!dst)
 		return NULL;
 
-	err = subflow_init_req(req, sk, skb);
+	err = subflow_check_req(req, sk, skb);
 	if (err == 0)
 		return dst;
 
@@ -1124,6 +1116,46 @@ static void subflow_write_space(struct sock *ssk)
 	mptcp_write_space(sk);
 }
 
+void __mptcp_error_report(struct sock *sk)
+{
+	struct mptcp_subflow_context *subflow;
+	struct mptcp_sock *msk = mptcp_sk(sk);
+
+	mptcp_for_each_subflow(msk, subflow) {
+		struct sock *ssk = mptcp_subflow_tcp_sock(subflow);
+		int err = sock_error(ssk);
+
+		if (!err)
+			continue;
+
+		/* only propagate errors on fallen-back sockets or
+		 * on MPC connect
+		 */
+		if (sk->sk_state != TCP_SYN_SENT && !__mptcp_check_fallback(msk))
+			continue;
+
+		inet_sk_state_store(sk, inet_sk_state_load(ssk));
+		sk->sk_err = -err;
+
+		/* This barrier is coupled with smp_rmb() in mptcp_poll() */
+		smp_wmb();
+		sk->sk_error_report(sk);
+		break;
+	}
+}
+
+static void subflow_error_report(struct sock *ssk)
+{
+	struct sock *sk = mptcp_subflow_ctx(ssk)->conn;
+
+	mptcp_data_lock(sk);
+	if (!sock_owned_by_user(sk))
+		__mptcp_error_report(sk);
+	else
+		set_bit(MPTCP_ERROR_REPORT,  &mptcp_sk(sk)->flags);
+	mptcp_data_unlock(sk);
+}
+
 static struct inet_connection_sock_af_ops *
 subflow_default_af_ops(struct sock *sk)
 {
@@ -1470,9 +1502,11 @@ static int subflow_ulp_init(struct sock *sk)
 	ctx->tcp_data_ready = sk->sk_data_ready;
 	ctx->tcp_state_change = sk->sk_state_change;
 	ctx->tcp_write_space = sk->sk_write_space;
+	ctx->tcp_error_report = sk->sk_error_report;
 	sk->sk_data_ready = subflow_data_ready;
 	sk->sk_write_space = subflow_write_space;
 	sk->sk_state_change = subflow_state_change;
+	sk->sk_error_report = subflow_error_report;
 out:
 	return err;
 }
@@ -1526,6 +1560,7 @@ static void subflow_ulp_clone(const struct request_sock *req,
 	new_ctx->tcp_data_ready = old_ctx->tcp_data_ready;
 	new_ctx->tcp_state_change = old_ctx->tcp_state_change;
 	new_ctx->tcp_write_space = old_ctx->tcp_write_space;
+	new_ctx->tcp_error_report = old_ctx->tcp_error_report;
 	new_ctx->rel_write_seq = 1;
 	new_ctx->tcp_sock = newsk;
 

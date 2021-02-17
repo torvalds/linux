@@ -31,7 +31,7 @@
 #define IBMVNIC_BUFFS_PER_POOL	100
 #define IBMVNIC_MAX_QUEUES	16
 #define IBMVNIC_MAX_QUEUE_SZ   4096
-#define IBMVNIC_MAX_IND_DESCS  128
+#define IBMVNIC_MAX_IND_DESCS  16
 #define IBMVNIC_IND_ARR_SZ	(IBMVNIC_MAX_IND_DESCS * 32)
 
 #define IBMVNIC_TSO_BUF_SZ	65536
@@ -1084,6 +1084,8 @@ struct ibmvnic_adapter {
 	/* Used for serializatin of state field */
 	spinlock_t state_lock;
 	enum ibmvnic_reset_reason reset_reason;
+	/* when taking both state and rwi locks, take state lock first */
+	spinlock_t rwi_lock;
 	struct list_head rwi_list;
 	/* Used for serialization of rwi_list */
 	spinlock_t rwi_lock;

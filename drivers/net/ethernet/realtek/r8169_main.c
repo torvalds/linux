@@ -2230,6 +2230,31 @@ static void rtl_prepare_power_down(struct rtl8169_private *tp)
 		phy_speed_down(tp->phydev, false);
 		rtl_wol_enable_rx(tp);
 	}
+
+	switch (tp->mac_version) {
+	case RTL_GIGA_MAC_VER_25 ... RTL_GIGA_MAC_VER_26:
+	case RTL_GIGA_MAC_VER_29 ... RTL_GIGA_MAC_VER_30:
+	case RTL_GIGA_MAC_VER_32 ... RTL_GIGA_MAC_VER_33:
+	case RTL_GIGA_MAC_VER_37:
+	case RTL_GIGA_MAC_VER_39:
+	case RTL_GIGA_MAC_VER_43:
+	case RTL_GIGA_MAC_VER_44:
+	case RTL_GIGA_MAC_VER_45:
+	case RTL_GIGA_MAC_VER_46:
+	case RTL_GIGA_MAC_VER_47:
+	case RTL_GIGA_MAC_VER_48:
+	case RTL_GIGA_MAC_VER_50 ... RTL_GIGA_MAC_VER_63:
+		RTL_W8(tp, PMCH, RTL_R8(tp, PMCH) & ~0x80);
+		break;
+	case RTL_GIGA_MAC_VER_40:
+	case RTL_GIGA_MAC_VER_41:
+	case RTL_GIGA_MAC_VER_49:
+		rtl_eri_clear_bits(tp, 0x1a8, 0xfc000000);
+		RTL_W8(tp, PMCH, RTL_R8(tp, PMCH) & ~0x80);
+		break;
+	default:
+		break;
+	}
 }
 
 static void rtl_init_rxcfg(struct rtl8169_private *tp)
