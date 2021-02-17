@@ -252,7 +252,8 @@ static int vangogh_get_smu_metrics_data(struct smu_context *smu,
 		*value = metrics->UvdActivity;
 		break;
 	case METRICS_AVERAGE_SOCKETPOWER:
-		*value = metrics->CurrentSocketPower;
+		*value = (metrics->CurrentSocketPower << 8) /
+		1000 ;
 		break;
 	case METRICS_TEMPERATURE_EDGE:
 		*value = metrics->GfxTemperature / 100 *
@@ -590,14 +591,17 @@ static ssize_t vangogh_get_gpu_metrics(struct smu_context *smu,
 	gpu_metrics->average_socket_power = metrics.CurrentSocketPower;
 	gpu_metrics->average_cpu_power = metrics.Power[0];
 	gpu_metrics->average_soc_power = metrics.Power[1];
+	gpu_metrics->average_gfx_power = metrics.Power[2];
 	memcpy(&gpu_metrics->average_core_power[0],
 		&metrics.CorePower[0],
 		sizeof(uint16_t) * 8);
 
 	gpu_metrics->average_gfxclk_frequency = metrics.GfxclkFrequency;
 	gpu_metrics->average_socclk_frequency = metrics.SocclkFrequency;
+	gpu_metrics->average_uclk_frequency = metrics.MemclkFrequency;
 	gpu_metrics->average_fclk_frequency = metrics.MemclkFrequency;
 	gpu_metrics->average_vclk_frequency = metrics.VclkFrequency;
+	gpu_metrics->average_dclk_frequency = metrics.DclkFrequency;
 
 	memcpy(&gpu_metrics->current_coreclk[0],
 		&metrics.CoreFrequency[0],

@@ -104,5 +104,18 @@ long long os_nsecs(void)
  */
 void os_idle_sleep(void)
 {
-	pause();
+	struct itimerspec its;
+	sigset_t set, old;
+
+	/* block SIGALRM while we analyze the timer state */
+	sigemptyset(&set);
+	sigaddset(&set, SIGALRM);
+	sigprocmask(SIG_BLOCK, &set, &old);
+
+	/* check the timer, and if it'll fire then wait for it */
+	timer_gettime(event_high_res_timer, &its);
+	if (its.it_value.tv_sec || its.it_value.tv_nsec)
+		sigsuspend(&old);
+	/* either way, restore the signal mask */
+	sigprocmask(SIG_UNBLOCK, &set, NULL);
 }

@@ -342,6 +342,8 @@ static struct page **sev_pin_memory(struct kvm *kvm, unsigned long uaddr,
 	unsigned long first, last;
 	int ret;
 
+	lockdep_assert_held(&kvm->lock);
+
 	if (ulen == 0 || uaddr + ulen < uaddr)
 		return ERR_PTR(-EINVAL);
 
@@ -1119,11 +1121,19 @@ int svm_register_enc_region(struct kvm *kvm,
 	if (!region)
 		return -ENOMEM;
 
+	mutex_lock(&kvm->lock);
 	region->pages = sev_pin_memory(kvm, range->addr, range->size, &region->npages, 1);
 	if (IS_ERR(region->pages)) {
 		ret = PTR_ERR(region->pages);
+		mutex_unlock(&kvm->lock);
 		goto e_free;
 	}
+
+	region->uaddr = range->addr;
+	region->size = range->size;
+
+	list_add_tail(&region->list, &sev->regions_list);
+	mutex_unlock(&kvm->lock);
 
 	/*
 	 * The guest may change the memory encryption attribute from C=0 -> C=1
@@ -1132,13 +1142,6 @@ int svm_register_enc_region(struct kvm *kvm,
 	 * correct C-bit.
 	 */
 	sev_clflush_pages(region->pages, region->npages);
-
-	region->uaddr = range->addr;
-	region->size = range->size;
-
-	mutex_lock(&kvm->lock);
-	list_add_tail(&region->list, &sev->regions_list);
-	mutex_unlock(&kvm->lock);
 
 	return ret;
 
@@ -1415,16 +1418,13 @@ static void sev_es_sync_to_ghcb(struct vcpu_svm *svm)
 	 * to be returned:
 	 *   GPRs RAX, RBX, RCX, RDX
 	 *
-	 * Copy their values to the GHCB if they are dirty.
+	 * Copy their values, even if they may not have been written during the
+	 * VM-Exit.  It's the guest's responsibility to not consume random data.
 	 */
-	if (kvm_register_is_dirty(vcpu, VCPU_REGS_RAX))
-		ghcb_set_rax(ghcb, vcpu->arch.regs[VCPU_REGS_RAX]);
-	if (kvm_register_is_dirty(vcpu, VCPU_REGS_RBX))
-		ghcb_set_rbx(ghcb, vcpu->arch.regs[VCPU_REGS_RBX]);
-	if (kvm_register_is_dirty(vcpu, VCPU_REGS_RCX))
-		ghcb_set_rcx(ghcb, vcpu->arch.regs[VCPU_REGS_RCX]);
-	if (kvm_register_is_dirty(vcpu, VCPU_REGS_RDX))
-		ghcb_set_rdx(ghcb, vcpu->arch.regs[VCPU_REGS_RDX]);
+	ghcb_set_rax(ghcb, vcpu->arch.regs[VCPU_REGS_RAX]);
+	ghcb_set_rbx(ghcb, vcpu->arch.regs[VCPU_REGS_RBX]);
+	ghcb_set_rcx(ghcb, vcpu->arch.regs[VCPU_REGS_RCX]);
+	ghcb_set_rdx(ghcb, vcpu->arch.regs[VCPU_REGS_RDX]);
 }
 
 static void sev_es_sync_from_ghcb(struct vcpu_svm *svm)
@@ -1563,6 +1563,7 @@ static int sev_es_validate_vmgexit(struct vcpu_svm *svm)
 			goto vmgexit_err;
 		break;
 	case SVM_VMGEXIT_NMI_COMPLETE:
+	case SVM_VMGEXIT_AP_HLT_LOOP:
 	case SVM_VMGEXIT_AP_JUMP_TABLE:
 	case SVM_VMGEXIT_UNSUPPORTED_EVENT:
 		break;
@@ -1888,6 +1889,9 @@ int sev_handle_vmgexit(struct vcpu_svm *svm)
 	case SVM_VMGEXIT_NMI_COMPLETE:
 		ret = svm_invoke_exit_handler(svm, SVM_EXIT_IRET);
 		break;
+	case SVM_VMGEXIT_AP_HLT_LOOP:
+		ret = kvm_emulate_ap_reset_hold(&svm->vcpu);
+		break;
 	case SVM_VMGEXIT_AP_JUMP_TABLE: {
 		struct kvm_sev_info *sev = &to_kvm_svm(svm->vcpu.kvm)->sev_info;
 
@@ -2001,7 +2005,7 @@ void sev_es_vcpu_load(struct vcpu_svm *svm, int cpu)
 	 * of which one step is to perform a VMLOAD. Since hardware does not
 	 * perform a VMSAVE on VMRUN, the host savearea must be updated.
 	 */
-	asm volatile(__ex("vmsave") : : "a" (__sme_page_pa(sd->save_area)) : "memory");
+	asm volatile(__ex("vmsave %0") : : "a" (__sme_page_pa(sd->save_area)) : "memory");
 
 	/*
 	 * Certain MSRs are restored on VMEXIT, only save ones that aren't
@@ -2039,4 +2043,22 @@ void sev_es_vcpu_put(struct vcpu_svm *svm)
 
 		wrmsrl(host_save_user_msrs[i].index, svm->host_user_msrs[i]);
 	}
+}
+
+void sev_vcpu_deliver_sipi_vector(struct kvm_vcpu *vcpu, u8 vector)
+{
+	struct vcpu_svm *svm = to_svm(vcpu);
+
+	/* First SIPI: Use the values as initially set by the VMM */
+	if (!svm->received_first_sipi) {
+		svm->received_first_sipi = true;
+		return;
+	}
+
+	/*
+	 * Subsequent SIPI: Return from an AP Reset Hold VMGEXIT, where
+	 * the guest will set the CS and RIP. Set SW_EXIT_INFO_2 to a
+	 * non-zero value.
+	 */
+	ghcb_set_sw_exit_info_2(svm->ghcb, 1);
 }

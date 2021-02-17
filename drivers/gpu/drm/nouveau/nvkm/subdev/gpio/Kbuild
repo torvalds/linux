@@ -5,3 +5,4 @@ nvkm-y += nvkm/subdev/gpio/nv50.o
 nvkm-y += nvkm/subdev/gpio/g94.o
 nvkm-y += nvkm/subdev/gpio/gf119.o
 nvkm-y += nvkm/subdev/gpio/gk104.o
+nvkm-y += nvkm/subdev/gpio/ga102.o

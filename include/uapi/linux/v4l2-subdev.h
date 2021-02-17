@@ -176,7 +176,7 @@ struct v4l2_subdev_capability {
 };
 
 /* The v4l2 sub-device video device node is registered in read-only mode. */
-#define V4L2_SUBDEV_CAP_RO_SUBDEV		BIT(0)
+#define V4L2_SUBDEV_CAP_RO_SUBDEV		0x00000001
 
 /* Backwards compatibility define --- to be removed */
 #define v4l2_subdev_edid v4l2_edid

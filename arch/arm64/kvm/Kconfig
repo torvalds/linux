@@ -49,14 +49,6 @@ if KVM
 
 source "virt/kvm/Kconfig"
 
-config KVM_ARM_PMU
-	bool "Virtual Performance Monitoring Unit (PMU) support"
-	depends on HW_PERF_EVENTS
-	default y
-	help
-	  Adds support for a virtual Performance Monitoring Unit (PMU) in
-	  virtual machines.
-
 endif # KVM
 
 endif # VIRTUALIZATION

@@ -157,10 +157,14 @@ static void mt76s_net_worker(struct mt76_worker *w)
 
 static int mt76s_process_tx_queue(struct mt76_dev *dev, struct mt76_queue *q)
 {
-	bool wake, mcu = q == dev->q_mcu[MT_MCUQ_WM];
 	struct mt76_queue_entry entry;
 	int nframes = 0;
+	bool mcu;
 
+	if (!q)
+		return 0;
+
+	mcu = q == dev->q_mcu[MT_MCUQ_WM];
 	while (q->queued > 0) {
 		if (!q->entry[q->tail].done)
 			break;
@@ -177,21 +181,12 @@ static int mt76s_process_tx_queue(struct mt76_dev *dev, struct mt76_queue *q)
 		nframes++;
 	}
 
-	wake = q->stopped && q->queued < q->ndesc - 8;
-	if (wake)
-		q->stopped = false;
-
 	if (!q->queued)
 		wake_up(&dev->tx_wait);
 
-	if (mcu)
-		goto out;
+	if (!mcu)
+		mt76_txq_schedule(&dev->phy, q->qid);
 
-	mt76_txq_schedule(&dev->phy, q->qid);
-
-	if (wake)
-		ieee80211_wake_queue(dev->hw, q->qid);
-out:
 	return nframes;
 }
 

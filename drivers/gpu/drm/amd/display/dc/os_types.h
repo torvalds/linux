@@ -55,10 +55,6 @@
 #include <asm/fpu/api.h>
 #define DC_FP_START() kernel_fpu_begin()
 #define DC_FP_END() kernel_fpu_end()
-#elif defined(CONFIG_ARM64)
-#include <asm/neon.h>
-#define DC_FP_START() kernel_neon_begin()
-#define DC_FP_END() kernel_neon_end()
 #elif defined(CONFIG_PPC64)
 #include <asm/switch_to.h>
 #include <asm/cputable.h>

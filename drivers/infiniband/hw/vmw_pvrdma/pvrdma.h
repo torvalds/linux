@@ -509,6 +509,20 @@ static inline int ib_send_flags_to_pvrdma(int flags)
 	return flags & PVRDMA_MASK(PVRDMA_SEND_FLAGS_MAX);
 }
 
+static inline int pvrdma_network_type_to_ib(enum pvrdma_network_type type)
+{
+	switch (type) {
+	case PVRDMA_NETWORK_ROCE_V1:
+		return RDMA_NETWORK_ROCE_V1;
+	case PVRDMA_NETWORK_IPV4:
+		return RDMA_NETWORK_IPV4;
+	case PVRDMA_NETWORK_IPV6:
+		return RDMA_NETWORK_IPV6;
+	default:
+		return RDMA_NETWORK_IPV6;
+	}
+}
+
 void pvrdma_qp_cap_to_ib(struct ib_qp_cap *dst,
 			 const struct pvrdma_qp_cap *src);
 void ib_qp_cap_to_pvrdma(struct pvrdma_qp_cap *dst,

@@ -50,6 +50,11 @@
 #include "pnfs.h"
 #include "trace.h"
 
+static bool inter_copy_offload_enable;
+module_param(inter_copy_offload_enable, bool, 0644);
+MODULE_PARM_DESC(inter_copy_offload_enable,
+		 "Enable inter server to server copy offload. Default: false");
+
 #ifdef CONFIG_NFSD_V4_SECURITY_LABEL
 #include <linux/security.h>
 

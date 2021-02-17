@@ -23,8 +23,6 @@
 #include <linux/platform_device.h>
 #include <linux/sched_clock.h>
 #include <linux/smp.h>
-#include <linux/nmi.h>
-#include <linux/cpufreq.h>
 
 /* ARMv8 Cortex-A53 specific event types. */
 #define ARMV8_A53_PERFCTR_PREF_LINEFILL				0xC2
@@ -1250,21 +1248,10 @@ static struct platform_driver armv8_pmu_driver = {
 
 static int __init armv8_pmu_driver_init(void)
 {
-	int ret;
-
 	if (acpi_disabled)
-		ret = platform_driver_register(&armv8_pmu_driver);
+		return platform_driver_register(&armv8_pmu_driver);
 	else
-		ret = arm_pmu_acpi_probe(armv8_pmuv3_init);
-
-	/*
-	 * Try to re-initialize lockup detector after PMU init in
-	 * case PMU events are triggered via NMIs.
-	 */
-	if (ret == 0 && arm_pmu_irq_is_nmi())
-		lockup_detector_init();
-
-	return ret;
+		return arm_pmu_acpi_probe(armv8_pmuv3_init);
 }
 device_initcall(armv8_pmu_driver_init)
 
@@ -1322,27 +1309,3 @@ void arch_perf_update_userpage(struct perf_event *event,
 	userpg->cap_user_time_zero = 1;
 	userpg->cap_user_time_short = 1;
 }
-
-#ifdef CONFIG_HARDLOCKUP_DETECTOR_PERF
-/*
- * Safe maximum CPU frequency in case a particular platform doesn't implement
- * cpufreq driver. Although, architecture doesn't put any restrictions on
- * maximum frequency but 5 GHz seems to be safe maximum given the available
- * Arm CPUs in the market which are clocked much less than 5 GHz. On the other
- * hand, we can't make it much higher as it would lead to a large hard-lockup
- * detection timeout on parts which are running slower (eg. 1GHz on
- * Developerbox) and doesn't possess a cpufreq driver.
- */
-#define SAFE_MAX_CPU_FREQ	5000000000UL // 5 GHz
-u64 hw_nmi_get_sample_period(int watchdog_thresh)
-{
-	unsigned int cpu = smp_processor_id();
-	unsigned long max_cpu_freq;
-
-	max_cpu_freq = cpufreq_get_hw_max_freq(cpu) * 1000UL;
-	if (!max_cpu_freq)
-		max_cpu_freq = SAFE_MAX_CPU_FREQ;
-
-	return (u64)max_cpu_freq * watchdog_thresh;
-}
-#endif

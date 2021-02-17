@@ -78,6 +78,7 @@ config QED
 	depends on PCI
 	select ZLIB_INFLATE
 	select CRC8
+	select CRC32
 	select NET_DEVLINK
 	help
 	  This enables the support for Marvell FastLinQ adapters family.

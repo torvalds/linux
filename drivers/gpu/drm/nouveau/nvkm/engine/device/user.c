@@ -176,6 +176,7 @@ nvkm_udevice_info(struct nvkm_udevice *udev, void *data, u32 size)
 	case GP100: args->v0.family = NV_DEVICE_INFO_V0_PASCAL; break;
 	case GV100: args->v0.family = NV_DEVICE_INFO_V0_VOLTA; break;
 	case TU100: args->v0.family = NV_DEVICE_INFO_V0_TURING; break;
+	case GA100: args->v0.family = NV_DEVICE_INFO_V0_AMPERE; break;
 	default:
 		args->v0.family = 0;
 		break;

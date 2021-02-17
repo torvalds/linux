@@ -472,8 +472,11 @@ static int allocate_cs(struct hl_device *hdev, struct hl_ctx *ctx,
 	cntr = &hdev->aggregated_cs_counters;
 
 	cs = kzalloc(sizeof(*cs), GFP_ATOMIC);
-	if (!cs)
+	if (!cs) {
+		atomic64_inc(&ctx->cs_counters.out_of_mem_drop_cnt);
+		atomic64_inc(&cntr->out_of_mem_drop_cnt);
 		return -ENOMEM;
+	}
 
 	cs->ctx = ctx;
 	cs->submitted = false;
@@ -486,6 +489,8 @@ static int allocate_cs(struct hl_device *hdev, struct hl_ctx *ctx,
 
 	cs_cmpl = kmalloc(sizeof(*cs_cmpl), GFP_ATOMIC);
 	if (!cs_cmpl) {
+		atomic64_inc(&ctx->cs_counters.out_of_mem_drop_cnt);
+		atomic64_inc(&cntr->out_of_mem_drop_cnt);
 		rc = -ENOMEM;
 		goto free_cs;
 	}
@@ -513,6 +518,8 @@ static int allocate_cs(struct hl_device *hdev, struct hl_ctx *ctx,
 	cs->jobs_in_queue_cnt = kcalloc(hdev->asic_prop.max_queues,
 			sizeof(*cs->jobs_in_queue_cnt), GFP_ATOMIC);
 	if (!cs->jobs_in_queue_cnt) {
+		atomic64_inc(&ctx->cs_counters.out_of_mem_drop_cnt);
+		atomic64_inc(&cntr->out_of_mem_drop_cnt);
 		rc = -ENOMEM;
 		goto free_fence;
 	}
@@ -562,7 +569,7 @@ void hl_cs_rollback_all(struct hl_device *hdev)
 	for (i = 0 ; i < hdev->asic_prop.completion_queues_count ; i++)
 		flush_workqueue(hdev->cq_wq[i]);
 
-	/* Make sure we don't have leftovers in the H/W queues mirror list */
+	/* Make sure we don't have leftovers in the CS mirror list */
 	list_for_each_entry_safe(cs, tmp, &hdev->cs_mirror_list, mirror_node) {
 		cs_get(cs);
 		cs->aborted = true;
@@ -764,11 +771,14 @@ static int hl_cs_sanity_checks(struct hl_fpriv *hpriv, union hl_cs_args *args)
 
 static int hl_cs_copy_chunk_array(struct hl_device *hdev,
 					struct hl_cs_chunk **cs_chunk_array,
-					void __user *chunks, u32 num_chunks)
+					void __user *chunks, u32 num_chunks,
+					struct hl_ctx *ctx)
 {
 	u32 size_to_copy;
 
 	if (num_chunks > HL_MAX_JOBS_PER_CS) {
+		atomic64_inc(&ctx->cs_counters.validation_drop_cnt);
+		atomic64_inc(&hdev->aggregated_cs_counters.validation_drop_cnt);
 		dev_err(hdev->dev,
 			"Number of chunks can NOT be larger than %d\n",
 			HL_MAX_JOBS_PER_CS);
@@ -777,11 +787,16 @@ static int hl_cs_copy_chunk_array(struct hl_device *hdev,
 
 	*cs_chunk_array = kmalloc_array(num_chunks, sizeof(**cs_chunk_array),
 					GFP_ATOMIC);
-	if (!*cs_chunk_array)
+	if (!*cs_chunk_array) {
+		atomic64_inc(&ctx->cs_counters.out_of_mem_drop_cnt);
+		atomic64_inc(&hdev->aggregated_cs_counters.out_of_mem_drop_cnt);
 		return -ENOMEM;
+	}
 
 	size_to_copy = num_chunks * sizeof(struct hl_cs_chunk);
 	if (copy_from_user(*cs_chunk_array, chunks, size_to_copy)) {
+		atomic64_inc(&ctx->cs_counters.validation_drop_cnt);
+		atomic64_inc(&hdev->aggregated_cs_counters.validation_drop_cnt);
 		dev_err(hdev->dev, "Failed to copy cs chunk array from user\n");
 		kfree(*cs_chunk_array);
 		return -EFAULT;
@@ -797,6 +812,7 @@ static int cs_ioctl_default(struct hl_fpriv *hpriv, void __user *chunks,
 	struct hl_device *hdev = hpriv->hdev;
 	struct hl_cs_chunk *cs_chunk_array;
 	struct hl_cs_counters_atomic *cntr;
+	struct hl_ctx *ctx = hpriv->ctx;
 	struct hl_cs_job *job;
 	struct hl_cs *cs;
 	struct hl_cb *cb;
@@ -805,7 +821,8 @@ static int cs_ioctl_default(struct hl_fpriv *hpriv, void __user *chunks,
 	cntr = &hdev->aggregated_cs_counters;
 	*cs_seq = ULLONG_MAX;
 
-	rc = hl_cs_copy_chunk_array(hdev, &cs_chunk_array, chunks, num_chunks);
+	rc = hl_cs_copy_chunk_array(hdev, &cs_chunk_array, chunks, num_chunks,
+			hpriv->ctx);
 	if (rc)
 		goto out;
 
@@ -832,8 +849,8 @@ static int cs_ioctl_default(struct hl_fpriv *hpriv, void __user *chunks,
 		rc = validate_queue_index(hdev, chunk, &queue_type,
 						&is_kernel_allocated_cb);
 		if (rc) {
-			atomic64_inc(&hpriv->ctx->cs_counters.parsing_drop_cnt);
-			atomic64_inc(&cntr->parsing_drop_cnt);
+			atomic64_inc(&ctx->cs_counters.validation_drop_cnt);
+			atomic64_inc(&cntr->validation_drop_cnt);
 			goto free_cs_object;
 		}
 
@@ -841,8 +858,8 @@ static int cs_ioctl_default(struct hl_fpriv *hpriv, void __user *chunks,
 			cb = get_cb_from_cs_chunk(hdev, &hpriv->cb_mgr, chunk);
 			if (!cb) {
 				atomic64_inc(
-				&hpriv->ctx->cs_counters.parsing_drop_cnt);
-				atomic64_inc(&cntr->parsing_drop_cnt);
+					&ctx->cs_counters.validation_drop_cnt);
+				atomic64_inc(&cntr->validation_drop_cnt);
 				rc = -EINVAL;
 				goto free_cs_object;
 			}
@@ -856,8 +873,7 @@ static int cs_ioctl_default(struct hl_fpriv *hpriv, void __user *chunks,
 		job = hl_cs_allocate_job(hdev, queue_type,
 						is_kernel_allocated_cb);
 		if (!job) {
-			atomic64_inc(
-			&hpriv->ctx->cs_counters.out_of_mem_drop_cnt);
+			atomic64_inc(&ctx->cs_counters.out_of_mem_drop_cnt);
 			atomic64_inc(&cntr->out_of_mem_drop_cnt);
 			dev_err(hdev->dev, "Failed to allocate a new job\n");
 			rc = -ENOMEM;
@@ -891,7 +907,7 @@ static int cs_ioctl_default(struct hl_fpriv *hpriv, void __user *chunks,
 
 		rc = cs_parser(hpriv, job);
 		if (rc) {
-			atomic64_inc(&hpriv->ctx->cs_counters.parsing_drop_cnt);
+			atomic64_inc(&ctx->cs_counters.parsing_drop_cnt);
 			atomic64_inc(&cntr->parsing_drop_cnt);
 			dev_err(hdev->dev,
 				"Failed to parse JOB %d.%llu.%d, err %d, rejecting the CS\n",
@@ -901,8 +917,8 @@ static int cs_ioctl_default(struct hl_fpriv *hpriv, void __user *chunks,
 	}
 
 	if (int_queues_only) {
-		atomic64_inc(&hpriv->ctx->cs_counters.parsing_drop_cnt);
-		atomic64_inc(&cntr->parsing_drop_cnt);
+		atomic64_inc(&ctx->cs_counters.validation_drop_cnt);
+		atomic64_inc(&cntr->validation_drop_cnt);
 		dev_err(hdev->dev,
 			"Reject CS %d.%llu because only internal queues jobs are present\n",
 			cs->ctx->asid, cs->sequence);
@@ -1042,7 +1058,7 @@ out:
 }
 
 static int cs_ioctl_extract_signal_seq(struct hl_device *hdev,
-		struct hl_cs_chunk *chunk, u64 *signal_seq)
+		struct hl_cs_chunk *chunk, u64 *signal_seq, struct hl_ctx *ctx)
 {
 	u64 *signal_seq_arr = NULL;
 	u32 size_to_copy, signal_seq_arr_len;
@@ -1052,6 +1068,8 @@ static int cs_ioctl_extract_signal_seq(struct hl_device *hdev,
 
 	/* currently only one signal seq is supported */
 	if (signal_seq_arr_len != 1) {
+		atomic64_inc(&ctx->cs_counters.validation_drop_cnt);
+		atomic64_inc(&hdev->aggregated_cs_counters.validation_drop_cnt);
 		dev_err(hdev->dev,
 			"Wait for signal CS supports only one signal CS seq\n");
 		return -EINVAL;
@@ -1060,13 +1078,18 @@ static int cs_ioctl_extract_signal_seq(struct hl_device *hdev,
 	signal_seq_arr = kmalloc_array(signal_seq_arr_len,
 					sizeof(*signal_seq_arr),
 					GFP_ATOMIC);
-	if (!signal_seq_arr)
+	if (!signal_seq_arr) {
+		atomic64_inc(&ctx->cs_counters.out_of_mem_drop_cnt);
+		atomic64_inc(&hdev->aggregated_cs_counters.out_of_mem_drop_cnt);
 		return -ENOMEM;
+	}
 
 	size_to_copy = chunk->num_signal_seq_arr * sizeof(*signal_seq_arr);
 	if (copy_from_user(signal_seq_arr,
 				u64_to_user_ptr(chunk->signal_seq_arr),
 				size_to_copy)) {
+		atomic64_inc(&ctx->cs_counters.validation_drop_cnt);
+		atomic64_inc(&hdev->aggregated_cs_counters.validation_drop_cnt);
 		dev_err(hdev->dev,
 			"Failed to copy signal seq array from user\n");
 		rc = -EFAULT;
@@ -1153,6 +1176,7 @@ static int cs_ioctl_signal_wait(struct hl_fpriv *hpriv, enum hl_cs_type cs_type,
 	struct hl_device *hdev = hpriv->hdev;
 	struct hl_cs_compl *sig_waitcs_cmpl;
 	u32 q_idx, collective_engine_id = 0;
+	struct hl_cs_counters_atomic *cntr;
 	struct hl_fence *sig_fence = NULL;
 	struct hl_ctx *ctx = hpriv->ctx;
 	enum hl_queue_type q_type;
@@ -1160,9 +1184,11 @@ static int cs_ioctl_signal_wait(struct hl_fpriv *hpriv, enum hl_cs_type cs_type,
 	u64 signal_seq;
 	int rc;
 
+	cntr = &hdev->aggregated_cs_counters;
 	*cs_seq = ULLONG_MAX;
 
-	rc = hl_cs_copy_chunk_array(hdev, &cs_chunk_array, chunks, num_chunks);
+	rc = hl_cs_copy_chunk_array(hdev, &cs_chunk_array, chunks, num_chunks,
+			ctx);
 	if (rc)
 		goto out;
 
@@ -1170,6 +1196,8 @@ static int cs_ioctl_signal_wait(struct hl_fpriv *hpriv, enum hl_cs_type cs_type,
 	chunk = &cs_chunk_array[0];
 
 	if (chunk->queue_index >= hdev->asic_prop.max_queues) {
+		atomic64_inc(&ctx->cs_counters.validation_drop_cnt);
+		atomic64_inc(&cntr->validation_drop_cnt);
 		dev_err(hdev->dev, "Queue index %d is invalid\n",
 			chunk->queue_index);
 		rc = -EINVAL;
@@ -1181,6 +1209,8 @@ static int cs_ioctl_signal_wait(struct hl_fpriv *hpriv, enum hl_cs_type cs_type,
 	q_type = hw_queue_prop->type;
 
 	if (!hw_queue_prop->supports_sync_stream) {
+		atomic64_inc(&ctx->cs_counters.validation_drop_cnt);
+		atomic64_inc(&cntr->validation_drop_cnt);
 		dev_err(hdev->dev,
 			"Queue index %d does not support sync stream operations\n",
 			q_idx);
@@ -1190,6 +1220,8 @@ static int cs_ioctl_signal_wait(struct hl_fpriv *hpriv, enum hl_cs_type cs_type,
 
 	if (cs_type == CS_TYPE_COLLECTIVE_WAIT) {
 		if (!(hw_queue_prop->collective_mode == HL_COLLECTIVE_MASTER)) {
+			atomic64_inc(&ctx->cs_counters.validation_drop_cnt);
+			atomic64_inc(&cntr->validation_drop_cnt);
 			dev_err(hdev->dev,
 				"Queue index %d is invalid\n", q_idx);
 			rc = -EINVAL;
@@ -1200,12 +1232,14 @@ static int cs_ioctl_signal_wait(struct hl_fpriv *hpriv, enum hl_cs_type cs_type,
 	}
 
 	if (cs_type == CS_TYPE_WAIT || cs_type == CS_TYPE_COLLECTIVE_WAIT) {
-		rc = cs_ioctl_extract_signal_seq(hdev, chunk, &signal_seq);
+		rc = cs_ioctl_extract_signal_seq(hdev, chunk, &signal_seq, ctx);
 		if (rc)
 			goto free_cs_chunk_array;
 
 		sig_fence = hl_ctx_get_fence(ctx, signal_seq);
 		if (IS_ERR(sig_fence)) {
+			atomic64_inc(&ctx->cs_counters.validation_drop_cnt);
+			atomic64_inc(&cntr->validation_drop_cnt);
 			dev_err(hdev->dev,
 				"Failed to get signal CS with seq 0x%llx\n",
 				signal_seq);
@@ -1223,6 +1257,8 @@ static int cs_ioctl_signal_wait(struct hl_fpriv *hpriv, enum hl_cs_type cs_type,
 			container_of(sig_fence, struct hl_cs_compl, base_fence);
 
 		if (sig_waitcs_cmpl->type != CS_TYPE_SIGNAL) {
+			atomic64_inc(&ctx->cs_counters.validation_drop_cnt);
+			atomic64_inc(&cntr->validation_drop_cnt);
 			dev_err(hdev->dev,
 				"CS seq 0x%llx is not of a signal CS\n",
 				signal_seq);
@@ -1270,8 +1306,11 @@ static int cs_ioctl_signal_wait(struct hl_fpriv *hpriv, enum hl_cs_type cs_type,
 	else if (cs_type == CS_TYPE_COLLECTIVE_WAIT)
 		rc = hdev->asic_funcs->collective_wait_create_jobs(hdev, ctx,
 				cs, q_idx, collective_engine_id);
-	else
+	else {
+		atomic64_inc(&ctx->cs_counters.validation_drop_cnt);
+		atomic64_inc(&cntr->validation_drop_cnt);
 		rc = -EINVAL;
+	}
 
 	if (rc)
 		goto free_cs_object;

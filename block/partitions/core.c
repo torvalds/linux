@@ -88,9 +88,11 @@ static int (*check_part[])(struct parsed_partitions *) = {
 
 static void bdev_set_nr_sectors(struct block_device *bdev, sector_t sectors)
 {
-	spin_lock(&bdev->bd_size_lock);
+	unsigned long flags;
+
+	spin_lock_irqsave(&bdev->bd_size_lock, flags);
 	i_size_write(bdev->bd_inode, (loff_t)sectors << SECTOR_SHIFT);
-	spin_unlock(&bdev->bd_size_lock);
+	spin_unlock_irqrestore(&bdev->bd_size_lock, flags);
 }
 
 static struct parsed_partitions *allocate_partitions(struct gendisk *hd)
@@ -384,7 +386,7 @@ static struct block_device *add_partition(struct gendisk *disk, int partno,
 
 	err = blk_alloc_devt(bdev, &devt);
 	if (err)
-		goto out_bdput;
+		goto out_put;
 	pdev->devt = devt;
 
 	/* delay uevent until 'holders' subdir is created */
