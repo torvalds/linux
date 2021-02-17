@@ -104,7 +104,7 @@ static struct rockchip_pmu *g_pmu;
 static void rockchip_pmu_lock(struct rockchip_pm_domain *pd)
 {
 	mutex_lock(&pd->pmu->mutex);
-	rockchip_dmcfreq_lock();
+	rockchip_dmcfreq_lock_nested();
 }
 
 static void rockchip_pmu_unlock(struct rockchip_pm_domain *pd)
