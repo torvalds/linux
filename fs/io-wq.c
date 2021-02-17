@@ -201,9 +201,10 @@ static inline struct io_wqe_acct *io_work_get_acct(struct io_wqe *wqe,
 	return &wqe->acct[IO_WQ_ACCT_BOUND];
 }
 
-static inline struct io_wqe_acct *io_wqe_get_acct(struct io_wqe *wqe,
-						  struct io_worker *worker)
+static inline struct io_wqe_acct *io_wqe_get_acct(struct io_worker *worker)
 {
+	struct io_wqe *wqe = worker->wqe;
+
 	if (worker->flags & IO_WORKER_F_BOUND)
 		return &wqe->acct[IO_WQ_ACCT_BOUND];
 
@@ -213,7 +214,7 @@ static inline struct io_wqe_acct *io_wqe_get_acct(struct io_wqe *wqe,
 static void io_worker_exit(struct io_worker *worker)
 {
 	struct io_wqe *wqe = worker->wqe;
-	struct io_wqe_acct *acct = io_wqe_get_acct(wqe, worker);
+	struct io_wqe_acct *acct = io_wqe_get_acct(worker);
 
 	/*
 	 * If we're not at zero, someone else is holding a brief reference
@@ -303,23 +304,24 @@ static void io_wqe_wake_worker(struct io_wqe *wqe, struct io_wqe_acct *acct)
 		wake_up_process(wqe->wq->manager);
 }
 
-static void io_wqe_inc_running(struct io_wqe *wqe, struct io_worker *worker)
+static void io_wqe_inc_running(struct io_worker *worker)
 {
-	struct io_wqe_acct *acct = io_wqe_get_acct(wqe, worker);
+	struct io_wqe_acct *acct = io_wqe_get_acct(worker);
 
 	atomic_inc(&acct->nr_running);
 }
 
-static void io_wqe_dec_running(struct io_wqe *wqe, struct io_worker *worker)
+static void io_wqe_dec_running(struct io_worker *worker)
 	__must_hold(wqe->lock)
 {
-	struct io_wqe_acct *acct = io_wqe_get_acct(wqe, worker);
+	struct io_wqe_acct *acct = io_wqe_get_acct(worker);
+	struct io_wqe *wqe = worker->wqe;
 
 	if (atomic_dec_and_test(&acct->nr_running) && io_wqe_run_queue(wqe))
 		io_wqe_wake_worker(wqe, acct);
 }
 
-static void io_worker_start(struct io_wqe *wqe, struct io_worker *worker)
+static void io_worker_start(struct io_worker *worker)
 {
 	allow_kernel_signal(SIGINT);
 
@@ -329,7 +331,7 @@ static void io_worker_start(struct io_wqe *wqe, struct io_worker *worker)
 
 	worker->flags |= (IO_WORKER_F_UP | IO_WORKER_F_RUNNING);
 	worker->restore_nsproxy = current->nsproxy;
-	io_wqe_inc_running(wqe, worker);
+	io_wqe_inc_running(worker);
 }
 
 /*
@@ -354,7 +356,7 @@ static void __io_worker_busy(struct io_wqe *wqe, struct io_worker *worker,
 	worker_bound = (worker->flags & IO_WORKER_F_BOUND) != 0;
 	work_bound = (work->flags & IO_WQ_WORK_UNBOUND) == 0;
 	if (worker_bound != work_bound) {
-		io_wqe_dec_running(wqe, worker);
+		io_wqe_dec_running(worker);
 		if (work_bound) {
 			worker->flags |= IO_WORKER_F_BOUND;
 			wqe->acct[IO_WQ_ACCT_UNBOUND].nr_workers--;
@@ -366,7 +368,7 @@ static void __io_worker_busy(struct io_wqe *wqe, struct io_worker *worker,
 			wqe->acct[IO_WQ_ACCT_BOUND].nr_workers--;
 			atomic_inc(&wqe->wq->user->processes);
 		}
-		io_wqe_inc_running(wqe, worker);
+		io_wqe_inc_running(worker);
 	 }
 }
 
@@ -589,7 +591,7 @@ static int io_wqe_worker(void *data)
 	struct io_wqe *wqe = worker->wqe;
 	struct io_wq *wq = wqe->wq;
 
-	io_worker_start(wqe, worker);
+	io_worker_start(worker);
 
 	while (!test_bit(IO_WQ_BIT_EXIT, &wq->state)) {
 		set_current_state(TASK_INTERRUPTIBLE);
@@ -634,14 +636,13 @@ loop:
 void io_wq_worker_running(struct task_struct *tsk)
 {
 	struct io_worker *worker = kthread_data(tsk);
-	struct io_wqe *wqe = worker->wqe;
 
 	if (!(worker->flags & IO_WORKER_F_UP))
 		return;
 	if (worker->flags & IO_WORKER_F_RUNNING)
 		return;
 	worker->flags |= IO_WORKER_F_RUNNING;
-	io_wqe_inc_running(wqe, worker);
+	io_wqe_inc_running(worker);
 }
 
 /*
@@ -662,7 +663,7 @@ void io_wq_worker_sleeping(struct task_struct *tsk)
 	worker->flags &= ~IO_WORKER_F_RUNNING;
 
 	raw_spin_lock_irq(&wqe->lock);
-	io_wqe_dec_running(wqe, worker);
+	io_wqe_dec_running(worker);
 	raw_spin_unlock_irq(&wqe->lock);
 }
 
