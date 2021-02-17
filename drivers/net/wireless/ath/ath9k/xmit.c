@@ -708,24 +708,20 @@ static void ath_tx_process_buffer(struct ath_softc *sc, struct ath_txq *txq,
 		ath_tx_count_airtime(sc, sta, bf, ts, tid->tidno);
 		if (ts->ts_status & (ATH9K_TXERR_FILT | ATH9K_TXERR_XRETRY))
 			tid->clear_ps_filter = true;
-
-		if (!bf_isampdu(bf)) {
-			if (!flush) {
-				info = IEEE80211_SKB_CB(bf->bf_mpdu);
-				memcpy(info->control.rates, bf->rates,
-				       sizeof(info->control.rates));
-				ath_tx_rc_status(sc, bf, ts, 1,
-						 txok ? 0 : 1, txok);
-				ath_dynack_sample_tx_ts(sc->sc_ah,
-							bf->bf_mpdu, ts, sta);
-			}
-			ath_tx_complete_buf(sc, bf, txq, bf_head, sta,
-					    ts, txok);
-		} else {
-			ath_tx_complete_aggr(sc, txq, bf, bf_head, sta,
-					     tid, ts, txok);
-		}
 	}
+
+	if (!bf_isampdu(bf)) {
+		if (!flush) {
+			info = IEEE80211_SKB_CB(bf->bf_mpdu);
+			memcpy(info->control.rates, bf->rates,
+			       sizeof(info->control.rates));
+			ath_tx_rc_status(sc, bf, ts, 1, txok ? 0 : 1, txok);
+			ath_dynack_sample_tx_ts(sc->sc_ah, bf->bf_mpdu, ts,
+						sta);
+		}
+		ath_tx_complete_buf(sc, bf, txq, bf_head, sta, ts, txok);
+	} else
+		ath_tx_complete_aggr(sc, txq, bf, bf_head, sta, tid, ts, txok);
 
 	if (!flush)
 		ath_txq_schedule(sc, txq);
