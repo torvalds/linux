@@ -111,7 +111,7 @@ int hda_dsp_pcm_hw_params(struct snd_sof_dev *sdev,
 
 	ret = hda_dsp_stream_hw_params(sdev, stream, dmab, params);
 	if (ret < 0) {
-		dev_err(sdev->dev, "error: hdac prepare failed: %x\n", ret);
+		dev_err(sdev->dev, "error: hdac prepare failed: %d\n", ret);
 		return ret;
 	}
 
@@ -215,11 +215,25 @@ found:
 int hda_dsp_pcm_open(struct snd_sof_dev *sdev,
 		     struct snd_pcm_substream *substream)
 {
+	struct snd_soc_pcm_runtime *rtd = asoc_substream_to_rtd(substream);
+	struct snd_soc_component *scomp = sdev->component;
 	struct hdac_ext_stream *dsp_stream;
+	struct snd_sof_pcm *spcm;
 	int direction = substream->stream;
+	u32 flags = 0;
 
-	dsp_stream = hda_dsp_stream_get(sdev, direction);
+	spcm = snd_sof_find_spcm_dai(scomp, rtd);
+	if (!spcm) {
+		dev_err(sdev->dev, "error: can't find PCM with DAI ID %d\n", rtd->dai_link->id);
+		return -EINVAL;
+	}
 
+	/* All playback and D0i3 compatible streams are DMI L1 capable */
+	if (direction == SNDRV_PCM_STREAM_PLAYBACK ||
+	    spcm->stream[substream->stream].d0i3_compatible)
+		flags |= SOF_HDA_STREAM_DMI_L1_COMPATIBLE;
+
+	dsp_stream = hda_dsp_stream_get(sdev, direction, flags);
 	if (!dsp_stream) {
 		dev_err(sdev->dev, "error: no stream available\n");
 		return -ENODEV;
