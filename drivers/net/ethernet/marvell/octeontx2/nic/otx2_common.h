@@ -210,9 +210,9 @@ struct otx2_hw {
 	u64			cgx_fec_uncorr_blks;
 	u8			cgx_links;  /* No. of CGX links present in HW */
 	u8			lbk_links;  /* No. of LBK links present in HW */
-#define HW_TSO			BIT_ULL(0)
-#define CN10K_MBOX		BIT_ULL(1)
-#define CN10K_LMTST		BIT_ULL(2)
+#define HW_TSO			0
+#define CN10K_MBOX		1
+#define CN10K_LMTST		2
 	unsigned long		cap_flag;
 
 #define LMT_LINE_SIZE		128
