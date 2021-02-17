@@ -703,7 +703,7 @@ static int rt5682_sdw_remove(struct sdw_slave *slave)
 	struct rt5682_priv *rt5682 = dev_get_drvdata(&slave->dev);
 
 	if (rt5682 && rt5682->hw_init)
-		cancel_delayed_work(&rt5682->jack_detect_work);
+		cancel_delayed_work_sync(&rt5682->jack_detect_work);
 
 	return 0;
 }
@@ -720,6 +720,8 @@ static int __maybe_unused rt5682_dev_suspend(struct device *dev)
 
 	if (!rt5682->hw_init)
 		return 0;
+
+	cancel_delayed_work_sync(&rt5682->jack_detect_work);
 
 	regcache_cache_only(rt5682->regmap, true);
 	regcache_mark_dirty(rt5682->regmap);
