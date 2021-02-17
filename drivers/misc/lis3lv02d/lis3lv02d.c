@@ -1173,7 +1173,7 @@ int lis3lv02d_init_device(struct lis3lv02d *lis3)
 		break;
 	default:
 		pr_err("unknown sensor type 0x%X\n", lis3->whoami);
-		return -EINVAL;
+		return -ENODEV;
 	}
 
 	lis3->reg_cache = kzalloc(max(sizeof(lis3_wai8_regs),
