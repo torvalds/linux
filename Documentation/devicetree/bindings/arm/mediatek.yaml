@@ -155,6 +155,10 @@ properties:
           - const: mediatek,mt8183
       - items:
           - enum:
+              - mediatek,mt8183-pumpkin
+          - const: mediatek,mt8183
+      - items:
+          - enum:
               - mediatek,mt8516-pumpkin
           - const: mediatek,mt8516
 
