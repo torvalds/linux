@@ -546,6 +546,7 @@ unsigned bch2_bkey_durability(struct bch_fs *, struct bkey_s_c);
 void bch2_bkey_mark_replicas_cached(struct bch_fs *, struct bkey_s,
 				    unsigned, unsigned);
 
+void bch2_bkey_extent_entry_drop(struct bkey_i *, union bch_extent_entry *);
 void bch2_bkey_append_ptr(struct bkey_i *, struct bch_extent_ptr);
 void bch2_extent_ptr_decoded_append(struct bkey_i *,
 				    struct extent_ptr_decoded *);

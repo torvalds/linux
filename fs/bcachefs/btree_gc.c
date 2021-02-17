@@ -163,22 +163,23 @@ static int bch2_check_fix_ptrs(struct bch_fs *c, enum btree_id btree_id,
 			       struct bkey_s_c *k)
 {
 	struct bkey_ptrs_c ptrs = bch2_bkey_ptrs_c(*k);
-	const struct bch_extent_ptr *ptr;
+	const union bch_extent_entry *entry;
+	struct extent_ptr_decoded p;
 	bool do_update = false;
 	int ret = 0;
 
-	bkey_for_each_ptr(ptrs, ptr) {
-		struct bch_dev *ca = bch_dev_bkey_exists(c, ptr->dev);
-		struct bucket *g = PTR_BUCKET(ca, ptr, true);
-		struct bucket *g2 = PTR_BUCKET(ca, ptr, false);
+	bkey_for_each_ptr_decode(k->k, ptrs, p, entry) {
+		struct bch_dev *ca = bch_dev_bkey_exists(c, p.ptr.dev);
+		struct bucket *g = PTR_BUCKET(ca, &p.ptr, true);
+		struct bucket *g2 = PTR_BUCKET(ca, &p.ptr, false);
 
 		if (fsck_err_on(!g->gen_valid, c,
 				"bucket %u:%zu data type %s ptr gen %u missing in alloc btree",
-				ptr->dev, PTR_BUCKET_NR(ca, ptr),
-				bch2_data_types[ptr_data_type(k->k, ptr)],
-				ptr->gen)) {
-			if (!ptr->cached) {
-				g2->_mark.gen	= g->_mark.gen		= ptr->gen;
+				p.ptr.dev, PTR_BUCKET_NR(ca, &p.ptr),
+				bch2_data_types[ptr_data_type(k->k, &p.ptr)],
+				p.ptr.gen)) {
+			if (!p.ptr.cached) {
+				g2->_mark.gen	= g->_mark.gen		= p.ptr.gen;
 				g2->gen_valid	= g->gen_valid		= true;
 				set_bit(BCH_FS_NEED_ALLOC_WRITE, &c->flags);
 			} else {
@@ -186,13 +187,13 @@ static int bch2_check_fix_ptrs(struct bch_fs *c, enum btree_id btree_id,
 			}
 		}
 
-		if (fsck_err_on(gen_cmp(ptr->gen, g->mark.gen) > 0, c,
+		if (fsck_err_on(gen_cmp(p.ptr.gen, g->mark.gen) > 0, c,
 				"bucket %u:%zu data type %s ptr gen in the future: %u > %u",
-				ptr->dev, PTR_BUCKET_NR(ca, ptr),
-				bch2_data_types[ptr_data_type(k->k, ptr)],
-				ptr->gen, g->mark.gen)) {
-			if (!ptr->cached) {
-				g2->_mark.gen	= g->_mark.gen	= ptr->gen;
+				p.ptr.dev, PTR_BUCKET_NR(ca, &p.ptr),
+				bch2_data_types[ptr_data_type(k->k, &p.ptr)],
+				p.ptr.gen, g->mark.gen)) {
+			if (!p.ptr.cached) {
+				g2->_mark.gen	= g->_mark.gen	= p.ptr.gen;
 				g2->gen_valid	= g->gen_valid	= true;
 				g2->_mark.data_type		= 0;
 				g2->_mark.dirty_sectors		= 0;
@@ -204,16 +205,27 @@ static int bch2_check_fix_ptrs(struct bch_fs *c, enum btree_id btree_id,
 			}
 		}
 
-		if (fsck_err_on(!ptr->cached &&
-				gen_cmp(ptr->gen, g->mark.gen) < 0, c,
+		if (fsck_err_on(!p.ptr.cached &&
+				gen_cmp(p.ptr.gen, g->mark.gen) < 0, c,
 				"bucket %u:%zu data type %s stale dirty ptr: %u < %u",
-				ptr->dev, PTR_BUCKET_NR(ca, ptr),
-				bch2_data_types[ptr_data_type(k->k, ptr)],
-				ptr->gen, g->mark.gen))
+				p.ptr.dev, PTR_BUCKET_NR(ca, &p.ptr),
+				bch2_data_types[ptr_data_type(k->k, &p.ptr)],
+				p.ptr.gen, g->mark.gen))
 			do_update = true;
+
+		if (p.has_ec) {
+			struct stripe *m = genradix_ptr(&c->stripes[true], p.ec.idx);
+
+			if (fsck_err_on(!m || !m->alive, c,
+					"pointer to nonexistent stripe %llu",
+					(u64) p.ec.idx))
+				do_update = true;
+		}
 	}
 
 	if (do_update) {
+		struct bkey_ptrs ptrs;
+		union bch_extent_entry *entry;
 		struct bch_extent_ptr *ptr;
 		struct bkey_i *new;
 
@@ -237,6 +249,19 @@ static int bch2_check_fix_ptrs(struct bch_fs *c, enum btree_id btree_id,
 			(!ptr->cached &&
 			 gen_cmp(ptr->gen, g->mark.gen) < 0);
 		}));
+again:
+		ptrs = bch2_bkey_ptrs(bkey_i_to_s(new));
+		bkey_extent_entry_for_each(ptrs, entry) {
+			if (extent_entry_type(entry) == BCH_EXTENT_ENTRY_stripe_ptr) {
+				struct stripe *m = genradix_ptr(&c->stripes[true],
+								entry->stripe_ptr.idx);
+
+				if (!m || !m->alive) {
+					bch2_bkey_extent_entry_drop(new, entry);
+					goto again;
+				}
+			}
+		}
 
 		ret = bch2_journal_key_insert(c, btree_id, level, new);
 		if (ret)

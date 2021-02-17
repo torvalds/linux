@@ -777,6 +777,15 @@ void bch2_bkey_mark_replicas_cached(struct bch_fs *c, struct bkey_s k,
 		}
 }
 
+void bch2_bkey_extent_entry_drop(struct bkey_i *k, union bch_extent_entry *entry)
+{
+	union bch_extent_entry *end = bkey_val_end(bkey_i_to_s(k));
+	union bch_extent_entry *next = extent_entry_next(entry);
+
+	memmove_u64s(entry, next, (u64 *) end - (u64 *) next);
+	k->k.u64s -= extent_entry_u64s(entry);
+}
+
 void bch2_bkey_append_ptr(struct bkey_i *k,
 			  struct bch_extent_ptr ptr)
 {
