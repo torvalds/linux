@@ -186,6 +186,12 @@ void rockchip_dmcfreq_lock(void)
 }
 EXPORT_SYMBOL(rockchip_dmcfreq_lock);
 
+void rockchip_dmcfreq_lock_nested(void)
+{
+	down_read_nested(&rockchip_dmcfreq_sem, SINGLE_DEPTH_NESTING);
+}
+EXPORT_SYMBOL(rockchip_dmcfreq_lock_nested);
+
 void rockchip_dmcfreq_unlock(void)
 {
 	up_read(&rockchip_dmcfreq_sem);
