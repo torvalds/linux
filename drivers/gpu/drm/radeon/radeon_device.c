@@ -36,7 +36,6 @@
 
 #include <drm/drm_cache.h>
 #include <drm/drm_crtc_helper.h>
-#include <drm/drm_debugfs.h>
 #include <drm/drm_device.h>
 #include <drm/drm_file.h>
 #include <drm/drm_probe_helper.h>
@@ -1448,15 +1447,8 @@ int radeon_device_init(struct radeon_device *rdev,
 	if (r)
 		goto failed;
 
-	r = radeon_gem_debugfs_init(rdev);
-	if (r) {
-		DRM_ERROR("registering gem debugfs failed (%d).\n", r);
-	}
-
-	r = radeon_mst_debugfs_init(rdev);
-	if (r) {
-		DRM_ERROR("registering mst debugfs failed (%d).\n", r);
-	}
+	radeon_gem_debugfs_init(rdev);
+	radeon_mst_debugfs_init(rdev);
 
 	if (rdev->flags & RADEON_IS_AGP && !rdev->accel_working) {
 		/* Acceleration not working on AGP card try again
@@ -1883,39 +1875,4 @@ int radeon_gpu_reset(struct radeon_device *rdev)
 
 	up_read(&rdev->exclusive_lock);
 	return r;
-}
-
-
-/*
- * Debugfs
- */
-int radeon_debugfs_add_files(struct radeon_device *rdev,
-			     struct drm_info_list *files,
-			     unsigned nfiles)
-{
-	unsigned i;
-
-	for (i = 0; i < rdev->debugfs_count; i++) {
-		if (rdev->debugfs[i].files == files) {
-			/* Already registered */
-			return 0;
-		}
-	}
-
-	i = rdev->debugfs_count + 1;
-	if (i > RADEON_DEBUGFS_MAX_COMPONENTS) {
-		DRM_ERROR("Reached maximum number of debugfs components.\n");
-		DRM_ERROR("Report so we increase "
-			  "RADEON_DEBUGFS_MAX_COMPONENTS.\n");
-		return -EINVAL;
-	}
-	rdev->debugfs[rdev->debugfs_count].files = files;
-	rdev->debugfs[rdev->debugfs_count].num_files = nfiles;
-	rdev->debugfs_count = i;
-#if defined(CONFIG_DEBUG_FS)
-	drm_debugfs_create_files(files, nfiles,
-				 rdev->ddev->primary->debugfs_root,
-				 rdev->ddev->primary);
-#endif
-	return 0;
 }

@@ -511,8 +511,6 @@ struct radeon_bo {
 };
 #define gem_to_radeon_bo(gobj) container_of((gobj), struct radeon_bo, tbo.base)
 
-int radeon_gem_debugfs_init(struct radeon_device *rdev);
-
 /* sub-allocation manager, it has to be protected by another lock.
  * By conception this is an helper for other part of the driver
  * like the indirect buffer or semaphore, which both have their
@@ -1789,15 +1787,8 @@ static inline void radeon_mn_unregister(struct radeon_bo *bo) {}
 /*
  * Debugfs
  */
-struct radeon_debugfs {
-	struct drm_info_list	*files;
-	unsigned		num_files;
-};
-
-int radeon_debugfs_add_files(struct radeon_device *rdev,
-			     struct drm_info_list *files,
-			     unsigned nfiles);
-int radeon_debugfs_fence_init(struct radeon_device *rdev);
+void radeon_debugfs_fence_init(struct radeon_device *rdev);
+void radeon_gem_debugfs_init(struct radeon_device *rdev);
 
 /*
  * ASIC ring specific functions.
@@ -2422,9 +2413,6 @@ struct radeon_device {
 	struct drm_file *cmask_filp;
 	/* i2c buses */
 	struct radeon_i2c_chan *i2c_bus[RADEON_MAX_I2C_BUS];
-	/* debugfs */
-	struct radeon_debugfs	debugfs[RADEON_DEBUGFS_MAX_COMPONENTS];
-	unsigned 		debugfs_count;
 	/* virtual memory */
 	struct radeon_vm_manager	vm_manager;
 	struct mutex			gpu_clock_mutex;

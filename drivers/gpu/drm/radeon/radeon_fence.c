@@ -37,7 +37,6 @@
 #include <linux/slab.h>
 #include <linux/wait.h>
 
-#include <drm/drm_debugfs.h>
 #include <drm/drm_device.h>
 #include <drm/drm_file.h>
 
@@ -916,9 +915,9 @@ int radeon_fence_driver_init(struct radeon_device *rdev)
 	for (ring = 0; ring < RADEON_NUM_RINGS; ring++) {
 		radeon_fence_driver_init_ring(rdev, ring);
 	}
-	if (radeon_debugfs_fence_init(rdev)) {
-		dev_err(rdev->dev, "fence debugfs file creation failed\n");
-	}
+
+	radeon_debugfs_fence_init(rdev);
+
 	return 0;
 }
 
@@ -973,11 +972,9 @@ void radeon_fence_driver_force_completion(struct radeon_device *rdev, int ring)
  * Fence debugfs
  */
 #if defined(CONFIG_DEBUG_FS)
-static int radeon_debugfs_fence_info(struct seq_file *m, void *data)
+static int radeon_debugfs_fence_info_show(struct seq_file *m, void *data)
 {
-	struct drm_info_node *node = (struct drm_info_node *)m->private;
-	struct drm_device *dev = node->minor->dev;
-	struct radeon_device *rdev = dev->dev_private;
+	struct radeon_device *rdev = (struct radeon_device *)m->private;
 	int i, j;
 
 	for (i = 0; i < RADEON_NUM_RINGS; ++i) {
@@ -1006,33 +1003,34 @@ static int radeon_debugfs_fence_info(struct seq_file *m, void *data)
  *
  * Manually trigger a gpu reset at the next fence wait.
  */
-static int radeon_debugfs_gpu_reset(struct seq_file *m, void *data)
+static int radeon_debugfs_gpu_reset(void *data, u64 *val)
 {
-	struct drm_info_node *node = (struct drm_info_node *) m->private;
-	struct drm_device *dev = node->minor->dev;
-	struct radeon_device *rdev = dev->dev_private;
+	struct radeon_device *rdev = (struct radeon_device *)data;
 
 	down_read(&rdev->exclusive_lock);
-	seq_printf(m, "%d\n", rdev->needs_reset);
+	*val = rdev->needs_reset;
 	rdev->needs_reset = true;
 	wake_up_all(&rdev->fence_queue);
 	up_read(&rdev->exclusive_lock);
 
 	return 0;
 }
-
-static struct drm_info_list radeon_debugfs_fence_list[] = {
-	{"radeon_fence_info", &radeon_debugfs_fence_info, 0, NULL},
-	{"radeon_gpu_reset", &radeon_debugfs_gpu_reset, 0, NULL}
-};
+DEFINE_SHOW_ATTRIBUTE(radeon_debugfs_fence_info);
+DEFINE_DEBUGFS_ATTRIBUTE(radeon_debugfs_gpu_reset_fops,
+			 radeon_debugfs_gpu_reset, NULL, "%lld\n");
 #endif
 
-int radeon_debugfs_fence_init(struct radeon_device *rdev)
+void radeon_debugfs_fence_init(struct radeon_device *rdev)
 {
 #if defined(CONFIG_DEBUG_FS)
-	return radeon_debugfs_add_files(rdev, radeon_debugfs_fence_list, 2);
-#else
-	return 0;
+	struct dentry *root = rdev->ddev->primary->debugfs_root;
+
+	debugfs_create_file("radeon_gpu_reset", 0444, root, rdev,
+			    &radeon_debugfs_gpu_reset_fops);
+	debugfs_create_file("radeon_fence_info", 0444, root, rdev,
+			    &radeon_debugfs_fence_info_fops);
+
+
 #endif
 }
 
