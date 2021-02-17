@@ -820,15 +820,14 @@ static int sun8i_dwmac_power_internal_phy(struct stmmac_priv *priv)
 	return 0;
 }
 
-static int sun8i_dwmac_unpower_internal_phy(struct sunxi_priv_data *gmac)
+static void sun8i_dwmac_unpower_internal_phy(struct sunxi_priv_data *gmac)
 {
 	if (!gmac->internal_phy_powered)
-		return 0;
+		return;
 
 	clk_disable_unprepare(gmac->ephy_clk);
 	reset_control_assert(gmac->rst_ephy);
 	gmac->internal_phy_powered = false;
-	return 0;
 }
 
 /* MDIO multiplexing switch function
