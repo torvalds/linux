@@ -565,6 +565,18 @@ echo 'ret=$?' >> $T/script
 echo "cat $T/kvm-recheck.sh.out | tee -a $resdir/$ds/log" >> $T/script
 echo 'exit $ret' >> $T/script
 
+# Extract the tests and their batches from the script.
+egrep 'Start batch|Starting build\.' $T/script | grep -v ">>" |
+	sed -e 's/:.*$//' -e 's/^echo //' -e 's/-ovf//' |
+	awk '
+	/^----Start/ {
+		batchno = $3;
+		next;
+	}
+	{
+		print batchno, $1, $2
+	}' > $T/batches
+
 if test "$dryrun" = script
 then
 	cat $T/script
@@ -583,21 +595,14 @@ then
 	exit 0
 elif test "$dryrun" = batches
 then
-	# Extract the tests and their batches from the script.
-	egrep 'Start batch|Starting build\.' $T/script | grep -v ">>" |
-		sed -e 's/:.*$//' -e 's/^echo //' -e 's/-ovf//' |
-		awk '
-		/^----Start/ {
-			batchno = $3;
-			next;
-		}
-		{
-			print batchno, $1, $2
-		}'
+	cat $T/batches
+	exit 0
 else
-	# Not a dryrun, so run the script.
+	# Not a dryrun.  Record the batches and the number of CPUs, then run the script.
 	bash $T/script
 	ret=$?
+	cp $T/batches $resdir/$ds/batches
+	echo '#' cpus=$cpus >> $resdir/$ds/batches
 	echo " --- Done at `date` (`get_starttime_duration $starttime`) exitcode $ret" | tee -a $resdir/$ds/log
 	exit $ret
 fi
