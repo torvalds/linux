@@ -1179,10 +1179,8 @@ int lis3lv02d_init_device(struct lis3lv02d *lis3)
 	lis3->reg_cache = kzalloc(max(sizeof(lis3_wai8_regs),
 				     sizeof(lis3_wai12_regs)), GFP_KERNEL);
 
-	if (lis3->reg_cache == NULL) {
-		printk(KERN_ERR DRIVER_NAME "out of memory\n");
+	if (lis3->reg_cache == NULL)
 		return -ENOMEM;
-	}
 
 	mutex_init(&lis3->mutex);
 	atomic_set(&lis3->wake_thread, 0);
