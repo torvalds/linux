@@ -1555,10 +1555,11 @@ static void btrfsic_release_block_ctx(struct btrfsic_block_data_ctx *block_ctx)
 		BUG_ON(!block_ctx->pagev);
 		num_pages = (block_ctx->len + (u64)PAGE_SIZE - 1) >>
 			    PAGE_SHIFT;
+		/* Pages must be unmapped in reverse order */
 		while (num_pages > 0) {
 			num_pages--;
 			if (block_ctx->datav[num_pages]) {
-				kunmap(block_ctx->pagev[num_pages]);
+				kunmap_local(block_ctx->datav[num_pages]);
 				block_ctx->datav[num_pages] = NULL;
 			}
 			if (block_ctx->pagev[num_pages]) {
@@ -1637,7 +1638,7 @@ static int btrfsic_read_block(struct btrfsic_state *state,
 		i = j;
 	}
 	for (i = 0; i < num_pages; i++)
-		block_ctx->datav[i] = kmap(block_ctx->pagev[i]);
+		block_ctx->datav[i] = kmap_local_page(block_ctx->pagev[i]);
 
 	return block_ctx->len;
 }
