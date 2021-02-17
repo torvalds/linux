@@ -179,26 +179,6 @@ static int amdgpu_verify_access(struct ttm_buffer_object *bo, struct file *filp)
 }
 
 /**
- * amdgpu_find_mm_node - Helper function finds the drm_mm_node corresponding to
- * @offset. It also modifies the offset to be within the drm_mm_node returned
- *
- * @mem: The region where the bo resides.
- * @offset: The offset that drm_mm_node is used for finding.
- *
- */
-static struct drm_mm_node *amdgpu_find_mm_node(struct ttm_resource *mem,
-					       uint64_t *offset)
-{
-	struct drm_mm_node *mm_node = mem->mm_node;
-
-	while (*offset >= (mm_node->size << PAGE_SHIFT)) {
-		*offset -= (mm_node->size << PAGE_SHIFT);
-		++mm_node;
-	}
-	return mm_node;
-}
-
-/**
  * amdgpu_ttm_map_buffer - Map memory into the GART windows
  * @bo: buffer object to map
  * @mem: memory object to map
@@ -1478,41 +1458,36 @@ static bool amdgpu_ttm_bo_eviction_valuable(struct ttm_buffer_object *bo,
  * access for debugging purposes.
  */
 static int amdgpu_ttm_access_memory(struct ttm_buffer_object *bo,
-				    unsigned long offset,
-				    void *buf, int len, int write)
+				    unsigned long offset, void *buf, int len,
+				    int write)
 {
 	struct amdgpu_bo *abo = ttm_to_amdgpu_bo(bo);
 	struct amdgpu_device *adev = amdgpu_ttm_adev(abo->tbo.bdev);
-	struct drm_mm_node *nodes;
+	struct amdgpu_res_cursor cursor;
+	unsigned long flags;
 	uint32_t value = 0;
 	int ret = 0;
-	uint64_t pos;
-	unsigned long flags;
 
 	if (bo->mem.mem_type != TTM_PL_VRAM)
 		return -EIO;
 
-	pos = offset;
-	nodes = amdgpu_find_mm_node(&abo->tbo.mem, &pos);
-	pos += (nodes->start << PAGE_SHIFT);
-
-	while (len && pos < adev->gmc.mc_vram_size) {
-		uint64_t aligned_pos = pos & ~(uint64_t)3;
-		uint64_t bytes = 4 - (pos & 3);
-		uint32_t shift = (pos & 3) * 8;
+	amdgpu_res_first(&bo->mem, offset, len, &cursor);
+	while (cursor.remaining) {
+		uint64_t aligned_pos = cursor.start & ~(uint64_t)3;
+		uint64_t bytes = 4 - (cursor.start & 3);
+		uint32_t shift = (cursor.start & 3) * 8;
 		uint32_t mask = 0xffffffff << shift;
 
-		if (len < bytes) {
-			mask &= 0xffffffff >> (bytes - len) * 8;
-			bytes = len;
+		if (cursor.size < bytes) {
+			mask &= 0xffffffff >> (bytes - cursor.size) * 8;
+			bytes = cursor.size;
 		}
 
 		if (mask != 0xffffffff) {
 			spin_lock_irqsave(&adev->mmio_idx_lock, flags);
 			WREG32_NO_KIQ(mmMM_INDEX, ((uint32_t)aligned_pos) | 0x80000000);
 			WREG32_NO_KIQ(mmMM_INDEX_HI, aligned_pos >> 31);
-			if (!write || mask != 0xffffffff)
-				value = RREG32_NO_KIQ(mmMM_DATA);
+			value = RREG32_NO_KIQ(mmMM_DATA);
 			if (write) {
 				value &= ~mask;
 				value |= (*(uint32_t *)buf << shift) & mask;
@@ -1524,21 +1499,15 @@ static int amdgpu_ttm_access_memory(struct ttm_buffer_object *bo,
 				memcpy(buf, &value, bytes);
 			}
 		} else {
-			bytes = (nodes->start + nodes->size) << PAGE_SHIFT;
-			bytes = min(bytes - pos, (uint64_t)len & ~0x3ull);
-
-			amdgpu_device_vram_access(adev, pos, (uint32_t *)buf,
-						  bytes, write);
+			bytes = cursor.size & 0x3ull;
+			amdgpu_device_vram_access(adev, cursor.start,
+						  (uint32_t *)buf, bytes,
+						  write);
 		}
 
 		ret += bytes;
 		buf = (uint8_t *)buf + bytes;
-		pos += bytes;
-		len -= bytes;
-		if (pos >= (nodes->start + nodes->size) << PAGE_SHIFT) {
-			++nodes;
-			pos = (nodes->start << PAGE_SHIFT);
-		}
+		amdgpu_res_next(&cursor, bytes);
 	}
 
 	return ret;
