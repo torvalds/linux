@@ -2605,16 +2605,17 @@ static int btrfs_insert_replace_extent(struct btrfs_trans_handle *trans,
  * extents without inserting a new one, so we must abort the transaction to avoid
  * a corruption.
  */
-int btrfs_replace_file_extents(struct inode *inode, struct btrfs_path *path,
-			   const u64 start, const u64 end,
-			   struct btrfs_replace_extent_info *extent_info,
-			   struct btrfs_trans_handle **trans_out)
+int btrfs_replace_file_extents(struct btrfs_inode *inode,
+			       struct btrfs_path *path, const u64 start,
+			       const u64 end,
+			       struct btrfs_replace_extent_info *extent_info,
+			       struct btrfs_trans_handle **trans_out)
 {
 	struct btrfs_drop_extents_args drop_args = { 0 };
-	struct btrfs_fs_info *fs_info = btrfs_sb(inode->i_sb);
+	struct btrfs_root *root = inode->root;
+	struct btrfs_fs_info *fs_info = root->fs_info;
 	u64 min_size = btrfs_calc_insert_metadata_size(fs_info, 1);
-	u64 ino_size = round_up(inode->i_size, fs_info->sectorsize);
-	struct btrfs_root *root = BTRFS_I(inode)->root;
+	u64 ino_size = round_up(inode->vfs_inode.i_size, fs_info->sectorsize);
 	struct btrfs_trans_handle *trans = NULL;
 	struct btrfs_block_rsv *rsv;
 	unsigned int rsv_count;
@@ -2662,10 +2663,10 @@ int btrfs_replace_file_extents(struct inode *inode, struct btrfs_path *path,
 	drop_args.drop_cache = true;
 	while (cur_offset < end) {
 		drop_args.start = cur_offset;
-		ret = btrfs_drop_extents(trans, root, BTRFS_I(inode), &drop_args);
+		ret = btrfs_drop_extents(trans, root, inode, &drop_args);
 		/* If we are punching a hole decrement the inode's byte count */
 		if (!extent_info)
-			btrfs_update_inode_bytes(BTRFS_I(inode), 0,
+			btrfs_update_inode_bytes(inode, 0,
 						 drop_args.bytes_found);
 		if (ret != -ENOSPC) {
 			/*
@@ -2685,8 +2686,8 @@ int btrfs_replace_file_extents(struct inode *inode, struct btrfs_path *path,
 
 		if (!extent_info && cur_offset < drop_args.drop_end &&
 		    cur_offset < ino_size) {
-			ret = fill_holes(trans, BTRFS_I(inode), path,
-					 cur_offset, drop_args.drop_end);
+			ret = fill_holes(trans, inode, path, cur_offset,
+					 drop_args.drop_end);
 			if (ret) {
 				/*
 				 * If we failed then we didn't insert our hole
@@ -2704,7 +2705,7 @@ int btrfs_replace_file_extents(struct inode *inode, struct btrfs_path *path,
 			 * know to not set disk_i_size in this area until a new
 			 * file extent is inserted here.
 			 */
-			ret = btrfs_inode_clear_file_extent_range(BTRFS_I(inode),
+			ret = btrfs_inode_clear_file_extent_range(inode,
 					cur_offset,
 					drop_args.drop_end - cur_offset);
 			if (ret) {
@@ -2723,8 +2724,8 @@ int btrfs_replace_file_extents(struct inode *inode, struct btrfs_path *path,
 			u64 replace_len = drop_args.drop_end -
 					  extent_info->file_offset;
 
-			ret = btrfs_insert_replace_extent(trans, BTRFS_I(inode),
-					path, extent_info, replace_len,
+			ret = btrfs_insert_replace_extent(trans, inode,	path,
+					extent_info, replace_len,
 					drop_args.bytes_found);
 			if (ret) {
 				btrfs_abort_transaction(trans, ret);
@@ -2737,7 +2738,7 @@ int btrfs_replace_file_extents(struct inode *inode, struct btrfs_path *path,
 
 		cur_offset = drop_args.drop_end;
 
-		ret = btrfs_update_inode(trans, root, BTRFS_I(inode));
+		ret = btrfs_update_inode(trans, root, inode);
 		if (ret)
 			break;
 
@@ -2757,8 +2758,7 @@ int btrfs_replace_file_extents(struct inode *inode, struct btrfs_path *path,
 		trans->block_rsv = rsv;
 
 		if (!extent_info) {
-			ret = find_first_non_hole(BTRFS_I(inode), &cur_offset,
-						  &len);
+			ret = find_first_non_hole(inode, &cur_offset, &len);
 			if (unlikely(ret < 0))
 				break;
 			if (ret && !len) {
@@ -2777,8 +2777,7 @@ int btrfs_replace_file_extents(struct inode *inode, struct btrfs_path *path,
 	 * try_release_extent_mapping() is invoked during page cache truncation.
 	 */
 	if (extent_info && !extent_info->is_new_extent)
-		set_bit(BTRFS_INODE_NEEDS_FULL_SYNC,
-			&BTRFS_I(inode)->runtime_flags);
+		set_bit(BTRFS_INODE_NEEDS_FULL_SYNC, &inode->runtime_flags);
 
 	if (ret)
 		goto out_trans;
@@ -2804,8 +2803,8 @@ int btrfs_replace_file_extents(struct inode *inode, struct btrfs_path *path,
 	 */
 	if (!extent_info && cur_offset < ino_size &&
 	    cur_offset < drop_args.drop_end) {
-		ret = fill_holes(trans, BTRFS_I(inode), path,
-				 cur_offset, drop_args.drop_end);
+		ret = fill_holes(trans, inode, path, cur_offset,
+				 drop_args.drop_end);
 		if (ret) {
 			/* Same comment as above. */
 			btrfs_abort_transaction(trans, ret);
@@ -2813,8 +2812,8 @@ int btrfs_replace_file_extents(struct inode *inode, struct btrfs_path *path,
 		}
 	} else if (!extent_info && cur_offset < drop_args.drop_end) {
 		/* See the comment in the loop above for the reasoning here. */
-		ret = btrfs_inode_clear_file_extent_range(BTRFS_I(inode),
-				cur_offset, drop_args.drop_end - cur_offset);
+		ret = btrfs_inode_clear_file_extent_range(inode, cur_offset,
+					drop_args.drop_end - cur_offset);
 		if (ret) {
 			btrfs_abort_transaction(trans, ret);
 			goto out_trans;
@@ -2822,7 +2821,7 @@ int btrfs_replace_file_extents(struct inode *inode, struct btrfs_path *path,
 
 	}
 	if (extent_info) {
-		ret = btrfs_insert_replace_extent(trans, BTRFS_I(inode), path,
+		ret = btrfs_insert_replace_extent(trans, inode, path,
 				extent_info, extent_info->data_len,
 				drop_args.bytes_found);
 		if (ret) {
@@ -2967,8 +2966,8 @@ static int btrfs_punch_hole(struct inode *inode, loff_t offset, loff_t len)
 		goto out;
 	}
 
-	ret = btrfs_replace_file_extents(inode, path, lockstart, lockend, NULL,
-				     &trans);
+	ret = btrfs_replace_file_extents(BTRFS_I(inode), path, lockstart,
+					 lockend, NULL, &trans);
 	btrfs_free_path(path);
 	if (ret)
 		goto out;
