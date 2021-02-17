@@ -3752,7 +3752,7 @@ static void android_rvh_enqueue_task(void *unused, struct rq *rq, struct task_st
 	wts->last_enqueued_ts = wallclock;
 	sched_update_nr_prod(rq->cpu, true);
 
-	if (fair_policy(p->policy)) {
+	if (walt_fair_task(p)) {
 		wts->misfit = !task_fits_max(p, rq->cpu);
 		inc_rq_walt_stats(rq, p);
 	}
@@ -3772,7 +3772,7 @@ static void android_rvh_dequeue_task(void *unused, struct rq *rq, struct task_st
 
 	sched_update_nr_prod(rq->cpu, false);
 
-	if (fair_policy(p->policy))
+	if (walt_fair_task(p))
 		dec_rq_walt_stats(rq, p);
 
 	walt_dec_cumulative_runnable_avg(rq, p);

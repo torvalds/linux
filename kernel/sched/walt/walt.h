@@ -858,4 +858,13 @@ static inline struct task_group *css_tg(struct cgroup_subsys_state *css)
 	return css ? container_of(css, struct task_group, css) : NULL;
 }
 
+/*
+ * The policy of a RT boosted task (via PI mutex) still indicates it is
+ * a fair task, so use prio check as well. The prio check alone is not
+ * sufficient since idle task also has 120 priority.
+ */
+static inline bool walt_fair_task(struct task_struct *p)
+{
+	return p->prio >= MAX_RT_PRIO && !is_idle_task(p);
+}
 #endif /* _WALT_H */

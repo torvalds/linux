@@ -144,7 +144,7 @@ static void walt_lb_check_for_rotation(struct rq *src_rq)
 		if (is_reserved(i))
 			continue;
 
-		if (!rq->misfit_task_load)
+		if (!rq->misfit_task_load || !walt_fair_task(rq->curr))
 			continue;
 
 		wts = (struct walt_task_struct *) rq->curr->android_vendor_data1;
@@ -167,7 +167,7 @@ static void walt_lb_check_for_rotation(struct rq *src_rq)
 		if (is_reserved(i))
 			continue;
 
-		if (rq->curr->prio < MAX_RT_PRIO)
+		if (!walt_fair_task(rq->curr))
 			continue;
 
 		if (rq->nr_running > 1)
@@ -191,8 +191,7 @@ static void walt_lb_check_for_rotation(struct rq *src_rq)
 	dst_rq = cpu_rq(dst_cpu);
 
 	double_rq_lock(src_rq, dst_rq);
-	if (dst_rq->curr->prio >= MAX_RT_PRIO && dst_rq->curr != dst_rq->idle &&
-		src_rq->curr->prio >= MAX_RT_PRIO && src_rq->curr != src_rq->idle) {
+	if (walt_fair_task(dst_rq->curr)) {
 		get_task_struct(src_rq->curr);
 		get_task_struct(dst_rq->curr);
 
@@ -494,7 +493,7 @@ static void walt_lb_tick(void *unused, struct rq *rq)
 
 	if (static_branch_unlikely(&walt_disabled))
 		return;
-	if (!rq->misfit_task_load)
+	if (!rq->misfit_task_load || !walt_fair_task(p))
 		return;
 
 	if (p->state != TASK_RUNNING || p->nr_cpus_allowed == 1)
