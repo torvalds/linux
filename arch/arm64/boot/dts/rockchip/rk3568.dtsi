@@ -132,7 +132,7 @@
 		rockchip,low-temp = <0>;
 		rockchip,low-temp-adjust-volt = <
 			/* MHz    MHz    uV */
-			1200      1200   75000
+			1104      1104   75000
 		>;
 
 		nvmem-cells = <&cpu_leakage>;
@@ -154,8 +154,8 @@
 			clock-latency-ns = <40000>;
 			opp-suspend;
 		};
-		opp-1200000000 {
-			opp-hz = /bits/ 64 <1200000000>;
+		opp-1104000000 {
+			opp-hz = /bits/ 64 <1104000000>;
 			opp-microvolt = <825000 825000 1150000>;
 			clock-latency-ns = <40000>;
 		};
