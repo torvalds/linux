@@ -631,12 +631,10 @@ static unsigned long amdgpu_ttm_io_mem_pfn(struct ttm_buffer_object *bo,
 					   unsigned long page_offset)
 {
 	struct amdgpu_device *adev = amdgpu_ttm_adev(bo->bdev);
-	uint64_t offset = (page_offset << PAGE_SHIFT);
-	struct drm_mm_node *mm;
+	struct amdgpu_res_cursor cursor;
 
-	mm = amdgpu_find_mm_node(&bo->mem, &offset);
-	offset += adev->gmc.aper_base;
-	return mm->start + (offset >> PAGE_SHIFT);
+	amdgpu_res_first(&bo->mem, (u64)page_offset << PAGE_SHIFT, 0, &cursor);
+	return (adev->gmc.aper_base + cursor.start) >> PAGE_SHIFT;
 }
 
 /**
