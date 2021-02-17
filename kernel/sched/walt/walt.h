@@ -731,7 +731,7 @@ static inline unsigned int walt_get_idle_exit_latency(struct rq *rq)
 	if (idle)
 		return idle->exit_latency;
 
-	return UINT_MAX;
+	return 0; /* CPU is not idle */
 }
 
 extern void sched_get_nr_running_avg(struct sched_avg_stats *stats);
