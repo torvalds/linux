@@ -118,20 +118,13 @@ ENTRY(clear_page_alias)
 
 	abi_entry_default
 
-	/* Skip setting up a temporary DTLB if not aliased low page. */
-
 	movi	a5, PAGE_OFFSET
-	movi	a6, 0
-	beqz	a3, 1f
-
-	/* Setup a temporary DTLB for the addr. */
-
 	addi	a6, a3, (PAGE_KERNEL | _PAGE_HW_WRITE)
 	mov	a4, a2
 	wdtlb	a6, a2
 	dsync
 
-1:	movi	a3, 0
+	movi	a3, 0
 	__loopi	a2, a7, PAGE_SIZE, 32
 	s32i	a3, a2, 0
 	s32i	a3, a2, 4
@@ -143,12 +136,9 @@ ENTRY(clear_page_alias)
 	s32i	a3, a2, 28
 	__endla	a2, a7, 32
 
-	bnez	a6, 1f
-	abi_ret_default
+	/* We need to invalidate the temporary dtlb entry. */
 
-	/* We need to invalidate the temporary idtlb entry, if any. */
-
-1:	idtlb	a4
+	idtlb	a4
 	dsync
 
 	abi_ret_default
@@ -166,21 +156,11 @@ ENTRY(copy_page_alias)
 
 	abi_entry_default
 
-	/* Skip setting up a temporary DTLB for destination if not aliased. */
-
-	movi	a6, 0
-	movi	a7, 0
-	beqz	a4, 1f
-
 	/* Setup a temporary DTLB for destination. */
 
 	addi	a6, a4, (PAGE_KERNEL | _PAGE_HW_WRITE)
 	wdtlb	a6, a2
 	dsync
-
-	/* Skip setting up a temporary DTLB for source if not aliased. */
-
-1:	beqz	a5, 1f
 
 	/* Setup a temporary DTLB for source. */
 
@@ -219,17 +199,11 @@ ENTRY(copy_page_alias)
 
 	/* We need to invalidate any temporary mapping! */
 
-	bnez	a6, 1f
-	bnez	a7, 2f
-	abi_ret_default
-
-1:	addi	a2, a2, -PAGE_SIZE
+	addi	a2, a2, -PAGE_SIZE
 	idtlb	a2
 	dsync
-	bnez	a7, 2f
-	abi_ret_default
 
-2:	addi	a3, a3, -PAGE_SIZE+1
+	addi	a3, a3, -PAGE_SIZE+1
 	idtlb	a3
 	dsync
 
