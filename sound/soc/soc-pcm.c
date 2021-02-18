@@ -1907,6 +1907,8 @@ static int dpcm_fe_dai_hw_free(struct snd_pcm_substream *substream)
 	/* only hw_params backends that are either sinks or sources
 	 * to this frontend DAI */
 	err = dpcm_be_dai_hw_free(fe, stream);
+	if (err < 0)
+		dev_err(fe->dev, "ASoC: hw_free BE failed %d\n", err);
 
 	fe->dpcm[stream].state = SND_SOC_DPCM_STATE_HW_FREE;
 	dpcm_set_fe_update_state(fe, stream, SND_SOC_DPCM_UPDATE_NO);
