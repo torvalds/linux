@@ -329,6 +329,7 @@ mt7615_init_wiphy(struct ieee80211_hw *hw)
 	hw->max_rates = 3;
 	hw->max_report_rates = 7;
 	hw->max_rate_tries = 11;
+	hw->netdev_features = NETIF_F_RXCSUM;
 
 	phy->slottime = 9;
 
