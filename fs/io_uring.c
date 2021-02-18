@@ -6820,9 +6820,6 @@ fail_req:
 			ctx->drain_next = 0;
 		}
 		if (req->flags & (REQ_F_LINK | REQ_F_HARDLINK)) {
-			ret = io_req_defer_prep(req);
-			if (unlikely(ret))
-				req->flags |= REQ_F_FAIL_LINK;
 			link->head = req;
 			link->last = req;
 		} else {
