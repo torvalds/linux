@@ -2171,7 +2171,27 @@ static int intel_pt_sample(struct intel_pt_queue *ptq)
 	}
 
 	if (pt->sample_branches) {
-		err = intel_pt_synth_branch_sample(ptq);
+		if (state->from_nr != state->to_nr &&
+		    state->from_ip && state->to_ip) {
+			struct intel_pt_state *st = (struct intel_pt_state *)state;
+			u64 to_ip = st->to_ip;
+			u64 from_ip = st->from_ip;
+
+			/*
+			 * perf cannot handle having different machines for ip
+			 * and addr, so create 2 branches.
+			 */
+			st->to_ip = 0;
+			err = intel_pt_synth_branch_sample(ptq);
+			if (err)
+				return err;
+			st->from_ip = 0;
+			st->to_ip = to_ip;
+			err = intel_pt_synth_branch_sample(ptq);
+			st->from_ip = from_ip;
+		} else {
+			err = intel_pt_synth_branch_sample(ptq);
+		}
 		if (err)
 			return err;
 	}
