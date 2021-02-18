@@ -1118,6 +1118,8 @@ static void bpf_prog_clone_free(struct bpf_prog *fp)
 	 * clone is guaranteed to not be locked.
 	 */
 	fp->aux = NULL;
+	fp->stats = NULL;
+	fp->active = NULL;
 	__bpf_prog_free(fp);
 }
 
