@@ -2338,7 +2338,7 @@ static void io_req_task_cancel(struct callback_head *cb)
 	struct io_ring_ctx *ctx = req->ctx;
 
 	mutex_lock(&ctx->uring_lock);
-	__io_req_task_cancel(req, -ECANCELED);
+	__io_req_task_cancel(req, req->result);
 	mutex_unlock(&ctx->uring_lock);
 	percpu_ref_put(&ctx->refs);
 }
@@ -2371,9 +2371,20 @@ static void io_req_task_queue(struct io_kiocb *req)
 	req->task_work.func = io_req_task_submit;
 	ret = io_req_task_work_add(req);
 	if (unlikely(ret)) {
+		req->result = -ECANCELED;
 		percpu_ref_get(&req->ctx->refs);
 		io_req_task_work_add_fallback(req, io_req_task_cancel);
 	}
+}
+
+static void io_req_task_queue_fail(struct io_kiocb *req, int ret)
+{
+	percpu_ref_get(&req->ctx->refs);
+	req->result = ret;
+	req->task_work.func = io_req_task_cancel;
+
+	if (unlikely(io_req_task_work_add(req)))
+		io_req_task_work_add_fallback(req, io_req_task_cancel);
 }
 
 static inline void io_queue_next(struct io_kiocb *req)
@@ -6428,13 +6439,8 @@ static void io_wq_submit_work(struct io_wq_work *work)
 	if (timeout)
 		io_queue_linked_timeout(timeout);
 
-	if (work->flags & IO_WQ_WORK_CANCEL) {
-		/* io-wq is going to take down one */
-		refcount_inc(&req->refs);
-		percpu_ref_get(&req->ctx->refs);
-		io_req_task_work_add_fallback(req, io_req_task_cancel);
-		return;
-	}
+	if (work->flags & IO_WQ_WORK_CANCEL)
+		ret = -ECANCELED;
 
 	if (!ret) {
 		do {
@@ -6450,29 +6456,11 @@ static void io_wq_submit_work(struct io_wq_work *work)
 		} while (1);
 	}
 
+	/* avoid locking problems by failing it from a clean context */
 	if (ret) {
-		struct io_ring_ctx *lock_ctx = NULL;
-
-		if (req->ctx->flags & IORING_SETUP_IOPOLL)
-			lock_ctx = req->ctx;
-
-		/*
-		 * io_iopoll_complete() does not hold completion_lock to
-		 * complete polled io, so here for polled io, we can not call
-		 * io_req_complete() directly, otherwise there maybe concurrent
-		 * access to cqring, defer_list, etc, which is not safe. Given
-		 * that io_iopoll_complete() is always called under uring_lock,
-		 * so here for polled io, we also get uring_lock to complete
-		 * it.
-		 */
-		if (lock_ctx)
-			mutex_lock(&lock_ctx->uring_lock);
-
-		req_set_fail_links(req);
-		io_req_complete(req, ret);
-
-		if (lock_ctx)
-			mutex_unlock(&lock_ctx->uring_lock);
+		/* io-wq is going to take one down */
+		refcount_inc(&req->refs);
+		io_req_task_queue_fail(req, ret);
 	}
 }
 
