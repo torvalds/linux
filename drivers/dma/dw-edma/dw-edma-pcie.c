@@ -13,8 +13,15 @@
 #include <linux/dma/edma.h>
 #include <linux/pci-epf.h>
 #include <linux/msi.h>
+#include <linux/bitfield.h>
 
 #include "dw-edma-core.h"
+
+#define DW_PCIE_VSEC_DMA_ID			0x6
+#define DW_PCIE_VSEC_DMA_BAR			GENMASK(10, 8)
+#define DW_PCIE_VSEC_DMA_MAP			GENMASK(2, 0)
+#define DW_PCIE_VSEC_DMA_RD_CH			GENMASK(25, 16)
+#define DW_PCIE_VSEC_DMA_WR_CH			GENMASK(9, 0)
 
 struct dw_edma_pcie_data {
 	/* eDMA registers location */
@@ -32,6 +39,8 @@ struct dw_edma_pcie_data {
 	/* Other */
 	enum dw_edma_map_format		mf;
 	u8				irqs;
+	u16				rd_ch_cnt;
+	u16				wr_ch_cnt;
 };
 
 static const struct dw_edma_pcie_data snps_edda_data = {
@@ -50,6 +59,8 @@ static const struct dw_edma_pcie_data snps_edda_data = {
 	/* Other */
 	.mf				= EDMA_MF_EDMA_UNROLL,
 	.irqs				= 1,
+	.rd_ch_cnt			= 0,
+	.wr_ch_cnt			= 0,
 };
 
 static int dw_edma_pcie_irq_vector(struct device *dev, unsigned int nr)
@@ -61,10 +72,51 @@ static const struct dw_edma_core_ops dw_edma_pcie_core_ops = {
 	.irq_vector = dw_edma_pcie_irq_vector,
 };
 
+static void dw_edma_pcie_get_vsec_dma_data(struct pci_dev *pdev,
+					   struct dw_edma_pcie_data *pdata)
+{
+	u32 val, map;
+	u16 vsec;
+	u64 off;
+
+	vsec = pci_find_vsec_capability(pdev, PCI_VENDOR_ID_SYNOPSYS,
+					DW_PCIE_VSEC_DMA_ID);
+	if (!vsec)
+		return;
+
+	pci_read_config_dword(pdev, vsec + PCI_VNDR_HEADER, &val);
+	if (PCI_VNDR_HEADER_REV(val) != 0x00 ||
+	    PCI_VNDR_HEADER_LEN(val) != 0x18)
+		return;
+
+	pci_dbg(pdev, "Detected PCIe Vendor-Specific Extended Capability DMA\n");
+	pci_read_config_dword(pdev, vsec + 0x8, &val);
+	map = FIELD_GET(DW_PCIE_VSEC_DMA_MAP, val);
+	if (map != EDMA_MF_EDMA_LEGACY &&
+	    map != EDMA_MF_EDMA_UNROLL &&
+	    map != EDMA_MF_HDMA_COMPAT)
+		return;
+
+	pdata->mf = map;
+	pdata->rg_bar = FIELD_GET(DW_PCIE_VSEC_DMA_BAR, val);
+
+	pci_read_config_dword(pdev, vsec + 0xc, &val);
+	pdata->rd_ch_cnt = FIELD_GET(DW_PCIE_VSEC_DMA_RD_CH, val);
+	pdata->wr_ch_cnt = FIELD_GET(DW_PCIE_VSEC_DMA_WR_CH, val);
+
+	pci_read_config_dword(pdev, vsec + 0x14, &val);
+	off = val;
+	pci_read_config_dword(pdev, vsec + 0x10, &val);
+	off <<= 32;
+	off |= val;
+	pdata->rg_off = off;
+}
+
 static int dw_edma_pcie_probe(struct pci_dev *pdev,
 			      const struct pci_device_id *pid)
 {
-	const struct dw_edma_pcie_data *pdata = (void *)pid->driver_data;
+	struct dw_edma_pcie_data *pdata = (void *)pid->driver_data;
+	struct dw_edma_pcie_data vsec_data;
 	struct device *dev = &pdev->dev;
 	struct dw_edma_chip *chip;
 	struct dw_edma *dw;
@@ -77,10 +129,18 @@ static int dw_edma_pcie_probe(struct pci_dev *pdev,
 		return err;
 	}
 
+	memcpy(&vsec_data, pdata, sizeof(struct dw_edma_pcie_data));
+
+	/*
+	 * Tries to find if exists a PCIe Vendor-Specific Extended Capability
+	 * for the DMA, if one exists, then reconfigures it.
+	 */
+	dw_edma_pcie_get_vsec_dma_data(pdev, &vsec_data);
+
 	/* Mapping PCI BAR regions */
-	err = pcim_iomap_regions(pdev, BIT(pdata->rg_bar) |
-				       BIT(pdata->ll_bar) |
-				       BIT(pdata->dt_bar),
+	err = pcim_iomap_regions(pdev, BIT(vsec_data.rg_bar) |
+				       BIT(vsec_data.ll_bar) |
+				       BIT(vsec_data.dt_bar),
 				 pci_name(pdev));
 	if (err) {
 		pci_err(pdev, "eDMA BAR I/O remapping failed\n");
@@ -123,7 +183,7 @@ static int dw_edma_pcie_probe(struct pci_dev *pdev,
 		return -ENOMEM;
 
 	/* IRQs allocation */
-	nr_irqs = pci_alloc_irq_vectors(pdev, 1, pdata->irqs,
+	nr_irqs = pci_alloc_irq_vectors(pdev, 1, vsec_data.irqs,
 					PCI_IRQ_MSI | PCI_IRQ_MSIX);
 	if (nr_irqs < 1) {
 		pci_err(pdev, "fail to alloc IRQ vector (number of IRQs=%u)\n",
@@ -137,27 +197,29 @@ static int dw_edma_pcie_probe(struct pci_dev *pdev,
 	chip->id = pdev->devfn;
 	chip->irq = pdev->irq;
 
-	dw->rg_region.vaddr = pcim_iomap_table(pdev)[pdata->rg_bar];
-	dw->rg_region.vaddr += pdata->rg_off;
-	dw->rg_region.paddr = pdev->resource[pdata->rg_bar].start;
-	dw->rg_region.paddr += pdata->rg_off;
-	dw->rg_region.sz = pdata->rg_sz;
+	dw->rg_region.vaddr = pcim_iomap_table(pdev)[vsec_data.rg_bar];
+	dw->rg_region.vaddr += vsec_data.rg_off;
+	dw->rg_region.paddr = pdev->resource[vsec_data.rg_bar].start;
+	dw->rg_region.paddr += vsec_data.rg_off;
+	dw->rg_region.sz = vsec_data.rg_sz;
 
-	dw->ll_region.vaddr = pcim_iomap_table(pdev)[pdata->ll_bar];
-	dw->ll_region.vaddr += pdata->ll_off;
-	dw->ll_region.paddr = pdev->resource[pdata->ll_bar].start;
-	dw->ll_region.paddr += pdata->ll_off;
-	dw->ll_region.sz = pdata->ll_sz;
+	dw->ll_region.vaddr = pcim_iomap_table(pdev)[vsec_data.ll_bar];
+	dw->ll_region.vaddr += vsec_data.ll_off;
+	dw->ll_region.paddr = pdev->resource[vsec_data.ll_bar].start;
+	dw->ll_region.paddr += vsec_data.ll_off;
+	dw->ll_region.sz = vsec_data.ll_sz;
 
-	dw->dt_region.vaddr = pcim_iomap_table(pdev)[pdata->dt_bar];
-	dw->dt_region.vaddr += pdata->dt_off;
-	dw->dt_region.paddr = pdev->resource[pdata->dt_bar].start;
-	dw->dt_region.paddr += pdata->dt_off;
-	dw->dt_region.sz = pdata->dt_sz;
+	dw->dt_region.vaddr = pcim_iomap_table(pdev)[vsec_data.dt_bar];
+	dw->dt_region.vaddr += vsec_data.dt_off;
+	dw->dt_region.paddr = pdev->resource[vsec_data.dt_bar].start;
+	dw->dt_region.paddr += vsec_data.dt_off;
+	dw->dt_region.sz = vsec_data.dt_sz;
 
-	dw->mf = pdata->mf;
+	dw->mf = vsec_data.mf;
 	dw->nr_irqs = nr_irqs;
 	dw->ops = &dw_edma_pcie_core_ops;
+	dw->rd_ch_cnt = vsec_data.rd_ch_cnt;
+	dw->wr_ch_cnt = vsec_data.wr_ch_cnt;
 
 	/* Debug info */
 	if (dw->mf == EDMA_MF_EDMA_LEGACY)
@@ -170,15 +232,15 @@ static int dw_edma_pcie_probe(struct pci_dev *pdev,
 		pci_dbg(pdev, "Version:\tUnknown (0x%x)\n", dw->mf);
 
 	pci_dbg(pdev, "Registers:\tBAR=%u, off=0x%.8lx, sz=0x%zx bytes, addr(v=%p, p=%pa)\n",
-		pdata->rg_bar, pdata->rg_off, pdata->rg_sz,
+		vsec_data.rg_bar, vsec_data.rg_off, vsec_data.rg_sz,
 		dw->rg_region.vaddr, &dw->rg_region.paddr);
 
 	pci_dbg(pdev, "L. List:\tBAR=%u, off=0x%.8lx, sz=0x%zx bytes, addr(v=%p, p=%pa)\n",
-		pdata->ll_bar, pdata->ll_off, pdata->ll_sz,
+		vsec_data.ll_bar, vsec_data.ll_off, vsec_data.ll_sz,
 		dw->ll_region.vaddr, &dw->ll_region.paddr);
 
 	pci_dbg(pdev, "Data:\tBAR=%u, off=0x%.8lx, sz=0x%zx bytes, addr(v=%p, p=%pa)\n",
-		pdata->dt_bar, pdata->dt_off, pdata->dt_sz,
+		vsec_data.dt_bar, vsec_data.dt_off, vsec_data.dt_sz,
 		dw->dt_region.vaddr, &dw->dt_region.paddr);
 
 	pci_dbg(pdev, "Nr. IRQs:\t%u\n", dw->nr_irqs);
