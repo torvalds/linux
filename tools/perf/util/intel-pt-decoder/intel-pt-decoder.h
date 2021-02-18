@@ -201,10 +201,11 @@ struct intel_pt_blk_items {
 
 struct intel_pt_state {
 	enum intel_pt_sample_type type;
+	bool from_nr;
+	bool to_nr;
 	int err;
 	uint64_t from_ip;
 	uint64_t to_ip;
-	uint64_t pip_payload;
 	uint64_t tot_insn_cnt;
 	uint64_t tot_cyc_cnt;
 	uint64_t timestamp;

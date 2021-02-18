@@ -122,6 +122,8 @@ struct intel_pt_decoder {
 	bool in_psb;
 	bool hop;
 	bool leap;
+	bool nr;
+	bool next_nr;
 	enum intel_pt_param_flags flags;
 	uint64_t pos;
 	uint64_t last_ip;
@@ -501,6 +503,28 @@ static inline void intel_pt_clear_tx_flags(struct intel_pt_decoder *decoder)
 static inline void intel_pt_update_in_tx(struct intel_pt_decoder *decoder)
 {
 	decoder->tx_flags = decoder->packet.payload & INTEL_PT_IN_TX;
+}
+
+static inline void intel_pt_update_pip(struct intel_pt_decoder *decoder)
+{
+	decoder->pip_payload = decoder->packet.payload;
+}
+
+static inline void intel_pt_update_nr(struct intel_pt_decoder *decoder)
+{
+	decoder->next_nr = decoder->pip_payload & 1;
+}
+
+static inline void intel_pt_set_nr(struct intel_pt_decoder *decoder)
+{
+	decoder->nr = decoder->pip_payload & 1;
+	decoder->next_nr = decoder->nr;
+}
+
+static inline void intel_pt_set_pip(struct intel_pt_decoder *decoder)
+{
+	intel_pt_update_pip(decoder);
+	intel_pt_set_nr(decoder);
 }
 
 static int intel_pt_bad_packet(struct intel_pt_decoder *decoder)
@@ -1240,12 +1264,15 @@ static int intel_pt_walk_tip(struct intel_pt_decoder *decoder)
 		decoder->continuous_period = false;
 		decoder->pkt_state = INTEL_PT_STATE_IN_SYNC;
 		decoder->state.type |= INTEL_PT_TRACE_END;
+		intel_pt_update_nr(decoder);
 		return 0;
 	}
 	if (err == INTEL_PT_RETURN)
 		return 0;
 	if (err)
 		return err;
+
+	intel_pt_update_nr(decoder);
 
 	if (intel_pt_insn.branch == INTEL_PT_BR_INDIRECT) {
 		if (decoder->pkt_state == INTEL_PT_STATE_TIP_PGD) {
@@ -1359,6 +1386,7 @@ static int intel_pt_walk_tnt(struct intel_pt_decoder *decoder)
 			decoder->state.from_ip = decoder->ip;
 			decoder->state.to_ip = decoder->last_ip;
 			decoder->ip = decoder->last_ip;
+			intel_pt_update_nr(decoder);
 			return 0;
 		}
 
@@ -1483,6 +1511,7 @@ static int intel_pt_overflow(struct intel_pt_decoder *decoder)
 {
 	intel_pt_log("ERROR: Buffer overflow\n");
 	intel_pt_clear_tx_flags(decoder);
+	intel_pt_set_nr(decoder);
 	decoder->timestamp_insn_cnt = 0;
 	decoder->pkt_state = INTEL_PT_STATE_ERR_RESYNC;
 	decoder->overflow = true;
@@ -1757,7 +1786,7 @@ static int intel_pt_walk_psbend(struct intel_pt_decoder *decoder)
 			break;
 
 		case INTEL_PT_PIP:
-			decoder->pip_payload = decoder->packet.payload;
+			intel_pt_set_pip(decoder);
 			break;
 
 		case INTEL_PT_FUP:
@@ -1856,6 +1885,7 @@ static int intel_pt_walk_fup_tip(struct intel_pt_decoder *decoder)
 			decoder->pge = false;
 			decoder->continuous_period = false;
 			decoder->state.type |= INTEL_PT_TRACE_END;
+			intel_pt_update_nr(decoder);
 			return 0;
 
 		case INTEL_PT_TIP_PGE:
@@ -1871,6 +1901,7 @@ static int intel_pt_walk_fup_tip(struct intel_pt_decoder *decoder)
 			}
 			decoder->state.type |= INTEL_PT_TRACE_BEGIN;
 			intel_pt_mtc_cyc_cnt_pge(decoder);
+			intel_pt_set_nr(decoder);
 			return 0;
 
 		case INTEL_PT_TIP:
@@ -1881,10 +1912,11 @@ static int intel_pt_walk_fup_tip(struct intel_pt_decoder *decoder)
 				intel_pt_set_ip(decoder);
 				decoder->state.to_ip = decoder->ip;
 			}
+			intel_pt_update_nr(decoder);
 			return 0;
 
 		case INTEL_PT_PIP:
-			decoder->pip_payload = decoder->packet.payload;
+			intel_pt_update_pip(decoder);
 			break;
 
 		case INTEL_PT_MTC:
@@ -1943,21 +1975,27 @@ static int intel_pt_hop_trace(struct intel_pt_decoder *decoder, bool *no_tip, in
 		return HOP_IGNORE;
 
 	case INTEL_PT_TIP_PGD:
-		if (!decoder->packet.count)
+		if (!decoder->packet.count) {
+			intel_pt_set_nr(decoder);
 			return HOP_IGNORE;
+		}
 		intel_pt_set_ip(decoder);
 		decoder->state.type |= INTEL_PT_TRACE_END;
 		decoder->state.from_ip = 0;
 		decoder->state.to_ip = decoder->ip;
+		intel_pt_update_nr(decoder);
 		return HOP_RETURN;
 
 	case INTEL_PT_TIP:
-		if (!decoder->packet.count)
+		if (!decoder->packet.count) {
+			intel_pt_set_nr(decoder);
 			return HOP_IGNORE;
+		}
 		intel_pt_set_ip(decoder);
 		decoder->state.type = INTEL_PT_INSTRUCTION;
 		decoder->state.from_ip = decoder->ip;
 		decoder->state.to_ip = 0;
+		intel_pt_update_nr(decoder);
 		return HOP_RETURN;
 
 	case INTEL_PT_FUP:
@@ -2222,6 +2260,7 @@ next:
 		case INTEL_PT_TIP_PGE: {
 			decoder->pge = true;
 			intel_pt_mtc_cyc_cnt_pge(decoder);
+			intel_pt_set_nr(decoder);
 			if (decoder->packet.count == 0) {
 				intel_pt_log_at("Skipping zero TIP.PGE",
 						decoder->pos);
@@ -2297,7 +2336,7 @@ next:
 			return err;
 
 		case INTEL_PT_PIP:
-			decoder->pip_payload = decoder->packet.payload;
+			intel_pt_update_pip(decoder);
 			break;
 
 		case INTEL_PT_MTC:
@@ -2536,7 +2575,7 @@ static int intel_pt_walk_psb(struct intel_pt_decoder *decoder)
 			break;
 
 		case INTEL_PT_PIP:
-			decoder->pip_payload = decoder->packet.payload;
+			intel_pt_set_pip(decoder);
 			break;
 
 		case INTEL_PT_MODE_EXEC:
@@ -2655,7 +2694,7 @@ static int intel_pt_walk_to_ip(struct intel_pt_decoder *decoder)
 			break;
 
 		case INTEL_PT_PIP:
-			decoder->pip_payload = decoder->packet.payload;
+			intel_pt_set_pip(decoder);
 			break;
 
 		case INTEL_PT_MODE_EXEC:
@@ -2953,6 +2992,7 @@ const struct intel_pt_state *intel_pt_decode(struct intel_pt_decoder *decoder)
 		decoder->state.from_ip = decoder->ip;
 		intel_pt_update_sample_time(decoder);
 		decoder->sample_tot_cyc_cnt = decoder->tot_cyc_cnt;
+		intel_pt_set_nr(decoder);
 	} else {
 		decoder->state.err = 0;
 		if (decoder->cbr != decoder->cbr_seen) {
@@ -2985,9 +3025,12 @@ const struct intel_pt_state *intel_pt_decode(struct intel_pt_decoder *decoder)
 	if ((decoder->state.type & INTEL_PT_PSB_EVT) && decoder->tsc_timestamp)
 		decoder->sample_timestamp = decoder->tsc_timestamp;
 
+	decoder->state.from_nr = decoder->nr;
+	decoder->state.to_nr = decoder->next_nr;
+	decoder->nr = decoder->next_nr;
+
 	decoder->state.timestamp = decoder->sample_timestamp;
 	decoder->state.est_timestamp = intel_pt_est_timestamp(decoder);
-	decoder->state.pip_payload = decoder->pip_payload;
 	decoder->state.tot_insn_cnt = decoder->tot_insn_cnt;
 	decoder->state.tot_cyc_cnt = decoder->sample_tot_cyc_cnt;
 
