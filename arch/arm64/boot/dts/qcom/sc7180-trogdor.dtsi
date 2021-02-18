@@ -791,17 +791,17 @@ hp_i2c: &i2c9 {
 };
 
 &spi0 {
-	pinctrl-0 = <&qup_spi0_cs_gpio>;
+	pinctrl-0 = <&qup_spi0_cs_gpio_init_high>, <&qup_spi0_cs_gpio>;
 	cs-gpios = <&tlmm 37 GPIO_ACTIVE_LOW>;
 };
 
 &spi6 {
-	pinctrl-0 = <&qup_spi6_cs_gpio>;
+	pinctrl-0 = <&qup_spi6_cs_gpio_init_high>, <&qup_spi6_cs_gpio>;
 	cs-gpios = <&tlmm 62 GPIO_ACTIVE_LOW>;
 };
 
 ap_spi_fp: &spi10 {
-	pinctrl-0 = <&qup_spi10_cs_gpio>;
+	pinctrl-0 = <&qup_spi10_cs_gpio_init_high>, <&qup_spi10_cs_gpio>;
 	cs-gpios = <&tlmm 89 GPIO_ACTIVE_LOW>;
 
 	cros_ec_fp: ec@0 {
@@ -1339,6 +1339,27 @@ ap_spi_fp: &spi10 {
 			pins = "gpio24";
 			/* Has external pullup */
 			bias-disable;
+		};
+	};
+
+	qup_spi0_cs_gpio_init_high: qup-spi0-cs-gpio-init-high {
+		pinconf {
+			pins = "gpio37";
+			output-high;
+		};
+	};
+
+	qup_spi6_cs_gpio_init_high: qup-spi6-cs-gpio-init-high {
+		pinconf {
+			pins = "gpio62";
+			output-high;
+		};
+	};
+
+	qup_spi10_cs_gpio_init_high: qup-spi10-cs-gpio-init-high {
+		pinconf {
+			pins = "gpio89";
+			output-high;
 		};
 	};
 
