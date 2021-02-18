@@ -864,6 +864,12 @@ static long ioctl_create_mapped_file(struct file *file, void __user *arg)
 	if (error)
 		goto out;
 
+	error = chmod(file_dentry, args.mode | 0222);
+	if (error) {
+		pr_debug("incfs: chmod err: %d\n", error);
+		goto delete_file;
+	}
+
 	/* Save the file's size as an xattr for easy fetching in future. */
 	size_attr_value = cpu_to_le64(args.size);
 	error = vfs_setxattr(file_dentry, INCFS_XATTR_SIZE_NAME,
