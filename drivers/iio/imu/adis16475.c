@@ -263,7 +263,7 @@ static int adis16475_get_freq(struct adis16475 *st, u32 *freq)
 	u16 dec;
 	u32 sample_rate = st->clk_freq;
 
-	mutex_lock(&st->adis.state_lock);
+	adis_dev_lock(&st->adis);
 
 	if (st->sync_mode == ADIS16475_SYNC_SCALED) {
 		u16 sync_scale;
@@ -279,13 +279,13 @@ static int adis16475_get_freq(struct adis16475 *st, u32 *freq)
 	if (ret)
 		goto error;
 
-	mutex_unlock(&st->adis.state_lock);
+	adis_dev_unlock(&st->adis);
 
 	*freq = DIV_ROUND_CLOSEST(sample_rate, dec + 1);
 
 	return 0;
 error:
-	mutex_unlock(&st->adis.state_lock);
+	adis_dev_unlock(&st->adis);
 	return ret;
 }
 
@@ -298,7 +298,7 @@ static int adis16475_set_freq(struct adis16475 *st, const u32 freq)
 	if (!freq)
 		return -EINVAL;
 
-	mutex_lock(&st->adis.state_lock);
+	adis_dev_lock(&st->adis);
 	/*
 	 * When using sync scaled mode, the input clock needs to be scaled so that we have
 	 * an IMU sample rate between (optimally) 1900 and 2100. After this, we can use the
@@ -366,7 +366,7 @@ static int adis16475_set_freq(struct adis16475 *st, const u32 freq)
 
 	return 0;
 error:
-	mutex_unlock(&st->adis.state_lock);
+	adis_dev_unlock(&st->adis);
 	return ret;
 }
 
