@@ -1,0 +1,12 @@
+# SPDX-License-Identifier: GPL-2.0-only
+#
+# Phy drivers for Microchip devices
+#
+
+config PHY_SPARX5_SERDES
+	tristate "Microchip Sparx5 SerDes PHY driver"
+	select GENERIC_PHY
+	depends on OF
+	depends on HAS_IOMEM
+	help
+	  Enable this for support of the 10G/25G SerDes on Microchip Sparx5.
