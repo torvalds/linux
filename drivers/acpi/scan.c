@@ -586,6 +586,8 @@ static int acpi_get_device_data(acpi_handle handle, struct acpi_device **device,
 	if (!device)
 		return -EINVAL;
 
+	*device = NULL;
+
 	status = acpi_get_data_full(handle, acpi_scan_drop_device,
 				    (void **)device, callback);
 	if (ACPI_FAILURE(status) || !*device) {
@@ -2121,12 +2123,12 @@ void acpi_walk_dep_device_list(acpi_handle handle)
 	list_for_each_entry_safe(dep, tmp, &acpi_dep_list, node) {
 		if (dep->supplier == handle) {
 			acpi_bus_get_device(dep->consumer, &adev);
-			if (!adev)
-				continue;
 
-			adev->dep_unmet--;
-			if (!adev->dep_unmet)
-				acpi_bus_attach(adev, true);
+			if (adev) {
+				adev->dep_unmet--;
+				if (!adev->dep_unmet)
+					acpi_bus_attach(adev, true);
+			}
 
 			list_del(&dep->node);
 			kfree(dep);

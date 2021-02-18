@@ -2663,6 +2663,14 @@ nv50_display_create(struct drm_device *dev)
 	else
 		nouveau_display(dev)->format_modifiers = disp50xx_modifiers;
 
+	if (disp->disp->object.oclass >= GK104_DISP) {
+		dev->mode_config.cursor_width = 256;
+		dev->mode_config.cursor_height = 256;
+	} else {
+		dev->mode_config.cursor_width = 64;
+		dev->mode_config.cursor_height = 64;
+	}
+
 	/* create crtc objects to represent the hw heads */
 	if (disp->disp->object.oclass >= GV100_DISP)
 		crtcs = nvif_rd32(&device->object, 0x610060) & 0xff;

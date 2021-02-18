@@ -4918,7 +4918,22 @@ static void ibmvnic_handle_crq(union ibmvnic_crq *crq,
 				complete(&adapter->init_done);
 				adapter->init_done_rc = -EIO;
 			}
-			ibmvnic_reset(adapter, VNIC_RESET_FAILOVER);
+			rc = ibmvnic_reset(adapter, VNIC_RESET_FAILOVER);
+			if (rc && rc != -EBUSY) {
+				/* We were unable to schedule the failover
+				 * reset either because the adapter was still
+				 * probing (eg: during kexec) or we could not
+				 * allocate memory. Clear the failover_pending
+				 * flag since no one else will. We ignore
+				 * EBUSY because it means either FAILOVER reset
+				 * is already scheduled or the adapter is
+				 * being removed.
+				 */
+				netdev_err(netdev,
+					   "Error %ld scheduling failover reset\n",
+					   rc);
+				adapter->failover_pending = false;
+			}
 			break;
 		case IBMVNIC_CRQ_INIT_COMPLETE:
 			dev_info(dev, "Partner initialization complete\n");
@@ -5084,6 +5099,12 @@ static void ibmvnic_tasklet(struct tasklet_struct *t)
 	while (!done) {
 		/* Pull all the valid messages off the CRQ */
 		while ((crq = ibmvnic_next_crq(adapter)) != NULL) {
+			/* This barrier makes sure ibmvnic_next_crq()'s
+			 * crq->generic.first & IBMVNIC_CRQ_CMD_RSP is loaded
+			 * before ibmvnic_handle_crq()'s
+			 * switch(gen_crq->first) and switch(gen_crq->cmd).
+			 */
+			dma_rmb();
 			ibmvnic_handle_crq(crq, adapter);
 			crq->generic.first = 0;
 		}
@@ -5438,11 +5459,6 @@ static int ibmvnic_remove(struct vio_dev *dev)
 	unsigned long flags;
 
 	spin_lock_irqsave(&adapter->state_lock, flags);
-	if (test_bit(0, &adapter->resetting)) {
-		spin_unlock_irqrestore(&adapter->state_lock, flags);
-		return -EBUSY;
-	}
-
 	adapter->state = VNIC_REMOVING;
 	spin_unlock_irqrestore(&adapter->state_lock, flags);
 

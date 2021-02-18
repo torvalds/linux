@@ -1187,6 +1187,20 @@ static const struct ksz_chip_data ksz8795_switch_chips[] = {
 		.port_cnt = 5,		/* total cpu and user ports */
 	},
 	{
+		/*
+		 * WARNING
+		 * =======
+		 * KSZ8794 is similar to KSZ8795, except the port map
+		 * contains a gap between external and CPU ports, the
+		 * port map is NOT continuous. The per-port register
+		 * map is shifted accordingly too, i.e. registers at
+		 * offset 0x40 are NOT used on KSZ8794 and they ARE
+		 * used on KSZ8795 for external port 3.
+		 *           external  cpu
+		 * KSZ8794   0,1,2      4
+		 * KSZ8795   0,1,2,3    4
+		 * KSZ8765   0,1,2,3    4
+		 */
 		.chip_id = 0x8794,
 		.dev_name = "KSZ8794",
 		.num_vlans = 4096,
@@ -1220,9 +1234,13 @@ static int ksz8795_switch_init(struct ksz_device *dev)
 			dev->num_vlans = chip->num_vlans;
 			dev->num_alus = chip->num_alus;
 			dev->num_statics = chip->num_statics;
-			dev->port_cnt = chip->port_cnt;
+			dev->port_cnt = fls(chip->cpu_ports);
+			dev->cpu_port = fls(chip->cpu_ports) - 1;
+			dev->phy_port_cnt = dev->port_cnt - 1;
 			dev->cpu_ports = chip->cpu_ports;
-
+			dev->host_mask = chip->cpu_ports;
+			dev->port_mask = (BIT(dev->phy_port_cnt) - 1) |
+					 chip->cpu_ports;
 			break;
 		}
 	}
@@ -1231,16 +1249,8 @@ static int ksz8795_switch_init(struct ksz_device *dev)
 	if (!dev->cpu_ports)
 		return -ENODEV;
 
-	dev->port_mask = BIT(dev->port_cnt) - 1;
-	dev->port_mask |= dev->host_mask;
-
 	dev->reg_mib_cnt = KSZ8795_COUNTER_NUM;
 	dev->mib_cnt = ARRAY_SIZE(mib_names);
-
-	dev->phy_port_cnt = dev->port_cnt - 1;
-
-	dev->cpu_port = dev->port_cnt - 1;
-	dev->host_mask = BIT(dev->cpu_port);
 
 	dev->ports = devm_kzalloc(dev->dev,
 				  dev->port_cnt * sizeof(struct ksz_port),

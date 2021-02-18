@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0
 #include <linux/kmsg_dump.h>
 #include <linux/console.h>
+#include <linux/string.h>
 #include <shared/init.h>
 #include <shared/kern.h>
 #include <os.h>
@@ -16,8 +17,12 @@ static void kmsg_dumper_stdout(struct kmsg_dumper *dumper,
 	if (!console_trylock())
 		return;
 
-	for_each_console(con)
-		break;
+	for_each_console(con) {
+		if(strcmp(con->name, "tty") == 0 &&
+		   (con->flags & (CON_ENABLED | CON_CONSDEV)) != 0) {
+			break;
+		}
+	}
 
 	console_unlock();
 

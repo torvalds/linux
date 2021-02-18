@@ -390,6 +390,16 @@ static void emit_batch(struct i915_vma * const vma,
 						     &cb_kernel_ivb,
 						     desc_count);
 
+	/* Reset inherited context registers */
+	gen7_emit_pipeline_invalidate(&cmds);
+	batch_add(&cmds, MI_LOAD_REGISTER_IMM(2));
+	batch_add(&cmds, i915_mmio_reg_offset(CACHE_MODE_0_GEN7));
+	batch_add(&cmds, 0xffff0000);
+	batch_add(&cmds, i915_mmio_reg_offset(CACHE_MODE_1));
+	batch_add(&cmds, 0xffff0000 | PIXEL_SUBSPAN_COLLECT_OPT_DISABLE);
+	gen7_emit_pipeline_flush(&cmds);
+
+	/* Switch to the media pipeline and our base address */
 	gen7_emit_pipeline_invalidate(&cmds);
 	batch_add(&cmds, PIPELINE_SELECT | PIPELINE_SELECT_MEDIA);
 	batch_add(&cmds, MI_NOOP);
@@ -399,9 +409,11 @@ static void emit_batch(struct i915_vma * const vma,
 	gen7_emit_state_base_address(&cmds, descriptors);
 	gen7_emit_pipeline_invalidate(&cmds);
 
+	/* Set the clear-residual kernel state */
 	gen7_emit_vfe_state(&cmds, bv, urb_size - 1, 0, 0);
 	gen7_emit_interface_descriptor_load(&cmds, descriptors, desc_count);
 
+	/* Execute the kernel on all HW threads */
 	for (i = 0; i < num_primitives(bv); i++)
 		gen7_emit_media_object(&cmds, i);
 

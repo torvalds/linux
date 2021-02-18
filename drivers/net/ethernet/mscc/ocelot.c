@@ -60,14 +60,27 @@ int ocelot_mact_learn(struct ocelot *ocelot, int port,
 		      const unsigned char mac[ETH_ALEN],
 		      unsigned int vid, enum macaccess_entry_type type)
 {
+	u32 cmd = ANA_TABLES_MACACCESS_VALID |
+		ANA_TABLES_MACACCESS_DEST_IDX(port) |
+		ANA_TABLES_MACACCESS_ENTRYTYPE(type) |
+		ANA_TABLES_MACACCESS_MAC_TABLE_CMD(MACACCESS_CMD_LEARN);
+	unsigned int mc_ports;
+
+	/* Set MAC_CPU_COPY if the CPU port is used by a multicast entry */
+	if (type == ENTRYTYPE_MACv4)
+		mc_ports = (mac[1] << 8) | mac[2];
+	else if (type == ENTRYTYPE_MACv6)
+		mc_ports = (mac[0] << 8) | mac[1];
+	else
+		mc_ports = 0;
+
+	if (mc_ports & BIT(ocelot->num_phys_ports))
+		cmd |= ANA_TABLES_MACACCESS_MAC_CPU_COPY;
+
 	ocelot_mact_select(ocelot, mac, vid);
 
 	/* Issue a write command */
-	ocelot_write(ocelot, ANA_TABLES_MACACCESS_VALID |
-			     ANA_TABLES_MACACCESS_DEST_IDX(port) |
-			     ANA_TABLES_MACACCESS_ENTRYTYPE(type) |
-			     ANA_TABLES_MACACCESS_MAC_TABLE_CMD(MACACCESS_CMD_LEARN),
-			     ANA_TABLES_MACACCESS);
+	ocelot_write(ocelot, cmd, ANA_TABLES_MACACCESS);
 
 	return ocelot_mact_wait_for_completion(ocelot);
 }
@@ -361,6 +374,60 @@ static void ocelot_vlan_init(struct ocelot *ocelot)
 		ocelot_write_gix(ocelot, 0, REW_TAG_CFG, port);
 	}
 }
+
+static u32 ocelot_read_eq_avail(struct ocelot *ocelot, int port)
+{
+	return ocelot_read_rix(ocelot, QSYS_SW_STATUS, port);
+}
+
+int ocelot_port_flush(struct ocelot *ocelot, int port)
+{
+	int err, val;
+
+	/* Disable dequeuing from the egress queues */
+	ocelot_rmw_rix(ocelot, QSYS_PORT_MODE_DEQUEUE_DIS,
+		       QSYS_PORT_MODE_DEQUEUE_DIS,
+		       QSYS_PORT_MODE, port);
+
+	/* Disable flow control */
+	ocelot_fields_write(ocelot, port, SYS_PAUSE_CFG_PAUSE_ENA, 0);
+
+	/* Disable priority flow control */
+	ocelot_fields_write(ocelot, port,
+			    QSYS_SWITCH_PORT_MODE_TX_PFC_ENA, 0);
+
+	/* Wait at least the time it takes to receive a frame of maximum length
+	 * at the port.
+	 * Worst-case delays for 10 kilobyte jumbo frames are:
+	 * 8 ms on a 10M port
+	 * 800 μs on a 100M port
+	 * 80 μs on a 1G port
+	 * 32 μs on a 2.5G port
+	 */
+	usleep_range(8000, 10000);
+
+	/* Disable half duplex backpressure. */
+	ocelot_rmw_rix(ocelot, 0, SYS_FRONT_PORT_MODE_HDX_MODE,
+		       SYS_FRONT_PORT_MODE, port);
+
+	/* Flush the queues associated with the port. */
+	ocelot_rmw_gix(ocelot, REW_PORT_CFG_FLUSH_ENA, REW_PORT_CFG_FLUSH_ENA,
+		       REW_PORT_CFG, port);
+
+	/* Enable dequeuing from the egress queues. */
+	ocelot_rmw_rix(ocelot, 0, QSYS_PORT_MODE_DEQUEUE_DIS, QSYS_PORT_MODE,
+		       port);
+
+	/* Wait until flushing is complete. */
+	err = read_poll_timeout(ocelot_read_eq_avail, val, !val,
+				100, 2000000, false, ocelot, port);
+
+	/* Clear flushing again. */
+	ocelot_rmw_gix(ocelot, 0, REW_PORT_CFG_FLUSH_ENA, REW_PORT_CFG, port);
+
+	return err;
+}
+EXPORT_SYMBOL(ocelot_port_flush);
 
 void ocelot_adjust_link(struct ocelot *ocelot, int port,
 			struct phy_device *phydev)

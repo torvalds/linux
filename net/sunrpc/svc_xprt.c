@@ -857,6 +857,7 @@ int svc_recv(struct svc_rqst *rqstp, long timeout)
 	err = -EAGAIN;
 	if (len <= 0)
 		goto out_release;
+	trace_svc_xdr_recvfrom(&rqstp->rq_arg);
 
 	clear_bit(XPT_OLD, &xprt->xpt_flags);
 
@@ -866,7 +867,6 @@ int svc_recv(struct svc_rqst *rqstp, long timeout)
 
 	if (serv->sv_stats)
 		serv->sv_stats->netcnt++;
-	trace_svc_xdr_recvfrom(rqstp, &rqstp->rq_arg);
 	return len;
 out_release:
 	rqstp->rq_res.len = 0;
@@ -904,7 +904,7 @@ int svc_send(struct svc_rqst *rqstp)
 	xb->len = xb->head[0].iov_len +
 		xb->page_len +
 		xb->tail[0].iov_len;
-	trace_svc_xdr_sendto(rqstp, xb);
+	trace_svc_xdr_sendto(rqstp->rq_xid, xb);
 	trace_svc_stats_latency(rqstp);
 
 	len = xprt->xpt_ops->xpo_sendto(rqstp);

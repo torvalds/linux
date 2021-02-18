@@ -433,7 +433,7 @@ static struct btrfs_device *__alloc_device(struct btrfs_fs_info *fs_info)
 
 	atomic_set(&dev->reada_in_flight, 0);
 	atomic_set(&dev->dev_stats_ccnt, 0);
-	btrfs_device_data_ordered_init(dev, fs_info);
+	btrfs_device_data_ordered_init(dev);
 	INIT_RADIX_TREE(&dev->reada_zones, GFP_NOFS & ~__GFP_DIRECT_RECLAIM);
 	INIT_RADIX_TREE(&dev->reada_extents, GFP_NOFS & ~__GFP_DIRECT_RECLAIM);
 	extent_io_tree_init(fs_info, &dev->alloc_state,
@@ -4316,6 +4316,8 @@ int btrfs_recover_balance(struct btrfs_fs_info *fs_info)
 	if (!btrfs_exclop_start(fs_info, BTRFS_EXCLOP_BALANCE))
 		btrfs_warn(fs_info,
 	"balance: cannot set exclusive op status, resume manually");
+
+	btrfs_release_path(path);
 
 	mutex_lock(&fs_info->balance_mutex);
 	BUG_ON(fs_info->balance_ctl);

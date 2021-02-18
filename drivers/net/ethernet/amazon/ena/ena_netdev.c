@@ -404,6 +404,7 @@ static int ena_xdp_execute(struct ena_ring *rx_ring, struct xdp_buff *xdp)
 		if (unlikely(!xdpf)) {
 			trace_xdp_exception(rx_ring->netdev, xdp_prog, verdict);
 			xdp_stat = &rx_ring->rx_stats.xdp_aborted;
+			verdict = XDP_ABORTED;
 			break;
 		}
 
@@ -424,7 +425,10 @@ static int ena_xdp_execute(struct ena_ring *rx_ring, struct xdp_buff *xdp)
 			xdp_stat = &rx_ring->rx_stats.xdp_redirect;
 			break;
 		}
-		fallthrough;
+		trace_xdp_exception(rx_ring->netdev, xdp_prog, verdict);
+		xdp_stat = &rx_ring->rx_stats.xdp_aborted;
+		verdict = XDP_ABORTED;
+		break;
 	case XDP_ABORTED:
 		trace_xdp_exception(rx_ring->netdev, xdp_prog, verdict);
 		xdp_stat = &rx_ring->rx_stats.xdp_aborted;

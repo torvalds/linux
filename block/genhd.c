@@ -45,10 +45,11 @@ static void disk_release_events(struct gendisk *disk);
 void set_capacity(struct gendisk *disk, sector_t sectors)
 {
 	struct block_device *bdev = disk->part0;
+	unsigned long flags;
 
-	spin_lock(&bdev->bd_size_lock);
+	spin_lock_irqsave(&bdev->bd_size_lock, flags);
 	i_size_write(bdev->bd_inode, (loff_t)sectors << SECTOR_SHIFT);
-	spin_unlock(&bdev->bd_size_lock);
+	spin_unlock_irqrestore(&bdev->bd_size_lock, flags);
 }
 EXPORT_SYMBOL(set_capacity);
 
