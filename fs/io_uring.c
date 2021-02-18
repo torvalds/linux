@@ -6751,11 +6751,22 @@ struct io_submit_link {
 	struct io_kiocb *last;
 };
 
-static int io_submit_sqe(struct io_kiocb *req, const struct io_uring_sqe *sqe,
+static int io_submit_sqe(struct io_ring_ctx *ctx, struct io_kiocb *req,
+			 const struct io_uring_sqe *sqe,
 			 struct io_submit_link *link)
 {
-	struct io_ring_ctx *ctx = req->ctx;
 	int ret;
+
+	ret = io_init_req(ctx, req, sqe);
+	if (unlikely(ret)) {
+fail_req:
+		io_put_req(req);
+		io_req_complete(req, ret);
+		return ret;
+	}
+
+	trace_io_uring_submit_sqe(ctx, req->opcode, req->user_data,
+				true, ctx->flags & IORING_SETUP_SQPOLL);
 
 	/*
 	 * If we already have a head request, queue this one for async
@@ -6782,7 +6793,7 @@ static int io_submit_sqe(struct io_kiocb *req, const struct io_uring_sqe *sqe,
 		if (unlikely(ret)) {
 			/* fail even hard links since we don't submit */
 			head->flags |= REQ_F_FAIL_LINK;
-			return ret;
+			goto fail_req;
 		}
 		trace_io_uring_link(ctx, req, head);
 		link->last->link = req;
@@ -6904,7 +6915,6 @@ static int io_submit_sqes(struct io_ring_ctx *ctx, unsigned int nr)
 	while (submitted < nr) {
 		const struct io_uring_sqe *sqe;
 		struct io_kiocb *req;
-		int err;
 
 		req = io_alloc_req(ctx);
 		if (unlikely(!req)) {
@@ -6919,20 +6929,8 @@ static int io_submit_sqes(struct io_ring_ctx *ctx, unsigned int nr)
 		}
 		/* will complete beyond this point, count as submitted */
 		submitted++;
-
-		err = io_init_req(ctx, req, sqe);
-		if (unlikely(err)) {
-fail_req:
-			io_put_req(req);
-			io_req_complete(req, err);
+		if (io_submit_sqe(ctx, req, sqe, &link))
 			break;
-		}
-
-		trace_io_uring_submit_sqe(ctx, req->opcode, req->user_data,
-					true, ctx->flags & IORING_SETUP_SQPOLL);
-		err = io_submit_sqe(req, sqe, &link);
-		if (err)
-			goto fail_req;
 	}
 
 	if (unlikely(submitted != nr)) {
