@@ -80,9 +80,9 @@ void hl_hpriv_get(struct hl_fpriv *hpriv)
 	kref_get(&hpriv->refcount);
 }
 
-void hl_hpriv_put(struct hl_fpriv *hpriv)
+int hl_hpriv_put(struct hl_fpriv *hpriv)
 {
-	kref_put(&hpriv->refcount, hpriv_release);
+	return kref_put(&hpriv->refcount, hpriv_release);
 }
 
 /*
@@ -109,7 +109,9 @@ static int hl_device_release(struct inode *inode, struct file *filp)
 	hl_cb_mgr_fini(hdev, &hpriv->cb_mgr);
 	hl_ctx_mgr_fini(hdev, &hpriv->ctx_mgr);
 
-	hl_hpriv_put(hpriv);
+	if (!hl_hpriv_put(hpriv))
+		dev_warn(hdev->dev,
+			"Device is still in use because there are live CS and/or memory mappings\n");
 
 	return 0;
 }

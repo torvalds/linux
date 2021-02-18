@@ -2182,7 +2182,7 @@ int hl_device_resume(struct hl_device *hdev);
 int hl_device_reset(struct hl_device *hdev, bool hard_reset,
 			bool from_hard_reset_thread);
 void hl_hpriv_get(struct hl_fpriv *hpriv);
-void hl_hpriv_put(struct hl_fpriv *hpriv);
+int hl_hpriv_put(struct hl_fpriv *hpriv);
 int hl_device_set_frequency(struct hl_device *hdev, enum hl_pll_frequency freq);
 uint32_t hl_device_utilization(struct hl_device *hdev, uint32_t period_ms);
 
