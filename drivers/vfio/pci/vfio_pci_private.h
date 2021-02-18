@@ -214,7 +214,7 @@ static inline int vfio_pci_ibm_npu2_init(struct vfio_pci_device *vdev)
 }
 #endif
 
-#ifdef CONFIG_VFIO_PCI_ZDEV
+#ifdef CONFIG_S390
 extern int vfio_pci_info_zdev_add_caps(struct vfio_pci_device *vdev,
 				       struct vfio_info_cap *caps);
 #else
