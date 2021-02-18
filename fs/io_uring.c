@@ -104,6 +104,10 @@
 #define IORING_MAX_RESTRICTIONS	(IORING_RESTRICTION_LAST + \
 				 IORING_REGISTER_LAST + IORING_OP_LAST)
 
+#define SQE_VALID_FLAGS	(IOSQE_FIXED_FILE|IOSQE_IO_DRAIN|IOSQE_IO_LINK|	\
+				IOSQE_IO_HARDLINK | IOSQE_ASYNC | \
+				IOSQE_BUFFER_SELECT)
+
 struct io_uring {
 	u32 head ____cacheline_aligned_in_smp;
 	u32 tail ____cacheline_aligned_in_smp;
@@ -6639,6 +6643,109 @@ static inline void io_queue_link_head(struct io_kiocb *req)
 		io_queue_sqe(req, NULL);
 }
 
+/*
+ * Check SQE restrictions (opcode and flags).
+ *
+ * Returns 'true' if SQE is allowed, 'false' otherwise.
+ */
+static inline bool io_check_restriction(struct io_ring_ctx *ctx,
+					struct io_kiocb *req,
+					unsigned int sqe_flags)
+{
+	if (!ctx->restricted)
+		return true;
+
+	if (!test_bit(req->opcode, ctx->restrictions.sqe_op))
+		return false;
+
+	if ((sqe_flags & ctx->restrictions.sqe_flags_required) !=
+	    ctx->restrictions.sqe_flags_required)
+		return false;
+
+	if (sqe_flags & ~(ctx->restrictions.sqe_flags_allowed |
+			  ctx->restrictions.sqe_flags_required))
+		return false;
+
+	return true;
+}
+
+static int io_init_req(struct io_ring_ctx *ctx, struct io_kiocb *req,
+		       const struct io_uring_sqe *sqe)
+{
+	struct io_submit_state *state;
+	unsigned int sqe_flags;
+	int id, ret = 0;
+
+	req->opcode = READ_ONCE(sqe->opcode);
+	/* same numerical values with corresponding REQ_F_*, safe to copy */
+	req->flags = sqe_flags = READ_ONCE(sqe->flags);
+	req->user_data = READ_ONCE(sqe->user_data);
+	req->async_data = NULL;
+	req->file = NULL;
+	req->ctx = ctx;
+	req->link = NULL;
+	req->fixed_rsrc_refs = NULL;
+	/* one is dropped after submission, the other at completion */
+	refcount_set(&req->refs, 2);
+	req->task = current;
+	req->result = 0;
+
+	/* enforce forwards compatibility on users */
+	if (unlikely(sqe_flags & ~SQE_VALID_FLAGS))
+		return -EINVAL;
+
+	if (unlikely(req->opcode >= IORING_OP_LAST))
+		return -EINVAL;
+
+	if (unlikely(io_sq_thread_acquire_mm_files(ctx, req)))
+		return -EFAULT;
+
+	if (unlikely(!io_check_restriction(ctx, req, sqe_flags)))
+		return -EACCES;
+
+	if ((sqe_flags & IOSQE_BUFFER_SELECT) &&
+	    !io_op_defs[req->opcode].buffer_select)
+		return -EOPNOTSUPP;
+
+	id = READ_ONCE(sqe->personality);
+	if (id) {
+		struct io_identity *iod;
+
+		iod = idr_find(&ctx->personality_idr, id);
+		if (unlikely(!iod))
+			return -EINVAL;
+		refcount_inc(&iod->count);
+
+		__io_req_init_async(req);
+		get_cred(iod->creds);
+		req->work.identity = iod;
+		req->work.flags |= IO_WQ_WORK_CREDS;
+	}
+
+	state = &ctx->submit_state;
+
+	/*
+	 * Plug now if we have more than 1 IO left after this, and the target
+	 * is potentially a read/write to block based storage.
+	 */
+	if (!state->plug_started && state->ios_left > 1 &&
+	    io_op_defs[req->opcode].plug) {
+		blk_start_plug(&state->plug);
+		state->plug_started = true;
+	}
+
+	if (io_op_defs[req->opcode].needs_file) {
+		bool fixed = req->flags & REQ_F_FIXED_FILE;
+
+		req->file = io_file_get(state, req, READ_ONCE(sqe->fd), fixed);
+		if (unlikely(!req->file))
+			ret = -EBADF;
+	}
+
+	state->ios_left--;
+	return ret;
+}
+
 struct io_submit_link {
 	struct io_kiocb *head;
 	struct io_kiocb *last;
@@ -6769,113 +6876,6 @@ static const struct io_uring_sqe *io_get_sqe(struct io_ring_ctx *ctx)
 	ctx->cached_sq_dropped++;
 	WRITE_ONCE(ctx->rings->sq_dropped, ctx->cached_sq_dropped);
 	return NULL;
-}
-
-/*
- * Check SQE restrictions (opcode and flags).
- *
- * Returns 'true' if SQE is allowed, 'false' otherwise.
- */
-static inline bool io_check_restriction(struct io_ring_ctx *ctx,
-					struct io_kiocb *req,
-					unsigned int sqe_flags)
-{
-	if (!ctx->restricted)
-		return true;
-
-	if (!test_bit(req->opcode, ctx->restrictions.sqe_op))
-		return false;
-
-	if ((sqe_flags & ctx->restrictions.sqe_flags_required) !=
-	    ctx->restrictions.sqe_flags_required)
-		return false;
-
-	if (sqe_flags & ~(ctx->restrictions.sqe_flags_allowed |
-			  ctx->restrictions.sqe_flags_required))
-		return false;
-
-	return true;
-}
-
-#define SQE_VALID_FLAGS	(IOSQE_FIXED_FILE|IOSQE_IO_DRAIN|IOSQE_IO_LINK|	\
-				IOSQE_IO_HARDLINK | IOSQE_ASYNC | \
-				IOSQE_BUFFER_SELECT)
-
-static int io_init_req(struct io_ring_ctx *ctx, struct io_kiocb *req,
-		       const struct io_uring_sqe *sqe)
-{
-	struct io_submit_state *state;
-	unsigned int sqe_flags;
-	int id, ret = 0;
-
-	req->opcode = READ_ONCE(sqe->opcode);
-	/* same numerical values with corresponding REQ_F_*, safe to copy */
-	req->flags = sqe_flags = READ_ONCE(sqe->flags);
-	req->user_data = READ_ONCE(sqe->user_data);
-	req->async_data = NULL;
-	req->file = NULL;
-	req->ctx = ctx;
-	req->link = NULL;
-	req->fixed_rsrc_refs = NULL;
-	/* one is dropped after submission, the other at completion */
-	refcount_set(&req->refs, 2);
-	req->task = current;
-	req->result = 0;
-
-	/* enforce forwards compatibility on users */
-	if (unlikely(sqe_flags & ~SQE_VALID_FLAGS))
-		return -EINVAL;
-
-	if (unlikely(req->opcode >= IORING_OP_LAST))
-		return -EINVAL;
-
-	if (unlikely(io_sq_thread_acquire_mm_files(ctx, req)))
-		return -EFAULT;
-
-	if (unlikely(!io_check_restriction(ctx, req, sqe_flags)))
-		return -EACCES;
-
-	if ((sqe_flags & IOSQE_BUFFER_SELECT) &&
-	    !io_op_defs[req->opcode].buffer_select)
-		return -EOPNOTSUPP;
-
-	id = READ_ONCE(sqe->personality);
-	if (id) {
-		struct io_identity *iod;
-
-		iod = idr_find(&ctx->personality_idr, id);
-		if (unlikely(!iod))
-			return -EINVAL;
-		refcount_inc(&iod->count);
-
-		__io_req_init_async(req);
-		get_cred(iod->creds);
-		req->work.identity = iod;
-		req->work.flags |= IO_WQ_WORK_CREDS;
-	}
-
-	state = &ctx->submit_state;
-
-	/*
-	 * Plug now if we have more than 1 IO left after this, and the target
-	 * is potentially a read/write to block based storage.
-	 */
-	if (!state->plug_started && state->ios_left > 1 &&
-	    io_op_defs[req->opcode].plug) {
-		blk_start_plug(&state->plug);
-		state->plug_started = true;
-	}
-
-	if (io_op_defs[req->opcode].needs_file) {
-		bool fixed = req->flags & REQ_F_FIXED_FILE;
-
-		req->file = io_file_get(state, req, READ_ONCE(sqe->fd), fixed);
-		if (unlikely(!req->file))
-			ret = -EBADF;
-	}
-
-	state->ios_left--;
-	return ret;
 }
 
 static int io_submit_sqes(struct io_ring_ctx *ctx, unsigned int nr)
