@@ -106,6 +106,7 @@ u8 machine__addr_cpumode(struct machine *machine, u8 cpumode, u64 addr);
 
 struct thread *machine__find_thread(struct machine *machine, pid_t pid,
 				    pid_t tid);
+struct thread *machine__idle_thread(struct machine *machine);
 struct comm *machine__thread_exec_comm(struct machine *machine,
 				       struct thread *thread);
 
