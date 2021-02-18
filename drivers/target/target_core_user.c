@@ -1566,6 +1566,86 @@ static struct se_device *tcmu_alloc_device(struct se_hba *hba, const char *name)
 	return &udev->se_dev;
 }
 
+static void tcmu_dev_call_rcu(struct rcu_head *p)
+{
+	struct se_device *dev = container_of(p, struct se_device, rcu_head);
+	struct tcmu_dev *udev = TCMU_DEV(dev);
+
+	kfree(udev->uio_info.name);
+	kfree(udev->name);
+	kfree(udev);
+}
+
+static int tcmu_check_and_free_pending_cmd(struct tcmu_cmd *cmd)
+{
+	if (test_bit(TCMU_CMD_BIT_EXPIRED, &cmd->flags)) {
+		kmem_cache_free(tcmu_cmd_cache, cmd);
+		return 0;
+	}
+	return -EINVAL;
+}
+
+static void tcmu_blocks_release(struct radix_tree_root *blocks,
+				int start, int end)
+{
+	int i;
+	struct page *page;
+
+	for (i = start; i < end; i++) {
+		page = radix_tree_delete(blocks, i);
+		if (page) {
+			__free_page(page);
+			atomic_dec(&global_db_count);
+		}
+	}
+}
+
+static void tcmu_remove_all_queued_tmr(struct tcmu_dev *udev)
+{
+	struct tcmu_tmr *tmr, *tmp;
+
+	list_for_each_entry_safe(tmr, tmp, &udev->tmr_queue, queue_entry) {
+		list_del_init(&tmr->queue_entry);
+		kfree(tmr);
+	}
+}
+
+static void tcmu_dev_kref_release(struct kref *kref)
+{
+	struct tcmu_dev *udev = container_of(kref, struct tcmu_dev, kref);
+	struct se_device *dev = &udev->se_dev;
+	struct tcmu_cmd *cmd;
+	bool all_expired = true;
+	int i;
+
+	vfree(udev->mb_addr);
+	udev->mb_addr = NULL;
+
+	spin_lock_bh(&timed_out_udevs_lock);
+	if (!list_empty(&udev->timedout_entry))
+		list_del(&udev->timedout_entry);
+	spin_unlock_bh(&timed_out_udevs_lock);
+
+	/* Upper layer should drain all requests before calling this */
+	mutex_lock(&udev->cmdr_lock);
+	idr_for_each_entry(&udev->commands, cmd, i) {
+		if (tcmu_check_and_free_pending_cmd(cmd) != 0)
+			all_expired = false;
+	}
+	/* There can be left over TMR cmds. Remove them. */
+	tcmu_remove_all_queued_tmr(udev);
+	if (!list_empty(&udev->qfull_queue))
+		all_expired = false;
+	idr_destroy(&udev->commands);
+	WARN_ON(!all_expired);
+
+	tcmu_blocks_release(&udev->data_blocks, 0, udev->dbi_max + 1);
+	bitmap_free(udev->data_bitmap);
+	mutex_unlock(&udev->cmdr_lock);
+
+	call_rcu(&dev->rcu_head, tcmu_dev_call_rcu);
+}
+
 static void run_qfull_queue(struct tcmu_dev *udev, bool fail)
 {
 	struct tcmu_cmd *tcmu_cmd, *tmp_cmd;
@@ -1749,86 +1829,6 @@ static int tcmu_open(struct uio_info *info, struct inode *inode)
 	pr_debug("open\n");
 
 	return 0;
-}
-
-static void tcmu_dev_call_rcu(struct rcu_head *p)
-{
-	struct se_device *dev = container_of(p, struct se_device, rcu_head);
-	struct tcmu_dev *udev = TCMU_DEV(dev);
-
-	kfree(udev->uio_info.name);
-	kfree(udev->name);
-	kfree(udev);
-}
-
-static int tcmu_check_and_free_pending_cmd(struct tcmu_cmd *cmd)
-{
-	if (test_bit(TCMU_CMD_BIT_EXPIRED, &cmd->flags)) {
-		kmem_cache_free(tcmu_cmd_cache, cmd);
-		return 0;
-	}
-	return -EINVAL;
-}
-
-static void tcmu_blocks_release(struct radix_tree_root *blocks,
-				int start, int end)
-{
-	int i;
-	struct page *page;
-
-	for (i = start; i < end; i++) {
-		page = radix_tree_delete(blocks, i);
-		if (page) {
-			__free_page(page);
-			atomic_dec(&global_db_count);
-		}
-	}
-}
-
-static void tcmu_remove_all_queued_tmr(struct tcmu_dev *udev)
-{
-	struct tcmu_tmr *tmr, *tmp;
-
-	list_for_each_entry_safe(tmr, tmp, &udev->tmr_queue, queue_entry) {
-		list_del_init(&tmr->queue_entry);
-		kfree(tmr);
-	}
-}
-
-static void tcmu_dev_kref_release(struct kref *kref)
-{
-	struct tcmu_dev *udev = container_of(kref, struct tcmu_dev, kref);
-	struct se_device *dev = &udev->se_dev;
-	struct tcmu_cmd *cmd;
-	bool all_expired = true;
-	int i;
-
-	vfree(udev->mb_addr);
-	udev->mb_addr = NULL;
-
-	spin_lock_bh(&timed_out_udevs_lock);
-	if (!list_empty(&udev->timedout_entry))
-		list_del(&udev->timedout_entry);
-	spin_unlock_bh(&timed_out_udevs_lock);
-
-	/* Upper layer should drain all requests before calling this */
-	mutex_lock(&udev->cmdr_lock);
-	idr_for_each_entry(&udev->commands, cmd, i) {
-		if (tcmu_check_and_free_pending_cmd(cmd) != 0)
-			all_expired = false;
-	}
-	/* There can be left over TMR cmds. Remove them. */
-	tcmu_remove_all_queued_tmr(udev);
-	if (!list_empty(&udev->qfull_queue))
-		all_expired = false;
-	idr_destroy(&udev->commands);
-	WARN_ON(!all_expired);
-
-	tcmu_blocks_release(&udev->data_blocks, 0, udev->dbi_max + 1);
-	bitmap_free(udev->data_bitmap);
-	mutex_unlock(&udev->cmdr_lock);
-
-	call_rcu(&dev->rcu_head, tcmu_dev_call_rcu);
 }
 
 static int tcmu_release(struct uio_info *info, struct inode *inode)
