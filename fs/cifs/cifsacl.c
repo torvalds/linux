@@ -525,8 +525,11 @@ exit_cifs_idmap(void)
 }
 
 /* copy ntsd, owner sid, and group sid from a security descriptor to another */
-static void copy_sec_desc(const struct cifs_ntsd *pntsd,
-				struct cifs_ntsd *pnntsd, __u32 sidsoffset)
+static __u32 copy_sec_desc(const struct cifs_ntsd *pntsd,
+				struct cifs_ntsd *pnntsd,
+				__u32 sidsoffset,
+				struct cifs_sid *pownersid,
+				struct cifs_sid *pgrpsid)
 {
 	struct cifs_sid *owner_sid_ptr, *group_sid_ptr;
 	struct cifs_sid *nowner_sid_ptr, *ngroup_sid_ptr;
@@ -540,19 +543,25 @@ static void copy_sec_desc(const struct cifs_ntsd *pntsd,
 	pnntsd->gsidoffset = cpu_to_le32(sidsoffset + sizeof(struct cifs_sid));
 
 	/* copy owner sid */
-	owner_sid_ptr = (struct cifs_sid *)((char *)pntsd +
+	if (pownersid)
+		owner_sid_ptr = pownersid;
+	else
+		owner_sid_ptr = (struct cifs_sid *)((char *)pntsd +
 				le32_to_cpu(pntsd->osidoffset));
 	nowner_sid_ptr = (struct cifs_sid *)((char *)pnntsd + sidsoffset);
 	cifs_copy_sid(nowner_sid_ptr, owner_sid_ptr);
 
 	/* copy group sid */
-	group_sid_ptr = (struct cifs_sid *)((char *)pntsd +
+	if (pgrpsid)
+		group_sid_ptr = pgrpsid;
+	else
+		group_sid_ptr = (struct cifs_sid *)((char *)pntsd +
 				le32_to_cpu(pntsd->gsidoffset));
 	ngroup_sid_ptr = (struct cifs_sid *)((char *)pnntsd + sidsoffset +
 					sizeof(struct cifs_sid));
 	cifs_copy_sid(ngroup_sid_ptr, group_sid_ptr);
 
-	return;
+	return sidsoffset + (2 * sizeof(struct cifs_sid));
 }
 
 
@@ -667,15 +676,21 @@ static void mode_to_access_flags(umode_t mode, umode_t bits_to_use,
 	return;
 }
 
-static __u16 cifs_copy_ace(struct cifs_ace *dst, struct cifs_ace *src)
+static __u16 cifs_copy_ace(struct cifs_ace *dst, struct cifs_ace *src, struct cifs_sid *psid)
 {
 	__u16 size = 1 + 1 + 2 + 4;
 
 	dst->type = src->type;
 	dst->flags = src->flags;
-	dst->size = src->size;
 	dst->access_req = src->access_req;
-	size += cifs_copy_sid(&dst->sid, &src->sid);
+
+	/* Check if there's a replacement sid specified */
+	if (psid)
+		size += cifs_copy_sid(&dst->sid, psid);
+	else
+		size += cifs_copy_sid(&dst->sid, &src->sid);
+
+	dst->size = cpu_to_le16(size);
 
 	return size;
 }
@@ -1053,11 +1068,11 @@ static __u16 replace_sids_and_copy_aces(struct cifs_acl *pdacl, struct cifs_acl 
 		pnntace = (struct cifs_ace *) (nacl_base + nsize);
 
 		if (pnownersid && compare_sids(&pntace->sid, pownersid) == 0)
-			ace_size = cifs_copy_ace(pnntace, pntace);
+			ace_size = cifs_copy_ace(pnntace, pntace, pnownersid);
 		else if (pngrpsid && compare_sids(&pntace->sid, pgrpsid) == 0)
-			ace_size = cifs_copy_ace(pnntace, pntace);
+			ace_size = cifs_copy_ace(pnntace, pntace, pngrpsid);
 		else
-			ace_size = cifs_copy_ace(pnntace, pntace);
+			ace_size = cifs_copy_ace(pnntace, pntace, NULL);
 
 		size += le16_to_cpu(pntace->size);
 		nsize += ace_size;
@@ -1124,7 +1139,7 @@ static int set_chmod_dacl(struct cifs_acl *pdacl, struct cifs_acl *pndacl,
 			goto next_ace;
 		}
 
-		nsize += cifs_copy_ace(pnntace, pntace);
+		nsize += cifs_copy_ace(pnntace, pntace, NULL);
 		num_aces++;
 
 next_ace:
@@ -1250,25 +1265,27 @@ static int build_sec_desc(struct cifs_ntsd *pntsd, struct cifs_ntsd *pnntsd,
 	__u32 ndacloffset;
 	__u32 sidsoffset;
 	struct cifs_sid *owner_sid_ptr, *group_sid_ptr;
-	struct cifs_sid *nowner_sid_ptr, *ngroup_sid_ptr;
+	struct cifs_sid *nowner_sid_ptr = NULL, *ngroup_sid_ptr = NULL;
 	struct cifs_acl *dacl_ptr = NULL;  /* no need for SACL ptr */
 	struct cifs_acl *ndacl_ptr = NULL; /* no need for SACL ptr */
 	char *end_of_acl = ((char *)pntsd) + secdesclen;
+	u16 size = 0;
+
+	dacloffset = le32_to_cpu(pntsd->dacloffset);
+	if (dacloffset) {
+		dacl_ptr = (struct cifs_acl *)((char *)pntsd + dacloffset);
+		if (end_of_acl < (char *)dacl_ptr + le16_to_cpu(dacl_ptr->size)) {
+			cifs_dbg(VFS, "Existing ACL size is wrong. Discarding old ACL\n");
+			dacl_ptr = NULL;
+		}
+	}
+
+	owner_sid_ptr = (struct cifs_sid *)((char *)pntsd +
+			le32_to_cpu(pntsd->osidoffset));
+	group_sid_ptr = (struct cifs_sid *)((char *)pntsd +
+			le32_to_cpu(pntsd->gsidoffset));
 
 	if (pnmode && *pnmode != NO_CHANGE_64) { /* chmod */
-		owner_sid_ptr = (struct cifs_sid *)((char *)pntsd +
-				le32_to_cpu(pntsd->osidoffset));
-		group_sid_ptr = (struct cifs_sid *)((char *)pntsd +
-				le32_to_cpu(pntsd->gsidoffset));
-		dacloffset = le32_to_cpu(pntsd->dacloffset);
-		if (dacloffset) {
-			dacl_ptr = (struct cifs_acl *)((char *)pntsd + dacloffset);
-			if (end_of_acl < (char *)dacl_ptr + le16_to_cpu(dacl_ptr->size)) {
-				cifs_dbg(VFS, "Existing ACL size is wrong. Discarding old ACL\n");
-				dacl_ptr = NULL;
-			}
-		}
-
 		ndacloffset = sizeof(struct cifs_ntsd);
 		ndacl_ptr = (struct cifs_acl *)((char *)pnntsd + ndacloffset);
 		ndacl_ptr->revision =
@@ -1279,11 +1296,13 @@ static int build_sec_desc(struct cifs_ntsd *pntsd, struct cifs_ntsd *pnntsd,
 
 		rc = set_chmod_dacl(dacl_ptr, ndacl_ptr, owner_sid_ptr, group_sid_ptr,
 				    pnmode, mode_from_sid);
+
 		sidsoffset = ndacloffset + le16_to_cpu(ndacl_ptr->size);
-		/* copy sec desc control portion & owner and group sids */
-		copy_sec_desc(pntsd, pnntsd, sidsoffset);
-		*pnsecdesclen = sidsoffset + (2 * sizeof(struct cifs_sid));
-		*aclflag = CIFS_ACL_DACL;
+		/* copy the non-dacl portion of secdesc */
+		*pnsecdesclen = copy_sec_desc(pntsd, pnntsd, sidsoffset,
+				NULL, NULL);
+
+		*aclflag |= CIFS_ACL_DACL;
 	} else {
 		ndacloffset = sizeof(struct cifs_ntsd);
 		ndacl_ptr = (struct cifs_acl *)((char *)pnntsd + ndacloffset);
@@ -1293,12 +1312,12 @@ static int build_sec_desc(struct cifs_ntsd *pntsd, struct cifs_ntsd *pnntsd,
 
 		if (uid_valid(uid)) { /* chown */
 			uid_t id;
-			owner_sid_ptr = (struct cifs_sid *)((char *)pnntsd +
-					le32_to_cpu(pnntsd->osidoffset));
 			nowner_sid_ptr = kmalloc(sizeof(struct cifs_sid),
 								GFP_KERNEL);
-			if (!nowner_sid_ptr)
-				return -ENOMEM;
+			if (!nowner_sid_ptr) {
+				rc = -ENOMEM;
+				goto chown_chgrp_exit;
+			}
 			id = from_kuid(&init_user_ns, uid);
 			if (id_from_sid) {
 				struct owner_sid *osid = (struct owner_sid *)nowner_sid_ptr;
@@ -1309,27 +1328,25 @@ static int build_sec_desc(struct cifs_ntsd *pntsd, struct cifs_ntsd *pnntsd,
 				osid->SubAuthorities[0] = cpu_to_le32(88);
 				osid->SubAuthorities[1] = cpu_to_le32(1);
 				osid->SubAuthorities[2] = cpu_to_le32(id);
+
 			} else { /* lookup sid with upcall */
 				rc = id_to_sid(id, SIDOWNER, nowner_sid_ptr);
 				if (rc) {
 					cifs_dbg(FYI, "%s: Mapping error %d for owner id %d\n",
 						 __func__, rc, id);
-					kfree(nowner_sid_ptr);
-					return rc;
+					goto chown_chgrp_exit;
 				}
 			}
-			cifs_copy_sid(owner_sid_ptr, nowner_sid_ptr);
-			kfree(nowner_sid_ptr);
-			*aclflag = CIFS_ACL_OWNER;
+			*aclflag |= CIFS_ACL_OWNER;
 		}
 		if (gid_valid(gid)) { /* chgrp */
 			gid_t id;
-			group_sid_ptr = (struct cifs_sid *)((char *)pnntsd +
-					le32_to_cpu(pnntsd->gsidoffset));
 			ngroup_sid_ptr = kmalloc(sizeof(struct cifs_sid),
 								GFP_KERNEL);
-			if (!ngroup_sid_ptr)
-				return -ENOMEM;
+			if (!ngroup_sid_ptr) {
+				rc = -ENOMEM;
+				goto chown_chgrp_exit;
+			}
 			id = from_kgid(&init_user_ns, gid);
 			if (id_from_sid) {
 				struct owner_sid *gsid = (struct owner_sid *)ngroup_sid_ptr;
@@ -1340,19 +1357,35 @@ static int build_sec_desc(struct cifs_ntsd *pntsd, struct cifs_ntsd *pnntsd,
 				gsid->SubAuthorities[0] = cpu_to_le32(88);
 				gsid->SubAuthorities[1] = cpu_to_le32(2);
 				gsid->SubAuthorities[2] = cpu_to_le32(id);
+
 			} else { /* lookup sid with upcall */
 				rc = id_to_sid(id, SIDGROUP, ngroup_sid_ptr);
 				if (rc) {
 					cifs_dbg(FYI, "%s: Mapping error %d for group id %d\n",
 						 __func__, rc, id);
-					kfree(ngroup_sid_ptr);
-					return rc;
+					goto chown_chgrp_exit;
 				}
 			}
-			cifs_copy_sid(group_sid_ptr, ngroup_sid_ptr);
-			kfree(ngroup_sid_ptr);
-			*aclflag = CIFS_ACL_GROUP;
+			*aclflag |= CIFS_ACL_GROUP;
 		}
+
+		if (dacloffset) {
+			/* Replace ACEs for old owner with new one */
+			size = replace_sids_and_copy_aces(dacl_ptr, ndacl_ptr,
+					owner_sid_ptr, group_sid_ptr,
+					nowner_sid_ptr, ngroup_sid_ptr);
+			ndacl_ptr->size = cpu_to_le16(size);
+		}
+
+		sidsoffset = ndacloffset + le16_to_cpu(ndacl_ptr->size);
+		/* copy the non-dacl portion of secdesc */
+		*pnsecdesclen = copy_sec_desc(pntsd, pnntsd, sidsoffset,
+				nowner_sid_ptr, ngroup_sid_ptr);
+
+chown_chgrp_exit:
+		/* errors could jump here. So make sure we return soon after this */
+		kfree(nowner_sid_ptr);
+		kfree(ngroup_sid_ptr);
 	}
 
 	return rc;
@@ -1598,6 +1631,18 @@ id_mode_to_cifs_acl(struct inode *inode, const char *path, __u64 *pnmode,
 			nsecdesclen += sizeof(struct cifs_ace);
 		else /* cifsacl */
 			nsecdesclen += 5 * sizeof(struct cifs_ace);
+	} else { /* chown */
+		/* When ownership changes, changes new owner sid length could be different */
+		nsecdesclen = sizeof(struct cifs_ntsd) + (sizeof(struct cifs_sid) * 2);
+		dacloffset = le32_to_cpu(pntsd->dacloffset);
+		if (dacloffset) {
+			dacl_ptr = (struct cifs_acl *)((char *)pntsd + dacloffset);
+			if (mode_from_sid)
+				nsecdesclen +=
+					le16_to_cpu(dacl_ptr->num_aces) * sizeof(struct cifs_ace);
+			else /* cifsacl */
+				nsecdesclen += le16_to_cpu(dacl_ptr->size);
+		}
 	}
 
 	/*
