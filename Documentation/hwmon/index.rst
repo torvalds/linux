@@ -169,6 +169,7 @@ Hardware Monitoring Kernel Drivers
    smsc47m192
    smsc47m1
    sparx5-temp
+   stpddc60
    tc654
    tc74
    thmc50
