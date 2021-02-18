@@ -1502,7 +1502,7 @@ static void device_links_purge(struct device *dev)
 #define FW_DEVLINK_FLAGS_RPM		(FW_DEVLINK_FLAGS_ON | \
 					 DL_FLAG_PM_RUNTIME)
 
-static u32 fw_devlink_flags = FW_DEVLINK_FLAGS_ON;
+static u32 fw_devlink_flags = FW_DEVLINK_FLAGS_PERMISSIVE;
 static int __init fw_devlink_setup(char *arg)
 {
 	if (!arg)
