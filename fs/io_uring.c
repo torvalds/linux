@@ -6160,22 +6160,16 @@ static int io_req_prep_async(struct io_kiocb *req)
 	return 0;
 }
 
-static int io_req_defer_prep(struct io_kiocb *req,
-			     const struct io_uring_sqe *sqe)
+static int io_req_defer_prep(struct io_kiocb *req)
 {
-	int ret;
-
-	if (!sqe)
+	if (!io_op_defs[req->opcode].needs_async_data)
 		return 0;
-	if (io_alloc_async_data(req))
-		return -EAGAIN;
-	ret = io_req_prep(req, sqe);
-	if (ret)
-		return ret;
+	/* some opcodes init it during the inital prep */
 	if (req->async_data)
-		return io_req_prep_async(req);
-	return 0;
-
+		return 0;
+	if (__io_alloc_async_data(req))
+		return -EAGAIN;
+	return io_req_prep_async(req);
 }
 
 static u32 io_get_sequence(struct io_kiocb *req)
@@ -6191,7 +6185,7 @@ static u32 io_get_sequence(struct io_kiocb *req)
 	return total_submitted - nr_reqs;
 }
 
-static int io_req_defer(struct io_kiocb *req, const struct io_uring_sqe *sqe)
+static int io_req_defer(struct io_kiocb *req)
 {
 	struct io_ring_ctx *ctx = req->ctx;
 	struct io_defer_entry *de;
@@ -6208,11 +6202,9 @@ static int io_req_defer(struct io_kiocb *req, const struct io_uring_sqe *sqe)
 	if (!req_need_defer(req, seq) && list_empty_careful(&ctx->defer_list))
 		return 0;
 
-	if (!req->async_data) {
-		ret = io_req_defer_prep(req, sqe);
-		if (ret)
-			return ret;
-	}
+	ret = io_req_defer_prep(req);
+	if (ret)
+		return ret;
 	io_prep_async_link(req);
 	de = kmalloc(sizeof(*de), GFP_KERNEL);
 	if (!de)
@@ -6631,11 +6623,11 @@ static void __io_queue_sqe(struct io_kiocb *req)
 		io_queue_linked_timeout(linked_timeout);
 }
 
-static void io_queue_sqe(struct io_kiocb *req, const struct io_uring_sqe *sqe)
+static void io_queue_sqe(struct io_kiocb *req)
 {
 	int ret;
 
-	ret = io_req_defer(req, sqe);
+	ret = io_req_defer(req);
 	if (ret) {
 		if (ret != -EIOCBQUEUED) {
 fail_req:
@@ -6644,18 +6636,11 @@ fail_req:
 			io_req_complete(req, ret);
 		}
 	} else if (req->flags & REQ_F_FORCE_ASYNC) {
-		if (!req->async_data) {
-			ret = io_req_defer_prep(req, sqe);
-			if (unlikely(ret))
-				goto fail_req;
-		}
+		ret = io_req_defer_prep(req);
+		if (unlikely(ret))
+			goto fail_req;
 		io_queue_async_work(req);
 	} else {
-		if (sqe) {
-			ret = io_req_prep(req, sqe);
-			if (unlikely(ret))
-				goto fail_req;
-		}
 		__io_queue_sqe(req);
 	}
 }
@@ -6666,7 +6651,7 @@ static inline void io_queue_link_head(struct io_kiocb *req)
 		io_put_req(req);
 		io_req_complete(req, -ECANCELED);
 	} else
-		io_queue_sqe(req, NULL);
+		io_queue_sqe(req);
 }
 
 /*
@@ -6788,7 +6773,11 @@ fail_req:
 			link->head->flags |= REQ_F_FAIL_LINK;
 		return ret;
 	}
+	ret = io_req_prep(req, sqe);
+	if (unlikely(ret))
+		goto fail_req;
 
+	/* don't need @sqe from now on */
 	trace_io_uring_submit_sqe(ctx, req->opcode, req->user_data,
 				true, ctx->flags & IORING_SETUP_SQPOLL);
 
@@ -6813,7 +6802,7 @@ fail_req:
 			head->flags |= REQ_F_IO_DRAIN;
 			ctx->drain_next = 1;
 		}
-		ret = io_req_defer_prep(req, sqe);
+		ret = io_req_defer_prep(req);
 		if (unlikely(ret))
 			goto fail_req;
 		trace_io_uring_link(ctx, req, head);
@@ -6831,13 +6820,13 @@ fail_req:
 			ctx->drain_next = 0;
 		}
 		if (req->flags & (REQ_F_LINK | REQ_F_HARDLINK)) {
-			ret = io_req_defer_prep(req, sqe);
+			ret = io_req_defer_prep(req);
 			if (unlikely(ret))
 				req->flags |= REQ_F_FAIL_LINK;
 			link->head = req;
 			link->last = req;
 		} else {
-			io_queue_sqe(req, sqe);
+			io_queue_sqe(req);
 		}
 	}
 
