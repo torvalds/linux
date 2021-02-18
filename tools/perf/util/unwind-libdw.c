@@ -60,10 +60,8 @@ static int __report_module(struct addr_location *al, u64 ip,
 	mod = dwfl_addrmodule(ui->dwfl, ip);
 	if (mod) {
 		Dwarf_Addr s;
-		void **userdatap;
 
-		dwfl_module_info(mod, &userdatap, &s, NULL, NULL, NULL, NULL, NULL);
-		*userdatap = dso;
+		dwfl_module_info(mod, NULL, &s, NULL, NULL, NULL, NULL, NULL);
 		if (s != al->map->start - al->map->pgoff)
 			mod = 0;
 	}
@@ -77,6 +75,13 @@ static int __report_module(struct addr_location *al, u64 ip,
 		if (dso__build_id_filename(dso, filename, sizeof(filename), false))
 			mod = dwfl_report_elf(ui->dwfl, dso->short_name, filename, -1,
 					      al->map->start - al->map->pgoff, false);
+	}
+
+	if (mod) {
+		void **userdatap;
+
+		dwfl_module_info(mod, &userdatap, NULL, NULL, NULL, NULL, NULL, NULL);
+		*userdatap = dso;
 	}
 
 	return mod && dwfl_addrmodule(ui->dwfl, ip) == mod ? 0 : -1;
