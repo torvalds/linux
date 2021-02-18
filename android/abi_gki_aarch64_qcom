@@ -14,6 +14,7 @@
   alarm_cancel
   alarm_init
   alarm_start_relative
+  alloc_anon_inode
   alloc_chrdev_region
   __alloc_disk_node
   alloc_etherdev_mqs
@@ -48,6 +49,9 @@
   backlight_device_set_brightness
   backlight_device_unregister
   bcmp
+  bdget_disk
+  bdput
+  bio_endio
   bitmap_allocate_region
   __bitmap_clear
   bitmap_find_next_zero_area_off
@@ -56,10 +60,20 @@
   bitmap_print_to_pagebuf
   bitmap_release_region
   __bitmap_set
+  blk_alloc_queue
+  blk_cleanup_queue
   blk_execute_rq_nowait
   blk_get_request
   blk_mq_rq_cpu
   blk_put_request
+  blk_queue_flag_clear
+  blk_queue_flag_set
+  blk_queue_io_min
+  blk_queue_io_opt
+  blk_queue_logical_block_size
+  blk_queue_max_discard_sectors
+  blk_queue_max_write_zeroes_sectors
+  blk_queue_physical_block_size
   blk_rq_map_user
   blk_rq_map_user_iov
   blk_rq_unmap_user
@@ -145,6 +159,7 @@
   class_unregister
   cleanup_srcu_struct
   clear_page
+  __ClearPageMovable
   clk_bulk_disable
   clk_bulk_enable
   clk_bulk_get_all
@@ -238,6 +253,8 @@
   __cpuhp_remove_state
   __cpuhp_setup_state
   __cpuhp_setup_state_cpuslocked
+  __cpuhp_state_add_instance
+  __cpuhp_state_remove_instance
   cpu_hwcap_keys
   cpu_hwcaps
   cpuidle_governor_latency_req
@@ -273,15 +290,22 @@
   crypto_alloc_skcipher
   crypto_cipher_encrypt_one
   crypto_cipher_setkey
+  crypto_comp_compress
+  crypto_comp_decompress
   crypto_destroy_tfm
+  crypto_has_alg
+  crypto_register_alg
   crypto_register_rngs
+  crypto_register_scomp
   crypto_shash_final
   crypto_shash_setkey
   crypto_shash_update
   crypto_skcipher_decrypt
   crypto_skcipher_encrypt
   crypto_skcipher_setkey
+  crypto_unregister_alg
   crypto_unregister_rngs
+  crypto_unregister_scomp
   css_next_child
   csum_ipv6_magic
   csum_partial
@@ -312,8 +336,10 @@
   debugfs_lookup
   debugfs_print_regs32
   debugfs_remove
+  dec_zone_page_state
   default_llseek
   delayed_work_timer_fn
+  del_gendisk
   del_timer
   del_timer_sync
   desc_to_gpio
@@ -337,6 +363,7 @@
   dev_get_by_name
   dev_get_regmap
   device_add
+  device_add_disk
   device_add_groups
   device_create
   device_create_file
@@ -490,6 +517,8 @@
   disable_irq
   disable_irq_nosync
   disable_percpu_irq
+  disk_end_io_acct
+  disk_start_io_acct
   divider_get_val
   divider_recalc_rate
   divider_ro_round_rate_parent
@@ -839,6 +868,7 @@
   find_vpid
   finish_wait
   firmware_request_nowarn
+  flush_dcache_page
   flush_delayed_work
   __flush_icache_range
   flush_work
@@ -857,6 +887,7 @@
   freq_qos_remove_request
   freq_qos_update_request
   freq_scale
+  fsync_bdev
   ftrace_dump
   fwnode_find_reference
   fwnode_get_name
@@ -1009,11 +1040,13 @@
   iio_channel_get_all
   iio_read_channel_processed
   import_iovec
+  inc_zone_page_state
   in_egroup_p
   init_dummy_netdev
   init_iova_domain
   init_net
   init_pid_ns
+  init_pseudo
   __init_rwsem
   init_srcu_struct
   __init_swait_queue_head
@@ -1090,6 +1123,7 @@
   iounmap
   __iowrite32_copy
   ip_compute_csum
+  iput
   __ipv6_addr_type
   ipv6_ext_hdr
   ipv6_skip_exthdr
@@ -1157,6 +1191,8 @@
   kernfs_find_and_get_ns
   kernfs_notify
   kernfs_put
+  kern_mount
+  kern_unmount
   __kfifo_alloc
   __kfifo_in
   __kfifo_out
@@ -1165,6 +1201,7 @@
   kfree_sensitive
   kfree_skb
   kick_all_cpus_sync
+  kill_anon_super
   kill_fasync
   kimage_vaddr
   kimage_voffset
@@ -1252,10 +1289,14 @@
   llist_add_batch
   llist_reverse_order
   __local_bh_enable_ip
+  __lock_page
   lock_sock_nested
   __log_post_read_mmio
   __log_read_mmio
   __log_write_mmio
+  lzo1x_1_compress
+  lzo1x_decompress_safe
+  lzorle1x_1_compress
   mac_pton
   match_string
   mbox_chan_received_data
@@ -1287,6 +1328,7 @@
   memparse
   memremap
   memset
+  memset64
   __memset_io
   memstart_addr
   memunmap
@@ -1481,6 +1523,8 @@
   on_each_cpu
   oops_in_progress
   overflowuid
+  page_endio
+  page_mapping
   panic
   panic_notifier_list
   panic_timeout
@@ -1761,6 +1805,7 @@
   regcache_mark_dirty
   regcache_sync
   regcache_sync_region
+  register_blkdev
   __register_chrdev
   register_chrdev_region
   register_console
@@ -1842,6 +1887,7 @@
   reset_control_reset
   resume_cpus
   return_address
+  revalidate_disk_size
   rfkill_alloc
   rfkill_destroy
   rfkill_init_sw_state
@@ -1956,6 +2002,7 @@
   set_cpus_allowed_ptr
   set_normalized_timespec64
   set_page_dirty_lock
+  __SetPageMovable
   set_task_cpu
   set_user_nice
   sg_alloc_table
@@ -2185,6 +2232,7 @@
   sysfs_create_group
   sysfs_create_groups
   sysfs_create_link
+  __sysfs_match_string
   sysfs_notify
   sysfs_remove_bin_file
   sysfs_remove_file_from_group
@@ -2386,7 +2434,9 @@
   ufshcd_uic_hibern8_exit
   __uio_register_device
   uio_unregister_device
+  unlock_page
   unmap_mapping_range
+  unregister_blkdev
   __unregister_chrdev
   unregister_chrdev_region
   unregister_console
