@@ -592,7 +592,7 @@ static int task_thread_unbound(void *data)
 	return task_thread(data, IO_WQ_ACCT_UNBOUND);
 }
 
-static pid_t fork_thread(int (*fn)(void *), void *arg)
+pid_t io_wq_fork_thread(int (*fn)(void *), void *arg)
 {
 	unsigned long flags = CLONE_FS|CLONE_FILES|CLONE_SIGHAND|CLONE_THREAD|
 				CLONE_IO|SIGCHLD;
@@ -622,9 +622,9 @@ static bool create_io_worker(struct io_wq *wq, struct io_wqe *wqe, int index)
 	spin_lock_init(&worker->lock);
 
 	if (index == IO_WQ_ACCT_BOUND)
-		pid = fork_thread(task_thread_bound, worker);
+		pid = io_wq_fork_thread(task_thread_bound, worker);
 	else
-		pid = fork_thread(task_thread_unbound, worker);
+		pid = io_wq_fork_thread(task_thread_unbound, worker);
 	if (pid < 0) {
 		kfree(worker);
 		return false;
@@ -1012,7 +1012,7 @@ struct io_wq *io_wq_create(unsigned bounded, struct io_wq_data *data)
 	refcount_set(&wq->refs, 1);
 
 	current->flags |= PF_IO_WORKER;
-	ret = fork_thread(io_wq_manager, wq);
+	ret = io_wq_fork_thread(io_wq_manager, wq);
 	current->flags &= ~PF_IO_WORKER;
 	if (ret >= 0) {
 		wait_for_completion(&wq->done);

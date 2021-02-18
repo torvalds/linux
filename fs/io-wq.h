@@ -106,6 +106,8 @@ void io_wq_destroy(struct io_wq *wq);
 void io_wq_enqueue(struct io_wq *wq, struct io_wq_work *work);
 void io_wq_hash_work(struct io_wq_work *work, void *val);
 
+pid_t io_wq_fork_thread(int (*fn)(void *), void *arg);
+
 static inline bool io_wq_is_hashed(struct io_wq_work *work)
 {
 	return work->flags & IO_WQ_WORK_HASHED;
