@@ -454,11 +454,15 @@ static int xsk_generic_xmit(struct sock *sk)
 	struct sk_buff *skb;
 	unsigned long flags;
 	int err = 0;
+	u32 hr, tr;
 
 	mutex_lock(&xs->mutex);
 
 	if (xs->queue_id >= xs->dev->real_num_tx_queues)
 		goto out;
+
+	hr = max(NET_SKB_PAD, L1_CACHE_ALIGN(xs->dev->needed_headroom));
+	tr = xs->dev->needed_tailroom;
 
 	while (xskq_cons_peek_desc(xs->tx, &desc, xs->pool)) {
 		char *buffer;
@@ -471,11 +475,13 @@ static int xsk_generic_xmit(struct sock *sk)
 		}
 
 		len = desc.len;
-		skb = sock_alloc_send_skb(sk, len, 1, &err);
+		skb = sock_alloc_send_skb(sk, hr + len + tr, 1, &err);
 		if (unlikely(!skb))
 			goto out;
 
+		skb_reserve(skb, hr);
 		skb_put(skb, len);
+
 		addr = desc.addr;
 		buffer = xsk_buff_raw_get_data(xs->pool, addr);
 		err = skb_store_bits(skb, 0, buffer, len);
