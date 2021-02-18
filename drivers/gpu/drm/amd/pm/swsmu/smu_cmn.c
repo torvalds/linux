@@ -762,7 +762,7 @@ void smu_cmn_init_soft_gpu_metrics(void *table, uint8_t frev, uint8_t crev)
 		structure_size = sizeof(struct gpu_metrics_v2_0);
 		break;
 	default:
-		break;
+		return;
 	}
 
 #undef METRICS_VERSION
