@@ -452,8 +452,8 @@ void i2400m_report_state_parse_tlv(struct i2400m *i2400m,
 		d_printf(2, dev, "%s: RF status TLV "
 			 "found (0x%04x), sw 0x%02x hw 0x%02x\n",
 			 tag, I2400M_TLV_RF_STATUS,
-			 le32_to_cpu(rfss->sw_rf_switch),
-			 le32_to_cpu(rfss->hw_rf_switch));
+			 rfss->sw_rf_switch,
+			 rfss->hw_rf_switch);
 		i2400m_report_tlv_rf_switches_status(i2400m, rfss);
 	}
 	if (0 == i2400m_tlv_match(tlv, I2400M_TLV_MEDIA_STATUS, sizeof(*ms))) {

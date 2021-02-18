@@ -156,8 +156,8 @@ void i2400m_report_tlv_rf_switches_status(
 	enum i2400m_rf_switch_status hw, sw;
 	enum wimax_st wimax_state;
 
-	sw = le32_to_cpu(rfss->sw_rf_switch);
-	hw = le32_to_cpu(rfss->hw_rf_switch);
+	sw = rfss->sw_rf_switch;
+	hw = rfss->hw_rf_switch;
 
 	d_fnstart(3, dev, "(i2400m %p rfss %p [hw %u sw %u])\n",
 		  i2400m, rfss, hw, sw);
