@@ -4008,7 +4008,7 @@ static int io_nop(struct io_kiocb *req, unsigned int issue_flags)
 	return 0;
 }
 
-static int io_prep_fsync(struct io_kiocb *req, const struct io_uring_sqe *sqe)
+static int io_fsync_prep(struct io_kiocb *req, const struct io_uring_sqe *sqe)
 {
 	struct io_ring_ctx *ctx = req->ctx;
 
@@ -4595,7 +4595,7 @@ err:
 	return 0;
 }
 
-static int io_prep_sfr(struct io_kiocb *req, const struct io_uring_sqe *sqe)
+static int io_sfr_prep(struct io_kiocb *req, const struct io_uring_sqe *sqe)
 {
 	struct io_ring_ctx *ctx = req->ctx;
 
@@ -6081,9 +6081,9 @@ static int io_req_prep(struct io_kiocb *req, const struct io_uring_sqe *sqe)
 	case IORING_OP_POLL_REMOVE:
 		return io_poll_remove_prep(req, sqe);
 	case IORING_OP_FSYNC:
-		return io_prep_fsync(req, sqe);
+		return io_fsync_prep(req, sqe);
 	case IORING_OP_SYNC_FILE_RANGE:
-		return io_prep_sfr(req, sqe);
+		return io_sfr_prep(req, sqe);
 	case IORING_OP_SENDMSG:
 	case IORING_OP_SEND:
 		return io_sendmsg_prep(req, sqe);
