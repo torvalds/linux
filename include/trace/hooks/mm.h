@@ -9,6 +9,7 @@
 
 #include <linux/types.h>
 
+#include <linux/mm.h>
 #include <linux/tracepoint.h>
 #include <trace/hooks/vendor_hooks.h>
 
@@ -21,6 +22,12 @@ DECLARE_RESTRICTED_HOOK(android_rvh_set_gfp_zone_flags,
 DECLARE_RESTRICTED_HOOK(android_rvh_set_readahead_gfp_mask,
 			TP_PROTO(gfp_t *flags),
 			TP_ARGS(flags), 1);
+DECLARE_HOOK(android_vh_rmqueue,
+	TP_PROTO(struct zone *preferred_zone, struct zone *zone,
+		unsigned int order, gfp_t gfp_flags,
+		unsigned int alloc_flags, int migratetype),
+	TP_ARGS(preferred_zone, zone, order,
+		gfp_flags, alloc_flags, migratetype));
 
 /* macro versions of hooks are no longer required */
 

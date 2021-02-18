@@ -154,3 +154,4 @@ EXPORT_TRACEPOINT_SYMBOL_GPL(android_rvh_do_sp_pc_abort);
 EXPORT_TRACEPOINT_SYMBOL_GPL(android_vh_iommu_setup_dma_ops);
 EXPORT_TRACEPOINT_SYMBOL_GPL(android_rvh_pick_next_entity);
 EXPORT_TRACEPOINT_SYMBOL_GPL(android_rvh_check_preempt_wakeup);
+EXPORT_TRACEPOINT_SYMBOL_GPL(android_vh_rmqueue);
