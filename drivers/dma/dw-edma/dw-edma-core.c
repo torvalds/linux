@@ -81,8 +81,13 @@ static struct dw_edma_chunk *dw_edma_alloc_chunk(struct dw_edma_desc *desc)
 	 *  - Even chunks originate CB equal to 1
 	 */
 	chunk->cb = !(desc->chunks_alloc % 2);
-	chunk->ll_region.paddr = dw->ll_region.paddr + chan->ll_off;
-	chunk->ll_region.vaddr = dw->ll_region.vaddr + chan->ll_off;
+	if (chan->dir == EDMA_DIR_WRITE) {
+		chunk->ll_region.paddr = dw->ll_region_wr[chan->id].paddr;
+		chunk->ll_region.vaddr = dw->ll_region_wr[chan->id].vaddr;
+	} else {
+		chunk->ll_region.paddr = dw->ll_region_rd[chan->id].paddr;
+		chunk->ll_region.vaddr = dw->ll_region_rd[chan->id].vaddr;
+	}
 
 	if (desc->chunk) {
 		/* Create and add new element into the linked list */
@@ -691,23 +696,12 @@ static int dw_edma_channel_setup(struct dw_edma_chip *chip, bool write,
 	struct device *dev = chip->dev;
 	struct dw_edma *dw = chip->dw;
 	struct dw_edma_chan *chan;
-	size_t ll_chunk, dt_chunk;
 	struct dw_edma_irq *irq;
 	struct dma_device *dma;
-	u32 i, j, cnt, ch_cnt;
 	u32 alloc, off_alloc;
+	u32 i, j, cnt;
 	int err = 0;
 	u32 pos;
-
-	ch_cnt = dw->wr_ch_cnt + dw->rd_ch_cnt;
-	ll_chunk = dw->ll_region.sz;
-	dt_chunk = dw->dt_region.sz;
-
-	/* Calculate linked list chunk for each channel */
-	ll_chunk /= roundup_pow_of_two(ch_cnt);
-
-	/* Calculate linked list chunk for each channel */
-	dt_chunk /= roundup_pow_of_two(ch_cnt);
 
 	if (write) {
 		i = 0;
@@ -740,14 +734,14 @@ static int dw_edma_channel_setup(struct dw_edma_chip *chip, bool write,
 		chan->request = EDMA_REQ_NONE;
 		chan->status = EDMA_ST_IDLE;
 
-		chan->ll_off = (ll_chunk * i);
-		chan->ll_max = (ll_chunk / EDMA_LL_SZ) - 1;
+		if (write)
+			chan->ll_max = (dw->ll_region_wr[j].sz / EDMA_LL_SZ);
+		else
+			chan->ll_max = (dw->ll_region_rd[j].sz / EDMA_LL_SZ);
+		chan->ll_max -= 1;
 
-		chan->dt_off = (dt_chunk * i);
-
-		dev_vdbg(dev, "L. List:\tChannel %s[%u] off=0x%.8lx, max_cnt=%u\n",
-			 write ? "write" : "read", j,
-			 chan->ll_off, chan->ll_max);
+		dev_vdbg(dev, "L. List:\tChannel %s[%u] max_cnt=%u\n",
+			 write ? "write" : "read", j, chan->ll_max);
 
 		if (dw->nr_irqs == 1)
 			pos = 0;
@@ -772,12 +766,15 @@ static int dw_edma_channel_setup(struct dw_edma_chip *chip, bool write,
 		chan->vc.desc_free = vchan_free_desc;
 		vchan_init(&chan->vc, dma);
 
-		dt_region->paddr = dw->dt_region.paddr + chan->dt_off;
-		dt_region->vaddr = dw->dt_region.vaddr + chan->dt_off;
-		dt_region->sz = dt_chunk;
-
-		dev_vdbg(dev, "Data:\tChannel %s[%u] off=0x%.8lx\n",
-			 write ? "write" : "read", j, chan->dt_off);
+		if (write) {
+			dt_region->paddr = dw->dt_region_wr[j].paddr;
+			dt_region->vaddr = dw->dt_region_wr[j].vaddr;
+			dt_region->sz = dw->dt_region_wr[j].sz;
+		} else {
+			dt_region->paddr = dw->dt_region_rd[j].paddr;
+			dt_region->vaddr = dw->dt_region_rd[j].vaddr;
+			dt_region->sz = dw->dt_region_rd[j].sz;
+		}
 
 		dw_edma_v0_core_device_config(chan);
 	}
