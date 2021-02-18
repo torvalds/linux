@@ -193,6 +193,17 @@
 #define PHY_STATUS_TIMEOUT_US		10000
 #define CMD_PKT_STATUS_TIMEOUT_US	20000
 
+enum soc_type {
+	PX30,
+	RK1808,
+	RK3128,
+	RK3288,
+	RK3368,
+	RK3399,
+	RK3568,
+	RV1126,
+};
+
 enum dpi_color_coding {
 	DPI_COLOR_CODING_16BIT_1,
 	DPI_COLOR_CODING_16BIT_2,
@@ -236,6 +247,7 @@ struct dw_mipi_dsi_plat_data {
 	const u32 *dsi0_grf_reg_fields;
 	const u32 *dsi1_grf_reg_fields;
 	unsigned long max_bit_rate_per_lane;
+	enum soc_type soc_type;
 };
 
 struct mipi_dphy {
@@ -1360,6 +1372,13 @@ dw_mipi_dsi_encoder_atomic_check(struct drm_encoder *encoder,
 	s->output_type = DRM_MODE_CONNECTOR_DSI;
 	s->output_if = dsi->id ? VOP_OUTPUT_IF_MIPI1 : VOP_OUTPUT_IF_MIPI0;
 	s->bus_flags = info->bus_flags;
+
+	/* rk356x series drive mipi pixdata on posedge */
+	if (dsi->pdata->soc_type == RK3568) {
+		s->bus_flags &= ~DRM_BUS_FLAG_PIXDATA_NEGEDGE;
+		s->bus_flags |= DRM_BUS_FLAG_PIXDATA_POSEDGE;
+	}
+
 	s->tv_state = &conn_state->tv;
 	s->eotf = TRADITIONAL_GAMMA_SDR;
 	s->color_space = V4L2_COLORSPACE_DEFAULT;
@@ -1816,6 +1835,7 @@ static const u32 px30_dsi_grf_reg_fields[MAX_FIELDS] = {
 static const struct dw_mipi_dsi_plat_data px30_mipi_dsi_plat_data = {
 	.dsi0_grf_reg_fields = px30_dsi_grf_reg_fields,
 	.max_bit_rate_per_lane = 1000000000UL,
+	.soc_type = PX30,
 };
 
 static const u32 rk1808_dsi_grf_reg_fields[MAX_FIELDS] = {
@@ -1831,6 +1851,7 @@ static const u32 rk1808_dsi_grf_reg_fields[MAX_FIELDS] = {
 static const struct dw_mipi_dsi_plat_data rk1808_mipi_dsi_plat_data = {
 	.dsi0_grf_reg_fields = rk1808_dsi_grf_reg_fields,
 	.max_bit_rate_per_lane = 2000000000UL,
+	.soc_type = RK1808,
 };
 
 static const u32 rk3128_dsi_grf_reg_fields[MAX_FIELDS] = {
@@ -1844,6 +1865,7 @@ static const u32 rk3128_dsi_grf_reg_fields[MAX_FIELDS] = {
 static const struct dw_mipi_dsi_plat_data rk3128_mipi_dsi_plat_data = {
 	.dsi0_grf_reg_fields = rk3128_dsi_grf_reg_fields,
 	.max_bit_rate_per_lane = 1000000000UL,
+	.soc_type = RK3128,
 };
 
 static const u32 rk3288_dsi0_grf_reg_fields[MAX_FIELDS] = {
@@ -1876,6 +1898,7 @@ static const struct dw_mipi_dsi_plat_data rk3288_mipi_dsi_plat_data = {
 	.dsi0_grf_reg_fields = rk3288_dsi0_grf_reg_fields,
 	.dsi1_grf_reg_fields = rk3288_dsi1_grf_reg_fields,
 	.max_bit_rate_per_lane = 1500000000UL,
+	.soc_type = RK3288,
 };
 
 static const u32 rk3368_dsi_grf_reg_fields[MAX_FIELDS] = {
@@ -1890,6 +1913,7 @@ static const u32 rk3368_dsi_grf_reg_fields[MAX_FIELDS] = {
 static const struct dw_mipi_dsi_plat_data rk3368_mipi_dsi_plat_data = {
 	.dsi0_grf_reg_fields = rk3368_dsi_grf_reg_fields,
 	.max_bit_rate_per_lane = 1000000000UL,
+	.soc_type = RK3368,
 };
 
 static const u32 rk3399_dsi0_grf_reg_fields[MAX_FIELDS] = {
@@ -1922,20 +1946,7 @@ static const struct dw_mipi_dsi_plat_data rk3399_mipi_dsi_plat_data = {
 	.dsi0_grf_reg_fields = rk3399_dsi0_grf_reg_fields,
 	.dsi1_grf_reg_fields = rk3399_dsi1_grf_reg_fields,
 	.max_bit_rate_per_lane = 1500000000UL,
-};
-
-static const u32 rv1126_dsi_grf_reg_fields[MAX_FIELDS] = {
-	[DPIUPDATECFG]		= GRF_REG_FIELD(0x0008,  5,  5),
-	[DPISHUTDN]		= GRF_REG_FIELD(0x0008,  4,  4),
-	[DPICOLORM]		= GRF_REG_FIELD(0x0008,  3,  3),
-	[FORCETXSTOPMODE]	= GRF_REG_FIELD(0x10220,  4,  7),
-	[TURNDISABLE]		= GRF_REG_FIELD(0x10220,  2,  2),
-	[FORCERXMODE]		= GRF_REG_FIELD(0x10220,  0,  0),
-};
-
-static const struct dw_mipi_dsi_plat_data rv1126_mipi_dsi_plat_data = {
-	.dsi0_grf_reg_fields = rv1126_dsi_grf_reg_fields,
-	.max_bit_rate_per_lane = 1000000000UL,
+	.soc_type = RK3399,
 };
 
 static const u32 rk3568_dsi0_grf_reg_fields[MAX_FIELDS] = {
@@ -1957,10 +1968,27 @@ static const u32 rk3568_dsi1_grf_reg_fields[MAX_FIELDS] = {
 	[TURNDISABLE]		= GRF_REG_FIELD(0x036c,  2,  2),
 	[FORCERXMODE]		= GRF_REG_FIELD(0x036c,  0,  0),
 };
+
 static const struct dw_mipi_dsi_plat_data rk3568_mipi_dsi_plat_data = {
 	.dsi0_grf_reg_fields = rk3568_dsi0_grf_reg_fields,
 	.dsi1_grf_reg_fields = rk3568_dsi1_grf_reg_fields,
 	.max_bit_rate_per_lane = 1200000000UL,
+	.soc_type = RK3568,
+};
+
+static const u32 rv1126_dsi_grf_reg_fields[MAX_FIELDS] = {
+	[DPIUPDATECFG]		= GRF_REG_FIELD(0x0008,  5,  5),
+	[DPISHUTDN]		= GRF_REG_FIELD(0x0008,  4,  4),
+	[DPICOLORM]		= GRF_REG_FIELD(0x0008,  3,  3),
+	[FORCETXSTOPMODE]	= GRF_REG_FIELD(0x10220,  4,  7),
+	[TURNDISABLE]		= GRF_REG_FIELD(0x10220,  2,  2),
+	[FORCERXMODE]		= GRF_REG_FIELD(0x10220,  0,  0),
+};
+
+static const struct dw_mipi_dsi_plat_data rv1126_mipi_dsi_plat_data = {
+	.dsi0_grf_reg_fields = rv1126_dsi_grf_reg_fields,
+	.max_bit_rate_per_lane = 1000000000UL,
+	.soc_type = RV1126,
 };
 
 static const struct of_device_id dw_mipi_dsi_dt_ids[] = {
