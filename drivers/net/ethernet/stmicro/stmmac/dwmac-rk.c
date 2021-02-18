@@ -90,12 +90,14 @@ struct rk_priv_data {
 #define SR_MII_BASE			(0x1F0000)
 #define SR_MII1_BASE			(0x1A0000)
 
+#define VR_MII_DIG_CTRL1		(0x8000)
 #define VR_MII_AN_CTRL			(0x8001)
 #define VR_MII_AN_INTR_STS		(0x8002)
 #define VR_MII_LINK_TIMER_CTRL		(0x800A)
 
 #define SR_MII_CTRL_AN_ENABLE		\
 	(BMCR_ANENABLE | BMCR_ANRESTART | BMCR_FULLDPLX | BMCR_SPEED1000)
+#define MII_MAC_AUTO_SW			(0x0200)
 #define PCS_MODE_OFFSET			(0x1)
 #define MII_AN_INTR_EN			(0x1)
 #define PCS_SGMII_MODE			(0x2 << PCS_MODE_OFFSET)
@@ -160,12 +162,13 @@ static int xpcs_soft_reset(struct rk_priv_data *bsp_priv, int dev)
 
 static int xpcs_setup(struct rk_priv_data *bsp_priv, int mode)
 {
-	int ret, i;
+	int ret, i, id = bsp_priv->bus_id;
+	u32 val;
 
-	if (mode == PHY_INTERFACE_MODE_QSGMII && bsp_priv->bus_id > 0)
+	if (mode == PHY_INTERFACE_MODE_QSGMII && id > 0)
 		return 0;
 
-	ret = xpcs_soft_reset(bsp_priv, bsp_priv->bus_id);
+	ret = xpcs_soft_reset(bsp_priv, id);
 	if (ret) {
 		dev_err(&bsp_priv->pdev->dev, "xpcs_soft_reset fail %d\n", ret);
 		return ret;
@@ -182,11 +185,20 @@ static int xpcs_setup(struct rk_priv_data *bsp_priv, int mode)
 			   VR_MII_CTRL_QSGMII_AN_EN);
 
 	if (mode == PHY_INTERFACE_MODE_QSGMII) {
-		for (i = 0; i < 4; i++)
+		for (i = 0; i < 4; i++) {
+			val = xpcs_read(bsp_priv,
+					SR_MII_OFFSET(i) + VR_MII_DIG_CTRL1);
+			xpcs_write(bsp_priv,
+				   SR_MII_OFFSET(i) + VR_MII_DIG_CTRL1,
+				   val | MII_MAC_AUTO_SW);
 			xpcs_write(bsp_priv, SR_MII_OFFSET(i) + MII_BMCR,
 				   SR_MII_CTRL_AN_ENABLE);
+		}
 	} else {
-		xpcs_write(bsp_priv, SR_MII_OFFSET(bsp_priv->bus_id) + MII_BMCR,
+		val = xpcs_read(bsp_priv, SR_MII_OFFSET(id) + VR_MII_DIG_CTRL1);
+		xpcs_write(bsp_priv, SR_MII_OFFSET(id) + VR_MII_DIG_CTRL1,
+			   val | MII_MAC_AUTO_SW);
+		xpcs_write(bsp_priv, SR_MII_OFFSET(id) + MII_BMCR,
 			   SR_MII_CTRL_AN_ENABLE);
 	}
 
