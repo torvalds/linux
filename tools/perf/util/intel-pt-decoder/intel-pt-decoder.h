@@ -204,7 +204,7 @@ struct intel_pt_state {
 	int err;
 	uint64_t from_ip;
 	uint64_t to_ip;
-	uint64_t cr3;
+	uint64_t pip_payload;
 	uint64_t tot_insn_cnt;
 	uint64_t tot_cyc_cnt;
 	uint64_t timestamp;
