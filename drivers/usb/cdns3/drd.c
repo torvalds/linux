@@ -478,3 +478,18 @@ int cdns_drd_exit(struct cdns *cdns)
 
 	return 0;
 }
+
+
+/* Indicate the cdns3 core was power lost before */
+bool cdns_power_is_lost(struct cdns *cdns)
+{
+	if (cdns->version == CDNS3_CONTROLLER_V1) {
+		if (!(readl(&cdns->otg_v1_regs->simulate) & BIT(0)))
+			return true;
+	} else {
+		if (!(readl(&cdns->otg_v0_regs->simulate) & BIT(0)))
+			return true;
+	}
+	return false;
+}
+EXPORT_SYMBOL_GPL(cdns_power_is_lost);

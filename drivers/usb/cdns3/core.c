@@ -525,9 +525,36 @@ EXPORT_SYMBOL_GPL(cdns_suspend);
 int cdns_resume(struct cdns *cdns, u8 set_active)
 {
 	struct device *dev = cdns->dev;
+	enum usb_role real_role;
+	bool role_changed = false;
+	int ret;
+
+	if (cdns_power_is_lost(cdns)) {
+		if (cdns->role_sw) {
+			cdns->role = cdns_role_get(cdns->role_sw);
+		} else {
+			real_role = cdns_hw_role_state_machine(cdns);
+			if (real_role != cdns->role) {
+				ret = cdns_hw_role_switch(cdns);
+				if (ret)
+					return ret;
+				role_changed = true;
+			}
+		}
+
+		if (!role_changed) {
+			if (cdns->role == USB_ROLE_HOST)
+				ret = cdns_drd_host_on(cdns);
+			else if (cdns->role == USB_ROLE_DEVICE)
+				ret = cdns_drd_gadget_on(cdns);
+
+			if (ret)
+				return ret;
+		}
+	}
 
 	if (cdns->roles[cdns->role]->resume)
-		cdns->roles[cdns->role]->resume(cdns, false);
+		cdns->roles[cdns->role]->resume(cdns, cdns_power_is_lost(cdns));
 
 	if (set_active) {
 		pm_runtime_disable(dev);
