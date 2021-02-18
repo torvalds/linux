@@ -1003,7 +1003,7 @@ int dw_edma_remove(struct dw_edma_chip *chip)
 	dma_async_device_unregister(&dw->rd_edma);
 
 	/* Turn debugfs off */
-	dw_edma_v0_core_debugfs_off();
+	dw_edma_v0_core_debugfs_off(chip);
 
 	return 0;
 }

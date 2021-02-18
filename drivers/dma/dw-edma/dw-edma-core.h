@@ -137,6 +137,9 @@ struct dw_edma {
 	const struct dw_edma_core_ops	*ops;
 
 	raw_spinlock_t			lock;		/* Only for legacy */
+#ifdef CONFIG_DEBUG_FS
+	struct dentry			*debugfs;
+#endif /* CONFIG_DEBUG_FS */
 };
 
 struct dw_edma_sg {
