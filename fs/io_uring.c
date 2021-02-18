@@ -6884,7 +6884,7 @@ static int io_init_req(struct io_ring_ctx *ctx, struct io_kiocb *req,
 static int io_submit_sqes(struct io_ring_ctx *ctx, unsigned int nr)
 {
 	struct io_submit_link link;
-	int i, submitted = 0;
+	int submitted = 0;
 
 	/* if we have a backlog and couldn't flush it all, return BUSY */
 	if (test_bit(0, &ctx->sq_check_overflow)) {
@@ -6904,7 +6904,7 @@ static int io_submit_sqes(struct io_ring_ctx *ctx, unsigned int nr)
 	io_submit_state_start(&ctx->submit_state, nr);
 	link.head = NULL;
 
-	for (i = 0; i < nr; i++) {
+	while (submitted < nr) {
 		const struct io_uring_sqe *sqe;
 		struct io_kiocb *req;
 		int err;
