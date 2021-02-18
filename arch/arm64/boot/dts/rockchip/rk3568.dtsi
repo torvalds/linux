@@ -68,6 +68,7 @@
 			enable-method = "psci";
 			clocks = <&scmi_clk 0>;
 			operating-points-v2 = <&cpu0_opp_table>;
+			cpu-idle-states = <&CPU_SLEEP>;
 			#cooling-cells = <2>;
 			dynamic-power-coefficient = <187>;
 			power-model {
@@ -87,6 +88,7 @@
 			enable-method = "psci";
 			clocks = <&scmi_clk 0>;
 			operating-points-v2 = <&cpu0_opp_table>;
+			cpu-idle-states = <&CPU_SLEEP>;
 		};
 
 		cpu2: cpu@200 {
@@ -96,6 +98,7 @@
 			enable-method = "psci";
 			clocks = <&scmi_clk 0>;
 			operating-points-v2 = <&cpu0_opp_table>;
+			cpu-idle-states = <&CPU_SLEEP>;
 		};
 
 		cpu3: cpu@300 {
@@ -105,6 +108,19 @@
 			enable-method = "psci";
 			clocks = <&scmi_clk 0>;
 			operating-points-v2 = <&cpu0_opp_table>;
+			cpu-idle-states = <&CPU_SLEEP>;
+		};
+
+		idle-states {
+			entry-method = "psci";
+			CPU_SLEEP: cpu-sleep {
+				compatible = "arm,idle-state";
+				local-timer-stop;
+				arm,psci-suspend-param = <0x0010000>;
+				entry-latency-us = <100>;
+				exit-latency-us = <120>;
+				min-residency-us = <1000>;
+			};
 		};
 	};
 
