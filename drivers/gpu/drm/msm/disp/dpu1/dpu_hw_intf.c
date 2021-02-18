@@ -256,6 +256,7 @@ static void dpu_hw_intf_get_status(
 	struct dpu_hw_blk_reg_map *c = &intf->hw;
 
 	s->is_en = DPU_REG_READ(c, INTF_TIMING_ENGINE_EN);
+	s->is_prog_fetch_en = !!(DPU_REG_READ(c, INTF_CONFIG) & BIT(31));
 	if (s->is_en) {
 		s->frame_count = DPU_REG_READ(c, INTF_FRAME_COUNT);
 		s->line_count = DPU_REG_READ(c, INTF_LINE_COUNT);
