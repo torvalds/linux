@@ -1087,6 +1087,22 @@ static int mt7615_cancel_remain_on_channel(struct ieee80211_hw *hw,
 	return 0;
 }
 
+static void mt7615_sta_set_decap_offload(struct ieee80211_hw *hw,
+				 struct ieee80211_vif *vif,
+				 struct ieee80211_sta *sta,
+				 bool enabled)
+{
+	struct mt7615_dev *dev = mt7615_hw_dev(hw);
+	struct mt7615_sta *msta = (struct mt7615_sta *)sta->drv_priv;
+
+	if (enabled)
+		set_bit(MT_WCID_FLAG_HDR_TRANS, &msta->wcid.flags);
+	else
+		clear_bit(MT_WCID_FLAG_HDR_TRANS, &msta->wcid.flags);
+
+	mt7615_mcu_sta_update_hdr_trans(dev, vif, sta);
+}
+
 #ifdef CONFIG_PM
 static int mt7615_suspend(struct ieee80211_hw *hw,
 			  struct cfg80211_wowlan *wowlan)
@@ -1187,6 +1203,7 @@ const struct ieee80211_ops mt7615_ops = {
 	.sta_remove = mt7615_sta_remove,
 	.sta_pre_rcu_remove = mt76_sta_pre_rcu_remove,
 	.set_key = mt7615_set_key,
+	.sta_set_decap_offload = mt7615_sta_set_decap_offload,
 	.ampdu_action = mt7615_ampdu_action,
 	.set_rts_threshold = mt7615_set_rts_threshold,
 	.wake_tx_queue = mt7615_wake_tx_queue,

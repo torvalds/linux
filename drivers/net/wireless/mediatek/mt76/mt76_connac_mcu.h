@@ -210,7 +210,7 @@ struct wtbl_hdr_trans {
 	__le16 len;
 	u8 to_ds;
 	u8 from_ds;
-	u8 disable_rx_trans;
+	u8 no_rx_trans;
 	u8 rsv;
 } __packed;
 
@@ -922,6 +922,10 @@ void mt76_connac_mcu_wtbl_generic_tlv(struct mt76_dev *dev, struct sk_buff *skb,
 				      struct ieee80211_vif *vif,
 				      struct ieee80211_sta *sta, void *sta_wtbl,
 				      void *wtbl_tlv);
+void mt76_connac_mcu_wtbl_hdr_trans_tlv(struct sk_buff *skb,
+					struct ieee80211_vif *vif,
+					struct ieee80211_sta *sta,
+					void *sta_wtbl, void *wtbl_tlv);
 void mt76_connac_mcu_sta_tlv(struct mt76_phy *mphy, struct sk_buff *skb,
 			     struct ieee80211_sta *sta,
 			     struct ieee80211_vif *vif);
