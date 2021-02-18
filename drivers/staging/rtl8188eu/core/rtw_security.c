@@ -126,9 +126,7 @@ static __le32 getcrc32(u8 *buf, int len)
 	return cpu_to_le32(~crc);    /* transmit complement, per CRC-32 spec */
 }
 
-/*
-	Need to consider the fragment  situation
-*/
+/* Need to consider the fragment  situation */
 void rtw_wep_encrypt(struct adapter *padapter, struct xmit_frame *pxmitframe)
 {
 	int	curfragnum, length;
@@ -465,23 +463,17 @@ static const unsigned short Sbox1[2][256] = {  /* Sbox for hash (can be in ROM) 
   }
 };
 
- /*
-**********************************************************************
-* Routine: Phase 1 -- generate P1K, given TA, TK, IV32
-*
-* Inputs:
-*     tk[]      = temporal key			 [128 bits]
-*     ta[]      = transmitter's MAC address	    [ 48 bits]
-*     iv32      = upper 32 bits of IV		  [ 32 bits]
-* Output:
-*     p1k[]     = Phase 1 key			  [ 80 bits]
-*
-* Note:
-*     This function only needs to be called every 2**16 packets,
-*     although in theory it could be called every packet.
-*
-**********************************************************************
-*/
+/**
+ * phase1() - generate P1K, given TA, TK, IV32
+ * @tk[]: temporal key [128 bits]
+ * @ta[]: transmitter's MAC address [ 48 bits]
+ * @iv32: upper 32 bits of IV [ 32 bits]
+ *
+ * This function only needs to be called every 2**16 packets,
+ * although in theory it could be called every packet.
+ *
+ * Return: p1k[] - Phase 1 key [ 80 bits]
+ */
 static void phase1(u16 *p1k, const u8 *tk, const u8 *ta, u32 iv32)
 {
 	int  i;
@@ -504,29 +496,23 @@ static void phase1(u16 *p1k, const u8 *tk, const u8 *ta, u32 iv32)
 	}
 }
 
-/*
-**********************************************************************
-* Routine: Phase 2 -- generate RC4KEY, given TK, P1K, IV16
-*
-* Inputs:
-*     tk[]      = Temporal key			 [128 bits]
-*     p1k[]     = Phase 1 output key		   [ 80 bits]
-*     iv16      = low 16 bits of IV counter	    [ 16 bits]
-* Output:
-*     rc4key[]  = the key used to encrypt the packet   [128 bits]
-*
-* Note:
-*     The value {TA, IV32, IV16} for Phase1/Phase2 must be unique
-*     across all packets using the same key TK value. Then, for a
-*     given value of TK[], this TKIP48 construction guarantees that
-*     the final RC4KEY value is unique across all packets.
-*
-* Suggested implementation optimization: if PPK[] is "overlaid"
-*     appropriately on RC4KEY[], there is no need for the final
-*     for loop below that copies the PPK[] result into RC4KEY[].
-*
-**********************************************************************
-*/
+/**
+ * phase2() - generate RC4KEY, given TK, P1K, IV16
+ * @tk[]: Temporal key [128 bits]
+ * @p1k[]: Phase 1 output key [ 80 bits]
+ * @iv16: low 16 bits of IV counter [ 16 bits]
+ *
+ * The value {TA, IV32, IV16} for Phase1/Phase2 must be unique
+ * across all packets using the same key TK value. Then, for a
+ * given value of TK[], this TKIP48 construction guarantees that
+ * the final RC4KEY value is unique across all packets.
+ *
+ * Suggested implementation optimization: if PPK[] is "overlaid"
+ * appropriately on RC4KEY[], there is no need for the final
+ * for loop below that copies the PPK[] result into RC4KEY[].
+ *
+ * Return: rc4key[] - the key used to encrypt the packet [128 bits]
+ */
 static void phase2(u8 *rc4key, const u8 *tk, const u16 *p1k, u16 iv16)
 {
 	int  i;
