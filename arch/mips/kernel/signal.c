@@ -849,7 +849,7 @@ static void handle_signal(struct ksignal *ksig, struct pt_regs *regs)
 		ret = abi->setup_frame(vdso + abi->vdso->off_sigreturn,
 				       ksig, regs, oldset);
 
-	signal_setup_done(ret, ksig, test_thread_flag(TIF_SINGLESTEP));
+	signal_setup_done(ret, ksig, 0);
 }
 
 static void do_signal(struct pt_regs *regs)
