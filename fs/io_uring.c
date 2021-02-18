@@ -3472,19 +3472,9 @@ static inline int io_rw_prep_async(struct io_kiocb *req, int rw)
 
 static int io_read_prep(struct io_kiocb *req, const struct io_uring_sqe *sqe)
 {
-	ssize_t ret;
-
-	ret = io_prep_rw(req, sqe);
-	if (ret)
-		return ret;
-
 	if (unlikely(!(req->file->f_mode & FMODE_READ)))
 		return -EBADF;
-
-	/* either don't need iovec imported or already have it */
-	if (!req->async_data)
-		return 0;
-	return io_rw_prep_async(req, READ);
+	return io_prep_rw(req, sqe);
 }
 
 /*
@@ -3669,19 +3659,9 @@ out_free:
 
 static int io_write_prep(struct io_kiocb *req, const struct io_uring_sqe *sqe)
 {
-	ssize_t ret;
-
-	ret = io_prep_rw(req, sqe);
-	if (ret)
-		return ret;
-
 	if (unlikely(!(req->file->f_mode & FMODE_WRITE)))
 		return -EBADF;
-
-	/* either don't need iovec imported or already have it */
-	if (!req->async_data)
-		return 0;
-	return io_rw_prep_async(req, WRITE);
+	return io_prep_rw(req, sqe);
 }
 
 static int io_write(struct io_kiocb *req, unsigned int issue_flags)
@@ -4668,11 +4648,21 @@ static int io_sendmsg_copy_hdr(struct io_kiocb *req,
 				   req->sr_msg.msg_flags, &iomsg->free_iov);
 }
 
+static int io_sendmsg_prep_async(struct io_kiocb *req)
+{
+	int ret;
+
+	if (!io_op_defs[req->opcode].needs_async_data)
+		return 0;
+	ret = io_sendmsg_copy_hdr(req, req->async_data);
+	if (!ret)
+		req->flags |= REQ_F_NEED_CLEANUP;
+	return ret;
+}
+
 static int io_sendmsg_prep(struct io_kiocb *req, const struct io_uring_sqe *sqe)
 {
-	struct io_async_msghdr *async_msg = req->async_data;
 	struct io_sr_msg *sr = &req->sr_msg;
-	int ret;
 
 	if (unlikely(req->ctx->flags & IORING_SETUP_IOPOLL))
 		return -EINVAL;
@@ -4685,13 +4675,7 @@ static int io_sendmsg_prep(struct io_kiocb *req, const struct io_uring_sqe *sqe)
 	if (req->ctx->compat)
 		sr->msg_flags |= MSG_CMSG_COMPAT;
 #endif
-
-	if (!async_msg || !io_op_defs[req->opcode].needs_async_data)
-		return 0;
-	ret = io_sendmsg_copy_hdr(req, async_msg);
-	if (!ret)
-		req->flags |= REQ_F_NEED_CLEANUP;
-	return ret;
+	return 0;
 }
 
 static int io_sendmsg(struct io_kiocb *req, unsigned int issue_flags)
@@ -4885,12 +4869,21 @@ static inline unsigned int io_put_recv_kbuf(struct io_kiocb *req)
 	return io_put_kbuf(req, req->sr_msg.kbuf);
 }
 
-static int io_recvmsg_prep(struct io_kiocb *req,
-			   const struct io_uring_sqe *sqe)
+static int io_recvmsg_prep_async(struct io_kiocb *req)
 {
-	struct io_async_msghdr *async_msg = req->async_data;
-	struct io_sr_msg *sr = &req->sr_msg;
 	int ret;
+
+	if (!io_op_defs[req->opcode].needs_async_data)
+		return 0;
+	ret = io_recvmsg_copy_hdr(req, req->async_data);
+	if (!ret)
+		req->flags |= REQ_F_NEED_CLEANUP;
+	return ret;
+}
+
+static int io_recvmsg_prep(struct io_kiocb *req, const struct io_uring_sqe *sqe)
+{
+	struct io_sr_msg *sr = &req->sr_msg;
 
 	if (unlikely(req->ctx->flags & IORING_SETUP_IOPOLL))
 		return -EINVAL;
@@ -4904,13 +4897,7 @@ static int io_recvmsg_prep(struct io_kiocb *req,
 	if (req->ctx->compat)
 		sr->msg_flags |= MSG_CMSG_COMPAT;
 #endif
-
-	if (!async_msg || !io_op_defs[req->opcode].needs_async_data)
-		return 0;
-	ret = io_recvmsg_copy_hdr(req, async_msg);
-	if (!ret)
-		req->flags |= REQ_F_NEED_CLEANUP;
-	return ret;
+	return 0;
 }
 
 static int io_recvmsg(struct io_kiocb *req, unsigned int issue_flags)
@@ -5063,10 +5050,17 @@ static int io_accept(struct io_kiocb *req, unsigned int issue_flags)
 	return 0;
 }
 
+static int io_connect_prep_async(struct io_kiocb *req)
+{
+	struct io_async_connect *io = req->async_data;
+	struct io_connect *conn = &req->connect;
+
+	return move_addr_to_kernel(conn->addr, conn->addr_len, &io->address);
+}
+
 static int io_connect_prep(struct io_kiocb *req, const struct io_uring_sqe *sqe)
 {
 	struct io_connect *conn = &req->connect;
-	struct io_async_connect *io = req->async_data;
 
 	if (unlikely(req->ctx->flags & IORING_SETUP_IOPOLL))
 		return -EINVAL;
@@ -5075,12 +5069,7 @@ static int io_connect_prep(struct io_kiocb *req, const struct io_uring_sqe *sqe)
 
 	conn->addr = u64_to_user_ptr(READ_ONCE(sqe->addr));
 	conn->addr_len =  READ_ONCE(sqe->addr2);
-
-	if (!io)
-		return 0;
-
-	return move_addr_to_kernel(conn->addr, conn->addr_len,
-					&io->address);
+	return 0;
 }
 
 static int io_connect(struct io_kiocb *req, unsigned int issue_flags)
@@ -6148,14 +6137,45 @@ static int io_req_prep(struct io_kiocb *req, const struct io_uring_sqe *sqe)
 	return-EINVAL;
 }
 
+static int io_req_prep_async(struct io_kiocb *req)
+{
+	switch (req->opcode) {
+	case IORING_OP_READV:
+	case IORING_OP_READ_FIXED:
+	case IORING_OP_READ:
+		return io_rw_prep_async(req, READ);
+	case IORING_OP_WRITEV:
+	case IORING_OP_WRITE_FIXED:
+	case IORING_OP_WRITE:
+		return io_rw_prep_async(req, WRITE);
+	case IORING_OP_SENDMSG:
+	case IORING_OP_SEND:
+		return io_sendmsg_prep_async(req);
+	case IORING_OP_RECVMSG:
+	case IORING_OP_RECV:
+		return io_recvmsg_prep_async(req);
+	case IORING_OP_CONNECT:
+		return io_connect_prep_async(req);
+	}
+	return 0;
+}
+
 static int io_req_defer_prep(struct io_kiocb *req,
 			     const struct io_uring_sqe *sqe)
 {
+	int ret;
+
 	if (!sqe)
 		return 0;
 	if (io_alloc_async_data(req))
 		return -EAGAIN;
-	return io_req_prep(req, sqe);
+	ret = io_req_prep(req, sqe);
+	if (ret)
+		return ret;
+	if (req->async_data)
+		return io_req_prep_async(req);
+	return 0;
+
 }
 
 static u32 io_get_sequence(struct io_kiocb *req)
