@@ -96,7 +96,7 @@ static inline struct dw_edma_v0_regs __iomem *__dw_regs(struct dw_edma *dw)
 static inline struct dw_edma_v0_ch_regs __iomem *
 __dw_ch_regs(struct dw_edma *dw, enum dw_edma_dir dir, u16 ch)
 {
-	if (dw->mode == EDMA_MODE_LEGACY)
+	if (dw->mf == EDMA_MF_EDMA_LEGACY)
 		return &(__dw_regs(dw)->type.legacy.ch);
 
 	if (dir == EDMA_DIR_WRITE)
@@ -108,7 +108,7 @@ __dw_ch_regs(struct dw_edma *dw, enum dw_edma_dir dir, u16 ch)
 static inline void writel_ch(struct dw_edma *dw, enum dw_edma_dir dir, u16 ch,
 			     u32 value, void __iomem *addr)
 {
-	if (dw->mode == EDMA_MODE_LEGACY) {
+	if (dw->mf == EDMA_MF_EDMA_LEGACY) {
 		u32 viewport_sel;
 		unsigned long flags;
 
@@ -133,7 +133,7 @@ static inline u32 readl_ch(struct dw_edma *dw, enum dw_edma_dir dir, u16 ch,
 {
 	u32 value;
 
-	if (dw->mode == EDMA_MODE_LEGACY) {
+	if (dw->mf == EDMA_MF_EDMA_LEGACY) {
 		u32 viewport_sel;
 		unsigned long flags;
 
@@ -365,6 +365,42 @@ void dw_edma_v0_core_start(struct dw_edma_chunk *chunk, bool first)
 	if (first) {
 		/* Enable engine */
 		SET_RW_32(dw, chan->dir, engine_en, BIT(0));
+		if (dw->mf == EDMA_MF_HDMA_COMPAT) {
+			switch (chan->id) {
+			case 0:
+				SET_RW_COMPAT(dw, chan->dir, ch0_pwr_en,
+					      BIT(0));
+				break;
+			case 1:
+				SET_RW_COMPAT(dw, chan->dir, ch1_pwr_en,
+					      BIT(0));
+				break;
+			case 2:
+				SET_RW_COMPAT(dw, chan->dir, ch2_pwr_en,
+					      BIT(0));
+				break;
+			case 3:
+				SET_RW_COMPAT(dw, chan->dir, ch3_pwr_en,
+					      BIT(0));
+				break;
+			case 4:
+				SET_RW_COMPAT(dw, chan->dir, ch4_pwr_en,
+					      BIT(0));
+				break;
+			case 5:
+				SET_RW_COMPAT(dw, chan->dir, ch5_pwr_en,
+					      BIT(0));
+				break;
+			case 6:
+				SET_RW_COMPAT(dw, chan->dir, ch6_pwr_en,
+					      BIT(0));
+				break;
+			case 7:
+				SET_RW_COMPAT(dw, chan->dir, ch7_pwr_en,
+					      BIT(0));
+				break;
+			}
+		}
 		/* Interrupt unmask - done, abort */
 		tmp = GET_RW_32(dw, chan->dir, int_mask);
 		tmp &= ~FIELD_PREP(EDMA_V0_DONE_INT_MASK, BIT(chan->id));

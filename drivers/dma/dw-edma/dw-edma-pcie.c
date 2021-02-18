@@ -30,8 +30,7 @@ struct dw_edma_pcie_data {
 	off_t				dt_off;
 	size_t				dt_sz;
 	/* Other */
-	u32				version;
-	enum dw_edma_mode		mode;
+	enum dw_edma_map_format		mf;
 	u8				irqs;
 };
 
@@ -49,8 +48,7 @@ static const struct dw_edma_pcie_data snps_edda_data = {
 	.dt_off				= 0x00800000,	/*  8 Mbytes */
 	.dt_sz				= 0x03800000,	/* 56 Mbytes */
 	/* Other */
-	.version			= 0,
-	.mode				= EDMA_MODE_UNROLL,
+	.mf				= EDMA_MF_EDMA_UNROLL,
 	.irqs				= 1,
 };
 
@@ -69,8 +67,8 @@ static int dw_edma_pcie_probe(struct pci_dev *pdev,
 	const struct dw_edma_pcie_data *pdata = (void *)pid->driver_data;
 	struct device *dev = &pdev->dev;
 	struct dw_edma_chip *chip;
-	int err, nr_irqs;
 	struct dw_edma *dw;
+	int err, nr_irqs;
 
 	/* Enable PCI device */
 	err = pcim_enable_device(pdev);
@@ -157,16 +155,19 @@ static int dw_edma_pcie_probe(struct pci_dev *pdev,
 	dw->dt_region.paddr += pdata->dt_off;
 	dw->dt_region.sz = pdata->dt_sz;
 
-	dw->version = pdata->version;
-	dw->mode = pdata->mode;
+	dw->mf = pdata->mf;
 	dw->nr_irqs = nr_irqs;
 	dw->ops = &dw_edma_pcie_core_ops;
 
 	/* Debug info */
-	pci_dbg(pdev, "Version:\t%u\n", dw->version);
-
-	pci_dbg(pdev, "Mode:\t%s\n",
-		dw->mode == EDMA_MODE_LEGACY ? "Legacy" : "Unroll");
+	if (dw->mf == EDMA_MF_EDMA_LEGACY)
+		pci_dbg(pdev, "Version:\teDMA Port Logic (0x%x)\n", dw->mf);
+	else if (dw->mf == EDMA_MF_EDMA_UNROLL)
+		pci_dbg(pdev, "Version:\teDMA Unroll (0x%x)\n", dw->mf);
+	else if (dw->mf == EDMA_MF_HDMA_COMPAT)
+		pci_dbg(pdev, "Version:\tHDMA Compatible (0x%x)\n", dw->mf);
+	else
+		pci_dbg(pdev, "Version:\tUnknown (0x%x)\n", dw->mf);
 
 	pci_dbg(pdev, "Registers:\tBAR=%u, off=0x%.8lx, sz=0x%zx bytes, addr(v=%p, p=%pa)\n",
 		pdata->rg_bar, pdata->rg_off, pdata->rg_sz,

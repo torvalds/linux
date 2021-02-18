@@ -21,9 +21,10 @@ enum dw_edma_dir {
 	EDMA_DIR_READ
 };
 
-enum dw_edma_mode {
-	EDMA_MODE_LEGACY = 0,
-	EDMA_MODE_UNROLL
+enum dw_edma_map_format {
+	EDMA_MF_EDMA_LEGACY = 0x0,
+	EDMA_MF_EDMA_UNROLL = 0x1,
+	EDMA_MF_HDMA_COMPAT = 0x5
 };
 
 enum dw_edma_request {
@@ -123,8 +124,7 @@ struct dw_edma {
 	struct dw_edma_irq		*irq;
 	int				nr_irqs;
 
-	u32				version;
-	enum dw_edma_mode		mode;
+	enum dw_edma_map_format		mf;
 
 	struct dw_edma_chan		*chan;
 	const struct dw_edma_core_ops	*ops;
