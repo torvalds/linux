@@ -28,30 +28,55 @@ struct dw_edma_v0_ch_regs {
 	u32 ch_control1;				/* 0x000 */
 	u32 ch_control2;				/* 0x004 */
 	u32 transfer_size;				/* 0x008 */
-	u32 sar_low;					/* 0x00c */
-	u32 sar_high;					/* 0x010 */
-	u32 dar_low;					/* 0x014 */
-	u32 dar_high;					/* 0x018 */
-	u32 llp_low;					/* 0x01c */
-	u32 llp_high;					/* 0x020 */
-};
+	union {
+		u64 reg;				/* 0x00c..0x010 */
+		struct {
+			u32 lsb;			/* 0x00c */
+			u32 msb;			/* 0x010 */
+		};
+	} sar;
+	union {
+		u64 reg;				/* 0x014..0x018 */
+		struct {
+			u32 lsb;			/* 0x014 */
+			u32 msb;			/* 0x018 */
+		};
+	} dar;
+	union {
+		u64 reg;				/* 0x01c..0x020 */
+		struct {
+			u32 lsb;			/* 0x01c */
+			u32 msb;			/* 0x020 */
+		};
+	} llp;
+} __packed;
 
 struct dw_edma_v0_ch {
 	struct dw_edma_v0_ch_regs wr;			/* 0x200 */
 	u32 padding_1[55];				/* [0x224..0x2fc] */
 	struct dw_edma_v0_ch_regs rd;			/* 0x300 */
 	u32 padding_2[55];				/* [0x324..0x3fc] */
-};
+} __packed;
 
 struct dw_edma_v0_unroll {
 	u32 padding_1;					/* 0x0f8 */
 	u32 wr_engine_chgroup;				/* 0x100 */
 	u32 rd_engine_chgroup;				/* 0x104 */
-	u32 wr_engine_hshake_cnt_low;			/* 0x108 */
-	u32 wr_engine_hshake_cnt_high;			/* 0x10c */
+	union {
+		u64 reg;				/* 0x108..0x10c */
+		struct {
+			u32 lsb;			/* 0x108 */
+			u32 msb;			/* 0x10c */
+		};
+	} wr_engine_hshake_cnt;
 	u32 padding_2[2];				/* [0x110..0x114] */
-	u32 rd_engine_hshake_cnt_low;			/* 0x118 */
-	u32 rd_engine_hshake_cnt_high;			/* 0x11c */
+	union {
+		u64 reg;				/* 0x120..0x124 */
+		struct {
+			u32 lsb;			/* 0x120 */
+			u32 msb;			/* 0x124 */
+		};
+	} rd_engine_hshake_cnt;
 	u32 padding_3[2];				/* [0x120..0x124] */
 	u32 wr_ch0_pwr_en;				/* 0x128 */
 	u32 wr_ch1_pwr_en;				/* 0x12c */
@@ -72,12 +97,12 @@ struct dw_edma_v0_unroll {
 	u32 rd_ch7_pwr_en;				/* 0x184 */
 	u32 padding_5[30];				/* [0x188..0x1fc] */
 	struct dw_edma_v0_ch ch[EDMA_V0_MAX_NR_CH];	/* [0x200..0x1120] */
-};
+} __packed;
 
 struct dw_edma_v0_legacy {
 	u32 viewport_sel;				/* 0x0f8 */
 	struct dw_edma_v0_ch_regs ch;			/* [0x100..0x120] */
-};
+} __packed;
 
 struct dw_edma_v0_regs {
 	/* eDMA global registers */
@@ -87,14 +112,24 @@ struct dw_edma_v0_regs {
 	u32 wr_engine_en;				/* 0x00c */
 	u32 wr_doorbell;				/* 0x010 */
 	u32 padding_2;					/* 0x014 */
-	u32 wr_ch_arb_weight_low;			/* 0x018 */
-	u32 wr_ch_arb_weight_high;			/* 0x01c */
+	union {
+		u64 reg;				/* 0x018..0x01c */
+		struct {
+			u32 lsb;			/* 0x018 */
+			u32 msb;			/* 0x01c */
+		};
+	} wr_ch_arb_weight;
 	u32 padding_3[3];				/* [0x020..0x028] */
 	u32 rd_engine_en;				/* 0x02c */
 	u32 rd_doorbell;				/* 0x030 */
 	u32 padding_4;					/* 0x034 */
-	u32 rd_ch_arb_weight_low;			/* 0x038 */
-	u32 rd_ch_arb_weight_high;			/* 0x03c */
+	union {
+		u64 reg;				/* 0x038..0x03c */
+		struct {
+			u32 lsb;			/* 0x038 */
+			u32 msb;			/* 0x03c */
+		};
+	} rd_ch_arb_weight;
 	u32 padding_5[3];				/* [0x040..0x048] */
 	/* eDMA interrupts registers */
 	u32 wr_int_status;				/* 0x04c */
@@ -102,10 +137,20 @@ struct dw_edma_v0_regs {
 	u32 wr_int_mask;				/* 0x054 */
 	u32 wr_int_clear;				/* 0x058 */
 	u32 wr_err_status;				/* 0x05c */
-	u32 wr_done_imwr_low;				/* 0x060 */
-	u32 wr_done_imwr_high;				/* 0x064 */
-	u32 wr_abort_imwr_low;				/* 0x068 */
-	u32 wr_abort_imwr_high;				/* 0x06c */
+	union {
+		u64 reg;				/* 0x060..0x064 */
+		struct {
+			u32 lsb;			/* 0x060 */
+			u32 msb;			/* 0x064 */
+		};
+	} wr_done_imwr;
+	union {
+		u64 reg;				/* 0x068..0x06c */
+		struct {
+			u32 lsb;			/* 0x068 */
+			u32 msb;			/* 0x06c */
+		};
+	} wr_abort_imwr;
 	u32 wr_ch01_imwr_data;				/* 0x070 */
 	u32 wr_ch23_imwr_data;				/* 0x074 */
 	u32 wr_ch45_imwr_data;				/* 0x078 */
@@ -118,15 +163,30 @@ struct dw_edma_v0_regs {
 	u32 rd_int_mask;				/* 0x0a8 */
 	u32 rd_int_clear;				/* 0x0ac */
 	u32 padding_10;					/* 0x0b0 */
-	u32 rd_err_status_low;				/* 0x0b4 */
-	u32 rd_err_status_high;				/* 0x0b8 */
+	union {
+		u64 reg;				/* 0x0b4..0x0b8 */
+		struct {
+			u32 lsb;			/* 0x0b4 */
+			u32 msb;			/* 0x0b8 */
+		};
+	} rd_err_status;
 	u32 padding_11[2];				/* [0x0bc..0x0c0] */
 	u32 rd_linked_list_err_en;			/* 0x0c4 */
 	u32 padding_12;					/* 0x0c8 */
-	u32 rd_done_imwr_low;				/* 0x0cc */
-	u32 rd_done_imwr_high;				/* 0x0d0 */
-	u32 rd_abort_imwr_low;				/* 0x0d4 */
-	u32 rd_abort_imwr_high;				/* 0x0d8 */
+	union {
+		u64 reg;				/* 0x0cc..0x0d0 */
+		struct {
+			u32 lsb;			/* 0x0cc */
+			u32 msb;			/* 0x0d0 */
+		};
+	} rd_done_imwr;
+	union {
+		u64 reg;				/* 0x0d4..0x0d8 */
+		struct {
+			u32 lsb;			/* 0x0d4 */
+			u32 msb;			/* 0x0d8 */
+		};
+	} rd_abort_imwr;
 	u32 rd_ch01_imwr_data;				/* 0x0dc */
 	u32 rd_ch23_imwr_data;				/* 0x0e0 */
 	u32 rd_ch45_imwr_data;				/* 0x0e4 */
@@ -137,22 +197,37 @@ struct dw_edma_v0_regs {
 		struct dw_edma_v0_legacy legacy;	/* [0x0f8..0x120] */
 		struct dw_edma_v0_unroll unroll;	/* [0x0f8..0x1120] */
 	} type;
-};
+} __packed;
 
 struct dw_edma_v0_lli {
 	u32 control;
 	u32 transfer_size;
-	u32 sar_low;
-	u32 sar_high;
-	u32 dar_low;
-	u32 dar_high;
-};
+	union {
+		u64 reg;
+		struct {
+			u32 lsb;
+			u32 msb;
+		};
+	} sar;
+	union {
+		u64 reg;
+		struct {
+			u32 lsb;
+			u32 msb;
+		};
+	} dar;
+} __packed;
 
 struct dw_edma_v0_llp {
 	u32 control;
 	u32 reserved;
-	u32 llp_low;
-	u32 llp_high;
-};
+	union {
+		u64 reg;
+		struct {
+			u32 lsb;
+			u32 msb;
+		};
+	} llp;
+} __packed;
 
 #endif /* _DW_EDMA_V0_REGS_H */
