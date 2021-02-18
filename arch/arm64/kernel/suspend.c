@@ -120,7 +120,7 @@ int cpu_suspend(unsigned long arg, int (*fn)(unsigned long))
 		if (!ret)
 			ret = -EOPNOTSUPP;
 	} else {
-		__cpu_suspend_exit();
+		RCU_NONIDLE(__cpu_suspend_exit());
 	}
 
 	unpause_graph_tracing();
