@@ -166,6 +166,7 @@ static const struct of_device_id pvpanic_mmio_match[] = {
 	{ .compatible = "qemu,pvpanic-mmio", },
 	{}
 };
+MODULE_DEVICE_TABLE(of, pvpanic_mmio_match);
 
 static struct platform_driver pvpanic_mmio_driver = {
 	.driver = {
