@@ -369,6 +369,15 @@ out:
 	return machine;
 }
 
+struct machine *machines__find_guest(struct machines *machines, pid_t pid)
+{
+	struct machine *machine = machines__find(machines, pid);
+
+	if (!machine)
+		machine = machines__findnew(machines, DEFAULT_GUEST_KERNEL_ID);
+	return machine;
+}
+
 void machines__process_guests(struct machines *machines,
 			      machine__process_t process, void *data)
 {
