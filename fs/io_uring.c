@@ -6763,6 +6763,9 @@ static int io_submit_sqe(struct io_ring_ctx *ctx, struct io_kiocb *req,
 fail_req:
 		io_put_req(req);
 		io_req_complete(req, ret);
+		/* fail even hard links since we don't submit */
+		if (link->head)
+			link->head->flags |= REQ_F_FAIL_LINK;
 		return ret;
 	}
 
@@ -6791,11 +6794,8 @@ fail_req:
 			ctx->drain_next = 1;
 		}
 		ret = io_req_defer_prep(req, sqe);
-		if (unlikely(ret)) {
-			/* fail even hard links since we don't submit */
-			head->flags |= REQ_F_FAIL_LINK;
+		if (unlikely(ret))
 			goto fail_req;
-		}
 		trace_io_uring_link(ctx, req, head);
 		link->last->link = req;
 		link->last = req;
