@@ -48,6 +48,7 @@ static int get_op(const char *op_str)
 		{"int",     INTEL_PT_OP_INT},
 		{"syscall", INTEL_PT_OP_SYSCALL},
 		{"sysret",  INTEL_PT_OP_SYSRET},
+		{"vmentry",  INTEL_PT_OP_VMENTRY},
 		{NULL, 0},
 	};
 	struct val_data *val;
