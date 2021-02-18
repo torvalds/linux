@@ -1718,7 +1718,6 @@ static int dpcm_apply_symmetry(struct snd_pcm_substream *fe_substream,
 			snd_soc_dpcm_get_substream(be, stream);
 		struct snd_soc_pcm_runtime *rtd;
 		struct snd_soc_dai *dai;
-		int i;
 
 		/* A backend may not have the requested substream */
 		if (!be_substream)
