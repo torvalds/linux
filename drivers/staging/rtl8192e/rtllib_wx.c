@@ -160,8 +160,7 @@ static inline char *rtl819x_translate_scan(struct rtllib_device *ieee,
 	iwe.cmd = SIOCGIWRATE;
 	iwe.u.bitrate.fixed = iwe.u.bitrate.disabled = 0;
 	iwe.u.bitrate.value = max_rate * 500000;
-	start = iwe_stream_add_event_rsl(info, start, stop, &iwe,
-				     IW_EV_PARAM_LEN);
+	start = iwe_stream_add_event_rsl(info, start, stop, &iwe, IW_EV_PARAM_LEN);
 	iwe.cmd = IWEVCUSTOM;
 	iwe.u.data.length = p - custom;
 	if (iwe.u.data.length)
@@ -181,15 +180,13 @@ static inline char *rtl819x_translate_scan(struct rtllib_device *ieee,
 	if (!(network->stats.mask & RTLLIB_STATMASK_SIGNAL))
 		iwe.u.qual.updated |= IW_QUAL_QUAL_INVALID;
 	iwe.u.qual.updated = 7;
-	start = iwe_stream_add_event_rsl(info, start, stop, &iwe,
-					 IW_EV_QUAL_LEN);
+	start = iwe_stream_add_event_rsl(info, start, stop, &iwe, IW_EV_QUAL_LEN);
 
 	iwe.cmd = IWEVCUSTOM;
 	p = custom;
 	iwe.u.data.length = p - custom;
 	if (iwe.u.data.length)
-		start = iwe_stream_add_point_rsl(info, start, stop,
-						 &iwe, custom);
+		start = iwe_stream_add_point_rsl(info, start, stop, &iwe, custom);
 
 	memset(&iwe, 0, sizeof(iwe));
 	if (network->wpa_ie_len) {
@@ -238,8 +235,8 @@ static inline char *rtl819x_translate_scan(struct rtllib_device *ieee,
 }
 
 int rtllib_wx_get_scan(struct rtllib_device *ieee,
-			  struct iw_request_info *info,
-			  union iwreq_data *wrqu, char *extra)
+		       struct iw_request_info *info,
+		       union iwreq_data *wrqu, char *extra)
 {
 	struct rtllib_network *network;
 	unsigned long flags;
@@ -285,8 +282,8 @@ int rtllib_wx_get_scan(struct rtllib_device *ieee,
 EXPORT_SYMBOL(rtllib_wx_get_scan);
 
 int rtllib_wx_set_encode(struct rtllib_device *ieee,
-			    struct iw_request_info *info,
-			    union iwreq_data *wrqu, char *keybuf)
+			 struct iw_request_info *info,
+			 union iwreq_data *wrqu, char *keybuf)
 {
 	struct iw_point *erq = &(wrqu->encoding);
 	struct net_device *dev = ieee->dev;
@@ -328,7 +325,7 @@ int rtllib_wx_set_encode(struct rtllib_device *ieee,
 				if (key_provided)
 					break;
 				lib80211_crypt_delayed_deinit(&ieee->crypt_info,
-						    &ieee->crypt_info.crypt[i]);
+							      &ieee->crypt_info.crypt[i]);
 			}
 		}
 
@@ -406,8 +403,7 @@ int rtllib_wx_set_encode(struct rtllib_device *ieee,
 					     NULL, (*crypt)->priv);
 		if (len == 0) {
 			/* Set a default key of all 0 */
-			netdev_info(ieee->dev, "Setting key %d to all zero.\n",
-					   key);
+			netdev_info(ieee->dev, "Setting key %d to all zero.\n", key);
 
 			memset(sec.keys[key], 0, 13);
 			(*crypt)->ops->set_key(sec.keys[key], 13, NULL,
@@ -460,8 +456,8 @@ int rtllib_wx_set_encode(struct rtllib_device *ieee,
 EXPORT_SYMBOL(rtllib_wx_set_encode);
 
 int rtllib_wx_get_encode(struct rtllib_device *ieee,
-			    struct iw_request_info *info,
-			    union iwreq_data *wrqu, char *keybuf)
+			 struct iw_request_info *info,
+			 union iwreq_data *wrqu, char *keybuf)
 {
 	struct iw_point *erq = &(wrqu->encoding);
 	int len, key;
@@ -505,8 +501,8 @@ int rtllib_wx_get_encode(struct rtllib_device *ieee,
 EXPORT_SYMBOL(rtllib_wx_get_encode);
 
 int rtllib_wx_set_encode_ext(struct rtllib_device *ieee,
-			       struct iw_request_info *info,
-			       union iwreq_data *wrqu, char *extra)
+			     struct iw_request_info *info,
+			     union iwreq_data *wrqu, char *extra)
 {
 	int ret = 0;
 	struct net_device *dev = ieee->dev;
@@ -663,8 +659,8 @@ done:
 EXPORT_SYMBOL(rtllib_wx_set_encode_ext);
 
 int rtllib_wx_set_mlme(struct rtllib_device *ieee,
-			       struct iw_request_info *info,
-			       union iwreq_data *wrqu, char *extra)
+		       struct iw_request_info *info,
+		       union iwreq_data *wrqu, char *extra)
 {
 	u8 i = 0;
 	bool deauth = false;
@@ -710,8 +706,8 @@ int rtllib_wx_set_mlme(struct rtllib_device *ieee,
 EXPORT_SYMBOL(rtllib_wx_set_mlme);
 
 int rtllib_wx_set_auth(struct rtllib_device *ieee,
-			       struct iw_request_info *info,
-			       struct iw_param *data, char *extra)
+		       struct iw_request_info *info,
+		       struct iw_param *data, char *extra)
 {
 	switch (data->flags & IW_AUTH_INDEX) {
 	case IW_AUTH_WPA_VERSION:
@@ -771,9 +767,7 @@ int rtllib_wx_set_gen_ie(struct rtllib_device *ieee, u8 *ie, size_t len)
 
 	if (len) {
 		eid = ie[0];
-		if ((eid == MFIE_TYPE_GENERIC) && (!memcmp(&ie[2],
-		     wps_oui, 4))) {
-
+		if ((eid == MFIE_TYPE_GENERIC) && (!memcmp(&ie[2], wps_oui, 4))) {
 			ieee->wps_ie_len = min_t(size_t, len, MAX_WZC_IE_LEN);
 			buf = kmemdup(ie, ieee->wps_ie_len, GFP_KERNEL);
 			if (!buf)
