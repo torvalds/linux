@@ -163,7 +163,7 @@ static struct sk_buff *rtllib_DELBA(struct rtllib_device *ieee, u8 *dst,
 	*tag++ = ACT_DELBA;
 
 
-	put_unaligned_le16(DelbaParamSet.shortData, tag);
+	put_unaligned_le16(DelbaParamSet.short_data, tag);
 	tag += 2;
 
 	put_unaligned_le16(ReasonCode, tag);
