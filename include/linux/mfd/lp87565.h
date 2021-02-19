@@ -222,20 +222,20 @@ enum lp87565_device_type {
 #define LP87565_GPIO2_SEL			BIT(1)
 #define LP87565_GPIO1_SEL			BIT(0)
 
-#define LP87565_GOIO3_OD			BIT(6)
-#define LP87565_GOIO2_OD			BIT(5)
-#define LP87565_GOIO1_OD			BIT(4)
-#define LP87565_GOIO3_DIR			BIT(2)
-#define LP87565_GOIO2_DIR			BIT(1)
-#define LP87565_GOIO1_DIR			BIT(0)
+#define LP87565_GPIO3_OD			BIT(6)
+#define LP87565_GPIO2_OD			BIT(5)
+#define LP87565_GPIO1_OD			BIT(4)
+#define LP87565_GPIO3_DIR			BIT(2)
+#define LP87565_GPIO2_DIR			BIT(1)
+#define LP87565_GPIO1_DIR			BIT(0)
 
-#define LP87565_GOIO3_IN			BIT(2)
-#define LP87565_GOIO2_IN			BIT(1)
-#define LP87565_GOIO1_IN			BIT(0)
+#define LP87565_GPIO3_IN			BIT(2)
+#define LP87565_GPIO2_IN			BIT(1)
+#define LP87565_GPIO1_IN			BIT(0)
 
-#define LP87565_GOIO3_OUT			BIT(2)
-#define LP87565_GOIO2_OUT			BIT(1)
-#define LP87565_GOIO1_OUT			BIT(0)
+#define LP87565_GPIO3_OUT			BIT(2)
+#define LP87565_GPIO2_OUT			BIT(1)
+#define LP87565_GPIO1_OUT			BIT(0)
 
 enum LP87565_regulator_id {
 	/* BUCK's */
