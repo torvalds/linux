@@ -351,6 +351,17 @@ config HID_EZKEY
 	help
 	Support for Ezkey BTC 8193 keyboard.
 
+config HID_FT260
+	tristate "FTDI FT260 USB HID to I2C host support"
+	depends on USB_HID && HIDRAW && I2C
+	help
+	  Provides I2C host adapter functionality over USB-HID through FT260
+	  device. The customizable USB descriptor fields are exposed as sysfs
+	  attributes.
+
+	  To compile this driver as a module, choose M here: the module
+	  will be called hid-ft260.
+
 config HID_GEMBIRD
 	tristate "Gembird Joypad"
 	depends on HID
