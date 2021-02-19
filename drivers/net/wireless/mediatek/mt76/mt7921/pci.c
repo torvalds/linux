@@ -209,12 +209,12 @@ static int mt7921_pci_suspend(struct pci_dev *pdev, pm_message_t state)
 	/* disable interrupt */
 	mt76_wr(dev, MT_WFDMA0_HOST_INT_ENA, 0);
 
-	pci_save_state(pdev);
-	err = pci_set_power_state(pdev, pci_choose_state(pdev, state));
+	err = mt7921_mcu_fw_pmctrl(dev);
 	if (err)
 		goto restore;
 
-	err = mt7921_mcu_drv_pmctrl(dev);
+	pci_save_state(pdev);
+	err = pci_set_power_state(pdev, pci_choose_state(pdev, state));
 	if (err)
 		goto restore;
 
@@ -237,15 +237,15 @@ static int mt7921_pci_resume(struct pci_dev *pdev)
 	struct mt7921_dev *dev = container_of(mdev, struct mt7921_dev, mt76);
 	int i, err;
 
-	err = mt7921_mcu_fw_pmctrl(dev);
-	if (err < 0)
-		return err;
-
 	err = pci_set_power_state(pdev, PCI_D0);
 	if (err)
 		return err;
 
 	pci_restore_state(pdev);
+
+	err = mt7921_mcu_drv_pmctrl(dev);
+	if (err < 0)
+		return err;
 
 	/* enable interrupt */
 	mt7921_l1_wr(dev, MT_PCIE_MAC_INT_ENABLE, 0xff);
