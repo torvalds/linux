@@ -84,6 +84,7 @@ struct report {
 	bool			nonany_branch_mode;
 	bool			group_set;
 	bool			stitch_lbr;
+	bool			disable_order;
 	int			max_stack;
 	struct perf_read_values	show_threads_values;
 	struct annotation_options annotation_opts;
@@ -1296,6 +1297,8 @@ int cmd_report(int argc, const char **argv)
 	OPTS_EVSWITCH(&report.evswitch),
 	OPT_BOOLEAN(0, "total-cycles", &report.total_cycles_mode,
 		    "Sort all blocks by 'Sampled Cycles%'"),
+	OPT_BOOLEAN(0, "disable-order", &report.disable_order,
+		    "Disable raw trace ordering"),
 	OPT_END()
 	};
 	struct perf_data data = {
@@ -1329,7 +1332,7 @@ int cmd_report(int argc, const char **argv)
 	if (report.mmaps_mode)
 		report.tasks_mode = true;
 
-	if (dump_trace)
+	if (dump_trace && report.disable_order)
 		report.tool.ordered_events = false;
 
 	if (quiet)

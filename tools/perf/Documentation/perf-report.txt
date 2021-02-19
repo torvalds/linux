@@ -224,6 +224,9 @@ OPTIONS
 --dump-raw-trace::
         Dump raw trace in ASCII.
 
+--disable-order::
+	Disable raw trace ordering.
+
 -g::
 --call-graph=<print_type,threshold[,print_limit],order,sort_key[,branch],value>::
         Display call chains using type, min percent threshold, print limit,
