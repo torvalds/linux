@@ -60,7 +60,7 @@ void ResetBaEntry(struct ba_record *pBA)
 	pBA->b_valid			= false;
 	pBA->BaParamSet.short_data	= 0;
 	pBA->BaTimeoutValue		= 0;
-	pBA->DialogToken		= 0;
+	pBA->dialog_token		= 0;
 	pBA->BaStartSeqCtrl.short_data	= 0;
 }
 static struct sk_buff *rtllib_ADDBA(struct rtllib_device *ieee, u8 *Dst,
@@ -98,7 +98,7 @@ static struct sk_buff *rtllib_ADDBA(struct rtllib_device *ieee, u8 *Dst,
 	tag = skb_put(skb, 9);
 	*tag++ = ACT_CAT_BA;
 	*tag++ = type;
-	*tag++ = pBA->DialogToken;
+	*tag++ = pBA->dialog_token;
 
 	if (type == ACT_ADDBARSP) {
 		RT_TRACE(COMP_DBG, "====>to send ADDBARSP\n");
@@ -277,7 +277,7 @@ int rtllib_rx_ADDBAReq(struct rtllib_device *ieee, struct sk_buff *skb)
 	rtllib_FlushRxTsPendingPkts(ieee, pTS);
 
 	DeActivateBAEntry(ieee, pBA);
-	pBA->DialogToken = *pDialogToken;
+	pBA->dialog_token = *pDialogToken;
 	pBA->BaParamSet = *pBaParamSet;
 	pBA->BaTimeoutValue = *pBaTimeoutVal;
 	pBA->BaStartSeqCtrl = *pBaStartSeqCtrl;
@@ -299,7 +299,7 @@ OnADDBAReq_Fail:
 
 		BA.BaParamSet = *pBaParamSet;
 		BA.BaTimeoutValue = *pBaTimeoutVal;
-		BA.DialogToken = *pDialogToken;
+		BA.dialog_token = *pDialogToken;
 		BA.BaParamSet.field.ba_policy = BA_POLICY_IMMEDIATE;
 		rtllib_send_ADDBARsp(ieee, dst, &BA, rc);
 		return 0;
@@ -362,7 +362,7 @@ int rtllib_rx_ADDBARsp(struct rtllib_device *ieee, struct sk_buff *skb)
 			   __func__);
 		return -1;
 	} else if (!pPendingBA->b_valid ||
-		   (*pDialogToken != pPendingBA->DialogToken)) {
+		   (*pDialogToken != pPendingBA->dialog_token)) {
 		netdev_warn(ieee->dev,
 			    "%s(): ADDBA Rsp. BA invalid, DELBA!\n",
 			    __func__);
@@ -385,7 +385,7 @@ int rtllib_rx_ADDBARsp(struct rtllib_device *ieee, struct sk_buff *skb)
 		}
 
 
-		pAdmittedBA->DialogToken = *pDialogToken;
+		pAdmittedBA->dialog_token = *pDialogToken;
 		pAdmittedBA->BaTimeoutValue = *pBaTimeoutVal;
 		pAdmittedBA->BaStartSeqCtrl = pPendingBA->BaStartSeqCtrl;
 		pAdmittedBA->BaParamSet = *pBaParamSet;
@@ -482,7 +482,7 @@ void TsInitAddBA(struct rtllib_device *ieee, struct tx_ts_record *pTS,
 
 	DeActivateBAEntry(ieee, pBA);
 
-	pBA->DialogToken++;
+	pBA->dialog_token++;
 	pBA->BaParamSet.field.amsdu_support = 0;
 	pBA->BaParamSet.field.ba_policy = Policy;
 	pBA->BaParamSet.field.tid = pTS->TsCommonInfo.TSpec.f.TSInfo.field.ucTSID;
