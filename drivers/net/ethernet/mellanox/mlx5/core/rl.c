@@ -172,6 +172,35 @@ bool mlx5_rl_are_equal(struct mlx5_rate_limit *rl_0,
 }
 EXPORT_SYMBOL(mlx5_rl_are_equal);
 
+static int mlx5_rl_table_alloc(struct mlx5_rl_table *table)
+{
+	int i;
+
+	table->rl_entry = kcalloc(table->max_size, sizeof(struct mlx5_rl_entry),
+				  GFP_KERNEL);
+	if (!table->rl_entry)
+		return -ENOMEM;
+
+	/* The index represents the index in HW rate limit table
+	 * Index 0 is reserved for unlimited rate
+	 */
+	for (i = 0; i < table->max_size; i++)
+		table->rl_entry[i].index = i + 1;
+
+	return 0;
+}
+
+static void mlx5_rl_table_free(struct mlx5_core_dev *dev, struct mlx5_rl_table *table)
+{
+	int i;
+
+	/* Clear all configured rates */
+	for (i = 0; i < table->max_size; i++)
+		if (table->rl_entry[i].refcount)
+			mlx5_set_pp_rate_limit_cmd(dev, &table->rl_entry[i], false);
+	kfree(table->rl_entry);
+}
+
 int mlx5_rl_add_rate_raw(struct mlx5_core_dev *dev, void *rl_in, u16 uid,
 			 bool dedicated_entry, u16 *index)
 {
@@ -302,7 +331,7 @@ EXPORT_SYMBOL(mlx5_rl_remove_rate);
 int mlx5_init_rl_table(struct mlx5_core_dev *dev)
 {
 	struct mlx5_rl_table *table = &dev->priv.rl_table;
-	int i;
+	int err;
 
 	mutex_init(&table->rl_lock);
 	if (!MLX5_CAP_GEN(dev, qos) || !MLX5_CAP_QOS(dev, packet_pacing)) {
@@ -315,18 +344,10 @@ int mlx5_init_rl_table(struct mlx5_core_dev *dev)
 	table->max_rate = MLX5_CAP_QOS(dev, packet_pacing_max_rate);
 	table->min_rate = MLX5_CAP_QOS(dev, packet_pacing_min_rate);
 
-	table->rl_entry = kcalloc(table->max_size, sizeof(struct mlx5_rl_entry),
-				  GFP_KERNEL);
-	if (!table->rl_entry)
-		return -ENOMEM;
+	err = mlx5_rl_table_alloc(table);
+	if (err)
+		return err;
 
-	/* The index represents the index in HW rate limit table
-	 * Index 0 is reserved for unlimited rate
-	 */
-	for (i = 0; i < table->max_size; i++)
-		table->rl_entry[i].index = i + 1;
-
-	/* Index 0 is reserved */
 	mlx5_core_info(dev, "Rate limit: %u rates are supported, range: %uMbps to %uMbps\n",
 		       table->max_size,
 		       table->min_rate >> 10,
@@ -338,13 +359,9 @@ int mlx5_init_rl_table(struct mlx5_core_dev *dev)
 void mlx5_cleanup_rl_table(struct mlx5_core_dev *dev)
 {
 	struct mlx5_rl_table *table = &dev->priv.rl_table;
-	int i;
 
-	/* Clear all configured rates */
-	for (i = 0; i < table->max_size; i++)
-		if (table->rl_entry[i].refcount)
-			mlx5_set_pp_rate_limit_cmd(dev, &table->rl_entry[i],
-						   false);
+	if (!MLX5_CAP_GEN(dev, qos) || !MLX5_CAP_QOS(dev, packet_pacing))
+		return;
 
-	kfree(dev->priv.rl_table.rl_entry);
+	mlx5_rl_table_free(dev, table);
 }
