@@ -53,7 +53,7 @@ struct ba_record {
 	u8				b_valid;
 	u8				dialog_token;
 	union ba_param_set ba_param_set;
-	u16				BaTimeoutValue;
+	u16				ba_timeout_value;
 	union sequence_control BaStartSeqCtrl;
 };
 

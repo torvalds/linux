@@ -59,7 +59,7 @@ void ResetBaEntry(struct ba_record *pBA)
 {
 	pBA->b_valid			= false;
 	pBA->ba_param_set.short_data	= 0;
-	pBA->BaTimeoutValue		= 0;
+	pBA->ba_timeout_value		= 0;
 	pBA->dialog_token		= 0;
 	pBA->BaStartSeqCtrl.short_data	= 0;
 }
@@ -110,7 +110,7 @@ static struct sk_buff *rtllib_ADDBA(struct rtllib_device *ieee, u8 *Dst,
 	put_unaligned_le16(pBA->ba_param_set.short_data, tag);
 	tag += 2;
 
-	put_unaligned_le16(pBA->BaTimeoutValue, tag);
+	put_unaligned_le16(pBA->ba_timeout_value, tag);
 	tag += 2;
 
 	if (type == ACT_ADDBAREQ) {
@@ -279,7 +279,7 @@ int rtllib_rx_ADDBAReq(struct rtllib_device *ieee, struct sk_buff *skb)
 	DeActivateBAEntry(ieee, pBA);
 	pBA->dialog_token = *pDialogToken;
 	pBA->ba_param_set = *pBaParamSet;
-	pBA->BaTimeoutValue = *pBaTimeoutVal;
+	pBA->ba_timeout_value = *pBaTimeoutVal;
 	pBA->BaStartSeqCtrl = *pBaStartSeqCtrl;
 
 	if (ieee->GetHalfNmodeSupportByAPsHandler(ieee->dev) ||
@@ -298,7 +298,7 @@ OnADDBAReq_Fail:
 		struct ba_record BA;
 
 		BA.ba_param_set = *pBaParamSet;
-		BA.BaTimeoutValue = *pBaTimeoutVal;
+		BA.ba_timeout_value = *pBaTimeoutVal;
 		BA.dialog_token = *pDialogToken;
 		BA.ba_param_set.field.ba_policy = BA_POLICY_IMMEDIATE;
 		rtllib_send_ADDBARsp(ieee, dst, &BA, rc);
@@ -386,7 +386,7 @@ int rtllib_rx_ADDBARsp(struct rtllib_device *ieee, struct sk_buff *skb)
 
 
 		pAdmittedBA->dialog_token = *pDialogToken;
-		pAdmittedBA->BaTimeoutValue = *pBaTimeoutVal;
+		pAdmittedBA->ba_timeout_value = *pBaTimeoutVal;
 		pAdmittedBA->BaStartSeqCtrl = pPendingBA->BaStartSeqCtrl;
 		pAdmittedBA->ba_param_set = *pBaParamSet;
 		DeActivateBAEntry(ieee, pAdmittedBA);
@@ -487,7 +487,7 @@ void TsInitAddBA(struct rtllib_device *ieee, struct tx_ts_record *pTS,
 	pBA->ba_param_set.field.ba_policy = Policy;
 	pBA->ba_param_set.field.tid = pTS->TsCommonInfo.TSpec.f.TSInfo.field.ucTSID;
 	pBA->ba_param_set.field.buffer_size = 32;
-	pBA->BaTimeoutValue = 0;
+	pBA->ba_timeout_value = 0;
 	pBA->BaStartSeqCtrl.field.seq_num = (pTS->TxCurSeq + 3) % 4096;
 
 	ActivateBAEntry(ieee, pBA, BA_SETUP_TIMEOUT);
