@@ -58,7 +58,7 @@ static u8 RxTsDeleteBA(struct rtllib_device *ieee, struct rx_ts_record *pRxTs)
 void ResetBaEntry(struct ba_record *pBA)
 {
 	pBA->b_valid			= false;
-	pBA->BaParamSet.short_data	= 0;
+	pBA->ba_param_set.short_data	= 0;
 	pBA->BaTimeoutValue		= 0;
 	pBA->dialog_token		= 0;
 	pBA->BaStartSeqCtrl.short_data	= 0;
@@ -107,7 +107,7 @@ static struct sk_buff *rtllib_ADDBA(struct rtllib_device *ieee, u8 *Dst,
 		tag += 2;
 	}
 
-	put_unaligned_le16(pBA->BaParamSet.short_data, tag);
+	put_unaligned_le16(pBA->ba_param_set.short_data, tag);
 	tag += 2;
 
 	put_unaligned_le16(pBA->BaTimeoutValue, tag);
@@ -142,7 +142,7 @@ static struct sk_buff *rtllib_DELBA(struct rtllib_device *ieee, u8 *dst,
 	memset(&DelbaParamSet, 0, 2);
 
 	DelbaParamSet.field.initiator = (TxRxSelect == TX_DIR) ? 1 : 0;
-	DelbaParamSet.field.tid	= pBA->BaParamSet.field.tid;
+	DelbaParamSet.field.tid	= pBA->ba_param_set.field.tid;
 
 	skb = dev_alloc_skb(len + sizeof(struct rtllib_hdr_3addr));
 	if (!skb)
@@ -278,15 +278,15 @@ int rtllib_rx_ADDBAReq(struct rtllib_device *ieee, struct sk_buff *skb)
 
 	DeActivateBAEntry(ieee, pBA);
 	pBA->dialog_token = *pDialogToken;
-	pBA->BaParamSet = *pBaParamSet;
+	pBA->ba_param_set = *pBaParamSet;
 	pBA->BaTimeoutValue = *pBaTimeoutVal;
 	pBA->BaStartSeqCtrl = *pBaStartSeqCtrl;
 
 	if (ieee->GetHalfNmodeSupportByAPsHandler(ieee->dev) ||
 	   (ieee->pHTInfo->IOTAction & HT_IOT_ACT_ALLOW_PEER_AGG_ONE_PKT))
-		pBA->BaParamSet.field.buffer_size = 1;
+		pBA->ba_param_set.field.buffer_size = 1;
 	else
-		pBA->BaParamSet.field.buffer_size = 32;
+		pBA->ba_param_set.field.buffer_size = 32;
 
 	ActivateBAEntry(ieee, pBA, 0);
 	rtllib_send_ADDBARsp(ieee, dst, pBA, ADDBA_STATUS_SUCCESS);
@@ -297,10 +297,10 @@ OnADDBAReq_Fail:
 	{
 		struct ba_record BA;
 
-		BA.BaParamSet = *pBaParamSet;
+		BA.ba_param_set = *pBaParamSet;
 		BA.BaTimeoutValue = *pBaTimeoutVal;
 		BA.dialog_token = *pDialogToken;
-		BA.BaParamSet.field.ba_policy = BA_POLICY_IMMEDIATE;
+		BA.ba_param_set.field.ba_policy = BA_POLICY_IMMEDIATE;
 		rtllib_send_ADDBARsp(ieee, dst, &BA, rc);
 		return 0;
 	}
@@ -388,7 +388,7 @@ int rtllib_rx_ADDBARsp(struct rtllib_device *ieee, struct sk_buff *skb)
 		pAdmittedBA->dialog_token = *pDialogToken;
 		pAdmittedBA->BaTimeoutValue = *pBaTimeoutVal;
 		pAdmittedBA->BaStartSeqCtrl = pPendingBA->BaStartSeqCtrl;
-		pAdmittedBA->BaParamSet = *pBaParamSet;
+		pAdmittedBA->ba_param_set = *pBaParamSet;
 		DeActivateBAEntry(ieee, pAdmittedBA);
 		ActivateBAEntry(ieee, pAdmittedBA, *pBaTimeoutVal);
 	} else {
@@ -404,7 +404,7 @@ OnADDBARsp_Reject:
 	{
 		struct ba_record BA;
 
-		BA.BaParamSet = *pBaParamSet;
+		BA.ba_param_set = *pBaParamSet;
 		rtllib_send_DELBA(ieee, dst, &BA, TX_DIR, ReasonCode);
 		return 0;
 	}
@@ -483,10 +483,10 @@ void TsInitAddBA(struct rtllib_device *ieee, struct tx_ts_record *pTS,
 	DeActivateBAEntry(ieee, pBA);
 
 	pBA->dialog_token++;
-	pBA->BaParamSet.field.amsdu_support = 0;
-	pBA->BaParamSet.field.ba_policy = Policy;
-	pBA->BaParamSet.field.tid = pTS->TsCommonInfo.TSpec.f.TSInfo.field.ucTSID;
-	pBA->BaParamSet.field.buffer_size = 32;
+	pBA->ba_param_set.field.amsdu_support = 0;
+	pBA->ba_param_set.field.ba_policy = Policy;
+	pBA->ba_param_set.field.tid = pTS->TsCommonInfo.TSpec.f.TSInfo.field.ucTSID;
+	pBA->ba_param_set.field.buffer_size = 32;
 	pBA->BaTimeoutValue = 0;
 	pBA->BaStartSeqCtrl.field.seq_num = (pTS->TxCurSeq + 3) % 4096;
 
