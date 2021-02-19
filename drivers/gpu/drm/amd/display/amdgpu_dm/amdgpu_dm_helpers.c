@@ -700,6 +700,14 @@ void dm_helpers_free_gpu_mem(
 
 bool dm_helpers_dmub_outbox0_interrupt_control(struct dc_context *ctx, bool enable)
 {
-	// TODO
-	return true;
+	enum dc_irq_source irq_source;
+	bool ret;
+
+	irq_source = DC_IRQ_SOURCE_DMCUB_OUTBOX0;
+
+	ret = dc_interrupt_set(ctx->dc, irq_source, enable);
+
+	DRM_DEBUG_DRIVER("Dmub trace irq %sabling: r=%d\n",
+			 enable ? "en" : "dis", ret);
+	return ret;
 }

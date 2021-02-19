@@ -597,6 +597,27 @@ TRACE_EVENT(amdgpu_dm_dce_clocks_state,
 	    )
 );
 
+TRACE_EVENT(amdgpu_dmub_trace_high_irq,
+	TP_PROTO(uint32_t trace_code, uint32_t tick_count, uint32_t param0,
+		 uint32_t param1),
+	TP_ARGS(trace_code, tick_count, param0, param1),
+	TP_STRUCT__entry(
+		__field(uint32_t, trace_code)
+		__field(uint32_t, tick_count)
+		__field(uint32_t, param0)
+		__field(uint32_t, param1)
+		),
+	TP_fast_assign(
+		__entry->trace_code = trace_code;
+		__entry->tick_count = tick_count;
+		__entry->param0 = param0;
+		__entry->param1 = param1;
+	),
+	TP_printk("trace_code=%u tick_count=%u param0=%u param1=%u",
+		  __entry->trace_code, __entry->tick_count,
+		  __entry->param0, __entry->param1)
+);
+
 #endif /* _AMDGPU_DM_TRACE_H_ */
 
 #undef TRACE_INCLUDE_PATH
