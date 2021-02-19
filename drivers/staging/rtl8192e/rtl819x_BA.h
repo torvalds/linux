@@ -39,7 +39,7 @@ union ba_param_set {
 };
 
 union delba_param_set {
-	u8 charData[2];
+	u8 char_data[2];
 	u16 shortData;
 	struct {
 		u16 Reserved:11;
