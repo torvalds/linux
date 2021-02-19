@@ -262,8 +262,6 @@ int gasket_page_table_init(struct gasket_page_table **ppg_tbl,
 	if (bytes != 0) {
 		pg_tbl->entries = vzalloc(bytes);
 		if (!pg_tbl->entries) {
-			dev_dbg(device,
-				"No memory for address translation metadata\n");
 			kfree(pg_tbl);
 			*ppg_tbl = NULL;
 			return -ENOMEM;
