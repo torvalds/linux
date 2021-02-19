@@ -30,6 +30,7 @@
 #include <linux/delay.h>
 #include <linux/interrupt.h>
 #include <linux/irqflags.h>
+#include <linux/irq_work.h>
 #include <linux/cpu.h>
 #include <linux/slab.h>
 #include <linux/sched/hotplug.h>
@@ -62,6 +63,7 @@ enum {
 	ec_call_function_single,
 	ec_stop_cpu,
 	ec_mcck_pending,
+	ec_irq_work,
 };
 
 enum {
@@ -508,6 +510,8 @@ static void smp_handle_ext_call(void)
 		generic_smp_call_function_single_interrupt();
 	if (test_bit(ec_mcck_pending, &bits))
 		__s390_handle_mcck();
+	if (test_bit(ec_irq_work, &bits))
+		irq_work_run();
 }
 
 static void do_ext_call_interrupt(struct ext_code ext_code,
@@ -539,6 +543,13 @@ void smp_send_reschedule(int cpu)
 {
 	pcpu_ec_call(pcpu_devices + cpu, ec_schedule);
 }
+
+#ifdef CONFIG_IRQ_WORK
+void arch_irq_work_raise(void)
+{
+	pcpu_ec_call(pcpu_devices + smp_processor_id(), ec_irq_work);
+}
+#endif
 
 /*
  * parameter area for the set/clear control bit callbacks
