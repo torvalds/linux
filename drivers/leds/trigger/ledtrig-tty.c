@@ -51,10 +51,8 @@ static ssize_t ttyname_store(struct device *dev,
 
 	if (size) {
 		ttyname = kmemdup_nul(buf, size, GFP_KERNEL);
-		if (!ttyname) {
-			ret = -ENOMEM;
-			goto out_unlock;
-		}
+		if (!ttyname)
+			return -ENOMEM;
 	} else {
 		ttyname = NULL;
 	}
@@ -69,7 +67,6 @@ static ssize_t ttyname_store(struct device *dev,
 
 	trigger_data->ttyname = ttyname;
 
-out_unlock:
 	mutex_unlock(&trigger_data->mutex);
 
 	if (ttyname && !running)
