@@ -54,7 +54,6 @@
 
 #include <mm/mmu_decl.h>
 
-static DEFINE_MUTEX(linear_mapping_mutex);
 unsigned long long memory_limit;
 bool init_mem_is_free;
 
@@ -72,6 +71,7 @@ pgprot_t phys_mem_access_prot(struct file *file, unsigned long pfn,
 EXPORT_SYMBOL(phys_mem_access_prot);
 
 #ifdef CONFIG_MEMORY_HOTPLUG
+static DEFINE_MUTEX(linear_mapping_mutex);
 
 #ifdef CONFIG_NUMA
 int memory_add_physaddr_to_nid(u64 start)
