@@ -360,6 +360,9 @@ struct io_ring_ctx {
 		unsigned		cached_cq_overflow;
 		unsigned long		sq_check_overflow;
 
+		/* hashed buffered write serialization */
+		struct io_wq_hash	*hash_map;
+
 		struct list_head	defer_list;
 		struct list_head	timeout_list;
 		struct list_head	cq_overflow_list;
@@ -453,6 +456,8 @@ struct io_ring_ctx {
 
 	/* exit task_work */
 	struct callback_head		*exit_task_work;
+
+	struct wait_queue_head		hash_wait;
 
 	/* Keep this last, we don't need it for the fast path */
 	struct work_struct		exit_work;
@@ -7763,9 +7768,21 @@ static struct io_wq_work *io_free_work(struct io_wq_work *work)
 
 static struct io_wq *io_init_wq_offload(struct io_ring_ctx *ctx)
 {
+	struct io_wq_hash *hash;
 	struct io_wq_data data;
 	unsigned int concurrency;
 
+	hash = ctx->hash_map;
+	if (!hash) {
+		hash = kzalloc(sizeof(*hash), GFP_KERNEL);
+		if (!hash)
+			return ERR_PTR(-ENOMEM);
+		refcount_set(&hash->refs, 1);
+		init_waitqueue_head(&hash->wait);
+		ctx->hash_map = hash;
+	}
+
+	data.hash = hash;
 	data.free_work = io_free_work;
 	data.do_work = io_wq_submit_work;
 
@@ -8405,6 +8422,8 @@ static void io_ring_ctx_free(struct io_ring_ctx *ctx)
 	percpu_ref_exit(&ctx->refs);
 	free_uid(ctx->user);
 	io_req_caches_free(ctx, NULL);
+	if (ctx->hash_map)
+		io_wq_put_hash(ctx->hash_map);
 	kfree(ctx->cancel_hash);
 	kfree(ctx);
 }

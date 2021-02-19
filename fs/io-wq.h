@@ -1,6 +1,7 @@
 #ifndef INTERNAL_IO_WQ_H
 #define INTERNAL_IO_WQ_H
 
+#include <linux/refcount.h>
 #include <linux/io_uring.h>
 
 struct io_wq;
@@ -93,7 +94,20 @@ static inline struct io_wq_work *wq_next_work(struct io_wq_work *work)
 typedef struct io_wq_work *(free_work_fn)(struct io_wq_work *);
 typedef void (io_wq_work_fn)(struct io_wq_work *);
 
+struct io_wq_hash {
+	refcount_t refs;
+	unsigned long map;
+	struct wait_queue_head wait;
+};
+
+static inline void io_wq_put_hash(struct io_wq_hash *hash)
+{
+	if (refcount_dec_and_test(&hash->refs))
+		kfree(hash);
+}
+
 struct io_wq_data {
+	struct io_wq_hash *hash;
 	io_wq_work_fn *do_work;
 	free_work_fn *free_work;
 };
