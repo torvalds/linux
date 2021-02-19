@@ -122,12 +122,12 @@ static void ledtrig_tty_work(struct work_struct *work)
 
 	if (icount.rx != trigger_data->rx ||
 	    icount.tx != trigger_data->tx) {
-		led_set_brightness(trigger_data->led_cdev, LED_ON);
+		led_set_brightness_sync(trigger_data->led_cdev, LED_ON);
 
 		trigger_data->rx = icount.rx;
 		trigger_data->tx = icount.tx;
 	} else {
-		led_set_brightness(trigger_data->led_cdev, LED_OFF);
+		led_set_brightness_sync(trigger_data->led_cdev, LED_OFF);
 	}
 
 out:
