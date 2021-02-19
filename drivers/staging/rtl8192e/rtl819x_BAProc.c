@@ -13,14 +13,14 @@
 static void ActivateBAEntry(struct rtllib_device *ieee, struct ba_record *pBA,
 			    u16 Time)
 {
-	pBA->bValid = true;
+	pBA->b_valid = true;
 	if (Time != 0)
 		mod_timer(&pBA->timer, jiffies + msecs_to_jiffies(Time));
 }
 
 static void DeActivateBAEntry(struct rtllib_device *ieee, struct ba_record *pBA)
 {
-	pBA->bValid = false;
+	pBA->b_valid = false;
 	del_timer_sync(&pBA->timer);
 }
 
@@ -30,12 +30,12 @@ static u8 TxTsDeleteBA(struct rtllib_device *ieee, struct tx_ts_record *pTxTs)
 	struct ba_record *pPendingBa = &pTxTs->TxPendingBARecord;
 	u8 bSendDELBA = false;
 
-	if (pPendingBa->bValid) {
+	if (pPendingBa->b_valid) {
 		DeActivateBAEntry(ieee, pPendingBa);
 		bSendDELBA = true;
 	}
 
-	if (pAdmittedBa->bValid) {
+	if (pAdmittedBa->b_valid) {
 		DeActivateBAEntry(ieee, pAdmittedBa);
 		bSendDELBA = true;
 	}
@@ -47,7 +47,7 @@ static u8 RxTsDeleteBA(struct rtllib_device *ieee, struct rx_ts_record *pRxTs)
 	struct ba_record *pBa = &pRxTs->RxAdmittedBARecord;
 	u8			bSendDELBA = false;
 
-	if (pBa->bValid) {
+	if (pBa->b_valid) {
 		DeActivateBAEntry(ieee, pBa);
 		bSendDELBA = true;
 	}
@@ -57,7 +57,7 @@ static u8 RxTsDeleteBA(struct rtllib_device *ieee, struct rx_ts_record *pRxTs)
 
 void ResetBaEntry(struct ba_record *pBA)
 {
-	pBA->bValid			= false;
+	pBA->b_valid			= false;
 	pBA->BaParamSet.short_data	= 0;
 	pBA->BaTimeoutValue		= 0;
 	pBA->DialogToken		= 0;
@@ -357,11 +357,11 @@ int rtllib_rx_ADDBARsp(struct rtllib_device *ieee, struct sk_buff *skb)
 	pAdmittedBA = &pTS->TxAdmittedBARecord;
 
 
-	if (pAdmittedBA->bValid) {
+	if (pAdmittedBA->b_valid) {
 		netdev_dbg(ieee->dev, "%s(): ADDBA response already admitted\n",
 			   __func__);
 		return -1;
-	} else if (!pPendingBA->bValid ||
+	} else if (!pPendingBA->b_valid ||
 		   (*pDialogToken != pPendingBA->DialogToken)) {
 		netdev_warn(ieee->dev,
 			    "%s(): ADDBA Rsp. BA invalid, DELBA!\n",
@@ -477,7 +477,7 @@ void TsInitAddBA(struct rtllib_device *ieee, struct tx_ts_record *pTS,
 {
 	struct ba_record *pBA = &pTS->TxPendingBARecord;
 
-	if (pBA->bValid && !bOverwritePending)
+	if (pBA->b_valid && !bOverwritePending)
 		return;
 
 	DeActivateBAEntry(ieee, pBA);
@@ -505,7 +505,7 @@ void TsInitDelBA(struct rtllib_device *ieee,
 
 		if (TxTsDeleteBA(ieee, pTxTs))
 			rtllib_send_DELBA(ieee, pTsCommonInfo->Addr,
-					  (pTxTs->TxAdmittedBARecord.bValid) ?
+					  (pTxTs->TxAdmittedBARecord.b_valid) ?
 					 (&pTxTs->TxAdmittedBARecord) :
 					(&pTxTs->TxPendingBARecord),
 					 TxRxSelect, DELBA_REASON_END_BA);
@@ -526,7 +526,7 @@ void BaSetupTimeOut(struct timer_list *t)
 
 	pTxTs->bAddBaReqInProgress = false;
 	pTxTs->bAddBaReqDelayed = true;
-	pTxTs->TxPendingBARecord.bValid = false;
+	pTxTs->TxPendingBARecord.b_valid = false;
 }
 
 void TxBaInactTimeout(struct timer_list *t)
