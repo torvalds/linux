@@ -151,9 +151,9 @@ void TSInitialize(struct rtllib_device *ieee)
 
 		timer_setup(&pTxTS->TsAddBaTimer, TsAddBaProcess, 0);
 
-		timer_setup(&pTxTS->TxPendingBARecord.Timer, BaSetupTimeOut,
+		timer_setup(&pTxTS->TxPendingBARecord.timer, BaSetupTimeOut,
 			    0);
-		timer_setup(&pTxTS->TxAdmittedBARecord.Timer,
+		timer_setup(&pTxTS->TxAdmittedBARecord.timer,
 			    TxBaInactTimeout, 0);
 
 		ResetTxTsEntry(pTxTS);
@@ -175,7 +175,7 @@ void TSInitialize(struct rtllib_device *ieee)
 		timer_setup(&pRxTS->TsCommonInfo.InactTimer, TsInactTimeout,
 			    0);
 
-		timer_setup(&pRxTS->RxAdmittedBARecord.Timer,
+		timer_setup(&pRxTS->RxAdmittedBARecord.timer,
 			    RxBaInactTimeout, 0);
 
 		timer_setup(&pRxTS->RxPktPendingTimer, RxPktPendingTimeout, 0);

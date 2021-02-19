@@ -15,13 +15,13 @@ static void ActivateBAEntry(struct rtllib_device *ieee, struct ba_record *pBA,
 {
 	pBA->bValid = true;
 	if (Time != 0)
-		mod_timer(&pBA->Timer, jiffies + msecs_to_jiffies(Time));
+		mod_timer(&pBA->timer, jiffies + msecs_to_jiffies(Time));
 }
 
 static void DeActivateBAEntry(struct rtllib_device *ieee, struct ba_record *pBA)
 {
 	pBA->bValid = false;
-	del_timer_sync(&pBA->Timer);
+	del_timer_sync(&pBA->timer);
 }
 
 static u8 TxTsDeleteBA(struct rtllib_device *ieee, struct tx_ts_record *pTxTs)
@@ -522,7 +522,7 @@ void TsInitDelBA(struct rtllib_device *ieee,
 void BaSetupTimeOut(struct timer_list *t)
 {
 	struct tx_ts_record *pTxTs = from_timer(pTxTs, t,
-					      TxPendingBARecord.Timer);
+					      TxPendingBARecord.timer);
 
 	pTxTs->bAddBaReqInProgress = false;
 	pTxTs->bAddBaReqDelayed = true;
@@ -532,7 +532,7 @@ void BaSetupTimeOut(struct timer_list *t)
 void TxBaInactTimeout(struct timer_list *t)
 {
 	struct tx_ts_record *pTxTs = from_timer(pTxTs, t,
-					      TxAdmittedBARecord.Timer);
+					      TxAdmittedBARecord.timer);
 	struct rtllib_device *ieee = container_of(pTxTs, struct rtllib_device,
 				     TxTsRecord[pTxTs->num]);
 	TxTsDeleteBA(ieee, pTxTs);
@@ -544,7 +544,7 @@ void TxBaInactTimeout(struct timer_list *t)
 void RxBaInactTimeout(struct timer_list *t)
 {
 	struct rx_ts_record *pRxTs = from_timer(pRxTs, t,
-					      RxAdmittedBARecord.Timer);
+					      RxAdmittedBARecord.timer);
 	struct rtllib_device *ieee = container_of(pRxTs, struct rtllib_device,
 				     RxTsRecord[pRxTs->num]);
 
