@@ -133,10 +133,10 @@ static void meson_plane_atomic_update(struct drm_plane *plane,
 				      struct drm_plane_state *old_state)
 {
 	struct meson_plane *meson_plane = to_meson_plane(plane);
-	struct drm_plane_state *state = plane->state;
-	struct drm_rect dest = drm_plane_state_dest(state);
+	struct drm_plane_state *new_state = plane->state;
+	struct drm_rect dest = drm_plane_state_dest(new_state);
 	struct meson_drm *priv = meson_plane->priv;
-	struct drm_framebuffer *fb = state->fb;
+	struct drm_framebuffer *fb = new_state->fb;
 	struct drm_gem_cma_object *gem;
 	unsigned long flags;
 	int vsc_ini_rcv_num, vsc_ini_rpt_p0_num;
@@ -249,7 +249,7 @@ static void meson_plane_atomic_update(struct drm_plane *plane,
 	hf_bank_len = 4;
 	vf_bank_len = 4;
 
-	if (state->crtc->mode.flags & DRM_MODE_FLAG_INTERLACE) {
+	if (new_state->crtc->mode.flags & DRM_MODE_FLAG_INTERLACE) {
 		vsc_bot_rcv_num = 6;
 		vsc_bot_rpt_p0_num = 2;
 	}
@@ -259,10 +259,10 @@ static void meson_plane_atomic_update(struct drm_plane *plane,
 	hsc_ini_rpt_p0_num = (hf_bank_len / 2) - 1;
 	vsc_ini_rpt_p0_num = (vf_bank_len / 2) - 1;
 
-	src_w = fixed16_to_int(state->src_w);
-	src_h = fixed16_to_int(state->src_h);
-	dst_w = state->crtc_w;
-	dst_h = state->crtc_h;
+	src_w = fixed16_to_int(new_state->src_w);
+	src_h = fixed16_to_int(new_state->src_h);
+	dst_w = new_state->crtc_w;
+	dst_h = new_state->crtc_h;
 
 	/*
 	 * When the output is interlaced, the OSD must switch between
@@ -271,7 +271,7 @@ static void meson_plane_atomic_update(struct drm_plane *plane,
 	 * But the vertical scaler can provide such funtionnality if
 	 * is configured for 2:1 scaling with interlace options enabled.
 	 */
-	if (state->crtc->mode.flags & DRM_MODE_FLAG_INTERLACE) {
+	if (new_state->crtc->mode.flags & DRM_MODE_FLAG_INTERLACE) {
 		dest.y1 /= 2;
 		dest.y2 /= 2;
 		dst_h /= 2;
@@ -280,7 +280,7 @@ static void meson_plane_atomic_update(struct drm_plane *plane,
 	hf_phase_step = ((src_w << 18) / dst_w) << 6;
 	vf_phase_step = (src_h << 20) / dst_h;
 
-	if (state->crtc->mode.flags & DRM_MODE_FLAG_INTERLACE)
+	if (new_state->crtc->mode.flags & DRM_MODE_FLAG_INTERLACE)
 		bot_ini_phase = ((vf_phase_step / 2) >> 4);
 	else
 		bot_ini_phase = 0;
@@ -312,7 +312,7 @@ static void meson_plane_atomic_update(struct drm_plane *plane,
 					VSC_TOP_RPT_L0_NUM(vsc_ini_rpt_p0_num) |
 					VSC_VERTICAL_SCALER_EN;
 
-		if (state->crtc->mode.flags & DRM_MODE_FLAG_INTERLACE)
+		if (new_state->crtc->mode.flags & DRM_MODE_FLAG_INTERLACE)
 			priv->viu.osd_sc_v_ctrl0 |=
 					VSC_BOT_INI_RCV_NUM(vsc_bot_rcv_num) |
 					VSC_BOT_RPT_L0_NUM(vsc_bot_rpt_p0_num) |
@@ -347,11 +347,11 @@ static void meson_plane_atomic_update(struct drm_plane *plane,
 	 * e.g. +30x1920 would be (1919 << 16) | 30
 	 */
 	priv->viu.osd1_blk0_cfg[1] =
-				((fixed16_to_int(state->src.x2) - 1) << 16) |
-				fixed16_to_int(state->src.x1);
+				((fixed16_to_int(new_state->src.x2) - 1) << 16) |
+				fixed16_to_int(new_state->src.x1);
 	priv->viu.osd1_blk0_cfg[2] =
-				((fixed16_to_int(state->src.y2) - 1) << 16) |
-				fixed16_to_int(state->src.y1);
+				((fixed16_to_int(new_state->src.y2) - 1) << 16) |
+				fixed16_to_int(new_state->src.y1);
 	priv->viu.osd1_blk0_cfg[3] = ((dest.x2 - 1) << 16) | dest.x1;
 	priv->viu.osd1_blk0_cfg[4] = ((dest.y2 - 1) << 16) | dest.y1;
 

@@ -266,10 +266,10 @@ static bool dcss_plane_needs_setup(struct drm_plane_state *state,
 static void dcss_plane_atomic_update(struct drm_plane *plane,
 				     struct drm_plane_state *old_state)
 {
-	struct drm_plane_state *state = plane->state;
+	struct drm_plane_state *new_state = plane->state;
 	struct dcss_plane *dcss_plane = to_dcss_plane(plane);
 	struct dcss_dev *dcss = plane->dev->dev_private;
-	struct drm_framebuffer *fb = state->fb;
+	struct drm_framebuffer *fb = new_state->fb;
 	struct drm_crtc_state *crtc_state;
 	bool modifiers_present;
 	u32 src_w, src_h, dst_w, dst_h;
@@ -277,14 +277,14 @@ static void dcss_plane_atomic_update(struct drm_plane *plane,
 	bool enable = true;
 	bool is_rotation_90_or_270;
 
-	if (!fb || !state->crtc || !state->visible)
+	if (!fb || !new_state->crtc || !new_state->visible)
 		return;
 
-	crtc_state = state->crtc->state;
+	crtc_state = new_state->crtc->state;
 	modifiers_present = !!(fb->flags & DRM_MODE_FB_MODIFIERS);
 
 	if (old_state->fb && !drm_atomic_crtc_needs_modeset(crtc_state) &&
-	    !dcss_plane_needs_setup(state, old_state)) {
+	    !dcss_plane_needs_setup(new_state, old_state)) {
 		dcss_plane_atomic_set_base(dcss_plane);
 		return;
 	}
@@ -304,23 +304,24 @@ static void dcss_plane_atomic_update(struct drm_plane *plane,
 	    modifiers_present && fb->modifier == DRM_FORMAT_MOD_LINEAR)
 		modifiers_present = false;
 
-	dcss_dpr_format_set(dcss->dpr, dcss_plane->ch_num, state->fb->format,
+	dcss_dpr_format_set(dcss->dpr, dcss_plane->ch_num,
+			    new_state->fb->format,
 			    modifiers_present ? fb->modifier :
 						DRM_FORMAT_MOD_LINEAR);
 	dcss_dpr_set_res(dcss->dpr, dcss_plane->ch_num, src_w, src_h);
 	dcss_dpr_set_rotation(dcss->dpr, dcss_plane->ch_num,
-			      state->rotation);
+			      new_state->rotation);
 
 	dcss_plane_atomic_set_base(dcss_plane);
 
-	is_rotation_90_or_270 = state->rotation & (DRM_MODE_ROTATE_90 |
+	is_rotation_90_or_270 = new_state->rotation & (DRM_MODE_ROTATE_90 |
 						   DRM_MODE_ROTATE_270);
 
 	dcss_scaler_set_filter(dcss->scaler, dcss_plane->ch_num,
-			       state->scaling_filter);
+			       new_state->scaling_filter);
 
 	dcss_scaler_setup(dcss->scaler, dcss_plane->ch_num,
-			  state->fb->format,
+			  new_state->fb->format,
 			  is_rotation_90_or_270 ? src_h : src_w,
 			  is_rotation_90_or_270 ? src_w : src_h,
 			  dst_w, dst_h,
@@ -329,9 +330,9 @@ static void dcss_plane_atomic_update(struct drm_plane *plane,
 	dcss_dtg_plane_pos_set(dcss->dtg, dcss_plane->ch_num,
 			       dst.x1, dst.y1, dst_w, dst_h);
 	dcss_dtg_plane_alpha_set(dcss->dtg, dcss_plane->ch_num,
-				 fb->format, state->alpha >> 8);
+				 fb->format, new_state->alpha >> 8);
 
-	if (!dcss_plane->ch_num && (state->alpha >> 8) == 0)
+	if (!dcss_plane->ch_num && (new_state->alpha >> 8) == 0)
 		enable = false;
 
 	dcss_dpr_enable(dcss->dpr, dcss_plane->ch_num, enable);

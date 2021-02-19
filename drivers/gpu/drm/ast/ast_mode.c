@@ -573,14 +573,14 @@ ast_primary_plane_helper_atomic_update(struct drm_plane *plane,
 {
 	struct drm_device *dev = plane->dev;
 	struct ast_private *ast = to_ast_private(dev);
-	struct drm_plane_state *state = plane->state;
+	struct drm_plane_state *new_state = plane->state;
 	struct drm_gem_vram_object *gbo;
 	s64 gpu_addr;
-	struct drm_framebuffer *fb = state->fb;
+	struct drm_framebuffer *fb = new_state->fb;
 	struct drm_framebuffer *old_fb = old_state->fb;
 
 	if (!old_fb || (fb->format != old_fb->format)) {
-		struct drm_crtc_state *crtc_state = state->crtc->state;
+		struct drm_crtc_state *crtc_state = new_state->crtc->state;
 		struct ast_crtc_state *ast_crtc_state = to_ast_crtc_state(crtc_state);
 		struct ast_vbios_mode_info *vbios_mode_info = &ast_crtc_state->vbios_mode_info;
 
@@ -793,9 +793,9 @@ ast_cursor_plane_helper_atomic_update(struct drm_plane *plane,
 				      struct drm_plane_state *old_state)
 {
 	struct ast_cursor_plane *ast_cursor_plane = to_ast_cursor_plane(plane);
-	struct drm_plane_state *state = plane->state;
-	struct drm_shadow_plane_state *shadow_plane_state = to_drm_shadow_plane_state(state);
-	struct drm_framebuffer *fb = state->fb;
+	struct drm_plane_state *new_state = plane->state;
+	struct drm_shadow_plane_state *shadow_plane_state = to_drm_shadow_plane_state(new_state);
+	struct drm_framebuffer *fb = new_state->fb;
 	struct ast_private *ast = to_ast_private(plane->dev);
 	struct dma_buf_map dst_map =
 		ast_cursor_plane->hwc[ast_cursor_plane->next_hwc_index].map;
@@ -820,7 +820,7 @@ ast_cursor_plane_helper_atomic_update(struct drm_plane *plane,
 
 	ast_update_cursor_image(dst, src, fb->width, fb->height);
 
-	if (state->fb != old_state->fb) {
+	if (new_state->fb != old_state->fb) {
 		ast_set_cursor_base(ast, dst_off);
 
 		++ast_cursor_plane->next_hwc_index;
@@ -831,25 +831,25 @@ ast_cursor_plane_helper_atomic_update(struct drm_plane *plane,
 	 * Update location in HWC signature and registers.
 	 */
 
-	writel(state->crtc_x, sig + AST_HWC_SIGNATURE_X);
-	writel(state->crtc_y, sig + AST_HWC_SIGNATURE_Y);
+	writel(new_state->crtc_x, sig + AST_HWC_SIGNATURE_X);
+	writel(new_state->crtc_y, sig + AST_HWC_SIGNATURE_Y);
 
 	offset_x = AST_MAX_HWC_WIDTH - fb->width;
 	offset_y = AST_MAX_HWC_HEIGHT - fb->height;
 
-	if (state->crtc_x < 0) {
-		x_offset = (-state->crtc_x) + offset_x;
+	if (new_state->crtc_x < 0) {
+		x_offset = (-new_state->crtc_x) + offset_x;
 		x = 0;
 	} else {
 		x_offset = offset_x;
-		x = state->crtc_x;
+		x = new_state->crtc_x;
 	}
-	if (state->crtc_y < 0) {
-		y_offset = (-state->crtc_y) + offset_y;
+	if (new_state->crtc_y < 0) {
+		y_offset = (-new_state->crtc_y) + offset_y;
 		y = 0;
 	} else {
 		y_offset = offset_y;
-		y = state->crtc_y;
+		y = new_state->crtc_y;
 	}
 
 	ast_set_cursor_location(ast, x, y, x_offset, y_offset);

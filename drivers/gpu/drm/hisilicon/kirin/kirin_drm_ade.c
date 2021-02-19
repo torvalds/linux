@@ -806,13 +806,14 @@ static int ade_plane_atomic_check(struct drm_plane *plane,
 static void ade_plane_atomic_update(struct drm_plane *plane,
 				    struct drm_plane_state *old_state)
 {
-	struct drm_plane_state *state = plane->state;
+	struct drm_plane_state *new_state = plane->state;
 	struct kirin_plane *kplane = to_kirin_plane(plane);
 
-	ade_update_channel(kplane, state->fb, state->crtc_x, state->crtc_y,
-			   state->crtc_w, state->crtc_h,
-			   state->src_x >> 16, state->src_y >> 16,
-			   state->src_w >> 16, state->src_h >> 16);
+	ade_update_channel(kplane, new_state->fb, new_state->crtc_x,
+			   new_state->crtc_y,
+			   new_state->crtc_w, new_state->crtc_h,
+			   new_state->src_x >> 16, new_state->src_y >> 16,
+			   new_state->src_w >> 16, new_state->src_h >> 16);
 }
 
 static void ade_plane_atomic_disable(struct drm_plane *plane,

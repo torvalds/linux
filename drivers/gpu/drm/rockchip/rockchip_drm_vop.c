@@ -877,18 +877,18 @@ static void vop_plane_atomic_disable(struct drm_plane *plane,
 static void vop_plane_atomic_update(struct drm_plane *plane,
 		struct drm_plane_state *old_state)
 {
-	struct drm_plane_state *state = plane->state;
-	struct drm_crtc *crtc = state->crtc;
+	struct drm_plane_state *new_state = plane->state;
+	struct drm_crtc *crtc = new_state->crtc;
 	struct vop_win *vop_win = to_vop_win(plane);
 	const struct vop_win_data *win = vop_win->data;
 	const struct vop_win_yuv2yuv_data *win_yuv2yuv = vop_win->yuv2yuv_data;
-	struct vop *vop = to_vop(state->crtc);
-	struct drm_framebuffer *fb = state->fb;
+	struct vop *vop = to_vop(new_state->crtc);
+	struct drm_framebuffer *fb = new_state->fb;
 	unsigned int actual_w, actual_h;
 	unsigned int dsp_stx, dsp_sty;
 	uint32_t act_info, dsp_info, dsp_st;
-	struct drm_rect *src = &state->src;
-	struct drm_rect *dest = &state->dst;
+	struct drm_rect *src = &new_state->src;
+	struct drm_rect *dest = &new_state->dst;
 	struct drm_gem_object *obj, *uv_obj;
 	struct rockchip_gem_object *rk_obj, *rk_uv_obj;
 	unsigned long offset;
@@ -909,7 +909,7 @@ static void vop_plane_atomic_update(struct drm_plane *plane,
 	if (WARN_ON(!vop->is_enabled))
 		return;
 
-	if (!state->visible) {
+	if (!new_state->visible) {
 		vop_plane_atomic_disable(plane, old_state);
 		return;
 	}
@@ -936,7 +936,7 @@ static void vop_plane_atomic_update(struct drm_plane *plane,
 	 * For y-mirroring we need to move address
 	 * to the beginning of the last line.
 	 */
-	if (state->rotation & DRM_MODE_REFLECT_Y)
+	if (new_state->rotation & DRM_MODE_REFLECT_Y)
 		dma_addr += (actual_h - 1) * fb->pitches[0];
 
 	format = vop_convert_format(fb->format->format);
@@ -958,9 +958,9 @@ static void vop_plane_atomic_update(struct drm_plane *plane,
 	VOP_WIN_SET(vop, win, yrgb_mst, dma_addr);
 	VOP_WIN_YUV2YUV_SET(vop, win_yuv2yuv, y2r_en, is_yuv);
 	VOP_WIN_SET(vop, win, y_mir_en,
-		    (state->rotation & DRM_MODE_REFLECT_Y) ? 1 : 0);
+		    (new_state->rotation & DRM_MODE_REFLECT_Y) ? 1 : 0);
 	VOP_WIN_SET(vop, win, x_mir_en,
-		    (state->rotation & DRM_MODE_REFLECT_X) ? 1 : 0);
+		    (new_state->rotation & DRM_MODE_REFLECT_X) ? 1 : 0);
 
 	if (is_yuv) {
 		int hsub = fb->format->hsub;

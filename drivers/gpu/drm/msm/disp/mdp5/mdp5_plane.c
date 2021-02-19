@@ -428,16 +428,16 @@ static int mdp5_plane_atomic_check(struct drm_plane *plane,
 static void mdp5_plane_atomic_update(struct drm_plane *plane,
 				     struct drm_plane_state *old_state)
 {
-	struct drm_plane_state *state = plane->state;
+	struct drm_plane_state *new_state = plane->state;
 
 	DBG("%s: update", plane->name);
 
-	if (plane_enabled(state)) {
+	if (plane_enabled(new_state)) {
 		int ret;
 
 		ret = mdp5_plane_mode_set(plane,
-				state->crtc, state->fb,
-				&state->src, &state->dst);
+				new_state->crtc, new_state->fb,
+				&new_state->src, &new_state->dst);
 		/* atomic_check should have ensured that this doesn't fail */
 		WARN_ON(ret < 0);
 	}

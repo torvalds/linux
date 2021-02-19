@@ -184,10 +184,10 @@ static void zx_vl_plane_atomic_update(struct drm_plane *plane,
 				      struct drm_plane_state *old_state)
 {
 	struct zx_plane *zplane = to_zx_plane(plane);
-	struct drm_plane_state *state = plane->state;
-	struct drm_framebuffer *fb = state->fb;
-	struct drm_rect *src = &state->src;
-	struct drm_rect *dst = &state->dst;
+	struct drm_plane_state *new_state = plane->state;
+	struct drm_framebuffer *fb = new_state->fb;
+	struct drm_rect *src = &new_state->src;
+	struct drm_rect *dst = &new_state->dst;
 	struct drm_gem_cma_object *cma_obj;
 	void __iomem *layer = zplane->layer;
 	void __iomem *hbsc = zplane->hbsc;

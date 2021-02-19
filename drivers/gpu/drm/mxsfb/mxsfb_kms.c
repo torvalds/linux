@@ -433,7 +433,7 @@ static void mxsfb_plane_overlay_atomic_update(struct drm_plane *plane,
 					      struct drm_plane_state *old_pstate)
 {
 	struct mxsfb_drm_private *mxsfb = to_mxsfb_drm_private(plane->dev);
-	struct drm_plane_state *state = plane->state;
+	struct drm_plane_state *new_pstate = plane->state;
 	dma_addr_t paddr;
 	u32 ctrl;
 
@@ -462,7 +462,7 @@ static void mxsfb_plane_overlay_atomic_update(struct drm_plane *plane,
 
 	ctrl = AS_CTRL_AS_ENABLE | AS_CTRL_ALPHA(255);
 
-	switch (state->fb->format->format) {
+	switch (new_pstate->fb->format->format) {
 	case DRM_FORMAT_XRGB4444:
 		ctrl |= AS_CTRL_FORMAT_RGB444 | AS_CTRL_ALPHA_CTRL_OVERRIDE;
 		break;

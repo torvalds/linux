@@ -258,11 +258,11 @@ static int sti_cursor_atomic_check(struct drm_plane *drm_plane,
 static void sti_cursor_atomic_update(struct drm_plane *drm_plane,
 				     struct drm_plane_state *oldstate)
 {
-	struct drm_plane_state *state = drm_plane->state;
+	struct drm_plane_state *newstate = drm_plane->state;
 	struct sti_plane *plane = to_sti_plane(drm_plane);
 	struct sti_cursor *cursor = to_sti_cursor(plane);
-	struct drm_crtc *crtc = state->crtc;
-	struct drm_framebuffer *fb = state->fb;
+	struct drm_crtc *crtc = newstate->crtc;
+	struct drm_framebuffer *fb = newstate->fb;
 	struct drm_display_mode *mode;
 	int dst_x, dst_y;
 	struct drm_gem_cma_object *cma_obj;
@@ -273,8 +273,8 @@ static void sti_cursor_atomic_update(struct drm_plane *drm_plane,
 		return;
 
 	mode = &crtc->mode;
-	dst_x = state->crtc_x;
-	dst_y = state->crtc_y;
+	dst_x = newstate->crtc_x;
+	dst_y = newstate->crtc_y;
 
 	cma_obj = drm_fb_cma_get_gem_obj(fb, 0);
 

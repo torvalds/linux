@@ -254,11 +254,11 @@ static int exynos_plane_atomic_check(struct drm_plane *plane,
 static void exynos_plane_atomic_update(struct drm_plane *plane,
 				       struct drm_plane_state *old_state)
 {
-	struct drm_plane_state *state = plane->state;
-	struct exynos_drm_crtc *exynos_crtc = to_exynos_crtc(state->crtc);
+	struct drm_plane_state *new_state = plane->state;
+	struct exynos_drm_crtc *exynos_crtc = to_exynos_crtc(new_state->crtc);
 	struct exynos_drm_plane *exynos_plane = to_exynos_plane(plane);
 
-	if (!state->crtc)
+	if (!new_state->crtc)
 		return;
 
 	if (exynos_crtc->ops->update_plane)

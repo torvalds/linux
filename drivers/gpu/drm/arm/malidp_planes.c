@@ -795,9 +795,9 @@ static void malidp_de_plane_update(struct drm_plane *plane,
 {
 	struct malidp_plane *mp;
 	struct malidp_plane_state *ms = to_malidp_plane_state(plane->state);
-	struct drm_plane_state *state = plane->state;
-	u16 pixel_alpha = state->pixel_blend_mode;
-	u8 plane_alpha = state->alpha >> 8;
+	struct drm_plane_state *new_state = plane->state;
+	u16 pixel_alpha = new_state->pixel_blend_mode;
+	u8 plane_alpha = new_state->alpha >> 8;
 	u32 src_w, src_h, dest_w, dest_h, val;
 	int i;
 	struct drm_framebuffer *fb = plane->state->fb;
@@ -813,12 +813,12 @@ static void malidp_de_plane_update(struct drm_plane *plane,
 		src_h = fb->height;
 	} else {
 		/* convert src values from Q16 fixed point to integer */
-		src_w = state->src_w >> 16;
-		src_h = state->src_h >> 16;
+		src_w = new_state->src_w >> 16;
+		src_h = new_state->src_h >> 16;
 	}
 
-	dest_w = state->crtc_w;
-	dest_h = state->crtc_h;
+	dest_w = new_state->crtc_w;
+	dest_h = new_state->crtc_h;
 
 	val = malidp_hw_read(mp->hwdev, mp->layer->base);
 	val = (val & ~LAYER_FORMAT_MASK) | ms->format;
@@ -830,7 +830,7 @@ static void malidp_de_plane_update(struct drm_plane *plane,
 	malidp_de_set_mmu_control(mp, ms);
 
 	malidp_de_set_plane_pitches(mp, ms->n_planes,
-				    state->fb->pitches);
+				    new_state->fb->pitches);
 
 	if ((plane->state->color_encoding != old_state->color_encoding) ||
 	    (plane->state->color_range != old_state->color_range))
@@ -843,8 +843,8 @@ static void malidp_de_plane_update(struct drm_plane *plane,
 	malidp_hw_write(mp->hwdev, LAYER_H_VAL(dest_w) | LAYER_V_VAL(dest_h),
 			mp->layer->base + MALIDP_LAYER_COMP_SIZE);
 
-	malidp_hw_write(mp->hwdev, LAYER_H_VAL(state->crtc_x) |
-			LAYER_V_VAL(state->crtc_y),
+	malidp_hw_write(mp->hwdev, LAYER_H_VAL(new_state->crtc_x) |
+			LAYER_V_VAL(new_state->crtc_y),
 			mp->layer->base + MALIDP_LAYER_OFFSET);
 
 	if (mp->layer->id == DE_SMART) {
@@ -866,19 +866,19 @@ static void malidp_de_plane_update(struct drm_plane *plane,
 	val &= ~LAYER_ROT_MASK;
 
 	/* setup the rotation and axis flip bits */
-	if (state->rotation & DRM_MODE_ROTATE_MASK)
+	if (new_state->rotation & DRM_MODE_ROTATE_MASK)
 		val |= ilog2(plane->state->rotation & DRM_MODE_ROTATE_MASK) <<
 		       LAYER_ROT_OFFSET;
-	if (state->rotation & DRM_MODE_REFLECT_X)
+	if (new_state->rotation & DRM_MODE_REFLECT_X)
 		val |= LAYER_H_FLIP;
-	if (state->rotation & DRM_MODE_REFLECT_Y)
+	if (new_state->rotation & DRM_MODE_REFLECT_Y)
 		val |= LAYER_V_FLIP;
 
 	val &= ~(LAYER_COMP_MASK | LAYER_PMUL_ENABLE | LAYER_ALPHA(0xff));
 
-	if (state->alpha != DRM_BLEND_ALPHA_OPAQUE) {
+	if (new_state->alpha != DRM_BLEND_ALPHA_OPAQUE) {
 		val |= LAYER_COMP_PLANE;
-	} else if (state->fb->format->has_alpha) {
+	} else if (new_state->fb->format->has_alpha) {
 		/* We only care about blend mode if the format has alpha */
 		switch (pixel_alpha) {
 		case DRM_MODE_BLEND_PREMULTI:
@@ -892,9 +892,9 @@ static void malidp_de_plane_update(struct drm_plane *plane,
 	val |= LAYER_ALPHA(plane_alpha);
 
 	val &= ~LAYER_FLOWCFG(LAYER_FLOWCFG_MASK);
-	if (state->crtc) {
+	if (new_state->crtc) {
 		struct malidp_crtc_state *m =
-			to_malidp_crtc_state(state->crtc->state);
+			to_malidp_crtc_state(new_state->crtc->state);
 
 		if (m->scaler_config.scale_enable &&
 		    m->scaler_config.plane_src_id == mp->layer->id)

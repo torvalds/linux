@@ -1244,13 +1244,13 @@ static void dpu_plane_atomic_update(struct drm_plane *plane,
 				struct drm_plane_state *old_state)
 {
 	struct dpu_plane *pdpu = to_dpu_plane(plane);
-	struct drm_plane_state *state = plane->state;
+	struct drm_plane_state *new_state = plane->state;
 
 	pdpu->is_error = false;
 
 	DPU_DEBUG_PLANE(pdpu, "\n");
 
-	if (!state->visible) {
+	if (!new_state->visible) {
 		_dpu_plane_atomic_disable(plane);
 	} else {
 		dpu_plane_sspp_atomic_update(plane);

@@ -778,33 +778,33 @@ static void ltdc_plane_atomic_update(struct drm_plane *plane,
 				     struct drm_plane_state *oldstate)
 {
 	struct ltdc_device *ldev = plane_to_ltdc(plane);
-	struct drm_plane_state *state = plane->state;
-	struct drm_framebuffer *fb = state->fb;
+	struct drm_plane_state *newstate = plane->state;
+	struct drm_framebuffer *fb = newstate->fb;
 	u32 lofs = plane->index * LAY_OFS;
-	u32 x0 = state->crtc_x;
-	u32 x1 = state->crtc_x + state->crtc_w - 1;
-	u32 y0 = state->crtc_y;
-	u32 y1 = state->crtc_y + state->crtc_h - 1;
+	u32 x0 = newstate->crtc_x;
+	u32 x1 = newstate->crtc_x + newstate->crtc_w - 1;
+	u32 y0 = newstate->crtc_y;
+	u32 y1 = newstate->crtc_y + newstate->crtc_h - 1;
 	u32 src_x, src_y, src_w, src_h;
 	u32 val, pitch_in_bytes, line_length, paddr, ahbp, avbp, bpcr;
 	enum ltdc_pix_fmt pf;
 
-	if (!state->crtc || !fb) {
+	if (!newstate->crtc || !fb) {
 		DRM_DEBUG_DRIVER("fb or crtc NULL");
 		return;
 	}
 
 	/* convert src_ from 16:16 format */
-	src_x = state->src_x >> 16;
-	src_y = state->src_y >> 16;
-	src_w = state->src_w >> 16;
-	src_h = state->src_h >> 16;
+	src_x = newstate->src_x >> 16;
+	src_y = newstate->src_y >> 16;
+	src_w = newstate->src_w >> 16;
+	src_h = newstate->src_h >> 16;
 
 	DRM_DEBUG_DRIVER("plane:%d fb:%d (%dx%d)@(%d,%d) -> (%dx%d)@(%d,%d)\n",
 			 plane->base.id, fb->base.id,
 			 src_w, src_h, src_x, src_y,
-			 state->crtc_w, state->crtc_h,
-			 state->crtc_x, state->crtc_y);
+			 newstate->crtc_w, newstate->crtc_h,
+			 newstate->crtc_x, newstate->crtc_y);
 
 	bpcr = reg_read(ldev->regs, LTDC_BPCR);
 	ahbp = (bpcr & BPCR_AHBP) >> 16;
@@ -863,7 +863,7 @@ static void ltdc_plane_atomic_update(struct drm_plane *plane,
 	reg_update_bits(ldev->regs, LTDC_L1CFBLNR + lofs, LXCFBLNR_CFBLN, val);
 
 	/* Sets the FB address */
-	paddr = (u32)drm_fb_cma_get_gem_addr(fb, state, 0);
+	paddr = (u32)drm_fb_cma_get_gem_addr(fb, newstate, 0);
 
 	DRM_DEBUG_DRIVER("fb: phys 0x%08x", paddr);
 	reg_write(ldev->regs, LTDC_L1CFBAR + lofs, paddr);

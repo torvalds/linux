@@ -428,7 +428,7 @@ static void tegra_shared_plane_atomic_update(struct drm_plane *plane,
 					     struct drm_plane_state *old_state)
 {
 	struct drm_plane_state *new_state = plane->state;
-	struct tegra_plane_state *state = to_tegra_plane_state(new_state);
+	struct tegra_plane_state *tegra_plane_state = to_tegra_plane_state(new_state);
 	struct tegra_dc *dc = to_tegra_dc(new_state->crtc);
 	unsigned int zpos = new_state->normalized_zpos;
 	struct drm_framebuffer *fb = new_state->fb;
@@ -480,9 +480,9 @@ static void tegra_shared_plane_atomic_update(struct drm_plane *plane,
 	/* disable compression */
 	tegra_plane_writel(p, 0, DC_WINBUF_CDE_CONTROL);
 
-	base = state->iova[0] + fb->offsets[0];
+	base = tegra_plane_state->iova[0] + fb->offsets[0];
 
-	tegra_plane_writel(p, state->format, DC_WIN_COLOR_DEPTH);
+	tegra_plane_writel(p, tegra_plane_state->format, DC_WIN_COLOR_DEPTH);
 	tegra_plane_writel(p, 0, DC_WIN_PRECOMP_WGRP_PARAMS);
 
 	value = V_POSITION(new_state->crtc_y) |
@@ -512,10 +512,10 @@ static void tegra_shared_plane_atomic_update(struct drm_plane *plane,
 	tegra_plane_writel(p, value, DC_WINBUF_CROPPED_POINT);
 
 	if (dc->soc->supports_block_linear) {
-		unsigned long height = state->tiling.value;
+		unsigned long height = tegra_plane_state->tiling.value;
 
 		/* XXX */
-		switch (state->tiling.mode) {
+		switch (tegra_plane_state->tiling.mode) {
 		case TEGRA_BO_TILING_MODE_PITCH:
 			value = DC_WINBUF_SURFACE_KIND_BLOCK_HEIGHT(0) |
 				DC_WINBUF_SURFACE_KIND_PITCH;

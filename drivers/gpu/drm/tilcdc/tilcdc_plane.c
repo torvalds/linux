@@ -78,18 +78,18 @@ static int tilcdc_plane_atomic_check(struct drm_plane *plane,
 static void tilcdc_plane_atomic_update(struct drm_plane *plane,
 				       struct drm_plane_state *old_state)
 {
-	struct drm_plane_state *state = plane->state;
+	struct drm_plane_state *new_state = plane->state;
 
-	if (!state->crtc)
+	if (!new_state->crtc)
 		return;
 
-	if (WARN_ON(!state->fb || !state->crtc->state))
+	if (WARN_ON(!new_state->fb || !new_state->crtc->state))
 		return;
 
-	if (tilcdc_crtc_update_fb(state->crtc,
-				  state->fb,
-				  state->crtc->state->event) == 0) {
-		state->crtc->state->event = NULL;
+	if (tilcdc_crtc_update_fb(new_state->crtc,
+				  new_state->fb,
+				  new_state->crtc->state->event) == 0) {
+		new_state->crtc->state->event = NULL;
 	}
 }
 

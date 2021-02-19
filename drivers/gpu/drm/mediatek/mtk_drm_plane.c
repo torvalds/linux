@@ -176,18 +176,17 @@ static void mtk_plane_atomic_disable(struct drm_plane *plane,
 				     struct drm_plane_state *old_state)
 {
 	struct drm_plane_state *new_state = plane->state;
-	struct mtk_plane_state *state = to_mtk_plane_state(new_state);
-
-	state->pending.enable = false;
+	struct mtk_plane_state *mtk_plane_state = to_mtk_plane_state(new_state);
+	mtk_plane_state->pending.enable = false;
 	wmb(); /* Make sure the above parameter is set before update */
-	state->pending.dirty = true;
+	mtk_plane_state->pending.dirty = true;
 }
 
 static void mtk_plane_atomic_update(struct drm_plane *plane,
 				    struct drm_plane_state *old_state)
 {
 	struct drm_plane_state *new_state = plane->state;
-	struct mtk_plane_state *state = to_mtk_plane_state(new_state);
+	struct mtk_plane_state *mtk_plane_state = to_mtk_plane_state(new_state);
 	struct drm_crtc *crtc = new_state->crtc;
 	struct drm_framebuffer *fb = new_state->fb;
 	struct drm_gem_object *gem;
@@ -212,17 +211,17 @@ static void mtk_plane_atomic_update(struct drm_plane *plane,
 	addr += (new_state->src.x1 >> 16) * fb->format->cpp[0];
 	addr += (new_state->src.y1 >> 16) * pitch;
 
-	state->pending.enable = true;
-	state->pending.pitch = pitch;
-	state->pending.format = format;
-	state->pending.addr = addr;
-	state->pending.x = new_state->dst.x1;
-	state->pending.y = new_state->dst.y1;
-	state->pending.width = drm_rect_width(&new_state->dst);
-	state->pending.height = drm_rect_height(&new_state->dst);
-	state->pending.rotation = new_state->rotation;
+	mtk_plane_state->pending.enable = true;
+	mtk_plane_state->pending.pitch = pitch;
+	mtk_plane_state->pending.format = format;
+	mtk_plane_state->pending.addr = addr;
+	mtk_plane_state->pending.x = new_state->dst.x1;
+	mtk_plane_state->pending.y = new_state->dst.y1;
+	mtk_plane_state->pending.width = drm_rect_width(&new_state->dst);
+	mtk_plane_state->pending.height = drm_rect_height(&new_state->dst);
+	mtk_plane_state->pending.rotation = new_state->rotation;
 	wmb(); /* Make sure the above parameters are set before update */
-	state->pending.dirty = true;
+	mtk_plane_state->pending.dirty = true;
 }
 
 static const struct drm_plane_helper_funcs mtk_plane_helper_funcs = {

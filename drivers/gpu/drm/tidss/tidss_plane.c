@@ -110,21 +110,21 @@ static void tidss_plane_atomic_update(struct drm_plane *plane,
 	struct drm_device *ddev = plane->dev;
 	struct tidss_device *tidss = to_tidss(ddev);
 	struct tidss_plane *tplane = to_tidss_plane(plane);
-	struct drm_plane_state *state = plane->state;
+	struct drm_plane_state *new_state = plane->state;
 	u32 hw_videoport;
 	int ret;
 
 	dev_dbg(ddev->dev, "%s\n", __func__);
 
-	if (!state->visible) {
+	if (!new_state->visible) {
 		dispc_plane_enable(tidss->dispc, tplane->hw_plane_id, false);
 		return;
 	}
 
-	hw_videoport = to_tidss_crtc(state->crtc)->hw_videoport;
+	hw_videoport = to_tidss_crtc(new_state->crtc)->hw_videoport;
 
 	ret = dispc_plane_setup(tidss->dispc, tplane->hw_plane_id,
-				state, hw_videoport);
+				new_state, hw_videoport);
 
 	if (ret) {
 		dev_err(plane->dev->dev, "%s: Failed to setup plane %d\n",

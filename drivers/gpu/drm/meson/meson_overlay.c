@@ -471,8 +471,8 @@ static void meson_overlay_atomic_update(struct drm_plane *plane,
 					struct drm_plane_state *old_state)
 {
 	struct meson_overlay *meson_overlay = to_meson_overlay(plane);
-	struct drm_plane_state *state = plane->state;
-	struct drm_framebuffer *fb = state->fb;
+	struct drm_plane_state *new_state = plane->state;
+	struct drm_framebuffer *fb = new_state->fb;
 	struct meson_drm *priv = meson_overlay->priv;
 	struct drm_gem_cma_object *gem;
 	unsigned long flags;
@@ -480,7 +480,7 @@ static void meson_overlay_atomic_update(struct drm_plane *plane,
 
 	DRM_DEBUG_DRIVER("\n");
 
-	interlace_mode = state->crtc->mode.flags & DRM_MODE_FLAG_INTERLACE;
+	interlace_mode = new_state->crtc->mode.flags & DRM_MODE_FLAG_INTERLACE;
 
 	spin_lock_irqsave(&priv->drm->event_lock, flags);
 

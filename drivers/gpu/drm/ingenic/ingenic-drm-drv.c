@@ -545,20 +545,20 @@ static void ingenic_drm_plane_atomic_update(struct drm_plane *plane,
 					    struct drm_plane_state *oldstate)
 {
 	struct ingenic_drm *priv = drm_device_get_priv(plane->dev);
-	struct drm_plane_state *state = plane->state;
+	struct drm_plane_state *newstate = plane->state;
 	struct drm_crtc_state *crtc_state;
 	struct ingenic_dma_hwdesc *hwdesc;
 	unsigned int width, height, cpp, offset;
 	dma_addr_t addr;
 	u32 fourcc;
 
-	if (state && state->fb) {
-		crtc_state = state->crtc->state;
+	if (newstate && newstate->fb) {
+		crtc_state = newstate->crtc->state;
 
-		addr = drm_fb_cma_get_gem_addr(state->fb, state, 0);
-		width = state->src_w >> 16;
-		height = state->src_h >> 16;
-		cpp = state->fb->format->cpp[0];
+		addr = drm_fb_cma_get_gem_addr(newstate->fb, newstate, 0);
+		width = newstate->src_w >> 16;
+		height = newstate->src_h >> 16;
+		cpp = newstate->fb->format->cpp[0];
 
 		if (priv->soc_info->has_osd && plane->type == DRM_PLANE_TYPE_OVERLAY)
 			hwdesc = &priv->dma_hwdescs->hwdesc_f0;
@@ -569,7 +569,7 @@ static void ingenic_drm_plane_atomic_update(struct drm_plane *plane,
 		hwdesc->cmd = JZ_LCD_CMD_EOF_IRQ | (width * height * cpp / 4);
 
 		if (drm_atomic_crtc_needs_modeset(crtc_state)) {
-			fourcc = state->fb->format->format;
+			fourcc = newstate->fb->format->format;
 
 			ingenic_drm_plane_config(priv->dev, plane, fourcc);
 

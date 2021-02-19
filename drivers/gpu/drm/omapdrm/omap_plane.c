@@ -44,26 +44,27 @@ static void omap_plane_atomic_update(struct drm_plane *plane,
 {
 	struct omap_drm_private *priv = plane->dev->dev_private;
 	struct omap_plane *omap_plane = to_omap_plane(plane);
-	struct drm_plane_state *state = plane->state;
+	struct drm_plane_state *new_state = plane->state;
 	struct omap_overlay_info info;
 	int ret;
 
-	DBG("%s, crtc=%p fb=%p", omap_plane->name, state->crtc, state->fb);
+	DBG("%s, crtc=%p fb=%p", omap_plane->name, new_state->crtc,
+	    new_state->fb);
 
 	memset(&info, 0, sizeof(info));
 	info.rotation_type = OMAP_DSS_ROT_NONE;
 	info.rotation = DRM_MODE_ROTATE_0;
-	info.global_alpha = state->alpha >> 8;
-	info.zorder = state->normalized_zpos;
-	if (state->pixel_blend_mode == DRM_MODE_BLEND_PREMULTI)
+	info.global_alpha = new_state->alpha >> 8;
+	info.zorder = new_state->normalized_zpos;
+	if (new_state->pixel_blend_mode == DRM_MODE_BLEND_PREMULTI)
 		info.pre_mult_alpha = 1;
 	else
 		info.pre_mult_alpha = 0;
-	info.color_encoding = state->color_encoding;
-	info.color_range = state->color_range;
+	info.color_encoding = new_state->color_encoding;
+	info.color_range = new_state->color_range;
 
 	/* update scanout: */
-	omap_framebuffer_update_scanout(state->fb, state, &info);
+	omap_framebuffer_update_scanout(new_state->fb, new_state, &info);
 
 	DBG("%dx%d -> %dx%d (%d)", info.width, info.height,
 			info.out_width, info.out_height,
@@ -73,8 +74,8 @@ static void omap_plane_atomic_update(struct drm_plane *plane,
 
 	/* and finally, update omapdss: */
 	ret = dispc_ovl_setup(priv->dispc, omap_plane->id, &info,
-			      omap_crtc_timings(state->crtc), false,
-			      omap_crtc_channel(state->crtc));
+			      omap_crtc_timings(new_state->crtc), false,
+			      omap_crtc_channel(new_state->crtc));
 	if (ret) {
 		dev_err(plane->dev->dev, "Failed to setup plane %s\n",
 			omap_plane->name);

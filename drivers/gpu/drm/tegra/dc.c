@@ -709,7 +709,7 @@ static void tegra_plane_atomic_update(struct drm_plane *plane,
 				      struct drm_plane_state *old_state)
 {
 	struct drm_plane_state *new_state = plane->state;
-	struct tegra_plane_state *state = to_tegra_plane_state(new_state);
+	struct tegra_plane_state *tegra_plane_state = to_tegra_plane_state(new_state);
 	struct drm_framebuffer *fb = new_state->fb;
 	struct tegra_plane *p = to_tegra_plane(plane);
 	struct tegra_dc_window window;
@@ -732,17 +732,17 @@ static void tegra_plane_atomic_update(struct drm_plane *plane,
 	window.dst.w = drm_rect_width(&new_state->dst);
 	window.dst.h = drm_rect_height(&new_state->dst);
 	window.bits_per_pixel = fb->format->cpp[0] * 8;
-	window.reflect_x = state->reflect_x;
-	window.reflect_y = state->reflect_y;
+	window.reflect_x = tegra_plane_state->reflect_x;
+	window.reflect_y = tegra_plane_state->reflect_y;
 
 	/* copy from state */
 	window.zpos = new_state->normalized_zpos;
-	window.tiling = state->tiling;
-	window.format = state->format;
-	window.swap = state->swap;
+	window.tiling = tegra_plane_state->tiling;
+	window.format = tegra_plane_state->format;
+	window.swap = tegra_plane_state->swap;
 
 	for (i = 0; i < fb->format->num_planes; i++) {
-		window.base[i] = state->iova[i] + fb->offsets[i];
+		window.base[i] = tegra_plane_state->iova[i] + fb->offsets[i];
 
 		/*
 		 * Tegra uses a shared stride for UV planes. Framebuffers are
@@ -869,7 +869,7 @@ static void tegra_cursor_atomic_update(struct drm_plane *plane,
 				       struct drm_plane_state *old_state)
 {
 	struct drm_plane_state *new_state = plane->state;
-	struct tegra_plane_state *state = to_tegra_plane_state(new_state);
+	struct tegra_plane_state *tegra_plane_state = to_tegra_plane_state(new_state);
 	struct tegra_dc *dc = to_tegra_dc(new_state->crtc);
 	u32 value = CURSOR_CLIP_DISPLAY;
 
@@ -900,11 +900,11 @@ static void tegra_cursor_atomic_update(struct drm_plane *plane,
 		return;
 	}
 
-	value |= (state->iova[0] >> 10) & 0x3fffff;
+	value |= (tegra_plane_state->iova[0] >> 10) & 0x3fffff;
 	tegra_dc_writel(dc, value, DC_DISP_CURSOR_START_ADDR);
 
 #ifdef CONFIG_ARCH_DMA_ADDR_T_64BIT
-	value = (state->iova[0] >> 32) & 0x3;
+	value = (tegra_plane_state->iova[0] >> 32) & 0x3;
 	tegra_dc_writel(dc, value, DC_DISP_CURSOR_START_ADDR_HI);
 #endif
 

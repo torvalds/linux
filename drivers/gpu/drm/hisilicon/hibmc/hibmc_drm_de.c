@@ -101,17 +101,17 @@ static int hibmc_plane_atomic_check(struct drm_plane *plane,
 static void hibmc_plane_atomic_update(struct drm_plane *plane,
 				      struct drm_plane_state *old_state)
 {
-	struct drm_plane_state	*state	= plane->state;
+	struct drm_plane_state *new_state = plane->state;
 	u32 reg;
 	s64 gpu_addr = 0;
 	u32 line_l;
 	struct hibmc_drm_private *priv = to_hibmc_drm_private(plane->dev);
 	struct drm_gem_vram_object *gbo;
 
-	if (!state->fb)
+	if (!new_state->fb)
 		return;
 
-	gbo = drm_gem_vram_of_gem(state->fb->obj[0]);
+	gbo = drm_gem_vram_of_gem(new_state->fb->obj[0]);
 
 	gpu_addr = drm_gem_vram_offset(gbo);
 	if (WARN_ON_ONCE(gpu_addr < 0))
@@ -119,9 +119,9 @@ static void hibmc_plane_atomic_update(struct drm_plane *plane,
 
 	writel(gpu_addr, priv->mmio + HIBMC_CRT_FB_ADDRESS);
 
-	reg = state->fb->width * (state->fb->format->cpp[0]);
+	reg = new_state->fb->width * (new_state->fb->format->cpp[0]);
 
-	line_l = state->fb->pitches[0];
+	line_l = new_state->fb->pitches[0];
 	writel(HIBMC_FIELD(HIBMC_CRT_FB_WIDTH_WIDTH, reg) |
 	       HIBMC_FIELD(HIBMC_CRT_FB_WIDTH_OFFS, line_l),
 	       priv->mmio + HIBMC_CRT_FB_WIDTH);
@@ -130,7 +130,7 @@ static void hibmc_plane_atomic_update(struct drm_plane *plane,
 	reg = readl(priv->mmio + HIBMC_CRT_DISP_CTL);
 	reg &= ~HIBMC_CRT_DISP_CTL_FORMAT_MASK;
 	reg |= HIBMC_FIELD(HIBMC_CRT_DISP_CTL_FORMAT,
-			   state->fb->format->cpp[0] * 8 / 16);
+			   new_state->fb->format->cpp[0] * 8 / 16);
 	writel(reg, priv->mmio + HIBMC_CRT_DISP_CTL);
 }
 
