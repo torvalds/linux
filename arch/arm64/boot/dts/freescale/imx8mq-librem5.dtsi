@@ -258,6 +258,25 @@
 		compatible = "jedec,spi-nor";
 		reg = <0>;
 		spi-max-frequency = <1000000>;
+		#address-cells = <1>;
+		#size-cells = <1>;
+
+		partition@0 {
+			label = "protected0";
+			reg = <0x0 0x30000>;
+			read-only;
+		};
+
+		partition@30000 {
+			label = "protected1";
+			reg = <0x30000 0x10000>;
+			read-only;
+		};
+
+		partition@40000 {
+			label = "rw";
+			reg = <0x40000 0x1C0000>;
+		};
 	};
 };
 
