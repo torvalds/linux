@@ -347,9 +347,15 @@ static bool create_link_encoders(struct dc *dc)
  */
 static void destroy_link_encoders(struct dc *dc)
 {
-	unsigned int num_usb4_dpia = dc->res_pool->res_cap->num_usb4_dpia;
-	unsigned int num_dig_link_enc = dc->res_pool->res_cap->num_dig_link_enc;
+	unsigned int num_usb4_dpia;
+	unsigned int num_dig_link_enc;
 	int i;
+
+	if (!dc->res_pool)
+		return;
+
+	num_usb4_dpia = dc->res_pool->res_cap->num_usb4_dpia;
+	num_dig_link_enc = dc->res_pool->res_cap->num_dig_link_enc;
 
 	/* A platform without USB4 DPIA endpoints has a fixed mapping between DIG
 	 * link encoders and physical display endpoints and does not require
