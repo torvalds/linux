@@ -6432,7 +6432,7 @@ static int dm_plane_helper_check_state(struct drm_plane_state *state,
 }
 
 static int dm_plane_atomic_check(struct drm_plane *plane,
-				 struct drm_plane_state *state)
+				 struct drm_plane_state *new_plane_state)
 {
 	struct amdgpu_device *adev = drm_to_adev(plane->dev);
 	struct dc *dc = adev->dm.dc;
@@ -6441,23 +6441,24 @@ static int dm_plane_atomic_check(struct drm_plane *plane,
 	struct drm_crtc_state *new_crtc_state;
 	int ret;
 
-	trace_amdgpu_dm_plane_atomic_check(state);
+	trace_amdgpu_dm_plane_atomic_check(new_plane_state);
 
-	dm_plane_state = to_dm_plane_state(state);
+	dm_plane_state = to_dm_plane_state(new_plane_state);
 
 	if (!dm_plane_state->dc_state)
 		return 0;
 
 	new_crtc_state =
-		drm_atomic_get_new_crtc_state(state->state, state->crtc);
+		drm_atomic_get_new_crtc_state(new_plane_state->state,
+					      new_plane_state->crtc);
 	if (!new_crtc_state)
 		return -EINVAL;
 
-	ret = dm_plane_helper_check_state(state, new_crtc_state);
+	ret = dm_plane_helper_check_state(new_plane_state, new_crtc_state);
 	if (ret)
 		return ret;
 
-	ret = fill_dc_scaling_info(state, &scaling_info);
+	ret = fill_dc_scaling_info(new_plane_state, &scaling_info);
 	if (ret)
 		return ret;
 

@@ -53,27 +53,27 @@ static const struct hibmc_dislay_pll_config hibmc_pll_table[] = {
 };
 
 static int hibmc_plane_atomic_check(struct drm_plane *plane,
-				    struct drm_plane_state *state)
+				    struct drm_plane_state *new_plane_state)
 {
-	struct drm_framebuffer *fb = state->fb;
-	struct drm_crtc *crtc = state->crtc;
+	struct drm_framebuffer *fb = new_plane_state->fb;
+	struct drm_crtc *crtc = new_plane_state->crtc;
 	struct drm_crtc_state *crtc_state;
-	u32 src_w = state->src_w >> 16;
-	u32 src_h = state->src_h >> 16;
+	u32 src_w = new_plane_state->src_w >> 16;
+	u32 src_h = new_plane_state->src_h >> 16;
 
 	if (!crtc || !fb)
 		return 0;
 
-	crtc_state = drm_atomic_get_crtc_state(state->state, crtc);
+	crtc_state = drm_atomic_get_crtc_state(new_plane_state->state, crtc);
 	if (IS_ERR(crtc_state))
 		return PTR_ERR(crtc_state);
 
-	if (src_w != state->crtc_w || src_h != state->crtc_h) {
+	if (src_w != new_plane_state->crtc_w || src_h != new_plane_state->crtc_h) {
 		drm_dbg_atomic(plane->dev, "scale not support\n");
 		return -EINVAL;
 	}
 
-	if (state->crtc_x < 0 || state->crtc_y < 0) {
+	if (new_plane_state->crtc_x < 0 || new_plane_state->crtc_y < 0) {
 		drm_dbg_atomic(plane->dev, "crtc_x/y of drm_plane state is invalid\n");
 		return -EINVAL;
 	}
@@ -81,15 +81,15 @@ static int hibmc_plane_atomic_check(struct drm_plane *plane,
 	if (!crtc_state->enable)
 		return 0;
 
-	if (state->crtc_x + state->crtc_w >
+	if (new_plane_state->crtc_x + new_plane_state->crtc_w >
 	    crtc_state->adjusted_mode.hdisplay ||
-	    state->crtc_y + state->crtc_h >
+	    new_plane_state->crtc_y + new_plane_state->crtc_h >
 	    crtc_state->adjusted_mode.vdisplay) {
 		drm_dbg_atomic(plane->dev, "visible portion of plane is invalid\n");
 		return -EINVAL;
 	}
 
-	if (state->fb->pitches[0] % 128 != 0) {
+	if (new_plane_state->fb->pitches[0] % 128 != 0) {
 		drm_dbg_atomic(plane->dev, "wrong stride with 128-byte aligned\n");
 		return -EINVAL;
 	}

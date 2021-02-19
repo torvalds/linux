@@ -463,15 +463,15 @@ static const struct drm_crtc_helper_funcs qxl_crtc_helper_funcs = {
 };
 
 static int qxl_primary_atomic_check(struct drm_plane *plane,
-				    struct drm_plane_state *state)
+				    struct drm_plane_state *new_plane_state)
 {
 	struct qxl_device *qdev = to_qxl(plane->dev);
 	struct qxl_bo *bo;
 
-	if (!state->crtc || !state->fb)
+	if (!new_plane_state->crtc || !new_plane_state->fb)
 		return 0;
 
-	bo = gem_to_qxl_bo(state->fb->obj[0]);
+	bo = gem_to_qxl_bo(new_plane_state->fb->obj[0]);
 
 	return qxl_check_framebuffer(qdev, bo);
 }

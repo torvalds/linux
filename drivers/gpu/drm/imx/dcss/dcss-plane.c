@@ -137,11 +137,11 @@ static bool dcss_plane_is_source_size_allowed(u16 src_w, u16 src_h, u32 pix_fmt)
 }
 
 static int dcss_plane_atomic_check(struct drm_plane *plane,
-				   struct drm_plane_state *state)
+				   struct drm_plane_state *new_plane_state)
 {
 	struct dcss_plane *dcss_plane = to_dcss_plane(plane);
 	struct dcss_dev *dcss = plane->dev->dev_private;
-	struct drm_framebuffer *fb = state->fb;
+	struct drm_framebuffer *fb = new_plane_state->fb;
 	bool is_primary_plane = plane->type == DRM_PLANE_TYPE_PRIMARY;
 	struct drm_gem_cma_object *cma_obj;
 	struct drm_crtc_state *crtc_state;
@@ -149,20 +149,20 @@ static int dcss_plane_atomic_check(struct drm_plane *plane,
 	int min, max;
 	int ret;
 
-	if (!fb || !state->crtc)
+	if (!fb || !new_plane_state->crtc)
 		return 0;
 
 	cma_obj = drm_fb_cma_get_gem_obj(fb, 0);
 	WARN_ON(!cma_obj);
 
-	crtc_state = drm_atomic_get_existing_crtc_state(state->state,
-							state->crtc);
+	crtc_state = drm_atomic_get_existing_crtc_state(new_plane_state->state,
+							new_plane_state->crtc);
 
 	hdisplay = crtc_state->adjusted_mode.hdisplay;
 	vdisplay = crtc_state->adjusted_mode.vdisplay;
 
-	if (!dcss_plane_is_source_size_allowed(state->src_w >> 16,
-					       state->src_h >> 16,
+	if (!dcss_plane_is_source_size_allowed(new_plane_state->src_w >> 16,
+					       new_plane_state->src_h >> 16,
 					       fb->format->format)) {
 		DRM_DEBUG_KMS("Source plane size is not allowed!\n");
 		return -EINVAL;
@@ -171,26 +171,26 @@ static int dcss_plane_atomic_check(struct drm_plane *plane,
 	dcss_scaler_get_min_max_ratios(dcss->scaler, dcss_plane->ch_num,
 				       &min, &max);
 
-	ret = drm_atomic_helper_check_plane_state(state, crtc_state,
+	ret = drm_atomic_helper_check_plane_state(new_plane_state, crtc_state,
 						  min, max, !is_primary_plane,
 						  false);
 	if (ret)
 		return ret;
 
-	if (!state->visible)
+	if (!new_plane_state->visible)
 		return 0;
 
 	if (!dcss_plane_can_rotate(fb->format,
 				   !!(fb->flags & DRM_MODE_FB_MODIFIERS),
 				   fb->modifier,
-				   state->rotation)) {
+				   new_plane_state->rotation)) {
 		DRM_DEBUG_KMS("requested rotation is not allowed!\n");
 		return -EINVAL;
 	}
 
-	if ((state->crtc_x < 0 || state->crtc_y < 0 ||
-	     state->crtc_x + state->crtc_w > hdisplay ||
-	     state->crtc_y + state->crtc_h > vdisplay) &&
+	if ((new_plane_state->crtc_x < 0 || new_plane_state->crtc_y < 0 ||
+	     new_plane_state->crtc_x + new_plane_state->crtc_w > hdisplay ||
+	     new_plane_state->crtc_y + new_plane_state->crtc_h > vdisplay) &&
 	    !dcss_plane_fb_is_linear(fb)) {
 		DRM_DEBUG_KMS("requested cropping operation is not allowed!\n");
 		return -EINVAL;

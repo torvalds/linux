@@ -336,25 +336,25 @@ static void tegra_dc_remove_shared_plane(struct tegra_dc *dc,
 }
 
 static int tegra_shared_plane_atomic_check(struct drm_plane *plane,
-					   struct drm_plane_state *state)
+					   struct drm_plane_state *new_plane_state)
 {
-	struct tegra_plane_state *plane_state = to_tegra_plane_state(state);
+	struct tegra_plane_state *plane_state = to_tegra_plane_state(new_plane_state);
 	struct tegra_shared_plane *tegra = to_tegra_shared_plane(plane);
 	struct tegra_bo_tiling *tiling = &plane_state->tiling;
-	struct tegra_dc *dc = to_tegra_dc(state->crtc);
+	struct tegra_dc *dc = to_tegra_dc(new_plane_state->crtc);
 	int err;
 
 	/* no need for further checks if the plane is being disabled */
-	if (!state->crtc || !state->fb)
+	if (!new_plane_state->crtc || !new_plane_state->fb)
 		return 0;
 
-	err = tegra_plane_format(state->fb->format->format,
+	err = tegra_plane_format(new_plane_state->fb->format->format,
 				 &plane_state->format,
 				 &plane_state->swap);
 	if (err < 0)
 		return err;
 
-	err = tegra_fb_get_tiling(state->fb, tiling);
+	err = tegra_fb_get_tiling(new_plane_state->fb, tiling);
 	if (err < 0)
 		return err;
 
@@ -369,8 +369,8 @@ static int tegra_shared_plane_atomic_check(struct drm_plane *plane,
 	 * error out if the user tries to display a framebuffer with such a
 	 * configuration.
 	 */
-	if (state->fb->format->num_planes > 2) {
-		if (state->fb->pitches[2] != state->fb->pitches[1]) {
+	if (new_plane_state->fb->format->num_planes > 2) {
+		if (new_plane_state->fb->pitches[2] != new_plane_state->fb->pitches[1]) {
 			DRM_ERROR("unsupported UV-plane configuration\n");
 			return -EINVAL;
 		}
@@ -378,7 +378,7 @@ static int tegra_shared_plane_atomic_check(struct drm_plane *plane,
 
 	/* XXX scaling is not yet supported, add a check here */
 
-	err = tegra_plane_state_add(&tegra->base, state);
+	err = tegra_plane_state_add(&tegra->base, new_plane_state);
 	if (err < 0)
 		return err;
 

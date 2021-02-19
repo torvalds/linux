@@ -749,9 +749,9 @@ static const struct drm_crtc_funcs ltdc_crtc_funcs = {
  */
 
 static int ltdc_plane_atomic_check(struct drm_plane *plane,
-				   struct drm_plane_state *state)
+				   struct drm_plane_state *new_plane_state)
 {
-	struct drm_framebuffer *fb = state->fb;
+	struct drm_framebuffer *fb = new_plane_state->fb;
 	u32 src_w, src_h;
 
 	DRM_DEBUG_DRIVER("\n");
@@ -760,11 +760,11 @@ static int ltdc_plane_atomic_check(struct drm_plane *plane,
 		return 0;
 
 	/* convert src_ from 16:16 format */
-	src_w = state->src_w >> 16;
-	src_h = state->src_h >> 16;
+	src_w = new_plane_state->src_w >> 16;
+	src_h = new_plane_state->src_h >> 16;
 
 	/* Reject scaling */
-	if (src_w != state->crtc_w || src_h != state->crtc_h) {
+	if (src_w != new_plane_state->crtc_w || src_h != new_plane_state->crtc_h) {
 		DRM_ERROR("Scaling is not supported");
 		return -EINVAL;
 	}

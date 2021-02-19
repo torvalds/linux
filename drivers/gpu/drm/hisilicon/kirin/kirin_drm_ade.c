@@ -757,19 +757,19 @@ static void ade_disable_channel(struct kirin_plane *kplane)
 }
 
 static int ade_plane_atomic_check(struct drm_plane *plane,
-				  struct drm_plane_state *state)
+				  struct drm_plane_state *new_plane_state)
 {
-	struct drm_framebuffer *fb = state->fb;
-	struct drm_crtc *crtc = state->crtc;
+	struct drm_framebuffer *fb = new_plane_state->fb;
+	struct drm_crtc *crtc = new_plane_state->crtc;
 	struct drm_crtc_state *crtc_state;
-	u32 src_x = state->src_x >> 16;
-	u32 src_y = state->src_y >> 16;
-	u32 src_w = state->src_w >> 16;
-	u32 src_h = state->src_h >> 16;
-	int crtc_x = state->crtc_x;
-	int crtc_y = state->crtc_y;
-	u32 crtc_w = state->crtc_w;
-	u32 crtc_h = state->crtc_h;
+	u32 src_x = new_plane_state->src_x >> 16;
+	u32 src_y = new_plane_state->src_y >> 16;
+	u32 src_w = new_plane_state->src_w >> 16;
+	u32 src_h = new_plane_state->src_h >> 16;
+	int crtc_x = new_plane_state->crtc_x;
+	int crtc_y = new_plane_state->crtc_y;
+	u32 crtc_w = new_plane_state->crtc_w;
+	u32 crtc_h = new_plane_state->crtc_h;
 	u32 fmt;
 
 	if (!crtc || !fb)
@@ -779,7 +779,7 @@ static int ade_plane_atomic_check(struct drm_plane *plane,
 	if (fmt == ADE_FORMAT_UNSUPPORT)
 		return -EINVAL;
 
-	crtc_state = drm_atomic_get_crtc_state(state->state, crtc);
+	crtc_state = drm_atomic_get_crtc_state(new_plane_state->state, crtc);
 	if (IS_ERR(crtc_state))
 		return PTR_ERR(crtc_state);
 

@@ -950,44 +950,45 @@ static bool dpu_plane_validate_src(struct drm_rect *src,
 }
 
 static int dpu_plane_atomic_check(struct drm_plane *plane,
-				  struct drm_plane_state *state)
+				  struct drm_plane_state *new_plane_state)
 {
 	int ret = 0, min_scale;
 	struct dpu_plane *pdpu = to_dpu_plane(plane);
-	struct dpu_plane_state *pstate = to_dpu_plane_state(state);
+	struct dpu_plane_state *pstate = to_dpu_plane_state(new_plane_state);
 	const struct drm_crtc_state *crtc_state = NULL;
 	const struct dpu_format *fmt;
 	struct drm_rect src, dst, fb_rect = { 0 };
 	uint32_t min_src_size, max_linewidth;
 
-	if (state->crtc)
-		crtc_state = drm_atomic_get_new_crtc_state(state->state,
-							   state->crtc);
+	if (new_plane_state->crtc)
+		crtc_state = drm_atomic_get_new_crtc_state(new_plane_state->state,
+							   new_plane_state->crtc);
 
 	min_scale = FRAC_16_16(1, pdpu->pipe_sblk->maxupscale);
-	ret = drm_atomic_helper_check_plane_state(state, crtc_state, min_scale,
-					  pdpu->pipe_sblk->maxdwnscale << 16,
-					  true, true);
+	ret = drm_atomic_helper_check_plane_state(new_plane_state, crtc_state,
+						  min_scale,
+						  pdpu->pipe_sblk->maxdwnscale << 16,
+						  true, true);
 	if (ret) {
 		DPU_DEBUG_PLANE(pdpu, "Check plane state failed (%d)\n", ret);
 		return ret;
 	}
-	if (!state->visible)
+	if (!new_plane_state->visible)
 		return 0;
 
-	src.x1 = state->src_x >> 16;
-	src.y1 = state->src_y >> 16;
-	src.x2 = src.x1 + (state->src_w >> 16);
-	src.y2 = src.y1 + (state->src_h >> 16);
+	src.x1 = new_plane_state->src_x >> 16;
+	src.y1 = new_plane_state->src_y >> 16;
+	src.x2 = src.x1 + (new_plane_state->src_w >> 16);
+	src.y2 = src.y1 + (new_plane_state->src_h >> 16);
 
-	dst = drm_plane_state_dest(state);
+	dst = drm_plane_state_dest(new_plane_state);
 
-	fb_rect.x2 = state->fb->width;
-	fb_rect.y2 = state->fb->height;
+	fb_rect.x2 = new_plane_state->fb->width;
+	fb_rect.y2 = new_plane_state->fb->height;
 
 	max_linewidth = pdpu->catalog->caps->max_linewidth;
 
-	fmt = to_dpu_format(msm_framebuffer_format(state->fb));
+	fmt = to_dpu_format(msm_framebuffer_format(new_plane_state->fb));
 
 	min_src_size = DPU_FORMAT_IS_YUV(fmt) ? 2 : 1;
 

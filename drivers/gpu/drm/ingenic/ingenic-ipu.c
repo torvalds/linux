@@ -514,49 +514,49 @@ static void ingenic_ipu_plane_atomic_update(struct drm_plane *plane,
 }
 
 static int ingenic_ipu_plane_atomic_check(struct drm_plane *plane,
-					  struct drm_plane_state *state)
+					  struct drm_plane_state *new_plane_state)
 {
 	unsigned int num_w, denom_w, num_h, denom_h, xres, yres, max_w, max_h;
 	struct ingenic_ipu *ipu = plane_to_ingenic_ipu(plane);
-	struct drm_crtc *crtc = state->crtc ?: plane->state->crtc;
+	struct drm_crtc *crtc = new_plane_state->crtc ?: plane->state->crtc;
 	struct drm_crtc_state *crtc_state;
 
 	if (!crtc)
 		return 0;
 
-	crtc_state = drm_atomic_get_existing_crtc_state(state->state, crtc);
+	crtc_state = drm_atomic_get_existing_crtc_state(new_plane_state->state, crtc);
 	if (WARN_ON(!crtc_state))
 		return -EINVAL;
 
 	/* Request a full modeset if we are enabling or disabling the IPU. */
-	if (!plane->state->crtc ^ !state->crtc)
+	if (!plane->state->crtc ^ !new_plane_state->crtc)
 		crtc_state->mode_changed = true;
 
-	if (!state->crtc ||
+	if (!new_plane_state->crtc ||
 	    !crtc_state->mode.hdisplay || !crtc_state->mode.vdisplay)
 		return 0;
 
 	/* Plane must be fully visible */
-	if (state->crtc_x < 0 || state->crtc_y < 0 ||
-	    state->crtc_x + state->crtc_w > crtc_state->mode.hdisplay ||
-	    state->crtc_y + state->crtc_h > crtc_state->mode.vdisplay)
+	if (new_plane_state->crtc_x < 0 || new_plane_state->crtc_y < 0 ||
+	    new_plane_state->crtc_x + new_plane_state->crtc_w > crtc_state->mode.hdisplay ||
+	    new_plane_state->crtc_y + new_plane_state->crtc_h > crtc_state->mode.vdisplay)
 		return -EINVAL;
 
 	/* Minimum size is 4x4 */
-	if ((state->src_w >> 16) < 4 || (state->src_h >> 16) < 4)
+	if ((new_plane_state->src_w >> 16) < 4 || (new_plane_state->src_h >> 16) < 4)
 		return -EINVAL;
 
 	/* Input and output lines must have an even number of pixels. */
-	if (((state->src_w >> 16) & 1) || (state->crtc_w & 1))
+	if (((new_plane_state->src_w >> 16) & 1) || (new_plane_state->crtc_w & 1))
 		return -EINVAL;
 
-	if (!osd_changed(state, plane->state))
+	if (!osd_changed(new_plane_state, plane->state))
 		return 0;
 
 	crtc_state->mode_changed = true;
 
-	xres = state->src_w >> 16;
-	yres = state->src_h >> 16;
+	xres = new_plane_state->src_w >> 16;
+	yres = new_plane_state->src_h >> 16;
 
 	/*
 	 * Increase the scaled image's theorical width/height until we find a
@@ -568,13 +568,13 @@ static int ingenic_ipu_plane_atomic_check(struct drm_plane *plane,
 	max_w = crtc_state->mode.hdisplay * 102 / 100;
 	max_h = crtc_state->mode.vdisplay * 102 / 100;
 
-	for (denom_w = xres, num_w = state->crtc_w; num_w <= max_w; num_w++)
+	for (denom_w = xres, num_w = new_plane_state->crtc_w; num_w <= max_w; num_w++)
 		if (!reduce_fraction(&num_w, &denom_w))
 			break;
 	if (num_w > max_w)
 		return -EINVAL;
 
-	for (denom_h = yres, num_h = state->crtc_h; num_h <= max_h; num_h++)
+	for (denom_h = yres, num_h = new_plane_state->crtc_h; num_h <= max_h; num_h++)
 		if (!reduce_fraction(&num_h, &denom_h))
 			break;
 	if (num_h > max_h)

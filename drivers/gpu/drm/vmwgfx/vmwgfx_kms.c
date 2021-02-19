@@ -437,22 +437,23 @@ vmw_du_cursor_plane_atomic_update(struct drm_plane *plane,
  * Returns 0 on success
  */
 int vmw_du_primary_plane_atomic_check(struct drm_plane *plane,
-				      struct drm_plane_state *state)
+				      struct drm_plane_state *new_state)
 {
 	struct drm_crtc_state *crtc_state = NULL;
-	struct drm_framebuffer *new_fb = state->fb;
+	struct drm_framebuffer *new_fb = new_state->fb;
 	int ret;
 
-	if (state->crtc)
-		crtc_state = drm_atomic_get_new_crtc_state(state->state, state->crtc);
+	if (new_state->crtc)
+		crtc_state = drm_atomic_get_new_crtc_state(new_state->state,
+							   new_state->crtc);
 
-	ret = drm_atomic_helper_check_plane_state(state, crtc_state,
+	ret = drm_atomic_helper_check_plane_state(new_state, crtc_state,
 						  DRM_PLANE_HELPER_NO_SCALING,
 						  DRM_PLANE_HELPER_NO_SCALING,
 						  false, true);
 
 	if (!ret && new_fb) {
-		struct drm_crtc *crtc = state->crtc;
+		struct drm_crtc *crtc = new_state->crtc;
 		struct vmw_display_unit *du = vmw_crtc_to_du(crtc);
 
 		vmw_connector_state_to_vcs(du->connector.state);

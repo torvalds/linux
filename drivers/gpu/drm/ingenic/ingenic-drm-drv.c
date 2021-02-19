@@ -360,21 +360,22 @@ static void ingenic_drm_crtc_atomic_flush(struct drm_crtc *crtc,
 }
 
 static int ingenic_drm_plane_atomic_check(struct drm_plane *plane,
-					  struct drm_plane_state *state)
+					  struct drm_plane_state *new_plane_state)
 {
 	struct ingenic_drm *priv = drm_device_get_priv(plane->dev);
 	struct drm_crtc_state *crtc_state;
-	struct drm_crtc *crtc = state->crtc ?: plane->state->crtc;
+	struct drm_crtc *crtc = new_plane_state->crtc ?: plane->state->crtc;
 	int ret;
 
 	if (!crtc)
 		return 0;
 
-	crtc_state = drm_atomic_get_existing_crtc_state(state->state, crtc);
+	crtc_state = drm_atomic_get_existing_crtc_state(new_plane_state->state,
+							crtc);
 	if (WARN_ON(!crtc_state))
 		return -EINVAL;
 
-	ret = drm_atomic_helper_check_plane_state(state, crtc_state,
+	ret = drm_atomic_helper_check_plane_state(new_plane_state, crtc_state,
 						  DRM_PLANE_HELPER_NO_SCALING,
 						  DRM_PLANE_HELPER_NO_SCALING,
 						  priv->soc_info->has_osd,
@@ -387,9 +388,9 @@ static int ingenic_drm_plane_atomic_check(struct drm_plane *plane,
 	 * Note that state->src_* are in 16.16 fixed-point format.
 	 */
 	if (!priv->soc_info->has_osd &&
-	    (state->src_x != 0 ||
-	     (state->src_w >> 16) != state->crtc_w ||
-	     (state->src_h >> 16) != state->crtc_h))
+	    (new_plane_state->src_x != 0 ||
+	     (new_plane_state->src_w >> 16) != new_plane_state->crtc_w ||
+	     (new_plane_state->src_h >> 16) != new_plane_state->crtc_h))
 		return -EINVAL;
 
 	/*
@@ -397,12 +398,12 @@ static int ingenic_drm_plane_atomic_check(struct drm_plane *plane,
 	 * its position, size or depth.
 	 */
 	if (priv->soc_info->has_osd &&
-	    (!plane->state->fb || !state->fb ||
-	     plane->state->crtc_x != state->crtc_x ||
-	     plane->state->crtc_y != state->crtc_y ||
-	     plane->state->crtc_w != state->crtc_w ||
-	     plane->state->crtc_h != state->crtc_h ||
-	     plane->state->fb->format->format != state->fb->format->format))
+	    (!plane->state->fb || !new_plane_state->fb ||
+	     plane->state->crtc_x != new_plane_state->crtc_x ||
+	     plane->state->crtc_y != new_plane_state->crtc_y ||
+	     plane->state->crtc_w != new_plane_state->crtc_w ||
+	     plane->state->crtc_h != new_plane_state->crtc_h ||
+	     plane->state->fb->format->format != new_plane_state->fb->format->format))
 		crtc_state->mode_changed = true;
 
 	return 0;

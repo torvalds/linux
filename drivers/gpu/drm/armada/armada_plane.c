@@ -106,50 +106,53 @@ void armada_drm_plane_cleanup_fb(struct drm_plane *plane,
 }
 
 int armada_drm_plane_atomic_check(struct drm_plane *plane,
-	struct drm_plane_state *state)
+	struct drm_plane_state *new_plane_state)
 {
-	struct armada_plane_state *st = to_armada_plane_state(state);
-	struct drm_crtc *crtc = state->crtc;
+	struct armada_plane_state *st = to_armada_plane_state(new_plane_state);
+	struct drm_crtc *crtc = new_plane_state->crtc;
 	struct drm_crtc_state *crtc_state;
 	bool interlace;
 	int ret;
 
-	if (!state->fb || WARN_ON(!state->crtc)) {
-		state->visible = false;
+	if (!new_plane_state->fb || WARN_ON(!new_plane_state->crtc)) {
+		new_plane_state->visible = false;
 		return 0;
 	}
 
-	if (state->state)
-		crtc_state = drm_atomic_get_existing_crtc_state(state->state, crtc);
+	if (new_plane_state->state)
+		crtc_state = drm_atomic_get_existing_crtc_state(new_plane_state->state,
+								crtc);
 	else
 		crtc_state = crtc->state;
 
-	ret = drm_atomic_helper_check_plane_state(state, crtc_state, 0,
+	ret = drm_atomic_helper_check_plane_state(new_plane_state, crtc_state,
+						  0,
 						  INT_MAX, true, false);
 	if (ret)
 		return ret;
 
 	interlace = crtc_state->adjusted_mode.flags & DRM_MODE_FLAG_INTERLACE;
 	if (interlace) {
-		if ((state->dst.y1 | state->dst.y2) & 1)
+		if ((new_plane_state->dst.y1 | new_plane_state->dst.y2) & 1)
 			return -EINVAL;
-		st->src_hw = drm_rect_height(&state->src) >> 17;
-		st->dst_yx = state->dst.y1 >> 1;
-		st->dst_hw = drm_rect_height(&state->dst) >> 1;
+		st->src_hw = drm_rect_height(&new_plane_state->src) >> 17;
+		st->dst_yx = new_plane_state->dst.y1 >> 1;
+		st->dst_hw = drm_rect_height(&new_plane_state->dst) >> 1;
 	} else {
-		st->src_hw = drm_rect_height(&state->src) >> 16;
-		st->dst_yx = state->dst.y1;
-		st->dst_hw = drm_rect_height(&state->dst);
+		st->src_hw = drm_rect_height(&new_plane_state->src) >> 16;
+		st->dst_yx = new_plane_state->dst.y1;
+		st->dst_hw = drm_rect_height(&new_plane_state->dst);
 	}
 
 	st->src_hw <<= 16;
-	st->src_hw |= drm_rect_width(&state->src) >> 16;
+	st->src_hw |= drm_rect_width(&new_plane_state->src) >> 16;
 	st->dst_yx <<= 16;
-	st->dst_yx |= state->dst.x1 & 0x0000ffff;
+	st->dst_yx |= new_plane_state->dst.x1 & 0x0000ffff;
 	st->dst_hw <<= 16;
-	st->dst_hw |= drm_rect_width(&state->dst) & 0x0000ffff;
+	st->dst_hw |= drm_rect_width(&new_plane_state->dst) & 0x0000ffff;
 
-	armada_drm_plane_calc(state, st->addrs, st->pitches, interlace);
+	armada_drm_plane_calc(new_plane_state, st->addrs, st->pitches,
+			      interlace);
 	st->interlace = interlace;
 
 	return 0;

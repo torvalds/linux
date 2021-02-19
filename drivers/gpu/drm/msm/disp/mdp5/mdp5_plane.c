@@ -404,20 +404,21 @@ static int mdp5_plane_atomic_check_with_state(struct drm_crtc_state *crtc_state,
 }
 
 static int mdp5_plane_atomic_check(struct drm_plane *plane,
-				   struct drm_plane_state *state)
+				   struct drm_plane_state *new_plane_state)
 {
 	struct drm_crtc *crtc;
 	struct drm_crtc_state *crtc_state;
 
-	crtc = state->crtc ? state->crtc : plane->state->crtc;
+	crtc = new_plane_state->crtc ? new_plane_state->crtc : plane->state->crtc;
 	if (!crtc)
 		return 0;
 
-	crtc_state = drm_atomic_get_existing_crtc_state(state->state, crtc);
+	crtc_state = drm_atomic_get_existing_crtc_state(new_plane_state->state,
+							crtc);
 	if (WARN_ON(!crtc_state))
 		return -EINVAL;
 
-	return mdp5_plane_atomic_check_with_state(crtc_state, state);
+	return mdp5_plane_atomic_check_with_state(crtc_state, new_plane_state);
 }
 
 static void mdp5_plane_atomic_update(struct drm_plane *plane,

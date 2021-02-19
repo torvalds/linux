@@ -33,11 +33,11 @@ static int fsl_dcu_drm_plane_index(struct drm_plane *plane)
 }
 
 static int fsl_dcu_drm_plane_atomic_check(struct drm_plane *plane,
-					  struct drm_plane_state *state)
+					  struct drm_plane_state *new_plane_state)
 {
-	struct drm_framebuffer *fb = state->fb;
+	struct drm_framebuffer *fb = new_plane_state->fb;
 
-	if (!state->fb || !state->crtc)
+	if (!new_plane_state->fb || !new_plane_state->crtc)
 		return 0;
 
 	switch (fb->format->format) {

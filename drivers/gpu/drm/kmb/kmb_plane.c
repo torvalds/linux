@@ -77,32 +77,34 @@ static unsigned int check_pixel_format(struct drm_plane *plane, u32 format)
 }
 
 static int kmb_plane_atomic_check(struct drm_plane *plane,
-				  struct drm_plane_state *state)
+				  struct drm_plane_state *new_plane_state)
 {
 	struct drm_framebuffer *fb;
 	int ret;
 	struct drm_crtc_state *crtc_state;
 	bool can_position;
 
-	fb = state->fb;
-	if (!fb || !state->crtc)
+	fb = new_plane_state->fb;
+	if (!fb || !new_plane_state->crtc)
 		return 0;
 
 	ret = check_pixel_format(plane, fb->format->format);
 	if (ret)
 		return ret;
 
-	if (state->crtc_w > KMB_MAX_WIDTH || state->crtc_h > KMB_MAX_HEIGHT)
+	if (new_plane_state->crtc_w > KMB_MAX_WIDTH || new_plane_state->crtc_h > KMB_MAX_HEIGHT)
 		return -EINVAL;
-	if (state->crtc_w < KMB_MIN_WIDTH || state->crtc_h < KMB_MIN_HEIGHT)
+	if (new_plane_state->crtc_w < KMB_MIN_WIDTH || new_plane_state->crtc_h < KMB_MIN_HEIGHT)
 		return -EINVAL;
 	can_position = (plane->type == DRM_PLANE_TYPE_OVERLAY);
 	crtc_state =
-		drm_atomic_get_existing_crtc_state(state->state, state->crtc);
-	return drm_atomic_helper_check_plane_state(state, crtc_state,
-						 DRM_PLANE_HELPER_NO_SCALING,
-						 DRM_PLANE_HELPER_NO_SCALING,
-						 can_position, true);
+		drm_atomic_get_existing_crtc_state(new_plane_state->state,
+						   new_plane_state->crtc);
+	return drm_atomic_helper_check_plane_state(new_plane_state,
+						   crtc_state,
+						   DRM_PLANE_HELPER_NO_SCALING,
+						   DRM_PLANE_HELPER_NO_SCALING,
+						   can_position, true);
 }
 
 static void kmb_plane_atomic_disable(struct drm_plane *plane,

@@ -115,23 +115,24 @@ static void vkms_plane_atomic_update(struct drm_plane *plane,
 }
 
 static int vkms_plane_atomic_check(struct drm_plane *plane,
-				   struct drm_plane_state *state)
+				   struct drm_plane_state *new_plane_state)
 {
 	struct drm_crtc_state *crtc_state;
 	bool can_position = false;
 	int ret;
 
-	if (!state->fb || WARN_ON(!state->crtc))
+	if (!new_plane_state->fb || WARN_ON(!new_plane_state->crtc))
 		return 0;
 
-	crtc_state = drm_atomic_get_crtc_state(state->state, state->crtc);
+	crtc_state = drm_atomic_get_crtc_state(new_plane_state->state,
+					       new_plane_state->crtc);
 	if (IS_ERR(crtc_state))
 		return PTR_ERR(crtc_state);
 
 	if (plane->type == DRM_PLANE_TYPE_CURSOR)
 		can_position = true;
 
-	ret = drm_atomic_helper_check_plane_state(state, crtc_state,
+	ret = drm_atomic_helper_check_plane_state(new_plane_state, crtc_state,
 						  DRM_PLANE_HELPER_NO_SCALING,
 						  DRM_PLANE_HELPER_NO_SCALING,
 						  can_position, true);
@@ -139,7 +140,7 @@ static int vkms_plane_atomic_check(struct drm_plane *plane,
 		return ret;
 
 	/* for now primary plane must be visible and full screen */
-	if (!state->visible && !can_position)
+	if (!new_plane_state->visible && !can_position)
 		return -EINVAL;
 
 	return 0;

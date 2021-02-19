@@ -604,23 +604,23 @@ static const u64 tegra124_modifiers[] = {
 };
 
 static int tegra_plane_atomic_check(struct drm_plane *plane,
-				    struct drm_plane_state *state)
+				    struct drm_plane_state *new_plane_state)
 {
-	struct tegra_plane_state *plane_state = to_tegra_plane_state(state);
+	struct tegra_plane_state *plane_state = to_tegra_plane_state(new_plane_state);
 	unsigned int supported_rotation = DRM_MODE_ROTATE_0 |
 					  DRM_MODE_REFLECT_X |
 					  DRM_MODE_REFLECT_Y;
-	unsigned int rotation = state->rotation;
+	unsigned int rotation = new_plane_state->rotation;
 	struct tegra_bo_tiling *tiling = &plane_state->tiling;
 	struct tegra_plane *tegra = to_tegra_plane(plane);
-	struct tegra_dc *dc = to_tegra_dc(state->crtc);
+	struct tegra_dc *dc = to_tegra_dc(new_plane_state->crtc);
 	int err;
 
 	/* no need for further checks if the plane is being disabled */
-	if (!state->crtc)
+	if (!new_plane_state->crtc)
 		return 0;
 
-	err = tegra_plane_format(state->fb->format->format,
+	err = tegra_plane_format(new_plane_state->fb->format->format,
 				 &plane_state->format,
 				 &plane_state->swap);
 	if (err < 0)
@@ -638,7 +638,7 @@ static int tegra_plane_atomic_check(struct drm_plane *plane,
 			return err;
 	}
 
-	err = tegra_fb_get_tiling(state->fb, tiling);
+	err = tegra_fb_get_tiling(new_plane_state->fb, tiling);
 	if (err < 0)
 		return err;
 
@@ -654,7 +654,7 @@ static int tegra_plane_atomic_check(struct drm_plane *plane,
 	 * property in order to achieve the same result.  The legacy BO flag
 	 * duplicates the DRM rotation property when both are set.
 	 */
-	if (tegra_fb_is_bottom_up(state->fb))
+	if (tegra_fb_is_bottom_up(new_plane_state->fb))
 		rotation |= DRM_MODE_REFLECT_Y;
 
 	rotation = drm_rotation_simplify(rotation, supported_rotation);
@@ -674,14 +674,14 @@ static int tegra_plane_atomic_check(struct drm_plane *plane,
 	 * error out if the user tries to display a framebuffer with such a
 	 * configuration.
 	 */
-	if (state->fb->format->num_planes > 2) {
-		if (state->fb->pitches[2] != state->fb->pitches[1]) {
+	if (new_plane_state->fb->format->num_planes > 2) {
+		if (new_plane_state->fb->pitches[2] != new_plane_state->fb->pitches[1]) {
 			DRM_ERROR("unsupported UV-plane configuration\n");
 			return -EINVAL;
 		}
 	}
 
-	err = tegra_plane_state_add(tegra, state);
+	err = tegra_plane_state_add(tegra, new_plane_state);
 	if (err < 0)
 		return err;
 
@@ -831,29 +831,29 @@ static const u32 tegra_cursor_plane_formats[] = {
 };
 
 static int tegra_cursor_atomic_check(struct drm_plane *plane,
-				     struct drm_plane_state *state)
+				     struct drm_plane_state *new_plane_state)
 {
 	struct tegra_plane *tegra = to_tegra_plane(plane);
 	int err;
 
 	/* no need for further checks if the plane is being disabled */
-	if (!state->crtc)
+	if (!new_plane_state->crtc)
 		return 0;
 
 	/* scaling not supported for cursor */
-	if ((state->src_w >> 16 != state->crtc_w) ||
-	    (state->src_h >> 16 != state->crtc_h))
+	if ((new_plane_state->src_w >> 16 != new_plane_state->crtc_w) ||
+	    (new_plane_state->src_h >> 16 != new_plane_state->crtc_h))
 		return -EINVAL;
 
 	/* only square cursors supported */
-	if (state->src_w != state->src_h)
+	if (new_plane_state->src_w != new_plane_state->src_h)
 		return -EINVAL;
 
-	if (state->crtc_w != 32 && state->crtc_w != 64 &&
-	    state->crtc_w != 128 && state->crtc_w != 256)
+	if (new_plane_state->crtc_w != 32 && new_plane_state->crtc_w != 64 &&
+	    new_plane_state->crtc_w != 128 && new_plane_state->crtc_w != 256)
 		return -EINVAL;
 
-	err = tegra_plane_state_add(tegra, state);
+	err = tegra_plane_state_add(tegra, new_plane_state);
 	if (err < 0)
 		return err;
 

@@ -779,11 +779,11 @@ static bool rockchip_mod_supported(struct drm_plane *plane,
 }
 
 static int vop_plane_atomic_check(struct drm_plane *plane,
-			   struct drm_plane_state *state)
+			   struct drm_plane_state *new_plane_state)
 {
-	struct drm_crtc *crtc = state->crtc;
+	struct drm_crtc *crtc = new_plane_state->crtc;
 	struct drm_crtc_state *crtc_state;
-	struct drm_framebuffer *fb = state->fb;
+	struct drm_framebuffer *fb = new_plane_state->fb;
 	struct vop_win *vop_win = to_vop_win(plane);
 	const struct vop_win_data *win = vop_win->data;
 	int ret;
@@ -795,17 +795,18 @@ static int vop_plane_atomic_check(struct drm_plane *plane,
 	if (!crtc || WARN_ON(!fb))
 		return 0;
 
-	crtc_state = drm_atomic_get_existing_crtc_state(state->state, crtc);
+	crtc_state = drm_atomic_get_existing_crtc_state(new_plane_state->state,
+							crtc);
 	if (WARN_ON(!crtc_state))
 		return -EINVAL;
 
-	ret = drm_atomic_helper_check_plane_state(state, crtc_state,
+	ret = drm_atomic_helper_check_plane_state(new_plane_state, crtc_state,
 						  min_scale, max_scale,
 						  true, true);
 	if (ret)
 		return ret;
 
-	if (!state->visible)
+	if (!new_plane_state->visible)
 		return 0;
 
 	ret = vop_convert_format(fb->format->format);
@@ -816,12 +817,12 @@ static int vop_plane_atomic_check(struct drm_plane *plane,
 	 * Src.x1 can be odd when do clip, but yuv plane start point
 	 * need align with 2 pixel.
 	 */
-	if (fb->format->is_yuv && ((state->src.x1 >> 16) % 2)) {
+	if (fb->format->is_yuv && ((new_plane_state->src.x1 >> 16) % 2)) {
 		DRM_ERROR("Invalid Source: Yuv format not support odd xpos\n");
 		return -EINVAL;
 	}
 
-	if (fb->format->is_yuv && state->rotation & DRM_MODE_REFLECT_Y) {
+	if (fb->format->is_yuv && new_plane_state->rotation & DRM_MODE_REFLECT_Y) {
 		DRM_ERROR("Invalid Source: Yuv format does not support this rotation\n");
 		return -EINVAL;
 	}
@@ -838,14 +839,16 @@ static int vop_plane_atomic_check(struct drm_plane *plane,
 		if (ret < 0)
 			return ret;
 
-		if (state->src.x1 || state->src.y1) {
-			DRM_ERROR("AFBC does not support offset display, xpos=%d, ypos=%d, offset=%d\n", state->src.x1, state->src.y1, fb->offsets[0]);
+		if (new_plane_state->src.x1 || new_plane_state->src.y1) {
+			DRM_ERROR("AFBC does not support offset display, xpos=%d, ypos=%d, offset=%d\n",
+				  new_plane_state->src.x1,
+				  new_plane_state->src.y1, fb->offsets[0]);
 			return -EINVAL;
 		}
 
-		if (state->rotation && state->rotation != DRM_MODE_ROTATE_0) {
+		if (new_plane_state->rotation && new_plane_state->rotation != DRM_MODE_ROTATE_0) {
 			DRM_ERROR("No rotation support in AFBC, rotation=%d\n",
-				  state->rotation);
+				  new_plane_state->rotation);
 			return -EINVAL;
 		}
 	}

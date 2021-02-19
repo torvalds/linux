@@ -229,12 +229,12 @@ static const struct drm_crtc_helper_funcs hdlcd_crtc_helper_funcs = {
 };
 
 static int hdlcd_plane_atomic_check(struct drm_plane *plane,
-				    struct drm_plane_state *state)
+				    struct drm_plane_state *new_plane_state)
 {
 	int i;
 	struct drm_crtc *crtc;
 	struct drm_crtc_state *crtc_state;
-	u32 src_h = state->src_h >> 16;
+	u32 src_h = new_plane_state->src_h >> 16;
 
 	/* only the HDLCD_REG_FB_LINE_COUNT register has a limit */
 	if (src_h >= HDLCD_MAX_YRES) {
@@ -242,14 +242,16 @@ static int hdlcd_plane_atomic_check(struct drm_plane *plane,
 		return -EINVAL;
 	}
 
-	for_each_new_crtc_in_state(state->state, crtc, crtc_state, i) {
+	for_each_new_crtc_in_state(new_plane_state->state, crtc, crtc_state,
+				   i) {
 		/* we cannot disable the plane while the CRTC is active */
-		if (!state->fb && crtc_state->active)
+		if (!new_plane_state->fb && crtc_state->active)
 			return -EINVAL;
-		return drm_atomic_helper_check_plane_state(state, crtc_state,
-						DRM_PLANE_HELPER_NO_SCALING,
-						DRM_PLANE_HELPER_NO_SCALING,
-						false, true);
+		return drm_atomic_helper_check_plane_state(new_plane_state,
+							   crtc_state,
+							   DRM_PLANE_HELPER_NO_SCALING,
+							   DRM_PLANE_HELPER_NO_SCALING,
+							   false, true);
 	}
 
 	return 0;

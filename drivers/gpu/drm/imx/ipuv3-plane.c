@@ -337,12 +337,12 @@ static const struct drm_plane_funcs ipu_plane_funcs = {
 };
 
 static int ipu_plane_atomic_check(struct drm_plane *plane,
-				  struct drm_plane_state *state)
+				  struct drm_plane_state *new_state)
 {
 	struct drm_plane_state *old_state = plane->state;
 	struct drm_crtc_state *crtc_state;
 	struct device *dev = plane->dev->dev;
-	struct drm_framebuffer *fb = state->fb;
+	struct drm_framebuffer *fb = new_state->fb;
 	struct drm_framebuffer *old_fb = old_state->fb;
 	unsigned long eba, ubo, vbo, old_ubo, old_vbo, alpha_eba;
 	bool can_position = (plane->type == DRM_PLANE_TYPE_OVERLAY);
@@ -352,15 +352,16 @@ static int ipu_plane_atomic_check(struct drm_plane *plane,
 	if (!fb)
 		return 0;
 
-	if (WARN_ON(!state->crtc))
+	if (WARN_ON(!new_state->crtc))
 		return -EINVAL;
 
 	crtc_state =
-		drm_atomic_get_existing_crtc_state(state->state, state->crtc);
+		drm_atomic_get_existing_crtc_state(new_state->state,
+						   new_state->crtc);
 	if (WARN_ON(!crtc_state))
 		return -EINVAL;
 
-	ret = drm_atomic_helper_check_plane_state(state, crtc_state,
+	ret = drm_atomic_helper_check_plane_state(new_state, crtc_state,
 						  DRM_PLANE_HELPER_NO_SCALING,
 						  DRM_PLANE_HELPER_NO_SCALING,
 						  can_position, true);
@@ -374,7 +375,7 @@ static int ipu_plane_atomic_check(struct drm_plane *plane,
 	switch (plane->type) {
 	case DRM_PLANE_TYPE_PRIMARY:
 		/* full plane minimum width is 13 pixels */
-		if (drm_rect_width(&state->dst) < 13)
+		if (drm_rect_width(&new_state->dst) < 13)
 			return -EINVAL;
 		break;
 	case DRM_PLANE_TYPE_OVERLAY:
@@ -384,7 +385,7 @@ static int ipu_plane_atomic_check(struct drm_plane *plane,
 		return -EINVAL;
 	}
 
-	if (drm_rect_height(&state->dst) < 2)
+	if (drm_rect_height(&new_state->dst) < 2)
 		return -EINVAL;
 
 	/*
@@ -395,12 +396,12 @@ static int ipu_plane_atomic_check(struct drm_plane *plane,
 	 * callback.
 	 */
 	if (old_fb &&
-	    (drm_rect_width(&state->dst) != drm_rect_width(&old_state->dst) ||
-	     drm_rect_height(&state->dst) != drm_rect_height(&old_state->dst) ||
+	    (drm_rect_width(&new_state->dst) != drm_rect_width(&old_state->dst) ||
+	     drm_rect_height(&new_state->dst) != drm_rect_height(&old_state->dst) ||
 	     fb->format != old_fb->format))
 		crtc_state->mode_changed = true;
 
-	eba = drm_plane_state_to_eba(state, 0);
+	eba = drm_plane_state_to_eba(new_state, 0);
 
 	if (eba & 0x7)
 		return -EINVAL;
@@ -426,7 +427,7 @@ static int ipu_plane_atomic_check(struct drm_plane *plane,
 		 * - Only EBA may be changed while scanout is active
 		 * - The strides of U and V planes must be identical.
 		 */
-		vbo = drm_plane_state_to_vbo(state);
+		vbo = drm_plane_state_to_vbo(new_state);
 
 		if (vbo & 0x7 || vbo > 0xfffff8)
 			return -EINVAL;
@@ -443,7 +444,7 @@ static int ipu_plane_atomic_check(struct drm_plane *plane,
 		fallthrough;
 	case DRM_FORMAT_NV12:
 	case DRM_FORMAT_NV16:
-		ubo = drm_plane_state_to_ubo(state);
+		ubo = drm_plane_state_to_ubo(new_state);
 
 		if (ubo & 0x7 || ubo > 0xfffff8)
 			return -EINVAL;
@@ -464,8 +465,8 @@ static int ipu_plane_atomic_check(struct drm_plane *plane,
 		 * The x/y offsets must be even in case of horizontal/vertical
 		 * chroma subsampling.
 		 */
-		if (((state->src.x1 >> 16) & (fb->format->hsub - 1)) ||
-		    ((state->src.y1 >> 16) & (fb->format->vsub - 1)))
+		if (((new_state->src.x1 >> 16) & (fb->format->hsub - 1)) ||
+		    ((new_state->src.y1 >> 16) & (fb->format->vsub - 1)))
 			return -EINVAL;
 		break;
 	case DRM_FORMAT_RGB565_A8:
@@ -474,7 +475,7 @@ static int ipu_plane_atomic_check(struct drm_plane *plane,
 	case DRM_FORMAT_BGR888_A8:
 	case DRM_FORMAT_RGBX8888_A8:
 	case DRM_FORMAT_BGRX8888_A8:
-		alpha_eba = drm_plane_state_to_eba(state, 1);
+		alpha_eba = drm_plane_state_to_eba(new_state, 1);
 		if (alpha_eba & 0x7)
 			return -EINVAL;
 

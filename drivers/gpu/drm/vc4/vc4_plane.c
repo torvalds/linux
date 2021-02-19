@@ -1040,21 +1040,21 @@ static int vc4_plane_mode_set(struct drm_plane *plane,
  * in the CRTC's flush.
  */
 static int vc4_plane_atomic_check(struct drm_plane *plane,
-				  struct drm_plane_state *state)
+				  struct drm_plane_state *new_plane_state)
 {
-	struct vc4_plane_state *vc4_state = to_vc4_plane_state(state);
+	struct vc4_plane_state *vc4_state = to_vc4_plane_state(new_plane_state);
 	int ret;
 
 	vc4_state->dlist_count = 0;
 
-	if (!plane_enabled(state))
+	if (!plane_enabled(new_plane_state))
 		return 0;
 
-	ret = vc4_plane_mode_set(plane, state);
+	ret = vc4_plane_mode_set(plane, new_plane_state);
 	if (ret)
 		return ret;
 
-	return vc4_plane_allocate_lbm(state);
+	return vc4_plane_allocate_lbm(new_plane_state);
 }
 
 static void vc4_plane_atomic_update(struct drm_plane *plane,

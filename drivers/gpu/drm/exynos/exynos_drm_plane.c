@@ -228,14 +228,14 @@ exynos_drm_plane_check_size(const struct exynos_drm_plane_config *config,
 }
 
 static int exynos_plane_atomic_check(struct drm_plane *plane,
-				     struct drm_plane_state *state)
+				     struct drm_plane_state *new_plane_state)
 {
 	struct exynos_drm_plane *exynos_plane = to_exynos_plane(plane);
 	struct exynos_drm_plane_state *exynos_state =
-						to_exynos_plane_state(state);
+						to_exynos_plane_state(new_plane_state);
 	int ret = 0;
 
-	if (!state->crtc || !state->fb)
+	if (!new_plane_state->crtc || !new_plane_state->fb)
 		return 0;
 
 	/* translate state into exynos_state */

@@ -502,20 +502,20 @@ static void malidp_de_prefetch_settings(struct malidp_plane *mp,
 }
 
 static int malidp_de_plane_check(struct drm_plane *plane,
-				 struct drm_plane_state *state)
+				 struct drm_plane_state *new_plane_state)
 {
 	struct malidp_plane *mp = to_malidp_plane(plane);
-	struct malidp_plane_state *ms = to_malidp_plane_state(state);
-	bool rotated = state->rotation & MALIDP_ROTATED_MASK;
+	struct malidp_plane_state *ms = to_malidp_plane_state(new_plane_state);
+	bool rotated = new_plane_state->rotation & MALIDP_ROTATED_MASK;
 	struct drm_framebuffer *fb;
-	u16 pixel_alpha = state->pixel_blend_mode;
+	u16 pixel_alpha = new_plane_state->pixel_blend_mode;
 	int i, ret;
 	unsigned int block_w, block_h;
 
-	if (!state->crtc || WARN_ON(!state->fb))
+	if (!new_plane_state->crtc || WARN_ON(!new_plane_state->fb))
 		return 0;
 
-	fb = state->fb;
+	fb = new_plane_state->fb;
 
 	ms->format = malidp_hw_get_format_id(&mp->hwdev->hw->map,
 					     mp->layer->id, fb->format->format,
@@ -541,15 +541,15 @@ static int malidp_de_plane_check(struct drm_plane *plane,
 		DRM_DEBUG_KMS("Buffer width/height needs to be a multiple of tile sizes");
 		return -EINVAL;
 	}
-	if ((state->src_x >> 16) % block_w || (state->src_y >> 16) % block_h) {
+	if ((new_plane_state->src_x >> 16) % block_w || (new_plane_state->src_y >> 16) % block_h) {
 		DRM_DEBUG_KMS("Plane src_x/src_y needs to be a multiple of tile sizes");
 		return -EINVAL;
 	}
 
-	if ((state->crtc_w > mp->hwdev->max_line_size) ||
-	    (state->crtc_h > mp->hwdev->max_line_size) ||
-	    (state->crtc_w < mp->hwdev->min_line_size) ||
-	    (state->crtc_h < mp->hwdev->min_line_size))
+	if ((new_plane_state->crtc_w > mp->hwdev->max_line_size) ||
+	    (new_plane_state->crtc_h > mp->hwdev->max_line_size) ||
+	    (new_plane_state->crtc_w < mp->hwdev->min_line_size) ||
+	    (new_plane_state->crtc_h < mp->hwdev->min_line_size))
 		return -EINVAL;
 
 	/*
@@ -559,15 +559,15 @@ static int malidp_de_plane_check(struct drm_plane *plane,
 	 */
 	if (ms->n_planes == 3 &&
 	    !(mp->hwdev->hw->features & MALIDP_DEVICE_LV_HAS_3_STRIDES) &&
-	    (state->fb->pitches[1] != state->fb->pitches[2]))
+	    (new_plane_state->fb->pitches[1] != new_plane_state->fb->pitches[2]))
 		return -EINVAL;
 
-	ret = malidp_se_check_scaling(mp, state);
+	ret = malidp_se_check_scaling(mp, new_plane_state);
 	if (ret)
 		return ret;
 
 	/* validate the rotation constraints for each layer */
-	if (state->rotation != DRM_MODE_ROTATE_0) {
+	if (new_plane_state->rotation != DRM_MODE_ROTATE_0) {
 		if (mp->layer->rot == ROTATE_NONE)
 			return -EINVAL;
 		if ((mp->layer->rot == ROTATE_COMPRESSED) && !(fb->modifier))
@@ -588,11 +588,11 @@ static int malidp_de_plane_check(struct drm_plane *plane,
 	}
 
 	ms->rotmem_size = 0;
-	if (state->rotation & MALIDP_ROTATED_MASK) {
+	if (new_plane_state->rotation & MALIDP_ROTATED_MASK) {
 		int val;
 
-		val = mp->hwdev->hw->rotmem_required(mp->hwdev, state->crtc_w,
-						     state->crtc_h,
+		val = mp->hwdev->hw->rotmem_required(mp->hwdev, new_plane_state->crtc_w,
+						     new_plane_state->crtc_h,
 						     fb->format->format,
 						     !!(fb->modifier));
 		if (val < 0)
@@ -602,7 +602,7 @@ static int malidp_de_plane_check(struct drm_plane *plane,
 	}
 
 	/* HW can't support plane + pixel blending */
-	if ((state->alpha != DRM_BLEND_ALPHA_OPAQUE) &&
+	if ((new_plane_state->alpha != DRM_BLEND_ALPHA_OPAQUE) &&
 	    (pixel_alpha != DRM_MODE_BLEND_PIXEL_NONE) &&
 	    fb->format->has_alpha)
 		return -EINVAL;

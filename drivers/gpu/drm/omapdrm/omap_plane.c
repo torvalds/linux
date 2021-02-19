@@ -99,18 +99,19 @@ static void omap_plane_atomic_disable(struct drm_plane *plane,
 }
 
 static int omap_plane_atomic_check(struct drm_plane *plane,
-				   struct drm_plane_state *state)
+				   struct drm_plane_state *new_plane_state)
 {
 	struct drm_crtc_state *crtc_state;
 
-	if (!state->fb)
+	if (!new_plane_state->fb)
 		return 0;
 
-	/* crtc should only be NULL when disabling (i.e., !state->fb) */
-	if (WARN_ON(!state->crtc))
+	/* crtc should only be NULL when disabling (i.e., !new_plane_state->fb) */
+	if (WARN_ON(!new_plane_state->crtc))
 		return 0;
 
-	crtc_state = drm_atomic_get_existing_crtc_state(state->state, state->crtc);
+	crtc_state = drm_atomic_get_existing_crtc_state(new_plane_state->state,
+							new_plane_state->crtc);
 	/* we should have a crtc state if the plane is attached to a crtc */
 	if (WARN_ON(!crtc_state))
 		return 0;
@@ -118,17 +119,17 @@ static int omap_plane_atomic_check(struct drm_plane *plane,
 	if (!crtc_state->enable)
 		return 0;
 
-	if (state->crtc_x < 0 || state->crtc_y < 0)
+	if (new_plane_state->crtc_x < 0 || new_plane_state->crtc_y < 0)
 		return -EINVAL;
 
-	if (state->crtc_x + state->crtc_w > crtc_state->adjusted_mode.hdisplay)
+	if (new_plane_state->crtc_x + new_plane_state->crtc_w > crtc_state->adjusted_mode.hdisplay)
 		return -EINVAL;
 
-	if (state->crtc_y + state->crtc_h > crtc_state->adjusted_mode.vdisplay)
+	if (new_plane_state->crtc_y + new_plane_state->crtc_h > crtc_state->adjusted_mode.vdisplay)
 		return -EINVAL;
 
-	if (state->rotation != DRM_MODE_ROTATE_0 &&
-	    !omap_framebuffer_supports_rotation(state->fb))
+	if (new_plane_state->rotation != DRM_MODE_ROTATE_0 &&
+	    !omap_framebuffer_supports_rotation(new_plane_state->fb))
 		return -EINVAL;
 
 	return 0;
