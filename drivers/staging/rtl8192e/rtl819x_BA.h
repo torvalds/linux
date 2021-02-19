@@ -31,7 +31,7 @@ union ba_param_set {
 	u8 char_data[2];
 	u16 short_data;
 	struct {
-		u16 AMSDU_Support:1;
+		u16 amsdu_support:1;
 		u16 ba_policy:1;
 		u16 TID:4;
 		u16 buffer_size:10;

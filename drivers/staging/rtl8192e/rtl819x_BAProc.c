@@ -483,7 +483,7 @@ void TsInitAddBA(struct rtllib_device *ieee, struct tx_ts_record *pTS,
 	DeActivateBAEntry(ieee, pBA);
 
 	pBA->DialogToken++;
-	pBA->BaParamSet.field.AMSDU_Support = 0;
+	pBA->BaParamSet.field.amsdu_support = 0;
 	pBA->BaParamSet.field.ba_policy = Policy;
 	pBA->BaParamSet.field.TID =
 			 pTS->TsCommonInfo.TSpec.f.TSInfo.field.ucTSID;
