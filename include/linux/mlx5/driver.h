@@ -530,6 +530,7 @@ struct mlx5_rl_table {
 	u32                     max_rate;
 	u32                     min_rate;
 	struct mlx5_rl_entry   *rl_entry;
+	u64 refcount;
 };
 
 struct mlx5_core_roce {
