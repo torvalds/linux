@@ -267,7 +267,7 @@ int rtllib_rx_ADDBAReq(struct rtllib_device *ieee, struct sk_buff *skb)
 	}
 	pBA = &pTS->RxAdmittedBARecord;
 
-	if (pBaParamSet->field.BAPolicy == BA_POLICY_DELAYED) {
+	if (pBaParamSet->field.ba_policy == BA_POLICY_DELAYED) {
 		rc = ADDBA_STATUS_INVALID_PARAM;
 		netdev_warn(ieee->dev, "%s(): BA Policy is not correct\n",
 			    __func__);
@@ -300,7 +300,7 @@ OnADDBAReq_Fail:
 		BA.BaParamSet = *pBaParamSet;
 		BA.BaTimeoutValue = *pBaTimeoutVal;
 		BA.DialogToken = *pDialogToken;
-		BA.BaParamSet.field.BAPolicy = BA_POLICY_IMMEDIATE;
+		BA.BaParamSet.field.ba_policy = BA_POLICY_IMMEDIATE;
 		rtllib_send_ADDBARsp(ieee, dst, &BA, rc);
 		return 0;
 	}
@@ -377,7 +377,7 @@ int rtllib_rx_ADDBARsp(struct rtllib_device *ieee, struct sk_buff *skb)
 
 
 	if (*pStatusCode == ADDBA_STATUS_SUCCESS) {
-		if (pBaParamSet->field.BAPolicy == BA_POLICY_DELAYED) {
+		if (pBaParamSet->field.ba_policy == BA_POLICY_DELAYED) {
 			pTS->bAddBaReqDelayed = true;
 			DeActivateBAEntry(ieee, pAdmittedBA);
 			ReasonCode = DELBA_REASON_END_BA;
@@ -484,7 +484,7 @@ void TsInitAddBA(struct rtllib_device *ieee, struct tx_ts_record *pTS,
 
 	pBA->DialogToken++;
 	pBA->BaParamSet.field.AMSDU_Support = 0;
-	pBA->BaParamSet.field.BAPolicy = Policy;
+	pBA->BaParamSet.field.ba_policy = Policy;
 	pBA->BaParamSet.field.TID =
 			 pTS->TsCommonInfo.TSpec.f.TSInfo.field.ucTSID;
 	pBA->BaParamSet.field.BufferSize = 32;
