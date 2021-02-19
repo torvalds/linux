@@ -283,7 +283,8 @@ void dc_commit_updates_for_stream(struct dc *dc,
 		struct dc_surface_update *srf_updates,
 		int surface_count,
 		struct dc_stream_state *stream,
-		struct dc_stream_update *stream_update);
+		struct dc_stream_update *stream_update,
+		struct dc_state *state);
 /*
  * Log the current stream state.
  */
