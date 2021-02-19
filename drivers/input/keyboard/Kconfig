@@ -685,7 +685,7 @@ config KEYBOARD_OMAP
 
 config KEYBOARD_OMAP4
 	tristate "TI OMAP4+ keypad support"
-	depends on OF || ARCH_OMAP2PLUS
+	depends on (OF && HAS_IOMEM) || ARCH_OMAP2PLUS
 	select INPUT_MATRIXKMAP
 	help
 	  Say Y here if you want to use the OMAP4+ keypad.
@@ -773,7 +773,7 @@ config KEYBOARD_CAP11XX
 
 config KEYBOARD_BCM
 	tristate "Broadcom keypad driver"
-	depends on OF && HAVE_CLK
+	depends on OF && HAVE_CLK && HAS_IOMEM
 	select INPUT_MATRIXKMAP
 	default ARCH_BCM_CYGNUS
 	help
