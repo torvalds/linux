@@ -44,6 +44,23 @@
 	};
 };
 
+&usb_phy {
+	brcm,ioc = <1>;
+	status = "okay";
+};
+
+&ehci {
+	status = "okay";
+};
+
+&ohci {
+	status = "okay";
+};
+
+&xhci {
+	status = "okay";
+};
+
 &ports {
 	port@0 {
 		label = "lan2";
