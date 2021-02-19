@@ -2969,6 +2969,9 @@ void dc_set_power_state(
 	struct kref refcount;
 	struct display_mode_lib *dml;
 
+	if (!dc->current_state)
+		return;
+
 	switch (power_state) {
 	case DC_ACPI_CM_POWER_STATE_D0:
 		dc_resource_state_construct(dc, dc->current_state);
