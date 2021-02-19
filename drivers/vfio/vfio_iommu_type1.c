@@ -107,6 +107,8 @@ struct vfio_batch {
 	struct page		**pages;	/* for pin_user_pages_remote */
 	struct page		*fallback_page; /* if pages alloc fails */
 	int			capacity;	/* length of pages array */
+	int			size;		/* of batch currently */
+	int			offset;		/* of next entry in pages */
 };
 
 struct vfio_group {
@@ -469,6 +471,9 @@ static int put_pfn(unsigned long pfn, int prot)
 
 static void vfio_batch_init(struct vfio_batch *batch)
 {
+	batch->size = 0;
+	batch->offset = 0;
+
 	if (unlikely(disable_hugepages))
 		goto fallback;
 
@@ -482,6 +487,17 @@ static void vfio_batch_init(struct vfio_batch *batch)
 fallback:
 	batch->pages = &batch->fallback_page;
 	batch->capacity = 1;
+}
+
+static void vfio_batch_unpin(struct vfio_batch *batch, struct vfio_dma *dma)
+{
+	while (batch->size) {
+		unsigned long pfn = page_to_pfn(batch->pages[batch->offset]);
+
+		put_pfn(pfn, dma->prot);
+		batch->offset++;
+		batch->size--;
+	}
 }
 
 static void vfio_batch_fini(struct vfio_batch *batch)
@@ -635,65 +651,88 @@ static long vfio_pin_pages_remote(struct vfio_dma *dma, unsigned long vaddr,
 				  long npage, unsigned long *pfn_base,
 				  unsigned long limit, struct vfio_batch *batch)
 {
-	unsigned long pfn = 0;
+	unsigned long pfn;
+	struct mm_struct *mm = current->mm;
 	long ret, pinned = 0, lock_acct = 0;
 	bool rsvd;
 	dma_addr_t iova = vaddr - dma->vaddr + dma->iova;
 
 	/* This code path is only user initiated */
-	if (!current->mm)
+	if (!mm)
 		return -ENODEV;
 
-	ret = vaddr_get_pfns(current->mm, vaddr, 1, dma->prot, pfn_base,
-			     batch->pages);
-	if (ret < 0)
-		return ret;
-
-	pinned++;
-	rsvd = is_invalid_reserved_pfn(*pfn_base);
-
-	/*
-	 * Reserved pages aren't counted against the user, externally pinned
-	 * pages are already counted against the user.
-	 */
-	if (!rsvd && !vfio_find_vpfn(dma, iova)) {
-		if (!dma->lock_cap && current->mm->locked_vm + 1 > limit) {
-			put_pfn(*pfn_base, dma->prot);
-			pr_warn("%s: RLIMIT_MEMLOCK (%ld) exceeded\n", __func__,
-					limit << PAGE_SHIFT);
-			return -ENOMEM;
-		}
-		lock_acct++;
+	if (batch->size) {
+		/* Leftover pages in batch from an earlier call. */
+		*pfn_base = page_to_pfn(batch->pages[batch->offset]);
+		pfn = *pfn_base;
+		rsvd = is_invalid_reserved_pfn(*pfn_base);
+	} else {
+		*pfn_base = 0;
 	}
 
-	if (unlikely(disable_hugepages))
-		goto out;
+	while (npage) {
+		if (!batch->size) {
+			/* Empty batch, so refill it. */
+			long req_pages = min_t(long, npage, batch->capacity);
 
-	/* Lock all the consecutive pages from pfn_base */
-	for (vaddr += PAGE_SIZE, iova += PAGE_SIZE; pinned < npage;
-	     pinned++, vaddr += PAGE_SIZE, iova += PAGE_SIZE) {
-		ret = vaddr_get_pfns(current->mm, vaddr, 1, dma->prot, &pfn,
-				     batch->pages);
-		if (ret < 0)
-			break;
-
-		if (pfn != *pfn_base + pinned ||
-		    rsvd != is_invalid_reserved_pfn(pfn)) {
-			put_pfn(pfn, dma->prot);
-			break;
-		}
-
-		if (!rsvd && !vfio_find_vpfn(dma, iova)) {
-			if (!dma->lock_cap &&
-			    current->mm->locked_vm + lock_acct + 1 > limit) {
-				put_pfn(pfn, dma->prot);
-				pr_warn("%s: RLIMIT_MEMLOCK (%ld) exceeded\n",
-					__func__, limit << PAGE_SHIFT);
-				ret = -ENOMEM;
+			ret = vaddr_get_pfns(mm, vaddr, req_pages, dma->prot,
+					     &pfn, batch->pages);
+			if (ret < 0)
 				goto unpin_out;
+
+			batch->size = ret;
+			batch->offset = 0;
+
+			if (!*pfn_base) {
+				*pfn_base = pfn;
+				rsvd = is_invalid_reserved_pfn(*pfn_base);
 			}
-			lock_acct++;
 		}
+
+		/*
+		 * pfn is preset for the first iteration of this inner loop and
+		 * updated at the end to handle a VM_PFNMAP pfn.  In that case,
+		 * batch->pages isn't valid (there's no struct page), so allow
+		 * batch->pages to be touched only when there's more than one
+		 * pfn to check, which guarantees the pfns are from a
+		 * !VM_PFNMAP vma.
+		 */
+		while (true) {
+			if (pfn != *pfn_base + pinned ||
+			    rsvd != is_invalid_reserved_pfn(pfn))
+				goto out;
+
+			/*
+			 * Reserved pages aren't counted against the user,
+			 * externally pinned pages are already counted against
+			 * the user.
+			 */
+			if (!rsvd && !vfio_find_vpfn(dma, iova)) {
+				if (!dma->lock_cap &&
+				    mm->locked_vm + lock_acct + 1 > limit) {
+					pr_warn("%s: RLIMIT_MEMLOCK (%ld) exceeded\n",
+						__func__, limit << PAGE_SHIFT);
+					ret = -ENOMEM;
+					goto unpin_out;
+				}
+				lock_acct++;
+			}
+
+			pinned++;
+			npage--;
+			vaddr += PAGE_SIZE;
+			iova += PAGE_SIZE;
+			batch->offset++;
+			batch->size--;
+
+			if (!batch->size)
+				break;
+
+			pfn = page_to_pfn(batch->pages[batch->offset]);
+		}
+
+		if (unlikely(disable_hugepages))
+			break;
 	}
 
 out:
@@ -701,10 +740,11 @@ out:
 
 unpin_out:
 	if (ret < 0) {
-		if (!rsvd) {
+		if (pinned && !rsvd) {
 			for (pfn = *pfn_base ; pinned ; pfn++, pinned--)
 				put_pfn(pfn, dma->prot);
 		}
+		vfio_batch_unpin(batch, dma);
 
 		return ret;
 	}
@@ -1463,6 +1503,7 @@ static int vfio_pin_map_dma(struct vfio_iommu *iommu, struct vfio_dma *dma,
 		if (ret) {
 			vfio_unpin_pages_remote(dma, iova + dma->size, pfn,
 						npage, true);
+			vfio_batch_unpin(&batch, dma);
 			break;
 		}
 
@@ -1726,11 +1767,13 @@ static int vfio_iommu_replay(struct vfio_iommu *iommu,
 			ret = iommu_map(domain->domain, iova, phys,
 					size, dma->prot | domain->prot);
 			if (ret) {
-				if (!dma->iommu_mapped)
+				if (!dma->iommu_mapped) {
 					vfio_unpin_pages_remote(dma, iova,
 							phys >> PAGE_SHIFT,
 							size >> PAGE_SHIFT,
 							true);
+					vfio_batch_unpin(&batch, dma);
+				}
 				goto unwind;
 			}
 
