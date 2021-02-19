@@ -419,7 +419,7 @@ static int mxsfb_plane_atomic_check(struct drm_plane *plane,
 }
 
 static void mxsfb_plane_primary_atomic_update(struct drm_plane *plane,
-					      struct drm_plane_state *old_pstate)
+					      struct drm_atomic_state *state)
 {
 	struct mxsfb_drm_private *mxsfb = to_mxsfb_drm_private(plane->dev);
 	dma_addr_t paddr;
@@ -430,8 +430,10 @@ static void mxsfb_plane_primary_atomic_update(struct drm_plane *plane,
 }
 
 static void mxsfb_plane_overlay_atomic_update(struct drm_plane *plane,
-					      struct drm_plane_state *old_pstate)
+					      struct drm_atomic_state *state)
 {
+	struct drm_plane_state *old_pstate = drm_atomic_get_old_plane_state(state,
+									    plane);
 	struct mxsfb_drm_private *mxsfb = to_mxsfb_drm_private(plane->dev);
 	struct drm_plane_state *new_pstate = plane->state;
 	dma_addr_t paddr;

@@ -130,7 +130,7 @@ static u32 meson_g12a_afbcd_line_stride(struct meson_drm *priv)
 }
 
 static void meson_plane_atomic_update(struct drm_plane *plane,
-				      struct drm_plane_state *old_state)
+				      struct drm_atomic_state *state)
 {
 	struct meson_plane *meson_plane = to_meson_plane(plane);
 	struct drm_plane_state *new_state = plane->state;
@@ -395,7 +395,7 @@ static void meson_plane_atomic_update(struct drm_plane *plane,
 }
 
 static void meson_plane_atomic_disable(struct drm_plane *plane,
-				       struct drm_plane_state *old_state)
+				       struct drm_atomic_state *state)
 {
 	struct meson_plane *meson_plane = to_meson_plane(plane);
 	struct meson_drm *priv = meson_plane->priv;

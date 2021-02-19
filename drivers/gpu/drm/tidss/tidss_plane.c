@@ -105,7 +105,7 @@ static int tidss_plane_atomic_check(struct drm_plane *plane,
 }
 
 static void tidss_plane_atomic_update(struct drm_plane *plane,
-				      struct drm_plane_state *old_state)
+				      struct drm_atomic_state *state)
 {
 	struct drm_device *ddev = plane->dev;
 	struct tidss_device *tidss = to_tidss(ddev);
@@ -137,7 +137,7 @@ static void tidss_plane_atomic_update(struct drm_plane *plane,
 }
 
 static void tidss_plane_atomic_disable(struct drm_plane *plane,
-				       struct drm_plane_state *old_state)
+				       struct drm_atomic_state *state)
 {
 	struct drm_device *ddev = plane->dev;
 	struct tidss_device *tidss = to_tidss(ddev);

@@ -444,7 +444,7 @@ void ingenic_drm_plane_disable(struct device *dev, struct drm_plane *plane)
 }
 
 static void ingenic_drm_plane_atomic_disable(struct drm_plane *plane,
-					     struct drm_plane_state *old_state)
+					     struct drm_atomic_state *state)
 {
 	struct ingenic_drm *priv = drm_device_get_priv(plane->dev);
 
@@ -542,7 +542,7 @@ static void ingenic_drm_update_palette(struct ingenic_drm *priv,
 }
 
 static void ingenic_drm_plane_atomic_update(struct drm_plane *plane,
-					    struct drm_plane_state *oldstate)
+					    struct drm_atomic_state *state)
 {
 	struct ingenic_drm *priv = drm_device_get_priv(plane->dev);
 	struct drm_plane_state *newstate = plane->state;

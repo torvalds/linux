@@ -128,7 +128,7 @@ static void mtk_plane_atomic_async_update(struct drm_plane *plane,
 	swap(plane->state->fb, new_state->fb);
 	new_plane_state->pending.async_dirty = true;
 
-	mtk_drm_crtc_async_update(new_state->crtc, plane, new_state);
+	mtk_drm_crtc_async_update(new_state->crtc, plane, state);
 }
 
 static const struct drm_plane_funcs mtk_plane_funcs = {
@@ -173,7 +173,7 @@ static int mtk_plane_atomic_check(struct drm_plane *plane,
 }
 
 static void mtk_plane_atomic_disable(struct drm_plane *plane,
-				     struct drm_plane_state *old_state)
+				     struct drm_atomic_state *state)
 {
 	struct drm_plane_state *new_state = plane->state;
 	struct mtk_plane_state *mtk_plane_state = to_mtk_plane_state(new_state);
@@ -183,7 +183,7 @@ static void mtk_plane_atomic_disable(struct drm_plane *plane,
 }
 
 static void mtk_plane_atomic_update(struct drm_plane *plane,
-				    struct drm_plane_state *old_state)
+				    struct drm_atomic_state *state)
 {
 	struct drm_plane_state *new_state = plane->state;
 	struct mtk_plane_state *mtk_plane_state = to_mtk_plane_state(new_state);
@@ -198,7 +198,7 @@ static void mtk_plane_atomic_update(struct drm_plane *plane,
 		return;
 
 	if (!new_state->visible) {
-		mtk_plane_atomic_disable(plane, old_state);
+		mtk_plane_atomic_disable(plane, state);
 		return;
 	}
 

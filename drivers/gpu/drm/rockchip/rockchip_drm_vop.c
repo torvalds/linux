@@ -859,8 +859,10 @@ static int vop_plane_atomic_check(struct drm_plane *plane,
 }
 
 static void vop_plane_atomic_disable(struct drm_plane *plane,
-				     struct drm_plane_state *old_state)
+				     struct drm_atomic_state *state)
 {
+	struct drm_plane_state *old_state = drm_atomic_get_old_plane_state(state,
+									   plane);
 	struct vop_win *vop_win = to_vop_win(plane);
 	struct vop *vop = to_vop(old_state->crtc);
 
@@ -875,8 +877,10 @@ static void vop_plane_atomic_disable(struct drm_plane *plane,
 }
 
 static void vop_plane_atomic_update(struct drm_plane *plane,
-		struct drm_plane_state *old_state)
+		struct drm_atomic_state *state)
 {
+	struct drm_plane_state *old_state = drm_atomic_get_old_plane_state(state,
+									   plane);
 	struct drm_plane_state *new_state = plane->state;
 	struct drm_crtc *crtc = new_state->crtc;
 	struct vop_win *vop_win = to_vop_win(plane);
@@ -910,7 +914,7 @@ static void vop_plane_atomic_update(struct drm_plane *plane,
 		return;
 
 	if (!new_state->visible) {
-		vop_plane_atomic_disable(plane, old_state);
+		vop_plane_atomic_disable(plane, state);
 		return;
 	}
 
@@ -1078,7 +1082,7 @@ static void vop_plane_atomic_async_update(struct drm_plane *plane,
 	swap(plane->state->fb, new_state->fb);
 
 	if (vop->is_enabled) {
-		vop_plane_atomic_update(plane, plane->state);
+		vop_plane_atomic_update(plane, state);
 		spin_lock(&vop->reg_lock);
 		vop_cfg_done(vop);
 		spin_unlock(&vop->reg_lock);

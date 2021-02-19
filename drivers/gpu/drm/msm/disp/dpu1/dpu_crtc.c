@@ -574,7 +574,7 @@ static void dpu_crtc_atomic_flush(struct drm_crtc *crtc,
 	 * of those planes explicitly here prior to plane flush.
 	 */
 	drm_atomic_crtc_for_each_plane(plane, crtc)
-		dpu_plane_restore(plane);
+		dpu_plane_restore(plane, state);
 
 	/* update performance setting before crtc kickoff */
 	dpu_core_perf_crtc_update(crtc, 1, false);

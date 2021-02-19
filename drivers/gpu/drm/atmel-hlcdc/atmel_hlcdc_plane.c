@@ -712,7 +712,7 @@ static int atmel_hlcdc_plane_atomic_check(struct drm_plane *p,
 }
 
 static void atmel_hlcdc_plane_atomic_disable(struct drm_plane *p,
-					     struct drm_plane_state *old_state)
+					     struct drm_atomic_state *state)
 {
 	struct atmel_hlcdc_plane *plane = drm_plane_to_atmel_hlcdc_plane(p);
 
@@ -731,7 +731,7 @@ static void atmel_hlcdc_plane_atomic_disable(struct drm_plane *p,
 }
 
 static void atmel_hlcdc_plane_atomic_update(struct drm_plane *p,
-					    struct drm_plane_state *old_s)
+					    struct drm_atomic_state *state)
 {
 	struct drm_plane_state *new_s = p->state;
 	struct atmel_hlcdc_plane *plane = drm_plane_to_atmel_hlcdc_plane(p);
@@ -743,7 +743,7 @@ static void atmel_hlcdc_plane_atomic_update(struct drm_plane *p,
 		return;
 
 	if (!hstate->base.visible) {
-		atmel_hlcdc_plane_atomic_disable(p, old_s);
+		atmel_hlcdc_plane_atomic_disable(p, state);
 		return;
 	}
 

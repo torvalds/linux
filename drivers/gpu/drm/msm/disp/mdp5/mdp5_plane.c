@@ -426,7 +426,7 @@ static int mdp5_plane_atomic_check(struct drm_plane *plane,
 }
 
 static void mdp5_plane_atomic_update(struct drm_plane *plane,
-				     struct drm_plane_state *old_state)
+				     struct drm_atomic_state *state)
 {
 	struct drm_plane_state *new_state = plane->state;
 

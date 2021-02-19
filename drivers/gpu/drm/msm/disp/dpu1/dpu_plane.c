@@ -1241,7 +1241,7 @@ static void _dpu_plane_atomic_disable(struct drm_plane *plane)
 }
 
 static void dpu_plane_atomic_update(struct drm_plane *plane,
-				struct drm_plane_state *old_state)
+				struct drm_atomic_state *state)
 {
 	struct dpu_plane *pdpu = to_dpu_plane(plane);
 	struct drm_plane_state *new_state = plane->state;
@@ -1257,7 +1257,7 @@ static void dpu_plane_atomic_update(struct drm_plane *plane,
 	}
 }
 
-void dpu_plane_restore(struct drm_plane *plane)
+void dpu_plane_restore(struct drm_plane *plane, struct drm_atomic_state *state)
 {
 	struct dpu_plane *pdpu;
 
@@ -1270,8 +1270,7 @@ void dpu_plane_restore(struct drm_plane *plane)
 
 	DPU_DEBUG_PLANE(pdpu, "\n");
 
-	/* last plane state is same as current state */
-	dpu_plane_atomic_update(plane, plane->state);
+	dpu_plane_atomic_update(plane, state);
 }
 
 static void dpu_plane_destroy(struct drm_plane *plane)

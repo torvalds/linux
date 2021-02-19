@@ -145,7 +145,7 @@ static const struct drm_crtc_helper_funcs arc_pgu_crtc_helper_funcs = {
 };
 
 static void arc_pgu_plane_atomic_update(struct drm_plane *plane,
-					struct drm_plane_state *state)
+					struct drm_atomic_state *state)
 {
 	struct drm_plane_state *new_plane_state = plane->state;
 	struct arcpgu_drm_private *arcpgu;

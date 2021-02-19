@@ -60,7 +60,7 @@ static int fsl_dcu_drm_plane_atomic_check(struct drm_plane *plane,
 }
 
 static void fsl_dcu_drm_plane_atomic_disable(struct drm_plane *plane,
-					     struct drm_plane_state *old_state)
+					     struct drm_atomic_state *state)
 {
 	struct fsl_dcu_drm_device *fsl_dev = plane->dev->dev_private;
 	unsigned int value;
@@ -76,7 +76,7 @@ static void fsl_dcu_drm_plane_atomic_disable(struct drm_plane *plane,
 }
 
 static void fsl_dcu_drm_plane_atomic_update(struct drm_plane *plane,
-					    struct drm_plane_state *old_state)
+					    struct drm_atomic_state *state)
 
 {
 	struct fsl_dcu_drm_device *fsl_dev = plane->dev->dev_private;

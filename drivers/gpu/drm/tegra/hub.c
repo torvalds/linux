@@ -388,8 +388,10 @@ static int tegra_shared_plane_atomic_check(struct drm_plane *plane,
 }
 
 static void tegra_shared_plane_atomic_disable(struct drm_plane *plane,
-					      struct drm_plane_state *old_state)
+					      struct drm_atomic_state *state)
 {
+	struct drm_plane_state *old_state = drm_atomic_get_old_plane_state(state,
+									   plane);
 	struct tegra_plane *p = to_tegra_plane(plane);
 	struct tegra_dc *dc;
 	u32 value;
@@ -425,7 +427,7 @@ static void tegra_shared_plane_atomic_disable(struct drm_plane *plane,
 }
 
 static void tegra_shared_plane_atomic_update(struct drm_plane *plane,
-					     struct drm_plane_state *old_state)
+					     struct drm_atomic_state *state)
 {
 	struct drm_plane_state *new_state = plane->state;
 	struct tegra_plane_state *tegra_plane_state = to_tegra_plane_state(new_state);
@@ -442,7 +444,7 @@ static void tegra_shared_plane_atomic_update(struct drm_plane *plane,
 		return;
 
 	if (!new_state->visible) {
-		tegra_shared_plane_atomic_disable(plane, old_state);
+		tegra_shared_plane_atomic_disable(plane, state);
 		return;
 	}
 

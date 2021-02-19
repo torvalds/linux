@@ -460,7 +460,7 @@ int vmw_du_primary_plane_atomic_check(struct drm_plane *plane,
 int vmw_du_cursor_plane_atomic_check(struct drm_plane *plane,
 				     struct drm_atomic_state *state);
 void vmw_du_cursor_plane_atomic_update(struct drm_plane *plane,
-				       struct drm_plane_state *old_state);
+				       struct drm_atomic_state *state);
 int vmw_du_cursor_plane_prepare_fb(struct drm_plane *plane,
 				   struct drm_plane_state *new_state);
 void vmw_du_plane_cleanup_fb(struct drm_plane *plane,

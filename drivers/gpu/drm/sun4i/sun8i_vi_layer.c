@@ -393,8 +393,10 @@ static int sun8i_vi_layer_atomic_check(struct drm_plane *plane,
 }
 
 static void sun8i_vi_layer_atomic_disable(struct drm_plane *plane,
-					  struct drm_plane_state *old_state)
+					  struct drm_atomic_state *state)
 {
+	struct drm_plane_state *old_state = drm_atomic_get_old_plane_state(state,
+									   plane);
 	struct sun8i_vi_layer *layer = plane_to_sun8i_vi_layer(plane);
 	unsigned int old_zpos = old_state->normalized_zpos;
 	struct sun8i_mixer *mixer = layer->mixer;
@@ -404,8 +406,10 @@ static void sun8i_vi_layer_atomic_disable(struct drm_plane *plane,
 }
 
 static void sun8i_vi_layer_atomic_update(struct drm_plane *plane,
-					 struct drm_plane_state *old_state)
+					 struct drm_atomic_state *state)
 {
+	struct drm_plane_state *old_state = drm_atomic_get_old_plane_state(state,
+									   plane);
 	struct drm_plane_state *new_state = plane->state;
 	struct sun8i_vi_layer *layer = plane_to_sun8i_vi_layer(plane);
 	unsigned int zpos = new_state->normalized_zpos;

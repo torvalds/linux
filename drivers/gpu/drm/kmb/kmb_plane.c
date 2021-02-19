@@ -110,7 +110,7 @@ static int kmb_plane_atomic_check(struct drm_plane *plane,
 }
 
 static void kmb_plane_atomic_disable(struct drm_plane *plane,
-				     struct drm_plane_state *state)
+				     struct drm_atomic_state *state)
 {
 	struct kmb_plane *kmb_plane = to_kmb_plane(plane);
 	int plane_id = kmb_plane->id;
@@ -278,8 +278,10 @@ static void config_csc(struct kmb_drm_private *kmb, int plane_id)
 }
 
 static void kmb_plane_atomic_update(struct drm_plane *plane,
-				    struct drm_plane_state *state)
+				    struct drm_atomic_state *state)
 {
+	struct drm_plane_state *old_plane_state = drm_atomic_get_old_plane_state(state,
+										 plane);
 	struct drm_plane_state *new_plane_state = plane->state;
 	struct drm_framebuffer *fb;
 	struct kmb_drm_private *kmb;
@@ -294,7 +296,7 @@ static void kmb_plane_atomic_update(struct drm_plane *plane,
 	int num_planes;
 	static dma_addr_t addr[MAX_SUB_PLANES];
 
-	if (!plane || !new_plane_state || !state)
+	if (!plane || !new_plane_state || !old_plane_state)
 		return;
 
 	fb = new_plane_state->fb;

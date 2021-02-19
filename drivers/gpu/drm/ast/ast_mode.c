@@ -569,8 +569,10 @@ static int ast_primary_plane_helper_atomic_check(struct drm_plane *plane,
 
 static void
 ast_primary_plane_helper_atomic_update(struct drm_plane *plane,
-				       struct drm_plane_state *old_state)
+				       struct drm_atomic_state *state)
 {
+	struct drm_plane_state *old_state = drm_atomic_get_old_plane_state(state,
+									   plane);
 	struct drm_device *dev = plane->dev;
 	struct ast_private *ast = to_ast_private(dev);
 	struct drm_plane_state *new_state = plane->state;
@@ -601,7 +603,7 @@ ast_primary_plane_helper_atomic_update(struct drm_plane *plane,
 
 static void
 ast_primary_plane_helper_atomic_disable(struct drm_plane *plane,
-					struct drm_plane_state *old_state)
+					struct drm_atomic_state *state)
 {
 	struct ast_private *ast = to_ast_private(plane->dev);
 
@@ -790,9 +792,11 @@ static int ast_cursor_plane_helper_atomic_check(struct drm_plane *plane,
 
 static void
 ast_cursor_plane_helper_atomic_update(struct drm_plane *plane,
-				      struct drm_plane_state *old_state)
+				      struct drm_atomic_state *state)
 {
 	struct ast_cursor_plane *ast_cursor_plane = to_ast_cursor_plane(plane);
+	struct drm_plane_state *old_state = drm_atomic_get_old_plane_state(state,
+									   plane);
 	struct drm_plane_state *new_state = plane->state;
 	struct drm_shadow_plane_state *shadow_plane_state = to_drm_shadow_plane_state(new_state);
 	struct drm_framebuffer *fb = new_state->fb;
@@ -860,7 +864,7 @@ ast_cursor_plane_helper_atomic_update(struct drm_plane *plane,
 
 static void
 ast_cursor_plane_helper_atomic_disable(struct drm_plane *plane,
-				       struct drm_plane_state *old_state)
+				       struct drm_atomic_state *state)
 {
 	struct ast_private *ast = to_ast_private(plane->dev);
 

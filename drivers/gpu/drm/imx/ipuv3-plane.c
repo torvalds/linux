@@ -494,7 +494,7 @@ static int ipu_plane_atomic_check(struct drm_plane *plane,
 }
 
 static void ipu_plane_atomic_disable(struct drm_plane *plane,
-				     struct drm_plane_state *old_state)
+				     struct drm_atomic_state *state)
 {
 	struct ipu_plane *ipu_plane = to_ipu_plane(plane);
 
@@ -539,8 +539,10 @@ static void ipu_calculate_bursts(u32 width, u32 cpp, u32 stride,
 }
 
 static void ipu_plane_atomic_update(struct drm_plane *plane,
-				    struct drm_plane_state *old_state)
+				    struct drm_atomic_state *state)
 {
+	struct drm_plane_state *old_state = drm_atomic_get_old_plane_state(state,
+									   plane);
 	struct ipu_plane *ipu_plane = to_ipu_plane(plane);
 	struct drm_plane_state *new_state = plane->state;
 	struct ipu_plane_state *ipu_state = to_ipu_plane_state(new_state);
