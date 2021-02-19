@@ -30,6 +30,7 @@
 #include "dmub/dmub_srv.h"
 
 struct dmub_srv;
+struct dc;
 
 struct dc_reg_helper_state {
 	bool gather_in_progress;
@@ -60,4 +61,9 @@ bool dc_dmub_srv_cmd_with_reply_data(struct dc_dmub_srv *dc_dmub_srv, union dmub
 
 bool dc_dmub_srv_notify_stream_mask(struct dc_dmub_srv *dc_dmub_srv,
 				    unsigned int stream_mask);
+
+enum dmub_status dc_dmub_srv_get_dmub_outbox0_msg(const struct dc *dc, struct dmcub_trace_buf_entry *entry);
+
+void dc_dmub_trace_event_control(struct dc *dc, bool enable);
+
 #endif /* _DMUB_DC_SRV_H_ */

@@ -74,6 +74,8 @@ extern "C" {
 struct dmub_srv;
 struct dmub_srv_common_regs;
 
+struct dmcub_trace_buf_entry;
+
 /* enum dmub_status - return code for dmcub functions */
 enum dmub_status {
 	DMUB_STATUS_OK = 0,
@@ -272,6 +274,13 @@ struct dmub_srv_hw_funcs {
 
 	void (*set_outbox1_rptr)(struct dmub_srv *dmub, uint32_t rptr_offset);
 
+	void (*setup_outbox0)(struct dmub_srv *dmub,
+			      const struct dmub_region *outbox0);
+
+	uint32_t (*get_outbox0_wptr)(struct dmub_srv *dmub);
+
+	void (*set_outbox0_rptr)(struct dmub_srv *dmub, uint32_t rptr_offset);
+
 	uint32_t (*emul_get_inbox1_rptr)(struct dmub_srv *dmub);
 
 	void (*emul_set_inbox1_wptr)(struct dmub_srv *dmub, uint32_t wptr_offset);
@@ -295,6 +304,7 @@ struct dmub_srv_hw_funcs {
 			       union dmub_gpint_data_register reg);
 
 	uint32_t (*get_gpint_response)(struct dmub_srv *dmub);
+
 };
 
 /**
@@ -359,6 +369,8 @@ struct dmub_srv {
 	 * and to be used only in dmub_srv_stat_get_notification()
 	 */
 	struct dmub_rb outbox1_rb;
+
+	struct dmub_rb outbox0_rb;
 
 	bool sw_init;
 	bool hw_init;
@@ -654,6 +666,8 @@ enum dmub_status dmub_srv_get_fw_boot_status(struct dmub_srv *dmub,
 
 enum dmub_status dmub_srv_cmd_with_reply_data(struct dmub_srv *dmub,
 					      union dmub_rb_cmd *cmd);
+
+enum dmub_status dmub_srv_get_outbox0_msg(struct dmub_srv *dmub, struct dmcub_trace_buf_entry *entry);
 
 #if defined(__cplusplus)
 }

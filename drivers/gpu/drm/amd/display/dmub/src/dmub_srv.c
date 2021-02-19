@@ -31,6 +31,7 @@
 #include "dmub_dcn301.h"
 #include "dmub_dcn302.h"
 #include "os_types.h"
+#include "dmub_trace_buffer.h"
 /*
  * Note: the DMUB service is standalone. No additional headers should be
  * added below or above this line unless they reside within the DMUB
@@ -55,6 +56,7 @@
 /* Default tracebuffer size if meta is absent. */
 #define DMUB_TRACE_BUFFER_SIZE (64 * 1024)
 
+
 /* Default scratch mem size. */
 #define DMUB_SCRATCH_MEM_SIZE (256)
 
@@ -68,6 +70,8 @@
 #define DMUB_CW4_BASE (0x64000000)
 #define DMUB_CW5_BASE (0x65000000)
 #define DMUB_CW6_BASE (0x66000000)
+
+#define DMUB_REGION5_BASE (0xA0000000)
 
 static inline uint32_t dmub_align(uint32_t val, uint32_t factor)
 {
@@ -161,6 +165,11 @@ static bool dmub_srv_hw_setup(struct dmub_srv *dmub, enum dmub_asic asic)
 		funcs->setup_out_mailbox = dmub_dcn20_setup_out_mailbox;
 		funcs->get_outbox1_wptr = dmub_dcn20_get_outbox1_wptr;
 		funcs->set_outbox1_rptr = dmub_dcn20_set_outbox1_rptr;
+
+		//outbox0 call stacks
+		funcs->setup_outbox0 = dmub_dcn20_setup_outbox0;
+		funcs->get_outbox0_wptr = dmub_dcn20_get_outbox0_wptr;
+		funcs->set_outbox0_rptr = dmub_dcn20_set_outbox0_rptr;
 
 		if (asic == DMUB_ASIC_DCN21) {
 			dmub->regs = &dmub_srv_dcn21_regs;
@@ -400,9 +409,9 @@ enum dmub_status dmub_srv_hw_init(struct dmub_srv *dmub,
 	struct dmub_fb *fw_state_fb = params->fb[DMUB_WINDOW_6_FW_STATE];
 	struct dmub_fb *scratch_mem_fb = params->fb[DMUB_WINDOW_7_SCRATCH_MEM];
 
-	struct dmub_rb_init_params rb_params;
+	struct dmub_rb_init_params rb_params, outbox0_rb_params;
 	struct dmub_window cw0, cw1, cw2, cw3, cw4, cw5, cw6;
-	struct dmub_region inbox1, outbox1;
+	struct dmub_region inbox1, outbox1, outbox0;
 
 	if (!dmub->sw_init)
 		return DMUB_STATUS_INVALID;
@@ -465,6 +474,10 @@ enum dmub_status dmub_srv_hw_init(struct dmub_srv *dmub,
 		cw5.region.base = DMUB_CW5_BASE;
 		cw5.region.top = cw5.region.base + tracebuff_fb->size;
 
+		outbox0.base = DMUB_REGION5_BASE + TRACE_BUFFER_ENTRY_OFFSET;
+		outbox0.top = outbox0.base + sizeof(struct dmcub_trace_buf_entry) * PERF_TRACE_MAX_ENTRY;
+
+
 		cw6.offset.quad_part = fw_state_fb->gpu_addr;
 		cw6.region.base = DMUB_CW6_BASE;
 		cw6.region.top = cw6.region.base + fw_state_fb->size;
@@ -476,6 +489,9 @@ enum dmub_status dmub_srv_hw_init(struct dmub_srv *dmub,
 		if (dmub->hw_funcs.setup_windows)
 			dmub->hw_funcs.setup_windows(dmub, &cw2, &cw3, &cw4,
 						     &cw5, &cw6);
+
+		if (dmub->hw_funcs.setup_outbox0)
+			dmub->hw_funcs.setup_outbox0(dmub, &outbox0);
 
 		if (dmub->hw_funcs.setup_mailbox)
 			dmub->hw_funcs.setup_mailbox(dmub, &inbox1);
@@ -498,6 +514,12 @@ enum dmub_status dmub_srv_hw_init(struct dmub_srv *dmub,
 		dmub_rb_init(&dmub->outbox1_rb, &rb_params);
 
 	}
+
+	dmub_memset(&outbox0_rb_params, 0, sizeof(outbox0_rb_params));
+	outbox0_rb_params.ctx = dmub;
+	outbox0_rb_params.base_address = (void *)((uint64_t)(tracebuff_fb->cpu_addr) + TRACE_BUFFER_ENTRY_OFFSET);
+	outbox0_rb_params.capacity = sizeof(struct dmcub_trace_buf_entry) * PERF_TRACE_MAX_ENTRY;
+	dmub_rb_init(&dmub->outbox0_rb, &outbox0_rb_params);
 
 	if (dmub->hw_funcs.reset_release)
 		dmub->hw_funcs.reset_release(dmub);
@@ -696,4 +718,26 @@ enum dmub_status dmub_srv_cmd_with_reply_data(struct dmub_srv *dmub,
 	dmub_rb_get_return_data(&dmub->inbox1_rb, cmd);
 
 	return status;
+}
+
+static inline void dmub_rb_out_trace_buffer_front(struct dmub_rb *rb,
+				 void *entry)
+{
+	const uint64_t *src = (const uint64_t *)(rb->base_address) + rb->rptr / sizeof(uint64_t);
+	uint64_t *dst = (uint64_t *)entry;
+	uint8_t i;
+
+	// copying data
+	for (i = 0; i < sizeof(struct dmcub_trace_buf_entry) / sizeof(uint64_t); i++)
+		*dst++ = *src++;
+
+}
+
+enum dmub_status dmub_srv_get_outbox0_msg(struct dmub_srv *dmub, struct dmcub_trace_buf_entry *entry)
+{
+	dmub->outbox0_rb.wrpt = dmub->hw_funcs.get_outbox0_wptr(dmub);
+
+	dmub_rb_out_trace_buffer_front(&dmub->outbox0_rb, (void *)entry);
+
+	return DMUB_STATUS_OK;
 }

@@ -156,4 +156,6 @@ void dm_set_dcn_clocks(
 		struct dc_context *ctx,
 		struct dc_clocks *clks);
 
+bool dm_helpes_dmub_outbox0_interrupt_control(struct dc_context *ctx, bool enable);
+
 #endif /* __DM_HELPERS__ */

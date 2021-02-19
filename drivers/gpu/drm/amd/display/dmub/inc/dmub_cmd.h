@@ -79,6 +79,9 @@
 /* Maximum number of planes on any ASIC. */
 #define DMUB_MAX_PLANES 6
 
+/* Trace buffer offset for entry */
+#define TRACE_BUFFER_ENTRY_OFFSET  16
+
 #ifndef PHYSICAL_ADDRESS_LOC
 #define PHYSICAL_ADDRESS_LOC union large_integer
 #endif
