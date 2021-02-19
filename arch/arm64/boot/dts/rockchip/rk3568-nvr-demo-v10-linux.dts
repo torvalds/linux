@@ -14,3 +14,14 @@
 	compatible = "rockchip,rk3568-nvr-demo-ddr4-v10-linux", "rockchip,rk3568";
 };
 
+&pcie30phy {
+	status = "disabled";
+};
+
+&pcie3x1 {
+	status = "disabled";
+};
+
+&pcie3x2 {
+	status = "disabled";
+};
