@@ -44,7 +44,7 @@ union delba_param_set {
 	struct {
 		u16 reserved:11;
 		u16 initiator:1;
-		u16 TID:4;
+		u16 tid:4;
 	} field;
 };
 
