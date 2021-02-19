@@ -1438,10 +1438,13 @@ int mt76_connac_mcu_sched_scan_req(struct mt76_phy *phy,
 	req->version = 1;
 	req->seq_num = mvif->scan_seq_num | ext_phy << 7;
 
-	if (sreq->flags & NL80211_SCAN_FLAG_RANDOM_ADDR) {
-		get_random_mask_addr(req->random_mac, sreq->mac_addr,
+	if (is_mt7663(phy->dev) &&
+	    (sreq->flags & NL80211_SCAN_FLAG_RANDOM_ADDR)) {
+		get_random_mask_addr(req->mt7663.random_mac, sreq->mac_addr,
 				     sreq->mac_addr_mask);
 		req->scan_func = 1;
+	} else if (is_mt7921(phy->dev)) {
+		req->mt7921.bss_idx = mvif->idx;
 	}
 
 	req->ssids_num = sreq->n_ssids;

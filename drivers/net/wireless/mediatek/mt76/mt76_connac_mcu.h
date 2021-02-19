@@ -756,11 +756,19 @@ struct mt76_connac_sched_scan_req {
 	u8 channel_type;
 	u8 channels_num;
 	u8 intervals_num;
-	u8 scan_func; /* BIT(0) eable random mac address */
+	u8 scan_func; /* MT7663: BIT(0) eable random mac address */
 	struct mt76_connac_mcu_scan_channel channels[64];
 	__le16 intervals[MT76_CONNAC_MAX_SCHED_SCAN_INTERVAL];
-	u8 random_mac[ETH_ALEN]; /* valid when BIT(0) in scan_func is set */
-	u8 pad2[58];
+	union {
+		struct {
+			u8 random_mac[ETH_ALEN];
+			u8 pad2[58];
+		} mt7663;
+		struct {
+			u8 bss_idx;
+			u8 pad2[63];
+		} mt7921;
+	};
 } __packed;
 
 struct mt76_connac_sched_scan_done {
