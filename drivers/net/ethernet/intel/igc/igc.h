@@ -28,6 +28,11 @@ void igc_ethtool_set_ops(struct net_device *);
 #define MAX_ETYPE_FILTER		8
 #define IGC_RETA_SIZE			128
 
+/* SDP support */
+#define IGC_N_EXTTS	2
+#define IGC_N_PEROUT	2
+#define IGC_N_SDP	4
+
 enum igc_mac_filter_type {
 	IGC_MAC_FILTER_TYPE_DST = 0,
 	IGC_MAC_FILTER_TYPE_SRC
@@ -225,6 +230,12 @@ struct igc_adapter {
 	struct bpf_prog *xdp_prog;
 
 	bool pps_sys_wrap_on;
+
+	struct ptp_pin_desc sdp_config[IGC_N_SDP];
+	struct {
+		struct timespec64 start;
+		struct timespec64 period;
+	} perout[IGC_N_PEROUT];
 };
 
 void igc_up(struct igc_adapter *adapter);

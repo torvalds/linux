@@ -4250,10 +4250,13 @@ igc_features_check(struct sk_buff *skb, struct net_device *dev,
 
 static void igc_tsync_interrupt(struct igc_adapter *adapter)
 {
+	u32 ack, tsauxc, sec, nsec, tsicr;
 	struct igc_hw *hw = &adapter->hw;
 	struct ptp_clock_event event;
-	u32 tsicr = rd32(IGC_TSICR);
-	u32 ack = 0;
+	struct timespec64 ts;
+
+	tsicr = rd32(IGC_TSICR);
+	ack = 0;
 
 	if (tsicr & IGC_TSICR_SYS_WRAP) {
 		event.type = PTP_CLOCK_PPS;
@@ -4266,6 +4269,54 @@ static void igc_tsync_interrupt(struct igc_adapter *adapter)
 		/* retrieve hardware timestamp */
 		schedule_work(&adapter->ptp_tx_work);
 		ack |= IGC_TSICR_TXTS;
+	}
+
+	if (tsicr & IGC_TSICR_TT0) {
+		spin_lock(&adapter->tmreg_lock);
+		ts = timespec64_add(adapter->perout[0].start,
+				    adapter->perout[0].period);
+		wr32(IGC_TRGTTIML0, ts.tv_nsec | IGC_TT_IO_TIMER_SEL_SYSTIM0);
+		wr32(IGC_TRGTTIMH0, (u32)ts.tv_sec);
+		tsauxc = rd32(IGC_TSAUXC);
+		tsauxc |= IGC_TSAUXC_EN_TT0;
+		wr32(IGC_TSAUXC, tsauxc);
+		adapter->perout[0].start = ts;
+		spin_unlock(&adapter->tmreg_lock);
+		ack |= IGC_TSICR_TT0;
+	}
+
+	if (tsicr & IGC_TSICR_TT1) {
+		spin_lock(&adapter->tmreg_lock);
+		ts = timespec64_add(adapter->perout[1].start,
+				    adapter->perout[1].period);
+		wr32(IGC_TRGTTIML1, ts.tv_nsec | IGC_TT_IO_TIMER_SEL_SYSTIM0);
+		wr32(IGC_TRGTTIMH1, (u32)ts.tv_sec);
+		tsauxc = rd32(IGC_TSAUXC);
+		tsauxc |= IGC_TSAUXC_EN_TT1;
+		wr32(IGC_TSAUXC, tsauxc);
+		adapter->perout[1].start = ts;
+		spin_unlock(&adapter->tmreg_lock);
+		ack |= IGC_TSICR_TT1;
+	}
+
+	if (tsicr & IGC_TSICR_AUTT0) {
+		nsec = rd32(IGC_AUXSTMPL0);
+		sec  = rd32(IGC_AUXSTMPH0);
+		event.type = PTP_CLOCK_EXTTS;
+		event.index = 0;
+		event.timestamp = sec * NSEC_PER_SEC + nsec;
+		ptp_clock_event(adapter->ptp_clock, &event);
+		ack |= IGC_TSICR_AUTT0;
+	}
+
+	if (tsicr & IGC_TSICR_AUTT1) {
+		nsec = rd32(IGC_AUXSTMPL1);
+		sec  = rd32(IGC_AUXSTMPH1);
+		event.type = PTP_CLOCK_EXTTS;
+		event.index = 1;
+		event.timestamp = sec * NSEC_PER_SEC + nsec;
+		ptp_clock_event(adapter->ptp_clock, &event);
+		ack |= IGC_TSICR_AUTT1;
 	}
 
 	/* acknowledge the interrupts */

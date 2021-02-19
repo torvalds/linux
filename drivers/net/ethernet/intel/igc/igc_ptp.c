@@ -120,6 +120,124 @@ static int igc_ptp_settime_i225(struct ptp_clock_info *ptp,
 	return 0;
 }
 
+static void igc_pin_direction(int pin, int input, u32 *ctrl, u32 *ctrl_ext)
+{
+	u32 *ptr = pin < 2 ? ctrl : ctrl_ext;
+	static const u32 mask[IGC_N_SDP] = {
+		IGC_CTRL_SDP0_DIR,
+		IGC_CTRL_SDP1_DIR,
+		IGC_CTRL_EXT_SDP2_DIR,
+		IGC_CTRL_EXT_SDP3_DIR,
+	};
+
+	if (input)
+		*ptr &= ~mask[pin];
+	else
+		*ptr |= mask[pin];
+}
+
+static void igc_pin_perout(struct igc_adapter *igc, int chan, int pin, int freq)
+{
+	static const u32 igc_aux0_sel_sdp[IGC_N_SDP] = {
+		IGC_AUX0_SEL_SDP0, IGC_AUX0_SEL_SDP1, IGC_AUX0_SEL_SDP2, IGC_AUX0_SEL_SDP3,
+	};
+	static const u32 igc_aux1_sel_sdp[IGC_N_SDP] = {
+		IGC_AUX1_SEL_SDP0, IGC_AUX1_SEL_SDP1, IGC_AUX1_SEL_SDP2, IGC_AUX1_SEL_SDP3,
+	};
+	static const u32 igc_ts_sdp_en[IGC_N_SDP] = {
+		IGC_TS_SDP0_EN, IGC_TS_SDP1_EN, IGC_TS_SDP2_EN, IGC_TS_SDP3_EN,
+	};
+	static const u32 igc_ts_sdp_sel_tt0[IGC_N_SDP] = {
+		IGC_TS_SDP0_SEL_TT0, IGC_TS_SDP1_SEL_TT0,
+		IGC_TS_SDP2_SEL_TT0, IGC_TS_SDP3_SEL_TT0,
+	};
+	static const u32 igc_ts_sdp_sel_tt1[IGC_N_SDP] = {
+		IGC_TS_SDP0_SEL_TT1, IGC_TS_SDP1_SEL_TT1,
+		IGC_TS_SDP2_SEL_TT1, IGC_TS_SDP3_SEL_TT1,
+	};
+	static const u32 igc_ts_sdp_sel_fc0[IGC_N_SDP] = {
+		IGC_TS_SDP0_SEL_FC0, IGC_TS_SDP1_SEL_FC0,
+		IGC_TS_SDP2_SEL_FC0, IGC_TS_SDP3_SEL_FC0,
+	};
+	static const u32 igc_ts_sdp_sel_fc1[IGC_N_SDP] = {
+		IGC_TS_SDP0_SEL_FC1, IGC_TS_SDP1_SEL_FC1,
+		IGC_TS_SDP2_SEL_FC1, IGC_TS_SDP3_SEL_FC1,
+	};
+	static const u32 igc_ts_sdp_sel_clr[IGC_N_SDP] = {
+		IGC_TS_SDP0_SEL_FC1, IGC_TS_SDP1_SEL_FC1,
+		IGC_TS_SDP2_SEL_FC1, IGC_TS_SDP3_SEL_FC1,
+	};
+	struct igc_hw *hw = &igc->hw;
+	u32 ctrl, ctrl_ext, tssdp = 0;
+
+	ctrl = rd32(IGC_CTRL);
+	ctrl_ext = rd32(IGC_CTRL_EXT);
+	tssdp = rd32(IGC_TSSDP);
+
+	igc_pin_direction(pin, 0, &ctrl, &ctrl_ext);
+
+	/* Make sure this pin is not enabled as an input. */
+	if ((tssdp & IGC_AUX0_SEL_SDP3) == igc_aux0_sel_sdp[pin])
+		tssdp &= ~IGC_AUX0_TS_SDP_EN;
+
+	if ((tssdp & IGC_AUX1_SEL_SDP3) == igc_aux1_sel_sdp[pin])
+		tssdp &= ~IGC_AUX1_TS_SDP_EN;
+
+	tssdp &= ~igc_ts_sdp_sel_clr[pin];
+	if (freq) {
+		if (chan == 1)
+			tssdp |= igc_ts_sdp_sel_fc1[pin];
+		else
+			tssdp |= igc_ts_sdp_sel_fc0[pin];
+	} else {
+		if (chan == 1)
+			tssdp |= igc_ts_sdp_sel_tt1[pin];
+		else
+			tssdp |= igc_ts_sdp_sel_tt0[pin];
+	}
+	tssdp |= igc_ts_sdp_en[pin];
+
+	wr32(IGC_TSSDP, tssdp);
+	wr32(IGC_CTRL, ctrl);
+	wr32(IGC_CTRL_EXT, ctrl_ext);
+}
+
+static void igc_pin_extts(struct igc_adapter *igc, int chan, int pin)
+{
+	static const u32 igc_aux0_sel_sdp[IGC_N_SDP] = {
+		IGC_AUX0_SEL_SDP0, IGC_AUX0_SEL_SDP1, IGC_AUX0_SEL_SDP2, IGC_AUX0_SEL_SDP3,
+	};
+	static const u32 igc_aux1_sel_sdp[IGC_N_SDP] = {
+		IGC_AUX1_SEL_SDP0, IGC_AUX1_SEL_SDP1, IGC_AUX1_SEL_SDP2, IGC_AUX1_SEL_SDP3,
+	};
+	static const u32 igc_ts_sdp_en[IGC_N_SDP] = {
+		IGC_TS_SDP0_EN, IGC_TS_SDP1_EN, IGC_TS_SDP2_EN, IGC_TS_SDP3_EN,
+	};
+	struct igc_hw *hw = &igc->hw;
+	u32 ctrl, ctrl_ext, tssdp = 0;
+
+	ctrl = rd32(IGC_CTRL);
+	ctrl_ext = rd32(IGC_CTRL_EXT);
+	tssdp = rd32(IGC_TSSDP);
+
+	igc_pin_direction(pin, 1, &ctrl, &ctrl_ext);
+
+	/* Make sure this pin is not enabled as an output. */
+	tssdp &= ~igc_ts_sdp_en[pin];
+
+	if (chan == 1) {
+		tssdp &= ~IGC_AUX1_SEL_SDP3;
+		tssdp |= igc_aux1_sel_sdp[pin] | IGC_AUX1_TS_SDP_EN;
+	} else {
+		tssdp &= ~IGC_AUX0_SEL_SDP3;
+		tssdp |= igc_aux0_sel_sdp[pin] | IGC_AUX0_TS_SDP_EN;
+	}
+
+	wr32(IGC_TSSDP, tssdp);
+	wr32(IGC_CTRL, ctrl);
+	wr32(IGC_CTRL_EXT, ctrl_ext);
+}
+
 static int igc_ptp_feature_enable_i225(struct ptp_clock_info *ptp,
 				       struct ptp_clock_request *rq, int on)
 {
@@ -127,9 +245,131 @@ static int igc_ptp_feature_enable_i225(struct ptp_clock_info *ptp,
 		container_of(ptp, struct igc_adapter, ptp_caps);
 	struct igc_hw *hw = &igc->hw;
 	unsigned long flags;
-	u32 tsim;
+	struct timespec64 ts;
+	int use_freq = 0, pin = -1;
+	u32 tsim, tsauxc, tsauxc_mask, tsim_mask, trgttiml, trgttimh, freqout;
+	s64 ns;
 
 	switch (rq->type) {
+	case PTP_CLK_REQ_EXTTS:
+		/* Reject requests with unsupported flags */
+		if (rq->extts.flags & ~(PTP_ENABLE_FEATURE |
+					PTP_RISING_EDGE |
+					PTP_FALLING_EDGE |
+					PTP_STRICT_FLAGS))
+			return -EOPNOTSUPP;
+
+		/* Reject requests failing to enable both edges. */
+		if ((rq->extts.flags & PTP_STRICT_FLAGS) &&
+		    (rq->extts.flags & PTP_ENABLE_FEATURE) &&
+		    (rq->extts.flags & PTP_EXTTS_EDGES) != PTP_EXTTS_EDGES)
+			return -EOPNOTSUPP;
+
+		if (on) {
+			pin = ptp_find_pin(igc->ptp_clock, PTP_PF_EXTTS,
+					   rq->extts.index);
+			if (pin < 0)
+				return -EBUSY;
+		}
+		if (rq->extts.index == 1) {
+			tsauxc_mask = IGC_TSAUXC_EN_TS1;
+			tsim_mask = IGC_TSICR_AUTT1;
+		} else {
+			tsauxc_mask = IGC_TSAUXC_EN_TS0;
+			tsim_mask = IGC_TSICR_AUTT0;
+		}
+		spin_lock_irqsave(&igc->tmreg_lock, flags);
+		tsauxc = rd32(IGC_TSAUXC);
+		tsim = rd32(IGC_TSIM);
+		if (on) {
+			igc_pin_extts(igc, rq->extts.index, pin);
+			tsauxc |= tsauxc_mask;
+			tsim |= tsim_mask;
+		} else {
+			tsauxc &= ~tsauxc_mask;
+			tsim &= ~tsim_mask;
+		}
+		wr32(IGC_TSAUXC, tsauxc);
+		wr32(IGC_TSIM, tsim);
+		spin_unlock_irqrestore(&igc->tmreg_lock, flags);
+		return 0;
+
+	case PTP_CLK_REQ_PEROUT:
+		/* Reject requests with unsupported flags */
+		if (rq->perout.flags)
+			return -EOPNOTSUPP;
+
+		if (on) {
+			pin = ptp_find_pin(igc->ptp_clock, PTP_PF_PEROUT,
+					   rq->perout.index);
+			if (pin < 0)
+				return -EBUSY;
+		}
+		ts.tv_sec = rq->perout.period.sec;
+		ts.tv_nsec = rq->perout.period.nsec;
+		ns = timespec64_to_ns(&ts);
+		ns = ns >> 1;
+		if (on && (ns <= 70000000LL || ns == 125000000LL ||
+			   ns == 250000000LL || ns == 500000000LL)) {
+			if (ns < 8LL)
+				return -EINVAL;
+			use_freq = 1;
+		}
+		ts = ns_to_timespec64(ns);
+		if (rq->perout.index == 1) {
+			if (use_freq) {
+				tsauxc_mask = IGC_TSAUXC_EN_CLK1;
+				tsim_mask = 0;
+			} else {
+				tsauxc_mask = IGC_TSAUXC_EN_TT1;
+				tsim_mask = IGC_TSICR_TT1;
+			}
+			trgttiml = IGC_TRGTTIML1;
+			trgttimh = IGC_TRGTTIMH1;
+			freqout = IGC_FREQOUT1;
+		} else {
+			if (use_freq) {
+				tsauxc_mask = IGC_TSAUXC_EN_CLK0;
+				tsim_mask = 0;
+			} else {
+				tsauxc_mask = IGC_TSAUXC_EN_TT0;
+				tsim_mask = IGC_TSICR_TT0;
+			}
+			trgttiml = IGC_TRGTTIML0;
+			trgttimh = IGC_TRGTTIMH0;
+			freqout = IGC_FREQOUT0;
+		}
+		spin_lock_irqsave(&igc->tmreg_lock, flags);
+		tsauxc = rd32(IGC_TSAUXC);
+		tsim = rd32(IGC_TSIM);
+		if (rq->perout.index == 1) {
+			tsauxc &= ~(IGC_TSAUXC_EN_TT1 | IGC_TSAUXC_EN_CLK1);
+			tsim &= ~IGC_TSICR_TT1;
+		} else {
+			tsauxc &= ~(IGC_TSAUXC_EN_TT0 | IGC_TSAUXC_EN_CLK0);
+			tsim &= ~IGC_TSICR_TT0;
+		}
+		if (on) {
+			int i = rq->perout.index;
+
+			igc_pin_perout(igc, i, pin, use_freq);
+			igc->perout[i].start.tv_sec = rq->perout.start.sec;
+			igc->perout[i].start.tv_nsec = rq->perout.start.nsec;
+			igc->perout[i].period.tv_sec = ts.tv_sec;
+			igc->perout[i].period.tv_nsec = ts.tv_nsec;
+			wr32(trgttimh, rq->perout.start.sec);
+			/* For now, always select timer 0 as source. */
+			wr32(trgttiml, rq->perout.start.nsec | IGC_TT_IO_TIMER_SEL_SYSTIM0);
+			if (use_freq)
+				wr32(freqout, ns);
+			tsauxc |= tsauxc_mask;
+			tsim |= tsim_mask;
+		}
+		wr32(IGC_TSAUXC, tsauxc);
+		wr32(IGC_TSIM, tsim);
+		spin_unlock_irqrestore(&igc->tmreg_lock, flags);
+		return 0;
+
 	case PTP_CLK_REQ_PPS:
 		spin_lock_irqsave(&igc->tmreg_lock, flags);
 		tsim = rd32(IGC_TSIM);
@@ -147,6 +387,20 @@ static int igc_ptp_feature_enable_i225(struct ptp_clock_info *ptp,
 	}
 
 	return -EOPNOTSUPP;
+}
+
+static int igc_ptp_verify_pin(struct ptp_clock_info *ptp, unsigned int pin,
+			      enum ptp_pin_function func, unsigned int chan)
+{
+	switch (func) {
+	case PTP_PF_NONE:
+	case PTP_PF_EXTTS:
+	case PTP_PF_PEROUT:
+		break;
+	case PTP_PF_PHYSYNC:
+		return -1;
+	}
+	return 0;
 }
 
 /**
@@ -509,9 +763,17 @@ void igc_ptp_init(struct igc_adapter *adapter)
 {
 	struct net_device *netdev = adapter->netdev;
 	struct igc_hw *hw = &adapter->hw;
+	int i;
 
 	switch (hw->mac.type) {
 	case igc_i225:
+		for (i = 0; i < IGC_N_SDP; i++) {
+			struct ptp_pin_desc *ppd = &adapter->sdp_config[i];
+
+			snprintf(ppd->name, sizeof(ppd->name), "SDP%d", i);
+			ppd->index = i;
+			ppd->func = PTP_PF_NONE;
+		}
 		snprintf(adapter->ptp_caps.name, 16, "%pm", netdev->dev_addr);
 		adapter->ptp_caps.owner = THIS_MODULE;
 		adapter->ptp_caps.max_adj = 62499999;
@@ -521,6 +783,11 @@ void igc_ptp_init(struct igc_adapter *adapter)
 		adapter->ptp_caps.settime64 = igc_ptp_settime_i225;
 		adapter->ptp_caps.enable = igc_ptp_feature_enable_i225;
 		adapter->ptp_caps.pps = 1;
+		adapter->ptp_caps.pin_config = adapter->sdp_config;
+		adapter->ptp_caps.n_ext_ts = IGC_N_EXTTS;
+		adapter->ptp_caps.n_per_out = IGC_N_PEROUT;
+		adapter->ptp_caps.n_pins = IGC_N_SDP;
+		adapter->ptp_caps.verify = igc_ptp_verify_pin;
 		break;
 	default:
 		adapter->ptp_clock = NULL;
