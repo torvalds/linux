@@ -1292,8 +1292,14 @@ mt7921_pm_interface_iter(void *priv, u8 *mac, struct ieee80211_vif *vif)
 {
 	struct mt7921_phy *phy = priv;
 	struct mt7921_dev *dev = phy->dev;
+	int ret;
 
-	if (mt7921_mcu_set_bss_pm(dev, vif, dev->pm.enable))
+	if (dev->pm.enable)
+		ret = mt7921_mcu_uni_bss_bcnft(dev, vif, true);
+	else
+		ret = mt7921_mcu_set_bss_pm(dev, vif, false);
+
+	if (ret)
 		return;
 
 	if (dev->pm.enable) {

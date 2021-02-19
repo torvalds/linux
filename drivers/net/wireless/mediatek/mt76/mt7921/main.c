@@ -295,15 +295,6 @@ static int mt7921_add_interface(struct ieee80211_hw *hw,
 	if (ret)
 		goto out;
 
-	if (dev->pm.enable) {
-		ret = mt7921_mcu_set_bss_pm(dev, vif, true);
-		if (ret)
-			goto out;
-
-		vif->driver_flags |= IEEE80211_VIF_BEACON_FILTER;
-		mt76_set(dev, MT_WF_RFCR(0), MT_WF_RFCR_DROP_OTHER_BEACON);
-	}
-
 	dev->mt76.vif_mask |= BIT(mvif->mt76.idx);
 	phy->omac_mask |= BIT_ULL(mvif->mt76.omac_idx);
 
@@ -349,13 +340,6 @@ static void mt7921_remove_interface(struct ieee80211_hw *hw,
 		phy->monitor_vif = NULL;
 
 	mt76_connac_free_pending_tx_skbs(&dev->pm, &msta->wcid);
-
-	if (dev->pm.enable) {
-		mt7921_mcu_set_bss_pm(dev, vif, false);
-		mt76_clear(dev, MT_WF_RFCR(0),
-			   MT_WF_RFCR_DROP_OTHER_BEACON);
-	}
-
 	mt76_connac_mcu_uni_add_dev(&dev->mphy, vif, &mvif->sta.wcid, false);
 
 	rcu_assign_pointer(dev->mt76.wcid[idx], NULL);
@@ -561,6 +545,36 @@ static void mt7921_configure_filter(struct ieee80211_hw *hw,
 	mt7921_mutex_release(dev);
 }
 
+static int
+mt7921_bss_bcnft_apply(struct mt7921_dev *dev, struct ieee80211_vif *vif,
+		       bool assoc)
+{
+	int ret;
+
+	if (!dev->pm.enable)
+		return 0;
+
+	if (assoc) {
+		ret = mt7921_mcu_uni_bss_bcnft(dev, vif, true);
+		if (ret)
+			return ret;
+
+		vif->driver_flags |= IEEE80211_VIF_BEACON_FILTER;
+		mt76_set(dev, MT_WF_RFCR(0), MT_WF_RFCR_DROP_OTHER_BEACON);
+
+		return 0;
+	}
+
+	ret = mt7921_mcu_set_bss_pm(dev, vif, false);
+	if (ret)
+		return ret;
+
+	vif->driver_flags &= ~IEEE80211_VIF_BEACON_FILTER;
+	mt76_clear(dev, MT_WF_RFCR(0), MT_WF_RFCR_DROP_OTHER_BEACON);
+
+	return 0;
+}
+
 static void mt7921_bss_info_changed(struct ieee80211_hw *hw,
 				    struct ieee80211_vif *vif,
 				    struct ieee80211_bss_conf *info,
@@ -586,6 +600,9 @@ static void mt7921_bss_info_changed(struct ieee80211_hw *hw,
 
 	if (changed & BSS_CHANGED_PS)
 		mt7921_mcu_uni_bss_ps(dev, vif);
+
+	if (changed & BSS_CHANGED_ASSOC)
+		mt7921_bss_bcnft_apply(dev, vif, info->assoc);
 
 	mt7921_mutex_release(dev);
 }
