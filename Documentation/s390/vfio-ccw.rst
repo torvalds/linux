@@ -219,8 +219,8 @@ values may occur:
   The operation was successful.
 
 ``-EOPNOTSUPP``
-  The orb specified transport mode or an unidentified IDAW format, or the
-  scsw specified a function other than the start function.
+  The ORB specified transport mode or the
+  SCSW specified a function other than the start function.
 
 ``-EIO``
   A request was issued while the device was not in a state ready to accept

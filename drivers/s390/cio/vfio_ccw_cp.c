@@ -381,14 +381,6 @@ static int ccwchain_calc_length(u64 iova, struct channel_program *cp)
 		cnt++;
 
 		/*
-		 * As we don't want to fail direct addressing even if the
-		 * orb specified one of the unsupported formats, we defer
-		 * checking for IDAWs in unsupported formats to here.
-		 */
-		if ((!cp->orb.cmd.c64 || cp->orb.cmd.i2k) && ccw_is_idal(ccw))
-			return -EOPNOTSUPP;
-
-		/*
 		 * We want to keep counting if the current CCW has the
 		 * command-chaining flag enabled, or if it is a TIC CCW
 		 * that loops back into the current chain.  The latter
