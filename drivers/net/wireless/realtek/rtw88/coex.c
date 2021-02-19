@@ -2646,6 +2646,11 @@ void rtw_coex_power_on_setting(struct rtw_dev *rtwdev)
 	rtw_coex_set_gnt_debug(rtwdev);
 }
 
+void rtw_coex_power_off_setting(struct rtw_dev *rtwdev)
+{
+	rtw_write16(rtwdev, REG_WIFI_BT_INFO, BIT_BT_INT_EN);
+}
+
 void rtw_coex_init_hw_config(struct rtw_dev *rtwdev, bool wifi_only)
 {
 	__rtw_coex_init_hw_config(rtwdev, wifi_only);
