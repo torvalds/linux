@@ -223,6 +223,8 @@ struct igc_adapter {
 	char fw_version[32];
 
 	struct bpf_prog *xdp_prog;
+
+	bool pps_sys_wrap_on;
 };
 
 void igc_up(struct igc_adapter *adapter);

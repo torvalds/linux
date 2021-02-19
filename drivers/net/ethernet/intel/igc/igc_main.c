@@ -4251,8 +4251,16 @@ igc_features_check(struct sk_buff *skb, struct net_device *dev,
 static void igc_tsync_interrupt(struct igc_adapter *adapter)
 {
 	struct igc_hw *hw = &adapter->hw;
+	struct ptp_clock_event event;
 	u32 tsicr = rd32(IGC_TSICR);
 	u32 ack = 0;
+
+	if (tsicr & IGC_TSICR_SYS_WRAP) {
+		event.type = PTP_CLOCK_PPS;
+		if (adapter->ptp_caps.pps)
+			ptp_clock_event(adapter->ptp_clock, &event);
+		ack |= IGC_TSICR_SYS_WRAP;
+	}
 
 	if (tsicr & IGC_TSICR_TXTS) {
 		/* retrieve hardware timestamp */
