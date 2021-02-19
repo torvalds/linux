@@ -135,6 +135,7 @@
 		};
 
 		partition@100000 {
+			compatible = "brcm,bcm4908-firmware";
 			label = "firmware";
 			reg = <0x100000 0x4400000>;
 		};
