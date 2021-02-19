@@ -634,14 +634,15 @@ static void qxl_free_cursor(struct qxl_bo *cursor_bo)
 static void qxl_primary_atomic_update(struct drm_plane *plane,
 				      struct drm_plane_state *old_state)
 {
+	struct drm_plane_state *new_state = plane->state;
 	struct qxl_device *qdev = to_qxl(plane->dev);
-	struct qxl_bo *bo = gem_to_qxl_bo(plane->state->fb->obj[0]);
+	struct qxl_bo *bo = gem_to_qxl_bo(new_state->fb->obj[0]);
 	struct qxl_bo *primary;
 	struct drm_clip_rect norect = {
 	    .x1 = 0,
 	    .y1 = 0,
-	    .x2 = plane->state->fb->width,
-	    .y2 = plane->state->fb->height
+	    .x2 = new_state->fb->width,
+	    .y2 = new_state->fb->height
 	};
 	uint32_t dumb_shadow_offset = 0;
 
@@ -656,9 +657,9 @@ static void qxl_primary_atomic_update(struct drm_plane *plane,
 
 	if (bo->is_dumb)
 		dumb_shadow_offset =
-			qdev->dumb_heads[plane->state->crtc->index].x;
+			qdev->dumb_heads[new_state->crtc->index].x;
 
-	qxl_draw_dirty_fb(qdev, plane->state->fb, bo, 0, 0, &norect, 1, 1,
+	qxl_draw_dirty_fb(qdev, new_state->fb, bo, 0, 0, &norect, 1, 1,
 			  dumb_shadow_offset);
 }
 
@@ -682,13 +683,14 @@ static void qxl_primary_atomic_disable(struct drm_plane *plane,
 static void qxl_cursor_atomic_update(struct drm_plane *plane,
 				     struct drm_plane_state *old_state)
 {
+	struct drm_plane_state *new_state = plane->state;
 	struct qxl_device *qdev = to_qxl(plane->dev);
-	struct drm_framebuffer *fb = plane->state->fb;
+	struct drm_framebuffer *fb = new_state->fb;
 
 	if (fb != old_state->fb) {
-		qxl_primary_apply_cursor(qdev, plane->state);
+		qxl_primary_apply_cursor(qdev, new_state);
 	} else {
-		qxl_primary_move_cursor(qdev, plane->state);
+		qxl_primary_move_cursor(qdev, new_state);
 	}
 }
 

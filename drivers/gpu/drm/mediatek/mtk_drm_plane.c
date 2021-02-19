@@ -175,7 +175,8 @@ static int mtk_plane_atomic_check(struct drm_plane *plane,
 static void mtk_plane_atomic_disable(struct drm_plane *plane,
 				     struct drm_plane_state *old_state)
 {
-	struct mtk_plane_state *state = to_mtk_plane_state(plane->state);
+	struct drm_plane_state *new_state = plane->state;
+	struct mtk_plane_state *state = to_mtk_plane_state(new_state);
 
 	state->pending.enable = false;
 	wmb(); /* Make sure the above parameter is set before update */
@@ -185,9 +186,10 @@ static void mtk_plane_atomic_disable(struct drm_plane *plane,
 static void mtk_plane_atomic_update(struct drm_plane *plane,
 				    struct drm_plane_state *old_state)
 {
-	struct mtk_plane_state *state = to_mtk_plane_state(plane->state);
-	struct drm_crtc *crtc = plane->state->crtc;
-	struct drm_framebuffer *fb = plane->state->fb;
+	struct drm_plane_state *new_state = plane->state;
+	struct mtk_plane_state *state = to_mtk_plane_state(new_state);
+	struct drm_crtc *crtc = new_state->crtc;
+	struct drm_framebuffer *fb = new_state->fb;
 	struct drm_gem_object *gem;
 	struct mtk_drm_gem_obj *mtk_gem;
 	unsigned int pitch, format;
@@ -196,7 +198,7 @@ static void mtk_plane_atomic_update(struct drm_plane *plane,
 	if (!crtc || WARN_ON(!fb))
 		return;
 
-	if (!plane->state->visible) {
+	if (!new_state->visible) {
 		mtk_plane_atomic_disable(plane, old_state);
 		return;
 	}
@@ -207,18 +209,18 @@ static void mtk_plane_atomic_update(struct drm_plane *plane,
 	pitch = fb->pitches[0];
 	format = fb->format->format;
 
-	addr += (plane->state->src.x1 >> 16) * fb->format->cpp[0];
-	addr += (plane->state->src.y1 >> 16) * pitch;
+	addr += (new_state->src.x1 >> 16) * fb->format->cpp[0];
+	addr += (new_state->src.y1 >> 16) * pitch;
 
 	state->pending.enable = true;
 	state->pending.pitch = pitch;
 	state->pending.format = format;
 	state->pending.addr = addr;
-	state->pending.x = plane->state->dst.x1;
-	state->pending.y = plane->state->dst.y1;
-	state->pending.width = drm_rect_width(&plane->state->dst);
-	state->pending.height = drm_rect_height(&plane->state->dst);
-	state->pending.rotation = plane->state->rotation;
+	state->pending.x = new_state->dst.x1;
+	state->pending.y = new_state->dst.y1;
+	state->pending.width = drm_rect_width(&new_state->dst);
+	state->pending.height = drm_rect_height(&new_state->dst);
+	state->pending.rotation = new_state->rotation;
 	wmb(); /* Make sure the above parameters are set before update */
 	state->pending.dirty = true;
 }

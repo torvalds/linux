@@ -275,20 +275,21 @@ static int vbox_primary_atomic_check(struct drm_plane *plane,
 static void vbox_primary_atomic_update(struct drm_plane *plane,
 				       struct drm_plane_state *old_state)
 {
-	struct drm_crtc *crtc = plane->state->crtc;
-	struct drm_framebuffer *fb = plane->state->fb;
+	struct drm_plane_state *new_state = plane->state;
+	struct drm_crtc *crtc = new_state->crtc;
+	struct drm_framebuffer *fb = new_state->fb;
 	struct vbox_private *vbox = to_vbox_dev(fb->dev);
 	struct drm_mode_rect *clips;
 	uint32_t num_clips, i;
 
 	vbox_crtc_set_base_and_mode(crtc, fb,
-				    plane->state->src_x >> 16,
-				    plane->state->src_y >> 16);
+				    new_state->src_x >> 16,
+				    new_state->src_y >> 16);
 
 	/* Send information about dirty rectangles to VBVA. */
 
-	clips = drm_plane_get_damage_clips(plane->state);
-	num_clips = drm_plane_get_damage_clips_count(plane->state);
+	clips = drm_plane_get_damage_clips(new_state);
+	num_clips = drm_plane_get_damage_clips_count(new_state);
 
 	if (!num_clips)
 		return;
@@ -382,14 +383,15 @@ static void copy_cursor_image(u8 *src, u8 *dst, u32 width, u32 height,
 static void vbox_cursor_atomic_update(struct drm_plane *plane,
 				      struct drm_plane_state *old_state)
 {
+	struct drm_plane_state *new_state = plane->state;
 	struct vbox_private *vbox =
 		container_of(plane->dev, struct vbox_private, ddev);
-	struct vbox_crtc *vbox_crtc = to_vbox_crtc(plane->state->crtc);
-	struct drm_framebuffer *fb = plane->state->fb;
-	u32 width = plane->state->crtc_w;
-	u32 height = plane->state->crtc_h;
+	struct vbox_crtc *vbox_crtc = to_vbox_crtc(new_state->crtc);
+	struct drm_framebuffer *fb = new_state->fb;
+	u32 width = new_state->crtc_w;
+	u32 height = new_state->crtc_h;
 	struct drm_shadow_plane_state *shadow_plane_state =
-		to_drm_shadow_plane_state(plane->state);
+		to_drm_shadow_plane_state(new_state);
 	struct dma_buf_map map = shadow_plane_state->map[0];
 	u8 *src = map.vaddr; /* TODO: Use mapping abstraction properly */
 	size_t data_size, mask_size;

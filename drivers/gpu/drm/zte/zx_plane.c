@@ -353,8 +353,9 @@ static void zx_gl_rsz_setup(struct zx_plane *zplane, u32 src_w, u32 src_h,
 static void zx_gl_plane_atomic_update(struct drm_plane *plane,
 				      struct drm_plane_state *old_state)
 {
+	struct drm_plane_state *new_state = plane->state;
 	struct zx_plane *zplane = to_zx_plane(plane);
-	struct drm_framebuffer *fb = plane->state->fb;
+	struct drm_framebuffer *fb = new_state->fb;
 	struct drm_gem_cma_object *cma_obj;
 	void __iomem *layer = zplane->layer;
 	void __iomem *csc = zplane->csc;
@@ -373,15 +374,15 @@ static void zx_gl_plane_atomic_update(struct drm_plane *plane,
 	format = fb->format->format;
 	stride = fb->pitches[0];
 
-	src_x = plane->state->src_x >> 16;
-	src_y = plane->state->src_y >> 16;
-	src_w = plane->state->src_w >> 16;
-	src_h = plane->state->src_h >> 16;
+	src_x = new_state->src_x >> 16;
+	src_y = new_state->src_y >> 16;
+	src_w = new_state->src_w >> 16;
+	src_h = new_state->src_h >> 16;
 
-	dst_x = plane->state->crtc_x;
-	dst_y = plane->state->crtc_y;
-	dst_w = plane->state->crtc_w;
-	dst_h = plane->state->crtc_h;
+	dst_x = new_state->crtc_x;
+	dst_y = new_state->crtc_y;
+	dst_w = new_state->crtc_w;
+	dst_h = new_state->crtc_h;
 
 	bpp = fb->format->cpp[0];
 

@@ -262,7 +262,8 @@ static int hdlcd_plane_atomic_check(struct drm_plane *plane,
 static void hdlcd_plane_atomic_update(struct drm_plane *plane,
 				      struct drm_plane_state *state)
 {
-	struct drm_framebuffer *fb = plane->state->fb;
+	struct drm_plane_state *new_plane_state = plane->state;
+	struct drm_framebuffer *fb = new_plane_state->fb;
 	struct hdlcd_drm_private *hdlcd;
 	u32 dest_h;
 	dma_addr_t scanout_start;
@@ -270,8 +271,8 @@ static void hdlcd_plane_atomic_update(struct drm_plane *plane,
 	if (!fb)
 		return;
 
-	dest_h = drm_rect_height(&plane->state->dst);
-	scanout_start = drm_fb_cma_get_gem_addr(fb, plane->state, 0);
+	dest_h = drm_rect_height(&new_plane_state->dst);
+	scanout_start = drm_fb_cma_get_gem_addr(fb, new_plane_state, 0);
 
 	hdlcd = plane->dev->dev_private;
 	hdlcd_write(hdlcd, HDLCD_REG_FB_LINE_LENGTH, fb->pitches[0]);

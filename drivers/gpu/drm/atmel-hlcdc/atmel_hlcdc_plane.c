@@ -733,12 +733,13 @@ static void atmel_hlcdc_plane_atomic_disable(struct drm_plane *p,
 static void atmel_hlcdc_plane_atomic_update(struct drm_plane *p,
 					    struct drm_plane_state *old_s)
 {
+	struct drm_plane_state *new_s = p->state;
 	struct atmel_hlcdc_plane *plane = drm_plane_to_atmel_hlcdc_plane(p);
 	struct atmel_hlcdc_plane_state *hstate =
-			drm_plane_state_to_atmel_hlcdc_plane_state(p->state);
+			drm_plane_state_to_atmel_hlcdc_plane_state(new_s);
 	u32 sr;
 
-	if (!p->state->crtc || !p->state->fb)
+	if (!new_s->crtc || !new_s->fb)
 		return;
 
 	if (!hstate->base.visible) {

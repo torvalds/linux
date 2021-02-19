@@ -1179,11 +1179,12 @@ static void
 zynqmp_disp_plane_atomic_update(struct drm_plane *plane,
 				struct drm_plane_state *old_state)
 {
+	struct drm_plane_state *new_state = plane->state;
 	struct zynqmp_disp_layer *layer = plane_to_layer(plane);
 	bool format_changed = false;
 
 	if (!old_state->fb ||
-	    old_state->fb->format->format != plane->state->fb->format->format)
+	    old_state->fb->format->format != new_state->fb->format->format)
 		format_changed = true;
 
 	/*
@@ -1195,10 +1196,10 @@ zynqmp_disp_plane_atomic_update(struct drm_plane *plane,
 		if (old_state->fb)
 			zynqmp_disp_layer_disable(layer);
 
-		zynqmp_disp_layer_set_format(layer, plane->state);
+		zynqmp_disp_layer_set_format(layer, new_state);
 	}
 
-	zynqmp_disp_layer_update(layer, plane->state);
+	zynqmp_disp_layer_update(layer, new_state);
 
 	/* Enable or re-enable the plane is the format has changed. */
 	if (format_changed)

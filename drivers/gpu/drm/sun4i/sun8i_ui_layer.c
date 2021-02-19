@@ -302,12 +302,13 @@ static void sun8i_ui_layer_atomic_disable(struct drm_plane *plane,
 static void sun8i_ui_layer_atomic_update(struct drm_plane *plane,
 					 struct drm_plane_state *old_state)
 {
+	struct drm_plane_state *new_state = plane->state;
 	struct sun8i_ui_layer *layer = plane_to_sun8i_ui_layer(plane);
-	unsigned int zpos = plane->state->normalized_zpos;
+	unsigned int zpos = new_state->normalized_zpos;
 	unsigned int old_zpos = old_state->normalized_zpos;
 	struct sun8i_mixer *mixer = layer->mixer;
 
-	if (!plane->state->visible) {
+	if (!new_state->visible) {
 		sun8i_ui_layer_enable(mixer, layer->channel,
 				      layer->overlay, false, 0, old_zpos);
 		return;
