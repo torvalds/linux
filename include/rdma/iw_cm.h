@@ -70,6 +70,7 @@ struct iw_cm_id {
 	u8  tos;
 	bool tos_set:1;
 	bool mapped:1;
+	bool afonly:1;
 };
 
 struct iw_cm_conn_param {

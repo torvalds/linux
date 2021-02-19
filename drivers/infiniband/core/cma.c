@@ -2474,6 +2474,7 @@ static int cma_iw_listen(struct rdma_id_private *id_priv, int backlog)
 
 	id->tos = id_priv->tos;
 	id->tos_set = id_priv->tos_set;
+	id->afonly = id_priv->afonly;
 	id_priv->cm_id.iw = id;
 
 	memcpy(&id_priv->cm_id.iw->local_addr, cma_src_addr(id_priv),
