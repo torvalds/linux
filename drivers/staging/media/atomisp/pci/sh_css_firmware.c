@@ -366,7 +366,7 @@ void sh_css_unload_firmware(void)
 			if (fw_minibuffer[i].name)
 				kfree((void *)fw_minibuffer[i].name);
 			if (fw_minibuffer[i].buffer)
-				vfree((void *)fw_minibuffer[i].buffer);
+				kvfree(fw_minibuffer[i].buffer);
 		}
 		kfree(fw_minibuffer);
 		fw_minibuffer = NULL;
