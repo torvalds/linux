@@ -640,7 +640,6 @@ struct vop2_win_data {
 	const uint32_t *formats;
 	const uint64_t *format_modifiers;
 	const unsigned int supported_rotations;
-	uint32_t possible_crtcs[VOP2_SOC_VARIANT];
 
 	const struct vop2_win_regs *regs;
 	const struct vop2_win_regs **area;

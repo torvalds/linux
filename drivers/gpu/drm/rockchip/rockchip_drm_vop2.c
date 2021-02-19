@@ -295,10 +295,6 @@ struct vop2_win {
 	 * one win can only attach to one vp at the one time.
 	 */
 	uint8_t vp_mask;
-	/*
-	 * @possible_crtcs: which crtc/vp this win can attached to.
-	 */
-	uint32_t possible_crtcs;
 	uint8_t zpos;
 	uint32_t offset;
 	enum drm_plane_type type;
@@ -5131,7 +5127,7 @@ static int vop2_plane_create_feature_property(struct vop2 *vop2, struct vop2_win
 	return 0;
 }
 
-static int vop2_plane_init(struct vop2 *vop2, struct vop2_win *win)
+static int vop2_plane_init(struct vop2 *vop2, struct vop2_win *win, unsigned long possible_crtcs)
 {
 	struct rockchip_drm_private *private = vop2->drm_dev->dev_private;
 	unsigned int blend_caps = BIT(DRM_MODE_BLEND_PIXEL_NONE) | BIT(DRM_MODE_BLEND_PREMULTI) |
@@ -5139,7 +5135,7 @@ static int vop2_plane_init(struct vop2 *vop2, struct vop2_win *win)
 	unsigned int max_width, max_height;
 	int ret;
 
-	ret = drm_universal_plane_init(vop2->drm_dev, &win->base, win->possible_crtcs,
+	ret = drm_universal_plane_init(vop2->drm_dev, &win->base, possible_crtcs,
 				       &vop2_plane_funcs, win->formats, win->nformats,
 				       win->format_modifiers, win->type, win->name);
 	if (ret) {
@@ -5269,10 +5265,14 @@ static int vop2_create_crtc(struct vop2 *vop2)
 	struct vop2_win *win = NULL;
 	struct vop2_video_port *vp;
 	const struct vop2_video_port_data *vp_data;
+	uint32_t possible_crtcs;
 	uint64_t soc_id;
 	char dclk_name[9];
 	int i = 0, j = 0;
 	int ret = 0;
+
+	/* all planes can attach to any crtc */
+	possible_crtcs = (1 << vop2_data->nr_vps) - 1;
 
 	/*
 	 * Create primary plane for eache crtc first, since we need
@@ -5313,7 +5313,7 @@ static int vop2_create_crtc(struct vop2 *vop2)
 			break;
 		}
 
-		if (vop2_plane_init(vop2, win)) {
+		if (vop2_plane_init(vop2, win, possible_crtcs)) {
 			DRM_DEV_ERROR(vop2->dev, "failed to init plane\n");
 			break;
 		}
@@ -5372,7 +5372,7 @@ static int vop2_create_crtc(struct vop2 *vop2)
 		if (win->type != DRM_PLANE_TYPE_OVERLAY)
 			continue;
 
-		ret = vop2_plane_init(vop2, win);
+		ret = vop2_plane_init(vop2, win, possible_crtcs);
 		if (ret) {
 			DRM_DEV_ERROR(vop2->dev, "failed to init overlay\n");
 			break;
@@ -5436,10 +5436,6 @@ static int vop2_win_init(struct vop2 *vop2)
 		win->area_id = 0;
 		win->zpos = i;
 		win->vop2 = vop2;
-		if (vop2_soc_is_rk3566())
-			win->possible_crtcs = win_data->possible_crtcs[1];
-		else
-			win->possible_crtcs = win_data->possible_crtcs[0];
 
 		num_wins++;
 
@@ -5457,7 +5453,6 @@ static int vop2_win_init(struct vop2 *vop2)
 			area->formats = win->formats;
 			area->nformats = win->nformats;
 			area->format_modifiers = win->format_modifiers;
-			area->possible_crtcs = win->possible_crtcs;
 			area->max_upscale_factor = win_data->max_upscale_factor;
 			area->max_downscale_factor = win_data->max_downscale_factor;
 			area->supported_rotations = win_data->supported_rotations;
