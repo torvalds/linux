@@ -216,7 +216,7 @@ int rsnd_mod_init(struct rsnd_priv *priv,
 	mod->clk	= clk;
 	mod->priv	= priv;
 
-	return ret;
+	return 0;
 }
 
 void rsnd_mod_quit(struct rsnd_mod *mod)
