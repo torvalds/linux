@@ -1029,11 +1029,21 @@ int tpm_tis_core_init(struct device *dev, struct tpm_tis_data *priv, int irq,
 	init_waitqueue_head(&priv->read_queue);
 	init_waitqueue_head(&priv->int_queue);
 	if (irq != -1) {
-		/* Before doing irq testing issue a command to the TPM in polling mode
+		/*
+		 * Before doing irq testing issue a command to the TPM in polling mode
 		 * to make sure it works. May as well use that command to set the
 		 * proper timeouts for the driver.
 		 */
-		if (tpm_get_timeouts(chip)) {
+
+		rc = request_locality(chip, 0);
+		if (rc < 0)
+			goto out_err;
+
+		rc = tpm_get_timeouts(chip);
+
+		release_locality(chip, 0);
+
+		if (rc) {
 			dev_err(dev, "Could not get TPM timeouts and durations\n");
 			rc = -ENODEV;
 			goto out_err;
