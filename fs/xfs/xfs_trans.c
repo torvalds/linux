@@ -260,6 +260,7 @@ xfs_trans_alloc(
 	struct xfs_trans	**tpp)
 {
 	struct xfs_trans	*tp;
+	bool			want_retry = true;
 	int			error;
 
 	/*
@@ -267,6 +268,7 @@ xfs_trans_alloc(
 	 * GFP_NOFS allocation context so that we avoid lockdep false positives
 	 * by doing GFP_KERNEL allocations inside sb_start_intwrite().
 	 */
+retry:
 	tp = kmem_cache_zalloc(xfs_trans_zone, GFP_KERNEL | __GFP_NOFAIL);
 	if (!(flags & XFS_TRANS_NO_WRITECOUNT))
 		sb_start_intwrite(mp->m_super);
@@ -289,7 +291,9 @@ xfs_trans_alloc(
 	tp->t_firstblock = NULLFSBLOCK;
 
 	error = xfs_trans_reserve(tp, resp, blocks, rtextents);
-	if (error == -ENOSPC) {
+	if (error == -ENOSPC && want_retry) {
+		xfs_trans_cancel(tp);
+
 		/*
 		 * We weren't able to reserve enough space for the transaction.
 		 * Flush the other speculative space allocations to free space.
@@ -297,8 +301,11 @@ xfs_trans_alloc(
 		 * other locks.
 		 */
 		error = xfs_blockgc_free_space(mp, NULL);
-		if (!error)
-			error = xfs_trans_reserve(tp, resp, blocks, rtextents);
+		if (error)
+			return error;
+
+		want_retry = false;
+		goto retry;
 	}
 	if (error) {
 		xfs_trans_cancel(tp);
