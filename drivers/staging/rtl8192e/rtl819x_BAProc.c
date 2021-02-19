@@ -58,7 +58,7 @@ static u8 RxTsDeleteBA(struct rtllib_device *ieee, struct rx_ts_record *pRxTs)
 void ResetBaEntry(struct ba_record *pBA)
 {
 	pBA->bValid			= false;
-	pBA->BaParamSet.shortData	= 0;
+	pBA->BaParamSet.short_data	= 0;
 	pBA->BaTimeoutValue		= 0;
 	pBA->DialogToken		= 0;
 	pBA->BaStartSeqCtrl.short_data	= 0;
@@ -107,7 +107,7 @@ static struct sk_buff *rtllib_ADDBA(struct rtllib_device *ieee, u8 *Dst,
 		tag += 2;
 	}
 
-	put_unaligned_le16(pBA->BaParamSet.shortData, tag);
+	put_unaligned_le16(pBA->BaParamSet.short_data, tag);
 	tag += 2;
 
 	put_unaligned_le16(pBA->BaTimeoutValue, tag);
