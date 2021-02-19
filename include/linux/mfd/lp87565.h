@@ -237,17 +237,6 @@ enum lp87565_device_type {
 #define LP87565_GPIO2_OUT			BIT(1)
 #define LP87565_GPIO1_OUT			BIT(0)
 
-enum LP87565_regulator_id {
-	/* BUCK's */
-	LP87565_BUCK_0,
-	LP87565_BUCK_1,
-	LP87565_BUCK_2,
-	LP87565_BUCK_3,
-	LP87565_BUCK_10,
-	LP87565_BUCK_23,
-	LP87565_BUCK_3210,
-};
-
 /**
  * struct LP87565 - state holder for the LP87565 driver
  * @dev: struct device pointer for MFD device
