@@ -367,11 +367,12 @@ int mlx5_init_rl_table(struct mlx5_core_dev *dev)
 {
 	struct mlx5_rl_table *table = &dev->priv.rl_table;
 
-	mutex_init(&table->rl_lock);
 	if (!MLX5_CAP_GEN(dev, qos) || !MLX5_CAP_QOS(dev, packet_pacing)) {
 		table->max_size = 0;
 		return 0;
 	}
+
+	mutex_init(&table->rl_lock);
 
 	/* First entry is reserved for unlimited rate */
 	table->max_size = MLX5_CAP_QOS(dev, packet_pacing_rate_table_size) - 1;
@@ -394,4 +395,5 @@ void mlx5_cleanup_rl_table(struct mlx5_core_dev *dev)
 		return;
 
 	mlx5_rl_table_free(dev, table);
+	mutex_destroy(&table->rl_lock);
 }
