@@ -42,7 +42,7 @@ union delba_param_set {
 	u8 char_data[2];
 	u16 short_data;
 	struct {
-		u16 Reserved:11;
+		u16 reserved:11;
 		u16 Initiator:1;
 		u16 TID:4;
 	} field;
