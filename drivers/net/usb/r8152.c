@@ -6590,7 +6590,7 @@ static int rtl_ops_init(struct r8152 *tp)
 
 	default:
 		ret = -ENODEV;
-		netif_err(tp, probe, tp->netdev, "Unknown Device\n");
+		dev_err(&tp->intf->dev, "Unknown Device\n");
 		break;
 	}
 
@@ -6847,7 +6847,7 @@ static int rtl8152_probe(struct usb_interface *intf,
 
 	ret = register_netdev(netdev);
 	if (ret != 0) {
-		netif_err(tp, probe, netdev, "couldn't register the device\n");
+		dev_err(&intf->dev, "couldn't register the device\n");
 		goto out1;
 	}
 
