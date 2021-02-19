@@ -463,6 +463,9 @@ static int nfs_fs_context_parse_param(struct fs_context *fc,
 	if (opt < 0)
 		return ctx->sloppy ? 1 : opt;
 
+	if (fc->security)
+		ctx->has_sec_mnt_opts = 1;
+
 	switch (opt) {
 	case Opt_source:
 		if (fc->source)
