@@ -746,3 +746,31 @@ int smu_cmn_get_metrics_table(struct smu_context *smu,
 
 	return ret;
 }
+
+void smu_cmn_init_soft_gpu_metrics(void *table, uint8_t frev, uint8_t crev)
+{
+	struct metrics_table_header *header = (struct metrics_table_header *)table;
+	uint16_t structure_size;
+
+#define METRICS_VERSION(a, b)	((a << 16) | b )
+
+	switch (METRICS_VERSION(frev, crev)) {
+	case METRICS_VERSION(1, 0):
+		structure_size = sizeof(struct gpu_metrics_v1_0);
+		break;
+	case METRICS_VERSION(2, 0):
+		structure_size = sizeof(struct gpu_metrics_v2_0);
+		break;
+	default:
+		break;
+	}
+
+#undef METRICS_VERSION
+
+	memset(header, 0xFF, structure_size);
+
+	header->format_revision = frev;
+	header->content_revision = crev;
+	header->structure_size = structure_size;
+
+}

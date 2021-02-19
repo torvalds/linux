@@ -38,7 +38,6 @@
 
 #include "gc/gc_10_1_0_offset.h"
 #include "gc/gc_10_1_0_sh_mask.h"
-#include "smuio/smuio_11_0_0_offset.h"
 #include "mp/mp_11_0_offset.h"
 
 #include "soc15.h"
@@ -61,6 +60,8 @@
 #include "dce_virtual.h"
 #include "mes_v10_1.h"
 #include "mxgpu_nv.h"
+#include "smuio_v11_0.h"
+#include "smuio_v11_0_6.h"
 
 static const struct amd_ip_funcs nv_common_ip_funcs;
 
@@ -202,6 +203,7 @@ static bool nv_read_bios_from_rom(struct amdgpu_device *adev,
 {
 	u32 *dw_ptr;
 	u32 i, length_dw;
+	u32 rom_index_offset, rom_data_offset;
 
 	if (bios == NULL)
 		return false;
@@ -214,11 +216,16 @@ static bool nv_read_bios_from_rom(struct amdgpu_device *adev,
 	dw_ptr = (u32 *)bios;
 	length_dw = ALIGN(length_bytes, 4) / 4;
 
+	rom_index_offset =
+		adev->smuio.funcs->get_rom_index_offset(adev);
+	rom_data_offset =
+		adev->smuio.funcs->get_rom_data_offset(adev);
+
 	/* set rom index to 0 */
-	WREG32(SOC15_REG_OFFSET(SMUIO, 0, mmROM_INDEX), 0);
+	WREG32(rom_index_offset, 0);
 	/* read out the rom data */
 	for (i = 0; i < length_dw; i++)
-		dw_ptr[i] = RREG32(SOC15_REG_OFFSET(SMUIO, 0, mmROM_DATA));
+		dw_ptr[i] = RREG32(rom_data_offset);
 
 	return true;
 }
@@ -384,7 +391,8 @@ nv_asic_reset_method(struct amdgpu_device *adev)
 
 	if (amdgpu_reset_method == AMD_RESET_METHOD_MODE1 ||
 	    amdgpu_reset_method == AMD_RESET_METHOD_MODE2 ||
-	    amdgpu_reset_method == AMD_RESET_METHOD_BACO)
+	    amdgpu_reset_method == AMD_RESET_METHOD_BACO ||
+	    amdgpu_reset_method == AMD_RESET_METHOD_PCI)
 		return amdgpu_reset_method;
 
 	if (amdgpu_reset_method != -1)
@@ -416,6 +424,10 @@ static int nv_asic_reset(struct amdgpu_device *adev)
 		return 0;
 
 	switch (nv_asic_reset_method(adev)) {
+	case AMD_RESET_METHOD_PCI:
+		dev_info(adev->dev, "PCI reset\n");
+		ret = amdgpu_device_pci_reset(adev);
+		break;
 	case AMD_RESET_METHOD_BACO:
 		dev_info(adev->dev, "BACO reset\n");
 
@@ -468,11 +480,14 @@ static void nv_pcie_gen3_enable(struct amdgpu_device *adev)
 
 static void nv_program_aspm(struct amdgpu_device *adev)
 {
-
-	if (amdgpu_aspm == 0)
+	if (amdgpu_aspm != 1)
 		return;
 
-	/* todo */
+	if ((adev->asic_type >= CHIP_SIENNA_CICHLID) &&
+	    !(adev->flags & AMD_IS_APU) &&
+	    (adev->nbio.funcs->program_aspm))
+		adev->nbio.funcs->program_aspm(adev);
+
 }
 
 static void nv_enable_doorbell_aperture(struct amdgpu_device *adev,
@@ -560,6 +575,11 @@ int nv_set_ip_blocks(struct amdgpu_device *adev)
 		adev->nbio.hdp_flush_reg = &nbio_v2_3_hdp_flush_reg;
 	}
 	adev->hdp.funcs = &hdp_v5_0_funcs;
+
+	if (adev->asic_type >= CHIP_SIENNA_CICHLID)
+		adev->smuio.funcs = &smuio_v11_0_6_funcs;
+	else
+		adev->smuio.funcs = &smuio_v11_0_funcs;
 
 	if (adev->asic_type == CHIP_SIENNA_CICHLID)
 		adev->gmc.xgmi.supported = true;
@@ -798,10 +818,10 @@ static int nv_update_umd_stable_pstate(struct amdgpu_device *adev,
 	 * The ASPM function is not fully enabled and verified on
 	 * Navi yet. Temporarily skip this until ASPM enabled.
 	 */
-#if 0
-	if (adev->nbio.funcs->enable_aspm)
+	if ((adev->asic_type >= CHIP_SIENNA_CICHLID) &&
+	    !(adev->flags & AMD_IS_APU) &&
+	    (adev->nbio.funcs->enable_aspm))
 		adev->nbio.funcs->enable_aspm(adev, !enter);
-#endif
 
 	return 0;
 }
@@ -1129,6 +1149,8 @@ static int nv_common_set_clockgating_state(void *handle,
 				state == AMD_CG_STATE_GATE);
 		adev->hdp.funcs->update_clock_gating(adev,
 				state == AMD_CG_STATE_GATE);
+		adev->smuio.funcs->update_rom_clock_gating(adev,
+				state == AMD_CG_STATE_GATE);
 		break;
 	default:
 		break;
@@ -1153,6 +1175,8 @@ static void nv_common_get_clockgating_state(void *handle, u32 *flags)
 	adev->nbio.funcs->get_clockgating_state(adev, flags);
 
 	adev->hdp.funcs->get_clock_gating_state(adev, flags);
+
+	adev->smuio.funcs->get_clock_gating_state(adev, flags);
 
 	return;
 }

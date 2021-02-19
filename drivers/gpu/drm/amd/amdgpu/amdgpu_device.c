@@ -929,6 +929,18 @@ void amdgpu_device_pci_config_reset(struct amdgpu_device *adev)
 	pci_write_config_dword(adev->pdev, 0x7c, AMDGPU_ASIC_RESET_DATA);
 }
 
+/**
+ * amdgpu_device_pci_reset - reset the GPU using generic PCI means
+ *
+ * @adev: amdgpu_device pointer
+ *
+ * Resets the GPU using generic pci reset interfaces (FLR, SBR, etc.).
+ */
+int amdgpu_device_pci_reset(struct amdgpu_device *adev)
+{
+	return pci_reset_function(adev->pdev);
+}
+
 /*
  * GPU doorbell aperture helpers function.
  */
@@ -1433,10 +1445,8 @@ static void amdgpu_switcheroo_set_state(struct pci_dev *pdev,
 		amdgpu_device_resume(dev, true);
 
 		dev->switch_power_state = DRM_SWITCH_POWER_ON;
-		drm_kms_helper_poll_enable(dev);
 	} else {
 		pr_info("switched off\n");
-		drm_kms_helper_poll_disable(dev);
 		dev->switch_power_state = DRM_SWITCH_POWER_CHANGING;
 		amdgpu_device_suspend(dev, true);
 		amdgpu_device_cache_pci_state(pdev);
@@ -3724,7 +3734,7 @@ int amdgpu_device_suspend(struct drm_device *dev, bool fbcon)
 
 	r = amdgpu_device_ip_suspend_phase1(adev);
 
-	amdgpu_amdkfd_suspend(adev, !fbcon);
+	amdgpu_amdkfd_suspend(adev, adev->in_runpm);
 
 	/* evict vram memory */
 	amdgpu_bo_evict_vram(adev);
@@ -3808,7 +3818,7 @@ int amdgpu_device_resume(struct drm_device *dev, bool fbcon)
 			}
 		}
 	}
-	r = amdgpu_amdkfd_resume(adev, !fbcon);
+	r = amdgpu_amdkfd_resume(adev, adev->in_runpm);
 	if (r)
 		return r;
 
@@ -4211,6 +4221,7 @@ bool amdgpu_device_should_recover_gpu(struct amdgpu_device *adev)
 		case CHIP_NAVI12:
 		case CHIP_SIENNA_CICHLID:
 		case CHIP_NAVY_FLOUNDER:
+		case CHIP_DIMGREY_CAVEFISH:
 			break;
 		default:
 			goto disabled;

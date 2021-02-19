@@ -233,6 +233,8 @@ static u32 soc15_get_xclk(struct amdgpu_device *adev)
 {
 	u32 reference_clock = adev->clock.spll.reference_freq;
 
+	if (adev->asic_type == CHIP_RENOIR)
+		return 10000;
 	if (adev->asic_type == CHIP_RAVEN)
 		return reference_clock / 4;
 
@@ -479,7 +481,8 @@ soc15_asic_reset_method(struct amdgpu_device *adev)
 
 	if (amdgpu_reset_method == AMD_RESET_METHOD_MODE1 ||
 	    amdgpu_reset_method == AMD_RESET_METHOD_MODE2 ||
-		amdgpu_reset_method == AMD_RESET_METHOD_BACO)
+	    amdgpu_reset_method == AMD_RESET_METHOD_BACO ||
+	    amdgpu_reset_method == AMD_RESET_METHOD_PCI)
 		return amdgpu_reset_method;
 
 	if (amdgpu_reset_method != -1)
@@ -524,15 +527,18 @@ static int soc15_asic_reset(struct amdgpu_device *adev)
 		return 0;
 
 	switch (soc15_asic_reset_method(adev)) {
-		case AMD_RESET_METHOD_BACO:
-			dev_info(adev->dev, "BACO reset\n");
-			return soc15_asic_baco_reset(adev);
-		case AMD_RESET_METHOD_MODE2:
-			dev_info(adev->dev, "MODE2 reset\n");
-			return amdgpu_dpm_mode2_reset(adev);
-		default:
-			dev_info(adev->dev, "MODE1 reset\n");
-			return soc15_asic_mode1_reset(adev);
+	case AMD_RESET_METHOD_PCI:
+		dev_info(adev->dev, "PCI reset\n");
+		return amdgpu_device_pci_reset(adev);
+	case AMD_RESET_METHOD_BACO:
+		dev_info(adev->dev, "BACO reset\n");
+		return soc15_asic_baco_reset(adev);
+	case AMD_RESET_METHOD_MODE2:
+		dev_info(adev->dev, "MODE2 reset\n");
+		return amdgpu_dpm_mode2_reset(adev);
+	default:
+		dev_info(adev->dev, "MODE1 reset\n");
+		return soc15_asic_mode1_reset(adev);
 	}
 }
 
