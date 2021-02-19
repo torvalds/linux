@@ -752,7 +752,10 @@ static int cxl_send_cmd(struct cxl_memdev *cxlmd,
 	if (rc)
 		return rc;
 
-	return copy_to_user(s, &send, sizeof(send));
+	if (copy_to_user(s, &send, sizeof(send)))
+		return -EFAULT;
+
+	return 0;
 }
 
 static long __cxl_memdev_ioctl(struct cxl_memdev *cxlmd, unsigned int cmd,
