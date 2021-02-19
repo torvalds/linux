@@ -574,6 +574,11 @@ static int anx6345_bridge_attach(struct drm_bridge *bridge,
 	return 0;
 }
 
+static void anx6345_bridge_detach(struct drm_bridge *bridge)
+{
+	drm_dp_aux_unregister(&bridge_to_anx6345(bridge)->aux);
+}
+
 static enum drm_mode_status
 anx6345_bridge_mode_valid(struct drm_bridge *bridge,
 			  const struct drm_display_info *info,
@@ -624,6 +629,7 @@ static void anx6345_bridge_enable(struct drm_bridge *bridge)
 
 static const struct drm_bridge_funcs anx6345_bridge_funcs = {
 	.attach = anx6345_bridge_attach,
+	.detach = anx6345_bridge_detach,
 	.mode_valid = anx6345_bridge_mode_valid,
 	.disable = anx6345_bridge_disable,
 	.enable = anx6345_bridge_enable,
