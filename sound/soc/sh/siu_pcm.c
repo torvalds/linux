@@ -363,7 +363,7 @@ static int siu_pcm_prepare(struct snd_soc_component *component,
 	struct siu_info *info = siu_i2s_data;
 	struct siu_port *port_info = siu_port_info(ss);
 	struct device *dev = ss->pcm->card->dev;
-	struct snd_pcm_runtime 	*rt = ss->runtime;
+	struct snd_pcm_runtime *rt;
 	struct siu_stream *siu_stream;
 	snd_pcm_sframes_t xfer_cnt;
 
