@@ -10,16 +10,12 @@
 
 /**
  * struct cpu_priv - CPU private data
- * @sysclk_freq: SYSCLK rates for set_sysclk()
- * @sysclk_dir: SYSCLK directions for set_sysclk()
  * @sysclk_id: SYSCLK ids for set_sysclk()
  * @slot_width: Slot width of each frame
  *
  * Note: [1] for tx and [0] for rx
  */
 struct cpu_priv {
-	unsigned long sysclk_freq[2];
-	u32 sysclk_dir[2];
 	u32 sysclk_id[2];
 	u32 slot_width;
 };
