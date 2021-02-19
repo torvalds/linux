@@ -400,7 +400,6 @@ static void rsnd_ssi_config_init(struct rsnd_mod *mod,
 	 * see
 	 *	rsnd_ssiu_init_gen2()
 	 */
-	wsr = ssi->wsr;
 	if (is_tdm || is_tdm_split) {
 		wsr	|= WS_MODE;
 		cr_own	|= CHNL_8;
