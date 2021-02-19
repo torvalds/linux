@@ -112,6 +112,14 @@
 		#size-cells = <1>;
 		ranges = <0x00 0x00 0x80000000 0x281000>;
 
+		enet: ethernet@2000 {
+			compatible = "brcm,bcm4908-enet";
+			reg = <0x2000 0x1000>;
+
+			interrupts = <GIC_SPI 86 IRQ_TYPE_LEVEL_HIGH>;
+			interrupt-names = "rx";
+		};
+
 		usb_phy: usb-phy@c200 {
 			compatible = "brcm,bcm4908-usb-phy";
 			reg = <0xc200 0x100>;
@@ -198,6 +206,17 @@
 						reg = <3>;
 						phy-mode = "internal";
 						phy-handle = <&phy11>;
+					};
+
+					port@8 {
+						reg = <8>;
+						phy-mode = "internal";
+						ethernet = <&enet>;
+
+						fixed-link {
+							speed = <1000>;
+							full-duplex;
+						};
 					};
 				};
 			};
