@@ -5757,6 +5757,9 @@ static int rtl8152_runtime_suspend(struct r8152 *tp)
 	struct net_device *netdev = tp->netdev;
 	int ret = 0;
 
+	if (!tp->rtl_ops.autosuspend_en)
+		return -EBUSY;
+
 	set_bit(SELECTIVE_SUSPEND, &tp->flags);
 	smp_mb__after_atomic();
 
@@ -6156,6 +6159,11 @@ rtl_ethtool_get_eee(struct net_device *net, struct ethtool_eee *edata)
 	struct r8152 *tp = netdev_priv(net);
 	int ret;
 
+	if (!tp->rtl_ops.eee_get) {
+		ret = -EOPNOTSUPP;
+		goto out;
+	}
+
 	ret = usb_autopm_get_interface(tp->intf);
 	if (ret < 0)
 		goto out;
@@ -6177,6 +6185,11 @@ rtl_ethtool_set_eee(struct net_device *net, struct ethtool_eee *edata)
 {
 	struct r8152 *tp = netdev_priv(net);
 	int ret;
+
+	if (!tp->rtl_ops.eee_set) {
+		ret = -EOPNOTSUPP;
+		goto out;
+	}
 
 	ret = usb_autopm_get_interface(tp->intf);
 	if (ret < 0)
