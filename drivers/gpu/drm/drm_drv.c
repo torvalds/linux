@@ -61,7 +61,7 @@ static struct idr drm_minors_idr;
  * prefer to embed struct drm_device into their own device
  * structure and call drm_dev_init() themselves.
  */
-static bool drm_core_init_complete = false;
+static bool drm_core_init_complete;
 
 static struct dentry *drm_debugfs_root;
 
