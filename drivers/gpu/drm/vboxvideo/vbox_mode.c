@@ -253,8 +253,10 @@ static const struct drm_crtc_funcs vbox_crtc_funcs = {
 };
 
 static int vbox_primary_atomic_check(struct drm_plane *plane,
-				     struct drm_plane_state *new_state)
+				     struct drm_atomic_state *state)
 {
+	struct drm_plane_state *new_state = drm_atomic_get_new_plane_state(state,
+									   plane);
 	struct drm_crtc_state *crtc_state = NULL;
 
 	if (new_state->crtc) {
@@ -326,8 +328,10 @@ static void vbox_primary_atomic_disable(struct drm_plane *plane,
 }
 
 static int vbox_cursor_atomic_check(struct drm_plane *plane,
-				    struct drm_plane_state *new_state)
+				    struct drm_atomic_state *state)
 {
+	struct drm_plane_state *new_state = drm_atomic_get_new_plane_state(state,
+									   plane);
 	struct drm_crtc_state *crtc_state = NULL;
 	u32 width = new_state->crtc_w;
 	u32 height = new_state->crtc_h;
