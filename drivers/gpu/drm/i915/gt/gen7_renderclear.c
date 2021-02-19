@@ -240,7 +240,7 @@ gen7_emit_state_base_address(struct batch_chunk *batch,
 	/* general */
 	*cs++ = batch_addr(batch) | BASE_ADDRESS_MODIFY;
 	/* surface */
-	*cs++ = batch_addr(batch) | surface_state_base | BASE_ADDRESS_MODIFY;
+	*cs++ = (batch_addr(batch) + surface_state_base) | BASE_ADDRESS_MODIFY;
 	/* dynamic */
 	*cs++ = batch_addr(batch) | BASE_ADDRESS_MODIFY;
 	/* indirect */
@@ -393,6 +393,7 @@ static void emit_batch(struct i915_vma * const vma,
 						     desc_count);
 
 	/* Reset inherited context registers */
+	gen7_emit_pipeline_flush(&cmds);
 	gen7_emit_pipeline_invalidate(&cmds);
 	batch_add(&cmds, MI_LOAD_REGISTER_IMM(2));
 	batch_add(&cmds, i915_mmio_reg_offset(CACHE_MODE_0_GEN7));

@@ -3103,7 +3103,7 @@ void intel_gvt_update_reg_whitelist(struct intel_vgpu *vgpu)
 	struct intel_vgpu_submission *s = &vgpu->submission;
 	struct i915_request *requests[I915_NUM_ENGINES] = {};
 	bool is_ctx_pinned[I915_NUM_ENGINES] = {};
-	int ret;
+	int ret = 0;
 
 	if (gvt->is_reg_whitelist_updated)
 		return;
@@ -3157,6 +3157,7 @@ void intel_gvt_update_reg_whitelist(struct intel_vgpu *vgpu)
 		if (IS_ERR(vaddr)) {
 			gvt_err("failed to pin init ctx obj, ring=%d, err=%lx\n",
 				id, PTR_ERR(vaddr));
+			ret = PTR_ERR(vaddr);
 			goto out;
 		}
 

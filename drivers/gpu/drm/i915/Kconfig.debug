@@ -19,6 +19,8 @@ config DRM_I915_WERROR
 config DRM_I915_DEBUG
 	bool "Enable additional driver debugging"
 	depends on DRM_I915
+	depends on EXPERT # only for developers
+	depends on !COMPILE_TEST # never built by robots
 	select DEBUG_FS
 	select PREEMPT_COUNT
 	select I2C_CHARDEV
