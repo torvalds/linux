@@ -516,11 +516,13 @@ static void ingenic_ipu_plane_atomic_update(struct drm_plane *plane,
 static int ingenic_ipu_plane_atomic_check(struct drm_plane *plane,
 					  struct drm_atomic_state *state)
 {
+	struct drm_plane_state *old_plane_state = drm_atomic_get_old_plane_state(state,
+										 plane);
 	struct drm_plane_state *new_plane_state = drm_atomic_get_new_plane_state(state,
 										 plane);
 	unsigned int num_w, denom_w, num_h, denom_h, xres, yres, max_w, max_h;
 	struct ingenic_ipu *ipu = plane_to_ingenic_ipu(plane);
-	struct drm_crtc *crtc = new_plane_state->crtc ?: plane->state->crtc;
+	struct drm_crtc *crtc = new_plane_state->crtc ?: old_plane_state->crtc;
 	struct drm_crtc_state *crtc_state;
 
 	if (!crtc)
@@ -531,7 +533,7 @@ static int ingenic_ipu_plane_atomic_check(struct drm_plane *plane,
 		return -EINVAL;
 
 	/* Request a full modeset if we are enabling or disabling the IPU. */
-	if (!plane->state->crtc ^ !new_plane_state->crtc)
+	if (!old_plane_state->crtc ^ !new_plane_state->crtc)
 		crtc_state->mode_changed = true;
 
 	if (!new_plane_state->crtc ||
@@ -552,7 +554,7 @@ static int ingenic_ipu_plane_atomic_check(struct drm_plane *plane,
 	if (((new_plane_state->src_w >> 16) & 1) || (new_plane_state->crtc_w & 1))
 		return -EINVAL;
 
-	if (!osd_changed(new_plane_state, plane->state))
+	if (!osd_changed(new_plane_state, old_plane_state))
 		return 0;
 
 	crtc_state->mode_changed = true;

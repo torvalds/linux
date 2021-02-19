@@ -362,11 +362,13 @@ static void ingenic_drm_crtc_atomic_flush(struct drm_crtc *crtc,
 static int ingenic_drm_plane_atomic_check(struct drm_plane *plane,
 					  struct drm_atomic_state *state)
 {
+	struct drm_plane_state *old_plane_state = drm_atomic_get_old_plane_state(state,
+										 plane);
 	struct drm_plane_state *new_plane_state = drm_atomic_get_new_plane_state(state,
 										 plane);
 	struct ingenic_drm *priv = drm_device_get_priv(plane->dev);
 	struct drm_crtc_state *crtc_state;
-	struct drm_crtc *crtc = new_plane_state->crtc ?: plane->state->crtc;
+	struct drm_crtc *crtc = new_plane_state->crtc ?: old_plane_state->crtc;
 	int ret;
 
 	if (!crtc)
@@ -400,12 +402,12 @@ static int ingenic_drm_plane_atomic_check(struct drm_plane *plane,
 	 * its position, size or depth.
 	 */
 	if (priv->soc_info->has_osd &&
-	    (!plane->state->fb || !new_plane_state->fb ||
-	     plane->state->crtc_x != new_plane_state->crtc_x ||
-	     plane->state->crtc_y != new_plane_state->crtc_y ||
-	     plane->state->crtc_w != new_plane_state->crtc_w ||
-	     plane->state->crtc_h != new_plane_state->crtc_h ||
-	     plane->state->fb->format->format != new_plane_state->fb->format->format))
+	    (!old_plane_state->fb || !new_plane_state->fb ||
+	     old_plane_state->crtc_x != new_plane_state->crtc_x ||
+	     old_plane_state->crtc_y != new_plane_state->crtc_y ||
+	     old_plane_state->crtc_w != new_plane_state->crtc_w ||
+	     old_plane_state->crtc_h != new_plane_state->crtc_h ||
+	     old_plane_state->fb->format->format != new_plane_state->fb->format->format))
 		crtc_state->mode_changed = true;
 
 	return 0;
