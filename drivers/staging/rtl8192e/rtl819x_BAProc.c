@@ -141,7 +141,7 @@ static struct sk_buff *rtllib_DELBA(struct rtllib_device *ieee, u8 *dst,
 
 	memset(&DelbaParamSet, 0, 2);
 
-	DelbaParamSet.field.Initiator = (TxRxSelect == TX_DIR) ? 1 : 0;
+	DelbaParamSet.field.initiator = (TxRxSelect == TX_DIR) ? 1 : 0;
 	DelbaParamSet.field.TID	= pBA->BaParamSet.field.tid;
 
 	skb = dev_alloc_skb(len + sizeof(struct rtllib_hdr_3addr));
@@ -440,7 +440,7 @@ int rtllib_rx_DELBA(struct rtllib_device *ieee, struct sk_buff *skb)
 	dst = (u8 *)(&delba->addr2[0]);
 	pDelBaParamSet = (union delba_param_set *)&delba->payload[2];
 
-	if (pDelBaParamSet->field.Initiator == 1) {
+	if (pDelBaParamSet->field.initiator == 1) {
 		struct rx_ts_record *pRxTs;
 
 		if (!GetTs(ieee, (struct ts_common_info **)&pRxTs, dst,
