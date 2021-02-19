@@ -385,7 +385,7 @@ nomem:
  * @kbuffer: from kmalloc or vmalloc
  * @size: page-size multiple
  * @send_offset: the offset (in bytes) where the send ring buffer starts,
- * 		 should be 0 for BUFFER type gpadl
+ *              should be 0 for BUFFER type gpadl
  * @gpadl_handle: some funky thing
  */
 static int __vmbus_establish_gpadl(struct vmbus_channel *channel,
