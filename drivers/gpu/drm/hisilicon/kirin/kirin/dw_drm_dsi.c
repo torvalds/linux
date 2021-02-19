@@ -566,55 +566,6 @@ static enum drm_mode_status dsi_encoder_mode_valid(struct drm_encoder *encoder,
 	return MODE_OK;
 }
 
-static void dsi_encoder_mode_set(struct drm_encoder *encoder,
-				 struct drm_display_mode *mode,
-				 struct drm_display_mode *adj_mode)
-{
-	struct dw_dsi *dsi = encoder_to_dsi(encoder);
-
-	drm_mode_copy(&dsi->cur_mode, adj_mode);
-}
-
-static int dsi_encoder_atomic_check(struct drm_encoder *encoder,
-				    struct drm_crtc_state *crtc_state,
-				    struct drm_connector_state *conn_state)
-{
-	/* do nothing */
-	return 0;
-}
-
-static const struct drm_encoder_helper_funcs dw_encoder_helper_funcs = {
-	.atomic_check	= dsi_encoder_atomic_check,
-	.mode_valid	= dsi_encoder_mode_valid,
-	.mode_set	= dsi_encoder_mode_set,
-	.enable		= dsi_encoder_enable,
-	.disable	= dsi_encoder_disable
-};
-
-static int dw_drm_encoder_init(struct device *dev,
-			       struct drm_device *drm_dev,
-			       struct drm_encoder *encoder)
-{
-	int ret;
-	u32 crtc_mask = drm_of_find_possible_crtcs(drm_dev, dev->of_node);
-
-	if (!crtc_mask) {
-		DRM_ERROR("failed to find crtc mask\n");
-		return -EINVAL;
-	}
-
-	encoder->possible_crtcs = crtc_mask;
-	ret = drm_simple_encoder_init(drm_dev, encoder, DRM_MODE_ENCODER_DSI);
-	if (ret) {
-		DRM_ERROR("failed to init dsi encoder\n");
-		return ret;
-	}
-
-	drm_encoder_helper_add(encoder, &dw_encoder_helper_funcs);
-
-	return 0;
-}
-
 static int dsi_host_attach(struct mipi_dsi_host *host,
 			   struct mipi_dsi_device *mdsi)
 {
@@ -659,54 +610,6 @@ static int dsi_host_init(struct device *dev, struct dw_dsi *dsi)
 
 	return 0;
 }
-
-static int dsi_bridge_init(struct drm_device *dev, struct dw_dsi *dsi)
-{
-	struct drm_encoder *encoder = &dsi->encoder;
-	struct drm_bridge *bridge = dsi->bridge;
-	int ret;
-
-	/* associate the bridge to dsi encoder */
-	ret = drm_bridge_attach(encoder, bridge, NULL, 0);
-	if (ret) {
-		DRM_ERROR("failed to attach external bridge\n");
-		return ret;
-	}
-
-	return 0;
-}
-
-static int dsi_bind(struct device *dev, struct device *master, void *data)
-{
-	struct dsi_data *ddata = dev_get_drvdata(dev);
-	struct dw_dsi *dsi = &ddata->dsi;
-	struct drm_device *drm_dev = data;
-	int ret;
-
-	ret = dw_drm_encoder_init(dev, drm_dev, &dsi->encoder);
-	if (ret)
-		return ret;
-
-	ret = dsi_host_init(dev, dsi);
-	if (ret)
-		return ret;
-
-	ret = dsi_bridge_init(drm_dev, dsi);
-	if (ret)
-		return ret;
-
-	return 0;
-}
-
-static void dsi_unbind(struct device *dev, struct device *master, void *data)
-{
-	/* do nothing */
-}
-
-static const struct component_ops dsi_ops = {
-	.bind	= dsi_bind,
-	.unbind	= dsi_unbind,
-};
 
 static int dsi_parse_dt(struct platform_device *pdev, struct dw_dsi *dsi)
 {
