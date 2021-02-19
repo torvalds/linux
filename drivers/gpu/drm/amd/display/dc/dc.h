@@ -887,6 +887,7 @@ struct dc_plane_state {
 	int layer_index;
 
 	union surface_update_flags update_flags;
+	bool flip_int_enabled;
 	/* private to DC core */
 	struct dc_plane_status status;
 	struct dc_context *ctx;

@@ -838,6 +838,7 @@ static struct hubp_funcs dcn21_hubp_funcs = {
 	.hubp_set_flip_control_surface_gsl = hubp2_set_flip_control_surface_gsl,
 	.hubp_init = hubp21_init,
 	.validate_dml_output = hubp21_validate_dml_output,
+	.hubp_set_flip_int = hubp1_set_flip_int,
 };
 
 bool hubp21_construct(
