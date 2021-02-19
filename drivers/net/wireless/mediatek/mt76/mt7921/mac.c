@@ -400,7 +400,9 @@ int mt7921_mac_fill_rx(struct mt7921_dev *dev, struct sk_buff *skb)
 
 	/* RXD Group 3 - P-RXV */
 	if (rxd1 & MT_RXD1_NORMAL_GROUP_3) {
-		u32 v0, v1, v2;
+		u8 stbc, gi;
+		u32 v0, v1;
+		bool cck;
 
 		rxv = rxd;
 		rxd += 2;
@@ -409,7 +411,6 @@ int mt7921_mac_fill_rx(struct mt7921_dev *dev, struct sk_buff *skb)
 
 		v0 = le32_to_cpu(rxv[0]);
 		v1 = le32_to_cpu(rxv[1]);
-		v2 = le32_to_cpu(rxv[2]);
 
 		if (v0 & MT_PRXV_HT_AD_CODE)
 			status->enc_flags |= RX_ENC_FLAG_LDPC;
@@ -429,87 +430,87 @@ int mt7921_mac_fill_rx(struct mt7921_dev *dev, struct sk_buff *skb)
 					     status->chain_signal[i]);
 		}
 
-		/* RXD Group 5 - C-RXV */
-		if (rxd1 & MT_RXD1_NORMAL_GROUP_5) {
-			u8 stbc = FIELD_GET(MT_CRXV_HT_STBC, v2);
-			u8 gi = FIELD_GET(MT_CRXV_HT_SHORT_GI, v2);
-			bool cck = false;
+		stbc = FIELD_GET(MT_PRXV_STBC, v0);
+		gi = FIELD_GET(MT_PRXV_SGI, v0);
+		cck = false;
 
+		idx = i = FIELD_GET(MT_PRXV_TX_RATE, v0);
+		mode = FIELD_GET(MT_PRXV_TX_MODE, v0);
+
+		switch (mode) {
+		case MT_PHY_TYPE_CCK:
+			cck = true;
+			fallthrough;
+		case MT_PHY_TYPE_OFDM:
+			i = mt76_get_rate(&dev->mt76, sband, i, cck);
+			break;
+		case MT_PHY_TYPE_HT_GF:
+		case MT_PHY_TYPE_HT:
+			status->encoding = RX_ENC_HT;
+			if (i > 31)
+				return -EINVAL;
+			break;
+		case MT_PHY_TYPE_VHT:
+			status->nss =
+				FIELD_GET(MT_PRXV_NSTS, v0) + 1;
+			status->encoding = RX_ENC_VHT;
+			if (i > 9)
+				return -EINVAL;
+			break;
+		case MT_PHY_TYPE_HE_MU:
+			status->flag |= RX_FLAG_RADIOTAP_HE_MU;
+			fallthrough;
+		case MT_PHY_TYPE_HE_SU:
+		case MT_PHY_TYPE_HE_EXT_SU:
+		case MT_PHY_TYPE_HE_TB:
+			status->nss =
+				FIELD_GET(MT_PRXV_NSTS, v0) + 1;
+			status->encoding = RX_ENC_HE;
+			status->flag |= RX_FLAG_RADIOTAP_HE;
+			i &= GENMASK(3, 0);
+
+			if (gi <= NL80211_RATE_INFO_HE_GI_3_2)
+				status->he_gi = gi;
+
+			status->he_dcm = !!(idx & MT_PRXV_TX_DCM);
+			break;
+		default:
+			return -EINVAL;
+		}
+
+		status->rate_idx = i;
+
+		switch (FIELD_GET(MT_PRXV_FRAME_MODE, v0)) {
+		case IEEE80211_STA_RX_BW_20:
+			break;
+		case IEEE80211_STA_RX_BW_40:
+			if (mode & MT_PHY_TYPE_HE_EXT_SU &&
+			    (idx & MT_PRXV_TX_ER_SU_106T)) {
+				status->bw = RATE_INFO_BW_HE_RU;
+				status->he_ru =
+					NL80211_RATE_INFO_HE_RU_ALLOC_106;
+			} else {
+				status->bw = RATE_INFO_BW_40;
+			}
+			break;
+		case IEEE80211_STA_RX_BW_80:
+			status->bw = RATE_INFO_BW_80;
+			break;
+		case IEEE80211_STA_RX_BW_160:
+			status->bw = RATE_INFO_BW_160;
+			break;
+		default:
+			return -EINVAL;
+		}
+
+		status->enc_flags |= RX_ENC_FLAG_STBC_MASK * stbc;
+		if (mode < MT_PHY_TYPE_HE_SU && gi)
+			status->enc_flags |= RX_ENC_FLAG_SHORT_GI;
+
+		if (rxd1 & MT_RXD1_NORMAL_GROUP_5) {
 			rxd += 18;
 			if ((u8 *)rxd - skb->data >= skb->len)
 				return -EINVAL;
-
-			idx = i = FIELD_GET(MT_PRXV_TX_RATE, v0);
-			mode = FIELD_GET(MT_CRXV_TX_MODE, v2);
-
-			switch (mode) {
-			case MT_PHY_TYPE_CCK:
-				cck = true;
-				fallthrough;
-			case MT_PHY_TYPE_OFDM:
-				i = mt76_get_rate(&dev->mt76, sband, i, cck);
-				break;
-			case MT_PHY_TYPE_HT_GF:
-			case MT_PHY_TYPE_HT:
-				status->encoding = RX_ENC_HT;
-				if (i > 31)
-					return -EINVAL;
-				break;
-			case MT_PHY_TYPE_VHT:
-				status->nss =
-					FIELD_GET(MT_PRXV_NSTS, v0) + 1;
-				status->encoding = RX_ENC_VHT;
-				if (i > 9)
-					return -EINVAL;
-				break;
-			case MT_PHY_TYPE_HE_MU:
-				status->flag |= RX_FLAG_RADIOTAP_HE_MU;
-				fallthrough;
-			case MT_PHY_TYPE_HE_SU:
-			case MT_PHY_TYPE_HE_EXT_SU:
-			case MT_PHY_TYPE_HE_TB:
-				status->nss =
-					FIELD_GET(MT_PRXV_NSTS, v0) + 1;
-				status->encoding = RX_ENC_HE;
-				status->flag |= RX_FLAG_RADIOTAP_HE;
-				i &= GENMASK(3, 0);
-
-				if (gi <= NL80211_RATE_INFO_HE_GI_3_2)
-					status->he_gi = gi;
-
-				status->he_dcm = !!(idx & MT_PRXV_TX_DCM);
-				break;
-			default:
-				return -EINVAL;
-			}
-			status->rate_idx = i;
-
-			switch (FIELD_GET(MT_CRXV_FRAME_MODE, v2)) {
-			case IEEE80211_STA_RX_BW_20:
-				break;
-			case IEEE80211_STA_RX_BW_40:
-				if (mode & MT_PHY_TYPE_HE_EXT_SU &&
-				    (idx & MT_PRXV_TX_ER_SU_106T)) {
-					status->bw = RATE_INFO_BW_HE_RU;
-					status->he_ru =
-						NL80211_RATE_INFO_HE_RU_ALLOC_106;
-				} else {
-					status->bw = RATE_INFO_BW_40;
-				}
-				break;
-			case IEEE80211_STA_RX_BW_80:
-				status->bw = RATE_INFO_BW_80;
-				break;
-			case IEEE80211_STA_RX_BW_160:
-				status->bw = RATE_INFO_BW_160;
-				break;
-			default:
-				return -EINVAL;
-			}
-
-			status->enc_flags |= RX_ENC_FLAG_STBC_MASK * stbc;
-			if (mode < MT_PHY_TYPE_HE_SU && gi)
-				status->enc_flags |= RX_ENC_FLAG_SHORT_GI;
 		}
 	}
 
