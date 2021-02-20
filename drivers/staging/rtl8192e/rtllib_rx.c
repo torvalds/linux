@@ -2031,13 +2031,13 @@ static void rtllib_parse_mfie_ht_cap(struct rtllib_info_element *info_element,
 		ht->bdHT1R = ((((struct ht_capab_ele *)
 				ht->bd_ht_cap_buf))->MCS[1]) == 0;
 
-		ht->bdBandWidth = (enum ht_channel_width)
+		ht->bd_bandwidth = (enum ht_channel_width)
 					     (((struct ht_capab_ele *)
 					     (ht->bd_ht_cap_buf))->ChlWidth);
 	} else {
 		ht->bd_support_ht = false;
 		ht->bdHT1R = false;
-		ht->bdBandWidth = HT_CHANNEL_WIDTH_20;
+		ht->bd_bandwidth = HT_CHANNEL_WIDTH_20;
 	}
 }
 

@@ -187,7 +187,7 @@ struct bss_ht {
 	u16					bd_ht_info_len;
 
 	enum ht_spec_ver bd_ht_spec_ver;
-	enum ht_channel_width bdBandWidth;
+	enum ht_channel_width bd_bandwidth;
 
 	u8					bdRT2RTAggregation;
 	u8					bdRT2RTLongSlotTime;
