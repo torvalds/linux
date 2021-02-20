@@ -7299,6 +7299,7 @@ static void io_sqe_rsrc_kill_node(struct io_ring_ctx *ctx, struct fixed_rsrc_dat
 
 	io_rsrc_ref_lock(ctx);
 	ref_node = data->node;
+	data->node = NULL;
 	io_rsrc_ref_unlock(ctx);
 	if (ref_node)
 		percpu_ref_kill(&ref_node->refs);
