@@ -1173,6 +1173,7 @@ static const struct imx6_pcie_drvdata drvdata[] = {
 		.variant = IMX6QP,
 		.flags = IMX6_PCIE_FLAG_IMX6_PHY |
 			 IMX6_PCIE_FLAG_IMX6_SPEED_CHANGE,
+		.dbi_length = 0x200,
 	},
 	[IMX7D] = {
 		.variant = IMX7D,
