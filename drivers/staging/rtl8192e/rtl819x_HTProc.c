@@ -692,7 +692,7 @@ void HTInitializeBssDesc(struct bss_ht *pBssHT)
 	pBssHT->bd_support_ht = false;
 	memset(pBssHT->bd_ht_cap_buf, 0, sizeof(pBssHT->bd_ht_cap_buf));
 	pBssHT->bd_ht_cap_len = 0;
-	memset(pBssHT->bdHTInfoBuf, 0, sizeof(pBssHT->bdHTInfoBuf));
+	memset(pBssHT->bd_ht_info_buf, 0, sizeof(pBssHT->bd_ht_info_buf));
 	pBssHT->bdHTInfoLen = 0;
 
 	pBssHT->bdHTSpecVer = HT_SPEC_VER_IEEE;
@@ -726,7 +726,7 @@ void HTResetSelfAndSavePeerSetting(struct rtllib_device *ieee,
 		    pNetwork->bssht.bdHTInfoLen <=
 		    sizeof(pHTInfo->PeerHTInfoBuf))
 			memcpy(pHTInfo->PeerHTInfoBuf,
-			       pNetwork->bssht.bdHTInfoBuf,
+			       pNetwork->bssht.bd_ht_info_buf,
 			       pNetwork->bssht.bdHTInfoLen);
 
 		if (pHTInfo->bRegRT2RTAggregation) {
@@ -783,7 +783,7 @@ void HT_update_self_and_peer_setting(struct rtllib_device *ieee,
 {
 	struct rt_hi_throughput *pHTInfo = ieee->pHTInfo;
 	struct ht_info_ele *pPeerHTInfo =
-		 (struct ht_info_ele *)pNetwork->bssht.bdHTInfoBuf;
+		 (struct ht_info_ele *)pNetwork->bssht.bd_ht_info_buf;
 
 	if (pHTInfo->bCurrentHTSupport) {
 		if (pNetwork->bssht.bdHTInfoLen != 0)

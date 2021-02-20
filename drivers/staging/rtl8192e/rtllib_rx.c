@@ -1878,8 +1878,9 @@ static void rtllib_parse_mife_generic(struct rtllib_device *ieee,
 						MAX_IE_LEN);
 			if (*tmp_htinfo_len != 0) {
 				network->bssht.bdHTSpecVer = HT_SPEC_VER_EWC;
-				network->bssht.bdHTInfoLen = min_t(u16, *tmp_htinfo_len, sizeof(network->bssht.bdHTInfoBuf));
-				memcpy(network->bssht.bdHTInfoBuf,
+				network->bssht.bdHTInfoLen = min_t(u16, *tmp_htinfo_len,
+								   sizeof(network->bssht.bd_ht_info_buf));
+				memcpy(network->bssht.bd_ht_info_buf,
 				       info_element->data,
 				       network->bssht.bdHTInfoLen);
 			}
@@ -2235,10 +2236,10 @@ int rtllib_parse_info_param(struct rtllib_device *ieee,
 			if (tmp_htinfo_len) {
 				network->bssht.bdHTSpecVer = HT_SPEC_VER_IEEE;
 				network->bssht.bdHTInfoLen = tmp_htinfo_len >
-					sizeof(network->bssht.bdHTInfoBuf) ?
-					sizeof(network->bssht.bdHTInfoBuf) :
+					sizeof(network->bssht.bd_ht_info_buf) ?
+					sizeof(network->bssht.bd_ht_info_buf) :
 					tmp_htinfo_len;
-				memcpy(network->bssht.bdHTInfoBuf,
+				memcpy(network->bssht.bd_ht_info_buf,
 				       info_element->data,
 				       network->bssht.bdHTInfoLen);
 			}
@@ -2463,7 +2464,7 @@ static inline void update_network(struct rtllib_device *ieee,
 	memcpy(dst->bssht.bd_ht_cap_buf, src->bssht.bd_ht_cap_buf,
 	       src->bssht.bd_ht_cap_len);
 	dst->bssht.bdHTInfoLen = src->bssht.bdHTInfoLen;
-	memcpy(dst->bssht.bdHTInfoBuf, src->bssht.bdHTInfoBuf,
+	memcpy(dst->bssht.bd_ht_info_buf, src->bssht.bd_ht_info_buf,
 	       src->bssht.bdHTInfoLen);
 	dst->bssht.bdHTSpecVer = src->bssht.bdHTSpecVer;
 	dst->bssht.bdRT2RTLongSlotTime = src->bssht.bdRT2RTLongSlotTime;
