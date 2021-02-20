@@ -1860,10 +1860,10 @@ static void rtllib_parse_mife_generic(struct rtllib_device *ieee,
 		}
 		if (*tmp_htcap_len != 0) {
 			network->bssht.bd_support_ht = true;
-			network->bssht.bdHT1R = ((((struct ht_capab_ele *)(network->bssht.bd_ht_cap_buf))->MCS[1]) == 0);
+			network->bssht.bd_ht_1r = ((((struct ht_capab_ele *)(network->bssht.bd_ht_cap_buf))->MCS[1]) == 0);
 		} else {
 			network->bssht.bd_support_ht = false;
-			network->bssht.bdHT1R = false;
+			network->bssht.bd_ht_1r = false;
 		}
 	}
 
@@ -2028,7 +2028,7 @@ static void rtllib_parse_mfie_ht_cap(struct rtllib_info_element *info_element,
 		memcpy(ht->bd_ht_cap_buf, info_element->data, ht->bd_ht_cap_len);
 
 		ht->bd_support_ht = true;
-		ht->bdHT1R = ((((struct ht_capab_ele *)
+		ht->bd_ht_1r = ((((struct ht_capab_ele *)
 				ht->bd_ht_cap_buf))->MCS[1]) == 0;
 
 		ht->bd_bandwidth = (enum ht_channel_width)
@@ -2036,7 +2036,7 @@ static void rtllib_parse_mfie_ht_cap(struct rtllib_info_element *info_element,
 					     (ht->bd_ht_cap_buf))->ChlWidth);
 	} else {
 		ht->bd_support_ht = false;
-		ht->bdHT1R = false;
+		ht->bd_ht_1r = false;
 		ht->bd_bandwidth = HT_CHANNEL_WIDTH_20;
 	}
 }
