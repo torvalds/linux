@@ -181,7 +181,7 @@ struct rt_hi_throughput {
 struct bss_ht {
 	u8				bd_support_ht;
 
-	u8					bdHTCapBuf[32];
+	u8					bd_ht_cap_buf[32];
 	u16					bdHTCapLen;
 	u8					bdHTInfoBuf[32];
 	u16					bdHTInfoLen;

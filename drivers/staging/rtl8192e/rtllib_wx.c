@@ -140,12 +140,12 @@ static inline char *rtl819x_translate_scan(struct rtllib_device *ieee,
 		bool is40M = false, isShortGI = false;
 		u8 max_mcs = 0;
 
-		if (!memcmp(network->bssht.bdHTCapBuf, EWC11NHTCap, 4))
+		if (!memcmp(network->bssht.bd_ht_cap_buf, EWC11NHTCap, 4))
 			ht_cap = (struct ht_capab_ele *)
-				 &network->bssht.bdHTCapBuf[4];
+				 &network->bssht.bd_ht_cap_buf[4];
 		else
 			ht_cap = (struct ht_capab_ele *)
-				 &network->bssht.bdHTCapBuf[0];
+				 &network->bssht.bd_ht_cap_buf[0];
 		is40M = (ht_cap->ChlWidth) ? 1 : 0;
 		isShortGI = (ht_cap->ChlWidth) ?
 				((ht_cap->ShortGI40Mhz) ? 1 : 0) :

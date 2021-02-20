@@ -2238,7 +2238,7 @@ rtllib_rx_assoc_resp(struct rtllib_device *ieee, struct sk_buff *skb,
 					return 1;
 				}
 				memcpy(ieee->pHTInfo->PeerHTCapBuf,
-				       network->bssht.bdHTCapBuf,
+				       network->bssht.bd_ht_cap_buf,
 				       network->bssht.bdHTCapLen);
 				memcpy(ieee->pHTInfo->PeerHTInfoBuf,
 				       network->bssht.bdHTInfoBuf,

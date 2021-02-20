@@ -690,7 +690,7 @@ void HTInitializeBssDesc(struct bss_ht *pBssHT)
 {
 
 	pBssHT->bd_support_ht = false;
-	memset(pBssHT->bdHTCapBuf, 0, sizeof(pBssHT->bdHTCapBuf));
+	memset(pBssHT->bd_ht_cap_buf, 0, sizeof(pBssHT->bd_ht_cap_buf));
 	pBssHT->bdHTCapLen = 0;
 	memset(pBssHT->bdHTInfoBuf, 0, sizeof(pBssHT->bdHTInfoBuf));
 	pBssHT->bdHTInfoLen = 0;
@@ -719,7 +719,7 @@ void HTResetSelfAndSavePeerSetting(struct rtllib_device *ieee,
 		if (pNetwork->bssht.bdHTCapLen > 0 &&
 		    pNetwork->bssht.bdHTCapLen <= sizeof(pHTInfo->PeerHTCapBuf))
 			memcpy(pHTInfo->PeerHTCapBuf,
-			       pNetwork->bssht.bdHTCapBuf,
+			       pNetwork->bssht.bd_ht_cap_buf,
 			       pNetwork->bssht.bdHTCapLen);
 
 		if (pNetwork->bssht.bdHTInfoLen > 0 &&
