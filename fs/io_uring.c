@@ -1037,8 +1037,7 @@ static void io_uring_try_cancel_requests(struct io_ring_ctx *ctx,
 static void destroy_fixed_rsrc_ref_node(struct fixed_rsrc_ref_node *ref_node);
 static struct fixed_rsrc_ref_node *alloc_fixed_rsrc_ref_node(
 			struct io_ring_ctx *ctx);
-static void init_fixed_file_ref_node(struct io_ring_ctx *ctx,
-				     struct fixed_rsrc_ref_node *ref_node);
+static void io_ring_file_put(struct io_ring_ctx *ctx, struct io_rsrc_put *prsrc);
 
 static bool io_rw_reissue(struct io_kiocb *req);
 static void io_cqring_fill_event(struct io_kiocb *req, long res);
@@ -7307,8 +7306,10 @@ static void io_sqe_rsrc_kill_node(struct io_ring_ctx *ctx, struct fixed_rsrc_dat
 
 static int io_rsrc_ref_quiesce(struct fixed_rsrc_data *data,
 			       struct io_ring_ctx *ctx,
-			       struct fixed_rsrc_ref_node *backup_node)
+			       void (*rsrc_put)(struct io_ring_ctx *ctx,
+			                        struct io_rsrc_put *prsrc))
 {
+	struct fixed_rsrc_ref_node *backup_node;
 	int ret;
 
 	if (data->quiesce)
@@ -7316,6 +7317,13 @@ static int io_rsrc_ref_quiesce(struct fixed_rsrc_data *data,
 
 	data->quiesce = true;
 	do {
+		ret = -ENOMEM;
+		backup_node = alloc_fixed_rsrc_ref_node(ctx);
+		if (!backup_node)
+			break;
+		backup_node->rsrc_data = data;
+		backup_node->rsrc_put = rsrc_put;
+
 		io_sqe_rsrc_kill_node(ctx, data);
 		percpu_ref_kill(&data->refs);
 		flush_delayed_work(&ctx->rsrc_put_work);
@@ -7331,15 +7339,7 @@ static int io_rsrc_ref_quiesce(struct fixed_rsrc_data *data,
 		mutex_unlock(&ctx->uring_lock);
 		ret = io_run_task_work_sig();
 		mutex_lock(&ctx->uring_lock);
-
-		if (ret < 0)
-			break;
-		backup_node = alloc_fixed_rsrc_ref_node(ctx);
-		ret = -ENOMEM;
-		if (!backup_node)
-			break;
-		init_fixed_file_ref_node(ctx, backup_node);
-	} while (1);
+	} while (ret >= 0);
 	data->quiesce = false;
 
 	if (backup_node)
@@ -7375,7 +7375,6 @@ static void free_fixed_rsrc_data(struct fixed_rsrc_data *data)
 static int io_sqe_files_unregister(struct io_ring_ctx *ctx)
 {
 	struct fixed_rsrc_data *data = ctx->file_data;
-	struct fixed_rsrc_ref_node *backup_node;
 	unsigned nr_tables, i;
 	int ret;
 
@@ -7386,12 +7385,7 @@ static int io_sqe_files_unregister(struct io_ring_ctx *ctx)
 	 */
 	if (!data || percpu_ref_is_dying(&data->refs))
 		return -ENXIO;
-	backup_node = alloc_fixed_rsrc_ref_node(ctx);
-	if (!backup_node)
-		return -ENOMEM;
-	init_fixed_file_ref_node(ctx, backup_node);
-
-	ret = io_rsrc_ref_quiesce(data, ctx, backup_node);
+	ret = io_rsrc_ref_quiesce(data, ctx, io_ring_file_put);
 	if (ret)
 		return ret;
 
