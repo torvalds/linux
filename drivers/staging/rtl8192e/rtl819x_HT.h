@@ -191,7 +191,7 @@ struct bss_ht {
 
 	u8					bd_rt2rt_aggregation;
 	u8					bd_rt2rt_long_slot_time;
-	u8					RT2RT_HT_Mode;
+	u8					rt2rt_ht_mode;
 	u8					bdHT1R;
 };
 

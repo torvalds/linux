@@ -173,9 +173,9 @@ static void HTIOTPeerDetermine(struct rtllib_device *ieee)
 
 	if (net->bssht.bd_rt2rt_aggregation) {
 		pHTInfo->IOTPeer = HT_IOT_PEER_REALTEK;
-		if (net->bssht.RT2RT_HT_Mode & RT_HT_CAP_USE_92SE)
+		if (net->bssht.rt2rt_ht_mode & RT_HT_CAP_USE_92SE)
 			pHTInfo->IOTPeer = HT_IOT_PEER_REALTEK_92SE;
-		if (net->bssht.RT2RT_HT_Mode & RT_HT_CAP_USE_SOFTAP)
+		if (net->bssht.rt2rt_ht_mode & RT_HT_CAP_USE_SOFTAP)
 			pHTInfo->IOTPeer = HT_IOT_PEER_92U_SOFTAP;
 	} else if (net->broadcom_cap_exist) {
 		pHTInfo->IOTPeer = HT_IOT_PEER_BROADCOM;
@@ -699,7 +699,7 @@ void HTInitializeBssDesc(struct bss_ht *pBssHT)
 
 	pBssHT->bd_rt2rt_aggregation = false;
 	pBssHT->bd_rt2rt_long_slot_time = false;
-	pBssHT->RT2RT_HT_Mode = (enum rt_ht_capability)0;
+	pBssHT->rt2rt_ht_mode = (enum rt_ht_capability)0;
 }
 
 void HTResetSelfAndSavePeerSetting(struct rtllib_device *ieee,
@@ -734,7 +734,7 @@ void HTResetSelfAndSavePeerSetting(struct rtllib_device *ieee,
 				 pNetwork->bssht.bd_rt2rt_aggregation;
 			pHTInfo->bCurrentRT2RTLongSlotTime =
 				 pNetwork->bssht.bd_rt2rt_long_slot_time;
-			pHTInfo->RT2RT_HT_Mode = pNetwork->bssht.RT2RT_HT_Mode;
+			pHTInfo->RT2RT_HT_Mode = pNetwork->bssht.rt2rt_ht_mode;
 		} else {
 			pHTInfo->bCurrentRT2RTAggregation = false;
 			pHTInfo->bCurrentRT2RTLongSlotTime = false;
