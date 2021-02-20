@@ -1900,7 +1900,7 @@ static void rtllib_parse_mife_generic(struct rtllib_device *ieee,
 		}
 		if (ht_realtek_agg_len >= 5) {
 			network->realtek_cap_exit = true;
-			network->bssht.bdRT2RTAggregation = true;
+			network->bssht.bd_rt2rt_aggregation = true;
 
 			if ((ht_realtek_agg_buf[4] == 1) &&
 			    (ht_realtek_agg_buf[5] & 0x02))
@@ -2291,7 +2291,7 @@ int rtllib_parse_info_param(struct rtllib_device *ieee,
 
 	if (!network->atheros_cap_exist && !network->broadcom_cap_exist &&
 	    !network->cisco_cap_exist && !network->ralink_cap_exist &&
-	    !network->bssht.bdRT2RTAggregation)
+	    !network->bssht.bd_rt2rt_aggregation)
 		network->unknown_cap_exist = true;
 	else
 		network->unknown_cap_exist = false;
@@ -2459,7 +2459,7 @@ static inline void update_network(struct rtllib_device *ieee,
 	memcpy(&dst->tim, &src->tim, sizeof(struct rtllib_tim_parameters));
 
 	dst->bssht.bd_support_ht = src->bssht.bd_support_ht;
-	dst->bssht.bdRT2RTAggregation = src->bssht.bdRT2RTAggregation;
+	dst->bssht.bd_rt2rt_aggregation = src->bssht.bd_rt2rt_aggregation;
 	dst->bssht.bd_ht_cap_len = src->bssht.bd_ht_cap_len;
 	memcpy(dst->bssht.bd_ht_cap_buf, src->bssht.bd_ht_cap_buf,
 	       src->bssht.bd_ht_cap_len);

@@ -158,7 +158,7 @@ bool IsHTHalfNmodeAPs(struct rtllib_device *ieee)
 		!memcmp(net->bssid, LINKSYSWRT350_LINKSYSWRT150_BROADCOM, 3) ||
 		(net->broadcom_cap_exist))
 		retValue = true;
-	else if (net->bssht.bdRT2RTAggregation)
+	else if (net->bssht.bd_rt2rt_aggregation)
 		retValue = true;
 	else
 		retValue = false;
@@ -171,7 +171,7 @@ static void HTIOTPeerDetermine(struct rtllib_device *ieee)
 	struct rt_hi_throughput *pHTInfo = ieee->pHTInfo;
 	struct rtllib_network *net = &ieee->current_network;
 
-	if (net->bssht.bdRT2RTAggregation) {
+	if (net->bssht.bd_rt2rt_aggregation) {
 		pHTInfo->IOTPeer = HT_IOT_PEER_REALTEK;
 		if (net->bssht.RT2RT_HT_Mode & RT_HT_CAP_USE_92SE)
 			pHTInfo->IOTPeer = HT_IOT_PEER_REALTEK_92SE;
@@ -591,7 +591,7 @@ void HTOnAssocRsp(struct rtllib_device *ieee)
 			pHTInfo->CurrentAMPDUFactor = pHTInfo->AMPDU_Factor;
 
 	} else {
-		if (ieee->current_network.bssht.bdRT2RTAggregation) {
+		if (ieee->current_network.bssht.bd_rt2rt_aggregation) {
 			if (ieee->pairwise_key_type != KEY_TYPE_NA)
 				pHTInfo->CurrentAMPDUFactor =
 						 pPeerHTCap->MaxRxAMPDUFactor;
@@ -697,7 +697,7 @@ void HTInitializeBssDesc(struct bss_ht *pBssHT)
 
 	pBssHT->bd_ht_spec_ver = HT_SPEC_VER_IEEE;
 
-	pBssHT->bdRT2RTAggregation = false;
+	pBssHT->bd_rt2rt_aggregation = false;
 	pBssHT->bdRT2RTLongSlotTime = false;
 	pBssHT->RT2RT_HT_Mode = (enum rt_ht_capability)0;
 }
@@ -731,7 +731,7 @@ void HTResetSelfAndSavePeerSetting(struct rtllib_device *ieee,
 
 		if (pHTInfo->bRegRT2RTAggregation) {
 			pHTInfo->bCurrentRT2RTAggregation =
-				 pNetwork->bssht.bdRT2RTAggregation;
+				 pNetwork->bssht.bd_rt2rt_aggregation;
 			pHTInfo->bCurrentRT2RTLongSlotTime =
 				 pNetwork->bssht.bdRT2RTLongSlotTime;
 			pHTInfo->RT2RT_HT_Mode = pNetwork->bssht.RT2RT_HT_Mode;
