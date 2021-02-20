@@ -836,13 +836,15 @@ static void bch2_journal_ptrs_to_text(struct printbuf *out, struct bch_fs *c,
 
 	for (i = 0; i < j->nr_ptrs; i++) {
 		struct bch_dev *ca = c->devs[j->ptrs[i].dev];
+		u64 offset;
+
+		div64_u64_rem(j->ptrs[i].offset, ca->mi.bucket_size, &offset);
 
 		if (i)
 			pr_buf(out, " ");
 		pr_buf(out, "%u:%llu (offset %llu)",
 		       j->ptrs[i].dev,
-		       (u64) j->ptrs[i].offset,
-		       (u64) j->ptrs[i].offset % ca->mi.bucket_size);
+		       (u64) j->ptrs[i].offset, offset);
 	}
 }
 
