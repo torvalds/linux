@@ -285,10 +285,8 @@ static void svc_rdma_wc_send(struct ib_cq *cq, struct ib_wc *wc)
 
 	svc_rdma_send_ctxt_put(rdma, ctxt);
 
-	if (unlikely(wc->status != IB_WC_SUCCESS)) {
-		set_bit(XPT_CLOSE, &rdma->sc_xprt.xpt_flags);
-		svc_xprt_enqueue(&rdma->sc_xprt);
-	}
+	if (unlikely(wc->status != IB_WC_SUCCESS))
+		svc_xprt_deferred_close(&rdma->sc_xprt);
 }
 
 /**
@@ -334,7 +332,7 @@ int svc_rdma_send(struct svcxprt_rdma *rdma, struct svc_rdma_send_ctxt *ctxt)
 	}
 
 	trace_svcrdma_sq_post_err(rdma, ret);
-	set_bit(XPT_CLOSE, &rdma->sc_xprt.xpt_flags);
+	svc_xprt_deferred_close(&rdma->sc_xprt);
 	wake_up(&rdma->sc_send_wait);
 	return ret;
 }
@@ -994,7 +992,7 @@ int svc_rdma_sendto(struct svc_rqst *rqstp)
 	svc_rdma_send_ctxt_put(rdma, sctxt);
  err0:
 	trace_svcrdma_send_err(rqstp, ret);
-	set_bit(XPT_CLOSE, &xprt->xpt_flags);
+	svc_xprt_deferred_close(&rdma->sc_xprt);
 	return -ENOTCONN;
 }
 

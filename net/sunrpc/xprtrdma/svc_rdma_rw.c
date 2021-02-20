@@ -250,7 +250,7 @@ static void svc_rdma_write_done(struct ib_cq *cq, struct ib_wc *wc)
 	wake_up(&rdma->sc_send_wait);
 
 	if (unlikely(wc->status != IB_WC_SUCCESS))
-		set_bit(XPT_CLOSE, &rdma->sc_xprt.xpt_flags);
+		svc_xprt_deferred_close(&rdma->sc_xprt);
 
 	svc_rdma_write_info_free(info);
 }
@@ -334,7 +334,6 @@ static void svc_rdma_wc_read_done(struct ib_cq *cq, struct ib_wc *wc)
 static int svc_rdma_post_chunk_ctxt(struct svc_rdma_chunk_ctxt *cc)
 {
 	struct svcxprt_rdma *rdma = cc->cc_rdma;
-	struct svc_xprt *xprt = &rdma->sc_xprt;
 	struct ib_send_wr *first_wr;
 	const struct ib_send_wr *bad_wr;
 	struct list_head *tmp;
@@ -373,7 +372,7 @@ static int svc_rdma_post_chunk_ctxt(struct svc_rdma_chunk_ctxt *cc)
 	} while (1);
 
 	trace_svcrdma_sq_post_err(rdma, ret);
-	set_bit(XPT_CLOSE, &xprt->xpt_flags);
+	svc_xprt_deferred_close(&rdma->sc_xprt);
 
 	/* If even one was posted, there will be a completion. */
 	if (bad_wr != first_wr)
