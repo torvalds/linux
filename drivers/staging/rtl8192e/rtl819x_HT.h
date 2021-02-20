@@ -184,7 +184,7 @@ struct bss_ht {
 	u8					bd_ht_cap_buf[32];
 	u16					bd_ht_cap_len;
 	u8					bd_ht_info_buf[32];
-	u16					bdHTInfoLen;
+	u16					bd_ht_info_len;
 
 	enum ht_spec_ver bdHTSpecVer;
 	enum ht_channel_width bdBandWidth;
