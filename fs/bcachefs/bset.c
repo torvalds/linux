@@ -132,7 +132,7 @@ void __bch2_verify_btree_nr_keys(struct btree *b)
 
 	for_each_bset(b, t)
 		bset_tree_for_each_key(b, t, k)
-			if (!bkey_whiteout(k))
+			if (!bkey_deleted(k))
 				btree_keys_account_key_add(&nr, t - b->set, k);
 
 	BUG_ON(memcmp(&nr, &b->nr, sizeof(nr)));
@@ -1108,7 +1108,7 @@ void bch2_bset_insert(struct btree *b,
 	if (bch2_bkey_pack_key(&packed, &insert->k, f))
 		src = &packed;
 
-	if (!bkey_whiteout(&insert->k))
+	if (!bkey_deleted(&insert->k))
 		btree_keys_account_key_add(&b->nr, t - b->set, src);
 
 	if (src->u64s != clobber_u64s) {
@@ -1645,15 +1645,14 @@ found:
 	return prev;
 }
 
-struct bkey_packed *bch2_btree_node_iter_prev_filter(struct btree_node_iter *iter,
-						     struct btree *b,
-						     unsigned min_key_type)
+struct bkey_packed *bch2_btree_node_iter_prev(struct btree_node_iter *iter,
+					      struct btree *b)
 {
 	struct bkey_packed *prev;
 
 	do {
 		prev = bch2_btree_node_iter_prev_all(iter, b);
-	} while (prev && prev->type < min_key_type);
+	} while (prev && bkey_deleted(prev));
 
 	return prev;
 }

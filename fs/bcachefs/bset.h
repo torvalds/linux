@@ -415,7 +415,7 @@ bch2_bkey_prev_all(struct btree *b, struct bset_tree *t, struct bkey_packed *k)
 static inline struct bkey_packed *
 bch2_bkey_prev(struct btree *b, struct bset_tree *t, struct bkey_packed *k)
 {
-	return bch2_bkey_prev_filter(b, t, k, KEY_TYPE_discard + 1);
+	return bch2_bkey_prev_filter(b, t, k, 1);
 }
 
 enum bch_extent_overlap {
@@ -521,33 +521,23 @@ __bch2_btree_node_iter_peek_all(struct btree_node_iter *iter,
 }
 
 static inline struct bkey_packed *
-bch2_btree_node_iter_peek_filter(struct btree_node_iter *iter,
-				 struct btree *b,
-				 unsigned min_key_type)
+bch2_btree_node_iter_peek_all(struct btree_node_iter *iter, struct btree *b)
 {
-	while (!bch2_btree_node_iter_end(iter)) {
-		struct bkey_packed *k = __bch2_btree_node_iter_peek_all(iter, b);
-
-		if (k->type >= min_key_type)
-			return k;
-
-		bch2_btree_node_iter_advance(iter, b);
-	}
-
-	return NULL;
-}
-
-static inline struct bkey_packed *
-bch2_btree_node_iter_peek_all(struct btree_node_iter *iter,
-			      struct btree *b)
-{
-	return bch2_btree_node_iter_peek_filter(iter, b, 0);
+	return !bch2_btree_node_iter_end(iter)
+		? __btree_node_offset_to_key(b, iter->data->k)
+		: NULL;
 }
 
 static inline struct bkey_packed *
 bch2_btree_node_iter_peek(struct btree_node_iter *iter, struct btree *b)
 {
-	return bch2_btree_node_iter_peek_filter(iter, b, KEY_TYPE_discard + 1);
+	struct bkey_packed *k;
+
+	while ((k = bch2_btree_node_iter_peek_all(iter, b)) &&
+	       bkey_deleted(k))
+		bch2_btree_node_iter_advance(iter, b);
+
+	return k;
 }
 
 static inline struct bkey_packed *
@@ -563,14 +553,8 @@ bch2_btree_node_iter_next_all(struct btree_node_iter *iter, struct btree *b)
 
 struct bkey_packed *bch2_btree_node_iter_prev_all(struct btree_node_iter *,
 						  struct btree *);
-struct bkey_packed *bch2_btree_node_iter_prev_filter(struct btree_node_iter *,
-						     struct btree *, unsigned);
-
-static inline struct bkey_packed *
-bch2_btree_node_iter_prev(struct btree_node_iter *iter, struct btree *b)
-{
-	return bch2_btree_node_iter_prev_filter(iter, b, KEY_TYPE_discard + 1);
-}
+struct bkey_packed *bch2_btree_node_iter_prev(struct btree_node_iter *,
+					      struct btree *);
 
 struct bkey_s_c bch2_btree_node_iter_peek_unpack(struct btree_node_iter *,
 						struct btree *,

@@ -73,13 +73,13 @@ bool bch2_btree_bset_insert_key(struct btree_iter *iter,
 		k = NULL;
 
 	/* @k is the key being overwritten/deleted, if any: */
-	EBUG_ON(k && bkey_whiteout(k));
+	EBUG_ON(k && bkey_deleted(k));
 
 	/* Deleting, but not found? nothing to do: */
-	if (bkey_whiteout(&insert->k) && !k)
+	if (bkey_deleted(&insert->k) && !k)
 		return false;
 
-	if (bkey_whiteout(&insert->k)) {
+	if (bkey_deleted(&insert->k)) {
 		/* Deleting: */
 		btree_account_key_drop(b, k);
 		k->type = KEY_TYPE_deleted;

@@ -90,7 +90,7 @@ void __bch2_btree_calc_format(struct bkey_format_state *s, struct btree *b)
 
 	for_each_bset(b, t)
 		bset_tree_for_each_key(b, t, k)
-			if (!bkey_whiteout(k)) {
+			if (!bkey_deleted(k)) {
 				uk = bkey_unpack_key(b, k);
 				bch2_bkey_format_add_key(s, &uk);
 			}

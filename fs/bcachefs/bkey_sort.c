@@ -103,7 +103,7 @@ bch2_key_sort_fix_overlapping(struct bch_fs *c, struct bset *dst,
 	sort_iter_sort(iter, key_sort_fix_overlapping_cmp);
 
 	while ((k = sort_iter_peek(iter))) {
-		if (!bkey_whiteout(k) &&
+		if (!bkey_deleted(k) &&
 		    !should_drop_next_key(iter)) {
 			bkey_copy(out, k);
 			btree_keys_account_key_add(&nr, 0, out);
@@ -123,7 +123,7 @@ static void extent_sort_append(struct bch_fs *c,
 			       struct bkey_packed **out,
 			       struct bkey_s k)
 {
-	if (!bkey_whiteout(k.k)) {
+	if (!bkey_deleted(k.k)) {
 		if (!bch2_bkey_pack_key(*out, k.k, f))
 			memcpy_u64s_small(*out, k.k, BKEY_U64s);
 
@@ -148,7 +148,7 @@ bch2_sort_repack(struct bset *dst, struct btree *src,
 	memset(&nr, 0, sizeof(nr));
 
 	while ((in = bch2_btree_node_iter_next_all(src_iter, src))) {
-		if (filter_whiteouts && bkey_whiteout(in))
+		if (filter_whiteouts && bkey_deleted(in))
 			continue;
 
 		if (bch2_bkey_transform(out_f, out, bkey_packed(in)
@@ -181,7 +181,7 @@ bch2_sort_repack_merge(struct bch_fs *c,
 	bch2_bkey_buf_init(&k);
 
 	while ((k_packed = bch2_btree_node_iter_next_all(iter, src))) {
-		if (filter_whiteouts && bkey_whiteout(k_packed))
+		if (filter_whiteouts && bkey_deleted(k_packed))
 			continue;
 
 		/*
@@ -227,7 +227,7 @@ unsigned bch2_sort_keys(struct bkey_packed *dst,
 	while ((in = sort_iter_next(iter, sort_keys_cmp))) {
 		bool needs_whiteout = false;
 
-		if (bkey_whiteout(in) &&
+		if (bkey_deleted(in) &&
 		    (filter_whiteouts || !in->needs_whiteout))
 			continue;
 
@@ -239,7 +239,7 @@ unsigned bch2_sort_keys(struct bkey_packed *dst,
 			in = sort_iter_next(iter, sort_keys_cmp);
 		}
 
-		if (bkey_whiteout(in)) {
+		if (bkey_deleted(in)) {
 			memcpy_u64s(out, in, bkeyp_key_u64s(f, in));
 			set_bkeyp_val_u64s(f, out, 0);
 		} else {

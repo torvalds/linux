@@ -215,7 +215,7 @@ static bool bch2_drop_whiteouts(struct btree *b, enum compact_mode mode)
 		for (k = start; k != end; k = n) {
 			n = bkey_next_skip_noops(k, end);
 
-			if (!bkey_whiteout(k)) {
+			if (!bkey_deleted(k)) {
 				bkey_copy(out, k);
 				out = bkey_next(out);
 			} else {
@@ -725,11 +725,11 @@ static int validate_bset_keys(struct bch_fs *c, struct btree *b,
 		/*
 		 * with the separate whiteouts thing (used for extents), the
 		 * second set of keys actually can have whiteouts too, so we
-		 * can't solely go off bkey_whiteout()...
+		 * can't solely go off bkey_deleted()...
 		 */
 
 		if (!seen_non_whiteout &&
-		    (!bkey_whiteout(k) ||
+		    (!bkey_deleted(k) ||
 		     (prev && bkey_iter_cmp(b, prev, k) > 0))) {
 			*whiteout_u64s = k->_data - i->_data;
 			seen_non_whiteout = true;

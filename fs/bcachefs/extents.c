@@ -971,9 +971,9 @@ bool bch2_extent_normalize(struct bch_fs *c, struct bkey_s k)
 
 	/* will only happen if all pointers were cached: */
 	if (!bch2_bkey_nr_ptrs(k.s_c))
-		k.k->type = KEY_TYPE_discard;
+		k.k->type = KEY_TYPE_deleted;
 
-	return bkey_whiteout(k.k);
+	return bkey_deleted(k.k);
 }
 
 void bch2_bkey_ptrs_to_text(struct printbuf *out, struct bch_fs *c,

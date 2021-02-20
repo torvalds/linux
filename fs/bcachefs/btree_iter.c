@@ -534,7 +534,7 @@ static void bch2_btree_iter_verify_level(struct btree_iter *iter,
 	 * whiteouts)
 	 */
 	p = level || btree_node_type_is_extents(iter->btree_id)
-		? bch2_btree_node_iter_prev_filter(&tmp, l->b, KEY_TYPE_discard)
+		? bch2_btree_node_iter_prev(&tmp, l->b)
 		: bch2_btree_node_iter_prev_all(&tmp, l->b);
 	k = bch2_btree_node_iter_peek_all(&l->iter, l->b);
 
