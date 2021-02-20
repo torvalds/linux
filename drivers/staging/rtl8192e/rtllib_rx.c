@@ -1858,10 +1858,10 @@ static void rtllib_parse_mife_generic(struct rtllib_device *ieee,
 			}
 		}
 		if (*tmp_htcap_len != 0) {
-			network->bssht.bdSupportHT = true;
+			network->bssht.bd_support_ht = true;
 			network->bssht.bdHT1R = ((((struct ht_capab_ele *)(network->bssht.bdHTCapBuf))->MCS[1]) == 0);
 		} else {
-			network->bssht.bdSupportHT = false;
+			network->bssht.bd_support_ht = false;
 			network->bssht.bdHT1R = false;
 		}
 	}
@@ -1885,7 +1885,7 @@ static void rtllib_parse_mife_generic(struct rtllib_device *ieee,
 		}
 	}
 
-	if (network->bssht.bdSupportHT) {
+	if (network->bssht.bd_support_ht) {
 		if (info_element->len >= 4 &&
 		    info_element->data[0] == 0x00 &&
 		    info_element->data[1] == 0xe0 &&
@@ -2025,7 +2025,7 @@ static void rtllib_parse_mfie_ht_cap(struct rtllib_info_element *info_element,
 				       sizeof(ht->bdHTCapBuf));
 		memcpy(ht->bdHTCapBuf, info_element->data, ht->bdHTCapLen);
 
-		ht->bdSupportHT = true;
+		ht->bd_support_ht = true;
 		ht->bdHT1R = ((((struct ht_capab_ele *)
 				ht->bdHTCapBuf))->MCS[1]) == 0;
 
@@ -2033,7 +2033,7 @@ static void rtllib_parse_mfie_ht_cap(struct rtllib_info_element *info_element,
 					     (((struct ht_capab_ele *)
 					     (ht->bdHTCapBuf))->ChlWidth);
 	} else {
-		ht->bdSupportHT = false;
+		ht->bd_support_ht = false;
 		ht->bdHT1R = false;
 		ht->bdBandWidth = HT_CHANNEL_WIDTH_20;
 	}
@@ -2380,7 +2380,7 @@ static inline int rtllib_network_init(
 		return 1;
 	}
 
-	if (network->bssht.bdSupportHT) {
+	if (network->bssht.bd_support_ht) {
 		if (network->mode == IEEE_A)
 			network->mode = IEEE_N_5G;
 		else if (network->mode & (IEEE_G | IEEE_B))
@@ -2456,7 +2456,7 @@ static inline void update_network(struct rtllib_device *ieee,
 	dst->last_dtim_sta_time = src->last_dtim_sta_time;
 	memcpy(&dst->tim, &src->tim, sizeof(struct rtllib_tim_parameters));
 
-	dst->bssht.bdSupportHT = src->bssht.bdSupportHT;
+	dst->bssht.bd_support_ht = src->bssht.bd_support_ht;
 	dst->bssht.bdRT2RTAggregation = src->bssht.bdRT2RTAggregation;
 	dst->bssht.bdHTCapLen = src->bssht.bdHTCapLen;
 	memcpy(dst->bssht.bdHTCapBuf, src->bssht.bdHTCapBuf,
