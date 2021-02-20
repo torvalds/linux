@@ -303,14 +303,7 @@ static struct btree *bch2_btree_node_alloc(struct btree_update *as, unsigned lev
 		bp->v.sectors_written	= 0;
 	}
 
-	if (c->sb.features & (1ULL << BCH_FEATURE_new_extent_overwrite))
-		SET_BTREE_NODE_NEW_EXTENT_OVERWRITE(b->data, true);
-
-	if (btree_node_is_extents(b) &&
-	    !BTREE_NODE_NEW_EXTENT_OVERWRITE(b->data)) {
-		set_btree_node_old_extent_overwrite(b);
-		set_btree_node_need_rewrite(b);
-	}
+	SET_BTREE_NODE_NEW_EXTENT_OVERWRITE(b->data, true);
 
 	bch2_btree_build_aux_trees(b);
 

@@ -983,6 +983,12 @@ int bch2_fs_recovery(struct bch_fs *c)
 		bch_info(c, "recovering from clean shutdown, journal seq %llu",
 			 le64_to_cpu(clean->journal_seq));
 
+	if (!(c->sb.features & (1ULL << BCH_FEATURE_new_extent_overwrite))) {
+		bch_err(c, "feature new_extent_overwrite not set, filesystem no longer supported");
+		ret = -EINVAL;
+		goto err;
+	}
+
 	if (!(c->sb.features & (1ULL << BCH_FEATURE_alloc_v2))) {
 		bch_info(c, "alloc_v2 feature bit not set, fsck required");
 		c->opts.fsck = true;

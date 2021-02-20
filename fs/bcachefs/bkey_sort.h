@@ -32,9 +32,6 @@ static inline void sort_iter_add(struct sort_iter *iter,
 struct btree_nr_keys
 bch2_key_sort_fix_overlapping(struct bch_fs *, struct bset *,
 			      struct sort_iter *);
-struct btree_nr_keys
-bch2_extent_sort_fix_overlapping(struct bch_fs *, struct bset *,
-				 struct sort_iter *);
 
 struct btree_nr_keys
 bch2_sort_repack(struct bset *, struct btree *,
@@ -48,10 +45,5 @@ bch2_sort_repack_merge(struct bch_fs *,
 
 unsigned bch2_sort_keys(struct bkey_packed *,
 			struct sort_iter *, bool);
-unsigned bch2_sort_extents(struct bkey_packed *,
-			   struct sort_iter *, bool);
-
-unsigned bch2_sort_extent_whiteouts(struct bkey_packed *,
-				    struct sort_iter *);
 
 #endif /* _BCACHEFS_BKEY_SORT_H */
