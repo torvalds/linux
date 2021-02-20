@@ -33,26 +33,6 @@
 
 /* module parameters */
 
-/* low limit for RX carrier freq, Hz, 0 for no RX demodulation */
-static int rx_low_carrier_freq;
-module_param(rx_low_carrier_freq, int, S_IRUGO | S_IWUSR);
-MODULE_PARM_DESC(rx_low_carrier_freq, "Override low RX carrier frequency, Hz, 0 for no RX demodulation");
-
-/* high limit for RX carrier freq, Hz, 0 for no RX demodulation */
-static int rx_high_carrier_freq;
-module_param(rx_high_carrier_freq, int, S_IRUGO | S_IWUSR);
-MODULE_PARM_DESC(rx_high_carrier_freq, "Override high RX carrier frequency, Hz, 0 for no RX demodulation");
-
-/* override tx carrier frequency */
-static int tx_carrier_freq;
-module_param(tx_carrier_freq, int, S_IRUGO | S_IWUSR);
-MODULE_PARM_DESC(tx_carrier_freq, "Override TX carrier frequency, Hz");
-
-/* override tx duty cycle */
-static int tx_duty_cycle;
-module_param(tx_duty_cycle, int, S_IRUGO | S_IWUSR);
-MODULE_PARM_DESC(tx_duty_cycle, "Override TX duty cycle, 1-100");
-
 /* override default sample period */
 static long sample_period;
 module_param(sample_period, long, S_IRUGO | S_IWUSR);
@@ -1408,18 +1388,6 @@ static int ite_probe(struct pnp_dev *pdev, const struct pnp_device_id
 	/* apply any overrides */
 	if (sample_period > 0)
 		itdev->params.sample_period = sample_period;
-
-	if (tx_carrier_freq > 0)
-		itdev->params.tx_carrier_freq = tx_carrier_freq;
-
-	if (tx_duty_cycle > 0 && tx_duty_cycle <= 100)
-		itdev->params.tx_duty_cycle = tx_duty_cycle;
-
-	if (rx_low_carrier_freq > 0)
-		itdev->params.rx_low_carrier_freq = rx_low_carrier_freq;
-
-	if (rx_high_carrier_freq > 0)
-		itdev->params.rx_high_carrier_freq = rx_high_carrier_freq;
 
 	/* set up hardware initial state */
 	itdev->params.init_hardware(itdev);
