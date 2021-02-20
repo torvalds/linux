@@ -182,7 +182,7 @@ struct bss_ht {
 	u8				bd_support_ht;
 
 	u8					bd_ht_cap_buf[32];
-	u16					bdHTCapLen;
+	u16					bd_ht_cap_len;
 	u8					bdHTInfoBuf[32];
 	u16					bdHTInfoLen;
 
