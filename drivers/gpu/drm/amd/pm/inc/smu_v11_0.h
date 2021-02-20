@@ -58,6 +58,12 @@
 #define CTF_OFFSET_HOTSPOT		5
 #define CTF_OFFSET_MEM			5
 
+#define LINK_WIDTH_MAX			6
+#define LINK_SPEED_MAX			3
+
+static __maybe_unused uint8_t link_width[] = {0, 1, 2, 4, 8, 12, 16};
+static __maybe_unused uint8_t link_speed[] = {25, 50, 80, 160};
+
 static const
 struct smu_temperature_range __maybe_unused smu11_thermal_policy[] =
 {
@@ -275,11 +281,11 @@ int smu_v11_0_get_dpm_level_range(struct smu_context *smu,
 
 int smu_v11_0_get_current_pcie_link_width_level(struct smu_context *smu);
 
-int smu_v11_0_get_current_pcie_link_width(struct smu_context *smu);
+uint8_t smu_v11_0_get_current_pcie_link_width(struct smu_context *smu);
 
 int smu_v11_0_get_current_pcie_link_speed_level(struct smu_context *smu);
 
-int smu_v11_0_get_current_pcie_link_speed(struct smu_context *smu);
+uint8_t smu_v11_0_get_current_pcie_link_speed(struct smu_context *smu);
 
 int smu_v11_0_gfx_ulv_control(struct smu_context *smu,
 			      bool enablement);
