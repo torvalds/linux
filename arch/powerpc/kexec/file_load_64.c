@@ -927,37 +927,27 @@ out:
 }
 
 /**
- * kexec_fdt_totalsize_ppc64 - Return the estimated size needed to setup FDT
- *                             for kexec/kdump kernel.
- * @image:                     kexec image being loaded.
+ * kexec_extra_fdt_size_ppc64 - Return the estimated additional size needed to
+ *                              setup FDT for kexec/kdump kernel.
+ * @image:                      kexec image being loaded.
  *
- * Returns the estimated size needed for kexec/kdump kernel FDT.
+ * Returns the estimated extra size needed for kexec/kdump kernel FDT.
  */
-unsigned int kexec_fdt_totalsize_ppc64(struct kimage *image)
+unsigned int kexec_extra_fdt_size_ppc64(struct kimage *image)
 {
-	unsigned int fdt_size;
 	u64 usm_entries;
 
-	/*
-	 * The below estimate more than accounts for a typical kexec case where
-	 * the additional space is to accommodate things like kexec cmdline,
-	 * chosen node with properties for initrd start & end addresses and
-	 * a property to indicate kexec boot..
-	 */
-	fdt_size = fdt_totalsize(initial_boot_params) + (2 * COMMAND_LINE_SIZE);
 	if (image->type != KEXEC_TYPE_CRASH)
-		return fdt_size;
+		return 0;
 
 	/*
-	 * For kdump kernel, also account for linux,usable-memory and
+	 * For kdump kernel, account for linux,usable-memory and
 	 * linux,drconf-usable-memory properties. Get an approximate on the
 	 * number of usable memory entries and use for FDT size estimation.
 	 */
 	usm_entries = ((memblock_end_of_DRAM() / drmem_lmb_size()) +
 		       (2 * (resource_size(&crashk_res) / drmem_lmb_size())));
-	fdt_size += (unsigned int)(usm_entries * sizeof(u64));
-
-	return fdt_size;
+	return (unsigned int)(usm_entries * sizeof(u64));
 }
 
 /**
