@@ -179,20 +179,20 @@ struct rt_hi_throughput {
 } __packed;
 
 struct bss_ht {
-	u8				bd_support_ht;
+	u8 bd_support_ht;
 
-	u8					bd_ht_cap_buf[32];
-	u16					bd_ht_cap_len;
-	u8					bd_ht_info_buf[32];
-	u16					bd_ht_info_len;
+	u8 bd_ht_cap_buf[32];
+	u16 bd_ht_cap_len;
+	u8 bd_ht_info_buf[32];
+	u16 bd_ht_info_len;
 
 	enum ht_spec_ver bd_ht_spec_ver;
 	enum ht_channel_width bd_bandwidth;
 
-	u8					bd_rt2rt_aggregation;
-	u8					bd_rt2rt_long_slot_time;
-	u8					rt2rt_ht_mode;
-	u8					bd_ht_1r;
+	u8 bd_rt2rt_aggregation;
+	u8 bd_rt2rt_long_slot_time;
+	u8 rt2rt_ht_mode;
+	u8 bd_ht_1r;
 };
 
 extern u8 MCS_FILTER_ALL[16];
