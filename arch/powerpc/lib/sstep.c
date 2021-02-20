@@ -1166,7 +1166,7 @@ static nokprobe_inline void add_with_carry(const struct pt_regs *regs,
 
 	if (carry_in)
 		++val;
-	op->type = COMPUTE + SETREG + SETXER;
+	op->type = COMPUTE | SETREG | SETXER;
 	op->reg = rd;
 	op->val = val;
 	val = truncate_if_32bit(regs->msr, val);
@@ -1187,7 +1187,7 @@ static nokprobe_inline void do_cmp_signed(const struct pt_regs *regs,
 {
 	unsigned int crval, shift;
 
-	op->type = COMPUTE + SETCC;
+	op->type = COMPUTE | SETCC;
 	crval = (regs->xer >> 31) & 1;		/* get SO bit */
 	if (v1 < v2)
 		crval |= 8;
@@ -1206,7 +1206,7 @@ static nokprobe_inline void do_cmp_unsigned(const struct pt_regs *regs,
 {
 	unsigned int crval, shift;
 
-	op->type = COMPUTE + SETCC;
+	op->type = COMPUTE | SETCC;
 	crval = (regs->xer >> 31) & 1;		/* get SO bit */
 	if (v1 < v2)
 		crval |= 8;
