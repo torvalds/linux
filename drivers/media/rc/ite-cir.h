@@ -8,21 +8,6 @@
 /* platform driver name to register */
 #define ITE_DRIVER_NAME "ite-cir"
 
-/* logging macros */
-#define ite_pr(level, text, ...) \
-	printk(level KBUILD_MODNAME ": " text, ## __VA_ARGS__)
-#define ite_dbg(text, ...) do { \
-	if (debug) \
-		printk(KERN_DEBUG \
-			KBUILD_MODNAME ": " text "\n" , ## __VA_ARGS__); \
-} while (0)
-
-#define ite_dbg_verbose(text, ...) do {\
-	if (debug > 1) \
-		printk(KERN_DEBUG \
-			KBUILD_MODNAME ": " text "\n" , ## __VA_ARGS__); \
-} while (0)
-
 /* FIFO sizes */
 #define ITE_TX_FIFO_LEN 32
 #define ITE_RX_FIFO_LEN 32

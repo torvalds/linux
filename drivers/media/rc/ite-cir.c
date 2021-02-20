@@ -33,11 +33,6 @@
 
 /* module parameters */
 
-/* debug level */
-static int debug;
-module_param(debug, int, S_IRUGO | S_IWUSR);
-MODULE_PARM_DESC(debug, "Enable debugging output");
-
 /* low limit for RX carrier freq, Hz, 0 for no RX demodulation */
 static int rx_low_carrier_freq;
 module_param(rx_low_carrier_freq, int, S_IRUGO | S_IWUSR);
@@ -101,9 +96,7 @@ static u8 ite_get_carrier_freq_bits(unsigned int freq)
 			freq = ITE_LCF_MAX_CARRIER_FREQ;
 
 		/* convert to kHz and subtract the base freq */
-		freq =
-		    DIV_ROUND_CLOSEST(freq - ITE_LCF_MIN_CARRIER_FREQ,
-				      1000);
+		freq = DIV_ROUND_CLOSEST(freq - ITE_LCF_MIN_CARRIER_FREQ, 1000);
 
 		return (u8) freq;
 	}
@@ -175,8 +168,7 @@ static void ite_decode_bytes(struct ite_dev *dev, const u8 * data, int
 	next_one = find_next_bit_le(ldata, size, 0);
 	if (next_one > 0) {
 		ev.pulse = true;
-		ev.duration =
-		    ITE_BITS_TO_US(next_one, sample_period);
+		ev.duration = ITE_BITS_TO_US(next_one, sample_period);
 		ir_raw_event_store_with_filter(dev->rdev, &ev);
 	}
 
@@ -187,23 +179,18 @@ static void ite_decode_bytes(struct ite_dev *dev, const u8 * data, int
 		ir_raw_event_store_with_filter(dev->rdev, &ev);
 
 		if (next_zero < size) {
-			next_one =
-			    find_next_bit_le(ldata,
-						     size,
-						     next_zero + 1);
+			next_one = find_next_bit_le(ldata, size, next_zero + 1);
 			ev.pulse = true;
-			ev.duration =
-			    ITE_BITS_TO_US(next_one - next_zero,
-					   sample_period);
-			ir_raw_event_store_with_filter
-			    (dev->rdev, &ev);
+			ev.duration = ITE_BITS_TO_US(next_one - next_zero,
+						     sample_period);
+			ir_raw_event_store_with_filter(dev->rdev, &ev);
 		} else
 			next_one = size;
 	}
 
 	ir_raw_event_handle(dev->rdev);
 
-	ite_dbg_verbose("decoded %d bytes.", length);
+	dev_dbg(&dev->rdev->dev, "decoded %d bytes\n", length);
 }
 
 /* set all the rx/tx carrier parameters; this must be called with the device
@@ -214,8 +201,6 @@ static void ite_set_carrier_params(struct ite_dev *dev)
 	int allowance;
 	bool use_demodulator;
 	bool for_tx = dev->transmitting;
-
-	ite_dbg("%s called", __func__);
 
 	if (for_tx) {
 		/* we don't need no stinking calculations */
@@ -228,8 +213,7 @@ static void ite_set_carrier_params(struct ite_dev *dev)
 
 		if (low_freq == 0) {
 			/* don't demodulate */
-			freq =
-			ITE_DEFAULT_CARRIER_FREQ;
+			freq = ITE_DEFAULT_CARRIER_FREQ;
 			allowance = ITE_RXDCR_DEFAULT;
 			use_demodulator = false;
 		} else {
@@ -267,8 +251,6 @@ static irqreturn_t ite_cir_isr(int irq, void *data)
 	int rx_bytes;
 	int iflags;
 
-	ite_dbg_verbose("%s firing", __func__);
-
 	/* grab the spinlock */
 	spin_lock(&dev->lock);
 
@@ -278,9 +260,10 @@ static irqreturn_t ite_cir_isr(int irq, void *data)
 	/* check for the receive interrupt */
 	if (iflags & (ITE_IRQ_RX_FIFO | ITE_IRQ_RX_FIFO_OVERRUN)) {
 		/* read the FIFO bytes */
-		rx_bytes =
-			dev->params.get_rx_bytes(dev, rx_buf,
-					     ITE_RX_FIFO_LEN);
+		rx_bytes = dev->params.get_rx_bytes(dev, rx_buf,
+						    ITE_RX_FIFO_LEN);
+
+		dev_dbg(&dev->rdev->dev, "interrupt %d RX bytes\n", rx_bytes);
 
 		if (rx_bytes > 0) {
 			/* drop the spinlock, since the ir-core layer
@@ -289,8 +272,7 @@ static irqreturn_t ite_cir_isr(int irq, void *data)
 			spin_unlock(&dev->lock);
 
 			/* decode the data we've just received */
-			ite_decode_bytes(dev, rx_buf,
-								   rx_bytes);
+			ite_decode_bytes(dev, rx_buf, rx_bytes);
 
 			/* reacquire the spinlock */
 			spin_lock(&dev->lock);
@@ -300,7 +282,7 @@ static irqreturn_t ite_cir_isr(int irq, void *data)
 		}
 	} else if (iflags & ITE_IRQ_TX_FIFO) {
 		/* FIFO space available interrupt */
-		ite_dbg_verbose("got interrupt for TX FIFO");
+		dev_dbg(&dev->rdev->dev, "interrupt TX FIFO\n");
 
 		/* wake any sleeping transmitter */
 		wake_up_interruptible(&dev->tx_queue);
@@ -311,8 +293,6 @@ static irqreturn_t ite_cir_isr(int irq, void *data)
 
 	/* drop the spinlock */
 	spin_unlock(&dev->lock);
-
-	ite_dbg_verbose("%s done returning %d", __func__, (int)ret);
 
 	return ret;
 }
@@ -375,8 +355,6 @@ static int ite_tx_ir(struct rc_dev *rcdev, unsigned *txbuf, unsigned n)
 	u8 last_sent[ITE_TX_FIFO_LEN];
 	u8 val;
 
-	ite_dbg("%s called", __func__);
-
 	/* clear the array just in case */
 	memset(last_sent, 0, sizeof(last_sent));
 
@@ -400,8 +378,7 @@ static int ite_tx_ir(struct rc_dev *rcdev, unsigned *txbuf, unsigned n)
 	 * then we'll just activate the interrupt, wait for it to wake us up
 	 * again, disable it, continue filling the FIFO... until everything
 	 * has been pushed out */
-	fifo_avail =
-	    ITE_TX_FIFO_LEN - dev->params.get_tx_used_slots(dev);
+	fifo_avail = ITE_TX_FIFO_LEN - dev->params.get_tx_used_slots(dev);
 
 	while (n > 0 && dev->in_use) {
 		/* transmit the next sample */
@@ -409,10 +386,8 @@ static int ite_tx_ir(struct rc_dev *rcdev, unsigned *txbuf, unsigned n)
 		remaining_us = *(txbuf++);
 		n--;
 
-		ite_dbg("%s: %ld",
-				      ((is_pulse) ? "pulse" : "space"),
-				      (long int)
-				      remaining_us);
+		dev_dbg(&dev->rdev->dev, "%s: %d\n",
+			is_pulse ? "pulse" : "space", remaining_us);
 
 		/* repeat while the pulse is non-zero length */
 		while (remaining_us > 0 && dev->in_use) {
@@ -520,8 +495,6 @@ static void ite_s_idle(struct rc_dev *rcdev, bool enable)
 	unsigned long flags;
 	struct ite_dev *dev = rcdev->priv;
 
-	ite_dbg("%s called", __func__);
-
 	if (enable) {
 		spin_lock_irqsave(&dev->lock, flags);
 		dev->params.idle_rx(dev);
@@ -539,8 +512,6 @@ static int it87_get_irq_causes(struct ite_dev *dev)
 {
 	u8 iflags;
 	int ret = 0;
-
-	ite_dbg("%s called", __func__);
 
 	/* read the interrupt flags */
 	iflags = inb(dev->cir_addr + IT87_IIR) & IT87_II;
@@ -568,8 +539,6 @@ static void it87_set_carrier_params(struct ite_dev *dev, bool high_freq,
 {
 	u8 val;
 
-	ite_dbg("%s called", __func__);
-
 	/* program the RCR register */
 	val = inb(dev->cir_addr + IT87_RCR)
 		& ~(IT87_HCFS | IT87_RXEND | IT87_RXDCR);
@@ -595,8 +564,6 @@ static int it87_get_rx_bytes(struct ite_dev *dev, u8 * buf, int buf_size)
 {
 	int fifo, read = 0;
 
-	ite_dbg("%s called", __func__);
-
 	/* read how many bytes are still in the FIFO */
 	fifo = inb(dev->cir_addr + IT87_RSR) & IT87_RXFBC;
 
@@ -615,8 +582,6 @@ static int it87_get_rx_bytes(struct ite_dev *dev, u8 * buf, int buf_size)
  * empty; let's expect this won't be a problem */
 static int it87_get_tx_used_slots(struct ite_dev *dev)
 {
-	ite_dbg("%s called", __func__);
-
 	return inb(dev->cir_addr + IT87_TSR) & IT87_TXFBC;
 }
 
@@ -630,8 +595,6 @@ static void it87_put_tx_byte(struct ite_dev *dev, u8 value)
   pulse is detected; this must be called with the device spinlock held */
 static void it87_idle_rx(struct ite_dev *dev)
 {
-	ite_dbg("%s called", __func__);
-
 	/* disable streaming by clearing RXACT writing it as 1 */
 	outb(inb(dev->cir_addr + IT87_RCR) | IT87_RXACT,
 		dev->cir_addr + IT87_RCR);
@@ -644,8 +607,6 @@ static void it87_idle_rx(struct ite_dev *dev)
 /* disable the receiver; this must be called with the device spinlock held */
 static void it87_disable_rx(struct ite_dev *dev)
 {
-	ite_dbg("%s called", __func__);
-
 	/* disable the receiver interrupts */
 	outb(inb(dev->cir_addr + IT87_IER) & ~(IT87_RDAIE | IT87_RFOIE),
 		dev->cir_addr + IT87_IER);
@@ -662,8 +623,6 @@ static void it87_disable_rx(struct ite_dev *dev)
 /* enable the receiver; this must be called with the device spinlock held */
 static void it87_enable_rx(struct ite_dev *dev)
 {
-	ite_dbg("%s called", __func__);
-
 	/* enable the receiver by setting RXEN */
 	outb(inb(dev->cir_addr + IT87_RCR) | IT87_RXEN,
 		dev->cir_addr + IT87_RCR);
@@ -680,8 +639,6 @@ static void it87_enable_rx(struct ite_dev *dev)
  * spinlock held */
 static void it87_disable_tx_interrupt(struct ite_dev *dev)
 {
-	ite_dbg("%s called", __func__);
-
 	/* disable the transmitter interrupts */
 	outb(inb(dev->cir_addr + IT87_IER) & ~IT87_TLDLIE,
 		dev->cir_addr + IT87_IER);
@@ -691,8 +648,6 @@ static void it87_disable_tx_interrupt(struct ite_dev *dev)
  * spinlock held */
 static void it87_enable_tx_interrupt(struct ite_dev *dev)
 {
-	ite_dbg("%s called", __func__);
-
 	/* enable the transmitter interrupts and master enable flag */
 	outb(inb(dev->cir_addr + IT87_IER) | IT87_TLDLIE | IT87_IEC,
 		dev->cir_addr + IT87_IER);
@@ -701,8 +656,6 @@ static void it87_enable_tx_interrupt(struct ite_dev *dev)
 /* disable the device; this must be called with the device spinlock held */
 static void it87_disable(struct ite_dev *dev)
 {
-	ite_dbg("%s called", __func__);
-
 	/* clear out all interrupt enable flags */
 	outb(inb(dev->cir_addr + IT87_IER) &
 		~(IT87_IEC | IT87_RFOIE | IT87_RDAIE | IT87_TLDLIE),
@@ -719,8 +672,6 @@ static void it87_disable(struct ite_dev *dev)
 /* initialize the hardware */
 static void it87_init_hardware(struct ite_dev *dev)
 {
-	ite_dbg("%s called", __func__);
-
 	/* enable just the baud rate divisor register,
 	disabling all the interrupts at the same time */
 	outb((inb(dev->cir_addr + IT87_IER) &
@@ -757,8 +708,6 @@ static int it8708_get_irq_causes(struct ite_dev *dev)
 	u8 iflags;
 	int ret = 0;
 
-	ite_dbg("%s called", __func__);
-
 	/* read the interrupt flags */
 	iflags = inb(dev->cir_addr + IT8708_C0IIR);
 
@@ -779,8 +728,6 @@ static void it8708_set_carrier_params(struct ite_dev *dev, bool high_freq,
 				      u8 pulse_width_bits)
 {
 	u8 val;
-
-	ite_dbg("%s called", __func__);
 
 	/* program the C0CFR register, with HRAE=1 */
 	outb(inb(dev->cir_addr + IT8708_BANKSEL) | IT8708_HRAE,
@@ -820,8 +767,6 @@ static int it8708_get_rx_bytes(struct ite_dev *dev, u8 * buf, int buf_size)
 {
 	int fifo, read = 0;
 
-	ite_dbg("%s called", __func__);
-
 	/* read how many bytes are still in the FIFO */
 	fifo = inb(dev->cir_addr + IT8708_C0RFSR) & IT85_RXFBC;
 
@@ -840,8 +785,6 @@ static int it8708_get_rx_bytes(struct ite_dev *dev, u8 * buf, int buf_size)
  * empty; let's expect this won't be a problem */
 static int it8708_get_tx_used_slots(struct ite_dev *dev)
 {
-	ite_dbg("%s called", __func__);
-
 	return inb(dev->cir_addr + IT8708_C0TFSR) & IT85_TXFBC;
 }
 
@@ -855,8 +798,6 @@ static void it8708_put_tx_byte(struct ite_dev *dev, u8 value)
   pulse is detected; this must be called with the device spinlock held */
 static void it8708_idle_rx(struct ite_dev *dev)
 {
-	ite_dbg("%s called", __func__);
-
 	/* disable streaming by clearing RXACT writing it as 1 */
 	outb(inb(dev->cir_addr + IT8708_C0RCR) | IT85_RXACT,
 		dev->cir_addr + IT8708_C0RCR);
@@ -869,8 +810,6 @@ static void it8708_idle_rx(struct ite_dev *dev)
 /* disable the receiver; this must be called with the device spinlock held */
 static void it8708_disable_rx(struct ite_dev *dev)
 {
-	ite_dbg("%s called", __func__);
-
 	/* disable the receiver interrupts */
 	outb(inb(dev->cir_addr + IT8708_C0IER) &
 		~(IT85_RDAIE | IT85_RFOIE),
@@ -888,8 +827,6 @@ static void it8708_disable_rx(struct ite_dev *dev)
 /* enable the receiver; this must be called with the device spinlock held */
 static void it8708_enable_rx(struct ite_dev *dev)
 {
-	ite_dbg("%s called", __func__);
-
 	/* enable the receiver by setting RXEN */
 	outb(inb(dev->cir_addr + IT8708_C0RCR) | IT85_RXEN,
 		dev->cir_addr + IT8708_C0RCR);
@@ -907,8 +844,6 @@ static void it8708_enable_rx(struct ite_dev *dev)
  * spinlock held */
 static void it8708_disable_tx_interrupt(struct ite_dev *dev)
 {
-	ite_dbg("%s called", __func__);
-
 	/* disable the transmitter interrupts */
 	outb(inb(dev->cir_addr + IT8708_C0IER) & ~IT85_TLDLIE,
 		dev->cir_addr + IT8708_C0IER);
@@ -918,8 +853,6 @@ static void it8708_disable_tx_interrupt(struct ite_dev *dev)
  * spinlock held */
 static void it8708_enable_tx_interrupt(struct ite_dev *dev)
 {
-	ite_dbg("%s called", __func__);
-
 	/* enable the transmitter interrupts and master enable flag */
 	outb(inb(dev->cir_addr + IT8708_C0IER)
 		|IT85_TLDLIE | IT85_IEC,
@@ -929,8 +862,6 @@ static void it8708_enable_tx_interrupt(struct ite_dev *dev)
 /* disable the device; this must be called with the device spinlock held */
 static void it8708_disable(struct ite_dev *dev)
 {
-	ite_dbg("%s called", __func__);
-
 	/* clear out all interrupt enable flags */
 	outb(inb(dev->cir_addr + IT8708_C0IER) &
 		~(IT85_IEC | IT85_RFOIE | IT85_RDAIE | IT85_TLDLIE),
@@ -947,8 +878,6 @@ static void it8708_disable(struct ite_dev *dev)
 /* initialize the hardware */
 static void it8708_init_hardware(struct ite_dev *dev)
 {
-	ite_dbg("%s called", __func__);
-
 	/* disable all the interrupts */
 	outb(inb(dev->cir_addr + IT8708_C0IER) &
 		~(IT85_IEC | IT85_RFOIE | IT85_RDAIE | IT85_TLDLIE),
@@ -1054,8 +983,6 @@ static int it8709_get_irq_causes(struct ite_dev *dev)
 	u8 iflags;
 	int ret = 0;
 
-	ite_dbg("%s called", __func__);
-
 	/* read the interrupt flags */
 	iflags = it8709_rm(dev, IT8709_IIR);
 
@@ -1076,8 +1003,6 @@ static void it8709_set_carrier_params(struct ite_dev *dev, bool high_freq,
 				      u8 pulse_width_bits)
 {
 	u8 val;
-
-	ite_dbg("%s called", __func__);
 
 	val = (it8709_rr(dev, IT85_C0CFR)
 		     &~(IT85_HCFS | IT85_CFQ)) |
@@ -1111,8 +1036,6 @@ static int it8709_get_rx_bytes(struct ite_dev *dev, u8 * buf, int buf_size)
 {
 	int fifo, read = 0;
 
-	ite_dbg("%s called", __func__);
-
 	/* read how many bytes are still in the FIFO */
 	fifo = it8709_rm(dev, IT8709_RFSR) & IT85_RXFBC;
 
@@ -1136,8 +1059,6 @@ static int it8709_get_rx_bytes(struct ite_dev *dev, u8 * buf, int buf_size)
  * empty; let's expect this won't be a problem */
 static int it8709_get_tx_used_slots(struct ite_dev *dev)
 {
-	ite_dbg("%s called", __func__);
-
 	return it8709_rr(dev, IT85_C0TFSR) & IT85_TXFBC;
 }
 
@@ -1151,8 +1072,6 @@ static void it8709_put_tx_byte(struct ite_dev *dev, u8 value)
   pulse is detected; this must be called with the device spinlock held */
 static void it8709_idle_rx(struct ite_dev *dev)
 {
-	ite_dbg("%s called", __func__);
-
 	/* disable streaming by clearing RXACT writing it as 1 */
 	it8709_wr(dev, it8709_rr(dev, IT85_C0RCR) | IT85_RXACT,
 			    IT85_C0RCR);
@@ -1165,8 +1084,6 @@ static void it8709_idle_rx(struct ite_dev *dev)
 /* disable the receiver; this must be called with the device spinlock held */
 static void it8709_disable_rx(struct ite_dev *dev)
 {
-	ite_dbg("%s called", __func__);
-
 	/* disable the receiver interrupts */
 	it8709_wr(dev, it8709_rr(dev, IT85_C0IER) &
 			    ~(IT85_RDAIE | IT85_RFOIE),
@@ -1184,8 +1101,6 @@ static void it8709_disable_rx(struct ite_dev *dev)
 /* enable the receiver; this must be called with the device spinlock held */
 static void it8709_enable_rx(struct ite_dev *dev)
 {
-	ite_dbg("%s called", __func__);
-
 	/* enable the receiver by setting RXEN */
 	it8709_wr(dev, it8709_rr(dev, IT85_C0RCR) | IT85_RXEN,
 			    IT85_C0RCR);
@@ -1203,8 +1118,6 @@ static void it8709_enable_rx(struct ite_dev *dev)
  * spinlock held */
 static void it8709_disable_tx_interrupt(struct ite_dev *dev)
 {
-	ite_dbg("%s called", __func__);
-
 	/* disable the transmitter interrupts */
 	it8709_wr(dev, it8709_rr(dev, IT85_C0IER) & ~IT85_TLDLIE,
 			    IT85_C0IER);
@@ -1214,8 +1127,6 @@ static void it8709_disable_tx_interrupt(struct ite_dev *dev)
  * spinlock held */
 static void it8709_enable_tx_interrupt(struct ite_dev *dev)
 {
-	ite_dbg("%s called", __func__);
-
 	/* enable the transmitter interrupts and master enable flag */
 	it8709_wr(dev, it8709_rr(dev, IT85_C0IER)
 			    |IT85_TLDLIE | IT85_IEC,
@@ -1225,8 +1136,6 @@ static void it8709_enable_tx_interrupt(struct ite_dev *dev)
 /* disable the device; this must be called with the device spinlock held */
 static void it8709_disable(struct ite_dev *dev)
 {
-	ite_dbg("%s called", __func__);
-
 	/* clear out all interrupt enable flags */
 	it8709_wr(dev, it8709_rr(dev, IT85_C0IER) &
 			~(IT85_IEC | IT85_RFOIE | IT85_RDAIE | IT85_TLDLIE),
@@ -1243,8 +1152,6 @@ static void it8709_disable(struct ite_dev *dev)
 /* initialize the hardware */
 static void it8709_init_hardware(struct ite_dev *dev)
 {
-	ite_dbg("%s called", __func__);
-
 	/* disable all the interrupts */
 	it8709_wr(dev, it8709_rr(dev, IT85_C0IER) &
 			~(IT85_IEC | IT85_RFOIE | IT85_RDAIE | IT85_TLDLIE),
@@ -1286,8 +1193,6 @@ static int ite_open(struct rc_dev *rcdev)
 	struct ite_dev *dev = rcdev->priv;
 	unsigned long flags;
 
-	ite_dbg("%s called", __func__);
-
 	spin_lock_irqsave(&dev->lock, flags);
 	dev->in_use = true;
 
@@ -1304,8 +1209,6 @@ static void ite_close(struct rc_dev *rcdev)
 {
 	struct ite_dev *dev = rcdev->priv;
 	unsigned long flags;
-
-	ite_dbg("%s called", __func__);
 
 	spin_lock_irqsave(&dev->lock, flags);
 	dev->in_use = false;
@@ -1445,8 +1348,6 @@ static int ite_probe(struct pnp_dev *pdev, const struct pnp_device_id
 	int model_no;
 	int io_rsrc_no;
 
-	ite_dbg("%s called", __func__);
-
 	itdev = kzalloc(sizeof(struct ite_dev), GFP_KERNEL);
 	if (!itdev)
 		return ret;
@@ -1461,15 +1362,14 @@ static int ite_probe(struct pnp_dev *pdev, const struct pnp_device_id
 
 	/* get the model number */
 	model_no = (int)dev_id->driver_data;
-	ite_pr(KERN_NOTICE, "Auto-detected model: %s\n",
+	dev_dbg(&pdev->dev, "Auto-detected model: %s\n",
 		ite_dev_descs[model_no].model);
 
 	if (model_number >= 0 && model_number < ARRAY_SIZE(ite_dev_descs)) {
 		model_no = model_number;
-		ite_pr(KERN_NOTICE, "The model has been fixed by a module parameter.");
+		dev_info(&pdev->dev, "model has been forced to: %s",
+			 ite_dev_descs[model_no].model);
 	}
-
-	ite_pr(KERN_NOTICE, "Using model: %s\n", ite_dev_descs[model_no].model);
 
 	/* get the description for the device */
 	dev_desc = &ite_dev_descs[model_no];
@@ -1521,20 +1421,6 @@ static int ite_probe(struct pnp_dev *pdev, const struct pnp_device_id
 	if (rx_high_carrier_freq > 0)
 		itdev->params.rx_high_carrier_freq = rx_high_carrier_freq;
 
-	/* print out parameters */
-	ite_pr(KERN_NOTICE, "TX-capable: %d\n", (int)
-			 itdev->params.hw_tx_capable);
-	ite_pr(KERN_NOTICE, "Sample period (ns): %ld\n", (long)
-		     itdev->params.sample_period);
-	ite_pr(KERN_NOTICE, "TX carrier frequency (Hz): %d\n", (int)
-		     itdev->params.tx_carrier_freq);
-	ite_pr(KERN_NOTICE, "TX duty cycle (%%): %d\n", (int)
-		     itdev->params.tx_duty_cycle);
-	ite_pr(KERN_NOTICE, "RX low carrier frequency (Hz): %d\n", (int)
-		     itdev->params.rx_low_carrier_freq);
-	ite_pr(KERN_NOTICE, "RX high carrier frequency (Hz): %d\n", (int)
-		     itdev->params.rx_high_carrier_freq);
-
 	/* set up hardware initial state */
 	itdev->params.init_hardware(itdev);
 
@@ -1585,8 +1471,6 @@ static int ite_probe(struct pnp_dev *pdev, const struct pnp_device_id
 			ITE_DRIVER_NAME, (void *)itdev))
 		goto exit_release_cir_addr;
 
-	ite_pr(KERN_NOTICE, "driver has been successfully loaded\n");
-
 	return 0;
 
 exit_release_cir_addr:
@@ -1605,8 +1489,6 @@ static void ite_remove(struct pnp_dev *pdev)
 {
 	struct ite_dev *dev = pnp_get_drvdata(pdev);
 	unsigned long flags;
-
-	ite_dbg("%s called", __func__);
 
 	spin_lock_irqsave(&dev->lock, flags);
 
@@ -1629,8 +1511,6 @@ static int ite_suspend(struct pnp_dev *pdev, pm_message_t state)
 	struct ite_dev *dev = pnp_get_drvdata(pdev);
 	unsigned long flags;
 
-	ite_dbg("%s called", __func__);
-
 	/* wait for any transmission to end */
 	wait_event_interruptible(dev->tx_ended, !dev->transmitting);
 
@@ -1649,8 +1529,6 @@ static int ite_resume(struct pnp_dev *pdev)
 	struct ite_dev *dev = pnp_get_drvdata(pdev);
 	unsigned long flags;
 
-	ite_dbg("%s called", __func__);
-
 	spin_lock_irqsave(&dev->lock, flags);
 
 	/* reinitialize hardware config registers */
@@ -1667,8 +1545,6 @@ static void ite_shutdown(struct pnp_dev *pdev)
 {
 	struct ite_dev *dev = pnp_get_drvdata(pdev);
 	unsigned long flags;
-
-	ite_dbg("%s called", __func__);
 
 	spin_lock_irqsave(&dev->lock, flags);
 
