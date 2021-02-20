@@ -190,7 +190,7 @@ struct bss_ht {
 	enum ht_channel_width bd_bandwidth;
 
 	u8					bd_rt2rt_aggregation;
-	u8					bdRT2RTLongSlotTime;
+	u8					bd_rt2rt_long_slot_time;
 	u8					RT2RT_HT_Mode;
 	u8					bdHT1R;
 };

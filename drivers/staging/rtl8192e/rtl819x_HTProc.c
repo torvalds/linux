@@ -698,7 +698,7 @@ void HTInitializeBssDesc(struct bss_ht *pBssHT)
 	pBssHT->bd_ht_spec_ver = HT_SPEC_VER_IEEE;
 
 	pBssHT->bd_rt2rt_aggregation = false;
-	pBssHT->bdRT2RTLongSlotTime = false;
+	pBssHT->bd_rt2rt_long_slot_time = false;
 	pBssHT->RT2RT_HT_Mode = (enum rt_ht_capability)0;
 }
 
@@ -733,7 +733,7 @@ void HTResetSelfAndSavePeerSetting(struct rtllib_device *ieee,
 			pHTInfo->bCurrentRT2RTAggregation =
 				 pNetwork->bssht.bd_rt2rt_aggregation;
 			pHTInfo->bCurrentRT2RTLongSlotTime =
-				 pNetwork->bssht.bdRT2RTLongSlotTime;
+				 pNetwork->bssht.bd_rt2rt_long_slot_time;
 			pHTInfo->RT2RT_HT_Mode = pNetwork->bssht.RT2RT_HT_Mode;
 		} else {
 			pHTInfo->bCurrentRT2RTAggregation = false;
