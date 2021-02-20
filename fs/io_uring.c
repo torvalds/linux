@@ -6679,8 +6679,10 @@ static int io_init_req(struct io_ring_ctx *ctx, struct io_kiocb *req,
 	req->result = 0;
 
 	/* enforce forwards compatibility on users */
-	if (unlikely(sqe_flags & ~SQE_VALID_FLAGS))
+	if (unlikely(sqe_flags & ~SQE_VALID_FLAGS)) {
+		req->flags = 0;
 		return -EINVAL;
+	}
 
 	if (unlikely(req->opcode >= IORING_OP_LAST))
 		return -EINVAL;
