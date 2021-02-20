@@ -559,18 +559,32 @@ static int _next_phys_dev(struct mlx5_core_dev *mdev,
 	return 1;
 }
 
+static void *pci_get_other_drvdata(struct device *this, struct device *other)
+{
+	if (this->driver != other->driver)
+		return NULL;
+
+	return pci_get_drvdata(to_pci_dev(other));
+}
+
 static int next_phys_dev(struct device *dev, const void *data)
 {
-	struct mlx5_adev *madev = container_of(dev, struct mlx5_adev, adev.dev);
-	struct mlx5_core_dev *mdev = madev->mdev;
+	struct mlx5_core_dev *mdev, *this = (struct mlx5_core_dev *)data;
+
+	mdev = pci_get_other_drvdata(this->device, dev);
+	if (!mdev)
+		return 0;
 
 	return _next_phys_dev(mdev, data);
 }
 
 static int next_phys_dev_lag(struct device *dev, const void *data)
 {
-	struct mlx5_adev *madev = container_of(dev, struct mlx5_adev, adev.dev);
-	struct mlx5_core_dev *mdev = madev->mdev;
+	struct mlx5_core_dev *mdev, *this = (struct mlx5_core_dev *)data;
+
+	mdev = pci_get_other_drvdata(this->device, dev);
+	if (!mdev)
+		return 0;
 
 	if (!MLX5_CAP_GEN(mdev, vport_group_manager) ||
 	    !MLX5_CAP_GEN(mdev, lag_master) ||
@@ -583,19 +597,17 @@ static int next_phys_dev_lag(struct device *dev, const void *data)
 static struct mlx5_core_dev *mlx5_get_next_dev(struct mlx5_core_dev *dev,
 					       int (*match)(struct device *dev, const void *data))
 {
-	struct auxiliary_device *adev;
-	struct mlx5_adev *madev;
+	struct device *next;
 
 	if (!mlx5_core_is_pf(dev))
 		return NULL;
 
-	adev = auxiliary_find_device(NULL, dev, match);
-	if (!adev)
+	next = bus_find_device(&pci_bus_type, NULL, dev, match);
+	if (!next)
 		return NULL;
 
-	madev = container_of(adev, struct mlx5_adev, adev);
-	put_device(&adev->dev);
-	return madev->mdev;
+	put_device(next);
+	return pci_get_drvdata(to_pci_dev(next));
 }
 
 /* Must be called with intf_mutex held */
