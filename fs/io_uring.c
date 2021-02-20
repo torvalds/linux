@@ -1104,6 +1104,21 @@ static inline void io_set_resource_node(struct io_kiocb *req)
 	}
 }
 
+static bool io_refs_resurrect(struct percpu_ref *ref, struct completion *compl)
+{
+	if (!percpu_ref_tryget(ref)) {
+		/* already at zero, wait for ->release() */
+		if (!try_wait_for_completion(compl))
+			synchronize_rcu();
+		return false;
+	}
+
+	percpu_ref_resurrect(ref);
+	reinit_completion(compl);
+	percpu_ref_put(ref);
+	return true;
+}
+
 static bool io_match_task(struct io_kiocb *head,
 			  struct task_struct *task,
 			  struct files_struct *files)
@@ -7329,13 +7344,11 @@ static int io_rsrc_ref_quiesce(struct fixed_rsrc_data *data,
 		flush_delayed_work(&ctx->rsrc_put_work);
 
 		ret = wait_for_completion_interruptible(&data->done);
-		if (!ret)
+		if (!ret || !io_refs_resurrect(&data->refs, &data->done))
 			break;
 
-		percpu_ref_resurrect(&data->refs);
 		io_sqe_rsrc_set_node(ctx, data, backup_node);
 		backup_node = NULL;
-		reinit_completion(&data->done);
 		mutex_unlock(&ctx->uring_lock);
 		ret = io_run_task_work_sig();
 		mutex_lock(&ctx->uring_lock);
@@ -10070,10 +10083,8 @@ static int __io_uring_register(struct io_ring_ctx *ctx, unsigned opcode,
 
 		mutex_lock(&ctx->uring_lock);
 
-		if (ret) {
-			percpu_ref_resurrect(&ctx->refs);
-			goto out_quiesce;
-		}
+		if (ret && io_refs_resurrect(&ctx->refs, &ctx->ref_comp))
+			return ret;
 	}
 
 	if (ctx->restricted) {
@@ -10165,7 +10176,6 @@ out:
 	if (io_register_op_must_quiesce(opcode)) {
 		/* bring the ctx back to life */
 		percpu_ref_reinit(&ctx->refs);
-out_quiesce:
 		reinit_completion(&ctx->ref_comp);
 	}
 	return ret;
