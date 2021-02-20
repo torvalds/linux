@@ -558,7 +558,7 @@ bool dal_ddc_service_query_ddc_data(
 			/* should not set mot (middle of transaction) to 0
 			 * if there are pending read payloads
 			 */
-			payload.mot = read_size == 0 ? false : true;
+			payload.mot = !(read_size == 0);
 			payload.length = write_size;
 			payload.data = write_buf;
 
