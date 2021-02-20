@@ -1818,7 +1818,11 @@ int f2fs_issue_checkpoint(struct f2fs_sb_info *sbi)
 	llist_add(&req.llnode, &cprc->issue_list);
 	atomic_inc(&cprc->queued_ckpt);
 
-	/* update issue_list before we wake up issue_checkpoint thread */
+	/*
+	 * update issue_list before we wake up issue_checkpoint thread,
+	 * this smp_mb() pairs with another barrier in ___wait_event(),
+	 * see more details in comments of waitqueue_active().
+	 */
 	smp_mb();
 
 	if (waitqueue_active(&cprc->ckpt_wait_queue))
