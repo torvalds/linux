@@ -1540,6 +1540,7 @@ static int ite_probe(struct pnp_dev *pdev, const struct pnp_device_id
 
 	/* set up ir-core props */
 	rdev->priv = itdev;
+	rdev->dev.parent = &pdev->dev;
 	rdev->allowed_protocols = RC_PROTO_BIT_ALL_IR_DECODER;
 	rdev->open = ite_open;
 	rdev->close = ite_close;
