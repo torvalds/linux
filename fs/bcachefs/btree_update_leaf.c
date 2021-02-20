@@ -740,10 +740,9 @@ static int extent_update_to_keys(struct btree_trans *trans,
 	if (ret)
 		return ret;
 
-	n.iter = bch2_trans_copy_iter(trans, n.iter);
-
-	n.iter->flags |= BTREE_ITER_INTENT;
-	__bch2_btree_iter_set_pos(n.iter, n.k->k.p, false);
+	n.iter = bch2_trans_get_iter(trans, n.iter->btree_id, n.k->k.p,
+				     BTREE_ITER_INTENT|
+				     BTREE_ITER_NOT_EXTENTS);
 	n.is_extent = false;
 
 	ret = __bch2_trans_update2(trans, n);
@@ -777,7 +776,8 @@ static int extent_handle_overwrites(struct btree_trans *trans,
 			bkey_reassemble(update, k);
 			bch2_cut_back(start, update);
 
-			__bch2_btree_iter_set_pos(update_iter, update->k.p, false);
+			update_iter->flags &= ~BTREE_ITER_IS_EXTENTS;
+			bch2_btree_iter_set_pos(update_iter, update->k.p);
 			ret = bch2_trans_update2(trans, update_iter, update);
 			bch2_trans_iter_put(trans, update_iter);
 			if (ret)
@@ -794,7 +794,8 @@ static int extent_handle_overwrites(struct btree_trans *trans,
 			bkey_reassemble(update, k);
 			bch2_cut_front(end, update);
 
-			__bch2_btree_iter_set_pos(update_iter, update->k.p, false);
+			update_iter->flags &= ~BTREE_ITER_IS_EXTENTS;
+			bch2_btree_iter_set_pos(update_iter, update->k.p);
 			ret = bch2_trans_update2(trans, update_iter, update);
 			bch2_trans_iter_put(trans, update_iter);
 			if (ret)
@@ -811,7 +812,8 @@ static int extent_handle_overwrites(struct btree_trans *trans,
 			update->k.type = KEY_TYPE_deleted;
 			update->k.size = 0;
 
-			__bch2_btree_iter_set_pos(update_iter, update->k.p, false);
+			update_iter->flags &= ~BTREE_ITER_IS_EXTENTS;
+			bch2_btree_iter_set_pos(update_iter, update->k.p);
 			ret = bch2_trans_update2(trans, update_iter, update);
 			bch2_trans_iter_put(trans, update_iter);
 			if (ret)

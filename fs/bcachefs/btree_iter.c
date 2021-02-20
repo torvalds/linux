@@ -1494,22 +1494,12 @@ static void btree_iter_set_search_pos(struct btree_iter *iter, struct bpos new_p
 	bch2_btree_iter_verify(iter);
 }
 
-void __bch2_btree_iter_set_pos(struct btree_iter *iter, struct bpos new_pos,
-			       bool strictly_greater)
+void bch2_btree_iter_set_pos(struct btree_iter *iter, struct bpos new_pos)
 {
 	bkey_init(&iter->k);
 	iter->k.p = iter->pos = new_pos;
 
-	iter->flags &= ~BTREE_ITER_IS_EXTENTS;
-	iter->flags |= strictly_greater ? BTREE_ITER_IS_EXTENTS : 0;
-
 	btree_iter_set_search_pos(iter, btree_iter_search_key(iter));
-}
-
-void bch2_btree_iter_set_pos(struct btree_iter *iter, struct bpos new_pos)
-{
-	__bch2_btree_iter_set_pos(iter, new_pos,
-			(iter->flags & BTREE_ITER_IS_EXTENTS) != 0);
 }
 
 static inline bool bch2_btree_iter_advance_pos(struct btree_iter *iter)
@@ -1932,27 +1922,17 @@ struct bkey_s_c bch2_btree_iter_peek_cached(struct btree_iter *iter)
 }
 
 static inline void bch2_btree_iter_init(struct btree_trans *trans,
-			struct btree_iter *iter, enum btree_id btree_id,
-			struct bpos pos, unsigned flags)
+			struct btree_iter *iter, enum btree_id btree_id)
 {
 	struct bch_fs *c = trans->c;
 	unsigned i;
 
-	if (btree_node_type_is_extents(btree_id) &&
-	    !(flags & BTREE_ITER_NODES))
-		flags |= BTREE_ITER_IS_EXTENTS;
-
 	iter->trans			= trans;
-	iter->pos			= pos;
-	bkey_init(&iter->k);
-	iter->k.p			= pos;
-	iter->flags			= flags;
-	iter->real_pos			= btree_iter_search_key(iter);
 	iter->uptodate			= BTREE_ITER_NEED_TRAVERSE;
 	iter->btree_id			= btree_id;
 	iter->level			= 0;
 	iter->min_depth			= 0;
-	iter->locks_want		= flags & BTREE_ITER_INTENT ? 1 : 0;
+	iter->locks_want		= 0;
 	iter->nodes_locked		= 0;
 	iter->nodes_intent_locked	= 0;
 	for (i = 0; i < ARRAY_SIZE(iter->l); i++)
@@ -2064,11 +2044,15 @@ static inline void btree_iter_copy(struct btree_iter *dst,
 	dst->flags &= ~BTREE_ITER_SET_POS_AFTER_COMMIT;
 }
 
-static struct btree_iter *__btree_trans_get_iter(struct btree_trans *trans,
-						 unsigned btree_id, struct bpos pos,
-						 unsigned flags)
+struct btree_iter *__bch2_trans_get_iter(struct btree_trans *trans,
+					 enum btree_id btree_id, struct bpos pos,
+					 unsigned flags)
 {
 	struct btree_iter *iter, *best = NULL;
+
+	/* We always want a fresh iterator for node iterators: */
+	if ((flags & BTREE_ITER_TYPE) == BTREE_ITER_NODES)
+		goto alloc_iter;
 
 	trans_for_each_iter(trans, iter) {
 		if (btree_iter_type(iter) != (flags & BTREE_ITER_TYPE))
@@ -2084,10 +2068,10 @@ static struct btree_iter *__btree_trans_get_iter(struct btree_trans *trans,
 
 		best = iter;
 	}
-
+alloc_iter:
 	if (!best) {
 		iter = btree_trans_iter_alloc(trans);
-		bch2_btree_iter_init(trans, iter, btree_id, pos, flags);
+		bch2_btree_iter_init(trans, iter, btree_id);
 	} else if (btree_iter_keep(trans, best)) {
 		iter = btree_trans_iter_alloc(trans);
 		btree_iter_copy(iter, best);
@@ -2095,7 +2079,14 @@ static struct btree_iter *__btree_trans_get_iter(struct btree_trans *trans,
 		iter = best;
 	}
 
-	flags |= iter->flags & BTREE_ITER_ERROR;
+	trans->iters_live	|= 1ULL << iter->idx;
+	trans->iters_touched	|= 1ULL << iter->idx;
+
+	if ((flags & BTREE_ITER_TYPE) != BTREE_ITER_NODES &&
+	    btree_node_type_is_extents(btree_id) &&
+	    !(flags & BTREE_ITER_NOT_EXTENTS))
+		flags |= BTREE_ITER_IS_EXTENTS;
+
 	iter->flags = flags;
 
 	if (!(iter->flags & BTREE_ITER_INTENT))
@@ -2103,21 +2094,8 @@ static struct btree_iter *__btree_trans_get_iter(struct btree_trans *trans,
 	else if (!iter->locks_want)
 		__bch2_btree_iter_upgrade_nounlock(iter, 1);
 
-	trans->iters_live	|= 1ULL << iter->idx;
-	trans->iters_touched	|= 1ULL << iter->idx;
+	bch2_btree_iter_set_pos(iter, pos);
 
-	return iter;
-}
-
-struct btree_iter *__bch2_trans_get_iter(struct btree_trans *trans,
-					 enum btree_id btree_id,
-					 struct bpos pos, unsigned flags)
-{
-	struct btree_iter *iter =
-		__btree_trans_get_iter(trans, btree_id, pos, flags);
-
-	__bch2_btree_iter_set_pos(iter, pos,
-		btree_node_type_is_extents(btree_id));
 	return iter;
 }
 
@@ -2129,8 +2107,10 @@ struct btree_iter *bch2_trans_get_node_iter(struct btree_trans *trans,
 					    unsigned flags)
 {
 	struct btree_iter *iter =
-		__btree_trans_get_iter(trans, btree_id, pos,
-				       flags|BTREE_ITER_NODES);
+		__bch2_trans_get_iter(trans, btree_id, pos,
+				       BTREE_ITER_NODES|
+				       BTREE_ITER_NOT_EXTENTS|
+				       flags);
 	unsigned i;
 
 	BUG_ON(bkey_cmp(iter->pos, pos));

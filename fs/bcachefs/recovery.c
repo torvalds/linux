@@ -529,7 +529,7 @@ static int __bch2_journal_replay_key(struct btree_trans *trans,
 	 * want that here, journal replay is supposed to treat extents like
 	 * regular keys:
 	 */
-	__bch2_btree_iter_set_pos(iter, k->k.p, false);
+	BUG_ON(iter->flags & BTREE_ITER_IS_EXTENTS);
 
 	ret   = bch2_btree_iter_traverse(iter) ?:
 		bch2_trans_update(trans, iter, k, BTREE_TRIGGER_NORUN);

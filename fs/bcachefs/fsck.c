@@ -442,7 +442,8 @@ static int bch2_fix_overlapping_extent(struct btree_trans *trans,
 	 * We don't want to go through the
 	 * extent_handle_overwrites path:
 	 */
-	__bch2_btree_iter_set_pos(u_iter, u->k.p, false);
+	u_iter->flags &= ~BTREE_ITER_IS_EXTENTS;
+	bch2_btree_iter_set_pos(u_iter, u->k.p);
 
 	/*
 	 * XXX: this is going to leave disk space

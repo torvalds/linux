@@ -215,6 +215,7 @@ enum btree_iter_type {
 #define BTREE_ITER_SET_POS_AFTER_COMMIT	(1 << 8)
 #define BTREE_ITER_CACHED_NOFILL	(1 << 9)
 #define BTREE_ITER_CACHED_NOCREATE	(1 << 10)
+#define BTREE_ITER_NOT_EXTENTS		(1 << 11)
 
 enum btree_iter_uptodate {
 	BTREE_ITER_UPTODATE		= 0,
