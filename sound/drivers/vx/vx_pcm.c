@@ -1154,8 +1154,7 @@ static int vx_init_audio_io(struct vx_core *chip)
 	chip->ibl.size = 0;
 	vx_set_ibl(chip, &chip->ibl); /* query the info */
 	if (preferred > 0) {
-		chip->ibl.size = ((preferred + chip->ibl.granularity - 1) /
-				  chip->ibl.granularity) * chip->ibl.granularity;
+		chip->ibl.size = roundup(preferred, chip->ibl.granularity);
 		if (chip->ibl.size > chip->ibl.max_size)
 			chip->ibl.size = chip->ibl.max_size;
 	} else

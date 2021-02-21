@@ -37,11 +37,9 @@ hwdep_read(struct snd_hwdep *hwdep, char __user *buf,  long count,
 
 	memset(&event, 0, sizeof(event));
 	count = min_t(long, count, sizeof(event.lock_status));
-	if (bebob->dev_lock_changed) {
-		event.lock_status.type = SNDRV_FIREWIRE_EVENT_LOCK_STATUS;
-		event.lock_status.status = (bebob->dev_lock_count > 0);
-		bebob->dev_lock_changed = false;
-	}
+	event.lock_status.type = SNDRV_FIREWIRE_EVENT_LOCK_STATUS;
+	event.lock_status.status = (bebob->dev_lock_count > 0);
+	bebob->dev_lock_changed = false;
 
 	spin_unlock_irq(&bebob->lock);
 
@@ -80,7 +78,7 @@ hwdep_get_info(struct snd_bebob *bebob, void __user *arg)
 	info.card = dev->card->index;
 	*(__be32 *)&info.guid[0] = cpu_to_be32(dev->config_rom[3]);
 	*(__be32 *)&info.guid[4] = cpu_to_be32(dev->config_rom[4]);
-	strlcpy(info.device_name, dev_name(&dev->device),
+	strscpy(info.device_name, dev_name(&dev->device),
 		sizeof(info.device_name));
 
 	if (copy_to_user(arg, &info, sizeof(info)))

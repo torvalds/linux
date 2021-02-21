@@ -71,7 +71,7 @@ struct snd_usb_endpoint {
 	unsigned char altsetting;	/* corresponding alternate setting */
 	unsigned char ep_idx;		/* endpoint array index */
 
-	unsigned long flags;	/* running bit flags */
+	atomic_t state;		/* running state */
 
 	void (*prepare_data_urb) (struct snd_usb_substream *subs,
 				  struct urb *urb);

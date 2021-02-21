@@ -640,9 +640,9 @@ static struct snd_soc_dai_driver sun8i_codec_dais[] = {
 			.rates		= SUN8I_CODEC_PCM_RATES,
 			.formats	= SUN8I_CODEC_PCM_FORMATS,
 		},
-		.symmetric_rates	= true,
+		.symmetric_rate		= true,
 		.symmetric_channels	= true,
-		.symmetric_samplebits	= true,
+		.symmetric_sample_bits	= true,
 	},
 	{
 		.name	= "sun8i-codec-aif2",
@@ -665,9 +665,9 @@ static struct snd_soc_dai_driver sun8i_codec_dais[] = {
 			.rates		= SUN8I_CODEC_PCM_RATES,
 			.formats	= SUN8I_CODEC_PCM_FORMATS,
 		},
-		.symmetric_rates	= true,
+		.symmetric_rate		= true,
 		.symmetric_channels	= true,
-		.symmetric_samplebits	= true,
+		.symmetric_sample_bits	= true,
 	},
 	{
 		.name	= "sun8i-codec-aif3",
@@ -690,9 +690,9 @@ static struct snd_soc_dai_driver sun8i_codec_dais[] = {
 			.rates		= SUN8I_CODEC_PCM_RATES,
 			.formats	= SUN8I_CODEC_PCM_FORMATS,
 		},
-		.symmetric_rates	= true,
+		.symmetric_rate		= true,
 		.symmetric_channels	= true,
-		.symmetric_samplebits	= true,
+		.symmetric_sample_bits	= true,
 	},
 };
 

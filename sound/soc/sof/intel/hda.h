@@ -388,7 +388,8 @@
 #define SSP_SET_SFRM_SLAVE	BIT(24)
 #define SSP_SET_SLAVE		(SSP_SET_SCLK_SLAVE | SSP_SET_SFRM_SLAVE)
 
-#define HDA_IDISP_CODEC(x) ((x) & BIT(2))
+#define HDA_IDISP_ADDR		2
+#define HDA_IDISP_CODEC(x) ((x) & BIT(HDA_IDISP_ADDR))
 
 struct sof_intel_dsp_bdl {
 	__le32 addr_l;
@@ -401,6 +402,9 @@ struct sof_intel_dsp_bdl {
 #define SOF_HDA_CAPTURE_STREAMS		16
 #define SOF_HDA_PLAYBACK		0
 #define SOF_HDA_CAPTURE			1
+
+/* stream flags */
+#define SOF_HDA_STREAM_DMI_L1_COMPATIBLE	1
 
 /*
  * Time in ms for opportunistic D0I3 entry delay.
@@ -471,6 +475,7 @@ struct sof_intel_hda_stream {
 	struct hdac_ext_stream hda_stream;
 	struct sof_intel_stream stream;
 	int host_reserved; /* reserve host DMA channel */
+	u32 flags;
 };
 
 #define hstream_to_sof_hda_stream(hstream) \
@@ -513,7 +518,6 @@ int hda_dsp_runtime_suspend(struct snd_sof_dev *sdev);
 int hda_dsp_runtime_resume(struct snd_sof_dev *sdev);
 int hda_dsp_runtime_idle(struct snd_sof_dev *sdev);
 int hda_dsp_set_hw_params_upon_resume(struct snd_sof_dev *sdev);
-void hda_dsp_dump_skl(struct snd_sof_dev *sdev, u32 flags);
 void hda_dsp_dump(struct snd_sof_dev *sdev, u32 flags);
 void hda_ipc_dump(struct snd_sof_dev *sdev);
 void hda_ipc_irq_dump(struct snd_sof_dev *sdev);
@@ -562,7 +566,7 @@ bool hda_dsp_check_ipc_irq(struct snd_sof_dev *sdev);
 bool hda_dsp_check_stream_irq(struct snd_sof_dev *sdev);
 
 struct hdac_ext_stream *
-	hda_dsp_stream_get(struct snd_sof_dev *sdev, int direction);
+	hda_dsp_stream_get(struct snd_sof_dev *sdev, int direction, u32 flags);
 int hda_dsp_stream_put(struct snd_sof_dev *sdev, int direction, int stream_tag);
 int hda_dsp_stream_spib_config(struct snd_sof_dev *sdev,
 			       struct hdac_ext_stream *stream,

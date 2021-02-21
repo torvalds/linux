@@ -472,7 +472,7 @@ static void usb_audio_make_shortname(struct usb_device *dev,
 	else if (quirk && quirk->product_name)
 		s = quirk->product_name;
 	if (s && *s) {
-		strlcpy(card->shortname, s, sizeof(card->shortname));
+		strscpy(card->shortname, s, sizeof(card->shortname));
 		return;
 	}
 
@@ -504,7 +504,7 @@ static void usb_audio_make_longname(struct usb_device *dev,
 	if (preset && preset->profile_name)
 		s = preset->profile_name;
 	if (s && *s) {
-		strlcpy(card->longname, s, sizeof(card->longname));
+		strscpy(card->longname, s, sizeof(card->longname));
 		return;
 	}
 
@@ -512,18 +512,17 @@ static void usb_audio_make_longname(struct usb_device *dev,
 		s = preset->vendor_name;
 	else if (quirk && quirk->vendor_name)
 		s = quirk->vendor_name;
+	*card->longname = 0;
 	if (s && *s) {
-		len = strlcpy(card->longname, s, sizeof(card->longname));
+		strscpy(card->longname, s, sizeof(card->longname));
 	} else {
 		/* retrieve the vendor and device strings as longname */
 		if (dev->descriptor.iManufacturer)
-			len = usb_string(dev, dev->descriptor.iManufacturer,
-					 card->longname, sizeof(card->longname));
-		else
-			len = 0;
+			usb_string(dev, dev->descriptor.iManufacturer,
+				   card->longname, sizeof(card->longname));
 		/* we don't really care if there isn't any vendor string */
 	}
-	if (len > 0) {
+	if (*card->longname) {
 		strim(card->longname);
 		if (*card->longname)
 			strlcat(card->longname, " ", sizeof(card->longname));

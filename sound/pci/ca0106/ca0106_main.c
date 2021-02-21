@@ -1605,8 +1605,7 @@ static int snd_ca0106_create(int dev, struct snd_card *card,
 	err = pci_enable_device(pci);
 	if (err < 0)
 		return err;
-	if (dma_set_mask(&pci->dev, DMA_BIT_MASK(32)) < 0 ||
-	    dma_set_coherent_mask(&pci->dev, DMA_BIT_MASK(32)) < 0) {
+	if (dma_set_mask_and_coherent(&pci->dev, DMA_BIT_MASK(32))) {
 		dev_err(card->dev, "error to set 32bit mask DMA\n");
 		pci_disable_device(pci);
 		return -ENXIO;

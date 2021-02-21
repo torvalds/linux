@@ -3999,7 +3999,7 @@ int snd_hda_add_imux_item(struct hda_codec *codec,
 			 sizeof(imux->items[imux->num_items].label),
 			 "%s %d", label, label_idx);
 	else
-		strlcpy(imux->items[imux->num_items].label, label,
+		strscpy(imux->items[imux->num_items].label, label,
 			sizeof(imux->items[imux->num_items].label));
 	imux->items[imux->num_items].index = index;
 	imux->num_items++;

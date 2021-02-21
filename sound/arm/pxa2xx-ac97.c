@@ -235,7 +235,7 @@ static int pxa2xx_ac97_probe(struct platform_device *dev)
 	if (ret < 0)
 		goto err;
 
-	strlcpy(card->driver, dev->dev.driver->name, sizeof(card->driver));
+	strscpy(card->driver, dev->dev.driver->name, sizeof(card->driver));
 
 	ret = pxa2xx_ac97_pcm_new(card);
 	if (ret)

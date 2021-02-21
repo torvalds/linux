@@ -1025,12 +1025,11 @@ static int aha1542_isa_match(struct device *pdev, unsigned int ndev)
 	return 1;
 }
 
-static int aha1542_isa_remove(struct device *pdev,
+static void aha1542_isa_remove(struct device *pdev,
 				    unsigned int ndev)
 {
 	aha1542_release(dev_get_drvdata(pdev));
 	dev_set_drvdata(pdev, NULL);
-	return 0;
 }
 
 static struct isa_driver aha1542_isa_driver = {
