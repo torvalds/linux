@@ -784,15 +784,28 @@ xfs_direct_write_iomap_begin(
 		goto allocate_blocks;
 
 	/*
-	 * NOWAIT IO needs to span the entire requested IO with a single map so
-	 * that we avoid partial IO failures due to the rest of the IO range not
-	 * covered by this map triggering an EAGAIN condition when it is
-	 * subsequently mapped and aborting the IO.
+	 * NOWAIT and OVERWRITE I/O needs to span the entire requested I/O with
+	 * a single map so that we avoid partial IO failures due to the rest of
+	 * the I/O range not covered by this map triggering an EAGAIN condition
+	 * when it is subsequently mapped and aborting the I/O.
 	 */
-	if ((flags & IOMAP_NOWAIT) &&
-	    !imap_spans_range(&imap, offset_fsb, end_fsb)) {
+	if (flags & (IOMAP_NOWAIT | IOMAP_OVERWRITE_ONLY)) {
 		error = -EAGAIN;
-		goto out_unlock;
+		if (!imap_spans_range(&imap, offset_fsb, end_fsb))
+			goto out_unlock;
+	}
+
+	/*
+	 * For overwrite only I/O, we cannot convert unwritten extents without
+	 * requiring sub-block zeroing.  This can only be done under an
+	 * exclusive IOLOCK, hence return -EAGAIN if this is not a written
+	 * extent to tell the caller to try again.
+	 */
+	if (flags & IOMAP_OVERWRITE_ONLY) {
+		error = -EAGAIN;
+		if (imap.br_state != XFS_EXT_NORM &&
+	            ((offset | length) & mp->m_blockmask))
+			goto out_unlock;
 	}
 
 	xfs_iunlock(ip, lockmode);
@@ -801,7 +814,7 @@ xfs_direct_write_iomap_begin(
 
 allocate_blocks:
 	error = -EAGAIN;
-	if (flags & IOMAP_NOWAIT)
+	if (flags & (IOMAP_NOWAIT | IOMAP_OVERWRITE_ONLY))
 		goto out_unlock;
 
 	/*

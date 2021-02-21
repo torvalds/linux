@@ -197,30 +197,42 @@ xfs_file_fsync(
 	return error;
 }
 
+static int
+xfs_ilock_iocb(
+	struct kiocb		*iocb,
+	unsigned int		lock_mode)
+{
+	struct xfs_inode	*ip = XFS_I(file_inode(iocb->ki_filp));
+
+	if (iocb->ki_flags & IOCB_NOWAIT) {
+		if (!xfs_ilock_nowait(ip, lock_mode))
+			return -EAGAIN;
+	} else {
+		xfs_ilock(ip, lock_mode);
+	}
+
+	return 0;
+}
+
 STATIC ssize_t
-xfs_file_dio_aio_read(
+xfs_file_dio_read(
 	struct kiocb		*iocb,
 	struct iov_iter		*to)
 {
 	struct xfs_inode	*ip = XFS_I(file_inode(iocb->ki_filp));
-	size_t			count = iov_iter_count(to);
 	ssize_t			ret;
 
-	trace_xfs_file_direct_read(ip, count, iocb->ki_pos);
+	trace_xfs_file_direct_read(iocb, to);
 
-	if (!count)
+	if (!iov_iter_count(to))
 		return 0; /* skip atime */
 
 	file_accessed(iocb->ki_filp);
 
-	if (iocb->ki_flags & IOCB_NOWAIT) {
-		if (!xfs_ilock_nowait(ip, XFS_IOLOCK_SHARED))
-			return -EAGAIN;
-	} else {
-		xfs_ilock(ip, XFS_IOLOCK_SHARED);
-	}
-	ret = iomap_dio_rw(iocb, to, &xfs_read_iomap_ops, NULL,
-			is_sync_kiocb(iocb));
+	ret = xfs_ilock_iocb(iocb, XFS_IOLOCK_SHARED);
+	if (ret)
+		return ret;
+	ret = iomap_dio_rw(iocb, to, &xfs_read_iomap_ops, NULL, 0);
 	xfs_iunlock(ip, XFS_IOLOCK_SHARED);
 
 	return ret;
@@ -232,21 +244,16 @@ xfs_file_dax_read(
 	struct iov_iter		*to)
 {
 	struct xfs_inode	*ip = XFS_I(iocb->ki_filp->f_mapping->host);
-	size_t			count = iov_iter_count(to);
 	ssize_t			ret = 0;
 
-	trace_xfs_file_dax_read(ip, count, iocb->ki_pos);
+	trace_xfs_file_dax_read(iocb, to);
 
-	if (!count)
+	if (!iov_iter_count(to))
 		return 0; /* skip atime */
 
-	if (iocb->ki_flags & IOCB_NOWAIT) {
-		if (!xfs_ilock_nowait(ip, XFS_IOLOCK_SHARED))
-			return -EAGAIN;
-	} else {
-		xfs_ilock(ip, XFS_IOLOCK_SHARED);
-	}
-
+	ret = xfs_ilock_iocb(iocb, XFS_IOLOCK_SHARED);
+	if (ret)
+		return ret;
 	ret = dax_iomap_rw(iocb, to, &xfs_read_iomap_ops);
 	xfs_iunlock(ip, XFS_IOLOCK_SHARED);
 
@@ -255,21 +262,18 @@ xfs_file_dax_read(
 }
 
 STATIC ssize_t
-xfs_file_buffered_aio_read(
+xfs_file_buffered_read(
 	struct kiocb		*iocb,
 	struct iov_iter		*to)
 {
 	struct xfs_inode	*ip = XFS_I(file_inode(iocb->ki_filp));
 	ssize_t			ret;
 
-	trace_xfs_file_buffered_read(ip, iov_iter_count(to), iocb->ki_pos);
+	trace_xfs_file_buffered_read(iocb, to);
 
-	if (iocb->ki_flags & IOCB_NOWAIT) {
-		if (!xfs_ilock_nowait(ip, XFS_IOLOCK_SHARED))
-			return -EAGAIN;
-	} else {
-		xfs_ilock(ip, XFS_IOLOCK_SHARED);
-	}
+	ret = xfs_ilock_iocb(iocb, XFS_IOLOCK_SHARED);
+	if (ret)
+		return ret;
 	ret = generic_file_read_iter(iocb, to);
 	xfs_iunlock(ip, XFS_IOLOCK_SHARED);
 
@@ -293,9 +297,9 @@ xfs_file_read_iter(
 	if (IS_DAX(inode))
 		ret = xfs_file_dax_read(iocb, to);
 	else if (iocb->ki_flags & IOCB_DIRECT)
-		ret = xfs_file_dio_aio_read(iocb, to);
+		ret = xfs_file_dio_read(iocb, to);
 	else
-		ret = xfs_file_buffered_aio_read(iocb, to);
+		ret = xfs_file_buffered_read(iocb, to);
 
 	if (ret > 0)
 		XFS_STATS_ADD(mp, xs_read_bytes, ret);
@@ -310,7 +314,7 @@ xfs_file_read_iter(
  * if called for a direct write beyond i_size.
  */
 STATIC ssize_t
-xfs_file_aio_write_checks(
+xfs_file_write_checks(
 	struct kiocb		*iocb,
 	struct iov_iter		*from,
 	int			*iolock)
@@ -328,7 +332,14 @@ restart:
 	if (error <= 0)
 		return error;
 
-	error = xfs_break_layouts(inode, iolock, BREAK_WRITE);
+	if (iocb->ki_flags & IOCB_NOWAIT) {
+		error = break_layout(inode, false);
+		if (error == -EWOULDBLOCK)
+			error = -EAGAIN;
+	} else {
+		error = xfs_break_layouts(inode, iolock, BREAK_WRITE);
+	}
+
 	if (error)
 		return error;
 
@@ -339,7 +350,11 @@ restart:
 	if (*iolock == XFS_IOLOCK_SHARED && !IS_NOSEC(inode)) {
 		xfs_iunlock(ip, *iolock);
 		*iolock = XFS_IOLOCK_EXCL;
-		xfs_ilock(ip, *iolock);
+		error = xfs_ilock_iocb(iocb, *iolock);
+		if (error) {
+			*iolock = 0;
+			return error;
+		}
 		goto restart;
 	}
 	/*
@@ -361,6 +376,10 @@ restart:
 	isize = i_size_read(inode);
 	if (iocb->ki_pos > isize) {
 		spin_unlock(&ip->i_flags_lock);
+
+		if (iocb->ki_flags & IOCB_NOWAIT)
+			return -EAGAIN;
+
 		if (!drained_dio) {
 			if (*iolock == XFS_IOLOCK_SHARED) {
 				xfs_iunlock(ip, *iolock);
@@ -480,120 +499,147 @@ static const struct iomap_dio_ops xfs_dio_write_ops = {
 };
 
 /*
- * xfs_file_dio_aio_write - handle direct IO writes
- *
- * Lock the inode appropriately to prepare for and issue a direct IO write.
- * By separating it from the buffered write path we remove all the tricky to
- * follow locking changes and looping.
- *
- * If there are cached pages or we're extending the file, we need IOLOCK_EXCL
- * until we're sure the bytes at the new EOF have been zeroed and/or the cached
- * pages are flushed out.
- *
- * In most cases the direct IO writes will be done holding IOLOCK_SHARED
- * allowing them to be done in parallel with reads and other direct IO writes.
- * However, if the IO is not aligned to filesystem blocks, the direct IO layer
- * needs to do sub-block zeroing and that requires serialisation against other
- * direct IOs to the same block. In this case we need to serialise the
- * submission of the unaligned IOs so that we don't get racing block zeroing in
- * the dio layer.  To avoid the problem with aio, we also need to wait for
- * outstanding IOs to complete so that unwritten extent conversion is completed
- * before we try to map the overlapping block. This is currently implemented by
- * hitting it with a big hammer (i.e. inode_dio_wait()).
- *
- * Returns with locks held indicated by @iolock and errors indicated by
- * negative return values.
+ * Handle block aligned direct I/O writes
  */
-STATIC ssize_t
-xfs_file_dio_aio_write(
+static noinline ssize_t
+xfs_file_dio_write_aligned(
+	struct xfs_inode	*ip,
 	struct kiocb		*iocb,
 	struct iov_iter		*from)
 {
-	struct file		*file = iocb->ki_filp;
-	struct address_space	*mapping = file->f_mapping;
-	struct inode		*inode = mapping->host;
-	struct xfs_inode	*ip = XFS_I(inode);
-	struct xfs_mount	*mp = ip->i_mount;
-	ssize_t			ret = 0;
-	int			unaligned_io = 0;
-	int			iolock;
-	size_t			count = iov_iter_count(from);
-	struct xfs_buftarg      *target = xfs_inode_buftarg(ip);
+	int			iolock = XFS_IOLOCK_SHARED;
+	ssize_t			ret;
 
-	/* DIO must be aligned to device logical sector size */
-	if ((iocb->ki_pos | count) & target->bt_logical_sectormask)
-		return -EINVAL;
-
-	/*
-	 * Don't take the exclusive iolock here unless the I/O is unaligned to
-	 * the file system block size.  We don't need to consider the EOF
-	 * extension case here because xfs_file_aio_write_checks() will relock
-	 * the inode as necessary for EOF zeroing cases and fill out the new
-	 * inode size as appropriate.
-	 */
-	if ((iocb->ki_pos & mp->m_blockmask) ||
-	    ((iocb->ki_pos + count) & mp->m_blockmask)) {
-		unaligned_io = 1;
-
-		/*
-		 * We can't properly handle unaligned direct I/O to reflink
-		 * files yet, as we can't unshare a partial block.
-		 */
-		if (xfs_is_cow_inode(ip)) {
-			trace_xfs_reflink_bounce_dio_write(ip, iocb->ki_pos, count);
-			return -ENOTBLK;
-		}
-		iolock = XFS_IOLOCK_EXCL;
-	} else {
-		iolock = XFS_IOLOCK_SHARED;
-	}
-
-	if (iocb->ki_flags & IOCB_NOWAIT) {
-		/* unaligned dio always waits, bail */
-		if (unaligned_io)
-			return -EAGAIN;
-		if (!xfs_ilock_nowait(ip, iolock))
-			return -EAGAIN;
-	} else {
-		xfs_ilock(ip, iolock);
-	}
-
-	ret = xfs_file_aio_write_checks(iocb, from, &iolock);
+	ret = xfs_ilock_iocb(iocb, iolock);
 	if (ret)
-		goto out;
-	count = iov_iter_count(from);
+		return ret;
+	ret = xfs_file_write_checks(iocb, from, &iolock);
+	if (ret)
+		goto out_unlock;
 
 	/*
-	 * If we are doing unaligned IO, we can't allow any other overlapping IO
-	 * in-flight at the same time or we risk data corruption. Wait for all
-	 * other IO to drain before we submit. If the IO is aligned, demote the
-	 * iolock if we had to take the exclusive lock in
-	 * xfs_file_aio_write_checks() for other reasons.
+	 * We don't need to hold the IOLOCK exclusively across the IO, so demote
+	 * the iolock back to shared if we had to take the exclusive lock in
+	 * xfs_file_write_checks() for other reasons.
 	 */
-	if (unaligned_io) {
-		inode_dio_wait(inode);
-	} else if (iolock == XFS_IOLOCK_EXCL) {
+	if (iolock == XFS_IOLOCK_EXCL) {
 		xfs_ilock_demote(ip, XFS_IOLOCK_EXCL);
 		iolock = XFS_IOLOCK_SHARED;
 	}
-
-	trace_xfs_file_direct_write(ip, count, iocb->ki_pos);
-	/*
-	 * If unaligned, this is the only IO in-flight. Wait on it before we
-	 * release the iolock to prevent subsequent overlapping IO.
-	 */
+	trace_xfs_file_direct_write(iocb, from);
 	ret = iomap_dio_rw(iocb, from, &xfs_direct_write_iomap_ops,
-			   &xfs_dio_write_ops,
-			   is_sync_kiocb(iocb) || unaligned_io);
-out:
-	xfs_iunlock(ip, iolock);
+			   &xfs_dio_write_ops, 0);
+out_unlock:
+	if (iolock)
+		xfs_iunlock(ip, iolock);
+	return ret;
+}
+
+/*
+ * Handle block unaligned direct I/O writes
+ *
+ * In most cases direct I/O writes will be done holding IOLOCK_SHARED, allowing
+ * them to be done in parallel with reads and other direct I/O writes.  However,
+ * if the I/O is not aligned to filesystem blocks, the direct I/O layer may need
+ * to do sub-block zeroing and that requires serialisation against other direct
+ * I/O to the same block.  In this case we need to serialise the submission of
+ * the unaligned I/O so that we don't get racing block zeroing in the dio layer.
+ * In the case where sub-block zeroing is not required, we can do concurrent
+ * sub-block dios to the same block successfully.
+ *
+ * Optimistically submit the I/O using the shared lock first, but use the
+ * IOMAP_DIO_OVERWRITE_ONLY flag to tell the lower layers to return -EAGAIN
+ * if block allocation or partial block zeroing would be required.  In that case
+ * we try again with the exclusive lock.
+ */
+static noinline ssize_t
+xfs_file_dio_write_unaligned(
+	struct xfs_inode	*ip,
+	struct kiocb		*iocb,
+	struct iov_iter		*from)
+{
+	size_t			isize = i_size_read(VFS_I(ip));
+	size_t			count = iov_iter_count(from);
+	int			iolock = XFS_IOLOCK_SHARED;
+	unsigned int		flags = IOMAP_DIO_OVERWRITE_ONLY;
+	ssize_t			ret;
 
 	/*
-	 * No fallback to buffered IO after short writes for XFS, direct I/O
-	 * will either complete fully or return an error.
+	 * Extending writes need exclusivity because of the sub-block zeroing
+	 * that the DIO code always does for partial tail blocks beyond EOF, so
+	 * don't even bother trying the fast path in this case.
 	 */
-	ASSERT(ret < 0 || ret == count);
+	if (iocb->ki_pos > isize || iocb->ki_pos + count >= isize) {
+retry_exclusive:
+		if (iocb->ki_flags & IOCB_NOWAIT)
+			return -EAGAIN;
+		iolock = XFS_IOLOCK_EXCL;
+		flags = IOMAP_DIO_FORCE_WAIT;
+	}
+
+	ret = xfs_ilock_iocb(iocb, iolock);
+	if (ret)
+		return ret;
+
+	/*
+	 * We can't properly handle unaligned direct I/O to reflink files yet,
+	 * as we can't unshare a partial block.
+	 */
+	if (xfs_is_cow_inode(ip)) {
+		trace_xfs_reflink_bounce_dio_write(iocb, from);
+		ret = -ENOTBLK;
+		goto out_unlock;
+	}
+
+	ret = xfs_file_write_checks(iocb, from, &iolock);
+	if (ret)
+		goto out_unlock;
+
+	/*
+	 * If we are doing exclusive unaligned I/O, this must be the only I/O
+	 * in-flight.  Otherwise we risk data corruption due to unwritten extent
+	 * conversions from the AIO end_io handler.  Wait for all other I/O to
+	 * drain first.
+	 */
+	if (flags & IOMAP_DIO_FORCE_WAIT)
+		inode_dio_wait(VFS_I(ip));
+
+	trace_xfs_file_direct_write(iocb, from);
+	ret = iomap_dio_rw(iocb, from, &xfs_direct_write_iomap_ops,
+			   &xfs_dio_write_ops, flags);
+
+	/*
+	 * Retry unaligned I/O with exclusive blocking semantics if the DIO
+	 * layer rejected it for mapping or locking reasons. If we are doing
+	 * nonblocking user I/O, propagate the error.
+	 */
+	if (ret == -EAGAIN && !(iocb->ki_flags & IOCB_NOWAIT)) {
+		ASSERT(flags & IOMAP_DIO_OVERWRITE_ONLY);
+		xfs_iunlock(ip, iolock);
+		goto retry_exclusive;
+	}
+
+out_unlock:
+	if (iolock)
+		xfs_iunlock(ip, iolock);
 	return ret;
+}
+
+static ssize_t
+xfs_file_dio_write(
+	struct kiocb		*iocb,
+	struct iov_iter		*from)
+{
+	struct xfs_inode	*ip = XFS_I(file_inode(iocb->ki_filp));
+	struct xfs_buftarg      *target = xfs_inode_buftarg(ip);
+	size_t			count = iov_iter_count(from);
+
+	/* direct I/O must be aligned to device logical sector size */
+	if ((iocb->ki_pos | count) & target->bt_logical_sectormask)
+		return -EINVAL;
+	if ((iocb->ki_pos | count) & ip->i_mount->m_blockmask)
+		return xfs_file_dio_write_unaligned(ip, iocb, from);
+	return xfs_file_dio_write_aligned(ip, iocb, from);
 }
 
 static noinline ssize_t
@@ -605,31 +651,26 @@ xfs_file_dax_write(
 	struct xfs_inode	*ip = XFS_I(inode);
 	int			iolock = XFS_IOLOCK_EXCL;
 	ssize_t			ret, error = 0;
-	size_t			count;
 	loff_t			pos;
 
-	if (iocb->ki_flags & IOCB_NOWAIT) {
-		if (!xfs_ilock_nowait(ip, iolock))
-			return -EAGAIN;
-	} else {
-		xfs_ilock(ip, iolock);
-	}
-
-	ret = xfs_file_aio_write_checks(iocb, from, &iolock);
+	ret = xfs_ilock_iocb(iocb, iolock);
+	if (ret)
+		return ret;
+	ret = xfs_file_write_checks(iocb, from, &iolock);
 	if (ret)
 		goto out;
 
 	pos = iocb->ki_pos;
-	count = iov_iter_count(from);
 
-	trace_xfs_file_dax_write(ip, count, pos);
+	trace_xfs_file_dax_write(iocb, from);
 	ret = dax_iomap_rw(iocb, from, &xfs_direct_write_iomap_ops);
 	if (ret > 0 && iocb->ki_pos > i_size_read(inode)) {
 		i_size_write(inode, iocb->ki_pos);
 		error = xfs_setfilesize(ip, pos, ret);
 	}
 out:
-	xfs_iunlock(ip, iolock);
+	if (iolock)
+		xfs_iunlock(ip, iolock);
 	if (error)
 		return error;
 
@@ -643,7 +684,7 @@ out:
 }
 
 STATIC ssize_t
-xfs_file_buffered_aio_write(
+xfs_file_buffered_write(
 	struct kiocb		*iocb,
 	struct iov_iter		*from)
 {
@@ -662,14 +703,14 @@ write_retry:
 	iolock = XFS_IOLOCK_EXCL;
 	xfs_ilock(ip, iolock);
 
-	ret = xfs_file_aio_write_checks(iocb, from, &iolock);
+	ret = xfs_file_write_checks(iocb, from, &iolock);
 	if (ret)
 		goto out;
 
 	/* We can write back this queue in page reclaim */
 	current->backing_dev_info = inode_to_bdi(inode);
 
-	trace_xfs_file_buffered_write(ip, iov_iter_count(from), iocb->ki_pos);
+	trace_xfs_file_buffered_write(iocb, from);
 	ret = iomap_file_buffered_write(iocb, from,
 			&xfs_buffered_write_iomap_ops);
 	if (likely(ret >= 0))
@@ -749,12 +790,12 @@ xfs_file_write_iter(
 		 * CoW.  In all other directio scenarios we do not
 		 * allow an operation to fall back to buffered mode.
 		 */
-		ret = xfs_file_dio_aio_write(iocb, from);
+		ret = xfs_file_dio_write(iocb, from);
 		if (ret != -ENOTBLK)
 			return ret;
 	}
 
-	return xfs_file_buffered_aio_write(iocb, from);
+	return xfs_file_buffered_write(iocb, from);
 }
 
 static void
