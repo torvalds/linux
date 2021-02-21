@@ -29,7 +29,7 @@ menuconfig: $(obj)/mconf
 	$(Q)$< $(silent) $(Kconfig)
 
 config: $(obj)/conf
-	$(Q)$< $(silent) --oldaskconfig $(Kconfig)
+	$(Q)$< $(silent) $(Kconfig)
 
 nconfig: $(obj)/nconf
 	$(Q)$< $(silent) $(Kconfig)

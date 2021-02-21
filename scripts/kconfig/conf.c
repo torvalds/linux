@@ -483,6 +483,7 @@ static void conf_usage(const char *progname)
 	printf("  --randconfig            New config with random answer to all options\n");
 	printf("  --yes2modconfig         Change answers from yes to mod if possible\n");
 	printf("  --mod2yesconfig         Change answers from mod to yes if possible\n");
+	printf("  (If none of the above is given, --oldaskconfig is the default)\n");
 }
 
 int main(int ac, char **av)
