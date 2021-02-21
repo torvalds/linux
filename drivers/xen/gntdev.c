@@ -309,44 +309,47 @@ int gntdev_map_grant_pages(struct gntdev_grant_map *map)
 		 * to the kernel linear addresses of the struct pages.
 		 * These ptes are completely different from the user ptes dealt
 		 * with find_grant_ptes.
+		 * Note that GNTMAP_device_map isn't needed here: The
+		 * dev_bus_addr output field gets consumed only from ->map_ops,
+		 * and by not requesting it when mapping we also avoid needing
+		 * to mirror dev_bus_addr into ->unmap_ops (and holding an extra
+		 * reference to the page in the hypervisor).
 		 */
+		unsigned int flags = (map->flags & ~GNTMAP_device_map) |
+				     GNTMAP_host_map;
+
 		for (i = 0; i < map->count; i++) {
 			unsigned long address = (unsigned long)
 				pfn_to_kaddr(page_to_pfn(map->pages[i]));
 			BUG_ON(PageHighMem(map->pages[i]));
 
-			gnttab_set_map_op(&map->kmap_ops[i], address,
-				map->flags | GNTMAP_host_map,
+			gnttab_set_map_op(&map->kmap_ops[i], address, flags,
 				map->grants[i].ref,
 				map->grants[i].domid);
 			gnttab_set_unmap_op(&map->kunmap_ops[i], address,
-				map->flags | GNTMAP_host_map, -1);
+				flags, -1);
 		}
 	}
 
 	pr_debug("map %d+%d\n", map->index, map->count);
 	err = gnttab_map_refs(map->map_ops, use_ptemod ? map->kmap_ops : NULL,
 			map->pages, map->count);
-	if (err)
-		return err;
 
 	for (i = 0; i < map->count; i++) {
-		if (map->map_ops[i].status) {
+		if (map->map_ops[i].status == GNTST_okay)
+			map->unmap_ops[i].handle = map->map_ops[i].handle;
+		else if (!err)
 			err = -EINVAL;
-			continue;
-		}
 
-		map->unmap_ops[i].handle = map->map_ops[i].handle;
-		if (use_ptemod)
-			map->kunmap_ops[i].handle = map->kmap_ops[i].handle;
-#ifdef CONFIG_XEN_GRANT_DMA_ALLOC
-		else if (map->dma_vaddr) {
-			unsigned long bfn;
+		if (map->flags & GNTMAP_device_map)
+			map->unmap_ops[i].dev_bus_addr = map->map_ops[i].dev_bus_addr;
 
-			bfn = pfn_to_bfn(page_to_pfn(map->pages[i]));
-			map->unmap_ops[i].dev_bus_addr = __pfn_to_phys(bfn);
+		if (use_ptemod) {
+			if (map->kmap_ops[i].status == GNTST_okay)
+				map->kunmap_ops[i].handle = map->kmap_ops[i].handle;
+			else if (!err)
+				err = -EINVAL;
 		}
-#endif
 	}
 	return err;
 }
