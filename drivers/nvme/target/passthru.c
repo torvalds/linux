@@ -239,9 +239,9 @@ static void nvmet_passthru_execute_cmd(struct nvmet_req *req)
 		}
 
 		q = ns->queue;
-		timeout = req->sq->ctrl->subsys->io_timeout;
+		timeout = nvmet_req_subsys(req)->io_timeout;
 	} else {
-		timeout = req->sq->ctrl->subsys->admin_timeout;
+		timeout = nvmet_req_subsys(req)->admin_timeout;
 	}
 
 	rq = nvme_alloc_request(q, req->cmd, 0);
@@ -494,7 +494,7 @@ u16 nvmet_parse_passthru_admin_cmd(struct nvmet_req *req)
 		return nvmet_setup_passthru_command(req);
 	default:
 		/* Reject commands not in the allowlist above */
-		return NVME_SC_INVALID_OPCODE | NVME_SC_DNR;
+		return nvmet_report_invalid_opcode(req);
 	}
 }
 

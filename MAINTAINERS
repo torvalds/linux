@@ -16908,12 +16908,6 @@ F:	include/linux/static_call*.h
 F:	kernel/jump_label.c
 F:	kernel/static_call.c
 
-STEC S1220 SKD DRIVER
-M:	Damien Le Moal <Damien.LeMoal@wdc.com>
-L:	linux-block@vger.kernel.org
-S:	Maintained
-F:	drivers/block/skd*[ch]
-
 STI AUDIO (ASoC) DRIVERS
 M:	Arnaud Pouliquen <arnaud.pouliquen@st.com>
 L:	alsa-devel@alsa-project.org (moderated for non-subscribers)

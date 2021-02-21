@@ -267,16 +267,6 @@ config BLK_DEV_NBD
 
 	  If unsure, say N.
 
-config BLK_DEV_SKD
-	tristate "STEC S1120 Block Driver"
-	depends on PCI
-	depends on 64BIT
-	help
-	Saying Y or M here will enable support for the
-	STEC, Inc. S1120 PCIe SSD.
-
-	Use device /dev/skd$N amd /dev/skd$Np$M.
-
 config BLK_DEV_SX8
 	tristate "Promise SATA SX8 support"
 	depends on PCI
