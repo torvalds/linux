@@ -217,6 +217,82 @@ FS_IOC_MEASURE_VERITY can fail with the following errors:
 - ``EOVERFLOW``: the digest is longer than the specified
   ``digest_size`` bytes.  Try providing a larger buffer.
 
+FS_IOC_READ_VERITY_METADATA
+---------------------------
+
+The FS_IOC_READ_VERITY_METADATA ioctl reads verity metadata from a
+verity file.  This ioctl is available since Linux v5.12.
+
+This ioctl allows writing a server program that takes a verity file
+and serves it to a client program, such that the client can do its own
+fs-verity compatible verification of the file.  This only makes sense
+if the client doesn't trust the server and if the server needs to
+provide the storage for the client.
+
+This is a fairly specialized use case, and most fs-verity users won't
+need this ioctl.
+
+This ioctl takes in a pointer to the following structure::
+
+   #define FS_VERITY_METADATA_TYPE_MERKLE_TREE     1
+   #define FS_VERITY_METADATA_TYPE_DESCRIPTOR      2
+   #define FS_VERITY_METADATA_TYPE_SIGNATURE       3
+
+   struct fsverity_read_metadata_arg {
+           __u64 metadata_type;
+           __u64 offset;
+           __u64 length;
+           __u64 buf_ptr;
+           __u64 __reserved;
+   };
+
+``metadata_type`` specifies the type of metadata to read:
+
+- ``FS_VERITY_METADATA_TYPE_MERKLE_TREE`` reads the blocks of the
+  Merkle tree.  The blocks are returned in order from the root level
+  to the leaf level.  Within each level, the blocks are returned in
+  the same order that their hashes are themselves hashed.
+  See `Merkle tree`_ for more information.
+
+- ``FS_VERITY_METADATA_TYPE_DESCRIPTOR`` reads the fs-verity
+  descriptor.  See `fs-verity descriptor`_.
+
+- ``FS_VERITY_METADATA_TYPE_SIGNATURE`` reads the signature which was
+  passed to FS_IOC_ENABLE_VERITY, if any.  See `Built-in signature
+  verification`_.
+
+The semantics are similar to those of ``pread()``.  ``offset``
+specifies the offset in bytes into the metadata item to read from, and
+``length`` specifies the maximum number of bytes to read from the
+metadata item.  ``buf_ptr`` is the pointer to the buffer to read into,
+cast to a 64-bit integer.  ``__reserved`` must be 0.  On success, the
+number of bytes read is returned.  0 is returned at the end of the
+metadata item.  The returned length may be less than ``length``, for
+example if the ioctl is interrupted.
+
+The metadata returned by FS_IOC_READ_VERITY_METADATA isn't guaranteed
+to be authenticated against the file digest that would be returned by
+`FS_IOC_MEASURE_VERITY`_, as the metadata is expected to be used to
+implement fs-verity compatible verification anyway (though absent a
+malicious disk, the metadata will indeed match).  E.g. to implement
+this ioctl, the filesystem is allowed to just read the Merkle tree
+blocks from disk without actually verifying the path to the root node.
+
+FS_IOC_READ_VERITY_METADATA can fail with the following errors:
+
+- ``EFAULT``: the caller provided inaccessible memory
+- ``EINTR``: the ioctl was interrupted before any data was read
+- ``EINVAL``: reserved fields were set, or ``offset + length``
+  overflowed
+- ``ENODATA``: the file is not a verity file, or
+  FS_VERITY_METADATA_TYPE_SIGNATURE was requested but the file doesn't
+  have a built-in signature
+- ``ENOTTY``: this type of filesystem does not implement fs-verity, or
+  this ioctl is not yet implemented on it
+- ``EOPNOTSUPP``: the kernel was not configured with fs-verity
+  support, or the filesystem superblock has not had the 'verity'
+  feature enabled on it.  (See `Filesystem support`_.)
+
 FS_IOC_GETFLAGS
 ---------------
 
