@@ -512,8 +512,7 @@ static inline int do_bch2_trans_commit(struct btree_trans *trans,
 	 */
 	trans_for_each_iter(trans, iter) {
 		if (iter->nodes_locked != iter->nodes_intent_locked) {
-			if ((iter->flags & BTREE_ITER_KEEP_UNTIL_COMMIT) ||
-			    (trans->iters_live & (1ULL << iter->idx))) {
+			if (btree_iter_keep(trans, iter)) {
 				if (!bch2_btree_iter_upgrade(iter, 1)) {
 					trace_trans_restart_upgrade(trans->ip);
 					return -EINTR;
@@ -945,7 +944,7 @@ retry:
 		goto err;
 
 	trans_for_each_iter(trans, iter)
-		if ((trans->iters_live & (1ULL << iter->idx)) &&
+		if (btree_iter_live(trans, iter) &&
 		    (iter->flags & BTREE_ITER_SET_POS_AFTER_COMMIT))
 			bch2_btree_iter_set_pos(iter, iter->pos_after_commit);
 out:
@@ -1049,7 +1048,7 @@ int bch2_trans_update(struct btree_trans *trans, struct btree_iter *iter,
 			 * the iterator pos if some other code is using it, so we may
 			 * need to clone it:
 			 */
-			if (trans->iters_live & (1ULL << i->iter->idx)) {
+			if (btree_iter_live(trans, i->iter)) {
 				i->iter = bch2_trans_copy_iter(trans, i->iter);
 
 				i->iter->flags |= BTREE_ITER_KEEP_UNTIL_COMMIT;

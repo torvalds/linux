@@ -1701,7 +1701,8 @@ struct bkey_s_c bch2_btree_iter_peek_with_updates(struct btree_iter *iter)
 		k = __bch2_btree_iter_peek_with_updates(iter);
 
 		if (k.k && bkey_deleted(k.k)) {
-			bch2_btree_iter_advance_pos(iter);
+			if (!bch2_btree_iter_advance_pos(iter))
+				return bkey_s_c_null;
 			continue;
 		}
 
@@ -2008,7 +2009,7 @@ static void btree_trans_iter_alloc_fail(struct btree_trans *trans)
 		       bch2_btree_ids[iter->btree_id],
 		       iter->pos.inode,
 		       iter->pos.offset,
-		       (trans->iters_live & (1ULL << iter->idx)) ? " live" : "",
+		       btree_iter_live(trans, iter) ? " live" : "",
 		       (trans->iters_touched & (1ULL << iter->idx)) ? " touched" : "",
 		       iter->flags & BTREE_ITER_KEEP_UNTIL_COMMIT ? " keep" : "",
 		       (void *) iter->ip_allocated);
@@ -2089,31 +2090,20 @@ static struct btree_iter *__btree_trans_get_iter(struct btree_trans *trans,
 	if (!best) {
 		iter = btree_trans_iter_alloc(trans);
 		bch2_btree_iter_init(trans, iter, btree_id, pos, flags);
-	} else if ((trans->iters_live & (1ULL << best->idx)) ||
-		   (best->flags & BTREE_ITER_KEEP_UNTIL_COMMIT)) {
+	} else if (btree_iter_keep(trans, best)) {
 		iter = btree_trans_iter_alloc(trans);
 		btree_iter_copy(iter, best);
 	} else {
 		iter = best;
 	}
 
-	iter->flags &= ~BTREE_ITER_KEEP_UNTIL_COMMIT;
-	iter->flags &= ~BTREE_ITER_USER_FLAGS;
-	iter->flags |= flags & BTREE_ITER_USER_FLAGS;
+	flags |= iter->flags & BTREE_ITER_ERROR;
+	iter->flags = flags;
 
-	if (iter->flags & BTREE_ITER_INTENT) {
-		if (!iter->locks_want) {
-			__bch2_btree_iter_unlock(iter);
-			iter->locks_want = 1;
-		}
-	} else
+	if (!(iter->flags & BTREE_ITER_INTENT))
 		bch2_btree_iter_downgrade(iter);
-
-	BUG_ON(iter->btree_id != btree_id);
-	BUG_ON((iter->flags ^ flags) & BTREE_ITER_TYPE);
-	BUG_ON(iter->flags & BTREE_ITER_KEEP_UNTIL_COMMIT);
-	BUG_ON(iter->flags & BTREE_ITER_SET_POS_AFTER_COMMIT);
-	BUG_ON(trans->iters_live & (1ULL << iter->idx));
+	else if (!iter->locks_want)
+		__bch2_btree_iter_upgrade_nounlock(iter, 1);
 
 	trans->iters_live	|= 1ULL << iter->idx;
 	trans->iters_touched	|= 1ULL << iter->idx;

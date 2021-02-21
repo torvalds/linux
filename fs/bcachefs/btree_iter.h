@@ -289,6 +289,17 @@ struct btree_iter *bch2_trans_get_node_iter(struct btree_trans *,
 				enum btree_id, struct bpos,
 				unsigned, unsigned, unsigned);
 
+static inline bool btree_iter_live(struct btree_trans *trans, struct btree_iter *iter)
+{
+	return (trans->iters_live & (1ULL << iter->idx)) != 0;
+}
+
+static inline bool btree_iter_keep(struct btree_trans *trans, struct btree_iter *iter)
+{
+	return btree_iter_live(trans, iter) ||
+		(iter->flags & BTREE_ITER_KEEP_UNTIL_COMMIT);
+}
+
 #define TRANS_RESET_NOTRAVERSE		(1 << 0)
 
 void bch2_trans_reset(struct btree_trans *, unsigned);
