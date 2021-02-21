@@ -159,7 +159,7 @@ static const struct snd_kcontrol_new aiu_acodec_ctrl_controls[] = {
 };
 
 static int aiu_acodec_of_xlate_dai_name(struct snd_soc_component *component,
-					struct of_phandle_args *args,
+					const struct of_phandle_args *args,
 					const char **dai_name)
 {
 	return aiu_of_xlate_dai_name(component, args, dai_name, AIU_ACODEC);

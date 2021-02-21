@@ -1315,7 +1315,7 @@ static struct snd_soc_dai_driver q6afe_dais[] = {
 };
 
 static int q6afe_of_xlate_dai_name(struct snd_soc_component *component,
-				   struct of_phandle_args *args,
+				   const struct of_phandle_args *args,
 				   const char **dai_name)
 {
 	int id = args->args[0];
