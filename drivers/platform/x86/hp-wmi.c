@@ -85,7 +85,7 @@ enum hp_wmi_commandtype {
 	HPWMI_FEATURE2_QUERY		= 0x0d,
 	HPWMI_WIRELESS2_QUERY		= 0x1b,
 	HPWMI_POSTCODEERROR_QUERY	= 0x2a,
-	HPWMI_THERMAL_POLICY_QUERY	= 0x4c,
+	HPWMI_THERMAL_PROFILE_QUERY	= 0x4c,
 };
 
 enum hp_wmi_command {
@@ -869,19 +869,19 @@ fail:
 	return err;
 }
 
-static int thermal_policy_setup(struct platform_device *device)
+static int thermal_profile_setup(struct platform_device *device)
 {
 	int err, tp;
 
-	tp = hp_wmi_read_int(HPWMI_THERMAL_POLICY_QUERY);
+	tp = hp_wmi_read_int(HPWMI_THERMAL_PROFILE_QUERY);
 	if (tp < 0)
 		return tp;
 
 	/*
-	 * call thermal policy write command to ensure that the firmware correctly
+	 * call thermal profile write command to ensure that the firmware correctly
 	 * sets the OEM variables for the DPTF
 	 */
-	err = hp_wmi_perform_query(HPWMI_THERMAL_POLICY_QUERY, HPWMI_WRITE, &tp,
+	err = hp_wmi_perform_query(HPWMI_THERMAL_PROFILE_QUERY, HPWMI_WRITE, &tp,
 							   sizeof(tp), 0);
 	if (err)
 		return err;
@@ -900,7 +900,7 @@ static int __init hp_wmi_bios_setup(struct platform_device *device)
 	if (hp_wmi_rfkill_setup(device))
 		hp_wmi_rfkill2_setup(device);
 
-	thermal_policy_setup(device);
+	thermal_profile_setup(device);
 
 	return 0;
 }
