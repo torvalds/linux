@@ -165,19 +165,21 @@
 
 	sound {
 		compatible = "simple-audio-card";
+		simple-audio-card,aux-devs = <&speaker_amp>;
 		simple-audio-card,name = "Librem 5 Devkit";
 		simple-audio-card,format = "i2s";
 		simple-audio-card,widgets =
 			"Microphone", "Microphone Jack",
 			"Headphone", "Headphone Jack",
-			"Speaker", "Speaker Ext",
+			"Speaker", "Builtin Speaker",
 			"Line", "Line In Jack";
 		simple-audio-card,routing =
 			"MIC_IN", "Microphone Jack",
 			"Microphone Jack", "Mic Bias",
 			"LINE_IN", "Line In Jack",
 			"Headphone Jack", "HP_OUT",
-			"Speaker Ext", "LINE_OUT";
+			"Builtin Speaker", "Speaker Amp OUTR",
+			"Speaker Amp INR", "LINE_OUT";
 
 		simple-audio-card,cpu {
 			sound-dai = <&sai2>;
@@ -205,6 +207,15 @@
 			frame-master;
 			bitclock-master;
 		};
+	};
+
+	speaker_amp: speaker-amp {
+		compatible = "simple-audio-amplifier";
+		pinctrl-names = "default";
+		pinctrl-0 = <&pinctrl_spkamp>;
+		VCC-supply = <&reg_3v3_p>;
+		sound-name-prefix = "Speaker Amp";
+		enable-gpios = <&gpio5 3 GPIO_ACTIVE_HIGH>;
 	};
 
 	vibrator {
@@ -637,6 +648,12 @@
 	pinctrl_imu: imugrp {
 		fsl,pins = <
 			MX8MQ_IOMUXC_SAI5_RXFS_GPIO3_IO19	0x8  /* IMU_INT */
+		>;
+	};
+
+	pinctrl_spkamp: spkamp {
+		fsl,pins = <
+			MX8MQ_IOMUXC_SPDIF_TX_GPIO5_IO3		0x81  /* MUTE */
 		>;
 	};
 
