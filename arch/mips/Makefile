@@ -316,7 +316,6 @@ libs-$(CONFIG_MIPS_FP_SUPPORT) += arch/mips/math-emu/
 core-y += arch/mips/
 
 drivers-y			+= arch/mips/crypto/
-drivers-$(CONFIG_OPROFILE)	+= arch/mips/oprofile/
 
 # suspend and hibernation support
 drivers-$(CONFIG_PM)	+= arch/mips/power/
