@@ -20,9 +20,9 @@ static const u16 msgs_offset = ALIGN(sizeof(struct mbox_hdr), MBOX_MSG_ALIGN);
 
 void __otx2_mbox_reset(struct otx2_mbox *mbox, int devid)
 {
-	void *hw_mbase = mbox->hwbase + (devid * MBOX_SIZE);
 	struct otx2_mbox_dev *mdev = &mbox->dev[devid];
 	struct mbox_hdr *tx_hdr, *rx_hdr;
+	void *hw_mbase = mdev->hwbase;
 
 	tx_hdr = hw_mbase + mbox->tx_start;
 	rx_hdr = hw_mbase + mbox->rx_start;
@@ -56,12 +56,9 @@ void otx2_mbox_destroy(struct otx2_mbox *mbox)
 }
 EXPORT_SYMBOL(otx2_mbox_destroy);
 
-int otx2_mbox_init(struct otx2_mbox *mbox, void *hwbase, struct pci_dev *pdev,
-		   void *reg_base, int direction, int ndevs)
+static int otx2_mbox_setup(struct otx2_mbox *mbox, struct pci_dev *pdev,
+			   void *reg_base, int direction, int ndevs)
 {
-	struct otx2_mbox_dev *mdev;
-	int devid;
-
 	switch (direction) {
 	case MBOX_DIR_AFPF:
 	case MBOX_DIR_PFVF:
@@ -121,7 +118,6 @@ int otx2_mbox_init(struct otx2_mbox *mbox, void *hwbase, struct pci_dev *pdev,
 	}
 
 	mbox->reg_base = reg_base;
-	mbox->hwbase = hwbase;
 	mbox->pdev = pdev;
 
 	mbox->dev = kcalloc(ndevs, sizeof(struct otx2_mbox_dev), GFP_KERNEL);
@@ -129,11 +125,27 @@ int otx2_mbox_init(struct otx2_mbox *mbox, void *hwbase, struct pci_dev *pdev,
 		otx2_mbox_destroy(mbox);
 		return -ENOMEM;
 	}
-
 	mbox->ndevs = ndevs;
+
+	return 0;
+}
+
+int otx2_mbox_init(struct otx2_mbox *mbox, void *hwbase, struct pci_dev *pdev,
+		   void *reg_base, int direction, int ndevs)
+{
+	struct otx2_mbox_dev *mdev;
+	int devid, err;
+
+	err = otx2_mbox_setup(mbox, pdev, reg_base, direction, ndevs);
+	if (err)
+		return err;
+
+	mbox->hwbase = hwbase;
+
 	for (devid = 0; devid < ndevs; devid++) {
 		mdev = &mbox->dev[devid];
 		mdev->mbase = mbox->hwbase + (devid * MBOX_SIZE);
+		mdev->hwbase = mdev->mbase;
 		spin_lock_init(&mdev->mbox_lock);
 		/* Init header to reset value */
 		otx2_mbox_reset(mbox, devid);
@@ -142,6 +154,35 @@ int otx2_mbox_init(struct otx2_mbox *mbox, void *hwbase, struct pci_dev *pdev,
 	return 0;
 }
 EXPORT_SYMBOL(otx2_mbox_init);
+
+/* Initialize mailbox with the set of mailbox region addresses
+ * in the array hwbase.
+ */
+int otx2_mbox_regions_init(struct otx2_mbox *mbox, void **hwbase,
+			   struct pci_dev *pdev, void *reg_base,
+			   int direction, int ndevs)
+{
+	struct otx2_mbox_dev *mdev;
+	int devid, err;
+
+	err = otx2_mbox_setup(mbox, pdev, reg_base, direction, ndevs);
+	if (err)
+		return err;
+
+	mbox->hwbase = hwbase[0];
+
+	for (devid = 0; devid < ndevs; devid++) {
+		mdev = &mbox->dev[devid];
+		mdev->mbase = hwbase[devid];
+		mdev->hwbase = hwbase[devid];
+		spin_lock_init(&mdev->mbox_lock);
+		/* Init header to reset value */
+		otx2_mbox_reset(mbox, devid);
+	}
+
+	return 0;
+}
+EXPORT_SYMBOL(otx2_mbox_regions_init);
 
 int otx2_mbox_wait_for_rsp(struct otx2_mbox *mbox, int devid)
 {
@@ -175,9 +216,9 @@ EXPORT_SYMBOL(otx2_mbox_busy_poll_for_rsp);
 
 void otx2_mbox_msg_send(struct otx2_mbox *mbox, int devid)
 {
-	void *hw_mbase = mbox->hwbase + (devid * MBOX_SIZE);
 	struct otx2_mbox_dev *mdev = &mbox->dev[devid];
 	struct mbox_hdr *tx_hdr, *rx_hdr;
+	void *hw_mbase = mdev->hwbase;
 
 	tx_hdr = hw_mbase + mbox->tx_start;
 	rx_hdr = hw_mbase + mbox->rx_start;

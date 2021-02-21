@@ -390,7 +390,6 @@ static inline struct sk_psock *sk_psock_get(struct sock *sk)
 }
 
 void sk_psock_stop(struct sock *sk, struct sk_psock *psock);
-void sk_psock_destroy(struct rcu_head *rcu);
 void sk_psock_drop(struct sock *sk, struct sk_psock *psock);
 
 static inline void sk_psock_put(struct sock *sk, struct sk_psock *psock)

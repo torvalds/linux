@@ -110,7 +110,7 @@ ice_aq_manage_mac_read(struct ice_hw *hw, void *buf, u16 buf_size,
 	if (status)
 		return status;
 
-	resp = (struct ice_aqc_manage_mac_read_resp *)buf;
+	resp = buf;
 	flags = le16_to_cpu(cmd->flags) & ICE_AQC_MAN_MAC_READ_M;
 
 	if (!(flags & ICE_AQC_MAN_MAC_LAN_ADDR_VALID)) {
@@ -907,6 +907,7 @@ enum ice_status ice_init_hw(struct ice_hw *hw)
 		ice_debug(hw, ICE_DBG_SCHED, "Failed to get scheduler allocated resources\n");
 		goto err_unroll_alloc;
 	}
+	ice_sched_get_psm_clk_freq(hw);
 
 	/* Initialize port_info struct with scheduler data */
 	status = ice_sched_init_port(hw->port_info);
@@ -1653,7 +1654,7 @@ ice_aq_alloc_free_res(struct ice_hw *hw, u16 num_entries,
 	if (!buf)
 		return ICE_ERR_PARAM;
 
-	if (buf_size < (num_entries * sizeof(buf->elem[0])))
+	if (buf_size < flex_array_size(buf, elem, num_entries))
 		return ICE_ERR_PARAM;
 
 	ice_fill_dflt_direct_cmd_desc(&desc, opc);
@@ -1979,7 +1980,7 @@ ice_parse_func_caps(struct ice_hw *hw, struct ice_hw_func_caps *func_p,
 	struct ice_aqc_list_caps_elem *cap_resp;
 	u32 i;
 
-	cap_resp = (struct ice_aqc_list_caps_elem *)buf;
+	cap_resp = buf;
 
 	memset(func_p, 0, sizeof(*func_p));
 
@@ -2109,7 +2110,7 @@ ice_parse_dev_caps(struct ice_hw *hw, struct ice_hw_dev_caps *dev_p,
 	struct ice_aqc_list_caps_elem *cap_resp;
 	u32 i;
 
-	cap_resp = (struct ice_aqc_list_caps_elem *)buf;
+	cap_resp = buf;
 
 	memset(dev_p, 0, sizeof(*dev_p));
 
@@ -4078,6 +4079,7 @@ static enum ice_status ice_replay_pre_init(struct ice_hw *hw)
 	for (i = 0; i < ICE_SW_LKUP_LAST; i++)
 		list_replace_init(&sw->recp_list[i].filt_rules,
 				  &sw->recp_list[i].filt_replay_rules);
+	ice_sched_replay_agg_vsi_preinit(hw);
 
 	return 0;
 }
@@ -4109,6 +4111,8 @@ enum ice_status ice_replay_vsi(struct ice_hw *hw, u16 vsi_handle)
 		return status;
 	/* Replay per VSI all filters */
 	status = ice_replay_vsi_all_fltr(hw, vsi_handle);
+	if (!status)
+		status = ice_replay_vsi_agg(hw, vsi_handle);
 	return status;
 }
 
@@ -4122,6 +4126,7 @@ void ice_replay_post(struct ice_hw *hw)
 {
 	/* Delete old entries from replay filter list head */
 	ice_rm_all_sw_replay_rule_info(hw);
+	ice_sched_replay_agg(hw);
 }
 
 /**
@@ -4365,4 +4370,51 @@ ice_aq_set_lldp_mib(struct ice_hw *hw, u8 mib_type, void *buf, u16 buf_size,
 	cmd->length = cpu_to_le16(buf_size);
 
 	return ice_aq_send_cmd(hw, &desc, buf, buf_size, cd);
+}
+
+/**
+ * ice_fw_supports_lldp_fltr - check NVM version supports lldp_fltr_ctrl
+ * @hw: pointer to HW struct
+ */
+bool ice_fw_supports_lldp_fltr_ctrl(struct ice_hw *hw)
+{
+	if (hw->mac_type != ICE_MAC_E810)
+		return false;
+
+	if (hw->api_maj_ver == ICE_FW_API_LLDP_FLTR_MAJ) {
+		if (hw->api_min_ver > ICE_FW_API_LLDP_FLTR_MIN)
+			return true;
+		if (hw->api_min_ver == ICE_FW_API_LLDP_FLTR_MIN &&
+		    hw->api_patch >= ICE_FW_API_LLDP_FLTR_PATCH)
+			return true;
+	} else if (hw->api_maj_ver > ICE_FW_API_LLDP_FLTR_MAJ) {
+		return true;
+	}
+	return false;
+}
+
+/**
+ * ice_lldp_fltr_add_remove - add or remove a LLDP Rx switch filter
+ * @hw: pointer to HW struct
+ * @vsi_num: absolute HW index for VSI
+ * @add: boolean for if adding or removing a filter
+ */
+enum ice_status
+ice_lldp_fltr_add_remove(struct ice_hw *hw, u16 vsi_num, bool add)
+{
+	struct ice_aqc_lldp_filter_ctrl *cmd;
+	struct ice_aq_desc desc;
+
+	cmd = &desc.params.lldp_filter_ctrl;
+
+	ice_fill_dflt_direct_cmd_desc(&desc, ice_aqc_opc_lldp_filter_ctrl);
+
+	if (add)
+		cmd->cmd_flags = ICE_AQC_LLDP_FILTER_ACTION_ADD;
+	else
+		cmd->cmd_flags = ICE_AQC_LLDP_FILTER_ACTION_DELETE;
+
+	cmd->vsi_num = cpu_to_le16(vsi_num);
+
+	return ice_aq_send_cmd(hw, &desc, NULL, 0, NULL);
 }

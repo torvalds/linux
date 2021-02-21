@@ -276,14 +276,12 @@ static int mlx5i_pkey_change_mtu(struct net_device *netdev, int new_mtu)
 
 /* Called directly after IPoIB netdevice was created to initialize SW structs */
 static int mlx5i_pkey_init(struct mlx5_core_dev *mdev,
-			   struct net_device *netdev,
-			   const struct mlx5e_profile *profile,
-			   void *ppriv)
+			   struct net_device *netdev)
 {
 	struct mlx5e_priv *priv  = mlx5i_epriv(netdev);
 	int err;
 
-	err = mlx5i_init(mdev, netdev, profile, ppriv);
+	err = mlx5i_init(mdev, netdev);
 	if (err)
 		return err;
 

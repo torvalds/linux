@@ -272,6 +272,22 @@ to the mailing list, e.g.::
 Posting as one thread is discouraged because it confuses patchwork
 (as of patchwork 2.2.2).
 
+Can I reproduce the checks from patchwork on my local machine?
+--------------------------------------------------------------
+
+Checks in patchwork are mostly simple wrappers around existing kernel
+scripts, the sources are available at:
+
+https://github.com/kuba-moo/nipa/tree/master/tests
+
+Running all the builds and checks locally is a pain, can I post my patches and have the patchwork bot validate them?
+--------------------------------------------------------------------------------------------------------------------
+
+No, you must ensure that your patches are ready by testing them locally
+before posting to the mailing list. The patchwork build bot instance
+gets overloaded very easily and netdev@vger really doesn't need more
+traffic if we can help it.
+
 Any other tips to help ensure my net/net-next patch gets OK'd?
 --------------------------------------------------------------
 Attention to detail.  Re-read your own work as if you were the

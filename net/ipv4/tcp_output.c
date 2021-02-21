@@ -1319,7 +1319,6 @@ static int __tcp_transmit_skb(struct sock *sk, struct sk_buff *skb,
 	skb_orphan(skb);
 	skb->sk = sk;
 	skb->destructor = skb_is_tcp_pure_ack(skb) ? __sock_wfree : tcp_wfree;
-	skb_set_hash_from_sk(skb, sk);
 	refcount_add(skb->truesize, &sk->sk_wmem_alloc);
 
 	skb_set_dst_pending_confirm(skb, sk->sk_dst_pending_confirm);
@@ -1390,6 +1389,7 @@ static int __tcp_transmit_skb(struct sock *sk, struct sk_buff *skb,
 			      tcp_skb_pcount(skb));
 
 	tp->segs_out += tcp_skb_pcount(skb);
+	skb_set_hash_from_sk(skb, sk);
 	/* OK, its time to fill skb_shinfo(skb)->gso_{segs|size} */
 	skb_shinfo(skb)->gso_segs = tcp_skb_pcount(skb);
 	skb_shinfo(skb)->gso_size = tcp_skb_mss(skb);

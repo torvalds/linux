@@ -1371,6 +1371,10 @@ void write_mii_word(struct net_device *netdev, int phy_id, int reg, int val)
 static int
 r8152_submit_rx(struct r8152 *tp, struct rx_agg *agg, gfp_t mem_flags);
 
+static int
+rtl8152_set_speed(struct r8152 *tp, u8 autoneg, u32 speed, u8 duplex,
+		  u32 advertising);
+
 static int rtl8152_set_mac_address(struct net_device *netdev, void *p)
 {
 	struct r8152 *tp = netdev_priv(netdev);
@@ -2393,11 +2397,9 @@ static void tx_bottom(struct r8152 *tp)
 	} while (res == 0);
 }
 
-static void bottom_half(unsigned long data)
+static void bottom_half(struct tasklet_struct *t)
 {
-	struct r8152 *tp;
-
-	tp = (struct r8152 *)data;
+	struct r8152 *tp = from_tasklet(tp, t, tx_tl);
 
 	if (test_bit(RTL8152_UNPLUG, &tp->flags))
 		return;
@@ -3207,8 +3209,6 @@ static void r8153b_ups_en(struct r8152 *tp, bool enable)
 		ocp_data |= BIT(0);
 		ocp_write_byte(tp, MCU_TYPE_USB, 0xcfff, ocp_data);
 	} else {
-		u16 data;
-
 		ocp_data &= ~(UPS_EN | USP_PREWAKE);
 		ocp_write_byte(tp, MCU_TYPE_USB, USB_POWER_CUT, ocp_data);
 
@@ -3216,31 +3216,20 @@ static void r8153b_ups_en(struct r8152 *tp, bool enable)
 		ocp_data &= ~BIT(0);
 		ocp_write_byte(tp, MCU_TYPE_USB, 0xcfff, ocp_data);
 
-		ocp_data = ocp_read_word(tp, MCU_TYPE_USB, USB_MISC_0);
-		ocp_data &= ~PCUT_STATUS;
-		ocp_write_word(tp, MCU_TYPE_USB, USB_MISC_0, ocp_data);
+		if (ocp_read_word(tp, MCU_TYPE_USB, USB_MISC_0) & PCUT_STATUS) {
+			int i;
 
-		data = r8153_phy_status(tp, 0);
+			for (i = 0; i < 500; i++) {
+				if (ocp_read_word(tp, MCU_TYPE_PLA, PLA_BOOT_CTRL) &
+				    AUTOLOAD_DONE)
+					break;
+				msleep(20);
+			}
 
-		switch (data) {
-		case PHY_STAT_PWRDN:
-		case PHY_STAT_EXT_INIT:
-			r8153b_green_en(tp,
-					test_bit(GREEN_ETHERNET, &tp->flags));
+			tp->rtl_ops.hw_phy_cfg(tp);
 
-			data = r8152_mdio_read(tp, MII_BMCR);
-			data &= ~BMCR_PDOWN;
-			data |= BMCR_RESET;
-			r8152_mdio_write(tp, MII_BMCR, data);
-
-			data = r8153_phy_status(tp, PHY_STAT_LAN_ON);
-			fallthrough;
-
-		default:
-			if (data != PHY_STAT_LAN_ON)
-				netif_warn(tp, link, tp->netdev,
-					   "PHY not ready");
-			break;
+			rtl8152_set_speed(tp, tp->autoneg, tp->speed,
+					  tp->duplex, tp->advertising);
 		}
 	}
 }
@@ -3470,59 +3459,76 @@ static void rtl_clear_bp(struct r8152 *tp, u16 type)
 	ocp_write_word(tp, type, PLA_BP_BA, 0);
 }
 
-static int r8153_patch_request(struct r8152 *tp, bool request)
+static int rtl_phy_patch_request(struct r8152 *tp, bool request, bool wait)
 {
-	u16 data;
+	u16 data, check;
 	int i;
 
 	data = ocp_reg_read(tp, OCP_PHY_PATCH_CMD);
-	if (request)
+	if (request) {
 		data |= PATCH_REQUEST;
-	else
+		check = 0;
+	} else {
 		data &= ~PATCH_REQUEST;
+		check = PATCH_READY;
+	}
 	ocp_reg_write(tp, OCP_PHY_PATCH_CMD, data);
 
-	for (i = 0; request && i < 5000; i++) {
+	for (i = 0; wait && i < 5000; i++) {
+		u32 ocp_data;
+
 		usleep_range(1000, 2000);
-		if (ocp_reg_read(tp, OCP_PHY_PATCH_STAT) & PATCH_READY)
+		ocp_data = ocp_reg_read(tp, OCP_PHY_PATCH_STAT);
+		if ((ocp_data & PATCH_READY) ^ check)
 			break;
 	}
 
-	if (request && !(ocp_reg_read(tp, OCP_PHY_PATCH_STAT) & PATCH_READY)) {
-		netif_err(tp, drv, tp->netdev, "patch request fail\n");
-		r8153_patch_request(tp, false);
+	if (request && wait &&
+	    !(ocp_reg_read(tp, OCP_PHY_PATCH_STAT) & PATCH_READY)) {
+		dev_err(&tp->intf->dev, "PHY patch request fail\n");
+		rtl_phy_patch_request(tp, false, false);
 		return -ETIME;
 	} else {
 		return 0;
 	}
 }
 
-static int r8153_pre_ram_code(struct r8152 *tp, u16 key_addr, u16 patch_key)
+static void rtl_patch_key_set(struct r8152 *tp, u16 key_addr, u16 patch_key)
 {
-	if (r8153_patch_request(tp, true)) {
-		dev_err(&tp->intf->dev, "patch request fail\n");
-		return -ETIME;
-	}
+	if (patch_key && key_addr) {
+		sram_write(tp, key_addr, patch_key);
+		sram_write(tp, SRAM_PHY_LOCK, PHY_PATCH_LOCK);
+	} else if (key_addr) {
+		u16 data;
 
-	sram_write(tp, key_addr, patch_key);
-	sram_write(tp, SRAM_PHY_LOCK, PHY_PATCH_LOCK);
+		sram_write(tp, 0x0000, 0x0000);
+
+		data = ocp_reg_read(tp, OCP_PHY_LOCK);
+		data &= ~PATCH_LOCK;
+		ocp_reg_write(tp, OCP_PHY_LOCK, data);
+
+		sram_write(tp, key_addr, 0x0000);
+	} else {
+		WARN_ON_ONCE(1);
+	}
+}
+
+static int
+rtl_pre_ram_code(struct r8152 *tp, u16 key_addr, u16 patch_key, bool wait)
+{
+	if (rtl_phy_patch_request(tp, true, wait))
+		return -ETIME;
+
+	rtl_patch_key_set(tp, key_addr, patch_key);
 
 	return 0;
 }
 
-static int r8153_post_ram_code(struct r8152 *tp, u16 key_addr)
+static int rtl_post_ram_code(struct r8152 *tp, u16 key_addr, bool wait)
 {
-	u16 data;
+	rtl_patch_key_set(tp, key_addr, 0);
 
-	sram_write(tp, 0x0000, 0x0000);
-
-	data = ocp_reg_read(tp, OCP_PHY_LOCK);
-	data &= ~PATCH_LOCK;
-	ocp_reg_write(tp, OCP_PHY_LOCK, data);
-
-	sram_write(tp, key_addr, 0x0000);
-
-	r8153_patch_request(tp, false);
+	rtl_phy_patch_request(tp, false, wait);
 
 	ocp_write_word(tp, MCU_TYPE_PLA, PLA_OCP_GPHY_BASE, tp->ocp_base);
 
@@ -4007,7 +4013,7 @@ static void rtl8152_fw_mac_apply(struct r8152 *tp, struct fw_mac *mac)
 	dev_dbg(&tp->intf->dev, "successfully applied %s\n", mac->info);
 }
 
-static void rtl8152_apply_firmware(struct r8152 *tp)
+static void rtl8152_apply_firmware(struct r8152 *tp, bool power_cut)
 {
 	struct rtl_fw *rtl_fw = &tp->rtl_fw;
 	const struct firmware *fw;
@@ -4038,12 +4044,11 @@ static void rtl8152_apply_firmware(struct r8152 *tp)
 		case RTL_FW_PHY_START:
 			key = (struct fw_phy_patch_key *)block;
 			key_addr = __le16_to_cpu(key->key_reg);
-			r8153_pre_ram_code(tp, key_addr,
-					   __le16_to_cpu(key->key_data));
+			rtl_pre_ram_code(tp, key_addr, __le16_to_cpu(key->key_data), !power_cut);
 			break;
 		case RTL_FW_PHY_STOP:
 			WARN_ON(!key_addr);
-			r8153_post_ram_code(tp, key_addr);
+			rtl_post_ram_code(tp, key_addr, !power_cut);
 			break;
 		case RTL_FW_PHY_NC:
 			rtl8152_fw_phy_nc_apply(tp, (struct fw_phy_nc *)block);
@@ -4248,7 +4253,7 @@ static void rtl8152_disable(struct r8152 *tp)
 
 static void r8152b_hw_phy_cfg(struct r8152 *tp)
 {
-	rtl8152_apply_firmware(tp);
+	rtl8152_apply_firmware(tp, false);
 	rtl_eee_enable(tp, tp->eee_en);
 	r8152_aldps_en(tp, true);
 	r8152b_enable_fc(tp);
@@ -4530,7 +4535,7 @@ static void r8153_hw_phy_cfg(struct r8152 *tp)
 	/* disable EEE before updating the PHY parameters */
 	rtl_eee_enable(tp, false);
 
-	rtl8152_apply_firmware(tp);
+	rtl8152_apply_firmware(tp, false);
 
 	if (tp->version == RTL_VER_03) {
 		data = ocp_reg_read(tp, OCP_EEE_CFG);
@@ -4598,13 +4603,37 @@ static void r8153b_hw_phy_cfg(struct r8152 *tp)
 	u32 ocp_data;
 	u16 data;
 
+	ocp_data = ocp_read_word(tp, MCU_TYPE_USB, USB_MISC_0);
+	if (ocp_data & PCUT_STATUS) {
+		ocp_data &= ~PCUT_STATUS;
+		ocp_write_word(tp, MCU_TYPE_USB, USB_MISC_0, ocp_data);
+	}
+
 	/* disable ALDPS before updating the PHY parameters */
 	r8153_aldps_en(tp, false);
 
 	/* disable EEE before updating the PHY parameters */
 	rtl_eee_enable(tp, false);
 
-	rtl8152_apply_firmware(tp);
+	/* U1/U2/L1 idle timer. 500 us */
+	ocp_write_word(tp, MCU_TYPE_USB, USB_U1U2_TIMER, 500);
+
+	data = r8153_phy_status(tp, 0);
+
+	switch (data) {
+	case PHY_STAT_PWRDN:
+	case PHY_STAT_EXT_INIT:
+		rtl8152_apply_firmware(tp, true);
+
+		data = r8152_mdio_read(tp, MII_BMCR);
+		data &= ~BMCR_PDOWN;
+		r8152_mdio_write(tp, MII_BMCR, data);
+		break;
+	case PHY_STAT_LAN_ON:
+	default:
+		rtl8152_apply_firmware(tp, false);
+		break;
+	}
 
 	r8153b_green_en(tp, test_bit(GREEN_ETHERNET, &tp->flags));
 
@@ -4645,7 +4674,7 @@ static void r8153b_hw_phy_cfg(struct r8152 *tp)
 	ocp_write_word(tp, MCU_TYPE_PLA, PLA_PHY_PWR, ocp_data);
 
 	/* Advnace EEE */
-	if (!r8153_patch_request(tp, true)) {
+	if (!rtl_phy_patch_request(tp, true, true)) {
 		data = ocp_reg_read(tp, OCP_POWER_CFG);
 		data |= EEE_CLKDIV_EN;
 		ocp_reg_write(tp, OCP_POWER_CFG, data);
@@ -4662,7 +4691,7 @@ static void r8153b_hw_phy_cfg(struct r8152 *tp)
 		ocp_reg_write(tp, OCP_SYSCLK_CFG, clk_div_expo(5));
 		tp->ups_info._250m_ckdiv = true;
 
-		r8153_patch_request(tp, false);
+		rtl_phy_patch_request(tp, false, true);
 	}
 
 	if (tp->eee_en)
@@ -5529,9 +5558,6 @@ static void r8153b_init(struct r8152 *tp)
 
 	/* MSC timer = 0xfff * 8ms = 32760 ms */
 	ocp_write_word(tp, MCU_TYPE_USB, USB_MSC_TIMER, 0x0fff);
-
-	/* U1/U2/L1 idle timer. 500 us */
-	ocp_write_word(tp, MCU_TYPE_USB, USB_U1U2_TIMER, 500);
 
 	r8153b_power_cut_en(tp, false);
 	r8153b_ups_en(tp, false);
@@ -6714,7 +6740,7 @@ static int rtl8152_probe(struct usb_interface *intf,
 	mutex_init(&tp->control);
 	INIT_DELAYED_WORK(&tp->schedule, rtl_work_func_t);
 	INIT_DELAYED_WORK(&tp->hw_phy_work, rtl_hw_phy_work_func_t);
-	tasklet_init(&tp->tx_tl, bottom_half, (unsigned long)tp);
+	tasklet_setup(&tp->tx_tl, bottom_half);
 	tasklet_disable(&tp->tx_tl);
 
 	netdev->netdev_ops = &rtl8152_netdev_ops;

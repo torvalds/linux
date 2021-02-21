@@ -55,7 +55,8 @@ struct __kernel_sock_timeval format.
 SO_TIMESTAMP_OLD returns incorrect timestamps after the year 2038
 on 32 bit machines.
 
-1.2 SO_TIMESTAMPNS (also SO_TIMESTAMPNS_OLD and SO_TIMESTAMPNS_NEW):
+1.2 SO_TIMESTAMPNS (also SO_TIMESTAMPNS_OLD and SO_TIMESTAMPNS_NEW)
+-------------------------------------------------------------------
 
 This option is identical to SO_TIMESTAMP except for the returned data type.
 Its struct timespec allows for higher resolution (ns) timestamps than the

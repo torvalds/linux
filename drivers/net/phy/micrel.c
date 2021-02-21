@@ -341,14 +341,19 @@ static int kszphy_config_init(struct phy_device *phydev)
 	return kszphy_config_reset(phydev);
 }
 
+static int ksz8041_fiber_mode(struct phy_device *phydev)
+{
+	struct device_node *of_node = phydev->mdio.dev.of_node;
+
+	return of_property_read_bool(of_node, "micrel,fiber-mode");
+}
+
 static int ksz8041_config_init(struct phy_device *phydev)
 {
 	__ETHTOOL_DECLARE_LINK_MODE_MASK(mask) = { 0, };
 
-	struct device_node *of_node = phydev->mdio.dev.of_node;
-
 	/* Limit supported and advertised modes in fiber mode */
-	if (of_property_read_bool(of_node, "micrel,fiber-mode")) {
+	if (ksz8041_fiber_mode(phydev)) {
 		phydev->dev_flags |= MICREL_PHY_FXEN;
 		linkmode_set_bit(ETHTOOL_LINK_MODE_100baseT_Full_BIT, mask);
 		linkmode_set_bit(ETHTOOL_LINK_MODE_100baseT_Half_BIT, mask);
@@ -1176,6 +1181,9 @@ static int kszphy_probe(struct phy_device *phydev)
 		}
 	}
 
+	if (ksz8041_fiber_mode(phydev))
+		phydev->port = PORT_FIBRE;
+
 	/* Support legacy board-file configuration */
 	if (phydev->dev_flags & MICREL_PHY_50MHZ_CLK) {
 		priv->rmii_ref_clk_sel = true;
@@ -1368,7 +1376,6 @@ static struct phy_driver ksphy_driver[] = {
 	.driver_data	= &ksz9021_type,
 	.probe		= kszphy_probe,
 	.config_init	= ksz9131_config_init,
-	.read_status	= genphy_read_status,
 	.config_intr	= kszphy_config_intr,
 	.handle_interrupt = kszphy_handle_interrupt,
 	.get_sset_count = kszphy_get_sset_count,
@@ -1389,7 +1396,7 @@ static struct phy_driver ksphy_driver[] = {
 }, {
 	.phy_id		= PHY_ID_KSZ886X,
 	.phy_id_mask	= MICREL_PHY_ID_MASK,
-	.name		= "Micrel KSZ886X Switch",
+	.name		= "Micrel KSZ8851 Ethernet MAC or KSZ886X Switch",
 	/* PHY_BASIC_FEATURES */
 	.config_init	= kszphy_config_init,
 	.suspend	= genphy_suspend,

@@ -17,9 +17,12 @@
 
 /* SP or DWRR */
 #define HCLGE_TM_TX_SCHD_DWRR_MSK	BIT(0)
-#define HCLGE_TM_TX_SCHD_SP_MSK		(0xFE)
+#define HCLGE_TM_TX_SCHD_SP_MSK		0xFE
 
 #define HCLGE_ETHER_MAX_RATE	100000
+
+#define HCLGE_TM_PF_MAX_PRI_NUM		8
+#define HCLGE_TM_PF_MAX_QSET_NUM	8
 
 struct hclge_pg_to_pri_link_cmd {
 	u8 pg_id;
@@ -63,6 +66,18 @@ struct hclge_pg_weight_cmd {
 struct hclge_priority_weight_cmd {
 	u8 pri_id;
 	u8 dwrr;
+};
+
+struct hclge_pri_sch_mode_cfg_cmd {
+	u8 pri_id;
+	u8 rsvd[3];
+	u8 sch_mode;
+};
+
+struct hclge_qs_sch_mode_cfg_cmd {
+	__le16 qs_id;
+	u8 rsvd[2];
+	u8 sch_mode;
 };
 
 struct hclge_qs_weight_cmd {
@@ -173,13 +188,34 @@ struct hclge_shaper_ir_para {
 	u8 ir_s; /* IR_S parameter of IR shaper */
 };
 
+struct hclge_tm_nodes_cmd {
+	u8 pg_base_id;
+	u8 pri_base_id;
+	__le16 qset_base_id;
+	__le16 queue_base_id;
+	u8 pg_num;
+	u8 pri_num;
+	__le16 qset_num;
+	__le16 queue_num;
+};
+
+struct hclge_pri_shaper_para {
+	u8 ir_b;
+	u8 ir_u;
+	u8 ir_s;
+	u8 bs_b;
+	u8 bs_s;
+	u8 flag;
+	u32 rate;
+};
+
 #define hclge_tm_set_field(dest, string, val) \
 			   hnae3_set_field((dest), \
 			   (HCLGE_TM_SHAP_##string##_MSK), \
 			   (HCLGE_TM_SHAP_##string##_LSH), val)
 #define hclge_tm_get_field(src, string) \
-			hnae3_get_field((src), (HCLGE_TM_SHAP_##string##_MSK), \
-				       (HCLGE_TM_SHAP_##string##_LSH))
+			hnae3_get_field((src), HCLGE_TM_SHAP_##string##_MSK, \
+					HCLGE_TM_SHAP_##string##_LSH)
 
 int hclge_tm_schd_init(struct hclge_dev *hdev);
 int hclge_tm_vport_map_update(struct hclge_dev *hdev);
@@ -195,5 +231,15 @@ int hclge_pause_addr_cfg(struct hclge_dev *hdev, const u8 *mac_addr);
 int hclge_pfc_rx_stats_get(struct hclge_dev *hdev, u64 *stats);
 int hclge_pfc_tx_stats_get(struct hclge_dev *hdev, u64 *stats);
 int hclge_tm_qs_shaper_cfg(struct hclge_vport *vport, int max_tx_rate);
-
+int hclge_tm_get_qset_num(struct hclge_dev *hdev, u16 *qset_num);
+int hclge_tm_get_pri_num(struct hclge_dev *hdev, u8 *pri_num);
+int hclge_tm_get_qset_map_pri(struct hclge_dev *hdev, u16 qset_id, u8 *priority,
+			      u8 *link_vld);
+int hclge_tm_get_qset_sch_mode(struct hclge_dev *hdev, u16 qset_id, u8 *mode);
+int hclge_tm_get_qset_weight(struct hclge_dev *hdev, u16 qset_id, u8 *weight);
+int hclge_tm_get_pri_sch_mode(struct hclge_dev *hdev, u8 pri_id, u8 *mode);
+int hclge_tm_get_pri_weight(struct hclge_dev *hdev, u8 pri_id, u8 *weight);
+int hclge_tm_get_pri_shaper(struct hclge_dev *hdev, u8 pri_id,
+			    enum hclge_opcode_type cmd,
+			    struct hclge_pri_shaper_para *para);
 #endif

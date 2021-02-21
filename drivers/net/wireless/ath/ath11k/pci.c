@@ -328,7 +328,7 @@ static void ath11k_pci_enable_ltssm(struct ath11k_base *ab)
 	ath11k_dbg(ab, ATH11K_DBG_PCI, "pci ltssm 0x%x\n", val);
 
 	val = ath11k_pci_read32(ab, GCC_GCC_PCIE_HOT_RST);
-	val |= GCC_GCC_PCIE_HOT_RST_VAL | 0x10;
+	val |= GCC_GCC_PCIE_HOT_RST_VAL;
 	ath11k_pci_write32(ab, GCC_GCC_PCIE_HOT_RST, val);
 	val = ath11k_pci_read32(ab, GCC_GCC_PCIE_HOT_RST);
 
@@ -1085,8 +1085,6 @@ static int ath11k_pci_probe(struct pci_dev *pdev,
 	struct ath11k_pci *ab_pci;
 	u32 soc_hw_version, soc_hw_version_major, soc_hw_version_minor;
 	int ret;
-
-	dev_warn(&pdev->dev, "WARNING: ath11k PCI support is experimental!\n");
 
 	ab = ath11k_core_alloc(&pdev->dev, sizeof(*ab_pci), ATH11K_BUS_PCI,
 			       &ath11k_pci_bus_params);

@@ -1580,12 +1580,6 @@ static int tg3_mdio_init(struct tg3 *tp)
 				     PHY_BRCM_RX_REFCLK_UNUSED |
 				     PHY_BRCM_DIS_TXCRXC_NOENRGY |
 				     PHY_BRCM_AUTO_PWRDWN_ENABLE;
-		if (tg3_flag(tp, RGMII_INBAND_DISABLE))
-			phydev->dev_flags |= PHY_BRCM_STD_IBND_DISABLE;
-		if (tg3_flag(tp, RGMII_EXT_IBND_RX_EN))
-			phydev->dev_flags |= PHY_BRCM_EXT_IBND_RX_ENABLE;
-		if (tg3_flag(tp, RGMII_EXT_IBND_TX_EN))
-			phydev->dev_flags |= PHY_BRCM_EXT_IBND_TX_ENABLE;
 		fallthrough;
 	case PHY_ID_RTL8211C:
 		phydev->interface = PHY_INTERFACE_MODE_RGMII;
@@ -12826,11 +12820,13 @@ static __be32 *tg3_vpd_readblock(struct tg3 *tp, u32 *vpdlen)
 
 			offset = tg3_nvram_logical_addr(tp, offset);
 		}
-	}
 
-	if (!offset || !len) {
-		offset = TG3_NVM_VPD_OFF;
-		len = TG3_NVM_VPD_LEN;
+		if (!offset || !len) {
+			offset = TG3_NVM_VPD_OFF;
+			len = TG3_NVM_VPD_LEN;
+		}
+	} else {
+		len = TG3_NVM_PCI_VPD_MAX_LEN;
 	}
 
 	buf = kmalloc(len, GFP_KERNEL);
@@ -12846,25 +12842,15 @@ static __be32 *tg3_vpd_readblock(struct tg3 *tp, u32 *vpdlen)
 			if (tg3_nvram_read_be32(tp, offset + i, &buf[i/4]))
 				goto error;
 		}
+		*vpdlen = len;
 	} else {
-		u8 *ptr;
 		ssize_t cnt;
-		unsigned int pos = 0;
 
-		ptr = (u8 *)&buf[0];
-		for (i = 0; pos < len && i < 3; i++, pos += cnt, ptr += cnt) {
-			cnt = pci_read_vpd(tp->pdev, pos,
-					   len - pos, ptr);
-			if (cnt == -ETIMEDOUT || cnt == -EINTR)
-				cnt = 0;
-			else if (cnt < 0)
-				goto error;
-		}
-		if (pos != len)
+		cnt = pci_read_vpd(tp->pdev, 0, len, (u8 *)buf);
+		if (cnt < 0)
 			goto error;
+		*vpdlen = cnt;
 	}
-
-	*vpdlen = len;
 
 	return buf;
 

@@ -195,7 +195,8 @@ struct fib6_info {
 					fib6_destroying:1,
 					offload:1,
 					trap:1,
-					unused:2;
+					offload_failed:1,
+					unused:1;
 
 	struct rcu_head			rcu;
 	struct nexthop			*nh;
@@ -334,13 +335,6 @@ static inline void fib6_info_release(struct fib6_info *f6i)
 {
 	if (f6i && refcount_dec_and_test(&f6i->fib6_ref))
 		call_rcu(&f6i->rcu, fib6_info_destroy_rcu);
-}
-
-static inline void fib6_info_hw_flags_set(struct fib6_info *f6i, bool offload,
-					  bool trap)
-{
-	f6i->offload = offload;
-	f6i->trap = trap;
 }
 
 enum fib6_walk_state {
@@ -545,6 +539,8 @@ static inline bool fib6_metric_locked(struct fib6_info *f6i, int metric)
 {
 	return !!(f6i->fib6_metrics->metrics[RTAX_LOCK - 1] & (1 << metric));
 }
+void fib6_info_hw_flags_set(struct net *net, struct fib6_info *f6i,
+			    bool offload, bool trap, bool offload_failed);
 
 #if IS_BUILTIN(CONFIG_IPV6) && defined(CONFIG_BPF_SYSCALL)
 struct bpf_iter__ipv6_route {

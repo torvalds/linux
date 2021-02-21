@@ -36,7 +36,7 @@
 
 #define INTR_MASK(pfvfs) ((pfvfs < 64) ? (BIT_ULL(pfvfs) - 1) : (~0ull))
 
-#define MBOX_RSP_TIMEOUT	2000 /* Time(ms) to wait for mbox response */
+#define MBOX_RSP_TIMEOUT	3000 /* Time(ms) to wait for mbox response */
 
 #define MBOX_MSG_ALIGN		16  /* Align mbox msg start to 16bytes */
 
@@ -52,6 +52,7 @@
 
 struct otx2_mbox_dev {
 	void	    *mbase;   /* This dev's mbox region */
+	void	    *hwbase;
 	spinlock_t  mbox_lock;
 	u16         msg_size; /* Total msg size to be sent */
 	u16         rsp_size; /* Total rsp size to be sure the reply is ok */
@@ -98,6 +99,9 @@ void otx2_mbox_destroy(struct otx2_mbox *mbox);
 int otx2_mbox_init(struct otx2_mbox *mbox, void __force *hwbase,
 		   struct pci_dev *pdev, void __force *reg_base,
 		   int direction, int ndevs);
+int otx2_mbox_regions_init(struct otx2_mbox *mbox, void __force **hwbase,
+			   struct pci_dev *pdev, void __force *reg_base,
+			   int direction, int ndevs);
 void otx2_mbox_msg_send(struct otx2_mbox *mbox, int devid);
 int otx2_mbox_wait_for_rsp(struct otx2_mbox *mbox, int devid);
 int otx2_mbox_busy_poll_for_rsp(struct otx2_mbox *mbox, int devid);
@@ -149,6 +153,16 @@ M(CGX_PTP_RX_ENABLE,	0x20C, cgx_ptp_rx_enable, msg_req, msg_rsp)	\
 M(CGX_PTP_RX_DISABLE,	0x20D, cgx_ptp_rx_disable, msg_req, msg_rsp)	\
 M(CGX_CFG_PAUSE_FRM,	0x20E, cgx_cfg_pause_frm, cgx_pause_frm_cfg,	\
 			       cgx_pause_frm_cfg)			\
+M(CGX_FEC_SET,		0x210, cgx_set_fec_param, fec_mode, fec_mode)   \
+M(CGX_FEC_STATS,	0x211, cgx_fec_stats, msg_req, cgx_fec_stats_rsp) \
+M(CGX_GET_PHY_FEC_STATS, 0x212, cgx_get_phy_fec_stats, msg_req, msg_rsp) \
+M(CGX_FW_DATA_GET,	0x213, cgx_get_aux_link_info, msg_req, cgx_fw_data) \
+M(CGX_SET_LINK_MODE,	0x214, cgx_set_link_mode, cgx_set_link_mode_req,\
+			       cgx_set_link_mode_rsp)	\
+M(CGX_FEATURES_GET,	0x215, cgx_features_get, msg_req,		\
+			       cgx_features_info_msg)			\
+M(RPM_STATS,		0x216, rpm_stats, msg_req, rpm_stats_rsp)	\
+ /* NPA mbox IDs (range 0x400 - 0x5FF) */				\
 /* NPA mbox IDs (range 0x400 - 0x5FF) */				\
 M(NPA_LF_ALLOC,		0x400, npa_lf_alloc,				\
 				npa_lf_alloc_req, npa_lf_alloc_rsp)	\
@@ -237,6 +251,9 @@ M(NIX_BP_ENABLE,	0x8016, nix_bp_enable, nix_bp_cfg_req,	\
 				nix_bp_cfg_rsp)	\
 M(NIX_BP_DISABLE,	0x8017, nix_bp_disable, nix_bp_cfg_req, msg_rsp) \
 M(NIX_GET_MAC_ADDR, 0x8018, nix_get_mac_addr, msg_req, nix_get_mac_addr_rsp) \
+M(NIX_CN10K_AQ_ENQ,	0x8019, nix_cn10k_aq_enq, nix_cn10k_aq_enq_req, \
+				nix_cn10k_aq_enq_rsp)			\
+M(NIX_GET_HW_INFO,	0x801a, nix_get_hw_info, msg_req, nix_hw_info)
 
 /* Messages initiated by AF (range 0xC00 - 0xDFF) */
 #define MBOX_UP_CGX_MESSAGES						\
@@ -354,12 +371,17 @@ struct get_hw_cap_rsp {
 
 struct cgx_stats_rsp {
 	struct mbox_msghdr hdr;
-#define CGX_RX_STATS_COUNT	13
+#define CGX_RX_STATS_COUNT	9
 #define CGX_TX_STATS_COUNT	18
 	u64 rx_stats[CGX_RX_STATS_COUNT];
 	u64 tx_stats[CGX_TX_STATS_COUNT];
 };
 
+struct cgx_fec_stats_rsp {
+	struct mbox_msghdr hdr;
+	u64 fec_corr_blks;
+	u64 fec_uncorr_blks;
+};
 /* Structure for requesting the operation for
  * setting/getting mac address in the CGX interface
  */
@@ -373,6 +395,8 @@ struct cgx_link_user_info {
 	uint64_t full_duplex:1;
 	uint64_t lmac_type_id:4;
 	uint64_t speed:20; /* speed in Mbps */
+	uint64_t an:1;		/* AN supported or not */
+	uint64_t fec:2;	 /* FEC type if enabled else 0 */
 #define LMACTYPE_STR_LEN 16
 	char lmac_type[LMACTYPE_STR_LEN];
 };
@@ -389,6 +413,98 @@ struct cgx_pause_frm_cfg {
 	/* set = 0 if the request is to fetch pause frames config */
 	u8 rx_pause;
 	u8 tx_pause;
+};
+
+enum fec_type {
+	OTX2_FEC_NONE,
+	OTX2_FEC_BASER,
+	OTX2_FEC_RS,
+	OTX2_FEC_STATS_CNT = 2,
+	OTX2_FEC_OFF,
+};
+
+struct fec_mode {
+	struct mbox_msghdr hdr;
+	int fec;
+};
+
+struct sfp_eeprom_s {
+#define SFP_EEPROM_SIZE 256
+	u16 sff_id;
+	u8 buf[SFP_EEPROM_SIZE];
+	u64 reserved;
+};
+
+struct phy_s {
+	struct {
+		u64 can_change_mod_type:1;
+		u64 mod_type:1;
+		u64 has_fec_stats:1;
+	} misc;
+	struct fec_stats_s {
+		u32 rsfec_corr_cws;
+		u32 rsfec_uncorr_cws;
+		u32 brfec_corr_blks;
+		u32 brfec_uncorr_blks;
+	} fec_stats;
+};
+
+struct cgx_lmac_fwdata_s {
+	u16 rw_valid;
+	u64 supported_fec;
+	u64 supported_an;
+	u64 supported_link_modes;
+	/* only applicable if AN is supported */
+	u64 advertised_fec;
+	u64 advertised_link_modes;
+	/* Only applicable if SFP/QSFP slot is present */
+	struct sfp_eeprom_s sfp_eeprom;
+	struct phy_s phy;
+#define LMAC_FWDATA_RESERVED_MEM 1021
+	u64 reserved[LMAC_FWDATA_RESERVED_MEM];
+};
+
+struct cgx_fw_data {
+	struct mbox_msghdr hdr;
+	struct cgx_lmac_fwdata_s fwdata;
+};
+
+struct cgx_set_link_mode_args {
+	u32 speed;
+	u8 duplex;
+	u8 an;
+	u8 ports;
+	u64 mode;
+};
+
+struct cgx_set_link_mode_req {
+#define AUTONEG_UNKNOWN		0xff
+	struct mbox_msghdr hdr;
+	struct cgx_set_link_mode_args args;
+};
+
+struct cgx_set_link_mode_rsp {
+	struct mbox_msghdr hdr;
+	int status;
+};
+
+#define RVU_LMAC_FEAT_FC		BIT_ULL(0) /* pause frames */
+#define RVU_LMAC_FEAT_PTP		BIT_ULL(1) /* precison time protocol */
+#define RVU_MAC_VERSION			BIT_ULL(2)
+#define RVU_MAC_CGX			BIT_ULL(3)
+#define RVU_MAC_RPM			BIT_ULL(4)
+
+struct cgx_features_info_msg {
+	struct mbox_msghdr hdr;
+	u64    lmac_features;
+};
+
+struct rpm_stats_rsp {
+	struct mbox_msghdr hdr;
+#define RPM_RX_STATS_COUNT		43
+#define RPM_TX_STATS_COUNT		34
+	u64 rx_stats[RPM_RX_STATS_COUNT];
+	u64 tx_stats[RPM_TX_STATS_COUNT];
 };
 
 /* NPA mbox message formats */
@@ -543,6 +659,39 @@ struct nix_lf_free_req {
 #define NIX_LF_DISABLE_FLOWS		BIT_ULL(0)
 #define NIX_LF_DONT_FREE_TX_VTAG	BIT_ULL(1)
 	u64 flags;
+};
+
+/* CN10K NIX AQ enqueue msg */
+struct nix_cn10k_aq_enq_req {
+	struct mbox_msghdr hdr;
+	u32  qidx;
+	u8 ctype;
+	u8 op;
+	union {
+		struct nix_cn10k_rq_ctx_s rq;
+		struct nix_cn10k_sq_ctx_s sq;
+		struct nix_cq_ctx_s cq;
+		struct nix_rsse_s   rss;
+		struct nix_rx_mce_s mce;
+	};
+	union {
+		struct nix_cn10k_rq_ctx_s rq_mask;
+		struct nix_cn10k_sq_ctx_s sq_mask;
+		struct nix_cq_ctx_s cq_mask;
+		struct nix_rsse_s   rss_mask;
+		struct nix_rx_mce_s mce_mask;
+	};
+};
+
+struct nix_cn10k_aq_enq_rsp {
+	struct mbox_msghdr hdr;
+	union {
+		struct nix_cn10k_rq_ctx_s rq;
+		struct nix_cn10k_sq_ctx_s sq;
+		struct nix_cq_ctx_s cq;
+		struct nix_rsse_s   rss;
+		struct nix_rx_mce_s mce;
+	};
 };
 
 /* NIX AQ enqueue msg */
@@ -717,6 +866,8 @@ struct nix_rss_flowkey_cfg {
 #define NIX_FLOW_KEY_TYPE_INNR_ETH_DMAC BIT(17)
 #define NIX_FLOW_KEY_TYPE_VLAN		BIT(20)
 #define NIX_FLOW_KEY_TYPE_IPV4_PROTO	BIT(21)
+#define NIX_FLOW_KEY_TYPE_AH		BIT(22)
+#define NIX_FLOW_KEY_TYPE_ESP		BIT(23)
 	u32	flowkey_cfg; /* Flowkey types selected */
 	u8	group;       /* RSS context or group */
 };
@@ -805,6 +956,12 @@ struct nix_bp_cfg_rsp {
 	struct mbox_msghdr hdr;
 	u16	chan_bpid[NIX_MAX_BPID_CHAN]; /* Channel and bpid mapping */
 	u8	chan_cnt; /* Number of channel for which bpids are assigned */
+};
+
+struct nix_hw_info {
+	struct mbox_msghdr hdr;
+	u16 max_mtu;
+	u16 min_mtu;
 };
 
 /* NPC mbox message structs */
@@ -1071,6 +1228,7 @@ struct cpt_rd_wr_reg_msg {
 	u64 *ret_val;
 	u64 val;
 	u8 is_write;
+	int blkaddr;
 };
 
 struct cpt_lf_alloc_req_msg {
@@ -1078,6 +1236,7 @@ struct cpt_lf_alloc_req_msg {
 	u16 nix_pf_func;
 	u16 sso_pf_func;
 	u16 eng_grpmsk;
+	int blkaddr;
 };
 
 #endif /* MBOX_H */

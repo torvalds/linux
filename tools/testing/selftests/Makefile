@@ -34,6 +34,7 @@ TARGETS += memory-hotplug
 TARGETS += mincore
 TARGETS += mount
 TARGETS += mqueue
+TARGETS += nci
 TARGETS += net
 TARGETS += net/forwarding
 TARGETS += net/mptcp

@@ -868,6 +868,9 @@ enum ath10k_dev_flags {
 
 	/* Indicates that ath10k device is during recovery process and not complete */
 	ATH10K_FLAG_RESTARTING,
+
+	/* protected by conf_mutex */
+	ATH10K_FLAG_NAPI_ENABLED,
 };
 
 enum ath10k_cal_mode {
@@ -1016,7 +1019,6 @@ struct ath10k {
 	enum ath10k_hw_rev hw_rev;
 	u16 dev_id;
 	u32 chip_id;
-	enum ath10k_dev_type dev_type;
 	u32 target_version;
 	u8 fw_version_major;
 	u32 fw_version_minor;
@@ -1293,6 +1295,9 @@ struct ath10k {
 	bool coex_support;
 	int coex_gpio_pin;
 
+	s32 tx_power_2g_limit;
+	s32 tx_power_5g_limit;
+
 	/* must be last */
 	u8 drv_priv[] __aligned(sizeof(void *));
 };
@@ -1308,6 +1313,8 @@ static inline bool ath10k_peer_stats_enabled(struct ath10k *ar)
 
 extern unsigned long ath10k_coredump_mask;
 
+void ath10k_core_napi_sync_disable(struct ath10k *ar);
+void ath10k_core_napi_enable(struct ath10k *ar);
 struct ath10k *ath10k_core_create(size_t priv_size, struct device *dev,
 				  enum ath10k_bus bus,
 				  enum ath10k_hw_rev hw_rev,

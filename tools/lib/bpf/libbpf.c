@@ -395,7 +395,8 @@ struct extern_desc {
 			unsigned long long addr;
 
 			/* target btf_id of the corresponding kernel var. */
-			int vmlinux_btf_id;
+			int kernel_btf_obj_fd;
+			int kernel_btf_id;
 
 			/* local btf_id of the ksym extern's type. */
 			__u32 type_id;
@@ -883,22 +884,22 @@ static int bpf_map__init_kern_struct_ops(struct bpf_map *map,
 		if (btf_is_ptr(mtype)) {
 			struct bpf_program *prog;
 
-			mtype = skip_mods_and_typedefs(btf, mtype->type, &mtype_id);
+			prog = st_ops->progs[i];
+			if (!prog)
+				continue;
+
 			kern_mtype = skip_mods_and_typedefs(kern_btf,
 							    kern_mtype->type,
 							    &kern_mtype_id);
-			if (!btf_is_func_proto(mtype) ||
-			    !btf_is_func_proto(kern_mtype)) {
-				pr_warn("struct_ops init_kern %s: non func ptr %s is not supported\n",
+
+			/* mtype->type must be a func_proto which was
+			 * guaranteed in bpf_object__collect_st_ops_relos(),
+			 * so only check kern_mtype for func_proto here.
+			 */
+			if (!btf_is_func_proto(kern_mtype)) {
+				pr_warn("struct_ops init_kern %s: kernel member %s is not a func ptr\n",
 					map->name, mname);
 				return -ENOTSUP;
-			}
-
-			prog = st_ops->progs[i];
-			if (!prog) {
-				pr_debug("struct_ops init_kern %s: func ptr %s is not set\n",
-					 map->name, mname);
-				continue;
 			}
 
 			prog->attach_btf_id = kern_type_id;
@@ -6162,7 +6163,8 @@ bpf_object__relocate_data(struct bpf_object *obj, struct bpf_program *prog)
 			} else /* EXT_KSYM */ {
 				if (ext->ksym.type_id) { /* typed ksyms */
 					insn[0].src_reg = BPF_PSEUDO_BTF_ID;
-					insn[0].imm = ext->ksym.vmlinux_btf_id;
+					insn[0].imm = ext->ksym.kernel_btf_id;
+					insn[1].imm = ext->ksym.kernel_btf_obj_fd;
 				} else { /* typeless ksyms */
 					insn[0].imm = (__u32)ext->ksym.addr;
 					insn[1].imm = ext->ksym.addr >> 32;
@@ -7319,7 +7321,8 @@ out:
 static int bpf_object__resolve_ksyms_btf_id(struct bpf_object *obj)
 {
 	struct extern_desc *ext;
-	int i, id;
+	struct btf *btf;
+	int i, j, id, btf_fd, err;
 
 	for (i = 0; i < obj->nr_extern; i++) {
 		const struct btf_type *targ_var, *targ_type;
@@ -7331,10 +7334,25 @@ static int bpf_object__resolve_ksyms_btf_id(struct bpf_object *obj)
 		if (ext->type != EXT_KSYM || !ext->ksym.type_id)
 			continue;
 
-		id = btf__find_by_name_kind(obj->btf_vmlinux, ext->name,
-					    BTF_KIND_VAR);
+		btf = obj->btf_vmlinux;
+		btf_fd = 0;
+		id = btf__find_by_name_kind(btf, ext->name, BTF_KIND_VAR);
+		if (id == -ENOENT) {
+			err = load_module_btfs(obj);
+			if (err)
+				return err;
+
+			for (j = 0; j < obj->btf_module_cnt; j++) {
+				btf = obj->btf_modules[j].btf;
+				/* we assume module BTF FD is always >0 */
+				btf_fd = obj->btf_modules[j].fd;
+				id = btf__find_by_name_kind(btf, ext->name, BTF_KIND_VAR);
+				if (id != -ENOENT)
+					break;
+			}
+		}
 		if (id <= 0) {
-			pr_warn("extern (ksym) '%s': failed to find BTF ID in vmlinux BTF.\n",
+			pr_warn("extern (ksym) '%s': failed to find BTF ID in kernel BTF(s).\n",
 				ext->name);
 			return -ESRCH;
 		}
@@ -7343,24 +7361,19 @@ static int bpf_object__resolve_ksyms_btf_id(struct bpf_object *obj)
 		local_type_id = ext->ksym.type_id;
 
 		/* find target type_id */
-		targ_var = btf__type_by_id(obj->btf_vmlinux, id);
-		targ_var_name = btf__name_by_offset(obj->btf_vmlinux,
-						    targ_var->name_off);
-		targ_type = skip_mods_and_typedefs(obj->btf_vmlinux,
-						   targ_var->type,
-						   &targ_type_id);
+		targ_var = btf__type_by_id(btf, id);
+		targ_var_name = btf__name_by_offset(btf, targ_var->name_off);
+		targ_type = skip_mods_and_typedefs(btf, targ_var->type, &targ_type_id);
 
 		ret = bpf_core_types_are_compat(obj->btf, local_type_id,
-						obj->btf_vmlinux, targ_type_id);
+						btf, targ_type_id);
 		if (ret <= 0) {
 			const struct btf_type *local_type;
 			const char *targ_name, *local_name;
 
 			local_type = btf__type_by_id(obj->btf, local_type_id);
-			local_name = btf__name_by_offset(obj->btf,
-							 local_type->name_off);
-			targ_name = btf__name_by_offset(obj->btf_vmlinux,
-							targ_type->name_off);
+			local_name = btf__name_by_offset(obj->btf, local_type->name_off);
+			targ_name = btf__name_by_offset(btf, targ_type->name_off);
 
 			pr_warn("extern (ksym) '%s': incompatible types, expected [%d] %s %s, but kernel has [%d] %s %s\n",
 				ext->name, local_type_id,
@@ -7370,7 +7383,8 @@ static int bpf_object__resolve_ksyms_btf_id(struct bpf_object *obj)
 		}
 
 		ext->is_set = true;
-		ext->ksym.vmlinux_btf_id = id;
+		ext->ksym.kernel_btf_obj_fd = btf_fd;
+		ext->ksym.kernel_btf_id = id;
 		pr_debug("extern (ksym) '%s': resolved to [%d] %s %s\n",
 			 ext->name, id, btf_kind_str(targ_var), targ_var_name);
 	}

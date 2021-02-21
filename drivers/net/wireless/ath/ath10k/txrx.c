@@ -211,7 +211,7 @@ void ath10k_peer_map_event(struct ath10k_htt *htt,
 
 	if (ev->peer_id >= ATH10K_MAX_NUM_PEER_IDS) {
 		ath10k_warn(ar,
-			    "received htt peer map event with idx out of bounds: %hu\n",
+			    "received htt peer map event with idx out of bounds: %u\n",
 			    ev->peer_id);
 		return;
 	}
@@ -247,7 +247,7 @@ void ath10k_peer_unmap_event(struct ath10k_htt *htt,
 
 	if (ev->peer_id >= ATH10K_MAX_NUM_PEER_IDS) {
 		ath10k_warn(ar,
-			    "received htt peer unmap event with idx out of bounds: %hu\n",
+			    "received htt peer unmap event with idx out of bounds: %u\n",
 			    ev->peer_id);
 		return;
 	}

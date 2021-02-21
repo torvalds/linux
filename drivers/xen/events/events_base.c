@@ -63,6 +63,7 @@
 #include <xen/interface/physdev.h>
 #include <xen/interface/sched.h>
 #include <xen/interface/vcpu.h>
+#include <xen/xenbus.h>
 #include <asm/hw_irq.h>
 
 #include "events_internal.h"
@@ -115,6 +116,7 @@ struct irq_info {
 			unsigned char flags;
 			uint16_t domid;
 		} pirq;
+		struct xenbus_device *interdomain;
 	} u;
 };
 
@@ -313,11 +315,16 @@ static int xen_irq_info_common_setup(struct irq_info *info,
 }
 
 static int xen_irq_info_evtchn_setup(unsigned irq,
-				     evtchn_port_t evtchn)
+				     evtchn_port_t evtchn,
+				     struct xenbus_device *dev)
 {
 	struct irq_info *info = info_for_irq(irq);
+	int ret;
 
-	return xen_irq_info_common_setup(info, irq, IRQT_EVTCHN, evtchn, 0);
+	ret = xen_irq_info_common_setup(info, irq, IRQT_EVTCHN, evtchn, 0);
+	info->u.interdomain = dev;
+
+	return ret;
 }
 
 static int xen_irq_info_ipi_setup(unsigned cpu,
@@ -1116,7 +1123,8 @@ int xen_pirq_from_irq(unsigned irq)
 }
 EXPORT_SYMBOL_GPL(xen_pirq_from_irq);
 
-static int bind_evtchn_to_irq_chip(evtchn_port_t evtchn, struct irq_chip *chip)
+static int bind_evtchn_to_irq_chip(evtchn_port_t evtchn, struct irq_chip *chip,
+				   struct xenbus_device *dev)
 {
 	int irq;
 	int ret;
@@ -1136,7 +1144,7 @@ static int bind_evtchn_to_irq_chip(evtchn_port_t evtchn, struct irq_chip *chip)
 		irq_set_chip_and_handler_name(irq, chip,
 					      handle_edge_irq, "event");
 
-		ret = xen_irq_info_evtchn_setup(irq, evtchn);
+		ret = xen_irq_info_evtchn_setup(irq, evtchn, dev);
 		if (ret < 0) {
 			__unbind_from_irq(irq);
 			irq = ret;
@@ -1163,7 +1171,7 @@ out:
 
 int bind_evtchn_to_irq(evtchn_port_t evtchn)
 {
-	return bind_evtchn_to_irq_chip(evtchn, &xen_dynamic_chip);
+	return bind_evtchn_to_irq_chip(evtchn, &xen_dynamic_chip, NULL);
 }
 EXPORT_SYMBOL_GPL(bind_evtchn_to_irq);
 
@@ -1212,27 +1220,27 @@ static int bind_ipi_to_irq(unsigned int ipi, unsigned int cpu)
 	return irq;
 }
 
-static int bind_interdomain_evtchn_to_irq_chip(unsigned int remote_domain,
+static int bind_interdomain_evtchn_to_irq_chip(struct xenbus_device *dev,
 					       evtchn_port_t remote_port,
 					       struct irq_chip *chip)
 {
 	struct evtchn_bind_interdomain bind_interdomain;
 	int err;
 
-	bind_interdomain.remote_dom  = remote_domain;
+	bind_interdomain.remote_dom  = dev->otherend_id;
 	bind_interdomain.remote_port = remote_port;
 
 	err = HYPERVISOR_event_channel_op(EVTCHNOP_bind_interdomain,
 					  &bind_interdomain);
 
 	return err ? : bind_evtchn_to_irq_chip(bind_interdomain.local_port,
-					       chip);
+					       chip, dev);
 }
 
-int bind_interdomain_evtchn_to_irq_lateeoi(unsigned int remote_domain,
+int bind_interdomain_evtchn_to_irq_lateeoi(struct xenbus_device *dev,
 					   evtchn_port_t remote_port)
 {
-	return bind_interdomain_evtchn_to_irq_chip(remote_domain, remote_port,
+	return bind_interdomain_evtchn_to_irq_chip(dev, remote_port,
 						   &xen_lateeoi_chip);
 }
 EXPORT_SYMBOL_GPL(bind_interdomain_evtchn_to_irq_lateeoi);
@@ -1345,7 +1353,7 @@ static int bind_evtchn_to_irqhandler_chip(evtchn_port_t evtchn,
 {
 	int irq, retval;
 
-	irq = bind_evtchn_to_irq_chip(evtchn, chip);
+	irq = bind_evtchn_to_irq_chip(evtchn, chip, NULL);
 	if (irq < 0)
 		return irq;
 	retval = request_irq(irq, handler, irqflags, devname, dev_id);
@@ -1380,14 +1388,13 @@ int bind_evtchn_to_irqhandler_lateeoi(evtchn_port_t evtchn,
 EXPORT_SYMBOL_GPL(bind_evtchn_to_irqhandler_lateeoi);
 
 static int bind_interdomain_evtchn_to_irqhandler_chip(
-		unsigned int remote_domain, evtchn_port_t remote_port,
+		struct xenbus_device *dev, evtchn_port_t remote_port,
 		irq_handler_t handler, unsigned long irqflags,
 		const char *devname, void *dev_id, struct irq_chip *chip)
 {
 	int irq, retval;
 
-	irq = bind_interdomain_evtchn_to_irq_chip(remote_domain, remote_port,
-						  chip);
+	irq = bind_interdomain_evtchn_to_irq_chip(dev, remote_port, chip);
 	if (irq < 0)
 		return irq;
 
@@ -1400,14 +1407,14 @@ static int bind_interdomain_evtchn_to_irqhandler_chip(
 	return irq;
 }
 
-int bind_interdomain_evtchn_to_irqhandler_lateeoi(unsigned int remote_domain,
+int bind_interdomain_evtchn_to_irqhandler_lateeoi(struct xenbus_device *dev,
 						  evtchn_port_t remote_port,
 						  irq_handler_t handler,
 						  unsigned long irqflags,
 						  const char *devname,
 						  void *dev_id)
 {
-	return bind_interdomain_evtchn_to_irqhandler_chip(remote_domain,
+	return bind_interdomain_evtchn_to_irqhandler_chip(dev,
 				remote_port, handler, irqflags, devname,
 				dev_id, &xen_lateeoi_chip);
 }
@@ -1679,7 +1686,7 @@ void rebind_evtchn_irq(evtchn_port_t evtchn, int irq)
 	   so there should be a proper type */
 	BUG_ON(info->type == IRQT_UNBOUND);
 
-	(void)xen_irq_info_evtchn_setup(irq, evtchn);
+	(void)xen_irq_info_evtchn_setup(irq, evtchn, NULL);
 
 	mutex_unlock(&irq_mapping_update_lock);
 

@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0
-/* Marvell OcteonTx2 RVU Physcial Function ethernet driver
+/* Marvell OcteonTx2 RVU Physical Function ethernet driver
  *
  * Copyright (C) 2020 Marvell International Ltd.
  *
@@ -22,10 +22,11 @@
 #include "otx2_txrx.h"
 #include "otx2_struct.h"
 #include "otx2_ptp.h"
+#include "cn10k.h"
 #include <rvu_trace.h>
 
-#define DRV_NAME	"octeontx2-nicpf"
-#define DRV_STRING	"Marvell OcteonTX2 NIC Physical Function Driver"
+#define DRV_NAME	"rvu_nicpf"
+#define DRV_STRING	"Marvell RVU NIC Physical Function Driver"
 
 /* Supported devices */
 static const struct pci_device_id otx2_pf_id_table[] = {
@@ -585,9 +586,17 @@ static int otx2_pfvf_mbox_init(struct otx2_nic *pf, int numvfs)
 	if (!pf->mbox_pfvf_wq)
 		return -ENOMEM;
 
-	base = readq((void __iomem *)((u64)pf->reg_base + RVU_PF_VF_BAR4_ADDR));
-	hwbase = ioremap_wc(base, MBOX_SIZE * pf->total_vfs);
+	/* On CN10K platform, PF <-> VF mailbox region follows after
+	 * PF <-> AF mailbox region.
+	 */
+	if (test_bit(CN10K_MBOX, &pf->hw.cap_flag))
+		base = pci_resource_start(pf->pdev, PCI_MBOX_BAR_NUM) +
+		       MBOX_SIZE;
+	else
+		base = readq((void __iomem *)((u64)pf->reg_base +
+					      RVU_PF_VF_BAR4_ADDR));
 
+	hwbase = ioremap_wc(base, MBOX_SIZE * pf->total_vfs);
 	if (!hwbase) {
 		err = -ENOMEM;
 		goto free_wq;
@@ -778,6 +787,9 @@ static void otx2_process_pfaf_mbox_msg(struct otx2_nic *pf,
 		break;
 	case MBOX_MSG_CGX_STATS:
 		mbox_handler_cgx_stats(pf, (struct cgx_stats_rsp *)msg);
+		break;
+	case MBOX_MSG_CGX_FEC_STATS:
+		mbox_handler_cgx_fec_stats(pf, (struct cgx_fec_stats_rsp *)msg);
 		break;
 	default:
 		if (msg->rc)
@@ -1039,7 +1051,7 @@ static int otx2_pfaf_mbox_init(struct otx2_nic *pf)
 	 * device memory to allow unaligned accesses.
 	 */
 	hwbase = ioremap_wc(pci_resource_start(pf->pdev, PCI_MBOX_BAR_NUM),
-			    pci_resource_len(pf->pdev, PCI_MBOX_BAR_NUM));
+			    MBOX_SIZE);
 	if (!hwbase) {
 		dev_err(pf->dev, "Unable to map PFAF mailbox region\n");
 		err = -ENOMEM;
@@ -1276,6 +1288,33 @@ static void otx2_free_sq_res(struct otx2_nic *pf)
 	}
 }
 
+static int otx2_get_rbuf_size(struct otx2_nic *pf, int mtu)
+{
+	int frame_size;
+	int total_size;
+	int rbuf_size;
+
+	/* The data transferred by NIX to memory consists of actual packet
+	 * plus additional data which has timestamp and/or EDSA/HIGIG2
+	 * headers if interface is configured in corresponding modes.
+	 * NIX transfers entire data using 6 segments/buffers and writes
+	 * a CQE_RX descriptor with those segment addresses. First segment
+	 * has additional data prepended to packet. Also software omits a
+	 * headroom of 128 bytes and sizeof(struct skb_shared_info) in
+	 * each segment. Hence the total size of memory needed
+	 * to receive a packet with 'mtu' is:
+	 * frame size =  mtu + additional data;
+	 * memory = frame_size + (headroom + struct skb_shared_info size) * 6;
+	 * each receive buffer size = memory / 6;
+	 */
+	frame_size = mtu + OTX2_ETH_HLEN + OTX2_HW_TIMESTAMP_LEN;
+	total_size = frame_size + (OTX2_HEAD_ROOM +
+		     OTX2_DATA_ALIGN(sizeof(struct skb_shared_info))) * 6;
+	rbuf_size = total_size / 6;
+
+	return ALIGN(rbuf_size, 2048);
+}
+
 static int otx2_init_hw_resources(struct otx2_nic *pf)
 {
 	struct nix_lf_free_req *free_req;
@@ -1292,9 +1331,9 @@ static int otx2_init_hw_resources(struct otx2_nic *pf)
 	hw->sqpool_cnt = hw->tx_queues;
 	hw->pool_cnt = hw->rqpool_cnt + hw->sqpool_cnt;
 
-	/* Get the size of receive buffers to allocate */
-	pf->rbsize = RCV_FRAG_LEN(OTX2_HW_TIMESTAMP_LEN + pf->netdev->mtu +
-				  OTX2_ETH_HLEN);
+	pf->max_frs = pf->netdev->mtu + OTX2_ETH_HLEN + OTX2_HW_TIMESTAMP_LEN;
+
+	pf->rbsize = otx2_get_rbuf_size(pf, pf->netdev->mtu);
 
 	mutex_lock(&mbox->lock);
 	/* NPA init */
@@ -1486,6 +1525,14 @@ int otx2_open(struct net_device *netdev)
 			   sizeof(struct otx2_rcv_queue), GFP_KERNEL);
 	if (!qset->rq)
 		goto err_free_mem;
+
+	if (test_bit(CN10K_LMTST, &pf->hw.cap_flag)) {
+		/* Reserve LMT lines for NPA AURA batch free */
+		pf->hw.npa_lmt_base = (__force u64 *)pf->hw.lmt_base;
+		/* Reserve LMT lines for NIX TX */
+		pf->hw.nix_lmt_base = (__force u64 *)((u64)pf->hw.npa_lmt_base +
+				      (NIX_LMTID_BASE * LMT_LINE_SIZE));
+	}
 
 	err = otx2_init_hw_resources(pf);
 	if (err)
@@ -2325,6 +2372,8 @@ static int otx2_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 		goto err_free_netdev;
 	}
 
+	otx2_setup_dev_hw_settings(pf);
+
 	/* Init PF <=> AF mailbox stuff */
 	err = otx2_pfaf_mbox_init(pf);
 	if (err)
@@ -2350,7 +2399,9 @@ static int otx2_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 	if (err)
 		goto err_detach_rsrc;
 
-	otx2_setup_dev_hw_settings(pf);
+	err = cn10k_pf_lmtst_init(pf);
+	if (err)
+		goto err_detach_rsrc;
 
 	/* Assign default mac address */
 	otx2_get_mac_from_af(netdev);
@@ -2405,7 +2456,7 @@ static int otx2_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 
 	/* MTU range: 64 - 9190 */
 	netdev->min_mtu = OTX2_MIN_MTU;
-	netdev->max_mtu = OTX2_MAX_MTU;
+	netdev->max_mtu = otx2_get_max_mtu(pf);
 
 	err = register_netdev(netdev);
 	if (err) {
@@ -2435,6 +2486,8 @@ err_del_mcam_entries:
 err_ptp_destroy:
 	otx2_ptp_destroy(pf);
 err_detach_rsrc:
+	if (hw->lmt_base)
+		iounmap(hw->lmt_base);
 	otx2_detach_resources(&pf->mbox);
 err_disable_mbox_intr:
 	otx2_disable_mbox_intr(pf);
@@ -2594,6 +2647,9 @@ static void otx2_remove(struct pci_dev *pdev)
 	otx2_ptp_destroy(pf);
 	otx2_mcam_flow_del(pf);
 	otx2_detach_resources(&pf->mbox);
+	if (pf->hw.lmt_base)
+		iounmap(pf->hw.lmt_base);
+
 	otx2_disable_mbox_intr(pf);
 	otx2_pfaf_mbox_destroy(pf);
 	pci_free_irq_vectors(pf->pdev);

@@ -30,6 +30,53 @@ struct {
 	__type(value, __u64);
 } lru_hash SEC(".maps");
 
+struct {
+	__uint(type, BPF_MAP_TYPE_PERCPU_ARRAY);
+	__uint(max_entries, 1);
+	__type(key, __u32);
+	__type(value, __u64);
+} percpu_array SEC(".maps");
+
+struct {
+	__uint(type, BPF_MAP_TYPE_PERCPU_HASH);
+	__uint(max_entries, 1);
+	__type(key, __u32);
+	__type(value, __u64);
+} percpu_hash SEC(".maps");
+
+struct {
+	__uint(type, BPF_MAP_TYPE_LRU_PERCPU_HASH);
+	__uint(max_entries, 1);
+	__type(key, __u32);
+	__type(value, __u64);
+} lru_percpu_hash SEC(".maps");
+
+struct inner_map {
+	__uint(type, BPF_MAP_TYPE_ARRAY);
+	__uint(max_entries, 1);
+	__type(key, int);
+	__type(value, __u64);
+} inner_map SEC(".maps");
+
+struct outer_arr {
+	__uint(type, BPF_MAP_TYPE_ARRAY_OF_MAPS);
+	__uint(max_entries, 1);
+	__uint(key_size, sizeof(int));
+	__uint(value_size, sizeof(int));
+	__array(values, struct inner_map);
+} outer_arr SEC(".maps") = {
+	.values = { [0] = &inner_map },
+};
+
+struct outer_hash {
+	__uint(type, BPF_MAP_TYPE_HASH_OF_MAPS);
+	__uint(max_entries, 1);
+	__uint(key_size, sizeof(int));
+	__array(values, struct inner_map);
+} outer_hash SEC(".maps") = {
+	.values = { [0] = &inner_map },
+};
+
 char _license[] SEC("license") = "GPL";
 
 int monitored_pid = 0;
@@ -61,6 +108,7 @@ SEC("lsm.s/bprm_committed_creds")
 int BPF_PROG(test_void_hook, struct linux_binprm *bprm)
 {
 	__u32 pid = bpf_get_current_pid_tgid() >> 32;
+	struct inner_map *inner_map;
 	char args[64];
 	__u32 key = 0;
 	__u64 *value;
@@ -80,6 +128,27 @@ int BPF_PROG(test_void_hook, struct linux_binprm *bprm)
 	value = bpf_map_lookup_elem(&lru_hash, &key);
 	if (value)
 		*value = 0;
+	value = bpf_map_lookup_elem(&percpu_array, &key);
+	if (value)
+		*value = 0;
+	value = bpf_map_lookup_elem(&percpu_hash, &key);
+	if (value)
+		*value = 0;
+	value = bpf_map_lookup_elem(&lru_percpu_hash, &key);
+	if (value)
+		*value = 0;
+	inner_map = bpf_map_lookup_elem(&outer_arr, &key);
+	if (inner_map) {
+		value = bpf_map_lookup_elem(inner_map, &key);
+		if (value)
+			*value = 0;
+	}
+	inner_map = bpf_map_lookup_elem(&outer_hash, &key);
+	if (inner_map) {
+		value = bpf_map_lookup_elem(inner_map, &key);
+		if (value)
+			*value = 0;
+	}
 
 	return 0;
 }

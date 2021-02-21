@@ -550,7 +550,7 @@ struct wl3501_80211_tx_plcp_hdr {
 struct wl3501_80211_tx_hdr {
 	struct wl3501_80211_tx_plcp_hdr	pclp_hdr;
 	struct ieee80211_hdr		mac_hdr;
-} __packed;
+} __packed __aligned(2);
 
 /*
    Reserve the beginning Tx space for descriptor use.

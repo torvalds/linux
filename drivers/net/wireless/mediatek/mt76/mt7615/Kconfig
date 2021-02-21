@@ -2,7 +2,8 @@
 
 config MT7615_COMMON
 	tristate
-	select MT76_CORE
+	select WANT_DEV_COREDUMP
+	select MT76_CONNAC_LIB
 
 config MT7615E
 	tristate "MediaTek MT7615E and MT7663E (PCIe) support"

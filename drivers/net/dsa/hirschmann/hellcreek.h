@@ -3,7 +3,7 @@
  * DSA driver for:
  * Hirschmann Hellcreek TSN switch.
  *
- * Copyright (C) 2019,2020 Linutronix GmbH
+ * Copyright (C) 2019-2021 Linutronix GmbH
  * Author Kurt Kanzenbach <kurt@linutronix.de>
  */
 
@@ -21,6 +21,7 @@
 #include <linux/ptp_clock_kernel.h>
 #include <linux/timecounter.h>
 #include <net/dsa.h>
+#include <net/pkt_sched.h>
 
 /* Ports:
  *  - 0: CPU
@@ -246,6 +247,10 @@ struct hellcreek_port {
 
 	/* Per-port timestamping resources */
 	struct hellcreek_port_hwtstamp port_hwtstamp;
+
+	/* Per-port Qbv schedule information */
+	struct tc_taprio_qopt_offload *current_schedule;
+	struct delayed_work schedule_work;
 };
 
 struct hellcreek_fdb_entry {
@@ -281,6 +286,22 @@ struct hellcreek {
 	u64 last_ts;		/* Used for overflow detection */
 	u16 status_out;		/* ptp.status_out shadow */
 	size_t fdb_entries;
+};
+
+/* A Qbv schedule can only started up to 8 seconds in the future. If the delta
+ * between the base time and the current ptp time is larger than 8 seconds, then
+ * use periodic work to check for the schedule to be started. The delayed work
+ * cannot be armed directly to $base_time - 8 + X, because for large deltas the
+ * PTP frequency matters.
+ */
+#define HELLCREEK_SCHEDULE_PERIOD	(2 * HZ)
+#define dw_to_hellcreek_port(dw)				\
+	container_of(dw, struct hellcreek_port, schedule_work)
+
+/* Devlink resources */
+enum hellcreek_devlink_resource_id {
+	HELLCREEK_DEVLINK_PARAM_ID_VLAN_TABLE,
+	HELLCREEK_DEVLINK_PARAM_ID_FDB_TABLE,
 };
 
 #endif /* _HELLCREEK_H_ */

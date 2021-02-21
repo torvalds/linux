@@ -157,26 +157,30 @@ void ipa_cmd_dma_shared_mem_add(struct gsi_trans *trans, u32 offset,
 				u16 size, dma_addr_t addr, bool toward_ipa);
 
 /**
- * ipa_cmd_tag_process_add() - Add IPA tag process commands to a transaction
+ * ipa_cmd_pipeline_clear_add() - Add pipeline clear commands to a transaction
  * @trans:	GSI transaction
  */
-void ipa_cmd_tag_process_add(struct gsi_trans *trans);
+void ipa_cmd_pipeline_clear_add(struct gsi_trans *trans);
 
 /**
- * ipa_cmd_tag_process_add_count() - Number of commands in a tag process
+ * ipa_cmd_pipeline_clear_count() - # commands required to clear pipeline
  *
  * Return:	The number of elements to allocate in a transaction
- *		to hold tag process commands
+ *		to hold commands to clear the pipeline
  */
-u32 ipa_cmd_tag_process_count(void);
+u32 ipa_cmd_pipeline_clear_count(void);
 
 /**
- * ipa_cmd_tag_process() - Perform a tag process
- *
- * @Return:	The number of elements to allocate in a transaction
- *		to hold tag process commands
+ * ipa_cmd_pipeline_clear_wait() - Wait pipeline clear to complete
+ * @ipa:	- IPA pointer
  */
-void ipa_cmd_tag_process(struct ipa *ipa);
+void ipa_cmd_pipeline_clear_wait(struct ipa *ipa);
+
+/**
+ * ipa_cmd_pipeline_clear() - Clear the hardware pipeline
+ * @ipa:	- IPA pointer
+ */
+void ipa_cmd_pipeline_clear(struct ipa *ipa);
 
 /**
  * ipa_cmd_trans_alloc() - Allocate a transaction for the command TX endpoint

@@ -689,12 +689,9 @@ static struct sk_buff *receive_small(struct net_device *dev,
 			page = xdp_page;
 		}
 
-		xdp.data_hard_start = buf + VIRTNET_RX_PAD + vi->hdr_len;
-		xdp.data = xdp.data_hard_start + xdp_headroom;
-		xdp.data_end = xdp.data + len;
-		xdp.data_meta = xdp.data;
-		xdp.rxq = &rq->xdp_rxq;
-		xdp.frame_sz = buflen;
+		xdp_init_buff(&xdp, buflen, &rq->xdp_rxq);
+		xdp_prepare_buff(&xdp, buf + VIRTNET_RX_PAD + vi->hdr_len,
+				 xdp_headroom, len, true);
 		orig_data = xdp.data;
 		act = bpf_prog_run_xdp(xdp_prog, &xdp);
 		stats->xdp_packets++;
@@ -859,12 +856,9 @@ static struct sk_buff *receive_mergeable(struct net_device *dev,
 		 * the descriptor on if we get an XDP_TX return code.
 		 */
 		data = page_address(xdp_page) + offset;
-		xdp.data_hard_start = data - VIRTIO_XDP_HEADROOM + vi->hdr_len;
-		xdp.data = data + vi->hdr_len;
-		xdp.data_end = xdp.data + (len - vi->hdr_len);
-		xdp.data_meta = xdp.data;
-		xdp.rxq = &rq->xdp_rxq;
-		xdp.frame_sz = frame_sz - vi->hdr_len;
+		xdp_init_buff(&xdp, frame_sz - vi->hdr_len, &rq->xdp_rxq);
+		xdp_prepare_buff(&xdp, data - VIRTIO_XDP_HEADROOM + vi->hdr_len,
+				 VIRTIO_XDP_HEADROOM, len - vi->hdr_len, true);
 
 		act = bpf_prog_run_xdp(xdp_prog, &xdp);
 		stats->xdp_packets++;

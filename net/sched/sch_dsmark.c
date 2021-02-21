@@ -150,7 +150,8 @@ errout:
 	return err;
 }
 
-static int dsmark_delete(struct Qdisc *sch, unsigned long arg)
+static int dsmark_delete(struct Qdisc *sch, unsigned long arg,
+			 struct netlink_ext_ack *extack)
 {
 	struct dsmark_qdisc_data *p = qdisc_priv(sch);
 

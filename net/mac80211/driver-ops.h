@@ -1413,4 +1413,20 @@ static inline void drv_sta_set_4addr(struct ieee80211_local *local,
 	trace_drv_return_void(local);
 }
 
+static inline void drv_sta_set_decap_offload(struct ieee80211_local *local,
+					     struct ieee80211_sub_if_data *sdata,
+					     struct ieee80211_sta *sta,
+					     bool enabled)
+{
+	sdata = get_bss_sdata(sdata);
+	if (!check_sdata_in_driver(sdata))
+		return;
+
+	trace_drv_sta_set_decap_offload(local, sdata, sta, enabled);
+	if (local->ops->sta_set_decap_offload)
+		local->ops->sta_set_decap_offload(&local->hw, &sdata->vif, sta,
+						  enabled);
+	trace_drv_return_void(local);
+}
+
 #endif /* __MAC80211_DRIVER_OPS */

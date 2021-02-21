@@ -10,6 +10,7 @@
 #include <linux/random.h>
 #include <net/tcp.h>
 #include <net/inet_connection_sock.h>
+#include <uapi/linux/mptcp.h>
 
 #define MPTCP_SUPPORTED_VERSION	1
 
@@ -24,6 +25,7 @@
 #define OPTION_MPTCP_ADD_ADDR6	BIT(7)
 #define OPTION_MPTCP_RM_ADDR	BIT(8)
 #define OPTION_MPTCP_FASTCLOSE	BIT(9)
+#define OPTION_MPTCP_PRIO	BIT(10)
 
 /* MPTCP option subtypes */
 #define MPTCPOPT_MP_CAPABLE	0
@@ -59,6 +61,8 @@
 #define TCPOLEN_MPTCP_ADD_ADDR6_BASE_PORT	24
 #define TCPOLEN_MPTCP_PORT_LEN		4
 #define TCPOLEN_MPTCP_RM_ADDR_BASE	4
+#define TCPOLEN_MPTCP_PRIO		3
+#define TCPOLEN_MPTCP_PRIO_ALIGN	4
 #define TCPOLEN_MPTCP_FASTCLOSE		12
 
 /* MPTCP MP_JOIN flags */
@@ -86,6 +90,9 @@
 #define MPTCP_ADDR_IPVERSION_4	4
 #define MPTCP_ADDR_IPVERSION_6	6
 
+/* MPTCP MP_PRIO flags */
+#define MPTCP_PRIO_BKUP		BIT(0)
+
 /* MPTCP socket flags */
 #define MPTCP_DATA_READY	0
 #define MPTCP_NOSPACE		1
@@ -95,6 +102,7 @@
 #define MPTCP_WORK_CLOSE_SUBFLOW 5
 #define MPTCP_PUSH_PENDING	6
 #define MPTCP_CLEAN_UNA		7
+#define MPTCP_ERROR_REPORT	8
 
 static inline bool before64(__u64 seq1, __u64 seq2)
 {
@@ -116,6 +124,7 @@ struct mptcp_options_received {
 		dss : 1,
 		add_addr : 1,
 		rm_addr : 1,
+		mp_prio : 1,
 		family : 4,
 		echo : 1,
 		backup : 1;
@@ -196,10 +205,6 @@ struct mptcp_pm_data {
 	u8		add_addr_accepted;
 	u8		local_addr_used;
 	u8		subflows;
-	u8		add_addr_signal_max;
-	u8		add_addr_accept_max;
-	u8		local_addr_max;
-	u8		subflows_max;
 	u8		status;
 	u8		rm_id;
 };
@@ -233,7 +238,6 @@ struct mptcp_sock {
 	u64		wnd_end;
 	unsigned long	timer_ival;
 	u32		token;
-	int		rmem_pending;
 	int		rmem_released;
 	unsigned long	flags;
 	bool		can_ack;
@@ -285,6 +289,11 @@ struct mptcp_sock {
 #define mptcp_for_each_subflow(__msk, __subflow)			\
 	list_for_each_entry(__subflow, &((__msk)->conn_list), node)
 
+static inline void msk_owned_by_me(const struct mptcp_sock *msk)
+{
+	sock_owned_by_me((const struct sock *)msk);
+}
+
 static inline struct mptcp_sock *mptcp_sk(const struct sock *sk)
 {
 	return (struct mptcp_sock *)sk;
@@ -292,7 +301,7 @@ static inline struct mptcp_sock *mptcp_sk(const struct sock *sk)
 
 static inline int __mptcp_space(const struct sock *sk)
 {
-	return tcp_space(sk) + READ_ONCE(mptcp_sk(sk)->rmem_pending);
+	return tcp_space(sk) + READ_ONCE(mptcp_sk(sk)->rmem_released);
 }
 
 static inline struct mptcp_data_frag *mptcp_send_head(const struct sock *sk)
@@ -325,19 +334,12 @@ static inline struct mptcp_data_frag *mptcp_pending_tail(const struct sock *sk)
 	return list_last_entry(&msk->rtx_queue, struct mptcp_data_frag, list);
 }
 
-static inline struct mptcp_data_frag *mptcp_rtx_tail(const struct sock *sk)
-{
-	struct mptcp_sock *msk = mptcp_sk(sk);
-
-	if (!before64(msk->snd_nxt, READ_ONCE(msk->snd_una)))
-		return NULL;
-
-	return list_last_entry(&msk->rtx_queue, struct mptcp_data_frag, list);
-}
-
 static inline struct mptcp_data_frag *mptcp_rtx_head(const struct sock *sk)
 {
 	struct mptcp_sock *msk = mptcp_sk(sk);
+
+	if (msk->snd_una == READ_ONCE(msk->snd_nxt))
+		return NULL;
 
 	return list_first_entry_or_null(&msk->rtx_queue, struct mptcp_data_frag, list);
 }
@@ -372,6 +374,15 @@ enum mptcp_data_avail {
 	MPTCP_SUBFLOW_OOO_DATA
 };
 
+struct mptcp_delegated_action {
+	struct napi_struct napi;
+	struct list_head head;
+};
+
+DECLARE_PER_CPU(struct mptcp_delegated_action, mptcp_delegated_actions);
+
+#define MPTCP_DELEGATE_SEND		0
+
 /* MPTCP subflow context */
 struct mptcp_subflow_context {
 	struct	list_head node;/* conn_list of subflows */
@@ -396,6 +407,7 @@ struct mptcp_subflow_context {
 		map_valid : 1,
 		mpc_map : 1,
 		backup : 1,
+		send_mp_prio : 1,
 		rx_eof : 1,
 		can_ack : 1,        /* only after processing the remote a key */
 		disposable : 1;	    /* ctx can be free at ulp release time */
@@ -408,12 +420,16 @@ struct mptcp_subflow_context {
 	u8	local_id;
 	u8	remote_id;
 
+	long	delegated_status;
+	struct	list_head delegated_node;   /* link into delegated_action, protected by local BH */
+
 	struct	sock *tcp_sock;	    /* tcp sk backpointer */
 	struct	sock *conn;	    /* parent mptcp_sock */
 	const	struct inet_connection_sock_af_ops *icsk_af_ops;
 	void	(*tcp_data_ready)(struct sock *sk);
 	void	(*tcp_state_change)(struct sock *sk);
 	void	(*tcp_write_space)(struct sock *sk);
+	void	(*tcp_error_report)(struct sock *sk);
 
 	struct	rcu_head rcu;
 };
@@ -456,6 +472,61 @@ static inline void mptcp_add_pending_subflow(struct mptcp_sock *msk,
 	spin_unlock_bh(&msk->join_list_lock);
 }
 
+void mptcp_subflow_process_delegated(struct sock *ssk);
+
+static inline void mptcp_subflow_delegate(struct mptcp_subflow_context *subflow)
+{
+	struct mptcp_delegated_action *delegated;
+	bool schedule;
+
+	/* The implied barrier pairs with mptcp_subflow_delegated_done(), and
+	 * ensures the below list check sees list updates done prior to status
+	 * bit changes
+	 */
+	if (!test_and_set_bit(MPTCP_DELEGATE_SEND, &subflow->delegated_status)) {
+		/* still on delegated list from previous scheduling */
+		if (!list_empty(&subflow->delegated_node))
+			return;
+
+		/* the caller held the subflow bh socket lock */
+		lockdep_assert_in_softirq();
+
+		delegated = this_cpu_ptr(&mptcp_delegated_actions);
+		schedule = list_empty(&delegated->head);
+		list_add_tail(&subflow->delegated_node, &delegated->head);
+		sock_hold(mptcp_subflow_tcp_sock(subflow));
+		if (schedule)
+			napi_schedule(&delegated->napi);
+	}
+}
+
+static inline struct mptcp_subflow_context *
+mptcp_subflow_delegated_next(struct mptcp_delegated_action *delegated)
+{
+	struct mptcp_subflow_context *ret;
+
+	if (list_empty(&delegated->head))
+		return NULL;
+
+	ret = list_first_entry(&delegated->head, struct mptcp_subflow_context, delegated_node);
+	list_del_init(&ret->delegated_node);
+	return ret;
+}
+
+static inline bool mptcp_subflow_has_delegated_action(const struct mptcp_subflow_context *subflow)
+{
+	return test_bit(MPTCP_DELEGATE_SEND, &subflow->delegated_status);
+}
+
+static inline void mptcp_subflow_delegated_done(struct mptcp_subflow_context *subflow)
+{
+	/* pairs with mptcp_subflow_delegate, ensures delegate_node is updated before
+	 * touching the status bit
+	 */
+	smp_wmb();
+	clear_bit(MPTCP_DELEGATE_SEND, &subflow->delegated_status);
+}
+
 int mptcp_is_enabled(struct net *net);
 unsigned int mptcp_get_add_addr_timeout(struct net *net);
 void mptcp_subflow_fully_established(struct mptcp_subflow_context *subflow,
@@ -463,14 +534,19 @@ void mptcp_subflow_fully_established(struct mptcp_subflow_context *subflow,
 bool mptcp_subflow_data_available(struct sock *sk);
 void __init mptcp_subflow_init(void);
 void mptcp_subflow_shutdown(struct sock *sk, struct sock *ssk, int how);
-void __mptcp_close_ssk(struct sock *sk, struct sock *ssk,
-		       struct mptcp_subflow_context *subflow);
+void mptcp_close_ssk(struct sock *sk, struct sock *ssk,
+		     struct mptcp_subflow_context *subflow);
 void mptcp_subflow_reset(struct sock *ssk);
+void mptcp_sock_graft(struct sock *sk, struct socket *parent);
+struct socket *__mptcp_nmpc_socket(const struct mptcp_sock *msk);
 
 /* called with sk socket lock held */
 int __mptcp_subflow_connect(struct sock *sk, const struct mptcp_addr_info *loc,
 			    const struct mptcp_addr_info *remote);
 int mptcp_subflow_create_socket(struct sock *sk, struct socket **new_sock);
+void mptcp_info2sockaddr(const struct mptcp_addr_info *info,
+			 struct sockaddr_storage *addr,
+			 unsigned short family);
 
 static inline void mptcp_subflow_tcp_fallback(struct sock *sk,
 					      struct mptcp_subflow_context *ctx)
@@ -478,6 +554,7 @@ static inline void mptcp_subflow_tcp_fallback(struct sock *sk,
 	sk->sk_data_ready = ctx->tcp_data_ready;
 	sk->sk_state_change = ctx->tcp_state_change;
 	sk->sk_write_space = ctx->tcp_write_space;
+	sk->sk_error_report = ctx->tcp_error_report;
 
 	inet_csk(sk)->icsk_af_ops = ctx->icsk_af_ops;
 }
@@ -505,6 +582,7 @@ bool mptcp_finish_join(struct sock *sk);
 bool mptcp_schedule_work(struct sock *sk);
 void __mptcp_check_push(struct sock *sk, struct sock *ssk);
 void __mptcp_data_acked(struct sock *sk);
+void __mptcp_error_report(struct sock *sk);
 void mptcp_subflow_eof(struct sock *sk);
 bool mptcp_update_rcv_data_fin(struct mptcp_sock *msk, u64 data_fin_seq, bool use_64bit);
 void __mptcp_flush_join_list(struct mptcp_sock *msk);
@@ -512,6 +590,25 @@ static inline bool mptcp_data_fin_enabled(const struct mptcp_sock *msk)
 {
 	return READ_ONCE(msk->snd_data_fin_enable) &&
 	       READ_ONCE(msk->write_seq) == READ_ONCE(msk->snd_nxt);
+}
+
+static inline bool mptcp_propagate_sndbuf(struct sock *sk, struct sock *ssk)
+{
+	if ((sk->sk_userlocks & SOCK_SNDBUF_LOCK) || ssk->sk_sndbuf <= READ_ONCE(sk->sk_sndbuf))
+		return false;
+
+	WRITE_ONCE(sk->sk_sndbuf, ssk->sk_sndbuf);
+	return true;
+}
+
+static inline void mptcp_write_space(struct sock *sk)
+{
+	if (sk_stream_is_writeable(sk)) {
+		/* pairs with memory barrier in mptcp_poll */
+		smp_mb();
+		if (test_and_clear_bit(MPTCP_NOSPACE, &mptcp_sk(sk)->flags))
+			sk_stream_write_space(sk);
+	}
 }
 
 void mptcp_destroy_common(struct mptcp_sock *msk);
@@ -539,8 +636,8 @@ void mptcp_crypto_hmac_sha(u64 key1, u64 key2, u8 *msg, int len, void *hmac);
 
 void __init mptcp_pm_init(void);
 void mptcp_pm_data_init(struct mptcp_sock *msk);
-void mptcp_pm_new_connection(struct mptcp_sock *msk, int server_side);
-void mptcp_pm_fully_established(struct mptcp_sock *msk);
+void mptcp_pm_new_connection(struct mptcp_sock *msk, const struct sock *ssk, int server_side);
+void mptcp_pm_fully_established(struct mptcp_sock *msk, const struct sock *ssk, gfp_t gfp);
 bool mptcp_pm_allow_new_subflow(struct mptcp_sock *msk);
 void mptcp_pm_connection_closed(struct mptcp_sock *msk);
 void mptcp_pm_subflow_established(struct mptcp_sock *msk,
@@ -550,7 +647,12 @@ void mptcp_pm_add_addr_received(struct mptcp_sock *msk,
 				const struct mptcp_addr_info *addr);
 void mptcp_pm_add_addr_send_ack(struct mptcp_sock *msk);
 void mptcp_pm_rm_addr_received(struct mptcp_sock *msk, u8 rm_id);
+void mptcp_pm_mp_prio_received(struct sock *sk, u8 bkup);
+int mptcp_pm_nl_mp_prio_send_ack(struct mptcp_sock *msk,
+				 struct mptcp_addr_info *addr,
+				 u8 bkup);
 void mptcp_pm_free_anno_list(struct mptcp_sock *msk);
+bool mptcp_pm_sport_in_anno_list(struct mptcp_sock *msk, const struct sock *sk);
 struct mptcp_pm_add_entry *
 mptcp_pm_del_add_timer(struct mptcp_sock *msk,
 		       struct mptcp_addr_info *addr);
@@ -560,6 +662,11 @@ int mptcp_pm_announce_addr(struct mptcp_sock *msk,
 			   bool echo, bool port);
 int mptcp_pm_remove_addr(struct mptcp_sock *msk, u8 local_id);
 int mptcp_pm_remove_subflow(struct mptcp_sock *msk, u8 local_id);
+
+void mptcp_event(enum mptcp_event_type type, const struct mptcp_sock *msk,
+		 const struct sock *ssk, gfp_t gfp);
+void mptcp_event_addr_announced(const struct mptcp_sock *msk, const struct mptcp_addr_info *info);
+void mptcp_event_addr_removed(const struct mptcp_sock *msk, u8 id);
 
 static inline bool mptcp_pm_should_add_signal(struct mptcp_sock *msk)
 {
@@ -608,13 +715,13 @@ int mptcp_pm_get_local_id(struct mptcp_sock *msk, struct sock_common *skc);
 
 void __init mptcp_pm_nl_init(void);
 void mptcp_pm_nl_data_init(struct mptcp_sock *msk);
-void mptcp_pm_nl_fully_established(struct mptcp_sock *msk);
-void mptcp_pm_nl_subflow_established(struct mptcp_sock *msk);
-void mptcp_pm_nl_add_addr_received(struct mptcp_sock *msk);
-void mptcp_pm_nl_add_addr_send_ack(struct mptcp_sock *msk);
-void mptcp_pm_nl_rm_addr_received(struct mptcp_sock *msk);
+void mptcp_pm_nl_work(struct mptcp_sock *msk);
 void mptcp_pm_nl_rm_subflow_received(struct mptcp_sock *msk, u8 rm_id);
 int mptcp_pm_nl_get_local_id(struct mptcp_sock *msk, struct sock_common *skc);
+unsigned int mptcp_pm_get_add_addr_signal_max(struct mptcp_sock *msk);
+unsigned int mptcp_pm_get_add_addr_accept_max(struct mptcp_sock *msk);
+unsigned int mptcp_pm_get_subflows_max(struct mptcp_sock *msk);
+unsigned int mptcp_pm_get_local_addr_max(struct mptcp_sock *msk);
 
 static inline struct mptcp_ext *mptcp_get_ext(struct sk_buff *skb)
 {

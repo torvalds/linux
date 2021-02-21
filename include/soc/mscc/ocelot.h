@@ -54,16 +54,17 @@
  * PGID_CPU: used for whitelisting certain MAC addresses, such as the addresses
  *           of the switch port net devices, towards the CPU port module.
  * PGID_UC: the flooding destinations for unknown unicast traffic.
- * PGID_MC: the flooding destinations for broadcast and non-IP multicast
- *          traffic.
+ * PGID_MC: the flooding destinations for non-IP multicast traffic.
  * PGID_MCIPV4: the flooding destinations for IPv4 multicast traffic.
  * PGID_MCIPV6: the flooding destinations for IPv6 multicast traffic.
+ * PGID_BC: the flooding destinations for broadcast traffic.
  */
-#define PGID_CPU			59
-#define PGID_UC				60
-#define PGID_MC				61
-#define PGID_MCIPV4			62
-#define PGID_MCIPV6			63
+#define PGID_CPU			58
+#define PGID_UC				59
+#define PGID_MC				60
+#define PGID_MCIPV4			61
+#define PGID_MCIPV6			62
+#define PGID_BC				63
 
 #define for_each_unicast_dest_pgid(ocelot, pgid)		\
 	for ((pgid) = 0;					\
@@ -86,9 +87,6 @@
 /* Source PGIDs, one per physical port */
 #define PGID_SRC			80
 
-#define IFH_INJ_BYPASS			BIT(31)
-#define IFH_INJ_POP_CNT_DISABLE		(3 << 28)
-
 #define IFH_TAG_TYPE_C			0
 #define IFH_TAG_TYPE_S			1
 
@@ -98,10 +96,7 @@
 #define IFH_REW_OP_TWO_STEP_PTP		0x3
 #define IFH_REW_OP_ORIGIN_PTP		0x5
 
-#define OCELOT_TAG_LEN			16
-#define OCELOT_SHORT_PREFIX_LEN		4
-#define OCELOT_LONG_PREFIX_LEN		16
-#define OCELOT_TOTAL_TAG_LEN	(OCELOT_SHORT_PREFIX_LEN + OCELOT_TAG_LEN)
+#define OCELOT_NUM_TC			8
 
 #define OCELOT_SPEED_2500		0
 #define OCELOT_SPEED_1000		1
@@ -116,6 +111,8 @@
 
 #define REG_RESERVED_ADDR		0xffffffff
 #define REG_RESERVED(reg)		REG(reg, REG_RESERVED_ADDR)
+
+#define OCELOT_MRP_CPUQ			7
 
 enum ocelot_target {
 	ANA = 1,
@@ -563,6 +560,8 @@ struct ocelot_ops {
 	int (*netdev_to_port)(struct net_device *dev);
 	int (*reset)(struct ocelot *ocelot);
 	u16 (*wm_enc)(u16 value);
+	u16 (*wm_dec)(u16 value);
+	void (*wm_stat)(u32 val, u32 *inuse, u32 *maxuse);
 };
 
 struct ocelot_vcap_block {
@@ -574,6 +573,18 @@ struct ocelot_vcap_block {
 struct ocelot_vlan {
 	bool valid;
 	u16 vid;
+};
+
+enum ocelot_sb {
+	OCELOT_SB_BUF,
+	OCELOT_SB_REF,
+	OCELOT_SB_NUM,
+};
+
+enum ocelot_sb_pool {
+	OCELOT_SB_POOL_ING,
+	OCELOT_SB_POOL_EGR,
+	OCELOT_SB_POOL_NUM,
 };
 
 struct ocelot_port {
@@ -595,10 +606,17 @@ struct ocelot_port {
 	phy_interface_t			phy_mode;
 
 	u8				*xmit_template;
+	bool				is_dsa_8021q_cpu;
+	bool				learn_ena;
+
+	struct net_device		*bond;
+	bool				lag_tx_active;
 };
 
 struct ocelot {
 	struct device			*dev;
+	struct devlink			*devlink;
+	struct devlink_port		*devlink_ports;
 
 	const struct ocelot_ops		*ops;
 	struct regmap			*targets[TARGET_MAX];
@@ -607,7 +625,9 @@ struct ocelot {
 	const struct ocelot_stat_layout	*stats_layout;
 	unsigned int			num_stats;
 
-	int				shared_queue_sz;
+	u32				pool_size[OCELOT_SB_NUM][OCELOT_SB_POOL_NUM];
+	int				packet_buffer_size;
+	int				num_frame_refs;
 	int				num_mact_rows;
 
 	struct net_device		*hw_bridge_dev;
@@ -632,10 +652,8 @@ struct ocelot {
 
 	int				npi;
 
-	enum ocelot_tag_prefix		inj_prefix;
-	enum ocelot_tag_prefix		xtr_prefix;
-
-	u32				*lags;
+	enum ocelot_tag_prefix		npi_inj_prefix;
+	enum ocelot_tag_prefix		npi_xtr_prefix;
 
 	struct list_head		multicast;
 	struct list_head		pgids;
@@ -661,6 +679,12 @@ struct ocelot {
 	/* Protects the PTP clock */
 	spinlock_t			ptp_clock_lock;
 	struct ptp_pin_desc		ptp_pins[OCELOT_PTP_PINS_NUM];
+
+#if IS_ENABLED(CONFIG_BRIDGE_MRP)
+	u16				mrp_ring_id;
+	struct net_device		*mrp_p_port;
+	struct net_device		*mrp_s_port;
+#endif
 };
 
 struct ocelot_policer {
@@ -719,6 +743,40 @@ u32 __ocelot_target_read_ix(struct ocelot *ocelot, enum ocelot_target target,
 void __ocelot_target_write_ix(struct ocelot *ocelot, enum ocelot_target target,
 			      u32 val, u32 reg, u32 offset);
 
+/* Packet I/O */
+#if IS_ENABLED(CONFIG_MSCC_OCELOT_SWITCH_LIB)
+
+bool ocelot_can_inject(struct ocelot *ocelot, int grp);
+void ocelot_port_inject_frame(struct ocelot *ocelot, int port, int grp,
+			      u32 rew_op, struct sk_buff *skb);
+int ocelot_xtr_poll_frame(struct ocelot *ocelot, int grp, struct sk_buff **skb);
+void ocelot_drain_cpu_queue(struct ocelot *ocelot, int grp);
+
+#else
+
+static inline bool ocelot_can_inject(struct ocelot *ocelot, int grp)
+{
+	return false;
+}
+
+static inline void ocelot_port_inject_frame(struct ocelot *ocelot, int port,
+					    int grp, u32 rew_op,
+					    struct sk_buff *skb)
+{
+}
+
+static inline int ocelot_xtr_poll_frame(struct ocelot *ocelot, int grp,
+					struct sk_buff **skb)
+{
+	return -EIO;
+}
+
+static inline void ocelot_drain_cpu_queue(struct ocelot *ocelot, int grp)
+{
+}
+
+#endif
+
 /* Hardware initialization */
 int ocelot_regfields_init(struct ocelot *ocelot,
 			  const struct reg_field *const regfields);
@@ -741,9 +799,13 @@ void ocelot_set_ageing_time(struct ocelot *ocelot, unsigned int msecs);
 int ocelot_port_flush(struct ocelot *ocelot, int port);
 void ocelot_adjust_link(struct ocelot *ocelot, int port,
 			struct phy_device *phydev);
-int ocelot_port_vlan_filtering(struct ocelot *ocelot, int port, bool enabled,
-			       struct switchdev_trans *trans);
+int ocelot_port_vlan_filtering(struct ocelot *ocelot, int port, bool enabled);
 void ocelot_bridge_stp_state_set(struct ocelot *ocelot, int port, u8 state);
+void ocelot_apply_bridge_fwd_mask(struct ocelot *ocelot);
+int ocelot_port_pre_bridge_flags(struct ocelot *ocelot, int port,
+				 struct switchdev_brport_flags val);
+void ocelot_port_bridge_flags(struct ocelot *ocelot, int port,
+			      struct switchdev_brport_flags val);
 int ocelot_port_bridge_join(struct ocelot *ocelot, int port,
 			    struct net_device *bridge);
 int ocelot_port_bridge_leave(struct ocelot *ocelot, int port,
@@ -779,5 +841,82 @@ int ocelot_port_mdb_add(struct ocelot *ocelot, int port,
 			const struct switchdev_obj_port_mdb *mdb);
 int ocelot_port_mdb_del(struct ocelot *ocelot, int port,
 			const struct switchdev_obj_port_mdb *mdb);
+int ocelot_port_lag_join(struct ocelot *ocelot, int port,
+			 struct net_device *bond,
+			 struct netdev_lag_upper_info *info);
+void ocelot_port_lag_leave(struct ocelot *ocelot, int port,
+			   struct net_device *bond);
+void ocelot_port_lag_change(struct ocelot *ocelot, int port, bool lag_tx_active);
+
+int ocelot_devlink_sb_register(struct ocelot *ocelot);
+void ocelot_devlink_sb_unregister(struct ocelot *ocelot);
+int ocelot_sb_pool_get(struct ocelot *ocelot, unsigned int sb_index,
+		       u16 pool_index,
+		       struct devlink_sb_pool_info *pool_info);
+int ocelot_sb_pool_set(struct ocelot *ocelot, unsigned int sb_index,
+		       u16 pool_index, u32 size,
+		       enum devlink_sb_threshold_type threshold_type,
+		       struct netlink_ext_ack *extack);
+int ocelot_sb_port_pool_get(struct ocelot *ocelot, int port,
+			    unsigned int sb_index, u16 pool_index,
+			    u32 *p_threshold);
+int ocelot_sb_port_pool_set(struct ocelot *ocelot, int port,
+			    unsigned int sb_index, u16 pool_index,
+			    u32 threshold, struct netlink_ext_ack *extack);
+int ocelot_sb_tc_pool_bind_get(struct ocelot *ocelot, int port,
+			       unsigned int sb_index, u16 tc_index,
+			       enum devlink_sb_pool_type pool_type,
+			       u16 *p_pool_index, u32 *p_threshold);
+int ocelot_sb_tc_pool_bind_set(struct ocelot *ocelot, int port,
+			       unsigned int sb_index, u16 tc_index,
+			       enum devlink_sb_pool_type pool_type,
+			       u16 pool_index, u32 threshold,
+			       struct netlink_ext_ack *extack);
+int ocelot_sb_occ_snapshot(struct ocelot *ocelot, unsigned int sb_index);
+int ocelot_sb_occ_max_clear(struct ocelot *ocelot, unsigned int sb_index);
+int ocelot_sb_occ_port_pool_get(struct ocelot *ocelot, int port,
+				unsigned int sb_index, u16 pool_index,
+				u32 *p_cur, u32 *p_max);
+int ocelot_sb_occ_tc_port_bind_get(struct ocelot *ocelot, int port,
+				   unsigned int sb_index, u16 tc_index,
+				   enum devlink_sb_pool_type pool_type,
+				   u32 *p_cur, u32 *p_max);
+
+#if IS_ENABLED(CONFIG_BRIDGE_MRP)
+int ocelot_mrp_add(struct ocelot *ocelot, int port,
+		   const struct switchdev_obj_mrp *mrp);
+int ocelot_mrp_del(struct ocelot *ocelot, int port,
+		   const struct switchdev_obj_mrp *mrp);
+int ocelot_mrp_add_ring_role(struct ocelot *ocelot, int port,
+			     const struct switchdev_obj_ring_role_mrp *mrp);
+int ocelot_mrp_del_ring_role(struct ocelot *ocelot, int port,
+			     const struct switchdev_obj_ring_role_mrp *mrp);
+#else
+static inline int ocelot_mrp_add(struct ocelot *ocelot, int port,
+				 const struct switchdev_obj_mrp *mrp)
+{
+	return -EOPNOTSUPP;
+}
+
+static inline int ocelot_mrp_del(struct ocelot *ocelot, int port,
+				 const struct switchdev_obj_mrp *mrp)
+{
+	return -EOPNOTSUPP;
+}
+
+static inline int
+ocelot_mrp_add_ring_role(struct ocelot *ocelot, int port,
+			 const struct switchdev_obj_ring_role_mrp *mrp)
+{
+	return -EOPNOTSUPP;
+}
+
+static inline int
+ocelot_mrp_del_ring_role(struct ocelot *ocelot, int port,
+			 const struct switchdev_obj_ring_role_mrp *mrp)
+{
+	return -EOPNOTSUPP;
+}
+#endif
 
 #endif

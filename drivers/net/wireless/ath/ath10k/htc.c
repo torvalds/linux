@@ -449,6 +449,10 @@ void ath10k_htc_rx_completion_handler(struct ath10k *ar, struct sk_buff *skb)
 	}
 
 	ep = &htc->endpoint[eid];
+	if (ep->service_id == ATH10K_HTC_SVC_ID_UNUSED) {
+		ath10k_warn(ar, "htc rx endpoint %d is not connected\n", eid);
+		goto out;
+	}
 
 	payload_len = __le16_to_cpu(hdr->len);
 

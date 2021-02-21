@@ -179,8 +179,8 @@ ice_get_drvinfo(struct net_device *netdev, struct ethtool_drvinfo *drvinfo)
 	struct ice_orom_info *orom;
 	struct ice_nvm_info *nvm;
 
-	nvm = &hw->nvm;
-	orom = &nvm->orom;
+	nvm = &hw->flash.nvm;
+	orom = &hw->flash.orom;
 
 	strscpy(drvinfo->driver, KBUILD_MODNAME, sizeof(drvinfo->driver));
 
@@ -188,7 +188,7 @@ ice_get_drvinfo(struct net_device *netdev, struct ethtool_drvinfo *drvinfo)
 	 * determined) which contains more pertinent information.
 	 */
 	snprintf(drvinfo->fw_version, sizeof(drvinfo->fw_version),
-		 "%x.%02x 0x%x %d.%d.%d", nvm->major_ver, nvm->minor_ver,
+		 "%x.%02x 0x%x %d.%d.%d", nvm->major, nvm->minor,
 		 nvm->eetrack, orom->major, orom->build, orom->patch);
 
 	strscpy(drvinfo->bus_info, pci_name(pf->pdev),
@@ -250,7 +250,7 @@ static int ice_get_eeprom_len(struct net_device *netdev)
 	struct ice_netdev_priv *np = netdev_priv(netdev);
 	struct ice_pf *pf = np->vsi->back;
 
-	return (int)pf->hw.nvm.flash_size;
+	return (int)pf->hw.flash.flash_size;
 }
 
 static int
@@ -1242,6 +1242,11 @@ static int ice_set_priv_flags(struct net_device *netdev, u32 flags)
 			enum ice_status status;
 			bool dcbx_agent_status;
 
+			/* Remove rule to direct LLDP packets to default VSI.
+			 * The FW LLDP engine will now be consuming them.
+			 */
+			ice_cfg_sw_lldp(vsi, false, false);
+
 			/* AQ command to start FW LLDP agent will return an
 			 * error if the agent is already started
 			 */
@@ -1269,11 +1274,6 @@ static int ice_set_priv_flags(struct net_device *netdev, u32 flags)
 			status = ice_init_pf_dcb(pf, true);
 			if (status)
 				dev_dbg(dev, "Fail to init DCB\n");
-
-			/* Remove rule to direct LLDP packets to default VSI.
-			 * The FW LLDP engine will now be consuming them.
-			 */
-			ice_cfg_sw_lldp(vsi, false, false);
 
 			/* Register for MIB change events */
 			status = ice_cfg_lldp_mib_change(&pf->hw, true);
@@ -2979,7 +2979,7 @@ ice_get_pauseparam(struct net_device *netdev, struct ethtool_pauseparam *pause)
 	pause->rx_pause = 0;
 	pause->tx_pause = 0;
 
-	dcbx_cfg = &pi->local_dcbx_cfg;
+	dcbx_cfg = &pi->qos_cfg.local_dcbx_cfg;
 
 	pcaps = kzalloc(sizeof(*pcaps), GFP_KERNEL);
 	if (!pcaps)
@@ -3031,7 +3031,7 @@ ice_set_pauseparam(struct net_device *netdev, struct ethtool_pauseparam *pause)
 
 	pi = vsi->port_info;
 	hw_link_info = &pi->phy.link_info;
-	dcbx_cfg = &pi->local_dcbx_cfg;
+	dcbx_cfg = &pi->qos_cfg.local_dcbx_cfg;
 	link_up = hw_link_info->link_info & ICE_AQ_LINK_UP;
 
 	/* Changing the port's flow control is not supported if this isn't the

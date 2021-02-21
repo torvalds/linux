@@ -430,27 +430,31 @@ enum {
 	/* device driver is going to provide hardware time stamp */
 	SKBTX_IN_PROGRESS = 1 << 2,
 
-	/* device driver supports TX zero-copy buffers */
-	SKBTX_DEV_ZEROCOPY = 1 << 3,
-
 	/* generate wifi status information (where possible) */
 	SKBTX_WIFI_STATUS = 1 << 4,
+
+	/* generate software time stamp when entering packet scheduling */
+	SKBTX_SCHED_TSTAMP = 1 << 6,
+};
+
+#define SKBTX_ANY_SW_TSTAMP	(SKBTX_SW_TSTAMP    | \
+				 SKBTX_SCHED_TSTAMP)
+#define SKBTX_ANY_TSTAMP	(SKBTX_HW_TSTAMP | SKBTX_ANY_SW_TSTAMP)
+
+/* Definitions for flags in struct skb_shared_info */
+enum {
+	/* use zcopy routines */
+	SKBFL_ZEROCOPY_ENABLE = BIT(0),
 
 	/* This indicates at least one fragment might be overwritten
 	 * (as in vmsplice(), sendfile() ...)
 	 * If we need to compute a TX checksum, we'll need to copy
 	 * all frags to avoid possible bad checksum
 	 */
-	SKBTX_SHARED_FRAG = 1 << 5,
-
-	/* generate software time stamp when entering packet scheduling */
-	SKBTX_SCHED_TSTAMP = 1 << 6,
+	SKBFL_SHARED_FRAG = BIT(1),
 };
 
-#define SKBTX_ZEROCOPY_FRAG	(SKBTX_DEV_ZEROCOPY | SKBTX_SHARED_FRAG)
-#define SKBTX_ANY_SW_TSTAMP	(SKBTX_SW_TSTAMP    | \
-				 SKBTX_SCHED_TSTAMP)
-#define SKBTX_ANY_TSTAMP	(SKBTX_HW_TSTAMP | SKBTX_ANY_SW_TSTAMP)
+#define SKBFL_ZEROCOPY_FRAG	(SKBFL_ZEROCOPY_ENABLE | SKBFL_SHARED_FRAG)
 
 /*
  * The callback notifies userspace to release buffers when skb DMA is done in
@@ -461,7 +465,8 @@ enum {
  * The desc field is used to track userspace buffer index.
  */
 struct ubuf_info {
-	void (*callback)(struct ubuf_info *, bool zerocopy_success);
+	void (*callback)(struct sk_buff *, struct ubuf_info *,
+			 bool zerocopy_success);
 	union {
 		struct {
 			unsigned long desc;
@@ -475,6 +480,7 @@ struct ubuf_info {
 		};
 	};
 	refcount_t refcnt;
+	u8 flags;
 
 	struct mmpin {
 		struct user_struct *user;
@@ -487,19 +493,14 @@ struct ubuf_info {
 int mm_account_pinned_pages(struct mmpin *mmp, size_t size);
 void mm_unaccount_pinned_pages(struct mmpin *mmp);
 
-struct ubuf_info *sock_zerocopy_alloc(struct sock *sk, size_t size);
-struct ubuf_info *sock_zerocopy_realloc(struct sock *sk, size_t size,
-					struct ubuf_info *uarg);
+struct ubuf_info *msg_zerocopy_alloc(struct sock *sk, size_t size);
+struct ubuf_info *msg_zerocopy_realloc(struct sock *sk, size_t size,
+				       struct ubuf_info *uarg);
 
-static inline void sock_zerocopy_get(struct ubuf_info *uarg)
-{
-	refcount_inc(&uarg->refcnt);
-}
+void msg_zerocopy_put_abort(struct ubuf_info *uarg, bool have_uref);
 
-void sock_zerocopy_put(struct ubuf_info *uarg);
-void sock_zerocopy_put_abort(struct ubuf_info *uarg, bool have_uref);
-
-void sock_zerocopy_callback(struct ubuf_info *uarg, bool success);
+void msg_zerocopy_callback(struct sk_buff *skb, struct ubuf_info *uarg,
+			   bool success);
 
 int skb_zerocopy_iter_dgram(struct sk_buff *skb, struct msghdr *msg, int len);
 int skb_zerocopy_iter_stream(struct sock *sk, struct sk_buff *skb,
@@ -510,7 +511,7 @@ int skb_zerocopy_iter_stream(struct sock *sk, struct sk_buff *skb,
  * the end of the header data, ie. at skb->end.
  */
 struct skb_shared_info {
-	__u8		__unused;
+	__u8		flags;
 	__u8		meta_len;
 	__u8		nr_frags;
 	__u8		tx_flags;
@@ -1086,6 +1087,8 @@ struct sk_buff *build_skb(void *data, unsigned int frag_size);
 struct sk_buff *build_skb_around(struct sk_buff *skb,
 				 void *data, unsigned int frag_size);
 
+struct sk_buff *napi_build_skb(void *data, unsigned int frag_size);
+
 /**
  * alloc_skb - allocate a network buffer
  * @size: size to allocate
@@ -1352,8 +1355,8 @@ void
 skb_flow_dissect_ct(const struct sk_buff *skb,
 		    struct flow_dissector *flow_dissector,
 		    void *target_container,
-		    u16 *ctinfo_map,
-		    size_t mapsize);
+		    u16 *ctinfo_map, size_t mapsize,
+		    bool post_ct);
 void
 skb_flow_dissect_tunnel_info(const struct sk_buff *skb,
 			     struct flow_dissector *flow_dissector,
@@ -1438,9 +1441,20 @@ static inline struct skb_shared_hwtstamps *skb_hwtstamps(struct sk_buff *skb)
 
 static inline struct ubuf_info *skb_zcopy(struct sk_buff *skb)
 {
-	bool is_zcopy = skb && skb_shinfo(skb)->tx_flags & SKBTX_DEV_ZEROCOPY;
+	bool is_zcopy = skb && skb_shinfo(skb)->flags & SKBFL_ZEROCOPY_ENABLE;
 
 	return is_zcopy ? skb_uarg(skb) : NULL;
+}
+
+static inline void net_zcopy_get(struct ubuf_info *uarg)
+{
+	refcount_inc(&uarg->refcnt);
+}
+
+static inline void skb_zcopy_init(struct sk_buff *skb, struct ubuf_info *uarg)
+{
+	skb_shinfo(skb)->destructor_arg = uarg;
+	skb_shinfo(skb)->flags |= uarg->flags;
 }
 
 static inline void skb_zcopy_set(struct sk_buff *skb, struct ubuf_info *uarg,
@@ -1450,16 +1464,15 @@ static inline void skb_zcopy_set(struct sk_buff *skb, struct ubuf_info *uarg,
 		if (unlikely(have_ref && *have_ref))
 			*have_ref = false;
 		else
-			sock_zerocopy_get(uarg);
-		skb_shinfo(skb)->destructor_arg = uarg;
-		skb_shinfo(skb)->tx_flags |= SKBTX_ZEROCOPY_FRAG;
+			net_zcopy_get(uarg);
+		skb_zcopy_init(skb, uarg);
 	}
 }
 
 static inline void skb_zcopy_set_nouarg(struct sk_buff *skb, void *val)
 {
 	skb_shinfo(skb)->destructor_arg = (void *)((uintptr_t) val | 0x1UL);
-	skb_shinfo(skb)->tx_flags |= SKBTX_ZEROCOPY_FRAG;
+	skb_shinfo(skb)->flags |= SKBFL_ZEROCOPY_FRAG;
 }
 
 static inline bool skb_zcopy_is_nouarg(struct sk_buff *skb)
@@ -1472,33 +1485,32 @@ static inline void *skb_zcopy_get_nouarg(struct sk_buff *skb)
 	return (void *)((uintptr_t) skb_shinfo(skb)->destructor_arg & ~0x1UL);
 }
 
-/* Release a reference on a zerocopy structure */
-static inline void skb_zcopy_clear(struct sk_buff *skb, bool zerocopy)
+static inline void net_zcopy_put(struct ubuf_info *uarg)
 {
-	struct ubuf_info *uarg = skb_zcopy(skb);
+	if (uarg)
+		uarg->callback(NULL, uarg, true);
+}
 
+static inline void net_zcopy_put_abort(struct ubuf_info *uarg, bool have_uref)
+{
 	if (uarg) {
-		if (skb_zcopy_is_nouarg(skb)) {
-			/* no notification callback */
-		} else if (uarg->callback == sock_zerocopy_callback) {
-			uarg->zerocopy = uarg->zerocopy && zerocopy;
-			sock_zerocopy_put(uarg);
-		} else {
-			uarg->callback(uarg, zerocopy);
-		}
-
-		skb_shinfo(skb)->tx_flags &= ~SKBTX_ZEROCOPY_FRAG;
+		if (uarg->callback == msg_zerocopy_callback)
+			msg_zerocopy_put_abort(uarg, have_uref);
+		else if (have_uref)
+			net_zcopy_put(uarg);
 	}
 }
 
-/* Abort a zerocopy operation and revert zckey on error in send syscall */
-static inline void skb_zcopy_abort(struct sk_buff *skb)
+/* Release a reference on a zerocopy structure */
+static inline void skb_zcopy_clear(struct sk_buff *skb, bool zerocopy_success)
 {
 	struct ubuf_info *uarg = skb_zcopy(skb);
 
 	if (uarg) {
-		sock_zerocopy_put_abort(uarg, false);
-		skb_shinfo(skb)->tx_flags &= ~SKBTX_ZEROCOPY_FRAG;
+		if (!skb_zcopy_is_nouarg(skb))
+			uarg->callback(skb, uarg, zerocopy_success);
+
+		skb_shinfo(skb)->flags &= ~SKBFL_ZEROCOPY_FRAG;
 	}
 }
 
@@ -2777,7 +2789,7 @@ static inline int skb_orphan_frags(struct sk_buff *skb, gfp_t gfp_mask)
 	if (likely(!skb_zcopy(skb)))
 		return 0;
 	if (!skb_zcopy_is_nouarg(skb) &&
-	    skb_uarg(skb)->callback == sock_zerocopy_callback)
+	    skb_uarg(skb)->callback == msg_zerocopy_callback)
 		return 0;
 	return skb_copy_ubufs(skb, gfp_mask);
 }
@@ -2808,7 +2820,26 @@ void skb_queue_purge(struct sk_buff_head *list);
 
 unsigned int skb_rbtree_purge(struct rb_root *root);
 
-void *netdev_alloc_frag(unsigned int fragsz);
+void *__netdev_alloc_frag_align(unsigned int fragsz, unsigned int align_mask);
+
+/**
+ * netdev_alloc_frag - allocate a page fragment
+ * @fragsz: fragment size
+ *
+ * Allocates a frag from a page for receive buffer.
+ * Uses GFP_ATOMIC allocations.
+ */
+static inline void *netdev_alloc_frag(unsigned int fragsz)
+{
+	return __netdev_alloc_frag_align(fragsz, ~0u);
+}
+
+static inline void *netdev_alloc_frag_align(unsigned int fragsz,
+					    unsigned int align)
+{
+	WARN_ON_ONCE(!is_power_of_2(align));
+	return __netdev_alloc_frag_align(fragsz, -align);
+}
 
 struct sk_buff *__netdev_alloc_skb(struct net_device *dev, unsigned int length,
 				   gfp_t gfp_mask);
@@ -2867,7 +2898,20 @@ static inline void skb_free_frag(void *addr)
 	page_frag_free(addr);
 }
 
-void *napi_alloc_frag(unsigned int fragsz);
+void *__napi_alloc_frag_align(unsigned int fragsz, unsigned int align_mask);
+
+static inline void *napi_alloc_frag(unsigned int fragsz)
+{
+	return __napi_alloc_frag_align(fragsz, ~0u);
+}
+
+static inline void *napi_alloc_frag_align(unsigned int fragsz,
+					  unsigned int align)
+{
+	WARN_ON_ONCE(!is_power_of_2(align));
+	return __napi_alloc_frag_align(fragsz, -align);
+}
+
 struct sk_buff *__napi_alloc_skb(struct napi_struct *napi,
 				 unsigned int length, gfp_t gfp_mask);
 static inline struct sk_buff *napi_alloc_skb(struct napi_struct *napi,
@@ -2877,7 +2921,7 @@ static inline struct sk_buff *napi_alloc_skb(struct napi_struct *napi,
 }
 void napi_consume_skb(struct sk_buff *skb, int budget);
 
-void __kfree_skb_flush(void);
+void napi_skb_free_stolen_head(struct sk_buff *skb);
 void __kfree_skb_defer(struct sk_buff *skb);
 
 /**
@@ -2929,12 +2973,28 @@ static inline struct page *dev_alloc_page(void)
 }
 
 /**
+ * dev_page_is_reusable - check whether a page can be reused for network Rx
+ * @page: the page to test
+ *
+ * A page shouldn't be considered for reusing/recycling if it was allocated
+ * under memory pressure or at a distant memory node.
+ *
+ * Returns false if this page should be returned to page allocator, true
+ * otherwise.
+ */
+static inline bool dev_page_is_reusable(const struct page *page)
+{
+	return likely(page_to_nid(page) == numa_mem_id() &&
+		      !page_is_pfmemalloc(page));
+}
+
+/**
  *	skb_propagate_pfmemalloc - Propagate pfmemalloc if skb is allocated after RX page
  *	@page: The page that was allocated from skb_alloc_page
  *	@skb: The skb that may need pfmemalloc set
  */
-static inline void skb_propagate_pfmemalloc(struct page *page,
-					     struct sk_buff *skb)
+static inline void skb_propagate_pfmemalloc(const struct page *page,
+					    struct sk_buff *skb)
 {
 	if (page_is_pfmemalloc(page))
 		skb->pfmemalloc = true;
@@ -3324,7 +3384,7 @@ static inline int skb_linearize(struct sk_buff *skb)
 static inline bool skb_has_shared_frag(const struct sk_buff *skb)
 {
 	return skb_is_nonlinear(skb) &&
-	       skb_shinfo(skb)->tx_flags & SKBTX_SHARED_FRAG;
+	       skb_shinfo(skb)->flags & SKBFL_SHARED_FRAG;
 }
 
 /**
@@ -3849,7 +3909,7 @@ static inline bool skb_defer_rx_timestamp(struct sk_buff *skb)
 void skb_complete_tx_timestamp(struct sk_buff *skb,
 			       struct skb_shared_hwtstamps *hwtstamps);
 
-void __skb_tstamp_tx(struct sk_buff *orig_skb,
+void __skb_tstamp_tx(struct sk_buff *orig_skb, const struct sk_buff *ack_skb,
 		     struct skb_shared_hwtstamps *hwtstamps,
 		     struct sock *sk, int tstype);
 
@@ -4609,6 +4669,11 @@ static inline void skb_reset_redirect(struct sk_buff *skb)
 #ifdef CONFIG_NET_REDIRECT
 	skb->redirected = 0;
 #endif
+}
+
+static inline bool skb_csum_is_sctp(struct sk_buff *skb)
+{
+	return skb->csum_not_inet;
 }
 
 static inline void skb_set_kcov_handle(struct sk_buff *skb,

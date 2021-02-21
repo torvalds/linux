@@ -15,6 +15,7 @@
 #include <net/inet_common.h>
 #include <net/tcp.h>
 #include <net/udp.h>
+#include <net/gro.h>
 
 #include "ip6_offload.h"
 

@@ -603,7 +603,7 @@ enum ice_status ice_get_initial_sw_cfg(struct ice_hw *hw)
 		}
 	} while (req_desc && !status);
 
-	devm_kfree(ice_hw_to_dev(hw), (void *)rbuf);
+	devm_kfree(ice_hw_to_dev(hw), rbuf);
 	return status;
 }
 

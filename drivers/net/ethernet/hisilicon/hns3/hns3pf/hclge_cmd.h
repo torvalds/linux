@@ -160,6 +160,7 @@ enum hclge_opcode_type {
 	HCLGE_OPC_TM_PRI_SCH_MODE_CFG   = 0x0813,
 	HCLGE_OPC_TM_QS_SCH_MODE_CFG    = 0x0814,
 	HCLGE_OPC_TM_BP_TO_QSET_MAPPING = 0x0815,
+	HCLGE_OPC_TM_NODES		= 0x0816,
 	HCLGE_OPC_ETS_TC_WEIGHT		= 0x0843,
 	HCLGE_OPC_QSET_DFX_STS		= 0x0844,
 	HCLGE_OPC_PRI_DFX_STS		= 0x0845,
@@ -385,11 +386,15 @@ enum HCLGE_CAP_BITS {
 	HCLGE_CAP_UDP_TUNNEL_CSUM_B,
 };
 
+enum HCLGE_API_CAP_BITS {
+	HCLGE_API_CAP_FLEX_RSS_TBL_B,
+};
+
 #define HCLGE_QUERY_CAP_LENGTH		3
 struct hclge_query_version_cmd {
 	__le32 firmware;
 	__le32 hardware;
-	__le32 rsv;
+	__le32 api_caps;
 	__le32 caps[HCLGE_QUERY_CAP_LENGTH]; /* capabilities of device */
 };
 
@@ -1126,7 +1131,8 @@ struct hclge_dev_specs_0_cmd {
 #define HCLGE_DEF_MAX_INT_GL		0x1FE0U
 
 struct hclge_dev_specs_1_cmd {
-	__le32 rsv0;
+	__le16 max_frm_size;
+	__le16 max_qset_num;
 	__le16 max_int_gl;
 	u8 rsv1[18];
 };
@@ -1138,9 +1144,9 @@ static inline void hclge_write_reg(void __iomem *base, u32 reg, u32 value)
 }
 
 #define hclge_write_dev(a, reg, value) \
-	hclge_write_reg((a)->io_base, (reg), (value))
+	hclge_write_reg((a)->io_base, reg, value)
 #define hclge_read_dev(a, reg) \
-	hclge_read_reg((a)->io_base, (reg))
+	hclge_read_reg((a)->io_base, reg)
 
 static inline u32 hclge_read_reg(u8 __iomem *base, u32 reg)
 {

@@ -571,7 +571,7 @@ static SIMPLE_DEV_PM_OPS(mwifiex_pcie_pm_ops, mwifiex_pcie_suspend,
 #endif
 
 /* PCI Device Driver */
-static struct pci_driver __refdata mwifiex_pcie = {
+static struct pci_driver mwifiex_pcie = {
 	.name     = "mwifiex_pcie",
 	.id_table = mwifiex_ids,
 	.probe    = mwifiex_pcie_probe,

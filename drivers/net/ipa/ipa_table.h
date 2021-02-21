@@ -1,7 +1,7 @@
 /* SPDX-License-Identifier: GPL-2.0 */
 
 /* Copyright (c) 2012-2018, The Linux Foundation. All rights reserved.
- * Copyright (C) 2019-2020 Linaro Ltd.
+ * Copyright (C) 2019-2021 Linaro Ltd.
  */
 #ifndef _IPA_TABLE_H_
 #define _IPA_TABLE_H_
@@ -50,6 +50,12 @@ static inline bool ipa_filter_map_valid(struct ipa *ipa, u32 filter_mask)
 }
 
 #endif /* !IPA_VALIDATE */
+
+/**
+ * ipa_table_hash_support() - Return true if hashed tables are supported
+ * @ipa:	IPA pointer
+ */
+bool ipa_table_hash_support(struct ipa *ipa);
 
 /**
  * ipa_table_reset() - Reset filter and route tables entries to "none"

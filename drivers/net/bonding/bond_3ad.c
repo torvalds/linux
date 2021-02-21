@@ -73,6 +73,8 @@ enum ad_link_speed_type {
 	AD_LINK_SPEED_50000MBPS,
 	AD_LINK_SPEED_56000MBPS,
 	AD_LINK_SPEED_100000MBPS,
+	AD_LINK_SPEED_200000MBPS,
+	AD_LINK_SPEED_400000MBPS,
 };
 
 /* compare MAC addresses */
@@ -245,6 +247,8 @@ static inline int __check_agg_selection_timer(struct port *port)
  *     %AD_LINK_SPEED_50000MBPS
  *     %AD_LINK_SPEED_56000MBPS
  *     %AD_LINK_SPEED_100000MBPS
+ *     %AD_LINK_SPEED_200000MBPS
+ *     %AD_LINK_SPEED_400000MBPS
  */
 static u16 __get_link_speed(struct port *port)
 {
@@ -312,13 +316,21 @@ static u16 __get_link_speed(struct port *port)
 			speed = AD_LINK_SPEED_100000MBPS;
 			break;
 
+		case SPEED_200000:
+			speed = AD_LINK_SPEED_200000MBPS;
+			break;
+
+		case SPEED_400000:
+			speed = AD_LINK_SPEED_400000MBPS;
+			break;
+
 		default:
 			/* unknown speed value from ethtool. shouldn't happen */
 			if (slave->speed != SPEED_UNKNOWN)
-				pr_warn_once("%s: (slave %s): unknown ethtool speed (%d) for port %d (set it to 0)\n",
-					     slave->bond->dev->name,
-					     slave->dev->name, slave->speed,
-					     port->actor_port_number);
+				pr_err_once("%s: (slave %s): unknown ethtool speed (%d) for port %d (set it to 0)\n",
+					    slave->bond->dev->name,
+					    slave->dev->name, slave->speed,
+					    port->actor_port_number);
 			speed = 0;
 			break;
 		}
@@ -732,6 +744,12 @@ static u32 __get_agg_bandwidth(struct aggregator *aggregator)
 			break;
 		case AD_LINK_SPEED_100000MBPS:
 			bandwidth = nports * 100000;
+			break;
+		case AD_LINK_SPEED_200000MBPS:
+			bandwidth = nports * 200000;
+			break;
+		case AD_LINK_SPEED_400000MBPS:
+			bandwidth = nports * 400000;
 			break;
 		default:
 			bandwidth = 0; /* to silence the compiler */

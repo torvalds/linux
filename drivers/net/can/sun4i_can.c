@@ -448,7 +448,7 @@ static netdev_tx_t sun4ican_start_xmit(struct sk_buff *skb, struct net_device *d
 
 	writel(msg_flag_n, priv->base + SUN4I_REG_BUF0_ADDR);
 
-	can_put_echo_skb(skb, dev, 0);
+	can_put_echo_skb(skb, dev, 0, 0);
 
 	if (priv->can.ctrlmode & CAN_CTRLMODE_LOOPBACK)
 		sun4i_can_write_cmdreg(priv, SUN4I_CMD_SELF_RCV_REQ);
@@ -655,7 +655,7 @@ static irqreturn_t sun4i_can_interrupt(int irq, void *dev_id)
 			    readl(priv->base +
 				  SUN4I_REG_RBUF_RBACK_START_ADDR) & 0xf;
 			stats->tx_packets++;
-			can_get_echo_skb(dev, 0);
+			can_get_echo_skb(dev, 0, NULL);
 			netif_wake_queue(dev);
 			can_led_event(dev, CAN_LED_EVENT_TX);
 		}

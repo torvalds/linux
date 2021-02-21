@@ -41,11 +41,38 @@ struct rvu_npa_health_reporters {
 	struct work_struct              ras_work;
 };
 
+enum nix_af_rvu_health {
+	NIX_AF_RVU_INTR,
+	NIX_AF_RVU_GEN,
+	NIX_AF_RVU_ERR,
+	NIX_AF_RVU_RAS,
+};
+
+struct rvu_nix_event_ctx {
+	u64 nix_af_rvu_int;
+	u64 nix_af_rvu_gen;
+	u64 nix_af_rvu_err;
+	u64 nix_af_rvu_ras;
+};
+
+struct rvu_nix_health_reporters {
+	struct rvu_nix_event_ctx *nix_event_ctx;
+	struct devlink_health_reporter *rvu_hw_nix_intr_reporter;
+	struct work_struct		intr_work;
+	struct devlink_health_reporter *rvu_hw_nix_gen_reporter;
+	struct work_struct		gen_work;
+	struct devlink_health_reporter *rvu_hw_nix_err_reporter;
+	struct work_struct		err_work;
+	struct devlink_health_reporter *rvu_hw_nix_ras_reporter;
+	struct work_struct		ras_work;
+};
+
 struct rvu_devlink {
 	struct devlink *dl;
 	struct rvu *rvu;
 	struct workqueue_struct *devlink_wq;
 	struct rvu_npa_health_reporters *rvu_npa_health_reporter;
+	struct rvu_nix_health_reporters *rvu_nix_health_reporter;
 };
 
 /* Devlink APIs */

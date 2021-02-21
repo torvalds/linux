@@ -357,11 +357,14 @@ static int ieee80211_open(struct net_device *dev)
 	if (err)
 		return err;
 
-	return ieee80211_do_open(&sdata->wdev, true);
+	wiphy_lock(sdata->local->hw.wiphy);
+	err = ieee80211_do_open(&sdata->wdev, true);
+	wiphy_unlock(sdata->local->hw.wiphy);
+
+	return err;
 }
 
-static void ieee80211_do_stop(struct ieee80211_sub_if_data *sdata,
-			      bool going_down)
+static void ieee80211_do_stop(struct ieee80211_sub_if_data *sdata, bool going_down)
 {
 	struct ieee80211_local *local = sdata->local;
 	unsigned long flags;
@@ -637,7 +640,9 @@ static int ieee80211_stop(struct net_device *dev)
 {
 	struct ieee80211_sub_if_data *sdata = IEEE80211_DEV_TO_SUB_IF(dev);
 
+	wiphy_lock(sdata->local->hw.wiphy);
 	ieee80211_do_stop(sdata, true);
+	wiphy_unlock(sdata->local->hw.wiphy);
 
 	return 0;
 }
@@ -765,7 +770,7 @@ static const struct net_device_ops ieee80211_dataif_8023_ops = {
 	.ndo_get_stats64	= ieee80211_get_stats64,
 };
 
-static bool ieee80211_iftype_supports_encap_offload(enum nl80211_iftype iftype)
+static bool ieee80211_iftype_supports_hdr_offload(enum nl80211_iftype iftype)
 {
 	switch (iftype) {
 	/* P2P GO and client are mapped to AP/STATION types */
@@ -785,7 +790,7 @@ static bool ieee80211_set_sdata_offload_flags(struct ieee80211_sub_if_data *sdat
 	flags = sdata->vif.offload_flags;
 
 	if (ieee80211_hw_check(&local->hw, SUPPORTS_TX_ENCAP_OFFLOAD) &&
-	    ieee80211_iftype_supports_encap_offload(sdata->vif.type)) {
+	    ieee80211_iftype_supports_hdr_offload(sdata->vif.type)) {
 		flags |= IEEE80211_OFFLOAD_ENCAP_ENABLED;
 
 		if (!ieee80211_hw_check(&local->hw, SUPPORTS_TX_FRAG) &&
@@ -798,10 +803,21 @@ static bool ieee80211_set_sdata_offload_flags(struct ieee80211_sub_if_data *sdat
 		flags &= ~IEEE80211_OFFLOAD_ENCAP_ENABLED;
 	}
 
+	if (ieee80211_hw_check(&local->hw, SUPPORTS_RX_DECAP_OFFLOAD) &&
+	    ieee80211_iftype_supports_hdr_offload(sdata->vif.type)) {
+		flags |= IEEE80211_OFFLOAD_DECAP_ENABLED;
+
+		if (local->monitors)
+			flags &= ~IEEE80211_OFFLOAD_DECAP_ENABLED;
+	} else {
+		flags &= ~IEEE80211_OFFLOAD_DECAP_ENABLED;
+	}
+
 	if (sdata->vif.offload_flags == flags)
 		return false;
 
 	sdata->vif.offload_flags = flags;
+	ieee80211_check_fast_rx_iface(sdata);
 	return true;
 }
 
@@ -819,7 +835,7 @@ static void ieee80211_set_vif_encap_ops(struct ieee80211_sub_if_data *sdata)
 	}
 
 	if (!ieee80211_hw_check(&local->hw, SUPPORTS_TX_ENCAP_OFFLOAD) ||
-	    !ieee80211_iftype_supports_encap_offload(bss->vif.type))
+	    !ieee80211_iftype_supports_hdr_offload(bss->vif.type))
 		return;
 
 	enabled = bss->vif.offload_flags & IEEE80211_OFFLOAD_ENCAP_ENABLED;
@@ -1971,7 +1987,7 @@ int ieee80211_if_add(struct ieee80211_local *local, const char *name,
 		ndev->min_mtu = 256;
 		ndev->max_mtu = local->hw.max_mtu;
 
-		ret = register_netdevice(ndev);
+		ret = cfg80211_register_netdevice(ndev);
 		if (ret) {
 			free_netdev(ndev);
 			return ret;
@@ -2001,10 +2017,9 @@ void ieee80211_if_remove(struct ieee80211_sub_if_data *sdata)
 
 	synchronize_rcu();
 
-	if (sdata->dev) {
-		unregister_netdevice(sdata->dev);
-	} else {
-		cfg80211_unregister_wdev(&sdata->wdev);
+	cfg80211_unregister_wdev(&sdata->wdev);
+
+	if (!sdata->dev) {
 		ieee80211_teardown_sdata(sdata);
 		kfree(sdata);
 	}
@@ -2053,13 +2068,16 @@ void ieee80211_remove_interfaces(struct ieee80211_local *local)
 			list_add(&sdata->list, &wdev_list);
 	}
 	mutex_unlock(&local->iflist_mtx);
+
 	unregister_netdevice_many(&unreg_list);
 
+	wiphy_lock(local->hw.wiphy);
 	list_for_each_entry_safe(sdata, tmp, &wdev_list, list) {
 		list_del(&sdata->list);
 		cfg80211_unregister_wdev(&sdata->wdev);
 		kfree(sdata);
 	}
+	wiphy_unlock(local->hw.wiphy);
 }
 
 static int netdev_notify(struct notifier_block *nb,

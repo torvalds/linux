@@ -94,7 +94,6 @@ config MVPP2
 
 config MVPP2_PTP
 	bool "Marvell Armada 8K Enable PTP support"
-	depends on NETWORK_PHY_TIMESTAMPING
 	depends on (PTP_1588_CLOCK = y && MVPP2 = y) || \
 		   (PTP_1588_CLOCK && MVPP2 = m)
 

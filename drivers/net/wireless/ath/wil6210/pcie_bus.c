@@ -473,8 +473,10 @@ static void wil_pcie_remove(struct pci_dev *pdev)
 
 	wil6210_debugfs_remove(wil);
 	rtnl_lock();
+	wiphy_lock(wil->wiphy);
 	wil_p2p_wdev_free(wil);
 	wil_remove_all_additional_vifs(wil);
+	wiphy_unlock(wil->wiphy);
 	rtnl_unlock();
 	wil_if_remove(wil);
 	wil_if_pcie_disable(wil);

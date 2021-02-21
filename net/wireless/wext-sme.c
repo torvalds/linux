@@ -3,7 +3,7 @@
  * cfg80211 wext compat for managed mode.
  *
  * Copyright 2009	Johannes Berg <johannes@sipsolutions.net>
- * Copyright (C) 2009   Intel Corporation. All rights reserved.
+ * Copyright (C) 2009, 2020-2021 Intel Corporation.
  */
 
 #include <linux/export.h>
@@ -379,6 +379,7 @@ int cfg80211_wext_siwmlme(struct net_device *dev,
 	if (mlme->addr.sa_family != ARPHRD_ETHER)
 		return -EINVAL;
 
+	wiphy_lock(&rdev->wiphy);
 	wdev_lock(wdev);
 	switch (mlme->cmd) {
 	case IW_MLME_DEAUTH:
@@ -390,6 +391,7 @@ int cfg80211_wext_siwmlme(struct net_device *dev,
 		break;
 	}
 	wdev_unlock(wdev);
+	wiphy_unlock(&rdev->wiphy);
 
 	return err;
 }

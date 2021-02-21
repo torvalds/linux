@@ -7,10 +7,9 @@
 #include <linux/kernel.h>
 #include <linux/stacktrace.h>
 #include <linux/perf_event.h>
-#include <linux/elf.h>
-#include <linux/pagemap.h>
 #include <linux/irq_work.h>
 #include <linux/btf_ids.h>
+#include <linux/buildid.h>
 #include "percpu_freelist.h"
 
 #define STACK_CREATE_FLAG_MASK					\
@@ -145,140 +144,6 @@ free_smap:
 	return ERR_PTR(err);
 }
 
-#define BPF_BUILD_ID 3
-/*
- * Parse build id from the note segment. This logic can be shared between
- * 32-bit and 64-bit system, because Elf32_Nhdr and Elf64_Nhdr are
- * identical.
- */
-static inline int stack_map_parse_build_id(void *page_addr,
-					   unsigned char *build_id,
-					   void *note_start,
-					   Elf32_Word note_size)
-{
-	Elf32_Word note_offs = 0, new_offs;
-
-	/* check for overflow */
-	if (note_start < page_addr || note_start + note_size < note_start)
-		return -EINVAL;
-
-	/* only supports note that fits in the first page */
-	if (note_start + note_size > page_addr + PAGE_SIZE)
-		return -EINVAL;
-
-	while (note_offs + sizeof(Elf32_Nhdr) < note_size) {
-		Elf32_Nhdr *nhdr = (Elf32_Nhdr *)(note_start + note_offs);
-
-		if (nhdr->n_type == BPF_BUILD_ID &&
-		    nhdr->n_namesz == sizeof("GNU") &&
-		    nhdr->n_descsz > 0 &&
-		    nhdr->n_descsz <= BPF_BUILD_ID_SIZE) {
-			memcpy(build_id,
-			       note_start + note_offs +
-			       ALIGN(sizeof("GNU"), 4) + sizeof(Elf32_Nhdr),
-			       nhdr->n_descsz);
-			memset(build_id + nhdr->n_descsz, 0,
-			       BPF_BUILD_ID_SIZE - nhdr->n_descsz);
-			return 0;
-		}
-		new_offs = note_offs + sizeof(Elf32_Nhdr) +
-			ALIGN(nhdr->n_namesz, 4) + ALIGN(nhdr->n_descsz, 4);
-		if (new_offs <= note_offs)  /* overflow */
-			break;
-		note_offs = new_offs;
-	}
-	return -EINVAL;
-}
-
-/* Parse build ID from 32-bit ELF */
-static int stack_map_get_build_id_32(void *page_addr,
-				     unsigned char *build_id)
-{
-	Elf32_Ehdr *ehdr = (Elf32_Ehdr *)page_addr;
-	Elf32_Phdr *phdr;
-	int i;
-
-	/* only supports phdr that fits in one page */
-	if (ehdr->e_phnum >
-	    (PAGE_SIZE - sizeof(Elf32_Ehdr)) / sizeof(Elf32_Phdr))
-		return -EINVAL;
-
-	phdr = (Elf32_Phdr *)(page_addr + sizeof(Elf32_Ehdr));
-
-	for (i = 0; i < ehdr->e_phnum; ++i) {
-		if (phdr[i].p_type == PT_NOTE &&
-		    !stack_map_parse_build_id(page_addr, build_id,
-					      page_addr + phdr[i].p_offset,
-					      phdr[i].p_filesz))
-			return 0;
-	}
-	return -EINVAL;
-}
-
-/* Parse build ID from 64-bit ELF */
-static int stack_map_get_build_id_64(void *page_addr,
-				     unsigned char *build_id)
-{
-	Elf64_Ehdr *ehdr = (Elf64_Ehdr *)page_addr;
-	Elf64_Phdr *phdr;
-	int i;
-
-	/* only supports phdr that fits in one page */
-	if (ehdr->e_phnum >
-	    (PAGE_SIZE - sizeof(Elf64_Ehdr)) / sizeof(Elf64_Phdr))
-		return -EINVAL;
-
-	phdr = (Elf64_Phdr *)(page_addr + sizeof(Elf64_Ehdr));
-
-	for (i = 0; i < ehdr->e_phnum; ++i) {
-		if (phdr[i].p_type == PT_NOTE &&
-		    !stack_map_parse_build_id(page_addr, build_id,
-					      page_addr + phdr[i].p_offset,
-					      phdr[i].p_filesz))
-			return 0;
-	}
-	return -EINVAL;
-}
-
-/* Parse build ID of ELF file mapped to vma */
-static int stack_map_get_build_id(struct vm_area_struct *vma,
-				  unsigned char *build_id)
-{
-	Elf32_Ehdr *ehdr;
-	struct page *page;
-	void *page_addr;
-	int ret;
-
-	/* only works for page backed storage  */
-	if (!vma->vm_file)
-		return -EINVAL;
-
-	page = find_get_page(vma->vm_file->f_mapping, 0);
-	if (!page)
-		return -EFAULT;	/* page not mapped */
-
-	ret = -EINVAL;
-	page_addr = kmap_atomic(page);
-	ehdr = (Elf32_Ehdr *)page_addr;
-
-	/* compare magic x7f "ELF" */
-	if (memcmp(ehdr->e_ident, ELFMAG, SELFMAG) != 0)
-		goto out;
-
-	/* only support executable file and shared object file */
-	if (ehdr->e_type != ET_EXEC && ehdr->e_type != ET_DYN)
-		goto out;
-
-	if (ehdr->e_ident[EI_CLASS] == ELFCLASS32)
-		ret = stack_map_get_build_id_32(page_addr, build_id);
-	else if (ehdr->e_ident[EI_CLASS] == ELFCLASS64)
-		ret = stack_map_get_build_id_64(page_addr, build_id);
-out:
-	kunmap_atomic(page_addr);
-	put_page(page);
-	return ret;
-}
-
 static void stack_map_get_build_id_offset(struct bpf_stack_build_id *id_offs,
 					  u64 *ips, u32 trace_nr, bool user)
 {
@@ -319,18 +184,18 @@ static void stack_map_get_build_id_offset(struct bpf_stack_build_id *id_offs,
 		for (i = 0; i < trace_nr; i++) {
 			id_offs[i].status = BPF_STACK_BUILD_ID_IP;
 			id_offs[i].ip = ips[i];
-			memset(id_offs[i].build_id, 0, BPF_BUILD_ID_SIZE);
+			memset(id_offs[i].build_id, 0, BUILD_ID_SIZE_MAX);
 		}
 		return;
 	}
 
 	for (i = 0; i < trace_nr; i++) {
 		vma = find_vma(current->mm, ips[i]);
-		if (!vma || stack_map_get_build_id(vma, id_offs[i].build_id)) {
+		if (!vma || build_id_parse(vma, id_offs[i].build_id, NULL)) {
 			/* per entry fall back to ips */
 			id_offs[i].status = BPF_STACK_BUILD_ID_IP;
 			id_offs[i].ip = ips[i];
-			memset(id_offs[i].build_id, 0, BPF_BUILD_ID_SIZE);
+			memset(id_offs[i].build_id, 0, BUILD_ID_SIZE_MAX);
 			continue;
 		}
 		id_offs[i].offset = (vma->vm_pgoff << PAGE_SHIFT) + ips[i]

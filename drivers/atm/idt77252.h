@@ -789,7 +789,7 @@ struct idt77252_skb_prv {
 	struct scqe	tbd;	/* Transmit Buffer Descriptor */
 	dma_addr_t	paddr;	/* DMA handle */
 	u32		pool;	/* sb_pool handle */
-};
+} __packed;
 
 #define IDT77252_PRV_TBD(skb)	\
 	(((struct idt77252_skb_prv *)(ATM_SKB(skb)+1))->tbd)

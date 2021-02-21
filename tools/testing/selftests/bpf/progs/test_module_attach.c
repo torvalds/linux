@@ -17,6 +17,16 @@ int BPF_PROG(handle_raw_tp,
 	return 0;
 }
 
+__u32 raw_tp_bare_write_sz = 0;
+
+SEC("raw_tp/bpf_testmod_test_write_bare")
+int BPF_PROG(handle_raw_tp_bare,
+	     struct task_struct *task, struct bpf_testmod_test_write_ctx *write_ctx)
+{
+	raw_tp_bare_write_sz = BPF_CORE_READ(write_ctx, len);
+	return 0;
+}
+
 __u32 tp_btf_read_sz = 0;
 
 SEC("tp_btf/bpf_testmod_test_read")

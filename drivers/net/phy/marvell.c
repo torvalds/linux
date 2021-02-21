@@ -684,16 +684,19 @@ static int m88e1111_config_aneg(struct phy_device *phydev)
 	if (err < 0)
 		goto error;
 
-	/* Do not touch the fiber page if we're in copper->sgmii mode */
-	if (phydev->interface == PHY_INTERFACE_MODE_SGMII)
-		return 0;
-
 	/* Then the fiber link */
 	err = marvell_set_page(phydev, MII_MARVELL_FIBER_PAGE);
 	if (err < 0)
 		goto error;
 
-	err = marvell_config_aneg_fiber(phydev);
+	if (phydev->interface == PHY_INTERFACE_MODE_SGMII)
+		/* Do not touch the fiber advertisement if we're in copper->sgmii mode.
+		 * Just ensure that SGMII-side autonegotiation is enabled.
+		 * If we switched from some other mode to SGMII it may not be.
+		 */
+		err = genphy_check_and_restart_aneg(phydev, false);
+	else
+		err = marvell_config_aneg_fiber(phydev);
 	if (err < 0)
 		goto error;
 
@@ -1552,6 +1555,7 @@ static int marvell_read_status_page(struct phy_device *phydev, int page)
 	phydev->asym_pause = 0;
 	phydev->speed = SPEED_UNKNOWN;
 	phydev->duplex = DUPLEX_UNKNOWN;
+	phydev->port = fiber ? PORT_FIBRE : PORT_TP;
 
 	if (phydev->autoneg == AUTONEG_ENABLE)
 		err = marvell_read_status_page_an(phydev, fiber, status);
@@ -2852,7 +2856,6 @@ static struct phy_driver marvell_drivers[] = {
 		.probe = marvell_probe,
 		.config_init = m88e1145_config_init,
 		.config_aneg = m88e1101_config_aneg,
-		.read_status = genphy_read_status,
 		.config_intr = marvell_config_intr,
 		.handle_interrupt = marvell_handle_interrupt,
 		.resume = genphy_resume,

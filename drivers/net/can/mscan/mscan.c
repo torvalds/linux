@@ -270,7 +270,7 @@ static netdev_tx_t mscan_start_xmit(struct sk_buff *skb, struct net_device *dev)
 
 	list_add_tail(&priv->tx_queue[buf_id].list, &priv->tx_head);
 
-	can_put_echo_skb(skb, dev, buf_id);
+	can_put_echo_skb(skb, dev, buf_id, 0);
 
 	/* Enable interrupt. */
 	priv->tx_active |= 1 << buf_id;
@@ -448,7 +448,7 @@ static irqreturn_t mscan_isr(int irq, void *dev_id)
 			out_8(&regs->cantbsel, mask);
 			stats->tx_bytes += in_8(&regs->tx.dlr);
 			stats->tx_packets++;
-			can_get_echo_skb(dev, entry->id);
+			can_get_echo_skb(dev, entry->id, NULL);
 			priv->tx_active &= ~mask;
 			list_del(pos);
 		}
