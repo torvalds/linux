@@ -564,7 +564,7 @@ retry:
 		mmap_read_lock(mm);
 	} else {
 		/*
-		 * The above down_read_trylock() might have succeeded in which
+		 * The above mmap_read_trylock() might have succeeded in which
 		 * case, we'll have missed the might_sleep() from down_read().
 		 */
 		might_sleep();
@@ -875,43 +875,11 @@ static void debug_exception_exit(struct pt_regs *regs)
 }
 NOKPROBE_SYMBOL(debug_exception_exit);
 
-#ifdef CONFIG_ARM64_ERRATUM_1463225
-DECLARE_PER_CPU(int, __in_cortex_a76_erratum_1463225_wa);
-
-static int cortex_a76_erratum_1463225_debug_handler(struct pt_regs *regs)
-{
-	if (user_mode(regs))
-		return 0;
-
-	if (!__this_cpu_read(__in_cortex_a76_erratum_1463225_wa))
-		return 0;
-
-	/*
-	 * We've taken a dummy step exception from the kernel to ensure
-	 * that interrupts are re-enabled on the syscall path. Return back
-	 * to cortex_a76_erratum_1463225_svc_handler() with debug exceptions
-	 * masked so that we can safely restore the mdscr and get on with
-	 * handling the syscall.
-	 */
-	regs->pstate |= PSR_D_BIT;
-	return 1;
-}
-#else
-static int cortex_a76_erratum_1463225_debug_handler(struct pt_regs *regs)
-{
-	return 0;
-}
-#endif /* CONFIG_ARM64_ERRATUM_1463225 */
-NOKPROBE_SYMBOL(cortex_a76_erratum_1463225_debug_handler);
-
 void do_debug_exception(unsigned long addr_if_watchpoint, unsigned int esr,
 			struct pt_regs *regs)
 {
 	const struct fault_info *inf = esr_to_debug_fault_info(esr);
 	unsigned long pc = instruction_pointer(regs);
-
-	if (cortex_a76_erratum_1463225_debug_handler(regs))
-		return;
 
 	debug_exception_enter(regs);
 
