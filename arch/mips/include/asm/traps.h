@@ -24,6 +24,7 @@ extern void (*board_ebase_setup)(void);
 extern void (*board_cache_error_setup)(void);
 
 extern int register_nmi_notifier(struct notifier_block *nb);
+extern char except_vec_nmi[];
 
 #define nmi_notifier(fn, pri)						\
 ({									\

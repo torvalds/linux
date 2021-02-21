@@ -316,11 +316,6 @@ void __init prom_init(void)
 #endif
 }
 
-void __init prom_free_prom_memory(void)
-{
-	/* Not sure what I'm supposed to do here.  Nothing, I think */
-}
-
 void prom_putchar(char c)
 {
 	int ret;

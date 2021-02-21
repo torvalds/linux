@@ -3,7 +3,6 @@ config ACER_PICA_61
 	bool "Support for Acer PICA 1 chipset"
 	depends on MACH_JAZZ
 	select DMA_NONCOHERENT
-	select SYS_SUPPORTS_LITTLE_ENDIAN
 	help
 	  This is a machine with a R4400 133/150 MHz CPU. To compile a Linux
 	  kernel that runs on these, say Y here. For details about Linux on
@@ -15,7 +14,6 @@ config MIPS_MAGNUM_4000
 	depends on MACH_JAZZ
 	select DMA_NONCOHERENT
 	select SYS_SUPPORTS_BIG_ENDIAN
-	select SYS_SUPPORTS_LITTLE_ENDIAN
 	help
 	  This is a machine with a R4000 100 MHz CPU. To compile a Linux
 	  kernel that runs on these, say Y here. For details about Linux on
@@ -26,7 +24,6 @@ config OLIVETTI_M700
 	bool "Support for Olivetti M700-10"
 	depends on MACH_JAZZ
 	select DMA_NONCOHERENT
-	select SYS_SUPPORTS_LITTLE_ENDIAN
 	help
 	  This is a machine with a R4000 100 MHz CPU. To compile a Linux
 	  kernel that runs on these, say Y here. For details about Linux on

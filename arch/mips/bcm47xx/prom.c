@@ -113,10 +113,6 @@ void __init prom_init(void)
 	setup_8250_early_printk_port(CKSEG1ADDR(BCM47XX_SERIAL_ADDR), 0, 0);
 }
 
-void __init prom_free_prom_memory(void)
-{
-}
-
 #if defined(CONFIG_BCM47XX_BCMA) && defined(CONFIG_HIGHMEM)
 
 #define EXTVBASE	0xc0000000

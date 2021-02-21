@@ -26,7 +26,7 @@
 #include <asm/war.h>
 
 #define __bit_op(mem, insn, inputs...) do {			\
-	unsigned long temp;					\
+	unsigned long __temp;					\
 								\
 	asm volatile(						\
 	"	.set		push			\n"	\
@@ -37,13 +37,13 @@
 	"	" __SC		"%0, %1			\n"	\
 	"	" __SC_BEQZ	"%0, 1b			\n"	\
 	"	.set		pop			\n"	\
-	: "=&r"(temp), "+" GCC_OFF_SMALL_ASM()(mem)		\
+	: "=&r"(__temp), "+" GCC_OFF_SMALL_ASM()(mem)		\
 	: inputs						\
 	: __LLSC_CLOBBER);					\
 } while (0)
 
 #define __test_bit_op(mem, ll_dst, insn, inputs...) ({		\
-	unsigned long orig, temp;				\
+	unsigned long __orig, __temp;				\
 								\
 	asm volatile(						\
 	"	.set		push			\n"	\
@@ -54,12 +54,12 @@
 	"	" __SC		"%1, %2			\n"	\
 	"	" __SC_BEQZ	"%1, 1b			\n"	\
 	"	.set		pop			\n"	\
-	: "=&r"(orig), "=&r"(temp),				\
+	: "=&r"(__orig), "=&r"(__temp),				\
 	  "+" GCC_OFF_SMALL_ASM()(mem)				\
 	: inputs						\
 	: __LLSC_CLOBBER);					\
 								\
-	orig;							\
+	__orig;							\
 })
 
 /*
@@ -435,7 +435,7 @@ static inline int fls(unsigned int x)
  *
  * This is defined the same way as
  * the libc and compiler builtin ffs routines, therefore
- * differs in spirit from the above ffz (man ffs).
+ * differs in spirit from the below ffz (man ffs).
  */
 static inline int ffs(int word)
 {

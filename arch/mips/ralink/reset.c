@@ -27,7 +27,7 @@ static int ralink_assert_device(struct reset_controller_dev *rcdev,
 {
 	u32 val;
 
-	if (id < 8)
+	if (id == 0)
 		return -1;
 
 	val = rt_sysc_r32(SYSC_REG_RESET_CTRL);
@@ -42,7 +42,7 @@ static int ralink_deassert_device(struct reset_controller_dev *rcdev,
 {
 	u32 val;
 
-	if (id < 8)
+	if (id == 0)
 		return -1;
 
 	val = rt_sysc_r32(SYSC_REG_RESET_CTRL);
