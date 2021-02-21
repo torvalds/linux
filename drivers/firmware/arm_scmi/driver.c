@@ -848,8 +848,6 @@ static int scmi_remove(struct platform_device *pdev)
 	struct scmi_info *info = platform_get_drvdata(pdev);
 	struct idr *idr = &info->tx_idr;
 
-	scmi_notification_exit(&info->handle);
-
 	mutex_lock(&scmi_list_mutex);
 	if (info->users)
 		ret = -EBUSY;
@@ -859,6 +857,8 @@ static int scmi_remove(struct platform_device *pdev)
 
 	if (ret)
 		return ret;
+
+	scmi_notification_exit(&info->handle);
 
 	/* Safe to free channels since no more users */
 	ret = idr_for_each(idr, info->desc->ops->chan_free, idr);
