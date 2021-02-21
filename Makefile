@@ -145,7 +145,8 @@ else
 need-sub-make := 1
 endif
 
-abs_srctree := $(realpath $(dir $(lastword $(MAKEFILE_LIST))))
+this-makefile := $(lastword $(MAKEFILE_LIST))
+abs_srctree := $(realpath $(dir $(this-makefile)))
 
 ifneq ($(words $(subst :, ,$(abs_srctree))), 1)
 $(error source directory cannot contain spaces or colons)
@@ -159,8 +160,6 @@ ifneq ($(abs_srctree),$(abs_objtree))
 MAKEFLAGS += --include-dir=$(abs_srctree)
 need-sub-make := 1
 endif
-
-this-makefile := $(lastword $(MAKEFILE_LIST))
 
 ifneq ($(filter 3.%,$(MAKE_VERSION)),)
 # 'MAKEFLAGS += -rR' does not immediately become effective for GNU Make 3.x
