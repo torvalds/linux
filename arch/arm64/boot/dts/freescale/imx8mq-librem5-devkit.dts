@@ -171,12 +171,10 @@
 		simple-audio-card,widgets =
 			"Microphone", "Microphone Jack",
 			"Headphone", "Headphone Jack",
-			"Speaker", "Builtin Speaker",
-			"Line", "Line In Jack";
+			"Speaker", "Builtin Speaker";
 		simple-audio-card,routing =
 			"MIC_IN", "Microphone Jack",
 			"Microphone Jack", "Mic Bias",
-			"LINE_IN", "Line In Jack",
 			"Headphone Jack", "HP_OUT",
 			"Builtin Speaker", "Speaker Amp OUTR",
 			"Speaker Amp INR", "LINE_OUT";
