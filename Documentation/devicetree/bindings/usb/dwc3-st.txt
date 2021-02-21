@@ -31,13 +31,13 @@ See: Documentation/devicetree/bindings/pinctrl/pinctrl-bindings.txt
 Sub-nodes:
 The dwc3 core should be added as subnode to ST DWC3 glue as shown in the
 example below. The DT binding details of dwc3 can be found in:
-Documentation/devicetree/bindings/usb/dwc3.txt
+Documentation/devicetree/bindings/usb/snps,dwc3.yaml
 
 NB: The dr_mode property described in [1] is NOT optional for this driver, as the default value
 is "otg", which isn't supported by this SoC. Valid dr_mode values for dwc3-st are either "host"
 or "device".
 
-[1] Documentation/devicetree/bindings/usb/generic.txt
+[1] Documentation/devicetree/bindings/usb/usb-drd.yaml
 
 Example:
 
