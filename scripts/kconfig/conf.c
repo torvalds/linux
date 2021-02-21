@@ -494,7 +494,7 @@ int main(int ac, char **av)
 
 	tty_stdio = isatty(0) && isatty(1);
 
-	while ((opt = getopt_long(ac, av, "s", long_opts, NULL)) != -1) {
+	while ((opt = getopt_long(ac, av, "hs", long_opts, NULL)) != -1) {
 		if (opt == 's') {
 			conf_set_message_callback(NULL);
 			continue;
@@ -550,7 +550,7 @@ int main(int ac, char **av)
 		case yes2modconfig:
 		case mod2yesconfig:
 			break;
-		case '?':
+		case 'h':
 			conf_usage(progname);
 			exit(1);
 			break;
