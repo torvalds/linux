@@ -74,10 +74,6 @@ dtb-$(CONFIG_SOC_SAM_V7) += \
 	at91-sama5d4_xplained.dtb \
 	at91-sama5d4ek.dtb \
 	at91-vinco.dtb
-dtb-$(CONFIG_ARCH_ATLAS6) += \
-	atlas6-evb.dtb
-dtb-$(CONFIG_ARCH_ATLAS7) += \
-	atlas7-evb.dtb
 dtb-$(CONFIG_ARCH_AXXIA) += \
 	axm5516-amarillo.dtb
 dtb-$(CONFIG_ARCH_BCM2835) += \
@@ -177,8 +173,6 @@ dtb-$(CONFIG_ARCH_DAVINCI) += \
 	da850-lego-ev3.dtb
 dtb-$(CONFIG_ARCH_DIGICOLOR) += \
 	cx92755_equinox.dtb
-dtb-$(CONFIG_ARCH_EFM32) += \
-	efm32gg-dk3750.dtb
 dtb-$(CONFIG_ARCH_EXYNOS3) += \
 	exynos3250-artik5-eval.dtb \
 	exynos3250-monk.dtb \
@@ -888,11 +882,6 @@ dtb-$(CONFIG_ARCH_ACTIONS) += \
 	owl-s500-labrador-base-m.dtb \
 	owl-s500-roseapplepi.dtb \
 	owl-s500-sparky.dtb
-dtb-$(CONFIG_ARCH_PICOXCELL) += \
-	picoxcell-pc7302-pc3x2.dtb \
-	picoxcell-pc7302-pc3x3.dtb
-dtb-$(CONFIG_ARCH_PRIMA2) += \
-	prima2-evb.dtb
 dtb-$(CONFIG_ARCH_PXA) += \
 	pxa300-raumfeld-connector.dtb \
 	pxa300-raumfeld-controller.dtb \
@@ -1232,8 +1221,6 @@ dtb-$(CONFIG_MACH_SUN9I) += \
 	sun9i-a80-cubieboard4.dtb
 dtb-$(CONFIG_MACH_SUNIV) += \
 	suniv-f1c100s-licheepi-nano.dtb
-dtb-$(CONFIG_ARCH_TANGO) += \
-	tango4-vantage-1172.dtb
 dtb-$(CONFIG_ARCH_TEGRA_2x_SOC) += \
 	tegra20-acer-a500-picasso.dtb \
 	tegra20-harmony.dtb \
@@ -1268,8 +1255,6 @@ dtb-$(CONFIG_ARCH_TEGRA_124_SOC) += \
 	tegra124-nyan-big.dtb \
 	tegra124-nyan-blaze.dtb \
 	tegra124-venice2.dtb
-dtb-$(CONFIG_ARCH_U300) += \
-	ste-u300.dtb
 dtb-$(CONFIG_ARCH_U8500) += \
 	ste-snowball.dtb \
 	ste-hrefprev60-stuib.dtb \
@@ -1398,7 +1383,6 @@ dtb-$(CONFIG_ARCH_MSTARV7) += \
 	mstar-infinity2m-ssd202d-ssd201htv2.dtb \
 	mstar-infinity3-msc313e-breadbee.dtb \
 	mstar-mercury5-ssc8336n-midrived08.dtb
-dtb-$(CONFIG_ARCH_ZX) += zx296702-ad1.dtb
 dtb-$(CONFIG_ARCH_ASPEED) += \
 	aspeed-ast2500-evb.dtb \
 	aspeed-ast2600-evb.dtb \

@@ -331,8 +331,7 @@ source "drivers/mtd/nand/raw/ingenic/Kconfig"
 config MTD_NAND_FSMC
 	tristate "ST Micros FSMC NAND controller"
 	depends on OF && HAS_IOMEM
-	depends on PLAT_SPEAR || ARCH_NOMADIK || ARCH_U8500 || MACH_U300 || \
-		   COMPILE_TEST
+	depends on PLAT_SPEAR || ARCH_NOMADIK || ARCH_U8500 || COMPILE_TEST
 	help
 	  Enables support for NAND Flash chips on the ST Microelectronics
 	  Flexible Static Memory Controller (FSMC)

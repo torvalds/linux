@@ -317,12 +317,6 @@ config ARCH_XGENE
 	help
 	  This enables support for AppliedMicro X-Gene SOC Family
 
-config ARCH_ZX
-	bool "ZTE ZX SoC Family"
-	select PINCTRL
-	help
-	  This enables support for ZTE ZX SoC Family
-
 config ARCH_ZYNQMP
 	bool "Xilinx ZynqMP Family"
 	help

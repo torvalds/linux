@@ -1778,19 +1778,6 @@ F:	drivers/net/ethernet/cortina/
 F:	drivers/pinctrl/pinctrl-gemini.c
 F:	drivers/rtc/rtc-ftrtc010.c
 
-ARM/CSR SIRFPRIMA2 MACHINE SUPPORT
-M:	Barry Song <baohua@kernel.org>
-L:	linux-arm-kernel@lists.infradead.org (moderated for non-subscribers)
-S:	Maintained
-T:	git git://git.kernel.org/pub/scm/linux/kernel/git/baohua/linux.git
-F:	arch/arm/boot/dts/prima2*
-F:	arch/arm/mach-prima2/
-F:	drivers/clk/sirf/
-F:	drivers/clocksource/timer-atlas7.c
-F:	drivers/clocksource/timer-prima2.c
-X:	drivers/gnss
-N:	[^a-z]sirf
-
 ARM/CZ.NIC TURRIS MOX SUPPORT
 M:	Marek Behun <marek.behun@nic.cz>
 S:	Maintained
@@ -1805,13 +1792,6 @@ F:	drivers/bus/moxtet.c
 F:	drivers/firmware/turris-mox-rwtm.c
 F:	drivers/gpio/gpio-moxtet.c
 F:	include/linux/moxtet.h
-
-ARM/ENERGY MICRO (SILICON LABS) EFM32 SUPPORT
-M:	Uwe Kleine-König <u.kleine-koenig@pengutronix.de>
-R:	Pengutronix Kernel Team <kernel@pengutronix.de>
-L:	linux-arm-kernel@lists.infradead.org (moderated for non-subscribers)
-S:	Maintained
-N:	efm32
 
 ARM/EZX SMARTPHONES (A780, A910, A1200, E680, ROKR E2 and ROKR E6)
 M:	Robert Jarzmik <robert.jarzmik@free.fr>
@@ -2155,7 +2135,7 @@ ARM/NEC MOBILEPRO 900/c MACHINE SUPPORT
 M:	Michael Petchkovsky <mkpetch@internode.on.net>
 S:	Maintained
 
-ARM/NOMADIK/U300/Ux500 ARCHITECTURES
+ARM/NOMADIK/Ux500 ARCHITECTURES
 M:	Linus Walleij <linus.walleij@linaro.org>
 L:	linux-arm-kernel@lists.infradead.org (moderated for non-subscribers)
 S:	Maintained
@@ -2164,35 +2144,23 @@ F:	Documentation/devicetree/bindings/arm/ste-*
 F:	Documentation/devicetree/bindings/arm/ux500.yaml
 F:	Documentation/devicetree/bindings/arm/ux500/
 F:	Documentation/devicetree/bindings/i2c/i2c-nomadik.txt
-F:	Documentation/devicetree/bindings/i2c/i2c-stu300.txt
 F:	arch/arm/boot/dts/ste-*
 F:	arch/arm/mach-nomadik/
-F:	arch/arm/mach-u300/
 F:	arch/arm/mach-ux500/
 F:	drivers/clk/clk-nomadik.c
-F:	drivers/clk/clk-u300.c
 F:	drivers/clocksource/clksrc-dbx500-prcmu.c
-F:	drivers/clocksource/timer-u300.c
-F:	drivers/dma/coh901318*
 F:	drivers/dma/ste_dma40*
 F:	drivers/hwspinlock/u8500_hsem.c
 F:	drivers/i2c/busses/i2c-nomadik.c
-F:	drivers/i2c/busses/i2c-stu300.c
 F:	drivers/iio/adc/ab8500-gpadc.c
-F:	drivers/mfd/ab3100*
 F:	drivers/mfd/ab8500*
 F:	drivers/mfd/abx500*
 F:	drivers/mfd/db8500*
 F:	drivers/mfd/dbx500*
 F:	drivers/pinctrl/nomadik/
-F:	drivers/pinctrl/pinctrl-coh901*
-F:	drivers/pinctrl/pinctrl-u300.c
-F:	drivers/rtc/rtc-ab3100.c
 F:	drivers/rtc/rtc-ab8500.c
-F:	drivers/rtc/rtc-coh901331.c
 F:	drivers/rtc/rtc-pl031.c
 F:	drivers/soc/ux500/
-F:	drivers/watchdog/coh901327_wdt.c
 
 ARM/NUVOTON NPCM ARCHITECTURE
 M:	Avi Fishman <avifishman70@gmail.com>
@@ -2557,13 +2525,6 @@ F:	arch/arm/boot/dts/berlin*
 F:	arch/arm/mach-berlin/
 F:	arch/arm64/boot/dts/synaptics/
 
-ARM/TANGO ARCHITECTURE
-M:	Marc Gonzalez <marc.w.gonzalez@free.fr>
-M:	Mans Rullgard <mans@mansr.com>
-L:	linux-arm-kernel@lists.infradead.org
-S:	Odd Fixes
-N:	tango
-
 ARM/TECHNOLOGIC SYSTEMS TS7250 MACHINE SUPPORT
 M:	Lennert Buytenhek <kernel@wantstofly.org>
 L:	linux-arm-kernel@lists.infradead.org (moderated for non-subscribers)
@@ -2724,40 +2685,6 @@ L:	linux-arm-kernel@lists.infradead.org (moderated for non-subscribers)
 S:	Maintained
 F:	arch/arm/mach-pxa/include/mach/z2.h
 F:	arch/arm/mach-pxa/z2.c
-
-ARM/ZTE ARCHITECTURE
-M:	Jun Nie <jun.nie@linaro.org>
-M:	Shawn Guo <shawnguo@kernel.org>
-L:	linux-arm-kernel@lists.infradead.org (moderated for non-subscribers)
-S:	Maintained
-F:	Documentation/devicetree/bindings/arm/zte.yaml
-F:	Documentation/devicetree/bindings/clock/zx2967*.txt
-F:	Documentation/devicetree/bindings/dma/zxdma.txt
-F:	Documentation/devicetree/bindings/gpio/zx296702-gpio.txt
-F:	Documentation/devicetree/bindings/i2c/i2c-zx2967.txt
-F:	Documentation/devicetree/bindings/mmc/zx-dw-mshc.txt
-F:	Documentation/devicetree/bindings/pinctrl/pinctrl-zx.txt
-F:	Documentation/devicetree/bindings/reset/zte,zx2967-reset.txt
-F:	Documentation/devicetree/bindings/soc/zte/
-F:	Documentation/devicetree/bindings/sound/zte,*.txt
-F:	Documentation/devicetree/bindings/thermal/zx2967-thermal.txt
-F:	Documentation/devicetree/bindings/watchdog/zte,zx2967-wdt.txt
-F:	arch/arm/boot/dts/zx2967*
-F:	arch/arm/mach-zx/
-F:	arch/arm64/boot/dts/zte/
-F:	drivers/clk/zte/
-F:	drivers/dma/zx_dma.c
-F:	drivers/gpio/gpio-zx.c
-F:	drivers/i2c/busses/i2c-zx2967.c
-F:	drivers/mmc/host/dw_mmc-zx.*
-F:	drivers/pinctrl/zte/
-F:	drivers/soc/zte/
-F:	drivers/thermal/zx2967_thermal.c
-F:	drivers/watchdog/zx2967_wdt.c
-F:	include/dt-bindings/clock/zx2967*.h
-F:	include/dt-bindings/soc/zte,*.h
-F:	sound/soc/codecs/zx_aud96p22.c
-F:	sound/soc/zte/
 
 ARM/ZYNQ ARCHITECTURE
 M:	Michal Simek <michal.simek@xilinx.com>
@@ -3873,14 +3800,6 @@ F:	drivers/clocksource/timer-mp-csky.c
 F:	drivers/irqchip/irq-csky-*
 N:	csky
 K:	csky
-
-C6X ARCHITECTURE
-M:	Mark Salter <msalter@redhat.com>
-M:	Aurelien Jacquiot <jacquiot.aurelien@gmail.com>
-L:	linux-c6x-dev@linux-c6x.org
-S:	Maintained
-W:	http://www.linux-c6x.org/wiki/index.php/Main_Page
-F:	arch/c6x/
 
 CA8210 IEEE-802.15.4 RADIO DRIVER
 M:	Harry Morris <h.morris@cascoda.com>
@@ -6088,14 +6007,6 @@ S:	Maintained
 T:	git git://anongit.freedesktop.org/drm/drm-misc
 F:	Documentation/devicetree/bindings/display/xlnx/
 F:	drivers/gpu/drm/xlnx/
-
-DRM DRIVERS FOR ZTE ZX
-M:	Shawn Guo <shawnguo@kernel.org>
-L:	dri-devel@lists.freedesktop.org
-S:	Maintained
-T:	git git://anongit.freedesktop.org/drm/drm-misc
-F:	Documentation/devicetree/bindings/display/zte,vou.txt
-F:	drivers/gpu/drm/zte/
 
 DRM PANEL DRIVERS
 M:	Thierry Reding <thierry.reding@gmail.com>
@@ -14021,15 +13932,6 @@ M:	Bruno Prémont <bonbons@linux-vserver.org>
 L:	linux-input@vger.kernel.org
 S:	Maintained
 F:	drivers/hid/hid-picolcd*
-
-PICOXCELL SUPPORT
-M:	Jamie Iles <jamie@jamieiles.com>
-L:	linux-arm-kernel@lists.infradead.org (moderated for non-subscribers)
-S:	Supported
-T:	git git://github.com/jamieiles/linux-2.6-ji.git
-F:	arch/arm/boot/dts/picoxcell*
-F:	arch/arm/mach-picoxcell/
-F:	drivers/crypto/picoxcell*
 
 PIDFD API
 M:	Christian Brauner <christian@brauner.io>
