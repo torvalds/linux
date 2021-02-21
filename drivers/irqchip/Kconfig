@@ -260,11 +260,6 @@ config ST_IRQCHIP
 	help
 	  Enables SysCfg Controlled IRQs on STi based platforms.
 
-config TANGO_IRQ
-	bool
-	select IRQ_DOMAIN
-	select GENERIC_IRQ_CHIP
-
 config TB10X_IRQC
 	bool
 	select IRQ_DOMAIN
@@ -432,7 +427,7 @@ config QCOM_PDC
 	  IRQs for Qualcomm Technologies Inc (QTI) mobile chips.
 
 config CSKY_MPINTC
-	bool "C-SKY Multi Processor Interrupt Controller"
+	bool
 	depends on CSKY
 	help
 	  Say yes here to enable C-SKY SMP interrupt controller driver used
@@ -457,7 +452,8 @@ config IMX_IRQSTEER
 	  Support for the i.MX IRQSTEER interrupt multiplexer/remapper.
 
 config IMX_INTMUX
-	def_bool y if ARCH_MXC || COMPILE_TEST
+	bool "i.MX INTMUX support" if COMPILE_TEST
+	default y if ARCH_MXC
 	select IRQ_DOMAIN
 	help
 	  Support for the i.MX INTMUX interrupt multiplexer.
