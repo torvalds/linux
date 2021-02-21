@@ -2195,7 +2195,7 @@ static void record_and_restart(struct perf_event *event, unsigned long val,
 
 		if (event->attr.sample_type & PERF_SAMPLE_WEIGHT &&
 						ppmu->get_mem_weight)
-			ppmu->get_mem_weight(&data.weight);
+			ppmu->get_mem_weight(&data.weight.full);
 
 		if (perf_event_overflow(event, &data, regs))
 			power_pmu_stop(event, 0);
