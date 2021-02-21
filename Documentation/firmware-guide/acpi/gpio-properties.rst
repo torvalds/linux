@@ -146,6 +146,7 @@ following rules (see also the examples):
     other words, it is not mandatory to fill all the GPIO lines
   - empty names are allowed (two quotation marks ``""`` correspond to an empty
     name)
+  - names inside one GPIO controller/expander must be unique
 
 Example of a GPIO controller of 16 lines, with an incomplete list with two
 empty names::
