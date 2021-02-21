@@ -545,16 +545,16 @@ static inline unsigned bset_byte_offset(struct btree *b, void *i)
 }
 
 enum btree_node_type {
-#define x(kwd, val, name) BKEY_TYPE_##kwd = val,
+#define x(kwd, val) BKEY_TYPE_##kwd = val,
 	BCH_BTREE_IDS()
 #undef x
-	BKEY_TYPE_BTREE,
+	BKEY_TYPE_btree,
 };
 
 /* Type of a key in btree @id at level @level: */
 static inline enum btree_node_type __btree_node_type(unsigned level, enum btree_id id)
 {
-	return level ? BKEY_TYPE_BTREE : (enum btree_node_type) id;
+	return level ? BKEY_TYPE_btree : (enum btree_node_type) id;
 }
 
 /* Type of keys @b contains: */
@@ -566,8 +566,8 @@ static inline enum btree_node_type btree_node_type(struct btree *b)
 static inline bool btree_node_type_is_extents(enum btree_node_type type)
 {
 	switch (type) {
-	case BKEY_TYPE_EXTENTS:
-	case BKEY_TYPE_REFLINK:
+	case BKEY_TYPE_extents:
+	case BKEY_TYPE_reflink:
 		return true;
 	default:
 		return false;
@@ -590,18 +590,18 @@ static inline bool btree_iter_is_extents(struct btree_iter *iter)
 }
 
 #define BTREE_NODE_TYPE_HAS_TRIGGERS			\
-	((1U << BKEY_TYPE_EXTENTS)|			\
-	 (1U << BKEY_TYPE_ALLOC)|			\
-	 (1U << BKEY_TYPE_INODES)|			\
-	 (1U << BKEY_TYPE_REFLINK)|			\
-	 (1U << BKEY_TYPE_EC)|				\
-	 (1U << BKEY_TYPE_BTREE))
+	((1U << BKEY_TYPE_extents)|			\
+	 (1U << BKEY_TYPE_alloc)|			\
+	 (1U << BKEY_TYPE_inodes)|			\
+	 (1U << BKEY_TYPE_reflink)|			\
+	 (1U << BKEY_TYPE_stripes)|			\
+	 (1U << BKEY_TYPE_btree))
 
 #define BTREE_NODE_TYPE_HAS_TRANS_TRIGGERS		\
-	((1U << BKEY_TYPE_EXTENTS)|			\
-	 (1U << BKEY_TYPE_INODES)|			\
-	 (1U << BKEY_TYPE_EC)|				\
-	 (1U << BKEY_TYPE_REFLINK))
+	((1U << BKEY_TYPE_extents)|			\
+	 (1U << BKEY_TYPE_inodes)|			\
+	 (1U << BKEY_TYPE_stripes)|			\
+	 (1U << BKEY_TYPE_reflink))
 
 enum btree_trigger_flags {
 	__BTREE_TRIGGER_NORUN,		/* Don't run triggers at all */

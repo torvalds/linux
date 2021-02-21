@@ -64,7 +64,7 @@ static bool dirent_cmp_bkey(struct bkey_s_c _l, struct bkey_s_c _r)
 }
 
 const struct bch_hash_desc bch2_dirent_hash_desc = {
-	.btree_id	= BTREE_ID_DIRENTS,
+	.btree_id	= BTREE_ID_dirents,
 	.key_type	= KEY_TYPE_dirent,
 	.hash_key	= dirent_hash_key,
 	.hash_bkey	= dirent_hash_bkey,
@@ -332,7 +332,7 @@ int bch2_empty_dir_trans(struct btree_trans *trans, u64 dir_inum)
 	struct bkey_s_c k;
 	int ret;
 
-	for_each_btree_key(trans, iter, BTREE_ID_DIRENTS,
+	for_each_btree_key(trans, iter, BTREE_ID_dirents,
 			   POS(dir_inum, 0), 0, k, ret) {
 		if (k.k->p.inode > dir_inum)
 			break;
@@ -357,7 +357,7 @@ int bch2_readdir(struct bch_fs *c, u64 inum, struct dir_context *ctx)
 
 	bch2_trans_init(&trans, c, 0, 0);
 
-	for_each_btree_key(&trans, iter, BTREE_ID_DIRENTS,
+	for_each_btree_key(&trans, iter, BTREE_ID_dirents,
 			   POS(inum, ctx->pos), 0, k, ret) {
 		if (k.k->p.inode > inum)
 			break;

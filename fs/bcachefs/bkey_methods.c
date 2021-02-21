@@ -104,7 +104,7 @@ const char *__bch2_bkey_invalid(struct bch_fs *c, struct bkey_s_c k,
 	if (k.k->u64s < BKEY_U64s)
 		return "u64s too small";
 
-	if (type == BKEY_TYPE_BTREE &&
+	if (type == BKEY_TYPE_btree &&
 	    bkey_val_u64s(k.k) > BKEY_BTREE_PTR_VAL_U64s_MAX)
 		return "value too big";
 
@@ -122,7 +122,7 @@ const char *__bch2_bkey_invalid(struct bch_fs *c, struct bkey_s_c k,
 	if (k.k->p.snapshot)
 		return "nonzero snapshot";
 
-	if (type != BKEY_TYPE_BTREE &&
+	if (type != BKEY_TYPE_btree &&
 	    !bkey_cmp(k.k->p, POS_MAX))
 		return "POS_MAX key";
 
@@ -263,18 +263,18 @@ static const struct old_bkey_type {
 	u8		old;
 	u8		new;
 } bkey_renumber_table[] = {
-	{BKEY_TYPE_BTREE,	128, KEY_TYPE_btree_ptr		},
-	{BKEY_TYPE_EXTENTS,	128, KEY_TYPE_extent		},
-	{BKEY_TYPE_EXTENTS,	129, KEY_TYPE_extent		},
-	{BKEY_TYPE_EXTENTS,	130, KEY_TYPE_reservation	},
-	{BKEY_TYPE_INODES,	128, KEY_TYPE_inode		},
-	{BKEY_TYPE_INODES,	130, KEY_TYPE_inode_generation	},
-	{BKEY_TYPE_DIRENTS,	128, KEY_TYPE_dirent		},
-	{BKEY_TYPE_DIRENTS,	129, KEY_TYPE_hash_whiteout	},
-	{BKEY_TYPE_XATTRS,	128, KEY_TYPE_xattr		},
-	{BKEY_TYPE_XATTRS,	129, KEY_TYPE_hash_whiteout	},
-	{BKEY_TYPE_ALLOC,	128, KEY_TYPE_alloc		},
-	{BKEY_TYPE_QUOTAS,	128, KEY_TYPE_quota		},
+	{BKEY_TYPE_btree,	128, KEY_TYPE_btree_ptr		},
+	{BKEY_TYPE_extents,	128, KEY_TYPE_extent		},
+	{BKEY_TYPE_extents,	129, KEY_TYPE_extent		},
+	{BKEY_TYPE_extents,	130, KEY_TYPE_reservation	},
+	{BKEY_TYPE_inodes,	128, KEY_TYPE_inode		},
+	{BKEY_TYPE_inodes,	130, KEY_TYPE_inode_generation	},
+	{BKEY_TYPE_dirents,	128, KEY_TYPE_dirent		},
+	{BKEY_TYPE_dirents,	129, KEY_TYPE_hash_whiteout	},
+	{BKEY_TYPE_xattrs,	128, KEY_TYPE_xattr		},
+	{BKEY_TYPE_xattrs,	129, KEY_TYPE_hash_whiteout	},
+	{BKEY_TYPE_alloc,	128, KEY_TYPE_alloc		},
+	{BKEY_TYPE_quotas,	128, KEY_TYPE_quota		},
 };
 
 void bch2_bkey_renumber(enum btree_node_type btree_node_type,
@@ -320,7 +320,7 @@ void __bch2_bkey_compat(unsigned level, enum btree_id btree_id,
 		break;
 	case 2:
 		if (version < bcachefs_metadata_version_inode_btree_change &&
-		    btree_id == BTREE_ID_INODES) {
+		    btree_id == BTREE_ID_inodes) {
 			if (!bkey_packed(k)) {
 				struct bkey_i *u = packed_to_bkey(k);
 				swap(u->k.p.inode, u->k.p.offset);

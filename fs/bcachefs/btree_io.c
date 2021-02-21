@@ -1321,7 +1321,7 @@ static int validate_bset_for_write(struct bch_fs *c, struct btree *b,
 	unsigned whiteout_u64s = 0;
 	int ret;
 
-	if (bch2_bkey_invalid(c, bkey_i_to_s_c(&b->key), BKEY_TYPE_BTREE))
+	if (bch2_bkey_invalid(c, bkey_i_to_s_c(&b->key), BKEY_TYPE_btree))
 		return -1;
 
 	ret = validate_bset(c, NULL, b, i, sectors, WRITE, false) ?:

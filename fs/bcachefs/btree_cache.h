@@ -7,8 +7,6 @@
 
 struct btree_iter;
 
-extern const char * const bch2_btree_ids[];
-
 void bch2_recalc_btree_reserve(struct bch_fs *);
 
 void bch2_btree_node_hash_remove(struct btree_cache *, struct btree *);

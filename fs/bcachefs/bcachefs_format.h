@@ -1658,18 +1658,18 @@ LE32_BITMASK(JSET_NO_FLUSH,	struct jset, flags, 5, 6);
 
 /* Btree: */
 
-#define BCH_BTREE_IDS()					\
-	x(EXTENTS,	0, "extents")			\
-	x(INODES,	1, "inodes")			\
-	x(DIRENTS,	2, "dirents")			\
-	x(XATTRS,	3, "xattrs")			\
-	x(ALLOC,	4, "alloc")			\
-	x(QUOTAS,	5, "quotas")			\
-	x(EC,		6, "stripes")			\
-	x(REFLINK,	7, "reflink")
+#define BCH_BTREE_IDS()				\
+	x(extents,	0)			\
+	x(inodes,	1)			\
+	x(dirents,	2)			\
+	x(xattrs,	3)			\
+	x(alloc,	4)			\
+	x(quotas,	5)			\
+	x(stripes,	6)			\
+	x(reflink,	7)
 
 enum btree_id {
-#define x(kwd, val, name) BTREE_ID_##kwd = val,
+#define x(kwd, val) BTREE_ID_##kwd = val,
 	BCH_BTREE_IDS()
 #undef x
 	BTREE_ID_NR

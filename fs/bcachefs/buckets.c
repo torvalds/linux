@@ -1509,7 +1509,7 @@ static int trans_get_key(struct btree_trans *trans,
 			 struct btree_iter **iter,
 			 struct bkey_s_c *k)
 {
-	unsigned flags = btree_id != BTREE_ID_ALLOC
+	unsigned flags = btree_id != BTREE_ID_alloc
 		? BTREE_ITER_SLOTS
 		: BTREE_ITER_CACHED;
 	int ret;
@@ -1545,11 +1545,11 @@ bch2_trans_start_alloc_update(struct btree_trans *trans, struct btree_iter **_it
 	if (IS_ERR(a))
 		return a;
 
-	iter = trans_get_update(trans, BTREE_ID_ALLOC, pos, &k);
+	iter = trans_get_update(trans, BTREE_ID_alloc, pos, &k);
 	if (iter) {
 		*u = bch2_alloc_unpack(k);
 	} else {
-		iter = bch2_trans_get_iter(trans, BTREE_ID_ALLOC, pos,
+		iter = bch2_trans_get_iter(trans, BTREE_ID_alloc, pos,
 					   BTREE_ITER_CACHED|
 					   BTREE_ITER_CACHED_NOFILL|
 					   BTREE_ITER_INTENT);
@@ -1606,7 +1606,7 @@ static int bch2_trans_mark_stripe_ptr(struct btree_trans *trans,
 	struct bch_replicas_padded r;
 	int ret = 0;
 
-	ret = trans_get_key(trans, BTREE_ID_EC, POS(0, p.ec.idx), &iter, &k);
+	ret = trans_get_key(trans, BTREE_ID_stripes, POS(0, p.ec.idx), &iter, &k);
 	if (ret < 0)
 		return ret;
 
@@ -1830,7 +1830,7 @@ static int __bch2_trans_mark_reflink_p(struct btree_trans *trans,
 	__le64 *refcount;
 	s64 ret;
 
-	ret = trans_get_key(trans, BTREE_ID_REFLINK,
+	ret = trans_get_key(trans, BTREE_ID_reflink,
 			    POS(0, idx), &iter, &k);
 	if (ret < 0)
 		return ret;

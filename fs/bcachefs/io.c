@@ -408,7 +408,7 @@ int bch2_fpunch(struct bch_fs *c, u64 inum, u64 start, u64 end,
 	int ret = 0;
 
 	bch2_trans_init(&trans, c, BTREE_ITER_MAX, 1024);
-	iter = bch2_trans_get_iter(&trans, BTREE_ID_EXTENTS,
+	iter = bch2_trans_get_iter(&trans, BTREE_ID_extents,
 				   POS(inum, start),
 				   BTREE_ITER_INTENT);
 
@@ -435,7 +435,7 @@ int bch2_write_index_default(struct bch_write_op *op)
 	bch2_bkey_buf_init(&sk);
 	bch2_trans_init(&trans, c, BTREE_ITER_MAX, 1024);
 
-	iter = bch2_trans_get_iter(&trans, BTREE_ID_EXTENTS,
+	iter = bch2_trans_get_iter(&trans, BTREE_ID_extents,
 				   bkey_start_pos(&k->k),
 				   BTREE_ITER_SLOTS|BTREE_ITER_INTENT);
 
@@ -1530,8 +1530,8 @@ static struct promote_op *promote_alloc(struct bch_fs *c,
 
 	promote = __promote_alloc(c,
 				  k.k->type == KEY_TYPE_reflink_v
-				  ? BTREE_ID_REFLINK
-				  : BTREE_ID_EXTENTS,
+				  ? BTREE_ID_reflink
+				  : BTREE_ID_extents,
 				  k, pos, pick, opts, sectors, rbio);
 	if (!promote)
 		return NULL;
@@ -1627,7 +1627,7 @@ static void bch2_read_retry_nodecode(struct bch_fs *c, struct bch_read_bio *rbio
 	bch2_bkey_buf_init(&sk);
 	bch2_trans_init(&trans, c, 0, 0);
 
-	iter = bch2_trans_get_iter(&trans, BTREE_ID_EXTENTS,
+	iter = bch2_trans_get_iter(&trans, BTREE_ID_extents,
 				   rbio->pos, BTREE_ITER_SLOTS);
 retry:
 	rbio->bio.bi_status = 0;
@@ -1682,7 +1682,7 @@ static void bch2_read_retry(struct bch_fs *c, struct bch_read_bio *rbio,
 retry:
 	bch2_trans_begin(&trans);
 
-	for_each_btree_key(&trans, iter, BTREE_ID_EXTENTS,
+	for_each_btree_key(&trans, iter, BTREE_ID_extents,
 			   POS(inode, bvec_iter.bi_sector),
 			   BTREE_ITER_SLOTS, k, ret) {
 		unsigned bytes, sectors, offset_into_extent;
@@ -1801,7 +1801,7 @@ static int __bch2_rbio_narrow_crcs(struct btree_trans *trans,
 	if (crc_is_compressed(rbio->pick.crc))
 		return 0;
 
-	iter = bch2_trans_get_iter(trans, BTREE_ID_EXTENTS, rbio->pos,
+	iter = bch2_trans_get_iter(trans, BTREE_ID_extents, rbio->pos,
 				   BTREE_ITER_SLOTS|BTREE_ITER_INTENT);
 	k = bch2_btree_iter_peek_slot(iter);
 	if ((ret = bkey_err(k)))
@@ -2011,7 +2011,7 @@ int __bch2_read_indirect_extent(struct btree_trans *trans,
 	reflink_offset = le64_to_cpu(bkey_i_to_reflink_p(orig_k->k)->v.idx) +
 		*offset_into_extent;
 
-	iter = bch2_trans_get_iter(trans, BTREE_ID_REFLINK,
+	iter = bch2_trans_get_iter(trans, BTREE_ID_reflink,
 				   POS(0, reflink_offset),
 				   BTREE_ITER_SLOTS);
 	k = bch2_btree_iter_peek_slot(iter);
@@ -2319,7 +2319,7 @@ void bch2_read(struct bch_fs *c, struct bch_read_bio *rbio, u64 inode)
 retry:
 	bch2_trans_begin(&trans);
 
-	iter = bch2_trans_get_iter(&trans, BTREE_ID_EXTENTS,
+	iter = bch2_trans_get_iter(&trans, BTREE_ID_extents,
 				   POS(inode, rbio->bio.bi_iter.bi_sector),
 				   BTREE_ITER_SLOTS);
 	while (1) {

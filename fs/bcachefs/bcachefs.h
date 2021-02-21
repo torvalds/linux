@@ -369,14 +369,14 @@ enum gc_phase {
 	GC_PHASE_START,
 	GC_PHASE_SB,
 
-	GC_PHASE_BTREE_EC,
-	GC_PHASE_BTREE_EXTENTS,
-	GC_PHASE_BTREE_INODES,
-	GC_PHASE_BTREE_DIRENTS,
-	GC_PHASE_BTREE_XATTRS,
-	GC_PHASE_BTREE_ALLOC,
-	GC_PHASE_BTREE_QUOTAS,
-	GC_PHASE_BTREE_REFLINK,
+	GC_PHASE_BTREE_stripes,
+	GC_PHASE_BTREE_extents,
+	GC_PHASE_BTREE_inodes,
+	GC_PHASE_BTREE_dirents,
+	GC_PHASE_BTREE_xattrs,
+	GC_PHASE_BTREE_alloc,
+	GC_PHASE_BTREE_quotas,
+	GC_PHASE_BTREE_reflink,
 
 	GC_PHASE_PENDING_DELETE,
 	GC_PHASE_ALLOC,
@@ -722,7 +722,7 @@ struct bch_fs {
 	 * Tracks GC's progress - everything in the range [ZERO_KEY..gc_cur_pos]
 	 * has been marked by GC.
 	 *
-	 * gc_cur_phase is a superset of btree_ids (BTREE_ID_EXTENTS etc.)
+	 * gc_cur_phase is a superset of btree_ids (BTREE_ID_extents etc.)
 	 *
 	 * Protected by gc_pos_lock. Only written to by GC thread, so GC thread
 	 * can read without a lock.

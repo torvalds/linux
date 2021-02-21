@@ -916,7 +916,7 @@ static int bch2_fiemap(struct inode *vinode, struct fiemap_extent_info *info,
 	bch2_bkey_buf_init(&prev);
 	bch2_trans_init(&trans, c, 0, 0);
 
-	iter = bch2_trans_get_iter(&trans, BTREE_ID_EXTENTS,
+	iter = bch2_trans_get_iter(&trans, BTREE_ID_extents,
 				   POS(ei->v.i_ino, start >> 9), 0);
 retry:
 	while ((k = bch2_btree_iter_peek(iter)).k &&

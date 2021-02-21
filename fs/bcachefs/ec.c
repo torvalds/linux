@@ -433,7 +433,7 @@ static int get_stripe_key(struct bch_fs *c, u64 idx, struct ec_stripe_buf *strip
 	int ret;
 
 	bch2_trans_init(&trans, c, 0, 0);
-	iter = bch2_trans_get_iter(&trans, BTREE_ID_EC, POS(0, idx), BTREE_ITER_SLOTS);
+	iter = bch2_trans_get_iter(&trans, BTREE_ID_stripes, POS(0, idx), BTREE_ITER_SLOTS);
 	k = bch2_btree_iter_peek_slot(iter);
 	ret = bkey_err(k);
 	if (ret)
@@ -668,7 +668,7 @@ void bch2_stripes_heap_update(struct bch_fs *c,
 
 static int ec_stripe_delete(struct bch_fs *c, size_t idx)
 {
-	return bch2_btree_delete_range(c, BTREE_ID_EC,
+	return bch2_btree_delete_range(c, BTREE_ID_stripes,
 				       POS(0, idx),
 				       POS(0, idx + 1),
 				       NULL);
@@ -713,7 +713,7 @@ static int ec_stripe_bkey_insert(struct bch_fs *c,
 retry:
 	bch2_trans_begin(&trans);
 
-	for_each_btree_key(&trans, iter, BTREE_ID_EC, start_pos,
+	for_each_btree_key(&trans, iter, BTREE_ID_stripes, start_pos,
 			   BTREE_ITER_SLOTS|BTREE_ITER_INTENT, k, ret) {
 		if (bkey_cmp(k.k->p, POS(0, U32_MAX)) > 0) {
 			if (start_pos.offset) {
@@ -765,7 +765,7 @@ static int ec_stripe_bkey_update(struct btree_trans *trans,
 	unsigned i;
 	int ret;
 
-	iter = bch2_trans_get_iter(trans, BTREE_ID_EC,
+	iter = bch2_trans_get_iter(trans, BTREE_ID_stripes,
 				   new->k.p, BTREE_ITER_INTENT);
 	k = bch2_btree_iter_peek_slot(iter);
 	ret = bkey_err(k);
@@ -831,7 +831,7 @@ static int ec_stripe_update_ptrs(struct bch_fs *c,
 
 	/* XXX this doesn't support the reflink btree */
 
-	iter = bch2_trans_get_iter(&trans, BTREE_ID_EXTENTS,
+	iter = bch2_trans_get_iter(&trans, BTREE_ID_extents,
 				   bkey_start_pos(pos),
 				   BTREE_ITER_INTENT);
 
@@ -1604,7 +1604,7 @@ int bch2_stripes_write(struct bch_fs *c, unsigned flags)
 
 	bch2_trans_init(&trans, c, 0, 0);
 
-	iter = bch2_trans_get_iter(&trans, BTREE_ID_EC, POS_MIN,
+	iter = bch2_trans_get_iter(&trans, BTREE_ID_stripes, POS_MIN,
 				   BTREE_ITER_SLOTS|BTREE_ITER_INTENT);
 
 	genradix_for_each(&c->stripes[0], giter, m) {
@@ -1645,7 +1645,7 @@ static int bch2_stripes_read_fn(struct bch_fs *c, enum btree_id id,
 
 int bch2_stripes_read(struct bch_fs *c, struct journal_keys *journal_keys)
 {
-	int ret = bch2_btree_and_journal_walk(c, journal_keys, BTREE_ID_EC,
+	int ret = bch2_btree_and_journal_walk(c, journal_keys, BTREE_ID_stripes,
 					  NULL, bch2_stripes_read_fn);
 	if (ret)
 		bch_err(c, "error reading stripes: %i", ret);
@@ -1663,7 +1663,7 @@ int bch2_ec_mem_alloc(struct bch_fs *c, bool gc)
 
 	bch2_trans_init(&trans, c, 0, 0);
 
-	iter = bch2_trans_get_iter(&trans, BTREE_ID_EC, POS(0, U64_MAX), 0);
+	iter = bch2_trans_get_iter(&trans, BTREE_ID_stripes, POS(0, U64_MAX), 0);
 
 	k = bch2_btree_iter_prev(iter);
 	if (!IS_ERR_OR_NULL(k.k))

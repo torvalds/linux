@@ -11,6 +11,7 @@
 extern const char * const bch2_error_actions[];
 extern const char * const bch2_sb_features[];
 extern const char * const bch2_sb_compat[];
+extern const char * const bch2_btree_ids[];
 extern const char * const bch2_csum_opts[];
 extern const char * const bch2_compression_opts[];
 extern const char * const bch2_str_hash_types[];

@@ -1196,7 +1196,7 @@ static void btree_split_insert_keys(struct btree_update *as, struct btree *b,
 	struct bkey_packed *src, *dst, *n;
 	struct bset *i;
 
-	BUG_ON(btree_node_type(b) != BKEY_TYPE_BTREE);
+	BUG_ON(btree_node_type(b) != BKEY_TYPE_btree);
 
 	bch2_btree_node_iter_init(&node_iter, b, &k->k.p);
 

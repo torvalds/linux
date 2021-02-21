@@ -300,7 +300,7 @@ struct btree_iter *bch2_inode_peek(struct btree_trans *trans,
 	struct bkey_s_c k;
 	int ret;
 
-	iter = bch2_trans_get_iter(trans, BTREE_ID_INODES, POS(0, inum),
+	iter = bch2_trans_get_iter(trans, BTREE_ID_inodes, POS(0, inum),
 				   BTREE_ITER_CACHED|flags);
 	k = bch2_btree_iter_peek_cached(iter);
 	ret = bkey_err(k);
@@ -498,7 +498,7 @@ int bch2_inode_create(struct btree_trans *trans,
 	if (IS_ERR(inode_p))
 		return PTR_ERR(inode_p);
 again:
-	for_each_btree_key(trans, iter, BTREE_ID_INODES, POS(0, start),
+	for_each_btree_key(trans, iter, BTREE_ID_inodes, POS(0, start),
 			   BTREE_ITER_SLOTS|BTREE_ITER_INTENT, k, ret) {
 		if (bkey_cmp(iter->pos, POS(0, max)) > 0)
 			break;
@@ -513,7 +513,7 @@ again:
 		 * cache before using a slot:
 		 */
 		if (k.k->type != KEY_TYPE_inode &&
-		    !bch2_btree_key_cache_find(c, BTREE_ID_INODES, iter->pos))
+		    !bch2_btree_key_cache_find(c, BTREE_ID_inodes, iter->pos))
 			goto found_slot;
 	}
 
@@ -560,11 +560,11 @@ int bch2_inode_rm(struct bch_fs *c, u64 inode_nr, bool cached)
 	 * XXX: the dirent could ideally would delete whiteouts when they're no
 	 * longer needed
 	 */
-	ret   = bch2_btree_delete_range_trans(&trans, BTREE_ID_EXTENTS,
+	ret   = bch2_btree_delete_range_trans(&trans, BTREE_ID_extents,
 					      start, end, NULL) ?:
-		bch2_btree_delete_range_trans(&trans, BTREE_ID_XATTRS,
+		bch2_btree_delete_range_trans(&trans, BTREE_ID_xattrs,
 					      start, end, NULL) ?:
-		bch2_btree_delete_range_trans(&trans, BTREE_ID_DIRENTS,
+		bch2_btree_delete_range_trans(&trans, BTREE_ID_dirents,
 					      start, end, NULL);
 	if (ret)
 		goto err;
@@ -574,11 +574,11 @@ retry:
 	bi_generation = 0;
 
 	if (cached) {
-		iter = bch2_trans_get_iter(&trans, BTREE_ID_INODES, POS(0, inode_nr),
+		iter = bch2_trans_get_iter(&trans, BTREE_ID_inodes, POS(0, inode_nr),
 					   BTREE_ITER_CACHED|BTREE_ITER_INTENT);
 		k = bch2_btree_iter_peek_cached(iter);
 	} else {
-		iter = bch2_trans_get_iter(&trans, BTREE_ID_INODES, POS(0, inode_nr),
+		iter = bch2_trans_get_iter(&trans, BTREE_ID_inodes, POS(0, inode_nr),
 					   BTREE_ITER_SLOTS|BTREE_ITER_INTENT);
 		k = bch2_btree_iter_peek_slot(iter);
 	}
@@ -636,7 +636,7 @@ int __bch2_inode_find_by_inum_trans(struct btree_trans *trans, u64 inode_nr,
 	struct bkey_s_c k;
 	int ret;
 
-	iter = bch2_trans_get_iter(trans, BTREE_ID_INODES,
+	iter = bch2_trans_get_iter(trans, BTREE_ID_inodes,
 			POS(0, inode_nr), flags);
 	k = (flags & BTREE_ITER_TYPE) == BTREE_ITER_CACHED
 		? bch2_btree_iter_peek_cached(iter)

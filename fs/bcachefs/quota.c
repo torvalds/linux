@@ -363,7 +363,7 @@ static int bch2_quota_init_type(struct bch_fs *c, enum quota_types type)
 
 	bch2_trans_init(&trans, c, 0, 0);
 
-	for_each_btree_key(&trans, iter, BTREE_ID_QUOTAS, POS(type, 0),
+	for_each_btree_key(&trans, iter, BTREE_ID_quotas, POS(type, 0),
 			   BTREE_ITER_PREFETCH, k, ret) {
 		if (k.k->p.inode != type)
 			break;
@@ -435,7 +435,7 @@ int bch2_fs_quota_read(struct bch_fs *c)
 
 	bch2_trans_init(&trans, c, 0, 0);
 
-	for_each_btree_key(&trans, iter, BTREE_ID_INODES, POS_MIN,
+	for_each_btree_key(&trans, iter, BTREE_ID_inodes, POS_MIN,
 			   BTREE_ITER_PREFETCH, k, ret) {
 		switch (k.k->type) {
 		case KEY_TYPE_inode:
@@ -526,7 +526,7 @@ static int bch2_quota_remove(struct super_block *sb, unsigned uflags)
 		if (c->opts.usrquota)
 			return -EINVAL;
 
-		ret = bch2_btree_delete_range(c, BTREE_ID_QUOTAS,
+		ret = bch2_btree_delete_range(c, BTREE_ID_quotas,
 					      POS(QTYP_USR, 0),
 					      POS(QTYP_USR + 1, 0),
 					      NULL);
@@ -538,7 +538,7 @@ static int bch2_quota_remove(struct super_block *sb, unsigned uflags)
 		if (c->opts.grpquota)
 			return -EINVAL;
 
-		ret = bch2_btree_delete_range(c, BTREE_ID_QUOTAS,
+		ret = bch2_btree_delete_range(c, BTREE_ID_quotas,
 					      POS(QTYP_GRP, 0),
 					      POS(QTYP_GRP + 1, 0),
 					      NULL);
@@ -550,7 +550,7 @@ static int bch2_quota_remove(struct super_block *sb, unsigned uflags)
 		if (c->opts.prjquota)
 			return -EINVAL;
 
-		ret = bch2_btree_delete_range(c, BTREE_ID_QUOTAS,
+		ret = bch2_btree_delete_range(c, BTREE_ID_quotas,
 					      POS(QTYP_PRJ, 0),
 					      POS(QTYP_PRJ + 1, 0),
 					      NULL);
@@ -718,7 +718,7 @@ static int bch2_set_quota_trans(struct btree_trans *trans,
 	struct bkey_s_c k;
 	int ret;
 
-	iter = bch2_trans_get_iter(trans, BTREE_ID_QUOTAS, new_quota->k.p,
+	iter = bch2_trans_get_iter(trans, BTREE_ID_quotas, new_quota->k.p,
 				   BTREE_ITER_SLOTS|BTREE_ITER_INTENT);
 	k = bch2_btree_iter_peek_slot(iter);
 

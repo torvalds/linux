@@ -24,7 +24,7 @@ static s64 bch2_count_inode_sectors(struct btree_trans *trans, u64 inum)
 	u64 sectors = 0;
 	int ret;
 
-	for_each_btree_key(trans, iter, BTREE_ID_EXTENTS,
+	for_each_btree_key(trans, iter, BTREE_ID_extents,
 			   POS(inum, 0), 0, k, ret) {
 		if (k.k->p.inode != inum)
 			break;
@@ -396,7 +396,7 @@ err_redo:
 	if (fsck_err(c, "cannot fix dirent by removing trailing garbage %s (%zu)\n"
 		     "hash table key at wrong offset: btree %u, offset %llu, "
 		     "hashed to %llu chain starts at %llu\n%s",
-		     buf, strlen(buf), BTREE_ID_DIRENTS,
+		     buf, strlen(buf), BTREE_ID_dirents,
 		     k->k->p.offset, hash, h->chain->pos.offset,
 		     (bch2_bkey_val_to_text(&PBUF(buf), c,
 					    *k), buf))) {
@@ -415,7 +415,7 @@ err_redo:
 
 static int bch2_inode_truncate(struct bch_fs *c, u64 inode_nr, u64 new_size)
 {
-	return bch2_btree_delete_range(c, BTREE_ID_EXTENTS,
+	return bch2_btree_delete_range(c, BTREE_ID_extents,
 			POS(inode_nr, round_up(new_size, block_bytes(c)) >> 9),
 			POS(inode_nr + 1, 0), NULL);
 }
@@ -474,7 +474,7 @@ static int check_extents(struct bch_fs *c)
 
 	bch_verbose(c, "checking extents");
 
-	iter = bch2_trans_get_iter(&trans, BTREE_ID_EXTENTS,
+	iter = bch2_trans_get_iter(&trans, BTREE_ID_extents,
 				   POS(BCACHEFS_ROOT_INO, 0),
 				   BTREE_ITER_INTENT);
 retry:
@@ -537,7 +537,7 @@ retry:
 
 			bch2_inode_pack(c, &p, &w.inode);
 
-			ret = bch2_btree_insert(c, BTREE_ID_INODES,
+			ret = bch2_btree_insert(c, BTREE_ID_inodes,
 						&p.inode.k_i, NULL, NULL,
 						BTREE_INSERT_NOFAIL|
 						BTREE_INSERT_LAZY_RW);
@@ -595,7 +595,7 @@ static int check_dirents(struct bch_fs *c)
 
 	hash_check_init(&h);
 
-	iter = bch2_trans_get_iter(&trans, BTREE_ID_DIRENTS,
+	iter = bch2_trans_get_iter(&trans, BTREE_ID_dirents,
 				   POS(BCACHEFS_ROOT_INO, 0), 0);
 retry:
 	for_each_btree_key_continue(iter, 0, k, ret) {
@@ -747,7 +747,7 @@ static int check_xattrs(struct bch_fs *c)
 
 	bch2_trans_init(&trans, c, BTREE_ITER_MAX, 0);
 
-	iter = bch2_trans_get_iter(&trans, BTREE_ID_XATTRS,
+	iter = bch2_trans_get_iter(&trans, BTREE_ID_xattrs,
 				   POS(BCACHEFS_ROOT_INO, 0), 0);
 retry:
 	for_each_btree_key_continue(iter, 0, k, ret) {
@@ -810,7 +810,7 @@ create_root:
 
 	bch2_inode_pack(c, &packed, root_inode);
 
-	return bch2_btree_insert(c, BTREE_ID_INODES, &packed.inode.k_i,
+	return bch2_btree_insert(c, BTREE_ID_inodes, &packed.inode.k_i,
 				 NULL, NULL,
 				 BTREE_INSERT_NOFAIL|
 				 BTREE_INSERT_LAZY_RW);
@@ -958,7 +958,7 @@ next:
 		if (e->offset == U64_MAX)
 			goto up;
 
-		for_each_btree_key(&trans, iter, BTREE_ID_DIRENTS,
+		for_each_btree_key(&trans, iter, BTREE_ID_dirents,
 				   POS(e->inum, e->offset + 1), 0, k, ret) {
 			if (k.k->p.inode != e->inum)
 				break;
@@ -1011,7 +1011,7 @@ up:
 		path.nr--;
 	}
 
-	iter = bch2_trans_get_iter(&trans, BTREE_ID_INODES, POS_MIN, 0);
+	iter = bch2_trans_get_iter(&trans, BTREE_ID_inodes, POS_MIN, 0);
 retry:
 	for_each_btree_key_continue(iter, 0, k, ret) {
 		if (k.k->type != KEY_TYPE_inode)
@@ -1108,7 +1108,7 @@ static int bch2_gc_walk_dirents(struct bch_fs *c, nlink_table *links,
 
 	inc_link(c, links, range_start, range_end, BCACHEFS_ROOT_INO, false);
 
-	for_each_btree_key(&trans, iter, BTREE_ID_DIRENTS, POS_MIN, 0, k, ret) {
+	for_each_btree_key(&trans, iter, BTREE_ID_dirents, POS_MIN, 0, k, ret) {
 		switch (k.k->type) {
 		case KEY_TYPE_dirent:
 			d = bkey_s_c_to_dirent(k);
@@ -1349,7 +1349,7 @@ static int bch2_gc_walk_inodes(struct bch_fs *c,
 
 	bch2_trans_init(&trans, c, BTREE_ITER_MAX, 0);
 
-	iter = bch2_trans_get_iter(&trans, BTREE_ID_INODES,
+	iter = bch2_trans_get_iter(&trans, BTREE_ID_inodes,
 				   POS(0, range_start), 0);
 	nlinks_iter = genradix_iter_init(links, 0);
 
@@ -1475,7 +1475,7 @@ int bch2_fsck_walk_inodes_only(struct bch_fs *c)
 
 	bch2_trans_init(&trans, c, BTREE_ITER_MAX, 0);
 
-	for_each_btree_key(&trans, iter, BTREE_ID_INODES, POS_MIN, 0, k, ret) {
+	for_each_btree_key(&trans, iter, BTREE_ID_inodes, POS_MIN, 0, k, ret) {
 		if (k.k->type != KEY_TYPE_inode)
 			continue;
 

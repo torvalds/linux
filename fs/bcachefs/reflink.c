@@ -119,7 +119,7 @@ static int bch2_make_extent_indirect(struct btree_trans *trans,
 	if (orig->k.type == KEY_TYPE_inline_data)
 		bch2_check_set_feature(c, BCH_FEATURE_reflink_inline_data);
 
-	for_each_btree_key(trans, reflink_iter, BTREE_ID_REFLINK,
+	for_each_btree_key(trans, reflink_iter, BTREE_ID_reflink,
 			   POS(0, c->reflink_hint),
 			   BTREE_ITER_INTENT|BTREE_ITER_SLOTS, k, ret) {
 		if (reflink_iter->pos.inode) {
@@ -219,9 +219,9 @@ s64 bch2_remap_range(struct bch_fs *c,
 	bch2_bkey_buf_init(&new_src);
 	bch2_trans_init(&trans, c, BTREE_ITER_MAX, 4096);
 
-	src_iter = bch2_trans_get_iter(&trans, BTREE_ID_EXTENTS, src_start,
+	src_iter = bch2_trans_get_iter(&trans, BTREE_ID_extents, src_start,
 				       BTREE_ITER_INTENT);
-	dst_iter = bch2_trans_get_iter(&trans, BTREE_ID_EXTENTS, dst_start,
+	dst_iter = bch2_trans_get_iter(&trans, BTREE_ID_extents, dst_start,
 				       BTREE_ITER_INTENT);
 
 	while (1) {

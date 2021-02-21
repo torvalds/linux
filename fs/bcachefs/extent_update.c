@@ -62,7 +62,7 @@ static int count_iters_for_insert(struct btree_trans *trans,
 		struct bkey_s_c r_k;
 
 		for_each_btree_key(trans, iter,
-				   BTREE_ID_REFLINK, POS(0, idx + offset),
+				   BTREE_ID_reflink, POS(0, idx + offset),
 				   BTREE_ITER_SLOTS, r_k, ret2) {
 			if (bkey_cmp(bkey_start_pos(r_k.k),
 				     POS(0, idx + sectors)) >= 0)

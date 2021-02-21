@@ -99,8 +99,8 @@ static int __bch2_dev_usrdata_drop(struct bch_fs *c, unsigned dev_idx, int flags
 
 static int bch2_dev_usrdata_drop(struct bch_fs *c, unsigned dev_idx, int flags)
 {
-	return  __bch2_dev_usrdata_drop(c, dev_idx, flags, BTREE_ID_EXTENTS) ?:
-		__bch2_dev_usrdata_drop(c, dev_idx, flags, BTREE_ID_REFLINK);
+	return  __bch2_dev_usrdata_drop(c, dev_idx, flags, BTREE_ID_extents) ?:
+		__bch2_dev_usrdata_drop(c, dev_idx, flags, BTREE_ID_reflink);
 }
 
 static int bch2_dev_metadata_drop(struct bch_fs *c, unsigned dev_idx, int flags)

@@ -13,13 +13,6 @@
 #include <linux/prefetch.h>
 #include <linux/sched/mm.h>
 
-const char * const bch2_btree_ids[] = {
-#define x(kwd, val, name) name,
-	BCH_BTREE_IDS()
-#undef x
-	NULL
-};
-
 void bch2_recalc_btree_reserve(struct bch_fs *c)
 {
 	unsigned i, reserve = 16;

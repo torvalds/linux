@@ -1436,7 +1436,7 @@ int bch2_dev_remove_alloc(struct bch_fs *c, struct bch_dev *ca)
 
 	for (i = 0; i < ca->mi.nbuckets; i++) {
 		ret = bch2_btree_key_cache_flush(&trans,
-				BTREE_ID_ALLOC, POS(ca->dev_idx, i));
+				BTREE_ID_alloc, POS(ca->dev_idx, i));
 		if (ret)
 			break;
 	}
@@ -1445,7 +1445,7 @@ int bch2_dev_remove_alloc(struct bch_fs *c, struct bch_dev *ca)
 	if (ret)
 		return ret;
 
-	return bch2_btree_delete_range(c, BTREE_ID_ALLOC,
+	return bch2_btree_delete_range(c, BTREE_ID_alloc,
 				       POS(ca->dev_idx, 0),
 				       POS(ca->dev_idx + 1, 0),
 				       NULL);

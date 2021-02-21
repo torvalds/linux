@@ -945,7 +945,7 @@ void bch2_sb_clean_renumber(struct bch_sb_field_clean *clean, int write)
 	for (entry = clean->start;
 	     entry < (struct jset_entry *) vstruct_end(&clean->field);
 	     entry = vstruct_next(entry))
-		bch2_bkey_renumber(BKEY_TYPE_BTREE, bkey_to_packed(entry->start), write);
+		bch2_bkey_renumber(BKEY_TYPE_btree, bkey_to_packed(entry->start), write);
 }
 
 int bch2_fs_mark_dirty(struct bch_fs *c)

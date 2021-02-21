@@ -57,7 +57,7 @@ static inline int gc_pos_cmp(struct gc_pos l, struct gc_pos r)
 static inline enum gc_phase btree_id_to_gc_phase(enum btree_id id)
 {
 	switch (id) {
-#define x(n, v, s) case BTREE_ID_##n: return GC_PHASE_BTREE_##n;
+#define x(name, v) case BTREE_ID_##name: return GC_PHASE_BTREE_##name;
 	BCH_BTREE_IDS()
 #undef x
 	default:

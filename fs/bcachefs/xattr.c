@@ -61,7 +61,7 @@ static bool xattr_cmp_bkey(struct bkey_s_c _l, struct bkey_s_c _r)
 }
 
 const struct bch_hash_desc bch2_xattr_hash_desc = {
-	.btree_id	= BTREE_ID_XATTRS,
+	.btree_id	= BTREE_ID_xattrs,
 	.key_type	= KEY_TYPE_xattr,
 	.hash_key	= xattr_hash_key,
 	.hash_bkey	= xattr_hash_bkey,
@@ -279,7 +279,7 @@ ssize_t bch2_xattr_list(struct dentry *dentry, char *buffer, size_t buffer_size)
 
 	bch2_trans_init(&trans, c, 0, 0);
 
-	for_each_btree_key(&trans, iter, BTREE_ID_XATTRS,
+	for_each_btree_key(&trans, iter, BTREE_ID_xattrs,
 			   POS(inum, 0), 0, k, ret) {
 		BUG_ON(k.k->p.inode < inum);
 

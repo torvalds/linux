@@ -259,7 +259,7 @@ static int bch2_compression_stats_to_text(struct printbuf *out, struct bch_fs *c
 
 	bch2_trans_init(&trans, c, 0, 0);
 
-	for_each_btree_key(&trans, iter, BTREE_ID_EXTENTS, POS_MIN, 0, k, ret)
+	for_each_btree_key(&trans, iter, BTREE_ID_extents, POS_MIN, 0, k, ret)
 		if (k.k->type == KEY_TYPE_extent) {
 			struct bkey_s_c_extent e = bkey_s_c_to_extent(k);
 			const union bch_extent_entry *entry;

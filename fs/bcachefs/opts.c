@@ -30,6 +30,13 @@ const char * const bch2_sb_compat[] = {
 	NULL
 };
 
+const char * const bch2_btree_ids[] = {
+#define x(name, ...) #name,
+	BCH_BTREE_IDS()
+#undef x
+	NULL
+};
+
 const char * const bch2_csum_opts[] = {
 	"none",
 	"crc32c",
