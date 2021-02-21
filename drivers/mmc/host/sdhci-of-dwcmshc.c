@@ -156,8 +156,16 @@ static void dwcmshc_rk_set_clock(struct sdhci_host *host, unsigned int clock)
 
 	sdhci_set_clock(host, clock);
 
-	if (clock <= 400000)
+	/* Disable cmd conflict check */
+	extra = sdhci_readl(host, DWCMSHC_HOST_CTRL3);
+	extra &= ~BIT(0);
+	sdhci_writel(host, extra, DWCMSHC_HOST_CTRL3);
+
+	if (clock <= 400000) {
+		/* Disable DLL to reset sample clock */
+		sdhci_writel(host, 0, DWCMSHC_EMMC_DLL_CTRL);
 		return;
+	}
 
 	/* Reset DLL */
 	sdhci_writel(host, BIT(1), DWCMSHC_EMMC_DLL_CTRL);
@@ -176,11 +184,6 @@ static void dwcmshc_rk_set_clock(struct sdhci_host *host, unsigned int clock)
 		dev_err(mmc_dev(host->mmc), "DLL lock timeout!\n");
 		return;
 	}
-
-	/* Disable cmd conflict check */
-	extra = sdhci_readl(host, DWCMSHC_HOST_CTRL3);
-	extra &= ~BIT(0);
-	sdhci_writel(host, extra, DWCMSHC_HOST_CTRL3);
 
 	extra = 0x1 << 16 | /* tune clock stop en */
 		0x2 << 17 | /* pre-change delay */
