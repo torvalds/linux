@@ -53,6 +53,7 @@ struct cpu_data {
 	struct cluster_data	*cluster;
 	struct list_head	sib;
 	bool			paused_by_us;
+	bool			disabled;
 };
 
 static DEFINE_PER_CPU(struct cpu_data, cpu_state);
@@ -1007,6 +1008,8 @@ static void try_to_pause(struct cluster_data *cluster, unsigned int need,
 		if (!num_cpus--)
 			break;
 
+		if (c->disabled)
+			continue;
 		if (!is_active(c))
 			continue;
 		if (active_cpus - nr_pending == need)
@@ -1043,6 +1046,8 @@ again:
 		if (!num_cpus--)
 			break;
 
+		if (c->disabled)
+			continue;
 		if (!is_active(c))
 			continue;
 		if (active_cpus - nr_pending <= cluster->max_cpus)
@@ -1246,6 +1251,8 @@ static int cluster_init(const struct cpumask *mask)
 		state = &per_cpu(cpu_state, cpu);
 		state->cluster = cluster;
 		state->cpu = cpu;
+		state->disabled = get_cpu_device(cpu) &&
+				get_cpu_device(cpu)->offline_disabled;
 		list_add_tail(&state->sib, &cluster->lru);
 	}
 	cluster->active_cpus = get_active_cpu_count(cluster);
