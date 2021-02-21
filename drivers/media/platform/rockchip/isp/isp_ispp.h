@@ -110,6 +110,7 @@ struct rkisp_ispp_buf {
 	u32 mfbc_dmaidx;
 	u32 gain_size;
 	u32 mfbc_size;
+	void *priv;
 };
 
 #if IS_BUILTIN(CONFIG_VIDEO_ROCKCHIP_ISP) && IS_BUILTIN(CONFIG_VIDEO_ROCKCHIP_ISPP)

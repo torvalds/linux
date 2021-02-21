@@ -46,7 +46,7 @@ static int rkispp_stats_frame_end(struct rkispp_stats_vdev *stats_vdev)
 	if (stats_vdev->curr_buf) {
 		u64 ns = ktime_get_ns();
 		u32 total_num = readl(base + RKISPP_ORB_TOTAL_NUM);
-		u32 cur_frame_id = atomic_read(&dev->ispp_sdev.frm_sync_seq) - 1;
+		u32 cur_frame_id = dev->ispp_sdev.frm_sync_seq;
 		void *vaddr;
 
 		curr_buf = stats_vdev->curr_buf;

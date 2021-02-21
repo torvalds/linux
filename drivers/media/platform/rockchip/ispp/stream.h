@@ -150,7 +150,6 @@ struct rkispp_stream {
 
 	struct list_head buf_queue;
 	struct rkispp_buffer *curr_buf;
-	struct rkispp_buffer *next_buf;
 	wait_queue_head_t done;
 	spinlock_t vbq_lock;
 
@@ -217,6 +216,7 @@ struct rkispp_stream_vdev {
 	struct frame_debug_info dbg;
 	struct rkispp_monitor monitor;
 	struct rkispp_vir_cpy vir_cpy;
+	struct rkisp_ispp_buf input[VIDEO_MAX_FRAME];
 	atomic_t refcnt;
 	u32 module_ens;
 	u32 irq_ends;
