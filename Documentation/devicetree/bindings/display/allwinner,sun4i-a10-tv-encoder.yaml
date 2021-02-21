@@ -24,11 +24,9 @@ properties:
     maxItems: 1
 
   port:
-    type: object
+    $ref: /schemas/graph.yaml#/properties/port
     description:
-      A port node with endpoint definitions as defined in
-      Documentation/devicetree/bindings/media/video-interfaces.txt. The
-      first port should be the input endpoint, usually coming from the
+      The first port should be the input endpoint, usually coming from the
       associated TCON.
 
 required:

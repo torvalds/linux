@@ -133,8 +133,6 @@
 	__SMU_DUMMY_MAP(PowerUpSdma),                 \
 	__SMU_DUMMY_MAP(SetHardMinIspclkByFreq),      \
 	__SMU_DUMMY_MAP(SetHardMinVcn),               \
-	__SMU_DUMMY_MAP(Spare1),                      \
-	__SMU_DUMMY_MAP(Spare2),           	      \
 	__SMU_DUMMY_MAP(SetAllowFclkSwitch),          \
 	__SMU_DUMMY_MAP(SetMinVideoGfxclkFreq),       \
 	__SMU_DUMMY_MAP(ActiveProcessNotify),         \
@@ -211,6 +209,11 @@
 	__SMU_DUMMY_MAP(SetGpoFeaturePMask),             \
 	__SMU_DUMMY_MAP(DisallowGpo),                    \
 	__SMU_DUMMY_MAP(Enable2ndUSB20Port),             \
+	__SMU_DUMMY_MAP(RequestActiveWgp),               \
+       __SMU_DUMMY_MAP(SetFastPPTLimit),                \
+       __SMU_DUMMY_MAP(SetSlowPPTLimit),                \
+       __SMU_DUMMY_MAP(GetFastPPTLimit),                \
+       __SMU_DUMMY_MAP(GetSlowPPTLimit),                \
 
 #undef __SMU_DUMMY_MAP
 #define __SMU_DUMMY_MAP(type)	SMU_MSG_##type
@@ -236,10 +239,12 @@ enum smu_clk_type {
 	SMU_SCLK,
 	SMU_MCLK,
 	SMU_PCIE,
+	SMU_OD_CCLK,
 	SMU_OD_SCLK,
 	SMU_OD_MCLK,
 	SMU_OD_VDDC_CURVE,
 	SMU_OD_RANGE,
+	SMU_OD_VDDGFX_OFFSET,
 	SMU_CLK_COUNT,
 };
 

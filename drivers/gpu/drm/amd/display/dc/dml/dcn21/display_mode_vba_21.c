@@ -4257,10 +4257,11 @@ void dml21_ModeSupportAndSystemConfigurationFull(struct display_mode_lib *mode_l
 	for (i = 0; i <= mode_lib->vba.soc.num_states; i++) {
 		locals->DIOSupport[i] = true;
 		for (k = 0; k <= mode_lib->vba.NumberOfActivePlanes - 1; k++) {
-			if (locals->OutputBppPerState[i][k] == BPP_INVALID
-					|| (mode_lib->vba.OutputFormat[k] == dm_420
+			if (!mode_lib->vba.skip_dio_check[k]
+					&& (locals->OutputBppPerState[i][k] == BPP_INVALID
+						|| (mode_lib->vba.OutputFormat[k] == dm_420
 							&& mode_lib->vba.Interlace[k] == true
-							&& mode_lib->vba.ProgressiveToInterlaceUnitInOPP == true)) {
+							&& mode_lib->vba.ProgressiveToInterlaceUnitInOPP == true))) {
 				locals->DIOSupport[i] = false;
 			}
 		}
@@ -5121,48 +5122,48 @@ void dml21_ModeSupportAndSystemConfigurationFull(struct display_mode_lib *mode_l
 		for (j = 0; j < 2; j++) {
 			enum dm_validation_status status = DML_VALIDATION_OK;
 
-			if (mode_lib->vba.ScaleRatioAndTapsSupport != true) {
+			if (!mode_lib->vba.ScaleRatioAndTapsSupport) {
 				status = DML_FAIL_SCALE_RATIO_TAP;
-			} else if (mode_lib->vba.SourceFormatPixelAndScanSupport != true) {
+			} else if (!mode_lib->vba.SourceFormatPixelAndScanSupport) {
 				status = DML_FAIL_SOURCE_PIXEL_FORMAT;
-			} else if (locals->ViewportSizeSupport[i][0] != true) {
+			} else if (!locals->ViewportSizeSupport[i][0]) {
 				status = DML_FAIL_VIEWPORT_SIZE;
-			} else if (locals->DIOSupport[i] != true) {
+			} else if (!locals->DIOSupport[i]) {
 				status = DML_FAIL_DIO_SUPPORT;
-			} else if (locals->NotEnoughDSCUnits[i] != false) {
+			} else if (locals->NotEnoughDSCUnits[i]) {
 				status = DML_FAIL_NOT_ENOUGH_DSC;
-			} else if (locals->DSCCLKRequiredMoreThanSupported[i] != false) {
+			} else if (locals->DSCCLKRequiredMoreThanSupported[i]) {
 				status = DML_FAIL_DSC_CLK_REQUIRED;
-			} else if (locals->ROBSupport[i][0] != true) {
+			} else if (!locals->ROBSupport[i][0]) {
 				status = DML_FAIL_REORDERING_BUFFER;
-			} else if (locals->DISPCLK_DPPCLK_Support[i][j] != true) {
+			} else if (!locals->DISPCLK_DPPCLK_Support[i][j]) {
 				status = DML_FAIL_DISPCLK_DPPCLK;
-			} else if (locals->TotalAvailablePipesSupport[i][j] != true) {
+			} else if (!locals->TotalAvailablePipesSupport[i][j]) {
 				status = DML_FAIL_TOTAL_AVAILABLE_PIPES;
-			} else if (mode_lib->vba.NumberOfOTGSupport != true) {
+			} else if (!mode_lib->vba.NumberOfOTGSupport) {
 				status = DML_FAIL_NUM_OTG;
-			} else if (mode_lib->vba.WritebackModeSupport != true) {
+			} else if (!mode_lib->vba.WritebackModeSupport) {
 				status = DML_FAIL_WRITEBACK_MODE;
-			} else if (mode_lib->vba.WritebackLatencySupport != true) {
+			} else if (!mode_lib->vba.WritebackLatencySupport) {
 				status = DML_FAIL_WRITEBACK_LATENCY;
-			} else if (mode_lib->vba.WritebackScaleRatioAndTapsSupport != true) {
+			} else if (!mode_lib->vba.WritebackScaleRatioAndTapsSupport) {
 				status = DML_FAIL_WRITEBACK_SCALE_RATIO_TAP;
-			} else if (mode_lib->vba.CursorSupport != true) {
+			} else if (!mode_lib->vba.CursorSupport) {
 				status = DML_FAIL_CURSOR_SUPPORT;
-			} else if (mode_lib->vba.PitchSupport != true) {
+			} else if (!mode_lib->vba.PitchSupport) {
 				status = DML_FAIL_PITCH_SUPPORT;
-			} else if (locals->TotalVerticalActiveBandwidthSupport[i][0] != true) {
+			} else if (!locals->TotalVerticalActiveBandwidthSupport[i][0]) {
 				status = DML_FAIL_TOTAL_V_ACTIVE_BW;
-			} else if (locals->PTEBufferSizeNotExceeded[i][j] != true) {
+			} else if (!locals->PTEBufferSizeNotExceeded[i][j]) {
 				status = DML_FAIL_PTE_BUFFER_SIZE;
-			} else if (mode_lib->vba.NonsupportedDSCInputBPC != false) {
+			} else if (mode_lib->vba.NonsupportedDSCInputBPC) {
 				status = DML_FAIL_DSC_INPUT_BPC;
-			} else if ((mode_lib->vba.HostVMEnable != false
-					&& locals->ImmediateFlipSupportedForState[i][j] != true)) {
+			} else if ((mode_lib->vba.HostVMEnable
+					&& !locals->ImmediateFlipSupportedForState[i][j])) {
 				status = DML_FAIL_HOST_VM_IMMEDIATE_FLIP;
-			} else if (locals->PrefetchSupported[i][j] != true) {
+			} else if (!locals->PrefetchSupported[i][j]) {
 				status = DML_FAIL_PREFETCH_SUPPORT;
-			} else if (locals->VRatioInPrefetchSupported[i][j] != true) {
+			} else if (!locals->VRatioInPrefetchSupported[i][j]) {
 				status = DML_FAIL_V_RATIO_PREFETCH;
 			}
 

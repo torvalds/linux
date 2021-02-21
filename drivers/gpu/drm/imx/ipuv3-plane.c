@@ -11,6 +11,7 @@
 #include <drm/drm_fourcc.h>
 #include <drm/drm_gem_cma_helper.h>
 #include <drm/drm_gem_framebuffer_helper.h>
+#include <drm/drm_managed.h>
 #include <drm/drm_plane_helper.h>
 
 #include <video/imx-ipu-v3.h>
@@ -142,8 +143,10 @@ drm_plane_state_to_vbo(struct drm_plane_state *state)
 	       fb->format->cpp[2] * x - eba;
 }
 
-void ipu_plane_put_resources(struct ipu_plane *ipu_plane)
+static void ipu_plane_put_resources(struct drm_device *dev, void *ptr)
 {
+	struct ipu_plane *ipu_plane = ptr;
+
 	if (!IS_ERR_OR_NULL(ipu_plane->dp))
 		ipu_dp_put(ipu_plane->dp);
 	if (!IS_ERR_OR_NULL(ipu_plane->dmfc))
@@ -154,7 +157,8 @@ void ipu_plane_put_resources(struct ipu_plane *ipu_plane)
 		ipu_idmac_put(ipu_plane->alpha_ch);
 }
 
-int ipu_plane_get_resources(struct ipu_plane *ipu_plane)
+static int ipu_plane_get_resources(struct drm_device *dev,
+				   struct ipu_plane *ipu_plane)
 {
 	int ret;
 	int alpha_ch;
@@ -165,6 +169,10 @@ int ipu_plane_get_resources(struct ipu_plane *ipu_plane)
 		DRM_ERROR("failed to get idmac channel: %d\n", ret);
 		return ret;
 	}
+
+	ret = drmm_add_action_or_reset(dev, ipu_plane_put_resources, ipu_plane);
+	if (ret)
+		return ret;
 
 	alpha_ch = ipu_channel_alpha_channel(ipu_plane->dma);
 	if (alpha_ch >= 0) {
@@ -181,7 +189,7 @@ int ipu_plane_get_resources(struct ipu_plane *ipu_plane)
 	if (IS_ERR(ipu_plane->dmfc)) {
 		ret = PTR_ERR(ipu_plane->dmfc);
 		DRM_ERROR("failed to get dmfc: ret %d\n", ret);
-		goto err_out;
+		return ret;
 	}
 
 	if (ipu_plane->dp_flow >= 0) {
@@ -189,15 +197,11 @@ int ipu_plane_get_resources(struct ipu_plane *ipu_plane)
 		if (IS_ERR(ipu_plane->dp)) {
 			ret = PTR_ERR(ipu_plane->dp);
 			DRM_ERROR("failed to get dp flow: %d\n", ret);
-			goto err_out;
+			return ret;
 		}
 	}
 
 	return 0;
-err_out:
-	ipu_plane_put_resources(ipu_plane);
-
-	return ret;
 }
 
 static bool ipu_plane_separate_alpha(struct ipu_plane *ipu_plane)
@@ -261,16 +265,6 @@ void ipu_plane_disable_deferred(struct drm_plane *plane)
 	}
 }
 EXPORT_SYMBOL_GPL(ipu_plane_disable_deferred);
-
-static void ipu_plane_destroy(struct drm_plane *plane)
-{
-	struct ipu_plane *ipu_plane = to_ipu_plane(plane);
-
-	DRM_DEBUG_KMS("[%d] %s\n", __LINE__, __func__);
-
-	drm_plane_cleanup(plane);
-	kfree(ipu_plane);
-}
 
 static void ipu_plane_state_reset(struct drm_plane *plane)
 {
@@ -336,7 +330,6 @@ static bool ipu_plane_format_mod_supported(struct drm_plane *plane,
 static const struct drm_plane_funcs ipu_plane_funcs = {
 	.update_plane	= drm_atomic_helper_update_plane,
 	.disable_plane	= drm_atomic_helper_disable_plane,
-	.destroy	= ipu_plane_destroy,
 	.reset		= ipu_plane_state_reset,
 	.atomic_duplicate_state	= ipu_plane_duplicate_state,
 	.atomic_destroy_state	= ipu_plane_destroy_state,
@@ -834,10 +827,15 @@ struct ipu_plane *ipu_plane_init(struct drm_device *dev, struct ipu_soc *ipu,
 	DRM_DEBUG_KMS("channel %d, dp flow %d, possible_crtcs=0x%x\n",
 		      dma, dp, possible_crtcs);
 
-	ipu_plane = kzalloc(sizeof(*ipu_plane), GFP_KERNEL);
-	if (!ipu_plane) {
-		DRM_ERROR("failed to allocate plane\n");
-		return ERR_PTR(-ENOMEM);
+	ipu_plane = drmm_universal_plane_alloc(dev, struct ipu_plane, base,
+					       possible_crtcs, &ipu_plane_funcs,
+					       ipu_plane_formats,
+					       ARRAY_SIZE(ipu_plane_formats),
+					       modifiers, type, NULL);
+	if (IS_ERR(ipu_plane)) {
+		DRM_ERROR("failed to allocate and initialize %s plane\n",
+			  zpos ? "overlay" : "primary");
+		return ipu_plane;
 	}
 
 	ipu_plane->ipu = ipu;
@@ -847,22 +845,23 @@ struct ipu_plane *ipu_plane_init(struct drm_device *dev, struct ipu_soc *ipu,
 	if (ipu_prg_present(ipu))
 		modifiers = pre_format_modifiers;
 
-	ret = drm_universal_plane_init(dev, &ipu_plane->base, possible_crtcs,
-				       &ipu_plane_funcs, ipu_plane_formats,
-				       ARRAY_SIZE(ipu_plane_formats),
-				       modifiers, type, NULL);
-	if (ret) {
-		DRM_ERROR("failed to initialize plane\n");
-		kfree(ipu_plane);
-		return ERR_PTR(ret);
-	}
-
 	drm_plane_helper_add(&ipu_plane->base, &ipu_plane_helper_funcs);
 
 	if (dp == IPU_DP_FLOW_SYNC_BG || dp == IPU_DP_FLOW_SYNC_FG)
-		drm_plane_create_zpos_property(&ipu_plane->base, zpos, 0, 1);
+		ret = drm_plane_create_zpos_property(&ipu_plane->base, zpos, 0,
+						     1);
 	else
-		drm_plane_create_zpos_immutable_property(&ipu_plane->base, 0);
+		ret = drm_plane_create_zpos_immutable_property(&ipu_plane->base,
+							       0);
+	if (ret)
+		return ERR_PTR(ret);
+
+	ret = ipu_plane_get_resources(dev, ipu_plane);
+	if (ret) {
+		DRM_ERROR("failed to get %s plane resources: %pe\n",
+			  zpos ? "overlay" : "primary", &ret);
+		return ERR_PTR(ret);
+	}
 
 	return ipu_plane;
 }

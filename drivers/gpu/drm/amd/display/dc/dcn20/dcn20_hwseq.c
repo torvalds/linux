@@ -1575,8 +1575,8 @@ static void dcn20_update_dchubp_dpp(
 
 
 
-	if (pipe_ctx->update_flags.bits.enable)
-		hubp->funcs->set_blank(hubp, false);
+	if (is_pipe_tree_visible(pipe_ctx))
+		dc->hwss.set_hubp_blank(dc, pipe_ctx, false);
 }
 
 
@@ -1770,6 +1770,14 @@ void dcn20_post_unlock_program_front_end(
 		}
 	}
 
+	for (i = 0; i < dc->res_pool->pipe_count; i++) {
+		struct pipe_ctx *pipe = &context->res_ctx.pipe_ctx[i];
+
+		if (pipe->vtp_locked) {
+			dc->hwss.set_hubp_blank(dc, pipe, true);
+			pipe->vtp_locked = false;
+		}
+	}
 	/* WA to apply WM setting*/
 	if (hwseq->wa.DEGVIDCN21)
 		dc->res_pool->hubbub->funcs->apply_DEDCN21_147_wa(dc->res_pool->hubbub);

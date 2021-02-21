@@ -74,6 +74,16 @@ struct dmcu_funcs {
 	bool (*is_dmcu_initialized)(struct dmcu *dmcu);
 	bool (*lock_phy)(struct dmcu *dmcu);
 	bool (*unlock_phy)(struct dmcu *dmcu);
+	bool (*send_edid_cea)(struct dmcu *dmcu,
+			int offset,
+			int total_length,
+			uint8_t *data,
+			int length);
+	bool (*recv_amd_vsdb)(struct dmcu *dmcu,
+			int *version,
+			int *min_frame_rate,
+			int *max_frame_rate);
+	bool (*recv_edid_cea_ack)(struct dmcu *dmcu, int *offset);
 };
 
 #endif

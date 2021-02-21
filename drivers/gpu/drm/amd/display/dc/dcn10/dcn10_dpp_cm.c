@@ -577,7 +577,7 @@ void dpp1_power_on_degamma_lut(
 	struct dcn10_dpp *dpp = TO_DCN10_DPP(dpp_base);
 
 	REG_SET(CM_MEM_PWR_CTRL, 0,
-			SHARED_MEM_PWR_DIS, power_on == true ? 0:1);
+			SHARED_MEM_PWR_DIS, power_on ? 0:1);
 
 }
 

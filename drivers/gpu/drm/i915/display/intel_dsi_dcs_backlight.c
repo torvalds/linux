@@ -43,7 +43,7 @@
 
 #define PANEL_PWM_MAX_VALUE		0xFF
 
-static u32 dcs_get_backlight(struct intel_connector *connector)
+static u32 dcs_get_backlight(struct intel_connector *connector, enum pipe unused)
 {
 	struct intel_encoder *encoder = intel_attached_encoder(connector);
 	struct intel_dsi *intel_dsi = enc_to_intel_dsi(encoder);
@@ -77,7 +77,7 @@ static void dcs_set_backlight(const struct drm_connector_state *conn_state, u32 
 	}
 }
 
-static void dcs_disable_backlight(const struct drm_connector_state *conn_state)
+static void dcs_disable_backlight(const struct drm_connector_state *conn_state, u32 level)
 {
 	struct intel_dsi *intel_dsi = enc_to_intel_dsi(to_intel_encoder(conn_state->best_encoder));
 	struct mipi_dsi_device *dsi_device;
@@ -111,10 +111,9 @@ static void dcs_disable_backlight(const struct drm_connector_state *conn_state)
 }
 
 static void dcs_enable_backlight(const struct intel_crtc_state *crtc_state,
-				 const struct drm_connector_state *conn_state)
+				 const struct drm_connector_state *conn_state, u32 level)
 {
 	struct intel_dsi *intel_dsi = enc_to_intel_dsi(to_intel_encoder(conn_state->best_encoder));
-	struct intel_panel *panel = &to_intel_connector(conn_state->connector)->panel;
 	struct mipi_dsi_device *dsi_device;
 	enum port port;
 
@@ -142,7 +141,7 @@ static void dcs_enable_backlight(const struct intel_crtc_state *crtc_state,
 				   &cabc, sizeof(cabc));
 	}
 
-	dcs_set_backlight(conn_state, panel->backlight.level);
+	dcs_set_backlight(conn_state, level);
 }
 
 static int dcs_setup_backlight(struct intel_connector *connector,
@@ -155,6 +154,14 @@ static int dcs_setup_backlight(struct intel_connector *connector,
 
 	return 0;
 }
+
+static const struct intel_panel_bl_funcs dcs_bl_funcs = {
+	.setup = dcs_setup_backlight,
+	.enable = dcs_enable_backlight,
+	.disable = dcs_disable_backlight,
+	.set = dcs_set_backlight,
+	.get = dcs_get_backlight,
+};
 
 int intel_dsi_dcs_init_backlight_funcs(struct intel_connector *intel_connector)
 {
@@ -169,11 +176,7 @@ int intel_dsi_dcs_init_backlight_funcs(struct intel_connector *intel_connector)
 	if (drm_WARN_ON(dev, encoder->type != INTEL_OUTPUT_DSI))
 		return -EINVAL;
 
-	panel->backlight.setup = dcs_setup_backlight;
-	panel->backlight.enable = dcs_enable_backlight;
-	panel->backlight.disable = dcs_disable_backlight;
-	panel->backlight.set = dcs_set_backlight;
-	panel->backlight.get = dcs_get_backlight;
+	panel->backlight.funcs = &dcs_bl_funcs;
 
 	return 0;
 }

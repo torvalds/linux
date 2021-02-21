@@ -43,8 +43,8 @@ gf100_mspdec = {
 };
 
 int
-gf100_mspdec_new(struct nvkm_device *device, int index,
+gf100_mspdec_new(struct nvkm_device *device, enum nvkm_subdev_type type, int inst,
 		 struct nvkm_engine **pengine)
 {
-	return nvkm_mspdec_new_(&gf100_mspdec, device, index, pengine);
+	return nvkm_mspdec_new_(&gf100_mspdec, device, type, inst, pengine);
 }

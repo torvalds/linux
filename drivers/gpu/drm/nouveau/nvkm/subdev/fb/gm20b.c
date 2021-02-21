@@ -34,7 +34,7 @@ gm20b_fb = {
 };
 
 int
-gm20b_fb_new(struct nvkm_device *device, int index, struct nvkm_fb **pfb)
+gm20b_fb_new(struct nvkm_device *device, enum nvkm_subdev_type type, int inst, struct nvkm_fb **pfb)
 {
-	return gf100_fb_new_(&gm20b_fb, device, index, pfb);
+	return gf100_fb_new_(&gm20b_fb, device, type, inst, pfb);
 }

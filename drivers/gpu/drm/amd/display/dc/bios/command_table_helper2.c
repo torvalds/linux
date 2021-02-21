@@ -128,18 +128,14 @@ bool dal_cmd_table_helper_controller_id_to_atom2(
 }
 
 /**
-* translate_transmitter_bp_to_atom
-*
-* @brief
-*  Translate the Transmitter to the corresponding ATOM BIOS value
-*
-* @param
-*   input transmitter
-*   output digitalTransmitter
-*    // =00: Digital Transmitter1 ( UNIPHY linkAB )
-*    // =01: Digital Transmitter2 ( UNIPHY linkCD )
-*    // =02: Digital Transmitter3 ( UNIPHY linkEF )
-*/
+ * translate_transmitter_bp_to_atom2 - Translate the Transmitter to the
+ *                                     corresponding ATOM BIOS value
+ *  @t: transmitter
+ *  returns: digitalTransmitter
+ *    // =00: Digital Transmitter1 ( UNIPHY linkAB )
+ *    // =01: Digital Transmitter2 ( UNIPHY linkCD )
+ *    // =02: Digital Transmitter3 ( UNIPHY linkEF )
+ */
 uint8_t dal_cmd_table_helper_transmitter_bp_to_atom2(
 	enum transmitter t)
 {

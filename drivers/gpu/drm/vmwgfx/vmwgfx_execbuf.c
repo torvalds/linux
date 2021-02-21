@@ -724,7 +724,7 @@ static int vmw_rebind_all_dx_query(struct vmw_resource *ctx_res)
 	if (!dx_query_mob || dx_query_mob->dx_query_ctx)
 		return 0;
 
-	cmd = VMW_FIFO_RESERVE_DX(dev_priv, sizeof(*cmd), ctx_res->id);
+	cmd = VMW_CMD_CTX_RESERVE(dev_priv, sizeof(*cmd), ctx_res->id);
 	if (cmd == NULL)
 		return -ENOMEM;
 
@@ -732,7 +732,7 @@ static int vmw_rebind_all_dx_query(struct vmw_resource *ctx_res)
 	cmd->header.size = sizeof(cmd->body);
 	cmd->body.cid = ctx_res->id;
 	cmd->body.mobid = dx_query_mob->base.mem.start;
-	vmw_fifo_commit(dev_priv, sizeof(*cmd));
+	vmw_cmd_commit(dev_priv, sizeof(*cmd));
 
 	vmw_context_bind_dx_query(ctx_res, dx_query_mob);
 
@@ -1042,7 +1042,7 @@ static int vmw_query_bo_switch_prepare(struct vmw_private *dev_priv,
 
 	if (unlikely(new_query_bo != sw_context->cur_query_bo)) {
 
-		if (unlikely(new_query_bo->base.num_pages > 4)) {
+		if (unlikely(new_query_bo->base.mem.num_pages > 4)) {
 			VMW_DEBUG_USER("Query buffer too large.\n");
 			return -EINVAL;
 		}
@@ -1100,7 +1100,7 @@ static void vmw_query_bo_switch_commit(struct vmw_private *dev_priv,
 		BUG_ON(!ctx_entry->valid);
 		ctx = ctx_entry->res;
 
-		ret = vmw_fifo_emit_dummy_query(dev_priv, ctx->id);
+		ret = vmw_cmd_emit_dummy_query(dev_priv, ctx->id);
 
 		if (unlikely(ret != 0))
 			VMW_DEBUG_USER("Out of fifo space for dummy query.\n");
@@ -1541,7 +1541,7 @@ static int vmw_cmd_dma(struct vmw_private *dev_priv,
 		return ret;
 
 	/* Make sure DMA doesn't cross BO boundaries. */
-	bo_size = vmw_bo->base.num_pages * PAGE_SIZE;
+	bo_size = vmw_bo->base.base.size;
 	if (unlikely(cmd->body.guest.ptr.offset > bo_size)) {
 		VMW_DEBUG_USER("Invalid DMA offset.\n");
 		return -EINVAL;
@@ -3762,7 +3762,7 @@ int vmw_execbuf_fence_commands(struct drm_file *file_priv,
 	/* p_handle implies file_priv. */
 	BUG_ON(p_handle != NULL && file_priv == NULL);
 
-	ret = vmw_fifo_send_fence(dev_priv, &sequence);
+	ret = vmw_cmd_send_fence(dev_priv, &sequence);
 	if (unlikely(ret != 0)) {
 		VMW_DEBUG_USER("Fence submission error. Syncing.\n");
 		synced = true;
@@ -3876,10 +3876,10 @@ static int vmw_execbuf_submit_fifo(struct vmw_private *dev_priv,
 	void *cmd;
 
 	if (sw_context->dx_ctx_node)
-		cmd = VMW_FIFO_RESERVE_DX(dev_priv, command_size,
+		cmd = VMW_CMD_CTX_RESERVE(dev_priv, command_size,
 					  sw_context->dx_ctx_node->ctx->id);
 	else
-		cmd = VMW_FIFO_RESERVE(dev_priv, command_size);
+		cmd = VMW_CMD_RESERVE(dev_priv, command_size);
 
 	if (!cmd)
 		return -ENOMEM;
@@ -3888,7 +3888,7 @@ static int vmw_execbuf_submit_fifo(struct vmw_private *dev_priv,
 	memcpy(cmd, kernel_commands, command_size);
 	vmw_resource_relocations_apply(cmd, &sw_context->res_relocations);
 	vmw_resource_relocations_free(&sw_context->res_relocations);
-	vmw_fifo_commit(dev_priv, command_size);
+	vmw_cmd_commit(dev_priv, command_size);
 
 	return 0;
 }
@@ -4046,11 +4046,7 @@ int vmw_execbuf_process(struct drm_file *file_priv,
 	}
 
 	if (throttle_us) {
-		ret = vmw_wait_lag(dev_priv, &dev_priv->fifo.marker_queue,
-				   throttle_us);
-
-		if (ret)
-			goto out_free_fence_fd;
+		VMW_DEBUG_USER("Throttling is no longer supported.\n");
 	}
 
 	kernel_commands = vmw_execbuf_cmdbuf(dev_priv, user_commands,
@@ -4329,7 +4325,7 @@ void __vmw_execbuf_release_pinned_bo(struct vmw_private *dev_priv,
 
 	if (dev_priv->query_cid_valid) {
 		BUG_ON(fence != NULL);
-		ret = vmw_fifo_emit_dummy_query(dev_priv, dev_priv->query_cid);
+		ret = vmw_cmd_emit_dummy_query(dev_priv, dev_priv->query_cid);
 		if (ret)
 			goto out_no_emit;
 		dev_priv->query_cid_valid = false;

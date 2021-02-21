@@ -31,23 +31,18 @@ properties:
     maximum: 7
 
   ports:
-    description:
-      A node containing input and output port nodes with endpoint
-      definitions as documented in
-      Documentation/devicetree/bindings/media/video-interfaces.txt
-    type: object
+    $ref: /schemas/graph.yaml#/properties/ports
 
     properties:
       port@0:
+        $ref: /schemas/graph.yaml#/$defs/port-base
+        unevaluatedProperties: false
         description: DPI input port.
-        type: object
 
         properties:
-          reg:
-            const: 0
-
           endpoint:
-            type: object
+            $ref: /schemas/graph.yaml#/$defs/endpoint-base
+            unevaluatedProperties: false
 
             properties:
               pclk-sample:
@@ -67,15 +62,8 @@ properties:
                 default: 24
 
       port@1:
+        $ref: /schemas/graph.yaml#/properties/port
         description: DVI output port.
-        type: object
-
-        properties:
-          reg:
-            const: 1
-
-          endpoint:
-            type: object
 
     required:
       - port@0

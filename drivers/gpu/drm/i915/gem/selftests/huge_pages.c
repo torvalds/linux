@@ -368,6 +368,27 @@ static int igt_check_page_sizes(struct i915_vma *vma)
 		err = -EINVAL;
 	}
 
+	/*
+	 * The dma-api is like a box of chocolates when it comes to the
+	 * alignment of dma addresses, however for LMEM we have total control
+	 * and so can guarantee alignment, likewise when we allocate our blocks
+	 * they should appear in descending order, and if we know that we align
+	 * to the largest page size for the GTT address, we should be able to
+	 * assert that if we see 2M physical pages then we should also get 2M
+	 * GTT pages. If we don't then something might be wrong in our
+	 * construction of the backing pages.
+	 *
+	 * Maintaining alignment is required to utilise huge pages in the ppGGT.
+	 */
+	if (i915_gem_object_is_lmem(obj) &&
+	    IS_ALIGNED(vma->node.start, SZ_2M) &&
+	    vma->page_sizes.sg & SZ_2M &&
+	    vma->page_sizes.gtt < SZ_2M) {
+		pr_err("gtt pages mismatch for LMEM, expected 2M GTT pages, sg(%u), gtt(%u)\n",
+		       vma->page_sizes.sg, vma->page_sizes.gtt);
+		err = -EINVAL;
+	}
+
 	if (obj->mm.page_sizes.gtt) {
 		pr_err("obj->page_sizes.gtt(%u) should never be set\n",
 		       obj->mm.page_sizes.gtt);
@@ -1333,6 +1354,7 @@ static int igt_ppgtt_sanity_check(void *arg)
 		unsigned int flags;
 	} backends[] = {
 		{ igt_create_system, 0,                        },
+		{ igt_create_local,  0,                        },
 		{ igt_create_local,  I915_BO_ALLOC_CONTIGUOUS, },
 	};
 	struct {

@@ -129,7 +129,7 @@ static void ttm_tt_init_fields(struct ttm_tt *ttm,
 			       uint32_t page_flags,
 			       enum ttm_caching caching)
 {
-	ttm->num_pages = bo->num_pages;
+	ttm->num_pages = PAGE_ALIGN(bo->base.size) >> PAGE_SHIFT;
 	ttm->caching = ttm_cached;
 	ttm->page_flags = page_flags;
 	ttm->dma_address = NULL;
@@ -161,19 +161,6 @@ void ttm_tt_fini(struct ttm_tt *ttm)
 	ttm->dma_address = NULL;
 }
 EXPORT_SYMBOL(ttm_tt_fini);
-
-int ttm_dma_tt_init(struct ttm_tt *ttm, struct ttm_buffer_object *bo,
-		    uint32_t page_flags, enum ttm_caching caching)
-{
-	ttm_tt_init_fields(ttm, bo, page_flags, caching);
-
-	if (ttm_dma_tt_alloc_page_directory(ttm)) {
-		pr_err("Failed allocating page table\n");
-		return -ENOMEM;
-	}
-	return 0;
-}
-EXPORT_SYMBOL(ttm_dma_tt_init);
 
 int ttm_sg_tt_init(struct ttm_tt *ttm, struct ttm_buffer_object *bo,
 		   uint32_t page_flags, enum ttm_caching caching)

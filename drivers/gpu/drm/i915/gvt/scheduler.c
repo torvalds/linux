@@ -37,6 +37,8 @@
 
 #include "gem/i915_gem_pm.h"
 #include "gt/intel_context.h"
+#include "gt/intel_execlists_submission.h"
+#include "gt/intel_lrc.h"
 #include "gt/intel_ring.h"
 
 #include "i915_drv.h"
@@ -135,6 +137,7 @@ static int populate_shadow_context(struct intel_vgpu_workload *workload)
 	int i;
 	bool skip = false;
 	int ring_id = workload->engine->id;
+	int ret;
 
 	GEM_BUG_ON(!intel_context_is_pinned(ctx));
 
@@ -161,16 +164,24 @@ static int populate_shadow_context(struct intel_vgpu_workload *workload)
 		COPY_REG(bb_per_ctx_ptr);
 		COPY_REG(rcs_indirect_ctx);
 		COPY_REG(rcs_indirect_ctx_offset);
-	}
+	} else if (workload->engine->id == BCS0)
+		intel_gvt_hypervisor_read_gpa(vgpu,
+				workload->ring_context_gpa +
+				BCS_TILE_REGISTER_VAL_OFFSET,
+				(void *)shadow_ring_context +
+				BCS_TILE_REGISTER_VAL_OFFSET, 4);
 #undef COPY_REG
 #undef COPY_REG_MASKED
 
+	/* don't copy Ring Context (the first 0x50 dwords),
+	 * only copy the Engine Context part from guest
+	 */
 	intel_gvt_hypervisor_read_gpa(vgpu,
 			workload->ring_context_gpa +
-			sizeof(*shadow_ring_context),
+			RING_CTX_SIZE,
 			(void *)shadow_ring_context +
-			sizeof(*shadow_ring_context),
-			I915_GTT_PAGE_SIZE - sizeof(*shadow_ring_context));
+			RING_CTX_SIZE,
+			I915_GTT_PAGE_SIZE - RING_CTX_SIZE);
 
 	sr_oa_regs(workload, (u32 *)shadow_ring_context, false);
 
@@ -236,6 +247,11 @@ read:
 		gpa_base = context_gpa;
 		gpa_size = I915_GTT_PAGE_SIZE;
 		dst = context_base + (i << I915_GTT_PAGE_SHIFT);
+	}
+	ret = intel_gvt_scan_engine_context(workload);
+	if (ret) {
+		gvt_vgpu_err("invalid cmd found in guest context pages\n");
+		return ret;
 	}
 	s->last_ctx[ring_id].valid = true;
 	return 0;

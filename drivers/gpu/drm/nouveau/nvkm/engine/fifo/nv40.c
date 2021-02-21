@@ -112,6 +112,8 @@ static const struct nvkm_fifo_func
 nv40_fifo = {
 	.init = nv40_fifo_init,
 	.intr = nv04_fifo_intr,
+	.engine_id = nv04_fifo_engine_id,
+	.id_engine = nv04_fifo_id_engine,
 	.pause = nv04_fifo_pause,
 	.start = nv04_fifo_start,
 	.chan = {
@@ -121,8 +123,8 @@ nv40_fifo = {
 };
 
 int
-nv40_fifo_new(struct nvkm_device *device, int index, struct nvkm_fifo **pfifo)
+nv40_fifo_new(struct nvkm_device *device, enum nvkm_subdev_type type, int inst,
+	      struct nvkm_fifo **pfifo)
 {
-	return nv04_fifo_new_(&nv40_fifo, device, index, 32,
-			      nv40_fifo_ramfc, pfifo);
+	return nv04_fifo_new_(&nv40_fifo, device, type, inst, 32, nv40_fifo_ramfc, pfifo);
 }

@@ -555,7 +555,7 @@ static int vmw_binding_scrub_shader(struct vmw_ctx_bindinfo *bi, bool rebind)
 		SVGA3dCmdSetShader body;
 	} *cmd;
 
-	cmd = VMW_FIFO_RESERVE(dev_priv, sizeof(*cmd));
+	cmd = VMW_CMD_RESERVE(dev_priv, sizeof(*cmd));
 	if (unlikely(cmd == NULL))
 		return -ENOMEM;
 
@@ -564,7 +564,7 @@ static int vmw_binding_scrub_shader(struct vmw_ctx_bindinfo *bi, bool rebind)
 	cmd->body.cid = bi->ctx->id;
 	cmd->body.type = binding->shader_slot + SVGA3D_SHADERTYPE_MIN;
 	cmd->body.shid = ((rebind) ? bi->res->id : SVGA3D_INVALID_ID);
-	vmw_fifo_commit(dev_priv, sizeof(*cmd));
+	vmw_cmd_commit(dev_priv, sizeof(*cmd));
 
 	return 0;
 }
@@ -587,7 +587,7 @@ static int vmw_binding_scrub_render_target(struct vmw_ctx_bindinfo *bi,
 		SVGA3dCmdSetRenderTarget body;
 	} *cmd;
 
-	cmd = VMW_FIFO_RESERVE(dev_priv, sizeof(*cmd));
+	cmd = VMW_CMD_RESERVE(dev_priv, sizeof(*cmd));
 	if (unlikely(cmd == NULL))
 		return -ENOMEM;
 
@@ -598,7 +598,7 @@ static int vmw_binding_scrub_render_target(struct vmw_ctx_bindinfo *bi,
 	cmd->body.target.sid = ((rebind) ? bi->res->id : SVGA3D_INVALID_ID);
 	cmd->body.target.face = 0;
 	cmd->body.target.mipmap = 0;
-	vmw_fifo_commit(dev_priv, sizeof(*cmd));
+	vmw_cmd_commit(dev_priv, sizeof(*cmd));
 
 	return 0;
 }
@@ -626,7 +626,7 @@ static int vmw_binding_scrub_texture(struct vmw_ctx_bindinfo *bi,
 		} body;
 	} *cmd;
 
-	cmd = VMW_FIFO_RESERVE(dev_priv, sizeof(*cmd));
+	cmd = VMW_CMD_RESERVE(dev_priv, sizeof(*cmd));
 	if (unlikely(cmd == NULL))
 		return -ENOMEM;
 
@@ -636,7 +636,7 @@ static int vmw_binding_scrub_texture(struct vmw_ctx_bindinfo *bi,
 	cmd->body.s1.stage = binding->texture_stage;
 	cmd->body.s1.name = SVGA3D_TS_BIND_TEXTURE;
 	cmd->body.s1.value = ((rebind) ? bi->res->id : SVGA3D_INVALID_ID);
-	vmw_fifo_commit(dev_priv, sizeof(*cmd));
+	vmw_cmd_commit(dev_priv, sizeof(*cmd));
 
 	return 0;
 }
@@ -657,7 +657,7 @@ static int vmw_binding_scrub_dx_shader(struct vmw_ctx_bindinfo *bi, bool rebind)
 		SVGA3dCmdDXSetShader body;
 	} *cmd;
 
-	cmd = VMW_FIFO_RESERVE_DX(dev_priv, sizeof(*cmd), bi->ctx->id);
+	cmd = VMW_CMD_CTX_RESERVE(dev_priv, sizeof(*cmd), bi->ctx->id);
 	if (unlikely(cmd == NULL))
 		return -ENOMEM;
 
@@ -665,7 +665,7 @@ static int vmw_binding_scrub_dx_shader(struct vmw_ctx_bindinfo *bi, bool rebind)
 	cmd->header.size = sizeof(cmd->body);
 	cmd->body.type = binding->shader_slot + SVGA3D_SHADERTYPE_MIN;
 	cmd->body.shaderId = ((rebind) ? bi->res->id : SVGA3D_INVALID_ID);
-	vmw_fifo_commit(dev_priv, sizeof(*cmd));
+	vmw_cmd_commit(dev_priv, sizeof(*cmd));
 
 	return 0;
 }
@@ -686,7 +686,7 @@ static int vmw_binding_scrub_cb(struct vmw_ctx_bindinfo *bi, bool rebind)
 		SVGA3dCmdDXSetSingleConstantBuffer body;
 	} *cmd;
 
-	cmd = VMW_FIFO_RESERVE_DX(dev_priv, sizeof(*cmd), bi->ctx->id);
+	cmd = VMW_CMD_CTX_RESERVE(dev_priv, sizeof(*cmd), bi->ctx->id);
 	if (unlikely(cmd == NULL))
 		return -ENOMEM;
 
@@ -703,7 +703,7 @@ static int vmw_binding_scrub_cb(struct vmw_ctx_bindinfo *bi, bool rebind)
 		cmd->body.sizeInBytes = 0;
 		cmd->body.sid = SVGA3D_INVALID_ID;
 	}
-	vmw_fifo_commit(dev_priv, sizeof(*cmd));
+	vmw_cmd_commit(dev_priv, sizeof(*cmd));
 
 	return 0;
 }
@@ -810,7 +810,7 @@ static int vmw_emit_set_sr(struct vmw_ctx_binding_state *cbs,
 
 	view_id_size = cbs->bind_cmd_count*sizeof(uint32);
 	cmd_size = sizeof(*cmd) + view_id_size;
-	cmd = VMW_FIFO_RESERVE_DX(ctx->dev_priv, cmd_size, ctx->id);
+	cmd = VMW_CMD_CTX_RESERVE(ctx->dev_priv, cmd_size, ctx->id);
 	if (unlikely(cmd == NULL))
 		return -ENOMEM;
 
@@ -821,7 +821,7 @@ static int vmw_emit_set_sr(struct vmw_ctx_binding_state *cbs,
 
 	memcpy(&cmd[1], cbs->bind_cmd_buffer, view_id_size);
 
-	vmw_fifo_commit(ctx->dev_priv, cmd_size);
+	vmw_cmd_commit(ctx->dev_priv, cmd_size);
 	bitmap_clear(cbs->per_shader[shader_slot].dirty_sr,
 		     cbs->bind_first_slot, cbs->bind_cmd_count);
 
@@ -846,7 +846,7 @@ static int vmw_emit_set_rt(struct vmw_ctx_binding_state *cbs)
 	vmw_collect_view_ids(cbs, loc, SVGA3D_MAX_SIMULTANEOUS_RENDER_TARGETS);
 	view_id_size = cbs->bind_cmd_count*sizeof(uint32);
 	cmd_size = sizeof(*cmd) + view_id_size;
-	cmd = VMW_FIFO_RESERVE_DX(ctx->dev_priv, cmd_size, ctx->id);
+	cmd = VMW_CMD_CTX_RESERVE(ctx->dev_priv, cmd_size, ctx->id);
 	if (unlikely(cmd == NULL))
 		return -ENOMEM;
 
@@ -860,7 +860,7 @@ static int vmw_emit_set_rt(struct vmw_ctx_binding_state *cbs)
 
 	memcpy(&cmd[1], cbs->bind_cmd_buffer, view_id_size);
 
-	vmw_fifo_commit(ctx->dev_priv, cmd_size);
+	vmw_cmd_commit(ctx->dev_priv, cmd_size);
 
 	return 0;
 
@@ -930,7 +930,7 @@ static int vmw_emit_set_so_target(struct vmw_ctx_binding_state *cbs)
 
 	so_target_size = cbs->bind_cmd_count*sizeof(SVGA3dSoTarget);
 	cmd_size = sizeof(*cmd) + so_target_size;
-	cmd = VMW_FIFO_RESERVE_DX(ctx->dev_priv, cmd_size, ctx->id);
+	cmd = VMW_CMD_CTX_RESERVE(ctx->dev_priv, cmd_size, ctx->id);
 	if (unlikely(cmd == NULL))
 		return -ENOMEM;
 
@@ -938,7 +938,7 @@ static int vmw_emit_set_so_target(struct vmw_ctx_binding_state *cbs)
 	cmd->header.size = sizeof(cmd->body) + so_target_size;
 	memcpy(&cmd[1], cbs->bind_cmd_buffer, so_target_size);
 
-	vmw_fifo_commit(ctx->dev_priv, cmd_size);
+	vmw_cmd_commit(ctx->dev_priv, cmd_size);
 
 	return 0;
 
@@ -1044,7 +1044,7 @@ static int vmw_emit_set_vb(struct vmw_ctx_binding_state *cbs)
 
 	set_vb_size = cbs->bind_cmd_count*sizeof(SVGA3dVertexBuffer);
 	cmd_size = sizeof(*cmd) + set_vb_size;
-	cmd = VMW_FIFO_RESERVE_DX(ctx->dev_priv, cmd_size, ctx->id);
+	cmd = VMW_CMD_CTX_RESERVE(ctx->dev_priv, cmd_size, ctx->id);
 	if (unlikely(cmd == NULL))
 		return -ENOMEM;
 
@@ -1054,7 +1054,7 @@ static int vmw_emit_set_vb(struct vmw_ctx_binding_state *cbs)
 
 	memcpy(&cmd[1], cbs->bind_cmd_buffer, set_vb_size);
 
-	vmw_fifo_commit(ctx->dev_priv, cmd_size);
+	vmw_cmd_commit(ctx->dev_priv, cmd_size);
 	bitmap_clear(cbs->dirty_vb,
 		     cbs->bind_first_slot, cbs->bind_cmd_count);
 
@@ -1074,7 +1074,7 @@ static int vmw_emit_set_uav(struct vmw_ctx_binding_state *cbs)
 	vmw_collect_view_ids(cbs, loc, SVGA3D_MAX_UAVIEWS);
 	view_id_size = cbs->bind_cmd_count*sizeof(uint32);
 	cmd_size = sizeof(*cmd) + view_id_size;
-	cmd = VMW_FIFO_RESERVE_DX(ctx->dev_priv, cmd_size, ctx->id);
+	cmd = VMW_CMD_CTX_RESERVE(ctx->dev_priv, cmd_size, ctx->id);
 	if (!cmd)
 		return -ENOMEM;
 
@@ -1086,7 +1086,7 @@ static int vmw_emit_set_uav(struct vmw_ctx_binding_state *cbs)
 
 	memcpy(&cmd[1], cbs->bind_cmd_buffer, view_id_size);
 
-	vmw_fifo_commit(ctx->dev_priv, cmd_size);
+	vmw_cmd_commit(ctx->dev_priv, cmd_size);
 
 	return 0;
 }
@@ -1104,7 +1104,7 @@ static int vmw_emit_set_cs_uav(struct vmw_ctx_binding_state *cbs)
 	vmw_collect_view_ids(cbs, loc, SVGA3D_MAX_UAVIEWS);
 	view_id_size = cbs->bind_cmd_count*sizeof(uint32);
 	cmd_size = sizeof(*cmd) + view_id_size;
-	cmd = VMW_FIFO_RESERVE_DX(ctx->dev_priv, cmd_size, ctx->id);
+	cmd = VMW_CMD_CTX_RESERVE(ctx->dev_priv, cmd_size, ctx->id);
 	if (!cmd)
 		return -ENOMEM;
 
@@ -1116,7 +1116,7 @@ static int vmw_emit_set_cs_uav(struct vmw_ctx_binding_state *cbs)
 
 	memcpy(&cmd[1], cbs->bind_cmd_buffer, view_id_size);
 
-	vmw_fifo_commit(ctx->dev_priv, cmd_size);
+	vmw_cmd_commit(ctx->dev_priv, cmd_size);
 
 	return 0;
 }
@@ -1263,7 +1263,7 @@ static int vmw_binding_scrub_ib(struct vmw_ctx_bindinfo *bi, bool rebind)
 		SVGA3dCmdDXSetIndexBuffer body;
 	} *cmd;
 
-	cmd = VMW_FIFO_RESERVE_DX(dev_priv, sizeof(*cmd), bi->ctx->id);
+	cmd = VMW_CMD_CTX_RESERVE(dev_priv, sizeof(*cmd), bi->ctx->id);
 	if (unlikely(cmd == NULL))
 		return -ENOMEM;
 
@@ -1279,7 +1279,7 @@ static int vmw_binding_scrub_ib(struct vmw_ctx_bindinfo *bi, bool rebind)
 		cmd->body.offset = 0;
 	}
 
-	vmw_fifo_commit(dev_priv, sizeof(*cmd));
+	vmw_cmd_commit(dev_priv, sizeof(*cmd));
 
 	return 0;
 }
@@ -1315,14 +1315,14 @@ static int vmw_binding_scrub_so(struct vmw_ctx_bindinfo *bi, bool rebind)
 		SVGA3dCmdDXSetStreamOutput body;
 	} *cmd;
 
-	cmd = VMW_FIFO_RESERVE_DX(dev_priv, sizeof(*cmd), bi->ctx->id);
+	cmd = VMW_CMD_CTX_RESERVE(dev_priv, sizeof(*cmd), bi->ctx->id);
 	if (!cmd)
 		return -ENOMEM;
 
 	cmd->header.id = SVGA_3D_CMD_DX_SET_STREAMOUTPUT;
 	cmd->header.size = sizeof(cmd->body);
 	cmd->body.soid = rebind ? bi->res->id : SVGA3D_INVALID_ID;
-	vmw_fifo_commit(dev_priv, sizeof(*cmd));
+	vmw_cmd_commit(dev_priv, sizeof(*cmd));
 
 	return 0;
 }

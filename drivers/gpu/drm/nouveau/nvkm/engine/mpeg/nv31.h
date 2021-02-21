@@ -11,8 +11,8 @@ struct nv31_mpeg {
 	struct nv31_mpeg_chan *chan;
 };
 
-int nv31_mpeg_new_(const struct nv31_mpeg_func *, struct nvkm_device *,
-		   int index, struct nvkm_engine **);
+int nv31_mpeg_new_(const struct nv31_mpeg_func *, struct nvkm_device *, enum nvkm_subdev_type, int,
+		   struct nvkm_engine **);
 
 struct nv31_mpeg_func {
 	bool (*mthd_dma)(struct nvkm_device *, u32 mthd, u32 data);

@@ -120,7 +120,7 @@ nv2a_gr = {
 };
 
 int
-nv2a_gr_new(struct nvkm_device *device, int index, struct nvkm_gr **pgr)
+nv2a_gr_new(struct nvkm_device *device, enum nvkm_subdev_type type, int inst, struct nvkm_gr **pgr)
 {
-	return nv20_gr_new_(&nv2a_gr, device, index, pgr);
+	return nv20_gr_new_(&nv2a_gr, device, type, inst, pgr);
 }

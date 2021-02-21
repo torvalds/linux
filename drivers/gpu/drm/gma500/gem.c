@@ -16,6 +16,7 @@
 #include <drm/drm.h>
 #include <drm/drm_vma_manager.h>
 
+#include "gem.h"
 #include "psb_drv.h"
 
 static vm_fault_t psb_gem_fault(struct vm_fault *vmf);
@@ -49,6 +50,8 @@ const struct drm_gem_object_funcs psb_gem_object_funcs = {
  *	@dev: our device
  *	@size: the size requested
  *	@handlep: returned handle (opaque number)
+ *	@stolen: unused
+ *	@align: unused
  *
  *	Create a GEM object, fill in the boilerplate and attach a handle to
  *	it so that userspace can speak about it. This does the core work
@@ -97,7 +100,7 @@ int psb_gem_create(struct drm_file *file, struct drm_device *dev, u64 size,
 
 /**
  *	psb_gem_dumb_create	-	create a dumb buffer
- *	@drm_file: our client file
+ *	@file: our client file
  *	@dev: our device
  *	@args: the requested arguments copied from userspace
  *
@@ -116,7 +119,6 @@ int psb_gem_dumb_create(struct drm_file *file, struct drm_device *dev,
 
 /**
  *	psb_gem_fault		-	pagefault handler for GEM objects
- *	@vma: the VMA of the GEM object
  *	@vmf: fault detail
  *
  *	Invoked when a fault occurs on an mmap of a GEM managed area. GEM

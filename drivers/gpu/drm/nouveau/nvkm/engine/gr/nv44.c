@@ -102,7 +102,7 @@ nv44_gr = {
 };
 
 int
-nv44_gr_new(struct nvkm_device *device, int index, struct nvkm_gr **pgr)
+nv44_gr_new(struct nvkm_device *device, enum nvkm_subdev_type type, int inst, struct nvkm_gr **pgr)
 {
-	return nv40_gr_new_(&nv44_gr, device, index, pgr);
+	return nv40_gr_new_(&nv44_gr, device, type, inst, pgr);
 }

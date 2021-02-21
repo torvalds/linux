@@ -43,6 +43,7 @@
 
 struct drm_file;
 struct drm_i915_gem_object;
+struct drm_printer;
 struct i915_request;
 
 struct i915_capture_list {
@@ -308,12 +309,14 @@ __i915_request_create(struct intel_context *ce, gfp_t gfp);
 struct i915_request * __must_check
 i915_request_create(struct intel_context *ce);
 
-void i915_request_set_error_once(struct i915_request *rq, int error);
 void __i915_request_skip(struct i915_request *rq);
+void i915_request_set_error_once(struct i915_request *rq, int error);
+void i915_request_mark_eio(struct i915_request *rq);
 
 struct i915_request *__i915_request_commit(struct i915_request *request);
 void __i915_request_queue(struct i915_request *rq,
 			  const struct i915_sched_attr *attr);
+void __i915_request_queue_bh(struct i915_request *rq);
 
 bool i915_request_retire(struct i915_request *rq);
 void i915_request_retire_upto(struct i915_request *rq);
@@ -370,6 +373,11 @@ long i915_request_wait(struct i915_request *rq,
 #define I915_WAIT_INTERRUPTIBLE	BIT(0)
 #define I915_WAIT_PRIORITY	BIT(1) /* small priority bump for the request */
 #define I915_WAIT_ALL		BIT(2) /* used by i915_gem_object_wait() */
+
+void i915_request_show(struct drm_printer *m,
+		       const struct i915_request *rq,
+		       const char *prefix,
+		       int indent);
 
 static inline bool i915_request_signaled(const struct i915_request *rq)
 {

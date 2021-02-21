@@ -11,7 +11,6 @@
  */
 
 #include <linux/clk.h>
-#include <linux/version.h>
 #include <linux/dma-buf.h>
 #include <linux/of_graph.h>
 #include <linux/delay.h>

@@ -49,7 +49,8 @@ gv100_gsp[] = {
 };
 
 int
-gv100_gsp_new(struct nvkm_device *device, int index, struct nvkm_gsp **pgsp)
+gv100_gsp_new(struct nvkm_device *device, enum nvkm_subdev_type type, int inst,
+	      struct nvkm_gsp **pgsp)
 {
-	return nvkm_gsp_new_(gv100_gsp, device, index, pgsp);
+	return nvkm_gsp_new_(gv100_gsp, device, type, inst, pgsp);
 }

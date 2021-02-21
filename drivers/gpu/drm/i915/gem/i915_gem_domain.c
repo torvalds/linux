@@ -5,6 +5,7 @@
  */
 
 #include "display/intel_frontbuffer.h"
+#include "gt/intel_gt.h"
 
 #include "i915_drv.h"
 #include "i915_gem_clflush.h"
@@ -15,13 +16,58 @@
 #include "i915_gem_lmem.h"
 #include "i915_gem_mman.h"
 
+static bool gpu_write_needs_clflush(struct drm_i915_gem_object *obj)
+{
+	return !(obj->cache_level == I915_CACHE_NONE ||
+		 obj->cache_level == I915_CACHE_WT);
+}
+
+static void
+flush_write_domain(struct drm_i915_gem_object *obj, unsigned int flush_domains)
+{
+	struct i915_vma *vma;
+
+	assert_object_held(obj);
+
+	if (!(obj->write_domain & flush_domains))
+		return;
+
+	switch (obj->write_domain) {
+	case I915_GEM_DOMAIN_GTT:
+		spin_lock(&obj->vma.lock);
+		for_each_ggtt_vma(vma, obj) {
+			if (i915_vma_unset_ggtt_write(vma))
+				intel_gt_flush_ggtt_writes(vma->vm->gt);
+		}
+		spin_unlock(&obj->vma.lock);
+
+		i915_gem_object_flush_frontbuffer(obj, ORIGIN_CPU);
+		break;
+
+	case I915_GEM_DOMAIN_WC:
+		wmb();
+		break;
+
+	case I915_GEM_DOMAIN_CPU:
+		i915_gem_clflush_object(obj, I915_CLFLUSH_SYNC);
+		break;
+
+	case I915_GEM_DOMAIN_RENDER:
+		if (gpu_write_needs_clflush(obj))
+			obj->cache_dirty = true;
+		break;
+	}
+
+	obj->write_domain = 0;
+}
+
 static void __i915_gem_object_flush_for_display(struct drm_i915_gem_object *obj)
 {
 	/*
 	 * We manually flush the CPU domain so that we can override and
 	 * force the flush for the display, and perform it asyncrhonously.
 	 */
-	i915_gem_object_flush_write_domain(obj, ~I915_GEM_DOMAIN_CPU);
+	flush_write_domain(obj, ~I915_GEM_DOMAIN_CPU);
 	if (obj->cache_dirty)
 		i915_gem_clflush_object(obj, I915_CLFLUSH_FORCE);
 	obj->write_domain = 0;
@@ -80,7 +126,7 @@ i915_gem_object_set_to_wc_domain(struct drm_i915_gem_object *obj, bool write)
 	if (ret)
 		return ret;
 
-	i915_gem_object_flush_write_domain(obj, ~I915_GEM_DOMAIN_WC);
+	flush_write_domain(obj, ~I915_GEM_DOMAIN_WC);
 
 	/* Serialise direct access to this object with the barriers for
 	 * coherent writes from the GPU, by effectively invalidating the
@@ -141,7 +187,7 @@ i915_gem_object_set_to_gtt_domain(struct drm_i915_gem_object *obj, bool write)
 	if (ret)
 		return ret;
 
-	i915_gem_object_flush_write_domain(obj, ~I915_GEM_DOMAIN_GTT);
+	flush_write_domain(obj, ~I915_GEM_DOMAIN_GTT);
 
 	/* Serialise direct access to this object with the barriers for
 	 * coherent writes from the GPU, by effectively invalidating the
@@ -370,6 +416,7 @@ retry:
 	}
 
 	vma->display_alignment = max_t(u64, vma->display_alignment, alignment);
+	i915_vma_mark_scanout(vma);
 
 	i915_gem_object_flush_if_display_locked(obj);
 
@@ -409,7 +456,7 @@ i915_gem_object_set_to_cpu_domain(struct drm_i915_gem_object *obj, bool write)
 	if (ret)
 		return ret;
 
-	i915_gem_object_flush_write_domain(obj, ~I915_GEM_DOMAIN_CPU);
+	flush_write_domain(obj, ~I915_GEM_DOMAIN_CPU);
 
 	/* Flush the CPU cache if it's still invalid. */
 	if ((obj->read_domains & I915_GEM_DOMAIN_CPU) == 0) {
@@ -574,7 +621,7 @@ int i915_gem_object_prepare_read(struct drm_i915_gem_object *obj,
 			goto out;
 	}
 
-	i915_gem_object_flush_write_domain(obj, ~I915_GEM_DOMAIN_CPU);
+	flush_write_domain(obj, ~I915_GEM_DOMAIN_CPU);
 
 	/* If we're not in the cpu read domain, set ourself into the gtt
 	 * read domain and manually flush cachelines (if required). This
@@ -625,7 +672,7 @@ int i915_gem_object_prepare_write(struct drm_i915_gem_object *obj,
 			goto out;
 	}
 
-	i915_gem_object_flush_write_domain(obj, ~I915_GEM_DOMAIN_CPU);
+	flush_write_domain(obj, ~I915_GEM_DOMAIN_CPU);
 
 	/* If we're not in the cpu write domain, set ourself into the
 	 * gtt write domain and manually flush cachelines (as required).

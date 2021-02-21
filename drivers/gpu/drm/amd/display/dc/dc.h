@@ -42,12 +42,13 @@
 #include "inc/hw/dmcu.h"
 #include "dml/display_mode_lib.h"
 
-#define DC_VER "3.2.116"
+#define DC_VER "3.2.122"
 
 #define MAX_SURFACES 3
 #define MAX_PLANES 6
 #define MAX_STREAMS 6
 #define MAX_SINKS_PER_LINK 4
+#define MIN_VIEWPORT_SIZE 12
 
 /*******************************************************************************
  * Display Core Interfaces
@@ -171,6 +172,9 @@ struct dc_caps {
 	bool dmcub_support;
 	uint32_t num_of_internal_disp;
 	enum dp_protocol_version max_dp_protocol_version;
+	unsigned int mall_size_per_mem_channel;
+	unsigned int mall_size_total;
+	unsigned int cursor_cache_size;
 	struct dc_plane_cap planes[MAX_PLANES];
 	struct dc_color_caps color;
 };
@@ -481,7 +485,6 @@ struct dc_debug_options {
 	bool performance_trace;
 	bool az_endpoint_mute_only;
 	bool always_use_regamma;
-	bool p010_mpo_support;
 	bool recovery_enabled;
 	bool avoid_vbios_exec_table;
 	bool scl_reset_length10;
@@ -499,6 +502,9 @@ struct dc_debug_options {
 	bool dmcub_emulation;
 #if defined(CONFIG_DRM_AMD_DC_DCN)
 	bool disable_idle_power_optimizations;
+	unsigned int mall_size_override;
+	unsigned int mall_additional_timer_percent;
+	bool mall_error_as_fatal;
 #endif
 	bool dmub_command_table; /* for testing only */
 	struct dc_bw_validation_profile bw_val_profile;
@@ -521,7 +527,6 @@ struct dc_debug_options {
 	bool usbc_combo_phy_reset_wa;
 	bool disable_dsc;
 	bool enable_dram_clock_change_one_display_vactive;
-	bool force_ignore_link_settings;
 	union mem_low_power_enable_options enable_mem_low_power;
 };
 
@@ -633,7 +638,6 @@ struct dc {
 
 	const char *build_id;
 	struct vm_helper *vm_helper;
-	const struct gpu_info_soc_bounding_box_v1_0 *soc_bounding_box;
 };
 
 enum frame_buffer_mode {
@@ -671,16 +675,10 @@ struct dc_init_data {
 	struct dc_config flags;
 	uint64_t log_mask;
 
-	/**
-	 * gpu_info FW provided soc bounding box struct or 0 if not
-	 * available in FW
-	 */
-	const struct gpu_info_soc_bounding_box_v1_0 *soc_bounding_box;
 	struct dpcd_vendor_signature vendor_signature;
 #if defined(CONFIG_DRM_AMD_DC_DCN)
 	bool force_smu_not_present;
 #endif
-	bool force_ignore_link_settings;
 };
 
 struct dc_callback_init {
@@ -1269,8 +1267,8 @@ enum dc_status dc_set_clock(struct dc *dc, enum dc_clock_type clock_type, uint32
 void dc_get_clock(struct dc *dc, enum dc_clock_type clock_type, struct dc_clock_config *clock_cfg);
 #if defined(CONFIG_DRM_AMD_DC_DCN)
 
-bool dc_is_plane_eligible_for_idle_optimizations(struct dc *dc,
-						 struct dc_plane_state *plane);
+bool dc_is_plane_eligible_for_idle_optimizations(struct dc *dc, struct dc_plane_state *plane,
+				struct dc_cursor_attributes *cursor_attr);
 
 void dc_allow_idle_optimizations(struct dc *dc, bool allow);
 

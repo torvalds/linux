@@ -213,7 +213,7 @@ int i915_gem_object_attach_phys(struct drm_i915_gem_object *obj, int align)
 	if (obj->ops == &i915_gem_phys_ops)
 		return 0;
 
-	if (obj->ops != &i915_gem_shmem_ops)
+	if (!i915_gem_object_is_shmem(obj))
 		return -EINVAL;
 
 	err = i915_gem_object_unbind(obj, I915_GEM_OBJECT_UNBIND_ACTIVE);
@@ -227,7 +227,7 @@ int i915_gem_object_attach_phys(struct drm_i915_gem_object *obj, int align)
 		goto err_unlock;
 	}
 
-	if (obj->mm.quirked) {
+	if (i915_gem_object_has_tiling_quirk(obj)) {
 		err = -EFAULT;
 		goto err_unlock;
 	}

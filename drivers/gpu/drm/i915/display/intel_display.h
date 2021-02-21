@@ -499,6 +499,8 @@ enum phy_fia {
 			     ((connector) = to_intel_connector((__state)->base.connectors[__i].ptr), \
 			     (new_connector_state) = to_intel_digital_connector_state((__state)->base.connectors[__i].new_state), 1))
 
+int intel_atomic_add_affected_planes(struct intel_atomic_state *state,
+				     struct intel_crtc *crtc);
 u8 intel_calc_active_pipes(struct intel_atomic_state *state,
 			   u8 active_pipes);
 void intel_link_compute_m_n(u16 bpp, int nlanes,
@@ -544,7 +546,6 @@ unsigned int intel_rotation_info_size(const struct intel_rotation_info *rot_info
 unsigned int intel_remapped_info_size(const struct intel_remapped_info *rem_info);
 bool intel_has_pending_fb_unpin(struct drm_i915_private *dev_priv);
 int intel_display_suspend(struct drm_device *dev);
-void intel_pps_unlock_regs_wa(struct drm_i915_private *dev_priv);
 void intel_encoder_destroy(struct drm_encoder *encoder);
 struct drm_display_mode *
 intel_encoder_current_mode(struct intel_encoder *encoder);
@@ -628,11 +629,9 @@ u32 skl_plane_ctl_crtc(const struct intel_crtc_state *crtc_state);
 u32 skl_plane_stride(const struct intel_plane_state *plane_state,
 		     int plane);
 int skl_check_plane_surface(struct intel_plane_state *plane_state);
-int i9xx_check_plane_surface(struct intel_plane_state *plane_state);
+int skl_calc_main_surface_offset(const struct intel_plane_state *plane_state,
+				 int *x, int *y, u32 *offset);
 int skl_format_to_fourcc(int format, bool rgb_order, bool alpha);
-unsigned int i9xx_plane_max_stride(struct intel_plane *plane,
-				   u32 pixel_format, u64 modifier,
-				   unsigned int rotation);
 int bdw_get_pipemisc_bpp(struct intel_crtc *crtc);
 unsigned int intel_plane_fence_y_offset(const struct intel_plane_state *plane_state);
 
@@ -643,7 +642,23 @@ void intel_display_print_error_state(struct drm_i915_error_state_buf *e,
 
 bool
 intel_format_info_is_yuv_semiplanar(const struct drm_format_info *info,
-				    uint64_t modifier);
+				    u64 modifier);
+
+int intel_plane_compute_gtt(struct intel_plane_state *plane_state);
+u32 intel_plane_compute_aligned_offset(int *x, int *y,
+				       const struct intel_plane_state *state,
+				       int color_plane);
+int intel_plane_pin_fb(struct intel_plane_state *plane_state);
+void intel_plane_unpin_fb(struct intel_plane_state *old_plane_state);
+struct intel_encoder *
+intel_get_crtc_new_encoder(const struct intel_atomic_state *state,
+			   const struct intel_crtc_state *crtc_state);
+unsigned int intel_surf_alignment(const struct drm_framebuffer *fb,
+				  int color_plane);
+u32 intel_plane_adjust_aligned_offset(int *x, int *y,
+				      const struct intel_plane_state *state,
+				      int color_plane,
+				      u32 old_offset, u32 new_offset);
 
 /* modesetting */
 void intel_modeset_init_hw(struct drm_i915_private *i915);
