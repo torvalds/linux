@@ -816,9 +816,9 @@ static int load_elfcorehdr_segment(struct kimage *image, struct kexec_buf *kbuf)
 		goto out;
 	}
 
-	image->arch.elfcorehdr_addr = kbuf->mem;
-	image->arch.elf_headers_sz = headers_sz;
-	image->arch.elf_headers = headers;
+	image->elf_load_addr = kbuf->mem;
+	image->elf_headers_sz = headers_sz;
+	image->elf_headers = headers;
 out:
 	kfree(cmem);
 	return ret;
@@ -852,7 +852,7 @@ int load_crashdump_segments_ppc64(struct kimage *image,
 		return ret;
 	}
 	pr_debug("Loaded elf core header at 0x%lx, bufsz=0x%lx memsz=0x%lx\n",
-		 image->arch.elfcorehdr_addr, kbuf->bufsz, kbuf->memsz);
+		 image->elf_load_addr, kbuf->bufsz, kbuf->memsz);
 
 	return 0;
 }
@@ -1142,9 +1142,9 @@ int arch_kimage_file_post_load_cleanup(struct kimage *image)
 	vfree(image->arch.backup_buf);
 	image->arch.backup_buf = NULL;
 
-	vfree(image->arch.elf_headers);
-	image->arch.elf_headers = NULL;
-	image->arch.elf_headers_sz = 0;
+	vfree(image->elf_headers);
+	image->elf_headers = NULL;
+	image->elf_headers_sz = 0;
 
 	return kexec_image_post_load_cleanup_default(image);
 }
