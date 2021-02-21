@@ -107,6 +107,7 @@ struct kimage_arch {
 
 	unsigned long backup_start;
 	void *backup_buf;
+	void *fdt;
 
 #ifdef CONFIG_IMA_KEXEC
 	phys_addr_t ima_buffer_addr;
