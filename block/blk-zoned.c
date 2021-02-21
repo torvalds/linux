@@ -549,3 +549,20 @@ int blk_revalidate_disk_zones(struct gendisk *disk,
 	return ret;
 }
 EXPORT_SYMBOL_GPL(blk_revalidate_disk_zones);
+
+void blk_queue_clear_zone_settings(struct request_queue *q)
+{
+	blk_mq_freeze_queue(q);
+
+	blk_queue_free_zone_bitmaps(q);
+	blk_queue_flag_clear(QUEUE_FLAG_ZONE_RESETALL, q);
+	q->required_elevator_features &= ~ELEVATOR_F_ZBD_SEQ_WRITE;
+	q->nr_zones = 0;
+	q->max_open_zones = 0;
+	q->max_active_zones = 0;
+	q->limits.chunk_sectors = 0;
+	q->limits.zone_write_granularity = 0;
+	q->limits.max_zone_append_sectors = 0;
+
+	blk_mq_unfreeze_queue(q);
+}

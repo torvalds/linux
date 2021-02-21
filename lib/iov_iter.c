@@ -72,8 +72,6 @@
 	__start.bi_bvec_done = skip;			\
 	__start.bi_idx = 0;				\
 	for_each_bvec(__v, i->bvec, __bi, __start) {	\
-		if (!__v.bv_len)			\
-			continue;			\
 		(void)(STEP);				\
 	}						\
 }
@@ -1069,6 +1067,21 @@ static void pipe_advance(struct iov_iter *i, size_t size)
 	pipe_truncate(i);
 }
 
+static void iov_iter_bvec_advance(struct iov_iter *i, size_t size)
+{
+	struct bvec_iter bi;
+
+	bi.bi_size = i->count;
+	bi.bi_bvec_done = i->iov_offset;
+	bi.bi_idx = 0;
+	bvec_iter_advance(i->bvec, &bi, size);
+
+	i->bvec += bi.bi_idx;
+	i->nr_segs -= bi.bi_idx;
+	i->count = bi.bi_size;
+	i->iov_offset = bi.bi_bvec_done;
+}
+
 void iov_iter_advance(struct iov_iter *i, size_t size)
 {
 	if (unlikely(iov_iter_is_pipe(i))) {
@@ -1077,6 +1090,10 @@ void iov_iter_advance(struct iov_iter *i, size_t size)
 	}
 	if (unlikely(iov_iter_is_discard(i))) {
 		i->count -= size;
+		return;
+	}
+	if (iov_iter_is_bvec(i)) {
+		iov_iter_bvec_advance(i, size);
 		return;
 	}
 	iterate_and_advance(i, size, v, 0, 0, 0)

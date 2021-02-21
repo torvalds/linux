@@ -581,7 +581,7 @@ out:
 
 static blk_qc_t ps3vram_submit_bio(struct bio *bio)
 {
-	struct ps3_system_bus_device *dev = bio->bi_disk->private_data;
+	struct ps3_system_bus_device *dev = bio->bi_bdev->bd_disk->private_data;
 	struct ps3vram_priv *priv = ps3_system_bus_get_drvdata(dev);
 	int busy;
 

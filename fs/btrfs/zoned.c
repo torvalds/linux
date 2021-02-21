@@ -1275,8 +1275,8 @@ void btrfs_record_physical_zoned(struct inode *inode, u64 file_offset,
 		return;
 
 	ordered->physical = physical;
-	ordered->disk = bio->bi_disk;
-	ordered->partno = bio->bi_partno;
+	ordered->disk = bio->bi_bdev->bd_disk;
+	ordered->partno = bio->bi_bdev->bd_partno;
 
 	btrfs_put_ordered_extent(ordered);
 }
