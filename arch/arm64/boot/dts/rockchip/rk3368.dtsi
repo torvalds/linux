@@ -25,6 +25,9 @@
 		i2c3 = &i2c3;
 		i2c4 = &i2c4;
 		i2c5 = &i2c5;
+		mmc0 = &sdmmc;
+		mmc1 = &sdio0;
+		mmc2 = &emmc;
 		serial0 = &uart0;
 		serial1 = &uart1;
 		serial2 = &uart2;
@@ -133,37 +136,6 @@
 			reg = <0x0 0x103>;
 			enable-method = "psci";
 			#cooling-cells = <2>; /* min followed by max */
-		};
-	};
-
-	amba: bus {
-		compatible = "simple-bus";
-		#address-cells = <2>;
-		#size-cells = <2>;
-		ranges;
-
-		dmac_peri: dma-controller@ff250000 {
-			compatible = "arm,pl330", "arm,primecell";
-			reg = <0x0 0xff250000 0x0 0x4000>;
-			interrupts = <GIC_SPI 2 IRQ_TYPE_LEVEL_HIGH>,
-				     <GIC_SPI 3 IRQ_TYPE_LEVEL_HIGH>;
-			#dma-cells = <1>;
-			arm,pl330-broken-no-flushp;
-			arm,pl330-periph-burst;
-			clocks = <&cru ACLK_DMAC_PERI>;
-			clock-names = "apb_pclk";
-		};
-
-		dmac_bus: dma-controller@ff600000 {
-			compatible = "arm,pl330", "arm,primecell";
-			reg = <0x0 0xff600000 0x0 0x4000>;
-			interrupts = <GIC_SPI 0 IRQ_TYPE_LEVEL_HIGH>,
-				     <GIC_SPI 1 IRQ_TYPE_LEVEL_HIGH>;
-			#dma-cells = <1>;
-			arm,pl330-broken-no-flushp;
-			arm,pl330-periph-burst;
-			clocks = <&cru ACLK_DMAC_BUS>;
-			clock-names = "apb_pclk";
 		};
 	};
 
@@ -399,8 +371,20 @@
 		status = "disabled";
 	};
 
+	dmac_peri: dma-controller@ff250000 {
+		compatible = "arm,pl330", "arm,primecell";
+		reg = <0x0 0xff250000 0x0 0x4000>;
+		interrupts = <GIC_SPI 2 IRQ_TYPE_LEVEL_HIGH>,
+			     <GIC_SPI 3 IRQ_TYPE_LEVEL_HIGH>;
+		#dma-cells = <1>;
+		arm,pl330-broken-no-flushp;
+		arm,pl330-periph-burst;
+		clocks = <&cru ACLK_DMAC_PERI>;
+		clock-names = "apb_pclk";
+	};
+
 	thermal-zones {
-		cpu {
+		cpu_thermal: cpu-thermal {
 			polling-delay-passive = <100>; /* milliseconds */
 			polling-delay = <5000>; /* milliseconds */
 
@@ -444,7 +428,7 @@
 			};
 		};
 
-		gpu {
+		gpu_thermal: gpu-thermal {
 			polling-delay-passive = <100>; /* milliseconds */
 			polling-delay = <5000>; /* milliseconds */
 
@@ -530,6 +514,18 @@
 		g-rx-fifo-size = <275>;
 		g-tx-fifo-size = <256 128 128 64 64 32>;
 		status = "disabled";
+	};
+
+	dmac_bus: dma-controller@ff600000 {
+		compatible = "arm,pl330", "arm,primecell";
+		reg = <0x0 0xff600000 0x0 0x4000>;
+		interrupts = <GIC_SPI 0 IRQ_TYPE_LEVEL_HIGH>,
+			     <GIC_SPI 1 IRQ_TYPE_LEVEL_HIGH>;
+		#dma-cells = <1>;
+		arm,pl330-broken-no-flushp;
+		arm,pl330-periph-burst;
+		clocks = <&cru ACLK_DMAC_BUS>;
+		clock-names = "apb_pclk";
 	};
 
 	i2c0: i2c@ff650000 {

@@ -169,6 +169,29 @@
 	};
 };
 
+&cpu_thermal {
+	polling-delay = <10000>; /* milliseconds */
+};
+
+&cpu_alert0 {
+        temperature = <80000>; /* millicelsius */
+};
+
+&cpu0 {
+        /*
+	 * Note that the 1.2GiHz mode is enabled for all SoC variants for
+	 * the Motorola Android Linux v3.0.8 based kernel.
+	 */
+        operating-points = <
+	        /* kHz    uV */
+	        300000  1025000
+	        600000  1200000
+	        800000  1313000
+	        1008000 1375000
+		1200000 1375000
+        >;
+};
+
 &dss {
 	status = "okay";
 };

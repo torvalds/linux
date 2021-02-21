@@ -64,7 +64,7 @@
 	leds {
 		compatible = "gpio-leds";
 
-		blue {
+		led {
 			label = "m3:blue:usr";
 			gpios = <&pio 7 20 GPIO_ACTIVE_HIGH>;
 		};

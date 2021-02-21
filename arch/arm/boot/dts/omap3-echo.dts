@@ -86,6 +86,38 @@
 		linux,axis = <REL_X>;
 		rotary-encoder,relative-axis;
 	};
+
+	speaker_amp: speaker-amplifier {
+		compatible = "simple-audio-amplifier";
+		enable-gpios = <&gpio5 1 GPIO_ACTIVE_HIGH>;	/* gpio_129 */
+		sound-name-prefix = "Speaker Amp";
+		VCC-supply = <&vcc1v8>;
+	};
+
+	sound {
+		compatible = "simple-audio-card";
+		simple-audio-card,name = "Misto Speaker";
+		simple-audio-card,widgets =
+			"Speaker", "Speaker";
+		simple-audio-card,routing =
+			"Speaker Amp INL", "HPL",
+			"Speaker Amp INR", "HPR",
+			"Speaker", "Speaker Amp OUTL",
+			"Speaker", "Speaker Amp OUTR";
+		simple-audio-card,format = "i2s";
+		simple-audio-card,bitclock-master = <&sound_master>;
+		simple-audio-card,frame-master = <&sound_master>;
+		simple-audio-card,aux-devs = <&speaker_amp>;
+
+		simple-audio-card,cpu {
+			sound-dai = <&mcbsp2>;
+		};
+
+		sound_master: simple-audio-card,codec {
+			sound-dai = <&codec0>;
+			system-clock-frequency = <19200000>;
+		};
+	};
 };
 
 &i2c1 {
@@ -94,6 +126,13 @@
 	tps: tps@2d {
 		reg = <0x2d>;
 	};
+};
+
+&mcbsp2 {
+	status = "okay";
+	#sound-dai-cells = <0>;
+	pinctrl-names = "default";
+	pinctrl-0 = <&mcbsp2_pins>;
 };
 
 &i2c2 {
@@ -277,6 +316,22 @@
 	};
 };
 
+&i2c3 {
+	clock-frequency = <400000>;
+
+	codec0: codec@18 {
+		#sound-dai-cells = <0>;
+		compatible = "ti,tlv320aic32x4";
+		reg = <0x18>;
+		clocks = <&sys_clkout1>;
+		clock-names = "mclk";
+		ldoin-supply = <&vcc1v8>;
+		iov-supply = <&vcc1v8>;
+		reset-gpios = <&gpio3 10 GPIO_ACTIVE_LOW>;	/* gpio_74 */
+	};
+};
+
+
 #include "tps65910.dtsi"
 
 &omap3_pmx_core {
@@ -290,6 +345,9 @@
 		pinctrl-single,pins = <
 			OMAP3_CORE1_IOPAD(0x20dc, PIN_INPUT | MUX_MODE4)	/* dss_data0.gpio_70 */
 			OMAP3_CORE1_IOPAD(0x20e0, PIN_INPUT | MUX_MODE4)	/* dss_data2.gpio_72 */
+			OMAP3_CORE1_IOPAD(0x20e4, PIN_OUTPUT | MUX_MODE4)	/* dss_data4.gpio_74 */
+			OMAP3_CORE1_IOPAD(0x20fa, PIN_OUTPUT_PULLDOWN | MUX_MODE4)	/* dss_data15.gpio_85 */
+			OMAP3_CORE1_IOPAD(0x2a1a, PIN_OUTPUT | MUX_MODE0)	/* sys_clkout1.sys_clkout1 */
 		>;
 	};
 
@@ -316,6 +374,15 @@
 			OMAP3_CORE1_IOPAD(0x2166, PIN_INPUT_PULLUP | MUX_MODE0)		/* sdmmc2_dat5.sdmmc2_dat5 */
 			OMAP3_CORE1_IOPAD(0x2168, PIN_INPUT_PULLUP | MUX_MODE0)		/* sdmmc2_dat6.sdmmc2_dat6 */
 			OMAP3_CORE1_IOPAD(0x216a, PIN_INPUT_PULLUP | MUX_MODE0)		/* sdmmc2_dat7.sdmmc2_dat7 */
+		>;
+	};
+
+	mcbsp2_pins: pinmux_mcbsp2_pins {
+		pinctrl-single,pins = <
+			OMAP3_CORE1_IOPAD(0x213c, PIN_INPUT | MUX_MODE0)	/* mcbsp2_fsx.mcbsp2_fsx */
+			OMAP3_CORE1_IOPAD(0x213e, PIN_INPUT | MUX_MODE0)	/* mcbsp2_clkx.mcbsp2_clkx */
+			OMAP3_CORE1_IOPAD(0x2140, PIN_INPUT | MUX_MODE0)	/* mcbsp2_dr.mcbsp2.dr */
+			OMAP3_CORE1_IOPAD(0x2142, PIN_OUTPUT | MUX_MODE0)	/* mcbsp2_dx.mcbsp2_dx */
 		>;
 	};
 };

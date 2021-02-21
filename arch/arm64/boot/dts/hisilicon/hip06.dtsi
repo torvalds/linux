@@ -335,7 +335,6 @@
 		reg = <0x0 0xa0040000 0x0 0x20000>;
 		#iommu-cells = <1>;
 		dma-coherent;
-		smmu-cb-memtype = <0x0 0x1>;
 		hisilicon,broken-prefetch-cmd;
 		status = "disabled";
 	};
@@ -737,9 +736,8 @@
 			#size-cells = <2>;
 			device_type = "pci";
 			dma-coherent;
-			ranges = <0x02000000 0 0xb2000000 0x0 0xb2000000 0
-				 0x5ff0000 0x01000000 0 0 0 0xb7ff0000
-				 0 0x10000>;
+			ranges = <0x02000000 0 0xb2000000 0x0 0xb2000000 0 0x5ff0000>,
+				 <0x01000000 0 0 0 0xb7ff0000 0 0x10000>;
 			#interrupt-cells = <1>;
 			interrupt-map-mask = <0xf800 0 0 7>;
 			interrupt-map = <0x0 0 0 1 &mbigen_pcie0 650 4

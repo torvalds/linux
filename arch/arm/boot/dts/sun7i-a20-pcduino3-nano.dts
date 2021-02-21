@@ -72,14 +72,12 @@
 	leds {
 		compatible = "gpio-leds";
 
-		/* Marked "LED3" on the PCB. */
-		usr1 {
+		led-3 {
 			label = "pcduino3-nano:green:usr1";
 			gpios = <&pio 7 16 GPIO_ACTIVE_LOW>; /* PH16 */
 		};
 
-		/* Marked "LED4" on the PCB. */
-		usr2 {
+		led-4 {
 			label = "pcduino3-nano:green:usr2";
 			gpios = <&pio 7 15 GPIO_ACTIVE_LOW>; /* PH15 */
 		};

@@ -125,12 +125,12 @@
 };
 
 &gsbi3 {
-	status = "ok";
+	status = "okay";
 	qcom,mode = <GSBI_PROT_SPI>;
 };
 
 &gsbi3_spi {
-	status = "ok";
+	status = "okay";
 	pinctrl-0 = <&gsbi3_pins>;
 	pinctrl-names = "default";
 	assigned-clocks = <&gcc GSBI3_QUP_CLK>;
@@ -138,34 +138,34 @@
 };
 
 &gsbi4 {
-	status = "ok";
+	status = "okay";
 	qcom,mode = <GSBI_PROT_UART_W_FC>;
 };
 
 &gsbi4_serial {
-	status = "ok";
+	status = "okay";
 	pinctrl-0 = <&gsbi4_pins>;
 	pinctrl-names = "default";
 };
 
 &gsbi5 {
-	status = "ok";
+	status = "okay";
 	qcom,mode = <GSBI_PROT_I2C_UART>;
 };
 
 &gsbi5_i2c {
-	status = "ok";
+	status = "okay";
 	clock-frequency = <200000>;
 	pinctrl-0 = <&gsbi5_i2c_pins>;
 	pinctrl-names = "default";
 };
 
 &gsbi5_serial {
-	status = "ok";
+	status = "okay";
 	pinctrl-0 = <&gsbi5_uart_pins>;
 	pinctrl-names = "default";
 };
 
 &sdcc1 {
-	status = "ok";
+	status = "okay";
 };

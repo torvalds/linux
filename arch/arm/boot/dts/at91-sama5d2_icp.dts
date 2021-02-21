@@ -697,7 +697,6 @@
 
 	input@0 {
 		reg = <0>;
-		atmel,wakeup-type = "low";
 	};
 };
 

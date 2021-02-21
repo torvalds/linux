@@ -256,11 +256,11 @@
 
 &soc {
 	serial@f991e000 {
-		status = "ok";
+		status = "okay";
 	};
 
 	remoteproc@fb21b000 {
-		status = "ok";
+		status = "okay";
 
 		vddmx-supply = <&pm8841_s1>;
 		vddcx-supply = <&pm8841_s2>;
@@ -273,7 +273,7 @@
 			label = "pronto";
 
 			wcnss {
-				status = "ok";
+				status = "okay";
 			};
 		};
 	};
@@ -335,7 +335,7 @@
 	};
 
 	sdhci@f9824900 {
-		status = "ok";
+		status = "okay";
 
 		vmmc-supply = <&pm8941_l20>;
 		vqmmc-supply = <&pm8941_s3>;
@@ -348,7 +348,7 @@
 	};
 
 	sdhci@f98a4900 {
-		status = "ok";
+		status = "okay";
 
 		vmmc-supply = <&pm8941_l21>;
 		vqmmc-supply = <&pm8941_l13>;
@@ -360,7 +360,7 @@
 	};
 
 	usb@f9a55000 {
-		status = "ok";
+		status = "okay";
 
 		phys = <&usb_hs1_phy>;
 		phy-select = <&tcsr 0xb000 0>;
@@ -373,7 +373,7 @@
 
 		ulpi {
 			phy@a {
-				status = "ok";
+				status = "okay";
 
 				v1p8-supply = <&pm8941_l6>;
 				v3p3-supply = <&pm8941_l24>;

@@ -261,7 +261,7 @@
 
 &soc {
 	sdhci@f9824900 {
-		status = "ok";
+		status = "okay";
 
 		vmmc-supply = <&pm8941_l20>;
 		vqmmc-supply = <&pm8941_s3>;
@@ -274,7 +274,7 @@
 	};
 
 	sdhci@f98a4900 {
-		status = "ok";
+		status = "okay";
 
 		bus-width = <4>;
 
@@ -288,7 +288,7 @@
 	};
 
 	serial@f991e000 {
-		status = "ok";
+		status = "okay";
 
 		pinctrl-names = "default";
 		pinctrl-0 = <&blsp1_uart2_pin_a>;
@@ -366,7 +366,7 @@
 	};
 
 	usb@f9a55000 {
-		status = "ok";
+		status = "okay";
 
 		phys = <&usb_hs1_phy>;
 		phy-select = <&tcsr 0xb000 0>;
@@ -379,7 +379,7 @@
 
 		ulpi {
 			phy@a {
-				status = "ok";
+				status = "okay";
 
 				v1p8-supply = <&pm8941_l6>;
 				v3p3-supply = <&pm8941_l24>;
@@ -415,7 +415,7 @@
 		};
 
 		coincell@2800 {
-			status = "ok";
+			status = "okay";
 			qcom,rset-ohms = <2100>;
 			qcom,vset-millivolts = <3000>;
 		};
@@ -423,7 +423,7 @@
 
 	pm8941@1 {
 		wled@d800 {
-			status = "ok";
+			status = "okay";
 
 			qcom,cs-out;
 			qcom,current-limit = <20>;

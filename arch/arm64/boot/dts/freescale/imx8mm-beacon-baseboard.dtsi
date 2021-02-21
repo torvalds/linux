@@ -102,7 +102,6 @@
 		compatible = "wlf,wm8962";
 		reg = <0x1a>;
 		clocks = <&clk IMX8MM_CLK_SAI3_ROOT>;
-		clock-names = "xclk";
 		DCVDD-supply = <&reg_audio>;
 		DBVDD-supply = <&reg_audio>;
 		AVDD-supply = <&reg_audio>;

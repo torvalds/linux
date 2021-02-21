@@ -148,6 +148,12 @@
 		clock-output-names = "clk300mhz";
 	};
 
+	wdt_clk: wdt-clk {
+		compatible = "fixed-clock";
+		clock-frequency = <150000000>;
+		#clock-cells = <0>;
+	};
+
 	soc {
 		#address-cells = <2>;
 		#size-cells = <2>;
@@ -169,6 +175,17 @@
 		pmux: pmux@24190000 {
 			compatible = "toshiba,tmpv7708-pinctrl";
 			reg = <0 0x24190000 0 0x10000>;
+		};
+
+		gpio: gpio@28020000 {
+			compatible = "toshiba,gpio-tmpv7708";
+			reg = <0 0x28020000 0 0x1000>;
+			#gpio-cells = <0x2>;
+			gpio-ranges = <&pmux 0 0 32>;
+			gpio-controller;
+			interrupt-controller;
+			#interrupt-cells = <2>;
+			interrupt-parent = <&gic>;
 		};
 
 		uart0: serial@28200000 {
@@ -407,6 +424,12 @@
 			snps,txpbl = <4>;
 			snps,rxpbl = <4>;
 			snps,tso;
+			status = "disabled";
+		};
+
+		wdt: wdt@28330000 {
+			compatible = "toshiba,visconti-wdt";
+			reg = <0 0x28330000 0 0x1000>;
 			status = "disabled";
 		};
 	};

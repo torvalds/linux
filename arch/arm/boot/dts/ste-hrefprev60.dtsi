@@ -61,14 +61,8 @@
 		};
 
 		// External Micro SD slot
-		sdi0_per1@80126000 {
+		mmc@80126000 {
 			cd-gpios  = <&tc3589x_gpio 3 GPIO_ACTIVE_HIGH>;
-		};
-
-		vmmci: regulator-gpio {
-			gpios = <&tc3589x_gpio 18 GPIO_ACTIVE_HIGH>;
-			enable-gpio = <&tc3589x_gpio 17 GPIO_ACTIVE_HIGH>;
-			enable-active-high;
 		};
 
 		pinctrl {

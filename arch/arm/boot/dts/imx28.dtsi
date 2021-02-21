@@ -948,6 +948,16 @@
 					fsl,pull-up = <MXS_PULL_DISABLE>;
 				};
 
+				usb1_pins_b: usb1@1 {
+					reg = <1>;
+					fsl,pinmux-ids = <
+						MX28_PAD_PWM2__USB1_OVERCURRENT
+					>;
+					fsl,drive-strength = <MXS_DRIVE_12mA>;
+					fsl,voltage = <MXS_VOLTAGE_HIGH>;
+					fsl,pull-up = <MXS_PULL_DISABLE>;
+				};
+
 				usb0_id_pins_a: usb0id@0 {
 					reg = <0>;
 					fsl,pinmux-ids = <

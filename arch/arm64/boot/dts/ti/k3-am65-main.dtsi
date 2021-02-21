@@ -256,7 +256,7 @@
 		#size-cells = <0>;
 	};
 
-	sdhci0: sdhci@4f80000 {
+	sdhci0: mmc@4f80000 {
 		compatible = "ti,am654-sdhci-5.1";
 		reg = <0x0 0x4f80000 0x0 0x260>, <0x0 0x4f90000 0x0 0x134>;
 		power-domains = <&k3_pds 47 TI_SCI_PD_EXCLUSIVE>;
@@ -280,7 +280,7 @@
 		dma-coherent;
 	};
 
-	sdhci1: sdhci@4fa0000 {
+	sdhci1: mmc@4fa0000 {
 		compatible = "ti,am654-sdhci-5.1";
 		reg = <0x0 0x4fa0000 0x0 0x260>, <0x0 0x4fb0000 0x0 0x134>;
 		power-domains = <&k3_pds 48 TI_SCI_PD_EXCLUSIVE>;
