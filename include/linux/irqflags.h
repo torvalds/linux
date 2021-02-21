@@ -149,6 +149,17 @@ do {						\
 # define start_critical_timings() do { } while (0)
 #endif
 
+#ifdef CONFIG_DEBUG_IRQFLAGS
+extern void warn_bogus_irq_restore(void);
+#define raw_check_bogus_irq_restore()			\
+	do {						\
+		if (unlikely(!arch_irqs_disabled()))	\
+			warn_bogus_irq_restore();	\
+	} while (0)
+#else
+#define raw_check_bogus_irq_restore() do { } while (0)
+#endif
+
 /*
  * Wrap the arch provided IRQ routines to provide appropriate checks.
  */
@@ -162,6 +173,7 @@ do {						\
 #define raw_local_irq_restore(flags)			\
 	do {						\
 		typecheck(unsigned long, flags);	\
+		raw_check_bogus_irq_restore();		\
 		arch_local_irq_restore(flags);		\
 	} while (0)
 #define raw_local_save_flags(flags)			\
