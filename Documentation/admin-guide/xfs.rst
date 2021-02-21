@@ -495,3 +495,45 @@ the class and error context. For example, the default values for
 "metadata/ENODEV" are "0" rather than "-1" so that this error handler defaults
 to "fail immediately" behaviour. This is done because ENODEV is a fatal,
 unrecoverable error no matter how many times the metadata IO is retried.
+
+Workqueue Concurrency
+=====================
+
+XFS uses kernel workqueues to parallelize metadata update processes.  This
+enables it to take advantage of storage hardware that can service many IO
+operations simultaneously.  This interface exposes internal implementation
+details of XFS, and as such is explicitly not part of any userspace API/ABI
+guarantee the kernel may give userspace.  These are undocumented features of
+the generic workqueue implementation XFS uses for concurrency, and they are
+provided here purely for diagnostic and tuning purposes and may change at any
+time in the future.
+
+The control knobs for a filesystem's workqueues are organized by task at hand
+and the short name of the data device.  They all can be found in:
+
+  /sys/bus/workqueue/devices/${task}!${device}
+
+================  ===========
+  Task            Description
+================  ===========
+  xfs_iwalk-$pid  Inode scans of the entire filesystem. Currently limited to
+                  mount time quotacheck.
+  xfs-blockgc     Background garbage collection of disk space that have been
+                  speculatively allocated beyond EOF or for staging copy on
+                  write operations.
+================  ===========
+
+For example, the knobs for the quotacheck workqueue for /dev/nvme0n1 would be
+found in /sys/bus/workqueue/devices/xfs_iwalk-1111!nvme0n1/.
+
+The interesting knobs for XFS workqueues are as follows:
+
+============     ===========
+  Knob           Description
+============     ===========
+  max_active     Maximum number of background threads that can be started to
+                 run the work.
+  cpumask        CPUs upon which the threads are allowed to run.
+  nice           Relative priority of scheduling the threads.  These are the
+                 same nice levels that can be applied to userspace processes.
+============     ===========

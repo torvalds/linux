@@ -700,12 +700,10 @@ xfs_setattr_nonsize(
 			return error;
 	}
 
-	error = xfs_trans_alloc(mp, &M_RES(mp)->tr_ichange, 0, 0, 0, &tp);
+	error = xfs_trans_alloc_ichange(ip, udqp, gdqp, NULL,
+			capable(CAP_FOWNER), &tp);
 	if (error)
 		goto out_dqrele;
-
-	xfs_ilock(ip, XFS_ILOCK_EXCL);
-	xfs_trans_ijoin(tp, ip, 0);
 
 	/*
 	 * Change file ownership.  Must be the owner or privileged.
@@ -721,21 +719,6 @@ xfs_setattr_nonsize(
 		igid = inode->i_gid;
 		gid = (mask & ATTR_GID) ? iattr->ia_gid : igid;
 		uid = (mask & ATTR_UID) ? iattr->ia_uid : iuid;
-
-		/*
-		 * Do a quota reservation only if uid/gid is actually
-		 * going to change.
-		 */
-		if (XFS_IS_QUOTA_RUNNING(mp) &&
-		    ((XFS_IS_UQUOTA_ON(mp) && !uid_eq(iuid, uid)) ||
-		     (XFS_IS_GQUOTA_ON(mp) && !gid_eq(igid, gid)))) {
-			ASSERT(tp);
-			error = xfs_qm_vop_chown_reserve(tp, ip, udqp, gdqp,
-						NULL, capable(CAP_FOWNER) ?
-						XFS_QMOPT_FORCE_RES : 0);
-			if (error)	/* out of quota */
-				goto out_cancel;
-		}
 
 		/*
 		 * CAP_FSETID overrides the following restrictions:
@@ -786,8 +769,6 @@ xfs_setattr_nonsize(
 		xfs_trans_set_sync(tp);
 	error = xfs_trans_commit(tp);
 
-	xfs_iunlock(ip, XFS_ILOCK_EXCL);
-
 	/*
 	 * Release any dquot(s) the inode had kept before chown.
 	 */
@@ -814,9 +795,6 @@ xfs_setattr_nonsize(
 
 	return 0;
 
-out_cancel:
-	xfs_trans_cancel(tp);
-	xfs_iunlock(ip, XFS_ILOCK_EXCL);
 out_dqrele:
 	xfs_qm_dqrele(udqp);
 	xfs_qm_dqrele(gdqp);
@@ -846,7 +824,7 @@ xfs_setattr_size(
 	ASSERT(xfs_isilocked(ip, XFS_MMAPLOCK_EXCL));
 	ASSERT(S_ISREG(inode->i_mode));
 	ASSERT((iattr->ia_valid & (ATTR_UID|ATTR_GID|ATTR_ATIME|ATTR_ATIME_SET|
-		ATTR_MTIME_SET|ATTR_KILL_PRIV|ATTR_TIMES_SET)) == 0);
+		ATTR_MTIME_SET|ATTR_TIMES_SET)) == 0);
 
 	oldsize = inode->i_size;
 	newsize = iattr->ia_size;

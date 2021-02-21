@@ -126,6 +126,7 @@ __xfs_free_perag(
 {
 	struct xfs_perag *pag = container_of(head, struct xfs_perag, rcu_head);
 
+	ASSERT(!delayed_work_pending(&pag->pag_blockgc_work));
 	ASSERT(atomic_read(&pag->pag_ref) == 0);
 	kmem_free(pag);
 }
@@ -146,6 +147,7 @@ xfs_free_perag(
 		spin_unlock(&mp->m_perag_lock);
 		ASSERT(pag);
 		ASSERT(atomic_read(&pag->pag_ref) == 0);
+		cancel_delayed_work_sync(&pag->pag_blockgc_work);
 		xfs_iunlink_destroy(pag);
 		xfs_buf_hash_destroy(pag);
 		call_rcu(&pag->rcu_head, __xfs_free_perag);
@@ -201,6 +203,7 @@ xfs_initialize_perag(
 		pag->pag_agno = index;
 		pag->pag_mount = mp;
 		spin_lock_init(&pag->pag_ici_lock);
+		INIT_DELAYED_WORK(&pag->pag_blockgc_work, xfs_blockgc_worker);
 		INIT_RADIX_TREE(&pag->pag_ici_root, GFP_ATOMIC);
 
 		error = xfs_buf_hash_init(pag);
@@ -946,7 +949,7 @@ xfs_mountfs(
 	 */
 	if ((mp->m_flags & (XFS_MOUNT_RDONLY|XFS_MOUNT_NORECOVERY)) ==
 							XFS_MOUNT_RDONLY) {
-		xfs_quiesce_attr(mp);
+		xfs_log_clean(mp);
 	}
 
 	/*
@@ -1023,8 +1026,8 @@ xfs_mountfs(
 	xfs_log_mount_cancel(mp);
  out_fail_wait:
 	if (mp->m_logdev_targp && mp->m_logdev_targp != mp->m_ddev_targp)
-		xfs_wait_buftarg(mp->m_logdev_targp);
-	xfs_wait_buftarg(mp->m_ddev_targp);
+		xfs_buftarg_drain(mp->m_logdev_targp);
+	xfs_buftarg_drain(mp->m_ddev_targp);
  out_free_perag:
 	xfs_free_perag(mp);
  out_free_dir:
@@ -1054,7 +1057,7 @@ xfs_unmountfs(
 	uint64_t		resblks;
 	int			error;
 
-	xfs_stop_block_reaping(mp);
+	xfs_blockgc_stop(mp);
 	xfs_fs_unreserve_ag_blocks(mp);
 	xfs_qm_unmount_quotas(mp);
 	xfs_rtunmount_inodes(mp);
@@ -1124,12 +1127,6 @@ xfs_unmountfs(
 		xfs_warn(mp, "Unable to free reserved block pool. "
 				"Freespace may not be correct on next mount.");
 
-	error = xfs_log_sbcount(mp);
-	if (error)
-		xfs_warn(mp, "Unable to update superblock counters. "
-				"Freespace may not be correct on next mount.");
-
-
 	xfs_log_unmount(mp);
 	xfs_da_unmount(mp);
 	xfs_uuid_unmount(mp);
@@ -1162,32 +1159,6 @@ xfs_fs_writable(
 		return false;
 
 	return true;
-}
-
-/*
- * xfs_log_sbcount
- *
- * Sync the superblock counters to disk.
- *
- * Note this code can be called during the process of freezing, so we use the
- * transaction allocator that does not block when the transaction subsystem is
- * in its frozen state.
- */
-int
-xfs_log_sbcount(xfs_mount_t *mp)
-{
-	/* allow this to proceed during the freeze sequence... */
-	if (!xfs_fs_writable(mp, SB_FREEZE_COMPLETE))
-		return 0;
-
-	/*
-	 * we don't need to do this if we are updating the superblock
-	 * counters on every modification.
-	 */
-	if (!xfs_sb_version_haslazysbcount(&mp->m_sb))
-		return 0;
-
-	return xfs_sync_sb(mp, true);
 }
 
 /*
