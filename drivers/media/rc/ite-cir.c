@@ -33,10 +33,10 @@
 
 /* module parameters */
 
-/* override default sample period */
-static long sample_period;
+/* default sample period */
+static long sample_period = NSEC_PER_SEC / 115200;
 module_param(sample_period, long, S_IRUGO | S_IWUSR);
-MODULE_PARM_DESC(sample_period, "Override carrier sample period, us");
+MODULE_PARM_DESC(sample_period, "sample period");
 
 /* override detected model id */
 static int model_number = -1;
@@ -134,7 +134,6 @@ static u8 ite_get_pulse_width_bits(unsigned int freq, int duty_cycle)
 static void ite_decode_bytes(struct ite_dev *dev, const u8 * data, int
 			     length)
 {
-	u32 sample_period;
 	unsigned long *ldata;
 	unsigned int next_one, next_zero, size;
 	struct ir_raw_event ev = {};
@@ -142,7 +141,6 @@ static void ite_decode_bytes(struct ite_dev *dev, const u8 * data, int
 	if (length == 0)
 		return;
 
-	sample_period = dev->params.sample_period;
 	ldata = (unsigned long *)data;
 	size = length << 3;
 	next_one = find_next_bit_le(ldata, size, 0);
@@ -184,12 +182,12 @@ static void ite_set_carrier_params(struct ite_dev *dev)
 
 	if (for_tx) {
 		/* we don't need no stinking calculations */
-		freq = dev->params.tx_carrier_freq;
+		freq = dev->tx_carrier_freq;
 		allowance = ITE_RXDCR_DEFAULT;
 		use_demodulator = false;
 	} else {
-		low_freq = dev->params.rx_low_carrier_freq;
-		high_freq = dev->params.rx_high_carrier_freq;
+		low_freq = dev->rx_low_carrier_freq;
+		high_freq = dev->rx_high_carrier_freq;
 
 		if (low_freq == 0) {
 			/* don't demodulate */
@@ -217,9 +215,9 @@ static void ite_set_carrier_params(struct ite_dev *dev)
 	}
 
 	/* set the carrier parameters in a device-dependent way */
-	dev->params.set_carrier_params(dev, ite_is_high_carrier_freq(freq),
+	dev->params->set_carrier_params(dev, ite_is_high_carrier_freq(freq),
 		 use_demodulator, ite_get_carrier_freq_bits(freq), allowance,
-		 ite_get_pulse_width_bits(freq, dev->params.tx_duty_cycle));
+		 ite_get_pulse_width_bits(freq, dev->tx_duty_cycle));
 }
 
 /* interrupt service routine for incoming and outgoing CIR data */
@@ -235,12 +233,12 @@ static irqreturn_t ite_cir_isr(int irq, void *data)
 	spin_lock(&dev->lock);
 
 	/* read the interrupt flags */
-	iflags = dev->params.get_irq_causes(dev);
+	iflags = dev->params->get_irq_causes(dev);
 
 	/* check for the receive interrupt */
 	if (iflags & (ITE_IRQ_RX_FIFO | ITE_IRQ_RX_FIFO_OVERRUN)) {
 		/* read the FIFO bytes */
-		rx_bytes = dev->params.get_rx_bytes(dev, rx_buf,
+		rx_bytes = dev->params->get_rx_bytes(dev, rx_buf,
 						    ITE_RX_FIFO_LEN);
 
 		dev_dbg(&dev->rdev->dev, "interrupt %d RX bytes\n", rx_bytes);
@@ -285,8 +283,8 @@ static int ite_set_rx_carrier_range(struct rc_dev *rcdev, u32 carrier_low, u32
 	struct ite_dev *dev = rcdev->priv;
 
 	spin_lock_irqsave(&dev->lock, flags);
-	dev->params.rx_low_carrier_freq = carrier_low;
-	dev->params.rx_high_carrier_freq = carrier_high;
+	dev->rx_low_carrier_freq = carrier_low;
+	dev->rx_high_carrier_freq = carrier_high;
 	ite_set_carrier_params(dev);
 	spin_unlock_irqrestore(&dev->lock, flags);
 
@@ -300,7 +298,7 @@ static int ite_set_tx_carrier(struct rc_dev *rcdev, u32 carrier)
 	struct ite_dev *dev = rcdev->priv;
 
 	spin_lock_irqsave(&dev->lock, flags);
-	dev->params.tx_carrier_freq = carrier;
+	dev->tx_carrier_freq = carrier;
 	ite_set_carrier_params(dev);
 	spin_unlock_irqrestore(&dev->lock, flags);
 
@@ -314,7 +312,7 @@ static int ite_set_tx_duty_cycle(struct rc_dev *rcdev, u32 duty_cycle)
 	struct ite_dev *dev = rcdev->priv;
 
 	spin_lock_irqsave(&dev->lock, flags);
-	dev->params.tx_duty_cycle = duty_cycle;
+	dev->tx_duty_cycle = duty_cycle;
 	ite_set_carrier_params(dev);
 	spin_unlock_irqrestore(&dev->lock, flags);
 
@@ -348,17 +346,17 @@ static int ite_tx_ir(struct rc_dev *rcdev, unsigned *txbuf, unsigned n)
 
 	/* calculate how much time we can send in one byte */
 	max_rle_us =
-	    (ITE_BAUDRATE_DIVISOR * dev->params.sample_period *
+	    (ITE_BAUDRATE_DIVISOR * sample_period *
 	     ITE_TX_MAX_RLE) / 1000;
 
 	/* disable the receiver */
-	dev->params.disable_rx(dev);
+	dev->params->disable_rx(dev);
 
 	/* this is where we'll begin filling in the FIFO, until it's full.
 	 * then we'll just activate the interrupt, wait for it to wake us up
 	 * again, disable it, continue filling the FIFO... until everything
 	 * has been pushed out */
-	fifo_avail = ITE_TX_FIFO_LEN - dev->params.get_tx_used_slots(dev);
+	fifo_avail = ITE_TX_FIFO_LEN - dev->params->get_tx_used_slots(dev);
 
 	while (n > 0 && dev->in_use) {
 		/* transmit the next sample */
@@ -401,30 +399,29 @@ static int ite_tx_ir(struct rc_dev *rcdev, unsigned *txbuf, unsigned n)
 			 * some other slot got freed
 			 */
 			if (fifo_avail <= 0)
-				fifo_avail = ITE_TX_FIFO_LEN - dev->params.get_tx_used_slots(dev);
+				fifo_avail = ITE_TX_FIFO_LEN - dev->params->get_tx_used_slots(dev);
 
 			/* if it's still full */
 			if (fifo_avail <= 0) {
 				/* enable the tx interrupt */
-				dev->params.
-				enable_tx_interrupt(dev);
+				dev->params->enable_tx_interrupt(dev);
 
 				/* drop the spinlock */
 				spin_unlock_irqrestore(&dev->lock, flags);
 
 				/* wait for the FIFO to empty enough */
-				wait_event_interruptible(dev->tx_queue, (fifo_avail = ITE_TX_FIFO_LEN - dev->params.get_tx_used_slots(dev)) >= 8);
+				wait_event_interruptible(dev->tx_queue,
+					(fifo_avail = ITE_TX_FIFO_LEN - dev->params->get_tx_used_slots(dev)) >= 8);
 
 				/* get the spinlock again */
 				spin_lock_irqsave(&dev->lock, flags);
 
 				/* disable the tx interrupt again. */
-				dev->params.
-				disable_tx_interrupt(dev);
+				dev->params->disable_tx_interrupt(dev);
 			}
 
 			/* now send the byte through the FIFO */
-			dev->params.put_tx_byte(dev, val);
+			dev->params->put_tx_byte(dev, val);
 			fifo_avail--;
 		}
 	}
@@ -432,7 +429,7 @@ static int ite_tx_ir(struct rc_dev *rcdev, unsigned *txbuf, unsigned n)
 	/* wait and don't return until the whole FIFO has been sent out;
 	 * otherwise we could configure the RX carrier params instead of the
 	 * TX ones while the transmission is still being performed! */
-	fifo_remaining = dev->params.get_tx_used_slots(dev);
+	fifo_remaining = dev->params->get_tx_used_slots(dev);
 	remaining_us = 0;
 	while (fifo_remaining > 0) {
 		fifo_remaining--;
@@ -459,7 +456,7 @@ static int ite_tx_ir(struct rc_dev *rcdev, unsigned *txbuf, unsigned n)
 
 	/* re-enable the receiver */
 	if (dev->in_use)
-		dev->params.enable_rx(dev);
+		dev->params->enable_rx(dev);
 
 	/* notify transmission end */
 	wake_up_interruptible(&dev->tx_ended);
@@ -477,7 +474,7 @@ static void ite_s_idle(struct rc_dev *rcdev, bool enable)
 
 	if (enable) {
 		spin_lock_irqsave(&dev->lock, flags);
-		dev->params.idle_rx(dev);
+		dev->params->idle_rx(dev);
 		spin_unlock_irqrestore(&dev->lock, flags);
 	}
 }
@@ -1177,7 +1174,7 @@ static int ite_open(struct rc_dev *rcdev)
 	dev->in_use = true;
 
 	/* enable the receiver */
-	dev->params.enable_rx(dev);
+	dev->params->enable_rx(dev);
 
 	spin_unlock_irqrestore(&dev->lock, flags);
 
@@ -1198,7 +1195,7 @@ static void ite_close(struct rc_dev *rcdev)
 	wait_event_interruptible(dev->tx_ended, !dev->transmitting);
 	spin_lock_irqsave(&dev->lock, flags);
 
-	dev->params.disable(dev);
+	dev->params->disable(dev);
 
 	spin_unlock_irqrestore(&dev->lock, flags);
 }
@@ -1209,12 +1206,6 @@ static const struct ite_dev_params ite_dev_descs[] = {
 	       .model = "ITE8704 CIR transceiver",
 	       .io_region_size = IT87_IOREG_LENGTH,
 	       .io_rsrc_no = 0,
-	       .hw_tx_capable = true,
-	       .sample_period = (u32) (1000000000ULL / 115200),
-	       .tx_carrier_freq = 38000,
-	       .tx_duty_cycle = 33,
-	       .rx_low_carrier_freq = 0,
-	       .rx_high_carrier_freq = 0,
 
 		/* operations */
 	       .get_irq_causes = it87_get_irq_causes,
@@ -1234,12 +1225,6 @@ static const struct ite_dev_params ite_dev_descs[] = {
 	       .model = "ITE8713 CIR transceiver",
 	       .io_region_size = IT87_IOREG_LENGTH,
 	       .io_rsrc_no = 0,
-	       .hw_tx_capable = true,
-	       .sample_period = (u32) (1000000000ULL / 115200),
-	       .tx_carrier_freq = 38000,
-	       .tx_duty_cycle = 33,
-	       .rx_low_carrier_freq = 0,
-	       .rx_high_carrier_freq = 0,
 
 		/* operations */
 	       .get_irq_causes = it87_get_irq_causes,
@@ -1259,12 +1244,6 @@ static const struct ite_dev_params ite_dev_descs[] = {
 	       .model = "ITE8708 CIR transceiver",
 	       .io_region_size = IT8708_IOREG_LENGTH,
 	       .io_rsrc_no = 0,
-	       .hw_tx_capable = true,
-	       .sample_period = (u32) (1000000000ULL / 115200),
-	       .tx_carrier_freq = 38000,
-	       .tx_duty_cycle = 33,
-	       .rx_low_carrier_freq = 0,
-	       .rx_high_carrier_freq = 0,
 
 		/* operations */
 	       .get_irq_causes = it8708_get_irq_causes,
@@ -1285,12 +1264,6 @@ static const struct ite_dev_params ite_dev_descs[] = {
 	       .model = "ITE8709 CIR transceiver",
 	       .io_region_size = IT8709_IOREG_LENGTH,
 	       .io_rsrc_no = 2,
-	       .hw_tx_capable = true,
-	       .sample_period = (u32) (1000000000ULL / 115200),
-	       .tx_carrier_freq = 38000,
-	       .tx_duty_cycle = 33,
-	       .rx_low_carrier_freq = 0,
-	       .rx_high_carrier_freq = 0,
 
 		/* operations */
 	       .get_irq_causes = it8709_get_irq_causes,
@@ -1382,15 +1355,13 @@ static int ite_probe(struct pnp_dev *pdev, const struct pnp_device_id
 	init_waitqueue_head(&itdev->tx_queue);
 	init_waitqueue_head(&itdev->tx_ended);
 
-	/* copy model-specific parameters */
-	itdev->params = *dev_desc;
-
-	/* apply any overrides */
-	if (sample_period > 0)
-		itdev->params.sample_period = sample_period;
+	/* Set model-specific parameters */
+	itdev->params = dev_desc;
 
 	/* set up hardware initial state */
-	itdev->params.init_hardware(itdev);
+	itdev->tx_duty_cycle = 33;
+	itdev->tx_carrier_freq = ITE_DEFAULT_CARRIER_FREQ;
+	itdev->params->init_hardware(itdev);
 
 	/* set up ir-core props */
 	rdev->priv = itdev;
@@ -1402,20 +1373,16 @@ static int ite_probe(struct pnp_dev *pdev, const struct pnp_device_id
 	rdev->s_rx_carrier_range = ite_set_rx_carrier_range;
 	/* FIFO threshold is 17 bytes, so 17 * 8 samples minimum */
 	rdev->min_timeout = 17 * 8 * ITE_BAUDRATE_DIVISOR *
-			    itdev->params.sample_period / 1000;
+			    sample_period / 1000;
 	rdev->timeout = IR_DEFAULT_TIMEOUT;
 	rdev->max_timeout = 10 * IR_DEFAULT_TIMEOUT;
-	rdev->rx_resolution = ITE_BAUDRATE_DIVISOR *
-				itdev->params.sample_period / 1000;
-	rdev->tx_resolution = ITE_BAUDRATE_DIVISOR *
-				itdev->params.sample_period / 1000;
+	rdev->rx_resolution = ITE_BAUDRATE_DIVISOR * sample_period / 1000;
+	rdev->tx_resolution = ITE_BAUDRATE_DIVISOR * sample_period / 1000;
 
-	/* set up transmitter related values if needed */
-	if (itdev->params.hw_tx_capable) {
-		rdev->tx_ir = ite_tx_ir;
-		rdev->s_tx_carrier = ite_set_tx_carrier;
-		rdev->s_tx_duty_cycle = ite_set_tx_duty_cycle;
-	}
+	/* set up transmitter related values */
+	rdev->tx_ir = ite_tx_ir;
+	rdev->s_tx_carrier = ite_set_tx_carrier;
+	rdev->s_tx_duty_cycle = ite_set_tx_duty_cycle;
 
 	rdev->device_name = dev_desc->model;
 	rdev->input_id.bustype = BUS_HOST;
@@ -1442,7 +1409,7 @@ static int ite_probe(struct pnp_dev *pdev, const struct pnp_device_id
 	return 0;
 
 exit_release_cir_addr:
-	release_region(itdev->cir_addr, itdev->params.io_region_size);
+	release_region(itdev->cir_addr, itdev->params->io_region_size);
 exit_unregister_device:
 	rc_unregister_device(rdev);
 	rdev = NULL;
@@ -1461,13 +1428,13 @@ static void ite_remove(struct pnp_dev *pdev)
 	spin_lock_irqsave(&dev->lock, flags);
 
 	/* disable hardware */
-	dev->params.disable(dev);
+	dev->params->disable(dev);
 
 	spin_unlock_irqrestore(&dev->lock, flags);
 
 	/* free resources */
 	free_irq(dev->cir_irq, dev);
-	release_region(dev->cir_addr, dev->params.io_region_size);
+	release_region(dev->cir_addr, dev->params->io_region_size);
 
 	rc_unregister_device(dev->rdev);
 
@@ -1485,7 +1452,7 @@ static int ite_suspend(struct pnp_dev *pdev, pm_message_t state)
 	spin_lock_irqsave(&dev->lock, flags);
 
 	/* disable all interrupts */
-	dev->params.disable(dev);
+	dev->params->disable(dev);
 
 	spin_unlock_irqrestore(&dev->lock, flags);
 
@@ -1500,9 +1467,9 @@ static int ite_resume(struct pnp_dev *pdev)
 	spin_lock_irqsave(&dev->lock, flags);
 
 	/* reinitialize hardware config registers */
-	dev->params.init_hardware(dev);
+	dev->params->init_hardware(dev);
 	/* enable the receiver */
-	dev->params.enable_rx(dev);
+	dev->params->enable_rx(dev);
 
 	spin_unlock_irqrestore(&dev->lock, flags);
 
@@ -1517,7 +1484,7 @@ static void ite_shutdown(struct pnp_dev *pdev)
 	spin_lock_irqsave(&dev->lock, flags);
 
 	/* disable all interrupts */
-	dev->params.disable(dev);
+	dev->params->disable(dev);
 
 	spin_unlock_irqrestore(&dev->lock, flags);
 }

@@ -31,24 +31,6 @@ struct ite_dev_params {
 	/* IR pnp I/O resource number */
 	int io_rsrc_no;
 
-	/* true if the hardware supports transmission */
-	bool hw_tx_capable;
-
-	/* base sampling period, in ns */
-	u32 sample_period;
-
-	/* rx low carrier frequency, in Hz, 0 means no demodulation */
-	unsigned int rx_low_carrier_freq;
-
-	/* tx high carrier frequency, in Hz, 0 means no demodulation */
-	unsigned int rx_high_carrier_freq;
-
-	/* tx carrier frequency, in Hz */
-	unsigned int tx_carrier_freq;
-
-	/* duty cycle, 0-100 */
-	int tx_duty_cycle;
-
 	/* hw-specific operation function pointers; most of these must be
 	 * called while holding the spin lock, except for the TX FIFO length
 	 * one */
@@ -104,12 +86,24 @@ struct ite_dev {
 	/* transmit support */
 	wait_queue_head_t tx_queue, tx_ended;
 
+	/* rx low carrier frequency, in Hz, 0 means no demodulation */
+	unsigned int rx_low_carrier_freq;
+
+	/* tx high carrier frequency, in Hz, 0 means no demodulation */
+	unsigned int rx_high_carrier_freq;
+
+	/* tx carrier frequency, in Hz */
+	unsigned int tx_carrier_freq;
+
+	/* duty cycle, 0-100 */
+	int tx_duty_cycle;
+
 	/* hardware I/O settings */
 	unsigned long cir_addr;
 	int cir_irq;
 
 	/* overridable copy of model parameters */
-	struct ite_dev_params params;
+	const struct ite_dev_params *params;
 };
 
 /* common values for all kinds of hardware */
