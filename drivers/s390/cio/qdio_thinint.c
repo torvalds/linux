@@ -66,22 +66,6 @@ static void put_indicator(u32 *addr)
 	atomic_dec(&ind->count);
 }
 
-void tiqdio_add_device(struct qdio_irq *irq_ptr)
-{
-	mutex_lock(&tiq_list_lock);
-	list_add_rcu(&irq_ptr->entry, &tiq_list);
-	mutex_unlock(&tiq_list_lock);
-}
-
-void tiqdio_remove_device(struct qdio_irq *irq_ptr)
-{
-	mutex_lock(&tiq_list_lock);
-	list_del_rcu(&irq_ptr->entry);
-	mutex_unlock(&tiq_list_lock);
-	synchronize_rcu();
-	INIT_LIST_HEAD(&irq_ptr->entry);
-}
-
 static inline int references_shared_dsci(struct qdio_irq *irq_ptr)
 {
 	return irq_ptr->dsci == &q_indicators[TIQDIO_SHARED_IND].ind;
@@ -106,32 +90,6 @@ static inline u32 clear_shared_ind(void)
 	return xchg(&q_indicators[TIQDIO_SHARED_IND].ind, 0);
 }
 
-static inline void tiqdio_call_inq_handlers(struct qdio_irq *irq)
-{
-	struct qdio_q *q;
-	int i;
-
-	if (!references_shared_dsci(irq))
-		xchg(irq->dsci, 0);
-
-	if (irq->irq_poll) {
-		if (!test_and_set_bit(QDIO_IRQ_DISABLED, &irq->poll_state))
-			irq->irq_poll(irq->cdev, irq->int_parm);
-		else
-			QDIO_PERF_STAT_INC(irq, int_discarded);
-
-		return;
-	}
-
-	for_each_input_queue(irq, q, i) {
-		/*
-		 * Call inbound processing but not directly
-		 * since that could starve other thinint queues.
-		 */
-		tasklet_schedule(&q->tasklet);
-	}
-}
-
 /**
  * tiqdio_thinint_handler - thin interrupt handler for qdio
  * @airq: pointer to adapter interrupt descriptor
@@ -139,10 +97,11 @@ static inline void tiqdio_call_inq_handlers(struct qdio_irq *irq)
  */
 static void tiqdio_thinint_handler(struct airq_struct *airq, bool floating)
 {
+	u64 irq_time = S390_lowcore.int_clock;
 	u32 si_used = clear_shared_ind();
 	struct qdio_irq *irq;
 
-	last_ai_time = S390_lowcore.int_clock;
+	last_ai_time = irq_time;
 	inc_irq_stat(IRQIO_QAI);
 
 	/* protect tiq_list entries, only changed in activate or shutdown */
@@ -153,10 +112,15 @@ static void tiqdio_thinint_handler(struct airq_struct *airq, bool floating)
 		if (unlikely(references_shared_dsci(irq))) {
 			if (!si_used)
 				continue;
-		} else if (!*irq->dsci)
-			continue;
+		} else {
+			if (!*irq->dsci)
+				continue;
 
-		tiqdio_call_inq_handlers(irq);
+			xchg(irq->dsci, 0);
+		}
+
+		qdio_deliver_irq(irq);
+		irq->last_data_irq_time = irq_time;
 
 		QDIO_PERF_STAT_INC(irq, adapter_int);
 	}
@@ -208,16 +172,26 @@ int qdio_establish_thinint(struct qdio_irq *irq_ptr)
 	DBF_HEX(&irq_ptr->dsci, sizeof(void *));
 
 	rc = set_subchannel_ind(irq_ptr, 0);
-	if (rc)
+	if (rc) {
 		put_indicator(irq_ptr->dsci);
+		return rc;
+	}
 
-	return rc;
+	mutex_lock(&tiq_list_lock);
+	list_add_rcu(&irq_ptr->entry, &tiq_list);
+	mutex_unlock(&tiq_list_lock);
+	return 0;
 }
 
 void qdio_shutdown_thinint(struct qdio_irq *irq_ptr)
 {
 	if (!is_thinint_irq(irq_ptr))
 		return;
+
+	mutex_lock(&tiq_list_lock);
+	list_del_rcu(&irq_ptr->entry);
+	mutex_unlock(&tiq_list_lock);
+	synchronize_rcu();
 
 	/* reset adapter interrupt indicators */
 	set_subchannel_ind(irq_ptr, 1);

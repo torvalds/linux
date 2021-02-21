@@ -6074,14 +6074,15 @@ int qeth_poll(struct napi_struct *napi, int budget)
 EXPORT_SYMBOL_GPL(qeth_poll);
 
 static void qeth_iqd_tx_complete(struct qeth_qdio_out_q *queue,
-				 unsigned int bidx, bool error, int budget)
+				 unsigned int bidx, unsigned int qdio_error,
+				 int budget)
 {
 	struct qeth_qdio_out_buffer *buffer = queue->bufs[bidx];
 	u8 sflags = buffer->buffer->element[15].sflags;
 	struct qeth_card *card = queue->card;
+	bool error = !!qdio_error;
 
-	if (queue->bufstates && (queue->bufstates[bidx].flags &
-				 QDIO_OUTBUF_STATE_FLAG_PENDING)) {
+	if (qdio_error == QDIO_ERROR_SLSB_PENDING) {
 		WARN_ON_ONCE(card->options.cq != QETH_CQ_ENABLED);
 
 		QETH_CARD_TEXT_(card, 5, "pel%u", bidx);

@@ -189,7 +189,7 @@ static void pcpu_ec_call(struct pcpu *pcpu, int ec_bit)
 
 static int pcpu_alloc_lowcore(struct pcpu *pcpu, int cpu)
 {
-	unsigned long async_stack, nodat_stack;
+	unsigned long async_stack, nodat_stack, mcck_stack;
 	struct lowcore *lc;
 
 	if (pcpu != &pcpu_devices[0]) {
@@ -202,13 +202,15 @@ static int pcpu_alloc_lowcore(struct pcpu *pcpu, int cpu)
 		nodat_stack = pcpu->lowcore->nodat_stack - STACK_INIT_OFFSET;
 	}
 	async_stack = stack_alloc();
-	if (!async_stack)
-		goto out;
+	mcck_stack = stack_alloc();
+	if (!async_stack || !mcck_stack)
+		goto out_stack;
 	lc = pcpu->lowcore;
 	memcpy(lc, &S390_lowcore, 512);
 	memset((char *) lc + 512, 0, sizeof(*lc) - 512);
 	lc->async_stack = async_stack + STACK_INIT_OFFSET;
 	lc->nodat_stack = nodat_stack + STACK_INIT_OFFSET;
+	lc->mcck_stack = mcck_stack + STACK_INIT_OFFSET;
 	lc->cpu_nr = cpu;
 	lc->spinlock_lockval = arch_spin_lockval(cpu);
 	lc->spinlock_index = 0;
@@ -216,12 +218,13 @@ static int pcpu_alloc_lowcore(struct pcpu *pcpu, int cpu)
 	lc->return_lpswe = gen_lpswe(__LC_RETURN_PSW);
 	lc->return_mcck_lpswe = gen_lpswe(__LC_RETURN_MCCK_PSW);
 	if (nmi_alloc_per_cpu(lc))
-		goto out_async;
+		goto out_stack;
 	lowcore_ptr[cpu] = lc;
 	pcpu_sigp_retry(pcpu, SIGP_SET_PREFIX, (u32)(unsigned long) lc);
 	return 0;
 
-out_async:
+out_stack:
+	stack_free(mcck_stack);
 	stack_free(async_stack);
 out:
 	if (pcpu != &pcpu_devices[0]) {
@@ -233,16 +236,18 @@ out:
 
 static void pcpu_free_lowcore(struct pcpu *pcpu)
 {
-	unsigned long async_stack, nodat_stack, lowcore;
+	unsigned long async_stack, nodat_stack, mcck_stack, lowcore;
 
 	nodat_stack = pcpu->lowcore->nodat_stack - STACK_INIT_OFFSET;
 	async_stack = pcpu->lowcore->async_stack - STACK_INIT_OFFSET;
+	mcck_stack = pcpu->lowcore->mcck_stack - STACK_INIT_OFFSET;
 	lowcore = (unsigned long) pcpu->lowcore;
 
 	pcpu_sigp_retry(pcpu, SIGP_SET_PREFIX, 0);
 	lowcore_ptr[pcpu - pcpu_devices] = NULL;
 	nmi_free_per_cpu(pcpu->lowcore);
 	stack_free(async_stack);
+	stack_free(mcck_stack);
 	if (pcpu == &pcpu_devices[0])
 		return;
 	free_pages(nodat_stack, THREAD_SIZE_ORDER);
@@ -499,7 +504,7 @@ static void smp_handle_ext_call(void)
 	if (test_bit(ec_call_function_single, &bits))
 		generic_smp_call_function_single_interrupt();
 	if (test_bit(ec_mcck_pending, &bits))
-		s390_handle_mcck();
+		__s390_handle_mcck();
 }
 
 static void do_ext_call_interrupt(struct ext_code ext_code,

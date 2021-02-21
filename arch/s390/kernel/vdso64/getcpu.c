@@ -8,12 +8,12 @@
 
 int __s390_vdso_getcpu(unsigned *cpu, unsigned *node, struct getcpu_cache *unused)
 {
-	__u16 todval[8];
+	union tod_clock clk;
 
 	/* CPU number is stored in the programmable field of the TOD clock */
-	get_tod_clock_ext((char *)todval);
+	store_tod_clock_ext(&clk);
 	if (cpu)
-		*cpu = todval[7];
+		*cpu = clk.pf;
 	/* NUMA node is always zero */
 	if (node)
 		*node = 0;

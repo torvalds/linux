@@ -29,6 +29,13 @@
 #include <linux/unistd.h>
 #include <linux/ipc.h>
 #include <linux/uaccess.h>
+#include <linux/string.h>
+#include <linux/thread_info.h>
+#include <linux/entry-common.h>
+
+#include <asm/ptrace.h>
+#include <asm/vtime.h>
+
 #include "entry.h"
 
 /*
@@ -99,4 +106,63 @@ SYSCALL_DEFINE1(s390_personality, unsigned int, personality)
 SYSCALL_DEFINE0(ni_syscall)
 {
 	return -ENOSYS;
+}
+
+void do_syscall(struct pt_regs *regs)
+{
+	unsigned long nr;
+
+	nr = regs->int_code & 0xffff;
+	if (!nr) {
+		nr = regs->gprs[1] & 0xffff;
+		regs->int_code &= ~0xffffUL;
+		regs->int_code |= nr;
+	}
+
+	regs->gprs[2] = nr;
+
+	nr = syscall_enter_from_user_mode_work(regs, nr);
+
+	/*
+	 * In the s390 ptrace ABI, both the syscall number and the return value
+	 * use gpr2. However, userspace puts the syscall number either in the
+	 * svc instruction itself, or uses gpr1. To make at least skipping syscalls
+	 * work, the ptrace code sets PIF_SYSCALL_RET_SET, which is checked here
+	 * and if set, the syscall will be skipped.
+	 */
+	if (!test_pt_regs_flag(regs, PIF_SYSCALL_RET_SET)) {
+		regs->gprs[2] = -ENOSYS;
+		if (likely(nr < NR_syscalls))
+			regs->gprs[2] = current->thread.sys_call_table[nr](regs);
+	} else {
+		clear_pt_regs_flag(regs, PIF_SYSCALL_RET_SET);
+	}
+	syscall_exit_to_user_mode_work(regs);
+}
+
+void noinstr __do_syscall(struct pt_regs *regs, int per_trap)
+{
+	enter_from_user_mode(regs);
+
+	memcpy(&regs->gprs[8], S390_lowcore.save_area_sync, 8 * sizeof(unsigned long));
+	memcpy(&regs->int_code, &S390_lowcore.svc_ilc, sizeof(regs->int_code));
+	regs->psw = S390_lowcore.svc_old_psw;
+
+	update_timer_sys();
+
+	local_irq_enable();
+	regs->orig_gpr2 = regs->gprs[2];
+
+	if (per_trap)
+		set_thread_flag(TIF_PER_TRAP);
+
+	for (;;) {
+		regs->flags = 0;
+		set_pt_regs_flag(regs, PIF_SYSCALL);
+		do_syscall(regs);
+		if (!test_pt_regs_flag(regs, PIF_SYSCALL_RESTART))
+			break;
+		local_irq_enable();
+	}
+	exit_to_user_mode();
 }
