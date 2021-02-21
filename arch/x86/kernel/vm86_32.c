@@ -134,7 +134,11 @@ void save_v86_state(struct kernel_vm86_regs *regs, int retval)
 	unsafe_put_user(regs->ds, &user->regs.ds, Efault_end);
 	unsafe_put_user(regs->fs, &user->regs.fs, Efault_end);
 	unsafe_put_user(regs->gs, &user->regs.gs, Efault_end);
-	unsafe_put_user(vm86->screen_bitmap, &user->screen_bitmap, Efault_end);
+
+	/*
+	 * Don't write screen_bitmap in case some user had a value there
+	 * and expected it to remain unchanged.
+	 */
 
 	user_access_end();
 
@@ -159,49 +163,6 @@ Efault:
 	pr_alert("could not access userspace vm86 info\n");
 	do_exit(SIGSEGV);
 }
-
-static void mark_screen_rdonly(struct mm_struct *mm)
-{
-	struct vm_area_struct *vma;
-	spinlock_t *ptl;
-	pgd_t *pgd;
-	p4d_t *p4d;
-	pud_t *pud;
-	pmd_t *pmd;
-	pte_t *pte;
-	int i;
-
-	mmap_write_lock(mm);
-	pgd = pgd_offset(mm, 0xA0000);
-	if (pgd_none_or_clear_bad(pgd))
-		goto out;
-	p4d = p4d_offset(pgd, 0xA0000);
-	if (p4d_none_or_clear_bad(p4d))
-		goto out;
-	pud = pud_offset(p4d, 0xA0000);
-	if (pud_none_or_clear_bad(pud))
-		goto out;
-	pmd = pmd_offset(pud, 0xA0000);
-
-	if (pmd_trans_huge(*pmd)) {
-		vma = find_vma(mm, 0xA0000);
-		split_huge_pmd(vma, pmd, 0xA0000);
-	}
-	if (pmd_none_or_clear_bad(pmd))
-		goto out;
-	pte = pte_offset_map_lock(mm, pmd, 0xA0000, &ptl);
-	for (i = 0; i < 32; i++) {
-		if (pte_present(*pte))
-			set_pte(pte, pte_wrprotect(*pte));
-		pte++;
-	}
-	pte_unmap_unlock(pte, ptl);
-out:
-	mmap_write_unlock(mm);
-	flush_tlb_mm_range(mm, 0xA0000, 0xA0000 + 32*PAGE_SIZE, PAGE_SHIFT, false);
-}
-
-
 
 static int do_vm86_irq_handling(int subfunction, int irqnumber);
 static long do_sys_vm86(struct vm86plus_struct __user *user_vm86, bool plus);
@@ -282,6 +243,15 @@ static long do_sys_vm86(struct vm86plus_struct __user *user_vm86, bool plus)
 			offsetof(struct vm86_struct, int_revectored)))
 		return -EFAULT;
 
+
+	/* VM86_SCREEN_BITMAP had numerous bugs and appears to have no users. */
+	if (v.flags & VM86_SCREEN_BITMAP) {
+		char comm[TASK_COMM_LEN];
+
+		pr_info_once("vm86: '%s' uses VM86_SCREEN_BITMAP, which is no longer supported\n", get_task_comm(comm, current));
+		return -EINVAL;
+	}
+
 	memset(&vm86regs, 0, sizeof(vm86regs));
 
 	vm86regs.pt.bx = v.regs.ebx;
@@ -302,7 +272,6 @@ static long do_sys_vm86(struct vm86plus_struct __user *user_vm86, bool plus)
 	vm86regs.gs = v.regs.gs;
 
 	vm86->flags = v.flags;
-	vm86->screen_bitmap = v.screen_bitmap;
 	vm86->cpu_type = v.cpu_type;
 
 	if (copy_from_user(&vm86->int_revectored,
@@ -369,9 +338,6 @@ static long do_sys_vm86(struct vm86plus_struct __user *user_vm86, bool plus)
 
 	update_task_stack(tsk);
 	preempt_enable();
-
-	if (vm86->flags & VM86_SCREEN_BITMAP)
-		mark_screen_rdonly(tsk->mm);
 
 	memcpy((struct kernel_vm86_regs *)regs, &vm86regs, sizeof(vm86regs));
 	return regs->ax;
