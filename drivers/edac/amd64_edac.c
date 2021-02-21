@@ -500,8 +500,8 @@ static int input_addr_to_csrow(struct mem_ctl_info *mci, u64 input_addr)
  * complete 32-bit values despite the fact that the bitfields in the DHAR
  * only represent bits 31-24 of the base and offset values.
  */
-int amd64_get_dram_hole_info(struct mem_ctl_info *mci, u64 *hole_base,
-			     u64 *hole_offset, u64 *hole_size)
+static int get_dram_hole_info(struct mem_ctl_info *mci, u64 *hole_base,
+			      u64 *hole_offset, u64 *hole_size)
 {
 	struct amd64_pvt *pvt = mci->pvt_info;
 
@@ -554,7 +554,292 @@ int amd64_get_dram_hole_info(struct mem_ctl_info *mci, u64 *hole_base,
 
 	return 0;
 }
-EXPORT_SYMBOL_GPL(amd64_get_dram_hole_info);
+
+#ifdef CONFIG_EDAC_DEBUG
+#define EDAC_DCT_ATTR_SHOW(reg)						\
+static ssize_t reg##_show(struct device *dev,				\
+			 struct device_attribute *mattr, char *data)	\
+{									\
+	struct mem_ctl_info *mci = to_mci(dev);				\
+	struct amd64_pvt *pvt = mci->pvt_info;				\
+									\
+	return sprintf(data, "0x%016llx\n", (u64)pvt->reg);		\
+}
+
+EDAC_DCT_ATTR_SHOW(dhar);
+EDAC_DCT_ATTR_SHOW(dbam0);
+EDAC_DCT_ATTR_SHOW(top_mem);
+EDAC_DCT_ATTR_SHOW(top_mem2);
+
+static ssize_t hole_show(struct device *dev, struct device_attribute *mattr,
+			 char *data)
+{
+	struct mem_ctl_info *mci = to_mci(dev);
+
+	u64 hole_base = 0;
+	u64 hole_offset = 0;
+	u64 hole_size = 0;
+
+	get_dram_hole_info(mci, &hole_base, &hole_offset, &hole_size);
+
+	return sprintf(data, "%llx %llx %llx\n", hole_base, hole_offset,
+						 hole_size);
+}
+
+/*
+ * update NUM_DBG_ATTRS in case you add new members
+ */
+static DEVICE_ATTR(dhar, S_IRUGO, dhar_show, NULL);
+static DEVICE_ATTR(dbam, S_IRUGO, dbam0_show, NULL);
+static DEVICE_ATTR(topmem, S_IRUGO, top_mem_show, NULL);
+static DEVICE_ATTR(topmem2, S_IRUGO, top_mem2_show, NULL);
+static DEVICE_ATTR(dram_hole, S_IRUGO, hole_show, NULL);
+
+static struct attribute *dbg_attrs[] = {
+	&dev_attr_dhar.attr,
+	&dev_attr_dbam.attr,
+	&dev_attr_topmem.attr,
+	&dev_attr_topmem2.attr,
+	&dev_attr_dram_hole.attr,
+	NULL
+};
+
+static const struct attribute_group dbg_group = {
+	.attrs = dbg_attrs,
+};
+
+static ssize_t inject_section_show(struct device *dev,
+				   struct device_attribute *mattr, char *buf)
+{
+	struct mem_ctl_info *mci = to_mci(dev);
+	struct amd64_pvt *pvt = mci->pvt_info;
+	return sprintf(buf, "0x%x\n", pvt->injection.section);
+}
+
+/*
+ * store error injection section value which refers to one of 4 16-byte sections
+ * within a 64-byte cacheline
+ *
+ * range: 0..3
+ */
+static ssize_t inject_section_store(struct device *dev,
+				    struct device_attribute *mattr,
+				    const char *data, size_t count)
+{
+	struct mem_ctl_info *mci = to_mci(dev);
+	struct amd64_pvt *pvt = mci->pvt_info;
+	unsigned long value;
+	int ret;
+
+	ret = kstrtoul(data, 10, &value);
+	if (ret < 0)
+		return ret;
+
+	if (value > 3) {
+		amd64_warn("%s: invalid section 0x%lx\n", __func__, value);
+		return -EINVAL;
+	}
+
+	pvt->injection.section = (u32) value;
+	return count;
+}
+
+static ssize_t inject_word_show(struct device *dev,
+				struct device_attribute *mattr, char *buf)
+{
+	struct mem_ctl_info *mci = to_mci(dev);
+	struct amd64_pvt *pvt = mci->pvt_info;
+	return sprintf(buf, "0x%x\n", pvt->injection.word);
+}
+
+/*
+ * store error injection word value which refers to one of 9 16-bit word of the
+ * 16-byte (128-bit + ECC bits) section
+ *
+ * range: 0..8
+ */
+static ssize_t inject_word_store(struct device *dev,
+				 struct device_attribute *mattr,
+				 const char *data, size_t count)
+{
+	struct mem_ctl_info *mci = to_mci(dev);
+	struct amd64_pvt *pvt = mci->pvt_info;
+	unsigned long value;
+	int ret;
+
+	ret = kstrtoul(data, 10, &value);
+	if (ret < 0)
+		return ret;
+
+	if (value > 8) {
+		amd64_warn("%s: invalid word 0x%lx\n", __func__, value);
+		return -EINVAL;
+	}
+
+	pvt->injection.word = (u32) value;
+	return count;
+}
+
+static ssize_t inject_ecc_vector_show(struct device *dev,
+				      struct device_attribute *mattr,
+				      char *buf)
+{
+	struct mem_ctl_info *mci = to_mci(dev);
+	struct amd64_pvt *pvt = mci->pvt_info;
+	return sprintf(buf, "0x%x\n", pvt->injection.bit_map);
+}
+
+/*
+ * store 16 bit error injection vector which enables injecting errors to the
+ * corresponding bit within the error injection word above. When used during a
+ * DRAM ECC read, it holds the contents of the of the DRAM ECC bits.
+ */
+static ssize_t inject_ecc_vector_store(struct device *dev,
+				       struct device_attribute *mattr,
+				       const char *data, size_t count)
+{
+	struct mem_ctl_info *mci = to_mci(dev);
+	struct amd64_pvt *pvt = mci->pvt_info;
+	unsigned long value;
+	int ret;
+
+	ret = kstrtoul(data, 16, &value);
+	if (ret < 0)
+		return ret;
+
+	if (value & 0xFFFF0000) {
+		amd64_warn("%s: invalid EccVector: 0x%lx\n", __func__, value);
+		return -EINVAL;
+	}
+
+	pvt->injection.bit_map = (u32) value;
+	return count;
+}
+
+/*
+ * Do a DRAM ECC read. Assemble staged values in the pvt area, format into
+ * fields needed by the injection registers and read the NB Array Data Port.
+ */
+static ssize_t inject_read_store(struct device *dev,
+				 struct device_attribute *mattr,
+				 const char *data, size_t count)
+{
+	struct mem_ctl_info *mci = to_mci(dev);
+	struct amd64_pvt *pvt = mci->pvt_info;
+	unsigned long value;
+	u32 section, word_bits;
+	int ret;
+
+	ret = kstrtoul(data, 10, &value);
+	if (ret < 0)
+		return ret;
+
+	/* Form value to choose 16-byte section of cacheline */
+	section = F10_NB_ARRAY_DRAM | SET_NB_ARRAY_ADDR(pvt->injection.section);
+
+	amd64_write_pci_cfg(pvt->F3, F10_NB_ARRAY_ADDR, section);
+
+	word_bits = SET_NB_DRAM_INJECTION_READ(pvt->injection);
+
+	/* Issue 'word' and 'bit' along with the READ request */
+	amd64_write_pci_cfg(pvt->F3, F10_NB_ARRAY_DATA, word_bits);
+
+	edac_dbg(0, "section=0x%x word_bits=0x%x\n", section, word_bits);
+
+	return count;
+}
+
+/*
+ * Do a DRAM ECC write. Assemble staged values in the pvt area and format into
+ * fields needed by the injection registers.
+ */
+static ssize_t inject_write_store(struct device *dev,
+				  struct device_attribute *mattr,
+				  const char *data, size_t count)
+{
+	struct mem_ctl_info *mci = to_mci(dev);
+	struct amd64_pvt *pvt = mci->pvt_info;
+	u32 section, word_bits, tmp;
+	unsigned long value;
+	int ret;
+
+	ret = kstrtoul(data, 10, &value);
+	if (ret < 0)
+		return ret;
+
+	/* Form value to choose 16-byte section of cacheline */
+	section = F10_NB_ARRAY_DRAM | SET_NB_ARRAY_ADDR(pvt->injection.section);
+
+	amd64_write_pci_cfg(pvt->F3, F10_NB_ARRAY_ADDR, section);
+
+	word_bits = SET_NB_DRAM_INJECTION_WRITE(pvt->injection);
+
+	pr_notice_once("Don't forget to decrease MCE polling interval in\n"
+			"/sys/bus/machinecheck/devices/machinecheck<CPUNUM>/check_interval\n"
+			"so that you can get the error report faster.\n");
+
+	on_each_cpu(disable_caches, NULL, 1);
+
+	/* Issue 'word' and 'bit' along with the READ request */
+	amd64_write_pci_cfg(pvt->F3, F10_NB_ARRAY_DATA, word_bits);
+
+ retry:
+	/* wait until injection happens */
+	amd64_read_pci_cfg(pvt->F3, F10_NB_ARRAY_DATA, &tmp);
+	if (tmp & F10_NB_ARR_ECC_WR_REQ) {
+		cpu_relax();
+		goto retry;
+	}
+
+	on_each_cpu(enable_caches, NULL, 1);
+
+	edac_dbg(0, "section=0x%x word_bits=0x%x\n", section, word_bits);
+
+	return count;
+}
+
+/*
+ * update NUM_INJ_ATTRS in case you add new members
+ */
+
+static DEVICE_ATTR(inject_section, S_IRUGO | S_IWUSR,
+		   inject_section_show, inject_section_store);
+static DEVICE_ATTR(inject_word, S_IRUGO | S_IWUSR,
+		   inject_word_show, inject_word_store);
+static DEVICE_ATTR(inject_ecc_vector, S_IRUGO | S_IWUSR,
+		   inject_ecc_vector_show, inject_ecc_vector_store);
+static DEVICE_ATTR(inject_write, S_IWUSR,
+		   NULL, inject_write_store);
+static DEVICE_ATTR(inject_read,  S_IWUSR,
+		   NULL, inject_read_store);
+
+static struct attribute *inj_attrs[] = {
+	&dev_attr_inject_section.attr,
+	&dev_attr_inject_word.attr,
+	&dev_attr_inject_ecc_vector.attr,
+	&dev_attr_inject_write.attr,
+	&dev_attr_inject_read.attr,
+	NULL
+};
+
+static umode_t inj_is_visible(struct kobject *kobj, struct attribute *attr, int idx)
+{
+	struct device *dev = kobj_to_dev(kobj);
+	struct mem_ctl_info *mci = container_of(dev, struct mem_ctl_info, dev);
+	struct amd64_pvt *pvt = mci->pvt_info;
+
+	/* Families which have that injection hw */
+	if (pvt->fam >= 0x10 && pvt->fam <= 0x16)
+		return attr->mode;
+
+	return 0;
+}
+
+static const struct attribute_group inj_group = {
+	.attrs = inj_attrs,
+	.is_visible = inj_is_visible,
+};
+#endif /* CONFIG_EDAC_DEBUG */
 
 /*
  * Return the DramAddr that the SysAddr given by @sys_addr maps to.  It is
@@ -593,8 +878,7 @@ static u64 sys_addr_to_dram_addr(struct mem_ctl_info *mci, u64 sys_addr)
 
 	dram_base = get_dram_base(pvt, pvt->mc_node_id);
 
-	ret = amd64_get_dram_hole_info(mci, &hole_base, &hole_offset,
-				      &hole_size);
+	ret = get_dram_hole_info(mci, &hole_base, &hole_offset, &hole_size);
 	if (!ret) {
 		if ((sys_addr >= (1ULL << 32)) &&
 		    (sys_addr < ((1ULL << 32) + hole_size))) {
@@ -2665,7 +2949,7 @@ reserve_mc_sibling_devs(struct amd64_pvt *pvt, u16 pci_id1, u16 pci_id2)
 	if (pvt->umc) {
 		pvt->F0 = pci_get_related_function(pvt->F3->vendor, pci_id1, pvt->F3);
 		if (!pvt->F0) {
-			amd64_err("F0 not found, device 0x%x (broken BIOS?)\n", pci_id1);
+			edac_dbg(1, "F0 not found, device 0x%x\n", pci_id1);
 			return -ENODEV;
 		}
 
@@ -2674,7 +2958,7 @@ reserve_mc_sibling_devs(struct amd64_pvt *pvt, u16 pci_id1, u16 pci_id2)
 			pci_dev_put(pvt->F0);
 			pvt->F0 = NULL;
 
-			amd64_err("F6 not found: device 0x%x (broken BIOS?)\n", pci_id2);
+			edac_dbg(1, "F6 not found: device 0x%x\n", pci_id2);
 			return -ENODEV;
 		}
 
@@ -2691,7 +2975,7 @@ reserve_mc_sibling_devs(struct amd64_pvt *pvt, u16 pci_id1, u16 pci_id2)
 	/* Reserve the ADDRESS MAP Device */
 	pvt->F1 = pci_get_related_function(pvt->F3->vendor, pci_id1, pvt->F3);
 	if (!pvt->F1) {
-		amd64_err("F1 not found: device 0x%x (broken BIOS?)\n", pci_id1);
+		edac_dbg(1, "F1 not found: device 0x%x\n", pci_id1);
 		return -ENODEV;
 	}
 
@@ -2701,7 +2985,7 @@ reserve_mc_sibling_devs(struct amd64_pvt *pvt, u16 pci_id1, u16 pci_id2)
 		pci_dev_put(pvt->F1);
 		pvt->F1 = NULL;
 
-		amd64_err("F2 not found: device 0x%x (broken BIOS?)\n", pci_id2);
+		edac_dbg(1, "F2 not found: device 0x%x\n", pci_id2);
 		return -ENODEV;
 	}
 
@@ -3244,8 +3528,7 @@ static bool ecc_enabled(struct amd64_pvt *pvt)
 				     MSR_IA32_MCG_CTL, nid);
 	}
 
-	amd64_info("Node %d: DRAM ECC %s.\n",
-		   nid, (ecc_en ? "enabled" : "disabled"));
+	edac_dbg(3, "Node %d: DRAM ECC %s.\n", nid, (ecc_en ? "enabled" : "disabled"));
 
 	if (!ecc_en || !nb_mce_en)
 		return false;
@@ -3342,10 +3625,13 @@ static struct amd64_family_type *per_family_init(struct amd64_pvt *pvt)
 			fam_type = &family_types[F15_M60H_CPUS];
 			pvt->ops = &family_types[F15_M60H_CPUS].ops;
 			break;
+		/* Richland is only client */
+		} else if (pvt->model == 0x13) {
+			return NULL;
+		} else {
+			fam_type	= &family_types[F15_CPUS];
+			pvt->ops	= &family_types[F15_CPUS].ops;
 		}
-
-		fam_type	= &family_types[F15_CPUS];
-		pvt->ops	= &family_types[F15_CPUS].ops;
 		break;
 
 	case 0x16:
@@ -3402,20 +3688,13 @@ static struct amd64_family_type *per_family_init(struct amd64_pvt *pvt)
 		return NULL;
 	}
 
-	amd64_info("%s %sdetected (node %d).\n", fam_type->ctl_name,
-		     (pvt->fam == 0xf ?
-				(pvt->ext_model >= K8_REV_F  ? "revF or later "
-							     : "revE or earlier ")
-				 : ""), pvt->mc_node_id);
 	return fam_type;
 }
 
 static const struct attribute_group *amd64_edac_attr_groups[] = {
 #ifdef CONFIG_EDAC_DEBUG
-	&amd64_edac_dbg_group,
-#endif
-#ifdef CONFIG_EDAC_AMD64_ERROR_INJECTION
-	&amd64_edac_inj_group,
+	&dbg_group,
+	&inj_group,
 #endif
 	NULL
 };
@@ -3539,6 +3818,7 @@ static int probe_one_instance(unsigned int nid)
 	pvt->mc_node_id	= nid;
 	pvt->F3 = F3;
 
+	ret = -ENODEV;
 	fam_type = per_family_init(pvt);
 	if (!fam_type)
 		goto err_enable;
@@ -3578,6 +3858,12 @@ static int probe_one_instance(unsigned int nid)
 
 		goto err_enable;
 	}
+
+	amd64_info("%s %sdetected (node %d).\n", fam_type->ctl_name,
+		     (pvt->fam == 0xf ?
+				(pvt->ext_model >= K8_REV_F  ? "revF or later "
+							     : "revE or earlier ")
+				 : ""), pvt->mc_node_id);
 
 	dump_misc_regs(pvt);
 
