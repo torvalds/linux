@@ -50,13 +50,6 @@
 			linux,code = <KEY_VOLUMEDOWN>;
 		};
 
-		hp-det {
-			label = "HP_DET";
-			gpios = <&gpio3 20 GPIO_ACTIVE_LOW>;
-			wakeup-source;
-			linux,code = <KEY_HP>;
-		};
-
 		wwan-wake {
 			label = "WWAN_WAKE";
 			gpios = <&gpio3 8 GPIO_ACTIVE_LOW>;
@@ -173,22 +166,25 @@
 
 	sound {
 		compatible = "simple-audio-card";
+		pinctrl-names = "default";
+		pinctrl-0 = <&pinctrl_hpdet>;
 		simple-audio-card,aux-devs = <&speaker_amp>, <&mic_mux>;
 		simple-audio-card,name = "Librem 5 Devkit";
 		simple-audio-card,format = "i2s";
 		simple-audio-card,widgets =
 			"Microphone", "Builtin Microphone",
 			"Microphone", "Headset Microphone",
-			"Headphone", "Headphone Jack",
+			"Headphone", "Headphones",
 			"Speaker", "Builtin Speaker";
 		simple-audio-card,routing =
 			"MIC_IN", "Mic Mux OUT",
 			"Mic Mux IN1", "Headset Microphone",
 			"Mic Mux IN2", "Builtin Microphone",
 			"Mic Mux OUT", "Mic Bias",
-			"Headphone Jack", "HP_OUT",
+			"Headphones", "HP_OUT",
 			"Builtin Speaker", "Speaker Amp OUTR",
 			"Speaker Amp INR", "LINE_OUT";
+		simple-audio-card,hp-det-gpio = <&gpio3 20 GPIO_ACTIVE_HIGH>;
 
 		simple-audio-card,cpu {
 			sound-dai = <&sai2>;
@@ -629,7 +625,6 @@
 		fsl,pins = <
 			MX8MQ_IOMUXC_SAI2_RXFS_GPIO4_IO21	0x16
 			MX8MQ_IOMUXC_SAI2_RXC_GPIO4_IO22	0x16
-			MX8MQ_IOMUXC_SAI5_RXC_GPIO3_IO20	0x180  /* HP_DET */
 			MX8MQ_IOMUXC_NAND_DATA02_GPIO3_IO8	0x80   /* nWoWWAN */
 		>;
 	};
@@ -637,6 +632,12 @@
 	pinctrl_haptic: hapticgrp {
 		fsl,pins = <
 			MX8MQ_IOMUXC_SPDIF_RX_GPIO5_IO4		0xc6   /* nHAPTIC */
+		>;
+	};
+
+	pinctrl_hpdet: hpdetgrp {
+		fsl,pins = <
+			MX8MQ_IOMUXC_SAI5_RXC_GPIO3_IO20	0xC0   /* HP_DET */
 		>;
 	};
 
