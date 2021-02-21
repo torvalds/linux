@@ -963,11 +963,14 @@ static inline ssize_t do_tty_write(
 		if (ret <= 0)
 			break;
 
+		written += ret;
+		if (ret > size)
+			break;
+
 		/* FIXME! Have Al check this! */
 		if (ret != size)
 			iov_iter_revert(from, size-ret);
 
-		written += ret;
 		count -= ret;
 		if (!count)
 			break;
