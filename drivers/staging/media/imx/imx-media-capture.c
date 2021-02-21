@@ -816,14 +816,8 @@ void imx_media_capture_device_unregister(struct imx_media_video_dev *vdev)
 	struct capture_priv *priv = to_capture_priv(vdev);
 	struct video_device *vfd = priv->vdev.vfd;
 
-	mutex_lock(&priv->mutex);
-
-	if (video_is_registered(vfd)) {
-		video_unregister_device(vfd);
-		media_entity_cleanup(&vfd->entity);
-	}
-
-	mutex_unlock(&priv->mutex);
+	media_entity_cleanup(&vfd->entity);
+	video_unregister_device(vfd);
 }
 EXPORT_SYMBOL_GPL(imx_media_capture_device_unregister);
 

@@ -27,13 +27,13 @@ int mtk_vcodec_wait_for_done_ctx(struct mtk_vcodec_ctx  *ctx, int command,
 
 	if (!ret) {
 		status = -1;	/* timeout */
-		mtk_v4l2_err("[%d] cmd=%d, ctx->type=%d, wait_event_interruptible_timeout time=%ums out %d %d!",
-				ctx->id, ctx->type, command, timeout_ms,
-				ctx->int_cond, ctx->int_type);
+		mtk_v4l2_err("[%d] ctx->type=%d, cmd=%d, wait_event_interruptible_timeout time=%ums out %d %d!",
+			     ctx->id, ctx->type, command, timeout_ms,
+			     ctx->int_cond, ctx->int_type);
 	} else if (-ERESTARTSYS == ret) {
-		mtk_v4l2_err("[%d] cmd=%d, ctx->type=%d, wait_event_interruptible_timeout interrupted by a signal %d %d",
-				ctx->id, ctx->type, command, ctx->int_cond,
-				ctx->int_type);
+		mtk_v4l2_err("[%d] ctx->type=%d, cmd=%d, wait_event_interruptible_timeout interrupted by a signal %d %d",
+			     ctx->id, ctx->type, command, ctx->int_cond,
+			     ctx->int_type);
 		status = -1;
 	}
 

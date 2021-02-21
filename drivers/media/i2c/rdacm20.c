@@ -435,7 +435,7 @@ static int rdacm20_get_fmt(struct v4l2_subdev *sd,
 	return 0;
 }
 
-static struct v4l2_subdev_video_ops rdacm20_video_ops = {
+static const struct v4l2_subdev_video_ops rdacm20_video_ops = {
 	.s_stream	= rdacm20_s_stream,
 };
 
@@ -445,7 +445,7 @@ static const struct v4l2_subdev_pad_ops rdacm20_subdev_pad_ops = {
 	.set_fmt	= rdacm20_get_fmt,
 };
 
-static struct v4l2_subdev_ops rdacm20_subdev_ops = {
+static const struct v4l2_subdev_ops rdacm20_subdev_ops = {
 	.video		= &rdacm20_video_ops,
 	.pad		= &rdacm20_subdev_pad_ops,
 };

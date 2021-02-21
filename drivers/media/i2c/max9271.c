@@ -18,6 +18,7 @@
 
 #include <linux/delay.h>
 #include <linux/i2c.h>
+#include <linux/module.h>
 
 #include "max9271.h"
 
@@ -339,3 +340,7 @@ int max9271_set_translation(struct max9271_device *dev, u8 source, u8 dest)
 	return 0;
 }
 EXPORT_SYMBOL_GPL(max9271_set_translation);
+
+MODULE_DESCRIPTION("Maxim MAX9271 GMSL Serializer");
+MODULE_AUTHOR("Jacopo Mondi");
+MODULE_LICENSE("GPL v2");

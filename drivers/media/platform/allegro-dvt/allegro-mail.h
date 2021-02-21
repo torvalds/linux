@@ -65,6 +65,7 @@ struct create_channel_param {
 	u32 temporal_mvp_enable;
 	u32 enable_reordering;
 	u32 dbf_ovr_en;
+	u32 override_lf;
 	u32 num_ref_idx_l0;
 	u32 num_ref_idx_l1;
 	u32 custom_lda;
@@ -191,7 +192,7 @@ struct mcu_msg_put_stream_buffer {
 	u32 mcu_addr;
 	u32 size;
 	u32 offset;
-	u64 stream_id;
+	u64 dst_handle;
 };
 
 struct mcu_msg_encode_frame {
@@ -233,7 +234,7 @@ struct mcu_msg_encode_frame {
 struct mcu_msg_encode_frame_response {
 	struct mcu_msg_header header;
 	u32 channel_id;
-	u64 stream_id;		/* see mcu_msg_put_stream_buffer */
+	u64 dst_handle;		/* see mcu_msg_put_stream_buffer */
 	u64 user_param;		/* see mcu_msg_encode_frame */
 	u64 src_handle;		/* see mcu_msg_encode_frame */
 	u16 skip;

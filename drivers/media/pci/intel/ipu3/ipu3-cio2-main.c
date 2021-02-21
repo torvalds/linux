@@ -1094,12 +1094,9 @@ static int cio2_v4l2_try_fmt(struct file *file, void *fh, struct v4l2_format *f)
 	mpix->pixelformat = fmt->fourcc;
 	mpix->colorspace = V4L2_COLORSPACE_RAW;
 	mpix->field = V4L2_FIELD_NONE;
-	memset(mpix->reserved, 0, sizeof(mpix->reserved));
 	mpix->plane_fmt[0].bytesperline = cio2_bytesperline(mpix->width);
 	mpix->plane_fmt[0].sizeimage = mpix->plane_fmt[0].bytesperline *
 							mpix->height;
-	memset(mpix->plane_fmt[0].reserved, 0,
-	       sizeof(mpix->plane_fmt[0].reserved));
 
 	/* use default */
 	mpix->ycbcr_enc = V4L2_YCBCR_ENC_DEFAULT;
@@ -1269,7 +1266,7 @@ static int cio2_subdev_set_fmt(struct v4l2_subdev *sd,
 	fmt->format.code = formats[0].mbus_code;
 
 	for (i = 0; i < ARRAY_SIZE(formats); i++) {
-		if (formats[i].mbus_code == fmt->format.code) {
+		if (formats[i].mbus_code == mbus_code) {
 			fmt->format.code = mbus_code;
 			break;
 		}
@@ -1467,7 +1464,7 @@ static int cio2_parse_firmware(struct cio2_device *cio2)
 		struct v4l2_fwnode_endpoint vep = {
 			.bus_type = V4L2_MBUS_CSI2_DPHY
 		};
-		struct sensor_async_subdev *s_asd = NULL;
+		struct sensor_async_subdev *s_asd;
 		struct fwnode_handle *ep;
 
 		ep = fwnode_graph_get_endpoint_by_id(
@@ -1481,19 +1478,15 @@ static int cio2_parse_firmware(struct cio2_device *cio2)
 		if (ret)
 			goto err_parse;
 
-		s_asd = kzalloc(sizeof(*s_asd), GFP_KERNEL);
-		if (!s_asd) {
-			ret = -ENOMEM;
+		s_asd = v4l2_async_notifier_add_fwnode_remote_subdev(
+				&cio2->notifier, ep, struct sensor_async_subdev);
+		if (IS_ERR(s_asd)) {
+			ret = PTR_ERR(s_asd);
 			goto err_parse;
 		}
 
 		s_asd->csi2.port = vep.base.port;
 		s_asd->csi2.lanes = vep.bus.mipi_csi2.num_data_lanes;
-
-		ret = v4l2_async_notifier_add_fwnode_remote_subdev(
-			&cio2->notifier, ep, &s_asd->asd);
-		if (ret)
-			goto err_parse;
 
 		fwnode_handle_put(ep);
 
@@ -1501,7 +1494,6 @@ static int cio2_parse_firmware(struct cio2_device *cio2)
 
 err_parse:
 		fwnode_handle_put(ep);
-		kfree(s_asd);
 		return ret;
 	}
 
@@ -1702,11 +1694,28 @@ static void cio2_queues_exit(struct cio2_device *cio2)
 		cio2_queue_exit(cio2, &cio2->queue[i]);
 }
 
+static int cio2_check_fwnode_graph(struct fwnode_handle *fwnode)
+{
+	struct fwnode_handle *endpoint;
+
+	if (IS_ERR_OR_NULL(fwnode))
+		return -EINVAL;
+
+	endpoint = fwnode_graph_get_next_endpoint(fwnode, NULL);
+	if (endpoint) {
+		fwnode_handle_put(endpoint);
+		return 0;
+	}
+
+	return cio2_check_fwnode_graph(fwnode->secondary);
+}
+
 /**************** PCI interface ****************/
 
 static int cio2_pci_probe(struct pci_dev *pci_dev,
 			  const struct pci_device_id *id)
 {
+	struct fwnode_handle *fwnode = dev_fwnode(&pci_dev->dev);
 	struct cio2_device *cio2;
 	int r;
 
@@ -1714,6 +1723,23 @@ static int cio2_pci_probe(struct pci_dev *pci_dev,
 	if (!cio2)
 		return -ENOMEM;
 	cio2->pci_dev = pci_dev;
+
+	/*
+	 * On some platforms no connections to sensors are defined in firmware,
+	 * if the device has no endpoints then we can try to build those as
+	 * software_nodes parsed from SSDB.
+	 */
+	r = cio2_check_fwnode_graph(fwnode);
+	if (r) {
+		if (fwnode && !IS_ERR_OR_NULL(fwnode->secondary)) {
+			dev_err(&pci_dev->dev, "fwnode graph has no endpoints connected\n");
+			return -EINVAL;
+		}
+
+		r = cio2_bridge_init(pci_dev);
+		if (r)
+			return r;
+	}
 
 	r = pcim_enable_device(pci_dev);
 	if (r) {

@@ -30,6 +30,7 @@ config IR_IMG_HW
 config IR_IMG_NEC
 	bool "NEC protocol support"
 	depends on IR_IMG_HW
+	select BITREVERSE
 	help
 	   Say Y here to enable support for the NEC, extended NEC, and 32-bit
 	   NEC protocols in the ImgTec infrared decoder block.

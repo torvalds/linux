@@ -50,6 +50,13 @@ struct fwnode_endpoint {
 	const struct fwnode_handle *local_fwnode;
 };
 
+/*
+ * ports and endpoints defined as software_nodes should all follow a common
+ * naming scheme; use these macros to ensure commonality.
+ */
+#define SWNODE_GRAPH_PORT_NAME_FMT		"port@%u"
+#define SWNODE_GRAPH_ENDPOINT_NAME_FMT		"endpoint@%u"
+
 #define NR_FWNODE_REFERENCE_ARGS	8
 
 /**

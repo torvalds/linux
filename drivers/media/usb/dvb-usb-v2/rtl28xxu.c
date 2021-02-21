@@ -944,12 +944,6 @@ static int rtl2832u_frontend_attach(struct dvb_usb_adapter *adap)
 	if (dev->slave_demod) {
 		struct i2c_board_info info = {};
 
-		/*
-		 * We continue on reduced mode, without DVB-T2/C, using master
-		 * demod, when slave demod fails.
-		 */
-		ret = 0;
-
 		/* attach slave demodulator */
 		if (dev->slave_demod == SLAVE_DEMOD_MN88472) {
 			struct mn88472_config mn88472_config = {};
@@ -964,14 +958,11 @@ static int rtl2832u_frontend_attach(struct dvb_usb_adapter *adap)
 			info.platform_data = &mn88472_config;
 			request_module(info.type);
 			client = i2c_new_client_device(&d->i2c_adap, &info);
-			if (!i2c_client_has_driver(client)) {
-				dev->slave_demod = SLAVE_DEMOD_NONE;
+			if (!i2c_client_has_driver(client))
 				goto err_slave_demod_failed;
-			}
 
 			if (!try_module_get(client->dev.driver->owner)) {
 				i2c_unregister_device(client);
-				dev->slave_demod = SLAVE_DEMOD_NONE;
 				goto err_slave_demod_failed;
 			}
 
@@ -986,14 +977,11 @@ static int rtl2832u_frontend_attach(struct dvb_usb_adapter *adap)
 			info.platform_data = &mn88473_config;
 			request_module(info.type);
 			client = i2c_new_client_device(&d->i2c_adap, &info);
-			if (!i2c_client_has_driver(client)) {
-				dev->slave_demod = SLAVE_DEMOD_NONE;
+			if (!i2c_client_has_driver(client))
 				goto err_slave_demod_failed;
-			}
 
 			if (!try_module_get(client->dev.driver->owner)) {
 				i2c_unregister_device(client);
-				dev->slave_demod = SLAVE_DEMOD_NONE;
 				goto err_slave_demod_failed;
 			}
 
@@ -1009,10 +997,8 @@ static int rtl2832u_frontend_attach(struct dvb_usb_adapter *adap)
 			adap->fe[1] = dvb_attach(cxd2841er_attach_t_c,
 						 &cxd2837er_config,
 						 &d->i2c_adap);
-			if (!adap->fe[1]) {
-				dev->slave_demod = SLAVE_DEMOD_NONE;
+			if (!adap->fe[1])
 				goto err_slave_demod_failed;
-			}
 			adap->fe[1]->id = 1;
 			dev->i2c_client_slave_demod = NULL;
 		} else {
@@ -1029,14 +1015,11 @@ static int rtl2832u_frontend_attach(struct dvb_usb_adapter *adap)
 			info.platform_data = &si2168_config;
 			request_module(info.type);
 			client = i2c_new_client_device(&d->i2c_adap, &info);
-			if (!i2c_client_has_driver(client)) {
-				dev->slave_demod = SLAVE_DEMOD_NONE;
+			if (!i2c_client_has_driver(client))
 				goto err_slave_demod_failed;
-			}
 
 			if (!try_module_get(client->dev.driver->owner)) {
 				i2c_unregister_device(client);
-				dev->slave_demod = SLAVE_DEMOD_NONE;
 				goto err_slave_demod_failed;
 			}
 
@@ -1047,10 +1030,18 @@ static int rtl2832u_frontend_attach(struct dvb_usb_adapter *adap)
 		}
 	}
 	return 0;
-err_slave_demod_failed:
+
 err:
 	dev_dbg(&d->intf->dev, "failed=%d\n", ret);
 	return ret;
+
+err_slave_demod_failed:
+	/*
+	 * We continue on reduced mode, without DVB-T2/C, using master
+	 * demod, when slave demod fails.
+	 */
+	dev->slave_demod = SLAVE_DEMOD_NONE;
+	return 0;
 }
 
 static int rtl28xxu_frontend_attach(struct dvb_usb_adapter *adap)

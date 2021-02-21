@@ -79,4 +79,17 @@ definitions:
 		-l drivers/media/i2c/ccs/ccs-limits.c \
 		-c Documentation/driver-api/media/drivers/ccs/ccs-regs.asc
 
+CCS PLL calculator
+==================
+
+The CCS PLL calculator is used to compute the PLL configuration, given sensor's
+capabilities as well as board configuration and user specified configuration. As
+the configuration space that encompasses all these configurations is vast, the
+PLL calculator isn't entirely trivial. Yet it is relatively simple to use for a
+driver.
+
+The PLL model implemented by the PLL calculator corresponds to MIPI CCS 1.1.
+
+.. kernel-doc:: drivers/media/i2c/ccs-pll.h
+
 **Copyright** |copy| 2020 Intel Corporation

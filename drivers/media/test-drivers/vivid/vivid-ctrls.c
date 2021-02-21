@@ -100,6 +100,14 @@
 
 /* General User Controls */
 
+static void vivid_unregister_dev(bool valid, struct video_device *vdev)
+{
+	if (!valid)
+		return;
+	clear_bit(V4L2_FL_REGISTERED, &vdev->flags);
+	v4l2_event_wake_all(vdev);
+}
+
 static int vivid_user_gen_s_ctrl(struct v4l2_ctrl *ctrl)
 {
 	struct vivid_dev *dev = container_of(ctrl->handler, struct vivid_dev, ctrl_hdl_user_gen);
@@ -108,26 +116,16 @@ static int vivid_user_gen_s_ctrl(struct v4l2_ctrl *ctrl)
 	case VIVID_CID_DISCONNECT:
 		v4l2_info(&dev->v4l2_dev, "disconnect\n");
 		dev->disconnect_error = true;
-		if (dev->has_vid_cap)
-			clear_bit(V4L2_FL_REGISTERED, &dev->vid_cap_dev.flags);
-		if (dev->has_vid_out)
-			clear_bit(V4L2_FL_REGISTERED, &dev->vid_out_dev.flags);
-		if (dev->has_vbi_cap)
-			clear_bit(V4L2_FL_REGISTERED, &dev->vbi_cap_dev.flags);
-		if (dev->has_vbi_out)
-			clear_bit(V4L2_FL_REGISTERED, &dev->vbi_out_dev.flags);
-		if (dev->has_radio_rx)
-			clear_bit(V4L2_FL_REGISTERED, &dev->radio_rx_dev.flags);
-		if (dev->has_radio_tx)
-			clear_bit(V4L2_FL_REGISTERED, &dev->radio_tx_dev.flags);
-		if (dev->has_sdr_cap)
-			clear_bit(V4L2_FL_REGISTERED, &dev->sdr_cap_dev.flags);
-		if (dev->has_meta_cap)
-			clear_bit(V4L2_FL_REGISTERED, &dev->meta_cap_dev.flags);
-		if (dev->has_meta_out)
-			clear_bit(V4L2_FL_REGISTERED, &dev->meta_out_dev.flags);
-		if (dev->has_touch_cap)
-			clear_bit(V4L2_FL_REGISTERED, &dev->touch_cap_dev.flags);
+		vivid_unregister_dev(dev->has_vid_cap, &dev->vid_cap_dev);
+		vivid_unregister_dev(dev->has_vid_out, &dev->vid_out_dev);
+		vivid_unregister_dev(dev->has_vbi_cap, &dev->vbi_cap_dev);
+		vivid_unregister_dev(dev->has_vbi_out, &dev->vbi_out_dev);
+		vivid_unregister_dev(dev->has_radio_rx, &dev->radio_rx_dev);
+		vivid_unregister_dev(dev->has_radio_tx, &dev->radio_tx_dev);
+		vivid_unregister_dev(dev->has_sdr_cap, &dev->sdr_cap_dev);
+		vivid_unregister_dev(dev->has_meta_cap, &dev->meta_cap_dev);
+		vivid_unregister_dev(dev->has_meta_out, &dev->meta_out_dev);
+		vivid_unregister_dev(dev->has_touch_cap, &dev->touch_cap_dev);
 		break;
 	case VIVID_CID_BUTTON:
 		dev->button_pressed = 30;

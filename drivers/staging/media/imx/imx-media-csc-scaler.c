@@ -869,11 +869,7 @@ void imx_media_csc_scaler_device_unregister(struct imx_media_video_dev *vdev)
 	struct ipu_csc_scaler_priv *priv = vdev_to_priv(vdev);
 	struct video_device *vfd = priv->vdev.vfd;
 
-	mutex_lock(&priv->mutex);
-
 	video_unregister_device(vfd);
-
-	mutex_unlock(&priv->mutex);
 }
 
 struct imx_media_video_dev *

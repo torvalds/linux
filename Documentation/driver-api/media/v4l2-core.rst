@@ -15,7 +15,6 @@ Video4Linux devices
     v4l2-controls
     v4l2-videobuf
     v4l2-videobuf2
-    v4l2-clocks
     v4l2-dv-timings
     v4l2-flash-led-class
     v4l2-mc

@@ -4,7 +4,25 @@
 #ifndef __IPU3_CIO2_H
 #define __IPU3_CIO2_H
 
+#include <linux/bits.h>
+#include <linux/dma-mapping.h>
+#include <linux/kernel.h>
+#include <linux/mutex.h>
 #include <linux/types.h>
+
+#include <asm/page.h>
+
+#include <media/media-device.h>
+#include <media/media-entity.h>
+#include <media/v4l2-async.h>
+#include <media/v4l2-dev.h>
+#include <media/v4l2-device.h>
+#include <media/v4l2-subdev.h>
+#include <media/videobuf2-core.h>
+#include <media/videobuf2-v4l2.h>
+
+struct cio2_fbpt_entry;		/* defined here, after the first usage */
+struct pci_dev;
 
 #define CIO2_NAME					"ipu3-cio2"
 #define CIO2_DEVICE_NAME				"Intel IPU3 CIO2"
@@ -436,5 +454,11 @@ static inline struct cio2_queue *vb2q_to_cio2_queue(struct vb2_queue *vq)
 {
 	return container_of(vq, struct cio2_queue, vbq);
 }
+
+#if IS_ENABLED(CONFIG_CIO2_BRIDGE)
+int cio2_bridge_init(struct pci_dev *cio2);
+#else
+static inline int cio2_bridge_init(struct pci_dev *cio2) { return 0; }
+#endif
 
 #endif
