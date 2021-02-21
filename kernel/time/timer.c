@@ -1237,6 +1237,20 @@ int try_to_del_timer_sync(struct timer_list *timer)
 }
 EXPORT_SYMBOL(try_to_del_timer_sync);
 
+bool timer_curr_running(struct timer_list *timer)
+{
+	int i;
+
+	for (i = 0; i < NR_BASES; i++) {
+		struct timer_base *base = this_cpu_ptr(&timer_bases[i]);
+
+		if (base->running_timer == timer)
+			return true;
+	}
+
+	return false;
+}
+
 #ifdef CONFIG_PREEMPT_RT
 static __init void timer_base_init_expiry_lock(struct timer_base *base)
 {
