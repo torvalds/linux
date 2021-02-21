@@ -84,8 +84,6 @@ static void xfgets(char *str, int size, FILE *in)
 
 static int conf_askvalue(struct symbol *sym, const char *def)
 {
-	enum symbol_type type = sym_get_type(sym);
-
 	if (!sym_has_value(sym))
 		printf("(NEW) ");
 
@@ -107,24 +105,12 @@ static int conf_askvalue(struct symbol *sym, const char *def)
 			return 0;
 		}
 		/* fall through */
-	case oldaskconfig:
+	default:
 		fflush(stdout);
 		xfgets(line, sizeof(line), stdin);
-		return 1;
-	default:
 		break;
 	}
 
-	switch (type) {
-	case S_INT:
-	case S_HEX:
-	case S_STRING:
-		printf("%s\n", def);
-		return 1;
-	default:
-		;
-	}
-	printf("%s", line);
 	return 1;
 }
 
