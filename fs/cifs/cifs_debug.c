@@ -395,7 +395,7 @@ skip_rdma:
 				(ses->serverOS == NULL) ||
 				(ses->serverNOS == NULL)) {
 				seq_printf(m, "\n\t%d) Name: %s Uses: %d Capability: 0x%x\tSession Status: %d ",
-					i, ses->serverName, ses->ses_count,
+					i, ses->ip_addr, ses->ses_count,
 					ses->capabilities, ses->status);
 				if (ses->session_flags & SMB2_SESSION_FLAG_IS_GUEST)
 					seq_printf(m, "Guest ");
@@ -406,7 +406,7 @@ skip_rdma:
 				    "\n\t%d) Name: %s  Domain: %s Uses: %d OS: %s "
 				    "\n\tNOS: %s\tCapability: 0x%x"
 					"\n\tSMB session status: %d ",
-				i, ses->serverName, ses->serverDomain,
+				i, ses->ip_addr, ses->serverDomain,
 				ses->ses_count, ses->serverOS, ses->serverNOS,
 				ses->capabilities, ses->status);
 			}

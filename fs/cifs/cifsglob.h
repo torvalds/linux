@@ -21,6 +21,7 @@
 
 #include <linux/in.h>
 #include <linux/in6.h>
+#include <linux/inet.h>
 #include <linux/slab.h>
 #include <linux/mempool.h>
 #include <linux/workqueue.h>
@@ -902,7 +903,7 @@ struct cifs_ses {
 	kuid_t linux_uid;	/* overriding owner of files on the mount */
 	kuid_t cred_uid;	/* owner of credentials */
 	unsigned int capabilities;
-	char serverName[SERVER_NAME_LEN_WITH_NULL];
+	char ip_addr[INET6_ADDRSTRLEN + 1]; /* Max ipv6 (or v4) addr string len */
 	char *user_name;	/* must not be null except during init of sess
 				   and after mount option parsing we fill it */
 	char *domainName;
