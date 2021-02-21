@@ -335,7 +335,11 @@ struct bkey_cached {
 
 struct btree_insert_entry {
 	unsigned		trigger_flags;
+	u8			bkey_type;
+	u8			btree_id;
+	u8			level;
 	unsigned		trans_triggers_run:1;
+	unsigned		is_extent:1;
 	struct bkey_i		*k;
 	struct btree_iter	*iter;
 };
@@ -589,19 +593,20 @@ static inline bool btree_iter_is_extents(struct btree_iter *iter)
 	return btree_node_type_is_extents(btree_iter_key_type(iter));
 }
 
-#define BTREE_NODE_TYPE_HAS_TRIGGERS			\
-	((1U << BKEY_TYPE_extents)|			\
-	 (1U << BKEY_TYPE_alloc)|			\
-	 (1U << BKEY_TYPE_inodes)|			\
-	 (1U << BKEY_TYPE_reflink)|			\
-	 (1U << BKEY_TYPE_stripes)|			\
-	 (1U << BKEY_TYPE_btree))
-
 #define BTREE_NODE_TYPE_HAS_TRANS_TRIGGERS		\
 	((1U << BKEY_TYPE_extents)|			\
 	 (1U << BKEY_TYPE_inodes)|			\
 	 (1U << BKEY_TYPE_stripes)|			\
-	 (1U << BKEY_TYPE_reflink))
+	 (1U << BKEY_TYPE_reflink)|			\
+	 (1U << BKEY_TYPE_btree))
+
+#define BTREE_NODE_TYPE_HAS_MEM_TRIGGERS		\
+	((1U << BKEY_TYPE_alloc)|			\
+	 (1U << BKEY_TYPE_stripes))
+
+#define BTREE_NODE_TYPE_HAS_TRIGGERS			\
+	(BTREE_NODE_TYPE_HAS_TRANS_TRIGGERS|		\
+	 BTREE_NODE_TYPE_HAS_MEM_TRIGGERS)
 
 enum btree_trigger_flags {
 	__BTREE_TRIGGER_NORUN,		/* Don't run triggers at all */
