@@ -165,7 +165,7 @@
 
 	sound {
 		compatible = "simple-audio-card";
-		simple-audio-card,name = "sgtl5000";
+		simple-audio-card,name = "Librem 5 Devkit";
 		simple-audio-card,format = "i2s";
 		simple-audio-card,widgets =
 			"Microphone", "Microphone Jack",
