@@ -88,8 +88,8 @@ static int __init bt_sfi_init(void)
 	memset(&info, 0, sizeof(info));
 	info.fwnode	= ddata->dev->fwnode;
 	info.parent	= ddata->dev;
-	info.name	= ddata->name,
-	info.id		= PLATFORM_DEVID_NONE,
+	info.name	= ddata->name;
+	info.id		= PLATFORM_DEVID_NONE;
 
 	pdev = platform_device_register_full(&info);
 	if (IS_ERR(pdev))
