@@ -6830,6 +6830,9 @@ F:	include/linux/fs.h
 F:	include/linux/fs_types.h
 F:	include/uapi/linux/fs.h
 F:	include/uapi/linux/openat2.h
+X:	fs/io-wq.c
+X:	fs/io-wq.h
+X:	fs/io_uring.c
 
 FINTEK F75375S HARDWARE MONITOR AND FAN CONTROLLER DRIVER
 M:	Riku Voipio <riku.voipio@iki.fi>
@@ -9263,6 +9266,7 @@ F:	include/uapi/linux/iommu.h
 
 IO_URING
 M:	Jens Axboe <axboe@kernel.dk>
+R:	Pavel Begunkov <asml.silence@gmail.com>
 L:	io-uring@vger.kernel.org
 S:	Maintained
 T:	git git://git.kernel.dk/linux-block
@@ -9270,6 +9274,7 @@ T:	git git://git.kernel.dk/liburing
 F:	fs/io-wq.c
 F:	fs/io-wq.h
 F:	fs/io_uring.c
+F:	include/linux/io_uring.h
 F:	include/uapi/linux/io_uring.h
 
 IPMI SUBSYSTEM

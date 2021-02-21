@@ -17,6 +17,13 @@ static const char *proc_thread_self_get_link(struct dentry *dentry,
 	pid_t pid = task_pid_nr_ns(current, ns);
 	char *name;
 
+	/*
+	 * Not currently supported. Once we can inherit all of struct pid,
+	 * we can allow this.
+	 */
+	if (current->flags & PF_IO_WORKER)
+		return ERR_PTR(-EOPNOTSUPP);
+
 	if (!pid)
 		return ERR_PTR(-ENOENT);
 	name = kmalloc(10 + 6 + 10 + 1, dentry ? GFP_KERNEL : GFP_ATOMIC);
