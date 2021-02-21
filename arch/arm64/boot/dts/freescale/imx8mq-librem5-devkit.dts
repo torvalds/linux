@@ -163,18 +163,29 @@
 		#sound-dai-cells = <0>;
 	};
 
+	mic_mux: mic-mux {
+		compatible = "simple-audio-mux";
+		pinctrl-names = "default";
+		pinctrl-0 = <&pinctrl_micsel>;
+		mux-gpios = <&gpio5 5 GPIO_ACTIVE_LOW>;
+		sound-name-prefix = "Mic Mux";
+	};
+
 	sound {
 		compatible = "simple-audio-card";
-		simple-audio-card,aux-devs = <&speaker_amp>;
+		simple-audio-card,aux-devs = <&speaker_amp>, <&mic_mux>;
 		simple-audio-card,name = "Librem 5 Devkit";
 		simple-audio-card,format = "i2s";
 		simple-audio-card,widgets =
-			"Microphone", "Microphone Jack",
+			"Microphone", "Builtin Microphone",
+			"Microphone", "Headset Microphone",
 			"Headphone", "Headphone Jack",
 			"Speaker", "Builtin Speaker";
 		simple-audio-card,routing =
-			"MIC_IN", "Microphone Jack",
-			"Microphone Jack", "Mic Bias",
+			"MIC_IN", "Mic Mux OUT",
+			"Mic Mux IN1", "Headset Microphone",
+			"Mic Mux IN2", "Builtin Microphone",
+			"Mic Mux OUT", "Mic Bias",
 			"Headphone Jack", "HP_OUT",
 			"Builtin Speaker", "Speaker Amp OUTR",
 			"Speaker Amp INR", "LINE_OUT";
@@ -646,6 +657,12 @@
 	pinctrl_imu: imugrp {
 		fsl,pins = <
 			MX8MQ_IOMUXC_SAI5_RXFS_GPIO3_IO19	0x8  /* IMU_INT */
+		>;
+	};
+
+	pinctrl_micsel: micselgrp {
+		fsl,pins = <
+			MX8MQ_IOMUXC_SPDIF_EXT_CLK_GPIO5_IO5	0xc6  /* MIC_SEL */
 		>;
 	};
 
