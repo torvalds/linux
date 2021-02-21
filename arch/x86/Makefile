@@ -295,16 +295,20 @@ archclean:
 	$(Q)$(MAKE) $(clean)=arch/x86/tools
 
 define archhelp
-  echo  '* bzImage      - Compressed kernel image (arch/x86/boot/bzImage)'
-  echo  '  install      - Install kernel using'
-  echo  '                  (your) ~/bin/$(INSTALLKERNEL) or'
-  echo  '                  (distribution) /sbin/$(INSTALLKERNEL) or'
-  echo  '                  install to $$(INSTALL_PATH) and run lilo'
-  echo  '  fdimage      - Create 1.4MB boot floppy image (arch/x86/boot/fdimage)'
-  echo  '  fdimage144   - Create 1.4MB boot floppy image (arch/x86/boot/fdimage)'
-  echo  '  fdimage288   - Create 2.8MB boot floppy image (arch/x86/boot/fdimage)'
-  echo  '  isoimage     - Create a boot CD-ROM image (arch/x86/boot/image.iso)'
-  echo  '                  bzdisk/fdimage*/isoimage also accept:'
-  echo  '                  FDARGS="..."  arguments for the booted kernel'
-  echo  '                  FDINITRD=file initrd for the booted kernel'
+  echo  '* bzImage		- Compressed kernel image (arch/x86/boot/bzImage)'
+  echo  '  install		- Install kernel using (your) ~/bin/$(INSTALLKERNEL) or'
+  echo  '			  (distribution) /sbin/$(INSTALLKERNEL) or install to '
+  echo  '			  $$(INSTALL_PATH) and run lilo'
+  echo  ''
+  echo  '  fdimage		- Create 1.4MB boot floppy image (arch/x86/boot/fdimage)'
+  echo  '  fdimage144		- Create 1.4MB boot floppy image (arch/x86/boot/fdimage)'
+  echo  '  fdimage288		- Create 2.8MB boot floppy image (arch/x86/boot/fdimage)'
+  echo  '  isoimage		- Create a boot CD-ROM image (arch/x86/boot/image.iso)'
+  echo  '			  bzdisk/fdimage*/isoimage also accept:'
+  echo  '			  FDARGS="..."  arguments for the booted kernel'
+  echo  '                  	  FDINITRD=file initrd for the booted kernel'
+  echo  ''
+  echo  '  kvm_guest.config	- Enable Kconfig items for running this kernel as a KVM guest'
+  echo  '  xen.config		- Enable Kconfig items for running this kernel as a Xen guest'
+
 endef
