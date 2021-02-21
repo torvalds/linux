@@ -17,7 +17,6 @@
 #include "node.h"
 #include "segment.h"
 #include "xattr.h"
-#include "trace.h"
 #include <trace/events/f2fs.h>
 
 #define on_f2fs_build_free_nids(nmi) mutex_is_locked(&(nm_i)->build_lock)
@@ -2089,7 +2088,6 @@ static int f2fs_set_node_page_dirty(struct page *page)
 		__set_page_dirty_nobuffers(page);
 		inc_page_count(F2FS_P_SB(page), F2FS_DIRTY_NODES);
 		f2fs_set_page_private(page, 0);
-		f2fs_trace_pid(page);
 		return 1;
 	}
 	return 0;
@@ -2696,7 +2694,7 @@ retry:
 	src = F2FS_INODE(page);
 	dst = F2FS_INODE(ipage);
 
-	memcpy(dst, src, (unsigned long)&src->i_ext - (unsigned long)src);
+	memcpy(dst, src, offsetof(struct f2fs_inode, i_ext));
 	dst->i_size = 0;
 	dst->i_blocks = cpu_to_le64(1);
 	dst->i_links = cpu_to_le32(1);
