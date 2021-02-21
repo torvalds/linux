@@ -7767,7 +7767,6 @@ static struct io_wq *io_init_wq_offload(struct io_ring_ctx *ctx)
 	struct io_wq_data data;
 	unsigned int concurrency;
 
-	data.user = ctx->user;
 	data.free_work = io_free_work;
 	data.do_work = io_wq_submit_work;
 

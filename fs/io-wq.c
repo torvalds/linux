@@ -172,8 +172,6 @@ static void io_worker_exit(struct io_worker *worker)
 	worker->flags = 0;
 	if (flags & IO_WORKER_F_RUNNING)
 		atomic_dec(&acct->nr_running);
-	if (!(flags & IO_WORKER_F_BOUND))
-		atomic_dec(&wqe->wq->user->processes);
 	worker->flags = 0;
 	preempt_enable();
 
@@ -299,12 +297,10 @@ static void __io_worker_busy(struct io_wqe *wqe, struct io_worker *worker,
 			worker->flags |= IO_WORKER_F_BOUND;
 			wqe->acct[IO_WQ_ACCT_UNBOUND].nr_workers--;
 			wqe->acct[IO_WQ_ACCT_BOUND].nr_workers++;
-			atomic_dec(&wqe->wq->user->processes);
 		} else {
 			worker->flags &= ~IO_WORKER_F_BOUND;
 			wqe->acct[IO_WQ_ACCT_UNBOUND].nr_workers++;
 			wqe->acct[IO_WQ_ACCT_BOUND].nr_workers--;
-			atomic_inc(&wqe->wq->user->processes);
 		}
 		io_wqe_inc_running(worker);
 	 }
@@ -575,9 +571,6 @@ static int task_thread(void *data, int index)
 	acct->nr_workers++;
 	raw_spin_unlock_irq(&wqe->lock);
 
-	if (index == IO_WQ_ACCT_UNBOUND)
-		atomic_inc(&wq->user->processes);
-
 	io_wqe_worker(data);
 	do_exit(0);
 }
@@ -730,29 +723,6 @@ static int io_wq_manager(void *data)
 	do_exit(0);
 }
 
-static bool io_wq_can_queue(struct io_wqe *wqe, struct io_wqe_acct *acct,
-			    struct io_wq_work *work)
-{
-	bool free_worker;
-
-	if (!(work->flags & IO_WQ_WORK_UNBOUND))
-		return true;
-	if (atomic_read(&acct->nr_running))
-		return true;
-
-	rcu_read_lock();
-	free_worker = !hlist_nulls_empty(&wqe->free_list);
-	rcu_read_unlock();
-	if (free_worker)
-		return true;
-
-	if (atomic_read(&wqe->wq->user->processes) >= acct->max_workers &&
-	    !(capable(CAP_SYS_RESOURCE) || capable(CAP_SYS_ADMIN)))
-		return false;
-
-	return true;
-}
-
 static void io_run_cancel(struct io_wq_work *work, struct io_wqe *wqe)
 {
 	struct io_wq *wq = wqe->wq;
@@ -789,17 +759,6 @@ static void io_wqe_enqueue(struct io_wqe *wqe, struct io_wq_work *work)
 	struct io_wqe_acct *acct = io_work_get_acct(wqe, work);
 	int work_flags;
 	unsigned long flags;
-
-	/*
-	 * Do early check to see if we need a new unbound worker, and if we do,
-	 * if we're allowed to do so. This isn't 100% accurate as there's a
-	 * gap between this check and incrementing the value, but that's OK.
-	 * It's close enough to not be an issue, fork() has the same delay.
-	 */
-	if (unlikely(!io_wq_can_queue(wqe, acct, work))) {
-		io_run_cancel(work, wqe);
-		return;
-	}
 
 	work_flags = work->flags;
 	raw_spin_lock_irqsave(&wqe->lock, flags);
@@ -978,9 +937,6 @@ struct io_wq *io_wq_create(unsigned bounded, struct io_wq_data *data)
 	wq->free_work = data->free_work;
 	wq->do_work = data->do_work;
 
-	/* caller must already hold a reference to this */
-	wq->user = data->user;
-
 	ret = -ENOMEM;
 	for_each_node(node) {
 		struct io_wqe *wqe;
@@ -995,10 +951,8 @@ struct io_wq *io_wq_create(unsigned bounded, struct io_wq_data *data)
 		wqe->node = alloc_node;
 		wqe->acct[IO_WQ_ACCT_BOUND].max_workers = bounded;
 		atomic_set(&wqe->acct[IO_WQ_ACCT_BOUND].nr_running, 0);
-		if (wq->user) {
-			wqe->acct[IO_WQ_ACCT_UNBOUND].max_workers =
+		wqe->acct[IO_WQ_ACCT_UNBOUND].max_workers =
 					task_rlimit(current, RLIMIT_NPROC);
-		}
 		atomic_set(&wqe->acct[IO_WQ_ACCT_UNBOUND].nr_running, 0);
 		wqe->wq = wq;
 		raw_spin_lock_init(&wqe->lock);
