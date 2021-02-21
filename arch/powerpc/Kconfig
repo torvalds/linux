@@ -282,7 +282,6 @@ config COMPAT
 	bool "Enable support for 32bit binaries"
 	depends on PPC64
 	default y if !CPU_LITTLE_ENDIAN
-	select COMPAT_BINFMT_ELF
 	select ARCH_WANT_OLD_COMPAT_IPC
 	select COMPAT_OLD_SIGACTION
 
