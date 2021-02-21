@@ -330,7 +330,7 @@ static inline void bkey_init(struct bkey *k)
 	x(discard,		1)			\
 	x(error,		2)			\
 	x(cookie,		3)			\
-	x(whiteout,		4)			\
+	x(hash_whiteout,	4)			\
 	x(btree_ptr,		5)			\
 	x(extent,		6)			\
 	x(reservation,		7)			\
@@ -355,9 +355,25 @@ enum bch_bkey_type {
 	KEY_TYPE_MAX,
 };
 
+struct bch_deleted {
+	struct bch_val		v;
+};
+
+struct bch_discard {
+	struct bch_val		v;
+};
+
+struct bch_error {
+	struct bch_val		v;
+};
+
 struct bch_cookie {
 	struct bch_val		v;
 	__le64			cookie;
+};
+
+struct bch_hash_whiteout {
+	struct bch_val		v;
 };
 
 /* Extents */

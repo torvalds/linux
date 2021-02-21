@@ -411,7 +411,7 @@ static inline struct bkey_s_c bkey_i_to_s_c(const struct bkey_i *k)
  * bkey_i_extent to a bkey_i - since that's always safe, instead of conversion
  * functions.
  */
-#define BKEY_VAL_ACCESSORS(name)					\
+#define x(name, ...)					\
 struct bkey_i_##name {							\
 	union {								\
 		struct bkey		k;				\
@@ -522,23 +522,8 @@ static inline struct bkey_i_##name *bkey_##name##_init(struct bkey_i *_k)\
 	return k;							\
 }
 
-BKEY_VAL_ACCESSORS(cookie);
-BKEY_VAL_ACCESSORS(btree_ptr);
-BKEY_VAL_ACCESSORS(extent);
-BKEY_VAL_ACCESSORS(reservation);
-BKEY_VAL_ACCESSORS(inode);
-BKEY_VAL_ACCESSORS(inode_generation);
-BKEY_VAL_ACCESSORS(dirent);
-BKEY_VAL_ACCESSORS(xattr);
-BKEY_VAL_ACCESSORS(alloc);
-BKEY_VAL_ACCESSORS(quota);
-BKEY_VAL_ACCESSORS(stripe);
-BKEY_VAL_ACCESSORS(reflink_p);
-BKEY_VAL_ACCESSORS(reflink_v);
-BKEY_VAL_ACCESSORS(inline_data);
-BKEY_VAL_ACCESSORS(btree_ptr_v2);
-BKEY_VAL_ACCESSORS(indirect_inline_data);
-BKEY_VAL_ACCESSORS(alloc_v2);
+BCH_BKEY_TYPES();
+#undef x
 
 /* byte order helpers */
 

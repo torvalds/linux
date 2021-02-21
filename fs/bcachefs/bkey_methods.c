@@ -59,7 +59,7 @@ static const char *key_type_cookie_invalid(const struct bch_fs *c,
 	.key_invalid = key_type_cookie_invalid,		\
 }
 
-#define bch2_bkey_ops_whiteout (struct bkey_ops) {	\
+#define bch2_bkey_ops_hash_whiteout (struct bkey_ops) {	\
 	.key_invalid = empty_val_key_invalid,		\
 }
 
@@ -270,9 +270,9 @@ static const struct old_bkey_type {
 	{BKEY_TYPE_INODES,	128, KEY_TYPE_inode		},
 	{BKEY_TYPE_INODES,	130, KEY_TYPE_inode_generation	},
 	{BKEY_TYPE_DIRENTS,	128, KEY_TYPE_dirent		},
-	{BKEY_TYPE_DIRENTS,	129, KEY_TYPE_whiteout		},
+	{BKEY_TYPE_DIRENTS,	129, KEY_TYPE_hash_whiteout	},
 	{BKEY_TYPE_XATTRS,	128, KEY_TYPE_xattr		},
-	{BKEY_TYPE_XATTRS,	129, KEY_TYPE_whiteout		},
+	{BKEY_TYPE_XATTRS,	129, KEY_TYPE_hash_whiteout	},
 	{BKEY_TYPE_ALLOC,	128, KEY_TYPE_alloc		},
 	{BKEY_TYPE_QUOTAS,	128, KEY_TYPE_quota		},
 };

@@ -262,7 +262,7 @@ int bch2_dirent_rename(struct btree_trans *trans,
 				 * overwrite old_dst - just make sure to use a
 				 * whiteout when deleting src:
 				 */
-				new_src->k.type = KEY_TYPE_whiteout;
+				new_src->k.type = KEY_TYPE_hash_whiteout;
 			}
 		} else {
 			/* Check if we need a whiteout to delete src: */
@@ -272,7 +272,7 @@ int bch2_dirent_rename(struct btree_trans *trans,
 				goto out;
 
 			if (ret)
-				new_src->k.type = KEY_TYPE_whiteout;
+				new_src->k.type = KEY_TYPE_hash_whiteout;
 		}
 	}
 

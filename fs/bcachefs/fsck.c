@@ -257,7 +257,7 @@ static void hash_set_chain_start(struct btree_trans *trans,
 			struct hash_check *h,
 			struct btree_iter *k_iter, struct bkey_s_c k)
 {
-	bool hole = (k.k->type != KEY_TYPE_whiteout &&
+	bool hole = (k.k->type != KEY_TYPE_hash_whiteout &&
 		     k.k->type != desc.key_type);
 
 	if (hole || k.k->p.offset > h->chain_end + 1)
