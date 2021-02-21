@@ -24,8 +24,8 @@
 #include <uapi/linux/nfsd/debug.h>
 
 #include "netns.h"
-#include "stats.h"
 #include "export.h"
+#include "stats.h"
 
 #undef ifdebug
 #ifdef CONFIG_SUNRPC_DEBUG
