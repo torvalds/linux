@@ -222,6 +222,7 @@ static int phram_setup(const char *val)
 	uint64_t start;
 	uint64_t len;
 	uint64_t erasesize = PAGE_SIZE;
+	uint32_t rem;
 	int i, ret;
 
 	if (strnlen(val, sizeof(buf)) >= sizeof(buf))
@@ -263,8 +264,11 @@ static int phram_setup(const char *val)
 		}
 	}
 
+	if (erasesize)
+		div_u64_rem(len, (uint32_t)erasesize, &rem);
+
 	if (len == 0 || erasesize == 0 || erasesize > len
-	    || erasesize > UINT_MAX || do_div(len, (uint32_t)erasesize) != 0) {
+	    || erasesize > UINT_MAX || rem) {
 		parse_err("illegal erasesize or len\n");
 		goto error;
 	}
