@@ -111,14 +111,12 @@ struct ite_dev_params {
 struct ite_dev {
 	struct pnp_dev *pdev;
 	struct rc_dev *rdev;
-	struct ir_raw_event rawir;
 
 	/* sync data */
 	spinlock_t lock;
 	bool in_use, transmitting;
 
 	/* transmit support */
-	int tx_fifo_allowance;
 	wait_queue_head_t tx_queue, tx_ended;
 
 	/* hardware I/O settings */
