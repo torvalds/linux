@@ -238,6 +238,7 @@ static inline bool clk_is_match(const struct clk *p, const struct clk *q)
 
 #endif
 
+#ifdef CONFIG_HAVE_CLK_PREPARE
 /**
  * clk_prepare - prepare a clock source
  * @clk: clock source
@@ -246,10 +247,26 @@ static inline bool clk_is_match(const struct clk *p, const struct clk *q)
  *
  * Must not be called from within atomic context.
  */
-#ifdef CONFIG_HAVE_CLK_PREPARE
 int clk_prepare(struct clk *clk);
 int __must_check clk_bulk_prepare(int num_clks,
 				  const struct clk_bulk_data *clks);
+
+/**
+ * clk_is_enabled_when_prepared - indicate if preparing a clock also enables it.
+ * @clk: clock source
+ *
+ * Returns true if clk_prepare() implicitly enables the clock, effectively
+ * making clk_enable()/clk_disable() no-ops, false otherwise.
+ *
+ * This is of interest mainly to the power management code where actually
+ * disabling the clock also requires unpreparing it to have any material
+ * effect.
+ *
+ * Regardless of the value returned here, the caller must always invoke
+ * clk_enable() or clk_prepare_enable()  and counterparts for usage counts
+ * to be right.
+ */
+bool clk_is_enabled_when_prepared(struct clk *clk);
 #else
 static inline int clk_prepare(struct clk *clk)
 {
@@ -262,6 +279,11 @@ clk_bulk_prepare(int num_clks, const struct clk_bulk_data *clks)
 {
 	might_sleep();
 	return 0;
+}
+
+static inline bool clk_is_enabled_when_prepared(struct clk *clk)
+{
+	return false;
 }
 #endif
 
