@@ -111,8 +111,6 @@
 #include "xprt_rdma.h"
 #include <trace/events/rpcrdma.h>
 
-#define RPCDBG_FACILITY	RPCDBG_SVCXPRT
-
 static void svc_rdma_wc_send(struct ib_cq *cq, struct ib_wc *wc);
 
 static inline struct svc_rdma_send_ctxt *
