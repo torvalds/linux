@@ -334,7 +334,6 @@ struct io_ring_ctx {
 	struct {
 		unsigned int		flags;
 		unsigned int		compat: 1;
-		unsigned int		limit_mem: 1;
 		unsigned int		cq_overflow_flushed: 1;
 		unsigned int		drain_next: 1;
 		unsigned int		eventfd_async: 1;
@@ -7230,7 +7229,7 @@ static int __io_sqe_files_scm(struct io_ring_ctx *ctx, int nr, int offset)
 	skb->sk = sk;
 
 	nr_files = 0;
-	fpl->user = get_uid(ctx->user);
+	fpl->user = get_uid(current_user());
 	for (i = 0; i < nr; i++) {
 		struct file *file = io_file_from_index(ctx, i + offset);
 
@@ -7942,7 +7941,7 @@ static inline int __io_account_mem(struct user_struct *user,
 
 static void io_unaccount_mem(struct io_ring_ctx *ctx, unsigned long nr_pages)
 {
-	if (ctx->limit_mem)
+	if (ctx->user)
 		__io_unaccount_mem(ctx->user, nr_pages);
 
 	if (ctx->mm_account)
@@ -7953,7 +7952,7 @@ static int io_account_mem(struct io_ring_ctx *ctx, unsigned long nr_pages)
 {
 	int ret;
 
-	if (ctx->limit_mem) {
+	if (ctx->user) {
 		ret = __io_account_mem(ctx->user, nr_pages);
 		if (ret)
 			return ret;
@@ -9370,7 +9369,6 @@ static struct file *io_uring_get_file(struct io_ring_ctx *ctx)
 static int io_uring_create(unsigned entries, struct io_uring_params *p,
 			   struct io_uring_params __user *params)
 {
-	struct user_struct *user = NULL;
 	struct io_ring_ctx *ctx;
 	struct file *file;
 	int ret;
@@ -9412,16 +9410,12 @@ static int io_uring_create(unsigned entries, struct io_uring_params *p,
 		p->cq_entries = 2 * p->sq_entries;
 	}
 
-	user = get_uid(current_user());
-
 	ctx = io_ring_ctx_alloc(p);
-	if (!ctx) {
-		free_uid(user);
+	if (!ctx)
 		return -ENOMEM;
-	}
 	ctx->compat = in_compat_syscall();
-	ctx->limit_mem = !capable(CAP_IPC_LOCK);
-	ctx->user = user;
+	if (!capable(CAP_IPC_LOCK))
+		ctx->user = get_uid(current_user());
 	ctx->sqo_task = current;
 
 	/*
