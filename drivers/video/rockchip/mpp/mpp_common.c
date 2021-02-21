@@ -212,7 +212,8 @@ int mpp_power_off(struct mpp_dev *mpp)
 		mpp->hw_ops->clk_off(mpp);
 
 	pm_relax(mpp->dev);
-	if (mpp_taskqueue_get_pending_task(mpp->queue)) {
+	if (mpp_taskqueue_get_pending_task(mpp->queue) ||
+	    mpp_taskqueue_get_running_task(mpp->queue)) {
 		pm_runtime_mark_last_busy(mpp->dev);
 		pm_runtime_put_autosuspend(mpp->dev);
 	} else {
