@@ -1368,7 +1368,6 @@ annotation_line__print(struct annotation_line *al, struct symbol *sym, u64 start
 {
 	struct disasm_line *dl = container_of(al, struct disasm_line, al);
 	static const char *prev_line;
-	static const char *prev_color;
 
 	if (al->offset != -1) {
 		double max_percent = 0.0;
@@ -1407,20 +1406,6 @@ annotation_line__print(struct annotation_line *al, struct symbol *sym, u64 start
 
 		color = get_percent_color(max_percent);
 
-		/*
-		 * Also color the filename and line if needed, with
-		 * the same color than the percentage. Don't print it
-		 * twice for close colored addr with the same filename:line
-		 */
-		if (al->path) {
-			if (!prev_line || strcmp(prev_line, al->path)
-				       || color != prev_color) {
-				color_fprintf(stdout, color, " %s", al->path);
-				prev_line = al->path;
-				prev_color = color;
-			}
-		}
-
 		for (i = 0; i < nr_percent; i++) {
 			struct annotation_data *data = &al->data[i];
 			double percent;
@@ -1441,6 +1426,19 @@ annotation_line__print(struct annotation_line *al, struct symbol *sym, u64 start
 		printf(" : ");
 
 		disasm_line__print(dl, start, addr_fmt_width);
+
+		/*
+		 * Also color the filename and line if needed, with
+		 * the same color than the percentage. Don't print it
+		 * twice for close colored addr with the same filename:line
+		 */
+		if (al->path) {
+			if (!prev_line || strcmp(prev_line, al->path)) {
+				color_fprintf(stdout, color, " // %s", al->path);
+				prev_line = al->path;
+			}
+		}
+
 		printf("\n");
 	} else if (max_lines && printed >= max_lines)
 		return 1;
@@ -1456,7 +1454,7 @@ annotation_line__print(struct annotation_line *al, struct symbol *sym, u64 start
 		if (!*al->line)
 			printf(" %*s:\n", width, " ");
 		else
-			printf(" %*s:     %*s %s\n", width, " ", addr_fmt_width, " ", al->line);
+			printf(" %*s: %-*d %s\n", width, " ", addr_fmt_width, al->line_nr, al->line);
 	}
 
 	return 0;
