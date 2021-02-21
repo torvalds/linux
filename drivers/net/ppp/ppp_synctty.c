@@ -257,7 +257,8 @@ static int ppp_sync_hangup(struct tty_struct *tty)
  */
 static ssize_t
 ppp_sync_read(struct tty_struct *tty, struct file *file,
-	       unsigned char __user *buf, size_t count)
+	      unsigned char *buf, size_t count,
+	      void **cookie, unsigned long offset)
 {
 	return -EAGAIN;
 }
