@@ -34,7 +34,7 @@ static inline bool bch2_dev_is_online(struct bch_dev *ca)
 static inline bool bch2_dev_is_readable(struct bch_dev *ca)
 {
 	return bch2_dev_is_online(ca) &&
-		ca->mi.state != BCH_MEMBER_STATE_FAILED;
+		ca->mi.state != BCH_MEMBER_STATE_failed;
 }
 
 static inline bool bch2_dev_get_ioref(struct bch_dev *ca, int rw)
@@ -42,8 +42,8 @@ static inline bool bch2_dev_get_ioref(struct bch_dev *ca, int rw)
 	if (!percpu_ref_tryget(&ca->io_ref))
 		return false;
 
-	if (ca->mi.state == BCH_MEMBER_STATE_RW ||
-	    (ca->mi.state == BCH_MEMBER_STATE_RO && rw == READ))
+	if (ca->mi.state == BCH_MEMBER_STATE_rw ||
+	    (ca->mi.state == BCH_MEMBER_STATE_ro && rw == READ))
 		return true;
 
 	percpu_ref_put(&ca->io_ref);
@@ -158,11 +158,11 @@ static inline struct bch_dev *bch2_get_next_online_dev(struct bch_fs *c,
 	__for_each_online_member(ca, c, iter, ~0)
 
 #define for_each_rw_member(ca, c, iter)					\
-	__for_each_online_member(ca, c, iter, 1 << BCH_MEMBER_STATE_RW)
+	__for_each_online_member(ca, c, iter, 1 << BCH_MEMBER_STATE_rw)
 
 #define for_each_readable_member(ca, c, iter)				\
 	__for_each_online_member(ca, c, iter,				\
-		(1 << BCH_MEMBER_STATE_RW)|(1 << BCH_MEMBER_STATE_RO))
+		(1 << BCH_MEMBER_STATE_rw)|(1 << BCH_MEMBER_STATE_ro))
 
 /*
  * If a key exists that references a device, the device won't be going away and

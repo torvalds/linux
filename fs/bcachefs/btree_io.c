@@ -954,7 +954,7 @@ int bch2_btree_node_read_done(struct bch_fs *c, struct bch_dev *ca,
 	bkey_for_each_ptr(bch2_bkey_ptrs(bkey_i_to_s(&b->key)), ptr) {
 		struct bch_dev *ca = bch_dev_bkey_exists(c, ptr->dev);
 
-		if (ca->mi.state != BCH_MEMBER_STATE_RW)
+		if (ca->mi.state != BCH_MEMBER_STATE_rw)
 			set_btree_node_need_rewrite(b);
 	}
 out:

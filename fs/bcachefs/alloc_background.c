@@ -720,13 +720,13 @@ static size_t find_reclaimable_buckets(struct bch_fs *c, struct bch_dev *ca)
 	ca->inc_gen_needs_gc			= 0;
 
 	switch (ca->mi.replacement) {
-	case CACHE_REPLACEMENT_LRU:
+	case BCH_CACHE_REPLACEMENT_lru:
 		find_reclaimable_buckets_lru(c, ca);
 		break;
-	case CACHE_REPLACEMENT_FIFO:
+	case BCH_CACHE_REPLACEMENT_fifo:
 		find_reclaimable_buckets_fifo(c, ca);
 		break;
-	case CACHE_REPLACEMENT_RANDOM:
+	case BCH_CACHE_REPLACEMENT_random:
 		find_reclaimable_buckets_random(c, ca);
 		break;
 	}
@@ -1037,7 +1037,7 @@ static int discard_invalidated_buckets(struct bch_fs *c, struct bch_dev *ca)
 
 static inline bool allocator_thread_running(struct bch_dev *ca)
 {
-	return ca->mi.state == BCH_MEMBER_STATE_RW &&
+	return ca->mi.state == BCH_MEMBER_STATE_rw &&
 		test_bit(BCH_FS_ALLOCATOR_RUNNING, &ca->fs->flags);
 }
 

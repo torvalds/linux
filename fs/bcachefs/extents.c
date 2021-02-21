@@ -724,7 +724,7 @@ static unsigned bch2_extent_ptr_durability(struct bch_fs *c,
 
 	ca = bch_dev_bkey_exists(c, p.ptr.dev);
 
-	if (ca->mi.state != BCH_MEMBER_STATE_FAILED)
+	if (ca->mi.state != BCH_MEMBER_STATE_failed)
 		durability = max_t(unsigned, durability, ca->mi.durability);
 
 	if (p.has_ec)

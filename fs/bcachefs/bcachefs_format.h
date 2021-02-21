@@ -991,19 +991,29 @@ LE64_BITMASK(BCH_MEMBER_NR_READ_ERRORS,	struct bch_member, flags[1], 0,  20);
 LE64_BITMASK(BCH_MEMBER_NR_WRITE_ERRORS,struct bch_member, flags[1], 20, 40);
 #endif
 
+#define BCH_MEMBER_STATES()			\
+	x(rw,		0)			\
+	x(ro,		1)			\
+	x(failed,	2)			\
+	x(spare,	3)
+
 enum bch_member_state {
-	BCH_MEMBER_STATE_RW		= 0,
-	BCH_MEMBER_STATE_RO		= 1,
-	BCH_MEMBER_STATE_FAILED		= 2,
-	BCH_MEMBER_STATE_SPARE		= 3,
-	BCH_MEMBER_STATE_NR		= 4,
+#define x(t, n) BCH_MEMBER_STATE_##t = n,
+	BCH_MEMBER_STATES()
+#undef x
+	BCH_MEMBER_STATE_NR
 };
 
-enum cache_replacement {
-	CACHE_REPLACEMENT_LRU		= 0,
-	CACHE_REPLACEMENT_FIFO		= 1,
-	CACHE_REPLACEMENT_RANDOM	= 2,
-	CACHE_REPLACEMENT_NR		= 3,
+#define BCH_CACHE_REPLACEMENT_POLICIES()	\
+	x(lru,		0)			\
+	x(fifo,		1)			\
+	x(random,	2)
+
+enum bch_cache_replacement_policies {
+#define x(t, n) BCH_CACHE_REPLACEMENT_##t = n,
+	BCH_CACHE_REPLACEMENT_POLICIES()
+#undef x
+	BCH_CACHE_REPLACEMENT_NR
 };
 
 struct bch_sb_field_members {
@@ -1405,11 +1415,16 @@ enum bch_sb_compat {
 
 #define BCH_BKEY_PTRS_MAX		16U
 
+#define BCH_ERROR_ACTIONS()		\
+	x(continue,		0)	\
+	x(ro,			1)	\
+	x(panic,		2)
+
 enum bch_error_actions {
-	BCH_ON_ERROR_CONTINUE		= 0,
-	BCH_ON_ERROR_RO			= 1,
-	BCH_ON_ERROR_PANIC		= 2,
-	BCH_NR_ERROR_ACTIONS		= 3,
+#define x(t, n) BCH_ON_ERROR_##t = n,
+	BCH_ERROR_ACTIONS()
+#undef x
+	BCH_ON_ERROR_NR
 };
 
 enum bch_str_hash_type {
@@ -1420,11 +1435,16 @@ enum bch_str_hash_type {
 	BCH_STR_HASH_NR			= 4,
 };
 
+#define BCH_STR_HASH_OPTS()		\
+	x(crc32c,		0)	\
+	x(crc64,		1)	\
+	x(siphash,		2)
+
 enum bch_str_hash_opts {
-	BCH_STR_HASH_OPT_CRC32C		= 0,
-	BCH_STR_HASH_OPT_CRC64		= 1,
-	BCH_STR_HASH_OPT_SIPHASH	= 2,
-	BCH_STR_HASH_OPT_NR		= 3,
+#define x(t, n) BCH_STR_HASH_OPT_##t = n,
+	BCH_STR_HASH_OPTS()
+#undef x
+	BCH_STR_HASH_OPT_NR
 };
 
 enum bch_csum_type {
@@ -1459,11 +1479,16 @@ static inline _Bool bch2_csum_type_is_encryption(enum bch_csum_type type)
 	}
 }
 
+#define BCH_CSUM_OPTS()			\
+	x(none,			0)	\
+	x(crc32c,		1)	\
+	x(crc64,		2)
+
 enum bch_csum_opts {
-	BCH_CSUM_OPT_NONE		= 0,
-	BCH_CSUM_OPT_CRC32C		= 1,
-	BCH_CSUM_OPT_CRC64		= 2,
-	BCH_CSUM_OPT_NR			= 3,
+#define x(t, n) BCH_CSUM_OPT_##t = n,
+	BCH_CSUM_OPTS()
+#undef x
+	BCH_CSUM_OPT_NR
 };
 
 #define BCH_COMPRESSION_TYPES()		\
@@ -1475,7 +1500,7 @@ enum bch_csum_opts {
 	x(incompressible,	5)
 
 enum bch_compression_type {
-#define x(t, n) BCH_COMPRESSION_TYPE_##t,
+#define x(t, n) BCH_COMPRESSION_TYPE_##t = n,
 	BCH_COMPRESSION_TYPES()
 #undef x
 	BCH_COMPRESSION_TYPE_NR
@@ -1488,7 +1513,7 @@ enum bch_compression_type {
 	x(zstd,		3)
 
 enum bch_compression_opts {
-#define x(t, n) BCH_COMPRESSION_OPT_##t,
+#define x(t, n) BCH_COMPRESSION_OPT_##t = n,
 	BCH_COMPRESSION_OPTS()
 #undef x
 	BCH_COMPRESSION_OPT_NR

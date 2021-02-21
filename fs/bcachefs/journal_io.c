@@ -870,8 +870,8 @@ int bch2_journal_read(struct bch_fs *c, struct list_head *list,
 		    !(bch2_dev_has_data(c, ca) & (1 << BCH_DATA_journal)))
 			continue;
 
-		if ((ca->mi.state == BCH_MEMBER_STATE_RW ||
-		     ca->mi.state == BCH_MEMBER_STATE_RO) &&
+		if ((ca->mi.state == BCH_MEMBER_STATE_rw ||
+		     ca->mi.state == BCH_MEMBER_STATE_ro) &&
 		    percpu_ref_tryget(&ca->io_ref))
 			closure_call(&ca->journal.read,
 				     bch2_journal_read_device,
@@ -1064,7 +1064,7 @@ static void __journal_write_alloc(struct journal *j,
 		 * it:
 		 */
 		if (!ca->mi.durability ||
-		    ca->mi.state != BCH_MEMBER_STATE_RW ||
+		    ca->mi.state != BCH_MEMBER_STATE_rw ||
 		    !ja->nr ||
 		    bch2_bkey_has_device(bkey_i_to_s_c(&w->key),
 					 ca->dev_idx) ||

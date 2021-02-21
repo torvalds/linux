@@ -886,7 +886,7 @@ SHOW(bch2_dev)
 	}
 
 	if (attr == &sysfs_state_rw) {
-		bch2_string_opt_to_text(&out, bch2_dev_state,
+		bch2_string_opt_to_text(&out, bch2_member_states,
 					ca->mi.state);
 		pr_buf(&out, "\n");
 		return out.pos - buf;

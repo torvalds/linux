@@ -77,11 +77,11 @@ static inline enum bch_csum_type bch2_csum_opt_to_type(enum bch_csum_opts type,
 						       bool data)
 {
 	switch (type) {
-	case BCH_CSUM_OPT_NONE:
+	case BCH_CSUM_OPT_none:
 	     return BCH_CSUM_NONE;
-	case BCH_CSUM_OPT_CRC32C:
+	case BCH_CSUM_OPT_crc32c:
 	     return data ? BCH_CSUM_CRC32C : BCH_CSUM_CRC32C_NONZERO;
-	case BCH_CSUM_OPT_CRC64:
+	case BCH_CSUM_OPT_crc64:
 	     return data ? BCH_CSUM_CRC64 : BCH_CSUM_CRC64_NONZERO;
 	default:
 	     BUG();

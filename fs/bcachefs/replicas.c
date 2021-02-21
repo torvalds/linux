@@ -982,7 +982,7 @@ bool bch2_have_enough_devs(struct bch_fs *c, struct bch_devs_mask devs,
 			struct bch_dev *ca = bch_dev_bkey_exists(c, e->devs[i]);
 
 			nr_online += test_bit(e->devs[i], devs.d);
-			nr_failed += ca->mi.state == BCH_MEMBER_STATE_FAILED;
+			nr_failed += ca->mi.state == BCH_MEMBER_STATE_failed;
 		}
 
 		if (nr_failed == e->nr_devs)
