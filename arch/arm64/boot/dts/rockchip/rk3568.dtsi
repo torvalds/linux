@@ -1363,9 +1363,9 @@
 		clock-names = "aclk_vcodec", "hclk_vcodec","clk_cabac",
 			      "clk_core", "clk_hevc_cabac";
 		rockchip,normal-rates = <297000000>, <0>, <297000000>,
-					<297000000>, <400000000>;
-		rockchip,advanced-rates = <400000000>, <0>, <400000000>,
-					<400000000>, <500000000>;
+					<297000000>, <600000000>;
+		rockchip,advanced-rates = <396000000>, <0>, <396000000>,
+					<396000000>, <600000000>;
 		rockchip,default-max-load = <2088960>;
 		resets = <&cru SRST_A_RKVDEC>, <&cru SRST_H_RKVDEC>,
 			 <&cru SRST_RKVDEC_CA>, <&cru SRST_RKVDEC_CORE>,
