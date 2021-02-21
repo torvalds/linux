@@ -1081,7 +1081,7 @@ struct tx_buf_desc {
 #define OPCODE_IB_MPI_IOCB		0x21
 #define OPCODE_IB_AE_IOCB		0x3f
 
-struct ob_mac_iocb_req {
+struct qlge_ob_mac_iocb_req {
 	u8 opcode;
 	u8 flags1;
 #define OB_MAC_IOCB_REQ_OI	0x01
@@ -1104,7 +1104,7 @@ struct ob_mac_iocb_req {
 	struct tx_buf_desc tbd[TX_DESC_PER_IOCB];
 } __packed;
 
-struct ob_mac_iocb_rsp {
+struct qlge_ob_mac_iocb_rsp {
 	u8 opcode;		/* */
 	u8 flags1;		/* */
 #define OB_MAC_IOCB_RSP_OI	0x01	/* */
@@ -1121,7 +1121,7 @@ struct ob_mac_iocb_rsp {
 	__le32 reserved[13];
 } __packed;
 
-struct ob_mac_tso_iocb_req {
+struct qlge_ob_mac_tso_iocb_req {
 	u8 opcode;
 	u8 flags1;
 #define OB_MAC_TSO_IOCB_OI	0x01
@@ -1149,7 +1149,7 @@ struct ob_mac_tso_iocb_req {
 	struct tx_buf_desc tbd[TX_DESC_PER_IOCB];
 } __packed;
 
-struct ob_mac_tso_iocb_rsp {
+struct qlge_ob_mac_tso_iocb_rsp {
 	u8 opcode;
 	u8 flags1;
 #define OB_MAC_TSO_IOCB_RSP_OI	0x01
@@ -1166,7 +1166,7 @@ struct ob_mac_tso_iocb_rsp {
 	__le32 reserved2[13];
 } __packed;
 
-struct ib_mac_iocb_rsp {
+struct qlge_ib_mac_iocb_rsp {
 	u8 opcode;		/* 0x20 */
 	u8 flags1;
 #define IB_MAC_IOCB_RSP_OI	0x01	/* Override intr delay */
@@ -1225,7 +1225,7 @@ struct ib_mac_iocb_rsp {
 	__le64 hdr_addr;	/* */
 } __packed;
 
-struct ib_ae_iocb_rsp {
+struct qlge_ib_ae_iocb_rsp {
 	u8 opcode;
 	u8 flags1;
 #define IB_AE_IOCB_RSP_OI		0x01
@@ -1250,7 +1250,7 @@ struct ib_ae_iocb_rsp {
  * These three structures are for generic
  * handling of ib and ob iocbs.
  */
-struct ql_net_rsp_iocb {
+struct qlge_net_rsp_iocb {
 	u8 opcode;
 	u8 flags0;
 	__le16 length;
@@ -1258,7 +1258,7 @@ struct ql_net_rsp_iocb {
 	__le32 reserved[14];
 } __packed;
 
-struct net_req_iocb {
+struct qlge_net_req_iocb {
 	u8 opcode;
 	u8 flags0;
 	__le16 flags1;
@@ -1346,7 +1346,7 @@ struct ricb {
 
 /* SOFTWARE/DRIVER DATA STRUCTURES. */
 
-struct oal {
+struct qlge_oal {
 	struct tx_buf_desc oal[TX_DESC_PER_OAL];
 };
 
@@ -1357,9 +1357,9 @@ struct map_list {
 
 struct tx_ring_desc {
 	struct sk_buff *skb;
-	struct ob_mac_iocb_req *queue_entry;
+	struct qlge_ob_mac_iocb_req *queue_entry;
 	u32 index;
-	struct oal oal;
+	struct qlge_oal oal;
 	struct map_list map[MAX_SKB_FRAGS + 2];
 	int map_cnt;
 	struct tx_ring_desc *next;
@@ -1388,7 +1388,7 @@ struct tx_ring {
 	spinlock_t lock;
 	atomic_t tx_count;	/* counts down for every outstanding IO */
 	struct delayed_work tx_work;
-	struct ql_adapter *qdev;
+	struct qlge_adapter *qdev;
 	u64 tx_packets;
 	u64 tx_bytes;
 	u64 tx_errors;
@@ -1469,7 +1469,7 @@ struct rx_ring {
 	dma_addr_t prod_idx_sh_reg_dma;
 	void __iomem *cnsmr_idx_db_reg;	/* PCI doorbell mem area + 0 */
 	u32 cnsmr_idx;		/* current sw idx */
-	struct ql_net_rsp_iocb *curr_entry;	/* next entry on queue */
+	struct qlge_net_rsp_iocb *curr_entry;	/* next entry on queue */
 	void __iomem *valid_db_reg;	/* PCI doorbell mem area + 0x04 */
 
 	/* Large buffer queue elements. */
@@ -1487,7 +1487,7 @@ struct rx_ring {
 	char name[IFNAMSIZ + 5];
 	struct napi_struct napi;
 	u8 reserved;
-	struct ql_adapter *qdev;
+	struct qlge_adapter *qdev;
 	u64 rx_packets;
 	u64 rx_multicast;
 	u64 rx_bytes;
@@ -1752,14 +1752,14 @@ enum {
 #define SHADOW_OFFSET	0xb0000000
 #define SHADOW_REG_SHIFT	20
 
-struct ql_nic_misc {
+struct qlge_nic_misc {
 	u32 rx_ring_count;
 	u32 tx_ring_count;
 	u32 intr_count;
 	u32 function;
 };
 
-struct ql_reg_dump {
+struct qlge_reg_dump {
 	/* segment 0 */
 	struct mpi_coredump_global_header mpi_global_header;
 
@@ -1769,7 +1769,7 @@ struct ql_reg_dump {
 
 	/* segment 30 */
 	struct mpi_coredump_segment_header misc_nic_seg_hdr;
-	struct ql_nic_misc misc_nic_info;
+	struct qlge_nic_misc misc_nic_info;
 
 	/* segment 31 */
 	/* one interrupt state for each CQ */
@@ -1792,7 +1792,7 @@ struct ql_reg_dump {
 	u32 ets[8 + 2];
 };
 
-struct ql_mpi_coredump {
+struct qlge_mpi_coredump {
 	/* segment 0 */
 	struct mpi_coredump_global_header mpi_global_header;
 
@@ -1914,7 +1914,7 @@ struct ql_mpi_coredump {
 
 	/* segment 30 */
 	struct mpi_coredump_segment_header misc_nic_seg_hdr;
-	struct ql_nic_misc misc_nic_info;
+	struct qlge_nic_misc misc_nic_info;
 
 	/* segment 31 */
 	/* one interrupt state for each CQ */
@@ -1991,7 +1991,7 @@ struct ql_mpi_coredump {
  * irq environment as a context to the ISR.
  */
 struct intr_context {
-	struct ql_adapter *qdev;
+	struct qlge_adapter *qdev;
 	u32 intr;
 	u32 irq_mask;		/* Mask of which rings the vector services. */
 	u32 hooked;
@@ -2056,15 +2056,27 @@ enum {
 };
 
 struct nic_operations {
-	int (*get_flash)(struct ql_adapter *qdev);
-	int (*port_initialize)(struct ql_adapter *qdev);
+	int (*get_flash)(struct qlge_adapter *qdev);
+	int (*port_initialize)(struct qlge_adapter *qdev);
 };
 
+struct qlge_netdev_priv {
+	struct qlge_adapter *qdev;
+	struct net_device *ndev;
+};
+
+static inline
+struct qlge_adapter *netdev_to_qdev(struct net_device *ndev)
+{
+	struct qlge_netdev_priv *ndev_priv = netdev_priv(ndev);
+
+	return ndev_priv->qdev;
+}
 /*
  * The main Adapter structure definition.
  * This structure has all fields relevant to the hardware.
  */
-struct ql_adapter {
+struct qlge_adapter {
 	struct ricb ricb;
 	unsigned long flags;
 	u32 wol;
@@ -2077,6 +2089,7 @@ struct ql_adapter {
 	struct pci_dev *pdev;
 	struct net_device *ndev;	/* Parent NET device */
 
+	struct devlink_health_reporter *reporter;
 	/* Hardware information */
 	u32 chip_rev_id;
 	u32 fw_rev_id;
@@ -2139,8 +2152,7 @@ struct ql_adapter {
 	u32 port_link_up;
 	u32 port_init;
 	u32 link_status;
-	struct ql_mpi_coredump *mpi_coredump;
-	u32 core_is_dumped;
+	struct qlge_mpi_coredump *mpi_coredump;
 	u32 link_config;
 	u32 led_config;
 	u32 max_frame_size;
@@ -2153,7 +2165,6 @@ struct ql_adapter {
 	struct delayed_work mpi_work;
 	struct delayed_work mpi_port_cfg_work;
 	struct delayed_work mpi_idc_work;
-	struct delayed_work mpi_core_to_log;
 	struct completion ide_completion;
 	const struct nic_operations *nic_ops;
 	u16 device_id;
@@ -2166,7 +2177,7 @@ struct ql_adapter {
 /*
  * Typical Register accessor for memory mapped device.
  */
-static inline u32 ql_read32(const struct ql_adapter *qdev, int reg)
+static inline u32 qlge_read32(const struct qlge_adapter *qdev, int reg)
 {
 	return readl(qdev->reg_base + reg);
 }
@@ -2174,7 +2185,7 @@ static inline u32 ql_read32(const struct ql_adapter *qdev, int reg)
 /*
  * Typical Register accessor for memory mapped device.
  */
-static inline void ql_write32(const struct ql_adapter *qdev, int reg, u32 val)
+static inline void qlge_write32(const struct qlge_adapter *qdev, int reg, u32 val)
 {
 	writel(val, qdev->reg_base + reg);
 }
@@ -2189,7 +2200,7 @@ static inline void ql_write32(const struct ql_adapter *qdev, int reg, u32 val)
  * 1 4k chunk of memory.  The lower half of the space is for outbound
  * queues. The upper half is for inbound queues.
  */
-static inline void ql_write_db_reg(u32 val, void __iomem *addr)
+static inline void qlge_write_db_reg(u32 val, void __iomem *addr)
 {
 	writel(val, addr);
 }
@@ -2205,7 +2216,7 @@ static inline void ql_write_db_reg(u32 val, void __iomem *addr)
  * queues. The upper half is for inbound queues.
  * Caller has to guarantee ordering.
  */
-static inline void ql_write_db_reg_relaxed(u32 val, void __iomem *addr)
+static inline void qlge_write_db_reg_relaxed(u32 val, void __iomem *addr)
 {
 	writel_relaxed(val, addr);
 }
@@ -2220,7 +2231,7 @@ static inline void ql_write_db_reg_relaxed(u32 val, void __iomem *addr)
  * update the relevant index register and then copy the value to the
  * shadow register in host memory.
  */
-static inline u32 ql_read_sh_reg(__le32  *addr)
+static inline u32 qlge_read_sh_reg(__le32  *addr)
 {
 	u32 reg;
 
@@ -2233,132 +2244,49 @@ extern char qlge_driver_name[];
 extern const char qlge_driver_version[];
 extern const struct ethtool_ops qlge_ethtool_ops;
 
-int ql_sem_spinlock(struct ql_adapter *qdev, u32 sem_mask);
-void ql_sem_unlock(struct ql_adapter *qdev, u32 sem_mask);
-int ql_read_xgmac_reg(struct ql_adapter *qdev, u32 reg, u32 *data);
-int ql_get_mac_addr_reg(struct ql_adapter *qdev, u32 type, u16 index,
-			u32 *value);
-int ql_get_routing_reg(struct ql_adapter *qdev, u32 index, u32 *value);
-int ql_write_cfg(struct ql_adapter *qdev, void *ptr, int size, u32 bit,
-		 u16 q_id);
-void ql_queue_fw_error(struct ql_adapter *qdev);
-void ql_mpi_work(struct work_struct *work);
-void ql_mpi_reset_work(struct work_struct *work);
-void ql_mpi_core_to_log(struct work_struct *work);
-int ql_wait_reg_rdy(struct ql_adapter *qdev, u32 reg, u32 bit, u32 ebit);
-void ql_queue_asic_error(struct ql_adapter *qdev);
-void ql_set_ethtool_ops(struct net_device *ndev);
-int ql_read_xgmac_reg64(struct ql_adapter *qdev, u32 reg, u64 *data);
-void ql_mpi_idc_work(struct work_struct *work);
-void ql_mpi_port_cfg_work(struct work_struct *work);
-int ql_mb_get_fw_state(struct ql_adapter *qdev);
-int ql_cam_route_initialize(struct ql_adapter *qdev);
-int ql_read_mpi_reg(struct ql_adapter *qdev, u32 reg, u32 *data);
-int ql_write_mpi_reg(struct ql_adapter *qdev, u32 reg, u32 data);
-int ql_unpause_mpi_risc(struct ql_adapter *qdev);
-int ql_pause_mpi_risc(struct ql_adapter *qdev);
-int ql_hard_reset_mpi_risc(struct ql_adapter *qdev);
-int ql_soft_reset_mpi_risc(struct ql_adapter *qdev);
-int ql_dump_risc_ram_area(struct ql_adapter *qdev, void *buf, u32 ram_addr,
-			  int word_count);
-int ql_core_dump(struct ql_adapter *qdev, struct ql_mpi_coredump *mpi_coredump);
-int ql_mb_about_fw(struct ql_adapter *qdev);
-int ql_mb_wol_set_magic(struct ql_adapter *qdev, u32 enable_wol);
-int ql_mb_wol_mode(struct ql_adapter *qdev, u32 wol);
-int ql_mb_set_led_cfg(struct ql_adapter *qdev, u32 led_config);
-int ql_mb_get_led_cfg(struct ql_adapter *qdev);
-void ql_link_on(struct ql_adapter *qdev);
-void ql_link_off(struct ql_adapter *qdev);
-int ql_mb_set_mgmnt_traffic_ctl(struct ql_adapter *qdev, u32 control);
-int ql_mb_get_port_cfg(struct ql_adapter *qdev);
-int ql_mb_set_port_cfg(struct ql_adapter *qdev);
-int ql_wait_fifo_empty(struct ql_adapter *qdev);
-void ql_get_dump(struct ql_adapter *qdev, void *buff);
-netdev_tx_t ql_lb_send(struct sk_buff *skb, struct net_device *ndev);
-void ql_check_lb_frame(struct ql_adapter *qdev, struct sk_buff *skb);
-int ql_own_firmware(struct ql_adapter *qdev);
-int ql_clean_lb_rx_ring(struct rx_ring *rx_ring, int budget);
-
-/* #define QL_ALL_DUMP */
-/* #define QL_REG_DUMP */
-/* #define QL_DEV_DUMP */
-/* #define QL_CB_DUMP */
-/* #define QL_IB_DUMP */
-/* #define QL_OB_DUMP */
-
-#ifdef QL_REG_DUMP
-void ql_dump_xgmac_control_regs(struct ql_adapter *qdev);
-void ql_dump_routing_entries(struct ql_adapter *qdev);
-void ql_dump_regs(struct ql_adapter *qdev);
-#define QL_DUMP_REGS(qdev) ql_dump_regs(qdev)
-#define QL_DUMP_ROUTE(qdev) ql_dump_routing_entries(qdev)
-#define QL_DUMP_XGMAC_CONTROL_REGS(qdev) ql_dump_xgmac_control_regs(qdev)
-#else
-#define QL_DUMP_REGS(qdev)
-#define QL_DUMP_ROUTE(qdev)
-#define QL_DUMP_XGMAC_CONTROL_REGS(qdev)
-#endif
-
-#ifdef QL_STAT_DUMP
-void ql_dump_stat(struct ql_adapter *qdev);
-#define QL_DUMP_STAT(qdev) ql_dump_stat(qdev)
-#else
-#define QL_DUMP_STAT(qdev)
-#endif
-
-#ifdef QL_DEV_DUMP
-void ql_dump_qdev(struct ql_adapter *qdev);
-#define QL_DUMP_QDEV(qdev) ql_dump_qdev(qdev)
-#else
-#define QL_DUMP_QDEV(qdev)
-#endif
-
-#ifdef QL_CB_DUMP
-void ql_dump_wqicb(struct wqicb *wqicb);
-void ql_dump_tx_ring(struct tx_ring *tx_ring);
-void ql_dump_ricb(struct ricb *ricb);
-void ql_dump_cqicb(struct cqicb *cqicb);
-void ql_dump_rx_ring(struct rx_ring *rx_ring);
-void ql_dump_hw_cb(struct ql_adapter *qdev, int size, u32 bit, u16 q_id);
-#define QL_DUMP_RICB(ricb) ql_dump_ricb(ricb)
-#define QL_DUMP_WQICB(wqicb) ql_dump_wqicb(wqicb)
-#define QL_DUMP_TX_RING(tx_ring) ql_dump_tx_ring(tx_ring)
-#define QL_DUMP_CQICB(cqicb) ql_dump_cqicb(cqicb)
-#define QL_DUMP_RX_RING(rx_ring) ql_dump_rx_ring(rx_ring)
-#define QL_DUMP_HW_CB(qdev, size, bit, q_id) \
-		ql_dump_hw_cb(qdev, size, bit, q_id)
-#else
-#define QL_DUMP_RICB(ricb)
-#define QL_DUMP_WQICB(wqicb)
-#define QL_DUMP_TX_RING(tx_ring)
-#define QL_DUMP_CQICB(cqicb)
-#define QL_DUMP_RX_RING(rx_ring)
-#define QL_DUMP_HW_CB(qdev, size, bit, q_id)
-#endif
-
-#ifdef QL_OB_DUMP
-void ql_dump_tx_desc(struct ql_adapter *qdev, struct tx_buf_desc *tbd);
-void ql_dump_ob_mac_iocb(struct ql_adapter *qdev, struct ob_mac_iocb_req *ob_mac_iocb);
-void ql_dump_ob_mac_rsp(struct ql_adapter *qdev, struct ob_mac_iocb_rsp *ob_mac_rsp);
-#define QL_DUMP_OB_MAC_IOCB(qdev, ob_mac_iocb) ql_dump_ob_mac_iocb(qdev, ob_mac_iocb)
-#define QL_DUMP_OB_MAC_RSP(qdev, ob_mac_rsp) ql_dump_ob_mac_rsp(qdev, ob_mac_rsp)
-#else
-#define QL_DUMP_OB_MAC_IOCB(qdev, ob_mac_iocb)
-#define QL_DUMP_OB_MAC_RSP(qdev, ob_mac_rsp)
-#endif
-
-#ifdef QL_IB_DUMP
-void ql_dump_ib_mac_rsp(struct ql_adapter *qdev, struct ib_mac_iocb_rsp *ib_mac_rsp);
-#define QL_DUMP_IB_MAC_RSP(qdev, ib_mac_rsp) ql_dump_ib_mac_rsp(qdev, ib_mac_rsp)
-#else
-#define QL_DUMP_IB_MAC_RSP(qdev, ib_mac_rsp)
-#endif
-
-#ifdef	QL_ALL_DUMP
-void ql_dump_all(struct ql_adapter *qdev);
-#define QL_DUMP_ALL(qdev) ql_dump_all(qdev)
-#else
-#define QL_DUMP_ALL(qdev)
-#endif
+int qlge_sem_spinlock(struct qlge_adapter *qdev, u32 sem_mask);
+void qlge_sem_unlock(struct qlge_adapter *qdev, u32 sem_mask);
+int qlge_read_xgmac_reg(struct qlge_adapter *qdev, u32 reg, u32 *data);
+int qlge_get_mac_addr_reg(struct qlge_adapter *qdev, u32 type, u16 index,
+			  u32 *value);
+int qlge_get_routing_reg(struct qlge_adapter *qdev, u32 index, u32 *value);
+int qlge_write_cfg(struct qlge_adapter *qdev, void *ptr, int size, u32 bit,
+		   u16 q_id);
+void qlge_queue_fw_error(struct qlge_adapter *qdev);
+void qlge_mpi_work(struct work_struct *work);
+void qlge_mpi_reset_work(struct work_struct *work);
+int qlge_wait_reg_rdy(struct qlge_adapter *qdev, u32 reg, u32 bit, u32 ebit);
+void qlge_queue_asic_error(struct qlge_adapter *qdev);
+void qlge_set_ethtool_ops(struct net_device *ndev);
+int qlge_read_xgmac_reg64(struct qlge_adapter *qdev, u32 reg, u64 *data);
+void qlge_mpi_idc_work(struct work_struct *work);
+void qlge_mpi_port_cfg_work(struct work_struct *work);
+int qlge_mb_get_fw_state(struct qlge_adapter *qdev);
+int qlge_cam_route_initialize(struct qlge_adapter *qdev);
+int qlge_read_mpi_reg(struct qlge_adapter *qdev, u32 reg, u32 *data);
+int qlge_write_mpi_reg(struct qlge_adapter *qdev, u32 reg, u32 data);
+int qlge_unpause_mpi_risc(struct qlge_adapter *qdev);
+int qlge_pause_mpi_risc(struct qlge_adapter *qdev);
+int qlge_hard_reset_mpi_risc(struct qlge_adapter *qdev);
+int qlge_soft_reset_mpi_risc(struct qlge_adapter *qdev);
+int qlge_dump_risc_ram_area(struct qlge_adapter *qdev, void *buf, u32 ram_addr,
+			    int word_count);
+int qlge_core_dump(struct qlge_adapter *qdev, struct qlge_mpi_coredump *mpi_coredump);
+int qlge_mb_about_fw(struct qlge_adapter *qdev);
+int qlge_mb_wol_set_magic(struct qlge_adapter *qdev, u32 enable_wol);
+int qlge_mb_wol_mode(struct qlge_adapter *qdev, u32 wol);
+int qlge_mb_set_led_cfg(struct qlge_adapter *qdev, u32 led_config);
+int qlge_mb_get_led_cfg(struct qlge_adapter *qdev);
+void qlge_link_on(struct qlge_adapter *qdev);
+void qlge_link_off(struct qlge_adapter *qdev);
+int qlge_mb_set_mgmnt_traffic_ctl(struct qlge_adapter *qdev, u32 control);
+int qlge_mb_get_port_cfg(struct qlge_adapter *qdev);
+int qlge_mb_set_port_cfg(struct qlge_adapter *qdev);
+int qlge_wait_fifo_empty(struct qlge_adapter *qdev);
+void qlge_get_dump(struct qlge_adapter *qdev, void *buff);
+netdev_tx_t qlge_lb_send(struct sk_buff *skb, struct net_device *ndev);
+void qlge_check_lb_frame(struct qlge_adapter *qdev, struct sk_buff *skb);
+int qlge_own_firmware(struct qlge_adapter *qdev);
+int qlge_clean_lb_rx_ring(struct rx_ring *rx_ring, int budget);
 
 #endif /* _QLGE_H_ */

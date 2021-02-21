@@ -68,7 +68,7 @@ struct ndis_802_11_fix_ie {
 struct ndis_80211_var_ie {
 	u8  ElementID;
 	u8  Length;
-	u8  data[1];
+	u8  data[];
 };
 
 /* Length is the 4 bytes multiples of the sum of

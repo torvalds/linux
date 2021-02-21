@@ -5,12 +5,10 @@
  * Copyright (c) 2017-2020, Silicon Laboratories, Inc.
  * Copyright (c) 2010, ST-Ericsson
  */
-#include <linux/etherdevice.h>
 #include <net/mac80211.h>
 
 #include "key.h"
 #include "wfx.h"
-#include "hif_tx_mib.h"
 
 static int wfx_alloc_key(struct wfx_dev *wdev)
 {

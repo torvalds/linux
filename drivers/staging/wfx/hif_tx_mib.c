@@ -6,13 +6,8 @@
  * Copyright (c) 2010, ST-Ericsson
  * Copyright (C) 2010, ST-Ericsson SA
  */
-
-#include <linux/etherdevice.h>
-
 #include "wfx.h"
-#include "hif_tx.h"
 #include "hif_tx_mib.h"
-#include "hif_api_mib.h"
 
 int hif_set_output_power(struct wfx_vif *wvif, int val)
 {

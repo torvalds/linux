@@ -74,14 +74,10 @@ struct visorhba_devdata {
 	unsigned long long interrupts_notme;
 	unsigned long long interrupts_disabled;
 	u64 __iomem *flags_addr;
-	atomic_t interrupt_rcvd;
-	wait_queue_head_t rsp_queue;
 	struct visordisk_info head;
 	unsigned int max_buff_len;
 	int devnum;
-	struct task_struct *thread;
-	int thread_wait_ms;
-
+	struct uiscmdrsp *cmdrsp;
 	/*
 	 * allows us to pass int handles back-and-forth between us and
 	 * iovm, instead of raw pointers
@@ -95,39 +91,6 @@ struct visorhba_devdata {
 struct visorhba_devices_open {
 	struct visorhba_devdata *devdata;
 };
-
-/*
- * visor_thread_start - Starts a thread for the device
- * @threadfn:   Function the thread starts
- * @thrcontext: Context to pass to the thread, i.e. devdata
- * @name:	String describing name of thread
- *
- * Starts a thread for the device.
- *
- * Return: The task_struct * denoting the thread on success,
- *	   or NULL on failure
- */
-static struct task_struct *visor_thread_start(int (*threadfn)(void *),
-					      void *thrcontext, char *name)
-{
-	struct task_struct *task;
-
-	task = kthread_run(threadfn, thrcontext, "%s", name);
-	if (IS_ERR(task)) {
-		pr_err("visorbus failed to start thread\n");
-		return NULL;
-	}
-	return task;
-}
-
-/*
- * visor_thread_stop - Stops the thread if it is running
- * @task: Description of process to stop
- */
-static void visor_thread_stop(struct task_struct *task)
-{
-	kthread_stop(task);
-}
 
 /*
  * add_scsipending_entry - Save off io command that is pending in
@@ -730,7 +693,7 @@ static void visorhba_serverdown_complete(struct visorhba_devdata *devdata)
 	/* Stop using the IOVM response queue (queue should be drained
 	 * by the end)
 	 */
-	visor_thread_stop(devdata->thread);
+	visorbus_disable_channel_interrupts(devdata->dev);
 
 	/* Fail commands that weren't completed */
 	spin_lock_irqsave(&devdata->privlock, flags);
@@ -952,37 +915,18 @@ static void drain_queue(struct uiscmdrsp *cmdrsp,
 }
 
 /*
- * process_incoming_rsps - Process responses from IOSP
- * @v:  Void pointer to visorhba_devdata
- *
- * Main function for the thread that processes the responses
- * from the IO Service Partition. When the queue is empty, wait
- * to check to see if it is full again.
- *
- * Return: 0 on success, -ENOMEM on failure
+ * This is used only when this driver is active as an hba driver in the
+ * client guest partition.  It is called periodically so we can obtain
+ * and process the command respond from the IO Service Partition periodically.
  */
-static int process_incoming_rsps(void *v)
+static void visorhba_channel_interrupt(struct visor_device *dev)
 {
-	struct visorhba_devdata *devdata = v;
-	struct uiscmdrsp *cmdrsp = NULL;
-	const int size = sizeof(*cmdrsp);
+	struct visorhba_devdata *devdata = dev_get_drvdata(&dev->device);
 
-	cmdrsp = kmalloc(size, GFP_ATOMIC);
-	if (!cmdrsp)
-		return -ENOMEM;
+	if (!devdata)
+		return;
 
-	while (1) {
-		if (kthread_should_stop())
-			break;
-		wait_event_interruptible_timeout(
-			devdata->rsp_queue, (atomic_read(
-					     &devdata->interrupt_rcvd) == 1),
-				msecs_to_jiffies(devdata->thread_wait_ms));
-		/* drain queue */
-		drain_queue(cmdrsp, devdata);
-	}
-	kfree(cmdrsp);
-	return 0;
+	drain_queue(devdata->cmdrsp, devdata);
 }
 
 /*
@@ -1028,8 +972,7 @@ static int visorhba_resume(struct visor_device *dev,
 	if (devdata->serverdown && !devdata->serverchangingstate)
 		devdata->serverchangingstate = true;
 
-	devdata->thread = visor_thread_start(process_incoming_rsps, devdata,
-					     "vhba_incming");
+	visorbus_enable_channel_interrupts(dev);
 	devdata->serverdown = false;
 	devdata->serverchangingstate = false;
 
@@ -1095,7 +1038,6 @@ static int visorhba_probe(struct visor_device *dev)
 		goto err_debugfs_dir;
 	}
 
-	init_waitqueue_head(&devdata->rsp_queue);
 	spin_lock_init(&devdata->privlock);
 	devdata->serverdown = false;
 	devdata->serverchangingstate = false;
@@ -1113,9 +1055,8 @@ static int visorhba_probe(struct visor_device *dev)
 
 	idr_init(&devdata->idr);
 
-	devdata->thread_wait_ms = 2;
-	devdata->thread = visor_thread_start(process_incoming_rsps, devdata,
-					     "vhba_incoming");
+	devdata->cmdrsp = kmalloc(sizeof(*devdata->cmdrsp), GFP_ATOMIC);
+	visorbus_enable_channel_interrupts(dev);
 
 	scsi_scan_host(scsihost);
 
@@ -1150,7 +1091,8 @@ static void visorhba_remove(struct visor_device *dev)
 		return;
 
 	scsihost = devdata->scsihost;
-	visor_thread_stop(devdata->thread);
+	kfree(devdata->cmdrsp);
+	visorbus_disable_channel_interrupts(dev);
 	scsi_remove_host(scsihost);
 	scsi_host_put(scsihost);
 
@@ -1173,7 +1115,7 @@ static struct visor_driver visorhba_driver = {
 	.remove = visorhba_remove,
 	.pause = visorhba_pause,
 	.resume = visorhba_resume,
-	.channel_interrupt = NULL,
+	.channel_interrupt = visorhba_channel_interrupt,
 };
 
 /*

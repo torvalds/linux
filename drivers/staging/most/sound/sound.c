@@ -86,6 +86,8 @@ static void swap_copy24(u8 *dest, const u8 *source, unsigned int bytes)
 {
 	unsigned int i = 0;
 
+	if (bytes < 2)
+		return;
 	while (i < bytes - 2) {
 		dest[i] = source[i + 2];
 		dest[i + 1] = source[i + 1];
@@ -158,9 +160,9 @@ static struct channel *get_channel(struct most_interface *iface,
 				   int channel_id)
 {
 	struct sound_adapter *adpt = iface->priv;
-	struct channel *channel, *tmp;
+	struct channel *channel;
 
-	list_for_each_entry_safe(channel, tmp, &adpt->dev_list, list) {
+	list_for_each_entry(channel, &adpt->dev_list, list) {
 		if ((channel->iface == iface) && (channel->id == channel_id))
 			return channel;
 	}
@@ -525,7 +527,7 @@ static int audio_probe_channel(struct most_interface *iface, int channel_id,
 		pr_err("Incompatible channel type\n");
 		return -EINVAL;
 	}
-	strlcpy(arg_list_cpy, arg_list, STRING_SIZE);
+	strscpy(arg_list_cpy, arg_list, STRING_SIZE);
 	ret = split_arg_list(arg_list_cpy, &ch_num, &sample_res);
 	if (ret < 0)
 		return ret;

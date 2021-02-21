@@ -161,6 +161,14 @@ static const struct inv_mpu6050_hw hw_info[] = {
 		.temp = {INV_MPU6500_TEMP_OFFSET, INV_MPU6500_TEMP_SCALE},
 	},
 	{
+		.whoami = INV_MPU6880_WHOAMI_VALUE,
+		.name = "MPU6880",
+		.reg = &reg_set_6500,
+		.config = &chip_config_6500,
+		.fifo_size = 4096,
+		.temp = {INV_MPU6500_TEMP_OFFSET, INV_MPU6500_TEMP_SCALE},
+	},
+	{
 		.whoami = INV_MPU6000_WHOAMI_VALUE,
 		.name = "MPU6000",
 		.reg = &reg_set_6050,
@@ -1323,6 +1331,7 @@ static int inv_check_and_setup_chip(struct inv_mpu6050_state *st)
 	case INV_MPU6000:
 	case INV_MPU6500:
 	case INV_MPU6515:
+	case INV_MPU6880:
 	case INV_MPU9250:
 	case INV_MPU9255:
 		/* reset signal path (required for spi connection) */

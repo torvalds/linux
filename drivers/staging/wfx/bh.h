@@ -8,10 +8,6 @@
 #ifndef WFX_BH_H
 #define WFX_BH_H
 
-#include <linux/atomic.h>
-#include <linux/wait.h>
-#include <linux/workqueue.h>
-
 struct wfx_dev;
 
 struct wfx_hif {
