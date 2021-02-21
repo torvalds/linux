@@ -10,6 +10,7 @@
 #include <limits.h>
 #include <stdlib.h>
 #include <time.h>
+#include "linux/kernel.h"
 
 #include "test_util.h"
 
@@ -84,7 +85,7 @@ struct timespec timespec_sub(struct timespec ts1, struct timespec ts2)
 	return timespec_add_ns((struct timespec){0}, ns1 - ns2);
 }
 
-struct timespec timespec_diff_now(struct timespec start)
+struct timespec timespec_elapsed(struct timespec start)
 {
 	struct timespec end;
 
@@ -108,4 +109,32 @@ void print_skip(const char *fmt, ...)
 	vprintf(fmt, ap);
 	va_end(ap);
 	puts(", skipping test");
+}
+
+const struct vm_mem_backing_src_alias backing_src_aliases[] = {
+	{"anonymous", VM_MEM_SRC_ANONYMOUS,},
+	{"anonymous_thp", VM_MEM_SRC_ANONYMOUS_THP,},
+	{"anonymous_hugetlb", VM_MEM_SRC_ANONYMOUS_HUGETLB,},
+};
+
+void backing_src_help(void)
+{
+	int i;
+
+	printf("Available backing src types:\n");
+	for (i = 0; i < ARRAY_SIZE(backing_src_aliases); i++)
+		printf("\t%s\n", backing_src_aliases[i].name);
+}
+
+enum vm_mem_backing_src_type parse_backing_src_type(const char *type_name)
+{
+	int i;
+
+	for (i = 0; i < ARRAY_SIZE(backing_src_aliases); i++)
+		if (!strcmp(type_name, backing_src_aliases[i].name))
+			return backing_src_aliases[i].type;
+
+	backing_src_help();
+	TEST_FAIL("Unknown backing src type: %s", type_name);
+	return -1;
 }

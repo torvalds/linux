@@ -75,7 +75,7 @@ bool kvm_mtrr_valid(struct kvm_vcpu *vcpu, u32 msr, u64 data)
 	/* variable MTRRs */
 	WARN_ON(!(msr >= 0x200 && msr < 0x200 + 2 * KVM_NR_VAR_MTRR));
 
-	mask = (~0ULL) << cpuid_maxphyaddr(vcpu);
+	mask = kvm_vcpu_reserved_gpa_bits_raw(vcpu);
 	if ((msr & 1) == 0) {
 		/* MTRR base */
 		if (!valid_mtrr_type(data & 0xff))
@@ -351,14 +351,14 @@ static void set_var_mtrr_msr(struct kvm_vcpu *vcpu, u32 msr, u64 data)
 	if (var_mtrr_range_is_valid(cur))
 		list_del(&mtrr_state->var_ranges[index].node);
 
-	/* Extend the mask with all 1 bits to the left, since those
-	 * bits must implicitly be 0.  The bits are then cleared
-	 * when reading them.
+	/*
+	 * Set all illegal GPA bits in the mask, since those bits must
+	 * implicitly be 0.  The bits are then cleared when reading them.
 	 */
 	if (!is_mtrr_mask)
 		cur->base = data;
 	else
-		cur->mask = data | (-1LL << cpuid_maxphyaddr(vcpu));
+		cur->mask = data | kvm_vcpu_reserved_gpa_bits_raw(vcpu);
 
 	/* add it to the list if it's enabled. */
 	if (var_mtrr_range_is_valid(cur)) {
@@ -426,7 +426,7 @@ int kvm_mtrr_get_msr(struct kvm_vcpu *vcpu, u32 msr, u64 *pdata)
 		else
 			*pdata = vcpu->arch.mtrr_state.var_ranges[index].mask;
 
-		*pdata &= (1ULL << cpuid_maxphyaddr(vcpu)) - 1;
+		*pdata &= ~kvm_vcpu_reserved_gpa_bits_raw(vcpu);
 	}
 
 	return 0;
