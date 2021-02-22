@@ -1155,7 +1155,7 @@ void vmemmap_free(unsigned long start, unsigned long end,
 }
 #endif	/* CONFIG_SPARSEMEM_VMEMMAP */
 
-static inline pud_t * fixmap_pud(unsigned long addr)
+static inline pud_t *fixmap_pud(unsigned long addr)
 {
 	pgd_t *pgdp = pgd_offset_k(addr);
 	p4d_t *p4dp = p4d_offset(pgdp, addr);
@@ -1166,7 +1166,7 @@ static inline pud_t * fixmap_pud(unsigned long addr)
 	return pud_offset_kimg(p4dp, addr);
 }
 
-static inline pmd_t * fixmap_pmd(unsigned long addr)
+static inline pmd_t *fixmap_pmd(unsigned long addr)
 {
 	pud_t *pudp = fixmap_pud(addr);
 	pud_t pud = READ_ONCE(*pudp);
@@ -1176,7 +1176,7 @@ static inline pmd_t * fixmap_pmd(unsigned long addr)
 	return pmd_offset_kimg(pudp, addr);
 }
 
-static inline pte_t * fixmap_pte(unsigned long addr)
+static inline pte_t *fixmap_pte(unsigned long addr)
 {
 	return &bm_pte[pte_index(addr)];
 }
