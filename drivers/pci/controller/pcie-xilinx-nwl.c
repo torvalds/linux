@@ -26,6 +26,7 @@
 
 /* Bridge core config registers */
 #define BRCFG_PCIE_RX0			0x00000000
+#define BRCFG_PCIE_RX1			0x00000004
 #define BRCFG_INTERRUPT			0x00000010
 #define BRCFG_PCIE_RX_MSG_FILTER	0x00000020
 
@@ -128,6 +129,7 @@
 #define NWL_ECAM_VALUE_DEFAULT		12
 
 #define CFG_DMA_REG_BAR			GENMASK(2, 0)
+#define CFG_PCIE_CACHE			GENMASK(7, 0)
 
 #define INT_PCI_MSI_NR			(2 * 32)
 
@@ -674,6 +676,11 @@ static int nwl_pcie_bridge_init(struct nwl_pcie *pcie)
 	/* Enable msg filtering details */
 	nwl_bridge_writel(pcie, CFG_ENABLE_MSG_FILTER_MASK,
 			  BRCFG_PCIE_RX_MSG_FILTER);
+
+	/* This routes the PCIe DMA traffic to go through CCI path */
+	if (of_dma_is_coherent(dev->of_node))
+		nwl_bridge_writel(pcie, nwl_bridge_readl(pcie, BRCFG_PCIE_RX1) |
+				  CFG_PCIE_CACHE, BRCFG_PCIE_RX1);
 
 	err = nwl_wait_for_link(pcie);
 	if (err)
