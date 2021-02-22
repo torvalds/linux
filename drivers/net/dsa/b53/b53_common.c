@@ -1953,19 +1953,20 @@ void b53_br_fast_age(struct dsa_switch *ds, int port)
 }
 EXPORT_SYMBOL(b53_br_fast_age);
 
-static int b53_br_flags_pre(struct dsa_switch *ds, int port,
-			    struct switchdev_brport_flags flags,
-			    struct netlink_ext_ack *extack)
+int b53_br_flags_pre(struct dsa_switch *ds, int port,
+		     struct switchdev_brport_flags flags,
+		     struct netlink_ext_ack *extack)
 {
 	if (flags.mask & ~(BR_FLOOD | BR_MCAST_FLOOD))
 		return -EINVAL;
 
 	return 0;
 }
+EXPORT_SYMBOL(b53_br_flags_pre);
 
-static int b53_br_flags(struct dsa_switch *ds, int port,
-			struct switchdev_brport_flags flags,
-			struct netlink_ext_ack *extack)
+int b53_br_flags(struct dsa_switch *ds, int port,
+		 struct switchdev_brport_flags flags,
+		 struct netlink_ext_ack *extack)
 {
 	if (flags.mask & BR_FLOOD)
 		b53_port_set_ucast_flood(ds->priv, port,
@@ -1976,14 +1977,16 @@ static int b53_br_flags(struct dsa_switch *ds, int port,
 
 	return 0;
 }
+EXPORT_SYMBOL(b53_br_flags);
 
-static int b53_set_mrouter(struct dsa_switch *ds, int port, bool mrouter,
-			   struct netlink_ext_ack *extack)
+int b53_set_mrouter(struct dsa_switch *ds, int port, bool mrouter,
+		    struct netlink_ext_ack *extack)
 {
 	b53_port_set_mcast_flood(ds->priv, port, mrouter);
 
 	return 0;
 }
+EXPORT_SYMBOL(b53_set_mrouter);
 
 static bool b53_possible_cpu_port(struct dsa_switch *ds, int port)
 {
