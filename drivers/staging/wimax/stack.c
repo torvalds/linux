@@ -56,20 +56,6 @@ MODULE_PARM_DESC(debug,
 		 "initial debug value to set.");
 
 /*
- * Authoritative source for the RE_STATE_CHANGE attribute policy
- *
- * We don't really use it here, but /me likes to keep the definition
- * close to where the data is generated.
- */
-/*
-static const struct nla_policy wimax_gnl_re_status_change[WIMAX_GNL_ATTR_MAX + 1] = {
-	[WIMAX_GNL_STCH_STATE_OLD] = { .type = NLA_U8 },
-	[WIMAX_GNL_STCH_STATE_NEW] = { .type = NLA_U8 },
-};
-*/
-
-
-/*
  * Allocate a Report State Change message
  *
  * @header: save it, you need it for _send()
