@@ -29,9 +29,7 @@ struct rk_crypto_soc_data {
 	int				valid_algs_num;
 	struct rk_crypto_tmp		**total_algs;
 	int				total_algs_num;
-	const char * const		*clks;
 	const char * const		*rsts;
-	int				clks_num;
 	int				rsts_num;
 	unsigned int			hw_info_size;
 	bool				use_soft_aes192;
@@ -61,6 +59,7 @@ struct rk_crypto_info {
 	struct scatterlist		sg_tmp;
 	struct scatterlist		*first;
 	struct rk_crypto_soc_data	*soc_data;
+	int clks_num;
 	struct clk_bulk_data		*clk_bulks;
 	unsigned int			left_bytes;
 	void				*addr_vir;
