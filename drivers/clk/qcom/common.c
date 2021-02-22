@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
- * Copyright (c) 2013-2014, 2017-2020, The Linux Foundation.
+ * Copyright (c) 2013-2014, 2017-2021, The Linux Foundation.
  * All rights reserved.
  */
 
@@ -440,7 +440,7 @@ int qcom_clk_get_voltage(struct clk *clk, unsigned long rate)
 	if (vdd_level < 0)
 		return vdd_level;
 
-	return rclk->vdd_data.vdd_class->vdd_uv[vdd_level];
+	return clk_get_vdd_voltage(&rclk->vdd_data, vdd_level);
 }
 EXPORT_SYMBOL(qcom_clk_get_voltage);
 
