@@ -1759,6 +1759,8 @@ static int issue_discard_thread(void *data)
 			wait_ms = dpolicy.max_interval;
 			continue;
 		}
+		if (!atomic_read(&dcc->discard_cmd_cnt))
+			continue;
 
 		if (sbi->gc_mode == GC_URGENT_HIGH)
 			__init_discard_policy(sbi, &dpolicy, DPOLICY_FORCE, 1);
