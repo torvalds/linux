@@ -635,6 +635,7 @@ static int gt1x_ts_remove(struct i2c_client *client)
 #if defined(CONFIG_FB)
 /* frame buffer notifier block control the suspend/resume procedure */
 static struct notifier_block gt1x_fb_notifier;
+static int tp_status;
 
 static int gtp_fb_notifier_callback(struct notifier_block *noti, unsigned long event, void *data)
 {
@@ -646,26 +647,32 @@ static int gtp_fb_notifier_callback(struct notifier_block *noti, unsigned long e
 #error Need add FB_EARLY_EVENT_BLANK to fbmem.c
 #endif
 
-	if (ev_data && ev_data->data && event == FB_EARLY_EVENT_BLANK) {
+	if (ev_data && ev_data->data && event == FB_EARLY_EVENT_BLANK
+	    && tp_status != FB_BLANK_UNBLANK) {
 		blank = ev_data->data;
 		if (*blank == FB_BLANK_UNBLANK) {
+			tp_status = *blank;
 			GTP_DEBUG("Resume by fb notifier.");
 			gt1x_resume();
 		}
 	}
 #else
-	if (ev_data && ev_data->data && event == FB_EVENT_BLANK) {
+	if (ev_data && ev_data->data && event == FB_EVENT_BLANK
+	    && tp_status != FB_BLANK_UNBLANK) {
 		blank = ev_data->data;
 		if (*blank == FB_BLANK_UNBLANK) {
+			tp_status = *blank;
 			GTP_DEBUG("Resume by fb notifier.");
 			gt1x_resume();
 		}
 	}
 #endif
 
-	if (ev_data && ev_data->data && event == FB_EVENT_BLANK) {
+	if (ev_data && ev_data->data && event == FB_EVENT_BLANK
+	    && tp_status == FB_BLANK_UNBLANK) {
 		blank = ev_data->data;
 		if (*blank == FB_BLANK_POWERDOWN) {
+			tp_status = *blank;
 			GTP_DEBUG("Suspend by fb notifier.");
 			gt1x_suspend();
 		}
@@ -723,6 +730,7 @@ static const struct dev_pm_ops gt1x_ts_pm_ops = {
 static int gt1x_register_powermanger(void)
 {
 #if   defined(CONFIG_FB)
+	tp_status = FB_BLANK_UNBLANK;
 	gt1x_fb_notifier.notifier_call = gtp_fb_notifier_callback;
 	fb_register_client(&gt1x_fb_notifier);
 
