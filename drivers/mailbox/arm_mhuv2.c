@@ -699,7 +699,9 @@ static irqreturn_t mhuv2_receiver_interrupt(int irq, void *arg)
 		ret = IRQ_HANDLED;
 	}
 
-	kfree(data);
+	if (!IS_ERR(data))
+		kfree(data);
+
 	return ret;
 }
 
