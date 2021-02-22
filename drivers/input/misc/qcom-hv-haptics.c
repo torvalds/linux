@@ -39,7 +39,7 @@
 #define TLRA_CL_ERR_MSB_MASK			GENMASK(4, 0)
 /* STATUS_DATA_MSB definition in V1 while MOD_STATUS_SEL is 5 */
 #define FIFO_REAL_TIME_FILL_STATUS_MASK_V1	GENMASK(6, 0)
-/* STATUS_DATA_MSB definition in V2 while MOD_STATUS_SEL is 5 */
+/* STATUS_DATA_MSB in V2 when MOD_STATUS_SEL is 5 and MOD_STATUS_XT.SEL is 1 */
 #define FIFO_REAL_TIME_FILL_STATUS_MSB_MASK_V2	GENMASK(1, 0)
 #define FIFO_EMPTY_FLAG_BIT_V2			BIT(6)
 #define FIFO_FULL_FLAG_BIT_V2			BIT(5)
@@ -47,8 +47,10 @@
 #define HAP_CFG_STATUS_DATA_LSB_REG		0x0A
 /* STATUS_DATA_MSB definition while MOD_STATUS_SEL is 0 */
 #define CAL_TLRA_CL_STS_LSB_MASK		GENMASK(7, 0)
-/* STATUS_DATA_LSB definition in V2 while MOD_STATUS_SEL is 5 */
+/* STATUS_DATA_LSB in V2 when MOD_STATUS_SEL is 5 and MOD_STATUS_XT.SEL is 1 */
 #define FIFO_REAL_TIME_FILL_STATUS_LSB_MASK_V2	GENMASK(7, 0)
+/* STATUS_DATA_LSB in V2 when MOD_STATUS_SEL is 5 and MOD_STATUS_XT.SEL is 0 */
+#define HAP_DRV_PATTERN_SRC_STATUS_MASK_V2	GENMASK(2, 0)
 
 #define HAP_CFG_FAULT_STATUS_REG		0x0C
 #define SC_FLAG_BIT				BIT(2)
@@ -271,6 +273,19 @@
 #define HAP_BOOST_CLAMP_5V_REG_OFFSET(chip)	\
 	((chip)->hbst_revision == HAP_BOOST_V0P0 ? \
 	 HAP_BOOST_V0P0_CLAMP_REG : HAP_BOOST_V0P1_CLAMP_REG)
+
+enum hap_status_sel_v2 {
+	CAL_TLRA_CL_STS = 0x00,
+	T_WIND_STS,
+	T_WIND_STS_PREV,
+	LAST_GOOD_TLRA_CL_STS,
+	TLRA_CL_ERR_STS,
+	HAP_DRV_STS,
+	RNAT_RCAL_INT,
+	BRAKE_CAL_SCALAR = 0x07,
+	CLAMPED_DUTY_CYCLE_STS = 0x8003,
+	FIFO_REAL_TIME_STS = 0x8005,
+};
 
 enum drv_sig_shape {
 	WF_SQUARE,
@@ -742,6 +757,29 @@ static int get_brake_play_length_us(struct brake_cfg *brake, u32 t_lra_us)
 	return t_lra_us * (i + 1);
 }
 
+static int haptics_get_status_data(struct haptics_chip *chip,
+			enum hap_status_sel_v2 sel, u8 data[])
+{
+	int rc;
+	u8 mod_sel_val[2];
+
+	mod_sel_val[0] = sel & 0xff;
+	mod_sel_val[1] = (sel >> 8) & 0xff;
+	rc = haptics_write(chip, chip->cfg_addr_base,
+			HAP_CFG_MOD_STATUS_SEL_REG, mod_sel_val, 2);
+	if (rc < 0)
+		return rc;
+
+	rc = haptics_read(chip, chip->cfg_addr_base,
+			HAP_CFG_STATUS_DATA_MSB_REG, data, 2);
+	if (rc < 0)
+		return rc;
+
+	dev_dbg(chip->dev, "Get status data[%x] = (%#x, %#x)\n",
+			sel, data[0], data[1]);
+	return 0;
+}
+
 #define V1_CL_TLRA_STEP_AUTO_RES_CAL_NOT_DONE_NS	5000
 #define V1_CL_TLRA_STEP_AUTO_RES_CAL_DONE_NS		3333
 #define AUTO_CAL_CLK_SCALE_DEN				1000
@@ -1147,6 +1185,21 @@ static int haptics_boost_vreg_enable(struct haptics_chip *chip, bool en)
 	return rc;
 }
 
+static bool is_swr_play_enabled(struct haptics_chip *chip)
+{
+	int rc;
+	u8 val[2];
+
+	rc = haptics_get_status_data(chip, HAP_DRV_STS, val);
+	if (rc < 0)
+		return false;
+
+	if ((val[1] & HAP_DRV_PATTERN_SRC_STATUS_MASK_V2) == SWR)
+		return true;
+
+	return false;
+}
+
 static bool is_boost_vreg_enabled_in_open_loop(struct haptics_chip *chip)
 {
 	int rc;
@@ -1181,6 +1234,20 @@ static int haptics_wait_hboost_ready(struct haptics_chip *chip)
 		/* HBoost is always ready when working in open loop mode */
 		if (is_boost_vreg_enabled_in_open_loop(chip))
 			return 0;
+
+		/*
+		 * If the coming request is not FIFO play and there is
+		 * already a SWR play in the background, then HBoost will
+		 * be kept as on always hence no need to wait its ready.
+		 */
+		mutex_lock(&chip->play.lock);
+		if (chip->play.pattern_src != FIFO &&
+				is_swr_play_enabled(chip)) {
+			dev_dbg(chip->dev, "Ignore waiting hBoost when SWR play is in progress\n");
+			mutex_unlock(&chip->play.lock);
+			return 0;
+		}
+		mutex_unlock(&chip->play.lock);
 
 		/* Check if HBoost is in standby (disabled) state */
 		rc = haptics_read(chip, chip->hbst_addr_base,
