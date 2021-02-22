@@ -235,8 +235,8 @@ static void wg_destruct(struct net_device *dev)
 	destroy_workqueue(wg->handshake_receive_wq);
 	destroy_workqueue(wg->handshake_send_wq);
 	destroy_workqueue(wg->packet_crypt_wq);
-	wg_packet_queue_free(&wg->decrypt_queue, true);
-	wg_packet_queue_free(&wg->encrypt_queue, true);
+	wg_packet_queue_free(&wg->decrypt_queue);
+	wg_packet_queue_free(&wg->encrypt_queue);
 	rcu_barrier(); /* Wait for all the peers to be actually freed. */
 	wg_ratelimiter_uninit();
 	memzero_explicit(&wg->static_identity, sizeof(wg->static_identity));
@@ -338,12 +338,12 @@ static int wg_newlink(struct net *src_net, struct net_device *dev,
 		goto err_destroy_handshake_send;
 
 	ret = wg_packet_queue_init(&wg->encrypt_queue, wg_packet_encrypt_worker,
-				   true, MAX_QUEUED_PACKETS);
+				   MAX_QUEUED_PACKETS);
 	if (ret < 0)
 		goto err_destroy_packet_crypt;
 
 	ret = wg_packet_queue_init(&wg->decrypt_queue, wg_packet_decrypt_worker,
-				   true, MAX_QUEUED_PACKETS);
+				   MAX_QUEUED_PACKETS);
 	if (ret < 0)
 		goto err_free_encrypt_queue;
 
@@ -368,9 +368,9 @@ static int wg_newlink(struct net *src_net, struct net_device *dev,
 err_uninit_ratelimiter:
 	wg_ratelimiter_uninit();
 err_free_decrypt_queue:
-	wg_packet_queue_free(&wg->decrypt_queue, true);
+	wg_packet_queue_free(&wg->decrypt_queue);
 err_free_encrypt_queue:
-	wg_packet_queue_free(&wg->encrypt_queue, true);
+	wg_packet_queue_free(&wg->encrypt_queue);
 err_destroy_packet_crypt:
 	destroy_workqueue(wg->packet_crypt_wq);
 err_destroy_handshake_send:
