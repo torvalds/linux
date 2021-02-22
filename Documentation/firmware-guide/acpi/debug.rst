@@ -55,7 +55,6 @@ shows the supported mask values, currently these::
     ACPI_SBS_COMPONENT              0x00100000
     ACPI_FAN_COMPONENT              0x00200000
     ACPI_CONTAINER_COMPONENT        0x01000000
-    ACPI_SYSTEM_COMPONENT           0x02000000
     ACPI_MEMORY_DEVICE_COMPONENT    0x08000000
 
 debug_level
