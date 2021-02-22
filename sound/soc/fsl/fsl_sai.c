@@ -10,6 +10,7 @@
 #include <linux/module.h>
 #include <linux/of_address.h>
 #include <linux/of_device.h>
+#include <linux/pm_qos.h>
 #include <linux/pm_runtime.h>
 #include <linux/regmap.h>
 #include <linux/slab.h>
@@ -1177,6 +1178,7 @@ static const struct fsl_sai_soc_data fsl_sai_vf610_data = {
 	.fifo_depth = 32,
 	.reg_offset = 0,
 	.mclk0_is_mclk1 = false,
+	.flags = 0,
 };
 
 static const struct fsl_sai_soc_data fsl_sai_imx6sx_data = {
@@ -1185,6 +1187,7 @@ static const struct fsl_sai_soc_data fsl_sai_imx6sx_data = {
 	.fifo_depth = 32,
 	.reg_offset = 0,
 	.mclk0_is_mclk1 = true,
+	.flags = 0,
 };
 
 static const struct fsl_sai_soc_data fsl_sai_imx7ulp_data = {
@@ -1193,6 +1196,7 @@ static const struct fsl_sai_soc_data fsl_sai_imx7ulp_data = {
 	.fifo_depth = 16,
 	.reg_offset = 8,
 	.mclk0_is_mclk1 = false,
+	.flags = PMQOS_CPU_LATENCY,
 };
 
 static const struct fsl_sai_soc_data fsl_sai_imx8mq_data = {
@@ -1201,6 +1205,7 @@ static const struct fsl_sai_soc_data fsl_sai_imx8mq_data = {
 	.fifo_depth = 128,
 	.reg_offset = 8,
 	.mclk0_is_mclk1 = false,
+	.flags = 0,
 };
 
 static const struct fsl_sai_soc_data fsl_sai_imx8qm_data = {
@@ -1209,6 +1214,7 @@ static const struct fsl_sai_soc_data fsl_sai_imx8qm_data = {
 	.fifo_depth = 64,
 	.reg_offset = 0,
 	.mclk0_is_mclk1 = false,
+	.flags = 0,
 };
 
 static const struct of_device_id fsl_sai_ids[] = {
@@ -1234,6 +1240,9 @@ static int fsl_sai_runtime_suspend(struct device *dev)
 		clk_disable_unprepare(sai->mclk_clk[sai->mclk_id[1]]);
 
 	clk_disable_unprepare(sai->bus_clk);
+
+	if (sai->soc_data->flags & PMQOS_CPU_LATENCY)
+		cpu_latency_qos_remove_request(&sai->pm_qos_req);
 
 	regcache_cache_only(sai->regmap, true);
 
@@ -1263,6 +1272,9 @@ static int fsl_sai_runtime_resume(struct device *dev)
 		if (ret)
 			goto disable_tx_clk;
 	}
+
+	if (sai->soc_data->flags & PMQOS_CPU_LATENCY)
+		cpu_latency_qos_add_request(&sai->pm_qos_req, 0);
 
 	regcache_cache_only(sai->regmap, false);
 	regcache_mark_dirty(sai->regmap);
