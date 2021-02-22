@@ -81,6 +81,24 @@
 
 #define smnPCIE_ESM_CTRL			0x111003D0
 
+#define mmCG_FDO_CTRL0_ARCT			0x8B
+#define mmCG_FDO_CTRL0_ARCT_BASE_IDX		0
+
+#define mmCG_FDO_CTRL1_ARCT			0x8C
+#define mmCG_FDO_CTRL1_ARCT_BASE_IDX		0
+
+#define mmCG_FDO_CTRL2_ARCT			0x8D
+#define mmCG_FDO_CTRL2_ARCT_BASE_IDX		0
+
+#define mmCG_TACH_CTRL_ARCT			0x8E
+#define mmCG_TACH_CTRL_ARCT_BASE_IDX		0
+
+#define mmCG_TACH_STATUS_ARCT			0x8F
+#define mmCG_TACH_STATUS_ARCT_BASE_IDX		0
+
+#define mmCG_THERMAL_STATUS_ARCT		0x90
+#define mmCG_THERMAL_STATUS_ARCT_BASE_IDX	0
+
 static const struct cmn2asic_msg_mapping arcturus_message_map[SMU_MSG_MAX_COUNT] = {
 	MSG_MAP(TestMessage,			     PPSMC_MSG_TestMessage,			0),
 	MSG_MAP(GetSmuVersion,			     PPSMC_MSG_GetSmuVersion,			1),
@@ -1162,9 +1180,28 @@ static int arcturus_read_sensor(struct smu_context *smu,
 	return ret;
 }
 
+static int arcturus_set_fan_static_mode(struct smu_context *smu,
+					uint32_t mode)
+{
+	struct amdgpu_device *adev = smu->adev;
+
+	WREG32_SOC15(THM, 0, mmCG_FDO_CTRL2_ARCT,
+		     REG_SET_FIELD(RREG32_SOC15(THM, 0, mmCG_FDO_CTRL2_ARCT),
+				   CG_FDO_CTRL2, TMIN, 0));
+	WREG32_SOC15(THM, 0, mmCG_FDO_CTRL2_ARCT,
+		     REG_SET_FIELD(RREG32_SOC15(THM, 0, mmCG_FDO_CTRL2_ARCT),
+				   CG_FDO_CTRL2, FDO_PWM_MODE, mode));
+
+	return 0;
+}
+
 static int arcturus_get_fan_speed_rpm(struct smu_context *smu,
 				      uint32_t *speed)
 {
+	struct amdgpu_device *adev = smu->adev;
+	uint32_t crystal_clock_freq = 2500;
+	uint32_t tach_status;
+	uint64_t tmp64;
 	int ret = 0;
 
 	if (!speed)
@@ -1177,12 +1214,103 @@ static int arcturus_get_fan_speed_rpm(struct smu_context *smu,
 						    speed);
 		break;
 	default:
-		ret = smu_v11_0_get_fan_speed_rpm(smu,
-						  speed);
+		/*
+		 * For pre Sienna Cichlid ASICs, the 0 RPM may be not correctly
+		 * detected via register retrieving. To workaround this, we will
+		 * report the fan speed as 0 RPM if user just requested such.
+		 */
+		if ((smu->user_dpm_profile.flags & SMU_CUSTOM_FAN_SPEED_RPM)
+		     && !smu->user_dpm_profile.fan_speed_rpm) {
+			*speed = 0;
+			return 0;
+		}
+
+		tmp64 = (uint64_t)crystal_clock_freq * 60 * 10000;
+		tach_status = RREG32_SOC15(THM, 0, mmCG_TACH_STATUS_ARCT);
+		do_div(tmp64, tach_status);
+		*speed = (uint32_t)tmp64;
+
 		break;
 	}
 
 	return ret;
+}
+
+static int arcturus_set_fan_speed_pwm(struct smu_context *smu,
+				      uint32_t speed)
+{
+	struct amdgpu_device *adev = smu->adev;
+	uint32_t duty100, duty;
+	uint64_t tmp64;
+
+	speed = MIN(speed, 255);
+
+	duty100 = REG_GET_FIELD(RREG32_SOC15(THM, 0, mmCG_FDO_CTRL1_ARCT),
+				CG_FDO_CTRL1, FMAX_DUTY100);
+	if (!duty100)
+		return -EINVAL;
+
+	tmp64 = (uint64_t)speed * duty100;
+	do_div(tmp64, 255);
+	duty = (uint32_t)tmp64;
+
+	WREG32_SOC15(THM, 0, mmCG_FDO_CTRL0_ARCT,
+		     REG_SET_FIELD(RREG32_SOC15(THM, 0, mmCG_FDO_CTRL0_ARCT),
+				   CG_FDO_CTRL0, FDO_STATIC_DUTY, duty));
+
+	return arcturus_set_fan_static_mode(smu, FDO_PWM_MODE_STATIC);
+}
+
+static int arcturus_set_fan_speed_rpm(struct smu_context *smu,
+				      uint32_t speed)
+{
+	struct amdgpu_device *adev = smu->adev;
+	/*
+	 * crystal_clock_freq used for fan speed rpm calculation is
+	 * always 25Mhz. So, hardcode it as 2500(in 10K unit).
+	 */
+	uint32_t crystal_clock_freq = 2500;
+	uint32_t tach_period;
+
+	tach_period = 60 * crystal_clock_freq * 10000 / (8 * speed);
+	WREG32_SOC15(THM, 0, mmCG_TACH_CTRL_ARCT,
+		     REG_SET_FIELD(RREG32_SOC15(THM, 0, mmCG_TACH_CTRL_ARCT),
+				   CG_TACH_CTRL, TARGET_PERIOD,
+				   tach_period));
+
+	return arcturus_set_fan_static_mode(smu, FDO_PWM_MODE_STATIC_RPM);
+}
+
+static int arcturus_get_fan_speed_pwm(struct smu_context *smu,
+				      uint32_t *speed)
+{
+	struct amdgpu_device *adev = smu->adev;
+	uint32_t duty100, duty;
+	uint64_t tmp64;
+
+	/*
+	 * For pre Sienna Cichlid ASICs, the 0 RPM may be not correctly
+	 * detected via register retrieving. To workaround this, we will
+	 * report the fan speed as 0 PWM if user just requested such.
+	 */
+	if ((smu->user_dpm_profile.flags & SMU_CUSTOM_FAN_SPEED_PWM)
+	     && !smu->user_dpm_profile.fan_speed_pwm) {
+		*speed = 0;
+		return 0;
+	}
+
+	duty100 = REG_GET_FIELD(RREG32_SOC15(THM, 0, mmCG_FDO_CTRL1_ARCT),
+				CG_FDO_CTRL1, FMAX_DUTY100);
+	duty = REG_GET_FIELD(RREG32_SOC15(THM, 0, mmCG_THERMAL_STATUS_ARCT),
+				CG_THERMAL_STATUS, FDO_PWM_DUTY);
+	if (!duty100)
+		return -EINVAL;
+
+	tmp64 = (uint64_t)duty * 255;
+	do_div(tmp64, duty100);
+	*speed = MIN((uint32_t)tmp64, 255);
+
+	return 0;
 }
 
 static int arcturus_get_fan_parameters(struct smu_context *smu)
@@ -2270,7 +2398,7 @@ static const struct pptable_funcs arcturus_ppt_funcs = {
 	.print_clk_levels = arcturus_print_clk_levels,
 	.force_clk_levels = arcturus_force_clk_levels,
 	.read_sensor = arcturus_read_sensor,
-	.get_fan_speed_pwm = smu_v11_0_get_fan_speed_pwm,
+	.get_fan_speed_pwm = arcturus_get_fan_speed_pwm,
 	.get_fan_speed_rpm = arcturus_get_fan_speed_rpm,
 	.get_power_profile_mode = arcturus_get_power_profile_mode,
 	.set_power_profile_mode = arcturus_set_power_profile_mode,
@@ -2316,8 +2444,8 @@ static const struct pptable_funcs arcturus_ppt_funcs = {
 	.display_clock_voltage_request = smu_v11_0_display_clock_voltage_request,
 	.get_fan_control_mode = smu_v11_0_get_fan_control_mode,
 	.set_fan_control_mode = smu_v11_0_set_fan_control_mode,
-	.set_fan_speed_pwm = smu_v11_0_set_fan_speed_pwm,
-	.set_fan_speed_rpm = smu_v11_0_set_fan_speed_rpm,
+	.set_fan_speed_pwm = arcturus_set_fan_speed_pwm,
+	.set_fan_speed_rpm = arcturus_set_fan_speed_rpm,
 	.set_xgmi_pstate = smu_v11_0_set_xgmi_pstate,
 	.gfx_off_control = smu_v11_0_gfx_off_control,
 	.register_irq_handler = smu_v11_0_register_irq_handler,
