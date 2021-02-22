@@ -96,8 +96,8 @@
 #define MT_WF_MIB_BASE(_band)		((_band) ? 0xa4800 : 0x24800)
 #define MT_WF_MIB(_band, ofs)		(MT_WF_MIB_BASE(_band) + (ofs))
 
-#define MT_MIB_SDR3(_band)		MT_WF_MIB(_band, 0x014)
-#define MT_MIB_SDR3_FCS_ERR_MASK	GENMASK(15, 0)
+#define MT_MIB_SDR3(_band)		MT_WF_MIB(_band, 0x698)
+#define MT_MIB_SDR3_FCS_ERR_MASK	GENMASK(31, 16)
 
 #define MT_MIB_SDR9(_band)		MT_WF_MIB(_band, 0x02c)
 #define MT_MIB_SDR9_BUSY_MASK		GENMASK(23, 0)
@@ -121,9 +121,14 @@
 #define MT_MIB_RTS_RETRIES_COUNT_MASK	GENMASK(31, 16)
 #define MT_MIB_RTS_COUNT_MASK		GENMASK(15, 0)
 
-#define MT_MIB_MB_SDR1(_band, n)	MT_WF_MIB(_band, 0x104 + ((n) << 4))
-#define MT_MIB_BA_MISS_COUNT_MASK	GENMASK(15, 0)
-#define MT_MIB_ACK_FAIL_COUNT_MASK	GENMASK(31, 16)
+#define MT_MIB_MB_BSDR0(_band)		MT_WF_MIB(_band, 0x688)
+#define MT_MIB_RTS_COUNT_MASK		GENMASK(15, 0)
+#define MT_MIB_MB_BSDR1(_band)		MT_WF_MIB(_band, 0x690)
+#define MT_MIB_RTS_FAIL_COUNT_MASK	GENMASK(15, 0)
+#define MT_MIB_MB_BSDR2(_band)		MT_WF_MIB(_band, 0x518)
+#define MT_MIB_BA_FAIL_COUNT_MASK	GENMASK(15, 0)
+#define MT_MIB_MB_BSDR3(_band)		MT_WF_MIB(_band, 0x520)
+#define MT_MIB_ACK_FAIL_COUNT_MASK	GENMASK(15, 0)
 
 #define MT_MIB_MB_SDR2(_band, n)	MT_WF_MIB(_band, 0x108 + ((n) << 4))
 #define MT_MIB_FRAME_RETRIES_COUNT_MASK	GENMASK(15, 0)
