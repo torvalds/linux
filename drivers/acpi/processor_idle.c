@@ -31,9 +31,6 @@
 #include <asm/apic.h>
 #endif
 
-#define _COMPONENT              ACPI_PROCESSOR_COMPONENT
-ACPI_MODULE_NAME("processor_idle");
-
 #define ACPI_IDLE_STATE_START	(IS_ENABLED(CONFIG_ARCH_HAS_CPU_RELAX) ? 1 : 0)
 
 static unsigned int max_cstate __read_mostly = ACPI_PROCESSOR_MAX_POWER;
@@ -239,8 +236,8 @@ static int acpi_processor_get_power_info_fadt(struct acpi_processor *pr)
 	 * 100 microseconds.
 	 */
 	if (acpi_gbl_FADT.c2_latency > ACPI_PROCESSOR_MAX_C2_LATENCY) {
-		ACPI_DEBUG_PRINT((ACPI_DB_INFO,
-			"C2 latency too large [%d]\n", acpi_gbl_FADT.c2_latency));
+		acpi_handle_debug(pr->handle, "C2 latency too large [%d]\n",
+				  acpi_gbl_FADT.c2_latency);
 		/* invalidate C2 */
 		pr->power.states[ACPI_STATE_C2].address = 0;
 	}
@@ -250,16 +247,15 @@ static int acpi_processor_get_power_info_fadt(struct acpi_processor *pr)
 	 * 1000 microseconds.
 	 */
 	if (acpi_gbl_FADT.c3_latency > ACPI_PROCESSOR_MAX_C3_LATENCY) {
-		ACPI_DEBUG_PRINT((ACPI_DB_INFO,
-			"C3 latency too large [%d]\n", acpi_gbl_FADT.c3_latency));
+		acpi_handle_debug(pr->handle, "C3 latency too large [%d]\n",
+				  acpi_gbl_FADT.c3_latency);
 		/* invalidate C3 */
 		pr->power.states[ACPI_STATE_C3].address = 0;
 	}
 
-	ACPI_DEBUG_PRINT((ACPI_DB_INFO,
-			  "lvl2[0x%08x] lvl3[0x%08x]\n",
+	acpi_handle_debug(pr->handle, "lvl2[0x%08x] lvl3[0x%08x]\n",
 			  pr->power.states[ACPI_STATE_C2].address,
-			  pr->power.states[ACPI_STATE_C3].address));
+			  pr->power.states[ACPI_STATE_C3].address);
 
 	snprintf(pr->power.states[ACPI_STATE_C2].desc,
 			 ACPI_CX_DESC_LEN, "ACPI P_LVL2 IOPORT 0x%x",
@@ -324,8 +320,8 @@ static void acpi_processor_power_verify_c3(struct acpi_processor *pr,
 	 * devices thus we take the conservative approach.
 	 */
 	else if (errata.piix4.fdma) {
-		ACPI_DEBUG_PRINT((ACPI_DB_INFO,
-				  "C3 not supported on PIIX4 with Type-F DMA\n"));
+		acpi_handle_debug(pr->handle,
+				  "C3 not supported on PIIX4 with Type-F DMA\n");
 		return;
 	}
 
@@ -344,13 +340,13 @@ static void acpi_processor_power_verify_c3(struct acpi_processor *pr,
 		if (!pr->flags.bm_control) {
 			if (pr->flags.has_cst != 1) {
 				/* bus mastering control is necessary */
-				ACPI_DEBUG_PRINT((ACPI_DB_INFO,
-					"C3 support requires BM control\n"));
+				acpi_handle_debug(pr->handle,
+						  "C3 support requires BM control\n");
 				return;
 			} else {
 				/* Here we enter C3 without bus mastering */
-				ACPI_DEBUG_PRINT((ACPI_DB_INFO,
-					"C3 support without BM control\n"));
+				acpi_handle_debug(pr->handle,
+						  "C3 support without BM control\n");
 			}
 		}
 	} else {
@@ -359,9 +355,9 @@ static void acpi_processor_power_verify_c3(struct acpi_processor *pr,
 		 * supported on when bm_check is not required.
 		 */
 		if (!(acpi_gbl_FADT.flags & ACPI_FADT_WBINVD)) {
-			ACPI_DEBUG_PRINT((ACPI_DB_INFO,
+			acpi_handle_debug(pr->handle,
 					  "Cache invalidation should work properly"
-					  " for C3 to be enabled on SMP systems\n"));
+					  " for C3 to be enabled on SMP systems\n");
 			return;
 		}
 	}
@@ -843,7 +839,7 @@ static int acpi_processor_evaluate_lpi(acpi_handle handle,
 
 	status = acpi_evaluate_object(handle, "_LPI", NULL, &buffer);
 	if (ACPI_FAILURE(status)) {
-		ACPI_DEBUG_PRINT((ACPI_DB_INFO, "No _LPI, giving up\n"));
+		acpi_handle_debug(handle, "No _LPI, giving up\n");
 		return -ENODEV;
 	}
 

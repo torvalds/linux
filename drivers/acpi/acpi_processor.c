@@ -22,10 +22,6 @@
 
 #include "internal.h"
 
-#define _COMPONENT	ACPI_PROCESSOR_COMPONENT
-
-ACPI_MODULE_NAME("processor");
-
 DEFINE_PER_CPU(struct acpi_processor *, processors);
 EXPORT_PER_CPU_SYMBOL(processors);
 
@@ -51,19 +47,19 @@ static int acpi_processor_errata_piix4(struct pci_dev *dev)
 
 	switch (dev->revision) {
 	case 0:
-		ACPI_DEBUG_PRINT((ACPI_DB_INFO, "Found PIIX4 A-step\n"));
+		dev_dbg(&dev->dev, "Found PIIX4 A-step\n");
 		break;
 	case 1:
-		ACPI_DEBUG_PRINT((ACPI_DB_INFO, "Found PIIX4 B-step\n"));
+		dev_dbg(&dev->dev, "Found PIIX4 B-step\n");
 		break;
 	case 2:
-		ACPI_DEBUG_PRINT((ACPI_DB_INFO, "Found PIIX4E\n"));
+		dev_dbg(&dev->dev, "Found PIIX4E\n");
 		break;
 	case 3:
-		ACPI_DEBUG_PRINT((ACPI_DB_INFO, "Found PIIX4M\n"));
+		dev_dbg(&dev->dev, "Found PIIX4M\n");
 		break;
 	default:
-		ACPI_DEBUG_PRINT((ACPI_DB_INFO, "Found unknown PIIX4\n"));
+		dev_dbg(&dev->dev, "Found unknown PIIX4\n");
 		break;
 	}
 
@@ -129,11 +125,9 @@ static int acpi_processor_errata_piix4(struct pci_dev *dev)
 	}
 
 	if (errata.piix4.bmisx)
-		ACPI_DEBUG_PRINT((ACPI_DB_INFO,
-				  "Bus master activity detection (BM-IDE) erratum enabled\n"));
+		dev_dbg(&dev->dev, "Bus master activity detection (BM-IDE) erratum enabled\n");
 	if (errata.piix4.fdma)
-		ACPI_DEBUG_PRINT((ACPI_DB_INFO,
-				  "Type-F DMA livelock erratum (C3 disabled)\n"));
+		dev_dbg(&dev->dev, "Type-F DMA livelock erratum (C3 disabled)\n");
 
 	return 0;
 }
@@ -244,11 +238,9 @@ static int acpi_processor_get_info(struct acpi_device *device)
 	 */
 	if (acpi_gbl_FADT.pm2_control_block && acpi_gbl_FADT.pm2_control_length) {
 		pr->flags.bm_control = 1;
-		ACPI_DEBUG_PRINT((ACPI_DB_INFO,
-				  "Bus mastering arbitration control present\n"));
+		dev_dbg(&device->dev, "Bus mastering arbitration control present\n");
 	} else
-		ACPI_DEBUG_PRINT((ACPI_DB_INFO,
-				  "No bus mastering arbitration control\n"));
+		dev_dbg(&device->dev, "No bus mastering arbitration control\n");
 
 	if (!strcmp(acpi_device_hid(device), ACPI_PROCESSOR_OBJECT_HID)) {
 		/* Declared with "Processor" statement; match ProcessorID */
@@ -291,7 +283,7 @@ static int acpi_processor_get_info(struct acpi_device *device)
 	pr->phys_id = acpi_get_phys_id(pr->handle, device_declaration,
 					pr->acpi_id);
 	if (invalid_phys_cpuid(pr->phys_id))
-		acpi_handle_debug(pr->handle, "failed to get CPU physical ID.\n");
+		dev_dbg(&device->dev, "Failed to get CPU physical ID.\n");
 
 	pr->id = acpi_map_cpuid(pr->phys_id, pr->acpi_id);
 	if (!cpu0_initialized && !acpi_has_cpu_in_madt()) {
@@ -328,11 +320,10 @@ static int acpi_processor_get_info(struct acpi_device *device)
 	 * CPU+CPU ID.
 	 */
 	sprintf(acpi_device_bid(device), "CPU%X", pr->id);
-	ACPI_DEBUG_PRINT((ACPI_DB_INFO, "Processor [%d:%d]\n", pr->id,
-			  pr->acpi_id));
+	dev_dbg(&device->dev, "Processor [%d:%d]\n", pr->id, pr->acpi_id);
 
 	if (!object.processor.pblk_address)
-		ACPI_DEBUG_PRINT((ACPI_DB_INFO, "No PBLK (NULL address)\n"));
+		dev_dbg(&device->dev, "No PBLK (NULL address)\n");
 	else if (object.processor.pblk_length != 6)
 		dev_err(&device->dev, "Invalid PBLK length [%d]\n",
 			    object.processor.pblk_length);

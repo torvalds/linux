@@ -58,7 +58,6 @@ shows the supported mask values, currently these::
     ACPI_CONTAINER_COMPONENT        0x01000000
     ACPI_SYSTEM_COMPONENT           0x02000000
     ACPI_MEMORY_DEVICE_COMPONENT    0x08000000
-    ACPI_PROCESSOR_COMPONENT        0x20000000
 
 debug_level
 ===========
