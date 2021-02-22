@@ -235,10 +235,8 @@
 
 &ebc {
 	/* clock rate 1000M/n, (n=1~32) */
-	//assigned-clocks = <&cru HCLK_EBC>, <&cru CPLL_333M>, <&cru DCLK_EBC>;
-	//assigned-clock-rates = <300000000>, <250000000>, <250000000>;
-	//assigned-clock-rates = <300000000>, <100000000>, <100000000>;
 	assigned-clocks = <&cru CPLL_333M>, <&cru DCLK_EBC>;
+	//assigned-clock-rates = <340000000>, <340000000>;
 	assigned-clock-rates = <250000000>, <250000000>;
 	status = "okay";
 };
@@ -250,6 +248,8 @@
 	/* ED097TC2U1 */
 	panel,width = <1200>;
 	panel,height = <825>;
+	panel,vir_width = <1200>;
+	panel,vir_height = <825>;
 	panel,sdck = <25000000>;
 	panel,lsl = <4>;
 	panel,lbl = <4>;
@@ -266,10 +266,13 @@
 	panel,panel_color = <0>;
 	panel,width-mm = <203>;
 	panel,height-mm = <140>;
-#else
+#endif
+#if 1
 	/* ES103TC1 */
 	panel,width = <1872>;
 	panel,height = <1404>;
+	panel,vir_width = <1872>;
+	panel,vir_height = <1404>;
 	panel,sdck = <33300000>;
 	panel,lsl = <18>;
 	panel,lbl = <17>;
@@ -281,6 +284,29 @@
 	panel,fbl = <4>;
 	panel,fdl = <1404>;
 	panel,fel = <12>;
+	panel,mirror = <0>;
+	panel,panel_16bit = <1>;
+	panel,panel_color = <0>;
+	panel,width-mm = <157>;
+	panel,height-mm = <210>;
+#endif
+#if 0
+	/* ES133TC1 */
+	panel,width = <2200>;
+	panel,height = <1650>;
+	panel,vir_width = <2208>;
+	panel,vir_height = <1650>;
+	panel,sdck = <37500000>;
+	panel,lsl = <4>;
+	panel,lbl = <8>;
+	panel,ldl = <275>;
+	panel,lel = <14>;
+	panel,gdck-sta = <34>;
+	panel,lgonl = <217>;
+	panel,fsl = <1>;
+	panel,fbl = <4>;
+	panel,fdl = <1650>;
+	panel,fel = <6>;
 	panel,mirror = <0>;
 	panel,panel_16bit = <1>;
 	panel,panel_color = <0>;
@@ -661,10 +687,6 @@
 			status = "okay";
 		};
 	};
-};
-
-&gpu_opp_table {
-	/delete-node/ opp-200000000;
 };
 
 &i2c1 {

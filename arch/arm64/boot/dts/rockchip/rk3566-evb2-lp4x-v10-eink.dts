@@ -53,6 +53,8 @@
 	/* ED097TC2U1 */
 	panel,width = <1200>;
 	panel,height = <825>;
+	panel,vir_width = <1200>;
+	panel,vir_height = <825>;
 	panel,sdck = <25000000>;
 	panel,lsl = <4>;
 	panel,lbl = <4>;
@@ -74,6 +76,8 @@
 	/* ES103TC1 */
 	panel,width = <1872>;
 	panel,height = <1404>;
+	panel,vir_width = <1872>;
+	panel,vir_height = <1404>;
 	panel,sdck = <33300000>;
 	panel,lsl = <18>;
 	panel,lbl = <17>;
@@ -95,6 +99,8 @@
 	/* ES133TC1 */
 	panel,width = <2200>;
 	panel,height = <1650>;
+	panel,vir_width = <2208>;
+	panel,vir_height = <1650>;
 	panel,sdck = <37500000>;
 	panel,lsl = <4>;
 	panel,lbl = <8>;
@@ -112,14 +118,32 @@
 	panel,width-mm = <157>;
 	panel,height-mm = <210>;
 #endif
+#if 0
+	panel,width = <2232>;
+	panel,height = <1680>;
+	panel,vir_width = <2240>;
+	panel,vir_height = <1680>;
+	panel,sdck = <33300000>;
+	panel,lsl = <4>;
+	panel,lbl = <8>;
+	panel,ldl = <279>;
+	panel,lel = <14>;
+	panel,gdck-sta = <34>;
+	panel,lgonl = <217>;
+	panel,fsl = <1>;
+	panel,fbl = <4>;
+	panel,fdl = <1680>;
+	panel,fel = <6>;
+	panel,mirror = <0>;
+	panel,panel_16bit = <1>;
+	panel,panel_color = <0>;
+	panel,width-mm = <157>;
+	panel,height-mm = <210>;
+#endif
 };
 
 &gmac1 {
 	status = "disabled";
-};
-
-&gpu_opp_table {
-	/delete-node/ opp-200000000;
 };
 
 &gt1x {

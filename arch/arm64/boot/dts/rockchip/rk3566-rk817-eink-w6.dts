@@ -181,6 +181,8 @@
 	/* ED060XCD */
 	panel,width = <1024>;
 	panel,height = <758>;
+	panel,vir_width = <1024>;
+	panel,vir_height = <758>;
 	panel,sdck = <20000000>;
 	panel,lsl = <6>;
 	panel,lbl = <6>;
@@ -554,10 +556,6 @@
 			gate_function_disable = <1>;
 		};
 	};
-};
-
-&gpu_opp_table {
-	/delete-node/ opp-200000000;
 };
 
 &i2c1 {
