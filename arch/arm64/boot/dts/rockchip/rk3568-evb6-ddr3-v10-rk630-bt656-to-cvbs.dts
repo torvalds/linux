@@ -46,18 +46,6 @@
 	status = "okay";
 
 	ports {
-		port@0 {
-			reg = <0>;
-			#address-cells = <1>;
-			#size-cells = <0>;
-
-			rgb_in_vp2: endpoint@0 {
-				status = "okay";
-				reg = <0>;
-				remote-endpoint = <&vp2_out_rgb>;
-			};
-		};
-
 		port@1 {
 			reg = <1>;
 			#address-cells = <1>;
@@ -69,6 +57,10 @@
 			};
 		};
 	};
+};
+
+&rgb_in_vp2 {
+	status = "okay";
 };
 
 &vcc3v3_lcd1_n {
