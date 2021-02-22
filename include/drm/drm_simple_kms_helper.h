@@ -117,7 +117,7 @@ struct drm_simple_display_pipe_funcs {
 	 * more details.
 	 *
 	 * Drivers which always have their buffers pinned should use
-	 * drm_gem_fb_simple_display_pipe_prepare_fb() for this hook.
+	 * drm_gem_simple_display_pipe_prepare_fb() for this hook.
 	 */
 	int (*prepare_fb)(struct drm_simple_display_pipe *pipe,
 			  struct drm_plane_state *plane_state);

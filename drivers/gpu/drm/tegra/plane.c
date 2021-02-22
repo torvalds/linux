@@ -8,7 +8,7 @@
 #include <drm/drm_atomic.h>
 #include <drm/drm_atomic_helper.h>
 #include <drm/drm_fourcc.h>
-#include <drm/drm_gem_framebuffer_helper.h>
+#include <drm/drm_gem_atomic_helper.h>
 #include <drm/drm_plane_helper.h>
 
 #include "dc.h"
@@ -198,7 +198,7 @@ int tegra_plane_prepare_fb(struct drm_plane *plane,
 	if (!state->fb)
 		return 0;
 
-	drm_gem_fb_prepare_fb(plane, state);
+	drm_gem_plane_helper_prepare_fb(plane, state);
 
 	return tegra_dc_pin(dc, to_tegra_plane_state(state));
 }

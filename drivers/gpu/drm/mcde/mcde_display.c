@@ -13,8 +13,8 @@
 #include <drm/drm_device.h>
 #include <drm/drm_fb_cma_helper.h>
 #include <drm/drm_fourcc.h>
+#include <drm/drm_gem_atomic_helper.h>
 #include <drm/drm_gem_cma_helper.h>
-#include <drm/drm_gem_framebuffer_helper.h>
 #include <drm/drm_mipi_dsi.h>
 #include <drm/drm_simple_kms_helper.h>
 #include <drm/drm_bridge.h>
@@ -1479,7 +1479,7 @@ static struct drm_simple_display_pipe_funcs mcde_display_funcs = {
 	.update = mcde_display_update,
 	.enable_vblank = mcde_display_enable_vblank,
 	.disable_vblank = mcde_display_disable_vblank,
-	.prepare_fb = drm_gem_fb_simple_display_pipe_prepare_fb,
+	.prepare_fb = drm_gem_simple_display_pipe_prepare_fb,
 };
 
 int mcde_display_init(struct drm_device *drm)

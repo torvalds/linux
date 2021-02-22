@@ -13,7 +13,7 @@
 #include <drm/drm_atomic_uapi.h>
 #include <drm/drm_damage_helper.h>
 #include <drm/drm_file.h>
-#include <drm/drm_gem_framebuffer_helper.h>
+#include <drm/drm_gem_atomic_helper.h>
 
 #include "msm_drv.h"
 #include "dpu_kms.h"
@@ -892,7 +892,7 @@ static int dpu_plane_prepare_fb(struct drm_plane *plane,
 	 *       we can use msm_atomic_prepare_fb() instead of doing the
 	 *       implicit fence and fb prepare by hand here.
 	 */
-	drm_gem_fb_prepare_fb(plane, new_state);
+	drm_gem_plane_helper_prepare_fb(plane, new_state);
 
 	if (pstate->aspace) {
 		ret = msm_framebuffer_prepare(new_state->fb,

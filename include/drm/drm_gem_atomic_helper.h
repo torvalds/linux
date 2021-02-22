@@ -10,6 +10,14 @@
 struct drm_simple_display_pipe;
 
 /*
+ * Plane Helpers
+ */
+
+int drm_gem_plane_helper_prepare_fb(struct drm_plane *plane, struct drm_plane_state *state);
+int drm_gem_simple_display_pipe_prepare_fb(struct drm_simple_display_pipe *pipe,
+					   struct drm_plane_state *plane_state);
+
+/*
  * Helpers for planes with shadow buffers
  */
 

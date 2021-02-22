@@ -16,8 +16,8 @@
 #include <drm/drm_device.h>
 #include <drm/drm_fb_cma_helper.h>
 #include <drm/drm_fourcc.h>
+#include <drm/drm_gem_atomic_helper.h>
 #include <drm/drm_gem_cma_helper.h>
-#include <drm/drm_gem_framebuffer_helper.h>
 #include <drm/drm_plane_helper.h>
 
 #include "meson_plane.h"
@@ -417,7 +417,7 @@ static const struct drm_plane_helper_funcs meson_plane_helper_funcs = {
 	.atomic_check	= meson_plane_atomic_check,
 	.atomic_disable	= meson_plane_atomic_disable,
 	.atomic_update	= meson_plane_atomic_update,
-	.prepare_fb	= drm_gem_fb_prepare_fb,
+	.prepare_fb	= drm_gem_plane_helper_prepare_fb,
 };
 
 static bool meson_plane_format_mod_supported(struct drm_plane *plane,

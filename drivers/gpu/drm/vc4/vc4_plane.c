@@ -20,7 +20,7 @@
 #include <drm/drm_atomic_uapi.h>
 #include <drm/drm_fb_cma_helper.h>
 #include <drm/drm_fourcc.h>
-#include <drm/drm_gem_framebuffer_helper.h>
+#include <drm/drm_gem_atomic_helper.h>
 #include <drm/drm_plane_helper.h>
 
 #include "uapi/drm/vc4_drm.h"
@@ -1235,7 +1235,7 @@ static int vc4_prepare_fb(struct drm_plane *plane,
 
 	bo = to_vc4_bo(&drm_fb_cma_get_gem_obj(state->fb, 0)->base);
 
-	drm_gem_fb_prepare_fb(plane, state);
+	drm_gem_plane_helper_prepare_fb(plane, state);
 
 	if (plane->state->fb == state->fb)
 		return 0;

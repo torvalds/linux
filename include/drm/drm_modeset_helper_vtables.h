@@ -1179,7 +1179,7 @@ struct drm_plane_helper_funcs {
 	 * members in the plane structure.
 	 *
 	 * Drivers which always have their buffers pinned should use
-	 * drm_gem_fb_prepare_fb() for this hook.
+	 * drm_gem_plane_helper_prepare_fb() for this hook.
 	 *
 	 * The helpers will call @cleanup_fb with matching arguments for every
 	 * successful call to this hook.

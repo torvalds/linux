@@ -1,6 +1,10 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 
+#include <linux/dma-resv.h>
+
 #include <drm/drm_atomic_state_helper.h>
+#include <drm/drm_atomic_uapi.h>
+#include <drm/drm_gem.h>
 #include <drm/drm_gem_atomic_helper.h>
 #include <drm/drm_gem_framebuffer_helper.h>
 #include <drm/drm_simple_kms_helper.h>
@@ -12,8 +16,33 @@
  *
  * The GEM atomic helpers library implements generic atomic-commit
  * functions for drivers that use GEM objects. Currently, it provides
- * plane state and framebuffer BO mappings for planes with shadow
- * buffers.
+ * synchronization helpers, and plane state and framebuffer BO mappings
+ * for planes with shadow buffers.
+ *
+ * Before scanout, a plane's framebuffer needs to be synchronized with
+ * possible writers that draw into the framebuffer. All drivers should
+ * call drm_gem_plane_helper_prepare_fb() from their implementation of
+ * struct &drm_plane_helper.prepare_fb . It sets the plane's fence from
+ * the framebuffer so that the DRM core can synchronize access automatically.
+ *
+ * drm_gem_plane_helper_prepare_fb() can also be used directly as
+ * implementation of prepare_fb. For drivers based on
+ * struct drm_simple_display_pipe, drm_gem_simple_display_pipe_prepare_fb()
+ * provides equivalent functionality.
+ *
+ * .. code-block:: c
+ *
+ *	#include <drm/drm_gem_atomic_helper.h>
+ *
+ *	struct drm_plane_helper_funcs driver_plane_helper_funcs = {
+ *		...,
+ *		. prepare_fb = drm_gem_plane_helper_prepare_fb,
+ *	};
+ *
+ *	struct drm_simple_display_pipe_funcs driver_pipe_funcs = {
+ *		...,
+ *		. prepare_fb = drm_gem_simple_display_pipe_prepare_fb,
+ *	};
  *
  * A driver using a shadow buffer copies the content of the shadow buffers
  * into the HW's framebuffer memory during an atomic update. This requires
@@ -32,7 +61,7 @@
  *
  * .. code-block:: c
  *
- *	#include <drm/drm/gem_atomic_helper.h>
+ *	#include <drm/drm_gem_atomic_helper.h>
  *
  *	struct drm_plane_funcs driver_plane_funcs = {
  *		...,
@@ -86,6 +115,65 @@
  *		// access shadow buffer via shadow_plane_state->map
  *	}
  */
+
+/*
+ * Plane Helpers
+ */
+
+/**
+ * drm_gem_plane_helper_prepare_fb() - Prepare a GEM backed framebuffer
+ * @plane: Plane
+ * @state: Plane state the fence will be attached to
+ *
+ * This function extracts the exclusive fence from &drm_gem_object.resv and
+ * attaches it to plane state for the atomic helper to wait on. This is
+ * necessary to correctly implement implicit synchronization for any buffers
+ * shared as a struct &dma_buf. This function can be used as the
+ * &drm_plane_helper_funcs.prepare_fb callback.
+ *
+ * There is no need for &drm_plane_helper_funcs.cleanup_fb hook for simple
+ * GEM based framebuffer drivers which have their buffers always pinned in
+ * memory.
+ *
+ * See drm_atomic_set_fence_for_plane() for a discussion of implicit and
+ * explicit fencing in atomic modeset updates.
+ */
+int drm_gem_plane_helper_prepare_fb(struct drm_plane *plane, struct drm_plane_state *state)
+{
+	struct drm_gem_object *obj;
+	struct dma_fence *fence;
+
+	if (!state->fb)
+		return 0;
+
+	obj = drm_gem_fb_get_obj(state->fb, 0);
+	fence = dma_resv_get_excl_rcu(obj->resv);
+	drm_atomic_set_fence_for_plane(state, fence);
+
+	return 0;
+}
+EXPORT_SYMBOL_GPL(drm_gem_plane_helper_prepare_fb);
+
+/**
+ * drm_gem_simple_display_pipe_prepare_fb - prepare_fb helper for &drm_simple_display_pipe
+ * @pipe: Simple display pipe
+ * @plane_state: Plane state
+ *
+ * This function uses drm_gem_plane_helper_prepare_fb() to extract the exclusive fence
+ * from &drm_gem_object.resv and attaches it to plane state for the atomic
+ * helper to wait on. This is necessary to correctly implement implicit
+ * synchronization for any buffers shared as a struct &dma_buf. Drivers can use
+ * this as their &drm_simple_display_pipe_funcs.prepare_fb callback.
+ *
+ * See drm_atomic_set_fence_for_plane() for a discussion of implicit and
+ * explicit fencing in atomic modeset updates.
+ */
+int drm_gem_simple_display_pipe_prepare_fb(struct drm_simple_display_pipe *pipe,
+					   struct drm_plane_state *plane_state)
+{
+	return drm_gem_plane_helper_prepare_fb(&pipe->plane, plane_state);
+}
+EXPORT_SYMBOL(drm_gem_simple_display_pipe_prepare_fb);
 
 /*
  * Shadow-buffered Planes
@@ -198,7 +286,7 @@ int drm_gem_prepare_shadow_fb(struct drm_plane *plane, struct drm_plane_state *p
 	if (!fb)
 		return 0;
 
-	ret = drm_gem_fb_prepare_fb(plane, plane_state);
+	ret = drm_gem_plane_helper_prepare_fb(plane, plane_state);
 	if (ret)
 		return ret;
 

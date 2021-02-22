@@ -11,8 +11,8 @@
 #include <drm/drm_crtc.h>
 #include <drm/drm_fb_cma_helper.h>
 #include <drm/drm_fourcc.h>
+#include <drm/drm_gem_atomic_helper.h>
 #include <drm/drm_gem_cma_helper.h>
-#include <drm/drm_gem_framebuffer_helper.h>
 #include <drm/drm_managed.h>
 #include <drm/drm_plane_helper.h>
 #include <drm/drm_vblank.h>
@@ -236,7 +236,7 @@ static int rcar_du_vsp_plane_prepare_fb(struct drm_plane *plane,
 	if (ret < 0)
 		return ret;
 
-	return drm_gem_fb_prepare_fb(plane, state);
+	return drm_gem_plane_helper_prepare_fb(plane, state);
 }
 
 void rcar_du_vsp_unmap_fb(struct rcar_du_vsp *vsp, struct drm_framebuffer *fb,

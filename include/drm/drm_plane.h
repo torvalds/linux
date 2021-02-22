@@ -79,8 +79,8 @@ struct drm_plane_state {
 	 * preserved.
 	 *
 	 * Drivers should store any implicit fence in this from their
-	 * &drm_plane_helper_funcs.prepare_fb callback. See drm_gem_fb_prepare_fb()
-	 * and drm_gem_fb_simple_display_pipe_prepare_fb() for suitable helpers.
+	 * &drm_plane_helper_funcs.prepare_fb callback. See drm_gem_plane_helper_prepare_fb()
+	 * and drm_gem_simple_display_pipe_prepare_fb() for suitable helpers.
 	 */
 	struct dma_fence *fence;
 

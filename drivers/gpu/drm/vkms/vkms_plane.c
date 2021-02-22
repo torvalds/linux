@@ -5,6 +5,7 @@
 #include <drm/drm_atomic.h>
 #include <drm/drm_atomic_helper.h>
 #include <drm/drm_fourcc.h>
+#include <drm/drm_gem_atomic_helper.h>
 #include <drm/drm_gem_framebuffer_helper.h>
 #include <drm/drm_plane_helper.h>
 #include <drm/drm_gem_shmem_helper.h>
@@ -159,7 +160,7 @@ static int vkms_prepare_fb(struct drm_plane *plane,
 	if (ret)
 		DRM_ERROR("vmap failed: %d\n", ret);
 
-	return drm_gem_fb_prepare_fb(plane, state);
+	return drm_gem_plane_helper_prepare_fb(plane, state);
 }
 
 static void vkms_cleanup_fb(struct drm_plane *plane,

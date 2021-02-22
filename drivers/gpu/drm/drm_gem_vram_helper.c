@@ -8,7 +8,7 @@
 #include <drm/drm_drv.h>
 #include <drm/drm_file.h>
 #include <drm/drm_framebuffer.h>
-#include <drm/drm_gem_framebuffer_helper.h>
+#include <drm/drm_gem_atomic_helper.h>
 #include <drm/drm_gem_ttm_helper.h>
 #include <drm/drm_gem_vram_helper.h>
 #include <drm/drm_managed.h>
@@ -700,7 +700,7 @@ drm_gem_vram_plane_helper_prepare_fb(struct drm_plane *plane,
 			goto err_drm_gem_vram_unpin;
 	}
 
-	ret = drm_gem_fb_prepare_fb(plane, new_state);
+	ret = drm_gem_plane_helper_prepare_fb(plane, new_state);
 	if (ret)
 		goto err_drm_gem_vram_unpin;
 
