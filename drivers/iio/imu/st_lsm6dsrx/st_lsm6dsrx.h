@@ -63,6 +63,18 @@
 
 #define ST_LSM6DSRX_REG_CTRL5_C_ADDR		0x14
 #define ST_LSM6DSRX_REG_ROUNDING_MASK		GENMASK(6, 5)
+#define ST_LSM6DSRX_REG_ST_G_MASK		GENMASK(3, 2)
+#define ST_LSM6DSRX_REG_ST_XL_MASK		GENMASK(1, 0)
+
+#define ST_LSM6DSRX_SELFTEST_ACCEL_MIN		737
+#define ST_LSM6DSRX_SELFTEST_ACCEL_MAX		13934
+#define ST_LSM6DSRX_SELFTEST_GYRO_MIN		2142
+#define ST_LSM6DSRX_SELFTEST_GYRO_MAX		10000
+
+#define ST_LSM6DSRX_SELF_TEST_DISABLED_VAL	0
+#define ST_LSM6DSRX_SELF_TEST_POS_SIGN_VAL	1
+#define ST_LSM6DSRX_SELF_TEST_NEG_ACCEL_SIGN_VAL	2
+#define ST_LSM6DSRX_SELF_TEST_NEG_GYRO_SIGN_VAL	3
 
 #define ST_LSM6DSRX_REG_STATUS_MASTER_MAINPAGE_ADDR	0x39
 #define ST_LSM6DSRX_REG_STATUS_SENS_HUB_ENDOP_MASK	BIT(0)
@@ -77,6 +89,8 @@
 #define ST_LSM6DSRX_REG_TIMESTAMP_EN_MASK	BIT(5)
 
 #define ST_LSM6DSRX_REG_STATUS_ADDR		0x1e
+#define ST_LSM6DSRX_REG_STATUS_XLDA		BIT(0)
+#define ST_LSM6DSRX_REG_STATUS_GDA		BIT(1)
 #define ST_LSM6DSRX_REG_STATUS_TDA		BIT(2)
 
 #define ST_LSM6DSRX_REG_OUT_TEMP_L_ADDR		0x20
@@ -494,6 +508,9 @@ struct st_lsm6dsrx_ext_dev_info {
  * @max_watermark: Max supported watermark level.
  * @watermark: Sensor watermark level.
  * @pm: sensor power mode (HP, LP).
+ * @selftest_status: Report last self test status.
+ * @min_st: Min self test raw data value.
+ * @max_st: Max self test raw data value.
  */
 struct st_lsm6dsrx_sensor {
 	char name[32];
@@ -515,6 +532,11 @@ struct st_lsm6dsrx_sensor {
 			u16 watermark;
 			enum st_lsm6dsrx_pm_t pm;
 			s64 last_fifo_timestamp;
+
+			/* self test */
+			int8_t selftest_status;
+			int min_st;
+			int max_st;
 		};
 		struct {
 			uint8_t status_reg;

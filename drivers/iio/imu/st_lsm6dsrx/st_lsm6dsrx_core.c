@@ -25,6 +25,29 @@
 
 #include "st_lsm6dsrx.h"
 
+static struct st_lsm6dsrx_selftest_table {
+	char *string_mode;
+	u8 accel_value;
+	u8 gyro_value;
+	u8 gyro_mask;
+} st_lsm6dsrx_selftest_table[] = {
+	[0] = {
+		.string_mode = "disabled",
+		.accel_value = ST_LSM6DSRX_SELF_TEST_DISABLED_VAL,
+		.gyro_value = ST_LSM6DSRX_SELF_TEST_DISABLED_VAL,
+	},
+	[1] = {
+		.string_mode = "positive-sign",
+		.accel_value = ST_LSM6DSRX_SELF_TEST_POS_SIGN_VAL,
+		.gyro_value = ST_LSM6DSRX_SELF_TEST_POS_SIGN_VAL
+	},
+	[2] = {
+		.string_mode = "negative-sign",
+		.accel_value = ST_LSM6DSRX_SELF_TEST_NEG_ACCEL_SIGN_VAL,
+		.gyro_value = ST_LSM6DSRX_SELF_TEST_NEG_GYRO_SIGN_VAL
+	},
+};
+
 static struct st_lsm6dsrx_power_mode_table {
 	char *string_mode;
 	enum st_lsm6dsrx_pm_t val;
@@ -879,131 +902,6 @@ ssize_t st_lsm6dsrx_set_power_mode(struct device *dev,
 	return size;
 }
 
-static IIO_DEV_ATTR_SAMP_FREQ_AVAIL(st_lsm6dsrx_sysfs_sampling_frequency_avail);
-static IIO_DEVICE_ATTR(in_accel_scale_available, 0444,
-		       st_lsm6dsrx_sysfs_scale_avail, NULL, 0);
-static IIO_DEVICE_ATTR(in_anglvel_scale_available, 0444,
-		       st_lsm6dsrx_sysfs_scale_avail, NULL, 0);
-static IIO_DEVICE_ATTR(in_temp_scale_available, 0444,
-		       st_lsm6dsrx_sysfs_scale_avail, NULL, 0);
-
-static IIO_DEVICE_ATTR(hwfifo_watermark_max, 0444,
-		       st_lsm6dsrx_get_max_watermark, NULL, 0);
-static IIO_DEVICE_ATTR(hwfifo_flush, 0200, NULL, st_lsm6dsrx_flush_fifo, 0);
-static IIO_DEVICE_ATTR(hwfifo_watermark, 0644, st_lsm6dsrx_get_watermark,
-		       st_lsm6dsrx_set_watermark, 0);
-
-static IIO_DEVICE_ATTR(power_mode_available, 0444,
-		       st_lsm6dsrx_sysfs_get_power_mode_avail, NULL, 0);
-static IIO_DEVICE_ATTR(power_mode, 0644,
-		       st_lsm6dsrx_get_power_mode,
-		       st_lsm6dsrx_set_power_mode, 0);
-
-static struct attribute *st_lsm6dsrx_acc_attributes[] = {
-	&iio_dev_attr_sampling_frequency_available.dev_attr.attr,
-	&iio_dev_attr_in_accel_scale_available.dev_attr.attr,
-	&iio_dev_attr_hwfifo_watermark_max.dev_attr.attr,
-	&iio_dev_attr_power_mode_available.dev_attr.attr,
-	&iio_dev_attr_hwfifo_watermark.dev_attr.attr,
-	&iio_dev_attr_hwfifo_flush.dev_attr.attr,
-	&iio_dev_attr_power_mode.dev_attr.attr,
-	NULL,
-};
-
-static const struct attribute_group st_lsm6dsrx_acc_attribute_group = {
-	.attrs = st_lsm6dsrx_acc_attributes,
-};
-
-static const struct iio_info st_lsm6dsrx_acc_info = {
-	.attrs = &st_lsm6dsrx_acc_attribute_group,
-	.read_raw = st_lsm6dsrx_read_raw,
-	.write_raw = st_lsm6dsrx_write_raw,
-#ifdef CONFIG_DEBUG_FS
-	.debugfs_reg_access = &st_lsm6dsrx_reg_access,
-#endif /* CONFIG_DEBUG_FS */
-};
-
-static struct attribute *st_lsm6dsrx_gyro_attributes[] = {
-	&iio_dev_attr_sampling_frequency_available.dev_attr.attr,
-	&iio_dev_attr_in_anglvel_scale_available.dev_attr.attr,
-	&iio_dev_attr_hwfifo_watermark_max.dev_attr.attr,
-	&iio_dev_attr_power_mode_available.dev_attr.attr,
-	&iio_dev_attr_hwfifo_watermark.dev_attr.attr,
-	&iio_dev_attr_hwfifo_flush.dev_attr.attr,
-	&iio_dev_attr_power_mode.dev_attr.attr,
-	NULL,
-};
-
-static const struct attribute_group st_lsm6dsrx_gyro_attribute_group = {
-	.attrs = st_lsm6dsrx_gyro_attributes,
-};
-
-static const struct iio_info st_lsm6dsrx_gyro_info = {
-	.attrs = &st_lsm6dsrx_gyro_attribute_group,
-	.read_raw = st_lsm6dsrx_read_raw,
-	.write_raw = st_lsm6dsrx_write_raw,
-};
-
-static struct attribute *st_lsm6dsrx_temp_attributes[] = {
-	&iio_dev_attr_sampling_frequency_available.dev_attr.attr,
-	&iio_dev_attr_in_temp_scale_available.dev_attr.attr,
-	&iio_dev_attr_hwfifo_watermark_max.dev_attr.attr,
-	&iio_dev_attr_hwfifo_watermark.dev_attr.attr,
-	&iio_dev_attr_hwfifo_flush.dev_attr.attr,
-	NULL,
-};
-
-static const struct attribute_group st_lsm6dsrx_temp_attribute_group = {
-	.attrs = st_lsm6dsrx_temp_attributes,
-};
-
-static const struct iio_info st_lsm6dsrx_temp_info = {
-	.attrs = &st_lsm6dsrx_temp_attribute_group,
-	.read_raw = st_lsm6dsrx_read_raw,
-	.write_raw = st_lsm6dsrx_write_raw,
-};
-
-static const unsigned long st_lsm6dsrx_available_scan_masks[] = { 0x7, 0x0 };
-static const unsigned long st_lsm6dsrx_temp_available_scan_masks[] = { 0x1, 0x0 };
-
-int st_lsm6dsrx_of_get_pin(struct st_lsm6dsrx_hw *hw, int *pin)
-{
-	struct device_node *np = hw->dev->of_node;
-
-	if (!np)
-		return -EINVAL;
-
-	return of_property_read_u32(np, "st,int-pin", pin);
-}
-
-static int st_lsm6dsrx_get_int_reg(struct st_lsm6dsrx_hw *hw, u8 *drdy_reg)
-{
-	int err = 0, int_pin;
-
-	if (st_lsm6dsrx_of_get_pin(hw, &int_pin) < 0) {
-		struct st_sensors_platform_data *pdata;
-		struct device *dev = hw->dev;
-
-		pdata = (struct st_sensors_platform_data *)dev->platform_data;
-		int_pin = pdata ? pdata->drdy_int_pin : 1;
-	}
-
-	switch (int_pin) {
-	case 1:
-		*drdy_reg = ST_LSM6DSRX_REG_INT1_CTRL_ADDR;
-		break;
-	case 2:
-		*drdy_reg = ST_LSM6DSRX_REG_INT2_CTRL_ADDR;
-		break;
-	default:
-		dev_err(hw->dev, "unsupported interrupt pin\n");
-		err = -EINVAL;
-		break;
-	}
-
-	return err;
-}
-
 static int __maybe_unused st_lsm6dsrx_bk_regs(struct st_lsm6dsrx_hw *hw)
 {
 	unsigned int data;
@@ -1120,6 +1018,426 @@ static int __maybe_unused st_lsm6dsrx_restore_regs(struct st_lsm6dsrx_hw *hw)
 
 	return err;
 }
+
+int st_lsm6dsrx_of_get_pin(struct st_lsm6dsrx_hw *hw, int *pin)
+{
+	struct device_node *np = hw->dev->of_node;
+
+	if (!np)
+		return -EINVAL;
+
+	return of_property_read_u32(np, "st,int-pin", pin);
+}
+
+static int st_lsm6dsrx_get_int_reg(struct st_lsm6dsrx_hw *hw, u8 *drdy_reg)
+{
+	int err = 0, int_pin;
+
+	if (st_lsm6dsrx_of_get_pin(hw, &int_pin) < 0) {
+		struct st_sensors_platform_data *pdata;
+		struct device *dev = hw->dev;
+
+		pdata = (struct st_sensors_platform_data *)dev->platform_data;
+		int_pin = pdata ? pdata->drdy_int_pin : 1;
+	}
+
+	switch (int_pin) {
+	case 1:
+		*drdy_reg = ST_LSM6DSRX_REG_INT1_CTRL_ADDR;
+		break;
+	case 2:
+		*drdy_reg = ST_LSM6DSRX_REG_INT2_CTRL_ADDR;
+		break;
+	default:
+		dev_err(hw->dev, "unsupported interrupt pin\n");
+		err = -EINVAL;
+		break;
+	}
+
+	return err;
+}
+
+static int st_lsm6dsrx_set_selftest(
+				struct st_lsm6dsrx_sensor *sensor, int index)
+{
+	u8 mode, mask;
+
+	switch (sensor->id) {
+	case ST_LSM6DSRX_ID_ACC:
+		mask = ST_LSM6DSRX_REG_ST_XL_MASK;
+		mode = st_lsm6dsrx_selftest_table[index].accel_value;
+		break;
+	case ST_LSM6DSRX_ID_GYRO:
+		mask = ST_LSM6DSRX_REG_ST_G_MASK;
+		mode = st_lsm6dsrx_selftest_table[index].gyro_value;
+		break;
+	default:
+		return -EINVAL;
+	}
+
+	return st_lsm6dsrx_update_bits_locked(sensor->hw,
+					   ST_LSM6DSRX_REG_CTRL5_C_ADDR,
+					   mask, mode);
+}
+
+static ssize_t st_lsm6dsrx_sysfs_get_selftest_available(struct device *dev,
+				struct device_attribute *attr, char *buf)
+{
+	return sprintf(buf, "%s, %s\n",
+		       st_lsm6dsrx_selftest_table[1].string_mode,
+		       st_lsm6dsrx_selftest_table[2].string_mode);
+}
+
+static ssize_t st_lsm6dsrx_sysfs_get_selftest_status(struct device *dev,
+				struct device_attribute *attr, char *buf)
+{
+	int8_t result;
+	char *message;
+	struct st_lsm6dsrx_sensor *sensor = iio_priv(dev_get_drvdata(dev));
+	enum st_lsm6dsrx_sensor_id id = sensor->id;
+
+	if (id != ST_LSM6DSRX_ID_ACC &&
+	    id != ST_LSM6DSRX_ID_GYRO)
+		return -EINVAL;
+
+	result = sensor->selftest_status;
+	if (result == 0)
+		message = "na";
+	else if (result < 0)
+		message = "fail";
+	else if (result > 0)
+		message = "pass";
+
+	return sprintf(buf, "%s\n", message);
+}
+
+static int st_lsm6dsrx_selftest_sensor(struct st_lsm6dsrx_sensor *sensor,
+				       int test)
+{
+	int x_selftest = 0, y_selftest = 0, z_selftest = 0;
+	int x = 0, y = 0, z = 0, try_count = 0;
+	u8 i, status, n = 0;
+	u8 reg, bitmask;
+	int ret, delay;
+	u8 raw_data[6];
+
+	switch(sensor->id) {
+	case ST_LSM6DSRX_ID_ACC:
+		reg = ST_LSM6DSRX_REG_OUTX_L_A_ADDR;
+		bitmask = ST_LSM6DSRX_REG_STATUS_XLDA;
+		break;
+	case ST_LSM6DSRX_ID_GYRO:
+		reg = ST_LSM6DSRX_REG_OUTX_L_G_ADDR;
+		bitmask = ST_LSM6DSRX_REG_STATUS_GDA;
+		break;
+	default:
+		return -EINVAL;
+	}
+
+	/* set selftest normal mode */
+	ret = st_lsm6dsrx_set_selftest(sensor, 0);
+	if (ret < 0)
+		return ret;
+
+	ret = st_lsm6dsrx_sensor_set_enable(sensor, true);
+	if (ret < 0)
+		return ret;
+
+	/* wait at least 2 ODRs to be sure */
+	delay = 2 * (1000000 / sensor->odr);
+
+	/* power up, wait 100 ms for stable output */
+	msleep(100);
+
+	/* for 5 times, after checking status bit, read the output registers */
+	for (i = 0; i < 5; i++) {
+		try_count = 0;
+		while (try_count < 3) {
+			usleep_range(delay, 2 * delay);
+			ret = st_lsm6dsrx_read_locked(sensor->hw,
+						ST_LSM6DSRX_REG_STATUS_ADDR,
+						&status, sizeof(status));
+			if (ret < 0)
+				goto selftest_failure;
+
+			if (status & bitmask) {
+				ret = st_lsm6dsrx_read_locked(sensor->hw,
+							      reg, raw_data,
+							      sizeof(raw_data));
+				if (ret < 0)
+					goto selftest_failure;
+
+				/*
+				 * for 5 times, after checking status bit,
+				 * read the output registers
+				 */
+				x += ((s16)*(u16 *)&raw_data[0]) / 5;
+				y += ((s16)*(u16 *)&raw_data[2]) / 5;
+				z += ((s16)*(u16 *)&raw_data[4]) / 5;
+				n++;
+
+				break;
+			} else {
+				try_count++;
+			}
+		}
+	}
+
+	if (i != n) {
+		dev_err(sensor->hw->dev,
+			"some acc samples missing (expected %d, read %d)\n",
+			i, n);
+		ret = -1;
+
+		goto selftest_failure;
+	}
+
+	n = 0;
+
+	/* set selftest mode */
+	st_lsm6dsrx_set_selftest(sensor, test);
+
+	/* wait 100 ms for stable output */
+	msleep(100);
+
+	/* for 5 times, after checking status bit, read the output registers */
+	for (i = 0; i < 5; i++) {
+		try_count = 0;
+		while (try_count < 3) {
+			usleep_range(delay, 2 * delay);
+			ret = st_lsm6dsrx_read_locked(sensor->hw,
+						ST_LSM6DSRX_REG_STATUS_ADDR,
+						&status, sizeof(status));
+			if (ret < 0)
+				goto selftest_failure;
+
+			if (status & bitmask) {
+				ret = st_lsm6dsrx_read_locked(sensor->hw,
+							      reg, raw_data,
+							      sizeof(raw_data));
+				if (ret < 0)
+					goto selftest_failure;
+
+				x_selftest += ((s16)*(u16 *)&raw_data[0]) / 5;
+				y_selftest += ((s16)*(u16 *)&raw_data[2]) / 5;
+				z_selftest += ((s16)*(u16 *)&raw_data[4]) / 5;
+				n++;
+
+				break;
+			} else {
+				try_count++;
+			}
+		}
+	}
+
+	if (i != n) {
+		dev_err(sensor->hw->dev,
+			"some samples missing (expected %d, read %d)\n",
+			i, n);
+		ret = -1;
+
+		goto selftest_failure;
+	}
+
+	if ((abs(x_selftest - x) < sensor->min_st) ||
+	    (abs(x_selftest - x) > sensor->max_st)) {
+		sensor->selftest_status = -1;
+		goto selftest_failure;
+	}
+
+	if ((abs(y_selftest - y) < sensor->min_st) ||
+	    (abs(y_selftest - y) > sensor->max_st)) {
+		sensor->selftest_status = -1;
+		goto selftest_failure;
+	}
+
+	if ((abs(z_selftest - z) < sensor->min_st) ||
+	    (abs(z_selftest - z) > sensor->max_st)) {
+		sensor->selftest_status = -1;
+		goto selftest_failure;
+	}
+
+	sensor->selftest_status = 1;
+
+selftest_failure:
+	/* restore selftest to normal mode */
+	st_lsm6dsrx_set_selftest(sensor, 0);
+
+	return st_lsm6dsrx_sensor_set_enable(sensor, false);
+}
+
+static ssize_t st_lsm6dsrx_sysfs_start_selftest(struct device *dev,
+		struct device_attribute *attr, const char *buf, size_t size)
+{
+	struct iio_dev *iio_dev = dev_get_drvdata(dev);
+	struct st_lsm6dsrx_sensor *sensor = iio_priv(iio_dev);
+	enum st_lsm6dsrx_sensor_id id = sensor->id;
+	struct st_lsm6dsrx_hw *hw = sensor->hw;
+	int ret, test;
+	u8 drdy_reg;
+	u32 gain;
+
+	if (id != ST_LSM6DSRX_ID_ACC &&
+	    id != ST_LSM6DSRX_ID_GYRO)
+		return -EINVAL;
+
+	for (test = 0; test < ARRAY_SIZE(st_lsm6dsrx_selftest_table); test++) {
+		if (strncmp(buf, st_lsm6dsrx_selftest_table[test].string_mode,
+			strlen(st_lsm6dsrx_selftest_table[test].string_mode)) == 0)
+			break;
+	}
+
+	if (test == ARRAY_SIZE(st_lsm6dsrx_selftest_table))
+		return -EINVAL;
+
+	ret = iio_device_claim_direct_mode(iio_dev);
+	if (ret)
+		return ret;
+
+	/* self test mode unavailable if sensor enabled */
+	if (hw->enable_mask & BIT(id)) {
+		ret = -EBUSY;
+
+		goto out_claim;
+	}
+
+	st_lsm6dsrx_bk_regs(hw);
+
+	/* disable FIFO watermak interrupt */
+	ret = st_lsm6dsrx_get_int_reg(hw, &drdy_reg);
+	if (ret < 0)
+		goto restore_regs;
+
+	ret = st_lsm6dsrx_update_bits_locked(hw, drdy_reg,
+					     ST_LSM6DSRX_REG_FIFO_TH_MASK, 0);
+	if (ret < 0)
+		goto restore_regs;
+
+	gain = sensor->gain;
+	if (id == ST_LSM6DSRX_ID_ACC) {
+		/* set BDU = 1, FS = 4 g, ODR = 52 Hz */
+		st_lsm6dsrx_set_full_scale(sensor, IIO_G_TO_M_S_2(122));
+		st_lsm6dsrx_set_odr(sensor, 52, 0);
+		st_lsm6dsrx_selftest_sensor(sensor, test);
+
+		/* restore full scale after test */
+		st_lsm6dsrx_set_full_scale(sensor, gain);
+	} else {
+		/* set BDU = 1, ODR = 208 Hz, FS = 2000 dps */
+		st_lsm6dsrx_set_full_scale(sensor, IIO_DEGREE_TO_RAD(70000));
+		st_lsm6dsrx_set_odr(sensor, 208, 0);
+		st_lsm6dsrx_selftest_sensor(sensor, test);
+
+		/* restore full scale after test */
+		st_lsm6dsrx_set_full_scale(sensor, gain);
+	}
+
+restore_regs:
+	st_lsm6dsrx_restore_regs(hw);
+
+out_claim:
+	iio_device_release_direct_mode(iio_dev);
+
+	return size;
+}
+
+static IIO_DEV_ATTR_SAMP_FREQ_AVAIL(st_lsm6dsrx_sysfs_sampling_frequency_avail);
+static IIO_DEVICE_ATTR(in_accel_scale_available, 0444,
+		       st_lsm6dsrx_sysfs_scale_avail, NULL, 0);
+static IIO_DEVICE_ATTR(in_anglvel_scale_available, 0444,
+		       st_lsm6dsrx_sysfs_scale_avail, NULL, 0);
+static IIO_DEVICE_ATTR(in_temp_scale_available, 0444,
+		       st_lsm6dsrx_sysfs_scale_avail, NULL, 0);
+
+static IIO_DEVICE_ATTR(hwfifo_watermark_max, 0444,
+		       st_lsm6dsrx_get_max_watermark, NULL, 0);
+static IIO_DEVICE_ATTR(hwfifo_flush, 0200, NULL, st_lsm6dsrx_flush_fifo, 0);
+static IIO_DEVICE_ATTR(hwfifo_watermark, 0644, st_lsm6dsrx_get_watermark,
+		       st_lsm6dsrx_set_watermark, 0);
+
+static IIO_DEVICE_ATTR(power_mode_available, 0444,
+		       st_lsm6dsrx_sysfs_get_power_mode_avail, NULL, 0);
+static IIO_DEVICE_ATTR(power_mode, 0644,
+		       st_lsm6dsrx_get_power_mode,
+		       st_lsm6dsrx_set_power_mode, 0);
+
+static IIO_DEVICE_ATTR(selftest_available, S_IRUGO,
+		       st_lsm6dsrx_sysfs_get_selftest_available,
+		       NULL, 0);
+static IIO_DEVICE_ATTR(selftest, S_IWUSR | S_IRUGO,
+		       st_lsm6dsrx_sysfs_get_selftest_status,
+		       st_lsm6dsrx_sysfs_start_selftest, 0);
+
+static struct attribute *st_lsm6dsrx_acc_attributes[] = {
+	&iio_dev_attr_sampling_frequency_available.dev_attr.attr,
+	&iio_dev_attr_in_accel_scale_available.dev_attr.attr,
+	&iio_dev_attr_hwfifo_watermark_max.dev_attr.attr,
+	&iio_dev_attr_power_mode_available.dev_attr.attr,
+	&iio_dev_attr_hwfifo_watermark.dev_attr.attr,
+	&iio_dev_attr_hwfifo_flush.dev_attr.attr,
+	&iio_dev_attr_power_mode.dev_attr.attr,
+	&iio_dev_attr_selftest_available.dev_attr.attr,
+	&iio_dev_attr_selftest.dev_attr.attr,
+	NULL,
+};
+
+static const struct attribute_group st_lsm6dsrx_acc_attribute_group = {
+	.attrs = st_lsm6dsrx_acc_attributes,
+};
+
+static const struct iio_info st_lsm6dsrx_acc_info = {
+	.attrs = &st_lsm6dsrx_acc_attribute_group,
+	.read_raw = st_lsm6dsrx_read_raw,
+	.write_raw = st_lsm6dsrx_write_raw,
+#ifdef CONFIG_DEBUG_FS
+	.debugfs_reg_access = &st_lsm6dsrx_reg_access,
+#endif /* CONFIG_DEBUG_FS */
+};
+
+static struct attribute *st_lsm6dsrx_gyro_attributes[] = {
+	&iio_dev_attr_sampling_frequency_available.dev_attr.attr,
+	&iio_dev_attr_in_anglvel_scale_available.dev_attr.attr,
+	&iio_dev_attr_hwfifo_watermark_max.dev_attr.attr,
+	&iio_dev_attr_power_mode_available.dev_attr.attr,
+	&iio_dev_attr_hwfifo_watermark.dev_attr.attr,
+	&iio_dev_attr_hwfifo_flush.dev_attr.attr,
+	&iio_dev_attr_power_mode.dev_attr.attr,
+	&iio_dev_attr_selftest_available.dev_attr.attr,
+	&iio_dev_attr_selftest.dev_attr.attr,
+	NULL,
+};
+
+static const struct attribute_group st_lsm6dsrx_gyro_attribute_group = {
+	.attrs = st_lsm6dsrx_gyro_attributes,
+};
+
+static const struct iio_info st_lsm6dsrx_gyro_info = {
+	.attrs = &st_lsm6dsrx_gyro_attribute_group,
+	.read_raw = st_lsm6dsrx_read_raw,
+	.write_raw = st_lsm6dsrx_write_raw,
+};
+
+static struct attribute *st_lsm6dsrx_temp_attributes[] = {
+	&iio_dev_attr_sampling_frequency_available.dev_attr.attr,
+	&iio_dev_attr_in_temp_scale_available.dev_attr.attr,
+	&iio_dev_attr_hwfifo_watermark_max.dev_attr.attr,
+	&iio_dev_attr_hwfifo_watermark.dev_attr.attr,
+	&iio_dev_attr_hwfifo_flush.dev_attr.attr,
+	NULL,
+};
+
+static const struct attribute_group st_lsm6dsrx_temp_attribute_group = {
+	.attrs = st_lsm6dsrx_temp_attributes,
+};
+
+static const struct iio_info st_lsm6dsrx_temp_info = {
+	.attrs = &st_lsm6dsrx_temp_attribute_group,
+	.read_raw = st_lsm6dsrx_read_raw,
+	.write_raw = st_lsm6dsrx_write_raw,
+};
+
+static const unsigned long st_lsm6dsrx_available_scan_masks[] = { 0x7, 0x0 };
+static const unsigned long st_lsm6dsrx_temp_available_scan_masks[] = { 0x1, 0x0 };
 
 static int st_lsm6dsrx_reset_device(struct st_lsm6dsrx_hw *hw)
 {
