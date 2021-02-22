@@ -43,6 +43,7 @@
 #include <trace/hooks/traps.h>
 #include <trace/hooks/avc.h>
 #include <trace/hooks/creds.h>
+#include <trace/hooks/module.h>
 #include <trace/hooks/memory.h>
 
 /*
@@ -198,3 +199,5 @@ EXPORT_TRACEPOINT_SYMBOL_GPL(android_vh_set_memory_x);
 EXPORT_TRACEPOINT_SYMBOL_GPL(android_vh_set_memory_nx);
 EXPORT_TRACEPOINT_SYMBOL_GPL(android_vh_set_memory_ro);
 EXPORT_TRACEPOINT_SYMBOL_GPL(android_vh_set_memory_rw);
+EXPORT_TRACEPOINT_SYMBOL_GPL(android_vh_set_module_permit_before_init);
+EXPORT_TRACEPOINT_SYMBOL_GPL(android_vh_set_module_permit_after_init);
