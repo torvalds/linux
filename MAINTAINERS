@@ -7363,13 +7363,6 @@ M:	Kieran Bingham <kbingham@kernel.org>
 S:	Supported
 F:	scripts/gdb/
 
-GDT SCSI DISK ARRAY CONTROLLER DRIVER
-M:	Achim Leubner <achim_leubner@adaptec.com>
-L:	linux-scsi@vger.kernel.org
-S:	Supported
-W:	http://www.icp-vortex.com/
-F:	drivers/scsi/gdt*
-
 GEMTEK FM RADIO RECEIVER DRIVER
 M:	Hans Verkuil <hverkuil@xs4all.nl>
 L:	linux-media@vger.kernel.org
@@ -8864,7 +8857,6 @@ F:	drivers/mfd/intel_pmc_bxt.c
 F:	include/linux/mfd/intel_pmc_bxt.h
 
 INTEL C600 SERIES SAS CONTROLLER DRIVER
-M:	Intel SCU Linux support <intel-linux-scu@intel.com>
 M:	Artur Paszkiewicz <artur.paszkiewicz@intel.com>
 L:	linux-scsi@vger.kernel.org
 S:	Supported
