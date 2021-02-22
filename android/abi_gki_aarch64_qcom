@@ -2139,6 +2139,7 @@
   __tracepoint_android_vh_cpu_idle_exit
   __tracepoint_android_vh_dump_throttled_rt_tasks
   __tracepoint_android_vh_freq_table_limits
+  __tracepoint_android_vh_iommu_setup_dma_ops
   __tracepoint_android_vh_jiffies_update
   __tracepoint_android_vh_scheduler_tick
   __tracepoint_android_vh_show_resume_epoch_val
