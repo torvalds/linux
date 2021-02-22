@@ -4310,9 +4310,9 @@ static void vop2_setup_layer_mixer_for_vp(struct vop2_video_port *vp,
 			port_mux = used_layers - 1;
 
 		if (port_mux > vop2_data->nr_mixers)
-			vp->bg_ovl_dly = 0;
+			prev_vp->bg_ovl_dly = 0;
 		else
-			vp->bg_ovl_dly = (vop2_data->nr_mixers - port_mux) << 1;
+			prev_vp->bg_ovl_dly = (vop2_data->nr_mixers - port_mux) << 1;
 		VOP_MODULE_SET(vop2, prev_vp, port_mux, port_mux);
 	}
 
