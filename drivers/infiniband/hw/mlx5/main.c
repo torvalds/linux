@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0 OR Linux-OpenIB
 /*
  * Copyright (c) 2013-2020, Mellanox Technologies inc. All rights reserved.
+ * Copyright (c) 2020, Intel Corporation. All rights reserved.
  */
 
 #include <linux/debugfs.h>
@@ -461,7 +462,6 @@ static int mlx5_query_port_roce(struct ib_device *device, u8 port_num,
 	struct net_device *ndev, *upper;
 	enum ib_mtu ndev_ib_mtu;
 	bool put_mdev = true;
-	u16 qkey_viol_cntr;
 	u32 eth_prot_oper;
 	u8 mdev_port_num;
 	bool ext;
@@ -499,19 +499,21 @@ static int mlx5_query_port_roce(struct ib_device *device, u8 port_num,
 	translate_eth_proto_oper(eth_prot_oper, &props->active_speed,
 				 &props->active_width, ext);
 
-	props->port_cap_flags |= IB_PORT_CM_SUP;
-	props->ip_gids = true;
+	if (!dev->is_rep && mlx5_is_roce_enabled(mdev)) {
+		u16 qkey_viol_cntr;
 
-	props->gid_tbl_len      = MLX5_CAP_ROCE(dev->mdev,
-						roce_address_table_size);
+		props->port_cap_flags |= IB_PORT_CM_SUP;
+		props->ip_gids = true;
+		props->gid_tbl_len = MLX5_CAP_ROCE(dev->mdev,
+						   roce_address_table_size);
+		mlx5_query_nic_vport_qkey_viol_cntr(mdev, &qkey_viol_cntr);
+		props->qkey_viol_cntr = qkey_viol_cntr;
+	}
 	props->max_mtu          = IB_MTU_4096;
 	props->max_msg_sz       = 1 << MLX5_CAP_GEN(dev->mdev, log_max_msg);
 	props->pkey_tbl_len     = 1;
 	props->state            = IB_PORT_DOWN;
 	props->phys_state       = IB_PORT_PHYS_STATE_DISABLED;
-
-	mlx5_query_nic_vport_qkey_viol_cntr(mdev, &qkey_viol_cntr);
-	props->qkey_viol_cntr = qkey_viol_cntr;
 
 	/* If this is a stub query for an unaffiliated port stop here */
 	if (!put_mdev)
@@ -815,9 +817,7 @@ static int mlx5_ib_query_device(struct ib_device *ibdev,
 	if (err)
 		return err;
 
-	err = mlx5_query_max_pkeys(ibdev, &props->max_pkeys);
-	if (err)
-		return err;
+	props->max_pkeys = dev->pkey_table_len;
 
 	err = mlx5_query_vendor_id(ibdev, &props->vendor_id);
 	if (err)
@@ -1384,19 +1384,17 @@ int mlx5_ib_query_port(struct ib_device *ibdev, u8 port,
 static int mlx5_ib_rep_query_port(struct ib_device *ibdev, u8 port,
 				  struct ib_port_attr *props)
 {
-	int ret;
+	return mlx5_query_port_roce(ibdev, port, props);
+}
 
-	/* Only link layer == ethernet is valid for representors
-	 * and we always use port 1
+static int mlx5_ib_rep_query_pkey(struct ib_device *ibdev, u8 port, u16 index,
+				  u16 *pkey)
+{
+	/* Default special Pkey for representor device port as per the
+	 * IB specification 1.3 section 10.9.1.2.
 	 */
-	ret = mlx5_query_port_roce(ibdev, port, props);
-	if (ret || !props)
-		return ret;
-
-	/* We don't support GIDS */
-	props->gid_tbl_len = 0;
-
-	return ret;
+	*pkey = 0xffff;
+	return 0;
 }
 
 static int mlx5_ib_query_gid(struct ib_device *ibdev, u8 port, int index,
@@ -2935,8 +2933,8 @@ static int set_has_smi_cap(struct mlx5_ib_dev *dev)
 	int err;
 	int port;
 
-	for (port = 1; port <= ARRAY_SIZE(dev->mdev->port_caps); port++) {
-		dev->mdev->port_caps[port - 1].has_smi = false;
+	for (port = 1; port <= ARRAY_SIZE(dev->port_caps); port++) {
+		dev->port_caps[port - 1].has_smi = false;
 		if (MLX5_CAP_GEN(dev->mdev, port_type) ==
 		    MLX5_CAP_PORT_TYPE_IB) {
 			if (MLX5_CAP_GEN(dev->mdev, ib_virt)) {
@@ -2948,10 +2946,10 @@ static int set_has_smi_cap(struct mlx5_ib_dev *dev)
 						    port, err);
 					return err;
 				}
-				dev->mdev->port_caps[port - 1].has_smi =
+				dev->port_caps[port - 1].has_smi =
 					vport_ctx.has_smi;
 			} else {
-				dev->mdev->port_caps[port - 1].has_smi = true;
+				dev->port_caps[port - 1].has_smi = true;
 			}
 		}
 	}
@@ -2960,61 +2958,10 @@ static int set_has_smi_cap(struct mlx5_ib_dev *dev)
 
 static void get_ext_port_caps(struct mlx5_ib_dev *dev)
 {
-	int port;
+	unsigned int port;
 
-	for (port = 1; port <= dev->num_ports; port++)
+	rdma_for_each_port (&dev->ib_dev, port)
 		mlx5_query_ext_port_caps(dev, port);
-}
-
-static int __get_port_caps(struct mlx5_ib_dev *dev, u8 port)
-{
-	struct ib_device_attr *dprops = NULL;
-	struct ib_port_attr *pprops = NULL;
-	int err = -ENOMEM;
-
-	pprops = kzalloc(sizeof(*pprops), GFP_KERNEL);
-	if (!pprops)
-		goto out;
-
-	dprops = kmalloc(sizeof(*dprops), GFP_KERNEL);
-	if (!dprops)
-		goto out;
-
-	err = mlx5_ib_query_device(&dev->ib_dev, dprops, NULL);
-	if (err) {
-		mlx5_ib_warn(dev, "query_device failed %d\n", err);
-		goto out;
-	}
-
-	err = mlx5_ib_query_port(&dev->ib_dev, port, pprops);
-	if (err) {
-		mlx5_ib_warn(dev, "query_port %d failed %d\n",
-			     port, err);
-		goto out;
-	}
-
-	dev->mdev->port_caps[port - 1].pkey_table_len =
-					dprops->max_pkeys;
-	dev->mdev->port_caps[port - 1].gid_table_len =
-					pprops->gid_tbl_len;
-	mlx5_ib_dbg(dev, "port %d: pkey_table_len %d, gid_table_len %d\n",
-		    port, dprops->max_pkeys, pprops->gid_tbl_len);
-
-out:
-	kfree(pprops);
-	kfree(dprops);
-
-	return err;
-}
-
-static int get_port_caps(struct mlx5_ib_dev *dev, u8 port)
-{
-	/* For representors use port 1, is this is the only native
-	 * port
-	 */
-	if (dev->is_rep)
-		return __get_port_caps(dev, 1);
-	return __get_port_caps(dev, port);
 }
 
 static u8 mlx5_get_umr_fence(u8 umr_fence_cap)
@@ -3488,10 +3435,6 @@ static bool mlx5_ib_bind_slave_port(struct mlx5_ib_dev *ibdev,
 	if (err)
 		goto unbind;
 
-	err = get_port_caps(ibdev, mlx5_core_native_port_num(mpi->mdev));
-	if (err)
-		goto unbind;
-
 	err = mlx5_add_netdev_notifier(ibdev, port_num);
 	if (err) {
 		mlx5_ib_err(ibdev, "failed adding netdev notifier for port %u\n",
@@ -3569,11 +3512,9 @@ static int mlx5_ib_init_multiport_master(struct mlx5_ib_dev *dev)
 				break;
 			}
 		}
-		if (!bound) {
-			get_port_caps(dev, i + 1);
+		if (!bound)
 			mlx5_ib_dbg(dev, "no free port found for port %d\n",
 				    i + 1);
-		}
 	}
 
 	list_add_tail(&dev->ib_dev_list, &mlx5_ib_dev_list);
@@ -3926,8 +3867,7 @@ static void mlx5_ib_stage_init_cleanup(struct mlx5_ib_dev *dev)
 {
 	mlx5_ib_cleanup_multiport_master(dev);
 	WARN_ON(!xa_empty(&dev->odp_mkeys));
-	cleanup_srcu_struct(&dev->odp_srcu);
-
+	mutex_destroy(&dev->cap_mask_mutex);
 	WARN_ON(!xa_empty(&dev->sig_mrs));
 	WARN_ON(!bitmap_empty(dev->dm.memic_alloc_pages, MLX5_MAX_MEMIC_PAGES));
 }
@@ -3937,6 +3877,12 @@ static int mlx5_ib_stage_init_init(struct mlx5_ib_dev *dev)
 	struct mlx5_core_dev *mdev = dev->mdev;
 	int err;
 	int i;
+
+	dev->ib_dev.node_type = RDMA_NODE_IB_CA;
+	dev->ib_dev.local_dma_lkey = 0 /* not supported for now */;
+	dev->ib_dev.phys_port_cnt = dev->num_ports;
+	dev->ib_dev.dev.parent = mdev->device;
+	dev->ib_dev.lag_flags = RDMA_LAG_FLAGS_HASH_ALL_SLAVES;
 
 	for (i = 0; i < dev->num_ports; i++) {
 		spin_lock_init(&dev->port[i].mp.mpi_lock);
@@ -3956,27 +3902,14 @@ static int mlx5_ib_stage_init_init(struct mlx5_ib_dev *dev)
 	if (err)
 		goto err_mp;
 
-	if (!mlx5_core_mp_enabled(mdev)) {
-		for (i = 1; i <= dev->num_ports; i++) {
-			err = get_port_caps(dev, i);
-			if (err)
-				break;
-		}
-	} else {
-		err = get_port_caps(dev, mlx5_core_native_port_num(mdev));
-	}
+	err = mlx5_query_max_pkeys(&dev->ib_dev, &dev->pkey_table_len);
 	if (err)
 		goto err_mp;
 
 	if (mlx5_use_mad_ifc(dev))
 		get_ext_port_caps(dev);
 
-	dev->ib_dev.node_type		= RDMA_NODE_IB_CA;
-	dev->ib_dev.local_dma_lkey	= 0 /* not supported for now */;
-	dev->ib_dev.phys_port_cnt	= dev->num_ports;
 	dev->ib_dev.num_comp_vectors    = mlx5_comp_vectors_count(mdev);
-	dev->ib_dev.dev.parent		= mdev->device;
-	dev->ib_dev.lag_flags		= RDMA_LAG_FLAGS_HASH_ALL_SLAVES;
 
 	mutex_init(&dev->cap_mask_mutex);
 	INIT_LIST_HEAD(&dev->qp_list);
@@ -3987,17 +3920,11 @@ static int mlx5_ib_stage_init_init(struct mlx5_ib_dev *dev)
 
 	spin_lock_init(&dev->dm.lock);
 	dev->dm.dev = mdev;
-
-	err = init_srcu_struct(&dev->odp_srcu);
-	if (err)
-		goto err_mp;
-
 	return 0;
 
 err_mp:
 	mlx5_ib_cleanup_multiport_master(dev);
-
-	return -ENOMEM;
+	return err;
 }
 
 static int mlx5_ib_enable_driver(struct ib_device *dev)
@@ -4067,6 +3994,7 @@ static const struct ib_device_ops mlx5_ib_dev_ops = {
 	.query_srq = mlx5_ib_query_srq,
 	.query_ucontext = mlx5_ib_query_ucontext,
 	.reg_user_mr = mlx5_ib_reg_user_mr,
+	.reg_user_mr_dmabuf = mlx5_ib_reg_user_mr_dmabuf,
 	.req_notify_cq = mlx5_ib_arm_cq,
 	.rereg_user_mr = mlx5_ib_rereg_user_mr,
 	.resize_cq = mlx5_ib_resize_cq,
@@ -4207,6 +4135,7 @@ static int mlx5_ib_stage_non_default_cb(struct mlx5_ib_dev *dev)
 static const struct ib_device_ops mlx5_ib_dev_port_rep_ops = {
 	.get_port_immutable = mlx5_port_rep_immutable,
 	.query_port = mlx5_ib_rep_query_port,
+	.query_pkey = mlx5_ib_rep_query_pkey,
 };
 
 static int mlx5_ib_stage_raw_eth_non_default_cb(struct mlx5_ib_dev *dev)

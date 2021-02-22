@@ -515,6 +515,7 @@ static void rxe_drain_resp_pkts(struct rxe_qp *qp, bool notify)
 	while ((skb = skb_dequeue(&qp->resp_pkts))) {
 		rxe_drop_ref(qp);
 		kfree_skb(skb);
+		ib_device_put(qp->ibqp.device);
 	}
 
 	while ((wqe = queue_head(qp->sq.queue))) {
@@ -525,6 +526,17 @@ static void rxe_drain_resp_pkts(struct rxe_qp *qp, bool notify)
 			advance_consumer(qp->sq.queue);
 		}
 	}
+}
+
+static void free_pkt(struct rxe_pkt_info *pkt)
+{
+	struct sk_buff *skb = PKT_TO_SKB(pkt);
+	struct rxe_qp *qp = pkt->qp;
+	struct ib_device *dev = qp->ibqp.device;
+
+	kfree_skb(skb);
+	rxe_drop_ref(qp);
+	ib_device_put(dev);
 }
 
 int rxe_completer(void *arg)
@@ -624,11 +636,8 @@ int rxe_completer(void *arg)
 			break;
 
 		case COMPST_DONE:
-			if (pkt) {
-				rxe_drop_ref(pkt->qp);
-				kfree_skb(skb);
-				skb = NULL;
-			}
+			if (pkt)
+				free_pkt(pkt);
 			goto done;
 
 		case COMPST_EXIT:
@@ -671,12 +680,8 @@ int rxe_completer(void *arg)
 			 */
 			if (qp->comp.started_retry &&
 			    !qp->comp.timeout_retry) {
-				if (pkt) {
-					rxe_drop_ref(pkt->qp);
-					kfree_skb(skb);
-					skb = NULL;
-				}
-
+				if (pkt)
+					free_pkt(pkt);
 				goto done;
 			}
 
@@ -699,13 +704,8 @@ int rxe_completer(void *arg)
 					qp->comp.started_retry = 1;
 					rxe_run_task(&qp->req.task, 0);
 				}
-
-				if (pkt) {
-					rxe_drop_ref(pkt->qp);
-					kfree_skb(skb);
-					skb = NULL;
-				}
-
+				if (pkt)
+					free_pkt(pkt);
 				goto done;
 
 			} else {
@@ -726,9 +726,7 @@ int rxe_completer(void *arg)
 				mod_timer(&qp->rnr_nak_timer,
 					  jiffies + rnrnak_jiffies(aeth_syn(pkt)
 						& ~AETH_TYPE_MASK));
-				rxe_drop_ref(pkt->qp);
-				kfree_skb(skb);
-				skb = NULL;
+				free_pkt(pkt);
 				goto exit;
 			} else {
 				rxe_counter_inc(rxe,
@@ -742,13 +740,8 @@ int rxe_completer(void *arg)
 			WARN_ON_ONCE(wqe->status == IB_WC_SUCCESS);
 			do_complete(qp, wqe);
 			rxe_qp_error(qp);
-
-			if (pkt) {
-				rxe_drop_ref(pkt->qp);
-				kfree_skb(skb);
-				skb = NULL;
-			}
-
+			if (pkt)
+				free_pkt(pkt);
 			goto exit;
 		}
 	}

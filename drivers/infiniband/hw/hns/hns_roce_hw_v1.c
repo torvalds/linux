@@ -43,6 +43,22 @@
 #include "hns_roce_hem.h"
 #include "hns_roce_hw_v1.h"
 
+/**
+ * hns_get_gid_index - Get gid index.
+ * @hr_dev: pointer to structure hns_roce_dev.
+ * @port:  port, value range: 0 ~ MAX
+ * @gid_index:  gid_index, value range: 0 ~ MAX
+ * Description:
+ *    N ports shared gids, allocation method as follow:
+ *		GID[0][0], GID[1][0],.....GID[N - 1][0],
+ *		GID[0][0], GID[1][0],.....GID[N - 1][0],
+ *		And so on
+ */
+u8 hns_get_gid_index(struct hns_roce_dev *hr_dev, u8 port, int gid_index)
+{
+	return gid_index * hr_dev->caps.num_ports + port;
+}
+
 static void set_data_seg(struct hns_roce_wqe_data_seg *dseg, struct ib_sge *sg)
 {
 	dseg->lkey = cpu_to_le32(sg->lkey);
@@ -314,8 +330,6 @@ out:
 	/* Set DB return */
 	if (likely(nreq)) {
 		qp->sq.head += nreq;
-		/* Memory barrier */
-		wmb();
 
 		roce_set_field(sq_db.u32_4, SQ_DOORBELL_U32_4_SQ_HEAD_M,
 			       SQ_DOORBELL_U32_4_SQ_HEAD_S,
@@ -395,8 +409,6 @@ static int hns_roce_v1_post_recv(struct ib_qp *ibqp,
 out:
 	if (likely(nreq)) {
 		hr_qp->rq.head += nreq;
-		/* Memory barrier */
-		wmb();
 
 		if (ibqp->qp_type == IB_QPT_GSI) {
 			__le32 tmp;
@@ -1391,7 +1403,7 @@ static void hns_roce_free_mr_free(struct hns_roce_dev *hr_dev)
 /**
  * hns_roce_v1_reset - reset RoCE
  * @hr_dev: RoCE device struct pointer
- * @enable: true -- drop reset, false -- reset
+ * @dereset: true -- drop reset, false -- reset
  * return 0 - success , negative --fail
  */
 static int hns_roce_v1_reset(struct hns_roce_dev *hr_dev, bool dereset)
@@ -1968,12 +1980,6 @@ static void __hns_roce_v1_cq_clean(struct hns_roce_cq *hr_cq, u32 qpn,
 
 	if (nfreed) {
 		hr_cq->cons_index += nfreed;
-		/*
-		 * Make sure update of buffer contents is done before
-		 * updating consumer index.
-		 */
-		wmb();
-
 		hns_roce_v1_cq_set_ci(hr_cq, hr_cq->cons_index);
 	}
 }
@@ -2314,8 +2320,6 @@ int hns_roce_v1_poll_cq(struct ib_cq *ibcq, int num_entries, struct ib_wc *wc)
 		*hr_cq->tptr_addr = hr_cq->cons_index &
 			((hr_cq->cq_depth << 1) - 1);
 
-		/* Memroy barrier */
-		wmb();
 		hns_roce_v1_cq_set_ci(hr_cq, hr_cq->cons_index);
 	}
 
@@ -3204,9 +3208,6 @@ static int hns_roce_v1_m_qp(struct ib_qp *ibqp, const struct ib_qp_attr *attr,
 	 * need to hw to flash RQ HEAD by DB again
 	 */
 	if (cur_state == IB_QPS_INIT && new_state == IB_QPS_INIT) {
-		/* Memory barrier */
-		wmb();
-
 		roce_set_field(doorbell[0], RQ_DOORBELL_U32_4_RQ_HEAD_M,
 			       RQ_DOORBELL_U32_4_RQ_HEAD_S, hr_qp->rq.head);
 		roce_set_field(doorbell[1], RQ_DOORBELL_U32_8_QPN_M,

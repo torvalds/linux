@@ -48,7 +48,7 @@ static bool can_do_mad_ifc(struct mlx5_ib_dev *dev, u8 port_num,
 	if (in_mad->mad_hdr.mgmt_class != IB_MGMT_CLASS_SUBN_LID_ROUTED &&
 	    in_mad->mad_hdr.mgmt_class != IB_MGMT_CLASS_SUBN_DIRECTED_ROUTE)
 		return true;
-	return dev->mdev->port_caps[port_num - 1].has_smi;
+	return dev->port_caps[port_num - 1].has_smi;
 }
 
 static int mlx5_MAD_IFC(struct mlx5_ib_dev *dev, int ignore_mkey,
@@ -279,7 +279,7 @@ int mlx5_ib_process_mad(struct ib_device *ibdev, int mad_flags, u8 port_num,
 	return IB_MAD_RESULT_SUCCESS | IB_MAD_RESULT_REPLY;
 }
 
-int mlx5_query_ext_port_caps(struct mlx5_ib_dev *dev, u8 port)
+int mlx5_query_ext_port_caps(struct mlx5_ib_dev *dev, unsigned int port)
 {
 	struct ib_smp *in_mad  = NULL;
 	struct ib_smp *out_mad = NULL;
@@ -299,7 +299,7 @@ int mlx5_query_ext_port_caps(struct mlx5_ib_dev *dev, u8 port)
 
 	packet_error = be16_to_cpu(out_mad->status);
 
-	dev->mdev->port_caps[port - 1].ext_port_cap = (!err && !packet_error) ?
+	dev->port_caps[port - 1].ext_port_cap = (!err && !packet_error) ?
 		MLX_EXT_PORT_CAP_FLAG_EXTENDED_PORT_INFO : 0;
 
 out:
@@ -308,8 +308,8 @@ out:
 	return err;
 }
 
-int mlx5_query_mad_ifc_smp_attr_node_info(struct ib_device *ibdev,
-					  struct ib_smp *out_mad)
+static int mlx5_query_mad_ifc_smp_attr_node_info(struct ib_device *ibdev,
+						 struct ib_smp *out_mad)
 {
 	struct ib_smp *in_mad = NULL;
 	int err = -ENOMEM;
@@ -549,7 +549,7 @@ int mlx5_query_mad_ifc_port(struct ib_device *ibdev, u8 port,
 	props->port_cap_flags	= be32_to_cpup((__be32 *)(out_mad->data + 20));
 	props->gid_tbl_len	= out_mad->data[50];
 	props->max_msg_sz	= 1 << MLX5_CAP_GEN(mdev, log_max_msg);
-	props->pkey_tbl_len	= mdev->port_caps[port - 1].pkey_table_len;
+	props->pkey_tbl_len	= dev->pkey_table_len;
 	props->bad_pkey_cntr	= be16_to_cpup((__be16 *)(out_mad->data + 46));
 	props->qkey_viol_cntr	= be16_to_cpup((__be16 *)(out_mad->data + 48));
 	props->active_width	= out_mad->data[31] & 0xf;
@@ -589,7 +589,7 @@ int mlx5_query_mad_ifc_port(struct ib_device *ibdev, u8 port,
 
 	/* If reported active speed is QDR, check if is FDR-10 */
 	if (props->active_speed == 4) {
-		if (mdev->port_caps[port - 1].ext_port_cap &
+		if (dev->port_caps[port - 1].ext_port_cap &
 		    MLX_EXT_PORT_CAP_FLAG_EXTENDED_PORT_INFO) {
 			init_query_mad(in_mad);
 			in_mad->attr_id = MLX5_ATTR_EXTENDED_PORT_INFO;

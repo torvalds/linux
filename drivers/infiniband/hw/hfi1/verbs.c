@@ -729,7 +729,7 @@ bail_txadd:
 
 /**
  * update_tx_opstats - record stats by opcode
- * @qp; the qp
+ * @qp: the qp
  * @ps: transmit packet state
  * @plen: the plen in dwords
  *
@@ -1145,7 +1145,7 @@ static inline int egress_pkey_matches_entry(u16 pkey, u16 ent)
  * egress_pkey_check - check P_KEY of a packet
  * @ppd:  Physical IB port data
  * @slid: SLID for packet
- * @bkey: PKEY for header
+ * @pkey: PKEY for header
  * @sc5:  SC for packet
  * @s_pkey_index: It will be used for look up optimization for kernel contexts
  * only. If it is negative value, then it means user contexts is calling this
@@ -1206,7 +1206,7 @@ bad:
 	return 1;
 }
 
-/**
+/*
  * get_send_routine - choose an egress routine
  *
  * Choose an egress routine based on QP type
