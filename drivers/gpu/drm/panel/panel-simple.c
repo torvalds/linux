@@ -1484,6 +1484,7 @@ static const struct panel_desc boe_nv110wtm_n61 = {
 	.delay = {
 		.hpd_absent_delay = 200,
 		.prepare_to_enable = 80,
+		.enable = 50,
 		.unprepare = 500,
 	},
 	.bus_format = MEDIA_BUS_FMT_RGB888_1X24,
