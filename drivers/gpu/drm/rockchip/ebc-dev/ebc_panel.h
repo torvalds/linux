@@ -27,6 +27,8 @@ struct ebc_panel {
 
 	u32 width;
 	u32 height;
+	u32 vir_width;
+	u32 vir_height;
 	u32 width_mm;
 	u32 height_mm;
 	u32 direct_mode;
