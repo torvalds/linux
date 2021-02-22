@@ -446,6 +446,7 @@ struct vop2 {
 	struct drm_info_list *debugfs_files;
 	struct drm_property *soc_id_prop;
 	struct drm_property *vp_id_prop;
+	struct drm_property *aclk_prop;
 	struct drm_prop_enum_list *plane_name_list;
 	bool is_iommu_enabled;
 	bool is_iommu_needed;
@@ -4837,6 +4838,12 @@ static int vop2_crtc_atomic_get_property(struct drm_crtc *crtc,
 		return 0;
 	}
 
+	if (property == vop2->aclk_prop) {
+		/* KHZ, keep align with mode->clock */
+		*val = clk_get_rate(vop2->aclk) / 1000;
+		return 0;
+	}
+
 	DRM_ERROR("failed to get vop2 crtc property\n");
 	return -EINVAL;
 }
@@ -5343,6 +5350,7 @@ static int vop2_create_crtc(struct vop2 *vop2)
 		soc_id = vop2_soc_id_fixup(soc_id);
 		drm_object_attach_property(&crtc->base, vop2->soc_id_prop, soc_id);
 		drm_object_attach_property(&crtc->base, vop2->vp_id_prop, vp->id);
+		drm_object_attach_property(&crtc->base, vop2->aclk_prop, 0);
 		drm_object_attach_property(&crtc->base,
 					   drm_dev->mode_config.tv_left_margin_property, 100);
 		drm_object_attach_property(&crtc->base,
@@ -5509,8 +5517,10 @@ static int vop2_win_init(struct vop2 *vop2)
 					  "PORT_ID", DRM_MODE_OBJECT_CRTC);
 	vop2->vp_id_prop = prop;
 
-	if (!vop2->soc_id_prop || !vop2->vp_id_prop) {
-		DRM_DEV_ERROR(vop2->dev, "failed to create soc_id/vp_id property\n");
+	vop2->aclk_prop = drm_property_create_range(vop2->drm_dev, 0, "ACLK", 0, UINT_MAX);
+
+	if (!vop2->soc_id_prop || !vop2->vp_id_prop || !vop2->aclk_prop) {
+		DRM_DEV_ERROR(vop2->dev, "failed to create soc_id/vp_id/aclk property\n");
 		return -ENOMEM;
 	}
 
