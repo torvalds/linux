@@ -1,16 +1,16 @@
 # SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
 %YAML 1.2
 ---
-$id: http://devicetree.org/schemas/iio/dac/adi,ad5686.yaml#
+$id: http://devicetree.org/schemas/iio/dac/adi,ad5696.yaml#
 $schema: http://devicetree.org/meta-schemas/core.yaml#
 
-title: Analog Devices AD5686 and similar multi-channel DACs
+title: Analog Devices AD5696 and similar multi-channel DACs
 
 maintainers:
   - Michael Auchter <michael.auchter@ni.com>
 
 description: |
-  Binding for Analog Devices AD5686 and similar multi-channel DACs
+  Binding for Analog Devices AD5696 and similar multi-channel DACs
 
 properties:
   compatible:
@@ -48,8 +48,8 @@ examples:
       #address-cells = <1>;
       #size-cells = <0>;
 
-      ad5686: dac@0 {
-        compatible = "adi,ad5686";
+      ad5696: dac@0 {
+        compatible = "adi,ad5696";
         reg = <0>;
         vcc-supply = <&dac_vref>;
       };
