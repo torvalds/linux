@@ -6,20 +6,7 @@ This document outlines basic information about kernel livepatching.
 
 .. Table of Contents:
 
-    1. Motivation
-    2. Kprobes, Ftrace, Livepatching
-    3. Consistency model
-    4. Livepatch module
-       4.1. New functions
-       4.2. Metadata
-    5. Livepatch life-cycle
-       5.1. Loading
-       5.2. Enabling
-       5.3. Replacing
-       5.4. Disabling
-       5.5. Removing
-    6. Sysfs
-    7. Limitations
+.. contents:: :local:
 
 
 1. Motivation
