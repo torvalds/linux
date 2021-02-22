@@ -467,8 +467,7 @@ static void cs_handle_tdr(struct hl_device *hdev, struct hl_cs *cs)
 
 	if (next_entry_found && !next->tdr_active) {
 		next->tdr_active = true;
-		schedule_delayed_work(&next->work_tdr,
-					hdev->timeout_jiffies);
+		schedule_delayed_work(&next->work_tdr, next->timeout_jiffies);
 	}
 
 	spin_unlock(&hdev->cs_mirror_lock);
@@ -622,7 +621,7 @@ static void cs_timedout(struct work_struct *work)
 
 static int allocate_cs(struct hl_device *hdev, struct hl_ctx *ctx,
 			enum hl_cs_type cs_type, u64 user_sequence,
-			struct hl_cs **cs_new)
+			struct hl_cs **cs_new, u32 flags, u32 timeout)
 {
 	struct hl_cs_counters_atomic *cntr;
 	struct hl_fence *other = NULL;
@@ -649,6 +648,8 @@ static int allocate_cs(struct hl_device *hdev, struct hl_ctx *ctx,
 	cs->submitted = false;
 	cs->completed = false;
 	cs->type = cs_type;
+	cs->timestamp = !!(flags & HL_CS_FLAGS_TIMESTAMP);
+	cs->timeout_jiffies = timeout;
 	INIT_LIST_HEAD(&cs->job_list);
 	INIT_DELAYED_WORK(&cs->work_tdr, cs_timedout);
 	kref_init(&cs->refcount);
@@ -1092,7 +1093,8 @@ static int cs_staged_submission(struct hl_device *hdev, struct hl_cs *cs,
 }
 
 static int cs_ioctl_default(struct hl_fpriv *hpriv, void __user *chunks,
-				u32 num_chunks, u64 *cs_seq, u32 flags)
+				u32 num_chunks, u64 *cs_seq, u32 flags,
+				u32 timeout)
 {
 	bool staged_mid, int_queues_only = true;
 	struct hl_device *hdev = hpriv->hdev;
@@ -1121,11 +1123,11 @@ static int cs_ioctl_default(struct hl_fpriv *hpriv, void __user *chunks,
 		staged_mid = false;
 
 	rc = allocate_cs(hdev, hpriv->ctx, CS_TYPE_DEFAULT,
-			staged_mid ? user_sequence : ULLONG_MAX, &cs);
+			staged_mid ? user_sequence : ULLONG_MAX, &cs, flags,
+			timeout);
 	if (rc)
 		goto free_cs_chunk_array;
 
-	cs->timestamp = !!(flags & HL_CS_FLAGS_TIMESTAMP);
 	*cs_seq = cs->sequence;
 
 	hl_debugfs_add_cs(cs);
@@ -1323,7 +1325,8 @@ static int hl_submit_pending_cb(struct hl_fpriv *hpriv)
 		list_move_tail(&pending_cb->cb_node, &local_cb_list);
 	spin_unlock(&ctx->pending_cb_lock);
 
-	rc = allocate_cs(hdev, ctx, CS_TYPE_DEFAULT, ULLONG_MAX, &cs);
+	rc = allocate_cs(hdev, ctx, CS_TYPE_DEFAULT, ULLONG_MAX, &cs, 0,
+				hdev->timeout_jiffies);
 	if (rc)
 		goto add_list_elements;
 
@@ -1424,7 +1427,7 @@ static int hl_cs_ctx_switch(struct hl_fpriv *hpriv, union hl_cs_args *args,
 			rc = 0;
 		} else {
 			rc = cs_ioctl_default(hpriv, chunks, num_chunks,
-								cs_seq, 0);
+					cs_seq, 0, hdev->timeout_jiffies);
 		}
 
 		mutex_unlock(&hpriv->restore_phase_mutex);
@@ -1594,7 +1597,7 @@ static int cs_ioctl_signal_wait_create_jobs(struct hl_device *hdev,
 
 static int cs_ioctl_signal_wait(struct hl_fpriv *hpriv, enum hl_cs_type cs_type,
 				void __user *chunks, u32 num_chunks,
-				u64 *cs_seq, bool timestamp)
+				u64 *cs_seq, u32 flags, u32 timeout)
 {
 	struct hl_cs_chunk *cs_chunk_array, *chunk;
 	struct hw_queue_properties *hw_queue_prop;
@@ -1700,15 +1703,13 @@ static int cs_ioctl_signal_wait(struct hl_fpriv *hpriv, enum hl_cs_type cs_type,
 		}
 	}
 
-	rc = allocate_cs(hdev, ctx, cs_type, ULLONG_MAX, &cs);
+	rc = allocate_cs(hdev, ctx, cs_type, ULLONG_MAX, &cs, flags, timeout);
 	if (rc) {
 		if (cs_type == CS_TYPE_WAIT ||
 			cs_type == CS_TYPE_COLLECTIVE_WAIT)
 			hl_fence_put(sig_fence);
 		goto free_cs_chunk_array;
 	}
-
-	cs->timestamp = !!timestamp;
 
 	/*
 	 * Save the signal CS fence for later initialization right before
@@ -1767,7 +1768,7 @@ int hl_cs_ioctl(struct hl_fpriv *hpriv, void *data)
 	enum hl_cs_type cs_type;
 	u64 cs_seq = ULONG_MAX;
 	void __user *chunks;
-	u32 num_chunks, flags;
+	u32 num_chunks, flags, timeout;
 	int rc;
 
 	rc = hl_cs_sanity_checks(hpriv, args);
@@ -1793,16 +1794,20 @@ int hl_cs_ioctl(struct hl_fpriv *hpriv, void *data)
 			!(flags & HL_CS_FLAGS_STAGED_SUBMISSION_FIRST))
 		cs_seq = args->in.seq;
 
+	timeout = flags & HL_CS_FLAGS_CUSTOM_TIMEOUT
+			? msecs_to_jiffies(args->in.timeout * 1000)
+			: hpriv->hdev->timeout_jiffies;
+
 	switch (cs_type) {
 	case CS_TYPE_SIGNAL:
 	case CS_TYPE_WAIT:
 	case CS_TYPE_COLLECTIVE_WAIT:
 		rc = cs_ioctl_signal_wait(hpriv, cs_type, chunks, num_chunks,
-			&cs_seq, args->in.cs_flags & HL_CS_FLAGS_TIMESTAMP);
+					&cs_seq, args->in.cs_flags, timeout);
 		break;
 	default:
 		rc = cs_ioctl_default(hpriv, chunks, num_chunks, &cs_seq,
-							args->in.cs_flags);
+						args->in.cs_flags, timeout);
 		break;
 	}
 

@@ -630,6 +630,7 @@ struct hl_cs_chunk {
 #define HL_CS_FLAGS_STAGED_SUBMISSION		0x40
 #define HL_CS_FLAGS_STAGED_SUBMISSION_FIRST	0x80
 #define HL_CS_FLAGS_STAGED_SUBMISSION_LAST	0x100
+#define HL_CS_FLAGS_CUSTOM_TIMEOUT		0x200
 
 #define HL_CS_STATUS_SUCCESS		0
 
@@ -665,8 +666,18 @@ struct hl_cs_in {
 	 */
 	__u32 num_chunks_execute;
 
-	/* Number of chunks in restore phase array - Currently not in use */
-	__u32 num_chunks_store;
+	union {
+		/* Number of chunks in restore phase array -
+		 * Currently not in use
+		 */
+		__u32 num_chunks_store;
+
+		/* timeout in seconds - valid only if HL_CS_FLAGS_CUSTOM_TIMEOUT
+		 * is set. this parameter is ignored in case of future multiple
+		 * users support.
+		 */
+		__u32 timeout;
+	};
 
 	/* HL_CS_FLAGS_* */
 	__u32 cs_flags;

@@ -629,7 +629,7 @@ int hl_hw_queue_schedule_cs(struct hl_cs *cs)
 	if ((hdev->timeout_jiffies != MAX_SCHEDULE_TIMEOUT) &&
 				first_entry && cs_needs_timeout(cs)) {
 		cs->tdr_active = true;
-		schedule_delayed_work(&cs->work_tdr, hdev->timeout_jiffies);
+		schedule_delayed_work(&cs->work_tdr, cs->timeout_jiffies);
 
 	}
 

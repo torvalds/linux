@@ -1245,6 +1245,7 @@ struct hl_userptr {
  * @sequence: the sequence number of this CS.
  * @staged_sequence: the sequence of the staged submission this CS is part of,
  *                   relevant only if staged_cs is set.
+ * @timeout_jiffies: cs timeout in jiffies.
  * @type: CS_TYPE_*.
  * @submitted: true if CS was submitted to H/W.
  * @completed: true if CS was completed by device.
@@ -1273,6 +1274,7 @@ struct hl_cs {
 	struct list_head	debugfs_list;
 	u64			sequence;
 	u64			staged_sequence;
+	u64			timeout_jiffies;
 	enum hl_cs_type		type;
 	u8			submitted;
 	u8			completed;
