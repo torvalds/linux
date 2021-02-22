@@ -100,7 +100,6 @@ struct amdgpu_bo {
 	struct amdgpu_bo		*parent;
 	struct amdgpu_bo		*shadow;
 
-	struct amdgpu_mn		*mn;
 
 
 #ifdef CONFIG_MMU_NOTIFIER
