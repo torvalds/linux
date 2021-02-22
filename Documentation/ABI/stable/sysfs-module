@@ -35,7 +35,7 @@ Description:
 
 What:		/sys/module/MODULENAME/scmversion
 Date:		November 2020
-KernelVersion:	5.12
+KernelVersion:	Android Common Kernel -- android12-5.10+
 Contact:	Will McVicker <willmcvicker@google.com>
 Description:	This read-only file will appear if modpost was supplied with an
 		SCM version for the module. It can be enabled with the config
