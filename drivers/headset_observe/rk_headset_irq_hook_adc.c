@@ -192,7 +192,11 @@ static irqreturn_t headset_interrupt(int irq, void *dev_id)
 		headset_info->cur_headset_status = HEADSET_OUT;
 		cancel_delayed_work(&headset_info->hook_work);
 		if (headset_info->isMic) {
-			headset_info->hook_status = HOOK_UP;
+			if (headset_info->hook_status == HOOK_DOWN) {
+				headset_info->hook_status = HOOK_UP;
+				input_report_key(headset_info->input_dev, HOOK_KEY_CODE, headset_info->hook_status);
+				input_sync(headset_info->input_dev);
+			}
 #ifdef CONFIG_SND_SOC_WM8994
 			//rt5625_headset_mic_detect(false);
 			wm8994_headset_mic_detect(false);
