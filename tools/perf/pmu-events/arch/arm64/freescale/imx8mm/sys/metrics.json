@@ -6,7 +6,7 @@
 	    "ScaleUnit": "9.765625e-4KB",
 	    "Unit": "imx8_ddr",
 	    "Compat": "i.MX8MM"
-    },
+   },
    {
 	    "BriefDescription": "bytes all masters write to ddr based on write-cycles event",
 	    "MetricName": "imx8mm_ddr_write.all",
@@ -14,5 +14,5 @@
 	    "ScaleUnit": "9.765625e-4KB",
 	    "Unit": "imx8_ddr",
 	    "Compat": "i.MX8MM"
-    }
+   }
 ]

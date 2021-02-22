@@ -4,7 +4,7 @@
 		r	synthesize branches events (returns only)
 		x	synthesize transactions events
 		w	synthesize ptwrite events
-		p	synthesize power events
+		p	synthesize power events (incl. PSB events for Intel PT)
 		o	synthesize other events recorded due to the use
 			of aux-output (refer to perf record)
 		e	synthesize error events
