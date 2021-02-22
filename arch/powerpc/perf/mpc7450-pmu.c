@@ -148,7 +148,7 @@ static u32 classbits[N_CLASSES - 1][2] = {
 };
 
 static int mpc7450_get_constraint(u64 event, unsigned long *maskp,
-				  unsigned long *valp)
+				  unsigned long *valp, u64 event_config1 __maybe_unused)
 {
 	int pmc, class;
 	u32 mask, value;
@@ -258,7 +258,8 @@ static const u32 pmcsel_mask[N_COUNTER] = {
  */
 static int mpc7450_compute_mmcr(u64 event[], int n_ev, unsigned int hwc[],
 				struct mmcr_regs *mmcr,
-				struct perf_event *pevents[])
+				struct perf_event *pevents[],
+				u32 flags __maybe_unused)
 {
 	u8 event_index[N_CLASSES][N_COUNTER];
 	int n_classevent[N_CLASSES];
