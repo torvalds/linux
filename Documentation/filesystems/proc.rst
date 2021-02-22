@@ -691,6 +691,10 @@ files are there, and which are missing.
                 number of processes currently runnable (running or on ready queue);
                 total number of processes in system;
                 last pid created.
+                All fields are separated by one space except "number of
+                processes currently runnable" and "total number of processes
+                in system", which are separated by a slash ('/'). Example:
+                  0.61 0.61 0.55 3/828 22084
  locks        Kernel locks
  meminfo      Memory info
  misc         Miscellaneous
