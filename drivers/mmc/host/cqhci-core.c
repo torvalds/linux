@@ -18,6 +18,7 @@
 #include <linux/mmc/card.h>
 
 #include "cqhci.h"
+#include "cqhci-crypto.h"
 
 #define DCMD_SLOT 31
 #define NUM_SLOTS 32
@@ -258,6 +259,9 @@ static void __cqhci_enable(struct cqhci_host *cq_host)
 	if (cq_host->caps & CQHCI_TASK_DESC_SZ_128)
 		cqcfg |= CQHCI_TASK_DESC_SZ;
 
+	if (mmc->caps2 & MMC_CAP2_CRYPTO)
+		cqcfg |= CQHCI_CRYPTO_GENERAL_ENABLE;
+
 	cqhci_writel(cq_host, cqcfg, CQHCI_CFG);
 
 	cqhci_writel(cq_host, lower_32_bits(cq_host->desc_dma_base),
@@ -408,13 +412,15 @@ static void cqhci_disable(struct mmc_host *mmc)
 }
 
 static void cqhci_prep_task_desc(struct mmc_request *mrq,
-					u64 *data, bool intr)
+				 struct cqhci_host *cq_host, int tag)
 {
+	__le64 *task_desc = (__le64 __force *)get_desc(cq_host, tag);
 	u32 req_flags = mrq->data->flags;
+	u64 desc0;
 
-	*data = CQHCI_VALID(1) |
+	desc0 = CQHCI_VALID(1) |
 		CQHCI_END(1) |
-		CQHCI_INT(intr) |
+		CQHCI_INT(1) |
 		CQHCI_ACT(0x5) |
 		CQHCI_FORCED_PROG(!!(req_flags & MMC_DATA_FORCED_PRG)) |
 		CQHCI_DATA_TAG(!!(req_flags & MMC_DATA_DAT_TAG)) |
@@ -425,8 +431,19 @@ static void cqhci_prep_task_desc(struct mmc_request *mrq,
 		CQHCI_BLK_COUNT(mrq->data->blocks) |
 		CQHCI_BLK_ADDR((u64)mrq->data->blk_addr);
 
-	pr_debug("%s: cqhci: tag %d task descriptor 0x%016llx\n",
-		 mmc_hostname(mrq->host), mrq->tag, (unsigned long long)*data);
+	task_desc[0] = cpu_to_le64(desc0);
+
+	if (cq_host->caps & CQHCI_TASK_DESC_SZ_128) {
+		u64 desc1 = cqhci_crypto_prep_task_desc(mrq);
+
+		task_desc[1] = cpu_to_le64(desc1);
+
+		pr_debug("%s: cqhci: tag %d task descriptor 0x%016llx%016llx\n",
+			 mmc_hostname(mrq->host), mrq->tag, desc1, desc0);
+	} else {
+		pr_debug("%s: cqhci: tag %d task descriptor 0x%016llx\n",
+			 mmc_hostname(mrq->host), mrq->tag, desc0);
+	}
 }
 
 static int cqhci_dma_map(struct mmc_host *host, struct mmc_request *mrq)
@@ -567,8 +584,6 @@ static inline int cqhci_tag(struct mmc_request *mrq)
 static int cqhci_request(struct mmc_host *mmc, struct mmc_request *mrq)
 {
 	int err = 0;
-	u64 data = 0;
-	u64 *task_desc = NULL;
 	int tag = cqhci_tag(mrq);
 	struct cqhci_host *cq_host = mmc->cqe_private;
 	unsigned long flags;
@@ -598,9 +613,8 @@ static int cqhci_request(struct mmc_host *mmc, struct mmc_request *mrq)
 	}
 
 	if (mrq->data) {
-		task_desc = (__le64 __force *)get_desc(cq_host, tag);
-		cqhci_prep_task_desc(mrq, &data, 1);
-		*task_desc = cpu_to_le64(data);
+		cqhci_prep_task_desc(mrq, cq_host, tag);
+
 		err = cqhci_prep_tran_desc(mrq, cq_host, tag);
 		if (err) {
 			pr_err("%s: cqhci: failed to setup tx desc: %d\n",
@@ -671,6 +685,7 @@ static void cqhci_error_irq(struct mmc_host *mmc, u32 status, int cmd_error,
 	struct cqhci_host *cq_host = mmc->cqe_private;
 	struct cqhci_slot *slot;
 	u32 terri;
+	u32 tdpe;
 	int tag;
 
 	spin_lock(&cq_host->lock);
@@ -704,6 +719,30 @@ static void cqhci_error_irq(struct mmc_host *mmc, u32 status, int cmd_error,
 		tag = CQHCI_TERRI_D_TASK(terri);
 		slot = &cq_host->slot[tag];
 		if (slot->mrq) {
+			slot->flags = cqhci_error_flags(data_error, cmd_error);
+			cqhci_recovery_needed(mmc, slot->mrq, true);
+		}
+	}
+
+	/*
+	 * Handle ICCE ("Invalid Crypto Configuration Error").  This should
+	 * never happen, since the block layer ensures that all crypto-enabled
+	 * I/O requests have a valid keyslot before they reach the driver.
+	 *
+	 * Note that GCE ("General Crypto Error") is different; it already got
+	 * handled above by checking TERRI.
+	 */
+	if (status & CQHCI_IS_ICCE) {
+		tdpe = cqhci_readl(cq_host, CQHCI_TDPE);
+		WARN_ONCE(1,
+			  "%s: cqhci: invalid crypto configuration error. IRQ status: 0x%08x TDPE: 0x%08x\n",
+			  mmc_hostname(mmc), status, tdpe);
+		while (tdpe != 0) {
+			tag = __ffs(tdpe);
+			tdpe &= ~(1 << tag);
+			slot = &cq_host->slot[tag];
+			if (!slot->mrq)
+				continue;
 			slot->flags = cqhci_error_flags(data_error, cmd_error);
 			cqhci_recovery_needed(mmc, slot->mrq, true);
 		}
@@ -774,7 +813,8 @@ irqreturn_t cqhci_irq(struct mmc_host *mmc, u32 intmask, int cmd_error,
 
 	pr_debug("%s: cqhci: IRQ status: 0x%08x\n", mmc_hostname(mmc), status);
 
-	if ((status & CQHCI_IS_RED) || cmd_error || data_error)
+	if ((status & (CQHCI_IS_RED | CQHCI_IS_GCE | CQHCI_IS_ICCE)) ||
+	    cmd_error || data_error)
 		cqhci_error_irq(mmc, status, cmd_error, data_error);
 
 	if (status & CQHCI_IS_TCC) {
@@ -1138,6 +1178,13 @@ int cqhci_init(struct cqhci_host *cq_host, struct mmc_host *mmc,
 				     sizeof(*cq_host->slot), GFP_KERNEL);
 	if (!cq_host->slot) {
 		err = -ENOMEM;
+		goto out_err;
+	}
+
+	err = cqhci_crypto_init(cq_host);
+	if (err) {
+		pr_err("%s: CQHCI crypto initialization failed\n",
+		       mmc_hostname(mmc));
 		goto out_err;
 	}
 
