@@ -8704,9 +8704,11 @@ static void io_req_caches_free(struct io_ring_ctx *ctx, struct task_struct *tsk)
 
 	mutex_lock(&ctx->uring_lock);
 
-	if (submit_state->free_reqs)
+	if (submit_state->free_reqs) {
 		kmem_cache_free_bulk(req_cachep, submit_state->free_reqs,
 				     submit_state->reqs);
+		submit_state->free_reqs = 0;
+	}
 
 	io_req_cache_free(&submit_state->comp.free_list, NULL);
 
