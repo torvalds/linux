@@ -673,13 +673,13 @@
 					#address-cells = <1>;
 					#size-cells = <0>;
 
-					lvds_in_vp1: endpoint@0 {
-						reg = <0>;
+					lvds_in_vp1: endpoint@1 {
+						reg = <1>;
 						remote-endpoint = <&vp1_out_lvds>;
 					};
 
-					lvds_in_vp2: endpoint@1 {
-						reg = <1>;
+					lvds_in_vp2: endpoint@2 {
+						reg = <2>;
 						remote-endpoint = <&vp2_out_lvds>;
 					};
 				};
@@ -701,12 +701,11 @@
 					#address-cells = <1>;
 					#size-cells = <0>;
 
-					rgb_in_vp2: endpoint@0 {
-						reg = <0>;
+					rgb_in_vp2: endpoint@2 {
+						reg = <2>;
 						remote-endpoint = <&vp2_out_rgb>;
 					};
 				};
-
 			};
 		};
 
