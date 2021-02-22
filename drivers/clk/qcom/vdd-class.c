@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0-only
-/* Copyright (c) 2019-2020, The Linux Foundation. All rights reserved. */
+/* Copyright (c) 2019-2021, The Linux Foundation. All rights reserved. */
 
 #include <linux/clk-provider.h>
 #include <linux/kernel.h>
@@ -111,6 +111,28 @@ static int clk_unvote_vdd_class_level(struct clk_vdd_class *vdd_class, int level
 
 	return ret;
 }
+
+/**
+ * clk_get_vdd_voltage - Return corner voltage for a vdd class
+ * @vdd_data:	vdd_class data for the clock
+ * @level:	voltage level
+ *
+ * Returns corner voltage on success, -EERROR otherwise.
+ */
+int clk_get_vdd_voltage(struct clk_vdd_class_data *vdd_data, int vdd_level)
+{
+	int i, corner = -EINVAL;
+
+	for (i = 0; i < vdd_data->num_vdd_classes; i++)
+		corner = max(corner, vdd_data->vdd_classes[i]->vdd_uv[vdd_level]);
+
+	if (vdd_data->vdd_class)
+		corner = max(corner, vdd_data->vdd_class->vdd_uv[vdd_level]);
+
+	return corner;
+
+}
+EXPORT_SYMBOL(clk_get_vdd_voltage);
 
 /**
  * clk_vote_vdd_level - Add a vote for a given voltage level

@@ -1,5 +1,5 @@
 /* SPDX-License-Identifier: GPL-2.0-only */
-/* Copyright (c) 2019-2020, The Linux Foundation. All rights reserved. */
+/* Copyright (c) 2019-2021, The Linux Foundation. All rights reserved. */
 
 #ifndef __QCOM_CLK_VDD_CLASS_H__
 #define __QCOM_CLK_VDD_CLASS_H__
@@ -74,6 +74,7 @@ int clk_find_vdd_level(struct clk_hw *hw, struct clk_vdd_class_data *vdd_data,
 				unsigned long rate);
 int clk_vote_vdd_level(struct clk_vdd_class_data *vdd_class, int level);
 int clk_unvote_vdd_level(struct clk_vdd_class_data *vdd_class, int level);
+int clk_get_vdd_voltage(struct clk_vdd_class_data *vdd_data, int vdd_level);
 int clk_regulator_init(struct device *dev, const struct qcom_cc_desc *desc);
 int clk_vdd_proxy_vote(struct device *dev, const struct qcom_cc_desc *desc);
 int clk_vdd_proxy_unvote(struct device *dev, const struct qcom_cc_desc *desc);
