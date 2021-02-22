@@ -334,11 +334,6 @@ static inline void qdio_deliver_irq(struct qdio_irq *irq)
 #define sub_buf(bufnr, dec)	QDIO_BUFNR((bufnr) - (dec))
 #define prev_buf(bufnr)		sub_buf(bufnr, 1)
 
-#define queue_irqs_enabled(q)			\
-	(test_bit(QDIO_QUEUE_IRQS_DISABLED, &q->u.in.queue_irq_state) == 0)
-#define queue_irqs_disabled(q)			\
-	(test_bit(QDIO_QUEUE_IRQS_DISABLED, &q->u.in.queue_irq_state) != 0)
-
 extern u64 last_ai_time;
 
 /* prototypes for thin interrupt */

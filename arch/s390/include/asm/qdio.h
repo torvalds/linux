@@ -341,11 +341,6 @@ struct qdio_initialize {
 	struct qdio_buffer ***output_sbal_addr_array;
 };
 
-#define QDIO_STATE_INACTIVE		0x00000002 /* after qdio_cleanup */
-#define QDIO_STATE_ESTABLISHED		0x00000004 /* after qdio_establish */
-#define QDIO_STATE_ACTIVE		0x00000008 /* after qdio_activate */
-#define QDIO_STATE_STOPPED		0x00000010 /* after queues went down */
-
 #define QDIO_FLAG_SYNC_INPUT		0x01
 #define QDIO_FLAG_SYNC_OUTPUT		0x02
 
