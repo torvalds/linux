@@ -12,44 +12,34 @@
 
 #include "efistub.h"
 
-/* BIOS variables */
-static const efi_guid_t efi_variable_guid = EFI_GLOBAL_VARIABLE_GUID;
-static const efi_char16_t efi_SecureBoot_name[] = L"SecureBoot";
-static const efi_char16_t efi_SetupMode_name[] = L"SetupMode";
-
 /* SHIM variables */
 static const efi_guid_t shim_guid = EFI_SHIM_LOCK_GUID;
 static const efi_char16_t shim_MokSBState_name[] = L"MokSBState";
 
+static efi_status_t get_var(efi_char16_t *name, efi_guid_t *vendor, u32 *attr,
+			    unsigned long *data_size, void *data)
+{
+	return get_efi_var(name, vendor, attr, data_size, data);
+}
+
 /*
  * Determine whether we're in secure boot mode.
- *
- * Please keep the logic in sync with
- * arch/x86/xen/efi.c:xen_efi_get_secureboot().
  */
 enum efi_secureboot_mode efi_get_secureboot(void)
 {
 	u32 attr;
-	u8 secboot, setupmode, moksbstate;
 	unsigned long size;
+	enum efi_secureboot_mode mode;
 	efi_status_t status;
+	u8 moksbstate;
 
-	size = sizeof(secboot);
-	status = get_efi_var(efi_SecureBoot_name, &efi_variable_guid,
-			     NULL, &size, &secboot);
-	if (status == EFI_NOT_FOUND)
-		return efi_secureboot_mode_disabled;
-	if (status != EFI_SUCCESS)
-		goto out_efi_err;
-
-	size = sizeof(setupmode);
-	status = get_efi_var(efi_SetupMode_name, &efi_variable_guid,
-			     NULL, &size, &setupmode);
-	if (status != EFI_SUCCESS)
-		goto out_efi_err;
-
-	if (secboot == 0 || setupmode == 1)
-		return efi_secureboot_mode_disabled;
+	mode = efi_get_secureboot_mode(get_var);
+	if (mode == efi_secureboot_mode_unknown) {
+		efi_err("Could not determine UEFI Secure Boot status.\n");
+		return efi_secureboot_mode_unknown;
+	}
+	if (mode != efi_secureboot_mode_enabled)
+		return mode;
 
 	/*
 	 * See if a user has put the shim into insecure mode. If so, and if the
@@ -69,8 +59,4 @@ enum efi_secureboot_mode efi_get_secureboot(void)
 secure_boot_enabled:
 	efi_info("UEFI Secure Boot is enabled.\n");
 	return efi_secureboot_mode_enabled;
-
-out_efi_err:
-	efi_err("Could not determine UEFI Secure Boot status.\n");
-	return efi_secureboot_mode_unknown;
 }

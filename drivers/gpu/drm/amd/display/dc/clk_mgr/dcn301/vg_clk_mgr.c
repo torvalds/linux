@@ -74,15 +74,8 @@ int vg_get_active_display_cnt_wa(
 	for (i = 0; i < dc->link_count; i++) {
 		const struct dc_link *link = dc->links[i];
 
-		/*
-		 * Only notify active stream or virtual stream.
-		 * Need to notify virtual stream to work around
-		 * headless case. HPD does not fire when system is in
-		 * S0i2.
-		 */
 		/* abusing the fact that the dig and phy are coupled to see if the phy is enabled */
-		if (link->connector_signal == SIGNAL_TYPE_VIRTUAL ||
-				link->link_enc->funcs->is_dig_enabled(link->link_enc))
+		if (link->link_enc->funcs->is_dig_enabled(link->link_enc))
 			display_count++;
 	}
 

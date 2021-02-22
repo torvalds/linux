@@ -238,7 +238,7 @@ static int __init ab3100_rtc_probe(struct platform_device *pdev)
 
 	platform_set_drvdata(pdev, rtc);
 
-	return rtc_register_device(rtc);
+	return devm_rtc_register_device(rtc);
 }
 
 static struct platform_driver ab3100_rtc_driver = {

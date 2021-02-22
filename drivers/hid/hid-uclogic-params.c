@@ -90,7 +90,7 @@ static int uclogic_params_get_str_desc(__u8 **pbuf, struct hid_device *hdev,
 		goto cleanup;
 	} else if (rc < 0) {
 		hid_err(hdev,
-			"failed retrieving string descriptor #%hhu: %d\n",
+			"failed retrieving string descriptor #%u: %d\n",
 			idx, rc);
 		goto cleanup;
 	}

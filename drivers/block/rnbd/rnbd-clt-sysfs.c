@@ -432,7 +432,7 @@ void rnbd_clt_remove_dev_symlink(struct rnbd_clt_dev *dev)
 	 * i.e. rnbd_clt_unmap_dev_store() leading to a sysfs warning because
 	 * of sysfs link already was removed already.
 	 */
-	if (strlen(dev->blk_symlink_name) && try_module_get(THIS_MODULE)) {
+	if (dev->blk_symlink_name && try_module_get(THIS_MODULE)) {
 		sysfs_remove_link(rnbd_devs_kobj, dev->blk_symlink_name);
 		kfree(dev->blk_symlink_name);
 		module_put(THIS_MODULE);
@@ -521,7 +521,8 @@ static int rnbd_clt_add_dev_symlink(struct rnbd_clt_dev *dev)
 	return 0;
 
 out_err:
-	dev->blk_symlink_name[0] = '\0';
+	kfree(dev->blk_symlink_name);
+	dev->blk_symlink_name = NULL ;
 	return ret;
 }
 

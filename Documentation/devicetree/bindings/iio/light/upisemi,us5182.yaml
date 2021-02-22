@@ -45,7 +45,7 @@ properties:
     default: 0x16
 
   upisemi,continuous:
-    $ref: /schemas/types.yaml#definitions/flag
+    $ref: /schemas/types.yaml#/definitions/flag
     description: |
       This chip has two power modes: one-shot (chip takes one measurement and
       then shuts itself down) and continuous (chip takes continuous

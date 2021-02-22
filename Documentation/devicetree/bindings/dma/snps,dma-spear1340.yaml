@@ -54,7 +54,7 @@ properties:
     maximum: 16
 
   dma-masters:
-    $ref: /schemas/types.yaml#definitions/uint32
+    $ref: /schemas/types.yaml#/definitions/uint32
     description: |
       Number of DMA masters supported by the controller. In case if
       not specified the driver will try to auto-detect this and
@@ -63,7 +63,7 @@ properties:
     maximum: 4
 
   chan_allocation_order:
-    $ref: /schemas/types.yaml#definitions/uint32
+    $ref: /schemas/types.yaml#/definitions/uint32
     description: |
       DMA channels allocation order specifier. Zero means ascending order
       (first free allocated), while one - descending (last free allocated).
@@ -71,7 +71,7 @@ properties:
     enum: [0, 1]
 
   chan_priority:
-    $ref: /schemas/types.yaml#definitions/uint32
+    $ref: /schemas/types.yaml#/definitions/uint32
     description: |
       DMA channels priority order. Zero means ascending channels priority
       so the very first channel has the highest priority. While 1 means
@@ -80,7 +80,7 @@ properties:
     enum: [0, 1]
 
   block_size:
-    $ref: /schemas/types.yaml#definitions/uint32
+    $ref: /schemas/types.yaml#/definitions/uint32
     description: Maximum block size supported by the DMA controller.
     enum: [3, 7, 15, 31, 63, 127, 255, 511, 1023, 2047, 4095]
 
@@ -139,7 +139,7 @@ properties:
         default: 256
 
   snps,dma-protection-control:
-    $ref: /schemas/types.yaml#definitions/uint32
+    $ref: /schemas/types.yaml#/definitions/uint32
     description: |
       Bits one-to-one passed to the AHB HPROT[3:1] bus. Each bit setting
       indicates the following features: bit 0 - privileged mode,

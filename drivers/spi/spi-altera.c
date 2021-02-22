@@ -189,24 +189,26 @@ static int altera_spi_txrx(struct spi_master *master,
 
 		/* send the first byte */
 		altera_spi_tx_word(hw);
-	} else {
-		while (hw->count < hw->len) {
-			altera_spi_tx_word(hw);
 
-			for (;;) {
-				altr_spi_readl(hw, ALTERA_SPI_STATUS, &val);
-				if (val & ALTERA_SPI_STATUS_RRDY_MSK)
-					break;
-
-				cpu_relax();
-			}
-
-			altera_spi_rx_word(hw);
-		}
-		spi_finalize_current_transfer(master);
+		return 1;
 	}
 
-	return t->len;
+	while (hw->count < hw->len) {
+		altera_spi_tx_word(hw);
+
+		for (;;) {
+			altr_spi_readl(hw, ALTERA_SPI_STATUS, &val);
+			if (val & ALTERA_SPI_STATUS_RRDY_MSK)
+				break;
+
+			cpu_relax();
+		}
+
+		altera_spi_rx_word(hw);
+	}
+	spi_finalize_current_transfer(master);
+
+	return 0;
 }
 
 static irqreturn_t altera_spi_irq(int irq, void *dev)

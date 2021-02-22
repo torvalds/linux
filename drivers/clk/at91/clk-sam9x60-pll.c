@@ -229,6 +229,57 @@ static int sam9x60_frac_pll_set_rate(struct clk_hw *hw, unsigned long rate,
 	return sam9x60_frac_pll_compute_mul_frac(core, rate, parent_rate, true);
 }
 
+static int sam9x60_frac_pll_set_rate_chg(struct clk_hw *hw, unsigned long rate,
+					 unsigned long parent_rate)
+{
+	struct sam9x60_pll_core *core = to_sam9x60_pll_core(hw);
+	struct sam9x60_frac *frac = to_sam9x60_frac(core);
+	struct regmap *regmap = core->regmap;
+	unsigned long irqflags;
+	unsigned int val, cfrac, cmul;
+	long ret;
+
+	ret = sam9x60_frac_pll_compute_mul_frac(core, rate, parent_rate, true);
+	if (ret <= 0)
+		return ret;
+
+	spin_lock_irqsave(core->lock, irqflags);
+
+	regmap_update_bits(regmap, AT91_PMC_PLL_UPDT, AT91_PMC_PLL_UPDT_ID_MSK,
+			   core->id);
+	regmap_read(regmap, AT91_PMC_PLL_CTRL1, &val);
+	cmul = (val & core->layout->mul_mask) >> core->layout->mul_shift;
+	cfrac = (val & core->layout->frac_mask) >> core->layout->frac_shift;
+
+	if (cmul == frac->mul && cfrac == frac->frac)
+		goto unlock;
+
+	regmap_write(regmap, AT91_PMC_PLL_CTRL1,
+		     (frac->mul << core->layout->mul_shift) |
+		     (frac->frac << core->layout->frac_shift));
+
+	regmap_update_bits(regmap, AT91_PMC_PLL_UPDT,
+			   AT91_PMC_PLL_UPDT_UPDATE | AT91_PMC_PLL_UPDT_ID_MSK,
+			   AT91_PMC_PLL_UPDT_UPDATE | core->id);
+
+	regmap_update_bits(regmap, AT91_PMC_PLL_CTRL0,
+			   AT91_PMC_PLL_CTRL0_ENLOCK | AT91_PMC_PLL_CTRL0_ENPLL,
+			   AT91_PMC_PLL_CTRL0_ENLOCK |
+			   AT91_PMC_PLL_CTRL0_ENPLL);
+
+	regmap_update_bits(regmap, AT91_PMC_PLL_UPDT,
+			   AT91_PMC_PLL_UPDT_UPDATE | AT91_PMC_PLL_UPDT_ID_MSK,
+			   AT91_PMC_PLL_UPDT_UPDATE | core->id);
+
+	while (!sam9x60_pll_ready(regmap, core->id))
+		cpu_relax();
+
+unlock:
+	spin_unlock_irqrestore(core->lock, irqflags);
+
+	return ret;
+}
+
 static const struct clk_ops sam9x60_frac_pll_ops = {
 	.prepare = sam9x60_frac_pll_prepare,
 	.unprepare = sam9x60_frac_pll_unprepare,
@@ -236,6 +287,15 @@ static const struct clk_ops sam9x60_frac_pll_ops = {
 	.recalc_rate = sam9x60_frac_pll_recalc_rate,
 	.round_rate = sam9x60_frac_pll_round_rate,
 	.set_rate = sam9x60_frac_pll_set_rate,
+};
+
+static const struct clk_ops sam9x60_frac_pll_ops_chg = {
+	.prepare = sam9x60_frac_pll_prepare,
+	.unprepare = sam9x60_frac_pll_unprepare,
+	.is_prepared = sam9x60_frac_pll_is_prepared,
+	.recalc_rate = sam9x60_frac_pll_recalc_rate,
+	.round_rate = sam9x60_frac_pll_round_rate,
+	.set_rate = sam9x60_frac_pll_set_rate_chg,
 };
 
 static int sam9x60_div_pll_prepare(struct clk_hw *hw)
@@ -384,6 +444,44 @@ static int sam9x60_div_pll_set_rate(struct clk_hw *hw, unsigned long rate,
 	return 0;
 }
 
+static int sam9x60_div_pll_set_rate_chg(struct clk_hw *hw, unsigned long rate,
+					unsigned long parent_rate)
+{
+	struct sam9x60_pll_core *core = to_sam9x60_pll_core(hw);
+	struct sam9x60_div *div = to_sam9x60_div(core);
+	struct regmap *regmap = core->regmap;
+	unsigned long irqflags;
+	unsigned int val, cdiv;
+
+	div->div = DIV_ROUND_CLOSEST(parent_rate, rate) - 1;
+
+	spin_lock_irqsave(core->lock, irqflags);
+	regmap_update_bits(regmap, AT91_PMC_PLL_UPDT, AT91_PMC_PLL_UPDT_ID_MSK,
+			   core->id);
+	regmap_read(regmap, AT91_PMC_PLL_CTRL0, &val);
+	cdiv = (val & core->layout->div_mask) >> core->layout->div_shift;
+
+	/* Stop if nothing changed. */
+	if (cdiv == div->div)
+		goto unlock;
+
+	regmap_update_bits(regmap, AT91_PMC_PLL_CTRL0,
+			   core->layout->div_mask,
+			   (div->div << core->layout->div_shift));
+
+	regmap_update_bits(regmap, AT91_PMC_PLL_UPDT,
+			   AT91_PMC_PLL_UPDT_UPDATE | AT91_PMC_PLL_UPDT_ID_MSK,
+			   AT91_PMC_PLL_UPDT_UPDATE | core->id);
+
+	while (!sam9x60_pll_ready(regmap, core->id))
+		cpu_relax();
+
+unlock:
+	spin_unlock_irqrestore(core->lock, irqflags);
+
+	return 0;
+}
+
 static const struct clk_ops sam9x60_div_pll_ops = {
 	.prepare = sam9x60_div_pll_prepare,
 	.unprepare = sam9x60_div_pll_unprepare,
@@ -393,17 +491,26 @@ static const struct clk_ops sam9x60_div_pll_ops = {
 	.set_rate = sam9x60_div_pll_set_rate,
 };
 
+static const struct clk_ops sam9x60_div_pll_ops_chg = {
+	.prepare = sam9x60_div_pll_prepare,
+	.unprepare = sam9x60_div_pll_unprepare,
+	.is_prepared = sam9x60_div_pll_is_prepared,
+	.recalc_rate = sam9x60_div_pll_recalc_rate,
+	.round_rate = sam9x60_div_pll_round_rate,
+	.set_rate = sam9x60_div_pll_set_rate_chg,
+};
+
 struct clk_hw * __init
 sam9x60_clk_register_frac_pll(struct regmap *regmap, spinlock_t *lock,
 			      const char *name, const char *parent_name,
 			      struct clk_hw *parent_hw, u8 id,
 			      const struct clk_pll_characteristics *characteristics,
-			      const struct clk_pll_layout *layout, bool critical)
+			      const struct clk_pll_layout *layout, u32 flags)
 {
 	struct sam9x60_frac *frac;
 	struct clk_hw *hw;
 	struct clk_init_data init;
-	unsigned long parent_rate, flags;
+	unsigned long parent_rate, irqflags;
 	unsigned int val;
 	int ret;
 
@@ -417,10 +524,12 @@ sam9x60_clk_register_frac_pll(struct regmap *regmap, spinlock_t *lock,
 	init.name = name;
 	init.parent_names = &parent_name;
 	init.num_parents = 1;
-	init.ops = &sam9x60_frac_pll_ops;
-	init.flags = CLK_SET_RATE_GATE;
-	if (critical)
-		init.flags |= CLK_IS_CRITICAL;
+	if (flags & CLK_SET_RATE_GATE)
+		init.ops = &sam9x60_frac_pll_ops;
+	else
+		init.ops = &sam9x60_frac_pll_ops_chg;
+
+	init.flags = flags;
 
 	frac->core.id = id;
 	frac->core.hw.init = &init;
@@ -429,7 +538,7 @@ sam9x60_clk_register_frac_pll(struct regmap *regmap, spinlock_t *lock,
 	frac->core.regmap = regmap;
 	frac->core.lock = lock;
 
-	spin_lock_irqsave(frac->core.lock, flags);
+	spin_lock_irqsave(frac->core.lock, irqflags);
 	if (sam9x60_pll_ready(regmap, id)) {
 		regmap_update_bits(regmap, AT91_PMC_PLL_UPDT,
 				   AT91_PMC_PLL_UPDT_ID_MSK, id);
@@ -457,7 +566,7 @@ sam9x60_clk_register_frac_pll(struct regmap *regmap, spinlock_t *lock,
 			goto free;
 		}
 	}
-	spin_unlock_irqrestore(frac->core.lock, flags);
+	spin_unlock_irqrestore(frac->core.lock, irqflags);
 
 	hw = &frac->core.hw;
 	ret = clk_hw_register(NULL, hw);
@@ -469,7 +578,7 @@ sam9x60_clk_register_frac_pll(struct regmap *regmap, spinlock_t *lock,
 	return hw;
 
 free:
-	spin_unlock_irqrestore(frac->core.lock, flags);
+	spin_unlock_irqrestore(frac->core.lock, irqflags);
 	kfree(frac);
 	return hw;
 }
@@ -478,12 +587,12 @@ struct clk_hw * __init
 sam9x60_clk_register_div_pll(struct regmap *regmap, spinlock_t *lock,
 			     const char *name, const char *parent_name, u8 id,
 			     const struct clk_pll_characteristics *characteristics,
-			     const struct clk_pll_layout *layout, bool critical)
+			     const struct clk_pll_layout *layout, u32 flags)
 {
 	struct sam9x60_div *div;
 	struct clk_hw *hw;
 	struct clk_init_data init;
-	unsigned long flags;
+	unsigned long irqflags;
 	unsigned int val;
 	int ret;
 
@@ -497,11 +606,11 @@ sam9x60_clk_register_div_pll(struct regmap *regmap, spinlock_t *lock,
 	init.name = name;
 	init.parent_names = &parent_name;
 	init.num_parents = 1;
-	init.ops = &sam9x60_div_pll_ops;
-	init.flags = CLK_SET_RATE_GATE | CLK_SET_PARENT_GATE |
-		     CLK_SET_RATE_PARENT;
-	if (critical)
-		init.flags |= CLK_IS_CRITICAL;
+	if (flags & CLK_SET_RATE_GATE)
+		init.ops = &sam9x60_div_pll_ops;
+	else
+		init.ops = &sam9x60_div_pll_ops_chg;
+	init.flags = flags;
 
 	div->core.id = id;
 	div->core.hw.init = &init;
@@ -510,14 +619,14 @@ sam9x60_clk_register_div_pll(struct regmap *regmap, spinlock_t *lock,
 	div->core.regmap = regmap;
 	div->core.lock = lock;
 
-	spin_lock_irqsave(div->core.lock, flags);
+	spin_lock_irqsave(div->core.lock, irqflags);
 
 	regmap_update_bits(regmap, AT91_PMC_PLL_UPDT,
 			   AT91_PMC_PLL_UPDT_ID_MSK, id);
 	regmap_read(regmap, AT91_PMC_PLL_CTRL0, &val);
 	div->div = FIELD_GET(PMC_PLL_CTRL0_DIV_MSK, val);
 
-	spin_unlock_irqrestore(div->core.lock, flags);
+	spin_unlock_irqrestore(div->core.lock, irqflags);
 
 	hw = &div->core.hw;
 	ret = clk_hw_register(NULL, hw);

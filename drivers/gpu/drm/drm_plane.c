@@ -1163,7 +1163,14 @@ retry:
 	if (ret)
 		goto out;
 
-	if (old_fb->format != fb->format) {
+	/*
+	 * Only check the FOURCC format code, excluding modifiers. This is
+	 * enough for all legacy drivers. Atomic drivers have their own
+	 * checks in their ->atomic_check implementation, which will
+	 * return -EINVAL if any hw or driver constraint is violated due
+	 * to modifier changes.
+	 */
+	if (old_fb->format->format != fb->format->format) {
 		DRM_DEBUG_KMS("Page flip is not allowed to change frame buffer format.\n");
 		ret = -EINVAL;
 		goto out;

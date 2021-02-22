@@ -1145,7 +1145,7 @@ static int gfs2_unlink(struct inode *dir, struct dentry *dentry)
 	if (!rgd)
 		goto out_inodes;
 
-	gfs2_holder_init(rgd->rd_gl, LM_ST_EXCLUSIVE, 0, ghs + 2);
+	gfs2_holder_init(rgd->rd_gl, LM_ST_EXCLUSIVE, LM_FLAG_NODE_SCOPE, ghs + 2);
 
 
 	error = gfs2_glock_nq(ghs); /* parent */
@@ -1450,8 +1450,8 @@ static int gfs2_rename(struct inode *odir, struct dentry *odentry,
 			error = -ENOENT;
 			goto out_gunlock;
 		}
-		error = gfs2_glock_nq_init(nrgd->rd_gl, LM_ST_EXCLUSIVE, 0,
-					   &rd_gh);
+		error = gfs2_glock_nq_init(nrgd->rd_gl, LM_ST_EXCLUSIVE,
+					   LM_FLAG_NODE_SCOPE, &rd_gh);
 		if (error)
 			goto out_gunlock;
 	}

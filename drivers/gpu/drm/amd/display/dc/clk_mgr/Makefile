@@ -104,13 +104,6 @@ ifdef CONFIG_PPC64
 CFLAGS_$(AMDDALPATH)/dc/clk_mgr/dcn21/rn_clk_mgr.o := $(call cc-option,-mno-gnu-attribute)
 endif
 
-# prevent build errors:
-# ...: '-mgeneral-regs-only' is incompatible with the use of floating-point types
-# this file is unused on arm64, just like on ppc64
-ifdef CONFIG_ARM64
-CFLAGS_REMOVE_$(AMDDALPATH)/dc/clk_mgr/dcn21/rn_clk_mgr.o := -mgeneral-regs-only
-endif
-
 AMD_DAL_CLK_MGR_DCN21 = $(addprefix $(AMDDALPATH)/dc/clk_mgr/dcn21/,$(CLK_MGR_DCN21))
 
 AMD_DISPLAY_FILES += $(AMD_DAL_CLK_MGR_DCN21)
@@ -125,13 +118,6 @@ ifdef CONFIG_PPC64
 CFLAGS_$(AMDDALPATH)/dc/clk_mgr/dcn30/dcn30_clk_mgr.o := $(call cc-option,-mno-gnu-attribute)
 endif
 
-# prevent build errors:
-# ...: '-mgeneral-regs-only' is incompatible with the use of floating-point types
-# this file is unused on arm64, just like on ppc64
-ifdef CONFIG_ARM64
-CFLAGS_REMOVE_$(AMDDALPATH)/dc/clk_mgr/dcn30/dcn30_clk_mgr.o := -mgeneral-regs-only
-endif
-
 AMD_DAL_CLK_MGR_DCN30 = $(addprefix $(AMDDALPATH)/dc/clk_mgr/dcn30/,$(CLK_MGR_DCN30))
 
 AMD_DISPLAY_FILES += $(AMD_DAL_CLK_MGR_DCN30)
@@ -144,13 +130,6 @@ CLK_MGR_DCN301 = vg_clk_mgr.o dcn301_smu.o
 # this code is currently unused on ppc64, as it applies to VanGogh APUs only
 ifdef CONFIG_PPC64
 CFLAGS_$(AMDDALPATH)/dc/clk_mgr/dcn301/vg_clk_mgr.o := $(call cc-option,-mno-gnu-attribute)
-endif
-
-# prevent build errors:
-# ...: '-mgeneral-regs-only' is incompatible with the use of floating-point types
-# this file is unused on arm64, just like on ppc64
-ifdef CONFIG_ARM64
-CFLAGS_REMOVE_$(AMDDALPATH)/dc/clk_mgr/dcn301/vg_clk_mgr.o := -mgeneral-regs-only
 endif
 
 AMD_DAL_CLK_MGR_DCN301 = $(addprefix $(AMDDALPATH)/dc/clk_mgr/dcn301/,$(CLK_MGR_DCN301))

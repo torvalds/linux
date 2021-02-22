@@ -851,7 +851,7 @@ static int abx80x_probe(struct i2c_client *client,
 		return err;
 	}
 
-	return rtc_register_device(priv->rtc);
+	return devm_rtc_register_device(priv->rtc);
 }
 
 static const struct i2c_device_id abx80x_id[] = {

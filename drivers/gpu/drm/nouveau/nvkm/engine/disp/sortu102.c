@@ -23,7 +23,7 @@
 
 #include <subdev/timer.h>
 
-static void
+void
 tu102_sor_dp_vcpi(struct nvkm_ior *sor, int head,
 		  u8 slot, u8 slot_nr, u16 pbn, u16 aligned)
 {

@@ -358,7 +358,7 @@ static void private_free_iova(struct iova_domain *iovad, struct iova *iova)
  * @iovad: - iova domain in question.
  * @pfn: - page frame number
  * This function finds and returns an iova belonging to the
- * given doamin which matches the given pfn.
+ * given domain which matches the given pfn.
  */
 struct iova *find_iova(struct iova_domain *iovad, unsigned long pfn)
 {
@@ -601,7 +601,7 @@ void queue_iova(struct iova_domain *iovad,
 EXPORT_SYMBOL_GPL(queue_iova);
 
 /**
- * put_iova_domain - destroys the iova doamin
+ * put_iova_domain - destroys the iova domain
  * @iovad: - iova domain in question.
  * All the iova's in that domain are destroyed.
  */
@@ -712,9 +712,9 @@ EXPORT_SYMBOL_GPL(reserve_iova);
 
 /**
  * copy_reserved_iova - copies the reserved between domains
- * @from: - source doamin from where to copy
+ * @from: - source domain from where to copy
  * @to: - destination domin where to copy
- * This function copies reserved iova's from one doamin to
+ * This function copies reserved iova's from one domain to
  * other.
  */
 void

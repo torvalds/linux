@@ -21,6 +21,9 @@ obj-y		:= elf.o entry-common.o irq.o opcodes.o \
 		   setup.o signal.o sigreturn_codes.o \
 		   stacktrace.o sys_arm.o time.o traps.o
 
+KASAN_SANITIZE_stacktrace.o := n
+KASAN_SANITIZE_traps.o := n
+
 ifneq ($(CONFIG_ARM_UNWIND),y)
 obj-$(CONFIG_FRAME_POINTER)	+= return_address.o
 endif
@@ -88,6 +91,7 @@ obj-$(CONFIG_PARAVIRT)	+= paravirt.o
 head-y			:= head$(MMUEXT).o
 obj-$(CONFIG_DEBUG_LL)	+= debug.o
 obj-$(CONFIG_EARLY_PRINTK)	+= early_printk.o
+obj-$(CONFIG_ARM_PATCH_PHYS_VIRT)	+= phys2virt.o
 
 # This is executed very early using a temporary stack when no memory allocator
 # nor global data is available. Everything has to be allocated on the stack.

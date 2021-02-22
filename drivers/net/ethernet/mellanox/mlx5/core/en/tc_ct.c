@@ -118,16 +118,17 @@ struct mlx5_ct_tuple {
 	u16 zone;
 };
 
-struct mlx5_ct_shared_counter {
+struct mlx5_ct_counter {
 	struct mlx5_fc *counter;
 	refcount_t refcount;
+	bool is_shared;
 };
 
 struct mlx5_ct_entry {
 	struct rhash_head node;
 	struct rhash_head tuple_node;
 	struct rhash_head tuple_nat_node;
-	struct mlx5_ct_shared_counter *shared_counter;
+	struct mlx5_ct_counter *counter;
 	unsigned long cookie;
 	unsigned long restore_cookie;
 	struct mlx5_ct_tuple tuple;
@@ -394,13 +395,14 @@ mlx5_tc_ct_set_tuple_match(struct mlx5e_priv *priv, struct mlx5_flow_spec *spec,
 }
 
 static void
-mlx5_tc_ct_shared_counter_put(struct mlx5_tc_ct_priv *ct_priv, struct mlx5_ct_entry *entry)
+mlx5_tc_ct_counter_put(struct mlx5_tc_ct_priv *ct_priv, struct mlx5_ct_entry *entry)
 {
-	if (!refcount_dec_and_test(&entry->shared_counter->refcount))
+	if (entry->counter->is_shared &&
+	    !refcount_dec_and_test(&entry->counter->refcount))
 		return;
 
-	mlx5_fc_destroy(ct_priv->dev, entry->shared_counter->counter);
-	kfree(entry->shared_counter);
+	mlx5_fc_destroy(ct_priv->dev, entry->counter->counter);
+	kfree(entry->counter);
 }
 
 static void
@@ -699,7 +701,7 @@ mlx5_tc_ct_entry_add_rule(struct mlx5_tc_ct_priv *ct_priv,
 	attr->dest_ft = ct_priv->post_ct;
 	attr->ft = nat ? ct_priv->ct_nat : ct_priv->ct;
 	attr->outer_match_level = MLX5_MATCH_L4;
-	attr->counter = entry->shared_counter->counter;
+	attr->counter = entry->counter->counter;
 	attr->flags |= MLX5_ESW_ATTR_FLAG_NO_IN_PORT;
 
 	mlx5_tc_ct_set_tuple_match(netdev_priv(ct_priv->netdev), spec, flow_rule);
@@ -732,13 +734,34 @@ err_attr:
 	return err;
 }
 
-static struct mlx5_ct_shared_counter *
+static struct mlx5_ct_counter *
+mlx5_tc_ct_counter_create(struct mlx5_tc_ct_priv *ct_priv)
+{
+	struct mlx5_ct_counter *counter;
+	int ret;
+
+	counter = kzalloc(sizeof(*counter), GFP_KERNEL);
+	if (!counter)
+		return ERR_PTR(-ENOMEM);
+
+	counter->is_shared = false;
+	counter->counter = mlx5_fc_create(ct_priv->dev, true);
+	if (IS_ERR(counter->counter)) {
+		ct_dbg("Failed to create counter for ct entry");
+		ret = PTR_ERR(counter->counter);
+		kfree(counter);
+		return ERR_PTR(ret);
+	}
+
+	return counter;
+}
+
+static struct mlx5_ct_counter *
 mlx5_tc_ct_shared_counter_get(struct mlx5_tc_ct_priv *ct_priv,
 			      struct mlx5_ct_entry *entry)
 {
 	struct mlx5_ct_tuple rev_tuple = entry->tuple;
-	struct mlx5_ct_shared_counter *shared_counter;
-	struct mlx5_core_dev *dev = ct_priv->dev;
+	struct mlx5_ct_counter *shared_counter;
 	struct mlx5_ct_entry *rev_entry;
 	__be16 tmp_port;
 	int ret;
@@ -767,25 +790,20 @@ mlx5_tc_ct_shared_counter_get(struct mlx5_tc_ct_priv *ct_priv,
 	rev_entry = rhashtable_lookup_fast(&ct_priv->ct_tuples_ht, &rev_tuple,
 					   tuples_ht_params);
 	if (rev_entry) {
-		if (refcount_inc_not_zero(&rev_entry->shared_counter->refcount)) {
+		if (refcount_inc_not_zero(&rev_entry->counter->refcount)) {
 			mutex_unlock(&ct_priv->shared_counter_lock);
-			return rev_entry->shared_counter;
+			return rev_entry->counter;
 		}
 	}
 	mutex_unlock(&ct_priv->shared_counter_lock);
 
-	shared_counter = kzalloc(sizeof(*shared_counter), GFP_KERNEL);
-	if (!shared_counter)
-		return ERR_PTR(-ENOMEM);
-
-	shared_counter->counter = mlx5_fc_create(dev, true);
-	if (IS_ERR(shared_counter->counter)) {
-		ct_dbg("Failed to create counter for ct entry");
-		ret = PTR_ERR(shared_counter->counter);
-		kfree(shared_counter);
+	shared_counter = mlx5_tc_ct_counter_create(ct_priv);
+	if (IS_ERR(shared_counter)) {
+		ret = PTR_ERR(shared_counter);
 		return ERR_PTR(ret);
 	}
 
+	shared_counter->is_shared = true;
 	refcount_set(&shared_counter->refcount, 1);
 	return shared_counter;
 }
@@ -798,10 +816,13 @@ mlx5_tc_ct_entry_add_rules(struct mlx5_tc_ct_priv *ct_priv,
 {
 	int err;
 
-	entry->shared_counter = mlx5_tc_ct_shared_counter_get(ct_priv, entry);
-	if (IS_ERR(entry->shared_counter)) {
-		err = PTR_ERR(entry->shared_counter);
-		ct_dbg("Failed to create counter for ct entry");
+	if (nf_ct_acct_enabled(dev_net(ct_priv->netdev)))
+		entry->counter = mlx5_tc_ct_counter_create(ct_priv);
+	else
+		entry->counter = mlx5_tc_ct_shared_counter_get(ct_priv, entry);
+
+	if (IS_ERR(entry->counter)) {
+		err = PTR_ERR(entry->counter);
 		return err;
 	}
 
@@ -820,7 +841,7 @@ mlx5_tc_ct_entry_add_rules(struct mlx5_tc_ct_priv *ct_priv,
 err_nat:
 	mlx5_tc_ct_entry_del_rule(ct_priv, entry, false);
 err_orig:
-	mlx5_tc_ct_shared_counter_put(ct_priv, entry);
+	mlx5_tc_ct_counter_put(ct_priv, entry);
 	return err;
 }
 
@@ -918,7 +939,7 @@ mlx5_tc_ct_del_ft_entry(struct mlx5_tc_ct_priv *ct_priv,
 	rhashtable_remove_fast(&ct_priv->ct_tuples_ht, &entry->tuple_node,
 			       tuples_ht_params);
 	mutex_unlock(&ct_priv->shared_counter_lock);
-	mlx5_tc_ct_shared_counter_put(ct_priv, entry);
+	mlx5_tc_ct_counter_put(ct_priv, entry);
 
 }
 
@@ -956,7 +977,7 @@ mlx5_tc_ct_block_flow_offload_stats(struct mlx5_ct_ft *ft,
 	if (!entry)
 		return -ENOENT;
 
-	mlx5_fc_query_cached(entry->shared_counter->counter, &bytes, &packets, &lastuse);
+	mlx5_fc_query_cached(entry->counter->counter, &bytes, &packets, &lastuse);
 	flow_stats_update(&f->stats, bytes, packets, 0, lastuse,
 			  FLOW_ACTION_HW_STATS_DELAYED);
 

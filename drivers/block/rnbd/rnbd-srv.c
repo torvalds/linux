@@ -338,9 +338,12 @@ static int rnbd_srv_link_ev(struct rtrs_srv *rtrs,
 
 void rnbd_srv_sess_dev_force_close(struct rnbd_srv_sess_dev *sess_dev)
 {
-	rnbd_srv_destroy_dev_session_sysfs(sess_dev);
-	sess_dev->keep_id = true;
+	struct rnbd_srv_session	*sess = sess_dev->sess;
 
+	sess_dev->keep_id = true;
+	mutex_lock(&sess->lock);
+	rnbd_srv_destroy_dev_session_sysfs(sess_dev);
+	mutex_unlock(&sess->lock);
 }
 
 static int process_msg_close(struct rtrs_srv *rtrs,
@@ -549,6 +552,7 @@ static void rnbd_srv_fill_msg_open_rsp(struct rnbd_msg_open_rsp *rsp,
 					struct rnbd_srv_sess_dev *sess_dev)
 {
 	struct rnbd_dev *rnbd_dev = sess_dev->rnbd_dev;
+	struct request_queue *q = bdev_get_queue(rnbd_dev->bdev);
 
 	rsp->hdr.type = cpu_to_le16(RNBD_MSG_OPEN_RSP);
 	rsp->device_id =
@@ -573,8 +577,12 @@ static void rnbd_srv_fill_msg_open_rsp(struct rnbd_msg_open_rsp *rsp,
 		cpu_to_le32(rnbd_dev_get_discard_alignment(rnbd_dev));
 	rsp->secure_discard =
 		cpu_to_le16(rnbd_dev_get_secure_discard(rnbd_dev));
-	rsp->rotational =
-		!blk_queue_nonrot(bdev_get_queue(rnbd_dev->bdev));
+	rsp->rotational = !blk_queue_nonrot(q);
+	rsp->cache_policy = 0;
+	if (test_bit(QUEUE_FLAG_WC, &q->queue_flags))
+		rsp->cache_policy |= RNBD_WRITEBACK;
+	if (blk_queue_fua(q))
+		rsp->cache_policy |= RNBD_FUA;
 }
 
 static struct rnbd_srv_sess_dev *

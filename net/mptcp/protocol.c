@@ -427,7 +427,7 @@ static bool mptcp_subflow_active(struct mptcp_subflow_context *subflow)
 static bool tcp_can_send_ack(const struct sock *ssk)
 {
 	return !((1 << inet_sk_state_load(ssk)) &
-	       (TCPF_SYN_SENT | TCPF_SYN_RECV | TCPF_TIME_WAIT | TCPF_CLOSE));
+	       (TCPF_SYN_SENT | TCPF_SYN_RECV | TCPF_TIME_WAIT | TCPF_CLOSE | TCPF_LISTEN));
 }
 
 static void mptcp_send_ack(struct mptcp_sock *msk)
@@ -877,6 +877,9 @@ static void __mptcp_wmem_reserve(struct sock *sk, int size)
 	struct mptcp_sock *msk = mptcp_sk(sk);
 
 	WARN_ON_ONCE(msk->wmem_reserved);
+	if (WARN_ON_ONCE(amount < 0))
+		amount = 0;
+
 	if (amount <= sk->sk_forward_alloc)
 		goto reserve;
 
@@ -1587,7 +1590,7 @@ static int mptcp_sendmsg(struct sock *sk, struct msghdr *msg, size_t len)
 	if (msg->msg_flags & ~(MSG_MORE | MSG_DONTWAIT | MSG_NOSIGNAL))
 		return -EOPNOTSUPP;
 
-	mptcp_lock_sock(sk, __mptcp_wmem_reserve(sk, len));
+	mptcp_lock_sock(sk, __mptcp_wmem_reserve(sk, min_t(size_t, 1 << 20, len)));
 
 	timeo = sock_sndtimeo(sk, msg->msg_flags & MSG_DONTWAIT);
 
@@ -2639,11 +2642,17 @@ static void mptcp_copy_inaddrs(struct sock *msk, const struct sock *ssk)
 
 static int mptcp_disconnect(struct sock *sk, int flags)
 {
-	/* Should never be called.
-	 * inet_stream_connect() calls ->disconnect, but that
-	 * refers to the subflow socket, not the mptcp one.
-	 */
-	WARN_ON_ONCE(1);
+	struct mptcp_subflow_context *subflow;
+	struct mptcp_sock *msk = mptcp_sk(sk);
+
+	__mptcp_flush_join_list(msk);
+	mptcp_for_each_subflow(msk, subflow) {
+		struct sock *ssk = mptcp_subflow_tcp_sock(subflow);
+
+		lock_sock(ssk);
+		tcp_disconnect(ssk, flags);
+		release_sock(ssk);
+	}
 	return 0;
 }
 
@@ -3086,6 +3095,14 @@ bool mptcp_finish_join(struct sock *ssk)
 	return true;
 }
 
+static void mptcp_shutdown(struct sock *sk, int how)
+{
+	pr_debug("sk=%p, how=%d", sk, how);
+
+	if ((how & SEND_SHUTDOWN) && mptcp_close_state(sk))
+		__mptcp_wr_shutdown(sk);
+}
+
 static struct proto mptcp_prot = {
 	.name		= "MPTCP",
 	.owner		= THIS_MODULE,
@@ -3095,7 +3112,7 @@ static struct proto mptcp_prot = {
 	.accept		= mptcp_accept,
 	.setsockopt	= mptcp_setsockopt,
 	.getsockopt	= mptcp_getsockopt,
-	.shutdown	= tcp_shutdown,
+	.shutdown	= mptcp_shutdown,
 	.destroy	= mptcp_destroy,
 	.sendmsg	= mptcp_sendmsg,
 	.recvmsg	= mptcp_recvmsg,
@@ -3341,43 +3358,6 @@ static __poll_t mptcp_poll(struct file *file, struct socket *sock,
 	return mask;
 }
 
-static int mptcp_shutdown(struct socket *sock, int how)
-{
-	struct mptcp_sock *msk = mptcp_sk(sock->sk);
-	struct sock *sk = sock->sk;
-	int ret = 0;
-
-	pr_debug("sk=%p, how=%d", msk, how);
-
-	lock_sock(sk);
-
-	how++;
-	if ((how & ~SHUTDOWN_MASK) || !how) {
-		ret = -EINVAL;
-		goto out_unlock;
-	}
-
-	if (sock->state == SS_CONNECTING) {
-		if ((1 << sk->sk_state) &
-		    (TCPF_SYN_SENT | TCPF_SYN_RECV | TCPF_CLOSE))
-			sock->state = SS_DISCONNECTING;
-		else
-			sock->state = SS_CONNECTED;
-	}
-
-	sk->sk_shutdown |= how;
-	if ((how & SEND_SHUTDOWN) && mptcp_close_state(sk))
-		__mptcp_wr_shutdown(sk);
-
-	/* Wake up anyone sleeping in poll. */
-	sk->sk_state_change(sk);
-
-out_unlock:
-	release_sock(sk);
-
-	return ret;
-}
-
 static const struct proto_ops mptcp_stream_ops = {
 	.family		   = PF_INET,
 	.owner		   = THIS_MODULE,
@@ -3391,7 +3371,7 @@ static const struct proto_ops mptcp_stream_ops = {
 	.ioctl		   = inet_ioctl,
 	.gettstamp	   = sock_gettstamp,
 	.listen		   = mptcp_listen,
-	.shutdown	   = mptcp_shutdown,
+	.shutdown	   = inet_shutdown,
 	.setsockopt	   = sock_common_setsockopt,
 	.getsockopt	   = sock_common_getsockopt,
 	.sendmsg	   = inet_sendmsg,
@@ -3441,7 +3421,7 @@ static const struct proto_ops mptcp_v6_stream_ops = {
 	.ioctl		   = inet6_ioctl,
 	.gettstamp	   = sock_gettstamp,
 	.listen		   = mptcp_listen,
-	.shutdown	   = mptcp_shutdown,
+	.shutdown	   = inet_shutdown,
 	.setsockopt	   = sock_common_setsockopt,
 	.getsockopt	   = sock_common_getsockopt,
 	.sendmsg	   = inet6_sendmsg,

@@ -24,6 +24,14 @@
 #define EP_FLAG_RUNNING		1
 #define EP_FLAG_STOPPING	2
 
+/* interface refcounting */
+struct snd_usb_iface_ref {
+	unsigned char iface;
+	bool need_setup;
+	int opened;
+	struct list_head list;
+};
+
 /*
  * snd_usb_endpoint is a model that abstracts everything related to an
  * USB endpoint and its streaming.
@@ -489,6 +497,28 @@ exit_clear:
 }
 
 /*
+ * Find or create a refcount object for the given interface
+ *
+ * The objects are released altogether in snd_usb_endpoint_free_all()
+ */
+static struct snd_usb_iface_ref *
+iface_ref_find(struct snd_usb_audio *chip, int iface)
+{
+	struct snd_usb_iface_ref *ip;
+
+	list_for_each_entry(ip, &chip->iface_ref_list, list)
+		if (ip->iface == iface)
+			return ip;
+
+	ip = kzalloc(sizeof(*ip), GFP_KERNEL);
+	if (!ip)
+		return NULL;
+	ip->iface = iface;
+	list_add_tail(&ip->list, &chip->iface_ref_list);
+	return ip;
+}
+
+/*
  * Get the existing endpoint object corresponding EP
  * Returns NULL if not present.
  */
@@ -520,8 +550,8 @@ snd_usb_get_endpoint(struct snd_usb_audio *chip, int ep_num)
  *
  * Returns zero on success or a negative error code.
  *
- * New endpoints will be added to chip->ep_list and must be freed by
- * calling snd_usb_endpoint_free().
+ * New endpoints will be added to chip->ep_list and freed by
+ * calling snd_usb_endpoint_free_all().
  *
  * For SND_USB_ENDPOINT_TYPE_SYNC, the caller needs to guarantee that
  * bNumEndpoints > 1 beforehand.
@@ -653,10 +683,16 @@ snd_usb_endpoint_open(struct snd_usb_audio *chip,
 		} else {
 			ep->iface = fp->iface;
 			ep->altsetting = fp->altsetting;
-			ep->ep_idx = 0;
+			ep->ep_idx = fp->ep_idx;
 		}
 		usb_audio_dbg(chip, "Open EP 0x%x, iface=%d:%d, idx=%d\n",
 			      ep_num, ep->iface, ep->altsetting, ep->ep_idx);
+
+		ep->iface_ref = iface_ref_find(chip, ep->iface);
+		if (!ep->iface_ref) {
+			ep = NULL;
+			goto unlock;
+		}
 
 		ep->cur_audiofmt = fp;
 		ep->cur_channels = fp->channels;
@@ -681,6 +717,11 @@ snd_usb_endpoint_open(struct snd_usb_audio *chip,
 			      ep->implicit_fb_sync);
 
 	} else {
+		if (WARN_ON(!ep->iface_ref)) {
+			ep = NULL;
+			goto unlock;
+		}
+
 		if (!endpoint_compatible(ep, fp, params)) {
 			usb_audio_err(chip, "Incompatible EP setup for 0x%x\n",
 				      ep_num);
@@ -691,6 +732,9 @@ snd_usb_endpoint_open(struct snd_usb_audio *chip,
 		usb_audio_dbg(chip, "Reopened EP 0x%x (count %d)\n",
 			      ep_num, ep->opened);
 	}
+
+	if (!ep->iface_ref->opened++)
+		ep->iface_ref->need_setup = true;
 
 	ep->opened++;
 
@@ -760,12 +804,16 @@ void snd_usb_endpoint_close(struct snd_usb_audio *chip,
 	mutex_lock(&chip->mutex);
 	usb_audio_dbg(chip, "Closing EP 0x%x (count %d)\n",
 		      ep->ep_num, ep->opened);
-	if (!--ep->opened) {
+
+	if (!--ep->iface_ref->opened)
 		endpoint_set_interface(chip, ep, false);
+
+	if (!--ep->opened) {
 		ep->iface = 0;
 		ep->altsetting = 0;
 		ep->cur_audiofmt = NULL;
 		ep->cur_rate = 0;
+		ep->iface_ref = NULL;
 		usb_audio_dbg(chip, "EP 0x%x closed\n", ep->ep_num);
 	}
 	mutex_unlock(&chip->mutex);
@@ -775,6 +823,8 @@ void snd_usb_endpoint_close(struct snd_usb_audio *chip,
 void snd_usb_endpoint_suspend(struct snd_usb_endpoint *ep)
 {
 	ep->need_setup = true;
+	if (ep->iface_ref)
+		ep->iface_ref->need_setup = true;
 }
 
 /*
@@ -1195,11 +1245,13 @@ int snd_usb_endpoint_configure(struct snd_usb_audio *chip,
 	int err = 0;
 
 	mutex_lock(&chip->mutex);
+	if (WARN_ON(!ep->iface_ref))
+		goto unlock;
 	if (!ep->need_setup)
 		goto unlock;
 
-	/* No need to (re-)configure the sync EP belonging to the same altset */
-	if (ep->ep_idx) {
+	/* If the interface has been already set up, just set EP parameters */
+	if (!ep->iface_ref->need_setup) {
 		err = snd_usb_endpoint_set_params(chip, ep);
 		if (err < 0)
 			goto unlock;
@@ -1241,6 +1293,8 @@ int snd_usb_endpoint_configure(struct snd_usb_audio *chip,
 		if (err < 0)
 			goto unlock;
 	}
+
+	ep->iface_ref->need_setup = false;
 
  done:
 	ep->need_setup = false;
@@ -1387,15 +1441,21 @@ void snd_usb_endpoint_release(struct snd_usb_endpoint *ep)
 }
 
 /**
- * snd_usb_endpoint_free: Free the resources of an snd_usb_endpoint
+ * snd_usb_endpoint_free_all: Free the resources of an snd_usb_endpoint
+ * @card: The chip
  *
- * @ep: the endpoint to free
- *
- * This free all resources of the given ep.
+ * This free all endpoints and those resources
  */
-void snd_usb_endpoint_free(struct snd_usb_endpoint *ep)
+void snd_usb_endpoint_free_all(struct snd_usb_audio *chip)
 {
-	kfree(ep);
+	struct snd_usb_endpoint *ep, *en;
+	struct snd_usb_iface_ref *ip, *in;
+
+	list_for_each_entry_safe(ep, en, &chip->ep_list, list)
+		kfree(ep);
+
+	list_for_each_entry_safe(ip, in, &chip->iface_ref_list, list)
+		kfree(ip);
 }
 
 /*

@@ -36,7 +36,7 @@ endchoice
 if M68KCLASSIC
 
 config M68000
-	bool "MC68000"
+	bool
 	depends on !MMU
 	select CPU_HAS_NO_BITFIELDS
 	select CPU_HAS_NO_MULDIV64
@@ -103,7 +103,7 @@ config M68060
 	  processor, say Y. Otherwise, say N.
 
 config M68328
-	bool "MC68328"
+	bool
 	depends on !MMU
 	select LEGACY_TIMER_TICK
 	select M68000
@@ -111,7 +111,7 @@ config M68328
 	  Motorola 68328 processor support.
 
 config M68EZ328
-	bool "MC68EZ328"
+	bool
 	depends on !MMU
 	select LEGACY_TIMER_TICK
 	select M68000
@@ -119,7 +119,7 @@ config M68EZ328
 	  Motorola 68EX328 processor support.
 
 config M68VZ328
-	bool "MC68VZ328"
+	bool
 	depends on !MMU
 	select LEGACY_TIMER_TICK
 	select M68000

@@ -26,9 +26,18 @@ required:
   - compatible
   - reg
 
+additionalProperties: false
+
 examples:
   - |
-    xlnx_vcu: vcu@a0041000 {
-          compatible = "xlnx,vcu-settings", "syscon";
-          reg = <0x0 0xa0041000 0x0 0x1000>;
+    fpga {
+        #address-cells = <2>;
+        #size-cells = <2>;
+
+        xlnx_vcu: vcu@a0041000 {
+            compatible = "xlnx,vcu-settings", "syscon";
+            reg = <0x0 0xa0041000 0x0 0x1000>;
+        };
     };
+
+...

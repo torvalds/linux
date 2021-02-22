@@ -395,9 +395,6 @@ config ACPI_CONTAINER
 
 	  This helps support hotplug of nodes, CPUs, and memory.
 
-	  To compile this driver as a module, choose M here:
-	  the module will be called container.
-
 config ACPI_HOTPLUG_MEMORY
 	bool "Memory Hotplug"
 	depends on MEMORY_HOTPLUG
@@ -410,9 +407,6 @@ config ACPI_HOTPLUG_MEMORY
 	  If your hardware and firmware do not support adding or
 	  removing memory devices at runtime, you need not enable
 	  this driver.
-
-	  To compile this driver as a module, choose M here:
-	  the module will be called acpi_memhotplug.
 
 config ACPI_HOTPLUG_IOAPIC
 	bool

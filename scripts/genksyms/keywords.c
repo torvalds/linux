@@ -32,6 +32,9 @@ static struct resword {
 	{ "restrict", RESTRICT_KEYW },
 	{ "asm", ASM_KEYW },
 
+	// c11 keywords that can be used at module scope
+	{ "_Static_assert", STATIC_ASSERT_KEYW },
+
 	// attribute commented out in modutils 2.4.2.  People are using 'attribute' as a
 	// field name which breaks the genksyms parser.  It is not a gcc keyword anyway.
 	// KAO. },

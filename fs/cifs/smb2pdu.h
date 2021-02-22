@@ -424,7 +424,7 @@ struct smb2_rdma_transform_capabilities_context {
 	__le16	TransformCount;
 	__u16	Reserved1;
 	__u32	Reserved2;
-	__le16	RDMATransformIds[1];
+	__le16	RDMATransformIds[];
 } __packed;
 
 /* Signing algorithms */

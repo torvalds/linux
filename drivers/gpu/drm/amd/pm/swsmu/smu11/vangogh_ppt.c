@@ -252,7 +252,8 @@ static int vangogh_get_smu_metrics_data(struct smu_context *smu,
 		*value = metrics->UvdActivity;
 		break;
 	case METRICS_AVERAGE_SOCKETPOWER:
-		*value = metrics->CurrentSocketPower;
+		*value = (metrics->CurrentSocketPower << 8) /
+		1000 ;
 		break;
 	case METRICS_TEMPERATURE_EDGE:
 		*value = metrics->GfxTemperature / 100 *
@@ -724,8 +725,13 @@ static int vangogh_set_fine_grain_gfx_freq_parameters(struct smu_context *smu)
 
 static int vangogh_system_features_control(struct smu_context *smu, bool en)
 {
-	return smu_cmn_send_smc_msg_with_param(smu, SMU_MSG_RlcPowerNotify,
-					en ? RLC_STATUS_NORMAL : RLC_STATUS_OFF, NULL);
+	struct amdgpu_device *adev = smu->adev;
+
+	if (adev->pm.fw_version >= 0x43f1700)
+		return smu_cmn_send_smc_msg_with_param(smu, SMU_MSG_RlcPowerNotify,
+						en ? RLC_STATUS_NORMAL : RLC_STATUS_OFF, NULL);
+	else
+		return 0;
 }
 
 static const struct pptable_funcs vangogh_ppt_funcs = {

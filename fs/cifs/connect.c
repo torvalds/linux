@@ -155,6 +155,7 @@ static void reconn_set_next_dfs_target(struct TCP_Server_Info *server,
 		cifs_dbg(FYI,
 			 "%s: failed to extract hostname from target: %ld\n",
 			 __func__, PTR_ERR(server->hostname));
+		return;
 	}
 
 	rc = reconn_set_ipaddr_from_hostname(server);
@@ -3739,7 +3740,7 @@ cifs_setup_session(const unsigned int xid, struct cifs_ses *ses,
 
 	if (!ses->binding) {
 		ses->capabilities = server->capabilities;
-		if (linuxExtEnabled == 0)
+		if (!linuxExtEnabled)
 			ses->capabilities &= (~server->vals->cap_unix);
 
 		if (ses->auth_key.response) {

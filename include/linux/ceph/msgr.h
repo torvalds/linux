@@ -33,8 +33,8 @@
 #define CEPH_MSGR2_INCARNATION_1 (0ull)
 
 #define DEFINE_MSGR2_FEATURE(bit, incarnation, name)               \
-	static const uint64_t CEPH_MSGR2_FEATURE_##name = (1ULL << bit); \
-	static const uint64_t CEPH_MSGR2_FEATUREMASK_##name =            \
+	static const uint64_t __maybe_unused CEPH_MSGR2_FEATURE_##name = (1ULL << bit); \
+	static const uint64_t __maybe_unused CEPH_MSGR2_FEATUREMASK_##name =            \
 			(1ULL << bit | CEPH_MSGR2_INCARNATION_##incarnation);
 
 #define HAVE_MSGR2_FEATURE(x, name) \

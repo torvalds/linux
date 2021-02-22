@@ -168,8 +168,9 @@ command line can be used: 'perf stat -e cycles -G cgroup_name -a -e cycles'.
 
 --for-each-cgroup name::
 Expand event list for each cgroup in "name" (allow multiple cgroups separated
-by comma).  This has same effect that repeating -e option and -G option for
-each event x name.  This option cannot be used with -G/--cgroup option.
+by comma).  It also support regex patterns to match multiple groups.  This has same
+effect that repeating -e option and -G option for each event x name.  This option
+cannot be used with -G/--cgroup option.
 
 -o file::
 --output file::
@@ -315,6 +316,10 @@ group is that the group may require multiplexing and so accuracy for a
 small group that need not have multiplexing is lowered. This option
 forbids the event merging logic from sharing events between groups and
 may be used to increase accuracy in this case.
+
+--quiet::
+Don't print output. This is useful with perf stat record below to only
+write data to the perf.data file.
 
 STAT RECORD
 -----------

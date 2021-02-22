@@ -1,6 +1,8 @@
 // SPDX-License-Identifier: GPL-2.0
 /*
  *  gendisk handling
+ *
+ * Portions Copyright (C) 2020 Christoph Hellwig
  */
 
 #include <linux/module.h>
@@ -244,15 +246,18 @@ struct block_device *disk_part_iter_next(struct disk_part_iter *piter)
 		part = rcu_dereference(ptbl->part[piter->idx]);
 		if (!part)
 			continue;
-		if (!bdev_nr_sectors(part) &&
-		    !(piter->flags & DISK_PITER_INCL_EMPTY) &&
-		    !(piter->flags & DISK_PITER_INCL_EMPTY_PART0 &&
-		      piter->idx == 0))
-			continue;
-
 		piter->part = bdgrab(part);
 		if (!piter->part)
 			continue;
+		if (!bdev_nr_sectors(part) &&
+		    !(piter->flags & DISK_PITER_INCL_EMPTY) &&
+		    !(piter->flags & DISK_PITER_INCL_EMPTY_PART0 &&
+		      piter->idx == 0)) {
+			bdput(piter->part);
+			piter->part = NULL;
+			continue;
+		}
+
 		piter->idx += inc;
 		break;
 	}

@@ -1,48 +1,56 @@
 [
     {
-        "EventCode": "0x32",
+        "BriefDescription": "Number of PREFETCHW instructions executed.",
         "Counter": "0,1,2,3",
-        "UMask": "0x1",
-        "EventName": "SW_PREFETCH_ACCESS.NTA",
-        "SampleAfterValue": "2000003",
-        "BriefDescription": "Number of PREFETCHNTA instructions executed.",
-        "CounterHTOff": "0,1,2,3,4,5,6,7"
-    },
-    {
+        "CounterHTOff": "0,1,2,3,4,5,6,7",
         "EventCode": "0x32",
-        "Counter": "0,1,2,3",
-        "UMask": "0x2",
-        "EventName": "SW_PREFETCH_ACCESS.T0",
-        "SampleAfterValue": "2000003",
-        "BriefDescription": "Number of PREFETCHT0 instructions executed.",
-        "CounterHTOff": "0,1,2,3,4,5,6,7"
-    },
-    {
-        "EventCode": "0x32",
-        "Counter": "0,1,2,3",
-        "UMask": "0x4",
-        "EventName": "SW_PREFETCH_ACCESS.T1_T2",
-        "SampleAfterValue": "2000003",
-        "BriefDescription": "Number of PREFETCHT1 or PREFETCHT2 instructions executed.",
-        "CounterHTOff": "0,1,2,3,4,5,6,7"
-    },
-    {
-        "EventCode": "0x32",
-        "Counter": "0,1,2,3",
-        "UMask": "0x8",
         "EventName": "SW_PREFETCH_ACCESS.PREFETCHW",
         "SampleAfterValue": "2000003",
-        "BriefDescription": "Number of PREFETCHW instructions executed.",
-        "CounterHTOff": "0,1,2,3,4,5,6,7"
+        "UMask": "0x8"
     },
     {
-        "PublicDescription": "Counts the number of hardware interruptions received by the processor.",
-        "EventCode": "0xCB",
+        "BriefDescription": "Number of PREFETCHT0 instructions executed.",
         "Counter": "0,1,2,3",
-        "UMask": "0x1",
-        "EventName": "HW_INTERRUPTS.RECEIVED",
-        "SampleAfterValue": "203",
+        "CounterHTOff": "0,1,2,3,4,5,6,7",
+        "EventCode": "0x32",
+        "EventName": "SW_PREFETCH_ACCESS.T0",
+        "SampleAfterValue": "2000003",
+        "UMask": "0x2"
+    },
+    {
         "BriefDescription": "Number of hardware interrupts received by the processor.",
-        "CounterHTOff": "0,1,2,3,4,5,6,7"
+        "Counter": "0,1,2,3",
+        "CounterHTOff": "0,1,2,3,4,5,6,7",
+        "EventCode": "0xCB",
+        "EventName": "HW_INTERRUPTS.RECEIVED",
+        "PublicDescription": "Counts the number of hardware interruptions received by the processor.",
+        "SampleAfterValue": "203",
+        "UMask": "0x1"
+    },
+    {
+        "BriefDescription": "Number of PREFETCHNTA instructions executed.",
+        "Counter": "0,1,2,3",
+        "CounterHTOff": "0,1,2,3,4,5,6,7",
+        "EventCode": "0x32",
+        "EventName": "SW_PREFETCH_ACCESS.NTA",
+        "SampleAfterValue": "2000003",
+        "UMask": "0x1"
+    },
+    {
+        "BriefDescription": "Number of PREFETCHT1 or PREFETCHT2 instructions executed.",
+        "Counter": "0,1,2,3",
+        "CounterHTOff": "0,1,2,3,4,5,6,7",
+        "EventCode": "0x32",
+        "EventName": "SW_PREFETCH_ACCESS.T1_T2",
+        "SampleAfterValue": "2000003",
+        "UMask": "0x4"
+    },
+    {
+        "Counter": "0,1,2,3",
+        "CounterHTOff": "0,1,2,3,4,5,6,7",
+        "EventCode": "0x09",
+        "EventName": "MEMORY_DISAMBIGUATION.HISTORY_RESET",
+        "SampleAfterValue": "2000003",
+        "UMask": "0x1"
     }
 ]

@@ -18,8 +18,8 @@ description: |
 properties:
   compatible:
     items:
-     - const: intel,keembay-msscam
-     - const: syscon
+      - const: intel,keembay-msscam
+      - const: syscon
 
   reg:
     maxItems: 1

@@ -38,9 +38,6 @@ static void __init dma_atomic_pool_debugfs_init(void)
 	struct dentry *root;
 
 	root = debugfs_create_dir("dma_pools", NULL);
-	if (IS_ERR_OR_NULL(root))
-		return;
-
 	debugfs_create_ulong("pool_size_dma", 0400, root, &pool_size_dma);
 	debugfs_create_ulong("pool_size_dma32", 0400, root, &pool_size_dma32);
 	debugfs_create_ulong("pool_size_kernel", 0400, root, &pool_size_kernel);
