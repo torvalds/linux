@@ -1526,16 +1526,6 @@ unwind:
 	return err;
 }
 
-static void dpcm_init_runtime_hw(struct snd_pcm_runtime *runtime,
-				 struct snd_soc_pcm_stream *stream)
-{
-	struct snd_pcm_hardware *hw = &runtime->hw;
-
-	soc_pcm_hw_update_rate(hw, stream);
-	soc_pcm_hw_update_chan(hw, stream);
-	soc_pcm_hw_update_format(hw, stream);
-}
-
 static void dpcm_runtime_merge_format(struct snd_pcm_substream *substream,
 				      struct snd_pcm_runtime *runtime)
 {
@@ -1669,6 +1659,8 @@ static void dpcm_set_fe_runtime(struct snd_pcm_substream *substream)
 	soc_pcm_hw_init(hw);
 
 	for_each_rtd_cpu_dais(rtd, i, cpu_dai) {
+		struct snd_soc_pcm_stream *stream;
+
 		/*
 		 * Skip CPUs which don't support the current stream
 		 * type. See soc_pcm_init_runtime_hw() for more details
@@ -1676,9 +1668,11 @@ static void dpcm_set_fe_runtime(struct snd_pcm_substream *substream)
 		if (!snd_soc_dai_stream_valid(cpu_dai, substream->stream))
 			continue;
 
-		dpcm_init_runtime_hw(runtime,
-			snd_soc_dai_get_pcm_stream(cpu_dai,
-						   substream->stream));
+		stream = snd_soc_dai_get_pcm_stream(cpu_dai, substream->stream);
+
+		soc_pcm_hw_update_rate(hw, stream);
+		soc_pcm_hw_update_chan(hw, stream);
+		soc_pcm_hw_update_format(hw, stream);
 	}
 
 	dpcm_runtime_merge_format(substream, runtime);
