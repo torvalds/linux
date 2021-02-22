@@ -52,6 +52,7 @@ PATH=${KVM}/bin:$PATH; export PATH
 . functions.sh
 
 dryrun=
+dur=
 default_link="cp -R"
 rundir="`pwd`/tools/testing/selftests/rcutorture/res/`date +%Y.%m.%d-%H.%M.%S-again`"
 
@@ -61,6 +62,7 @@ starttime="`get_starttime`"
 usage () {
 	echo "Usage: $scriptname $oldrun [ arguments ]:"
 	echo "       --dryrun"
+	echo "       --duration minutes | <seconds>s | <hours>h | <days>d"
 	echo "       --link hard|soft|copy"
 	echo "       --remote"
 	echo "       --rundir /new/res/path"
@@ -72,6 +74,23 @@ do
 	case "$1" in
 	--dryrun)
 		dryrun=1
+		;;
+	--duration)
+		checkarg --duration "(minutes)" $# "$2" '^[0-9][0-9]*\(s\|m\|h\|d\|\)$' '^error'
+		mult=60
+		if echo "$2" | grep -q 's$'
+		then
+			mult=1
+		elif echo "$2" | grep -q 'h$'
+		then
+			mult=3600
+		elif echo "$2" | grep -q 'd$'
+		then
+			mult=86400
+		fi
+		ts=`echo $2 | sed -e 's/[smhd]$//'`
+		dur=$(($ts*mult))
+		shift
 		;;
 	--link)
 		checkarg --link "hard|soft|copy" "$#" "$2" 'hard\|soft\|copy' '^--'
@@ -134,7 +153,11 @@ do
 	cp "$i" $T
 	qemu_cmd_dir="`dirname "$i"`"
 	kernel_dir="`echo $qemu_cmd_dir | sed -e 's/\.[0-9]\+$//'`"
-	kvm-transform.sh $kernel_dir/bzImage $qemu_cmd_dir/console.log < $T/qemu-cmd > $i
+	kvm-transform.sh $kernel_dir/bzImage $qemu_cmd_dir/console.log $dur < $T/qemu-cmd > $i
+	if test -n "$dur"
+	then
+		echo "# seconds=$dur" >> $i
+	fi
 	echo "# TORTURE_KCONFIG_GDB_ARG=''" >> $i
 done
 grep -v '^#' $T/batches.oldrun | awk '

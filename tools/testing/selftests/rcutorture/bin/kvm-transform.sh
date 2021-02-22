@@ -3,7 +3,7 @@
 #
 # Transform a qemu-cmd file to allow reuse.
 #
-# Usage: kvm-transform.sh bzImage console.log < qemu-cmd-in > qemu-cmd-out
+# Usage: kvm-transform.sh bzImage console.log [ seconds ] < qemu-cmd-in > qemu-cmd-out
 #
 #	bzImage: Kernel and initrd from the same prior kvm.sh run.
 #	console.log: File into which to place console output.
@@ -29,20 +29,37 @@ then
 	echo "Need console log file name."
 	exit 1
 fi
+seconds=$3
+if test -n "$seconds" && echo $seconds | grep -q '[^0-9]'
+then
+	echo "Invalid duration, should be numeric in seconds: '$seconds'"
+	exit 1
+fi
 
-awk -v image="$image" -v consolelog="$consolelog" '
+awk -v image="$image" -v consolelog="$consolelog" -v seconds="$seconds" '
+/^#/ {
+	print $0;
+	next;
+}
+
 {
 	line = "";
 	for (i = 1; i <= NF; i++) {
-		if (line == "")
+		if ("" seconds != "" && $i ~ /\.shutdown_secs=[0-9]*$/) {
+			sub(/[0-9]*$/, seconds, $i);
+			if (line == "")
+				line = $i;
+			else
+				line = line " " $i;
+		} else if (line == "") {
 			line = $i;
-		else
+		} else {
 			line = line " " $i;
+		}
 		if ($i == "-serial") {
 			i++;
 			line = line " file:" consolelog;
-		}
-		if ($i == "-kernel") {
+		} else if ($i == "-kernel") {
 			i++;
 			line = line " " image;
 		}
