@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0 OR BSD-3-Clause */
 /*
- * Copyright (C) 2005-2014, 2018-2019 Intel Corporation
+ * Copyright (C) 2005-2014, 2018-2020 Intel Corporation
  * Copyright (C) 2013-2014 Intel Mobile Communications GmbH
  * Copyright (C) 2015 Intel Deutschland GmbH
  */
@@ -9,6 +9,7 @@
 
 #include <linux/netdevice.h>
 #include <linux/debugfs.h>
+#include "iwl-dbg-tlv.h"
 
 struct iwl_op_mode;
 struct iwl_trans;
@@ -83,6 +84,7 @@ struct iwl_cfg;
  * @nic_config: configure NIC, called before firmware is started.
  *	May sleep
  * @wimax_active: invoked when WiMax becomes active. May sleep
+ * @time_point: called when transport layer wants to collect debug data
  */
 struct iwl_op_mode_ops {
 	struct iwl_op_mode *(*start)(struct iwl_trans *trans,
@@ -104,6 +106,9 @@ struct iwl_op_mode_ops {
 	void (*cmd_queue_full)(struct iwl_op_mode *op_mode);
 	void (*nic_config)(struct iwl_op_mode *op_mode);
 	void (*wimax_active)(struct iwl_op_mode *op_mode);
+	void (*time_point)(struct iwl_op_mode *op_mode,
+			   enum iwl_fw_ini_time_point tp_id,
+			   union iwl_dbg_tlv_tp_data *tp_data);
 };
 
 int iwl_opmode_register(const char *name, const struct iwl_op_mode_ops *ops);
@@ -194,6 +199,13 @@ static inline void iwl_op_mode_wimax_active(struct iwl_op_mode *op_mode)
 {
 	might_sleep();
 	op_mode->ops->wimax_active(op_mode);
+}
+
+static inline void iwl_op_mode_time_point(struct iwl_op_mode *op_mode,
+					  enum iwl_fw_ini_time_point tp_id,
+					  union iwl_dbg_tlv_tp_data *tp_data)
+{
+	op_mode->ops->time_point(op_mode, tp_id, tp_data);
 }
 
 #endif /* __iwl_op_mode_h__ */

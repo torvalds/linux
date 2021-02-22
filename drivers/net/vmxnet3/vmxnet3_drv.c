@@ -451,12 +451,8 @@ vmxnet3_tq_destroy(struct vmxnet3_tx_queue *tq,
 				  tq->comp_ring.base, tq->comp_ring.basePA);
 		tq->comp_ring.base = NULL;
 	}
-	if (tq->buf_info) {
-		dma_free_coherent(&adapter->pdev->dev,
-				  tq->tx_ring.size * sizeof(tq->buf_info[0]),
-				  tq->buf_info, tq->buf_info_pa);
-		tq->buf_info = NULL;
-	}
+	kfree(tq->buf_info);
+	tq->buf_info = NULL;
 }
 
 
@@ -505,8 +501,6 @@ static int
 vmxnet3_tq_create(struct vmxnet3_tx_queue *tq,
 		  struct vmxnet3_adapter *adapter)
 {
-	size_t sz;
-
 	BUG_ON(tq->tx_ring.base || tq->data_ring.base ||
 	       tq->comp_ring.base || tq->buf_info);
 
@@ -534,9 +528,9 @@ vmxnet3_tq_create(struct vmxnet3_tx_queue *tq,
 		goto err;
 	}
 
-	sz = tq->tx_ring.size * sizeof(tq->buf_info[0]);
-	tq->buf_info = dma_alloc_coherent(&adapter->pdev->dev, sz,
-					  &tq->buf_info_pa, GFP_KERNEL);
+	tq->buf_info = kcalloc_node(tq->tx_ring.size, sizeof(tq->buf_info[0]),
+				    GFP_KERNEL,
+				    dev_to_node(&adapter->pdev->dev));
 	if (!tq->buf_info)
 		goto err;
 
@@ -1737,13 +1731,9 @@ static void vmxnet3_rq_destroy(struct vmxnet3_rx_queue *rq,
 		rq->comp_ring.base = NULL;
 	}
 
-	if (rq->buf_info[0]) {
-		size_t sz = sizeof(struct vmxnet3_rx_buf_info) *
-			(rq->rx_ring[0].size + rq->rx_ring[1].size);
-		dma_free_coherent(&adapter->pdev->dev, sz, rq->buf_info[0],
-				  rq->buf_info_pa);
-		rq->buf_info[0] = rq->buf_info[1] = NULL;
-	}
+	kfree(rq->buf_info[0]);
+	rq->buf_info[0] = NULL;
+	rq->buf_info[1] = NULL;
 }
 
 static void
@@ -1883,10 +1873,9 @@ vmxnet3_rq_create(struct vmxnet3_rx_queue *rq, struct vmxnet3_adapter *adapter)
 		goto err;
 	}
 
-	sz = sizeof(struct vmxnet3_rx_buf_info) * (rq->rx_ring[0].size +
-						   rq->rx_ring[1].size);
-	bi = dma_alloc_coherent(&adapter->pdev->dev, sz, &rq->buf_info_pa,
-				GFP_KERNEL);
+	bi = kcalloc_node(rq->rx_ring[0].size + rq->rx_ring[1].size,
+			  sizeof(rq->buf_info[0][0]), GFP_KERNEL,
+			  dev_to_node(&adapter->pdev->dev));
 	if (!bi)
 		goto err;
 
@@ -2522,14 +2511,12 @@ vmxnet3_setup_driver_shared(struct vmxnet3_adapter *adapter)
 		tqc->txRingBasePA   = cpu_to_le64(tq->tx_ring.basePA);
 		tqc->dataRingBasePA = cpu_to_le64(tq->data_ring.basePA);
 		tqc->compRingBasePA = cpu_to_le64(tq->comp_ring.basePA);
-		tqc->ddPA           = cpu_to_le64(tq->buf_info_pa);
+		tqc->ddPA           = cpu_to_le64(~0ULL);
 		tqc->txRingSize     = cpu_to_le32(tq->tx_ring.size);
 		tqc->dataRingSize   = cpu_to_le32(tq->data_ring.size);
 		tqc->txDataRingDescSize = cpu_to_le32(tq->txdata_desc_size);
 		tqc->compRingSize   = cpu_to_le32(tq->comp_ring.size);
-		tqc->ddLen          = cpu_to_le32(
-					sizeof(struct vmxnet3_tx_buf_info) *
-					tqc->txRingSize);
+		tqc->ddLen          = cpu_to_le32(0);
 		tqc->intrIdx        = tq->comp_ring.intr_idx;
 	}
 
@@ -2541,14 +2528,11 @@ vmxnet3_setup_driver_shared(struct vmxnet3_adapter *adapter)
 		rqc->rxRingBasePA[0] = cpu_to_le64(rq->rx_ring[0].basePA);
 		rqc->rxRingBasePA[1] = cpu_to_le64(rq->rx_ring[1].basePA);
 		rqc->compRingBasePA  = cpu_to_le64(rq->comp_ring.basePA);
-		rqc->ddPA            = cpu_to_le64(rq->buf_info_pa);
+		rqc->ddPA            = cpu_to_le64(~0ULL);
 		rqc->rxRingSize[0]   = cpu_to_le32(rq->rx_ring[0].size);
 		rqc->rxRingSize[1]   = cpu_to_le32(rq->rx_ring[1].size);
 		rqc->compRingSize    = cpu_to_le32(rq->comp_ring.size);
-		rqc->ddLen           = cpu_to_le32(
-					sizeof(struct vmxnet3_rx_buf_info) *
-					(rqc->rxRingSize[0] +
-					 rqc->rxRingSize[1]));
+		rqc->ddLen           = cpu_to_le32(0);
 		rqc->intrIdx         = rq->comp_ring.intr_idx;
 		if (VMXNET3_VERSION_GE_3(adapter)) {
 			rqc->rxDataRingBasePA =

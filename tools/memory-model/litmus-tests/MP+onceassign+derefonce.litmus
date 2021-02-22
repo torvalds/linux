@@ -10,9 +10,7 @@ C MP+onceassign+derefonce
  *)
 
 {
-	int *p=y;
-	int x;
-	int y=0;
+p=y;
 }
 
 P0(int *x, int **p) // Producer

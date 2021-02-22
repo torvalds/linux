@@ -56,9 +56,8 @@ enum hns3_nic_state {
 #define HNS3_RING_MIN_PENDING			72
 #define HNS3_RING_BD_MULTIPLE			8
 /* max frame size of mac */
-#define HNS3_MAC_MAX_FRAME			9728
-#define HNS3_MAX_MTU \
-	(HNS3_MAC_MAX_FRAME - (ETH_HLEN + ETH_FCS_LEN + 2 * VLAN_HLEN))
+#define HNS3_MAX_MTU(max_frm_size) \
+	((max_frm_size) - (ETH_HLEN + ETH_FCS_LEN + 2 * VLAN_HLEN))
 
 #define HNS3_BD_SIZE_512_TYPE			0
 #define HNS3_BD_SIZE_1024_TYPE			1
@@ -555,7 +554,7 @@ static inline void hns3_write_reg(void __iomem *base, u32 reg, u32 value)
 }
 
 #define hns3_read_dev(a, reg) \
-	hns3_read_reg((a)->io_base, (reg))
+	hns3_read_reg((a)->io_base, reg)
 
 static inline bool hns3_nic_resetting(struct net_device *netdev)
 {
@@ -565,7 +564,7 @@ static inline bool hns3_nic_resetting(struct net_device *netdev)
 }
 
 #define hns3_write_dev(a, reg, value) \
-	hns3_write_reg((a)->io_base, (reg), (value))
+	hns3_write_reg((a)->io_base, reg, value)
 
 #define ring_to_dev(ring) ((ring)->dev)
 
@@ -589,15 +588,15 @@ static inline unsigned int hns3_page_order(struct hns3_enet_ring *ring)
 
 /* iterator for handling rings in ring group */
 #define hns3_for_each_ring(pos, head) \
-	for (pos = (head).ring; pos; pos = pos->next)
+	for (pos = (head).ring; (pos); pos = (pos)->next)
 
 #define hns3_get_handle(ndev) \
 	(((struct hns3_nic_priv *)netdev_priv(ndev))->ae_handle)
 
-#define hns3_gl_usec_to_reg(int_gl) (int_gl >> 1)
+#define hns3_gl_usec_to_reg(int_gl) ((int_gl) >> 1)
 #define hns3_gl_round_down(int_gl) round_down(int_gl, 2)
 
-#define hns3_rl_usec_to_reg(int_rl) (int_rl >> 2)
+#define hns3_rl_usec_to_reg(int_rl) ((int_rl) >> 2)
 #define hns3_rl_round_down(int_rl) round_down(int_rl, 4)
 
 void hns3_ethtool_set_ops(struct net_device *netdev);
@@ -606,7 +605,6 @@ int hns3_set_channels(struct net_device *netdev,
 
 void hns3_clean_tx_ring(struct hns3_enet_ring *ring, int budget);
 int hns3_init_all_ring(struct hns3_nic_priv *priv);
-int hns3_uninit_all_ring(struct hns3_nic_priv *priv);
 int hns3_nic_reset_all_ring(struct hnae3_handle *h);
 void hns3_fini_ring(struct hns3_enet_ring *ring);
 netdev_tx_t hns3_nic_net_xmit(struct sk_buff *skb, struct net_device *netdev);

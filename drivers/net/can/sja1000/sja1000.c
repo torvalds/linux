@@ -318,7 +318,7 @@ static netdev_tx_t sja1000_start_xmit(struct sk_buff *skb,
 	for (i = 0; i < cf->len; i++)
 		priv->write_reg(priv, dreg++, cf->data[i]);
 
-	can_put_echo_skb(skb, dev, 0);
+	can_put_echo_skb(skb, dev, 0, 0);
 
 	if (priv->can.ctrlmode & CAN_CTRLMODE_ONE_SHOT)
 		cmd_reg_val |= CMD_AT;
@@ -531,7 +531,7 @@ irqreturn_t sja1000_interrupt(int irq, void *dev_id)
 				stats->tx_bytes +=
 					priv->read_reg(priv, SJA1000_FI) & 0xf;
 				stats->tx_packets++;
-				can_get_echo_skb(dev, 0);
+				can_get_echo_skb(dev, 0, NULL);
 			}
 			netif_wake_queue(dev);
 			can_led_event(dev, CAN_LED_EVENT_TX);

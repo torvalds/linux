@@ -996,6 +996,51 @@ static void enetc_phylink_destroy(struct enetc_ndev_priv *priv)
 		phylink_destroy(priv->phylink);
 }
 
+/* Initialize the entire shared memory for the flow steering entries
+ * of this port (PF + VFs)
+ */
+static int enetc_init_port_rfs_memory(struct enetc_si *si)
+{
+	struct enetc_cmd_rfse rfse = {0};
+	struct enetc_hw *hw = &si->hw;
+	int num_rfs, i, err = 0;
+	u32 val;
+
+	val = enetc_port_rd(hw, ENETC_PRFSCAPR);
+	num_rfs = ENETC_PRFSCAPR_GET_NUM_RFS(val);
+
+	for (i = 0; i < num_rfs; i++) {
+		err = enetc_set_fs_entry(si, &rfse, i);
+		if (err)
+			break;
+	}
+
+	return err;
+}
+
+static int enetc_init_port_rss_memory(struct enetc_si *si)
+{
+	struct enetc_hw *hw = &si->hw;
+	int num_rss, err;
+	int *rss_table;
+	u32 val;
+
+	val = enetc_port_rd(hw, ENETC_PRSSCAPR);
+	num_rss = ENETC_PRSSCAPR_GET_NUM_RSS(val);
+	if (!num_rss)
+		return 0;
+
+	rss_table = kcalloc(num_rss, sizeof(*rss_table), GFP_KERNEL);
+	if (!rss_table)
+		return -ENOMEM;
+
+	err = enetc_set_rss_table(si, rss_table, num_rss);
+
+	kfree(rss_table);
+
+	return err;
+}
+
 static int enetc_pf_probe(struct pci_dev *pdev,
 			  const struct pci_device_id *ent)
 {
@@ -1051,6 +1096,18 @@ static int enetc_pf_probe(struct pci_dev *pdev,
 		goto err_alloc_si_res;
 	}
 
+	err = enetc_init_port_rfs_memory(si);
+	if (err) {
+		dev_err(&pdev->dev, "Failed to initialize RFS memory\n");
+		goto err_init_port_rfs;
+	}
+
+	err = enetc_init_port_rss_memory(si);
+	if (err) {
+		dev_err(&pdev->dev, "Failed to initialize RSS memory\n");
+		goto err_init_port_rss;
+	}
+
 	err = enetc_alloc_msix(priv);
 	if (err) {
 		dev_err(&pdev->dev, "MSIX alloc failed\n");
@@ -1079,6 +1136,8 @@ err_phylink_create:
 	enetc_mdiobus_destroy(pf);
 err_mdiobus_create:
 	enetc_free_msix(priv);
+err_init_port_rss:
+err_init_port_rfs:
 err_alloc_msix:
 	enetc_free_si_resources(priv);
 err_alloc_si_res:
@@ -1098,13 +1157,14 @@ static void enetc_pf_remove(struct pci_dev *pdev)
 	struct enetc_ndev_priv *priv;
 
 	priv = netdev_priv(si->ndev);
-	enetc_phylink_destroy(priv);
-	enetc_mdiobus_destroy(pf);
 
 	if (pf->num_vfs)
 		enetc_sriov_configure(pdev, 0);
 
 	unregister_netdev(si->ndev);
+
+	enetc_phylink_destroy(priv);
+	enetc_mdiobus_destroy(pf);
 
 	enetc_free_msix(priv);
 

@@ -716,7 +716,7 @@
 			#clock-cells = <1>;
 		};
 
-		nmi_intc: interrupt-controller@1f00c00 {
+		r_intc: interrupt-controller@1f00c00 {
 			compatible = "allwinner,sun6i-a31-r-intc";
 			interrupt-controller;
 			#interrupt-cells = <2>;

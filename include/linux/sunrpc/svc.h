@@ -463,6 +463,7 @@ struct svc_procedure {
 	unsigned int		pc_ressize;	/* result struct size */
 	unsigned int		pc_cachetype;	/* cache info (NFS) */
 	unsigned int		pc_xdrressize;	/* maximum size of XDR reply */
+	const char *		pc_name;	/* for display */
 };
 
 /*

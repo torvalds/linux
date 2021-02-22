@@ -883,7 +883,7 @@
 			status = "disabled";
 		};
 
-		sdi0_per1@80126000 {
+		mmc@80126000 {
 			compatible = "arm,pl18x", "arm,primecell";
 			reg = <0x80126000 0x1000>;
 			interrupts = <GIC_SPI 60 IRQ_TYPE_LEVEL_HIGH>;
@@ -899,7 +899,7 @@
 			status = "disabled";
 		};
 
-		sdi1_per2@80118000 {
+		mmc@80118000 {
 			compatible = "arm,pl18x", "arm,primecell";
 			reg = <0x80118000 0x1000>;
 			interrupts = <GIC_SPI 50 IRQ_TYPE_LEVEL_HIGH>;
@@ -915,7 +915,7 @@
 			status = "disabled";
 		};
 
-		sdi2_per3@80005000 {
+		mmc@80005000 {
 			compatible = "arm,pl18x", "arm,primecell";
 			reg = <0x80005000 0x1000>;
 			interrupts = <GIC_SPI 41 IRQ_TYPE_LEVEL_HIGH>;
@@ -931,7 +931,7 @@
 			status = "disabled";
 		};
 
-		sdi3_per2@80119000 {
+		mmc@80119000 {
 			compatible = "arm,pl18x", "arm,primecell";
 			reg = <0x80119000 0x1000>;
 			interrupts = <GIC_SPI 59 IRQ_TYPE_LEVEL_HIGH>;
@@ -947,7 +947,7 @@
 			status = "disabled";
 		};
 
-		sdi4_per2@80114000 {
+		mmc@80114000 {
 			compatible = "arm,pl18x", "arm,primecell";
 			reg = <0x80114000 0x1000>;
 			interrupts = <GIC_SPI 99 IRQ_TYPE_LEVEL_HIGH>;
@@ -963,7 +963,7 @@
 			status = "disabled";
 		};
 
-		sdi5_per3@80008000 {
+		mmc@80008000 {
 			compatible = "arm,pl18x", "arm,primecell";
 			reg = <0x80008000 0x1000>;
 			interrupts = <GIC_SPI 100 IRQ_TYPE_LEVEL_HIGH>;

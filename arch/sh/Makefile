@@ -170,7 +170,6 @@ cpuincdir-$(CONFIG_CPU_SH4)	+= cpu-sh4
 cpuincdir-y			+= cpu-common	# Must be last
 
 drivers-y			+= arch/sh/drivers/
-drivers-$(CONFIG_OPROFILE)	+= arch/sh/oprofile/
 
 cflags-y	+= $(foreach d, $(cpuincdir-y), -I $(srctree)/arch/sh/include/$(d)) \
 		   $(foreach d, $(machdir-y), -I $(srctree)/arch/sh/include/$(d))

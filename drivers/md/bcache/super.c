@@ -49,6 +49,7 @@ static int bcache_major;
 static DEFINE_IDA(bcache_device_idx);
 static wait_queue_head_t unregister_wait;
 struct workqueue_struct *bcache_wq;
+struct workqueue_struct *bch_flush_wq;
 struct workqueue_struct *bch_journal_wq;
 
 
@@ -1939,7 +1940,7 @@ struct cache_set *bch_cache_set_alloc(struct cache_sb *sb)
 		goto err;
 
 	if (bioset_init(&c->bio_split, 4, offsetof(struct bbio, bio),
-			BIOSET_NEED_BVECS|BIOSET_NEED_RESCUER))
+			BIOSET_NEED_RESCUER))
 		goto err;
 
 	c->uuids = alloc_meta_bucket_pages(GFP_KERNEL, sb);
@@ -2517,7 +2518,7 @@ out:
 	module_put(THIS_MODULE);
 }
 
-static void register_device_aync(struct async_reg_args *args)
+static void register_device_async(struct async_reg_args *args)
 {
 	if (SB_IS_BDEV(args->sb))
 		INIT_DELAYED_WORK(&args->reg_work, register_bdev_worker);
@@ -2611,7 +2612,7 @@ static ssize_t register_bcache(struct kobject *k, struct kobj_attribute *attr,
 		args->sb	= sb;
 		args->sb_disk	= sb_disk;
 		args->bdev	= bdev;
-		register_device_aync(args);
+		register_device_async(args);
 		/* No wait and returns to user space */
 		goto async_done;
 	}
@@ -2821,6 +2822,9 @@ static void bcache_exit(void)
 		destroy_workqueue(bcache_wq);
 	if (bch_journal_wq)
 		destroy_workqueue(bch_journal_wq);
+	if (bch_flush_wq)
+		destroy_workqueue(bch_flush_wq);
+	bch_btree_exit();
 
 	if (bcache_major)
 		unregister_blkdev(bcache_major, "bcache");
@@ -2876,8 +2880,24 @@ static int __init bcache_init(void)
 		return bcache_major;
 	}
 
+	if (bch_btree_init())
+		goto err;
+
 	bcache_wq = alloc_workqueue("bcache", WQ_MEM_RECLAIM, 0);
 	if (!bcache_wq)
+		goto err;
+
+	/*
+	 * Let's not make this `WQ_MEM_RECLAIM` for the following reasons:
+	 *
+	 * 1. It used `system_wq` before which also does no memory reclaim.
+	 * 2. With `WQ_MEM_RECLAIM` desktop stalls, increased boot times, and
+	 *    reduced throughput can be observed.
+	 *
+	 * We still want to user our own queue to not congest the `system_wq`.
+	 */
+	bch_flush_wq = alloc_workqueue("bch_flush", 0, 0);
+	if (!bch_flush_wq)
 		goto err;
 
 	bch_journal_wq = alloc_workqueue("bch_journal", WQ_MEM_RECLAIM, 0);

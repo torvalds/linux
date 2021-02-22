@@ -4,7 +4,6 @@ config PARISC
 	select ARCH_32BIT_OFF_T if !64BIT
 	select ARCH_MIGHT_HAVE_PC_PARPORT
 	select HAVE_IDE
-	select HAVE_OPROFILE
 	select HAVE_FUNCTION_TRACER
 	select HAVE_FUNCTION_GRAPH_TRACER
 	select HAVE_SYSCALL_TRACEPOINTS
@@ -35,6 +34,7 @@ config PARISC
 	select GENERIC_SMP_IDLE_THREAD
 	select GENERIC_CPU_DEVICES
 	select GENERIC_STRNCPY_FROM_USER
+	select GENERIC_LIB_DEVMEM_IS_ALLOWED
 	select SYSCTL_ARCH_UNALIGN_ALLOW
 	select SYSCTL_EXCEPTION_TRACE
 	select HAVE_MOD_ARCH_SPECIFIC
@@ -311,6 +311,16 @@ config IRQSTACKS
 	  for handling hard and soft interrupts.  This can help avoid
 	  overflowing the process kernel stacks.
 
+config TLB_PTLOCK
+	bool "Use page table locks in TLB fault handler"
+	depends on SMP
+	default n
+	help
+	  Select this option to enable page table locking in the TLB
+	  fault handler. This ensures that page table entries are
+	  updated consistently on SMP machines at the expense of some
+	  loss in performance.
+
 config HOTPLUG_CPU
 	bool
 	default y if SMP
@@ -335,7 +345,6 @@ source "kernel/Kconfig.hz"
 config COMPAT
 	def_bool y
 	depends on 64BIT
-	select COMPAT_BINFMT_ELF if BINFMT_ELF
 
 config SYSVIPC_COMPAT
 	def_bool y

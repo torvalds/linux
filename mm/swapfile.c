@@ -47,7 +47,6 @@
 static bool swap_count_continued(struct swap_info_struct *, pgoff_t,
 				 unsigned char);
 static void free_swap_count_continuations(struct swap_info_struct *);
-static sector_t map_swap_entry(swp_entry_t, struct block_device**);
 
 DEFINE_SPINLOCK(swap_lock);
 static unsigned int nr_swapfiles;
@@ -1850,12 +1849,13 @@ int find_first_swap(dev_t *device)
  */
 sector_t swapdev_block(int type, pgoff_t offset)
 {
-	struct block_device *bdev;
 	struct swap_info_struct *si = swap_type_to_swap_info(type);
+	struct swap_extent *se;
 
 	if (!si || !(si->flags & SWP_WRITEOK))
 		return 0;
-	return map_swap_entry(swp_entry(type, offset), &bdev);
+	se = offset_to_swap_extent(si, offset);
+	return se->start_block + (offset - se->start_page);
 }
 
 /*
@@ -1951,8 +1951,6 @@ static int unuse_pte_range(struct vm_area_struct *vma, pmd_t *pmd,
 	si = swap_info[type];
 	pte = pte_offset_map(pmd, addr);
 	do {
-		struct vm_fault vmf;
-
 		if (!is_swap_pte(*pte))
 			continue;
 
@@ -1968,9 +1966,12 @@ static int unuse_pte_range(struct vm_area_struct *vma, pmd_t *pmd,
 		swap_map = &si->swap_map[offset];
 		page = lookup_swap_cache(entry, vma, addr);
 		if (!page) {
-			vmf.vma = vma;
-			vmf.address = addr;
-			vmf.pmd = pmd;
+			struct vm_fault vmf = {
+				.vma = vma,
+				.address = addr,
+				.pmd = pmd,
+			};
+
 			page = swapin_readahead(entry, GFP_HIGHUSER_MOVABLE,
 						&vmf);
 		}
@@ -2279,36 +2280,6 @@ static void drain_mmlist(void)
 	list_for_each_safe(p, next, &init_mm.mmlist)
 		list_del_init(p);
 	spin_unlock(&mmlist_lock);
-}
-
-/*
- * Use this swapdev's extent info to locate the (PAGE_SIZE) block which
- * corresponds to page offset for the specified swap entry.
- * Note that the type of this function is sector_t, but it returns page offset
- * into the bdev, not sector offset.
- */
-static sector_t map_swap_entry(swp_entry_t entry, struct block_device **bdev)
-{
-	struct swap_info_struct *sis;
-	struct swap_extent *se;
-	pgoff_t offset;
-
-	sis = swp_swap_info(entry);
-	*bdev = sis->bdev;
-
-	offset = swp_offset(entry);
-	se = offset_to_swap_extent(sis, offset);
-	return se->start_block + (offset - se->start_page);
-}
-
-/*
- * Returns the page offset into bdev for the specified page's swap entry.
- */
-sector_t map_swap_page(struct page *page, struct block_device **bdev)
-{
-	swp_entry_t entry;
-	entry.val = page_private(page);
-	return map_swap_entry(entry, bdev);
 }
 
 /*

@@ -32,6 +32,7 @@ config X86_64
 	select MODULES_USE_ELF_RELA
 	select NEED_DMA_MAP_STATE
 	select SWIOTLB
+	select ARCH_HAS_ELFCORE_COMPAT
 
 config FORCE_DYNAMIC_FTRACE
 	def_bool y
@@ -206,7 +207,6 @@ config X86
 	select HAVE_MOVE_PMD
 	select HAVE_MOVE_PUD
 	select HAVE_NMI
-	select HAVE_OPROFILE
 	select HAVE_OPTPROBES
 	select HAVE_PCSPKR_PLATFORM
 	select HAVE_PERF_EVENTS
@@ -224,6 +224,7 @@ config X86
 	select HAVE_STACK_VALIDATION		if X86_64
 	select HAVE_STATIC_CALL
 	select HAVE_STATIC_CALL_INLINE		if HAVE_STACK_VALIDATION
+	select HAVE_PREEMPT_DYNAMIC
 	select HAVE_RSEQ
 	select HAVE_SYSCALL_TRACEPOINTS
 	select HAVE_UNSTABLE_SCHED_CLOCK
@@ -890,7 +891,7 @@ config HPET_TIMER
 
 config HPET_EMULATE_RTC
 	def_bool y
-	depends on HPET_TIMER && (RTC=y || RTC=m || RTC_DRV_CMOS=m || RTC_DRV_CMOS=y)
+	depends on HPET_TIMER && (RTC_DRV_CMOS=m || RTC_DRV_CMOS=y)
 
 config APB_TIMER
 	def_bool y if X86_INTEL_MID
@@ -1157,10 +1158,6 @@ config X86_MCE_INJECT
 	  Provide support for injecting machine checks for testing purposes.
 	  If you don't know what a machine check is and you don't do kernel
 	  QA it is safe to say n.
-
-config X86_THERMAL_VECTOR
-	def_bool y
-	depends on X86_MCE_INTEL
 
 source "arch/x86/events/Kconfig"
 
@@ -2864,7 +2861,6 @@ config IA32_EMULATION
 	depends on X86_64
 	select ARCH_WANT_OLD_COMPAT_IPC
 	select BINFMT_ELF
-	select COMPAT_BINFMT_ELF
 	select COMPAT_OLD_SIGACTION
 	help
 	  Include code to run legacy 32-bit programs under a

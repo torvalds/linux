@@ -70,8 +70,8 @@ trampoline code on the vDSO, that trampoline is never intercepted.
 [selector] is a pointer to a char-sized region in the process memory
 region, that provides a quick way to enable disable syscall redirection
 thread-wide, without the need to invoke the kernel directly.  selector
-can be set to PR_SYS_DISPATCH_ON or PR_SYS_DISPATCH_OFF.  Any other
-value should terminate the program with a SIGSYS.
+can be set to SYSCALL_DISPATCH_FILTER_ALLOW or SYSCALL_DISPATCH_FILTER_BLOCK.
+Any other value should terminate the program with a SIGSYS.
 
 Security Notes
 --------------

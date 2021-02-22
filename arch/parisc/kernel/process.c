@@ -260,6 +260,8 @@ get_wchan(struct task_struct *p)
 	do {
 		if (unwind_once(&info) < 0)
 			return 0;
+		if (p->state == TASK_RUNNING)
+                        return 0;
 		ip = info.ip;
 		if (!in_sched_functions(ip))
 			return ip;

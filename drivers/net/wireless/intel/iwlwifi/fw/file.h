@@ -93,6 +93,7 @@ enum iwl_ucode_tlv_type {
 	IWL_UCODE_TLV_FW_RECOVERY_INFO	= 57,
 	IWL_UCODE_TLV_HW_TYPE			= 58,
 	IWL_UCODE_TLV_FW_FSEQ_VERSION		= 60,
+	IWL_UCODE_TLV_PHY_INTEGRATION_VERSION	= 61,
 
 	IWL_UCODE_TLV_PNVM_VERSION		= 62,
 	IWL_UCODE_TLV_PNVM_SKU			= 64,
@@ -438,6 +439,9 @@ enum iwl_ucode_tlv_capa {
 	 * @IWL_UCODE_TLV_CAPA_PSC_CHAN_SUPPORT: supports PSC channels
 	 */
 	IWL_UCODE_TLV_CAPA_PSC_CHAN_SUPPORT		= (__force iwl_ucode_tlv_capa_t)98,
+
+	IWL_UCODE_TLV_CAPA_BIGTK_SUPPORT		= (__force iwl_ucode_tlv_capa_t)100,
+	IWL_UCODE_TLV_CAPA_RFIM_SUPPORT			= (__force iwl_ucode_tlv_capa_t)102,
 
 	NUM_IWL_UCODE_TLV_CAPA
 #ifdef __CHECKER__

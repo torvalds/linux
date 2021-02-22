@@ -80,6 +80,7 @@ static inline bool constraint_match(struct event_constraint *c, u64 ecode)
 #define PERF_X86_EVENT_PAIR		0x1000 /* Large Increment per Cycle */
 #define PERF_X86_EVENT_LBR_SELECT	0x2000 /* Save/Restore MSR_LBR_SELECT */
 #define PERF_X86_EVENT_TOPDOWN		0x4000 /* Count Topdown slots/metrics events */
+#define PERF_X86_EVENT_PEBS_STLAT	0x8000 /* st+stlat data address sampling */
 
 static inline bool is_topdown_count(struct perf_event *event)
 {
@@ -443,6 +444,10 @@ struct cpu_hw_events {
 	__EVENT_CONSTRAINT(c, n, INTEL_ARCH_EVENT_MASK|X86_ALL_EVENT_FLAGS, \
 			   HWEIGHT(n), 0, PERF_X86_EVENT_PEBS_LDLAT)
 
+#define INTEL_PSD_CONSTRAINT(c, n)	\
+	__EVENT_CONSTRAINT(c, n, INTEL_ARCH_EVENT_MASK|X86_ALL_EVENT_FLAGS, \
+			   HWEIGHT(n), 0, PERF_X86_EVENT_PEBS_STLAT)
+
 #define INTEL_PST_CONSTRAINT(c, n)	\
 	__EVENT_CONSTRAINT(c, n, INTEL_ARCH_EVENT_MASK|X86_ALL_EVENT_FLAGS, \
 			  HWEIGHT(n), 0, PERF_X86_EVENT_PEBS_ST)
@@ -682,8 +687,7 @@ struct x86_pmu {
 
 	/* PMI handler bits */
 	unsigned int	late_ack		:1,
-			enabled_ack		:1,
-			counter_freezing	:1;
+			enabled_ack		:1;
 	/*
 	 * sysfs attrs
 	 */
@@ -724,7 +728,8 @@ struct x86_pmu {
 			pebs_broken		:1,
 			pebs_prec_dist		:1,
 			pebs_no_tlb		:1,
-			pebs_no_isolation	:1;
+			pebs_no_isolation	:1,
+			pebs_block		:1;
 	int		pebs_record_size;
 	int		pebs_buffer_size;
 	int		max_pebs_events;
@@ -776,6 +781,7 @@ struct x86_pmu {
 	/*
 	 * Intel perf metrics
 	 */
+	int		num_topdown_events;
 	u64		(*update_topdown_event)(struct perf_event *event);
 	int		(*set_topdown_event_period)(struct perf_event *event);
 
@@ -871,6 +877,8 @@ do {									\
 #define PMU_FL_PEBS_ALL		0x10 /* all events are valid PEBS events */
 #define PMU_FL_TFA		0x20 /* deal with TSX force abort */
 #define PMU_FL_PAIR		0x40 /* merge counters for large incr. events */
+#define PMU_FL_INSTR_LATENCY	0x80 /* Support Instruction Latency in PEBS Memory Info Record */
+#define PMU_FL_MEM_LOADS_AUX	0x100 /* Require an auxiliary event for the complete memory info */
 
 #define EVENT_VAR(_id)  event_attr_##_id
 #define EVENT_PTR(_id) &event_attr_##_id.attr.attr
@@ -1060,6 +1068,11 @@ ssize_t events_sysfs_show(struct device *dev, struct device_attribute *attr,
 ssize_t events_ht_sysfs_show(struct device *dev, struct device_attribute *attr,
 			  char *page);
 
+static inline bool fixed_counter_disabled(int i)
+{
+	return !(x86_pmu.intel_ctrl >> (i + INTEL_PMC_IDX_FIXED));
+}
+
 #ifdef CONFIG_CPU_SUP_AMD
 
 int amd_pmu_init(void);
@@ -1156,6 +1169,8 @@ extern struct event_constraint intel_bdw_pebs_event_constraints[];
 extern struct event_constraint intel_skl_pebs_event_constraints[];
 
 extern struct event_constraint intel_icl_pebs_event_constraints[];
+
+extern struct event_constraint intel_spr_pebs_event_constraints[];
 
 struct event_constraint *intel_pebs_constraints(struct perf_event *event);
 

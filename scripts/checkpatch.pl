@@ -3390,13 +3390,6 @@ sub process {
 			}
 		}
 
-# discourage the use of boolean for type definition attributes of Kconfig options
-		if ($realfile =~ /Kconfig/ &&
-		    $line =~ /^\+\s*\bboolean\b/) {
-			WARN("CONFIG_TYPE_BOOLEAN",
-			     "Use of boolean is deprecated, please use bool instead.\n" . $herecurr);
-		}
-
 		if (($realfile =~ /Makefile.*/ || $realfile =~ /Kbuild.*/) &&
 		    ($line =~ /\+(EXTRA_[A-Z]+FLAGS).*/)) {
 			my $flag = $1;
@@ -7067,12 +7060,6 @@ sub process {
 				WARN("IN_ATOMIC",
 				     "use of in_atomic() is incorrect outside core kernel code\n" . $herecurr);
 			}
-		}
-
-# check for mutex_trylock_recursive usage
-		if ($line =~ /mutex_trylock_recursive/) {
-			ERROR("LOCKING",
-			      "recursive locking is bad, do not use this ever.\n" . $herecurr);
 		}
 
 # check for lockdep_set_novalidate_class

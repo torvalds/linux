@@ -48,7 +48,6 @@
 #include "tests/btrfs-tests.h"
 #include "block-group.h"
 #include "discard.h"
-
 #include "qgroup.h"
 #define CREATE_TRACE_POINTS
 #include <trace/events/btrfs.h>
@@ -2025,6 +2024,13 @@ static int btrfs_remount(struct super_block *sb, int *flags, char *data)
 		if (btrfs_super_log_root(fs_info->super_copy) != 0) {
 			btrfs_warn(fs_info,
 		"mount required to replay tree-log, cannot remount read-write");
+			ret = -EINVAL;
+			goto restore;
+		}
+		if (fs_info->sectorsize < PAGE_SIZE) {
+			btrfs_warn(fs_info,
+	"read-write mount is not yet allowed for sectorsize %u page size %lu",
+				   fs_info->sectorsize, PAGE_SIZE);
 			ret = -EINVAL;
 			goto restore;
 		}

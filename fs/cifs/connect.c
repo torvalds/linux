@@ -2756,6 +2756,7 @@ int cifs_setup_cifs_sb(struct cifs_sb_info *cifs_sb)
 		cifs_sb->prepath = kstrdup(ctx->prepath, GFP_KERNEL);
 		if (cifs_sb->prepath == NULL)
 			return -ENOMEM;
+		cifs_sb->mnt_cifs_flags |= CIFS_MOUNT_USE_PREFIX_PATH;
 	}
 
 	return 0;
@@ -2983,6 +2984,14 @@ expand_dfs_referral(const unsigned int xid, struct cifs_ses *ses,
 			rc = PTR_ERR(mdata);
 			mdata = NULL;
 		} else {
+			/*
+			 * We can not clear out the whole structure since we
+			 * no longer have an explicit function to parse
+			 * a mount-string. Instead we need to clear out the
+			 * individual fields that are no longer valid.
+			 */
+			kfree(ctx->prepath);
+			ctx->prepath = NULL;
 			rc = cifs_setup_volume_info(ctx, mdata, fake_devname);
 		}
 		kfree(fake_devname);

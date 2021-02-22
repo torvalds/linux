@@ -10,6 +10,64 @@
 	model = "ST-Ericsson HREF (v60+) platform with Device Tree";
 	compatible = "st-ericsson,hrefv60+", "st-ericsson,u8500";
 
+	thermal-zones {
+		chassis-thermal {
+			/* Poll every 20 seconds */
+			polling-delay = <20000>;
+			/* Poll every 2nd second when cooling */
+			polling-delay-passive = <2000>;
+
+			thermal-sensors = <&therm1>, <&therm2>;
+
+			/* Tripping points made from rough guess about operating conditions */
+			trips {
+				chassis_alert: chassis-alert {
+					/* At 50 degrees take down the CPU frequency */
+					temperature = <50000>;
+					hysteresis = <3000>;
+					type = "active";
+				};
+				chassis_crit: chassis-crit {
+					/* Just shut down at 70 degrees */
+					temperature = <70000>;
+					hysteresis = <2000>;
+					type = "critical";
+				};
+			};
+
+			/* Push down the operating frequency of the SoC when it gets hot */
+			cooling-maps {
+				map0 {
+					trip = <&chassis_alert>;
+					cooling-device = <&CPU0 THERMAL_NO_LIMIT THERMAL_NO_LIMIT>;
+					contribution = <100>;
+				};
+			};
+		};
+	};
+
+	/*
+	 * Thermistors on the board, formally to monitor battery temperatures
+	 * but what they measure is the board temperature.
+	 */
+	therm1: thermistor@0 {
+		compatible = "murata,ncp18wb473";
+		io-channels = <&gpadc 0x06>; /* AUX1 */
+		pullup-uv = <1800000>;
+		pullup-ohm = <220000>;
+		pulldown-ohm = <0>;
+		#thermal-sensor-cells = <0>;
+	};
+
+	therm2: thermistor@1 {
+		compatible = "murata,ncp18wb473";
+		io-channels = <&gpadc 0x07>; /* AUX2 */
+		pullup-uv = <1800000>;
+		pullup-ohm = <220000>;
+		pulldown-ohm = <0>;
+		#thermal-sensor-cells = <0>;
+	};
+
 	soc {
 		/* Name the GPIO muxed rails on the HREF boards */
 		gpio@8012e000 {
@@ -132,14 +190,8 @@
 		};
 
 		// External Micro SD slot
-		sdi0_per1@80126000 {
+		mmc@80126000 {
 			cd-gpios  = <&gpio2 31 GPIO_ACTIVE_HIGH>; // 95
-		};
-
-		vmmci: regulator-gpio {
-			gpios = <&gpio0 5 GPIO_ACTIVE_HIGH>;
-			enable-gpio = <&gpio5 9 GPIO_ACTIVE_HIGH>;
-			enable-active-high;
 		};
 
 		pinctrl {
@@ -165,16 +217,6 @@
 					default_hrefv60_cfg1 {
 						pins = "GPIO95_E8";
 						ste,config = <&gpio_in_pu>;
-					};
-					/* VMMCI level-shifter enable */
-					default_hrefv60_cfg2 {
-						pins = "GPIO169_D22";
-						ste,config = <&gpio_out_hi>;
-					};
-					/* VMMCI level-shifter voltage select */
-					default_hrefv60_cfg3 {
-						pins = "GPIO5_AG6";
-						ste,config = <&gpio_out_hi>;
 					};
 				};
 			};

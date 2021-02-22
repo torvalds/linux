@@ -199,25 +199,31 @@ DECLARE_STATIC_KEY_FALSE(uaccess_flush_key);
 
 #ifdef CONFIG_PPC_PKEY
 
+extern u64 __ro_after_init default_uamor;
+extern u64 __ro_after_init default_amr;
+extern u64 __ro_after_init default_iamr;
+
 #include <asm/mmu.h>
 #include <asm/ptrace.h>
 
-/*
- * For kernel thread that doesn't have thread.regs return
- * default AMR/IAMR values.
+/* usage of kthread_use_mm() should inherit the
+ * AMR value of the operating address space. But, the AMR value is
+ * thread-specific and we inherit the address space and not thread
+ * access restrictions. Because of this ignore AMR value when accessing
+ * userspace via kernel thread.
  */
 static inline u64 current_thread_amr(void)
 {
 	if (current->thread.regs)
 		return current->thread.regs->amr;
-	return AMR_KUAP_BLOCKED;
+	return default_amr;
 }
 
 static inline u64 current_thread_iamr(void)
 {
 	if (current->thread.regs)
 		return current->thread.regs->iamr;
-	return AMR_KUEP_BLOCKED;
+	return default_iamr;
 }
 #endif /* CONFIG_PPC_PKEY */
 

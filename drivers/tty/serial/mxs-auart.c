@@ -34,8 +34,6 @@
 #include <linux/dma-mapping.h>
 #include <linux/dmaengine.h>
 
-#include <asm/cacheflush.h>
-
 #include <linux/gpio/consumer.h>
 #include <linux/err.h>
 #include <linux/irq.h>
@@ -1535,34 +1533,6 @@ disable_clk_ahb:
 	return err;
 }
 
-/*
- * This function returns 1 if pdev isn't a device instatiated by dt, 0 if it
- * could successfully get all information from dt or a negative errno.
- */
-static int serial_mxs_probe_dt(struct mxs_auart_port *s,
-		struct platform_device *pdev)
-{
-	struct device_node *np = pdev->dev.of_node;
-	int ret;
-
-	if (!np)
-		/* no device tree device */
-		return 1;
-
-	ret = of_alias_get_id(np, "serial");
-	if (ret < 0) {
-		dev_err(&pdev->dev, "failed to get alias id: %d\n", ret);
-		return ret;
-	}
-	s->port.line = ret;
-
-	if (of_get_property(np, "uart-has-rtscts", NULL) ||
-	    of_get_property(np, "fsl,uart-has-rtscts", NULL) /* deprecated */)
-		set_bit(MXS_AUART_RTSCTS, &s->flags);
-
-	return 0;
-}
-
 static int mxs_auart_init_gpios(struct mxs_auart_port *s, struct device *dev)
 {
 	enum mctrl_gpio_idx i;
@@ -1631,6 +1601,7 @@ static int mxs_auart_request_gpio_irq(struct mxs_auart_port *s)
 
 static int mxs_auart_probe(struct platform_device *pdev)
 {
+	struct device_node *np = pdev->dev.of_node;
 	struct mxs_auart_port *s;
 	u32 version;
 	int ret, irq;
@@ -1643,11 +1614,17 @@ static int mxs_auart_probe(struct platform_device *pdev)
 	s->port.dev = &pdev->dev;
 	s->dev = &pdev->dev;
 
-	ret = serial_mxs_probe_dt(s, pdev);
-	if (ret > 0)
-		s->port.line = pdev->id < 0 ? 0 : pdev->id;
-	else if (ret < 0)
+	ret = of_alias_get_id(np, "serial");
+	if (ret < 0) {
+		dev_err(&pdev->dev, "failed to get alias id: %d\n", ret);
 		return ret;
+	}
+	s->port.line = ret;
+
+	if (of_get_property(np, "uart-has-rtscts", NULL) ||
+	    of_get_property(np, "fsl,uart-has-rtscts", NULL) /* deprecated */)
+		set_bit(MXS_AUART_RTSCTS, &s->flags);
+
 	if (s->port.line >= ARRAY_SIZE(auart_port)) {
 		dev_err(&pdev->dev, "serial%d out of range\n", s->port.line);
 		return -EINVAL;

@@ -755,7 +755,7 @@ more details, with real examples.
 	bits on the scripts nonetheless.
 
 	Kbuild provides variables $(CONFIG_SHELL), $(AWK), $(PERL),
-	$(PYTHON) and $(PYTHON3) to refer to interpreters for the respective
+	and $(PYTHON3) to refer to interpreters for the respective
 	scripts.
 
 	Example::
@@ -1317,7 +1317,6 @@ When kbuild executes, the following steps are followed (roughly):
 		libs-y                 += arch/sparc/lib/
 
 		drivers-$(CONFIG_PM) += arch/sparc/power/
-		drivers-$(CONFIG_OPROFILE)	+= arch/sparc/oprofile/
 
 7.5 Architecture-specific boot images
 -------------------------------------

@@ -10,9 +10,6 @@
 
 #define RPC_VERSION 2
 
-/* size of an XDR encoding unit in bytes, i.e. 32bit */
-#define XDR_UNIT	(4)
-
 /* spec defines authentication flavor as an unsigned 32 bit integer */
 typedef u32	rpc_authflavor_t;
 

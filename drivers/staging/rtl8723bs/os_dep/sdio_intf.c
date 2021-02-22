@@ -339,8 +339,6 @@ static struct adapter *rtw_sdio_if1_init(struct dvobj_priv *dvobj, const struct 
 
 	padapter = rtw_netdev_priv(pnetdev);
 
-	rtw_wdev_alloc(padapter, dvobj_to_dev(dvobj));
-
 	/* 3 3. init driver special setting, interface, OS and hardware relative */
 
 	/* 4 3.1 set hardware operation functions */
@@ -377,6 +375,8 @@ static struct adapter *rtw_sdio_if1_init(struct dvobj_priv *dvobj, const struct 
 			 ("rtw_drv_init: Initialize driver software resource Failed!\n"));
 		goto free_hal_data;
 	}
+
+	rtw_wdev_alloc(padapter, dvobj_to_dev(dvobj));
 
 	/* 3 8. get WLan MAC address */
 	/*  set mac addr */

@@ -926,8 +926,10 @@ amdgpu_display_user_framebuffer_create(struct drm_device *dev,
 				       struct drm_file *file_priv,
 				       const struct drm_mode_fb_cmd2 *mode_cmd)
 {
-	struct drm_gem_object *obj;
 	struct amdgpu_framebuffer *amdgpu_fb;
+	struct drm_gem_object *obj;
+	struct amdgpu_bo *bo;
+	uint32_t domains;
 	int ret;
 
 	obj = drm_gem_object_lookup(file_priv, mode_cmd->handles[0]);
@@ -938,7 +940,9 @@ amdgpu_display_user_framebuffer_create(struct drm_device *dev,
 	}
 
 	/* Handle is imported dma-buf, so cannot be migrated to VRAM for scanout */
-	if (obj->import_attach) {
+	bo = gem_to_amdgpu_bo(obj);
+	domains = amdgpu_display_supported_domains(drm_to_adev(dev), bo->flags);
+	if (obj->import_attach && !(domains & AMDGPU_GEM_DOMAIN_GTT)) {
 		drm_dbg_kms(dev, "Cannot create framebuffer from imported dma_buf\n");
 		return ERR_PTR(-EINVAL);
 	}

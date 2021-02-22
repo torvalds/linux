@@ -27,7 +27,7 @@ int generic_ide_suspend(struct device *dev, pm_message_t mesg)
 		mesg.event = PM_EVENT_FREEZE;
 	rqpm.pm_state = mesg.event;
 
-	blk_execute_rq(drive->queue, NULL, rq, 0);
+	blk_execute_rq(NULL, rq, 0);
 	ret = scsi_req(rq)->result ? -EIO : 0;
 	blk_put_request(rq);
 
@@ -50,7 +50,7 @@ static int ide_pm_execute_rq(struct request *rq)
 		blk_mq_end_request(rq, BLK_STS_OK);
 		return -ENXIO;
 	}
-	blk_execute_rq(q, NULL, rq, true);
+	blk_execute_rq(NULL, rq, true);
 
 	return scsi_req(rq)->result ? -EIO : 0;
 }

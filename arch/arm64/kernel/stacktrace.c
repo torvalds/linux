@@ -44,6 +44,10 @@ int notrace unwind_frame(struct task_struct *tsk, struct stackframe *frame)
 	unsigned long fp = frame->fp;
 	struct stack_info info;
 
+	/* Terminal record; nothing to unwind */
+	if (!fp)
+		return -EINVAL;
+
 	if (fp & 0xf)
 		return -EINVAL;
 
@@ -103,15 +107,6 @@ int notrace unwind_frame(struct task_struct *tsk, struct stackframe *frame)
 #endif /* CONFIG_FUNCTION_GRAPH_TRACER */
 
 	frame->pc = ptrauth_strip_insn_pac(frame->pc);
-
-	/*
-	 * Frames created upon entry from EL0 have NULL FP and PC values, so
-	 * don't bother reporting these. Frames created by __noreturn functions
-	 * might have a valid FP even if PC is bogus, so only terminate where
-	 * both are NULL.
-	 */
-	if (!frame->fp && !frame->pc)
-		return -EINVAL;
 
 	return 0;
 }

@@ -81,14 +81,13 @@ config EDAC_AMD64
 	  Support for error detection and correction of DRAM ECC errors on
 	  the AMD64 families (>= K8) of memory controllers.
 
-config EDAC_AMD64_ERROR_INJECTION
-	bool "Sysfs HW Error injection facilities"
-	depends on EDAC_AMD64
-	help
-	  Recent Opterons (Family 10h and later) provide for Memory Error
-	  Injection into the ECC detection circuits. The amd64_edac module
-	  allows the operator/user to inject Uncorrectable and Correctable
-	  errors into DRAM.
+	  When EDAC_DEBUG is enabled, hardware error injection facilities
+	  through sysfs are available:
+
+	  AMD CPUs up to and excluding family 0x17 provide for Memory
+	  Error Injection into the ECC detection circuits. The amd64_edac
+	  module allows the operator/user to inject Uncorrectable and
+	  Correctable errors into DRAM.
 
 	  When enabled, in each of the respective memory controller directories
 	  (/sys/devices/system/edac/mc/mcX), there are 3 input files:

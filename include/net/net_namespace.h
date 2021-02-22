@@ -165,7 +165,7 @@ struct net {
 	struct netns_xfrm	xfrm;
 #endif
 
-	atomic64_t		net_cookie; /* written once */
+	u64			net_cookie; /* written once */
 
 #if IS_ENABLED(CONFIG_IP_VS)
 	struct netns_ipvs	*ipvs;
@@ -223,8 +223,6 @@ extern struct list_head net_namespace_list;
 
 struct net *get_net_ns_by_pid(pid_t pid);
 struct net *get_net_ns_by_fd(int fd);
-
-u64 __net_gen_cookie(struct net *net);
 
 #ifdef CONFIG_SYSCTL
 void ipx_register_sysctl(void);

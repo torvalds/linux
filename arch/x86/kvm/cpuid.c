@@ -173,16 +173,22 @@ static void kvm_vcpu_after_set_cpuid(struct kvm_vcpu *vcpu)
 	kvm_update_pv_runtime(vcpu);
 
 	vcpu->arch.maxphyaddr = cpuid_query_maxphyaddr(vcpu);
-	kvm_mmu_reset_context(vcpu);
+	vcpu->arch.reserved_gpa_bits = kvm_vcpu_reserved_gpa_bits_raw(vcpu);
 
 	kvm_pmu_refresh(vcpu);
 	vcpu->arch.cr4_guest_rsvd_bits =
 	    __cr4_reserved_bits(guest_cpuid_has, vcpu);
 
-	vcpu->arch.cr3_lm_rsvd_bits = rsvd_bits(cpuid_maxphyaddr(vcpu), 63);
+	kvm_hv_set_cpuid(vcpu);
 
 	/* Invoke the vendor callback only after the above state is updated. */
-	kvm_x86_ops.vcpu_after_set_cpuid(vcpu);
+	static_call(kvm_x86_vcpu_after_set_cpuid)(vcpu);
+
+	/*
+	 * Except for the MMU, which needs to be reset after any vendor
+	 * specific adjustments to the reserved GPA bits.
+	 */
+	kvm_mmu_reset_context(vcpu);
 }
 
 static int is_efer_nx(void)
@@ -221,6 +227,16 @@ int cpuid_query_maxphyaddr(struct kvm_vcpu *vcpu)
 		return best->eax & 0xff;
 not_found:
 	return 36;
+}
+
+/*
+ * This "raw" version returns the reserved GPA bits without any adjustments for
+ * encryption technologies that usurp bits.  The raw mask should be used if and
+ * only if hardware does _not_ strip the usurped bits, e.g. in virtual MTRRs.
+ */
+u64 kvm_vcpu_reserved_gpa_bits_raw(struct kvm_vcpu *vcpu)
+{
+	return rsvd_bits(cpuid_maxphyaddr(vcpu), 63);
 }
 
 /* when an old userspace process fills a new kernel module */
@@ -321,7 +337,7 @@ int kvm_vcpu_ioctl_get_cpuid2(struct kvm_vcpu *vcpu,
 	if (cpuid->nent < vcpu->arch.cpuid_nent)
 		goto out;
 	r = -EFAULT;
-	if (copy_to_user(entries, &vcpu->arch.cpuid_entries,
+	if (copy_to_user(entries, vcpu->arch.cpuid_entries,
 			 vcpu->arch.cpuid_nent * sizeof(struct kvm_cpuid_entry2)))
 		goto out;
 	return 0;
@@ -434,7 +450,7 @@ void kvm_set_cpu_caps(void)
 		kvm_cpu_cap_set(X86_FEATURE_SPEC_CTRL_SSBD);
 
 	kvm_cpu_cap_mask(CPUID_7_1_EAX,
-		F(AVX512_BF16)
+		F(AVX_VNNI) | F(AVX512_BF16)
 	);
 
 	kvm_cpu_cap_mask(CPUID_D_1_EAX,

@@ -184,6 +184,10 @@ static unsigned long exit_to_user_mode_loop(struct pt_regs *regs,
 		 * enabled above.
 		 */
 		local_irq_disable_exit_to_user();
+
+		/* Check if any of the above work has queued a deferred wakeup */
+		rcu_nocb_flush_deferred_wakeup();
+
 		ti_work = READ_ONCE(current_thread_info()->flags);
 	}
 
@@ -197,6 +201,9 @@ static void exit_to_user_mode_prepare(struct pt_regs *regs)
 
 	lockdep_assert_irqs_disabled();
 
+	/* Flush pending rcuog wakeup before the last need_resched() check */
+	rcu_nocb_flush_deferred_wakeup();
+
 	if (unlikely(ti_work & EXIT_TO_USER_MODE_WORK))
 		ti_work = exit_to_user_mode_loop(regs, ti_work);
 
@@ -209,15 +216,9 @@ static void exit_to_user_mode_prepare(struct pt_regs *regs)
 	lockdep_sys_exit();
 }
 
-#ifndef _TIF_SINGLESTEP
-static inline bool report_single_step(unsigned long work)
-{
-	return false;
-}
-#else
 /*
  * If SYSCALL_EMU is set, then the only reason to report is when
- * TIF_SINGLESTEP is set (i.e. PTRACE_SYSEMU_SINGLESTEP).  This syscall
+ * SINGLESTEP is set (i.e. PTRACE_SYSEMU_SINGLESTEP).  This syscall
  * instruction has been already reported in syscall_enter_from_user_mode().
  */
 static inline bool report_single_step(unsigned long work)
@@ -225,10 +226,8 @@ static inline bool report_single_step(unsigned long work)
 	if (work & SYSCALL_WORK_SYSCALL_EMU)
 		return false;
 
-	return !!(current_thread_info()->flags & _TIF_SINGLESTEP);
+	return work & SYSCALL_WORK_SYSCALL_EXIT_TRAP;
 }
-#endif
-
 
 static void syscall_exit_work(struct pt_regs *regs, unsigned long work)
 {
@@ -393,6 +392,9 @@ void irqentry_exit_cond_resched(void)
 			preempt_schedule_irq();
 	}
 }
+#ifdef CONFIG_PREEMPT_DYNAMIC
+DEFINE_STATIC_CALL(irqentry_exit_cond_resched, irqentry_exit_cond_resched);
+#endif
 
 noinstr void irqentry_exit(struct pt_regs *regs, irqentry_state_t state)
 {
@@ -419,8 +421,13 @@ noinstr void irqentry_exit(struct pt_regs *regs, irqentry_state_t state)
 		}
 
 		instrumentation_begin();
-		if (IS_ENABLED(CONFIG_PREEMPTION))
+		if (IS_ENABLED(CONFIG_PREEMPTION)) {
+#ifdef CONFIG_PREEMT_DYNAMIC
+			static_call(irqentry_exit_cond_resched)();
+#else
 			irqentry_exit_cond_resched();
+#endif
+		}
 		/* Covers both tracing and lockdep */
 		trace_hardirqs_on();
 		instrumentation_end();

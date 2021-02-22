@@ -1440,15 +1440,6 @@ static unsigned int xhci_get_endpoint_flag(struct usb_endpoint_descriptor *desc)
 	return 1 << (xhci_get_endpoint_index(desc) + 1);
 }
 
-/* Find the flag for this endpoint (for use in the control context).  Use the
- * endpoint index to create a bitmask.  The slot context is bit 0, endpoint 0 is
- * bit 1, etc.
- */
-static unsigned int xhci_get_endpoint_flag_from_index(unsigned int ep_index)
-{
-	return 1 << (ep_index + 1);
-}
-
 /* Compute the last valid endpoint context index.  Basically, this is the
  * endpoint index plus one.  For slot contexts with more than valid endpoint,
  * we find the most significant bit set in the added contexts flags.
@@ -1810,7 +1801,12 @@ static int xhci_urb_dequeue(struct usb_hcd *hcd, struct urb *urb, int status)
 
 	for (; i < urb_priv->num_tds; i++) {
 		td = &urb_priv->td[i];
-		list_add_tail(&td->cancelled_td_list, &ep->cancelled_td_list);
+		/* TD can already be on cancelled list if ep halted on it */
+		if (list_empty(&td->cancelled_td_list)) {
+			td->cancel_status = TD_DIRTY;
+			list_add_tail(&td->cancelled_td_list,
+				      &ep->cancelled_td_list);
+		}
 	}
 
 	/* Queue a stop endpoint command, but only if this is
@@ -2985,7 +2981,7 @@ static void xhci_check_bw_drop_ep_streams(struct xhci_hcd *xhci,
  * else should be touching the xhci->devs[slot_id] structure, so we
  * don't need to take the xhci->lock for manipulating that.
  */
-static int xhci_check_bandwidth(struct usb_hcd *hcd, struct usb_device *udev)
+int xhci_check_bandwidth(struct usb_hcd *hcd, struct usb_device *udev)
 {
 	int i;
 	int ret = 0;
@@ -3083,7 +3079,7 @@ command_cleanup:
 	return ret;
 }
 
-static void xhci_reset_bandwidth(struct usb_hcd *hcd, struct usb_device *udev)
+void xhci_reset_bandwidth(struct usb_hcd *hcd, struct usb_device *udev)
 {
 	struct xhci_hcd *xhci;
 	struct xhci_virt_device	*virt_dev;
@@ -3117,84 +3113,6 @@ static void xhci_setup_input_ctx_for_config_ep(struct xhci_hcd *xhci,
 	ctrl_ctx->drop_flags = cpu_to_le32(drop_flags);
 	xhci_slot_copy(xhci, in_ctx, out_ctx);
 	ctrl_ctx->add_flags |= cpu_to_le32(SLOT_FLAG);
-}
-
-static void xhci_setup_input_ctx_for_quirk(struct xhci_hcd *xhci,
-		unsigned int slot_id, unsigned int ep_index,
-		struct xhci_dequeue_state *deq_state)
-{
-	struct xhci_input_control_ctx *ctrl_ctx;
-	struct xhci_container_ctx *in_ctx;
-	struct xhci_ep_ctx *ep_ctx;
-	u32 added_ctxs;
-	dma_addr_t addr;
-
-	in_ctx = xhci->devs[slot_id]->in_ctx;
-	ctrl_ctx = xhci_get_input_control_ctx(in_ctx);
-	if (!ctrl_ctx) {
-		xhci_warn(xhci, "%s: Could not get input context, bad type.\n",
-				__func__);
-		return;
-	}
-
-	xhci_endpoint_copy(xhci, xhci->devs[slot_id]->in_ctx,
-			xhci->devs[slot_id]->out_ctx, ep_index);
-	ep_ctx = xhci_get_ep_ctx(xhci, in_ctx, ep_index);
-	addr = xhci_trb_virt_to_dma(deq_state->new_deq_seg,
-			deq_state->new_deq_ptr);
-	if (addr == 0) {
-		xhci_warn(xhci, "WARN Cannot submit config ep after "
-				"reset ep command\n");
-		xhci_warn(xhci, "WARN deq seg = %p, deq ptr = %p\n",
-				deq_state->new_deq_seg,
-				deq_state->new_deq_ptr);
-		return;
-	}
-	ep_ctx->deq = cpu_to_le64(addr | deq_state->new_cycle_state);
-
-	added_ctxs = xhci_get_endpoint_flag_from_index(ep_index);
-	xhci_setup_input_ctx_for_config_ep(xhci, xhci->devs[slot_id]->in_ctx,
-			xhci->devs[slot_id]->out_ctx, ctrl_ctx,
-			added_ctxs, added_ctxs);
-}
-
-void xhci_cleanup_stalled_ring(struct xhci_hcd *xhci, unsigned int slot_id,
-			       unsigned int ep_index, unsigned int stream_id,
-			       struct xhci_td *td)
-{
-	struct xhci_dequeue_state deq_state;
-
-	xhci_dbg_trace(xhci, trace_xhci_dbg_reset_ep,
-			"Cleaning up stalled endpoint ring");
-	/* We need to move the HW's dequeue pointer past this TD,
-	 * or it will attempt to resend it on the next doorbell ring.
-	 */
-	xhci_find_new_dequeue_state(xhci, slot_id, ep_index, stream_id, td,
-				    &deq_state);
-
-	if (!deq_state.new_deq_ptr || !deq_state.new_deq_seg)
-		return;
-
-	/* HW with the reset endpoint quirk will use the saved dequeue state to
-	 * issue a configure endpoint command later.
-	 */
-	if (!(xhci->quirks & XHCI_RESET_EP_QUIRK)) {
-		xhci_dbg_trace(xhci, trace_xhci_dbg_reset_ep,
-				"Queueing new dequeue state");
-		xhci_queue_new_dequeue_state(xhci, slot_id,
-				ep_index, &deq_state);
-	} else {
-		/* Better hope no one uses the input context between now and the
-		 * reset endpoint completion!
-		 * XXX: No idea how this hardware will react when stream rings
-		 * are enabled.
-		 */
-		xhci_dbg_trace(xhci, trace_xhci_dbg_quirks,
-				"Setting up input context for "
-				"configure endpoint command");
-		xhci_setup_input_ctx_for_quirk(xhci, slot_id,
-				ep_index, &deq_state);
-	}
 }
 
 static void xhci_endpoint_disable(struct usb_hcd *hcd,
@@ -5510,6 +5428,10 @@ void xhci_init_driver(struct hc_driver *drv,
 			drv->reset = over->reset;
 		if (over->start)
 			drv->start = over->start;
+		if (over->check_bandwidth)
+			drv->check_bandwidth = over->check_bandwidth;
+		if (over->reset_bandwidth)
+			drv->reset_bandwidth = over->reset_bandwidth;
 	}
 }
 EXPORT_SYMBOL_GPL(xhci_init_driver);

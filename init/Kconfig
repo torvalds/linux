@@ -76,7 +76,6 @@ config CC_HAS_ASM_INLINE
 
 config CONSTRUCTORS
 	bool
-	depends on !UML
 
 config IRQ_WORK
 	bool
@@ -525,7 +524,7 @@ config SCHED_THERMAL_PRESSURE
 	  i.e. put less load on throttled CPUs than on non/less throttled ones.
 
 	  This requires the architecture to implement
-	  arch_set_thermal_pressure() and arch_get_thermal_pressure().
+	  arch_set_thermal_pressure() and arch_scale_thermal_pressure().
 
 config BSD_PROCESS_ACCT
 	bool "BSD Process Accounting"
@@ -2024,7 +2023,7 @@ config PROFILING
 	bool "Profiling support"
 	help
 	  Say Y here to enable the extended profiling support mechanisms used
-	  by profilers such as OProfile.
+	  by profilers.
 
 #
 # Place an empty function call at each tracepoint site. Can be

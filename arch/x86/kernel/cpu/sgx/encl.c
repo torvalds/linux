@@ -141,7 +141,6 @@ static vm_fault_t sgx_vma_fault(struct vm_fault *vmf)
 	struct sgx_encl_page *entry;
 	unsigned long phys_addr;
 	struct sgx_encl *encl;
-	unsigned long pfn;
 	vm_fault_t ret;
 
 	encl = vma->vm_private_data;
@@ -167,13 +166,6 @@ static vm_fault_t sgx_vma_fault(struct vm_fault *vmf)
 	}
 
 	phys_addr = sgx_get_epc_phys_addr(entry->epc_page);
-
-	/* Check if another thread got here first to insert the PTE. */
-	if (!follow_pfn(vma, addr, &pfn)) {
-		mutex_unlock(&encl->lock);
-
-		return VM_FAULT_NOPAGE;
-	}
 
 	ret = vmf_insert_pfn(vma, addr, PFN_DOWN(phys_addr));
 	if (ret != VM_FAULT_NOPAGE) {
@@ -481,6 +473,9 @@ static void sgx_mmu_notifier_free(struct mmu_notifier *mn)
 {
 	struct sgx_encl_mm *encl_mm = container_of(mn, struct sgx_encl_mm, mmu_notifier);
 
+	/* 'encl_mm' is going away, put encl_mm->encl reference: */
+	kref_put(&encl_mm->encl->refcount, sgx_encl_release);
+
 	kfree(encl_mm);
 }
 
@@ -534,6 +529,8 @@ int sgx_encl_mm_add(struct sgx_encl *encl, struct mm_struct *mm)
 	if (!encl_mm)
 		return -ENOMEM;
 
+	/* Grab a refcount for the encl_mm->encl reference: */
+	kref_get(&encl->refcount);
 	encl_mm->encl = encl;
 	encl_mm->mm = mm;
 	encl_mm->mmu_notifier.ops = &sgx_mmu_notifier_ops;

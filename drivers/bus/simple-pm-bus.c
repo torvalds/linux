@@ -16,6 +16,7 @@
 
 static int simple_pm_bus_probe(struct platform_device *pdev)
 {
+	const struct of_dev_auxdata *lookup = dev_get_platdata(&pdev->dev);
 	struct device_node *np = pdev->dev.of_node;
 
 	dev_dbg(&pdev->dev, "%s\n", __func__);
@@ -23,7 +24,7 @@ static int simple_pm_bus_probe(struct platform_device *pdev)
 	pm_runtime_enable(&pdev->dev);
 
 	if (np)
-		of_platform_populate(np, NULL, NULL, &pdev->dev);
+		of_platform_populate(np, NULL, lookup, &pdev->dev);
 
 	return 0;
 }

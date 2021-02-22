@@ -18,6 +18,7 @@ config MIPS
 	select ARCH_USE_QUEUED_SPINLOCKS
 	select ARCH_WANT_DEFAULT_TOPDOWN_MMAP_LAYOUT if MMU
 	select ARCH_WANT_IPC_PARSE_VERSION
+	select ARCH_WANT_LD_ORPHAN_WARN
 	select BUILDTIME_TABLE_SORT
 	select CLONE_BACKWARDS
 	select CPU_NO_EFFICIENT_FFS if (TARGET_ISA_REV < 1)
@@ -42,7 +43,7 @@ config MIPS
 	select HANDLE_DOMAIN_IRQ
 	select HAVE_ARCH_COMPILER_H
 	select HAVE_ARCH_JUMP_LABEL
-	select HAVE_ARCH_KGDB
+	select HAVE_ARCH_KGDB if MIPS_FP_SUPPORT
 	select HAVE_ARCH_MMAP_RND_BITS if MMU
 	select HAVE_ARCH_MMAP_RND_COMPAT_BITS if MMU && COMPAT
 	select HAVE_ARCH_SECCOMP_FILTER
@@ -74,8 +75,9 @@ config MIPS
 	select HAVE_LD_DEAD_CODE_DATA_ELIMINATION
 	select HAVE_MOD_ARCH_SPECIFIC
 	select HAVE_NMI
-	select HAVE_OPROFILE
 	select HAVE_PERF_EVENTS
+	select HAVE_PERF_REGS
+	select HAVE_PERF_USER_STACK_DUMP
 	select HAVE_REGS_AND_STACK_ACCESS_API
 	select HAVE_RSEQ
 	select HAVE_SPARSE_SYSCALL_NR
@@ -92,6 +94,7 @@ config MIPS
 	select SET_FS
 	select SYSCTL_EXCEPTION_TRACE
 	select VIRT_TO_BUS
+	select ARCH_HAS_ELFCORE_COMPAT
 
 config MIPS_FIXUP_BIGPHYS_ADDR
 	bool
@@ -123,6 +126,7 @@ choice
 
 config MIPS_GENERIC_KERNEL
 	bool "Generic board-agnostic MIPS kernel"
+	select ARCH_HAS_SETUP_DMA_OPS
 	select MIPS_GENERIC
 	select BOOT_RAW
 	select BUILTIN_DTB
@@ -132,7 +136,7 @@ config MIPS_GENERIC_KERNEL
 	select CPU_MIPSR2_IRQ_EI
 	select CPU_MIPSR2_IRQ_VI
 	select CSRC_R4K
-	select DMA_PERDEV_COHERENT
+	select DMA_NONCOHERENT
 	select HAVE_PCI
 	select IRQ_MIPS_CPU
 	select MIPS_AUTO_PFN_OFFSET
@@ -181,7 +185,7 @@ config MIPS_ALCHEMY
 	select CEVT_R4K
 	select CSRC_R4K
 	select IRQ_MIPS_CPU
-	select DMA_MAYBE_COHERENT	# Au1000,1500,1100 aren't, rest is
+	select DMA_NONCOHERENT		# Au1000,1500,1100 aren't, rest is
 	select MIPS_FIXUP_BIGPHYS_ADDR if PCI
 	select SYS_HAS_CPU_MIPS32_R1
 	select SYS_SUPPORTS_32BIT_KERNEL
@@ -408,6 +412,7 @@ config MACH_JAZZ
 	select SYS_SUPPORTS_32BIT_KERNEL
 	select SYS_SUPPORTS_64BIT_KERNEL
 	select SYS_SUPPORTS_100HZ
+	select SYS_SUPPORTS_LITTLE_ENDIAN
 	help
 	  This a family of machines based on the MIPS R4030 chipset which was
 	  used by several vendors to build RISC/os and Windows NT workstations.
@@ -491,8 +496,6 @@ config MACH_LOONGSON64
 	select SYS_SUPPORTS_ZBOOT
 	select SYS_SUPPORTS_RELOCATABLE
 	select ZONE_DMA32
-	select NUMA
-	select SMP
 	select COMMON_CLK
 	select USE_OF
 	select BUILTIN_DTB
@@ -546,7 +549,7 @@ config MIPS_MALTA
 	select CLKSRC_MIPS_GIC
 	select COMMON_CLK
 	select CSRC_R4K
-	select DMA_MAYBE_COHERENT
+	select DMA_NONCOHERENT
 	select GENERIC_ISA_DMA
 	select HAVE_PCSPKR_PLATFORM
 	select HAVE_PCI
@@ -608,6 +611,18 @@ config MACH_VR41XX
 	select SYS_SUPPORTS_MIPS16
 	select GPIOLIB
 
+config MACH_NINTENDO64
+	bool "Nintendo 64 console"
+	select CEVT_R4K
+	select CSRC_R4K
+	select SYS_HAS_CPU_R4300
+	select SYS_SUPPORTS_BIG_ENDIAN
+	select SYS_SUPPORTS_ZBOOT
+	select SYS_SUPPORTS_32BIT_KERNEL
+	select SYS_SUPPORTS_64BIT_KERNEL
+	select DMA_NONCOHERENT
+	select IRQ_MIPS_CPU
+
 config RALINK
 	bool "Ralink based machines"
 	select CEVT_R4K
@@ -626,6 +641,27 @@ config RALINK
 	select CLKDEV_LOOKUP
 	select ARCH_HAS_RESET_CONTROLLER
 	select RESET_CONTROLLER
+
+config MACH_REALTEK_RTL
+	bool "Realtek RTL838x/RTL839x based machines"
+	select MIPS_GENERIC
+	select DMA_NONCOHERENT
+	select IRQ_MIPS_CPU
+	select CSRC_R4K
+	select CEVT_R4K
+	select SYS_HAS_CPU_MIPS32_R1
+	select SYS_HAS_CPU_MIPS32_R2
+	select SYS_SUPPORTS_BIG_ENDIAN
+	select SYS_SUPPORTS_32BIT_KERNEL
+	select SYS_SUPPORTS_MIPS16
+	select SYS_SUPPORTS_MULTITHREADING
+	select SYS_SUPPORTS_VPE_LOADER
+	select SYS_HAS_EARLY_PRINTK
+	select SYS_HAS_EARLY_PRINTK_8250
+	select USE_GENERIC_EARLY_PRINTK_8250
+	select BOOT_RAW
+	select PINCTRL
+	select USE_OF
 
 config SGI_IP22
 	bool "SGI IP22 (Indy/Indigo2)"
@@ -1127,11 +1163,6 @@ config FW_CFE
 config ARCH_SUPPORTS_UPROBES
 	bool
 
-config DMA_MAYBE_COHERENT
-	select ARCH_HAS_DMA_COHERENCE_H
-	select DMA_NONCOHERENT
-	bool
-
 config DMA_PERDEV_COHERENT
 	bool
 	select ARCH_HAS_SETUP_DMA_OPS
@@ -1257,9 +1288,6 @@ config SYS_SUPPORTS_HUGETLBFS
 
 config MIPS_HUGE_TLB_SUPPORT
 	def_bool HUGETLB_PAGE || TRANSPARENT_HUGEPAGE
-
-config IRQ_CPU_RM7K
-	bool
 
 config IRQ_MSP_SLP
 	bool
@@ -1664,6 +1692,15 @@ config CPU_VR41XX
 	  kernel built with this option will not run on any other type of
 	  processor or vice versa.
 
+config CPU_R4300
+	bool "R4300"
+	depends on SYS_HAS_CPU_R4300
+	select CPU_SUPPORTS_32BIT_KERNEL
+	select CPU_SUPPORTS_64BIT_KERNEL
+	select CPU_HAS_LOAD_STORE_LR
+	help
+	  MIPS Technologies R4300-series processors.
+
 config CPU_R4X00
 	bool "R4x00"
 	depends on SYS_HAS_CPU_R4X00
@@ -1998,6 +2035,9 @@ config SYS_HAS_CPU_TX39XX
 config SYS_HAS_CPU_VR41XX
 	bool
 
+config SYS_HAS_CPU_R4300
+	bool
+
 config SYS_HAS_CPU_R4X00
 	bool
 
@@ -2182,7 +2222,7 @@ endchoice
 config KVM_GUEST
 	bool "KVM Guest Kernel"
 	depends on CPU_MIPS32_R2
-	depends on BROKEN_ON_SMP
+	depends on !64BIT && BROKEN_ON_SMP
 	help
 	  Select this option if building a guest kernel for KVM (Trap & Emulate)
 	  mode.
@@ -2758,6 +2798,7 @@ config ARCH_SPARSEMEM_ENABLE
 config NUMA
 	bool "NUMA Support"
 	depends on SYS_SUPPORTS_NUMA
+	select SMP
 	help
 	  Say Y to compile the kernel to support NUMA (Non-Uniform Memory
 	  Access).  This option improves performance on systems with more
@@ -2844,7 +2885,7 @@ config NODES_SHIFT
 
 config HW_PERF_EVENTS
 	bool "Enable hardware performance counter support for perf events"
-	depends on PERF_EVENTS && !OPROFILE && (CPU_MIPS32 || CPU_MIPS64 || CPU_R10000 || CPU_SB1 || CPU_CAVIUM_OCTEON || CPU_XLP || CPU_LOONGSON64)
+	depends on PERF_EVENTS && (CPU_MIPS32 || CPU_MIPS64 || CPU_R10000 || CPU_SB1 || CPU_CAVIUM_OCTEON || CPU_XLP || CPU_LOONGSON64)
 	default y
 	help
 	  Enable hardware performance counter support for perf events. If
@@ -3299,11 +3340,6 @@ config MIPS32_N32
 	  cases.
 
 	  If unsure, say N.
-
-config BINFMT_ELF32
-	bool
-	default y if MIPS32_O32 || MIPS32_N32
-	select ELFCORE
 
 menu "Power management options"
 

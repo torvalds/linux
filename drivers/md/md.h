@@ -556,7 +556,7 @@ static inline void md_sync_acct(struct block_device *bdev, unsigned long nr_sect
 
 static inline void md_sync_acct_bio(struct bio *bio, unsigned long nr_sectors)
 {
-	atomic_add(nr_sectors, &bio->bi_disk->sync_io);
+	md_sync_acct(bio->bi_bdev, nr_sectors);
 }
 
 struct md_personality
@@ -742,8 +742,6 @@ extern void md_rdev_clear(struct md_rdev *rdev);
 extern void md_handle_request(struct mddev *mddev, struct bio *bio);
 extern void mddev_suspend(struct mddev *mddev);
 extern void mddev_resume(struct mddev *mddev);
-extern struct bio *bio_alloc_mddev(gfp_t gfp_mask, int nr_iovecs,
-				   struct mddev *mddev);
 
 extern void md_reload_sb(struct mddev *mddev, int raid_disk);
 extern void md_update_sb(struct mddev *mddev, int force);
@@ -793,14 +791,14 @@ static inline void mddev_clear_unsupported_flags(struct mddev *mddev,
 static inline void mddev_check_writesame(struct mddev *mddev, struct bio *bio)
 {
 	if (bio_op(bio) == REQ_OP_WRITE_SAME &&
-	    !bio->bi_disk->queue->limits.max_write_same_sectors)
+	    !bio->bi_bdev->bd_disk->queue->limits.max_write_same_sectors)
 		mddev->queue->limits.max_write_same_sectors = 0;
 }
 
 static inline void mddev_check_write_zeroes(struct mddev *mddev, struct bio *bio)
 {
 	if (bio_op(bio) == REQ_OP_WRITE_ZEROES &&
-	    !bio->bi_disk->queue->limits.max_write_zeroes_sectors)
+	    !bio->bi_bdev->bd_disk->queue->limits.max_write_zeroes_sectors)
 		mddev->queue->limits.max_write_zeroes_sectors = 0;
 }
 

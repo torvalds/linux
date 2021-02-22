@@ -1335,6 +1335,7 @@ config LOCKDEP_SMALL
 config DEBUG_LOCKDEP
 	bool "Lock dependency engine debugging"
 	depends on DEBUG_KERNEL && LOCKDEP
+	select DEBUG_IRQFLAGS
 	help
 	  If you say Y here, the lock dependency engine will do
 	  additional runtime checks to debug itself, at the price
@@ -1422,6 +1423,13 @@ config TRACE_IRQFLAGS_NMI
 	def_bool y
 	depends on TRACE_IRQFLAGS
 	depends on TRACE_IRQFLAGS_NMI_SUPPORT
+
+config DEBUG_IRQFLAGS
+	bool "Debug IRQ flag manipulation"
+	help
+	  Enables checks for potentially unsafe enabling or disabling of
+	  interrupts, such as calling raw_local_irq_restore() when interrupts
+	  are enabled.
 
 config STACKTRACE
 	bool "Stack backtrace support"

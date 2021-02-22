@@ -205,7 +205,7 @@
 			};
 
 			partition@20000 {
-				label = "u-boot";
+				label = "a53-firmware";
 				reg = <0x20000 0x160000>;
 			};
 

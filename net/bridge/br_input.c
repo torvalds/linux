@@ -40,7 +40,7 @@ static int br_pass_frame_up(struct sk_buff *skb)
 
 	vg = br_vlan_group_rcu(br);
 	/* Bridge is just like any other port.  Make sure the
-	 * packet is allowed except in promisc modue when someone
+	 * packet is allowed except in promisc mode when someone
 	 * may be running packet capture.
 	 */
 	if (!(brdev->flags & IFF_PROMISC) &&

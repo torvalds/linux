@@ -1678,6 +1678,28 @@
 		interrupt-affinity = <&ca57_0 &ca57_1 &ca57_2 &ca57_3>;
 	};
 
+	sound {
+		status = "disabled";
+
+		clocks = <&bpmp TEGRA186_CLK_PLLA>,
+			 <&bpmp TEGRA186_CLK_PLL_A_OUT0>;
+		clock-names = "pll_a", "plla_out0";
+		assigned-clocks = <&bpmp TEGRA186_CLK_PLLA>,
+				  <&bpmp TEGRA186_CLK_PLL_A_OUT0>,
+				  <&bpmp TEGRA186_CLK_AUD_MCLK>;
+		assigned-clock-parents = <0>,
+					 <&bpmp TEGRA186_CLK_PLLA>,
+					 <&bpmp TEGRA186_CLK_PLL_A_OUT0>;
+		/*
+		 * PLLA supports dynamic ramp. Below initial rate is chosen
+		 * for this to work and oscillate between base rates required
+		 * for 8x and 11.025x sample rate streams.
+		 */
+		assigned-clock-rates = <258000000>;
+
+		iommus = <&smmu TEGRA186_SID_APE>;
+	};
+
 	thermal-zones {
 		a57 {
 			polling-delay = <0>;

@@ -252,8 +252,10 @@ choice
 	default MAXPHYSMEM_128GB if 64BIT && CMODEL_MEDANY
 
 	config MAXPHYSMEM_1GB
+		depends on 32BIT
 		bool "1GiB"
 	config MAXPHYSMEM_2GB
+		depends on 64BIT && CMODEL_MEDLOW
 		bool "2GiB"
 	config MAXPHYSMEM_128GB
 		depends on 64BIT && CMODEL_MEDANY

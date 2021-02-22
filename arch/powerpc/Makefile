@@ -276,8 +276,6 @@ head-$(CONFIG_PPC_OF_BOOT_TRAMPOLINE)  += arch/powerpc/kernel/prom_init.o
 # See arch/powerpc/Kbuild for content of core part of the kernel
 core-y += arch/powerpc/
 
-drivers-$(CONFIG_OPROFILE)	+= arch/powerpc/oprofile/
-
 # Default to zImage, override when needed
 all: zImage
 

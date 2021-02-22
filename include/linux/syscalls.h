@@ -607,11 +607,11 @@ asmlinkage long sys_unshare(unsigned long unshare_flags);
 
 /* kernel/futex.c */
 asmlinkage long sys_futex(u32 __user *uaddr, int op, u32 val,
-			struct __kernel_timespec __user *utime, u32 __user *uaddr2,
-			u32 val3);
+			  const struct __kernel_timespec __user *utime,
+			  u32 __user *uaddr2, u32 val3);
 asmlinkage long sys_futex_time32(u32 __user *uaddr, int op, u32 val,
-			struct old_timespec32 __user *utime, u32 __user *uaddr2,
-			u32 val3);
+				 const struct old_timespec32 __user *utime,
+				 u32 __user *uaddr2, u32 val3);
 asmlinkage long sys_get_robust_list(int pid,
 				    struct robust_list_head __user * __user *head_ptr,
 				    size_t __user *len_ptr);

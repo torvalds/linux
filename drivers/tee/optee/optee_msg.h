@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: (GPL-2.0 OR BSD-2-Clause) */
 /*
- * Copyright (c) 2015-2019, Linaro Limited
+ * Copyright (c) 2015-2021, Linaro Limited
  */
 #ifndef _OPTEE_MSG_H
 #define _OPTEE_MSG_H
@@ -12,11 +12,9 @@
  * This file defines the OP-TEE message protocol used to communicate
  * with an instance of OP-TEE running in secure world.
  *
- * This file is divided into three sections.
+ * This file is divided into two sections.
  * 1. Formatting of messages.
  * 2. Requests from normal world
- * 3. Requests from secure world, Remote Procedure Call (RPC), handled by
- *    tee-supplicant.
  */
 
 /*****************************************************************************
@@ -54,8 +52,8 @@
  * Every entry in buffer should point to a 4k page beginning (12 least
  * significant bits must be equal to zero).
  *
- * 12 least significant bints of optee_msg_param.u.tmem.buf_ptr should hold page
- * offset of the user buffer.
+ * 12 least significant bits of optee_msg_param.u.tmem.buf_ptr should hold
+ * page offset of user buffer.
  *
  * So, entries should be placed like members of this structure:
  *
@@ -176,17 +174,9 @@ struct optee_msg_param {
  * @params: the parameters supplied to the OS Command
  *
  * All normal calls to Trusted OS uses this struct. If cmd requires further
- * information than what these field holds it can be passed as a parameter
+ * information than what these fields hold it can be passed as a parameter
  * tagged as meta (setting the OPTEE_MSG_ATTR_META bit in corresponding
- * attrs field). All parameters tagged as meta has to come first.
- *
- * Temp memref parameters can be fragmented if supported by the Trusted OS
- * (when optee_smc.h is bearer of this protocol this is indicated with
- * OPTEE_SMC_SEC_CAP_UNREGISTERED_SHM). If a logical memref parameter is
- * fragmented then has all but the last fragment the
- * OPTEE_MSG_ATTR_FRAGMENT bit set in attrs. Even if a memref is fragmented
- * it will still be presented as a single logical memref to the Trusted
- * Application.
+ * attrs field). All parameters tagged as meta have to come first.
  */
 struct optee_msg_arg {
 	u32 cmd;
@@ -199,7 +189,7 @@ struct optee_msg_arg {
 	u32 num_params;
 
 	/* num_params tells the actual number of element in params */
-	struct optee_msg_param params[0];
+	struct optee_msg_param params[];
 };
 
 /**
@@ -290,15 +280,12 @@ struct optee_msg_arg {
  * OPTEE_MSG_CMD_REGISTER_SHM registers a shared memory reference. The
  * information is passed as:
  * [in] param[0].attr			OPTEE_MSG_ATTR_TYPE_TMEM_INPUT
- *					[| OPTEE_MSG_ATTR_FRAGMENT]
+ *					[| OPTEE_MSG_ATTR_NONCONTIG]
  * [in] param[0].u.tmem.buf_ptr		physical address (of first fragment)
  * [in] param[0].u.tmem.size		size (of first fragment)
  * [in] param[0].u.tmem.shm_ref		holds shared memory reference
- * ...
- * The shared memory can optionally be fragmented, temp memrefs can follow
- * each other with all but the last with the OPTEE_MSG_ATTR_FRAGMENT bit set.
  *
- * OPTEE_MSG_CMD_UNREGISTER_SHM unregisteres a previously registered shared
+ * OPTEE_MSG_CMD_UNREGISTER_SHM unregisters a previously registered shared
  * memory reference. The information is passed as:
  * [in] param[0].attr			OPTEE_MSG_ATTR_TYPE_RMEM_INPUT
  * [in] param[0].u.rmem.shm_ref		holds shared memory reference
@@ -312,132 +299,5 @@ struct optee_msg_arg {
 #define OPTEE_MSG_CMD_REGISTER_SHM	4
 #define OPTEE_MSG_CMD_UNREGISTER_SHM	5
 #define OPTEE_MSG_FUNCID_CALL_WITH_ARG	0x0004
-
-/*****************************************************************************
- * Part 3 - Requests from secure world, RPC
- *****************************************************************************/
-
-/*
- * All RPC is done with a struct optee_msg_arg as bearer of information,
- * struct optee_msg_arg::arg holds values defined by OPTEE_MSG_RPC_CMD_* below
- *
- * RPC communication with tee-supplicant is reversed compared to normal
- * client communication desribed above. The supplicant receives requests
- * and sends responses.
- */
-
-/*
- * Load a TA into memory, defined in tee-supplicant
- */
-#define OPTEE_MSG_RPC_CMD_LOAD_TA	0
-
-/*
- * Reserved
- */
-#define OPTEE_MSG_RPC_CMD_RPMB		1
-
-/*
- * File system access, defined in tee-supplicant
- */
-#define OPTEE_MSG_RPC_CMD_FS		2
-
-/*
- * Get time
- *
- * Returns number of seconds and nano seconds since the Epoch,
- * 1970-01-01 00:00:00 +0000 (UTC).
- *
- * [out] param[0].u.value.a	Number of seconds
- * [out] param[0].u.value.b	Number of nano seconds.
- */
-#define OPTEE_MSG_RPC_CMD_GET_TIME	3
-
-/*
- * Wait queue primitive, helper for secure world to implement a wait queue.
- *
- * If secure world need to wait for a secure world mutex it issues a sleep
- * request instead of spinning in secure world. Conversely is a wakeup
- * request issued when a secure world mutex with a thread waiting thread is
- * unlocked.
- *
- * Waiting on a key
- * [in] param[0].u.value.a OPTEE_MSG_RPC_WAIT_QUEUE_SLEEP
- * [in] param[0].u.value.b wait key
- *
- * Waking up a key
- * [in] param[0].u.value.a OPTEE_MSG_RPC_WAIT_QUEUE_WAKEUP
- * [in] param[0].u.value.b wakeup key
- */
-#define OPTEE_MSG_RPC_CMD_WAIT_QUEUE	4
-#define OPTEE_MSG_RPC_WAIT_QUEUE_SLEEP	0
-#define OPTEE_MSG_RPC_WAIT_QUEUE_WAKEUP	1
-
-/*
- * Suspend execution
- *
- * [in] param[0].value	.a number of milliseconds to suspend
- */
-#define OPTEE_MSG_RPC_CMD_SUSPEND	5
-
-/*
- * Allocate a piece of shared memory
- *
- * Shared memory can optionally be fragmented, to support that additional
- * spare param entries are allocated to make room for eventual fragments.
- * The spare param entries has .attr = OPTEE_MSG_ATTR_TYPE_NONE when
- * unused. All returned temp memrefs except the last should have the
- * OPTEE_MSG_ATTR_FRAGMENT bit set in the attr field.
- *
- * [in]  param[0].u.value.a		type of memory one of
- *					OPTEE_MSG_RPC_SHM_TYPE_* below
- * [in]  param[0].u.value.b		requested size
- * [in]  param[0].u.value.c		required alignment
- *
- * [out] param[0].u.tmem.buf_ptr	physical address (of first fragment)
- * [out] param[0].u.tmem.size		size (of first fragment)
- * [out] param[0].u.tmem.shm_ref	shared memory reference
- * ...
- * [out] param[n].u.tmem.buf_ptr	physical address
- * [out] param[n].u.tmem.size		size
- * [out] param[n].u.tmem.shm_ref	shared memory reference (same value
- *					as in param[n-1].u.tmem.shm_ref)
- */
-#define OPTEE_MSG_RPC_CMD_SHM_ALLOC	6
-/* Memory that can be shared with a non-secure user space application */
-#define OPTEE_MSG_RPC_SHM_TYPE_APPL	0
-/* Memory only shared with non-secure kernel */
-#define OPTEE_MSG_RPC_SHM_TYPE_KERNEL	1
-
-/*
- * Free shared memory previously allocated with OPTEE_MSG_RPC_CMD_SHM_ALLOC
- *
- * [in]  param[0].u.value.a		type of memory one of
- *					OPTEE_MSG_RPC_SHM_TYPE_* above
- * [in]  param[0].u.value.b		value of shared memory reference
- *					returned in param[0].u.tmem.shm_ref
- *					above
- */
-#define OPTEE_MSG_RPC_CMD_SHM_FREE	7
-
-/*
- * Access a device on an i2c bus
- *
- * [in]  param[0].u.value.a		mode: RD(0), WR(1)
- * [in]  param[0].u.value.b		i2c adapter
- * [in]  param[0].u.value.c		i2c chip
- *
- * [in]  param[1].u.value.a		i2c control flags
- *
- * [in/out] memref[2]			buffer to exchange the transfer data
- *					with the secure world
- *
- * [out]  param[3].u.value.a		bytes transferred by the driver
- */
-#define OPTEE_MSG_RPC_CMD_I2C_TRANSFER 21
-/* I2C master transfer modes */
-#define OPTEE_MSG_RPC_CMD_I2C_TRANSFER_RD 0
-#define OPTEE_MSG_RPC_CMD_I2C_TRANSFER_WR 1
-/* I2C master control flags */
-#define OPTEE_MSG_RPC_CMD_I2C_FLAGS_TEN_BIT  BIT(0)
 
 #endif /* _OPTEE_MSG_H */

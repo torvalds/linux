@@ -11,6 +11,7 @@
 #include "dt-bindings/input/input.h"
 #include <dt-bindings/interrupt-controller/arm-gic.h>
 #include <dt-bindings/thermal/thermal.h>
+#include <dt-bindings/interconnect/imx8mq.h>
 #include "imx8mq-pinfunc.h"
 
 / {
@@ -286,11 +287,13 @@
 	};
 
 	soc@0 {
-		compatible = "simple-bus";
+		compatible = "fsl,imx8mq-soc", "simple-bus";
 		#address-cells = <1>;
 		#size-cells = <1>;
 		ranges = <0x0 0x0 0x0 0x3e000000>;
 		dma-ranges = <0x40000000 0x0 0x40000000 0xc0000000>;
+		nvmem-cells = <&imx8mq_uid>;
+		nvmem-cell-names = "soc_unique_id";
 
 		bus@30000000 { /* AIPS1 */
 			compatible = "fsl,aips-bus", "simple-bus";
@@ -522,6 +525,8 @@
 						  <&clk IMX8MQ_VIDEO_PLL1>,
 						  <&clk IMX8MQ_VIDEO_PLL1_OUT>;
 				assigned-clock-rates = <0>, <0>, <0>, <594000000>;
+				interconnects = <&noc IMX8MQ_ICM_LCDIF &noc IMX8MQ_ICS_DRAM>;
+				interconnect-names = "dram";
 				status = "disabled";
 
 				port@0 {
@@ -555,8 +560,16 @@
 				#address-cells = <1>;
 				#size-cells = <1>;
 
+				imx8mq_uid: soc-uid@410 {
+					reg = <0x4 0x8>;
+				};
+
 				cpu_speed_grade: speed-grade@10 {
 					reg = <0x10 4>;
+				};
+
+				fec_mac_address: mac-address@90 {
+					reg = <0x90 6>;
 				};
 			};
 
@@ -826,6 +839,8 @@
 				clocks = <&clk IMX8MQ_CLK_ECSPI1_ROOT>,
 					 <&clk IMX8MQ_CLK_ECSPI1_ROOT>;
 				clock-names = "ipg", "per";
+				dmas = <&sdma1 0 7 1>, <&sdma1 1 7 2>;
+				dma-names = "rx", "tx";
 				status = "disabled";
 			};
 
@@ -838,6 +853,8 @@
 				clocks = <&clk IMX8MQ_CLK_ECSPI2_ROOT>,
 					 <&clk IMX8MQ_CLK_ECSPI2_ROOT>;
 				clock-names = "ipg", "per";
+				dmas = <&sdma1 2 7 1>, <&sdma1 3 7 2>;
+				dma-names = "rx", "tx";
 				status = "disabled";
 			};
 
@@ -850,6 +867,8 @@
 				clocks = <&clk IMX8MQ_CLK_ECSPI3_ROOT>,
 					 <&clk IMX8MQ_CLK_ECSPI3_ROOT>;
 				clock-names = "ipg", "per";
+				dmas = <&sdma1 4 7 1>, <&sdma1 5 7 2>;
+				dma-names = "rx", "tx";
 				status = "disabled";
 			};
 
@@ -1016,9 +1035,14 @@
 				reg = <0x30a00300 0x100>;
 				clocks = <&clk IMX8MQ_CLK_DSI_PHY_REF>;
 				clock-names = "phy_ref";
-				assigned-clocks = <&clk IMX8MQ_CLK_DSI_PHY_REF>;
-				assigned-clock-parents = <&clk IMX8MQ_VIDEO_PLL1_OUT>;
-				assigned-clock-rates = <24000000>;
+				assigned-clocks = <&clk IMX8MQ_VIDEO_PLL1_REF_SEL>,
+						  <&clk IMX8MQ_VIDEO_PLL1_BYPASS>,
+						  <&clk IMX8MQ_CLK_DSI_PHY_REF>,
+						  <&clk IMX8MQ_VIDEO_PLL1>;
+				assigned-clock-parents = <&clk IMX8MQ_CLK_25M>,
+						  <&clk IMX8MQ_VIDEO_PLL1>,
+						  <&clk IMX8MQ_VIDEO_PLL1_OUT>;
+				assigned-clock-rates = <0>, <0>, <24000000>, <594000000>;
 				#phy-cells = <0>;
 				power-domains = <&pgc_mipi>;
 				status = "disabled";
@@ -1152,9 +1176,47 @@
 				         <&clk IMX8MQ_CLK_ENET_PHY_REF>;
 				clock-names = "ipg", "ahb", "ptp",
 				              "enet_clk_ref", "enet_out";
+				assigned-clocks = <&clk IMX8MQ_CLK_ENET_AXI>,
+						  <&clk IMX8MQ_CLK_ENET_TIMER>,
+						  <&clk IMX8MQ_CLK_ENET_REF>,
+						  <&clk IMX8MQ_CLK_ENET_PHY_REF>;
+				assigned-clock-parents = <&clk IMX8MQ_SYS1_PLL_266M>,
+							 <&clk IMX8MQ_SYS2_PLL_100M>,
+							 <&clk IMX8MQ_SYS2_PLL_125M>,
+							 <&clk IMX8MQ_SYS2_PLL_50M>;
+				assigned-clock-rates = <0>, <100000000>, <125000000>, <0>;
 				fsl,num-tx-queues = <3>;
 				fsl,num-rx-queues = <3>;
+				nvmem-cells = <&fec_mac_address>;
+				nvmem-cell-names = "mac-address";
+				nvmem_macaddr_swap;
+				fsl,stop-mode = <&iomuxc_gpr 0x10 3>;
 				status = "disabled";
+			};
+		};
+
+		noc: interconnect@32700000 {
+			compatible = "fsl,imx8mq-noc", "fsl,imx8m-noc";
+			reg = <0x32700000 0x100000>;
+			clocks = <&clk IMX8MQ_CLK_NOC>;
+			fsl,ddrc = <&ddrc>;
+			#interconnect-cells = <1>;
+			operating-points-v2 = <&noc_opp_table>;
+
+			noc_opp_table: opp-table {
+				compatible = "operating-points-v2";
+
+				opp-133M {
+					opp-hz = /bits/ 64 <133333333>;
+				};
+
+				opp-400M {
+					opp-hz = /bits/ 64 <400000000>;
+				};
+
+				opp-800M {
+					opp-hz = /bits/ 64 <800000000>;
+				};
 			};
 		};
 
@@ -1315,6 +1377,7 @@
 			                <0 0 0 3 &gic GIC_SPI 123 IRQ_TYPE_LEVEL_HIGH>,
 			                <0 0 0 4 &gic GIC_SPI 122 IRQ_TYPE_LEVEL_HIGH>;
 			fsl,max-link-speed = <2>;
+			linux,pci-domain = <0>;
 			power-domains = <&pgc_pcie>;
 			resets = <&src IMX8MQ_RESET_PCIEPHY>,
 			         <&src IMX8MQ_RESET_PCIE_CTRL_APPS_EN>,
@@ -1344,6 +1407,7 @@
 					<0 0 0 3 &gic GIC_SPI 75 IRQ_TYPE_LEVEL_HIGH>,
 					<0 0 0 4 &gic GIC_SPI 74 IRQ_TYPE_LEVEL_HIGH>;
 			fsl,max-link-speed = <2>;
+			linux,pci-domain = <1>;
 			power-domains = <&pgc_pcie>;
 			resets = <&src IMX8MQ_RESET_PCIEPHY2>,
 			         <&src IMX8MQ_RESET_PCIE2_CTRL_APPS_EN>,

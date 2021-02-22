@@ -12,7 +12,7 @@
 extern bool dbg;
 
 #define pgprintk(x...) do { if (dbg) printk(x); } while (0)
-#define rmap_printk(x...) do { if (dbg) printk(x); } while (0)
+#define rmap_printk(fmt, args...) do { if (dbg) printk("%s: " fmt, __func__, ## args); } while (0)
 #define MMU_WARN_ON(x) WARN_ON(x)
 #else
 #define pgprintk(x...) do { } while (0)
@@ -56,7 +56,12 @@ struct kvm_mmu_page {
 	/* Number of writes since the last time traversal visited this page.  */
 	atomic_t write_flooding_count;
 
+#ifdef CONFIG_X86_64
 	bool tdp_mmu_page;
+
+	/* Used for freeing the page asyncronously if it is a TDP MMU page. */
+	struct rcu_head rcu_head;
+#endif
 };
 
 extern struct kmem_cache *mmu_page_header_cache;

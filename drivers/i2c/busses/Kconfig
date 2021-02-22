@@ -1175,8 +1175,8 @@ config I2C_XILINX
 	  will be called xilinx_i2c.
 
 config I2C_XLR
-	tristate "Netlogic XLR and Sigma Designs I2C support"
-	depends on CPU_XLR || ARCH_TANGO || COMPILE_TEST
+	tristate "Netlogic XLR I2C support"
+	depends on CPU_XLR || COMPILE_TEST
 	help
 	  This driver enables support for the on-chip I2C interface of
 	  the Netlogic XLR/XLS MIPS processors and Sigma Designs SOCs.

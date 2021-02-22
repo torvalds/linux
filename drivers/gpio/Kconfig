@@ -441,8 +441,9 @@ config GPIO_MXC
 	select GENERIC_IRQ_CHIP
 
 config GPIO_MXS
-	def_bool y
+	bool "Freescale MXS GPIO support" if COMPILE_TEST
 	depends on ARCH_MXS || COMPILE_TEST
+	default y if ARCH_MXS
 	select GPIO_GENERIC
 	select GENERIC_IRQ_CHIP
 

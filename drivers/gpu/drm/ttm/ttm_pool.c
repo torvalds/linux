@@ -33,6 +33,7 @@
 
 #include <linux/module.h>
 #include <linux/dma-mapping.h>
+#include <linux/highmem.h>
 
 #ifdef CONFIG_X86
 #include <asm/set_memory.h>
@@ -84,7 +85,7 @@ static struct page *ttm_pool_alloc_page(struct ttm_pool *pool, gfp_t gfp_flags,
 	 * put_page() on a TTM allocated page is illegal.
 	 */
 	if (order)
-		gfp_flags |= __GFP_NOMEMALLOC | __GFP_NORETRY |
+		gfp_flags |= __GFP_NOMEMALLOC | __GFP_NORETRY | __GFP_NOWARN |
 			__GFP_KSWAPD_RECLAIM;
 
 	if (!pool->use_dma_alloc) {
@@ -218,6 +219,15 @@ static void ttm_pool_unmap(struct ttm_pool *pool, dma_addr_t dma_addr,
 /* Give pages into a specific pool_type */
 static void ttm_pool_type_give(struct ttm_pool_type *pt, struct page *p)
 {
+	unsigned int i, num_pages = 1 << pt->order;
+
+	for (i = 0; i < num_pages; ++i) {
+		if (PageHighMem(p))
+			clear_highpage(p + i);
+		else
+			clear_page(page_address(p + i));
+	}
+
 	spin_lock(&pt->lock);
 	list_add(&p->lru, &pt->pages);
 	spin_unlock(&pt->lock);

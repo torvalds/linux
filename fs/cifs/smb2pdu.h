@@ -286,7 +286,7 @@ struct smb2_negotiate_req {
 	__le32 NegotiateContextOffset; /* SMB3.1.1 only. MBZ earlier */
 	__le16 NegotiateContextCount;  /* SMB3.1.1 only. MBZ earlier */
 	__le16 Reserved2;
-	__le16 Dialects[1]; /* One dialect (vers=) at a time for now */
+	__le16 Dialects[4]; /* BB expand this if autonegotiate > 4 dialects */
 } __packed;
 
 /* Dialects */
