@@ -27,6 +27,7 @@
 #include <linux/thermal.h>
 #include <linux/notifier.h>
 #include <linux/proc_fs.h>
+#include <linux/nospec.h>
 #include <linux/rockchip/rockchip_sip.h>
 #include <linux/regulator/consumer.h>
 
@@ -142,6 +143,16 @@ struct rkvdec_task {
 	struct mpp_request w_reqs[MPP_MAX_MSG_NUM];
 	u32 r_req_cnt;
 	struct mpp_request r_reqs[MPP_MAX_MSG_NUM];
+};
+
+struct rkvdec_session_priv {
+	/* codec info from user */
+	struct {
+		/* show mode */
+		u32 flag;
+		/* item data */
+		u64 val;
+	} codec_info[DEC_INFO_BUTT];
 };
 
 struct rkvdec_dev {
@@ -610,6 +621,75 @@ static int rkvdec_free_task(struct mpp_session *session,
 	return 0;
 }
 
+static int rkvdec_control(struct mpp_session *session, struct mpp_request *req)
+{
+	switch (req->cmd) {
+	case MPP_CMD_SEND_CODEC_INFO: {
+		int i;
+		int cnt;
+		struct codec_info_elem elem;
+		struct rkvdec_session_priv *priv;
+
+		if (!session || !session->priv) {
+			mpp_err("session info null\n");
+			return -EINVAL;
+		}
+		priv = session->priv;
+
+		cnt = req->size / sizeof(elem);
+		cnt = (cnt > DEC_INFO_BUTT) ? DEC_INFO_BUTT : cnt;
+		mpp_debug(DEBUG_IOCTL, "codec info count %d\n", cnt);
+		for (i = 0; i < cnt; i++) {
+			if (copy_from_user(&elem, req->data + i * sizeof(elem), sizeof(elem))) {
+				mpp_err("copy_from_user failed\n");
+				continue;
+			}
+			if (elem.type > DEC_INFO_BASE && elem.type < DEC_INFO_BUTT &&
+			    elem.flag > CODEC_INFO_FLAG_NULL && elem.flag < CODEC_INFO_FLAG_BUTT) {
+				elem.type = array_index_nospec(elem.type, DEC_INFO_BUTT);
+				priv->codec_info[elem.type].flag = elem.flag;
+				priv->codec_info[elem.type].val = elem.data;
+			} else {
+				mpp_err("codec info invalid, type %d, flag %d\n",
+					elem.type, elem.flag);
+			}
+		}
+	} break;
+	default: {
+		mpp_err("unknown mpp ioctl cmd %x\n", req->cmd);
+	} break;
+	}
+
+	return 0;
+}
+
+static int rkvdec_free_session(struct mpp_session *session)
+{
+	if (session && session->priv) {
+		kfree(session->priv);
+		session->priv = NULL;
+	}
+
+	return 0;
+}
+
+static int rkvdec_init_session(struct mpp_session *session)
+{
+	struct rkvdec_session_priv *priv;
+
+	if (!session) {
+		mpp_err("session is null\n");
+		return -EINVAL;
+	}
+
+	priv = kzalloc(sizeof(*priv), GFP_KERNEL);
+	if (!priv)
+		return -ENOMEM;
+	session->priv = priv;
+
+	return 0;
+}
+
 #ifdef CONFIG_PROC_FS
 static int rkvdec_procfs_remove(struct mpp_dev *mpp)
 {
@@ -821,6 +901,9 @@ static struct mpp_dev_ops rkvdec_v2_dev_ops = {
 	.finish = rkvdec_finish,
 	.result = rkvdec_result,
 	.free_task = rkvdec_free_task,
+	.ioctl = rkvdec_control,
+	.init_session = rkvdec_init_session,
+	.free_session = rkvdec_free_session,
 };
 
 static const struct mpp_dev_var rkvdec_v2_data = {
