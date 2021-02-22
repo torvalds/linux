@@ -37,7 +37,8 @@
 /* end of CRYPTO V1 register define */
 
 /* start of CRYPTO V2 register define */
-#define CRYPTO_V2_RNG_CTL			0x0400
+#define CRYPTO_V2_RNG_DEFAULT_OFFSET		0x0400
+#define CRYPTO_V2_RNG_CTL			0x0
 #define CRYPTO_V2_RNG_64_BIT_LEN		_SBF(4, 0x00)
 #define CRYPTO_V2_RNG_128_BIT_LEN		_SBF(4, 0x01)
 #define CRYPTO_V2_RNG_192_BIT_LEN		_SBF(4, 0x02)
@@ -48,11 +49,12 @@
 #define CRYPTO_V2_RNG_SLOWEST_SOC_RING		_SBF(2, 0x03)
 #define CRYPTO_V2_RNG_ENABLE			BIT(1)
 #define CRYPTO_V2_RNG_START			BIT(0)
-#define CRYPTO_V2_RNG_SAMPLE_CNT		0x0404
-#define CRYPTO_V2_RNG_DOUT_0			0x0410
+#define CRYPTO_V2_RNG_SAMPLE_CNT		0x0004
+#define CRYPTO_V2_RNG_DOUT_0			0x0010
 /* end of CRYPTO V2 register define */
 
 struct rk_rng_soc_data {
+	u32 default_offset;
 	int (*rk_rng_read)(struct hwrng *rng, void *buf, size_t max, bool wait);
 };
 
@@ -195,10 +197,12 @@ out:
 }
 
 static const struct rk_rng_soc_data rk_rng_v1_soc_data = {
+	.default_offset = 0,
 	.rk_rng_read = rk_rng_v1_read,
 };
 
 static const struct rk_rng_soc_data rk_rng_v2_soc_data = {
+	.default_offset = CRYPTO_V2_RNG_DEFAULT_OFFSET,
 	.rk_rng_read = rk_rng_v2_read,
 };
 
@@ -222,6 +226,7 @@ static int rk_rng_probe(struct platform_device *pdev)
 	struct rk_rng *rk_rng;
 	struct device_node *np = pdev->dev.of_node;
 	const struct of_device_id *match;
+	resource_size_t map_size;
 
 	dev_dbg(&pdev->dev, "probing...\n");
 	rk_rng = devm_kzalloc(&pdev->dev, sizeof(struct rk_rng), GFP_KERNEL);
@@ -240,9 +245,23 @@ static int rk_rng_probe(struct platform_device *pdev)
 	rk_rng->rng.read    = rk_rng->soc_data->rk_rng_read;
 	rk_rng->rng.quality = 999;
 
-	rk_rng->mem = devm_of_iomap(&pdev->dev, pdev->dev.of_node, 0, NULL);
+	rk_rng->mem = devm_of_iomap(&pdev->dev, pdev->dev.of_node, 0, &map_size);
 	if (IS_ERR(rk_rng->mem))
 		return PTR_ERR(rk_rng->mem);
+
+	/* compatible with crypto v2 module */
+	/*
+	 * With old dtsi configurations, the RNG base was equal to the crypto
+	 * base, so both drivers could not be enabled at the same time.
+	 * RNG base = CRYPTO base + RNG offset
+	 * (Since RK356X, RNG module is no longer belongs to CRYPTO module)
+	 *
+	 * With new dtsi configurations, CRYPTO regs is divided into two parts
+	 * |---cipher---|---rng---|---pka---|, and RNG base is real RNG base.
+	 * RNG driver and CRYPTO driver could be enabled at the same time.
+	 */
+	if (map_size > rk_rng->soc_data->default_offset)
+		rk_rng->mem += rk_rng->soc_data->default_offset;
 
 	rk_rng->clk_num = devm_clk_bulk_get_all(&pdev->dev, &rk_rng->clk_bulks);
 	if (rk_rng->clk_num < 0) {
