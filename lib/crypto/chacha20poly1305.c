@@ -362,7 +362,12 @@ static int __init mod_init(void)
 	return 0;
 }
 
+static void __exit mod_exit(void)
+{
+}
+
 module_init(mod_init);
+module_exit(mod_exit);
 MODULE_LICENSE("GPL v2");
 MODULE_DESCRIPTION("ChaCha20Poly1305 AEAD construction");
 MODULE_AUTHOR("Jason A. Donenfeld <Jason@zx2c4.com>");

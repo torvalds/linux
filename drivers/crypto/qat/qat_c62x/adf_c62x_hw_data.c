@@ -7,13 +7,8 @@
 #include "adf_c62x_hw_data.h"
 #include "icp_qat_hw.h"
 
-/* Worker thread to service arbiter mappings based on dev SKUs */
-static const u32 thrd_to_arb_map_8_me_sku[] = {
-	0x12222AAA, 0x11222AAA, 0x12222AAA, 0x11222AAA, 0x12222AAA,
-	0x11222AAA, 0x12222AAA, 0x11222AAA, 0, 0
-};
-
-static const u32 thrd_to_arb_map_10_me_sku[] = {
+/* Worker thread to service arbiter mappings */
+static const u32 thrd_to_arb_map[ADF_C62X_MAX_ACCELENGINES] = {
 	0x12222AAA, 0x11222AAA, 0x12222AAA, 0x11222AAA, 0x12222AAA,
 	0x11222AAA, 0x12222AAA, 0x11222AAA, 0x12222AAA, 0x11222AAA
 };
@@ -108,21 +103,9 @@ static enum dev_sku_info get_sku(struct adf_hw_device_data *self)
 	return DEV_SKU_UNKNOWN;
 }
 
-static void adf_get_arbiter_mapping(struct adf_accel_dev *accel_dev,
-				    u32 const **arb_map_config)
+static const u32 *adf_get_arbiter_mapping(void)
 {
-	switch (accel_dev->accel_pci_dev.sku) {
-	case DEV_SKU_2:
-		*arb_map_config = thrd_to_arb_map_8_me_sku;
-		break;
-	case DEV_SKU_4:
-		*arb_map_config = thrd_to_arb_map_10_me_sku;
-		break;
-	default:
-		dev_err(&GET_DEV(accel_dev),
-			"The configuration doesn't match any SKU");
-		*arb_map_config = NULL;
-	}
+	return thrd_to_arb_map;
 }
 
 static u32 get_pf2vf_offset(u32 i)

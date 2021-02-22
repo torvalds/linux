@@ -28,8 +28,8 @@ Symmetric Key Cipher Request Handle
 Single Block Cipher API
 -----------------------
 
-.. kernel-doc:: include/linux/crypto.h
+.. kernel-doc:: include/crypto/internal/cipher.h
    :doc: Single Block Cipher API
 
-.. kernel-doc:: include/linux/crypto.h
+.. kernel-doc:: include/crypto/internal/cipher.h
    :functions: crypto_alloc_cipher crypto_free_cipher crypto_has_cipher crypto_cipher_blocksize crypto_cipher_setkey crypto_cipher_encrypt_one crypto_cipher_decrypt_one

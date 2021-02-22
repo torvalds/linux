@@ -95,7 +95,7 @@ do_xor_speed(struct xor_block_template *tmpl, void *b1, void *b2)
 	for (i = 0; i < 3; i++) {
 		start = ktime_get();
 		for (j = 0; j < REPS; j++) {
-			mb(); /* prevent loop optimzation */
+			mb(); /* prevent loop optimization */
 			tmpl->do_2(BENCH_SIZE, b1, b2);
 			mb();
 		}

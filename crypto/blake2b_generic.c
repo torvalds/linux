@@ -1,54 +1,26 @@
 // SPDX-License-Identifier: (GPL-2.0-only OR Apache-2.0)
 /*
- * BLAKE2b reference source code package - reference C implementations
+ * Generic implementation of the BLAKE2b digest algorithm.  Based on the BLAKE2b
+ * reference implementation, but it has been heavily modified for use in the
+ * kernel.  The reference implementation was:
  *
- * Copyright 2012, Samuel Neves <sneves@dei.uc.pt>.  You may use this under the
- * terms of the CC0, the OpenSSL Licence, or the Apache Public License 2.0, at
- * your option.  The terms of these licenses can be found at:
+ *	Copyright 2012, Samuel Neves <sneves@dei.uc.pt>.  You may use this under
+ *	the terms of the CC0, the OpenSSL Licence, or the Apache Public License
+ *	2.0, at your option.  The terms of these licenses can be found at:
  *
- * - CC0 1.0 Universal : http://creativecommons.org/publicdomain/zero/1.0
- * - OpenSSL license   : https://www.openssl.org/source/license.html
- * - Apache 2.0        : https://www.apache.org/licenses/LICENSE-2.0
+ *	- CC0 1.0 Universal : http://creativecommons.org/publicdomain/zero/1.0
+ *	- OpenSSL license   : https://www.openssl.org/source/license.html
+ *	- Apache 2.0        : https://www.apache.org/licenses/LICENSE-2.0
  *
- * More information about the BLAKE2 hash function can be found at
- * https://blake2.net.
- *
- * Note: the original sources have been modified for inclusion in linux kernel
- * in terms of coding style, using generic helpers and simplifications of error
- * handling.
+ * More information about BLAKE2 can be found at https://blake2.net.
  */
 
 #include <asm/unaligned.h>
 #include <linux/module.h>
-#include <linux/string.h>
 #include <linux/kernel.h>
 #include <linux/bitops.h>
+#include <crypto/internal/blake2b.h>
 #include <crypto/internal/hash.h>
-
-#define BLAKE2B_160_DIGEST_SIZE		(160 / 8)
-#define BLAKE2B_256_DIGEST_SIZE		(256 / 8)
-#define BLAKE2B_384_DIGEST_SIZE		(384 / 8)
-#define BLAKE2B_512_DIGEST_SIZE		(512 / 8)
-
-enum blake2b_constant {
-	BLAKE2B_BLOCKBYTES    = 128,
-	BLAKE2B_KEYBYTES      = 64,
-};
-
-struct blake2b_state {
-	u64      h[8];
-	u64      t[2];
-	u64      f[2];
-	u8       buf[BLAKE2B_BLOCKBYTES];
-	size_t   buflen;
-};
-
-static const u64 blake2b_IV[8] = {
-	0x6a09e667f3bcc908ULL, 0xbb67ae8584caa73bULL,
-	0x3c6ef372fe94f82bULL, 0xa54ff53a5f1d36f1ULL,
-	0x510e527fade682d1ULL, 0x9b05688c2b3e6c1fULL,
-	0x1f83d9abfb41bd6bULL, 0x5be0cd19137e2179ULL
-};
 
 static const u8 blake2b_sigma[12][16] = {
 	{  0,  1,  2,  3,  4,  5,  6,  7,  8,  9, 10, 11, 12, 13, 14, 15 },
@@ -95,8 +67,8 @@ static void blake2b_increment_counter(struct blake2b_state *S, const u64 inc)
 		G(r,7,v[ 3],v[ 4],v[ 9],v[14]); \
 	} while (0)
 
-static void blake2b_compress(struct blake2b_state *S,
-			     const u8 block[BLAKE2B_BLOCKBYTES])
+static void blake2b_compress_one_generic(struct blake2b_state *S,
+					 const u8 block[BLAKE2B_BLOCK_SIZE])
 {
 	u64 m[16];
 	u64 v[16];
@@ -108,14 +80,14 @@ static void blake2b_compress(struct blake2b_state *S,
 	for (i = 0; i < 8; ++i)
 		v[i] = S->h[i];
 
-	v[ 8] = blake2b_IV[0];
-	v[ 9] = blake2b_IV[1];
-	v[10] = blake2b_IV[2];
-	v[11] = blake2b_IV[3];
-	v[12] = blake2b_IV[4] ^ S->t[0];
-	v[13] = blake2b_IV[5] ^ S->t[1];
-	v[14] = blake2b_IV[6] ^ S->f[0];
-	v[15] = blake2b_IV[7] ^ S->f[1];
+	v[ 8] = BLAKE2B_IV0;
+	v[ 9] = BLAKE2B_IV1;
+	v[10] = BLAKE2B_IV2;
+	v[11] = BLAKE2B_IV3;
+	v[12] = BLAKE2B_IV4 ^ S->t[0];
+	v[13] = BLAKE2B_IV5 ^ S->t[1];
+	v[14] = BLAKE2B_IV6 ^ S->f[0];
+	v[15] = BLAKE2B_IV7 ^ S->f[1];
 
 	ROUND(0);
 	ROUND(1);
@@ -139,159 +111,54 @@ static void blake2b_compress(struct blake2b_state *S,
 #undef G
 #undef ROUND
 
-struct blake2b_tfm_ctx {
-	u8 key[BLAKE2B_KEYBYTES];
-	unsigned int keylen;
-};
-
-static int blake2b_setkey(struct crypto_shash *tfm, const u8 *key,
-			  unsigned int keylen)
+void blake2b_compress_generic(struct blake2b_state *state,
+			      const u8 *block, size_t nblocks, u32 inc)
 {
-	struct blake2b_tfm_ctx *tctx = crypto_shash_ctx(tfm);
+	do {
+		blake2b_increment_counter(state, inc);
+		blake2b_compress_one_generic(state, block);
+		block += BLAKE2B_BLOCK_SIZE;
+	} while (--nblocks);
+}
+EXPORT_SYMBOL(blake2b_compress_generic);
 
-	if (keylen == 0 || keylen > BLAKE2B_KEYBYTES)
-		return -EINVAL;
-
-	memcpy(tctx->key, key, keylen);
-	tctx->keylen = keylen;
-
-	return 0;
+static int crypto_blake2b_update_generic(struct shash_desc *desc,
+					 const u8 *in, unsigned int inlen)
+{
+	return crypto_blake2b_update(desc, in, inlen, blake2b_compress_generic);
 }
 
-static int blake2b_init(struct shash_desc *desc)
+static int crypto_blake2b_final_generic(struct shash_desc *desc, u8 *out)
 {
-	struct blake2b_tfm_ctx *tctx = crypto_shash_ctx(desc->tfm);
-	struct blake2b_state *state = shash_desc_ctx(desc);
-	const int digestsize = crypto_shash_digestsize(desc->tfm);
+	return crypto_blake2b_final(desc, out, blake2b_compress_generic);
+}
 
-	memset(state, 0, sizeof(*state));
-	memcpy(state->h, blake2b_IV, sizeof(state->h));
-
-	/* Parameter block is all zeros except index 0, no xor for 1..7 */
-	state->h[0] ^= 0x01010000 | tctx->keylen << 8 | digestsize;
-
-	if (tctx->keylen) {
-		/*
-		 * Prefill the buffer with the key, next call to _update or
-		 * _final will process it
-		 */
-		memcpy(state->buf, tctx->key, tctx->keylen);
-		state->buflen = BLAKE2B_BLOCKBYTES;
+#define BLAKE2B_ALG(name, driver_name, digest_size)			\
+	{								\
+		.base.cra_name		= name,				\
+		.base.cra_driver_name	= driver_name,			\
+		.base.cra_priority	= 100,				\
+		.base.cra_flags		= CRYPTO_ALG_OPTIONAL_KEY,	\
+		.base.cra_blocksize	= BLAKE2B_BLOCK_SIZE,		\
+		.base.cra_ctxsize	= sizeof(struct blake2b_tfm_ctx), \
+		.base.cra_module	= THIS_MODULE,			\
+		.digestsize		= digest_size,			\
+		.setkey			= crypto_blake2b_setkey,	\
+		.init			= crypto_blake2b_init,		\
+		.update			= crypto_blake2b_update_generic, \
+		.final			= crypto_blake2b_final_generic,	\
+		.descsize		= sizeof(struct blake2b_state),	\
 	}
-	return 0;
-}
-
-static int blake2b_update(struct shash_desc *desc, const u8 *in,
-			  unsigned int inlen)
-{
-	struct blake2b_state *state = shash_desc_ctx(desc);
-	const size_t left = state->buflen;
-	const size_t fill = BLAKE2B_BLOCKBYTES - left;
-
-	if (!inlen)
-		return 0;
-
-	if (inlen > fill) {
-		state->buflen = 0;
-		/* Fill buffer */
-		memcpy(state->buf + left, in, fill);
-		blake2b_increment_counter(state, BLAKE2B_BLOCKBYTES);
-		/* Compress */
-		blake2b_compress(state, state->buf);
-		in += fill;
-		inlen -= fill;
-		while (inlen > BLAKE2B_BLOCKBYTES) {
-			blake2b_increment_counter(state, BLAKE2B_BLOCKBYTES);
-			blake2b_compress(state, in);
-			in += BLAKE2B_BLOCKBYTES;
-			inlen -= BLAKE2B_BLOCKBYTES;
-		}
-	}
-	memcpy(state->buf + state->buflen, in, inlen);
-	state->buflen += inlen;
-
-	return 0;
-}
-
-static int blake2b_final(struct shash_desc *desc, u8 *out)
-{
-	struct blake2b_state *state = shash_desc_ctx(desc);
-	const int digestsize = crypto_shash_digestsize(desc->tfm);
-	size_t i;
-
-	blake2b_increment_counter(state, state->buflen);
-	/* Set last block */
-	state->f[0] = (u64)-1;
-	/* Padding */
-	memset(state->buf + state->buflen, 0, BLAKE2B_BLOCKBYTES - state->buflen);
-	blake2b_compress(state, state->buf);
-
-	/* Avoid temporary buffer and switch the internal output to LE order */
-	for (i = 0; i < ARRAY_SIZE(state->h); i++)
-		__cpu_to_le64s(&state->h[i]);
-
-	memcpy(out, state->h, digestsize);
-	return 0;
-}
 
 static struct shash_alg blake2b_algs[] = {
-	{
-		.base.cra_name		= "blake2b-160",
-		.base.cra_driver_name	= "blake2b-160-generic",
-		.base.cra_priority	= 100,
-		.base.cra_flags		= CRYPTO_ALG_OPTIONAL_KEY,
-		.base.cra_blocksize	= BLAKE2B_BLOCKBYTES,
-		.base.cra_ctxsize	= sizeof(struct blake2b_tfm_ctx),
-		.base.cra_module	= THIS_MODULE,
-		.digestsize		= BLAKE2B_160_DIGEST_SIZE,
-		.setkey			= blake2b_setkey,
-		.init			= blake2b_init,
-		.update			= blake2b_update,
-		.final			= blake2b_final,
-		.descsize		= sizeof(struct blake2b_state),
-	}, {
-		.base.cra_name		= "blake2b-256",
-		.base.cra_driver_name	= "blake2b-256-generic",
-		.base.cra_priority	= 100,
-		.base.cra_flags		= CRYPTO_ALG_OPTIONAL_KEY,
-		.base.cra_blocksize	= BLAKE2B_BLOCKBYTES,
-		.base.cra_ctxsize	= sizeof(struct blake2b_tfm_ctx),
-		.base.cra_module	= THIS_MODULE,
-		.digestsize		= BLAKE2B_256_DIGEST_SIZE,
-		.setkey			= blake2b_setkey,
-		.init			= blake2b_init,
-		.update			= blake2b_update,
-		.final			= blake2b_final,
-		.descsize		= sizeof(struct blake2b_state),
-	}, {
-		.base.cra_name		= "blake2b-384",
-		.base.cra_driver_name	= "blake2b-384-generic",
-		.base.cra_priority	= 100,
-		.base.cra_flags		= CRYPTO_ALG_OPTIONAL_KEY,
-		.base.cra_blocksize	= BLAKE2B_BLOCKBYTES,
-		.base.cra_ctxsize	= sizeof(struct blake2b_tfm_ctx),
-		.base.cra_module	= THIS_MODULE,
-		.digestsize		= BLAKE2B_384_DIGEST_SIZE,
-		.setkey			= blake2b_setkey,
-		.init			= blake2b_init,
-		.update			= blake2b_update,
-		.final			= blake2b_final,
-		.descsize		= sizeof(struct blake2b_state),
-	}, {
-		.base.cra_name		= "blake2b-512",
-		.base.cra_driver_name	= "blake2b-512-generic",
-		.base.cra_priority	= 100,
-		.base.cra_flags		= CRYPTO_ALG_OPTIONAL_KEY,
-		.base.cra_blocksize	= BLAKE2B_BLOCKBYTES,
-		.base.cra_ctxsize	= sizeof(struct blake2b_tfm_ctx),
-		.base.cra_module	= THIS_MODULE,
-		.digestsize		= BLAKE2B_512_DIGEST_SIZE,
-		.setkey			= blake2b_setkey,
-		.init			= blake2b_init,
-		.update			= blake2b_update,
-		.final			= blake2b_final,
-		.descsize		= sizeof(struct blake2b_state),
-	}
+	BLAKE2B_ALG("blake2b-160", "blake2b-160-generic",
+		    BLAKE2B_160_HASH_SIZE),
+	BLAKE2B_ALG("blake2b-256", "blake2b-256-generic",
+		    BLAKE2B_256_HASH_SIZE),
+	BLAKE2B_ALG("blake2b-384", "blake2b-384-generic",
+		    BLAKE2B_384_HASH_SIZE),
+	BLAKE2B_ALG("blake2b-512", "blake2b-512-generic",
+		    BLAKE2B_512_HASH_SIZE),
 };
 
 static int __init blake2b_mod_init(void)

@@ -8,7 +8,6 @@ title: Samsung Exynos SoC SSS (Security SubSystem) module
 
 maintainers:
   - Krzysztof Kozlowski <krzk@kernel.org>
-  - Kamil Konieczny <k.konieczny@partner.samsung.com>
 
 description: |+
   The SSS module in S5PV210 SoC supports the following:

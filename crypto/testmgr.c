@@ -33,9 +33,12 @@
 #include <crypto/akcipher.h>
 #include <crypto/kpp.h>
 #include <crypto/acompress.h>
+#include <crypto/internal/cipher.h>
 #include <crypto/internal/simd.h>
 
 #include "internal.h"
+
+MODULE_IMPORT_NS(CRYPTO_INTERNAL);
 
 static bool notests;
 module_param(notests, bool, 0644);
@@ -4874,12 +4877,6 @@ static const struct alg_test_desc alg_test_descs[] = {
 			.cipher = __VECS(tea_tv_template)
 		}
 	}, {
-		.alg = "ecb(tnepres)",
-		.test = alg_test_skcipher,
-		.suite = {
-			.cipher = __VECS(tnepres_tv_template)
-		}
-	}, {
 		.alg = "ecb(twofish)",
 		.test = alg_test_skcipher,
 		.suite = {
@@ -4953,12 +4950,6 @@ static const struct alg_test_desc alg_test_descs[] = {
 		.test = alg_test_hash,
 		.suite = {
 			.hash = __VECS(hmac_md5_tv_template)
-		}
-	}, {
-		.alg = "hmac(rmd128)",
-		.test = alg_test_hash,
-		.suite = {
-			.hash = __VECS(hmac_rmd128_tv_template)
 		}
 	}, {
 		.alg = "hmac(rmd160)",
@@ -5273,28 +5264,10 @@ static const struct alg_test_desc alg_test_descs[] = {
 			}
 		}
 	}, {
-		.alg = "rmd128",
-		.test = alg_test_hash,
-		.suite = {
-			.hash = __VECS(rmd128_tv_template)
-		}
-	}, {
 		.alg = "rmd160",
 		.test = alg_test_hash,
 		.suite = {
 			.hash = __VECS(rmd160_tv_template)
-		}
-	}, {
-		.alg = "rmd256",
-		.test = alg_test_hash,
-		.suite = {
-			.hash = __VECS(rmd256_tv_template)
-		}
-	}, {
-		.alg = "rmd320",
-		.test = alg_test_hash,
-		.suite = {
-			.hash = __VECS(rmd320_tv_template)
 		}
 	}, {
 		.alg = "rsa",
@@ -5302,12 +5275,6 @@ static const struct alg_test_desc alg_test_descs[] = {
 		.fips_allowed = 1,
 		.suite = {
 			.akcipher = __VECS(rsa_tv_template)
-		}
-	}, {
-		.alg = "salsa20",
-		.test = alg_test_skcipher,
-		.suite = {
-			.cipher = __VECS(salsa20_stream_tv_template)
 		}
 	}, {
 		.alg = "sha1",
@@ -5395,24 +5362,6 @@ static const struct alg_test_desc alg_test_descs[] = {
 		.test = alg_test_hash,
 		.suite = {
 			.hash = __VECS(streebog512_tv_template)
-		}
-	}, {
-		.alg = "tgr128",
-		.test = alg_test_hash,
-		.suite = {
-			.hash = __VECS(tgr128_tv_template)
-		}
-	}, {
-		.alg = "tgr160",
-		.test = alg_test_hash,
-		.suite = {
-			.hash = __VECS(tgr160_tv_template)
-		}
-	}, {
-		.alg = "tgr192",
-		.test = alg_test_hash,
-		.suite = {
-			.hash = __VECS(tgr192_tv_template)
 		}
 	}, {
 		.alg = "vmac64(aes)",
