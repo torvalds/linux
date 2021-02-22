@@ -1678,15 +1678,6 @@ static void dpcm_runtime_setup_be_rate(struct snd_pcm_substream *substream)
 	}
 }
 
-static void dpcm_set_fe_runtime(struct snd_pcm_substream *substream)
-{
-	dpcm_runtime_setup_fe(substream);
-
-	dpcm_runtime_setup_be_format(substream);
-	dpcm_runtime_setup_be_chan(substream);
-	dpcm_runtime_setup_be_rate(substream);
-}
-
 static int dpcm_apply_symmetry(struct snd_pcm_substream *fe_substream,
 			       int stream)
 {
@@ -1766,7 +1757,11 @@ static int dpcm_fe_dai_startup(struct snd_pcm_substream *fe_substream)
 
 	fe->dpcm[stream].state = SND_SOC_DPCM_STATE_OPEN;
 
-	dpcm_set_fe_runtime(fe_substream);
+	dpcm_runtime_setup_fe(fe_substream);
+
+	dpcm_runtime_setup_be_format(fe_substream);
+	dpcm_runtime_setup_be_chan(fe_substream);
+	dpcm_runtime_setup_be_rate(fe_substream);
 
 	ret = dpcm_apply_symmetry(fe_substream, stream);
 	if (ret < 0)
