@@ -91,6 +91,7 @@ struct rtrs_con {
 	struct ib_cq		*cq;
 	struct rdma_cm_id	*cm_id;
 	unsigned int		cid;
+	u16                     cq_size;
 };
 
 struct rtrs_sess {
