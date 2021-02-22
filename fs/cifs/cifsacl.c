@@ -1143,7 +1143,7 @@ static int set_chmod_dacl(struct cifs_acl *pdacl, struct cifs_acl *pndacl,
 		num_aces++;
 
 next_ace:
-		size += le32_to_cpu(pntace->size);
+		size += le16_to_cpu(pntace->size);
 	}
 
 	/* If inherited ACEs are not present, place the new ones at the tail */
@@ -1291,7 +1291,7 @@ static int build_sec_desc(struct cifs_ntsd *pntsd, struct cifs_ntsd *pnntsd,
 		ndacl_ptr->revision =
 			dacloffset ? dacl_ptr->revision : cpu_to_le16(ACL_REVISION);
 
-		ndacl_ptr->size = cpu_to_le32(0);
+		ndacl_ptr->size = cpu_to_le16(0);
 		ndacl_ptr->num_aces = cpu_to_le32(0);
 
 		rc = set_chmod_dacl(dacl_ptr, ndacl_ptr, owner_sid_ptr, group_sid_ptr,
@@ -1639,7 +1639,7 @@ id_mode_to_cifs_acl(struct inode *inode, const char *path, __u64 *pnmode,
 			dacl_ptr = (struct cifs_acl *)((char *)pntsd + dacloffset);
 			if (mode_from_sid)
 				nsecdesclen +=
-					le16_to_cpu(dacl_ptr->num_aces) * sizeof(struct cifs_ace);
+					le32_to_cpu(dacl_ptr->num_aces) * sizeof(struct cifs_ace);
 			else /* cifsacl */
 				nsecdesclen += le16_to_cpu(dacl_ptr->size);
 		}
