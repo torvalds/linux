@@ -462,7 +462,6 @@ struct request_queue {
 #ifdef CONFIG_PM
 	struct device		*dev;
 	enum rpm_status		rpm_status;
-	unsigned int		nr_pending;
 #endif
 
 	/*
