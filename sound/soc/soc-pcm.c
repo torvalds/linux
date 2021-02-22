@@ -1533,10 +1533,7 @@ static void dpcm_init_runtime_hw(struct snd_pcm_runtime *runtime,
 
 	soc_pcm_hw_update_rate(hw, stream);
 	soc_pcm_hw_update_chan(hw, stream);
-	if (runtime->hw.formats)
-		runtime->hw.formats &= stream->formats;
-	else
-		runtime->hw.formats = stream->formats;
+	soc_pcm_hw_update_format(hw, stream);
 }
 
 static void dpcm_runtime_merge_format(struct snd_pcm_substream *substream,
