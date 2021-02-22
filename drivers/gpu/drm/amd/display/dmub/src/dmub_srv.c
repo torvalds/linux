@@ -31,7 +31,6 @@
 #include "dmub_dcn301.h"
 #include "dmub_dcn302.h"
 #include "os_types.h"
-#include "dmub_trace_buffer.h"
 /*
  * Note: the DMUB service is standalone. No additional headers should be
  * added below or above this line unless they reside within the DMUB
@@ -475,7 +474,7 @@ enum dmub_status dmub_srv_hw_init(struct dmub_srv *dmub,
 		cw5.region.top = cw5.region.base + tracebuff_fb->size;
 
 		outbox0.base = DMUB_REGION5_BASE + TRACE_BUFFER_ENTRY_OFFSET;
-		outbox0.top = outbox0.base + sizeof(struct dmcub_trace_buf_entry) * PERF_TRACE_MAX_ENTRY;
+		outbox0.top = outbox0.base + tracebuff_fb->size - TRACE_BUFFER_ENTRY_OFFSET;
 
 
 		cw6.offset.quad_part = fw_state_fb->gpu_addr;
@@ -518,7 +517,7 @@ enum dmub_status dmub_srv_hw_init(struct dmub_srv *dmub,
 	dmub_memset(&outbox0_rb_params, 0, sizeof(outbox0_rb_params));
 	outbox0_rb_params.ctx = dmub;
 	outbox0_rb_params.base_address = (void *)((uint64_t)(tracebuff_fb->cpu_addr) + TRACE_BUFFER_ENTRY_OFFSET);
-	outbox0_rb_params.capacity = sizeof(struct dmcub_trace_buf_entry) * PERF_TRACE_MAX_ENTRY;
+	outbox0_rb_params.capacity = tracebuff_fb->size - TRACE_BUFFER_ENTRY_OFFSET;
 	dmub_rb_init(&dmub->outbox0_rb, &outbox0_rb_params);
 
 	if (dmub->hw_funcs.reset_release)
