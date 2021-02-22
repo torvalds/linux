@@ -3020,7 +3020,7 @@
 			 <&cru PCLK_PIPE>;
 		clock-names = "refclk", "apbclk", "pipe_clk";
 		assigned-clocks = <&pmucru CLK_PCIEPHY2_REF>;
-		assigned-clock-rates = <24000000>;
+		assigned-clock-rates = <100000000>;
 		resets = <&cru SRST_P_PIPEPHY2>, <&cru SRST_PIPEPHY2>;
 		reset-names = "combphy-apb", "combphy";
 		rockchip,pipe-grf = <&pipegrf>;
