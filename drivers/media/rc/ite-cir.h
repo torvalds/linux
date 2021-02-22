@@ -81,7 +81,7 @@ struct ite_dev {
 
 	/* sync data */
 	spinlock_t lock;
-	bool in_use, transmitting;
+	bool transmitting;
 
 	/* transmit support */
 	wait_queue_head_t tx_queue, tx_ended;

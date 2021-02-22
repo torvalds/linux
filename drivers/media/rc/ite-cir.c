@@ -364,7 +364,7 @@ static int ite_tx_ir(struct rc_dev *rcdev, unsigned *txbuf, unsigned n)
 	 * has been pushed out */
 	fifo_avail = ITE_TX_FIFO_LEN - dev->params->get_tx_used_slots(dev);
 
-	while (n > 0 && dev->in_use) {
+	while (n > 0) {
 		/* transmit the next sample */
 		is_pulse = !is_pulse;
 		remaining_us = *(txbuf++);
@@ -374,7 +374,7 @@ static int ite_tx_ir(struct rc_dev *rcdev, unsigned *txbuf, unsigned n)
 			is_pulse ? "pulse" : "space", remaining_us);
 
 		/* repeat while the pulse is non-zero length */
-		while (remaining_us > 0 && dev->in_use) {
+		while (remaining_us > 0) {
 			if (remaining_us > max_rle_us)
 				next_rle_us = max_rle_us;
 
@@ -461,8 +461,7 @@ static int ite_tx_ir(struct rc_dev *rcdev, unsigned *txbuf, unsigned n)
 	ite_set_carrier_params(dev);
 
 	/* re-enable the receiver */
-	if (dev->in_use)
-		dev->params->enable_rx(dev);
+	dev->params->enable_rx(dev);
 
 	/* notify transmission end */
 	wake_up_interruptible(&dev->tx_ended);
@@ -1177,7 +1176,6 @@ static int ite_open(struct rc_dev *rcdev)
 	unsigned long flags;
 
 	spin_lock_irqsave(&dev->lock, flags);
-	dev->in_use = true;
 
 	/* enable the receiver */
 	dev->params->enable_rx(dev);
@@ -1194,7 +1192,6 @@ static void ite_close(struct rc_dev *rcdev)
 	unsigned long flags;
 
 	spin_lock_irqsave(&dev->lock, flags);
-	dev->in_use = false;
 
 	/* wait for any transmission to end */
 	spin_unlock_irqrestore(&dev->lock, flags);
