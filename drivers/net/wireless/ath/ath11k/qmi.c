@@ -1556,6 +1556,8 @@ static int ath11k_qmi_host_cap_send(struct ath11k_base *ab)
 		req.nm_modem |= SLEEP_CLOCK_SELECT_INTERNAL_BIT;
 	}
 
+	ath11k_dbg(ab, ATH11K_DBG_QMI, "qmi host cap request\n");
+
 	ret = qmi_txn_init(&ab->qmi.handle, &txn,
 			   qmi_wlanfw_host_cap_resp_msg_v01_ei, &resp);
 	if (ret < 0)
@@ -1623,6 +1625,8 @@ static int ath11k_qmi_fw_ind_register_send(struct ath11k_base *ab)
 			   qmi_wlanfw_ind_register_resp_msg_v01_ei, resp);
 	if (ret < 0)
 		goto out;
+
+	ath11k_dbg(ab, ATH11K_DBG_QMI, "qmi indication register request\n");
 
 	ret = qmi_send_request(&ab->qmi.handle, NULL, &txn,
 			       QMI_WLANFW_IND_REGISTER_REQ_V01,
@@ -1698,6 +1702,9 @@ static int ath11k_qmi_respond_fw_mem_request(struct ath11k_base *ab)
 			   qmi_wlanfw_respond_mem_resp_msg_v01_ei, &resp);
 	if (ret < 0)
 		goto out;
+
+	ath11k_dbg(ab, ATH11K_DBG_QMI, "qmi respond memory request delayed %i\n",
+		   delayed);
 
 	ret = qmi_send_request(&ab->qmi.handle, NULL, &txn,
 			       QMI_WLANFW_RESPOND_MEM_REQ_V01,
@@ -1842,6 +1849,8 @@ static int ath11k_qmi_request_target_cap(struct ath11k_base *ab)
 			   qmi_wlanfw_cap_resp_msg_v01_ei, &resp);
 	if (ret < 0)
 		goto out;
+
+	ath11k_dbg(ab, ATH11K_DBG_QMI, "qmi target cap request\n");
 
 	ret = qmi_send_request(&ab->qmi.handle, NULL, &txn,
 			       QMI_WLANFW_CAP_REQ_V01,
@@ -2000,6 +2009,9 @@ static int ath11k_qmi_load_bdf_fixed_addr(struct ath11k_base *ab)
 		if (ret < 0)
 			goto out_qmi_bdf;
 
+		ath11k_dbg(ab, ATH11K_DBG_QMI, "qmi bdf download req fixed addr type %d\n",
+			   type);
+
 		ret = qmi_send_request(&ab->qmi.handle, NULL, &txn,
 				       QMI_WLANFW_BDF_DOWNLOAD_REQ_V01,
 				       QMI_WLANFW_BDF_DOWNLOAD_REQ_MSG_V01_MAX_LEN,
@@ -2089,6 +2101,9 @@ static int ath11k_qmi_load_bdf_qmi(struct ath11k_base *ab)
 				   &resp);
 		if (ret < 0)
 			goto out_qmi_bdf;
+
+		ath11k_dbg(ab, ATH11K_DBG_QMI, "qmi bdf download request remaining %i\n",
+			   remaining);
 
 		ret = qmi_send_request(&ab->qmi.handle, NULL, &txn,
 				       QMI_WLANFW_BDF_DOWNLOAD_REQ_V01,
@@ -2200,6 +2215,8 @@ static int ath11k_qmi_wlanfw_m3_info_send(struct ath11k_base *ab)
 	if (ret < 0)
 		goto out;
 
+	ath11k_dbg(ab, ATH11K_DBG_QMI, "qmi m3 info req\n");
+
 	ret = qmi_send_request(&ab->qmi.handle, NULL, &txn,
 			       QMI_WLANFW_M3_INFO_REQ_V01,
 			       QMI_WLANFW_M3_INFO_REQ_MSG_V01_MAX_MSG_LEN,
@@ -2245,6 +2262,8 @@ static int ath11k_qmi_wlanfw_mode_send(struct ath11k_base *ab,
 			   qmi_wlanfw_wlan_mode_resp_msg_v01_ei, &resp);
 	if (ret < 0)
 		goto out;
+
+	ath11k_dbg(ab, ATH11K_DBG_QMI, "qmi wlan mode req mode %d\n", mode);
 
 	ret = qmi_send_request(&ab->qmi.handle, NULL, &txn,
 			       QMI_WLANFW_WLAN_MODE_REQ_V01,
@@ -2338,6 +2357,8 @@ static int ath11k_qmi_wlanfw_wlan_cfg_send(struct ath11k_base *ab)
 	if (ret < 0)
 		goto out;
 
+	ath11k_dbg(ab, ATH11K_DBG_QMI, "qmi wlan cfg req\n");
+
 	ret = qmi_send_request(&ab->qmi.handle, NULL, &txn,
 			       QMI_WLANFW_WLAN_CFG_REQ_V01,
 			       QMI_WLANFW_WLAN_CFG_REQ_MSG_V01_MAX_LEN,
@@ -2370,6 +2391,8 @@ void ath11k_qmi_firmware_stop(struct ath11k_base *ab)
 {
 	int ret;
 
+	ath11k_dbg(ab, ATH11K_DBG_QMI, "qmi firmware stop\n");
+
 	ret = ath11k_qmi_wlanfw_mode_send(ab, ATH11K_FIRMWARE_MODE_OFF);
 	if (ret < 0) {
 		ath11k_warn(ab, "qmi failed to send wlan mode off\n");
@@ -2381,6 +2404,8 @@ int ath11k_qmi_firmware_start(struct ath11k_base *ab,
 			      u32 mode)
 {
 	int ret;
+
+	ath11k_dbg(ab, ATH11K_DBG_QMI, "qmi firmware start\n");
 
 	ret = ath11k_qmi_wlanfw_wlan_cfg_send(ab);
 	if (ret < 0) {
