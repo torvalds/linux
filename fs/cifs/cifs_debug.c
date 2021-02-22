@@ -293,6 +293,8 @@ static int cifs_debug_data_proc_show(struct seq_file *m, void *v)
 		seq_printf(m, "\n%d) ConnectionId: 0x%llx ",
 			c, server->conn_id);
 
+		if (server->hostname)
+			seq_printf(m, "Hostname: %s ", server->hostname);
 #ifdef CONFIG_CIFS_SMB_DIRECT
 		if (!server->rdma)
 			goto skip_rdma;
@@ -394,7 +396,7 @@ skip_rdma:
 			if ((ses->serverDomain == NULL) ||
 				(ses->serverOS == NULL) ||
 				(ses->serverNOS == NULL)) {
-				seq_printf(m, "\n\t%d) Name: %s Uses: %d Capability: 0x%x\tSession Status: %d ",
+				seq_printf(m, "\n\t%d) Address: %s Uses: %d Capability: 0x%x\tSession Status: %d ",
 					i, ses->ip_addr, ses->ses_count,
 					ses->capabilities, ses->status);
 				if (ses->session_flags & SMB2_SESSION_FLAG_IS_GUEST)
@@ -462,8 +464,6 @@ skip_rdma:
 				if (is_ses_using_iface(ses, iface))
 					seq_puts(m, "\t\t[CONNECTED]\n");
 			}
-			if (j == 0)
-				seq_printf(m, "\n\t[NONE]");
 			spin_unlock(&ses->iface_lock);
 		}
 		if (i == 0)
