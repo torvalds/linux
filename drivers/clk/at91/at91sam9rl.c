@@ -186,4 +186,5 @@ static void __init at91sam9rl_pmc_setup(struct device_node *np)
 err_free:
 	kfree(at91sam9rl_pmc);
 }
-CLK_OF_DECLARE_DRIVER(at91sam9rl_pmc, "atmel,at91sam9rl-pmc", at91sam9rl_pmc_setup);
+
+CLK_OF_DECLARE(at91sam9rl_pmc, "atmel,at91sam9rl-pmc", at91sam9rl_pmc_setup);
