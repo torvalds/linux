@@ -1556,10 +1556,10 @@ static void dpcm_runtime_setup_fe(struct snd_pcm_substream *substream)
 
 }
 
-static void dpcm_runtime_merge_format(struct snd_pcm_substream *substream,
-				      struct snd_pcm_runtime *runtime)
+static void dpcm_runtime_setup_be_format(struct snd_pcm_substream *substream)
 {
 	struct snd_soc_pcm_runtime *fe = asoc_substream_to_rtd(substream);
+	struct snd_pcm_runtime *runtime = substream->runtime;
 	struct snd_pcm_hardware *hw = &runtime->hw;
 	struct snd_soc_dpcm *dpcm;
 	struct snd_soc_dai *dai;
@@ -1593,10 +1593,10 @@ static void dpcm_runtime_merge_format(struct snd_pcm_substream *substream,
 	}
 }
 
-static void dpcm_runtime_merge_chan(struct snd_pcm_substream *substream,
-				    struct snd_pcm_runtime *runtime)
+static void dpcm_runtime_setup_be_chan(struct snd_pcm_substream *substream)
 {
 	struct snd_soc_pcm_runtime *fe = asoc_substream_to_rtd(substream);
+	struct snd_pcm_runtime *runtime = substream->runtime;
 	struct snd_pcm_hardware *hw = &runtime->hw;
 	struct snd_soc_dpcm *dpcm;
 	int stream = substream->stream;
@@ -1641,10 +1641,10 @@ static void dpcm_runtime_merge_chan(struct snd_pcm_substream *substream,
 	}
 }
 
-static void dpcm_runtime_merge_rate(struct snd_pcm_substream *substream,
-				    struct snd_pcm_runtime *runtime)
+static void dpcm_runtime_setup_be_rate(struct snd_pcm_substream *substream)
 {
 	struct snd_soc_pcm_runtime *fe = asoc_substream_to_rtd(substream);
+	struct snd_pcm_runtime *runtime = substream->runtime;
 	struct snd_pcm_hardware *hw = &runtime->hw;
 	struct snd_soc_dpcm *dpcm;
 	int stream = substream->stream;
@@ -1680,13 +1680,11 @@ static void dpcm_runtime_merge_rate(struct snd_pcm_substream *substream,
 
 static void dpcm_set_fe_runtime(struct snd_pcm_substream *substream)
 {
-	struct snd_pcm_runtime *runtime = substream->runtime;
-
 	dpcm_runtime_setup_fe(substream);
 
-	dpcm_runtime_merge_format(substream, runtime);
-	dpcm_runtime_merge_chan(substream, runtime);
-	dpcm_runtime_merge_rate(substream, runtime);
+	dpcm_runtime_setup_be_format(substream);
+	dpcm_runtime_setup_be_chan(substream);
+	dpcm_runtime_setup_be_rate(substream);
 }
 
 static int dpcm_apply_symmetry(struct snd_pcm_substream *fe_substream,
