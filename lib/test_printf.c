@@ -30,10 +30,12 @@
 #define PAD_SIZE 16
 #define FILL_CHAR '$'
 
-static unsigned total_tests __initdata;
-static unsigned failed_tests __initdata;
+KSTM_MODULE_GLOBALS();
+
 static char *test_buffer __initdata;
 static char *alloced_buffer __initdata;
+
+extern bool no_hash_pointers;
 
 static int __printf(4, 0) __init
 do_test(int bufsize, const char *expect, int elen,
@@ -300,6 +302,12 @@ static void __init
 plain(void)
 {
 	int err;
+
+	if (no_hash_pointers) {
+		pr_warn("skipping plain 'p' tests");
+		skipped_tests += 2;
+		return;
+	}
 
 	err = plain_hash();
 	if (err) {
