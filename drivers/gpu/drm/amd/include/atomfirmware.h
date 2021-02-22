@@ -981,6 +981,40 @@ struct atom_display_controller_info_v4_2
   uint8_t  reserved3[8];
 };
 
+struct atom_display_controller_info_v4_3
+{
+  struct  atom_common_table_header  table_header;
+  uint32_t display_caps;
+  uint32_t bootup_dispclk_10khz;
+  uint16_t dce_refclk_10khz;
+  uint16_t i2c_engine_refclk_10khz;
+  uint16_t dvi_ss_percentage;       // in unit of 0.001%
+  uint16_t dvi_ss_rate_10hz;
+  uint16_t hdmi_ss_percentage;      // in unit of 0.001%
+  uint16_t hdmi_ss_rate_10hz;
+  uint16_t dp_ss_percentage;        // in unit of 0.001%
+  uint16_t dp_ss_rate_10hz;
+  uint8_t  dvi_ss_mode;             // enum of atom_spread_spectrum_mode
+  uint8_t  hdmi_ss_mode;            // enum of atom_spread_spectrum_mode
+  uint8_t  dp_ss_mode;              // enum of atom_spread_spectrum_mode
+  uint8_t  ss_reserved;
+  uint8_t  dfp_hardcode_mode_num;   // DFP hardcode mode number defined in StandardVESA_TimingTable when EDID is not available
+  uint8_t  dfp_hardcode_refreshrate;// DFP hardcode mode refreshrate defined in StandardVESA_TimingTable when EDID is not available
+  uint8_t  vga_hardcode_mode_num;   // VGA hardcode mode number defined in StandardVESA_TimingTable when EDID is not avablable
+  uint8_t  vga_hardcode_refreshrate;// VGA hardcode mode number defined in StandardVESA_TimingTable when EDID is not avablable
+  uint16_t dpphy_refclk_10khz;
+  uint16_t reserved2;
+  uint8_t  dcnip_min_ver;
+  uint8_t  dcnip_max_ver;
+  uint8_t  max_disp_pipe_num;
+  uint8_t  max_vbios_active_disp_pipe_num;
+  uint8_t  max_ppll_num;
+  uint8_t  max_disp_phy_num;
+  uint8_t  max_aux_pairs;
+  uint8_t  remotedisplayconfig;
+  uint8_t  reserved3[8];
+};
+
 struct atom_display_controller_info_v4_4 {
 	struct atom_common_table_header table_header;
 	uint32_t display_caps;
@@ -1043,7 +1077,8 @@ enum dce_info_caps_def
   DCE_INFO_CAPS_DISABLE_DFP_DP_HBR2      =0x04,
   // only for VBIOS
   DCE_INFO_CAPS_ENABLE_INTERLAC_TIMING   =0x08,
-
+  // only for VBIOS
+  DCE_INFO_CAPS_LTTPR_SUPPORT_ENABLE	 =0x20,
 };
 
 /* 
