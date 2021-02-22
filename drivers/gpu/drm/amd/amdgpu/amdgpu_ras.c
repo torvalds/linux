@@ -1747,13 +1747,14 @@ static bool amdgpu_ras_check_bad_page(struct amdgpu_device *adev,
 	return ret;
 }
 
-static void amdgpu_ras_validate_threshold(struct amdgpu_device *adev,
-					uint32_t max_length)
+static uint32_t
+amdgpu_ras_calculate_badpags_threshold(struct amdgpu_device *adev)
 {
-	struct amdgpu_ras *con = amdgpu_ras_get_context(adev);
 	int tmp_threshold = amdgpu_bad_page_threshold;
 	u64 val;
+	uint32_t max_length = 0;
 
+	max_length = amdgpu_ras_eeprom_get_record_max_length();
 	/*
 	 * Justification of value bad_page_cnt_threshold in ras structure
 	 *
@@ -1779,20 +1780,18 @@ static void amdgpu_ras_validate_threshold(struct amdgpu_device *adev,
 		tmp_threshold = max_length;
 
 	if (tmp_threshold == -1) {
-		val = adev->gmc.mc_vram_size;
+		val = adev->gmc.real_vram_size;
 		do_div(val, RAS_BAD_PAGE_RATE);
-		con->bad_page_cnt_threshold = min(lower_32_bits(val),
-						max_length);
-	} else {
-		con->bad_page_cnt_threshold = tmp_threshold;
+		tmp_threshold = min(lower_32_bits(val), max_length);
 	}
+
+	return tmp_threshold;
 }
 
 int amdgpu_ras_recovery_init(struct amdgpu_device *adev)
 {
 	struct amdgpu_ras *con = amdgpu_ras_get_context(adev);
 	struct ras_err_handler_data **data;
-	uint32_t max_eeprom_records_len = 0;
 	bool exc_err_limit = false;
 	int ret;
 
@@ -1812,8 +1811,16 @@ int amdgpu_ras_recovery_init(struct amdgpu_device *adev)
 	atomic_set(&con->in_recovery, 0);
 	con->adev = adev;
 
-	max_eeprom_records_len = amdgpu_ras_eeprom_get_record_max_length();
-	amdgpu_ras_validate_threshold(adev, max_eeprom_records_len);
+	if (!con->bad_page_cnt_threshold) {
+		con->bad_page_cnt_threshold =
+			amdgpu_ras_calculate_badpags_threshold(adev);
+
+		ret = amdgpu_vram_mgr_reserve_backup_pages(
+			ttm_manager_type(&adev->mman.bdev, TTM_PL_VRAM),
+			con->bad_page_cnt_threshold);
+		if (ret)
+			goto out;
+	}
 
 	ret = amdgpu_ras_eeprom_init(&con->eeprom_control, &exc_err_limit);
 	/*
