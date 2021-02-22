@@ -71,18 +71,13 @@ static int vfio_amba_probe(struct amba_device *adev, const struct amba_id *id)
 	return ret;
 }
 
-static int vfio_amba_remove(struct amba_device *adev)
+static void vfio_amba_remove(struct amba_device *adev)
 {
-	struct vfio_platform_device *vdev;
+	struct vfio_platform_device *vdev =
+		vfio_platform_remove_common(&adev->dev);
 
-	vdev = vfio_platform_remove_common(&adev->dev);
-	if (vdev) {
-		kfree(vdev->name);
-		kfree(vdev);
-		return 0;
-	}
-
-	return -EINVAL;
+	kfree(vdev->name);
+	kfree(vdev);
 }
 
 static const struct amba_id pl330_ids[] = {
