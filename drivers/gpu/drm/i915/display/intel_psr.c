@@ -654,6 +654,13 @@ tgl_dc3co_exitline_compute_config(struct intel_dp *intel_dp,
 	struct drm_i915_private *dev_priv = dp_to_i915(intel_dp);
 	u32 exit_scanlines;
 
+	/*
+	 * DMC's DC3CO exit mechanism has an issue with Selective Fecth
+	 * TODO: when the issue is addressed, this restriction should be removed.
+	 */
+	if (crtc_state->enable_psr2_sel_fetch)
+		return;
+
 	if (!(dev_priv->csr.allowed_dc_mask & DC_STATE_EN_DC3CO))
 		return;
 
