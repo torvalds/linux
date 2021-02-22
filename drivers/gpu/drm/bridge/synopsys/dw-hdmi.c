@@ -2842,6 +2842,7 @@ static int dw_hdmi_connector_atomic_check(struct drm_connector *connector,
 	 * drm_display_mode and set phy status to enabled.
 	 */
 	if (!vmode->mpixelclock) {
+		crtc_state = drm_atomic_get_crtc_state(state, crtc);
 		if (hdmi->plat_data->get_enc_in_encoding)
 			hdmi->hdmi_data.enc_in_encoding =
 				hdmi->plat_data->get_enc_in_encoding(data);
@@ -2855,7 +2856,7 @@ static int dw_hdmi_connector_atomic_check(struct drm_connector *connector,
 			hdmi->hdmi_data.enc_out_bus_format =
 				hdmi->plat_data->get_output_bus_format(data);
 
-		mode = &crtc->mode;
+		mode = &crtc_state->mode;
 		memcpy(&hdmi->previous_mode, mode, sizeof(hdmi->previous_mode));
 		vmode->mpixelclock = mode->crtc_clock * 1000;
 		vmode->previous_pixelclock = mode->clock;
