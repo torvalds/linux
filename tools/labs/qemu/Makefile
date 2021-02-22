@@ -34,7 +34,7 @@ TEMPDIR := $(shell mktemp -u)
 
 $(KCONFIG): qemu/kernel_config.x86
 	cp $^ $@
-	$(MAKE) -C $(KDIR) oldnoconfig
+	$(MAKE) -C $(KDIR) olddefconfig
 
 zImage: $(ZIMAGE)
 
