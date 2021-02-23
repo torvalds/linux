@@ -74,7 +74,7 @@ bool set_capacity_and_notify(struct gendisk *disk, sector_t size)
 		return false;
 
 	pr_info("%s: detected capacity change from %lld to %lld\n",
-		disk->disk_name, size, capacity);
+		disk->disk_name, capacity, size);
 
 	/*
 	 * Historically we did not send a uevent for changes to/from an empty
