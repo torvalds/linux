@@ -340,8 +340,6 @@ static inline void sk_psock_free_link(struct sk_psock_link *link)
 
 struct sk_psock_link *sk_psock_link_pop(struct sk_psock *psock);
 
-void __sk_psock_purge_ingress_msg(struct sk_psock *psock);
-
 static inline void sk_psock_cork_free(struct sk_psock *psock)
 {
 	if (psock->cork) {

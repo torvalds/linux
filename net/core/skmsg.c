@@ -619,7 +619,7 @@ struct sk_psock_link *sk_psock_link_pop(struct sk_psock *psock)
 	return link;
 }
 
-void __sk_psock_purge_ingress_msg(struct sk_psock *psock)
+static void __sk_psock_purge_ingress_msg(struct sk_psock *psock)
 {
 	struct sk_msg *msg, *tmp;
 
