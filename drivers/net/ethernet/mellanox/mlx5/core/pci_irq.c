@@ -14,15 +14,17 @@
 #define MLX5_MAX_IRQ_NAME (32)
 
 struct mlx5_irq {
+	u32 index;
 	struct atomic_notifier_head nh;
 	cpumask_var_t mask;
 	char name[MLX5_MAX_IRQ_NAME];
 	struct kref kref;
 	int irqn;
+	struct mlx5_irq_table *table;
 };
 
 struct mlx5_irq_table {
-	struct mlx5_irq *irq;
+	struct xarray irqs;
 	int nvec;
 };
 
@@ -52,13 +54,6 @@ void mlx5_irq_table_cleanup(struct mlx5_core_dev *dev)
 int mlx5_irq_get_num_comp(struct mlx5_irq_table *table)
 {
 	return table->nvec - MLX5_IRQ_VEC_COMP_BASE;
-}
-
-static struct mlx5_irq *mlx5_irq_get(struct mlx5_core_dev *dev, int vecidx)
-{
-	struct mlx5_irq_table *irq_table = mlx5_irq_table_get(dev);
-
-	return &irq_table->irq[vecidx];
 }
 
 /**
@@ -149,7 +144,9 @@ out:
 static void irq_release(struct kref *kref)
 {
 	struct mlx5_irq *irq = container_of(kref, struct mlx5_irq, kref);
+	struct mlx5_irq_table *table =  irq->table;
 
+	xa_erase(&table->irqs, irq->index);
 	/* free_irq requires that affinity and rmap will be cleared
 	 * before calling it. This is why there is asymmetry with set_rmap
 	 * which should be called after alloc_irq but before request_irq.
@@ -157,6 +154,7 @@ static void irq_release(struct kref *kref)
 	irq_set_affinity_hint(irq->irqn, NULL);
 	free_cpumask_var(irq->mask);
 	free_irq(irq->irqn, &irq->nh);
+	kfree(irq);
 }
 
 static void irq_put(struct mlx5_irq *irq)
@@ -203,13 +201,17 @@ static void irq_set_name(char *name, int vecidx)
 		 vecidx - MLX5_IRQ_VEC_COMP_BASE);
 }
 
-static int irq_request(struct mlx5_core_dev *dev, int i)
+static struct mlx5_irq *irq_request(struct mlx5_core_dev *dev, int i)
 {
+	struct mlx5_irq_table *table = mlx5_irq_table_get(dev);
 	char name[MLX5_MAX_IRQ_NAME];
+	struct xa_limit xa_num_irqs;
 	struct mlx5_irq *irq;
 	int err;
 
-	irq = mlx5_irq_get(dev, i);
+	irq = kzalloc(sizeof(*irq), GFP_KERNEL);
+	if (!irq)
+		return ERR_PTR(-ENOMEM);
 	irq->irqn = pci_irq_vector(dev->pdev, i);
 	irq_set_name(name, i);
 	ATOMIC_INIT_NOTIFIER_HEAD(&irq->nh);
@@ -226,15 +228,25 @@ static int irq_request(struct mlx5_core_dev *dev, int i)
 		err = -ENOMEM;
 		goto err_cpumask;
 	}
+	xa_num_irqs.min = 0;
+	xa_num_irqs.max = table->nvec;
+	err = xa_alloc(&table->irqs, &irq->index, irq, xa_num_irqs,
+		       GFP_KERNEL);
+	if (err) {
+		mlx5_core_err(dev, "Failed to alloc xa entry for irq(%u). err = %d\n",
+			      irq->index, err);
+		goto err_xa;
+	}
+	irq->table = table;
 	kref_init(&irq->kref);
-	return 0;
-
+	return irq;
+err_xa:
+	free_cpumask_var(irq->mask);
 err_cpumask:
 	free_irq(irq->irqn, &irq->nh);
 err_req_irq:
-	if (i != 0)
-		irq_set_affinity_notifier(irq->irqn, NULL);
-	return err;
+	kfree(irq);
+	return ERR_PTR(err);
 }
 
 /**
@@ -259,25 +271,25 @@ void mlx5_irq_release(struct mlx5_irq *irq)
 struct mlx5_irq *mlx5_irq_request(struct mlx5_core_dev *dev, int vecidx,
 				  struct cpumask *affinity)
 {
-	struct mlx5_irq_table *table = mlx5_irq_table_get(dev);
-	struct mlx5_irq *irq = &table->irq[vecidx];
-	int ret;
+	struct mlx5_irq_table *irq_table = mlx5_irq_table_get(dev);
+	struct mlx5_irq *irq;
 
-	ret = kref_get_unless_zero(&irq->kref);
-	if (ret)
+	irq = xa_load(&irq_table->irqs, vecidx);
+	if (irq) {
+		kref_get(&irq->kref);
 		return irq;
-	ret = irq_request(dev, vecidx);
-	if (ret)
-		return ERR_PTR(ret);
+	}
+	irq = irq_request(dev, vecidx);
+	if (IS_ERR(irq))
+		return irq;
 	cpumask_copy(irq->mask, affinity);
 	irq_set_affinity_hint(irq->irqn, irq->mask);
 	return irq;
 }
 
-struct cpumask *
-mlx5_irq_get_affinity_mask(struct mlx5_irq_table *irq_table, int vecidx)
+struct cpumask *mlx5_irq_get_affinity_mask(struct mlx5_irq *irq)
 {
-	return irq_table->irq[vecidx].mask;
+	return irq->mask;
 }
 
 int mlx5_irq_table_create(struct mlx5_core_dev *dev)
@@ -299,9 +311,7 @@ int mlx5_irq_table_create(struct mlx5_core_dev *dev)
 	if (nvec <= MLX5_IRQ_VEC_COMP_BASE)
 		return -ENOMEM;
 
-	table->irq = kcalloc(nvec, sizeof(*table->irq), GFP_KERNEL);
-	if (!table->irq)
-		return -ENOMEM;
+	xa_init_flags(&table->irqs, XA_FLAGS_ALLOC);
 
 	nvec = pci_alloc_irq_vectors(dev->pdev, MLX5_IRQ_VEC_COMP_BASE + 1,
 				     nvec, PCI_IRQ_MSIX);
@@ -315,19 +325,26 @@ int mlx5_irq_table_create(struct mlx5_core_dev *dev)
 	return 0;
 
 err_free_irq:
-	kfree(table->irq);
+	xa_destroy(&table->irqs);
 	return err;
 }
 
 void mlx5_irq_table_destroy(struct mlx5_core_dev *dev)
 {
 	struct mlx5_irq_table *table = dev->priv.irq_table;
+	struct mlx5_irq *irq;
+	unsigned long index;
 
 	if (mlx5_core_is_sf(dev))
 		return;
 
+	/* There are cases where IRQs still will be in used when we reaching
+	 * to here. Hence, making sure all the irqs are realeased.
+	 */
+	xa_for_each(&table->irqs, index, irq)
+		irq_release(&irq->kref);
 	pci_free_irq_vectors(dev->pdev);
-	kfree(table->irq);
+	xa_destroy(&table->irqs);
 }
 
 struct mlx5_irq_table *mlx5_irq_table_get(struct mlx5_core_dev *dev)

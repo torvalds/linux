@@ -24,7 +24,6 @@ struct mlx5_irq *mlx5_irq_request(struct mlx5_core_dev *dev, int vecidx,
 void mlx5_irq_release(struct mlx5_irq *irq);
 int mlx5_irq_attach_nb(struct mlx5_irq *irq, struct notifier_block *nb);
 int mlx5_irq_detach_nb(struct mlx5_irq *irq, struct notifier_block *nb);
-struct cpumask *
-mlx5_irq_get_affinity_mask(struct mlx5_irq_table *irq_table, int vecidx);
+struct cpumask *mlx5_irq_get_affinity_mask(struct mlx5_irq *irq);
 
 #endif /* __MLX5_IRQ_H__ */

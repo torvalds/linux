@@ -892,10 +892,16 @@ EXPORT_SYMBOL(mlx5_comp_vectors_count);
 struct cpumask *
 mlx5_comp_irq_get_affinity_mask(struct mlx5_core_dev *dev, int vector)
 {
-	int vecidx = vector + MLX5_IRQ_VEC_COMP_BASE;
+	struct mlx5_eq_table *table = dev->priv.eq_table;
+	struct mlx5_eq_comp *eq, *n;
+	int i = 0;
 
-	return mlx5_irq_get_affinity_mask(dev->priv.eq_table->irq_table,
-					  vecidx);
+	list_for_each_entry_safe(eq, n, &table->comp_eqs_list, list) {
+		if (i++ == vector)
+			break;
+	}
+
+	return mlx5_irq_get_affinity_mask(eq->core.irq);
 }
 EXPORT_SYMBOL(mlx5_comp_irq_get_affinity_mask);
 
