@@ -154,8 +154,14 @@ static void irq_release(struct kref *kref)
 {
 	struct mlx5_irq *irq = container_of(kref, struct mlx5_irq, kref);
 
+	/* free_irq requires that affinity and rmap will be cleared
+	 * before calling it. This is why there is asymmetry with set_rmap
+	 * which should be called after alloc_irq but before request_irq.
+	 */
 	irq_set_affinity_hint(irq->irqn, NULL);
 	free_cpumask_var(irq->mask);
+	/* this line is releasing this irq from the rmap */
+	irq_set_affinity_notifier(irq->irqn, NULL);
 	free_irq(irq->irqn, &irq->nh);
 }
 
@@ -378,6 +384,11 @@ err_free_irq:
 	return err;
 }
 
+static void irq_table_clear_rmap(struct mlx5_irq_table *table)
+{
+	cpu_rmap_put(table->rmap);
+}
+
 void mlx5_irq_table_destroy(struct mlx5_core_dev *dev)
 {
 	struct mlx5_irq_table *table = dev->priv.irq_table;
@@ -386,11 +397,7 @@ void mlx5_irq_table_destroy(struct mlx5_core_dev *dev)
 	if (mlx5_core_is_sf(dev))
 		return;
 
-	/* free_irq requires that affinity and rmap will be cleared
-	 * before calling it. This is why there is asymmetry with set_rmap
-	 * which should be called after alloc_irq but before request_irq.
-	 */
-	irq_clear_rmap(dev);
+	irq_table_clear_rmap(table);
 	for (i = 0; i < table->nvec; i++)
 		irq_release(&mlx5_irq_get(dev, i)->kref);
 	pci_free_irq_vectors(dev->pdev);
