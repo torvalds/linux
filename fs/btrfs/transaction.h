@@ -175,7 +175,7 @@ static inline void btrfs_set_inode_last_trans(struct btrfs_trans_handle *trans,
 	spin_lock(&inode->lock);
 	inode->last_trans = trans->transaction->transid;
 	inode->last_sub_trans = inode->root->log_transid;
-	inode->last_log_commit = inode->root->last_log_commit;
+	inode->last_log_commit = inode->last_sub_trans - 1;
 	spin_unlock(&inode->lock);
 }
 

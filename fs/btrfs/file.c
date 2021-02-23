@@ -2014,14 +2014,8 @@ static ssize_t btrfs_file_write_iter(struct kiocb *iocb,
 	else
 		num_written = btrfs_buffered_write(iocb, from);
 
-	/*
-	 * We also have to set last_sub_trans to the current log transid,
-	 * otherwise subsequent syncs to a file that's been synced in this
-	 * transaction will appear to have already occurred.
-	 */
-	spin_lock(&inode->lock);
-	inode->last_sub_trans = inode->root->log_transid;
-	spin_unlock(&inode->lock);
+	btrfs_set_inode_last_sub_trans(inode);
+
 	if (num_written > 0)
 		num_written = generic_write_sync(iocb, num_written);
 
