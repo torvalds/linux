@@ -31,7 +31,8 @@ properties:
     maxItems: 1
 
   port:
-    $ref: /schemas/graph.yaml#/$defs/port-base
+    $ref: /schemas/graph.yaml#/properties/port
+    additionalProperties: false
 
     properties:
       endpoint:
@@ -40,8 +41,6 @@ properties:
 
         properties:
           clock-noncontinuous: true
-
-    additionalProperties: false
 
 required:
   - compatible
