@@ -12,8 +12,8 @@
   adjust_managed_page_count
   alloc_chrdev_region
   __alloc_disk_node
-  alloc_io_pgtable_ops
   alloc_etherdev_mqs
+  alloc_io_pgtable_ops
   alloc_netdev_mqs
   __alloc_pages_nodemask
   __alloc_percpu
@@ -494,11 +494,11 @@
   dma_heap_get_dev
   dma_heap_get_drvdata
   dmam_alloc_attrs
-  dma_mmap_attrs
   dma_map_page_attrs
   dma_map_resource
   dma_map_sg_attrs
   dmam_free_coherent
+  dma_mmap_attrs
   dma_pool_alloc
   dma_pool_create
   dma_pool_destroy
@@ -993,6 +993,7 @@
   iommu_fwspec_free
   iommu_get_dma_cookie
   iommu_get_domain_for_dev
+  iommu_get_msi_cookie
   iommu_group_for_each_dev
   iommu_group_get
   iommu_group_get_iommudata
@@ -1867,16 +1868,16 @@
   skb_coalesce_rx_frag
   skb_copy
   skb_copy_bits
-  skb_copy_expand
   skb_copy_datagram_iter
+  skb_copy_expand
   skb_dequeue
   skb_free_datagram
   __skb_pad
   skb_pull
   skb_push
   skb_put
-  skb_queue_purge
   skb_queue_head
+  skb_queue_purge
   skb_queue_tail
   skb_recv_datagram
   skb_set_owner_w
@@ -2142,8 +2143,8 @@
   __tracepoint_android_vh_iommu_setup_dma_ops
   __tracepoint_android_vh_jiffies_update
   __tracepoint_android_vh_scheduler_tick
-  __tracepoint_android_vh_show_resume_epoch_val
   __tracepoint_android_vh_show_max_freq
+  __tracepoint_android_vh_show_resume_epoch_val
   __tracepoint_android_vh_show_suspend_epoch_val
   __tracepoint_binder_transaction_received
   __tracepoint_cpu_frequency
@@ -2406,8 +2407,8 @@
   wait_for_completion_interruptible_timeout
   wait_for_completion_killable
   wait_for_completion_timeout
-  wait_woken
   __wait_rcu_gp
+  wait_woken
   __wake_up
   wake_up_if_idle
   __wake_up_locked
