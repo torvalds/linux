@@ -6,6 +6,32 @@
 
 /** global debugfs **/
 
+static int
+mt7915_implicit_txbf_set(void *data, u64 val)
+{
+	struct mt7915_dev *dev = data;
+
+	if (test_bit(MT76_STATE_RUNNING, &dev->mphy.state))
+		return -EBUSY;
+
+	dev->ibf = !!val;
+
+	return mt7915_mcu_set_txbf_type(dev);
+}
+
+static int
+mt7915_implicit_txbf_get(void *data, u64 *val)
+{
+	struct mt7915_dev *dev = data;
+
+	*val = dev->ibf;
+
+	return 0;
+}
+
+DEFINE_DEBUGFS_ATTRIBUTE(fops_implicit_txbf, mt7915_implicit_txbf_get,
+			 mt7915_implicit_txbf_set, "%lld\n");
+
 /* test knob of system layer 1/2 error recovery */
 static int mt7915_ser_trigger_set(void *data, u64 val)
 {
@@ -355,6 +381,8 @@ int mt7915_init_debugfs(struct mt7915_dev *dev)
 				    mt7915_queues_acq);
 	debugfs_create_file("tx_stats", 0400, dir, dev, &fops_tx_stats);
 	debugfs_create_file("fw_debug", 0600, dir, dev, &fops_fw_debug);
+	debugfs_create_file("implicit_txbf", 0600, dir, dev,
+			    &fops_implicit_txbf);
 	debugfs_create_u32("dfs_hw_pattern", 0400, dir, &dev->hw_pattern);
 	/* test knobs */
 	debugfs_create_file("radar_trigger", 0200, dir, dev,

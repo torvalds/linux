@@ -19,8 +19,6 @@ struct fq_tin;
  * @flowchain: can be linked to fq_tin's new_flows or old_flows. Used for DRR++
  *	(deficit round robin) based round robin queuing similar to the one
  *	found in net/sched/sch_fq_codel.c
- * @backlogchain: can be linked to other fq_flow and fq. Used to keep track of
- *	fat flows and efficient head-dropping if packet limit is reached
  * @queue: sk_buff queue to hold packets
  * @backlog: number of bytes pending in the queue. The number of packets can be
  *	found in @queue.qlen
@@ -29,7 +27,6 @@ struct fq_tin;
 struct fq_flow {
 	struct fq_tin *tin;
 	struct list_head flowchain;
-	struct list_head backlogchain;
 	struct sk_buff_head queue;
 	u32 backlog;
 	int deficit;
@@ -47,6 +44,8 @@ struct fq_flow {
 struct fq_tin {
 	struct list_head new_flows;
 	struct list_head old_flows;
+	struct list_head tin_list;
+	struct fq_flow default_flow;
 	u32 backlog_bytes;
 	u32 backlog_packets;
 	u32 overlimit;
@@ -59,14 +58,14 @@ struct fq_tin {
 /**
  * struct fq - main container for fair queuing purposes
  *
- * @backlogs: linked to fq_flows. Used to maintain fat flows for efficient
- *	head-dropping when @backlog reaches @limit
  * @limit: max number of packets that can be queued across all flows
  * @backlog: number of packets queued across all flows
  */
 struct fq {
 	struct fq_flow *flows;
-	struct list_head backlogs;
+	unsigned long *flows_bitmap;
+
+	struct list_head tin_backlog;
 	spinlock_t lock;
 	u32 flows_cnt;
 	u32 limit;

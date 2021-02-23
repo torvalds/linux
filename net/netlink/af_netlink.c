@@ -67,6 +67,8 @@
 #include <net/sock.h>
 #include <net/scm.h>
 #include <net/netlink.h>
+#define CREATE_TRACE_POINTS
+#include <trace/events/netlink.h>
 
 #include "af_netlink.h"
 
@@ -146,6 +148,12 @@ static BLOCKING_NOTIFIER_HEAD(netlink_chain);
 
 
 static const struct rhashtable_params netlink_rhashtable_params;
+
+void do_trace_netlink_extack(const char *msg)
+{
+	trace_netlink_extack(msg);
+}
+EXPORT_SYMBOL(do_trace_netlink_extack);
 
 static inline u32 netlink_group_mask(u32 group)
 {

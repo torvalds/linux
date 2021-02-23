@@ -542,7 +542,8 @@ struct iwl_scan_config_v2 {
  * struct iwl_scan_config
  * @enable_cam_mode: whether to enable CAM mode.
  * @enable_promiscouos_mode: whether to enable promiscouos mode
- * @bcast_sta_id: the index of the station in the fw
+ * @bcast_sta_id: the index of the station in the fw. Deprecated starting with
+ *     API version 5.
  * @reserved: reserved
  * @tx_chains: valid_tx antenna - ANT_* definitions
  * @rx_chains: valid_rx antenna - ANT_* definitions
@@ -554,7 +555,7 @@ struct iwl_scan_config {
 	u8 reserved;
 	__le32 tx_chains;
 	__le32 rx_chains;
-} __packed; /* SCAN_CONFIG_DB_CMD_API_S_3 */
+} __packed; /* SCAN_CONFIG_DB_CMD_API_S_5 */
 
 /**
  * enum iwl_umac_scan_flags - UMAC scan flags

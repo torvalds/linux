@@ -134,6 +134,20 @@
 		#clock-cells = <0>;
 	};
 
+	clk125mhz: clk125mhz {
+		compatible = "fixed-clock";
+		clock-frequency = <125000000>;
+		#clock-cells = <0>;
+		clock-output-names = "clk125mhz";
+	};
+
+	clk300mhz: clk300mhz {
+		compatible = "fixed-clock";
+		clock-frequency = <300000000>;
+		#clock-cells = <0>;
+		clock-output-names = "clk300mhz";
+	};
+
 	soc {
 		#address-cells = <2>;
 		#size-cells = <2>;
@@ -382,6 +396,17 @@
 			num-cs = <1>;
 			#address-cells = <1>;
 			#size-cells = <0>;
+			status = "disabled";
+		};
+
+		piether: ethernet@28000000 {
+			compatible = "toshiba,visconti-dwmac", "snps,dwmac-4.20a";
+			reg = <0 0x28000000 0 0x10000>;
+			interrupts = <GIC_SPI 156 IRQ_TYPE_LEVEL_HIGH>;
+			interrupt-names = "macirq";
+			snps,txpbl = <4>;
+			snps,rxpbl = <4>;
+			snps,tso;
 			status = "disabled";
 		};
 	};

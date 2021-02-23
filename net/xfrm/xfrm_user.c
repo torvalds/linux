@@ -2504,7 +2504,7 @@ static int xfrm_do_migrate(struct sk_buff *skb, struct nlmsghdr *nlh,
 		encap = kmemdup(nla_data(attrs[XFRMA_ENCAP]),
 				sizeof(*encap), GFP_KERNEL);
 		if (!encap)
-			return 0;
+			return -ENOMEM;
 	}
 
 	err = xfrm_migrate(&pi->sel, pi->dir, type, m, n, kmp, net, encap);

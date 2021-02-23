@@ -511,9 +511,9 @@ static int iwl_pcie_nic_init(struct iwl_trans *trans)
 	int ret;
 
 	/* nic_init */
-	spin_lock(&trans_pcie->irq_lock);
+	spin_lock_bh(&trans_pcie->irq_lock);
 	ret = iwl_pcie_apm_init(trans);
-	spin_unlock(&trans_pcie->irq_lock);
+	spin_unlock_bh(&trans_pcie->irq_lock);
 
 	if (ret)
 		return ret;
@@ -523,11 +523,15 @@ static int iwl_pcie_nic_init(struct iwl_trans *trans)
 	iwl_op_mode_nic_config(trans->op_mode);
 
 	/* Allocate the RX queue, or reset if it is already allocated */
-	iwl_pcie_rx_init(trans);
+	ret = iwl_pcie_rx_init(trans);
+	if (ret)
+		return ret;
 
 	/* Allocate or reset and init all Tx and Command queues */
-	if (iwl_pcie_tx_init(trans))
+	if (iwl_pcie_tx_init(trans)) {
+		iwl_pcie_rx_free(trans);
 		return -ENOMEM;
+	}
 
 	if (trans->trans_cfg->base_params->shadow_reg_enable) {
 		/* enable shadow regs in HW */
@@ -636,17 +640,16 @@ static int iwl_pcie_load_firmware_chunk(struct iwl_trans *trans,
 					u32 byte_cnt)
 {
 	struct iwl_trans_pcie *trans_pcie = IWL_TRANS_GET_PCIE_TRANS(trans);
-	unsigned long flags;
 	int ret;
 
 	trans_pcie->ucode_write_complete = false;
 
-	if (!iwl_trans_grab_nic_access(trans, &flags))
+	if (!iwl_trans_grab_nic_access(trans))
 		return -EIO;
 
 	iwl_pcie_load_firmware_chunk_fh(trans, dst_addr, phy_addr,
 					byte_cnt);
-	iwl_trans_release_nic_access(trans, &flags);
+	iwl_trans_release_nic_access(trans);
 
 	ret = wait_event_timeout(trans_pcie->ucode_write_waitq,
 				 trans_pcie->ucode_write_complete, 5 * HZ);
@@ -1376,6 +1379,10 @@ static void iwl_trans_pcie_stop_device(struct iwl_trans *trans)
 	struct iwl_trans_pcie *trans_pcie = IWL_TRANS_GET_PCIE_TRANS(trans);
 	bool was_in_rfkill;
 
+	iwl_op_mode_time_point(trans->op_mode,
+			       IWL_FW_INI_TIME_POINT_HOST_DEVICE_DISABLE,
+			       NULL);
+
 	mutex_lock(&trans_pcie->mutex);
 	trans_pcie->opmode_down = true;
 	was_in_rfkill = test_bit(STATUS_RFKILL_OPMODE, &trans->status);
@@ -1966,13 +1973,12 @@ static void iwl_trans_pcie_removal_wk(struct work_struct *wk)
 	module_put(THIS_MODULE);
 }
 
-static bool iwl_trans_pcie_grab_nic_access(struct iwl_trans *trans,
-					   unsigned long *flags)
+static bool iwl_trans_pcie_grab_nic_access(struct iwl_trans *trans)
 {
 	int ret;
 	struct iwl_trans_pcie *trans_pcie = IWL_TRANS_GET_PCIE_TRANS(trans);
 
-	spin_lock_irqsave(&trans_pcie->reg_lock, *flags);
+	spin_lock_bh(&trans_pcie->reg_lock);
 
 	if (trans_pcie->cmd_hold_nic_awake)
 		goto out;
@@ -2057,7 +2063,7 @@ static bool iwl_trans_pcie_grab_nic_access(struct iwl_trans *trans,
 		}
 
 err:
-		spin_unlock_irqrestore(&trans_pcie->reg_lock, *flags);
+		spin_unlock_bh(&trans_pcie->reg_lock);
 		return false;
 	}
 
@@ -2070,8 +2076,7 @@ out:
 	return true;
 }
 
-static void iwl_trans_pcie_release_nic_access(struct iwl_trans *trans,
-					      unsigned long *flags)
+static void iwl_trans_pcie_release_nic_access(struct iwl_trans *trans)
 {
 	struct iwl_trans_pcie *trans_pcie = IWL_TRANS_GET_PCIE_TRANS(trans);
 
@@ -2095,13 +2100,12 @@ static void iwl_trans_pcie_release_nic_access(struct iwl_trans *trans,
 	 * scheduled on different CPUs (after we drop reg_lock).
 	 */
 out:
-	spin_unlock_irqrestore(&trans_pcie->reg_lock, *flags);
+	spin_unlock_bh(&trans_pcie->reg_lock);
 }
 
 static int iwl_trans_pcie_read_mem(struct iwl_trans *trans, u32 addr,
 				   void *buf, int dwords)
 {
-	unsigned long flags;
 	int offs = 0;
 	u32 *vals = buf;
 
@@ -2110,7 +2114,7 @@ static int iwl_trans_pcie_read_mem(struct iwl_trans *trans, u32 addr,
 		unsigned long end = jiffies + HZ / 2;
 		bool resched = false;
 
-		if (iwl_trans_grab_nic_access(trans, &flags)) {
+		if (iwl_trans_grab_nic_access(trans)) {
 			iwl_write32(trans, HBUS_TARG_MEM_RADDR,
 				    addr + 4 * offs);
 
@@ -2124,7 +2128,7 @@ static int iwl_trans_pcie_read_mem(struct iwl_trans *trans, u32 addr,
 					break;
 				}
 			}
-			iwl_trans_release_nic_access(trans, &flags);
+			iwl_trans_release_nic_access(trans);
 
 			if (resched)
 				cond_resched();
@@ -2139,16 +2143,15 @@ static int iwl_trans_pcie_read_mem(struct iwl_trans *trans, u32 addr,
 static int iwl_trans_pcie_write_mem(struct iwl_trans *trans, u32 addr,
 				    const void *buf, int dwords)
 {
-	unsigned long flags;
 	int offs, ret = 0;
 	const u32 *vals = buf;
 
-	if (iwl_trans_grab_nic_access(trans, &flags)) {
+	if (iwl_trans_grab_nic_access(trans)) {
 		iwl_write32(trans, HBUS_TARG_MEM_WADDR, addr);
 		for (offs = 0; offs < dwords; offs++)
 			iwl_write32(trans, HBUS_TARG_MEM_WDAT,
 				    vals ? vals[offs] : 0);
-		iwl_trans_release_nic_access(trans, &flags);
+		iwl_trans_release_nic_access(trans);
 	} else {
 		ret = -EBUSY;
 	}
@@ -2296,11 +2299,10 @@ static void iwl_trans_pcie_set_bits_mask(struct iwl_trans *trans, u32 reg,
 					 u32 mask, u32 value)
 {
 	struct iwl_trans_pcie *trans_pcie = IWL_TRANS_GET_PCIE_TRANS(trans);
-	unsigned long flags;
 
-	spin_lock_irqsave(&trans_pcie->reg_lock, flags);
+	spin_lock_bh(&trans_pcie->reg_lock);
 	__iwl_trans_pcie_set_bits_mask(trans, reg, mask, value);
-	spin_unlock_irqrestore(&trans_pcie->reg_lock, flags);
+	spin_unlock_bh(&trans_pcie->reg_lock);
 }
 
 static const char *get_csr_string(int cmd)
@@ -2945,11 +2947,10 @@ static u32 iwl_trans_pcie_fh_regs_dump(struct iwl_trans *trans,
 				       struct iwl_fw_error_dump_data **data)
 {
 	u32 fh_regs_len = FH_MEM_UPPER_BOUND - FH_MEM_LOWER_BOUND;
-	unsigned long flags;
 	__le32 *val;
 	int i;
 
-	if (!iwl_trans_grab_nic_access(trans, &flags))
+	if (!iwl_trans_grab_nic_access(trans))
 		return 0;
 
 	(*data)->type = cpu_to_le32(IWL_FW_ERROR_DUMP_FH_REGS);
@@ -2967,7 +2968,7 @@ static u32 iwl_trans_pcie_fh_regs_dump(struct iwl_trans *trans,
 			*val++ = cpu_to_le32(iwl_trans_pcie_read_prph(trans,
 								      i));
 
-	iwl_trans_release_nic_access(trans, &flags);
+	iwl_trans_release_nic_access(trans);
 
 	*data = iwl_fw_error_next_data(*data);
 
@@ -2981,10 +2982,9 @@ iwl_trans_pci_dump_marbh_monitor(struct iwl_trans *trans,
 {
 	u32 buf_size_in_dwords = (monitor_len >> 2);
 	u32 *buffer = (u32 *)fw_mon_data->data;
-	unsigned long flags;
 	u32 i;
 
-	if (!iwl_trans_grab_nic_access(trans, &flags))
+	if (!iwl_trans_grab_nic_access(trans))
 		return 0;
 
 	iwl_write_umac_prph_no_grab(trans, MON_DMARB_RD_CTL_ADDR, 0x1);
@@ -2993,7 +2993,7 @@ iwl_trans_pci_dump_marbh_monitor(struct iwl_trans *trans,
 						       MON_DMARB_RD_DATA_ADDR);
 	iwl_write_umac_prph_no_grab(trans, MON_DMARB_RD_CTL_ADDR, 0x0);
 
-	iwl_trans_release_nic_access(trans, &flags);
+	iwl_trans_release_nic_access(trans);
 
 	return monitor_len;
 }
@@ -3286,16 +3286,29 @@ static struct iwl_trans_dump_data
 	return dump_data;
 }
 
-#ifdef CONFIG_PM_SLEEP
-static int iwl_trans_pcie_suspend(struct iwl_trans *trans)
+static void iwl_trans_pci_interrupts(struct iwl_trans *trans, bool enable)
 {
-	return 0;
+	if (enable)
+		iwl_enable_interrupts(trans);
+	else
+		iwl_disable_interrupts(trans);
 }
 
-static void iwl_trans_pcie_resume(struct iwl_trans *trans)
+static void iwl_trans_pcie_sync_nmi(struct iwl_trans *trans)
 {
+	u32 inta_addr, sw_err_bit;
+	struct iwl_trans_pcie *trans_pcie = IWL_TRANS_GET_PCIE_TRANS(trans);
+
+	if (trans_pcie->msix_enabled) {
+		inta_addr = CSR_MSIX_HW_INT_CAUSES_AD;
+		sw_err_bit = MSIX_HW_INT_CAUSES_REG_SW_ERR;
+	} else {
+		inta_addr = CSR_INT;
+		sw_err_bit = CSR_INT_BIT_SW_ERR;
+	}
+
+	iwl_trans_sync_nmi_with_addr(trans, inta_addr, sw_err_bit);
 }
-#endif /* CONFIG_PM_SLEEP */
 
 #define IWL_TRANS_COMMON_OPS						\
 	.op_mode_leave = iwl_trans_pcie_op_mode_leave,			\
@@ -3316,25 +3329,17 @@ static void iwl_trans_pcie_resume(struct iwl_trans *trans)
 	.dump_data = iwl_trans_pcie_dump_data,				\
 	.d3_suspend = iwl_trans_pcie_d3_suspend,			\
 	.d3_resume = iwl_trans_pcie_d3_resume,				\
-	.sync_nmi = iwl_trans_pcie_sync_nmi
-
-#ifdef CONFIG_PM_SLEEP
-#define IWL_TRANS_PM_OPS						\
-	.suspend = iwl_trans_pcie_suspend,				\
-	.resume = iwl_trans_pcie_resume,
-#else
-#define IWL_TRANS_PM_OPS
-#endif /* CONFIG_PM_SLEEP */
+	.interrupts = iwl_trans_pci_interrupts,				\
+	.sync_nmi = iwl_trans_pcie_sync_nmi				\
 
 static const struct iwl_trans_ops trans_ops_pcie = {
 	IWL_TRANS_COMMON_OPS,
-	IWL_TRANS_PM_OPS
 	.start_hw = iwl_trans_pcie_start_hw,
 	.fw_alive = iwl_trans_pcie_fw_alive,
 	.start_fw = iwl_trans_pcie_start_fw,
 	.stop_device = iwl_trans_pcie_stop_device,
 
-	.send_cmd = iwl_trans_pcie_send_hcmd,
+	.send_cmd = iwl_pcie_enqueue_hcmd,
 
 	.tx = iwl_trans_pcie_tx,
 	.reclaim = iwl_txq_reclaim,
@@ -3355,13 +3360,12 @@ static const struct iwl_trans_ops trans_ops_pcie = {
 
 static const struct iwl_trans_ops trans_ops_pcie_gen2 = {
 	IWL_TRANS_COMMON_OPS,
-	IWL_TRANS_PM_OPS
 	.start_hw = iwl_trans_pcie_start_hw,
 	.fw_alive = iwl_trans_pcie_gen2_fw_alive,
 	.start_fw = iwl_trans_pcie_gen2_start_fw,
 	.stop_device = iwl_trans_pcie_gen2_stop_device,
 
-	.send_cmd = iwl_trans_pcie_gen2_send_hcmd,
+	.send_cmd = iwl_pcie_gen2_enqueue_hcmd,
 
 	.tx = iwl_txq_gen2_tx,
 	.reclaim = iwl_txq_reclaim,
@@ -3496,9 +3500,6 @@ struct iwl_trans *iwl_trans_pcie_alloc(struct pci_dev *pdev,
 	snprintf(trans->hw_id_str, sizeof(trans->hw_id_str),
 		 "PCI ID: 0x%04X:0x%04X", pdev->device, pdev->subsystem_device);
 
-	/* Initialize the wait queue for commands */
-	init_waitqueue_head(&trans_pcie->wait_command_queue);
-
 	init_waitqueue_head(&trans_pcie->sx_waitq);
 
 
@@ -3537,49 +3538,4 @@ out_no_pci:
 out_free_trans:
 	iwl_trans_free(trans);
 	return ERR_PTR(ret);
-}
-
-void iwl_trans_pcie_sync_nmi(struct iwl_trans *trans)
-{
-	struct iwl_trans_pcie *trans_pcie = IWL_TRANS_GET_PCIE_TRANS(trans);
-	unsigned long timeout = jiffies + IWL_TRANS_NMI_TIMEOUT;
-	bool interrupts_enabled = test_bit(STATUS_INT_ENABLED, &trans->status);
-	u32 inta_addr, sw_err_bit;
-
-	if (trans_pcie->msix_enabled) {
-		inta_addr = CSR_MSIX_HW_INT_CAUSES_AD;
-		sw_err_bit = MSIX_HW_INT_CAUSES_REG_SW_ERR;
-	} else {
-		inta_addr = CSR_INT;
-		sw_err_bit = CSR_INT_BIT_SW_ERR;
-	}
-
-	/* if the interrupts were already disabled, there is no point in
-	 * calling iwl_disable_interrupts
-	 */
-	if (interrupts_enabled)
-		iwl_disable_interrupts(trans);
-
-	iwl_force_nmi(trans);
-	while (time_after(timeout, jiffies)) {
-		u32 inta_hw = iwl_read32(trans, inta_addr);
-
-		/* Error detected by uCode */
-		if (inta_hw & sw_err_bit) {
-			/* Clear causes register */
-			iwl_write32(trans, inta_addr, inta_hw & sw_err_bit);
-			break;
-		}
-
-		mdelay(1);
-	}
-
-	/* enable interrupts only if there were already enabled before this
-	 * function to avoid a case were the driver enable interrupts before
-	 * proper configurations were made
-	 */
-	if (interrupts_enabled)
-		iwl_enable_interrupts(trans);
-
-	iwl_trans_fw_error(trans);
 }
