@@ -20,7 +20,8 @@ int mlx5_set_msix_vec_count(struct mlx5_core_dev *dev, int devfn,
 			    int msix_vec_count);
 int mlx5_get_default_msix_vec_count(struct mlx5_core_dev *dev, int num_vfs);
 
-struct mlx5_irq *mlx5_irq_request(struct mlx5_core_dev *dev, int vecidx);
+struct mlx5_irq *mlx5_irq_request(struct mlx5_core_dev *dev, int vecidx,
+				  struct cpumask *affinity);
 void mlx5_irq_release(struct mlx5_irq *irq);
 int mlx5_irq_attach_nb(struct mlx5_irq *irq, struct notifier_block *nb);
 int mlx5_irq_detach_nb(struct mlx5_irq *irq, struct notifier_block *nb);

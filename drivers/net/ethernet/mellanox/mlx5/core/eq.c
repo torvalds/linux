@@ -310,7 +310,7 @@ create_map_eq(struct mlx5_core_dev *dev, struct mlx5_eq *eq,
 	mlx5_init_fbc(eq->frag_buf.frags, log_eq_stride, log_eq_size, &eq->fbc);
 	init_eq_buf(eq);
 
-	eq->irq = mlx5_irq_request(dev, vecidx);
+	eq->irq = mlx5_irq_request(dev, vecidx, param->affinity);
 	if (IS_ERR(eq->irq)) {
 		err = PTR_ERR(eq->irq);
 		goto err_buf;
@@ -621,8 +621,11 @@ setup_async_eq(struct mlx5_core_dev *dev, struct mlx5_eq_async *eq,
 
 	eq->irq_nb.notifier_call = mlx5_eq_async_int;
 	spin_lock_init(&eq->lock);
+	if (!zalloc_cpumask_var(&param->affinity, GFP_KERNEL))
+		return -ENOMEM;
 
 	err = create_async_eq(dev, &eq->core, param);
+	free_cpumask_var(param->affinity);
 	if (err) {
 		mlx5_core_warn(dev, "failed to create %s EQ %d\n", name, err);
 		return err;
@@ -740,6 +743,9 @@ mlx5_eq_create_generic(struct mlx5_core_dev *dev,
 	struct mlx5_eq *eq = kvzalloc(sizeof(*eq), GFP_KERNEL);
 	int err;
 
+	if (!param->affinity)
+		return ERR_PTR(-EINVAL);
+
 	if (!eq)
 		return ERR_PTR(-ENOMEM);
 
@@ -850,16 +856,21 @@ static int create_comp_eqs(struct mlx5_core_dev *dev)
 			.irq_index = vecidx,
 			.nent = nent,
 		};
-		err = create_map_eq(dev, &eq->core, &param);
-		if (err) {
-			kfree(eq);
-			goto clean;
+
+		if (!zalloc_cpumask_var(&param.affinity, GFP_KERNEL)) {
+			err = -ENOMEM;
+			goto clean_eq;
 		}
+		cpumask_set_cpu(cpumask_local_spread(i, dev->priv.numa_node),
+				param.affinity);
+		err = create_map_eq(dev, &eq->core, &param);
+		free_cpumask_var(param.affinity);
+		if (err)
+			goto clean_eq;
 		err = mlx5_eq_enable(dev, &eq->core, &eq->irq_nb);
 		if (err) {
 			destroy_unmap_eq(dev, &eq->core);
-			kfree(eq);
-			goto clean;
+			goto clean_eq;
 		}
 
 		mlx5_core_dbg(dev, "allocated completion EQN %d\n", eq->core.eqn);
@@ -868,6 +879,8 @@ static int create_comp_eqs(struct mlx5_core_dev *dev)
 	}
 
 	return 0;
+clean_eq:
+	kfree(eq);
 clean:
 	destroy_comp_eqs(dev);
 	return err;

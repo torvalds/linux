@@ -17,6 +17,7 @@ struct mlx5_irq {
 	struct atomic_notifier_head nh;
 	cpumask_var_t mask;
 	char name[MLX5_MAX_IRQ_NAME];
+	spinlock_t lock; /* protects affinity assignment */
 	struct kref kref;
 	int irqn;
 };
@@ -153,6 +154,8 @@ static void irq_release(struct kref *kref)
 {
 	struct mlx5_irq *irq = container_of(kref, struct mlx5_irq, kref);
 
+	irq_set_affinity_hint(irq->irqn, NULL);
+	free_cpumask_var(irq->mask);
 	free_irq(irq->irqn, &irq->nh);
 }
 
@@ -189,7 +192,8 @@ void mlx5_irq_release(struct mlx5_irq *irq)
 	irq_put(irq);
 }
 
-struct mlx5_irq *mlx5_irq_request(struct mlx5_core_dev *dev, int vecidx)
+struct mlx5_irq *mlx5_irq_request(struct mlx5_core_dev *dev, int vecidx,
+				  struct cpumask *affinity)
 {
 	struct mlx5_irq_table *table = mlx5_irq_table_get(dev);
 	struct mlx5_irq *irq = &table->irq[vecidx];
@@ -199,6 +203,16 @@ struct mlx5_irq *mlx5_irq_request(struct mlx5_core_dev *dev, int vecidx)
 	if (!err)
 		return ERR_PTR(-ENOENT);
 
+	spin_lock(&irq->lock);
+	if (!cpumask_empty(irq->mask)) {
+		/* already configured */
+		spin_unlock(&irq->lock);
+		return irq;
+	}
+
+	cpumask_copy(irq->mask, affinity);
+	irq_set_affinity_hint(irq->irqn, irq->mask);
+	spin_unlock(&irq->lock);
 	return irq;
 }
 
@@ -239,6 +253,12 @@ static int request_irqs(struct mlx5_core_dev *dev, int nvec)
 			mlx5_core_err(dev, "Failed to request irq\n");
 			goto err_request_irq;
 		}
+		if (!zalloc_cpumask_var(&irq->mask, GFP_KERNEL)) {
+			mlx5_core_warn(dev, "zalloc_cpumask_var failed\n");
+			err = -ENOMEM;
+			goto err_request_irq;
+		}
+		spin_lock_init(&irq->lock);
 		kref_init(&irq->kref);
 	}
 	return 0;
@@ -294,69 +314,6 @@ err_out:
 	return err;
 }
 
-/* Completion IRQ vectors */
-
-static int set_comp_irq_affinity_hint(struct mlx5_core_dev *mdev, int i)
-{
-	int vecidx = MLX5_IRQ_VEC_COMP_BASE + i;
-	struct mlx5_irq *irq;
-
-	irq = mlx5_irq_get(mdev, vecidx);
-	if (!zalloc_cpumask_var(&irq->mask, GFP_KERNEL)) {
-		mlx5_core_warn(mdev, "zalloc_cpumask_var failed");
-		return -ENOMEM;
-	}
-
-	cpumask_set_cpu(cpumask_local_spread(i, mdev->priv.numa_node),
-			irq->mask);
-	if (IS_ENABLED(CONFIG_SMP) &&
-	    irq_set_affinity_hint(irq->irqn, irq->mask))
-		mlx5_core_warn(mdev, "irq_set_affinity_hint failed, irq 0x%.4x",
-			       irq->irqn);
-
-	return 0;
-}
-
-static void clear_comp_irq_affinity_hint(struct mlx5_core_dev *mdev, int i)
-{
-	int vecidx = MLX5_IRQ_VEC_COMP_BASE + i;
-	struct mlx5_irq *irq;
-
-	irq = mlx5_irq_get(mdev, vecidx);
-	irq_set_affinity_hint(irq->irqn, NULL);
-	free_cpumask_var(irq->mask);
-}
-
-static int set_comp_irq_affinity_hints(struct mlx5_core_dev *mdev)
-{
-	int nvec = mlx5_irq_get_num_comp(mdev->priv.irq_table);
-	int err;
-	int i;
-
-	for (i = 0; i < nvec; i++) {
-		err = set_comp_irq_affinity_hint(mdev, i);
-		if (err)
-			goto err_out;
-	}
-
-	return 0;
-
-err_out:
-	for (i--; i >= 0; i--)
-		clear_comp_irq_affinity_hint(mdev, i);
-
-	return err;
-}
-
-static void clear_comp_irqs_affinity_hints(struct mlx5_core_dev *mdev)
-{
-	int nvec = mlx5_irq_get_num_comp(mdev->priv.irq_table);
-	int i;
-
-	for (i = 0; i < nvec; i++)
-		clear_comp_irq_affinity_hint(mdev, i);
-}
-
 struct cpumask *
 mlx5_irq_get_affinity_mask(struct mlx5_irq_table *irq_table, int vecidx)
 {
@@ -369,15 +326,6 @@ struct cpu_rmap *mlx5_irq_get_rmap(struct mlx5_irq_table *irq_table)
 	return irq_table->rmap;
 }
 #endif
-
-static void unrequest_irqs(struct mlx5_core_dev *dev)
-{
-	struct mlx5_irq_table *table = dev->priv.irq_table;
-	int i;
-
-	for (i = 0; i < table->nvec; i++)
-		irq_put(mlx5_irq_get(dev, i));
-}
 
 int mlx5_irq_table_create(struct mlx5_core_dev *dev)
 {
@@ -419,16 +367,8 @@ int mlx5_irq_table_create(struct mlx5_core_dev *dev)
 	if (err)
 		goto err_request_irqs;
 
-	err = set_comp_irq_affinity_hints(dev);
-	if (err) {
-		mlx5_core_err(dev, "Failed to alloc affinity hint cpumask\n");
-		goto err_set_affinity;
-	}
-
 	return 0;
 
-err_set_affinity:
-	unrequest_irqs(dev);
 err_request_irqs:
 	irq_clear_rmap(dev);
 err_set_rmap:
@@ -451,7 +391,6 @@ void mlx5_irq_table_destroy(struct mlx5_core_dev *dev)
 	 * which should be called after alloc_irq but before request_irq.
 	 */
 	irq_clear_rmap(dev);
-	clear_comp_irqs_affinity_hints(dev);
 	for (i = 0; i < table->nvec; i++)
 		irq_release(&mlx5_irq_get(dev, i)->kref);
 	pci_free_irq_vectors(dev->pdev);
