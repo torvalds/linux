@@ -263,7 +263,7 @@ create_map_eq(struct mlx5_core_dev *dev, struct mlx5_eq *eq,
 	u32 out[MLX5_ST_SZ_DW(create_eq_out)] = {0};
 	u8 log_eq_stride = ilog2(MLX5_EQE_SIZE);
 	struct mlx5_priv *priv = &dev->priv;
-	u8 vecidx = param->irq_index;
+	u16 vecidx = param->irq_index;
 	__be64 *pas;
 	void *eqc;
 	int inlen;
@@ -292,6 +292,7 @@ create_map_eq(struct mlx5_core_dev *dev, struct mlx5_eq *eq,
 		goto err_buf;
 	}
 
+	vecidx = mlx5_irq_get_index(eq->irq);
 	inlen = MLX5_ST_SZ_BYTES(create_eq_in) +
 		MLX5_FLD_SZ_BYTES(create_eq_in, pas[0]) * eq->frag_buf.npages;
 
@@ -629,7 +630,6 @@ static int create_async_eqs(struct mlx5_core_dev *dev)
 	mlx5_eq_notifier_register(dev, &table->cq_err_nb);
 
 	param = (struct mlx5_eq_param) {
-		.irq_index = 0,
 		.nent = MLX5_NUM_CMD_EQE,
 		.mask[0] = 1ull << MLX5_EVENT_TYPE_CMD,
 	};
@@ -642,7 +642,6 @@ static int create_async_eqs(struct mlx5_core_dev *dev)
 	mlx5_cmd_allowed_opcode(dev, CMD_ALLOWED_OPCODE_ALL);
 
 	param = (struct mlx5_eq_param) {
-		.irq_index = 0,
 		.nent = MLX5_NUM_ASYNC_EQE,
 	};
 
@@ -652,7 +651,6 @@ static int create_async_eqs(struct mlx5_core_dev *dev)
 		goto err2;
 
 	param = (struct mlx5_eq_param) {
-		.irq_index = 0,
 		.nent = /* TODO: sriov max_vf + */ 1,
 		.mask[0] = 1ull << MLX5_EVENT_TYPE_PAGE_REQUEST,
 	};
@@ -985,15 +983,19 @@ int mlx5_eq_table_create(struct mlx5_core_dev *dev)
 	int num_eqs = MLX5_CAP_GEN(dev, max_num_eqs) ?
 		      MLX5_CAP_GEN(dev, max_num_eqs) :
 		      1 << MLX5_CAP_GEN(dev, log_max_eq);
+	int max_eqs_sf;
 	int err;
 
 	eq_table->num_comp_eqs =
 		min_t(int,
 		      mlx5_irq_table_get_num_comp(eq_table->irq_table),
 		      num_eqs - MLX5_MAX_ASYNC_EQS);
-	if (mlx5_core_is_sf(dev))
+	if (mlx5_core_is_sf(dev)) {
+		max_eqs_sf = min_t(int, MLX5_COMP_EQS_PER_SF,
+				   mlx5_irq_table_get_sfs_vec(eq_table->irq_table));
 		eq_table->num_comp_eqs = min_t(int, eq_table->num_comp_eqs,
-					       MLX5_COMP_EQS_PER_SF);
+					       max_eqs_sf);
+	}
 
 	err = create_async_eqs(dev);
 	if (err) {
