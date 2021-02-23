@@ -797,6 +797,7 @@ void dce110_edp_power_control(
 	struct dc_context *ctx = link->ctx;
 	struct bp_transmitter_control cntl = { 0 };
 	enum bp_result bp_result;
+	uint8_t panel_instance;
 
 
 	if (dal_graphics_object_id_get_connector_id(link->link_enc->connector)
@@ -807,7 +808,6 @@ void dce110_edp_power_control(
 
 	if (!link->panel_cntl)
 		return;
-
 	if (power_up !=
 		link->panel_cntl->funcs->is_panel_powered_on(link->panel_cntl)) {
 
@@ -880,15 +880,18 @@ void dce110_edp_power_control(
 		cntl.coherent = false;
 		cntl.lanes_number = LANE_COUNT_FOUR;
 		cntl.hpd_sel = link->link_enc->hpd_source;
+		panel_instance = link->panel_cntl->inst;
 
 		if (ctx->dc->ctx->dmub_srv &&
 				ctx->dc->debug.dmub_command_table) {
 			if (cntl.action == TRANSMITTER_CONTROL_POWER_ON)
 				bp_result = ctx->dc_bios->funcs->enable_lvtma_control(ctx->dc_bios,
-						LVTMA_CONTROL_POWER_ON);
+						LVTMA_CONTROL_POWER_ON,
+						panel_instance);
 			else
 				bp_result = ctx->dc_bios->funcs->enable_lvtma_control(ctx->dc_bios,
-						LVTMA_CONTROL_POWER_OFF);
+						LVTMA_CONTROL_POWER_OFF,
+						panel_instance);
 		}
 
 		bp_result = link_transmitter_control(ctx->dc_bios, &cntl);
@@ -963,6 +966,7 @@ void dce110_edp_backlight_control(
 {
 	struct dc_context *ctx = link->ctx;
 	struct bp_transmitter_control cntl = { 0 };
+	uint8_t panel_instance;
 
 	if (dal_graphics_object_id_get_connector_id(link->link_enc->connector)
 		!= CONNECTOR_ID_EDP) {
@@ -1011,6 +1015,7 @@ void dce110_edp_backlight_control(
 	 */
 	/* dc_service_sleep_in_milliseconds(50); */
 		/*edp 1.2*/
+	panel_instance = link->panel_cntl->inst;
 	if (cntl.action == TRANSMITTER_CONTROL_BACKLIGHT_ON)
 		edp_receiver_ready_T7(link);
 
@@ -1018,10 +1023,12 @@ void dce110_edp_backlight_control(
 			ctx->dc->debug.dmub_command_table) {
 		if (cntl.action == TRANSMITTER_CONTROL_BACKLIGHT_ON)
 			ctx->dc_bios->funcs->enable_lvtma_control(ctx->dc_bios,
-					LVTMA_CONTROL_LCD_BLON);
+					LVTMA_CONTROL_LCD_BLON,
+					panel_instance);
 		else
 			ctx->dc_bios->funcs->enable_lvtma_control(ctx->dc_bios,
-					LVTMA_CONTROL_LCD_BLOFF);
+					LVTMA_CONTROL_LCD_BLOFF,
+					panel_instance);
 	}
 
 	link_transmitter_control(ctx->dc_bios, &cntl);
