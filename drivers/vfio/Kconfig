@@ -21,7 +21,7 @@ config VFIO_VIRQFD
 
 menuconfig VFIO
 	tristate "VFIO Non-Privileged userspace driver framework"
-	depends on IOMMU_API
+	select IOMMU_API
 	select VFIO_IOMMU_TYPE1 if (X86 || S390 || ARM || ARM64)
 	help
 	  VFIO provides a framework for secure userspace device drivers.
