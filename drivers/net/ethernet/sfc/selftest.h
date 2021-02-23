@@ -15,8 +15,8 @@
  */
 
 struct efx_loopback_self_tests {
-	int tx_sent[EFX_TXQ_TYPES];
-	int tx_done[EFX_TXQ_TYPES];
+	int tx_sent[EFX_MAX_TXQ_PER_CHANNEL];
+	int tx_done[EFX_MAX_TXQ_PER_CHANNEL];
 	int rx_good;
 	int rx_bad;
 };

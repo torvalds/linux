@@ -120,7 +120,7 @@ static struct scsi_host_template oakscsi_template = {
 static int oakscsi_probe(struct expansion_card *ec, const struct ecard_id *id)
 {
 	struct Scsi_Host *host;
-	int ret = -ENOMEM;
+	int ret;
 
 	ret = ecard_request_resources(ec);
 	if (ret)

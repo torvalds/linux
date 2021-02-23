@@ -32,6 +32,8 @@
 #include "gen6_ppgtt.h"
 #include "gen7_renderclear.h"
 #include "i915_drv.h"
+#include "i915_mitigations.h"
+#include "intel_breadcrumbs.h"
 #include "intel_context.h"
 #include "intel_gt.h"
 #include "intel_reset.h"
@@ -201,16 +203,18 @@ static struct i915_address_space *vm_alias(struct i915_address_space *vm)
 	return vm;
 }
 
+static u32 pp_dir(struct i915_address_space *vm)
+{
+	return to_gen6_ppgtt(i915_vm_to_ppgtt(vm))->pp_dir;
+}
+
 static void set_pp_dir(struct intel_engine_cs *engine)
 {
 	struct i915_address_space *vm = vm_alias(engine->gt->vm);
 
 	if (vm) {
-		struct i915_ppgtt *ppgtt = i915_vm_to_ppgtt(vm);
-
 		ENGINE_WRITE(engine, RING_PP_DIR_DCLV, PP_DIR_DCLV_2G);
-		ENGINE_WRITE(engine, RING_PP_DIR_BASE,
-			     px_base(ppgtt->pd)->ggtt_offset << 10);
+		ENGINE_WRITE(engine, RING_PP_DIR_BASE, pp_dir(vm));
 	}
 }
 
@@ -255,7 +259,7 @@ static int xcs_resume(struct intel_engine_cs *engine)
 	else
 		ring_setup_status_page(engine);
 
-	intel_engine_reset_breadcrumbs(engine);
+	intel_breadcrumbs_reset(engine->breadcrumbs);
 
 	/* Enforce ordering by reading HEAD register back */
 	ENGINE_POSTING_READ(engine, RING_HEAD);
@@ -441,6 +445,7 @@ static void reset_cancel(struct intel_engine_cs *engine)
 		i915_request_set_error_once(request, -EIO);
 		i915_request_mark_complete(request);
 	}
+	intel_engine_signal_breadcrumbs(engine);
 
 	/* Remaining _unready_ requests will be nop'ed when submitted */
 
@@ -474,14 +479,16 @@ static void ring_context_destroy(struct kref *ref)
 	intel_context_free(ce);
 }
 
-static int __context_pin_ppgtt(struct intel_context *ce)
+static int ring_context_pre_pin(struct intel_context *ce,
+				struct i915_gem_ww_ctx *ww,
+				void **unused)
 {
 	struct i915_address_space *vm;
 	int err = 0;
 
 	vm = vm_alias(ce->vm);
 	if (vm)
-		err = gen6_ppgtt_pin(i915_vm_to_ppgtt((vm)));
+		err = gen6_ppgtt_pin(i915_vm_to_ppgtt((vm)), ww);
 
 	return err;
 }
@@ -496,6 +503,10 @@ static void __context_unpin_ppgtt(struct intel_context *ce)
 }
 
 static void ring_context_unpin(struct intel_context *ce)
+{
+}
+
+static void ring_context_post_unpin(struct intel_context *ce)
 {
 	__context_unpin_ppgtt(ce);
 }
@@ -584,9 +595,9 @@ static int ring_context_alloc(struct intel_context *ce)
 	return 0;
 }
 
-static int ring_context_pin(struct intel_context *ce)
+static int ring_context_pin(struct intel_context *ce, void *unused)
 {
-	return __context_pin_ppgtt(ce);
+	return 0;
 }
 
 static void ring_context_reset(struct intel_context *ce)
@@ -597,8 +608,10 @@ static void ring_context_reset(struct intel_context *ce)
 static const struct intel_context_ops ring_context_ops = {
 	.alloc = ring_context_alloc,
 
+	.pre_pin = ring_context_pre_pin,
 	.pin = ring_context_pin,
 	.unpin = ring_context_unpin,
+	.post_unpin = ring_context_post_unpin,
 
 	.enter = intel_context_enter_engine,
 	.exit = intel_context_exit_engine,
@@ -608,7 +621,7 @@ static const struct intel_context_ops ring_context_ops = {
 };
 
 static int load_pd_dir(struct i915_request *rq,
-		       const struct i915_ppgtt *ppgtt,
+		       struct i915_address_space *vm,
 		       u32 valid)
 {
 	const struct intel_engine_cs * const engine = rq->engine;
@@ -624,7 +637,7 @@ static int load_pd_dir(struct i915_request *rq,
 
 	*cs++ = MI_LOAD_REGISTER_IMM(1);
 	*cs++ = i915_mmio_reg_offset(RING_PP_DIR_BASE(engine->mmio_base));
-	*cs++ = px_base(ppgtt->pd)->ggtt_offset << 10;
+	*cs++ = pp_dir(vm);
 
 	/* Stall until the page table load is complete? */
 	*cs++ = MI_STORE_REGISTER_MEM | MI_SRM_LRM_GLOBAL_GTT;
@@ -826,7 +839,7 @@ static int switch_mm(struct i915_request *rq, struct i915_address_space *vm)
 	 * post-sync op, this extra pass appears vital before a
 	 * mm switch!
 	 */
-	ret = load_pd_dir(rq, i915_vm_to_ppgtt(vm), PP_DIR_DCLV_2G);
+	ret = load_pd_dir(rq, vm, PP_DIR_DCLV_2G);
 	if (ret)
 		return ret;
 
@@ -874,7 +887,8 @@ static int switch_context(struct i915_request *rq)
 	GEM_BUG_ON(HAS_EXECLISTS(engine->i915));
 
 	if (engine->wa_ctx.vma && ce != engine->kernel_context) {
-		if (engine->wa_ctx.vma->private != ce) {
+		if (engine->wa_ctx.vma->private != ce &&
+		    i915_mitigate_clear_residuals()) {
 			ret = clear_residuals(rq);
 			if (ret)
 				return ret;
@@ -1250,14 +1264,15 @@ int intel_ring_submission_setup(struct intel_engine_cs *engine)
 		return -ENODEV;
 	}
 
-	timeline = intel_timeline_create(engine->gt, engine->status_page.vma);
+	timeline = intel_timeline_create_from_engine(engine,
+						     I915_GEM_HWS_SEQNO_ADDR);
 	if (IS_ERR(timeline)) {
 		err = PTR_ERR(timeline);
 		goto err;
 	}
 	GEM_BUG_ON(timeline->has_initial_breadcrumb);
 
-	err = intel_timeline_pin(timeline);
+	err = intel_timeline_pin(timeline, NULL);
 	if (err)
 		goto err_timeline;
 
@@ -1267,7 +1282,7 @@ int intel_ring_submission_setup(struct intel_engine_cs *engine)
 		goto err_timeline_unpin;
 	}
 
-	err = intel_ring_pin(ring);
+	err = intel_ring_pin(ring, NULL);
 	if (err)
 		goto err_ring;
 
@@ -1277,7 +1292,7 @@ int intel_ring_submission_setup(struct intel_engine_cs *engine)
 
 	GEM_BUG_ON(timeline->hwsp_ggtt != engine->status_page.vma);
 
-	if (IS_HASWELL(engine->i915) && engine->class == RENDER_CLASS) {
+	if (IS_GEN(engine->i915, 7) && engine->class == RENDER_CLASS) {
 		err = gen7_ctx_switch_bb_init(engine);
 		if (err)
 			goto err_ring_unpin;

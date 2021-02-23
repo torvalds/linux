@@ -87,7 +87,7 @@ const struct regmap_config mcp23x08_regmap = {
 };
 EXPORT_SYMBOL_GPL(mcp23x08_regmap);
 
-static const struct reg_default mcp23x16_defaults[] = {
+static const struct reg_default mcp23x17_defaults[] = {
 	{.reg = MCP_IODIR << 1,		.def = 0xffff},
 	{.reg = MCP_IPOL << 1,		.def = 0x0000},
 	{.reg = MCP_GPINTEN << 1,	.def = 0x0000},
@@ -98,23 +98,23 @@ static const struct reg_default mcp23x16_defaults[] = {
 	{.reg = MCP_OLAT << 1,		.def = 0x0000},
 };
 
-static const struct regmap_range mcp23x16_volatile_range = {
+static const struct regmap_range mcp23x17_volatile_range = {
 	.range_min = MCP_INTF << 1,
 	.range_max = MCP_GPIO << 1,
 };
 
-static const struct regmap_access_table mcp23x16_volatile_table = {
-	.yes_ranges = &mcp23x16_volatile_range,
+static const struct regmap_access_table mcp23x17_volatile_table = {
+	.yes_ranges = &mcp23x17_volatile_range,
 	.n_yes_ranges = 1,
 };
 
-static const struct regmap_range mcp23x16_precious_range = {
-	.range_min = MCP_GPIO << 1,
+static const struct regmap_range mcp23x17_precious_range = {
+	.range_min = MCP_INTCAP << 1,
 	.range_max = MCP_GPIO << 1,
 };
 
-static const struct regmap_access_table mcp23x16_precious_table = {
-	.yes_ranges = &mcp23x16_precious_range,
+static const struct regmap_access_table mcp23x17_precious_table = {
+	.yes_ranges = &mcp23x17_precious_range,
 	.n_yes_ranges = 1,
 };
 
@@ -124,10 +124,10 @@ const struct regmap_config mcp23x17_regmap = {
 
 	.reg_stride = 2,
 	.max_register = MCP_OLAT << 1,
-	.volatile_table = &mcp23x16_volatile_table,
-	.precious_table = &mcp23x16_precious_table,
-	.reg_defaults = mcp23x16_defaults,
-	.num_reg_defaults = ARRAY_SIZE(mcp23x16_defaults),
+	.volatile_table = &mcp23x17_volatile_table,
+	.precious_table = &mcp23x17_precious_table,
+	.reg_defaults = mcp23x17_defaults,
+	.num_reg_defaults = ARRAY_SIZE(mcp23x17_defaults),
 	.cache_type = REGCACHE_FLAT,
 	.val_format_endian = REGMAP_ENDIAN_LITTLE,
 };
@@ -564,7 +564,7 @@ int mcp23s08_probe_one(struct mcp23s08 *mcp, struct device *dev,
 
 	ret = mcp_read(mcp, MCP_IOCON, &status);
 	if (ret < 0)
-		goto fail;
+		return dev_err_probe(dev, ret, "can't identify chip %d\n", addr);
 
 	mcp->irq_controller =
 		device_property_read_bool(dev, "interrupt-controller");
@@ -598,7 +598,7 @@ int mcp23s08_probe_one(struct mcp23s08 *mcp, struct device *dev,
 
 		ret = mcp_write(mcp, MCP_IOCON, status);
 		if (ret < 0)
-			goto fail;
+			return dev_err_probe(dev, ret, "can't write IOCON %d\n", addr);
 	}
 
 	if (mcp->irq && mcp->irq_controller) {
@@ -616,7 +616,7 @@ int mcp23s08_probe_one(struct mcp23s08 *mcp, struct device *dev,
 
 	ret = devm_gpiochip_add_data(dev, &mcp->chip, mcp);
 	if (ret < 0)
-		goto fail;
+		return dev_err_probe(dev, ret, "can't add GPIO chip\n");
 
 	mcp->pinctrl_desc.pctlops = &mcp_pinctrl_ops;
 	mcp->pinctrl_desc.confops = &mcp_pinconf_ops;
@@ -628,18 +628,17 @@ int mcp23s08_probe_one(struct mcp23s08 *mcp, struct device *dev,
 	mcp->pinctrl_desc.owner = THIS_MODULE;
 
 	mcp->pctldev = devm_pinctrl_register(dev, &mcp->pinctrl_desc, mcp);
-	if (IS_ERR(mcp->pctldev)) {
-		ret = PTR_ERR(mcp->pctldev);
-		goto fail;
+	if (IS_ERR(mcp->pctldev))
+		return dev_err_probe(dev, PTR_ERR(mcp->pctldev), "can't register controller\n");
+
+	if (mcp->irq) {
+		ret = mcp23s08_irq_setup(mcp);
+		if (ret)
+			return dev_err_probe(dev, ret, "can't setup IRQ\n");
 	}
 
-	if (mcp->irq)
-		ret = mcp23s08_irq_setup(mcp);
-
-fail:
-	if (ret < 0)
-		dev_dbg(dev, "can't setup chip %d, --> %d\n", addr, ret);
-	return ret;
+	return 0;
 }
 EXPORT_SYMBOL_GPL(mcp23s08_probe_one);
+
 MODULE_LICENSE("GPL");

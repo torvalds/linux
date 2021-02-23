@@ -14,6 +14,10 @@ description: |
   that requires the respective functionality should implement them using
   these definitions.
 
+  It is possible to assign a fixed index mmcN to an MMC host controller
+  (and the corresponding mmcblkN devices) by defining an alias in the
+  /aliases device tree node.
+
 properties:
   $nodename:
     pattern: "^mmc(@.*)?$"
@@ -255,7 +259,6 @@ properties:
       waiting for I/O signalling and card power supply to be stable,
       regardless of whether pwrseq-simple is used. Default to 10ms if
       no available.
-    $ref: /schemas/types.yaml#/definitions/uint32
     default: 10
 
   supports-cqe:
@@ -348,6 +351,8 @@ patternProperties:
 dependencies:
   cd-debounce-delay-ms: [ cd-gpios ]
   fixed-emmc-driver-type: [ non-removable ]
+
+additionalProperties: true
 
 examples:
   - |

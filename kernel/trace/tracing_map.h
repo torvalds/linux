@@ -50,7 +50,7 @@ typedef int (*tracing_map_cmp_fn_t) (void *val_a, void *val_b);
  * an instance of tracing_map_elt, where 'elt' in the latter part of
  * that variable name is short for 'element'.  The purpose of a
  * tracing_map_elt is to hold values specific to the particular
- * 32-bit hashed key it's assocated with.  Things such as the unique
+ * 32-bit hashed key it's associated with.  Things such as the unique
  * set of aggregated sums associated with the 32-bit hashed key, along
  * with a copy of the full key associated with the entry, and which
  * was used to produce the 32-bit hashed key.

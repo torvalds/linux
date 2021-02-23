@@ -240,6 +240,16 @@ struct mthca_wq {
 	__be32    *db;
 };
 
+struct mthca_sqp {
+	int             pkey_index;
+	u32             qkey;
+	u32             send_psn;
+	struct ib_ud_header ud_header;
+	int             header_buf_size;
+	void           *header_buf;
+	dma_addr_t      header_dma;
+};
+
 struct mthca_qp {
 	struct ib_qp           ibqp;
 	int                    refcount;
@@ -265,17 +275,7 @@ struct mthca_qp {
 
 	wait_queue_head_t      wait;
 	struct mutex	       mutex;
-};
-
-struct mthca_sqp {
-	struct mthca_qp qp;
-	int             pkey_index;
-	u32             qkey;
-	u32             send_psn;
-	struct ib_ud_header ud_header;
-	int             header_buf_size;
-	void           *header_buf;
-	dma_addr_t      header_dma;
+	struct mthca_sqp *sqp;
 };
 
 static inline struct mthca_ucontext *to_mucontext(struct ib_ucontext *ibucontext)
@@ -311,11 +311,6 @@ static inline struct mthca_srq *to_msrq(struct ib_srq *ibsrq)
 static inline struct mthca_qp *to_mqp(struct ib_qp *ibqp)
 {
 	return container_of(ibqp, struct mthca_qp, ibqp);
-}
-
-static inline struct mthca_sqp *to_msqp(struct mthca_qp *qp)
-{
-	return container_of(qp, struct mthca_sqp, qp);
 }
 
 #endif /* MTHCA_PROVIDER_H */

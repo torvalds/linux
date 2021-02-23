@@ -21,7 +21,7 @@
  * input device for the remote, rather than the keyboard/mouse one.
  */
 
-#define MCIR2_UNIT		333333	/* ns */
+#define MCIR2_UNIT		333	/* us */
 #define MCIR2_HEADER_NBITS	5
 #define MCIR2_MOUSE_NBITS	29
 #define MCIR2_KEYBOARD_NBITS	32
@@ -231,7 +231,7 @@ static int ir_mce_kbd_decode(struct rc_dev *dev, struct ir_raw_event ev)
 
 again:
 	dev_dbg(&dev->dev, "started at state %i (%uus %s)\n",
-		data->state, TO_US(ev.duration), TO_STR(ev.pulse));
+		data->state, ev.duration, TO_STR(ev.pulse));
 
 	if (!geq_margin(ev.duration, MCIR2_UNIT, MCIR2_UNIT / 2))
 		return 0;
@@ -320,7 +320,7 @@ again:
 				data->body);
 			spin_lock(&data->keylock);
 			if (scancode) {
-				delay = nsecs_to_jiffies(dev->timeout) +
+				delay = usecs_to_jiffies(dev->timeout) +
 					msecs_to_jiffies(100);
 				mod_timer(&data->rx_timeout, jiffies + delay);
 			} else {
@@ -344,7 +344,7 @@ again:
 		}
 
 		lsc.scancode = scancode;
-		ir_lirc_scancode_event(dev, &lsc);
+		lirc_scancode_event(dev, &lsc);
 		data->state = STATE_INACTIVE;
 		input_event(dev->input_dev, EV_MSC, MSC_SCAN, scancode);
 		input_sync(dev->input_dev);
@@ -353,7 +353,7 @@ again:
 
 out:
 	dev_dbg(&dev->dev, "failed at state %i (%uus %s)\n",
-		data->state, TO_US(ev.duration), TO_STR(ev.pulse));
+		data->state, ev.duration, TO_STR(ev.pulse));
 	data->state = STATE_INACTIVE;
 	return -EINVAL;
 }

@@ -17,7 +17,6 @@ config NDS32
 	select DMA_DIRECT_REMAP
 	select GENERIC_ATOMIC64
 	select GENERIC_CPU_DEVICES
-	select GENERIC_CLOCKEVENTS
 	select GENERIC_IRQ_CHIP
 	select GENERIC_IRQ_SHOW
 	select GENERIC_IOREMAP
@@ -48,6 +47,7 @@ config NDS32
 	select HAVE_FUNCTION_GRAPH_TRACER
 	select HAVE_FTRACE_MCOUNT_RECORD
 	select HAVE_DYNAMIC_FTRACE
+	select SET_FS
 	help
 	  Andes(nds32) Linux support.
 

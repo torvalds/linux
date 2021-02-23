@@ -494,10 +494,9 @@ static void dwmac4_set_vlan(struct dma_desc *p, u32 type)
 	p->des2 |= cpu_to_le32(type & TDES2_VLAN_TAG_MASK);
 }
 
-static int dwmac4_get_rx_header_len(struct dma_desc *p, unsigned int *len)
+static void dwmac4_get_rx_header_len(struct dma_desc *p, unsigned int *len)
 {
 	*len = le32_to_cpu(p->des2) & RDES2_HL;
-	return 0;
 }
 
 static void dwmac4_set_sec_addr(struct dma_desc *p, dma_addr_t addr)

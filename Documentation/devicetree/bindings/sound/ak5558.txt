@@ -10,6 +10,8 @@ Required properties:
 Optional properties:
 
 - reset-gpios: A GPIO specifier for the power down & reset pin.
+- AVDD-supply: Analog power supply
+- DVDD-supply: Digital power supply
 
 Example:
 

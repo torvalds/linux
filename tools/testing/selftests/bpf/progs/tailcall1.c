@@ -26,20 +26,20 @@ int entry(struct __sk_buff *skb)
 	/* Multiple locations to make sure we patch
 	 * all of them.
 	 */
-	bpf_tail_call(skb, &jmp_table, 0);
-	bpf_tail_call(skb, &jmp_table, 0);
-	bpf_tail_call(skb, &jmp_table, 0);
-	bpf_tail_call(skb, &jmp_table, 0);
+	bpf_tail_call_static(skb, &jmp_table, 0);
+	bpf_tail_call_static(skb, &jmp_table, 0);
+	bpf_tail_call_static(skb, &jmp_table, 0);
+	bpf_tail_call_static(skb, &jmp_table, 0);
 
-	bpf_tail_call(skb, &jmp_table, 1);
-	bpf_tail_call(skb, &jmp_table, 1);
-	bpf_tail_call(skb, &jmp_table, 1);
-	bpf_tail_call(skb, &jmp_table, 1);
+	bpf_tail_call_static(skb, &jmp_table, 1);
+	bpf_tail_call_static(skb, &jmp_table, 1);
+	bpf_tail_call_static(skb, &jmp_table, 1);
+	bpf_tail_call_static(skb, &jmp_table, 1);
 
-	bpf_tail_call(skb, &jmp_table, 2);
-	bpf_tail_call(skb, &jmp_table, 2);
-	bpf_tail_call(skb, &jmp_table, 2);
-	bpf_tail_call(skb, &jmp_table, 2);
+	bpf_tail_call_static(skb, &jmp_table, 2);
+	bpf_tail_call_static(skb, &jmp_table, 2);
+	bpf_tail_call_static(skb, &jmp_table, 2);
+	bpf_tail_call_static(skb, &jmp_table, 2);
 
 	return 3;
 }

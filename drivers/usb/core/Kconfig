@@ -32,6 +32,20 @@ config USB_DEFAULT_PERSIST
 	  If you have any questions about this, say Y here, only say N
 	  if you know exactly what you are doing.
 
+config USB_FEW_INIT_RETRIES
+	bool "Limit USB device initialization to only a few retries"
+	help
+	  When a new USB device is detected, the kernel tries very hard
+	  to initialize and enumerate it, with lots of nested retry loops.
+	  This almost always works, but when it fails it can take a long time.
+	  This option tells the kernel to make only a few retry attempts,
+	  so that the total time required for a failed initialization is
+	  no more than 30 seconds (as required by the USB OTG spec).
+
+	  Say N here unless you require new-device enumeration failure to
+	  occur within 30 seconds (as might be needed in an embedded
+	  application).
+
 config USB_DYNAMIC_MINORS
 	bool "Dynamic USB minor allocation"
 	help

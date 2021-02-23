@@ -54,4 +54,7 @@ properties:
           - enum:
               - realtek,mjolnir # Realtek Mjolnir EVB
           - const: realtek,rtd1619
+
+additionalProperties: true
+
 ...

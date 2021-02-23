@@ -51,6 +51,7 @@ properties:
               - renesas,scif-r8a774a1     # RZ/G2M
               - renesas,scif-r8a774b1     # RZ/G2N
               - renesas,scif-r8a774c0     # RZ/G2E
+              - renesas,scif-r8a774e1     # RZ/G2H
               - renesas,scif-r8a7795      # R-Car H3
               - renesas,scif-r8a7796      # R-Car M3-W
               - renesas,scif-r8a77961     # R-Car M3-W+
@@ -59,6 +60,7 @@ properties:
               - renesas,scif-r8a77980     # R-Car V3H
               - renesas,scif-r8a77990     # R-Car E3
               - renesas,scif-r8a77995     # R-Car D3
+              - renesas,scif-r8a779a0     # R-Car V3U
           - const: renesas,rcar-gen3-scif # R-Car Gen3 and RZ/G2
           - const: renesas,scif           # generic SCIF compatible UART
 
@@ -148,6 +150,8 @@ if:
 then:
   required:
     - resets
+
+unevaluatedProperties: false
 
 examples:
   - |

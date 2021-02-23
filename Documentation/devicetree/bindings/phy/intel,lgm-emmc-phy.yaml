@@ -23,7 +23,9 @@ description: |+
 
 properties:
   compatible:
-    const: intel,lgm-emmc-phy
+    oneOf:
+      - const: intel,lgm-emmc-phy
+      - const: intel,keembay-emmc-phy
 
   "#phy-cells":
     const: 0
@@ -33,6 +35,10 @@ properties:
 
   clocks:
     maxItems: 1
+
+  clock-names:
+    items:
+      - const: emmcclk
 
 required:
   - "#phy-cells"
@@ -56,5 +62,14 @@ examples:
         clocks = <&emmc>;
         #phy-cells = <0>;
       };
+    };
+
+  - |
+    phy@20290000 {
+          compatible = "intel,keembay-emmc-phy";
+          reg = <0x20290000 0x54>;
+          clocks = <&emmc>;
+          clock-names = "emmcclk";
+          #phy-cells = <0>;
     };
 ...

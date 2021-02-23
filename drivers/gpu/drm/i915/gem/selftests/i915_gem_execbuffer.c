@@ -32,46 +32,39 @@ static int __igt_gpu_reloc(struct i915_execbuffer *eb,
 	if (IS_ERR(vma))
 		return PTR_ERR(vma);
 
-	err = i915_vma_pin(vma, 0, 0, PIN_USER | PIN_HIGH);
+	err = i915_gem_object_lock(obj, &eb->ww);
+	if (err)
+		return err;
+
+	err = i915_vma_pin_ww(vma, &eb->ww, 0, 0, PIN_USER | PIN_HIGH);
 	if (err)
 		return err;
 
 	/* 8-Byte aligned */
-	if (!__reloc_entry_gpu(eb, vma,
-			       offsets[0] * sizeof(u32),
-			       0)) {
-		err = -EIO;
-		goto unpin_vma;
-	}
+	err = __reloc_entry_gpu(eb, vma, offsets[0] * sizeof(u32), 0);
+	if (err <= 0)
+		goto reloc_err;
 
 	/* !8-Byte aligned */
-	if (!__reloc_entry_gpu(eb, vma,
-			       offsets[1] * sizeof(u32),
-			       1)) {
-		err = -EIO;
-		goto unpin_vma;
-	}
+	err = __reloc_entry_gpu(eb, vma, offsets[1] * sizeof(u32), 1);
+	if (err <= 0)
+		goto reloc_err;
 
 	/* Skip to the end of the cmd page */
-	i = PAGE_SIZE / sizeof(u32) - RELOC_TAIL - 1;
+	i = PAGE_SIZE / sizeof(u32) - 1;
 	i -= eb->reloc_cache.rq_size;
 	memset32(eb->reloc_cache.rq_cmd + eb->reloc_cache.rq_size,
 		 MI_NOOP, i);
 	eb->reloc_cache.rq_size += i;
 
-	/* Force batch chaining */
-	if (!__reloc_entry_gpu(eb, vma,
-			       offsets[2] * sizeof(u32),
-			       2)) {
-		err = -EIO;
-		goto unpin_vma;
-	}
+	/* Force next batch */
+	err = __reloc_entry_gpu(eb, vma, offsets[2] * sizeof(u32), 2);
+	if (err <= 0)
+		goto reloc_err;
 
 	GEM_BUG_ON(!eb->reloc_cache.rq);
 	rq = i915_request_get(eb->reloc_cache.rq);
-	err = reloc_gpu_flush(&eb->reloc_cache);
-	if (err)
-		goto put_rq;
+	reloc_gpu_flush(eb, &eb->reloc_cache);
 	GEM_BUG_ON(eb->reloc_cache.rq);
 
 	err = i915_gem_object_wait(obj, I915_WAIT_INTERRUPTIBLE, HZ / 2);
@@ -103,6 +96,11 @@ put_rq:
 unpin_vma:
 	i915_vma_unpin(vma);
 	return err;
+
+reloc_err:
+	if (!err)
+		err = -EIO;
+	goto unpin_vma;
 }
 
 static int igt_gpu_reloc(void *arg)
@@ -124,6 +122,8 @@ static int igt_gpu_reloc(void *arg)
 		goto err_scratch;
 	}
 
+	intel_gt_pm_get(&eb.i915->gt);
+
 	for_each_uabi_engine(eb.engine, eb.i915) {
 		reloc_cache_init(&eb.reloc_cache, eb.i915);
 		memset(map, POISON_INUSE, 4096);
@@ -134,15 +134,29 @@ static int igt_gpu_reloc(void *arg)
 			err = PTR_ERR(eb.context);
 			goto err_pm;
 		}
+		eb.reloc_pool = NULL;
+		eb.reloc_context = NULL;
 
-		err = intel_context_pin(eb.context);
-		if (err)
-			goto err_put;
+		i915_gem_ww_ctx_init(&eb.ww, false);
+retry:
+		err = intel_context_pin_ww(eb.context, &eb.ww);
+		if (!err) {
+			err = __igt_gpu_reloc(&eb, scratch);
 
-		err = __igt_gpu_reloc(&eb, scratch);
+			intel_context_unpin(eb.context);
+		}
+		if (err == -EDEADLK) {
+			err = i915_gem_ww_ctx_backoff(&eb.ww);
+			if (!err)
+				goto retry;
+		}
+		i915_gem_ww_ctx_fini(&eb.ww);
 
-		intel_context_unpin(eb.context);
-err_put:
+		if (eb.reloc_pool)
+			intel_gt_buffer_pool_put(eb.reloc_pool);
+		if (eb.reloc_context)
+			intel_context_put(eb.reloc_context);
+
 		intel_context_put(eb.context);
 err_pm:
 		intel_engine_pm_put(eb.engine);
@@ -153,6 +167,7 @@ err_pm:
 	if (igt_flush_test(eb.i915))
 		err = -EIO;
 
+	intel_gt_pm_put(&eb.i915->gt);
 err_scratch:
 	i915_gem_object_put(scratch);
 	return err;

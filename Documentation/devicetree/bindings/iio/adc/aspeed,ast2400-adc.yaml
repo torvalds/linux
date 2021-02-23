@@ -1,0 +1,55 @@
+# SPDX-License-Identifier: (GPL-2.0 OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/iio/adc/aspeed,ast2400-adc.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: ADC that forms part of an ASPEED server management processor.
+
+maintainers:
+  - Joel Stanley <joel@jms.id.au>
+
+description:
+  This device is a 10-bit converter for 16 voltage channels.  All inputs are
+  single ended.
+
+properties:
+  compatible:
+    enum:
+      - aspeed,ast2400-adc
+      - aspeed,ast2500-adc
+
+  reg:
+    maxItems: 1
+
+  clocks:
+    description:
+      Input clock used to derive the sample clock. Expected to be the
+      SoC's APB clock.
+
+  resets:
+    maxItems: 1
+
+  "#io-channel-cells":
+    const: 1
+
+required:
+  - compatible
+  - reg
+  - clocks
+  - resets
+  - "#io-channel-cells"
+
+additionalProperties: false
+
+examples:
+  - |
+    #include <dt-bindings/clock/aspeed-clock.h>
+    adc@1e6e9000 {
+        compatible = "aspeed,ast2400-adc";
+        reg = <0x1e6e9000 0xb0>;
+        clocks = <&syscon ASPEED_CLK_APB>;
+        resets = <&syscon ASPEED_RESET_ADC>;
+        #io-channel-cells = <1>;
+    };
+...

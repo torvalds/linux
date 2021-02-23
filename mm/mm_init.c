@@ -173,6 +173,7 @@ static int __meminit mm_compute_batch_notifier(struct notifier_block *self,
 	case MEM_ONLINE:
 	case MEM_OFFLINE:
 		mm_compute_batch(sysctl_overcommit_memory);
+		break;
 	default:
 		break;
 	}

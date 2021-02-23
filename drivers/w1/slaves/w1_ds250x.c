@@ -215,7 +215,7 @@ static int w1_eprom_add_slave(struct w1_slave *sl)
 	return PTR_ERR_OR_ZERO(nvmem);
 }
 
-static struct w1_family_ops w1_eprom_fops = {
+static const struct w1_family_ops w1_eprom_fops = {
 	.add_slave	= w1_eprom_add_slave,
 };
 

@@ -16,11 +16,9 @@ struct debug_reply_data {
 #define DEBUG_REPDATA(__reply_base) \
 	container_of(__reply_base, struct debug_reply_data, base)
 
-static const struct nla_policy
-debug_get_policy[ETHTOOL_A_DEBUG_MAX + 1] = {
-	[ETHTOOL_A_DEBUG_UNSPEC]	= { .type = NLA_REJECT },
-	[ETHTOOL_A_DEBUG_HEADER]	= { .type = NLA_NESTED },
-	[ETHTOOL_A_DEBUG_MSGMASK]	= { .type = NLA_REJECT },
+const struct nla_policy ethnl_debug_get_policy[] = {
+	[ETHTOOL_A_DEBUG_HEADER]	=
+		NLA_POLICY_NESTED(ethnl_header_policy),
 };
 
 static int debug_prepare_data(const struct ethnl_req_info *req_base,
@@ -69,10 +67,8 @@ const struct ethnl_request_ops ethnl_debug_request_ops = {
 	.request_cmd		= ETHTOOL_MSG_DEBUG_GET,
 	.reply_cmd		= ETHTOOL_MSG_DEBUG_GET_REPLY,
 	.hdr_attr		= ETHTOOL_A_DEBUG_HEADER,
-	.max_attr		= ETHTOOL_A_DEBUG_MAX,
 	.req_info_size		= sizeof(struct debug_req_info),
 	.reply_data_size	= sizeof(struct debug_reply_data),
-	.request_policy		= debug_get_policy,
 
 	.prepare_data		= debug_prepare_data,
 	.reply_size		= debug_reply_size,
@@ -81,27 +77,21 @@ const struct ethnl_request_ops ethnl_debug_request_ops = {
 
 /* DEBUG_SET */
 
-static const struct nla_policy
-debug_set_policy[ETHTOOL_A_DEBUG_MAX + 1] = {
-	[ETHTOOL_A_DEBUG_UNSPEC]	= { .type = NLA_REJECT },
-	[ETHTOOL_A_DEBUG_HEADER]	= { .type = NLA_NESTED },
+const struct nla_policy ethnl_debug_set_policy[] = {
+	[ETHTOOL_A_DEBUG_HEADER]	=
+		NLA_POLICY_NESTED(ethnl_header_policy),
 	[ETHTOOL_A_DEBUG_MSGMASK]	= { .type = NLA_NESTED },
 };
 
 int ethnl_set_debug(struct sk_buff *skb, struct genl_info *info)
 {
-	struct nlattr *tb[ETHTOOL_A_DEBUG_MAX + 1];
 	struct ethnl_req_info req_info = {};
+	struct nlattr **tb = info->attrs;
 	struct net_device *dev;
 	bool mod = false;
 	u32 msg_mask;
 	int ret;
 
-	ret = nlmsg_parse(info->nlhdr, GENL_HDRLEN, tb,
-			  ETHTOOL_A_DEBUG_MAX, debug_set_policy,
-			  info->extack);
-	if (ret < 0)
-		return ret;
 	ret = ethnl_parse_header_dev_get(&req_info,
 					 tb[ETHTOOL_A_DEBUG_HEADER],
 					 genl_info_net(info), info->extack,

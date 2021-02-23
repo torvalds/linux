@@ -144,44 +144,21 @@ cpte:	bne	csum_partial_end_cruft			! yep, handle it
 cpout:	retl						! get outta here
 	 mov	%o2, %o0				! return computed csum
 
-	.globl __csum_partial_copy_start, __csum_partial_copy_end
-__csum_partial_copy_start:
-
 /* Work around cpp -rob */
 #define ALLOC #alloc
 #define EXECINSTR #execinstr
-#define EX(x,y,a,b)				\
-98:     x,y;                                    \
-        .section .fixup,ALLOC,EXECINSTR;	\
-        .align  4;                              \
-99:     ba 30f;                                 \
-         a, b, %o3;                             \
-        .section __ex_table,ALLOC;		\
-        .align  4;                              \
-        .word   98b, 99b;                       \
-        .text;                                  \
-        .align  4
-
-#define EX2(x,y)				\
+#define EX(x,y)					\
 98:     x,y;                                    \
         .section __ex_table,ALLOC;		\
         .align  4;                              \
-        .word   98b, 30f;                       \
+        .word   98b, cc_fault;                   \
         .text;                                  \
         .align  4
 
-#define EX3(x,y)				\
-98:     x,y;                                    \
+#define EXT(start,end)				\
         .section __ex_table,ALLOC;		\
         .align  4;                              \
-        .word   98b, 96f;                       \
-        .text;                                  \
-        .align  4
-
-#define EXT(start,end,handler)			\
-        .section __ex_table,ALLOC;		\
-        .align  4;                              \
-        .word   start, 0, end, handler;         \
+        .word   start, 0, end, cc_fault;         \
         .text;                                  \
         .align  4
 
@@ -252,21 +229,21 @@ __csum_partial_copy_start:
 cc_end_cruft:
 	be	1f
 	 andcc	%o3, 4, %g0
-	EX(ldd	[%o0 + 0x00], %g2, and %o3, 0xf)
+	EX(ldd	[%o0 + 0x00], %g2)
 	add	%o1, 8, %o1
 	addcc	%g2, %g7, %g7
 	add	%o0, 8, %o0
 	addxcc	%g3, %g7, %g7
-	EX2(st	%g2, [%o1 - 0x08])
+	EX(st	%g2, [%o1 - 0x08])
 	addx	%g0, %g7, %g7
 	andcc	%o3, 4, %g0
-	EX2(st	%g3, [%o1 - 0x04])
+	EX(st	%g3, [%o1 - 0x04])
 1:	be	1f
 	 andcc	%o3, 3, %o3
-	EX(ld	[%o0 + 0x00], %g2, add %o3, 4)
+	EX(ld	[%o0 + 0x00], %g2)
 	add	%o1, 4, %o1
 	addcc	%g2, %g7, %g7
-	EX2(st	%g2, [%o1 - 0x04])
+	EX(st	%g2, [%o1 - 0x04])
 	addx	%g0, %g7, %g7
 	andcc	%o3, 3, %g0
 	add	%o0, 4, %o0
@@ -276,14 +253,14 @@ cc_end_cruft:
 	 subcc	%o3, 2, %o3
 	b	4f
 	 or	%g0, %g0, %o4
-2:	EX(lduh	[%o0 + 0x00], %o4, add %o3, 2)
+2:	EX(lduh	[%o0 + 0x00], %o4)
 	add	%o0, 2, %o0
-	EX2(sth	%o4, [%o1 + 0x00])
+	EX(sth	%o4, [%o1 + 0x00])
 	be	6f
 	 add	%o1, 2, %o1
 	sll	%o4, 16, %o4
-4:	EX(ldub	[%o0 + 0x00], %o5, add %g0, 1)
-	EX2(stb	%o5, [%o1 + 0x00])
+4:	EX(ldub	[%o0 + 0x00], %o5)
+	EX(stb	%o5, [%o1 + 0x00])
 	sll	%o5, 8, %o5
 	or	%o5, %o4, %o4
 6:	addcc	%o4, %g7, %g7
@@ -306,9 +283,9 @@ cc_dword_align:
 	 andcc	%o0, 0x2, %g0
 	be	1f
 	 andcc	%o0, 0x4, %g0
-	EX(lduh	[%o0 + 0x00], %g4, add %g1, 0)
+	EX(lduh	[%o0 + 0x00], %g4)
 	sub	%g1, 2, %g1
-	EX2(sth	%g4, [%o1 + 0x00])
+	EX(sth	%g4, [%o1 + 0x00])
 	add	%o0, 2, %o0
 	sll	%g4, 16, %g4
 	addcc	%g4, %g7, %g7
@@ -322,9 +299,9 @@ cc_dword_align:
 	or	%g3, %g7, %g7
 1:	be	3f
 	 andcc	%g1, 0xffffff80, %g0
-	EX(ld	[%o0 + 0x00], %g4, add %g1, 0)
+	EX(ld	[%o0 + 0x00], %g4)
 	sub	%g1, 4, %g1
-	EX2(st	%g4, [%o1 + 0x00])
+	EX(st	%g4, [%o1 + 0x00])
 	add	%o0, 4, %o0
 	addcc	%g4, %g7, %g7
 	add	%o1, 4, %o1
@@ -354,7 +331,7 @@ __csum_partial_copy_sparc_generic:
 	CSUMCOPY_BIGCHUNK(%o0,%o1,%g7,0x20,%o4,%o5,%g2,%g3,%g4,%g5,%o2,%o3)
 	CSUMCOPY_BIGCHUNK(%o0,%o1,%g7,0x40,%o4,%o5,%g2,%g3,%g4,%g5,%o2,%o3)
 	CSUMCOPY_BIGCHUNK(%o0,%o1,%g7,0x60,%o4,%o5,%g2,%g3,%g4,%g5,%o2,%o3)
-10:	EXT(5b, 10b, 20f)		! note for exception handling
+10:	EXT(5b, 10b)			! note for exception handling
 	sub	%g1, 128, %g1		! detract from length
 	addx	%g0, %g7, %g7		! add in last carry bit
 	andcc	%g1, 0xffffff80, %g0	! more to csum?
@@ -379,7 +356,7 @@ cctbl:	CSUMCOPY_LASTCHUNK(%o0,%o1,%g7,0x68,%g2,%g3,%g4,%g5)
 	CSUMCOPY_LASTCHUNK(%o0,%o1,%g7,0x28,%g2,%g3,%g4,%g5)
 	CSUMCOPY_LASTCHUNK(%o0,%o1,%g7,0x18,%g2,%g3,%g4,%g5)
 	CSUMCOPY_LASTCHUNK(%o0,%o1,%g7,0x08,%g2,%g3,%g4,%g5)
-12:	EXT(cctbl, 12b, 22f)		! note for exception table handling
+12:	EXT(cctbl, 12b)			! note for exception table handling
 	addx	%g0, %g7, %g7
 	andcc	%o3, 0xf, %g0		! check for low bits set
 ccte:	bne	cc_end_cruft		! something left, handle it out of band
@@ -390,7 +367,7 @@ ccdbl:	CSUMCOPY_BIGCHUNK_ALIGNED(%o0,%o1,%g7,0x00,%o4,%o5,%g2,%g3,%g4,%g5,%o2,%o
 	CSUMCOPY_BIGCHUNK_ALIGNED(%o0,%o1,%g7,0x20,%o4,%o5,%g2,%g3,%g4,%g5,%o2,%o3)
 	CSUMCOPY_BIGCHUNK_ALIGNED(%o0,%o1,%g7,0x40,%o4,%o5,%g2,%g3,%g4,%g5,%o2,%o3)
 	CSUMCOPY_BIGCHUNK_ALIGNED(%o0,%o1,%g7,0x60,%o4,%o5,%g2,%g3,%g4,%g5,%o2,%o3)
-11:	EXT(ccdbl, 11b, 21f)		! note for exception table handling
+11:	EXT(ccdbl, 11b)			! note for exception table handling
 	sub	%g1, 128, %g1		! detract from length
 	addx	%g0, %g7, %g7		! add in last carry bit
 	andcc	%g1, 0xffffff80, %g0	! more to csum?
@@ -407,9 +384,9 @@ ccslow:	cmp	%g1, 0
 	be,a	1f
 	 srl	%g1, 1, %g4		
 	sub	%g1, 1, %g1	
-	EX(ldub	[%o0], %g5, add %g1, 1)
+	EX(ldub	[%o0], %g5)
 	add	%o0, 1, %o0	
-	EX2(stb	%g5, [%o1])
+	EX(stb	%g5, [%o1])
 	srl	%g1, 1, %g4
 	add	%o1, 1, %o1
 1:	cmp	%g4, 0		
@@ -418,34 +395,34 @@ ccslow:	cmp	%g1, 0
 	andcc	%o0, 2, %g0	
 	be,a	1f
 	 srl	%g4, 1, %g4
-	EX(lduh	[%o0], %o4, add %g1, 0)
+	EX(lduh	[%o0], %o4)
 	sub	%g1, 2, %g1	
 	srl	%o4, 8, %g2
 	sub	%g4, 1, %g4	
-	EX2(stb	%g2, [%o1])
+	EX(stb	%g2, [%o1])
 	add	%o4, %g5, %g5
-	EX2(stb	%o4, [%o1 + 1])
+	EX(stb	%o4, [%o1 + 1])
 	add	%o0, 2, %o0	
 	srl	%g4, 1, %g4
 	add	%o1, 2, %o1
 1:	cmp	%g4, 0		
 	be,a	2f
 	 andcc	%g1, 2, %g0
-	EX3(ld	[%o0], %o4)
+	EX(ld	[%o0], %o4)
 5:	srl	%o4, 24, %g2
 	srl	%o4, 16, %g3
-	EX2(stb	%g2, [%o1])
+	EX(stb	%g2, [%o1])
 	srl	%o4, 8, %g2
-	EX2(stb	%g3, [%o1 + 1])
+	EX(stb	%g3, [%o1 + 1])
 	add	%o0, 4, %o0
-	EX2(stb	%g2, [%o1 + 2])
+	EX(stb	%g2, [%o1 + 2])
 	addcc	%o4, %g5, %g5
-	EX2(stb	%o4, [%o1 + 3])
+	EX(stb	%o4, [%o1 + 3])
 	addx	%g5, %g0, %g5	! I am now to lazy to optimize this (question it
 	add	%o1, 4, %o1	! is worthy). Maybe some day - with the sll/srl
 	subcc	%g4, 1, %g4	! tricks
 	bne,a	5b
-	 EX3(ld	[%o0], %o4)
+	 EX(ld	[%o0], %o4)
 	sll	%g5, 16, %g2
 	srl	%g5, 16, %g5
 	srl	%g2, 16, %g2
@@ -453,19 +430,19 @@ ccslow:	cmp	%g1, 0
 	add	%g2, %g5, %g5 
 2:	be,a	3f		
 	 andcc	%g1, 1, %g0
-	EX(lduh	[%o0], %o4, and %g1, 3)
+	EX(lduh	[%o0], %o4)
 	andcc	%g1, 1, %g0
 	srl	%o4, 8, %g2
 	add	%o0, 2, %o0	
-	EX2(stb	%g2, [%o1])
+	EX(stb	%g2, [%o1])
 	add	%g5, %o4, %g5
-	EX2(stb	%o4, [%o1 + 1])
+	EX(stb	%o4, [%o1 + 1])
 	add	%o1, 2, %o1
 3:	be,a	1f		
 	 sll	%g5, 16, %o4
-	EX(ldub	[%o0], %g2, add %g0, 1)
+	EX(ldub	[%o0], %g2)
 	sll	%g2, 8, %o4	
-	EX2(stb	%g2, [%o1])
+	EX(stb	%g2, [%o1])
 	add	%g5, %o4, %g5
 	sll	%g5, 16, %o4
 1:	addcc	%o4, %g5, %g5
@@ -481,113 +458,10 @@ ccslow:	cmp	%g1, 0
 4:	addcc	%g7, %g5, %g7
 	retl	
 	 addx	%g0, %g7, %o0
-__csum_partial_copy_end:
 
 /* We do these strange calculations for the csum_*_from_user case only, ie.
  * we only bother with faults on loads... */
 
-/* o2 = ((g2%20)&3)*8
- * o3 = g1 - (g2/20)*32 - o2 */
-20:
-	cmp	%g2, 20
-	blu,a	1f
-	 and	%g2, 3, %o2
-	sub	%g1, 32, %g1
-	b	20b
-	 sub	%g2, 20, %g2
-1:
-	sll	%o2, 3, %o2
-	b	31f
-	 sub	%g1, %o2, %o3
-
-/* o2 = (!(g2 & 15) ? 0 : (((g2 & 15) + 1) & ~1)*8)
- * o3 = g1 - (g2/16)*32 - o2 */
-21:
-	andcc	%g2, 15, %o3
-	srl	%g2, 4, %g2
-	be,a	1f
-	 clr	%o2
-	add	%o3, 1, %o3
-	and	%o3, 14, %o3
-	sll	%o3, 3, %o2
-1:
-	sll	%g2, 5, %g2
-	sub	%g1, %g2, %o3
-	b	31f
-	 sub	%o3, %o2, %o3
-
-/* o0 += (g2/10)*16 - 0x70
- * 01 += (g2/10)*16 - 0x70
- * o2 = (g2 % 10) ? 8 : 0
- * o3 += 0x70 - (g2/10)*16 - o2 */
-22:
-	cmp	%g2, 10
-	blu,a	1f
-	 sub	%o0, 0x70, %o0
-	add	%o0, 16, %o0
-	add	%o1, 16, %o1
-	sub	%o3, 16, %o3
-	b	22b
-	 sub	%g2, 10, %g2
-1:
-	sub	%o1, 0x70, %o1
-	add	%o3, 0x70, %o3
-	clr	%o2
-	tst	%g2
-	bne,a	1f
-	 mov	8, %o2
-1:
-	b	31f
-	 sub	%o3, %o2, %o3
-96:
-	and	%g1, 3, %g1
-	sll	%g4, 2, %g4
-	add	%g1, %g4, %o3
-30:
-/* %o1 is dst
- * %o3 is # bytes to zero out
- * %o4 is faulting address
- * %o5 is %pc where fault occurred */
-	clr	%o2
-31:
-/* %o0 is src
- * %o1 is dst
- * %o2 is # of bytes to copy from src to dst
- * %o3 is # bytes to zero out
- * %o4 is faulting address
- * %o5 is %pc where fault occurred */
-	save	%sp, -104, %sp
-        mov     %i5, %o0
-        mov     %i7, %o1
-        mov	%i4, %o2
-        call    lookup_fault
-	 mov	%g7, %i4
-	cmp	%o0, 2
-	bne	1f	
-	 add	%g0, -EFAULT, %i5
-	tst	%i2
-	be	2f
-	 mov	%i0, %o1
-	mov	%i1, %o0
-5:
-	call	memcpy
-	 mov	%i2, %o2
-	tst	%o0
-	bne,a	2f
-	 add	%i3, %i2, %i3
-	add	%i1, %i2, %i1
-2:
-	mov	%i1, %o0
-6:
-	call	__bzero
-	 mov	%i3, %o1
-1:
-	ld	[%sp + 168], %o2		! struct_ptr of parent
-	st	%i5, [%o2]
+cc_fault:
 	ret
-	 restore
-
-        .section __ex_table,#alloc
-        .align 4
-        .word 5b,2
-	.word 6b,2
+	 clr	%o0

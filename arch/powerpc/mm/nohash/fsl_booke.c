@@ -219,6 +219,16 @@ unsigned long __init mmu_mapin_ram(unsigned long base, unsigned long top)
 	return tlbcam_addrs[tlbcam_index - 1].limit - PAGE_OFFSET + 1;
 }
 
+void flush_instruction_cache(void)
+{
+	unsigned long tmp;
+
+	tmp = mfspr(SPRN_L1CSR1);
+	tmp |= L1CSR1_ICFI | L1CSR1_ICLFR;
+	mtspr(SPRN_L1CSR1, tmp);
+	isync();
+}
+
 /*
  * MMU_init_hw does the chip-specific initialization of the MMU hardware.
  */

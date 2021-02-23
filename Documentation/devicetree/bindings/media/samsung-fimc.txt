@@ -95,7 +95,7 @@ Optional properties:
 
 This node should contain child 'port' nodes specifying active parallel video
 input ports. It includes camera A and camera B inputs. 'reg' property in the
-port nodes specifies data input - 0, 1 indicates input A, B respectively.
+port nodes specifies data input - 1, 2 indicates input A, B respectively.
 
 Optional properties
 
@@ -172,8 +172,8 @@ Example:
 		/* parallel camera ports */
 		parallel-ports {
 			/* camera A input */
-			port@0 {
-				reg = <0>;
+			port@1 {
+				reg = <1>;
 				fimc0_ep: endpoint {
 					remote-endpoint = <&s5k6aa_ep>;
 					bus-width = <8>;

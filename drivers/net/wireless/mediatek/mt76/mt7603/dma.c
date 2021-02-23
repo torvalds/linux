@@ -4,29 +4,6 @@
 #include "mac.h"
 #include "../dma.h"
 
-static int
-mt7603_init_tx_queue(struct mt7603_dev *dev, struct mt76_sw_queue *q,
-		     int idx, int n_desc)
-{
-	struct mt76_queue *hwq;
-	int err;
-
-	hwq = devm_kzalloc(dev->mt76.dev, sizeof(*hwq), GFP_KERNEL);
-	if (!hwq)
-		return -ENOMEM;
-
-	err = mt76_queue_alloc(dev, hwq, idx, n_desc, 0, MT_TX_RING_BASE);
-	if (err < 0)
-		return err;
-
-	INIT_LIST_HEAD(&q->swq);
-	q->q = hwq;
-
-	mt7603_irq_enable(dev, MT_INT_TX_DONE(idx));
-
-	return 0;
-}
-
 static void
 mt7603_rx_loopback_skb(struct mt7603_dev *dev, struct sk_buff *skb)
 {
@@ -123,7 +100,7 @@ void mt7603_queue_rx_skb(struct mt76_dev *mdev, enum mt76_rxq_id q,
 			mt76_rx(&dev->mt76, q, skb);
 			return;
 		}
-		/* fall through */
+		fallthrough;
 	default:
 		dev_kfree_skb(skb);
 		break;
@@ -154,18 +131,20 @@ static int mt7603_poll_tx(struct napi_struct *napi, int budget)
 	dev = container_of(napi, struct mt7603_dev, mt76.tx_napi);
 	dev->tx_dma_check = 0;
 
-	for (i = MT_TXQ_MCU; i >= 0; i--)
-		mt76_queue_tx_cleanup(dev, i, false);
+	mt76_queue_tx_cleanup(dev, dev->mt76.q_mcu[MT_MCUQ_WM], false);
+	for (i = MT_TXQ_PSD; i >= 0; i--)
+		mt76_queue_tx_cleanup(dev, dev->mphy.q_tx[i], false);
 
 	if (napi_complete_done(napi, 0))
 		mt7603_irq_enable(dev, MT_INT_TX_DONE_ALL);
 
-	for (i = MT_TXQ_MCU; i >= 0; i--)
-		mt76_queue_tx_cleanup(dev, i, false);
+	mt76_queue_tx_cleanup(dev, dev->mt76.q_mcu[MT_MCUQ_WM], false);
+	for (i = MT_TXQ_PSD; i >= 0; i--)
+		mt76_queue_tx_cleanup(dev, dev->mphy.q_tx[i], false);
 
 	mt7603_mac_sta_poll(dev);
 
-	tasklet_schedule(&dev->mt76.tx_tasklet);
+	mt76_worker_schedule(&dev->mt76.tx_worker);
 
 	return 0;
 }
@@ -193,32 +172,41 @@ int mt7603_dma_init(struct mt7603_dev *dev)
 	mt7603_pse_client_reset(dev);
 
 	for (i = 0; i < ARRAY_SIZE(wmm_queue_map); i++) {
-		ret = mt7603_init_tx_queue(dev, &dev->mt76.q_tx[i],
-					   wmm_queue_map[i],
-					   MT_TX_RING_SIZE);
+		ret = mt76_init_tx_queue(&dev->mphy, i, wmm_queue_map[i],
+					 MT7603_TX_RING_SIZE, MT_TX_RING_BASE);
 		if (ret)
 			return ret;
 	}
 
-	ret = mt7603_init_tx_queue(dev, &dev->mt76.q_tx[MT_TXQ_PSD],
-				   MT_TX_HW_QUEUE_MGMT, MT_TX_RING_SIZE);
+	ret = mt76_init_tx_queue(&dev->mphy, MT_TXQ_PSD, MT_TX_HW_QUEUE_MGMT,
+				 MT7603_PSD_RING_SIZE, MT_TX_RING_BASE);
 	if (ret)
 		return ret;
 
-	ret = mt7603_init_tx_queue(dev, &dev->mt76.q_tx[MT_TXQ_MCU],
-				   MT_TX_HW_QUEUE_MCU, MT_MCU_RING_SIZE);
+	ret = mt76_init_mcu_queue(&dev->mt76, MT_MCUQ_WM, MT_TX_HW_QUEUE_MCU,
+				  MT_MCU_RING_SIZE, MT_TX_RING_BASE);
 	if (ret)
 		return ret;
 
-	ret = mt7603_init_tx_queue(dev, &dev->mt76.q_tx[MT_TXQ_BEACON],
-				   MT_TX_HW_QUEUE_BCN, MT_MCU_RING_SIZE);
+	ret = mt76_init_tx_queue(&dev->mphy, MT_TXQ_BEACON, MT_TX_HW_QUEUE_BCN,
+				 MT_MCU_RING_SIZE, MT_TX_RING_BASE);
 	if (ret)
 		return ret;
 
-	ret = mt7603_init_tx_queue(dev, &dev->mt76.q_tx[MT_TXQ_CAB],
-				   MT_TX_HW_QUEUE_BMC, MT_MCU_RING_SIZE);
+	ret = mt76_init_tx_queue(&dev->mphy, MT_TXQ_CAB, MT_TX_HW_QUEUE_BMC,
+				 MT_MCU_RING_SIZE, MT_TX_RING_BASE);
 	if (ret)
 		return ret;
+
+	mt7603_irq_enable(dev,
+			  MT_INT_TX_DONE(IEEE80211_AC_VO) |
+			  MT_INT_TX_DONE(IEEE80211_AC_VI) |
+			  MT_INT_TX_DONE(IEEE80211_AC_BE) |
+			  MT_INT_TX_DONE(IEEE80211_AC_BK) |
+			  MT_INT_TX_DONE(MT_TX_HW_QUEUE_MGMT) |
+			  MT_INT_TX_DONE(MT_TX_HW_QUEUE_MCU) |
+			  MT_INT_TX_DONE(MT_TX_HW_QUEUE_BCN) |
+			  MT_INT_TX_DONE(MT_TX_HW_QUEUE_BMC));
 
 	ret = mt7603_init_rx_queue(dev, &dev->mt76.q_rx[MT_RXQ_MCU], 1,
 				   MT7603_MCU_RX_RING_SIZE, MT_RX_BUF_SIZE);
@@ -249,6 +237,5 @@ void mt7603_dma_cleanup(struct mt7603_dev *dev)
 		   MT_WPDMA_GLO_CFG_RX_DMA_EN |
 		   MT_WPDMA_GLO_CFG_TX_WRITEBACK_DONE);
 
-	tasklet_kill(&dev->mt76.tx_tasklet);
 	mt76_dma_cleanup(&dev->mt76);
 }

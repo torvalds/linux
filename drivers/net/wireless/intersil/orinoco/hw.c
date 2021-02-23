@@ -78,7 +78,7 @@ int determine_fw_capabilities(struct orinoco_private *priv,
 	char tmp[SYMBOL_MAX_VER_LEN + 1] __attribute__((aligned(2)));
 
 	/* Get the hardware version */
-	err = HERMES_READ_RECORD(hw, USER_BAP, HERMES_RID_NICID, &nic_id);
+	err = HERMES_READ_RECORD_PR(hw, USER_BAP, HERMES_RID_NICID, &nic_id);
 	if (err) {
 		dev_err(dev, "Cannot read hardware identity: error %d\n",
 			err);
@@ -101,7 +101,7 @@ int determine_fw_capabilities(struct orinoco_private *priv,
 	priv->firmware_type = determine_firmware_type(&nic_id);
 
 	/* Get the firmware version */
-	err = HERMES_READ_RECORD(hw, USER_BAP, HERMES_RID_STAID, &sta_id);
+	err = HERMES_READ_RECORD_PR(hw, USER_BAP, HERMES_RID_STAID, &sta_id);
 	if (err) {
 		dev_err(dev, "Cannot read station identity: error %d\n",
 			err);
@@ -177,7 +177,7 @@ int determine_fw_capabilities(struct orinoco_private *priv,
 		/* 3Com MAC : 00:50:DA:* */
 		memset(tmp, 0, sizeof(tmp));
 		/* Get the Symbol firmware version */
-		err = hw->ops->read_ltv(hw, USER_BAP,
+		err = hw->ops->read_ltv_pr(hw, USER_BAP,
 					HERMES_RID_SECONDARYVERSION_SYMBOL,
 					SYMBOL_MAX_VER_LEN, NULL, &tmp);
 		if (err) {
@@ -286,7 +286,7 @@ int orinoco_hw_read_card_settings(struct orinoco_private *priv, u8 *dev_addr)
 	u16 reclen;
 
 	/* Get the MAC address */
-	err = hw->ops->read_ltv(hw, USER_BAP, HERMES_RID_CNFOWNMACADDR,
+	err = hw->ops->read_ltv_pr(hw, USER_BAP, HERMES_RID_CNFOWNMACADDR,
 				ETH_ALEN, NULL, dev_addr);
 	if (err) {
 		dev_warn(dev, "Failed to read MAC address!\n");
@@ -296,7 +296,7 @@ int orinoco_hw_read_card_settings(struct orinoco_private *priv, u8 *dev_addr)
 	dev_dbg(dev, "MAC address %pM\n", dev_addr);
 
 	/* Get the station name */
-	err = hw->ops->read_ltv(hw, USER_BAP, HERMES_RID_CNFOWNNAME,
+	err = hw->ops->read_ltv_pr(hw, USER_BAP, HERMES_RID_CNFOWNNAME,
 				sizeof(nickbuf), &reclen, &nickbuf);
 	if (err) {
 		dev_err(dev, "failed to read station name\n");
@@ -312,7 +312,7 @@ int orinoco_hw_read_card_settings(struct orinoco_private *priv, u8 *dev_addr)
 	dev_dbg(dev, "Station name \"%s\"\n", priv->nick);
 
 	/* Get allowed channels */
-	err = hermes_read_wordrec(hw, USER_BAP, HERMES_RID_CHANNELLIST,
+	err = hermes_read_wordrec_pr(hw, USER_BAP, HERMES_RID_CHANNELLIST,
 				  &priv->channel_mask);
 	if (err) {
 		dev_err(dev, "Failed to read channel list!\n");
@@ -320,13 +320,13 @@ int orinoco_hw_read_card_settings(struct orinoco_private *priv, u8 *dev_addr)
 	}
 
 	/* Get initial AP density */
-	err = hermes_read_wordrec(hw, USER_BAP, HERMES_RID_CNFSYSTEMSCALE,
+	err = hermes_read_wordrec_pr(hw, USER_BAP, HERMES_RID_CNFSYSTEMSCALE,
 				  &priv->ap_density);
 	if (err || priv->ap_density < 1 || priv->ap_density > 3)
 		priv->has_sensitivity = 0;
 
 	/* Get initial RTS threshold */
-	err = hermes_read_wordrec(hw, USER_BAP, HERMES_RID_CNFRTSTHRESHOLD,
+	err = hermes_read_wordrec_pr(hw, USER_BAP, HERMES_RID_CNFRTSTHRESHOLD,
 				  &priv->rts_thresh);
 	if (err) {
 		dev_err(dev, "Failed to read RTS threshold!\n");
@@ -335,11 +335,11 @@ int orinoco_hw_read_card_settings(struct orinoco_private *priv, u8 *dev_addr)
 
 	/* Get initial fragmentation settings */
 	if (priv->has_mwo)
-		err = hermes_read_wordrec(hw, USER_BAP,
+		err = hermes_read_wordrec_pr(hw, USER_BAP,
 					  HERMES_RID_CNFMWOROBUST_AGERE,
 					  &priv->mwo_robust);
 	else
-		err = hermes_read_wordrec(hw, USER_BAP,
+		err = hermes_read_wordrec_pr(hw, USER_BAP,
 					  HERMES_RID_CNFFRAGMENTATIONTHRESHOLD,
 					  &priv->frag_thresh);
 	if (err) {
@@ -351,7 +351,7 @@ int orinoco_hw_read_card_settings(struct orinoco_private *priv, u8 *dev_addr)
 	if (priv->has_pm) {
 		priv->pm_on = 0;
 		priv->pm_mcast = 1;
-		err = hermes_read_wordrec(hw, USER_BAP,
+		err = hermes_read_wordrec_pr(hw, USER_BAP,
 					  HERMES_RID_CNFMAXSLEEPDURATION,
 					  &priv->pm_period);
 		if (err) {
@@ -359,7 +359,7 @@ int orinoco_hw_read_card_settings(struct orinoco_private *priv, u8 *dev_addr)
 				"period!\n");
 			goto out;
 		}
-		err = hermes_read_wordrec(hw, USER_BAP,
+		err = hermes_read_wordrec_pr(hw, USER_BAP,
 					  HERMES_RID_CNFPMHOLDOVERDURATION,
 					  &priv->pm_timeout);
 		if (err) {
@@ -371,7 +371,7 @@ int orinoco_hw_read_card_settings(struct orinoco_private *priv, u8 *dev_addr)
 
 	/* Preamble setup */
 	if (priv->has_preamble) {
-		err = hermes_read_wordrec(hw, USER_BAP,
+		err = hermes_read_wordrec_pr(hw, USER_BAP,
 					  HERMES_RID_CNFPREAMBLE_SYMBOL,
 					  &priv->preamble);
 		if (err) {
@@ -381,21 +381,21 @@ int orinoco_hw_read_card_settings(struct orinoco_private *priv, u8 *dev_addr)
 	}
 
 	/* Retry settings */
-	err = hermes_read_wordrec(hw, USER_BAP, HERMES_RID_SHORTRETRYLIMIT,
+	err = hermes_read_wordrec_pr(hw, USER_BAP, HERMES_RID_SHORTRETRYLIMIT,
 				  &priv->short_retry_limit);
 	if (err) {
 		dev_err(dev, "Failed to read short retry limit\n");
 		goto out;
 	}
 
-	err = hermes_read_wordrec(hw, USER_BAP, HERMES_RID_LONGRETRYLIMIT,
+	err = hermes_read_wordrec_pr(hw, USER_BAP, HERMES_RID_LONGRETRYLIMIT,
 				  &priv->long_retry_limit);
 	if (err) {
 		dev_err(dev, "Failed to read long retry limit\n");
 		goto out;
 	}
 
-	err = hermes_read_wordrec(hw, USER_BAP, HERMES_RID_MAXTRANSMITLIFETIME,
+	err = hermes_read_wordrec_pr(hw, USER_BAP, HERMES_RID_MAXTRANSMITLIFETIME,
 				  &priv->retry_lifetime);
 	if (err) {
 		dev_err(dev, "Failed to read max retry lifetime\n");

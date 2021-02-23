@@ -61,6 +61,10 @@ These options can be used for each instance including global ftrace node.
 ftrace.[instance.INSTANCE.]options = OPT1[, OPT2[...]]
    Enable given ftrace options.
 
+ftrace.[instance.INSTANCE.]tracing_on = 0|1
+   Enable/Disable tracing on this instance when starting boot-time tracing.
+   (you can enable it by the "traceon" event trigger action)
+
 ftrace.[instance.INSTANCE.]trace_clock = CLOCK
    Set given CLOCK to ftrace's trace_clock.
 
@@ -116,6 +120,20 @@ instance node, but those are also visible from other instances. So please
 take care for event name conflict.
 
 
+When to Start
+=============
+
+All boot-time tracing options starting with ``ftrace`` will be enabled at the
+end of core_initcall. This means you can trace the events from postcore_initcall.
+Most of the subsystems and architecture dependent drivers will be initialized
+after that (arch_initcall or subsys_initcall). Thus, you can trace those with
+boot-time tracing.
+If you want to trace events before core_initcall, you can use the options
+starting with ``kernel``. Some of them will be enabled eariler than the initcall
+processing (for example,. ``kernel.ftrace=function`` and ``kernel.trace_event``
+will start before the initcall.)
+
+
 Examples
 ========
 
@@ -163,6 +181,26 @@ is for tracing functions starting with "user\_", and others tracing
 
 The instance node also accepts event nodes so that each instance
 can customize its event tracing.
+
+With the trigger action and kprobes, you can trace function-graph while
+a function is called. For example, this will trace all function calls in
+the pci_proc_init()::
+
+  ftrace {
+        tracing_on = 0
+        tracer = function_graph
+        event.kprobes {
+                start_event {
+                        probes = "pci_proc_init"
+                        actions = "traceon"
+                }
+                end_event {
+                        probes = "pci_proc_init%return"
+                        actions = "traceoff"
+                }
+        }
+  }
+
 
 This boot-time tracing also supports ftrace kernel parameters via boot
 config.

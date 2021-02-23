@@ -559,7 +559,7 @@ static int sprd_platform_compr_copy(struct snd_soc_component *component,
 		} else {
 			/*
 			 * If the data count is larger than the available spaces
-			 * of the the stage 0 IRAM buffer, we should copy one
+			 * of the stage 0 IRAM buffer, we should copy one
 			 * partial data to the stage 0 IRAM buffer, and copy
 			 * the left to the stage 1 DDR buffer.
 			 */

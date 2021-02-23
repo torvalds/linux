@@ -13,6 +13,7 @@
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/platform_device.h>
+#include <linux/property.h>
 #include <linux/types.h>
 
 #define IRQ_RESOURCE_TYPE	GENMASK(1, 0)
@@ -59,7 +60,6 @@ static int i2c_multi_inst_count_resources(struct acpi_device *adev)
 static int i2c_multi_inst_probe(struct platform_device *pdev)
 {
 	struct i2c_multi_inst_data *multi;
-	const struct acpi_device_id *match;
 	const struct i2c_inst_data *inst_data;
 	struct i2c_board_info board_info = {};
 	struct device *dev = &pdev->dev;
@@ -67,12 +67,11 @@ static int i2c_multi_inst_probe(struct platform_device *pdev)
 	char name[32];
 	int i, ret;
 
-	match = acpi_match_device(dev->driver->acpi_match_table, dev);
-	if (!match) {
+	inst_data = device_get_match_data(dev);
+	if (!inst_data) {
 		dev_err(dev, "Error ACPI match data is missing\n");
 		return -ENODEV;
 	}
-	inst_data = (const struct i2c_inst_data *)match->driver_data;
 
 	adev = ACPI_COMPANION(dev);
 
@@ -118,9 +117,8 @@ static int i2c_multi_inst_probe(struct platform_device *pdev)
 		}
 		multi->clients[i] = i2c_acpi_new_device(dev, i, &board_info);
 		if (IS_ERR(multi->clients[i])) {
-			ret = PTR_ERR(multi->clients[i]);
-			if (ret != -EPROBE_DEFER)
-				dev_err(dev, "Error creating i2c-client, idx %d\n", i);
+			ret = dev_err_probe(dev, PTR_ERR(multi->clients[i]),
+					    "Error creating i2c-client, idx %d\n", i);
 			goto error;
 		}
 	}
@@ -166,13 +164,29 @@ static const struct i2c_inst_data bsg2150_data[]  = {
 	{}
 };
 
-static const struct i2c_inst_data int3515_data[]  = {
-	{ "tps6598x", IRQ_RESOURCE_APIC, 0 },
-	{ "tps6598x", IRQ_RESOURCE_APIC, 1 },
-	{ "tps6598x", IRQ_RESOURCE_APIC, 2 },
-	{ "tps6598x", IRQ_RESOURCE_APIC, 3 },
-	{}
-};
+/*
+ * Device with _HID INT3515 (TI PD controllers) has some unresolved interrupt
+ * issues. The most common problem seen is interrupt flood.
+ *
+ * There are at least two known causes. Firstly, on some boards, the
+ * I2CSerialBus resource index does not match the Interrupt resource, i.e. they
+ * are not one-to-one mapped like in the array below. Secondly, on some boards
+ * the IRQ line from the PD controller is not actually connected at all. But the
+ * interrupt flood is also seen on some boards where those are not a problem, so
+ * there are some other problems as well.
+ *
+ * Because of the issues with the interrupt, the device is disabled for now. If
+ * you wish to debug the issues, uncomment the below, and add an entry for the
+ * INT3515 device to the i2c_multi_instance_ids table.
+ *
+ * static const struct i2c_inst_data int3515_data[]  = {
+ *	{ "tps6598x", IRQ_RESOURCE_APIC, 0 },
+ *	{ "tps6598x", IRQ_RESOURCE_APIC, 1 },
+ *	{ "tps6598x", IRQ_RESOURCE_APIC, 2 },
+ *	{ "tps6598x", IRQ_RESOURCE_APIC, 3 },
+ *	{ }
+ * };
+ */
 
 /*
  * Note new device-ids must also be added to i2c_multi_instantiate_ids in
@@ -181,7 +195,6 @@ static const struct i2c_inst_data int3515_data[]  = {
 static const struct acpi_device_id i2c_multi_inst_acpi_ids[] = {
 	{ "BSG1160", (unsigned long)bsg1160_data },
 	{ "BSG2150", (unsigned long)bsg2150_data },
-	{ "INT3515", (unsigned long)int3515_data },
 	{ }
 };
 MODULE_DEVICE_TABLE(acpi, i2c_multi_inst_acpi_ids);
@@ -189,7 +202,7 @@ MODULE_DEVICE_TABLE(acpi, i2c_multi_inst_acpi_ids);
 static struct platform_driver i2c_multi_inst_driver = {
 	.driver	= {
 		.name = "I2C multi instantiate pseudo device driver",
-		.acpi_match_table = ACPI_PTR(i2c_multi_inst_acpi_ids),
+		.acpi_match_table = i2c_multi_inst_acpi_ids,
 	},
 	.probe = i2c_multi_inst_probe,
 	.remove = i2c_multi_inst_remove,

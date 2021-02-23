@@ -231,8 +231,6 @@
 	SRI(RDPCSTX_PHY_FUSE3, RDPCSTX, id), \
 	SRI(DPCSTX_TX_CLOCK_CNTL, DPCSTX, id), \
 	SRI(DPCSTX_TX_CNTL, DPCSTX, id), \
-	SRI(DPCSTX_DEBUG_CONFIG, DPCSTX, id), \
-	SRI(RDPCSTX_DEBUG_CONFIG, RDPCSTX, id), \
 	SR(RDPCSTX0_RDPCSTX_SCRATCH)
 
 
@@ -278,10 +276,8 @@ struct mpll_cfg {
 	bool dp_tx1_vergdrv_byp;
 	bool dp_tx2_vergdrv_byp;
 	bool dp_tx3_vergdrv_byp;
-#if defined(CONFIG_DRM_AMD_DC_DCN3_0)
 	uint32_t tx_peaking_lvl;
 	uint32_t ctr_reqs_pll;
-#endif
 
 
 };

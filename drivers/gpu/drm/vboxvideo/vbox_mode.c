@@ -9,6 +9,8 @@
  *          Michael Thayer <michael.thayer@oracle.com,
  *          Hans de Goede <hdegoede@redhat.com>
  */
+
+#include <linux/dma-buf-map.h>
 #include <linux/export.h>
 
 #include <drm/drm_atomic.h>
@@ -213,17 +215,17 @@ static void vbox_crtc_set_base_and_mode(struct drm_crtc *crtc,
 }
 
 static void vbox_crtc_atomic_enable(struct drm_crtc *crtc,
-				    struct drm_crtc_state *old_crtc_state)
+				    struct drm_atomic_state *state)
 {
 }
 
 static void vbox_crtc_atomic_disable(struct drm_crtc *crtc,
-				     struct drm_crtc_state *old_crtc_state)
+				     struct drm_atomic_state *state)
 {
 }
 
 static void vbox_crtc_atomic_flush(struct drm_crtc *crtc,
-				   struct drm_crtc_state *old_crtc_state)
+				   struct drm_atomic_state *state)
 {
 }
 
@@ -384,6 +386,8 @@ static void vbox_cursor_atomic_update(struct drm_plane *plane,
 	u32 height = plane->state->crtc_h;
 	size_t data_size, mask_size;
 	u32 flags;
+	struct dma_buf_map map;
+	int ret;
 	u8 *src;
 
 	/*
@@ -397,13 +401,16 @@ static void vbox_cursor_atomic_update(struct drm_plane *plane,
 
 	vbox_crtc->cursor_enabled = true;
 
-	/* pinning is done in prepare/cleanup framebuffer */
-	src = drm_gem_vram_kmap(gbo, true, NULL);
-	if (IS_ERR(src)) {
+	ret = drm_gem_vram_vmap(gbo, &map);
+	if (ret) {
+		/*
+		 * BUG: we should have pinned the BO in prepare_fb().
+		 */
 		mutex_unlock(&vbox->hw_mutex);
-		DRM_WARN("Could not kmap cursor bo, skipping update\n");
+		DRM_WARN("Could not map cursor bo, skipping update\n");
 		return;
 	}
+	src = map.vaddr; /* TODO: Use mapping abstraction properly */
 
 	/*
 	 * The mask must be calculated based on the alpha
@@ -414,7 +421,7 @@ static void vbox_cursor_atomic_update(struct drm_plane *plane,
 	data_size = width * height * 4 + mask_size;
 
 	copy_cursor_image(src, vbox->cursor_data, width, height, mask_size);
-	drm_gem_vram_kunmap(gbo);
+	drm_gem_vram_vunmap(gbo, &map);
 
 	flags = VBOX_MOUSE_POINTER_VISIBLE | VBOX_MOUSE_POINTER_SHAPE |
 		VBOX_MOUSE_POINTER_ALPHA;

@@ -1,11 +1,4 @@
-.. Permission is granted to copy, distribute and/or modify this
-.. document under the terms of the GNU Free Documentation License,
-.. Version 1.1 or any later version published by the Free Software
-.. Foundation, with no Invariant Sections, no Front-Cover Texts
-.. and no Back-Cover Texts. A copy of the license is included at
-.. Documentation/userspace-api/media/fdl-appendix.rst.
-..
-.. TODO: replace it to GFDL-1.1-or-later WITH no-invariant-sections
+.. SPDX-License-Identifier: GFDL-1.1-no-invariants-or-later
 
 .. _dvb_ca:
 
@@ -14,7 +7,7 @@ Digital TV CA Device
 ####################
 
 The Digital TV CA device controls the conditional access hardware. It
-can be accessed through ``/dev/dvb/adapter?/ca?``. Data types and and ioctl
+can be accessed through ``/dev/dvb/adapter?/ca?``. Data types and ioctl
 definitions can be accessed by including ``linux/dvb/ca.h`` in your
 application.
 

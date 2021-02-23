@@ -135,7 +135,7 @@ char *number(char *end, unsigned long long num, int base, char locase)
 		break;
 	default:
 		unreachable();
-	};
+	}
 
 	return end;
 }

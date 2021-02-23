@@ -57,7 +57,7 @@ asmlinkage void ret_from_kernel_thread(void);
  */
 void arch_cpu_idle(void)
 {
-	local_irq_enable();
+	raw_local_irq_enable();
 	__asm__("sleep");
 }
 
@@ -172,5 +172,5 @@ asmlinkage int sys_clone(unsigned long __user *args)
 	kargs.exit_signal	= (lower_32_bits(clone_flags) & CSIGNAL);
 	kargs.stack		= newsp;
 
-	return _do_fork(&kargs);
+	return kernel_clone(&kargs);
 }

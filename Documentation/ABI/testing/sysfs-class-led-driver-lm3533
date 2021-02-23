@@ -6,8 +6,10 @@ Description:
 		Set the ALS output channel to use as input in
 		ALS-current-control mode (1, 2), where:
 
-		1 - out_current1
-		2 - out_current2
+		==  ============
+		1   out_current1
+		2   out_current2
+		==  ============
 
 What:		/sys/class/leds/<led>/als_en
 Date:		May 2012
@@ -24,14 +26,16 @@ Contact:	Johan Hovold <jhovold@gmail.com>
 Description:
 		Set the pattern generator fall and rise times (0..7), where:
 
-		0 - 2048 us
-		1 - 262 ms
-		2 - 524 ms
-		3 - 1.049 s
-		4 - 2.097 s
-		5 - 4.194 s
-		6 - 8.389 s
-		7 - 16.78 s
+		==  =======
+		0   2048 us
+		1   262 ms
+		2   524 ms
+		3   1.049 s
+		4   2.097 s
+		5   4.194 s
+		6   8.389 s
+		7   16.78 s
+		==  =======
 
 What:		/sys/class/leds/<led>/id
 Date:		April 2012
@@ -47,8 +51,10 @@ Contact:	Johan Hovold <jhovold@gmail.com>
 Description:
 		Set the brightness-mapping mode (0, 1), where:
 
-		0 - exponential mode
-		1 - linear mode
+		==  ================
+		0   exponential mode
+		1   linear mode
+		==  ================
 
 What:		/sys/class/leds/<led>/pwm
 Date:		April 2012
@@ -57,9 +63,11 @@ Contact:	Johan Hovold <jhovold@gmail.com>
 Description:
 		Set the PWM-input control mask (5 bits), where:
 
-		bit 5 - PWM-input enabled in Zone 4
-		bit 4 - PWM-input enabled in Zone 3
-		bit 3 - PWM-input enabled in Zone 2
-		bit 2 - PWM-input enabled in Zone 1
-		bit 1 - PWM-input enabled in Zone 0
-		bit 0 - PWM-input enabled
+		=====  ===========================
+		bit 5  PWM-input enabled in Zone 4
+		bit 4  PWM-input enabled in Zone 3
+		bit 3  PWM-input enabled in Zone 2
+		bit 2  PWM-input enabled in Zone 1
+		bit 1  PWM-input enabled in Zone 0
+		bit 0  PWM-input enabled
+		=====  ===========================

@@ -1,11 +1,5 @@
-.. Permission is granted to copy, distribute and/or modify this
-.. document under the terms of the GNU Free Documentation License,
-.. Version 1.1 or any later version published by the Free Software
-.. Foundation, with no Invariant Sections, no Front-Cover Texts
-.. and no Back-Cover Texts. A copy of the license is included at
-.. Documentation/userspace-api/media/fdl-appendix.rst.
-..
-.. TODO: replace it to GFDL-1.1-or-later WITH no-invariant-sections
+.. SPDX-License-Identifier: GFDL-1.1-no-invariants-or-later
+.. c:namespace:: V4L
 
 .. _VIDIOC_G_INPUT:
 
@@ -18,26 +12,25 @@ Name
 
 VIDIOC_G_INPUT - VIDIOC_S_INPUT - Query or select the current video input
 
-
 Synopsis
 ========
 
-.. c:function:: int ioctl( int fd, VIDIOC_G_INPUT, int *argp )
-    :name: VIDIOC_G_INPUT
+.. c:macro:: VIDIOC_G_INPUT
 
-.. c:function:: int ioctl( int fd, VIDIOC_S_INPUT, int *argp )
-    :name: VIDIOC_S_INPUT
+``int ioctl(int fd, VIDIOC_G_INPUT, int *argp)``
 
+.. c:macro:: VIDIOC_S_INPUT
+
+``int ioctl(int fd, VIDIOC_S_INPUT, int *argp)``
 
 Arguments
 =========
 
 ``fd``
-    File descriptor returned by :ref:`open() <func-open>`.
+    File descriptor returned by :c:func:`open()`.
 
 ``argp``
     Pointer an integer with input index.
-
 
 Description
 ===========
@@ -58,7 +51,6 @@ other parameters.
 
 Information about video inputs is available using the
 :ref:`VIDIOC_ENUMINPUT` ioctl.
-
 
 Return Value
 ============

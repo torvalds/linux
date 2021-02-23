@@ -30,7 +30,7 @@ static DEFINE_IDA(cpuidle_ida);
 
 /**
  * cpuidle_cooling_runtime - Running time computation
- * @idle_duration_us: the idle cooling device
+ * @idle_duration_us: CPU idle time to inject in microseconds
  * @state: a percentile based number
  *
  * The running duration is computed from the idle injection duration

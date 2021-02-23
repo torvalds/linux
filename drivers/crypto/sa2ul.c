@@ -9,8 +9,10 @@
  *		Tero Kristo
  */
 #include <linux/clk.h>
+#include <linux/dma-mapping.h>
 #include <linux/dmaengine.h>
 #include <linux/dmapool.h>
+#include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/of_device.h>
 #include <linux/platform_device.h>
@@ -23,7 +25,8 @@
 #include <crypto/internal/hash.h>
 #include <crypto/internal/skcipher.h>
 #include <crypto/scatterwalk.h>
-#include <crypto/sha.h>
+#include <crypto/sha1.h>
+#include <crypto/sha2.h>
 
 #include "sa2ul.h"
 
@@ -143,33 +146,38 @@ struct sa_alg_tmpl {
 };
 
 /**
+ * struct sa_mapped_sg: scatterlist information for tx and rx
+ * @mapped: Set to true if the @sgt is mapped
+ * @dir: mapping direction used for @sgt
+ * @split_sg: Set if the sg is split and needs to be freed up
+ * @static_sg: Static scatterlist entry for overriding data
+ * @sgt: scatterlist table for DMA API use
+ */
+struct sa_mapped_sg {
+	bool mapped;
+	enum dma_data_direction dir;
+	struct scatterlist static_sg;
+	struct scatterlist *split_sg;
+	struct sg_table sgt;
+};
+/**
  * struct sa_rx_data: RX Packet miscellaneous data place holder
  * @req: crypto request data pointer
  * @ddev: pointer to the DMA device
  * @tx_in: dma_async_tx_descriptor pointer for rx channel
- * @split_src_sg: Set if the src sg is split and needs to be freed up
- * @split_dst_sg: Set if the dst sg is split and needs to be freed up
+ * @mapped_sg: Information on tx (0) and rx (1) scatterlist DMA mapping
  * @enc: Flag indicating either encryption or decryption
  * @enc_iv_size: Initialisation vector size
  * @iv_idx: Initialisation vector index
- * @rx_sg: Static scatterlist entry for overriding RX data
- * @tx_sg: Static scatterlist entry for overriding TX data
- * @src: Source data pointer
- * @dst: Destination data pointer
  */
 struct sa_rx_data {
 	void *req;
 	struct device *ddev;
 	struct dma_async_tx_descriptor *tx_in;
-	struct scatterlist *split_src_sg;
-	struct scatterlist *split_dst_sg;
+	struct sa_mapped_sg mapped_sg[2];
 	u8 enc;
 	u8 enc_iv_size;
 	u8 iv_idx;
-	struct scatterlist rx_sg;
-	struct scatterlist tx_sg;
-	struct scatterlist *src;
-	struct scatterlist *dst;
 };
 
 /**
@@ -356,42 +364,45 @@ static void sa_swiz_128(u8 *in, u16 len)
 }
 
 /* Prepare the ipad and opad from key as per SHA algorithm step 1*/
-static void prepare_kiopad(u8 *k_ipad, u8 *k_opad, const u8 *key, u16 key_sz)
+static void prepare_kipad(u8 *k_ipad, const u8 *key, u16 key_sz)
 {
 	int i;
 
-	for (i = 0; i < key_sz; i++) {
+	for (i = 0; i < key_sz; i++)
 		k_ipad[i] = key[i] ^ 0x36;
-		k_opad[i] = key[i] ^ 0x5c;
-	}
 
 	/* Instead of XOR with 0 */
-	for (; i < SHA1_BLOCK_SIZE; i++) {
+	for (; i < SHA1_BLOCK_SIZE; i++)
 		k_ipad[i] = 0x36;
-		k_opad[i] = 0x5c;
-	}
 }
 
-static void sa_export_shash(struct shash_desc *hash, int block_size,
+static void prepare_kopad(u8 *k_opad, const u8 *key, u16 key_sz)
+{
+	int i;
+
+	for (i = 0; i < key_sz; i++)
+		k_opad[i] = key[i] ^ 0x5c;
+
+	/* Instead of XOR with 0 */
+	for (; i < SHA1_BLOCK_SIZE; i++)
+		k_opad[i] = 0x5c;
+}
+
+static void sa_export_shash(void *state, struct shash_desc *hash,
 			    int digest_size, __be32 *out)
 {
-	union {
-		struct sha1_state sha1;
-		struct sha256_state sha256;
-		struct sha512_state sha512;
-	} sha;
-	void *state;
+	struct sha1_state *sha1;
+	struct sha256_state *sha256;
 	u32 *result;
-	int i;
 
 	switch (digest_size) {
 	case SHA1_DIGEST_SIZE:
-		state = &sha.sha1;
-		result = sha.sha1.state;
+		sha1 = state;
+		result = sha1->state;
 		break;
 	case SHA256_DIGEST_SIZE:
-		state = &sha.sha256;
-		result = sha.sha256.state;
+		sha256 = state;
+		result = sha256->state;
 		break;
 	default:
 		dev_err(sa_k3_dev, "%s: bad digest_size=%d\n", __func__,
@@ -401,8 +412,7 @@ static void sa_export_shash(struct shash_desc *hash, int block_size,
 
 	crypto_shash_export(hash, state);
 
-	for (i = 0; i < digest_size >> 2; i++)
-		out[i] = cpu_to_be32(result[i]);
+	cpu_to_be32_array(out, result, digest_size / 4);
 }
 
 static void sa_prepare_iopads(struct algo_data *data, const u8 *key,
@@ -411,24 +421,28 @@ static void sa_prepare_iopads(struct algo_data *data, const u8 *key,
 	SHASH_DESC_ON_STACK(shash, data->ctx->shash);
 	int block_size = crypto_shash_blocksize(data->ctx->shash);
 	int digest_size = crypto_shash_digestsize(data->ctx->shash);
-	u8 k_ipad[SHA1_BLOCK_SIZE];
-	u8 k_opad[SHA1_BLOCK_SIZE];
+	union {
+		struct sha1_state sha1;
+		struct sha256_state sha256;
+		u8 k_pad[SHA1_BLOCK_SIZE];
+	} sha;
 
 	shash->tfm = data->ctx->shash;
 
-	prepare_kiopad(k_ipad, k_opad, key, key_sz);
-
-	memzero_explicit(ipad, block_size);
-	memzero_explicit(opad, block_size);
+	prepare_kipad(sha.k_pad, key, key_sz);
 
 	crypto_shash_init(shash);
-	crypto_shash_update(shash, k_ipad, block_size);
-	sa_export_shash(shash, block_size, digest_size, ipad);
+	crypto_shash_update(shash, sha.k_pad, block_size);
+	sa_export_shash(&sha, shash, digest_size, ipad);
+
+	prepare_kopad(sha.k_pad, key, key_sz);
 
 	crypto_shash_init(shash);
-	crypto_shash_update(shash, k_opad, block_size);
+	crypto_shash_update(shash, sha.k_pad, block_size);
 
-	sa_export_shash(shash, block_size, digest_size, opad);
+	sa_export_shash(&sha, shash, digest_size, opad);
+
+	memzero_explicit(&sha, sizeof(sha));
 }
 
 /* Derive the inverse key used in AES-CBC decryption operation */
@@ -501,7 +515,8 @@ static int sa_set_sc_enc(struct algo_data *ad, const u8 *key, u16 key_sz,
 static void sa_set_sc_auth(struct algo_data *ad, const u8 *key, u16 key_sz,
 			   u8 *sc_buf)
 {
-	__be32 ipad[64], opad[64];
+	__be32 *ipad = (void *)(sc_buf + 32);
+	__be32 *opad = (void *)(sc_buf + 64);
 
 	/* Set Authentication mode selector to hash processing */
 	sc_buf[0] = SA_HASH_PROCESSING;
@@ -510,14 +525,9 @@ static void sa_set_sc_auth(struct algo_data *ad, const u8 *key, u16 key_sz,
 	sc_buf[1] |= ad->auth_ctrl;
 
 	/* Copy the keys or ipad/opad */
-	if (ad->keyed_mac) {
+	if (ad->keyed_mac)
 		ad->prep_iopad(ad, key, key_sz, ipad, opad);
-
-		/* Copy ipad to AuthKey */
-		memcpy(&sc_buf[32], ipad, ad->hash_size);
-		/* Copy opad to Aux-1 */
-		memcpy(&sc_buf[64], opad, ad->hash_size);
-	} else {
+	else {
 		/* basic hash */
 		sc_buf[1] |= SA_BASIC_HASH;
 	}
@@ -814,7 +824,7 @@ static void sa_cipher_cra_exit(struct crypto_skcipher *tfm)
 	sa_free_ctx_info(&ctx->enc, data);
 	sa_free_ctx_info(&ctx->dec, data);
 
-	crypto_free_sync_skcipher(ctx->fallback.skcipher);
+	crypto_free_skcipher(ctx->fallback.skcipher);
 }
 
 static int sa_cipher_cra_init(struct crypto_skcipher *tfm)
@@ -822,6 +832,7 @@ static int sa_cipher_cra_init(struct crypto_skcipher *tfm)
 	struct sa_tfm_ctx *ctx = crypto_skcipher_ctx(tfm);
 	struct sa_crypto_data *data = dev_get_drvdata(sa_k3_dev);
 	const char *name = crypto_tfm_alg_name(&tfm->base);
+	struct crypto_skcipher *child;
 	int ret;
 
 	memzero_explicit(ctx, sizeof(*ctx));
@@ -836,13 +847,16 @@ static int sa_cipher_cra_init(struct crypto_skcipher *tfm)
 		return ret;
 	}
 
-	ctx->fallback.skcipher =
-		crypto_alloc_sync_skcipher(name, 0, CRYPTO_ALG_NEED_FALLBACK);
+	child = crypto_alloc_skcipher(name, 0, CRYPTO_ALG_NEED_FALLBACK);
 
-	if (IS_ERR(ctx->fallback.skcipher)) {
+	if (IS_ERR(child)) {
 		dev_err(sa_k3_dev, "Error allocating fallback algo %s\n", name);
-		return PTR_ERR(ctx->fallback.skcipher);
+		return PTR_ERR(child);
 	}
+
+	ctx->fallback.skcipher = child;
+	crypto_skcipher_set_reqsize(tfm, crypto_skcipher_reqsize(child) +
+					 sizeof(struct skcipher_request));
 
 	dev_dbg(sa_k3_dev, "%s(0x%p) sc-ids(0x%x(0x%pad), 0x%x(0x%pad))\n",
 		__func__, tfm, ctx->enc.sc_id, &ctx->enc.sc_phys,
@@ -854,6 +868,7 @@ static int sa_cipher_setkey(struct crypto_skcipher *tfm, const u8 *key,
 			    unsigned int keylen, struct algo_data *ad)
 {
 	struct sa_tfm_ctx *ctx = crypto_skcipher_ctx(tfm);
+	struct crypto_skcipher *child = ctx->fallback.skcipher;
 	int cmdl_len;
 	struct sa_cmdl_cfg cfg;
 	int ret;
@@ -869,12 +884,10 @@ static int sa_cipher_setkey(struct crypto_skcipher *tfm, const u8 *key,
 	cfg.enc_eng_id = ad->enc_eng.eng_id;
 	cfg.iv_size = crypto_skcipher_ivsize(tfm);
 
-	crypto_sync_skcipher_clear_flags(ctx->fallback.skcipher,
+	crypto_skcipher_clear_flags(child, CRYPTO_TFM_REQ_MASK);
+	crypto_skcipher_set_flags(child, tfm->base.crt_flags &
 					 CRYPTO_TFM_REQ_MASK);
-	crypto_sync_skcipher_set_flags(ctx->fallback.skcipher,
-				       tfm->base.crt_flags &
-				       CRYPTO_TFM_REQ_MASK);
-	ret = crypto_sync_skcipher_setkey(ctx->fallback.skcipher, key, keylen);
+	ret = crypto_skcipher_setkey(child, key, keylen);
 	if (ret)
 		return ret;
 
@@ -976,23 +989,46 @@ static int sa_3des_ecb_setkey(struct crypto_skcipher *tfm, const u8 *key,
 	return sa_cipher_setkey(tfm, key, keylen, &ad);
 }
 
+static void sa_sync_from_device(struct sa_rx_data *rxd)
+{
+	struct sg_table *sgt;
+
+	if (rxd->mapped_sg[0].dir == DMA_BIDIRECTIONAL)
+		sgt = &rxd->mapped_sg[0].sgt;
+	else
+		sgt = &rxd->mapped_sg[1].sgt;
+
+	dma_sync_sgtable_for_cpu(rxd->ddev, sgt, DMA_FROM_DEVICE);
+}
+
+static void sa_free_sa_rx_data(struct sa_rx_data *rxd)
+{
+	int i;
+
+	for (i = 0; i < ARRAY_SIZE(rxd->mapped_sg); i++) {
+		struct sa_mapped_sg *mapped_sg = &rxd->mapped_sg[i];
+
+		if (mapped_sg->mapped) {
+			dma_unmap_sgtable(rxd->ddev, &mapped_sg->sgt,
+					  mapped_sg->dir, 0);
+			kfree(mapped_sg->split_sg);
+		}
+	}
+
+	kfree(rxd);
+}
+
 static void sa_aes_dma_in_callback(void *data)
 {
 	struct sa_rx_data *rxd = (struct sa_rx_data *)data;
 	struct skcipher_request *req;
-	int sglen;
 	u32 *result;
 	__be32 *mdptr;
 	size_t ml, pl;
 	int i;
-	enum dma_data_direction dir_src;
-	bool diff_dst;
 
+	sa_sync_from_device(rxd);
 	req = container_of(rxd->req, struct skcipher_request, base);
-	sglen = sg_nents_for_len(req->src, req->cryptlen);
-
-	diff_dst = (req->src != req->dst) ? true : false;
-	dir_src = diff_dst ? DMA_TO_DEVICE : DMA_BIDIRECTIONAL;
 
 	if (req->iv) {
 		mdptr = (__be32 *)dmaengine_desc_get_metadata_ptr(rxd->tx_in, &pl,
@@ -1003,18 +1039,7 @@ static void sa_aes_dma_in_callback(void *data)
 			result[i] = be32_to_cpu(mdptr[i + rxd->iv_idx]);
 	}
 
-	dma_unmap_sg(rxd->ddev, req->src, sglen, dir_src);
-	kfree(rxd->split_src_sg);
-
-	if (diff_dst) {
-		sglen = sg_nents_for_len(req->dst, req->cryptlen);
-
-		dma_unmap_sg(rxd->ddev, req->dst, sglen,
-			     DMA_FROM_DEVICE);
-		kfree(rxd->split_dst_sg);
-	}
-
-	kfree(rxd);
+	sa_free_sa_rx_data(rxd);
 
 	skcipher_request_complete(req, 0);
 }
@@ -1043,7 +1068,6 @@ static int sa_run(struct sa_req *req)
 	struct device *ddev;
 	struct dma_chan *dma_rx;
 	int sg_nents, src_nents, dst_nents;
-	int mapped_src_nents, mapped_dst_nents;
 	struct scatterlist *src, *dst;
 	size_t pl, ml, split_size;
 	struct sa_ctx_info *sa_ctx = req->enc ? &req->ctx->enc : &req->ctx->dec;
@@ -1052,6 +1076,7 @@ static int sa_run(struct sa_req *req)
 	u32 *mdptr;
 	bool diff_dst;
 	enum dma_data_direction dir_src;
+	struct sa_mapped_sg *mapped_sg;
 
 	gfp_flags = req->base->flags & CRYPTO_TFM_REQ_MAY_SLEEP ?
 		GFP_KERNEL : GFP_ATOMIC;
@@ -1082,6 +1107,7 @@ static int sa_run(struct sa_req *req)
 		dma_rx = pdata->dma_rx1;
 
 	ddev = dma_rx->device->dev;
+	rxd->ddev = ddev;
 
 	memcpy(cmdl, sa_ctx->cmdl, sa_ctx->cmdl_size);
 
@@ -1109,58 +1135,88 @@ static int sa_run(struct sa_req *req)
 
 	split_size = req->size;
 
+	mapped_sg = &rxd->mapped_sg[0];
 	if (sg_nents == 1 && split_size <= req->src->length) {
-		src = &rxd->rx_sg;
+		src = &mapped_sg->static_sg;
+		src_nents = 1;
 		sg_init_table(src, 1);
 		sg_set_page(src, sg_page(req->src), split_size,
 			    req->src->offset);
-		src_nents = 1;
-		dma_map_sg(ddev, src, sg_nents, dir_src);
+
+		mapped_sg->sgt.sgl = src;
+		mapped_sg->sgt.orig_nents = src_nents;
+		ret = dma_map_sgtable(ddev, &mapped_sg->sgt, dir_src, 0);
+		if (ret)
+			return ret;
+
+		mapped_sg->dir = dir_src;
+		mapped_sg->mapped = true;
 	} else {
-		mapped_src_nents = dma_map_sg(ddev, req->src, sg_nents,
-					      dir_src);
-		ret = sg_split(req->src, mapped_src_nents, 0, 1, &split_size,
-			       &src, &src_nents, gfp_flags);
+		mapped_sg->sgt.sgl = req->src;
+		mapped_sg->sgt.orig_nents = sg_nents;
+		ret = dma_map_sgtable(ddev, &mapped_sg->sgt, dir_src, 0);
+		if (ret)
+			return ret;
+
+		mapped_sg->dir = dir_src;
+		mapped_sg->mapped = true;
+
+		ret = sg_split(mapped_sg->sgt.sgl, mapped_sg->sgt.nents, 0, 1,
+			       &split_size, &src, &src_nents, gfp_flags);
 		if (ret) {
-			src_nents = sg_nents;
-			src = req->src;
+			src_nents = mapped_sg->sgt.nents;
+			src = mapped_sg->sgt.sgl;
 		} else {
-			rxd->split_src_sg = src;
+			mapped_sg->split_sg = src;
 		}
 	}
+
+	dma_sync_sgtable_for_device(ddev, &mapped_sg->sgt, DMA_TO_DEVICE);
 
 	if (!diff_dst) {
 		dst_nents = src_nents;
 		dst = src;
 	} else {
 		dst_nents = sg_nents_for_len(req->dst, req->size);
+		mapped_sg = &rxd->mapped_sg[1];
 
 		if (dst_nents == 1 && split_size <= req->dst->length) {
-			dst = &rxd->tx_sg;
+			dst = &mapped_sg->static_sg;
+			dst_nents = 1;
 			sg_init_table(dst, 1);
 			sg_set_page(dst, sg_page(req->dst), split_size,
 				    req->dst->offset);
-			dst_nents = 1;
-			dma_map_sg(ddev, dst, dst_nents, DMA_FROM_DEVICE);
+
+			mapped_sg->sgt.sgl = dst;
+			mapped_sg->sgt.orig_nents = dst_nents;
+			ret = dma_map_sgtable(ddev, &mapped_sg->sgt,
+					      DMA_FROM_DEVICE, 0);
+			if (ret)
+				goto err_cleanup;
+
+			mapped_sg->dir = DMA_FROM_DEVICE;
+			mapped_sg->mapped = true;
 		} else {
-			mapped_dst_nents = dma_map_sg(ddev, req->dst, dst_nents,
-						      DMA_FROM_DEVICE);
-			ret = sg_split(req->dst, mapped_dst_nents, 0, 1,
-				       &split_size, &dst, &dst_nents,
+			mapped_sg->sgt.sgl = req->dst;
+			mapped_sg->sgt.orig_nents = dst_nents;
+			ret = dma_map_sgtable(ddev, &mapped_sg->sgt,
+					      DMA_FROM_DEVICE, 0);
+			if (ret)
+				goto err_cleanup;
+
+			mapped_sg->dir = DMA_FROM_DEVICE;
+			mapped_sg->mapped = true;
+
+			ret = sg_split(mapped_sg->sgt.sgl, mapped_sg->sgt.nents,
+				       0, 1, &split_size, &dst, &dst_nents,
 				       gfp_flags);
 			if (ret) {
-				dst_nents = dst_nents;
-				dst = req->dst;
+				dst_nents = mapped_sg->sgt.nents;
+				dst = mapped_sg->sgt.sgl;
 			} else {
-				rxd->split_dst_sg = dst;
+				mapped_sg->split_sg = dst;
 			}
 		}
-	}
-
-	if (unlikely(src_nents != sg_nents)) {
-		dev_warn_ratelimited(sa_k3_dev, "failed to map tx pkt\n");
-		ret = -EIO;
-		goto err_cleanup;
 	}
 
 	rxd->tx_in = dmaengine_prep_slave_sg(dma_rx, dst, dst_nents,
@@ -1174,9 +1230,6 @@ static int sa_run(struct sa_req *req)
 
 	rxd->req = (void *)req->base;
 	rxd->enc = req->enc;
-	rxd->ddev = ddev;
-	rxd->src = src;
-	rxd->dst = dst;
 	rxd->iv_idx = req->ctx->iv_idx;
 	rxd->enc_iv_size = sa_ctx->cmdl_upd_info.enc_iv.size;
 	rxd->tx_in->callback = req->callback;
@@ -1214,16 +1267,7 @@ static int sa_run(struct sa_req *req)
 	return -EINPROGRESS;
 
 err_cleanup:
-	dma_unmap_sg(ddev, req->src, sg_nents, DMA_TO_DEVICE);
-	kfree(rxd->split_src_sg);
-
-	if (req->src != req->dst) {
-		dst_nents = sg_nents_for_len(req->dst, req->size);
-		dma_unmap_sg(ddev, req->dst, dst_nents, DMA_FROM_DEVICE);
-		kfree(rxd->split_dst_sg);
-	}
-
-	kfree(rxd);
+	sa_free_sa_rx_data(rxd);
 
 	return ret;
 }
@@ -1234,7 +1278,6 @@ static int sa_cipher_run(struct skcipher_request *req, u8 *iv, int enc)
 	    crypto_skcipher_ctx(crypto_skcipher_reqtfm(req));
 	struct crypto_alg *alg = req->base.tfm->__crt_alg;
 	struct sa_req sa_req = { 0 };
-	int ret;
 
 	if (!req->cryptlen)
 		return 0;
@@ -1246,20 +1289,18 @@ static int sa_cipher_run(struct skcipher_request *req, u8 *iv, int enc)
 	if (req->cryptlen > SA_MAX_DATA_SZ ||
 	    (req->cryptlen >= SA_UNSAFE_DATA_SZ_MIN &&
 	     req->cryptlen <= SA_UNSAFE_DATA_SZ_MAX)) {
-		SYNC_SKCIPHER_REQUEST_ON_STACK(subreq, ctx->fallback.skcipher);
+		struct skcipher_request *subreq = skcipher_request_ctx(req);
 
-		skcipher_request_set_sync_tfm(subreq, ctx->fallback.skcipher);
+		skcipher_request_set_tfm(subreq, ctx->fallback.skcipher);
 		skcipher_request_set_callback(subreq, req->base.flags,
-					      NULL, NULL);
+					      req->base.complete,
+					      req->base.data);
 		skcipher_request_set_crypt(subreq, req->src, req->dst,
 					   req->cryptlen, req->iv);
 		if (enc)
-			ret = crypto_skcipher_encrypt(subreq);
+			return crypto_skcipher_encrypt(subreq);
 		else
-			ret = crypto_skcipher_decrypt(subreq);
-
-		skcipher_request_zero(subreq);
-		return ret;
+			return crypto_skcipher_decrypt(subreq);
 	}
 
 	sa_req.size = req->cryptlen;
@@ -1293,11 +1334,12 @@ static void sa_sha_dma_in_callback(void *data)
 	struct ahash_request *req;
 	struct crypto_ahash *tfm;
 	unsigned int authsize;
-	int i, sg_nents;
+	int i;
 	size_t ml, pl;
 	u32 *result;
 	__be32 *mdptr;
 
+	sa_sync_from_device(rxd);
 	req = container_of(rxd->req, struct ahash_request, base);
 	tfm = crypto_ahash_reqtfm(req);
 	authsize = crypto_ahash_digestsize(tfm);
@@ -1308,12 +1350,7 @@ static void sa_sha_dma_in_callback(void *data)
 	for (i = 0; i < (authsize / 4); i++)
 		result[i] = be32_to_cpu(mdptr[i + 4]);
 
-	sg_nents = sg_nents_for_len(req->src, req->nbytes);
-	dma_unmap_sg(rxd->ddev, req->src, sg_nents, DMA_FROM_DEVICE);
-
-	kfree(rxd->split_src_sg);
-
-	kfree(rxd);
+	sa_free_sa_rx_data(rxd);
 
 	ahash_request_complete(req, 0);
 }
@@ -1482,8 +1519,8 @@ static int sa_sha_init(struct ahash_request *req)
 	struct sa_sha_req_ctx *rctx = ahash_request_ctx(req);
 	struct sa_tfm_ctx *ctx = crypto_ahash_ctx(tfm);
 
-	dev_dbg(sa_k3_dev, "init: digest size: %d, rctx=%llx\n",
-		crypto_ahash_digestsize(tfm), (u64)rctx);
+	dev_dbg(sa_k3_dev, "init: digest size: %u, rctx=%p\n",
+		crypto_ahash_digestsize(tfm), rctx);
 
 	ahash_request_set_tfm(&rctx->fallback_req, ctx->fallback.ahash);
 	rctx->fallback_req.base.flags =
@@ -1637,43 +1674,28 @@ static void sa_aead_dma_in_callback(void *data)
 	unsigned int authsize;
 	u8 auth_tag[SA_MAX_AUTH_TAG_SZ];
 	size_t pl, ml;
-	int i, sglen;
+	int i;
 	int err = 0;
 	u16 auth_len;
 	u32 *mdptr;
-	bool diff_dst;
-	enum dma_data_direction dir_src;
 
+	sa_sync_from_device(rxd);
 	req = container_of(rxd->req, struct aead_request, base);
 	tfm = crypto_aead_reqtfm(req);
 	start = req->assoclen + req->cryptlen;
 	authsize = crypto_aead_authsize(tfm);
-
-	diff_dst = (req->src != req->dst) ? true : false;
-	dir_src = diff_dst ? DMA_TO_DEVICE : DMA_BIDIRECTIONAL;
 
 	mdptr = (u32 *)dmaengine_desc_get_metadata_ptr(rxd->tx_in, &pl, &ml);
 	for (i = 0; i < (authsize / 4); i++)
 		mdptr[i + 4] = swab32(mdptr[i + 4]);
 
 	auth_len = req->assoclen + req->cryptlen;
-	if (!rxd->enc)
-		auth_len -= authsize;
-
-	sglen =  sg_nents_for_len(rxd->src, auth_len);
-	dma_unmap_sg(rxd->ddev, rxd->src, sglen, dir_src);
-	kfree(rxd->split_src_sg);
-
-	if (diff_dst) {
-		sglen = sg_nents_for_len(rxd->dst, auth_len);
-		dma_unmap_sg(rxd->ddev, rxd->dst, sglen, DMA_FROM_DEVICE);
-		kfree(rxd->split_dst_sg);
-	}
 
 	if (rxd->enc) {
 		scatterwalk_map_and_copy(&mdptr[4], req->dst, start, authsize,
 					 1);
 	} else {
+		auth_len -= authsize;
 		start -= authsize;
 		scatterwalk_map_and_copy(auth_tag, req->src, start, authsize,
 					 0);
@@ -1681,7 +1703,7 @@ static void sa_aead_dma_in_callback(void *data)
 		err = memcmp(&mdptr[4], auth_tag, authsize) ? -EBADMSG : 0;
 	}
 
-	kfree(rxd);
+	sa_free_sa_rx_data(rxd);
 
 	aead_request_complete(req, err);
 }
@@ -2243,25 +2265,21 @@ static int sa_dma_init(struct sa_crypto_data *dd)
 		return ret;
 
 	dd->dma_rx1 = dma_request_chan(dd->dev, "rx1");
-	if (IS_ERR(dd->dma_rx1)) {
-		if (PTR_ERR(dd->dma_rx1) != -EPROBE_DEFER)
-			dev_err(dd->dev, "Unable to request rx1 DMA channel\n");
-		return PTR_ERR(dd->dma_rx1);
-	}
+	if (IS_ERR(dd->dma_rx1))
+		return dev_err_probe(dd->dev, PTR_ERR(dd->dma_rx1),
+				     "Unable to request rx1 DMA channel\n");
 
 	dd->dma_rx2 = dma_request_chan(dd->dev, "rx2");
 	if (IS_ERR(dd->dma_rx2)) {
 		dma_release_channel(dd->dma_rx1);
-		if (PTR_ERR(dd->dma_rx2) != -EPROBE_DEFER)
-			dev_err(dd->dev, "Unable to request rx2 DMA channel\n");
-		return PTR_ERR(dd->dma_rx2);
+		return dev_err_probe(dd->dev, PTR_ERR(dd->dma_rx2),
+				     "Unable to request rx2 DMA channel\n");
 	}
 
 	dd->dma_tx = dma_request_chan(dd->dev, "tx");
 	if (IS_ERR(dd->dma_tx)) {
-		if (PTR_ERR(dd->dma_tx) != -EPROBE_DEFER)
-			dev_err(dd->dev, "Unable to request tx DMA channel\n");
-		ret = PTR_ERR(dd->dma_tx);
+		ret = dev_err_probe(dd->dev, PTR_ERR(dd->dma_tx),
+				    "Unable to request tx DMA channel\n");
 		goto err_dma_tx;
 	}
 
@@ -2333,7 +2351,7 @@ static int sa_ul_probe(struct platform_device *pdev)
 
 	pm_runtime_enable(dev);
 	ret = pm_runtime_get_sync(dev);
-	if (ret) {
+	if (ret < 0) {
 		dev_err(&pdev->dev, "%s: failed to get sync: %d\n", __func__,
 			ret);
 		return ret;

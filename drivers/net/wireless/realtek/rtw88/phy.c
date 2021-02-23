@@ -147,12 +147,13 @@ void rtw_phy_dig_write(struct rtw_dev *rtwdev, u8 igi)
 {
 	struct rtw_chip_info *chip = rtwdev->chip;
 	struct rtw_hal *hal = &rtwdev->hal;
-	const struct rtw_hw_reg *dig_cck = &chip->dig_cck[0];
 	u32 addr, mask;
 	u8 path;
 
-	if (dig_cck)
+	if (chip->dig_cck) {
+		const struct rtw_hw_reg *dig_cck = &chip->dig_cck[0];
 		rtw_write32_mask(rtwdev, dig_cck->addr, dig_cck->mask, igi >> 1);
+	}
 
 	for (path = 0; path < hal->rf_path_num; path++) {
 		addr = chip->dig[path].addr;
@@ -539,6 +540,12 @@ static void rtw_phy_cck_pd(struct rtw_dev *rtwdev)
 		dm_info->cck_fa_avg = cck_fa;
 	else
 		dm_info->cck_fa_avg = (dm_info->cck_fa_avg * 3 + cck_fa) >> 2;
+
+	rtw_dbg(rtwdev, RTW_DBG_PHY, "IGI=0x%x, rssi_min=%d, cck_fa=%d\n",
+		dm_info->igi_history[0], dm_info->min_rssi,
+		dm_info->fa_history[0]);
+	rtw_dbg(rtwdev, RTW_DBG_PHY, "cck_fa_avg=%d, cck_pd_default=%d\n",
+		dm_info->cck_fa_avg, dm_info->cck_pd_default);
 
 	level = rtw_phy_cck_pd_lv(rtwdev);
 
@@ -1522,7 +1529,7 @@ static u8 rtw_get_channel_group(u8 channel)
 	switch (channel) {
 	default:
 		WARN_ON(1);
-		/* fall through */
+		fallthrough;
 	case 1:
 	case 2:
 	case 36:
@@ -1668,7 +1675,7 @@ static u8 rtw_phy_get_2g_tx_power_index(struct rtw_dev *rtwdev,
 	switch (bandwidth) {
 	default:
 		WARN_ON(1);
-		/* fall through */
+		fallthrough;
 	case RTW_CHANNEL_WIDTH_20:
 		tx_power += pwr_idx_2g->ht_1s_diff.bw20 * factor;
 		if (above_2ss)
@@ -1712,7 +1719,7 @@ static u8 rtw_phy_get_5g_tx_power_index(struct rtw_dev *rtwdev,
 	switch (bandwidth) {
 	default:
 		WARN_ON(1);
-		/* fall through */
+		fallthrough;
 	case RTW_CHANNEL_WIDTH_20:
 		tx_power += pwr_idx_5g->ht_1s_diff.bw20 * factor;
 		if (above_2ss)

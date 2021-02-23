@@ -23,7 +23,6 @@
 #include <drm/drm_mipi_dsi.h>
 #include <drm/drm_modes.h>
 #include <drm/drm_panel.h>
-#include <drm/drm_print.h>
 
 struct rb070d30_panel {
 	struct drm_panel panel;
@@ -50,7 +49,7 @@ static int rb070d30_panel_prepare(struct drm_panel *panel)
 
 	ret = regulator_enable(ctx->supply);
 	if (ret < 0) {
-		DRM_DEV_ERROR(&ctx->dsi->dev, "Failed to enable supply: %d\n", ret);
+		dev_err(&ctx->dsi->dev, "Failed to enable supply: %d\n", ret);
 		return ret;
 	}
 
@@ -76,13 +75,8 @@ static int rb070d30_panel_unprepare(struct drm_panel *panel)
 static int rb070d30_panel_enable(struct drm_panel *panel)
 {
 	struct rb070d30_panel *ctx = panel_to_rb070d30_panel(panel);
-	int ret;
 
-	ret = mipi_dsi_dcs_exit_sleep_mode(ctx->dsi);
-	if (ret)
-		return ret;
-
-	return 0;
+	return mipi_dsi_dcs_exit_sleep_mode(ctx->dsi);
 }
 
 static int rb070d30_panel_disable(struct drm_panel *panel)
@@ -117,9 +111,8 @@ static int rb070d30_panel_get_modes(struct drm_panel *panel,
 
 	mode = drm_mode_duplicate(connector->dev, &default_mode);
 	if (!mode) {
-		DRM_DEV_ERROR(&ctx->dsi->dev,
-			      "Failed to add mode " DRM_MODE_FMT "\n",
-			      DRM_MODE_ARG(&default_mode));
+		dev_err(&ctx->dsi->dev, "Failed to add mode " DRM_MODE_FMT "\n",
+			DRM_MODE_ARG(&default_mode));
 		return -EINVAL;
 	}
 
@@ -166,13 +159,13 @@ static int rb070d30_panel_dsi_probe(struct mipi_dsi_device *dsi)
 
 	ctx->gpios.reset = devm_gpiod_get(&dsi->dev, "reset", GPIOD_OUT_LOW);
 	if (IS_ERR(ctx->gpios.reset)) {
-		DRM_DEV_ERROR(&dsi->dev, "Couldn't get our reset GPIO\n");
+		dev_err(&dsi->dev, "Couldn't get our reset GPIO\n");
 		return PTR_ERR(ctx->gpios.reset);
 	}
 
 	ctx->gpios.power = devm_gpiod_get(&dsi->dev, "power", GPIOD_OUT_LOW);
 	if (IS_ERR(ctx->gpios.power)) {
-		DRM_DEV_ERROR(&dsi->dev, "Couldn't get our power GPIO\n");
+		dev_err(&dsi->dev, "Couldn't get our power GPIO\n");
 		return PTR_ERR(ctx->gpios.power);
 	}
 
@@ -182,7 +175,7 @@ static int rb070d30_panel_dsi_probe(struct mipi_dsi_device *dsi)
 	 */
 	ctx->gpios.updn = devm_gpiod_get(&dsi->dev, "updn", GPIOD_OUT_LOW);
 	if (IS_ERR(ctx->gpios.updn)) {
-		DRM_DEV_ERROR(&dsi->dev, "Couldn't get our updn GPIO\n");
+		dev_err(&dsi->dev, "Couldn't get our updn GPIO\n");
 		return PTR_ERR(ctx->gpios.updn);
 	}
 
@@ -192,7 +185,7 @@ static int rb070d30_panel_dsi_probe(struct mipi_dsi_device *dsi)
 	 */
 	ctx->gpios.shlr = devm_gpiod_get(&dsi->dev, "shlr", GPIOD_OUT_LOW);
 	if (IS_ERR(ctx->gpios.shlr)) {
-		DRM_DEV_ERROR(&dsi->dev, "Couldn't get our shlr GPIO\n");
+		dev_err(&dsi->dev, "Couldn't get our shlr GPIO\n");
 		return PTR_ERR(ctx->gpios.shlr);
 	}
 
@@ -200,9 +193,7 @@ static int rb070d30_panel_dsi_probe(struct mipi_dsi_device *dsi)
 	if (ret)
 		return ret;
 
-	ret = drm_panel_add(&ctx->panel);
-	if (ret < 0)
-		return ret;
+	drm_panel_add(&ctx->panel);
 
 	dsi->mode_flags = MIPI_DSI_MODE_VIDEO | MIPI_DSI_MODE_VIDEO_BURST | MIPI_DSI_MODE_LPM;
 	dsi->format = MIPI_DSI_FMT_RGB888;

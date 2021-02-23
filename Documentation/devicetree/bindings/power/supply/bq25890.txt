@@ -33,6 +33,10 @@ Optional properties:
 - ti,thermal-regulation-threshold: integer, temperature above which the charge
     current is lowered, to avoid overheating (in degrees Celsius). If omitted,
     the default setting will be used (120 degrees);
+- ti,ibatcomp-micro-ohms: integer, value of a resistor in series with
+    the battery;
+- ti,ibatcomp-clamp-microvolt: integer, maximum charging voltage adjustment due
+    to expected voltage drop on in-series resistor;
 
 Example:
 

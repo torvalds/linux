@@ -5,6 +5,7 @@
  * Author:
  * Mimi Zohar <zohar@us.ibm.com>
  */
+#include <linux/module.h>
 #include <linux/init.h>
 #include <linux/file.h>
 #include <linux/fs.h>
@@ -16,26 +17,41 @@
 
 #include "ima.h"
 
-static int __init default_appraise_setup(char *str)
-{
 #ifdef CONFIG_IMA_APPRAISE_BOOTPARAM
-	if (arch_ima_get_secureboot()) {
-		pr_info("Secure boot enabled: ignoring ima_appraise=%s boot parameter option",
-			str);
-		return 1;
-	}
+static char *ima_appraise_cmdline_default __initdata;
+core_param(ima_appraise, ima_appraise_cmdline_default, charp, 0);
+
+void __init ima_appraise_parse_cmdline(void)
+{
+	const char *str = ima_appraise_cmdline_default;
+	bool sb_state = arch_ima_get_secureboot();
+	int appraisal_state = ima_appraise;
+
+	if (!str)
+		return;
 
 	if (strncmp(str, "off", 3) == 0)
-		ima_appraise = 0;
+		appraisal_state = 0;
 	else if (strncmp(str, "log", 3) == 0)
-		ima_appraise = IMA_APPRAISE_LOG;
+		appraisal_state = IMA_APPRAISE_LOG;
 	else if (strncmp(str, "fix", 3) == 0)
-		ima_appraise = IMA_APPRAISE_FIX;
-#endif
-	return 1;
-}
+		appraisal_state = IMA_APPRAISE_FIX;
+	else if (strncmp(str, "enforce", 7) == 0)
+		appraisal_state = IMA_APPRAISE_ENFORCE;
+	else
+		pr_err("invalid \"%s\" appraise option", str);
 
-__setup("ima_appraise=", default_appraise_setup);
+	/* If appraisal state was changed, but secure boot is enabled,
+	 * keep its default */
+	if (sb_state) {
+		if (!(appraisal_state & IMA_APPRAISE_ENFORCE))
+			pr_info("Secure boot enabled: ignoring ima_appraise=%s option",
+				str);
+	} else {
+		ima_appraise = appraisal_state;
+	}
+}
+#endif
 
 /*
  * is_ima_appraise_enabled - return appraise status

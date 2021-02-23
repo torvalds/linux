@@ -26,7 +26,7 @@ tree.
 
 If a KSM page is shared between less than ``max_page_sharing`` VMAs,
 the node of the stable tree that represents such KSM page points to a
-list of :c:type:`struct rmap_item` and the ``page->mapping`` of the
+list of struct rmap_item and the ``page->mapping`` of the
 KSM page points to the stable tree node.
 
 When the sharing passes this threshold, KSM adds a second dimension to

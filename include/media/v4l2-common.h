@@ -519,6 +519,27 @@ int v4l2_fill_pixfmt(struct v4l2_pix_format *pixfmt, u32 pixelformat,
 int v4l2_fill_pixfmt_mp(struct v4l2_pix_format_mplane *pixfmt, u32 pixelformat,
 			u32 width, u32 height);
 
+/**
+ * v4l2_get_link_freq - Get link rate from transmitter
+ *
+ * @handler: The transmitter's control handler
+ * @mul: The multiplier between pixel rate and link frequency. Bits per pixel on
+ *	 D-PHY, samples per clock on parallel. 0 otherwise.
+ * @div: The divisor between pixel rate and link frequency. Number of data lanes
+ *	 times two on D-PHY, 1 on parallel. 0 otherwise.
+ *
+ * This function is intended for obtaining the link frequency from the
+ * transmitter sub-devices. It returns the link rate, either from the
+ * V4L2_CID_LINK_FREQ control implemented by the transmitter, or value
+ * calculated based on the V4L2_CID_PIXEL_RATE implemented by the transmitter.
+ *
+ * Returns link frequency on success, otherwise a negative error code:
+ *	-ENOENT: Link frequency or pixel rate control not found
+ *	-EINVAL: Invalid link frequency value
+ */
+s64 v4l2_get_link_freq(struct v4l2_ctrl_handler *handler, unsigned int mul,
+		       unsigned int div);
+
 static inline u64 v4l2_buffer_get_timestamp(const struct v4l2_buffer *buf)
 {
 	/*
@@ -537,6 +558,35 @@ static inline void v4l2_buffer_set_timestamp(struct v4l2_buffer *buf,
 
 	buf->timestamp.tv_sec  = ts.tv_sec;
 	buf->timestamp.tv_usec = ts.tv_nsec / NSEC_PER_USEC;
+}
+
+static inline bool v4l2_is_colorspace_valid(__u32 colorspace)
+{
+	return colorspace > V4L2_COLORSPACE_DEFAULT &&
+	       colorspace <= V4L2_COLORSPACE_DCI_P3;
+}
+
+static inline bool v4l2_is_xfer_func_valid(__u32 xfer_func)
+{
+	return xfer_func > V4L2_XFER_FUNC_DEFAULT &&
+	       xfer_func <= V4L2_XFER_FUNC_SMPTE2084;
+}
+
+static inline bool v4l2_is_ycbcr_enc_valid(__u8 ycbcr_enc)
+{
+	return ycbcr_enc > V4L2_YCBCR_ENC_DEFAULT &&
+	       ycbcr_enc <= V4L2_YCBCR_ENC_SMPTE240M;
+}
+
+static inline bool v4l2_is_hsv_enc_valid(__u8 hsv_enc)
+{
+	return hsv_enc == V4L2_HSV_ENC_180 || hsv_enc == V4L2_HSV_ENC_256;
+}
+
+static inline bool v4l2_is_quant_valid(__u8 quantization)
+{
+	return quantization == V4L2_QUANTIZATION_FULL_RANGE ||
+	       quantization == V4L2_QUANTIZATION_LIM_RANGE;
 }
 
 #endif /* V4L2_COMMON_H_ */

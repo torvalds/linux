@@ -1063,24 +1063,20 @@ err_unlock:
 	return ret;
 }
 
-static int kmx61_trig_try_reenable(struct iio_trigger *trig)
+static void kmx61_trig_reenable(struct iio_trigger *trig)
 {
 	struct iio_dev *indio_dev = iio_trigger_get_drvdata(trig);
 	struct kmx61_data *data = kmx61_get_data(indio_dev);
 	int ret;
 
 	ret = i2c_smbus_read_byte_data(data->client, KMX61_REG_INL);
-	if (ret < 0) {
+	if (ret < 0)
 		dev_err(&data->client->dev, "Error reading reg_inl\n");
-		return ret;
-	}
-
-	return 0;
 }
 
 static const struct iio_trigger_ops kmx61_trigger_ops = {
 	.set_trigger_state = kmx61_data_rdy_trigger_set_state,
-	.try_reenable = kmx61_trig_try_reenable,
+	.reenable = kmx61_trig_reenable,
 };
 
 static irqreturn_t kmx61_event_handler(int irq, void *private)

@@ -65,7 +65,7 @@ static int tcf_bpf_act(struct sk_buff *skb, const struct tc_action *act,
 	 * In case a different well-known TC_ACT opcode has been
 	 * returned, it will overwrite the default one.
 	 *
-	 * For everything else that is unkown, TC_ACT_UNSPEC is
+	 * For everything else that is unknown, TC_ACT_UNSPEC is
 	 * returned.
 	 */
 	switch (filter_res) {

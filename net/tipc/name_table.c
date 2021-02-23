@@ -3,6 +3,7 @@
  *
  * Copyright (c) 2000-2006, 2014-2018, Ericsson AB
  * Copyright (c) 2004-2008, 2010-2014, Wind River Systems
+ * Copyright (c) 2020, Red Hat Inc
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -103,7 +104,8 @@ RB_DECLARE_CALLBACKS_MAX(static, sr_callbacks,
  *                               range match
  * @sr: the service range pointer as a loop cursor
  * @sc: the pointer to tipc service which holds the service range rbtree
- * @start, end: the range (end >= start) for matching
+ * @start: beginning of the search range (end >= start) for matching
+ * @end: end of the search range (end >= start) for matching
  */
 #define service_range_foreach_match(sr, sc, start, end)			\
 	for (sr = service_range_match_first((sc)->ranges.rb_node,	\
@@ -117,7 +119,8 @@ RB_DECLARE_CALLBACKS_MAX(static, sr_callbacks,
 /**
  * service_range_match_first - find first service range matching a range
  * @n: the root node of service range rbtree for searching
- * @start, end: the range (end >= start) for matching
+ * @start: beginning of the search range (end >= start) for matching
+ * @end: end of the search range (end >= start) for matching
  *
  * Return: the leftmost service range node in the rbtree that overlaps the
  * specific range if any. Otherwise, returns NULL.
@@ -166,7 +169,8 @@ static struct service_range *service_range_match_first(struct rb_node *n,
 /**
  * service_range_match_next - find next service range matching a range
  * @n: a node in service range rbtree from which the searching starts
- * @start, end: the range (end >= start) for matching
+ * @start: beginning of the search range (end >= start) for matching
+ * @end: end of the search range (end >= start) for matching
  *
  * Return: the next service range node to the given node in the rbtree that
  * overlaps the specific range if any. Otherwise, returns NULL.
@@ -218,6 +222,13 @@ static int hash(int x)
 
 /**
  * tipc_publ_create - create a publication structure
+ * @type: name sequence type
+ * @lower: name sequence lower bound
+ * @upper: name sequence upper bound
+ * @scope: publication scope
+ * @node: network address of publishing socket
+ * @port: publishing port
+ * @key: publication key
  */
 static struct publication *tipc_publ_create(u32 type, u32 lower, u32 upper,
 					    u32 scope, u32 node, u32 port,
@@ -245,6 +256,8 @@ static struct publication *tipc_publ_create(u32 type, u32 lower, u32 upper,
 
 /**
  * tipc_service_create - create a service structure for the specified 'type'
+ * @type: service type
+ * @hd: name_table services list
  *
  * Allocates a single range structure and sets it to all 0's.
  */
@@ -361,6 +374,9 @@ err:
 
 /**
  * tipc_service_remove_publ - remove a publication from a service
+ * @sr: service_range to remove publication from
+ * @node: target node
+ * @key: target publication key
  */
 static struct publication *tipc_service_remove_publ(struct service_range *sr,
 						    u32 node, u32 key)
@@ -377,7 +393,7 @@ static struct publication *tipc_service_remove_publ(struct service_range *sr,
 	return NULL;
 }
 
-/**
+/*
  * Code reused: time_after32() for the same purpose
  */
 #define publication_after(pa, pb) time_after32((pa)->id, (pb)->id)
@@ -395,6 +411,8 @@ static int tipc_publ_sort(void *priv, struct list_head *a,
  * tipc_service_subscribe - attach a subscription, and optionally
  * issue the prescribed number of events if there is any service
  * range overlapping with the requested range
+ * @service: the tipc_service to attach the @sub to
+ * @sub: the subscription to attach
  */
 static void tipc_service_subscribe(struct tipc_service *service,
 				   struct tipc_subscription *sub)
@@ -403,12 +421,12 @@ static void tipc_service_subscribe(struct tipc_service *service,
 	struct publication *p, *first, *tmp;
 	struct list_head publ_list;
 	struct service_range *sr;
-	struct tipc_name_seq ns;
+	struct tipc_service_range r;
 	u32 filter;
 
-	ns.type = tipc_sub_read(sb, seq.type);
-	ns.lower = tipc_sub_read(sb, seq.lower);
-	ns.upper = tipc_sub_read(sb, seq.upper);
+	r.type = tipc_sub_read(sb, seq.type);
+	r.lower = tipc_sub_read(sb, seq.lower);
+	r.upper = tipc_sub_read(sb, seq.upper);
 	filter = tipc_sub_read(sb, filter);
 
 	tipc_sub_get(sub);
@@ -418,7 +436,7 @@ static void tipc_service_subscribe(struct tipc_service *service,
 		return;
 
 	INIT_LIST_HEAD(&publ_list);
-	service_range_foreach_match(sr, service, ns.lower, ns.upper) {
+	service_range_foreach_match(sr, service, r.lower, r.upper) {
 		first = NULL;
 		list_for_each_entry(p, &sr->all_publ, all_publ) {
 			if (filter & TIPC_SUB_PORTS)
@@ -528,14 +546,16 @@ exit:
 
 /**
  * tipc_nametbl_translate - perform service instance to socket translation
- *
- * On entry, 'dnode' is the search domain used during translation.
+ * @net: network namespace
+ * @type: message type
+ * @instance: message instance
+ * @dnode: the search domain used during translation
  *
  * On exit:
  * - if translation is deferred to another node, leave 'dnode' unchanged and
- *   return 0
+ * return 0
  * - if translation is attempted and succeeds, set 'dnode' to the publishing
- *   node and return the published (non-zero) port number
+ * node and return the published (non-zero) port number
  * - if translation is attempted and fails, set 'dnode' to 0 and return 0
  *
  * Note that for legacy users (node configured with Z.C.N address format) the
@@ -756,6 +776,11 @@ exit:
 
 /**
  * tipc_nametbl_withdraw - withdraw a service binding
+ * @net: network namespace
+ * @type: service type
+ * @lower: service range lower bound
+ * @upper: service range upper bound
+ * @key: target publication key
  */
 int tipc_nametbl_withdraw(struct net *net, u32 type, u32 lower,
 			  u32 upper, u32 key)
@@ -791,6 +816,7 @@ int tipc_nametbl_withdraw(struct net *net, u32 type, u32 lower,
 
 /**
  * tipc_nametbl_subscribe - add a subscription object to the name table
+ * @sub: subscription to add
  */
 bool tipc_nametbl_subscribe(struct tipc_subscription *sub)
 {
@@ -821,6 +847,7 @@ bool tipc_nametbl_subscribe(struct tipc_subscription *sub)
 
 /**
  * tipc_nametbl_unsubscribe - remove a subscription object from name table
+ * @sub: subscription to remove
  */
 void tipc_nametbl_unsubscribe(struct tipc_subscription *sub)
 {
@@ -870,7 +897,9 @@ int tipc_nametbl_init(struct net *net)
 }
 
 /**
- *  tipc_service_delete - purge all publications for a service and delete it
+ * tipc_service_delete - purge all publications for a service and delete it
+ * @net: the associated network namespace
+ * @sc: tipc_service to delete
  */
 static void tipc_service_delete(struct net *net, struct tipc_service *sc)
 {

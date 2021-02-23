@@ -160,7 +160,7 @@ static int radeon_cs_parser_relocs(struct radeon_cs_parser *p)
 			p->relocs[i].allowed_domains = domain;
 		}
 
-		if (radeon_ttm_tt_has_userptr(p->relocs[i].robj->tbo.ttm)) {
+		if (radeon_ttm_tt_has_userptr(p->rdev, p->relocs[i].robj->tbo.ttm)) {
 			uint32_t domain = p->relocs[i].preferred_domains;
 			if (!(domain & RADEON_GEM_DOMAIN_GTT)) {
 				DRM_ERROR("Only RADEON_GEM_DOMAIN_GTT is "
@@ -408,6 +408,7 @@ static int cmp_size_smaller_first(void *priv, struct list_head *a,
  * cs_parser_fini() - clean parser states
  * @parser:	parser structure holding parsing context.
  * @error:	error number
+ * @backoff:	indicator to backoff the reservation
  *
  * If error is set than unvalidate buffer, otherwise just free memory
  * used by parsing context.
@@ -723,8 +724,9 @@ out:
 
 /**
  * radeon_cs_packet_parse() - parse cp packet and point ib index to next packet
- * @parser:	parser structure holding parsing context.
+ * @p:		parser structure holding parsing context.
  * @pkt:	where to store packet information
+ * @idx:	packet index
  *
  * Assume that chunk_ib_index is properly set. Will return -EINVAL
  * if packet is bigger than remaining ib size. or if packets is unknown.
@@ -829,11 +831,9 @@ void radeon_cs_dump_packet(struct radeon_cs_parser *p,
 
 /**
  * radeon_cs_packet_next_reloc() - parse next (should be reloc) packet
- * @parser:		parser structure holding parsing context.
- * @data:		pointer to relocation data
- * @offset_start:	starting offset
- * @offset_mask:	offset mask (to align start offset on)
- * @reloc:		reloc informations
+ * @p:			parser structure holding parsing context.
+ * @cs_reloc:		reloc informations
+ * @nomm:		no memory management for debugging
  *
  * Check if next packet is relocation packet3, do bo validation and compute
  * GPU offset using the provided start.

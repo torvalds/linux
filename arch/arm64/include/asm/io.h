@@ -110,6 +110,7 @@ static inline u64 __raw_readq(const volatile void __iomem *addr)
 
 #define __io_par(v)		__iormb(v)
 #define __iowmb()		dma_wmb()
+#define __iomb()		dma_mb()
 
 /*
  * Relaxed I/O memory access primitives. These follow the Device memory
@@ -199,7 +200,5 @@ extern void __iomem *ioremap_cache(phys_addr_t phys_addr, size_t size);
 #define ARCH_HAS_VALID_PHYS_ADDR_RANGE
 extern int valid_phys_addr_range(phys_addr_t addr, size_t size);
 extern int valid_mmap_phys_addr_range(unsigned long pfn, size_t size);
-
-extern int devmem_is_allowed(unsigned long pfn);
 
 #endif	/* __ASM_IO_H */

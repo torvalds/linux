@@ -278,7 +278,7 @@ function check_result {
 	# help differentiate repeated testing runs.  Remove them with a
 	# post-comparison sed filter.
 
-	result=$(dmesg | comm -13 "$SAVED_DMESG" - | \
+	result=$(dmesg | comm --nocheck-order -13 "$SAVED_DMESG" - | \
 		 grep -e 'livepatch:' -e 'test_klp' | \
 		 grep -v '\(tainting\|taints\) kernel' | \
 		 sed 's/^\[[ 0-9.]*\] //')

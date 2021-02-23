@@ -9,7 +9,7 @@
  */
 
 #include <asm/cputable.h>
-#include <asm/reg.h>
+#include <asm/vdso/timebase.h>
 
 #define CLOCK_TICK_RATE	1024000 /* Underlying HZ */
 
@@ -17,9 +17,6 @@ typedef unsigned long cycles_t;
 
 static inline cycles_t get_cycles(void)
 {
-	if (IS_ENABLED(CONFIG_PPC_BOOK3S_601))
-		return 0;
-
 	return mftb();
 }
 

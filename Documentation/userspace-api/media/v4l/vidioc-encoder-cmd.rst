@@ -1,11 +1,5 @@
-.. Permission is granted to copy, distribute and/or modify this
-.. document under the terms of the GNU Free Documentation License,
-.. Version 1.1 or any later version published by the Free Software
-.. Foundation, with no Invariant Sections, no Front-Cover Texts
-.. and no Back-Cover Texts. A copy of the license is included at
-.. Documentation/userspace-api/media/fdl-appendix.rst.
-..
-.. TODO: replace it to GFDL-1.1-or-later WITH no-invariant-sections
+.. SPDX-License-Identifier: GFDL-1.1-no-invariants-or-later
+.. c:namespace:: V4L
 
 .. _VIDIOC_ENCODER_CMD:
 
@@ -18,22 +12,22 @@ Name
 
 VIDIOC_ENCODER_CMD - VIDIOC_TRY_ENCODER_CMD - Execute an encoder command
 
-
 Synopsis
 ========
 
-.. c:function:: int ioctl( int fd, VIDIOC_ENCODER_CMD, struct v4l2_encoder_cmd *argp )
-    :name: VIDIOC_ENCODER_CMD
+.. c:macro:: VIDIOC_ENCODER_CMD
 
-.. c:function:: int ioctl( int fd, VIDIOC_TRY_ENCODER_CMD, struct v4l2_encoder_cmd *argp )
-    :name: VIDIOC_TRY_ENCODER_CMD
+``int ioctl(int fd, VIDIOC_ENCODER_CMD, struct v4l2_encoder_cmd *argp)``
 
+.. c:macro:: VIDIOC_TRY_ENCODER_CMD
+
+``int ioctl(int fd, VIDIOC_TRY_ENCODER_CMD, struct v4l2_encoder_cmd *argp)``
 
 Arguments
 =========
 
 ``fd``
-    File descriptor returned by :ref:`open() <func-open>`.
+    File descriptor returned by :c:func:`open()`.
 
 ``argp``
     Pointer to struct :c:type:`v4l2_encoder_cmd`.
@@ -54,16 +48,16 @@ this structure.
 The ``cmd`` field must contain the command code. Some commands use the
 ``flags`` field for additional information.
 
-After a STOP command, :ref:`read() <func-read>` calls will read
+After a STOP command, :c:func:`read()` calls will read
 the remaining data buffered by the driver. When the buffer is empty,
-:ref:`read() <func-read>` will return zero and the next :ref:`read() <func-read>`
+:c:func:`read()` will return zero and the next :c:func:`read()`
 call will restart the encoder.
 
-A :ref:`read() <func-read>` or :ref:`VIDIOC_STREAMON <VIDIOC_STREAMON>`
+A :c:func:`read()` or :ref:`VIDIOC_STREAMON <VIDIOC_STREAMON>`
 call sends an implicit START command to the encoder if it has not been
 started yet. Applies to both queues of mem2mem encoders.
 
-A :ref:`close() <func-close>` or :ref:`VIDIOC_STREAMOFF <VIDIOC_STREAMON>`
+A :c:func:`close()` or :ref:`VIDIOC_STREAMOFF <VIDIOC_STREAMON>`
 call of a streaming file descriptor sends an implicit immediate STOP to
 the encoder, and all buffered data is discarded. Applies to both queues of
 mem2mem encoders.
@@ -71,7 +65,6 @@ mem2mem encoders.
 These ioctls are optional, not all drivers may support them. They were
 introduced in Linux 2.6.21. They are, however, mandatory for stateful mem2mem
 encoders (as further documented in :ref:`encoder`).
-
 
 .. tabularcolumns:: |p{4.4cm}|p{4.4cm}|p{8.7cm}|
 
@@ -94,7 +87,6 @@ encoders (as further documented in :ref:`encoder`).
       - ``data``\ [8]
       - Reserved for future extensions. Drivers and applications must set
 	the array to zero.
-
 
 
 .. tabularcolumns:: |p{6.6cm}|p{2.2cm}|p{8.7cm}|
@@ -141,7 +133,6 @@ encoders (as further documented in :ref:`encoder`).
 	the encoder is already running, this command does nothing. No
 	flags are defined for this command.
 
-
 .. tabularcolumns:: |p{6.6cm}|p{2.2cm}|p{8.7cm}|
 
 .. _encoder-flags:
@@ -157,7 +148,6 @@ encoders (as further documented in :ref:`encoder`).
 	rather than immediately.
 
         Does not apply to :ref:`encoder`.
-
 
 Return Value
 ============

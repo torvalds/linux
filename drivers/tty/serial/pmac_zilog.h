@@ -362,10 +362,10 @@ static inline void zssync(struct uart_pmac_port *port)
 
 /* Misc macros */
 #define ZS_CLEARERR(port)    (write_zsreg(port, 0, ERR_RES))
-#define ZS_CLEARFIFO(port)   do { volatile unsigned char garbage; \
-				     garbage = read_zsdata(port); \
-				     garbage = read_zsdata(port); \
-				     garbage = read_zsdata(port); \
+#define ZS_CLEARFIFO(port)   do {                       \
+				     read_zsdata(port); \
+				     read_zsdata(port); \
+				     read_zsdata(port); \
 				} while(0)
 
 #define ZS_IS_CONS(UP)			((UP)->flags & PMACZILOG_FLAG_IS_CONS)

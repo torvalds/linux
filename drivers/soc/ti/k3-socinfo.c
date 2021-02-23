@@ -39,6 +39,8 @@ static const struct k3_soc_id {
 } k3_soc_ids[] = {
 	{ 0xBB5A, "AM65X" },
 	{ 0xBB64, "J721E" },
+	{ 0xBB6D, "J7200" },
+	{ 0xBB38, "AM64X" }
 };
 
 static int

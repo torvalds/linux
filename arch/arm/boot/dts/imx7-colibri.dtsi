@@ -60,7 +60,7 @@
 &ecspi3 {
 	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_ecspi3 &pinctrl_ecspi3_cs>;
-	cs-gpios = <&gpio4 11 GPIO_ACTIVE_HIGH>;
+	cs-gpios = <&gpio4 11 GPIO_ACTIVE_LOW>;
 };
 
 &fec1 {

@@ -263,15 +263,9 @@ static int zip_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 		goto err_disable_device;
 	}
 
-	err = pci_set_dma_mask(pdev, DMA_BIT_MASK(48));
+	err = dma_set_mask_and_coherent(&pdev->dev, DMA_BIT_MASK(48));
 	if (err) {
-		dev_err(dev, "Unable to get usable DMA configuration\n");
-		goto err_release_regions;
-	}
-
-	err = pci_set_consistent_dma_mask(pdev, DMA_BIT_MASK(48));
-	if (err) {
-		dev_err(dev, "Unable to get 48-bit DMA for allocations\n");
+		dev_err(dev, "Unable to get usable 48-bit DMA configuration\n");
 		goto err_release_regions;
 	}
 
@@ -460,7 +454,7 @@ static void zip_unregister_compression_device(void)
 #include <linux/debugfs.h>
 
 /* Displays ZIP device statistics */
-static int zip_show_stats(struct seq_file *s, void *unused)
+static int zip_stats_show(struct seq_file *s, void *unused)
 {
 	u64 val = 0ull;
 	u64 avg_chunk = 0ull, avg_cr = 0ull;
@@ -523,7 +517,7 @@ static int zip_show_stats(struct seq_file *s, void *unused)
 }
 
 /* Clears stats data */
-static int zip_clear_stats(struct seq_file *s, void *unused)
+static int zip_clear_show(struct seq_file *s, void *unused)
 {
 	int index = 0;
 
@@ -558,7 +552,7 @@ static struct zip_registers zipregs[64] = {
 };
 
 /* Prints registers' contents */
-static int zip_print_regs(struct seq_file *s, void *unused)
+static int zip_regs_show(struct seq_file *s, void *unused)
 {
 	u64 val = 0;
 	int i = 0, index = 0;
@@ -584,41 +578,9 @@ static int zip_print_regs(struct seq_file *s, void *unused)
 	return 0;
 }
 
-static int zip_stats_open(struct inode *inode, struct file *file)
-{
-	return single_open(file, zip_show_stats, NULL);
-}
-
-static const struct file_operations zip_stats_fops = {
-	.owner = THIS_MODULE,
-	.open  = zip_stats_open,
-	.read  = seq_read,
-	.release = single_release,
-};
-
-static int zip_clear_open(struct inode *inode, struct file *file)
-{
-	return single_open(file, zip_clear_stats, NULL);
-}
-
-static const struct file_operations zip_clear_fops = {
-	.owner = THIS_MODULE,
-	.open  = zip_clear_open,
-	.read  = seq_read,
-	.release = single_release,
-};
-
-static int zip_regs_open(struct inode *inode, struct file *file)
-{
-	return single_open(file, zip_print_regs, NULL);
-}
-
-static const struct file_operations zip_regs_fops = {
-	.owner = THIS_MODULE,
-	.open  = zip_regs_open,
-	.read  = seq_read,
-	.release = single_release,
-};
+DEFINE_SHOW_ATTRIBUTE(zip_stats);
+DEFINE_SHOW_ATTRIBUTE(zip_clear);
+DEFINE_SHOW_ATTRIBUTE(zip_regs);
 
 /* Root directory for thunderx_zip debugfs entry */
 static struct dentry *zip_debugfs_root;

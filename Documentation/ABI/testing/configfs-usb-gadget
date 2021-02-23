@@ -12,22 +12,24 @@ Description:
 
 		The attributes of a gadget:
 
-		UDC		- bind a gadget to UDC/unbind a gadget;
-				write UDC's name found in /sys/class/udc/*
-				to bind a gadget, empty string "" to unbind.
+		================  ============================================
+		UDC		  bind a gadget to UDC/unbind a gadget;
+				  write UDC's name found in /sys/class/udc/*
+				  to bind a gadget, empty string "" to unbind.
 
-		max_speed	- maximum speed the driver supports. Valid
-				names are super-speed-plus, super-speed,
-				high-speed, full-speed, and low-speed.
+		max_speed	  maximum speed the driver supports. Valid
+				  names are super-speed-plus, super-speed,
+				  high-speed, full-speed, and low-speed.
 
-		bDeviceClass	- USB device class code
-		bDeviceSubClass	- USB device subclass code
-		bDeviceProtocol	- USB device protocol code
-		bMaxPacketSize0	- maximum endpoint 0 packet size
-		bcdDevice	- bcd device release number
-		bcdUSB		- bcd USB specification version number
-		idProduct	- product ID
-		idVendor	- vendor ID
+		bDeviceClass	  USB device class code
+		bDeviceSubClass	  USB device subclass code
+		bDeviceProtocol	  USB device protocol code
+		bMaxPacketSize0	  maximum endpoint 0 packet size
+		bcdDevice	  bcd device release number
+		bcdUSB		  bcd USB specification version number
+		idProduct	  product ID
+		idVendor	  vendor ID
+		================  ============================================
 
 What:		/config/usb-gadget/gadget/configs
 Date:		Jun 2013
@@ -41,8 +43,10 @@ KernelVersion:	3.11
 Description:
 		The attributes of a configuration:
 
-		bmAttributes	- configuration characteristics
-		MaxPower	- maximum power consumption from the bus
+		================  ======================================
+		bmAttributes	  configuration characteristics
+		MaxPower	  maximum power consumption from the bus
+		================  ======================================
 
 What:		/config/usb-gadget/gadget/configs/config/strings
 Date:		Jun 2013
@@ -57,7 +61,9 @@ KernelVersion:	3.11
 Description:
 		The attributes:
 
-		configuration	- configuration description
+		================  =========================
+		configuration	  configuration description
+		================  =========================
 
 
 What:		/config/usb-gadget/gadget/functions
@@ -76,8 +82,10 @@ Description:
 
 		The attributes:
 
-		compatible_id		- 8-byte string for "Compatible ID"
-		sub_compatible_id	- 8-byte string for "Sub Compatible ID"
+		=================	=====================================
+		compatible_id		8-byte string for "Compatible ID"
+		sub_compatible_id	8-byte string for "Sub Compatible ID"
+		=================	=====================================
 
 What:		/config/usb-gadget/gadget/functions/<func>.<inst>/interface.<n>/<property>
 Date:		May 2014
@@ -89,16 +97,19 @@ Description:
 
 		The attributes:
 
-		type		- value 1..7 for interpreting the data
-				1: unicode string
-				2: unicode string with environment variable
-				3: binary
-				4: little-endian 32-bit
-				5: big-endian 32-bit
-				6: unicode string with a symbolic link
-				7: multiple unicode strings
-		data		- blob of data to be interpreted depending on
+		=====		===============================================
+		type		value 1..7 for interpreting the data
+
+				- 1: unicode string
+				- 2: unicode string with environment variable
+				- 3: binary
+				- 4: little-endian 32-bit
+				- 5: big-endian 32-bit
+				- 6: unicode string with a symbolic link
+				- 7: multiple unicode strings
+		data		blob of data to be interpreted depending on
 				type
+		=====		===============================================
 
 What:		/config/usb-gadget/gadget/strings
 Date:		Jun 2013
@@ -113,9 +124,11 @@ KernelVersion:	3.11
 Description:
 		The attributes:
 
-		serialnumber	- gadget's serial number (string)
-		product		- gadget's product description
-		manufacturer	- gadget's manufacturer description
+		============	=================================
+		serialnumber	gadget's serial number (string)
+		product		gadget's product description
+		manufacturer	gadget's manufacturer description
+		============	=================================
 
 What:		/config/usb-gadget/gadget/os_desc
 Date:		May 2014
@@ -123,8 +136,10 @@ KernelVersion:	3.16
 Description:
 		This group contains "OS String" extension handling attributes.
 
-		use		- flag turning "OS Desctiptors" support on/off
-		b_vendor_code	- one-byte value used for custom per-device and
+		=============	===============================================
+		use		flag turning "OS Desctiptors" support on/off
+		b_vendor_code	one-byte value used for custom per-device and
 				per-interface requests
-		qw_sign		- an identifier to be reported as "OS String"
+		qw_sign		an identifier to be reported as "OS String"
 				proper
+		=============	===============================================

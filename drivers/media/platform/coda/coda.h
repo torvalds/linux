@@ -17,6 +17,7 @@
 #include <linux/mutex.h>
 #include <linux/kfifo.h>
 #include <linux/videodev2.h>
+#include <linux/ratelimit.h>
 
 #include <media/v4l2-ctrls.h>
 #include <media/v4l2-device.h>
@@ -27,6 +28,13 @@
 
 #define CODA_MAX_FRAMEBUFFERS	19
 #define FMO_SLICE_SAVE_BUF_SIZE	(32)
+
+/*
+ * This control allows applications to read the per-stream
+ * (i.e. per-context) Macroblocks Error Count. This value
+ * is CODA specific.
+ */
+#define V4L2_CID_CODA_MB_ERR_CNT (V4L2_CID_USER_CODA_BASE + 0)
 
 enum {
 	V4L2_M2M_SRC = 0,
@@ -92,6 +100,7 @@ struct coda_dev {
 	struct v4l2_m2m_dev	*m2m_dev;
 	struct ida		ida;
 	struct dentry		*debugfs_root;
+	struct ratelimit_state	mb_err_rs;
 };
 
 struct coda_codec {
@@ -242,6 +251,7 @@ struct coda_ctx {
 	struct v4l2_ctrl		*mpeg2_level_ctrl;
 	struct v4l2_ctrl		*mpeg4_profile_ctrl;
 	struct v4l2_ctrl		*mpeg4_level_ctrl;
+	struct v4l2_ctrl		*mb_err_cnt_ctrl;
 	struct v4l2_fh			fh;
 	int				gopcounter;
 	int				runcounter;
@@ -259,6 +269,7 @@ struct coda_ctx {
 	struct list_head		buffer_meta_list;
 	spinlock_t			buffer_meta_lock;
 	int				num_metas;
+	unsigned int			first_frame_sequence;
 	struct coda_aux_buf		workbuf;
 	int				num_internal_frames;
 	int				idx;

@@ -56,7 +56,7 @@ struct qed_ll2_tx_packet {
 		struct core_tx_bd *txq_bd;
 		dma_addr_t tx_frag;
 		u16 frag_len;
-	} bds_set[1];
+	} bds_set[];
 };
 
 struct qed_ll2_rx_queue {
@@ -86,9 +86,6 @@ struct qed_ll2_tx_queue {
 	struct list_head active_descq;
 	struct list_head free_descq;
 	struct list_head sending_descq;
-	void *descq_mem; /* memory for variable sized qed_ll2_tx_packet*/
-	struct qed_ll2_tx_packet *cur_send_packet;
-	struct qed_ll2_tx_packet cur_completing_packet;
 	u16 cur_completing_bd_idx;
 	void __iomem *doorbell_addr;
 	struct core_db_data db_msg;
@@ -96,6 +93,9 @@ struct qed_ll2_tx_queue {
 	u16 cur_send_frag_num;
 	u16 cur_completing_frag_num;
 	bool b_completing_packet;
+	void *descq_mem; /* memory for variable sized qed_ll2_tx_packet*/
+	struct qed_ll2_tx_packet *cur_send_packet;
+	struct qed_ll2_tx_packet cur_completing_packet;
 };
 
 struct qed_ll2_info {

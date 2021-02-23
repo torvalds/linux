@@ -197,6 +197,7 @@ void rxrpc_discard_prealloc(struct rxrpc_sock *rx)
 	tail = b->peer_backlog_tail;
 	while (CIRC_CNT(head, tail, size) > 0) {
 		struct rxrpc_peer *peer = b->peer_backlog[tail];
+		rxrpc_put_local(peer->local);
 		kfree(peer);
 		tail = (tail + 1) & (size - 1);
 	}
@@ -261,7 +262,6 @@ static struct rxrpc_call *rxrpc_alloc_incoming_call(struct rxrpc_sock *rx,
 						    struct rxrpc_peer *peer,
 						    struct rxrpc_connection *conn,
 						    const struct rxrpc_security *sec,
-						    struct key *key,
 						    struct sk_buff *skb)
 {
 	struct rxrpc_backlog *b = rx->backlog;
@@ -309,7 +309,7 @@ static struct rxrpc_call *rxrpc_alloc_incoming_call(struct rxrpc_sock *rx,
 		conn->params.local = rxrpc_get_local(local);
 		conn->params.peer = peer;
 		rxrpc_see_connection(conn);
-		rxrpc_new_incoming_connection(rx, conn, sec, key, skb);
+		rxrpc_new_incoming_connection(rx, conn, sec, skb);
 	} else {
 		rxrpc_get_connection(conn);
 	}
@@ -353,7 +353,6 @@ struct rxrpc_call *rxrpc_new_incoming_call(struct rxrpc_local *local,
 	struct rxrpc_connection *conn;
 	struct rxrpc_peer *peer = NULL;
 	struct rxrpc_call *call = NULL;
-	struct key *key = NULL;
 
 	_enter("");
 
@@ -374,11 +373,13 @@ struct rxrpc_call *rxrpc_new_incoming_call(struct rxrpc_local *local,
 	 */
 	conn = rxrpc_find_connection_rcu(local, skb, &peer);
 
-	if (!conn && !rxrpc_look_up_server_security(local, rx, &sec, &key, skb))
-		goto no_call;
+	if (!conn) {
+		sec = rxrpc_get_incoming_security(rx, skb);
+		if (!sec)
+			goto no_call;
+	}
 
-	call = rxrpc_alloc_incoming_call(rx, local, peer, conn, sec, key, skb);
-	key_put(key);
+	call = rxrpc_alloc_incoming_call(rx, local, peer, conn, sec, skb);
 	if (!call) {
 		skb->mark = RXRPC_SKB_MARK_REJECT_BUSY;
 		goto no_call;

@@ -1294,7 +1294,7 @@ static unsigned int CalculateVMAndRowBytes(
 	unsigned int MacroTileHeight;
 	unsigned int ExtraDPDEBytesFrame;
 	unsigned int PDEAndMetaPTEBytesFrame;
-	unsigned int PixelPTEReqHeightPTEs;
+	unsigned int PixelPTEReqHeightPTEs = 0;
 
 	if (DCCEnable == true) {
 		*MetaRequestHeight = 8 * BlockHeight256Bytes;
@@ -5477,7 +5477,7 @@ static void CalculateWatermarksAndDRAMSpeedChangeSupport(
 		}
 	}
 
-	if (mode_lib->vba.MinActiveDRAMClockChangeMargin > 0) {
+	if (mode_lib->vba.MinActiveDRAMClockChangeMargin > 0 && PrefetchMode == 0) {
 		*DRAMClockChangeSupport = dm_dram_clock_change_vactive;
 	} else if (((mode_lib->vba.SynchronizedVBlank == true
 			|| mode_lib->vba.TotalNumberOfActiveOTG == 1

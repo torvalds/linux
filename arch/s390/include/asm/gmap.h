@@ -140,8 +140,6 @@ int gmap_shadow_page(struct gmap *sg, unsigned long saddr, pte_t pte);
 
 void gmap_register_pte_notifier(struct gmap_notifier *);
 void gmap_unregister_pte_notifier(struct gmap_notifier *);
-void gmap_pte_notify(struct mm_struct *, unsigned long addr, pte_t *,
-		     unsigned long bits);
 
 int gmap_mprotect_notify(struct gmap *, unsigned long start,
 			 unsigned long len, int prot);

@@ -493,8 +493,9 @@ static const struct attribute_group max16065_max_group = {
 	.is_visible = max16065_secondary_is_visible,
 };
 
-static int max16065_probe(struct i2c_client *client,
-			  const struct i2c_device_id *id)
+static const struct i2c_device_id max16065_id[];
+
+static int max16065_probe(struct i2c_client *client)
 {
 	struct i2c_adapter *adapter = client->adapter;
 	struct max16065_data *data;
@@ -504,6 +505,7 @@ static int max16065_probe(struct i2c_client *client,
 	bool have_secondary;		/* true if chip has secondary limits */
 	bool secondary_is_max = false;	/* secondary limits reflect max */
 	int groups = 0;
+	const struct i2c_device_id *id = i2c_match_id(max16065_id, client);
 
 	if (!i2c_check_functionality(adapter, I2C_FUNC_SMBUS_BYTE_DATA
 				     | I2C_FUNC_SMBUS_READ_WORD_DATA))
@@ -598,7 +600,7 @@ static struct i2c_driver max16065_driver = {
 	.driver = {
 		.name = "max16065",
 	},
-	.probe = max16065_probe,
+	.probe_new = max16065_probe,
 	.id_table = max16065_id,
 };
 

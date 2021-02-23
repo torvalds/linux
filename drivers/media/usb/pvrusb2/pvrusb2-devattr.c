@@ -594,7 +594,7 @@ static int pvr2_lgdt3306a_attach(struct pvr2_dvb_adapter *adap)
 	lgdt3306a_config.mpeg_mode = LGDT3306A_MPEG_PARALLEL;
 	lgdt3306a_config.tpclk_edge = LGDT3306A_TPCLK_FALLING_EDGE;
 	lgdt3306a_config.tpvalid_polarity = LGDT3306A_TP_VALID_LOW;
-	lgdt3306a_config.xtalMHz = 25, /* demod clock MHz; 24/25 supported */
+	lgdt3306a_config.xtalMHz = 25; /* demod clock MHz; 24/25 supported */
 
 	adap->i2c_client_demod[0] = dvb_module_probe("lgdt3306a", NULL,
 						     &adap->channel.hdw->i2c_adap,

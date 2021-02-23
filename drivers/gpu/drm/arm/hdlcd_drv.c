@@ -234,7 +234,7 @@ static void hdlcd_debugfs_init(struct drm_minor *minor)
 
 DEFINE_DRM_GEM_CMA_FOPS(fops);
 
-static struct drm_driver hdlcd_driver = {
+static const struct drm_driver hdlcd_driver = {
 	.driver_features = DRIVER_GEM | DRIVER_MODESET | DRIVER_ATOMIC,
 	.irq_handler = hdlcd_irq,
 	.irq_preinstall = hdlcd_irq_preinstall,

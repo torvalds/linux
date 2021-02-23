@@ -333,7 +333,7 @@ static int mv88e6xxx_g1_atu_move(struct mv88e6xxx_chip *chip, u16 fid,
 	mask = chip->info->atu_move_port_mask;
 	shift = bitmap_weight(&mask, 16);
 
-	entry.state = 0xf, /* Full EntryState means Move */
+	entry.state = 0xf; /* Full EntryState means Move */
 	entry.portvec = from_port & mask;
 	entry.portvec |= (to_port & mask) << shift;
 

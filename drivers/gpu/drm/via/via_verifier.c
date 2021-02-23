@@ -1001,8 +1001,8 @@ via_verify_command_stream(const uint32_t * buf, unsigned int size,
 			state = via_check_vheader6(&buf, buf_end);
 			break;
 		case state_command:
-			if ((HALCYON_HEADER2 == (cmd = *buf)) &&
-			    supported_3d)
+			cmd = *buf;
+			if ((cmd == HALCYON_HEADER2) && supported_3d)
 				state = state_header2;
 			else if ((cmd & HALCYON_HEADER1MASK) == HALCYON_HEADER1)
 				state = state_header1;
@@ -1064,7 +1064,8 @@ via_parse_command_stream(struct drm_device *dev, const uint32_t *buf,
 			state = via_parse_vheader6(dev_priv, &buf, buf_end);
 			break;
 		case state_command:
-			if (HALCYON_HEADER2 == (cmd = *buf))
+			cmd = *buf;
+			if (cmd == HALCYON_HEADER2)
 				state = state_header2;
 			else if ((cmd & HALCYON_HEADER1MASK) == HALCYON_HEADER1)
 				state = state_header1;

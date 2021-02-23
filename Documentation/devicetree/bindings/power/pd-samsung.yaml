@@ -49,6 +49,8 @@ required:
   - "#power-domain-cells"
   - reg
 
+unevaluatedProperties: false
+
 examples:
   - |
     lcd0_pd: power-domain@10023c80 {

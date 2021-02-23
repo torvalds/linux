@@ -32,4 +32,6 @@ properties:
       considered 'near' to the device (an object is near to the
       sensor).
 
+additionalProperties: true
+
 ...

@@ -276,8 +276,6 @@ static int ad7292_probe(struct spi_device *spi)
 		return -EINVAL;
 	}
 
-	spi_set_drvdata(spi, indio_dev);
-
 	st->reg = devm_regulator_get_optional(&spi->dev, "vref");
 	if (!IS_ERR(st->reg)) {
 		ret = regulator_enable(st->reg);
@@ -310,8 +308,10 @@ static int ad7292_probe(struct spi_device *spi)
 
 	for_each_available_child_of_node(spi->dev.of_node, child) {
 		diff_channels = of_property_read_bool(child, "diff-channels");
-		if (diff_channels)
+		if (diff_channels) {
+			of_node_put(child);
 			break;
+		}
 	}
 
 	if (diff_channels) {

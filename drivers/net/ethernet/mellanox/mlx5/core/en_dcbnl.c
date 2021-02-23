@@ -1151,6 +1151,7 @@ static int mlx5e_set_trust_state(struct mlx5e_priv *priv, u8 trust_state)
 {
 	struct mlx5e_channels new_channels = {};
 	bool reset_channels = true;
+	bool opened;
 	int err = 0;
 
 	mutex_lock(&priv->state_lock);
@@ -1159,22 +1160,24 @@ static int mlx5e_set_trust_state(struct mlx5e_priv *priv, u8 trust_state)
 	mlx5e_params_calc_trust_tx_min_inline_mode(priv->mdev, &new_channels.params,
 						   trust_state);
 
-	if (!test_bit(MLX5E_STATE_OPENED, &priv->state)) {
-		priv->channels.params = new_channels.params;
+	opened = test_bit(MLX5E_STATE_OPENED, &priv->state);
+	if (!opened)
 		reset_channels = false;
-	}
 
 	/* Skip if tx_min_inline is the same */
 	if (new_channels.params.tx_min_inline_mode ==
 	    priv->channels.params.tx_min_inline_mode)
 		reset_channels = false;
 
-	if (reset_channels)
+	if (reset_channels) {
 		err = mlx5e_safe_switch_channels(priv, &new_channels,
 						 mlx5e_update_trust_state_hw,
 						 &trust_state);
-	else
+	} else {
 		err = mlx5e_update_trust_state_hw(priv, &trust_state);
+		if (!err && !opened)
+			priv->channels.params = new_channels.params;
+	}
 
 	mutex_unlock(&priv->state_lock);
 

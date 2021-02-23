@@ -459,19 +459,19 @@ int vmw_bo_cpu_blit(struct ttm_buffer_object *dst,
 	int ret = 0;
 
 	/* Buffer objects need to be either pinned or reserved: */
-	if (!(dst->mem.placement & TTM_PL_FLAG_NO_EVICT))
+	if (!(dst->pin_count))
 		dma_resv_assert_held(dst->base.resv);
-	if (!(src->mem.placement & TTM_PL_FLAG_NO_EVICT))
+	if (!(src->pin_count))
 		dma_resv_assert_held(src->base.resv);
 
-	if (dst->ttm->state == tt_unpopulated) {
-		ret = dst->ttm->bdev->driver->ttm_tt_populate(dst->ttm, &ctx);
+	if (!ttm_tt_is_populated(dst->ttm)) {
+		ret = dst->bdev->driver->ttm_tt_populate(dst->bdev, dst->ttm, &ctx);
 		if (ret)
 			return ret;
 	}
 
-	if (src->ttm->state == tt_unpopulated) {
-		ret = src->ttm->bdev->driver->ttm_tt_populate(src->ttm, &ctx);
+	if (!ttm_tt_is_populated(src->ttm)) {
+		ret = src->bdev->driver->ttm_tt_populate(src->bdev, src->ttm, &ctx);
 		if (ret)
 			return ret;
 	}
@@ -484,8 +484,8 @@ int vmw_bo_cpu_blit(struct ttm_buffer_object *dst,
 	d.src_pages = src->ttm->pages;
 	d.dst_num_pages = dst->num_pages;
 	d.src_num_pages = src->num_pages;
-	d.dst_prot = ttm_io_prot(dst->mem.placement, PAGE_KERNEL);
-	d.src_prot = ttm_io_prot(src->mem.placement, PAGE_KERNEL);
+	d.dst_prot = ttm_io_prot(dst, &dst->mem, PAGE_KERNEL);
+	d.src_prot = ttm_io_prot(src, &src->mem, PAGE_KERNEL);
 	d.diff = diff;
 
 	for (j = 0; j < h; ++j) {

@@ -64,6 +64,8 @@ allOf:
       required:
         - sata
 
+unevaluatedProperties: false
+
 examples:
   - |
     #include <dt-bindings/interrupt-controller/irq.h>

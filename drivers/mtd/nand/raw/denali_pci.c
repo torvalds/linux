@@ -100,7 +100,7 @@ static int denali_pci_probe(struct pci_dev *dev, const struct pci_device_id *id)
 		goto out_remove_denali;
 	}
 
-	dchip->chip.ecc.options |= NAND_ECC_MAXIMIZE;
+	dchip->chip.base.ecc.user_conf.flags |= NAND_ECC_MAXIMIZE_STRENGTH;
 
 	dchip->nsels = nsels;
 

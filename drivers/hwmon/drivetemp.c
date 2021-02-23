@@ -10,7 +10,7 @@
  *    hwmon: Driver for SCSI/ATA temperature sensors
  *    by Constantin Baranov <const@mimas.ru>, submitted September 2009
  *
- * This drive supports reporting the temperatire of SATA drives. It can be
+ * This drive supports reporting the temperature of SATA drives. It can be
  * easily extended to report the temperature of SCSI drives.
  *
  * The primary means to read drive temperatures and temperature limits

@@ -36,17 +36,17 @@
 
 #include "acp_gfx_if.h"
 
-#define ACP_TILE_ON_MASK                	0x03
-#define ACP_TILE_OFF_MASK               	0x02
-#define ACP_TILE_ON_RETAIN_REG_MASK     	0x1f
-#define ACP_TILE_OFF_RETAIN_REG_MASK    	0x20
+#define ACP_TILE_ON_MASK			0x03
+#define ACP_TILE_OFF_MASK			0x02
+#define ACP_TILE_ON_RETAIN_REG_MASK		0x1f
+#define ACP_TILE_OFF_RETAIN_REG_MASK		0x20
 
-#define ACP_TILE_P1_MASK                	0x3e
-#define ACP_TILE_P2_MASK                	0x3d
-#define ACP_TILE_DSP0_MASK              	0x3b
-#define ACP_TILE_DSP1_MASK              	0x37
+#define ACP_TILE_P1_MASK			0x3e
+#define ACP_TILE_P2_MASK			0x3d
+#define ACP_TILE_DSP0_MASK			0x3b
+#define ACP_TILE_DSP1_MASK			0x37
 
-#define ACP_TILE_DSP2_MASK              	0x2f
+#define ACP_TILE_DSP2_MASK			0x2f
 
 #define ACP_DMA_REGS_END			0x146c0
 #define ACP_I2S_PLAY_REGS_START			0x14840
@@ -75,8 +75,8 @@
 #define mmACP_CONTROL				0x5131
 #define mmACP_STATUS				0x5133
 #define mmACP_SOFT_RESET			0x5134
-#define ACP_CONTROL__ClkEn_MASK 		0x1
-#define ACP_SOFT_RESET__SoftResetAud_MASK 	0x100
+#define ACP_CONTROL__ClkEn_MASK			0x1
+#define ACP_SOFT_RESET__SoftResetAud_MASK	0x100
 #define ACP_SOFT_RESET__SoftResetAudDone_MASK	0x1000000
 #define ACP_CLOCK_EN_TIME_OUT_VALUE		0x000000FF
 #define ACP_SOFT_RESET_DONE_TIME_OUT_VALUE	0x000000FF
@@ -136,9 +136,7 @@ static int acp_poweroff(struct generic_pm_domain *genpd)
 	 * 2. power off the acp tiles
 	 * 3. check and enter ulv state
 	 */
-		if (adev->powerplay.pp_funcs &&
-			adev->powerplay.pp_funcs->set_powergating_by_smu)
-			amdgpu_dpm_set_powergating_by_smu(adev, AMD_IP_BLOCK_TYPE_ACP, true);
+		amdgpu_dpm_set_powergating_by_smu(adev, AMD_IP_BLOCK_TYPE_ACP, true);
 	}
 	return 0;
 }
@@ -157,8 +155,7 @@ static int acp_poweron(struct generic_pm_domain *genpd)
 	 * 2. turn on acp clock
 	 * 3. power on acp tiles
 	 */
-		if (adev->powerplay.pp_funcs->set_powergating_by_smu)
-			amdgpu_dpm_set_powergating_by_smu(adev, AMD_IP_BLOCK_TYPE_ACP, false);
+		amdgpu_dpm_set_powergating_by_smu(adev, AMD_IP_BLOCK_TYPE_ACP, false);
 	}
 	return 0;
 }
@@ -179,7 +176,7 @@ static struct device *get_mfd_cell_dev(const char *device_name, int r)
 /**
  * acp_hw_init - start and test ACP block
  *
- * @adev: amdgpu_device pointer
+ * @handle: handle used to pass amdgpu_device pointer
  *
  */
 static int acp_hw_init(void *handle)
@@ -408,7 +405,7 @@ failure:
 /**
  * acp_hw_fini - stop the hardware block
  *
- * @adev: amdgpu_device pointer
+ * @handle: handle used to pass amdgpu_device pointer
  *
  */
 static int acp_hw_fini(void *handle)
@@ -529,9 +526,7 @@ static int acp_set_powergating_state(void *handle,
 	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
 	bool enable = (state == AMD_PG_STATE_GATE);
 
-	if (adev->powerplay.pp_funcs &&
-		adev->powerplay.pp_funcs->set_powergating_by_smu)
-		amdgpu_dpm_set_powergating_by_smu(adev, AMD_IP_BLOCK_TYPE_ACP, enable);
+	amdgpu_dpm_set_powergating_by_smu(adev, AMD_IP_BLOCK_TYPE_ACP, enable);
 
 	return 0;
 }

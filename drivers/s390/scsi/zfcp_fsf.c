@@ -242,6 +242,19 @@ static void zfcp_fsf_status_read_link_down(struct zfcp_fsf_req *req)
 	}
 }
 
+static void
+zfcp_fsf_status_read_version_change(struct zfcp_adapter *adapter,
+				    struct fsf_status_read_buffer *sr_buf)
+{
+	if (sr_buf->status_subtype == FSF_STATUS_READ_SUB_LIC_CHANGE) {
+		u32 version = sr_buf->payload.version_change.current_version;
+
+		WRITE_ONCE(adapter->fsf_lic_version, version);
+		snprintf(fc_host_firmware_version(adapter->scsi_host),
+			 FC_VERSION_STRING_SIZE, "%#08x", version);
+	}
+}
+
 static void zfcp_fsf_status_read_handler(struct zfcp_fsf_req *req)
 {
 	struct zfcp_adapter *adapter = req->adapter;
@@ -296,9 +309,15 @@ static void zfcp_fsf_status_read_handler(struct zfcp_fsf_req *req)
 	case FSF_STATUS_READ_NOTIFICATION_LOST:
 		if (sr_buf->status_subtype & FSF_STATUS_READ_SUB_INCOMING_ELS)
 			zfcp_fc_conditional_port_scan(adapter);
+		if (sr_buf->status_subtype & FSF_STATUS_READ_SUB_VERSION_CHANGE)
+			queue_work(adapter->work_queue,
+				   &adapter->version_change_lost_work);
 		break;
 	case FSF_STATUS_READ_FEATURE_UPDATE_ALERT:
 		adapter->adapter_features = sr_buf->payload.word[0];
+		break;
+	case FSF_STATUS_READ_VERSION_CHANGE:
+		zfcp_fsf_status_read_version_change(adapter, sr_buf);
 		break;
 	}
 
@@ -426,9 +445,14 @@ static void zfcp_fsf_protstatus_eval(struct zfcp_fsf_req *req)
  * or it has been dismissed due to a queue shutdown, this function
  * is called to process the completion status and trigger further
  * events related to the FSF request.
+ * Caller must ensure that the request has been removed from
+ * adapter->req_list, to protect against concurrent modification
+ * by zfcp_erp_strategy_check_fsfreq().
  */
 static void zfcp_fsf_req_complete(struct zfcp_fsf_req *req)
 {
+	struct zfcp_erp_action *erp_action;
+
 	if (unlikely(zfcp_fsf_req_is_status_read_buffer(req))) {
 		zfcp_fsf_status_read_handler(req);
 		return;
@@ -439,8 +463,9 @@ static void zfcp_fsf_req_complete(struct zfcp_fsf_req *req)
 	zfcp_fsf_fsfstatus_eval(req);
 	req->handler(req);
 
-	if (req->erp_action)
-		zfcp_erp_notify(req->erp_action, 0);
+	erp_action = req->erp_action;
+	if (erp_action)
+		zfcp_erp_notify(erp_action, 0);
 
 	if (likely(req->status & ZFCP_STATUS_FSFREQ_CLEANUP))
 		zfcp_fsf_req_free(req);
@@ -2353,8 +2378,7 @@ static void zfcp_fsf_req_trace(struct zfcp_fsf_req *req, struct scsi_cmnd *scsi)
 		}
 	}
 
-	blk_add_driver_data(scsi->request->q, scsi->request, &blktrc,
-			    sizeof(blktrc));
+	blk_add_driver_data(scsi->request, &blktrc, sizeof(blktrc));
 }
 
 /**

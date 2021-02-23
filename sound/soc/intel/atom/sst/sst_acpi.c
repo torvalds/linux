@@ -21,6 +21,7 @@
 #include <linux/acpi.h>
 #include <asm/platform_sst_audio.h>
 #include <sound/core.h>
+#include <sound/intel-dsp-config.h>
 #include <sound/soc.h>
 #include <sound/compress_driver.h>
 #include <acpi/acbuffer.h>
@@ -31,7 +32,6 @@
 #include <sound/soc-acpi.h>
 #include <sound/soc-acpi-intel-match.h>
 #include "../sst-mfld-platform.h"
-#include "../../common/sst-dsp.h"
 #include "../../common/soc-intel-quirks.h"
 #include "sst.h"
 
@@ -247,6 +247,13 @@ static int sst_acpi_probe(struct platform_device *pdev)
 	id = acpi_match_device(dev->driver->acpi_match_table, dev);
 	if (!id)
 		return -ENODEV;
+
+	ret = snd_intel_acpi_dsp_driver_probe(dev, id->id);
+	if (ret != SND_INTEL_DSP_DRIVER_ANY && ret != SND_INTEL_DSP_DRIVER_SST) {
+		dev_dbg(dev, "SST ACPI driver not selected, aborting probe\n");
+		return -ENODEV;
+	}
+
 	dev_dbg(dev, "for %s\n", id->id);
 
 	mach = (struct snd_soc_acpi_mach *)id->driver_data;

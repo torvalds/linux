@@ -83,10 +83,10 @@ void mv_cesa_dma_prepare(struct mv_cesa_req *dreq,
 
 	for (tdma = dreq->chain.first; tdma; tdma = tdma->next) {
 		if (tdma->flags & CESA_TDMA_DST_IN_SRAM)
-			tdma->dst = cpu_to_le32(tdma->dst + engine->sram_dma);
+			tdma->dst = cpu_to_le32(tdma->dst_dma + engine->sram_dma);
 
 		if (tdma->flags & CESA_TDMA_SRC_IN_SRAM)
-			tdma->src = cpu_to_le32(tdma->src + engine->sram_dma);
+			tdma->src = cpu_to_le32(tdma->src_dma + engine->sram_dma);
 
 		if ((tdma->flags & CESA_TDMA_TYPE_MSK) == CESA_TDMA_OP)
 			mv_cesa_adjust_op(engine, tdma->op);
@@ -114,7 +114,7 @@ void mv_cesa_tdma_chain(struct mv_cesa_engine *engine,
 		 */
 		if (!(last->flags & CESA_TDMA_BREAK_CHAIN) &&
 		    !(dreq->chain.first->flags & CESA_TDMA_SET_STATE))
-			last->next_dma = dreq->chain.first->cur_dma;
+			last->next_dma = cpu_to_le32(dreq->chain.first->cur_dma);
 	}
 }
 
@@ -237,8 +237,8 @@ int mv_cesa_dma_add_result_op(struct mv_cesa_tdma_chain *chain, dma_addr_t src,
 		return -EIO;
 
 	tdma->byte_cnt = cpu_to_le32(size | BIT(31));
-	tdma->src = src;
-	tdma->dst = op_desc->src;
+	tdma->src_dma = src;
+	tdma->dst_dma = op_desc->src_dma;
 	tdma->op = op_desc->op;
 
 	flags &= (CESA_TDMA_DST_IN_SRAM | CESA_TDMA_SRC_IN_SRAM);
@@ -272,7 +272,7 @@ struct mv_cesa_op_ctx *mv_cesa_dma_add_op(struct mv_cesa_tdma_chain *chain,
 	tdma->op = op;
 	tdma->byte_cnt = cpu_to_le32(size | BIT(31));
 	tdma->src = cpu_to_le32(dma_handle);
-	tdma->dst = CESA_SA_CFG_SRAM_OFFSET;
+	tdma->dst_dma = CESA_SA_CFG_SRAM_OFFSET;
 	tdma->flags = CESA_TDMA_DST_IN_SRAM | CESA_TDMA_OP;
 
 	return op;
@@ -289,8 +289,8 @@ int mv_cesa_dma_add_data_transfer(struct mv_cesa_tdma_chain *chain,
 		return PTR_ERR(tdma);
 
 	tdma->byte_cnt = cpu_to_le32(size | BIT(31));
-	tdma->src = src;
-	tdma->dst = dst;
+	tdma->src_dma = src;
+	tdma->dst_dma = dst;
 
 	flags &= (CESA_TDMA_DST_IN_SRAM | CESA_TDMA_SRC_IN_SRAM);
 	tdma->flags = flags | CESA_TDMA_DATA;

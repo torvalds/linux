@@ -70,14 +70,14 @@ properties:
 
   touchscreen-x-mm:
     description: horizontal length in mm of the touchscreen
-    $ref: /schemas/types.yaml#/definitions/uint32
 
   touchscreen-y-mm:
     description: vertical length in mm of the touchscreen
-    $ref: /schemas/types.yaml#/definitions/uint32
 
 dependencies:
   touchscreen-size-x: [ touchscreen-size-y ]
   touchscreen-size-y: [ touchscreen-size-x ]
   touchscreen-x-mm: [ touchscreen-y-mm ]
   touchscreen-y-mm: [ touchscreen-x-mm ]
+
+additionalProperties: true

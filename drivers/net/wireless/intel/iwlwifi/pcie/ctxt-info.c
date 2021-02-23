@@ -1,56 +1,8 @@
-/******************************************************************************
- *
- * This file is provided under a dual BSD/GPLv2 license.  When using or
- * redistributing this file, you may do so under either license.
- *
- * GPL LICENSE SUMMARY
- *
- * Copyright(c) 2017 Intel Deutschland GmbH
- * Copyright(c) 2018 - 2020 Intel Corporation
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of version 2 of the GNU General Public License as
- * published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful, but
- * WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
- * General Public License for more details.
- *
- * BSD LICENSE
- *
- * Copyright(c) 2017 Intel Deutschland GmbH
- * Copyright(c) 2018 - 2020 Intel Corporation
- * All rights reserved.
- *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions
- * are met:
- *
- *  * Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer.
- *  * Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in
- *    the documentation and/or other materials provided with the
- *    distribution.
- *  * Neither the name Intel Corporation nor the names of its
- *    contributors may be used to endorse or promote products derived
- *    from this software without specific prior written permission.
- *
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
- * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
- * LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
- * A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
- * OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
- * SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
- * LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
- * DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
- * THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
- * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
- * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
- *
- *****************************************************************************/
-
+// SPDX-License-Identifier: GPL-2.0 OR BSD-3-Clause
+/*
+ * Copyright (C) 2017 Intel Deutschland GmbH
+ * Copyright (C) 2018-2020 Intel Corporation
+ */
 #include "iwl-trans.h"
 #include "iwl-fh.h"
 #include "iwl-context-info.h"
@@ -73,7 +25,7 @@ static void *_iwl_pcie_ctxt_info_dma_alloc_coherent(struct iwl_trans *trans,
 	if (!result)
 		return NULL;
 
-	if (unlikely(iwl_pcie_crosses_4g_boundary(*phys, size))) {
+	if (unlikely(iwl_txq_crosses_4g_boundary(*phys, size))) {
 		void *old = result;
 		dma_addr_t oldphys = *phys;
 
@@ -93,17 +45,17 @@ static void *iwl_pcie_ctxt_info_dma_alloc_coherent(struct iwl_trans *trans,
 	return _iwl_pcie_ctxt_info_dma_alloc_coherent(trans, size, phys, 0);
 }
 
-static int iwl_pcie_ctxt_info_alloc_dma(struct iwl_trans *trans,
-					const struct fw_desc *sec,
-					struct iwl_dram_data *dram)
+int iwl_pcie_ctxt_info_alloc_dma(struct iwl_trans *trans,
+				 const void *data, u32 len,
+				 struct iwl_dram_data *dram)
 {
-	dram->block = iwl_pcie_ctxt_info_dma_alloc_coherent(trans, sec->len,
+	dram->block = iwl_pcie_ctxt_info_dma_alloc_coherent(trans, len,
 							    &dram->physical);
 	if (!dram->block)
 		return -ENOMEM;
 
-	dram->size = sec->len;
-	memcpy(dram->block, sec->data, sec->len);
+	dram->size = len;
+	memcpy(dram->block, data, len);
 
 	return 0;
 }
@@ -156,7 +108,8 @@ int iwl_pcie_init_fw_sec(struct iwl_trans *trans,
 
 	/* initialize lmac sections */
 	for (i = 0; i < lmac_cnt; i++) {
-		ret = iwl_pcie_ctxt_info_alloc_dma(trans, &fw->sec[i],
+		ret = iwl_pcie_ctxt_info_alloc_dma(trans, fw->sec[i].data,
+						   fw->sec[i].len,
 						   &dram->fw[dram->fw_cnt]);
 		if (ret)
 			return ret;
@@ -169,7 +122,8 @@ int iwl_pcie_init_fw_sec(struct iwl_trans *trans,
 	for (i = 0; i < umac_cnt; i++) {
 		/* access FW with +1 to make up for lmac separator */
 		ret = iwl_pcie_ctxt_info_alloc_dma(trans,
-						   &fw->sec[dram->fw_cnt + 1],
+						   fw->sec[dram->fw_cnt + 1].data,
+						   fw->sec[dram->fw_cnt + 1].len,
 						   &dram->fw[dram->fw_cnt]);
 		if (ret)
 			return ret;
@@ -192,7 +146,8 @@ int iwl_pcie_init_fw_sec(struct iwl_trans *trans,
 		/* access FW with +2 to make up for lmac & umac separators */
 		int fw_idx = dram->fw_cnt + i + 2;
 
-		ret = iwl_pcie_ctxt_info_alloc_dma(trans, &fw->sec[fw_idx],
+		ret = iwl_pcie_ctxt_info_alloc_dma(trans, fw->sec[fw_idx].data,
+						   fw->sec[fw_idx].len,
 						   &dram->paging[i]);
 		if (ret)
 			return ret;
@@ -240,7 +195,7 @@ int iwl_pcie_ctxt_info_init(struct iwl_trans *trans,
 		rb_size = IWL_CTXT_INFO_RB_SIZE_8K;
 		break;
 	case IWL_AMSDU_12K:
-		rb_size = IWL_CTXT_INFO_RB_SIZE_12K;
+		rb_size = IWL_CTXT_INFO_RB_SIZE_16K;
 		break;
 	default:
 		WARN_ON(1);

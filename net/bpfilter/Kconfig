@@ -2,6 +2,7 @@
 menuconfig BPFILTER
 	bool "BPF based packet filtering framework (BPFILTER)"
 	depends on NET && BPF && INET
+	select USERMODE_DRIVER
 	help
 	  This builds experimental bpfilter framework that is aiming to
 	  provide netfilter compatible functionality via BPF

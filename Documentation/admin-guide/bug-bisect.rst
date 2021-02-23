@@ -15,7 +15,7 @@ give up. Report as much as you have found to the relevant maintainer. See
 MAINTAINERS for who that is for the subsystem you have worked on.
 
 Before you submit a bug report read
-:ref:`Documentation/admin-guide/reporting-bugs.rst <reportingbugs>`.
+'Documentation/admin-guide/reporting-issues.rst'.
 
 Devices not appearing
 =====================

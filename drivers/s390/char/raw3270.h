@@ -110,7 +110,6 @@ struct raw3270_request {
 };
 
 struct raw3270_request *raw3270_request_alloc(size_t size);
-struct raw3270_request *raw3270_request_alloc_bootmem(size_t size);
 void raw3270_request_free(struct raw3270_request *);
 void raw3270_request_reset(struct raw3270_request *);
 void raw3270_request_set_cmd(struct raw3270_request *, u8 cmd);
@@ -200,7 +199,6 @@ struct raw3270_notifier {
 
 int raw3270_register_notifier(struct raw3270_notifier *);
 void raw3270_unregister_notifier(struct raw3270_notifier *);
-void raw3270_pm_unfreeze(struct raw3270_view *);
 
 /*
  * Little memory allocator for string objects. 

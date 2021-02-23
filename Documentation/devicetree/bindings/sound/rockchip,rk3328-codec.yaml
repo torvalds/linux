@@ -53,6 +53,8 @@ required:
   - rockchip,grf
   - "#sound-dai-cells"
 
+additionalProperties: false
+
 examples:
   - |
     #include <dt-bindings/gpio/gpio.h>

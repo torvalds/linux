@@ -15,8 +15,6 @@
 #include <linux/pm_opp.h>
 #include <linux/pm_qos.h>
 
-#define DEVFREQ_NAME_LEN 16
-
 /* DEVFREQ governor name */
 #define DEVFREQ_GOV_SIMPLE_ONDEMAND	"simple_ondemand"
 #define DEVFREQ_GOV_PERFORMANCE		"performance"
@@ -139,7 +137,6 @@ struct devfreq_stats {
  *		using devfreq.
  * @profile:	device-specific devfreq profile
  * @governor:	method how to choose frequency based on the usage.
- * @governor_name:	devfreq governor name for use with this devfreq
  * @nb:		notifier block used to notify devfreq object that it should
  *		reevaluate operable frequencies. Devfreq users may use
  *		devfreq.nb to the corresponding register notifier call chain.
@@ -176,7 +173,6 @@ struct devfreq {
 	struct device dev;
 	struct devfreq_dev_profile *profile;
 	const struct devfreq_governor *governor;
-	char governor_name[DEVFREQ_NAME_LEN];
 	struct notifier_block nb;
 	struct delayed_work work;
 
@@ -228,12 +224,7 @@ int devfreq_resume_device(struct devfreq *devfreq);
 void devfreq_suspend(void);
 void devfreq_resume(void);
 
-/**
- * update_devfreq() - Reevaluate the device and configure frequency
- * @devfreq:	the devfreq device
- *
- * Note: devfreq->lock must be held
- */
+/* update_devfreq() - Reevaluate the device and configure frequency */
 int update_devfreq(struct devfreq *devfreq);
 
 /* Helper functions for devfreq user device driver with OPP. */
@@ -261,7 +252,9 @@ void devm_devfreq_unregister_notifier(struct device *dev,
 				struct devfreq *devfreq,
 				struct notifier_block *nb,
 				unsigned int list);
-struct devfreq *devfreq_get_devfreq_by_phandle(struct device *dev, int index);
+struct devfreq *devfreq_get_devfreq_by_node(struct device_node *node);
+struct devfreq *devfreq_get_devfreq_by_phandle(struct device *dev,
+				const char *phandle_name, int index);
 
 #if IS_ENABLED(CONFIG_DEVFREQ_GOV_SIMPLE_ONDEMAND)
 /**
@@ -414,8 +407,13 @@ static inline void devm_devfreq_unregister_notifier(struct device *dev,
 {
 }
 
+static inline struct devfreq *devfreq_get_devfreq_by_node(struct device_node *node)
+{
+	return ERR_PTR(-ENODEV);
+}
+
 static inline struct devfreq *devfreq_get_devfreq_by_phandle(struct device *dev,
-					int index)
+					const char *phandle_name, int index)
 {
 	return ERR_PTR(-ENODEV);
 }

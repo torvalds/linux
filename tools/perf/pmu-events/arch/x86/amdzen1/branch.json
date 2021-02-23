@@ -19,5 +19,10 @@
     "EventName": "bp_de_redirect",
     "EventCode": "0x91",
     "BriefDescription": "Decoder Overrides Existing Branch Prediction (speculative)."
+  },
+  {
+    "EventName": "bp_l1_tlb_fetch_hit",
+    "EventCode": "0x94",
+    "BriefDescription": "The number of instruction fetches that hit in the L1 ITLB."
   }
 ]

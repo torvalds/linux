@@ -1,11 +1,4 @@
-.. Permission is granted to copy, distribute and/or modify this
-.. document under the terms of the GNU Free Documentation License,
-.. Version 1.1 or any later version published by the Free Software
-.. Foundation, with no Invariant Sections, no Front-Cover Texts
-.. and no Back-Cover Texts. A copy of the license is included at
-.. Documentation/userspace-api/media/fdl-appendix.rst.
-..
-.. TODO: replace it to GFDL-1.1-or-later WITH no-invariant-sections
+.. SPDX-License-Identifier: GFDL-1.1-no-invariants-or-later
 
 .. _mem2mem:
 
@@ -39,7 +32,7 @@ file handle is visible through another file handle).
 One of the most common memory-to-memory device is the codec. Codecs
 are more complicated than most and require additional setup for
 their codec parameters. This is done through codec controls.
-See :ref:`mpeg-controls`. More details on how to use codec memory-to-memory
+See :ref:`codec-controls`. More details on how to use codec memory-to-memory
 devices are given in the following sections.
 
 .. toctree::

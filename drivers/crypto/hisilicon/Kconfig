@@ -71,3 +71,11 @@ config CRYPTO_DEV_HISI_HPRE
 	help
 	  Support for HiSilicon HPRE(High Performance RSA Engine)
 	  accelerator, which can accelerate RSA and DH algorithms.
+
+config CRYPTO_DEV_HISI_TRNG
+	tristate "Support for HISI TRNG Driver"
+	depends on ARM64 && ACPI
+	select HW_RANDOM
+	select CRYPTO_RNG
+	help
+	  Support for HiSilicon TRNG Driver.

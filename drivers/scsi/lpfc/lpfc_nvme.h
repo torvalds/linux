@@ -1,7 +1,7 @@
 /*******************************************************************
  * This file is part of the Emulex Linux Device Driver for         *
  * Fibre Channel Host Bus Adapters.                                *
- * Copyright (C) 2017-2019 Broadcom. All Rights Reserved. The term *
+ * Copyright (C) 2017-2020 Broadcom. All Rights Reserved. The term *
  * “Broadcom” refers to Broadcom Inc. and/or its subsidiaries.  *
  * Copyright (C) 2004-2016 Emulex.  All rights reserved.           *
  * EMULEX and SLI are trademarks of Emulex.                        *
@@ -38,7 +38,7 @@
 #define LPFC_NVME_INFO_MORE_STR		"\nCould be more info...\n"
 
 #define lpfc_ndlp_get_nrport(ndlp)					\
-	((!ndlp->nrport || (ndlp->upcall_flags & NLP_WAIT_FOR_UNREG))	\
+	((!ndlp->nrport || (ndlp->fc4_xpt_flags & NLP_WAIT_FOR_UNREG))	\
 	? NULL : ndlp->nrport)
 
 struct lpfc_nvme_qhandle {

@@ -45,6 +45,7 @@ struct bcm_sf2_hw_params {
 
 struct bcm_sf2_port_status {
 	unsigned int link;
+	bool enabled;
 };
 
 struct bcm_sf2_cfp_priv {
@@ -92,6 +93,9 @@ struct bcm_sf2_priv {
 
 	/* Mask of ports enabled for Wake-on-LAN */
 	u32				wol_ports_mask;
+
+	struct clk			*clk;
+	struct clk			*clk_mdiv;
 
 	/* MoCA port location */
 	int				moca_port;

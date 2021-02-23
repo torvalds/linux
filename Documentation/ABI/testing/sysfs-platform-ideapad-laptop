@@ -12,6 +12,7 @@ Contact:	"Maxim Mikityanskiy <maxtram95@gmail.com>"
 Description:
 		Change fan mode
 		There are four available modes:
+
 			* 0 -> Super Silent Mode
 			* 1 -> Standard Mode
 			* 2 -> Dust Cleaning
@@ -32,9 +33,11 @@ KernelVersion:	4.18
 Contact:	"Oleg Keri <ezhi99@gmail.com>"
 Description:
 		Control fn-lock mode.
+
 			* 1 -> Switched On
 			* 0 -> Switched Off
 
-		For example:
-		# echo "0" >	\
-		/sys/bus/pci/devices/0000:00:1f.0/PNP0C09:00/VPC2004:00/fn_lock
+		For example::
+
+		  # echo "0" >	\
+		  /sys/bus/pci/devices/0000:00:1f.0/PNP0C09:00/VPC2004:00/fn_lock

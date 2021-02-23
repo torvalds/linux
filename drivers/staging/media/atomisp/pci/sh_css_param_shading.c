@@ -230,15 +230,8 @@ prepare_shading_table(const struct ia_css_shading_table *in_table,
 		      const struct ia_css_binary *binary,
 		      unsigned int bds_factor)
 {
-	unsigned int input_width,
-		 input_height,
-		 table_width,
-		 table_height,
-		 left_padding,
-		 top_padding,
-		 padded_width,
-		 left_cropping,
-		 i;
+	unsigned int input_width, input_height, table_width, table_height, i;
+	unsigned int left_padding, top_padding, left_cropping;
 	unsigned int bds_numerator, bds_denominator;
 	int right_padding;
 
@@ -254,15 +247,11 @@ prepare_shading_table(const struct ia_css_shading_table *in_table,
 		return;
 	}
 
-	padded_width = binary->in_frame_info.padded_width;
-	/* We use the ISP input resolution for the shading table because
-	   shading correction is performed in the bayer domain (before bayer
-	   down scaling). */
-#if defined(USE_INPUT_SYSTEM_VERSION_2401)
-	padded_width = CEIL_MUL(binary->effective_in_frame_res.width + 2 *
-				ISP_VEC_NELEMS,
-				2 * ISP_VEC_NELEMS);
-#endif
+	/*
+	 * We use the ISP input resolution for the shading table because
+	 * shading correction is performed in the bayer domain (before bayer
+	 * down scaling).
+	 */
 	input_height  = binary->in_frame_info.res.height;
 	input_width   = binary->in_frame_info.res.width;
 	left_padding  = binary->left_padding;

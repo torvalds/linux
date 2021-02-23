@@ -50,7 +50,11 @@ static atomic_t vp_pinned = ATOMIC_INIT(0);
  * @client: client instance
  * @vdev: virtio dev associated with this channel
  * @vq: virtio queue associated with this channel
+ * @ring_bufs_avail: flag to indicate there is some available in the ring buf
+ * @vc_wq: wait queue for waiting for thing to be added to ring buf
+ * @p9_max_pages: maximum number of pinned pages
  * @sg: scatter gather list which is used to pack a request (protected?)
+ * @chan_list: linked list of channels
  *
  * We keep all per-channel information in a structure.
  * This structure is allocated within the devices dev->mem space.
@@ -74,8 +78,8 @@ struct virtio_chan {
 	unsigned long p9_max_pages;
 	/* Scatterlist: can be too big for stack. */
 	struct scatterlist sg[VIRTQUEUE_NUM];
-	/*
-	 * tag name to identify a mount null terminated
+	/**
+	 * @tag: name to identify a mount null terminated
 	 */
 	char *tag;
 
@@ -204,6 +208,7 @@ static int p9_virtio_cancelled(struct p9_client *client, struct p9_req_t *req)
  * this takes a list of pages.
  * @sg: scatter/gather list to pack into
  * @start: which segment of the sg_list to start at
+ * @limit: maximum number of pages in sg list.
  * @pdata: a list of pages to add into sg.
  * @nr_pages: number of pages to pack into the scatter/gather list
  * @offs: amount of data in the beginning of first page _not_ to pack

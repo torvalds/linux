@@ -6,6 +6,7 @@
  *  Author: Lars-Peter Clausen <lars@metafoo.de>
  */
 
+#include <linux/bitfield.h>
 #include <linux/clk.h>
 #include <linux/device.h>
 #include <linux/dma-mapping.h>
@@ -44,6 +45,16 @@
  * device side is a dedicated data bus only connected to a single peripheral
  * there is no address than can or needs to be configured for the device side.
  */
+
+#define AXI_DMAC_REG_INTERFACE_DESC	0x10
+#define   AXI_DMAC_DMA_SRC_TYPE_MSK	GENMASK(13, 12)
+#define   AXI_DMAC_DMA_SRC_TYPE_GET(x)	FIELD_GET(AXI_DMAC_DMA_SRC_TYPE_MSK, x)
+#define   AXI_DMAC_DMA_SRC_WIDTH_MSK	GENMASK(11, 8)
+#define   AXI_DMAC_DMA_SRC_WIDTH_GET(x)	FIELD_GET(AXI_DMAC_DMA_SRC_WIDTH_MSK, x)
+#define   AXI_DMAC_DMA_DST_TYPE_MSK	GENMASK(5, 4)
+#define   AXI_DMAC_DMA_DST_TYPE_GET(x)	FIELD_GET(AXI_DMAC_DMA_DST_TYPE_MSK, x)
+#define   AXI_DMAC_DMA_DST_WIDTH_MSK	GENMASK(3, 0)
+#define   AXI_DMAC_DMA_DST_WIDTH_GET(x)	FIELD_GET(AXI_DMAC_DMA_DST_WIDTH_MSK, x)
 
 #define AXI_DMAC_REG_IRQ_MASK		0x80
 #define AXI_DMAC_REG_IRQ_PENDING	0x84
@@ -134,8 +145,6 @@ struct axi_dmac {
 
 	struct dma_device dma_dev;
 	struct axi_dmac_chan chan;
-
-	struct device_dma_parameters dma_parms;
 };
 
 static struct axi_dmac *chan_to_axi_dmac(struct axi_dmac_chan *chan)
@@ -717,6 +726,20 @@ static const struct regmap_config axi_dmac_regmap_config = {
 	.writeable_reg = axi_dmac_regmap_rdwr,
 };
 
+static void axi_dmac_adjust_chan_params(struct axi_dmac_chan *chan)
+{
+	chan->address_align_mask = max(chan->dest_width, chan->src_width) - 1;
+
+	if (axi_dmac_dest_is_mem(chan) && axi_dmac_src_is_mem(chan))
+		chan->direction = DMA_MEM_TO_MEM;
+	else if (!axi_dmac_dest_is_mem(chan) && axi_dmac_src_is_mem(chan))
+		chan->direction = DMA_MEM_TO_DEV;
+	else if (axi_dmac_dest_is_mem(chan) && !axi_dmac_src_is_mem(chan))
+		chan->direction = DMA_DEV_TO_MEM;
+	else
+		chan->direction = DMA_DEV_TO_DEV;
+}
+
 /*
  * The configuration stored in the devicetree matches the configuration
  * parameters of the peripheral instance and allows the driver to know which
@@ -760,26 +783,81 @@ static int axi_dmac_parse_chan_dt(struct device_node *of_chan,
 		return ret;
 	chan->dest_width = val / 8;
 
-	chan->address_align_mask = max(chan->dest_width, chan->src_width) - 1;
-
-	if (axi_dmac_dest_is_mem(chan) && axi_dmac_src_is_mem(chan))
-		chan->direction = DMA_MEM_TO_MEM;
-	else if (!axi_dmac_dest_is_mem(chan) && axi_dmac_src_is_mem(chan))
-		chan->direction = DMA_MEM_TO_DEV;
-	else if (axi_dmac_dest_is_mem(chan) && !axi_dmac_src_is_mem(chan))
-		chan->direction = DMA_DEV_TO_MEM;
-	else
-		chan->direction = DMA_DEV_TO_DEV;
+	axi_dmac_adjust_chan_params(chan);
 
 	return 0;
 }
 
-static int axi_dmac_detect_caps(struct axi_dmac *dmac)
+static int axi_dmac_parse_dt(struct device *dev, struct axi_dmac *dmac)
+{
+	struct device_node *of_channels, *of_chan;
+	int ret;
+
+	of_channels = of_get_child_by_name(dev->of_node, "adi,channels");
+	if (of_channels == NULL)
+		return -ENODEV;
+
+	for_each_child_of_node(of_channels, of_chan) {
+		ret = axi_dmac_parse_chan_dt(of_chan, &dmac->chan);
+		if (ret) {
+			of_node_put(of_chan);
+			of_node_put(of_channels);
+			return -EINVAL;
+		}
+	}
+	of_node_put(of_channels);
+
+	return 0;
+}
+
+static int axi_dmac_read_chan_config(struct device *dev, struct axi_dmac *dmac)
 {
 	struct axi_dmac_chan *chan = &dmac->chan;
-	unsigned int version;
+	unsigned int val, desc;
 
-	version = axi_dmac_read(dmac, ADI_AXI_REG_VERSION);
+	desc = axi_dmac_read(dmac, AXI_DMAC_REG_INTERFACE_DESC);
+	if (desc == 0) {
+		dev_err(dev, "DMA interface register reads zero\n");
+		return -EFAULT;
+	}
+
+	val = AXI_DMAC_DMA_SRC_TYPE_GET(desc);
+	if (val > AXI_DMAC_BUS_TYPE_FIFO) {
+		dev_err(dev, "Invalid source bus type read: %d\n", val);
+		return -EINVAL;
+	}
+	chan->src_type = val;
+
+	val = AXI_DMAC_DMA_DST_TYPE_GET(desc);
+	if (val > AXI_DMAC_BUS_TYPE_FIFO) {
+		dev_err(dev, "Invalid destination bus type read: %d\n", val);
+		return -EINVAL;
+	}
+	chan->dest_type = val;
+
+	val = AXI_DMAC_DMA_SRC_WIDTH_GET(desc);
+	if (val == 0) {
+		dev_err(dev, "Source bus width is zero\n");
+		return -EINVAL;
+	}
+	/* widths are stored in log2 */
+	chan->src_width = 1 << val;
+
+	val = AXI_DMAC_DMA_DST_WIDTH_GET(desc);
+	if (val == 0) {
+		dev_err(dev, "Destination bus width is zero\n");
+		return -EINVAL;
+	}
+	chan->dest_width = 1 << val;
+
+	axi_dmac_adjust_chan_params(chan);
+
+	return 0;
+}
+
+static int axi_dmac_detect_caps(struct axi_dmac *dmac, unsigned int version)
+{
+	struct axi_dmac_chan *chan = &dmac->chan;
 
 	axi_dmac_write(dmac, AXI_DMAC_REG_FLAGS, AXI_DMAC_FLAG_CYCLIC);
 	if (axi_dmac_read(dmac, AXI_DMAC_REG_FLAGS) == AXI_DMAC_FLAG_CYCLIC)
@@ -826,11 +904,11 @@ static int axi_dmac_detect_caps(struct axi_dmac *dmac)
 
 static int axi_dmac_probe(struct platform_device *pdev)
 {
-	struct device_node *of_channels, *of_chan;
 	struct dma_device *dma_dev;
 	struct axi_dmac *dmac;
 	struct resource *res;
 	struct regmap *regmap;
+	unsigned int version;
 	int ret;
 
 	dmac = devm_kzalloc(&pdev->dev, sizeof(*dmac), GFP_KERNEL);
@@ -852,23 +930,22 @@ static int axi_dmac_probe(struct platform_device *pdev)
 	if (IS_ERR(dmac->clk))
 		return PTR_ERR(dmac->clk);
 
+	ret = clk_prepare_enable(dmac->clk);
+	if (ret < 0)
+		return ret;
+
+	version = axi_dmac_read(dmac, ADI_AXI_REG_VERSION);
+
+	if (version >= ADI_AXI_PCORE_VER(4, 3, 'a'))
+		ret = axi_dmac_read_chan_config(&pdev->dev, dmac);
+	else
+		ret = axi_dmac_parse_dt(&pdev->dev, dmac);
+
+	if (ret < 0)
+		goto err_clk_disable;
+
 	INIT_LIST_HEAD(&dmac->chan.active_descs);
 
-	of_channels = of_get_child_by_name(pdev->dev.of_node, "adi,channels");
-	if (of_channels == NULL)
-		return -ENODEV;
-
-	for_each_child_of_node(of_channels, of_chan) {
-		ret = axi_dmac_parse_chan_dt(of_chan, &dmac->chan);
-		if (ret) {
-			of_node_put(of_chan);
-			of_node_put(of_channels);
-			return -EINVAL;
-		}
-	}
-	of_node_put(of_channels);
-
-	pdev->dev.dma_parms = &dmac->dma_parms;
 	dma_set_max_seg_size(&pdev->dev, UINT_MAX);
 
 	dma_dev = &dmac->dma_dev;
@@ -894,11 +971,7 @@ static int axi_dmac_probe(struct platform_device *pdev)
 	dmac->chan.vchan.desc_free = axi_dmac_desc_free;
 	vchan_init(&dmac->chan.vchan, dma_dev);
 
-	ret = clk_prepare_enable(dmac->clk);
-	if (ret < 0)
-		return ret;
-
-	ret = axi_dmac_detect_caps(dmac);
+	ret = axi_dmac_detect_caps(dmac, version);
 	if (ret)
 		goto err_clk_disable;
 

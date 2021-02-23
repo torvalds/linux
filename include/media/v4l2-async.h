@@ -27,7 +27,7 @@ struct v4l2_async_notifier;
  * @V4L2_ASYNC_MATCH_I2C: Match will check for I2C adapter ID and address
  * @V4L2_ASYNC_MATCH_FWNODE: Match will use firmware node
  *
- * This enum is used by the asyncrhronous sub-device logic to define the
+ * This enum is used by the asynchronous sub-device logic to define the
  * algorithm that will be used to match an asynchronous device.
  */
 enum v4l2_async_match_type {
@@ -154,8 +154,9 @@ void v4l2_async_notifier_init(struct v4l2_async_notifier *notifier);
  * @notifier: pointer to &struct v4l2_async_notifier
  * @asd: pointer to &struct v4l2_async_subdev
  *
- * Call this function before registering a notifier to link the
- * provided asd to the notifiers master @asd_list.
+ * Call this function before registering a notifier to link the provided @asd to
+ * the notifiers master @asd_list. The @asd must be allocated with k*alloc() as
+ * it will be freed by the framework when the notifier is destroyed.
  */
 int v4l2_async_notifier_add_subdev(struct v4l2_async_notifier *notifier,
 				   struct v4l2_async_subdev *asd);

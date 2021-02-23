@@ -106,6 +106,7 @@ int __init corenet_gen_publish_devices(void)
 {
 	return of_platform_bus_probe(NULL, of_device_ids, NULL);
 }
+machine_arch_initcall(corenet_generic, corenet_gen_publish_devices);
 
 static const char * const boards[] __initconst = {
 	"fsl,P2041RDB",
@@ -206,5 +207,3 @@ define_machine(corenet_generic) {
 	.power_save		= e500_idle,
 #endif
 };
-
-machine_arch_initcall(corenet_generic, corenet_gen_publish_devices);

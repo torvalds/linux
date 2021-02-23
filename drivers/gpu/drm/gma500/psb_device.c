@@ -318,7 +318,6 @@ static void psb_chip_teardown(struct drm_device *dev)
 
 const struct psb_ops psb_chip_ops = {
 	.name = "Poulsbo",
-	.accel_2d = 1,
 	.pipes = 2,
 	.crtcs = 2,
 	.hdmi_mask = (1 << 0),

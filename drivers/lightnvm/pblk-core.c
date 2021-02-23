@@ -1869,6 +1869,10 @@ void pblk_gen_run_ws(struct pblk *pblk, struct pblk_line *line, void *priv,
 	struct pblk_line_ws *line_ws;
 
 	line_ws = mempool_alloc(&pblk->gen_ws_pool, gfp_mask);
+	if (!line_ws) {
+		pblk_err(pblk, "pblk: could not allocate memory\n");
+		return;
+	}
 
 	line_ws->pblk = pblk;
 	line_ws->line = line;

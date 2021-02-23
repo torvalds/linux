@@ -33,3 +33,5 @@ properties:
       power off automatically. Device with key pressed shutdown feature can
       specify this property.
     $ref: /schemas/types.yaml#/definitions/uint32
+
+additionalProperties: true

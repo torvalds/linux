@@ -68,13 +68,13 @@
 #define HNS_ROCE_V1_COMP_EQE_NUM			0x8000
 #define HNS_ROCE_V1_ASYNC_EQE_NUM			0x400
 
-#define HNS_ROCE_V1_QPC_ENTRY_SIZE			256
+#define HNS_ROCE_V1_QPC_SIZE				256
 #define HNS_ROCE_V1_IRRL_ENTRY_SIZE			8
 #define HNS_ROCE_V1_CQC_ENTRY_SIZE			64
 #define HNS_ROCE_V1_MTPT_ENTRY_SIZE			64
 #define HNS_ROCE_V1_MTT_ENTRY_SIZE			64
 
-#define HNS_ROCE_V1_CQE_ENTRY_SIZE			32
+#define HNS_ROCE_V1_CQE_SIZE				32
 #define HNS_ROCE_V1_PAGE_SIZE_SUPPORT			0xFFFFF000
 
 #define HNS_ROCE_V1_TABLE_CHUNK_SIZE			(1 << 17)
@@ -419,7 +419,7 @@ struct hns_roce_wqe_data_seg {
 
 struct hns_roce_wqe_raddr_seg {
 	__le32 rkey;
-	__le32 len;/* reserved */
+	__le32 len; /* reserved */
 	__le64 raddr;
 };
 

@@ -66,25 +66,17 @@ static inline void efifb_setup_from_dmi(struct screen_info *si, const char *opt)
 #define MAX_UNCOMP_KERNEL_SIZE	SZ_32M
 
 /*
- * The kernel zImage should preferably be located between 32 MB and 128 MB
- * from the base of DRAM. The min address leaves space for a maximal size
- * uncompressed image, and the max address is due to how the zImage decompressor
- * picks a destination address.
+ * phys-to-virt patching requires that the physical to virtual offset is a
+ * multiple of 2 MiB. However, using an alignment smaller than TEXT_OFFSET
+ * here throws off the memory allocation logic, so let's use the lowest power
+ * of two greater than 2 MiB and greater than TEXT_OFFSET.
  */
-#define ZIMAGE_OFFSET_LIMIT	SZ_128M
-#define MIN_ZIMAGE_OFFSET	MAX_UNCOMP_KERNEL_SIZE
-
-/* on ARM, the FDT should be located in the first 128 MB of RAM */
-static inline unsigned long efi_get_max_fdt_addr(unsigned long dram_base)
-{
-	return dram_base + ZIMAGE_OFFSET_LIMIT;
-}
+#define EFI_PHYS_ALIGN		max(UL(SZ_2M), roundup_pow_of_two(TEXT_OFFSET))
 
 /* on ARM, the initrd should be loaded in a lowmem region */
-static inline unsigned long efi_get_max_initrd_addr(unsigned long dram_base,
-						    unsigned long image_addr)
+static inline unsigned long efi_get_max_initrd_addr(unsigned long image_addr)
 {
-	return dram_base + SZ_512M;
+	return round_down(image_addr, SZ_4M) + SZ_512M;
 }
 
 struct efi_arm_entry_state {
@@ -93,5 +85,10 @@ struct efi_arm_entry_state {
 	u32	cpsr_after_ebs;
 	u32	sctlr_after_ebs;
 };
+
+static inline void efi_capsule_flush_cache_range(void *addr, int size)
+{
+	__cpuc_flush_dcache_area(addr, size);
+}
 
 #endif /* _ASM_ARM_EFI_H */

@@ -9,7 +9,7 @@
 
 / {
 	model = "Logic PD i.MX6QD SOM-M3";
-	compatible = "fsl,imx6q";
+	compatible = "logicpd,imx6q-logicpd", "fsl,imx6q";
 
 	backlight: backlight-lvds {
 		compatible = "pwm-backlight";

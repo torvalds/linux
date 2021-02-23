@@ -182,7 +182,6 @@ static int ve_spc_cpufreq_set_target(struct cpufreq_policy *policy,
 {
 	u32 cpu = policy->cpu, cur_cluster, new_cluster, actual_cluster;
 	unsigned int freqs_new;
-	int ret;
 
 	cur_cluster = cpu_to_cluster(cpu);
 	new_cluster = actual_cluster = per_cpu(physical_cluster, cpu);
@@ -197,15 +196,8 @@ static int ve_spc_cpufreq_set_target(struct cpufreq_policy *policy,
 			new_cluster = A15_CLUSTER;
 	}
 
-	ret = ve_spc_cpufreq_set_rate(cpu, actual_cluster, new_cluster,
-				      freqs_new);
-
-	if (!ret) {
-		arch_set_freq_scale(policy->related_cpus, freqs_new,
-				    policy->cpuinfo.max_freq);
-	}
-
-	return ret;
+	return ve_spc_cpufreq_set_rate(cpu, actual_cluster, new_cluster,
+				       freqs_new);
 }
 
 static inline u32 get_table_count(struct cpufreq_frequency_table *table)
@@ -599,6 +591,7 @@ static struct platform_driver ve_spc_cpufreq_platdrv = {
 };
 module_platform_driver(ve_spc_cpufreq_platdrv);
 
+MODULE_ALIAS("platform:vexpress-spc-cpufreq");
 MODULE_AUTHOR("Viresh Kumar <viresh.kumar@linaro.org>");
 MODULE_AUTHOR("Sudeep Holla <sudeep.holla@arm.com>");
 MODULE_DESCRIPTION("Vexpress SPC ARM big LITTLE cpufreq driver");

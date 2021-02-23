@@ -51,7 +51,10 @@
 		str	\rd, [\rx, #UTDR]
 		.endm
 
-		.macro	waituart,rd,rx
+		.macro	waituartcts,rd,rx
+		.endm
+
+		.macro	waituarttxrdy,rd,rx
 1001:		ldr	\rd, [\rx, #UTSR1]
 		tst	\rd, #UTSR1_TNF
 		beq	1001b

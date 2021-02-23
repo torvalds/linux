@@ -37,9 +37,7 @@ static unsigned long adjust_error_retval(unsigned long addr, unsigned long retv)
 {
 	switch (get_injectable_error_type(addr)) {
 	case EI_ETYPE_NULL:
-		if (retv != 0)
-			return 0;
-		break;
+		return 0;
 	case EI_ETYPE_ERRNO:
 		if (retv < (unsigned long)-MAX_ERRNO)
 			return (unsigned long)-EINVAL;
@@ -48,6 +46,8 @@ static unsigned long adjust_error_retval(unsigned long addr, unsigned long retv)
 		if (retv != 0 && retv < (unsigned long)-MAX_ERRNO)
 			return (unsigned long)-EINVAL;
 		break;
+	case EI_ETYPE_TRUE:
+		return 1;
 	}
 
 	return retv;
@@ -253,7 +253,7 @@ static ssize_t fei_write(struct file *file, const char __user *buffer,
 
 	if (copy_from_user(buf, buffer, count)) {
 		ret = -EFAULT;
-		goto out;
+		goto out_free;
 	}
 	buf[count] = '\0';
 	sym = strstrip(buf);
@@ -307,8 +307,9 @@ static ssize_t fei_write(struct file *file, const char __user *buffer,
 		ret = count;
 	}
 out:
-	kfree(buf);
 	mutex_unlock(&fei_lock);
+out_free:
+	kfree(buf);
 	return ret;
 }
 

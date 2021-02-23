@@ -1219,8 +1219,8 @@ qca8k_port_change_mtu(struct dsa_switch *ds, int port, int new_mtu)
 	priv->port_mtu[port] = new_mtu;
 
 	for (i = 0; i < QCA8K_NUM_PORTS; i++)
-		if (priv->port_mtu[port] > mtu)
-			mtu = priv->port_mtu[port];
+		if (priv->port_mtu[i] > mtu)
+			mtu = priv->port_mtu[i];
 
 	/* Include L2 header / FCS length */
 	qca8k_write(priv, QCA8K_MAX_FRAME_SIZE, mtu + ETH_HLEN + ETH_FCS_LEN);
@@ -1294,9 +1294,13 @@ qca8k_port_fdb_dump(struct dsa_switch *ds, int port,
 }
 
 static int
-qca8k_port_vlan_filtering(struct dsa_switch *ds, int port, bool vlan_filtering)
+qca8k_port_vlan_filtering(struct dsa_switch *ds, int port, bool vlan_filtering,
+			  struct switchdev_trans *trans)
 {
 	struct qca8k_priv *priv = ds->priv;
+
+	if (switchdev_trans_ph_prepare(trans))
+		return 0;
 
 	if (vlan_filtering) {
 		qca8k_rmw(priv, QCA8K_PORT_LOOKUP_CTRL(port),

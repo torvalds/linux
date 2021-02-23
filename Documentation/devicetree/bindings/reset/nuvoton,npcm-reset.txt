@@ -9,7 +9,7 @@ Optional property:
 - nuvoton,sw-reset-number - Contains the software reset number to restart the SoC.
   NPCM7xx contain four software reset that represent numbers 1 to 4.
 
-  If 'nuvoton,sw-reset-number' is not specfied software reset is disabled.
+  If 'nuvoton,sw-reset-number' is not specified software reset is disabled.
 
 Example:
 	rstc: rstc@f0801000 {

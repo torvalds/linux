@@ -21,17 +21,24 @@ static void
 mt7915_rx_poll_complete(struct mt76_dev *mdev, enum mt76_rxq_id q)
 {
 	struct mt7915_dev *dev = container_of(mdev, struct mt7915_dev, mt76);
+	static const u32 rx_irq_mask[] = {
+		[MT_RXQ_MAIN] = MT_INT_RX_DONE_DATA0,
+		[MT_RXQ_EXT] = MT_INT_RX_DONE_DATA1,
+		[MT_RXQ_MCU] = MT_INT_RX_DONE_WM,
+		[MT_RXQ_MCU_WA] = MT_INT_RX_DONE_WA,
+	};
 
-	mt7915_irq_enable(dev, MT_INT_RX_DONE(q));
+	mt7915_irq_enable(dev, rx_irq_mask[q]);
 }
 
 /* TODO: support 2/4/6/8 MSI-X vectors */
 static irqreturn_t mt7915_irq_handler(int irq, void *dev_instance)
 {
 	struct mt7915_dev *dev = dev_instance;
-	u32 intr;
+	u32 intr, mask;
 
 	intr = mt76_rr(dev, MT_INT_SOURCE_CSR);
+	intr &= dev->mt76.mmio.irqmask;
 	mt76_wr(dev, MT_INT_SOURCE_CSR, intr);
 
 	if (!test_bit(MT76_STATE_INITIALIZED, &dev->mphy.state))
@@ -39,27 +46,26 @@ static irqreturn_t mt7915_irq_handler(int irq, void *dev_instance)
 
 	trace_dev_irq(&dev->mt76, intr, dev->mt76.mmio.irqmask);
 
-	intr &= dev->mt76.mmio.irqmask;
+	mask = intr & MT_INT_RX_DONE_ALL;
+	if (intr & MT_INT_TX_DONE_MCU)
+		mask |= MT_INT_TX_DONE_MCU;
 
-	if (intr & MT_INT_TX_DONE_ALL) {
-		mt7915_irq_disable(dev, MT_INT_TX_DONE_ALL);
+	mt7915_irq_disable(dev, mask);
+
+	if (intr & MT_INT_TX_DONE_MCU)
 		napi_schedule(&dev->mt76.tx_napi);
-	}
 
-	if (intr & MT_INT_RX_DONE_DATA) {
-		mt7915_irq_disable(dev, MT_INT_RX_DONE_DATA);
-		napi_schedule(&dev->mt76.napi[0]);
-	}
+	if (intr & MT_INT_RX_DONE_DATA0)
+		napi_schedule(&dev->mt76.napi[MT_RXQ_MAIN]);
 
-	if (intr & MT_INT_RX_DONE_WM) {
-		mt7915_irq_disable(dev, MT_INT_RX_DONE_WM);
-		napi_schedule(&dev->mt76.napi[1]);
-	}
+	if (intr & MT_INT_RX_DONE_DATA1)
+		napi_schedule(&dev->mt76.napi[MT_RXQ_EXT]);
 
-	if (intr & MT_INT_RX_DONE_WA) {
-		mt7915_irq_disable(dev, MT_INT_RX_DONE_WA);
-		napi_schedule(&dev->mt76.napi[2]);
-	}
+	if (intr & MT_INT_RX_DONE_WM)
+		napi_schedule(&dev->mt76.napi[MT_RXQ_MCU]);
+
+	if (intr & MT_INT_RX_DONE_WA)
+		napi_schedule(&dev->mt76.napi[MT_RXQ_MCU_WA]);
 
 	if (intr & MT_INT_MCU_CMD) {
 		u32 val = mt76_rr(dev, MT_MCU_CMD);
@@ -103,7 +109,8 @@ static int mt7915_pci_probe(struct pci_dev *pdev,
 	static const struct mt76_driver_ops drv_ops = {
 		/* txwi_size = txd size + txp size */
 		.txwi_size = MT_TXD_SIZE + sizeof(struct mt7915_txp),
-		.drv_flags = MT_DRV_TXWI_NO_FREE | MT_DRV_HW_MGMT_TXQ,
+		.drv_flags = MT_DRV_TXWI_NO_FREE | MT_DRV_HW_MGMT_TXQ |
+			     MT_DRV_AMSDU_OFFLOAD,
 		.survey_flags = SURVEY_INFO_TIME_TX |
 				SURVEY_INFO_TIME_RX |
 				SURVEY_INFO_TIME_BSS_RX,
@@ -142,12 +149,14 @@ static int mt7915_pci_probe(struct pci_dev *pdev,
 	dev = container_of(mdev, struct mt7915_dev, mt76);
 	ret = mt7915_alloc_device(pdev, dev);
 	if (ret)
-		return ret;
+		goto error;
 
 	mt76_mmio_init(&dev->mt76, pcim_iomap_table(pdev)[0]);
 	mdev->rev = (mt7915_l1_rr(dev, MT_HW_CHIPID) << 16) |
 		    (mt7915_l1_rr(dev, MT_HW_REV) & 0xff);
 	dev_dbg(mdev->dev, "ASIC revision: %04x\n", mdev->rev);
+
+	mt76_wr(dev, MT_INT_MASK_CSR, 0);
 
 	/* master switch of PCIe tnterrupt enable */
 	mt7915_l1_wr(dev, MT_PCIE_MAC_INT_ENABLE, 0xff);
@@ -163,7 +172,8 @@ static int mt7915_pci_probe(struct pci_dev *pdev,
 
 	return 0;
 error:
-	ieee80211_free_hw(mt76_hw(dev));
+	mt76_free_device(&dev->mt76);
+
 	return ret;
 }
 

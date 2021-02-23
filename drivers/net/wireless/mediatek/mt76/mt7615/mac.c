@@ -215,8 +215,8 @@ static void mt7615_mac_fill_tm_rx(struct mt7615_dev *dev, __le32 *rxv)
 	dev->test.last_rcpi[1] = FIELD_GET(MT_RXV4_RCPI1, rxv4);
 	dev->test.last_rcpi[2] = FIELD_GET(MT_RXV4_RCPI2, rxv4);
 	dev->test.last_rcpi[3] = FIELD_GET(MT_RXV4_RCPI3, rxv4);
-	dev->test.last_ib_rssi = FIELD_GET(MT_RXV3_IB_RSSI, rxv3);
-	dev->test.last_wb_rssi = FIELD_GET(MT_RXV3_WB_RSSI, rxv3);
+	dev->test.last_ib_rssi[0] = FIELD_GET(MT_RXV3_IB_RSSI, rxv3);
+	dev->test.last_wb_rssi[0] = FIELD_GET(MT_RXV3_WB_RSSI, rxv3);
 #endif
 }
 
@@ -378,7 +378,7 @@ static int mt7615_mac_fill_rx(struct mt7615_dev *dev, struct sk_buff *skb)
 		switch (FIELD_GET(MT_RXV1_TX_MODE, rxdg0)) {
 		case MT_PHY_TYPE_CCK:
 			cck = true;
-			/* fall through */
+			fallthrough;
 		case MT_PHY_TYPE_OFDM:
 			i = mt76_get_rate(&dev->mt76, sband, i, cck);
 			break;
@@ -915,22 +915,20 @@ mt7615_mac_queue_rate_update(struct mt7615_phy *phy, struct mt7615_sta *sta,
 			     struct ieee80211_tx_rate *rates)
 {
 	struct mt7615_dev *dev = phy->dev;
-	struct mt7615_wtbl_desc *wd;
+	struct mt7615_wtbl_rate_desc *wrd;
 
-	if (work_pending(&dev->wtbl_work))
+	if (work_pending(&dev->rate_work))
 		return -EBUSY;
 
-	wd = kzalloc(sizeof(*wd), GFP_ATOMIC);
-	if (!wd)
+	wrd = kzalloc(sizeof(*wrd), GFP_ATOMIC);
+	if (!wrd)
 		return -ENOMEM;
 
-	wd->type = MT7615_WTBL_RATE_DESC;
-	wd->sta = sta;
-
+	wrd->sta = sta;
 	mt7615_mac_update_rate_desc(phy, sta, probe_rate, rates,
-				    &wd->rate);
-	list_add_tail(&wd->node, &dev->wd_head);
-	queue_work(dev->mt76.wq, &dev->wtbl_work);
+				    &wrd->rate);
+	list_add_tail(&wrd->node, &dev->wrd_head);
+	queue_work(dev->mt76.wq, &dev->rate_work);
 
 	return 0;
 }
@@ -1030,31 +1028,33 @@ void mt7615_mac_set_rates(struct mt7615_phy *phy, struct mt7615_sta *sta,
 }
 EXPORT_SYMBOL_GPL(mt7615_mac_set_rates);
 
-int mt7615_mac_wtbl_update_key(struct mt7615_dev *dev,
-			       struct mt76_wcid *wcid,
-			       u8 *key, u8 keylen,
-			       enum mt7615_cipher_type cipher,
-			       enum set_key_cmd cmd)
+static int
+mt7615_mac_wtbl_update_key(struct mt7615_dev *dev, struct mt76_wcid *wcid,
+			   struct ieee80211_key_conf *key,
+			   enum mt7615_cipher_type cipher,
+			   enum set_key_cmd cmd)
 {
 	u32 addr = mt7615_mac_wtbl_addr(dev, wcid->idx) + 30 * 4;
 	u8 data[32] = {};
 
-	if (keylen > sizeof(data))
+	if (key->keylen > sizeof(data))
 		return -EINVAL;
 
 	mt76_rr_copy(dev, addr, data, sizeof(data));
 	if (cmd == SET_KEY) {
 		if (cipher == MT_CIPHER_TKIP) {
 			/* Rx/Tx MIC keys are swapped */
-			memcpy(data + 16, key + 24, 8);
-			memcpy(data + 24, key + 16, 8);
+			memcpy(data, key->key, 16);
+			memcpy(data + 16, key->key + 24, 8);
+			memcpy(data + 24, key->key + 16, 8);
+		} else {
+			if (cipher != MT_CIPHER_BIP_CMAC_128 && wcid->cipher)
+				memmove(data + 16, data, 16);
+			if (cipher != MT_CIPHER_BIP_CMAC_128 || !wcid->cipher)
+				memcpy(data, key->key, key->keylen);
+			else if (cipher == MT_CIPHER_BIP_CMAC_128)
+				memcpy(data + 16, key->key, 16);
 		}
-		if (cipher != MT_CIPHER_BIP_CMAC_128 && wcid->cipher)
-			memmove(data + 16, data, 16);
-		if (cipher != MT_CIPHER_BIP_CMAC_128 || !wcid->cipher)
-			memcpy(data, key, keylen);
-		else if (cipher == MT_CIPHER_BIP_CMAC_128)
-			memcpy(data + 16, key, 16);
 	} else {
 		if (wcid->cipher & ~BIT(cipher)) {
 			if (cipher != MT_CIPHER_BIP_CMAC_128)
@@ -1068,12 +1068,11 @@ int mt7615_mac_wtbl_update_key(struct mt7615_dev *dev,
 
 	return 0;
 }
-EXPORT_SYMBOL_GPL(mt7615_mac_wtbl_update_key);
 
-int mt7615_mac_wtbl_update_pk(struct mt7615_dev *dev,
-			      struct mt76_wcid *wcid,
-			      enum mt7615_cipher_type cipher,
-			      int keyidx, enum set_key_cmd cmd)
+static int
+mt7615_mac_wtbl_update_pk(struct mt7615_dev *dev, struct mt76_wcid *wcid,
+			  enum mt7615_cipher_type cipher,
+			  int keyidx, enum set_key_cmd cmd)
 {
 	u32 addr = mt7615_mac_wtbl_addr(dev, wcid->idx), w0, w1;
 
@@ -1105,12 +1104,11 @@ int mt7615_mac_wtbl_update_pk(struct mt7615_dev *dev,
 
 	return 0;
 }
-EXPORT_SYMBOL_GPL(mt7615_mac_wtbl_update_pk);
 
-void mt7615_mac_wtbl_update_cipher(struct mt7615_dev *dev,
-				   struct mt76_wcid *wcid,
-				   enum mt7615_cipher_type cipher,
-				   enum set_key_cmd cmd)
+static void
+mt7615_mac_wtbl_update_cipher(struct mt7615_dev *dev, struct mt76_wcid *wcid,
+			      enum mt7615_cipher_type cipher,
+			      enum set_key_cmd cmd)
 {
 	u32 addr = mt7615_mac_wtbl_addr(dev, wcid->idx);
 
@@ -1128,12 +1126,11 @@ void mt7615_mac_wtbl_update_cipher(struct mt7615_dev *dev,
 			mt76_clear(dev, addr + 2 * 4, MT_WTBL_W2_KEY_TYPE);
 	}
 }
-EXPORT_SYMBOL_GPL(mt7615_mac_wtbl_update_cipher);
 
-int mt7615_mac_wtbl_set_key(struct mt7615_dev *dev,
-			    struct mt76_wcid *wcid,
-			    struct ieee80211_key_conf *key,
-			    enum set_key_cmd cmd)
+int __mt7615_mac_wtbl_set_key(struct mt7615_dev *dev,
+			      struct mt76_wcid *wcid,
+			      struct ieee80211_key_conf *key,
+			      enum set_key_cmd cmd)
 {
 	enum mt7615_cipher_type cipher;
 	int err;
@@ -1142,25 +1139,32 @@ int mt7615_mac_wtbl_set_key(struct mt7615_dev *dev,
 	if (cipher == MT_CIPHER_NONE)
 		return -EOPNOTSUPP;
 
-	spin_lock_bh(&dev->mt76.lock);
-
 	mt7615_mac_wtbl_update_cipher(dev, wcid, cipher, cmd);
-	err = mt7615_mac_wtbl_update_key(dev, wcid, key->key, key->keylen,
-					 cipher, cmd);
+	err = mt7615_mac_wtbl_update_key(dev, wcid, key, cipher, cmd);
 	if (err < 0)
-		goto out;
+		return err;
 
-	err = mt7615_mac_wtbl_update_pk(dev, wcid, cipher, key->keyidx,
-					cmd);
+	err = mt7615_mac_wtbl_update_pk(dev, wcid, cipher, key->keyidx, cmd);
 	if (err < 0)
-		goto out;
+		return err;
 
 	if (cmd == SET_KEY)
 		wcid->cipher |= BIT(cipher);
 	else
 		wcid->cipher &= ~BIT(cipher);
 
-out:
+	return 0;
+}
+
+int mt7615_mac_wtbl_set_key(struct mt7615_dev *dev,
+			    struct mt76_wcid *wcid,
+			    struct ieee80211_key_conf *key,
+			    enum set_key_cmd cmd)
+{
+	int err;
+
+	spin_lock_bh(&dev->mt76.lock);
+	err = __mt7615_mac_wtbl_set_key(dev, wcid, key, cmd);
 	spin_unlock_bh(&dev->mt76.lock);
 
 	return err;
@@ -1271,7 +1275,7 @@ out:
 	switch (FIELD_GET(MT_TX_RATE_MODE, final_rate)) {
 	case MT_PHY_TYPE_CCK:
 		cck = true;
-		/* fall through */
+		fallthrough;
 	case MT_PHY_TYPE_OFDM:
 		mphy = &dev->mphy;
 		if (sta->wcid.ext_phy && dev->mt76.phy2)
@@ -1400,6 +1404,9 @@ mt7615_mac_tx_free_token(struct mt7615_dev *dev, u16 token)
 {
 	struct mt76_dev *mdev = &dev->mt76;
 	struct mt76_txwi_cache *txwi;
+	__le32 *txwi_data;
+	u32 val;
+	u8 wcid;
 
 	trace_mac_tx_free(dev, token);
 
@@ -1410,9 +1417,13 @@ mt7615_mac_tx_free_token(struct mt7615_dev *dev, u16 token)
 	if (!txwi)
 		return;
 
+	txwi_data = (__le32 *)mt76_get_txwi_ptr(mdev, txwi);
+	val = le32_to_cpu(txwi_data[1]);
+	wcid = FIELD_GET(MT_TXD1_WLAN_IDX, val);
+
 	mt7615_txp_skb_unmap(mdev, txwi);
 	if (txwi->skb) {
-		mt76_tx_complete_skb(mdev, txwi->skb);
+		mt76_tx_complete_skb(mdev, wcid, txwi->skb);
 		txwi->skb = NULL;
 	}
 
@@ -1423,6 +1434,14 @@ static void mt7615_mac_tx_free(struct mt7615_dev *dev, struct sk_buff *skb)
 {
 	struct mt7615_tx_free *free = (struct mt7615_tx_free *)skb->data;
 	u8 i, count;
+
+	mt76_queue_tx_cleanup(dev, dev->mphy.q_tx[MT_TXQ_PSD], false);
+	if (is_mt7615(&dev->mt76)) {
+		mt76_queue_tx_cleanup(dev, dev->mphy.q_tx[MT_TXQ_BE], false);
+	} else {
+		for (i = 0; i < IEEE80211_NUM_ACS; i++)
+			mt76_queue_tx_cleanup(dev, dev->mphy.q_tx[i], false);
+	}
 
 	count = FIELD_GET(MT_TX_FREE_MSDU_ID_CNT, le16_to_cpu(free->ctrl));
 	if (is_mt7615(&dev->mt76)) {
@@ -1439,11 +1458,15 @@ static void mt7615_mac_tx_free(struct mt7615_dev *dev, struct sk_buff *skb)
 
 	dev_kfree_skb(skb);
 
+	if (test_bit(MT76_STATE_PM, &dev->phy.mt76->state))
+		return;
+
 	rcu_read_lock();
 	mt7615_mac_sta_poll(dev);
 	rcu_read_unlock();
 
-	tasklet_schedule(&dev->mt76.tx_tasklet);
+	mt7615_pm_power_save_sched(dev);
+	mt76_worker_schedule(&dev->mt76.tx_worker);
 }
 
 void mt7615_queue_rx_skb(struct mt76_dev *mdev, enum mt76_rxq_id q,
@@ -1478,7 +1501,7 @@ void mt7615_queue_rx_skb(struct mt76_dev *mdev, enum mt76_rxq_id q,
 			mt76_rx(&dev->mt76, q, skb);
 			return;
 		}
-		/* fall through */
+		fallthrough;
 	default:
 		dev_kfree_skb(skb);
 		break;
@@ -1845,7 +1868,7 @@ void mt7615_pm_wake_work(struct work_struct *work)
 						pm.wake_work);
 	mphy = dev->phy.mt76;
 
-	if (mt7615_driver_own(dev)) {
+	if (mt7615_mcu_set_drv_ctrl(dev)) {
 		dev_err(mphy->dev->dev, "failed to wake device\n");
 		goto out;
 	}
@@ -1853,12 +1876,13 @@ void mt7615_pm_wake_work(struct work_struct *work)
 	spin_lock_bh(&dev->pm.txq_lock);
 	for (i = 0; i < IEEE80211_NUM_ACS; i++) {
 		struct mt7615_sta *msta = dev->pm.tx_q[i].msta;
-		struct mt76_wcid *wcid = msta ? &msta->wcid : NULL;
 		struct ieee80211_sta *sta = NULL;
+		struct mt76_wcid *wcid;
 
 		if (!dev->pm.tx_q[i].skb)
 			continue;
 
+		wcid = msta ? &msta->wcid : &dev->mt76.global_wcid;
 		if (msta && wcid->sta)
 			sta = container_of((void *)msta, struct ieee80211_sta,
 					   drv_priv);
@@ -1868,7 +1892,7 @@ void mt7615_pm_wake_work(struct work_struct *work)
 	}
 	spin_unlock_bh(&dev->pm.txq_lock);
 
-	tasklet_schedule(&dev->mt76.tx_tasklet);
+	mt76_worker_schedule(&dev->mt76.tx_worker);
 
 out:
 	ieee80211_wake_queues(mphy->hw);
@@ -1943,53 +1967,10 @@ void mt7615_pm_power_save_work(struct work_struct *work)
 		goto out;
 	}
 
-	if (!mt7615_firmware_own(dev))
+	if (!mt7615_mcu_set_fw_ctrl(dev))
 		return;
 out:
 	queue_delayed_work(dev->mt76.wq, &dev->pm.ps_work, delta);
-}
-
-static void
-mt7615_pm_interface_iter(void *priv, u8 *mac, struct ieee80211_vif *vif)
-{
-	struct mt7615_phy *phy = priv;
-	struct mt7615_dev *dev = phy->dev;
-	bool ext_phy = phy != &dev->phy;
-
-	if (mt7615_mcu_set_bss_pm(dev, vif, dev->pm.enable))
-		return;
-
-	if (dev->pm.enable) {
-		vif->driver_flags |= IEEE80211_VIF_BEACON_FILTER;
-		mt76_set(dev, MT_WF_RFCR(ext_phy),
-			 MT_WF_RFCR_DROP_OTHER_BEACON);
-	} else {
-		vif->driver_flags &= ~IEEE80211_VIF_BEACON_FILTER;
-		mt76_clear(dev, MT_WF_RFCR(ext_phy),
-			   MT_WF_RFCR_DROP_OTHER_BEACON);
-	}
-}
-
-int mt7615_pm_set_enable(struct mt7615_dev *dev, bool enable)
-{
-	struct mt76_phy *mphy = dev->phy.mt76;
-
-	if (!mt7615_firmware_offload(dev) || !mt76_is_mmio(&dev->mt76))
-		return -EOPNOTSUPP;
-
-	mt7615_mutex_acquire(dev);
-
-	if (dev->pm.enable == enable)
-		goto out;
-
-	dev->pm.enable = enable;
-	ieee80211_iterate_active_interfaces(mphy->hw,
-					    IEEE80211_IFACE_ITER_RESUME_ALL,
-					    mt7615_pm_interface_iter, mphy->priv);
-out:
-	mt7615_mutex_release(dev);
-
-	return 0;
 }
 
 void mt7615_mac_work(struct work_struct *work)
@@ -2063,8 +2044,9 @@ void mt7615_dma_reset(struct mt7615_dev *dev)
 		   MT_WPDMA_GLO_CFG_TX_WRITEBACK_DONE);
 	usleep_range(1000, 2000);
 
+	mt76_queue_tx_cleanup(dev, dev->mt76.q_mcu[MT_MCUQ_WM], true);
 	for (i = 0; i < __MT_TXQ_MAX; i++)
-		mt76_queue_tx_cleanup(dev, i, true);
+		mt76_queue_tx_cleanup(dev, dev->mphy.q_tx[i], true);
 
 	mt76_for_each_q_rx(&dev->mt76, i) {
 		mt76_queue_rx_reset(dev, i);
@@ -2110,7 +2092,7 @@ void mt7615_mac_reset_work(struct work_struct *work)
 	if (ext_phy)
 		mt76_txq_schedule_all(ext_phy);
 
-	tasklet_disable(&dev->mt76.tx_tasklet);
+	mt76_worker_disable(&dev->mt76.tx_worker);
 	napi_disable(&dev->mt76.napi[0]);
 	napi_disable(&dev->mt76.napi[1]);
 	napi_disable(&dev->mt76.tx_napi);
@@ -2131,7 +2113,7 @@ void mt7615_mac_reset_work(struct work_struct *work)
 	clear_bit(MT76_MCU_RESET, &dev->mphy.state);
 	clear_bit(MT76_RESET, &dev->mphy.state);
 
-	tasklet_enable(&dev->mt76.tx_tasklet);
+	mt76_worker_enable(&dev->mt76.tx_worker);
 	napi_enable(&dev->mt76.tx_napi);
 	napi_schedule(&dev->mt76.tx_napi);
 
@@ -2292,5 +2274,48 @@ stop:
 		return err;
 
 	mt7615_dfs_stop_radar_detector(phy);
+	return 0;
+}
+
+int mt7615_mac_set_beacon_filter(struct mt7615_phy *phy,
+				 struct ieee80211_vif *vif,
+				 bool enable)
+{
+	struct mt7615_dev *dev = phy->dev;
+	bool ext_phy = phy != &dev->phy;
+	int err;
+
+	if (!mt7615_firmware_offload(dev))
+		return -EOPNOTSUPP;
+
+	switch (vif->type) {
+	case NL80211_IFTYPE_MONITOR:
+		return 0;
+	case NL80211_IFTYPE_MESH_POINT:
+	case NL80211_IFTYPE_ADHOC:
+	case NL80211_IFTYPE_AP:
+		if (enable)
+			phy->n_beacon_vif++;
+		else
+			phy->n_beacon_vif--;
+		fallthrough;
+	default:
+		break;
+	}
+
+	err = mt7615_mcu_set_bss_pm(dev, vif, !phy->n_beacon_vif);
+	if (err)
+		return err;
+
+	if (phy->n_beacon_vif) {
+		vif->driver_flags &= ~IEEE80211_VIF_BEACON_FILTER;
+		mt76_clear(dev, MT_WF_RFCR(ext_phy),
+			   MT_WF_RFCR_DROP_OTHER_BEACON);
+	} else {
+		vif->driver_flags |= IEEE80211_VIF_BEACON_FILTER;
+		mt76_set(dev, MT_WF_RFCR(ext_phy),
+			 MT_WF_RFCR_DROP_OTHER_BEACON);
+	}
+
 	return 0;
 }

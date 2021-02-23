@@ -28,6 +28,7 @@ endif
 endif
 
 CFLAGS_$(AMDDALPATH)/dc/dsc/rc_calc.o := $(dsc_ccflags)
+CFLAGS_REMOVE_$(AMDDALPATH)/dc/dsc/rc_calc.o := $(dsc_rcflags)
 
 DSC = dc_dsc.o rc_calc.o rc_calc_dpi.o
 

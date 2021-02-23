@@ -7,7 +7,7 @@
 #include "mt76x02.h"
 
 static int
-mt76x02_ampdu_stat_read(struct seq_file *file, void *data)
+mt76x02_ampdu_stat_show(struct seq_file *file, void *data)
 {
 	struct mt76x02_dev *dev = file->private;
 	int i, j;
@@ -31,11 +31,7 @@ mt76x02_ampdu_stat_read(struct seq_file *file, void *data)
 	return 0;
 }
 
-static int
-mt76x02_ampdu_stat_open(struct inode *inode, struct file *f)
-{
-	return single_open(f, mt76x02_ampdu_stat_read, inode->i_private);
-}
+DEFINE_SHOW_ATTRIBUTE(mt76x02_ampdu_stat);
 
 static int read_txpower(struct seq_file *file, void *data)
 {
@@ -48,15 +44,8 @@ static int read_txpower(struct seq_file *file, void *data)
 	return 0;
 }
 
-static const struct file_operations fops_ampdu_stat = {
-	.open = mt76x02_ampdu_stat_open,
-	.read = seq_read,
-	.llseek = seq_lseek,
-	.release = single_release,
-};
-
 static int
-mt76x02_dfs_stat_read(struct seq_file *file, void *data)
+mt76x02_dfs_stat_show(struct seq_file *file, void *data)
 {
 	struct mt76x02_dev *dev = file->private;
 	struct mt76x02_dfs_pattern_detector *dfs_pd = &dev->dfs_pd;
@@ -81,18 +70,7 @@ mt76x02_dfs_stat_read(struct seq_file *file, void *data)
 	return 0;
 }
 
-static int
-mt76x02_dfs_stat_open(struct inode *inode, struct file *f)
-{
-	return single_open(f, mt76x02_dfs_stat_read, inode->i_private);
-}
-
-static const struct file_operations fops_dfs_stat = {
-	.open = mt76x02_dfs_stat_open,
-	.read = seq_read,
-	.llseek = seq_lseek,
-	.release = single_release,
-};
+DEFINE_SHOW_ATTRIBUTE(mt76x02_dfs_stat);
 
 static int read_agc(struct seq_file *file, void *data)
 {
@@ -150,8 +128,8 @@ void mt76x02_init_debugfs(struct mt76x02_dev *dev)
 	debugfs_create_bool("tpc", 0600, dir, &dev->enable_tpc);
 
 	debugfs_create_file("edcca", 0600, dir, dev, &fops_edcca);
-	debugfs_create_file("ampdu_stat", 0400, dir, dev, &fops_ampdu_stat);
-	debugfs_create_file("dfs_stats", 0400, dir, dev, &fops_dfs_stat);
+	debugfs_create_file("ampdu_stat", 0400, dir, dev, &mt76x02_ampdu_stat_fops);
+	debugfs_create_file("dfs_stats", 0400, dir, dev, &mt76x02_dfs_stat_fops);
 	debugfs_create_devm_seqfile(dev->mt76.dev, "txpower", dir,
 				    read_txpower);
 

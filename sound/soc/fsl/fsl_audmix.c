@@ -199,10 +199,18 @@ static int fsl_audmix_put_out_src(struct snd_kcontrol *kcontrol,
 
 static const struct snd_kcontrol_new fsl_audmix_snd_controls[] = {
 	/* FSL_AUDMIX_CTR controls */
-	SOC_ENUM_EXT("Mixing Clock Source", fsl_audmix_enum[0],
-		     snd_soc_get_enum_double, fsl_audmix_put_mix_clk_src),
-	SOC_ENUM_EXT("Output Source", fsl_audmix_enum[1],
-		     snd_soc_get_enum_double, fsl_audmix_put_out_src),
+	{	.iface = SNDRV_CTL_ELEM_IFACE_MIXER,
+		.name = "Mixing Clock Source",
+		.info = snd_soc_info_enum_double,
+		.access = SNDRV_CTL_ELEM_ACCESS_WRITE,
+		.put = fsl_audmix_put_mix_clk_src,
+		.private_value = (unsigned long)&fsl_audmix_enum[0] },
+	{	.iface = SNDRV_CTL_ELEM_IFACE_MIXER,
+		.name = "Output Source",
+		.info = snd_soc_info_enum_double,
+		.access = SNDRV_CTL_ELEM_ACCESS_WRITE,
+		.put = fsl_audmix_put_out_src,
+		.private_value = (unsigned long)&fsl_audmix_enum[1] },
 	SOC_ENUM("Output Width", fsl_audmix_enum[2]),
 	SOC_ENUM("Frame Rate Diff Error", fsl_audmix_enum[3]),
 	SOC_ENUM("Clock Freq Diff Error", fsl_audmix_enum[4]),
@@ -447,7 +455,6 @@ static const struct regmap_config fsl_audmix_regmap_config = {
 static const struct of_device_id fsl_audmix_ids[] = {
 	{
 		.compatible = "fsl,imx8qm-audmix",
-		.data = "imx-audmix",
 	},
 	{ /* sentinel */ }
 };
@@ -457,16 +464,8 @@ static int fsl_audmix_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
 	struct fsl_audmix *priv;
-	const char *mdrv;
-	const struct of_device_id *of_id;
 	void __iomem *regs;
 	int ret;
-
-	of_id = of_match_device(fsl_audmix_ids, dev);
-	if (!of_id || !of_id->data)
-		return -EINVAL;
-
-	mdrv = of_id->data;
 
 	priv = devm_kzalloc(dev, sizeof(*priv), GFP_KERNEL);
 	if (!priv)
@@ -502,10 +501,10 @@ static int fsl_audmix_probe(struct platform_device *pdev)
 		goto err_disable_pm;
 	}
 
-	priv->pdev = platform_device_register_data(dev, mdrv, 0, NULL, 0);
+	priv->pdev = platform_device_register_data(dev, "imx-audmix", 0, NULL, 0);
 	if (IS_ERR(priv->pdev)) {
 		ret = PTR_ERR(priv->pdev);
-		dev_err(dev, "failed to register platform %s: %d\n", mdrv, ret);
+		dev_err(dev, "failed to register platform: %d\n", ret);
 		goto err_disable_pm;
 	}
 

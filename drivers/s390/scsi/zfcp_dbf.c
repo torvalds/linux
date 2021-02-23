@@ -263,31 +263,6 @@ void zfcp_dbf_hba_def_err(struct zfcp_adapter *adapter, u64 req_id, u16 scount,
 	spin_unlock_irqrestore(&dbf->pay_lock, flags);
 }
 
-/**
- * zfcp_dbf_hba_basic - trace event for basic adapter events
- * @tag: identifier for event
- * @adapter: pointer to struct zfcp_adapter
- */
-void zfcp_dbf_hba_basic(char *tag, struct zfcp_adapter *adapter)
-{
-	struct zfcp_dbf *dbf = adapter->dbf;
-	struct zfcp_dbf_hba *rec = &dbf->hba_buf;
-	static int const level = 1;
-	unsigned long flags;
-
-	if (unlikely(!debug_level_enabled(dbf->hba, level)))
-		return;
-
-	spin_lock_irqsave(&dbf->hba_lock, flags);
-	memset(rec, 0, sizeof(*rec));
-
-	memcpy(rec->tag, tag, ZFCP_DBF_TAG_LEN);
-	rec->id = ZFCP_DBF_HBA_BASIC;
-
-	debug_event(dbf->hba, level, rec, sizeof(*rec));
-	spin_unlock_irqrestore(&dbf->hba_lock, flags);
-}
-
 static void zfcp_dbf_set_common(struct zfcp_dbf_rec *rec,
 				struct zfcp_adapter *adapter,
 				struct zfcp_port *port,

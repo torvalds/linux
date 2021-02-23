@@ -1070,7 +1070,7 @@ int nfp_nsp_read_module_eeprom(struct nfp_nsp *state, int eth_index,
 		__le16 offset;
 		__le16 readlen;
 		u8 eth_index;
-		u8 data[0];
+		u8 data[];
 	} __packed *buf;
 	int bufsz, ret;
 

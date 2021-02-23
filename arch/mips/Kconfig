@@ -9,6 +9,8 @@ config MIPS
 	select ARCH_HAS_PTE_SPECIAL if !(32BIT && CPU_HAS_RIXI)
 	select ARCH_HAS_TICK_BROADCAST if GENERIC_CLOCKEVENTS_BROADCAST
 	select ARCH_HAS_UBSAN_SANITIZE_ALL
+	select ARCH_HAS_GCOV_PROFILE_ALL
+	select ARCH_KEEP_MEMBLOCK if DEBUG_KERNEL
 	select ARCH_SUPPORTS_UPROBES
 	select ARCH_USE_BUILTIN_BSWAP
 	select ARCH_USE_CMPXCHG_LOCKREF if 64BIT
@@ -21,7 +23,6 @@ config MIPS
 	select CPU_NO_EFFICIENT_FFS if (TARGET_ISA_REV < 1)
 	select CPU_PM if CPU_IDLE
 	select GENERIC_ATOMIC64 if !64BIT
-	select GENERIC_CLOCKEVENTS
 	select GENERIC_CMOS_UPDATE
 	select GENERIC_CPU_AUTOPROBE
 	select GENERIC_GETTIMEOFDAY
@@ -86,21 +87,43 @@ config MIPS
 	select MODULES_USE_ELF_REL if MODULES
 	select MODULES_USE_ELF_RELA if MODULES && 64BIT
 	select PERF_USE_VMALLOC
+	select PCI_MSI_ARCH_FALLBACKS if PCI_MSI
 	select RTC_LIB
+	select SET_FS
 	select SYSCTL_EXCEPTION_TRACE
 	select VIRT_TO_BUS
 
 config MIPS_FIXUP_BIGPHYS_ADDR
 	bool
 
+config MIPS_GENERIC
+	bool
+
+config MACH_INGENIC
+	bool
+	select SYS_SUPPORTS_32BIT_KERNEL
+	select SYS_SUPPORTS_LITTLE_ENDIAN
+	select SYS_SUPPORTS_ZBOOT
+	select DMA_NONCOHERENT
+	select IRQ_MIPS_CPU
+	select PINCTRL
+	select GPIOLIB
+	select COMMON_CLK
+	select GENERIC_IRQ_CHIP
+	select BUILTIN_DTB if MIPS_NO_APPENDED_DTB
+	select USE_OF
+	select CPU_SUPPORTS_CPUFREQ
+	select MIPS_EXTERNAL_TIMER
+
 menu "Machine selection"
 
 choice
 	prompt "System type"
-	default MIPS_GENERIC
+	default MIPS_GENERIC_KERNEL
 
-config MIPS_GENERIC
+config MIPS_GENERIC_KERNEL
 	bool "Generic board-agnostic MIPS kernel"
+	select MIPS_GENERIC
 	select BOOT_RAW
 	select BUILTIN_DTB
 	select CEVT_R4K
@@ -137,6 +160,7 @@ config MIPS_GENERIC
 	select SYS_SUPPORTS_MULTITHREADING
 	select SYS_SUPPORTS_RELOCATABLE
 	select SYS_SUPPORTS_SMARTMIPS
+	select SYS_SUPPORTS_ZBOOT
 	select UHI_BOOT
 	select USB_EHCI_BIG_ENDIAN_DESC if CPU_BIG_ENDIAN
 	select USB_EHCI_BIG_ENDIAN_MMIO if CPU_BIG_ENDIAN
@@ -226,6 +250,7 @@ config ATH79
 
 config BMIPS_GENERIC
 	bool "Broadcom Generic BMIPS kernel"
+	select ARCH_HAS_RESET_CONTROLLER
 	select ARCH_HAS_SYNC_DMA_FOR_CPU_ALL
 	select ARCH_HAS_PHYS_TO_DMA
 	select BOOT_RAW
@@ -389,20 +414,11 @@ config MACH_JAZZ
 	  Members include the Acer PICA, MIPS Magnum 4000, MIPS Millennium and
 	  Olivetti M700-10 workstations.
 
-config MACH_INGENIC
+config MACH_INGENIC_SOC
 	bool "Ingenic SoC based machines"
-	select SYS_SUPPORTS_32BIT_KERNEL
-	select SYS_SUPPORTS_LITTLE_ENDIAN
+	select MIPS_GENERIC
+	select MACH_INGENIC
 	select SYS_SUPPORTS_ZBOOT_UART16550
-	select CPU_SUPPORTS_HUGEPAGES
-	select DMA_NONCOHERENT
-	select IRQ_MIPS_CPU
-	select PINCTRL
-	select GPIOLIB
-	select COMMON_CLK
-	select GENERIC_IRQ_CHIP
-	select BUILTIN_DTB if MIPS_NO_APPENDED_DTB
-	select USE_OF
 
 config LANTIQ
 	bool "Lantiq based platforms"
@@ -473,8 +489,10 @@ config MACH_LOONGSON64
 	select SYS_SUPPORTS_HIGHMEM
 	select SYS_SUPPORTS_LITTLE_ENDIAN
 	select SYS_SUPPORTS_ZBOOT
+	select SYS_SUPPORTS_RELOCATABLE
 	select ZONE_DMA32
 	select NUMA
+	select SMP
 	select COMMON_CLK
 	select USE_OF
 	select BUILTIN_DTB
@@ -568,6 +586,7 @@ config MIPS_MALTA
 	select SYS_SUPPORTS_VPE_LOADER
 	select SYS_SUPPORTS_ZBOOT
 	select USE_OF
+	select WAR_ICACHE_REFILLS
 	select ZONE_DMA32 if 64BIT
 	help
 	  This enables support for the MIPS Technologies Malta evaluation
@@ -589,19 +608,6 @@ config MACH_VR41XX
 	select SYS_SUPPORTS_MIPS16
 	select GPIOLIB
 
-config NXP_STB220
-	bool "NXP STB220 board"
-	select SOC_PNX833X
-	help
-	  Support for NXP Semiconductors STB220 Development Board.
-
-config NXP_STB225
-	bool "NXP 225 board"
-	select SOC_PNX833X
-	select SOC_PNX8335
-	help
-	  Support for NXP Semiconductors STB225 Development Board.
-
 config RALINK
 	bool "Ralink based machines"
 	select CEVT_R4K
@@ -615,6 +621,7 @@ config RALINK
 	select SYS_SUPPORTS_32BIT_KERNEL
 	select SYS_SUPPORTS_LITTLE_ENDIAN
 	select SYS_SUPPORTS_MIPS16
+	select SYS_SUPPORTS_ZBOOT
 	select SYS_HAS_EARLY_PRINTK
 	select CLKDEV_LOOKUP
 	select ARCH_HAS_RESET_CONTROLLER
@@ -651,6 +658,9 @@ config SGI_IP22
 	select SYS_SUPPORTS_32BIT_KERNEL
 	select SYS_SUPPORTS_64BIT_KERNEL
 	select SYS_SUPPORTS_BIG_ENDIAN
+	select WAR_R4600_V1_INDEX_ICACHEOP
+	select WAR_R4600_V1_HIT_CACHEOP
+	select WAR_R4600_V2_HIT_CACHEOP
 	select MIPS_L1_CACHE_SHIFT_7
 	help
 	  This are the SGI Indy, Challenge S and Indigo2, as well as certain
@@ -678,6 +688,7 @@ config SGI_IP27
 	select SYS_SUPPORTS_BIG_ENDIAN
 	select SYS_SUPPORTS_NUMA
 	select SYS_SUPPORTS_SMP
+	select WAR_R10000_LLSC
 	select MIPS_L1_CACHE_SHIFT_7
 	select NUMA
 	help
@@ -713,6 +724,7 @@ config SGI_IP28
 	select SYS_HAS_EARLY_PRINTK
 	select SYS_SUPPORTS_64BIT_KERNEL
 	select SYS_SUPPORTS_BIG_ENDIAN
+	select WAR_R10000_LLSC
 	select MIPS_L1_CACHE_SHIFT_7
 	help
 	  This is the SGI Indigo2 with R10000 processor.  To compile a Linux
@@ -739,6 +751,7 @@ config SGI_IP30
 	select SYS_SUPPORTS_64BIT_KERNEL
 	select SYS_SUPPORTS_BIG_ENDIAN
 	select SYS_SUPPORTS_SMP
+	select WAR_R10000_LLSC
 	select MIPS_L1_CACHE_SHIFT_7
 	select ARC_MEMORY
 	help
@@ -766,6 +779,7 @@ config SGI_IP32
 	select SYS_HAS_CPU_NEVADA
 	select SYS_SUPPORTS_64BIT_KERNEL
 	select SYS_SUPPORTS_BIG_ENDIAN
+	select WAR_ICACHE_REFILLS
 	help
 	  If you want this kernel to run on SGI O2 workstation, say Y here.
 
@@ -889,6 +903,7 @@ config SNI_RM
 	select SYS_SUPPORTS_BIG_ENDIAN
 	select SYS_SUPPORTS_HIGHMEM
 	select SYS_SUPPORTS_LITTLE_ENDIAN
+	select WAR_R4600_V2_HIT_CACHEOP
 	help
 	  The SNI RM200/300/400 are MIPS-based machines manufactured by
 	  Siemens Nixdorf Informationssysteme (SNI), parent company of Pyramid
@@ -900,6 +915,7 @@ config MACH_TX39XX
 
 config MACH_TX49XX
 	bool "Toshiba TX49 series based machines"
+	select WAR_TX49XX_ICACHE_INDEX_INV
 
 config MIKROTIK_RB532
 	bool "Mikrotik RB532 boards"
@@ -1025,8 +1041,8 @@ source "arch/mips/bcm47xx/Kconfig"
 source "arch/mips/bcm63xx/Kconfig"
 source "arch/mips/bmips/Kconfig"
 source "arch/mips/generic/Kconfig"
+source "arch/mips/ingenic/Kconfig"
 source "arch/mips/jazz/Kconfig"
-source "arch/mips/jz4740/Kconfig"
 source "arch/mips/lantiq/Kconfig"
 source "arch/mips/pic32/Kconfig"
 source "arch/mips/pistachio/Kconfig"
@@ -1135,7 +1151,6 @@ config DMA_NONCOHERENT
 	select ARCH_HAS_SYNC_DMA_FOR_DEVICE
 	select ARCH_HAS_DMA_SET_UNCACHED
 	select DMA_NONCOHERENT_MMAP
-	select DMA_NONCOHERENT_CACHE_SYNC
 	select NEED_DMA_MAP_STATE
 
 config SYS_HAS_EARLY_PRINTK
@@ -1266,23 +1281,6 @@ config PCI_XTALK_BRIDGE
 
 config NO_EXCEPT_FILL
 	bool
-
-config SOC_PNX833X
-	bool
-	select CEVT_R4K
-	select CSRC_R4K
-	select IRQ_MIPS_CPU
-	select DMA_NONCOHERENT
-	select SYS_HAS_CPU_MIPS32_R2
-	select SYS_SUPPORTS_32BIT_KERNEL
-	select SYS_SUPPORTS_LITTLE_ENDIAN
-	select SYS_SUPPORTS_BIG_ENDIAN
-	select SYS_SUPPORTS_MIPS16
-	select CPU_MIPSR2_IRQ_VI
-
-config SOC_PNX8335
-	bool
-	select SOC_PNX833X
 
 config MIPS_SPRAM
 	bool
@@ -1620,7 +1618,6 @@ config CPU_P5600
 	select CPU_SUPPORTS_32BIT_KERNEL
 	select CPU_SUPPORTS_HIGHMEM
 	select CPU_SUPPORTS_MSA
-	select CPU_SUPPORTS_UNCACHED_ACCELERATED
 	select CPU_SUPPORTS_CPUFREQ
 	select CPU_MIPSR2_IRQ_VI
 	select CPU_MIPSR2_IRQ_EI
@@ -1891,6 +1888,7 @@ config SYS_SUPPORTS_ZBOOT
 	select HAVE_KERNEL_LZMA
 	select HAVE_KERNEL_LZO
 	select HAVE_KERNEL_XZ
+	select HAVE_KERNEL_ZSTD
 
 config SYS_SUPPORTS_ZBOOT_UART16550
 	bool
@@ -2272,7 +2270,7 @@ config FORCE_MAX_ZONEORDER
 	default "13" if MIPS_HUGE_TLB_SUPPORT && PAGE_SIZE_32KB
 	range 12 64 if MIPS_HUGE_TLB_SUPPORT && PAGE_SIZE_16KB
 	default "12" if MIPS_HUGE_TLB_SUPPORT && PAGE_SIZE_16KB
-	range 11 64
+	range 0 64
 	default "11"
 	help
 	  The kernel memory allocator divides physically contiguous memory
@@ -2490,6 +2488,7 @@ config MIPS_CPS
 	select SYS_SUPPORTS_SCHED_SMT if CPU_MIPSR6
 	select SYS_SUPPORTS_SMP
 	select WEAK_ORDERING
+	select GENERIC_IRQ_MIGRATION if HOTPLUG_CPU
 	help
 	  Select this if you wish to run an SMP kernel across multiple cores
 	  within a MIPS Coherent Processing System. When this option is
@@ -2638,6 +2637,76 @@ config MIPS_ASID_BITS_VARIABLE
 config MIPS_CRC_SUPPORT
 	bool
 
+# R4600 erratum.  Due to the lack of errata information the exact
+# technical details aren't known.  I've experimentally found that disabling
+# interrupts during indexed I-cache flushes seems to be sufficient to deal
+# with the issue.
+config WAR_R4600_V1_INDEX_ICACHEOP
+	bool
+
+# Pleasures of the R4600 V1.x.  Cite from the IDT R4600 V1.7 errata:
+#
+#  18. The CACHE instructions Hit_Writeback_Invalidate_D, Hit_Writeback_D,
+#      Hit_Invalidate_D and Create_Dirty_Excl_D should only be
+#      executed if there is no other dcache activity. If the dcache is
+#      accessed for another instruction immediately preceding when these
+#      cache instructions are executing, it is possible that the dcache
+#      tag match outputs used by these cache instructions will be
+#      incorrect. These cache instructions should be preceded by at least
+#      four instructions that are not any kind of load or store
+#      instruction.
+#
+#      This is not allowed:    lw
+#                              nop
+#                              nop
+#                              nop
+#                              cache       Hit_Writeback_Invalidate_D
+#
+#      This is allowed:        lw
+#                              nop
+#                              nop
+#                              nop
+#                              nop
+#                              cache       Hit_Writeback_Invalidate_D
+config WAR_R4600_V1_HIT_CACHEOP
+	bool
+
+# Writeback and invalidate the primary cache dcache before DMA.
+#
+# R4600 v2.0 bug: "The CACHE instructions Hit_Writeback_Inv_D,
+# Hit_Writeback_D, Hit_Invalidate_D and Create_Dirty_Exclusive_D will only
+# operate correctly if the internal data cache refill buffer is empty.  These
+# CACHE instructions should be separated from any potential data cache miss
+# by a load instruction to an uncached address to empty the response buffer."
+# (Revision 2.0 device errata from IDT available on https://www.idt.com/
+# in .pdf format.)
+config WAR_R4600_V2_HIT_CACHEOP
+	bool
+
+# From TX49/H2 manual: "If the instruction (i.e. CACHE) is issued for
+# the line which this instruction itself exists, the following
+# operation is not guaranteed."
+#
+# Workaround: do two phase flushing for Index_Invalidate_I
+config WAR_TX49XX_ICACHE_INDEX_INV
+	bool
+
+# The RM7000 processors and the E9000 cores have a bug (though PMC-Sierra
+# opposes it being called that) where invalid instructions in the same
+# I-cache line worth of instructions being fetched may case spurious
+# exceptions.
+config WAR_ICACHE_REFILLS
+	bool
+
+# On the R10000 up to version 2.6 (not sure about 2.7) there is a bug that
+# may cause ll / sc and lld / scd sequences to execute non-atomically.
+config WAR_R10000_LLSC
+	bool
+
+# 34K core erratum: "Problems Executing the TLBR Instruction"
+config WAR_MIPS34K_MISSED_ITLB
+	bool
+
 #
 # - Highmem only makes sense for the 32-bit kernel.
 # - The current highmem code will only work properly on physically indexed
@@ -2654,6 +2723,7 @@ config MIPS_CRC_SUPPORT
 config HIGHMEM
 	bool "High Memory Support"
 	depends on 32BIT && CPU_SUPPORTS_HIGHMEM && SYS_SUPPORTS_HIGHMEM && !CPU_MIPS32_3_5_EVA
+	select KMAP_LOCAL
 
 config CPU_SUPPORTS_HIGHMEM
 	bool
@@ -2712,7 +2782,8 @@ config RELOCATABLE
 	depends on CPU_MIPS32_R2 || CPU_MIPS64_R2 || \
 		   CPU_MIPS32_R5 || CPU_MIPS64_R5 || \
 		   CPU_MIPS32_R6 || CPU_MIPS64_R6 || \
-		   CPU_P5600 || CAVIUM_OCTEON_SOC
+		   CPU_P5600 || CAVIUM_OCTEON_SOC || \
+		   CPU_LOONGSON64
 	help
 	  This builds a kernel image that retains relocation information
 	  so it can be loaded someplace besides the default 1MB.
@@ -2723,6 +2794,7 @@ config RELOCATION_TABLE_SIZE
 	hex "Relocation table size"
 	depends on RELOCATABLE
 	range 0x0 0x01000000
+	default "0x00200000" if CPU_LOONGSON64
 	default "0x00100000"
 	help
 	  A table of relocation data will be appended to the kernel binary
@@ -3005,23 +3077,6 @@ config PHYSICAL_START
 	  specified in the "crashkernel=YM@XM" command line boot parameter
 	  passed to the panic-ed kernel).
 
-config SECCOMP
-	bool "Enable seccomp to safely compute untrusted bytecode"
-	depends on PROC_FS
-	default y
-	help
-	  This kernel feature is useful for number crunching applications
-	  that may need to compute untrusted bytecode during their
-	  execution. By using pipes or other transports made available to
-	  the process as file descriptors supporting the read/write
-	  syscalls, it's possible to isolate those applications in
-	  their own address space using seccomp. Once seccomp is
-	  enabled via /proc/<pid>/seccomp, it cannot be disabled
-	  and the task is only allowed to execute a few safe syscalls
-	  defined by each seccomp mode.
-
-	  If unsure, say Y. Only embedded should say N here.
-
 config MIPS_O32_FP64_SUPPORT
 	bool "Support for O32 binaries using 64-bit FP" if !CPU_MIPSR6
 	depends on 32BIT || MIPS32_O32
@@ -3038,7 +3093,7 @@ config MIPS_O32_FP64_SUPPORT
 
 	  Although binutils currently supports use of this flag the details
 	  concerning its effect upon the O32 ABI in userland are still being
-	  worked on. In order to avoid userland becoming dependant upon current
+	  worked on. In order to avoid userland becoming dependent upon current
 	  behaviour before the details have been finalised, this option should
 	  be considered experimental and only enabled by those working upon
 	  said details.
@@ -3076,7 +3131,7 @@ choice
 
 		    objcopy --update-section .appended_dtb=<filename>.dtb vmlinux
 
-		  This is meant as a backward compatiblity convenience for those
+		  This is meant as a backward compatibility convenience for those
 		  systems with a bootloader that can't be upgraded to accommodate
 		  the documented boot protocol using a device tree.
 

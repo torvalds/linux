@@ -28,7 +28,7 @@ Required properties (DMA function blocks, child node):
   argument, see Documentation/devicetree/bindings/iommu/mediatek,iommu.txt
   for details.
 - mediatek,larb: must contain the local arbiters in the current Socs, see
-  Documentation/devicetree/bindings/memory-controllers/mediatek,smi-larb.txt
+  Documentation/devicetree/bindings/memory-controllers/mediatek,smi-larb.yaml
   for details.
 
 Example:

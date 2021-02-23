@@ -54,8 +54,24 @@
 			status = "okay";
 		};
 
-		serial@c280000 {
+		serial@3100000 {
 			status = "okay";
+		};
+
+		i2c@3160000 {
+			status = "okay";
+
+			eeprom@50 {
+				compatible = "atmel,24c02";
+				reg = <0x50>;
+
+				label = "module";
+				vcc-supply = <&vdd_1v8ls>;
+				address-width = <8>;
+				pagesize = <8>;
+				size = <256>;
+				read-only;
+			};
 		};
 
 		/* SDMMC1 (SD/MMC) */

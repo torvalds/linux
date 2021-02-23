@@ -293,8 +293,12 @@ struct bdb_general_features {
 #define DVO_PORT_HDMIE		12				/* 193 */
 #define DVO_PORT_DPF		13				/* N/A */
 #define DVO_PORT_HDMIF		14				/* N/A */
-#define DVO_PORT_DPG		15
-#define DVO_PORT_HDMIG		16
+#define DVO_PORT_DPG		15				/* 217 */
+#define DVO_PORT_HDMIG		16				/* 217 */
+#define DVO_PORT_DPH		17				/* 217 */
+#define DVO_PORT_HDMIH		18				/* 217 */
+#define DVO_PORT_DPI		19				/* 217 */
+#define DVO_PORT_HDMII		20				/* 217 */
 #define DVO_PORT_MIPIA		21				/* 171 */
 #define DVO_PORT_MIPIB		22				/* 171 */
 #define DVO_PORT_MIPIC		23				/* 171 */
@@ -330,6 +334,8 @@ enum vbt_gmbus_ddi {
 #define DP_AUX_E 0x50
 #define DP_AUX_F 0x60
 #define DP_AUX_G 0x70
+#define DP_AUX_H 0x80
+#define DP_AUX_I 0x90
 
 #define VBT_DP_MAX_LINK_RATE_HBR3	0
 #define VBT_DP_MAX_LINK_RATE_HBR2	1
@@ -776,7 +782,7 @@ struct lfp_backlight_data_entry {
 	u8 active_low_pwm:1;
 	u8 obsolete1:5;
 	u16 pwm_freq_hz;
-	u8 min_brightness;
+	u8 min_brightness; /* Obsolete from 234+ */
 	u8 obsolete2;
 	u8 obsolete3;
 } __packed;
@@ -786,11 +792,19 @@ struct lfp_backlight_control_method {
 	u8 controller:4;
 } __packed;
 
+struct lfp_brightness_level {
+	u16 level;
+	u16 reserved;
+} __packed;
+
 struct bdb_lfp_backlight_data {
 	u8 entry_size;
 	struct lfp_backlight_data_entry data[16];
-	u8 level[16];
+	u8 level[16]; /* Obsolete from 234+ */
 	struct lfp_backlight_control_method backlight_control[16];
+	struct lfp_brightness_level brightness_level[16];		/* 234+ */
+	struct lfp_brightness_level brightness_min_level[16];	/* 234+ */
+	u8 brightness_precision_bits[16];						/* 236+ */
 } __packed;
 
 /*
@@ -821,6 +835,7 @@ struct bdb_lfp_power {
 	u16 lace_enabled_status;
 	struct agressiveness_profile_entry aggressivenes[16];
 	u16 hobl; /* 232+ */
+	u16 vrr_feature_enabled; /* 233+ */
 } __packed;
 
 /*

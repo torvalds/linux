@@ -398,7 +398,6 @@ enum cpu_type_enum {
 #define MIPS_CPU_RW_LLB		BIT_ULL(32)	/* LLADDR/LLB writes are allowed */
 #define MIPS_CPU_LPA		BIT_ULL(33)	/* CPU supports Large Physical Addressing */
 #define MIPS_CPU_CDMM		BIT_ULL(34)	/* CPU has Common Device Memory Map */
-#define MIPS_CPU_BP_GHIST	BIT_ULL(35)	/* R12K+ Branch Prediction Global History */
 #define MIPS_CPU_SP		BIT_ULL(36)	/* Small (1KB) page support */
 #define MIPS_CPU_FTLB		BIT_ULL(37)	/* CPU has Fixed-page-size TLB */
 #define MIPS_CPU_NAN_LEGACY	BIT_ULL(38)	/* Legacy NaN implemented */

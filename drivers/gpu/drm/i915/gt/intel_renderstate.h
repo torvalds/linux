@@ -25,9 +25,10 @@
 #define _INTEL_RENDERSTATE_H_
 
 #include <linux/types.h>
+#include "i915_gem.h"
 
 struct i915_request;
-struct intel_engine_cs;
+struct intel_context;
 struct i915_vma;
 
 struct intel_renderstate_rodata {
@@ -49,6 +50,7 @@ extern const struct intel_renderstate_rodata gen8_null_state;
 extern const struct intel_renderstate_rodata gen9_null_state;
 
 struct intel_renderstate {
+	struct i915_gem_ww_ctx ww;
 	const struct intel_renderstate_rodata *rodata;
 	struct i915_vma *vma;
 	u32 batch_offset;
@@ -58,9 +60,10 @@ struct intel_renderstate {
 };
 
 int intel_renderstate_init(struct intel_renderstate *so,
-			   struct intel_engine_cs *engine);
+			   struct intel_context *ce);
 int intel_renderstate_emit(struct intel_renderstate *so,
 			   struct i915_request *rq);
-void intel_renderstate_fini(struct intel_renderstate *so);
+void intel_renderstate_fini(struct intel_renderstate *so,
+			    struct intel_context *ce);
 
 #endif /* _INTEL_RENDERSTATE_H_ */

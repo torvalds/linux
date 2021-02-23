@@ -40,6 +40,7 @@ struct rt5682_platform_data {
 	unsigned int btndet_delay;
 	unsigned int dmic_clk_rate;
 	unsigned int dmic_delay;
+	bool dmic_clk_driving_high;
 
 	const char *dai_clk_names[RT5682_DAI_NUM_CLKS];
 };

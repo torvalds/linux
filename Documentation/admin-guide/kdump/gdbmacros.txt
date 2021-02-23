@@ -170,57 +170,82 @@ document trapinfo
 	address the kernel panicked.
 end
 
-define dump_log_idx
-	set $idx = $arg0
-	if ($argc > 1)
-		set $prev_flags = $arg1
+define dump_record
+	set var $desc = $arg0
+	set var $info = $arg1
+	if ($argc > 2)
+		set var $prev_flags = $arg2
 	else
-		set $prev_flags = 0
-	end
-	set $msg = ((struct printk_log *) (log_buf + $idx))
-	set $prefix = 1
-	set $newline = 1
-	set $log = log_buf + $idx + sizeof(*$msg)
-
-	# prev & LOG_CONT && !(msg->flags & LOG_PREIX)
-	if (($prev_flags & 8) && !($msg->flags & 4))
-		set $prefix = 0
+		set var $prev_flags = 0
 	end
 
-	# msg->flags & LOG_CONT
-	if ($msg->flags & 8)
+	set var $prefix = 1
+	set var $newline = 1
+
+	set var $begin = $desc->text_blk_lpos.begin % (1U << prb->text_data_ring.size_bits)
+	set var $next = $desc->text_blk_lpos.next % (1U << prb->text_data_ring.size_bits)
+
+	# handle data-less record
+	if ($begin & 1)
+		set var $text_len = 0
+		set var $log = ""
+	else
+		# handle wrapping data block
+		if ($begin > $next)
+			set var $begin = 0
+		end
+
+		# skip over descriptor id
+		set var $begin = $begin + sizeof(long)
+
+		# handle truncated message
+		if ($next - $begin < $info->text_len)
+			set var $text_len = $next - $begin
+		else
+			set var $text_len = $info->text_len
+		end
+
+		set var $log = &prb->text_data_ring.data[$begin]
+	end
+
+	# prev & LOG_CONT && !(info->flags & LOG_PREIX)
+	if (($prev_flags & 8) && !($info->flags & 4))
+		set var $prefix = 0
+	end
+
+	# info->flags & LOG_CONT
+	if ($info->flags & 8)
 		# (prev & LOG_CONT && !(prev & LOG_NEWLINE))
 		if (($prev_flags & 8) && !($prev_flags & 2))
-			set $prefix = 0
+			set var $prefix = 0
 		end
-		# (!(msg->flags & LOG_NEWLINE))
-		if (!($msg->flags & 2))
-			set $newline = 0
+		# (!(info->flags & LOG_NEWLINE))
+		if (!($info->flags & 2))
+			set var $newline = 0
 		end
 	end
 
 	if ($prefix)
-		printf "[%5lu.%06lu] ", $msg->ts_nsec / 1000000000, $msg->ts_nsec % 1000000000
+		printf "[%5lu.%06lu] ", $info->ts_nsec / 1000000000, $info->ts_nsec % 1000000000
 	end
-	if ($msg->text_len != 0)
-		eval "printf \"%%%d.%ds\", $log", $msg->text_len, $msg->text_len
+	if ($text_len)
+		eval "printf \"%%%d.%ds\", $log", $text_len, $text_len
 	end
 	if ($newline)
 		printf "\n"
 	end
-	if ($msg->dict_len > 0)
-		set $dict = $log + $msg->text_len
-		set $idx = 0
-		set $line = 1
-		while ($idx < $msg->dict_len)
-			if ($line)
-				printf " "
-				set $line = 0
-			end
-			set $c = $dict[$idx]
+
+	# handle dictionary data
+
+	set var $dict = &$info->dev_info.subsystem[0]
+	set var $dict_len = sizeof($info->dev_info.subsystem)
+	if ($dict[0] != '\0')
+		printf " SUBSYSTEM="
+		set var $idx = 0
+		while ($idx < $dict_len)
+			set var $c = $dict[$idx]
 			if ($c == '\0')
-				printf "\n"
-				set $line = 1
+				loop_break
 			else
 				if ($c < ' ' || $c >= 127 || $c == '\\')
 					printf "\\x%02x", $c
@@ -228,33 +253,67 @@ define dump_log_idx
 					printf "%c", $c
 				end
 			end
-			set $idx = $idx + 1
+			set var $idx = $idx + 1
+		end
+		printf "\n"
+	end
+
+	set var $dict = &$info->dev_info.device[0]
+	set var $dict_len = sizeof($info->dev_info.device)
+	if ($dict[0] != '\0')
+		printf " DEVICE="
+		set var $idx = 0
+		while ($idx < $dict_len)
+			set var $c = $dict[$idx]
+			if ($c == '\0')
+				loop_break
+			else
+				if ($c < ' ' || $c >= 127 || $c == '\\')
+					printf "\\x%02x", $c
+				else
+					printf "%c", $c
+				end
+			end
+			set var $idx = $idx + 1
 		end
 		printf "\n"
 	end
 end
-document dump_log_idx
-	Dump a single log given its index in the log buffer.  The first
-	parameter is the index into log_buf, the second is optional and
-	specified the previous log buffer's flags, used for properly
-	formatting continued lines.
+document dump_record
+	Dump a single record. The first parameter is the descriptor,
+	the second parameter is the info, the third parameter is
+	optional and specifies the previous record's flags, used for
+	properly formatting continued lines.
 end
 
 define dmesg
-	set $i = log_first_idx
-	set $end_idx = log_first_idx
-	set $prev_flags = 0
+	# definitions from kernel/printk/printk_ringbuffer.h
+	set var $desc_committed = 1
+	set var $desc_finalized = 2
+	set var $desc_sv_bits = sizeof(long) * 8
+	set var $desc_flags_shift = $desc_sv_bits - 2
+	set var $desc_flags_mask = 3 << $desc_flags_shift
+	set var $id_mask = ~$desc_flags_mask
+
+	set var $desc_count = 1U << prb->desc_ring.count_bits
+	set var $prev_flags = 0
+
+	set var $id = prb->desc_ring.tail_id.counter
+	set var $end_id = prb->desc_ring.head_id.counter
 
 	while (1)
-		set $msg = ((struct printk_log *) (log_buf + $i))
-		if ($msg->len == 0)
-			set $i = 0
-		else
-			dump_log_idx $i $prev_flags
-			set $i = $i + $msg->len
-			set $prev_flags = $msg->flags
+		set var $desc = &prb->desc_ring.descs[$id % $desc_count]
+		set var $info = &prb->desc_ring.infos[$id % $desc_count]
+
+		# skip non-committed record
+		set var $state = 3 & ($desc->state_var.counter >> $desc_flags_shift)
+		if ($state == $desc_committed || $state == $desc_finalized)
+			dump_record $desc $info $prev_flags
+			set var $prev_flags = $info->flags
 		end
-		if ($i == $end_idx)
+
+		set var $id = ($id + 1) & $id_mask
+		if ($id == $end_id)
 			loop_break
 		end
 	end

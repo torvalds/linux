@@ -540,7 +540,7 @@ int vmw_validation_bo_validate_single(struct ttm_buffer_object *bo,
 	if (atomic_read(&vbo->cpu_writers))
 		return -EBUSY;
 
-	if (vbo->pin_count > 0)
+	if (vbo->base.pin_count > 0)
 		return 0;
 
 	if (validate_as_mob)

@@ -213,7 +213,7 @@ static int jpeg_v3_0_resume(void *handle)
 	return r;
 }
 
-static void jpeg_v3_0_disable_clock_gating(struct amdgpu_device* adev)
+static void jpeg_v3_0_disable_clock_gating(struct amdgpu_device *adev)
 {
 	uint32_t data = 0;
 
@@ -243,7 +243,7 @@ static void jpeg_v3_0_disable_clock_gating(struct amdgpu_device* adev)
 	WREG32_SOC15(JPEG, 0, mmJPEG_CGC_CTRL, data);
 }
 
-static void jpeg_v3_0_enable_clock_gating(struct amdgpu_device* adev)
+static void jpeg_v3_0_enable_clock_gating(struct amdgpu_device *adev)
 {
 	uint32_t data = 0;
 
@@ -286,7 +286,7 @@ static int jpeg_v3_0_disable_static_power_gating(struct amdgpu_device *adev)
 	return 0;
 }
 
-static int jpeg_v3_0_enable_static_power_gating(struct amdgpu_device* adev)
+static int jpeg_v3_0_enable_static_power_gating(struct amdgpu_device *adev)
 {
 	/* enable anti hang mechanism */
 	WREG32_P(SOC15_REG_OFFSET(JPEG, 0, mmUVD_JPEG_POWER_STATUS),
@@ -460,15 +460,10 @@ static bool jpeg_v3_0_is_idle(void *handle)
 static int jpeg_v3_0_wait_for_idle(void *handle)
 {
 	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
-	int ret;
 
-	ret = SOC15_WAIT_ON_RREG(JPEG, 0, mmUVD_JRBC_STATUS,
+	return SOC15_WAIT_ON_RREG(JPEG, 0, mmUVD_JRBC_STATUS,
 		UVD_JRBC_STATUS__RB_JOB_DONE_MASK,
 		UVD_JRBC_STATUS__RB_JOB_DONE_MASK);
-	if (ret)
-		return ret;
-
-	return ret;
 }
 
 static int jpeg_v3_0_set_clockgating_state(void *handle,

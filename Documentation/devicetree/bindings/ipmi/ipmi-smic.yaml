@@ -49,6 +49,8 @@ required:
   - compatible
   - reg
 
+additionalProperties: false
+
 examples:
   - |
     smic@fff3a000 {

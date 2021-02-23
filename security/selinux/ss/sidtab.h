@@ -123,6 +123,8 @@ static inline struct context *sidtab_search_force(struct sidtab *s, u32 sid)
 
 int sidtab_convert(struct sidtab *s, struct sidtab_convert_params *params);
 
+void sidtab_cancel_convert(struct sidtab *s);
+
 int sidtab_context_to_sid(struct sidtab *s, struct context *context, u32 *sid);
 
 void sidtab_destroy(struct sidtab *s);

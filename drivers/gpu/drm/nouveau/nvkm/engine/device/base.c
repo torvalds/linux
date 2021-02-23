@@ -1815,7 +1815,7 @@ nvf0_chipset = {
 	.fb = gk110_fb_new,
 	.fuse = gf100_fuse_new,
 	.gpio = gk104_gpio_new,
-	.i2c = gk104_i2c_new,
+	.i2c = gk110_i2c_new,
 	.ibus = gk104_ibus_new,
 	.iccsense = gf100_iccsense_new,
 	.imem = nv50_instmem_new,
@@ -1853,7 +1853,7 @@ nvf1_chipset = {
 	.fb = gk110_fb_new,
 	.fuse = gf100_fuse_new,
 	.gpio = gk104_gpio_new,
-	.i2c = gk104_i2c_new,
+	.i2c = gk110_i2c_new,
 	.ibus = gk104_ibus_new,
 	.iccsense = gf100_iccsense_new,
 	.imem = nv50_instmem_new,
@@ -1891,7 +1891,7 @@ nv106_chipset = {
 	.fb = gk110_fb_new,
 	.fuse = gf100_fuse_new,
 	.gpio = gk104_gpio_new,
-	.i2c = gk104_i2c_new,
+	.i2c = gk110_i2c_new,
 	.ibus = gk104_ibus_new,
 	.iccsense = gf100_iccsense_new,
 	.imem = nv50_instmem_new,
@@ -1929,7 +1929,7 @@ nv108_chipset = {
 	.fb = gk110_fb_new,
 	.fuse = gf100_fuse_new,
 	.gpio = gk104_gpio_new,
-	.i2c = gk104_i2c_new,
+	.i2c = gk110_i2c_new,
 	.ibus = gk104_ibus_new,
 	.iccsense = gf100_iccsense_new,
 	.imem = nv50_instmem_new,
@@ -1967,7 +1967,7 @@ nv117_chipset = {
 	.fb = gm107_fb_new,
 	.fuse = gm107_fuse_new,
 	.gpio = gk104_gpio_new,
-	.i2c = gk104_i2c_new,
+	.i2c = gk110_i2c_new,
 	.ibus = gk104_ibus_new,
 	.iccsense = gf100_iccsense_new,
 	.imem = nv50_instmem_new,
@@ -2003,7 +2003,7 @@ nv118_chipset = {
 	.fb = gm107_fb_new,
 	.fuse = gm107_fuse_new,
 	.gpio = gk104_gpio_new,
-	.i2c = gk104_i2c_new,
+	.i2c = gk110_i2c_new,
 	.ibus = gk104_ibus_new,
 	.iccsense = gf100_iccsense_new,
 	.imem = nv50_instmem_new,
@@ -2652,6 +2652,61 @@ nv168_chipset = {
 	.sec2 = tu102_sec2_new,
 };
 
+static const struct nvkm_device_chip
+nv170_chipset = {
+	.name = "GA100",
+	.bar = tu102_bar_new,
+	.bios = nvkm_bios_new,
+	.devinit = ga100_devinit_new,
+	.fb = ga100_fb_new,
+	.gpio = gk104_gpio_new,
+	.i2c = gm200_i2c_new,
+	.ibus = gm200_ibus_new,
+	.imem = nv50_instmem_new,
+	.mc = ga100_mc_new,
+	.mmu = tu102_mmu_new,
+	.pci = gp100_pci_new,
+	.timer = gk20a_timer_new,
+};
+
+static const struct nvkm_device_chip
+nv172_chipset = {
+	.name = "GA102",
+	.bar = tu102_bar_new,
+	.bios = nvkm_bios_new,
+	.devinit = ga100_devinit_new,
+	.fb = ga102_fb_new,
+	.gpio = ga102_gpio_new,
+	.i2c = gm200_i2c_new,
+	.ibus = gm200_ibus_new,
+	.imem = nv50_instmem_new,
+	.mc = ga100_mc_new,
+	.mmu = tu102_mmu_new,
+	.pci = gp100_pci_new,
+	.timer = gk20a_timer_new,
+	.disp = ga102_disp_new,
+	.dma = gv100_dma_new,
+};
+
+static const struct nvkm_device_chip
+nv174_chipset = {
+	.name = "GA104",
+	.bar = tu102_bar_new,
+	.bios = nvkm_bios_new,
+	.devinit = ga100_devinit_new,
+	.fb = ga102_fb_new,
+	.gpio = ga102_gpio_new,
+	.i2c = gm200_i2c_new,
+	.ibus = gm200_ibus_new,
+	.imem = nv50_instmem_new,
+	.mc = ga100_mc_new,
+	.mmu = tu102_mmu_new,
+	.pci = gp100_pci_new,
+	.timer = gk20a_timer_new,
+	.disp = ga102_disp_new,
+	.dma = gv100_dma_new,
+};
+
 static int
 nvkm_device_event_ctor(struct nvkm_object *object, void *data, u32 size,
 		       struct nvkm_notify *notify)
@@ -2924,17 +2979,34 @@ nvkm_device_del(struct nvkm_device **pdevice)
 	}
 }
 
+/* returns true if the GPU is in the CPU native byte order */
 static inline bool
 nvkm_device_endianness(struct nvkm_device *device)
 {
-	u32 boot1 = nvkm_rd32(device, 0x000004) & 0x01000001;
 #ifdef __BIG_ENDIAN
-	if (!boot1)
-		return false;
+	const bool big_endian = true;
 #else
-	if (boot1)
-		return false;
+	const bool big_endian = false;
 #endif
+
+	/* Read NV_PMC_BOOT_1, and assume non-functional endian switch if it
+	 * doesn't contain the expected values.
+	 */
+	u32 pmc_boot_1 = nvkm_rd32(device, 0x000004);
+	if (pmc_boot_1 && pmc_boot_1 != 0x01000001)
+		return !big_endian; /* Assume GPU is LE in this case. */
+
+	/* 0 means LE and 0x01000001 means BE GPU. Condition is true when
+	 * GPU/CPU endianness don't match.
+	 */
+	if (big_endian == !pmc_boot_1) {
+		nvkm_wr32(device, 0x000004, 0x01000001);
+		nvkm_rd32(device, 0x000000);
+		if (nvkm_rd32(device, 0x000004) != (big_endian ? 0x01000001 : 0x00000000))
+			return !big_endian; /* Assume GPU is LE on any unexpected read-back. */
+	}
+
+	/* CPU/GPU endianness should (hopefully) match. */
 	return true;
 }
 
@@ -2987,14 +3059,10 @@ nvkm_device_ctor(const struct nvkm_device_func *func,
 	if (detect) {
 		/* switch mmio to cpu's native endianness */
 		if (!nvkm_device_endianness(device)) {
-			nvkm_wr32(device, 0x000004, 0x01000001);
-			nvkm_rd32(device, 0x000000);
-			if (!nvkm_device_endianness(device)) {
-				nvdev_error(device,
-					    "GPU not supported on big-endian\n");
-				ret = -ENOSYS;
-				goto done;
-			}
+			nvdev_error(device,
+				    "Couldn't switch GPU to CPUs endianess\n");
+			ret = -ENOSYS;
+			goto done;
 		}
 
 		boot0 = nvkm_rd32(device, 0x000000);
@@ -3050,6 +3118,7 @@ nvkm_device_ctor(const struct nvkm_device_func *func,
 			case 0x130: device->card_type = GP100; break;
 			case 0x140: device->card_type = GV100; break;
 			case 0x160: device->card_type = TU100; break;
+			case 0x170: device->card_type = GA100; break;
 			default:
 				break;
 			}
@@ -3147,10 +3216,23 @@ nvkm_device_ctor(const struct nvkm_device_func *func,
 		case 0x166: device->chip = &nv166_chipset; break;
 		case 0x167: device->chip = &nv167_chipset; break;
 		case 0x168: device->chip = &nv168_chipset; break;
+		case 0x172: device->chip = &nv172_chipset; break;
+		case 0x174: device->chip = &nv174_chipset; break;
 		default:
-			nvdev_error(device, "unknown chipset (%08x)\n", boot0);
-			ret = -ENODEV;
-			goto done;
+			if (nvkm_boolopt(device->cfgopt, "NvEnableUnsupportedChipsets", false)) {
+				switch (device->chipset) {
+				case 0x170: device->chip = &nv170_chipset; break;
+				default:
+					break;
+				}
+			}
+
+			if (!device->chip) {
+				nvdev_error(device, "unknown chipset (%08x)\n", boot0);
+				ret = -ENODEV;
+				goto done;
+			}
+			break;
 		}
 
 		nvdev_info(device, "NVIDIA %s (%08x)\n",

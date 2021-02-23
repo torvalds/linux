@@ -63,7 +63,7 @@ static struct dma_resv_list *dma_resv_list_alloc(unsigned int shared_max)
 {
 	struct dma_resv_list *list;
 
-	list = kmalloc(offsetof(typeof(*list), shared[shared_max]), GFP_KERNEL);
+	list = kmalloc(struct_size(list, shared, shared_max), GFP_KERNEL);
 	if (!list)
 		return NULL;
 
@@ -98,12 +98,14 @@ static int __init dma_resv_lockdep(void)
 	struct mm_struct *mm = mm_alloc();
 	struct ww_acquire_ctx ctx;
 	struct dma_resv obj;
+	struct address_space mapping;
 	int ret;
 
 	if (!mm)
 		return -ENOMEM;
 
 	dma_resv_init(&obj);
+	address_space_init_once(&mapping);
 
 	mmap_read_lock(mm);
 	ww_acquire_init(&ctx, &reservation_ww_class);
@@ -111,6 +113,9 @@ static int __init dma_resv_lockdep(void)
 	if (ret == -EDEADLK)
 		dma_resv_lock_slow(&obj, &ctx);
 	fs_reclaim_acquire(GFP_KERNEL);
+	/* for unmap_mapping_range on trylocked buffer objects in shrinkers */
+	i_mmap_lock_write(&mapping);
+	i_mmap_unlock_write(&mapping);
 #ifdef CONFIG_MMU_NOTIFIER
 	lock_map_acquire(&__mmu_notifier_invalidate_range_start_map);
 	__dma_fence_might_wait();
@@ -195,7 +200,7 @@ int dma_resv_reserve_shared(struct dma_resv *obj, unsigned int num_fences)
 			max = max(old->shared_count + num_fences,
 				  old->shared_max * 2);
 	} else {
-		max = 4;
+		max = max(4ul, roundup_pow_of_two(num_fences));
 	}
 
 	new = dma_resv_list_alloc(max);

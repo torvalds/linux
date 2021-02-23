@@ -143,6 +143,8 @@ char *tomoyo_read_token(struct tomoyo_acl_param *param)
 	return pos;
 }
 
+static bool tomoyo_correct_path2(const char *filename, const size_t len);
+
 /**
  * tomoyo_get_domainname - Read a domainname from a line.
  *
@@ -157,10 +159,10 @@ const struct tomoyo_path_info *tomoyo_get_domainname
 	char *pos = start;
 
 	while (*pos) {
-		if (*pos++ != ' ' || *pos++ == '/')
+		if (*pos++ != ' ' ||
+		    tomoyo_correct_path2(pos, strchrnul(pos, ' ') - pos))
 			continue;
-		pos -= 2;
-		*pos++ = '\0';
+		*(pos - 1) = '\0';
 		break;
 	}
 	param->data = pos;
@@ -432,59 +434,64 @@ void tomoyo_normalize_line(unsigned char *buffer)
  */
 static bool tomoyo_correct_word2(const char *string, size_t len)
 {
+	u8 recursion = 20;
 	const char *const start = string;
 	bool in_repetition = false;
-	unsigned char c;
-	unsigned char d;
-	unsigned char e;
 
 	if (!len)
 		goto out;
 	while (len--) {
-		c = *string++;
+		unsigned char c = *string++;
+
 		if (c == '\\') {
 			if (!len--)
 				goto out;
 			c = *string++;
+			if (c >= '0' && c <= '3') {
+				unsigned char d;
+				unsigned char e;
+
+				if (!len-- || !len--)
+					goto out;
+				d = *string++;
+				e = *string++;
+				if (d < '0' || d > '7' || e < '0' || e > '7')
+					goto out;
+				c = tomoyo_make_byte(c, d, e);
+				if (c <= ' ' || c >= 127)
+					continue;
+				goto out;
+			}
 			switch (c) {
 			case '\\':  /* "\\" */
-				continue;
-			case '$':   /* "\$" */
 			case '+':   /* "\+" */
 			case '?':   /* "\?" */
+			case 'x':   /* "\x" */
+			case 'a':   /* "\a" */
+			case '-':   /* "\-" */
+				continue;
+			}
+			if (!recursion--)
+				goto out;
+			switch (c) {
 			case '*':   /* "\*" */
 			case '@':   /* "\@" */
-			case 'x':   /* "\x" */
+			case '$':   /* "\$" */
 			case 'X':   /* "\X" */
-			case 'a':   /* "\a" */
 			case 'A':   /* "\A" */
-			case '-':   /* "\-" */
 				continue;
 			case '{':   /* "/\{" */
 				if (string - 3 < start || *(string - 3) != '/')
-					break;
+					goto out;
 				in_repetition = true;
 				continue;
 			case '}':   /* "\}/" */
 				if (*string != '/')
-					break;
+					goto out;
 				if (!in_repetition)
-					break;
+					goto out;
 				in_repetition = false;
 				continue;
-			case '0':   /* "\ooo" */
-			case '1':
-			case '2':
-			case '3':
-				if (!len-- || !len--)
-					break;
-				d = *string++;
-				e = *string++;
-				if (d < '0' || d > '7' || e < '0' || e > '7')
-					break;
-				c = tomoyo_make_byte(c, d, e);
-				if (c <= ' ' || c >= 127)
-					continue;
 			}
 			goto out;
 		} else if (in_repetition && c == '/') {
@@ -514,6 +521,22 @@ bool tomoyo_correct_word(const char *string)
 }
 
 /**
+ * tomoyo_correct_path2 - Check whether the given pathname follows the naming rules.
+ *
+ * @filename: The pathname to check.
+ * @len:      Length of @filename.
+ *
+ * Returns true if @filename follows the naming rules, false otherwise.
+ */
+static bool tomoyo_correct_path2(const char *filename, const size_t len)
+{
+	const char *cp1 = memchr(filename, '/', len);
+	const char *cp2 = memchr(filename, '.', len);
+
+	return cp1 && (!cp2 || (cp1 < cp2)) && tomoyo_correct_word2(filename, len);
+}
+
+/**
  * tomoyo_correct_path - Validate a pathname.
  *
  * @filename: The pathname to check.
@@ -523,7 +546,7 @@ bool tomoyo_correct_word(const char *string)
  */
 bool tomoyo_correct_path(const char *filename)
 {
-	return *filename == '/' && tomoyo_correct_word(filename);
+	return tomoyo_correct_path2(filename, strlen(filename));
 }
 
 /**
@@ -545,8 +568,7 @@ bool tomoyo_correct_domain(const unsigned char *domainname)
 
 		if (!cp)
 			break;
-		if (*domainname != '/' ||
-		    !tomoyo_correct_word2(domainname, cp - domainname))
+		if (!tomoyo_correct_path2(domainname, cp - domainname))
 			return false;
 		domainname = cp + 1;
 	}

@@ -115,8 +115,6 @@
 #ifndef cpu_has_3k_cache
 #define cpu_has_3k_cache	__isa_lt_and_opt(1, MIPS_CPU_3K_CACHE)
 #endif
-#define cpu_has_6k_cache	0
-#define cpu_has_8k_cache	0
 #ifndef cpu_has_4k_cache
 #define cpu_has_4k_cache	__isa_ge_or_opt(1, MIPS_CPU_4K_CACHE)
 #endif
@@ -170,9 +168,6 @@
 #endif
 #ifndef cpu_has_llsc
 #define cpu_has_llsc		__isa_ge_or_opt(1, MIPS_CPU_LLSC)
-#endif
-#ifndef cpu_has_bp_ghist
-#define cpu_has_bp_ghist	__opt(MIPS_CPU_BP_GHIST)
 #endif
 #ifndef kernel_uses_llsc
 #define kernel_uses_llsc	cpu_has_llsc

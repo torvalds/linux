@@ -108,6 +108,11 @@ struct rnbd_msg_close {
 	__le32		device_id;
 };
 
+enum rnbd_cache_policy {
+	RNBD_FUA = 1 << 0,
+	RNBD_WRITEBACK = 1 << 1,
+};
+
 /**
  * struct rnbd_msg_open_rsp - response message to RNBD_MSG_OPEN
  * @hdr:		message header
@@ -124,6 +129,7 @@ struct rnbd_msg_close {
  * @max_segments:	max segments hardware support in one transfer
  * @secure_discard:	supports secure discard
  * @rotation:		is a rotational disc?
+ * @cache_policy: 	support write-back caching or FUA?
  */
 struct rnbd_msg_open_rsp {
 	struct rnbd_msg_hdr	hdr;
@@ -139,7 +145,8 @@ struct rnbd_msg_open_rsp {
 	__le16			max_segments;
 	__le16			secure_discard;
 	u8			rotational;
-	u8			reserved[11];
+	u8			cache_policy;
+	u8			reserved[10];
 };
 
 /**

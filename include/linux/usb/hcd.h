@@ -734,10 +734,6 @@ static inline void usbmon_urb_complete(struct usb_bus *bus, struct urb *urb,
 
 /* random stuff */
 
-#define	RUN_CONTEXT (in_irq() ? "in_irq" \
-		: (in_interrupt() ? "in_interrupt" : "can sleep"))
-
-
 /* This rwsem is for use only by the hub driver and ehci-hcd.
  * Nobody else should touch it.
  */

@@ -23,6 +23,6 @@ int dump_bpf_map(struct bpf_iter__bpf_map *ctx)
 
 	BPF_SEQ_PRINTF(seq, "%8u %8ld %8ld %10lu\n", map->id, map->refcnt.counter,
 		       map->usercnt.counter,
-		       map->memory.user->locked_vm.counter);
+		       0LLU);
 	return 0;
 }

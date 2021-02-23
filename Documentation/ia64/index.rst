@@ -15,4 +15,5 @@ IA-64 Architecture
    irq-redir
    mca
    serial
-   xen
+
+   features

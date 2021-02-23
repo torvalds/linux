@@ -607,14 +607,14 @@ static int pcf85063_probe(struct i2c_client *client)
 	}
 
 	nvmem_cfg.priv = pcf85063->regmap;
-	rtc_nvmem_register(pcf85063->rtc, &nvmem_cfg);
+	devm_rtc_nvmem_register(pcf85063->rtc, &nvmem_cfg);
 
 #ifdef CONFIG_COMMON_CLK
 	/* register clk in common clk framework */
 	pcf85063_clkout_register_clk(pcf85063);
 #endif
 
-	return rtc_register_device(pcf85063->rtc);
+	return devm_rtc_register_device(pcf85063->rtc);
 }
 
 #ifdef CONFIG_OF

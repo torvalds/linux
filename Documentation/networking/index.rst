@@ -52,7 +52,6 @@ Contents:
    eql
    fib_trie
    filter
-   framerelay
    generic-hdlc
    generic_netlink
    gen_stats
@@ -70,6 +69,7 @@ Contents:
    lapb-module
    mac80211-injection
    mpls-sysctl
+   mptcp-sysctl
    multiqueue
    netconsole
    netdev-features
@@ -93,12 +93,15 @@ Contents:
    sctp
    secid
    seg6-sysctl
+   statistics
    strparser
    switchdev
+   sysfs-tagging
    tc-actions-env-rules
    tcp-thin
    team
    timestamping
+   tipc
    tproxy
    tuntap
    udplite

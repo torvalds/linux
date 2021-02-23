@@ -187,6 +187,7 @@ drm_bridge_connector_detect(struct drm_connector *connector, bool force)
 		case DRM_MODE_CONNECTOR_DPI:
 		case DRM_MODE_CONNECTOR_LVDS:
 		case DRM_MODE_CONNECTOR_DSI:
+		case DRM_MODE_CONNECTOR_eDP:
 			status = connector_status_connected;
 			break;
 		default:
@@ -240,7 +241,7 @@ static int drm_bridge_connector_get_modes_edid(struct drm_connector *connector,
 		goto no_edid;
 
 	edid = bridge->funcs->get_edid(bridge, connector);
-	if (!edid || !drm_edid_is_valid(edid)) {
+	if (!drm_edid_is_valid(edid)) {
 		kfree(edid);
 		goto no_edid;
 	}

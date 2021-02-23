@@ -133,6 +133,11 @@
 #define VFE_0_BUS_BDG_QOS_CFG_7		0x420
 #define VFE_0_BUS_BDG_QOS_CFG_7_CFG	0x0001aaa9
 
+#define VFE48_0_BUS_BDG_QOS_CFG_0_CFG	0xaaa5aaa5
+#define VFE48_0_BUS_BDG_QOS_CFG_3_CFG	0xaa55aaa5
+#define VFE48_0_BUS_BDG_QOS_CFG_4_CFG	0xaa55aa55
+#define VFE48_0_BUS_BDG_QOS_CFG_7_CFG	0x0005aa55
+
 #define VFE_0_BUS_BDG_DS_CFG_0		0x424
 #define VFE_0_BUS_BDG_DS_CFG_0_CFG	0xcccc0011
 #define VFE_0_BUS_BDG_DS_CFG_1		0x428
@@ -152,6 +157,9 @@
 #define VFE_0_BUS_BDG_DS_CFG_15		0x460
 #define VFE_0_BUS_BDG_DS_CFG_16		0x464
 #define VFE_0_BUS_BDG_DS_CFG_16_CFG	0x40000103
+
+#define VFE48_0_BUS_BDG_DS_CFG_0_CFG	0xcccc1111
+#define VFE48_0_BUS_BDG_DS_CFG_16_CFG	0x00000110
 
 #define VFE_0_RDI_CFG_x(x)		(0x46c + (0x4 * (x)))
 #define VFE_0_RDI_CFG_x_RDI_STREAM_SEL_SHIFT	28
@@ -231,6 +239,9 @@
 #define VFE_0_REALIGN_BUF_CFG_CR_ODD_PIXEL     BIT(3)
 #define VFE_0_REALIGN_BUF_CFG_HSUB_ENABLE      BIT(4)
 
+#define VFE48_0_BUS_IMAGE_MASTER_CMD		0xcec
+#define VFE48_0_BUS_IMAGE_MASTER_n_SHIFT(x)	(2 * (x))
+
 #define CAMIF_TIMEOUT_SLEEP_US 1000
 #define CAMIF_TIMEOUT_ALL_US 1000000
 
@@ -246,7 +257,7 @@ static void vfe_hw_version_read(struct vfe_device *vfe, struct device *dev)
 	dev_err(dev, "VFE HW Version = 0x%08x\n", hw_version);
 }
 
-static u16 vfe_get_ub_size(u8 vfe_id)
+static u16 vfe47_get_ub_size(u8 vfe_id)
 {
 	if (vfe_id == 0)
 		return MSM_VFE_VFE0_UB_SIZE_RDI;
@@ -299,7 +310,7 @@ static void vfe_halt_clear(struct vfe_device *vfe)
 	writel_relaxed(0x0, vfe->base + VFE_0_BUS_BDG_CMD);
 }
 
-static void vfe_wm_enable(struct vfe_device *vfe, u8 wm, u8 enable)
+static void vfe47_wm_enable(struct vfe_device *vfe, u8 wm, u8 enable)
 {
 	if (enable)
 		vfe_reg_set(vfe, VFE_0_BUS_IMAGE_MASTER_n_WR_CFG(wm),
@@ -883,7 +894,7 @@ static void vfe_set_clamp_cfg(struct vfe_device *vfe)
 	writel_relaxed(val, vfe->base + VFE_0_CLAMP_ENC_MIN_CFG);
 }
 
-static void vfe_set_qos(struct vfe_device *vfe)
+static void vfe47_set_qos(struct vfe_device *vfe)
 {
 	u32 val = VFE_0_BUS_BDG_QOS_CFG_0_CFG;
 	u32 val7 = VFE_0_BUS_BDG_QOS_CFG_7_CFG;
@@ -898,7 +909,7 @@ static void vfe_set_qos(struct vfe_device *vfe)
 	writel_relaxed(val7, vfe->base + VFE_0_BUS_BDG_QOS_CFG_7);
 }
 
-static void vfe_set_ds(struct vfe_device *vfe)
+static void vfe47_set_ds(struct vfe_device *vfe)
 {
 	u32 val = VFE_0_BUS_BDG_DS_CFG_0_CFG;
 	u32 val16 = VFE_0_BUS_BDG_DS_CFG_16_CFG;
@@ -1098,11 +1109,11 @@ static irqreturn_t vfe_isr(int irq, void *dev)
 
 const struct vfe_hw_ops vfe_ops_4_7 = {
 	.hw_version_read = vfe_hw_version_read,
-	.get_ub_size = vfe_get_ub_size,
+	.get_ub_size = vfe47_get_ub_size,
 	.global_reset = vfe_global_reset,
 	.halt_request = vfe_halt_request,
 	.halt_clear = vfe_halt_clear,
-	.wm_enable = vfe_wm_enable,
+	.wm_enable = vfe47_wm_enable,
 	.wm_frame_based = vfe_wm_frame_based,
 	.wm_line_based = vfe_wm_line_based,
 	.wm_set_framedrop_period = vfe_wm_set_framedrop_period,
@@ -1128,8 +1139,112 @@ const struct vfe_hw_ops vfe_ops_4_7 = {
 	.set_scale_cfg = vfe_set_scale_cfg,
 	.set_crop_cfg = vfe_set_crop_cfg,
 	.set_clamp_cfg = vfe_set_clamp_cfg,
-	.set_qos = vfe_set_qos,
-	.set_ds = vfe_set_ds,
+	.set_qos = vfe47_set_qos,
+	.set_ds = vfe47_set_ds,
+	.set_cgc_override = vfe_set_cgc_override,
+	.set_camif_cfg = vfe_set_camif_cfg,
+	.set_camif_cmd = vfe_set_camif_cmd,
+	.set_module_cfg = vfe_set_module_cfg,
+	.camif_wait_for_stop = vfe_camif_wait_for_stop,
+	.isr_read = vfe_isr_read,
+	.violation_read = vfe_violation_read,
+	.isr = vfe_isr,
+};
+
+static u16 vfe48_get_ub_size(u8 vfe_id)
+{
+	/* On VFE4.8 the ub-size is the same on both instances */
+	return MSM_VFE_VFE0_UB_SIZE_RDI;
+}
+
+static void vfe48_wm_enable(struct vfe_device *vfe, u8 wm, u8 enable)
+{
+	if (enable)
+		writel_relaxed(2 << VFE48_0_BUS_IMAGE_MASTER_n_SHIFT(wm),
+			       vfe->base + VFE48_0_BUS_IMAGE_MASTER_CMD);
+	else
+		writel_relaxed(1 << VFE48_0_BUS_IMAGE_MASTER_n_SHIFT(wm),
+			       vfe->base + VFE48_0_BUS_IMAGE_MASTER_CMD);
+
+	/* The WM must be enabled before sending other commands */
+	wmb();
+}
+
+static void vfe48_set_qos(struct vfe_device *vfe)
+{
+	u32 val = VFE48_0_BUS_BDG_QOS_CFG_0_CFG;
+	u32 val3 = VFE48_0_BUS_BDG_QOS_CFG_3_CFG;
+	u32 val4 = VFE48_0_BUS_BDG_QOS_CFG_4_CFG;
+	u32 val7 = VFE48_0_BUS_BDG_QOS_CFG_7_CFG;
+
+	writel_relaxed(val, vfe->base + VFE_0_BUS_BDG_QOS_CFG_0);
+	writel_relaxed(val, vfe->base + VFE_0_BUS_BDG_QOS_CFG_1);
+	writel_relaxed(val, vfe->base + VFE_0_BUS_BDG_QOS_CFG_2);
+	writel_relaxed(val3, vfe->base + VFE_0_BUS_BDG_QOS_CFG_3);
+	writel_relaxed(val4, vfe->base + VFE_0_BUS_BDG_QOS_CFG_4);
+	writel_relaxed(val4, vfe->base + VFE_0_BUS_BDG_QOS_CFG_5);
+	writel_relaxed(val4, vfe->base + VFE_0_BUS_BDG_QOS_CFG_6);
+	writel_relaxed(val7, vfe->base + VFE_0_BUS_BDG_QOS_CFG_7);
+}
+
+static void vfe48_set_ds(struct vfe_device *vfe)
+{
+	u32 val = VFE48_0_BUS_BDG_DS_CFG_0_CFG;
+	u32 val16 = VFE48_0_BUS_BDG_DS_CFG_16_CFG;
+
+	writel_relaxed(val, vfe->base + VFE_0_BUS_BDG_DS_CFG_0);
+	writel_relaxed(val, vfe->base + VFE_0_BUS_BDG_DS_CFG_1);
+	writel_relaxed(val, vfe->base + VFE_0_BUS_BDG_DS_CFG_2);
+	writel_relaxed(val, vfe->base + VFE_0_BUS_BDG_DS_CFG_3);
+	writel_relaxed(val, vfe->base + VFE_0_BUS_BDG_DS_CFG_4);
+	writel_relaxed(val, vfe->base + VFE_0_BUS_BDG_DS_CFG_5);
+	writel_relaxed(val, vfe->base + VFE_0_BUS_BDG_DS_CFG_6);
+	writel_relaxed(val, vfe->base + VFE_0_BUS_BDG_DS_CFG_7);
+	writel_relaxed(val, vfe->base + VFE_0_BUS_BDG_DS_CFG_8);
+	writel_relaxed(val, vfe->base + VFE_0_BUS_BDG_DS_CFG_9);
+	writel_relaxed(val, vfe->base + VFE_0_BUS_BDG_DS_CFG_10);
+	writel_relaxed(val, vfe->base + VFE_0_BUS_BDG_DS_CFG_11);
+	writel_relaxed(val, vfe->base + VFE_0_BUS_BDG_DS_CFG_12);
+	writel_relaxed(val, vfe->base + VFE_0_BUS_BDG_DS_CFG_13);
+	writel_relaxed(val, vfe->base + VFE_0_BUS_BDG_DS_CFG_14);
+	writel_relaxed(val, vfe->base + VFE_0_BUS_BDG_DS_CFG_15);
+	writel_relaxed(val16, vfe->base + VFE_0_BUS_BDG_DS_CFG_16);
+}
+
+const struct vfe_hw_ops vfe_ops_4_8 = {
+	.hw_version_read = vfe_hw_version_read,
+	.get_ub_size = vfe48_get_ub_size,
+	.global_reset = vfe_global_reset,
+	.halt_request = vfe_halt_request,
+	.halt_clear = vfe_halt_clear,
+	.wm_enable = vfe48_wm_enable,
+	.wm_frame_based = vfe_wm_frame_based,
+	.wm_line_based = vfe_wm_line_based,
+	.wm_set_framedrop_period = vfe_wm_set_framedrop_period,
+	.wm_set_framedrop_pattern = vfe_wm_set_framedrop_pattern,
+	.wm_set_ub_cfg = vfe_wm_set_ub_cfg,
+	.bus_reload_wm = vfe_bus_reload_wm,
+	.wm_set_ping_addr = vfe_wm_set_ping_addr,
+	.wm_set_pong_addr = vfe_wm_set_pong_addr,
+	.wm_get_ping_pong_status = vfe_wm_get_ping_pong_status,
+	.bus_enable_wr_if = vfe_bus_enable_wr_if,
+	.bus_connect_wm_to_rdi = vfe_bus_connect_wm_to_rdi,
+	.wm_set_subsample = vfe_wm_set_subsample,
+	.bus_disconnect_wm_from_rdi = vfe_bus_disconnect_wm_from_rdi,
+	.set_xbar_cfg = vfe_set_xbar_cfg,
+	.set_realign_cfg = vfe_set_realign_cfg,
+	.set_rdi_cid = vfe_set_rdi_cid,
+	.reg_update = vfe_reg_update,
+	.reg_update_clear = vfe_reg_update_clear,
+	.enable_irq_wm_line = vfe_enable_irq_wm_line,
+	.enable_irq_pix_line = vfe_enable_irq_pix_line,
+	.enable_irq_common = vfe_enable_irq_common,
+	.set_demux_cfg = vfe_set_demux_cfg,
+	.set_scale_cfg = vfe_set_scale_cfg,
+	.set_crop_cfg = vfe_set_crop_cfg,
+	.set_clamp_cfg = vfe_set_clamp_cfg,
+	.set_qos = vfe48_set_qos,
+	.set_ds = vfe48_set_ds,
 	.set_cgc_override = vfe_set_cgc_override,
 	.set_camif_cfg = vfe_set_camif_cfg,
 	.set_camif_cmd = vfe_set_camif_cmd,

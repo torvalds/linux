@@ -44,6 +44,8 @@ properties:
 required:
   - reg
 
+unevaluatedProperties: false
+
 examples:
   - |
     #include <dt-bindings/interrupt-controller/irq.h>

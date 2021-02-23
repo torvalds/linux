@@ -192,11 +192,6 @@ __be32 *nfs2svc_encode_fattr(struct svc_rqst *rqstp, __be32 *p, struct svc_fh *f
 /*
  * XDR decode functions
  */
-int
-nfssvc_decode_void(struct svc_rqst *rqstp, __be32 *p)
-{
-	return xdr_argsize_check(rqstp, p);
-}
 
 int
 nfssvc_decode_fhandle(struct svc_rqst *rqstp, __be32 *p)
@@ -423,9 +418,13 @@ nfssvc_decode_readdirargs(struct svc_rqst *rqstp, __be32 *p)
 /*
  * XDR encode functions
  */
+
 int
-nfssvc_encode_void(struct svc_rqst *rqstp, __be32 *p)
+nfssvc_encode_stat(struct svc_rqst *rqstp, __be32 *p)
 {
+	struct nfsd_stat *resp = rqstp->rq_resp;
+
+	*p++ = resp->status;
 	return xdr_ressize_check(rqstp, p);
 }
 
@@ -434,7 +433,11 @@ nfssvc_encode_attrstat(struct svc_rqst *rqstp, __be32 *p)
 {
 	struct nfsd_attrstat *resp = rqstp->rq_resp;
 
+	*p++ = resp->status;
+	if (resp->status != nfs_ok)
+		goto out;
 	p = encode_fattr(rqstp, p, &resp->fh, &resp->stat);
+out:
 	return xdr_ressize_check(rqstp, p);
 }
 
@@ -443,8 +446,12 @@ nfssvc_encode_diropres(struct svc_rqst *rqstp, __be32 *p)
 {
 	struct nfsd_diropres *resp = rqstp->rq_resp;
 
+	*p++ = resp->status;
+	if (resp->status != nfs_ok)
+		goto out;
 	p = encode_fh(p, &resp->fh);
 	p = encode_fattr(rqstp, p, &resp->fh, &resp->stat);
+out:
 	return xdr_ressize_check(rqstp, p);
 }
 
@@ -452,6 +459,11 @@ int
 nfssvc_encode_readlinkres(struct svc_rqst *rqstp, __be32 *p)
 {
 	struct nfsd_readlinkres *resp = rqstp->rq_resp;
+	struct kvec *head = rqstp->rq_res.head;
+
+	*p++ = resp->status;
+	if (resp->status != nfs_ok)
+		return xdr_ressize_check(rqstp, p);
 
 	*p++ = htonl(resp->len);
 	xdr_ressize_check(rqstp, p);
@@ -462,6 +474,8 @@ nfssvc_encode_readlinkres(struct svc_rqst *rqstp, __be32 *p)
 		*p = 0;
 		rqstp->rq_res.tail[0].iov_len = 4 - (resp->len&3);
 	}
+	if (svc_encode_result_payload(rqstp, head->iov_len, resp->len))
+		return 0;
 	return 1;
 }
 
@@ -469,6 +483,11 @@ int
 nfssvc_encode_readres(struct svc_rqst *rqstp, __be32 *p)
 {
 	struct nfsd_readres *resp = rqstp->rq_resp;
+	struct kvec *head = rqstp->rq_res.head;
+
+	*p++ = resp->status;
+	if (resp->status != nfs_ok)
+		return xdr_ressize_check(rqstp, p);
 
 	p = encode_fattr(rqstp, p, &resp->fh, &resp->stat);
 	*p++ = htonl(resp->count);
@@ -482,6 +501,8 @@ nfssvc_encode_readres(struct svc_rqst *rqstp, __be32 *p)
 		*p = 0;
 		rqstp->rq_res.tail[0].iov_len = 4 - (resp->count&3);
 	}
+	if (svc_encode_result_payload(rqstp, head->iov_len, resp->count))
+		return 0;
 	return 1;
 }
 
@@ -489,6 +510,10 @@ int
 nfssvc_encode_readdirres(struct svc_rqst *rqstp, __be32 *p)
 {
 	struct nfsd_readdirres *resp = rqstp->rq_resp;
+
+	*p++ = resp->status;
+	if (resp->status != nfs_ok)
+		return xdr_ressize_check(rqstp, p);
 
 	xdr_ressize_check(rqstp, p);
 	p = resp->buffer;
@@ -504,6 +529,10 @@ nfssvc_encode_statfsres(struct svc_rqst *rqstp, __be32 *p)
 {
 	struct nfsd_statfsres *resp = rqstp->rq_resp;
 	struct kstatfs	*stat = &resp->stats;
+
+	*p++ = resp->status;
+	if (resp->status != nfs_ok)
+		return xdr_ressize_check(rqstp, p);
 
 	*p++ = htonl(NFSSVC_MAXBLKSIZE_V2);	/* max transfer size */
 	*p++ = htonl(stat->f_bsize);
@@ -561,10 +590,23 @@ nfssvc_encode_entry(void *ccdv, const char *name,
 /*
  * XDR release functions
  */
-void
-nfssvc_release_fhandle(struct svc_rqst *rqstp)
+void nfssvc_release_attrstat(struct svc_rqst *rqstp)
 {
-	struct nfsd_fhandle *resp = rqstp->rq_resp;
+	struct nfsd_attrstat *resp = rqstp->rq_resp;
+
+	fh_put(&resp->fh);
+}
+
+void nfssvc_release_diropres(struct svc_rqst *rqstp)
+{
+	struct nfsd_diropres *resp = rqstp->rq_resp;
+
+	fh_put(&resp->fh);
+}
+
+void nfssvc_release_readres(struct svc_rqst *rqstp)
+{
+	struct nfsd_readres *resp = rqstp->rq_resp;
 
 	fh_put(&resp->fh);
 }

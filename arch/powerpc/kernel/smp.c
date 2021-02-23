@@ -75,19 +75,32 @@ static DEFINE_PER_CPU(int, cpu_state) = { 0 };
 
 struct task_struct *secondary_current;
 bool has_big_cores;
+bool coregroup_enabled;
+bool thread_group_shares_l2;
 
 DEFINE_PER_CPU(cpumask_var_t, cpu_sibling_map);
 DEFINE_PER_CPU(cpumask_var_t, cpu_smallcore_map);
 DEFINE_PER_CPU(cpumask_var_t, cpu_l2_cache_map);
 DEFINE_PER_CPU(cpumask_var_t, cpu_core_map);
+DEFINE_PER_CPU(cpumask_var_t, cpu_coregroup_map);
 
 EXPORT_PER_CPU_SYMBOL(cpu_sibling_map);
 EXPORT_PER_CPU_SYMBOL(cpu_l2_cache_map);
 EXPORT_PER_CPU_SYMBOL(cpu_core_map);
 EXPORT_SYMBOL_GPL(has_big_cores);
 
+enum {
+#ifdef CONFIG_SCHED_SMT
+	smt_idx,
+#endif
+	cache_idx,
+	mc_idx,
+	die_idx,
+};
+
 #define MAX_THREAD_LIST_SIZE	8
 #define THREAD_GROUP_SHARE_L1   1
+#define THREAD_GROUP_SHARE_L2   2
 struct thread_groups {
 	unsigned int property;
 	unsigned int nr_groups;
@@ -95,11 +108,27 @@ struct thread_groups {
 	unsigned int thread_list[MAX_THREAD_LIST_SIZE];
 };
 
+/* Maximum number of properties that groups of threads within a core can share */
+#define MAX_THREAD_GROUP_PROPERTIES 2
+
+struct thread_groups_list {
+	unsigned int nr_properties;
+	struct thread_groups property_tgs[MAX_THREAD_GROUP_PROPERTIES];
+};
+
+static struct thread_groups_list tgl[NR_CPUS] __initdata;
 /*
- * On big-cores system, cpu_l1_cache_map for each CPU corresponds to
+ * On big-cores system, thread_group_l1_cache_map for each CPU corresponds to
  * the set its siblings that share the L1-cache.
  */
-DEFINE_PER_CPU(cpumask_var_t, cpu_l1_cache_map);
+DEFINE_PER_CPU(cpumask_var_t, thread_group_l1_cache_map);
+
+/*
+ * On some big-cores system, thread_group_l2_cache_map for each CPU
+ * corresponds to the set its siblings within the core that share the
+ * L2-cache.
+ */
+DEFINE_PER_CPU(cpumask_var_t, thread_group_l2_cache_map);
 
 /* SMP operations for this machine */
 struct smp_ops_t *smp_ops;
@@ -660,83 +689,124 @@ static void set_cpus_unrelated(int i, int j,
 #endif
 
 /*
+ * Extends set_cpus_related. Instead of setting one CPU at a time in
+ * dstmask, set srcmask at oneshot. dstmask should be super set of srcmask.
+ */
+static void or_cpumasks_related(int i, int j, struct cpumask *(*srcmask)(int),
+				struct cpumask *(*dstmask)(int))
+{
+	struct cpumask *mask;
+	int k;
+
+	mask = srcmask(j);
+	for_each_cpu(k, srcmask(i))
+		cpumask_or(dstmask(k), dstmask(k), mask);
+
+	if (i == j)
+		return;
+
+	mask = srcmask(i);
+	for_each_cpu(k, srcmask(j))
+		cpumask_or(dstmask(k), dstmask(k), mask);
+}
+
+/*
  * parse_thread_groups: Parses the "ibm,thread-groups" device tree
  *                      property for the CPU device node @dn and stores
- *                      the parsed output in the thread_groups
- *                      structure @tg if the ibm,thread-groups[0]
- *                      matches @property.
+ *                      the parsed output in the thread_groups_list
+ *                      structure @tglp.
  *
  * @dn: The device node of the CPU device.
- * @tg: Pointer to a thread group structure into which the parsed
+ * @tglp: Pointer to a thread group list structure into which the parsed
  *      output of "ibm,thread-groups" is stored.
- * @property: The property of the thread-group that the caller is
- *            interested in.
  *
  * ibm,thread-groups[0..N-1] array defines which group of threads in
  * the CPU-device node can be grouped together based on the property.
  *
- * ibm,thread-groups[0] tells us the property based on which the
+ * This array can represent thread groupings for multiple properties.
+ *
+ * ibm,thread-groups[i + 0] tells us the property based on which the
  * threads are being grouped together. If this value is 1, it implies
- * that the threads in the same group share L1, translation cache.
+ * that the threads in the same group share L1, translation cache. If
+ * the value is 2, it implies that the threads in the same group share
+ * the same L2 cache.
  *
- * ibm,thread-groups[1] tells us how many such thread groups exist.
+ * ibm,thread-groups[i+1] tells us how many such thread groups exist for the
+ * property ibm,thread-groups[i]
  *
- * ibm,thread-groups[2] tells us the number of threads in each such
+ * ibm,thread-groups[i+2] tells us the number of threads in each such
  * group.
+ * Suppose k = (ibm,thread-groups[i+1] * ibm,thread-groups[i+2]), then,
  *
- * ibm,thread-groups[3..N-1] is the list of threads identified by
+ * ibm,thread-groups[i+3..i+k+2] (is the list of threads identified by
  * "ibm,ppc-interrupt-server#s" arranged as per their membership in
  * the grouping.
  *
- * Example: If ibm,thread-groups = [1,2,4,5,6,7,8,9,10,11,12] it
- * implies that there are 2 groups of 4 threads each, where each group
- * of threads share L1, translation cache.
+ * Example:
+ * If "ibm,thread-groups" = [1,2,4,8,10,12,14,9,11,13,15,2,2,4,8,10,12,14,9,11,13,15]
+ * This can be decomposed up into two consecutive arrays:
+ * a) [1,2,4,8,10,12,14,9,11,13,15]
+ * b) [2,2,4,8,10,12,14,9,11,13,15]
  *
- * The "ibm,ppc-interrupt-server#s" of the first group is {5,6,7,8}
- * and the "ibm,ppc-interrupt-server#s" of the second group is {9, 10,
- * 11, 12} structure
+ * where in,
+ *
+ * a) provides information of Property "1" being shared by "2" groups,
+ *  each with "4" threads each. The "ibm,ppc-interrupt-server#s" of
+ *  the first group is {8,10,12,14} and the
+ *  "ibm,ppc-interrupt-server#s" of the second group is
+ *  {9,11,13,15}. Property "1" is indicative of the thread in the
+ *  group sharing L1 cache, translation cache and Instruction Data
+ *  flow.
+ *
+ * b) provides information of Property "2" being shared by "2" groups,
+ *  each group with "4" threads. The "ibm,ppc-interrupt-server#s" of
+ *  the first group is {8,10,12,14} and the
+ *  "ibm,ppc-interrupt-server#s" of the second group is
+ *  {9,11,13,15}. Property "2" indicates that the threads in each
+ *  group share the L2-cache.
  *
  * Returns 0 on success, -EINVAL if the property does not exist,
  * -ENODATA if property does not have a value, and -EOVERFLOW if the
  * property data isn't large enough.
  */
 static int parse_thread_groups(struct device_node *dn,
-			       struct thread_groups *tg,
-			       unsigned int property)
+			       struct thread_groups_list *tglp)
 {
-	int i;
-	u32 thread_group_array[3 + MAX_THREAD_LIST_SIZE];
-	u32 *thread_list;
+	unsigned int property_idx = 0;
+	u32 *thread_group_array;
 	size_t total_threads;
-	int ret;
+	int ret = 0, count;
+	u32 *thread_list;
+	int i = 0;
 
+	count = of_property_count_u32_elems(dn, "ibm,thread-groups");
+	thread_group_array = kcalloc(count, sizeof(u32), GFP_KERNEL);
 	ret = of_property_read_u32_array(dn, "ibm,thread-groups",
-					 thread_group_array, 3);
+					 thread_group_array, count);
 	if (ret)
-		return ret;
+		goto out_free;
 
-	tg->property = thread_group_array[0];
-	tg->nr_groups = thread_group_array[1];
-	tg->threads_per_group = thread_group_array[2];
-	if (tg->property != property ||
-	    tg->nr_groups < 1 ||
-	    tg->threads_per_group < 1)
-		return -ENODATA;
+	while (i < count && property_idx < MAX_THREAD_GROUP_PROPERTIES) {
+		int j;
+		struct thread_groups *tg = &tglp->property_tgs[property_idx++];
 
-	total_threads = tg->nr_groups * tg->threads_per_group;
+		tg->property = thread_group_array[i];
+		tg->nr_groups = thread_group_array[i + 1];
+		tg->threads_per_group = thread_group_array[i + 2];
+		total_threads = tg->nr_groups * tg->threads_per_group;
 
-	ret = of_property_read_u32_array(dn, "ibm,thread-groups",
-					 thread_group_array,
-					 3 + total_threads);
-	if (ret)
-		return ret;
+		thread_list = &thread_group_array[i + 3];
 
-	thread_list = &thread_group_array[3];
+		for (j = 0; j < total_threads; j++)
+			tg->thread_list[j] = thread_list[j];
+		i = i + 3 + total_threads;
+	}
 
-	for (i = 0 ; i < total_threads; i++)
-		tg->thread_list[i] = thread_list[i];
+	tglp->nr_properties = property_idx;
 
-	return 0;
+out_free:
+	kfree(thread_group_array);
+	return ret;
 }
 
 /*
@@ -772,59 +842,160 @@ static int get_cpu_thread_group_start(int cpu, struct thread_groups *tg)
 	return -1;
 }
 
-static int init_cpu_l1_cache_map(int cpu)
-
+static struct thread_groups *__init get_thread_groups(int cpu,
+						      int group_property,
+						      int *err)
 {
 	struct device_node *dn = of_get_cpu_node(cpu, NULL);
-	struct thread_groups tg = {.property = 0,
-				   .nr_groups = 0,
-				   .threads_per_group = 0};
+	struct thread_groups_list *cpu_tgl = &tgl[cpu];
+	struct thread_groups *tg = NULL;
+	int i;
+	*err = 0;
+
+	if (!dn) {
+		*err = -ENODATA;
+		return NULL;
+	}
+
+	if (!cpu_tgl->nr_properties) {
+		*err = parse_thread_groups(dn, cpu_tgl);
+		if (*err)
+			goto out;
+	}
+
+	for (i = 0; i < cpu_tgl->nr_properties; i++) {
+		if (cpu_tgl->property_tgs[i].property == group_property) {
+			tg = &cpu_tgl->property_tgs[i];
+			break;
+		}
+	}
+
+	if (!tg)
+		*err = -EINVAL;
+out:
+	of_node_put(dn);
+	return tg;
+}
+
+static int __init init_thread_group_cache_map(int cpu, int cache_property)
+
+{
 	int first_thread = cpu_first_thread_sibling(cpu);
 	int i, cpu_group_start = -1, err = 0;
+	struct thread_groups *tg = NULL;
+	cpumask_var_t *mask = NULL;
 
-	if (!dn)
-		return -ENODATA;
+	if (cache_property != THREAD_GROUP_SHARE_L1 &&
+	    cache_property != THREAD_GROUP_SHARE_L2)
+		return -EINVAL;
 
-	err = parse_thread_groups(dn, &tg, THREAD_GROUP_SHARE_L1);
-	if (err)
-		goto out;
+	tg = get_thread_groups(cpu, cache_property, &err);
+	if (!tg)
+		return err;
 
-	zalloc_cpumask_var_node(&per_cpu(cpu_l1_cache_map, cpu),
-				GFP_KERNEL,
-				cpu_to_node(cpu));
-
-	cpu_group_start = get_cpu_thread_group_start(cpu, &tg);
+	cpu_group_start = get_cpu_thread_group_start(cpu, tg);
 
 	if (unlikely(cpu_group_start == -1)) {
 		WARN_ON_ONCE(1);
-		err = -ENODATA;
-		goto out;
+		return -ENODATA;
 	}
 
+	if (cache_property == THREAD_GROUP_SHARE_L1)
+		mask = &per_cpu(thread_group_l1_cache_map, cpu);
+	else if (cache_property == THREAD_GROUP_SHARE_L2)
+		mask = &per_cpu(thread_group_l2_cache_map, cpu);
+
+	zalloc_cpumask_var_node(mask, GFP_KERNEL, cpu_to_node(cpu));
+
 	for (i = first_thread; i < first_thread + threads_per_core; i++) {
-		int i_group_start = get_cpu_thread_group_start(i, &tg);
+		int i_group_start = get_cpu_thread_group_start(i, tg);
 
 		if (unlikely(i_group_start == -1)) {
 			WARN_ON_ONCE(1);
-			err = -ENODATA;
-			goto out;
+			return -ENODATA;
 		}
 
 		if (i_group_start == cpu_group_start)
-			cpumask_set_cpu(i, per_cpu(cpu_l1_cache_map, cpu));
+			cpumask_set_cpu(i, *mask);
 	}
 
-out:
-	of_node_put(dn);
-	return err;
+	return 0;
 }
 
-static int init_big_cores(void)
+static bool shared_caches;
+
+#ifdef CONFIG_SCHED_SMT
+/* cpumask of CPUs with asymmetric SMT dependency */
+static int powerpc_smt_flags(void)
+{
+	int flags = SD_SHARE_CPUCAPACITY | SD_SHARE_PKG_RESOURCES;
+
+	if (cpu_has_feature(CPU_FTR_ASYM_SMT)) {
+		printk_once(KERN_INFO "Enabling Asymmetric SMT scheduling\n");
+		flags |= SD_ASYM_PACKING;
+	}
+	return flags;
+}
+#endif
+
+/*
+ * P9 has a slightly odd architecture where pairs of cores share an L2 cache.
+ * This topology makes it *much* cheaper to migrate tasks between adjacent cores
+ * since the migrated task remains cache hot. We want to take advantage of this
+ * at the scheduler level so an extra topology level is required.
+ */
+static int powerpc_shared_cache_flags(void)
+{
+	return SD_SHARE_PKG_RESOURCES;
+}
+
+/*
+ * We can't just pass cpu_l2_cache_mask() directly because
+ * returns a non-const pointer and the compiler barfs on that.
+ */
+static const struct cpumask *shared_cache_mask(int cpu)
+{
+	return per_cpu(cpu_l2_cache_map, cpu);
+}
+
+#ifdef CONFIG_SCHED_SMT
+static const struct cpumask *smallcore_smt_mask(int cpu)
+{
+	return cpu_smallcore_mask(cpu);
+}
+#endif
+
+static struct cpumask *cpu_coregroup_mask(int cpu)
+{
+	return per_cpu(cpu_coregroup_map, cpu);
+}
+
+static bool has_coregroup_support(void)
+{
+	return coregroup_enabled;
+}
+
+static const struct cpumask *cpu_mc_mask(int cpu)
+{
+	return cpu_coregroup_mask(cpu);
+}
+
+static struct sched_domain_topology_level powerpc_topology[] = {
+#ifdef CONFIG_SCHED_SMT
+	{ cpu_smt_mask, powerpc_smt_flags, SD_INIT_NAME(SMT) },
+#endif
+	{ shared_cache_mask, powerpc_shared_cache_flags, SD_INIT_NAME(CACHE) },
+	{ cpu_mc_mask, SD_INIT_NAME(MC) },
+	{ cpu_cpu_mask, SD_INIT_NAME(DIE) },
+	{ NULL, },
+};
+
+static int __init init_big_cores(void)
 {
 	int cpu;
 
 	for_each_possible_cpu(cpu) {
-		int err = init_cpu_l1_cache_map(cpu);
+		int err = init_thread_group_cache_map(cpu, THREAD_GROUP_SHARE_L1);
 
 		if (err)
 			return err;
@@ -835,6 +1006,16 @@ static int init_big_cores(void)
 	}
 
 	has_big_cores = true;
+
+	for_each_possible_cpu(cpu) {
+		int err = init_thread_group_cache_map(cpu, THREAD_GROUP_SHARE_L2);
+
+		if (err)
+			return err;
+	}
+
+	thread_group_shares_l2 = true;
+	pr_debug("L2 cache only shared by the threads in the small core\n");
 	return 0;
 }
 
@@ -861,6 +1042,11 @@ void __init smp_prepare_cpus(unsigned int max_cpus)
 					GFP_KERNEL, cpu_to_node(cpu));
 		zalloc_cpumask_var_node(&per_cpu(cpu_core_map, cpu),
 					GFP_KERNEL, cpu_to_node(cpu));
+		if (has_coregroup_support())
+			zalloc_cpumask_var_node(&per_cpu(cpu_coregroup_map, cpu),
+						GFP_KERNEL, cpu_to_node(cpu));
+
+#ifdef CONFIG_NEED_MULTIPLE_NODES
 		/*
 		 * numa_node_id() works after this.
 		 */
@@ -869,12 +1055,21 @@ void __init smp_prepare_cpus(unsigned int max_cpus)
 			set_cpu_numa_mem(cpu,
 				local_memory_node(numa_cpu_lookup_table[cpu]));
 		}
+#endif
+		/*
+		 * cpu_core_map is now more updated and exists only since
+		 * its been exported for long. It only will have a snapshot
+		 * of cpu_cpu_mask.
+		 */
+		cpumask_copy(per_cpu(cpu_core_map, cpu), cpu_cpu_mask(cpu));
 	}
 
 	/* Init the cpumasks so the boot CPU is related to itself */
 	cpumask_set_cpu(boot_cpuid, cpu_sibling_mask(boot_cpuid));
 	cpumask_set_cpu(boot_cpuid, cpu_l2_cache_mask(boot_cpuid));
-	cpumask_set_cpu(boot_cpuid, cpu_core_mask(boot_cpuid));
+
+	if (has_coregroup_support())
+		cpumask_set_cpu(boot_cpuid, cpu_coregroup_mask(boot_cpuid));
 
 	init_big_cores();
 	if (has_big_cores) {
@@ -1126,26 +1321,68 @@ static struct device_node *cpu_to_l2cache(int cpu)
 	return cache;
 }
 
-static bool update_mask_by_l2(int cpu, struct cpumask *(*mask_fn)(int))
+static bool update_mask_by_l2(int cpu, cpumask_var_t *mask)
 {
+	struct cpumask *(*submask_fn)(int) = cpu_sibling_mask;
 	struct device_node *l2_cache, *np;
 	int i;
 
-	l2_cache = cpu_to_l2cache(cpu);
-	if (!l2_cache)
-		return false;
+	if (has_big_cores)
+		submask_fn = cpu_smallcore_mask;
 
-	for_each_cpu(i, cpu_online_mask) {
+	/*
+	 * If the threads in a thread-group share L2 cache, then the
+	 * L2-mask can be obtained from thread_group_l2_cache_map.
+	 */
+	if (thread_group_shares_l2) {
+		cpumask_set_cpu(cpu, cpu_l2_cache_mask(cpu));
+
+		for_each_cpu(i, per_cpu(thread_group_l2_cache_map, cpu)) {
+			if (cpu_online(i))
+				set_cpus_related(i, cpu, cpu_l2_cache_mask);
+		}
+
+		/* Verify that L1-cache siblings are a subset of L2 cache-siblings */
+		if (!cpumask_equal(submask_fn(cpu), cpu_l2_cache_mask(cpu)) &&
+		    !cpumask_subset(submask_fn(cpu), cpu_l2_cache_mask(cpu))) {
+			pr_warn_once("CPU %d : Inconsistent L1 and L2 cache siblings\n",
+				     cpu);
+		}
+
+		return true;
+	}
+
+	l2_cache = cpu_to_l2cache(cpu);
+	if (!l2_cache || !*mask) {
+		/* Assume only core siblings share cache with this CPU */
+		for_each_cpu(i, submask_fn(cpu))
+			set_cpus_related(cpu, i, cpu_l2_cache_mask);
+
+		return false;
+	}
+
+	cpumask_and(*mask, cpu_online_mask, cpu_cpu_mask(cpu));
+
+	/* Update l2-cache mask with all the CPUs that are part of submask */
+	or_cpumasks_related(cpu, cpu, submask_fn, cpu_l2_cache_mask);
+
+	/* Skip all CPUs already part of current CPU l2-cache mask */
+	cpumask_andnot(*mask, *mask, cpu_l2_cache_mask(cpu));
+
+	for_each_cpu(i, *mask) {
 		/*
 		 * when updating the marks the current CPU has not been marked
 		 * online, but we need to update the cache masks
 		 */
 		np = cpu_to_l2cache(i);
-		if (!np)
-			continue;
 
-		if (np == l2_cache)
-			set_cpus_related(cpu, i, mask_fn);
+		/* Skip all CPUs already part of current CPU l2-cache */
+		if (np == l2_cache) {
+			or_cpumasks_related(cpu, i, submask_fn, cpu_l2_cache_mask);
+			cpumask_andnot(*mask, *mask, submask_fn(i));
+		} else {
+			cpumask_andnot(*mask, *mask, cpu_l2_cache_mask(i));
+		}
 
 		of_node_put(np);
 	}
@@ -1157,59 +1394,81 @@ static bool update_mask_by_l2(int cpu, struct cpumask *(*mask_fn)(int))
 #ifdef CONFIG_HOTPLUG_CPU
 static void remove_cpu_from_masks(int cpu)
 {
+	struct cpumask *(*mask_fn)(int) = cpu_sibling_mask;
 	int i;
 
-	/* NB: cpu_core_mask is a superset of the others */
-	for_each_cpu(i, cpu_core_mask(cpu)) {
-		set_cpus_unrelated(cpu, i, cpu_core_mask);
+	if (shared_caches)
+		mask_fn = cpu_l2_cache_mask;
+
+	for_each_cpu(i, mask_fn(cpu)) {
 		set_cpus_unrelated(cpu, i, cpu_l2_cache_mask);
 		set_cpus_unrelated(cpu, i, cpu_sibling_mask);
 		if (has_big_cores)
 			set_cpus_unrelated(cpu, i, cpu_smallcore_mask);
+	}
+
+	if (has_coregroup_support()) {
+		for_each_cpu(i, cpu_coregroup_mask(cpu))
+			set_cpus_unrelated(cpu, i, cpu_coregroup_mask);
 	}
 }
 #endif
 
 static inline void add_cpu_to_smallcore_masks(int cpu)
 {
-	struct cpumask *this_l1_cache_map = per_cpu(cpu_l1_cache_map, cpu);
-	int i, first_thread = cpu_first_thread_sibling(cpu);
+	int i;
 
 	if (!has_big_cores)
 		return;
 
 	cpumask_set_cpu(cpu, cpu_smallcore_mask(cpu));
 
-	for (i = first_thread; i < first_thread + threads_per_core; i++) {
-		if (cpu_online(i) && cpumask_test_cpu(i, this_l1_cache_map))
+	for_each_cpu(i, per_cpu(thread_group_l1_cache_map, cpu)) {
+		if (cpu_online(i))
 			set_cpus_related(i, cpu, cpu_smallcore_mask);
 	}
 }
 
-int get_physical_package_id(int cpu)
+static void update_coregroup_mask(int cpu, cpumask_var_t *mask)
 {
-	int pkg_id = cpu_to_chip_id(cpu);
+	struct cpumask *(*submask_fn)(int) = cpu_sibling_mask;
+	int coregroup_id = cpu_to_coregroup_id(cpu);
+	int i;
 
-	/*
-	 * If the platform is PowerNV or Guest on KVM, ibm,chip-id is
-	 * defined. Hence we would return the chip-id as the result of
-	 * get_physical_package_id.
-	 */
-	if (pkg_id == -1 && firmware_has_feature(FW_FEATURE_LPAR) &&
-	    IS_ENABLED(CONFIG_PPC_SPLPAR)) {
-		struct device_node *np = of_get_cpu_node(cpu, NULL);
-		pkg_id = of_node_to_nid(np);
-		of_node_put(np);
+	if (shared_caches)
+		submask_fn = cpu_l2_cache_mask;
+
+	if (!*mask) {
+		/* Assume only siblings are part of this CPU's coregroup */
+		for_each_cpu(i, submask_fn(cpu))
+			set_cpus_related(cpu, i, cpu_coregroup_mask);
+
+		return;
 	}
 
-	return pkg_id;
+	cpumask_and(*mask, cpu_online_mask, cpu_cpu_mask(cpu));
+
+	/* Update coregroup mask with all the CPUs that are part of submask */
+	or_cpumasks_related(cpu, cpu, submask_fn, cpu_coregroup_mask);
+
+	/* Skip all CPUs already part of coregroup mask */
+	cpumask_andnot(*mask, *mask, cpu_coregroup_mask(cpu));
+
+	for_each_cpu(i, *mask) {
+		/* Skip all CPUs not part of this coregroup */
+		if (coregroup_id == cpu_to_coregroup_id(i)) {
+			or_cpumasks_related(cpu, i, submask_fn, cpu_coregroup_mask);
+			cpumask_andnot(*mask, *mask, submask_fn(i));
+		} else {
+			cpumask_andnot(*mask, *mask, cpu_coregroup_mask(i));
+		}
+	}
 }
-EXPORT_SYMBOL_GPL(get_physical_package_id);
 
 static void add_cpu_to_masks(int cpu)
 {
 	int first_thread = cpu_first_thread_sibling(cpu);
-	int pkg_id = get_physical_package_id(cpu);
+	cpumask_var_t mask;
 	int i;
 
 	/*
@@ -1223,42 +1482,28 @@ static void add_cpu_to_masks(int cpu)
 			set_cpus_related(i, cpu, cpu_sibling_mask);
 
 	add_cpu_to_smallcore_masks(cpu);
-	/*
-	 * Copy the thread sibling mask into the cache sibling mask
-	 * and mark any CPUs that share an L2 with this CPU.
-	 */
-	for_each_cpu(i, cpu_sibling_mask(cpu))
-		set_cpus_related(cpu, i, cpu_l2_cache_mask);
-	update_mask_by_l2(cpu, cpu_l2_cache_mask);
 
-	/*
-	 * Copy the cache sibling mask into core sibling mask and mark
-	 * any CPUs on the same chip as this CPU.
-	 */
-	for_each_cpu(i, cpu_l2_cache_mask(cpu))
-		set_cpus_related(cpu, i, cpu_core_mask);
+	/* In CPU-hotplug path, hence use GFP_ATOMIC */
+	alloc_cpumask_var_node(&mask, GFP_ATOMIC, cpu_to_node(cpu));
+	update_mask_by_l2(cpu, &mask);
 
-	if (pkg_id == -1)
-		return;
+	if (has_coregroup_support())
+		update_coregroup_mask(cpu, &mask);
 
-	for_each_cpu(i, cpu_online_mask)
-		if (get_physical_package_id(i) == pkg_id)
-			set_cpus_related(cpu, i, cpu_core_mask);
+	free_cpumask_var(mask);
 }
-
-static bool shared_caches;
 
 /* Activate a secondary processor. */
 void start_secondary(void *unused)
 {
-	unsigned int cpu = smp_processor_id();
-	struct cpumask *(*sibling_mask)(int) = cpu_sibling_mask;
+	unsigned int cpu = raw_smp_processor_id();
 
 	mmgrab(&init_mm);
 	current->active_mm = &init_mm;
 
 	smp_store_cpu_info(cpu);
 	set_dec(tb_ticks_per_jiffy);
+	rcu_cpu_starting(cpu);
 	preempt_disable();
 	cpu_callin_map[cpu] = 1;
 
@@ -1278,14 +1523,20 @@ void start_secondary(void *unused)
 	/* Update topology CPU masks */
 	add_cpu_to_masks(cpu);
 
-	if (has_big_cores)
-		sibling_mask = cpu_smallcore_mask;
 	/*
 	 * Check for any shared caches. Note that this must be done on a
 	 * per-core basis because one core in the pair might be disabled.
 	 */
-	if (!cpumask_equal(cpu_l2_cache_mask(cpu), sibling_mask(cpu)))
-		shared_caches = true;
+	if (!shared_caches) {
+		struct cpumask *(*sibling_mask)(int) = cpu_sibling_mask;
+		struct cpumask *mask = cpu_l2_cache_mask(cpu);
+
+		if (has_big_cores)
+			sibling_mask = cpu_smallcore_mask;
+
+		if (cpumask_weight(mask) > cpumask_weight(sibling_mask(cpu)))
+			shared_caches = true;
+	}
 
 	set_numa_node(numa_cpu_lookup_table[cpu]);
 	set_numa_mem(local_memory_node(numa_cpu_lookup_table[cpu]));
@@ -1311,63 +1562,44 @@ int setup_profiling_timer(unsigned int multiplier)
 	return 0;
 }
 
-#ifdef CONFIG_SCHED_SMT
-/* cpumask of CPUs with asymetric SMT dependancy */
-static int powerpc_smt_flags(void)
+static void fixup_topology(void)
 {
-	int flags = SD_SHARE_CPUCAPACITY | SD_SHARE_PKG_RESOURCES;
+	int i;
 
-	if (cpu_has_feature(CPU_FTR_ASYM_SMT)) {
-		printk_once(KERN_INFO "Enabling Asymmetric SMT scheduling\n");
-		flags |= SD_ASYM_PACKING;
+#ifdef CONFIG_SCHED_SMT
+	if (has_big_cores) {
+		pr_info("Big cores detected but using small core scheduling\n");
+		powerpc_topology[smt_idx].mask = smallcore_smt_mask;
 	}
-	return flags;
-}
 #endif
 
-static struct sched_domain_topology_level powerpc_topology[] = {
-#ifdef CONFIG_SCHED_SMT
-	{ cpu_smt_mask, powerpc_smt_flags, SD_INIT_NAME(SMT) },
+	if (!has_coregroup_support())
+		powerpc_topology[mc_idx].mask = powerpc_topology[cache_idx].mask;
+
+	/*
+	 * Try to consolidate topology levels here instead of
+	 * allowing scheduler to degenerate.
+	 * - Dont consolidate if masks are different.
+	 * - Dont consolidate if sd_flags exists and are different.
+	 */
+	for (i = 1; i <= die_idx; i++) {
+		if (powerpc_topology[i].mask != powerpc_topology[i - 1].mask)
+			continue;
+
+		if (powerpc_topology[i].sd_flags && powerpc_topology[i - 1].sd_flags &&
+				powerpc_topology[i].sd_flags != powerpc_topology[i - 1].sd_flags)
+			continue;
+
+		if (!powerpc_topology[i - 1].sd_flags)
+			powerpc_topology[i - 1].sd_flags = powerpc_topology[i].sd_flags;
+
+		powerpc_topology[i].mask = powerpc_topology[i + 1].mask;
+		powerpc_topology[i].sd_flags = powerpc_topology[i + 1].sd_flags;
+#ifdef CONFIG_SCHED_DEBUG
+		powerpc_topology[i].name = powerpc_topology[i + 1].name;
 #endif
-	{ cpu_cpu_mask, SD_INIT_NAME(DIE) },
-	{ NULL, },
-};
-
-/*
- * P9 has a slightly odd architecture where pairs of cores share an L2 cache.
- * This topology makes it *much* cheaper to migrate tasks between adjacent cores
- * since the migrated task remains cache hot. We want to take advantage of this
- * at the scheduler level so an extra topology level is required.
- */
-static int powerpc_shared_cache_flags(void)
-{
-	return SD_SHARE_PKG_RESOURCES;
+	}
 }
-
-/*
- * We can't just pass cpu_l2_cache_mask() directly because
- * returns a non-const pointer and the compiler barfs on that.
- */
-static const struct cpumask *shared_cache_mask(int cpu)
-{
-	return cpu_l2_cache_mask(cpu);
-}
-
-#ifdef CONFIG_SCHED_SMT
-static const struct cpumask *smallcore_smt_mask(int cpu)
-{
-	return cpu_smallcore_mask(cpu);
-}
-#endif
-
-static struct sched_domain_topology_level power9_topology[] = {
-#ifdef CONFIG_SCHED_SMT
-	{ cpu_smt_mask, powerpc_smt_flags, SD_INIT_NAME(SMT) },
-#endif
-	{ shared_cache_mask, powerpc_shared_cache_flags, SD_INIT_NAME(CACHE) },
-	{ cpu_cpu_mask, SD_INIT_NAME(DIE) },
-	{ NULL, },
-};
 
 void __init smp_cpus_done(unsigned int max_cpus)
 {
@@ -1382,24 +1614,8 @@ void __init smp_cpus_done(unsigned int max_cpus)
 
 	dump_numa_cpu_topology();
 
-#ifdef CONFIG_SCHED_SMT
-	if (has_big_cores) {
-		pr_info("Big cores detected but using small core scheduling\n");
-		power9_topology[0].mask = smallcore_smt_mask;
-		powerpc_topology[0].mask = smallcore_smt_mask;
-	}
-#endif
-	/*
-	 * If any CPU detects that it's sharing a cache with another CPU then
-	 * use the deeper topology that is aware of this sharing.
-	 */
-	if (shared_caches) {
-		pr_info("Using shared cache scheduler topology\n");
-		set_sched_topology(power9_topology);
-	} else {
-		pr_info("Using standard scheduler topology\n");
-		set_sched_topology(powerpc_topology);
-	}
+	fixup_topology();
+	set_sched_topology(powerpc_topology);
 }
 
 #ifdef CONFIG_HOTPLUG_CPU
@@ -1429,16 +1645,18 @@ void __cpu_die(unsigned int cpu)
 		smp_ops->cpu_die(cpu);
 }
 
-void cpu_die(void)
+void arch_cpu_idle_dead(void)
 {
+	sched_preempt_enable_no_resched();
+
 	/*
 	 * Disable on the down path. This will be re-enabled by
 	 * start_secondary() via start_secondary_resume() below
 	 */
 	this_cpu_disable_ftrace();
 
-	if (ppc_md.cpu_die)
-		ppc_md.cpu_die();
+	if (smp_ops->cpu_offline_self)
+		smp_ops->cpu_offline_self();
 
 	/* If we return, we re-enter start_secondary */
 	start_secondary_resume();

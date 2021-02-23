@@ -254,12 +254,11 @@ static void i2sbus_wait_for_stop(struct i2sbus_dev *i2sdev,
 				 struct pcm_info *pi)
 {
 	unsigned long flags;
-	struct completion done;
+	DECLARE_COMPLETION_ONSTACK(done);
 	long timeout;
 
 	spin_lock_irqsave(&i2sdev->low_lock, flags);
 	if (pi->dbdma_ring.stopping) {
-		init_completion(&done);
 		pi->stop_completion = &done;
 		spin_unlock_irqrestore(&i2sdev->low_lock, flags);
 		timeout = wait_for_completion_timeout(&done, HZ);

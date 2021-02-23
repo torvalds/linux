@@ -10,7 +10,7 @@
 
 #include <linux/types.h>
 
-#ifndef GENERIC_TIME_VSYSCALL
+#ifndef CONFIG_GENERIC_TIME_VSYSCALL
 struct vdso_data {
 };
 #endif

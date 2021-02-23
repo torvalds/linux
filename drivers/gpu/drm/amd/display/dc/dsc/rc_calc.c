@@ -51,7 +51,7 @@ static void get_qp_set(qp_set qps, enum colour_mode cm, enum bits_per_comp bpc,
 	const struct qp_entry *table = 0L;
 
 	// alias enum
-	enum { min = MM_MIN, max = MM_MAX };
+	enum { min = DAL_MM_MIN, max = DAL_MM_MAX };
 	switch (sel) {
 		TABLE_CASE(444,  8, max);
 		TABLE_CASE(444,  8, min);
@@ -233,8 +233,8 @@ static void _do_calc_rc_params(struct rc_params *rc, enum colour_mode cm,
 	rc->flatness_max_qp     = ((bpc == BPC_8) ? (12) : ((bpc == BPC_10) ? (16) : (20))) - ((minor_version == 1 && cm == CM_444) ? 1 : 0);
 	rc->flatness_det_thresh = 2 << (bpc - 8);
 
-	get_qp_set(rc->qp_min, cm, bpc, MM_MIN, bpp);
-	get_qp_set(rc->qp_max, cm, bpc, MM_MAX, bpp);
+	get_qp_set(rc->qp_min, cm, bpc, DAL_MM_MIN, bpp);
+	get_qp_set(rc->qp_max, cm, bpc, DAL_MM_MAX, bpp);
 	if (cm == CM_444 && minor_version == 1) {
 		for (i = 0; i < QP_SET_SIZE; ++i) {
 			rc->qp_min[i] = rc->qp_min[i] > 0 ? rc->qp_min[i] - 1 : 0;

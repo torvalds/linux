@@ -25,11 +25,11 @@
 
 /**
  * struct adm1177_state - driver instance specific data
- * @client		pointer to i2c client
- * @reg			regulator info for the the power supply of the device
- * @r_sense_uohm	current sense resistor value
- * @alert_threshold_ua	current limit for shutdown
- * @vrange_high		internal voltage divider
+ * @client:		pointer to i2c client
+ * @reg:		regulator info for the power supply of the device
+ * @r_sense_uohm:	current sense resistor value
+ * @alert_threshold_ua:	current limit for shutdown
+ * @vrange_high:	internal voltage divider
  */
 struct adm1177_state {
 	struct i2c_client	*client;
@@ -196,8 +196,7 @@ static void adm1177_remove(void *data)
 	regulator_disable(st->reg);
 }
 
-static int adm1177_probe(struct i2c_client *client,
-			 const struct i2c_device_id *id)
+static int adm1177_probe(struct i2c_client *client)
 {
 	struct device *dev = &client->dev;
 	struct device *hwmon_dev;
@@ -277,7 +276,7 @@ static struct i2c_driver adm1177_driver = {
 		.name = "adm1177",
 		.of_match_table = adm1177_dt_ids,
 	},
-	.probe = adm1177_probe,
+	.probe_new = adm1177_probe,
 	.id_table = adm1177_id,
 };
 module_i2c_driver(adm1177_driver);

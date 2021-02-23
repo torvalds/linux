@@ -82,27 +82,37 @@ struct nfsd_readdirargs {
 	__be32 *		buffer;
 };
 
+struct nfsd_stat {
+	__be32			status;
+};
+
 struct nfsd_attrstat {
+	__be32			status;
 	struct svc_fh		fh;
 	struct kstat		stat;
 };
 
 struct nfsd_diropres  {
+	__be32			status;
 	struct svc_fh		fh;
 	struct kstat		stat;
 };
 
 struct nfsd_readlinkres {
+	__be32			status;
 	int			len;
 };
 
 struct nfsd_readres {
+	__be32			status;
 	struct svc_fh		fh;
 	unsigned long		count;
 	struct kstat		stat;
 };
 
 struct nfsd_readdirres {
+	__be32			status;
+
 	int			count;
 
 	struct readdir_cd	common;
@@ -112,6 +122,7 @@ struct nfsd_readdirres {
 };
 
 struct nfsd_statfsres {
+	__be32			status;
 	struct kstatfs		stats;
 };
 
@@ -133,7 +144,6 @@ union nfsd_xdrstore {
 #define NFS2_SVC_XDRSIZE	sizeof(union nfsd_xdrstore)
 
 
-int nfssvc_decode_void(struct svc_rqst *, __be32 *);
 int nfssvc_decode_fhandle(struct svc_rqst *, __be32 *);
 int nfssvc_decode_sattrargs(struct svc_rqst *, __be32 *);
 int nfssvc_decode_diropargs(struct svc_rqst *, __be32 *);
@@ -145,7 +155,7 @@ int nfssvc_decode_readlinkargs(struct svc_rqst *, __be32 *);
 int nfssvc_decode_linkargs(struct svc_rqst *, __be32 *);
 int nfssvc_decode_symlinkargs(struct svc_rqst *, __be32 *);
 int nfssvc_decode_readdirargs(struct svc_rqst *, __be32 *);
-int nfssvc_encode_void(struct svc_rqst *, __be32 *);
+int nfssvc_encode_stat(struct svc_rqst *, __be32 *);
 int nfssvc_encode_attrstat(struct svc_rqst *, __be32 *);
 int nfssvc_encode_diropres(struct svc_rqst *, __be32 *);
 int nfssvc_encode_readlinkres(struct svc_rqst *, __be32 *);
@@ -156,7 +166,9 @@ int nfssvc_encode_readdirres(struct svc_rqst *, __be32 *);
 int nfssvc_encode_entry(void *, const char *name,
 			int namlen, loff_t offset, u64 ino, unsigned int);
 
-void nfssvc_release_fhandle(struct svc_rqst *);
+void nfssvc_release_attrstat(struct svc_rqst *rqstp);
+void nfssvc_release_diropres(struct svc_rqst *rqstp);
+void nfssvc_release_readres(struct svc_rqst *rqstp);
 
 /* Helper functions for NFSv2 ACL code */
 __be32 *nfs2svc_encode_fattr(struct svc_rqst *rqstp, __be32 *p, struct svc_fh *fhp, struct kstat *stat);

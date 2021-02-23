@@ -230,7 +230,7 @@ static void scmi_devices_unregister(void)
 	bus_for_each_dev(&scmi_bus_type, NULL, NULL, __scmi_devices_unregister);
 }
 
-static int __init scmi_bus_init(void)
+int __init scmi_bus_init(void)
 {
 	int retval;
 
@@ -240,12 +240,10 @@ static int __init scmi_bus_init(void)
 
 	return retval;
 }
-subsys_initcall(scmi_bus_init);
 
-static void __exit scmi_bus_exit(void)
+void __exit scmi_bus_exit(void)
 {
 	scmi_devices_unregister();
 	bus_unregister(&scmi_bus_type);
 	ida_destroy(&scmi_bus_id);
 }
-module_exit(scmi_bus_exit);

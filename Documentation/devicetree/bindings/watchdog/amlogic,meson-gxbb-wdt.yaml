@@ -31,6 +31,8 @@ required:
   - reg
   - clocks
 
+unevaluatedProperties: false
+
 examples:
   - |
     watchdog@98d0 {

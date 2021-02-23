@@ -497,6 +497,7 @@ static int cafe_pci_probe(struct pci_dev *pdev,
 	cam = kzalloc(sizeof(struct cafe_camera), GFP_KERNEL);
 	if (cam == NULL)
 		goto out;
+	pci_set_drvdata(pdev, cam);
 	cam->pdev = pdev;
 	mcam = &cam->mcam;
 	mcam->chip_id = MCAM_CAFE;
@@ -592,8 +593,7 @@ static void cafe_shutdown(struct cafe_camera *cam)
 
 static void cafe_pci_remove(struct pci_dev *pdev)
 {
-	struct v4l2_device *v4l2_dev = dev_get_drvdata(&pdev->dev);
-	struct cafe_camera *cam = to_cam(v4l2_dev);
+	struct cafe_camera *cam = pci_get_drvdata(pdev);
 
 	if (cam == NULL) {
 		printk(KERN_WARNING "pci_remove on unknown pdev %p\n", pdev);
@@ -609,8 +609,7 @@ static void cafe_pci_remove(struct pci_dev *pdev)
  */
 static int __maybe_unused cafe_pci_suspend(struct device *dev)
 {
-	struct v4l2_device *v4l2_dev = dev_get_drvdata(dev);
-	struct cafe_camera *cam = to_cam(v4l2_dev);
+	struct cafe_camera *cam = dev_get_drvdata(dev);
 
 	mccic_suspend(&cam->mcam);
 	return 0;
@@ -619,8 +618,7 @@ static int __maybe_unused cafe_pci_suspend(struct device *dev)
 
 static int __maybe_unused cafe_pci_resume(struct device *dev)
 {
-	struct v4l2_device *v4l2_dev = dev_get_drvdata(dev);
-	struct cafe_camera *cam = to_cam(v4l2_dev);
+	struct cafe_camera *cam = dev_get_drvdata(dev);
 
 	cafe_ctlr_init(&cam->mcam);
 	return mccic_resume(&cam->mcam);

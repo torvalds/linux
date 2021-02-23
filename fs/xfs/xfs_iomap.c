@@ -706,6 +706,23 @@ relock:
 	return 0;
 }
 
+/*
+ * Check that the imap we are going to return to the caller spans the entire
+ * range that the caller requested for the IO.
+ */
+static bool
+imap_spans_range(
+	struct xfs_bmbt_irec	*imap,
+	xfs_fileoff_t		offset_fsb,
+	xfs_fileoff_t		end_fsb)
+{
+	if (imap->br_startoff > offset_fsb)
+		return false;
+	if (imap->br_startoff + imap->br_blockcount < end_fsb)
+		return false;
+	return true;
+}
+
 static int
 xfs_direct_write_iomap_begin(
 	struct inode		*inode,
@@ -765,6 +782,18 @@ xfs_direct_write_iomap_begin(
 
 	if (imap_needs_alloc(inode, flags, &imap, nimaps))
 		goto allocate_blocks;
+
+	/*
+	 * NOWAIT IO needs to span the entire requested IO with a single map so
+	 * that we avoid partial IO failures due to the rest of the IO range not
+	 * covered by this map triggering an EAGAIN condition when it is
+	 * subsequently mapped and aborting the IO.
+	 */
+	if ((flags & IOMAP_NOWAIT) &&
+	    !imap_spans_range(&imap, offset_fsb, end_fsb)) {
+		error = -EAGAIN;
+		goto out_unlock;
+	}
 
 	xfs_iunlock(ip, lockmode);
 	trace_xfs_iomap_found(ip, offset, length, XFS_DATA_FORK, &imap);

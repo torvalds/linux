@@ -371,6 +371,15 @@ static void pch_post_disable_lvds(struct intel_atomic_state *state,
 	intel_disable_lvds(state, encoder, old_crtc_state, old_conn_state);
 }
 
+static void intel_lvds_shutdown(struct intel_encoder *encoder)
+{
+	struct drm_i915_private *dev_priv = to_i915(encoder->base.dev);
+
+	if (intel_de_wait_for_clear(dev_priv, PP_STATUS(0), PP_CYCLE_DELAY_ACTIVE, 5000))
+		drm_err(&dev_priv->drm,
+			"timed out waiting for panel power cycle delay\n");
+}
+
 static enum drm_mode_status
 intel_lvds_mode_valid(struct drm_connector *connector,
 		      struct drm_display_mode *mode)
@@ -456,12 +465,6 @@ static int intel_lvds_compute_config(struct intel_encoder *intel_encoder,
 	return 0;
 }
 
-static enum drm_connector_status
-intel_lvds_detect(struct drm_connector *connector, bool force)
-{
-	return connector_status_connected;
-}
-
 /*
  * Return the list of DDC modes if available, or the BIOS fixed mode otherwise.
  */
@@ -490,7 +493,7 @@ static const struct drm_connector_helper_funcs intel_lvds_connector_helper_funcs
 };
 
 static const struct drm_connector_funcs intel_lvds_connector_funcs = {
-	.detect = intel_lvds_detect,
+	.detect = intel_panel_detect,
 	.fill_modes = drm_helper_probe_single_connector_modes,
 	.atomic_get_property = intel_digital_connector_atomic_get_property,
 	.atomic_set_property = intel_digital_connector_atomic_set_property,
@@ -903,6 +906,7 @@ void intel_lvds_init(struct drm_i915_private *dev_priv)
 	intel_encoder->get_hw_state = intel_lvds_get_hw_state;
 	intel_encoder->get_config = intel_lvds_get_config;
 	intel_encoder->update_pipe = intel_panel_update_backlight;
+	intel_encoder->shutdown = intel_lvds_shutdown;
 	intel_connector->get_hw_state = intel_connector_get_hw_state;
 
 	intel_connector_attach_encoder(intel_connector, intel_encoder);

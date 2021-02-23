@@ -26,15 +26,13 @@ struct pair {
 int main(int argc, char **argv)
 {
 	int i, sock, key, fd, main_prog_fd, jmp_table_fd, hash_map_fd;
-	struct rlimit r = {RLIM_INFINITY, RLIM_INFINITY};
 	struct bpf_program *prog;
 	struct bpf_object *obj;
+	const char *section;
 	char filename[256];
-	const char *title;
 	FILE *f;
 
 	snprintf(filename, sizeof(filename), "%s_kern.o", argv[0]);
-	setrlimit(RLIMIT_MEMLOCK, &r);
 
 	obj = bpf_object__open_file(filename, NULL);
 	if (libbpf_get_error(obj)) {
@@ -58,8 +56,8 @@ int main(int argc, char **argv)
 	bpf_object__for_each_program(prog, obj) {
 		fd = bpf_program__fd(prog);
 
-		title = bpf_program__title(prog, false);
-		if (sscanf(title, "socket/%d", &key) != 1) {
+		section = bpf_program__section_name(prog);
+		if (sscanf(section, "socket/%d", &key) != 1) {
 			fprintf(stderr, "ERROR: finding prog failed\n");
 			goto cleanup;
 		}

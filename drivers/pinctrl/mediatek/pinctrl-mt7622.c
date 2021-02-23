@@ -263,6 +263,68 @@ static const struct mtk_pin_desc mt7622_pins[] = {
  * hardware probably has multiple combinations of these pinouts.
  */
 
+/* ANTSEL */
+static int mt7622_antsel0_pins[] = { 91, };
+static int mt7622_antsel0_funcs[] = { 5, };
+static int mt7622_antsel1_pins[] = { 92, };
+static int mt7622_antsel1_funcs[] = { 5, };
+static int mt7622_antsel2_pins[] = { 93, };
+static int mt7622_antsel2_funcs[] = { 5, };
+static int mt7622_antsel3_pins[] = { 94, };
+static int mt7622_antsel3_funcs[] = { 5, };
+static int mt7622_antsel4_pins[] = { 95, };
+static int mt7622_antsel4_funcs[] = { 5, };
+static int mt7622_antsel5_pins[] = { 96, };
+static int mt7622_antsel5_funcs[] = { 5, };
+static int mt7622_antsel6_pins[] = { 97, };
+static int mt7622_antsel6_funcs[] = { 5, };
+static int mt7622_antsel7_pins[] = { 98, };
+static int mt7622_antsel7_funcs[] = { 5, };
+static int mt7622_antsel8_pins[] = { 99, };
+static int mt7622_antsel8_funcs[] = { 5, };
+static int mt7622_antsel9_pins[] = { 100, };
+static int mt7622_antsel9_funcs[] = { 5, };
+static int mt7622_antsel10_pins[] = { 101, };
+static int mt7622_antsel10_funcs[] = { 5, };
+static int mt7622_antsel11_pins[] = { 102, };
+static int mt7622_antsel11_funcs[] = { 5, };
+static int mt7622_antsel12_pins[] = { 73, };
+static int mt7622_antsel12_funcs[] = { 5, };
+static int mt7622_antsel13_pins[] = { 74, };
+static int mt7622_antsel13_funcs[] = { 5, };
+static int mt7622_antsel14_pins[] = { 75, };
+static int mt7622_antsel14_funcs[] = { 5, };
+static int mt7622_antsel15_pins[] = { 76, };
+static int mt7622_antsel15_funcs[] = { 5, };
+static int mt7622_antsel16_pins[] = { 77, };
+static int mt7622_antsel16_funcs[] = { 5, };
+static int mt7622_antsel17_pins[] = { 22, };
+static int mt7622_antsel17_funcs[] = { 5, };
+static int mt7622_antsel18_pins[] = { 79, };
+static int mt7622_antsel18_funcs[] = { 5, };
+static int mt7622_antsel19_pins[] = { 80, };
+static int mt7622_antsel19_funcs[] = { 5, };
+static int mt7622_antsel20_pins[] = { 81, };
+static int mt7622_antsel20_funcs[] = { 5, };
+static int mt7622_antsel21_pins[] = { 82, };
+static int mt7622_antsel21_funcs[] = { 5, };
+static int mt7622_antsel22_pins[] = { 14, };
+static int mt7622_antsel22_funcs[] = { 5, };
+static int mt7622_antsel23_pins[] = { 15, };
+static int mt7622_antsel23_funcs[] = { 5, };
+static int mt7622_antsel24_pins[] = { 16, };
+static int mt7622_antsel24_funcs[] = { 5, };
+static int mt7622_antsel25_pins[] = { 17, };
+static int mt7622_antsel25_funcs[] = { 5, };
+static int mt7622_antsel26_pins[] = { 18, };
+static int mt7622_antsel26_funcs[] = { 5, };
+static int mt7622_antsel27_pins[] = { 19, };
+static int mt7622_antsel27_funcs[] = { 5, };
+static int mt7622_antsel28_pins[] = { 20, };
+static int mt7622_antsel28_funcs[] = { 5, };
+static int mt7622_antsel29_pins[] = { 21, };
+static int mt7622_antsel29_funcs[] = { 5, };
+
 /* EMMC */
 static int mt7622_emmc_pins[] = { 40, 41, 42, 43, 44, 45, 47, 48, 49, 50, };
 static int mt7622_emmc_funcs[] = { 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, };
@@ -439,12 +501,6 @@ static int mt7622_pwm_ch6_2_pins[] = { 81, };
 static int mt7622_pwm_ch6_2_funcs[] = { 4, };
 static int mt7622_pwm_ch6_3_pins[] = { 100, };
 static int mt7622_pwm_ch6_3_funcs[] = { 0, };
-static int mt7622_pwm_ch7_0_pins[] = { 70, };
-static int mt7622_pwm_ch7_0_funcs[] = { 3, };
-static int mt7622_pwm_ch7_1_pins[] = { 82, };
-static int mt7622_pwm_ch7_1_funcs[] = { 4, };
-static int mt7622_pwm_ch7_2_pins[] = { 101, };
-static int mt7622_pwm_ch7_2_funcs[] = { 0, };
 
 /* SD */
 static int mt7622_sd_0_pins[] = { 16, 17, 18, 19, 20, 21, };
@@ -543,6 +599,36 @@ static int mt7622_wled_pins[] = { 85, };
 static int mt7622_wled_funcs[] = { 0, };
 
 static const struct group_desc mt7622_groups[] = {
+	PINCTRL_PIN_GROUP("antsel0", mt7622_antsel0),
+	PINCTRL_PIN_GROUP("antsel1", mt7622_antsel1),
+	PINCTRL_PIN_GROUP("antsel2", mt7622_antsel2),
+	PINCTRL_PIN_GROUP("antsel3", mt7622_antsel3),
+	PINCTRL_PIN_GROUP("antsel4", mt7622_antsel4),
+	PINCTRL_PIN_GROUP("antsel5", mt7622_antsel5),
+	PINCTRL_PIN_GROUP("antsel6", mt7622_antsel6),
+	PINCTRL_PIN_GROUP("antsel7", mt7622_antsel7),
+	PINCTRL_PIN_GROUP("antsel8", mt7622_antsel8),
+	PINCTRL_PIN_GROUP("antsel9", mt7622_antsel9),
+	PINCTRL_PIN_GROUP("antsel10", mt7622_antsel10),
+	PINCTRL_PIN_GROUP("antsel11", mt7622_antsel11),
+	PINCTRL_PIN_GROUP("antsel12", mt7622_antsel12),
+	PINCTRL_PIN_GROUP("antsel13", mt7622_antsel13),
+	PINCTRL_PIN_GROUP("antsel14", mt7622_antsel14),
+	PINCTRL_PIN_GROUP("antsel15", mt7622_antsel15),
+	PINCTRL_PIN_GROUP("antsel16", mt7622_antsel16),
+	PINCTRL_PIN_GROUP("antsel17", mt7622_antsel17),
+	PINCTRL_PIN_GROUP("antsel18", mt7622_antsel18),
+	PINCTRL_PIN_GROUP("antsel19", mt7622_antsel19),
+	PINCTRL_PIN_GROUP("antsel20", mt7622_antsel20),
+	PINCTRL_PIN_GROUP("antsel21", mt7622_antsel21),
+	PINCTRL_PIN_GROUP("antsel22", mt7622_antsel22),
+	PINCTRL_PIN_GROUP("antsel23", mt7622_antsel23),
+	PINCTRL_PIN_GROUP("antsel24", mt7622_antsel24),
+	PINCTRL_PIN_GROUP("antsel25", mt7622_antsel25),
+	PINCTRL_PIN_GROUP("antsel26", mt7622_antsel26),
+	PINCTRL_PIN_GROUP("antsel27", mt7622_antsel27),
+	PINCTRL_PIN_GROUP("antsel28", mt7622_antsel28),
+	PINCTRL_PIN_GROUP("antsel29", mt7622_antsel29),
 	PINCTRL_PIN_GROUP("emmc", mt7622_emmc),
 	PINCTRL_PIN_GROUP("emmc_rst", mt7622_emmc_rst),
 	PINCTRL_PIN_GROUP("ephy_leds", mt7622_ephy_leds),
@@ -611,9 +697,6 @@ static const struct group_desc mt7622_groups[] = {
 	PINCTRL_PIN_GROUP("pwm_ch6_1", mt7622_pwm_ch6_1),
 	PINCTRL_PIN_GROUP("pwm_ch6_2", mt7622_pwm_ch6_2),
 	PINCTRL_PIN_GROUP("pwm_ch6_3", mt7622_pwm_ch6_3),
-	PINCTRL_PIN_GROUP("pwm_ch7_0", mt7622_pwm_ch7_0),
-	PINCTRL_PIN_GROUP("pwm_ch7_1", mt7622_pwm_ch7_1),
-	PINCTRL_PIN_GROUP("pwm_ch7_2", mt7622_pwm_ch7_2),
 	PINCTRL_PIN_GROUP("sd_0", mt7622_sd_0),
 	PINCTRL_PIN_GROUP("sd_1", mt7622_sd_1),
 	PINCTRL_PIN_GROUP("snfi", mt7622_snfi),
@@ -663,6 +746,16 @@ static const struct group_desc mt7622_groups[] = {
 /* Joint those groups owning the same capability in user point of view which
  * allows that people tend to use through the device tree.
  */
+static const char *mt7622_antsel_groups[] = { "antsel0", "antsel1", "antsel2",
+					      "antsel3", "antsel4", "antsel5",
+					      "antsel6", "antsel7", "antsel8",
+					      "antsel9", "antsel10", "antsel11",
+					      "antsel12", "antsel13", "antsel14",
+					      "antsel15", "antsel16", "antsel17",
+					      "antsel18", "antsel19", "antsel20",
+					      "antsel21", "antsel22", "antsel23",
+					      "antsel24", "antsel25", "antsel26",
+					      "antsel27", "antsel28", "antsel29",};
 static const char *mt7622_emmc_groups[] = { "emmc", "emmc_rst", };
 static const char *mt7622_ethernet_groups[] = { "esw", "esw_p0_p1",
 						"esw_p2_p3_p4", "mdc_mdio",
@@ -700,9 +793,7 @@ static const char *mt7622_pwm_groups[] = { "pwm_ch1_0", "pwm_ch1_1",
 					   "pwm_ch4_3", "pwm_ch5_0",
 					   "pwm_ch5_1", "pwm_ch5_2",
 					   "pwm_ch6_0", "pwm_ch6_1",
-					   "pwm_ch6_2", "pwm_ch6_3",
-					   "pwm_ch7_0", "pwm_ch7_1",
-					   "pwm_ch7_2", };
+					   "pwm_ch6_2", "pwm_ch6_3", };
 static const char *mt7622_sd_groups[] = { "sd_0", "sd_1", };
 static const char *mt7622_spic_groups[] = { "spic0_0", "spic0_1", "spic1_0",
 					    "spic1_1", "spic2_0",
@@ -732,6 +823,7 @@ static const char *mt7622_uart_groups[] = { "uart0_0_tx_rx",
 static const char *mt7622_wdt_groups[] = { "watchdog", };
 
 static const struct function_desc mt7622_functions[] = {
+	{"antsel", mt7622_antsel_groups, ARRAY_SIZE(mt7622_antsel_groups)},
 	{"emmc", mt7622_emmc_groups, ARRAY_SIZE(mt7622_emmc_groups)},
 	{"eth",	mt7622_ethernet_groups, ARRAY_SIZE(mt7622_ethernet_groups)},
 	{"i2c", mt7622_i2c_groups, ARRAY_SIZE(mt7622_i2c_groups)},

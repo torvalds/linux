@@ -71,7 +71,7 @@
 	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_ecspi3>;
 	status = "okay";
-	cs-gpios = <&gpio4 24 0>;
+	cs-gpios = <&gpio4 24 GPIO_ACTIVE_LOW>;
 
 	som_flash: flash@0 {
 		compatible = "m25p80", "jedec,spi-nor";
@@ -116,7 +116,8 @@
 	status = "okay";
 
 	som_eeprom: eeprom@50 {
-		compatible = "atmel,24c32";
+		compatible = "catalyst,24c32", "atmel,24c32";
+		pagesize = <32>;
 		reg = <0x50>;
 	};
 

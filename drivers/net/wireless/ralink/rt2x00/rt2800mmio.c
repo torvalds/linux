@@ -210,18 +210,19 @@ static inline void rt2800mmio_enable_interrupt(struct rt2x00_dev *rt2x00dev,
 	spin_unlock_irq(&rt2x00dev->irqmask_lock);
 }
 
-void rt2800mmio_pretbtt_tasklet(unsigned long data)
+void rt2800mmio_pretbtt_tasklet(struct tasklet_struct *t)
 {
-	struct rt2x00_dev *rt2x00dev = (struct rt2x00_dev *)data;
+	struct rt2x00_dev *rt2x00dev = from_tasklet(rt2x00dev, t,
+						    pretbtt_tasklet);
 	rt2x00lib_pretbtt(rt2x00dev);
 	if (test_bit(DEVICE_STATE_ENABLED_RADIO, &rt2x00dev->flags))
 		rt2800mmio_enable_interrupt(rt2x00dev, INT_MASK_CSR_PRE_TBTT);
 }
 EXPORT_SYMBOL_GPL(rt2800mmio_pretbtt_tasklet);
 
-void rt2800mmio_tbtt_tasklet(unsigned long data)
+void rt2800mmio_tbtt_tasklet(struct tasklet_struct *t)
 {
-	struct rt2x00_dev *rt2x00dev = (struct rt2x00_dev *)data;
+	struct rt2x00_dev *rt2x00dev = from_tasklet(rt2x00dev, t, tbtt_tasklet);
 	struct rt2800_drv_data *drv_data = rt2x00dev->drv_data;
 	u32 reg;
 
@@ -254,9 +255,10 @@ void rt2800mmio_tbtt_tasklet(unsigned long data)
 }
 EXPORT_SYMBOL_GPL(rt2800mmio_tbtt_tasklet);
 
-void rt2800mmio_rxdone_tasklet(unsigned long data)
+void rt2800mmio_rxdone_tasklet(struct tasklet_struct *t)
 {
-	struct rt2x00_dev *rt2x00dev = (struct rt2x00_dev *)data;
+	struct rt2x00_dev *rt2x00dev = from_tasklet(rt2x00dev, t,
+						    rxdone_tasklet);
 	if (rt2x00mmio_rxdone(rt2x00dev))
 		tasklet_schedule(&rt2x00dev->rxdone_tasklet);
 	else if (test_bit(DEVICE_STATE_ENABLED_RADIO, &rt2x00dev->flags))
@@ -264,9 +266,10 @@ void rt2800mmio_rxdone_tasklet(unsigned long data)
 }
 EXPORT_SYMBOL_GPL(rt2800mmio_rxdone_tasklet);
 
-void rt2800mmio_autowake_tasklet(unsigned long data)
+void rt2800mmio_autowake_tasklet(struct tasklet_struct *t)
 {
-	struct rt2x00_dev *rt2x00dev = (struct rt2x00_dev *)data;
+	struct rt2x00_dev *rt2x00dev = from_tasklet(rt2x00dev, t,
+						    autowake_tasklet);
 	rt2800mmio_wakeup(rt2x00dev);
 	if (test_bit(DEVICE_STATE_ENABLED_RADIO, &rt2x00dev->flags))
 		rt2800mmio_enable_interrupt(rt2x00dev,
@@ -307,9 +310,10 @@ static void rt2800mmio_fetch_txstatus(struct rt2x00_dev *rt2x00dev)
 	spin_unlock_irqrestore(&rt2x00dev->irqmask_lock, flags);
 }
 
-void rt2800mmio_txstatus_tasklet(unsigned long data)
+void rt2800mmio_txstatus_tasklet(struct tasklet_struct *t)
 {
-	struct rt2x00_dev *rt2x00dev = (struct rt2x00_dev *)data;
+	struct rt2x00_dev *rt2x00dev = from_tasklet(rt2x00dev, t,
+						    txstatus_tasklet);
 
 	rt2800_txdone(rt2x00dev, 16);
 
@@ -593,7 +597,6 @@ void rt2800mmio_queue_init(struct data_queue *queue)
 		break;
 
 	case QID_ATIM:
-		/* fallthrough */
 	default:
 		BUG();
 		break;

@@ -18,4 +18,6 @@ properties:
           - brcm,bcm28155-ap
       - const: brcm,bcm11351
 
+additionalProperties: true
+
 ...

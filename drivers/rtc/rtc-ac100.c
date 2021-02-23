@@ -610,7 +610,7 @@ static int ac100_rtc_probe(struct platform_device *pdev)
 	if (ret)
 		return ret;
 
-	return rtc_register_device(chip->rtc);
+	return devm_rtc_register_device(chip->rtc);
 }
 
 static int ac100_rtc_remove(struct platform_device *pdev)

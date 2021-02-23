@@ -401,6 +401,7 @@ static int fq_pie_init(struct Qdisc *sch, struct nlattr *opt,
 
 	INIT_LIST_HEAD(&q->new_flows);
 	INIT_LIST_HEAD(&q->old_flows);
+	timer_setup(&q->adapt_timer, fq_pie_timer, 0);
 
 	if (opt) {
 		err = fq_pie_change(sch, opt, extack);
@@ -426,7 +427,6 @@ static int fq_pie_init(struct Qdisc *sch, struct nlattr *opt,
 		pie_vars_init(&flow->vars);
 	}
 
-	timer_setup(&q->adapt_timer, fq_pie_timer, 0);
 	mod_timer(&q->adapt_timer, jiffies + HZ / 2);
 
 	return 0;

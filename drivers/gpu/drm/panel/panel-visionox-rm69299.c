@@ -14,7 +14,6 @@
 #include <drm/drm_mipi_dsi.h>
 #include <drm/drm_modes.h>
 #include <drm/drm_panel.h>
-#include <drm/drm_print.h>
 
 struct visionox_rm69299 {
 	struct drm_panel panel;
@@ -69,16 +68,14 @@ static int visionox_rm69299_unprepare(struct drm_panel *panel)
 
 	ret = mipi_dsi_dcs_write(ctx->dsi, MIPI_DCS_SET_DISPLAY_OFF, NULL, 0);
 	if (ret < 0)
-		DRM_DEV_ERROR(ctx->panel.dev,
-			      "set_display_off cmd failed ret = %d\n", ret);
+		dev_err(ctx->panel.dev, "set_display_off cmd failed ret = %d\n", ret);
 
 	/* 120ms delay required here as per DCS spec */
 	msleep(120);
 
 	ret = mipi_dsi_dcs_write(ctx->dsi, MIPI_DCS_ENTER_SLEEP_MODE, NULL, 0);
 	if (ret < 0) {
-		DRM_DEV_ERROR(ctx->panel.dev,
-			      "enter_sleep cmd failed ret = %d\n", ret);
+		dev_err(ctx->panel.dev, "enter_sleep cmd failed ret = %d\n", ret);
 	}
 
 	ret = visionox_rm69299_power_off(ctx);
@@ -103,36 +100,31 @@ static int visionox_rm69299_prepare(struct drm_panel *panel)
 
 	ret = mipi_dsi_dcs_write_buffer(ctx->dsi, (u8[]) { 0xfe, 0x00 }, 2);
 	if (ret < 0) {
-		DRM_DEV_ERROR(ctx->panel.dev,
-			      "cmd set tx 0 failed, ret = %d\n", ret);
+		dev_err(ctx->panel.dev, "cmd set tx 0 failed, ret = %d\n", ret);
 		goto power_off;
 	}
 
 	ret = mipi_dsi_dcs_write_buffer(ctx->dsi, (u8[]) { 0xc2, 0x08 }, 2);
 	if (ret < 0) {
-		DRM_DEV_ERROR(ctx->panel.dev,
-			      "cmd set tx 1 failed, ret = %d\n", ret);
+		dev_err(ctx->panel.dev, "cmd set tx 1 failed, ret = %d\n", ret);
 		goto power_off;
 	}
 
 	ret = mipi_dsi_dcs_write_buffer(ctx->dsi, (u8[]) { 0x35, 0x00 }, 2);
 	if (ret < 0) {
-		DRM_DEV_ERROR(ctx->panel.dev,
-			      "cmd set tx 2 failed, ret = %d\n", ret);
+		dev_err(ctx->panel.dev, "cmd set tx 2 failed, ret = %d\n", ret);
 		goto power_off;
 	}
 
 	ret = mipi_dsi_dcs_write_buffer(ctx->dsi, (u8[]) { 0x51, 0xff }, 2);
 	if (ret < 0) {
-		DRM_DEV_ERROR(ctx->panel.dev,
-			      "cmd set tx 3 failed, ret = %d\n", ret);
+		dev_err(ctx->panel.dev, "cmd set tx 3 failed, ret = %d\n", ret);
 		goto power_off;
 	}
 
 	ret = mipi_dsi_dcs_write(ctx->dsi, MIPI_DCS_EXIT_SLEEP_MODE, NULL, 0);
 	if (ret < 0) {
-		DRM_DEV_ERROR(ctx->panel.dev,
-			      "exit_sleep_mode cmd failed ret = %d\n", ret);
+		dev_err(ctx->panel.dev, "exit_sleep_mode cmd failed ret = %d\n", ret);
 		goto power_off;
 	}
 
@@ -141,8 +133,7 @@ static int visionox_rm69299_prepare(struct drm_panel *panel)
 
 	ret = mipi_dsi_dcs_write(ctx->dsi, MIPI_DCS_SET_DISPLAY_ON, NULL, 0);
 	if (ret < 0) {
-		DRM_DEV_ERROR(ctx->panel.dev,
-			      "set_display_on cmd failed ret = %d\n", ret);
+		dev_err(ctx->panel.dev, "set_display_on cmd failed ret = %d\n", ret);
 		goto power_off;
 	}
 
@@ -179,8 +170,7 @@ static int visionox_rm69299_get_modes(struct drm_panel *panel,
 
 	mode = drm_mode_create(connector->dev);
 	if (!mode) {
-		DRM_DEV_ERROR(ctx->panel.dev,
-			      "failed to create a new display mode\n");
+		dev_err(ctx->panel.dev, "failed to create a new display mode\n");
 		return 0;
 	}
 
@@ -225,8 +215,7 @@ static int visionox_rm69299_probe(struct mipi_dsi_device *dsi)
 	ctx->reset_gpio = devm_gpiod_get(ctx->panel.dev,
 					 "reset", GPIOD_OUT_LOW);
 	if (IS_ERR(ctx->reset_gpio)) {
-		DRM_DEV_ERROR(dev, "cannot get reset gpio %ld\n",
-			      PTR_ERR(ctx->reset_gpio));
+		dev_err(dev, "cannot get reset gpio %ld\n", PTR_ERR(ctx->reset_gpio));
 		return PTR_ERR(ctx->reset_gpio);
 	}
 
@@ -242,23 +231,19 @@ static int visionox_rm69299_probe(struct mipi_dsi_device *dsi)
 			  MIPI_DSI_CLOCK_NON_CONTINUOUS;
 	ret = mipi_dsi_attach(dsi);
 	if (ret < 0) {
-		DRM_DEV_ERROR(dev, "dsi attach failed ret = %d\n", ret);
+		dev_err(dev, "dsi attach failed ret = %d\n", ret);
 		goto err_dsi_attach;
 	}
 
 	ret = regulator_set_load(ctx->supplies[0].consumer, 32000);
 	if (ret) {
-		DRM_DEV_ERROR(dev,
-			      "regulator set load failed for vdda supply ret = %d\n",
-			      ret);
+		dev_err(dev, "regulator set load failed for vdda supply ret = %d\n", ret);
 		goto err_set_load;
 	}
 
 	ret = regulator_set_load(ctx->supplies[1].consumer, 13200);
 	if (ret) {
-		DRM_DEV_ERROR(dev,
-			      "regulator set load failed for vdd3p3 supply ret = %d\n",
-			      ret);
+		dev_err(dev, "regulator set load failed for vdd3p3 supply ret = %d\n", ret);
 		goto err_set_load;
 	}
 

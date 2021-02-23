@@ -819,7 +819,7 @@ static int vivid_thread_vid_cap(void *data)
 			break;
 
 		if (!mutex_trylock(&dev->mutex)) {
-			schedule_timeout_uninterruptible(1);
+			schedule();
 			continue;
 		}
 
@@ -888,7 +888,9 @@ static int vivid_thread_vid_cap(void *data)
 			next_jiffies_since_start = jiffies_since_start;
 
 		wait_jiffies = next_jiffies_since_start - jiffies_since_start;
-		schedule_timeout_interruptible(wait_jiffies ? wait_jiffies : 1);
+		while (jiffies - cur_jiffies < wait_jiffies &&
+		       !kthread_should_stop())
+			schedule();
 	}
 	dprintk(dev, 1, "Video Capture Thread End\n");
 	return 0;

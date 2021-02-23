@@ -98,7 +98,7 @@ subject to change::
    [    0.188903]   exdebug-0398 ex_trace_point        : Method End [0xf58394d8:\_SB.PCI0.LPCB.ECOK] execution.
 
 Developers can utilize these special log entries to track the AML
-interpretion, thus can aid issue debugging and performance tuning. Note
+interpretation, thus can aid issue debugging and performance tuning. Note
 that, as the "AML tracer" logs are implemented via ACPI_DEBUG_PRINT()
 macro, CONFIG_ACPI_DEBUG is also required to be enabled for enabling
 "AML tracer" logs.

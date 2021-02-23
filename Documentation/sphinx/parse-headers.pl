@@ -1,4 +1,4 @@
-#!/usr/bin/perl
+#!/usr/bin/env perl
 use strict;
 use Text::Tabs;
 use Getopt::Long;
@@ -110,7 +110,7 @@ while (<IN>) {
 	    ) {
 		my $s = $1;
 
-		$structs{$s} = "struct :c:type:`$s`\\ ";
+		$structs{$s} = "struct $s\\ ";
 		next;
 	}
 }

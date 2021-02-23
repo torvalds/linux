@@ -39,7 +39,7 @@ do_test() {
     disable_tracing
 
     echo do_execve* > set_ftrace_filter
-    echo *do_fork >> set_ftrace_filter
+    echo $FUNCTION_FORK >> set_ftrace_filter
 
     echo $PID > set_ftrace_pid
     echo function > current_tracer

@@ -913,7 +913,7 @@ static irqreturn_t tegra_vde_isr(int irq, void *data)
 	return IRQ_HANDLED;
 }
 
-static int tegra_vde_runtime_suspend(struct device *dev)
+static __maybe_unused int tegra_vde_runtime_suspend(struct device *dev)
 {
 	struct tegra_vde *vde = dev_get_drvdata(dev);
 	int err;
@@ -929,7 +929,7 @@ static int tegra_vde_runtime_suspend(struct device *dev)
 	return 0;
 }
 
-static int tegra_vde_runtime_resume(struct device *dev)
+static __maybe_unused int tegra_vde_runtime_resume(struct device *dev)
 {
 	struct tegra_vde *vde = dev_get_drvdata(dev);
 	int err;

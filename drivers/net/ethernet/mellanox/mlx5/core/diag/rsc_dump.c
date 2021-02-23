@@ -78,7 +78,7 @@ static int mlx5_rsc_dump_trigger(struct mlx5_core_dev *dev, struct mlx5_rsc_dump
 				 struct page *page)
 {
 	struct mlx5_rsc_dump *rsc_dump = dev->rsc_dump;
-	struct device *ddev = &dev->pdev->dev;
+	struct device *ddev = mlx5_core_dma_dev(dev);
 	u32 out_seq_num;
 	u32 in_seq_num;
 	dma_addr_t dma;

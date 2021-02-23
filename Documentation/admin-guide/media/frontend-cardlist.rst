@@ -68,7 +68,7 @@ cx24116         Conexant CX24116 based
 cx24117         Conexant CX24117 based
 cx24120         Conexant CX24120 based
 cx24123         Conexant CX24123 based
-ds3000          Montage Tehnology DS3000 based
+ds3000          Montage Technology DS3000 based
 mb86a16         Fujitsu MB86A16 based
 mt312           Zarlink VP310/MT312/ZL10313 based
 s5h1420         Samsung S5H1420 based
@@ -83,7 +83,7 @@ tda10086        Philips TDA10086 based
 tda8083         Philips TDA8083 based
 tda8261         Philips TDA8261 based
 tda826x         Philips TDA826X silicon tuner
-ts2020          Montage Tehnology TS2020 based tuners
+ts2020          Montage Technology TS2020 based tuners
 tua6100         Infineon TUA6100 PLL
 cx24113         Conexant CX24113/CX24128 tuner for DVB-S/DSS
 itd1000         Integrant ITD1000 Zero IF tuner for DVB-S/DSS

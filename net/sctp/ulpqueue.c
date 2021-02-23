@@ -740,7 +740,7 @@ static void sctp_ulpq_reasm_drain(struct sctp_ulpq *ulpq)
 
 
 /* Helper function to gather skbs that have possibly become
- * ordered by an an incoming chunk.
+ * ordered by an incoming chunk.
  */
 static void sctp_ulpq_retrieve_ordered(struct sctp_ulpq *ulpq,
 					      struct sctp_ulpevent *event)

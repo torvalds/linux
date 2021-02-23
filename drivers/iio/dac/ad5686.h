@@ -52,6 +52,7 @@
 enum ad5686_supported_device_ids {
 	ID_AD5310R,
 	ID_AD5311R,
+	ID_AD5338R,
 	ID_AD5671R,
 	ID_AD5672R,
 	ID_AD5674R,
@@ -104,7 +105,7 @@ typedef int (*ad5686_read_func)(struct ad5686_state *st, u8 addr);
 struct ad5686_chip_info {
 	u16				int_vref_mv;
 	unsigned int			num_channels;
-	struct iio_chan_spec		*channels;
+	const struct iio_chan_spec	*channels;
 	enum ad5686_regmap_type		regmap_type;
 };
 

@@ -524,7 +524,21 @@ struct dpu_dspp_cfg  {
  */
 struct dpu_pingpong_cfg  {
 	DPU_HW_BLK_INFO;
+	u32 merge_3d;
 	const struct dpu_pingpong_sub_blks *sblk;
+};
+
+/**
+ * struct dpu_merge_3d_cfg - information of DSPP blocks
+ * @id                 enum identifying this block
+ * @base               register offset of this block
+ * @features           bit mask identifying sub-blocks/features
+ *                     supported by this block
+ * @sblk               sub-blocks information
+ */
+struct dpu_merge_3d_cfg  {
+	DPU_HW_BLK_INFO;
+	const struct dpu_merge_3d_sub_blks *sblk;
 };
 
 /**
@@ -659,6 +673,8 @@ struct dpu_perf_cdp_cfg {
  * @downscaling_prefill_lines  downscaling latency in lines
  * @amortizable_theshold minimum y position for traffic shaping prefill
  * @min_prefill_lines  minimum pipeline latency in lines
+ * @clk_inefficiency_factor DPU src clock inefficiency factor
+ * @bw_inefficiency_factor DPU axi bus bw inefficiency factor
  * @safe_lut_tbl: LUT tables for safe signals
  * @danger_lut_tbl: LUT tables for danger signals
  * @qos_lut_tbl: LUT tables for QoS signals
@@ -683,6 +699,8 @@ struct dpu_perf_cfg {
 	u32 downscaling_prefill_lines;
 	u32 amortizable_threshold;
 	u32 min_prefill_lines;
+	u32 clk_inefficiency_factor;
+	u32 bw_inefficiency_factor;
 	u32 safe_lut_tbl[DPU_QOS_LUT_USAGE_MAX];
 	u32 danger_lut_tbl[DPU_QOS_LUT_USAGE_MAX];
 	struct dpu_qos_lut_tbl qos_lut_tbl[DPU_QOS_LUT_USAGE_MAX];
@@ -719,6 +737,9 @@ struct dpu_mdss_cfg {
 
 	u32 pingpong_count;
 	const struct dpu_pingpong_cfg *pingpong;
+
+	u32 merge_3d_count;
+	const struct dpu_merge_3d_cfg *merge_3d;
 
 	u32 intf_count;
 	const struct dpu_intf_cfg *intf;
@@ -763,6 +784,7 @@ struct dpu_mdss_hw_cfg_handler {
 #define BLK_INTF(s) ((s)->intf)
 #define BLK_AD(s) ((s)->ad)
 #define BLK_DSPP(s) ((s)->dspp)
+#define BLK_MERGE3d(s) ((s)->merge_3d)
 
 /**
  * dpu_hw_catalog_init - dpu hardware catalog init API retrieves

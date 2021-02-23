@@ -1127,24 +1127,23 @@ static const struct file_operations debugfs_devm_entry_ops = {
  *	file will be created in the root of the debugfs filesystem.
  * @read_fn: function pointer called to print the seq_file content.
  */
-struct dentry *debugfs_create_devm_seqfile(struct device *dev, const char *name,
-					   struct dentry *parent,
-					   int (*read_fn)(struct seq_file *s,
-							  void *data))
+void debugfs_create_devm_seqfile(struct device *dev, const char *name,
+				 struct dentry *parent,
+				 int (*read_fn)(struct seq_file *s, void *data))
 {
 	struct debugfs_devm_entry *entry;
 
 	if (IS_ERR(parent))
-		return ERR_PTR(-ENOENT);
+		return;
 
 	entry = devm_kzalloc(dev, sizeof(*entry), GFP_KERNEL);
 	if (!entry)
-		return ERR_PTR(-ENOMEM);
+		return;
 
 	entry->read = read_fn;
 	entry->dev = dev;
 
-	return debugfs_create_file(name, S_IRUGO, parent, entry,
-				   &debugfs_devm_entry_ops);
+	debugfs_create_file(name, S_IRUGO, parent, entry,
+			    &debugfs_devm_entry_ops);
 }
 EXPORT_SYMBOL_GPL(debugfs_create_devm_seqfile);

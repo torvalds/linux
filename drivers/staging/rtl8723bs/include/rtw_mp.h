@@ -31,7 +31,7 @@ struct mp_wiparam {
 	u32 io_value;
 };
 
-typedef void(*wi_act_func)(void* padapter);
+typedef void(*wi_act_func)(void *padapter);
 
 struct mp_tx {
 	u8 stop;
@@ -478,13 +478,13 @@ void Hal_SetChannel(struct adapter *padapter);
 void Hal_SetAntennaPathPower(struct adapter *padapter);
 s32 Hal_SetThermalMeter(struct adapter *padapter, u8 target_ther);
 s32 Hal_SetPowerTracking(struct adapter *padapter, u8 enable);
-void Hal_GetPowerTracking(struct adapter *padapter, u8 * enable);
+void Hal_GetPowerTracking(struct adapter *padapter, u8 *enable);
 void Hal_GetThermalMeter(struct adapter *padapter, u8 *value);
 void Hal_mpt_SwitchRfSetting(struct adapter *padapter);
-void Hal_MPT_CCKTxPowerAdjust(struct adapter * Adapter, bool bInCH14);
+void Hal_MPT_CCKTxPowerAdjust(struct adapter *Adapter, bool bInCH14);
 void Hal_MPT_CCKTxPowerAdjustbyIndex(struct adapter *padapter, bool beven);
-void Hal_SetCCKTxPower(struct adapter *padapter, u8 * TxPower);
-void Hal_SetOFDMTxPower(struct adapter *padapter, u8 * TxPower);
+void Hal_SetCCKTxPower(struct adapter *padapter, u8 *TxPower);
+void Hal_SetOFDMTxPower(struct adapter *padapter, u8 *TxPower);
 void Hal_TriggerRFThermalMeter(struct adapter *padapter);
 u8 Hal_ReadRFThermalMeter(struct adapter *padapter);
 void Hal_SetCCKContinuousTx(struct adapter *padapter, u8 bStart);

@@ -109,74 +109,73 @@
 		debounce-delay-ms = <10>;
 		wakeup-source;
 
-		row-gpios = <&gpd 18 0 &gpd 19 0 &gpd 20 0 &gpd 21 0
-			     &gpd 22 0 &gpd 23 0 &gpd 24 0 &gpd 26 0>;
-		col-gpios = <&gpc 10 0 &gpc 11 0 &gpc 12 0 &gpc 13 0
-			     &gpc 14 0 &gpc 15 0 &gpc 16 0 &gpc 17 0>;
+		row-gpios = <&gpd 18 0>, <&gpd 19 0>, <&gpd 20 0>, <&gpd 21 0>,
+			    <&gpd 22 0>, <&gpd 23 0>, <&gpd 24 0>, <&gpd 26 0>;
+		col-gpios = <&gpc 10 0>, <&gpc 11 0>, <&gpc 12 0>, <&gpc 13 0>,
+			    <&gpc 14 0>, <&gpc 15 0>, <&gpc 16 0>, <&gpc 17 0>;
 		gpio-activelow;
 
-		linux,keymap = <
-			MATRIX_KEY(0, 0, KEY_F1)	/* S2 */
-			MATRIX_KEY(0, 1, KEY_F2)	/* S3 */
-			MATRIX_KEY(0, 2, KEY_F3)	/* S4 */
-			MATRIX_KEY(0, 3, KEY_F4)	/* S5 */
-			MATRIX_KEY(0, 4, KEY_F5)	/* S6 */
-			MATRIX_KEY(0, 5, KEY_F6)	/* S7 */
-			MATRIX_KEY(0, 6, KEY_F7)	/* S8 */
+		linux,keymap =
+			<MATRIX_KEY(0, 0, KEY_F1)>,	/* S2 */
+			<MATRIX_KEY(0, 1, KEY_F2)>,	/* S3 */
+			<MATRIX_KEY(0, 2, KEY_F3)>,	/* S4 */
+			<MATRIX_KEY(0, 3, KEY_F4)>,	/* S5 */
+			<MATRIX_KEY(0, 4, KEY_F5)>,	/* S6 */
+			<MATRIX_KEY(0, 5, KEY_F6)>,	/* S7 */
+			<MATRIX_KEY(0, 6, KEY_F7)>,	/* S8 */
 
-			MATRIX_KEY(1, 0, KEY_Q)	/* S10 */
-			MATRIX_KEY(1, 1, KEY_W)	/* S11 */
-			MATRIX_KEY(1, 2, KEY_E)	/* S12 */
-			MATRIX_KEY(1, 3, KEY_R)	/* S13 */
-			MATRIX_KEY(1, 4, KEY_T)	/* S14 */
-			MATRIX_KEY(1, 5, KEY_Y)	/* S15 */
-			MATRIX_KEY(1, 6, KEY_U)	/* S16 */
-			MATRIX_KEY(1, 7, KEY_I)	/* S17 */
-			MATRIX_KEY(2, 0, KEY_A)	/* S18 */
-			MATRIX_KEY(2, 1, KEY_S)	/* S19 */
-			MATRIX_KEY(2, 2, KEY_D)	/* S20 */
-			MATRIX_KEY(2, 3, KEY_F)	/* S21 */
-			MATRIX_KEY(2, 4, KEY_G)	/* S22 */
-			MATRIX_KEY(2, 5, KEY_H)	/* S23 */
-			MATRIX_KEY(2, 6, KEY_J)	/* S24 */
-			MATRIX_KEY(2, 7, KEY_K)	/* S25 */
-			MATRIX_KEY(3, 0, KEY_ESC)	/* S26 */
-			MATRIX_KEY(3, 1, KEY_Z)	/* S27 */
-			MATRIX_KEY(3, 2, KEY_X)	/* S28 */
-			MATRIX_KEY(3, 3, KEY_C)	/* S29 */
-			MATRIX_KEY(3, 4, KEY_V)	/* S30 */
-			MATRIX_KEY(3, 5, KEY_B)	/* S31 */
-			MATRIX_KEY(3, 6, KEY_N)	/* S32 */
-			MATRIX_KEY(3, 7, KEY_M)	/* S33 */
-			MATRIX_KEY(4, 0, KEY_TAB)	/* S34 */
-			MATRIX_KEY(4, 1, KEY_CAPSLOCK)	/* S35 */
-			MATRIX_KEY(4, 2, KEY_BACKSLASH)	/* S36 */
-			MATRIX_KEY(4, 3, KEY_APOSTROPHE)	/* S37 */
-			MATRIX_KEY(4, 4, KEY_COMMA)	/* S38 */
-			MATRIX_KEY(4, 5, KEY_DOT)	/* S39 */
-			MATRIX_KEY(4, 6, KEY_SLASH)	/* S40 */
-			MATRIX_KEY(4, 7, KEY_UP)	/* S41 */
-			MATRIX_KEY(5, 0, KEY_O)	/* S42 */
-			MATRIX_KEY(5, 1, KEY_L)	/* S43 */
-			MATRIX_KEY(5, 2, KEY_EQUAL)	/* S44 */
-			MATRIX_KEY(5, 3, KEY_QI_UPRED)	/* S45 */
-			MATRIX_KEY(5, 4, KEY_SPACE)	/* S46 */
-			MATRIX_KEY(5, 5, KEY_QI_QI)	/* S47 */
-			MATRIX_KEY(5, 6, KEY_RIGHTCTRL)	/* S48 */
-			MATRIX_KEY(5, 7, KEY_LEFT)	/* S49 */
-			MATRIX_KEY(6, 0, KEY_F8)	/* S50 */
-			MATRIX_KEY(6, 1, KEY_P)	/* S51 */
-			MATRIX_KEY(6, 2, KEY_BACKSPACE)/* S52 */
-			MATRIX_KEY(6, 3, KEY_ENTER)	/* S53 */
-			MATRIX_KEY(6, 4, KEY_QI_VOLUP)	/* S54 */
-			MATRIX_KEY(6, 5, KEY_QI_VOLDOWN)	/* S55 */
-			MATRIX_KEY(6, 6, KEY_DOWN)	/* S56 */
-			MATRIX_KEY(6, 7, KEY_RIGHT)	/* S57 */
+			<MATRIX_KEY(1, 0, KEY_Q)>,	/* S10 */
+			<MATRIX_KEY(1, 1, KEY_W)>,	/* S11 */
+			<MATRIX_KEY(1, 2, KEY_E)>,	/* S12 */
+			<MATRIX_KEY(1, 3, KEY_R)>,	/* S13 */
+			<MATRIX_KEY(1, 4, KEY_T)>,	/* S14 */
+			<MATRIX_KEY(1, 5, KEY_Y)>,	/* S15 */
+			<MATRIX_KEY(1, 6, KEY_U)>,	/* S16 */
+			<MATRIX_KEY(1, 7, KEY_I)>,	/* S17 */
+			<MATRIX_KEY(2, 0, KEY_A)>,	/* S18 */
+			<MATRIX_KEY(2, 1, KEY_S)>,	/* S19 */
+			<MATRIX_KEY(2, 2, KEY_D)>,	/* S20 */
+			<MATRIX_KEY(2, 3, KEY_F)>,	/* S21 */
+			<MATRIX_KEY(2, 4, KEY_G)>,	/* S22 */
+			<MATRIX_KEY(2, 5, KEY_H)>,	/* S23 */
+			<MATRIX_KEY(2, 6, KEY_J)>,	/* S24 */
+			<MATRIX_KEY(2, 7, KEY_K)>,	/* S25 */
+			<MATRIX_KEY(3, 0, KEY_ESC)>,	/* S26 */
+			<MATRIX_KEY(3, 1, KEY_Z)>,	/* S27 */
+			<MATRIX_KEY(3, 2, KEY_X)>,	/* S28 */
+			<MATRIX_KEY(3, 3, KEY_C)>,	/* S29 */
+			<MATRIX_KEY(3, 4, KEY_V)>,	/* S30 */
+			<MATRIX_KEY(3, 5, KEY_B)>,	/* S31 */
+			<MATRIX_KEY(3, 6, KEY_N)>,	/* S32 */
+			<MATRIX_KEY(3, 7, KEY_M)>,	/* S33 */
+			<MATRIX_KEY(4, 0, KEY_TAB)>,	/* S34 */
+			<MATRIX_KEY(4, 1, KEY_CAPSLOCK)>,	/* S35 */
+			<MATRIX_KEY(4, 2, KEY_BACKSLASH)>,	/* S36 */
+			<MATRIX_KEY(4, 3, KEY_APOSTROPHE)>,	/* S37 */
+			<MATRIX_KEY(4, 4, KEY_COMMA)>,	/* S38 */
+			<MATRIX_KEY(4, 5, KEY_DOT)>,	/* S39 */
+			<MATRIX_KEY(4, 6, KEY_SLASH)>,	/* S40 */
+			<MATRIX_KEY(4, 7, KEY_UP)>,	/* S41 */
+			<MATRIX_KEY(5, 0, KEY_O)>,	/* S42 */
+			<MATRIX_KEY(5, 1, KEY_L)>,	/* S43 */
+			<MATRIX_KEY(5, 2, KEY_EQUAL)>,	/* S44 */
+			<MATRIX_KEY(5, 3, KEY_QI_UPRED)>,	/* S45 */
+			<MATRIX_KEY(5, 4, KEY_SPACE)>,	/* S46 */
+			<MATRIX_KEY(5, 5, KEY_QI_QI)>,	/* S47 */
+			<MATRIX_KEY(5, 6, KEY_RIGHTCTRL)>,	/* S48 */
+			<MATRIX_KEY(5, 7, KEY_LEFT)>,	/* S49 */
+			<MATRIX_KEY(6, 0, KEY_F8)>,	/* S50 */
+			<MATRIX_KEY(6, 1, KEY_P)>,	/* S51 */
+			<MATRIX_KEY(6, 2, KEY_BACKSPACE)>,/* S52 */
+			<MATRIX_KEY(6, 3, KEY_ENTER)>,	/* S53 */
+			<MATRIX_KEY(6, 4, KEY_QI_VOLUP)>,	/* S54 */
+			<MATRIX_KEY(6, 5, KEY_QI_VOLDOWN)>,	/* S55 */
+			<MATRIX_KEY(6, 6, KEY_DOWN)>,	/* S56 */
+			<MATRIX_KEY(6, 7, KEY_RIGHT)>,	/* S57 */
 
-			MATRIX_KEY(7, 0, KEY_LEFTSHIFT)	/* S58 */
-			MATRIX_KEY(7, 1, KEY_LEFTALT) /* S59 */
-			MATRIX_KEY(7, 2, KEY_QI_FN)	/* S60 */
-			>;
+			<MATRIX_KEY(7, 0, KEY_LEFTSHIFT)>,	/* S58 */
+			<MATRIX_KEY(7, 1, KEY_LEFTALT)>, /* S59 */
+			<MATRIX_KEY(7, 2, KEY_QI_FN)>;	/* S60 */
 	};
 
 	spi {
@@ -261,12 +260,12 @@
 		#address-cells = <1>;
 		#size-cells = <0>;
 
-		ingenic,bch-controller = <&ecc>;
+		ecc-engine = <&ecc>;
 
 		pinctrl-names = "default";
 		pinctrl-0 = <&pins_nemc>;
 
-		rb-gpios = <&gpc 30 GPIO_ACTIVE_LOW>;
+		rb-gpios = <&gpc 30 GPIO_ACTIVE_HIGH>;
 
 		nand@1 {
 			reg = <1>;
@@ -324,7 +323,7 @@
 
 	pins_nemc: nemc {
 		function = "nand";
-		groups = "nand-cs1";
+		groups = "nand-fre-fwe", "nand-cs1";
 	};
 
 	pins_uart0: uart0 {

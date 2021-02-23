@@ -490,4 +490,7 @@ void phylink_mii_c22_pcs_an_restart(struct mdio_device *pcs);
 
 void phylink_mii_c45_pcs_get_state(struct mdio_device *pcs,
 				   struct phylink_link_state *state);
+
+void phylink_decode_usxgmii_word(struct phylink_link_state *state,
+				 uint16_t lpa);
 #endif

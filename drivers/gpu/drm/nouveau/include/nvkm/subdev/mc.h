@@ -32,4 +32,5 @@ int gk20a_mc_new(struct nvkm_device *, int, struct nvkm_mc **);
 int gp100_mc_new(struct nvkm_device *, int, struct nvkm_mc **);
 int gp10b_mc_new(struct nvkm_device *, int, struct nvkm_mc **);
 int tu102_mc_new(struct nvkm_device *, int, struct nvkm_mc **);
+int ga100_mc_new(struct nvkm_device *, int, struct nvkm_mc **);
 #endif

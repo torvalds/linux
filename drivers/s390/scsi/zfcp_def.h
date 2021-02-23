@@ -70,7 +70,6 @@
 #define ZFCP_STATUS_ADAPTER_SIOSL_ISSUED	0x00000004
 #define ZFCP_STATUS_ADAPTER_XCONFIG_OK		0x00000008
 #define ZFCP_STATUS_ADAPTER_HOST_CON_INIT	0x00000010
-#define ZFCP_STATUS_ADAPTER_SUSPENDED		0x00000040
 #define ZFCP_STATUS_ADAPTER_ERP_PENDING		0x00000100
 #define ZFCP_STATUS_ADAPTER_LINK_UNPLUGGED	0x00000200
 #define ZFCP_STATUS_ADAPTER_DATA_DIV_ENABLED	0x00000400
@@ -201,6 +200,7 @@ struct zfcp_adapter {
 	struct zfcp_fc_events events;
 	unsigned long		next_port_scan;
 	struct zfcp_diag_adapter	*diagnostics;
+	struct work_struct	version_change_lost_work;
 };
 
 struct zfcp_port {

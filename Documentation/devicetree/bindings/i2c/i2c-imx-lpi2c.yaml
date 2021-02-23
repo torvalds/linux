@@ -9,12 +9,18 @@ title: Freescale Low Power Inter IC (LPI2C) for i.MX
 maintainers:
   - Anson Huang <Anson.Huang@nxp.com>
 
+allOf:
+  - $ref: /schemas/i2c/i2c-controller.yaml#
+
 properties:
   compatible:
-    enum:
-      - fsl,imx7ulp-lpi2c
-      - fsl,imx8qxp-lpi2c
-      - fsl,imx8qm-lpi2c
+    oneOf:
+      - enum:
+          - fsl,imx7ulp-lpi2c
+          - fsl,imx8qm-lpi2c
+      - items:
+          - const: fsl,imx8qxp-lpi2c
+          - const: fsl,imx7ulp-lpi2c
 
   reg:
     maxItems: 1
@@ -22,7 +28,18 @@ properties:
   interrupts:
     maxItems: 1
 
+  assigned-clock-parents: true
+  assigned-clock-rates: true
+  assigned-clocks: true
+  clock-frequency: true
+
+  clock-names:
+    maxItems: 1
+
   clocks:
+    maxItems: 1
+
+  power-domains:
     maxItems: 1
 
 required:
@@ -31,14 +48,14 @@ required:
   - interrupts
   - clocks
 
-additionalProperties: false
+unevaluatedProperties: false
 
 examples:
   - |
     #include <dt-bindings/clock/imx7ulp-clock.h>
     #include <dt-bindings/interrupt-controller/arm-gic.h>
 
-    lpi2c7@40a50000 {
+    i2c@40a50000 {
         compatible = "fsl,imx7ulp-lpi2c";
         reg = <0x40A50000 0x10000>;
         interrupt-parent = <&intc>;

@@ -1,10 +1,13 @@
-NVIDIA Tegra20/Tegra30/Tegr114/Tegra124 apbmisc block
+NVIDIA Tegra APBMISC block
 
 Required properties:
-- compatible : For Tegra20, must be "nvidia,tegra20-apbmisc".  For Tegra30,
-  must be "nvidia,tegra30-apbmisc".  Otherwise, must contain
-  "nvidia,<chip>-apbmisc", plus one of the above, where <chip> is tegra114,
-  tegra124, tegra132.
+- compatible: Must be:
+  - Tegra20: "nvidia,tegra20-apbmisc"
+  - Tegra30: "nvidia,tegra30-apbmisc", "nvidia,tegra20-apbmisc"
+  - Tegra114: "nvidia,tegra114-apbmisc", "nvidia,tegra20-apbmisc"
+  - Tegra124: "nvidia,tegra124-apbmisc", "nvidia,tegra20-apbmisc"
+  - Tegra132: "nvidia,tegra124-apbmisc", "nvidia,tegra20-apbmisc"
+  - Tegra210: "nvidia,tegra210-apbmisc", "nvidia,tegra20-apbmisc"
 - reg: Should contain 2 entries: the first entry gives the physical address
        and length of the registers which contain revision and debug features.
        The second entry gives the physical address and length of the

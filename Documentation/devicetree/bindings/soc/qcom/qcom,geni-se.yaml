@@ -173,6 +173,7 @@ patternProperties:
       - compatible
       - interrupts
 
+additionalProperties: false
 
 examples:
   - |

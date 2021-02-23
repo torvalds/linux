@@ -3,6 +3,7 @@
  * Copyright 2013-2014 Freescale Semiconductor, Inc.
  */
 
+#include <linux/bits.h>
 #include <linux/clk.h>
 #include <linux/clkdev.h>
 #include <linux/err.h>
@@ -14,19 +15,19 @@
 #include "clk.h"
 
 #define CCSR			0xc
-#define BM_CCSR_PLL1_SW_CLK_SEL	(1 << 2)
+#define BM_CCSR_PLL1_SW_CLK_SEL	BIT(2)
 #define CACRR			0x10
 #define CDHIPR			0x48
-#define BM_CDHIPR_ARM_PODF_BUSY	(1 << 16)
+#define BM_CDHIPR_ARM_PODF_BUSY	BIT(16)
 #define ARM_WAIT_DIV_396M	2
 #define ARM_WAIT_DIV_792M	4
 #define ARM_WAIT_DIV_996M	6
 
 #define PLL_ARM			0x0
-#define BM_PLL_ARM_DIV_SELECT	(0x7f << 0)
-#define BM_PLL_ARM_POWERDOWN	(1 << 12)
-#define BM_PLL_ARM_ENABLE	(1 << 13)
-#define BM_PLL_ARM_LOCK		(1 << 31)
+#define BM_PLL_ARM_DIV_SELECT	0x7f
+#define BM_PLL_ARM_POWERDOWN	BIT(12)
+#define BM_PLL_ARM_ENABLE	BIT(13)
+#define BM_PLL_ARM_LOCK		BIT(31)
 #define PLL_ARM_DIV_792M	66
 
 static const char *step_sels[]		= { "osc", "pll2_pfd2", };
@@ -145,7 +146,7 @@ static void imx6sl_enable_pll_arm(bool enable)
 		val |= BM_PLL_ARM_ENABLE;
 		val &= ~BM_PLL_ARM_POWERDOWN;
 		writel_relaxed(val, anatop_base + PLL_ARM);
-		while (!(__raw_readl(anatop_base + PLL_ARM) & BM_PLL_ARM_LOCK))
+		while (!(readl_relaxed(anatop_base + PLL_ARM) & BM_PLL_ARM_LOCK))
 			;
 	} else {
 		 writel_relaxed(saved_pll_arm, anatop_base + PLL_ARM);

@@ -554,7 +554,7 @@ static struct platform_device mcf_edma = {
 };
 #endif /* IS_ENABLED(CONFIG_MCF_EDMA) */
 
-#if IS_ENABLED(CONFIG_MMC)
+#ifdef MCFSDHC_BASE
 static struct mcf_esdhc_platform_data mcf_esdhc_data = {
 	.max_bus_width = 4,
 	.cd_type = ESDHC_CD_NONE,
@@ -579,7 +579,7 @@ static struct platform_device mcf_esdhc = {
 	.resource		= mcf_esdhc_resources,
 	.dev.platform_data	= &mcf_esdhc_data,
 };
-#endif /* IS_ENABLED(CONFIG_MMC) */
+#endif /* MCFSDHC_BASE */
 
 static struct platform_device *mcf_devices[] __initdata = {
 	&mcf_uart,
@@ -613,7 +613,7 @@ static struct platform_device *mcf_devices[] __initdata = {
 #if IS_ENABLED(CONFIG_MCF_EDMA)
 	&mcf_edma,
 #endif
-#if IS_ENABLED(CONFIG_MMC)
+#ifdef MCFSDHC_BASE
 	&mcf_esdhc,
 #endif
 };

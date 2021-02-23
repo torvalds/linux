@@ -134,12 +134,12 @@ static irqreturn_t st_rc_rx_interrupt(int irq, void *data)
 				mark /= dev->sample_div;
 			}
 
-			ev.duration = US_TO_NS(mark);
+			ev.duration = mark;
 			ev.pulse = true;
 			ir_raw_event_store(dev->rdev, &ev);
 
 			if (!last_symbol) {
-				ev.duration = US_TO_NS(symbol);
+				ev.duration = symbol;
 				ev.pulse = false;
 				ir_raw_event_store(dev->rdev, &ev);
 			} else  {
@@ -292,7 +292,7 @@ static int st_rc_probe(struct platform_device *pdev)
 	rdev->allowed_protocols = RC_PROTO_BIT_ALL_IR_DECODER;
 	/* rx sampling rate is 10Mhz */
 	rdev->rx_resolution = 100;
-	rdev->timeout = US_TO_NS(MAX_SYMB_TIME);
+	rdev->timeout = MAX_SYMB_TIME;
 	rdev->priv = rc_dev;
 	rdev->open = st_rc_open;
 	rdev->close = st_rc_close;

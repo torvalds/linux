@@ -34,8 +34,6 @@ algorithms work.
    quota
    seq_file
    sharedsubtree
-   sysfs-pci
-   sysfs-tagging
 
    automount-support
 
@@ -115,7 +113,7 @@ Documentation for filesystem implementations.
    sysv-fs
    tmpfs
    ubifs
-   ubifs-authentication.rst
+   ubifs-authentication
    udf
    virtiofs
    vfat

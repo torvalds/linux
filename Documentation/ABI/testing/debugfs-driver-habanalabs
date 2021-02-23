@@ -20,9 +20,13 @@ Description:    Allow the root user to disable/enable in runtime the clock
                 The user can supply a bitmask value, each bit represents
                 a different engine to disable/enable its clock gating feature.
                 The bitmask is composed of 20 bits:
-                0  -  7 : DMA channels
-                8  - 11 : MME engines
-                12 - 19 : TPC engines
+
+		=======   ============
+                0  -  7   DMA channels
+                8  - 11   MME engines
+                12 - 19   TPC engines
+		=======   ============
+
                 The bit's location of a specific engine can be determined
                 using (1 << GAUDI_ENGINE_ID_*). GAUDI_ENGINE_ID_* values
                 are defined in uapi habanalabs.h file in enum gaudi_engine_id
@@ -59,6 +63,7 @@ Description:    Allows the root user to read or write directly through the
                 the generic Linux user-space PCI mapping) because the DDR bar
                 is very small compared to the DDR memory and only the driver can
                 move the bar before and after the transaction.
+
                 If the IOMMU is disabled, it also allows the root user to read
                 or write from the host a device VA of a host mapped memory
 
@@ -73,6 +78,7 @@ Description:    Allows the root user to read or write 64 bit data directly
                 the generic Linux user-space PCI mapping) because the DDR bar
                 is very small compared to the DDR memory and only the driver can
                 move the bar before and after the transaction.
+
                 If the IOMMU is disabled, it also allows the root user to read
                 or write from the host a device VA of a host mapped memory
 

@@ -30,7 +30,7 @@ which didn't support these methods.
 Command Line Switches
 =====================
 ``maxcpus=n``
-  Restrict boot time CPUs to *n*. Say if you have fourV CPUs, using
+  Restrict boot time CPUs to *n*. Say if you have four CPUs, using
   ``maxcpus=2`` will only boot two. You can choose to bring the
   other CPUs later online.
 

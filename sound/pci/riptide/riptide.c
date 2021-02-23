@@ -445,7 +445,6 @@ struct snd_riptide {
 	union firmware_version firmware;
 
 	spinlock_t lock;
-	struct tasklet_struct riptide_tq;
 	struct snd_info_entry *proc_entry;
 
 	unsigned long received_irqs;
@@ -1070,9 +1069,9 @@ getmixer(struct cmdif *cif, short num, unsigned short *rval,
 	return 0;
 }
 
-static void riptide_handleirq(struct tasklet_struct *t)
+static irqreturn_t riptide_handleirq(int irq, void *dev_id)
 {
-	struct snd_riptide *chip = from_tasklet(chip, t, riptide_tq);
+	struct snd_riptide *chip = dev_id;
 	struct cmdif *cif = chip->cif;
 	struct snd_pcm_substream *substream[PLAYBACK_SUBSTREAMS + 1];
 	struct snd_pcm_runtime *runtime;
@@ -1083,7 +1082,7 @@ static void riptide_handleirq(struct tasklet_struct *t)
 	unsigned int flag;
 
 	if (!cif)
-		return;
+		return IRQ_HANDLED;
 
 	for (i = 0; i < PLAYBACK_SUBSTREAMS; i++)
 		substream[i] = chip->playback_substream[i];
@@ -1134,6 +1133,8 @@ static void riptide_handleirq(struct tasklet_struct *t)
 			}
 		}
 	}
+
+	return IRQ_HANDLED;
 }
 
 #ifdef CONFIG_PM_SLEEP
@@ -1699,13 +1700,14 @@ snd_riptide_interrupt(int irq, void *dev_id)
 {
 	struct snd_riptide *chip = dev_id;
 	struct cmdif *cif = chip->cif;
+	irqreturn_t ret = IRQ_HANDLED;
 
 	if (cif) {
 		chip->received_irqs++;
 		if (IS_EOBIRQ(cif->hwport) || IS_EOSIRQ(cif->hwport) ||
 		    IS_EOCIRQ(cif->hwport)) {
 			chip->handled_irqs++;
-			tasklet_schedule(&chip->riptide_tq);
+			ret = IRQ_WAKE_THREAD;
 		}
 		if (chip->rmidi && IS_MPUIRQ(cif->hwport)) {
 			chip->handled_irqs++;
@@ -1714,7 +1716,7 @@ snd_riptide_interrupt(int irq, void *dev_id)
 		}
 		SET_AIACK(cif->hwport);
 	}
-	return IRQ_HANDLED;
+	return ret;
 }
 
 static void
@@ -1843,7 +1845,6 @@ snd_riptide_create(struct snd_card *card, struct pci_dev *pci,
 	chip->received_irqs = 0;
 	chip->handled_irqs = 0;
 	chip->cif = NULL;
-	tasklet_setup(&chip->riptide_tq, riptide_handleirq);
 
 	if ((chip->res_port =
 	     request_region(chip->port, 64, "RIPTIDE")) == NULL) {
@@ -1856,8 +1857,9 @@ snd_riptide_create(struct snd_card *card, struct pci_dev *pci,
 	hwport = (struct riptideport *)chip->port;
 	UNSET_AIE(hwport);
 
-	if (request_irq(pci->irq, snd_riptide_interrupt, IRQF_SHARED,
-			KBUILD_MODNAME, chip)) {
+	if (request_threaded_irq(pci->irq, snd_riptide_interrupt,
+				 riptide_handleirq, IRQF_SHARED,
+				 KBUILD_MODNAME, chip)) {
 		snd_printk(KERN_ERR "Riptide: unable to grab IRQ %d\n",
 			   pci->irq);
 		snd_riptide_free(chip);

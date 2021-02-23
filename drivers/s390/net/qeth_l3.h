@@ -96,21 +96,19 @@ struct qeth_ipato_entry {
 	struct list_head entry;
 	enum qeth_prot_versions proto;
 	char addr[16];
-	int mask_bits;
+	unsigned int mask_bits;
 };
 
 extern const struct attribute_group *qeth_l3_attr_groups[];
 
 int qeth_l3_ipaddr_to_string(enum qeth_prot_versions proto, const u8 *addr,
 			     char *buf);
-int qeth_l3_create_device_attributes(struct device *);
-void qeth_l3_remove_device_attributes(struct device *);
 int qeth_l3_setrouting_v4(struct qeth_card *);
 int qeth_l3_setrouting_v6(struct qeth_card *);
 int qeth_l3_add_ipato_entry(struct qeth_card *, struct qeth_ipato_entry *);
 int qeth_l3_del_ipato_entry(struct qeth_card *card,
 			    enum qeth_prot_versions proto, u8 *addr,
-			    int mask_bits);
+			    unsigned int mask_bits);
 void qeth_l3_update_ipato(struct qeth_card *card);
 int qeth_l3_modify_hsuid(struct qeth_card *card, bool add);
 int qeth_l3_modify_rxip_vipa(struct qeth_card *card, bool add, const u8 *ip,

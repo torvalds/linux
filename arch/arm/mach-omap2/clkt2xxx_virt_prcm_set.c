@@ -235,7 +235,7 @@ void omap2xxx_clkt_vps_init(void)
 
 	hw = kzalloc(sizeof(*hw), GFP_KERNEL);
 	if (!hw)
-		goto cleanup;
+		return;
 	init.name = "virt_prcm_set";
 	init.ops = &virt_prcm_set_ops;
 	init.parent_names = &parent_name;
@@ -244,9 +244,12 @@ void omap2xxx_clkt_vps_init(void)
 	hw->hw.init = &init;
 
 	clk = clk_register(NULL, &hw->hw);
+	if (IS_ERR(clk)) {
+		printk(KERN_ERR "Failed to register clock\n");
+		kfree(hw);
+		return;
+	}
+
 	clkdev_create(clk, "cpufreq_ck", NULL);
-	return;
-cleanup:
-	kfree(hw);
 }
 #endif

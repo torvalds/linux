@@ -19,6 +19,7 @@
 #include <linux/platform_device.h>
 #include <linux/pm_runtime.h>
 #include <linux/regmap.h>
+#include <linux/sys_soc.h>
 
 #include <drm/drm_fourcc.h>
 #include <drm/drm_fb_cma_helper.h>
@@ -302,6 +303,8 @@ struct dispc_device {
 	u32 num_fourccs;
 
 	u32 memory_bandwidth_limit;
+
+	struct dispc_errata errata;
 };
 
 static void dispc_write(struct dispc_device *dispc, u16 reg, u32 val)
@@ -2605,16 +2608,9 @@ void dispc_remove(struct tidss_device *tidss)
 static int dispc_iomap_resource(struct platform_device *pdev, const char *name,
 				void __iomem **base)
 {
-	struct resource *res;
 	void __iomem *b;
 
-	res = platform_get_resource_byname(pdev, IORESOURCE_MEM, name);
-	if (!res) {
-		dev_err(&pdev->dev, "cannot get mem resource '%s'\n", name);
-		return -EINVAL;
-	}
-
-	b = devm_ioremap_resource(&pdev->dev, res);
+	b = devm_platform_ioremap_resource_byname(pdev, name);
 	if (IS_ERR(b)) {
 		dev_err(&pdev->dev, "cannot ioremap resource '%s'\n", name);
 		return PTR_ERR(b);
@@ -2641,6 +2637,19 @@ static int dispc_init_am65x_oldi_io_ctrl(struct device *dev,
 	return 0;
 }
 
+static void dispc_init_errata(struct dispc_device *dispc)
+{
+	static const struct soc_device_attribute am65x_sr10_soc_devices[] = {
+		{ .family = "AM65X", .revision = "SR1.0" },
+		{ /* sentinel */ }
+	};
+
+	if (soc_device_match(am65x_sr10_soc_devices)) {
+		dispc->errata.i2000 = true;
+		dev_info(dispc->dev, "WA for erratum i2000: YUV formats disabled\n");
+	}
+}
+
 int dispc_init(struct tidss_device *tidss)
 {
 	struct device *dev = tidss->dev;
@@ -2664,19 +2673,27 @@ int dispc_init(struct tidss_device *tidss)
 	if (!dispc)
 		return -ENOMEM;
 
+	dispc->tidss = tidss;
+	dispc->dev = dev;
+	dispc->feat = feat;
+
+	dispc_init_errata(dispc);
+
 	dispc->fourccs = devm_kcalloc(dev, ARRAY_SIZE(dispc_color_formats),
 				      sizeof(*dispc->fourccs), GFP_KERNEL);
 	if (!dispc->fourccs)
 		return -ENOMEM;
 
 	num_fourccs = 0;
-	for (i = 0; i < ARRAY_SIZE(dispc_color_formats); ++i)
+	for (i = 0; i < ARRAY_SIZE(dispc_color_formats); ++i) {
+		if (dispc->errata.i2000 &&
+		    dispc_fourcc_is_yuv(dispc_color_formats[i].fourcc)) {
+			continue;
+		}
 		dispc->fourccs[num_fourccs++] = dispc_color_formats[i].fourcc;
+	}
 
 	dispc->num_fourccs = num_fourccs;
-	dispc->tidss = tidss;
-	dispc->dev = dev;
-	dispc->feat = feat;
 
 	dispc_common_regmap = dispc->feat->common_regs;
 

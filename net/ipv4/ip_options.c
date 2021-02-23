@@ -47,32 +47,32 @@ void ip_options_build(struct sk_buff *skb, struct ip_options *opt,
 	unsigned char *iph = skb_network_header(skb);
 
 	memcpy(&(IPCB(skb)->opt), opt, sizeof(struct ip_options));
-	memcpy(iph+sizeof(struct iphdr), opt->__data, opt->optlen);
+	memcpy(iph + sizeof(struct iphdr), opt->__data, opt->optlen);
 	opt = &(IPCB(skb)->opt);
 
 	if (opt->srr)
-		memcpy(iph+opt->srr+iph[opt->srr+1]-4, &daddr, 4);
+		memcpy(iph + opt->srr + iph[opt->srr + 1] - 4, &daddr, 4);
 
 	if (!is_frag) {
 		if (opt->rr_needaddr)
-			ip_rt_get_source(iph+opt->rr+iph[opt->rr+2]-5, skb, rt);
+			ip_rt_get_source(iph + opt->rr + iph[opt->rr + 2] - 5, skb, rt);
 		if (opt->ts_needaddr)
-			ip_rt_get_source(iph+opt->ts+iph[opt->ts+2]-9, skb, rt);
+			ip_rt_get_source(iph + opt->ts + iph[opt->ts + 2] - 9, skb, rt);
 		if (opt->ts_needtime) {
 			__be32 midtime;
 
 			midtime = inet_current_timestamp();
-			memcpy(iph+opt->ts+iph[opt->ts+2]-5, &midtime, 4);
+			memcpy(iph + opt->ts + iph[opt->ts + 2] - 5, &midtime, 4);
 		}
 		return;
 	}
 	if (opt->rr) {
-		memset(iph+opt->rr, IPOPT_NOP, iph[opt->rr+1]);
+		memset(iph + opt->rr, IPOPT_NOP, iph[opt->rr + 1]);
 		opt->rr = 0;
 		opt->rr_needaddr = 0;
 	}
 	if (opt->ts) {
-		memset(iph+opt->ts, IPOPT_NOP, iph[opt->ts+1]);
+		memset(iph + opt->ts, IPOPT_NOP, iph[opt->ts + 1]);
 		opt->ts = 0;
 		opt->ts_needaddr = opt->ts_needtime = 0;
 	}
@@ -495,26 +495,29 @@ EXPORT_SYMBOL(ip_options_compile);
 void ip_options_undo(struct ip_options *opt)
 {
 	if (opt->srr) {
-		unsigned  char *optptr = opt->__data+opt->srr-sizeof(struct  iphdr);
-		memmove(optptr+7, optptr+3, optptr[1]-7);
-		memcpy(optptr+3, &opt->faddr, 4);
+		unsigned char *optptr = opt->__data + opt->srr - sizeof(struct iphdr);
+
+		memmove(optptr + 7, optptr + 3, optptr[1] - 7);
+		memcpy(optptr + 3, &opt->faddr, 4);
 	}
 	if (opt->rr_needaddr) {
-		unsigned  char *optptr = opt->__data+opt->rr-sizeof(struct  iphdr);
+		unsigned char *optptr = opt->__data + opt->rr - sizeof(struct iphdr);
+
 		optptr[2] -= 4;
-		memset(&optptr[optptr[2]-1], 0, 4);
+		memset(&optptr[optptr[2] - 1], 0, 4);
 	}
 	if (opt->ts) {
-		unsigned  char *optptr = opt->__data+opt->ts-sizeof(struct  iphdr);
+		unsigned char *optptr = opt->__data + opt->ts - sizeof(struct iphdr);
+
 		if (opt->ts_needtime) {
 			optptr[2] -= 4;
-			memset(&optptr[optptr[2]-1], 0, 4);
-			if ((optptr[3]&0xF) == IPOPT_TS_PRESPEC)
+			memset(&optptr[optptr[2] - 1], 0, 4);
+			if ((optptr[3] & 0xF) == IPOPT_TS_PRESPEC)
 				optptr[2] -= 4;
 		}
 		if (opt->ts_needaddr) {
 			optptr[2] -= 4;
-			memset(&optptr[optptr[2]-1], 0, 4);
+			memset(&optptr[optptr[2] - 1], 0, 4);
 		}
 	}
 }

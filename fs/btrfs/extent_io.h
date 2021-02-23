@@ -6,6 +6,7 @@
 #include <linux/rbtree.h>
 #include <linux/refcount.h>
 #include <linux/fiemap.h>
+#include <linux/btrfs_tree.h>
 #include "ulist.h"
 
 /*
@@ -71,23 +72,10 @@ typedef blk_status_t (submit_bio_hook_t)(struct inode *inode, struct bio *bio,
 					 int mirror_num,
 					 unsigned long bio_flags);
 
-typedef blk_status_t (extent_submit_bio_start_t)(void *private_data,
-		struct bio *bio, u64 bio_offset);
+typedef blk_status_t (extent_submit_bio_start_t)(struct inode *inode,
+		struct bio *bio, u64 dio_file_offset);
 
-struct extent_io_ops {
-	/*
-	 * The following callbacks must be always defined, the function
-	 * pointer will be called unconditionally.
-	 */
-	submit_bio_hook_t *submit_bio_hook;
-	int (*readpage_end_io_hook)(struct btrfs_io_bio *io_bio, u64 phy_offset,
-				    struct page *page, u64 start, u64 end,
-				    int mirror);
-};
-
-
-#define INLINE_EXTENT_BUFFER_PAGES 16
-#define MAX_INLINE_EXTENT_BUFFER_SIZE (INLINE_EXTENT_BUFFER_PAGES * PAGE_SIZE)
+#define INLINE_EXTENT_BUFFER_PAGES     (BTRFS_MAX_METADATA_BLOCKSIZE / PAGE_SIZE)
 struct extent_buffer {
 	u64 start;
 	unsigned long len;
@@ -99,31 +87,13 @@ struct extent_buffer {
 	int read_mirror;
 	struct rcu_head rcu_head;
 	pid_t lock_owner;
-
-	int blocking_writers;
-	atomic_t blocking_readers;
-	bool lock_nested;
 	/* >= 0 if eb belongs to a log tree, -1 otherwise */
-	short log_index;
+	s8 log_index;
 
-	/* protects write locks */
-	rwlock_t lock;
+	struct rw_semaphore lock;
 
-	/* readers use lock_wq while they wait for the write
-	 * lock holders to unlock
-	 */
-	wait_queue_head_t write_lock_wq;
-
-	/* writers use read_lock_wq while they wait for readers
-	 * to unlock
-	 */
-	wait_queue_head_t read_lock_wq;
 	struct page *pages[INLINE_EXTENT_BUFFER_PAGES];
 #ifdef CONFIG_BTRFS_DEBUG
-	int spinning_writers;
-	atomic_t spinning_readers;
-	atomic_t read_locks;
-	int write_locks;
 	struct list_head leak_list;
 #endif
 };
@@ -193,8 +163,11 @@ typedef struct extent_map *(get_extent_t)(struct btrfs_inode *inode,
 int try_release_extent_mapping(struct page *page, gfp_t mask);
 int try_release_extent_buffer(struct page *page);
 
-int extent_read_full_page(struct page *page, get_extent_t *get_extent,
-			  int mirror_num);
+int __must_check submit_one_bio(struct bio *bio, int mirror_num,
+				unsigned long bio_flags);
+int btrfs_do_readpage(struct page *page, struct extent_map **em_cached,
+		      struct bio **bio, unsigned long *bio_flags,
+		      unsigned int read_flags, u64 *prev_em_start);
 int extent_write_full_page(struct page *page, struct writeback_control *wbc);
 int extent_write_locked_range(struct inode *inode, u64 start, u64 end,
 			      int mode);
@@ -203,12 +176,12 @@ int extent_writepages(struct address_space *mapping,
 int btree_write_cache_pages(struct address_space *mapping,
 			    struct writeback_control *wbc);
 void extent_readahead(struct readahead_control *rac);
-int extent_fiemap(struct inode *inode, struct fiemap_extent_info *fieinfo,
+int extent_fiemap(struct btrfs_inode *inode, struct fiemap_extent_info *fieinfo,
 		  u64 start, u64 len);
 void set_page_extent_mapped(struct page *page);
 
 struct extent_buffer *alloc_extent_buffer(struct btrfs_fs_info *fs_info,
-					  u64 start);
+					  u64 start, u64 owner_root, int level);
 struct extent_buffer *__alloc_dummy_extent_buffer(struct btrfs_fs_info *fs_info,
 						  u64 start, unsigned long len);
 struct extent_buffer *alloc_dummy_extent_buffer(struct btrfs_fs_info *fs_info,
@@ -224,11 +197,20 @@ void free_extent_buffer_stale(struct extent_buffer *eb);
 int read_extent_buffer_pages(struct extent_buffer *eb, int wait,
 			     int mirror_num);
 void wait_on_extent_buffer_writeback(struct extent_buffer *eb);
+void btrfs_readahead_tree_block(struct btrfs_fs_info *fs_info,
+				u64 bytenr, u64 owner_root, u64 gen, int level);
+void btrfs_readahead_node_child(struct extent_buffer *node, int slot);
 
 static inline int num_extent_pages(const struct extent_buffer *eb)
 {
-	return (round_up(eb->start + eb->len, PAGE_SIZE) >> PAGE_SHIFT) -
-	       (eb->start >> PAGE_SHIFT);
+	/*
+	 * For sectorsize == PAGE_SIZE case, since nodesize is always aligned to
+	 * sectorsize, it's just eb->len >> PAGE_SHIFT.
+	 *
+	 * For sectorsize < PAGE_SIZE case, we could have nodesize < PAGE_SIZE,
+	 * thus have to ensure we get at least one page.
+	 */
+	return (eb->len >> PAGE_SHIFT) ?: 1;
 }
 
 static inline int extent_buffer_uptodate(const struct extent_buffer *eb)
@@ -279,8 +261,7 @@ void extent_range_clear_dirty_for_io(struct inode *inode, u64 start, u64 end);
 void extent_range_redirty_for_io(struct inode *inode, u64 start, u64 end);
 void extent_clear_unlock_delalloc(struct btrfs_inode *inode, u64 start, u64 end,
 				  struct page *locked_page,
-				  unsigned bits_to_clear,
-				  unsigned long page_ops);
+				  u32 bits_to_clear, unsigned long page_ops);
 struct bio *btrfs_bio_alloc(u64 first_byte);
 struct bio *btrfs_io_bio_alloc(unsigned int nr_iovecs);
 struct bio *btrfs_bio_clone(struct bio *bio);
@@ -316,7 +297,7 @@ struct io_failure_record {
 
 
 blk_status_t btrfs_submit_read_repair(struct inode *inode,
-				      struct bio *failed_bio, u64 phy_offset,
+				      struct bio *failed_bio, u32 bio_offset,
 				      struct page *page, unsigned int pgoff,
 				      u64 start, u64 end, int failed_mirror,
 				      submit_bio_hook_t *submit_bio_hook);

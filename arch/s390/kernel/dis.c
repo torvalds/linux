@@ -482,31 +482,37 @@ static int print_insn(char *buffer, unsigned char *code, unsigned long addr)
 	return (int) (ptr - buffer);
 }
 
+static int copy_from_regs(struct pt_regs *regs, void *dst, void *src, int len)
+{
+	if (user_mode(regs)) {
+		if (copy_from_user(dst, (char __user *)src, len))
+			return -EFAULT;
+	} else {
+		if (copy_from_kernel_nofault(dst, src, len))
+			return -EFAULT;
+	}
+	return 0;
+}
+
 void show_code(struct pt_regs *regs)
 {
 	char *mode = user_mode(regs) ? "User" : "Krnl";
 	unsigned char code[64];
 	char buffer[128], *ptr;
-	mm_segment_t old_fs;
 	unsigned long addr;
 	int start, end, opsize, hops, i;
 
 	/* Get a snapshot of the 64 bytes surrounding the fault address. */
-	old_fs = get_fs();
-	set_fs(user_mode(regs) ? USER_DS : KERNEL_DS);
 	for (start = 32; start && regs->psw.addr >= 34 - start; start -= 2) {
 		addr = regs->psw.addr - 34 + start;
-		if (__copy_from_user(code + start - 2,
-				     (char __user *) addr, 2))
+		if (copy_from_regs(regs, code + start - 2, (void *)addr, 2))
 			break;
 	}
 	for (end = 32; end < 64; end += 2) {
 		addr = regs->psw.addr + end - 32;
-		if (__copy_from_user(code + end,
-				     (char __user *) addr, 2))
+		if (copy_from_regs(regs, code + end, (void *)addr, 2))
 			break;
 	}
-	set_fs(old_fs);
 	/* Code snapshot useable ? */
 	if ((regs->psw.addr & 1) || start >= end) {
 		printk("%s Code: Bad PSW.\n", mode);

@@ -119,6 +119,7 @@ void radeon_vm_manager_fini(struct radeon_device *rdev)
 /**
  * radeon_vm_get_bos - add the vm BOs to a validation list
  *
+ * @rdev: radeon_device pointer
  * @vm: vm providing the BOs
  * @head: head of validation list
  *
@@ -188,7 +189,7 @@ struct radeon_fence *radeon_vm_grab_id(struct radeon_device *rdev,
 	    vm_id->last_id_use == rdev->vm_manager.active[vm_id->id])
 		return NULL;
 
-	/* we definately need to flush */
+	/* we definitely need to flush */
 	vm_id->pd_gpu_addr = ~0ll;
 
 	/* skip over VMID 0, since it is the system VM */
@@ -629,8 +630,6 @@ static uint32_t radeon_vm_page_flags(uint32_t flags)
  *
  * @rdev: radeon_device pointer
  * @vm: requested vm
- * @start: start of GPU address range
- * @end: end of GPU address range
  *
  * Allocates new page tables if necessary
  * and updates the page directory (cayman+).
@@ -802,6 +801,7 @@ static void radeon_vm_frag_ptes(struct radeon_device *rdev,
  *
  * @rdev: radeon_device pointer
  * @vm: requested vm
+ * @ib: indirect buffer to use for the update
  * @start: start of GPU address range
  * @end: end of GPU address range
  * @dst: destination address to map to
@@ -900,8 +900,7 @@ static void radeon_vm_fence_pts(struct radeon_vm *vm,
  * radeon_vm_bo_update - map a bo into the vm page table
  *
  * @rdev: radeon_device pointer
- * @vm: requested vm
- * @bo: radeon buffer object
+ * @bo_va: radeon buffer virtual address object
  * @mem: ttm mem
  *
  * Fill in the page table entries for @bo (cayman+).
@@ -911,7 +910,7 @@ static void radeon_vm_fence_pts(struct radeon_vm *vm,
  */
 int radeon_vm_bo_update(struct radeon_device *rdev,
 			struct radeon_bo_va *bo_va,
-			struct ttm_mem_reg *mem)
+			struct ttm_resource *mem)
 {
 	struct radeon_vm *vm = bo_va->vm;
 	struct radeon_ib ib;
@@ -942,7 +941,7 @@ int radeon_vm_bo_update(struct radeon_device *rdev,
 	bo_va->flags &= ~RADEON_VM_PAGE_VALID;
 	bo_va->flags &= ~RADEON_VM_PAGE_SYSTEM;
 	bo_va->flags &= ~RADEON_VM_PAGE_SNOOPED;
-	if (bo_va->bo && radeon_ttm_tt_is_readonly(bo_va->bo->tbo.ttm))
+	if (bo_va->bo && radeon_ttm_tt_is_readonly(rdev, bo_va->bo->tbo.ttm))
 		bo_va->flags &= ~RADEON_VM_PAGE_WRITEABLE;
 
 	if (mem) {
@@ -1145,7 +1144,6 @@ void radeon_vm_bo_rmv(struct radeon_device *rdev,
  * radeon_vm_bo_invalidate - mark the bo as invalid
  *
  * @rdev: radeon_device pointer
- * @vm: requested vm
  * @bo: radeon buffer object
  *
  * Mark @bo as invalid (cayman+).

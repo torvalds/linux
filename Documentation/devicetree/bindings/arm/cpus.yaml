@@ -232,7 +232,6 @@ properties:
       by this cpu (see ./idle-states.yaml).
 
   capacity-dmips-mhz:
-    $ref: '/schemas/types.yaml#/definitions/uint32'
     description:
       u32 value representing CPU capacity (see ./cpu-capacity.txt) in
       DMIPS/MHz, relative to highest capacity-dmips-mhz
@@ -340,6 +339,8 @@ required:
 
 dependencies:
   rockchip,pmu: [enable-method]
+
+additionalProperties: true
 
 examples:
   - |

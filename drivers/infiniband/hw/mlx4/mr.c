@@ -271,6 +271,8 @@ int mlx4_ib_umem_calc_optimal_mtt_size(struct ib_umem *umem, u64 start_va,
 	u64 total_len = 0;
 	int i;
 
+	*num_of_mtts = ib_umem_num_dma_blocks(umem, PAGE_SIZE);
+
 	for_each_sg(umem->sg_head.sgl, sg, umem->nmap, i) {
 		/*
 		 * Initialization - save the first chunk start as the
@@ -421,7 +423,6 @@ struct ib_mr *mlx4_ib_reg_user_mr(struct ib_pd *pd, u64 start, u64 length,
 		goto err_free;
 	}
 
-	n = ib_umem_page_count(mr->umem);
 	shift = mlx4_ib_umem_calc_optimal_mtt_size(mr->umem, start, &n);
 
 	err = mlx4_mr_alloc(dev->dev, to_mpd(pd)->pdn, virt_addr, length,
@@ -455,10 +456,10 @@ err_free:
 	return ERR_PTR(err);
 }
 
-int mlx4_ib_rereg_user_mr(struct ib_mr *mr, int flags,
-			  u64 start, u64 length, u64 virt_addr,
-			  int mr_access_flags, struct ib_pd *pd,
-			  struct ib_udata *udata)
+struct ib_mr *mlx4_ib_rereg_user_mr(struct ib_mr *mr, int flags, u64 start,
+				    u64 length, u64 virt_addr,
+				    int mr_access_flags, struct ib_pd *pd,
+				    struct ib_udata *udata)
 {
 	struct mlx4_ib_dev *dev = to_mdev(mr->device);
 	struct mlx4_ib_mr *mmr = to_mmr(mr);
@@ -471,9 +472,8 @@ int mlx4_ib_rereg_user_mr(struct ib_mr *mr, int flags,
 	 * race exists.
 	 */
 	err =  mlx4_mr_hw_get_mpt(dev->dev, &mmr->mmr, &pmpt_entry);
-
 	if (err)
-		return err;
+		return ERR_PTR(err);
 
 	if (flags & IB_MR_REREG_PD) {
 		err = mlx4_mr_hw_change_pd(dev->dev, *pmpt_entry,
@@ -511,7 +511,7 @@ int mlx4_ib_rereg_user_mr(struct ib_mr *mr, int flags,
 			mmr->umem = NULL;
 			goto release_mpt_entry;
 		}
-		n = ib_umem_page_count(mmr->umem);
+		n = ib_umem_num_dma_blocks(mmr->umem, PAGE_SIZE);
 		shift = PAGE_SHIFT;
 
 		err = mlx4_mr_rereg_mem_write(dev->dev, &mmr->mmr,
@@ -541,8 +541,9 @@ int mlx4_ib_rereg_user_mr(struct ib_mr *mr, int flags,
 
 release_mpt_entry:
 	mlx4_mr_hw_put_mpt(dev->dev, pmpt_entry);
-
-	return err;
+	if (err)
+		return ERR_PTR(err);
+	return NULL;
 }
 
 static int
@@ -610,37 +611,27 @@ int mlx4_ib_dereg_mr(struct ib_mr *ibmr, struct ib_udata *udata)
 	return 0;
 }
 
-struct ib_mw *mlx4_ib_alloc_mw(struct ib_pd *pd, enum ib_mw_type type,
-			       struct ib_udata *udata)
+int mlx4_ib_alloc_mw(struct ib_mw *ibmw, struct ib_udata *udata)
 {
-	struct mlx4_ib_dev *dev = to_mdev(pd->device);
-	struct mlx4_ib_mw *mw;
+	struct mlx4_ib_dev *dev = to_mdev(ibmw->device);
+	struct mlx4_ib_mw *mw = to_mmw(ibmw);
 	int err;
 
-	mw = kmalloc(sizeof(*mw), GFP_KERNEL);
-	if (!mw)
-		return ERR_PTR(-ENOMEM);
-
-	err = mlx4_mw_alloc(dev->dev, to_mpd(pd)->pdn,
-			    to_mlx4_type(type), &mw->mmw);
+	err = mlx4_mw_alloc(dev->dev, to_mpd(ibmw->pd)->pdn,
+			    to_mlx4_type(ibmw->type), &mw->mmw);
 	if (err)
-		goto err_free;
+		return err;
 
 	err = mlx4_mw_enable(dev->dev, &mw->mmw);
 	if (err)
 		goto err_mw;
 
-	mw->ibmw.rkey = mw->mmw.key;
-
-	return &mw->ibmw;
+	ibmw->rkey = mw->mmw.key;
+	return 0;
 
 err_mw:
 	mlx4_mw_free(dev->dev, &mw->mmw);
-
-err_free:
-	kfree(mw);
-
-	return ERR_PTR(err);
+	return err;
 }
 
 int mlx4_ib_dealloc_mw(struct ib_mw *ibmw)
@@ -648,8 +639,6 @@ int mlx4_ib_dealloc_mw(struct ib_mw *ibmw)
 	struct mlx4_ib_mw *mw = to_mmw(ibmw);
 
 	mlx4_mw_free(to_mdev(ibmw->device)->dev, &mw->mmw);
-	kfree(mw);
-
 	return 0;
 }
 

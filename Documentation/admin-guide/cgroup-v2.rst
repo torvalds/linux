@@ -1029,7 +1029,7 @@ All time durations are in microseconds.
 	one number is written, $MAX is updated.
 
   cpu.pressure
-	A read-only nested-key file which exists on non-root cgroups.
+	A read-write nested-keyed file.
 
 	Shows pressure stall information for CPU. See
 	:ref:`Documentation/accounting/psi.rst <psi>` for details.
@@ -1259,6 +1259,10 @@ PAGE_SIZE multiple when read back.
 	can show up in the middle. Don't rely on items remaining in a
 	fixed position; use the keys to look up specific values!
 
+	If the entry has no per-node counter(or not show in the
+	mempry.numa_stat). We use 'npn'(non-per-node) as the tag
+	to indicate that it will not show in the mempry.numa_stat.
+
 	  anon
 		Amount of memory used in anonymous mappings such as
 		brk(), sbrk(), and mmap(MAP_ANONYMOUS)
@@ -1270,15 +1274,14 @@ PAGE_SIZE multiple when read back.
 	  kernel_stack
 		Amount of memory allocated to kernel stacks.
 
-	  slab
-		Amount of memory used for storing in-kernel data
-		structures.
+	  pagetables
+                Amount of memory allocated for page tables.
 
-	  percpu
+	  percpu(npn)
 		Amount of memory used for storing per-cpu kernel
 		data structures.
 
-	  sock
+	  sock(npn)
 		Amount of memory used in network transmission buffers
 
 	  shmem
@@ -1300,6 +1303,14 @@ PAGE_SIZE multiple when read back.
 		Amount of memory used in anonymous mappings backed by
 		transparent hugepages
 
+	  file_thp
+		Amount of cached filesystem data backed by transparent
+		hugepages
+
+	  shmem_thp
+		Amount of shm, tmpfs, shared anonymous mmap()s backed by
+		transparent hugepages
+
 	  inactive_anon, active_anon, inactive_file, active_file, unevictable
 		Amount of memory, swap-backed and filesystem-backed,
 		on the internal memory management lists used by the
@@ -1318,11 +1329,9 @@ PAGE_SIZE multiple when read back.
 		Part of "slab" that cannot be reclaimed on memory
 		pressure.
 
-	  pgfault
-		Total number of page faults incurred
-
-	  pgmajfault
-		Number of major page faults incurred
+	  slab(npn)
+		Amount of memory used for storing in-kernel data
+		structures.
 
 	  workingset_refault_anon
 		Number of refaults of previously evicted anonymous pages.
@@ -1348,36 +1357,67 @@ PAGE_SIZE multiple when read back.
 	  workingset_nodereclaim
 		Number of times a shadow node has been reclaimed
 
-	  pgrefill
+	  pgfault(npn)
+		Total number of page faults incurred
+
+	  pgmajfault(npn)
+		Number of major page faults incurred
+
+	  pgrefill(npn)
 		Amount of scanned pages (in an active LRU list)
 
-	  pgscan
+	  pgscan(npn)
 		Amount of scanned pages (in an inactive LRU list)
 
-	  pgsteal
+	  pgsteal(npn)
 		Amount of reclaimed pages
 
-	  pgactivate
+	  pgactivate(npn)
 		Amount of pages moved to the active LRU list
 
-	  pgdeactivate
+	  pgdeactivate(npn)
 		Amount of pages moved to the inactive LRU list
 
-	  pglazyfree
+	  pglazyfree(npn)
 		Amount of pages postponed to be freed under memory pressure
 
-	  pglazyfreed
+	  pglazyfreed(npn)
 		Amount of reclaimed lazyfree pages
 
-	  thp_fault_alloc
+	  thp_fault_alloc(npn)
 		Number of transparent hugepages which were allocated to satisfy
 		a page fault. This counter is not present when CONFIG_TRANSPARENT_HUGEPAGE
                 is not set.
 
-	  thp_collapse_alloc
+	  thp_collapse_alloc(npn)
 		Number of transparent hugepages which were allocated to allow
 		collapsing an existing range of pages. This counter is not
 		present when CONFIG_TRANSPARENT_HUGEPAGE is not set.
+
+  memory.numa_stat
+	A read-only nested-keyed file which exists on non-root cgroups.
+
+	This breaks down the cgroup's memory footprint into different
+	types of memory, type-specific details, and other information
+	per node on the state of the memory management system.
+
+	This is useful for providing visibility into the NUMA locality
+	information within an memcg since the pages are allowed to be
+	allocated from any physical node. One of the use case is evaluating
+	application performance by combining this information with the
+	application's CPU allocation.
+
+	All memory amounts are in bytes.
+
+	The output format of memory.numa_stat is::
+
+	  type N0=<bytes in node 0> N1=<bytes in node 1> ...
+
+	The entries are ordered to be human readable, and new entries
+	can show up in the middle. Don't rely on items remaining in a
+	fixed position; use the keys to look up specific values!
+
+	The entries can refer to the memory.stat.
 
   memory.swap.current
 	A read-only single value file which exists on non-root
@@ -1435,7 +1475,7 @@ PAGE_SIZE multiple when read back.
 	reduces the impact on the workload and memory management.
 
   memory.pressure
-	A read-only nested-key file which exists on non-root cgroups.
+	A read-only nested-keyed file.
 
 	Shows pressure stall information for memory. See
 	:ref:`Documentation/accounting/psi.rst <psi>` for details.
@@ -1674,7 +1714,7 @@ IO Interface Files
 	  8:16 rbps=2097152 wbps=max riops=max wiops=max
 
   io.pressure
-	A read-only nested-key file which exists on non-root cgroups.
+	A read-only nested-keyed file.
 
 	Shows pressure stall information for IO. See
 	:ref:`Documentation/accounting/psi.rst <psi>` for details.

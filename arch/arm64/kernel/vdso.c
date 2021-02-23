@@ -30,15 +30,11 @@
 #include <asm/vdso.h>
 
 extern char vdso_start[], vdso_end[];
-#ifdef CONFIG_COMPAT_VDSO
 extern char vdso32_start[], vdso32_end[];
-#endif /* CONFIG_COMPAT_VDSO */
 
 enum vdso_abi {
 	VDSO_ABI_AA64,
-#ifdef CONFIG_COMPAT_VDSO
 	VDSO_ABI_AA32,
-#endif /* CONFIG_COMPAT_VDSO */
 };
 
 enum vvar_pages {
@@ -82,17 +78,9 @@ static union {
 } vdso_data_store __page_aligned_data;
 struct vdso_data *vdso_data = vdso_data_store.data;
 
-static int __vdso_remap(enum vdso_abi abi,
-			const struct vm_special_mapping *sm,
-			struct vm_area_struct *new_vma)
+static int vdso_mremap(const struct vm_special_mapping *sm,
+		struct vm_area_struct *new_vma)
 {
-	unsigned long new_size = new_vma->vm_end - new_vma->vm_start;
-	unsigned long vdso_size = vdso_info[abi].vdso_code_end -
-				  vdso_info[abi].vdso_code_start;
-
-	if (vdso_size != new_size)
-		return -EINVAL;
-
 	current->mm->context.vdso = (void *)new_vma->vm_start;
 
 	return 0;
@@ -223,17 +211,6 @@ static vm_fault_t vvar_fault(const struct vm_special_mapping *sm,
 	return vmf_insert_pfn(vma, vmf->address, pfn);
 }
 
-static int vvar_mremap(const struct vm_special_mapping *sm,
-		       struct vm_area_struct *new_vma)
-{
-	unsigned long new_size = new_vma->vm_end - new_vma->vm_start;
-
-	if (new_size != VVAR_NR_PAGES * PAGE_SIZE)
-		return -EINVAL;
-
-	return 0;
-}
-
 static int __setup_additional_pages(enum vdso_abi abi,
 				    struct mm_struct *mm,
 				    struct linux_binprm *bprm,
@@ -284,21 +261,11 @@ up_fail:
 /*
  * Create and map the vectors page for AArch32 tasks.
  */
-#ifdef CONFIG_COMPAT_VDSO
-static int aarch32_vdso_mremap(const struct vm_special_mapping *sm,
-		struct vm_area_struct *new_vma)
-{
-	return __vdso_remap(VDSO_ABI_AA32, sm, new_vma);
-}
-#endif /* CONFIG_COMPAT_VDSO */
-
 enum aarch32_map {
 	AA32_MAP_VECTORS, /* kuser helpers */
-#ifdef CONFIG_COMPAT_VDSO
+	AA32_MAP_SIGPAGE,
 	AA32_MAP_VVAR,
 	AA32_MAP_VDSO,
-#endif
-	AA32_MAP_SIGPAGE
 };
 
 static struct page *aarch32_vectors_page __ro_after_init;
@@ -309,20 +276,17 @@ static struct vm_special_mapping aarch32_vdso_maps[] = {
 		.name	= "[vectors]", /* ABI */
 		.pages	= &aarch32_vectors_page,
 	},
-#ifdef CONFIG_COMPAT_VDSO
-	[AA32_MAP_VVAR] = {
-		.name = "[vvar]",
-		.fault = vvar_fault,
-		.mremap = vvar_mremap,
-	},
-	[AA32_MAP_VDSO] = {
-		.name = "[vdso]",
-		.mremap = aarch32_vdso_mremap,
-	},
-#endif /* CONFIG_COMPAT_VDSO */
 	[AA32_MAP_SIGPAGE] = {
 		.name	= "[sigpage]", /* ABI */
 		.pages	= &aarch32_sig_page,
+	},
+	[AA32_MAP_VVAR] = {
+		.name = "[vvar]",
+		.fault = vvar_fault,
+	},
+	[AA32_MAP_VDSO] = {
+		.name = "[vdso]",
+		.mremap = vdso_mremap,
 	},
 };
 
@@ -362,25 +326,25 @@ static int aarch32_alloc_sigpage(void)
 	return 0;
 }
 
-#ifdef CONFIG_COMPAT_VDSO
 static int __aarch32_alloc_vdso_pages(void)
 {
+
+	if (!IS_ENABLED(CONFIG_COMPAT_VDSO))
+		return 0;
+
 	vdso_info[VDSO_ABI_AA32].dm = &aarch32_vdso_maps[AA32_MAP_VVAR];
 	vdso_info[VDSO_ABI_AA32].cm = &aarch32_vdso_maps[AA32_MAP_VDSO];
 
 	return __vdso_init(VDSO_ABI_AA32);
 }
-#endif /* CONFIG_COMPAT_VDSO */
 
 static int __init aarch32_alloc_vdso_pages(void)
 {
 	int ret;
 
-#ifdef CONFIG_COMPAT_VDSO
 	ret = __aarch32_alloc_vdso_pages();
 	if (ret)
 		return ret;
-#endif
 
 	ret = aarch32_alloc_sigpage();
 	if (ret)
@@ -449,14 +413,12 @@ int aarch32_setup_additional_pages(struct linux_binprm *bprm, int uses_interp)
 	if (ret)
 		goto out;
 
-#ifdef CONFIG_COMPAT_VDSO
-	ret = __setup_additional_pages(VDSO_ABI_AA32,
-				       mm,
-				       bprm,
-				       uses_interp);
-	if (ret)
-		goto out;
-#endif /* CONFIG_COMPAT_VDSO */
+	if (IS_ENABLED(CONFIG_COMPAT_VDSO)) {
+		ret = __setup_additional_pages(VDSO_ABI_AA32, mm, bprm,
+					       uses_interp);
+		if (ret)
+			goto out;
+	}
 
 	ret = aarch32_sigreturn_setup(mm);
 out:
@@ -464,12 +426,6 @@ out:
 	return ret;
 }
 #endif /* CONFIG_COMPAT */
-
-static int vdso_mremap(const struct vm_special_mapping *sm,
-		struct vm_area_struct *new_vma)
-{
-	return __vdso_remap(VDSO_ABI_AA64, sm, new_vma);
-}
 
 enum aarch64_map {
 	AA64_MAP_VVAR,
@@ -480,7 +436,6 @@ static struct vm_special_mapping aarch64_vdso_maps[] __ro_after_init = {
 	[AA64_MAP_VVAR] = {
 		.name	= "[vvar]",
 		.fault = vvar_fault,
-		.mremap = vvar_mremap,
 	},
 	[AA64_MAP_VDSO] = {
 		.name	= "[vdso]",
@@ -497,8 +452,7 @@ static int __init vdso_init(void)
 }
 arch_initcall(vdso_init);
 
-int arch_setup_additional_pages(struct linux_binprm *bprm,
-				int uses_interp)
+int arch_setup_additional_pages(struct linux_binprm *bprm, int uses_interp)
 {
 	struct mm_struct *mm = current->mm;
 	int ret;
@@ -506,11 +460,7 @@ int arch_setup_additional_pages(struct linux_binprm *bprm,
 	if (mmap_write_lock_killable(mm))
 		return -EINTR;
 
-	ret = __setup_additional_pages(VDSO_ABI_AA64,
-				       mm,
-				       bprm,
-				       uses_interp);
-
+	ret = __setup_additional_pages(VDSO_ABI_AA64, mm, bprm, uses_interp);
 	mmap_write_unlock(mm);
 
 	return ret;

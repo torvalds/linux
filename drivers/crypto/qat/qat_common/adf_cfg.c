@@ -52,24 +52,7 @@ static const struct seq_operations qat_dev_cfg_sops = {
 	.show = qat_dev_cfg_show
 };
 
-static int qat_dev_cfg_open(struct inode *inode, struct file *file)
-{
-	int ret = seq_open(file, &qat_dev_cfg_sops);
-
-	if (!ret) {
-		struct seq_file *seq_f = file->private_data;
-
-		seq_f->private = inode->i_private;
-	}
-	return ret;
-}
-
-static const struct file_operations qat_dev_cfg_fops = {
-	.open = qat_dev_cfg_open,
-	.read = seq_read,
-	.llseek = seq_lseek,
-	.release = seq_release
-};
+DEFINE_SEQ_ATTRIBUTE(qat_dev_cfg);
 
 /**
  * adf_cfg_dev_add() - Create an acceleration device configuration table.
@@ -213,7 +196,7 @@ static int adf_cfg_key_val_get(struct adf_accel_dev *accel_dev,
 		memcpy(val, keyval->val, ADF_CFG_MAX_VAL_LEN_IN_BYTES);
 		return 0;
 	}
-	return -1;
+	return -ENODATA;
 }
 
 /**
@@ -260,7 +243,7 @@ int adf_cfg_add_key_value_param(struct adf_accel_dev *accel_dev,
 	} else {
 		dev_err(&GET_DEV(accel_dev), "Unknown type given.\n");
 		kfree(key_val);
-		return -1;
+		return -EINVAL;
 	}
 	key_val->type = type;
 	down_write(&cfg->lock);

@@ -1,11 +1,5 @@
-.. Permission is granted to copy, distribute and/or modify this
-.. document under the terms of the GNU Free Documentation License,
-.. Version 1.1 or any later version published by the Free Software
-.. Foundation, with no Invariant Sections, no Front-Cover Texts
-.. and no Back-Cover Texts. A copy of the license is included at
-.. Documentation/userspace-api/media/fdl-appendix.rst.
-..
-.. TODO: replace it to GFDL-1.1-or-later WITH no-invariant-sections
+.. SPDX-License-Identifier: GFDL-1.1-no-invariants-or-later
+.. c:namespace:: DTV.dmx
 
 .. _DMX_GET_STC:
 
@@ -18,22 +12,21 @@ Name
 
 DMX_GET_STC
 
-
 Synopsis
 --------
 
-.. c:function:: int ioctl( int fd, DMX_GET_STC, struct dmx_stc *stc)
-    :name: DMX_GET_STC
+.. c:macro:: DMX_GET_STC
+
+``int ioctl(int fd, DMX_GET_STC, struct dmx_stc *stc)``
 
 Arguments
 ---------
 
 ``fd``
-    File descriptor returned by :c:func:`open() <dvb-dmx-open>`.
+    File descriptor returned by :c:func:`open()`.
 
 ``stc``
     Pointer to :c:type:`dmx_stc` where the stc data is to be stored.
-
 
 Description
 -----------
@@ -45,7 +38,6 @@ setting the :c:type:`num <dmx_stc>` field of stc before the ioctl (range 0...n).
 The result is returned in form of a ratio with a 64 bit numerator
 and a 32 bit denominator, so the real 90kHz STC value is
 ``stc->stc / stc->base``.
-
 
 Return Value
 ------------
@@ -67,7 +59,6 @@ appropriately.
        -  ``EINVAL``
 
        -  Invalid stc number.
-
 
 The generic error codes are described at the
 :ref:`Generic Error Codes <gen-errors>` chapter.

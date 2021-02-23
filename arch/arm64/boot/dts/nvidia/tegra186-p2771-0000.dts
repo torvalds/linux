@@ -10,18 +10,6 @@
 	model = "NVIDIA Jetson TX2 Developer Kit";
 	compatible = "nvidia,p2771-0000", "nvidia,tegra186";
 
-	aconnect {
-		status = "okay";
-
-		dma-controller@2930000 {
-			status = "okay";
-		};
-
-		interrupt-controller@2a40000 {
-			status = "okay";
-		};
-	};
-
 	i2c@3160000 {
 		power-monitor@42 {
 			compatible = "ti,ina3221";
@@ -222,6 +210,7 @@
 			compatible = "atmel,24c02";
 			reg = <0x57>;
 
+			label = "system";
 			vcc-supply = <&vdd_1v8>;
 			address-width = <8>;
 			pagesize = <8>;
@@ -294,6 +283,10 @@
 		dpaux@155c0000 {
 			status = "okay";
 		};
+	};
+
+	sata@3507000 {
+		status = "okay";
 	};
 
 	gpio-keys {

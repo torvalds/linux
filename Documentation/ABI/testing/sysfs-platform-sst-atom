@@ -5,13 +5,22 @@ Contact:	"Sebastien Guiriec" <sebastien.guiriec@intel.com>
 Description:
 		LPE Firmware version for SST driver on all atom
 		plaforms (BYT/CHT/Merrifield/BSW).
-		If the FW has never been loaded it will display:
+		If the FW has never been loaded it will display::
+
 			"FW not yet loaded"
-		If FW has been loaded it will display:
+
+		If FW has been loaded it will display::
+
 			"v01.aa.bb.cc"
+
 		aa: Major version is reflecting SoC version:
+
+			=== =============
 			0d: BYT FW
 			0b: BSW FW
 			07: Merrifield FW
+			=== =============
+
 		bb: Minor version
+
 		cc: Build version

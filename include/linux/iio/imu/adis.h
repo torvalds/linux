@@ -20,7 +20,6 @@
 #define ADIS_REG_PAGE_ID 0x00
 
 struct adis;
-struct adis_burst;
 
 /**
  * struct adis_timeouts - ADIS chip variant timeouts
@@ -51,6 +50,11 @@ struct adis_timeout {
  * @timeouts: Chip specific delays
  * @enable_irq: Hook for ADIS devices that have a special IRQ enable/disable
  * @has_paging: True if ADIS device has paged registers
+ * @burst_reg_cmd:	Register command that triggers burst
+ * @burst_len:		Burst size in the SPI RX buffer. If @burst_max_len is defined,
+ *			this should be the minimum size supported by the device.
+ * @burst_max_len:	Holds the maximum burst size when the device supports
+ *			more than one burst mode with different sizes
  */
 struct adis_data {
 	unsigned int read_delay;
@@ -75,6 +79,10 @@ struct adis_data {
 	int (*enable_irq)(struct adis *adis, bool enable);
 
 	bool has_paging;
+
+	unsigned int burst_reg_cmd;
+	unsigned int burst_len;
+	unsigned int burst_max_len;
 };
 
 /**
@@ -99,7 +107,6 @@ struct adis {
 	struct iio_trigger	*trig;
 
 	const struct adis_data	*data;
-	struct adis_burst	*burst;
 	unsigned int		burst_extra_len;
 	/**
 	 * The state_lock is meant to be used during operations that require
@@ -499,32 +506,11 @@ int adis_single_conversion(struct iio_dev *indio_dev,
 
 #ifdef CONFIG_IIO_ADIS_LIB_BUFFER
 
-/**
- * struct adis_burst - ADIS data for burst transfers
- * @en			burst mode enabled
- * @reg_cmd		register command that triggers burst
- * @extra_len		extra length to account in the SPI RX buffer
- * @burst_max_len	holds the maximum burst size when the device supports
- *			more than one burst mode with different sizes
- */
-struct adis_burst {
-	bool		en;
-	unsigned int	reg_cmd;
-	const u32	extra_len;
-	const u32	burst_max_len;
-};
-
 int
 devm_adis_setup_buffer_and_trigger(struct adis *adis, struct iio_dev *indio_dev,
 				   irq_handler_t trigger_handler);
-int adis_setup_buffer_and_trigger(struct adis *adis,
-	struct iio_dev *indio_dev, irqreturn_t (*trigger_handler)(int, void *));
-void adis_cleanup_buffer_and_trigger(struct adis *adis,
-	struct iio_dev *indio_dev);
 
 int devm_adis_probe_trigger(struct adis *adis, struct iio_dev *indio_dev);
-int adis_probe_trigger(struct adis *adis, struct iio_dev *indio_dev);
-void adis_remove_trigger(struct adis *adis);
 
 int adis_update_scan_mode(struct iio_dev *indio_dev,
 	const unsigned long *scan_mask);
@@ -538,31 +524,10 @@ devm_adis_setup_buffer_and_trigger(struct adis *adis, struct iio_dev *indio_dev,
 	return 0;
 }
 
-static inline int adis_setup_buffer_and_trigger(struct adis *adis,
-	struct iio_dev *indio_dev, irqreturn_t (*trigger_handler)(int, void *))
-{
-	return 0;
-}
-
-static inline void adis_cleanup_buffer_and_trigger(struct adis *adis,
-	struct iio_dev *indio_dev)
-{
-}
-
 static inline int devm_adis_probe_trigger(struct adis *adis,
 					  struct iio_dev *indio_dev)
 {
 	return 0;
-}
-
-static inline int adis_probe_trigger(struct adis *adis,
-	struct iio_dev *indio_dev)
-{
-	return 0;
-}
-
-static inline void adis_remove_trigger(struct adis *adis)
-{
 }
 
 #define adis_update_scan_mode NULL

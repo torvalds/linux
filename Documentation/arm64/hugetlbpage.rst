@@ -1,3 +1,5 @@
+.. _hugetlbpage_index:
+
 ====================
 HugeTLBpage on ARM64
 ====================

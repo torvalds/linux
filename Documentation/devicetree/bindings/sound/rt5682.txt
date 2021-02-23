@@ -44,6 +44,8 @@ Optional properties:
 - realtek,dmic-delay-ms : Set the delay time (ms) for the requirement of
   the particular DMIC.
 
+- realtek,dmic-clk-driving-high : Set the high drving of the DMIC clock out.
+
 Pins on the device (for linking into audio routes) for RT5682:
 
   * DMIC L1
@@ -58,7 +60,7 @@ rt5682 {
 	compatible = "realtek,rt5682i";
 	reg = <0x1a>;
 	interrupt-parent = <&gpio>;
-	interrupts = <TEGRA_GPIO(U, 6) GPIO_ACTIVE_HIGH>;
+	interrupts = <TEGRA_GPIO(U, 6) IRQ_TYPE_LEVEL_HIGH>;
 	realtek,ldo1-en-gpios =
 		<&gpio TEGRA_GPIO(R, 2) GPIO_ACTIVE_HIGH>;
 	realtek,dmic1-data-pin = <1>;

@@ -27,7 +27,7 @@ V4L2 specification with respect to controls in a central place. And to make
 life as easy as possible for the driver developer.
 
 Note that the control framework relies on the presence of a struct
-:c:type:`v4l2_device` for V4L2 drivers and struct :c:type:`v4l2_subdev` for
+:c:type:`v4l2_device` for V4L2 drivers and struct v4l2_subdev for
 sub-device drivers.
 
 
@@ -335,7 +335,7 @@ current and new values:
 	union v4l2_ctrl_ptr p_new;
 	union v4l2_ctrl_ptr p_cur;
 
-If the control has a simple s32 type type, then:
+If the control has a simple s32 type, then:
 
 .. code-block:: c
 
@@ -349,7 +349,7 @@ Within the control ops you can freely use these. The val and cur.val speak for
 themselves. The p_char pointers point to character buffers of length
 ctrl->maximum + 1, and are always 0-terminated.
 
-Unless the control is marked volatile the p_cur field points to the the
+Unless the control is marked volatile the p_cur field points to the
 current cached control value. When you create a new control this value is made
 identical to the default value. After calling v4l2_ctrl_handler_setup() this
 value is passed to the hardware. It is generally a good idea to call this

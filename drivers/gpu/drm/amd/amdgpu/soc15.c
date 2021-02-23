@@ -42,8 +42,6 @@
 #include "sdma1/sdma1_4_0_offset.h"
 #include "hdp/hdp_4_0_offset.h"
 #include "hdp/hdp_4_0_sh_mask.h"
-#include "smuio/smuio_9_0_offset.h"
-#include "smuio/smuio_9_0_sh_mask.h"
 #include "nbio/nbio_7_0_default.h"
 #include "nbio/nbio_7_0_offset.h"
 #include "nbio/nbio_7_0_sh_mask.h"
@@ -62,6 +60,7 @@
 #include "nbio_v7_0.h"
 #include "nbio_v7_4.h"
 #include "vega10_ih.h"
+#include "navi10_ih.h"
 #include "sdma_v4_0.h"
 #include "uvd_v7_0.h"
 #include "vce_v4_0.h"
@@ -70,6 +69,8 @@
 #include "jpeg_v2_0.h"
 #include "vcn_v2_5.h"
 #include "jpeg_v2_5.h"
+#include "smuio_v9_0.h"
+#include "smuio_v11_0.h"
 #include "dce_virtual.h"
 #include "mxgpu_ai.h"
 #include "amdgpu_smu.h"
@@ -90,86 +91,45 @@
 #define HDP_MEM_POWER_CTRL__RC_MEM_POWER_LS_EN_MASK		0x00020000L
 #define mmHDP_MEM_POWER_CTRL_BASE_IDX	0
 
-/* for Vega20/arcturus regiter offset change */
-#define	mmROM_INDEX_VG20				0x00e4
-#define	mmROM_INDEX_VG20_BASE_IDX			0
-#define	mmROM_DATA_VG20					0x00e5
-#define	mmROM_DATA_VG20_BASE_IDX			0
-
 /*
  * Indirect registers accessor
  */
 static u32 soc15_pcie_rreg(struct amdgpu_device *adev, u32 reg)
 {
-	unsigned long flags, address, data;
-	u32 r;
+	unsigned long address, data;
 	address = adev->nbio.funcs->get_pcie_index_offset(adev);
 	data = adev->nbio.funcs->get_pcie_data_offset(adev);
 
-	spin_lock_irqsave(&adev->pcie_idx_lock, flags);
-	WREG32(address, reg);
-	(void)RREG32(address);
-	r = RREG32(data);
-	spin_unlock_irqrestore(&adev->pcie_idx_lock, flags);
-	return r;
+	return amdgpu_device_indirect_rreg(adev, address, data, reg);
 }
 
 static void soc15_pcie_wreg(struct amdgpu_device *adev, u32 reg, u32 v)
 {
-	unsigned long flags, address, data;
+	unsigned long address, data;
 
 	address = adev->nbio.funcs->get_pcie_index_offset(adev);
 	data = adev->nbio.funcs->get_pcie_data_offset(adev);
 
-	spin_lock_irqsave(&adev->pcie_idx_lock, flags);
-	WREG32(address, reg);
-	(void)RREG32(address);
-	WREG32(data, v);
-	(void)RREG32(data);
-	spin_unlock_irqrestore(&adev->pcie_idx_lock, flags);
+	amdgpu_device_indirect_wreg(adev, address, data, reg, v);
 }
 
 static u64 soc15_pcie_rreg64(struct amdgpu_device *adev, u32 reg)
 {
-	unsigned long flags, address, data;
-	u64 r;
+	unsigned long address, data;
 	address = adev->nbio.funcs->get_pcie_index_offset(adev);
 	data = adev->nbio.funcs->get_pcie_data_offset(adev);
 
-	spin_lock_irqsave(&adev->pcie_idx_lock, flags);
-	/* read low 32 bit */
-	WREG32(address, reg);
-	(void)RREG32(address);
-	r = RREG32(data);
-
-	/* read high 32 bit*/
-	WREG32(address, reg + 4);
-	(void)RREG32(address);
-	r |= ((u64)RREG32(data) << 32);
-	spin_unlock_irqrestore(&adev->pcie_idx_lock, flags);
-	return r;
+	return amdgpu_device_indirect_rreg64(adev, address, data, reg);
 }
 
 static void soc15_pcie_wreg64(struct amdgpu_device *adev, u32 reg, u64 v)
 {
-	unsigned long flags, address, data;
+	unsigned long address, data;
 
 	address = adev->nbio.funcs->get_pcie_index_offset(adev);
 	data = adev->nbio.funcs->get_pcie_data_offset(adev);
 
-	spin_lock_irqsave(&adev->pcie_idx_lock, flags);
-	/* write low 32 bit */
-	WREG32(address, reg);
-	(void)RREG32(address);
-	WREG32(data, (u32)(v & 0xffffffffULL));
-	(void)RREG32(data);
-
-	/* write high 32 bit */
-	WREG32(address, reg + 4);
-	(void)RREG32(address);
-	WREG32(data, (u32)(v >> 32));
-	(void)RREG32(data);
-	spin_unlock_irqrestore(&adev->pcie_idx_lock, flags);
+	amdgpu_device_indirect_wreg64(adev, address, data, reg, v);
 }
 
 static u32 soc15_uvd_ctx_rreg(struct amdgpu_device *adev, u32 reg)
@@ -330,17 +290,10 @@ static bool soc15_read_bios_from_rom(struct amdgpu_device *adev,
 	dw_ptr = (u32 *)bios;
 	length_dw = ALIGN(length_bytes, 4) / 4;
 
-	switch (adev->asic_type) {
-	case CHIP_VEGA20:
-	case CHIP_ARCTURUS:
-		rom_index_offset = SOC15_REG_OFFSET(SMUIO, 0, mmROM_INDEX_VG20);
-		rom_data_offset = SOC15_REG_OFFSET(SMUIO, 0, mmROM_DATA_VG20);
-		break;
-	default:
-		rom_index_offset = SOC15_REG_OFFSET(SMUIO, 0, mmROM_INDEX);
-		rom_data_offset = SOC15_REG_OFFSET(SMUIO, 0, mmROM_DATA);
-		break;
-	}
+	rom_index_offset =
+		adev->smuio.funcs->get_rom_index_offset(adev);
+	rom_data_offset =
+		adev->smuio.funcs->get_rom_data_offset(adev);
 
 	/* set rom index to 0 */
 	WREG32(rom_index_offset, 0);
@@ -484,13 +437,13 @@ static int soc15_asic_mode1_reset(struct amdgpu_device *adev)
 	/* disable BM */
 	pci_clear_master(adev->pdev);
 
-	pci_save_state(adev->pdev);
+	amdgpu_device_cache_pci_state(adev->pdev);
 
 	ret = psp_gpu_reset(adev);
 	if (ret)
 		dev_err(adev->dev, "GPU mode1 reset failed\n");
 
-	pci_restore_state(adev->pdev);
+	amdgpu_device_load_pci_state(adev->pdev);
 
 	/* wait for asic to come out of reset */
 	for (i = 0; i < adev->usec_timeout; i++) {
@@ -580,10 +533,13 @@ static int soc15_asic_reset(struct amdgpu_device *adev)
 
 	switch (soc15_asic_reset_method(adev)) {
 		case AMD_RESET_METHOD_BACO:
+			dev_info(adev->dev, "BACO reset\n");
 			return soc15_asic_baco_reset(adev);
 		case AMD_RESET_METHOD_MODE2:
+			dev_info(adev->dev, "MODE2 reset\n");
 			return amdgpu_dpm_mode2_reset(adev);
 		default:
+			dev_info(adev->dev, "MODE1 reset\n");
 			return soc15_asic_mode1_reset(adev);
 	}
 }
@@ -749,6 +705,12 @@ int soc15_set_ip_blocks(struct amdgpu_device *adev)
 	else
 		adev->df.funcs = &df_v1_7_funcs;
 
+	if (adev->asic_type == CHIP_VEGA20 ||
+	    adev->asic_type == CHIP_ARCTURUS)
+		adev->smuio.funcs = &smuio_v11_0_funcs;
+	else
+		adev->smuio.funcs = &smuio_v9_0_funcs;
+
 	adev->rev_id = soc15_get_rev_id(adev);
 
 	switch (adev->asic_type) {
@@ -766,9 +728,15 @@ int soc15_set_ip_blocks(struct amdgpu_device *adev)
 				else
 					amdgpu_device_ip_block_add(adev, &psp_v3_1_ip_block);
 			}
-			amdgpu_device_ip_block_add(adev, &vega10_ih_ip_block);
+			if (adev->asic_type == CHIP_VEGA20)
+				amdgpu_device_ip_block_add(adev, &navi10_ih_ip_block);
+			else
+				amdgpu_device_ip_block_add(adev, &vega10_ih_ip_block);
 		} else {
-			amdgpu_device_ip_block_add(adev, &vega10_ih_ip_block);
+			if (adev->asic_type == CHIP_VEGA20)
+				amdgpu_device_ip_block_add(adev, &navi10_ih_ip_block);
+			else
+				amdgpu_device_ip_block_add(adev, &vega10_ih_ip_block);
 			if (likely(adev->firmware.load_type == AMDGPU_FW_LOAD_PSP)) {
 				if (adev->asic_type == CHIP_VEGA20)
 					amdgpu_device_ip_block_add(adev, &psp_v11_0_ip_block);
@@ -819,9 +787,9 @@ int soc15_set_ip_blocks(struct amdgpu_device *adev)
 		if (amdgpu_sriov_vf(adev)) {
 			if (likely(adev->firmware.load_type == AMDGPU_FW_LOAD_PSP))
 				amdgpu_device_ip_block_add(adev, &psp_v11_0_ip_block);
-			amdgpu_device_ip_block_add(adev, &vega10_ih_ip_block);
+			amdgpu_device_ip_block_add(adev, &navi10_ih_ip_block);
 		} else {
-			amdgpu_device_ip_block_add(adev, &vega10_ih_ip_block);
+			amdgpu_device_ip_block_add(adev, &navi10_ih_ip_block);
 			if (likely(adev->firmware.load_type == AMDGPU_FW_LOAD_PSP))
 				amdgpu_device_ip_block_add(adev, &psp_v11_0_ip_block);
 		}
@@ -854,7 +822,7 @@ int soc15_set_ip_blocks(struct amdgpu_device *adev)
 			amdgpu_device_ip_block_add(adev, &dce_virtual_ip_block);
 #if defined(CONFIG_DRM_AMD_DC)
                 else if (amdgpu_device_has_dc_support(adev))
-                        amdgpu_device_ip_block_add(adev, &dm_ip_block);
+			amdgpu_device_ip_block_add(adev, &dm_ip_block);
 #endif
 		amdgpu_device_ip_block_add(adev, &vcn_v2_0_ip_block);
 		amdgpu_device_ip_block_add(adev, &jpeg_v2_0_ip_block);
@@ -1026,6 +994,11 @@ static uint64_t soc15_get_pcie_replay_count(struct amdgpu_device *adev)
 	return (nak_r + nak_g);
 }
 
+static void soc15_pre_asic_init(struct amdgpu_device *adev)
+{
+	gmc_v9_0_restore_registers(adev);
+}
+
 static const struct amdgpu_asic_funcs soc15_asic_funcs =
 {
 	.read_disabled_bios = &soc15_read_disabled_bios,
@@ -1046,6 +1019,7 @@ static const struct amdgpu_asic_funcs soc15_asic_funcs =
 	.need_reset_on_init = &soc15_need_reset_on_init,
 	.get_pcie_replay_count = &soc15_get_pcie_replay_count,
 	.supports_baco = &soc15_supports_baco,
+	.pre_asic_init = &soc15_pre_asic_init,
 };
 
 static const struct amdgpu_asic_funcs vega20_asic_funcs =
@@ -1069,6 +1043,7 @@ static const struct amdgpu_asic_funcs vega20_asic_funcs =
 	.need_reset_on_init = &soc15_need_reset_on_init,
 	.get_pcie_replay_count = &soc15_get_pcie_replay_count,
 	.supports_baco = &soc15_supports_baco,
+	.pre_asic_init = &soc15_pre_asic_init,
 };
 
 static int soc15_common_early_init(void *handle)
@@ -1194,7 +1169,6 @@ static int soc15_common_early_init(void *handle)
 				AMD_CG_SUPPORT_GFX_CGLS |
 				AMD_CG_SUPPORT_BIF_LS |
 				AMD_CG_SUPPORT_HDP_LS |
-				AMD_CG_SUPPORT_ROM_MGCG |
 				AMD_CG_SUPPORT_MC_MGCG |
 				AMD_CG_SUPPORT_MC_LS |
 				AMD_CG_SUPPORT_SDMA_MGCG |
@@ -1212,7 +1186,6 @@ static int soc15_common_early_init(void *handle)
 				AMD_CG_SUPPORT_GFX_CGLS |
 				AMD_CG_SUPPORT_BIF_LS |
 				AMD_CG_SUPPORT_HDP_LS |
-				AMD_CG_SUPPORT_ROM_MGCG |
 				AMD_CG_SUPPORT_MC_MGCG |
 				AMD_CG_SUPPORT_MC_LS |
 				AMD_CG_SUPPORT_SDMA_MGCG |
@@ -1220,8 +1193,7 @@ static int soc15_common_early_init(void *handle)
 
 			adev->pg_flags = AMD_PG_SUPPORT_SDMA |
 				AMD_PG_SUPPORT_MMHUB |
-				AMD_PG_SUPPORT_VCN |
-				AMD_PG_SUPPORT_VCN_DPG;
+				AMD_PG_SUPPORT_VCN;
 		} else {
 			adev->cg_flags = AMD_CG_SUPPORT_GFX_MGCG |
 				AMD_CG_SUPPORT_GFX_MGLS |
@@ -1237,7 +1209,6 @@ static int soc15_common_early_init(void *handle)
 				AMD_CG_SUPPORT_HDP_LS |
 				AMD_CG_SUPPORT_DRM_MGCG |
 				AMD_CG_SUPPORT_DRM_LS |
-				AMD_CG_SUPPORT_ROM_MGCG |
 				AMD_CG_SUPPORT_MC_MGCG |
 				AMD_CG_SUPPORT_MC_LS |
 				AMD_CG_SUPPORT_SDMA_MGCG |
@@ -1268,7 +1239,16 @@ static int soc15_common_early_init(void *handle)
 		break;
 	case CHIP_RENOIR:
 		adev->asic_funcs = &soc15_asic_funcs;
-		adev->apu_flags |= AMD_APU_IS_RENOIR;
+		if ((adev->pdev->device == 0x1636) ||
+		    (adev->pdev->device == 0x164c))
+			adev->apu_flags |= AMD_APU_IS_RENOIR;
+		else
+			adev->apu_flags |= AMD_APU_IS_GREEN_SARDINE;
+
+		if (adev->apu_flags & AMD_APU_IS_RENOIR)
+			adev->external_rev_id = adev->rev_id + 0x91;
+		else
+			adev->external_rev_id = adev->rev_id + 0xa1;
 		adev->cg_flags = AMD_CG_SUPPORT_GFX_MGCG |
 				 AMD_CG_SUPPORT_GFX_MGLS |
 				 AMD_CG_SUPPORT_GFX_3D_CGCG |
@@ -1282,7 +1262,6 @@ static int soc15_common_early_init(void *handle)
 				 AMD_CG_SUPPORT_SDMA_LS |
 				 AMD_CG_SUPPORT_BIF_LS |
 				 AMD_CG_SUPPORT_HDP_LS |
-				 AMD_CG_SUPPORT_ROM_MGCG |
 				 AMD_CG_SUPPORT_VCN_MGCG |
 				 AMD_CG_SUPPORT_JPEG_MGCG |
 				 AMD_CG_SUPPORT_IH_CG |
@@ -1293,7 +1272,6 @@ static int soc15_common_early_init(void *handle)
 				 AMD_PG_SUPPORT_VCN |
 				 AMD_PG_SUPPORT_JPEG |
 				 AMD_PG_SUPPORT_VCN_DPG;
-		adev->external_rev_id = adev->rev_id + 0x91;
 		break;
 	default:
 		/* FIXME: not supported yet */
@@ -1449,7 +1427,8 @@ static void soc15_update_hdp_light_sleep(struct amdgpu_device *adev, bool enable
 	uint32_t def, data;
 
 	if (adev->asic_type == CHIP_VEGA20 ||
-		adev->asic_type == CHIP_ARCTURUS) {
+		adev->asic_type == CHIP_ARCTURUS ||
+		adev->asic_type == CHIP_RENOIR) {
 		def = data = RREG32(SOC15_REG_OFFSET(HDP, 0, mmHDP_MEM_POWER_CTRL));
 
 		if (enable && (adev->cg_flags & AMD_CG_SUPPORT_HDP_LS))
@@ -1522,24 +1501,6 @@ static void soc15_update_drm_light_sleep(struct amdgpu_device *adev, bool enable
 		WREG32(SOC15_REG_OFFSET(MP0, 0, mmMP0_MISC_LIGHT_SLEEP_CTRL), data);
 }
 
-static void soc15_update_rom_medium_grain_clock_gating(struct amdgpu_device *adev,
-						       bool enable)
-{
-	uint32_t def, data;
-
-	def = data = RREG32(SOC15_REG_OFFSET(SMUIO, 0, mmCGTT_ROM_CLK_CTRL0));
-
-	if (enable && (adev->cg_flags & AMD_CG_SUPPORT_ROM_MGCG))
-		data &= ~(CGTT_ROM_CLK_CTRL0__SOFT_OVERRIDE0_MASK |
-			CGTT_ROM_CLK_CTRL0__SOFT_OVERRIDE1_MASK);
-	else
-		data |= CGTT_ROM_CLK_CTRL0__SOFT_OVERRIDE0_MASK |
-			CGTT_ROM_CLK_CTRL0__SOFT_OVERRIDE1_MASK;
-
-	if (def != data)
-		WREG32(SOC15_REG_OFFSET(SMUIO, 0, mmCGTT_ROM_CLK_CTRL0), data);
-}
-
 static int soc15_common_set_clockgating_state(void *handle,
 					    enum amd_clockgating_state state)
 {
@@ -1562,7 +1523,7 @@ static int soc15_common_set_clockgating_state(void *handle,
 				state == AMD_CG_STATE_GATE);
 		soc15_update_drm_light_sleep(adev,
 				state == AMD_CG_STATE_GATE);
-		soc15_update_rom_medium_grain_clock_gating(adev,
+		adev->smuio.funcs->update_rom_clock_gating(adev,
 				state == AMD_CG_STATE_GATE);
 		adev->df.funcs->update_medium_grain_clock_gating(adev,
 				state == AMD_CG_STATE_GATE);
@@ -1578,8 +1539,6 @@ static int soc15_common_set_clockgating_state(void *handle,
 		soc15_update_drm_clock_gating(adev,
 				state == AMD_CG_STATE_GATE);
 		soc15_update_drm_light_sleep(adev,
-				state == AMD_CG_STATE_GATE);
-		soc15_update_rom_medium_grain_clock_gating(adev,
 				state == AMD_CG_STATE_GATE);
 		break;
 	case CHIP_ARCTURUS:
@@ -1618,9 +1577,7 @@ static void soc15_common_get_clockgating_state(void *handle, u32 *flags)
 		*flags |= AMD_CG_SUPPORT_DRM_LS;
 
 	/* AMD_CG_SUPPORT_ROM_MGCG */
-	data = RREG32(SOC15_REG_OFFSET(SMUIO, 0, mmCGTT_ROM_CLK_CTRL0));
-	if (!(data & CGTT_ROM_CLK_CTRL0__SOFT_OVERRIDE0_MASK))
-		*flags |= AMD_CG_SUPPORT_ROM_MGCG;
+	adev->smuio.funcs->get_clock_gating_state(adev, flags);
 
 	adev->df.funcs->get_clockgating_state(adev, flags);
 }

@@ -5,7 +5,9 @@ Kernel driver amd_energy
 
 Supported chips:
 
-* AMD Family 17h Processors
+* AMD Family 17h Processors: Model 30h
+
+* AMD Family 19h Processors: Model 01h
 
   Prefix: 'amd_energy'
 
@@ -84,6 +86,11 @@ per run to a respective 64-bit counter. The kernel thread starts
 running during probe, wakes up every 100secs and stops running
 when driver is removed.
 
+Frequency of the accumulator thread is set during the probe
+based on the chosen energy unit resolution. For example
+A. fine grain (1.625 micro J)
+B. course grain (0.125 milli J)
+
 A socket and core energy read would return the current register
 value added to the respective energy accumulator.
 
@@ -107,3 +114,6 @@ energy[N]_input EcoreX	  Core Energy   X = [0] to [nr_cpus - 1]
 energy[N]_input EsocketX  Socket Energy X = [0] to [nr_socks -1]
 			  Measured input socket energy
 =============== ========  ======================================
+
+Note: To address CVE-2020-12912, the visibility of the energy[N]_input
+attributes is restricted to owner and groups only.

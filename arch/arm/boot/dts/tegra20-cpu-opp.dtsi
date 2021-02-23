@@ -37,19 +37,8 @@
 
 		opp@456000000,800 {
 			clock-latency-ns = <400000>;
-			opp-supported-hw = <0x03 0x0006>;
-			opp-hz = /bits/ 64 <456000000>;
-		};
-
-		opp@456000000,800,2,2 {
-			clock-latency-ns = <400000>;
-			opp-supported-hw = <0x04 0x0004>;
-			opp-hz = /bits/ 64 <456000000>;
-		};
-
-		opp@456000000,800,3,2 {
-			clock-latency-ns = <400000>;
-			opp-supported-hw = <0x08 0x0004>;
+			opp-supported-hw = <0x03 0x0006>, <0x04 0x0004>,
+					   <0x08 0x0004>;
 			opp-hz = /bits/ 64 <456000000>;
 		};
 
@@ -67,13 +56,7 @@
 
 		opp@608000000,800 {
 			clock-latency-ns = <400000>;
-			opp-supported-hw = <0x04 0x0006>;
-			opp-hz = /bits/ 64 <608000000>;
-		};
-
-		opp@608000000,800,3,2 {
-			clock-latency-ns = <400000>;
-			opp-supported-hw = <0x08 0x0004>;
+			opp-supported-hw = <0x04 0x0006>, <0x08 0x0004>;
 			opp-hz = /bits/ 64 <608000000>;
 		};
 
@@ -115,25 +98,8 @@
 
 		opp@760000000,875 {
 			clock-latency-ns = <400000>;
-			opp-supported-hw = <0x04 0x0001>;
-			opp-hz = /bits/ 64 <760000000>;
-		};
-
-		opp@760000000,875,1,1 {
-			clock-latency-ns = <400000>;
-			opp-supported-hw = <0x02 0x0002>;
-			opp-hz = /bits/ 64 <760000000>;
-		};
-
-		opp@760000000,875,0,2 {
-			clock-latency-ns = <400000>;
-			opp-supported-hw = <0x01 0x0004>;
-			opp-hz = /bits/ 64 <760000000>;
-		};
-
-		opp@760000000,875,1,2 {
-			clock-latency-ns = <400000>;
-			opp-supported-hw = <0x02 0x0004>;
+			opp-supported-hw = <0x04 0x0001>, <0x02 0x0002>,
+					   <0x01 0x0004>, <0x02 0x0004>;
 			opp-hz = /bits/ 64 <760000000>;
 		};
 
@@ -199,19 +165,8 @@
 
 		opp@912000000,950 {
 			clock-latency-ns = <400000>;
-			opp-supported-hw = <0x02 0x0006>;
-			opp-hz = /bits/ 64 <912000000>;
-		};
-
-		opp@912000000,950,0,2 {
-			clock-latency-ns = <400000>;
-			opp-supported-hw = <0x01 0x0004>;
-			opp-hz = /bits/ 64 <912000000>;
-		};
-
-		opp@912000000,950,2,2 {
-			clock-latency-ns = <400000>;
-			opp-supported-hw = <0x04 0x0004>;
+			opp-supported-hw = <0x02 0x0006>, <0x01 0x0004>,
+					   <0x04 0x0004>;
 			opp-hz = /bits/ 64 <912000000>;
 		};
 
@@ -253,13 +208,7 @@
 
 		opp@1000000000,1000 {
 			clock-latency-ns = <400000>;
-			opp-supported-hw = <0x02 0x0006>;
-			opp-hz = /bits/ 64 <1000000000>;
-		};
-
-		opp@1000000000,1000,0,2 {
-			clock-latency-ns = <400000>;
-			opp-supported-hw = <0x01 0x0004>;
+			opp-supported-hw = <0x02 0x0006>, <0x01 0x0004>;
 			opp-hz = /bits/ 64 <1000000000>;
 		};
 

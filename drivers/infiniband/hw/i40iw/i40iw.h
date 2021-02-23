@@ -274,7 +274,6 @@ struct i40iw_device {
 	u8 max_sge;
 	u8 iw_status;
 	u8 send_term_ok;
-	bool push_mode;		/* Initialized from parameter passed to driver */
 
 	/* x710 specific */
 	struct mutex pbl_mutex;
@@ -409,8 +408,8 @@ static inline struct i40iw_qp *to_iwqp(struct ib_qp *ibqp)
 }
 
 /* i40iw.c */
-void i40iw_add_ref(struct ib_qp *);
-void i40iw_rem_ref(struct ib_qp *);
+void i40iw_qp_add_ref(struct ib_qp *ibqp);
+void i40iw_qp_rem_ref(struct ib_qp *ibqp);
 struct ib_qp *i40iw_get_qp(struct ib_device *, int);
 
 void i40iw_flush_wqes(struct i40iw_device *iwdev,
@@ -554,9 +553,8 @@ enum i40iw_status_code i40iw_manage_qhash(struct i40iw_device *iwdev,
 					  bool wait);
 void i40iw_receive_ilq(struct i40iw_sc_vsi *vsi, struct i40iw_puda_buf *rbuf);
 void i40iw_free_sqbuf(struct i40iw_sc_vsi *vsi, void *bufp);
-void i40iw_free_qp_resources(struct i40iw_device *iwdev,
-			     struct i40iw_qp *iwqp,
-			     u32 qp_num);
+void i40iw_free_qp_resources(struct i40iw_qp *iwqp);
+
 enum i40iw_status_code i40iw_obj_aligned_mem(struct i40iw_device *iwdev,
 					     struct i40iw_dma_mem *memptr,
 					     u32 size, u32 mask);

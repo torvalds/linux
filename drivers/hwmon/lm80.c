@@ -591,8 +591,7 @@ static int lm80_detect(struct i2c_client *client, struct i2c_board_info *info)
 	return 0;
 }
 
-static int lm80_probe(struct i2c_client *client,
-		      const struct i2c_device_id *id)
+static int lm80_probe(struct i2c_client *client)
 {
 	struct device *dev = &client->dev;
 	struct device *hwmon_dev;
@@ -641,7 +640,7 @@ static struct i2c_driver lm80_driver = {
 	.driver = {
 		.name	= "lm80",
 	},
-	.probe		= lm80_probe,
+	.probe_new	= lm80_probe,
 	.id_table	= lm80_id,
 	.detect		= lm80_detect,
 	.address_list	= normal_i2c,

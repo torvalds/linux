@@ -63,7 +63,7 @@ config IIO_SW_TRIGGER
 	  using the API provided.
 
 config IIO_TRIGGERED_EVENT
-	tristate
+	tristate "Enable triggered events support"
 	select IIO_TRIGGER
 	help
 	  Provides helper functions for setting up triggered events.

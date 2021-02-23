@@ -316,7 +316,7 @@ static int tps_65023_probe(struct i2c_client *client,
 	return 0;
 }
 
-static const struct of_device_id tps65023_of_match[] = {
+static const struct of_device_id __maybe_unused tps65023_of_match[] = {
 	{ .compatible = "ti,tps65020", .data = &tps65020_drv_data},
 	{ .compatible = "ti,tps65021", .data = &tps65021_drv_data},
 	{ .compatible = "ti,tps65023", .data = &tps65023_drv_data},

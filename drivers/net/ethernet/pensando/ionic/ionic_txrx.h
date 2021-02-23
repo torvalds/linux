@@ -4,7 +4,6 @@
 #ifndef _IONIC_TXRX_H_
 #define _IONIC_TXRX_H_
 
-void ionic_rx_flush(struct ionic_cq *cq);
 void ionic_tx_flush(struct ionic_cq *cq);
 
 void ionic_rx_fill(struct ionic_queue *q);

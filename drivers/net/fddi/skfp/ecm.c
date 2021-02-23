@@ -40,10 +40,6 @@
 #define KERNEL
 #include "h/smtstate.h"
 
-#ifndef	lint
-static const char ID_sccs[] = "@(#)ecm.c	2.7 99/08/05 (C) SK " ;
-#endif
-
 /*
  * FSM Macros
  */
@@ -147,10 +143,11 @@ static void ecm_fsm(struct s_smc *smc, int cmd)
 	/* For AIX event notification: */
 	/* Is a disconnect  command remotely issued ? */
 	if (cmd == EC_DISCONNECT &&
-		smc->mib.fddiSMTRemoteDisconnectFlag == TRUE)
+	    smc->mib.fddiSMTRemoteDisconnectFlag == TRUE) {
 		AIX_EVENT (smc, (u_long) CIO_HARD_FAIL, (u_long)
 			FDDI_REMOTE_DISCONNECT, smt_get_event_word(smc),
 			smt_get_error_word(smc) );
+	}
 
 	/*jd 05-Aug-1999 Bug #10419 "Port Disconnect fails at Dup MAc Cond."*/
 	if (cmd == EC_CONNECT) {

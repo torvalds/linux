@@ -37,7 +37,7 @@
 #include <linux/root_dev.h>
 #include <linux/console.h>
 #include <linux/kernel_stat.h>
-#include <linux/dma-contiguous.h>
+#include <linux/dma-map-ops.h>
 #include <linux/device.h>
 #include <linux/notifier.h>
 #include <linux/pfn.h>
@@ -49,6 +49,7 @@
 #include <linux/memory.h>
 #include <linux/compat.h>
 #include <linux/start_kernel.h>
+#include <linux/hugetlb.h>
 
 #include <asm/boot_data.h>
 #include <asm/ipl.h>
@@ -94,15 +95,12 @@ char elf_platform[ELF_PLATFORM_SIZE];
 unsigned long int_hwcap = 0;
 
 int __bootdata(noexec_disabled);
-int __bootdata(memory_end_set);
-unsigned long __bootdata(memory_end);
+unsigned long __bootdata(ident_map_size);
 unsigned long __bootdata(vmalloc_size);
-unsigned long __bootdata(max_physmem_end);
 struct mem_detect_info __bootdata(mem_detect);
 
 struct exception_table_entry *__bootdata_preserved(__start_dma_ex_table);
 struct exception_table_entry *__bootdata_preserved(__stop_dma_ex_table);
-unsigned long __bootdata_preserved(__swsusp_reset_dma);
 unsigned long __bootdata_preserved(__stext_dma);
 unsigned long __bootdata_preserved(__etext_dma);
 unsigned long __bootdata_preserved(__sdma);
@@ -119,6 +117,7 @@ EXPORT_SYMBOL(VMALLOC_END);
 
 struct page *vmemmap;
 EXPORT_SYMBOL(vmemmap);
+unsigned long vmemmap_size;
 
 unsigned long MODULES_VADDR;
 unsigned long MODULES_END;
@@ -126,6 +125,12 @@ unsigned long MODULES_END;
 /* An array with a pointer to the lowcore of every CPU. */
 struct lowcore *lowcore_ptr[NR_CPUS];
 EXPORT_SYMBOL(lowcore_ptr);
+
+/*
+ * The Write Back bit position in the physaddr is given by the SLPC PCI.
+ * Leaving the mask zero always uses write through which is safe
+ */
+unsigned long mio_wb_bit_mask __ro_after_init;
 
 /*
  * This is set up by the setup-routine at boot-time
@@ -245,7 +250,7 @@ static void __init conmode_default(void)
 #ifdef CONFIG_CRASH_DUMP
 static void __init setup_zfcpdump(void)
 {
-	if (ipl_info.type != IPL_TYPE_FCP_DUMP)
+	if (!is_ipl_type_dump())
 		return;
 	if (OLDMEM_BASE)
 		return;
@@ -300,7 +305,7 @@ void machine_power_off(void)
 void (*pm_power_off)(void) = machine_power_off;
 EXPORT_SYMBOL_GPL(pm_power_off);
 
-void *restart_stack __section(.data);
+void *restart_stack;
 
 unsigned long stack_alloc(void)
 {
@@ -366,7 +371,11 @@ void __init arch_call_rest_init(void)
 
 static void __init setup_lowcore_dat_off(void)
 {
+	unsigned long int_psw_mask = PSW_KERNEL_BITS;
 	struct lowcore *lc;
+
+	if (IS_ENABLED(CONFIG_KASAN))
+		int_psw_mask |= PSW_MASK_DAT;
 
 	/*
 	 * Setup lowcore for boot cpu
@@ -379,15 +388,15 @@ static void __init setup_lowcore_dat_off(void)
 
 	lc->restart_psw.mask = PSW_KERNEL_BITS;
 	lc->restart_psw.addr = (unsigned long) restart_int_handler;
-	lc->external_new_psw.mask = PSW_KERNEL_BITS | PSW_MASK_MCHECK;
+	lc->external_new_psw.mask = int_psw_mask | PSW_MASK_MCHECK;
 	lc->external_new_psw.addr = (unsigned long) ext_int_handler;
-	lc->svc_new_psw.mask = PSW_KERNEL_BITS | PSW_MASK_MCHECK;
+	lc->svc_new_psw.mask = int_psw_mask | PSW_MASK_MCHECK;
 	lc->svc_new_psw.addr = (unsigned long) system_call;
-	lc->program_new_psw.mask = PSW_KERNEL_BITS | PSW_MASK_MCHECK;
+	lc->program_new_psw.mask = int_psw_mask | PSW_MASK_MCHECK;
 	lc->program_new_psw.addr = (unsigned long) pgm_check_handler;
 	lc->mcck_new_psw.mask = PSW_KERNEL_BITS;
 	lc->mcck_new_psw.addr = (unsigned long) mcck_int_handler;
-	lc->io_new_psw.mask = PSW_KERNEL_BITS | PSW_MASK_MCHECK;
+	lc->io_new_psw.mask = int_psw_mask | PSW_MASK_MCHECK;
 	lc->io_new_psw.addr = (unsigned long) io_int_handler;
 	lc->clock_comparator = clock_comparator_max;
 	lc->nodat_stack = ((unsigned long) &init_thread_union)
@@ -402,7 +411,6 @@ static void __init setup_lowcore_dat_off(void)
 	memcpy(lc->alt_stfle_fac_list, S390_lowcore.alt_stfle_fac_list,
 	       sizeof(lc->alt_stfle_fac_list));
 	nmi_alloc_boot_cpu(lc);
-	vdso_alloc_boot_cpu(lc);
 	lc->sync_enter_timer = S390_lowcore.sync_enter_timer;
 	lc->async_enter_timer = S390_lowcore.async_enter_timer;
 	lc->exit_timer = S390_lowcore.exit_timer;
@@ -484,8 +492,9 @@ static struct resource __initdata *standard_resources[] = {
 static void __init setup_resources(void)
 {
 	struct resource *res, *std_res, *sub_res;
-	struct memblock_region *reg;
+	phys_addr_t start, end;
 	int j;
+	u64 i;
 
 	code_resource.start = (unsigned long) _text;
 	code_resource.end = (unsigned long) _etext - 1;
@@ -494,7 +503,7 @@ static void __init setup_resources(void)
 	bss_resource.start = (unsigned long) __bss_start;
 	bss_resource.end = (unsigned long) __bss_stop - 1;
 
-	for_each_memblock(memory, reg) {
+	for_each_mem_range(i, &start, &end) {
 		res = memblock_alloc(sizeof(*res), 8);
 		if (!res)
 			panic("%s: Failed to allocate %zu bytes align=0x%x\n",
@@ -502,8 +511,13 @@ static void __init setup_resources(void)
 		res->flags = IORESOURCE_BUSY | IORESOURCE_SYSTEM_RAM;
 
 		res->name = "System RAM";
-		res->start = reg->base;
-		res->end = reg->base + reg->size - 1;
+		res->start = start;
+		/*
+		 * In memblock, end points to the first byte after the
+		 * range while in resourses, end points to the last byte in
+		 * the range.
+		 */
+		res->end = end - 1;
 		request_resource(&iomem_resource, res);
 
 		for (j = 0; j < ARRAY_SIZE(standard_resources); j++) {
@@ -541,29 +555,25 @@ static void __init setup_resources(void)
 #endif
 }
 
-static void __init setup_memory_end(void)
+static void __init setup_ident_map_size(void)
 {
 	unsigned long vmax, tmp;
 
 	/* Choose kernel address space layout: 3 or 4 levels. */
-	if (IS_ENABLED(CONFIG_KASAN)) {
-		vmax = IS_ENABLED(CONFIG_KASAN_S390_4_LEVEL_PAGING)
-			   ? _REGION1_SIZE
-			   : _REGION2_SIZE;
-	} else {
-		tmp = (memory_end ?: max_physmem_end) / PAGE_SIZE;
-		tmp = tmp * (sizeof(struct page) + PAGE_SIZE);
-		if (tmp + vmalloc_size + MODULES_LEN <= _REGION2_SIZE)
-			vmax = _REGION2_SIZE; /* 3-level kernel page table */
-		else
-			vmax = _REGION1_SIZE; /* 4-level kernel page table */
-	}
-
-	if (is_prot_virt_host())
-		adjust_to_uv_max(&vmax);
-
+	tmp = ident_map_size / PAGE_SIZE;
+	tmp = tmp * (sizeof(struct page) + PAGE_SIZE);
+	if (tmp + vmalloc_size + MODULES_LEN <= _REGION2_SIZE)
+		vmax = _REGION2_SIZE; /* 3-level kernel page table */
+	else
+		vmax = _REGION1_SIZE; /* 4-level kernel page table */
 	/* module area is at the end of the kernel address space. */
 	MODULES_END = vmax;
+	if (is_prot_virt_host())
+		adjust_to_uv_max(&MODULES_END);
+#ifdef CONFIG_KASAN
+	vmax = _REGION1_SIZE;
+	MODULES_END = kasan_vmax;
+#endif
 	MODULES_VADDR = MODULES_END - MODULES_LEN;
 	VMALLOC_END = MODULES_VADDR;
 	VMALLOC_START = VMALLOC_END - vmalloc_size;
@@ -577,17 +587,22 @@ static void __init setup_memory_end(void)
 	tmp = min(tmp, 1UL << MAX_PHYSMEM_BITS);
 	vmemmap = (struct page *) tmp;
 
-	/* Take care that memory_end is set and <= vmemmap */
-	memory_end = min(memory_end ?: max_physmem_end, (unsigned long)vmemmap);
+	/* Take care that ident_map_size <= vmemmap */
+	ident_map_size = min(ident_map_size, (unsigned long)vmemmap);
 #ifdef CONFIG_KASAN
-	/* fit in kasan shadow memory region between 1:1 and vmemmap */
-	memory_end = min(memory_end, KASAN_SHADOW_START);
-	vmemmap = max(vmemmap, (struct page *)KASAN_SHADOW_END);
+	ident_map_size = min(ident_map_size, KASAN_SHADOW_START);
 #endif
-	max_pfn = max_low_pfn = PFN_DOWN(memory_end);
-	memblock_remove(memory_end, ULONG_MAX);
+	vmemmap_size = SECTION_ALIGN_UP(ident_map_size / PAGE_SIZE) * sizeof(struct page);
+#ifdef CONFIG_KASAN
+	/* move vmemmap above kasan shadow only if stands in a way */
+	if (KASAN_SHADOW_END > (unsigned long)vmemmap &&
+	    (unsigned long)vmemmap + vmemmap_size > KASAN_SHADOW_START)
+		vmemmap = max(vmemmap, (struct page *)KASAN_SHADOW_END);
+#endif
+	max_pfn = max_low_pfn = PFN_DOWN(ident_map_size);
+	memblock_remove(ident_map_size, ULONG_MAX);
 
-	pr_notice("The maximum memory size is %luMB\n", memory_end >> 20);
+	pr_notice("The maximum memory size is %luMB\n", ident_map_size >> 20);
 }
 
 #ifdef CONFIG_CRASH_DUMP
@@ -617,12 +632,11 @@ static struct notifier_block kdump_mem_nb = {
 #endif
 
 /*
- * Make sure that the area behind memory_end is protected
+ * Make sure that the area above identity mapping is protected
  */
-static void __init reserve_memory_end(void)
+static void __init reserve_above_ident_map(void)
 {
-	if (memory_end_set)
-		memblock_reserve(memory_end, ULONG_MAX);
+	memblock_reserve(ident_map_size, ULONG_MAX);
 }
 
 /*
@@ -659,7 +673,7 @@ static void __init reserve_crashkernel(void)
 	phys_addr_t low, high;
 	int rc;
 
-	rc = parse_crashkernel(boot_command_line, memory_end, &crash_size,
+	rc = parse_crashkernel(boot_command_line, ident_map_size, &crash_size,
 			       &crash_base);
 
 	crash_base = ALIGN(crash_base, KEXEC_CRASH_MEM_ALIGN);
@@ -776,8 +790,8 @@ static void __init memblock_add_mem_detect_info(void)
 	unsigned long start, end;
 	int i;
 
-	memblock_dbg("physmem info source: %s (%hhd)\n",
-		     get_mem_info_source(), mem_detect.info_source);
+	pr_debug("physmem info source: %s (%hhd)\n",
+		 get_mem_info_source(), mem_detect.info_source);
 	/* keep memblock lists close to the kernel */
 	memblock_set_bottom_up(true);
 	for_each_mem_detect_block(i, &start, &end) {
@@ -819,14 +833,15 @@ static void __init reserve_kernel(void)
 
 static void __init setup_memory(void)
 {
-	struct memblock_region *reg;
+	phys_addr_t start, end;
+	u64 i;
 
 	/*
 	 * Init storage key for present memory
 	 */
-	for_each_memblock(memory, reg) {
-		storage_key_init_range(reg->base, reg->base + reg->size);
-	}
+	for_each_mem_range(i, &start, &end)
+		storage_key_init_range(start, end);
+
 	psw_set_key(PAGE_DEFAULT_KEY);
 
 	/* Only cosmetics */
@@ -1112,7 +1127,7 @@ void __init setup_arch(char **cmdline_p)
 	setup_control_program_code();
 
 	/* Do some memory reservations *before* memory is added to memblock */
-	reserve_memory_end();
+	reserve_above_ident_map();
 	reserve_oldmem();
 	reserve_kernel();
 	reserve_initrd();
@@ -1126,12 +1141,13 @@ void __init setup_arch(char **cmdline_p)
 	free_mem_detect_info();
 	remove_oldmem();
 
-	if (is_prot_virt_host())
-		setup_uv();
-	setup_memory_end();
+	setup_uv();
+	setup_ident_map_size();
 	setup_memory();
-	dma_contiguous_reserve(memory_end);
+	dma_contiguous_reserve(ident_map_size);
 	vmcp_cma_reserve();
+	if (MACHINE_HAS_EDAT2)
+		hugetlb_cma_reserve(PUD_SHIFT - PAGE_SHIFT);
 
 	check_initrd();
 	reserve_crashkernel();
@@ -1171,7 +1187,7 @@ void __init setup_arch(char **cmdline_p)
 	if (IS_ENABLED(CONFIG_EXPOLINE))
 		nospec_init_branches();
 
-	/* Setup zfcpdump support */
+	/* Setup zfcp/nvme dump support */
 	setup_zfcpdump();
 
 	/* Add system specific data to the random pool */

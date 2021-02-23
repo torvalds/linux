@@ -196,7 +196,7 @@
 };
 
 &sdio {
-	status = "ok";
+	status = "okay";
 };
 
 &uart0 {
@@ -209,4 +209,8 @@
 
 &xhci {
 	status = "okay";
+};
+
+&srab {
+	compatible = "brcm,bcm58525-srab", "brcm,nsp-srab";
 };

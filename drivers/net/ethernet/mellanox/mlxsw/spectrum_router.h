@@ -15,6 +15,27 @@ struct mlxsw_sp_router_nve_decap {
 	u8 valid:1;
 };
 
+struct mlxsw_sp_fib_entry_op_ctx {
+	u8 bulk_ok:1, /* Indicate to the low-level op it is ok to bulk
+		       * the actual entry with the one that is the next
+		       * in queue.
+		       */
+	   initialized:1; /* Bit that the low-level op sets in case
+			   * the context priv is initialized.
+			   */
+	struct list_head fib_entry_priv_list;
+	unsigned long event;
+	unsigned long ll_priv[];
+};
+
+static inline void
+mlxsw_sp_fib_entry_op_ctx_clear(struct mlxsw_sp_fib_entry_op_ctx *op_ctx)
+{
+	WARN_ON_ONCE(!list_empty(&op_ctx->fib_entry_priv_list));
+	memset(op_ctx, 0, sizeof(*op_ctx));
+	INIT_LIST_HEAD(&op_ctx->fib_entry_priv_list);
+}
+
 struct mlxsw_sp_router {
 	struct mlxsw_sp *mlxsw_sp;
 	struct mlxsw_sp_rif **rifs;
@@ -38,6 +59,7 @@ struct mlxsw_sp_router {
 	struct list_head nexthop_neighs_list;
 	struct list_head ipip_list;
 	bool aborted;
+	struct notifier_block nexthop_nb;
 	struct notifier_block fib_nb;
 	struct notifier_block netevent_nb;
 	struct notifier_block inetaddr_nb;
@@ -48,6 +70,56 @@ struct mlxsw_sp_router {
 	bool adj_discard_index_valid;
 	struct mlxsw_sp_router_nve_decap nve_decap_config;
 	struct mutex lock; /* Protects shared router resources */
+	struct work_struct fib_event_work;
+	struct list_head fib_event_queue;
+	spinlock_t fib_event_queue_lock; /* Protects fib event queue list */
+	/* One set of ops for each protocol: IPv4 and IPv6 */
+	const struct mlxsw_sp_router_ll_ops *proto_ll_ops[MLXSW_SP_L3_PROTO_MAX];
+	struct mlxsw_sp_fib_entry_op_ctx *ll_op_ctx;
+	u16 lb_rif_index;
+	struct mlxsw_sp_router_xm *xm;
+};
+
+struct mlxsw_sp_fib_entry_priv {
+	refcount_t refcnt;
+	struct list_head list; /* Member in op_ctx->fib_entry_priv_list */
+	unsigned long priv[];
+};
+
+enum mlxsw_sp_fib_entry_op {
+	MLXSW_SP_FIB_ENTRY_OP_WRITE,
+	MLXSW_SP_FIB_ENTRY_OP_UPDATE,
+	MLXSW_SP_FIB_ENTRY_OP_DELETE,
+};
+
+/* Low-level router ops. Basically this is to handle the different
+ * register sets to work with ordinary and XM trees and FIB entries.
+ */
+struct mlxsw_sp_router_ll_ops {
+	int (*init)(struct mlxsw_sp *mlxsw_sp, u16 vr_id,
+		    enum mlxsw_sp_l3proto proto);
+	int (*ralta_write)(struct mlxsw_sp *mlxsw_sp, char *xralta_pl);
+	int (*ralst_write)(struct mlxsw_sp *mlxsw_sp, char *xralst_pl);
+	int (*raltb_write)(struct mlxsw_sp *mlxsw_sp, char *xraltb_pl);
+	size_t fib_entry_op_ctx_size;
+	size_t fib_entry_priv_size;
+	void (*fib_entry_pack)(struct mlxsw_sp_fib_entry_op_ctx *op_ctx,
+			       enum mlxsw_sp_l3proto proto, enum mlxsw_sp_fib_entry_op op,
+			       u16 virtual_router, u8 prefix_len, unsigned char *addr,
+			       struct mlxsw_sp_fib_entry_priv *priv);
+	void (*fib_entry_act_remote_pack)(struct mlxsw_sp_fib_entry_op_ctx *op_ctx,
+					  enum mlxsw_reg_ralue_trap_action trap_action,
+					  u16 trap_id, u32 adjacency_index, u16 ecmp_size);
+	void (*fib_entry_act_local_pack)(struct mlxsw_sp_fib_entry_op_ctx *op_ctx,
+					 enum mlxsw_reg_ralue_trap_action trap_action,
+					 u16 trap_id, u16 local_erif);
+	void (*fib_entry_act_ip2me_pack)(struct mlxsw_sp_fib_entry_op_ctx *op_ctx);
+	void (*fib_entry_act_ip2me_tun_pack)(struct mlxsw_sp_fib_entry_op_ctx *op_ctx,
+					     u32 tunnel_ptr);
+	int (*fib_entry_commit)(struct mlxsw_sp *mlxsw_sp,
+				struct mlxsw_sp_fib_entry_op_ctx *op_ctx,
+				bool *postponed_for_bulk);
+	bool (*fib_entry_is_committed)(struct mlxsw_sp_fib_entry_priv *priv);
 };
 
 struct mlxsw_sp_rif_ipip_lb;
@@ -129,6 +201,7 @@ int mlxsw_sp_nexthop_indexes(struct mlxsw_sp_nexthop *nh, u32 *p_adj_index,
 			     u32 *p_adj_size, u32 *p_adj_hash_index);
 struct mlxsw_sp_rif *mlxsw_sp_nexthop_rif(struct mlxsw_sp_nexthop *nh);
 bool mlxsw_sp_nexthop_group_has_ipip(struct mlxsw_sp_nexthop *nh);
+bool mlxsw_sp_nexthop_is_discard(const struct mlxsw_sp_nexthop *nh);
 #define mlxsw_sp_nexthop_for_each(nh, router)				\
 	for (nh = mlxsw_sp_nexthop_next(router, NULL); nh;		\
 	     nh = mlxsw_sp_nexthop_next(router, nh))
@@ -149,5 +222,11 @@ static inline bool mlxsw_sp_l3addr_eq(const union mlxsw_sp_l3addr *addr1,
 
 int mlxsw_sp_ipip_ecn_encap_init(struct mlxsw_sp *mlxsw_sp);
 int mlxsw_sp_ipip_ecn_decap_init(struct mlxsw_sp *mlxsw_sp);
+
+extern const struct mlxsw_sp_router_ll_ops mlxsw_sp_router_ll_xm_ops;
+
+int mlxsw_sp_router_xm_init(struct mlxsw_sp *mlxsw_sp);
+void mlxsw_sp_router_xm_fini(struct mlxsw_sp *mlxsw_sp);
+bool mlxsw_sp_router_xm_ipv4_is_supported(const struct mlxsw_sp *mlxsw_sp);
 
 #endif /* _MLXSW_ROUTER_H_*/

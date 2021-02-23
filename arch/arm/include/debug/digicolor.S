@@ -21,7 +21,10 @@
 		strb	\rd, [\rx, #UA0_EMI_REC]
 		.endm
 
-		.macro	waituart,rd,rx
+		.macro	waituartcts,rd,rx
+		.endm
+
+		.macro	waituarttxrdy,rd,rx
 		.endm
 
 	.macro	busyuart,rd,rx

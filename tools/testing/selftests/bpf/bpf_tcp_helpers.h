@@ -16,6 +16,7 @@ BPF_PROG(name, args)
 
 struct sock_common {
 	unsigned char	skc_state;
+	__u16		skc_num;
 } __attribute__((preserve_access_index));
 
 enum sk_pacing {
@@ -45,12 +46,17 @@ struct inet_connection_sock {
 	__u64			  icsk_ca_priv[104 / sizeof(__u64)];
 } __attribute__((preserve_access_index));
 
+struct request_sock {
+	struct sock_common		__req_common;
+} __attribute__((preserve_access_index));
+
 struct tcp_sock {
 	struct inet_connection_sock	inet_conn;
 
 	__u32	rcv_nxt;
 	__u32	snd_nxt;
 	__u32	snd_una;
+	__u32	window_clamp;
 	__u8	ecn_flags;
 	__u32	delivered;
 	__u32	delivered_ce;
@@ -113,14 +119,6 @@ enum tcp_ca_event {
 	CA_EVENT_LOSS = 3,
 	CA_EVENT_ECN_NO_CE = 4,
 	CA_EVENT_ECN_IS_CE = 5,
-};
-
-enum tcp_ca_state {
-	TCP_CA_Open = 0,
-	TCP_CA_Disorder = 1,
-	TCP_CA_CWR = 2,
-	TCP_CA_Recovery = 3,
-	TCP_CA_Loss = 4
 };
 
 struct ack_sample {

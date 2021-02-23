@@ -1,8 +1,7 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * QLogic Fibre Channel HBA Driver
  * Copyright (c)  2003-2014 QLogic Corporation
- *
- * See LICENSE.qla2xxx for copyright and licensing details.
  */
 #include "qla_def.h"
 #include "qla_target.h"
@@ -1502,7 +1501,7 @@ qla2x00_prep_ct_fdmi_req(struct ct_sns_pkt *p, uint16_t cmd,
 	return &p->p.req;
 }
 
-static uint
+uint
 qla25xx_fdmi_port_speed_capability(struct qla_hw_data *ha)
 {
 	uint speeds = 0;
@@ -1546,7 +1545,7 @@ qla25xx_fdmi_port_speed_capability(struct qla_hw_data *ha)
 		}
 		return speeds;
 	}
-	if (IS_QLA25XX(ha))
+	if (IS_QLA25XX(ha) || IS_QLAFX00(ha))
 		return FDMI_PORT_SPEED_8GB|FDMI_PORT_SPEED_4GB|
 			FDMI_PORT_SPEED_2GB|FDMI_PORT_SPEED_1GB;
 	if (IS_QLA24XX_TYPE(ha))
@@ -1556,7 +1555,8 @@ qla25xx_fdmi_port_speed_capability(struct qla_hw_data *ha)
 		return FDMI_PORT_SPEED_2GB|FDMI_PORT_SPEED_1GB;
 	return FDMI_PORT_SPEED_1GB;
 }
-static uint
+
+uint
 qla25xx_fdmi_port_speed_currently(struct qla_hw_data *ha)
 {
 	switch (ha->link_data_rate) {
@@ -3558,10 +3558,10 @@ login_logout:
 					if (fcport->flags & FCF_FCP2_DEVICE)
 						fcport->logout_on_delete = 0;
 
-					ql_dbg(ql_dbg_disc, vha, 0x20f0,
-					    "%s %d %8phC post del sess\n",
-					    __func__, __LINE__,
-					    fcport->port_name);
+					ql_log(ql_log_warn, vha, 0x20f0,
+					       "%s %d %8phC post del sess\n",
+					       __func__, __LINE__,
+					       fcport->port_name);
 
 					qlt_schedule_sess_for_deletion(fcport);
 					continue;

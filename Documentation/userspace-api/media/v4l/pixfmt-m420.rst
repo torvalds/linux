@@ -1,11 +1,4 @@
-.. Permission is granted to copy, distribute and/or modify this
-.. document under the terms of the GNU Free Documentation License,
-.. Version 1.1 or any later version published by the Free Software
-.. Foundation, with no Invariant Sections, no Front-Cover Texts
-.. and no Back-Cover Texts. A copy of the license is included at
-.. Documentation/userspace-api/media/fdl-appendix.rst.
-..
-.. TODO: replace it to GFDL-1.1-or-later WITH no-invariant-sections
+.. SPDX-License-Identifier: GFDL-1.1-no-invariants-or-later
 
 .. _V4L2-PIX-FMT-M420:
 
@@ -74,60 +67,5 @@ Each cell is one byte.
 
 
 **Color Sample Location:**
-
-
-
-.. flat-table::
-    :header-rows:  0
-    :stub-columns: 0
-
-    * -
-      - 0
-      -
-      - 1
-      - 2
-      -
-      - 3
-    * - 0
-      - Y
-      -
-      - Y
-      - Y
-      -
-      - Y
-    * -
-      -
-      - C
-      -
-      -
-      - C
-      -
-    * - 1
-      - Y
-      -
-      - Y
-      - Y
-      -
-      - Y
-    * -
-    * - 2
-      - Y
-      -
-      - Y
-      - Y
-      -
-      - Y
-    * -
-      -
-      - C
-      -
-      -
-      - C
-      -
-    * - 3
-      - Y
-      -
-      - Y
-      - Y
-      -
-      - Y
+Chroma samples are :ref:`interstitially sited<yuv-chroma-centered>`
+horizontally and vertically.

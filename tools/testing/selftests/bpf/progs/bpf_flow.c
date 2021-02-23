@@ -118,18 +118,18 @@ static __always_inline int parse_eth_proto(struct __sk_buff *skb, __be16 proto)
 
 	switch (proto) {
 	case bpf_htons(ETH_P_IP):
-		bpf_tail_call(skb, &jmp_table, IP);
+		bpf_tail_call_static(skb, &jmp_table, IP);
 		break;
 	case bpf_htons(ETH_P_IPV6):
-		bpf_tail_call(skb, &jmp_table, IPV6);
+		bpf_tail_call_static(skb, &jmp_table, IPV6);
 		break;
 	case bpf_htons(ETH_P_MPLS_MC):
 	case bpf_htons(ETH_P_MPLS_UC):
-		bpf_tail_call(skb, &jmp_table, MPLS);
+		bpf_tail_call_static(skb, &jmp_table, MPLS);
 		break;
 	case bpf_htons(ETH_P_8021Q):
 	case bpf_htons(ETH_P_8021AD):
-		bpf_tail_call(skb, &jmp_table, VLAN);
+		bpf_tail_call_static(skb, &jmp_table, VLAN);
 		break;
 	default:
 		/* Protocol not supported */
@@ -246,10 +246,10 @@ static __always_inline int parse_ipv6_proto(struct __sk_buff *skb, __u8 nexthdr)
 	switch (nexthdr) {
 	case IPPROTO_HOPOPTS:
 	case IPPROTO_DSTOPTS:
-		bpf_tail_call(skb, &jmp_table, IPV6OP);
+		bpf_tail_call_static(skb, &jmp_table, IPV6OP);
 		break;
 	case IPPROTO_FRAGMENT:
-		bpf_tail_call(skb, &jmp_table, IPV6FR);
+		bpf_tail_call_static(skb, &jmp_table, IPV6FR);
 		break;
 	default:
 		return parse_ip_proto(skb, nexthdr);
@@ -368,6 +368,8 @@ PROG(IPV6FR)(struct __sk_buff *skb)
 		 */
 		if (!(keys->flags & BPF_FLOW_DISSECTOR_F_PARSE_1ST_FRAG))
 			return export_flow_keys(keys, BPF_OK);
+	} else {
+		return export_flow_keys(keys, BPF_OK);
 	}
 
 	return parse_ipv6_proto(skb, fragh->nexthdr);

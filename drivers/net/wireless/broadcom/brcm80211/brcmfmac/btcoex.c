@@ -65,11 +65,12 @@ enum brcmf_btcoex_state {
  * @reg68: saved value of btc_params 68
  * @saved_regs_part1: flag indicating regs 66,41,68
  *	have been saved
+ * @reg50: saved value of btc_params 50
  * @reg51: saved value of btc_params 51
  * @reg64: saved value of btc_params 64
  * @reg65: saved value of btc_params 65
  * @reg71: saved value of btc_params 71
- * @saved_regs_part1: flag indicating regs 50,51,64,65,71
+ * @saved_regs_part2: flag indicating regs 50,51,64,65,71
  *	have been saved
  */
 struct brcmf_btcoex_info {
@@ -226,7 +227,7 @@ static bool brcmf_btcoex_is_sco_active(struct brcmf_if *ifp)
 	return res;
 }
 
-/**
+/*
  * btcmf_btcoex_save_part1() - save first step parameters.
  */
 static void btcmf_btcoex_save_part1(struct brcmf_btcoex_info *btci)
@@ -246,7 +247,7 @@ static void btcmf_btcoex_save_part1(struct brcmf_btcoex_info *btci)
 	}
 }
 
-/**
+/*
  * brcmf_btcoex_restore_part1() - restore first step parameters.
  */
 static void brcmf_btcoex_restore_part1(struct brcmf_btcoex_info *btci)
@@ -266,7 +267,7 @@ static void brcmf_btcoex_restore_part1(struct brcmf_btcoex_info *btci)
 	}
 }
 
-/**
+/*
  * brcmf_btcoex_timerfunc() - BT coex timer callback
  */
 static void brcmf_btcoex_timerfunc(struct timer_list *t)
@@ -441,9 +442,8 @@ static void brcmf_btcoex_dhcp_end(struct brcmf_btcoex_info *btci)
 	}
 }
 
-/**
+/*
  * brcmf_btcoex_set_mode - set BT coex mode
- * @cfg: driver private cfg80211 data
  * @mode: Wifi-Bluetooth coexistence mode
  *
  * return: 0 on success

@@ -203,10 +203,8 @@ EXPORT_SYMBOL(iio_trigger_poll_chained);
 void iio_trigger_notify_done(struct iio_trigger *trig)
 {
 	if (atomic_dec_and_test(&trig->use_count) && trig->ops &&
-	    trig->ops->try_reenable)
-		if (trig->ops->try_reenable(trig))
-			/* Missed an interrupt so launch new poll now */
-			iio_trigger_poll(trig);
+	    trig->ops->reenable)
+		trig->ops->reenable(trig);
 }
 EXPORT_SYMBOL(iio_trigger_notify_done);
 
@@ -516,7 +514,8 @@ static void iio_trig_subirqunmask(struct irq_data *d)
 	trig->subirqs[d->irq - trig->subirq_base].enabled = true;
 }
 
-static struct iio_trigger *viio_trigger_alloc(const char *fmt, va_list vargs)
+static __printf(1, 0)
+struct iio_trigger *viio_trigger_alloc(const char *fmt, va_list vargs)
 {
 	struct iio_trigger *trig;
 	int i;

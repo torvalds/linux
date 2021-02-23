@@ -7,6 +7,9 @@
 #ifdef CONFIG_PROTECTED_VIRTUALIZATION_GUEST
 int __bootdata_preserved(prot_virt_guest);
 #endif
+#if IS_ENABLED(CONFIG_KVM)
+int __bootdata_preserved(prot_virt_host);
+#endif
 struct uv_info __bootdata_preserved(uv_info);
 
 void uv_query_info(void)
@@ -32,7 +35,7 @@ void uv_query_info(void)
 		uv_info.guest_cpu_stor_len = uvcb.cpu_stor_len;
 		uv_info.max_sec_stor_addr = ALIGN(uvcb.max_guest_stor_addr, PAGE_SIZE);
 		uv_info.max_num_sec_conf = uvcb.max_num_sec_conf;
-		uv_info.max_guest_cpus = uvcb.max_guest_cpus;
+		uv_info.max_guest_cpu_id = uvcb.max_guest_cpu_id;
 	}
 
 #ifdef CONFIG_PROTECTED_VIRTUALIZATION_GUEST

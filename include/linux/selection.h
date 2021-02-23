@@ -33,21 +33,23 @@ extern unsigned char default_red[];
 extern unsigned char default_grn[];
 extern unsigned char default_blu[];
 
-extern unsigned short *screen_pos(struct vc_data *vc, int w_offset, int viewed);
-extern u16 screen_glyph(struct vc_data *vc, int offset);
-extern u32 screen_glyph_unicode(struct vc_data *vc, int offset);
+extern unsigned short *screen_pos(const struct vc_data *vc, int w_offset,
+		bool viewed);
+extern u16 screen_glyph(const struct vc_data *vc, int offset);
+extern u32 screen_glyph_unicode(const struct vc_data *vc, int offset);
 extern void complement_pos(struct vc_data *vc, int offset);
-extern void invert_screen(struct vc_data *vc, int offset, int count, int shift);
+extern void invert_screen(struct vc_data *vc, int offset, int count, bool viewed);
 
-extern void getconsxy(struct vc_data *vc, unsigned char *p);
-extern void putconsxy(struct vc_data *vc, unsigned char *p);
+extern void getconsxy(const struct vc_data *vc, unsigned char xy[static 2]);
+extern void putconsxy(struct vc_data *vc, unsigned char xy[static const 2]);
 
-extern u16 vcs_scr_readw(struct vc_data *vc, const u16 *org);
+extern u16 vcs_scr_readw(const struct vc_data *vc, const u16 *org);
 extern void vcs_scr_writew(struct vc_data *vc, u16 val, u16 *org);
 extern void vcs_scr_updated(struct vc_data *vc);
 
 extern int vc_uniscr_check(struct vc_data *vc);
-extern void vc_uniscr_copy_line(struct vc_data *vc, void *dest, int viewed,
+extern void vc_uniscr_copy_line(const struct vc_data *vc, void *dest,
+				bool viewed,
 				unsigned int row, unsigned int col,
 				unsigned int nr);
 

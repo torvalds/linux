@@ -274,7 +274,7 @@ static int max77826_i2c_probe(struct i2c_client *client)
 	return max77826_read_device_id(regmap, dev);
 }
 
-static const struct of_device_id max77826_of_match[] = {
+static const struct of_device_id __maybe_unused max77826_of_match[] = {
 	{ .compatible = "maxim,max77826" },
 	{ /* sentinel */ }
 };

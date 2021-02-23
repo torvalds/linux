@@ -118,7 +118,8 @@ static void tipc_tlv_init(struct sk_buff *skb, u16 type)
 	skb_put(skb, sizeof(struct tlv_desc));
 }
 
-static int tipc_tlv_sprintf(struct sk_buff *skb, const char *fmt, ...)
+static __printf(2, 3) int tipc_tlv_sprintf(struct sk_buff *skb,
+					   const char *fmt, ...)
 {
 	int n;
 	u16 len;
@@ -212,12 +213,14 @@ static int __tipc_nl_compat_dumpit(struct tipc_nl_compat_cmd_dump *cmd,
 	}
 
 	info.attrs = attrbuf;
-	err = nlmsg_parse_deprecated(cb.nlh, GENL_HDRLEN, attrbuf,
-				     tipc_genl_family.maxattr,
-				     tipc_genl_family.policy, NULL);
-	if (err)
-		goto err_out;
 
+	if (nlmsg_len(cb.nlh) > 0) {
+		err = nlmsg_parse_deprecated(cb.nlh, GENL_HDRLEN, attrbuf,
+					     tipc_genl_family.maxattr,
+					     tipc_genl_family.policy, NULL);
+		if (err)
+			goto err_out;
+	}
 	do {
 		int rem;
 
@@ -588,7 +591,7 @@ static int tipc_nl_compat_link_stat_dump(struct tipc_nl_compat_msg *msg,
 		return 0;
 
 	tipc_tlv_sprintf(msg->rep, "\nLink <%s>\n",
-			 nla_data(link[TIPC_NLA_LINK_NAME]));
+			 (char *)nla_data(link[TIPC_NLA_LINK_NAME]));
 
 	if (link[TIPC_NLA_LINK_BROADCAST]) {
 		__fill_bc_link_stat(msg, prop, stats);
@@ -695,7 +698,7 @@ static int tipc_nl_compat_link_dump(struct tipc_nl_compat_msg *msg,
 
 	link_info.dest = nla_get_flag(link[TIPC_NLA_LINK_DEST]);
 	link_info.up = htonl(nla_get_flag(link[TIPC_NLA_LINK_UP]));
-	nla_strlcpy(link_info.str, link[TIPC_NLA_LINK_NAME],
+	nla_strscpy(link_info.str, link[TIPC_NLA_LINK_NAME],
 		    TIPC_MAX_LINK_NAME);
 
 	return tipc_add_tlv(msg->rep, TIPC_TLV_LINK_INFO,
@@ -1337,7 +1340,7 @@ send:
 	return err;
 }
 
-static const struct genl_ops tipc_genl_compat_ops[] = {
+static const struct genl_small_ops tipc_genl_compat_ops[] = {
 	{
 		.cmd		= TIPC_GENL_CMD,
 		.validate = GENL_DONT_VALIDATE_STRICT | GENL_DONT_VALIDATE_DUMP,
@@ -1352,8 +1355,8 @@ static struct genl_family tipc_genl_compat_family __ro_after_init = {
 	.maxattr	= 0,
 	.netnsok	= true,
 	.module		= THIS_MODULE,
-	.ops		= tipc_genl_compat_ops,
-	.n_ops		= ARRAY_SIZE(tipc_genl_compat_ops),
+	.small_ops	= tipc_genl_compat_ops,
+	.n_small_ops	= ARRAY_SIZE(tipc_genl_compat_ops),
 };
 
 int __init tipc_netlink_compat_start(void)

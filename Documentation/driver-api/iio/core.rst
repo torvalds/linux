@@ -10,7 +10,7 @@ applications manipulating sensors. The implementation can be found under
 Industrial I/O Devices
 ----------------------
 
-* struct :c:type:`iio_dev` - industrial I/O device
+* struct iio_dev - industrial I/O device
 * iio_device_alloc() - allocate an :c:type:`iio_dev` from a driver
 * iio_device_free() - free an :c:type:`iio_dev` from a driver
 * iio_device_register() - register a device with the IIO subsystem
@@ -66,7 +66,7 @@ Common attributes are:
 IIO device channels
 ===================
 
-struct :c:type:`iio_chan_spec` - specification of a single channel
+struct iio_chan_spec - specification of a single channel
 
 An IIO device channel is a representation of a data channel. An IIO device can
 have one or multiple channels. For example:
@@ -77,7 +77,7 @@ have one or multiple channels. For example:
 * an accelerometer can have up to 3 channels representing acceleration on X, Y
   and Z axes.
 
-An IIO channel is described by the struct :c:type:`iio_chan_spec`.
+An IIO channel is described by the struct iio_chan_spec.
 A thermometer driver for the temperature sensor in the example above would
 have to describe its channel as follows::
 

@@ -22,4 +22,7 @@ properties:
           - st,spear320
           - st,spear1310
           - st,spear1340
+
+additionalProperties: true
+
 ...

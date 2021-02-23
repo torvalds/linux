@@ -125,10 +125,12 @@ int amdgpu_umc_process_ras_data_cb(struct amdgpu_device *adev,
 				"detected in UMC block\n",
 				err_data->ue_count);
 
-		if (err_data->err_addr_cnt &&
-		    amdgpu_ras_add_bad_pages(adev, err_data->err_addr,
-						err_data->err_addr_cnt))
-			dev_warn(adev->dev, "Failed to add ras bad page!\n");
+		if ((amdgpu_bad_page_threshold != 0) &&
+			err_data->err_addr_cnt) {
+			amdgpu_ras_add_bad_pages(adev, err_data->err_addr,
+						err_data->err_addr_cnt);
+			amdgpu_ras_save_bad_pages(adev);
+		}
 
 		amdgpu_ras_reset_gpu(adev);
 	}

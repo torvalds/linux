@@ -238,6 +238,20 @@ struct mv88e6xxx_port {
 	bool mirror_egress;
 	unsigned int serdes_irq;
 	char serdes_irq_name[64];
+	struct devlink_region *region;
+};
+
+enum mv88e6xxx_region_id {
+	MV88E6XXX_REGION_GLOBAL1 = 0,
+	MV88E6XXX_REGION_GLOBAL2,
+	MV88E6XXX_REGION_ATU,
+	MV88E6XXX_REGION_VTU,
+
+	_MV88E6XXX_REGION_MAX,
+};
+
+struct mv88e6xxx_region_priv {
+	enum mv88e6xxx_region_id id;
 };
 
 struct mv88e6xxx_chip {
@@ -334,6 +348,9 @@ struct mv88e6xxx_chip {
 
 	/* Array of port structures. */
 	struct mv88e6xxx_port ports[DSA_MAX_PORTS];
+
+	/* devlink regions */
+	struct devlink_region *regions[_MV88E6XXX_REGION_MAX];
 };
 
 struct mv88e6xxx_bus_ops {
@@ -399,6 +416,10 @@ struct mv88e6xxx_ops {
 	 * or LINK_UNFORCED for normal link detection.
 	 */
 	int (*port_set_link)(struct mv88e6xxx_chip *chip, int port, int link);
+
+	/* Synchronise the port link state with that of the SERDES
+	 */
+	int (*port_sync_link)(struct mv88e6xxx_chip *chip, int port, unsigned int mode, bool isup);
 
 #define PAUSE_ON		1
 #define PAUSE_OFF		0
@@ -656,6 +677,11 @@ static inline unsigned int mv88e6xxx_num_ports(struct mv88e6xxx_chip *chip)
 	return chip->info->num_ports;
 }
 
+static inline unsigned int mv88e6xxx_max_vid(struct mv88e6xxx_chip *chip)
+{
+	return chip->info->max_vid;
+}
+
 static inline u16 mv88e6xxx_port_mask(struct mv88e6xxx_chip *chip)
 {
 	return GENMASK((s32)mv88e6xxx_num_ports(chip) - 1, 0);
@@ -688,5 +714,7 @@ static inline void mv88e6xxx_reg_unlock(struct mv88e6xxx_chip *chip)
 {
 	mutex_unlock(&chip->reg_lock);
 }
+
+int mv88e6xxx_fid_map(struct mv88e6xxx_chip *chip, unsigned long *bitmap);
 
 #endif /* _MV88E6XXX_CHIP_H */

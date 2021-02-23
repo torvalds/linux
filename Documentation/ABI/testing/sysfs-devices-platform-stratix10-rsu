@@ -102,6 +102,8 @@ Description:
 		b[15:0]
 			inform firmware the current software execution
 			stage.
+
+			==	===========================================
 			0	the first stage bootloader didn't run or
 				didn't reach the point of launching second
 				stage bootloader.
@@ -111,21 +113,29 @@ Description:
 			2	both first and second stage bootloader ran
 				and the operating system launch was
 				attempted.
+			==	===========================================
 
 		b[16]
+			==	===========================================
 			1	firmware to reset current image retry
 				counter.
 			0	no action.
+			==	===========================================
 
 		b[17]
+			==	===========================================
 			1	firmware to clear RSU log
 			0	no action.
+			==	===========================================
 
 		b[18]
 			this is negative logic
+
+			==	===========================================
 			1	no action
 			0	firmware record the notify code defined
 				in b[15:0].
+			==	===========================================
 
 What:		/sys/devices/platform/stratix10-rsu.0/dcmf0
 Date:		June 2020

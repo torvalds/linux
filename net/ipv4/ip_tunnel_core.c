@@ -263,7 +263,7 @@ static int iptunnel_pmtud_check_icmp(struct sk_buff *skb, int mtu)
 	const struct icmphdr *icmph = icmp_hdr(skb);
 	const struct iphdr *iph = ip_hdr(skb);
 
-	if (mtu <= 576 || iph->frag_off != htons(IP_DF))
+	if (mtu < 576 || iph->frag_off != htons(IP_DF))
 		return 0;
 
 	if (ipv4_is_lbcast(iph->daddr)  || ipv4_is_multicast(iph->daddr) ||
@@ -359,7 +359,7 @@ static int iptunnel_pmtud_check_icmpv6(struct sk_buff *skb, int mtu)
 	__be16 frag_off;
 	int offset;
 
-	if (mtu <= IPV6_MIN_MTU)
+	if (mtu < IPV6_MIN_MTU)
 		return 0;
 
 	if (stype == IPV6_ADDR_ANY || stype == IPV6_ADDR_MULTICAST ||
@@ -428,36 +428,6 @@ int skb_tunnel_check_pmtu(struct sk_buff *skb, struct dst_entry *encap_dst,
 	return 0;
 }
 EXPORT_SYMBOL(skb_tunnel_check_pmtu);
-
-/* Often modified stats are per cpu, other are shared (netdev->stats) */
-void ip_tunnel_get_stats64(struct net_device *dev,
-			   struct rtnl_link_stats64 *tot)
-{
-	int i;
-
-	netdev_stats_to_stats64(tot, &dev->stats);
-
-	for_each_possible_cpu(i) {
-		const struct pcpu_sw_netstats *tstats =
-						   per_cpu_ptr(dev->tstats, i);
-		u64 rx_packets, rx_bytes, tx_packets, tx_bytes;
-		unsigned int start;
-
-		do {
-			start = u64_stats_fetch_begin_irq(&tstats->syncp);
-			rx_packets = tstats->rx_packets;
-			tx_packets = tstats->tx_packets;
-			rx_bytes = tstats->rx_bytes;
-			tx_bytes = tstats->tx_bytes;
-		} while (u64_stats_fetch_retry_irq(&tstats->syncp, start));
-
-		tot->rx_packets += rx_packets;
-		tot->tx_packets += tx_packets;
-		tot->rx_bytes   += rx_bytes;
-		tot->tx_bytes   += tx_bytes;
-	}
-}
-EXPORT_SYMBOL_GPL(ip_tunnel_get_stats64);
 
 static const struct nla_policy ip_tun_policy[LWTUNNEL_IP_MAX + 1] = {
 	[LWTUNNEL_IP_UNSPEC]	= { .strict_start_type = LWTUNNEL_IP_OPTS },

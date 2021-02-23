@@ -11,6 +11,8 @@
 #include <linux/module.h>
 #include <linux/ctype.h>
 
+#include "internal.h"
+
 static const struct acpi_device_id acpi_pnp_device_ids[] = {
 	/* pata_isapnp */
 	{"PNP0600"},		/* Generic ESDI/IDE/ATA compatible hard disk controller */
@@ -316,6 +318,9 @@ static const struct acpi_device_id acpi_pnp_device_ids[] = {
 static bool matching_id(const char *idstr, const char *list_id)
 {
 	int i;
+
+	if (strlen(idstr) != strlen(list_id))
+		return false;
 
 	if (memcmp(idstr, list_id, 3))
 		return false;

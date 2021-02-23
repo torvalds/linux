@@ -281,26 +281,12 @@ static int hinic_firmware_update(struct hinic_devlink_priv *priv,
 }
 
 static int hinic_devlink_flash_update(struct devlink *devlink,
-				      const char *file_name,
-				      const char *component,
+				      struct devlink_flash_update_params *params,
 				      struct netlink_ext_ack *extack)
 {
 	struct hinic_devlink_priv *priv = devlink_priv(devlink);
-	const struct firmware *fw;
-	int err;
 
-	if (component)
-		return -EOPNOTSUPP;
-
-	err = request_firmware_direct(&fw, file_name,
-				      &priv->hwdev->hwif->pdev->dev);
-	if (err)
-		return err;
-
-	err = hinic_firmware_update(priv, fw, extack);
-	release_firmware(fw);
-
-	return err;
+	return hinic_firmware_update(priv, params->fw, extack);
 }
 
 static const struct devlink_ops hinic_devlink_ops = {

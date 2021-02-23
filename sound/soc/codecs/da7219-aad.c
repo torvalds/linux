@@ -460,7 +460,7 @@ static irqreturn_t da7219_aad_irq_thread(int irq, void *data)
  */
 
 static enum da7219_aad_micbias_pulse_lvl
-	da7219_aad_fw_micbias_pulse_lvl(struct snd_soc_component *component, u32 val)
+	da7219_aad_fw_micbias_pulse_lvl(struct device *dev, u32 val)
 {
 	switch (val) {
 	case 2800:
@@ -468,13 +468,13 @@ static enum da7219_aad_micbias_pulse_lvl
 	case 2900:
 		return DA7219_AAD_MICBIAS_PULSE_LVL_2_9V;
 	default:
-		dev_warn(component->dev, "Invalid micbias pulse level");
+		dev_warn(dev, "Invalid micbias pulse level");
 		return DA7219_AAD_MICBIAS_PULSE_LVL_OFF;
 	}
 }
 
 static enum da7219_aad_btn_cfg
-	da7219_aad_fw_btn_cfg(struct snd_soc_component *component, u32 val)
+	da7219_aad_fw_btn_cfg(struct device *dev, u32 val)
 {
 	switch (val) {
 	case 2:
@@ -492,13 +492,13 @@ static enum da7219_aad_btn_cfg
 	case 500:
 		return DA7219_AAD_BTN_CFG_500MS;
 	default:
-		dev_warn(component->dev, "Invalid button config");
+		dev_warn(dev, "Invalid button config");
 		return DA7219_AAD_BTN_CFG_10MS;
 	}
 }
 
 static enum da7219_aad_mic_det_thr
-	da7219_aad_fw_mic_det_thr(struct snd_soc_component *component, u32 val)
+	da7219_aad_fw_mic_det_thr(struct device *dev, u32 val)
 {
 	switch (val) {
 	case 200:
@@ -510,13 +510,13 @@ static enum da7219_aad_mic_det_thr
 	case 1000:
 		return DA7219_AAD_MIC_DET_THR_1000_OHMS;
 	default:
-		dev_warn(component->dev, "Invalid mic detect threshold");
+		dev_warn(dev, "Invalid mic detect threshold");
 		return DA7219_AAD_MIC_DET_THR_500_OHMS;
 	}
 }
 
 static enum da7219_aad_jack_ins_deb
-	da7219_aad_fw_jack_ins_deb(struct snd_soc_component *component, u32 val)
+	da7219_aad_fw_jack_ins_deb(struct device *dev, u32 val)
 {
 	switch (val) {
 	case 5:
@@ -536,13 +536,13 @@ static enum da7219_aad_jack_ins_deb
 	case 1000:
 		return DA7219_AAD_JACK_INS_DEB_1S;
 	default:
-		dev_warn(component->dev, "Invalid jack insert debounce");
+		dev_warn(dev, "Invalid jack insert debounce");
 		return DA7219_AAD_JACK_INS_DEB_20MS;
 	}
 }
 
 static enum da7219_aad_jack_det_rate
-	da7219_aad_fw_jack_det_rate(struct snd_soc_component *component, const char *str)
+	da7219_aad_fw_jack_det_rate(struct device *dev, const char *str)
 {
 	if (!strcmp(str, "32ms_64ms")) {
 		return DA7219_AAD_JACK_DET_RATE_32_64MS;
@@ -553,13 +553,13 @@ static enum da7219_aad_jack_det_rate
 	} else if (!strcmp(str, "256ms_512ms")) {
 		return DA7219_AAD_JACK_DET_RATE_256_512MS;
 	} else {
-		dev_warn(component->dev, "Invalid jack detect rate");
+		dev_warn(dev, "Invalid jack detect rate");
 		return DA7219_AAD_JACK_DET_RATE_256_512MS;
 	}
 }
 
 static enum da7219_aad_jack_rem_deb
-	da7219_aad_fw_jack_rem_deb(struct snd_soc_component *component, u32 val)
+	da7219_aad_fw_jack_rem_deb(struct device *dev, u32 val)
 {
 	switch (val) {
 	case 1:
@@ -571,13 +571,13 @@ static enum da7219_aad_jack_rem_deb
 	case 20:
 		return DA7219_AAD_JACK_REM_DEB_20MS;
 	default:
-		dev_warn(component->dev, "Invalid jack removal debounce");
+		dev_warn(dev, "Invalid jack removal debounce");
 		return DA7219_AAD_JACK_REM_DEB_1MS;
 	}
 }
 
 static enum da7219_aad_btn_avg
-	da7219_aad_fw_btn_avg(struct snd_soc_component *component, u32 val)
+	da7219_aad_fw_btn_avg(struct device *dev, u32 val)
 {
 	switch (val) {
 	case 1:
@@ -589,13 +589,13 @@ static enum da7219_aad_btn_avg
 	case 8:
 		return DA7219_AAD_BTN_AVG_8;
 	default:
-		dev_warn(component->dev, "Invalid button average value");
+		dev_warn(dev, "Invalid button average value");
 		return DA7219_AAD_BTN_AVG_2;
 	}
 }
 
 static enum da7219_aad_adc_1bit_rpt
-	da7219_aad_fw_adc_1bit_rpt(struct snd_soc_component *component, u32 val)
+	da7219_aad_fw_adc_1bit_rpt(struct device *dev, u32 val)
 {
 	switch (val) {
 	case 1:
@@ -607,14 +607,13 @@ static enum da7219_aad_adc_1bit_rpt
 	case 8:
 		return DA7219_AAD_ADC_1BIT_RPT_8;
 	default:
-		dev_warn(component->dev, "Invalid ADC 1-bit repeat value");
+		dev_warn(dev, "Invalid ADC 1-bit repeat value");
 		return DA7219_AAD_ADC_1BIT_RPT_1;
 	}
 }
 
-static struct da7219_aad_pdata *da7219_aad_fw_to_pdata(struct snd_soc_component *component)
+static struct da7219_aad_pdata *da7219_aad_fw_to_pdata(struct device *dev)
 {
-	struct device *dev = component->dev;
 	struct i2c_client *i2c = to_i2c_client(dev);
 	struct fwnode_handle *aad_np;
 	struct da7219_aad_pdata *aad_pdata;
@@ -634,7 +633,7 @@ static struct da7219_aad_pdata *da7219_aad_fw_to_pdata(struct snd_soc_component 
 	if (fwnode_property_read_u32(aad_np, "dlg,micbias-pulse-lvl",
 				     &fw_val32) >= 0)
 		aad_pdata->micbias_pulse_lvl =
-			da7219_aad_fw_micbias_pulse_lvl(component, fw_val32);
+			da7219_aad_fw_micbias_pulse_lvl(dev, fw_val32);
 	else
 		aad_pdata->micbias_pulse_lvl = DA7219_AAD_MICBIAS_PULSE_LVL_OFF;
 
@@ -643,31 +642,31 @@ static struct da7219_aad_pdata *da7219_aad_fw_to_pdata(struct snd_soc_component 
 		aad_pdata->micbias_pulse_time = fw_val32;
 
 	if (fwnode_property_read_u32(aad_np, "dlg,btn-cfg", &fw_val32) >= 0)
-		aad_pdata->btn_cfg = da7219_aad_fw_btn_cfg(component, fw_val32);
+		aad_pdata->btn_cfg = da7219_aad_fw_btn_cfg(dev, fw_val32);
 	else
 		aad_pdata->btn_cfg = DA7219_AAD_BTN_CFG_10MS;
 
 	if (fwnode_property_read_u32(aad_np, "dlg,mic-det-thr", &fw_val32) >= 0)
 		aad_pdata->mic_det_thr =
-			da7219_aad_fw_mic_det_thr(component, fw_val32);
+			da7219_aad_fw_mic_det_thr(dev, fw_val32);
 	else
 		aad_pdata->mic_det_thr = DA7219_AAD_MIC_DET_THR_500_OHMS;
 
 	if (fwnode_property_read_u32(aad_np, "dlg,jack-ins-deb", &fw_val32) >= 0)
 		aad_pdata->jack_ins_deb =
-			da7219_aad_fw_jack_ins_deb(component, fw_val32);
+			da7219_aad_fw_jack_ins_deb(dev, fw_val32);
 	else
 		aad_pdata->jack_ins_deb = DA7219_AAD_JACK_INS_DEB_20MS;
 
 	if (!fwnode_property_read_string(aad_np, "dlg,jack-det-rate", &fw_str))
 		aad_pdata->jack_det_rate =
-			da7219_aad_fw_jack_det_rate(component, fw_str);
+			da7219_aad_fw_jack_det_rate(dev, fw_str);
 	else
 		aad_pdata->jack_det_rate = DA7219_AAD_JACK_DET_RATE_256_512MS;
 
 	if (fwnode_property_read_u32(aad_np, "dlg,jack-rem-deb", &fw_val32) >= 0)
 		aad_pdata->jack_rem_deb =
-			da7219_aad_fw_jack_rem_deb(component, fw_val32);
+			da7219_aad_fw_jack_rem_deb(dev, fw_val32);
 	else
 		aad_pdata->jack_rem_deb = DA7219_AAD_JACK_REM_DEB_1MS;
 
@@ -692,13 +691,13 @@ static struct da7219_aad_pdata *da7219_aad_fw_to_pdata(struct snd_soc_component 
 		aad_pdata->c_mic_btn_thr = 0x3E;
 
 	if (fwnode_property_read_u32(aad_np, "dlg,btn-avg", &fw_val32) >= 0)
-		aad_pdata->btn_avg = da7219_aad_fw_btn_avg(component, fw_val32);
+		aad_pdata->btn_avg = da7219_aad_fw_btn_avg(dev, fw_val32);
 	else
 		aad_pdata->btn_avg = DA7219_AAD_BTN_AVG_2;
 
 	if (fwnode_property_read_u32(aad_np, "dlg,adc-1bit-rpt", &fw_val32) >= 0)
 		aad_pdata->adc_1bit_rpt =
-			da7219_aad_fw_adc_1bit_rpt(component, fw_val32);
+			da7219_aad_fw_adc_1bit_rpt(dev, fw_val32);
 	else
 		aad_pdata->adc_1bit_rpt = DA7219_AAD_ADC_1BIT_RPT_1;
 
@@ -887,21 +886,13 @@ void da7219_aad_resume(struct snd_soc_component *component)
 int da7219_aad_init(struct snd_soc_component *component)
 {
 	struct da7219_priv *da7219 = snd_soc_component_get_drvdata(component);
-	struct da7219_aad_priv *da7219_aad;
+	struct da7219_aad_priv *da7219_aad = da7219->aad;
 	u8 mask[DA7219_AAD_IRQ_REG_MAX];
 	int ret;
 
-	da7219_aad = devm_kzalloc(component->dev, sizeof(*da7219_aad), GFP_KERNEL);
-	if (!da7219_aad)
-		return -ENOMEM;
-
-	da7219->aad = da7219_aad;
 	da7219_aad->component = component;
 
 	/* Handle any DT/ACPI/platform data */
-	if (da7219->pdata && !da7219->pdata->aad_pdata)
-		da7219->pdata->aad_pdata = da7219_aad_fw_to_pdata(component);
-
 	da7219_aad_handle_pdata(component);
 
 	/* Disable button detection */
@@ -946,6 +937,30 @@ void da7219_aad_exit(struct snd_soc_component *component)
 	cancel_work_sync(&da7219_aad->hptest_work);
 }
 EXPORT_SYMBOL_GPL(da7219_aad_exit);
+
+/*
+ * AAD related I2C probe handling
+ */
+
+int da7219_aad_probe(struct i2c_client *i2c)
+{
+	struct da7219_priv *da7219 = i2c_get_clientdata(i2c);
+	struct device *dev = &i2c->dev;
+	struct da7219_aad_priv *da7219_aad;
+
+	da7219_aad = devm_kzalloc(dev, sizeof(*da7219_aad), GFP_KERNEL);
+	if (!da7219_aad)
+		return -ENOMEM;
+
+	da7219->aad = da7219_aad;
+
+	/* Retrieve any DT/ACPI/platform data */
+	if (da7219->pdata && !da7219->pdata->aad_pdata)
+		da7219->pdata->aad_pdata = da7219_aad_fw_to_pdata(dev);
+
+	return 0;
+}
+EXPORT_SYMBOL_GPL(da7219_aad_probe);
 
 MODULE_DESCRIPTION("ASoC DA7219 AAD Driver");
 MODULE_AUTHOR("Adam Thomson <Adam.Thomson.Opensource@diasemi.com>");

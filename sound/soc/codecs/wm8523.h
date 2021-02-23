@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0-only */
 /*
- * wm8523.h  --  WM8423 ASoC driver
+ * wm8523.h  --  WM8523 ASoC driver
  *
  * Copyright 2009 Wolfson Microelectronics, plc
  *

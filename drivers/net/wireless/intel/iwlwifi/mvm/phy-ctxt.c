@@ -1,66 +1,9 @@
-/******************************************************************************
- *
- * This file is provided under a dual BSD/GPLv2 license.  When using or
- * redistributing this file, you may do so under either license.
- *
- * GPL LICENSE SUMMARY
- *
- * Copyright(c) 2012 - 2014 Intel Corporation. All rights reserved.
- * Copyright(c) 2013 - 2014 Intel Mobile Communications GmbH
- * Copyright(c) 2017           Intel Deutschland GmbH
- * Copyright(c) 2018           Intel Corporation
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of version 2 of the GNU General Public License as
- * published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful, but
- * WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
- * General Public License for more details.
- *
- * The full GNU General Public License is included in this distribution
- * in the file called COPYING.
- *
- * Contact Information:
- *  Intel Linux Wireless <linuxwifi@intel.com>
- * Intel Corporation, 5200 N.E. Elam Young Parkway, Hillsboro, OR 97124-6497
- *
- * BSD LICENSE
- *
- * Copyright(c) 2012 - 2014 Intel Corporation. All rights reserved.
- * Copyright(c) 2013 - 2014 Intel Mobile Communications GmbH
- * Copyright(c) 2018           Intel Corporation
- * All rights reserved.
- *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions
- * are met:
- *
- *  * Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer.
- *  * Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in
- *    the documentation and/or other materials provided with the
- *    distribution.
- *  * Neither the name Intel Corporation nor the names of its
- *    contributors may be used to endorse or promote products derived
- *    from this software without specific prior written permission.
- *
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
- * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
- * LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
- * A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
- * OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
- * SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
- * LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
- * DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
- * THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
- * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
- * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
- *
- *****************************************************************************/
-
+// SPDX-License-Identifier: GPL-2.0 OR BSD-3-Clause
+/*
+ * Copyright (C) 2012-2014, 2018-2020 Intel Corporation
+ * Copyright (C) 2013-2014 Intel Mobile Communications GmbH
+ * Copyright (C) 2017 Intel Deutschland GmbH
+ */
 #include <net/mac80211.h>
 #include "fw-api.h"
 #include "mvm.h"
@@ -109,7 +52,7 @@ u8 iwl_mvm_get_ctrl_pos(struct cfg80211_chan_def *chandef)
 		return PHY_VHT_CTRL_POS_4_ABOVE;
 	default:
 		WARN(1, "Invalid channel definition");
-		/* fall through */
+		fallthrough;
 	case 0:
 		/*
 		 * The FW is expected to check the control channel position only
@@ -125,30 +68,19 @@ u8 iwl_mvm_get_ctrl_pos(struct cfg80211_chan_def *chandef)
  */
 static void iwl_mvm_phy_ctxt_cmd_hdr(struct iwl_mvm_phy_ctxt *ctxt,
 				     struct iwl_phy_context_cmd *cmd,
-				     u32 action, u32 apply_time)
+				     u32 action)
 {
-	memset(cmd, 0, sizeof(struct iwl_phy_context_cmd));
-
 	cmd->id_and_color = cpu_to_le32(FW_CMD_ID_AND_COLOR(ctxt->id,
 							    ctxt->color));
 	cmd->action = cpu_to_le32(action);
-	cmd->apply_time = cpu_to_le32(apply_time);
 }
 
-/*
- * Add the phy configuration to the PHY context command
- */
-static void iwl_mvm_phy_ctxt_cmd_data(struct iwl_mvm *mvm,
-				      struct iwl_phy_context_cmd *cmd,
-				      struct cfg80211_chan_def *chandef,
-				      u8 chains_static, u8 chains_dynamic)
+static void iwl_mvm_phy_ctxt_set_rxchain(struct iwl_mvm *mvm,
+					 __le32 *rxchain_info,
+					 u8 chains_static,
+					 u8 chains_dynamic)
 {
 	u8 active_cnt, idle_cnt;
-	struct iwl_phy_context_cmd_tail *tail =
-		iwl_mvm_chan_info_cmd_tail(mvm, &cmd->ci);
-
-	/* Set the channel info data */
-	iwl_mvm_set_chan_info_chandef(mvm, &cmd->ci, chandef);
 
 	/* Set rx the chains */
 	idle_cnt = chains_static;
@@ -166,17 +98,53 @@ static void iwl_mvm_phy_ctxt_cmd_data(struct iwl_mvm *mvm,
 		active_cnt = 2;
 	}
 
-	tail->rxchain_info = cpu_to_le32(iwl_mvm_get_valid_rx_ant(mvm) <<
+	*rxchain_info = cpu_to_le32(iwl_mvm_get_valid_rx_ant(mvm) <<
 					PHY_RX_CHAIN_VALID_POS);
-	tail->rxchain_info |= cpu_to_le32(idle_cnt << PHY_RX_CHAIN_CNT_POS);
-	tail->rxchain_info |= cpu_to_le32(active_cnt <<
+	*rxchain_info |= cpu_to_le32(idle_cnt << PHY_RX_CHAIN_CNT_POS);
+	*rxchain_info |= cpu_to_le32(active_cnt <<
 					 PHY_RX_CHAIN_MIMO_CNT_POS);
 #ifdef CONFIG_IWLWIFI_DEBUGFS
 	if (unlikely(mvm->dbgfs_rx_phyinfo))
-		tail->rxchain_info = cpu_to_le32(mvm->dbgfs_rx_phyinfo);
+		*rxchain_info = cpu_to_le32(mvm->dbgfs_rx_phyinfo);
 #endif
+}
+
+/*
+ * Add the phy configuration to the PHY context command
+ */
+static void iwl_mvm_phy_ctxt_cmd_data_v1(struct iwl_mvm *mvm,
+					 struct iwl_phy_context_cmd_v1 *cmd,
+					 struct cfg80211_chan_def *chandef,
+					 u8 chains_static, u8 chains_dynamic)
+{
+	struct iwl_phy_context_cmd_tail *tail =
+		iwl_mvm_chan_info_cmd_tail(mvm, &cmd->ci);
+
+	/* Set the channel info data */
+	iwl_mvm_set_chan_info_chandef(mvm, &cmd->ci, chandef);
+
+	iwl_mvm_phy_ctxt_set_rxchain(mvm, &tail->rxchain_info,
+				     chains_static, chains_dynamic);
 
 	tail->txchain_info = cpu_to_le32(iwl_mvm_get_valid_tx_ant(mvm));
+}
+
+/*
+ * Add the phy configuration to the PHY context command
+ */
+static void iwl_mvm_phy_ctxt_cmd_data(struct iwl_mvm *mvm,
+				      struct iwl_phy_context_cmd *cmd,
+				      struct cfg80211_chan_def *chandef,
+				      u8 chains_static, u8 chains_dynamic)
+{
+	cmd->lmac_id = cpu_to_le32(iwl_mvm_get_lmac_id(mvm->fw,
+						       chandef->chan->band));
+
+	/* Set the channel info data */
+	iwl_mvm_set_chan_info_chandef(mvm, &cmd->ci, chandef);
+
+	iwl_mvm_phy_ctxt_set_rxchain(mvm, &cmd->rxchain_info,
+				     chains_static, chains_dynamic);
 }
 
 /*
@@ -189,20 +157,46 @@ static int iwl_mvm_phy_ctxt_apply(struct iwl_mvm *mvm,
 				  struct iwl_mvm_phy_ctxt *ctxt,
 				  struct cfg80211_chan_def *chandef,
 				  u8 chains_static, u8 chains_dynamic,
-				  u32 action, u32 apply_time)
+				  u32 action)
 {
-	struct iwl_phy_context_cmd cmd;
 	int ret;
-	u16 len = sizeof(cmd) - iwl_mvm_chan_info_padding(mvm);
+	int ver = iwl_fw_lookup_cmd_ver(mvm->fw, IWL_ALWAYS_LONG_GROUP,
+					PHY_CONTEXT_CMD, 1);
 
-	/* Set the command header fields */
-	iwl_mvm_phy_ctxt_cmd_hdr(ctxt, &cmd, action, apply_time);
+	if (ver == 3) {
+		struct iwl_phy_context_cmd cmd = {};
 
-	/* Set the command data */
-	iwl_mvm_phy_ctxt_cmd_data(mvm, &cmd, chandef,
-				  chains_static, chains_dynamic);
+		/* Set the command header fields */
+		iwl_mvm_phy_ctxt_cmd_hdr(ctxt, &cmd, action);
 
-	ret = iwl_mvm_send_cmd_pdu(mvm, PHY_CONTEXT_CMD, 0, len, &cmd);
+		/* Set the command data */
+		iwl_mvm_phy_ctxt_cmd_data(mvm, &cmd, chandef,
+					  chains_static,
+					  chains_dynamic);
+
+		ret = iwl_mvm_send_cmd_pdu(mvm, PHY_CONTEXT_CMD,
+					   0, sizeof(cmd), &cmd);
+	} else if (ver < 3) {
+		struct iwl_phy_context_cmd_v1 cmd = {};
+		u16 len = sizeof(cmd) - iwl_mvm_chan_info_padding(mvm);
+
+		/* Set the command header fields */
+		iwl_mvm_phy_ctxt_cmd_hdr(ctxt,
+					 (struct iwl_phy_context_cmd *)&cmd,
+					 action);
+
+		/* Set the command data */
+		iwl_mvm_phy_ctxt_cmd_data_v1(mvm, &cmd, chandef,
+					     chains_static,
+					     chains_dynamic);
+		ret = iwl_mvm_send_cmd_pdu(mvm, PHY_CONTEXT_CMD,
+					   0, len, &cmd);
+	} else {
+		IWL_ERR(mvm, "PHY ctxt cmd error ver %d not supported\n", ver);
+		return -EOPNOTSUPP;
+	}
+
+
 	if (ret)
 		IWL_ERR(mvm, "PHY ctxt cmd error. ret=%d\n", ret);
 	return ret;
@@ -223,7 +217,7 @@ int iwl_mvm_phy_ctxt_add(struct iwl_mvm *mvm, struct iwl_mvm_phy_ctxt *ctxt,
 
 	return iwl_mvm_phy_ctxt_apply(mvm, ctxt, chandef,
 				      chains_static, chains_dynamic,
-				      FW_CTXT_ACTION_ADD, 0);
+				      FW_CTXT_ACTION_ADD);
 }
 
 /*
@@ -257,7 +251,7 @@ int iwl_mvm_phy_ctxt_changed(struct iwl_mvm *mvm, struct iwl_mvm_phy_ctxt *ctxt,
 		/* ... remove it here ...*/
 		ret = iwl_mvm_phy_ctxt_apply(mvm, ctxt, chandef,
 					     chains_static, chains_dynamic,
-					     FW_CTXT_ACTION_REMOVE, 0);
+					     FW_CTXT_ACTION_REMOVE);
 		if (ret)
 			return ret;
 
@@ -269,7 +263,7 @@ int iwl_mvm_phy_ctxt_changed(struct iwl_mvm *mvm, struct iwl_mvm_phy_ctxt *ctxt,
 	ctxt->width = chandef->width;
 	return iwl_mvm_phy_ctxt_apply(mvm, ctxt, chandef,
 				      chains_static, chains_dynamic,
-				      action, 0);
+				      action);
 }
 
 void iwl_mvm_phy_ctxt_unref(struct iwl_mvm *mvm, struct iwl_mvm_phy_ctxt *ctxt)

@@ -31,6 +31,8 @@
 #define CONNECT6_PROG_PATH	"./connect6_prog.o"
 #define SENDMSG4_PROG_PATH	"./sendmsg4_prog.o"
 #define SENDMSG6_PROG_PATH	"./sendmsg6_prog.o"
+#define BIND4_PROG_PATH		"./bind4_prog.o"
+#define BIND6_PROG_PATH		"./bind6_prog.o"
 
 #define SERV4_IP		"192.168.1.254"
 #define SERV4_REWRITE_IP	"127.0.0.1"
@@ -660,190 +662,6 @@ static int load_insns(const struct sock_addr_test *test,
 	return ret;
 }
 
-/* [1] These testing programs try to read different context fields, including
- * narrow loads of different sizes from user_ip4 and user_ip6, and write to
- * those allowed to be overridden.
- *
- * [2] BPF_LD_IMM64 & BPF_JMP_REG are used below whenever there is a need to
- * compare a register with unsigned 32bit integer. BPF_JMP_IMM can't be used
- * in such cases since it accepts only _signed_ 32bit integer as IMM
- * argument. Also note that BPF_LD_IMM64 contains 2 instructions what matters
- * to count jumps properly.
- */
-
-static int bind4_prog_load(const struct sock_addr_test *test)
-{
-	union {
-		uint8_t u4_addr8[4];
-		uint16_t u4_addr16[2];
-		uint32_t u4_addr32;
-	} ip4, port;
-	struct sockaddr_in addr4_rw;
-
-	if (inet_pton(AF_INET, SERV4_IP, (void *)&ip4) != 1) {
-		log_err("Invalid IPv4: %s", SERV4_IP);
-		return -1;
-	}
-
-	port.u4_addr32 = htons(SERV4_PORT);
-
-	if (mk_sockaddr(AF_INET, SERV4_REWRITE_IP, SERV4_REWRITE_PORT,
-			(struct sockaddr *)&addr4_rw, sizeof(addr4_rw)) == -1)
-		return -1;
-
-	/* See [1]. */
-	struct bpf_insn insns[] = {
-		BPF_MOV64_REG(BPF_REG_6, BPF_REG_1),
-
-		/* if (sk.family == AF_INET && */
-		BPF_LDX_MEM(BPF_W, BPF_REG_7, BPF_REG_6,
-			    offsetof(struct bpf_sock_addr, family)),
-		BPF_JMP_IMM(BPF_JNE, BPF_REG_7, AF_INET, 32),
-
-		/*     (sk.type == SOCK_DGRAM || sk.type == SOCK_STREAM) && */
-		BPF_LDX_MEM(BPF_W, BPF_REG_7, BPF_REG_6,
-			    offsetof(struct bpf_sock_addr, type)),
-		BPF_JMP_IMM(BPF_JNE, BPF_REG_7, SOCK_DGRAM, 1),
-		BPF_JMP_A(1),
-		BPF_JMP_IMM(BPF_JNE, BPF_REG_7, SOCK_STREAM, 28),
-
-		/*     1st_byte_of_user_ip4 == expected && */
-		BPF_LDX_MEM(BPF_B, BPF_REG_7, BPF_REG_6,
-			    offsetof(struct bpf_sock_addr, user_ip4)),
-		BPF_JMP_IMM(BPF_JNE, BPF_REG_7, ip4.u4_addr8[0], 26),
-
-		/*     2nd_byte_of_user_ip4 == expected && */
-		BPF_LDX_MEM(BPF_B, BPF_REG_7, BPF_REG_6,
-			    offsetof(struct bpf_sock_addr, user_ip4) + 1),
-		BPF_JMP_IMM(BPF_JNE, BPF_REG_7, ip4.u4_addr8[1], 24),
-
-		/*     3rd_byte_of_user_ip4 == expected && */
-		BPF_LDX_MEM(BPF_B, BPF_REG_7, BPF_REG_6,
-			    offsetof(struct bpf_sock_addr, user_ip4) + 2),
-		BPF_JMP_IMM(BPF_JNE, BPF_REG_7, ip4.u4_addr8[2], 22),
-
-		/*     4th_byte_of_user_ip4 == expected && */
-		BPF_LDX_MEM(BPF_B, BPF_REG_7, BPF_REG_6,
-			    offsetof(struct bpf_sock_addr, user_ip4) + 3),
-		BPF_JMP_IMM(BPF_JNE, BPF_REG_7, ip4.u4_addr8[3], 20),
-
-		/*     1st_half_of_user_ip4 == expected && */
-		BPF_LDX_MEM(BPF_H, BPF_REG_7, BPF_REG_6,
-			    offsetof(struct bpf_sock_addr, user_ip4)),
-		BPF_JMP_IMM(BPF_JNE, BPF_REG_7, ip4.u4_addr16[0], 18),
-
-		/*     2nd_half_of_user_ip4 == expected && */
-		BPF_LDX_MEM(BPF_H, BPF_REG_7, BPF_REG_6,
-			    offsetof(struct bpf_sock_addr, user_ip4) + 2),
-		BPF_JMP_IMM(BPF_JNE, BPF_REG_7, ip4.u4_addr16[1], 16),
-
-		/*     whole_user_ip4 == expected && */
-		BPF_LDX_MEM(BPF_W, BPF_REG_7, BPF_REG_6,
-			    offsetof(struct bpf_sock_addr, user_ip4)),
-		BPF_LD_IMM64(BPF_REG_8, ip4.u4_addr32), /* See [2]. */
-		BPF_JMP_REG(BPF_JNE, BPF_REG_7, BPF_REG_8, 12),
-
-		/*     1st_byte_of_user_port == expected && */
-		BPF_LDX_MEM(BPF_B, BPF_REG_7, BPF_REG_6,
-			    offsetof(struct bpf_sock_addr, user_port)),
-		BPF_JMP_IMM(BPF_JNE, BPF_REG_7, port.u4_addr8[0], 10),
-
-		/*     1st_half_of_user_port == expected && */
-		BPF_LDX_MEM(BPF_H, BPF_REG_7, BPF_REG_6,
-			    offsetof(struct bpf_sock_addr, user_port)),
-		BPF_JMP_IMM(BPF_JNE, BPF_REG_7, port.u4_addr16[0], 8),
-
-		/*     user_port == expected) { */
-		BPF_LDX_MEM(BPF_W, BPF_REG_7, BPF_REG_6,
-			    offsetof(struct bpf_sock_addr, user_port)),
-		BPF_LD_IMM64(BPF_REG_8, port.u4_addr32), /* See [2]. */
-		BPF_JMP_REG(BPF_JNE, BPF_REG_7, BPF_REG_8, 4),
-
-		/*      user_ip4 = addr4_rw.sin_addr */
-		BPF_MOV32_IMM(BPF_REG_7, addr4_rw.sin_addr.s_addr),
-		BPF_STX_MEM(BPF_W, BPF_REG_6, BPF_REG_7,
-			    offsetof(struct bpf_sock_addr, user_ip4)),
-
-		/*      user_port = addr4_rw.sin_port */
-		BPF_MOV32_IMM(BPF_REG_7, addr4_rw.sin_port),
-		BPF_STX_MEM(BPF_W, BPF_REG_6, BPF_REG_7,
-			    offsetof(struct bpf_sock_addr, user_port)),
-		/* } */
-
-		/* return 1 */
-		BPF_MOV64_IMM(BPF_REG_0, 1),
-		BPF_EXIT_INSN(),
-	};
-
-	return load_insns(test, insns, sizeof(insns) / sizeof(struct bpf_insn));
-}
-
-static int bind6_prog_load(const struct sock_addr_test *test)
-{
-	struct sockaddr_in6 addr6_rw;
-	struct in6_addr ip6;
-
-	if (inet_pton(AF_INET6, SERV6_IP, (void *)&ip6) != 1) {
-		log_err("Invalid IPv6: %s", SERV6_IP);
-		return -1;
-	}
-
-	if (mk_sockaddr(AF_INET6, SERV6_REWRITE_IP, SERV6_REWRITE_PORT,
-			(struct sockaddr *)&addr6_rw, sizeof(addr6_rw)) == -1)
-		return -1;
-
-	/* See [1]. */
-	struct bpf_insn insns[] = {
-		BPF_MOV64_REG(BPF_REG_6, BPF_REG_1),
-
-		/* if (sk.family == AF_INET6 && */
-		BPF_LDX_MEM(BPF_W, BPF_REG_7, BPF_REG_6,
-			    offsetof(struct bpf_sock_addr, family)),
-		BPF_JMP_IMM(BPF_JNE, BPF_REG_7, AF_INET6, 18),
-
-		/*            5th_byte_of_user_ip6 == expected && */
-		BPF_LDX_MEM(BPF_B, BPF_REG_7, BPF_REG_6,
-			    offsetof(struct bpf_sock_addr, user_ip6[1])),
-		BPF_JMP_IMM(BPF_JNE, BPF_REG_7, ip6.s6_addr[4], 16),
-
-		/*            3rd_half_of_user_ip6 == expected && */
-		BPF_LDX_MEM(BPF_H, BPF_REG_7, BPF_REG_6,
-			    offsetof(struct bpf_sock_addr, user_ip6[1])),
-		BPF_JMP_IMM(BPF_JNE, BPF_REG_7, ip6.s6_addr16[2], 14),
-
-		/*            last_word_of_user_ip6 == expected) { */
-		BPF_LDX_MEM(BPF_W, BPF_REG_7, BPF_REG_6,
-			    offsetof(struct bpf_sock_addr, user_ip6[3])),
-		BPF_LD_IMM64(BPF_REG_8, ip6.s6_addr32[3]),  /* See [2]. */
-		BPF_JMP_REG(BPF_JNE, BPF_REG_7, BPF_REG_8, 10),
-
-
-#define STORE_IPV6_WORD(N)						       \
-		BPF_MOV32_IMM(BPF_REG_7, addr6_rw.sin6_addr.s6_addr32[N]),     \
-		BPF_STX_MEM(BPF_W, BPF_REG_6, BPF_REG_7,		       \
-			    offsetof(struct bpf_sock_addr, user_ip6[N]))
-
-		/*      user_ip6 = addr6_rw.sin6_addr */
-		STORE_IPV6_WORD(0),
-		STORE_IPV6_WORD(1),
-		STORE_IPV6_WORD(2),
-		STORE_IPV6_WORD(3),
-
-		/*      user_port = addr6_rw.sin6_port */
-		BPF_MOV32_IMM(BPF_REG_7, addr6_rw.sin6_port),
-		BPF_STX_MEM(BPF_W, BPF_REG_6, BPF_REG_7,
-			    offsetof(struct bpf_sock_addr, user_port)),
-
-		/* } */
-
-		/* return 1 */
-		BPF_MOV64_IMM(BPF_REG_0, 1),
-		BPF_EXIT_INSN(),
-	};
-
-	return load_insns(test, insns, sizeof(insns) / sizeof(struct bpf_insn));
-}
-
 static int load_path(const struct sock_addr_test *test, const char *path)
 {
 	struct bpf_prog_load_attr attr;
@@ -863,6 +681,16 @@ static int load_path(const struct sock_addr_test *test, const char *path)
 	}
 
 	return prog_fd;
+}
+
+static int bind4_prog_load(const struct sock_addr_test *test)
+{
+	return load_path(test, BIND4_PROG_PATH);
+}
+
+static int bind6_prog_load(const struct sock_addr_test *test)
+{
+	return load_path(test, BIND6_PROG_PATH);
 }
 
 static int connect4_prog_load(const struct sock_addr_test *test)

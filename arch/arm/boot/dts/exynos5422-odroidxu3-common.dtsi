@@ -13,12 +13,12 @@
 #include "exynos5422-odroid-core.dtsi"
 
 / {
-	gpio_keys {
+	gpio-keys {
 		compatible = "gpio-keys";
 		pinctrl-names = "default";
 		pinctrl-0 = <&power_key>;
 
-		power_key {
+		power-key {
 			/*
 			 * The power button (SW2) is connected to the PWRON
 			 * pin (active high) of the S2MPS11 PMIC, which acts

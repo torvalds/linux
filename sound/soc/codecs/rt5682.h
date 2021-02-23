@@ -1271,6 +1271,20 @@
 #define RT5682_CP_CLK_HP_300KHZ			(0x2 << 4)
 #define RT5682_CP_CLK_HP_600KHZ			(0x3 << 4)
 
+/* Pad Driving Control (0x0136) */
+#define RT5682_PAD_DRV_GP1_MASK			(0x3 << 14)
+#define RT5682_PAD_DRV_GP1_SFT			14
+#define RT5682_PAD_DRV_GP2_MASK			(0x3 << 12)
+#define RT5682_PAD_DRV_GP2_SFT			12
+#define RT5682_PAD_DRV_GP3_MASK			(0x3 << 10)
+#define RT5682_PAD_DRV_GP3_SFT			10
+#define RT5682_PAD_DRV_GP4_MASK			(0x3 << 8)
+#define RT5682_PAD_DRV_GP4_SFT			8
+#define RT5682_PAD_DRV_GP5_MASK			(0x3 << 6)
+#define RT5682_PAD_DRV_GP5_SFT			6
+#define RT5682_PAD_DRV_GP6_MASK			(0x3 << 4)
+#define RT5682_PAD_DRV_GP6_SFT			4
+
 /* Chopper and Clock control for DAC (0x013a)*/
 #define RT5682_CKXEN_DAC1_MASK			(0x1 << 13)
 #define RT5682_CKXEN_DAC1_SFT			13
@@ -1411,8 +1425,6 @@ struct rt5682_priv {
 
 #ifdef CONFIG_COMMON_CLK
 	struct clk_hw dai_clks_hw[RT5682_DAI_NUM_CLKS];
-	struct clk_lookup *dai_clks_lookup[RT5682_DAI_NUM_CLKS];
-	struct clk *dai_clks[RT5682_DAI_NUM_CLKS];
 	struct clk *mclk;
 #endif
 

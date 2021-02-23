@@ -128,7 +128,7 @@ static int tegra210_clk_emc_set_rate(struct clk_hw *hw, unsigned long rate,
 	unsigned int i;
 	int err;
 
-	if (!provider || !provider->configs || provider->num_configs == 0)
+	if (!provider->configs || provider->num_configs == 0)
 		return -EINVAL;
 
 	for (i = 0; i < provider->num_configs; i++) {

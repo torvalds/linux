@@ -177,7 +177,7 @@ static bool is_ycbcr709_limited_type(
 		ret = true;
 	return ret;
 }
-enum dc_color_space_type get_color_space_type(enum dc_color_space color_space)
+static enum dc_color_space_type get_color_space_type(enum dc_color_space color_space)
 {
 	enum dc_color_space_type type = COLOR_SPACE_RGB_TYPE;
 

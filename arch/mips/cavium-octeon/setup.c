@@ -16,6 +16,7 @@
 #include <linux/export.h>
 #include <linux/interrupt.h>
 #include <linux/io.h>
+#include <linux/memblock.h>
 #include <linux/serial.h>
 #include <linux/smp.h>
 #include <linux/types.h>
@@ -930,7 +931,7 @@ static __init void memory_exclude_page(u64 addr, u64 *mem, u64 *size)
 {
 	if (addr > *mem && addr < *mem + *size) {
 		u64 inc = addr - *mem;
-		add_memory_region(*mem, inc, BOOT_MEM_RAM);
+		memblock_add(*mem, inc);
 		*mem += inc;
 		*size -= inc;
 	}
@@ -972,8 +973,6 @@ void __init plat_mem_setup(void)
 	uint64_t crashk_end;
 #ifndef CONFIG_CRASH_DUMP
 	int64_t memory;
-	uint64_t kernel_start;
-	uint64_t kernel_size;
 #endif
 
 	total = 0;
@@ -992,19 +991,18 @@ void __init plat_mem_setup(void)
 
 /* Crashkernel ignores bootmem list. It relies on mem=X@Y option */
 #ifdef CONFIG_CRASH_DUMP
-	add_memory_region(reserve_low_mem, max_memory, BOOT_MEM_RAM);
+	memblock_add(reserve_low_mem, max_memory);
 	total += max_memory;
 #else
 #ifdef CONFIG_KEXEC
 	if (crashk_size > 0) {
-		add_memory_region(crashk_base, crashk_size, BOOT_MEM_RAM);
+		memblock_add(crashk_base, crashk_size);
 		crashk_end = crashk_base + crashk_size;
 	}
 #endif
 	/*
-	 * When allocating memory, we want incrementing addresses from
-	 * bootmem_alloc so the code in add_memory_region can merge
-	 * regions next to each other.
+	 * When allocating memory, we want incrementing addresses,
+	 * which is handled by memblock
 	 */
 	cvmx_bootmem_lock();
 	while (total < max_memory) {
@@ -1039,13 +1037,9 @@ void __init plat_mem_setup(void)
 			 */
 			if (memory < crashk_base && end >  crashk_end) {
 				/* region is fully in */
-				add_memory_region(memory,
-						  crashk_base - memory,
-						  BOOT_MEM_RAM);
+				memblock_add(memory, crashk_base - memory);
 				total += crashk_base - memory;
-				add_memory_region(crashk_end,
-						  end - crashk_end,
-						  BOOT_MEM_RAM);
+				memblock_add(crashk_end, end - crashk_end);
 				total += end - crashk_end;
 				continue;
 			}
@@ -1073,7 +1067,7 @@ void __init plat_mem_setup(void)
 				 */
 				mem_alloc_size -= end - crashk_base;
 #endif
-			add_memory_region(memory, mem_alloc_size, BOOT_MEM_RAM);
+			memblock_add(memory, mem_alloc_size);
 			total += mem_alloc_size;
 			/* Recovering mem_alloc_size */
 			mem_alloc_size = 4 << 20;
@@ -1082,13 +1076,6 @@ void __init plat_mem_setup(void)
 		}
 	}
 	cvmx_bootmem_unlock();
-	/* Add the memory region for the kernel. */
-	kernel_start = (unsigned long) _text;
-	kernel_size = _end - _text;
-
-	/* Adjust for physical offset. */
-	kernel_start &= ~0xffffffff80000000ULL;
-	add_memory_region(kernel_start, kernel_size, BOOT_MEM_RAM);
 #endif /* CONFIG_CRASH_DUMP */
 
 #ifdef CONFIG_CAVIUM_RESERVE32
@@ -1126,7 +1113,7 @@ EXPORT_SYMBOL(prom_putchar);
 
 void __init prom_free_prom_memory(void)
 {
-	if (CAVIUM_OCTEON_DCACHE_PREFETCH_WAR) {
+	if (OCTEON_IS_MODEL(OCTEON_CN6XXX)) {
 		/* Check for presence of Core-14449 fix.  */
 		u32 insn;
 		u32 *foo;

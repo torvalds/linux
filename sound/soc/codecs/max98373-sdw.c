@@ -15,11 +15,18 @@
 #include <linux/of.h>
 #include <linux/soundwire/sdw.h>
 #include <linux/soundwire/sdw_type.h>
+#include <linux/soundwire/sdw_registers.h>
 #include "max98373.h"
 #include "max98373-sdw.h"
 
 struct sdw_stream_data {
 	struct sdw_stream_runtime *sdw_stream;
+};
+
+static const u32 max98373_sdw_cache_reg[] = {
+	MAX98373_R2054_MEAS_ADC_PVDD_CH_READBACK,
+	MAX98373_R2055_MEAS_ADC_THERM_CH_READBACK,
+	MAX98373_R20B6_BDE_CUR_STATE_READBACK,
 };
 
 static struct reg_default max98373_reg[] = {
@@ -244,9 +251,14 @@ static const struct regmap_config max98373_sdw_regmap = {
 static __maybe_unused int max98373_suspend(struct device *dev)
 {
 	struct max98373_priv *max98373 = dev_get_drvdata(dev);
+	int i;
+
+	/* cache feedback register values before suspend */
+	for (i = 0; i < max98373->cache_num; i++)
+		regmap_read(max98373->regmap, max98373->cache[i].reg, &max98373->cache[i].val);
 
 	regcache_cache_only(max98373->regmap, true);
-	regcache_mark_dirty(max98373->regmap);
+
 	return 0;
 }
 
@@ -255,6 +267,9 @@ static __maybe_unused int max98373_resume(struct device *dev)
 	struct sdw_slave *slave = dev_to_sdw_dev(dev);
 	struct max98373_priv *max98373 = dev_get_drvdata(dev);
 	unsigned long time;
+
+	if (!max98373->hw_init)
+		return 0;
 
 	if (!slave->unattach_request)
 		goto regmap_sync;
@@ -282,10 +297,12 @@ static const struct dev_pm_ops max98373_pm = {
 static int max98373_read_prop(struct sdw_slave *slave)
 {
 	struct sdw_slave_prop *prop = &slave->prop;
-	int nval, i, num_of_ports;
+	int nval, i;
 	u32 bit;
 	unsigned long addr;
 	struct sdw_dpn_prop *dpn;
+
+	prop->scp_int1_mask = SDW_SCP_INT1_BUS_CLASH | SDW_SCP_INT1_PARITY;
 
 	/* BITMAP: 00001000  Dataport 3 is active */
 	prop->source_ports = BIT(3);
@@ -295,7 +312,6 @@ static int max98373_read_prop(struct sdw_slave *slave)
 	prop->clk_stop_timeout = 20;
 
 	nval = hweight32(prop->source_ports);
-	num_of_ports = nval;
 	prop->src_dpn_prop = devm_kcalloc(&slave->dev, nval,
 					  sizeof(*prop->src_dpn_prop),
 					  GFP_KERNEL);
@@ -315,7 +331,6 @@ static int max98373_read_prop(struct sdw_slave *slave)
 
 	/* do this again for sink now */
 	nval = hweight32(prop->sink_ports);
-	num_of_ports += nval;
 	prop->sink_dpn_prop = devm_kcalloc(&slave->dev, nval,
 					   sizeof(*prop->sink_dpn_prop),
 					   GFP_KERNEL);
@@ -332,17 +347,6 @@ static int max98373_read_prop(struct sdw_slave *slave)
 		dpn[i].ch_prep_timeout = 10;
 		i++;
 	}
-
-	/* Allocate port_ready based on num_of_ports */
-	slave->port_ready = devm_kcalloc(&slave->dev, num_of_ports,
-					 sizeof(*slave->port_ready),
-					 GFP_KERNEL);
-	if (!slave->port_ready)
-		return -ENOMEM;
-
-	/* Initialize completion */
-	for (i = 0; i < num_of_ports; i++)
-		init_completion(&slave->port_ready[i]);
 
 	/* set the timeout values */
 	prop->clk_stop_timeout = 20;
@@ -764,6 +768,7 @@ static int max98373_init(struct sdw_slave *slave, struct regmap *regmap)
 {
 	struct max98373_priv *max98373;
 	int ret;
+	int i;
 	struct device *dev = &slave->dev;
 
 	/*  Allocate and assign private driver data structure  */
@@ -774,6 +779,14 @@ static int max98373_init(struct sdw_slave *slave, struct regmap *regmap)
 	dev_set_drvdata(dev, max98373);
 	max98373->regmap = regmap;
 	max98373->slave = slave;
+
+	max98373->cache_num = ARRAY_SIZE(max98373_sdw_cache_reg);
+	max98373->cache = devm_kcalloc(dev, max98373->cache_num,
+				       sizeof(*max98373->cache),
+				       GFP_KERNEL);
+
+	for (i = 0; i < max98373->cache_num; i++)
+		max98373->cache[i].reg = max98373_sdw_cache_reg[i];
 
 	/* Read voltage and slot configuration */
 	max98373_slot_config(dev, max98373);

@@ -27,11 +27,11 @@ config OPAL_PRD
 	  recovery diagnostics on OpenPower machines
 
 config PPC_MEMTRACE
-	bool "Enable removal of RAM from kernel mappings for tracing"
-	depends on PPC_POWERNV && MEMORY_HOTREMOVE
+	bool "Enable runtime allocation of RAM for tracing"
+	depends on PPC_POWERNV && MEMORY_HOTPLUG && CONTIG_ALLOC
 	help
-	  Enabling this option allows for the removal of memory (RAM)
-	  from the kernel mappings to be used for hardware tracing.
+	  Enabling this option allows for runtime allocation of memory (RAM)
+	  for hardware tracing.
 
 config PPC_VAS
 	bool "IBM Virtual Accelerator Switchboard (VAS)"

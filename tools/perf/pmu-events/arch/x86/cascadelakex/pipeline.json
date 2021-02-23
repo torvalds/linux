@@ -827,16 +827,6 @@
         "UMask": "0x2"
     },
     {
-        "BriefDescription": "Counts the total number when the front end is resteered, mainly when the BPU cannot provide a correct prediction and this is corrected by other branch handling mechanisms at the front end.",
-        "Counter": "0,1,2,3",
-        "CounterHTOff": "0,1,2,3,4,5,6,7",
-        "EventCode": "0xE6",
-        "EventName": "BACLEARS.ANY",
-        "PublicDescription": "Counts the number of times the front-end is resteered when it finds a branch instruction in a fetch line. This occurs for the first time a branch instruction is fetched or when the branch is not tracked by the BPU (Branch Prediction Unit) anymore.",
-        "SampleAfterValue": "100003",
-        "UMask": "0x1"
-    },
-    {
         "BriefDescription": "Loads blocked due to overlapping with a preceding store that cannot be forwarded.",
         "Counter": "0,1,2,3",
         "CounterHTOff": "0,1,2,3,4,5,6,7",

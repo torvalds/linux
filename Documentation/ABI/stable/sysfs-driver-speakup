@@ -69,6 +69,7 @@ Description:	Controls if typing interrupts output from speakup. With
 		speakup if for example
 		the say screen command is used before the
 		entire screen  is read.
+
 		With no_interrupt set to one, if the say
 		screen command is used, and one then types on the keyboard,
 		speakup will continue to say the whole screen regardless until
@@ -215,8 +216,10 @@ Description:	This file contains names for key states.
 		Again, these are part of the help system.  For instance, if you
 		had pressed speakup + keypad 3, you would hear:
 		"speakup keypad 3 is go to bottom edge."
+
 		The speakup key is depressed, so the name of the key state is
 		speakup.
+
 		This part of the message comes from the states collection.
 
 What:		/sys/accessibility/speakup/i18n/characters
@@ -297,6 +300,7 @@ KernelVersion:	2.6
 Contact:	speakup@linux-speakup.org
 Description:	Controls if punctuation is spoken by speakup, or by the
 		synthesizer.
+
 		For example, speakup speaks ">" as "greater", while
 		the espeak synthesizer used by the soft driver speaks "greater
 		than". Zero lets speakup speak the punctuation. One lets the

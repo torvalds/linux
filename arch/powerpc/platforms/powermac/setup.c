@@ -284,7 +284,7 @@ static void __init pmac_setup_arch(void)
 				/* 604, G3, G4 etc. */
 				loops_per_jiffy = *fp / HZ;
 			else
-				/* 601, 603, etc. */
+				/* 603, etc. */
 				loops_per_jiffy = *fp / (2 * HZ);
 			of_node_put(cpu);
 			break;

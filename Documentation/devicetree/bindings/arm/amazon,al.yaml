@@ -30,4 +30,6 @@ properties:
               - amazon,al-alpine-v3-evp
           - const: amazon,al-alpine-v3
 
+additionalProperties: true
+
 ...

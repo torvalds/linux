@@ -17,6 +17,10 @@
 	};
 };
 
+&aliases {
+	/delete-property/ ethernet1;
+};
+
 &backlight {
 	status = "okay";
 };

@@ -276,7 +276,7 @@ static const char *mspro_block_attr_name(unsigned char tag)
 		return "attr_devinfo";
 	default:
 		return NULL;
-	};
+	}
 }
 
 typedef ssize_t (*sysfs_show_t)(struct device *dev,

@@ -604,7 +604,7 @@ static int bd70528_probe(struct platform_device *pdev)
 		}
 	}
 
-	return rtc_register_device(rtc);
+	return devm_rtc_register_device(rtc);
 }
 
 static const struct platform_device_id bd718x7_rtc_id[] = {

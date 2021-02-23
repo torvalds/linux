@@ -27,6 +27,7 @@ SECTIONS
 		*(.rodata.*)
 		_erodata = . ;
 	}
+	NOTES
 	.data :	{
 		_data = . ;
 		*(.data)
@@ -59,6 +60,19 @@ SECTIONS
 	BOOT_DATA_PRESERVED
 
 	/*
+	 * This is the BSS section of the decompressor and not of the decompressed Linux kernel.
+	 * It will consume place in the decompressor's image.
+	 */
+	. = ALIGN(8);
+	.bss : {
+		_bss = . ;
+		*(.bss)
+		*(.bss.*)
+		*(COMMON)
+		_ebss = .;
+	}
+
+	/*
 	 * uncompressed image info used by the decompressor it should match
 	 * struct vmlinux_info. It comes from .vmlinux.info section of
 	 * uncompressed vmlinux in a form of info.o
@@ -67,6 +81,14 @@ SECTIONS
 	.vmlinux.info : {
 		_vmlinux_info = .;
 		*(.vmlinux.info)
+	}
+
+	.decompressor.syms : {
+		. += 1; /* make sure we have \0 before the first entry */
+		. = ALIGN(2);
+		_decompressor_syms_start = .;
+		*(.decompressor.syms)
+		_decompressor_syms_end = .;
 	}
 
 #ifdef CONFIG_KERNEL_UNCOMPRESSED
@@ -80,15 +102,6 @@ SECTIONS
 		_compressed_end = .;
 		FILL(0xff);
 		. = ALIGN(4096);
-	}
-	. = ALIGN(256);
-	.bss : {
-		_bss = . ;
-		*(.bss)
-		*(.bss.*)
-		*(COMMON)
-		. = ALIGN(8);	/* For convenience during zeroing */
-		_ebss = .;
 	}
 	_end = .;
 

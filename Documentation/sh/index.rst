@@ -7,8 +7,11 @@ SuperH Interfaces Guide
 .. toctree::
     :maxdepth: 1
 
+    booting
     new-machine
     register-banks
+
+    features
 
 Memory Management
 =================

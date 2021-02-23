@@ -2602,6 +2602,216 @@ static int snd_bbfpro_controls_create(struct usb_mixer_interface *mixer)
 	return 0;
 }
 
+/*
+ * Pioneer DJ DJM-250MK2 and maybe other DJM models
+ *
+ * For playback, no duplicate mapping should be set.
+ * There are three mixer stereo channels (CH1, CH2, AUX)
+ * and three stereo sources (Playback 1-2, Playback 3-4, Playback 5-6).
+ * Each channel should be mapped just once to one source.
+ * If mapped multiple times, only one source will play on given channel
+ * (sources are not mixed together).
+ *
+ * For recording, duplicate mapping is OK. We will get the same signal multiple times.
+ *
+ * Channels 7-8 are in both directions fixed to FX SEND / FX RETURN.
+ *
+ * See also notes in the quirks-table.h file.
+ */
+
+struct snd_pioneer_djm_option {
+	const u16 wIndex;
+	const u16 wValue;
+	const char *name;
+};
+
+static const struct snd_pioneer_djm_option snd_pioneer_djm_options_capture_level[] = {
+	{ .name =  "-5 dB",                  .wValue = 0x0300, .wIndex = 0x8003 },
+	{ .name = "-10 dB",                  .wValue = 0x0200, .wIndex = 0x8003 },
+	{ .name = "-15 dB",                  .wValue = 0x0100, .wIndex = 0x8003 },
+	{ .name = "-19 dB",                  .wValue = 0x0000, .wIndex = 0x8003 }
+};
+
+static const struct snd_pioneer_djm_option snd_pioneer_djm_options_capture_ch12[] = {
+	{ .name =  "CH1 Control Tone PHONO", .wValue = 0x0103, .wIndex = 0x8002 },
+	{ .name =  "CH1 Control Tone LINE",  .wValue = 0x0100, .wIndex = 0x8002 },
+	{ .name =  "Post CH1 Fader",         .wValue = 0x0106, .wIndex = 0x8002 },
+	{ .name =  "Cross Fader A",          .wValue = 0x0107, .wIndex = 0x8002 },
+	{ .name =  "Cross Fader B",          .wValue = 0x0108, .wIndex = 0x8002 },
+	{ .name =  "MIC",                    .wValue = 0x0109, .wIndex = 0x8002 },
+	{ .name =  "AUX",                    .wValue = 0x010d, .wIndex = 0x8002 },
+	{ .name =  "REC OUT",                .wValue = 0x010a, .wIndex = 0x8002 }
+};
+
+static const struct snd_pioneer_djm_option snd_pioneer_djm_options_capture_ch34[] = {
+	{ .name =  "CH2 Control Tone PHONO", .wValue = 0x0203, .wIndex = 0x8002 },
+	{ .name =  "CH2 Control Tone LINE",  .wValue = 0x0200, .wIndex = 0x8002 },
+	{ .name =  "Post CH2 Fader",         .wValue = 0x0206, .wIndex = 0x8002 },
+	{ .name =  "Cross Fader A",          .wValue = 0x0207, .wIndex = 0x8002 },
+	{ .name =  "Cross Fader B",          .wValue = 0x0208, .wIndex = 0x8002 },
+	{ .name =  "MIC",                    .wValue = 0x0209, .wIndex = 0x8002 },
+	{ .name =  "AUX",                    .wValue = 0x020d, .wIndex = 0x8002 },
+	{ .name =  "REC OUT",                .wValue = 0x020a, .wIndex = 0x8002 }
+};
+
+static const struct snd_pioneer_djm_option snd_pioneer_djm_options_capture_ch56[] = {
+	{ .name =  "REC OUT",                .wValue = 0x030a, .wIndex = 0x8002 },
+	{ .name =  "Post CH1 Fader",         .wValue = 0x0311, .wIndex = 0x8002 },
+	{ .name =  "Post CH2 Fader",         .wValue = 0x0312, .wIndex = 0x8002 },
+	{ .name =  "Cross Fader A",          .wValue = 0x0307, .wIndex = 0x8002 },
+	{ .name =  "Cross Fader B",          .wValue = 0x0308, .wIndex = 0x8002 },
+	{ .name =  "MIC",                    .wValue = 0x0309, .wIndex = 0x8002 },
+	{ .name =  "AUX",                    .wValue = 0x030d, .wIndex = 0x8002 }
+};
+
+static const struct snd_pioneer_djm_option snd_pioneer_djm_options_playback_12[] = {
+	{ .name =  "CH1",                    .wValue = 0x0100, .wIndex = 0x8016 },
+	{ .name =  "CH2",                    .wValue = 0x0101, .wIndex = 0x8016 },
+	{ .name =  "AUX",                    .wValue = 0x0104, .wIndex = 0x8016 }
+};
+
+static const struct snd_pioneer_djm_option snd_pioneer_djm_options_playback_34[] = {
+	{ .name =  "CH1",                    .wValue = 0x0200, .wIndex = 0x8016 },
+	{ .name =  "CH2",                    .wValue = 0x0201, .wIndex = 0x8016 },
+	{ .name =  "AUX",                    .wValue = 0x0204, .wIndex = 0x8016 }
+};
+
+static const struct snd_pioneer_djm_option snd_pioneer_djm_options_playback_56[] = {
+	{ .name =  "CH1",                    .wValue = 0x0300, .wIndex = 0x8016 },
+	{ .name =  "CH2",                    .wValue = 0x0301, .wIndex = 0x8016 },
+	{ .name =  "AUX",                    .wValue = 0x0304, .wIndex = 0x8016 }
+};
+
+struct snd_pioneer_djm_option_group {
+	const char *name;
+	const struct snd_pioneer_djm_option *options;
+	const size_t count;
+	const u16 default_value;
+};
+
+#define snd_pioneer_djm_option_group_item(_name, suffix, _default_value) { \
+	.name = _name, \
+	.options = snd_pioneer_djm_options_##suffix, \
+	.count = ARRAY_SIZE(snd_pioneer_djm_options_##suffix), \
+	.default_value = _default_value }
+
+static const struct snd_pioneer_djm_option_group snd_pioneer_djm_option_groups[] = {
+	snd_pioneer_djm_option_group_item("Master Capture Level Capture Switch", capture_level, 0),
+	snd_pioneer_djm_option_group_item("Capture 1-2 Capture Switch",          capture_ch12,  2),
+	snd_pioneer_djm_option_group_item("Capture 3-4 Capture Switch",          capture_ch34,  2),
+	snd_pioneer_djm_option_group_item("Capture 5-6 Capture Switch",          capture_ch56,  0),
+	snd_pioneer_djm_option_group_item("Playback 1-2 Playback Switch",        playback_12,   0),
+	snd_pioneer_djm_option_group_item("Playback 3-4 Playback Switch",        playback_34,   1),
+	snd_pioneer_djm_option_group_item("Playback 5-6 Playback Switch",        playback_56,   2)
+};
+
+// layout of the kcontrol->private_value:
+#define SND_PIONEER_DJM_VALUE_MASK 0x0000ffff
+#define SND_PIONEER_DJM_GROUP_MASK 0xffff0000
+#define SND_PIONEER_DJM_GROUP_SHIFT 16
+
+static int snd_pioneer_djm_controls_info(struct snd_kcontrol *kctl, struct snd_ctl_elem_info *info)
+{
+	u16 group_index = kctl->private_value >> SND_PIONEER_DJM_GROUP_SHIFT;
+	size_t count;
+	const char *name;
+	const struct snd_pioneer_djm_option_group *group;
+
+	if (group_index >= ARRAY_SIZE(snd_pioneer_djm_option_groups))
+		return -EINVAL;
+
+	group = &snd_pioneer_djm_option_groups[group_index];
+	count = group->count;
+	if (info->value.enumerated.item >= count)
+		info->value.enumerated.item = count - 1;
+	name = group->options[info->value.enumerated.item].name;
+	strlcpy(info->value.enumerated.name, name, sizeof(info->value.enumerated.name));
+	info->type = SNDRV_CTL_ELEM_TYPE_ENUMERATED;
+	info->count = 1;
+	info->value.enumerated.items = count;
+	return 0;
+}
+
+static int snd_pioneer_djm_controls_update(struct usb_mixer_interface *mixer, u16 group, u16 value)
+{
+	int err;
+
+	if (group >= ARRAY_SIZE(snd_pioneer_djm_option_groups)
+			|| value >= snd_pioneer_djm_option_groups[group].count)
+		return -EINVAL;
+
+	err = snd_usb_lock_shutdown(mixer->chip);
+	if (err)
+		return err;
+
+	err = snd_usb_ctl_msg(
+		mixer->chip->dev, usb_sndctrlpipe(mixer->chip->dev, 0),
+		USB_REQ_SET_FEATURE,
+		USB_DIR_OUT | USB_TYPE_VENDOR | USB_RECIP_DEVICE,
+		snd_pioneer_djm_option_groups[group].options[value].wValue,
+		snd_pioneer_djm_option_groups[group].options[value].wIndex,
+		NULL, 0);
+
+	snd_usb_unlock_shutdown(mixer->chip);
+	return err;
+}
+
+static int snd_pioneer_djm_controls_get(struct snd_kcontrol *kctl, struct snd_ctl_elem_value *elem)
+{
+	elem->value.enumerated.item[0] = kctl->private_value & SND_PIONEER_DJM_VALUE_MASK;
+	return 0;
+}
+
+static int snd_pioneer_djm_controls_put(struct snd_kcontrol *kctl, struct snd_ctl_elem_value *elem)
+{
+	struct usb_mixer_elem_list *list = snd_kcontrol_chip(kctl);
+	struct usb_mixer_interface *mixer = list->mixer;
+	unsigned long private_value = kctl->private_value;
+	u16 group = (private_value & SND_PIONEER_DJM_GROUP_MASK) >> SND_PIONEER_DJM_GROUP_SHIFT;
+	u16 value = elem->value.enumerated.item[0];
+
+	kctl->private_value = (group << SND_PIONEER_DJM_GROUP_SHIFT) | value;
+
+	return snd_pioneer_djm_controls_update(mixer, group, value);
+}
+
+static int snd_pioneer_djm_controls_resume(struct usb_mixer_elem_list *list)
+{
+	unsigned long private_value = list->kctl->private_value;
+	u16 group = (private_value & SND_PIONEER_DJM_GROUP_MASK) >> SND_PIONEER_DJM_GROUP_SHIFT;
+	u16 value = (private_value & SND_PIONEER_DJM_VALUE_MASK);
+
+	return snd_pioneer_djm_controls_update(list->mixer, group, value);
+}
+
+static int snd_pioneer_djm_controls_create(struct usb_mixer_interface *mixer)
+{
+	int err, i;
+	const struct snd_pioneer_djm_option_group *group;
+	struct snd_kcontrol_new knew = {
+		.iface  = SNDRV_CTL_ELEM_IFACE_MIXER,
+		.access = SNDRV_CTL_ELEM_ACCESS_READWRITE,
+		.index = 0,
+		.info = snd_pioneer_djm_controls_info,
+		.get  = snd_pioneer_djm_controls_get,
+		.put  = snd_pioneer_djm_controls_put
+	};
+
+	for (i = 0; i < ARRAY_SIZE(snd_pioneer_djm_option_groups); i++) {
+		group = &snd_pioneer_djm_option_groups[i];
+		knew.name = group->name;
+		knew.private_value = (i << SND_PIONEER_DJM_GROUP_SHIFT) | group->default_value;
+		err = snd_pioneer_djm_controls_update(mixer, i, group->default_value);
+		if (err)
+			return err;
+		err = add_single_ctl_with_resume(mixer, 0, snd_pioneer_djm_controls_resume,
+						 &knew, NULL);
+		if (err)
+			return err;
+	}
+	return 0;
+}
+
 int snd_usb_mixer_apply_create_quirk(struct usb_mixer_interface *mixer)
 {
 	int err = 0;
@@ -2705,6 +2915,9 @@ int snd_usb_mixer_apply_create_quirk(struct usb_mixer_interface *mixer)
 		break;
 	case USB_ID(0x2a39, 0x3fb0): /* RME Babyface Pro FS */
 		err = snd_bbfpro_controls_create(mixer);
+		break;
+	case USB_ID(0x2b73, 0x0017): /* Pioneer DJ DJM-250MK2 */
+		err = snd_pioneer_djm_controls_create(mixer);
 		break;
 	}
 

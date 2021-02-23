@@ -8,13 +8,13 @@ Description:	Read-only. Attribute group to describe the magic bits
 
 		Each attribute under this group defines a bit range of the
 		perf_event_attr.config. All supported attributes are listed
-		below.
+		below::
 
 		    event  = "config:0-11"  - event ID
 		    evtype = "config:12-15" - event type
 		    portid = "config:16-23" - event source
 
-		For example,
+		For example::
 
 		    fab_mmio_read = "event=0x06,evtype=0x02,portid=0xff"
 
@@ -40,11 +40,11 @@ Description:	Read-only. Attribute group to describe performance monitoring
 
 		All supported performance monitoring events are listed below.
 
-		Basic events (evtype=0x00)
+		Basic events (evtype=0x00)::
 
 		    clock = "event=0x00,evtype=0x00,portid=0xff"
 
-		Cache events (evtype=0x01)
+		Cache events (evtype=0x01)::
 
 		    cache_read_hit      = "event=0x00,evtype=0x01,portid=0xff"
 		    cache_read_miss     = "event=0x01,evtype=0x01,portid=0xff"
@@ -59,7 +59,7 @@ Description:	Read-only. Attribute group to describe performance monitoring
 		    cache_rx_req_stall  = "event=0x09,evtype=0x01,portid=0xff"
 		    cache_eviction      = "event=0x0a,evtype=0x01,portid=0xff"
 
-		Fabric events (evtype=0x02)
+		Fabric events (evtype=0x02)::
 
 		    fab_pcie0_read       = "event=0x00,evtype=0x02,portid=0xff"
 		    fab_pcie0_write      = "event=0x01,evtype=0x02,portid=0xff"
@@ -78,7 +78,7 @@ Description:	Read-only. Attribute group to describe performance monitoring
 		    fab_port_mmio_read   = "event=0x06,evtype=0x02,portid=?"
 		    fab_port_mmio_write  = "event=0x07,evtype=0x02,portid=?"
 
-		VTD events (evtype=0x03)
+		VTD events (evtype=0x03)::
 
 		    vtd_port_read_transaction  = "event=0x00,evtype=0x03,portid=?"
 		    vtd_port_write_transaction = "event=0x01,evtype=0x03,portid=?"
@@ -88,7 +88,7 @@ Description:	Read-only. Attribute group to describe performance monitoring
 		    vtd_port_devtlb_2m_fill    = "event=0x05,evtype=0x03,portid=?"
 		    vtd_port_devtlb_1g_fill    = "event=0x06,evtype=0x03,portid=?"
 
-		VTD SIP events (evtype=0x04)
+		VTD SIP events (evtype=0x04)::
 
 		    vtd_sip_iotlb_4k_hit  = "event=0x00,evtype=0x04,portid=0xff"
 		    vtd_sip_iotlb_2m_hit  = "event=0x01,evtype=0x04,portid=0xff"

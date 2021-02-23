@@ -74,21 +74,13 @@ static struct ctl_table rxrpc_sysctl_table[] = {
 
 	/* Non-time values */
 	{
-		.procname	= "max_client_conns",
-		.data		= &rxrpc_max_client_connections,
-		.maxlen		= sizeof(unsigned int),
-		.mode		= 0644,
-		.proc_handler	= proc_dointvec_minmax,
-		.extra1		= (void *)&rxrpc_reap_client_connections,
-	},
-	{
 		.procname	= "reap_client_conns",
 		.data		= &rxrpc_reap_client_connections,
 		.maxlen		= sizeof(unsigned int),
 		.mode		= 0644,
 		.proc_handler	= proc_dointvec_minmax,
 		.extra1		= (void *)SYSCTL_ONE,
-		.extra2		= (void *)&rxrpc_max_client_connections,
+		.extra2		= (void *)&n_65535,
 	},
 	{
 		.procname	= "max_backlog",

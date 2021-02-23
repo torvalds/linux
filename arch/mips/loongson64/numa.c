@@ -35,23 +35,6 @@ EXPORT_SYMBOL(__node_data);
 cpumask_t __node_cpumask[MAX_NUMNODES];
 EXPORT_SYMBOL(__node_cpumask);
 
-static void enable_lpa(void)
-{
-	unsigned long value;
-
-	value = __read_32bit_c0_register($16, 3);
-	value |= 0x00000080;
-	__write_32bit_c0_register($16, 3, value);
-	value = __read_32bit_c0_register($16, 3);
-	pr_info("CP0_Config3: CP0 16.3 (0x%lx)\n", value);
-
-	value = __read_32bit_c0_register($5, 1);
-	value |= 0x20000000;
-	__write_32bit_c0_register($5, 1, value);
-	value = __read_32bit_c0_register($5, 1);
-	pr_info("CP0_PageGrain: CP0 5.1 (0x%lx)\n", value);
-}
-
 static void cpu_node_probe(void)
 {
 	int i;
@@ -98,27 +81,6 @@ static void __init init_topology_matrix(void)
 	}
 }
 
-static unsigned long nid_to_addroffset(unsigned int nid)
-{
-	unsigned long result;
-	switch (nid) {
-	case 0:
-	default:
-		result = NODE0_ADDRSPACE_OFFSET;
-		break;
-	case 1:
-		result = NODE1_ADDRSPACE_OFFSET;
-		break;
-	case 2:
-		result = NODE2_ADDRSPACE_OFFSET;
-		break;
-	case 3:
-		result = NODE3_ADDRSPACE_OFFSET;
-		break;
-	}
-	return result;
-}
-
 static void __init szmem(unsigned int node)
 {
 	u32 i, mem_type;
@@ -146,7 +108,7 @@ static void __init szmem(unsigned int node)
 			pr_info("       start_pfn:0x%llx, end_pfn:0x%llx, num_physpages:0x%lx\n",
 				start_pfn, end_pfn, num_physpages);
 			memblock_add_node(PFN_PHYS(start_pfn),
-				PFN_PHYS(end_pfn - start_pfn), node);
+				PFN_PHYS(node_psize), node);
 			break;
 		case SYSTEM_RAM_HIGH:
 			start_pfn = ((node_id << 44) + mem_start) >> PAGE_SHIFT;
@@ -158,7 +120,7 @@ static void __init szmem(unsigned int node)
 			pr_info("       start_pfn:0x%llx, end_pfn:0x%llx, num_physpages:0x%lx\n",
 				start_pfn, end_pfn, num_physpages);
 			memblock_add_node(PFN_PHYS(start_pfn),
-				PFN_PHYS(end_pfn - start_pfn), node);
+				PFN_PHYS(node_psize), node);
 			break;
 		case SYSTEM_RAM_RESERVED:
 			pr_info("Node%d: mem_type:%d, mem_start:0x%llx, mem_size:0x%llx MB\n",
@@ -175,7 +137,7 @@ static void __init node_mem_init(unsigned int node)
 	unsigned long node_addrspace_offset;
 	unsigned long start_pfn, end_pfn;
 
-	node_addrspace_offset = nid_to_addroffset(node);
+	node_addrspace_offset = nid_to_addrbase(node);
 	pr_info("Node%d's addrspace_offset is 0x%lx\n",
 			node, node_addrspace_offset);
 
@@ -189,6 +151,9 @@ static void __init node_mem_init(unsigned int node)
 	NODE_DATA(node)->node_spanned_pages = end_pfn - start_pfn;
 
 	if (node == 0) {
+		/* kernel start address */
+		unsigned long kernel_start_pfn = PFN_DOWN(__pa_symbol(&_text));
+
 		/* kernel end address */
 		unsigned long kernel_end_pfn = PFN_UP(__pa_symbol(&_end));
 
@@ -196,8 +161,8 @@ static void __init node_mem_init(unsigned int node)
 		max_low_pfn = end_pfn;
 
 		/* Reserve the kernel text/data/bss */
-		memblock_reserve(start_pfn << PAGE_SHIFT,
-				 ((kernel_end_pfn - start_pfn) << PAGE_SHIFT));
+		memblock_reserve(kernel_start_pfn << PAGE_SHIFT,
+				 ((kernel_end_pfn - kernel_start_pfn) << PAGE_SHIFT));
 
 		/* Reserve 0xfe000000~0xffffffff for RS780E integrated GPU */
 		if (node_end_pfn(0) >= (0xffffffff >> PAGE_SHIFT))
@@ -242,9 +207,7 @@ void __init paging_init(void)
 	unsigned long zones_size[MAX_NR_ZONES] = {0, };
 
 	pagetable_init();
-#ifdef CONFIG_ZONE_DMA32
 	zones_size[ZONE_DMA32] = MAX_DMA32_PFN;
-#endif
 	zones_size[ZONE_NORMAL] = max_low_pfn;
 	free_area_init(zones_size);
 }
@@ -266,7 +229,8 @@ EXPORT_SYMBOL(pcibus_to_node);
 
 void __init prom_init_numa_memory(void)
 {
-	enable_lpa();
+	pr_info("CP0_Config3: CP0 16.3 (0x%x)\n", read_c0_config3());
+	pr_info("CP0_PageGrain: CP0 5.1 (0x%x)\n", read_c0_pagegrain());
 	prom_meminit();
 }
 EXPORT_SYMBOL(prom_init_numa_memory);

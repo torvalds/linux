@@ -15,11 +15,12 @@ static struct dentry *hns3_dbgfs_root;
 static int hns3_dbg_queue_info(struct hnae3_handle *h,
 			       const char *cmd_buf)
 {
+	struct hnae3_ae_dev *ae_dev = pci_get_drvdata(h->pdev);
 	struct hns3_nic_priv *priv = h->priv;
 	struct hns3_enet_ring *ring;
 	u32 base_add_l, base_add_h;
 	u32 queue_num, queue_max;
-	u32 value, i = 0;
+	u32 value, i;
 	int cnt;
 
 	if (!priv->ring) {
@@ -118,8 +119,25 @@ static int hns3_dbg_queue_info(struct hnae3_handle *h,
 
 		value = readl_relaxed(ring->tqp->io_base +
 				      HNS3_RING_TX_RING_PKTNUM_RECORD_REG);
-		dev_info(&h->pdev->dev, "TX(%u) RING PKTNUM: %u\n\n", i,
-			 value);
+		dev_info(&h->pdev->dev, "TX(%u) RING PKTNUM: %u\n", i, value);
+
+		value = readl_relaxed(ring->tqp->io_base + HNS3_RING_EN_REG);
+		dev_info(&h->pdev->dev, "TX/RX(%u) RING EN: %s\n", i,
+			 value ? "enable" : "disable");
+
+		if (hnae3_ae_dev_tqp_txrx_indep_supported(ae_dev)) {
+			value = readl_relaxed(ring->tqp->io_base +
+					      HNS3_RING_TX_EN_REG);
+			dev_info(&h->pdev->dev, "TX(%u) RING EN: %s\n", i,
+				 value ? "enable" : "disable");
+
+			value = readl_relaxed(ring->tqp->io_base +
+					      HNS3_RING_RX_EN_REG);
+			dev_info(&h->pdev->dev, "RX(%u) RING EN: %s\n", i,
+				 value ? "enable" : "disable");
+		}
+
+		dev_info(&h->pdev->dev, "\n");
 	}
 
 	return 0;
@@ -160,6 +178,8 @@ static int hns3_dbg_bd_info(struct hnae3_handle *h, const char *cmd_buf)
 	u32 tx_index, rx_index;
 	u32 q_num, value;
 	dma_addr_t addr;
+	u16 mss_hw_csum;
+	u32 l234info;
 	int cnt;
 
 	cnt = sscanf(&cmd_buf[8], "%u %u", &q_num, &tx_index);
@@ -188,26 +208,46 @@ static int hns3_dbg_bd_info(struct hnae3_handle *h, const char *cmd_buf)
 
 	tx_desc = &ring->desc[tx_index];
 	addr = le64_to_cpu(tx_desc->addr);
+	mss_hw_csum = le16_to_cpu(tx_desc->tx.mss_hw_csum);
 	dev_info(dev, "TX Queue Num: %u, BD Index: %u\n", q_num, tx_index);
 	dev_info(dev, "(TX)addr: %pad\n", &addr);
 	dev_info(dev, "(TX)vlan_tag: %u\n", le16_to_cpu(tx_desc->tx.vlan_tag));
 	dev_info(dev, "(TX)send_size: %u\n",
 		 le16_to_cpu(tx_desc->tx.send_size));
-	dev_info(dev, "(TX)vlan_tso: %u\n", tx_desc->tx.type_cs_vlan_tso);
-	dev_info(dev, "(TX)l2_len: %u\n", tx_desc->tx.l2_len);
-	dev_info(dev, "(TX)l3_len: %u\n", tx_desc->tx.l3_len);
-	dev_info(dev, "(TX)l4_len: %u\n", tx_desc->tx.l4_len);
+
+	if (mss_hw_csum & BIT(HNS3_TXD_HW_CS_B)) {
+		u32 offset = le32_to_cpu(tx_desc->tx.ol_type_vlan_len_msec);
+		u32 start = le32_to_cpu(tx_desc->tx.type_cs_vlan_tso_len);
+
+		dev_info(dev, "(TX)csum start: %u\n",
+			 hnae3_get_field(start,
+					 HNS3_TXD_CSUM_START_M,
+					 HNS3_TXD_CSUM_START_S));
+		dev_info(dev, "(TX)csum offset: %u\n",
+			 hnae3_get_field(offset,
+					 HNS3_TXD_CSUM_OFFSET_M,
+					 HNS3_TXD_CSUM_OFFSET_S));
+	} else {
+		dev_info(dev, "(TX)vlan_tso: %u\n",
+			 tx_desc->tx.type_cs_vlan_tso);
+		dev_info(dev, "(TX)l2_len: %u\n", tx_desc->tx.l2_len);
+		dev_info(dev, "(TX)l3_len: %u\n", tx_desc->tx.l3_len);
+		dev_info(dev, "(TX)l4_len: %u\n", tx_desc->tx.l4_len);
+		dev_info(dev, "(TX)vlan_msec: %u\n",
+			 tx_desc->tx.ol_type_vlan_msec);
+		dev_info(dev, "(TX)ol2_len: %u\n", tx_desc->tx.ol2_len);
+		dev_info(dev, "(TX)ol3_len: %u\n", tx_desc->tx.ol3_len);
+		dev_info(dev, "(TX)ol4_len: %u\n", tx_desc->tx.ol4_len);
+	}
+
 	dev_info(dev, "(TX)vlan_tag: %u\n",
 		 le16_to_cpu(tx_desc->tx.outer_vlan_tag));
 	dev_info(dev, "(TX)tv: %u\n", le16_to_cpu(tx_desc->tx.tv));
-	dev_info(dev, "(TX)vlan_msec: %u\n", tx_desc->tx.ol_type_vlan_msec);
-	dev_info(dev, "(TX)ol2_len: %u\n", tx_desc->tx.ol2_len);
-	dev_info(dev, "(TX)ol3_len: %u\n", tx_desc->tx.ol3_len);
-	dev_info(dev, "(TX)ol4_len: %u\n", tx_desc->tx.ol4_len);
-	dev_info(dev, "(TX)paylen: %u\n", le32_to_cpu(tx_desc->tx.paylen));
+	dev_info(dev, "(TX)paylen_ol4cs: %u\n",
+		 le32_to_cpu(tx_desc->tx.paylen_ol4cs));
 	dev_info(dev, "(TX)vld_ra_ri: %u\n",
 		 le16_to_cpu(tx_desc->tx.bdtp_fe_sc_vld_ra_ri));
-	dev_info(dev, "(TX)mss: %u\n", le16_to_cpu(tx_desc->tx.mss));
+	dev_info(dev, "(TX)mss_hw_csum: %u\n", mss_hw_csum);
 
 	ring = &priv->ring[q_num + h->kinfo.num_tqps];
 	value = readl_relaxed(ring->tqp->io_base + HNS3_RING_RX_RING_TAIL_REG);
@@ -215,10 +255,21 @@ static int hns3_dbg_bd_info(struct hnae3_handle *h, const char *cmd_buf)
 	rx_desc = &ring->desc[rx_index];
 
 	addr = le64_to_cpu(rx_desc->addr);
+	l234info = le32_to_cpu(rx_desc->rx.l234_info);
 	dev_info(dev, "RX Queue Num: %u, BD Index: %u\n", q_num, rx_index);
 	dev_info(dev, "(RX)addr: %pad\n", &addr);
-	dev_info(dev, "(RX)l234_info: %u\n",
-		 le32_to_cpu(rx_desc->rx.l234_info));
+	dev_info(dev, "(RX)l234_info: %u\n", l234info);
+
+	if (l234info & BIT(HNS3_RXD_L2_CSUM_B)) {
+		u32 lo, hi;
+
+		lo = hnae3_get_field(l234info, HNS3_RXD_L2_CSUM_L_M,
+				     HNS3_RXD_L2_CSUM_L_S);
+		hi = hnae3_get_field(l234info, HNS3_RXD_L2_CSUM_H_M,
+				     HNS3_RXD_L2_CSUM_H_S);
+		dev_info(dev, "(RX)csum: %u\n", lo | hi << 8);
+	}
+
 	dev_info(dev, "(RX)pkt_len: %u\n", le16_to_cpu(rx_desc->rx.pkt_len));
 	dev_info(dev, "(RX)size: %u\n", le16_to_cpu(rx_desc->rx.size));
 	dev_info(dev, "(RX)rss_hash: %u\n", le32_to_cpu(rx_desc->rx.rss_hash));
@@ -244,6 +295,8 @@ static void hns3_dbg_help(struct hnae3_handle *h)
 	dev_info(&h->pdev->dev, "queue info <number>\n");
 	dev_info(&h->pdev->dev, "queue map\n");
 	dev_info(&h->pdev->dev, "bd info <q_num> <bd index>\n");
+	dev_info(&h->pdev->dev, "dev capability\n");
+	dev_info(&h->pdev->dev, "dev spec\n");
 
 	if (!hns3_is_phys_func(h->pdev))
 		return;
@@ -264,6 +317,7 @@ static void hns3_dbg_help(struct hnae3_handle *h)
 	dev_info(&h->pdev->dev, "dump qs shaper [qs id]\n");
 	dev_info(&h->pdev->dev, "dump uc mac list <func id>\n");
 	dev_info(&h->pdev->dev, "dump mc mac list <func id>\n");
+	dev_info(&h->pdev->dev, "dump intr\n");
 
 	memset(printf_buf, 0, HNS3_DBG_BUF_LEN);
 	strncat(printf_buf, "dump reg [[bios common] [ssu <port_id>]",
@@ -282,6 +336,59 @@ static void hns3_dbg_help(struct hnae3_handle *h)
 	strncat(printf_buf + strlen(printf_buf), " <rq_id> <nq_id> <qset_id>\n",
 		HNS3_DBG_BUF_LEN - strlen(printf_buf) - 1);
 	dev_info(&h->pdev->dev, "%s", printf_buf);
+}
+
+static void hns3_dbg_dev_caps(struct hnae3_handle *h)
+{
+	struct hnae3_ae_dev *ae_dev = pci_get_drvdata(h->pdev);
+	unsigned long *caps;
+
+	caps = ae_dev->caps;
+
+	dev_info(&h->pdev->dev, "support FD: %s\n",
+		 test_bit(HNAE3_DEV_SUPPORT_FD_B, caps) ? "yes" : "no");
+	dev_info(&h->pdev->dev, "support GRO: %s\n",
+		 test_bit(HNAE3_DEV_SUPPORT_GRO_B, caps) ? "yes" : "no");
+	dev_info(&h->pdev->dev, "support FEC: %s\n",
+		 test_bit(HNAE3_DEV_SUPPORT_FEC_B, caps) ? "yes" : "no");
+	dev_info(&h->pdev->dev, "support UDP GSO: %s\n",
+		 test_bit(HNAE3_DEV_SUPPORT_UDP_GSO_B, caps) ? "yes" : "no");
+	dev_info(&h->pdev->dev, "support PTP: %s\n",
+		 test_bit(HNAE3_DEV_SUPPORT_PTP_B, caps) ? "yes" : "no");
+	dev_info(&h->pdev->dev, "support INT QL: %s\n",
+		 test_bit(HNAE3_DEV_SUPPORT_INT_QL_B, caps) ? "yes" : "no");
+	dev_info(&h->pdev->dev, "support HW TX csum: %s\n",
+		 test_bit(HNAE3_DEV_SUPPORT_HW_TX_CSUM_B, caps) ? "yes" : "no");
+	dev_info(&h->pdev->dev, "support UDP tunnel csum: %s\n",
+		 test_bit(HNAE3_DEV_SUPPORT_UDP_TUNNEL_CSUM_B, caps) ?
+		 "yes" : "no");
+}
+
+static void hns3_dbg_dev_specs(struct hnae3_handle *h)
+{
+	struct hnae3_ae_dev *ae_dev = pci_get_drvdata(h->pdev);
+	struct hnae3_dev_specs *dev_specs = &ae_dev->dev_specs;
+	struct hnae3_knic_private_info *kinfo = &h->kinfo;
+	struct hns3_nic_priv *priv  = h->priv;
+
+	dev_info(priv->dev, "MAC entry num: %u\n", dev_specs->mac_entry_num);
+	dev_info(priv->dev, "MNG entry num: %u\n", dev_specs->mng_entry_num);
+	dev_info(priv->dev, "MAX non tso bd num: %u\n",
+		 dev_specs->max_non_tso_bd_num);
+	dev_info(priv->dev, "RSS ind tbl size: %u\n",
+		 dev_specs->rss_ind_tbl_size);
+	dev_info(priv->dev, "RSS key size: %u\n", dev_specs->rss_key_size);
+	dev_info(priv->dev, "RSS size: %u\n", kinfo->rss_size);
+	dev_info(priv->dev, "Allocated RSS size: %u\n", kinfo->req_rss_size);
+	dev_info(priv->dev, "Task queue pairs numbers: %u\n", kinfo->num_tqps);
+
+	dev_info(priv->dev, "RX buffer length: %u\n", kinfo->rx_buf_len);
+	dev_info(priv->dev, "Desc num per TX queue: %u\n", kinfo->num_tx_desc);
+	dev_info(priv->dev, "Desc num per RX queue: %u\n", kinfo->num_rx_desc);
+	dev_info(priv->dev, "Total number of enabled TCs: %u\n",
+		 kinfo->tc_info.num_tc);
+	dev_info(priv->dev, "MAX INT QL: %u\n", dev_specs->int_ql_max);
+	dev_info(priv->dev, "MAX INT GL: %u\n", dev_specs->max_int_gl);
 }
 
 static ssize_t hns3_dbg_cmd_read(struct file *filp, char __user *buffer,
@@ -359,6 +466,10 @@ static ssize_t hns3_dbg_cmd_write(struct file *filp, const char __user *buffer,
 		ret = hns3_dbg_queue_map(handle);
 	else if (strncmp(cmd_buf, "bd info", 7) == 0)
 		ret = hns3_dbg_bd_info(handle, cmd_buf);
+	else if (strncmp(cmd_buf, "dev capability", 14) == 0)
+		hns3_dbg_dev_caps(handle);
+	else if (strncmp(cmd_buf, "dev spec", 8) == 0)
+		hns3_dbg_dev_specs(handle);
 	else if (handle->ae_algo->ops->dbg_run_cmd)
 		ret = handle->ae_algo->ops->dbg_run_cmd(handle, cmd_buf);
 	else

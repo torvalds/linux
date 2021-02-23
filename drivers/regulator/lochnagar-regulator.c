@@ -98,6 +98,7 @@ static const struct regulator_ops lochnagar_vddcore_ops = {
 };
 
 static const struct linear_range lochnagar_vddcore_ranges[] = {
+	REGULATOR_LINEAR_RANGE(600000, 0,    0x7, 0),
 	REGULATOR_LINEAR_RANGE(600000, 0x8, 0x41, 12500),
 };
 

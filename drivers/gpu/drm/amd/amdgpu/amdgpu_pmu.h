@@ -19,17 +19,37 @@
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
  * OTHER DEALINGS IN THE SOFTWARE.
  *
- * Author: Jonathan Kim <jonathan.kim@amd.com>
- *
  */
 
 #ifndef _AMDGPU_PMU_H_
 #define _AMDGPU_PMU_H_
 
+/* PMU types. */
 enum amdgpu_pmu_perf_type {
-	PERF_TYPE_AMDGPU_DF = 0,
-	PERF_TYPE_AMDGPU_MAX
+	AMDGPU_PMU_PERF_TYPE_NONE = 0,
+	AMDGPU_PMU_PERF_TYPE_DF,
+	AMDGPU_PMU_PERF_TYPE_ALL
 };
+
+/*
+ * PMU type AMDGPU_PMU_PERF_TYPE_ALL can hold events of different "type"
+ * configurations.  Event config types are parsed from the 64-bit raw
+ * config (See EVENT_CONFIG_TYPE_SHIFT and EVENT_CONFIG_TYPE_MASK) and
+ * are registered into the HW perf events config_base.
+ *
+ * PMU types with only a single event configuration type
+ * (non-AMDGPU_PMU_PERF_TYPE_ALL) have their event config type auto generated
+ * when the performance counter is added.
+ */
+enum amdgpu_pmu_event_config_type {
+	AMDGPU_PMU_EVENT_CONFIG_TYPE_NONE = 0,
+	AMDGPU_PMU_EVENT_CONFIG_TYPE_DF,
+	AMDGPU_PMU_EVENT_CONFIG_TYPE_XGMI,
+	AMDGPU_PMU_EVENT_CONFIG_TYPE_MAX
+};
+
+#define AMDGPU_PMU_EVENT_CONFIG_TYPE_SHIFT	56
+#define AMDGPU_PMU_EVENT_CONFIG_TYPE_MASK	0xff
 
 int amdgpu_pmu_init(struct amdgpu_device *adev);
 void amdgpu_pmu_fini(struct amdgpu_device *adev);

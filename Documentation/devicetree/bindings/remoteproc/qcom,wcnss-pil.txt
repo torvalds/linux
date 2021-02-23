@@ -34,13 +34,24 @@ on the Qualcomm WCNSS core.
 	Definition: should be "wdog", "fatal", optionally followed by "ready",
 		    "handover", "stop-ack"
 
-- vddmx-supply:
-- vddcx-supply:
+- vddmx-supply: (deprecated for qcom,pronto-v1/2-pil)
+- vddcx-supply: (deprecated for qcom,pronto-v1/2-pil)
 - vddpx-supply:
 	Usage: required
 	Value type: <phandle>
 	Definition: reference to the regulators to be held on behalf of the
 		    booting of the WCNSS core
+
+- power-domains:
+	Usage: required (for qcom,pronto-v1/2-pil)
+	Value type: <phandle>
+	Definition: reference to the power domains to be held on behalf of the
+		    booting of the WCNSS core
+
+- power-domain-names:
+	Usage: required (for qcom,pronto-v1/2-pil)
+	Value type: <stringlist>
+	Definition: must be "cx", "mx"
 
 - qcom,smem-states:
 	Usage: optional
@@ -111,8 +122,9 @@ pronto@fb204000 {
 			      <&wcnss_smp2p_slave 3 0>;
 	interrupt-names = "wdog", "fatal", "ready", "handover", "stop-ack";
 
-	vddmx-supply = <&pm8841_s1>;
-	vddcx-supply = <&pm8841_s2>;
+	power-domains = <&rpmpd MSM8974_VDDCX>, <&rpmpd MSM8974_VDDMX>;
+	power-domain-names = "cx", "mx";
+
 	vddpx-supply = <&pm8941_s3>;
 
 	qcom,smem-states = <&wcnss_smp2p_out 0>;

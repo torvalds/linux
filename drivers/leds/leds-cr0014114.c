@@ -188,9 +188,6 @@ static int cr0014114_probe_dt(struct cr0014114 *priv)
 	device_for_each_child_node(priv->dev, child) {
 		led = &priv->leds[i];
 
-		fwnode_property_read_string(child, "linux,default-trigger",
-					    &led->ldev.default_trigger);
-
 		led->priv			  = priv;
 		led->ldev.max_brightness	  = CR_MAX_BRIGHTNESS;
 		led->ldev.brightness_set_blocking = cr0014114_set_sync;

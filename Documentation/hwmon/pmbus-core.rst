@@ -270,19 +270,12 @@ obtain the chip status. Therefore, it must _not_ be called from that function.
 
 ::
 
-  int pmbus_do_probe(struct i2c_client *client, const struct i2c_device_id *id,
-		     struct pmbus_driver_info *info);
+  int pmbus_do_probe(struct i2c_client *client, struct pmbus_driver_info *info);
 
 Execute probe function. Similar to standard probe function for other drivers,
 with the pointer to struct pmbus_driver_info as additional argument. Calls
 identify function if supported. Must only be called from device probe
 function.
-
-::
-
-  void pmbus_do_remove(struct i2c_client *client);
-
-Execute driver remove function. Similar to standard driver remove function.
 
 ::
 

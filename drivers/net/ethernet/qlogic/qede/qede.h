@@ -172,6 +172,7 @@ struct qede_dev {
 	struct qed_dev			*cdev;
 	struct net_device		*ndev;
 	struct pci_dev			*pdev;
+	struct devlink			*devlink;
 
 	u32				dp_module;
 	u8				dp_level;
@@ -263,6 +264,7 @@ struct qede_dev {
 
 	struct bpf_prog			*xdp_prog;
 
+	enum qed_hw_err_type		last_err_type;
 	unsigned long			err_flags;
 #define QEDE_ERR_IS_HANDLED		31
 #define QEDE_ERR_ATTN_CLR_EN		0

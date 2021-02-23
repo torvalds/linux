@@ -44,6 +44,7 @@ int core507d_new_(const struct nv50_core_func *, struct nouveau_drm *, s32,
 		  struct nv50_core **);
 int core507d_init(struct nv50_core *);
 void core507d_ntfy_init(struct nouveau_bo *, u32);
+int core507d_read_caps(struct nv50_disp *disp);
 int core507d_caps_init(struct nouveau_drm *, struct nv50_disp *);
 int core507d_ntfy_wait_done(struct nouveau_bo *, u32, struct nvif_device *);
 int core507d_update(struct nv50_core *, u32 *, bool);
@@ -55,6 +56,7 @@ extern const struct nv50_outp_func pior507d;
 int core827d_new(struct nouveau_drm *, s32, struct nv50_core **);
 
 int core907d_new(struct nouveau_drm *, s32, struct nv50_core **);
+int core907d_caps_init(struct nouveau_drm *drm, struct nv50_disp *disp);
 extern const struct nv50_outp_func dac907d;
 extern const struct nv50_outp_func sor907d;
 

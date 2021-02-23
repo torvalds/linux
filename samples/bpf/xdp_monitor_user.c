@@ -26,12 +26,37 @@ static const char *__doc_err_only__=
 #include <net/if.h>
 #include <time.h>
 
+#include <signal.h>
 #include <bpf/bpf.h>
-#include "bpf_load.h"
+#include <bpf/libbpf.h>
 #include "bpf_util.h"
 
+enum map_type {
+	REDIRECT_ERR_CNT,
+	EXCEPTION_CNT,
+	CPUMAP_ENQUEUE_CNT,
+	CPUMAP_KTHREAD_CNT,
+	DEVMAP_XMIT_CNT,
+};
+
+static const char *const map_type_strings[] = {
+	[REDIRECT_ERR_CNT] = "redirect_err_cnt",
+	[EXCEPTION_CNT] = "exception_cnt",
+	[CPUMAP_ENQUEUE_CNT] = "cpumap_enqueue_cnt",
+	[CPUMAP_KTHREAD_CNT] = "cpumap_kthread_cnt",
+	[DEVMAP_XMIT_CNT] = "devmap_xmit_cnt",
+};
+
+#define NUM_MAP 5
+#define NUM_TP 8
+
+static int tp_cnt;
+static int map_cnt;
 static int verbose = 1;
 static bool debug = false;
+struct bpf_map *map_data[NUM_MAP] = {};
+struct bpf_link *tp_links[NUM_TP] = {};
+struct bpf_object *obj;
 
 static const struct option long_options[] = {
 	{"help",	no_argument,		NULL, 'h' },
@@ -40,6 +65,16 @@ static const struct option long_options[] = {
 	{"sec", 	required_argument,	NULL, 's' },
 	{0, 0, NULL,  0 }
 };
+
+static void int_exit(int sig)
+{
+	/* Detach tracepoints */
+	while (tp_cnt)
+		bpf_link__destroy(tp_links[--tp_cnt]);
+
+	bpf_object__close(obj);
+	exit(0);
+}
 
 /* C standard specifies two constants, EXIT_SUCCESS(0) and EXIT_FAILURE(1) */
 #define EXIT_FAIL_MEM	5
@@ -483,23 +518,23 @@ static bool stats_collect(struct stats_record *rec)
 	 * this can happen by someone running perf-record -e
 	 */
 
-	fd = map_data[0].fd; /* map0: redirect_err_cnt */
+	fd = bpf_map__fd(map_data[REDIRECT_ERR_CNT]);
 	for (i = 0; i < REDIR_RES_MAX; i++)
 		map_collect_record_u64(fd, i, &rec->xdp_redirect[i]);
 
-	fd = map_data[1].fd; /* map1: exception_cnt */
+	fd = bpf_map__fd(map_data[EXCEPTION_CNT]);
 	for (i = 0; i < XDP_ACTION_MAX; i++) {
 		map_collect_record_u64(fd, i, &rec->xdp_exception[i]);
 	}
 
-	fd = map_data[2].fd; /* map2: cpumap_enqueue_cnt */
+	fd = bpf_map__fd(map_data[CPUMAP_ENQUEUE_CNT]);
 	for (i = 0; i < MAX_CPUS; i++)
 		map_collect_record(fd, i, &rec->xdp_cpumap_enqueue[i]);
 
-	fd = map_data[3].fd; /* map3: cpumap_kthread_cnt */
+	fd = bpf_map__fd(map_data[CPUMAP_KTHREAD_CNT]);
 	map_collect_record(fd, 0, &rec->xdp_cpumap_kthread);
 
-	fd = map_data[4].fd; /* map4: devmap_xmit_cnt */
+	fd = bpf_map__fd(map_data[DEVMAP_XMIT_CNT]);
 	map_collect_record(fd, 0, &rec->xdp_devmap_xmit);
 
 	return true;
@@ -598,8 +633,8 @@ static void stats_poll(int interval, bool err_only)
 
 	/* TODO Need more advanced stats on error types */
 	if (verbose) {
-		printf(" - Stats map0: %s\n", map_data[0].name);
-		printf(" - Stats map1: %s\n", map_data[1].name);
+		printf(" - Stats map0: %s\n", bpf_map__name(map_data[0]));
+		printf(" - Stats map1: %s\n", bpf_map__name(map_data[1]));
 		printf("\n");
 	}
 	fflush(stdout);
@@ -618,43 +653,49 @@ static void stats_poll(int interval, bool err_only)
 
 static void print_bpf_prog_info(void)
 {
-	int i;
+	struct bpf_program *prog;
+	struct bpf_map *map;
+	int i = 0;
 
 	/* Prog info */
-	printf("Loaded BPF prog have %d bpf program(s)\n", prog_cnt);
-	for (i = 0; i < prog_cnt; i++) {
-		printf(" - prog_fd[%d] = fd(%d)\n", i, prog_fd[i]);
+	printf("Loaded BPF prog have %d bpf program(s)\n", tp_cnt);
+	bpf_object__for_each_program(prog, obj) {
+		printf(" - prog_fd[%d] = fd(%d)\n", i, bpf_program__fd(prog));
+		i++;
 	}
 
+	i = 0;
 	/* Maps info */
-	printf("Loaded BPF prog have %d map(s)\n", map_data_count);
-	for (i = 0; i < map_data_count; i++) {
-		char *name = map_data[i].name;
-		int fd     = map_data[i].fd;
+	printf("Loaded BPF prog have %d map(s)\n", map_cnt);
+	bpf_object__for_each_map(map, obj) {
+		const char *name = bpf_map__name(map);
+		int fd		 = bpf_map__fd(map);
 
 		printf(" - map_data[%d] = fd(%d) name:%s\n", i, fd, name);
+		i++;
 	}
 
 	/* Event info */
-	printf("Searching for (max:%d) event file descriptor(s)\n", prog_cnt);
-	for (i = 0; i < prog_cnt; i++) {
-		if (event_fd[i] != -1)
-			printf(" - event_fd[%d] = fd(%d)\n", i, event_fd[i]);
+	printf("Searching for (max:%d) event file descriptor(s)\n", tp_cnt);
+	for (i = 0; i < tp_cnt; i++) {
+		int fd = bpf_link__fd(tp_links[i]);
+
+		if (fd != -1)
+			printf(" - event_fd[%d] = fd(%d)\n", i, fd);
 	}
 }
 
 int main(int argc, char **argv)
 {
-	struct rlimit r = {RLIM_INFINITY, RLIM_INFINITY};
+	struct bpf_program *prog;
 	int longindex = 0, opt;
-	int ret = EXIT_SUCCESS;
-	char bpf_obj_file[256];
+	int ret = EXIT_FAILURE;
+	enum map_type type;
+	char filename[256];
 
 	/* Default settings: */
 	bool errors_only = true;
 	int interval = 2;
-
-	snprintf(bpf_obj_file, sizeof(bpf_obj_file), "%s_kern.o", argv[0]);
 
 	/* Parse commands line args */
 	while ((opt = getopt_long(argc, argv, "hDSs:",
@@ -672,40 +713,75 @@ int main(int argc, char **argv)
 		case 'h':
 		default:
 			usage(argv);
-			return EXIT_FAILURE;
+			return ret;
 		}
 	}
 
-	if (setrlimit(RLIMIT_MEMLOCK, &r)) {
-		perror("setrlimit(RLIMIT_MEMLOCK)");
-		return EXIT_FAILURE;
+	snprintf(filename, sizeof(filename), "%s_kern.o", argv[0]);
+
+	/* Remove tracepoint program when program is interrupted or killed */
+	signal(SIGINT, int_exit);
+	signal(SIGTERM, int_exit);
+
+	obj = bpf_object__open_file(filename, NULL);
+	if (libbpf_get_error(obj)) {
+		printf("ERROR: opening BPF object file failed\n");
+		obj = NULL;
+		goto cleanup;
 	}
 
-	if (load_bpf_file(bpf_obj_file)) {
-		printf("ERROR - bpf_log_buf: %s", bpf_log_buf);
-		return EXIT_FAILURE;
+	/* load BPF program */
+	if (bpf_object__load(obj)) {
+		printf("ERROR: loading BPF object file failed\n");
+		goto cleanup;
 	}
-	if (!prog_fd[0]) {
-		printf("ERROR - load_bpf_file: %s\n", strerror(errno));
-		return EXIT_FAILURE;
+
+	for (type = 0; type < NUM_MAP; type++) {
+		map_data[type] =
+			bpf_object__find_map_by_name(obj, map_type_strings[type]);
+
+		if (libbpf_get_error(map_data[type])) {
+			printf("ERROR: finding a map in obj file failed\n");
+			goto cleanup;
+		}
+		map_cnt++;
+	}
+
+	bpf_object__for_each_program(prog, obj) {
+		tp_links[tp_cnt] = bpf_program__attach(prog);
+		if (libbpf_get_error(tp_links[tp_cnt])) {
+			printf("ERROR: bpf_program__attach failed\n");
+			tp_links[tp_cnt] = NULL;
+			goto cleanup;
+		}
+		tp_cnt++;
 	}
 
 	if (debug) {
 		print_bpf_prog_info();
 	}
 
-	/* Unload/stop tracepoint event by closing fd's */
+	/* Unload/stop tracepoint event by closing bpf_link's */
 	if (errors_only) {
-		/* The prog_fd[i] and event_fd[i] depend on the
-		 * order the functions was defined in _kern.c
+		/* The bpf_link[i] depend on the order of
+		 * the functions was defined in _kern.c
 		 */
-		close(event_fd[2]); /* tracepoint/xdp/xdp_redirect */
-		close(prog_fd[2]);  /* func: trace_xdp_redirect */
-		close(event_fd[3]); /* tracepoint/xdp/xdp_redirect_map */
-		close(prog_fd[3]);  /* func: trace_xdp_redirect_map */
+		bpf_link__destroy(tp_links[2]);	/* tracepoint/xdp/xdp_redirect */
+		tp_links[2] = NULL;
+
+		bpf_link__destroy(tp_links[3]);	/* tracepoint/xdp/xdp_redirect_map */
+		tp_links[3] = NULL;
 	}
 
 	stats_poll(interval, errors_only);
 
+	ret = EXIT_SUCCESS;
+
+cleanup:
+	/* Detach tracepoints */
+	while (tp_cnt)
+		bpf_link__destroy(tp_links[--tp_cnt]);
+
+	bpf_object__close(obj);
 	return ret;
 }

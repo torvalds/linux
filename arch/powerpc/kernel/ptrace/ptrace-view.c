@@ -217,6 +217,10 @@ int ptrace_put_reg(struct task_struct *task, int regno, unsigned long data)
 static int gpr_get(struct task_struct *target, const struct user_regset *regset,
 		   struct membuf to)
 {
+	struct membuf to_msr = membuf_at(&to, offsetof(struct pt_regs, msr));
+#ifdef CONFIG_PPC64
+	struct membuf to_softe = membuf_at(&to, offsetof(struct pt_regs, softe));
+#endif
 	int i;
 
 	if (target->thread.regs == NULL)
@@ -228,15 +232,12 @@ static int gpr_get(struct task_struct *target, const struct user_regset *regset,
 			target->thread.regs->gpr[i] = NV_REG_POISON;
 	}
 
-	membuf_write(&to, target->thread.regs, offsetof(struct pt_regs, msr));
-	membuf_store(&to, get_user_msr(target));
+	membuf_write(&to, target->thread.regs, sizeof(struct user_pt_regs));
 
-	BUILD_BUG_ON(offsetof(struct pt_regs, orig_gpr3) !=
-		     offsetof(struct pt_regs, msr) + sizeof(long));
-
-	membuf_write(&to, &target->thread.regs->orig_gpr3,
-			sizeof(struct user_pt_regs) -
-			offsetof(struct pt_regs, orig_gpr3));
+	membuf_store(&to_msr, get_user_msr(target));
+#ifdef CONFIG_PPC64
+	membuf_store(&to_softe, 0x1ul);
+#endif
 	return membuf_zero(&to, ELF_NGREG * sizeof(unsigned long) -
 				 sizeof(struct user_pt_regs));
 }
@@ -470,12 +471,12 @@ static int pkey_active(struct task_struct *target, const struct user_regset *reg
 static int pkey_get(struct task_struct *target, const struct user_regset *regset,
 		    struct membuf to)
 {
-	BUILD_BUG_ON(TSO(amr) + sizeof(unsigned long) != TSO(iamr));
 
 	if (!arch_pkeys_enabled())
 		return -ENODEV;
 
-	membuf_write(&to, &target->thread.amr, 2 * sizeof(unsigned long));
+	membuf_store(&to, target->thread.regs->amr);
+	membuf_store(&to, target->thread.regs->iamr);
 	return membuf_store(&to, default_uamor);
 }
 
@@ -508,7 +509,8 @@ static int pkey_set(struct task_struct *target, const struct user_regset *regset
 	 * Pick the AMR values for the keys that kernel is using. This
 	 * will be indicated by the ~default_uamor bits.
 	 */
-	target->thread.amr = (new_amr & default_uamor) | (target->thread.amr & ~default_uamor);
+	target->thread.regs->amr = (new_amr & default_uamor) |
+		(target->thread.regs->amr & ~default_uamor);
 
 	return 0;
 }
@@ -520,11 +522,13 @@ static const struct user_regset native_regsets[] = {
 		.size = sizeof(long), .align = sizeof(long),
 		.regset_get = gpr_get, .set = gpr_set
 	},
+#ifdef CONFIG_PPC_FPU_REGS
 	[REGSET_FPR] = {
 		.core_note_type = NT_PRFPREG, .n = ELF_NFPREG,
 		.size = sizeof(double), .align = sizeof(double),
 		.regset_get = fpr_get, .set = fpr_set
 	},
+#endif
 #ifdef CONFIG_ALTIVEC
 	[REGSET_VMX] = {
 		.core_note_type = NT_PPC_VMX, .n = 34,

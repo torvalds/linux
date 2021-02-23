@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0
 /*
- * fs/verity/hash_algs.c: fs-verity hash algorithms
+ * fs-verity hash algorithms
  *
  * Copyright 2019 Google LLC
  */

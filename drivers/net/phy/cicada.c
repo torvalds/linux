@@ -87,13 +87,40 @@ static int cis820x_config_intr(struct phy_device *phydev)
 {
 	int err;
 
-	if (phydev->interrupts == PHY_INTERRUPT_ENABLED)
+	if (phydev->interrupts == PHY_INTERRUPT_ENABLED) {
+		err = cis820x_ack_interrupt(phydev);
+		if (err)
+			return err;
+
 		err = phy_write(phydev, MII_CIS8201_IMASK,
 				MII_CIS8201_IMASK_MASK);
-	else
+	} else {
 		err = phy_write(phydev, MII_CIS8201_IMASK, 0);
+		if (err)
+			return err;
+
+		err = cis820x_ack_interrupt(phydev);
+	}
 
 	return err;
+}
+
+static irqreturn_t cis820x_handle_interrupt(struct phy_device *phydev)
+{
+	int irq_status;
+
+	irq_status = phy_read(phydev, MII_CIS8201_ISTAT);
+	if (irq_status < 0) {
+		phy_error(phydev);
+		return IRQ_NONE;
+	}
+
+	if (!(irq_status & MII_CIS8201_IMASK_MASK))
+		return IRQ_NONE;
+
+	phy_trigger_machine(phydev);
+
+	return IRQ_HANDLED;
 }
 
 /* Cicada 8201, a.k.a Vitesse VSC8201 */
@@ -104,16 +131,16 @@ static struct phy_driver cis820x_driver[] = {
 	.phy_id_mask	= 0x000ffff0,
 	/* PHY_GBIT_FEATURES */
 	.config_init	= &cis820x_config_init,
-	.ack_interrupt	= &cis820x_ack_interrupt,
 	.config_intr	= &cis820x_config_intr,
+	.handle_interrupt = &cis820x_handle_interrupt,
 }, {
 	.phy_id		= 0x000fc440,
 	.name		= "Cicada Cis8204",
 	.phy_id_mask	= 0x000fffc0,
 	/* PHY_GBIT_FEATURES */
 	.config_init	= &cis820x_config_init,
-	.ack_interrupt	= &cis820x_ack_interrupt,
 	.config_intr	= &cis820x_config_intr,
+	.handle_interrupt = &cis820x_handle_interrupt,
 } };
 
 module_phy_driver(cis820x_driver);
