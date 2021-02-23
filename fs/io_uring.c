@@ -5216,7 +5216,7 @@ static bool __io_poll_remove_one(struct io_kiocb *req,
 	return do_complete;
 }
 
-static bool io_poll_remove_one(struct io_kiocb *req)
+static bool io_poll_remove_waitqs(struct io_kiocb *req)
 {
 	bool do_complete;
 
@@ -5236,6 +5236,14 @@ static bool io_poll_remove_one(struct io_kiocb *req)
 		}
 	}
 
+	return do_complete;
+}
+
+static bool io_poll_remove_one(struct io_kiocb *req)
+{
+	bool do_complete;
+
+	do_complete = io_poll_remove_waitqs(req);
 	if (do_complete) {
 		io_cqring_fill_event(req, -ECANCELED);
 		io_commit_cqring(req->ctx);
