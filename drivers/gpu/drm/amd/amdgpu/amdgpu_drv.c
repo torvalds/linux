@@ -177,7 +177,7 @@ uint amdgpu_ras_mask = 0xffffffff;
 int amdgpu_bad_page_threshold = 100;
 struct amdgpu_watchdog_timer amdgpu_watchdog_timer = {
 	.timeout_fatal_disable = false,
-	.period = 0x3f, /* about 8s */
+	.period = 0x23, /* default to max. timeout = 1 << 0x23 cycles */
 };
 
 /**
@@ -545,7 +545,7 @@ module_param_named(timeout_fatal_disable, amdgpu_watchdog_timer.timeout_fatal_di
  * DOC: timeout_period (uint)
  * Modify the watchdog timeout max_cycles as (1 << period)
  */
-MODULE_PARM_DESC(timeout_period, "watchdog timeout period (0x1F = default), timeout maxCycles = (1 << period)");
+MODULE_PARM_DESC(timeout_period, "watchdog timeout period (1 to 0x23(default), timeout maxCycles = (1 << period)");
 module_param_named(timeout_period, amdgpu_watchdog_timer.period, uint, 0644);
 
 /**
