@@ -1005,6 +1005,7 @@ void mt7615_mac_set_rates(struct mt7615_phy *phy, struct mt7615_sta *sta,
 	struct mt7615_dev *dev = phy->dev;
 	struct mt7615_rate_desc rd;
 	u32 w5, w27, addr;
+	u16 idx = sta->vif->mt76.omac_idx;
 
 	if (!mt76_is_mmio(&dev->mt76)) {
 		mt7615_mac_queue_rate_update(phy, sta, probe_rate, rates);
@@ -1056,7 +1057,10 @@ void mt7615_mac_set_rates(struct mt7615_phy *phy, struct mt7615_sta *sta,
 
 	mt76_wr(dev, addr + 27 * 4, w27);
 
-	mt76_set(dev, MT_LPON_T0CR, MT_LPON_T0CR_MODE); /* TSF read */
+	idx = idx > HW_BSSID_MAX ? HW_BSSID_0 : idx;
+	addr = idx > 1 ? MT_LPON_TCR2(idx): MT_LPON_TCR0(idx);
+
+	mt76_set(dev, addr, MT_LPON_TCR_MODE); /* TSF read */
 	sta->rate_set_tsf = mt76_rr(dev, MT_LPON_UTTR0) & ~BIT(0);
 	sta->rate_set_tsf |= rd.rateset;
 
