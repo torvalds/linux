@@ -476,7 +476,7 @@ void disk_uevent(struct gendisk *disk, enum kobject_action action)
 	struct disk_part_iter piter;
 	struct block_device *part;
 
-	disk_part_iter_init(&piter, disk, DISK_PITER_INCL_PART0);
+	disk_part_iter_init(&piter, disk, DISK_PITER_INCL_EMPTY_PART0);
 	while ((part = disk_part_iter_next(&piter)))
 		kobject_uevent(bdev_kobj(part), action);
 	disk_part_iter_exit(&piter);
