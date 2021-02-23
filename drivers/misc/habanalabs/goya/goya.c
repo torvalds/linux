@@ -469,6 +469,7 @@ int goya_get_fixed_properties(struct hl_device *hdev)
 	prop->cb_pool_cb_cnt = GOYA_CB_POOL_CB_CNT;
 	prop->cb_pool_cb_size = GOYA_CB_POOL_CB_SIZE;
 	prop->max_power_default = MAX_POWER_DEFAULT;
+	prop->dc_power_default = DC_POWER_DEFAULT;
 	prop->tpc_enabled_mask = TPC_ENABLED_MASK;
 	prop->pcie_dbi_base_address = mmPCIE_DBI_BASE;
 	prop->pcie_aux_dbi_reg_addr = CFG_BASE + mmPCIE_AUX_DBI;

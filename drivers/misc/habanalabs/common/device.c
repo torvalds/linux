@@ -383,17 +383,9 @@ static int device_early_init(struct hl_device *hdev)
 		goto free_sob_reset_wq;
 	}
 
-	hdev->idle_busy_ts_arr = kmalloc_array(HL_IDLE_BUSY_TS_ARR_SIZE,
-					sizeof(struct hl_device_idle_busy_ts),
-					(GFP_KERNEL | __GFP_ZERO));
-	if (!hdev->idle_busy_ts_arr) {
-		rc = -ENOMEM;
-		goto free_chip_info;
-	}
-
 	rc = hl_mmu_if_set_funcs(hdev);
 	if (rc)
-		goto free_idle_busy_ts_arr;
+		goto free_chip_info;
 
 	hl_cb_mgr_init(&hdev->kernel_cb_mgr);
 
@@ -422,8 +414,6 @@ static int device_early_init(struct hl_device *hdev)
 
 free_cb_mgr:
 	hl_cb_mgr_fini(hdev, &hdev->kernel_cb_mgr);
-free_idle_busy_ts_arr:
-	kfree(hdev->idle_busy_ts_arr);
 free_chip_info:
 	kfree(hdev->hl_chip_info);
 free_sob_reset_wq:
@@ -461,7 +451,6 @@ static void device_early_fini(struct hl_device *hdev)
 
 	hl_cb_mgr_fini(hdev, &hdev->kernel_cb_mgr);
 
-	kfree(hdev->idle_busy_ts_arr);
 	kfree(hdev->hl_chip_info);
 
 	destroy_workqueue(hdev->sob_reset_wq);
@@ -582,100 +571,24 @@ static void device_late_fini(struct hl_device *hdev)
 	hdev->late_init_done = false;
 }
 
-uint32_t hl_device_utilization(struct hl_device *hdev, uint32_t period_ms)
+int hl_device_utilization(struct hl_device *hdev, u32 *utilization)
 {
-	struct hl_device_idle_busy_ts *ts;
-	ktime_t zero_ktime, curr = ktime_get();
-	u32 overlap_cnt = 0, last_index = hdev->idle_busy_ts_idx;
-	s64 period_us, last_start_us, last_end_us, last_busy_time_us,
-		total_busy_time_us = 0, total_busy_time_ms;
+	u64 max_power, curr_power, dc_power, dividend;
+	int rc;
 
-	zero_ktime = ktime_set(0, 0);
-	period_us = period_ms * USEC_PER_MSEC;
-	ts = &hdev->idle_busy_ts_arr[last_index];
+	max_power = hdev->asic_prop.max_power_default;
+	dc_power = hdev->asic_prop.dc_power_default;
+	rc = hl_fw_cpucp_power_get(hdev, &curr_power);
 
-	/* check case that device is currently in idle */
-	if (!ktime_compare(ts->busy_to_idle_ts, zero_ktime) &&
-			!ktime_compare(ts->idle_to_busy_ts, zero_ktime)) {
+	if (rc)
+		return rc;
 
-		last_index--;
-		/* Handle case idle_busy_ts_idx was 0 */
-		if (last_index > HL_IDLE_BUSY_TS_ARR_SIZE)
-			last_index = HL_IDLE_BUSY_TS_ARR_SIZE - 1;
+	curr_power = clamp(curr_power, dc_power, max_power);
 
-		ts = &hdev->idle_busy_ts_arr[last_index];
-	}
+	dividend = (curr_power - dc_power) * 100;
+	*utilization = (u32) div_u64(dividend, (max_power - dc_power));
 
-	while (overlap_cnt < HL_IDLE_BUSY_TS_ARR_SIZE) {
-		/* Check if we are in last sample case. i.e. if the sample
-		 * begun before the sampling period. This could be a real
-		 * sample or 0 so need to handle both cases
-		 */
-		last_start_us = ktime_to_us(
-				ktime_sub(curr, ts->idle_to_busy_ts));
-
-		if (last_start_us > period_us) {
-
-			/* First check two cases:
-			 * 1. If the device is currently busy
-			 * 2. If the device was idle during the whole sampling
-			 *    period
-			 */
-
-			if (!ktime_compare(ts->busy_to_idle_ts, zero_ktime)) {
-				/* Check if the device is currently busy */
-				if (ktime_compare(ts->idle_to_busy_ts,
-						zero_ktime))
-					return 100;
-
-				/* We either didn't have any activity or we
-				 * reached an entry which is 0. Either way,
-				 * exit and return what was accumulated so far
-				 */
-				break;
-			}
-
-			/* If sample has finished, check it is relevant */
-			last_end_us = ktime_to_us(
-					ktime_sub(curr, ts->busy_to_idle_ts));
-
-			if (last_end_us > period_us)
-				break;
-
-			/* It is relevant so add it but with adjustment */
-			last_busy_time_us = ktime_to_us(
-						ktime_sub(ts->busy_to_idle_ts,
-						ts->idle_to_busy_ts));
-			total_busy_time_us += last_busy_time_us -
-					(last_start_us - period_us);
-			break;
-		}
-
-		/* Check if the sample is finished or still open */
-		if (ktime_compare(ts->busy_to_idle_ts, zero_ktime))
-			last_busy_time_us = ktime_to_us(
-						ktime_sub(ts->busy_to_idle_ts,
-						ts->idle_to_busy_ts));
-		else
-			last_busy_time_us = ktime_to_us(
-					ktime_sub(curr, ts->idle_to_busy_ts));
-
-		total_busy_time_us += last_busy_time_us;
-
-		last_index--;
-		/* Handle case idle_busy_ts_idx was 0 */
-		if (last_index > HL_IDLE_BUSY_TS_ARR_SIZE)
-			last_index = HL_IDLE_BUSY_TS_ARR_SIZE - 1;
-
-		ts = &hdev->idle_busy_ts_arr[last_index];
-
-		overlap_cnt++;
-	}
-
-	total_busy_time_ms = DIV_ROUND_UP_ULL(total_busy_time_us,
-						USEC_PER_MSEC);
-
-	return DIV_ROUND_UP_ULL(total_busy_time_ms * 100, period_ms);
+	return 0;
 }
 
 /*
@@ -1109,14 +1022,6 @@ kill_processes:
 	hl_hw_queue_reset(hdev, hard_reset);
 	for (i = 0 ; i < hdev->asic_prop.completion_queues_count ; i++)
 		hl_cq_reset(hdev, &hdev->completion_queue[i]);
-
-	hdev->idle_busy_ts_idx = 0;
-	hdev->idle_busy_ts_arr[0].busy_to_idle_ts = ktime_set(0, 0);
-	hdev->idle_busy_ts_arr[0].idle_to_busy_ts = ktime_set(0, 0);
-
-	if (hdev->cs_active_cnt)
-		dev_crit(hdev->dev, "CS active cnt %d is not 0 during reset\n",
-			hdev->cs_active_cnt);
 
 	mutex_lock(&hdev->fpriv_list_lock);
 

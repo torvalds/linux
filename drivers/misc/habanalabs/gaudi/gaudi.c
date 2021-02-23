@@ -426,6 +426,19 @@ get_collective_mode(struct hl_device *hdev, u32 queue_id)
 	return HL_COLLECTIVE_NOT_SUPPORTED;
 }
 
+static inline void set_default_power_values(struct hl_device *hdev)
+{
+	struct asic_fixed_properties *prop = &hdev->asic_prop;
+
+	if (hdev->card_type == cpucp_card_type_pmc) {
+		prop->max_power_default = MAX_POWER_DEFAULT_PMC;
+		prop->dc_power_default = DC_POWER_DEFAULT_PMC;
+	} else {
+		prop->max_power_default = MAX_POWER_DEFAULT_PCI;
+		prop->dc_power_default = DC_POWER_DEFAULT_PCI;
+	}
+}
+
 static int gaudi_get_fixed_properties(struct hl_device *hdev)
 {
 	struct asic_fixed_properties *prop = &hdev->asic_prop;
@@ -537,7 +550,7 @@ static int gaudi_get_fixed_properties(struct hl_device *hdev)
 	prop->num_of_events = GAUDI_EVENT_SIZE;
 	prop->tpc_enabled_mask = TPC_ENABLED_MASK;
 
-	prop->max_power_default = MAX_POWER_DEFAULT_PCI;
+	set_default_power_values(hdev);
 
 	prop->cb_pool_cb_cnt = GAUDI_CB_POOL_CB_CNT;
 	prop->cb_pool_cb_size = GAUDI_CB_POOL_CB_SIZE;
@@ -7796,10 +7809,7 @@ static int gaudi_cpucp_info_get(struct hl_device *hdev)
 
 	hdev->card_type = le32_to_cpu(hdev->asic_prop.cpucp_info.card_type);
 
-	if (hdev->card_type == cpucp_card_type_pci)
-		prop->max_power_default = MAX_POWER_DEFAULT_PCI;
-	else if (hdev->card_type == cpucp_card_type_pmc)
-		prop->max_power_default = MAX_POWER_DEFAULT_PMC;
+	set_default_power_values(hdev);
 
 	hdev->max_power = prop->max_power_default;
 

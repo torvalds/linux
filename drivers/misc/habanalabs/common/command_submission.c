@@ -505,24 +505,6 @@ static void cs_do_release(struct kref *ref)
 		goto out;
 	}
 
-	hdev->asic_funcs->hw_queues_lock(hdev);
-
-	hdev->cs_active_cnt--;
-	if (!hdev->cs_active_cnt) {
-		struct hl_device_idle_busy_ts *ts;
-
-		ts = &hdev->idle_busy_ts_arr[hdev->idle_busy_ts_idx++];
-		ts->busy_to_idle_ts = ktime_get();
-
-		if (hdev->idle_busy_ts_idx == HL_IDLE_BUSY_TS_ARR_SIZE)
-			hdev->idle_busy_ts_idx = 0;
-	} else if (hdev->cs_active_cnt < 0) {
-		dev_crit(hdev->dev, "CS active cnt %d is negative\n",
-			hdev->cs_active_cnt);
-	}
-
-	hdev->asic_funcs->hw_queues_unlock(hdev);
-
 	/* Need to update CI for all queue jobs that does not get completion */
 	hl_hw_queue_update_ci(cs);
 

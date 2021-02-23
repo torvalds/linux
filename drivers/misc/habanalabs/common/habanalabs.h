@@ -61,8 +61,6 @@
 
 #define HL_SIM_MAX_TIMEOUT_US		10000000 /* 10s */
 
-#define HL_IDLE_BUSY_TS_ARR_SIZE	4096
-
 #define HL_COMMON_USER_INTERRUPT_ID	0xFFF
 
 /* Memory */
@@ -391,6 +389,7 @@ struct hl_mmu_properties {
  * @dram_size: DRAM total size.
  * @dram_pci_bar_size: size of PCI bar towards DRAM.
  * @max_power_default: max power of the device after reset
+ * @dc_power_default: power consumed by the device in mode idle.
  * @dram_size_for_default_page_mapping: DRAM size needed to map to avoid page
  *                                      fault.
  * @pcie_dbi_base_address: Base address of the PCIE_DBI block.
@@ -463,6 +462,7 @@ struct asic_fixed_properties {
 	u64				dram_size;
 	u64				dram_pci_bar_size;
 	u64				max_power_default;
+	u64				dc_power_default;
 	u64				dram_size_for_default_page_mapping;
 	u64				pcie_dbi_base_address;
 	u64				pcie_aux_dbi_reg_addr;
@@ -1761,16 +1761,6 @@ struct hl_device_reset_work {
 };
 
 /**
- * struct hl_device_idle_busy_ts - used for calculating device utilization rate.
- * @idle_to_busy_ts: timestamp where device changed from idle to busy.
- * @busy_to_idle_ts: timestamp where device changed from busy to idle.
- */
-struct hl_device_idle_busy_ts {
-	ktime_t				idle_to_busy_ts;
-	ktime_t				busy_to_idle_ts;
-};
-
-/**
  * struct hr_mmu_hop_addrs - used for holding per-device host-resident mmu hop
  * information.
  * @virt_addr: the virtual address of the hop.
@@ -1941,8 +1931,6 @@ struct hl_mmu_funcs {
  *              when a user opens the device
  * @fpriv_list_lock: protects the fpriv_list
  * @compute_ctx: current compute context executing.
- * @idle_busy_ts_arr: array to hold time stamps of transitions from idle to busy
- *                    and vice-versa
  * @aggregated_cs_counters: aggregated cs counters among all contexts
  * @mmu_priv: device-specific MMU data.
  * @mmu_func: device-related MMU functions.
@@ -1960,13 +1948,10 @@ struct hl_mmu_funcs {
  * @curr_pll_profile: current PLL profile.
  * @card_type: Various ASICs have several card types. This indicates the card
  *             type of the current device.
- * @cs_active_cnt: number of active command submissions on this device (active
- *                 means already in H/W queues)
  * @major: habanalabs kernel driver major.
  * @high_pll: high PLL profile frequency.
  * @soft_reset_cnt: number of soft reset since the driver was loaded.
  * @hard_reset_cnt: number of hard reset since the driver was loaded.
- * @idle_busy_ts_idx: index of current entry in idle_busy_ts_arr
  * @clk_throttling_reason: bitmask represents the current clk throttling reasons
  * @id: device minor.
  * @id_control: minor of the control device
@@ -2065,8 +2050,6 @@ struct hl_device {
 
 	struct hl_ctx			*compute_ctx;
 
-	struct hl_device_idle_busy_ts	*idle_busy_ts_arr;
-
 	struct hl_cs_counters_atomic	aggregated_cs_counters;
 
 	struct hl_mmu_priv		mmu_priv;
@@ -2081,12 +2064,10 @@ struct hl_device {
 	atomic_t			in_reset;
 	enum hl_pll_frequency		curr_pll_profile;
 	enum cpucp_card_types		card_type;
-	int				cs_active_cnt;
 	u32				major;
 	u32				high_pll;
 	u32				soft_reset_cnt;
 	u32				hard_reset_cnt;
-	u32				idle_busy_ts_idx;
 	u32				clk_throttling_reason;
 	u16				id;
 	u16				id_control;
@@ -2275,7 +2256,7 @@ int hl_device_reset(struct hl_device *hdev, u32 flags);
 void hl_hpriv_get(struct hl_fpriv *hpriv);
 int hl_hpriv_put(struct hl_fpriv *hpriv);
 int hl_device_set_frequency(struct hl_device *hdev, enum hl_pll_frequency freq);
-uint32_t hl_device_utilization(struct hl_device *hdev, uint32_t period_ms);
+int hl_device_utilization(struct hl_device *hdev, u32 *utilization);
 
 int hl_build_hwmon_channel_info(struct hl_device *hdev,
 		struct cpucp_sensor *sensors_arr);
