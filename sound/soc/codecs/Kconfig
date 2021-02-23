@@ -182,6 +182,7 @@ config SND_SOC_ALL_CODECS
 	imply SND_SOC_RT711_SDW
 	imply SND_SOC_RT715_SDW
 	imply SND_SOC_RT1308_SDW
+	imply SND_SOC_RT1316_SDW
 	imply SND_SOC_SGTL5000
 	imply SND_SOC_SI476X
 	imply SND_SOC_SIMPLE_AMPLIFIER
@@ -1141,6 +1142,11 @@ config SND_SOC_RT1308
 config SND_SOC_RT1308_SDW
 	tristate "Realtek RT1308 Codec - SDW"
 	depends on I2C && SOUNDWIRE
+	select REGMAP_SOUNDWIRE
+
+config SND_SOC_RT1316_SDW
+	tristate "Realtek RT1316 Codec - SDW"
+	depends on SOUNDWIRE
 	select REGMAP_SOUNDWIRE
 
 config SND_SOC_RT5514
