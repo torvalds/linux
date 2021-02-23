@@ -74,14 +74,18 @@
 #
 # Run with verbose output:
 #   sudo ./test_xsk.sh -v
+#
+# Run and dump packet contents:
+#   sudo ./test_xsk.sh -D
 
 . xsk_prereqs.sh
 
-while getopts "cv" flag
+while getopts "cvD" flag
 do
 	case "${flag}" in
 		c) colorconsole=1;;
 		v) verbose=1;;
+		D) dump_pkts=1;;
 	esac
 done
 
@@ -136,6 +140,10 @@ validate_veth_spec_file
 if [[ $verbose -eq 1 ]]; then
         echo "Spec file created: ${SPECFILE}"
 	VERBOSE_ARG="-v"
+fi
+
+if [[ $dump_pkts -eq 1 ]]; then
+	DUMP_PKTS_ARG="-D"
 fi
 
 test_status $retval "${TEST_NAME}"

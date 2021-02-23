@@ -58,7 +58,7 @@
  * - Rx thread verifies if all 10k packets were received and delivered in-order,
  *   and have the right content
  *
- * Enable/disable debug mode:
+ * Enable/disable packet dump mode:
  * --------------------------
  * To enable L2 - L4 headers and payload dump of each packet on STDOUT, add
  * parameter -D to params array in test_xsk.sh, i.e. params=("-S" "-D")
@@ -340,7 +340,7 @@ static struct option long_options[] = {
 	{"copy", no_argument, 0, 'c'},
 	{"tear-down", no_argument, 0, 'T'},
 	{"bidi", optional_argument, 0, 'B'},
-	{"debug", optional_argument, 0, 'D'},
+	{"dump-pkts", optional_argument, 0, 'D'},
 	{"verbose", no_argument, 0, 'v'},
 	{"tx-pkt-count", optional_argument, 0, 'C'},
 	{0, 0, 0, 0}
@@ -359,7 +359,7 @@ static void usage(const char *prog)
 	    "  -c, --copy           Force copy mode\n"
 	    "  -T, --tear-down      Tear down sockets by repeatedly recreating them\n"
 	    "  -B, --bidi           Bi-directional sockets test\n"
-	    "  -D, --debug          Debug mode - dump packets L2 - L5\n"
+	    "  -D, --dump-pkts      Dump packets L2 - L5\n"
 	    "  -v, --verbose        Verbose output\n"
 	    "  -C, --tx-pkt-count=n Number of packets to send\n";
 	ksft_print_msg(str, prog);
