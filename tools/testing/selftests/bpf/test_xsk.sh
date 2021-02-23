@@ -71,13 +71,17 @@
 #
 # Run (full output without color-coding):
 #   sudo ./test_xsk.sh
+#
+# Run with verbose output:
+#   sudo ./test_xsk.sh -v
 
 . xsk_prereqs.sh
 
-while getopts c flag
+while getopts "cv" flag
 do
 	case "${flag}" in
 		c) colorconsole=1;;
+		v) verbose=1;;
 	esac
 done
 
@@ -95,13 +99,17 @@ NS1=af_xdp${VETH1_POSTFIX}
 MTU=1500
 
 setup_vethPairs() {
-	echo "setting up ${VETH0}: namespace: ${NS0}"
+	if [[ $verbose -eq 1 ]]; then
+	        echo "setting up ${VETH0}: namespace: ${NS0}"
+	fi
 	ip netns add ${NS1}
 	ip link add ${VETH0} type veth peer name ${VETH1}
 	if [ -f /proc/net/if_inet6 ]; then
 		echo 1 > /proc/sys/net/ipv6/conf/${VETH0}/disable_ipv6
 	fi
-	echo "setting up ${VETH1}: namespace: ${NS1}"
+	if [[ $verbose -eq 1 ]]; then
+	        echo "setting up ${VETH1}: namespace: ${NS1}"
+	fi
 	ip link set ${VETH1} netns ${NS1}
 	ip netns exec ${NS1} ip link set ${VETH1} mtu ${MTU}
 	ip link set ${VETH0} mtu ${MTU}
@@ -125,7 +133,10 @@ echo "${VETH0}:${VETH1},${NS1}" > ${SPECFILE}
 
 validate_veth_spec_file
 
-echo "Spec file created: ${SPECFILE}"
+if [[ $verbose -eq 1 ]]; then
+        echo "Spec file created: ${SPECFILE}"
+	VERBOSE_ARG="-v"
+fi
 
 test_status $retval "${TEST_NAME}"
 
@@ -136,12 +147,16 @@ statusList=()
 ### TEST 1
 TEST_NAME="XSK KSELFTEST FRAMEWORK"
 
-echo "Switching interfaces [${VETH0}, ${VETH1}] to XDP Generic mode"
+if [[ $verbose -eq 1 ]]; then
+        echo "Switching interfaces [${VETH0}, ${VETH1}] to XDP Generic mode"
+fi
 vethXDPgeneric ${VETH0} ${VETH1} ${NS1}
 
 retval=$?
 if [ $retval -eq 0 ]; then
-	echo "Switching interfaces [${VETH0}, ${VETH1}] to XDP Native mode"
+        if [[ $verbose -eq 1 ]]; then
+	        echo "Switching interfaces [${VETH0}, ${VETH1}] to XDP Native mode"
+	fi
 	vethXDPnative ${VETH0} ${VETH1} ${NS1}
 fi
 

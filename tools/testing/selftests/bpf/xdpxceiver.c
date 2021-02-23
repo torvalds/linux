@@ -341,6 +341,7 @@ static struct option long_options[] = {
 	{"tear-down", no_argument, 0, 'T'},
 	{"bidi", optional_argument, 0, 'B'},
 	{"debug", optional_argument, 0, 'D'},
+	{"verbose", no_argument, 0, 'v'},
 	{"tx-pkt-count", optional_argument, 0, 'C'},
 	{0, 0, 0, 0}
 };
@@ -359,6 +360,7 @@ static void usage(const char *prog)
 	    "  -T, --tear-down      Tear down sockets by repeatedly recreating them\n"
 	    "  -B, --bidi           Bi-directional sockets test\n"
 	    "  -D, --debug          Debug mode - dump packets L2 - L5\n"
+	    "  -v, --verbose        Verbose output\n"
 	    "  -C, --tx-pkt-count=n Number of packets to send\n";
 	ksft_print_msg(str, prog);
 }
@@ -392,7 +394,7 @@ static void *nsswitchthread(void *args)
 			ksft_test_result_fail("ERROR: [%s] interface \"%s\" does not exist\n",
 					      __func__, ifdict[targs->idx]->ifname);
 		} else {
-			ksft_print_msg("Interface found: %s\n", ifdict[targs->idx]->ifname);
+			print_verbose("Interface found: %s\n", ifdict[targs->idx]->ifname);
 			targs->retptr = true;
 		}
 	}
@@ -422,7 +424,7 @@ static int validate_interfaces(void)
 			pthread_join(ns_thread, NULL);
 
 			if (targs->retptr)
-				ksft_print_msg("NS switched: %s\n", ifdict[i]->nsname);
+				print_verbose("NS switched: %s\n", ifdict[i]->nsname);
 
 			free(targs);
 		} else {
@@ -432,7 +434,7 @@ static int validate_interfaces(void)
 				    ("ERROR: interface \"%s\" does not exist\n", ifdict[i]->ifname);
 				ret = false;
 			} else {
-				ksft_print_msg("Interface found: %s\n", ifdict[i]->ifname);
+				print_verbose("Interface found: %s\n", ifdict[i]->ifname);
 			}
 		}
 	}
@@ -446,7 +448,7 @@ static void parse_command_line(int argc, char **argv)
 	opterr = 0;
 
 	for (;;) {
-		c = getopt_long(argc, argv, "i:q:pSNcTBDC:", long_options, &option_index);
+		c = getopt_long(argc, argv, "i:q:pSNcTBDC:v", long_options, &option_index);
 
 		if (c == -1)
 			break;
@@ -496,6 +498,9 @@ static void parse_command_line(int argc, char **argv)
 			break;
 		case 'C':
 			opt_pkt_count = atoi(optarg);
+			break;
+		case 'v':
+			opt_verbose = 1;
 			break;
 		default:
 			usage(basename(argv[0]));
@@ -714,7 +719,7 @@ static void worker_pkt_dump(void)
 		int payload = *((uint32_t *)(pkt_buf[iter]->payload + PKT_HDR_SIZE));
 
 		if (payload == EOT) {
-			ksft_print_msg("End-of-transmission frame received\n");
+			print_verbose("End-of-transmission frame received\n");
 			fprintf(stdout, "---------------------------------------\n");
 			break;
 		}
@@ -746,7 +751,7 @@ static void worker_pkt_validate(void)
 			}
 
 			if (payloadseqnum == EOT) {
-				ksft_print_msg("End-of-transmission frame received: PASS\n");
+				print_verbose("End-of-transmission frame received: PASS\n");
 				sigvar = 1;
 				break;
 			}
@@ -836,7 +841,7 @@ static void *worker_testapp_validate(void *arg)
 			usleep(USLEEP_MAX);
 		}
 
-		ksft_print_msg("Interface [%s] vector [Tx]\n", ifobject->ifname);
+		print_verbose("Interface [%s] vector [Tx]\n", ifobject->ifname);
 		for (int i = 0; i < num_frames; i++) {
 			/*send EOT frame */
 			if (i == (num_frames - 1))
@@ -850,7 +855,7 @@ static void *worker_testapp_validate(void *arg)
 			gen_eth_frame(ifobject->umem, i * XSK_UMEM__DEFAULT_FRAME_SIZE);
 		}
 
-		ksft_print_msg("Sending %d packets on interface %s\n",
+		print_verbose("Sending %d packets on interface %s\n",
 			       (opt_pkt_count - 1), ifobject->ifname);
 		tx_only_all(ifobject);
 	} else if (ifobject->fv.vector == rx) {
@@ -860,7 +865,7 @@ static void *worker_testapp_validate(void *arg)
 		if (!bidi_pass)
 			thread_common_ops(ifobject, bufs, &sync_mutex_tx, &spinning_rx);
 
-		ksft_print_msg("Interface [%s] vector [Rx]\n", ifobject->ifname);
+		print_verbose("Interface [%s] vector [Rx]\n", ifobject->ifname);
 		xsk_populate_fill_ring(ifobject->umem);
 
 		TAILQ_INIT(&head);
@@ -890,11 +895,11 @@ static void *worker_testapp_validate(void *arg)
 				break;
 		}
 
-		ksft_print_msg("Received %d packets on interface %s\n",
+		print_verbose("Received %d packets on interface %s\n",
 			       pkt_counter, ifobject->ifname);
 
 		if (opt_teardown)
-			ksft_print_msg("Destroying socket\n");
+			print_verbose("Destroying socket\n");
 	}
 
 	if (!opt_bidi || bidi_pass) {
@@ -914,7 +919,7 @@ static void testapp_validate(void)
 	if (opt_bidi && bidi_pass) {
 		pthread_init_mutex();
 		if (!switching_notify) {
-			ksft_print_msg("Switching Tx/Rx vectors\n");
+			print_verbose("Switching Tx/Rx vectors\n");
 			switching_notify++;
 		}
 	}
@@ -974,7 +979,7 @@ static void testapp_sockets(void)
 		pkt_counter = 0;
 		prev_pkt = -1;
 		sigvar = 0;
-		ksft_print_msg("Creating socket\n");
+		print_verbose("Creating socket\n");
 		testapp_validate();
 		opt_bidi ? bidi_pass++ : bidi_pass;
 	}

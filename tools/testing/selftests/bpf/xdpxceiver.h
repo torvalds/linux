@@ -42,6 +42,8 @@
 #define POLL_TMOUT 1000
 #define NEED_WAKEUP true
 
+#define print_verbose(x...) do { if (opt_verbose) ksft_print_msg(x); } while (0)
+
 typedef __u32 u32;
 typedef __u16 u16;
 typedef __u8 u8;
@@ -51,11 +53,11 @@ enum TESTS {
 	ORDER_CONTENT_VALIDATE_XDP_DRV = 1,
 };
 
-u8 uut;
-u8 debug_pkt_dump;
-u32 num_frames;
-u8 switching_notify;
-u8 bidi_pass;
+static u8 uut;
+static u8 debug_pkt_dump;
+static u32 num_frames;
+static u8 switching_notify;
+static u8 bidi_pass;
 
 static u32 opt_xdp_flags = XDP_FLAGS_UPDATE_IF_NOEXIST;
 static int opt_queue;
@@ -64,6 +66,7 @@ static int opt_poll;
 static int opt_teardown;
 static int opt_bidi;
 static u32 opt_xdp_bind_flags = XDP_USE_NEED_WAKEUP;
+static u8 opt_verbose;
 static u8 pkt_data[XSK_UMEM__DEFAULT_FRAME_SIZE];
 static u32 pkt_counter;
 static u32 prev_pkt = -1;
