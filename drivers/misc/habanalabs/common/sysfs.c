@@ -344,7 +344,7 @@ static ssize_t eeprom_read_handler(struct file *filp, struct kobject *kobj,
 			struct bin_attribute *attr, char *buf, loff_t offset,
 			size_t max_size)
 {
-	struct device *dev = container_of(kobj, struct device, kobj);
+	struct device *dev = kobj_to_dev(kobj);
 	struct hl_device *hdev = dev_get_drvdata(dev);
 	char *data;
 	int rc;
