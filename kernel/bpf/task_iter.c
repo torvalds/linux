@@ -37,7 +37,7 @@ retry:
 		if (!task) {
 			++*tid;
 			goto retry;
-		} else if (skip_if_dup_files && task->tgid != task->pid &&
+		} else if (skip_if_dup_files && !thread_group_leader(task) &&
 			   task->files == task->group_leader->files) {
 			put_task_struct(task);
 			task = NULL;
@@ -151,13 +151,14 @@ again:
 		curr_task = info->task;
 		curr_fd = info->fd;
 	} else {
-		curr_task = task_seq_get_next(ns, &curr_tid, true);
-		if (!curr_task) {
-			info->task = NULL;
-			return NULL;
-		}
+                curr_task = task_seq_get_next(ns, &curr_tid, true);
+                if (!curr_task) {
+                        info->task = NULL;
+                        info->tid = curr_tid;
+                        return NULL;
+                }
 
-		/* set info->task and info->tid */
+                /* set info->task and info->tid */
 		info->task = curr_task;
 		if (curr_tid == info->tid) {
 			curr_fd = info->fd;

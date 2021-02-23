@@ -96,6 +96,8 @@ static struct page **get_pages(struct drm_gem_object *obj)
 {
 	struct msm_gem_object *msm_obj = to_msm_bo(obj);
 
+	WARN_ON(!msm_gem_is_locked(obj));
+
 	if (!msm_obj->pages) {
 		struct drm_device *dev = obj->dev;
 		struct page **p;
@@ -211,10 +213,8 @@ int msm_gem_mmap_obj(struct drm_gem_object *obj,
 		 * address_space (so unmap_mapping_range does what we want,
 		 * in particular in the case of mmap'd dmabufs)
 		 */
-		fput(vma->vm_file);
-		get_file(obj->filp);
 		vma->vm_pgoff = 0;
-		vma->vm_file  = obj->filp;
+		vma_set_file(vma, obj->filp);
 
 		vma->vm_page_prot = vm_get_page_prot(vma->vm_flags);
 	}
@@ -990,6 +990,8 @@ void msm_gem_free_object(struct drm_gem_object *obj)
 		if (msm_obj->pages)
 			kvfree(msm_obj->pages);
 
+		put_iova_vmas(obj);
+
 		/* dma_buf_detach() grabs resv lock, so we need to unlock
 		 * prior to drm_prime_gem_destroy
 		 */
@@ -999,10 +1001,9 @@ void msm_gem_free_object(struct drm_gem_object *obj)
 	} else {
 		msm_gem_vunmap(obj);
 		put_pages(obj);
+		put_iova_vmas(obj);
 		msm_gem_unlock(obj);
 	}
-
-	put_iova_vmas(obj);
 
 	drm_gem_object_release(obj);
 
@@ -1117,6 +1118,8 @@ static struct drm_gem_object *_msm_gem_new(struct drm_device *dev,
 		struct msm_gem_vma *vma;
 		struct page **pages;
 
+		drm_gem_private_object_init(dev, obj, size);
+
 		msm_gem_lock(obj);
 
 		vma = add_vma(obj, NULL);
@@ -1128,9 +1131,9 @@ static struct drm_gem_object *_msm_gem_new(struct drm_device *dev,
 
 		to_msm_bo(obj)->vram_node = &vma->node;
 
-		drm_gem_private_object_init(dev, obj, size);
-
+		msm_gem_lock(obj);
 		pages = get_pages(obj);
+		msm_gem_unlock(obj);
 		if (IS_ERR(pages)) {
 			ret = PTR_ERR(pages);
 			goto fail;

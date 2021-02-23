@@ -145,14 +145,13 @@ config SUN3
 
 	  If you don't want to compile a kernel exclusively for a Sun 3, say N.
 
-endif # M68KCLASSIC
-
 config PILOT
 	bool
 
 config PILOT3
 	bool "Pilot 1000/5000, PalmPilot Personal/Pro, or PalmIII support"
-	depends on M68328
+	depends on !MMU
+	select M68328
 	select PILOT
 	help
 	  Support for the Palm Pilot 1000/5000, Personal/Pro and PalmIII.
@@ -165,19 +164,22 @@ config XCOPILOT_BUGS
 
 config UCSIMM
 	bool "uCsimm module support"
-	depends on M68EZ328
+	depends on !MMU
+	select M68EZ328
 	help
 	  Support for the Arcturus Networks uCsimm module.
 
 config UCDIMM
 	bool "uDsimm module support"
-	depends on M68VZ328
+	depends on !MMU
+	select M68VZ328
 	help
 	  Support for the Arcturus Networks uDsimm module.
 
 config DRAGEN2
 	bool "DragenEngine II board support"
-	depends on M68VZ328
+	depends on !MMU
+	select M68VZ328
 	help
 	  Support for the DragenEngine II board.
 
@@ -199,6 +201,8 @@ config MEMORY_RESERVE
 	depends on (UCSIMM || UCDIMM)
 	help
 	  Reserve certain memory regions on 68x328 based boards.
+
+endif # M68KCLASSIC
 
 config ARN5206
 	bool "Arnewsh 5206 board support"

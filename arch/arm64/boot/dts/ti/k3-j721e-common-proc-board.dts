@@ -67,6 +67,31 @@
 		regulator-boot-on;
 	};
 
+	vdd_mmc1: fixedregulator-sd {
+		compatible = "regulator-fixed";
+		regulator-name = "vdd_mmc1";
+		regulator-min-microvolt = <3300000>;
+		regulator-max-microvolt = <3300000>;
+		regulator-boot-on;
+		enable-active-high;
+		vin-supply = <&vsys_3v3>;
+		gpio = <&exp2 2 GPIO_ACTIVE_HIGH>;
+	};
+
+	vdd_sd_dv_alt: gpio-regulator-TLV71033 {
+		compatible = "regulator-gpio";
+		pinctrl-names = "default";
+		pinctrl-0 = <&vdd_sd_dv_alt_pins_default>;
+		regulator-name = "tlv71033";
+		regulator-min-microvolt = <1800000>;
+		regulator-max-microvolt = <3300000>;
+		regulator-boot-on;
+		vin-supply = <&vsys_5v0>;
+		gpios = <&main_gpio0 117 GPIO_ACTIVE_HIGH>;
+		states = <1800000 0x0>,
+			 <3300000 0x1>;
+	};
+
 	sound0: sound@0 {
 		compatible = "ti,j721e-cpb-audio";
 		model = "j721e-cpb";
@@ -103,6 +128,12 @@
 			J721E_IOPAD(0x240, PIN_INPUT, 0) /* (R26) MMC1_DAT3 */
 			J721E_IOPAD(0x258, PIN_INPUT, 0) /* (P23) MMC1_SDCD */
 			J721E_IOPAD(0x25c, PIN_INPUT, 0) /* (R28) MMC1_SDWP */
+		>;
+	};
+
+	vdd_sd_dv_alt_pins_default: vdd-sd-dv-alt-pins-default {
+		pinctrl-single,pins = <
+			J721E_IOPAD(0x1d8, PIN_INPUT, 7) /* (W4) SPI1_CS1.GPIO0_117 */
 		>;
 	};
 
@@ -221,7 +252,7 @@
 
 &wkup_uart0 {
 	/* Wakeup UART is used by System firmware */
-	status = "disabled";
+	status = "reserved";
 };
 
 &main_uart0 {
@@ -295,6 +326,8 @@
 
 &main_sdhci1 {
 	/* SD/MMC */
+	vmmc-supply = <&vdd_mmc1>;
+	vqmmc-supply = <&vdd_sd_dv_alt>;
 	pinctrl-names = "default";
 	pinctrl-0 = <&main_mmc1_pins_default>;
 	ti,driver-strength-ohm = <50>;
@@ -540,6 +573,46 @@
 				 <&k3_clks 152 18>;	/* PLL23_HSDIV0 */
 };
 
+&mcasp0 {
+	status = "disabled";
+};
+
+&mcasp1 {
+	status = "disabled";
+};
+
+&mcasp2 {
+	status = "disabled";
+};
+
+&mcasp3 {
+	status = "disabled";
+};
+
+&mcasp4 {
+	status = "disabled";
+};
+
+&mcasp5 {
+	status = "disabled";
+};
+
+&mcasp6 {
+	status = "disabled";
+};
+
+&mcasp7 {
+	status = "disabled";
+};
+
+&mcasp8 {
+	status = "disabled";
+};
+
+&mcasp9 {
+	status = "disabled";
+};
+
 &mcasp10 {
 	#sound-dai-cells = <0>;
 
@@ -556,8 +629,10 @@
 	>;
 	tx-num-evt = <0>;
 	rx-num-evt = <0>;
+};
 
-	status = "okay";
+&mcasp11 {
+	status = "disabled";
 };
 
 &serdes0 {
@@ -637,5 +712,9 @@
 };
 
 &pcie3_ep {
+	status = "disabled";
+};
+
+&dss {
 	status = "disabled";
 };

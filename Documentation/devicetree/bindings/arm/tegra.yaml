@@ -72,6 +72,9 @@ properties:
           - const: asus,grouper
           - const: nvidia,tegra30
       - items:
+          - const: ouya,ouya
+          - const: nvidia,tegra30
+      - items:
           - enum:
               - nvidia,dalmore
               - nvidia,roth

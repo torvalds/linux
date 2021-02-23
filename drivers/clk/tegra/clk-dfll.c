@@ -1856,13 +1856,13 @@ static int dfll_fetch_pwm_params(struct tegra_dfll *td)
 			    &td->reg_init_uV);
 	if (!ret) {
 		dev_err(td->dev, "couldn't get initialized voltage\n");
-		return ret;
+		return -EINVAL;
 	}
 
 	ret = read_dt_param(td, "nvidia,pwm-period-nanoseconds", &pwm_period);
 	if (!ret) {
 		dev_err(td->dev, "couldn't get PWM period\n");
-		return ret;
+		return -EINVAL;
 	}
 	td->pwm_rate = (NSEC_PER_SEC / pwm_period) * (MAX_DFLL_VOLTAGES - 1);
 

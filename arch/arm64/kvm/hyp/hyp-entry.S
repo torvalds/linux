@@ -13,6 +13,7 @@
 #include <asm/kvm_arm.h>
 #include <asm/kvm_asm.h>
 #include <asm/mmu.h>
+#include <asm/spectre.h>
 
 .macro save_caller_saved_regs_vect
 	/* x0 and x1 were saved in the vector entry */
@@ -187,52 +188,60 @@ SYM_CODE_START(__kvm_hyp_vector)
 	valid_vect	el1_error		// Error 32-bit EL1
 SYM_CODE_END(__kvm_hyp_vector)
 
-.macro hyp_ventry
-	.align 7
-1:	esb
-	.rept 26
-	nop
-	.endr
-/*
- * The default sequence is to directly branch to the KVM vectors,
- * using the computed offset. This applies for VHE as well as
- * !ARM64_HARDEN_EL2_VECTORS. The first vector must always run the preamble.
- *
- * For ARM64_HARDEN_EL2_VECTORS configurations, this gets replaced
- * with:
- *
- * stp	x0, x1, [sp, #-16]!
- * movz	x0, #(addr & 0xffff)
- * movk	x0, #((addr >> 16) & 0xffff), lsl #16
- * movk	x0, #((addr >> 32) & 0xffff), lsl #32
- * br	x0
- *
- * Where:
- * addr = kern_hyp_va(__kvm_hyp_vector) + vector-offset + KVM_VECTOR_PREAMBLE.
- * See kvm_patch_vector_branch for details.
- */
-alternative_cb	kvm_patch_vector_branch
-	stp	x0, x1, [sp, #-16]!
-	b	__kvm_hyp_vector + (1b - 0b + KVM_VECTOR_PREAMBLE)
-	nop
-	nop
-	nop
-alternative_cb_end
+.macro spectrev2_smccc_wa1_smc
+	sub	sp, sp, #(8 * 4)
+	stp	x2, x3, [sp, #(8 * 0)]
+	stp	x0, x1, [sp, #(8 * 2)]
+	mov	w0, #ARM_SMCCC_ARCH_WORKAROUND_1
+	smc	#0
+	ldp	x2, x3, [sp, #(8 * 0)]
+	add	sp, sp, #(8 * 2)
 .endm
 
-.macro generate_vectors
+.macro hyp_ventry	indirect, spectrev2
+	.align	7
+1:	esb
+	.if \spectrev2 != 0
+	spectrev2_smccc_wa1_smc
+	.else
+	stp	x0, x1, [sp, #-16]!
+	.endif
+	.if \indirect != 0
+	alternative_cb  kvm_patch_vector_branch
+	/*
+	 * For ARM64_SPECTRE_V3A configurations, these NOPs get replaced with:
+	 *
+	 * movz	x0, #(addr & 0xffff)
+	 * movk	x0, #((addr >> 16) & 0xffff), lsl #16
+	 * movk	x0, #((addr >> 32) & 0xffff), lsl #32
+	 * br	x0
+	 *
+	 * Where:
+	 * addr = kern_hyp_va(__kvm_hyp_vector) + vector-offset + KVM_VECTOR_PREAMBLE.
+	 * See kvm_patch_vector_branch for details.
+	 */
+	nop
+	nop
+	nop
+	nop
+	alternative_cb_end
+	.endif
+	b	__kvm_hyp_vector + (1b - 0b + KVM_VECTOR_PREAMBLE)
+.endm
+
+.macro generate_vectors	indirect, spectrev2
 0:
 	.rept 16
-	hyp_ventry
+	hyp_ventry	\indirect, \spectrev2
 	.endr
 	.org 0b + SZ_2K		// Safety measure
 .endm
 
 	.align	11
 SYM_CODE_START(__bp_harden_hyp_vecs)
-	.rept BP_HARDEN_EL2_SLOTS
-	generate_vectors
-	.endr
+	generate_vectors indirect = 0, spectrev2 = 1 // HYP_VECTOR_SPECTRE_DIRECT
+	generate_vectors indirect = 1, spectrev2 = 0 // HYP_VECTOR_INDIRECT
+	generate_vectors indirect = 1, spectrev2 = 1 // HYP_VECTOR_SPECTRE_INDIRECT
 1:	.org __bp_harden_hyp_vecs + __BP_HARDEN_HYP_VECS_SZ
 	.org 1b
 SYM_CODE_END(__bp_harden_hyp_vecs)

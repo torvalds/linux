@@ -202,9 +202,8 @@ config PREFETCH
 	depends on PA8X00 || PA7200
 
 config MLONGCALLS
-	bool "Enable the -mlong-calls compiler option for big kernels"
-	default y if !MODULES || UBSAN || FTRACE
-	default n
+	def_bool y if !MODULES || UBSAN || FTRACE
+	bool "Enable the -mlong-calls compiler option for big kernels" if MODULES && !UBSAN && !FTRACE
 	depends on PA8X00
 	help
 	  If you configure the kernel to include many drivers built-in instead

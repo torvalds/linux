@@ -955,6 +955,7 @@ static void release_resources(struct ibmvnic_adapter *adapter)
 	release_rx_pools(adapter);
 
 	release_napi(adapter);
+	release_login_buffer(adapter);
 	release_login_rsp_buffer(adapter);
 }
 
@@ -2171,10 +2172,8 @@ static int do_reset(struct ibmvnic_adapter *adapter,
 		napi_schedule(&adapter->napi[i]);
 
 	if (adapter->reset_reason == VNIC_RESET_FAILOVER ||
-	    adapter->reset_reason == VNIC_RESET_MOBILITY) {
-		call_netdevice_notifiers(NETDEV_NOTIFY_PEERS, netdev);
-		call_netdevice_notifiers(NETDEV_RESEND_IGMP, netdev);
-	}
+	    adapter->reset_reason == VNIC_RESET_MOBILITY)
+		__netdev_notify_peers(netdev);
 
 	rc = 0;
 
@@ -2249,8 +2248,7 @@ static int do_hard_reset(struct ibmvnic_adapter *adapter,
 		goto out;
 	}
 
-	call_netdevice_notifiers(NETDEV_NOTIFY_PEERS, netdev);
-	call_netdevice_notifiers(NETDEV_RESEND_IGMP, netdev);
+	__netdev_notify_peers(netdev);
 out:
 	/* restore adapter state if reset failed */
 	if (rc)
@@ -2344,8 +2342,7 @@ static void __ibmvnic_reset(struct work_struct *work)
 				set_current_state(TASK_UNINTERRUPTIBLE);
 				schedule_timeout(60 * HZ);
 			}
-		} else if (!(rwi->reset_reason == VNIC_RESET_FATAL &&
-				adapter->from_passive_init)) {
+		} else {
 			rc = do_reset(adapter, rwi, reset_state);
 		}
 		kfree(rwi);
@@ -2984,9 +2981,7 @@ static int reset_one_sub_crq_queue(struct ibmvnic_adapter *adapter,
 	int rc;
 
 	if (!scrq) {
-		netdev_dbg(adapter->netdev,
-			   "Invalid scrq reset. irq (%d) or msgs (%p).\n",
-			   scrq->irq, scrq->msgs);
+		netdev_dbg(adapter->netdev, "Invalid scrq reset.\n");
 		return -EINVAL;
 	}
 
@@ -3876,7 +3871,9 @@ static int send_login(struct ibmvnic_adapter *adapter)
 		return -1;
 	}
 
+	release_login_buffer(adapter);
 	release_login_rsp_buffer(adapter);
+
 	client_data_len = vnic_client_data_len(adapter);
 
 	buffer_size =

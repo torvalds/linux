@@ -467,8 +467,16 @@ static void hl_mmu_v1_fini(struct hl_device *hdev)
 {
 	/* MMU H/W fini was already done in device hw_fini() */
 
-	kvfree(hdev->mmu_priv.dr.mmu_shadow_hop0);
-	gen_pool_destroy(hdev->mmu_priv.dr.mmu_pgt_pool);
+	if (!ZERO_OR_NULL_PTR(hdev->mmu_priv.hr.mmu_shadow_hop0)) {
+		kvfree(hdev->mmu_priv.dr.mmu_shadow_hop0);
+		gen_pool_destroy(hdev->mmu_priv.dr.mmu_pgt_pool);
+	}
+
+	/* Make sure that if we arrive here again without init was called we
+	 * won't cause kernel panic. This can happen for example if we fail
+	 * during hard reset code at certain points
+	 */
+	hdev->mmu_priv.dr.mmu_shadow_hop0 = NULL;
 }
 
 /**

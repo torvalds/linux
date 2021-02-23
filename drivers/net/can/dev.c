@@ -592,10 +592,10 @@ static void can_restart(struct net_device *dev)
 
 	cf->can_id |= CAN_ERR_RESTARTED;
 
-	netif_rx_ni(skb);
-
 	stats->rx_packets++;
 	stats->rx_bytes += cf->len;
+
+	netif_rx_ni(skb);
 
 restart:
 	netdev_dbg(dev, "restarted\n");

@@ -4,6 +4,7 @@ config DRM_MCDE
 	depends on CMA
 	depends on ARM || COMPILE_TEST
 	depends on OF
+	depends on COMMON_CLK
 	select MFD_SYSCON
 	select DRM_MIPI_DSI
 	select DRM_BRIDGE

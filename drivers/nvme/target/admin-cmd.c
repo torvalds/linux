@@ -487,8 +487,10 @@ static void nvmet_execute_identify_ns(struct nvmet_req *req)
 
 	/* return an all zeroed buffer if we can't find an active namespace */
 	ns = nvmet_find_namespace(ctrl, req->cmd->identify.nsid);
-	if (!ns)
+	if (!ns) {
+		status = NVME_SC_INVALID_NS;
 		goto done;
+	}
 
 	nvmet_ns_revalidate(ns);
 
@@ -541,7 +543,9 @@ static void nvmet_execute_identify_ns(struct nvmet_req *req)
 		id->nsattr |= (1 << 0);
 	nvmet_put_namespace(ns);
 done:
-	status = nvmet_copy_to_sgl(req, 0, id, sizeof(*id));
+	if (!status)
+		status = nvmet_copy_to_sgl(req, 0, id, sizeof(*id));
+
 	kfree(id);
 out:
 	nvmet_req_complete(req, status);

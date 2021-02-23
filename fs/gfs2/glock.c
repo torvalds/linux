@@ -857,12 +857,6 @@ static void delete_work_func(struct work_struct *work)
 	clear_bit(GLF_PENDING_DELETE, &gl->gl_flags);
 	spin_unlock(&gl->gl_lockref.lock);
 
-	/* If someone's using this glock to create a new dinode, the block must
-	   have been freed by another node, then re-used, in which case our
-	   iopen callback is too late after the fact. Ignore it. */
-	if (test_bit(GLF_INODE_CREATING, &gl->gl_flags))
-		goto out;
-
 	if (test_bit(GLF_DEMOTE, &gl->gl_flags)) {
 		/*
 		 * If we can evict the inode, give the remote node trying to
@@ -2112,8 +2106,6 @@ static const char *gflags2str(char *buf, const struct gfs2_glock *gl)
 		*p++ = 'o';
 	if (test_bit(GLF_BLOCKING, gflags))
 		*p++ = 'b';
-	if (test_bit(GLF_INODE_CREATING, gflags))
-		*p++ = 'c';
 	if (test_bit(GLF_PENDING_DELETE, gflags))
 		*p++ = 'P';
 	if (test_bit(GLF_FREEING, gflags))

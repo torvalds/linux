@@ -264,9 +264,11 @@ static int stm32_dma_get_width(struct stm32_dma_chan *chan,
 }
 
 static enum dma_slave_buswidth stm32_dma_get_max_width(u32 buf_len,
+						       dma_addr_t buf_addr,
 						       u32 threshold)
 {
 	enum dma_slave_buswidth max_width;
+	u64 addr = buf_addr;
 
 	if (threshold == STM32_DMA_FIFO_THRESHOLD_FULL)
 		max_width = DMA_SLAVE_BUSWIDTH_4_BYTES;
@@ -276,6 +278,9 @@ static enum dma_slave_buswidth stm32_dma_get_max_width(u32 buf_len,
 	while ((buf_len < max_width  || buf_len % max_width) &&
 	       max_width > DMA_SLAVE_BUSWIDTH_1_BYTE)
 		max_width = max_width >> 1;
+
+	if (do_div(addr, max_width))
+		max_width = DMA_SLAVE_BUSWIDTH_1_BYTE;
 
 	return max_width;
 }
@@ -648,21 +653,12 @@ static irqreturn_t stm32_dma_chan_irq(int irq, void *devid)
 	scr = stm32_dma_read(dmadev, STM32_DMA_SCR(chan->id));
 	sfcr = stm32_dma_read(dmadev, STM32_DMA_SFCR(chan->id));
 
-	if (status & STM32_DMA_TCI) {
-		stm32_dma_irq_clear(chan, STM32_DMA_TCI);
-		if (scr & STM32_DMA_SCR_TCIE)
-			stm32_dma_handle_chan_done(chan);
-		status &= ~STM32_DMA_TCI;
-	}
-	if (status & STM32_DMA_HTI) {
-		stm32_dma_irq_clear(chan, STM32_DMA_HTI);
-		status &= ~STM32_DMA_HTI;
-	}
 	if (status & STM32_DMA_FEI) {
 		stm32_dma_irq_clear(chan, STM32_DMA_FEI);
 		status &= ~STM32_DMA_FEI;
 		if (sfcr & STM32_DMA_SFCR_FEIE) {
-			if (!(scr & STM32_DMA_SCR_EN))
+			if (!(scr & STM32_DMA_SCR_EN) &&
+			    !(status & STM32_DMA_TCI))
 				dev_err(chan2dev(chan), "FIFO Error\n");
 			else
 				dev_dbg(chan2dev(chan), "FIFO over/underrun\n");
@@ -674,6 +670,19 @@ static irqreturn_t stm32_dma_chan_irq(int irq, void *devid)
 		if (sfcr & STM32_DMA_SCR_DMEIE)
 			dev_dbg(chan2dev(chan), "Direct mode overrun\n");
 	}
+
+	if (status & STM32_DMA_TCI) {
+		stm32_dma_irq_clear(chan, STM32_DMA_TCI);
+		if (scr & STM32_DMA_SCR_TCIE)
+			stm32_dma_handle_chan_done(chan);
+		status &= ~STM32_DMA_TCI;
+	}
+
+	if (status & STM32_DMA_HTI) {
+		stm32_dma_irq_clear(chan, STM32_DMA_HTI);
+		status &= ~STM32_DMA_HTI;
+	}
+
 	if (status) {
 		stm32_dma_irq_clear(chan, status);
 		dev_err(chan2dev(chan), "DMA error: status=0x%08x\n", status);
@@ -703,7 +712,7 @@ static void stm32_dma_issue_pending(struct dma_chan *c)
 static int stm32_dma_set_xfer_param(struct stm32_dma_chan *chan,
 				    enum dma_transfer_direction direction,
 				    enum dma_slave_buswidth *buswidth,
-				    u32 buf_len)
+				    u32 buf_len, dma_addr_t buf_addr)
 {
 	enum dma_slave_buswidth src_addr_width, dst_addr_width;
 	int src_bus_width, dst_bus_width;
@@ -735,7 +744,8 @@ static int stm32_dma_set_xfer_param(struct stm32_dma_chan *chan,
 			return dst_burst_size;
 
 		/* Set memory data size */
-		src_addr_width = stm32_dma_get_max_width(buf_len, fifoth);
+		src_addr_width = stm32_dma_get_max_width(buf_len, buf_addr,
+							 fifoth);
 		chan->mem_width = src_addr_width;
 		src_bus_width = stm32_dma_get_width(chan, src_addr_width);
 		if (src_bus_width < 0)
@@ -784,7 +794,8 @@ static int stm32_dma_set_xfer_param(struct stm32_dma_chan *chan,
 			return src_burst_size;
 
 		/* Set memory data size */
-		dst_addr_width = stm32_dma_get_max_width(buf_len, fifoth);
+		dst_addr_width = stm32_dma_get_max_width(buf_len, buf_addr,
+							 fifoth);
 		chan->mem_width = dst_addr_width;
 		dst_bus_width = stm32_dma_get_width(chan, dst_addr_width);
 		if (dst_bus_width < 0)
@@ -872,7 +883,8 @@ static struct dma_async_tx_descriptor *stm32_dma_prep_slave_sg(
 
 	for_each_sg(sgl, sg, sg_len, i) {
 		ret = stm32_dma_set_xfer_param(chan, direction, &buswidth,
-					       sg_dma_len(sg));
+					       sg_dma_len(sg),
+					       sg_dma_address(sg));
 		if (ret < 0)
 			goto err;
 
@@ -940,7 +952,8 @@ static struct dma_async_tx_descriptor *stm32_dma_prep_dma_cyclic(
 		return NULL;
 	}
 
-	ret = stm32_dma_set_xfer_param(chan, direction, &buswidth, period_len);
+	ret = stm32_dma_set_xfer_param(chan, direction, &buswidth, period_len,
+				       buf_addr);
 	if (ret < 0)
 		return NULL;
 
@@ -1216,6 +1229,8 @@ static void stm32_dma_free_chan_resources(struct dma_chan *c)
 	pm_runtime_put(dmadev->ddev.dev);
 
 	vchan_free_chan_resources(to_virt_chan(c));
+	stm32_dma_clear_reg(&chan->chan_reg);
+	chan->threshold = 0;
 }
 
 static void stm32_dma_desc_free(struct virt_dma_desc *vdesc)

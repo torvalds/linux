@@ -24,4 +24,9 @@
 
 &pio {
 	compatible = "allwinner,sun8i-v3-pinctrl";
+
+	uart1_pg_pins: uart1-pg-pins {
+		pins = "PG6", "PG7";
+		function = "uart1";
+	};
 };

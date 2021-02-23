@@ -196,10 +196,10 @@
  * exposed and assumed to be black).
  *
  * SCALING_FILTER:
- *
  *     Indicates scaling filter to be used for plane scaler
  *
  *     The value of this property can be one of the following:
+ *
  *     Default:
  *             Driver's default scaling filter
  *     Nearest Neighbor:

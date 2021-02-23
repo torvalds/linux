@@ -901,10 +901,12 @@ void amdgpu_acpi_fini(struct amdgpu_device *adev)
  *
  * returns true if supported, false if not.
  */
-bool amdgpu_acpi_is_s0ix_supported(void)
+bool amdgpu_acpi_is_s0ix_supported(struct amdgpu_device *adev)
 {
-	if (acpi_gbl_FADT.flags & ACPI_FADT_LOW_POWER_S0)
-		return true;
+	if (acpi_gbl_FADT.flags & ACPI_FADT_LOW_POWER_S0) {
+		if (adev->flags & AMD_IS_APU)
+			return true;
+	}
 
 	return false;
 }

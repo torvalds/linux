@@ -668,6 +668,7 @@ static int add_tracepoint_multi_sys(struct list_head *list, int *idx,
 	return ret;
 }
 
+#ifdef HAVE_LIBBPF_SUPPORT
 struct __add_bpf_event_param {
 	struct parse_events_state *parse_state;
 	struct list_head *list;
@@ -900,6 +901,30 @@ int parse_events_load_bpf(struct parse_events_state *parse_state,
 		list_splice_tail(&obj_head_config, head_config);
 	return err;
 }
+#else // HAVE_LIBBPF_SUPPORT
+int parse_events_load_bpf_obj(struct parse_events_state *parse_state,
+			      struct list_head *list __maybe_unused,
+			      struct bpf_object *obj __maybe_unused,
+			      struct list_head *head_config __maybe_unused)
+{
+	parse_events__handle_error(parse_state->error, 0,
+				   strdup("BPF support is not compiled"),
+				   strdup("Make sure libbpf-devel is available at build time."));
+	return -ENOTSUP;
+}
+
+int parse_events_load_bpf(struct parse_events_state *parse_state,
+			  struct list_head *list __maybe_unused,
+			  char *bpf_file_name __maybe_unused,
+			  bool source __maybe_unused,
+			  struct list_head *head_config __maybe_unused)
+{
+	parse_events__handle_error(parse_state->error, 0,
+				   strdup("BPF support is not compiled"),
+				   strdup("Make sure libbpf-devel is available at build time."));
+	return -ENOTSUP;
+}
+#endif // HAVE_LIBBPF_SUPPORT
 
 static int
 parse_breakpoint_type(const char *type, struct perf_event_attr *attr)
@@ -1744,7 +1769,7 @@ void parse_events__set_leader(char *name, struct list_head *list,
 	if (parse_events__set_leader_for_uncore_aliase(name, list, parse_state))
 		return;
 
-	__perf_evlist__set_leader(list);
+	__evlist__set_leader(list);
 	leader = list_entry(list->next, struct evsel, core.node);
 	leader->group_name = name ? strdup(name) : NULL;
 }
@@ -2158,7 +2183,7 @@ int __parse_events(struct evlist *evlist, const char *str,
 	/*
 	 * Add list to the evlist even with errors to allow callers to clean up.
 	 */
-	perf_evlist__splice_list_tail(evlist, &parse_state.list);
+	evlist__splice_list_tail(evlist, &parse_state.list);
 
 	if (!ret) {
 		struct evsel *last;

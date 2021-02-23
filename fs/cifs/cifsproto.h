@@ -27,8 +27,8 @@
 #endif
 
 struct statfs;
-struct smb_vol;
 struct smb_rqst;
+struct smb3_fs_context;
 
 /*
  *****************************************************************
@@ -72,14 +72,13 @@ extern void exit_cifs_spnego(void);
 extern char *build_path_from_dentry(struct dentry *);
 extern char *build_path_from_dentry_optional_prefix(struct dentry *direntry,
 						    bool prefix);
-extern char *cifs_build_path_to_root(struct smb_vol *vol,
+extern char *cifs_build_path_to_root(struct smb3_fs_context *ctx,
 				     struct cifs_sb_info *cifs_sb,
 				     struct cifs_tcon *tcon,
 				     int add_treename);
 extern char *build_wildcard_path_from_dentry(struct dentry *direntry);
 extern char *cifs_compose_mount_options(const char *sb_mountdata,
-		const char *fullpath, const struct dfs_info3_param *ref,
-		char **devname);
+		const char *fullpath, const struct dfs_info3_param *ref);
 /* extern void renew_parental_timestamps(struct dentry *direntry);*/
 extern struct mid_q_entry *AllocMidQEntry(const struct smb_hdr *smb_buffer,
 					struct TCP_Server_Info *server);
@@ -89,6 +88,7 @@ extern void cifs_mid_q_entry_release(struct mid_q_entry *midEntry);
 extern void cifs_wake_up_task(struct mid_q_entry *mid);
 extern int cifs_handle_standard(struct TCP_Server_Info *server,
 				struct mid_q_entry *mid);
+extern int smb3_parse_devname(const char *devname, struct smb3_fs_context *ctx);
 extern bool cifs_match_ipaddr(struct sockaddr *srcaddr, struct sockaddr *rhs);
 extern int cifs_discard_remaining_data(struct TCP_Server_Info *server);
 extern int cifs_call_async(struct TCP_Server_Info *server,
@@ -215,12 +215,12 @@ extern int cifs_acl_to_fattr(struct cifs_sb_info *cifs_sb,
 			      struct cifs_fattr *fattr, struct inode *inode,
 			      bool get_mode_from_special_sid,
 			      const char *path, const struct cifs_fid *pfid);
-extern int id_mode_to_cifs_acl(struct inode *inode, const char *path, __u64,
-					kuid_t, kgid_t);
+extern int id_mode_to_cifs_acl(struct inode *inode, const char *path, __u64 *pnmode,
+					kuid_t uid, kgid_t gid);
 extern struct cifs_ntsd *get_cifs_acl(struct cifs_sb_info *, struct inode *,
-					const char *, u32 *);
+				      const char *, u32 *, u32);
 extern struct cifs_ntsd *get_cifs_acl_by_fid(struct cifs_sb_info *,
-						const struct cifs_fid *, u32 *);
+				const struct cifs_fid *, u32 *, u32);
 extern int set_cifs_acl(struct cifs_ntsd *, __u32, struct inode *,
 				const char *, int);
 extern unsigned int setup_authusers_ACE(struct cifs_ace *pace);
@@ -234,13 +234,9 @@ extern int cifs_read_page_from_socket(struct TCP_Server_Info *server,
 					struct page *page,
 					unsigned int page_offset,
 					unsigned int to_read);
-extern int cifs_setup_cifs_sb(struct smb_vol *pvolume_info,
-			       struct cifs_sb_info *cifs_sb);
+extern int cifs_setup_cifs_sb(struct cifs_sb_info *cifs_sb);
 extern int cifs_match_super(struct super_block *, void *);
-extern void cifs_cleanup_volume_info(struct smb_vol *pvolume_info);
-extern struct smb_vol *cifs_get_volume_info(char *mount_data,
-					    const char *devname, bool is_smb3);
-extern int cifs_mount(struct cifs_sb_info *cifs_sb, struct smb_vol *vol);
+extern int cifs_mount(struct cifs_sb_info *cifs_sb, struct smb3_fs_context *ctx);
 extern void cifs_umount(struct cifs_sb_info *);
 extern void cifs_mark_open_files_invalid(struct cifs_tcon *tcon);
 extern void cifs_reopen_persistent_handles(struct cifs_tcon *tcon);
@@ -256,7 +252,7 @@ extern void cifs_add_pending_open_locked(struct cifs_fid *fid,
 					 struct tcon_link *tlink,
 					 struct cifs_pending_open *open);
 extern void cifs_del_pending_open(struct cifs_pending_open *open);
-extern struct TCP_Server_Info *cifs_get_tcp_session(struct smb_vol *vol);
+extern struct TCP_Server_Info *cifs_get_tcp_session(struct smb3_fs_context *ctx);
 extern void cifs_put_tcp_session(struct TCP_Server_Info *server,
 				 int from_reconnect);
 extern void cifs_put_tcon(struct cifs_tcon *tcon);
@@ -332,7 +328,7 @@ extern int parse_dfs_referrals(struct get_dfs_referral_rsp *rsp, u32 rsp_size,
 			       const char *searchName, bool is_unicode);
 extern void reset_cifs_unix_caps(unsigned int xid, struct cifs_tcon *tcon,
 				 struct cifs_sb_info *cifs_sb,
-				 struct smb_vol *vol);
+				 struct smb3_fs_context *ctx);
 extern int CIFSSMBQFSInfo(const unsigned int xid, struct cifs_tcon *tcon,
 			struct kstatfs *FSData);
 extern int SMBOldQFSInfo(const unsigned int xid, struct cifs_tcon *tcon,
@@ -553,18 +549,15 @@ extern int SMBencrypt(unsigned char *passwd, const unsigned char *c8,
 			unsigned char *p24);
 
 extern int
-cifs_setup_volume_info(struct smb_vol *volume_info, char *mount_data,
-		       const char *devname, bool is_smb3);
-extern void
-cifs_cleanup_volume_info_contents(struct smb_vol *volume_info);
+cifs_setup_volume_info(struct smb3_fs_context *ctx);
 
 extern struct TCP_Server_Info *
-cifs_find_tcp_session(struct smb_vol *vol);
+cifs_find_tcp_session(struct smb3_fs_context *ctx);
 
 extern void cifs_put_smb_ses(struct cifs_ses *ses);
 
 extern struct cifs_ses *
-cifs_get_smb_ses(struct TCP_Server_Info *server, struct smb_vol *volume_info);
+cifs_get_smb_ses(struct TCP_Server_Info *server, struct smb3_fs_context *ctx);
 
 void cifs_readdata_release(struct kref *refcount);
 int cifs_async_readv(struct cifs_readdata *rdata);
@@ -604,9 +597,7 @@ extern void rqst_page_get_length(struct smb_rqst *rqst, unsigned int page,
 				unsigned int *len, unsigned int *offset);
 struct cifs_chan *
 cifs_ses_find_chan(struct cifs_ses *ses, struct TCP_Server_Info *server);
-int cifs_try_adding_channels(struct cifs_ses *ses);
-int cifs_ses_add_channel(struct cifs_ses *ses,
-				struct cifs_server_iface *iface);
+int cifs_try_adding_channels(struct cifs_sb_info *cifs_sb, struct cifs_ses *ses);
 bool is_server_using_iface(struct TCP_Server_Info *server,
 			   struct cifs_server_iface *iface);
 bool is_ses_using_iface(struct cifs_ses *ses, struct cifs_server_iface *iface);
@@ -620,6 +611,8 @@ int smb2_parse_query_directory(struct cifs_tcon *tcon, struct kvec *rsp_iov,
 struct super_block *cifs_get_tcp_super(struct TCP_Server_Info *server);
 void cifs_put_tcp_super(struct super_block *sb);
 int update_super_prepath(struct cifs_tcon *tcon, char *prefix);
+char *extract_hostname(const char *unc);
+char *extract_sharename(const char *unc);
 
 #ifdef CONFIG_CIFS_DFS_UPCALL
 static inline int get_dfs_path(const unsigned int xid, struct cifs_ses *ses,

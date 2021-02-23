@@ -3918,9 +3918,11 @@ static int handle_one_map(struct ceph_osd_client *osdc,
 	set_pool_was_full(osdc);
 
 	if (incremental)
-		newmap = osdmap_apply_incremental(&p, end, osdc->osdmap);
+		newmap = osdmap_apply_incremental(&p, end,
+						  ceph_msgr2(osdc->client),
+						  osdc->osdmap);
 	else
-		newmap = ceph_osdmap_decode(&p, end);
+		newmap = ceph_osdmap_decode(&p, end, ceph_msgr2(osdc->client));
 	if (IS_ERR(newmap))
 		return PTR_ERR(newmap);
 
@@ -5410,7 +5412,7 @@ void ceph_osdc_cleanup(void)
 /*
  * handle incoming message
  */
-static void dispatch(struct ceph_connection *con, struct ceph_msg *msg)
+static void osd_dispatch(struct ceph_connection *con, struct ceph_msg *msg)
 {
 	struct ceph_osd *osd = con->private;
 	struct ceph_osd_client *osdc = osd->o_osdc;
@@ -5532,9 +5534,9 @@ static struct ceph_msg *alloc_msg_with_page_vector(struct ceph_msg_header *hdr)
 	return m;
 }
 
-static struct ceph_msg *alloc_msg(struct ceph_connection *con,
-				  struct ceph_msg_header *hdr,
-				  int *skip)
+static struct ceph_msg *osd_alloc_msg(struct ceph_connection *con,
+				      struct ceph_msg_header *hdr,
+				      int *skip)
 {
 	struct ceph_osd *osd = con->private;
 	int type = le16_to_cpu(hdr->type);
@@ -5558,7 +5560,7 @@ static struct ceph_msg *alloc_msg(struct ceph_connection *con,
 /*
  * Wrappers to refcount containing ceph_osd struct
  */
-static struct ceph_connection *get_osd_con(struct ceph_connection *con)
+static struct ceph_connection *osd_get_con(struct ceph_connection *con)
 {
 	struct ceph_osd *osd = con->private;
 	if (get_osd(osd))
@@ -5566,7 +5568,7 @@ static struct ceph_connection *get_osd_con(struct ceph_connection *con)
 	return NULL;
 }
 
-static void put_osd_con(struct ceph_connection *con)
+static void osd_put_con(struct ceph_connection *con)
 {
 	struct ceph_osd *osd = con->private;
 	put_osd(osd);
@@ -5575,39 +5577,29 @@ static void put_osd_con(struct ceph_connection *con)
 /*
  * authentication
  */
+
 /*
  * Note: returned pointer is the address of a structure that's
  * managed separately.  Caller must *not* attempt to free it.
  */
-static struct ceph_auth_handshake *get_authorizer(struct ceph_connection *con,
-					int *proto, int force_new)
+static struct ceph_auth_handshake *
+osd_get_authorizer(struct ceph_connection *con, int *proto, int force_new)
 {
 	struct ceph_osd *o = con->private;
 	struct ceph_osd_client *osdc = o->o_osdc;
 	struct ceph_auth_client *ac = osdc->client->monc.auth;
 	struct ceph_auth_handshake *auth = &o->o_auth;
+	int ret;
 
-	if (force_new && auth->authorizer) {
-		ceph_auth_destroy_authorizer(auth->authorizer);
-		auth->authorizer = NULL;
-	}
-	if (!auth->authorizer) {
-		int ret = ceph_auth_create_authorizer(ac, CEPH_ENTITY_TYPE_OSD,
-						      auth);
-		if (ret)
-			return ERR_PTR(ret);
-	} else {
-		int ret = ceph_auth_update_authorizer(ac, CEPH_ENTITY_TYPE_OSD,
-						     auth);
-		if (ret)
-			return ERR_PTR(ret);
-	}
-	*proto = ac->protocol;
+	ret = __ceph_auth_get_authorizer(ac, auth, CEPH_ENTITY_TYPE_OSD,
+					 force_new, proto, NULL, NULL);
+	if (ret)
+		return ERR_PTR(ret);
 
 	return auth;
 }
 
-static int add_authorizer_challenge(struct ceph_connection *con,
+static int osd_add_authorizer_challenge(struct ceph_connection *con,
 				    void *challenge_buf, int challenge_buf_len)
 {
 	struct ceph_osd *o = con->private;
@@ -5618,16 +5610,19 @@ static int add_authorizer_challenge(struct ceph_connection *con,
 					    challenge_buf, challenge_buf_len);
 }
 
-static int verify_authorizer_reply(struct ceph_connection *con)
+static int osd_verify_authorizer_reply(struct ceph_connection *con)
 {
 	struct ceph_osd *o = con->private;
 	struct ceph_osd_client *osdc = o->o_osdc;
 	struct ceph_auth_client *ac = osdc->client->monc.auth;
+	struct ceph_auth_handshake *auth = &o->o_auth;
 
-	return ceph_auth_verify_authorizer_reply(ac, o->o_auth.authorizer);
+	return ceph_auth_verify_authorizer_reply(ac, auth->authorizer,
+		auth->authorizer_reply_buf, auth->authorizer_reply_buf_len,
+		NULL, NULL, NULL, NULL);
 }
 
-static int invalidate_authorizer(struct ceph_connection *con)
+static int osd_invalidate_authorizer(struct ceph_connection *con)
 {
 	struct ceph_osd *o = con->private;
 	struct ceph_osd_client *osdc = o->o_osdc;
@@ -5635,6 +5630,80 @@ static int invalidate_authorizer(struct ceph_connection *con)
 
 	ceph_auth_invalidate_authorizer(ac, CEPH_ENTITY_TYPE_OSD);
 	return ceph_monc_validate_auth(&osdc->client->monc);
+}
+
+static int osd_get_auth_request(struct ceph_connection *con,
+				void *buf, int *buf_len,
+				void **authorizer, int *authorizer_len)
+{
+	struct ceph_osd *o = con->private;
+	struct ceph_auth_client *ac = o->o_osdc->client->monc.auth;
+	struct ceph_auth_handshake *auth = &o->o_auth;
+	int ret;
+
+	ret = ceph_auth_get_authorizer(ac, auth, CEPH_ENTITY_TYPE_OSD,
+				       buf, buf_len);
+	if (ret)
+		return ret;
+
+	*authorizer = auth->authorizer_buf;
+	*authorizer_len = auth->authorizer_buf_len;
+	return 0;
+}
+
+static int osd_handle_auth_reply_more(struct ceph_connection *con,
+				      void *reply, int reply_len,
+				      void *buf, int *buf_len,
+				      void **authorizer, int *authorizer_len)
+{
+	struct ceph_osd *o = con->private;
+	struct ceph_auth_client *ac = o->o_osdc->client->monc.auth;
+	struct ceph_auth_handshake *auth = &o->o_auth;
+	int ret;
+
+	ret = ceph_auth_handle_svc_reply_more(ac, auth, reply, reply_len,
+					      buf, buf_len);
+	if (ret)
+		return ret;
+
+	*authorizer = auth->authorizer_buf;
+	*authorizer_len = auth->authorizer_buf_len;
+	return 0;
+}
+
+static int osd_handle_auth_done(struct ceph_connection *con,
+				u64 global_id, void *reply, int reply_len,
+				u8 *session_key, int *session_key_len,
+				u8 *con_secret, int *con_secret_len)
+{
+	struct ceph_osd *o = con->private;
+	struct ceph_auth_client *ac = o->o_osdc->client->monc.auth;
+	struct ceph_auth_handshake *auth = &o->o_auth;
+
+	return ceph_auth_handle_svc_reply_done(ac, auth, reply, reply_len,
+					       session_key, session_key_len,
+					       con_secret, con_secret_len);
+}
+
+static int osd_handle_auth_bad_method(struct ceph_connection *con,
+				      int used_proto, int result,
+				      const int *allowed_protos, int proto_cnt,
+				      const int *allowed_modes, int mode_cnt)
+{
+	struct ceph_osd *o = con->private;
+	struct ceph_mon_client *monc = &o->o_osdc->client->monc;
+	int ret;
+
+	if (ceph_auth_handle_bad_authorizer(monc->auth, CEPH_ENTITY_TYPE_OSD,
+					    used_proto, result,
+					    allowed_protos, proto_cnt,
+					    allowed_modes, mode_cnt)) {
+		ret = ceph_monc_validate_auth(monc);
+		if (ret)
+			return ret;
+	}
+
+	return -EACCES;
 }
 
 static void osd_reencode_message(struct ceph_msg *msg)
@@ -5662,16 +5731,20 @@ static int osd_check_message_signature(struct ceph_msg *msg)
 }
 
 static const struct ceph_connection_operations osd_con_ops = {
-	.get = get_osd_con,
-	.put = put_osd_con,
-	.dispatch = dispatch,
-	.get_authorizer = get_authorizer,
-	.add_authorizer_challenge = add_authorizer_challenge,
-	.verify_authorizer_reply = verify_authorizer_reply,
-	.invalidate_authorizer = invalidate_authorizer,
-	.alloc_msg = alloc_msg,
+	.get = osd_get_con,
+	.put = osd_put_con,
+	.alloc_msg = osd_alloc_msg,
+	.dispatch = osd_dispatch,
+	.fault = osd_fault,
 	.reencode_message = osd_reencode_message,
+	.get_authorizer = osd_get_authorizer,
+	.add_authorizer_challenge = osd_add_authorizer_challenge,
+	.verify_authorizer_reply = osd_verify_authorizer_reply,
+	.invalidate_authorizer = osd_invalidate_authorizer,
 	.sign_message = osd_sign_message,
 	.check_message_signature = osd_check_message_signature,
-	.fault = osd_fault,
+	.get_auth_request = osd_get_auth_request,
+	.handle_auth_reply_more = osd_handle_auth_reply_more,
+	.handle_auth_done = osd_handle_auth_done,
+	.handle_auth_bad_method = osd_handle_auth_bad_method,
 };

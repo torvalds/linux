@@ -29,6 +29,8 @@ struct ocelot_reset_context {
 	struct notifier_block restart_handler;
 };
 
+#define BIT_OFF_INVALID				32
+
 #define SOFT_CHIP_RST BIT(0)
 
 #define ICPU_CFG_CPU_SYSTEM_CTRL_GENERAL_CTRL	0x24
@@ -50,9 +52,11 @@ static int ocelot_restart_handle(struct notifier_block *this,
 			   ctx->props->vcore_protect, 0);
 
 	/* Make the SI back to boot mode */
-	regmap_update_bits(ctx->cpu_ctrl, ICPU_CFG_CPU_SYSTEM_CTRL_GENERAL_CTRL,
-			   IF_SI_OWNER_MASK << if_si_owner_bit,
-			   IF_SI_OWNER_SIBM << if_si_owner_bit);
+	if (if_si_owner_bit != BIT_OFF_INVALID)
+		regmap_update_bits(ctx->cpu_ctrl,
+				   ICPU_CFG_CPU_SYSTEM_CTRL_GENERAL_CTRL,
+				   IF_SI_OWNER_MASK << if_si_owner_bit,
+				   IF_SI_OWNER_SIBM << if_si_owner_bit);
 
 	pr_emerg("Resetting SoC\n");
 
@@ -96,6 +100,20 @@ static int ocelot_reset_probe(struct platform_device *pdev)
 	return err;
 }
 
+static const struct reset_props reset_props_jaguar2 = {
+	.syscon		 = "mscc,ocelot-cpu-syscon",
+	.protect_reg     = 0x20,
+	.vcore_protect   = BIT(2),
+	.if_si_owner_bit = 6,
+};
+
+static const struct reset_props reset_props_luton = {
+	.syscon		 = "mscc,ocelot-cpu-syscon",
+	.protect_reg     = 0x20,
+	.vcore_protect   = BIT(2),
+	.if_si_owner_bit = BIT_OFF_INVALID, /* n/a */
+};
+
 static const struct reset_props reset_props_ocelot = {
 	.syscon		 = "mscc,ocelot-cpu-syscon",
 	.protect_reg     = 0x20,
@@ -112,6 +130,12 @@ static const struct reset_props reset_props_sparx5 = {
 
 static const struct of_device_id ocelot_reset_of_match[] = {
 	{
+		.compatible = "mscc,jaguar2-chip-reset",
+		.data = &reset_props_jaguar2
+	}, {
+		.compatible = "mscc,luton-chip-reset",
+		.data = &reset_props_luton
+	}, {
 		.compatible = "mscc,ocelot-chip-reset",
 		.data = &reset_props_ocelot
 	}, {

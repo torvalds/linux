@@ -61,7 +61,6 @@ properties:
       - description: low-priority non-secure
       - description: high-priority non-secure
       - description: Secure
-    maxItems: 3
 
   clocks:
     maxItems: 1

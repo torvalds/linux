@@ -23,6 +23,7 @@
  *
  */
 
+#include <drm/drm_atomic.h>
 #include <drm/drm_atomic_helper.h>
 #include <drm/drm_edid.h>
 #include <drm/drm_probe_helper.h>
@@ -719,11 +720,13 @@ intel_dp_mst_mode_valid_ctx(struct drm_connector *connector,
 }
 
 static struct drm_encoder *intel_mst_atomic_best_encoder(struct drm_connector *connector,
-							 struct drm_connector_state *state)
+							 struct drm_atomic_state *state)
 {
+	struct drm_connector_state *connector_state = drm_atomic_get_new_connector_state(state,
+											 connector);
 	struct intel_connector *intel_connector = to_intel_connector(connector);
 	struct intel_dp *intel_dp = intel_connector->mst_port;
-	struct intel_crtc *crtc = to_intel_crtc(state->crtc);
+	struct intel_crtc *crtc = to_intel_crtc(connector_state->crtc);
 
 	return &intel_dp->mst_encoders[crtc->pipe]->base.base;
 }

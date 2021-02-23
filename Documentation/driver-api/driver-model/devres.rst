@@ -411,6 +411,12 @@ RESET
   devm_reset_control_get()
   devm_reset_controller_register()
 
+RTC
+  devm_rtc_device_register()
+  devm_rtc_allocate_device()
+  devm_rtc_register_device()
+  devm_rtc_nvmem_register()
+
 SERDEV
   devm_serdev_device_open()
 

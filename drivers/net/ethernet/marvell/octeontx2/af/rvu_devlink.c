@@ -275,7 +275,8 @@ static int rvu_npa_report_show(struct devlink_fmsg *fmsg, void *ctx,
 			       enum npa_af_rvu_health health_reporter)
 {
 	struct rvu_npa_event_ctx *npa_event_context;
-	unsigned int intr_val, alloc_dis, free_dis;
+	unsigned int alloc_dis, free_dis;
+	u64 intr_val;
 	int err;
 
 	npa_event_context = ctx;

@@ -4595,7 +4595,9 @@ static void packet_seq_stop(struct seq_file *seq, void *v)
 static int packet_seq_show(struct seq_file *seq, void *v)
 {
 	if (v == SEQ_START_TOKEN)
-		seq_puts(seq, "sk       RefCnt Type Proto  Iface R Rmem   User   Inode\n");
+		seq_printf(seq,
+			   "%*sRefCnt Type Proto  Iface R Rmem   User   Inode\n",
+			   IS_ENABLED(CONFIG_64BIT) ? -17 : -9, "sk");
 	else {
 		struct sock *s = sk_entry(v);
 		const struct packet_sock *po = pkt_sk(s);

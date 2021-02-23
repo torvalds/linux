@@ -124,8 +124,8 @@
 		 * "data0" partition (4MB) is reserved for persistent
 		 * data store.
 		 */
-		data0@3800000 {
-			reg = <0x7c00000 0x800000>;
+		data0@7c00000 {
+			reg = <0x7c00000 0x400000>;
 			label = "data0";
 		};
 

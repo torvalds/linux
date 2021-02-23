@@ -129,6 +129,14 @@ int wndwc37e_update(struct nv50_wndw *, u32 *);
 
 int wndwc57e_new(struct nouveau_drm *, enum drm_plane_type, int, s32,
 		 struct nv50_wndw **);
+bool wndwc57e_ilut(struct nv50_wndw *, struct nv50_wndw_atom *, int);
+int wndwc57e_ilut_set(struct nv50_wndw *, struct nv50_wndw_atom *);
+int wndwc57e_ilut_clr(struct nv50_wndw *);
+int wndwc57e_csc_set(struct nv50_wndw *, struct nv50_wndw_atom *);
+int wndwc57e_csc_clr(struct nv50_wndw *);
+
+int wndwc67e_new(struct nouveau_drm *, enum drm_plane_type, int, s32,
+		 struct nv50_wndw **);
 
 int nv50_wndw_new(struct nouveau_drm *, enum drm_plane_type, int index,
 		  struct nv50_wndw **);

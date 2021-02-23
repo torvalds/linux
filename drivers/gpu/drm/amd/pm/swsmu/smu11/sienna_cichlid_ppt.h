@@ -29,6 +29,10 @@ typedef enum {
   POWER_SOURCE_COUNT,
 } POWER_SOURCE_e;
 
+#define SIENNA_CICHLID_UMD_PSTATE_PROFILING_GFXCLK    1825
+#define SIENNA_CICHLID_UMD_PSTATE_PROFILING_SOCCLK    960
+#define SIENNA_CICHLID_UMD_PSTATE_PROFILING_MEMCLK    1000
+
 extern void sienna_cichlid_set_ppt_funcs(struct smu_context *smu);
 
 #endif

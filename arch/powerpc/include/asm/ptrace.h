@@ -53,11 +53,19 @@ struct pt_regs
 #ifdef CONFIG_PPC64
 			unsigned long ppr;
 #endif
+			union {
 #ifdef CONFIG_PPC_KUAP
-			unsigned long kuap;
+				unsigned long kuap;
+#endif
+#ifdef CONFIG_PPC_PKEY
+				unsigned long amr;
+#endif
+			};
+#ifdef CONFIG_PPC_PKEY
+			unsigned long iamr;
 #endif
 		};
-		unsigned long __pad[2];	/* Maintain 16 byte interrupt stack alignment */
+		unsigned long __pad[4];	/* Maintain 16 byte interrupt stack alignment */
 	};
 };
 #endif
@@ -170,12 +178,6 @@ static inline void regs_set_return_value(struct pt_regs *regs, unsigned long rc)
 	do { \
 		set_thread_flag(TIF_NOERROR); \
 	} while(0)
-
-struct task_struct;
-extern int ptrace_get_reg(struct task_struct *task, int regno,
-			  unsigned long *data);
-extern int ptrace_put_reg(struct task_struct *task, int regno,
-			  unsigned long data);
 
 #define current_pt_regs() \
 	((struct pt_regs *)((unsigned long)task_stack_page(current) + THREAD_SIZE) - 1)

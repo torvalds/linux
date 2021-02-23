@@ -293,6 +293,9 @@ OPTIONS
 --phys-data::
 	Record the sample physical addresses.
 
+--data-page-size::
+	Record the sampled data address data page size.
+
 -T::
 --timestamp::
 	Record the sample timestamps. Use it with 'perf report -D' to see the
@@ -634,11 +637,17 @@ endif::HAVE_LIBPFM[]
 --control=fifo:ctl-fifo[,ack-fifo]::
 --control=fd:ctl-fd[,ack-fd]::
 ctl-fifo / ack-fifo are opened and used as ctl-fd / ack-fd as follows.
-Listen on ctl-fd descriptor for command to control measurement ('enable': enable events,
-'disable': disable events, 'snapshot': AUX area tracing snapshot). Measurements can be
-started with events disabled using --delay=-1 option. Optionally send control command
-completion ('ack\n') to ack-fd descriptor to synchronize with the controlling process.
-Example of bash shell script to enable and disable events during measurements:
+Listen on ctl-fd descriptor for command to control measurement.
+
+Available commands:
+  'enable'  : enable events
+  'disable' : disable events
+  'snapshot': AUX area tracing snapshot).
+
+Measurements can be started with events disabled using --delay=-1 option. Optionally
+send control command completion ('ack\n') to ack-fd descriptor to synchronize with the
+controlling process.  Example of bash shell script to enable and disable events during
+measurements:
 
  #!/bin/bash
 

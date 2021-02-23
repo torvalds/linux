@@ -8,6 +8,7 @@
 #include <linux/delay.h>
 #include <linux/dma-buf.h>
 #include <linux/regulator/consumer.h>
+#include <linux/media-bus-format.h>
 
 #include <drm/drm_device.h>
 #include <drm/drm_fb_cma_helper.h>
@@ -16,6 +17,7 @@
 #include <drm/drm_gem_framebuffer_helper.h>
 #include <drm/drm_mipi_dsi.h>
 #include <drm/drm_simple_kms_helper.h>
+#include <drm/drm_bridge.h>
 #include <drm/drm_vblank.h>
 #include <video/mipi_display.h>
 
@@ -57,10 +59,15 @@ enum mcde_overlay {
 	MCDE_OVERLAY_5,
 };
 
-enum mcde_dsi_formatter {
+enum mcde_formatter {
 	MCDE_DSI_FORMATTER_0 = 0,
 	MCDE_DSI_FORMATTER_1,
 	MCDE_DSI_FORMATTER_2,
+	MCDE_DSI_FORMATTER_3,
+	MCDE_DSI_FORMATTER_4,
+	MCDE_DSI_FORMATTER_5,
+	MCDE_DPI_FORMATTER_0,
+	MCDE_DPI_FORMATTER_1,
 };
 
 void mcde_display_irq(struct mcde *mcde)
@@ -81,7 +88,7 @@ void mcde_display_irq(struct mcde *mcde)
 	 *
 	 * TODO: Currently only one DSI link is supported.
 	 */
-	if (mcde_dsi_irq(mcde->mdsi)) {
+	if (!mcde->dpi_output && mcde_dsi_irq(mcde->mdsi)) {
 		u32 val;
 
 		/*
@@ -243,73 +250,70 @@ static int mcde_configure_extsrc(struct mcde *mcde, enum mcde_extsrc src,
 	val = 0 << MCDE_EXTSRCXCONF_BUF_ID_SHIFT;
 	val |= 1 << MCDE_EXTSRCXCONF_BUF_NB_SHIFT;
 	val |= 0 << MCDE_EXTSRCXCONF_PRI_OVLID_SHIFT;
-	/*
-	 * MCDE has inverse semantics from DRM on RBG/BGR which is why
-	 * all the modes are inversed here.
-	 */
+
 	switch (format) {
 	case DRM_FORMAT_ARGB8888:
 		val |= MCDE_EXTSRCXCONF_BPP_ARGB8888 <<
 			MCDE_EXTSRCXCONF_BPP_SHIFT;
-		val |= MCDE_EXTSRCXCONF_BGR;
 		break;
 	case DRM_FORMAT_ABGR8888:
 		val |= MCDE_EXTSRCXCONF_BPP_ARGB8888 <<
 			MCDE_EXTSRCXCONF_BPP_SHIFT;
+		val |= MCDE_EXTSRCXCONF_BGR;
 		break;
 	case DRM_FORMAT_XRGB8888:
 		val |= MCDE_EXTSRCXCONF_BPP_XRGB8888 <<
 			MCDE_EXTSRCXCONF_BPP_SHIFT;
-		val |= MCDE_EXTSRCXCONF_BGR;
 		break;
 	case DRM_FORMAT_XBGR8888:
 		val |= MCDE_EXTSRCXCONF_BPP_XRGB8888 <<
 			MCDE_EXTSRCXCONF_BPP_SHIFT;
+		val |= MCDE_EXTSRCXCONF_BGR;
 		break;
 	case DRM_FORMAT_RGB888:
 		val |= MCDE_EXTSRCXCONF_BPP_RGB888 <<
 			MCDE_EXTSRCXCONF_BPP_SHIFT;
-		val |= MCDE_EXTSRCXCONF_BGR;
 		break;
 	case DRM_FORMAT_BGR888:
 		val |= MCDE_EXTSRCXCONF_BPP_RGB888 <<
 			MCDE_EXTSRCXCONF_BPP_SHIFT;
+		val |= MCDE_EXTSRCXCONF_BGR;
 		break;
 	case DRM_FORMAT_ARGB4444:
 		val |= MCDE_EXTSRCXCONF_BPP_ARGB4444 <<
 			MCDE_EXTSRCXCONF_BPP_SHIFT;
-		val |= MCDE_EXTSRCXCONF_BGR;
 		break;
 	case DRM_FORMAT_ABGR4444:
 		val |= MCDE_EXTSRCXCONF_BPP_ARGB4444 <<
 			MCDE_EXTSRCXCONF_BPP_SHIFT;
+		val |= MCDE_EXTSRCXCONF_BGR;
 		break;
 	case DRM_FORMAT_XRGB4444:
 		val |= MCDE_EXTSRCXCONF_BPP_RGB444 <<
 			MCDE_EXTSRCXCONF_BPP_SHIFT;
-		val |= MCDE_EXTSRCXCONF_BGR;
 		break;
 	case DRM_FORMAT_XBGR4444:
 		val |= MCDE_EXTSRCXCONF_BPP_RGB444 <<
 			MCDE_EXTSRCXCONF_BPP_SHIFT;
+		val |= MCDE_EXTSRCXCONF_BGR;
 		break;
 	case DRM_FORMAT_XRGB1555:
 		val |= MCDE_EXTSRCXCONF_BPP_IRGB1555 <<
 			MCDE_EXTSRCXCONF_BPP_SHIFT;
-		val |= MCDE_EXTSRCXCONF_BGR;
 		break;
 	case DRM_FORMAT_XBGR1555:
 		val |= MCDE_EXTSRCXCONF_BPP_IRGB1555 <<
 			MCDE_EXTSRCXCONF_BPP_SHIFT;
+		val |= MCDE_EXTSRCXCONF_BGR;
 		break;
 	case DRM_FORMAT_RGB565:
 		val |= MCDE_EXTSRCXCONF_BPP_RGB565 <<
 			MCDE_EXTSRCXCONF_BPP_SHIFT;
-		val |= MCDE_EXTSRCXCONF_BGR;
 		break;
 	case DRM_FORMAT_BGR565:
 		val |= MCDE_EXTSRCXCONF_BPP_RGB565 <<
 			MCDE_EXTSRCXCONF_BPP_SHIFT;
+		val |= MCDE_EXTSRCXCONF_BGR;
 		break;
 	case DRM_FORMAT_YUV422:
 		val |= MCDE_EXTSRCXCONF_BPP_YCBCR422 <<
@@ -556,6 +560,7 @@ static void mcde_configure_channel(struct mcde *mcde, enum mcde_channel ch,
 			<< MCDE_CHNLXSYNCHMOD_OUT_SYNCH_SRC_SHIFT;
 		break;
 	case MCDE_VIDEO_FORMATTER_FLOW:
+	case MCDE_DPI_FORMATTER_FLOW:
 		val = MCDE_CHNLXSYNCHMOD_SRC_SYNCH_HARDWARE
 			<< MCDE_CHNLXSYNCHMOD_SRC_SYNCH_SHIFT;
 		val |= MCDE_CHNLXSYNCHMOD_OUT_SYNCH_SRC_FORMATTER
@@ -564,7 +569,7 @@ static void mcde_configure_channel(struct mcde *mcde, enum mcde_channel ch,
 	default:
 		dev_err(mcde->dev, "unknown flow mode %d\n",
 			mcde->flow_mode);
-		break;
+		return;
 	}
 
 	writel(val, mcde->regs + sync);
@@ -594,10 +599,35 @@ static void mcde_configure_channel(struct mcde *mcde, enum mcde_channel ch,
 		       mcde->regs + mux);
 		break;
 	}
+
+	/*
+	 * If using DPI configure the sync event.
+	 * TODO: this is for LCD only, it does not cover TV out.
+	 */
+	if (mcde->dpi_output) {
+		u32 stripwidth;
+
+		stripwidth = 0xF000 / (mode->vdisplay * 4);
+		dev_info(mcde->dev, "stripwidth: %d\n", stripwidth);
+
+		val = MCDE_SYNCHCONF_HWREQVEVENT_ACTIVE_VIDEO |
+			(mode->hdisplay - 1 - stripwidth) << MCDE_SYNCHCONF_HWREQVCNT_SHIFT |
+			MCDE_SYNCHCONF_SWINTVEVENT_ACTIVE_VIDEO |
+			(mode->hdisplay - 1 - stripwidth) << MCDE_SYNCHCONF_SWINTVCNT_SHIFT;
+
+		switch (fifo) {
+		case MCDE_FIFO_A:
+			writel(val, mcde->regs + MCDE_SYNCHCONFA);
+			break;
+		case MCDE_FIFO_B:
+			writel(val, mcde->regs + MCDE_SYNCHCONFB);
+			break;
+		}
+	}
 }
 
 static void mcde_configure_fifo(struct mcde *mcde, enum mcde_fifo fifo,
-				enum mcde_dsi_formatter fmt,
+				enum mcde_formatter fmt,
 				int fifo_wtrmrk)
 {
 	u32 val;
@@ -618,12 +648,49 @@ static void mcde_configure_fifo(struct mcde *mcde, enum mcde_fifo fifo,
 	}
 
 	val = fifo_wtrmrk << MCDE_CTRLX_FIFOWTRMRK_SHIFT;
-	/* We only support DSI formatting for now */
-	val |= MCDE_CTRLX_FORMTYPE_DSI <<
-		MCDE_CTRLX_FORMTYPE_SHIFT;
 
-	/* Select the formatter to use for this FIFO */
-	val |= fmt << MCDE_CTRLX_FORMID_SHIFT;
+	/*
+	 * Select the formatter to use for this FIFO
+	 *
+	 * The register definitions imply that different IDs should be used
+	 * by the DSI formatters depending on if they are in VID or CMD
+	 * mode, and the manual says they are dedicated but identical.
+	 * The vendor code uses them as it seems fit.
+	 */
+	switch (fmt) {
+	case MCDE_DSI_FORMATTER_0:
+		val |= MCDE_CTRLX_FORMTYPE_DSI << MCDE_CTRLX_FORMTYPE_SHIFT;
+		val |= MCDE_CTRLX_FORMID_DSI0VID << MCDE_CTRLX_FORMID_SHIFT;
+		break;
+	case MCDE_DSI_FORMATTER_1:
+		val |= MCDE_CTRLX_FORMTYPE_DSI << MCDE_CTRLX_FORMTYPE_SHIFT;
+		val |= MCDE_CTRLX_FORMID_DSI0CMD << MCDE_CTRLX_FORMID_SHIFT;
+		break;
+	case MCDE_DSI_FORMATTER_2:
+		val |= MCDE_CTRLX_FORMTYPE_DSI << MCDE_CTRLX_FORMTYPE_SHIFT;
+		val |= MCDE_CTRLX_FORMID_DSI1VID << MCDE_CTRLX_FORMID_SHIFT;
+		break;
+	case MCDE_DSI_FORMATTER_3:
+		val |= MCDE_CTRLX_FORMTYPE_DSI << MCDE_CTRLX_FORMTYPE_SHIFT;
+		val |= MCDE_CTRLX_FORMID_DSI1CMD << MCDE_CTRLX_FORMID_SHIFT;
+		break;
+	case MCDE_DSI_FORMATTER_4:
+		val |= MCDE_CTRLX_FORMTYPE_DSI << MCDE_CTRLX_FORMTYPE_SHIFT;
+		val |= MCDE_CTRLX_FORMID_DSI2VID << MCDE_CTRLX_FORMID_SHIFT;
+		break;
+	case MCDE_DSI_FORMATTER_5:
+		val |= MCDE_CTRLX_FORMTYPE_DSI << MCDE_CTRLX_FORMTYPE_SHIFT;
+		val |= MCDE_CTRLX_FORMID_DSI2CMD << MCDE_CTRLX_FORMID_SHIFT;
+		break;
+	case MCDE_DPI_FORMATTER_0:
+		val |= MCDE_CTRLX_FORMTYPE_DPITV << MCDE_CTRLX_FORMTYPE_SHIFT;
+		val |= MCDE_CTRLX_FORMID_DPIA << MCDE_CTRLX_FORMID_SHIFT;
+		break;
+	case MCDE_DPI_FORMATTER_1:
+		val |= MCDE_CTRLX_FORMTYPE_DPITV << MCDE_CTRLX_FORMTYPE_SHIFT;
+		val |= MCDE_CTRLX_FORMID_DPIB << MCDE_CTRLX_FORMID_SHIFT;
+		break;
+	}
 	writel(val, mcde->regs + ctrl);
 
 	/* Blend source with Alpha 0xff on FIFO */
@@ -631,17 +698,54 @@ static void mcde_configure_fifo(struct mcde *mcde, enum mcde_fifo fifo,
 		0xff << MCDE_CRX0_ALPHABLEND_SHIFT;
 	writel(val, mcde->regs + cr0);
 
-	/* Set-up from mcde_fmtr_dsi.c, fmtr_dsi_enable_video() */
+	spin_lock(&mcde->fifo_crx1_lock);
+	val = readl(mcde->regs + cr1);
+	/*
+	 * Set-up from mcde_fmtr_dsi.c, fmtr_dsi_enable_video()
+	 * FIXME: a different clock needs to be selected for TV out.
+	 */
+	if (mcde->dpi_output) {
+		struct drm_connector *connector = drm_panel_bridge_connector(mcde->bridge);
+		u32 bus_format;
 
-	/* Use the MCDE clock for this FIFO */
-	val = MCDE_CRX1_CLKSEL_MCDECLK << MCDE_CRX1_CLKSEL_SHIFT;
+		/* Assume RGB888 24 bit if we have no further info */
+		if (!connector->display_info.num_bus_formats) {
+			dev_info(mcde->dev, "panel does not specify bus format, assume RGB888\n");
+			bus_format = MEDIA_BUS_FMT_RGB888_1X24;
+		} else {
+			bus_format = connector->display_info.bus_formats[0];
+		}
 
-	/* TODO: when adding DPI support add OUTBPP etc here */
+		/*
+		 * Set up the CDWIN and OUTBPP for the LCD
+		 *
+		 * FIXME: fill this in if you know the correspondance between the MIPI
+		 * DPI specification and the media bus formats.
+		 */
+		val &= ~MCDE_CRX1_CDWIN_MASK;
+		val &= ~MCDE_CRX1_OUTBPP_MASK;
+		switch (bus_format) {
+		case MEDIA_BUS_FMT_RGB888_1X24:
+			val |= MCDE_CRX1_CDWIN_24BPP << MCDE_CRX1_CDWIN_SHIFT;
+			val |= MCDE_CRX1_OUTBPP_24BPP << MCDE_CRX1_OUTBPP_SHIFT;
+			break;
+		default:
+			dev_err(mcde->dev, "unknown bus format, assume RGB888\n");
+			val |= MCDE_CRX1_CDWIN_24BPP << MCDE_CRX1_CDWIN_SHIFT;
+			val |= MCDE_CRX1_OUTBPP_24BPP << MCDE_CRX1_OUTBPP_SHIFT;
+			break;
+		}
+	} else {
+		/* Use the MCDE clock for DSI */
+		val &= ~MCDE_CRX1_CLKSEL_MASK;
+		val |= MCDE_CRX1_CLKSEL_MCDECLK << MCDE_CRX1_CLKSEL_SHIFT;
+	}
 	writel(val, mcde->regs + cr1);
+	spin_unlock(&mcde->fifo_crx1_lock);
 };
 
 static void mcde_configure_dsi_formatter(struct mcde *mcde,
-					 enum mcde_dsi_formatter fmt,
+					 enum mcde_formatter fmt,
 					 u32 formatter_frame,
 					 int pkt_size)
 {
@@ -681,6 +785,9 @@ static void mcde_configure_dsi_formatter(struct mcde *mcde,
 		delay0 = MCDE_DSIVID2DELAY0;
 		delay1 = MCDE_DSIVID2DELAY1;
 		break;
+	default:
+		dev_err(mcde->dev, "tried to configure a non-DSI formatter as DSI\n");
+		return;
 	}
 
 	/*
@@ -700,7 +807,9 @@ static void mcde_configure_dsi_formatter(struct mcde *mcde,
 			MCDE_DSICONF0_PACKING_SHIFT;
 		break;
 	case MIPI_DSI_FMT_RGB666_PACKED:
-		val |= MCDE_DSICONF0_PACKING_RGB666_PACKED <<
+		dev_err(mcde->dev,
+			"we cannot handle the packed RGB666 format\n");
+		val |= MCDE_DSICONF0_PACKING_RGB666 <<
 			MCDE_DSICONF0_PACKING_SHIFT;
 		break;
 	case MIPI_DSI_FMT_RGB565:
@@ -860,73 +969,140 @@ static int mcde_dsi_get_pkt_div(int ppl, int fifo_size)
 	return 1;
 }
 
-static void mcde_display_enable(struct drm_simple_display_pipe *pipe,
-				struct drm_crtc_state *cstate,
-				struct drm_plane_state *plane_state)
+static void mcde_setup_dpi(struct mcde *mcde, const struct drm_display_mode *mode,
+			   int *fifo_wtrmrk_lvl)
 {
-	struct drm_crtc *crtc = &pipe->crtc;
-	struct drm_plane *plane = &pipe->plane;
-	struct drm_device *drm = crtc->dev;
-	struct mcde *mcde = to_mcde(drm);
-	const struct drm_display_mode *mode = &cstate->mode;
-	struct drm_framebuffer *fb = plane->state->fb;
-	u32 format = fb->format->format;
-	u32 formatter_ppl = mode->hdisplay; /* pixels per line */
-	u32 formatter_lpf = mode->vdisplay; /* lines per frame */
-	int pkt_size, fifo_wtrmrk;
-	int cpp = fb->format->cpp[0];
-	int formatter_cpp;
-	struct drm_format_name_buf tmp;
-	u32 formatter_frame;
-	u32 pkt_div;
+	struct drm_connector *connector = drm_panel_bridge_connector(mcde->bridge);
+	u32 hsw, hfp, hbp;
+	u32 vsw, vfp, vbp;
 	u32 val;
-	int ret;
 
-	/* This powers up the entire MCDE block and the DSI hardware */
-	ret = regulator_enable(mcde->epod);
-	if (ret) {
-		dev_err(drm->dev, "can't re-enable EPOD regulator\n");
-		return;
-	}
+	/* FIXME: we only support LCD, implement TV out */
+	hsw = mode->hsync_end - mode->hsync_start;
+	hfp = mode->hsync_start - mode->hdisplay;
+	hbp = mode->htotal - mode->hsync_end;
+	vsw = mode->vsync_end - mode->vsync_start;
+	vfp = mode->vsync_start - mode->vdisplay;
+	vbp = mode->vtotal - mode->vsync_end;
 
-	dev_info(drm->dev, "enable MCDE, %d x %d format %s\n",
-		 mode->hdisplay, mode->vdisplay,
-		 drm_get_format_name(format, &tmp));
-	if (!mcde->mdsi) {
-		/* TODO: deal with this for non-DSI output */
-		dev_err(drm->dev, "no DSI master attached!\n");
-		return;
-	}
+	dev_info(mcde->dev, "output on DPI LCD from channel A\n");
+	/* Display actual values */
+	dev_info(mcde->dev, "HSW: %d, HFP: %d, HBP: %d, VSW: %d, VFP: %d, VBP: %d\n",
+		 hsw, hfp, hbp, vsw, vfp, vbp);
+
+	/*
+	 * The pixel fetcher is 128 64-bit words deep = 1024 bytes.
+	 * One overlay of 32bpp (4 cpp) assumed, fetch 160 pixels.
+	 * 160 * 4 = 640 bytes.
+	 */
+	*fifo_wtrmrk_lvl = 640;
 
 	/* Set up the main control, watermark level at 7 */
 	val = 7 << MCDE_CONF0_IFIFOCTRLWTRMRKLVL_SHIFT;
-	/* 24 bits DPI: connect LSB Ch B to D[0:7] */
-	val |= 3 << MCDE_CONF0_OUTMUX0_SHIFT;
-	/* TV out: connect LSB Ch B to D[8:15] */
-	val |= 3 << MCDE_CONF0_OUTMUX1_SHIFT;
+
+	/*
+	 * This sets up the internal silicon muxing of the DPI
+	 * lines. This is how the silicon connects out to the
+	 * external pins, then the pins need to be further
+	 * configured into "alternate functions" using pin control
+	 * to actually get the signals out.
+	 *
+	 * FIXME: this is hardcoded to the only setting found in
+	 * the wild. If we need to use different settings for
+	 * different DPI displays, make this parameterizable from
+	 * the device tree.
+	 */
+	/* 24 bits DPI: connect Ch A LSB to D[0:7] */
+	val |= 0 << MCDE_CONF0_OUTMUX0_SHIFT;
+	/* 24 bits DPI: connect Ch A MID to D[8:15] */
+	val |= 1 << MCDE_CONF0_OUTMUX1_SHIFT;
 	/* Don't care about this muxing */
 	val |= 0 << MCDE_CONF0_OUTMUX2_SHIFT;
-	/* 24 bits DPI: connect MID Ch B to D[24:31] */
-	val |= 4 << MCDE_CONF0_OUTMUX3_SHIFT;
-	/* 5: 24 bits DPI: connect MSB Ch B to D[32:39] */
-	val |= 5 << MCDE_CONF0_OUTMUX4_SHIFT;
-	/* Syncmux bits zero: DPI channel A and B on output pins A and B resp */
+	/* Don't care about this muxing */
+	val |= 0 << MCDE_CONF0_OUTMUX3_SHIFT;
+	/* 24 bits DPI: connect Ch A MSB to D[32:39] */
+	val |= 2 << MCDE_CONF0_OUTMUX4_SHIFT;
+	/* Syncmux bits zero: DPI channel A */
 	writel(val, mcde->regs + MCDE_CONF0);
 
-	/* Clear any pending interrupts */
-	mcde_display_disable_irqs(mcde);
-	writel(0, mcde->regs + MCDE_IMSCERR);
-	writel(0xFFFFFFFF, mcde->regs + MCDE_RISERR);
+	/* This hammers us into LCD mode */
+	writel(0, mcde->regs + MCDE_TVCRA);
 
-	dev_info(drm->dev, "output in %s mode, format %dbpp\n",
+	/* Front porch and sync width */
+	val = (vsw << MCDE_TVBL1_BEL1_SHIFT);
+	val |= (vfp << MCDE_TVBL1_BSL1_SHIFT);
+	writel(val, mcde->regs + MCDE_TVBL1A);
+	/* The vendor driver sets the same value into TVBL2A */
+	writel(val, mcde->regs + MCDE_TVBL2A);
+
+	/* Vertical back porch */
+	val = (vbp << MCDE_TVDVO_DVO1_SHIFT);
+	/* The vendor drivers sets the same value into TVDVOA */
+	val |= (vbp << MCDE_TVDVO_DVO2_SHIFT);
+	writel(val, mcde->regs + MCDE_TVDVOA);
+
+	/* Horizontal back porch, as 0 = 1 cycle we need to subtract 1 */
+	writel((hbp - 1), mcde->regs + MCDE_TVTIM1A);
+
+	/* Horizongal sync width and horizonal front porch, 0 = 1 cycle */
+	val = ((hsw - 1) << MCDE_TVLBALW_LBW_SHIFT);
+	val |= ((hfp - 1) << MCDE_TVLBALW_ALW_SHIFT);
+	writel(val, mcde->regs + MCDE_TVLBALWA);
+
+	/* Blank some TV registers we don't use */
+	writel(0, mcde->regs + MCDE_TVISLA);
+	writel(0, mcde->regs + MCDE_TVBLUA);
+
+	/* Set up sync inversion etc */
+	val = 0;
+	if (mode->flags & DRM_MODE_FLAG_NHSYNC)
+		val |= MCDE_LCDTIM1B_IHS;
+	if (mode->flags & DRM_MODE_FLAG_NVSYNC)
+		val |= MCDE_LCDTIM1B_IVS;
+	if (connector->display_info.bus_flags & DRM_BUS_FLAG_DE_LOW)
+		val |= MCDE_LCDTIM1B_IOE;
+	if (connector->display_info.bus_flags & DRM_BUS_FLAG_PIXDATA_DRIVE_NEGEDGE)
+		val |= MCDE_LCDTIM1B_IPC;
+	writel(val, mcde->regs + MCDE_LCDTIM1A);
+}
+
+static void mcde_setup_dsi(struct mcde *mcde, const struct drm_display_mode *mode,
+			   int cpp, int *fifo_wtrmrk_lvl, int *dsi_formatter_frame,
+			   int *dsi_pkt_size)
+{
+	u32 formatter_ppl = mode->hdisplay; /* pixels per line */
+	u32 formatter_lpf = mode->vdisplay; /* lines per frame */
+	int formatter_frame;
+	int formatter_cpp;
+	int fifo_wtrmrk;
+	u32 pkt_div;
+	int pkt_size;
+	u32 val;
+
+	dev_info(mcde->dev, "output in %s mode, format %dbpp\n",
 		 (mcde->mdsi->mode_flags & MIPI_DSI_MODE_VIDEO) ?
 		 "VIDEO" : "CMD",
 		 mipi_dsi_pixel_format_to_bpp(mcde->mdsi->format));
 	formatter_cpp =
 		mipi_dsi_pixel_format_to_bpp(mcde->mdsi->format) / 8;
-	dev_info(drm->dev, "overlay CPP %d bytes, DSI CPP %d bytes\n",
-		 cpp,
-		 formatter_cpp);
+	dev_info(mcde->dev, "Overlay CPP: %d bytes, DSI formatter CPP %d bytes\n",
+		 cpp, formatter_cpp);
+
+	/* Set up the main control, watermark level at 7 */
+	val = 7 << MCDE_CONF0_IFIFOCTRLWTRMRKLVL_SHIFT;
+
+	/*
+	 * This is the internal silicon muxing of the DPI
+	 * (parallell display) lines. Since we are not using
+	 * this at all (we are using DSI) these are just
+	 * dummy values from the vendor tree.
+	 */
+	val |= 3 << MCDE_CONF0_OUTMUX0_SHIFT;
+	val |= 3 << MCDE_CONF0_OUTMUX1_SHIFT;
+	val |= 0 << MCDE_CONF0_OUTMUX2_SHIFT;
+	val |= 4 << MCDE_CONF0_OUTMUX3_SHIFT;
+	val |= 5 << MCDE_CONF0_OUTMUX4_SHIFT;
+	writel(val, mcde->regs + MCDE_CONF0);
 
 	/* Calculations from mcde_fmtr_dsi.c, fmtr_dsi_enable_video() */
 
@@ -948,9 +1124,9 @@ static void mcde_display_enable(struct drm_simple_display_pipe *pipe,
 		/* The FIFO is 640 entries deep on this v3 hardware */
 		pkt_div = mcde_dsi_get_pkt_div(mode->hdisplay, 640);
 	}
-	dev_dbg(drm->dev, "FIFO watermark after flooring: %d bytes\n",
+	dev_dbg(mcde->dev, "FIFO watermark after flooring: %d bytes\n",
 		fifo_wtrmrk);
-	dev_dbg(drm->dev, "Packet divisor: %d bytes\n", pkt_div);
+	dev_dbg(mcde->dev, "Packet divisor: %d bytes\n", pkt_div);
 
 	/* NOTE: pkt_div is 1 for video mode */
 	pkt_size = (formatter_ppl * formatter_cpp) / pkt_div;
@@ -958,16 +1134,64 @@ static void mcde_display_enable(struct drm_simple_display_pipe *pipe,
 	if (!(mcde->mdsi->mode_flags & MIPI_DSI_MODE_VIDEO))
 		pkt_size++;
 
-	dev_dbg(drm->dev, "DSI packet size: %d * %d bytes per line\n",
+	dev_dbg(mcde->dev, "DSI packet size: %d * %d bytes per line\n",
 		pkt_size, pkt_div);
-	dev_dbg(drm->dev, "Overlay frame size: %u bytes\n",
+	dev_dbg(mcde->dev, "Overlay frame size: %u bytes\n",
 		mode->hdisplay * mode->vdisplay * cpp);
-	mcde->stride = mode->hdisplay * cpp;
-	dev_dbg(drm->dev, "Overlay line stride: %u bytes\n",
-		mcde->stride);
 	/* NOTE: pkt_div is 1 for video mode */
 	formatter_frame = pkt_size * pkt_div * formatter_lpf;
-	dev_dbg(drm->dev, "Formatter frame size: %u bytes\n", formatter_frame);
+	dev_dbg(mcde->dev, "Formatter frame size: %u bytes\n", formatter_frame);
+
+	*fifo_wtrmrk_lvl = fifo_wtrmrk;
+	*dsi_pkt_size = pkt_size;
+	*dsi_formatter_frame = formatter_frame;
+}
+
+static void mcde_display_enable(struct drm_simple_display_pipe *pipe,
+				struct drm_crtc_state *cstate,
+				struct drm_plane_state *plane_state)
+{
+	struct drm_crtc *crtc = &pipe->crtc;
+	struct drm_plane *plane = &pipe->plane;
+	struct drm_device *drm = crtc->dev;
+	struct mcde *mcde = to_mcde(drm);
+	const struct drm_display_mode *mode = &cstate->mode;
+	struct drm_framebuffer *fb = plane->state->fb;
+	u32 format = fb->format->format;
+	int dsi_pkt_size;
+	int fifo_wtrmrk;
+	int cpp = fb->format->cpp[0];
+	struct drm_format_name_buf tmp;
+	u32 dsi_formatter_frame;
+	u32 val;
+	int ret;
+
+	/* This powers up the entire MCDE block and the DSI hardware */
+	ret = regulator_enable(mcde->epod);
+	if (ret) {
+		dev_err(drm->dev, "can't re-enable EPOD regulator\n");
+		return;
+	}
+
+	dev_info(drm->dev, "enable MCDE, %d x %d format %s\n",
+		 mode->hdisplay, mode->vdisplay,
+		 drm_get_format_name(format, &tmp));
+
+
+	/* Clear any pending interrupts */
+	mcde_display_disable_irqs(mcde);
+	writel(0, mcde->regs + MCDE_IMSCERR);
+	writel(0xFFFFFFFF, mcde->regs + MCDE_RISERR);
+
+	if (mcde->dpi_output)
+		mcde_setup_dpi(mcde, mode, &fifo_wtrmrk);
+	else
+		mcde_setup_dsi(mcde, mode, cpp, &fifo_wtrmrk,
+			       &dsi_formatter_frame, &dsi_pkt_size);
+
+	mcde->stride = mode->hdisplay * cpp;
+	dev_dbg(drm->dev, "Overlay line stride: %u bytes\n",
+		 mcde->stride);
 
 	/* Drain the FIFO A + channel 0 pipe so we have a clean slate */
 	mcde_drain_pipe(mcde, MCDE_FIFO_A, MCDE_CHANNEL_0);
@@ -995,29 +1219,47 @@ static void mcde_display_enable(struct drm_simple_display_pipe *pipe,
 	 */
 	mcde_configure_channel(mcde, MCDE_CHANNEL_0, MCDE_FIFO_A, mode);
 
-	/* Configure FIFO A to use DSI formatter 0 */
-	mcde_configure_fifo(mcde, MCDE_FIFO_A, MCDE_DSI_FORMATTER_0,
-			    fifo_wtrmrk);
+	if (mcde->dpi_output) {
+		unsigned long lcd_freq;
 
-	/*
-	 * This brings up the DSI bridge which is tightly connected
-	 * to the MCDE DSI formatter.
-	 *
-	 * FIXME: if we want to use another formatter, such as DPI,
-	 * we need to be more elaborate here and select the appropriate
-	 * bridge.
-	 */
-	mcde_dsi_enable(mcde->bridge);
+		/* Configure FIFO A to use DPI formatter 0 */
+		mcde_configure_fifo(mcde, MCDE_FIFO_A, MCDE_DPI_FORMATTER_0,
+				    fifo_wtrmrk);
 
-	/* Configure the DSI formatter 0 for the DSI panel output */
-	mcde_configure_dsi_formatter(mcde, MCDE_DSI_FORMATTER_0,
-				     formatter_frame, pkt_size);
+		/* Set up and enable the LCD clock */
+		lcd_freq = clk_round_rate(mcde->fifoa_clk, mode->clock * 1000);
+		ret = clk_set_rate(mcde->fifoa_clk, lcd_freq);
+		if (ret)
+			dev_err(mcde->dev, "failed to set LCD clock rate %lu Hz\n",
+				lcd_freq);
+		ret = clk_prepare_enable(mcde->fifoa_clk);
+		if (ret) {
+			dev_err(mcde->dev, "failed to enable FIFO A DPI clock\n");
+			return;
+		}
+		dev_info(mcde->dev, "LCD FIFO A clk rate %lu Hz\n",
+			 clk_get_rate(mcde->fifoa_clk));
+	} else {
+		/* Configure FIFO A to use DSI formatter 0 */
+		mcde_configure_fifo(mcde, MCDE_FIFO_A, MCDE_DSI_FORMATTER_0,
+				    fifo_wtrmrk);
+
+		/*
+		 * This brings up the DSI bridge which is tightly connected
+		 * to the MCDE DSI formatter.
+		 */
+		mcde_dsi_enable(mcde->bridge);
+
+		/* Configure the DSI formatter 0 for the DSI panel output */
+		mcde_configure_dsi_formatter(mcde, MCDE_DSI_FORMATTER_0,
+					     dsi_formatter_frame, dsi_pkt_size);
+	}
 
 	switch (mcde->flow_mode) {
 	case MCDE_COMMAND_TE_FLOW:
 	case MCDE_COMMAND_BTA_TE_FLOW:
 	case MCDE_VIDEO_TE_FLOW:
-		/* We are using TE in some comination */
+		/* We are using TE in some combination */
 		if (mode->flags & DRM_MODE_FLAG_NVSYNC)
 			val = MCDE_VSCRC_VSPOL;
 		else
@@ -1069,8 +1311,12 @@ static void mcde_display_disable(struct drm_simple_display_pipe *pipe)
 	/* Disable FIFO A flow */
 	mcde_disable_fifo(mcde, MCDE_FIFO_A, true);
 
-	/* This disables the DSI bridge */
-	mcde_dsi_disable(mcde->bridge);
+	if (mcde->dpi_output) {
+		clk_disable_unprepare(mcde->fifoa_clk);
+	} else {
+		/* This disables the DSI bridge */
+		mcde_dsi_disable(mcde->bridge);
+	}
 
 	event = crtc->state->event;
 	if (event) {
@@ -1260,6 +1506,10 @@ int mcde_display_init(struct drm_device *drm)
 		DRM_FORMAT_BGR565,
 		DRM_FORMAT_YUV422,
 	};
+
+	ret = mcde_init_clock_divider(mcde);
+	if (ret)
+		return ret;
 
 	ret = drm_simple_display_pipe_init(drm, &mcde->pipe,
 					   &mcde_display_funcs,

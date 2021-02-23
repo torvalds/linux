@@ -1272,6 +1272,10 @@ static int fl_set_enc_opt(struct nlattr **tb, struct fl_flow_key *key,
 
 		nla_opt_msk = nla_data(tb[TCA_FLOWER_KEY_ENC_OPTS_MASK]);
 		msk_depth = nla_len(tb[TCA_FLOWER_KEY_ENC_OPTS_MASK]);
+		if (!nla_ok(nla_opt_msk, msk_depth)) {
+			NL_SET_ERR_MSG(extack, "Invalid nested attribute for masks");
+			return -EINVAL;
+		}
 	}
 
 	nla_for_each_attr(nla_opt_key, nla_enc_key,
@@ -1307,9 +1311,6 @@ static int fl_set_enc_opt(struct nlattr **tb, struct fl_flow_key *key,
 				NL_SET_ERR_MSG(extack, "Key and mask miss aligned");
 				return -EINVAL;
 			}
-
-			if (msk_depth)
-				nla_opt_msk = nla_next(nla_opt_msk, &msk_depth);
 			break;
 		case TCA_FLOWER_KEY_ENC_OPTS_VXLAN:
 			if (key->enc_opts.dst_opt_type) {
@@ -1340,9 +1341,6 @@ static int fl_set_enc_opt(struct nlattr **tb, struct fl_flow_key *key,
 				NL_SET_ERR_MSG(extack, "Key and mask miss aligned");
 				return -EINVAL;
 			}
-
-			if (msk_depth)
-				nla_opt_msk = nla_next(nla_opt_msk, &msk_depth);
 			break;
 		case TCA_FLOWER_KEY_ENC_OPTS_ERSPAN:
 			if (key->enc_opts.dst_opt_type) {
@@ -1373,14 +1371,20 @@ static int fl_set_enc_opt(struct nlattr **tb, struct fl_flow_key *key,
 				NL_SET_ERR_MSG(extack, "Key and mask miss aligned");
 				return -EINVAL;
 			}
-
-			if (msk_depth)
-				nla_opt_msk = nla_next(nla_opt_msk, &msk_depth);
 			break;
 		default:
 			NL_SET_ERR_MSG(extack, "Unknown tunnel option type");
 			return -EINVAL;
 		}
+
+		if (!msk_depth)
+			continue;
+
+		if (!nla_ok(nla_opt_msk, msk_depth)) {
+			NL_SET_ERR_MSG(extack, "A mask attribute is invalid");
+			return -EINVAL;
+		}
+		nla_opt_msk = nla_next(nla_opt_msk, &msk_depth);
 	}
 
 	return 0;

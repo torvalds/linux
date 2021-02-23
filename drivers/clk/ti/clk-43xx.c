@@ -272,6 +272,11 @@ static struct ti_dt_clk am43xx_clks[] = {
 	{ .node_name = NULL },
 };
 
+static const char *enable_init_clks[] = {
+	/* AM4_L3_L3_MAIN_CLKCTRL, needed during suspend */
+	"l3-clkctrl:0000:0",
+};
+
 int __init am43xx_dt_clk_init(void)
 {
 	struct clk *clk1, *clk2;
@@ -282,6 +287,9 @@ int __init am43xx_dt_clk_init(void)
 		ti_dt_clocks_register(am43xx_clks);
 
 	omap2_clk_disable_autoidle_all();
+
+	omap2_clk_enable_init_clocks(enable_init_clks,
+				     ARRAY_SIZE(enable_init_clks));
 
 	ti_clk_add_aliases();
 

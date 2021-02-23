@@ -371,13 +371,6 @@ static void driver_bound(struct device *dev)
 	device_pm_check_callbacks(dev);
 
 	/*
-	 * Reorder successfully probed devices to the end of the device list.
-	 * This ensures that suspend/resume order matches probe order, which
-	 * is usually what drivers rely on.
-	 */
-	device_pm_move_to_tail(dev);
-
-	/*
 	 * Make sure the device is no longer in one of the deferred lists and
 	 * kick off retrying all pending devices
 	 */
@@ -619,6 +612,8 @@ dev_groups_failed:
 	else if (drv->remove)
 		drv->remove(dev);
 probe_failed:
+	kfree(dev->dma_range_map);
+	dev->dma_range_map = NULL;
 	if (dev->bus)
 		blocking_notifier_call_chain(&dev->bus->p->bus_notifier,
 					     BUS_NOTIFY_DRIVER_NOT_BOUND, dev);

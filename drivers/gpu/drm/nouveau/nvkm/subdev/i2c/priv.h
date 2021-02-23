@@ -23,6 +23,10 @@ struct nvkm_i2c_func {
 	/* mask on/off interrupt types for a given set of auxch
 	 */
 	void (*aux_mask)(struct nvkm_i2c *, u32, u32, u32);
+
+	/* enable/disable HW-initiated DPCD reads
+	 */
+	void (*aux_autodpcd)(struct nvkm_i2c *, int aux, bool enable);
 };
 
 void g94_aux_stat(struct nvkm_i2c *, u32 *, u32 *, u32 *, u32 *);

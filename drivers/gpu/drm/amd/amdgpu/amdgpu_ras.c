@@ -1518,7 +1518,7 @@ static int amdgpu_ras_badpages_read(struct amdgpu_device *adev,
 	struct amdgpu_ras *con = amdgpu_ras_get_context(adev);
 	struct ras_err_handler_data *data;
 	int i = 0;
-	int ret = 0;
+	int ret = 0, status;
 
 	if (!con || !con->eh_data || !bps || !count)
 		return -EINVAL;
@@ -1543,12 +1543,12 @@ static int amdgpu_ras_badpages_read(struct amdgpu_device *adev,
 			.size = AMDGPU_GPU_PAGE_SIZE,
 			.flags = AMDGPU_RAS_RETIRE_PAGE_RESERVED,
 		};
-		ret = amdgpu_vram_mgr_query_page_status(
+		status = amdgpu_vram_mgr_query_page_status(
 				ttm_manager_type(&adev->mman.bdev, TTM_PL_VRAM),
 				data->bps[i].retired_page);
-		if (ret == -EBUSY)
+		if (status == -EBUSY)
 			(*bps)[i].flags = AMDGPU_RAS_RETIRE_PAGE_PENDING;
-		else if (ret == -ENOENT)
+		else if (status == -ENOENT)
 			(*bps)[i].flags = AMDGPU_RAS_RETIRE_PAGE_FAULT;
 	}
 

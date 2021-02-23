@@ -1852,8 +1852,6 @@ EXPORT_SYMBOL_GPL(m_can_class_register);
 void m_can_class_unregister(struct m_can_classdev *cdev)
 {
 	unregister_candev(cdev->net);
-
-	m_can_clk_stop(cdev);
 }
 EXPORT_SYMBOL_GPL(m_can_class_unregister);
 

@@ -314,7 +314,7 @@ void topology_scale_freq_tick(void)
 
 	if (unlikely(core_cnt <= prev_core_cnt ||
 		     const_cnt <= prev_const_cnt))
-		goto store_and_exit;
+		return;
 
 	/*
 	 *	    /\core    arch_max_freq_scale
@@ -331,10 +331,6 @@ void topology_scale_freq_tick(void)
 
 	scale = min_t(unsigned long, scale, SCHED_CAPACITY_SCALE);
 	this_cpu_write(freq_scale, (unsigned long)scale);
-
-store_and_exit:
-	this_cpu_write(arch_core_cycles_prev, core_cnt);
-	this_cpu_write(arch_const_cycles_prev, const_cnt);
 }
 
 #ifdef CONFIG_ACPI_CPPC_LIB

@@ -76,7 +76,12 @@ static int pwm_lpss_wait_for_update(struct pwm_device *pwm)
 
 static inline int pwm_lpss_is_updating(struct pwm_device *pwm)
 {
-	return (pwm_lpss_read(pwm) & PWM_SW_UPDATE) ? -EBUSY : 0;
+	if (pwm_lpss_read(pwm) & PWM_SW_UPDATE) {
+		dev_err(pwm->chip->dev, "PWM_SW_UPDATE is still set, skipping update\n");
+		return -EBUSY;
+	}
+
+	return 0;
 }
 
 static void pwm_lpss_prepare(struct pwm_lpss_chip *lpwm, struct pwm_device *pwm,

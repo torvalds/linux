@@ -1424,13 +1424,13 @@ TRACE_EVENT(rpcb_unregister,
 	)
 );
 
-DECLARE_EVENT_CLASS(svc_xdr_buf_class,
+/* Record an xdr_buf containing a fully-formed RPC message */
+DECLARE_EVENT_CLASS(svc_xdr_msg_class,
 	TP_PROTO(
-		const struct svc_rqst *rqst,
 		const struct xdr_buf *xdr
 	),
 
-	TP_ARGS(rqst, xdr),
+	TP_ARGS(xdr),
 
 	TP_STRUCT__entry(
 		__field(u32, xid)
@@ -1443,7 +1443,55 @@ DECLARE_EVENT_CLASS(svc_xdr_buf_class,
 	),
 
 	TP_fast_assign(
-		__entry->xid = be32_to_cpu(rqst->rq_xid);
+		__be32 *p = (__be32 *)xdr->head[0].iov_base;
+
+		__entry->xid = be32_to_cpu(*p);
+		__entry->head_base = p;
+		__entry->head_len = xdr->head[0].iov_len;
+		__entry->tail_base = xdr->tail[0].iov_base;
+		__entry->tail_len = xdr->tail[0].iov_len;
+		__entry->page_len = xdr->page_len;
+		__entry->msg_len = xdr->len;
+	),
+
+	TP_printk("xid=0x%08x head=[%p,%zu] page=%u tail=[%p,%zu] len=%u",
+		__entry->xid,
+		__entry->head_base, __entry->head_len, __entry->page_len,
+		__entry->tail_base, __entry->tail_len, __entry->msg_len
+	)
+);
+
+#define DEFINE_SVCXDRMSG_EVENT(name)					\
+		DEFINE_EVENT(svc_xdr_msg_class,				\
+				svc_xdr_##name,				\
+				TP_PROTO(				\
+					const struct xdr_buf *xdr	\
+				),					\
+				TP_ARGS(xdr))
+
+DEFINE_SVCXDRMSG_EVENT(recvfrom);
+
+/* Record an xdr_buf containing arbitrary data, tagged with an XID */
+DECLARE_EVENT_CLASS(svc_xdr_buf_class,
+	TP_PROTO(
+		__be32 xid,
+		const struct xdr_buf *xdr
+	),
+
+	TP_ARGS(xid, xdr),
+
+	TP_STRUCT__entry(
+		__field(u32, xid)
+		__field(const void *, head_base)
+		__field(size_t, head_len)
+		__field(const void *, tail_base)
+		__field(size_t, tail_len)
+		__field(unsigned int, page_len)
+		__field(unsigned int, msg_len)
+	),
+
+	TP_fast_assign(
+		__entry->xid = be32_to_cpu(xid);
 		__entry->head_base = xdr->head[0].iov_base;
 		__entry->head_len = xdr->head[0].iov_len;
 		__entry->tail_base = xdr->tail[0].iov_base;
@@ -1463,12 +1511,11 @@ DECLARE_EVENT_CLASS(svc_xdr_buf_class,
 		DEFINE_EVENT(svc_xdr_buf_class,				\
 				svc_xdr_##name,				\
 				TP_PROTO(				\
-					const struct svc_rqst *rqst,	\
+					__be32 xid,			\
 					const struct xdr_buf *xdr	\
 				),					\
-				TP_ARGS(rqst, xdr))
+				TP_ARGS(xid, xdr))
 
-DEFINE_SVCXDRBUF_EVENT(recvfrom);
 DEFINE_SVCXDRBUF_EVENT(sendto);
 
 /*

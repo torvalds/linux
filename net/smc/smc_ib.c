@@ -371,8 +371,8 @@ static int smc_nl_handle_dev_port(struct sk_buff *skb,
 	if (nla_put_u8(skb, SMC_NLA_DEV_PORT_PNET_USR,
 		       smcibdev->pnetid_by_user[port]))
 		goto errattr;
-	snprintf(smc_pnet, sizeof(smc_pnet), "%s",
-		 (char *)&smcibdev->pnetid[port]);
+	memcpy(smc_pnet, &smcibdev->pnetid[port], SMC_MAX_PNETID_LEN);
+	smc_pnet[SMC_MAX_PNETID_LEN] = 0;
 	if (nla_put_string(skb, SMC_NLA_DEV_PORT_PNETID, smc_pnet))
 		goto errattr;
 	if (nla_put_u32(skb, SMC_NLA_DEV_PORT_NETDEV,
@@ -394,11 +394,27 @@ errout:
 	return -EMSGSIZE;
 }
 
+static bool smc_nl_handle_pci_values(const struct smc_pci_dev *smc_pci_dev,
+				     struct sk_buff *skb)
+{
+	if (nla_put_u32(skb, SMC_NLA_DEV_PCI_FID, smc_pci_dev->pci_fid))
+		return false;
+	if (nla_put_u16(skb, SMC_NLA_DEV_PCI_CHID, smc_pci_dev->pci_pchid))
+		return false;
+	if (nla_put_u16(skb, SMC_NLA_DEV_PCI_VENDOR, smc_pci_dev->pci_vendor))
+		return false;
+	if (nla_put_u16(skb, SMC_NLA_DEV_PCI_DEVICE, smc_pci_dev->pci_device))
+		return false;
+	if (nla_put_string(skb, SMC_NLA_DEV_PCI_ID, smc_pci_dev->pci_id))
+		return false;
+	return true;
+}
+
 static int smc_nl_handle_smcr_dev(struct smc_ib_device *smcibdev,
 				  struct sk_buff *skb,
 				  struct netlink_callback *cb)
 {
-	char smc_ibname[IB_DEVICE_NAME_MAX + 1];
+	char smc_ibname[IB_DEVICE_NAME_MAX];
 	struct smc_pci_dev smc_pci_dev;
 	struct pci_dev *pci_dev;
 	unsigned char is_crit;
@@ -417,19 +433,13 @@ static int smc_nl_handle_smcr_dev(struct smc_ib_device *smcibdev,
 	is_crit = smcr_diag_is_dev_critical(&smc_lgr_list, smcibdev);
 	if (nla_put_u8(skb, SMC_NLA_DEV_IS_CRIT, is_crit))
 		goto errattr;
-	memset(&smc_pci_dev, 0, sizeof(smc_pci_dev));
-	pci_dev = to_pci_dev(smcibdev->ibdev->dev.parent);
-	smc_set_pci_values(pci_dev, &smc_pci_dev);
-	if (nla_put_u32(skb, SMC_NLA_DEV_PCI_FID, smc_pci_dev.pci_fid))
-		goto errattr;
-	if (nla_put_u16(skb, SMC_NLA_DEV_PCI_CHID, smc_pci_dev.pci_pchid))
-		goto errattr;
-	if (nla_put_u16(skb, SMC_NLA_DEV_PCI_VENDOR, smc_pci_dev.pci_vendor))
-		goto errattr;
-	if (nla_put_u16(skb, SMC_NLA_DEV_PCI_DEVICE, smc_pci_dev.pci_device))
-		goto errattr;
-	if (nla_put_string(skb, SMC_NLA_DEV_PCI_ID, smc_pci_dev.pci_id))
-		goto errattr;
+	if (smcibdev->ibdev->dev.parent) {
+		memset(&smc_pci_dev, 0, sizeof(smc_pci_dev));
+		pci_dev = to_pci_dev(smcibdev->ibdev->dev.parent);
+		smc_set_pci_values(pci_dev, &smc_pci_dev);
+		if (!smc_nl_handle_pci_values(&smc_pci_dev, skb))
+			goto errattr;
+	}
 	snprintf(smc_ibname, sizeof(smc_ibname), "%s", smcibdev->ibdev->name);
 	if (nla_put_string(skb, SMC_NLA_DEV_IB_NAME, smc_ibname))
 		goto errattr;

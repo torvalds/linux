@@ -4432,7 +4432,7 @@ static int mvneta_xdp_setup(struct net_device *dev, struct bpf_prog *prog,
 	struct bpf_prog *old_prog;
 
 	if (prog && dev->mtu > MVNETA_MAX_RX_BUF_SIZE) {
-		NL_SET_ERR_MSG_MOD(extack, "Jumbo frames not supported on XDP");
+		NL_SET_ERR_MSG_MOD(extack, "MTU too large for XDP");
 		return -EOPNOTSUPP;
 	}
 
@@ -5255,7 +5255,7 @@ static int mvneta_probe(struct platform_device *pdev)
 	err = mvneta_port_power_up(pp, pp->phy_interface);
 	if (err < 0) {
 		dev_err(&pdev->dev, "can't power up port\n");
-		return err;
+		goto err_netdev;
 	}
 
 	/* Armada3700 network controller does not support per-cpu

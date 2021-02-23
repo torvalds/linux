@@ -16,14 +16,12 @@
 
 #define CIF_NOHZ_DELAY		2	/* delay HZ disable for a tick */
 #define CIF_FPU			3	/* restore FPU registers */
-#define CIF_IGNORE_IRQ		4	/* ignore interrupt (for udelay) */
 #define CIF_ENABLED_WAIT	5	/* in enabled wait state */
 #define CIF_MCCK_GUEST		6	/* machine check happening in guest */
 #define CIF_DEDICATED_CPU	7	/* this CPU is dedicated */
 
 #define _CIF_NOHZ_DELAY		BIT(CIF_NOHZ_DELAY)
 #define _CIF_FPU		BIT(CIF_FPU)
-#define _CIF_IGNORE_IRQ		BIT(CIF_IGNORE_IRQ)
 #define _CIF_ENABLED_WAIT	BIT(CIF_ENABLED_WAIT)
 #define _CIF_MCCK_GUEST		BIT(CIF_MCCK_GUEST)
 #define _CIF_DEDICATED_CPU	BIT(CIF_DEDICATED_CPU)
@@ -291,11 +289,6 @@ static inline unsigned long __rewind_psw(psw_t psw, unsigned long ilc)
 					  (1UL << 24) - 1;
 	return (psw.addr - ilc) & mask;
 }
-
-/*
- * Function to stop a processor until the next interrupt occurs
- */
-void enabled_wait(void);
 
 /*
  * Function to drop a processor into disabled wait state

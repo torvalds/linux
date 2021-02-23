@@ -128,8 +128,8 @@ __be32 *xdr_decode_netobj(__be32 *p, struct xdr_netobj *);
 
 void	xdr_inline_pages(struct xdr_buf *, unsigned int,
 			 struct page **, unsigned int, unsigned int);
-void	xdr_terminate_string(struct xdr_buf *, const u32);
-size_t	xdr_buf_pagecount(struct xdr_buf *buf);
+void	xdr_terminate_string(const struct xdr_buf *, const u32);
+size_t	xdr_buf_pagecount(const struct xdr_buf *buf);
 int	xdr_alloc_bvec(struct xdr_buf *buf, gfp_t gfp);
 void	xdr_free_bvec(struct xdr_buf *buf);
 
@@ -182,15 +182,14 @@ xdr_adjust_iovec(struct kvec *iov, __be32 *p)
  * XDR buffer helper functions
  */
 extern void xdr_shift_buf(struct xdr_buf *, size_t);
-extern void xdr_buf_from_iov(struct kvec *, struct xdr_buf *);
-extern int xdr_buf_subsegment(const struct xdr_buf *buf, struct xdr_buf *subbuf,
-			      unsigned int base, unsigned int len);
+extern void xdr_buf_from_iov(const struct kvec *, struct xdr_buf *);
+extern int xdr_buf_subsegment(const struct xdr_buf *, struct xdr_buf *, unsigned int, unsigned int);
 extern void xdr_buf_trim(struct xdr_buf *, unsigned int);
-extern int read_bytes_from_xdr_buf(struct xdr_buf *, unsigned int, void *, unsigned int);
-extern int write_bytes_to_xdr_buf(struct xdr_buf *, unsigned int, void *, unsigned int);
+extern int read_bytes_from_xdr_buf(const struct xdr_buf *, unsigned int, void *, unsigned int);
+extern int write_bytes_to_xdr_buf(const struct xdr_buf *, unsigned int, void *, unsigned int);
 
-extern int xdr_encode_word(struct xdr_buf *, unsigned int, u32);
-extern int xdr_decode_word(struct xdr_buf *, unsigned int, u32 *);
+extern int xdr_encode_word(const struct xdr_buf *, unsigned int, u32);
+extern int xdr_decode_word(const struct xdr_buf *, unsigned int, u32 *);
 
 struct xdr_array2_desc;
 typedef int (*xdr_xcode_elem_t)(struct xdr_array2_desc *desc, void *elem);
@@ -201,9 +200,9 @@ struct xdr_array2_desc {
 	xdr_xcode_elem_t xcode;
 };
 
-extern int xdr_decode_array2(struct xdr_buf *buf, unsigned int base,
+extern int xdr_decode_array2(const struct xdr_buf *buf, unsigned int base,
 			     struct xdr_array2_desc *desc);
-extern int xdr_encode_array2(struct xdr_buf *buf, unsigned int base,
+extern int xdr_encode_array2(const struct xdr_buf *buf, unsigned int base,
 			     struct xdr_array2_desc *desc);
 extern void _copy_from_pages(char *p, struct page **pages, size_t pgbase,
 			     size_t len);
@@ -251,9 +250,9 @@ extern void xdr_init_decode_pages(struct xdr_stream *xdr, struct xdr_buf *buf,
 extern __be32 *xdr_inline_decode(struct xdr_stream *xdr, size_t nbytes);
 extern unsigned int xdr_read_pages(struct xdr_stream *xdr, unsigned int len);
 extern void xdr_enter_page(struct xdr_stream *xdr, unsigned int len);
-extern int xdr_process_buf(struct xdr_buf *buf, unsigned int offset, unsigned int len, int (*actor)(struct scatterlist *, void *), void *data);
-extern uint64_t xdr_align_data(struct xdr_stream *, uint64_t, uint32_t);
-extern uint64_t xdr_expand_hole(struct xdr_stream *, uint64_t, uint64_t);
+extern int xdr_process_buf(const struct xdr_buf *buf, unsigned int offset, unsigned int len, int (*actor)(struct scatterlist *, void *), void *data);
+extern unsigned int xdr_align_data(struct xdr_stream *, unsigned int offset, unsigned int length);
+extern unsigned int xdr_expand_hole(struct xdr_stream *, unsigned int offset, unsigned int length);
 extern bool xdr_stream_subsegment(struct xdr_stream *xdr, struct xdr_buf *subbuf,
 				  unsigned int len);
 

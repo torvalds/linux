@@ -220,8 +220,11 @@ bool i40e_alloc_rx_buffers_zc(struct i40e_ring *rx_ring, u16 count)
 	} while (count);
 
 no_buffers:
-	if (rx_ring->next_to_use != ntu)
+	if (rx_ring->next_to_use != ntu) {
+		/* clear the status bits for the next_to_use descriptor */
+		rx_desc->wb.qword1.status_error_len = 0;
 		i40e_release_rx_desc(rx_ring, ntu);
+	}
 
 	return ok;
 }
@@ -345,12 +348,12 @@ int i40e_clean_rx_irq_zc(struct i40e_ring *rx_ring, int budget)
 		 * SBP is *not* set in PRT_SBPVSI (default not set).
 		 */
 		skb = i40e_construct_skb_zc(rx_ring, *bi);
-		*bi = NULL;
 		if (!skb) {
 			rx_ring->rx_stats.alloc_buff_failed++;
 			break;
 		}
 
+		*bi = NULL;
 		cleaned_count++;
 		i40e_inc_ntc(rx_ring);
 

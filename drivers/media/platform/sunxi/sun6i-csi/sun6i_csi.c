@@ -881,14 +881,6 @@ static int sun6i_csi_resource_request(struct sun6i_csi_dev *sdev,
 	return 0;
 }
 
-/*
- * PHYS_OFFSET isn't available on all architectures. In order to
- * accommodate for COMPILE_TEST, let's define it to something dumb.
- */
-#if defined(CONFIG_COMPILE_TEST) && !defined(PHYS_OFFSET)
-#define PHYS_OFFSET 0
-#endif
-
 static int sun6i_csi_probe(struct platform_device *pdev)
 {
 	struct sun6i_csi_dev *sdev;
@@ -899,15 +891,6 @@ static int sun6i_csi_probe(struct platform_device *pdev)
 		return -ENOMEM;
 
 	sdev->dev = &pdev->dev;
-	/*
-	 * The DMA bus has the memory mapped at 0.
-	 *
-	 * XXX(hch): this has no business in a driver and needs to move
-	 * to the device tree.
-	 */
-	ret = dma_direct_set_offset(sdev->dev, PHYS_OFFSET, 0, SZ_4G);
-	if (ret)
-		return ret;
 
 	ret = sun6i_csi_resource_request(sdev, pdev);
 	if (ret)

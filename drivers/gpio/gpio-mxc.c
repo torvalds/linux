@@ -24,13 +24,6 @@
 #include <linux/of_device.h>
 #include <linux/bug.h>
 
-enum mxc_gpio_hwtype {
-	IMX1_GPIO,	/* runs on i.mx1 */
-	IMX21_GPIO,	/* runs on i.mx21 and i.mx27 */
-	IMX31_GPIO,	/* runs on i.mx31 */
-	IMX35_GPIO,	/* runs on all other i.mx */
-};
-
 /* device type dependent stuff */
 struct mxc_gpio_hwdata {
 	unsigned dr_reg;
@@ -68,6 +61,7 @@ struct mxc_gpio_port {
 	u32 both_edges;
 	struct mxc_gpio_reg_saved gpio_saved_reg;
 	bool power_off;
+	const struct mxc_gpio_hwdata *hwdata;
 };
 
 static struct mxc_gpio_hwdata imx1_imx21_gpio_hwdata = {
@@ -115,48 +109,27 @@ static struct mxc_gpio_hwdata imx35_gpio_hwdata = {
 	.fall_edge	= 0x03,
 };
 
-static enum mxc_gpio_hwtype mxc_gpio_hwtype;
-static struct mxc_gpio_hwdata *mxc_gpio_hwdata;
+#define GPIO_DR			(port->hwdata->dr_reg)
+#define GPIO_GDIR		(port->hwdata->gdir_reg)
+#define GPIO_PSR		(port->hwdata->psr_reg)
+#define GPIO_ICR1		(port->hwdata->icr1_reg)
+#define GPIO_ICR2		(port->hwdata->icr2_reg)
+#define GPIO_IMR		(port->hwdata->imr_reg)
+#define GPIO_ISR		(port->hwdata->isr_reg)
+#define GPIO_EDGE_SEL		(port->hwdata->edge_sel_reg)
 
-#define GPIO_DR			(mxc_gpio_hwdata->dr_reg)
-#define GPIO_GDIR		(mxc_gpio_hwdata->gdir_reg)
-#define GPIO_PSR		(mxc_gpio_hwdata->psr_reg)
-#define GPIO_ICR1		(mxc_gpio_hwdata->icr1_reg)
-#define GPIO_ICR2		(mxc_gpio_hwdata->icr2_reg)
-#define GPIO_IMR		(mxc_gpio_hwdata->imr_reg)
-#define GPIO_ISR		(mxc_gpio_hwdata->isr_reg)
-#define GPIO_EDGE_SEL		(mxc_gpio_hwdata->edge_sel_reg)
-
-#define GPIO_INT_LOW_LEV	(mxc_gpio_hwdata->low_level)
-#define GPIO_INT_HIGH_LEV	(mxc_gpio_hwdata->high_level)
-#define GPIO_INT_RISE_EDGE	(mxc_gpio_hwdata->rise_edge)
-#define GPIO_INT_FALL_EDGE	(mxc_gpio_hwdata->fall_edge)
+#define GPIO_INT_LOW_LEV	(port->hwdata->low_level)
+#define GPIO_INT_HIGH_LEV	(port->hwdata->high_level)
+#define GPIO_INT_RISE_EDGE	(port->hwdata->rise_edge)
+#define GPIO_INT_FALL_EDGE	(port->hwdata->fall_edge)
 #define GPIO_INT_BOTH_EDGES	0x4
 
-static const struct platform_device_id mxc_gpio_devtype[] = {
-	{
-		.name = "imx1-gpio",
-		.driver_data = IMX1_GPIO,
-	}, {
-		.name = "imx21-gpio",
-		.driver_data = IMX21_GPIO,
-	}, {
-		.name = "imx31-gpio",
-		.driver_data = IMX31_GPIO,
-	}, {
-		.name = "imx35-gpio",
-		.driver_data = IMX35_GPIO,
-	}, {
-		/* sentinel */
-	}
-};
-
 static const struct of_device_id mxc_gpio_dt_ids[] = {
-	{ .compatible = "fsl,imx1-gpio", .data = &mxc_gpio_devtype[IMX1_GPIO], },
-	{ .compatible = "fsl,imx21-gpio", .data = &mxc_gpio_devtype[IMX21_GPIO], },
-	{ .compatible = "fsl,imx31-gpio", .data = &mxc_gpio_devtype[IMX31_GPIO], },
-	{ .compatible = "fsl,imx35-gpio", .data = &mxc_gpio_devtype[IMX35_GPIO], },
-	{ .compatible = "fsl,imx7d-gpio", .data = &mxc_gpio_devtype[IMX35_GPIO], },
+	{ .compatible = "fsl,imx1-gpio", .data =  &imx1_imx21_gpio_hwdata },
+	{ .compatible = "fsl,imx21-gpio", .data = &imx1_imx21_gpio_hwdata },
+	{ .compatible = "fsl,imx31-gpio", .data = &imx31_gpio_hwdata },
+	{ .compatible = "fsl,imx35-gpio", .data = &imx35_gpio_hwdata },
+	{ .compatible = "fsl,imx7d-gpio", .data = &imx35_gpio_hwdata },
 	{ /* sentinel */ }
 };
 MODULE_DEVICE_TABLE(of, mxc_gpio_dt_ids);
@@ -372,36 +345,6 @@ static int mxc_gpio_init_gc(struct mxc_gpio_port *port, int irq_base)
 	return rv;
 }
 
-static void mxc_gpio_get_hw(struct platform_device *pdev)
-{
-	const struct of_device_id *of_id =
-			of_match_device(mxc_gpio_dt_ids, &pdev->dev);
-	enum mxc_gpio_hwtype hwtype;
-
-	if (of_id)
-		pdev->id_entry = of_id->data;
-	hwtype = pdev->id_entry->driver_data;
-
-	if (mxc_gpio_hwtype) {
-		/*
-		 * The driver works with a reasonable presupposition,
-		 * that is all gpio ports must be the same type when
-		 * running on one soc.
-		 */
-		BUG_ON(mxc_gpio_hwtype != hwtype);
-		return;
-	}
-
-	if (hwtype == IMX35_GPIO)
-		mxc_gpio_hwdata = &imx35_gpio_hwdata;
-	else if (hwtype == IMX31_GPIO)
-		mxc_gpio_hwdata = &imx31_gpio_hwdata;
-	else
-		mxc_gpio_hwdata = &imx1_imx21_gpio_hwdata;
-
-	mxc_gpio_hwtype = hwtype;
-}
-
 static int mxc_gpio_to_irq(struct gpio_chip *gc, unsigned offset)
 {
 	struct mxc_gpio_port *port = gpiochip_get_data(gc);
@@ -417,13 +360,13 @@ static int mxc_gpio_probe(struct platform_device *pdev)
 	int irq_base;
 	int err;
 
-	mxc_gpio_get_hw(pdev);
-
 	port = devm_kzalloc(&pdev->dev, sizeof(*port), GFP_KERNEL);
 	if (!port)
 		return -ENOMEM;
 
 	port->dev = &pdev->dev;
+
+	port->hwdata = device_get_match_data(&pdev->dev);
 
 	port->base = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(port->base))
@@ -461,7 +404,7 @@ static int mxc_gpio_probe(struct platform_device *pdev)
 	writel(0, port->base + GPIO_IMR);
 	writel(~0, port->base + GPIO_ISR);
 
-	if (mxc_gpio_hwtype == IMX21_GPIO) {
+	if (of_device_is_compatible(np, "fsl,imx21-gpio")) {
 		/*
 		 * Setup one handler for all GPIO interrupts. Actually setting
 		 * the handler is needed only once, but doing it for every port
@@ -596,7 +539,6 @@ static struct platform_driver mxc_gpio_driver = {
 		.suppress_bind_attrs = true,
 	},
 	.probe		= mxc_gpio_probe,
-	.id_table	= mxc_gpio_devtype,
 };
 
 static int __init gpio_mxc_init(void)

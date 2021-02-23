@@ -11,14 +11,14 @@
 		#size-cells = <1>;
 		ranges;
 
-		mfc_left: region_mfc_left {
+		mfc_left: region-mfc-left {
 			compatible = "shared-dma-pool";
 			no-map;
 			size = <0x2400000>;
 			alignment = <0x100000>;
 		};
 
-		mfc_right: region_mfc_right {
+		mfc_right: region-mfc-right {
 			compatible = "shared-dma-pool";
 			no-map;
 			size = <0x800000>;

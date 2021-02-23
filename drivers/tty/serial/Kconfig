@@ -1567,6 +1567,38 @@ config SERIAL_MILBEAUT_USIO_CONSOLE
 	  receives all kernel messages and warnings and which allows logins in
 	  single user mode).
 
+config SERIAL_LITEUART
+	tristate "LiteUART serial port support"
+	depends on HAS_IOMEM
+	depends on OF || COMPILE_TEST
+	depends on LITEX
+	select SERIAL_CORE
+	help
+	  This driver is for the FPGA-based LiteUART serial controller from LiteX
+	  SoC builder.
+
+	  Say 'Y' or 'M' here if you wish to use the LiteUART serial controller.
+	  Otherwise, say 'N'.
+
+config SERIAL_LITEUART_MAX_PORTS
+	int "Maximum number of LiteUART ports"
+	depends on SERIAL_LITEUART
+	default "1"
+	help
+	  Set this to the maximum number of serial ports you want the driver
+	  to support.
+
+config SERIAL_LITEUART_CONSOLE
+	bool "LiteUART serial port console support"
+	depends on SERIAL_LITEUART=y
+	select SERIAL_CORE_CONSOLE
+	help
+	  Say 'Y' or 'M' here if you wish to use the FPGA-based LiteUART serial
+	  controller from LiteX SoC builder as the system console
+	  (the system console is the device which receives all kernel messages
+	  and warnings and which allows logins in single user mode).
+	  Otherwise, say 'N'.
+
 endmenu
 
 config SERIAL_MCTRL_GPIO

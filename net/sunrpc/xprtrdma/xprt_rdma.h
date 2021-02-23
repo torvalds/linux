@@ -53,6 +53,7 @@
 #include <rdma/ib_verbs.h>		/* RDMA verbs api */
 
 #include <linux/sunrpc/clnt.h> 		/* rpc_xprt */
+#include <linux/sunrpc/rpc_rdma_cid.h> 	/* completion IDs */
 #include <linux/sunrpc/rpc_rdma.h> 	/* RPC/RDMA protocol */
 #include <linux/sunrpc/xprtrdma.h> 	/* xprt parameters */
 
@@ -93,6 +94,8 @@ struct rpcrdma_ep {
 	unsigned int		re_max_requests; /* depends on device */
 	unsigned int		re_inline_send;	/* negotiated */
 	unsigned int		re_inline_recv;	/* negotiated */
+
+	atomic_t		re_completion_ids;
 };
 
 /* Pre-allocate extra Work Requests for handling backward receives
@@ -180,6 +183,8 @@ enum {
 
 struct rpcrdma_rep {
 	struct ib_cqe		rr_cqe;
+	struct rpc_rdma_cid	rr_cid;
+
 	__be32			rr_xid;
 	__be32			rr_vers;
 	__be32			rr_proc;
@@ -211,6 +216,7 @@ enum {
 struct rpcrdma_req;
 struct rpcrdma_sendctx {
 	struct ib_cqe		sc_cqe;
+	struct rpc_rdma_cid	sc_cid;
 	struct rpcrdma_req	*sc_req;
 	unsigned int		sc_unmap_count;
 	struct ib_sge		sc_sges[];
@@ -225,6 +231,7 @@ struct rpcrdma_sendctx {
 struct rpcrdma_frwr {
 	struct ib_mr			*fr_mr;
 	struct ib_cqe			fr_cqe;
+	struct rpc_rdma_cid		fr_cid;
 	struct completion		fr_linv_done;
 	union {
 		struct ib_reg_wr	fr_regwr;
@@ -236,6 +243,7 @@ struct rpcrdma_req;
 struct rpcrdma_mr {
 	struct list_head	mr_list;
 	struct rpcrdma_req	*mr_req;
+	struct ib_device	*mr_device;
 	struct scatterlist	*mr_sg;
 	int			mr_nents;
 	enum dma_data_direction	mr_dir;
@@ -466,7 +474,6 @@ void rpcrdma_buffer_destroy(struct rpcrdma_buffer *);
 struct rpcrdma_sendctx *rpcrdma_sendctx_get_locked(struct rpcrdma_xprt *r_xprt);
 
 struct rpcrdma_mr *rpcrdma_mr_get(struct rpcrdma_xprt *r_xprt);
-void rpcrdma_mr_put(struct rpcrdma_mr *mr);
 void rpcrdma_mrs_refresh(struct rpcrdma_xprt *r_xprt);
 
 struct rpcrdma_req *rpcrdma_buffer_get(struct rpcrdma_buffer *);

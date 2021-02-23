@@ -39,10 +39,10 @@ properties:
 
     properties:
       '#address-cells':
-       const: 1
+        const: 1
 
       '#size-cells':
-       const: 0
+        const: 0
 
       port@0:
         type: object

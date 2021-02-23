@@ -616,10 +616,9 @@ static int dwapb_get_reset(struct dwapb_gpio *gpio)
 	int err;
 
 	gpio->rst = devm_reset_control_get_optional_shared(gpio->dev, NULL);
-	if (IS_ERR(gpio->rst)) {
-		dev_err(gpio->dev, "Cannot get reset descriptor\n");
-		return PTR_ERR(gpio->rst);
-	}
+	if (IS_ERR(gpio->rst))
+		return dev_err_probe(gpio->dev, PTR_ERR(gpio->rst),
+				     "Cannot get reset descriptor\n");
 
 	err = reset_control_deassert(gpio->rst);
 	if (err) {

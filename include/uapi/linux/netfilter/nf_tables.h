@@ -293,6 +293,7 @@ enum nft_rule_compat_attributes {
  * @NFT_SET_EVAL: set can be updated from the evaluation path
  * @NFT_SET_OBJECT: set contains stateful objects
  * @NFT_SET_CONCAT: set contains a concatenation
+ * @NFT_SET_EXPR: set contains expressions
  */
 enum nft_set_flags {
 	NFT_SET_ANONYMOUS		= 0x1,
@@ -303,6 +304,7 @@ enum nft_set_flags {
 	NFT_SET_EVAL			= 0x20,
 	NFT_SET_OBJECT			= 0x40,
 	NFT_SET_CONCAT			= 0x80,
+	NFT_SET_EXPR			= 0x100,
 };
 
 /**
@@ -706,6 +708,7 @@ enum nft_dynset_ops {
 
 enum nft_dynset_flags {
 	NFT_DYNSET_F_INV	= (1 << 0),
+	NFT_DYNSET_F_EXPR	= (1 << 1),
 };
 
 /**

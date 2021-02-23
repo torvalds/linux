@@ -59,6 +59,7 @@ static inline void wq_list_add_tail(struct io_wq_work_node *node,
 		list->last->next = node;
 		list->last = node;
 	}
+	node->next = NULL;
 }
 
 static inline void wq_list_cut(struct io_wq_work_list *list,
@@ -127,8 +128,6 @@ static inline bool io_wq_is_hashed(struct io_wq_work *work)
 {
 	return work->flags & IO_WQ_WORK_HASHED;
 }
-
-void io_wq_cancel_all(struct io_wq *wq);
 
 typedef bool (work_cancel_fn)(struct io_wq_work *, void *);
 

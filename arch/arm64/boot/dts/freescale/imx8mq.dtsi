@@ -606,11 +606,25 @@
 				              "clk_ext3", "clk_ext4";
 				assigned-clocks = <&clk IMX8MQ_CLK_A53_SRC>,
 						  <&clk IMX8MQ_CLK_A53_CORE>,
-						  <&clk IMX8MQ_CLK_NOC>;
+						  <&clk IMX8MQ_CLK_NOC>,
+						  <&clk IMX8MQ_CLK_AUDIO_AHB>,
+						  <&clk IMX8MQ_AUDIO_PLL1_BYPASS>,
+						  <&clk IMX8MQ_AUDIO_PLL2_BYPASS>,
+						  <&clk IMX8MQ_AUDIO_PLL1>,
+						  <&clk IMX8MQ_AUDIO_PLL2>;
 				assigned-clock-rates = <0>, <0>,
-						       <800000000>;
+						       <800000000>,
+						       <0>,
+						       <0>,
+						       <0>,
+						       <786432000>,
+						       <722534400>;
 				assigned-clock-parents = <&clk IMX8MQ_SYS1_PLL_800M>,
-							 <&clk IMX8MQ_ARM_PLL_OUT>;
+							 <&clk IMX8MQ_ARM_PLL_OUT>,
+							 <0>,
+							 <&clk IMX8MQ_SYS2_PLL_500M>,
+							 <&clk IMX8MQ_AUDIO_PLL1>,
+							 <&clk IMX8MQ_AUDIO_PLL2>;
 			};
 
 			src: reset-controller@30390000 {
@@ -779,6 +793,30 @@
 			ranges = <0x30800000 0x30800000 0x400000>,
 				 <0x08000000 0x08000000 0x10000000>;
 
+			spdif1: spdif@30810000 {
+				compatible = "fsl,imx35-spdif";
+				reg = <0x30810000 0x10000>;
+				interrupts = <GIC_SPI 6 IRQ_TYPE_LEVEL_HIGH>;
+				clocks = <&clk IMX8MQ_CLK_IPG_ROOT>, /* core */
+					<&clk IMX8MQ_CLK_25M>, /* rxtx0 */
+					<&clk IMX8MQ_CLK_SPDIF1>, /* rxtx1 */
+					<&clk IMX8MQ_CLK_DUMMY>, /* rxtx2 */
+					<&clk IMX8MQ_CLK_DUMMY>, /* rxtx3 */
+					<&clk IMX8MQ_CLK_DUMMY>, /* rxtx4 */
+					<&clk IMX8MQ_CLK_IPG_ROOT>, /* rxtx5 */
+					<&clk IMX8MQ_CLK_DUMMY>, /* rxtx6 */
+					<&clk IMX8MQ_CLK_DUMMY>, /* rxtx7 */
+					<&clk IMX8MQ_CLK_DUMMY>; /* spba */
+				clock-names = "core", "rxtx0",
+					      "rxtx1", "rxtx2",
+					      "rxtx3", "rxtx4",
+					      "rxtx5", "rxtx6",
+					      "rxtx7", "spba";
+				dmas = <&sdma1 8 18 0>, <&sdma1 9 18 0>;
+				dma-names = "rx", "tx";
+				status = "disabled";
+			};
+
 			ecspi1: spi@30820000 {
 				#address-cells = <1>;
 				#size-cells = <0>;
@@ -845,6 +883,30 @@
 				clocks = <&clk IMX8MQ_CLK_UART2_ROOT>,
 				         <&clk IMX8MQ_CLK_UART2_ROOT>;
 				clock-names = "ipg", "per";
+				status = "disabled";
+			};
+
+			spdif2: spdif@308a0000 {
+				compatible = "fsl,imx35-spdif";
+				reg = <0x308a0000 0x10000>;
+				interrupts = <GIC_SPI 13 IRQ_TYPE_LEVEL_HIGH>;
+				clocks = <&clk IMX8MQ_CLK_IPG_ROOT>, /* core */
+					<&clk IMX8MQ_CLK_25M>, /* rxtx0 */
+					<&clk IMX8MQ_CLK_SPDIF2>, /* rxtx1 */
+					<&clk IMX8MQ_CLK_DUMMY>, /* rxtx2 */
+					<&clk IMX8MQ_CLK_DUMMY>, /* rxtx3 */
+					<&clk IMX8MQ_CLK_DUMMY>, /* rxtx4 */
+					<&clk IMX8MQ_CLK_IPG_ROOT>, /* rxtx5 */
+					<&clk IMX8MQ_CLK_DUMMY>, /* rxtx6 */
+					<&clk IMX8MQ_CLK_DUMMY>, /* rxtx7 */
+					<&clk IMX8MQ_CLK_DUMMY>; /* spba */
+				clock-names = "core", "rxtx0",
+					      "rxtx1", "rxtx2",
+					      "rxtx3", "rxtx4",
+					      "rxtx5", "rxtx6",
+					      "rxtx7", "spba";
+				dmas = <&sdma1 16 18 0>, <&sdma1 17 18 0>;
+				dma-names = "rx", "tx";
 				status = "disabled";
 			};
 

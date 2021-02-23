@@ -163,7 +163,7 @@ static inline __sum16 ip_fast_csum(const void *iph, unsigned int ihl)
  */
 __wsum __csum_partial(const void *buff, int len, __wsum sum);
 
-static inline __wsum csum_partial(const void *buff, int len, __wsum sum)
+static __always_inline __wsum csum_partial(const void *buff, int len, __wsum sum)
 {
 	if (__builtin_constant_p(len) && len <= 16 && (len & 1) == 0) {
 		if (len == 2)

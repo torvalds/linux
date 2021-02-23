@@ -44,7 +44,6 @@ int main(int argc, char *argv[])
 	nested_svm_check_supported();
 
 	vm = vm_create_default(VCPU_ID, 0, (void *) l1_guest_code);
-	vcpu_set_cpuid(vm, VCPU_ID, kvm_get_supported_cpuid());
 
 	vcpu_alloc_svm(vm, &svm_gva);
 	vcpu_args_set(vm, VCPU_ID, 1, svm_gva);

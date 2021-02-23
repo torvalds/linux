@@ -297,7 +297,6 @@ int fscrypt_fname_encrypt(const struct inode *inode, const struct qstr *iname,
 bool fscrypt_fname_encrypted_size(const union fscrypt_policy *policy,
 				  u32 orig_len, u32 max_len,
 				  u32 *encrypted_len_ret);
-extern const struct dentry_operations fscrypt_d_ops;
 
 /* hkdf.c */
 

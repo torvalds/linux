@@ -844,10 +844,9 @@ static int nvm_bb_chunk_sense(struct nvm_dev *dev, struct ppa_addr ppa)
 	rqd.ppa_addr = generic_to_dev_addr(dev, ppa);
 
 	ret = nvm_submit_io_sync_raw(dev, &rqd);
+	__free_page(page);
 	if (ret)
 		return ret;
-
-	__free_page(page);
 
 	return rqd.error;
 }

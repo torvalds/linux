@@ -2404,10 +2404,6 @@ xfs_rmap_finish_one(
 			return -EFSCORRUPTED;
 
 		rcur = xfs_rmapbt_init_cursor(mp, tp, agbp, agno);
-		if (!rcur) {
-			error = -ENOMEM;
-			goto out_cur;
-		}
 	}
 	*pcur = rcur;
 
@@ -2445,11 +2441,6 @@ xfs_rmap_finish_one(
 		ASSERT(0);
 		error = -EFSCORRUPTED;
 	}
-	return error;
-
-out_cur:
-	xfs_trans_brelse(tp, agbp);
-
 	return error;
 }
 

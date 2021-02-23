@@ -196,10 +196,6 @@ static int amdgpu_dm_encoder_init(struct drm_device *dev,
 
 static int amdgpu_dm_connector_get_modes(struct drm_connector *connector);
 
-static int amdgpu_dm_atomic_commit(struct drm_device *dev,
-				   struct drm_atomic_state *state,
-				   bool nonblock);
-
 static void amdgpu_dm_atomic_commit_tail(struct drm_atomic_state *state);
 
 static int amdgpu_dm_atomic_check(struct drm_device *dev,
@@ -943,41 +939,6 @@ static void mmhub_read_system_context(struct amdgpu_device *adev, struct dc_phy_
 }
 #endif
 
-#ifdef CONFIG_DEBUG_FS
-static int create_crtc_crc_properties(struct amdgpu_display_manager *dm)
-{
-	dm->crc_win_x_start_property =
-		drm_property_create_range(adev_to_drm(dm->adev),
-					  DRM_MODE_PROP_ATOMIC,
-					  "AMD_CRC_WIN_X_START", 0, U16_MAX);
-	if (!dm->crc_win_x_start_property)
-		return -ENOMEM;
-
-	dm->crc_win_y_start_property =
-		drm_property_create_range(adev_to_drm(dm->adev),
-					  DRM_MODE_PROP_ATOMIC,
-					  "AMD_CRC_WIN_Y_START", 0, U16_MAX);
-	if (!dm->crc_win_y_start_property)
-		return -ENOMEM;
-
-	dm->crc_win_x_end_property =
-		drm_property_create_range(adev_to_drm(dm->adev),
-					  DRM_MODE_PROP_ATOMIC,
-					  "AMD_CRC_WIN_X_END", 0, U16_MAX);
-	if (!dm->crc_win_x_end_property)
-		return -ENOMEM;
-
-	dm->crc_win_y_end_property =
-		drm_property_create_range(adev_to_drm(dm->adev),
-					  DRM_MODE_PROP_ATOMIC,
-					  "AMD_CRC_WIN_Y_END", 0, U16_MAX);
-	if (!dm->crc_win_y_end_property)
-		return -ENOMEM;
-
-	return 0;
-}
-#endif
-
 static int amdgpu_dm_init(struct amdgpu_device *adev)
 {
 	struct dc_init_data init_data;
@@ -1124,10 +1085,6 @@ static int amdgpu_dm_init(struct amdgpu_device *adev)
 
 		dc_init_callbacks(adev->dm.dc, &init_params);
 	}
-#endif
-#ifdef CONFIG_DEBUG_FS
-	if (create_crtc_crc_properties(&adev->dm))
-		DRM_ERROR("amdgpu: failed to create crc property.\n");
 #endif
 	if (amdgpu_dm_initialize_drm_device(adev)) {
 		DRM_ERROR(
@@ -2212,7 +2169,7 @@ static const struct drm_mode_config_funcs amdgpu_dm_mode_funcs = {
 	.get_format_info = amd_get_format_info,
 	.output_poll_changed = drm_fb_helper_output_poll_changed,
 	.atomic_check = amdgpu_dm_atomic_check,
-	.atomic_commit = amdgpu_dm_atomic_commit,
+	.atomic_commit = drm_atomic_helper_commit,
 };
 
 static struct drm_mode_config_helper_funcs amdgpu_dm_mode_config_helperfuncs = {
@@ -5124,9 +5081,8 @@ create_stream_for_sink(struct amdgpu_dm_connector *aconnector,
 	int preferred_refresh = 0;
 #if defined(CONFIG_DRM_AMD_DC_DCN)
 	struct dsc_dec_dpcd_caps dsc_caps;
-#endif
 	uint32_t link_bandwidth_kbps;
-
+#endif
 	struct dc_sink *sink = NULL;
 	if (aconnector == NULL) {
 		DRM_ERROR("aconnector is NULL!\n");
@@ -5208,11 +5164,9 @@ create_stream_for_sink(struct amdgpu_dm_connector *aconnector,
 				      aconnector->dc_link->dpcd_caps.dsc_caps.dsc_basic_caps.raw,
 				      aconnector->dc_link->dpcd_caps.dsc_caps.dsc_branch_decoder_caps.raw,
 				      &dsc_caps);
-#endif
 		link_bandwidth_kbps = dc_link_bandwidth_kbps(aconnector->dc_link,
 							     dc_link_get_link_cap(aconnector->dc_link));
 
-#if defined(CONFIG_DRM_AMD_DC_DCN)
 		if (aconnector->dsc_settings.dsc_force_enable != DSC_CLK_FORCE_DISABLE && dsc_caps.is_dsc_supported) {
 			/* Set DSC policy according to dsc_clock_en */
 			dc_dsc_policy_set_enable_dsc_when_not_needed(
@@ -5340,63 +5294,11 @@ dm_crtc_duplicate_state(struct drm_crtc *crtc)
 	state->crc_src = cur->crc_src;
 	state->cm_has_degamma = cur->cm_has_degamma;
 	state->cm_is_degamma_srgb = cur->cm_is_degamma_srgb;
-#ifdef CONFIG_DEBUG_FS
-	state->crc_window = cur->crc_window;
-#endif
+
 	/* TODO Duplicate dc_stream after objects are stream object is flattened */
 
 	return &state->base;
 }
-
-#ifdef CONFIG_DEBUG_FS
-int amdgpu_dm_crtc_atomic_set_property(struct drm_crtc *crtc,
-					    struct drm_crtc_state *crtc_state,
-					    struct drm_property *property,
-					    uint64_t val)
-{
-	struct drm_device *dev = crtc->dev;
-	struct amdgpu_device *adev = drm_to_adev(dev);
-	struct dm_crtc_state *dm_new_state =
-		to_dm_crtc_state(crtc_state);
-
-	if (property == adev->dm.crc_win_x_start_property)
-		dm_new_state->crc_window.x_start = val;
-	else if (property == adev->dm.crc_win_y_start_property)
-		dm_new_state->crc_window.y_start = val;
-	else if (property == adev->dm.crc_win_x_end_property)
-		dm_new_state->crc_window.x_end = val;
-	else if (property == adev->dm.crc_win_y_end_property)
-		dm_new_state->crc_window.y_end = val;
-	else
-		return -EINVAL;
-
-	return 0;
-}
-
-int amdgpu_dm_crtc_atomic_get_property(struct drm_crtc *crtc,
-					    const struct drm_crtc_state *state,
-					    struct drm_property *property,
-					    uint64_t *val)
-{
-	struct drm_device *dev = crtc->dev;
-	struct amdgpu_device *adev = drm_to_adev(dev);
-	struct dm_crtc_state *dm_state =
-		to_dm_crtc_state(state);
-
-	if (property == adev->dm.crc_win_x_start_property)
-		*val = dm_state->crc_window.x_start;
-	else if (property == adev->dm.crc_win_y_start_property)
-		*val = dm_state->crc_window.y_start;
-	else if (property == adev->dm.crc_win_x_end_property)
-		*val = dm_state->crc_window.x_end;
-	else if (property == adev->dm.crc_win_y_end_property)
-		*val = dm_state->crc_window.y_end;
-	else
-		return -EINVAL;
-
-	return 0;
-}
-#endif
 
 static inline int dm_set_vupdate_irq(struct drm_crtc *crtc, bool enable)
 {
@@ -5464,10 +5366,6 @@ static const struct drm_crtc_funcs amdgpu_dm_crtc_funcs = {
 	.enable_vblank = dm_enable_vblank,
 	.disable_vblank = dm_disable_vblank,
 	.get_vblank_timestamp = drm_crtc_vblank_helper_get_vblank_timestamp,
-#ifdef CONFIG_DEBUG_FS
-	.atomic_set_property = amdgpu_dm_crtc_atomic_set_property,
-	.atomic_get_property = amdgpu_dm_crtc_atomic_get_property,
-#endif
 };
 
 static enum drm_connector_status
@@ -6669,25 +6567,6 @@ static int amdgpu_dm_plane_init(struct amdgpu_display_manager *dm,
 	return 0;
 }
 
-#ifdef CONFIG_DEBUG_FS
-static void attach_crtc_crc_properties(struct amdgpu_display_manager *dm,
-				struct amdgpu_crtc *acrtc)
-{
-	drm_object_attach_property(&acrtc->base.base,
-				   dm->crc_win_x_start_property,
-				   0);
-	drm_object_attach_property(&acrtc->base.base,
-				   dm->crc_win_y_start_property,
-				   0);
-	drm_object_attach_property(&acrtc->base.base,
-				   dm->crc_win_x_end_property,
-				   0);
-	drm_object_attach_property(&acrtc->base.base,
-				   dm->crc_win_y_end_property,
-				   0);
-}
-#endif
-
 static int amdgpu_dm_crtc_init(struct amdgpu_display_manager *dm,
 			       struct drm_plane *plane,
 			       uint32_t crtc_index)
@@ -6735,9 +6614,7 @@ static int amdgpu_dm_crtc_init(struct amdgpu_display_manager *dm,
 	drm_crtc_enable_color_mgmt(&acrtc->base, MAX_COLOR_LUT_ENTRIES,
 				   true, MAX_COLOR_LUT_ENTRIES);
 	drm_mode_crtc_set_gamma_size(&acrtc->base, MAX_COLOR_LEGACY_LUT_ENTRIES);
-#ifdef CONFIG_DEBUG_FS
-	attach_crtc_crc_properties(dm, acrtc);
-#endif
+
 	return 0;
 
 fail:
@@ -8070,20 +7947,6 @@ static void amdgpu_dm_crtc_copy_transient_flags(struct drm_crtc_state *crtc_stat
 	stream_state->mode_changed = drm_atomic_crtc_needs_modeset(crtc_state);
 }
 
-static int amdgpu_dm_atomic_commit(struct drm_device *dev,
-				   struct drm_atomic_state *state,
-				   bool nonblock)
-{
-	/*
-	 * Add check here for SoC's that support hardware cursor plane, to
-	 * unset legacy_cursor_update
-	 */
-
-	return drm_atomic_helper_commit(dev, state, nonblock);
-
-	/*TODO Handle EINTR, reenable IRQ*/
-}
-
 /**
  * amdgpu_dm_atomic_commit_tail() - AMDgpu DM's commit tail implementation.
  * @state: The atomic state to commit
@@ -8388,7 +8251,6 @@ static void amdgpu_dm_atomic_commit_tail(struct drm_atomic_state *state)
 	 */
 	for_each_oldnew_crtc_in_state(state, crtc, old_crtc_state, new_crtc_state, i) {
 		struct amdgpu_crtc *acrtc = to_amdgpu_crtc(crtc);
-		bool configure_crc = false;
 
 		dm_new_crtc_state = to_dm_crtc_state(new_crtc_state);
 
@@ -8398,30 +8260,21 @@ static void amdgpu_dm_atomic_commit_tail(struct drm_atomic_state *state)
 			dc_stream_retain(dm_new_crtc_state->stream);
 			acrtc->dm_irq_params.stream = dm_new_crtc_state->stream;
 			manage_dm_interrupts(adev, acrtc, true);
-		}
+
 #ifdef CONFIG_DEBUG_FS
-		if (new_crtc_state->active &&
-			amdgpu_dm_is_valid_crc_source(dm_new_crtc_state->crc_src)) {
 			/**
 			 * Frontend may have changed so reapply the CRC capture
 			 * settings for the stream.
 			 */
 			dm_new_crtc_state = to_dm_crtc_state(new_crtc_state);
-			dm_old_crtc_state = to_dm_crtc_state(old_crtc_state);
 
-			if (amdgpu_dm_crc_window_is_default(dm_new_crtc_state)) {
-				if (!old_crtc_state->active || drm_atomic_crtc_needs_modeset(new_crtc_state))
-					configure_crc = true;
-			} else {
-				if (amdgpu_dm_crc_window_changed(dm_new_crtc_state, dm_old_crtc_state))
-					configure_crc = true;
-			}
-
-			if (configure_crc)
+			if (amdgpu_dm_is_valid_crc_source(dm_new_crtc_state->crc_src)) {
 				amdgpu_dm_crtc_configure_crc_source(
-					crtc, dm_new_crtc_state, dm_new_crtc_state->crc_src);
-		}
+					crtc, dm_new_crtc_state,
+					dm_new_crtc_state->crc_src);
+			}
 #endif
+		}
 	}
 
 	for_each_new_crtc_in_state(state, crtc, new_crtc_state, j)
@@ -9388,7 +9241,7 @@ static int amdgpu_dm_atomic_check(struct drm_device *dev,
 		if (ret)
 			goto fail;
 
-		if (dm_old_crtc_state->dsc_force_changed && new_crtc_state)
+		if (dm_old_crtc_state->dsc_force_changed)
 			new_crtc_state->mode_changed = true;
 	}
 

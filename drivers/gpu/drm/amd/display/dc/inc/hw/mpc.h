@@ -359,6 +359,10 @@ struct mpc_funcs {
 
 	int (*release_rmu)(struct mpc *mpc, int mpcc_id);
 
+	unsigned int (*get_mpc_out_mux)(
+			struct mpc *mpc,
+			int opp_id);
+
 };
 
 #endif

@@ -267,6 +267,7 @@ static void configfs_remove_dirent(struct dentry *dentry)
  *	configfs_create_dir - create a directory for an config_item.
  *	@item:		config_itemwe're creating directory for.
  *	@dentry:	config_item's dentry.
+ *	@frag:		config_item's fragment.
  *
  *	Note: user-created entries won't be allowed under this new directory
  *	until it is validated by configfs_dir_set_ready()

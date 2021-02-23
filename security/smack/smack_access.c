@@ -688,9 +688,10 @@ bool smack_privileged_cred(int cap, const struct cred *cred)
 bool smack_privileged(int cap)
 {
 	/*
-	 * All kernel tasks are privileged
+	 * Kernel threads may not have credentials we can use.
+	 * The io_uring kernel threads do have reliable credentials.
 	 */
-	if (unlikely(current->flags & PF_KTHREAD))
+	if ((current->flags & (PF_KTHREAD | PF_IO_WORKER)) == PF_KTHREAD)
 		return true;
 
 	return smack_privileged_cred(cap, current_cred());

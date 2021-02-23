@@ -168,6 +168,31 @@ static SOC_ENUM_SINGLE_DECL(max98373_adc_samplerate_enum,
 			    MAX98373_R2051_MEAS_ADC_SAMPLING_RATE, 0,
 			    max98373_ADC_samplerate_text);
 
+static int max98373_feedback_get(struct snd_kcontrol *kcontrol,
+				 struct snd_ctl_elem_value *ucontrol)
+{
+	struct snd_soc_component *component = snd_kcontrol_chip(kcontrol);
+	struct soc_mixer_control *mc =
+		(struct soc_mixer_control *)kcontrol->private_value;
+	struct max98373_priv *max98373 = snd_soc_component_get_drvdata(component);
+	int i;
+
+	if (snd_soc_component_get_bias_level(component) == SND_SOC_BIAS_OFF) {
+		/*
+		 * Register values will be cached before suspend. The cached value
+		 * will be a valid value and userspace will happy with that.
+		 */
+		for (i = 0; i < max98373->cache_num; i++) {
+			if (mc->reg == max98373->cache[i].reg) {
+				ucontrol->value.integer.value[0] = max98373->cache[i].val;
+				return 0;
+			}
+		}
+	}
+
+	return snd_soc_put_volsw(kcontrol, ucontrol);
+}
+
 static const struct snd_kcontrol_new max98373_snd_controls[] = {
 SOC_SINGLE("Digital Vol Sel Switch", MAX98373_R203F_AMP_DSP_CFG,
 	MAX98373_AMP_VOL_SEL_SHIFT, 1, 0),
@@ -209,8 +234,10 @@ SOC_SINGLE("ADC PVDD FLT Switch", MAX98373_R2052_MEAS_ADC_PVDD_FLT_CFG,
 	MAX98373_FLT_EN_SHIFT, 1, 0),
 SOC_SINGLE("ADC TEMP FLT Switch", MAX98373_R2053_MEAS_ADC_THERM_FLT_CFG,
 	MAX98373_FLT_EN_SHIFT, 1, 0),
-SOC_SINGLE("ADC PVDD", MAX98373_R2054_MEAS_ADC_PVDD_CH_READBACK, 0, 0xFF, 0),
-SOC_SINGLE("ADC TEMP", MAX98373_R2055_MEAS_ADC_THERM_CH_READBACK, 0, 0xFF, 0),
+SOC_SINGLE_EXT("ADC PVDD", MAX98373_R2054_MEAS_ADC_PVDD_CH_READBACK, 0, 0xFF, 0,
+	max98373_feedback_get, NULL),
+SOC_SINGLE_EXT("ADC TEMP", MAX98373_R2055_MEAS_ADC_THERM_CH_READBACK, 0, 0xFF, 0,
+	max98373_feedback_get, NULL),
 SOC_SINGLE("ADC PVDD FLT Coeff", MAX98373_R2052_MEAS_ADC_PVDD_FLT_CFG,
 	0, 0x3, 0),
 SOC_SINGLE("ADC TEMP FLT Coeff", MAX98373_R2053_MEAS_ADC_THERM_FLT_CFG,
@@ -226,7 +253,8 @@ SOC_SINGLE("BDE LVL1 Thresh", MAX98373_R2097_BDE_L1_THRESH, 0, 0xFF, 0),
 SOC_SINGLE("BDE LVL2 Thresh", MAX98373_R2098_BDE_L2_THRESH, 0, 0xFF, 0),
 SOC_SINGLE("BDE LVL3 Thresh", MAX98373_R2099_BDE_L3_THRESH, 0, 0xFF, 0),
 SOC_SINGLE("BDE LVL4 Thresh", MAX98373_R209A_BDE_L4_THRESH, 0, 0xFF, 0),
-SOC_SINGLE("BDE Active Level", MAX98373_R20B6_BDE_CUR_STATE_READBACK, 0, 8, 0),
+SOC_SINGLE_EXT("BDE Active Level", MAX98373_R20B6_BDE_CUR_STATE_READBACK, 0, 8, 0,
+	max98373_feedback_get, NULL),
 SOC_SINGLE("BDE Clip Mode Switch", MAX98373_R2092_BDE_CLIPPER_MODE, 0, 1, 0),
 SOC_SINGLE("BDE Thresh Hysteresis", MAX98373_R209B_BDE_THRESH_HYST, 0, 0xFF, 0),
 SOC_SINGLE("BDE Hold Time", MAX98373_R2090_BDE_LVL_HOLD, 0, 0xFF, 0),

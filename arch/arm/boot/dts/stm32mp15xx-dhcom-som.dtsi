@@ -11,6 +11,7 @@
 / {
 	aliases {
 		ethernet0 = &ethernet0;
+		ethernet1 = &ksz8851;
 	};
 
 	memory@c0000000 {
@@ -127,8 +128,44 @@
 
 		phy0: ethernet-phy@1 {
 			reg = <1>;
+			interrupt-parent = <&gpioi>;
+			interrupts = <11 IRQ_TYPE_LEVEL_LOW>;
 		};
 	};
+};
+
+&fmc {
+	pinctrl-names = "default", "sleep";
+	pinctrl-0 = <&fmc_pins_b>;
+	pinctrl-1 = <&fmc_sleep_pins_b>;
+	status = "okay";
+
+	ksz8851: ks8851mll@1,0 {
+		compatible = "micrel,ks8851-mll";
+		reg = <1 0x0 0x2>, <1 0x2 0x20000>;
+		interrupt-parent = <&gpioc>;
+		interrupts = <3 IRQ_TYPE_LEVEL_LOW>;
+		bank-width = <2>;
+
+		/* Timing values are in nS */
+		st,fmc2-ebi-cs-mux-enable;
+		st,fmc2-ebi-cs-transaction-type = <4>;
+		st,fmc2-ebi-cs-buswidth = <16>;
+		st,fmc2-ebi-cs-address-setup-ns = <5>;
+		st,fmc2-ebi-cs-address-hold-ns = <5>;
+		st,fmc2-ebi-cs-bus-turnaround-ns = <5>;
+		st,fmc2-ebi-cs-data-setup-ns = <45>;
+		st,fmc2-ebi-cs-data-hold-ns = <1>;
+		st,fmc2-ebi-cs-write-address-setup-ns = <5>;
+		st,fmc2-ebi-cs-write-address-hold-ns = <5>;
+		st,fmc2-ebi-cs-write-bus-turnaround-ns = <5>;
+		st,fmc2-ebi-cs-write-data-setup-ns = <45>;
+		st,fmc2-ebi-cs-write-data-hold-ns = <1>;
+	};
+};
+
+&gpioc {
+	status = "okay";
 };
 
 &i2c4 {

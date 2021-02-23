@@ -107,4 +107,7 @@ void lkdtm_CFI_FORWARD_PROTO(void);
 /* fortify.c */
 void lkdtm_FORTIFIED_STRSCPY(void);
 
+/* powerpc.c */
+void lkdtm_PPC_SLB_MULTIHIT(void);
+
 #endif

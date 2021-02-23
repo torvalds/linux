@@ -886,8 +886,10 @@ static void unmap_phys_pg_pack(struct hl_ctx *ctx, u64 vaddr,
 {
 	struct hl_device *hdev = ctx->hdev;
 	u64 next_vaddr, i;
+	bool is_host_addr;
 	u32 page_size;
 
+	is_host_addr = !hl_is_dram_va(hdev, vaddr);
 	page_size = phys_pg_pack->page_size;
 	next_vaddr = vaddr;
 
@@ -900,9 +902,13 @@ static void unmap_phys_pg_pack(struct hl_ctx *ctx, u64 vaddr,
 		/*
 		 * unmapping on Palladium can be really long, so avoid a CPU
 		 * soft lockup bug by sleeping a little between unmapping pages
+		 *
+		 * In addition, when unmapping host memory we pass through
+		 * the Linux kernel to unpin the pages and that takes a long
+		 * time. Therefore, sleep every 32K pages to avoid soft lockup
 		 */
-		if (hdev->pldm)
-			usleep_range(500, 1000);
+		if (hdev->pldm || (is_host_addr && (i & 0x7FFF) == 0))
+			usleep_range(50, 200);
 	}
 }
 

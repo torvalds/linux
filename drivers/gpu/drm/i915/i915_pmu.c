@@ -4,7 +4,6 @@
  * Copyright © 2017-2018 Intel Corporation
  */
 
-#include <linux/irq.h>
 #include <linux/pm_runtime.h>
 
 #include "gt/intel_engine.h"
@@ -185,13 +184,24 @@ static u64 get_rc6(struct intel_gt *gt)
 	return val;
 }
 
+static void init_rc6(struct i915_pmu *pmu)
+{
+	struct drm_i915_private *i915 = container_of(pmu, typeof(*i915), pmu);
+	intel_wakeref_t wakeref;
+
+	with_intel_runtime_pm(i915->gt.uncore->rpm, wakeref) {
+		pmu->sample[__I915_SAMPLE_RC6].cur = __get_rc6(&i915->gt);
+		pmu->sample[__I915_SAMPLE_RC6_LAST_REPORTED].cur =
+					pmu->sample[__I915_SAMPLE_RC6].cur;
+		pmu->sleep_last = ktime_get();
+	}
+}
+
 static void park_rc6(struct drm_i915_private *i915)
 {
 	struct i915_pmu *pmu = &i915->pmu;
 
-	if (pmu->enable & config_enabled_mask(I915_PMU_RC6_RESIDENCY))
-		pmu->sample[__I915_SAMPLE_RC6].cur = __get_rc6(&i915->gt);
-
+	pmu->sample[__I915_SAMPLE_RC6].cur = __get_rc6(&i915->gt);
 	pmu->sleep_last = ktime_get();
 }
 
@@ -202,6 +212,7 @@ static u64 get_rc6(struct intel_gt *gt)
 	return __get_rc6(gt);
 }
 
+static void init_rc6(struct i915_pmu *pmu) { }
 static void park_rc6(struct drm_i915_private *i915) {}
 
 #endif
@@ -424,22 +435,6 @@ static enum hrtimer_restart i915_sample(struct hrtimer *hrtimer)
 	return HRTIMER_RESTART;
 }
 
-static u64 count_interrupts(struct drm_i915_private *i915)
-{
-	/* open-coded kstat_irqs() */
-	struct irq_desc *desc = irq_to_desc(i915->drm.pdev->irq);
-	u64 sum = 0;
-	int cpu;
-
-	if (!desc || !desc->kstat_irqs)
-		return 0;
-
-	for_each_possible_cpu(cpu)
-		sum += *per_cpu_ptr(desc->kstat_irqs, cpu);
-
-	return sum;
-}
-
 static void i915_pmu_event_destroy(struct perf_event *event)
 {
 	struct drm_i915_private *i915 =
@@ -590,7 +585,7 @@ static u64 __i915_pmu_event_read(struct perf_event *event)
 				   USEC_PER_SEC /* to MHz */);
 			break;
 		case I915_PMU_INTERRUPTS:
-			val = count_interrupts(i915);
+			val = READ_ONCE(pmu->irq_count);
 			break;
 		case I915_PMU_RC6_RESIDENCY:
 			val = get_rc6(&i915->gt);
@@ -629,10 +624,8 @@ static void i915_pmu_enable(struct perf_event *event)
 		container_of(event->pmu, typeof(*i915), pmu.base);
 	unsigned int bit = event_enabled_bit(event);
 	struct i915_pmu *pmu = &i915->pmu;
-	intel_wakeref_t wakeref;
 	unsigned long flags;
 
-	wakeref = intel_runtime_pm_get(&i915->runtime_pm);
 	spin_lock_irqsave(&pmu->lock, flags);
 
 	/*
@@ -642,13 +635,6 @@ static void i915_pmu_enable(struct perf_event *event)
 	BUILD_BUG_ON(ARRAY_SIZE(pmu->enable_count) != I915_PMU_MASK_BITS);
 	GEM_BUG_ON(bit >= ARRAY_SIZE(pmu->enable_count));
 	GEM_BUG_ON(pmu->enable_count[bit] == ~0);
-
-	if (pmu->enable_count[bit] == 0 &&
-	    config_enabled_mask(I915_PMU_RC6_RESIDENCY) & BIT_ULL(bit)) {
-		pmu->sample[__I915_SAMPLE_RC6_LAST_REPORTED].cur = 0;
-		pmu->sample[__I915_SAMPLE_RC6].cur = __get_rc6(&i915->gt);
-		pmu->sleep_last = ktime_get();
-	}
 
 	pmu->enable |= BIT_ULL(bit);
 	pmu->enable_count[bit]++;
@@ -690,8 +676,6 @@ static void i915_pmu_enable(struct perf_event *event)
 	 * an existing non-zero value.
 	 */
 	local64_set(&event->hw.prev_count, __i915_pmu_event_read(event));
-
-	intel_runtime_pm_put(&i915->runtime_pm, wakeref);
 }
 
 static void i915_pmu_disable(struct perf_event *event)
@@ -1147,6 +1131,7 @@ void i915_pmu_register(struct drm_i915_private *i915)
 	hrtimer_init(&pmu->timer, CLOCK_MONOTONIC, HRTIMER_MODE_REL);
 	pmu->timer.function = i915_sample;
 	pmu->cpuhp.cpu = -1;
+	init_rc6(pmu);
 
 	if (!is_igp(i915)) {
 		pmu->name = kasprintf(GFP_KERNEL,

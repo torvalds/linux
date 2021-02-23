@@ -111,7 +111,7 @@ typedef struct {
 
 	struct hash_mm_context *hash_context;
 
-	unsigned long vdso_base;
+	void __user *vdso;
 	/*
 	 * pagetable fragment support
 	 */
@@ -199,7 +199,7 @@ extern int mmu_io_psize;
 void mmu_early_init_devtree(void);
 void hash__early_init_devtree(void);
 void radix__early_init_devtree(void);
-#ifdef CONFIG_PPC_MEM_KEYS
+#ifdef CONFIG_PPC_PKEY
 void pkey_early_init_devtree(void);
 #else
 static inline void pkey_early_init_devtree(void) {}

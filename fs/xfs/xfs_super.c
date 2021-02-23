@@ -199,10 +199,12 @@ xfs_fs_show_options(
 		seq_printf(m, ",swidth=%d",
 				(int)XFS_FSB_TO_BB(mp, mp->m_swidth));
 
-	if (mp->m_qflags & (XFS_UQUOTA_ACCT|XFS_UQUOTA_ENFD))
-		seq_puts(m, ",usrquota");
-	else if (mp->m_qflags & XFS_UQUOTA_ACCT)
-		seq_puts(m, ",uqnoenforce");
+	if (mp->m_qflags & XFS_UQUOTA_ACCT) {
+		if (mp->m_qflags & XFS_UQUOTA_ENFD)
+			seq_puts(m, ",usrquota");
+		else
+			seq_puts(m, ",uqnoenforce");
+	}
 
 	if (mp->m_qflags & XFS_PQUOTA_ACCT) {
 		if (mp->m_qflags & XFS_PQUOTA_ENFD)
@@ -1159,7 +1161,7 @@ suffix_kstrtoint(
  * NOTE: mp->m_super is NULL here!
  */
 static int
-xfs_fc_parse_param(
+xfs_fs_parse_param(
 	struct fs_context	*fc,
 	struct fs_parameter	*param)
 {
@@ -1317,7 +1319,7 @@ xfs_fc_parse_param(
 }
 
 static int
-xfs_fc_validate_params(
+xfs_fs_validate_params(
 	struct xfs_mount	*mp)
 {
 	/*
@@ -1386,7 +1388,7 @@ xfs_fc_validate_params(
 }
 
 static int
-xfs_fc_fill_super(
+xfs_fs_fill_super(
 	struct super_block	*sb,
 	struct fs_context	*fc)
 {
@@ -1396,7 +1398,7 @@ xfs_fc_fill_super(
 
 	mp->m_super = sb;
 
-	error = xfs_fc_validate_params(mp);
+	error = xfs_fs_validate_params(mp);
 	if (error)
 		goto out_free_names;
 
@@ -1467,6 +1469,45 @@ xfs_fc_fill_super(
 #endif
 	}
 
+	/* Filesystem claims it needs repair, so refuse the mount. */
+	if (xfs_sb_version_needsrepair(&mp->m_sb)) {
+		xfs_warn(mp, "Filesystem needs repair.  Please run xfs_repair.");
+		error = -EFSCORRUPTED;
+		goto out_free_sb;
+	}
+
+	/*
+	 * Don't touch the filesystem if a user tool thinks it owns the primary
+	 * superblock.  mkfs doesn't clear the flag from secondary supers, so
+	 * we don't check them at all.
+	 */
+	if (mp->m_sb.sb_inprogress) {
+		xfs_warn(mp, "Offline file system operation in progress!");
+		error = -EFSCORRUPTED;
+		goto out_free_sb;
+	}
+
+	/*
+	 * Until this is fixed only page-sized or smaller data blocks work.
+	 */
+	if (mp->m_sb.sb_blocksize > PAGE_SIZE) {
+		xfs_warn(mp,
+		"File system with blocksize %d bytes. "
+		"Only pagesize (%ld) or less will currently work.",
+				mp->m_sb.sb_blocksize, PAGE_SIZE);
+		error = -ENOSYS;
+		goto out_free_sb;
+	}
+
+	/* Ensure this filesystem fits in the page cache limits */
+	if (xfs_sb_validate_fsb_count(&mp->m_sb, mp->m_sb.sb_dblocks) ||
+	    xfs_sb_validate_fsb_count(&mp->m_sb, mp->m_sb.sb_rblocks)) {
+		xfs_warn(mp,
+		"file system too large to be mounted on this system.");
+		error = -EFBIG;
+		goto out_free_sb;
+	}
+
 	/*
 	 * XFS block mappings use 54 bits to store the logical block offset.
 	 * This should suffice to handle the maximum file size that the VFS
@@ -1478,7 +1519,7 @@ xfs_fc_fill_super(
 	 * Avoid integer overflow by comparing the maximum bmbt offset to the
 	 * maximum pagecache offset in units of fs blocks.
 	 */
-	if (XFS_B_TO_FSBT(mp, MAX_LFS_FILESIZE) > XFS_MAX_FILEOFF) {
+	if (!xfs_verify_fileoff(mp, XFS_B_TO_FSBT(mp, MAX_LFS_FILESIZE))) {
 		xfs_warn(mp,
 "MAX_LFS_FILESIZE block offset (%llu) exceeds extent map maximum (%llu)!",
 			 XFS_B_TO_FSBT(mp, MAX_LFS_FILESIZE),
@@ -1621,10 +1662,10 @@ xfs_fc_fill_super(
 }
 
 static int
-xfs_fc_get_tree(
+xfs_fs_get_tree(
 	struct fs_context	*fc)
 {
-	return get_tree_bdev(fc, xfs_fc_fill_super);
+	return get_tree_bdev(fc, xfs_fs_fill_super);
 }
 
 static int
@@ -1743,7 +1784,7 @@ xfs_remount_ro(
  * silently ignore all options that we can't actually change.
  */
 static int
-xfs_fc_reconfigure(
+xfs_fs_reconfigure(
 	struct fs_context *fc)
 {
 	struct xfs_mount	*mp = XFS_M(fc->root->d_sb);
@@ -1756,7 +1797,7 @@ xfs_fc_reconfigure(
 	if (XFS_SB_VERSION_NUM(&mp->m_sb) == XFS_SB_VERSION_5)
 		fc->sb_flags |= SB_I_VERSION;
 
-	error = xfs_fc_validate_params(new_mp);
+	error = xfs_fs_validate_params(new_mp);
 	if (error)
 		return error;
 
@@ -1793,7 +1834,7 @@ xfs_fc_reconfigure(
 	return 0;
 }
 
-static void xfs_fc_free(
+static void xfs_fs_free(
 	struct fs_context	*fc)
 {
 	struct xfs_mount	*mp = fc->s_fs_info;
@@ -1809,10 +1850,10 @@ static void xfs_fc_free(
 }
 
 static const struct fs_context_operations xfs_context_ops = {
-	.parse_param = xfs_fc_parse_param,
-	.get_tree    = xfs_fc_get_tree,
-	.reconfigure = xfs_fc_reconfigure,
-	.free        = xfs_fc_free,
+	.parse_param = xfs_fs_parse_param,
+	.get_tree    = xfs_fs_get_tree,
+	.reconfigure = xfs_fs_reconfigure,
+	.free        = xfs_fs_free,
 };
 
 static int xfs_init_fs_context(

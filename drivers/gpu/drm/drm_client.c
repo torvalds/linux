@@ -314,9 +314,6 @@ drm_client_buffer_vmap(struct drm_client_buffer *buffer, struct dma_buf_map *map
 	struct dma_buf_map *map = &buffer->map;
 	int ret;
 
-	if (dma_buf_map_is_set(map))
-		goto out;
-
 	/*
 	 * FIXME: The dependency on GEM here isn't required, we could
 	 * convert the driver handle to a dma-buf instead and use the
@@ -329,7 +326,6 @@ drm_client_buffer_vmap(struct drm_client_buffer *buffer, struct dma_buf_map *map
 	if (ret)
 		return ret;
 
-out:
 	*map_copy = *map;
 
 	return 0;

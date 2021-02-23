@@ -23,6 +23,8 @@
 
 #include <asm/switch_to.h>
 
+#include "ptrace-decl.h"
+
 /*
  * does not yet catch signals sent when the child dies.
  * in exit.c or in signal.c.

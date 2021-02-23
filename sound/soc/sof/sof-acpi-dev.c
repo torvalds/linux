@@ -131,12 +131,13 @@ static int sof_acpi_probe(struct platform_device *pdev)
 	if (!id)
 		return -ENODEV;
 
-	ret = snd_intel_acpi_dsp_driver_probe(dev, id->id);
-	if (ret != SND_INTEL_DSP_DRIVER_ANY && ret != SND_INTEL_DSP_DRIVER_SOF) {
-		dev_dbg(dev, "SOF ACPI driver not selected, aborting probe\n");
-		return -ENODEV;
+	if (IS_REACHABLE(CONFIG_SND_INTEL_DSP_CONFIG)) {
+		ret = snd_intel_acpi_dsp_driver_probe(dev, id->id);
+		if (ret != SND_INTEL_DSP_DRIVER_ANY && ret != SND_INTEL_DSP_DRIVER_SOF) {
+			dev_dbg(dev, "SOF ACPI driver not selected, aborting probe\n");
+			return -ENODEV;
+		}
 	}
-
 	dev_dbg(dev, "ACPI DSP detected");
 
 	sof_pdata = devm_kzalloc(dev, sizeof(*sof_pdata), GFP_KERNEL);

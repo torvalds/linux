@@ -309,7 +309,17 @@ static struct lock_class_key dsa_master_addr_list_lock_key;
 int dsa_master_setup(struct net_device *dev, struct dsa_port *cpu_dp)
 {
 	int mtu = ETH_DATA_LEN + cpu_dp->tag_ops->overhead;
+	struct dsa_switch *ds = cpu_dp->ds;
+	struct device_link *consumer_link;
 	int ret;
+
+	/* The DSA master must use SET_NETDEV_DEV for this to work. */
+	consumer_link = device_link_add(ds->dev, dev->dev.parent,
+					DL_FLAG_AUTOREMOVE_CONSUMER);
+	if (!consumer_link)
+		netdev_err(dev,
+			   "Failed to create a device link to DSA switch %s\n",
+			   dev_name(ds->dev));
 
 	rtnl_lock();
 	ret = dev_set_mtu(dev, mtu);

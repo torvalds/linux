@@ -21,7 +21,6 @@
 #include <linux/rcupdate.h>
 #include <linux/close_range.h>
 #include <net/sock.h>
-#include <linux/io_uring.h>
 
 unsigned int sysctl_nr_open __read_mostly = 1024*1024;
 unsigned int sysctl_nr_open_min = BITS_PER_LONG;
@@ -428,7 +427,6 @@ void exit_files(struct task_struct *tsk)
 	struct files_struct * files = tsk->files;
 
 	if (files) {
-		io_uring_files_cancel(files);
 		task_lock(tsk);
 		tsk->files = NULL;
 		task_unlock(tsk);
@@ -694,8 +692,10 @@ int __close_range(unsigned fd, unsigned max_fd, unsigned int flags)
 		 * If the requested range is greater than the current maximum,
 		 * we're closing everything so only copy all file descriptors
 		 * beneath the lowest file descriptor.
+		 * If the caller requested all fds to be made cloexec copy all
+		 * of the file descriptors since they still want to use them.
 		 */
-		if (max_fd >= cur_max)
+		if (!(flags & CLOSE_RANGE_CLOEXEC) && (max_fd >= cur_max))
 			max_unshare_fds = fd;
 
 		ret = unshare_fd(CLONE_FILES, max_unshare_fds, &fds);

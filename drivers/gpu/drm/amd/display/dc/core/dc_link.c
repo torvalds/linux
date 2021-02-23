@@ -2487,8 +2487,13 @@ enum dc_status dc_link_validate_mode_timing(
 static struct abm *get_abm_from_stream_res(const struct dc_link *link)
 {
 	int i;
-	struct dc *dc = link->ctx->dc;
+	struct dc *dc = NULL;
 	struct abm *abm = NULL;
+
+	if (!link || !link->ctx)
+		return NULL;
+
+	dc = link->ctx->dc;
 
 	for (i = 0; i < MAX_PIPES; i++) {
 		struct pipe_ctx pipe_ctx = dc->current_state->res_ctx.pipe_ctx[i];
@@ -3266,9 +3271,6 @@ void core_link_enable_stream(
 				return;
 			}
 		}
-
-#if defined(CONFIG_DRM_AMD_DC_DCN3_0)
-#endif
 
 		/* turn off otg test pattern if enable */
 		if (pipe_ctx->stream_res.tg->funcs->set_test_pattern)

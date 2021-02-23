@@ -76,6 +76,7 @@ static DEFINE_PER_CPU(int, cpu_state) = { 0 };
 struct task_struct *secondary_current;
 bool has_big_cores;
 bool coregroup_enabled;
+bool thread_group_shares_l2;
 
 DEFINE_PER_CPU(cpumask_var_t, cpu_sibling_map);
 DEFINE_PER_CPU(cpumask_var_t, cpu_smallcore_map);
@@ -99,6 +100,7 @@ enum {
 
 #define MAX_THREAD_LIST_SIZE	8
 #define THREAD_GROUP_SHARE_L1   1
+#define THREAD_GROUP_SHARE_L2   2
 struct thread_groups {
 	unsigned int property;
 	unsigned int nr_groups;
@@ -106,11 +108,27 @@ struct thread_groups {
 	unsigned int thread_list[MAX_THREAD_LIST_SIZE];
 };
 
+/* Maximum number of properties that groups of threads within a core can share */
+#define MAX_THREAD_GROUP_PROPERTIES 2
+
+struct thread_groups_list {
+	unsigned int nr_properties;
+	struct thread_groups property_tgs[MAX_THREAD_GROUP_PROPERTIES];
+};
+
+static struct thread_groups_list tgl[NR_CPUS] __initdata;
 /*
- * On big-cores system, cpu_l1_cache_map for each CPU corresponds to
+ * On big-cores system, thread_group_l1_cache_map for each CPU corresponds to
  * the set its siblings that share the L1-cache.
  */
-DEFINE_PER_CPU(cpumask_var_t, cpu_l1_cache_map);
+DEFINE_PER_CPU(cpumask_var_t, thread_group_l1_cache_map);
+
+/*
+ * On some big-cores system, thread_group_l2_cache_map for each CPU
+ * corresponds to the set its siblings within the core that share the
+ * L2-cache.
+ */
+DEFINE_PER_CPU(cpumask_var_t, thread_group_l2_cache_map);
 
 /* SMP operations for this machine */
 struct smp_ops_t *smp_ops;
@@ -695,81 +713,100 @@ static void or_cpumasks_related(int i, int j, struct cpumask *(*srcmask)(int),
 /*
  * parse_thread_groups: Parses the "ibm,thread-groups" device tree
  *                      property for the CPU device node @dn and stores
- *                      the parsed output in the thread_groups
- *                      structure @tg if the ibm,thread-groups[0]
- *                      matches @property.
+ *                      the parsed output in the thread_groups_list
+ *                      structure @tglp.
  *
  * @dn: The device node of the CPU device.
- * @tg: Pointer to a thread group structure into which the parsed
+ * @tglp: Pointer to a thread group list structure into which the parsed
  *      output of "ibm,thread-groups" is stored.
- * @property: The property of the thread-group that the caller is
- *            interested in.
  *
  * ibm,thread-groups[0..N-1] array defines which group of threads in
  * the CPU-device node can be grouped together based on the property.
  *
- * ibm,thread-groups[0] tells us the property based on which the
+ * This array can represent thread groupings for multiple properties.
+ *
+ * ibm,thread-groups[i + 0] tells us the property based on which the
  * threads are being grouped together. If this value is 1, it implies
- * that the threads in the same group share L1, translation cache.
+ * that the threads in the same group share L1, translation cache. If
+ * the value is 2, it implies that the threads in the same group share
+ * the same L2 cache.
  *
- * ibm,thread-groups[1] tells us how many such thread groups exist.
+ * ibm,thread-groups[i+1] tells us how many such thread groups exist for the
+ * property ibm,thread-groups[i]
  *
- * ibm,thread-groups[2] tells us the number of threads in each such
+ * ibm,thread-groups[i+2] tells us the number of threads in each such
  * group.
+ * Suppose k = (ibm,thread-groups[i+1] * ibm,thread-groups[i+2]), then,
  *
- * ibm,thread-groups[3..N-1] is the list of threads identified by
+ * ibm,thread-groups[i+3..i+k+2] (is the list of threads identified by
  * "ibm,ppc-interrupt-server#s" arranged as per their membership in
  * the grouping.
  *
- * Example: If ibm,thread-groups = [1,2,4,5,6,7,8,9,10,11,12] it
- * implies that there are 2 groups of 4 threads each, where each group
- * of threads share L1, translation cache.
+ * Example:
+ * If "ibm,thread-groups" = [1,2,4,8,10,12,14,9,11,13,15,2,2,4,8,10,12,14,9,11,13,15]
+ * This can be decomposed up into two consecutive arrays:
+ * a) [1,2,4,8,10,12,14,9,11,13,15]
+ * b) [2,2,4,8,10,12,14,9,11,13,15]
  *
- * The "ibm,ppc-interrupt-server#s" of the first group is {5,6,7,8}
- * and the "ibm,ppc-interrupt-server#s" of the second group is {9, 10,
- * 11, 12} structure
+ * where in,
+ *
+ * a) provides information of Property "1" being shared by "2" groups,
+ *  each with "4" threads each. The "ibm,ppc-interrupt-server#s" of
+ *  the first group is {8,10,12,14} and the
+ *  "ibm,ppc-interrupt-server#s" of the second group is
+ *  {9,11,13,15}. Property "1" is indicative of the thread in the
+ *  group sharing L1 cache, translation cache and Instruction Data
+ *  flow.
+ *
+ * b) provides information of Property "2" being shared by "2" groups,
+ *  each group with "4" threads. The "ibm,ppc-interrupt-server#s" of
+ *  the first group is {8,10,12,14} and the
+ *  "ibm,ppc-interrupt-server#s" of the second group is
+ *  {9,11,13,15}. Property "2" indicates that the threads in each
+ *  group share the L2-cache.
  *
  * Returns 0 on success, -EINVAL if the property does not exist,
  * -ENODATA if property does not have a value, and -EOVERFLOW if the
  * property data isn't large enough.
  */
 static int parse_thread_groups(struct device_node *dn,
-			       struct thread_groups *tg,
-			       unsigned int property)
+			       struct thread_groups_list *tglp)
 {
-	int i;
-	u32 thread_group_array[3 + MAX_THREAD_LIST_SIZE];
-	u32 *thread_list;
+	unsigned int property_idx = 0;
+	u32 *thread_group_array;
 	size_t total_threads;
-	int ret;
+	int ret = 0, count;
+	u32 *thread_list;
+	int i = 0;
 
+	count = of_property_count_u32_elems(dn, "ibm,thread-groups");
+	thread_group_array = kcalloc(count, sizeof(u32), GFP_KERNEL);
 	ret = of_property_read_u32_array(dn, "ibm,thread-groups",
-					 thread_group_array, 3);
+					 thread_group_array, count);
 	if (ret)
-		return ret;
+		goto out_free;
 
-	tg->property = thread_group_array[0];
-	tg->nr_groups = thread_group_array[1];
-	tg->threads_per_group = thread_group_array[2];
-	if (tg->property != property ||
-	    tg->nr_groups < 1 ||
-	    tg->threads_per_group < 1)
-		return -ENODATA;
+	while (i < count && property_idx < MAX_THREAD_GROUP_PROPERTIES) {
+		int j;
+		struct thread_groups *tg = &tglp->property_tgs[property_idx++];
 
-	total_threads = tg->nr_groups * tg->threads_per_group;
+		tg->property = thread_group_array[i];
+		tg->nr_groups = thread_group_array[i + 1];
+		tg->threads_per_group = thread_group_array[i + 2];
+		total_threads = tg->nr_groups * tg->threads_per_group;
 
-	ret = of_property_read_u32_array(dn, "ibm,thread-groups",
-					 thread_group_array,
-					 3 + total_threads);
-	if (ret)
-		return ret;
+		thread_list = &thread_group_array[i + 3];
 
-	thread_list = &thread_group_array[3];
+		for (j = 0; j < total_threads; j++)
+			tg->thread_list[j] = thread_list[j];
+		i = i + 3 + total_threads;
+	}
 
-	for (i = 0 ; i < total_threads; i++)
-		tg->thread_list[i] = thread_list[i];
+	tglp->nr_properties = property_idx;
 
-	return 0;
+out_free:
+	kfree(thread_group_array);
+	return ret;
 }
 
 /*
@@ -805,50 +842,84 @@ static int get_cpu_thread_group_start(int cpu, struct thread_groups *tg)
 	return -1;
 }
 
-static int init_cpu_l1_cache_map(int cpu)
-
+static struct thread_groups *__init get_thread_groups(int cpu,
+						      int group_property,
+						      int *err)
 {
 	struct device_node *dn = of_get_cpu_node(cpu, NULL);
-	struct thread_groups tg = {.property = 0,
-				   .nr_groups = 0,
-				   .threads_per_group = 0};
+	struct thread_groups_list *cpu_tgl = &tgl[cpu];
+	struct thread_groups *tg = NULL;
+	int i;
+	*err = 0;
+
+	if (!dn) {
+		*err = -ENODATA;
+		return NULL;
+	}
+
+	if (!cpu_tgl->nr_properties) {
+		*err = parse_thread_groups(dn, cpu_tgl);
+		if (*err)
+			goto out;
+	}
+
+	for (i = 0; i < cpu_tgl->nr_properties; i++) {
+		if (cpu_tgl->property_tgs[i].property == group_property) {
+			tg = &cpu_tgl->property_tgs[i];
+			break;
+		}
+	}
+
+	if (!tg)
+		*err = -EINVAL;
+out:
+	of_node_put(dn);
+	return tg;
+}
+
+static int __init init_thread_group_cache_map(int cpu, int cache_property)
+
+{
 	int first_thread = cpu_first_thread_sibling(cpu);
 	int i, cpu_group_start = -1, err = 0;
+	struct thread_groups *tg = NULL;
+	cpumask_var_t *mask = NULL;
 
-	if (!dn)
-		return -ENODATA;
+	if (cache_property != THREAD_GROUP_SHARE_L1 &&
+	    cache_property != THREAD_GROUP_SHARE_L2)
+		return -EINVAL;
 
-	err = parse_thread_groups(dn, &tg, THREAD_GROUP_SHARE_L1);
-	if (err)
-		goto out;
+	tg = get_thread_groups(cpu, cache_property, &err);
+	if (!tg)
+		return err;
 
-	cpu_group_start = get_cpu_thread_group_start(cpu, &tg);
+	cpu_group_start = get_cpu_thread_group_start(cpu, tg);
 
 	if (unlikely(cpu_group_start == -1)) {
 		WARN_ON_ONCE(1);
-		err = -ENODATA;
-		goto out;
+		return -ENODATA;
 	}
 
-	zalloc_cpumask_var_node(&per_cpu(cpu_l1_cache_map, cpu),
-				GFP_KERNEL, cpu_to_node(cpu));
+	if (cache_property == THREAD_GROUP_SHARE_L1)
+		mask = &per_cpu(thread_group_l1_cache_map, cpu);
+	else if (cache_property == THREAD_GROUP_SHARE_L2)
+		mask = &per_cpu(thread_group_l2_cache_map, cpu);
+
+	zalloc_cpumask_var_node(mask, GFP_KERNEL, cpu_to_node(cpu));
 
 	for (i = first_thread; i < first_thread + threads_per_core; i++) {
-		int i_group_start = get_cpu_thread_group_start(i, &tg);
+		int i_group_start = get_cpu_thread_group_start(i, tg);
 
 		if (unlikely(i_group_start == -1)) {
 			WARN_ON_ONCE(1);
-			err = -ENODATA;
-			goto out;
+			return -ENODATA;
 		}
 
 		if (i_group_start == cpu_group_start)
-			cpumask_set_cpu(i, per_cpu(cpu_l1_cache_map, cpu));
+			cpumask_set_cpu(i, *mask);
 	}
 
-out:
-	of_node_put(dn);
-	return err;
+	return 0;
 }
 
 static bool shared_caches;
@@ -919,12 +990,12 @@ static struct sched_domain_topology_level powerpc_topology[] = {
 	{ NULL, },
 };
 
-static int init_big_cores(void)
+static int __init init_big_cores(void)
 {
 	int cpu;
 
 	for_each_possible_cpu(cpu) {
-		int err = init_cpu_l1_cache_map(cpu);
+		int err = init_thread_group_cache_map(cpu, THREAD_GROUP_SHARE_L1);
 
 		if (err)
 			return err;
@@ -935,6 +1006,16 @@ static int init_big_cores(void)
 	}
 
 	has_big_cores = true;
+
+	for_each_possible_cpu(cpu) {
+		int err = init_thread_group_cache_map(cpu, THREAD_GROUP_SHARE_L2);
+
+		if (err)
+			return err;
+	}
+
+	thread_group_shares_l2 = true;
+	pr_debug("L2 cache only shared by the threads in the small core\n");
 	return 0;
 }
 
@@ -1249,6 +1330,28 @@ static bool update_mask_by_l2(int cpu, cpumask_var_t *mask)
 	if (has_big_cores)
 		submask_fn = cpu_smallcore_mask;
 
+	/*
+	 * If the threads in a thread-group share L2 cache, then the
+	 * L2-mask can be obtained from thread_group_l2_cache_map.
+	 */
+	if (thread_group_shares_l2) {
+		cpumask_set_cpu(cpu, cpu_l2_cache_mask(cpu));
+
+		for_each_cpu(i, per_cpu(thread_group_l2_cache_map, cpu)) {
+			if (cpu_online(i))
+				set_cpus_related(i, cpu, cpu_l2_cache_mask);
+		}
+
+		/* Verify that L1-cache siblings are a subset of L2 cache-siblings */
+		if (!cpumask_equal(submask_fn(cpu), cpu_l2_cache_mask(cpu)) &&
+		    !cpumask_subset(submask_fn(cpu), cpu_l2_cache_mask(cpu))) {
+			pr_warn_once("CPU %d : Inconsistent L1 and L2 cache siblings\n",
+				     cpu);
+		}
+
+		return true;
+	}
+
 	l2_cache = cpu_to_l2cache(cpu);
 	if (!l2_cache || !*mask) {
 		/* Assume only core siblings share cache with this CPU */
@@ -1320,7 +1423,7 @@ static inline void add_cpu_to_smallcore_masks(int cpu)
 
 	cpumask_set_cpu(cpu, cpu_smallcore_mask(cpu));
 
-	for_each_cpu(i, per_cpu(cpu_l1_cache_map, cpu)) {
+	for_each_cpu(i, per_cpu(thread_group_l1_cache_map, cpu)) {
 		if (cpu_online(i))
 			set_cpus_related(i, cpu, cpu_smallcore_mask);
 	}

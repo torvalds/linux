@@ -165,7 +165,10 @@ static struct list_head *remove_irq_handler(struct amdgpu_device *adev,
 		handler = list_entry(entry, struct amdgpu_dm_irq_handler_data,
 				     list);
 
-		if (ih == handler) {
+		if (handler == NULL)
+			continue;
+
+		if (ih == handler->handler) {
 			/* Found our handler. Remove it from the list. */
 			list_del(&handler->list);
 			handler_removed = true;

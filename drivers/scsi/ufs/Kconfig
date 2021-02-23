@@ -72,6 +72,7 @@ config SCSI_UFS_DWC_TC_PCI
 config SCSI_UFSHCD_PLATFORM
 	tristate "Platform bus based UFS Controller support"
 	depends on SCSI_UFSHCD
+	depends on HAS_IOMEM
 	help
 	This selects the UFS host controller support. Select this if
 	you have an UFS controller on Platform bus.

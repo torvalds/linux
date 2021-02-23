@@ -213,12 +213,14 @@ static int __tipc_nl_compat_dumpit(struct tipc_nl_compat_cmd_dump *cmd,
 	}
 
 	info.attrs = attrbuf;
-	err = nlmsg_parse_deprecated(cb.nlh, GENL_HDRLEN, attrbuf,
-				     tipc_genl_family.maxattr,
-				     tipc_genl_family.policy, NULL);
-	if (err)
-		goto err_out;
 
+	if (nlmsg_len(cb.nlh) > 0) {
+		err = nlmsg_parse_deprecated(cb.nlh, GENL_HDRLEN, attrbuf,
+					     tipc_genl_family.maxattr,
+					     tipc_genl_family.policy, NULL);
+		if (err)
+			goto err_out;
+	}
 	do {
 		int rem;
 

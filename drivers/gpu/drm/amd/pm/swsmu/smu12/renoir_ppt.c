@@ -188,6 +188,7 @@ static int renoir_get_dpm_clk_limited(struct smu_context *smu, enum smu_clk_type
 			return -EINVAL;
 		*freq = clk_table->SocClocks[dpm_level].Freq;
 		break;
+	case SMU_UCLK:
 	case SMU_MCLK:
 		if (dpm_level >= NUM_FCLK_DPM_LEVELS)
 			return -EINVAL;
@@ -1120,7 +1121,7 @@ static ssize_t renoir_get_gpu_metrics(struct smu_context *smu,
 static int renoir_gfx_state_change_set(struct smu_context *smu, uint32_t state)
 {
 
-	return smu_cmn_send_smc_msg_with_param(smu, SMU_MSG_GpuChangeState, state, NULL);
+	return 0;
 }
 
 static const struct pptable_funcs renoir_ppt_funcs = {

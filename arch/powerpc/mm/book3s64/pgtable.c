@@ -136,12 +136,18 @@ static pmd_t pmd_set_protbits(pmd_t pmd, pgprot_t pgprot)
 	return __pmd(pmd_val(pmd) | pgprot_val(pgprot));
 }
 
+/*
+ * At some point we should be able to get rid of
+ * pmd_mkhuge() and mk_huge_pmd() when we update all the
+ * other archs to mark the pmd huge in pfn_pmd()
+ */
 pmd_t pfn_pmd(unsigned long pfn, pgprot_t pgprot)
 {
 	unsigned long pmdv;
 
 	pmdv = (pfn << PAGE_SHIFT) & PTE_RPN_MASK;
-	return pmd_set_protbits(__pmd(pmdv), pgprot);
+
+	return __pmd_mkhuge(pmd_set_protbits(__pmd(pmdv), pgprot));
 }
 
 pmd_t mk_pmd(struct page *page, pgprot_t pgprot)

@@ -737,15 +737,15 @@ xfs_qm_destroy_quotainfo(
  */
 STATIC int
 xfs_qm_qino_alloc(
-	xfs_mount_t	*mp,
-	xfs_inode_t	**ip,
-	uint		flags)
+	struct xfs_mount	*mp,
+	struct xfs_inode	**ipp,
+	unsigned int		flags)
 {
-	xfs_trans_t	*tp;
-	int		error;
-	bool		need_alloc = true;
+	struct xfs_trans	*tp;
+	int			error;
+	bool			need_alloc = true;
 
-	*ip = NULL;
+	*ipp = NULL;
 	/*
 	 * With superblock that doesn't have separate pquotino, we
 	 * share an inode between gquota and pquota. If the on-disk
@@ -771,7 +771,7 @@ xfs_qm_qino_alloc(
 				return -EFSCORRUPTED;
 		}
 		if (ino != NULLFSINO) {
-			error = xfs_iget(mp, NULL, ino, 0, 0, ip);
+			error = xfs_iget(mp, NULL, ino, 0, 0, ipp);
 			if (error)
 				return error;
 			mp->m_sb.sb_gquotino = NULLFSINO;
@@ -787,7 +787,7 @@ xfs_qm_qino_alloc(
 		return error;
 
 	if (need_alloc) {
-		error = xfs_dir_ialloc(&tp, NULL, S_IFREG, 1, 0, 0, ip);
+		error = xfs_dir_ialloc(&tp, NULL, S_IFREG, 1, 0, 0, ipp);
 		if (error) {
 			xfs_trans_cancel(tp);
 			return error;
@@ -812,11 +812,11 @@ xfs_qm_qino_alloc(
 		mp->m_sb.sb_qflags = mp->m_qflags & XFS_ALL_QUOTA_ACCT;
 	}
 	if (flags & XFS_QMOPT_UQUOTA)
-		mp->m_sb.sb_uquotino = (*ip)->i_ino;
+		mp->m_sb.sb_uquotino = (*ipp)->i_ino;
 	else if (flags & XFS_QMOPT_GQUOTA)
-		mp->m_sb.sb_gquotino = (*ip)->i_ino;
+		mp->m_sb.sb_gquotino = (*ipp)->i_ino;
 	else
-		mp->m_sb.sb_pquotino = (*ip)->i_ino;
+		mp->m_sb.sb_pquotino = (*ipp)->i_ino;
 	spin_unlock(&mp->m_sb_lock);
 	xfs_log_sb(tp);
 
@@ -826,7 +826,7 @@ xfs_qm_qino_alloc(
 		xfs_alert(mp, "%s failed (error %d)!", __func__, error);
 	}
 	if (need_alloc)
-		xfs_finish_inode_setup(*ip);
+		xfs_finish_inode_setup(*ipp);
 	return error;
 }
 

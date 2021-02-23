@@ -303,11 +303,12 @@ DEFINE_IDTENTRY_ERRORCODE(exc_alignment_check)
 	local_irq_enable();
 
 	if (handle_user_split_lock(regs, error_code))
-		return;
+		goto out;
 
 	do_trap(X86_TRAP_AC, SIGBUS, "alignment check", regs,
 		error_code, BUS_ADRALN, NULL);
 
+out:
 	local_irq_disable();
 }
 

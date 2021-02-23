@@ -82,10 +82,11 @@
 #define NUM_AHB_CLKS 2
 
 /**
- * @struct geni_wrapper - Data structure to represent the QUP Wrapper Core
+ * struct geni_wrapper - Data structure to represent the QUP Wrapper Core
  * @dev:		Device pointer of the QUP wrapper core
  * @base:		Base address of this instance of QUP wrapper core
  * @ahb_clks:		Handle to the primary & secondary AHB clocks
+ * @to_core:		Core ICC path
  */
 struct geni_wrapper {
 	struct device *dev;
@@ -237,7 +238,7 @@ static void geni_se_irq_clear(struct geni_se *se)
  * geni_se_init() - Initialize the GENI serial engine
  * @se:		Pointer to the concerned serial engine.
  * @rx_wm:	Receive watermark, in units of FIFO words.
- * @rx_rfr_wm:	Ready-for-receive watermark, in units of FIFO words.
+ * @rx_rfr:	Ready-for-receive watermark, in units of FIFO words.
  *
  * This function is used to initialize the GENI serial engine, configure
  * receive watermark and ready-for-receive watermarks.
@@ -732,7 +733,7 @@ void geni_se_tx_dma_unprep(struct geni_se *se, dma_addr_t iova, size_t len)
 {
 	struct geni_wrapper *wrapper = se->wrapper;
 
-	if (iova && !dma_mapping_error(wrapper->dev, iova))
+	if (!dma_mapping_error(wrapper->dev, iova))
 		dma_unmap_single(wrapper->dev, iova, len, DMA_TO_DEVICE);
 }
 EXPORT_SYMBOL(geni_se_tx_dma_unprep);
@@ -749,7 +750,7 @@ void geni_se_rx_dma_unprep(struct geni_se *se, dma_addr_t iova, size_t len)
 {
 	struct geni_wrapper *wrapper = se->wrapper;
 
-	if (iova && !dma_mapping_error(wrapper->dev, iova))
+	if (!dma_mapping_error(wrapper->dev, iova))
 		dma_unmap_single(wrapper->dev, iova, len, DMA_FROM_DEVICE);
 }
 EXPORT_SYMBOL(geni_se_rx_dma_unprep);

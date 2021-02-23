@@ -1,6 +1,8 @@
 // SPDX-License-Identifier: GPL-2.0
 
 #define _GNU_SOURCE
+#include <asm/unistd.h>
+#include <linux/time_types.h>
 #include <poll.h>
 #include <unistd.h>
 #include <assert.h>
@@ -20,6 +22,19 @@ struct epoll_mtcontext
 	pthread_t main;
 	pthread_t waiter;
 };
+
+#ifndef __NR_epoll_pwait2
+#define __NR_epoll_pwait2 -1
+#endif
+
+static inline int sys_epoll_pwait2(int fd, struct epoll_event *events,
+				   int maxevents,
+				   const struct __kernel_timespec *timeout,
+				   const sigset_t *sigset, size_t sigsetsize)
+{
+	return syscall(__NR_epoll_pwait2, fd, events, maxevents, timeout,
+		       sigset, sigsetsize);
+}
 
 static void signal_handler(int signum)
 {
@@ -3375,6 +3390,63 @@ TEST(epoll61)
 
 	close(ctx.epfd);
 	close(ctx.evfd);
+}
+
+/* Equivalent to basic test epoll1, but exercising epoll_pwait2. */
+TEST(epoll62)
+{
+	int efd;
+	int sfd[2];
+	struct epoll_event e;
+
+	ASSERT_EQ(socketpair(AF_UNIX, SOCK_STREAM, 0, sfd), 0);
+
+	efd = epoll_create(1);
+	ASSERT_GE(efd, 0);
+
+	e.events = EPOLLIN;
+	ASSERT_EQ(epoll_ctl(efd, EPOLL_CTL_ADD, sfd[0], &e), 0);
+
+	ASSERT_EQ(write(sfd[1], "w", 1), 1);
+
+	EXPECT_EQ(sys_epoll_pwait2(efd, &e, 1, NULL, NULL, 0), 1);
+	EXPECT_EQ(sys_epoll_pwait2(efd, &e, 1, NULL, NULL, 0), 1);
+
+	close(efd);
+	close(sfd[0]);
+	close(sfd[1]);
+}
+
+/* Epoll_pwait2 basic timeout test. */
+TEST(epoll63)
+{
+	const int cfg_delay_ms = 10;
+	unsigned long long tdiff;
+	struct __kernel_timespec ts;
+	int efd;
+	int sfd[2];
+	struct epoll_event e;
+
+	ASSERT_EQ(socketpair(AF_UNIX, SOCK_STREAM, 0, sfd), 0);
+
+	efd = epoll_create(1);
+	ASSERT_GE(efd, 0);
+
+	e.events = EPOLLIN;
+	ASSERT_EQ(epoll_ctl(efd, EPOLL_CTL_ADD, sfd[0], &e), 0);
+
+	ts.tv_sec = 0;
+	ts.tv_nsec = cfg_delay_ms * 1000 * 1000;
+
+	tdiff = msecs();
+	EXPECT_EQ(sys_epoll_pwait2(efd, &e, 1, &ts, NULL, 0), 0);
+	tdiff = msecs() - tdiff;
+
+	EXPECT_GE(tdiff, cfg_delay_ms);
+
+	close(efd);
+	close(sfd[0]);
+	close(sfd[1]);
 }
 
 TEST_HARNESS_MAIN

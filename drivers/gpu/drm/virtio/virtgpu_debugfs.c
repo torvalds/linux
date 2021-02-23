@@ -67,8 +67,8 @@ virtio_gpu_debugfs_irq_info(struct seq_file *m, void *data)
 	struct virtio_gpu_device *vgdev = node->minor->dev->dev_private;
 
 	seq_printf(m, "fence %llu %lld\n",
-		   (u64)atomic64_read(&vgdev->fence_drv.last_seq),
-		   vgdev->fence_drv.sync_seq);
+		   (u64)atomic64_read(&vgdev->fence_drv.last_fence_id),
+		   vgdev->fence_drv.current_fence_id);
 	return 0;
 }
 

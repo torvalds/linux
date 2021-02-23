@@ -49,7 +49,9 @@ config PHY_MTK_HDMI
 
 config PHY_MTK_MIPI_DSI
 	tristate "MediaTek MIPI-DSI Driver"
-	depends on ARCH_MEDIATEK && OF
+	depends on ARCH_MEDIATEK || COMPILE_TEST
+	depends on COMMON_CLK
+	depends on OF
 	select GENERIC_PHY
 	help
 	  Support MIPI DSI for Mediatek SoCs.
