@@ -174,7 +174,7 @@ Date:           Jan 2019
 KernelVersion:  5.1
 Contact:        ogabbay@kernel.org
 Description:    Displays a list with information about all the active virtual
-                address mappings per ASID
+                address mappings per ASID and all user mappings of HW blocks
 
 What:           /sys/kernel/debug/habanalabs/hl<n>/stop_on_err
 Date:           Mar 2020

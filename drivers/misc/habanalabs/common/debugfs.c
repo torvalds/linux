@@ -229,6 +229,7 @@ static int vm_show(struct seq_file *s, void *data)
 {
 	struct hl_debugfs_entry *entry = s->private;
 	struct hl_dbg_device_entry *dev_entry = entry->dev_entry;
+	struct hl_vm_hw_block_list_node *lnode;
 	struct hl_ctx *ctx;
 	struct hl_vm *vm;
 	struct hl_vm_hash_node *hnode;
@@ -271,6 +272,21 @@ static int vm_show(struct seq_file *s, void *data)
 			}
 		}
 		mutex_unlock(&ctx->mem_hash_lock);
+
+		if (ctx->asid != HL_KERNEL_ASID_ID &&
+		    !list_empty(&ctx->hw_block_mem_list)) {
+			seq_puts(s, "\nhw_block mappings:\n\n");
+			seq_puts(s, "    virtual address    size    HW block id\n");
+			seq_puts(s, "-------------------------------------------\n");
+			mutex_lock(&ctx->hw_block_list_lock);
+			list_for_each_entry(lnode, &ctx->hw_block_mem_list,
+					    node) {
+				seq_printf(s,
+					"    0x%-14lx   %-6u      %-9u\n",
+					lnode->vaddr, lnode->size, lnode->id);
+			}
+			mutex_unlock(&ctx->hw_block_list_lock);
+		}
 
 		vm = &ctx->hdev->vm;
 		spin_lock(&vm->idr_lock);

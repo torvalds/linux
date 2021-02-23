@@ -1103,9 +1103,11 @@ struct hl_pending_cb {
  * @mem_hash_lock: protects the mem_hash.
  * @mmu_lock: protects the MMU page tables. Any change to the PGT, modifying the
  *            MMU hash or walking the PGT requires talking this lock.
+ * @hw_block_list_lock: protects the HW block memory list.
  * @debugfs_list: node in debugfs list of contexts.
  * pending_cb_list: list of pending command buffers waiting to be sent upon
  *                  next user command submission context.
+ * @hw_block_mem_list: list of HW block virtual mapped addresses.
  * @cs_counters: context command submission counters.
  * @cb_va_pool: device VA pool for command buffers which are mapped to the
  *              device's MMU.
@@ -1142,8 +1144,10 @@ struct hl_ctx {
 	struct hl_va_range		*va_range[HL_VA_RANGE_TYPE_MAX];
 	struct mutex			mem_hash_lock;
 	struct mutex			mmu_lock;
+	struct mutex			hw_block_list_lock;
 	struct list_head		debugfs_list;
 	struct list_head		pending_cb_list;
+	struct list_head		hw_block_mem_list;
 	struct hl_cs_counters_atomic	cs_counters;
 	struct gen_pool			*cb_va_pool;
 	u64				cs_sequence;
@@ -1360,6 +1364,23 @@ struct hl_vm_hash_node {
 	struct hlist_node	node;
 	u64			vaddr;
 	void			*ptr;
+};
+
+/**
+ * struct hl_vm_hw_block_list_node - list element from user virtual address to
+ *				HW block id.
+ * @node: node to hang on the list in context object.
+ * @ctx: the context this node belongs to.
+ * @vaddr: virtual address of the HW block.
+ * @size: size of the block.
+ * @id: HW block id (handle).
+ */
+struct hl_vm_hw_block_list_node {
+	struct list_head	node;
+	struct hl_ctx		*ctx;
+	unsigned long		vaddr;
+	u32			size;
+	u32			id;
 };
 
 /**
@@ -2277,6 +2298,9 @@ void hl_vm_ctx_fini(struct hl_ctx *ctx);
 
 int hl_vm_init(struct hl_device *hdev);
 void hl_vm_fini(struct hl_device *hdev);
+
+void hl_hw_block_mem_init(struct hl_ctx *ctx);
+void hl_hw_block_mem_fini(struct hl_ctx *ctx);
 
 u64 hl_reserve_va_block(struct hl_device *hdev, struct hl_ctx *ctx,
 		enum hl_va_range_type type, u32 size, u32 alignment);

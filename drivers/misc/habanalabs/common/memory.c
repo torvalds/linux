@@ -1305,9 +1305,15 @@ static int map_block(struct hl_device *hdev, u64 address, u64 *handle,
 
 static void hw_block_vm_close(struct vm_area_struct *vma)
 {
-	struct hl_ctx *ctx = (struct hl_ctx *) vma->vm_private_data;
+	struct hl_vm_hw_block_list_node *lnode =
+		(struct hl_vm_hw_block_list_node *) vma->vm_private_data;
+	struct hl_ctx *ctx = lnode->ctx;
 
+	mutex_lock(&ctx->hw_block_list_lock);
+	list_del(&lnode->node);
+	mutex_unlock(&ctx->hw_block_list_lock);
 	hl_ctx_put(ctx);
+	kfree(lnode);
 	vma->vm_private_data = NULL;
 }
 
@@ -1325,7 +1331,9 @@ static const struct vm_operations_struct hw_block_vm_ops = {
  */
 int hl_hw_block_mmap(struct hl_fpriv *hpriv, struct vm_area_struct *vma)
 {
+	struct hl_vm_hw_block_list_node *lnode;
 	struct hl_device *hdev = hpriv->hdev;
+	struct hl_ctx *ctx = hpriv->ctx;
 	u32 block_id, block_size;
 	int rc;
 
@@ -1351,16 +1359,30 @@ int hl_hw_block_mmap(struct hl_fpriv *hpriv, struct vm_area_struct *vma)
 		return -EINVAL;
 	}
 
-	vma->vm_ops = &hw_block_vm_ops;
-	vma->vm_private_data = hpriv->ctx;
+	lnode = kzalloc(sizeof(*lnode), GFP_KERNEL);
+	if (!lnode)
+		return -ENOMEM;
 
-	hl_ctx_get(hdev, hpriv->ctx);
+	vma->vm_ops = &hw_block_vm_ops;
+	vma->vm_private_data = lnode;
+
+	hl_ctx_get(hdev, ctx);
 
 	rc = hdev->asic_funcs->hw_block_mmap(hdev, vma, block_id, block_size);
 	if (rc) {
-		hl_ctx_put(hpriv->ctx);
+		hl_ctx_put(ctx);
+		kfree(lnode);
 		return rc;
 	}
+
+	lnode->ctx = ctx;
+	lnode->vaddr = vma->vm_start;
+	lnode->size = block_size;
+	lnode->id = block_id;
+
+	mutex_lock(&ctx->hw_block_list_lock);
+	list_add_tail(&lnode->node, &ctx->hw_block_mem_list);
+	mutex_unlock(&ctx->hw_block_list_lock);
 
 	vma->vm_pgoff = block_id;
 
@@ -2121,4 +2143,39 @@ void hl_vm_fini(struct hl_device *hdev)
 				__func__);
 
 	vm->init_done = false;
+}
+
+/**
+ * hl_hw_block_mem_init() - HW block memory initialization.
+ * @ctx: pointer to the habanalabs context structure.
+ *
+ * This function initializes the HW block virtual mapped addresses list and
+ * it's lock.
+ */
+void hl_hw_block_mem_init(struct hl_ctx *ctx)
+{
+	mutex_init(&ctx->hw_block_list_lock);
+	INIT_LIST_HEAD(&ctx->hw_block_mem_list);
+}
+
+/**
+ * hl_hw_block_mem_fini() - HW block memory teardown.
+ * @ctx: pointer to the habanalabs context structure.
+ *
+ * This function clears the HW block virtual mapped addresses list and destroys
+ * it's lock.
+ */
+void hl_hw_block_mem_fini(struct hl_ctx *ctx)
+{
+	struct hl_vm_hw_block_list_node *lnode, *tmp;
+
+	if (!list_empty(&ctx->hw_block_mem_list))
+		dev_crit(ctx->hdev->dev, "HW block mem list isn't empty\n");
+
+	list_for_each_entry_safe(lnode, tmp, &ctx->hw_block_mem_list, node) {
+		list_del(&lnode->node);
+		kfree(lnode);
+	}
+
+	mutex_destroy(&ctx->hw_block_list_lock);
 }
