@@ -395,6 +395,7 @@ struct amdgpu_display_manager {
 	 */
 	struct amdgpu_encoder mst_encoders[AMDGPU_DM_MAX_CRTC];
 	bool force_timing_sync;
+	bool dmcub_trace_event_en;
 	/**
 	 * @da_list:
 	 *

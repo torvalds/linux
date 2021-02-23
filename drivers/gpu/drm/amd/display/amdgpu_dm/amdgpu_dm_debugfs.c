@@ -34,6 +34,7 @@
 #include "resource.h"
 #include "dsc.h"
 #include "dc_link_dp.h"
+#include "dc/dc_dmub_srv.h"
 
 struct dmub_debugfs_trace_header {
 	uint32_t entry_count;
@@ -2490,6 +2491,39 @@ static int psr_get(void *data, u64 *val)
 	return 0;
 }
 
+/*
+ * Set dmcub trace event IRQ enable or disable.
+ * Usage to enable dmcub trace event IRQ: echo 1 > /sys/kernel/debug/dri/0/amdgpu_dm_dmcub_trace_event_en
+ * Usage to disable dmcub trace event IRQ: echo 0 > /sys/kernel/debug/dri/0/amdgpu_dm_dmcub_trace_event_en
+ */
+static int dmcub_trace_event_state_set(void *data, u64 val)
+{
+	struct amdgpu_device *adev = data;
+
+	if (val == 1 || val == 0) {
+		dc_dmub_trace_event_control(adev->dm.dc, val);
+		adev->dm.dmcub_trace_event_en = (bool)val;
+	} else
+		return 0;
+
+	return 0;
+}
+
+/*
+ * The interface doesn't need get function, so it will return the
+ * value of zero
+ * Usage: cat /sys/kernel/debug/dri/0/amdgpu_dm_dmcub_trace_event_en
+ */
+static int dmcub_trace_event_state_get(void *data, u64 *val)
+{
+	struct amdgpu_device *adev = data;
+
+	*val = adev->dm.dmcub_trace_event_en;
+	return 0;
+}
+
+DEFINE_DEBUGFS_ATTRIBUTE(dmcub_trace_event_state_fops, dmcub_trace_event_state_get,
+			 dmcub_trace_event_state_set, "%llu\n");
 
 DEFINE_DEBUGFS_ATTRIBUTE(psr_fops, psr_get, NULL, "%llu\n");
 
@@ -2970,4 +3004,7 @@ void dtn_debugfs_init(struct amdgpu_device *adev)
 
 	debugfs_create_file_unsafe("amdgpu_dm_force_timing_sync", 0644, root,
 				   adev, &force_timing_sync_ops);
+
+	debugfs_create_file_unsafe("amdgpu_dm_dmcub_trace_event_en", 0644, root,
+				   adev, &dmcub_trace_event_state_fops);
 }
